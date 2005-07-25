@@ -60,18 +60,16 @@ OBJS =	wland.o \
 
 
 wland: $(OBJS)
-	$(CC) $(LDFLAGS) -o wland $(OBJS)
+	$(CC) $(LDFLAGS) -o wland $(OBJS) $(LDLIBS) $(LIBS)
 
 install:
 	mkdir -p $(TARGET_INST_EXEDIR)
-	cp wland $(TARGET_INST_EXEDIR)/wland
-
-romfs:
-	$(ROMFSINST) -e CONFIG_USER_WLAN_NG_WLAND /sbin/wland
+	cp -f wland $(TARGET_INST_EXEDIR)/wland
 
 clean: 
 	rm -f core core.* *.o .*.o *.s *.a .depend tmp_make *~ tags
 	rm -f wland
 	for i in *_obj; do if [ -d $$i ]; then rm -fr $$i; fi; done
 
-
+romfs:
+	$(ROMFSINST) -e CONFIG_USER_WLAN_NG_WLAND /sbin/wland

@@ -1,21 +1,65 @@
                                  Hey Emacs, this is -*- outline -*- mode
 
-This is the to-do list for Wget.  There is no timetable of when we plan to
-implement these features -- this is just a list of things it'd be nice to see in
-Wget.  Patches to implement any of these items would be gladly accepted.  The
-items are not listed in any particular order (except that recently-added items
-may tend towards the top).  Not all of these represent user-visible
-changes.
+This is the to-do list for GNU Wget.  There is no timetable of when we
+plan to implement these features -- this is just a list of features
+we'd like to see in Wget, as well as a list of problems that need
+fixing.  Patches to implement these items are likely to be accepted,
+especially if they follow the coding convention outlined in PATCHES
+and if they patch the documentation as well.
 
-* Take a look at
-  <http://info.webcrawler.com/mak/projects/robots/norobots-rfc.html>
-  and support the new directives.
+The items are not listed in any particular order (except that
+recently-added items may tend towards the top).  Not all of these
+represent user-visible changes.
 
-* Generalize --html-extension to something like --mime-extensions and have it
-  look at mime.types/mimecap file for preferred extension.  Non-HTML files with
-  filenames changed this way would be re-downloaded each time despite -N unless
-  .orig files were saved for them.  Since .orig would contain the same data as
-  non-.orig, the latter could be just a link to the former.  Another possibility
+* Currently Wget mirrors remote FTP permissions whenever it retrieves
+  the directory listing.  This is undesirable for most users, as
+  permissions like "664" are frequently used on the servers, which
+  might not be what the user wants.  Wget should be changed not to
+  mirror remote FTP permissions by default.  There should be a new
+  option add an option that enables this back on.
+
+* Honor `Content-Disposition: XXX; filename="FILE"' when creating the
+  file name.  If possible, try not to break `-nc' and friends when
+  doing that.
+
+* Should allow retries with multiple downloads when using -O on
+  regular files.  As the source comment says: "A possible solution to
+  [rewind not working with multiple downloads] would be to remember
+  the file position in the output document and to seek to that
+  position, instead of rewinding."
+
+  But the above won't work for -O/dev/stdout, when stdout is a pipe.
+  An even better solution would be to simply keep writing to the same
+  file descriptor each time, instead of reopening it in append mode.
+
+* Wget shouldn't delete rejected files that were not downloaded, but
+  just found on disk because of `-nc'.  For example, `wget -r -nc
+  -A.gif URL' should allow the user to get all the GIFs without
+  removing any of the existing HTML files.
+
+* Be careful not to lose username/password information given for the
+  URL on the command line.
+
+* Add a --range parameter allowing you to explicitly specify a range
+  of bytes to get from a file over HTTP (FTP only supports ranges
+  ending at the end of the file, though forcibly disconnecting from
+  the server at the desired endpoint might be workable).
+
+* If multiple FTP URLs are specified that are on the same host, Wget should
+  re-use the connection rather than opening a new one for each file.
+
+* Try to devise a scheme so that, when password is unknown, Wget asks
+  the user for one.
+
+* If -c used with -N, check to make sure a file hasn't changed on the server
+  before "continuing" to download it (preventing a bogus hybrid file).
+
+* Generalize --html-extension to something like --mime-extensions and
+  have it look at mime.types/mimecap file for preferred extension.
+  Non-HTML files with filenames changed this way would be
+  re-downloaded each time despite -N unless .orig files were saved for
+  them.  Since .orig would contain the same data as non-.orig, the
+  latter could be just a link to the former.  Another possibility
   would be to implement a per-directory database called something like
   .wget_url_mapping containing URLs and their corresponding filenames.
 
@@ -23,99 +67,49 @@ changes.
   files in a certain directory on _one_ of the hosts (-I and -X apply to all).
   Perhaps -I and -X should take an optional hostname before the directory?
 
-* Add an option to not encode special characters like ' ' and '~' when saving
-  local files.  Would be good to have a mode that encodes all special characters
-  (as now), one that encodes none (as above), and one that only encodes a
-  character if it was encoded in the original URL (e.g. %20 but not %7E).
-
 * --retr-symlinks should cause wget to traverse links to directories too.
 
 * Make wget return non-zero status in more situations, like incorrect HTTP auth.
 
-* Timestamps are sometimes not copied over on files retrieved by FTP.
-
 * Make -K compare X.orig to X and move the former on top of the latter if 
   they're the same, rather than leaving identical .orig files laying around.
-
-* Allow mirroring of FTP URLs where logging in puts you somewhere else besides 
-  '/'. 
-
-* If CGI output is saved to a file, e.g. cow.cgi?param, -k needs to change the
-  '?' to a "%3F" in links to that file to avoid passing part of the filename as
-  a parameter.
-
-* Make `-k' convert <base href=...> too.
 
 * Make `-k' check for files that were downloaded in the past and convert links 
   to them in newly-downloaded documents.
 
-* -k should convert relative references to absolute if not downloaded.
-
-* -k should convert "hostless absolute" URLs, like <A HREF="/index.html">.
-  However, Brian McMahon <bm@iucr.org> wants the old incorrect behavior to still
-  be available as an option, as he depends on it to allow mirrors of his site to
-  send CGI queries to his original site, but still get graphics off of the
-  mirror site.  Perhaps this would be better dealt with by adding an option to
-  tell -k not to convert certain URL patterns?
-
 * Add option to clobber existing file names (no `.N' suffixes).
 
-* Introduce a concept of "boolean" options.  For instance, every
-  boolean option `--foo' would have a `--no-foo' equivalent for
-  turning it off.  Get rid of `--foo=no' stuff.  Short options would
-  be handled as `-x' vs. `-nx'.
-
-* Implement "thermometer" display (not all that hard; use an
-  alternative show_progress() if the output goes to a terminal.)
+* Introduce real "boolean" options.  Every `--foo' setting should have
+  a corresponding `--no-foo' that turns off.  This is useful even for
+  options turned off by default, because the default can be reversed
+  in `.wgetrc'.  Get rid of `--foo=no'.  Short options would be
+  handled as `-x' vs. `-nx'.
 
 * Add option to only list wildcard matches without doing the download.
-
-* Add case-insensitivity as an option.
 
 * Handle MIME types correctly.  There should be an option to (not)
   retrieve files based on MIME types, e.g. `--accept-types=image/*'.
 
-* Implement "persistent" retrieving.  In "persistent" mode Wget should
-  treat most of the errors as transient.
-
 * Allow time-stamping by arbitrary date.
-
-* Fix Unix directory parser to allow for spaces in file names.
 
 * Allow size limit to files (perhaps with an option to download oversize files 
   up through the limit or not at all, to get more functionality than [u]limit.
 
-* Recognize HTML comments correctly.  Add more options for handling
-  bogus HTML found all over the 'net.
-
-* Implement breadth-first retrieval.
-
 * Download to .in* when mirroring.
 
 * Add an option to delete or move no-longer-existent files when mirroring.
-
-* Implement a switch to avoid downloading multiple files (e.g. x and x.gz).
 
 * Implement uploading (--upload URL?) in FTP and HTTP.
 
 * Rewrite FTP code to allow for easy addition of new commands.  It
   should probably be coded as a simple DFA engine.
 
-* Recognize more FTP servers (VMS).
-
 * Make HTTP timestamping use If-Modified-Since facility.
-
-* Implement better spider options.
 
 * Add more protocols (e.g. gopher and news), implementing them in a
   modular fashion.
 
-* Implement a concept of "packages" a la mirror.
-
-* Implement correct RFC1808 URL parsing.
-
-* Implement HTTP cookies.
-
-* Implement more HTTP/1.1 bells and whistles (ETag, Content-MD5 etc.)
-
-* Support SSL encryption through SSLeay or OpenSSL.
+* Add a "rollback" option to have continued retrieval throw away a
+  configurable number of bytes at the end of a file before resuming
+  download.  Apparently, some stupid proxies insert a "transfer
+  interrupted" string we need to get rid of.

@@ -146,6 +146,8 @@ Q: The wlan-ng driver says my ATMEL AT76C503A device is unsupported!
 
 	http://www.sourceforge.net/projects/atmelwlandriver
 
+	http://at76c503a.berlios.de/devices.html
+
 	and it is in a rather usable state.  The mailing list
 
 	http://iprserv.jura.uni-leipzig.de/mailman/listinfo/atmel-wlan-usb
@@ -166,9 +168,6 @@ Q: My prism2.5-based USB adapter won't come up if it's plugged in at boot!
 
 	Intersil has released Primary firmware 1.1.2, which seems to
 	have resolved this problem, at least on our test machines.
-	Contact your vendor for a firmware update.
-
-	To check the firmware version, run: "dmesg |grep ident"
 
 Q: My PC crashes when the USB device is plugged in!
 
@@ -186,6 +185,12 @@ Q: My PC crashes when the USB device is plugged in!
 	but the right way to fix it is to turn off the port reset
 	(options prism2_usb prism2_doreset=0).  The current firmware
 	from Intersil alleviates the need to perform the reset.
+
+	UPDATE:  if you're using linux-wlan-ng 0.2.1-pre6 or newer and 
+        kernel < 2.4.22-pre, the 'uhci' driver will NOT work without a 
+        kernel patch! See:
+
+	http://lists.linux-wlan.com/pipermail/linux-wlan-devel/2003-May/002369.html
 
 Q: My PC crashes when the USB device is unplugged!
 
@@ -272,18 +277,58 @@ Q: How do I know exactly what prism variant is on my card?
 		0x800f, 0x8010 :  Prism2.5 USB  (3863)
 		0x801e, 0x801f :  Prism2.5 USB  (3861B)
 		0x8025, 0x8026 :  Prism3 USB
-		
 
-Q: Where can I download updated firmware for my Prism2/2.5/3-based card?
+Q: How do I know what firmware my card has?
 
-	Ask your vendor.  Due to legal reasons, we cannot
-	provide updated frmware with the driver code.
+	After the driver is loaded and brought into ifstate=enable, you
+	will see the following lines in the kernel log: (eg dmesg |grep ident)
+
+	ident: pri f/w: id=0x15 0.3.0
+	ident: sta f/w: id=0x1f 1.7.1
+
+	In this case, the card has primary firmware 0.3.0 and secondary
+	firmware 1.7.1.  
+	
+	Or, if you are using 0.2.1-pre17 or newer:
+	'cat /proc/net/p80211/wlan0/nsd' with the card running.
 
 Q: How can I update my firmware under Linux?
 
-	Use the 'prism2dl' utility.  Note that it has been removed from
-	newer revisions of the driver sources due to liability reasons --
-        too many people fried their cards and blamed AVS for it.
+	Use the 'prism2dl' utility.  While it does its utmost to ensure 
+	you don't fry your card, use it at your own risk.  Even the 
+	Intersil-supplied tools fail occasionally.
+
+Q: Where can I download updated firmware for my Prism2/2.5/3-based card?
+
+	As of linux-wlan-ng 0.2.1-pre21, the ram download firmware for 
+	all supported card types is bundled with the driver.  These 
+	images cannot be flashed.
+
+	A general FAQ on firmware updating is here:
+		http://linux.junsun.net/intersil-prism
+
+	It includes links to some sites with firmware images.
+
+	We strongly recommend against flashing a new image, instead one 
+	should use the ram-download images that are loaded when the
+	driver starts, much like the Windows drivers do.
+
+	See the instructions below for getting this to work.
+
+Q: What's this about "ram downloading"?
+
+	This means the driver loads up a firmware images directly into
+	card RAM, instead of using the firmware stored in the card's 
+	flash ROM.  This lets us ensure we are using the lastest available
+	code without risking ruining the hardware due to a bad flashing.
+
+	linux-wlan-ng will automatically perform a RAM download if you have
+	the necessary firmware images.
+
+Q: Okay, I have new ram download firmware images, where do I put them?
+
+	copy the *hex files into linux-wlan-ng-XXXX/src/prism2/
+	then build and install the driver per usual.
 
 Q: Can I use my 802.11b card as an AP under Linux?
 
@@ -296,9 +341,6 @@ Q: Can I use my 802.11b card as an AP under Linux?
 
 	b) The Prism2 HostAP driver uses the special HostAP mode of the
            prism chipsets.            http://people.ssh.com/jkm/Prism2/
-
-	c) The OpenAP project, which involves flashing Linux on access
-           points.                    http://opensource.instant802.com/
 
 Q: After a few minutes of use, my card stops responding!  I'm using WEP.
 
@@ -421,3 +463,64 @@ Q: I'm using RedHat 8.x, and I get this error when trying to ifup wlan0:
 	You can safely ignore this; it is there because linux-wlan-ng
 	does not currently use the wireless extension commands for
 	configuration.
+
+Q: When the prism2_cs module loads, I see the message "RequestIRQ:
+   Resource in use" and the load fails! What's going on?
+
+   Is your card a 16-bit PCMCIA card? If it is, you may need to
+   recompile your kernel with ISA bus support enabled (CONFIG_ISA=y).
+   The PCMCIA core uses ISA bus support to help determine what IRQs
+   are available for the card. Without it, the PCMCIA core may not be
+   able to select an IRQ.
+
+Q: After installing linux-wlan-ng on my RedHat 9 system, pcmcia no 
+   longer works!
+
+	This is due to a bug in the RedHat 9 pcmcia startup scripts.
+	On or about line 105 in /etc/init.d/pcmcia, remove all of the
+	'.o' suffixes on the modprobe command lines.  It should read 
+	something like this:
+
+            if [ -d $PC ] ; then
+                echo -n " modules"
+                /sbin/modprobe pcmcia_core $CORE_OPTS
+                /sbin/modprobe $PCIC $PCIC_OPTS
+                /sbin/modprobe ds
+            elif [ -d $KD ] ; then
+                /sbin/modprobe pcmcia_core
+                /sbin/modprobe $PCIC
+                /sbin/modprobe ds
+            else
+
+Q: When starting the device, I get the following error:
+    '/sbin/prism2dl not found'
+
+	This is just a warning; the intialization sequence will 
+	continue on just fine. linux-wlan-ng supports the ram-download 
+	of firmware images into the card.   Linux-wlan-ng 0.2.1-pre17 or
+	newer includes the downloader, rendering this moot.
+
+Q: I found a copy of prism2dl on the net, installed it and now I get the 
+   following error on startup:
+    'prism2dl: Failed to read prism2_XX.hex, exiting.'
+
+	This means it didn't find the necessary firmware file to perform
+	a RAM download.  As distributed by Intersil (and most vendors) the 
+	filenames use the following convention:  rf010409.hex
+        'rf' is image name, while '010409' refers to v1.4.9.
+	copy all the images you have to the src/prism2 directory, and 
+	run 'make install'.  the images will be renamed and copied to 
+	the appropriate place and everything will be happy.
+	
+	Note that the filename needs to be lowercase.
+
+Q: I have a D-Link DWL-650P or a DWL-520E, why doesn't it work?
+
+	These cards are the first generally-available ones that use a 
+	short serial flash, or SSF.  In layspeek, it means that there
+	is no onboard firmware, and thus need the firmware loaded
+	into the card on startup.
+
+	linux-wlan-ng 0.2.1-pre17 supports SSF hardware, and -pre21 
+	includes firmware files with it.
+

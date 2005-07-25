@@ -56,101 +56,62 @@ ifeq ($(CONFIG_PACKET), y)
 WLAN_CS_CONFIG_SNIFF+=-DCONFIG_PACKET=1
 endif
 
-ifeq ($(KERN_25), y)
-
 ifneq ($(KERNELRELEASE),)
 
-EXTRA_CFLAGS += -I$(src)/../include $(WLAN_INCLUDE_DEBUG) $(WLAN_CS_CONFIG_SNIFF)
-obj-m += p80211.o 
+EXTRA_CFLAGS += -I$(WLAN_SRC)/../include $(WLAN_INCLUDE_DEBUG) $(WLAN_CS_CONFIG_SNIFF)
+
+ifeq ($(KERN_25), y)
+
 p80211-objs := p80211mod.o p80211conv.o p80211req.o p80211frm.o p80211wep.o p80211wext.o p80211netdev.o
+obj-m := p80211.o
 
-else
+else # kbuild-2.4
 
+O_TARGET := p80211.o
+obj-m := $(O_TARGET)
+obj-y := p80211mod.o p80211conv.o p80211req.o p80211frm.o p80211wep.o p80211wext.o p80211netdev.o p80211mod.o
+export-objs := p80211mod.o
+
+include $(TOPDIR)/Rules.make
+
+endif # kbuild switch
+
+else  # if KERNELRELEASE is not set..
+
+LDFLAGS :=
 PWD := $(shell pwd)
 default:
-	$(MAKE) -C $(LINUX_SRC) SUBDIRS=$(PWD) WLAN_SRC=$(PWD)/ modules
+
+ifeq ($(KERN_25), y)
+	if test ! -d $(PWD)/../.tmp_versions; then \
+		cp -rf $(LINUX_SRC)/.tmp_versions $(PWD)/../ ; \
+	fi
+
+	$(MAKE) -C $(LINUX_SRC) SUBDIRS=$(PWD) WLAN_SRC=$(PWD)/ \
+		MODVERDIR=$(PWD)/../.tmp_versions modules
+else # kbuild 2.4
+
+	$(MAKE) -C $(LINUX_SRC) SUBDIRS=$(PWD) WLAN_SRC=$(PWD)/ \
+		modules
+endif # kbuild switch
 
 endif  # KERNELRELEASE
 
 clean:
-	rm -f *.o *.ko .*.cmd *.mod.c
+	rm -f *.o *.ko .*.cmd *.mod.c  *.flags .*.flags
 
 install:
-	mkdir -p $(TARGET_MODDIR)/kernel/drivers/net
-	cp *.ko	$(TARGET_MODDIR)/kernel/drivers/net
-
-else   # not KERN_25
-
-# Source and obj and target definitions
-P80211_MODULE=p80211.o
-P80211_SRC=	p80211conv.c \
-		p80211req.c \
-		p80211frm.c \
-		p80211wext.c \
-		p80211wep.c \
-		p80211netdev.c
-
-P80211_OBJ=	p80211conv.o \
-		p80211req.o \
-		p80211frm.o \
-		p80211wext.o \
-		p80211wep.o \
-		p80211netdev.o
-
-# List of modules to build
-MODULES=
-MODULES+=$(P80211_MODULE)
-
-# Compiler Options
-CFLAGS = $(KERNEL_CFLAGS) $(KERNEL_MODFLAGS)
-# Preprocessor Options
-CPPFLAGS=-I../include $(WLAN_INCLUDE_DEBUG) $(WLAN_CS_CONFIG_SNIFF)
-
-%.o : ../shared/%.c
-	$(CC) -c $(CFLAGS) $(CPPFLAGS) $< -o $@
-
-%.o : %.c
-	$(CC) -c $(CFLAGS) $(CPPFLAGS) $< -o $@
-
-# Dependency Source List
-DEP_SRC=$(P80211_SRC) p80211mod.c
-
-# Rules
-all : .depend $(MODULES)
-	echo $(MODULES)
-
-dep .depend: $(DEP_SRC) ../../config.mk $(wildcard $(LINUX_SRC)/.config)
-
-ifdef MODULES
-	$(CPP) -M $(CFLAGS) $(CPPFLAGS) $(DEP_SRC) > .depend
+	mkdir -p $(TARGET_MODDIR)/linux-wlan-ng/net
+ifeq ($(KERN_25), y)
+	cp p80211.ko	$(TARGET_MODDIR)/linux-wlan-ng
+else
+	cp p80211.o	$(TARGET_MODDIR)/linux-wlan-ng
 endif
-
-p80211mod.o :
-	$(CC) -c $(CFLAGS) $(CPPFLAGS) -DEXPORT_SYMTAB p80211mod.c -o p80211mod.o 
-
-$(P80211_MODULE) : p80211mod.o $(P80211_OBJ) 
-	$(LD) -r -o $@ $(P80211_OBJ) p80211mod.o
-	chmod -x $@
-
-install : $(MODULES)
-	mkdir -p $(TARGET_MODDIR)/net
-	cp $(P80211_MODULE) $(TARGET_MODDIR)/net
 
 romfs:
-	mkdir -p $(ROMFSDIR)/lib/modules/$(KERNELRELEASE)/net
-	$(ROMFSINST) /lib/modules/$(KERNELRELEASE)/net/$(P80211_MODULE)
-
-clean: 
-	rm -f core core.* *.o .*.o *.s *.a .depend tmp_make *~ tags
-	rm -fr $(MODULES)
-
-#
-# Include a dependency file (if one exists)
-#
-ifneq ($(MAKECMDGOALS), clean)
-ifeq (.depend,$(wildcard .depend))
-include .depend
+	mkdir -p $(ROMFSDIR)/lib/modules/$(KERNEL_RELEASE)/net
+ifeq ($(KERN_25), y)
+	$(ROMFSINST) p80211.ko /lib/modules/$(KERNEL_RELEASE)/net/
+else
+	$(ROMFSINST) p80211.o /lib/modules/$(KERNEL_RELEASE)/net/
 endif
-endif
-
-endif  # 2.5 stuff.

@@ -181,14 +181,14 @@ void print_allrequests(void)
 							printf("minlen=%ld, ", msg_item[j].minlen);
 							printf("maxlen=%ld}", msg_item[j].maxlen);
 							break;
-						case P80211_TYPE_BOUNDEDINT:
-							printf("BOUNDEDINT{");
-							printf("min=%ld, max=%ld}", 
-							msg_item[j].min,
-							msg_item[j].max);
-							break;
 						case P80211_TYPE_INT:
-							printf("INT{}");
+							if (msg_item[j].min || msg_item[j].max) {
+								printf("INT{min=%ld, max=%ld}", 	
+								       msg_item[j].min,
+								       msg_item[j].max);	
+							} else {
+								printf("INT{}");
+							}
 							break;
 						case P80211_TYPE_ENUMINT:
 							printf("ENUMINT{");
@@ -306,14 +306,14 @@ void print_allmibs(void)
 						printf("minlen=%ld, ", mib_item[j].minlen);
 						printf("maxlen=%ld}", mib_item[j].maxlen);
 						break;
-					case P80211_TYPE_BOUNDEDINT:
-						printf("BOUNDEDINT{");
-						printf("min=%ld, max=%ld}", 
-						mib_item[j].min,
-						mib_item[j].max);
-						break;
 					case P80211_TYPE_INT:
-						printf("INT{}");
+						if (mib_item[j].min || mib_item[j].max) {
+							printf("INT{min=%ld, max=%ld}", 	
+							       mib_item[j].min,
+							       mib_item[j].max);	
+						} else {
+							printf("INT{}");
+						}
 						break;
 					case P80211_TYPE_ENUMINT:
 						printf("ENUMINT{");

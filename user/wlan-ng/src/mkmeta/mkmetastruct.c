@@ -68,7 +68,6 @@ int main(int argc, char **argv)
         for ( g = 1; g < totgrps; g++ )
         {
 	    strcpy(name, "p80211msg");
-            printf("__WLAN_PRAGMA_PACK1__\n");
             printf("typedef struct %s_%s\n{\n", name,
                 msg_catlist[c].grplist[g].name);
             printf("\tUINT32\t\tmsgcode\t__WLAN_ATTRIB_PACK__;\n");
@@ -80,7 +79,6 @@ int main(int argc, char **argv)
                 type = p80211item_gettype(&msg_catlist[c].grplist[g].itemlist[i]);
 		switch ( type )
 		{
-                    case P80211_TYPE_BOUNDEDINT:
                     case P80211_TYPE_INT:
                     case P80211_TYPE_ENUMINT:
                     case P80211_TYPE_BITARRAY:
@@ -152,7 +150,7 @@ int main(int argc, char **argv)
 	                break;
 		}
             }
-            printf("} __WLAN_ATTRIB_PACK__ %s_%s_t;\n__WLAN_PRAGMA_PACKDFLT__\n\n\n", 
+            printf("} __WLAN_ATTRIB_PACK__ %s_%s_t;\n\n", 
 	    	name,
                 msg_catlist[c].grplist[g].name);
         }

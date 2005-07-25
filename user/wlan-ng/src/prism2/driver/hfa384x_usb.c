@@ -112,10 +112,11 @@
 
 /*================================================================*/
 /* System Includes */
-#define __NO_VERSION__
+#define WLAN_DBVAR	prism2_debug
+
+#include <wlan/version.h>
 
 #include <linux/config.h>
-#define WLAN_DBVAR	prism2_debug
 #include <linux/version.h>
 
 #include <linux/module.h>
@@ -130,21 +131,37 @@
 #include <asm/io.h>
 #include <linux/delay.h>
 #include <asm/byteorder.h>
+#include <asm/bitops.h>
+#include <linux/list.h>
+#include <linux/usb.h>
 
 #include <wlan/wlan_compat.h>
 
-#if ((WLAN_HOSTIF == WLAN_PCMCIA) || (WLAN_HOSTIF == WLAN_PLX) || (WLAN_HOSTIF == WLAN_PCI))
+#if (WLAN_HOSTIF != WLAN_USB)
 #error "This file is specific to USB"
 #endif
 
-#if (WLAN_HOSTIF == WLAN_USB)
-#include <linux/usb.h>
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,69)
+static void
+usb_init_urb(struct urb *urb)
+{
+	memset(urb, 0, sizeof(*urb));
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,5,0) /* tune me! */
+	urb->count = (atomic_t)ATOMIC_INIT(1);
+#endif
+	spin_lock_init(&urb->lock);
+}
+#endif
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,5,0) /* tune me! */
+#  define SUBMIT_URB(u,f)  usb_submit_urb(u,f)
+#else
+#  define SUBMIT_URB(u,f)  usb_submit_urb(u)
 #endif
 
 /*================================================================*/
 /* Project Includes */
 
-#include <wlan/version.h>
 #include <wlan/p80211types.h>
 #include <wlan/p80211hdr.h>
 #include <wlan/p80211mgmt.h>
@@ -178,28 +195,42 @@ extern int prism2_debug;
 /*================================================================*/
 /* Local Function Declarations */
 
-#if 0
+#ifdef DEBUG_USB
 static void 
 dbprint_urb(struct urb* urb);
 #endif
-
-static int	
-hfa384x_rx_typedrop( wlandevice_t *wlandev, UINT16 fc);
 
 static void
 hfa384x_int_rxmonitor( 
 	wlandevice_t *wlandev, 
 	hfa384x_usb_rxfrm_t *rxfrm);
 
-/*---------------------------------------------------*/
-/* BULKOUT Callbacks */
-static void 
-hfa384x_usbout_callback(struct urb *urb);
+static void
+hfa384x_usb_defer(void *hw);
+
+static int
+submit_rx_urb(hfa384x_t *hw, int flags);
+
+static int
+submit_tx_urb(hfa384x_t *hw, struct urb *tx_urb, int flags);
 
 /*---------------------------------------------------*/
-/* BULKIN Callbacks */
+/* Callbacks */
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0))
+static void 
+hfa384x_usbout_callback(struct urb *urb);
+static void
+hfa384x_ctlxout_callback(struct urb *urb);
 static void	
 hfa384x_usbin_callback(struct urb *urb);
+#else
+static void 
+hfa384x_usbout_callback(struct urb *urb, struct pt_regs *regs);
+static void
+hfa384x_ctlxout_callback(struct urb *urb, struct pt_regs *regs);
+static void	
+hfa384x_usbin_callback(struct urb *urb, struct pt_regs *regs);
+#endif
 
 static void
 hfa384x_usbin_txcompl(wlandevice_t *wlandev, hfa384x_usbin_t *usbin);
@@ -213,15 +244,12 @@ hfa384x_usbin_info(wlandevice_t *wlandev, hfa384x_usbin_t *usbin);
 static void
 hfa384x_usbout_tx(wlandevice_t *wlandev, hfa384x_usbout_t *usbout);
 
-static void
-hfa384x_usbin_ctlx(wlandevice_t *wlandev, struct urb *urb);
+static void hfa384x_usbin_ctlx(wlandevice_t *wlandev, hfa384x_usbin_t *usbin, 
+			       int urb_status);
 
 /*---------------------------------------------------*/
 /* Functions to support the prism2 usb command queue */
-static hfa384x_usbctlx_t*
-hfa384x_usbctlxq_dequeue(hfa384x_usbctlxq_t *ctlxq);
-
-static void 
+static int
 hfa384x_usbctlxq_enqueue_run(
 	hfa384x_usbctlxq_t *ctlxq,
 	hfa384x_usbctlx_t *ctlx);
@@ -240,15 +268,27 @@ hfa384x_usbctlx_submit_wait(
 	hfa384x_t		*hw, 
 	hfa384x_usbctlx_t	*ctlx);
 
-void 
+static int
 hfa384x_usbctlx_submit_async(
 	hfa384x_t		*hw, 
 	hfa384x_usbctlx_t	*ctlx,
 	ctlx_usercb_t		usercb,
 	void			*usercb_data);
 
+static void
+hfa384x_usbctlx_init(hfa384x_usbctlx_t *ctlx, hfa384x_t *hw);
+
 static void 
 hfa384x_usbctlx_complete(hfa384x_usbctlx_t *ctlx);
+
+static void
+hfa384x_usbctlx_complete_async(deferred_data_t ctlx);
+
+static int
+hfa384x_usbctlx_cancel(hfa384x_usbctlx_t *ctlx);
+
+static int
+hfa384x_usbctlx_cancel_async(hfa384x_usbctlx_t *ctlx);
 
 static void
 hfa384x_cbcmd(hfa384x_t *hw, hfa384x_usbctlx_t *ctlx);
@@ -324,7 +364,7 @@ hfa384x_isgood_pdrcode(UINT16 pdrcode);
 /*================================================================*/
 /* Function Definitions */
 
-#if 0
+#ifdef DEBUG_USB
 void
 dbprint_urb(struct urb* urb)
 {
@@ -344,6 +384,196 @@ dbprint_urb(struct urb* urb)
 	WLAN_LOG_DEBUG(3,"urb->complete=0x%08x\n", (UINT)urb->complete);
 }
 #endif
+
+
+/*----------------------------------------------------------------
+* submit_rx_urb
+*
+* Listen for input data on the BULK-IN pipe. If the pipe has
+* stalled then schedule it to be reset.
+*
+* Arguments:
+*	hw		device struct
+*	memflags	memory allocation flags
+*
+* Returns:
+*	error code from submission
+*
+* Call context:
+*	Any
+----------------------------------------------------------------*/
+static int
+submit_rx_urb(hfa384x_t *hw, int memflags)
+{
+	unsigned long flags;
+	hfa384x_usbin_t *usbin;
+	int result;
+
+	DBFENTER;
+	
+	usbin = kmalloc(sizeof(*usbin), memflags);
+	if (usbin == NULL)
+		return -ENOMEM;
+
+	memset(usbin, 0, sizeof(*usbin));
+
+	/* Post the IN urb */
+	usb_fill_bulk_urb(&hw->rx_urb, hw->usb,
+	              usb_rcvbulkpipe(hw->usb, hw->endp_in),
+	              usbin, sizeof(*usbin),
+	              hfa384x_usbin_callback, hw->wlandev);
+
+	result = -ENOLINK;
+	spin_lock_irqsave(&hw->ctlxq.lock, flags);
+	if ( !hw->usb_removed && !test_bit(WORK_RX_HALT, &hw->work_flags)) {
+		result = SUBMIT_URB(&hw->rx_urb, memflags);
+
+		/* Check whether we need to reset the RX pipe */
+		if (result == -EPIPE) {
+			WLAN_LOG_WARNING("%s rx pipe stalled: requesting reset\n",
+			                 hw->wlandev->netdev->name);
+			set_bit(WORK_RX_HALT, &hw->work_flags);
+			schedule_work(&hw->usb_work);
+		}
+	}
+	spin_unlock_irqrestore(&hw->ctlxq.lock, flags);
+
+	/* Don't leak memory if anything should go wrong */
+	if (result != 0)
+		kfree(usbin);
+
+	return result;
+}
+
+/*----------------------------------------------------------------
+* submit_tx_urb
+*
+* Prepares and submits the URB of transmitted data. If the
+* submission fails then it will schedule the output pipe to
+* be reset.
+*
+* Arguments:
+*	hw		device struct
+*	tx_urb		URB of data for tranmission
+*	memflags	memory allocation flags
+*
+* Returns:
+*	error code from submission
+*
+* Call context:
+*	Any
+----------------------------------------------------------------*/
+static int
+submit_tx_urb(hfa384x_t *hw, struct urb *tx_urb, int memflags)
+{
+	struct net_device *netdev = hw->wlandev->netdev;
+	unsigned long flags;
+	int result;
+
+	spin_lock_irqsave(&hw->ctlxq.lock, flags);
+
+	result = -ENOLINK;
+	if ( netif_running(netdev) ) {
+
+		if ( !hw->usb_removed && !test_bit(WORK_TX_HALT, &hw->work_flags) ) {
+			result = SUBMIT_URB(tx_urb, memflags);
+
+			/* Test whether we need to reset the TX pipe */
+			if (result == -EPIPE) {
+				WLAN_LOG_WARNING("%s tx pipe stalled: requesting reset\n",
+				                 netdev->name);
+				set_bit(WORK_TX_HALT, &hw->work_flags);
+				schedule_work(&hw->usb_work);
+			}
+			else if (result == 0) {
+				netif_stop_queue(netdev);
+			}
+		}
+	}
+
+	spin_unlock_irqrestore(&hw->ctlxq.lock, flags);
+
+	return result;
+}
+
+/*----------------------------------------------------------------
+* hfa394x_usb_defer
+*
+* There are some things that the USB stack cannot do while
+* in interrupt context, so we arrange this function to run
+* in process context.
+*
+* Arguments:
+*	hw	device structure
+*
+* Returns:
+*	nothing
+*
+* Call context:
+*	process (by design)
+----------------------------------------------------------------*/
+static void
+hfa384x_usb_defer(void *data)
+{
+	hfa384x_t *hw = data;
+	struct net_device *netdev = hw->wlandev->netdev;
+	unsigned long flags;
+
+	/* Don't bother trying to reset anything if the plug
+	 * has been pulled ...
+	 */
+	spin_lock_irqsave(&hw->ctlxq.lock, flags);
+	if ( hw->usb_removed ) {
+		spin_unlock_irqrestore(&hw->ctlxq.lock, flags);
+		return;
+	}
+	spin_unlock_irqrestore(&hw->ctlxq.lock, flags);
+
+	/* Reception has stopped: try to reset the input pipe */
+	if (test_bit(WORK_RX_HALT, &hw->work_flags)) {
+		int ret;
+
+		usb_unlink_urb(&hw->rx_urb);  /* Cannot be holding spinlock! */
+		ret = usb_clear_halt(hw->usb,
+		                     usb_rcvbulkpipe(hw->usb, hw->endp_in));
+		if (ret != 0) {
+			printk(KERN_ERR
+			       "Failed to clear rx pipe for %s: err=%d\n",
+			       netdev->name, ret);
+		}
+		else {
+			printk(KERN_INFO "%s rx pipe reset complete.\n",
+			                 netdev->name);
+			clear_bit(WORK_RX_HALT, &hw->work_flags);
+			submit_rx_urb(hw, GFP_KERNEL);
+		}
+	}
+
+	/* Transmission has stopped: try to reset the output pipe */
+	if (test_bit(WORK_TX_HALT, &hw->work_flags)) {
+		int ret;
+
+		usb_unlink_urb(&hw->tx_urb);
+		ret = usb_clear_halt(hw->usb,
+		                     usb_sndbulkpipe(hw->usb, hw->endp_out));
+		if (ret != 0) {
+			printk(KERN_ERR
+			       "Failed to clear tx pipe for %s: err=%d\n",
+			       netdev->name, ret);
+		} else {
+			printk(KERN_INFO "%s tx pipe reset complete.\n",
+			                 netdev->name);
+			p80211netdev_wake_queue(hw->wlandev);
+			clear_bit(WORK_TX_HALT, &hw->work_flags);
+
+			/* Stopping the BULK-OUT pipe also blocked
+			 * us from sending any more CTLX URBs, so
+			 * we need to re-run our queue ...
+			 */
+			hfa384x_usbctlxq_run(&hw->ctlxq);
+		}
+	}
+}
 
 
 /*----------------------------------------------------------------
@@ -368,14 +598,12 @@ dbprint_urb(struct urb* urb)
 *	process 
 ----------------------------------------------------------------*/
 void
-hfa384x_create( hfa384x_t *hw, struct usb_device *usb, void *usbcontext)
-
+hfa384x_create( hfa384x_t *hw, struct usb_device *usb)
 {
 	DBFENTER;
 
 	memset(hw, 0, sizeof(hfa384x_t));
 	hw->usb = usb;
-	hw->usbcontext = usbcontext;  /* this is actually a wlandev */
 	hw->endp_in = -1;
 	hw->endp_out = -1;
 
@@ -384,25 +612,27 @@ hfa384x_create( hfa384x_t *hw, struct usb_device *usb, void *usbcontext)
 
 	/* Initialize the command queue */
 	spin_lock_init(&hw->ctlxq.lock);
+	INIT_LIST_HEAD(&hw->ctlxq.pending);
+	INIT_LIST_HEAD(&hw->ctlxq.active);
+	INIT_LIST_HEAD(&hw->ctlxq.finished);
 
-#ifdef DECLARE_TASKLET
-	tasklet_init(&hw->link_bh,
-		     prism2sta_linkstatus_defer,
-		     (unsigned long) hw);
-#else
-	INIT_TQUEUE(&hw->link_bh,
-		    prism2sta_linkstatus_defer,
-		    (void *) hw);
-#endif
+	/* Initialize the authentication queue */
+	skb_queue_head_init(&hw->authq);
+
+	INIT_WORK(&hw->link_bh, prism2sta_processing_defer, hw);
+	INIT_WORK(&hw->usb_work, hfa384x_usb_defer, hw);
+
+	usb_init_urb(&hw->rx_urb);
+	usb_init_urb(&hw->tx_urb);
 
 /* We need to make sure everything is set up to do USB transfers after this
  * function is complete.
  * Normally, Initialize will be called after this is set up.
  */
+	hw->link_status = HFA384x_LINK_NOTCONNECTED;
 	hw->state = HFA384x_STATE_INIT;
 
 	DBFEXIT;
-	return;
 }
 
 /*----------------------------------------------------------------
@@ -430,15 +660,26 @@ hfa384x_create( hfa384x_t *hw, struct usb_device *usb, void *usbcontext)
 void
 hfa384x_destroy( hfa384x_t *hw)
 {
+	struct sk_buff *skb;
+
 	DBFENTER;
 
 	if ( hw->state == HFA384x_STATE_RUNNING ) {
 		hfa384x_drvr_stop(hw);
 	}
 	hw->state = HFA384x_STATE_PREINIT;		
-			
+
+	if (hw->scanresults) {
+		kfree(hw->scanresults);
+		hw->scanresults = NULL;
+	}
+
+	/* Now to clean out the auth queue */
+        while ( (skb = skb_dequeue(&hw->authq)) ) {
+                dev_kfree_skb(skb);
+        }		
+
 	DBFEXIT;
-	return;
 }
 
 
@@ -466,14 +707,15 @@ hfa384x_destroy( hfa384x_t *hw)
 void
 hfa384x_cbcmd(hfa384x_t *hw, hfa384x_usbctlx_t *ctlx)
 {
-	UINT				result;
-	hfa384x_async_cmdresult_t	cmdresult;
-
 	DBFENTER;
+
 	if ( ctlx->usercb != NULL ) {
+		hfa384x_async_cmdresult_t	cmdresult;
+		CTLX_STATE			result;
+
 		memset(&cmdresult, 0, sizeof(cmdresult));
 		result = ctlx->state;
-		if (ctlx->state == HFA384x_USBCTLX_COMPLETE) {
+		if (result == CTLX_COMPLETE) {
 			cmdresult.status = 
 				hfa384x2host_16(ctlx->inbuf.cmdresp.status);
 			cmdresult.resp0 = 
@@ -484,12 +726,10 @@ hfa384x_cbcmd(hfa384x_t *hw, hfa384x_usbctlx_t *ctlx)
 				hfa384x2host_16(ctlx->inbuf.cmdresp.resp2);
 		}
 	
-		(*ctlx->usercb)(hw, result, &cmdresult, ctlx->usercb_data);
+		ctlx->usercb(hw, result, &cmdresult, ctlx->usercb_data);
 	}
 
-	kfree(ctlx);
 	DBFEXIT;
-	return;
 }
 
 
@@ -499,7 +739,7 @@ hfa384x_cbcmd(hfa384x_t *hw, hfa384x_usbctlx_t *ctlx)
 * CTLX completion handler for async RRID type control exchanges.
 * 
 * Note: If the handling is changed here, it should probably be 
-*       changed in dowrid as well.
+*       changed in dorrid as well.
 *
 * Arguments:
 *	hw		hw struct
@@ -516,15 +756,16 @@ hfa384x_cbcmd(hfa384x_t *hw, hfa384x_usbctlx_t *ctlx)
 void
 hfa384x_cbrrid(hfa384x_t *hw, hfa384x_usbctlx_t *ctlx)
 {
-	UINT				result;
-	hfa384x_async_rridresult_t	rridresult;
-
 	DBFENTER;
+
 	if ( ctlx->usercb != NULL ) {
+		hfa384x_async_rridresult_t	rridresult;
+		CTLX_STATE			result;
+
 		memset(&rridresult, 0, sizeof(rridresult));
 		result = ctlx->state;
 	
-		if (ctlx->state == HFA384x_USBCTLX_COMPLETE) {
+		if (result == CTLX_COMPLETE) {
 			rridresult.rid = 
 				hfa384x2host_16(ctlx->inbuf.rridresp.rid);
 			rridresult.riddata = ctlx->inbuf.rridresp.data;
@@ -532,11 +773,10 @@ hfa384x_cbrrid(hfa384x_t *hw, hfa384x_usbctlx_t *ctlx)
 			((hfa384x2host_16(ctlx->inbuf.rridresp.frmlen)-1)*2);
 		}
 
-		(*ctlx->usercb)(hw, result, &rridresult, ctlx->usercb_data);
+		ctlx->usercb(hw, result, &rridresult, ctlx->usercb_data);
 	}
-	kfree(ctlx);
+
 	DBFEXIT;
-	return;
 }
 
 
@@ -563,14 +803,15 @@ hfa384x_cbrrid(hfa384x_t *hw, hfa384x_usbctlx_t *ctlx)
 void
 hfa384x_cbwrid(hfa384x_t *hw, hfa384x_usbctlx_t *ctlx)
 {
-	UINT				result;
-	hfa384x_async_wridresult_t	wridresult;
-
 	DBFENTER;
+
 	if ( ctlx->usercb != NULL ) {
+		hfa384x_async_wridresult_t	wridresult;
+		CTLX_STATE			result;
+
 		memset(&wridresult, 0, sizeof(wridresult));
 		result = ctlx->state;
-		if (ctlx->state == HFA384x_USBCTLX_COMPLETE) {
+		if (result == CTLX_COMPLETE) {
 			wridresult.status = 
 				hfa384x2host_16(ctlx->inbuf.wridresp.status);
 			wridresult.resp0 = 
@@ -581,12 +822,10 @@ hfa384x_cbwrid(hfa384x_t *hw, hfa384x_usbctlx_t *ctlx)
 				hfa384x2host_16(ctlx->inbuf.wridresp.resp2);
 		}
 
-		(*ctlx->usercb)(hw, result, &wridresult, ctlx->usercb_data);
+		ctlx->usercb(hw, result, &wridresult, ctlx->usercb_data);
 	}
-	kfree(ctlx);
 
 	DBFEXIT;
-	return;
 }
 
 
@@ -616,7 +855,6 @@ hfa384x_cbrmem(hfa384x_t *hw, hfa384x_usbctlx_t *ctlx)
 	DBFENTER;
 
 	DBFEXIT;
-	return;
 }
 
 
@@ -646,7 +884,6 @@ hfa384x_cbwmem(hfa384x_t *hw, hfa384x_usbctlx_t *ctlx)
 	DBFENTER;
 
 	DBFEXIT;
-	return;
 }
 
 
@@ -1009,7 +1246,7 @@ hfa384x_copy_from_aux(
 	hfa384x_t *hw, UINT32 cardaddr, UINT32 auxctl, void *buf, UINT len)
 {
 	DBFENTER;
-	WLAN_LOG_ERROR0("not used in USB.\n");
+	WLAN_LOG_ERROR("not used in USB.\n");
 	DBFEXIT;
 }
 
@@ -1043,7 +1280,7 @@ hfa384x_copy_to_aux(
 	hfa384x_t *hw, UINT32 cardaddr, UINT32 auxctl, void *buf, UINT len)
 {
 	DBFENTER;
-	WLAN_LOG_ERROR0("not used in USB.\n");
+	WLAN_LOG_ERROR("not used in USB.\n");
 	DBFEXIT;
 }
 
@@ -1071,12 +1308,17 @@ hfa384x_copy_to_aux(
 * Call context:
 *	process 
 ----------------------------------------------------------------*/
-int hfa384x_corereset( hfa384x_t *hw, int holdtime, int settletime)
+int hfa384x_corereset(hfa384x_t *hw, int holdtime, int settletime, int genesis)
 {
+
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0))
 	struct usb_device	*parent = hw->usb->parent;
 	int			i;
-	int 			result = 0;
 	int			port = -1;
+#endif
+
+	int 			result = 0;
+
 
 #define P2_USB_RT_PORT		(USB_TYPE_CLASS | USB_RECIP_OTHER)
 #define P2_USB_FEAT_RESET	4
@@ -1084,6 +1326,7 @@ int hfa384x_corereset( hfa384x_t *hw, int holdtime, int settletime)
 
 	DBFENTER;
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0))
 	/* Find the hub port */
 	for ( i = 0; i < parent->maxchild; i++) {
 		if (parent->children[i] == hw->usb) {
@@ -1129,7 +1372,11 @@ int hfa384x_corereset( hfa384x_t *hw, int holdtime, int settletime)
 	/* Let the configuration settle */
 	wait_ms(20);
 
-done:	
+ done:	
+#else
+	WLAN_LOG_WARNING("hfa384x_corereset not supported on USB on 2.5/2.6 kernels.\n");
+#endif
+
 	DBFEXIT;
 	return result;
 }
@@ -1167,7 +1414,7 @@ done:
 * Call context:
 *	process 
 ----------------------------------------------------------------*/
-int 
+static int 
 hfa384x_docmd( 
 	hfa384x_t *hw, 
 	UINT	wait,
@@ -1175,17 +1422,16 @@ hfa384x_docmd(
 	ctlx_usercb_t	usercb,
 	void	*usercb_data)
 {
-	int			result = 0;
+	int			result;
 	hfa384x_usbctlx_t	*ctlx;
 	
 	DBFENTER;
-	ctlx = kmalloc(sizeof(*ctlx), GFP_ATOMIC);
+	ctlx = kmalloc(sizeof(*ctlx), in_interrupt() ? GFP_ATOMIC : GFP_KERNEL);
 	if ( ctlx == NULL ) {
 		result = -ENOMEM;
 		goto done;
 	}
-	memset(ctlx, 0, sizeof(*ctlx));
-	ctlx->state = HFA384x_USBCTLX_START;
+	hfa384x_usbctlx_init(ctlx, hw);
 
 	/* Initialize the command */
 	ctlx->outbuf.cmdreq.type = 	host2hfa384x_16(HFA384x_USB_CMDREQ);
@@ -1202,23 +1448,24 @@ hfa384x_docmd(
 		cmd->parm2);
 
 	/* Fill the out packet */
-	FILL_BULK_URB( &(ctlx->outurb), hw->usb,
+	usb_fill_bulk_urb( &(ctlx->outurb), hw->usb,
 		usb_sndbulkpipe(hw->usb, hw->endp_out),
 		&(ctlx->outbuf), ROUNDUP64(sizeof(ctlx->outbuf.cmdreq)),
-		hfa384x_usbout_callback, hw->usbcontext);
-	ctlx->outurb.transfer_flags |= USB_ASYNC_UNLINK | USB_QUEUE_BULK;
+		hfa384x_ctlxout_callback, ctlx);
+	ctlx->outurb.transfer_flags |= USB_QUEUE_BULK;
 
 	if ( wait ) {
 		hfa384x_usbctlx_submit_wait(hw, ctlx);
-	} else {
-		hfa384x_usbctlx_submit_async(hw, ctlx, usercb, usercb_data);
+	} else if ( hfa384x_usbctlx_submit_async(
+	                               hw, ctlx, usercb, usercb_data) == 0 ) {
+		result = 0;
 		goto done;
 	}
 
 	/* All of the following is skipped for async calls */
 	/* On reawakening, check the ctlx status */
 	switch(ctlx->state) { 
-	case HFA384x_USBCTLX_COMPLETE:
+	case CTLX_COMPLETE:
 		result = hfa384x2host_16(ctlx->inbuf.cmdresp.status);
 		result &= HFA384x_STATUS_RESULT;
 
@@ -1233,34 +1480,27 @@ hfa384x_docmd(
 			cmd->resp1,
 			cmd->resp2);
 		break;
-	case HFA384x_USBCTLX_REQSUBMIT_FAIL:
-		WLAN_LOG_WARNING0("ctlx failure=REQSUBMIT_FAIL\n");
+	case CTLX_REQSUBMIT_FAIL:
+		WLAN_LOG_WARNING("ctlx failure=REQSUBMIT_FAIL\n");
 		result = -EIO;
 		break;
-	case HFA384x_USBCTLX_REQ_TIMEOUT:
-		WLAN_LOG_WARNING0("ctlx failure=REQ_TIMEOUT\n");
+	case CTLX_REQ_TIMEOUT:
+		WLAN_LOG_WARNING("ctlx failure=REQ_TIMEOUT\n");
 		result = -EIO;
 		break;
-	case HFA384x_USBCTLX_REQ_FAILED:
-		WLAN_LOG_WARNING0("ctlx failure=REQ_FAILED\n");
+	case CTLX_REQ_FAILED:
+		WLAN_LOG_WARNING("ctlx failure=REQ_FAILED\n");
 		result = -EIO;
 		break;
-	case HFA384x_USBCTLX_RESP_TIMEOUT:
-		WLAN_LOG_WARNING0("ctlx failure=RESP_TIMEOUT\n");
+	case CTLX_START:
 		result = -EIO;
 		break;
 	default:
-		/* The ctlx is still running and probably still in the queue 
-		 * We were probably awakened by a signal.  Return an error  
-		 * and DO NOT free the ctlx.  Let the ctlx finish and it will
-		 * just be leaked.  At least we won't crash that way.
-		 * TODO: we need a ctlx_cancel function 
-		 */
 		result = -ERESTARTSYS;
-		goto done;
 		break;
-	}
+	} /* switch */
 
+	complete(&ctlx->done);
 	kfree(ctlx);
 done:
 	DBFEXIT;
@@ -1303,7 +1543,7 @@ done:
 *	interrupt (wait==0)
 *	process (wait==0 || wait==1)
 ----------------------------------------------------------------*/
-int
+static int
 hfa384x_dorrid(
 	hfa384x_t *hw, 
 	UINT	wait,
@@ -1313,18 +1553,17 @@ hfa384x_dorrid(
 	ctlx_usercb_t usercb,
 	void	*usercb_data)
 {
-	int			result = 0;
+	int			result;
 	hfa384x_usbctlx_t	*ctlx;
 	UINT			maclen;
 	
 	DBFENTER;
-	ctlx = kmalloc(sizeof(*ctlx), GFP_ATOMIC);
+	ctlx = kmalloc(sizeof(*ctlx), in_interrupt() ? GFP_ATOMIC : GFP_KERNEL);
 	if ( ctlx == NULL ) {
 		result = -ENOMEM;
 		goto done;
 	}
-	memset(ctlx, 0, sizeof(*ctlx));
-	ctlx->state = HFA384x_USBCTLX_START;
+	hfa384x_usbctlx_init(ctlx, hw);
 
 	/* Initialize the command */
 	ctlx->outbuf.rridreq.type =   host2hfa384x_16(HFA384x_USB_RRIDREQ);
@@ -1333,24 +1572,25 @@ hfa384x_dorrid(
 	ctlx->outbuf.rridreq.rid =    host2hfa384x_16(rid);
 
 	/* Fill the out packet */
-	FILL_BULK_URB( &(ctlx->outurb), hw->usb,
+	usb_fill_bulk_urb( &(ctlx->outurb), hw->usb,
 		usb_sndbulkpipe(hw->usb, hw->endp_out),
 		&(ctlx->outbuf), ROUNDUP64(sizeof(ctlx->outbuf.rridreq)),
-		hfa384x_usbout_callback, hw->usbcontext);
-	ctlx->outurb.transfer_flags |= USB_ASYNC_UNLINK | USB_QUEUE_BULK;
+		hfa384x_ctlxout_callback, ctlx);
+	ctlx->outurb.transfer_flags |= USB_QUEUE_BULK;
 
 	/* Submit the CTLX */
 	if ( wait ) {
 		hfa384x_usbctlx_submit_wait(hw, ctlx);
-	} else {
-		hfa384x_usbctlx_submit_async(hw, ctlx, usercb, usercb_data);
+	} else if ( hfa384x_usbctlx_submit_async(
+	                              hw, ctlx, usercb, usercb_data) == 0 ) {
+		result = 0;
 		goto done;
 	}
 
 	/* All of the following is skipped for async calls */
 	/* On reawakening, check the ctlx status */
 	switch(ctlx->state) { 
-	case HFA384x_USBCTLX_COMPLETE:
+	case CTLX_COMPLETE:
 		/* The results are in ctlx->outbuf */
 		/* Validate the length, note body len calculation in bytes */
 		maclen = ((hfa384x2host_16(ctlx->inbuf.rridresp.frmlen)-1)*2);
@@ -1365,34 +1605,27 @@ hfa384x_dorrid(
 		result = 0;
 		break;
 
-	case HFA384x_USBCTLX_REQSUBMIT_FAIL:
-		WLAN_LOG_WARNING0("ctlx failure=REQSUBMIT_FAIL\n");
+	case CTLX_REQSUBMIT_FAIL:
+		WLAN_LOG_WARNING("ctlx failure=REQSUBMIT_FAIL\n");
 		result = -EIO;
 		break;
-	case HFA384x_USBCTLX_REQ_TIMEOUT:
-		WLAN_LOG_WARNING0("ctlx failure=REQ_TIMEOUT\n");
+	case CTLX_REQ_TIMEOUT:
+		WLAN_LOG_WARNING("ctlx failure=REQ_TIMEOUT\n");
 		result = -EIO;
 		break;
-	case HFA384x_USBCTLX_REQ_FAILED:
-		WLAN_LOG_WARNING0("ctlx failure=REQ_FAILED\n");
+	case CTLX_REQ_FAILED:
+		WLAN_LOG_WARNING("ctlx failure=REQ_FAILED\n");
 		result = -EIO;
 		break;
-	case HFA384x_USBCTLX_RESP_TIMEOUT:
-		WLAN_LOG_WARNING0("ctlx failure=RESP_TIMEOUT\n");
+	case CTLX_START:
 		result = -EIO;
 		break;
 	default:
-		/* The ctlx is still running and probably still in the queue 
-		 * We were probably awakened by a signal.  Return an error  
-		 * and DO NOT free the ctlx.  Let the ctlx finish and it will
-		 * just be leaked.  At least we won't crash that way.
-		 * TODO: we need a ctlx_cancel function 
-		 */
 		result = -ERESTARTSYS;
-		goto done;
 		break;
-	}
+	} /* switch */
 
+	complete(&ctlx->done);
 	kfree(ctlx);
 done:
 	DBFEXIT;
@@ -1441,17 +1674,16 @@ hfa384x_dowrid(
 	ctlx_usercb_t usercb,
 	void	*usercb_data)
 {
-	int			result = 0;
+	int			result;
 	hfa384x_usbctlx_t	*ctlx;
 	
 	DBFENTER;
-	ctlx = kmalloc(sizeof(*ctlx), GFP_ATOMIC);
+	ctlx = kmalloc(sizeof(*ctlx), in_interrupt() ? GFP_ATOMIC : GFP_KERNEL);
 	if ( ctlx == NULL ) {
 		result = -ENOMEM;
 		goto done;
 	}
-	memset(ctlx, 0, sizeof(*ctlx));
-	ctlx->state = HFA384x_USBCTLX_START;
+	hfa384x_usbctlx_init(ctlx, hw);
 
 	/* Initialize the command */
 	ctlx->outbuf.wridreq.type =   host2hfa384x_16(HFA384x_USB_WRIDREQ);
@@ -1462,29 +1694,30 @@ hfa384x_dowrid(
 	memcpy(ctlx->outbuf.wridreq.data, riddata, riddatalen);
 
 	/* Fill the out packet */
-	FILL_BULK_URB( &(ctlx->outurb), hw->usb,
+	usb_fill_bulk_urb( &(ctlx->outurb), hw->usb,
 		usb_sndbulkpipe(hw->usb, hw->endp_out),
 		&(ctlx->outbuf), 
 		ROUNDUP64( sizeof(ctlx->outbuf.wridreq.type) +
 			sizeof(ctlx->outbuf.wridreq.frmlen) +
 			sizeof(ctlx->outbuf.wridreq.rid) +
 			riddatalen),
-		hfa384x_usbout_callback, 
-		hw->usbcontext);
-	ctlx->outurb.transfer_flags |= USB_ASYNC_UNLINK | USB_QUEUE_BULK;
+		hfa384x_ctlxout_callback, 
+		ctlx);
+	ctlx->outurb.transfer_flags |= USB_QUEUE_BULK;
 
 	/* Submit the CTLX */
 	if ( wait ) {
 		hfa384x_usbctlx_submit_wait(hw, ctlx);
-	} else {
-		hfa384x_usbctlx_submit_async(hw, ctlx, usercb, usercb_data);
+	} else if ( hfa384x_usbctlx_submit_async(
+                                      hw, ctlx, usercb, usercb_data) == 0 ) {
+		result = 0;
 		goto done;
 	}
 
 	/* All of the following is skipped for async calls */
 	/* On reawakening, check the ctlx status */
 	switch(ctlx->state) { 
-	case HFA384x_USBCTLX_COMPLETE:
+	case CTLX_COMPLETE:
 		result = hfa384x2host_16(ctlx->inbuf.wridresp.status);
 		result &= HFA384x_STATUS_RESULT;
 
@@ -1496,34 +1729,27 @@ hfa384x_dowrid(
 */
 		break;
 
-	case HFA384x_USBCTLX_REQSUBMIT_FAIL:
-		WLAN_LOG_WARNING0("ctlx failure=REQSUBMIT_FAIL\n");
+	case CTLX_REQSUBMIT_FAIL:
+		WLAN_LOG_WARNING("ctlx failure=REQSUBMIT_FAIL\n");
 		result = -EIO;
 		break;
-	case HFA384x_USBCTLX_REQ_TIMEOUT:
-		WLAN_LOG_WARNING0("ctlx failure=REQ_TIMEOUT\n");
+	case CTLX_REQ_TIMEOUT:
+		WLAN_LOG_WARNING("ctlx failure=REQ_TIMEOUT\n");
 		result = -EIO;
 		break;
-	case HFA384x_USBCTLX_REQ_FAILED:
-		WLAN_LOG_WARNING0("ctlx failure=REQ_FAILED\n");
+	case CTLX_REQ_FAILED:
+		WLAN_LOG_WARNING("ctlx failure=REQ_FAILED\n");
 		result = -EIO;
 		break;
-	case HFA384x_USBCTLX_RESP_TIMEOUT:
-		WLAN_LOG_WARNING0("ctlx failure=RESP_TIMEOUT\n");
+	case CTLX_START:
 		result = -EIO;
 		break;
 	default:
-		/* The ctlx is still running and probably still in the queue 
-		 * We were probably awakened by a signal.  Return an error  
-		 * and DO NOT free the ctlx.  Let the ctlx finish and it will
-		 * just be leaked.  At least we won't crash that way.
-		 * TODO: we need a ctlx_cancel function 
-		 */
 		result = -ERESTARTSYS;
-		goto done;
 		break;
-	}
+	} /* switch */
 
+	complete(&ctlx->done);
 	kfree(ctlx);
 done:
 	DBFEXIT;
@@ -1573,17 +1799,16 @@ hfa384x_dormem(
 	ctlx_usercb_t usercb,
 	void	*usercb_data)
 {
-	int			result = 0;
+	int			result;
 	hfa384x_usbctlx_t	*ctlx;
 	
 	DBFENTER;
-	ctlx = kmalloc(sizeof(*ctlx), GFP_ATOMIC);
+	ctlx = kmalloc(sizeof(*ctlx), in_interrupt() ? GFP_ATOMIC : GFP_KERNEL);
 	if ( ctlx == NULL ) {
 		result = -ENOMEM;
 		goto done;
 	}
-	memset(ctlx, 0, sizeof(*ctlx));
-	ctlx->state = HFA384x_USBCTLX_START;
+	hfa384x_usbctlx_init(ctlx, hw);
 
 	/* Initialize the command */
 	ctlx->outbuf.rmemreq.type =    host2hfa384x_16(HFA384x_USB_RMEMREQ);
@@ -1605,56 +1830,50 @@ hfa384x_dormem(
 		ROUNDUP64(sizeof(ctlx->outbuf.rmemreq)));
 
 	/* Fill the out packet */
-	FILL_BULK_URB( &(ctlx->outurb), hw->usb,
+	usb_fill_bulk_urb( &(ctlx->outurb), hw->usb,
 		usb_sndbulkpipe(hw->usb, hw->endp_out),
 		&(ctlx->outbuf), ROUNDUP64(sizeof(ctlx->outbuf.rmemreq)),
-		hfa384x_usbout_callback, hw->usbcontext);
-	ctlx->outurb.transfer_flags |= USB_ASYNC_UNLINK | USB_QUEUE_BULK;
+		hfa384x_ctlxout_callback, ctlx);
+	ctlx->outurb.transfer_flags |= USB_QUEUE_BULK;
 
 	if ( wait ) {
 		hfa384x_usbctlx_submit_wait(hw, ctlx);
-	} else {
-		hfa384x_usbctlx_submit_async(hw, ctlx, usercb, usercb_data);
+	} else if ( hfa384x_usbctlx_submit_async(
+	                              hw, ctlx, usercb, usercb_data) == 0 ) {
+		result = 0;
 		goto done;
 	}
 
 	/* All of the following is skipped for async calls */
 	/* On reawakening, check the ctlx status */
 	switch(ctlx->state) { 
-	case HFA384x_USBCTLX_COMPLETE:
+	case CTLX_COMPLETE:
 		WLAN_LOG_DEBUG(4,"rmemresp:len=%d\n",
 			ctlx->inbuf.rmemresp.frmlen);
 		memcpy(data, ctlx->inbuf.rmemresp.data, len);
 		result = 0;
 		break;
-	case HFA384x_USBCTLX_REQSUBMIT_FAIL:
-		WLAN_LOG_WARNING0("ctlx failure=REQSUBMIT_FAIL\n");
+	case CTLX_REQSUBMIT_FAIL:
+		WLAN_LOG_WARNING("ctlx failure=REQSUBMIT_FAIL\n");
 		result = -EIO;
 		break;
-	case HFA384x_USBCTLX_REQ_TIMEOUT:
-		WLAN_LOG_WARNING0("ctlx failure=REQ_TIMEOUT\n");
+	case CTLX_REQ_TIMEOUT:
+		WLAN_LOG_WARNING("ctlx failure=REQ_TIMEOUT\n");
 		result = -EIO;
 		break;
-	case HFA384x_USBCTLX_REQ_FAILED:
-		WLAN_LOG_WARNING0("ctlx failure=REQ_FAILED\n");
+	case CTLX_REQ_FAILED:
+		WLAN_LOG_WARNING("ctlx failure=REQ_FAILED\n");
 		result = -EIO;
 		break;
-	case HFA384x_USBCTLX_RESP_TIMEOUT:
-		WLAN_LOG_WARNING0("ctlx failure=RESP_TIMEOUT\n");
+	case CTLX_START:
 		result = -EIO;
 		break;
 	default:
-		/* The ctlx is still running and probably still in the queue 
-		 * We were probably awakened by a signal.  Return an error  
-		 * and DO NOT free the ctlx.  Let the ctlx finish and it will
-		 * just be leaked.  At least we won't crash that way.
-		 * TODO: we need a ctlx_cancel function 
-		 */
 		result = -ERESTARTSYS;
-		goto done;
 		break;
-	}
+	} /* switch */
 
+	complete(&ctlx->done);
 	kfree(ctlx);
 done:
 	DBFEXIT;
@@ -1706,20 +1925,19 @@ hfa384x_dowmem(
 	ctlx_usercb_t usercb,
 	void	*usercb_data)
 {
-	int			result = 0;
+	int			result;
 	hfa384x_usbctlx_t	*ctlx;
 	
 	DBFENTER;
 	WLAN_LOG_DEBUG(5, "page=0x%04x offset=0x%04x len=%d\n",
 		page,offset,len);
 
-	ctlx = kmalloc(sizeof(*ctlx), GFP_ATOMIC);
+	ctlx = kmalloc(sizeof(*ctlx), in_interrupt() ? GFP_ATOMIC : GFP_KERNEL);
 	if ( ctlx == NULL ) {
 		result = -ENOMEM;
 		goto done;
 	}
-	memset(ctlx, 0, sizeof(*ctlx));
-	ctlx->state = HFA384x_USBCTLX_START;
+	hfa384x_usbctlx_init(ctlx, hw);
 
 	/* Initialize the command */
 	ctlx->outbuf.wmemreq.type =   host2hfa384x_16(HFA384x_USB_WMEMREQ);
@@ -1732,7 +1950,7 @@ hfa384x_dowmem(
 	memcpy(ctlx->outbuf.wmemreq.data, data, len);
 
 	/* Fill the out packet */
-	FILL_BULK_URB( &(ctlx->outurb), hw->usb,
+	usb_fill_bulk_urb( &(ctlx->outurb), hw->usb,
 		usb_sndbulkpipe(hw->usb, hw->endp_out),
 		&(ctlx->outbuf), 
 		ROUNDUP64( sizeof(ctlx->outbuf.wmemreq.type) +
@@ -1740,21 +1958,22 @@ hfa384x_dowmem(
 			sizeof(ctlx->outbuf.wmemreq.offset) +
 			sizeof(ctlx->outbuf.wmemreq.page) +
 			len),
-		hfa384x_usbout_callback, 
-		hw->usbcontext);
-	ctlx->outurb.transfer_flags |= USB_ASYNC_UNLINK | USB_QUEUE_BULK;
+		hfa384x_ctlxout_callback, 
+		ctlx);
+	ctlx->outurb.transfer_flags |= USB_QUEUE_BULK;
 
 	if ( wait ) {
 		hfa384x_usbctlx_submit_wait(hw, ctlx);
-	} else {
-		hfa384x_usbctlx_submit_async(hw, ctlx, usercb, usercb_data);
+	} else if ( hfa384x_usbctlx_submit_async(
+	                              hw, ctlx, usercb, usercb_data) == 0 ) {
+		result = 0;
 		goto done;
 	}
 
 	/* All of the following is skipped for async calls */
 	/* On reawakening, check the ctlx status */
 	switch(ctlx->state) { 
-	case HFA384x_USBCTLX_COMPLETE:
+	case CTLX_COMPLETE:
 		result = hfa384x2host_16(ctlx->inbuf.wmemresp.status);
 /*
 		hw->status = hfa384x2host_16(ctlx->inbuf.wmemresp.status);
@@ -1763,34 +1982,27 @@ hfa384x_dowmem(
 		hw->resp2 = hfa384x2host_16(ctlx->inbuf.wmemresp.resp2);
 */
 		break;
-	case HFA384x_USBCTLX_REQSUBMIT_FAIL:
-		WLAN_LOG_WARNING0("ctlx failure=REQSUBMIT_FAIL\n");
+	case CTLX_REQSUBMIT_FAIL:
+		WLAN_LOG_WARNING("ctlx failure=REQSUBMIT_FAIL\n");
 		result = -EIO;
 		break;
-	case HFA384x_USBCTLX_REQ_TIMEOUT:
-		WLAN_LOG_WARNING0("ctlx failure=REQ_TIMEOUT\n");
+	case CTLX_REQ_TIMEOUT:
+		WLAN_LOG_WARNING("ctlx failure=REQ_TIMEOUT\n");
 		result = -EIO;
 		break;
-	case HFA384x_USBCTLX_REQ_FAILED:
-		WLAN_LOG_WARNING0("ctlx failure=REQ_FAILED\n");
+	case CTLX_REQ_FAILED:
+		WLAN_LOG_WARNING("ctlx failure=REQ_FAILED\n");
 		result = -EIO;
 		break;
-	case HFA384x_USBCTLX_RESP_TIMEOUT:
-		WLAN_LOG_WARNING0("ctlx failure=RESP_TIMEOUT\n");
+	case CTLX_START:
 		result = -EIO;
 		break;
 	default:
-		/* The ctlx is still running and probably still in the queue 
-		 * We were probably awakened by a signal.  Return an error  
-		 * and DO NOT free the ctlx.  Let the ctlx finish and it will
-		 * just be leaked.  At least we won't crash that way.
-		 * TODO: we need a ctlx_cancel function 
-		 */
 		result = -ERESTARTSYS;
-		goto done;
 		break;
-	}
+	} /* switch */
 
+	complete(&ctlx->done);
 	kfree(ctlx);
 done:
 	DBFEXIT;
@@ -1947,7 +2159,7 @@ int hfa384x_drvr_flashdl_enable(hfa384x_t *hw)
 	/* Check that a port isn't active */
 	for ( i = 0; i < HFA384x_PORTID_MAX; i++) {
 		if ( hw->port_enabled[i] ) {
-			WLAN_LOG_DEBUG0(1,"called when port enabled.\n");
+			WLAN_LOG_DEBUG(1,"called when port enabled.\n");
 			return -EINVAL; 
 		}
 	}
@@ -1971,10 +2183,8 @@ int hfa384x_drvr_flashdl_enable(hfa384x_t *hw)
 	}
 	hw->dltimeout = hfa384x2host_16(hw->dltimeout);
 
-#if 0
-WLAN_LOG_DEBUG0(1,"flashdl_enable\n");
-hw->dlstate = HFA384x_DLSTATE_FLASHENABLED;
-#endif
+	WLAN_LOG_DEBUG(1,"flashdl_enable\n");
+
 	hw->dlstate = HFA384x_DLSTATE_FLASHENABLED;
 	DBFEXIT;
 	return result;
@@ -2008,7 +2218,7 @@ int hfa384x_drvr_flashdl_disable(hfa384x_t *hw)
 		return -EINVAL;
 	}
 
-	WLAN_LOG_DEBUG0(1,"flashdl_enable\n");
+	WLAN_LOG_DEBUG(1,"flashdl_enable\n");
 
 	/* There isn't much we can do at this point, so I don't */
 	/*  bother  w/ the return value */
@@ -2093,7 +2303,7 @@ hfa384x_drvr_flashdl_write(
 	verbuf = kmalloc(hw->bufinfo.len, GFP_ATOMIC);
 
 	if ( verbuf == NULL ) {
-		WLAN_LOG_ERROR0("Failed to allocate flash verify buffer\n");
+		WLAN_LOG_ERROR("Failed to allocate flash verify buffer\n");
 		return 1;
 	}
 
@@ -2229,7 +2439,7 @@ exit_proc:
 ----------------------------------------------------------------*/
 int hfa384x_drvr_getconfig(hfa384x_t *hw, UINT16 rid, void *buf, UINT16 len)
 {
-	int 			result = 0;
+	int 			result;
 	DBFENTER;
 
 	result = hfa384x_dorrid(hw, DOWAIT, rid, buf, len, NULL, NULL);
@@ -2262,7 +2472,7 @@ int hfa384x_drvr_getconfig(hfa384x_t *hw, UINT16 rid, void *buf, UINT16 len)
 ----------------------------------------------------------------*/
 int hfa384x_drvr_getconfig16(hfa384x_t *hw, UINT16 rid, void *val)
 {
-	int		result = 0;
+	int		result;
 	DBFENTER;
 	result = hfa384x_drvr_getconfig(hw, rid, val, sizeof(UINT16));
 	if ( result == 0 ) {
@@ -2297,7 +2507,7 @@ int hfa384x_drvr_getconfig16(hfa384x_t *hw, UINT16 rid, void *val)
 ----------------------------------------------------------------*/
 int hfa384x_drvr_getconfig32(hfa384x_t *hw, UINT16 rid, void *val)
 {
-	int		result = 0;
+	int		result;
 	DBFENTER;
 	result = hfa384x_drvr_getconfig(hw, rid, val, sizeof(UINT32));
 	if ( result == 0 ) {
@@ -2336,19 +2546,14 @@ int hfa384x_drvr_getconfig32(hfa384x_t *hw, UINT16 rid, void *val)
 * Call context:
 *	Any
 ----------------------------------------------------------------*/
-void
+int
 hfa384x_drvr_getconfig_async(
 	hfa384x_t		*hw, 
 	UINT16			rid, 
 	ctlx_usercb_t		usercb, 
 	void			*usercb_data)
 {
-	DBFENTER;
-
-	hfa384x_dorrid(hw, DOASYNC, rid, NULL, 0, usercb, usercb_data);
-
-	DBFEXIT;
-	return;
+	return hfa384x_dorrid(hw, DOASYNC, rid, NULL, 0, usercb, usercb_data);
 }
 
 
@@ -2374,7 +2579,7 @@ hfa384x_drvr_getconfig_async(
 int hfa384x_drvr_handover( hfa384x_t *hw, UINT8 *addr)
 {
         DBFENTER;
-	WLAN_LOG_ERROR0("Not currently supported in USB!\n");
+	WLAN_LOG_ERROR("Not currently supported in USB!\n");
 	DBFEXIT;
 	return -EIO;
 }
@@ -2393,16 +2598,12 @@ int hfa384x_drvr_handover( hfa384x_t *hw, UINT8 *addr)
 * -----------------------------------------------------------------*/
 int hfa384x_drvr_low_level(hfa384x_t *hw, hfa384x_metacmd_t *cmd)
 {
-	int             result = 0;
+	int             result;
 	DBFENTER;
 	
 	/* Do i need a host2hfa... conversion ? */
-#if 0
-	printk(KERN_INFO "%#x %#x %#x %#x\n", cmd->cmd, cmd->param0, cmd->param1, cmd->param2);
-#endif
 
-#warning "WTF is this?"
-	result = hfa384x_drvr_low_level(hw, cmd);
+	result = hfa384x_docmd(hw, DOWAIT, cmd, NULL, NULL);
 
 	DBFEXIT;
 	return result;
@@ -2517,7 +2718,7 @@ hfa384x_drvr_ramdl_disable(hfa384x_t *hw)
 		return -EINVAL;
 	}
 
-	WLAN_LOG_DEBUG0(3,"ramdl_disable()\n");
+	WLAN_LOG_DEBUG(3,"ramdl_disable()\n");
 
 	/* There isn't much we can do at this point, so I don't */
 	/*  bother  w/ the return value */
@@ -2564,7 +2765,7 @@ hfa384x_drvr_ramdl_enable(hfa384x_t *hw, UINT32 exeaddr)
 	/* Check that a port isn't active */
 	for ( i = 0; i < HFA384x_PORTID_MAX; i++) {
 		if ( hw->port_enabled[i] ) {
-			WLAN_LOG_ERROR0(
+			WLAN_LOG_ERROR(
 				"Can't download with a macport enabled.\n");
 			return -EINVAL; 
 		}
@@ -2572,7 +2773,7 @@ hfa384x_drvr_ramdl_enable(hfa384x_t *hw, UINT32 exeaddr)
 
 	/* Check that we're not already in a download state */
 	if ( hw->dlstate != HFA384x_DLSTATE_DISABLED ) {
-		WLAN_LOG_ERROR0(
+		WLAN_LOG_ERROR(
 			"Download state not disabled.\n");
 		return -EINVAL;
 	}
@@ -2805,7 +3006,7 @@ int hfa384x_drvr_readpda(hfa384x_t *hw, void *buf, UINT len)
 	result = pdaok ? 0 : -ENODATA;
 
 	if ( result ) {
-		WLAN_LOG_DEBUG0(3,"Failure: pda is not okay\n");
+		WLAN_LOG_DEBUG(3,"Failure: pda is not okay\n");
 	}
 
 	DBFEXIT;
@@ -2836,85 +3037,7 @@ int hfa384x_drvr_readpda(hfa384x_t *hw, void *buf, UINT len)
 ----------------------------------------------------------------*/
 int hfa384x_drvr_setconfig(hfa384x_t *hw, UINT16 rid, void *buf, UINT16 len)
 {
-	int 		result = 0;
-	DBFENTER;
-
-	result = hfa384x_dowrid(hw, DOWAIT, rid, buf, len, NULL, NULL);
-
-	DBFEXIT;
-	return result;
-}
-
-
-/*----------------------------------------------------------------
-* hfa384x_drvr_setconfig16
-*
-* Performs the sequence necessary to write a 16 bit config/info item.
-*
-* Arguments:
-*	hw		device structure
-*	rid		config/info record id (in host order)
-*	val		16 bit value to store (in host order)
-*
-* Returns: 
-*	0		success
-*	>0		f/w reported error - f/w status code
-*	<0		driver reported error
-*
-* Side effects:
-*
-* Call context:
-*	process 
-----------------------------------------------------------------*/
-int hfa384x_drvr_setconfig16(hfa384x_t *hw, UINT16 rid, UINT16 *val)
-{
-	int	result;
-	UINT16	value;
-
-	DBFENTER;
-
-	value = host2hfa384x_16(*val);
-	result = hfa384x_drvr_setconfig(hw, rid, &value, sizeof(UINT16));
-
-	DBFEXIT;
-
-	return result;
-}
-
-
-/*----------------------------------------------------------------
-* hfa384x_drvr_setconfig32
-*
-* Performs the sequence necessary to write a 32 bit config/info item.
-*
-* Arguments:
-*	hw		device structure
-*	rid		config/info record id (in host order)
-*	val		32 bit value to store (in host order)
-*
-* Returns: 
-*	0		success
-*	>0		f/w reported error - f/w status code
-*	<0		driver reported error
-*
-* Side effects:
-*
-* Call context:
-*	process 
-----------------------------------------------------------------*/
-int hfa384x_drvr_setconfig32(hfa384x_t *hw, UINT16 rid, UINT32 *val)
-{
-	int	result;
-	UINT32	value;
-
-	DBFENTER;
-
-	value = host2hfa384x_32(*val);
-	result = hfa384x_drvr_setconfig(hw, rid, &value, sizeof(UINT32));
-
-	DBFEXIT;
-
-	return result;
+	return hfa384x_dowrid(hw, DOWAIT, rid, buf, len, NULL, NULL);
 }
 
 
@@ -2941,7 +3064,7 @@ int hfa384x_drvr_setconfig32(hfa384x_t *hw, UINT16 rid, UINT32 *val)
 * Call context:
 *	process 
 ----------------------------------------------------------------*/
-void
+int
 hfa384x_drvr_setconfig_async(
 	hfa384x_t	*hw,
 	UINT16		rid,
@@ -2950,14 +3073,7 @@ hfa384x_drvr_setconfig_async(
 	ctlx_usercb_t	usercb,
 	void		*usercb_data)
 {
-	int 		result = 0;
-	DBFENTER;
-	
-	result = hfa384x_dowrid(hw, 
-			DOASYNC, rid, buf, len, usercb, usercb_data);
-
-	DBFEXIT;
-	return;
+	return hfa384x_dowrid(hw, DOASYNC, rid, buf, len, usercb, usercb_data);
 }
 
 
@@ -2982,42 +3098,35 @@ hfa384x_drvr_setconfig_async(
 ----------------------------------------------------------------*/
 int hfa384x_drvr_start(hfa384x_t *hw)
 {
-	int	result = 0;
+	int		result;
 	DBFENTER;
 
 	if (usb_clear_halt(hw->usb, usb_rcvbulkpipe(hw->usb, hw->endp_in))) {
-		WLAN_LOG_ERROR0(
+		WLAN_LOG_ERROR(
 			"Failed to reset bulk in endpoint.\n");
 	}
 
 	if (usb_clear_halt(hw->usb, usb_sndbulkpipe(hw->usb, hw->endp_out))) {
-		WLAN_LOG_ERROR0(
+		WLAN_LOG_ERROR(
 			"Failed to reset bulk out endpoint.\n");
 	}
 
-	/* Post the IN urb */
-	if (!hw->rxurb_posted) {
-		/* Post the rx urb */
-		FILL_BULK_URB(&hw->rx_urb, hw->usb, 
-				usb_rcvbulkpipe(hw->usb, hw->endp_in),
-				&hw->rxbuff, sizeof(hw->rxbuff),
-				hfa384x_usbin_callback, hw->usbcontext);
-		hw->rx_urb.transfer_flags |= USB_ASYNC_UNLINK;
+	/* Synchronous unlink, in case we're trying to restart the driver */
+	usb_unlink_urb(&hw->rx_urb);
 
-		if ((result = usb_submit_urb(&hw->rx_urb))) {
-			WLAN_LOG_ERROR(
-				"Fatal, usb_submit_urb() failed, result=%d\n",
-				result);
-			goto done;
-		}
-		hw->rxurb_posted = 1;
+	/* Post the IN urb */
+	result = submit_rx_urb(hw, GFP_KERNEL);
+	if (result != 0) {
+		WLAN_LOG_ERROR(
+			"Fatal, failed to submit RX URB, result=%d\n",
+			result);
+		goto done;
 	}
 
 	/* call initialize */
 	result = hfa384x_cmd_initialize(hw);
 	if (result != 0) {
 		usb_unlink_urb(&hw->rx_urb);
-		hw->rxurb_posted = 0;
 		WLAN_LOG_ERROR(
 			"cmd_initialize() failed, result=%d\n",
 			result);
@@ -3058,34 +3167,27 @@ hfa384x_drvr_stop(hfa384x_t *hw)
 	int	i;
 	DBFENTER;
 
-#ifdef DECLARE_TASKLET
-	tasklet_kill(&hw->link_bh);
-#else
-#warning "We aren't cleaning up the link_bh cleanly!"
-#endif
+	flush_scheduled_work();
 
-	/* Call initialize to leave the MAC in its 'reset' state */
-	hfa384x_cmd_initialize(hw);
+	/* There's no need for spinlocks here. The USB "disconnect"
+	 * function sets this "removed" flag and then calls us.
+	 */
+	if ( !hw->usb_removed ) {
+		/* Call initialize to leave the MAC in its 'reset' state */
+		hfa384x_cmd_initialize(hw);
+
+		/* Cancel the rxurb */
+		usb_unlink_urb(&hw->rx_urb);
+	}
+
+	hw->link_status = HFA384x_LINK_NOTCONNECTED;
+	hw->state = HFA384x_STATE_INIT;
 
 	/* Clear all the port status */
-	hw->state = HFA384x_STATE_INIT;
 	for ( i = 0; i < HFA384x_NUMPORTS_MAX; i++) {
 		hw->port_enabled[i] = 0;
 	}
 
-	wait_ms(100);
-
-	/* Cancel the rxurb */
-	if (hw->rxurb_posted) {
-		usb_unlink_urb(&hw->rx_urb);
-		hw->rxurb_posted = 0;
-	}
-
-	/* TODO: Make sure there aren't any layabout tx urbs or ctlx urbs 
-	 *       for now, we assume there aren't.
-	 * XXXXX fixme?
-	 * MFK: that's apparently what's causing panic on hot-unplug...
-	 */
 	DBFEXIT;
 	return result;
 }
@@ -3114,19 +3216,18 @@ hfa384x_drvr_stop(hfa384x_t *hw)
 int hfa384x_drvr_txframe(hfa384x_t *hw, struct sk_buff *skb, p80211_hdr_t *p80211_hdr, p80211_metawep_t *p80211_wep)
 
 {
-	int			usbpktlen = sizeof(hfa384x_tx_frame_t);
-	int			result = 0;
-	char                    *ptr;
+	int		usbpktlen = sizeof(hfa384x_tx_frame_t);
+	int		result;
+	int		ret;
+	char		*ptr;
+
 	DBFENTER;
 
-#if 0
-	if (hw->usbflags & HFA384x_USBFLAG_TXURB_BUSY) {
-		WLAN_LOG_ERROR0(
-			"txframe() called w/ txurb busy, this is bad.\n");
-		return 1;
+	if (hw->tx_urb.status == -EINPROGRESS) {
+		WLAN_LOG_WARNING("TX URB already in use\n");
+		result = 3; 
+		goto exit;
 	}
-	hw->usbflags |= HFA384x_USBFLAG_TXURB_BUSY;
-#endif
 
 	/* Build Tx frame structure */
 	/* Set up the control field */
@@ -3136,23 +3237,25 @@ int hfa384x_drvr_txframe(hfa384x_t *hw, struct sk_buff *skb, p80211_hdr_t *p8021
 	hw->txbuff.type = host2hfa384x_16(HFA384x_USB_TXFRM);
 
 	/* Set up the sw_support field to identify this frame */
-	hw->txbuff.txfrm.desc.sw_support = host2hfa384x_32(0x0123);
+	hw->txbuff.txfrm.desc.sw_support = 0x0123;
 
 /* Tx complete and Tx exception disable per dleach.  Might be causing 
  * buf depletion 
- * XXXX fixme?
- * MFK: on USB, it will also eat up the USB bus bandwidth...
  */
-#if 0		
+//#define DOEXC  SLP -- doboth breaks horribly under load, doexc less so.
+#if defined(DOBOTH)
 	hw->txbuff.txfrm.desc.tx_control = 
 		HFA384x_TX_MACPORT_SET(0) | HFA384x_TX_STRUCTYPE_SET(1) | 
 		HFA384x_TX_TXEX_SET(1) | HFA384x_TX_TXOK_SET(1);	
+#elif defined(DOEXC)
+	hw->txbuff.txfrm.desc.tx_control = 
+		HFA384x_TX_MACPORT_SET(0) | HFA384x_TX_STRUCTYPE_SET(1) |
+		HFA384x_TX_TXEX_SET(1) | HFA384x_TX_TXOK_SET(0);	
 #else
 	hw->txbuff.txfrm.desc.tx_control = 
 		HFA384x_TX_MACPORT_SET(0) | HFA384x_TX_STRUCTYPE_SET(1) |
 		HFA384x_TX_TXEX_SET(0) | HFA384x_TX_TXOK_SET(0);	
 #endif
-
 	hw->txbuff.txfrm.desc.tx_control = 
 		host2hfa384x_16(hw->txbuff.txfrm.desc.tx_control);
 
@@ -3188,206 +3291,156 @@ int hfa384x_drvr_txframe(hfa384x_t *hw, struct sk_buff *skb, p80211_hdr_t *p8021
 	}
 
 	/* Send the USB packet */	
-	FILL_BULK_URB( &(hw->tx_urb), hw->usb,
-		usb_sndbulkpipe(hw->usb, hw->endp_out),
-		&(hw->txbuff), ROUNDUP64(usbpktlen),
-		hfa384x_usbout_callback, hw->usbcontext);
-	hw->tx_urb.transfer_flags |= USB_QUEUE_BULK;
+	usb_fill_bulk_urb( &(hw->tx_urb), hw->usb,
+	               usb_sndbulkpipe(hw->usb, hw->endp_out),
+	               &(hw->txbuff), ROUNDUP64(usbpktlen),
+	               hfa384x_usbout_callback, hw->wlandev );
+	hw->tx_urb.transfer_flags = USB_QUEUE_BULK;
 
-	if ( (result = usb_submit_urb(&hw->tx_urb)) ) {
-		WLAN_LOG_ERROR(
-			"submit_urb() failed, result=%d\n", result);
-#if 0
-		hw->usbflags &= ~HFA384x_USBFLAG_TXURB_BUSY;
-#endif
-		result = 1;
-	}
 	result = 1;
+	ret = submit_tx_urb(hw, &hw->tx_urb, GFP_ATOMIC);
+	if ( ret != 0 ) {
+		WLAN_LOG_ERROR(
+			"submit_tx_urb() failed, error=%d\n", ret);
+		result = 3;
+	}
 
+ exit:
 	DBFEXIT;
 	return result;
 }
 
+void hfa384x_tx_timeout(wlandevice_t *wlandev)
+{
+	hfa384x_t	*hw = wlandev->priv;
+	
+	DBFENTER;
+    /* Note the bitwise OR, not the logical OR. */
+	if ( !test_and_set_bit(WORK_TX_HALT, &hw->work_flags) |
+	     !test_and_set_bit(WORK_RX_HALT, &hw->work_flags) )
+		schedule_work(&hw->usb_work);
+	DBFEXIT;
+}
+
 /*----------------------------------------------------------------
-* hfa384x_rx_typedrop
+* hfa384x_usbctlx_cancel
 *
-* Classifies the frame, increments the appropriate counter, and
-* returns 0|1 indicating whether the driver should handle or
-* drop the frame
+* This CTLX must be marked as "dead".
 *
 * Arguments:
-*	wlandev		wlan device structure
-*	fc		frame control field
+*	ctlx	ptr to a ctlx structure
 *
-* Returns: 
-*	zero if the frame should be handled by the driver,
-*	non-zero otherwise.
+* Returns:
+*	Error code from the URB unlink, or -ENODEV
 *
 * Side effects:
 *
 * Call context:
-*	interrupt
+*	Either process or interrupt
 ----------------------------------------------------------------*/
-int 
-hfa384x_rx_typedrop( wlandevice_t *wlandev, UINT16 fc)
+int hfa384x_usbctlx_cancel(hfa384x_usbctlx_t *ctlx)
 {
-	UINT16	ftype;
-	UINT16	fstype;
-	int	drop = 0;
-	/* Classify frame, increment counter */
-	ftype = WLAN_GET_FC_FTYPE(fc);
-	fstype = WLAN_GET_FC_FSTYPE(fc);
-#if 0
-	WLAN_LOG_DEBUG(4, 
-		"rx_typedrop : ftype=%d fstype=%d.\n", ftype, fstype);
-#endif
-	switch ( ftype ) {
-	case WLAN_FTYPE_MGMT:
-		if ((wlandev->netdev->flags & IFF_PROMISC) ||
-			(wlandev->netdev->flags & IFF_ALLMULTI)) {
-			drop = 1;
-			break;
-		}
-		WLAN_LOG_DEBUG0(3, "prism2sta_ev_rx(): rx'd mgmt:\n");
-		wlandev->rx.mgmt++;
-		switch( fstype ) {
-		case WLAN_FSTYPE_ASSOCREQ:
-			/* printk("assocreq"); */
-			wlandev->rx.assocreq++;
-			break;
-		case WLAN_FSTYPE_ASSOCRESP:
-			/* printk("assocresp"); */
-			wlandev->rx.assocresp++;
-			break;
-		case WLAN_FSTYPE_REASSOCREQ:
-			/* printk("reassocreq"); */
-			wlandev->rx.reassocreq++;
-			break;
-		case WLAN_FSTYPE_REASSOCRESP:
-			/* printk("reassocresp"); */
-			wlandev->rx.reassocresp++;
-			break;
-		case WLAN_FSTYPE_PROBEREQ:
-			/* printk("probereq"); */
-			wlandev->rx.probereq++;
-			break;
-		case WLAN_FSTYPE_PROBERESP:
-			/* printk("proberesp"); */
-			wlandev->rx.proberesp++;
-			break;
-		case WLAN_FSTYPE_BEACON:
-			/* printk("beacon"); */
-			wlandev->rx.beacon++;
-			break;
-		case WLAN_FSTYPE_ATIM:
-			/* printk("atim"); */
-			wlandev->rx.atim++;
-			break;
-		case WLAN_FSTYPE_DISASSOC:
-			/* printk("disassoc"); */
-			wlandev->rx.disassoc++;
-			break;
-		case WLAN_FSTYPE_AUTHEN:
-			/* printk("authen"); */
-			wlandev->rx.authen++;
-			break;
-		case WLAN_FSTYPE_DEAUTHEN:
-			/* printk("deauthen"); */
-			wlandev->rx.deauthen++;
-			break;
-		default:
-			/* printk("unknown"); */
-			wlandev->rx.mgmt_unknown++;
-			break;
-		}
-		/* printk("\n"); */
-		drop = 2;
-		break;
+	hfa384x_t	*hw = ctlx->hw;
+	unsigned long	flags;
 
-	case WLAN_FTYPE_CTL:
-		if ((wlandev->netdev->flags & IFF_PROMISC) ||
-			(wlandev->netdev->flags & IFF_ALLMULTI)) {
-			drop = 1;
-			break;
-		}
-		WLAN_LOG_DEBUG0(3, "prism2sta_ev_rx(): rx'd ctl:\n");
-		wlandev->rx.ctl++;
-		switch( fstype ) {
-		case WLAN_FSTYPE_PSPOLL:
-			/* printk("pspoll"); */
-			wlandev->rx.pspoll++;
-			break;
-		case WLAN_FSTYPE_RTS:
-			/* printk("rts"); */
-			wlandev->rx.rts++;
-			break;
-		case WLAN_FSTYPE_CTS:
-			/* printk("cts"); */
-			wlandev->rx.cts++;
-			break;
-		case WLAN_FSTYPE_ACK:
-			/* printk("ack"); */
-			wlandev->rx.ack++;
-			break;
-		case WLAN_FSTYPE_CFEND:
-			/* printk("cfend"); */
-			wlandev->rx.cfend++;
-			break;
-		case WLAN_FSTYPE_CFENDCFACK:
-			/* printk("cfendcfack"); */
-			wlandev->rx.cfendcfack++;
-			break;
-		default:
-			/* printk("unknown"); */
-			wlandev->rx.ctl_unknown++;
-			break;
-		}
-		/* printk("\n"); */
-		drop = 2;
-		break;
+	spin_lock_irqsave(&hw->ctlxq.lock, flags);
 
-	case WLAN_FTYPE_DATA:
-		wlandev->rx.data++;
-		switch( fstype ) {
-		case WLAN_FSTYPE_DATAONLY:
-			wlandev->rx.dataonly++;
-			break;
-		case WLAN_FSTYPE_DATA_CFACK:
-			wlandev->rx.data_cfack++;
-			break;
-		case WLAN_FSTYPE_DATA_CFPOLL:
-			wlandev->rx.data_cfpoll++;
-			break;
-		case WLAN_FSTYPE_DATA_CFACK_CFPOLL:
-			wlandev->rx.data__cfack_cfpoll++;
-			break;
-		case WLAN_FSTYPE_NULL:
-			WLAN_LOG_DEBUG0(3, "prism2sta_ev_rx(): rx'd data:null\n");
-			wlandev->rx.null++;
-			break;
-		case WLAN_FSTYPE_CFACK:
-			WLAN_LOG_DEBUG0(3, "prism2sta_ev_rx(): rx'd data:cfack\n");
-			wlandev->rx.cfack++;
-			break;
-		case WLAN_FSTYPE_CFPOLL:
-			WLAN_LOG_DEBUG0(3, "prism2sta_ev_rx(): rx'd data:cfpoll\n");
-			wlandev->rx.cfpoll++;
-			break;
-		case WLAN_FSTYPE_CFACK_CFPOLL:
-			WLAN_LOG_DEBUG0(3, "prism2sta_ev_rx(): rx'd data:cfack_cfpoll\n");
-			wlandev->rx.cfack_cfpoll++;
-			break;
-		default:
-			/* printk("unknown"); */
-			wlandev->rx.data_unknown++;
-			break;
-		}
-
-		break;
+	if ( hw->usb_removed ) {
+		/* We have been unplugged, and other
+		 * clean-up is currently in progress.
+		 */
+		spin_unlock_irqrestore(&hw->ctlxq.lock, flags);
+		return -EINPROGRESS;
 	}
-	return drop;
+
+	list_move_tail(&ctlx->list, &hw->ctlxq.finished);
+	ctlx->state = CTLX_REQ_FAILED;
+
+	del_timer(&ctlx->reqtimer);
+	del_timer(&ctlx->resptimer);
+
+	spin_unlock_irqrestore(&hw->ctlxq.lock, flags);
+
+	return usb_unlink_urb(&ctlx->outurb);
 }
 
+/*----------------------------------------------------------------
+* hfa384x_usbctlx_cancel_async
+*
+* Mark the CTLX dead asynchronously, and ensure that the
+* next command on the queue is run afterwards.
+*
+* Arguments:
+*	ctlx	ptr to a CTLX structure
+*
+* Returns:
+*	Error code from hfa384x_usbctlx_cancel
+*
+* Call context:
+*	Either process or interrupt, but presumably interrupt
+----------------------------------------------------------------*/
+int hfa384x_usbctlx_cancel_async(hfa384x_usbctlx_t *ctlx)
+{
+	int ret;
+
+	ctlx->outurb.transfer_flags |= URB_ASYNC_UNLINK;
+	ret = hfa384x_usbctlx_cancel(ctlx);
+
+	if (ret != -EINPROGRESS) {
+		hfa384x_t	*hw = ctlx->hw;
+
+		/* The OUT URB had either already completed
+		 * or was still in the pending queue, so the
+		 * URB's completion function will not be called.
+		 * We will have to complete the CTLX ourselves.
+		 */
+		hfa384x_usbctlx_complete(ctlx);
+
+		/* Now run the next command on the queue. */
+		/* DON'T FORGET THAT WE HAVE COMPLETED THE CTLX,
+		 * SO DON'T DEREFERENCE ITS POINTER AGAIN! */
+		hfa384x_usbctlxq_run(&hw->ctlxq);
+	}
+
+	return ret;
+}
+
+/*----------------------------------------------------------------
+* hfa384x_usbctlx_init
+*
+* Generic construction for a CTLX object.
+*
+* Arguments:
+* 	ctlx	Pointer to raw CTLX
+* 	hw	Pointer to constructed hfa384x_t object
+*
+* Returns:
+*	Nothing.
+*
+* Side effects:
+*
+* Call context:
+*	Process
+----------------------------------------------------------------*/
+void hfa384x_usbctlx_init(hfa384x_usbctlx_t *ctlx, hfa384x_t *hw)
+{
+	memset(ctlx, 0, sizeof(*ctlx));
+
+	ctlx->hw = hw;
+	ctlx->state = CTLX_START;
+
+	init_completion(&ctlx->done);
+	usb_init_urb(&ctlx->outurb);
+	INIT_DEFERRED_TASK(ctlx->async_bh, hfa384x_usbctlx_complete_async, ctlx);
+
+	init_timer(&ctlx->resptimer);
+	ctlx->resptimer.function = hfa384x_usbctlx_resptimerfn;
+	ctlx->resptimer.data = (unsigned long)ctlx;
+
+	init_timer(&ctlx->reqtimer);
+	ctlx->reqtimer.function = hfa384x_usbctlx_reqtimerfn;
+	ctlx->reqtimer.data = (unsigned long)ctlx;
+}
 
 /*----------------------------------------------------------------
 * hfa384x_usbctlx_complete
@@ -3409,130 +3462,119 @@ hfa384x_rx_typedrop( wlandevice_t *wlandev, UINT16 fc)
 ----------------------------------------------------------------*/
 void hfa384x_usbctlx_complete(hfa384x_usbctlx_t *ctlx)
 {
-	wlandevice_t		*wlandev = ctlx->outurb.context;
-	prism2sta_priv_t	*priv = wlandev->priv;
-	hfa384x_t		*hw = priv->hw;
+	hfa384x_t		*hw = ctlx->hw;
+	unsigned long		flags;
 
 	DBFENTER;
-
-	if (hw->hwremoved)
-		return;
 
 	/* Timers have been stopped, and ctlx should be in 
 	 * a terminal state.
 	 */
-	/* Dequeue the ctlx and run the queue */
-	hfa384x_usbctlxq_dequeue(&hw->ctlxq);
-	hfa384x_usbctlxq_run(&hw->ctlxq);
+	spin_lock_irqsave(&hw->ctlxq.lock, flags);
 
  	/* Handling depends on state */
 	switch(ctlx->state) {
-	case HFA384x_USBCTLX_COMPLETE:
-	case HFA384x_USBCTLX_REQSUBMIT_FAIL:
-	case HFA384x_USBCTLX_REQ_FAILED:
-	case HFA384x_USBCTLX_REQ_TIMEOUT:
-	case HFA384x_USBCTLX_RESP_TIMEOUT:
-	/* Handle correct state completion
-	 * Actual error handling is deferred to the awakened
-	 *  sleeper or the hfa384x_cbXXX() functions 
-	 */
-	if ( ! ctlx->is_async ) {
-		ctlx->wanna_wakeup = 1;
-		wake_up_interruptible(&hw->cmdq);
-	} else {
-		switch(hfa384x2host_16(ctlx->outbuf.type)) {
-		case HFA384x_USB_CMDREQ:
-			hfa384x_cbcmd(hw, ctlx);
-			break;
-		case HFA384x_USB_WRIDREQ:
-			hfa384x_cbwrid(hw, ctlx);
-			break;
-		case HFA384x_USB_RRIDREQ:
-			hfa384x_cbrrid(hw, ctlx);
-			break;
-		case HFA384x_USB_WMEMREQ:
-			hfa384x_cbwmem(hw, ctlx);
-			break;
-		case HFA384x_USB_RMEMREQ:
-			hfa384x_cbrmem(hw, ctlx);
-			break;
-		default:
-			WLAN_LOG_ERROR(
-				"unknown reqtype=%d, ignored.\n", 
-				ctlx->outbuf.type);
-			kfree(ctlx);
-			break;
+	case CTLX_COMPLETE:
+	case CTLX_REQSUBMIT_FAIL:
+	case CTLX_REQ_FAILED:
+	case CTLX_REQ_TIMEOUT:
+		if ( !hw->usb_removed ) {
+			if ( ctlx->is_async ) {
+				/* Retire the CTLX from the active queue */
+				list_move_tail(&ctlx->list, &hw->ctlxq.finished);
+
+				/* We are currently in IRQ context, so defer
+				 * calling the async completion handler.
+				 */
+				SCHEDULE_DEFERRED_TASK(ctlx->async_bh);
+			}
+			else {
+				/* Remove CTLX from whichever queue it is on */
+				list_del(&ctlx->list);
+
+				ctlx->wanna_wakeup = 1;
+				wake_up_interruptible(&hw->cmdq);
+			}
 		}
-	}
-	break;
-
-	case HFA384x_USBCTLX_REQ_SUBMITTED:
-	case HFA384x_USBCTLX_REQ_COMPLETE:
-	case HFA384x_USBCTLX_START:
-	case HFA384x_USBCTLX_QUEUED:
-	case HFA384x_USBCTLX_RESP_RECEIVED:
-		WLAN_LOG_ERROR0("Called, CTLX not in terminating state.\n");
-		/* Things are really bad if this happens. Just leak
-		 * the CTLX because it may still be linked to the 
-		 * queue or the OUT urb may still be active.
-		 * Just leaking at least prevents an Oops or Panic.
-		 */
-		goto done;
+		spin_unlock_irqrestore(&hw->ctlxq.lock, flags);
 		break;
-	}
 
-done:
+	default:
+		if ( !hw->usb_removed ) {
+			list_move_tail(&ctlx->list, &hw->ctlxq.finished);
+		}
+		spin_unlock_irqrestore(&hw->ctlxq.lock, flags);
+
+		WLAN_LOG_ERROR("Called, CTLX not in terminating state.\n");
+		/* Things are really bad if this happens. Just throw
+		 * the CTLX onto the garbage pile. At least then it
+		 * will still be destroyed when the adapter in unplugged.
+		 */
+		break;
+	} /* switch */
+
 	DBFEXIT;
-	return;
 }
-
 
 /*----------------------------------------------------------------
-* hfa384x_usbctlxq_dequeue
+* hfa384x_usbctlx_complete_async
 *
-* Removes the head item from the usb control exchange (CTLX) queue.
+* A CTLX has completed.  It may have been successful, it may not
+* have been. At this point, the CTLX should be quiescent.  The URBs
+* aren't active and the timers should have been stopped.
 *
 * Arguments:
-*	ctlxq		queue structure.
+*	ctlx	ptr to a ctlx structure
 *
-* Returns: 
-*	NULL if queue empty, ptr to old head item otherwise.
-*
-* Side effects:
+* Returns:
+*	nothing
 *
 * Call context:
-*	any
+*	interrupt
 ----------------------------------------------------------------*/
-hfa384x_usbctlx_t*
-hfa384x_usbctlxq_dequeue(hfa384x_usbctlxq_t *ctlxq)
+static void
+hfa384x_usbctlx_complete_async(deferred_data_t data)
 {
+	hfa384x_usbctlx_t	*ctlx = (hfa384x_usbctlx_t*)data;
+	hfa384x_t		*hw = ctlx->hw;
 	unsigned long		flags;
-	hfa384x_usbctlx_t	*ctlx;
 	DBFENTER;
-	
-	/* acquire lock */
-	spin_lock_irqsave(&ctlxq->lock, flags);
 
-	/* Remove head item from list */
-	ctlx = ctlxq->head;
-	if (ctlx != NULL ) {
-		ctlxq->head = ctlx->next;
-		if (ctlxq->head == NULL ) {
-			ctlxq->tail = NULL;
-		} else {
-			ctlxq->head->prev = NULL;
-		}
-		ctlx->prev = ctlx->next = NULL;
+	switch(hfa384x2host_16(ctlx->outbuf.type)) {
+	case HFA384x_USB_CMDREQ:
+		hfa384x_cbcmd(hw, ctlx);
+		break;
+	case HFA384x_USB_WRIDREQ:
+		hfa384x_cbwrid(hw, ctlx);
+		break;
+	case HFA384x_USB_RRIDREQ:
+		hfa384x_cbrrid(hw, ctlx);
+		break;
+	case HFA384x_USB_WMEMREQ:
+		hfa384x_cbwmem(hw, ctlx);
+		break;
+	case HFA384x_USB_RMEMREQ:
+		hfa384x_cbrmem(hw, ctlx);
+		break;
+	default:
+		WLAN_LOG_ERROR( "unknown reqtype=%d, ignored.\n",
+		                ctlx->outbuf.type);
+		break;
+	} /* switch */
+
+	/* If we're shutting down then the disconnect
+	 * handler has to do this, not us.
+	 */
+	spin_lock_irqsave(&hw->ctlxq.lock, flags);
+	if ( !hw->usb_removed ) {
+		list_del(&ctlx->list);
+		complete(&ctlx->done);
+		kfree(ctlx);
 	}
+	spin_unlock_irqrestore(&hw->ctlxq.lock, flags);
 
-	/* release lock */
-	spin_unlock_irqrestore(&ctlxq->lock, flags);
-
-	/* return the old head */
 	DBFEXIT;
-	return ctlx;
 }
-
 
 /*----------------------------------------------------------------
 * hfa384x_usbctlxq_enqueue_run
@@ -3545,44 +3587,47 @@ hfa384x_usbctlxq_dequeue(hfa384x_usbctlxq_t *ctlxq)
 *	cmd		new command
 *
 * Returns: 
-*	nothing
+*	0       - command queued
+*	-ENODEV - command not queued
 *
 * Side effects:
 *
 * Call context:
 *	any
 ----------------------------------------------------------------*/
-void 
+int
 hfa384x_usbctlxq_enqueue_run(
 	hfa384x_usbctlxq_t	*ctlxq, 
 	hfa384x_usbctlx_t	*ctlx)
 {
-	unsigned long		flags;
+	int		result;
+	unsigned long	flags;
 	DBFENTER;
 
 	/* acquire lock */
 	spin_lock_irqsave(&ctlxq->lock, flags);
 
-	/* Add item to the list */
-	ctlx->next = NULL;	
-	ctlx->prev = ctlxq->tail;
-	ctlxq->tail = ctlx;
-	if (ctlx->prev) {
-		ctlx->prev->next = ctlx;
-	} else {
-		ctlxq->head = ctlx;
+	if ( ctlx->hw->usb_removed ) {
+		spin_unlock_irqrestore(&ctlxq->lock, flags);
+		result = -ENODEV;
+		goto done;
 	}
 
+	/* Add item to the list */
+	list_add_tail(&ctlx->list, &ctlxq->pending);
+
 	/* Set state to QUEUED */
-	ctlx->state = HFA384x_USBCTLX_QUEUED;
+	ctlx->state = CTLX_QUEUED;
 
 	/* release lock */
 	spin_unlock_irqrestore(&ctlxq->lock, flags);
 
 	hfa384x_usbctlxq_run(ctlxq);
+	result = 0;
 
+	done:
 	DBFEXIT;
-	return;
+	return result;
 }
 
 
@@ -3607,68 +3652,99 @@ hfa384x_usbctlxq_run(
 	hfa384x_usbctlxq_t	*ctlxq)
 {
 	unsigned long		flags;
-	int			result;
-	hfa384x_usbctlx_t       *head;
 	DBFENTER;
 
 	/* acquire lock */
 	spin_lock_irqsave(&ctlxq->lock, flags);
 
-	/* we need to split this off to avoid a race condition */
-	head = ctlxq->head;
-
-	/* Run the queue: If head in non-running state, submit urb, and 
-	 * set state to REQ_SUBMITTED.
+	/* Only one active CTLX at any one time, because there's no
+	 * other (reliable) way to match the response URB to the
+	 * correct CTLX.
 	 */
-	if (head != NULL && 
-	    head->state == HFA384x_USBCTLX_QUEUED) {
-		result = usb_submit_urb(&head->outurb);
-		if (result) {
-			WLAN_LOG_ERROR(
-			"Fatal, failed to submit command urb. error=%d\n",
-			result);
-			head->state = HFA384x_USBCTLX_REQSUBMIT_FAIL;
+	if ( !list_empty(&ctlxq->active) )
+		goto unlock;
 
-			/* release lock */
-			spin_unlock_irqrestore(&ctlxq->lock, flags);
-			hfa384x_usbctlx_complete(head);
-			goto done;
+	while ( !list_empty(&ctlxq->pending) ) {
+		hfa384x_usbctlx_t	*head;
+		hfa384x_t		*hw;
+		int			result;
+
+		/* This is the first pending command */
+		head = list_entry(ctlxq->pending.next, hfa384x_usbctlx_t, list);
+		hw = head->hw;
+
+		/* Check whether the hardware has been removed. If it has then
+		 * everything is about to get cleaned up!
+		 */
+		if ( hw->usb_removed ||
+		     test_bit(WORK_TX_HALT, &hw->work_flags) )
+			break;
+
+		/* We need to split this off to avoid a race condition */
+		list_move_tail(&head->list, &ctlxq->active);
+
+		/* Run the queue: submit the URB and set its state to
+		 * CTLX_REQ_SUBMITTED.
+		 */
+		if ((result = SUBMIT_URB(&head->outurb, GFP_ATOMIC)) == 0) {
+			/* This CTLX is now running on the active queue */
+			head->state = CTLX_REQ_SUBMITTED;
+
+			/* Start the IN wait timer */
+			head->resptimer.expires = jiffies + 2*HZ;
+			add_timer(&head->resptimer);
+
+			/* Start the OUT wait timer */
+			head->reqtimer.expires = jiffies + HZ;
+			add_timer(&head->reqtimer);
+
+			break;
 		}
 
-		head->state = HFA384x_USBCTLX_REQ_SUBMITTED;
+		if (result == -EPIPE) {
+			/* The OUT pipe needs resetting, so put
+			 * this CTLX back in the "pending" queue
+			 * and schedule a reset ...
+			 */
+			WLAN_LOG_WARNING("%s tx pipe stalled: requesting reset\n",
+			                 hw->wlandev->netdev->name);
+			list_move(&head->list, &ctlxq->pending);
+			set_bit(WORK_TX_HALT, &hw->work_flags);
+			schedule_work(&hw->usb_work);
+			break;
+		}
 
-		/* Start the IN wait timer */
-		init_timer(&head->resptimer);
-		head->resptimer.function = 
-			hfa384x_usbctlx_resptimerfn;
-		head->resptimer.data = 
-			(unsigned long)head;
-		head->resptimer.expires = jiffies + 2*HZ;
-		add_timer(&head->resptimer);
+		head->state = CTLX_REQSUBMIT_FAIL;
 
-		/* Start the OUT wait timer */
-		init_timer(&head->reqtimer);
-		head->reqtimer.function = 
-			hfa384x_usbctlx_reqtimerfn;
-		head->reqtimer.data = 
-			(unsigned long)head;
-		head->reqtimer.expires = jiffies + HZ;
-		add_timer(&head->reqtimer);
-	}
+		/* release lock */
+		spin_unlock_irqrestore(&ctlxq->lock, flags);
 
+		WLAN_LOG_ERROR(
+		        "Fatal, failed to submit command urb. error=%d\n",
+		        result);
+
+		hfa384x_usbctlx_complete(head);
+
+		/* Reacquire lock before resuming loop.
+		 * This brief window of being unlocked
+		 * means that we must retest our "have
+		 * we been unplugged?" flag.
+		 */
+		spin_lock_irqsave(&ctlxq->lock, flags);
+	} /* while */
+
+	unlock:
 	/* release lock */
 	spin_unlock_irqrestore(&ctlxq->lock, flags);
 
-	done:
 	DBFEXIT;
-	return;
 }
 
 
 /*----------------------------------------------------------------
 * hfa384x_usbin_callback
 *
-* Callback for urb's on the BULKIN endpoint.
+* Callback for URBs on the BULKIN endpoint.
 *
 * Arguments:
 *	urb		ptr to the completed urb
@@ -3681,120 +3757,138 @@ hfa384x_usbctlxq_run(
 * Call context:
 *	interrupt
 ----------------------------------------------------------------*/
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0))
 void hfa384x_usbin_callback(struct urb *urb)
+#else
+void hfa384x_usbin_callback(struct urb *urb, struct pt_regs *regs)
+#endif
 {
-	
 	wlandevice_t		*wlandev = urb->context;
-	prism2sta_priv_t	*priv = wlandev->priv;
-	hfa384x_t		*hw = priv->hw;
+	hfa384x_t		*hw;
 	hfa384x_usbin_t		*usbin = urb->transfer_buffer;
 	int			result;
+	int                     urb_status;
 	UINT16			type;
+
+	enum USBIN_ACTION {
+		HANDLE,
+		RESUBMIT,
+		ABORT
+	} action;
 
 	DBFENTER;
 
-	if (hw->hwremoved)
-		return;
+	if ( !wlandev ||
+	     !wlandev->netdev || 
+	     !netif_device_present(wlandev->netdev) )
+		goto exit;
 
-	/* Check for and handle error conditions */
+	hw = wlandev->priv;
+	if (!hw)
+		goto exit;
+
+	/* Check for error conditions within the URB */
 	switch (urb->status) {
 	case 0:
-		goto handle;
+		action = HANDLE;
+
+		/* Check for short packet */
+		if ( urb->actual_length == 0 ) {
+			action = RESUBMIT;
+		}
 		break;
 	case -EPIPE:
-		WLAN_LOG_DEBUG0(3,
-			"status=-EPIPE, assuming stall, try to clear\n");
-		/* XXXX FIXME */
-#if 0 /* usb_clear_halt cannot be called from interrupt context, it blocks */
-		if (usb_clear_halt(hw->usb, usb_rcvbulkpipe(hw->usb, hw->endp_in))) {
-			WLAN_LOG_DEBUG0(3,"usb_clear_halt() failed.\n");
-		}
-#endif
-		goto resubmit;
+	case -EOVERFLOW:
+		WLAN_LOG_WARNING("%s rx pipe stalled: requesting reset\n",
+		                 wlandev->netdev->name);
+		if ( !test_and_set_bit(WORK_RX_HALT, &hw->work_flags) )
+			schedule_work(&hw->usb_work);
+		action = ABORT;
 		break;
 	case -EILSEQ:
 	case -ENODEV:
+	case -ETIMEDOUT:
 		WLAN_LOG_DEBUG(3,"status=%d, device removed.\n", urb->status);
-		return;
+		action = ABORT;
 		break;
 	case -ENOENT:
 		WLAN_LOG_DEBUG(3,"status=%d, urb explicitly unlinked.\n", urb->status);
-		return;
+		action = ABORT;
 		break;
 	default:
-		WLAN_LOG_DEBUG(3,"urb errstatus=%d\n", urb->status);
-		goto resubmit;
+		WLAN_LOG_DEBUG(3,"urb status=%d, transfer flags=0x%x\n",
+		                 urb->status, urb->transfer_flags);
+		action = RESUBMIT;
 		break;
 	}
 
-handle:	
-	/* Check for short packet */
-	if ( urb->actual_length == 0 ) {
-		goto resubmit;
+	urb_status = urb->status;
+
+	if (action != ABORT) {
+		/* Repost the RX URB */
+		result = submit_rx_urb(hw, GFP_ATOMIC);
+		
+		if (result != 0) {
+			WLAN_LOG_ERROR(
+				"Fatal, failed to resubmit rx_urb. error=%d\n",
+				result);
+		}
 	}
 
-	/* Handle a successful usbin packet */
+	/* Handle any USB-IN packet */
 	/* Note: the check of the sw_support field, the type field doesn't 
 	 *       have bit 12 set like the docs suggest. 
-	 * Note2: The txframe function is not currently setting the TxCompl
-	 *        or TxExc bits so we should never get TXFRM type IN URBs.
 	 */
 	type = hfa384x2host_16(usbin->type);
-	if (HFA384x_USB_ISTXFRM(type) || 
-		usbin->txfrm.desc.sw_support == host2hfa384x_32(0x0123)) {
-		hfa384x_usbin_txcompl(wlandev, usbin);
-		goto resubmit;
-	}
 	if (HFA384x_USB_ISRXFRM(type)) {
-		hfa384x_usbin_rx(wlandev, usbin);
-		goto resubmit;
+		if (action == HANDLE) {
+			if (usbin->txfrm.desc.sw_support == 0x0123)
+				hfa384x_usbin_txcompl(wlandev, usbin);
+			else 
+				hfa384x_usbin_rx(wlandev, usbin);
+		}
+		goto exit;
 	}
-
+	if (HFA384x_USB_ISTXFRM(type)) {
+		if (action == HANDLE)
+			hfa384x_usbin_txcompl(wlandev, usbin);
+		goto exit;
+	}
 	switch (type) {
 	case HFA384x_USB_INFOFRM:
-		hfa384x_usbin_info(wlandev, usbin);
-		goto resubmit;
+		if (action == ABORT)
+			goto exit;
+		if (action == HANDLE)
+			hfa384x_usbin_info(wlandev, usbin);
 		break;
 	case HFA384x_USB_CMDRESP:
 	case HFA384x_USB_WRIDRESP:
 	case HFA384x_USB_RRIDRESP:
 	case HFA384x_USB_WMEMRESP:
 	case HFA384x_USB_RMEMRESP:
-		hfa384x_usbin_ctlx(wlandev, urb);
-		goto resubmit;
+		/* ALWAYS, ALWAYS, ALWAYS handle this CTLX!!!! */
+		hfa384x_usbin_ctlx(wlandev, usbin, urb_status);
 		break;
 	case HFA384x_USB_BUFAVAIL:
 		WLAN_LOG_DEBUG(3,"Received BUFAVAIL packet, frmlen=%d\n",
 			usbin->bufavail.frmlen);
-		goto resubmit;
 		break;
+
 	case HFA384x_USB_ERROR:
 		WLAN_LOG_DEBUG(3,"Received USB_ERROR packet, errortype=%d\n",
 			usbin->usberror.errortype);
-		goto resubmit;
 		break;
+
 	default:
 		WLAN_LOG_DEBUG(3,"Unrecognized USBIN packet, type=%x\n", 
 			usbin->type);
-		goto resubmit;
-	}
-
-resubmit:
-	FILL_BULK_URB( &(hw->rx_urb), hw->usb, 
-		usb_rcvbulkpipe(hw->usb, hw->endp_in),
-		&(hw->rxbuff), sizeof(hw->rxbuff),
-		hfa384x_usbin_callback, hw->usbcontext);
-
-	if ((result = usb_submit_urb(&(hw->rx_urb)))) {
-		WLAN_LOG_ERROR(
-			"Fatal, failed to resubmit rx_urb. error=%d\n",
-			result);
-		goto exit;
-	}
+		break;
+	} /* switch */
 
 exit:
+	if (usbin)
+		kfree(usbin);
 	DBFEXIT;
-	return;
 }
 
 
@@ -3802,8 +3896,8 @@ exit:
 * hfa384x_usbin_ctlx
 *
 * We've received a URB containing a Prism2 "response" message.
-* This message needs to be matched up with the head of the queue
-* and our state updated accordingly.
+* This message needs to be matched up with a CTLX on the active
+* queue and our state updated accordingly.
 *
 * Arguments:
 *	wlandev		wlan device
@@ -3817,83 +3911,114 @@ exit:
 * Call context:
 *	interrupt
 ----------------------------------------------------------------*/
-void hfa384x_usbin_ctlx(wlandevice_t *wlandev, struct urb *urb)
+void hfa384x_usbin_ctlx(wlandevice_t *wlandev, hfa384x_usbin_t *usbin, 
+			int urb_status)
 {
-	prism2sta_priv_t	*priv = wlandev->priv;
-	hfa384x_t		*hw = priv->hw;
-	hfa384x_usbin_t		*usbin = urb->transfer_buffer;
-	hfa384x_usbctlx_t	*ctlx;
+	hfa384x_t		*hw;
+	hfa384x_usbctlx_t	*ctlx = NULL;
+	CTLX_STATE		state = CTLX_START; /* will clobber later */
+	unsigned long		flags;
 
 	DBFENTER;
 
-	if (hw->hwremoved)
-		return;
+	if (!wlandev)
+		goto done;
 
-	ctlx = hw->ctlxq.head;
+	hw = wlandev->priv;
 
-	/* If the queue is empty or type doesn't match head ctlx */
-	if ( ctlx == NULL || 
-	     ctlx->outbuf.type != (usbin->type&~host2hfa384x_16(0x8000)) ) {
-		/* else, type doesn't match */
-		/* ignore it */
-		WLAN_LOG_WARNING0(
-			"Failed to match IN URB w/ head CTLX\n");
+	/* Search the active queue for the CTLX that requested this URB */
+	spin_lock_irqsave(&hw->ctlxq.lock, flags);
+	if ( !hw->usb_removed ) {
+		struct list_head *item;
+
+		list_for_each(item, &hw->ctlxq.active) {
+			hfa384x_usbctlx_t	*c;
+
+			c = list_entry(item, hfa384x_usbctlx_t, list);
+			if (c->outbuf.type == (usbin->type&~host2hfa384x_16(0x8000))) {
+				ctlx = c;
+				state = ctlx->state;
+				break;
+			}
+		}
+	}
+
+	/* If the queue is empty or we couldn't match the URB
+	 * then there's nothing to do except try to run another
+	 * pending command (if there is one) */
+	if ( ctlx == NULL ) {
+		spin_unlock_irqrestore(&hw->ctlxq.lock, flags);
+		WLAN_LOG_WARNING("Could not match IN URB(0x%x,%d) to CTLX - ignored\n",
+		                 usbin->type, urb_status);
 		hfa384x_usbctlxq_run(&hw->ctlxq);
 		goto done;
 	}
 
-	WLAN_LOG_DEBUG0(4,"Matched usbin w/ ctlxq->head\n");
+	/* We have received a response URB for our CTLX,
+	 * so we don't need the timeout any more ...
+	 */
+	del_timer(&ctlx->resptimer);
 
+	switch ( state ) {
+	case CTLX_REQ_SUBMITTED:
+		/* We have received our response URB before
+		 * our request has been acknowledged. Do NOT
+		 * destroy our CTLX yet, because our OUT URB
+		 * is still alive ...
+		 */
+		ctlx->state = CTLX_RESP_COMPLETE;
+		spin_unlock_irqrestore(&hw->ctlxq.lock, flags);
 
-	switch ( ctlx->state ) {
-	case HFA384x_USBCTLX_REQ_SUBMITTED:
-		/* Stop the intimer */
-		del_timer(&ctlx->resptimer);
-
-		/* Set the state to CTLX_RESP_RECEIVED */
-		ctlx->state = HFA384x_USBCTLX_RESP_RECEIVED;
-
-		/* Copy the URB and buffer to ctlx */
-		memcpy(&ctlx->inurb, urb, sizeof(*urb));
-		memcpy(&ctlx->inbuf, usbin, sizeof(*usbin));
+		if (urb_status != 0) {
+			/* Cancel the request URB, because its
+			 * response URB has failed.
+			 */
+			hfa384x_usbctlx_cancel_async(ctlx);
+		}
+		else {
+			/* Copy the buffer to ctlx */
+			memcpy(&ctlx->inbuf, usbin, sizeof(ctlx->inbuf));
+		}
 
 		/* Let the machine continue running. */
 		break;
 
-	case HFA384x_USBCTLX_REQ_COMPLETE:
-		/* Stop the intimer */
-		del_timer(&ctlx->resptimer);
+	case CTLX_REQ_COMPLETE:
+		/* This is the usual path: our request
+		 * has already been acknowledged, and
+		 * we have now received the reply.
+		 */
+		ctlx->state = CTLX_COMPLETE;
+		spin_unlock_irqrestore(&hw->ctlxq.lock, flags);
 
-		/* Set the state to CTLX_COMPLETE */
-		ctlx->state = HFA384x_USBCTLX_COMPLETE;
+		/* Copy the buffer to ctlx */
+		if (urb_status == 0)
+			memcpy(&ctlx->inbuf, usbin, sizeof(ctlx->inbuf));
 
-		/* Copy the URB and buffer to ctlx */
-		memcpy(&ctlx->inurb, urb, sizeof(*urb));
-		memcpy(&ctlx->inbuf, usbin, sizeof(*usbin));
-
-		/* Call the completion handler */
+		/* Call the completion handler and run the next command */
 		hfa384x_usbctlx_complete(ctlx);
+		hfa384x_usbctlxq_run(&hw->ctlxq);
 		break;
 
-	case HFA384x_USBCTLX_START:
-	case HFA384x_USBCTLX_QUEUED:
-	case HFA384x_USBCTLX_RESP_RECEIVED:
-	case HFA384x_USBCTLX_REQ_TIMEOUT:
-	case HFA384x_USBCTLX_REQ_FAILED:
-	case HFA384x_USBCTLX_RESP_TIMEOUT:
-	case HFA384x_USBCTLX_REQSUBMIT_FAIL:
-	case HFA384x_USBCTLX_COMPLETE:
-		WLAN_LOG_WARNING0(
-			"Matched IN URB, CTLX in invalid state. "
-			"Ignored.\n");
-		hfa384x_usbctlxq_run(&hw->ctlxq);
-		goto done;
+	default:
+		spin_unlock_irqrestore(&hw->ctlxq.lock, flags);
+
+		/* Throw this CTLX away. If it was running at
+		 * the time then it will automatically run the
+		 * next CTLX off the queue during its URB
+		 * completion handler.
+		 */
+		hfa384x_usbctlx_cancel_async(ctlx);
+
+		WLAN_LOG_WARNING(
+			"Matched IN URB, CTLX in invalid state(0x%x). "
+			"Discarded.\n", state);
+
 		break;
-	}
+	} /* switch */
 
 done:
 	DBFEXIT;
-	return;
 }
 
 
@@ -3901,9 +4026,6 @@ done:
 * hfa384x_usbin_txcompl
 *
 * At this point we have the results of a previous transmit.
-* NOTE: At this point in time, it appears the USB devices doesn't
-*       like giving txcompletes so we have them turned off.  Hence,
-*       this function isn't currently being called.
 *
 * Arguments:
 *	wlandev		wlan device
@@ -3922,12 +4044,6 @@ void hfa384x_usbin_txcompl(wlandevice_t *wlandev, hfa384x_usbin_t *usbin)
 	UINT16			status;
 	DBFENTER;
 
-	/* Clear the sw_support field so a subsequent short packet doesn't
-	 * fool us.
-	 */
-	usbin->txfrm.desc.sw_support = 0;
-
-
 	status = hfa384x2host_16(usbin->type); /* yeah I know it says type...*/
 
 	/* Was there an error? */
@@ -3936,7 +4052,7 @@ void hfa384x_usbin_txcompl(wlandevice_t *wlandev, hfa384x_usbin_t *usbin)
 	} else {
 		prism2sta_ev_tx(wlandev, status);
 	}
-	prism2sta_ev_alloc(wlandev);
+	// prism2sta_ev_alloc(wlandev);
 
 	DBFEXIT;
 	return;
@@ -3962,10 +4078,10 @@ void hfa384x_usbin_txcompl(wlandevice_t *wlandev, hfa384x_usbin_t *usbin)
 ----------------------------------------------------------------*/
 void hfa384x_usbin_rx(wlandevice_t *wlandev, hfa384x_usbin_t *usbin)
 {
-	int			result;
 	p80211_hdr_t            *w_hdr;
 	struct sk_buff          *skb = NULL;
 	int                     hdrlen;
+	p80211_rxmeta_t	*rxmeta;
 	UINT16                  fc;
 	UINT8 *datap;
 
@@ -3982,47 +4098,22 @@ void hfa384x_usbin_rx(wlandevice_t *wlandev, hfa384x_usbin_t *usbin)
         {
 	case 0:
 		w_hdr = (p80211_hdr_t *) &(usbin->rxfrm.desc.frame_control);
-
-		/* see if we should drop or ignore the frame */
-		result = hfa384x_rx_typedrop(wlandev, ieee2host16(usbin->rxfrm.desc.frame_control));
-		if (result) {
-			if (result != 1) 
-				WLAN_LOG_WARNING("Invalid frame type, fc=%04x, dropped.\n",w_hdr->a3.fc);
-			
-			goto done;
-		}
+		fc = ieee2host16(usbin->rxfrm.desc.frame_control);
 
 		/* If exclude and we receive an unencrypted, drop it */
 		if ( (wlandev->hostwep & HOSTWEP_EXCLUDEUNENCRYPTED) &&
-		     !WLAN_GET_FC_ISWEP(ieee2host16(w_hdr->a3.fc))){
+		     !WLAN_GET_FC_ISWEP(fc)){
 			goto done;
 		}
 
-                /* perform mcast filtering */
-		/* TODO:  real hardware mcast filters */
-		if (wlandev->netdev->flags & IFF_ALLMULTI) {
-			UINT8 *daddr = usbin->rxfrm.desc.address1;
-			/* allow my local address through */ 
-			if (memcmp(daddr, wlandev->netdev->dev_addr, WLAN_ADDR_LEN) != 0) {
-				/* but reject anything else that isn't multicast */
-				if (!(daddr[0] & 0x01))
-					goto done; 
-			}
-		}
-
-		fc = ieee2host16(usbin->rxfrm.desc.frame_control);
-		if ( WLAN_GET_FC_TODS(fc) && WLAN_GET_FC_FROMDS(fc) ) {
-			hdrlen = WLAN_HDR_A4_LEN;
-		} else {
-			hdrlen = WLAN_HDR_A3_LEN;
-		}
+		hdrlen = p80211_headerlen(fc);
 
 		/* Allocate the buffer, note CRC (aka FCS). pballoc */
 		/* assumes there needs to be space for one */
 		skb = dev_alloc_skb(hfa384x2host_16(usbin->rxfrm.desc.data_len) + hdrlen + WLAN_CRC_LEN + 2); /* a litlte extra */
 
 		if ( ! skb ) {
-			WLAN_LOG_DEBUG0(1, "alloc_skb failed.\n");
+			WLAN_LOG_DEBUG(1, "alloc_skb failed.\n");
 			goto done;
                 }
 
@@ -4030,7 +4121,7 @@ void hfa384x_usbin_rx(wlandevice_t *wlandev, hfa384x_usbin_t *usbin)
 		skb->dev->last_rx = jiffies;
 
 		/* theoretically align the IP header on a 32-bit word. */
-		if ( hdrlen == WLAN_HDR_A3_LEN )
+		if ( hdrlen == WLAN_HDR_A4_LEN )
 			skb_reserve(skb, 2);
 
 		/* Copy the 802.11 hdr to the buffer */
@@ -4058,6 +4149,14 @@ void hfa384x_usbin_rx(wlandevice_t *wlandev, hfa384x_usbin_t *usbin)
 		memset (datap, 0xff, WLAN_CRC_LEN);
 		skb->mac.raw = skb->data;
 
+		/* Attach the rxmeta, set some stuff */
+		p80211skb_rxmeta_attach(wlandev, skb);
+		rxmeta = P80211SKB_RXMETA(skb);
+		rxmeta->mactime = usbin->rxfrm.desc.time;
+		rxmeta->rxrate = usbin->rxfrm.desc.rate;
+		rxmeta->signal = usbin->rxfrm.desc.signal;
+		rxmeta->noise = usbin->rxfrm.desc.silence;
+
 		prism2sta_ev_rx(wlandev, skb);
 
 		break;
@@ -4067,7 +4166,7 @@ void hfa384x_usbin_rx(wlandevice_t *wlandev, hfa384x_usbin_t *usbin)
                         /* Copy to wlansnif skb */
                         hfa384x_int_rxmonitor( wlandev, &usbin->rxfrm);
                 } else {
-                        WLAN_LOG_DEBUG0(3,"Received monitor frame: FCSerr set\n");
+                        WLAN_LOG_DEBUG(3,"Received monitor frame: FCSerr set\n");
                 }
                 break;
 
@@ -4114,54 +4213,15 @@ static void hfa384x_int_rxmonitor( wlandevice_t *wlandev, hfa384x_usb_rxfrm_t *r
 	UINT8				*datap;
 	UINT16				fc;
 	struct sk_buff			*skb;
-	prism2sta_priv_t	        *priv = wlandev->priv;
-	hfa384x_t		        *hw = priv->hw;
+	hfa384x_t		        *hw = wlandev->priv;
 
 
 	DBFENTER;
 	/* Don't forget the status, time, and data_len fields are in host order */
 	/* Figure out how big the frame is */
 	fc = ieee2host16(rxdesc->frame_control);
-	switch ( WLAN_GET_FC_FTYPE(fc) )
-	{
-	case WLAN_FTYPE_DATA:
-		if ( WLAN_GET_FC_TODS(fc) && WLAN_GET_FC_FROMDS(fc) ) {
-			hdrlen = WLAN_HDR_A4_LEN;
-		} else {
-			hdrlen = WLAN_HDR_A3_LEN;
-		}
-		datalen = hfa384x2host_16(rxdesc->data_len);
-		break;
-	case WLAN_FTYPE_MGMT:
-		hdrlen = WLAN_HDR_A3_LEN;
-		datalen = hfa384x2host_16(rxdesc->data_len);
-		break;
-	case WLAN_FTYPE_CTL:
-		switch ( WLAN_GET_FC_FSTYPE(fc) )
-		{
-		case WLAN_FSTYPE_PSPOLL:
-		case WLAN_FSTYPE_RTS:
-		case WLAN_FSTYPE_CFEND:
-		case WLAN_FSTYPE_CFENDCFACK:
-			hdrlen = 16;
-			break;
-		case WLAN_FSTYPE_CTS:
-		case WLAN_FSTYPE_ACK:
-			hdrlen = 10;
-			break;
-		default:
-			hdrlen = WLAN_HDR_A3_LEN;
-			break;
-		}
-		datalen = 0;
-		break;
-	default:
-		hdrlen = WLAN_HDR_A3_LEN;
-		datalen = hfa384x2host_16(rxdesc->data_len);
-
-		WLAN_LOG_DEBUG(1, "unknown frm: fc=0x%04x\n", fc);
-		break;
-	}
+	hdrlen = p80211_headerlen(fc);
+	datalen = hfa384x2host_16(rxdesc->data_len);
 
 	/* Allocate an ind message+framesize skb */
 	skblen = sizeof(p80211msg_lnxind_wlansniffrm_t) + 
@@ -4285,14 +4345,6 @@ static void hfa384x_int_rxmonitor( wlandevice_t *wlandev, hfa384x_usb_rxfrm_t *r
 		memset( datap, 0xff, WLAN_CRC_LEN);
 	}
 
-	/* set up various data fields */
-	skb->dev = wlandev->netdev;
-	
-	skb->mac.raw = skb->data ;
-	skb->ip_summed = CHECKSUM_NONE;
-	skb->pkt_type = PACKET_OTHERHOST;
-	skb->protocol = htons(ETH_P_80211_RAW);  /* XXX ETH_P_802_2? */
-
 	/* pass it back up */
 	prism2sta_ev_rx(wlandev, skb);
 
@@ -4327,7 +4379,6 @@ void hfa384x_usbin_info(wlandevice_t *wlandev, hfa384x_usbin_t *usbin)
 	prism2sta_ev_info(wlandev, &usbin->infofrm.info);
 
 	DBFEXIT;
-	return;
 }
 
 
@@ -4335,7 +4386,7 @@ void hfa384x_usbin_info(wlandevice_t *wlandev, hfa384x_usbin_t *usbin)
 /*----------------------------------------------------------------
 * hfa384x_usbout_callback
 *
-* Callback for urb's on the BULKOUT endpoint.
+* Callback for URBs on the BULKOUT endpoint.
 *
 * Arguments:
 *	urb		ptr to the completed urb
@@ -4348,145 +4399,183 @@ void hfa384x_usbin_info(wlandevice_t *wlandev, hfa384x_usbin_t *usbin)
 * Call context:
 *	interrupt
 ----------------------------------------------------------------*/
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0))
 void hfa384x_usbout_callback(struct urb *urb)
+#else
+void hfa384x_usbout_callback(struct urb *urb, struct pt_regs *regs)
+#endif
 {
-	
 	wlandevice_t		*wlandev = urb->context;
-	prism2sta_priv_t	*priv = wlandev->priv;
-	hfa384x_t		*hw = priv->hw;
 	hfa384x_usbout_t	*usbout = urb->transfer_buffer;
-	hfa384x_usbctlx_t	*ctlx;
+	DBFENTER;
+
+#ifdef DEBUG_USB
+	dbprint_urb(urb);
+#endif
+
+	if ( wlandev &&
+	     wlandev->netdev ) {
+
+		switch(urb->status) {
+		case 0:
+			hfa384x_usbout_tx(wlandev, usbout);
+			break;
+		case -EPIPE:
+		{
+			hfa384x_t *hw = wlandev->priv;
+			WLAN_LOG_WARNING("%s tx pipe stalled: requesting reset\n",
+			                 wlandev->netdev->name);
+			if ( !test_and_set_bit(WORK_TX_HALT, &hw->work_flags) )
+				schedule_work(&hw->usb_work);
+			break;
+		}
+		case -ENOENT:
+			/* Ignorable error */
+			break;
+		default:
+			WLAN_LOG_INFO("unknown urb->status=%d\n", urb->status);
+			break;
+		} /* switch */
+	}
+
+	DBFEXIT;
+}
+
+
+/*----------------------------------------------------------------
+* hfa384x_ctlxout_callback
+*
+* Callback for control data on the BULKOUT endpoint.
+*
+* Arguments:
+*	urb		ptr to the completed urb
+*
+* Returns:
+* nothing
+*
+* Side effects:
+*
+* Call context:
+* interrupt
+----------------------------------------------------------------*/
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0))
+void hfa384x_ctlxout_callback(struct urb *urb)
+#else
+void hfa384x_ctlxout_callback(struct urb *urb, struct pt_regs *regs)
+#endif
+{
+	hfa384x_usbctlx_t	*ctlx = urb->context;
+	hfa384x_t		*hw = ctlx->hw;
+	CTLX_STATE		state;
+	unsigned long		flags;
 	DBFENTER;
 
 	WLAN_LOG_DEBUG(3,"urb->status=%d\n", urb->status);
-#if 0
-	void dbprint_urb(struct urb* urb);
+#ifdef DEBUG_USB
+	dbprint_urb(urb);
 #endif
-
-	ctlx = hw->ctlxq.head;
-
-	/* Handle a successful usbout packet */
-	switch (hfa384x2host_16(usbout->type)) {
-	case HFA384x_USB_TXFRM:
-		hfa384x_usbout_tx(wlandev, usbout);
-		break;
-
-	case HFA384x_USB_CMDREQ:
-	case HFA384x_USB_WRIDREQ:
-	case HFA384x_USB_RRIDREQ:
-	case HFA384x_USB_WMEMREQ:
-	case HFA384x_USB_RMEMREQ:
-	/* Validate that request matches head CTLX */
-	if ( ctlx == NULL || 
-	     ctlx->outbuf.type != (usbout->type) ) {
-		/* else, type doesn't match */
-		/* ignore it */
-		WLAN_LOG_WARNING0(
-			"Failed to match IN URB w/ head CTLX\n");
-		hfa384x_usbctlxq_run(&hw->ctlxq);
+	if (ctlx == NULL)
 		goto done;
-	}
 
-	WLAN_LOG_DEBUG0(4,"Matched usbout w/ ctlxq->head\n");
-	
+	spin_lock_irqsave(&hw->ctlxq.lock, flags);
+
+	/* We can safely delete a timer even when it has expired */
+	del_timer(&ctlx->reqtimer);
+
+	state = ctlx->state;
+
 	if ( urb->status == 0 ) {
 		/* Request portion of a CTLX is successful */
-		switch ( ctlx->state ) {
-		case HFA384x_USBCTLX_REQ_SUBMITTED:
-			/* Success and correct state */
-			/* Stop the reqtimer and set the new state */
-			del_timer(&ctlx->reqtimer);
-			ctlx->state = HFA384x_USBCTLX_REQ_COMPLETE;
-			/* Allow machine to continue */
+		switch ( state ) {
+		case CTLX_REQ_SUBMITTED:
+			/* This OUT-ACK received before IN */
+			ctlx->state = CTLX_REQ_COMPLETE;
+
+			spin_unlock_irqrestore(&hw->ctlxq.lock, flags);
+
+			/* Machine continues while we wait for this 
+			 * CTLX's reply URB to arrive ...
+			 */
 			break;
 
-		case HFA384x_USBCTLX_RESP_RECEIVED:
-			/* Success and correct state */
-			/* stop the reqtimer and set the new state */
-			del_timer(&ctlx->reqtimer);
-			ctlx->state = HFA384x_USBCTLX_COMPLETE;
+		case CTLX_RESP_COMPLETE:
+			/* IN already received before this OUT-ACK,
+			 * so this command must now be complete.
+			 */
+			ctlx->state = CTLX_COMPLETE;
+
+			spin_unlock_irqrestore(&hw->ctlxq.lock, flags);
 
 			/* Call the completion handler */
 			hfa384x_usbctlx_complete(ctlx);
+			hfa384x_usbctlxq_run(&hw->ctlxq);
 			break;
 
-		case HFA384x_USBCTLX_REQ_COMPLETE:
-		case HFA384x_USBCTLX_START:
-		case HFA384x_USBCTLX_QUEUED:
-		case HFA384x_USBCTLX_REQ_TIMEOUT:
-		case HFA384x_USBCTLX_REQ_FAILED:
-		case HFA384x_USBCTLX_RESP_TIMEOUT:
-		case HFA384x_USBCTLX_REQSUBMIT_FAIL:
-		case HFA384x_USBCTLX_COMPLETE:
-			/* Any of these states signify error */
-			/* This is bad and should _never_ happen */
-			/* Spit out a log message */
-			/* Assume the head ctlx is in progress and this */
-			/*  received urb is spurious. Just ignore it. */
-			WLAN_LOG_ERROR0(
-				"called with matching head CTLX, "
-				"not in valid state.\n");
-			break;
 		default:
-			/* Things are _really_ broken */
-			WLAN_LOG_ERROR0(
-				"Wow, called with matching head CTLX, "
-				"and it's in an unrecognized state.\n");
+			spin_unlock_irqrestore(&hw->ctlxq.lock, flags);
+
+			/* This is NOT a valid CTLX "success" state! */
+			WLAN_LOG_ERROR(
+			    "Illegal CTLX success state(0x%x, %d) in OUT URB\n",
+			    state, urb->status);
 			break;
-		}	
+		} /* switch */
 	} else {
-		switch ( ctlx->state ) {
-		case HFA384x_USBCTLX_REQ_SUBMITTED:
-			/* Fail and correct state */
-			/* Stop the reqtimer and resptimer */
-			del_timer(&ctlx->reqtimer);
+		/* If the pipe has stalled then we need to reset it */
+		if ( (urb->status == -EPIPE) &&
+		      !test_and_set_bit(WORK_TX_HALT, &hw->work_flags) ) {
+			WLAN_LOG_WARNING("%s tx pipe stalled: requesting reset\n",
+			                 hw->wlandev->netdev->name);
+			schedule_work(&hw->usb_work);
+		}
+
+		/* If someone cancels the OUT URB then its status
+		 * should be either -ECONNRESET or -ENOENT.
+		 */
+		switch ( state ) {
+		case CTLX_REQ_SUBMITTED:
+			/* OUT packet has failed, so we're
+			 * not going to wait for a response.
+			 */
 			del_timer(&ctlx->resptimer);
-
-			/* Set state to REQ_FAILED */
-			ctlx->state = HFA384x_USBCTLX_REQ_FAILED;
-
 			/* fall through */
-		case HFA384x_USBCTLX_REQ_TIMEOUT:
-			/* Call the completion handler */
+
+		case CTLX_RESP_COMPLETE:
+			/* The response returned with an
+			 * error before the request packet
+			 * was acknowledged.
+			 *
+			 * This request has failed, so this
+			 * CTLX must now be cleaned up.
+			 */
+			ctlx->state = CTLX_REQ_FAILED;
+			/* fall through */
+
+		case CTLX_REQ_FAILED:
+		case CTLX_REQ_TIMEOUT:
+			/* These mean that either the CTLX OUT
+			 * URB timed out, or we cancelled the
+			 * entire CTLX.
+			 */
+			spin_unlock_irqrestore(&hw->ctlxq.lock, flags);
+
 			hfa384x_usbctlx_complete(ctlx);
+			hfa384x_usbctlxq_run(&hw->ctlxq);
 			break;
 
-		case HFA384x_USBCTLX_RESP_RECEIVED:
-		case HFA384x_USBCTLX_REQ_COMPLETE:
-		case HFA384x_USBCTLX_START:
-		case HFA384x_USBCTLX_QUEUED:
-		case HFA384x_USBCTLX_REQ_FAILED:
-		case HFA384x_USBCTLX_RESP_TIMEOUT:
-		case HFA384x_USBCTLX_REQSUBMIT_FAIL:
-		case HFA384x_USBCTLX_COMPLETE:
-			/* Any of these states signify error */
-			/* This is bad and should _never_ happen */
-			/* Spit out a log message */
-			/* Assume the head ctlx is in progress and this */
-			/*  received urb is spurious. Just ignore it. */
-			WLAN_LOG_ERROR0(
-				"(2) called with matching head CTLX, "
-				"not in valid state.\n");
-			break;
 		default:
-			/* Things are _really_ broken */
-			WLAN_LOG_ERROR0(
-				"(2) Wow, called with matching head CTLX, "
-				"and it's in an unrecognized state.\n");
-			break;
-		}	
-	}
-	break;
+			spin_unlock_irqrestore(&hw->ctlxq.lock, flags);
 
-	default:
-		WLAN_LOG_DEBUG(3,"Unrecognized USBOUT packet, type=%x\n", 
-			usbout->type);
-		break;
+			/* This is not a valid CTLX "error" state */
+			WLAN_LOG_ERROR(
+			    "Illegal CTLX error state(0x%x, %d) in OUT URB\n",
+			    state, urb->status);
+			break;
+		} /* switch */
 	}
 
 done:
 	DBFEXIT;
-	return;
 }
 
 
@@ -4512,44 +4601,34 @@ void
 hfa384x_usbctlx_reqtimerfn(unsigned long data)
 {
 	hfa384x_usbctlx_t	*ctlx = (hfa384x_usbctlx_t*)data;
-	wlandevice_t		*wlandev = ctlx->outurb.context;
-	prism2sta_priv_t	*priv = wlandev->priv;
-	hfa384x_t		*hw = priv->hw;
+	hfa384x_t		*hw = ctlx->hw;
+	unsigned long		flags;
 
 	DBFENTER;
 
-	if (hw->hwremoved)
-		return;
+	spin_lock_irqsave(&hw->ctlxq.lock, flags);
 
-	/* Make sure the head ctlx is the same as this one */
-	if (hw->ctlxq.head != ctlx ) {
-		WLAN_LOG_ERROR0(
-			"called with CTLX that is not current head.\n");
-		/* This is bad and should _never_ happen */
-		goto done;
+	/* We must ensure that our URB is removed from
+	 * the system, if it hasn't already expired.
+	 */
+	ctlx->outurb.transfer_flags |= URB_ASYNC_UNLINK;
+	if (usb_unlink_urb(&ctlx->outurb) == -EINPROGRESS) {
+
+		/* We are cancelling this CTLX, so we're
+		 * not going to need to wait for a response.
+		 */
+		del_timer(&ctlx->resptimer);
+
+		/* This URB was active, but has now been
+		 * cancelled. It will now have a status of
+		 * -ECONNRESET in the callback function.
+		 */
+		ctlx->state = CTLX_REQ_TIMEOUT;
 	}
 
-	/* Stop the resptimer */
-	del_timer(&ctlx->resptimer);
+	spin_unlock_irqrestore(&hw->ctlxq.lock, flags);
 
-	/* Unlink the OUT URB */
-	if ( ctlx->outurb.status == -EINPROGRESS ) {
-		/* Set the state to REQ_TIMEOUT */
-		ctlx->state = HFA384x_USBCTLX_REQ_TIMEOUT;
-
-		/* This will invoke the usbout callback, */
-		/* which will call ctlx_complete */
-		usb_unlink_urb(&ctlx->outurb);
-	} else {
-		WLAN_LOG_ERROR0(
-				"called with an outurb not in progress.\n");
-		/* This is bad and should _never_ happen */
-		goto done;
-	}
-
-done:
 	DBFEXIT;
-	return;
 }
 
 
@@ -4575,28 +4654,12 @@ void
 hfa384x_usbctlx_resptimerfn(unsigned long data)
 {
 	hfa384x_usbctlx_t	*ctlx = (hfa384x_usbctlx_t*)data;
-	wlandevice_t		*wlandev = ctlx->outurb.context;
-	prism2sta_priv_t	*priv = wlandev->priv;
-	hfa384x_t		*hw = priv->hw;
 
 	DBFENTER;
-	/* Make sure the head ctlx is the same as this one */
-	if (hw->ctlxq.head != ctlx ) {
-		WLAN_LOG_ERROR0(
-			"called with CTLX that is not current head.\n");
-		/* This is bad and should _never_ happen */
-		goto done;
-	}
 
-	/* Set the state to RESP_TIMEOUT */
-	ctlx->state = HFA384x_USBCTLX_RESP_TIMEOUT;
+	hfa384x_usbctlx_cancel_async(ctlx);
 
-	/* Call ctlx_complete */
-	hfa384x_usbctlx_complete(ctlx);
-
-done:
 	DBFEXIT;
-	return;
 }
 
 
@@ -4611,37 +4674,38 @@ done:
 *	ctlx		ctlx structure to enqueue		
 *
 * Returns: 
-*	nothing
+*	0       - command queued
+*	-ENODEV - command not queued.
 *
 * Side effects:
 *
 * Call context:
 *	interrupt or process
 ----------------------------------------------------------------*/
-void 
+int
 hfa384x_usbctlx_submit_async(
 	hfa384x_t		*hw, 
 	hfa384x_usbctlx_t	*ctlx,
 	ctlx_usercb_t		usercb,
 	void			*usercb_data)
 {
+	int result = -ENODEV;
 	DBFENTER;
 
-	if (hw->hwremoved)
-		return;
+	if (hw) {
+		/* fill usercb and data */
+		ctlx->usercb = usercb;
+		ctlx->usercb_data = usercb_data;
 
-	/* fill usercb and data */
-	ctlx->usercb = usercb;
-	ctlx->usercb_data = usercb_data;
+		/* set isasync */
+		ctlx->is_async = 1;
 
-	/* set isasync */
-	ctlx->is_async = 1;
-
-	/* enqueue_run */
-	hfa384x_usbctlxq_enqueue_run(&hw->ctlxq, ctlx);
+		/* enqueue_run */
+		result = hfa384x_usbctlxq_enqueue_run(&hw->ctlxq, ctlx);
+	}
 
 	DBFEXIT;
-	return;
+	return result;
 }
 
 
@@ -4670,39 +4734,29 @@ hfa384x_usbctlx_submit_wait(
 {
 	DBFENTER;
 
-	if (hw->hwremoved)
+	if (!hw || !hw->wlandev)
 		return;
 
 	ctlx->wanna_wakeup = 0;
 
-	/* enqueue_run */
-	hfa384x_usbctlxq_enqueue_run(&hw->ctlxq, ctlx);
+	/* Put the new command on the queue, and kick-start the queue */
+	if (hfa384x_usbctlxq_enqueue_run(&hw->ctlxq, ctlx) == 0) {
 
-	/* sleep on completion, look at out_callback and in_callback for more */
-	/* Note the test, this is the worst kind of race potential, but 
-	 * the commands seem to finish before we get to the sleep_on().
-	 */
-	switch(ctlx->state) { 
-	case HFA384x_USBCTLX_COMPLETE:
-	case HFA384x_USBCTLX_REQSUBMIT_FAIL:
-	case HFA384x_USBCTLX_REQ_TIMEOUT:
-	case HFA384x_USBCTLX_REQ_FAILED:
-	case HFA384x_USBCTLX_RESP_TIMEOUT:
-		WLAN_LOG_DEBUG0(3,"Already done, skipping sleep.\n");
-		break;
-	default:
-		WLAN_LOG_DEBUG0(3,"Sleeping...\n");
-		if (in_interrupt()) {
+		WLAN_LOG_DEBUG(3,"Sleeping...\n");
+		if (in_interrupt() || in_atomic()) {
+			WLAN_LOG_DEBUG(1,"** WLAN busy-sleeping in interrupt context!\n");
 			while(!ctlx->wanna_wakeup)
 				udelay(1000);
-		} else {
-			wait_event_interruptible(hw->cmdq, ctlx->wanna_wakeup);
+		} else if ( wait_event_interruptible(hw->cmdq, ctlx->wanna_wakeup) ) {
+			/* We must have been interrupted, so cancel this
+			 * command and start the next one ...
+			 */
+			hfa384x_usbctlx_cancel(ctlx);
+			hfa384x_usbctlxq_run(&hw->ctlxq);
 		}
-		break;
 	}
 	
 	DBFEXIT;
-	return;
 }
 
 
@@ -4732,87 +4786,7 @@ void hfa384x_usbout_tx(wlandevice_t *wlandev, hfa384x_usbout_t *usbout)
 	prism2sta_ev_alloc(wlandev);
 	
 	DBFEXIT;
-	return;
 }
-
-
-/*----------------------------------------------------------------
-* hfa384x_hwremoved
-*
-* Notification function for hardware removal.  This function is
-* called very soon after it is known that the hardware has been
-* removed.
-*
-* Arguments:
-*	hw		device structure
-*
-* Returns: 
-*	nothing
-*
-* Side effects:
-*
-* Call context:
-*	Probably interrupt
-----------------------------------------------------------------*/
-void hfa384x_hwremoved(hfa384x_t *hw)
-{
-	hfa384x_usbctlx_t       *ctlx;
-	unsigned long		flags;
-
-	DBFENTER;
-
-	/* At this point, the wlandev is already disabled, so all that's
-	   left is to unlink all outstanding URBs. 
-	   
-	   Nobody else will be submitting new URBs at this time.  However this
-	   might not be the case on a SMP box, as a request might be in the
-	   works, so to speak.  More work remains to be done for that case.
-
-	   We need to mark all outstanding URBs synchronous.
-	*/
-
-	spin_lock_irqsave(&hw->ctlxq.lock, flags);
-	hw->hwremoved = 1;
-	spin_unlock_irqrestore(&hw->ctlxq.lock, flags);
-
-	ctlx = hw->ctlxq.head;
-	while (ctlx != NULL) {
-		hfa384x_usbctlx_t       *next;
-		next = ctlx->next;
-		ctlx->prev = NULL;
-		
-		if (! ctlx->is_async) {
-			ctlx->wanna_wakeup = 1;
-			wake_up_interruptible(&hw->cmdq);
-		}
-		
-		hw->ctlxq.head = next;
-
-		ctlx->outurb.transfer_flags &= ~USB_ASYNC_UNLINK;
-		ctlx->inurb.transfer_flags &= ~USB_ASYNC_UNLINK;
-
-		usb_unlink_urb(&(ctlx->outurb));
-		usb_unlink_urb(&(ctlx->inurb));
-		
-		kfree(ctlx);
-		ctlx = ctlx->next;
-	}
-
-	/* Unlink the tx/rx URBs */
-
-	if (hw->rxurb_posted) {
-		hw->rx_urb.transfer_flags &= ~USB_ASYNC_UNLINK;
-		usb_unlink_urb(&(hw->rx_urb));
-	}
-
-	hw->tx_urb.transfer_flags &= ~USB_ASYNC_UNLINK;
-	usb_unlink_urb(&(hw->tx_urb));
-	hw->int_urb.transfer_flags &= ~USB_ASYNC_UNLINK;
-	usb_unlink_urb(&(hw->int_urb)); 
-
-	DBFEXIT;
-}
-
 
 /*----------------------------------------------------------------
 * hfa384x_isgood_pdrcore
@@ -4886,5 +4860,4 @@ hfa384x_isgood_pdrcode(UINT16 pdrcode)
 	}
 	return 0; /* avoid compiler warnings */
 }
-
 

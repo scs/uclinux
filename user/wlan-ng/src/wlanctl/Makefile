@@ -62,16 +62,16 @@ OBJS =	wlanctl.o \
 
 
 wlanctl: $(OBJS)
-	$(CC) $(LDFLAGS) -o wlanctl $(OBJS)
+	$(CC) $(LDFLAGS) -o wlanctl $(OBJS) $(LDLIBS) $(LIBS)
 
 install:
 	mkdir -p $(TARGET_INST_EXEDIR)
 	cp wlanctl $(TARGET_INST_EXEDIR)/wlanctl-ng
 
-romfs:
-	$(ROMFSINST) -e CONFIG_USER_WLAN_NG_WLANCTL /sbin/wlanctl
-
 clean: 
 	rm -f core core.* *.o .*.o *.s *.a .depend tmp_make *~ tags
 	rm -f wlanctl
 	for i in *_obj; do if [ -d $$i ]; then rm -fr $$i; fi; done
+
+romfs:
+	$(ROMFSINST) -e CONFIG_USER_WLAN_NG_WLANCTL /sbin/wlanctl

@@ -98,9 +98,6 @@
 /*================================================================*/
 /* Local Types */
 
-typedef void (*timerfunc_t)(unsigned long);
-
-
 /*================================================================*/
 /* Local Static Definitions */
 
@@ -110,7 +107,6 @@ static struct sock	*nl_indicate = NULL;
 /*================================================================*/
 /* Local Function Declarations */
 
-static void p80211req_timerfunc(wlandevice_t *wlandev);
 static void p80211req_handlemsg( wlandevice_t *wlandev, p80211msg_t *msg);
 static int p80211req_mibset_mibget(wlandevice_t *wlandev, p80211msg_dot11req_mibget_t *mib_msg, int isget);
 #ifdef CONFIG_NETLINK
@@ -140,7 +136,6 @@ static void p80211ind_rx(struct sock *sk, int len);
 int p80211req_dorequest( wlandevice_t *wlandev, UINT8 *msgbuf)
 {
 	int		result = 0;
-	int		retval;
 	p80211msg_t	*msg = (p80211msg_t*)msgbuf;
 
 	DBFENTER;
@@ -154,12 +149,17 @@ int p80211req_dorequest( wlandevice_t *wlandev, UINT8 *msgbuf)
 		return -ENODEV;
 	}
 
+	/* Check Permissions */
+	if (!capable(CAP_NET_ADMIN) && 
+	    (msg->msgcode != DIDmsg_dot11req_mibget)) {
+		WLAN_LOG_ERROR("%s: only dot11req_mibget allowed for non-root.\n", wlandev->name);
+		return -EPERM;
+	}
+
 	/* Check for busy status */
 	if ( test_and_set_bit(1, &(wlandev->request_pending))) {
 		return -EBUSY;
 	}
-
-	wlandev->curr_msg = msg;
 
 	/* Allow p80211 to look at msg and handle if desired. */
 	/* So far, all p80211 msgs are immediate, no waitq/timer necessary */
@@ -167,79 +167,13 @@ int p80211req_dorequest( wlandevice_t *wlandev, UINT8 *msgbuf)
 	p80211req_handlemsg(wlandev, msg);
 
 	/* Pass it down to wlandev via wlandev->mlmerequest */
-	if ( wlandev->mlmerequest != NULL ) {
-		retval = (*(wlandev->mlmerequest))(wlandev, msg);
+	if ( wlandev->mlmerequest != NULL ) 
+		wlandev->mlmerequest(wlandev, msg);
 
-		if (retval < 0) {
-			/* wlandev is still chewing on it, time to block */
-			/* set up wait_q and timeout */
-			init_timer(&wlandev->reqtimer);
-			wlandev->reqtimer.data = (unsigned long)wlandev;
-			wlandev->reqtimer.function = 
-				(timerfunc_t)p80211req_timerfunc;
-			wlandev->reqtimer.expires = jiffies + P80211REQ_MAXTIME;
-			add_timer(&wlandev->reqtimer);
-
-			/* Now, do an interruptible_sleep, */
-			/* we'll be awakened by: a signal to the process, */
-			/* cmdtimerfunc (timeout), or p80211req_confirm */
-			interruptible_sleep_on(&(wlandev->reqwq));
-
-			/* If sleep return is via signal */
-			if ( signal_pending(current) ) {
-				WLAN_LOG_DEBUG0(2,"req unblocked via signal\n");
-				/* stop request, clean up */
-				del_timer(&wlandev->reqtimer);
-				result = -EINTR;
-			} else {
-				/* If timeout */
-				if ( wlandev->reqtimer.expires == 0 )
-				{
-					WLAN_LOG_DEBUG0(2,
-						"req unblocked via timeout\n");
-					/* stop request, clean up request */
-					result = -ETIME;
-				} else {
-					/* Success, clean up timer */
-					del_timer(&wlandev->reqtimer);
-					wlandev->reqtimer.expires=0;
-					result = 0;
-				}
-			}
-		} else {
-			result = -retval;  /* retval shld be a positive errno */
-		}
-	}
-
-	wlandev->curr_msg = NULL;
 	clear_bit( 1, &(wlandev->request_pending));
 	DBFEXIT;
 	return result;	/* if result==0, msg->status still may contain an err */
 }
-
-
-/*----------------------------------------------------------------
-* p80211req_timerfunc
-*
-* Timer function for request timeouts.
-* 
-* Arguments:
-*	wlandev		WLAN device struct
-*
-* Returns: 
-*	nothing
-*	
-* Call context:
-*	Timer interrupt
-----------------------------------------------------------------*/
-void p80211req_timerfunc(wlandevice_t *wlandev)
-{
-	wlandev->reqtimer.expires = 0;
-	if (wlandev->request_pending != 0) {
-		wake_up_interruptible(&(wlandev->reqwq));
-	}
-}
-
 
 /*----------------------------------------------------------------
 * p80211req_handlemsg
@@ -398,34 +332,6 @@ int p80211req_mibset_mibget(wlandevice_t *wlandev, p80211msg_dot11req_mibget_t *
 	return 0;
 }
 
-/*----------------------------------------------------------------
-* p80211req_confirm
-*
-* Called by the MSD when an asynch request is finished.  Our
-* primary job here is to unblock the _dorequest function above.
-* 
-* Arguments:
-*	wlandev		WLAN device struct
-*
-* Returns: 
-*	nothing
-*	
-* Call context:
-*	Any
-----------------------------------------------------------------*/
-void	p80211req_confirm(wlandevice_t *wlandev)
-{
-	DBFENTER;
-
-	if ( wlandev->request_pending != 0 ){
-		wake_up_interruptible(&(wlandev->reqwq));
-	}
-
-	DBFEXIT;
-	return;
-}
-
-
 #ifdef CONFIG_NETLINK
 /*----------------------------------------------------------------
 * p80211indicate_init
@@ -448,7 +354,7 @@ void p80211indicate_init(void)
 	nl_indicate = 
 		netlink_kernel_create( P80211_NL_SOCK_IND, &p80211ind_rx);
 	if ( nl_indicate == NULL ) {
-		WLAN_LOG_DEBUG0(2,"Failed to create indicate netlink i/f.\n");
+		WLAN_LOG_DEBUG(2,"Failed to create indicate netlink i/f.\n");
 	}
 	DBFEXIT;
 	return;
@@ -476,9 +382,17 @@ void p80211indicate_shutdown(void)
 	DBFENTER;
 	nl = nl_indicate;
 	nl_indicate = NULL;
+
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,5,71) )
 	if ( nl != NULL && nl->socket != NULL) {
 		sock_release(nl->socket);
 	}
+#else
+	if ( nl != NULL && nl->sk_socket != NULL) {
+		sock_release(nl->sk_socket);
+	}
+#endif
+
 	DBFEXIT;
 	return;
 }
@@ -532,7 +446,7 @@ void p80211ind_mlme( wlandevice_t *wlandev, struct sk_buff *skb)
 		netlink_broadcast(nl_indicate, 
 			skb, 0, P80211_NL_MCAST_GRP_MLME, GFP_ATOMIC);
 	} else {
-		WLAN_LOG_DEBUG0(2,"Can't send indicate msg, no netlink i/f\n");
+		WLAN_LOG_DEBUG(2,"Can't send indicate msg, no netlink i/f\n");
 	}
 	DBFEXIT;
 	return;
@@ -566,7 +480,7 @@ void p80211ind_distribution( wlandevice_t *wlandev, struct sk_buff *skb)
 		netlink_broadcast(nl_indicate, 
 			skb, 0, P80211_NL_MCAST_GRP_DIST, GFP_ATOMIC);
 	} else {
-		WLAN_LOG_DEBUG0(2,"Can't send indicate msg, no netlink i/f\n");
+		WLAN_LOG_DEBUG(2,"Can't send indicate msg, no netlink i/f\n");
 	}
 	DBFEXIT;
 	return;

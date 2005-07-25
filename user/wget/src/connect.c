@@ -1,38 +1,50 @@
 /* Establishing and handling network connections.
-   Copyright (C) 1995, 1996, 1997 Free Software Foundation, Inc.
+   Copyright (C) 1995, 1996, 1997, 2001, 2002 Free Software Foundation, Inc.
 
-This file is part of Wget.
+This file is part of GNU Wget.
 
-This program is free software; you can redistribute it and/or modify
+GNU Wget is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
 the Free Software Foundation; either version 2 of the License, or
 (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
+GNU Wget is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
+along with Wget; if not, write to the Free Software
+Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+
+In addition, as a special exception, the Free Software Foundation
+gives permission to link the code of its release of Wget with the
+OpenSSL project's "OpenSSL" library (or with modified versions of it
+that use the same license as the "OpenSSL" library), and distribute
+the linked executables.  You must obey the GNU General Public License
+in all respects for all of the code used other than "OpenSSL".  If you
+modify this file, you may extend this exception to your version of the
+file, but you are not obligated to do so.  If you do not wish to do
+so, delete this exception statement from your version.  */
 
 #include <config.h>
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <sys/types.h>
 #ifdef HAVE_UNISTD_H
 # include <unistd.h>
 #endif
+#include <assert.h>
 
-#ifdef WINDOWS
-# include <winsock.h>
-#else
+#ifndef WINDOWS
 # include <sys/socket.h>
 # include <netdb.h>
 # include <netinet/in.h>
-# include <arpa/inet.h>
-#endif /* WINDOWS */
+# ifndef __BEOS__
+#  include <arpa/inet.h>
+# endif
+#endif /* not WINDOWS */
 
 #include <errno.h>
 #ifdef HAVE_STRING_H
@@ -45,8 +57,9 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #endif /* HAVE_SYS_SELECT_H */
 
 #include "wget.h"
-#include "connect.h"
+#include "utils.h"
 #include "host.h"
+#include "connect.h"
 
 #ifndef errno
 extern int errno;
@@ -56,55 +69,226 @@ extern int errno;
 static int msock = -1;
 static struct sockaddr *addr;
 
+static ip_address bind_address;
+static int bind_address_resolved;
 
-/* Create an internet connection to HOSTNAME on PORT.  The created
-   socket will be stored to *SOCK.  */
-uerr_t
-make_connection (int *sock, char *hostname, unsigned short port)
+static void
+resolve_bind_address (void)
 {
-  struct sockaddr_in sock_name;
-  /* struct hostent *hptr; */
+  struct address_list *al;
 
-  /* Get internet address of the host.  We can do it either by calling
-     ngethostbyname, or by calling store_hostaddress, from host.c.
-     storehostaddress is better since it caches calls to
-     gethostbyname.  */
-#if 1
-  if (!store_hostaddress ((unsigned char *)&sock_name.sin_addr, hostname))
-    return HOSTERR;
-#else  /* never */
-  if (!(hptr = ngethostbyname (hostname)))
-    return HOSTERR;
-  /* Copy the address of the host to socket description.  */
-  memcpy (&sock_name.sin_addr, hptr->h_addr, hptr->h_length);
-#endif /* never */
+  if (bind_address_resolved || opt.bind_address == NULL)
+    /* Nothing to do. */
+    return;
+
+  al = lookup_host (opt.bind_address, 1);
+  if (!al)
+    {
+      logprintf (LOG_NOTQUIET,
+		 _("Unable to convert `%s' to a bind address.  Reverting to ANY.\n"),
+		 opt.bind_address);
+      return;
+    }
+
+  address_list_copy_one (al, 0, &bind_address);
+  address_list_release (al);
+  bind_address_resolved = 1;
+}
+
+struct cwt_context {
+  int fd;
+  const struct sockaddr *addr;
+  socklen_t addrlen;
+  int result;
+};
+
+static void
+connect_with_timeout_callback (void *arg)
+{
+  struct cwt_context *ctx = (struct cwt_context *)arg;
+  ctx->result = connect (ctx->fd, ctx->addr, ctx->addrlen);
+}
+
+/* Like connect, but specifies a timeout.  If connecting takes longer
+   than TIMEOUT seconds, -1 is returned and errno is set to
+   ETIMEDOUT.  */
+
+static int
+connect_with_timeout (int fd, const struct sockaddr *addr, socklen_t addrlen,
+		      double timeout)
+{
+  struct cwt_context ctx;
+  ctx.fd = fd;
+  ctx.addr = addr;
+  ctx.addrlen = addrlen;
+
+  if (run_with_timeout (timeout, connect_with_timeout_callback, &ctx))
+    {
+      errno = ETIMEDOUT;
+      return -1;
+    }
+  if (ctx.result == -1 && errno == EINTR)
+    errno = ETIMEDOUT;
+  return ctx.result;
+}
+
+/* A kludge, but still better than passing the host name all the way
+   to connect_to_one.  */
+static const char *connection_host_name;
+
+void
+set_connection_host_name (const char *host)
+{
+  if (host)
+    assert (connection_host_name == NULL);
+  else
+    assert (connection_host_name != NULL);
+
+  connection_host_name = host;
+}
+
+/* Connect to a remote host whose address has been resolved. */
+int
+connect_to_one (ip_address *addr, unsigned short port, int silent)
+{
+  wget_sockaddr sa;
+  int sock, save_errno;
 
   /* Set port and protocol */
-  sock_name.sin_family = AF_INET;
-  sock_name.sin_port = htons (port);
+  wget_sockaddr_set_address (&sa, ip_default_family, port, addr);
+
+  if (!silent)
+    {
+      char *pretty_addr = pretty_print_address (addr);
+      if (connection_host_name
+	  && 0 != strcmp (connection_host_name, pretty_addr))
+	logprintf (LOG_VERBOSE, _("Connecting to %s[%s]:%hu... "),
+		   connection_host_name, pretty_addr, port);
+      else
+	logprintf (LOG_VERBOSE, _("Connecting to %s:%hu... "),
+		   pretty_addr, port);
+    }
 
   /* Make an internet socket, stream type.  */
-  if ((*sock = socket (AF_INET, SOCK_STREAM, 0)) == -1)
-    return CONSOCKERR;
+  sock = socket (ip_default_family, SOCK_STREAM, 0);
+  if (sock < 0)
+    goto out;
 
-  if (opt.bind_address != NULL)
+  /* For very small rate limits, set the buffer size (and hence,
+     hopefully, the size of the kernel window) to the size of the
+     limit.  That way we don't sleep for more than 1s between network
+     reads.  */
+  if (opt.limit_rate && opt.limit_rate < 8192)
+    {
+      int bufsize = opt.limit_rate;
+      if (bufsize < 512)
+	bufsize = 512;
+#ifdef SO_RCVBUF
+      setsockopt (sock, SOL_SOCKET, SO_RCVBUF,
+		  (char *)&bufsize, sizeof (bufsize));
+#endif
+      /* When we add opt.limit_rate support for writing, as with
+	 `--post-file', also set SO_SNDBUF here.  */
+    }
+
+  resolve_bind_address ();
+  if (bind_address_resolved)
     {
       /* Bind the client side to the requested address. */
-      if (bind (*sock, (struct sockaddr *) opt.bind_address,
-		sizeof (*opt.bind_address)))
-	return CONSOCKERR;
+      wget_sockaddr bsa;
+      wget_sockaddr_set_address (&bsa, ip_default_family, 0, &bind_address);
+      if (bind (sock, &bsa.sa, sockaddr_len ()))
+	{
+	  CLOSE (sock);
+	  sock = -1;
+	  goto out;
+	}
     }
 
   /* Connect the socket to the remote host.  */
-  if (connect (*sock, (struct sockaddr *) &sock_name, sizeof (sock_name)))
+  if (connect_with_timeout (sock, &sa.sa, sockaddr_len (),
+			    opt.connect_timeout) < 0)
     {
-      if (errno == ECONNREFUSED)
-	return CONREFUSED;
-      else
-	return CONERROR;
+      CLOSE (sock);
+      sock = -1;
+      goto out;
     }
-  DEBUGP (("Created fd %d.\n", *sock));
-  return NOCONERROR;
+
+ out:
+  if (sock >= 0)
+    {
+      /* Success. */
+      if (!silent)
+	logprintf (LOG_VERBOSE, _("connected.\n"));
+      DEBUGP (("Created socket %d.\n", sock));
+    }
+  else
+    {
+      save_errno = errno;
+      if (!silent)
+	logprintf (LOG_VERBOSE, "failed: %s.\n", strerror (errno));
+      errno = save_errno;
+    }
+
+  return sock;
+}
+
+/* Connect to a remote host whose address has been resolved. */
+int
+connect_to_many (struct address_list *al, unsigned short port, int silent)
+{
+  int i, start, end;
+
+  address_list_get_bounds (al, &start, &end);
+  for (i = start; i < end; i++)
+    {
+      ip_address addr;
+      int sock;
+      address_list_copy_one (al, i, &addr);
+
+      sock = connect_to_one (&addr, port, silent);
+      if (sock >= 0)
+	/* Success. */
+	return sock;
+
+      address_list_set_faulty (al, i);
+
+      /* The attempt to connect has failed.  Continue with the loop
+	 and try next address. */
+    }
+
+  return -1;
+}
+
+int
+test_socket_open (int sock)
+{
+#ifdef HAVE_SELECT
+  fd_set check_set;
+  struct timeval to;
+
+  /* Check if we still have a valid (non-EOF) connection.  From Andrew
+   * Maholski's code in the Unix Socket FAQ.  */
+
+  FD_ZERO (&check_set);
+  FD_SET (sock, &check_set);
+
+  /* Wait one microsecond */
+  to.tv_sec = 0;
+  to.tv_usec = 1;
+
+  /* If we get a timeout, then that means still connected */
+  if (select (sock + 1, &check_set, NULL, NULL, &to) == 0)
+    {
+      /* Connection is valid (not EOF), so continue */
+      return 1;
+    }
+  else
+    return 0;
+#else
+  /* Without select, it's hard to know for sure. */
+  return 1;
+#endif
 }
 
 /* Bind the local port PORT.  This does all the necessary work, which
@@ -114,29 +298,27 @@ make_connection (int *sock, char *hostname, unsigned short port)
    internal variable MPORT is set to the value of the ensuing master
    socket.  Call acceptport() to block for and accept a connection.  */
 uerr_t
-bindport (unsigned short *port)
+bindport (unsigned short *port, int family)
 {
   int optval = 1;
-  static struct sockaddr_in srv;
+  wget_sockaddr srv;
+  memset (&srv, 0, sizeof (wget_sockaddr));
 
   msock = -1;
-  addr = (struct sockaddr *) &srv;
-  if ((msock = socket (AF_INET, SOCK_STREAM, 0)) < 0)
+
+  if ((msock = socket (family, SOCK_STREAM, 0)) < 0)
     return CONSOCKERR;
+
+#ifdef SO_REUSEADDR
   if (setsockopt (msock, SOL_SOCKET, SO_REUSEADDR,
 		  (char *)&optval, sizeof (optval)) < 0)
     return CONSOCKERR;
+#endif
 
-  if (opt.bind_address == NULL)
-    {
-      srv.sin_family = AF_INET;
-      srv.sin_addr.s_addr = htonl (INADDR_ANY);
-    }
-  else
-    srv = *opt.bind_address;
-
-  srv.sin_port = htons (*port);
-  if (bind (msock, addr, sizeof (struct sockaddr_in)) < 0)
+  resolve_bind_address ();
+  wget_sockaddr_set_address (&srv, ip_default_family, htons (*port),
+			     bind_address_resolved ? &bind_address : NULL);
+  if (bind (msock, &srv.sa, sockaddr_len ()) < 0)
     {
       CLOSE (msock);
       msock = -1;
@@ -145,14 +327,15 @@ bindport (unsigned short *port)
   DEBUGP (("Master socket fd %d bound.\n", msock));
   if (!*port)
     {
-      size_t addrlen = sizeof (struct sockaddr_in);
-      if (getsockname (msock, addr, (int *)&addrlen) < 0)
+      socklen_t sa_len = sockaddr_len ();
+      if (getsockname (msock, &srv.sa, &sa_len) < 0)
 	{
 	  CLOSE (msock);
 	  msock = -1;
 	  return CONPORTERR;
 	}
-      *port = ntohs (srv.sin_port);
+      *port = wget_sockaddr_get_port (&srv);
+      DEBUGP (("using port %i.\n", *port));
     }
   if (listen (msock, 1) < 0)
     {
@@ -164,43 +347,54 @@ bindport (unsigned short *port)
 }
 
 #ifdef HAVE_SELECT
-/* Wait for file descriptor FD to be readable, MAXTIME being the
-   timeout in seconds.  If WRITEP is non-zero, checks for FD being
-   writable instead.
+/* Wait for file descriptor FD to be available, timing out after
+   MAXTIME seconds.  "Available" means readable if writep is 0,
+   writeable otherwise.
 
-   Returns 1 if FD is accessible, 0 for timeout and -1 for error in
-   select().  */
-static int
-select_fd (int fd, int maxtime, int writep)
+   Returns 1 if FD is available, 0 for timeout and -1 for error.  */
+
+int
+select_fd (int fd, double maxtime, int writep)
 {
-  fd_set fds, exceptfds;
-  struct timeval timeout;
+  fd_set fds;
+  fd_set *rd = NULL, *wrt = NULL;
+  struct timeval tmout;
+  int result;
 
   FD_ZERO (&fds);
   FD_SET (fd, &fds);
-  FD_ZERO (&exceptfds);
-  FD_SET (fd, &exceptfds);
-  timeout.tv_sec = maxtime;
-  timeout.tv_usec = 0;
-  /* HPUX reportedly warns here.  What is the correct incantation?  */
-  return select (fd + 1, writep ? NULL : &fds, writep ? &fds : NULL,
-		 &exceptfds, &timeout);
+  *(writep ? &wrt : &rd) = &fds;
+
+  tmout.tv_sec = (long)maxtime;
+  tmout.tv_usec = 1000000L * (maxtime - (long)maxtime);
+
+  do
+    result = select (fd + 1, rd, wrt, NULL, &tmout);
+  while (result < 0 && errno == EINTR);
+
+  /* When we've timed out, set errno to ETIMEDOUT for the convenience
+     of the caller. */
+  if (result == 0)
+    errno = ETIMEDOUT;
+
+  return result;
 }
 #endif /* HAVE_SELECT */
 
 /* Call accept() on MSOCK and store the result to *SOCK.  This assumes
    that bindport() has been used to initialize MSOCK to a correct
    value.  It blocks the caller until a connection is established.  If
-   no connection is established for OPT.TIMEOUT seconds, the function
-   exits with an error status.  */
+   no connection is established for OPT.CONNECT_TIMEOUT seconds, the
+   function exits with an error status.  */
 uerr_t
 acceptport (int *sock)
 {
-  int addrlen = sizeof (struct sockaddr_in);
+  socklen_t addrlen = sockaddr_len ();
 
 #ifdef HAVE_SELECT
-  if (select_fd (msock, opt.timeout, 0) <= 0)
-    return ACCEPTERR;
+  if (opt.connect_timeout)
+    if (select_fd (msock, opt.connect_timeout, 0) <= 0)
+      return ACCEPTERR;
 #endif
   if ((*sock = accept (msock, addr, &addrlen)) < 0)
     return ACCEPTERR;
@@ -221,65 +415,60 @@ closeport (int sock)
   msock = -1;
 }
 
-/* Return the local IP address associated with the connection on FD.
-   It is returned in a static buffer.  */
-unsigned char *
-conaddr (int fd)
-{
-  static unsigned char res[4];
-  struct sockaddr_in mysrv;
-  struct sockaddr *myaddr;
-  size_t addrlen = sizeof (mysrv);
+/* Return the local IP address associated with the connection on FD.  */
 
-  myaddr = (struct sockaddr *) (&mysrv);
-  if (getsockname (fd, myaddr, (int *)&addrlen) < 0)
-    return NULL;
-  memcpy (res, &mysrv.sin_addr, 4);
-  return res;
+int
+conaddr (int fd, ip_address *ip)
+{
+  wget_sockaddr mysrv;
+  socklen_t addrlen = sizeof (mysrv);	
+  if (getsockname (fd, &mysrv.sa, &addrlen) < 0)
+    return 0;
+
+  switch (mysrv.sa.sa_family)
+    {
+#ifdef ENABLE_IPV6
+    case AF_INET6:
+      memcpy (ip, &mysrv.sin6.sin6_addr, 16);
+      return 1;
+#endif
+    case AF_INET:
+      map_ipv4_to_ip ((ip4_address *)&mysrv.sin.sin_addr, ip);
+      return 1;
+    default:
+      abort ();
+    }
+  return 0;
 }
 
 /* Read at most LEN bytes from FD, storing them to BUF.  This is
    virtually the same as read(), but takes care of EINTR braindamage
    and uses select() to timeout the stale connections (a connection is
-   stale if more than OPT.TIMEOUT time is spent in select() or
+   stale if more than OPT.READ_TIMEOUT time is spent in select() or
    read()).  */
+
 int
 iread (int fd, char *buf, int len)
 {
   int res;
 
-  do
-    {
 #ifdef HAVE_SELECT
-      if (opt.timeout)
-	{
-	  do
-	    {
-	      res = select_fd (fd, opt.timeout, 0);
-	    }
-	  while (res == -1 && errno == EINTR);
-	  if (res <= 0)
-	    {
-	      /* Set errno to ETIMEDOUT on timeout.  */
-	      if (res == 0)
-		/* #### Potentially evil!  */
-		errno = ETIMEDOUT;
-	      return -1;
-	    }
-	}
+  if (opt.read_timeout)
+    if (select_fd (fd, opt.read_timeout, 0) <= 0)
+      return -1;
 #endif
-      res = READ (fd, buf, len);
-    }
+  do
+    res = READ (fd, buf, len);
   while (res == -1 && errno == EINTR);
 
   return res;
 }
 
 /* Write LEN bytes from BUF to FD.  This is similar to iread(), but
-   doesn't bother with select().  Unlike iread(), it makes sure that
-   all of BUF is actually written to FD, so callers needn't bother
-   with checking that the return value equals to LEN.  Instead, you
-   should simply check for -1.  */
+   unlike iread(), it makes sure that all of BUF is actually written
+   to FD, so callers needn't bother with checking that the return
+   value equals to LEN.  Instead, you should simply check for -1.  */
+
 int
 iwrite (int fd, char *buf, int len)
 {
@@ -291,28 +480,13 @@ iwrite (int fd, char *buf, int len)
      innermost loop deals with the same during select().  */
   while (len > 0)
     {
-      do
-	{
 #ifdef HAVE_SELECT
-	  if (opt.timeout)
-	    {
-	      do
-		{
-		  res = select_fd (fd, opt.timeout, 1);
-		}
-	      while (res == -1 && errno == EINTR);
-	      if (res <= 0)
-		{
-		  /* Set errno to ETIMEDOUT on timeout.  */
-		  if (res == 0)
-		    /* #### Potentially evil!  */
-		    errno = ETIMEDOUT;
-		  return -1;
-		}
-	    }
+      if (opt.read_timeout)
+	if (select_fd (fd, opt.read_timeout, 1) <= 0)
+	  return -1;
 #endif
-	  res = WRITE (fd, buf, len);
-	}
+      do
+	res = WRITE (fd, buf, len);
       while (res == -1 && errno == EINTR);
       if (res <= 0)
 	break;

@@ -129,7 +129,7 @@ void p802addr_to_str( char *buf, UINT8 *addr)
 
                 strindex += 3;
         }
-        buf[strindex] = '\0';
+        buf[strindex-1] = '\0';
         return;
 }
 

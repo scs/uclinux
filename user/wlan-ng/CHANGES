@@ -41,6 +41,264 @@
 * Intersil Corporation as part of PRISM(R) chipset product development.
 *
 * --------------------------------------------------------------------
+-pre21
+ - Add a per frame rx structure for OOB data to be passed to p80211
+	This is a step in the right direction for a major overhaul of 
+	internal frame representation.  The prism2 driver shouldn't care 
+	about sniff headers or any of that crap; it should always pass
+	everything to p80211  (via this metadata) and the p80211conv_* 
+	functions should do that work.  It's also needed to eventually
+	support different encryption types.
+ - Added in beginnings of IWSPY support via patch from Josef Kriegl
+ - Install modules to $MOD_DIR/linux-wlan-ng instead of $MOD_DIR/kernel
+ - Primary/Secondary firmware (finally) bundled with the driver.
+ - Convert to newer 2.6 module parameter code.
+ - Fix an inverted test in GIWENCODE wireless extension (Shiro Ninomiya)
+ - Minor script fix for SSF cards (Pavel Roskin)
+ - Card idents.
+ - Fixes for SSF PCI cards; default to x16 SRAM as that's more common.
+   (download script now automatically detects hardware type)
+ - Fix script problems that result in a failed init returning success.
+ - Fix an endian-ness buglet in prism2sta.c (Federico Pellegrin)
+ - Compile fixes for 2.2.x kernels. (no tasklets or spin_lock_bh)
+ - Fix up pci resources on card init failure on plx card.
+-pre20
+ - Fix up pci resources on card init failure
+ - Ident for "ROPEX FreeLan 802.11b USB Adapter" (Francesco Bochicchio)
+ - ETHTOOL support now optional, fixes build on older kernels.
+ - Fix prism2dl to not use kernel headers to fix 2.6.3 build (Pavel Roskin) 
+-pre19
+ - Add a 'lnxind_roam' indication.
+ - minor typo in the nwepgen makefile (Pavel Roskin)
+ - More makefile fixes (Pavel Roskin)
+-pre18a
+ - brown-paper-bag fix for the 2.4 build.  And it no longer builds on 
+   2.2 thanks to an accidental makefile commit.
+-pre18
+  - Fix broken makefiles so that prism2dl and the rc script install
+  - Get rid of the txfid lock, it's not necessary.
+  - Tasklet-driven RX handlers.
+  - Further work towards a Wireless Extension-enabled future.
+    - SIWFRAG, SIWRETRY, SIWFREQ, SIWRTS implemented
+    - SIWENCODE, SIWESSID taken from zdsta-1.0.3 (needs work)
+    - SIWCOMMIT Implemented ala autojoin.
+    - write support defaults to disabled, override via module parameter
+  - fix a warning in the wireless extension code.
+  - hfa384x.h header updates
+  - Fix prism2dl to handle the S7 record being elsewhere in the image.
+    (Pavel Roskin)
+  - Fix up brown paper bag script error for SSF hardware.
+-pre17
+  - Spruce up the GIWNAME wireless extension ioctl. (Natsakis Konstantinos)
+  - Added in basic ethtool support; for link status reflection.
+  - Fixed a double-locked spinlock which deadlocked on SMP boxes.
+  - /proc/net/p80211/wlanX/nsd now has useful information about the
+    prism2 hardware/firmware revisions.
+  - eliminate the unused 'collptr' from the mib structures.
+  - Fix a bug with the pcmcia script and scanning (Dan Noe)
+  - Fix a crash on a VCC mismatch.
+  - Split out most pci/plx/pcmcia/usb specific code into their own .c files.
+  - Make prism2_cs build on 2.6.2-rc
+  - Changes to support SSF hardware.
+  - Card ident for D-Link DWL-650P1
+  - Move the prism2 link notification handler operate in scheduler 
+    context to avoid a hang in softirq context.
+  - Melco WLI-USB-KB11 USB widget added (Bela Fenyvessy)
+  - Add in x86-64 support, plus other cleanups in wlan_compat.h
+  - Support the Netgear MA311 PCI card.  (Steve Berry)
+-pre16
+  - Implement wireless extension SETCHANNEL. (SIOCSIWFREQ)
+    - Currently broken.  :)
+  - Fix several sniffing-related bugs:
+    - disable when we're already disabled
+    - no longer perform a full h/w reset when we're already enabled
+    - Vastly reduce CPU usage on channel hop.
+  - Fix a crash on unload for pci/plx widgets (Pavel Roskin)
+-pre15
+  - Minor fix for the shared script (Jeff Chua)
+  - fix "bad: schedule while atomic" bug introduced by recent 2.6.0-test 
+    kernels and wireless extensions.
+  - Switch to using spin_[un]lock_bh for the cmdlock; this way we 
+    disable the transmit bh from running while issuing a card command.
+    Also have the txframe function obtain the lock.
+  - Hawking HighDB USB Widget (Allan Claghorn)
+  - Fix a double-lock in hfa384x_cmd_notify
+  - Identity for "T-Sinus 111 USB WlAN Adapter" (Roman Koutny)
+  - Fix up alignment problems on frame rx. (Ranjit Deshpande)
+-pre14
+  - Update the HAS_HOTPLUG test to something considerably more foolproof
+  - Add ids for the Airvast Prism3 USB widget
+  - bap locking was broken when illegal parameters were passed. (Andre McCurdy)
+  - Don't use jiffies for timeouts when interrupts are disabled. (Andre McCurdy)
+  - Make the Configure script a little saner.
+  - Remove the Zydas 1201 USB widget.  Use the Zydas modified 
+    linux-wlan-ng release instead (we hope to merge it in eventually)
+-pre13
+  - Fix two big-endian bugs in the scan code.
+  - Hotplug agent executes '/sbin/ifup INTERFACE' if possible.
+  - Planex GW-US11H USB adaptor (Henry Ip)
+  - Averatec USB Wlan Adapter (Stephan Miller)
+  - D-Link DWL-122 USB widget (Andrew Beresford)
+  - ASUS-WL140 Wireless USB widget
+  - Fix the WLAN_LOG_NOTICE macro for gcc 2.95.x
+-pre12
+  - Fix up endian bugs in lnxerq_commsquality.
+  - Get rid of the pcmcia release timer for >2.6.0-test5
+  - Card ident for 'ZyDAS ZD1201 Wireless USB Adapter' (Albert Pauw)
+  - More tweaks for 2.6.0-test4
+  - fix some bash-isms in /etc/wlan/shared (Daniel Song)
+  - Collapsed the BOUNDEDINT and INT types into one.
+  - Eliminated the WLAN_LOG_***0() macros at long last thanks to CPP 
+    trickery.  Also eliminated more cruft from wlan_compat.h
+  - Card ident for the Samsung SWL-2210P PCI card
+  - Try not to schedule a USB endpoint reset if there's one already 
+    pending. (Chris Rankin)
+  - Fix pci/plx operation on architechures with >32bit physical address 
+    sizes. (namely mips64 & some mips32)
+  - get rid of save_flags/cli/restore_flags in prism2_cs on >2.2 builds
+    (tweaked from patch by Pavel Roskin)
+  - pci_device_id tables should not be marked __devinitdata
+-pre11
+  - support genesis mode for RAM download of primary fimware
+  - prism2_usb now builds on 2.5/2.6.  
+    - endpoint numeration removed.
+    - hfa384x_usb_corereset unimplemented for 2.5/2.6
+  - hfa384x.h updates.
+  - p80211conv_* functions should work with netdev->mtu, not MAX_ETHFRM.
+  - Simply erase the bogus '3rdparty' drivers on Mandrake systems.
+  - Card idents for Adaptec AWN-8030/AWN-8020, and Netgear MA111
+  - Strip out all 2.2.x stuff from prism2_usb, it doesn't work.
+  - add proper __devinit/__devexit/etc tags to prism2sta.c
+  - Minor USB janitorial patch from Chris Rankin.
+  - Make most card commands require superuser access (exception is 
+    mibget)  (Original patch by Pavel Roskin)
+-pre10
+  - Make the wakeup flag in the usbctlx structure volatile, as well as 
+    other wait condition variables.
+  - Make the rx_urb buffer dynamically allocated so we can re-post the 
+    URB as soon as possible.
+  - Get rid of completion.h
+  - More wlan_compat updates.
+  - Disable TXEX reporting on USB as well as TXOK.  should improve
+    stability a tad.
+  - Further 2.5 USB work.  Not quite there yet.
+-pre9 
+  - Properly initialize the prism2_cs release timer (Pavel Roskin)
+  - Eliminate the CONFIG_ISA requirement for prism2_cs (Pavel Roskin)
+  - netlink build fixes for 2.5.71
+  - Hopefully fix the 2.2.x build.
+  - More USB fixes (Chris Rankin)
+  - Compile fixes for < 2.4.20
+-pre8
+  - Fix the pcmcia breakage introduced in -pre2.  
+  - On USB widgets, only signal txcomplete if there was a tx error.
+  - Minor cleanups in the PCMCIA code.
+-pre7
+  - Add in the 'JVC MP-XP7250" USB Widget.
+  - Don't call ev_alloc on tx_complete event; only the tx urb completion.
+  - Minor tweaks to tx_timeout code
+  - More USB updates; primarily with error-handling.  (Chris Rankin) 
+-pre6
+  - On USB transmits, don't return 'success' if the tx_urb is still
+    pending.  Also don't wake the netdev queue if the tx fails.
+  - Hook up the tx watchdog timer and add a p80211-level handler.
+  - Fix compilation with older (<= 2.4.18) kernels.
+  - Another massive USB+other patch from Chris Rankin:
+    - a separate list for "finished" CTLX objects.
+    - correct (hopefully!) handling of -EPIPE errors, shamelessly copied
+      from^W^Winspired by David Brownell's usbnet driver.
+    - finished support for asynchronous commands, with proper tracking 
+      through the CTLX lifecycle, clean-up etc. Each asynchronous command now 
+      completes in its own tasklet.
+    - CTLX cancellation and error handling.
+    - further work on the timers and spin locks.
+    - clean up setconfig16() and setconfig32() functions so that they 
+      take appropriate value parameters, even if the underlying 
+      setconfig() commands don't.
+    - use an asynchronous command in setmulticast(). (CS, PCI and PLX 
+      are still synchronous; they just pretend not to be.)
+    - further clean up in the disconnect() handler. However, it's still 
+      not a good idea to remove the adapter while the 
+      prism2sta_inf_hostscanresults() function is sleeping, and the wlandevice
+      struct could easily have been freed before the p80211req_dorequest() 
+      function manages to clear the request_pending bit. It would be 
+      nice if we could cancel both of these operations when we call 
+      prism2sta_ifstate(P80211ENUM_ifstate_disable). 
+    - extra support for Linux 2.5 (task queue -> work queue).
+    - reset the link status when we stop the driver.
+  - Some work on module locking.  Not there yet, but getting better.
+  - Remove magic numbers from USB endpoint probe (Chris Rankin)
+  - Eliminate useless timer in p80211do_request, as all calls are 
+    synchronous.  Also clena up more function pointers, and a few other 
+    doodads. (Modified from patch by Chris Rankin)
+  - Track the current SSID in the wlandev; Make the WEXT stuff key from 
+    this.  Update the SSID when we get a linkstatus_connect notification.
+  - A couple of misc cleanups from Chris Wilson
+  - Cleanups in the 2.5 makefile code. (Pavel Roskin)
+  - Add in another PCI device ID, to handle Sony VAIO PCG-V505AP
+  - Make sure CONFIG_ISA is enabled for the prism2_cs build. (x86 only)
+-pre5  
+  - Get rid of generic manfids in  /etc/pcmcia/wlan.conf (Pavel Roskin)
+  - Fix the 'make install' target.
+  - only call flush_scheduled_tasks() if DECLARE_TASKLET not defined.
+    (fixes 2.5.x compile)
+-pre4
+  - More script work; mostly cleanups and other enhancements. 
+  - Substantial prism2_usb patch from Chris Rankin.
+    - using 2 Linux lists for CTLXs
+    - remove race condition and double-free with CTLXs in disconnect()
+    - initialise URBs correctly (vital for Linux 2.5+)
+    - separate callbacks for data/CTLX OUT URBs
+    - flush task queue on shutdown
+    - more thorough use of spinlocks with CTLXs
+    - set the ASYNC_UNLINK flag when it is time to unlink an URB 
+      asynchronously, and not before.
+    - ensure we stop submitting URBs once the disconnect function 
+      is called.
+  - More USB idents (Jeff Chua)
+  - Scan now uses active scans only; should speed things up a bit.
+  - Proper module init/cleanup in prism2sta.c, plus more work for 2.5.69
+  - Added in descriptions for module parameters.
+  - Major overhaul of the hotplug stuff.  Now we use our own hotplug
+    event class, and use that to kick off configuration and whatnot.
+    All device types (pci/plx/pcmcia/usb) now use this mechanism.
+    Also brings us things like unified power management (suspend/resume)
+  - Supress spurious output when setting WEP parameters.
+  - Only query PrivacyOptionImplemented if wep was enabled in the config
+    Works around an apparent firmware bug, see http://bugs.debian.org/190851
+  - Eliminate hw->name.  
+  - Card ident for NL-2511CD Plus pcmcia card.
+  - Minor tweak on pcmcia removal.
+  - Fix the USB compile on <2.4.20
+-pre3
+  - get rid of wlandev_get_index and whatnot.
+  - URB cleanup in the USB code.  (Chris Rankin)
+  - Moved host auth sequence out of interrupt context.
+  - USB paranoia checks (Chris Rankin)
+  - Partial rewrite of the USB shutdown sequence
+  - eliminate wlandev->hwremovedfn().
+  - Minor tweaks to the mib.
+  - Get rid of the horridly outdated skeleton driver.
+-pre2  
+  - Fix a crash-on-unload affecting pci and plx adapters
+  - have the init script load the module if needed.
+  - Handle the new 2.5.69+ irq handler semantics
+  - Fix 2.5 with pcmcia (Pavel Roskin)
+  - Massive cleanup of the prism2/driver/Makefile (Pavel Roskin)
+  - Don't wrap the [un]register_netdevice() calls in rtnl_[un]lock()
+    And use the [un]register_netdev() calls instead.
+  - Call the hwremoved() functions on pci/plx_remove
+  - Eliminate the prism2sta_priv_t structure.
+  - Fix a memory leak on ifstate_disable
+  - Minor changes to the USB driver
+  - Widget id for "Melco WLI-USB-KS11G" (Ichiro Doi)
+  - Function pointer syntax cleanup (Chris Rankin)
+  - Push the multicast/promisc set into the prism2 driver.
+  - Move type/multicast filtering into the p80211 layer.
+  - Format fix for p802addr_to_str (Pavel Roskin)
+  - Add a check for non-Intersil firmware.
+  - Fix a infinite recursion in the usb lowlevel code. (Chris Rankin)
+-pre1
   - Header updates.
   - Add a card ident for the USR 1120 USB widget (Juan Conde)
   - Cleaner shutdown; fixed a possible leak and a race condition.

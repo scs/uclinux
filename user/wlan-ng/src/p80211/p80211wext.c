@@ -55,12 +55,12 @@
 #include <asm/uaccess.h>
 #include <asm/byteorder.h>
 
-#include <wlan/wlan_compat.h>
-
 /*================================================================*/
 /* Project Includes */
 
 #include <wlan/version.h>
+#include <wlan/wlan_compat.h>
+
 #include <wlan/p80211types.h>
 #include <wlan/p80211hdr.h>
 #include <wlan/p80211conv.h>
@@ -72,18 +72,137 @@
 #include <wlan/p80211ioctl.h>
 #include <wlan/p80211req.h>
 
+static int p80211wext_giwrate(netdevice_t *dev,
+			      struct iw_request_info *info,
+			      struct iw_param *rrq, char *extra);
+static int p80211wext_giwessid(netdevice_t *dev,
+			       struct iw_request_info *info,
+			       struct iw_point *data, char *essid);
 /* compatibility to wireless extensions */
 #ifdef WIRELESS_EXT
+
+UINT8 p80211_mhz_to_channel(UINT16 mhz)
+{
+	if (mhz >= 5000) {
+		return ((mhz - 5000) / 5);
+	} 
+
+	if (mhz == 2482)
+		return 14;
+	
+	if (mhz >= 2407) {
+		return ((mhz - 2407) / 5);
+	}
+
+	return 0;
+}
+
+UINT16 p80211_channel_to_mhz(UINT8 ch, int dot11a)
+{
+
+	if (ch == 0)
+		return 0;
+	if (ch > 200)
+		return 0;
+
+	/* 5G */
+
+	if (dot11a) {
+		return (5000 + (5 * ch));
+	}
+	
+	/* 2.4G */
+
+	if (ch == 14)
+		return 2484;
+	
+	if ((ch < 14) && (ch > 0)) {
+		return (2407 + (5 * ch));
+	}
+	
+	return 0;
+}
 
 /* taken from orinoco.c ;-) */
 const long p80211wext_channel_freq[] = {
 	2412, 2417, 2422, 2427, 2432, 2437, 2442,
 	2447, 2452, 2457, 2462, 2467, 2472, 2484
 };
-
 #define NUM_CHANNELS (sizeof(p80211wext_channel_freq) / sizeof(p80211wext_channel_freq[0])) 
 
 /** function declarations =============== */
+
+static int p80211wext_dorequest(wlandevice_t *wlandev, UINT32 did, UINT32 data)
+{
+	p80211msg_dot11req_mibset_t	msg;
+	p80211item_uint32_t		mibitem;
+	int	result;
+	
+	DBFENTER;
+
+	msg.msgcode = DIDmsg_dot11req_mibset;
+	mibitem.did = did;
+	mibitem.data = data;
+	memcpy(&msg.mibattribute.data, &mibitem, sizeof(mibitem));
+	result = p80211req_dorequest(wlandev, (UINT8*)&msg);
+
+	DBFEXIT;
+	return result;
+}
+
+static int p80211wext_autojoin(wlandevice_t *wlandev)
+{
+	p80211msg_lnxreq_autojoin_t     msg;
+	struct iw_point			data;
+	char ssid[IW_ESSID_MAX_SIZE];
+        
+	int result;
+	int err = 0;
+
+	DBFENTER;
+
+	/* Get ESSID */
+	result = p80211wext_giwessid(wlandev->netdev, NULL, &data, ssid);
+
+	if (result) {
+		err = -EFAULT;
+		goto exit;
+	}
+
+#warning "make a smarter sharedkey/opensystem auth decision"
+	/* Get WEPDef */
+	if (wlandev->hostwep & HOSTWEP_PRIVACYINVOKED ||
+	    wlandev->hostwep & HOSTWEP_EXCLUDEUNENCRYPTED) {
+		msg.authtype.data = P80211ENUM_authalg_sharedkey;
+	}
+	else {
+		msg.authtype.data = P80211ENUM_authalg_opensystem;
+	}
+
+	msg.msgcode = DIDmsg_lnxreq_autojoin;		
+
+	/* Trim the last '\0' to fit the SSID format */
+
+	if (ssid[data.length-1] == '\0') {
+		data.length = data.length - 1;
+	}
+	
+	memcpy(msg.ssid.data.data, ssid, data.length);
+	msg.ssid.data.len = data.length;
+
+	result = p80211req_dorequest(wlandev, (UINT8*)&msg);
+
+	if (result) {
+		err = -EFAULT;
+		goto exit;
+	}
+
+exit:
+
+	DBFEXIT;
+	return err;	
+
+}
 
 /* called by /proc/net/wireless */
 struct iw_statistics* p80211wext_get_wireless_stats (netdevice_t *dev) 
@@ -111,7 +230,7 @@ struct iw_statistics* p80211wext_get_wireless_stats (netdevice_t *dev)
 	if ( wlandev->mlmerequest == NULL )
 		return NULL;
 
-	retval = (*(wlandev->mlmerequest))(wlandev, (p80211msg_t*) &quality);
+	retval = wlandev->mlmerequest(wlandev, (p80211msg_t*) &quality);
 
 	wstats->qual.qual = quality.link.data;    /* overall link quality */
 	wstats->qual.level = quality.level.data;  /* instant signal level */
@@ -137,14 +256,32 @@ static int p80211wext_giwname(netdevice_t *dev,
 			      struct iw_request_info *info,
 			      char *name, char *extra)
 {
+	struct iw_param rate;
+	int result;
+	int err = 0;
+	
 	DBFENTER;
 
-	strcpy(name, "IEEE 802.11-b");
-	/* "802.11-DS" if we're <= 2MBps */
-	// XXX fixme eventually.
-
+	result = p80211wext_giwrate(dev, NULL, &rate, NULL);
+ 
+	if (result) {
+		err = -EFAULT;
+		goto exit;
+	}
+	
+	switch (rate.value) {
+	case 1000000:
+	case 2000000:
+		strcpy(name, "IEEE 802.11-DS");
+		break;
+	case 5500000:
+	case 11000000:
+		strcpy(name, "IEEE 802.11-b");
+		break;
+	}
+exit:
 	DBFEXIT;
-	return 0;
+	return err;
 }
 
 static int p80211wext_giwfreq(netdevice_t *dev,
@@ -178,14 +315,54 @@ static int p80211wext_giwfreq(netdevice_t *dev,
 	
 	/* convert into frequency instead of a channel */
 	freq->e = 1;		
-	freq->m = p80211wext_channel_freq[mibitem.data-1] * 100000;
+	freq->m = p80211_channel_to_mhz(mibitem.data, 0) * 100000;
 
  exit:
 	DBFEXIT;
 	return err;
 }
 
+static int p80211wext_siwfreq(netdevice_t *dev,
+			      struct iw_request_info *info,
+			      struct iw_freq *freq, char *extra)
+{
+	wlandevice_t *wlandev = (wlandevice_t*)dev->priv;
+	p80211item_uint32_t             mibitem;
+	p80211msg_dot11req_mibset_t     msg;
+	int result;
+	int err = 0;
+
+	DBFENTER;
+
+	if (!wlan_wext_write) {
+		err = (-EOPNOTSUPP);
+		goto exit;
+	}
+
+	msg.msgcode = DIDmsg_dot11req_mibset;
+	mibitem.did = DIDmib_dot11phy_dot11PhyDSSSTable_dot11CurrentChannel;
+	mibitem.status = P80211ENUM_msgitem_status_data_ok;
+	
+	if ( (freq->e == 0) && (freq->m <= 1000) )
+		mibitem.data = freq->m;
+	else
+		mibitem.data = p80211_mhz_to_channel(freq->m);
+  
+	memcpy(&msg.mibattribute.data, &mibitem, sizeof(mibitem));
+	result = p80211req_dorequest(wlandev, (UINT8*)&msg);
+	
+	if (result) {
+		err = -EFAULT;
+		goto exit;
+	}
+	
+ exit:
+	DBFEXIT;
+	return err;
+}
+
 #if WIRELESS_EXT > 8
+
 static int p80211wext_giwmode(netdevice_t *dev,
 			      struct iw_request_info *info,
 			      __u32 *mode, char *extra)
@@ -212,6 +389,69 @@ static int p80211wext_giwmode(netdevice_t *dev,
 	DBFEXIT;
 	return 0;
 }
+
+static int p80211wext_siwmode(netdevice_t *dev,
+			      struct iw_request_info *info,
+			      __u32 *mode, char *extra)
+{
+	wlandevice_t *wlandev = (wlandevice_t*)dev->priv;
+	p80211item_uint32_t             mibitem;
+	p80211msg_dot11req_mibset_t     msg;
+	int 	result;
+	int     err = 0;
+
+	DBFENTER;
+
+	if (!wlan_wext_write) {
+		err = (-EOPNOTSUPP);
+		goto exit;
+	}
+
+	if (*mode != IW_MODE_ADHOC && *mode != IW_MODE_INFRA &&
+	    *mode != IW_MODE_MASTER) {
+		err = (-EOPNOTSUPP);
+		goto exit;
+	}
+
+	/* Operation mode is the same with current mode */
+	if (*mode == wlandev->macmode)
+		goto exit;
+
+	switch (*mode) {
+	case IW_MODE_ADHOC:
+		wlandev->macmode = WLAN_MACMODE_IBSS_STA;
+		break;
+	case IW_MODE_INFRA:
+		wlandev->macmode = WLAN_MACMODE_ESS_STA;
+		break;
+	case IW_MODE_MASTER:
+		wlandev->macmode = WLAN_MACMODE_ESS_AP;
+		break;
+	default:
+		/* Not set yet. */
+		WLAN_LOG_INFO("Operation mode: %d not support\n", *mode);
+		return -EOPNOTSUPP;
+	}
+
+	/* Set Operation mode to the PORT TYPE RID */
+
+#warning "get rid of p2mib here"
+
+	msg.msgcode = DIDmsg_dot11req_mibset;
+	mibitem.did = DIDmib_p2_p2Static_p2CnfPortType;
+	mibitem.data = (*mode == IW_MODE_ADHOC) ? 0 : 1;
+	memcpy(&msg.mibattribute.data, &mibitem, sizeof(mibitem));
+	result = p80211req_dorequest(wlandev, (UINT8*)&msg);
+
+	if (result)
+		err = -EFAULT;
+
+ exit:
+	DBFEXIT;
+
+	return err;
+}
+
 
 static int p80211wext_giwrange(netdevice_t *dev,
 			       struct iw_request_info *info,
@@ -305,11 +545,11 @@ static int p80211wext_giwencode(netdevice_t *dev,
 	int i;
 
 	DBFENTER;
-	
+
 	if (wlandev->hostwep & HOSTWEP_PRIVACYINVOKED)
-		erq->flags = IW_ENCODE_DISABLED;
-	else
 		erq->flags = IW_ENCODE_ENABLED;
+	else
+		erq->flags = IW_ENCODE_DISABLED;	
 
 	if (wlandev->hostwep & HOSTWEP_EXCLUDEUNENCRYPTED)
 		erq->flags |= IW_ENCODE_RESTRICTED;
@@ -337,7 +577,153 @@ static int p80211wext_giwencode(netdevice_t *dev,
 	return err;
 }
 
+static int p80211wext_siwencode(netdevice_t *dev,
+				struct iw_request_info *info,
+				struct iw_point *erq, char *key)
+{
+	wlandevice_t *wlandev = (wlandevice_t*)dev->priv;
+	p80211msg_dot11req_mibset_t	msg;
+	p80211item_pstr32_t		pstr;
+
+	int err = 0;
+	int result = 0;
+	int enable = 0;
+	int i;
+
+	DBFENTER;
+
+	if (!wlan_wext_write) {
+		err = (-EOPNOTSUPP);
+		goto exit;
+	}
+
+	/* Check the Key index first. */
+	if((i = (erq->flags & IW_ENCODE_INDEX))) {
+		
+		if ((i < 1) || (i > NUM_WEPKEYS)) {
+			err = -EINVAL;
+			goto exit;	
+		}		
+		else
+			i--;
+
+		result = p80211wext_dorequest(wlandev, DIDmib_dot11smt_dot11PrivacyTable_dot11WEPDefaultKeyID, i);
+		
+		if (result) {
+			err = -EFAULT;
+			goto exit;
+		}
+		else {
+			enable = 1;
+		}
+
+	}
+	else {
+		// Do not thing when no Key Index
+	}
+
+	/* Check if there is no key information in the iwconfig request */
+	if((erq->flags & IW_ENCODE_NOKEY) == 0 && enable == 1) {
+
+		/*------------------------------------------------------------ 
+		 * If there is WEP Key for setting, check the Key Information 
+		 * and then set it to the firmware.
+		 -------------------------------------------------------------*/
+	
+		if (erq->length > 0) {
+
+			/* copy the key from the driver cache as the keys are read-only MIBs */
+			wlandev->wep_keylens[i] = erq->length;
+			memcpy(wlandev->wep_keys[i], key, erq->length);
+
+			/* Prepare data struture for p80211req_dorequest. */
+			memcpy(pstr.data.data, key, erq->length);
+			pstr.data.len = erq->length;
+
+			switch(i)
+			{
+				case 0:
+					pstr.did = DIDmib_dot11smt_dot11WEPDefaultKeysTable_dot11WEPDefaultKey0;
+					break;
+			
+				case 1:
+					pstr.did = DIDmib_dot11smt_dot11WEPDefaultKeysTable_dot11WEPDefaultKey1;
+					break;
+				
+				case 2: 
+					pstr.did = DIDmib_dot11smt_dot11WEPDefaultKeysTable_dot11WEPDefaultKey2;
+					break;
+	
+				case 3:
+					pstr.did = DIDmib_dot11smt_dot11WEPDefaultKeysTable_dot11WEPDefaultKey3;
+					break;
+		
+				default:
+					err = -EINVAL;
+					goto exit;
+			}
+
+			msg.msgcode = DIDmsg_dot11req_mibset;
+			memcpy(&msg.mibattribute.data, &pstr, sizeof(pstr));
+			result = p80211req_dorequest(wlandev, (UINT8*)&msg);
+
+			if (result) {
+				err = -EFAULT;
+				goto exit;
+			}
+		}
+
+	}
+	
+	/* Check the PrivacyInvoked flag */
+	if (erq->flags & IW_ENCODE_DISABLED) {
+		result = p80211wext_dorequest(wlandev, DIDmib_dot11smt_dot11PrivacyTable_dot11PrivacyInvoked, P80211ENUM_truth_false);
+	}
+	else if((erq->flags & IW_ENCODE_ENABLED) || enable == 1) {
+		result = p80211wext_dorequest(wlandev, DIDmib_dot11smt_dot11PrivacyTable_dot11PrivacyInvoked, P80211ENUM_truth_true);
+	}
+
+	if (result) {
+		err = -EFAULT;
+		goto exit;
+	}
+
+	/* Check the ExcludeUnencrypted flag */
+	if (erq->flags & IW_ENCODE_RESTRICTED) {
+		result = p80211wext_dorequest(wlandev, DIDmib_dot11smt_dot11PrivacyTable_dot11ExcludeUnencrypted, P80211ENUM_truth_true);
+	}
+	else if (erq->flags & IW_ENCODE_OPEN) {
+		result = p80211wext_dorequest(wlandev, DIDmib_dot11smt_dot11PrivacyTable_dot11ExcludeUnencrypted, P80211ENUM_truth_false);
+	}
+
+	if (result) {
+		err = -EFAULT;
+		goto exit;
+	}
+
+ exit:
+
+	DBFEXIT;
+	return err;
+}
+
 static int p80211wext_giwessid(netdevice_t *dev,
+			       struct iw_request_info *info,
+			       struct iw_point *data, char *essid)
+{
+	wlandevice_t *wlandev = (wlandevice_t*)dev->priv;
+
+	DBFENTER;
+
+	data->length = wlandev->ssid.len;
+	data->flags = 1;
+	memcpy(essid, wlandev->ssid.data, data->length);
+
+	DBFEXIT;
+	return 0;
+}
+
+static int p80211wext_siwessid(netdevice_t *dev,
 			       struct iw_request_info *info,
 			       struct iw_point *data, char *essid)
 {
@@ -350,33 +736,64 @@ static int p80211wext_giwessid(netdevice_t *dev,
 
 	DBFENTER;
 
+	if (!wlan_wext_write) {
+		err = (-EOPNOTSUPP);
+		goto exit;
+	}
+
 	memset(&msg, 0, sizeof(msg));
 	memset(&pstr, 0, sizeof(pstr));  
-	msg.msgcode = DIDmsg_dot11req_mibget;
+	msg.msgcode = DIDmsg_dot11req_mibset;
+
+#warning "Get rid of p2mib here!"
 
 	if (wlandev->macmode == WLAN_MACMODE_ESS_AP)
 		pstr.did = DIDmib_p2_p2Static_p2CnfOwnSSID;
 	else
 		pstr.did = DIDmib_dot11smt_dot11StationConfigTable_dot11DesiredSSID;
-	
+
+	pstr.data.len = data->length;
+	memcpy(pstr.data.data, essid, data->length);
+
 	memcpy(&msg.mibattribute.data, &pstr, sizeof(pstr));
 	result = p80211req_dorequest(wlandev, (UINT8*)&msg);
-	
+
 	if (result) {
 		err = -EFAULT;
 		goto exit;
 	}
-	
-	memcpy(&pstr, &msg.mibattribute.data, sizeof(pstr));
 
-	data->flags = 1;
-	data->length = pstr.data.len;
-	memcpy(essid, pstr.data.data, pstr.data.len);
-	
+	/* Auto Join */
+	err = p80211wext_autojoin(wlandev); 
+
  exit:
 	DBFEXIT;
 	return err;
 }
+
+
+static int p80211wext_siwcommit(netdevice_t *dev,
+				struct iw_request_info *info,
+				struct iw_point *data, char *essid)
+{
+	wlandevice_t *wlandev = (wlandevice_t*)dev->priv;
+	int err = 0;
+
+	DBFENTER;
+
+	if (!wlan_wext_write) {
+		err = (-EOPNOTSUPP);
+		goto exit;
+	}
+
+	/* Auto Join */
+	err = p80211wext_autojoin(wlandev); 
+
+ exit:
+ 	DBFEXIT;
+	return err;
+}
+
 
 static int p80211wext_giwrate(netdevice_t *dev,
 			      struct iw_request_info *info,
@@ -465,6 +882,44 @@ static int p80211wext_giwrts(netdevice_t *dev,
 	return err;
 }
 
+
+static int p80211wext_siwrts(netdevice_t *dev,
+			     struct iw_request_info *info,
+			     struct iw_param *rts, char *extra)
+{
+	wlandevice_t *wlandev = (wlandevice_t*)dev->priv;
+	p80211item_uint32_t             mibitem;
+	p80211msg_dot11req_mibset_t     msg;
+	int result;
+	int err = 0;
+
+	DBFENTER;
+
+	if (!wlan_wext_write) {
+		err = (-EOPNOTSUPP);
+		goto exit;
+	}
+
+	msg.msgcode = DIDmsg_dot11req_mibget;
+	mibitem.did = DIDmib_dot11mac_dot11OperationTable_dot11RTSThreshold;
+	if (rts->disabled)
+		mibitem.data = 2347;
+	else
+		mibitem.data = rts->value;
+
+	memcpy(&msg.mibattribute.data, &mibitem, sizeof(mibitem));
+	result = p80211req_dorequest(wlandev, (UINT8*)&msg);
+
+	if (result) {
+		err = -EFAULT;
+		goto exit;
+	}
+
+ exit:
+	DBFEXIT;
+	return err;
+}
+
 static int p80211wext_giwfrag(netdevice_t *dev,
 			      struct iw_request_info *info,
 			      struct iw_param *frag, char *extra)
@@ -492,6 +947,44 @@ static int p80211wext_giwfrag(netdevice_t *dev,
 	frag->value = mibitem.data;
 	frag->disabled = (frag->value == 2346);
 	frag->fixed = 1;
+
+ exit:
+	DBFEXIT;
+	return err;
+}
+
+static int p80211wext_siwfrag(netdevice_t *dev,
+			      struct iw_request_info *info,
+			      struct iw_param *frag, char *extra)
+{
+	wlandevice_t *wlandev = (wlandevice_t*)dev->priv;
+	p80211item_uint32_t             mibitem;
+	p80211msg_dot11req_mibset_t     msg;
+	int result;
+	int err = 0;
+
+	DBFENTER;
+
+	if (!wlan_wext_write) {
+		err = (-EOPNOTSUPP);
+		goto exit;
+	}
+
+	msg.msgcode = DIDmsg_dot11req_mibset;
+	mibitem.did = DIDmib_dot11mac_dot11OperationTable_dot11FragmentationThreshold;
+
+	if (frag->disabled)
+		mibitem.data = 2346;
+	else
+		mibitem.data = frag->value;
+
+	memcpy(&msg.mibattribute.data, &mibitem, sizeof(mibitem));
+	result = p80211req_dorequest(wlandev, (UINT8*)&msg);
+
+	if (result) {
+		err = -EFAULT;
+		goto exit;
+	}
 
  exit:
 	DBFEXIT;
@@ -580,9 +1073,123 @@ static int p80211wext_giwretry(netdevice_t *dev,
 
 }
 
+static int p80211wext_siwretry(netdevice_t *dev,
+			       struct iw_request_info *info,
+			       struct iw_param *rrq, char *extra)
+{
+	wlandevice_t *wlandev = (wlandevice_t*)dev->priv;
+	p80211item_uint32_t             mibitem;
+	p80211msg_dot11req_mibset_t     msg;
+	int result;
+	int err = 0;
+
+	DBFENTER;
+
+	if (!wlan_wext_write) {
+		err = (-EOPNOTSUPP);
+		goto exit;
+	}
+
+	if (rrq->disabled) {
+		err = -EINVAL;
+		goto exit;
+	}
+
+	msg.msgcode = DIDmsg_dot11req_mibset;
+
+	if ((rrq->flags & IW_RETRY_TYPE) == IW_RETRY_LIFETIME) {
+		mibitem.did = DIDmib_dot11mac_dot11OperationTable_dot11MaxTransmitMSDULifetime;
+		mibitem.data =  rrq->value /= 1024;
+		
+		memcpy(&msg.mibattribute.data, &mibitem, sizeof(mibitem));
+		result = p80211req_dorequest(wlandev, (UINT8*)&msg);
+		
+		if (result) {
+			err = -EFAULT;
+			goto exit;
+		}
+	} else {
+		if (rrq->flags & IW_RETRY_MAX) {
+			mibitem.did = DIDmib_dot11mac_dot11OperationTable_dot11LongRetryLimit;
+			mibitem.data = rrq->value;
+
+			memcpy(&msg.mibattribute.data, &mibitem, sizeof(mibitem));
+			result = p80211req_dorequest(wlandev, (UINT8*)&msg);
+			
+			if (result) {
+				err = -EFAULT;
+				goto exit;
+			}
+		}
+
+		if (rrq->flags & IW_RETRY_MIN) {
+			mibitem.did = DIDmib_dot11mac_dot11OperationTable_dot11ShortRetryLimit;
+			mibitem.data = rrq->value;
+
+			memcpy(&msg.mibattribute.data, &mibitem, sizeof(mibitem));
+			result = p80211req_dorequest(wlandev, (UINT8*)&msg);
+			
+			if (result) {
+				err = -EFAULT;
+				goto exit;
+			}
+		}
+	}
+
+ exit:
+	DBFEXIT;
+	return err;
+
+}
+
 #endif /* WIRELESS_EXT > 10 */
 
 #if WIRELESS_EXT > 9
+static int p80211wext_siwtxpow(netdevice_t *dev,
+                               struct iw_request_info *info,
+                               struct iw_param *rrq, char *extra)
+{
+        wlandevice_t *wlandev = (wlandevice_t*)dev->priv;
+        p80211item_uint32_t             mibitem;
+        p80211msg_dot11req_mibset_t     msg;
+        int result;
+        int err = 0;
+                              
+        DBFENTER;
+	
+       if (!wlan_wext_write) {
+                err = (-EOPNOTSUPP); 
+                goto exit;    
+        }
+
+        msg.msgcode = DIDmsg_dot11req_mibset;
+
+        switch (rrq->value) {
+
+          case 1 : mibitem.did = DIDmib_dot11phy_dot11PhyTxPowerTable_dot11TxPowerLevel1; break;
+          case 2 : mibitem.did = DIDmib_dot11phy_dot11PhyTxPowerTable_dot11TxPowerLevel2; break;
+          case 3 : mibitem.did = DIDmib_dot11phy_dot11PhyTxPowerTable_dot11TxPowerLevel3; break;
+          case 4 : mibitem.did = DIDmib_dot11phy_dot11PhyTxPowerTable_dot11TxPowerLevel4; break;
+          case 5 : mibitem.did = DIDmib_dot11phy_dot11PhyTxPowerTable_dot11TxPowerLevel5; break;
+          case 6 : mibitem.did = DIDmib_dot11phy_dot11PhyTxPowerTable_dot11TxPowerLevel6; break;
+          case 7 : mibitem.did = DIDmib_dot11phy_dot11PhyTxPowerTable_dot11TxPowerLevel7; break;
+          case 8 : mibitem.did = DIDmib_dot11phy_dot11PhyTxPowerTable_dot11TxPowerLevel8; break;
+          default: mibitem.did = DIDmib_dot11phy_dot11PhyTxPowerTable_dot11TxPowerLevel8; break;
+	}
+
+        memcpy(&msg.mibattribute.data, &mibitem, sizeof(mibitem));
+        result = p80211req_dorequest(wlandev, (UINT8*)&msg);
+
+        if (result) {
+                err = -EFAULT;
+                goto exit;
+        }
+
+ exit:
+        DBFEXIT;
+        return err;
+}
+
 static int p80211wext_giwtxpow(netdevice_t *dev,
 			       struct iw_request_info *info,
 			       struct iw_param *rrq, char *extra)
@@ -621,6 +1228,80 @@ static int p80211wext_giwtxpow(netdevice_t *dev,
 }
 #endif /* WIRELESS_EXT > 9 */
 
+static int p80211wext_siwspy(netdevice_t *dev,
+			     struct iw_request_info *info,
+			     struct iw_point *srq, char *extra)
+{
+	wlandevice_t *wlandev = (wlandevice_t*)dev->priv;
+        struct sockaddr address[IW_MAX_SPY];
+        int number = srq->length;
+        int i;
+
+	DBFENTER;
+
+	/* Copy the data from the input buffer */
+	memcpy(address, extra, sizeof(struct sockaddr)*number); 
+
+        wlandev->spy_number = 0;
+
+        if (number > 0) {
+
+                /* extract the addresses */
+                for (i = 0; i < number; i++) {
+
+                        memcpy(wlandev->spy_address[i], address[i].sa_data, ETH_ALEN);
+		}
+
+                /* reset stats */
+                memset(wlandev->spy_stat, 0, sizeof(struct iw_quality) * IW_MAX_SPY);
+
+                /* set number of addresses */
+                wlandev->spy_number = number;
+        }
+
+	DBFEXIT;
+	return 0;
+}
+
+/* jkriegl: from orinoco, modified */
+static int p80211wext_giwspy(netdevice_t *dev,
+			     struct iw_request_info *info,
+			     struct iw_point *srq, char *extra)
+{
+	wlandevice_t *wlandev = (wlandevice_t*)dev->priv;
+
+        struct sockaddr address[IW_MAX_SPY];
+        struct iw_quality spy_stat[IW_MAX_SPY];
+        int number;
+        int i;
+
+	DBFENTER;
+
+        number = wlandev->spy_number;
+
+        if (number > 0) {
+
+                /* populate address and spy struct's */
+                for (i = 0; i < number; i++) {
+                        memcpy(address[i].sa_data, wlandev->spy_address[i], ETH_ALEN);
+                        address[i].sa_family = AF_UNIX;
+                	memcpy(&spy_stat[i], &wlandev->spy_stat[i], sizeof(struct iw_quality));
+                }
+
+		/* reset update flag */
+                for (i=0; i < number; i++)
+                        wlandev->spy_stat[i].updated = 0;
+        }
+
+        /* push stuff to user space */
+        srq->length = number;
+	memcpy(extra, address, sizeof(struct sockaddr)*number); 
+	memcpy(extra+sizeof(struct sockaddr)*number, spy_stat, sizeof(struct iw_quality)*number); 
+
+	DBFEXIT;
+	return 0;
+}
+
 /*
 typedef int (*iw_handler)(netdevice_t *dev, struct iw_request_info *info,
                           union iwreq_data *wrqu, char *extra);
@@ -628,13 +1309,13 @@ typedef int (*iw_handler)(netdevice_t *dev, struct iw_request_info *info,
 
 #if WIRELESS_EXT > 12
 static iw_handler p80211wext_handlers[] =  {
-	(iw_handler) NULL,				/* SIOCSIWCOMMIT */
+	(iw_handler) p80211wext_siwcommit,		/* SIOCSIWCOMMIT */
 	(iw_handler) p80211wext_giwname,		/* SIOCGIWNAME */
 	(iw_handler) NULL,				/* SIOCSIWNWID */
 	(iw_handler) NULL,				/* SIOCGIWNWID */
-	(iw_handler) NULL,                		/* SIOCSIWFREQ */
+	(iw_handler) p80211wext_siwfreq,  		/* SIOCSIWFREQ */
 	(iw_handler) p80211wext_giwfreq,  		/* SIOCGIWFREQ */
-	(iw_handler) NULL,                		/* SIOCSIWMODE */
+	(iw_handler) p80211wext_siwmode,       		/* SIOCSIWMODE */
 	(iw_handler) p80211wext_giwmode,       		/* SIOCGIWMODE */
 	(iw_handler) NULL,                 		/* SIOCSIWSENS */
 	(iw_handler) NULL,                		/* SIOCGIWSENS */
@@ -644,8 +1325,8 @@ static iw_handler p80211wext_handlers[] =  {
 	(iw_handler) NULL, /* kernel code */   		/* SIOCGIWPRIV */
 	(iw_handler) NULL, /* not used */     		/* SIOCSIWSTATS */
 	(iw_handler) NULL, /* kernel code */   		/* SIOCGIWSTATS */
-	(iw_handler) NULL,				/* SIOCSIWSPY */
-	(iw_handler) NULL,               		/* SIOCGIWSPY */
+	(iw_handler) p80211wext_siwspy,			/* SIOCSIWSPY */
+	(iw_handler) p80211wext_giwspy,			/* SIOCGIWSPY */
 	(iw_handler) NULL,				/* -- hole -- */
 	(iw_handler) NULL,				/* -- hole -- */
 	(iw_handler) NULL,              		/* SIOCSIWAP */
@@ -659,7 +1340,7 @@ static iw_handler p80211wext_handlers[] =  {
 	(iw_handler) NULL,	/* null */		/* SIOCSIWSCAN */
 	(iw_handler) NULL,	/* null */		/* SIOCGIWSCAN */
 #endif /* WIRELESS_EXT > 13 */
-	(iw_handler) NULL,                 		/* SIOCSIWESSID */
+	(iw_handler) p80211wext_siwessid,  		/* SIOCSIWESSID */
 	(iw_handler) p80211wext_giwessid,      		/* SIOCGIWESSID */
 	(iw_handler) NULL,                 		/* SIOCSIWNICKN */
 	(iw_handler) p80211wext_giwessid,      		/* SIOCGIWNICKN */
@@ -667,15 +1348,15 @@ static iw_handler p80211wext_handlers[] =  {
 	(iw_handler) NULL,				/* -- hole -- */
 	(iw_handler) NULL,                		/* SIOCSIWRATE */
 	(iw_handler) p80211wext_giwrate,      		/* SIOCGIWRATE */
-	(iw_handler) NULL,               		/* SIOCSIWRTS */
+	(iw_handler) p80211wext_siwrts,  		/* SIOCSIWRTS */
 	(iw_handler) p80211wext_giwrts,        		/* SIOCGIWRTS */
-	(iw_handler) NULL,                		/* SIOCSIWFRAG */
+	(iw_handler) p80211wext_siwfrag,      		/* SIOCSIWFRAG */
 	(iw_handler) p80211wext_giwfrag,   		/* SIOCGIWFRAG */
-	(iw_handler) NULL,                 		/* SIOCSIWTXPOW */
+	(iw_handler) NULL,  		            	/* SIOCSIWTXPOW */
 	(iw_handler) p80211wext_giwtxpow,  		/* SIOCGIWTXPOW */
-	(iw_handler) NULL,                 		/* SIOCSIWRETRY */
+	(iw_handler) p80211wext_siwretry,     		/* SIOCSIWRETRY */
 	(iw_handler) p80211wext_giwretry,  		/* SIOCGIWRETRY */
-	(iw_handler) NULL,                    		/* SIOCSIWENCODE */
+	(iw_handler) p80211wext_siwencode,     		/* SIOCSIWENCODE */
 	(iw_handler) p80211wext_giwencode,  		/* SIOCGIWENCODE */
 	(iw_handler) NULL,                 		/* SIOCSIWPOWER */
 	(iw_handler) NULL,                  		/* SIOCGIWPOWER */
@@ -727,32 +1408,12 @@ int p80211wext_support_ioctl(netdevice_t *dev, struct ifreq *ifr, int cmd)
 	case SIOCGIWNWID:
 		err = (-EOPNOTSUPP);
 		break;
-
 	case SIOCSIWFREQ: /* set channel */
-		err = (-EOPNOTSUPP);
+                err = p80211wext_siwfreq(dev, NULL, &(iwr->u.freq), NULL);
 		break;
-#if 0
-		if ( (iwf->e == 0) && (iwf->m <= 1000) ) {
-			/* input is a channel number */		
-			chan = iwf->m;
-		} else {
-		/* input is a frequency - search the table */
-			for (i = 0; i < (6 - iwf->e); i++)
-				mult *= 10;
-			
-			for (i = 0; i < NUM_CHANNELS; i++)
-				if (iwf->m == (prism2wext_channel_freq[i] * mult))
-					chan = i+1;
-		}
-
- 		/* check for valid channels */ 
-		if ((!intval) || (intval > NUM_CHANNELS))
-			return (-EFAULT); 
-#endif
 	case SIOCGIWFREQ: /* get channel */
                 err = p80211wext_giwfreq(dev, NULL, &(iwr->u.freq), NULL);
 		break;
-
 	case SIOCSIWRANGE:
 	case SIOCSIWPRIV:	
 	case SIOCSIWAP: /* set access point MAC addresses (BSSID) */	

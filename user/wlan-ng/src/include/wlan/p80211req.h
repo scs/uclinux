@@ -72,7 +72,6 @@
 /* Function Declarations */
 
 int	p80211req_dorequest(wlandevice_t *wlandev, UINT8 *msgbuf);
-void	p80211req_confirm(wlandevice_t *wlandev);
 #ifdef CONFIG_NETLINK
 void	p80211indicate( wlandevice_t *wlandev, p80211msg_t *msg, int len);
 void	p80211indicate_init(void);

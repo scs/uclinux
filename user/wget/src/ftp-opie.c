@@ -1,21 +1,31 @@
 /* Opie (s/key) support for FTP.
    Copyright (C) 1998 Free Software Foundation, Inc.
 
-This file is part of Wget.
+This file is part of GNU Wget.
 
-This program is free software; you can redistribute it and/or modify
+GNU Wget is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
 the Free Software Foundation; either version 2 of the License, or
 (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
+GNU Wget is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
+along with Wget; if not, write to the Free Software
+Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+
+In addition, as a special exception, the Free Software Foundation
+gives permission to link the code of its release of Wget with the
+OpenSSL project's "OpenSSL" library (or with modified versions of it
+that use the same license as the "OpenSSL" library), and distribute
+the linked executables.  You must obey the GNU General Public License
+in all respects for all of the code used other than "OpenSSL".  If you
+modify this file, you may extend this exception to your version of the
+file, but you are not obligated to do so.  If you do not wish to do
+so, delete this exception statement from your version.  */
 
 #include <config.h>
 
@@ -28,7 +38,7 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #endif
 
 #include "wget.h"
-#include "md5.h"
+#include "gen-md5.h"
 
 /* Dictionary for integer-word translations.  */
 static char Wp[2048][4] = {
@@ -2152,16 +2162,16 @@ calculate_skey_response (int sequence, const char *seed, const char *pass)
   char key[8];
   static char buf[33];
 
-  struct md5_ctx ctx;
+  ALLOCA_MD5_CONTEXT (ctx);
   unsigned long results[4];	/* #### this looks 32-bit-minded */
   char *feed = (char *) alloca (strlen (seed) + strlen (pass) + 1);
 
   strcpy (feed, seed);
   strcat (feed, pass);
 
-  md5_init_ctx (&ctx);
-  md5_process_bytes (feed, strlen (feed), &ctx);
-  md5_finish_ctx (&ctx, results);
+  gen_md5_init (ctx);
+  gen_md5_update ((unsigned char *)feed, strlen (feed), ctx);
+  gen_md5_finish (ctx, (unsigned char *)results);
 
   results[0] ^= results[2];
   results[1] ^= results[3];
@@ -2169,9 +2179,9 @@ calculate_skey_response (int sequence, const char *seed, const char *pass)
 
   while (0 < sequence--)
     {
-      md5_init_ctx (&ctx);
-      md5_process_bytes (key, 8, &ctx);
-      md5_finish_ctx (&ctx, results);
+      gen_md5_init (ctx);
+      gen_md5_update ((unsigned char *)key, 8, ctx);
+      gen_md5_finish (ctx, (unsigned char *)results);
       results[0] ^= results[2];
       results[1] ^= results[3];
       memcpy (key, (char *) results, 8);

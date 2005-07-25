@@ -15,15 +15,21 @@ iwlist \- Get wireless statistics from specific nodes
 .br
 .BI "iwlist " interface " ap"
 .br
+.BI "iwlist " interface " scan"
+.br
 .BI "iwlist " interface " rate"
 .br
-.BI "iwlist " interface " keys"
+.BI "iwlist " interface " key"
 .br
 .BI "iwlist " interface " power"
 .br
 .BI "iwlist " interface " txpower"
 .br
 .BI "iwlist " interface " retry"
+.br
+.BI "iwlist --help"
+.br
+.BI "iwlist --version"
 .\"
 .\" DESCRIPTION part
 .\"
@@ -37,21 +43,40 @@ list of parameters.
 .\"
 .SH PARAMETERS
 .TP
-.B freq
+.BR freq / channel
 Give the list of available frequencies in the device and the number of
 defined channels. Please note that usually the driver returns the
 total number of channels and only the frequencies available in the
 present locale, so there is no one to one mapping between frequencies
 displayed and channel numbers.
 .TP
-.B ap
+.BR scan [ning]
+Give the list of Access Points and Ad-Hoc cells in range, and
+optionally a whole bunch of information about them (ESSID, Quality,
+Frequency, Mode...). The type of information returned depend on what
+the card support.
+.br
+Triggering scanning is a priviledged operation
+.RI ( root
+only) and normal users can only read letf-over scan results. By
+default, the way scanning is done (the scope of the scan) will be
+impacted by the current setting of the driver. Also, this command is
+supposed to take extra arguments to control the scanning behaviour,
+but this is currently not implemented.
+.TP
+.BR ap / accesspoint / peers
 Give the list of Access Points in range, and optionally the quality of
-link to them.
+link to them. This feature is obsolte and now deprecated in favor of
+scanning support (above), and most drivers don't support it.
+.br
+Some drivers may use this command to return a specific list of Peers
+or Access Points, such as the list of Peers associated/registered with
+the card. See your driver documentation for details.
 .TP
 .BR rate / bit [rate]
 List the bit-rates supported by the device.
 .TP
-.BR keys / enc [ryption]
+.BR key / enc [ryption]
 List the encryption key sizes supported and display all the encryption
 keys availables in the device.
 .TP
@@ -63,6 +88,11 @@ List the various Transmit Power available on the device.
 .TP
 .B retry
 List the transmit retry limits and retry lifetime on the device.
+.TP
+.B --version
+Display the version of the tools, as well as the recommended and
+current Wireless Extensions version for the tool and the various
+wireless interfaces.
 .\"
 .\" FILES part
 .\"
@@ -73,7 +103,8 @@ List the transmit retry limits and retry lifetime on the device.
 .\"
 .SH SEE ALSO
 .BR iwconfig (8),
-.BR ifconfig (8),
 .BR iwspy (8).
-.BR iwpriv (8).
+.BR iwevent (8),
+.BR iwpriv (8),
+.BR wireless (7).
 

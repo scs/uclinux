@@ -1,3 +1,70 @@
+dnl
+dnl Check for `struct utimbuf'.
+dnl
+
+AC_DEFUN([WGET_STRUCT_UTIMBUF],
+[AC_MSG_CHECKING([for struct utimbuf])
+if test x"$ac_cv_header_utime_h" = xyes; then
+  AC_EGREP_CPP([struct[ 	]+utimbuf],
+    [#include <utime.h>],
+    [AC_DEFINE(HAVE_STRUCT_UTIMBUF)
+      AC_MSG_RESULT(yes)],
+    AC_MSG_RESULT(no))
+else
+  AC_MSG_RESULT(no)
+fi])
+
+
+dnl Check for socklen_t.  The third argument of accept, getsockname,
+dnl etc. is int * on some systems, but size_t * on others.  POSIX
+dnl finally standardized on socklen_t, but older systems don't have
+dnl it.  If socklen_t exists, we use it, else if accept() accepts
+dnl size_t *, we use that, else we use int.
+
+AC_DEFUN([WGET_SOCKLEN_T], [
+  AC_MSG_CHECKING(for socklen_t)
+  AC_TRY_COMPILE([
+#include <sys/types.h>
+#include <sys/socket.h>
+socklen_t x;
+],
+    [], [AC_MSG_RESULT(yes)], [
+      AC_TRY_COMPILE([
+#include <sys/types.h>
+#include <sys/socket.h>
+int accept (int, struct sockaddr *, size_t *);
+],
+      [], [
+      AC_MSG_RESULT(size_t)
+      AC_DEFINE(socklen_t, size_t)
+    ], [
+      AC_MSG_RESULT(int)
+      AC_DEFINE(socklen_t, int)
+    ])
+  ])
+])
+
+dnl Check whether fnmatch.h can be included.  This doesn't use
+dnl AC_FUNC_FNMATCH because Wget is already careful to only use
+dnl fnmatch on certain OS'es.  However, fnmatch.h is sometimes broken
+dnl even on those because Apache installs its own fnmatch.h to
+dnl /usr/local/include (!), which GCC uses before /usr/include.
+
+AC_DEFUN([WGET_FNMATCH], [
+  AC_MSG_CHECKING([for working fnmatch.h])
+  AC_COMPILE_IFELSE([#include <fnmatch.h>
+                    ], [
+    AC_MSG_RESULT(yes)
+    AC_DEFINE(HAVE_WORKING_FNMATCH_H)
+  ], [
+    AC_MSG_RESULT(no)
+  ])
+])
+
+dnl
+dnl ansi2knr support: check whether C prototypes are available.
+dnl
+
 AC_DEFUN(AM_C_PROTOTYPES,
 [AC_REQUIRE([AM_PROG_CC_STDC])
 AC_BEFORE([$0], [AC_C_INLINE])
@@ -38,7 +105,7 @@ AC_SUBST(ANSI2KNR)dnl
 
 AC_DEFUN(AM_PROG_CC_STDC,
 [AC_REQUIRE([AC_PROG_CC])
-AC_MSG_CHECKING(for ${CC-cc} option to accept ANSI C)
+AC_MSG_CHECKING([for ${CC-cc} option to accept ANSI C])
 AC_CACHE_VAL(am_cv_prog_cc_stdc,
 [am_cv_prog_cc_stdc=no
 ac_save_CC="$CC"
@@ -47,12 +114,11 @@ ac_save_CC="$CC"
 # AIX			-qlanglvl=ansi
 # Ultrix and OSF/1	-std1
 # HP-UX			-Aa -D_HPUX_SOURCE
-# SVR4			-Xc -D__EXTENSIONS__
-for ac_arg in "" -qlanglvl=ansi -std1 "-Aa -D_HPUX_SOURCE" "-Xc -D__EXTENSIONS__"
+for ac_arg in "" -qlanglvl=ansi -std1 "-Aa -D_HPUX_SOURCE"
 do
   CC="$ac_save_CC $ac_arg"
   AC_TRY_COMPILE(
-[#if !defined(__STDC__) || __STDC__ != 1
+[#if !defined(__STDC__)
 choke me
 #endif
 /* DYNIX/ptx V4.1.3 can't compile sys/stat.h with -Xc -D__EXTENSIONS__. */
@@ -75,18 +141,156 @@ case "x$am_cv_prog_cc_stdc" in
 esac
 ])
 
-AC_DEFUN(WGET_STRUCT_UTIMBUF,
-[AC_MSG_CHECKING(for struct utimbuf)
-if test x"$ac_cv_header_utime_h" = xyes; then
-  AC_EGREP_CPP([struct[ 	]+utimbuf],
-    [#include <utime.h>],
-    [AC_DEFINE(HAVE_STRUCT_UTIMBUF)
-      AC_MSG_RESULT(yes)],
-    AC_MSG_RESULT(no))
-else
-  AC_MSG_RESULT(no)
-fi])
 
+dnl ************************************************************
+dnl START OF IPv6 AUTOCONFIGURATION SUPPORT MACROS
+dnl ************************************************************
+
+AC_DEFUN([TYPE_STRUCT_SOCKADDR_IN6],[
+  ds6_have_sockaddr_in6=
+  AC_CHECK_TYPES([struct sockaddr_in6],[
+    ds6_have_sockaddr_in6=yes
+  ],[
+    ds6_have_sockaddr_in6=no
+  ],[
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+  ])
+
+  if test "X$ds6_have_sockaddr_in6" = "Xyes"; then :
+    $1
+  else :
+    $2
+  fi
+])
+
+
+AC_DEFUN([MEMBER_SIN6_SCOPE_ID],[
+  AC_REQUIRE([TYPE_STRUCT_SOCKADDR_IN6])
+  
+  ds6_member_sin6_scope_id=
+  if test "X$ds6_have_sockaddr_in6" = "Xyes"; then
+    AC_CHECK_MEMBER([struct sockaddr_in6.sin6_scope_id],[
+      ds6_member_sin6_scope_id=yes
+    ],[
+      ds6_member_sin6_scope_id=no
+    ],[
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+    ])
+  fi
+
+  if test "X$ds6_member_sin6_scope_id" = "Xyes"; then
+    AC_DEFINE([HAVE_SOCKADDR_IN6_SCOPE_ID], 1,
+      [Define if struct sockaddr_in6 has the sin6_scope_id member])
+    $1
+  else :
+    $2
+  fi
+])
+
+
+AC_DEFUN([PROTO_INET6],[
+  AC_CACHE_CHECK([for INET6 protocol support], [ds6_cv_proto_inet6],[
+    AC_TRY_CPP([
+#include <sys/types.h>
+#include <sys/socket.h>
+
+#ifndef PF_INET6
+#error Missing PF_INET6
+#endif
+#ifndef AF_INET6
+#error Mlssing AF_INET6
+#endif
+    ],[
+      ds6_cv_proto_inet6=yes
+    ],[
+      ds6_cv_proto_inet6=no
+    ])
+  ])
+
+  if test "X$ds6_cv_proto_inet6" = "Xyes"; then :
+    $1
+  else :
+    $2
+  fi
+])
+
+
+AC_DEFUN([GETADDRINFO_AI_ADDRCONFIG],[
+  AC_CACHE_CHECK([if getaddrinfo supports AI_ADDRCONFIG],
+    [ds6_cv_gai_ai_addrconfig],[
+    AC_TRY_CPP([
+#include <netdb.h>
+
+#ifndef AI_ADDRCONFIG
+#error Missing AI_ADDRCONFIG
+#endif
+    ],[
+      ds6_cv_gai_ai_addrconfig=yes
+    ],[
+      ds6_cv_gai_ai_addrconfig=no
+    ])
+  ])
+
+  if test "X$ds6_cv_gai_ai_addrconfig" = "Xyes"; then :
+    $1
+  else :
+    $2
+  fi
+])
+
+
+AC_DEFUN([GETADDRINFO_AI_ALL],[
+  AC_CACHE_CHECK([if getaddrinfo supports AI_ALL],[ds6_cv_gai_ai_all],[
+    AC_TRY_CPP([
+#include <netdb.h>
+
+#ifndef AI_ALL
+#error Missing AI_ALL
+#endif
+    ],[
+      ds6_cv_gai_ai_all=yes
+    ],[
+      ds6_cv_gai_ai_all=no
+    ])
+  ])
+
+  if test "X$ds6_cv_gai_ai_all" = "Xyes"; then :
+    $1
+  else :
+    $2
+  fi
+])
+
+
+AC_DEFUN([GETADDRINFO_AI_V4MAPPED],[
+  AC_CACHE_CHECK([if getaddrinfo supports AI_V4MAPPED],[ds6_cv_gai_ai_v4mapped],[
+    AC_TRY_CPP([
+#include <netdb.h>
+
+#ifndef AI_V4MAPPED
+#error Missing AI_V4MAPPED
+#endif
+    ],[
+      ds6_cv_gai_ai_v4mapped=yes
+    ],[
+      ds6_cv_gai_ai_v4mapped=no
+    ])
+  ])
+
+  if test "X$ds6_cv_gai_ai_v4mapped" = "Xyes"; then :
+    $1
+  else :
+    $2
+  fi
+])
+
+dnl ************************************************************
+dnl END OF IPv6 AUTOCONFIGURATION SUPPORT MACROS
+dnl ************************************************************
 
 # This code originates from Ulrich Drepper's AM_WITH_NLS.
 
@@ -103,7 +307,7 @@ AC_DEFUN(WGET_WITH_NLS,
     dnl last moment.
 
     if test x"$HAVE_NLS" = xyes; then
-      AC_MSG_RESULT("language catalogs: $ALL_LINGUAS")
+      AC_MSG_RESULT([language catalogs: $ALL_LINGUAS])
       AM_PATH_PROG_WITH_TEST(MSGFMT, msgfmt,
 	[test -z "`$ac_dir/$ac_word -h 2>&1 | grep 'dv '`"], msgfmt)
       AM_PATH_PROG_WITH_TEST(XGETTEXT, xgettext,
@@ -129,14 +333,19 @@ AC_DEFUN(WGET_WITH_NLS,
 
       AC_CHECK_HEADERS(locale.h libintl.h)
 
-      AC_CHECK_FUNCS(gettext, [], [
-	AC_CHECK_LIB(intl, gettext, [
-          dnl gettext is in libintl; announce the fact manually.
-          LIBS="-lintl $LIBS"
-	  AC_DEFINE(HAVE_GETTEXT)
-        ], [
-	  AC_MSG_RESULT(
-	    [gettext not found; disabling NLS])
+      dnl Prefer gettext found in -lintl to the one in libc.
+      dnl Otherwise it can happen that we include libintl.h from
+      dnl /usr/local/lib, but fail to specify -lintl, which results in
+      dnl link or run-time failures.  (Symptom: libintl_bindtextdomain
+      dnl not found at link-time.)
+
+      AC_CHECK_LIB(intl, gettext, [
+        dnl gettext is in libintl; announce the fact manually.
+        LIBS="-lintl $LIBS"
+	AC_DEFINE(HAVE_GETTEXT)
+      ], [
+        AC_CHECK_FUNCS(gettext, [], [
+          AC_MSG_RESULT([gettext not found; disabling NLS])
           HAVE_NLS=no
         ])
       ])
@@ -179,7 +388,7 @@ dnl This is not strictly an Autoconf macro, because it is run from
 dnl within `config.status' rather than from within configure.  This
 dnl is why special rules must be applied for it.
 AC_DEFUN(WGET_PROCESS_PO,
-  [srcdir=$ac_given_srcdir # Advanced autoconf hackery
+  [
    dnl I wonder what the following several lines do...
    if test "x$srcdir" != "x."; then
      if test "x`echo $srcdir | sed 's@/.*@@'`" = "x"; then
@@ -249,3 +458,7 @@ else
 fi
 AC_SUBST($1)dnl
 ])
+
+# Include libtool code.
+
+builtin(include, libtool.m4)dnl

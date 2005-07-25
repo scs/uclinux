@@ -102,13 +102,13 @@ mkmiblist:	$(MKMIBLIST_OBJ) ridlist.dat
 	./mkmiblist miblist.sort miblist
 
 install:
-	@echo "Nothing to do"
-
-romfs:
-	@echo "Nothing to do"
+	echo "Nothing to do"
 
 clean:
 	rm -f .depend
 	rm -f core core.* *.o .*.o *.s *.a *.sort tmp_make *~ tags
 	rm -fr $(OBJ_DIR)
 	rm -f mkridlist
+
+romfs:
+	echo "Nothing to do"

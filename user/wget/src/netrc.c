@@ -1,21 +1,31 @@
 /* Read and parse the .netrc file to get hosts, accounts, and passwords.
    Copyright (C) 1996, Free Software Foundation, Inc.
 
-This file is part of Wget.
+This file is part of GNU Wget.
 
-This program is free software; you can redistribute it and/or modify
+GNU Wget is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
 the Free Software Foundation; either version 2 of the License, or
 (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
+GNU Wget is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
+along with Wget; if not, write to the Free Software
+Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+
+In addition, as a special exception, the Free Software Foundation
+gives permission to link the code of its release of Wget with the
+OpenSSL project's "OpenSSL" library (or with modified versions of it
+that use the same license as the "OpenSSL" library), and distribute
+the linked executables.  You must obey the GNU General Public License
+in all respects for all of the code used other than "OpenSSL".  If you
+modify this file, you may extend this exception to your version of the
+file, but you are not obligated to do so.  If you do not wish to do
+so, delete this exception statement from your version.  */
 
 /* This file used to be kept in synch with the code in Fetchmail, but
    the latter has diverged since.  */
@@ -25,7 +35,6 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #endif
 
 #include <stdio.h>
-#include <ctype.h>
 #include <stdlib.h>
 #ifdef HAVE_STRING_H
 # include <string.h>
@@ -68,7 +77,7 @@ search_netrc (const char *host, const char **acc, const char **passwd,
   /* Find ~/.netrc.  */
   if (!processed_netrc)
     {
-      char *home = home_dir();
+      char *home = home_dir ();
 
       netrc_list = NULL;
       processed_netrc = 1;
@@ -79,7 +88,7 @@ search_netrc (const char *host, const char **acc, const char **passwd,
 	  char *path = (char *)alloca (strlen (home) + 1
 				       + strlen (NETRC_FILE_NAME) + 1);
 	  sprintf (path, "%s/%s", home, NETRC_FILE_NAME);
-	  free (home);
+	  xfree (home);
 	  err = stat (path, &buf);
 	  if (err == 0)
 	    netrc_list = parse_netrc (path);
@@ -90,8 +99,6 @@ search_netrc (const char *host, const char **acc, const char **passwd,
     return;
   /* Acc and password found; all OK.  */
   if (*acc && *passwd)
-    return;
-  if (!*acc && !slack_default)
     return;
   /* Some data not given -- try finding the host.  */
   for (l = netrc_list; l; l = l->next)
@@ -141,50 +148,58 @@ search_netrc (const char *host, const char **acc, const char **passwd,
 
 
 #ifdef STANDALONE
+
+#include <assert.h>
+
 /* Normally, these functions would be defined by your package.  */
 # define xmalloc malloc
+# define xfree free
 # define xstrdup strdup
 
-/* The function reads a whole line.  It reads the line realloc-ing the
-   storage exponentially, doubling the storage after each overflow to
-   minimize the number of calls to realloc().
-
-   It is not an exemplary of correctness, since it kills off the
-   newline (and no, there is no way to know if there was a newline at
-   EOF).  */
 # define xrealloc realloc
-# define DYNAMIC_LINE_BUFFER 40
+
+/* Read a line from FP.  The function reallocs the storage as needed
+   to accomodate for any length of the line.  Reallocs are done
+   storage exponentially, doubling the storage after each overflow to
+   minimize the number of calls to realloc() and fgets().  The newline
+   character at the end of line is retained.
+
+   After end-of-file is encountered without anything being read, NULL
+   is returned.  NULL is also returned on error.  To distinguish
+   between these two cases, use the stdio function ferror().  */
 
 char *
 read_whole_line (FILE *fp)
 {
-  char *line;
-  int i, bufsize, c;
+  int length = 0;
+  int bufsize = 81;
+  char *line = (char *)xmalloc (bufsize);
 
-  i = 0;
-  bufsize = DYNAMIC_LINE_BUFFER;
-  line = xmalloc(bufsize);
-  /* Construct the line.  */
-  while ((c = getc(fp)) != EOF && c != '\n')
+  while (fgets (line + length, bufsize - length, fp))
     {
-      if (i > bufsize - 1)
-	line = (char *)xrealloc(line, (bufsize <<= 1));
-      line[i++] = c;
+      length += strlen (line + length);
+      assert (length > 0);
+      if (line[length - 1] == '\n')
+	break;
+      /* fgets() guarantees to read the whole line, or to use up the
+         space we've given it.  We can double the buffer
+         unconditionally.  */
+      bufsize <<= 1;
+      line = xrealloc (line, bufsize);
     }
-  if (c == EOF && !i)
+  if (length == 0 || ferror (fp))
     {
-      free(line);
+      xfree (line);
       return NULL;
     }
-
-  /* Check for overflow at zero-termination (no need to double the
-     buffer in this case.  */
-  if (i == bufsize)
-    line = (char *)xrealloc(line, i + 1);
-  line[i] = '\0';
+  if (length + 1 < bufsize)
+    /* Relieve the memory from our exponential greediness.  We say
+       `length + 1' because the terminating \0 is not included in
+       LENGTH.  We don't need to zero-terminate the string ourselves,
+       though, because fgets() does that.  */
+    line = xrealloc (line, length + 1);
   return line;
 }
-
 #endif /* STANDALONE */
 
 /* Maybe add NEWENTRY to the account information list, LIST.  NEWENTRY is
@@ -200,9 +215,9 @@ maybe_add_to_list (acc_t **newentry, acc_t **list)
   if (a && ! a->acc)
     {
       /* Free any allocated space.  */
-      free (a->host);
-      free (a->acc);
-      free (a->passwd);
+      xfree (a->host);
+      xfree (a->acc);
+      xfree (a->passwd);
     }
   else
     {
@@ -230,7 +245,8 @@ maybe_add_to_list (acc_t **newentry, acc_t **list)
    null-terminated string once character to the left.
    Used in processing \ and " constructs in the netrc file */
 static void
-shift_left(char *string){
+shift_left(char *string)
+{
   char *p;
   
   for (p=string; *p; ++p)
@@ -275,6 +291,10 @@ parse_netrc (const char *path)
       p = line;
       quote = 0;
 
+      /* Skip leading whitespace.  */
+      while (*p && ISSPACE (*p))
+	p ++;
+
       /* If the line is empty, then end any macro definition.  */
       if (last_token == tok_macdef && !*p)
 	/* End of macro if the line is empty.  */
@@ -287,8 +307,9 @@ parse_netrc (const char *path)
 	  while (*p && ISSPACE (*p))
 	    p ++;
 
-	  /* Discard end-of-line comments.  */
-	  if (*p == '#')
+	  /* Discard end-of-line comments; also, stop processing if
+	     the above `while' merely skipped trailing whitespace.  */
+	  if (*p == '#' || !*p)
 	    break;
 
 	  /* If the token starts with quotation mark, note this fact,
@@ -307,9 +328,13 @@ parse_netrc (const char *path)
 	    p ++;
 	  }
 
-	  /* if field was quoted, squash the trailing quotation mark */
+	  /* If field was quoted, squash the trailing quotation mark
+	     and reset quote flag.  */
 	  if (quote)
-	    shift_left(p);
+	    {
+	      shift_left (p);
+	      quote = 0;
+	    }
 
 	  /* Null-terminate the token, if it isn't already.  */
 	  if (*p)
@@ -392,14 +417,14 @@ parse_netrc (const char *path)
 	    }
 	}
 
-      free (line);
+      xfree (line);
     }
 
   fclose (fp);
 
   /* Finalize the last machine entry we found.  */
   maybe_add_to_list (&current, &retval);
-  free (current);
+  xfree (current);
 
   /* Reverse the order of the list so that it appears in file order.  */
   current = retval;
@@ -433,7 +458,7 @@ free_netrc(acc_t *l)
       FREE_MAYBE (l->acc);
       FREE_MAYBE (l->passwd);
       FREE_MAYBE (l->host);
-      free(l);
+      xfree (l);
       l = t;
     }
 }

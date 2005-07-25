@@ -57,5 +57,6 @@ install:
 	fi 
 	cp shared wlancfg-DEFAULT \
 		$(TARGET_ROOT_ON_HOST)/etc/wlan
-
+	chmod 700 $(TARGET_ROOT_ON_HOST)/etc/wlan/wlancfg-*
+	echo FIRMWARE_DIR=$(FIRMWARE_DIR) >> $(TARGET_ROOT_ON_HOST)/etc/wlan/shared
 

@@ -15,6 +15,16 @@ web page
 INSTALL
 -------
 	This file contains installation instruction and requirements.
+	A *must* read.
+
+DISTRIBUTION.txt
+----------------
+	This file will document how to configure wireless cards at
+boot time with various Linux distributions (using Wireless
+Extensions). Please read it carefully before asking questions.
+	In this file, I try to collect all the specifics of Wireless
+Extensions integration in the most common Linux distributions. I need
+your help to complete this file.
 
 PCMCIA.txt
 ----------
@@ -26,7 +36,7 @@ man pages (iwconfig.8, iwlist.8, iwpriv.8, iwspy.8)
 	VERY IMPORTANT : I try to keep the man page up to date, so
 you'd better read them before asking questions.
 	ALSO IMPORTANT : Those man pages describe the capacity of the
-tools, no device implement the full range (and driver usually
+tools, no device implement the full range (and drivers usually
 implement even less).
 
 	As far as I know, the man pages are the most complete, up to
@@ -64,23 +74,51 @@ iwgetid.c
 	Output the ESSID or NWID of the specified device.
 	Can also output it in a form that can be used as a Pcmcia Scheme.
 
+iwevent.c
+---------
+	Display Wireless Events. This is new, so there is not much support
+in drivers for it yet...
+
+iwlib.c
+-------
+	The Wireless Tools helper library. May be usefull if you want
+to create your own applications using Wireless Extensions.
+
 Changelog, contributions
 ------------------------
-	See iwcommon.h
+	See CHANGELOG.h
 
 wireless.h
 ----------
-	Definition of the Wireless Extensions. You may drop this file
-in your kernel headers to update the Wireless Extensions.
+	Definition of the Wireless Extensions. Remember that the
+definition used by the drivers and the tools must match, otherwise
+funny things may happen. The tools try to check for that.
+	Since Wireless Extensions v12, you can no longer drop this
+file in your kernel headers to update the Wireless Extensions, you
+need to use the full patches available on my web page. So, the use is
+more if you plan to do some cross compile or something similar.
+	Just for your enjoyement, there is various release of it. If
+your kernel/drivers are old, you may want to try the older releases...
+
+sample_xxx.c :
+------------
+	Various samples of code showing how to implement some of the
+more tricky feature of Wireless Extensions in your driver.
+	Note that there is no guarantee that this code compile, let
+alone work, but it should point you in the proper direction.
+	Also, have a look at existing drivers in the Linux kernel.
 
 Other tools :
 -----------
-	My web page above list many other tools using Wireless
+	My web page list many other tools using Wireless
 Extensions that you may find useful...
+	http://www.hpl.hp.com/personal/Jean_Tourrilhes/Linux/Tools.html#links
 
+Other questions :
+---------------
+	You have the source, and it is documented. In 99% of the case,
+you will find your answer there.
 
-	The list of changes, credits and errata notes are in
-iwcommon.h. Compilation might be tricky, see iwcommon.h for header
-problems...
+	Good luck...
 
 	Jean <jt@hpl.hp.com>

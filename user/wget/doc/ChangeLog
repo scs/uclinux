@@ -1,20 +1,347 @@
-2000-12-30  Dan Harkless  <wget@harkless.org>
+2003-11-09  Hrvoje Niksic  <hniksic@xemacs.org>
+
+	* wget.texi (Contributors): Update my email address.
+
+2003-10-26  Hrvoje Niksic  <hniksic@xemacs.org>
+
+	* wget.texi (Wgetrc Commands): Fixed typo.
+	From DervishD <raul@pleyades.net>.
+
+2003-10-24  Hrvoje Niksic  <hniksic@xemacs.org>
+
+	* Makefile.in (install.info): Handle the case when only wget.info
+	is generated from wget.texi.  In that case, wget.info-*[0-9]
+	doesn't match anything and therefore ends up as a bogus value of
+	FILE in the loop.  Fix this by not calling INSTALL_DATA on
+	nonexistent files.
+
+2003-10-07  Hrvoje Niksic  <hniksic@xemacs.org>
+
+	* wget.texi (HTTP Options): Documented --post-file and
+	--post-data.
+
+2003-10-01  Hrvoje Niksic  <hniksic@xemacs.org>
+
+	* wget.texi: Renamed prep.ai.mit.edu to ftp.gnu.org.
+
+2003-10-01  Hrvoje Niksic  <hniksic@xemacs.org>
+
+	* wget.texi (Contributors): Updated from ChangeLog entries.
+
+2003-09-21  Aaron S. Hawley  <Aaron.Hawley@uvm.edu>
+
+	* wget.texi: Split version to version.texi.  Tweak documentation's
+	phrasing and markup.
+
+2003-09-21  Hrvoje Niksic  <hniksic@xemacs.org>
+
+	* wget.texi: Documented the new timeout options.
+
+2003-09-19  Hrvoje Niksic  <hniksic@xemacs.org>
+
+	* wget.texi: Changed @itemx not preceded by @item to @item.
+
+2003-09-17  Hrvoje Niksic  <hniksic@xemacs.org>
+
+	* wget.texi (Download Options): Explain how --tries works by
+	default.
+
+2003-09-17  Hrvoje Niksic  <hniksic@xemacs.org>
+
+	* wget.texi (Download Options): Explain new --restrict-file-names
+	semantics.
+
+2003-09-16  Hrvoje Niksic  <hniksic@xemacs.org>
+
+	* wget.texi: Set the man page title to a string more descriptive
+	than "Wget manual".
+
+2003-09-16  Hrvoje Niksic  <hniksic@xemacs.org>
+
+	* Makefile.in ($(TEXI2POD)): Update only the #! line.
+
+	* texi2pod.pl: New version from Gcc.
+
+2003-09-16  Noel Kothe  <noel@debian.org>
+
+	* wget.texi (Download Options): Fix misspelling.
+
+2003-09-15  Nicolas Schodet  <schodet@efrei.fr>
+
+	* wget.texi (Download Options): Add link to Proxies.
+
+2003-09-14  Hrvoje Niksic  <hniksic@xemacs.org>
+
+	* wget.texi (Download Options): Document the new option
+	--restrict-file-names and the corresponding wgetrc command.
+
+2003-09-10  Hrvoje Niksic  <hniksic@xemacs.org>
+
+	* wget.texi (Download Options): Documented new option --dns-cache.
+
+2002-04-24  Hrvoje Niksic  <hniksic@arsdigita.com>
+
+	* wget.texi (Robot Exclusion): Explain how to turn off the robot
+	exclusion support from the command line.
+	(Wgetrc Commands): Explain that the `robots' variable also takes
+	effect on the "nofollow" matching.
+
+2002-04-15  Hrvoje Niksic  <hniksic@arsdigita.com>
+
+	* wget.texi (Download Options): Fix the documentation of
+	`--progress'.
+
+2002-04-14  Hrvoje Niksic  <hniksic@arsdigita.com>
+
+	* wget.texi (Wgetrc Commands): Document `--limit-rate'.
+
+2002-04-10  Hrvoje Niksic  <hniksic@arsdigita.com>
+
+	* wget.texi: Warn about the dangers of specifying passwords on the
+	command line and in unencrypted files.
+
+2001-12-16  Hrvoje Niksic  <hniksic@arsdigita.com>
+
+	* wget.texi (Wgetrc Commands): Undocument simple_host_check.
+
+2001-12-13  Hrvoje Niksic  <hniksic@arsdigita.com>
+
+	* wget.texi (Robots): Fix broken URLs that point to the webcrawler
+	web site.
+
+2001-12-11  Hrvoje Niksic  <hniksic@arsdigita.com>
+
+	* wget.texi (HTTP Options): Explain how to make IE produce a
+	`cookies.txt'-compatible file.
+	Reported by Herold Heiko.
+
+2001-12-11  Hrvoje Niksic  <hniksic@arsdigita.com>
+
+	* texi2pod.pl.in: Handle @asis in table.
+
+2001-12-09  Hrvoje Niksic  <hniksic@arsdigita.com>
+
+	* wget.texi: Bump version to 1.8.
+
+2001-12-08  Hrvoje Niksic  <hniksic@arsdigita.com>
+
+	* wget.texi (HTTP Options): Provide more specific information
+	about how --load-cookies is meant to be used.
+
+2001-12-08  Hrvoje Niksic  <hniksic@arsdigita.com>
+
+	* texi2pod.pl: Include the EXAMPLES section.
+
+	* wget.texi (Overview): Shorten the man page DESCRIPTION.
+	(Examples): Redo the Examples chapter.  Include it in the man
+	page.
+
+2001-12-01  Hrvoje Niksic  <hniksic@arsdigita.com>
+
+	* wget.texi: Update the manual with the new recursive retrieval
+	stuff.
+
+2001-11-30  Ingo T. Storm  <tux-sparc@computerbild.de>
+
+	* sample.wgetrc: Document ftp_proxy, too.
+
+2001-11-04  Alan Eldridge  <alane@geeksrus.net>
+
+	* wget.texi: Document --random-wait, randomwait=on/off.
+
+2001-11-23  Hrvoje Niksic  <hniksic@arsdigita.com>
+
+	* wget.texi (Download Options): Document the new `--progress'
+	option.
+
+2001-11-22  Hrvoje Niksic  <hniksic@arsdigita.com>
+
+	* wget.texi (Proxies): Fix typo.
+	(Proxies): Sync the text with the example.
+	(Wgetrc Commands): There is no -f option.  It's --follow-ftp.
+	Reported by Wojtek Kotwica.
+
+2001-11-17  Hrvoje Niksic  <hniksic@arsdigita.com>
+
+	* Makefile.in (install.info): If info files from the build
+	directory are not available, use the ones from $(srcdir).
+
+2001-11-16  Peter Farmer  <peter.farmer@zveno.com>
+
+	* Makefile.in: Use $? instead of $<.  Use TEXI2POD more
+	consistently.
+
+2001-06-16  Hrvoje Niksic  <hniksic@arsdigita.com>
+
+	* wget.texi: Updated version to 1.7.1.
+
+2001-06-15  Hrvoje Niksic  <hniksic@arsdigita.com>
+
+	* Makefile.in (install.wgetrc): Use $(DESTDIR) when testing
+	whether $(WGETRC) exists.
+
+2001-06-15  Adam J. Richter  <adam@yggdrasil.com>
+
+	* Makefile.in (install.wgetrc): Make `make install'
+	non-interactive in all cases.
+
+2001-06-15  Hrvoje Niksic  <hniksic@arsdigita.com>
+
+	* Makefile.in (install.wgetrc): Take $(DESTDIR) into account when
+	running mkinstalldirs.
+
+2001-06-05  Jan Prikryl  <prikryl@cg.tuwien.ac.at>
+
+	* Makefile.in (wget.info): Added -I$(srcdir) to support compilation
+	outside the source tree.
+	(install.man): Replaced $(srcdir)$(MAN) with $(MAN). The former
+	did not work when compiling outside the source tree.
+
+2001-05-26  Hrvoje Niksic  <hniksic@arsdigita.com>
+
+	* wget.texi: Updated version to 1.7.
+
+2001-05-31  Hrvoje Niksic  <hniksic@arsdigita.com>
+
+	* wget.texi (Mailing List): Fix the mailing list address.
+
+2001-05-27  Hrvoje Niksic  <hniksic@arsdigita.com>
+
+	* wget.texi (Copying): Clarify.  Link to
+	"free-software-for-freedom.html".
+
+2001-05-26  Hrvoje Niksic  <hniksic@arsdigita.com>
+
+	* wget.texi (Contributors): Updated list of contributors.
+
+2001-05-26  Hrvoje Niksic  <hniksic@arsdigita.com>
+
+	* wget.texi: Updated version to 1.7-pre1.
+
+2001-04-28  Hrvoje Niksic  <hniksic@arsdigita.com>
+
+	* wget.texi (Wgetrc Commands): Update docs for `continue'.
+
+2001-04-27  Hrvoje Niksic  <hniksic@arsdigita.com>
+
+	* wget.texi (HTTP Options): Document cookie options.
+
+2001-01-20  Karl Eichwalder  <ke@suse.de>
+
+	* Makefile.in: Provide and use DESTDIR according to the Coding
+	Standards.
+
+2001-04-01  Hrvoje Niksic  <hniksic@arsdigita.com>
+
+	* wget.texi (Recursive Retrieval Options): Document more
+	accurately what --convert-links does.
+
+2001-03-27  Dan Harkless  <wget@harkless.org>
+
+	* Makefile.in: Moved top_builddir out of "User configuration
+	section" of top Makefile and analogous spot in this one.
+
+2001-03-26  Dan Harkless  <wget@harkless.org>
+
+	* wget.texi (Recursive Retrieval Options): Explained that you need
+	to use -r -l1 -p to get the two levels of requisites for a
+	<FRAMESET> page.  Also made a few other wording improvements.
+	
+2001-03-17  Dan Harkless  <wget@harkless.org>
+
+	* Makefile.in: Using '^' in the sed call caused a weird failure on 
+	Solaris 2.6.  Changed it to a ','.  Defined top_builddir.
+	
+2001-02-23  Dan Harkless  <wget@harkless.org>
+
+	* wget.texi: Corrections, clarifications, and English fixes to
+	time-stamping documentation.  Also moved -nr from "Recursive
+	Retrieval Options" to "FTP Options" and gave it a @cindex entry.
+	Alphabetized FTP options by long option name.  Mentioned that
+	.listing symlinked to /etc/passwd is not a security hole, but that
+	other files could be, so root shouldn't run wget in user dirs.
+	
+2001-02-22  Dan Harkless  <wget@harkless.org>
+
+	* Makefile.in: Make wget man page and install it if we have
+ 	pod2man.  Added some missing '$(srcdir)/'s.  Added missing
+ 	dependencies on install targets (allowing you to just do `make
+ 	install' rather than forcing you to do `make && make install').
+  	Also, Makefile rules should always use output file parameters if
+ 	available rather than redirecting stdout with '>', or you falsely
+ 	satisfy dependencies if the tool you're running is missing or
+ 	fails -- fixed call of texi2pod.pl that did this wrong.
+
+	* texi2pod.pl: Removed from CVS.  Now automatically generated.
+		
+	* texi2pod.pl.in: This new file is processed into texi2pod.pl,
+ 	getting the appropriate path to the Perl 5+ executable on this
+ 	system and becoming executable (CVS files, by contrast, don't
+ 	arrive executable).
+	
+2001-02-19  Dan Harkless  <wget@harkless.org>
+
+	* wget.texi (Download Options): Further improvement to --continue
+ 	documentation -- explain interaction with -r and -N, mention
+ 	usefulness for downloading new sections of appended-to files, etc.
+
+2001-01-06  Jan Prikryl  <prikryl@cg.tuwien.ac.at>
+
+	* wget.texi (Reporting Bugs): Deleted the setence about Cc-ing the
+	bug report to Wget mailing list as the bug report address is an
+	alias for the mailing ist anyway.  
+	(Mailing List): Added URL for the alternate archive.
+	
+	* wget.texi: Bunch of cosmetical changes.
+	
+	* Makefile.in: Added targets for manpage generation using
+	texi2pod.pl and pod2man (comes with Perl5). As we cannot rely on
+	Perl5 being available on the system, manpage is not being built
+	automatically. Updated '*clean' targets to remove
+	'sample.wgetrc.munged...', 'wget.pod', and 'wget.man'.
+	
+	* texi2pod.pl: New file copied from GCC distribution to facilitate
+	automatic manpage generation.
+	    
+2001-01-09  Dan Harkless  <wget@harkless.org>
+
+	* wget.texi (Download Options): Did a bunch of clarification and
+ 	correction to the description of --continue.
+
+2001-01-06  Dan Harkless  <wget@harkless.org>
+
+	* ChangeLog: The '[Not in 1.6 branch.]'s were decided not to be
+	the best way to go about my aim.  Removed them in favor of:
+
+	* ChangeLog-branches/1.6_branch.ChangeLog: New file.
+	
+2000-12-31  Dan Harkless  <wget@harkless.org>
 
 	* Makefile.in (distclean): sample.wgetrc.munged_for_texi_inclusion
- 	needs to be included in the distribution or it'll get regenerated
- 	due to the wget.info dependency, and then that file will get
- 	regenerated, forcing people to have makeinfo installed
- 	unnecessarily.  We could use a kludge of a 0-length file in the
- 	distro, but the file isn't that big and should compress very well.
+	needs to be included in the distribution or it'll get regenerated
+	due to the wget.info dependency, and then that file will get
+	regenerated, forcing people to have makeinfo installed
+	unnecessarily.	We could use a kludge of a 0-length file in the
+	distro, but the file isn't that big and should compress very well.
 	
-	* wget.texi: Changed "VERSION 1.5.3+dev" to "VERSION 1.6" and
+	* wget.texi: Changed "VERSION 1.5.3+dev" to "VERSION 1.7-dev" and
 	"UPDATED Feb 2000" to "UPDATED Dec 2000".  Like the comment in the
 	file says, it'd be nice if these were handled automatically...
 	
+	* ChangeLog: Since this flat file doesn't have multiple branches,
+	looking at the dates would make you think that things went into
+	1.6 that actually just went into the 1.7-dev branch.  Added "[Not
+	in 1.6 branch.]" where appropriate to clarify.
+        
 2000-12-10  Hrvoje Niksic  <hniksic@arsdigita.com>
 
 	* Makefile.in (install.info): Info files are *not* in $(srcdir),
 	but in the current build dir.
+
+2000-11-15  Hrvoje Niksic  <hniksic@arsdigita.com>
+
+	* wget.texi (Robots): Document that we now support the meta tag
+	exclusion.
 
 2000-11-16  Hrvoje Niksic  <hniksic@arsdigita.com>
 

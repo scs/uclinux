@@ -60,6 +60,10 @@
 #include <linux/version.h>
 
 #include <linux/module.h>
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,4,25))
+#include <linux/moduleparam.h>
+#endif
+
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/types.h>
@@ -101,11 +105,21 @@ static char *version = "p80211.o: " WLAN_RELEASE;
 /*----------------------------------------------------------------*/
 /* --Module Parameters */
 
-int	wlan_isap=0;		/* are we an AP? */
-MODULE_PARM( wlan_isap, "i");
+int wlan_watchdog = 5000;
+module_param(wlan_watchdog, int, 0644);
+MODULE_PARM_DESC(wlan_watchdog, "transmit timeout in milliseconds");
 
-int	wlan_debug=0;		/* Debug output level, */
-MODULE_PARM( wlan_debug, "i");	/* extern'd in wlan_compat.h */
+int wlan_wext_write = 0;
+#if WIRELESS_EXT > 12
+module_param(wlan_wext_write, int, 0644);
+MODULE_PARM_DESC(wlan_wext_write, "enable write wireless extensions");
+#endif
+
+#ifdef WLAN_INCLUDE_DEBUG
+int wlan_debug=0;
+module_param(wlan_debug, int, 0644); 
+MODULE_PARM_DESC(wlan_debug, "p80211 debug level"); 
+#endif
 
 MODULE_LICENSE("Dual MPL/GPL");
 
@@ -148,6 +162,9 @@ int init_module(void)
 #ifdef CONFIG_NETLINK
 	p80211indicate_init();
 #endif
+#ifdef CONFIG_HOTPLUG
+	p80211_run_sbin_hotplug(NULL, WLAN_HOTPLUG_STARTUP);
+#endif
 
         DBFEXIT;
         return 0;
@@ -180,6 +197,9 @@ void cleanup_module(void)
 #ifdef CONFIG_NETLINK
 	p80211indicate_shutdown();
 #endif
+#ifdef CONFIG_HOTPLUG
+	p80211_run_sbin_hotplug(NULL, WLAN_HOTPLUG_SHUTDOWN);
+#endif
 	p80211netdev_shutdown();
         printk(KERN_NOTICE "%s Unloaded\n", version);
 
@@ -194,3 +214,8 @@ EXPORT_SYMBOL(p80211netdev_rx);
 EXPORT_SYMBOL(unregister_wlandev);
 EXPORT_SYMBOL(wlan_setup);
 EXPORT_SYMBOL(wlan_unsetup);
+EXPORT_SYMBOL(p80211_suspend);
+EXPORT_SYMBOL(p80211_resume);
+
+EXPORT_SYMBOL(p80211skb_free);
+EXPORT_SYMBOL(p80211skb_rxmeta_attach);

@@ -76,17 +76,13 @@
 /*--------------------------------------------------------------------*/
 /* Prototype msg type */
 
-__WLAN_PRAGMA_PACK1__
 typedef struct p80211msg
 {
 	UINT32	msgcode				__WLAN_ATTRIB_PACK__;
 	UINT32	msglen				__WLAN_ATTRIB_PACK__;
 	UINT8	devname[WLAN_DEVNAMELEN_MAX]	__WLAN_ATTRIB_PACK__;
 } __WLAN_ATTRIB_PACK__ p80211msg_t;
-__WLAN_PRAGMA_PACKDFLT__
 
-
-__WLAN_PRAGMA_PACK1__
 typedef struct p80211msgd
 {
 	UINT32	msgcode				__WLAN_ATTRIB_PACK__;
@@ -94,7 +90,6 @@ typedef struct p80211msgd
 	UINT8	devname[WLAN_DEVNAMELEN_MAX]	__WLAN_ATTRIB_PACK__;
 	UINT8	args[0]				__WLAN_ATTRIB_PACK__;
 } __WLAN_ATTRIB_PACK__ p80211msgd_t;
-__WLAN_PRAGMA_PACKDFLT__
 
 /*================================================================*/
 /* Extern Declarations */

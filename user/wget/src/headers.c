@@ -1,21 +1,31 @@
 /* Generic support for headers.
    Copyright (C) 1997, 1998 Free Software Foundation, Inc.
 
-This file is part of Wget.
+This file is part of GNU Wget.
 
-This program is free software; you can redistribute it and/or modify
+GNU Wget is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
 the Free Software Foundation; either version 2 of the License, or
 (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
+GNU Wget is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
+along with Wget; if not, write to the Free Software
+Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+
+In addition, as a special exception, the Free Software Foundation
+gives permission to link the code of its release of Wget with the
+OpenSSL project's "OpenSSL" library (or with modified versions of it
+that use the same license as the "OpenSSL" library), and distribute
+the linked executables.  You must obey the GNU General Public License
+in all respects for all of the code used other than "OpenSSL".  If you
+modify this file, you may extend this exception to your version of the
+file, but you are not obligated to do so.  If you do not wish to do
+so, delete this exception statement from your version.  */
 
 #include <config.h>
 
@@ -26,7 +36,6 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #else
 # include <strings.h>
 #endif
-#include <ctype.h>
 
 #include "wget.h"
 #include "connect.h"
@@ -65,8 +74,8 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
    as much memory as necessary for it to fit.  It need not contain a
    `:', thus you can use it to retrieve, say, HTTP status line.
 
-   The trailing CRLF or LF are stripped from the header, and it is
-   zero-terminated.   #### Is this well-behaved?  */
+   All trailing whitespace is stripped from the header, and it is
+   zero-terminated.  */
 int
 header_get (struct rbuf *rbuf, char **hdr, enum header_get_flags flags)
 {
@@ -102,11 +111,13 @@ header_get (struct rbuf *rbuf, char **hdr, enum header_get_flags flags)
 		  if (next == '\t' || next == ' ')
 		    continue;
 		}
-	      /* The header ends.  */
+
+	      /* Strip trailing whitespace.  (*hdr)[i] is the newline;
+		 decrement I until it points to the last available
+		 whitespace.  */
+	      while (i > 0 && ISSPACE ((*hdr)[i - 1]))
+		--i;
 	      (*hdr)[i] = '\0';
-	      /* Get rid of '\r'.  */
-	      if (i > 0 && (*hdr)[i - 1] == '\r')
-		(*hdr)[i - 1] = '\0';
 	      break;
 	    }
 	}
@@ -150,6 +161,15 @@ header_extract_number (const char *header, void *closure)
 
   for (result = 0; ISDIGIT (*p); p++)
     result = 10 * result + (*p - '0');
+
+  /* Failure if no number present. */
+  if (p == header)
+    return 0;
+
+  /* Skip trailing whitespace. */
+  p += skip_lws (p);
+
+  /* Indicate failure if trailing garbage is present. */
   if (*p)
     return 0;
 
@@ -162,6 +182,14 @@ int
 header_strdup (const char *header, void *closure)
 {
   *(char **)closure = xstrdup (header);
+  return 1;
+}
+
+/* Write the value 1 into the integer pointed to by CLOSURE.  */
+int
+header_exists (const char *header, void *closure)
+{
+  *(int *)closure = 1;
   return 1;
 }
 

@@ -99,6 +99,7 @@
 #define		HFA384x_WEPFLAGS_EXCLUDE		((UINT16)BIT1)
 #define		HFA384x_WEPFLAGS_DISABLE_TXCRYPT	((UINT16)BIT4)
 #define		HFA384x_WEPFLAGS_DISABLE_RXCRYPT	((UINT16)BIT7)
+#define		HFA384x_WEPFLAGS_DISALLOW_MIXED 	((UINT16)BIT11)
 #define		HFA384x_WEPFLAGS_IV_INTERVAL1		((UINT16)0)
 #define		HFA384x_WEPFLAGS_IV_INTERVAL10		((UINT16)BIT5)
 #define		HFA384x_WEPFLAGS_IV_INTERVAL50		((UINT16)BIT6)
@@ -202,6 +203,7 @@
 #define		HFA384x_DLSTATE_FLASHENABLED		2
 #define		HFA384x_DLSTATE_FLASHWRITTEN		3
 #define		HFA384x_DLSTATE_FLASHWRITEPENDING	4
+#define		HFA384x_DLSTATE_GENESIS 		5
 
 /*--- Register I/O offsets --------------------------*/
 #if ((WLAN_HOSTIF == WLAN_PCMCIA) || (WLAN_HOSTIF == WLAN_PLX))
@@ -305,6 +307,10 @@
 #define		HFA384x_EVSTAT_TXEXC		((UINT16)BIT2)
 #define		HFA384x_EVSTAT_TX		((UINT16)BIT1)
 #define		HFA384x_EVSTAT_RX		((UINT16)BIT0)
+
+#define         HFA384x_INT_BAP_OP           (HFA384x_EVSTAT_INFO|HFA384x_EVSTAT_RX|HFA384x_EVSTAT_TX|HFA384x_EVSTAT_TXEXC)
+
+#define         HFA384x_INT_NORMAL           (HFA384x_EVSTAT_INFO|HFA384x_EVSTAT_RX|HFA384x_EVSTAT_TX|HFA384x_EVSTAT_TXEXC|HFA384x_EVSTAT_INFDROP|HFA384x_EVSTAT_ALLOC|HFA384x_EVSTAT_DTIM)
 
 #define		HFA384x_INTEN_TICK		((UINT16)BIT15)
 #define		HFA384x_INTEN_WTERR		((UINT16)BIT14)
@@ -598,6 +604,7 @@ Information RIDs:  MAC Information
 #define		HFA384x_RID_SCANRESULTS       	((UINT16)0xFD88) // NEW
 #define		HFA384x_RID_HOSTSCANRESULTS   	((UINT16)0xFD89) // NEW
 #define		HFA384x_RID_AUTHENTICATIONUSED	((UINT16)0xFD8A) // NEW
+#define		HFA384x_RID_ASSOCIATEFAILURE  	((UINT16)0xFD8D) // 1.8.0
 
 /*--------------------------------------------------------------------
 Information RID Lengths:  MAC Information
@@ -682,6 +689,7 @@ API ENHANCEMENTS (NOT ALREADY IMPLEMENTED)
 #define		HFA384x_RID_CNFENHSECURITY	((UINT16)0xFC43)
 #define		HFA384x_RID_CNFDBMADJUST  	((UINT16)0xFC46) // NEW
 #define		HFA384x_RID_CNFWPADATA       	((UINT16)0xFC48) // 1.7.0
+#define		HFA384x_RID_CNFPROPOGATIONDELAY	((UINT16)0xFC49) // 1.7.6
 #define		HFA384x_RID_CNFSHORTPREAMBLE	((UINT16)0xFCB0)
 #define		HFA384x_RID_CNFEXCLONGPREAMBLE	((UINT16)0xFCB1)
 #define		HFA384x_RID_CNFAUTHRSPTIMEOUT	((UINT16)0xFCB2)
@@ -700,6 +708,10 @@ API ENHANCEMENTS (NOT ALREADY IMPLEMENTED)
 #define		HFA384x_RID_CNFLFOENBLED      	((UINT16)0xFCBF) // 1.6.3
 #define         HFA384x_RID_CAPINFO             ((UINT16)0xFCC0) // 1.7.0/1.3.7
 #define         HFA384x_RID_LISTENINTERVAL      ((UINT16)0xFCC1) // 1.7.0/1.3.7
+#define         HFA384x_RID_DIVERSITYENABLED    ((UINT16)0xFCC2) // 1.7.0/1.3.7
+#define         HFA384x_RID_LED_CONTROL         ((UINT16)0xFCC4) // 1.7.6      
+#define         HFA384x_RID_HFO_DELAY           ((UINT16)0xFCC5) // 1.7.6      
+#define         HFA384x_RID_DISSALOWEDBSSID     ((UINT16)0xFCC6) // 1.8.0
 #define		HFA384x_RID_SCANREQUEST		((UINT16)0xFCE1)
 #define		HFA384x_RID_JOINREQUEST		((UINT16)0xFCE2)
 #define		HFA384x_RID_AUTHENTICATESTA	((UINT16)0xFCE3)
@@ -744,6 +756,7 @@ PD Record codes
 #define HFA384x_PDR_HFA3861_IFRF	((UINT16)0x0204)
 #define HFA384x_PDR_HFA3861_CHCALSP	((UINT16)0x0300)
 #define HFA384x_PDR_HFA3861_CHCALI	((UINT16)0x0301)
+#define HFA384x_PDR_MAX_TX_POWER  	((UINT16)0x0302)
 #define HFA384x_PDR_MASTER_CHAN_LIST	((UINT16)0x0303)
 #define HFA384x_PDR_3842_NIC_CONFIG	((UINT16)0x0400)
 #define HFA384x_PDR_USB_ID		((UINT16)0x0401)
@@ -756,6 +769,10 @@ PD Record codes
 #define HFA384x_PDR_USB_MAX_POWER	((UINT16)0x0409)
 #define HFA384x_PDR_USB_MANUFACTURER	((UINT16)0x0410)
 #define HFA384x_PDR_USB_PRODUCT  	((UINT16)0x0411)
+#define HFA384x_PDR_ANT_DIVERSITY   	((UINT16)0x0412)
+#define HFA384x_PDR_HFO_DELAY       	((UINT16)0x0413)
+#define HFA384x_PDR_SCALE_THRESH 	((UINT16)0x0414)
+
 #define HFA384x_PDR_HFA3861_MANF_TESTSP	((UINT16)0x0900)
 #define HFA384x_PDR_HFA3861_MANF_TESTI	((UINT16)0x0901)
 #define HFA384x_PDR_END_OF_PDA		((UINT16)0x0000)
@@ -795,6 +812,7 @@ PD Record codes
 #define		HFA384x_AUXOFFSET	HFA384x_AUXOFFSET_OFF
 #define		HFA384x_AUXDATA		HFA384x_AUXDATA_OFF
 #define		HFA384x_PCICOR		HFA384x_PCICOR_OFF
+#define		HFA384x_PCIHCR		HFA384x_PCIHCR_OFF
 
 
 /*--- Register Test/Get/Set Field macros ------------------------*/
@@ -835,6 +853,8 @@ PD Record codes
 #define		HFA384x_EVSTAT_ISTXEXC(value)		((UINT16)(((UINT16)(value)) & HFA384x_EVSTAT_TXEXC))
 #define		HFA384x_EVSTAT_ISTX(value)		((UINT16)(((UINT16)(value)) & HFA384x_EVSTAT_TX))
 #define		HFA384x_EVSTAT_ISRX(value)		((UINT16)(((UINT16)(value)) & HFA384x_EVSTAT_RX))
+
+#define		HFA384x_EVSTAT_ISBAP_OP(value)		((UINT16)(((UINT16)(value)) & HFA384x_INT_BAP_OP))
 
 #define		HFA384x_INTEN_ISTICK(value)		((UINT16)(((UINT16)(value)) & HFA384x_INTEN_TICK))
 #define		HFA384x_INTEN_TICK_SET(value)		((UINT16)(((UINT16)(value)) << 15))
@@ -882,10 +902,12 @@ PD Record codes
 #define		HFA384x_CONTROL_AUXEN_GET(value)	((UINT16)(((UINT16)(value)) >> 14))
 
 /* Byte Order */
+#ifdef __KERNEL__
 #define hfa384x2host_16(n)	(__le16_to_cpu((UINT16)(n)))
 #define hfa384x2host_32(n)	(__le32_to_cpu((UINT32)(n)))
 #define host2hfa384x_16(n)	(__cpu_to_le16((UINT16)(n)))
 #define host2hfa384x_32(n)	(__cpu_to_le32((UINT32)(n)))
+#endif
 
 /* Host Maintained State Info */
 #define HFA384x_STATE_PREINIT	0
@@ -1035,6 +1057,7 @@ typedef struct hfa384x_cnfMulticastReceive
 /*-- Configuration Record: cnfAuthentication --*/
 #define HFA384x_CNFAUTHENTICATION_OPENSYSTEM	0x0001
 #define HFA384x_CNFAUTHENTICATION_SHAREDKEY	0x0002
+#define HFA384x_CNFAUTHENTICATION_LEAP     	0x0004
 
 /*-- Configuration Record: cnfMaxSleepDuration --*/
 typedef struct hfa384x_cnfMaxSleepDuration
@@ -1521,6 +1544,30 @@ typedef struct hfa384x_SupportedDataRates
 	UINT8	SupportedDataRates[10]	__WLAN_ATTRIB_PACK__;
 } __WLAN_ATTRIB_PACK__ hfa384x_SupportedDataRates_t;
 
+/*-- Information Record: LFOStatus --*/
+typedef struct hfa384x_LFOStatus          
+{
+	UINT16  TestResults           	__WLAN_ATTRIB_PACK__;
+	UINT16  LFOResult             	__WLAN_ATTRIB_PACK__;
+	UINT16  VRHFOResult           	__WLAN_ATTRIB_PACK__;
+} __WLAN_ATTRIB_PACK__ hfa384x_LFOStatus_t;
+
+#define HFA384x_TESTRESULT_ALLPASSED    BIT0
+#define HFA384x_TESTRESULT_LFO_FAIL     BIT1
+#define HFA384x_TESTRESULT_VR_HF0_FAIL  BIT2
+#define HFA384x_HOST_FIRM_COORDINATE    BIT7
+#define HFA384x_TESTRESULT_COORDINATE   BIT15
+
+/*-- Information Record: LEDControl --*/
+typedef struct hfa384x_LEDControl
+{
+	UINT16  searching_on          	__WLAN_ATTRIB_PACK__;
+	UINT16  searching_off         	__WLAN_ATTRIB_PACK__;
+	UINT16  assoc_on              	__WLAN_ATTRIB_PACK__;
+	UINT16  assoc_off             	__WLAN_ATTRIB_PACK__;
+	UINT16  activity              	__WLAN_ATTRIB_PACK__;
+} __WLAN_ATTRIB_PACK__ hfa384x_LEDControl_t;
+
 /*--------------------------------------------------------------------
                  FRAME DESCRIPTORS AND FRAME STRUCTURES
 
@@ -1956,9 +2003,9 @@ USB Packet structures and constants.
 #define HFA384x_USB_RMEMREQ	5
 
 /* Received from the bulkin endpoint */
-#define HFA384x_USB_ISFRM(a)	((a) < 0x7fff)
-#define HFA384x_USB_ISTXFRM(a)	(HFA384x_USB_ISFRM((a)) && ((a) & 0x1000))
-#define HFA384x_USB_ISRXFRM(a)	(HFA384x_USB_ISFRM((a)) && !((a) & 0x1000))
+#define HFA384x_USB_ISFRM(a)	(!((a) & 0x8000))
+#define HFA384x_USB_ISTXFRM(a)	(((a) & 0x9000) == 0x1000)
+#define HFA384x_USB_ISRXFRM(a)	(!((a) & 0x9000))
 #define HFA384x_USB_INFOFRM	0x8000
 #define HFA384x_USB_CMDRESP	0x8001
 #define HFA384x_USB_WRIDRESP	0x8002
@@ -2285,6 +2332,11 @@ typedef struct hfa384x_pdr_hfa3861_nic_config
 	UINT16	config_bitmap		__WLAN_ATTRIB_PACK__;
 } __WLAN_ATTRIB_PACK__ hfa384x_pdr_nic_config_t;
 
+typedef struct hfa384x_pdr_hfo_delay
+{
+	UINT8   hfo_delay    		__WLAN_ATTRIB_PACK__;
+} __WLAN_ATTRIB_PACK__ hfa384x_hfo_delay_t;
+
 typedef struct hfa384x_pdr_hfa3861_manf_testsp
 {
 	UINT16	value[30]		__WLAN_ATTRIB_PACK__;
@@ -2335,9 +2387,11 @@ typedef struct hfa384x_pdrec
 	hfa384x_pdr_hfa3861_chcalsp_t	hfa3861_chcalsp	__WLAN_ATTRIB_PACK__;
 	hfa384x_pdr_hfa3861_chcali_t	hfa3861_chcali	__WLAN_ATTRIB_PACK__;
 	hfa384x_pdr_nic_config_t	nic_config	__WLAN_ATTRIB_PACK__;
+	hfa384x_hfo_delay_t             hfo_delay       __WLAN_ATTRIB_PACK__;
 	hfa384x_pdr_hfa3861_manf_testsp_t	hfa3861_manf_testsp	__WLAN_ATTRIB_PACK__;
 	hfa384x_pdr_hfa3861_manf_testi_t	hfa3861_manf_testi	__WLAN_ATTRIB_PACK__;
 	hfa384x_pdr_end_of_pda_t	end_of_pda	__WLAN_ATTRIB_PACK__;
+
 	} data			__WLAN_ATTRIB_PACK__;
 } __WLAN_ATTRIB_PACK__ hfa384x_pdrec_t;
 
@@ -2347,17 +2401,12 @@ typedef struct hfa384x_pdrec
 ---  MAC state structure, argument to all functions --
 ---  Also, a collection of support types --
 --------------------------------------------------------------------*/
-
 struct hfa384x;		/* forward declaration,grrr */
-
-typedef void (*ctlx_usercb_t)(
-	struct hfa384x	*hw, 
-	UINT		result,
-	void		*ctlxresult,
-	void		*usercb_data);
+struct wlandevice;
 
 
 #if (WLAN_HOSTIF == WLAN_USB)
+
 /* USB Control Exchange (CTLX):
  *  A queue of the structure below is maintained for all of the 
  *  Request/Response type USB packets supported by Prism2.
@@ -2396,41 +2445,70 @@ typedef struct hfa384x_async_wmemresult
 {
 } hfa384x_async_wmemresult_t;
 
+enum ctlx_state {
+	CTLX_COMPLETE = 0,	/* CTLX successfully complete */
+	CTLX_QUEUED,		/* Queued, data valid */
+	CTLX_REQ_SUBMITTED,	/* OUT URB submitted */
+	CTLX_REQ_COMPLETE,	/* OUT URB complete */
+	CTLX_RESP_COMPLETE,	/* IN URB received */
+	CTLX_REQ_TIMEOUT,	/* Timer expired awaiting OUT-ACK */
+	CTLX_REQ_FAILED,	/* OUT URB completed w/ error */
+	CTLX_REQSUBMIT_FAIL,	/* Timer expired awaiting IN URB */
+	CTLX_START		/* Start state, not queued */
+};
+typedef enum ctlx_state  CTLX_STATE;
+
+#ifdef DECLARE_TASKLET
+typedef unsigned long  deferred_data_t;
+#  define DECLARE_DEFERRED_TASK(name)  struct tasklet_struct name
+#  define INIT_DEFERRED_TASK(name, fptr, data)  \
+                         tasklet_init(&(name), (fptr), (deferred_data_t)(data))
+#  define SCHEDULE_DEFERRED_TASK(name)  tasklet_schedule(&(name))
+#  define STOP_DEFERRED_TASK(name)  tasklet_kill(&(name))
+#else
+typedef void  *deferred_data_t;
+#  define DECLARE_DEFERRED_TASK(name)  struct work_struct name
+#  define INIT_DEFERRED_TASK(name, fptr, data)  \
+                         INIT_WORK(&(name), (fptr), (deferred_data_t)(data))
+#  define SCHEDULE_DEFERRED_TASK(name)  schedule_work(&(name))
+#  define STOP_DEFERRED_TASK(name)  do {} while(0)
+#endif
+
+typedef void (*ctlx_usercb_t)(
+	struct hfa384x	*hw, 
+	CTLX_STATE	result,
+	void		*ctlxresult,
+	void		*usercb_data);
 
 typedef struct hfa384x_usbctlx
 {
-	struct hfa384x_usbctlx	*prev, *next;
+	struct list_head	list;
+	struct completion	done;		/* Signals that CTLX is dead */
+	struct hfa384x		*hw;
 	struct urb		outurb;		/* OUT for req pkt */
-	struct urb		inurb;		/* IN for resp pkt */
 	hfa384x_usbout_t	outbuf;		/* pkt buf for OUT */
 	hfa384x_usbin_t		inbuf;		/* pkt buf for IN(a copy) */
 	struct timer_list	reqtimer;	/* For IN(response)wait */
 	struct timer_list	resptimer;	/* For OUT(request) wait */
-	volatile UINT32		state;		/* Tracks running state */
-	int                     wanna_wakeup;   /* Flag to wakeup sync calls */
+
+	CTLX_STATE		state;		/* Tracks running state */
+
+	volatile int            wanna_wakeup;   /* Flag to wakeup sync calls */
+
 	int			is_async;	/* Q'd by sync or async call */
+	DECLARE_DEFERRED_TASK(async_bh);
 	ctlx_usercb_t		usercb;		/* Async user callback, */
 	void			*usercb_data;	/*  at CTLX completion  */
+
 	int			variant;	/* Identifies cmd variant */
 } hfa384x_usbctlx_t;
-
-/* hfa384x_usbcmd_t.state values */
-#define HFA384x_USBCTLX_START		9 /* Start state, not Q'd */
-#define HFA384x_USBCTLX_QUEUED		1 /* Queued, data valid */
-#define HFA384x_USBCTLX_REQ_SUBMITTED	2 /* OUT URB submitted */
-#define HFA384x_USBCTLX_REQ_COMPLETE	3 /* OUT URB complete */
-#define HFA384x_USBCTLX_RESP_RECEIVED	4 /* IN URB received */
-#define HFA384x_USBCTLX_REQ_TIMEOUT	5 /* Timer expired waiting for OUT cb*/
-#define HFA384x_USBCTLX_REQ_FAILED	6 /* OUT URB completed w/ error */
-#define HFA384x_USBCTLX_RESP_TIMEOUT	7 /* Timer expired waiting for IN cb */
-#define HFA384x_USBCTLX_REQSUBMIT_FAIL	8 /* Timer expired waiting for IN cb */
-#define HFA384x_USBCTLX_COMPLETE	0 /* Exchange successfully complete */
 
 typedef struct hfa384x_usbctlxq
 {
 	spinlock_t		lock;
-	hfa384x_usbctlx_t	*head;
-	hfa384x_usbctlx_t	*tail;
+	struct list_head	pending;
+	struct list_head	active;
+	struct list_head	finished;
 } hfa384x_usbctlxq_t;
 #endif
 
@@ -2454,28 +2532,68 @@ typedef struct hfa484x_metacmd
 #endif
 } hfa384x_metacmd_t;
 
+#define	MAX_PRISM2_GRP_ADDR	16
+#define	MAX_GRP_ADDR		32
+#define WLAN_COMMENT_MAX	80  /* Max. length of user comment string. */
+
+#define MM_SAT_PCF		(BIT14)
+#define MM_GCSD_PCF		(BIT15)
+#define MM_GCSD_PCF_EB		(BIT14 | BIT15)
+
+#define WLAN_STATE_STOPPED	0   /* Network is not active. */
+#define WLAN_STATE_STARTED	1   /* Network has been started. */
+
+#define WLAN_AUTH_MAX           60  /* Max. # of authenticated stations. */
+#define WLAN_ACCESS_MAX		60  /* Max. # of stations in an access list. */
+#define WLAN_ACCESS_NONE	0   /* No stations may be authenticated. */
+#define WLAN_ACCESS_ALL		1   /* All stations may be authenticated. */
+#define WLAN_ACCESS_ALLOW	2   /* Authenticate only "allowed" stations. */
+#define WLAN_ACCESS_DENY	3   /* Do not authenticate "denied" stations. */
+
+/* XXX These are going away ASAP */
+typedef struct prism2sta_authlist
+{
+	UINT	cnt;
+	UINT8	addr[WLAN_AUTH_MAX][WLAN_ADDR_LEN];
+	UINT8	assoc[WLAN_AUTH_MAX];
+} prism2sta_authlist_t;
+
+typedef struct prism2sta_accesslist
+{
+	UINT	modify;
+	UINT	cnt;
+	UINT8	addr[WLAN_ACCESS_MAX][WLAN_ADDR_LEN];
+	UINT	cnt1;
+	UINT8	addr1[WLAN_ACCESS_MAX][WLAN_ADDR_LEN];
+} prism2sta_accesslist_t;
+
 typedef struct hfa384x
 {
 #if (WLAN_HOSTIF != WLAN_USB)
 	/* Resource config */
 	UINT32			iobase;
-	UINT32			membase;
+	char			*membase;
 	UINT32			irq;
 #else
 	/* USB support data */
 	struct usb_device	*usb;
-	void			*usbcontext;  /* actually a wlandev */
 	struct urb		rx_urb;
 	struct urb		tx_urb;
-	struct urb		int_urb;
-	hfa384x_usbin_t		rxbuff;
 	hfa384x_usbout_t	txbuff;
-	UINT16			intbuff[4];
-	int			rxurb_posted;
 	hfa384x_usbctlxq_t	ctlxq;
+	struct work_struct	usb_work;
+	unsigned long		work_flags;
+#define WORK_RX_HALT  0
+#define WORK_TX_HALT  1
 	int                     endp_in;
 	int                     endp_out;
+	int			usb_removed;
 #endif /* !USB */
+
+#if (WLAN_HOSTIF == WLAN_PCMCIA)
+	dev_node_t	node;
+	dev_link_t	*cs_link;
+#endif
 
 	int                     sniff_fcs;
 	int                     sniff_channel;  
@@ -2486,11 +2604,11 @@ typedef struct hfa384x
 
 	/* Controller state */
 	UINT32		state;
-	UINT32		hwremoved;
 	UINT32		isap;
 	UINT8		port_enabled[HFA384x_NUMPORTS_MAX];
 #if (WLAN_HOSTIF != WLAN_USB)
 	UINT		auxen;
+	UINT            isram16;
 #endif /* !USB */
 
 	/* Download support */
@@ -2500,14 +2618,18 @@ typedef struct hfa384x
 
 #if (WLAN_HOSTIF != WLAN_USB)
 	spinlock_t	cmdlock;
-	int             cmdflag;        /* wait queue flag */
+	volatile int    cmdflag;        /* wait queue flag */
 	hfa384x_metacmd_t *cmddata;      /* for our async callback */
 
 	/* BAP support */
 	spinlock_t	baplock;	
+#ifdef DECLARE_TASKLET /*use tasklets */
+	struct tasklet_struct   bap_tasklet;
+#else
+	struct work_struct      bap_tasklet;
+#endif
 
 	/* MAC buffer ids */
-	spinlock_t	txfid_lock;
         UINT16          txfid_head;
         UINT16          txfid_tail;
         UINT            txfid_N;
@@ -2523,12 +2645,65 @@ typedef struct hfa384x
 
 	wlandevice_t            *wlandev;
 	/* Timer to allow for the deferred processing of linkstatus messages */
-#ifdef DECLARE_TASKLET
-	struct tasklet_struct 	link_bh;
-#else
-	struct tq_struct 	link_bh;
-#endif
+	struct work_struct 	link_bh;
+
 	UINT16 link_status;
+	UINT16 link_status_new;
+	struct sk_buff_head        authq;
+
+	/* And here we have stuff that used to be in priv */
+
+	/* State variables */
+	UINT		presniff_port_type;
+	UINT16		presniff_wepflags;
+	UINT32		dot11_desired_bss_type;
+	int		ap;	/* AP flag: 0 - Station, 1 - Access Point. */
+
+	/* Group Addresses - right now, there are up to a total
+	of MAX_GRP_ADDR group addresses */
+	UINT8		dot11_grp_addr[MAX_GRP_ADDR][WLAN_ADDR_LEN];
+	UINT		dot11_grpcnt;
+
+	/* Component Identities */
+	hfa384x_compident_t	ident_nic;
+	hfa384x_compident_t	ident_pri_fw;
+	hfa384x_compident_t	ident_sta_fw;
+	hfa384x_compident_t	ident_ap_fw;
+	UINT16			mm_mods;
+
+	/* Supplier compatibility ranges */
+	hfa384x_caplevel_t	cap_sup_mfi;
+	hfa384x_caplevel_t	cap_sup_cfi;
+	hfa384x_caplevel_t	cap_sup_pri;
+	hfa384x_caplevel_t	cap_sup_sta;
+	hfa384x_caplevel_t	cap_sup_ap;
+
+	/* Actor compatibility ranges */
+	hfa384x_caplevel_t	cap_act_pri_cfi; /* pri f/w to controller interface */
+	hfa384x_caplevel_t	cap_act_sta_cfi; /* sta f/w to controller interface */
+	hfa384x_caplevel_t	cap_act_sta_mfi; /* sta f/w to modem interface */
+	hfa384x_caplevel_t	cap_act_ap_cfi;  /* ap f/w to controller interface */
+	hfa384x_caplevel_t	cap_act_ap_mfi;  /* ap f/w to modem interface */
+
+	UINT32			psusercount;  /* Power save user count. */
+	hfa384x_CommTallies32_t	tallies;      /* Communication tallies. */
+	UINT8			comment[WLAN_COMMENT_MAX+1]; /* User comment */
+
+	/* Channel Info request results (AP only) */
+	struct {
+		atomic_t		done;
+		UINT8			count;
+		hfa384x_ChInfoResult_t	results;
+	} channel_info;
+
+	hfa384x_InfFrame_t      *scanresults;
+
+
+        prism2sta_authlist_t	authlist;     /* Authenticated station list. */
+	UINT			accessmode;   /* Access mode. */
+        prism2sta_accesslist_t	allow;        /* Allowed station list. */
+        prism2sta_accesslist_t	deny;         /* Denied station list. */
+
 } hfa384x_t;
 
 /*=============================================================*/
@@ -2538,28 +2713,25 @@ typedef struct hfa384x
 void 
 hfa384x_create( 
 	hfa384x_t *hw, 
-	struct usb_device *usb, 
-	void *usbcontext);
+	struct usb_device *usb);
 #else
 void 
 hfa384x_create( 
 	hfa384x_t *hw, 
 	UINT irq, 
 	UINT32 iobase, 
-	UINT32 membase);
+	UINT8 *membase);
 #endif
 
 void hfa384x_destroy(hfa384x_t *hw);
 
-void hfa384x_hwremoved(hfa384x_t *hw);
-
-void 
+irqreturn_t
 hfa384x_interrupt(
 	int irq, 
 	void *dev_id, 
 	struct pt_regs *regs);
 int
-hfa384x_corereset( hfa384x_t *hw, int holdtime, int settletime);
+hfa384x_corereset( hfa384x_t *hw, int holdtime, int settletime, int genesis);
 int
 hfa384x_drvr_chinforesults( hfa384x_t *hw);
 int
@@ -2580,12 +2752,6 @@ int
 hfa384x_drvr_getconfig16(hfa384x_t *hw, UINT16 rid, void *val);
 int
 hfa384x_drvr_getconfig32(hfa384x_t *hw, UINT16 rid, void *val);
-void
-hfa384x_drvr_getconfig_async(
-	hfa384x_t		*hw,
-	UINT16			rid, 
-	ctlx_usercb_t		usercb,
-	void			*usercb_data);
 int
 hfa384x_drvr_handover( hfa384x_t *hw, UINT8 *addr);
 int
@@ -2606,27 +2772,73 @@ int
 hfa384x_drvr_readpda(hfa384x_t *hw, void *buf, UINT len);
 int
 hfa384x_drvr_scanresults( hfa384x_t *hw);
+
 int
 hfa384x_drvr_setconfig(hfa384x_t *hw, UINT16 rid, void *buf, UINT16 len);
+
+#if (WLAN_HOSTIF == WLAN_USB)
 int
-hfa384x_drvr_setconfig16(hfa384x_t *hw, UINT16 rid, UINT16 *val);
+hfa384x_drvr_getconfig_async(hfa384x_t     *hw,
+                             UINT16        rid,
+                             ctlx_usercb_t usercb,
+                             void          *usercb_data);
+
 int
-hfa384x_drvr_setconfig32(hfa384x_t *hw, UINT16 rid, UINT32 *val);
-void
-hfa384x_drvr_setconfig_async(
-	hfa384x_t *hw,
-	UINT16			rid, 
-	void			*buf,
-	UINT16			len,
-	ctlx_usercb_t		usercb,
-	void			*usercb_data);
+hfa384x_drvr_setconfig_async(hfa384x_t *hw,
+                             UINT16 rid,
+                             void *buf,
+                             UINT16 len,
+                             ctlx_usercb_t usercb,
+                             void *usercb_data);
+#else
+static inline int
+hfa384x_drvr_setconfig_async(hfa384x_t *hw, UINT16 rid, void *buf, UINT16 len,
+                             void *ptr1, void *ptr2)
+{
+	(void)ptr1;
+	(void)ptr2;
+	return hfa384x_drvr_setconfig(hw, rid, buf, len);
+}
+#endif
+
+static inline int
+hfa384x_drvr_setconfig16(hfa384x_t *hw, UINT16 rid, UINT16 val)
+{
+	UINT16 value = host2hfa384x_16(val);
+	return hfa384x_drvr_setconfig(hw, rid, &value, sizeof(value));
+}
+
+static inline int
+hfa384x_drvr_setconfig16_async(hfa384x_t *hw, UINT16 rid, UINT16 val)
+{
+	UINT16 value = host2hfa384x_16(val);
+	return hfa384x_drvr_setconfig_async(hw, rid, &value, sizeof(value), NULL
+, NULL);
+}
+
+static inline int
+hfa384x_drvr_setconfig32(hfa384x_t *hw, UINT16 rid, UINT32 val)
+{
+	UINT32 value = host2hfa384x_32(val);
+	return hfa384x_drvr_setconfig(hw, rid, &value, sizeof(value));
+}
+
+static inline int
+hfa384x_drvr_setconfig32_async(hfa384x_t *hw, UINT16 rid, UINT32 val)
+{
+	UINT32 value = host2hfa384x_32(val);
+	return hfa384x_drvr_setconfig_async(hw, rid, &value, sizeof(value), NULL
+, NULL);
+}
+
 int
 hfa384x_drvr_start(hfa384x_t *hw);
 int
 hfa384x_drvr_stop(hfa384x_t *hw);
 int
 hfa384x_drvr_txframe(hfa384x_t *hw, struct sk_buff *skb, p80211_hdr_t *p80211_hdr, p80211_metawep_t *p80211_wep);
-
+void
+hfa384x_tx_timeout(wlandevice_t *wlandev);
 
 int
 hfa384x_cmd_initialize(hfa384x_t *hw);
@@ -2658,7 +2870,7 @@ hfa384x_cmd_download(
 	UINT16 highaddr, 
 	UINT16 codelen);
 int
-hfa384x_cmd_aux_enable(hfa384x_t *hw);
+hfa384x_cmd_aux_enable(hfa384x_t *hw, int force);
 int
 hfa384x_cmd_aux_disable(hfa384x_t *hw);
 int
@@ -2826,6 +3038,31 @@ __hfa384x_setreg_noswap(hfa384x_t *hw, UINT16 val, UINT reg)
 	writew(val, hw->membase + reg);
 	return;
 #endif
+}
+
+
+static inline void hfa384x_events_all(hfa384x_t *hw)
+{
+	hfa384x_setreg(hw, 
+		       HFA384x_INT_NORMAL
+#ifdef CMD_IRQ
+		       | HFA384x_INTEN_CMD_SET(1)
+#endif
+		       ,
+		       HFA384x_INTEN);	
+
+}
+
+static inline void hfa384x_events_nobap(hfa384x_t *hw)
+{
+	hfa384x_setreg(hw, 
+		        (HFA384x_INT_NORMAL & ~HFA384x_INT_BAP_OP)
+#ifdef CMD_IRQ
+		       | HFA384x_INTEN_CMD_SET(1)
+#endif
+		       ,
+		       HFA384x_INTEN);	
+
 }
 
 #endif /* WLAN_HOSTIF != WLAN_USB */

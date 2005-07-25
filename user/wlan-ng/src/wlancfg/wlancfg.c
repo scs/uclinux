@@ -653,12 +653,12 @@ static void wlancfg_list(void)
                 else if (type == P80211_TYPE_DISPLAYSTR)
                     printf("DISPLAYSTR{minlen=%ld,maxlen=%ld}\n",
                                                    mib->minlen, mib->maxlen);
-                else if (type == P80211_TYPE_BOUNDEDINT)
-                    printf("BOUNDEDINT{min=%ld,max=%ld}\n", mib->min, mib->max);
-                else if (type == P80211_TYPE_INT)
+                else if (type == P80211_TYPE_INT) {
+		  if (mib->min || mib->max) 
+                    printf("INT{min=%ld,max=%ld}\n", mib->min, mib->max);
+		  else
                     printf("INT\n");
-                else if (type == P80211_TYPE_ENUMINT)
-                    {
+                } else if (type == P80211_TYPE_ENUMINT) {
                     printf("ENUMINT{");
                     enump = mib->enumptr;
                     for (l = 0; l < enump->nitems; l++)

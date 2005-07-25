@@ -166,6 +166,9 @@ extern struct iw_handler_def p80211wext_handler_def;
 #define HOSTWEP_PRIVACYINVOKED BIT6
 #define HOSTWEP_EXCLUDEUNENCRYPTED BIT7
 
+extern int wlan_watchdog;
+extern int wlan_wext_write;
+
 /* WLAN device type */
 typedef struct wlandevice
 {
@@ -173,8 +176,10 @@ typedef struct wlandevice
 	void			*priv;		/* private data for MSD */
 
 	/* Subsystem State */
-	char		*name;		/* Dev name, from register_wlandev()*/
-	UINT32		state;		/* Device I/F state (open/closed) */
+	char		name[WLAN_DEVNAMELEN_MAX]; /* Dev name, from register_wlandev()*/
+	char		*nsdname; 
+
+	UINT32          state;          /* Device I/F state (open/closed) */
 	UINT32		msdstate;	/* state of underlying driver */
 	UINT32		hwremoved;	/* Has the hw been yanked out? */
 
@@ -182,7 +187,6 @@ typedef struct wlandevice
 	UINT		irq;
 	UINT		iobase;
 	UINT		membase;
-	char            slotname[16]; /* physical bus location */
 	UINT32          nsdcaps;  /* NSD Capabilities flags */
 
 	/* Config vars */
@@ -194,10 +198,17 @@ typedef struct wlandevice
 	void		(*reset)(struct wlandevice *wlandev );
 	int		(*txframe)(struct wlandevice *wlandev, struct sk_buff *skb, p80211_hdr_t *p80211_hdr, p80211_metawep_t *p80211_wep);
 	int		(*mlmerequest)(struct wlandevice *wlandev, p80211msg_t *msg);
-	void		(*hwremovedfn)(struct wlandevice *wlandev);
+	int             (*set_multicast_list)(struct wlandevice *wlandev, 
+					      netdevice_t *dev);
+	void		(*tx_timeout)(struct wlandevice *wlandev);
+
+#ifdef CONFIG_PROC_FS
+	int             (*nsd_proc_read)(char *page, char **start, off_t offset, int count, int	*eof, void *data);
+#endif
 
 	/* 802.11 State */
 	UINT8		bssid[WLAN_BSSID_LEN];
+	p80211pstr32_t	ssid;
 	UINT32		macmode;
 	UINT            shortpreamble;  /* C bool */
 
@@ -208,9 +219,6 @@ typedef struct wlandevice
   
 	/* Request/Confirm i/f state (used by p80211) */
 	UINT32			request_pending; /* flag, access atomically */
-	p80211msg_t		*curr_msg;
-	struct timer_list	reqtimer;
-	wait_queue_head_t	reqwq;
 
 	/* netlink socket */
 	/* queue for indications waiting for cmd completion */
@@ -232,7 +240,7 @@ typedef struct wlandevice
 #ifdef DECLARE_TASKLET	/* use tasklets */
 	struct tasklet_struct	rx_bh;
 #else
-	struct tq_struct	rx_bh;
+	struct work_struct	rx_bh;
 #endif
 	struct sk_buff_head	nsd_rxq;
 
@@ -245,8 +253,16 @@ typedef struct wlandevice
 #endif
 
 #ifdef WIRELESS_EXT
-	struct iw_statistics wstats;
+
+	struct iw_statistics	wstats;
+
+	/* jkriegl: iwspy fields */
+        UINT8			spy_number;
+        char			spy_address[IW_MAX_SPY][ETH_ALEN];
+        struct iw_quality       spy_stat[IW_MAX_SPY];
+
 #endif
+
 } wlandevice_t;
 
 /* WEP stuff */
@@ -268,6 +284,8 @@ int	register_wlandev(wlandevice_t *wlandev);
 int	unregister_wlandev(wlandevice_t *wlandev);
 void	p80211netdev_rx(wlandevice_t *wlandev, struct sk_buff *skb);
 void	p80211netdev_hwremoved(wlandevice_t *wlandev);
+void    p80211_suspend(wlandevice_t *wlandev);
+void    p80211_resume(wlandevice_t *wlandev);
 
 /*================================================================*/
 /* Function Definitions */
@@ -311,5 +329,14 @@ p80211netdev_wake_queue(wlandevice_t *wlandev)
 #endif
 }
 
+#ifdef CONFIG_HOTPLUG
+#define WLAN_HOTPLUG_REGISTER "register"
+#define WLAN_HOTPLUG_REMOVE   "remove"
+#define WLAN_HOTPLUG_STARTUP  "startup"
+#define WLAN_HOTPLUG_SHUTDOWN "shutdown"
+#define WLAN_HOTPLUG_SUSPEND "suspend"
+#define WLAN_HOTPLUG_RESUME "resume"
+int p80211_run_sbin_hotplug(wlandevice_t *wlandev, char *action);
+#endif
 
 #endif

@@ -52,11 +52,11 @@
 
 /*================================================================*/
 /* System Includes */
+#define WLAN_DBVAR	prism2_debug
 
-#define __NO_VERSION__
+#include <wlan/version.h>
 
 #include <linux/config.h>
-#define WLAN_DBVAR	prism2_debug
 #include <linux/version.h>
 
 #include <linux/module.h>
@@ -72,14 +72,13 @@
 
 #include <wlan/wlan_compat.h>
 
-#if (WLAN_HOSTIF==WLAN_PCMCIA)
+#if (WLAN_HOSTIF == WLAN_PCMCIA)
 #include <pcmcia/version.h>
 #include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/ds.h>
 #include <pcmcia/cisreg.h>
-#include <pcmcia/driver_ops.h>
 #endif
 
 #if ((WLAN_HOSTIF == WLAN_PLX) || (WLAN_HOSTIF == WLAN_PCI))
@@ -96,7 +95,6 @@
 /*================================================================*/
 /* Project Includes */
 
-#include <wlan/version.h>
 #include <wlan/p80211types.h>
 #include <wlan/p80211hdr.h>
 #include <wlan/p80211mgmt.h>
@@ -131,7 +129,6 @@ typedef struct mibrec
     int      (*func)(struct mibrec                *mib,
                      int                          isget,
                      wlandevice_t                 *wlandev,
-                     prism2sta_priv_t             *priv,
                      hfa384x_t                    *hw,
                      p80211msg_dot11req_mibset_t  *msg,
                      void                         *data);
@@ -144,7 +141,6 @@ static int prism2mib_bytestr2pstr(
 mibrec_t                     *mib,
 int                          isget,
 wlandevice_t                 *wlandev,
-prism2sta_priv_t             *priv,
 hfa384x_t                    *hw,
 p80211msg_dot11req_mibset_t  *msg,
 void                         *data);
@@ -153,7 +149,6 @@ static int prism2mib_bytearea2pstr(
 mibrec_t                     *mib,
 int                          isget,
 wlandevice_t                 *wlandev,
-prism2sta_priv_t             *priv,
 hfa384x_t                    *hw,
 p80211msg_dot11req_mibset_t  *msg,
 void                         *data);
@@ -162,7 +157,6 @@ static int prism2mib_uint32(
 mibrec_t                     *mib,
 int                          isget,
 wlandevice_t                 *wlandev,
-prism2sta_priv_t             *priv,
 hfa384x_t                    *hw,
 p80211msg_dot11req_mibset_t  *msg,
 void                         *data);
@@ -171,7 +165,6 @@ static int prism2mib_uint32array(
 mibrec_t                     *mib,
 int                          isget,
 wlandevice_t                 *wlandev,
-prism2sta_priv_t             *priv,
 hfa384x_t                    *hw,
 p80211msg_dot11req_mibset_t  *msg,
 void                         *data);
@@ -180,7 +173,6 @@ static int prism2mib_uint32offset(
 mibrec_t                     *mib,
 int                          isget,
 wlandevice_t                 *wlandev,
-prism2sta_priv_t             *priv,
 hfa384x_t                    *hw,
 p80211msg_dot11req_mibset_t  *msg,
 void                         *data);
@@ -189,7 +181,6 @@ static int prism2mib_truth(
 mibrec_t                     *mib,
 int                          isget,
 wlandevice_t                 *wlandev,
-prism2sta_priv_t             *priv,
 hfa384x_t                    *hw,
 p80211msg_dot11req_mibset_t  *msg,
 void                         *data);
@@ -198,7 +189,6 @@ static int prism2mib_preamble(
 mibrec_t                     *mib,
 int                          isget,
 wlandevice_t                 *wlandev,
-prism2sta_priv_t             *priv,
 hfa384x_t                    *hw,
 p80211msg_dot11req_mibset_t  *msg,
 void                         *data);
@@ -207,7 +197,6 @@ static int prism2mib_flag(
 mibrec_t                     *mib,
 int                          isget,
 wlandevice_t                 *wlandev,
-prism2sta_priv_t             *priv,
 hfa384x_t                    *hw,
 p80211msg_dot11req_mibset_t  *msg,
 void                         *data);
@@ -216,7 +205,6 @@ static int prism2mib_appcfinfoflag(
 mibrec_t                     *mib,
 int                          isget,
 wlandevice_t                 *wlandev,
-prism2sta_priv_t             *priv,
 hfa384x_t                    *hw,
 p80211msg_dot11req_mibset_t  *msg,
 void                         *data);
@@ -225,7 +213,6 @@ static int prism2mib_regulatorydomains(
 mibrec_t                     *mib,
 int                          isget,
 wlandevice_t                 *wlandev,
-prism2sta_priv_t             *priv,
 hfa384x_t                    *hw,
 p80211msg_dot11req_mibset_t  *msg,
 void                         *data);
@@ -234,7 +221,6 @@ static int prism2mib_wepdefaultkey(
 mibrec_t                     *mib,
 int                          isget,
 wlandevice_t                 *wlandev,
-prism2sta_priv_t             *priv,
 hfa384x_t                    *hw,
 p80211msg_dot11req_mibset_t  *msg,
 void                         *data);
@@ -243,7 +229,6 @@ static int prism2mib_powermanagement(
 mibrec_t                     *mib,
 int                          isget,
 wlandevice_t                 *wlandev,
-prism2sta_priv_t             *priv,
 hfa384x_t                    *hw,
 p80211msg_dot11req_mibset_t  *msg,
 void                         *data);
@@ -252,7 +237,6 @@ static int prism2mib_privacyinvoked(
 mibrec_t                     *mib,
 int                          isget,
 wlandevice_t                 *wlandev,
-prism2sta_priv_t             *priv,
 hfa384x_t                    *hw,
 p80211msg_dot11req_mibset_t  *msg,
 void                         *data);
@@ -261,7 +245,6 @@ static int prism2mib_excludeunencrypted(
 mibrec_t                     *mib,
 int                          isget,
 wlandevice_t                 *wlandev,
-prism2sta_priv_t             *priv,
 hfa384x_t                    *hw,
 p80211msg_dot11req_mibset_t  *msg,
 void                         *data);
@@ -270,7 +253,6 @@ static int prism2mib_fragmentationthreshold(
 mibrec_t                     *mib,
 int                          isget,
 wlandevice_t                 *wlandev,
-prism2sta_priv_t             *priv,
 hfa384x_t                    *hw,
 p80211msg_dot11req_mibset_t  *msg,
 void                         *data);
@@ -279,7 +261,6 @@ static int prism2mib_operationalrateset(
 mibrec_t                     *mib,
 int                          isget,
 wlandevice_t                 *wlandev,
-prism2sta_priv_t             *priv,
 hfa384x_t                    *hw,
 p80211msg_dot11req_mibset_t  *msg,
 void                         *data);
@@ -288,7 +269,6 @@ static int prism2mib_groupaddress(
 mibrec_t                     *mib,
 int                          isget,
 wlandevice_t                 *wlandev,
-prism2sta_priv_t             *priv,
 hfa384x_t                    *hw,
 p80211msg_dot11req_mibset_t  *msg,
 void                         *data);
@@ -297,7 +277,6 @@ static int prism2mib_fwid(
 mibrec_t                     *mib,
 int                          isget,
 wlandevice_t                 *wlandev,
-prism2sta_priv_t             *priv,
 hfa384x_t                    *hw,
 p80211msg_dot11req_mibset_t  *msg,
 void                         *data);
@@ -306,7 +285,6 @@ static int prism2mib_authalg(
 mibrec_t                     *mib,
 int                          isget,
 wlandevice_t                 *wlandev,
-prism2sta_priv_t             *priv,
 hfa384x_t                    *hw,
 p80211msg_dot11req_mibset_t  *msg,
 void                         *data);
@@ -315,7 +293,6 @@ static int prism2mib_authalgenable(
 mibrec_t                     *mib,
 int                          isget,
 wlandevice_t                 *wlandev,
-prism2sta_priv_t             *priv,
 hfa384x_t                    *hw,
 p80211msg_dot11req_mibset_t  *msg,
 void                         *data);
@@ -324,32 +301,27 @@ static int prism2mib_priv(
 mibrec_t                     *mib,
 int                          isget,
 wlandevice_t                 *wlandev,
-prism2sta_priv_t             *priv,
 hfa384x_t                    *hw,
 p80211msg_dot11req_mibset_t  *msg,
 void                         *data);
 
 static void prism2mib_priv_authlist(
-prism2sta_priv_t      *priv,
+hfa384x_t      *hw,
 prism2sta_authlist_t  *list);
 
 static void prism2mib_priv_accessmode(
-prism2sta_priv_t  *priv,
 hfa384x_t         *hw,
 UINT32            mode);
 
 static void prism2mib_priv_accessallow(
-prism2sta_priv_t  *priv,
 hfa384x_t         *hw,
 p80211macarray_t  *macarray);
 
 static void prism2mib_priv_accessdeny(
-prism2sta_priv_t  *priv,
 hfa384x_t         *hw,
 p80211macarray_t  *macarray);
 
 static void prism2mib_priv_deauthenticate(
-prism2sta_priv_t  *priv,
 hfa384x_t         *hw,
 UINT8             *addr);
 
@@ -420,30 +392,6 @@ static mibrec_t mibtab[] = {
           F_AP | F_STA | F_READ,
           HFA384x_RID_PROTOCOLRSPTIME, 0, 0,
           prism2mib_uint32 },
-    { DIDmib_dot11smt_dot11StationConfigTable_dot11DisassociateReason,
-          F_AP | F_STA | F_READ,
-          0, 0, 0,
-          prism2mib_priv },
-    { DIDmib_dot11smt_dot11StationConfigTable_dot11DisassociateStation,
-          F_AP | F_STA | F_READ,
-          0, 0, 0,
-          prism2mib_priv },
-    { DIDmib_dot11smt_dot11StationConfigTable_dot11DeauthenticateReason,
-          F_AP | F_STA | F_READ,
-          0, 0, 0,
-          prism2mib_priv },
-    { DIDmib_dot11smt_dot11StationConfigTable_dot11DeauthenticateStation,
-          F_AP | F_STA | F_READ,
-          0, 0, 0,
-          prism2mib_priv },
-    { DIDmib_dot11smt_dot11StationConfigTable_dot11AuthenticateFailStatus,
-          F_AP | F_STA | F_READ,
-          0, 0, 0,
-          prism2mib_priv },
-    { DIDmib_dot11smt_dot11StationConfigTable_dot11AuthenticateFailStation,
-          F_AP | F_STA | F_READ,
-          0, 0, 0,
-          prism2mib_priv },
     { DIDmib_dot11smt_dot11AuthenticationAlgorithmsTable_dot11AuthenticationAlgorithm1,
           F_AP | F_STA | F_READ,
           1, 0, 0,
@@ -733,10 +681,6 @@ static mibrec_t mibtab[] = {
           F_AP | F_STA | F_READ,
           0, 0, 0,
           prism2mib_priv },
-    { DIDmib_p2_p2Table_p2State,
-          F_AP | F_STA | F_READ,
-          0, 0, 0,
-          prism2mib_priv },
     { DIDmib_p2_p2Table_p2Authenticated,
           F_AP | F_READ,
           0, 0, 0,
@@ -763,10 +707,6 @@ static mibrec_t mibtab[] = {
           prism2mib_priv },
     { DIDmib_p2_p2Table_p2AccessDeny,
           F_AP | F_READ | F_WRITE,
-          0, 0, 0,
-          prism2mib_priv },
-    { DIDmib_p2_p2Table_p2LogEvents,
-          F_AP | F_STA | F_READ | F_WRITE,
           0, 0, 0,
           prism2mib_priv },
     { DIDmib_p2_p2Table_p2ChannelInfoResults,
@@ -1450,8 +1390,7 @@ DIDmib_dot11phy_dot11AntennasListTable_dot11DiversitySelectionRx
 
 int prism2mgmt_mibset_mibget(wlandevice_t *wlandev, void *msgp)
 {
-	prism2sta_priv_t	*priv = (prism2sta_priv_t *) wlandev->priv;
-	hfa384x_t		*hw = priv->hw;
+	hfa384x_t		*hw = wlandev->priv;
 	int			result, isget;
 	mibrec_t		*mib;
 	UINT16			which;
@@ -1468,7 +1407,7 @@ int prism2mgmt_mibset_mibget(wlandevice_t *wlandev, void *msgp)
 	** Determine if this is an Access Point or a station.
 	*/
 	
-	which = priv->ap ? F_AP : F_STA;
+	which = hw->ap ? F_AP : F_STA;
 
 	/*
 	** Find the MIB in the MIB table.  Note that a MIB may be in the
@@ -1518,8 +1457,8 @@ int prism2mgmt_mibset_mibget(wlandevice_t *wlandev, void *msgp)
 	** portion of the "mibattribute".
 	*/
 
-	result = mib->func(mib, isget, wlandev, priv, hw, msg,
-							(void *) mibitem->data);
+	result = mib->func(mib, isget, wlandev, hw, msg,
+			   (void *) mibitem->data);
 
 	if (msg->resultcode.data == P80211ENUM_resultcode_success) {
 		if (result != 0) {
@@ -1572,7 +1511,6 @@ static int prism2mib_bytestr2pstr(
 mibrec_t                     *mib,
 int                          isget,
 wlandevice_t                 *wlandev,
-prism2sta_priv_t             *priv,
 hfa384x_t                    *hw,
 p80211msg_dot11req_mibset_t  *msg,
 void                         *data)
@@ -1626,7 +1564,6 @@ static int prism2mib_bytearea2pstr(
 mibrec_t                     *mib,
 int                          isget,
 wlandevice_t                 *wlandev,
-prism2sta_priv_t             *priv,
 hfa384x_t                    *hw,
 p80211msg_dot11req_mibset_t  *msg,
 void                         *data)
@@ -1679,7 +1616,6 @@ static int prism2mib_uint32(
 mibrec_t                     *mib,
 int                          isget,
 wlandevice_t                 *wlandev,
-prism2sta_priv_t             *priv,
 hfa384x_t                    *hw,
 p80211msg_dot11req_mibset_t  *msg,
 void                         *data)
@@ -1702,7 +1638,7 @@ void                         *data)
 		 * prism2mgmt_p80211int2prism2int(wordbuf, uint32);
 		 */
 		*wordbuf = *uint32;
-		result = hfa384x_drvr_setconfig16(hw, mib->parm1, wordbuf);
+		result = hfa384x_drvr_setconfig16(hw, mib->parm1, *wordbuf);
 	}
 
 	DBFEXIT;
@@ -1738,7 +1674,6 @@ static int prism2mib_uint32array(
 mibrec_t                     *mib,
 int                          isget,
 wlandevice_t                 *wlandev,
-prism2sta_priv_t             *priv,
 hfa384x_t                    *hw,
 p80211msg_dot11req_mibset_t  *msg,
 void                         *data)
@@ -1796,7 +1731,6 @@ static int prism2mib_uint32offset(
 mibrec_t                     *mib,
 int                          isget,
 wlandevice_t                 *wlandev,
-prism2sta_priv_t             *priv,
 hfa384x_t                    *hw,
 p80211msg_dot11req_mibset_t  *msg,
 void                         *data)
@@ -1859,7 +1793,6 @@ static int prism2mib_truth(
 mibrec_t                     *mib,
 int                          isget,
 wlandevice_t                 *wlandev,
-prism2sta_priv_t             *priv,
 hfa384x_t                    *hw,
 p80211msg_dot11req_mibset_t  *msg,
 void                         *data)
@@ -1877,7 +1810,7 @@ void                         *data)
 				P80211ENUM_truth_true : P80211ENUM_truth_false;
 	} else {
 		*wordbuf = ((*uint32) == P80211ENUM_truth_true) ? 1 : 0;
-		result = hfa384x_drvr_setconfig16(hw, mib->parm1, wordbuf);
+		result = hfa384x_drvr_setconfig16(hw, mib->parm1, *wordbuf);
 	}
 
 	DBFEXIT;
@@ -1913,7 +1846,6 @@ static int prism2mib_flag(
 mibrec_t                     *mib,
 int                          isget,
 wlandevice_t                 *wlandev,
-prism2sta_priv_t             *priv,
 hfa384x_t                    *hw,
 p80211msg_dot11req_mibset_t  *msg,
 void                         *data)
@@ -1944,7 +1876,7 @@ void                         *data)
 			 * prism2mgmt_p80211int2prism2int(wordbuf, &flags);
 			 */
 			*wordbuf = flags;
-			result = hfa384x_drvr_setconfig16(hw, mib->parm1, wordbuf);
+			result = hfa384x_drvr_setconfig16(hw, mib->parm1, *wordbuf);
 		}
 	}
 
@@ -1981,7 +1913,6 @@ static int prism2mib_appcfinfoflag(
 mibrec_t                     *mib,
 int                          isget,
 wlandevice_t                 *wlandev,
-prism2sta_priv_t             *priv,
 hfa384x_t                    *hw,
 p80211msg_dot11req_mibset_t  *msg,
 void                         *data)
@@ -2043,7 +1974,6 @@ static int prism2mib_regulatorydomains(
 mibrec_t                     *mib,
 int                          isget,
 wlandevice_t                 *wlandev,
-prism2sta_priv_t             *priv,
 hfa384x_t                    *hw,
 p80211msg_dot11req_mibset_t  *msg,
 void                         *data)
@@ -2098,7 +2028,6 @@ static int prism2mib_wepdefaultkey(
 mibrec_t                     *mib,
 int                          isget,
 wlandevice_t                 *wlandev,
-prism2sta_priv_t             *priv,
 hfa384x_t                    *hw,
 p80211msg_dot11req_mibset_t  *msg,
 void                         *data)
@@ -2158,7 +2087,6 @@ static int prism2mib_powermanagement(
 mibrec_t                     *mib,
 int                          isget,
 wlandevice_t                 *wlandev,
-prism2sta_priv_t             *priv,
 hfa384x_t                    *hw,
 p80211msg_dot11req_mibset_t  *msg,
 void                         *data)
@@ -2170,11 +2098,11 @@ void                         *data)
 	DBFENTER;
 
 	if (isget) {
-		result = prism2mib_uint32(mib, isget, wlandev, priv, hw, msg, &value);
+		result = prism2mib_uint32(mib, isget, wlandev, hw, msg, &value);
 		*uint32 = (value == 0) ? 1 : 2;
 	} else {
 		value = ((*uint32) == 1) ? 0 : 1;
-		result = prism2mib_uint32(mib, isget, wlandev, priv, hw, msg, &value);
+		result = prism2mib_uint32(mib, isget, wlandev, hw, msg, &value);
 	}
 
 	DBFEXIT;
@@ -2210,7 +2138,6 @@ static int prism2mib_preamble(
 mibrec_t                     *mib,
 int                          isget,
 wlandevice_t                 *wlandev,
-prism2sta_priv_t             *priv,
 hfa384x_t                    *hw,
 p80211msg_dot11req_mibset_t  *msg,
 void                         *data)
@@ -2227,7 +2154,7 @@ void                         *data)
 		*uint32 = *wordbuf;
 	} else {
 		*wordbuf = *uint32;
-		result = hfa384x_drvr_setconfig16(hw, mib->parm1, wordbuf);
+		result = hfa384x_drvr_setconfig16(hw, mib->parm1, *wordbuf);
 	}
 
 	DBFEXIT;
@@ -2263,7 +2190,6 @@ static int prism2mib_privacyinvoked(
 mibrec_t                     *mib,
 int                          isget,
 wlandevice_t                 *wlandev,
-prism2sta_priv_t             *priv,
 hfa384x_t                    *hw,
 p80211msg_dot11req_mibset_t  *msg,
 void                         *data)
@@ -2279,7 +2205,7 @@ void                         *data)
 			mib->parm2 |= HFA384x_WEPFLAGS_DISABLE_TXCRYPT;
 	}
 
-	result = prism2mib_flag(mib, isget, wlandev, priv, hw, msg, data);
+	result = prism2mib_flag(mib, isget, wlandev, hw, msg, data);
 
 	DBFEXIT;
 	return(result);
@@ -2314,7 +2240,6 @@ static int prism2mib_excludeunencrypted(
 mibrec_t                     *mib,
 int                          isget,
 wlandevice_t                 *wlandev,
-prism2sta_priv_t             *priv,
 hfa384x_t                    *hw,
 p80211msg_dot11req_mibset_t  *msg,
 void                         *data)
@@ -2323,7 +2248,7 @@ void                         *data)
 
 	DBFENTER;
 
-	result = prism2mib_flag(mib, isget, wlandev, priv, hw, msg, data);
+	result = prism2mib_flag(mib, isget, wlandev, hw, msg, data);
 
 	DBFEXIT;
 	return(result);
@@ -2358,7 +2283,6 @@ static int prism2mib_fragmentationthreshold(
 mibrec_t                     *mib,
 int                          isget,
 wlandevice_t                 *wlandev,
-prism2sta_priv_t             *priv,
 hfa384x_t                    *hw,
 p80211msg_dot11req_mibset_t  *msg,
 void                         *data)
@@ -2370,13 +2294,13 @@ void                         *data)
 
 	if (!isget)
 		if ((*uint32) % 2) {
-			WLAN_LOG_WARNING0("Attempt to set odd number "
+			WLAN_LOG_WARNING("Attempt to set odd number "
 					  "FragmentationThreshold\n"); 
 			msg->resultcode.data = P80211ENUM_resultcode_not_supported;
 			return(0);
 		}
 
-	result = prism2mib_uint32(mib, isget, wlandev, priv, hw, msg, data);
+	result = prism2mib_uint32(mib, isget, wlandev, hw, msg, data);
 
 	DBFEXIT;
 	return(result);
@@ -2411,7 +2335,6 @@ static int prism2mib_operationalrateset(
 mibrec_t                     *mib,
 int                          isget,
 wlandevice_t                 *wlandev,
-prism2sta_priv_t             *priv,
 hfa384x_t                    *hw,
 p80211msg_dot11req_mibset_t  *msg,
 void                         *data)
@@ -2428,8 +2351,8 @@ void                         *data)
 		prism2mgmt_get_oprateset(wordbuf, pstr);
 	} else {
 		prism2mgmt_set_oprateset(wordbuf, pstr);
-		result = hfa384x_drvr_setconfig16(hw, mib->parm1, wordbuf);
-		result = hfa384x_drvr_setconfig16(hw, HFA384x_RID_CNFSUPPRATES,wordbuf);
+		result = hfa384x_drvr_setconfig16(hw, mib->parm1, *wordbuf);
+		result = hfa384x_drvr_setconfig16(hw, HFA384x_RID_CNFSUPPRATES, *wordbuf);
 	}
 
 	DBFEXIT;
@@ -2465,7 +2388,6 @@ static int prism2mib_groupaddress(
 mibrec_t                     *mib,
 int                          isget,
 wlandevice_t                 *wlandev,
-prism2sta_priv_t             *priv,
 hfa384x_t                    *hw,
 p80211msg_dot11req_mibset_t  *msg,
 void                         *data)
@@ -2473,29 +2395,26 @@ void                         *data)
 	int            result;
 	p80211pstrd_t  *pstr = (p80211pstrd_t *) data;
 	UINT8          bytebuf[MIB_TMP_MAXLEN];
-	UINT16         *wordbuf = (UINT16*) bytebuf;
 	UINT16         len;
 
 	DBFENTER;
 
 	/* TODO: fix this.  f/w doesn't support mcast filters */
-	/* TODO: Add support to p80211 for the linux set_multicast...() */
-	/*         interface function.                                  */
 
 	if (isget) {
-		prism2mgmt_get_grpaddr(mib->did, pstr, priv);
+		prism2mgmt_get_grpaddr(mib->did, pstr, hw);
 		return(0);
 	}
 
-	result = prism2mgmt_set_grpaddr(mib->did, bytebuf, pstr, priv);
+	result = prism2mgmt_set_grpaddr(mib->did, bytebuf, pstr, hw);
 	if (result != 0) {
 		msg->resultcode.data = P80211ENUM_resultcode_not_supported;
 		return(result);
 	}
 
-	if (priv->dot11_grpcnt <= MAX_PRISM2_GRP_ADDR) {
-		len = priv->dot11_grpcnt * WLAN_ADDR_LEN;
-		memcpy(bytebuf, priv->dot11_grp_addr[0], len);
+	if (hw->dot11_grpcnt <= MAX_PRISM2_GRP_ADDR) {
+		len = hw->dot11_grpcnt * WLAN_ADDR_LEN;
+		memcpy(bytebuf, hw->dot11_grp_addr[0], len);
 		result = hfa384x_drvr_setconfig(hw, HFA384x_RID_GROUPADDR, bytebuf, len);
 
 		/*
@@ -2505,11 +2424,10 @@ void                         *data)
 		*/
 		
 		/* but only if we're not already in promisc mode. :) */
-		if ((priv->dot11_grpcnt == MAX_PRISM2_GRP_ADDR) &&
+		if ((hw->dot11_grpcnt == MAX_PRISM2_GRP_ADDR) &&
 		    !( wlandev->netdev->flags & IFF_PROMISC)) {
-			*wordbuf = 0;
 			result = hfa384x_drvr_setconfig16(hw,
-					     HFA384x_RID_PROMISCMODE, wordbuf);
+					     HFA384x_RID_PROMISCMODE, 0);
 		}
 	} else {
 
@@ -2521,9 +2439,8 @@ void                         *data)
 		result = hfa384x_drvr_setconfig(hw, HFA384x_RID_GROUPADDR,
 						bytebuf, 0);
 		if (result == 0) {
-			*wordbuf = 1;
 			result = hfa384x_drvr_setconfig16(hw,
-					HFA384x_RID_PROMISCMODE, wordbuf);
+					HFA384x_RID_PROMISCMODE, 1);
 		}
 	}
 
@@ -2560,7 +2477,6 @@ static int prism2mib_fwid(
 mibrec_t                     *mib,
 int                          isget,
 wlandevice_t                 *wlandev,
-prism2sta_priv_t             *priv,
 hfa384x_t                    *hw,
 p80211msg_dot11req_mibset_t  *msg,
 void                         *data)
@@ -2619,7 +2535,6 @@ static int prism2mib_authalg(
 mibrec_t                     *mib,
 int                          isget,
 wlandevice_t                 *wlandev,
-prism2sta_priv_t             *priv,
 hfa384x_t                    *hw,
 p80211msg_dot11req_mibset_t  *msg,
 void                         *data)
@@ -2683,7 +2598,6 @@ static int prism2mib_authalgenable(
 mibrec_t                     *mib,
 int                          isget,
 wlandevice_t                 *wlandev,
-prism2sta_priv_t             *priv,
 hfa384x_t                    *hw,
 p80211msg_dot11req_mibset_t  *msg,
 void                         *data)
@@ -2720,7 +2634,7 @@ void                         *data)
 				cnf_auth &= ~mask;
 			}
 			result = hfa384x_drvr_setconfig16( hw, 
-					HFA384x_RID_CNFAUTHENTICATION, &cnf_auth);
+					HFA384x_RID_CNFAUTHENTICATION, cnf_auth);
 			WLAN_LOG_DEBUG(2,"cnfAuthentication:=%d\n", cnf_auth);
 			if ( result ) {
 				WLAN_LOG_DEBUG(1,"Unable to set p2cnfAuthentication to %d\n", cnf_auth);
@@ -2764,7 +2678,6 @@ static int prism2mib_priv(
 mibrec_t                     *mib,
 int                          isget,
 wlandevice_t                 *wlandev,
-prism2sta_priv_t             *priv,
 hfa384x_t                    *hw,
 p80211msg_dot11req_mibset_t  *msg,
 void                         *data)
@@ -2782,7 +2695,7 @@ void                         *data)
 	** it is long enough!
 	*/
 
-	UINT8  test[sizeof(wlandev->rx) + sizeof(priv->tallies)];
+	UINT8  test[sizeof(wlandev->rx) + sizeof(hw->tallies)];
 
 	DBFENTER;
 
@@ -2841,31 +2754,24 @@ void                         *data)
 				/* Ugh, this is nasty. */
 				for (i = 0; i < 10; i++) {
 					memcpy(data, 
-						&priv->tallies, 
-						sizeof(priv->tallies));
+						&hw->tallies, 
+						sizeof(hw->tallies));
 					memcpy(test, 
-						&priv->tallies, 
-						sizeof(priv->tallies));
+						&hw->tallies, 
+						sizeof(hw->tallies));
 					if ( memcmp(data, 
 						test, 
-						sizeof(priv->tallies)) == 0) 
+						sizeof(hw->tallies)) == 0) 
 						break;
 				}
 			}
 
 			break;
 
-		case DIDmib_p2_p2Table_p2State:
-
-			if (isget)
-				*uint32 = priv->state;
-
-			break;
-
 		case DIDmib_p2_p2Table_p2Authenticated:
 
 			if (isget) {
-				prism2mib_priv_authlist(priv, &old);
+				prism2mib_priv_authlist(hw, &old);
 
 				macarray->cnt = 0;
 				for (i = 0; i < old.cnt; i++) {
@@ -2881,7 +2787,7 @@ void                         *data)
 		case DIDmib_p2_p2Table_p2Associated:
 
 			if (isget) {
-				prism2mib_priv_authlist(priv, &old);
+				prism2mib_priv_authlist(hw, &old);
 
 				macarray->cnt = 0;
 				for (i = 0; i < old.cnt; i++) {
@@ -2897,21 +2803,21 @@ void                         *data)
 		case DIDmib_p2_p2Table_p2PowerSaveUserCount:
 
 			if (isget)
-				*uint32 = priv->psusercount;
+				*uint32 = hw->psusercount;
 
 			break;
 
 		case DIDmib_p2_p2Table_p2Comment:
 
 			if (isget) {
-				pstr->len = strlen(priv->comment);
-				memcpy(pstr->data, priv->comment, pstr->len);
+				pstr->len = strlen(hw->comment);
+				memcpy(pstr->data, hw->comment, pstr->len);
 			} else {
 				cnt = pstr->len;
 				if (cnt < 0) cnt = 0;
-				if (cnt >= sizeof(priv->comment))
-					cnt = sizeof(priv->comment)-1;
-				memcpy(priv->comment, pstr->data, cnt);
+				if (cnt >= sizeof(hw->comment))
+					cnt = sizeof(hw->comment)-1;
+				memcpy(hw->comment, pstr->data, cnt);
 				pstr->data[cnt] = '\0';
 			}
 
@@ -2920,20 +2826,20 @@ void                         *data)
 		case DIDmib_p2_p2Table_p2AccessMode:
 
 			if (isget)
-				*uint32 = priv->accessmode;
+				*uint32 = hw->accessmode;
 			else
-				prism2mib_priv_accessmode(priv, hw, *uint32);
+				prism2mib_priv_accessmode(hw, *uint32);
 
 			break;
 
 		case DIDmib_p2_p2Table_p2AccessAllow:
 
 			if (isget) {
-				macarray->cnt = priv->allow.cnt;
-				memcpy(macarray->data, priv->allow.addr,
+				macarray->cnt = hw->allow.cnt;
+				memcpy(macarray->data, hw->allow.addr,
 					macarray->cnt*WLAN_ADDR_LEN);
 			} else {
-				prism2mib_priv_accessallow(priv, hw, macarray);
+				prism2mib_priv_accessallow(hw, macarray);
 			}
 
 			break;
@@ -2941,28 +2847,19 @@ void                         *data)
 		case DIDmib_p2_p2Table_p2AccessDeny:
 
 			if (isget) {
-				macarray->cnt = priv->deny.cnt;
-				memcpy(macarray->data, priv->deny.addr,
+				macarray->cnt = hw->deny.cnt;
+				memcpy(macarray->data, hw->deny.addr,
 					macarray->cnt*WLAN_ADDR_LEN);
 			} else {
-				prism2mib_priv_accessdeny(priv, hw, macarray);
+				prism2mib_priv_accessdeny(hw, macarray);
 			}
-
-			break;
-
-		case DIDmib_p2_p2Table_p2LogEvents:
-
-			if (isget)
-				*uint32 = priv->log;
-			else
-				priv->log = *uint32;
 
 			break;
 
 		case DIDmib_p2_p2Table_p2ChannelInfoResults:
 
 			if (isget) {
-				done = atomic_read(&priv->channel_info.done);
+				done = atomic_read(&hw->channel_info.done);
 				if (done == 0) {
 					msg->resultcode.status = P80211ENUM_msgitem_status_no_value;
 					break;
@@ -2974,10 +2871,10 @@ void                         *data)
 
 				for (i = 0; i < 14; i++, uint32 += 5) {
 					uint32[0] = i+1;
-					uint32[1] = priv->channel_info.results.result[i].anl;
-					uint32[2] = priv->channel_info.results.result[i].pnl;
-					uint32[3] = (priv->channel_info.results.result[i].active & HFA384x_CHINFORESULT_BSSACTIVE) ? 1 : 0;
-					uint32[4] = (priv->channel_info.results.result[i].active & HFA384x_CHINFORESULT_PCFACTIVE) ? 1 : 0;
+					uint32[1] = hw->channel_info.results.result[i].anl;
+					uint32[2] = hw->channel_info.results.result[i].pnl;
+					uint32[3] = (hw->channel_info.results.result[i].active & HFA384x_CHINFORESULT_BSSACTIVE) ? 1 : 0;
+					uint32[4] = (hw->channel_info.results.result[i].active & HFA384x_CHINFORESULT_PCFACTIVE) ? 1 : 0;
 				}
 			}
 
@@ -2986,62 +2883,14 @@ void                         *data)
 		case DIDmib_dot11smt_dot11StationConfigTable_dot11DesiredBSSType:
 
 			if (isget)
-				*uint32 = priv->dot11_desired_bss_type;
+				*uint32 = hw->dot11_desired_bss_type;
 			else
-				priv->dot11_desired_bss_type = *uint32;
+				hw->dot11_desired_bss_type = *uint32;
 
 				break;
-
-		case DIDmib_dot11smt_dot11StationConfigTable_dot11DisassociateReason:
-
-			if (isget)
-				*uint32 = priv->dot11_disassoc_reason;
-
-			break;
-
-		case DIDmib_dot11smt_dot11StationConfigTable_dot11DisassociateStation:
-
-			if (isget) {
-				memcpy(pstr->data, priv->dot11_disassoc_station,
-								WLAN_ADDR_LEN);
-				pstr->len = WLAN_ADDR_LEN;
-			}
-
-			break;
-
-		case DIDmib_dot11smt_dot11StationConfigTable_dot11DeauthenticateReason:
-
-			if (isget)
-				*uint32 = priv->dot11_deauth_reason;
-
-			break;
-
-		case DIDmib_dot11smt_dot11StationConfigTable_dot11DeauthenticateStation:
-
-			if (isget) {
-				memcpy(pstr->data, priv->dot11_deauth_station,
-								WLAN_ADDR_LEN);
-				pstr->len = WLAN_ADDR_LEN;
-			}
-
-			break;
-
-		case DIDmib_dot11smt_dot11StationConfigTable_dot11AuthenticateFailStatus:
-
-			if (isget)
-				*uint32 = priv->dot11_auth_fail_status;
-
-			break;
-
-		case DIDmib_dot11smt_dot11StationConfigTable_dot11AuthenticateFailStation:
-
-			if (isget) {
-				memcpy(pstr->data,priv->dot11_auth_fail_station,
-								WLAN_ADDR_LEN);
-				pstr->len = WLAN_ADDR_LEN;
-			}
-
-			break;
+				
+	default:
+		WLAN_LOG_ERROR("Unhandled DID 0x%08lx\n", mib->did);
 	}
 
 	DBFEXIT;
@@ -3063,7 +2912,7 @@ void                         *data)
 ----------------------------------------------------------------*/
 
 static void prism2mib_priv_authlist(
-prism2sta_priv_t      *priv,
+hfa384x_t             *hw,
 prism2sta_authlist_t  *list)
 {
 	prism2sta_authlist_t  test;
@@ -3090,15 +2939,15 @@ prism2sta_authlist_t  *list)
 	*/
 
 	for (i = 0; i < 10; i++) {
-		memcpy(list, &priv->authlist, sizeof(prism2sta_authlist_t));
-		memcpy(&test, &priv->authlist, sizeof(prism2sta_authlist_t));
+		memcpy(list, &hw->authlist, sizeof(prism2sta_authlist_t));
+		memcpy(&test, &hw->authlist, sizeof(prism2sta_authlist_t));
 		if (memcmp(list, &test, sizeof(prism2sta_authlist_t)) == 0)
 			break;
 	}
 
 	if (i >= 10) {
 		list->cnt = 0;
-		WLAN_LOG_ERROR0("Could not obtain snapshot of authenticated stations.\n");
+		WLAN_LOG_ERROR("Could not obtain snapshot of authenticated stations.\n");
 		}
 
 	DBFEXIT;
@@ -3121,7 +2970,6 @@ prism2sta_authlist_t  *list)
 ----------------------------------------------------------------*/
 
 static void prism2mib_priv_accessmode(
-prism2sta_priv_t  *priv,
 hfa384x_t         *hw,
 UINT32            mode)
 {
@@ -3139,8 +2987,8 @@ UINT32            mode)
 	** necessary to de-authenticate these stations.
 	*/
 
-	if (mode == WLAN_ACCESS_ALL || mode == priv->accessmode) {
-		priv->accessmode = mode;
+	if (mode == WLAN_ACCESS_ALL || mode == hw->accessmode) {
+		hw->accessmode = mode;
 		return;
 	}
 
@@ -3151,9 +2999,9 @@ UINT32            mode)
 	** copy of the current list of authenticated stations.
 	*/
 
-	priv->accessmode = mode;
+	hw->accessmode = mode;
 
-	prism2mib_priv_authlist(priv, &old);
+	prism2mib_priv_authlist(hw, &old);
 
 	/*
 	** Now go through the list of previously authenticated stations (some
@@ -3169,21 +3017,21 @@ UINT32            mode)
 			deauth = 1;
 		else {
 			if (mode == WLAN_ACCESS_ALLOW) {
-				for (j = 0; j < priv->allow.cnt; j++)
-					if (memcmp(addr, priv->allow.addr[j],
+				for (j = 0; j < hw->allow.cnt; j++)
+					if (memcmp(addr, hw->allow.addr[j],
 							WLAN_ADDR_LEN) == 0)
 						break;
-				deauth = (j >= priv->allow.cnt);
+				deauth = (j >= hw->allow.cnt);
 			} else {
-				for (j = 0; j < priv->deny.cnt; j++)
-					if (memcmp(addr, priv->deny.addr[j],
+				for (j = 0; j < hw->deny.cnt; j++)
+					if (memcmp(addr, hw->deny.addr[j],
 							WLAN_ADDR_LEN) == 0)
 						break;
-				deauth = (j < priv->deny.cnt);
+				deauth = (j < hw->deny.cnt);
 			}
 		}
 
-		if (deauth) prism2mib_priv_deauthenticate(priv, hw, addr);
+		if (deauth) prism2mib_priv_deauthenticate(hw, addr);
 	}
 
 	DBFEXIT;
@@ -3206,7 +3054,6 @@ UINT32            mode)
 ----------------------------------------------------------------*/
 
 static void prism2mib_priv_accessallow(
-prism2sta_priv_t  *priv,
 hfa384x_t         *hw,
 p80211macarray_t  *macarray)
 {
@@ -3234,15 +3081,15 @@ p80211macarray_t  *macarray)
 	** handler block while the list is being updated.
 	*/
 
-	priv->allow.modify = 1;
+	hw->allow.modify = 1;
 
-	priv->allow.cnt = macarray->cnt;
-	memcpy(priv->allow.addr, macarray->data, macarray->cnt*WLAN_ADDR_LEN);
+	hw->allow.cnt = macarray->cnt;
+	memcpy(hw->allow.addr, macarray->data, macarray->cnt*WLAN_ADDR_LEN);
 
-	priv->allow.modify = 0;
+	hw->allow.modify = 0;
 
-	priv->allow.cnt1 = macarray->cnt;
-	memcpy(priv->allow.addr1, macarray->data, macarray->cnt*WLAN_ADDR_LEN);
+	hw->allow.cnt1 = macarray->cnt;
+	memcpy(hw->allow.addr1, macarray->data, macarray->cnt*WLAN_ADDR_LEN);
 
 	/*
 	** If the current access mode is "Allow", then changing the access
@@ -3251,7 +3098,7 @@ p80211macarray_t  *macarray)
 	** stations.  Otherwise, the list can be changed without a lot of fuss.
 	*/
 
-	if (priv->accessmode == WLAN_ACCESS_ALLOW) {
+	if (hw->accessmode == WLAN_ACCESS_ALLOW) {
 
 		/*
 		** Go through the list of authenticated stations (some of
@@ -3261,15 +3108,15 @@ p80211macarray_t  *macarray)
 		** de-authenticated.
 		*/
 
-		prism2mib_priv_authlist(priv, &old);
+		prism2mib_priv_authlist(hw, &old);
 
 		for (i = 0; i < old.cnt; i++) {
-			for (j = 0; j < priv->allow.cnt; j++)
-				if (memcmp(old.addr[i], priv->allow.addr[j],
+			for (j = 0; j < hw->allow.cnt; j++)
+				if (memcmp(old.addr[i], hw->allow.addr[j],
 							WLAN_ADDR_LEN) == 0)
 					break;
-			if (j >= priv->allow.cnt)
-				prism2mib_priv_deauthenticate(priv, hw, old.addr[i]);
+			if (j >= hw->allow.cnt)
+				prism2mib_priv_deauthenticate(hw, old.addr[i]);
 		}
 	}
 
@@ -3293,7 +3140,6 @@ p80211macarray_t  *macarray)
 ----------------------------------------------------------------*/
 
 static void prism2mib_priv_accessdeny(
-prism2sta_priv_t  *priv,
 hfa384x_t         *hw,
 p80211macarray_t  *macarray)
 {
@@ -3321,15 +3167,15 @@ p80211macarray_t  *macarray)
 	** handler block while the list is being updated.
 	*/
 
-	priv->deny.modify = 1;
+	hw->deny.modify = 1;
 
-	priv->deny.cnt = macarray->cnt;
-	memcpy(priv->deny.addr, macarray->data, macarray->cnt*WLAN_ADDR_LEN);
+	hw->deny.cnt = macarray->cnt;
+	memcpy(hw->deny.addr, macarray->data, macarray->cnt*WLAN_ADDR_LEN);
 
-	priv->deny.modify = 0;
+	hw->deny.modify = 0;
 
-	priv->deny.cnt1 = macarray->cnt;
-	memcpy(priv->deny.addr1, macarray->data, macarray->cnt*WLAN_ADDR_LEN);
+	hw->deny.cnt1 = macarray->cnt;
+	memcpy(hw->deny.addr1, macarray->data, macarray->cnt*WLAN_ADDR_LEN);
 
 	/*
 	** If the current access mode is "Deny", then changing the access
@@ -3338,7 +3184,7 @@ p80211macarray_t  *macarray)
 	** stations.  Otherwise, the list can be changed without a lot of fuss.
 	*/
 
-	if (priv->accessmode == WLAN_ACCESS_DENY) {
+	if (hw->accessmode == WLAN_ACCESS_DENY) {
 
 		/*
 		** Go through the list of authenticated stations (some of
@@ -3347,13 +3193,13 @@ p80211macarray_t  *macarray)
 		** now in the list of denied stations, must be de-authenticated.
 		*/
 
-		prism2mib_priv_authlist(priv, &old);
+		prism2mib_priv_authlist(hw, &old);
 
 		for (i = 0; i < old.cnt; i++)
-			for (j = 0; j < priv->deny.cnt; j++)
-				if (memcmp(old.addr[i], priv->deny.addr[j],
+			for (j = 0; j < hw->deny.cnt; j++)
+				if (memcmp(old.addr[i], hw->deny.addr[j],
 							 WLAN_ADDR_LEN) == 0) {
-					prism2mib_priv_deauthenticate(priv, hw, old.addr[i]);
+					prism2mib_priv_deauthenticate(hw, old.addr[i]);
 					break;
 				}
 	}
@@ -3380,7 +3226,6 @@ p80211macarray_t  *macarray)
 ----------------------------------------------------------------*/
 
 static void prism2mib_priv_deauthenticate(
-prism2sta_priv_t  *priv,
 hfa384x_t         *hw,
 UINT8             *addr)
 {
@@ -3715,17 +3560,17 @@ void prism2mgmt_set_oprateset(UINT16 *rate, p80211pstrd_t *pstr)
 *
 ----------------------------------------------------------------*/
 void prism2mgmt_get_grpaddr(UINT32 did, p80211pstrd_t *pstr,
-	prism2sta_priv_t *priv )
+	hfa384x_t *hw )
 {
 	int	index;
-
+			
 	DBFENTER;
 
 	index = prism2mgmt_get_grpaddr_index(did);
 
 	if ( index >= 0 ) {
 		pstr->len = WLAN_ADDR_LEN;
-		memcpy(pstr->data, priv->dot11_grp_addr[index],
+		memcpy(pstr->data, hw->dot11_grp_addr[index],
 			WLAN_ADDR_LEN);
 	}
 
@@ -3751,7 +3596,7 @@ void prism2mgmt_get_grpaddr(UINT32 did, p80211pstrd_t *pstr,
 *
 ----------------------------------------------------------------*/
 int prism2mgmt_set_grpaddr(UINT32 did, UINT8 *prism2buf,
-	p80211pstrd_t *pstr, prism2sta_priv_t *priv )
+	p80211pstrd_t *pstr, hfa384x_t *hw )
 {
 	UINT8	no_addr[WLAN_ADDR_LEN];
 	int	index;
@@ -3770,11 +3615,11 @@ int prism2mgmt_set_grpaddr(UINT32 did, UINT8 *prism2buf,
 		** address.
 		*/
 
-		if (priv->dot11_grpcnt >= MAX_GRP_ADDR) return(-1);
+		if (hw->dot11_grpcnt >= MAX_GRP_ADDR) return(-1);
 
-		memcpy(priv->dot11_grp_addr[priv->dot11_grpcnt], pstr->data,
+		memcpy(hw->dot11_grp_addr[hw->dot11_grpcnt], pstr->data,
 								 WLAN_ADDR_LEN);
-		priv->dot11_grpcnt += 1;
+		hw->dot11_grpcnt += 1;
 	} else {
 
 		/*
@@ -3788,12 +3633,12 @@ int prism2mgmt_set_grpaddr(UINT32 did, UINT8 *prism2buf,
 		*/
 
 		index = prism2mgmt_get_grpaddr_index(did);
-		if (index >= 0 && index < priv->dot11_grpcnt) {
-			priv->dot11_grpcnt -= 1;
-			memmove(priv->dot11_grp_addr[index],
-				priv->dot11_grp_addr[index + 1],
-				((priv->dot11_grpcnt)-index) * WLAN_ADDR_LEN);
-			memset(priv->dot11_grp_addr[priv->dot11_grpcnt], 0,
+		if (index >= 0 && index < hw->dot11_grpcnt) {
+			hw->dot11_grpcnt -= 1;
+			memmove(hw->dot11_grp_addr[index],
+				hw->dot11_grp_addr[index + 1],
+				((hw->dot11_grpcnt)-index) * WLAN_ADDR_LEN);
+			memset(hw->dot11_grp_addr[hw->dot11_grpcnt], 0,
 								 WLAN_ADDR_LEN);
 		}
 	}

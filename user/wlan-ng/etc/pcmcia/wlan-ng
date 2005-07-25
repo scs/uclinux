@@ -104,7 +104,7 @@ case "$ACTION" in
 	if [ $? = 0 ] ; then
 	    wlan_scan $DEVICE 
 	    if [ $? = 0 ] ; then
-		wlan_source_config_for_ssid "$ssid:$bssid"
+		wlan_source_config_for_ssid "$ssid" "$bssid"
 
 		wlan_user_mibs $DEVICE
 		wlan_wep $DEVICE

@@ -1,8 +1,8 @@
-.TH NEWPGEN 8
+.TH NWEPGEN 8
 .SH NAME
 nwepgen \- generates Neesus Datacom compatible WEP keys
 .SH SYNOPSIS
-.B newpgen genstr length
+.B nwepgen genstr length
 .SH DESCRIPTION
 .B nwepgen
 generates Neesus Datacom compatible WEP keys from a string. You will

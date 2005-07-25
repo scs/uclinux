@@ -47,20 +47,13 @@ Linux WLAN NG TODO
 - Possibly hook up DMA on the Rx side for PCI devices
 - [USB] Remove driver's port-reset when new primary firmware becomes
   available.
-- [USB] Look into multiple posted URBs
 - Review changes necessary for static linking to kernel
-- Update MAC RID to 802.11 MIB mapping document
-- Update MAC feature to 802.11 mapping document
 - Display the MAC and BBP partnum & revision at initialization time
 - Perform a more effective I/O access test and an irq test at 
   initialization time
 - Detect dead card and perform reset and reinitialization
-- X-Windows Status display (in C)
-- GTK Configurator
-- Shell functions to simplify wlanctl usage
 - Finish the prism2 request responses for STA and AP
   Station:
-	scan
 	powermgmt
 	join
 	authenticate
@@ -91,5 +84,3 @@ Linux WLAN NG TODO
 	reassociate
 - Add event handling scripts for the events above
 - Add AP support for power managing stations
-- Add a HOWTO document for users
-- Add a HOWTO document for programmers

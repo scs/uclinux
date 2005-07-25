@@ -1,27 +1,40 @@
-/* Dealing with host names.
-   Copyright (C) 1995, 1996, 1997 Free Software Foundation, Inc.
+/* Host name resolution and matching.
+   Copyright (C) 1995, 1996, 1997, 2000, 2001 Free Software Foundation, Inc.
 
-This file is part of Wget.
+This file is part of GNU Wget.
 
-This program is free software; you can redistribute it and/or modify
+GNU Wget is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
 the Free Software Foundation; either version 2 of the License, or
 (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
+GNU Wget is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
+along with Wget; if not, write to the Free Software
+Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+
+In addition, as a special exception, the Free Software Foundation
+gives permission to link the code of its release of Wget with the
+OpenSSL project's "OpenSSL" library (or with modified versions of it
+that use the same license as the "OpenSSL" library), and distribute
+the linked executables.  You must obey the GNU General Public License
+in all respects for all of the code used other than "OpenSSL".  If you
+modify this file, you may extend this exception to your version of the
+file, but you are not obligated to do so.  If you do not wish to do
+so, delete this exception statement from your version.  */
 
 #include <config.h>
 
+#ifndef WINDOWS
+#include <netdb.h>
+#endif
+
 #include <stdio.h>
 #include <stdlib.h>
-#include <ctype.h>
 #ifdef HAVE_STRING_H
 # include <string.h>
 #else
@@ -32,12 +45,20 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 #ifdef WINDOWS
 # include <winsock.h>
+# define SET_H_ERRNO(err) WSASetLastError(err)
 #else
 # include <sys/socket.h>
 # include <netinet/in.h>
-# include <arpa/inet.h>
+# ifndef __BEOS__
+#  include <arpa/inet.h>
+# endif
 # include <netdb.h>
+# define SET_H_ERRNO(err) ((void)(h_errno = (err)))
 #endif /* WINDOWS */
+
+#ifndef NO_ADDRESS
+#define NO_ADDRESS NO_DATA
+#endif
 
 #ifdef HAVE_SYS_UTSNAME_H
 # include <sys/utsname.h>
@@ -48,330 +69,647 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include "utils.h"
 #include "host.h"
 #include "url.h"
+#include "hash.h"
 
 #ifndef errno
 extern int errno;
 #endif
 
-/* Host list entry */
-struct host
-{
-  /* Host's symbolical name, as encountered at the time of first
-     inclusion, e.g. "fly.cc.fer.hr".  */
-  char *hostname;
-  /* Host's "real" name, i.e. its IP address, written out in ASCII
-     form of N.N.N.N, e.g. "161.53.70.130".  */
-  char *realname;
-  /* More than one HOSTNAME can correspond to the same REALNAME.  For
-     our purposes, the canonical name of the host is its HOSTNAME when
-     it was first encountered.  This entry is said to have QUALITY.  */
-  int quality;
-  /* Next entry in the list.  */
-  struct host *next;
+#ifndef h_errno
+# ifndef __CYGWIN__
+extern int h_errno;
+# endif
+#endif
+
+#ifdef ENABLE_IPV6
+int     ip_default_family = AF_INET6;
+#else
+int     ip_default_family = AF_INET;
+#endif
+
+/* Mapping between known hosts and to lists of their addresses. */
+
+static struct hash_table *host_name_addresses_map;
+
+/* Lists of addresses.  This should eventually be extended to handle
+   IPv6.  */
+
+struct address_list {
+  int count;			/* number of adrresses */
+  ip_address *addresses;	/* pointer to the string of addresses */
+
+  int faulty;			/* number of addresses known not to work. */
+  int refcount;			/* so we know whether to free it or not. */
 };
 
-static struct host *hlist;
+/* Get the bounds of the address list.  */
 
-static struct host *add_hlist PARAMS ((struct host *, const char *,
-				       const char *, int));
-
-/* The same as gethostbyname, but supports internet addresses of the
-   form `N.N.N.N'.  */
-struct hostent *
-ngethostbyname (const char *name)
+void
+address_list_get_bounds (struct address_list *al, int *start, int *end)
 {
-  struct hostent *hp;
-  unsigned long addr;
-
-  addr = (unsigned long)inet_addr (name);
-  if ((int)addr != -1)
-    hp = gethostbyaddr ((char *)&addr, sizeof (addr), AF_INET);
-  else
-    hp = gethostbyname (name);
-  return hp;
+  *start = al->faulty;
+  *end   = al->count;
 }
 
-/* Search for HOST in the linked list L, by hostname.  Return the
-   entry, if found, or NULL.  The search is case-insensitive.  */
-static struct host *
-search_host (struct host *l, const char *host)
+/* Copy address number INDEX to IP_STORE.  */
+
+void
+address_list_copy_one (struct address_list *al, int index, ip_address *ip_store)
 {
-  for (; l; l = l->next)
-    if (strcasecmp (l->hostname, host) == 0)
-      return l;
-  return NULL;
+  assert (index >= al->faulty && index < al->count);
+  memcpy (ip_store, al->addresses + index, sizeof (ip_address));
 }
 
-/* Like search_host, but searches by address.  */
-static struct host *
-search_address (struct host *l, const char *address)
-{
-  for (; l; l = l->next)
-    {
-      int cmp = strcmp (l->realname, address);
-      if (cmp == 0)
-	return l;
-      else if (cmp > 0)
-	return NULL;
-    }
-  return NULL;
-}
+/* Check whether two address lists have all their IPs in common.  */
 
-/* Store the address of HOSTNAME, internet-style, to WHERE.  First
-   check for it in the host list, and (if not found), use
-   ngethostbyname to get it.
-
-   Return 1 on successful finding of the hostname, 0 otherwise.  */
 int
-store_hostaddress (unsigned char *where, const char *hostname)
+address_list_match_all (struct address_list *al1, struct address_list *al2)
 {
-  struct host *t;
-  unsigned long addr;
-  struct hostent *hptr;
-  struct in_addr in;
-  char *inet_s;
-
-  /* If the address is of the form d.d.d.d, there will be no trouble
-     with it.  */
-  addr = (unsigned long)inet_addr (hostname);
-  if ((int)addr == -1)
-    {
-      /* If it is not of that form, try to find it in the cache.  */
-      t = search_host (hlist, hostname);
-      if (t)
-	addr = (unsigned long)inet_addr (t->realname);
-    }
-  /* If we have the numeric address, just store it.  */
-  if ((int)addr != -1)
-    {
-      /* ADDR is in network byte order, meaning the code works on
-         little and big endian 32-bit architectures without change.
-         On big endian 64-bit architectures we need to be careful to
-         copy the correct four bytes.  */
-      int offset = 0;
-#ifdef WORDS_BIGENDIAN
-      offset = sizeof (unsigned long) - 4;
-#endif
-      memcpy (where, (char *)&addr + offset, 4);
-      return 1;
-    }
-  /* Since all else has failed, let's try gethostbyname().  Note that
-     we use gethostbyname() rather than ngethostbyname(), because we
-     *know* the address is not numerical.  */
-  hptr = gethostbyname (hostname);
-  if (!hptr)
+  if (al1 == al2)
+    return 1;
+  if (al1->count != al2->count)
     return 0;
-  /* Copy the address of the host to socket description.  */
-  memcpy (where, hptr->h_addr_list[0], hptr->h_length);
-  /* Now that we're here, we could as well cache the hostname for
-     future use, as in realhost().  First, we have to look for it by
-     address to know if it's already in the cache by another name.  */
+  return 0 == memcmp (al1->addresses, al2->addresses,
+		      al1->count * sizeof (ip_address));
+}
 
-  /* Originally, we copied to in.s_addr, but it appears to be missing
-     on some systems.  */
-  memcpy (&in, *hptr->h_addr_list, sizeof (in));
-  STRDUP_ALLOCA (inet_s, inet_ntoa (in));
-  t = search_address (hlist, inet_s);
-  if (t) /* Found in the list, as realname.  */
+/* Mark the INDEXth element of AL as faulty, so that the next time
+   this address list is used, the faulty element will be skipped.  */
+
+void
+address_list_set_faulty (struct address_list *al, int index)
+{
+  /* We assume that the address list is traversed in order, so that a
+     "faulty" attempt is always preceded with all-faulty addresses,
+     and this is how Wget uses it.  */
+  assert (index == al->faulty);
+
+  ++al->faulty;
+  if (al->faulty >= al->count)
+    /* All addresses have been proven faulty.  Since there's not much
+       sense in returning the user an empty address list the next
+       time, we'll rather make them all clean, so that they can be
+       retried anew.  */
+    al->faulty = 0;
+}
+
+#ifdef HAVE_GETADDRINFO
+/**
+  * address_list_from_addrinfo
+  *
+  * This function transform an addrinfo links list in and address_list.
+  *
+  * Input:
+  * addrinfo*		Linkt list of addrinfo
+  *
+  * Output:
+  * address_list*	New allocated address_list
+  */
+static struct address_list *
+address_list_from_addrinfo (struct addrinfo *ai)
+{
+  struct address_list *al;
+  struct addrinfo *ai_head = ai;
+  int cnt = 0;
+  int i;
+
+  for (ai = ai_head; ai; ai = ai->ai_next)
+    if (ai->ai_family == AF_INET || ai->ai_family == AF_INET6)
+      ++cnt;
+  if (cnt == 0)
+    return NULL;
+
+  al = xmalloc (sizeof (struct address_list));
+  al->addresses = xmalloc (cnt * sizeof (ip_address));
+  al->count     = cnt;
+  al->faulty    = 0;
+  al->refcount  = 1;
+
+  for (i = 0, ai = ai_head; ai; ai = ai->ai_next)
+    if (ai->ai_family == AF_INET6) 
+      {
+	struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)ai->ai_addr;
+	memcpy (al->addresses + i, &sin6->sin6_addr, 16);
+	++i;
+      } 
+    else if (ai->ai_family == AF_INET)
+      {
+	struct sockaddr_in *sin = (struct sockaddr_in *)ai->ai_addr;
+        map_ipv4_to_ip ((ip4_address *)&sin->sin_addr, al->addresses + i);
+	++i;
+      }
+  assert (i == cnt);
+  return al;
+}
+#else
+/* Create an address_list out of a NULL-terminated vector of
+   addresses, as returned by gethostbyname.  */
+static struct address_list *
+address_list_from_vector (char **h_addr_list)
+{
+  int count = 0, i;
+
+  struct address_list *al = xmalloc (sizeof (struct address_list));
+
+  while (h_addr_list[count])
+    ++count;
+  assert (count > 0);
+  al->count     = count;
+  al->faulty    = 0;
+  al->addresses = xmalloc (count * sizeof (ip_address));
+  al->refcount  = 1;
+
+  for (i = 0; i < count; i++)
+    map_ipv4_to_ip ((ip4_address *)h_addr_list[i], al->addresses + i);
+
+  return al;
+}
+#endif
+
+/* Like address_list_from_vector, but initialized with a single
+   address. */
+
+static struct address_list *
+address_list_from_single (ip_address *addr)
+{
+  struct address_list *al = xmalloc (sizeof (struct address_list));
+  al->count     = 1;
+  al->faulty    = 0;
+  al->addresses = xmalloc (sizeof (ip_address));
+  al->refcount  = 1;
+  memcpy (al->addresses, addr, sizeof (ip_address));
+
+  return al;
+}
+
+static void
+address_list_delete (struct address_list *al)
+{
+  xfree (al->addresses);
+  xfree (al);
+}
+
+void
+address_list_release (struct address_list *al)
+{
+  --al->refcount;
+  DEBUGP (("Releasing %p (new refcount %d).\n", al, al->refcount));
+  if (al->refcount <= 0)
     {
-      /* Set the default, 0 quality.  */
-      hlist = add_hlist (hlist, hostname, inet_s, 0);
-      return 1;
+      DEBUGP (("Deleting unused %p.\n", al));
+      address_list_delete (al);
     }
-  /* Since this is really the first time this host is encountered,
-     set quality to 1.  */
-  hlist = add_hlist (hlist, hostname, inet_s, 1);
+}
+
+/**
+  * wget_sockaddr_set_address
+  *
+  * This function takes an wget_sockaddr and fill in the protocol type,
+  * the port number and the address, there NULL in address means wildcard.
+  * Unsuported adress family will abort the whole programm.
+  *
+  * Input:
+  * wget_sockaddr*	The space to be filled
+  * int			The wished protocol
+  * unsigned short	The port
+  * const ip_address	The Binary IP adress
+  *
+  * Return:
+  * -			Only modify 1. param
+  */
+void
+wget_sockaddr_set_address (wget_sockaddr *sa, 
+			   int ip_family, unsigned short port, ip_address *addr)
+{
+  if (ip_family == AF_INET) 
+    {
+      sa->sin.sin_family = ip_family;
+      sa->sin.sin_port = htons (port);
+      if (addr == NULL) 
+	memset (&sa->sin.sin_addr, 0,      sizeof(ip4_address));
+      else
+	{
+	  ip4_address addr4;
+	  if (!map_ip_to_ipv4 (addr, &addr4))
+	    /* should the callers have prevented this? */
+	    abort ();
+	  memcpy (&sa->sin.sin_addr, &addr4, sizeof(ip4_address));
+	}
+      return;
+    }
+#ifdef ENABLE_IPV6
+  if (ip_family == AF_INET6) 
+    {
+      sa->sin6.sin6_family = ip_family;
+      sa->sin6.sin6_port = htons (port);
+      if (addr == NULL) 
+	memset (&sa->sin6.sin6_addr, 0   , 16);
+      else	     
+	memcpy (&sa->sin6.sin6_addr, addr, 16);
+      return;
+    }
+#endif  
+  abort();
+}
+
+/**
+  * wget_sockaddr_set_port
+  *
+  * This funtion only fill the port of the socket information.
+  * If the protocol is not supported nothing is done.
+  * Unsuported adress family will abort the whole programm.
+  * 
+  * Require:
+  * that the IP-Protocol already is set.
+  *
+  * Input:
+  * wget_sockaddr*	The space there port should be entered
+  * unsigned int	The port that should be entered in host order
+  *
+  * Return:
+  * -			Only modify 1. param
+  */
+void 
+wget_sockaddr_set_port (wget_sockaddr *sa, unsigned short port)
+{
+  if (sa->sa.sa_family == AF_INET)
+    {
+      sa->sin.sin_port = htons (port);
+      return;
+    }  
+#ifdef ENABLE_IPV6
+  if (sa->sa.sa_family == AF_INET6)
+    {
+      sa->sin6.sin6_port = htons (port);
+      return;
+    }
+#endif
+  abort();
+}
+
+/**
+  * wget_sockaddr_get_addr
+  *
+  * This function return the adress from an sockaddr as byte string.
+  * Unsuported adress family will abort the whole programm.
+  * 
+  * Require:
+  * that the IP-Protocol already is set.
+  *
+  * Input:
+  * wget_sockaddr*	Socket Information
+  *
+  * Output:
+  * unsigned char *	IP address as byte string.
+  */
+void *
+wget_sockaddr_get_addr (wget_sockaddr *sa)
+{ 
+  if (sa->sa.sa_family == AF_INET)
+    return &sa->sin.sin_addr;
+#ifdef ENABLE_IPV6
+  if (sa->sa.sa_family == AF_INET6)
+    return &sa->sin6.sin6_addr;
+#endif
+  abort();
+  /* unreached */
+  return NULL;
+}
+
+/**
+  * wget_sockaddr_get_port
+  *
+  * This function only return the port from the input structure
+  * Unsuported adress family will abort the whole programm.
+  * 
+  * Require:
+  * that the IP-Protocol already is set.
+  *
+  * Input:
+  * wget_sockaddr*	Information where to get the port
+  *
+  * Output:
+  * unsigned short	Port Number in host order.
+  */
+unsigned short 
+wget_sockaddr_get_port (const wget_sockaddr *sa)
+{
+  if (sa->sa.sa_family == AF_INET)
+      return htons (sa->sin.sin_port);
+#ifdef ENABLE_IPV6
+  if (sa->sa.sa_family == AF_INET6)
+      return htons (sa->sin6.sin6_port);
+#endif
+  abort();
+  /* do not complain about return nothing */
+  return -1;
+}
+
+/**
+  * sockaddr_len
+  *
+  * This function return the length of the sockaddr corresponding to 
+  * the acutall prefered protocol for (bind, connect etc...)
+  * Unsuported adress family will abort the whole programm.
+  * 
+  * Require:
+  * that the IP-Protocol already is set.
+  *
+  * Input:
+  * -		Public IP-Family Information
+  *
+  * Output:
+  * socklen_t	structure length for socket options
+  */
+socklen_t
+sockaddr_len () 
+{
+  if (ip_default_family == AF_INET) 
+    return sizeof (struct sockaddr_in);
+#ifdef ENABLE_IPV6
+  if (ip_default_family == AF_INET6) 
+    return sizeof (struct sockaddr_in6);
+#endif
+  abort();
+  /* do not complain about return nothing */
+  return 0;
+}
+
+/**
+  * Map an IPv4 adress to the internal adress format.
+  */
+void 
+map_ipv4_to_ip (ip4_address *ipv4, ip_address *ip) 
+{
+#ifdef ENABLE_IPV6
+  static unsigned char ipv64[12] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff};
+  memcpy ((char *)ip + 12, ipv4 , 4);
+  memcpy ((char *)ip + 0, ipv64, 12);
+#else
+  if ((char *)ip != (char *)ipv4)
+    memcpy (ip, ipv4, 4);
+#endif
+}
+
+/* Detect whether an IP adress represents an IPv4 address and, if so,
+   copy it to IPV4.  0 is returned on failure.
+   This operation always succeeds when Wget is compiled without IPv6.
+   If IPV4 is NULL, don't copy, just detect.  */
+
+int 
+map_ip_to_ipv4 (ip_address *ip, ip4_address *ipv4) 
+{
+#ifdef ENABLE_IPV6
+  static unsigned char ipv64[12] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff};
+  if (0 != memcmp (ip, ipv64, 12))
+    return 0;
+  if (ipv4)
+    memcpy (ipv4, (char *)ip + 12, 4);
+#else
+  if (ipv4)
+    memcpy (ipv4, (char *)ip, 4);
+#endif
   return 1;
 }
+
+/* Versions of gethostbyname and getaddrinfo that support timeout. */
 
-/* Add a host to the host list.  The list is sorted by addresses.  For
-   equal addresses, the entries with quality should bubble towards the
-   beginning of the list.  */
-static struct host *
-add_hlist (struct host *l, const char *nhost, const char *nreal, int quality)
-{
-  struct host *t, *old, *beg;
+#ifndef ENABLE_IPV6
 
-  /* The entry goes to the beginning of the list if the list is empty
-     or the order requires it.  */
-  if (!l || (strcmp (nreal, l->realname) < 0))
-    {
-      t = (struct host *)xmalloc (sizeof (struct host));
-      t->hostname = xstrdup (nhost);
-      t->realname = xstrdup (nreal);
-      t->quality = quality;
-      t->next = l;
-      return t;
-    }
-
-  beg = l;
-  /* Second two one-before-the-last element.  */
-  while (l->next)
-    {
-      int cmp;
-      old = l;
-      l = l->next;
-      cmp = strcmp (nreal, l->realname);
-      if (cmp >= 0)
-	continue;
-      /* If the next list element is greater than s, put s between the
-	 current and the next list element.  */
-      t = (struct host *)xmalloc (sizeof (struct host));
-      old->next = t;
-      t->next = l;
-      t->hostname = xstrdup (nhost);
-      t->realname = xstrdup (nreal);
-      t->quality = quality;
-      return beg;
-    }
-  t = (struct host *)xmalloc (sizeof (struct host));
-  t->hostname = xstrdup (nhost);
-  t->realname = xstrdup (nreal);
-  t->quality = quality;
-  /* Insert the new element after the last element.  */
-  l->next = t;
-  t->next = NULL;
-  return beg;
-}
-
-/* Determine the "real" name of HOST, as perceived by Wget.  If HOST
-   is referenced by more than one name, "real" name is considered to
-   be the first one encountered in the past.
-
-   If the host cannot be found in the list of already dealt-with
-   hosts, try with its INET address.  If this fails too, add it to the
-   list.  The routine does not call gethostbyname twice for the same
-   host if it can possibly avoid it.  */
-char *
-realhost (const char *host)
-{
-  struct host *l, *l_real;
-  struct in_addr in;
+struct ghbnwt_context {
+  const char *host_name;
   struct hostent *hptr;
-  char *inet_s;
+};
 
-  DEBUGP (("Checking for %s.\n", host));
-  /* Look for the host, looking by the host name.  */
-  l = search_host (hlist, host);
-  if (l && l->quality)		/* Found it with quality */
-    {
-      DEBUGP (("%s was already used, by that name.\n", host));
-      /* Here we return l->hostname, not host, because of the possible
-         case differences (e.g. jaGOR.srce.hr and jagor.srce.hr are
-         the same, but we want the one that was first.  */
-      return xstrdup (l->hostname);
-    }
-  else if (!l)			/* Not found, with or without quality */
-    {
-      /* The fact that gethostbyname will get called makes it
-	 necessary to store it to the list, to ensure that
-	 gethostbyname will not be called twice for the same string.
-	 However, the quality argument must be set appropriately.
-
-	 Note that add_hlist must be called *after* the realname
-	 search, or the quality would be always set to 0 */
-      DEBUGP (("This is the first time I hear about host %s by that name.\n",
-	       host));
-      hptr = ngethostbyname (host);
-      if (!hptr)
-	return xstrdup (host);
-      /* Originally, we copied to in.s_addr, but it appears to be
-         missing on some systems.  */
-      memcpy (&in, *hptr->h_addr_list, sizeof (in));
-      STRDUP_ALLOCA (inet_s, inet_ntoa (in));
-    }
-  else				/* Found, without quality */
-    {
-      /* This case happens when host is on the list,
-	 but not as first entry (the one with quality).
-	 Then we just get its INET address and pick
-	 up the first entry with quality.  */
-      DEBUGP (("We've dealt with host %s, but under the name %s.\n",
-	       host, l->realname));
-      STRDUP_ALLOCA (inet_s, l->realname);
-    }
-
-  /* Now we certainly have the INET address.  The following loop is
-     guaranteed to pick either an entry with quality (because it is
-     the first one), or none at all.  */
-  l_real = search_address (hlist, inet_s);
-  if (l_real)			/* Found in the list, as realname.  */
-    {
-      if (!l)
-	/* Set the default, 0 quality.  */
-	hlist = add_hlist (hlist, host, inet_s, 0);
-      return xstrdup (l_real->hostname);
-    }
-  /* Since this is really the first time this host is encountered,
-     set quality to 1.  */
-  hlist = add_hlist (hlist, host, inet_s, 1);
-  return xstrdup (host);
-}
-
-/* Compare two hostnames (out of URL-s if the arguments are URL-s),
-   taking care of aliases.  It uses realhost() to determine a unique
-   hostname for each of two hosts.  If simple_check is non-zero, only
-   strcmp() is used for comparison.  */
-int
-same_host (const char *u1, const char *u2)
+static void
+gethostbyname_with_timeout_callback (void *arg)
 {
-  const char *s;
-  char *p1, *p2;
-  char *real1, *real2;
-
-  /* Skip protocol, if present.  */
-  u1 += skip_url (u1);
-  u2 += skip_url (u2);
-  u1 += skip_proto (u1);
-  u2 += skip_proto (u2);
-
-  /* Skip username ans password, if present.  */
-  u1 += skip_uname (u1);
-  u2 += skip_uname (u2);
-
-  for (s = u1; *u1 && *u1 != '/' && *u1 != ':'; u1++);
-  p1 = strdupdelim (s, u1);
-  for (s = u2; *u2 && *u2 != '/' && *u2 != ':'; u2++);
-  p2 = strdupdelim (s, u2);
-  DEBUGP (("Comparing hosts %s and %s...\n", p1, p2));
-  if (strcasecmp (p1, p2) == 0)
-    {
-      free (p1);
-      free (p2);
-      DEBUGP (("They are quite alike.\n"));
-      return 1;
-    }
-  else if (opt.simple_check)
-    {
-      free (p1);
-      free (p2);
-      DEBUGP (("Since checking is simple, I'd say they are not the same.\n"));
-      return 0;
-    }
-  real1 = realhost (p1);
-  real2 = realhost (p2);
-  free (p1);
-  free (p2);
-  if (strcasecmp (real1, real2) == 0)
-    {
-      DEBUGP (("They are alike, after realhost()->%s.\n", real1));
-      free (real1);
-      free (real2);
-      return 1;
-    }
-  else
-    {
-      DEBUGP (("They are not the same (%s, %s).\n", real1, real2));
-      free (real1);
-      free (real2);
-      return 0;
-    }
+  struct ghbnwt_context *ctx = (struct ghbnwt_context *)arg;
+  ctx->hptr = gethostbyname (ctx->host_name);
 }
 
+/* Just like gethostbyname, except it times out after TIMEOUT seconds.
+   In case of timeout, NULL is returned and errno is set to ETIMEDOUT.
+   The function makes sure that when NULL is returned for reasons
+   other than timeout, errno is reset.  */
+
+static struct hostent *
+gethostbyname_with_timeout (const char *host_name, double timeout)
+{
+  struct ghbnwt_context ctx;
+  ctx.host_name = host_name;
+  if (run_with_timeout (timeout, gethostbyname_with_timeout_callback, &ctx))
+    {
+      SET_H_ERRNO (HOST_NOT_FOUND);
+      errno = ETIMEDOUT;
+      return NULL;
+    }
+  if (!ctx.hptr)
+    errno = 0;
+  return ctx.hptr;
+}
+
+#else  /* ENABLE_IPV6 */
+
+struct gaiwt_context {
+  const char *node;
+  const char *service;
+  const struct addrinfo *hints;
+  struct addrinfo **res;
+  int exit_code;
+};
+
+static void
+getaddrinfo_with_timeout_callback (void *arg)
+{
+  struct gaiwt_context *ctx = (struct gaiwt_context *)arg;
+  ctx->exit_code = getaddrinfo (ctx->node, ctx->service, ctx->hints, ctx->res);
+}
+
+/* Just like getaddrinfo, except it times out after TIMEOUT seconds.
+   In case of timeout, the EAI_SYSTEM error code is returned and errno
+   is set to ETIMEDOUT.  */
+
+static int
+getaddrinfo_with_timeout (const char *node, const char *service,
+			  const struct addrinfo *hints, struct addrinfo **res,
+			  double timeout)
+{
+  struct gaiwt_context ctx;
+  ctx.node = node;
+  ctx.service = service;
+  ctx.hints = hints;
+  ctx.res = res;
+
+  if (run_with_timeout (timeout, getaddrinfo_with_timeout_callback, &ctx))
+    {
+      errno = ETIMEDOUT;
+      return EAI_SYSTEM;
+    }
+  return ctx.exit_code;
+}
+
+#endif /* ENABLE_IPV6 */
+
+/* Pretty-print ADDR.  When compiled without IPv6, this is the same as
+   inet_ntoa.  With IPv6, it either prints an IPv6 address or an IPv4
+   address.  */
+
+char *
+pretty_print_address (ip_address *addr)
+{
+#ifdef ENABLE_IPV6
+  ip4_address addr4;
+  static char buf[128];
+
+  if (map_ip_to_ipv4 (addr, &addr4))
+    return inet_ntoa (*(struct in_addr *)&addr4);
+
+  if (!inet_ntop (AF_INET6, addr, buf, sizeof (buf)))
+    return "<unknown>";
+  return buf;
+#endif
+  return inet_ntoa (*(struct in_addr *)addr);
+}
+
+/* Add host name HOST with the address ADDR_TEXT to the cache.
+   ADDR_LIST is a NULL-terminated list of addresses, as in struct
+   hostent.  */
+
+static void
+cache_host_lookup (const char *host, struct address_list *al)
+{
+  if (!host_name_addresses_map)
+    host_name_addresses_map = make_nocase_string_hash_table (0);
+
+  ++al->refcount;
+  hash_table_put (host_name_addresses_map, xstrdup_lower (host), al);
+
+#ifdef ENABLE_DEBUG
+  if (opt.debug)
+    {
+      int i;
+      debug_logprintf ("Caching %s =>", host);
+      for (i = 0; i < al->count; i++)
+	debug_logprintf (" %s", pretty_print_address (al->addresses + i));
+      debug_logprintf ("\n");
+    }
+#endif
+}
+
+struct address_list *
+lookup_host (const char *host, int silent)
+{
+  struct address_list *al = NULL;
+  uint32_t addr_ipv4;
+  ip_address addr;
+
+  /* First, try to check whether the address is already a numeric
+     address.  */
+
+#ifdef ENABLE_IPV6
+  if (inet_pton (AF_INET6, host, &addr) > 0)
+    return address_list_from_single (&addr);
+#endif
+
+  addr_ipv4 = (uint32_t)inet_addr (host);
+  if (addr_ipv4 != (uint32_t)-1)
+    {
+      /* ADDR is defined to be in network byte order, which is what
+	 this returns, so we can just copy it to STORE_IP.  */
+      map_ipv4_to_ip ((ip4_address *)&addr_ipv4, &addr);
+      return address_list_from_single (&addr);
+    }
+
+  if (host_name_addresses_map)
+    {
+      al = hash_table_get (host_name_addresses_map, host);
+      if (al)
+	{
+	  DEBUGP (("Found %s in host_name_addresses_map (%p)\n", host, al));
+	  ++al->refcount;
+	  return al;
+	}
+    }
+
+  if (!silent)
+    logprintf (LOG_VERBOSE, _("Resolving %s... "), host);
+
+  /* Host name lookup goes on below. */
+
+#ifdef HAVE_GETADDRINFO
+  {
+    struct addrinfo hints, *ai;
+    int err;
+
+    memset (&hints, 0, sizeof (hints));
+    if (ip_default_family == AF_INET)
+      hints.ai_family   = AF_INET;
+    else
+      hints.ai_family   = PF_UNSPEC;
+    hints.ai_socktype = SOCK_STREAM;
+    err = getaddrinfo_with_timeout (host, NULL, &hints, &ai, opt.dns_timeout);
+
+    if (err != 0 || ai == NULL)
+      {
+        if (!silent)
+	  logprintf (LOG_VERBOSE, _("failed: %s.\n"),
+		     err != EAI_SYSTEM ? gai_strerror (err) : strerror (errno));
+        return NULL;
+      }
+    al = address_list_from_addrinfo (ai);
+    freeaddrinfo (ai);
+  }
+#else
+  {
+    struct hostent *hptr;
+    hptr = gethostbyname_with_timeout (host, opt.dns_timeout);
+    if (!hptr)
+      {
+	if (!silent)
+	  {
+	    if (errno != ETIMEDOUT)
+	      logprintf (LOG_VERBOSE, _("failed: %s.\n"), herrmsg (h_errno));
+	    else
+	      logputs (LOG_VERBOSE, _("failed: timed out.\n"));
+	  }
+	return NULL;
+      }
+    /* Do all systems have h_addr_list, or is it a newer thing?  If
+       the latter, use address_list_from_single.  */
+    al = address_list_from_vector (hptr->h_addr_list);
+  }
+#endif
+
+  /* Print the addresses determined by DNS lookup, but no more than
+     three.  */
+  if (!silent)
+    {
+      int i;
+      int printmax = al->count <= 3 ? al->count : 3;
+      for (i = 0; i < printmax; i++)
+	{
+	  logprintf (LOG_VERBOSE, "%s",
+		     pretty_print_address (al->addresses + i));
+	  if (i < printmax - 1)
+	    logputs (LOG_VERBOSE, ", ");
+	}
+      if (printmax != al->count)
+	logputs (LOG_VERBOSE, ", ...");
+      logputs (LOG_VERBOSE, "\n");
+    }
+
+  /* Cache the lookup information. */
+  if (opt.dns_cache)
+    cache_host_lookup (host, al);
+
+  return al;
+}
+
 /* Determine whether a URL is acceptable to be followed, according to
    a list of domains to accept.  */
 int
-accept_domain (struct urlinfo *u)
+accept_domain (struct url *u)
 {
   assert (u->host != NULL);
   if (opt.domains)
@@ -410,127 +748,6 @@ sufmatch (const char **list, const char *what)
   return 0;
 }
 
-/* Return email address of the form username@FQDN suitable for
-   anonymous FTP passwords.  This process is error-prone, and the
-   escape hatch is the MY_HOST preprocessor constant, which can be
-   used to hard-code either your hostname or FQDN at compile-time.
-
-   If the FQDN cannot be determined, a warning is printed, and the
-   function returns a short `username@' form, accepted by most
-   anonymous servers.
-
-   If not even the username cannot be divined, it means things are
-   seriously fucked up, and Wget exits.  */
-char *
-ftp_getaddress (void)
-{
-  static char *address;
-
-  /* Do the drill only the first time, as it won't change.  */
-  if (!address)
-    {
-      char userid[32];		/* 9 should be enough for Unix, but
-				   I'd rather be on the safe side.  */
-      char *host, *fqdn;
-
-      if (!pwd_cuserid (userid))
-	{
-	  logprintf (LOG_ALWAYS, _("%s: Cannot determine user-id.\n"),
-		     exec_name);
-	  exit (1);
-	}
-#ifdef MY_HOST
-      STRDUP_ALLOCA (host, MY_HOST);
-#else /* not MY_HOST */
-#ifdef HAVE_UNAME
-      {
-	struct utsname ubuf;
-	if (uname (&ubuf) < 0)
-	  {
-	    logprintf (LOG_ALWAYS, _("%s: Warning: uname failed: %s\n"),
-		       exec_name, strerror (errno));
-	    fqdn = "";
-	    goto giveup;
-	  }
-	STRDUP_ALLOCA (host, ubuf.nodename);
-      }
-#else /* not HAVE_UNAME */
-#ifdef HAVE_GETHOSTNAME
-      host = alloca (256);
-      if (gethostname (host, 256) < 0)
-	{
-	  logprintf (LOG_ALWAYS, _("%s: Warning: gethostname failed\n"),
-		     exec_name);
-	  fqdn = "";
-	  goto giveup;
-	}
-#else /* not HAVE_GETHOSTNAME */
- #error Cannot determine host name.
-#endif /* not HAVE_GETHOSTNAME */
-#endif /* not HAVE_UNAME */
-#endif /* not MY_HOST */
-      /* If the address we got so far contains a period, don't bother
-         anymore.  */
-      if (strchr (host, '.'))
-	fqdn = host;
-      else
-	{
-	  /* #### I've seen the following scheme fail on at least one
-	     system!  Do we care?  */
-	  char *tmpstore;
-	  /* According to Richard Stevens, the correct way to find the
-	     FQDN is to (1) find the host name, (2) find its IP
-	     address using gethostbyname(), and (3) get the FQDN using
-	     gethostbyaddr().  So that's what we'll do.  Step one has
-	     been done above.  */
-	  /* (2) */
-	  struct hostent *hp = gethostbyname (host);
-	  if (!hp || !hp->h_addr_list)
-	    {
-	      logprintf (LOG_ALWAYS, _("\
-%s: Warning: cannot determine local IP address.\n"),
-			 exec_name);
-	      fqdn = "";
-	      goto giveup;
-	    }
-	  /* Copy the argument, so the call to gethostbyaddr doesn't
-	     clobber it -- just in case.  */
-	  tmpstore = (char *)alloca (hp->h_length);
-	  memcpy (tmpstore, *hp->h_addr_list, hp->h_length);
-	  /* (3) */
-	  hp = gethostbyaddr (tmpstore, hp->h_length, hp->h_addrtype);
-	  if (!hp || !hp->h_name)
-	    {
-	      logprintf (LOG_ALWAYS, _("\
-%s: Warning: cannot reverse-lookup local IP address.\n"),
-			 exec_name);
-	      fqdn = "";
-	      goto giveup;
-	    }
-	  if (!strchr (hp->h_name, '.'))
-	    {
-#if 0
-	      /* This gets ticked pretty often.  Karl Berry reports
-                 that there can be valid reasons for the local host
-                 name not to be an FQDN, so I've decided to remove the
-                 annoying warning.  */
- 	      logprintf (LOG_ALWAYS, _("\
-%s: Warning: reverse-lookup of local address did not yield FQDN!\n"),
-		       exec_name);
-#endif
-	      fqdn = "";
-	      goto giveup;
-	    }
-	  /* Once we're here, hp->h_name contains the correct FQDN.  */
-	  STRDUP_ALLOCA (fqdn, hp->h_name);
-	}
-    giveup:
-      address = (char *)xmalloc (strlen (userid) + 1 + strlen (fqdn) + 1);
-      sprintf (address, "%s@%s", userid, fqdn);
-    }
-  return address;
-}
-
 /* Print error messages for host errors.  */
 char *
 herrmsg (int error)
@@ -547,20 +764,27 @@ herrmsg (int error)
     return _("Unknown error");
 }
 
-/* Clean the host list.  This is a separate function, so we needn't
-   export HLIST and its implementation.  Ha!  */
-void
-clean_hosts (void)
+static int
+host_cleanup_mapper (void *key, void *value, void *arg_ignored)
 {
-  struct host *l = hlist;
+  struct address_list *al;
 
-  while (l)
+  xfree (key);			/* host */
+
+  al = (struct address_list *)value;
+  assert (al->refcount == 1);
+  address_list_delete (al);
+
+  return 0;
+}
+
+void
+host_cleanup (void)
+{
+  if (host_name_addresses_map)
     {
-      struct host *p = l->next;
-      free (l->hostname);
-      free (l->realname);
-      free (l);
-      l = p;
+      hash_table_map (host_name_addresses_map, host_cleanup_mapper, NULL);
+      hash_table_destroy (host_name_addresses_map);
+      host_name_addresses_map = NULL;
     }
-  hlist = NULL;
 }

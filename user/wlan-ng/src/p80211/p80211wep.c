@@ -65,6 +65,7 @@
 
 #include <wlan/version.h>
 #include <wlan/p80211hdr.h>
+#include <wlan/p80211types.h>
 #include <wlan/p80211msg.h>
 #include <wlan/p80211conv.h>
 #include <wlan/p80211netdev.h>

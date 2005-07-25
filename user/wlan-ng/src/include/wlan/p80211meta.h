@@ -122,7 +122,6 @@ typedef struct p80211meta
 	UINT32			maxlen;		/* maxlen of a OCTETSTR or DISPLAYSTR */
 	UINT32			minlen;		/* minlen of a OCTETSTR or DISPLAYSTR */
 	p80211enum_t		*enumptr;	/* ptr to the enum type for ENUMINT */
-	void			*reserve;	/* ptr we used in 2Mb driver */
 	p80211_totext_t		totextptr;	/* ptr to totext conversion function */
 	p80211_fromtext_t	fromtextptr;	/* ptr to totext conversion function */
 	p80211_valid_t		validfunptr;	/* ptr to totext conversion function */

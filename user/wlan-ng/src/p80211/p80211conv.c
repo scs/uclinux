@@ -49,8 +49,6 @@
 *
 * --------------------------------------------------------------------
 */
-
-
 /*================================================================*/
 /* System Includes */
 
@@ -149,7 +147,7 @@ int skb_ether_to_p80211( wlandevice_t *wlandev, UINT32 ethconv, struct sk_buff *
 	memcpy(&e_hdr, skb->data, sizeof(e_hdr)); 
 
 	if (skb->len <= 0) {
-		WLAN_LOG_DEBUG0(1, "zero-length skb!\n");
+		WLAN_LOG_DEBUG(1, "zero-length skb!\n");
 		return 1;
 	}
 
@@ -220,7 +218,7 @@ int skb_ether_to_p80211( wlandevice_t *wlandev, UINT32 ethconv, struct sk_buff *
 		memcpy(p80211_hdr->a3.a3, &e_hdr.saddr, WLAN_ADDR_LEN);
 		break;
 	default:
-		WLAN_LOG_ERROR0("Error: Converting eth to wlan in unknown mode.\n");
+		WLAN_LOG_ERROR("Error: Converting eth to wlan in unknown mode.\n");
 		return 1;
 		break;
 	}
@@ -257,6 +255,26 @@ int skb_ether_to_p80211( wlandevice_t *wlandev, UINT32 ethconv, struct sk_buff *
 	return 0;
 }
 
+/* jkriegl: from orinoco, modified */
+void orinoco_spy_gather(wlandevice_t *wlandev, char *mac, p80211_rxmeta_t *rxmeta)
+{
+        int i;
+
+        /* Gather wireless spy statistics: for each packet, compare the
+         * source address with out list, and if match, get the stats... */
+
+        for (i = 0; i < wlandev->spy_number; i++) {
+
+                if (!memcmp(wlandev->spy_address[i], mac, ETH_ALEN)) {
+			memcpy(wlandev->spy_address[i], mac, ETH_ALEN);
+                        wlandev->spy_stat[i].level = rxmeta->signal - 0x95;
+                        wlandev->spy_stat[i].noise = rxmeta->noise - 0x95;
+                        wlandev->spy_stat[i].qual = (rxmeta->signal > rxmeta->noise) ? \
+                                                     (rxmeta->signal - rxmeta->noise) : 0;
+                        wlandev->spy_stat[i].updated = 0x7;
+                }
+        }
+}
 
 /*----------------------------------------------------------------
 * p80211pb_80211_to_ether
@@ -279,7 +297,7 @@ int skb_ether_to_p80211( wlandevice_t *wlandev, UINT32 ethconv, struct sk_buff *
 ----------------------------------------------------------------*/
 int skb_p80211_to_ether( wlandevice_t *wlandev, UINT32 ethconv, struct sk_buff *skb)
 {
-	netdevice_t     *dev = wlandev->netdev;
+	netdevice_t     *netdev = wlandev->netdev;
 	UINT16          fc;
 	UINT            payload_length;
 	UINT            payload_offset;
@@ -314,7 +332,7 @@ int skb_p80211_to_ether( wlandevice_t *wlandev, UINT32 ethconv, struct sk_buff *
 		payload_offset = WLAN_HDR_A4_LEN;
 		payload_length -= ( WLAN_HDR_A4_LEN - WLAN_HDR_A3_LEN );
 		if (payload_length < 0 ) {
-			WLAN_LOG_ERROR0("A4 frame too short!\n");
+			WLAN_LOG_ERROR("A4 frame too short!\n");
 			return 1;
 		}
 		memcpy(daddr, w_hdr->a4.a3, WLAN_ETHADDR_LEN);
@@ -361,11 +379,11 @@ int skb_p80211_to_ether( wlandevice_t *wlandev, UINT32 ethconv, struct sk_buff *
 		WLAN_LOG_DEBUG(3, "802.3 ENCAP len: %d\n", payload_length);
 		/* 802.3 Encapsulated */
 		/* Test for an overlength frame */
-		if ( payload_length > WLAN_MAX_ETHFRM_LEN) {
+		if ( payload_length > (netdev->mtu + WLAN_ETHHDR_LEN)) {
 			/* A bogus length ethfrm has been encap'd. */
 			/* Is someone trying an oflow attack? */
 			WLAN_LOG_ERROR("ENCAP frame too large (%d > %d)\n", 
-				payload_length, WLAN_MAX_ETHFRM_LEN);
+				payload_length, netdev->mtu + WLAN_ETHHDR_LEN);
 			return 1;
 		}
 
@@ -388,11 +406,11 @@ int skb_p80211_to_ether( wlandevice_t *wlandev, UINT32 ethconv, struct sk_buff *
 		/* build 802.3 + RFC1042 */
 		
 		/* Test for an overlength frame */
-		if ( payload_length + WLAN_ETHHDR_LEN > WLAN_MAX_ETHFRM_LEN ) {
+		if ( payload_length > netdev->mtu ) {
 			/* A bogus length ethfrm has been sent. */
 			/* Is someone trying an oflow attack? */
 			WLAN_LOG_ERROR("SNAP frame too large (%d > %d)\n", 
-				payload_length, WLAN_MAX_ETHFRM_LEN);
+				payload_length, netdev->mtu);
 			return 1;
 		}
 
@@ -417,12 +435,13 @@ int skb_p80211_to_ether( wlandevice_t *wlandev, UINT32 ethconv, struct sk_buff *
 		/* build a DIXII + RFC894 */
 		
 		/* Test for an overlength frame */
-		if ( payload_length - sizeof(wlan_llc_t) - sizeof(wlan_snap_t) + WLAN_ETHHDR_LEN > WLAN_MAX_ETHFRM_LEN) {
+		if ((payload_length - sizeof(wlan_llc_t) - sizeof(wlan_snap_t))
+		    > netdev->mtu) {
 			/* A bogus length ethfrm has been sent. */
 			/* Is someone trying an oflow attack? */
 			WLAN_LOG_ERROR("DIXII frame too large (%d > %d)\n",
 					payload_length - sizeof(wlan_llc_t) - sizeof(wlan_snap_t),
-					WLAN_MAX_ETHFRM_LEN - WLAN_ETHHDR_LEN);
+					netdev->mtu);
 			return 1;
 		}
 
@@ -451,12 +470,12 @@ int skb_p80211_to_ether( wlandevice_t *wlandev, UINT32 ethconv, struct sk_buff *
 		/* allocate space and setup hostbuf */
 
 		/* Test for an overlength frame */
-		if ( payload_length + WLAN_ETHHDR_LEN > WLAN_MAX_ETHFRM_LEN) {
+		if ( payload_length > netdev->mtu ) {
 			/* A bogus length ethfrm has been sent. */
 			/* Is someone trying an oflow attack? */
 			WLAN_LOG_ERROR("OTHER frame too large (%d > %d)\n",
 				payload_length,
-				WLAN_MAX_ETHFRM_LEN - WLAN_ETHHDR_LEN);
+				netdev->mtu);
 			return 1;
 		}
 
@@ -474,8 +493,16 @@ int skb_p80211_to_ether( wlandevice_t *wlandev, UINT32 ethconv, struct sk_buff *
 
 	}
 
-	skb->protocol = eth_type_trans(skb, dev);
+	skb->protocol = eth_type_trans(skb, netdev);
 	skb->mac.raw = (unsigned char *) e_hdr; /* new MAC header */
+
+        /* jkriegl: process signal and noise as set in hfa384x_int_rx() */
+	/* jkriegl: only process signal/noise if requested by iwspy */
+        if (wlandev->spy_number)
+                orinoco_spy_gather(wlandev, skb->mac.ethernet->h_source, P80211SKB_RXMETA(skb));
+
+	/* Free the metadata */
+	p80211skb_rxmeta_detach(skb);
 
 	DBFEXIT;
 	return 0;
@@ -512,27 +539,141 @@ int p80211_stt_findproto(UINT16 proto)
 	return 0;
 }
 
-
-#if 0
-/* MSM: This function is currently unused.  Not sure if we'll ever need it. */
 /*----------------------------------------------------------------
-* p80211_stt_addproto
+* p80211skb_rxmeta_detach
 *
-* Add a protocol to the 802.1h Selective Translation Table.
+* Disconnects the frmmeta and rxmeta from an skb.
 *
 * Arguments:
-*	proto	protocl number (in host order) to search for.
+*	wlandev		The wlandev this skb belongs to.
+*	skb		The skb we're attaching to.
 *
 * Returns: 
-*	nothing
+*	0 on success, non-zero otherwise
 *	
 * Call context:
 *	May be called in interrupt or non-interrupt context
 ----------------------------------------------------------------*/
-int p80211_stt_addproto(UINT16 proto)
+void
+p80211skb_rxmeta_detach(struct sk_buff *skb)
 {
+	p80211_rxmeta_t		*rxmeta;
+	p80211_frmmeta_t	*frmmeta;
+
+	DBFENTER;
+	/* Sanity checks */
+	if ( skb==NULL ) {			/* bad skb */
+		WLAN_LOG_DEBUG(1, "Called w/ null skb.\n");
+		goto exit;
+	}
+	frmmeta = P80211SKB_FRMMETA(skb);
+	if ( frmmeta == NULL ) { 		/* no magic */
+		WLAN_LOG_DEBUG(1, "Called w/ bad frmmeta magic.\n");
+		goto exit;
+	}
+	rxmeta = frmmeta->rx;
+	if ( rxmeta == NULL ) {			/* bad meta ptr */
+		WLAN_LOG_DEBUG(1, "Called w/ bad rxmeta ptr.\n");
+		goto exit;
+	}
+	
+	/* Free rxmeta */
+	kfree(rxmeta);
+
+	/* Clear skb->cb */
+	memset(skb->cb, 0, sizeof(skb->cb));
+exit:
+	DBFEXIT;
 	return;
 }
 
-#endif
+/*----------------------------------------------------------------
+* p80211skb_rxmeta_attach
+*
+* Allocates a p80211rxmeta structure, initializes it, and attaches
+* it to an skb.
+*
+* Arguments:
+*	wlandev		The wlandev this skb belongs to.
+*	skb		The skb we're attaching to.
+*
+* Returns: 
+*	0 on success, non-zero otherwise
+*	
+* Call context:
+*	May be called in interrupt or non-interrupt context
+----------------------------------------------------------------*/
+int
+p80211skb_rxmeta_attach(struct wlandevice *wlandev, struct sk_buff *skb)
+{
+	int			result = 0;
+	p80211_rxmeta_t		*rxmeta;
+	p80211_frmmeta_t	*frmmeta;
 
+	DBFENTER;
+
+	/* If these already have metadata, we error out! */
+	if (P80211SKB_RXMETA(skb) != NULL) {
+		WLAN_LOG_ERROR("%s: RXmeta already attached!\n", 
+				wlandev->name);	
+		result = 0;
+		goto exit;
+	}
+
+	/* Allocate the rxmeta */
+	rxmeta = kmalloc(sizeof(p80211_rxmeta_t), GFP_ATOMIC);
+ 
+	if ( rxmeta == NULL ) {
+		WLAN_LOG_ERROR("%s: Failed to allocate rxmeta.\n", 
+				wlandev->name);
+		result = 1;
+		goto exit;
+	}
+
+	/* Initialize the rxmeta */
+	memset(rxmeta, 0, sizeof(p80211_rxmeta_t));
+	rxmeta->wlandev = wlandev;
+	rxmeta->hosttime = jiffies;
+
+	/* Overlay a frmmeta_t onto skb->cb */
+	memset(skb->cb, 0, sizeof(p80211_frmmeta_t));
+	frmmeta = (p80211_frmmeta_t*)(skb->cb);
+	frmmeta->magic = P80211_FRMMETA_MAGIC;
+	frmmeta->rx = rxmeta;
+exit:
+	DBFEXIT;
+	return result;
+}
+
+/*----------------------------------------------------------------
+* p80211skb_free
+*
+* Frees an entire p80211skb by checking and freeing the meta struct
+* and then freeing the skb.
+*
+* Arguments:
+*	wlandev		The wlandev this skb belongs to.
+*	skb		The skb we're attaching to.
+*
+* Returns: 
+*	0 on success, non-zero otherwise
+*	
+* Call context:
+*	May be called in interrupt or non-interrupt context
+----------------------------------------------------------------*/
+void
+p80211skb_free(struct wlandevice *wlandev, struct sk_buff *skb)
+{
+	p80211_frmmeta_t	*meta;
+	DBFENTER;
+	meta = P80211SKB_FRMMETA(skb);
+	if ( meta && meta->rx) {
+		p80211skb_rxmeta_detach(skb);
+	} else {
+		WLAN_LOG_ERROR("Freeing an skb (%p) w/ no frmmeta.\n", skb);
+	}
+
+	dev_kfree_skb(skb);
+	DBFEXIT;
+	return;
+}

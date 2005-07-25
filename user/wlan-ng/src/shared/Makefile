@@ -50,9 +50,9 @@ all:
 install:
 	@echo "Nothing to do..."
 
-romfs:
-	@echo "Nothing to do..."
-
 clean:
 	rm -f core core.* *.o .*.o *.s *.a .depend tmp_make *~ tags
 	for i in *_obj; do if [ -d $$i ]; then rm -fr $$i; fi; done
+
+romfs:
+	@echo "Nothing to do..."

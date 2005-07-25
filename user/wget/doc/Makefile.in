@@ -30,6 +30,8 @@ DVIPS = dvips -D 300
 # Program to convert texinfo files to html
 TEXI2HTML = texi2html -expandinfo -split_chapter
 
+top_builddir = ..
+
 top_srcdir = @top_srcdir@
 srcdir     = @srcdir@
 VPATH      = @srcdir@
@@ -40,33 +42,48 @@ mandir     = @mandir@
 manext     = 1
 sysconfdir = @sysconfdir@
 
+DESTDIR    =
+
 INSTALL      = @INSTALL@
 INSTALL_DATA = @INSTALL_DATA@
 RM = rm -f
 
-MAN        = wget.$(manext)
-WGETRC     = $(sysconfdir)/wgetrc
+TEXI2POD     = $(srcdir)/texi2pod.pl
+POD2MAN      = @POD2MAN@
+MAN          = wget.$(manext)
+WGETRC       = $(sysconfdir)/wgetrc
+SAMPLERCTEXI = sample.wgetrc.munged_for_texi_inclusion
 
 #
 # Dependencies for building
 #
 
-all: wget.info # wget.cat
+all: wget.info @COMMENT_IF_NO_POD2MAN@$(MAN)
 
 everything: all wget_us.ps wget_a4.ps wget_toc.html
 
-sample.wgetrc.munged_for_texi_inclusion: sample.wgetrc
-	sed s/@/@@/g $(srcdir)/sample.wgetrc > sample.wgetrc.munged_for_texi_inclusion
+$(SAMPLERCTEXI): $(srcdir)/sample.wgetrc
+	sed s/@/@@/g $? > $@
 
-wget.info: sample.wgetrc.munged_for_texi_inclusion wget.texi
-	-$(MAKEINFO)
+wget.info: $(SAMPLERCTEXI) $(srcdir)/wget.texi
+	$(MAKEINFO) -I$(srcdir)
+
+$(TEXI2POD): $(TEXI2POD).in
+	sed 's,^#! /usr/bin/perl,#! @PERL@,' $? > $@
+	chmod u+x $@
+
+wget.pod: $(srcdir)/wget.texi $(TEXI2POD)
+	$(TEXI2POD) $(srcdir)/wget.texi $@
+
+$(MAN): wget.pod
+	$(POD2MAN) --center="GNU Wget" --release="GNU Wget @VERSION@" $? > $@
 
 #wget.cat: $(MAN)
-#	nroff -man $(srcdir)/$(MAN) > wget.cat
+#	nroff -man $? > $@
 
 dvi: wget.dvi
 
-wget.dvi: wget.texi
+wget.dvi: $(srcdir)/wget.texi
 	$(TEXI2DVI) $(srcdir)/wget.texi
 
 wget_us.ps: wget.dvi
@@ -75,7 +92,7 @@ wget_us.ps: wget.dvi
 wget_a4.ps: wget.dvi
 	$(DVIPS) -t a4 -o $@ wget.dvi
 
-wget_toc.html: wget.texi
+wget_toc.html: $(srcdir)/wget.texi
 	$(TEXI2HTML) $(srcdir)/wget.texi
 
 #
@@ -83,66 +100,75 @@ wget_toc.html: wget.texi
 #
 
 # install all the documentation
-install: install.info install.wgetrc # install.man
+install: install.info install.wgetrc @COMMENT_IF_NO_POD2MAN@install.man
 
 # uninstall all the documentation
-uninstall: uninstall.info # uninstall.man
+uninstall: uninstall.info @COMMENT_IF_NO_POD2MAN@uninstall.man
 
 # install info pages, creating install directory if necessary
+# if the info pages are built in the build directory, they are used.
+# otherwise, the ones from the distribution are installed.
 install.info: wget.info
-	$(top_srcdir)/mkinstalldirs $(infodir)
-	-for file in wget.info wget.info-*[0-9]; do \
-	   test -f $$file && $(INSTALL_DATA) $$file $(infodir)/$$file ; \
-	done
+	$(top_srcdir)/mkinstalldirs $(DESTDIR)$(infodir)
+	-if test -f wget.info; then \
+	  for file in wget.info wget.info-*[0-9]; do \
+	    test -f "$$file" && \
+	      $(INSTALL_DATA) "$$file" "$(DESTDIR)$(infodir)/$$file" ; \
+	  done; \
+	else \
+	  for file in $(srcdir)/wget.info $(srcdir)/wget.info-*[0-9]; do \
+	    test -f "$$file" && \
+	      $(INSTALL_DATA) "$$file" "$(DESTDIR)$(infodir)/`basename $$file`" ; \
+	  done; \
+	fi
 
 # install man page, creating install directory if necessary
-#install.man:
-#	$(top_srcdir)/mkinstalldirs $(mandir)/man$(manext)
-#	$(INSTALL_DATA) $(srcdir)/$(MAN) $(mandir)/man$(manext)/$(MAN)
+install.man: $(MAN)
+	$(top_srcdir)/mkinstalldirs $(DESTDIR)$(mandir)/man$(manext)
+	$(INSTALL_DATA) $(MAN) $(DESTDIR)$(mandir)/man$(manext)/$(MAN)
 
 # install sample.wgetrc
-install.wgetrc:
-	$(top_srcdir)/mkinstalldirs $(sysconfdir)
-	@if test -f $(WGETRC); then \
-	  if cmp -s $(srcdir)/sample.wgetrc $(WGETRC); then echo ""; \
+install.wgetrc: $(srcdir)/sample.wgetrc
+	$(top_srcdir)/mkinstalldirs $(DESTDIR)$(sysconfdir)
+	@if test -f $(DESTDIR)$(WGETRC); then \
+	  if cmp -s $(srcdir)/sample.wgetrc $(DESTDIR)$(WGETRC); then echo ""; \
 	     else \
-	     echo ' $(INSTALL_DATA) $(srcdir)/sample.wgetrc $(WGETRC).new'; \
-	     $(INSTALL_DATA) $(srcdir)/sample.wgetrc $(WGETRC).new; \
+	     echo ' $(INSTALL_DATA) $(srcdir)/sample.wgetrc $(DESTDIR)$(WGETRC).new'; \
+	     $(INSTALL_DATA) $(srcdir)/sample.wgetrc $(DESTDIR)$(WGETRC).new; \
 	     echo; \
-	     echo "WARNING: Differing \`$(WGETRC)'"; \
+	     echo "WARNING: Differing \`$(DESTDIR)$(WGETRC)'"; \
 	     echo "         exists and has been spared.  You might want to"; \
 	     echo "         consider merging in the new lines from"; \
-	     echo "         \`$(WGETRC).new'."; \
-	     echo; \
-	     echo "<Hit RETURN to acknowledge>\c"; \
-	     read user_input; \
+	     echo "         \`$(DESTDIR)$(WGETRC).new'."; \
 	     echo; \
 	  fi; \
 	else \
-	  $(INSTALL_DATA) $(srcdir)/sample.wgetrc $(WGETRC); \
+	  $(INSTALL_DATA) $(srcdir)/sample.wgetrc $(DESTDIR)$(WGETRC); \
 	fi
 
 # uninstall info pages
 uninstall.info:
-	$(RM) $(infodir)/wget.info*
+	$(RM) $(DESTDIR)$(infodir)/wget.info*
 
 # uninstall man page
-#uninstall.man:
-#	$(RM) $(mandir)/man$(manext)/$(MAN)
+uninstall.man:
+	$(RM) $(DESTDIR)$(mandir)/man$(manext)/$(MAN)
 
 #
 # Dependencies for cleanup
 #
 
 clean:
-	$(RM) *~ *.bak *.cat *.html
+	$(RM) *~ *.bak *.cat *.pod *.html
 	$(RM) *.dvi *.aux *.cp *.cps *.fn *.toc *.tp *.vr *.ps *.ky *.pg *.log
 
 distclean: clean
 	$(RM) Makefile
+	$(RM) $(MAN) $(TEXI2POD)
 
 realclean: distclean
 	$(RM) wget.info*
+	$(RM) $(SAMPLERCTEXI)
 
 #
 # Dependencies for maintenance

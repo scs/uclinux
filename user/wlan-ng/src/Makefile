@@ -61,6 +61,7 @@ clean:
 	set -e; for d in $(DIRS); do $(MAKE) -C $$d clean ; done
 	rm -f core core.* *.o .*.o *.s *.a .depend tmp_make *~ tags
 	set -e; for i in *_obj; do if [ -d $$i ]; then rm -fr $$i; fi; done
+	rm -rf .tmp_versions
 	
 install:
 	set -e; for d in $(DIRS); do $(MAKE) -C $$d install ; done
@@ -68,9 +69,8 @@ ifdef INSTALL_DEPMOD
 	/sbin/depmod -a
 endif
 
-romfs:
-	set -e; for d in $(DIRS); do $(MAKE) -C $$d romfs ; done
-
 ctags:
 	ctags -R
 
+romfs:
+	set -e; for d in $(DIRS); do $(MAKE) -C $$d romfs ; done

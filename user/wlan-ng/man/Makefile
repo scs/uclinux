@@ -52,10 +52,9 @@ install:
 	cp nwepgen.man wlancfg.man wlanctl-ng.man wland.man \
 	$(TARGET_ROOT_ON_HOST)/usr/local/man/man1
 
-romfs:
-	@echo "Nothing to do..."
-
 clean:
 	rm -f core core.* *.o .*.o *.s *.a .depend tmp_make *~ tags
 	for i in *_obj; do if [ -d $$i ]; then rm -fr $$i; fi; done
 	
+romfs:
+	@echo "Nothing to do..."

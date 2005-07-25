@@ -1,21 +1,31 @@
 /* Dirty system-dependent hacks.
    Copyright (C) 1995, 1996, 1997, 1998, 2000 Free Software Foundation, Inc.
 
-This file is part of Wget.
+This file is part of GNU Wget.
 
-This program is free software; you can redistribute it and/or modify
+GNU Wget is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
+the Free Software Foundation; either version 2 of the License, or (at
+your option) any later version.
 
-This program is distributed in the hope that it will be useful,
+GNU Wget is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
+along with Wget; if not, write to the Free Software
+Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+
+In addition, as a special exception, the Free Software Foundation
+gives permission to link the code of its release of Wget with the
+OpenSSL project's "OpenSSL" library (or with modified versions of it
+that use the same license as the "OpenSSL" library), and distribute
+the linked executables.  You must obey the GNU General Public License
+in all respects for all of the code used other than "OpenSSL".  If you
+modify this file, you may extend this exception to your version of the
+file, but you are not obligated to do so.  If you do not wish to do
+so, delete this exception statement from your version.  */
 
 /* This file is included by wget.h.  Random .c files need not include
    it.  */
@@ -38,12 +48,30 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include <sys/types.h>
 #include <sys/stat.h>
 
+#ifdef HAVE_INTTYPES_H
+# include <inttypes.h>
+#endif
+
 #ifdef WINDOWS
 /* Windows doesn't have some functions.  Include mswindows.h so we get
    their declarations, as well as some additional declarations and
    macros.  This must come first, so it can set things up.  */
 #include <mswindows.h>
 #endif /* WINDOWS */
+
+/* Watcom-specific stuff.  In practice this is probably specific to
+   Windows, although Watcom exists under other OS's too.  For that
+   reason, we keep this here.  */
+
+#ifdef __WATCOMC__
+/* Watcom has its own alloca() defined in malloc.h malloc.h needs to
+   be included in the sources to prevent 'undefined external' errors
+   at the link phase. */
+# include <malloc.h>
+/* io.h defines unlink() and chmod().  We put this here because it's
+   way too obscure to require all the .c files to observe.  */
+# include <io.h>
+#endif /* __WATCOMC__ */
 
 /* Needed for compilation under OS/2: */
 #ifdef __EMX__
@@ -80,6 +108,13 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #endif
 #endif
 
+#ifdef __BEOS__
+# undef READ
+# undef WRITE
+# define READ(fd, buf, cnt) recv((fd), (buf), (cnt), 0)
+# define WRITE(fd, buf, cnt) send((fd), (buf), (cnt), 0)
+#endif
+
 /* mswindows.h defines these.  */
 #ifndef READ
 # define READ(fd, buf, cnt) read ((fd), (buf), (cnt))
@@ -97,41 +132,33 @@ do {						\
   DEBUGP (("Closing fd %d\n", x));		\
 } while (0)
 
-/* Define a "very long" type useful for storing large non-negative
-   integers, e.g. the total number of bytes downloaded.  This needs to
-   be an integral type at least 64 bits wide.  On the machines where
-   `long' is 64-bit, we use long.  Otherwise, we check whether `long
-   long' is available and if yes, use that.  Otherwise, we give up and
-   just use `long'.  */
-#if (SIZEOF_LONG >= 8) || !defined(HAVE_LONG_LONG)
-# define VERY_LONG_TYPE   unsigned long
-# define VERY_LONG_FORMAT "%lu"
-#else  /* long is smaller than 8 bytes, but long long is available. */
-# define VERY_LONG_TYPE   unsigned long long
-# define VERY_LONG_FORMAT "%llu"
-#endif /* use long long */
+/* Define a large integral type useful for storing large sizes that
+   exceed sizes of one download, such as when printing the sum of all
+   downloads.  Note that this has nothing to do with large file
+   support, yet.
 
-/* OK, now define a decent interface to ctype macros.  The regular
-   ones misfire when you feed them chars > 127, as they understand
-   them as "negative", which results in out-of-bound access at
-   table-lookup, yielding random results.  This is, of course, totally
-   bogus.  One way to "solve" this is to use `unsigned char'
-   everywhere, but it is nearly impossible to do that cleanly, because
-   all of the library functions and system calls accept `char'.
+   We use a 64-bit integral type where available, `double' otherwise.
+   It's hard to print LARGE_INT's portably, but fortunately it's
+   rarely needed.  */
 
-   Thus we define our wrapper macros which simply cast the argument to
-   unsigned char before passing it to the <ctype.h> macro.  These
-   versions are used consistently across the code.  */
-#define ISASCII(x)  isascii ((unsigned char)(x))
-#define ISALPHA(x)  isalpha ((unsigned char)(x))
-#define ISALNUM(x)  isalnum ((unsigned char)(x))
-#define ISSPACE(x)  isspace ((unsigned char)(x))
-#define ISDIGIT(x)  isdigit ((unsigned char)(x))
-#define ISXDIGIT(x) isxdigit ((unsigned char)(x))
-#define TOUPPER(x)  toupper ((unsigned char)(x))
-#define TOLOWER(x)  tolower ((unsigned char)(x))
+#if SIZEOF_LONG >= 8
+/* Long is large enough: use it.  */
+typedef long LARGE_INT;
+# define LARGE_INT_FMT "%ld"
+#else
+# if SIZEOF_LONG_LONG >= 8
+/* Long long is large enough: use it.  */
+typedef long long LARGE_INT;
+#  define LARGE_INT_FMT "%lld"
+# else
+/* Large integer type unavailable; use `double' instead.  */
+typedef double LARGE_INT;
+#  define LARGE_INT_FMT "%.0f"
+# endif
+#endif
 
-/* Defined in cmpt.c: */
+/* These are defined in cmpt.c if missing, therefore it's generally
+   safe to declare their parameters.  */
 #ifndef HAVE_STRERROR
 char *strerror ();
 #endif
@@ -147,13 +174,23 @@ char *strstr ();
 #ifndef HAVE_STRPTIME
 char *strptime ();
 #endif
+#ifndef HAVE_SNPRINTF
+int snprintf ();
+#endif
 #ifndef HAVE_VSNPRINTF
 int vsnprintf ();
 #endif
+#ifndef HAVE_USLEEP
+int usleep PARAMS ((unsigned long));
+#endif
+#ifndef HAVE_MEMMOVE
+void *memmove ();
+#endif
 
 /* SunOS brain damage -- for some reason, SunOS header files fail to
-   declare the functions below, which causes all kinds of problems
-   (compiling errors) with pointer arithmetic and similar.
+   declare the functions below, which causes all kinds of problems,
+   most notably compilation errors when using pointer arithmetic on
+   their return values.
 
    This used to be only within `#ifdef STDC_HEADERS', but it got
    tripped on other systems (AIX), thus causing havoc.  Fortunately,
@@ -161,15 +198,80 @@ int vsnprintf ();
    added an extra `#ifdef sun' guard.  */
 #ifndef STDC_HEADERS
 #ifdef sun
-#ifndef __cplusplus
+#ifndef __SVR4			/* exclude Solaris */
 char *strstr ();
 char *strchr ();
 char *strrchr ();
 char *strtok ();
 char *strdup ();
 void *memcpy ();
-#endif /* not __cplusplus */
+#endif /* not __SVR4 */
 #endif /* sun */
-#endif /* STDC_HEADERS */
+#endif /* not STDC_HEADERS */
+
+/* Some systems (Linux libc5, "NCR MP-RAS 3.0", and others) don't
+   provide MAP_FAILED, a symbolic constant for the value returned by
+   mmap() when it doesn't work.  Usually, this constant should be -1.
+   This only makes sense for files that use mmap() and include
+   sys/mman.h *before* sysdep.h, but doesn't hurt others.  */
+
+#ifndef MAP_FAILED
+# define MAP_FAILED ((void *) -1)
+#endif
+
+/* Enable system fnmatch only on systems where fnmatch.h is usable and
+   which are known to have a non-broken fnmatch implementation.
+   Currently those include glibc-based systems and Solaris.  One could
+   add more, but fnmatch is not that large, so it might be better to
+   play it safe.  */
+#ifdef HAVE_WORKING_FNMATCH_H
+# if defined __GLIBC__ && __GLIBC__ >= 2
+#  define SYSTEM_FNMATCH
+# endif
+# ifdef solaris
+#  define SYSTEM_FNMATCH
+# endif
+#endif /* HAVE_FNMATCH_H */
+
+#ifdef SYSTEM_FNMATCH
+# include <fnmatch.h>
+#else  /* not SYSTEM_FNMATCH */
+/* Define fnmatch flags.  Undef them first to avoid warnings in case
+   an evil library include chose to include system fnmatch.h.  */
+# undef FNM_PATHNAME
+# undef FNM_NOESCAPE
+# undef FNM_PERIOD
+# undef FNM_NOMATCH
+
+# define FNM_PATHNAME	(1 << 0) /* No wildcard can ever match `/'.  */
+# define FNM_NOESCAPE	(1 << 1) /* Backslashes don't quote special chars.  */
+# define FNM_PERIOD	(1 << 2) /* Leading `.' is matched only explicitly.  */
+# define FNM_NOMATCH	1
+
+/* Declare the function minimally. */
+int fnmatch ();
+#endif
+
+/* Provide uint32_t on the platforms that don't define it.  Although
+   most code should be agnostic about integer sizes, some code really
+   does need a 32-bit integral type.  Such code should use uint32_t.
+   (The exception is gnu-md5.[ch], which uses its own detection for
+   portability across platforms.)  */
+
+#ifndef HAVE_UINT32_T
+# if SIZEOF_INT == 4
+typedef unsigned int uint32_t;
+# else
+#  if SIZEOF_LONG == 4
+typedef unsigned long uint32_t;
+#  else
+#   if SIZEOF_SHORT == 4
+typedef unsigned short uint32_t;
+#   else
+ #error "Cannot determine a 32-bit unsigned integer type"
+#   endif
+#  endif
+# endif
+#endif
 
 #endif /* SYSDEP_H */

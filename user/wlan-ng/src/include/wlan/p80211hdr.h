@@ -218,7 +218,7 @@
 typedef UINT8 wlan_bss_ts_t[WLAN_BSS_TS_LEN];
 
 /* Generic 802.11 Header types */
-__WLAN_PRAGMA_PACK1__
+
 typedef struct p80211_hdr_a3
 {
 	UINT16	fc			__WLAN_ATTRIB_PACK__;
@@ -228,9 +228,7 @@ typedef struct p80211_hdr_a3
 	UINT8	a3[WLAN_ADDR_LEN]	__WLAN_ATTRIB_PACK__;
 	UINT16	seq			__WLAN_ATTRIB_PACK__;
 } __WLAN_ATTRIB_PACK__ p80211_hdr_a3_t;
-__WLAN_PRAGMA_PACKDFLT__
 
-__WLAN_PRAGMA_PACK1__
 typedef struct p80211_hdr_a4
 {
 	UINT16	fc			__WLAN_ATTRIB_PACK__;
@@ -241,7 +239,6 @@ typedef struct p80211_hdr_a4
 	UINT16	seq			__WLAN_ATTRIB_PACK__;
 	UINT8	a4[WLAN_ADDR_LEN]	__WLAN_ATTRIB_PACK__;
 } __WLAN_ATTRIB_PACK__ p80211_hdr_a4_t;
-__WLAN_PRAGMA_PACKDFLT__
 
 typedef union p80211_hdr
 {
@@ -258,5 +255,43 @@ typedef union p80211_hdr
 /* Function Declarations */
 
 void p802addr_to_str( char *buf, UINT8 *addr);
+
+/* Frame and header lenght macros */
+
+#define WLAN_CTL_FRAMELEN(fstype) (\
+	(fstype) == WLAN_FSTYPE_PSPOLL		? 20 : \
+	(fstype) == WLAN_FSTYPE_RTS		? 20 : \
+	(fstype) == WLAN_FSTYPE_CTS		? 14 : \
+	(fstype) == WLAN_FSTYPE_ACK		? 14 : \
+	(fstype) == WLAN_FSTYPE_CFEND		? 20 : \
+	(fstype) == WLAN_FSTYPE_CFENDCFACK	? 20 : 0)
+
+#define WLAN_FCS_LEN			4
+
+/* ftcl in HOST order */
+inline static UINT16 p80211_headerlen(UINT16 fctl)
+{
+	UINT16 hdrlen = 0;
+
+	switch ( WLAN_GET_FC_FTYPE(fctl) ) {
+	case WLAN_FTYPE_MGMT:
+		hdrlen = WLAN_HDR_A3_LEN;
+		break;
+	case WLAN_FTYPE_DATA:
+		hdrlen = WLAN_HDR_A3_LEN;
+		if ( WLAN_GET_FC_TODS(fctl) && WLAN_GET_FC_FROMDS(fctl) ) {
+			hdrlen += WLAN_ADDR_LEN;
+		}
+		break;
+	case WLAN_FTYPE_CTL:
+		hdrlen = WLAN_CTL_FRAMELEN(WLAN_GET_FC_FSTYPE(fctl)) - 
+			WLAN_FCS_LEN; 
+		break;
+	default:
+		hdrlen = WLAN_HDR_A3_LEN;
+	}
+	
+	return hdrlen;
+}
 
 #endif /* _P80211HDR_H */

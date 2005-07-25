@@ -48,15 +48,14 @@ CPPFLAGS= -I../include -I$(LINUX_SRC)/include \
 		-D__LINUX_WLAN__
 
 nwepgen: nwepgen.o
-	$(CC) $(LDFLAGS) -o nwepgen nwepgen.o
+	$(CC) $(LDFLAGS) -o nwepgen nwepgen.o $(LDLIBS$(LDLIBS_$@))
 
 install:
 	mkdir -p $(TARGET_INST_EXEDIR)
 	cp nwepgen $(TARGET_INST_EXEDIR)
 
-romfs:
-	$(ROMFSINST) -e CONFIG_USER_WLAN_NG_NWEPGEN /sbin/nwepgen
-
 clean: 
 	rm -f core core.* *.o .*.o *.s *.a .depend tmp_make *~ nwepgen
 
+romfs:
+	$(ROMFSINST) -e CONFIG_USER_WLAN_NG_NWEPGEN /sbin/nwepgen

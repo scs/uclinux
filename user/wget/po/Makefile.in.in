@@ -12,6 +12,8 @@ VERSION = @VERSION@
 SHELL = /bin/sh
 @SET_MAKE@
 
+top_builddir = ..
+
 srcdir = @srcdir@
 top_srcdir = @top_srcdir@
 VPATH = @srcdir@
@@ -24,17 +26,19 @@ gnulocaledir = $(prefix)/share/locale
 gettextsrcdir = $(prefix)/share/gettext/po
 subdir = po
 
+DESTDIR =
+
 INSTALL = @INSTALL@
 INSTALL_DATA = @INSTALL_DATA@
 
-#CC = @CC@
+CC = @CC@
 GMSGFMT = PATH=../src:$$PATH @GMSGFMT@
 MSGFMT = @MSGFMT@
 XGETTEXT = PATH=../src:$$PATH @XGETTEXT@
 MSGMERGE = PATH=../src:$$PATH msgmerge
 
 DEFS = @DEFS@
-CFLAGS += @CFLAGS@
+CFLAGS = @CFLAGS@
 CPPFLAGS = @CPPFLAGS@
 
 INCLUDES = -I.. -I$(top_srcdir)/intl
@@ -92,8 +96,8 @@ install-data-yes: all
 	for cat in $$catalogs; do \
 	  cat=`basename $$cat`; \
 	  case "$$cat" in \
-	    *.gmo) destdir=$(gnulocaledir);; \
-	    *)     destdir=$(localedir);; \
+	    *.gmo) destdir=$(DESTDIR)$(gnulocaledir);; \
+	    *)     destdir=$(DESTDIR)$(localedir);; \
 	  esac; \
 	  lang=`echo $$cat | sed 's/\$(CATOBJEXT)$$//'`; \
 	  dir=$$destdir/$$lang/LC_MESSAGES; \
@@ -135,10 +139,12 @@ uninstall:
 	for cat in $$catalogs; do \
 	  cat=`basename $$cat`; \
 	  lang=`echo $$cat | sed 's/\$(CATOBJEXT)$$//'`; \
-	  rm -f $(localedir)/$$lang/LC_MESSAGES/$(PACKAGE)$(INSTOBJEXT); \
-	  rm -f $(localedir)/$$lang/LC_MESSAGES/$(PACKAGE)$(INSTOBJEXT).m; \
-	  rm -f $(gnulocaledir)/$$lang/LC_MESSAGES/$(PACKAGE)$(INSTOBJEXT); \
-	  rm -f $(gnulocaledir)/$$lang/LC_MESSAGES/$(PACKAGE)$(INSTOBJEXT).m; \
+	  dir=$(DESTDIR)$(localedir)/$$lang/LC_MESSAGES; \
+	  rm -f $$dir/$(PACKAGE)$(INSTOBJEXT); \
+	  rm -f $$dir/$(PACKAGE)$(INSTOBJEXT).m; \
+	  dir=$(DESTDIR)$(gnulocaledir)/$$lang/LC_MESSAGES; \
+	  rm -f $$dir/$(PACKAGE)$(INSTOBJEXT); \
+	  rm -f $$dir/$(PACKAGE)$(INSTOBJEXT).m; \
 	done
 	rm -f $(gettextsrcdir)/po-Makefile.in.in
 
@@ -158,9 +164,11 @@ distclean: clean
 	rm -f Makefile Makefile.in POTFILES *.mo *.msg
 
 maintainer-clean: distclean
-	@echo "This command is intended for maintainers to use;"
-	@echo "it deletes files that may require special tools to rebuild."
+	@echo "!! This command is intended for maintainers to use;"
+	@echo "!! it deletes files that may require special tools to rebuild."
 	rm -f $(GMOFILES)
+
+realclean: maintainer-clean
 
 distdir = ../$(PACKAGE)-$(VERSION)/$(subdir)
 dist distdir: update-po $(DISTFILES)

@@ -64,137 +64,22 @@
 /*=============================================================*/
 /*------ Constants --------------------------------------------*/
 
-#define	MAX_GRP_ADDR		(32)
-#define	MAX_PRISM2_GRP_ADDR	(16)
-
-#define MM_SAT_PCF		(BIT14)
-#define MM_GCSD_PCF		(BIT15)
-#define MM_GCSD_PCF_EB		(BIT14 | BIT15)
-
-#define WLAN_STATE_STOPPED	0   /* Network is not active. */
-#define WLAN_STATE_STARTED	1   /* Network has been started. */
-
-#define WLAN_AUTH_MAX           60  /* Max. # of authenticated stations. */
-#define WLAN_ACCESS_MAX		60  /* Max. # of stations in an access list. */
-#define WLAN_ACCESS_NONE	0   /* No stations may be authenticated. */
-#define WLAN_ACCESS_ALL		1   /* All stations may be authenticated. */
-#define WLAN_ACCESS_ALLOW	2   /* Authenticate only "allowed" stations. */
-#define WLAN_ACCESS_DENY	3   /* Do not authenticate "denied" stations. */
-
-#define WLAN_COMMENT_MAX	80  /* Max. length of user comment string. */
-
 /*=============================================================*/
 /*------ Macros -----------------------------------------------*/
 
-
 /*=============================================================*/
 /*------ Types and their related constants --------------------*/
-
-typedef struct prism2sta_authlist
-{
-	UINT	cnt;
-	UINT8	addr[WLAN_AUTH_MAX][WLAN_ADDR_LEN];
-	UINT8	assoc[WLAN_AUTH_MAX];
-} prism2sta_authlist_t;
-
-typedef struct prism2sta_accesslist
-{
-	UINT	modify;
-	UINT	cnt;
-	UINT8	addr[WLAN_ACCESS_MAX][WLAN_ADDR_LEN];
-	UINT	cnt1;
-	UINT8	addr1[WLAN_ACCESS_MAX][WLAN_ADDR_LEN];
-} prism2sta_accesslist_t;
-
-typedef struct prism2sta_priv
-{
-#if (WLAN_HOSTIF == WLAN_PCMCIA)
-	dev_node_t	node;
-	dev_link_t	*cs_link;
-#elif (WLAN_HOSTIF==WLAN_PLX || WLAN_HOSTIF==WLAN_PCI || WLAN_HOSTIF==WLAN_USB)
-	char		name[WLAN_DEVNAMELEN_MAX];
-#endif
-
-	/* Structure for MAC data */
-	hfa384x_t	*hw;
-
-	/* Component Identities */
-	hfa384x_compident_t	ident_nic;
-	hfa384x_compident_t	ident_pri_fw;
-	hfa384x_compident_t	ident_sta_fw;
-	hfa384x_compident_t	ident_ap_fw;
-	UINT16			mm_mods;
-
-	/* Supplier compatibility ranges */
-	hfa384x_caplevel_t	cap_sup_mfi;
-	hfa384x_caplevel_t	cap_sup_cfi;
-	hfa384x_caplevel_t	cap_sup_pri;
-	hfa384x_caplevel_t	cap_sup_sta;
-	hfa384x_caplevel_t	cap_sup_ap;
-
-	/* Actor compatibility ranges */
-	hfa384x_caplevel_t	cap_act_pri_cfi; /* pri f/w to controller interface */
-	hfa384x_caplevel_t	cap_act_sta_cfi; /* sta f/w to controller interface */
-	hfa384x_caplevel_t	cap_act_sta_mfi; /* sta f/w to modem interface */
-	hfa384x_caplevel_t	cap_act_ap_cfi;  /* ap f/w to controller interface */
-	hfa384x_caplevel_t	cap_act_ap_mfi;  /* ap f/w to modem interface */
-
-	/* PDA */
-	UINT8			pda[HFA384x_PDA_LEN_MAX];
-	hfa384x_pdrec_t		*pdrec[HFA384x_PDA_RECS_MAX];
-	UINT			npdrec;
-
-	/* The following are dot11StationConfigurationTable mibitems
-	maintained by the driver; there are no Prism2 RID's */
-	UINT32		dot11_desired_bss_type;
-	UINT32		dot11_disassoc_reason;
-	UINT8		dot11_disassoc_station[WLAN_ADDR_LEN];
-	UINT32		dot11_deauth_reason;
-	UINT8		dot11_deauth_station[WLAN_ADDR_LEN];
-	UINT32		dot11_auth_fail_status;
-	UINT8		dot11_auth_fail_station[WLAN_ADDR_LEN];
-
-	/* Group Addresses - right now, there are up to a total
-	of MAX_GRP_ADDR group addresses */
-	UINT8		dot11_grp_addr[MAX_GRP_ADDR][WLAN_ADDR_LEN];
-	UINT		dot11_grpcnt;
-
-	/* Channel Info request results (AP only) */
-	struct {
-		atomic_t		done;
-		UINT8			count;
-		hfa384x_ChInfoResult_t	results;
-	} channel_info;
-
-	/* State variables */
-	UINT		presniff_port_type;
-	UINT16		presniff_wepflags;
-
-	int		ap;	/* AP flag: 0 - Station, 1 - Access Point. */
-	int		state;	/* Network state: 0 - Stopped, 1 - Started. */
-	int		log;	/* Log flag: 0 - No, 1 - Log events. */
-
-        prism2sta_authlist_t	authlist;     /* Authenticated station list. */
-	UINT			accessmode;   /* Access mode. */
-        prism2sta_accesslist_t	allow;        /* Allowed station list. */
-        prism2sta_accesslist_t	deny;         /* Denied station list. */
-	UINT32			psusercount;  /* Power save user count. */
-	hfa384x_CommTallies32_t	tallies;      /* Communication tallies. */
-	UINT8			comment[WLAN_COMMENT_MAX+1]; /* User comment */
-
-	hfa384x_InfFrame_t      *scanresults;
-} prism2sta_priv_t;
-
 
 /*=============================================================*/
 /*------ Static variable externs ------------------------------*/
 
 #if (WLAN_HOSTIF != WLAN_USB)
 extern int      prism2_bap_timeout;
+extern int	prism2_irq_evread_max;
 #endif
 extern int	prism2_debug;
-extern int	prism2_irq_evread_max;
-
+extern int      prism2_reset_holdtime;
+extern int      prism2_reset_settletime;
 /*=============================================================*/
 /*--- Function Declarations -----------------------------------*/
 /*=============================================================*/
@@ -278,17 +163,13 @@ void prism2mgmt_set_oprateset(UINT16 *rate, p80211pstrd_t *pstr);
 
 /* functions to convert Group Addresses */
 void prism2mgmt_get_grpaddr(UINT32 did, 
-	p80211pstrd_t *pstr, prism2sta_priv_t *priv );
+	p80211pstrd_t *pstr, hfa384x_t *priv );
 int prism2mgmt_set_grpaddr(UINT32 did, 
-	UINT8 *prism2buf, p80211pstrd_t *pstr, prism2sta_priv_t *priv );
+	UINT8 *prism2buf, p80211pstrd_t *pstr, hfa384x_t *priv );
 int prism2mgmt_get_grpaddr_index( UINT32 did );
 
+void prism2sta_processing_defer(void *data);
 
-#ifdef DECLARE_TASKLET
-void prism2sta_linkstatus_defer(unsigned long data);
-#else
-void prism2sta_linkstatus_defer(void *data);
-#endif
 
 /*=============================================================*/
 /*--- Inline Function Definitions (if supported) --------------*/

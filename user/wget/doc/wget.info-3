@@ -1,8 +1,6 @@
-This is Info file wget.info, produced by Makeinfo version 1.68 from the
-input file ./wget.texi.
+This is wget.info, produced by makeinfo version 4.3 from ./wget.texi.
 
-INFO-DIR-SECTION Net Utilities
-INFO-DIR-SECTION World Wide Web
+INFO-DIR-SECTION Network Applications
 START-INFO-DIR-ENTRY
 * Wget: (wget).         The non-interactive network downloader.
 END-INFO-DIR-ENTRY
@@ -10,7 +8,8 @@ END-INFO-DIR-ENTRY
    This file documents the the GNU Wget utility for downloading network
 data.
 
-   Copyright (C) 1996, 1997, 1998, 2000 Free Software Foundation, Inc.
+   Copyright (C) 1996, 1997, 1998, 2000, 2001, 2002, 2003 Free Software
+Foundation, Inc.
 
    Permission is granted to make and distribute verbatim copies of this
 manual provided the copyright notice and this permission notice are
@@ -25,37 +24,580 @@ Back-Cover Texts.  A copy of the license is included in the section
 entitled "GNU Free Documentation License".
 
 
+File: wget.info,  Node: Advanced Usage,  Next: Very Advanced Usage,  Prev: Simple Usage,  Up: Examples
+
+Advanced Usage
+==============
+
+   * You have a file that contains the URLs you want to download?  Use
+     the `-i' switch:
+
+          wget -i FILE
+
+     If you specify `-' as file name, the URLs will be read from
+     standard input.
+
+   * Create a five levels deep mirror image of the GNU web site, with
+     the same directory structure the original has, with only one try
+     per document, saving the log of the activities to `gnulog':
+
+          wget -r http://www.gnu.org/ -o gnulog
+
+   * The same as the above, but convert the links in the HTML files to
+     point to local files, so you can view the documents off-line:
+
+          wget --convert-links -r http://www.gnu.org/ -o gnulog
+
+   * Retrieve only one HTML page, but make sure that all the elements
+     needed for the page to be displayed, such as inline images and
+     external style sheets, are also downloaded.  Also make sure the
+     downloaded page references the downloaded links.
+
+          wget -p --convert-links http://www.server.com/dir/page.html
+
+     The HTML page will be saved to `www.server.com/dir/page.html', and
+     the images, stylesheets, etc., somewhere under `www.server.com/',
+     depending on where they were on the remote server.
+
+   * The same as the above, but without the `www.server.com/' directory.
+     In fact, I don't want to have all those random server directories
+     anyway--just save _all_ those files under a `download/'
+     subdirectory of the current directory.
+
+          wget -p --convert-links -nH -nd -Pdownload \
+               http://www.server.com/dir/page.html
+
+   * Retrieve the index.html of `www.lycos.com', showing the original
+     server headers:
+
+          wget -S http://www.lycos.com/
+
+   * Save the server headers with the file, perhaps for post-processing.
+
+          wget -s http://www.lycos.com/
+          more index.html
+
+   * Retrieve the first two levels of `wuarchive.wustl.edu', saving them
+     to `/tmp'.
+
+          wget -r -l2 -P/tmp ftp://wuarchive.wustl.edu/
+
+   * You want to download all the GIFs from a directory on an HTTP
+     server.  You tried `wget http://www.server.com/dir/*.gif', but that
+     didn't work because HTTP retrieval does not support globbing.  In
+     that case, use:
+
+          wget -r -l1 --no-parent -A.gif http://www.server.com/dir/
+
+     More verbose, but the effect is the same.  `-r -l1' means to
+     retrieve recursively (*note Recursive Retrieval::), with maximum
+     depth of 1.  `--no-parent' means that references to the parent
+     directory are ignored (*note Directory-Based Limits::), and
+     `-A.gif' means to download only the GIF files.  `-A "*.gif"' would
+     have worked too.
+
+   * Suppose you were in the middle of downloading, when Wget was
+     interrupted.  Now you do not want to clobber the files already
+     present.  It would be:
+
+          wget -nc -r http://www.gnu.org/
+
+   * If you want to encode your own username and password to HTTP or
+     FTP, use the appropriate URL syntax (*note URL Format::).
+
+          wget ftp://hniksic:mypassword@unix.server.com/.emacs
+
+     Note, however, that this usage is not advisable on multi-user
+     systems because it reveals your password to anyone who looks at
+     the output of `ps'.
+
+   * You would like the output documents to go to standard output
+     instead of to files?
+
+          wget -O - http://jagor.srce.hr/ http://www.srce.hr/
+
+     You can also combine the two options and make pipelines to
+     retrieve the documents from remote hotlists:
+
+          wget -O - http://cool.list.com/ | wget --force-html -i -
+
+
+File: wget.info,  Node: Very Advanced Usage,  Prev: Advanced Usage,  Up: Examples
+
+Very Advanced Usage
+===================
+
+   * If you wish Wget to keep a mirror of a page (or FTP
+     subdirectories), use `--mirror' (`-m'), which is the shorthand for
+     `-r -l inf -N'.  You can put Wget in the crontab file asking it to
+     recheck a site each Sunday:
+
+          crontab
+          0 0 * * 0 wget --mirror http://www.gnu.org/ -o /home/me/weeklog
+
+   * In addition to the above, you want the links to be converted for
+     local viewing.  But, after having read this manual, you know that
+     link conversion doesn't play well with timestamping, so you also
+     want Wget to back up the original HTML files before the
+     conversion.  Wget invocation would look like this:
+
+          wget --mirror --convert-links --backup-converted  \
+               http://www.gnu.org/ -o /home/me/weeklog
+
+   * But you've also noticed that local viewing doesn't work all that
+     well when HTML files are saved under extensions other than `.html',
+     perhaps because they were served as `index.cgi'.  So you'd like
+     Wget to rename all the files served with content-type `text/html'
+     or `application/xhtml+xml' to `NAME.html'.
+
+          wget --mirror --convert-links --backup-converted \
+               --html-extension -o /home/me/weeklog        \
+               http://www.gnu.org/
+
+     Or, with less typing:
+
+          wget -m -k -K -E http://www.gnu.org/ -o /home/me/weeklog
+
+
+File: wget.info,  Node: Various,  Next: Appendices,  Prev: Examples,  Up: Top
+
+Various
+*******
+
+   This chapter contains all the stuff that could not fit anywhere else.
+
+* Menu:
+
+* Proxies::             Support for proxy servers
+* Distribution::        Getting the latest version.
+* Mailing List::        Wget mailing list for announcements and discussion.
+* Reporting Bugs::      How and where to report bugs.
+* Portability::         The systems Wget works on.
+* Signals::             Signal-handling performed by Wget.
+
+
+File: wget.info,  Node: Proxies,  Next: Distribution,  Prev: Various,  Up: Various
+
+Proxies
+=======
+
+   "Proxies" are special-purpose HTTP servers designed to transfer data
+from remote servers to local clients.  One typical use of proxies is
+lightening network load for users behind a slow connection.  This is
+achieved by channeling all HTTP and FTP requests through the proxy
+which caches the transferred data.  When a cached resource is requested
+again, proxy will return the data from cache.  Another use for proxies
+is for companies that separate (for security reasons) their internal
+networks from the rest of Internet.  In order to obtain information
+from the Web, their users connect and retrieve remote data using an
+authorized proxy.
+
+   Wget supports proxies for both HTTP and FTP retrievals.  The
+standard way to specify proxy location, which Wget recognizes, is using
+the following environment variables:
+
+`http_proxy'
+     This variable should contain the URL of the proxy for HTTP
+     connections.
+
+`ftp_proxy'
+     This variable should contain the URL of the proxy for FTP
+     connections.  It is quite common that HTTP_PROXY and FTP_PROXY are
+     set to the same URL.
+
+`no_proxy'
+     This variable should contain a comma-separated list of domain
+     extensions proxy should _not_ be used for.  For instance, if the
+     value of `no_proxy' is `.mit.edu', proxy will not be used to
+     retrieve documents from MIT.
+
+   In addition to the environment variables, proxy location and settings
+may be specified from within Wget itself.
+
+`-Y on/off'
+`--proxy=on/off'
+`proxy = on/off'
+     This option may be used to turn the proxy support on or off.  Proxy
+     support is on by default, provided that the appropriate environment
+     variables are set.
+
+`http_proxy = URL'
+`ftp_proxy = URL'
+`no_proxy = STRING'
+     These startup file variables allow you to override the proxy
+     settings specified by the environment.
+
+   Some proxy servers require authorization to enable you to use them.
+The authorization consists of "username" and "password", which must be
+sent by Wget.  As with HTTP authorization, several authentication
+schemes exist.  For proxy authorization only the `Basic' authentication
+scheme is currently implemented.
+
+   You may specify your username and password either through the proxy
+URL or through the command-line options.  Assuming that the company's
+proxy is located at `proxy.company.com' at port 8001, a proxy URL
+location containing authorization data might look like this:
+
+     http://hniksic:mypassword@proxy.company.com:8001/
+
+   Alternatively, you may use the `proxy-user' and `proxy-password'
+options, and the equivalent `.wgetrc' settings `proxy_user' and
+`proxy_passwd' to set the proxy username and password.
+
+
+File: wget.info,  Node: Distribution,  Next: Mailing List,  Prev: Proxies,  Up: Various
+
+Distribution
+============
+
+   Like all GNU utilities, the latest version of Wget can be found at
+the master GNU archive site ftp.gnu.org, and its mirrors.  For example,
+Wget 1.9.1 can be found at
+<ftp://ftp.gnu.org/pub/gnu/wget/wget-1.9.1.tar.gz>
+
+
+File: wget.info,  Node: Mailing List,  Next: Reporting Bugs,  Prev: Distribution,  Up: Various
+
+Mailing List
+============
+
+   Wget has its own mailing list at <wget@sunsite.dk>, thanks to
+Karsten Thygesen.  The mailing list is for discussion of Wget features
+and web, reporting Wget bugs (those that you think may be of interest
+to the public) and mailing announcements.  You are welcome to
+subscribe.  The more people on the list, the better!
+
+   To subscribe, simply send mail to <wget-subscribe@sunsite.dk>.
+Unsubscribe by mailing to <wget-unsubscribe@sunsite.dk>.
+
+   The mailing list is archived at <http://fly.srk.fer.hr/archive/wget>.
+Alternative archive is available at
+<http://www.mail-archive.com/wget%40sunsite.auc.dk/>.
+
+
+File: wget.info,  Node: Reporting Bugs,  Next: Portability,  Prev: Mailing List,  Up: Various
+
+Reporting Bugs
+==============
+
+   You are welcome to send bug reports about GNU Wget to
+<bug-wget@gnu.org>.
+
+   Before actually submitting a bug report, please try to follow a few
+simple guidelines.
+
+  1. Please try to ascertain that the behavior you see really is a bug.
+     If Wget crashes, it's a bug.  If Wget does not behave as
+     documented, it's a bug.  If things work strange, but you are not
+     sure about the way they are supposed to work, it might well be a
+     bug.
+
+  2. Try to repeat the bug in as simple circumstances as possible.
+     E.g. if Wget crashes while downloading `wget -rl0 -kKE -t5 -Y0
+     http://yoyodyne.com -o /tmp/log', you should try to see if the
+     crash is repeatable, and if will occur with a simpler set of
+     options.  You might even try to start the download at the page
+     where the crash occurred to see if that page somehow triggered the
+     crash.
+
+     Also, while I will probably be interested to know the contents of
+     your `.wgetrc' file, just dumping it into the debug message is
+     probably a bad idea.  Instead, you should first try to see if the
+     bug repeats with `.wgetrc' moved out of the way.  Only if it turns
+     out that `.wgetrc' settings affect the bug, mail me the relevant
+     parts of the file.
+
+  3. Please start Wget with `-d' option and send the log (or the
+     relevant parts of it).  If Wget was compiled without debug support,
+     recompile it.  It is _much_ easier to trace bugs with debug support
+     on.
+
+  4. If Wget has crashed, try to run it in a debugger, e.g. `gdb `which
+     wget` core' and type `where' to get the backtrace.
+
+
+File: wget.info,  Node: Portability,  Next: Signals,  Prev: Reporting Bugs,  Up: Various
+
+Portability
+===========
+
+   Since Wget uses GNU Autoconf for building and configuring, and avoids
+using "special" ultra-mega-cool features of any particular Unix, it
+should compile (and work) on all common Unix flavors.
+
+   Various Wget versions have been compiled and tested under many kinds
+of Unix systems, including Solaris, Linux, SunOS, OSF (aka Digital
+Unix), Ultrix, *BSD, IRIX, and others; refer to the file `MACHINES' in
+the distribution directory for a comprehensive list.  If you compile it
+on an architecture not listed there, please let me know so I can update
+it.
+
+   Wget should also compile on the other Unix systems, not listed in
+`MACHINES'.  If it doesn't, please let me know.
+
+   Thanks to kind contributors, this version of Wget compiles and works
+on Microsoft Windows 95 and Windows NT platforms.  It has been compiled
+successfully using MS Visual C++ 4.0, Watcom, and Borland C compilers,
+with Winsock as networking software.  Naturally, it is crippled of some
+features available on Unix, but it should work as a substitute for
+people stuck with Windows.  Note that the Windows port is *neither
+tested nor maintained* by me--all questions and problems should be
+reported to Wget mailing list at <wget@sunsite.dk> where the
+maintainers will look at them.
+
+
+File: wget.info,  Node: Signals,  Prev: Portability,  Up: Various
+
+Signals
+=======
+
+   Since the purpose of Wget is background work, it catches the hangup
+signal (`SIGHUP') and ignores it.  If the output was on standard
+output, it will be redirected to a file named `wget-log'.  Otherwise,
+`SIGHUP' is ignored.  This is convenient when you wish to redirect the
+output of Wget after having started it.
+
+     $ wget http://www.ifi.uio.no/~larsi/gnus.tar.gz &
+     $ kill -HUP %%     # Redirect the output to wget-log
+
+   Other than that, Wget will not try to interfere with signals in any
+way.  `C-c', `kill -TERM' and `kill -KILL' should kill it alike.
+
+
+File: wget.info,  Node: Appendices,  Next: Copying,  Prev: Various,  Up: Top
+
+Appendices
+**********
+
+   This chapter contains some references I consider useful.
+
+* Menu:
+
+* Robot Exclusion::         Wget's support for RES.
+* Security Considerations:: Security with Wget.
+* Contributors::            People who helped.
+
+
+File: wget.info,  Node: Robot Exclusion,  Next: Security Considerations,  Prev: Appendices,  Up: Appendices
+
+Robot Exclusion
+===============
+
+   It is extremely easy to make Wget wander aimlessly around a web site,
+sucking all the available data in progress.  `wget -r SITE', and you're
+set.  Great?  Not for the server admin.
+
+   As long as Wget is only retrieving static pages, and doing it at a
+reasonable rate (see the `--wait' option), there's not much of a
+problem.  The trouble is that Wget can't tell the difference between the
+smallest static page and the most demanding CGI.  A site I know has a
+section handled by a CGI Perl script that converts Info files to HTML on
+the fly.  The script is slow, but works well enough for human users
+viewing an occasional Info file.  However, when someone's recursive Wget
+download stumbles upon the index page that links to all the Info files
+through the script, the system is brought to its knees without providing
+anything useful to the user (This task of converting Info files could be
+done locally and access to Info documentation for all installed GNU
+software on a system is available from the `info' command).
+
+   To avoid this kind of accident, as well as to preserve privacy for
+documents that need to be protected from well-behaved robots, the
+concept of "robot exclusion" was invented.  The idea is that the server
+administrators and document authors can specify which portions of the
+site they wish to protect from robots and those they will permit access.
+
+   The most popular mechanism, and the de facto standard supported by
+all the major robots, is the "Robots Exclusion Standard" (RES) written
+by Martijn Koster et al. in 1994.  It specifies the format of a text
+file containing directives that instruct the robots which URL paths to
+avoid.  To be found by the robots, the specifications must be placed in
+`/robots.txt' in the server root, which the robots are expected to
+download and parse.
+
+   Although Wget is not a web robot in the strictest sense of the word,
+it can downloads large parts of the site without the user's
+intervention to download an individual page.  Because of that, Wget
+honors RES when downloading recursively.  For instance, when you issue:
+
+     wget -r http://www.server.com/
+
+   First the index of `www.server.com' will be downloaded.  If Wget
+finds that it wants to download more documents from that server, it will
+request `http://www.server.com/robots.txt' and, if found, use it for
+further downloads.  `robots.txt' is loaded only once per each server.
+
+   Until version 1.8, Wget supported the first version of the standard,
+written by Martijn Koster in 1994 and available at
+<http://www.robotstxt.org/wc/norobots.html>.  As of version 1.8, Wget
+has supported the additional directives specified in the internet draft
+`<draft-koster-robots-00.txt>' titled "A Method for Web Robots
+Control".  The draft, which has as far as I know never made to an RFC,
+is available at <http://www.robotstxt.org/wc/norobots-rfc.txt>.
+
+   This manual no longer includes the text of the Robot Exclusion
+Standard.
+
+   The second, less known mechanism, enables the author of an individual
+document to specify whether they want the links from the file to be
+followed by a robot.  This is achieved using the `META' tag, like this:
+
+     <meta name="robots" content="nofollow">
+
+   This is explained in some detail at
+<http://www.robotstxt.org/wc/meta-user.html>.  Wget supports this
+method of robot exclusion in addition to the usual `/robots.txt'
+exclusion.
+
+   If you know what you are doing and really really wish to turn off the
+robot exclusion, set the `robots' variable to `off' in your `.wgetrc'.
+You can achieve the same effect from the command line using the `-e'
+switch, e.g. `wget -e robots=off URL...'.
+
+
+File: wget.info,  Node: Security Considerations,  Next: Contributors,  Prev: Robot Exclusion,  Up: Appendices
+
+Security Considerations
+=======================
+
+   When using Wget, you must be aware that it sends unencrypted
+passwords through the network, which may present a security problem.
+Here are the main issues, and some solutions.
+
+  1. The passwords on the command line are visible using `ps'.  The
+     best way around it is to use `wget -i -' and feed the URLs to
+     Wget's standard input, each on a separate line, terminated by
+     `C-d'.  Another workaround is to use `.netrc' to store passwords;
+     however, storing unencrypted passwords is also considered a
+     security risk.
+
+  2. Using the insecure "basic" authentication scheme, unencrypted
+     passwords are transmitted through the network routers and gateways.
+
+  3. The FTP passwords are also in no way encrypted.  There is no good
+     solution for this at the moment.
+
+  4. Although the "normal" output of Wget tries to hide the passwords,
+     debugging logs show them, in all forms.  This problem is avoided by
+     being careful when you send debug logs (yes, even when you send
+     them to me).
+
+
+File: wget.info,  Node: Contributors,  Prev: Security Considerations,  Up: Appendices
+
+Contributors
+============
+
+   GNU Wget was written by Hrvoje Niksic <hniksic@xemacs.org>.
+However, its development could never have gone as far as it has, were it
+not for the help of many people, either with bug reports, feature
+proposals, patches, or letters saying "Thanks!".
+
+   Special thanks goes to the following people (no particular order):
+
+   * Karsten Thygesen--donated system resources such as the mailing
+     list, web space, and FTP space, along with a lot of time to make
+     these actually work.
+
+   * Shawn McHorse--bug reports and patches.
+
+   * Kaveh R. Ghazi--on-the-fly `ansi2knr'-ization.  Lots of
+     portability fixes.
+
+   * Gordon Matzigkeit--`.netrc' support.
+
+   * Zlatko Calusic, Tomislav Vujec and Drazen Kacar--feature
+     suggestions and "philosophical" discussions.
+
+   * Darko Budor--initial port to Windows.
+
+   * Antonio Rosella--help and suggestions, plus the Italian
+     translation.
+
+   * Tomislav Petrovic, Mario Mikocevic--many bug reports and
+     suggestions.
+
+   * Francois Pinard--many thorough bug reports and discussions.
+
+   * Karl Eichwalder--lots of help with internationalization and other
+     things.
+
+   * Junio Hamano--donated support for Opie and HTTP `Digest'
+     authentication.
+
+   * The people who provided donations for development, including Brian
+     Gough.
+
+   The following people have provided patches, bug/build reports, useful
+suggestions, beta testing services, fan mail and all the other things
+that make maintenance so much fun:
+
+   Ian Abbott Tim Adam, Adrian Aichner, Martin Baehr, Dieter Baron,
+Roger Beeman, Dan Berger, T. Bharath, Paul Bludov, Daniel Bodea, Mark
+Boyns, John Burden, Wanderlei Cavassin, Gilles Cedoc, Tim Charron, Noel
+Cragg, Kristijan Conkas, John Daily, Ahmon Dancy, Andrew Davison,
+Andrew Deryabin, Ulrich Drepper, Marc Duponcheel, Damir Dzeko, Alan
+Eldridge, Aleksandar Erkalovic, Andy Eskilsson, Christian Fraenkel,
+Masashi Fujita, Howard Gayle, Marcel Gerrits, Lemble Gregory, Hans
+Grobler, Mathieu Guillaume, Dan Harkless, Aaron Hawley, Herold Heiko,
+Jochen Hein, Karl Heuer, HIROSE Masaaki, Gregor Hoffleit, Erik Magnus
+Hulthen, Richard Huveneers, Jonas Jensen, Simon Josefsson, Mario Juric,
+Hack Kampbjorn, Const Kaplinsky, Goran Kezunovic, Robert Kleine, KOJIMA
+Haime, Fila Kolodny, Alexander Kourakos, Martin Kraemer, Simos
+KSenitellis, Hrvoje Lacko, Daniel S. Lewart, Nicolas Lichtmeier, Dave
+Love, Alexander V. Lukyanov, Thomas Lussnig, Aurelien Marchand, Jordan
+Mendelson, Lin Zhe Min, Tim Mooney, Simon Munton, Charlie Negyesi, R.
+K. Owen, Andrew Pollock, Steve Pothier, Jan Prikryl, Marin Purgar,
+Csaba Raduly, Keith Refson, Bill Richardson, Tyler Riddle, Tobias
+Ringstrom, Juan Jose Rodrigues, Maciej W. Rozycki, Edward J. Sabol,
+Heinz Salzmann, Robert Schmidt, Andreas Schwab, Chris Seawood, Toomas
+Soome, Tage Stabell-Kulo, Sven Sternberger, Markus Strasser, John
+Summerfield, Szakacsits Szabolcs, Mike Thomas, Philipp Thomas, Mauro
+Tortonesi, Dave Turner, Gisle Vanem, Russell Vincent, Charles G Waldman,
+Douglas E. Wegscheid, Jasmin Zainul, Bojan Zdrnja, Kristijan Zimmer.
+
+   Apologies to all who I accidentally left out, and many thanks to all
+the subscribers of the Wget mailing list.
+
+
 File: wget.info,  Node: Copying,  Next: Concept Index,  Prev: Appendices,  Up: Top
 
 Copying
 *******
 
-   Wget is "free software", where "free" refers to liberty, not price.
-As the GNU people like to say, think of "free speech" rather than "free
-beer".  The exact legal distribution terms follow below, but in short,
-you have the right (freedom) to run and change Wget and distribute it
-to other people, and even--if you want--charge money for any of these
-things.  The sole restriction is that you have to grant your recipients
-the same rights.
+   GNU Wget is licensed under the GNU GPL, which makes it "free
+software".
 
-   This method of licensing software is also known as "open-source",
-because it requires that the recipients always receive a program's
-source code along with the program.
+   Please note that "free" in "free software" refers to liberty, not
+price.  As some GNU project advocates like to point out, think of "free
+speech" rather than "free beer".  The exact and legally binding
+distribution terms are spelled out below; in short, you have the right
+(freedom) to run and change Wget and distribute it to other people, and
+even--if you want--charge money for doing either.  The important
+restriction is that you have to grant your recipients the same rights
+and impose the same restrictions.
 
-   More specifically:
+   This method of licensing software is also known as "open source"
+because, among other things, it makes sure that all recipients will
+receive the source code along with the program, and be able to improve
+it.  The GNU project prefers the term "free software" for reasons
+outlined at
+<http://www.gnu.org/philosophy/free-software-for-freedom.html>.
 
-     This program is free software; you can redistribute it and/or
-     modify it under the terms of the GNU General Public License as
-     published by the Free Software Foundation; either version 2 of the
-     License, or (at your option) any later version.
+   The exact license terms are defined by this paragraph and the GNU
+General Public License it refers to:
 
-     This program is distributed in the hope that it will be useful, but
+     GNU Wget is free software; you can redistribute it and/or modify it
+     under the terms of the GNU General Public License as published by
+     the Free Software Foundation; either version 2 of the License, or
+     (at your option) any later version.
+
+     GNU Wget is distributed in the hope that it will be useful, but
      WITHOUT ANY WARRANTY; without even the implied warranty of
      MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
      General Public License for more details.
 
-     You should have received a copy of the GNU General Public License
-     along with this program; if not, write to the Free Software
+     A copy of the GNU General Public License is included as part of
+     this manual; if you did not receive it, write to the Free Software
      Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
    In addition to this, this manual is free in the same sense:
@@ -83,7 +625,6 @@ GNU General Public License
 ==========================
 
                          Version 2, June 1991
-
      Copyright (C) 1989, 1991 Free Software Foundation, Inc.
      675 Mass Ave, Cambridge, MA 02139, USA
      
@@ -142,7 +683,6 @@ patent must be licensed for everyone's free use or not licensed at all.
 modification follow.
 
     TERMS AND CONDITIONS FOR COPYING, DISTRIBUTION AND MODIFICATION
-
   1. This License applies to any program or other work which contains a
      notice placed by the copyright holder saying it may be distributed
      under the terms of this General Public License.  The "Program",
@@ -439,532 +979,4 @@ program into proprietary programs.  If your program is a subroutine
 library, you may consider it more useful to permit linking proprietary
 applications with the library.  If this is what you want to do, use the
 GNU Library General Public License instead of this License.
-
-
-File: wget.info,  Node: GNU Free Documentation License,  Prev: GNU General Public License,  Up: Copying
-
-GNU Free Documentation License
-==============================
-
-                        Version 1.1, March 2000
-
-     Copyright (C) 2000  Free Software Foundation, Inc.
-     59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
-     
-     Everyone is permitted to copy and distribute verbatim copies
-     of this license document, but changing it is not allowed.
-
-  0. PREAMBLE
-
-     The purpose of this License is to make a manual, textbook, or other
-     written document "free" in the sense of freedom: to assure everyone
-     the effective freedom to copy and redistribute it, with or without
-     modifying it, either commercially or noncommercially.  Secondarily,
-     this License preserves for the author and publisher a way to get
-     credit for their work, while not being considered responsible for
-     modifications made by others.
-
-     This License is a kind of "copyleft", which means that derivative
-     works of the document must themselves be free in the same sense.
-     It complements the GNU General Public License, which is a copyleft
-     license designed for free software.
-
-     We have designed this License in order to use it for manuals for
-     free software, because free software needs free documentation: a
-     free program should come with manuals providing the same freedoms
-     that the software does.  But this License is not limited to
-     software manuals; it can be used for any textual work, regardless
-     of subject matter or whether it is published as a printed book.
-     We recommend this License principally for works whose purpose is
-     instruction or reference.
-
-  1. APPLICABILITY AND DEFINITIONS
-
-     This License applies to any manual or other work that contains a
-     notice placed by the copyright holder saying it can be distributed
-     under the terms of this License.  The "Document", below, refers to
-     any such manual or work.  Any member of the public is a licensee,
-     and is addressed as "you".
-
-     A "Modified Version" of the Document means any work containing the
-     Document or a portion of it, either copied verbatim, or with
-     modifications and/or translated into another language.
-
-     A "Secondary Section" is a named appendix or a front-matter
-     section of the Document that deals exclusively with the
-     relationship of the publishers or authors of the Document to the
-     Document's overall subject (or to related matters) and contains
-     nothing that could fall directly within that overall subject.
-     (For example, if the Document is in part a textbook of
-     mathematics, a Secondary Section may not explain any mathematics.)
-     The relationship could be a matter of historical connection with
-     the subject or with related matters, or of legal, commercial,
-     philosophical, ethical or political position regarding them.
-
-     The "Invariant Sections" are certain Secondary Sections whose
-     titles are designated, as being those of Invariant Sections, in
-     the notice that says that the Document is released under this
-     License.
-
-     The "Cover Texts" are certain short passages of text that are
-     listed, as Front-Cover Texts or Back-Cover Texts, in the notice
-     that says that the Document is released under this License.
-
-     A "Transparent" copy of the Document means a machine-readable copy,
-     represented in a format whose specification is available to the
-     general public, whose contents can be viewed and edited directly
-     and straightforwardly with generic text editors or (for images
-     composed of pixels) generic paint programs or (for drawings) some
-     widely available drawing editor, and that is suitable for input to
-     text formatters or for automatic translation to a variety of
-     formats suitable for input to text formatters.  A copy made in an
-     otherwise Transparent file format whose markup has been designed
-     to thwart or discourage subsequent modification by readers is not
-     Transparent.  A copy that is not "Transparent" is called "Opaque".
-
-     Examples of suitable formats for Transparent copies include plain
-     ASCII without markup, Texinfo input format, LaTeX input format,
-     SGML or XML using a publicly available DTD, and
-     standard-conforming simple HTML designed for human modification.
-     Opaque formats include PostScript, PDF, proprietary formats that
-     can be read and edited only by proprietary word processors, SGML
-     or XML for which the DTD and/or processing tools are not generally
-     available, and the machine-generated HTML produced by some word
-     processors for output purposes only.
-
-     The "Title Page" means, for a printed book, the title page itself,
-     plus such following pages as are needed to hold, legibly, the
-     material this License requires to appear in the title page.  For
-     works in formats which do not have any title page as such, "Title
-     Page" means the text near the most prominent appearance of the
-     work's title, preceding the beginning of the body of the text.
-
-  2. VERBATIM COPYING
-
-     You may copy and distribute the Document in any medium, either
-     commercially or noncommercially, provided that this License, the
-     copyright notices, and the license notice saying this License
-     applies to the Document are reproduced in all copies, and that you
-     add no other conditions whatsoever to those of this License.  You
-     may not use technical measures to obstruct or control the reading
-     or further copying of the copies you make or distribute.  However,
-     you may accept compensation in exchange for copies.  If you
-     distribute a large enough number of copies you must also follow
-     the conditions in section 3.
-
-     You may also lend copies, under the same conditions stated above,
-     and you may publicly display copies.
-
-  3. COPYING IN QUANTITY
-
-     If you publish printed copies of the Document numbering more than
-     100, and the Document's license notice requires Cover Texts, you
-     must enclose the copies in covers that carry, clearly and legibly,
-     all these Cover Texts: Front-Cover Texts on the front cover, and
-     Back-Cover Texts on the back cover.  Both covers must also clearly
-     and legibly identify you as the publisher of these copies.  The
-     front cover must present the full title with all words of the
-     title equally prominent and visible.  You may add other material
-     on the covers in addition.  Copying with changes limited to the
-     covers, as long as they preserve the title of the Document and
-     satisfy these conditions, can be treated as verbatim copying in
-     other respects.
-
-     If the required texts for either cover are too voluminous to fit
-     legibly, you should put the first ones listed (as many as fit
-     reasonably) on the actual cover, and continue the rest onto
-     adjacent pages.
-
-     If you publish or distribute Opaque copies of the Document
-     numbering more than 100, you must either include a
-     machine-readable Transparent copy along with each Opaque copy, or
-     state in or with each Opaque copy a publicly-accessible
-     computer-network location containing a complete Transparent copy
-     of the Document, free of added material, which the general
-     network-using public has access to download anonymously at no
-     charge using public-standard network protocols.  If you use the
-     latter option, you must take reasonably prudent steps, when you
-     begin distribution of Opaque copies in quantity, to ensure that
-     this Transparent copy will remain thus accessible at the stated
-     location until at least one year after the last time you
-     distribute an Opaque copy (directly or through your agents or
-     retailers) of that edition to the public.
-
-     It is requested, but not required, that you contact the authors of
-     the Document well before redistributing any large number of
-     copies, to give them a chance to provide you with an updated
-     version of the Document.
-
-  4. MODIFICATIONS
-
-     You may copy and distribute a Modified Version of the Document
-     under the conditions of sections 2 and 3 above, provided that you
-     release the Modified Version under precisely this License, with
-     the Modified Version filling the role of the Document, thus
-     licensing distribution and modification of the Modified Version to
-     whoever possesses a copy of it.  In addition, you must do these
-     things in the Modified Version:
-
-     A. Use in the Title Page (and on the covers, if any) a title
-     distinct    from that of the Document, and from those of previous
-     versions    (which should, if there were any, be listed in the
-     History section    of the Document).  You may use the same title
-     as a previous version    if the original publisher of that version
-     gives permission.
-     B. List on the Title Page, as authors, one or more persons or
-     entities    responsible for authorship of the modifications in the
-     Modified    Version, together with at least five of the principal
-     authors of the    Document (all of its principal authors, if it
-     has less than five).
-     C. State on the Title page the name of the publisher of the
-     Modified Version, as the publisher.
-     D. Preserve all the copyright notices of the Document.
-     E. Add an appropriate copyright notice for your modifications
-     adjacent to the other copyright notices.
-     F. Include, immediately after the copyright notices, a license
-     notice    giving the public permission to use the Modified Version
-     under the    terms of this License, in the form shown in the
-     Addendum below.
-     G. Preserve in that license notice the full lists of Invariant
-     Sections    and required Cover Texts given in the Document's
-     license notice.
-     H. Include an unaltered copy of this License.
-     I. Preserve the section entitled "History", and its title, and add
-     to    it an item stating at least the title, year, new authors, and
-       publisher of the Modified Version as given on the Title Page.
-     If    there is no section entitled "History" in the Document,
-     create one    stating the title, year, authors, and publisher of
-     the Document as    given on its Title Page, then add an item
-     describing the Modified    Version as stated in the previous
-     sentence.
-     J. Preserve the network location, if any, given in the Document for
-       public access to a Transparent copy of the Document, and
-     likewise    the network locations given in the Document for
-     previous versions    it was based on.  These may be placed in the
-     "History" section.     You may omit a network location for a work
-     that was published at    least four years before the Document
-     itself, or if the original    publisher of the version it refers
-     to gives permission.
-     K. In any section entitled "Acknowledgements" or "Dedications",
-     preserve the section's title, and preserve in the section all the
-      substance and tone of each of the contributor acknowledgements
-     and/or dedications given therein.
-     L. Preserve all the Invariant Sections of the Document,
-     unaltered in their text and in their titles.  Section numbers
-     or the equivalent are not considered part of the section titles.
-     M. Delete any section entitled "Endorsements".  Such a section
-     may not be included in the Modified Version.
-     N. Do not retitle any existing section as "Endorsements"    or to
-     conflict in title with any Invariant Section.
-     If the Modified Version includes new front-matter sections or
-     appendices that qualify as Secondary Sections and contain no
-     material copied from the Document, you may at your option
-     designate some or all of these sections as invariant.  To do this,
-     add their titles to the list of Invariant Sections in the Modified
-     Version's license notice.  These titles must be distinct from any
-     other section titles.
-
-     You may add a section entitled "Endorsements", provided it contains
-     nothing but endorsements of your Modified Version by various
-     parties-for example, statements of peer review or that the text has
-     been approved by an organization as the authoritative definition
-     of a standard.
-
-     You may add a passage of up to five words as a Front-Cover Text,
-     and a passage of up to 25 words as a Back-Cover Text, to the end
-     of the list of Cover Texts in the Modified Version.  Only one
-     passage of Front-Cover Text and one of Back-Cover Text may be
-     added by (or through arrangements made by) any one entity.  If the
-     Document already includes a cover text for the same cover,
-     previously added by you or by arrangement made by the same entity
-     you are acting on behalf of, you may not add another; but you may
-     replace the old one, on explicit permission from the previous
-     publisher that added the old one.
-
-     The author(s) and publisher(s) of the Document do not by this
-     License give permission to use their names for publicity for or to
-     assert or imply endorsement of any Modified Version.
-
-  5. COMBINING DOCUMENTS
-
-     You may combine the Document with other documents released under
-     this License, under the terms defined in section 4 above for
-     modified versions, provided that you include in the combination
-     all of the Invariant Sections of all of the original documents,
-     unmodified, and list them all as Invariant Sections of your
-     combined work in its license notice.
-
-     The combined work need only contain one copy of this License, and
-     multiple identical Invariant Sections may be replaced with a single
-     copy.  If there are multiple Invariant Sections with the same name
-     but different contents, make the title of each such section unique
-     by adding at the end of it, in parentheses, the name of the
-     original author or publisher of that section if known, or else a
-     unique number.  Make the same adjustment to the section titles in
-     the list of Invariant Sections in the license notice of the
-     combined work.
-
-     In the combination, you must combine any sections entitled
-     "History" in the various original documents, forming one section
-     entitled "History"; likewise combine any sections entitled
-     "Acknowledgements", and any sections entitled "Dedications".  You
-     must delete all sections entitled "Endorsements."
-
-  6. COLLECTIONS OF DOCUMENTS
-
-     You may make a collection consisting of the Document and other
-     documents released under this License, and replace the individual
-     copies of this License in the various documents with a single copy
-     that is included in the collection, provided that you follow the
-     rules of this License for verbatim copying of each of the
-     documents in all other respects.
-
-     You may extract a single document from such a collection, and
-     distribute it individually under this License, provided you insert
-     a copy of this License into the extracted document, and follow
-     this License in all other respects regarding verbatim copying of
-     that document.
-
-  7. AGGREGATION WITH INDEPENDENT WORKS
-
-     A compilation of the Document or its derivatives with other
-     separate and independent documents or works, in or on a volume of
-     a storage or distribution medium, does not as a whole count as a
-     Modified Version of the Document, provided no compilation
-     copyright is claimed for the compilation.  Such a compilation is
-     called an "aggregate", and this License does not apply to the
-     other self-contained works thus compiled with the Document, on
-     account of their being thus compiled, if they are not themselves
-     derivative works of the Document.
-
-     If the Cover Text requirement of section 3 is applicable to these
-     copies of the Document, then if the Document is less than one
-     quarter of the entire aggregate, the Document's Cover Texts may be
-     placed on covers that surround only the Document within the
-     aggregate.  Otherwise they must appear on covers around the whole
-     aggregate.
-
-  8. TRANSLATION
-
-     Translation is considered a kind of modification, so you may
-     distribute translations of the Document under the terms of section
-     4.  Replacing Invariant Sections with translations requires special
-     permission from their copyright holders, but you may include
-     translations of some or all Invariant Sections in addition to the
-     original versions of these Invariant Sections.  You may include a
-     translation of this License provided that you also include the
-     original English version of this License.  In case of a
-     disagreement between the translation and the original English
-     version of this License, the original English version will prevail.
-
-  9. TERMINATION
-
-     You may not copy, modify, sublicense, or distribute the Document
-     except as expressly provided for under this License.  Any other
-     attempt to copy, modify, sublicense or distribute the Document is
-     void, and will automatically terminate your rights under this
-     License.  However, parties who have received copies, or rights,
-     from you under this License will not have their licenses
-     terminated so long as such parties remain in full compliance.
-
- 10. FUTURE REVISIONS OF THIS LICENSE
-
-     The Free Software Foundation may publish new, revised versions of
-     the GNU Free Documentation License from time to time.  Such new
-     versions will be similar in spirit to the present version, but may
-     differ in detail to address new problems or concerns.  See
-     http://www.gnu.org/copyleft/.
-
-     Each version of the License is given a distinguishing version
-     number.  If the Document specifies that a particular numbered
-     version of this License "or any later version" applies to it, you
-     have the option of following the terms and conditions either of
-     that specified version or of any later version that has been
-     published (not as a draft) by the Free Software Foundation.  If
-     the Document does not specify a version number of this License,
-     you may choose any version ever published (not as a draft) by the
-     Free Software Foundation.
-
-
-ADDENDUM: How to use this License for your documents
-====================================================
-
-   To use this License in a document you have written, include a copy of
-the License in the document and put the following copyright and license
-notices just after the title page:
-
-
-     Copyright (C)  YEAR  YOUR NAME.
-       Permission is granted to copy, distribute and/or modify this document
-       under the terms of the GNU Free Documentation License, Version 1.1
-       or any later version published by the Free Software Foundation;
-       with the Invariant Sections being LIST THEIR TITLES, with the
-       Front-Cover Texts being LIST, and with the Back-Cover Texts being LIST.
-       A copy of the license is included in the section entitled ``GNU
-       Free Documentation License''.
-If you have no Invariant Sections, write "with no Invariant
-Sections" instead of saying which ones are invariant.  If you have no
-Front-Cover Texts, write "no Front-Cover Texts" instead of "Front-Cover
-Texts being LIST"; likewise for Back-Cover Texts.
-
-   If your document contains nontrivial examples of program code, we
-recommend releasing these examples in parallel under your choice of
-free software license, such as the GNU General Public License, to
-permit their use in free software.
-
-
-File: wget.info,  Node: Concept Index,  Prev: Copying,  Up: Top
-
-Concept Index
-*************
-
-* Menu:
-
-* .html extension:                       HTTP Options.
-* .netrc:                                Startup File.
-* .wgetrc:                               Startup File.
-* accept directories:                    Directory-Based Limits.
-* accept suffixes:                       Types of Files.
-* accept wildcards:                      Types of Files.
-* all hosts:                             All Hosts.
-* append to log:                         Logging and Input File Options.
-* arguments:                             Invoking.
-* authentication:                        HTTP Options.
-* backing up converted files:            Recursive Retrieval Options.
-* base for relative links in input file: Logging and Input File Options.
-* bind() address:                        Download Options.
-* bug reports:                           Reporting Bugs.
-* bugs:                                  Reporting Bugs.
-* cache:                                 HTTP Options.
-* client IP address:                     Download Options.
-* clobbering, file:                      Download Options.
-* command line:                          Invoking.
-* Content-Length, ignore:                HTTP Options.
-* continue retrieval:                    Download Options.
-* contributors:                          Contributors.
-* conversion of links:                   Recursive Retrieval Options.
-* copying:                               Copying.
-* cut directories:                       Directory Options.
-* debug:                                 Logging and Input File Options.
-* delete after retrieval:                Recursive Retrieval Options.
-* directories:                           Directory-Based Limits.
-* directories, exclude:                  Directory-Based Limits.
-* directories, include:                  Directory-Based Limits.
-* directory limits:                      Directory-Based Limits.
-* directory prefix:                      Directory Options.
-* DNS lookup:                            Host Checking.
-* dot style:                             Download Options.
-* downloading multiple times:            Download Options.
-* examples:                              Examples.
-* exclude directories:                   Directory-Based Limits.
-* execute wgetrc command:                Basic Startup Options.
-* features:                              Overview.
-* filling proxy cache:                   Recursive Retrieval Options.
-* follow FTP links:                      Recursive Accept/Reject Options.
-* following ftp links:                   FTP Links.
-* following links:                       Following Links.
-* force html:                            Logging and Input File Options.
-* ftp time-stamping:                     FTP Time-Stamping Internals.
-* GFDL:                                  Copying.
-* globbing, toggle:                      FTP Options.
-* GPL:                                   Copying.
-* hangup:                                Signals.
-* header, add:                           HTTP Options.
-* host checking:                         Host Checking.
-* host lookup:                           Host Checking.
-* http password:                         HTTP Options.
-* http referer:                          HTTP Options.
-* http time-stamping:                    HTTP Time-Stamping Internals.
-* http user:                             HTTP Options.
-* ignore length:                         HTTP Options.
-* include directories:                   Directory-Based Limits.
-* incremental updating:                  Time-Stamping.
-* input-file:                            Logging and Input File Options.
-* invoking:                              Invoking.
-* IP address, client:                    Download Options.
-* latest version:                        Distribution.
-* link conversion:                       Recursive Retrieval Options.
-* links:                                 Following Links.
-* list:                                  Mailing List.
-* location of wgetrc:                    Wgetrc Location.
-* log file:                              Logging and Input File Options.
-* mailing list:                          Mailing List.
-* mirroring:                             Guru Usage.
-* no parent:                             Directory-Based Limits.
-* no warranty:                           GNU General Public License.
-* no-clobber:                            Download Options.
-* nohup:                                 Invoking.
-* number of retries:                     Download Options.
-* operating systems:                     Portability.
-* option syntax:                         Option Syntax.
-* output file:                           Logging and Input File Options.
-* overview:                              Overview.
-* page requisites:                       Recursive Retrieval Options.
-* passive ftp:                           FTP Options.
-* pause:                                 Download Options.
-* portability:                           Portability.
-* proxies:                               Proxies.
-* proxy <1>:                             Download Options.
-* proxy:                                 HTTP Options.
-* proxy authentication:                  HTTP Options.
-* proxy filling:                         Recursive Retrieval Options.
-* proxy password:                        HTTP Options.
-* proxy user:                            HTTP Options.
-* quiet:                                 Logging and Input File Options.
-* quota:                                 Download Options.
-* recursion:                             Recursive Retrieval.
-* recursive retrieval:                   Recursive Retrieval.
-* redirecting output:                    Guru Usage.
-* referer, http:                         HTTP Options.
-* reject directories:                    Directory-Based Limits.
-* reject suffixes:                       Types of Files.
-* reject wildcards:                      Types of Files.
-* relative links:                        Relative Links.
-* reporting bugs:                        Reporting Bugs.
-* required images, downloading:          Recursive Retrieval Options.
-* retries:                               Download Options.
-* retries, waiting between:              Download Options.
-* retrieval tracing style:               Download Options.
-* retrieving:                            Recursive Retrieval.
-* robots:                                Robots.
-* robots.txt:                            Robots.
-* sample wgetrc:                         Sample Wgetrc.
-* security:                              Security Considerations.
-* server maintenance:                    Robots.
-* server response, print:                Download Options.
-* server response, save:                 HTTP Options.
-* signal handling:                       Signals.
-* span hosts:                            All Hosts.
-* spider:                                Download Options.
-* startup:                               Startup File.
-* startup file:                          Startup File.
-* suffixes, accept:                      Types of Files.
-* suffixes, reject:                      Types of Files.
-* symbolic links, retrieving:            FTP Options.
-* syntax of options:                     Option Syntax.
-* syntax of wgetrc:                      Wgetrc Syntax.
-* tag-based recursive pruning:           Recursive Accept/Reject Options.
-* time-stamping:                         Time-Stamping.
-* time-stamping usage:                   Time-Stamping Usage.
-* timeout:                               Download Options.
-* timestamping:                          Time-Stamping.
-* tries:                                 Download Options.
-* types of files:                        Types of Files.
-* updating the archives:                 Time-Stamping.
-* URL:                                   URL Format.
-* URL syntax:                            URL Format.
-* usage, time-stamping:                  Time-Stamping Usage.
-* user-agent:                            HTTP Options.
-* various:                               Various.
-* verbose:                               Logging and Input File Options.
-* wait:                                  Download Options.
-* waiting between retries:               Download Options.
-* Wget as spider:                        Download Options.
-* wgetrc:                                Startup File.
-* wgetrc commands:                       Wgetrc Commands.
-* wgetrc location:                       Wgetrc Location.
-* wgetrc syntax:                         Wgetrc Syntax.
-* wildcards, accept:                     Types of Files.
-* wildcards, reject:                     Types of Files.
-
 

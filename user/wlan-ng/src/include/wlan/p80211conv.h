@@ -72,6 +72,42 @@
 /*================================================================*/
 /* Macros */
 
+#define	P80211_FRMMETA_MAGIC		0x802110
+
+#define P80211SKB_FRMMETA(s) \
+	(((((p80211_frmmeta_t*)((s)->cb))->magic)==P80211_FRMMETA_MAGIC) ? \
+		((p80211_frmmeta_t*)((s)->cb)) : \
+		(NULL))
+
+#define P80211SKB_RXMETA(s) \
+	(P80211SKB_FRMMETA((s)) ?  P80211SKB_FRMMETA((s))->rx : ((p80211_rxmeta_t*)(NULL)))
+
+typedef struct p80211_rxmeta
+{
+	struct wlandevice	*wlandev;
+
+	UINT64	mactime;	/* Hi-rez MAC-supplied time value */
+	UINT64	hosttime;	/* Best-rez host supplied time value */
+
+	UINT	rxrate;		/* Receive data rate in 100kbps */
+	UINT	priority;	/* 0-15, 0=contention, 6=CF */
+	INT	signal;		/* An SSI, see p80211netdev.h */
+	INT	noise;		/* An SSI, see p80211netdev.h */
+	UINT	channel;	/* Receive channel (mostly for snifs) */
+	UINT	preamble;	/* P80211ENUM_preambletype_* */
+	UINT	encoding;	/* P80211ENUM_encoding_* */
+
+} p80211_rxmeta_t;
+
+typedef struct p80211_frmmeta
+{
+	UINT			magic;
+	p80211_rxmeta_t		*rx;
+} p80211_frmmeta_t;
+
+void p80211skb_free(struct wlandevice *wlandev, struct sk_buff *skb);
+int p80211skb_rxmeta_attach(struct wlandevice *wlandev, struct sk_buff *skb);
+void p80211skb_rxmeta_detach(struct sk_buff *skb);
 
 /*================================================================*/
 /* Types */
@@ -79,7 +115,6 @@
 /*
  * Frame capture header.  (See doc/capturefrm.txt)
  */
-__WLAN_PRAGMA_PACK1__
 typedef struct p80211_caphdr
 {
 	UINT32		version		__WLAN_ATTRIB_PACK__;
@@ -97,7 +132,6 @@ typedef struct p80211_caphdr
 	UINT32		preamble	__WLAN_ATTRIB_PACK__;
 	UINT32		encoding	__WLAN_ATTRIB_PACK__;
 } p80211_caphdr_t;
-__WLAN_PRAGMA_PACKDFLT__
 
 /* buffer free method pointer type */
 typedef void (* freebuf_method_t)(void *buf, int size);

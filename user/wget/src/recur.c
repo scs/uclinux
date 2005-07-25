@@ -1,21 +1,31 @@
 /* Handling of recursive HTTP retrieving.
-   Copyright (C) 1995, 1996, 1997, 2000 Free Software Foundation, Inc.
+   Copyright (C) 1995, 1996, 1997, 2000, 2001 Free Software Foundation, Inc.
 
-This file is part of Wget.
+This file is part of GNU Wget.
 
-This program is free software; you can redistribute it and/or modify
+GNU Wget is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
 the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
+ (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
+GNU Wget is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
+along with Wget; if not, write to the Free Software
+Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+
+In addition, as a special exception, the Free Software Foundation
+gives permission to link the code of its release of Wget with the
+OpenSSL project's "OpenSSL" library (or with modified versions of it
+that use the same license as the "OpenSSL" library), and distribute
+the linked executables.  You must obey the GNU General Public License
+in all respects for all of the code used other than "OpenSSL".  If you
+modify this file, you may extend this exception to your version of the
+file, but you are not obligated to do so.  If you do not wish to do
+so, delete this exception statement from your version.  */
 
 #include <config.h>
 
@@ -31,7 +41,6 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #endif /* HAVE_UNISTD_H */
 #include <errno.h>
 #include <assert.h>
-#include <ctype.h>
 #include <sys/types.h>
 
 #include "wget.h"
@@ -40,808 +49,575 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include "utils.h"
 #include "retr.h"
 #include "ftp.h"
-#include "fnmatch.h"
 #include "host.h"
+#include "hash.h"
+#include "res.h"
+#include "convert.h"
 
 #ifndef errno
 extern int errno;
 #endif
 
 extern char *version_string;
+extern LARGE_INT total_downloaded_bytes;
 
-#define ROBOTS_FILENAME "robots.txt"
+extern struct hash_table *dl_url_file_map;
+extern struct hash_table *downloaded_html_set;
+
+/* Functions for maintaining the URL queue.  */
 
-/* #### Many of these lists should really be hashtables!  */
+struct queue_element {
+  const char *url;		/* the URL to download */
+  const char *referer;		/* the referring document */
+  int depth;			/* the depth */
+  unsigned int html_allowed :1;	/* whether the document is allowed to
+				   be treated as HTML. */
 
-/* List of downloaded URLs.  */
-static urlpos *urls_downloaded;
+  struct queue_element *next;	/* next element in queue */
+};
 
-/* List of HTML URLs.  */
-static slist *urls_html;
+struct url_queue {
+  struct queue_element *head;
+  struct queue_element *tail;
+  int count, maxcount;
+};
 
-/* List of undesirable-to-load URLs.  */
-static slist *ulist;
+/* Create a URL queue. */
 
-/* List of forbidden locations.  */
-static char **forbidden = NULL;
-
-/* Current recursion depth.  */
-static int depth;
-
-/* Base directory we're recursing from (used by no_parent).  */
-static char *base_dir;
-
-/* The host name for which we last checked robots.  */
-static char *robots_host;
-
-static int first_time = 1;
-
-/* Construct the robots URL.  */
-static struct urlinfo *robots_url PARAMS ((const char *, const char *));
-static uerr_t retrieve_robots PARAMS ((const char *, const char *));
-static char **parse_robots PARAMS ((const char *));
-static int robots_match PARAMS ((struct urlinfo *, char **));
-
-
-/* Cleanup the data structures associated with recursive retrieving
-   (the variables above).  */
-void
-recursive_cleanup (void)
+static struct url_queue *
+url_queue_new (void)
 {
-  free_slist (ulist);
-  ulist = NULL;
-  free_vec (forbidden);
-  forbidden = NULL;
-  free_slist (urls_html);
-  urls_html = NULL;
-  free_urlpos (urls_downloaded);
-  urls_downloaded = NULL;
-  FREE_MAYBE (base_dir);
-  FREE_MAYBE (robots_host);
-  first_time = 1;
+  struct url_queue *queue = xmalloc (sizeof (*queue));
+  memset (queue, '\0', sizeof (*queue));
+  return queue;
 }
 
-/* Reset FIRST_TIME to 1, so that some action can be taken in
-   recursive_retrieve().  */
-void
-recursive_reset (void)
+/* Delete a URL queue. */
+
+static void
+url_queue_delete (struct url_queue *queue)
 {
-  first_time = 1;
+  xfree (queue);
 }
 
-/* The core of recursive retrieving.  Endless recursion is avoided by
-   having all URLs stored to a linked list of URLs, which is checked
-   before loading any URL.  That way no URL can get loaded twice.
+/* Enqueue a URL in the queue.  The queue is FIFO: the items will be
+   retrieved ("dequeued") from the queue in the order they were placed
+   into it.  */
 
-   The function also supports specification of maximum recursion depth
-   and a number of other goodies.  */
+static void
+url_enqueue (struct url_queue *queue,
+	     const char *url, const char *referer, int depth, int html_allowed)
+{
+  struct queue_element *qel = xmalloc (sizeof (*qel));
+  qel->url = url;
+  qel->referer = referer;
+  qel->depth = depth;
+  qel->html_allowed = html_allowed;
+  qel->next = NULL;
+
+  ++queue->count;
+  if (queue->count > queue->maxcount)
+    queue->maxcount = queue->count;
+
+  DEBUGP (("Enqueuing %s at depth %d\n", url, depth));
+  DEBUGP (("Queue count %d, maxcount %d.\n", queue->count, queue->maxcount));
+
+  if (queue->tail)
+    queue->tail->next = qel;
+  queue->tail = qel;
+
+  if (!queue->head)
+    queue->head = queue->tail;
+}
+
+/* Take a URL out of the queue.  Return 1 if this operation succeeded,
+   or 0 if the queue is empty.  */
+
+static int
+url_dequeue (struct url_queue *queue,
+	     const char **url, const char **referer, int *depth,
+	     int *html_allowed)
+{
+  struct queue_element *qel = queue->head;
+
+  if (!qel)
+    return 0;
+
+  queue->head = queue->head->next;
+  if (!queue->head)
+    queue->tail = NULL;
+
+  *url = qel->url;
+  *referer = qel->referer;
+  *depth = qel->depth;
+  *html_allowed = qel->html_allowed;
+
+  --queue->count;
+
+  DEBUGP (("Dequeuing %s at depth %d\n", qel->url, qel->depth));
+  DEBUGP (("Queue count %d, maxcount %d.\n", queue->count, queue->maxcount));
+
+  xfree (qel);
+  return 1;
+}
+
+static int download_child_p PARAMS ((const struct urlpos *, struct url *, int,
+				     struct url *, struct hash_table *));
+static int descend_redirect_p PARAMS ((const char *, const char *, int,
+				       struct url *, struct hash_table *));
+
+
+/* Retrieve a part of the web beginning with START_URL.  This used to
+   be called "recursive retrieval", because the old function was
+   recursive and implemented depth-first search.  retrieve_tree on the
+   other hand implements breadth-search traversal of the tree, which
+   results in much nicer ordering of downloads.
+
+   The algorithm this function uses is simple:
+
+   1. put START_URL in the queue.
+   2. while there are URLs in the queue:
+
+     3. get next URL from the queue.
+     4. download it.
+     5. if the URL is HTML and its depth does not exceed maximum depth,
+        get the list of URLs embedded therein.
+     6. for each of those URLs do the following:
+
+       7. if the URL is not one of those downloaded before, and if it
+          satisfies the criteria specified by the various command-line
+	  options, add it to the queue. */
+
 uerr_t
-recursive_retrieve (const char *file, const char *this_url)
+retrieve_tree (const char *start_url)
 {
-  char *constr, *filename, *newloc;
-  char *canon_this_url = NULL;
-  int dt, inl, dash_p_leaf_HTML = FALSE;
-  int this_url_ftp;            /* See below the explanation */
-  uerr_t err;
-  struct urlinfo *rurl;
-  urlpos *url_list, *cur_url;
-  char *rfile; /* For robots */
-  struct urlinfo *u;
+  uerr_t status = RETROK;
 
-  assert (this_url != NULL);
-  assert (file != NULL);
-  /* If quota was exceeded earlier, bail out.  */
-  if (downloaded_exceeds_quota ())
-    return QUOTEXC;
-  /* Cache the current URL in the list.  */
-  if (first_time)
-    {
-      ulist = add_slist (ulist, this_url, 0);
-      urls_downloaded = NULL;
-      urls_html = NULL;
-      /* Enter this_url to the slist, in original and "enhanced" form.  */
-      u = newurl ();
-      err = parseurl (this_url, u, 0);
-      if (err == URLOK)
-	{
-	  ulist = add_slist (ulist, u->url, 0);
-	  urls_downloaded = add_url (urls_downloaded, u->url, file);
-	  urls_html = add_slist (urls_html, file, NOSORT);
-	  if (opt.no_parent)
-	    base_dir = xstrdup (u->dir); /* Set the base dir.  */
-	  /* Set the canonical this_url to be sent as referer.  This
-	     problem exists only when running the first time.  */
-	  canon_this_url = xstrdup (u->url);
-	}
-      else
-	{
-	  DEBUGP (("Double yuck!  The *base* URL is broken.\n"));
-	  base_dir = NULL;
-	}
-      freeurl (u, 1);
-      depth = 1;
-      robots_host = NULL;
-      forbidden = NULL;
-      first_time = 0;
-    }
-  else
-    ++depth;
+  /* The queue of URLs we need to load. */
+  struct url_queue *queue;
 
-  if (opt.reclevel != INFINITE_RECURSION && depth > opt.reclevel)
-    /* We've exceeded the maximum recursion depth specified by the user. */
+  /* The URLs we do not wish to enqueue, because they are already in
+     the queue, but haven't been downloaded yet.  */
+  struct hash_table *blacklist;
+
+  int up_error_code;
+  struct url *start_url_parsed = url_parse (start_url, &up_error_code);
+
+  if (!start_url_parsed)
     {
-      if (opt.page_requisites && depth <= opt.reclevel + 1)
-	/* When -p is specified, we can do one more partial recursion from the
-	   "leaf nodes" on the HTML document tree.  The recursion is partial in
-	   that we won't traverse any <A> or <AREA> tags, nor any <LINK> tags
-	   except for <LINK REL="stylesheet">. */
-	dash_p_leaf_HTML = TRUE;
-      else
-	/* Either -p wasn't specified or it was and we've already gone the one
-	   extra (pseudo-)level that it affords us, so we need to bail out. */
-	{
-	  DEBUGP (("Recursion depth %d exceeded max. depth %d.\n",
-		   depth, opt.reclevel));
-	  --depth;
-	  return RECLEVELEXC;
-	}
+      logprintf (LOG_NOTQUIET, "%s: %s.\n", start_url,
+		 url_error (up_error_code));
+      return URLERROR;
     }
 
-  /* Determine whether this_url is an FTP URL.  If it is, it means
-     that the retrieval is done through proxy.  In that case, FTP
-     links will be followed by default and recursion will not be
-     turned off when following them.  */
-  this_url_ftp = (urlproto (this_url) == URLFTP);
+  queue = url_queue_new ();
+  blacklist = make_string_hash_table (0);
 
-  /* Get the URL-s from an HTML file: */
-  url_list = get_urls_html (file, canon_this_url ? canon_this_url : this_url,
-			    0, dash_p_leaf_HTML);
+  /* Enqueue the starting URL.  Use start_url_parsed->url rather than
+     just URL so we enqueue the canonical form of the URL.  */
+  url_enqueue (queue, xstrdup (start_url_parsed->url), NULL, 0, 1);
+  string_set_add (blacklist, start_url_parsed->url);
 
-  /* Decide what to do with each of the URLs.  A URL will be loaded if
-     it meets several requirements, discussed later.  */
-  for (cur_url = url_list; cur_url; cur_url = cur_url->next)
+  while (1)
     {
-      /* If quota was exceeded earlier, bail out.  */
-      if (downloaded_exceeds_quota ())
+      int descend = 0;
+      char *url, *referer, *file = NULL;
+      int depth, html_allowed;
+      boolean dash_p_leaf_HTML = FALSE;
+
+      if (opt.quota && total_downloaded_bytes > opt.quota)
 	break;
-      /* Parse the URL for convenient use in other functions, as well
-	 as to get the optimized form.  It also checks URL integrity.  */
-      u = newurl ();
-      if (parseurl (cur_url->url, u, 0) != URLOK)
+      if (status == FWRITEERR)
+	break;
+
+      /* Get the next URL from the queue... */
+
+      if (!url_dequeue (queue,
+			(const char **)&url, (const char **)&referer,
+			&depth, &html_allowed))
+	break;
+
+      /* ...and download it.  Note that this download is in most cases
+	 unconditional, as download_child_p already makes sure a file
+	 doesn't get enqueued twice -- and yet this check is here, and
+	 not in download_child_p.  This is so that if you run `wget -r
+	 URL1 URL2', and a random URL is encountered once under URL1
+	 and again under URL2, but at a different (possibly smaller)
+	 depth, we want the URL's children to be taken into account
+	 the second time.  */
+      if (dl_url_file_map && hash_table_contains (dl_url_file_map, url))
 	{
-	  DEBUGP (("Yuck!  A bad URL.\n"));
-	  freeurl (u, 1);
-	  continue;
+	  file = xstrdup (hash_table_get (dl_url_file_map, url));
+
+	  DEBUGP (("Already downloaded \"%s\", reusing it from \"%s\".\n",
+		   url, file));
+
+	  if (html_allowed
+	      && downloaded_html_set
+	      && string_set_contains (downloaded_html_set, file))
+	    descend = 1;
 	}
-      if (u->proto == URLFILE)
+      else
 	{
-	  DEBUGP (("Nothing to do with file:// around here.\n"));
-	  freeurl (u, 1);
-	  continue;
-	}
-      assert (u->url != NULL);
-      constr = xstrdup (u->url);
+	  int dt = 0;
+	  char *redirected = NULL;
+	  int oldrec = opt.recursive;
 
-      /* Several checkings whether a file is acceptable to load:
-	 1. check if URL is ftp, and we don't load it
-	 2. check for relative links (if relative_only is set)
-	 3. check for domain
-	 4. check for no-parent
-	 5. check for excludes && includes
-	 6. check for suffix
-	 7. check for same host (if spanhost is unset), with possible
-	 gethostbyname baggage
-	 8. check for robots.txt
+	  opt.recursive = 0;
+	  status = retrieve_url (url, &file, &redirected, referer, &dt);
+	  opt.recursive = oldrec;
 
-	 Addendum: If the URL is FTP, and it is to be loaded, only the
-	 domain and suffix settings are "stronger".
+	  if (html_allowed && file && status == RETROK
+	      && (dt & RETROKF) && (dt & TEXTHTML))
+	    descend = 1;
 
-	 Note that .html and (yuck) .htm will get loaded regardless of
-	 suffix rules (but that is remedied later with unlink) unless
-	 the depth equals the maximum depth.
-
-	 More time- and memory- consuming tests should be put later on
-	 the list.  */
-
-      /* inl is set if the URL we are working on (constr) is stored in
-	 ulist.  Using it is crucial to avoid the incessant calls to
-	 in_slist, which is quite slow.  */
-      inl = in_slist (ulist, constr);
-
-      /* If it is FTP, and FTP is not followed, chuck it out.  */
-      if (!inl)
-	if (u->proto == URLFTP && !opt.follow_ftp && !this_url_ftp)
-	  {
-	    DEBUGP (("Uh, it is FTP but i'm not in the mood to follow FTP.\n"));
-	    ulist = add_slist (ulist, constr, 0);
-	    inl = 1;
-	  }
-      /* If it is absolute link and they are not followed, chuck it
-	 out.  */
-      if (!inl && u->proto != URLFTP)
-	if (opt.relative_only && !(cur_url->flags & URELATIVE))
-	  {
-	    DEBUGP (("It doesn't really look like a relative link.\n"));
-	    ulist = add_slist (ulist, constr, 0);
-	    inl = 1;
-	  }
-      /* If its domain is not to be accepted/looked-up, chuck it out.  */
-      if (!inl)
-	if (!accept_domain (u))
-	  {
-	    DEBUGP (("I don't like the smell of that domain.\n"));
-	    ulist = add_slist (ulist, constr, 0);
-	    inl = 1;
-	  }
-      /* Check for parent directory.  */
-      if (!inl && opt.no_parent
-	  /* If the new URL is FTP and the old was not, ignore
-             opt.no_parent.  */
-	  && !(!this_url_ftp && u->proto == URLFTP))
-	{
-	  /* Check for base_dir first.  */
-	  if (!(base_dir && frontcmp (base_dir, u->dir)))
+	  if (redirected)
 	    {
-	      /* Failing that, check for parent dir.  */
-	      struct urlinfo *ut = newurl ();
-	      if (parseurl (this_url, ut, 0) != URLOK)
-		DEBUGP (("Double yuck!  The *base* URL is broken.\n"));
-	      else if (!frontcmp (ut->dir, u->dir))
+	      /* We have been redirected, possibly to another host, or
+		 different path, or wherever.  Check whether we really
+		 want to follow it.  */
+	      if (descend)
 		{
-		  /* Failing that too, kill the URL.  */
-		  DEBUGP (("Trying to escape parental guidance with no_parent on.\n"));
-		  ulist = add_slist (ulist, constr, 0);
-		  inl = 1;
+		  if (!descend_redirect_p (redirected, url, depth,
+					   start_url_parsed, blacklist))
+		    descend = 0;
+		  else
+		    /* Make sure that the old pre-redirect form gets
+		       blacklisted. */
+		    string_set_add (blacklist, url);
 		}
-	      freeurl (ut, 1);
-	    }
-	}
-      /* If the file does not match the acceptance list, or is on the
-	 rejection list, chuck it out.  The same goes for the
-	 directory exclude- and include- lists.  */
-      if (!inl && (opt.includes || opt.excludes))
-	{
-	  if (!accdir (u->dir, ALLABS))
-	    {
-	      DEBUGP (("%s (%s) is excluded/not-included.\n", constr, u->dir));
-	      ulist = add_slist (ulist, constr, 0);
-	      inl = 1;
-	    }
-	}
-      if (!inl)
-	{
-	  char *suf = NULL;
-	  /* We check for acceptance/rejection rules only for non-HTML
-	     documents.  Since we don't know whether they really are
-	     HTML, it will be deduced from (an OR-ed list):
 
-	     1) u->file is "" (meaning it is a directory)
-	     2) suffix exists, AND:
-	     a) it is "html", OR
-	     b) it is "htm"
-
-	     If the file *is* supposed to be HTML, it will *not* be
-            subject to acc/rej rules, unless a finite maximum depth has
-            been specified and the current depth is the maximum depth. */
-	  if (!
-	      (!*u->file
-	       || (((suf = suffix (constr)) != NULL)
-                  && ((!strcmp (suf, "html") || !strcmp (suf, "htm"))
-                      && ((opt.reclevel != INFINITE_RECURSION) &&
-			  (depth != opt.reclevel))))))
-	    {
-	      if (!acceptable (u->file))
-		{
-		  DEBUGP (("%s (%s) does not match acc/rej rules.\n",
-			  constr, u->file));
-		  ulist = add_slist (ulist, constr, 0);
-		  inl = 1;
-		}
+	      xfree (url);
+	      url = redirected;
 	    }
-	  FREE_MAYBE (suf);
 	}
-      /* Optimize the URL (which includes possible DNS lookup) only
-	 after all other possibilities have been exhausted.  */
-      if (!inl)
+
+      if (descend
+	  && depth >= opt.reclevel && opt.reclevel != INFINITE_RECURSION)
 	{
-	  if (!opt.simple_check)
-	    opt_url (u);
+	  if (opt.page_requisites
+	      && (depth == opt.reclevel || depth == opt.reclevel + 1))
+	    {
+	      /* When -p is specified, we are allowed to exceed the
+		 maximum depth, but only for the "inline" links,
+		 i.e. those that are needed to display the page.
+		 Originally this could exceed the depth at most by
+		 one, but we allow one more level so that the leaf
+		 pages that contain frames can be loaded
+		 correctly.  */
+	      dash_p_leaf_HTML = TRUE;
+	    }
 	  else
 	    {
-	      char *p;
-	      /* Just lowercase the hostname.  */
-	      for (p = u->host; *p; p++)
-		*p = TOLOWER (*p);
-	      free (u->url);
-	      u->url = str_url (u, 0);
+	      /* Either -p wasn't specified or it was and we've
+		 already spent the two extra (pseudo-)levels that it
+		 affords us, so we need to bail out. */
+	      DEBUGP (("Not descending further; at depth %d, max. %d.\n",
+		       depth, opt.reclevel));
+	      descend = 0;
 	    }
-	  free (constr);
-	  constr = xstrdup (u->url);
-	  inl = in_slist (ulist, constr);
-	  if (!inl && !((u->proto == URLFTP) && !this_url_ftp))
-	    if (!opt.spanhost && this_url && !same_host (this_url, constr))
-	      {
-		DEBUGP (("This is not the same hostname as the parent's.\n"));
-		ulist = add_slist (ulist, constr, 0);
-		inl = 1;
-	      }
 	}
-      /* What about robots.txt?  */
-      if (!inl && opt.use_robots && u->proto == URLHTTP)
+
+      /* If the downloaded document was HTML, parse it and enqueue the
+	 links it contains. */
+
+      if (descend)
 	{
-	  /* Since Wget knows about only one set of robot rules at a
-	     time, /robots.txt must be reloaded whenever a new host is
-	     accessed.
+	  int meta_disallow_follow = 0;
+	  struct urlpos *children
+	    = get_urls_html (file, url, &meta_disallow_follow);
 
-	     robots_host holds the host the current `forbid' variable
-	     is assigned to.  */
-	  if (!robots_host || !same_host (robots_host, u->host))
+	  if (opt.use_robots && meta_disallow_follow)
 	    {
-	      FREE_MAYBE (robots_host);
-	      /* Now make robots_host the new host, no matter what the
-		 result will be.  So if there is no /robots.txt on the
-		 site, Wget will not retry getting robots all the
-		 time.  */
-	      robots_host = xstrdup (u->host);
-	      free_vec (forbidden);
-	      forbidden = NULL;
-	      err = retrieve_robots (constr, ROBOTS_FILENAME);
-	      if (err == ROBOTSOK)
-		{
-		  rurl = robots_url (constr, ROBOTS_FILENAME);
-		  rfile = url_filename (rurl);
-		  forbidden = parse_robots (rfile);
-		  freeurl (rurl, 1);
-		  free (rfile);
-		}
+	      free_urlpos (children);
+	      children = NULL;
 	    }
 
-	  /* Now that we have (or don't have) robots, we can check for
-	     them.  */
-	  if (!robots_match (u, forbidden))
+	  if (children)
 	    {
-	      DEBUGP (("Stuffing %s because %s forbids it.\n", this_url,
-		       ROBOTS_FILENAME));
-	      ulist = add_slist (ulist, constr, 0);
-	      inl = 1;
+	      struct urlpos *child = children;
+	      struct url *url_parsed = url_parsed = url_parse (url, NULL);
+	      assert (url_parsed != NULL);
+
+	      for (; child; child = child->next)
+		{
+		  if (child->ignore_when_downloading)
+		    continue;
+		  if (dash_p_leaf_HTML && !child->link_inline_p)
+		    continue;
+		  if (download_child_p (child, url_parsed, depth, start_url_parsed,
+					blacklist))
+		    {
+		      url_enqueue (queue, xstrdup (child->url->url),
+				   xstrdup (url), depth + 1,
+				   child->link_expect_html);
+		      /* We blacklist the URL we have enqueued, because we
+			 don't want to enqueue (and hence download) the
+			 same URL twice.  */
+		      string_set_add (blacklist, child->url->url);
+		    }
+		}
+
+	      url_free (url_parsed);
+	      free_urlpos (children);
 	    }
 	}
 
-      filename = NULL;
-      /* If it wasn't chucked out, do something with it.  */
-      if (!inl)
+      if (opt.delete_after || (file && !acceptable (file)))
 	{
-	  DEBUGP (("I've decided to load it -> "));
-	  /* Add it to the list of already-loaded URL-s.  */
-	  ulist = add_slist (ulist, constr, 0);
-	  /* Automatically followed FTPs will *not* be downloaded
-	     recursively.  */
-	  if (u->proto == URLFTP)
-	    {
-	      /* Don't you adore side-effects?  */
-	      opt.recursive = 0;
-	    }
-	  /* Reset its type.  */
-	  dt = 0;
-	  /* Retrieve it.  */
-	  retrieve_url (constr, &filename, &newloc,
-		       canon_this_url ? canon_this_url : this_url, &dt);
-	  if (u->proto == URLFTP)
-	    {
-	      /* Restore...  */
-	      opt.recursive = 1;
-	    }
-	  if (newloc)
-	    {
-	      free (constr);
-	      constr = newloc;
-	    }
-	  /* In case of convert_links: If there was no error, add it to
-	     the list of downloaded URLs.  We might need it for
-	     conversion.  */
-	  if (opt.convert_links && filename)
-	    {
-	      if (dt & RETROKF)
-		{
-		  urls_downloaded = add_url (urls_downloaded, constr, filename);
-		  /* If the URL is HTML, note it.  */
-		  if (dt & TEXTHTML)
-		    urls_html = add_slist (urls_html, filename, NOSORT);
-		}
-	    }
-	  /* If there was no error, and the type is text/html, parse
-	     it recursively.  */
-	  if (dt & TEXTHTML)
-	    {
-	      if (dt & RETROKF)
-		recursive_retrieve (filename, constr);
-	    }
-	  else
-	    DEBUGP (("%s is not text/html so we don't chase.\n",
-		     filename ? filename: "(null)"));
-
-	  if (opt.delete_after || (filename && !acceptable (filename)))
-	    /* Either --delete-after was specified, or we loaded this otherwise
-	       rejected (e.g. by -R) HTML file just so we could harvest its
-	       hyperlinks -- in either case, delete the local file. */
-	    {
-	      DEBUGP (("Removing file due to %s in recursive_retrieve():\n",
-		       opt.delete_after ? "--delete-after" :
-		       "recursive rejection criteria"));
-	      logprintf (LOG_VERBOSE,
-			 (opt.delete_after ? _("Removing %s.\n")
-			  : _("Removing %s since it should be rejected.\n")),
-			 filename);
-	      if (unlink (filename))
-		logprintf (LOG_NOTQUIET, "unlink: %s\n", strerror (errno));
-	      dt &= ~RETROKF;
-	    }
-
-	  /* If everything was OK, and links are to be converted, let's
-	     store the local filename.  */
-	  if (opt.convert_links && (dt & RETROKF) && (filename != NULL))
-	    {
-	      cur_url->flags |= UABS2REL;
-	      cur_url->local_name = xstrdup (filename);
-	    }
+	  /* Either --delete-after was specified, or we loaded this
+	     otherwise rejected (e.g. by -R) HTML file just so we
+	     could harvest its hyperlinks -- in either case, delete
+	     the local file. */
+	  DEBUGP (("Removing file due to %s in recursive_retrieve():\n",
+		   opt.delete_after ? "--delete-after" :
+		   "recursive rejection criteria"));
+	  logprintf (LOG_VERBOSE,
+		     (opt.delete_after
+		      ? _("Removing %s.\n")
+		      : _("Removing %s since it should be rejected.\n")),
+		     file);
+	  if (unlink (file))
+	    logprintf (LOG_NOTQUIET, "unlink: %s\n", strerror (errno));
+	  register_delete_file (file);
 	}
-      DEBUGP (("%s already in list, so we don't load.\n", constr));
-      /* Free filename and constr.  */
-      FREE_MAYBE (filename);
-      FREE_MAYBE (constr);
-      freeurl (u, 1);
-      /* Increment the pbuf for the appropriate size.  */
+
+      xfree (url);
+      FREE_MAYBE (referer);
+      FREE_MAYBE (file);
     }
-  if (opt.convert_links && !opt.delete_after)
-    convert_links (file, url_list);
-  /* Free the linked list of URL-s.  */
-  free_urlpos (url_list);
-  /* Free the canonical this_url.  */
-  FREE_MAYBE (canon_this_url);
-  /* Decrement the recursion depth.  */
-  --depth;
-  if (downloaded_exceeds_quota ())
+
+  /* If anything is left of the queue due to a premature exit, free it
+     now.  */
+  {
+    char *d1, *d2;
+    int d3, d4;
+    while (url_dequeue (queue,
+			(const char **)&d1, (const char **)&d2, &d3, &d4))
+      {
+	xfree (d1);
+	FREE_MAYBE (d2);
+      }
+  }
+  url_queue_delete (queue);
+
+  if (start_url_parsed)
+    url_free (start_url_parsed);
+  string_set_free (blacklist);
+
+  if (opt.quota && total_downloaded_bytes > opt.quota)
     return QUOTEXC;
+  else if (status == FWRITEERR)
+    return FWRITEERR;
   else
     return RETROK;
 }
-
-/* Simple calls to convert_links will often fail because only the
-   downloaded files are converted, and Wget cannot know which files
-   will be converted in the future.  So, if we have file fileone.html
-   with:
 
-   <a href=/c/something.gif>
+/* Based on the context provided by retrieve_tree, decide whether a
+   URL is to be descended to.  This is only ever called from
+   retrieve_tree, but is in a separate function for clarity.
 
-   and /c/something.gif was not downloaded because it exceeded the
-   recursion depth, the reference will *not* be changed.
+   The most expensive checks (such as those for robots) are memoized
+   by storing these URLs to BLACKLIST.  This may or may not help.  It
+   will help if those URLs are encountered many times.  */
 
-   However, later we can encounter /c/something.gif from an "upper"
-   level HTML (let's call it filetwo.html), and it gets downloaded.
-
-   But now we have a problem because /c/something.gif will be
-   correctly transformed in filetwo.html, but not in fileone.html,
-   since Wget could not have known that /c/something.gif will be
-   downloaded in the future.
-
-   This is why Wget must, after the whole retrieval, call
-   convert_all_links to go once more through the entire list of
-   retrieved HTMLs, and re-convert them.
-
-   All the downloaded HTMLs are kept in urls_html, and downloaded URLs
-   in urls_downloaded.  From these two lists information is
-   extracted.  */
-void
-convert_all_links (void)
-{
-  uerr_t res;
-  urlpos *l1, *l2, *urls;
-  struct urlinfo *u;
-  slist *html;
-  urlpos *urlhtml;
-
-  for (html = urls_html; html; html = html->next)
-    {
-      DEBUGP (("Rescanning %s\n", html->string));
-      /* Determine the URL of the HTML file.  get_urls_html will need
-	 it.  */
-      for (urlhtml = urls_downloaded; urlhtml; urlhtml = urlhtml->next)
-	if (!strcmp (urlhtml->local_name, html->string))
-	  break;
-      if (urlhtml)
-	DEBUGP (("It should correspond to %s.\n", urlhtml->url));
-      else
-	DEBUGP (("I cannot find the corresponding URL.\n"));
-      /* Parse the HTML file...  */
-      urls = get_urls_html (html->string, urlhtml ? urlhtml->url : NULL, 1,
-			    FALSE);
-      if (!urls)
-	continue;
-      for (l1 = urls; l1; l1 = l1->next)
-	{
-	  /* The URL must be in canonical form to be compared.  */
-	  u = newurl ();
-	  res = parseurl (l1->url, u, 0);
-	  if (res != URLOK)
-	    {
-	      freeurl (u, 1);
-	      continue;
-	    }
-	  /* We decide the direction of conversion according to whether
-	     a URL was downloaded.  Downloaded URLs will be converted
-	     ABS2REL, whereas non-downloaded will be converted REL2ABS.
-	     Note: not yet implemented; only ABS2REL works.  */
-	  for (l2 = urls_downloaded; l2; l2 = l2->next)
-	    if (!strcmp (l2->url, u->url))
-	      {
-		DEBUGP (("%s flagged for conversion, local %s\n",
-			 l2->url, l2->local_name));
-		break;
-	      }
-	  /* Clear the flags.  */
-	  l1->flags &= ~ (UABS2REL | UREL2ABS);
-	  /* Decide on the conversion direction.  */
-	  if (l2)
-	    {
-	      l1->flags |= UABS2REL;
-	      l1->local_name = xstrdup (l2->local_name);
-	    }
-	  else
-	    {
-	      l1->flags |= UREL2ABS;
-	      l1->local_name = NULL;
-	    }
-	  freeurl (u, 1);
-	}
-      /* Convert the links in the file.  */
-      convert_links (html->string, urls);
-      /* Free the data.  */
-      free_urlpos (urls);
-    }
-}
-
-/* Robots support.  */
-
-/* Construct the robots URL.  */
-static struct urlinfo *
-robots_url (const char *url, const char *robots_filename)
-{
-  struct urlinfo *u = newurl ();
-  uerr_t err;
-
-  err = parseurl (url, u, 0);
-  assert (err == URLOK && u->proto == URLHTTP);
-  free (u->file);
-  free (u->dir);
-  free (u->url);
-  u->dir = xstrdup ("");
-  u->file = xstrdup (robots_filename);
-  u->url = str_url (u, 0);
-  return u;
-}
-
-/* Retrieves the robots_filename from the root server directory, if
-   possible.  Returns ROBOTSOK if robots were retrieved OK, and
-   NOROBOTS if robots could not be retrieved for any reason.  */
-static uerr_t
-retrieve_robots (const char *url, const char *robots_filename)
-{
-  int dt;
-  uerr_t err;
-  struct urlinfo *u;
-
-  u = robots_url (url, robots_filename);
-  logputs (LOG_VERBOSE, _("Loading robots.txt; please ignore errors.\n"));
-  err = retrieve_url (u->url, NULL, NULL, NULL, &dt);
-  freeurl (u, 1);
-  if (err == RETROK)
-    return ROBOTSOK;
-  else
-    return NOROBOTS;
-}
-
-/* Parse the robots_filename and return the disallowed path components
-   in a malloc-ed vector of character pointers.
-
-   It should be fully compliant with the syntax as described in the
-   file norobots.txt, adopted by the robots mailing list
-   (robots@webcrawler.com).  */
-static char **
-parse_robots (const char *robots_filename)
-{
-  FILE *fp;
-  char **entries;
-  char *line, *cmd, *str, *p;
-  char *base_version, *version;
-  int num, i;
-  int wget_matched;		/* is the part meant for Wget?  */
-
-  entries = NULL;
-
-  num = 0;
-  fp = fopen (robots_filename, "rb");
-  if (!fp)
-    return NULL;
-
-  /* Kill version number.  */
-  if (opt.useragent)
-    {
-      STRDUP_ALLOCA (base_version, opt.useragent);
-      STRDUP_ALLOCA (version, opt.useragent);
-    }
-  else
-    {
-      int len = 10 + strlen (version_string);
-      base_version = (char *)alloca (len);
-      sprintf (base_version, "Wget/%s", version_string);
-      version = (char *)alloca (len);
-      sprintf (version, "Wget/%s", version_string);
-    }
-  for (p = version; *p; p++)
-    *p = TOLOWER (*p);
-  for (p = base_version; *p && *p != '/'; p++)
-    *p = TOLOWER (*p);
-  *p = '\0';
-
-  /* Setting this to 1 means that Wget considers itself under
-     restrictions by default, even if the User-Agent field is not
-     present.  However, if it finds the user-agent set to anything
-     other than Wget, the rest will be ignored (up to the following
-     User-Agent field).  Thus you may have something like:
-
-     Disallow: 1
-     Disallow: 2
-     User-Agent: stupid-robot
-     Disallow: 3
-     Disallow: 4
-     User-Agent: Wget*
-     Disallow: 5
-     Disallow: 6
-     User-Agent: *
-     Disallow: 7
-
-     In this case the 1, 2, 5, 6 and 7 disallow lines will be
-     stored.  */
-  wget_matched = 1;
-  while ((line = read_whole_line (fp)))
-    {
-      int len = strlen (line);
-      /* Destroy <CR><LF> if present.  */
-      if (len && line[len - 1] == '\n')
-	line[--len] = '\0';
-      if (len && line[len - 1] == '\r')
-	line[--len] = '\0';
-      /* According to specifications, optional space may be at the
-	 end...  */
-      DEBUGP (("Line: %s\n", line));
-      /* Skip spaces.  */
-      for (cmd = line; *cmd && ISSPACE (*cmd); cmd++);
-      if (!*cmd)
-	{
-	  free (line);
-	  DEBUGP (("(chucked out)\n"));
-	  continue;
-	}
-      /* Look for ':'.  */
-      for (str = cmd; *str && *str != ':'; str++);
-      if (!*str)
-	{
-	  free (line);
-	  DEBUGP (("(chucked out)\n"));
-	  continue;
-	}
-      /* Zero-terminate the command.  */
-      *str++ = '\0';
-      /* Look for the string beginning...  */
-      for (; *str && ISSPACE (*str); str++);
-      /* Look for comments or trailing spaces and kill them off.  */
-      for (p = str; *p; p++)
-	if (*p && ISSPACE (*p) && ((*(p + 1) == '#') || (*(p + 1) == '\0')))
-	  {
-	    /* We have found either a shell-style comment `<sp>+#' or some
-               trailing spaces.  Now rewind to the beginning of the spaces
-               and place '\0' there.  */
-	    while (p > str && ISSPACE (*p))
-	      --p;
-	    if (p == str)
-	      *p = '\0';
-	    else
-	      *(p + 1) = '\0';
-	    break;
-	  }
-      if (!strcasecmp (cmd, "User-agent"))
-	{
-	  int match = 0;
-	  /* Lowercase the agent string.  */
-	  for (p = str; *p; p++)
-	    *p = TOLOWER (*p);
-	  /* If the string is `*', it matches.  */
-	  if (*str == '*' && !*(str + 1))
-	    match = 1;
-	  else
-	    {
-	      /* If the string contains wildcards, we'll run it through
-		 fnmatch().  */
-	      if (has_wildcards_p (str))
-		{
-		  /* If the string contains '/', compare with the full
-		     version.  Else, compare it to base_version.  */
-		  if (strchr (str, '/'))
-		    match = !fnmatch (str, version, 0);
-		  else
-		    match = !fnmatch (str, base_version, 0);
-		}
-	      else                /* Substring search */
-		{
-		  if (strstr (version, str))
-		    match = 1;
-		  else
-		    match = 0;
-		}
-	    }
-	  /* If Wget is not matched, skip all the entries up to the
-	     next User-agent field.  */
-	  wget_matched = match;
-	}
-      else if (!wget_matched)
-	{
-	  free (line);
-	  DEBUGP (("(chucking out since it is not applicable for Wget)\n"));
-	  continue;
-	}
-      else if (!strcasecmp (cmd, "Disallow"))
-	{
-	  /* If "Disallow" is empty, the robot is welcome.  */
-	  if (!*str)
-	    {
-	      free_vec (entries);
-	      entries = (char **)xmalloc (sizeof (char *));
-	      *entries = NULL;
-	      num = 0;
-	    }
-	  else
-	    {
-	      entries = (char **)xrealloc (entries, (num + 2)* sizeof (char *));
-	      entries[num] = xstrdup (str);
-	      entries[++num] = NULL;
-	      /* Strip trailing spaces, according to specifications.  */
-	      for (i = strlen (str); i >= 0 && ISSPACE (str[i]); i--)
-		if (ISSPACE (str[i]))
-		  str[i] = '\0';
-	    }
-	}
-      else
-	{
-	  /* unknown command */
-	  DEBUGP (("(chucked out)\n"));
-	}
-      free (line);
-    }
-  fclose (fp);
-  return entries;
-}
-
-/* May the URL url be loaded according to disallowing rules stored in
-   forbidden?  */
 static int
-robots_match (struct urlinfo *u, char **fb)
+download_child_p (const struct urlpos *upos, struct url *parent, int depth,
+		  struct url *start_url_parsed, struct hash_table *blacklist)
 {
-  int l;
+  struct url *u = upos->url;
+  const char *url = u->url;
+  int u_scheme_like_http;
 
-  if (!fb)
-    return 1;
-  DEBUGP (("Matching %s against: ", u->path));
-  for (; *fb; fb++)
+  DEBUGP (("Deciding whether to enqueue \"%s\".\n", url));
+
+  if (string_set_contains (blacklist, url))
     {
-      DEBUGP (("%s ", *fb));
-      l = strlen (*fb);
-      /* If dir is fb, we may not load the file.  */
-      if (strncmp (u->path, *fb, l) == 0)
+      DEBUGP (("Already on the black list.\n"));
+      goto out;
+    }
+
+  /* Several things to check for:
+     1. if scheme is not http, and we don't load it
+     2. check for relative links (if relative_only is set)
+     3. check for domain
+     4. check for no-parent
+     5. check for excludes && includes
+     6. check for suffix
+     7. check for same host (if spanhost is unset), with possible
+     gethostbyname baggage
+     8. check for robots.txt
+
+     Addendum: If the URL is FTP, and it is to be loaded, only the
+     domain and suffix settings are "stronger".
+
+     Note that .html files will get loaded regardless of suffix rules
+     (but that is remedied later with unlink) unless the depth equals
+     the maximum depth.
+
+     More time- and memory- consuming tests should be put later on
+     the list.  */
+
+  /* Determine whether URL under consideration has a HTTP-like scheme. */
+  u_scheme_like_http = schemes_are_similar_p (u->scheme, SCHEME_HTTP);
+
+  /* 1. Schemes other than HTTP are normally not recursed into. */
+  if (!u_scheme_like_http && !(u->scheme == SCHEME_FTP && opt.follow_ftp))
+    {
+      DEBUGP (("Not following non-HTTP schemes.\n"));
+      goto out;
+    }
+
+  /* 2. If it is an absolute link and they are not followed, throw it
+     out.  */
+  if (u_scheme_like_http)
+    if (opt.relative_only && !upos->link_relative_p)
+      {
+	DEBUGP (("It doesn't really look like a relative link.\n"));
+	goto out;
+      }
+
+  /* 3. If its domain is not to be accepted/looked-up, chuck it
+     out.  */
+  if (!accept_domain (u))
+    {
+      DEBUGP (("The domain was not accepted.\n"));
+      goto out;
+    }
+
+  /* 4. Check for parent directory.
+
+     If we descended to a different host or changed the scheme, ignore
+     opt.no_parent.  Also ignore it for documents needed to display
+     the parent page when in -p mode.  */
+  if (opt.no_parent
+      && schemes_are_similar_p (u->scheme, start_url_parsed->scheme)
+      && 0 == strcasecmp (u->host, start_url_parsed->host)
+      && u->port == start_url_parsed->port
+      && !(opt.page_requisites && upos->link_inline_p))
+    {
+      if (!frontcmp (start_url_parsed->dir, u->dir))
 	{
-	  DEBUGP (("matched.\n"));
-	  return 0; /* Matches, i.e. does not load...  */
+	  DEBUGP (("Going to \"%s\" would escape \"%s\" with no_parent on.\n",
+		   u->dir, start_url_parsed->dir));
+	  goto out;
 	}
     }
-  DEBUGP (("not matched.\n"));
+
+  /* 5. If the file does not match the acceptance list, or is on the
+     rejection list, chuck it out.  The same goes for the directory
+     exclusion and inclusion lists.  */
+  if (opt.includes || opt.excludes)
+    {
+      if (!accdir (u->dir, ALLABS))
+	{
+	  DEBUGP (("%s (%s) is excluded/not-included.\n", url, u->dir));
+	  goto out;
+	}
+    }
+
+  /* 6. Check for acceptance/rejection rules.  We ignore these rules
+     for directories (no file name to match) and for HTML documents,
+     which might lead to other files that do need to be downloaded.
+     That is, unless we've exhausted the recursion depth anyway.  */
+  if (u->file[0] != '\0'
+      && !(has_html_suffix_p (u->file)
+	   && depth != INFINITE_RECURSION
+	   && depth < opt.reclevel - 1))
+    {
+      if (!acceptable (u->file))
+	{
+	  DEBUGP (("%s (%s) does not match acc/rej rules.\n",
+		   url, u->file));
+	  goto out;
+	}
+    }
+
+  /* 7. */
+  if (schemes_are_similar_p (u->scheme, parent->scheme))
+    if (!opt.spanhost && 0 != strcasecmp (parent->host, u->host))
+      {
+	DEBUGP (("This is not the same hostname as the parent's (%s and %s).\n",
+		 u->host, parent->host));
+	goto out;
+      }
+
+  /* 8. */
+  if (opt.use_robots && u_scheme_like_http)
+    {
+      struct robot_specs *specs = res_get_specs (u->host, u->port);
+      if (!specs)
+	{
+	  char *rfile;
+	  if (res_retrieve_file (url, &rfile))
+	    {
+	      specs = res_parse_from_file (rfile);
+	      xfree (rfile);
+	    }
+	  else
+	    {
+	      /* If we cannot get real specs, at least produce
+		 dummy ones so that we can register them and stop
+		 trying to retrieve them.  */
+	      specs = res_parse ("", 0);
+	    }
+	  res_register_specs (u->host, u->port, specs);
+	}
+
+      /* Now that we have (or don't have) robots.txt specs, we can
+	 check what they say.  */
+      if (!res_match_path (specs, u->path))
+	{
+	  DEBUGP (("Not following %s because robots.txt forbids it.\n", url));
+	  string_set_add (blacklist, url);
+	  goto out;
+	}
+    }
+
+  /* The URL has passed all the tests.  It can be placed in the
+     download queue. */
+  DEBUGP (("Decided to load it.\n"));
+
   return 1;
+
+ out:
+  DEBUGP (("Decided NOT to load it.\n"));
+
+  return 0;
+}
+
+/* This function determines whether we will consider downloading the
+   children of a URL whose download resulted in a redirection,
+   possibly to another host, etc.  It is needed very rarely, and thus
+   it is merely a simple-minded wrapper around download_child_p.  */
+
+static int
+descend_redirect_p (const char *redirected, const char *original, int depth,
+		    struct url *start_url_parsed, struct hash_table *blacklist)
+{
+  struct url *orig_parsed, *new_parsed;
+  struct urlpos *upos;
+  int success;
+
+  orig_parsed = url_parse (original, NULL);
+  assert (orig_parsed != NULL);
+
+  new_parsed = url_parse (redirected, NULL);
+  assert (new_parsed != NULL);
+
+  upos = xmalloc (sizeof (struct urlpos));
+  memset (upos, 0, sizeof (*upos));
+  upos->url = new_parsed;
+
+  success = download_child_p (upos, orig_parsed, depth,
+			      start_url_parsed, blacklist);
+
+  url_free (orig_parsed);
+  url_free (new_parsed);
+  xfree (upos);
+
+  if (!success)
+    DEBUGP (("Redirection \"%s\" failed the test.\n", redirected));
+
+  return success;
 }

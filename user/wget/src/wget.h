@@ -1,21 +1,31 @@
 /* Miscellaneous declarations.
    Copyright (C) 1995, 1996, 1997, 1998 Free Software Foundation, Inc.
 
-This file is part of Wget.
+This file is part of GNU Wget.
 
-This program is free software; you can redistribute it and/or modify
+GNU Wget is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
 the Free Software Foundation; either version 2 of the License, or
 (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
+GNU Wget is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
+along with Wget; if not, write to the Free Software
+Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+
+In addition, as a special exception, the Free Software Foundation
+gives permission to link the code of its release of Wget with the
+OpenSSL project's "OpenSSL" library (or with modified versions of it
+that use the same license as the "OpenSSL" library), and distribute
+the linked executables.  You must obey the GNU General Public License
+in all respects for all of the code used other than "OpenSSL".  If you
+modify this file, you may extend this exception to your version of the
+file, but you are not obligated to do so.  If you do not wish to do
+so, delete this exception statement from your version.  */
 
 /* This file contains some declarations that don't fit anywhere else.
    It also contains some useful includes, like the obnoxious TIME_H
@@ -24,9 +34,15 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #ifndef WGET_H
 #define WGET_H
 
-#ifndef DEBUG
-# define NDEBUG /* To kill off assertions */
-#endif /* not DEBUG */
+/* Disable assertions when debug support is not compiled in. */
+#ifndef ENABLE_DEBUG
+# define NDEBUG
+#endif
+
+/* Define this if you want primitive but extensive malloc debugging.
+   It will make Wget extremely slow, so only do it in development
+   builds.  */
+#undef DEBUG_MALLOC
 
 #ifndef PARAMS
 # if PROTOTYPES
@@ -47,7 +63,10 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
 # define _(string) string
 #endif /* not HAVE_NLS */
 
-/* I18N NOTE: You will notice that none of the DEBUG messages are
+/* No-op version of gettext, used for constant strings. */
+#define N_(string) (string)
+
+/* I18N NOTE: You will notice that none of the DEBUGP messages are
    marked as translatable.  This is intentional, for a few reasons:
 
    1) The debug messages are not meant for the users to look at, but
@@ -60,21 +79,23 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
    3) Finally, the debug messages are meant to be a clue for me to
    debug problems with Wget.  If I get them in a language I don't
-   understand, debugging will become a new challenge of its own!  :-) */
+   understand, debugging will become a new challenge of its own!  */
 
 
 /* Include these, so random files need not include them.  */
 #include "sysdep.h"
 #include "options.h"
+/* locale independent replacement for ctype.h */
+#include "safe-ctype.h"
 
 #define DO_NOTHING do {} while (0)
 
 /* Print X if debugging is enabled; a no-op otherwise.  */
-#ifdef DEBUG
-# define DEBUGP(x) do { debug_logprintf x; } while (0)
-#else  /* not DEBUG */
+#ifdef ENABLE_DEBUG
+# define DEBUGP(x) do { if (opt.debug) { debug_logprintf x; } } while (0)
+#else  /* not ENABLE_DEBUG */
 # define DEBUGP(x) DO_NOTHING
-#endif /* not DEBUG */
+#endif /* not ENABLE_DEBUG */
 
 /* Make gcc check for the format of logmsg() and debug_logmsg().  */
 #ifdef __GNUC__
@@ -96,11 +117,35 @@ void logprintf ();
 void debug_logprintf ();
 #endif /* not HAVE_STDARG_H */
 void logputs PARAMS ((enum log_options, const char *));
+void logflush PARAMS ((void));
+void log_set_flush PARAMS ((int));
+int log_set_save_context PARAMS ((int));
 
 /* Defined in `utils.c', but used literally everywhere.  */
-void *xmalloc PARAMS ((size_t));
-void *xrealloc PARAMS ((void *, size_t));
-char *xstrdup PARAMS ((const char *));
+#ifndef DEBUG_MALLOC
+
+#define xmalloc  xmalloc_real
+#define xrealloc xrealloc_real
+#define xstrdup  xstrdup_real
+#define xfree    free
+
+void *xmalloc_real PARAMS ((size_t));
+void *xrealloc_real PARAMS ((void *, size_t));
+char *xstrdup_real PARAMS ((const char *));
+
+#else  /* DEBUG_MALLOC */
+
+#define xmalloc(s)     xmalloc_debug (s, __FILE__, __LINE__)
+#define xfree(p)       xfree_debug (p, __FILE__, __LINE__)
+#define xrealloc(p, s) xrealloc_debug (p, s, __FILE__, __LINE__)
+#define xstrdup(p)     xstrdup_debug (p, __FILE__, __LINE__)
+
+void *xmalloc_debug PARAMS ((size_t, const char *, int));
+void xfree_debug PARAMS ((void *, const char *, int));
+void *xrealloc_debug PARAMS ((void *, size_t, const char *, int));
+char *xstrdup_debug PARAMS ((const char *, const char *, int));
+
+#endif /* DEBUG_MALLOC */
 
 /* #### Find a better place for this.  */
 /* The log file to which Wget writes to after HUP.  */
@@ -116,14 +161,62 @@ char *xstrdup PARAMS ((const char *));
 /* The smaller value of the two.  */
 #define MINVAL(x, y) ((x) < (y) ? (x) : (y))
 
-/* ASCII char -> HEX digit */
-#define ASC2HEXD(x) (((x) >= '0' && (x) <= '9') ?               \
-		     ((x) - '0') : (TOUPPER(x) - 'A' + 10))
+/* Convert an ASCII hex digit to the corresponding number between 0
+   and 15.  X should be a hexadecimal digit that satisfies isxdigit;
+   otherwise, the result is undefined.  */
+#define XDIGIT_TO_NUM(x) ((x) < 'A' ? (x) - '0' : TOUPPER (x) - 'A' + 10)
 
-/* HEX digit -> ASCII char */
-#define HEXD2ASC(x) (((x) < 10) ? ((x) + '0') : ((x) - 10 + 'A'))
+/* Convert a sequence of ASCII hex digits X and Y to a number betewen
+   0 and 255.  Uses XDIGIT_TO_NUM for conversion of individual
+   digits.  */
+#define X2DIGITS_TO_NUM(h1, h2) ((XDIGIT_TO_NUM (h1) << 4) + XDIGIT_TO_NUM (h2))
 
-#define ARRAY_SIZE(array) (sizeof (array) / sizeof (*(array)))
+/* The reverse of the above: convert a number in the [0, 16) range to
+   its ASCII representation in hex.  The A-F characters are in upper
+   case.  */
+#define XNUM_TO_DIGIT(x) ("0123456789ABCDEF"[x])
+
+/* Like XNUM_TO_DIGIT, but generates lower-case characters. */
+#define XNUM_TO_digit(x) ("0123456789abcdef"[x])
+
+/* Returns the number of elements in an array with fixed
+   initialization.  For example:
+
+   static char a[] = "foo";     -- countof(a) == 4 (for terminating \0)
+
+   int a[5] = {1, 2};           -- countof(a) == 5
+
+   char *a[] = {                -- countof(a) == 3
+     "foo", "bar", "baz"
+   }; */
+#define countof(array) (sizeof (array) / sizeof (*(array)))
+
+#define alloca_array(type, size) ((type *) alloca ((size) * sizeof (type)))
+
+/* Copy the data delimited with BEG and END to alloca-allocated
+   storage, and zero-terminate it.  Arguments are evaluated only once,
+   in the order BEG, END, PLACE.  */
+#define BOUNDED_TO_ALLOCA(beg, end, place) do {	\
+  const char *BTA_beg = (beg);			\
+  int BTA_len = (end) - BTA_beg;		\
+  char **BTA_dest = &(place);			\
+  *BTA_dest = alloca (BTA_len + 1);		\
+  memcpy (*BTA_dest, BTA_beg, BTA_len);		\
+  (*BTA_dest)[BTA_len] = '\0';			\
+} while (0)
+
+/* Return non-zero if string bounded between BEG and END is equal to
+   STRING_LITERAL.  The comparison is case-sensitive.  */
+#define BOUNDED_EQUAL(beg, end, string_literal)	\
+  ((end) - (beg) == sizeof (string_literal) - 1	\
+   && !memcmp ((beg), (string_literal),		\
+	       sizeof (string_literal) - 1))
+
+/* The same as above, except the comparison is case-insensitive. */
+#define BOUNDED_EQUAL_NO_CASE(beg, end, string_literal)	\
+  ((end) - (beg) == sizeof (string_literal) - 1		\
+   && !strncasecmp ((beg), (string_literal),		\
+	            sizeof (string_literal) - 1))
 
 /* Note that this much more elegant definition cannot be used:
 
@@ -135,13 +228,8 @@ char *xstrdup PARAMS ((const char *));
 
 #define STRDUP_ALLOCA(ptr, str) do {		\
   (ptr) = (char *)alloca (strlen (str) + 1);	\
-  strcpy (ptr, str);				\
+  strcpy ((ptr), (str));			\
 } while (0)
-
-#define ALLOCA_ARRAY(type, len) ((type *) alloca ((len) * sizeof (type)))
-
-#define XREALLOC_ARRAY(ptr, type, len)					\
-     ((void) (ptr = (type *) xrealloc (ptr, (len) * sizeof (type))))
 
 /* Generally useful if you want to avoid arbitrary size limits but
    don't need a full dynamic array.  Assumes that BASEVAR points to a
@@ -150,69 +238,31 @@ char *xstrdup PARAMS ((const char *));
    will realloc BASEVAR as necessary so that it can hold at least
    NEEDED_SIZE objects.  The reallocing is done by doubling, which
    ensures constant amortized time per element.  */
-#define DO_REALLOC(basevar, sizevar, needed_size, type)	do	\
-{								\
-  /* Avoid side-effectualness.  */				\
-  long do_realloc_needed_size = (needed_size);			\
-  long do_realloc_newsize = 0;					\
-  while ((sizevar) < (do_realloc_needed_size)) {		\
-    do_realloc_newsize = 2*(sizevar);				\
-    if (do_realloc_newsize < 32)				\
-      do_realloc_newsize = 32;					\
-    (sizevar) = do_realloc_newsize;				\
-  }								\
-  if (do_realloc_newsize)					\
-    XREALLOC_ARRAY (basevar, type, do_realloc_newsize);		\
-} while (0)
-
-/* Use this for small stack-allocated memory chunks that might grow.
-   The initial array is created using alloca(), and this macro
-   requests it to grow.  If the needed size is larger than the array,
-   this macro will use malloc to allocate it to new size, and copy the
-   old contents.  After that, successive invocations behave just like
-   DO_REALLOC.  */
-#define DO_REALLOC_FROM_ALLOCA(basevar, sizevar, needed_size, allocap, type) do	\
+#define DO_REALLOC(basevar, sizevar, needed_size, type)	do			\
 {										\
   /* Avoid side-effectualness.  */						\
   long do_realloc_needed_size = (needed_size);					\
   long do_realloc_newsize = 0;							\
   while ((sizevar) < (do_realloc_needed_size)) {				\
     do_realloc_newsize = 2*(sizevar);						\
-    if (do_realloc_newsize < 16)						\
-      do_realloc_newsize = 16;							\
+    if (do_realloc_newsize < 32)						\
+      do_realloc_newsize = 32;							\
     (sizevar) = do_realloc_newsize;						\
   }										\
   if (do_realloc_newsize)							\
-    {										\
-      if (!allocap)								\
-	XREALLOC_ARRAY (basevar, type, do_realloc_newsize);			\
-      else									\
-	{									\
-	  void *drfa_new_basevar = xmalloc (do_realloc_newsize);		\
-	  memcpy (drfa_new_basevar, basevar, sizevar);				\
-	  (basevar) = drfa_new_basevar;						\
-	  allocap = 0;								\
-	}									\
-    }										\
+    basevar = (type *)xrealloc (basevar, do_realloc_newsize * sizeof (type));	\
 } while (0)
 
 /* Free FOO if it is non-NULL.  */
-#define FREE_MAYBE(foo) do { if (foo) free (foo); } while (0)
+#define FREE_MAYBE(foo) do { if (foo) xfree (foo); } while (0)
 
-/* #### Hack: OPTIONS_DEFINED_HERE is defined in main.c.  */
-/* [Is this weird hack really necessary on any compilers?  No ANSI C compiler
-    should complain about "extern const char *exec_name;" followed by
-    "const char *exec_name;".  Are we doing this for K&R compilers, or...??
-    -- Dan Harkless <wget@harkless.org>] */
-#ifndef OPTIONS_DEFINED_HERE
 extern const char *exec_name;
-#endif
-
 
 /* Document type ("dt") flags */
 enum
 {
-  TEXTHTML             = 0x0001,	/* document is of type text/html */
+  TEXTHTML             = 0x0001,	/* document is of type text/html
+                                           or application/xhtml+xml */
   RETROKF              = 0x0002,	/* retrieval was OK */
   HEAD_ONLY            = 0x0004,	/* only send the HEAD request */
   SEND_NOCACHE         = 0x0008,	/* send Pragma: no-cache directive */
@@ -220,23 +270,25 @@ enum
   ADDED_HTML_EXTENSION = 0x0020         /* added ".html" extension due to -E */
 };
 
-/* Universal error type -- used almost everywhere.
-   This is, of course, utter crock.  */
+/* Universal error type -- used almost everywhere.  Error reporting of
+   this detail is not generally used or needed and should be
+   simplified.  */
 typedef enum
 {
-  NOCONERROR, HOSTERR, CONSOCKERR, CONERROR,
+  NOCONERROR, HOSTERR, CONSOCKERR, CONERROR, CONSSLERR,
   CONREFUSED, NEWLOCATION, NOTENOUGHMEM, CONPORTERR,
   BINDERR, BINDOK, LISTENERR, ACCEPTERR, ACCEPTOK,
   CONCLOSED, FTPOK, FTPLOGINC, FTPLOGREFUSED, FTPPORTERR,
   FTPNSFOD, FTPRETROK, FTPUNKNOWNTYPE, FTPRERR,
-  FTPREXC, FTPSRVERR, FTPRETRINT, FTPRESTFAIL,
-  URLOK, URLHTTP, URLFTP, URLFILE, URLUNKNOWN, URLBADPORT,
-  URLBADHOST, FOPENERR, FWRITEERR, HOK, HLEXC, HEOF,
+  FTPREXC, FTPSRVERR, FTPRETRINT, FTPRESTFAIL, URLERROR,
+  FOPENERR, FWRITEERR, HOK, HLEXC, HEOF,
   HERR, RETROK, RECLEVELEXC, FTPACCDENIED, WRONGCODE,
   FTPINVPASV, FTPNOPASV,
-  RETRFINISHED, READERR, TRYLIMEXC, URLBADPATTERN,
-  FILEBADFILE, RANGEERR, RETRBADPATTERN, RETNOTSUP,
-  ROBOTSOK, NOROBOTS, PROXERR, AUTHFAILED, QUOTEXC, WRITEFAILED
+  CONTNOTSUPPORTED, RETRUNNEEDED, RETRFINISHED, READERR, TRYLIMEXC,
+  URLBADPATTERN, FILEBADFILE, RANGEERR, RETRBADPATTERN,
+  RETNOTSUP, ROBOTSOK, NOROBOTS, PROXERR, AUTHFAILED,
+  QUOTEXC, WRITEFAILED,
+  SSLERRCERTFILE,SSLERRCERTKEY,SSLERRCTXCREATE
 } uerr_t;
 
 typedef unsigned char  boolean;
@@ -257,5 +309,8 @@ typedef unsigned char  boolean;
    -l, but internally infinite recursion is specified by -1 and 0 means to only
    retrieve the requisites of a single document. */
 #define INFINITE_RECURSION -1
+
+#define CONNECT_ERROR(x) ((x) == ECONNREFUSED && !opt.retry_connrefused	\
+			  ? CONREFUSED : CONERROR)
 
 #endif /* WGET_H */

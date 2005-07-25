@@ -1,18 +1,18 @@
 ## Compiler, linker, and lib stuff
-## Makefile for use with watcom win95/winnt executable.
+## Makefile for use with Borland C++ for Win32 executable.
 
 CC=bcc32
-LINK=tlink32
+LINK=ilink32
 
 LFLAGS=
-CFLAGS=-DWINDOWS -DHAVE_CONFIG_H -I. -H -H=wget.csm -w-
+CFLAGS=-DWINDOWS -DHAVE_CONFIG_H -I. -w- -O2
 
 ## variables
-OBJS=cmpt.obj connect.obj fnmatch.obj ftp.obj ftp-basic.obj  \
-      ftp-ls.obj ftp-opie.obj getopt.obj headers.obj host.obj html.obj \
-      http.obj init.obj log.obj main.obj md5.obj netrc.obj rbuf.obj  \
-      alloca.obj \
-      recur.obj retr.obj url.obj utils.obj version.obj mswindows.obj
+OBJS=cmpt.obj connect.obj convert.obj ftp.obj ftp-basic.obj  \
+      ftp-ls.obj ftp-opie.obj getopt.obj headers.obj host.obj html-parse.obj html-url.obj \
+      http.obj init.obj log.obj main.obj gnu-md5.obj netrc.obj rbuf.obj  \
+      safe-ctype.obj hash.obj progress.obj gen-md5.obj cookies.obj \
+      recur.obj res.obj retr.obj url.obj utils.obj version.obj mswindows.obj
 
 LIBDIR=$(MAKEDIR)\..\lib
 
@@ -20,21 +20,28 @@ wget.exe: $(OBJS)
   $(LINK) @&&|
 $(LFLAGS) -Tpe -ap -c +
 $(LIBDIR)\c0x32.obj+
-alloca.obj+
+convert.obj+
+cookies.obj+
+hash.obj+
+safe-ctype.obj+
 version.obj+
 utils.obj+
 url.obj+
 retr.obj+
+res.obj+
 recur.obj+
 rbuf.obj+
+progress.obj+
 netrc.obj+
 mswindows.obj+
-md5.obj+
+gnu-md5.obj+
+gen-md5.obj+
 main.obj+
 log.obj+
 init.obj+
 http.obj+
-html.obj+
+html-parse.obj+
+html-url.obj+
 host.obj+
 headers.obj+
 getopt.obj+
@@ -42,7 +49,6 @@ ftp-opie.obj+
 ftp-ls.obj+
 ftp-basic.obj+
 ftp.obj+
-fnmatch.obj+
 connect.obj+
 cmpt.obj
 $<,$*

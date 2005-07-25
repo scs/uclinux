@@ -62,15 +62,12 @@ help:
 	@echo -e "\tmake tags\t\t- generate tag files for source code"
 	@echo " "
 
-modules:
-	set -e; for d in $(DIRS); do $(MAKE) -C $$d ; done
-
 mrproper: clean
 	rm -f config.out
 	rm -f tags.linux
 
 clean:
-	touch config.mk config.new
+	#touch config.mk config.new
 	set -e; for d in $(DIRS); do $(MAKE) -C $$d clean ; done
 	rm -f core core.* *.o .*.o *.s *.a .depend tmp_make *~ tags 
 	for i in *_obj; do if [ -d $$i ]; then rm -fr $$i; fi; done
@@ -84,7 +81,7 @@ install:
 	find . -name .depend -exec rm {} \;
 	set -e; for d in $(DIRS); do $(MAKE) -C $$d install ; done
 
-auto_config:
+auto_config config.mk:
 	@touch config.mk config.new
 	@rm -f config.mk config.new
 	@./Configure -d

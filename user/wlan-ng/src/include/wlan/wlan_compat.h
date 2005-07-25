@@ -62,28 +62,7 @@
 	#define WLAN_HPPA			7
 	#define WLAN_SPARC			8
 	#define WLAN_SH    			9
-/* WLAN_CPU_CORE */
-	#define WLAN_I386CORE			1
-	#define WLAN_PPCCORE			2
-	#define WLAN_I296			3
-	#define WLAN_ARMCORE			4
-	#define WLAN_ALPHACORE			5
-	#define WLAN_MIPSCORE			6
-	#define WLAN_HPPACORE			7
-	#define WLAN_SPARCCORE 			8
-	#define WLAN_SHCORE    			9
-/* WLAN_CPU_PART */
-	#define WLAN_I386PART			1
-	#define WLAN_MPC860			2
-	#define WLAN_MPC823			3
-	#define WLAN_I296SA			4
-	#define WLAN_PPCPART			5
-	#define WLAN_ARMPART			6
-	#define WLAN_ALPHAPART			7
-	#define WLAN_MIPSPART			8
-	#define WLAN_HPPAPART			9
-	#define WLAN_SPARCPART 			10
-	#define WLAN_SHPART    			11
+	#define WLAN_x86_64                     10
 /* WLAN_SYSARCH */
 	#define WLAN_PCAT			1
 	#define WLAN_MBX			2
@@ -97,81 +76,53 @@
 	#define WLAN_HPPAARCH			10
 	#define WLAN_SPARCARCH			11
 	#define WLAN_SHARCH   			12
-/* WLAN_HOSTIF (generally set on the command line, not detected) */
-	#define WLAN_PCMCIA			1
-	#define WLAN_ISA			2
-	#define WLAN_PCI			3
-	#define WLAN_USB			4
-	#define WLAN_PLX			5
 
 /* Note: the PLX HOSTIF above refers to some vendors implementations for */
 /*       PCI.  It's a PLX chip that is a PCI to PCMCIA adapter, but it   */
 /*       isn't a real PCMCIA host interface adapter providing all the    */
 /*       card&socket services.                                           */
 
-#ifdef __powerpc__
-#ifndef __ppc__
-#define __ppc__
-#endif
-#endif
-
-#if (defined(CONFIG_PPC) || defined(CONFIG_8xx))
+#if (defined(CONFIG_PPC) || defined(CONFIG_8xx) || defined(__powerpc__))
 #ifndef __ppc__
 #define __ppc__
 #endif
 #endif
 
 #if defined(__KERNEL__)
-#if defined(__i386__) || defined(__i486__) || defined(__i586__) || defined(__i686__)
+#if defined(__x86_64__)
+	#define WLAN_CPU_FAMILY		WLAN_x86_64
+	#define WLAN_SYSARCH		WLAN_PCAT
+#elif defined(__i386__) || defined(__i486__) || defined(__i586__) || defined(__i686__)
 	#define WLAN_CPU_FAMILY		WLAN_Ix86
-	#define WLAN_CPU_CORE		WLAN_I386CORE
-	#define WLAN_CPU_PART		WLAN_I386PART
 	#define WLAN_SYSARCH		WLAN_PCAT
 #elif defined(__ppc__)
 	#define WLAN_CPU_FAMILY		WLAN_PPC
-	#define WLAN_CPU_CORE		WLAN_PPCCORE
 	#if defined(CONFIG_MBX)
-		#define WLAN_CPU_PART	WLAN_MPC860
 		#define WLAN_SYSARCH	WLAN_MBX
 	#elif defined(CONFIG_RPXLITE)
-		#define WLAN_CPU_PART	WLAN_MPC823
 		#define WLAN_SYSARCH	WLAN_RPX
 	#elif defined(CONFIG_RPXCLASSIC)
-		#define WLAN_CPU_PART	WLAN_MPC860
 		#define WLAN_SYSARCH	WLAN_RPX
 	#else
-		#define WLAN_CPU_PART	WLAN_PPCPART
 		#define WLAN_SYSARCH	WLAN_PMAC
 	#endif
 #elif defined(__arm__)
 	#define WLAN_CPU_FAMILY		WLAN_ARM
-	#define WLAN_CPU_CORE		WLAN_ARMCORE
-        #define WLAN_CPU_PART		WLAN_ARM_PART
 	#define WLAN_SYSARCH		WLAN_SKIFF
 #elif defined(__alpha__)
 	#define WLAN_CPU_FAMILY		WLAN_ALPHA
-	#define WLAN_CPU_CORE		WLAN_ALPHACORE
-	#define WLAN_CPU_PART		WLAN_ALPHAPART
 	#define WLAN_SYSARCH		WLAN_ALPHAARCH
 #elif defined(__mips__)
 	#define WLAN_CPU_FAMILY		WLAN_MIPS
-	#define WLAN_CPU_CORE		WLAN_MIPSCORE
-        #define WLAN_CPU_PART		WLAN_MIPSPART
 	#define WLAN_SYSARCH		WLAN_MIPSARCH
 #elif defined(__hppa__)
 	#define WLAN_CPU_FAMILY		WLAN_HPPA
-	#define WLAN_CPU_CORE		WLAN_HPPACORE
-	#define WLAN_CPU_PART		WLAN_HPPAPART
 	#define WLAN_SYSARCH		WLAN_HPPAARCH
 #elif defined(__sparc__)
         #define WLAN_CPU_FAMILY         WLAN_SPARC
-        #define WLAN_CPU_CORE           WLAN_SPARCCORE
-        #define WLAN_CPU_PART           WLAN_SPARCPART
         #define WLAN_SYSARCH            WLAN_SPARC
 #elif defined(__sh__)
         #define WLAN_CPU_FAMILY         WLAN_SH    
-        #define WLAN_CPU_CORE           WLAN_SHCORE   
-        #define WLAN_CPU_PART           WLAN_SHPART   
         #define WLAN_SYSARCH            WLAN_SHARCH
         #ifndef __LITTLE_ENDIAN__
         #define __LITTLE_ENDIAN__
@@ -261,10 +212,6 @@ typedef signed long long	INT64;
 /*------ Compiler Portability Macros --------------------------*/
 /*=============================================================*/
 #define __WLAN_ATTRIB_PACK__		__attribute__ ((packed))
-#define __WLAN_PRAGMA_PACK1__
-#define __WLAN_PRAGMA_PACKDFLT__
-#define __WLAN_INLINE__			inline
-#define WLAN_MIN_ARRAY			0
 
 /*=============================================================*/
 /*------ OS Portability Macros --------------------------------*/
@@ -274,44 +221,34 @@ typedef signed long long	INT64;
 #define WLAN_DBVAR	wlan_debug
 #endif
 
-#define WLAN_LOG_ERROR0(x) printk(KERN_ERR "%s: " x , __FUNCTION__ );
-#define WLAN_LOG_ERROR(x,args...) printk(KERN_ERR "%s: " x , __FUNCTION__ , args);
+#define WLAN_LOG_ERROR(x,args...) printk(KERN_ERR "%s: " x , __FUNCTION__ , ##args);
 
-#define WLAN_LOG_WARNING0(x) printk(KERN_WARNING "%s: " x , __FUNCTION__);
-#define WLAN_LOG_WARNING(x,args...) printk(KERN_WARNING "%s: " x , __FUNCTION__, args);
+#define WLAN_LOG_WARNING(x,args...) printk(KERN_WARNING "%s: " x , __FUNCTION__ , ##args);
 
-#define WLAN_LOG_NOTICE0(x) printk(KERN_NOTICE "%s: " x , __FUNCTION__);
-#define WLAN_LOG_NOTICE(x, args...) printk(KERN_NOTICE "%s: " x , __FUNCTION__, args);
+#define WLAN_LOG_NOTICE(x,args...) printk(KERN_NOTICE "%s: " x , __FUNCTION__ , ##args);
 
 #define WLAN_LOG_INFO(args... ) printk(KERN_INFO args)
 
 #if defined(WLAN_INCLUDE_DEBUG)
 	#define WLAN_ASSERT(c) if ((!(c)) && WLAN_DBVAR >= 1) { \
-		WLAN_LOG_DEBUG0(1, "Assertion failure!\n"); }
+		WLAN_LOG_DEBUG(1, "Assertion failure!\n"); }
 	#define WLAN_HEX_DUMP( l, x, p, n)	if( WLAN_DBVAR >= (l) ){ \
 		int __i__; \
 		printk(KERN_DEBUG x ":"); \
 		for( __i__=0; __i__ < (n); __i__++) \
 			printk( " %02x", ((UINT8*)(p))[__i__]); \
 		printk("\n"); }
-	#define DBFENTER { if ( WLAN_DBVAR >= 5 ){ WLAN_LOG_DEBUG0(3,"---->\n"); } }
-	#define DBFEXIT  { if ( WLAN_DBVAR >= 5 ){ WLAN_LOG_DEBUG0(3,"<----\n"); } }
+	#define DBFENTER { if ( WLAN_DBVAR >= 5 ){ WLAN_LOG_DEBUG(3,"---->\n"); } }
+	#define DBFEXIT  { if ( WLAN_DBVAR >= 5 ){ WLAN_LOG_DEBUG(3,"<----\n"); } }
 
-	#define WLAN_LOG_DEBUG0(l,x) if ( WLAN_DBVAR >= (l)) printk(KERN_DEBUG "%s: " x ,  __FUNCTION__ );
-	#define WLAN_LOG_DEBUG(l,x,args...) if ( WLAN_DBVAR >= (l)) printk(KERN_DEBUG "%s: " x ,  __FUNCTION__, args );
+	#define WLAN_LOG_DEBUG(l,x,args...) if ( WLAN_DBVAR >= (l)) printk(KERN_DEBUG "%s: " x ,  __FUNCTION__ , ##args );
 #else
 	#define WLAN_ASSERT(c) 
 	#define WLAN_HEX_DUMP( l, s, p, n)
 	#define DBFENTER 
 	#define DBFEXIT 
 
-	#define WLAN_LOG_DEBUG0(l, s)
 	#define WLAN_LOG_DEBUG(l, s, args...)
-#endif
-
-#ifdef CONFIG_MODVERSIONS
-#define MODVERSIONS		1
-#include <linux/modversions.h>
 #endif
 
 #ifdef CONFIG_SMP
@@ -348,26 +285,23 @@ typedef struct wait_queue wait_queue_t;
 // retval == 0; signal met; we're good.
 // retval < 0; interrupted by signal.
 // retval > 0; timed out.
-#define __wait_event_interruptible_timeout(wq, condition, timeout, ret)   \
+
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,4,0))  // fixme?
+
+#define __wait_event_interruptible_timeout(wq, condition, ret)            \
 do {                                                                      \
-        int __ret = 0;                                                    \
-        if (!(condition)) {                                               \
           wait_queue_t __wait;                                            \
-          unsigned long expire;                                           \
           init_waitqueue_entry(&__wait, current);                         \
 	                                                                  \
-          expire = timeout + jiffies;                                     \
           add_wait_queue(&wq, &__wait);                                   \
           for (;;) {                                                      \
                   set_current_state(TASK_INTERRUPTIBLE);                  \
                   if (condition)                                          \
                           break;                                          \
-                  if (jiffies > expire) {                                 \
-                          ret = jiffies - expire;                         \
-                          break;                                          \
-                  }                                                       \
                   if (!signal_pending(current)) {                         \
-                          schedule_timeout(timeout);                      \
+                          ret = schedule_timeout(ret)    ;                \
+                          if (!ret)                                       \
+                                 break;                                   \
                           continue;                                       \
                   }                                                       \
                   ret = -ERESTARTSYS;                                     \
@@ -375,18 +309,87 @@ do {                                                                      \
           }                                                               \
           set_current_state(TASK_RUNNING);                                \
           remove_wait_queue(&wq, &__wait);                                \
-	}                                                                 \
 } while (0)
 
-#define wait_event_interruptible_timeout(wq, condition, timeout)	\
-({									\
-	int __ret = 0;							\
-	if (!(condition))						\
-		__wait_event_interruptible_timeout(wq, condition,	\
-						timeout, __ret);	\
-	__ret;								\
+#else // 2.2
+
+
+#define __wait_event_interruptible_timeout(wq, condition, ret)          \
+do {                                                                    \
+        struct wait_queue __wait;                                       \
+                                                                        \
+        __wait.task = current;                                          \
+        add_wait_queue(&wq, &__wait);                                   \
+        for (;;) {                                                      \
+                current->state = TASK_INTERRUPTIBLE;                    \
+                if (condition)                                          \
+                        break;                                          \
+                if (!signal_pending(current)) {                         \
+                        ret = schedule_timeout(ret);                    \
+                        if (!ret)                                       \
+                               break;                                   \
+                        continue;                                       \
+                }                                                       \
+                ret = -ERESTARTSYS;                                     \
+                break;                                                  \
+        }                                                               \
+        current->state = TASK_RUNNING;                                  \
+        remove_wait_queue(&wq, &__wait);                                \
+} while (0)
+
+#endif  // version >= 2.4
+
+#define wait_event_interruptible_timeout(wq, condition, timeout)	  \
+({									  \
+	long __ret = timeout;						  \
+	if (!(condition))						  \
+		__wait_event_interruptible_timeout(wq, condition, __ret); \
+	__ret;								  \
 })
 
+#endif
+
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,4,20))
+#ifdef _LINUX_LIST_H
+
+static inline void list_move_tail(struct list_head *list,
+          struct list_head *head)
+{
+        __list_del(list->prev, list->next);
+        list_add_tail(list, head);
+}
+
+static inline void __list_splice(struct list_head *list,
+				 struct list_head *head)
+{
+      struct list_head *first = list->next;
+      struct list_head *last = list->prev;
+      struct list_head *at = head->next;
+
+      first->prev = head;
+      head->next = first;
+
+      last->next = at;
+      at->prev = last;
+}
+
+static inline void list_move(struct list_head *list, struct list_head *head)
+{
+      __list_del(list->prev, list->next);
+      list_add(list, head);
+}
+
+static inline void list_splice_init(struct list_head *list,
+            struct list_head *head)
+{
+	if (!list_empty(list)) {
+		__list_splice(list, head);
+		INIT_LIST_HEAD(list);     
+	}
+}
+
+
+#endif  // LIST_H
 #endif
 
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(2,1,90))
@@ -397,6 +400,10 @@ do {                                                                      \
 #define spin_lock_init(s)       do { } while (0)
 #define spin_trylock(l)         (1)
 typedef int spinlock_t;
+#endif
+
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,4,0)) // XXX ???
+#define spin_lock_bh         spin_lock
 #endif
 
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(2,4,0))
@@ -424,6 +431,14 @@ create_proc_read_entry(const char *name, mode_t mode,
 }
 #endif
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,3,29))
+#ifndef proc_mkdir
+#define proc_mkdir(name, root) create_proc_entry(name, S_IFDIR, root)
+#endif
+#endif
+#endif /* _LINUX_PROC_FS_H */
+
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0))
 #ifndef INIT_TQUEUE
 #define INIT_TQUEUE(_tq, _routine, _data)                       \
         do {                                                    \
@@ -438,12 +453,29 @@ create_proc_read_entry(const char *name, mode_t mode,
         } while (0)
 #endif
 
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,3,29))
-#ifndef proc_mkdir
-#define proc_mkdir(name, root) create_proc_entry(name, S_IFDIR, root)
+#ifndef INIT_WORK
+#define work_struct tq_struct
+
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,4,0))
+#define schedule_work(a)   queue_task(a, &tq_scheduler)
+#else
+#define schedule_work(a)  schedule_task(a)
+#endif
+
+#define flush_scheduled_work  flush_scheduled_tasks
+#define INIT_WORK(_wq, _routine, _data)  INIT_TQUEUE(_wq, _routine, _data)
+#define PREPARE_WORK(_wq, _routine, _data)  PREPARE_TQUEUE(_wq, _routine, _data)
+#endif
+#endif // < 2.5 kernel
+
+
+#ifndef DECLARE_TASKLET
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,4,0))
+#define tasklet_schedule(a)   queue_task(a, &tq_scheduler)
+#else
+#define tasklet_schedule(a)   schedule_task(a)
 #endif
 #endif
-#endif /* _LINUX_PROC_FS_H */
 
 
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(2,3,38))
@@ -475,6 +507,11 @@ struct iw_request_info
 #define GET_USE_COUNT(m)        mod_use_count_
 #endif
 
+#ifndef MODULE_OWNER
+#define MODULE_OWNER(a)         extern int __bogus_decl
+#define ANCIENT_MODULE_CODE
+#endif
+
 #ifndef MODULE_LICENSE
 #define MODULE_LICENSE(m)       extern int __bogus_decl
 #endif
@@ -489,6 +526,88 @@ struct iw_request_info
 
 #if (LINUX_VERSION_CODE > KERNEL_VERSION(2,5,47))
 #define NEW_MODULE_CODE
+#ifdef ANCIENT_MODULE_CODE
+#undef ANCIENT_MODULE_CODE
+#endif
+#elif (LINUX_VERSION_CODE < KERNEL_VERSION(2,4,25))
+#define module_param(name, type, perm)                                       \
+        static inline void *__check_existence_##name(void) { return &name; } \
+        MODULE_PARM(name, _MODULE_PARM_STRING_ ## type)
+
+#define _MODULE_PARM_STRING_byte "b"
+#define _MODULE_PARM_STRING_short "h"
+#define _MODULE_PARM_STRING_ushort "h"
+#define _MODULE_PARM_STRING_int "i"
+#define _MODULE_PARM_STRING_uint "i"
+#define _MODULE_PARM_STRING_long "l"
+#define _MODULE_PARM_STRING_ulong "l"
+#define _MODULE_PARM_STRING_bool "i"
+#endif
+
+/* linux < 2.5.69 */
+#ifndef IRQ_NONE
+typedef void irqreturn_t;
+#define IRQ_NONE
+#define IRQ_HANDLED
+#define IRQ_RETVAL(x)
+#endif
+
+#ifndef in_atomic
+#define in_atomic()  0
+#endif
+
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0))  // fixme
+#define URB_ASYNC_UNLINK  USB_ASYNC_UNLINK
+#define usb_fill_bulk_urb  FILL_BULK_URB
+#else
+#define USB_QUEUE_BULK 0
+#endif
+
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0))
+#define free_netdev(x)       kfree(x) 
+#endif
+
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,4,0))
+#define del_timer_sync(a)       del_timer(a)
+#endif
+
+// pcmcia-cs stuff
+#if ((LINUX_VERSION_CODE < KERNEL_VERSION(2,5,68)) && \
+     !defined(pcmcia_access_configuration_register))
+#define pcmcia_access_configuration_register(handle, reg) \
+        CardServices(AccessConfigurationRegister, handle, reg)
+#define pcmcia_register_client(handle, reg) \
+        CardServices(RegisterClient, handle, reg)
+#define pcmcia_deregister_client(handle) \
+        CardServices(DeregisterClient, handle)
+#define pcmcia_get_first_tuple(handle, tuple) \
+        CardServices(GetFirstTuple, handle, tuple)
+#define pcmcia_get_next_tuple(handle, tuple) \
+        CardServices(GetNextTuple, handle, tuple)
+#define pcmcia_get_tuple_data(handle, tuple) \
+        CardServices(GetTupleData, handle, tuple)
+#define pcmcia_parse_tuple(handle, tuple, parse) \
+        CardServices(ParseTuple, handle, tuple, parse)
+#define pcmcia_get_configuration_info(handle, config) \
+        CardServices(GetConfigurationInfo, handle, config)
+#define pcmcia_request_io(handle, req) \
+        CardServices(RequestIO, handle, req)
+#define pcmcia_request_irq(handle, req) \
+        CardServices(RequestIRQ, handle, req)
+#define pcmcia_request_configuration(handle, req) \
+        CardServices(RequestConfiguration, handle, req)
+#define pcmcia_release_configuration(handle) \
+        CardServices(ReleaseConfiguration, handle)
+#define pcmcia_release_io(handle, req) \
+        CardServices(ReleaseIO, handle, req)
+#define pcmcia_release_irq(handle, req) \
+        CardServices(ReleaseIRQ, handle, req)
+#define pcmcia_release_window(win) \
+        CardServices(ReleaseWindow, win)
+#define pcmcia_get_card_services_info(info) \
+        CardServices(GetCardServicesInfo, info)
+#define pcmcia_report_error(handle, err) \
+        CardServices(ReportError, handle, err)
 #endif
 
 /*=============================================================*/
@@ -499,6 +618,10 @@ struct iw_request_info
 #define ieee2host32(n)	__le32_to_cpu(n)
 #define host2ieee16(n)	__cpu_to_le16(n)
 #define host2ieee32(n)	__cpu_to_le32(n)
+
+#if (WLAN_CPU_FAMILY != WLAN_MIPS)
+typedef UINT32 phys_t;
+#endif
 
 #if (WLAN_CPU_FAMILY == WLAN_PPC)
        #define wlan_inw(a)                     in_be16((unsigned short *)((a)+_IO_BASE))
@@ -548,7 +671,10 @@ struct iw_request_info
 /*--- Variables -----------------------------------------------*/
 /*=============================================================*/
 
+#ifdef WLAN_INCLUDE_DEBUG
 extern int wlan_debug;
+#endif
+
 extern int wlan_ethconv;		/* What's the default ethconv? */
 
 /*=============================================================*/

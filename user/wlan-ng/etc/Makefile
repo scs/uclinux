@@ -44,19 +44,6 @@
 
 include ../config.mk
 
-ifeq ($(PRISM2_PLX), y)
-INSTFIXED=y
-endif
-ifeq ($(PRISM2_PCI), y)
-INSTFIXED=y
-endif
-ifeq ($(PRISM2_USB), y)
-INSTFIXED=y
-endif
-ifeq (,$(RC_DIR))
-INSTFIXED=n
-endif
-
 DIRS= pcmcia wlan
 
 all:
@@ -67,20 +54,17 @@ clean:
 
 install:
 	set -e; for d in $(DIRS); do $(MAKE) -C $$d install; done
-ifeq ($(INSTFIXED), y)
 	if [ ! -d $(TARGET_ROOT_ON_HOST)$(RC_DIR)/init.d ]; then \
 		mkdir -p $(TARGET_ROOT_ON_HOST)$(RC_DIR)/init.d; \
 	fi; \
 	cp rc.wlan $(TARGET_ROOT_ON_HOST)$(RC_DIR)/init.d/wlan; \
 	chmod 755 $(TARGET_ROOT_ON_HOST)$(RC_DIR)/init.d/wlan ;\
 	if [ -d $(TARGET_ROOT_ON_HOST)/etc/hotplug ]; then \
-		mkdir -p $(TARGET_ROOT_ON_HOST)/etc/hotplug/usb; \
-		mkdir -p $(TARGET_ROOT_ON_HOST)/etc/hotplug/pci; \
-		cp wlan.hotplug $(TARGET_ROOT_ON_HOST)/etc/hotplug/usb/prism2_usb; \
-		cp wlan.hotplug $(TARGET_ROOT_ON_HOST)/etc/hotplug/pci/prism2_pci; \
-		cp wlan.hotplug $(TARGET_ROOT_ON_HOST)/etc/hotplug/pci/prism2_plx; \
+		cp wlan.agent $(TARGET_ROOT_ON_HOST)/etc/hotplug; \
+		rm -f $(TARGET_ROOT_ON_HOST)/etc/hotplug/usb/prism2_usb; \
+                rm -f $(TARGET_ROOT_ON_HOST)/etc/hotplug/pci/prism2_pci; \
+                rm -f $(TARGET_ROOT_ON_HOST)/etc/hotplug/pci/prism2_plx; \
 	fi
-endif
 
 romfs:
 	@echo "Nothing to do..."

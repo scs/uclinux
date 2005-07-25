@@ -80,7 +80,6 @@
 
 #define P80211_TYPE_OCTETSTR		1	/* pascal array of bytes */
 #define P80211_TYPE_DISPLAYSTR		2	/* pascal array of bytes containing ascii */
-#define P80211_TYPE_BOUNDEDINT		3	/* UINT32 w/ min and max values */
 #define P80211_TYPE_INT			4	/* UINT32 min and max limited by 32 bits */
 #define P80211_TYPE_ENUMINT		5	/* UINT32 holding a numeric
 						   code that can be mapped
@@ -221,6 +220,12 @@
 #define P80211ENUM_msgitem_status_unknown		13
 #define P80211ENUM_msgitem_status_invalid_did		14
 #define P80211ENUM_msgitem_status_missing_print_func	15
+
+#define P80211ENUM_lnxroam_reason_unknown        0
+#define P80211ENUM_lnxroam_reason_beacon         1
+#define P80211ENUM_lnxroam_reason_signal         2
+#define P80211ENUM_lnxroam_reason_txretry        3
+#define P80211ENUM_lnxroam_reason_notjoined      4
 
 #define P80211ENUM_p2preamble_long               0
 #define P80211ENUM_p2preamble_short              2
@@ -387,78 +392,61 @@ typedef struct p80211enum
 /*  messages. */
 
 /* Template pascal string */
-__WLAN_PRAGMA_PACK1__
 typedef struct p80211pstr
 {
 	UINT8		len								__WLAN_ATTRIB_PACK__;			
 } __WLAN_ATTRIB_PACK__ p80211pstr_t;
-__WLAN_PRAGMA_PACKDFLT__
 
-__WLAN_PRAGMA_PACK1__
 typedef struct p80211pstrd
 {
 	UINT8		len			__WLAN_ATTRIB_PACK__;			
 	UINT8		data[0]			__WLAN_ATTRIB_PACK__;
 } __WLAN_ATTRIB_PACK__ p80211pstrd_t;
-__WLAN_PRAGMA_PACKDFLT__
 
 /* Maximum pascal string */
-__WLAN_PRAGMA_PACK1__
 typedef struct p80211pstr255
 {
 	UINT8		len			__WLAN_ATTRIB_PACK__;
 	UINT8		data[MAXLEN_PSTR255]	__WLAN_ATTRIB_PACK__;
 } __WLAN_ATTRIB_PACK__ p80211pstr255_t;
-__WLAN_PRAGMA_PACKDFLT__
 
 /* pascal string for macaddress and bssid */
-__WLAN_PRAGMA_PACK1__
 typedef struct p80211pstr6
 {
 	UINT8		len			__WLAN_ATTRIB_PACK__;
 	UINT8		data[MAXLEN_PSTR6]	__WLAN_ATTRIB_PACK__;
 } __WLAN_ATTRIB_PACK__ p80211pstr6_t;
-__WLAN_PRAGMA_PACKDFLT__
 
 /* pascal string for channel list */
-__WLAN_PRAGMA_PACK1__
 typedef struct p80211pstr14
 {
 	UINT8		len			__WLAN_ATTRIB_PACK__;
 	UINT8		data[MAXLEN_PSTR14]	__WLAN_ATTRIB_PACK__;
 } __WLAN_ATTRIB_PACK__ p80211pstr14_t;
-__WLAN_PRAGMA_PACKDFLT__
 
 /* pascal string for ssid */
-__WLAN_PRAGMA_PACK1__
 typedef struct p80211pstr32
 {
 	UINT8		len			__WLAN_ATTRIB_PACK__;
 	UINT8		data[MAXLEN_PSTR32]	__WLAN_ATTRIB_PACK__;
 } __WLAN_ATTRIB_PACK__ p80211pstr32_t;
-__WLAN_PRAGMA_PACKDFLT__
 
 /* MAC address array */
-__WLAN_PRAGMA_PACK1__
 typedef struct p80211macarray
 {
 	UINT32		cnt			__WLAN_ATTRIB_PACK__;
 	UINT8		data[1][MAXLEN_PSTR6]	__WLAN_ATTRIB_PACK__;
 } __WLAN_ATTRIB_PACK__ p80211macarray_t;
-__WLAN_PRAGMA_PACKDFLT__
 
 /* prototype template */
-__WLAN_PRAGMA_PACK1__
 typedef struct p80211item
 {
 	UINT32		did			__WLAN_ATTRIB_PACK__;
 	UINT16		status			__WLAN_ATTRIB_PACK__;
 	UINT16		len			__WLAN_ATTRIB_PACK__;
 } __WLAN_ATTRIB_PACK__ p80211item_t;
-__WLAN_PRAGMA_PACKDFLT__
 
 /* prototype template w/ data item */
-__WLAN_PRAGMA_PACK1__
 typedef struct p80211itemd
 {
 	UINT32		did			__WLAN_ATTRIB_PACK__;
@@ -466,10 +454,8 @@ typedef struct p80211itemd
 	UINT16		len			__WLAN_ATTRIB_PACK__;
 	UINT8		data[0]			__WLAN_ATTRIB_PACK__;
 } __WLAN_ATTRIB_PACK__ p80211itemd_t;
-__WLAN_PRAGMA_PACKDFLT__
 
 /* message data item for INT, BOUNDEDINT, ENUMINT */
-__WLAN_PRAGMA_PACK1__
 typedef struct p80211item_uint32
 {
 	UINT32		did			__WLAN_ATTRIB_PACK__;
@@ -477,10 +463,8 @@ typedef struct p80211item_uint32
 	UINT16		len			__WLAN_ATTRIB_PACK__;
 	UINT32		data			__WLAN_ATTRIB_PACK__;
 } __WLAN_ATTRIB_PACK__ p80211item_uint32_t;
-__WLAN_PRAGMA_PACKDFLT__
 
 /* message data item for OCTETSTR, DISPLAYSTR */
-__WLAN_PRAGMA_PACK1__
 typedef struct p80211item_pstr6
 {
 	UINT32		did			__WLAN_ATTRIB_PACK__;
@@ -488,10 +472,8 @@ typedef struct p80211item_pstr6
 	UINT16		len			__WLAN_ATTRIB_PACK__;
 	p80211pstr6_t	data			__WLAN_ATTRIB_PACK__;
 } __WLAN_ATTRIB_PACK__ p80211item_pstr6_t;
-__WLAN_PRAGMA_PACKDFLT__
 
 /* message data item for OCTETSTR, DISPLAYSTR */
-__WLAN_PRAGMA_PACK1__
 typedef struct p80211item_pstr14
 {
 	UINT32			did		__WLAN_ATTRIB_PACK__;
@@ -499,10 +481,8 @@ typedef struct p80211item_pstr14
 	UINT16			len		__WLAN_ATTRIB_PACK__;
 	p80211pstr14_t		data		__WLAN_ATTRIB_PACK__;
 } __WLAN_ATTRIB_PACK__ p80211item_pstr14_t;
-__WLAN_PRAGMA_PACKDFLT__
 
 /* message data item for OCTETSTR, DISPLAYSTR */
-__WLAN_PRAGMA_PACK1__
 typedef struct p80211item_pstr32
 {
 	UINT32			did		__WLAN_ATTRIB_PACK__;
@@ -510,10 +490,8 @@ typedef struct p80211item_pstr32
 	UINT16			len		__WLAN_ATTRIB_PACK__;
 	p80211pstr32_t		data		__WLAN_ATTRIB_PACK__;
 } __WLAN_ATTRIB_PACK__ p80211item_pstr32_t;
-__WLAN_PRAGMA_PACKDFLT__
 
 /* message data item for OCTETSTR, DISPLAYSTR */
-__WLAN_PRAGMA_PACK1__
 typedef struct p80211item_pstr255
 {
 	UINT32			did		__WLAN_ATTRIB_PACK__;
@@ -521,7 +499,6 @@ typedef struct p80211item_pstr255
 	UINT16			len		__WLAN_ATTRIB_PACK__;
 	p80211pstr255_t		data		__WLAN_ATTRIB_PACK__;
 } __WLAN_ATTRIB_PACK__ p80211item_pstr255_t;
-__WLAN_PRAGMA_PACKDFLT__
 
 /* message data item for UNK 392, namely mib items */
 typedef struct  p80211item_unk392
@@ -531,7 +508,6 @@ typedef struct  p80211item_unk392
 	UINT16		len				__WLAN_ATTRIB_PACK__;
 	UINT8		data[MAXLEN_MIBATTRIBUTE]	__WLAN_ATTRIB_PACK__;
 } __WLAN_ATTRIB_PACK__ p80211item_unk392_t;
-__WLAN_PRAGMA_PACK1__
 
 /* message data item for UNK 1025, namely p2 pdas */
 typedef struct  p80211item_unk1024
@@ -541,7 +517,6 @@ typedef struct  p80211item_unk1024
 	UINT16		len				__WLAN_ATTRIB_PACK__;
 	UINT8		data[1024]			__WLAN_ATTRIB_PACK__;
 }  __WLAN_ATTRIB_PACK__ p80211item_unk1024_t;
-__WLAN_PRAGMA_PACK1__
 
 /* message data item for UNK 4096, namely p2 download chunks */
 typedef struct  p80211item_unk4096
@@ -551,7 +526,6 @@ typedef struct  p80211item_unk4096
 	UINT16		len				__WLAN_ATTRIB_PACK__;
 	UINT8		data[4096]			__WLAN_ATTRIB_PACK__;
 }  __WLAN_ATTRIB_PACK__ p80211item_unk4096_t;
-__WLAN_PRAGMA_PACK1__
 
 struct catlistitem;
 
@@ -589,6 +563,9 @@ extern p80211enum_t MKENUMNAME(reason);
 extern p80211enum_t MKENUMNAME(status);
 extern p80211enum_t MKENUMNAME(msgcode);
 extern p80211enum_t MKENUMNAME(msgitem_status);
+
+extern p80211enum_t MKENUMNAME(lnxroam_reason);
+
 extern p80211enum_t MKENUMNAME(p2preamble); 
 
 /*================================================================*/
@@ -631,16 +608,6 @@ void p80211_fromtext_octetstr( struct catlistitem *metalist, UINT32 did, UINT8 *
 
 /* function that checks validity of an octetstr binary value */
 UINT32 p80211_isvalid_octetstr( struct catlistitem *metalist, UINT32 did, UINT8 *itembuf );
-
-/*-- BOUNDEDINT ------------------------------------------------------*/
-/* UINT32 ==> %d */
-void p80211_totext_boundedint( struct catlistitem *metalist, UINT32 did, UINT8 *itembuf, char *textbuf );
-
-/* %d ==> UINT32 */
-void p80211_fromtext_boundedint( struct catlistitem *metalist, UINT32 did, UINT8 *itembuf, char *textbuf );
-
-/* function that checks validity of a boundedint's binary value */
-UINT32 p80211_isvalid_boundedint( struct catlistitem *metalist, UINT32 did, UINT8 *itembuf );
 
 /*-- INT -------------------------------------------------------------*/
 /* UINT32 ==> %d */

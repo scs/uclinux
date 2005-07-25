@@ -13,38 +13,44 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
+   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+
+   In addition, as a special exception, the Free Software Foundation
+   gives permission to link the code of its release of Wget with the
+   OpenSSL project's "OpenSSL" library (or with modified versions of it
+   that use the same license as the "OpenSSL" library), and distribute
+   the linked executables.  You must obey the GNU General Public License
+   in all respects for all of the code used other than "OpenSSL".  If you
+   modify this file, you may extend this exception to your version of the
+   file, but you are not obligated to do so.  If you do not wish to do
+   so, delete this exception statement from your version.  */
 
 
 #ifndef CONFIG_H
 #define CONFIG_H
 
+#define HAVE_SNPRINTF
+
+#define HAVE_MEMMOVE
+#define ftruncate chsize
+#define inline __inline
+
+/* Flag that C files should include <stdarg.h>, not <varargs.h>.  */
+#define WGET_USE_STDARG
+
+/* Define if the free Borland C++Builder 5.5 command-line compiler is used,
+   because its utime() has a bug. */
+#define HACK_BCC_UTIME_BUG
+
+#ifdef HACK_BCC_UTIME_BUG
+#define utime borland_utime
+#endif
+
 /* Define if you have the <alloca.h> header file.  */
 #undef HAVE_ALLOCA_H
 
-/* AIX requires this to be the first thing in the file.  */
-#ifdef __GNUC__
-# define alloca __builtin_alloca
-#else
-# if HAVE_ALLOCA_H
-#  include <alloca.h>
-# else
-#  ifdef _AIX
- #pragma alloca
-#  else
-#   ifndef alloca /* predefined by HP cc +Olibcalls */
-char *alloca ();
-#   endif
-#  endif
-# endif
-#endif
-
-/* Define if on AIX 3.
-   System headers sometimes define this.
-   We just want to avoid a redefinition error message.  */
-#ifndef _ALL_SOURCE
-/* #undef _ALL_SOURCE */
-#endif
+/* For Borland C++ 5.5, alloca is defined in the <malloc.h> header file. */
+#include <malloc.h>
 
 /* Define to empty if the keyword does not work.  */
 /* #undef const */
@@ -72,7 +78,7 @@ char *alloca ();
 #define USE_DIGEST 1
 
 /* Define if you want the debug output support compiled in.  */
-#define DEBUG
+#define ENABLE_DEBUG
 
 /* Define if you have sys/time.h header. */
 #undef HAVE_SYS_TIME_H
@@ -166,5 +172,32 @@ char *alloca ();
 
 /* Define to 1 if ANSI function prototypes are usable.  */
 #define PROTOTYPES 1
+
+/* Define if we're compiling in support for MD5.  */
+#define HAVE_MD5 1
+
+/* Define if we're using Solaris libmd5.  */
+#undef HAVE_SOLARIS_MD5
+
+/* Define if we're using builtin (GNU) md5.c.  */
+#define HAVE_BUILTIN_MD5 1
+
+/* Define if you have the isatty function.  */
+#define HAVE_ISATTY
+
+/* Define to the length of short. */
+#define SIZEOF_SHORT 2
+
+/* Define to the length of int. */
+#define SIZEOF_INT 4
+
+/* Define to the length of long. */
+#define SIZEOF_LONG 4
+
+/* Defined to int or size_t on systems without socklen_t.  */
+#define socklen_t int
+
+/* Define if you have uint32_t.  */
+#define HAVE_UINT32_T */
 
 #endif /* CONFIG_H */

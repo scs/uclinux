@@ -105,7 +105,7 @@
 typedef struct p80211ioctl_req
 {
 	char 	name[WLAN_DEVNAMELEN_MAX]	__WLAN_ATTRIB_PACK__;
-	void	*data				__WLAN_ATTRIB_PACK__;
+	caddr_t data                            __WLAN_ATTRIB_PACK__;
 	UINT32	magic				__WLAN_ATTRIB_PACK__;
 	UINT16	len				__WLAN_ATTRIB_PACK__;
 	UINT32	result				__WLAN_ATTRIB_PACK__;

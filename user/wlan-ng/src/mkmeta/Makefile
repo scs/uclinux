@@ -104,9 +104,6 @@ mkmetastruct:	$(MKMETASTRUCT_OBJ) mkmetastructhead.txt
 install:
 	echo "Nothing to install"
 
-romfs:
-	@echo "Nothing to romfs install"
-
 clean:
 	rm -f core core.* *.o .*.o *.s *.a .depend tmp_make *~ tags
 	rm -f ../shared/*.o
@@ -114,6 +111,9 @@ clean:
 	rm -f mkmetadef mkmetastruct
 	rm -f ../include/wlan/p80211metastruct.h
 	rm -f ../include/wlan/p80211metadef.h
+
+romfs:
+	@echo "Nothing to romfs install"
 
 #
 # Include a dependency file (if one exists)

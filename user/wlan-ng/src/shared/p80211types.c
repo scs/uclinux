@@ -629,177 +629,6 @@ UINT32 p80211_isvalid_octetstr( catlistitem_t *metalist, UINT32 did, UINT8 *item
 	return result;
 }
 
-
-/*----------------------------------------------------------------
-* p80211_totext_boundedint
-*
-* UINT32 ==> %d
-*
-* Converts a UINT32 stored data item to a C string appropriate for display.
-* The C string format  is always  "<item name>=<item value>".
-* Note: for now, this function is identical to totext_int
-*
-* Arguments:
-*	metalist	pointer to a category metadata list
-*	did		complete, validated, DID.
-*	itembuf		item triple {DID, len, value}.
-*	textbuf		(out) character buffer to receive textual
-*			representation.
-*
-* Returns: 
-*	nothing
-*
-* Side effects:
-*	Writes the converted value to the buffer pointed at by
-*	textbuf.
-----------------------------------------------------------------*/
-void p80211_totext_boundedint( catlistitem_t *metalist, UINT32 did, UINT8 *itembuf, char *textbuf )
-{
-	p80211meta_t	*meta = NULL;
-	p80211itemd_t	*item = (p80211itemd_t*)itembuf;
-
-	*textbuf = '\0';
-
-	/* collect the metadata item */
-	if ( (meta = p80211_did2item(metalist, did)) != NULL ) {
-		if ( item->status == P80211ENUM_msgitem_status_data_ok ) {
-			if ( item->did != 0UL ) {
-				/* now, print the data item name and 
-				value into the textbuf */
-				sprintf( textbuf, "%s=%lu", meta->name,
-					*((UINT32 *)(item->data)));
-			} else {
-				sprintf( textbuf, "%s=%s", meta->name,
-					NOT_SUPPORTED);
-			}
-		} else {
-			char		error_msg[MSG_BUFF_LEN];
-
-			p80211_error2text( item->status, error_msg);
-			sprintf( textbuf, "%s=\"%s\"", meta->name,
-				error_msg);
-		}
-	} else {
-		char		error_msg[MSG_BUFF_LEN];
-
-		p80211_error2text( P80211ENUM_msgitem_status_invalid_msg_did,
-			error_msg);
-		sprintf( textbuf, "0x%08lx=\"%s\"", did,
-			error_msg);
-	}
-
-	return;
-}
-
-
-/*----------------------------------------------------------------
-* p80211_fromtext_boundedint
-*
-* %d ==> UINT32
-*
-* Converts a C string containing the "<item name>=<item value>" format
-* to a wlan data item triple.
-*
-* The C string format  is always  "<item name>=<item value>".
-*
-* Arguments:
-*	metalist	pointer to a category metadata list
-*	did		complete, validated, DID.
-*	itembuf		(out>item triple {DID, len, value}.
-*	textbuf		character buffer to receive textual
-*			representation.
-*
-* Returns: 
-*	nothing
-*
-* Side effects:
-*	Writes the converted value to the buffer pointed at by
-*	itembuf.
-----------------------------------------------------------------*/
-void p80211_fromtext_boundedint( catlistitem_t *metalist, UINT32 did, UINT8 *itembuf, char *textbuf )
-{
-	p80211meta_t	*meta = NULL;
-	p80211itemd_t	*item = (p80211itemd_t*)itembuf;
-
-	/* collect the metadata item */
-	if ( (meta = p80211_did2item(metalist, did)) != NULL ) {
-		/* set the DID and OR in the partial DID for safety */
-		item->did = did | meta->did;
-		item->len = p80211item_maxdatalen(metalist, item->did);
-
-		/* skip past the item name to its value before converting */
-		textbuf = strchr(textbuf, '=');
-
-		if ( textbuf != NULL ) {
-			/* OK, got the '=', bump to the next */
-			textbuf++;
-			*((UINT32 *)(item->data)) = strtoul(textbuf, NULL, 0);
-			if ( ((*((UINT32 *)(item->data))) >= meta->min) &&
-				((*((UINT32 *)(item->data))) <= meta->max) )
-				item->status =
-					P80211ENUM_msgitem_status_data_ok;
-			else
-				item->status =
-					P80211ENUM_msgitem_status_data_out_of_range;
-		} else {
-			/* bogus text string, set the item data value to zero */
-			*((UINT32 *)(item->data)) = 0UL;
-			item->status = P80211ENUM_msgitem_status_missing_itemdata;
-		}
-	} else {
-		item->did = did;
-		item->len = sizeof(UINT32);
-		item->status = P80211ENUM_msgitem_status_invalid_itemname;
-	}
-	return;
-}
-
-
-/*----------------------------------------------------------------
-* p80211_isvalid_boundedint
-*
-* Tests an item triple for valid range.  Uses the validation
-* information in the metadata.  Boundedint's are validated for
-* their range.
-*
-* Arguments:
-*	metalist	pointer to a category metadata list
-*	did		complete, validated, DID.
-*	itembuf		item triple {DID, len, value}.
-*
-* Returns: 
-*	0	- data in itembuf is invalid
-*	~0	- data in itembuf is valid
-----------------------------------------------------------------*/
-UINT32 p80211_isvalid_boundedint( catlistitem_t *metalist, UINT32 did, UINT8 *itembuf )
-{
-	UINT32		result = 0;
-	p80211meta_t	*meta;
-	p80211itemd_t	*item = (p80211itemd_t*)itembuf;
-
-	if ( item->status == P80211ENUM_msgitem_status_data_ok ) {
-		/* collect the metadata item */
-		if ( (meta = p80211_did2item(metalist, did)) != NULL ) {
-			/* check to see if the data item's data value is
-			between the min and max values of the metadata
-			for the item, including the min and max values
-	   		themselves */
-			if ( ((*((UINT32 *)(item->data))) >= meta->min) &&
-				((*((UINT32 *)(item->data))) <= meta->max) ) {
-				result = 1;
-			} else{
-				item->status =
-					P80211ENUM_msgitem_status_data_out_of_range;
-			}
-		} else {
-			item->status = P80211ENUM_msgitem_status_invalid_did;
-		}
-	}
-
-	return result;
-}
-
-
 /*----------------------------------------------------------------
 * p80211_totext_int
 *
@@ -948,9 +777,19 @@ UINT32 p80211_isvalid_int( catlistitem_t *metalist, UINT32 did, UINT8 *itembuf )
 	if ( item->status == P80211ENUM_msgitem_status_data_ok ) {
 		/* collect the metadata item */
 		if ( (meta = p80211_did2item(metalist, did)) != NULL ) {
-			/* since integers aren't bounded, there's
-			nothing to check */
-			result = 1;
+			/* if either min or max is non-zero, we are bound */
+			if (meta->min || meta->max) {
+				if ( ((*((UINT32 *)(item->data))) >= meta->min) &&
+				     ((*((UINT32 *)(item->data))) <= meta->max)) {
+					result = 1;
+				} else {
+					item->status =
+						P80211ENUM_msgitem_status_data_out_of_range;
+				}      
+			} else {
+				result = 1;
+			}
+			
 		} else {
 			item->status = P80211ENUM_msgitem_status_invalid_did;
 		}
@@ -2530,6 +2369,16 @@ MKENUMPAIRLIST(msgitem_status)
 	/* a print function for the item doesn't exist  */
 };
 MKENUM(msgitem_status);
+
+MKENUMPAIRLIST(lnxroam_reason)
+{
+	MKENUMPAIR(0, "unknown"),
+	MKENUMPAIR(1, "beacon"),
+	MKENUMPAIR(2, "signal"),
+	MKENUMPAIR(3, "txretry"),
+	MKENUMPAIR(4, "notjoined")
+};
+MKENUM(lnxroam_reason);
 
 MKENUMPAIRLIST(p2preamble)
 {

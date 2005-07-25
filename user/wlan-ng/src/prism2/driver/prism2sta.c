@@ -52,29 +52,36 @@
 
 /*================================================================*/
 /* System Includes */
+#define WLAN_DBVAR	prism2_debug
+
+#include <wlan/version.h>
 
 #include <linux/config.h>
-#define WLAN_DBVAR	prism2_debug
 #include <linux/version.h>
 
 #include <linux/module.h>
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,4,25))
+#include <linux/moduleparam.h>
+#endif
+
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/types.h>
+#include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/wireless.h>
 #include <linux/netdevice.h>
 
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0))
 #include <linux/tqueue.h>
+#else
+#include <linux/workqueue.h>
 #endif
 
 #include <asm/io.h>
 #include <linux/delay.h>
 #include <asm/byteorder.h>
 #include <linux/if_arp.h>
-
-#include <wlan/wlan_compat.h>
 
 #if (WLAN_HOSTIF == WLAN_PCMCIA)
 #include <pcmcia/version.h>
@@ -83,22 +90,18 @@
 #include <pcmcia/cistpl.h>
 #include <pcmcia/ds.h>
 #include <pcmcia/cisreg.h>
-#include <pcmcia/driver_ops.h>
 #endif
+
+#include <wlan/wlan_compat.h>
 
 #if ((WLAN_HOSTIF == WLAN_PLX) || (WLAN_HOSTIF == WLAN_PCI))
 #include <linux/ioport.h>
 #include <linux/pci.h>
 #endif
 
-#if (WLAN_HOSTIF == WLAN_USB)
-#include <linux/usb.h>
-#endif
-
 /*================================================================*/
 /* Project Includes */
 
-#include <wlan/version.h>
 #include <wlan/p80211types.h>
 #include <wlan/p80211hdr.h>
 #include <wlan/p80211mgmt.h>
@@ -113,67 +116,6 @@
 
 /*================================================================*/
 /* Local Constants */
-
-#if (WLAN_HOSTIF == WLAN_PLX)
-#define PLX_ATTR_SIZE	0x1000	/* Attribute memory size - 4K bytes */
-#define COR_OFFSET	0x3e0	/* COR attribute offset of Prism2 PC card */
-#define COR_VALUE	0x41	/* Enable PC card with irq in level trigger */
-#define PLX_INTCSR	0x4c	/* Interrupt Control and Status Register */
-#define PLX_INTCSR_INTEN (1<<6) /* Interrupt Enable bit */
-#define PLX_MIN_ATTR_LEN 512    /* at least 2 x 256 is needed for CIS */
-
-/* 3Com 3CRW777A (PLX) board ID */
-#define PCIVENDOR_3COM       0x10B7
-#define PCIDEVICE_AIRCONNECT 0x7770
-
-/* Eumitcom PCI WL11000 PCI Adapter (PLX) board device+vendor ID */
-#define PCIVENDOR_EUMITCOM	0x1638UL
-#define PCIDEVICE_WL11000	0x1100UL
-
-/* Global Sun Tech GL24110P PCI Adapter (PLX) board device+vendor ID */
-#define PCIVENDOR_GLOBALSUN	0x16abUL
-#define PCIDEVICE_GL24110P	0x1101UL
-#define PCIDEVICE_GL24110P_ALT	0x1102UL
-
-/* Netgear MA301 PCI Adapter (PLX) board device+vendor ID */
-#define PCIVENDOR_NETGEAR	0x1385UL
-#define PCIDEVICE_MA301		0x4100UL
-
-/* US Robotics USR2410 PCI Adapter (PLX) board device+vendor ID */
-#define	PCIVENDOR_USROBOTICS    0x16ecUL
-#define PCIDEVICE_USR2410       0x3685UL
-
-/* Linksys WPC11 card with the WDT11 adapter (PLX) board device+vendor ID */
-#define	PCIVENDOR_Linksys       0x16abUL
-#define PCIDEVICE_Wpc11Wdt11    0x1102UL
-
-/* National Datacomm Corp SOHOware Netblaster II PCI */
-#define PCIVENDOR_NDC	        0x15e8UL
-#define PCIDEVICE_NCP130_PLX 	0x0130UL
-#define PCIDEVICE_NCP130_ASIC	0x0131UL
-
-/* NDC NCP130_PLX is also sold by Corega. Their name is CGWLPCIA11 */
-#define PCIVENDOR_COREGA       PCIVENDOR_NDC
-#define PCIDEVICE_CGWLPCIA11   PCIDEVICE_NCP130_PLX
-
-/* PCI Class & Sub-Class code, Network-'Other controller' */
-#define PCI_CLASS_NETWORK_OTHERS 0x280
-#endif /* WLAN_PLX */
-
-#if (WLAN_HOSTIF == WLAN_PCI)
-#define PCI_TYPE		(PCI_USES_MEM | PCI_ADDR0 | PCI_NO_ACPI_WAKE)
-#define PCI_SIZE		0x1000		/* Memory size - 4K bytes */
-
-/* ISL3874A 11Mb/s WLAN controller */
-#define PCIVENDOR_INTERSIL	0x1260UL
-#define PCIDEVICE_ISL3874	0x3873UL /* [MSM] yeah I know...the ID says 
-					    3873. Trust me, it's a 3874. */
-
-/* PCI Class & Sub-Class code, Network-'Other controller' */
-#define PCI_CLASS_NETWORK_OTHERS 0x280
-
-#endif /* WLAN_PCI */
-
 
 /*================================================================*/
 /* Local Macros */
@@ -201,12 +143,6 @@ typedef char* dev_info_t;
 
 static char		*version = "prism2" DRIVER_SUFFIX ".o: " WLAN_RELEASE;
 static dev_info_t	dev_info = "prism2" DRIVER_SUFFIX;
-
-#if (WLAN_HOSTIF == WLAN_PCMCIA)
-
-static dev_link_t	*dev_list = NULL;	/* head of instance list */
-
-#endif
 
 /*-----------------------------------------------------------------*/ 
 #if (WLAN_HOSTIF == WLAN_PLX || WLAN_HOSTIF == WLAN_PCI)
@@ -311,260 +247,64 @@ static int prism2sta_resume_pci(struct pci_dev *pdev);
 #endif
 #endif
 
-#if (WLAN_HOSTIF == WLAN_PLX)
-static struct pci_device_id plx_id_tbl[] = {
-	{
-		PCIVENDOR_EUMITCOM, PCIDEVICE_WL11000,
-		PCI_ANY_ID, PCI_ANY_ID,
-		0, 0,
-		/* Driver data, we just put the name here */
-		(unsigned long)"Eumitcom WL11000 PCI(PLX) card"	
-	},
-	{
-		PCIVENDOR_GLOBALSUN, PCIDEVICE_GL24110P,
-		PCI_ANY_ID, PCI_ANY_ID,
-		0, 0, 
-		/* Driver data, we just put the name here */
-		(unsigned long)"Global Sun Tech GL24110P PCI(PLX) card"
-	},
-	{
-		PCIVENDOR_GLOBALSUN, PCIDEVICE_GL24110P_ALT,
-		PCI_ANY_ID, PCI_ANY_ID,
-		0, 0, 
-		/* Driver data, we just put the name here */
-		(unsigned long)"Global Sun Tech GL24110P PCI(PLX) card"
-	},
-	{
-		PCIVENDOR_NETGEAR, PCIDEVICE_MA301,
-		PCI_ANY_ID, PCI_ANY_ID,
-		0, 0, 
-		/* Driver data, we just put the name here */
-		(unsigned long)"Global Sun Tech GL24110P PCI(PLX) card"
-	},
-	{
-		PCIVENDOR_USROBOTICS, PCIDEVICE_USR2410,
-		PCI_ANY_ID, PCI_ANY_ID,
-		0, 0,
-		/* Driver data, we just put the name here */
-		(unsigned long)"US Robotics USR2410 PCI(PLX) card"	
-	},
-	{
-		PCIVENDOR_Linksys, PCIDEVICE_Wpc11Wdt11,
-		PCI_ANY_ID, PCI_ANY_ID,
-		0, 0,
-		/* Driver data, we just put the name here */
-		(unsigned long)"Linksys WPC11 with WDT11 PCI(PLX) adapter"	
-	},
-	{
-	        PCIVENDOR_NDC, PCIDEVICE_NCP130_PLX,
-		PCI_ANY_ID, PCI_ANY_ID,
-		0, 0, 
-		/* Driver data, we just put the name here */
-		(unsigned long)"NDC Netblaster II PCI(PLX)"
-	},
-	{
-	        PCIVENDOR_NDC, PCIDEVICE_NCP130_ASIC,
-		PCI_ANY_ID, PCI_ANY_ID,
-		0, 0, 
-		/* Driver data, we just put the name here */
-		(unsigned long)"NDC Netblaster II PCI(TMC7160)"
-	},
-	{
-		PCIVENDOR_3COM, PCIDEVICE_AIRCONNECT,	
-		PCI_ANY_ID, PCI_ANY_ID,
-		0, 0, 
-		/* Driver data, we just put the name here */
-		(unsigned long)"3Com AirConnect PCI 802.11b 11Mb/s WLAN Controller"
-	},
-	{
-		0, 0, 0, 0, 0, 0, 0
-	}
-};
-
-MODULE_DEVICE_TABLE(pci, plx_id_tbl);
-
-/* Function declared here because of ptr reference below */
-static int prism2sta_probe_plx(struct pci_dev *pdev, 
-			const struct pci_device_id *id);
-static void prism2sta_remove_plx(struct pci_dev *pdev);
-
-struct pci_driver prism2_plx_drv_id = {
-        name:           "prism2_plx",
-        id_table:       plx_id_tbl,
-        probe:          prism2sta_probe_plx,
-        remove:         prism2sta_remove_plx,
-#ifdef CONFIG_PM
-        suspend:        prism2sta_suspend_pci,
-        resume:         prism2sta_resume_pci,
-#endif
-};
-
-#endif /* WLAN_PLX */
-
 #if (WLAN_HOSTIF == WLAN_PCI)
 
-static struct pci_device_id pci_id_tbl[] = {
-	{
-		PCIVENDOR_INTERSIL, PCIDEVICE_ISL3874,	
-		PCI_ANY_ID, PCI_ANY_ID,
-		0, 0, 
-		/* Driver data, we just put the name here */
-		(unsigned long)"Intersil Prism2.5 ISL3874 11Mb/s WLAN Controller"
-	},
-	{
-		0, 0, 0, 0, 0, 0, 0
-	}
-};
-
-MODULE_DEVICE_TABLE(pci, pci_id_tbl);
-
-/* Function declared here because of ptr reference below */
-static int prism2sta_probe_pci(struct pci_dev *pdev, 
-				const struct pci_device_id *id);
-static void prism2sta_remove_pci(struct pci_dev *pdev);
-
-struct pci_driver prism2_pci_drv_id = {
-        name:           "prism2_pci",
-        id_table:       pci_id_tbl,
-        probe:          prism2sta_probe_pci,
-        remove:         prism2sta_remove_pci,
-#ifdef CONFIG_PM
-        suspend:        prism2sta_suspend_pci,
-        resume:         prism2sta_resume_pci,
-#endif
-};
-
 #endif /* WLAN_PCI */
-
-#if (WLAN_HOSTIF == WLAN_USB)
-
-#define PRISM_USB_DEVICE(vid, pid, name) \
-           USB_DEVICE(vid, pid),  \
-           driver_info: (unsigned long) name
-
-static struct usb_device_id usb_prism_tbl[] = {
-	{PRISM_USB_DEVICE(0x09aa, 0x3642, "Prism2.x 11Mbps WLAN USB Adapter")},
-	{PRISM_USB_DEVICE(0x1668, 0x0408, "Actiontec Prism2.5 11Mbps WLAN USB Adapter")},
-	{PRISM_USB_DEVICE(0x1668, 0x0421, "Actiontec Prism2.5 11Mbps WLAN USB Adapter")},
-	{PRISM_USB_DEVICE(0x066b, 0x2212, "Linksys WUSB11v2.5 11Mbps WLAN USB Adapter")},
-	{PRISM_USB_DEVICE(0x066b, 0x2213, "Linksys WUSB12v1.1 11Mbps WLAN USB Adapter")},
-	{PRISM_USB_DEVICE(0x067c, 0x1022, "Siemens SpeedStream 1022 11Mbps WLAN USB Adapter")},
-	{PRISM_USB_DEVICE(0x049f, 0x0033, "Compaq/Intel W100 PRO/Wireless 11Mbps multiport WLAN Adapter")},
-	{PRISM_USB_DEVICE(0x0411, 0x0016, "Melco WLI-USB-S11 11Mbps WLAN Adapter")},
-	{PRISM_USB_DEVICE(0x08de, 0x7a01, "PRISM25 IEEE 802.11 Mini USB Adapter")},
-	{PRISM_USB_DEVICE(0x8086, 0x1111, "Intel PRO/Wireless 2011B LAN USB Adapter")},
-	{PRISM_USB_DEVICE(0x0d8e, 0x7a01, "PRISM25 IEEE 802.11 Mini USB Adapter")},
-	{PRISM_USB_DEVICE(0x045e, 0x006e, "Microsoft MN510 Wireless USB Adapter")},
-	{PRISM_USB_DEVICE(0x0967, 0x0204, "Acer Warplink USB Adapter")},
-	{PRISM_USB_DEVICE(0x0cde, 0x0002, "Z-Com 725/726 Prism2.5 USB/USB Integrated")},
-	{PRISM_USB_DEVICE(0x413c, 0x8100, "Dell TrueMobile 1180 Wireless USB Adapter")},
-	{PRISM_USB_DEVICE(0x0b3b, 0x1601, "ALLNET 0193 11Mbps WLAN USB Adapter")},
-	{PRISM_USB_DEVICE(0x0b3b, 0x1602, "ZyXEL ZyAIR B200 Wireless USB Adapter")},
-	{PRISM_USB_DEVICE(0x0baf, 0x00eb, "USRobotics USR1120 Wireless USB Adapter")},
-
-	{ /* terminator */ }
-};
-
-MODULE_DEVICE_TABLE(usb, usb_prism_tbl);
-
-/* Functions declared here because of ptr references below */
-
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,4,0))
-/* Note: this argument signature changed sometime in 2.3.x, the test
- * above is sufficient to handle 2.2.19 vs. 2.4.x.
- */
-static void*
-prism2sta_probe_usb(struct usb_device *dev, unsigned int ifnum);
-#else
-static void*
-prism2sta_probe_usb( struct usb_device *dev, unsigned int ifnum,
-		const struct usb_device_id *id);
-#endif
-
-static void prism2sta_disconnect_usb(struct usb_device *dev, void *ptr);
-
-struct usb_driver prism2_usb_driver = {
-	name: "prism2_usb",
-	probe: prism2sta_probe_usb,
-	disconnect: prism2sta_disconnect_usb,
-	id_table: usb_prism_tbl,
-	/* fops, minor? */
-};
-
-#endif /* WLAN_USB */
 
 static wlandevice_t *create_wlan(void);
 
 /*----------------------------------------------------------------*/
 /* --Module Parameters */
 
-int		prism2_debug=0;			/* Debug output level, */
+int      prism2_reset_holdtime=30;	/* Reset hold time in ms */
+int	 prism2_reset_settletime=100;	/* Reset settle time in ms */
+
+#if (WLAN_HOSTIF == WLAN_USB)
+static int	prism2_doreset=0;		/* Do a reset at init? */
+#else
+static int      prism2_doreset=1;		/* Do a reset at init? */
+int             prism2_bap_timeout=1000;        /* BAP timeout */
 int		prism2_irq_evread_max=20;	/* Maximum number of 
 						 * ev_reads (loops)
 						 * in irq handler 
 						 */
-
-#if (WLAN_HOSTIF == WLAN_USB)
-int		prism2_doreset=0;		/* Do a reset at init? */
-int		prism2_reset_holdtime=30;	/* Reset hold time in ms */
-int		prism2_reset_settletime=100;	/* Reset settle time in ms */
-#else
-int		prism2_doreset=1;		/* Do a reset at init? */
-int		prism2_reset_holdtime=30;	/* Reset hold time in ms */
-int		prism2_reset_settletime=100;	/* Reset settle time in ms */
-int             prism2_bap_timeout=1000;        /* BAP timeout */
 #endif
 
-MODULE_PARM( prism2_debug, "i");	
-MODULE_PARM( prism2_irq_evread_max, "i");
-MODULE_PARM( prism2_doreset, "i");
-MODULE_PARM( prism2_reset_holdtime, "i");
-MODULE_PARM( prism2_reset_settletime, "i");
+#ifdef WLAN_INCLUDE_DEBUG
+int prism2_debug=0;
+module_param( prism2_debug, int, 0644);
+MODULE_PARM_DESC(prism2_debug, "prism2 debugging");	
+#endif
+
+module_param( prism2_doreset, int, 0644);
+MODULE_PARM_DESC(prism2_doreset, "Issue a reset on initialization");
+
+module_param( prism2_reset_holdtime, int, 0644);
+MODULE_PARM_DESC( prism2_reset_holdtime, "reset hold time in ms");
+module_param( prism2_reset_settletime, int, 0644);
+MODULE_PARM_DESC( prism2_reset_settletime, "reset settle time in ms");
 
 #if (WLAN_HOSTIF != WLAN_USB)
-MODULE_PARM( prism2_bap_timeout, "i");
+module_param( prism2_bap_timeout, int, 0644);
+MODULE_PARM_DESC(prism2_bap_timeout, "BufferAccessPath Timeout in 10*n us");
+module_param( prism2_irq_evread_max, int, 0644);
+MODULE_PARM_DESC( prism2_irq_evread_max, "Maximim number of event reads in interrupt handler");
 #endif
 
-#ifdef MODULE_LICENSE
 MODULE_LICENSE("Dual MPL/GPL");
-#endif
-
-#if (WLAN_HOSTIF == WLAN_PCMCIA)
-static u_int	irq_mask = 0xdeb8;		/* Interrupt mask */
-static int	irq_list[4] = { -1 };		/* Interrupt list */
-static u_int	prism2_ignorevcc=0;		/* Boolean, if set, we
-						 * ignore what the Vcc
-						 * is set to and what the CIS
-						 * says.
-						 */
-MODULE_PARM( irq_mask, "i");
-MODULE_PARM( irq_list, "1-4i");
-MODULE_PARM( prism2_ignorevcc, "i");
-#endif /* WLAN_PCMCIA */
-
 
 /*================================================================*/
 /* Local Function Declarations */
-
-int		init_module(void);
-void		cleanup_module(void);
-
-#if (WLAN_HOSTIF == WLAN_PCMCIA)
-dev_link_t	*prism2sta_attach(void);
-static void	prism2sta_detach(dev_link_t *link);
-static void	prism2sta_config(dev_link_t *link);
-static void	prism2sta_release(UINT32 arg);
-static int 	prism2sta_event (event_t event, int priority, event_callback_args_t *args);
-#endif
 
 static int	prism2sta_open(wlandevice_t *wlandev);
 static int	prism2sta_close(wlandevice_t *wlandev);
 static void	prism2sta_reset(wlandevice_t *wlandev );
 static int      prism2sta_txframe(wlandevice_t *wlandev, struct sk_buff *skb, p80211_hdr_t *p80211_hdr, p80211_metawep_t *p80211_wep);
 static int	prism2sta_mlmerequest(wlandevice_t *wlandev, p80211msg_t *msg);
-static void	prism2sta_hwremoved(wlandevice_t *wlandev);
 static int	prism2sta_getcardinfo(wlandevice_t *wlandev);
 static int	prism2sta_globalsetup(wlandevice_t *wlandev);
+static int      prism2sta_setmulticast(wlandevice_t *wlandev, 
+				       netdevice_t *dev);
 
 static void	prism2sta_inf_handover(
 			wlandevice_t *wlandev, hfa384x_InfFrame_t *inf);
@@ -582,8 +322,21 @@ static void	prism2sta_inf_assocstatus(
 			wlandevice_t *wlandev, hfa384x_InfFrame_t *inf);
 static void	prism2sta_inf_authreq(
 			wlandevice_t *wlandev, hfa384x_InfFrame_t *inf);
+static void	prism2sta_inf_authreq_defer(
+			wlandevice_t *wlandev, hfa384x_InfFrame_t *inf);
 static void	prism2sta_inf_psusercnt(
 			wlandevice_t *wlandev, hfa384x_InfFrame_t *inf);
+
+#ifdef CONFIG_PROC_FS
+static int
+prism2sta_proc_read(
+	char	*page, 
+	char	**start, 
+	off_t	offset, 
+	int	count,
+	int	*eof,
+	void	*data);
+#endif
 
 /*================================================================*/
 /* Function Definitions */
@@ -615,36 +368,6 @@ inline void dmpmem(void *buf, int n)
 	}
 	if ( (c % 16) != 0 ) printk("\n");
 }
-
-#if (WLAN_HOSTIF == WLAN_PCMCIA)
-/*----------------------------------------------------------------
-* cs_error
-*
-* Utility function to print card services error messages.
-*
-* Arguments:
-*	handle	client handle identifying this CS client
-*	func	CS function number that generated the error
-*	ret	CS function return code
-*
-* Returns: 
-*	nothing
-* Side effects:
-*
-* Call context:
-*	process thread
-*	interrupt
-----------------------------------------------------------------*/
-static void cs_error(client_handle_t handle, int func, int ret)
-{
-#if CS_RELEASE_CODE < 0x2911
-	CardServices(ReportError, dev_info, (void *)func, (void *)ret);
-#else
-	error_info_t err = { func, ret };
-	CardServices(ReportError, handle, &err);
-#endif
-}
-#endif
 
 /*-----------------------------------------------------------------*/ 
 #if (WLAN_HOSTIF == WLAN_PLX || WLAN_HOSTIF == WLAN_PCI)
@@ -815,7 +538,7 @@ int prism2sta_open(wlandevice_t *wlandev)
 {
 	DBFENTER;
 
-#ifndef NEW_MODULE_CODE
+#ifdef ANCIENT_MODULE_CODE
 	MOD_INC_USE_COUNT;
 #endif
 
@@ -857,7 +580,7 @@ int prism2sta_close(wlandevice_t *wlandev)
 {
 	DBFENTER;
 
-#ifndef NEW_MODULE_CODE
+#ifdef ANCIENT_MODULE_CODE
 	MOD_DEC_USE_COUNT;
 #endif
 
@@ -918,17 +641,15 @@ void prism2sta_reset(wlandevice_t *wlandev )
 * Call context:
 *	process thread
 ----------------------------------------------------------------*/
-int prism2sta_txframe(wlandevice_t *wlandev, struct sk_buff *skb, p80211_hdr_t *p80211_hdr, p80211_metawep_t *p80211_wep)
+int prism2sta_txframe(wlandevice_t *wlandev, struct sk_buff *skb,
+		      p80211_hdr_t *p80211_hdr, p80211_metawep_t *p80211_wep)
 {
-
-
-	prism2sta_priv_t	*priv = (prism2sta_priv_t*)wlandev->priv;
-	hfa384x_t		*hw = priv->hw;
+	hfa384x_t		*hw = (hfa384x_t *)wlandev->priv;
 	int			result;
 	DBFENTER;
 
 	/* If necessary, set the 802.11 WEP bit */
-	if ((wlandev->hostwep & HOSTWEP_PRIVACYINVOKED) && !(wlandev->hostwep & HOSTWEP_ENCRYPT)) {
+	if ((wlandev->hostwep & (HOSTWEP_PRIVACYINVOKED | HOSTWEP_ENCRYPT)) == HOSTWEP_PRIVACYINVOKED) {
 		p80211_hdr->a3.fc |= host2ieee16(WLAN_SET_FC_ISWEP(1));
 	}
 
@@ -965,138 +686,134 @@ int prism2sta_txframe(wlandevice_t *wlandev, struct sk_buff *skb, p80211_hdr_t *
 ----------------------------------------------------------------*/
 int prism2sta_mlmerequest(wlandevice_t *wlandev, p80211msg_t *msg)
 {
-	prism2sta_priv_t	*priv;
-	hfa384x_t		*hw;
+        hfa384x_t               *hw = (hfa384x_t *)wlandev->priv;
 
 	int result = 0;
 	DBFENTER;
 
-	priv = (prism2sta_priv_t*)wlandev->priv;
-	hw = priv->hw;
-
 	switch( msg->msgcode )
 	{
 	case DIDmsg_dot11req_mibget :
-		WLAN_LOG_DEBUG0(2,"Received mibget request\n");
+		WLAN_LOG_DEBUG(2,"Received mibget request\n");
 		result = prism2mgmt_mibset_mibget(wlandev, msg);
 		break;
 	case DIDmsg_dot11req_mibset :
-		WLAN_LOG_DEBUG0(2,"Received mibset request\n");
+		WLAN_LOG_DEBUG(2,"Received mibset request\n");
 		result = prism2mgmt_mibset_mibget(wlandev, msg);
 		break;
 	case DIDmsg_dot11req_powermgmt :
-		WLAN_LOG_DEBUG0(2,"Received powermgmt request\n");
+		WLAN_LOG_DEBUG(2,"Received powermgmt request\n");
 		result = prism2mgmt_powermgmt(wlandev, msg);
 		break;
 	case DIDmsg_dot11req_scan :
-		WLAN_LOG_DEBUG0(2,"Received scan request\n");
+		WLAN_LOG_DEBUG(2,"Received scan request\n");
 		result = prism2mgmt_scan(wlandev, msg);
 		break;
 	case DIDmsg_dot11req_scan_results :
-		WLAN_LOG_DEBUG0(2,"Received scan_results request\n");
+		WLAN_LOG_DEBUG(2,"Received scan_results request\n");
 		result = prism2mgmt_scan_results(wlandev, msg);
 		break;
 	case DIDmsg_dot11req_join :
-		WLAN_LOG_DEBUG0(2,"Received join request\n");
+		WLAN_LOG_DEBUG(2,"Received join request\n");
 		result = prism2mgmt_join(wlandev, msg);
 		break;
 	case DIDmsg_dot11req_authenticate :
-		WLAN_LOG_DEBUG0(2,"Received authenticate request\n");
+		WLAN_LOG_DEBUG(2,"Received authenticate request\n");
 		result = prism2mgmt_authenticate(wlandev, msg);
 		break;
 	case DIDmsg_dot11req_deauthenticate :
-		WLAN_LOG_DEBUG0(2,"Received mlme deauthenticate request\n");
+		WLAN_LOG_DEBUG(2,"Received mlme deauthenticate request\n");
 		result = prism2mgmt_deauthenticate(wlandev, msg);
 		break;
 	case DIDmsg_dot11req_associate :
-		WLAN_LOG_DEBUG0(2,"Received mlme associate request\n");
+		WLAN_LOG_DEBUG(2,"Received mlme associate request\n");
 		result = prism2mgmt_associate(wlandev, msg);
 		break;
 	case DIDmsg_dot11req_reassociate :
-		WLAN_LOG_DEBUG0(2,"Received mlme reassociate request\n");
+		WLAN_LOG_DEBUG(2,"Received mlme reassociate request\n");
 		result = prism2mgmt_reassociate(wlandev, msg);
 		break;
 	case DIDmsg_dot11req_disassociate :
-		WLAN_LOG_DEBUG0(2,"Received mlme disassociate request\n");
+		WLAN_LOG_DEBUG(2,"Received mlme disassociate request\n");
 		result = prism2mgmt_disassociate(wlandev, msg);
 		break;
 	case DIDmsg_dot11req_reset :
-		WLAN_LOG_DEBUG0(2,"Received mlme reset request\n");
+		WLAN_LOG_DEBUG(2,"Received mlme reset request\n");
 		result = prism2mgmt_reset(wlandev, msg);
 		break;
 	case DIDmsg_dot11req_start :
-		WLAN_LOG_DEBUG0(2,"Received mlme start request\n");
+		WLAN_LOG_DEBUG(2,"Received mlme start request\n");
 		result = prism2mgmt_start(wlandev, msg);
 		break;
 	/*
 	 * Prism2 specific messages
 	 */
 	case DIDmsg_p2req_join :
-		WLAN_LOG_DEBUG0(2,"Received p2 join request\n");
+		WLAN_LOG_DEBUG(2,"Received p2 join request\n");
 		result = prism2mgmt_p2_join(wlandev, msg);
 		break;
        	case DIDmsg_p2req_readpda :
-		WLAN_LOG_DEBUG0(2,"Received mlme readpda request\n");
+		WLAN_LOG_DEBUG(2,"Received mlme readpda request\n");
 		result = prism2mgmt_readpda(wlandev, msg);
 		break;
 	case DIDmsg_p2req_readcis :
-		WLAN_LOG_DEBUG0(2,"Received mlme readcis request\n");
+		WLAN_LOG_DEBUG(2,"Received mlme readcis request\n");
 		result = prism2mgmt_readcis(wlandev, msg);
 		break;
 	case DIDmsg_p2req_auxport_state :
-		WLAN_LOG_DEBUG0(2,"Received mlme auxport_state request\n");
+		WLAN_LOG_DEBUG(2,"Received mlme auxport_state request\n");
 		result = prism2mgmt_auxport_state(wlandev, msg);
 		break;
 	case DIDmsg_p2req_auxport_read :
-		WLAN_LOG_DEBUG0(2,"Received mlme auxport_read request\n");
+		WLAN_LOG_DEBUG(2,"Received mlme auxport_read request\n");
 		result = prism2mgmt_auxport_read(wlandev, msg);
 		break;
 	case DIDmsg_p2req_auxport_write :
-		WLAN_LOG_DEBUG0(2,"Received mlme auxport_write request\n");
+		WLAN_LOG_DEBUG(2,"Received mlme auxport_write request\n");
 		result = prism2mgmt_auxport_write(wlandev, msg);
 		break;
 	case DIDmsg_p2req_low_level :
-		WLAN_LOG_DEBUG0(2,"Received mlme low_level request\n");
+		WLAN_LOG_DEBUG(2,"Received mlme low_level request\n");
 		result = prism2mgmt_low_level(wlandev, msg);
 		break;
         case DIDmsg_p2req_test_command :
-                WLAN_LOG_DEBUG0(2,"Received mlme test_command request\n");
+                WLAN_LOG_DEBUG(2,"Received mlme test_command request\n");
                 result = prism2mgmt_test_command(wlandev, msg);
                 break;
         case DIDmsg_p2req_mmi_read :
-                WLAN_LOG_DEBUG0(2,"Received mlme mmi_read request\n");
+                WLAN_LOG_DEBUG(2,"Received mlme mmi_read request\n");
                 result = prism2mgmt_mmi_read(wlandev, msg);
                 break;
         case DIDmsg_p2req_mmi_write :
-                WLAN_LOG_DEBUG0(2,"Received mlme mmi_write request\n");
+                WLAN_LOG_DEBUG(2,"Received mlme mmi_write request\n");
                 result = prism2mgmt_mmi_write(wlandev, msg);
                 break;
 	case DIDmsg_p2req_ramdl_state :
-		WLAN_LOG_DEBUG0(2,"Received mlme ramdl_state request\n");
+		WLAN_LOG_DEBUG(2,"Received mlme ramdl_state request\n");
 		result = prism2mgmt_ramdl_state(wlandev, msg);
 		break;
 	case DIDmsg_p2req_ramdl_write :
-		WLAN_LOG_DEBUG0(2,"Received mlme ramdl_write request\n");
+		WLAN_LOG_DEBUG(2,"Received mlme ramdl_write request\n");
 		result = prism2mgmt_ramdl_write(wlandev, msg);
 		break;
 	case DIDmsg_p2req_flashdl_state :
-		WLAN_LOG_DEBUG0(2,"Received mlme flashdl_state request\n");
+		WLAN_LOG_DEBUG(2,"Received mlme flashdl_state request\n");
 		result = prism2mgmt_flashdl_state(wlandev, msg);
 		break;
 	case DIDmsg_p2req_flashdl_write :
-		WLAN_LOG_DEBUG0(2,"Received mlme flashdl_write request\n");
+		WLAN_LOG_DEBUG(2,"Received mlme flashdl_write request\n");
 		result = prism2mgmt_flashdl_write(wlandev, msg);
 		break;
 	case DIDmsg_p2req_dump_state :
-		WLAN_LOG_DEBUG0(2,"Received mlme dump_state request\n");
+		WLAN_LOG_DEBUG(2,"Received mlme dump_state request\n");
 		result = prism2mgmt_dump_state(wlandev, msg);
 		break;
 	case DIDmsg_p2req_channel_info :
-		WLAN_LOG_DEBUG0(2,"Received mlme channel_info request\n");
+		WLAN_LOG_DEBUG(2,"Received mlme channel_info request\n");
 		result = prism2mgmt_channel_info(wlandev, msg);
 		break;
 	case DIDmsg_p2req_channel_info_results :
-		WLAN_LOG_DEBUG0(2,"Received mlme channel_info_results request\n");
+		WLAN_LOG_DEBUG(2,"Received mlme channel_info_results request\n");
 		result = prism2mgmt_channel_info_results(wlandev, msg);
 		break;
 	/*
@@ -1107,7 +824,7 @@ int prism2sta_mlmerequest(wlandevice_t *wlandev, p80211msg_t *msg)
         case DIDmsg_lnxreq_ifstate :
 		{
 		p80211msg_lnxreq_ifstate_t	*ifstatemsg;
-                WLAN_LOG_DEBUG0(2,"Received mlme ifstate request\n");
+                WLAN_LOG_DEBUG(2,"Received mlme ifstate request\n");
 		ifstatemsg = (p80211msg_lnxreq_ifstate_t*)msg;
                 result = prism2sta_ifstate(wlandev, ifstatemsg->ifstate.data);
 		ifstatemsg->resultcode.status = 
@@ -1117,24 +834,24 @@ int prism2sta_mlmerequest(wlandevice_t *wlandev, p80211msg_t *msg)
 		}
                 break;
         case DIDmsg_lnxreq_wlansniff :
-                WLAN_LOG_DEBUG0(2,"Received mlme wlansniff request\n");
+                WLAN_LOG_DEBUG(2,"Received mlme wlansniff request\n");
                 result = prism2mgmt_wlansniff(wlandev, msg);
                 break;
 	case DIDmsg_lnxreq_autojoin :
-		WLAN_LOG_DEBUG0(2,"Received mlme autojoin request\n");
+		WLAN_LOG_DEBUG(2,"Received mlme autojoin request\n");
 		result = prism2mgmt_autojoin(wlandev, msg);
 		break;
 	case DIDmsg_p2req_enable :
-		WLAN_LOG_DEBUG0(2,"Received mlme enable request\n");
+		WLAN_LOG_DEBUG(2,"Received mlme enable request\n");
 		result = prism2mgmt_enable(wlandev, msg);
 		break;
 	case DIDmsg_lnxreq_commsquality: {
 		p80211msg_lnxreq_commsquality_t *qualmsg;
 		hfa384x_commsquality_t qual;
 
-		WLAN_LOG_DEBUG0(2,"Received commsquality request\n");
+		WLAN_LOG_DEBUG(2,"Received commsquality request\n");
 
-		if (priv->ap)
+		if (hw->ap)
 			break;
 
 		qualmsg = (p80211msg_lnxreq_commsquality_t*) msg;
@@ -1154,13 +871,13 @@ int prism2sta_mlmerequest(wlandevice_t *wlandev, p80211msg_t *msg)
 		qualmsg->noise.status = P80211ENUM_msgitem_status_data_ok;
 
 		if (qualmsg->dbm.data == P80211ENUM_truth_true) {
-			qualmsg->link.data = qual.CQ_currBSS;
-			qualmsg->level.data = HFA384x_LEVEL_TO_dBm(qual.ASL_currBSS);
-			qualmsg->noise.data = HFA384x_LEVEL_TO_dBm(qual.ANL_currFC);
+			qualmsg->link.data = hfa384x2host_16(qual.CQ_currBSS);
+			qualmsg->level.data = hfa384x2host_16(HFA384x_LEVEL_TO_dBm(qual.ASL_currBSS));
+			qualmsg->noise.data = hfa384x2host_16(HFA384x_LEVEL_TO_dBm(qual.ANL_currFC));
 		} else {
-			qualmsg->link.data = qual.CQ_currBSS;
-			qualmsg->level.data = qual.ASL_currBSS;
-			qualmsg->noise.data = qual.ANL_currFC;
+			qualmsg->link.data = hfa384x2host_16(qual.CQ_currBSS);
+			qualmsg->level.data = hfa384x2host_16(qual.ASL_currBSS);
+			qualmsg->noise.data = hfa384x2host_16(qual.ANL_currFC);
 		}
 
 		break;
@@ -1198,14 +915,10 @@ int prism2sta_mlmerequest(wlandevice_t *wlandev, p80211msg_t *msg)
 ----------------------------------------------------------------*/
 UINT32 prism2sta_ifstate(wlandevice_t *wlandev, UINT32 ifstate)
 {
-	prism2sta_priv_t	*priv;
-	prism2sta_priv_t	*tmppriv;
-	hfa384x_t		*hw;
+        hfa384x_t               *hw = (hfa384x_t *)wlandev->priv;
 	UINT32 			result;
 	DBFENTER;
 
-	priv = (prism2sta_priv_t*)wlandev->priv;
-	hw = priv->hw;
 	result = P80211ENUM_resultcode_implementation_failure;
 
 	switch (ifstate)
@@ -1219,15 +932,7 @@ UINT32 prism2sta_ifstate(wlandevice_t *wlandev, UINT32 ifstate)
 			 * for firmware loading.
 			 */
 #if (WLAN_HOSTIF != WLAN_USB)
-			if ((result=hfa384x_cmd_initialize(hw))) {
-				WLAN_LOG_ERROR(
-					"hfa384x_cmd_initialize() failed,"
-					"result=%d\n", (int)result);
-				result = 
-				P80211ENUM_resultcode_implementation_failure;
-				wlandev->msdstate = WLAN_MSD_HWPRESENT;
-				break;
-			}
+			result=hfa384x_cmd_initialize(hw);
 #else
 			if ((result=hfa384x_drvr_start(hw))) {
 				WLAN_LOG_ERROR(
@@ -1243,11 +948,11 @@ UINT32 prism2sta_ifstate(wlandevice_t *wlandev, UINT32 ifstate)
 			result = P80211ENUM_resultcode_success;
 			break;
 		case WLAN_MSD_FWLOAD:
-			/* Do nothing, we're already in this state.*/
+			hfa384x_cmd_initialize(hw);
 			result = P80211ENUM_resultcode_success;
 			break;
 		case WLAN_MSD_RUNNING:
-			WLAN_LOG_WARNING0(
+			WLAN_LOG_WARNING(
 				"Cannot enter fwload state from enable state,"
 				"you must disable first.\n");
 			result = P80211ENUM_resultcode_invalid_parameters;
@@ -1339,22 +1044,11 @@ UINT32 prism2sta_ifstate(wlandevice_t *wlandev, UINT32 ifstate)
 			 * if priv ever gets any pointers in it, we'll
 			 * need to do a deep copy.
 			 */
+			if (wlandev->netdev)
+				netif_stop_queue(wlandev->netdev);
 			hfa384x_drvr_stop(hw);
-			tmppriv = kmalloc(sizeof(prism2sta_priv_t), GFP_KERNEL);
-			if (!tmppriv) {
-				result = -ENOMEM;
-				goto failed;
-			}
-			memcpy(tmppriv, priv, sizeof(prism2sta_priv_t));
-			memset(priv, 0, sizeof(prism2sta_priv_t));
-#if (WLAN_HOSTIF == WLAN_PCMCIA)
-			memcpy(&priv->node, &tmppriv->node, sizeof(priv->node));
-			priv->cs_link = tmppriv->cs_link;
-#elif (WLAN_HOSTIF==WLAN_PLX || WLAN_HOSTIF==WLAN_PCI || WLAN_HOSTIF==WLAN_USB)
-			memcpy(priv->name, tmppriv->name, sizeof(priv->name));
-#endif
-			priv->hw = tmppriv->hw;
-			kfree(tmppriv);
+
+			// XXX possibly  Clean out hw->stuff.
 
 			wlandev->macmode = WLAN_MACMODE_NONE;
 			wlandev->msdstate = WLAN_MSD_HWPRESENT;
@@ -1374,7 +1068,6 @@ UINT32 prism2sta_ifstate(wlandevice_t *wlandev, UINT32 ifstate)
 		break;
 	}
 
-failed:
 	DBFEXIT;
 	return result;
 }
@@ -1402,8 +1095,7 @@ failed:
 int prism2sta_getcardinfo(wlandevice_t *wlandev)
 {
 	int 			result = 0;
-	prism2sta_priv_t	*priv = (prism2sta_priv_t*)wlandev->priv;
-	hfa384x_t		*hw = priv->hw;
+        hfa384x_t               *hw = (hfa384x_t *)wlandev->priv;
 	UINT16                  temp;
 	UINT8			snum[HFA384x_RID_NICSERIALNUMBER_LEN];
 	char			pstr[(HFA384x_RID_NICSERIALNUMBER_LEN * 4) + 1];
@@ -1414,233 +1106,239 @@ int prism2sta_getcardinfo(wlandevice_t *wlandev)
 	/*  Some are critical, some are not */
 	/* NIC identity */
 	result = hfa384x_drvr_getconfig(hw, HFA384x_RID_NICIDENTITY,
-			&priv->ident_nic, sizeof(hfa384x_compident_t));
+			&hw->ident_nic, sizeof(hfa384x_compident_t));
 	if ( result ) {
-		WLAN_LOG_ERROR0("Failed to retrieve NICIDENTITY\n");
+		WLAN_LOG_ERROR("Failed to retrieve NICIDENTITY\n");
 		goto failed;
 	}
 
 	/* get all the nic id fields in host byte order */
-	priv->ident_nic.id = hfa384x2host_16(priv->ident_nic.id);
-	priv->ident_nic.variant = hfa384x2host_16(priv->ident_nic.variant);
-	priv->ident_nic.major = hfa384x2host_16(priv->ident_nic.major);
-	priv->ident_nic.minor = hfa384x2host_16(priv->ident_nic.minor);
+	hw->ident_nic.id = hfa384x2host_16(hw->ident_nic.id);
+	hw->ident_nic.variant = hfa384x2host_16(hw->ident_nic.variant);
+	hw->ident_nic.major = hfa384x2host_16(hw->ident_nic.major);
+	hw->ident_nic.minor = hfa384x2host_16(hw->ident_nic.minor);
 
 	WLAN_LOG_INFO( "ident: nic h/w: id=0x%02x %d.%d.%d\n",
-			priv->ident_nic.id, priv->ident_nic.major,
-			priv->ident_nic.minor, priv->ident_nic.variant);
+			hw->ident_nic.id, hw->ident_nic.major,
+			hw->ident_nic.minor, hw->ident_nic.variant);
 
 	/* Primary f/w identity */
 	result = hfa384x_drvr_getconfig(hw, HFA384x_RID_PRIIDENTITY,
-			&priv->ident_pri_fw, sizeof(hfa384x_compident_t));
+			&hw->ident_pri_fw, sizeof(hfa384x_compident_t));
 	if ( result ) {
-		WLAN_LOG_ERROR0("Failed to retrieve PRIIDENTITY\n");
+		WLAN_LOG_ERROR("Failed to retrieve PRIIDENTITY\n");
 		goto failed;
 	}
 
 	/* get all the private fw id fields in host byte order */
-	priv->ident_pri_fw.id = hfa384x2host_16(priv->ident_pri_fw.id);
-	priv->ident_pri_fw.variant = hfa384x2host_16(priv->ident_pri_fw.variant);
-	priv->ident_pri_fw.major = hfa384x2host_16(priv->ident_pri_fw.major);
-	priv->ident_pri_fw.minor = hfa384x2host_16(priv->ident_pri_fw.minor);
+	hw->ident_pri_fw.id = hfa384x2host_16(hw->ident_pri_fw.id);
+	hw->ident_pri_fw.variant = hfa384x2host_16(hw->ident_pri_fw.variant);
+	hw->ident_pri_fw.major = hfa384x2host_16(hw->ident_pri_fw.major);
+	hw->ident_pri_fw.minor = hfa384x2host_16(hw->ident_pri_fw.minor);
 
 	WLAN_LOG_INFO( "ident: pri f/w: id=0x%02x %d.%d.%d\n",
-			priv->ident_pri_fw.id, priv->ident_pri_fw.major,
-			priv->ident_pri_fw.minor, priv->ident_pri_fw.variant);
+			hw->ident_pri_fw.id, hw->ident_pri_fw.major,
+			hw->ident_pri_fw.minor, hw->ident_pri_fw.variant);
 
 	/* Station (Secondary?) f/w identity */
 	result = hfa384x_drvr_getconfig(hw, HFA384x_RID_STAIDENTITY,
-			&priv->ident_sta_fw, sizeof(hfa384x_compident_t));
+			&hw->ident_sta_fw, sizeof(hfa384x_compident_t));
 	if ( result ) {
-		WLAN_LOG_ERROR0("Failed to retrieve STAIDENTITY\n");
+		WLAN_LOG_ERROR("Failed to retrieve STAIDENTITY\n");
+		goto failed;
+	}
+
+	if (hw->ident_nic.id < 0x8000) {
+		WLAN_LOG_ERROR("FATAL: Card is not an Intersil Prism2/2.5/3\n");
+		result = -1;
 		goto failed;
 	}
 
 	/* get all the station fw id fields in host byte order */
-	priv->ident_sta_fw.id = hfa384x2host_16(priv->ident_sta_fw.id);
-	priv->ident_sta_fw.variant = hfa384x2host_16(priv->ident_sta_fw.variant);
-	priv->ident_sta_fw.major = hfa384x2host_16(priv->ident_sta_fw.major);
-	priv->ident_sta_fw.minor = hfa384x2host_16(priv->ident_sta_fw.minor);
+	hw->ident_sta_fw.id = hfa384x2host_16(hw->ident_sta_fw.id);
+	hw->ident_sta_fw.variant = hfa384x2host_16(hw->ident_sta_fw.variant);
+	hw->ident_sta_fw.major = hfa384x2host_16(hw->ident_sta_fw.major);
+	hw->ident_sta_fw.minor = hfa384x2host_16(hw->ident_sta_fw.minor);
 
 	/* strip out the 'special' variant bits */
-	priv->mm_mods = priv->ident_sta_fw.variant & (BIT14 | BIT15);
-	priv->ident_sta_fw.variant &= ~((UINT16)(BIT14 | BIT15));
+	hw->mm_mods = hw->ident_sta_fw.variant & (BIT14 | BIT15);
+	hw->ident_sta_fw.variant &= ~((UINT16)(BIT14 | BIT15));
 
-	if  ( priv->ident_sta_fw.id == 0x1f ) {
-		priv->ap = 0;
+	if  ( hw->ident_sta_fw.id == 0x1f ) {
+		hw->ap = 0;
 		WLAN_LOG_INFO( 
 			"ident: sta f/w: id=0x%02x %d.%d.%d\n",
-			priv->ident_sta_fw.id, priv->ident_sta_fw.major,
-			priv->ident_sta_fw.minor, priv->ident_sta_fw.variant);
+			hw->ident_sta_fw.id, hw->ident_sta_fw.major,
+			hw->ident_sta_fw.minor, hw->ident_sta_fw.variant);
 	} else {
-		priv->ap = 1;
+		hw->ap = 1;
 		WLAN_LOG_INFO(
 			"ident:  ap f/w: id=0x%02x %d.%d.%d\n",
-			priv->ident_sta_fw.id, priv->ident_sta_fw.major,
-			priv->ident_sta_fw.minor, priv->ident_sta_fw.variant);
+			hw->ident_sta_fw.id, hw->ident_sta_fw.major,
+			hw->ident_sta_fw.minor, hw->ident_sta_fw.variant);
 	}
 
 	/* Compatibility range, Modem supplier */
 	result = hfa384x_drvr_getconfig(hw, HFA384x_RID_MFISUPRANGE,
-			&priv->cap_sup_mfi, sizeof(hfa384x_caplevel_t));
+			&hw->cap_sup_mfi, sizeof(hfa384x_caplevel_t));
 	if ( result ) {
-		WLAN_LOG_ERROR0("Failed to retrieve MFISUPRANGE\n");
+		WLAN_LOG_ERROR("Failed to retrieve MFISUPRANGE\n");
 		goto failed;
 	}
 
 	/* get all the Compatibility range, modem interface supplier
 	fields in byte order */
-	priv->cap_sup_mfi.role = hfa384x2host_16(priv->cap_sup_mfi.role);
-	priv->cap_sup_mfi.id = hfa384x2host_16(priv->cap_sup_mfi.id);
-	priv->cap_sup_mfi.variant = hfa384x2host_16(priv->cap_sup_mfi.variant);
-	priv->cap_sup_mfi.bottom = hfa384x2host_16(priv->cap_sup_mfi.bottom);
-	priv->cap_sup_mfi.top = hfa384x2host_16(priv->cap_sup_mfi.top);
+	hw->cap_sup_mfi.role = hfa384x2host_16(hw->cap_sup_mfi.role);
+	hw->cap_sup_mfi.id = hfa384x2host_16(hw->cap_sup_mfi.id);
+	hw->cap_sup_mfi.variant = hfa384x2host_16(hw->cap_sup_mfi.variant);
+	hw->cap_sup_mfi.bottom = hfa384x2host_16(hw->cap_sup_mfi.bottom);
+	hw->cap_sup_mfi.top = hfa384x2host_16(hw->cap_sup_mfi.top);
 
 	WLAN_LOG_INFO(
 		"MFI:SUP:role=0x%02x:id=0x%02x:var=0x%02x:b/t=%d/%d\n",
-		priv->cap_sup_mfi.role, priv->cap_sup_mfi.id,
-		priv->cap_sup_mfi.variant, priv->cap_sup_mfi.bottom,
-		priv->cap_sup_mfi.top);
+		hw->cap_sup_mfi.role, hw->cap_sup_mfi.id,
+		hw->cap_sup_mfi.variant, hw->cap_sup_mfi.bottom,
+		hw->cap_sup_mfi.top);
 
 	/* Compatibility range, Controller supplier */
 	result = hfa384x_drvr_getconfig(hw, HFA384x_RID_CFISUPRANGE,
-			&priv->cap_sup_cfi, sizeof(hfa384x_caplevel_t));
+			&hw->cap_sup_cfi, sizeof(hfa384x_caplevel_t));
 	if ( result ) {
-		WLAN_LOG_ERROR0("Failed to retrieve CFISUPRANGE\n");
+		WLAN_LOG_ERROR("Failed to retrieve CFISUPRANGE\n");
 		goto failed;
 	}
 
 	/* get all the Compatibility range, controller interface supplier
 	fields in byte order */
-	priv->cap_sup_cfi.role = hfa384x2host_16(priv->cap_sup_cfi.role);
-	priv->cap_sup_cfi.id = hfa384x2host_16(priv->cap_sup_cfi.id);
-	priv->cap_sup_cfi.variant = hfa384x2host_16(priv->cap_sup_cfi.variant);
-	priv->cap_sup_cfi.bottom = hfa384x2host_16(priv->cap_sup_cfi.bottom);
-	priv->cap_sup_cfi.top = hfa384x2host_16(priv->cap_sup_cfi.top);
+	hw->cap_sup_cfi.role = hfa384x2host_16(hw->cap_sup_cfi.role);
+	hw->cap_sup_cfi.id = hfa384x2host_16(hw->cap_sup_cfi.id);
+	hw->cap_sup_cfi.variant = hfa384x2host_16(hw->cap_sup_cfi.variant);
+	hw->cap_sup_cfi.bottom = hfa384x2host_16(hw->cap_sup_cfi.bottom);
+	hw->cap_sup_cfi.top = hfa384x2host_16(hw->cap_sup_cfi.top);
 
 	WLAN_LOG_INFO( 
 		"CFI:SUP:role=0x%02x:id=0x%02x:var=0x%02x:b/t=%d/%d\n",
-		priv->cap_sup_cfi.role, priv->cap_sup_cfi.id,
-		priv->cap_sup_cfi.variant, priv->cap_sup_cfi.bottom,
-		priv->cap_sup_cfi.top);
+		hw->cap_sup_cfi.role, hw->cap_sup_cfi.id,
+		hw->cap_sup_cfi.variant, hw->cap_sup_cfi.bottom,
+		hw->cap_sup_cfi.top);
 
 	/* Compatibility range, Primary f/w supplier */
 	result = hfa384x_drvr_getconfig(hw, HFA384x_RID_PRISUPRANGE,
-			&priv->cap_sup_pri, sizeof(hfa384x_caplevel_t));
+			&hw->cap_sup_pri, sizeof(hfa384x_caplevel_t));
 	if ( result ) {
-		WLAN_LOG_ERROR0("Failed to retrieve PRISUPRANGE\n");
+		WLAN_LOG_ERROR("Failed to retrieve PRISUPRANGE\n");
 		goto failed;
 	}
 
 	/* get all the Compatibility range, primary firmware supplier
 	fields in byte order */
-	priv->cap_sup_pri.role = hfa384x2host_16(priv->cap_sup_pri.role);
-	priv->cap_sup_pri.id = hfa384x2host_16(priv->cap_sup_pri.id);
-	priv->cap_sup_pri.variant = hfa384x2host_16(priv->cap_sup_pri.variant);
-	priv->cap_sup_pri.bottom = hfa384x2host_16(priv->cap_sup_pri.bottom);
-	priv->cap_sup_pri.top = hfa384x2host_16(priv->cap_sup_pri.top);
+	hw->cap_sup_pri.role = hfa384x2host_16(hw->cap_sup_pri.role);
+	hw->cap_sup_pri.id = hfa384x2host_16(hw->cap_sup_pri.id);
+	hw->cap_sup_pri.variant = hfa384x2host_16(hw->cap_sup_pri.variant);
+	hw->cap_sup_pri.bottom = hfa384x2host_16(hw->cap_sup_pri.bottom);
+	hw->cap_sup_pri.top = hfa384x2host_16(hw->cap_sup_pri.top);
 
 	WLAN_LOG_INFO(
 		"PRI:SUP:role=0x%02x:id=0x%02x:var=0x%02x:b/t=%d/%d\n",
-		priv->cap_sup_pri.role, priv->cap_sup_pri.id,
-		priv->cap_sup_pri.variant, priv->cap_sup_pri.bottom,
-		priv->cap_sup_pri.top);
+		hw->cap_sup_pri.role, hw->cap_sup_pri.id,
+		hw->cap_sup_pri.variant, hw->cap_sup_pri.bottom,
+		hw->cap_sup_pri.top);
 	
 	/* Compatibility range, Station f/w supplier */
 	result = hfa384x_drvr_getconfig(hw, HFA384x_RID_STASUPRANGE,
-			&priv->cap_sup_sta, sizeof(hfa384x_caplevel_t));
+			&hw->cap_sup_sta, sizeof(hfa384x_caplevel_t));
 	if ( result ) {
-		WLAN_LOG_ERROR0("Failed to retrieve STASUPRANGE\n");
+		WLAN_LOG_ERROR("Failed to retrieve STASUPRANGE\n");
 		goto failed;
 	}
 
 	/* get all the Compatibility range, station firmware supplier
 	fields in byte order */
-	priv->cap_sup_sta.role = hfa384x2host_16(priv->cap_sup_sta.role);
-	priv->cap_sup_sta.id = hfa384x2host_16(priv->cap_sup_sta.id);
-	priv->cap_sup_sta.variant = hfa384x2host_16(priv->cap_sup_sta.variant);
-	priv->cap_sup_sta.bottom = hfa384x2host_16(priv->cap_sup_sta.bottom);
-	priv->cap_sup_sta.top = hfa384x2host_16(priv->cap_sup_sta.top);
+	hw->cap_sup_sta.role = hfa384x2host_16(hw->cap_sup_sta.role);
+	hw->cap_sup_sta.id = hfa384x2host_16(hw->cap_sup_sta.id);
+	hw->cap_sup_sta.variant = hfa384x2host_16(hw->cap_sup_sta.variant);
+	hw->cap_sup_sta.bottom = hfa384x2host_16(hw->cap_sup_sta.bottom);
+	hw->cap_sup_sta.top = hfa384x2host_16(hw->cap_sup_sta.top);
 
-	if ( priv->cap_sup_sta.id == 0x04 ) {
+	if ( hw->cap_sup_sta.id == 0x04 ) {
 		WLAN_LOG_INFO(
 		"STA:SUP:role=0x%02x:id=0x%02x:var=0x%02x:b/t=%d/%d\n",
-		priv->cap_sup_sta.role, priv->cap_sup_sta.id,
-		priv->cap_sup_sta.variant, priv->cap_sup_sta.bottom,
-		priv->cap_sup_sta.top);
+		hw->cap_sup_sta.role, hw->cap_sup_sta.id,
+		hw->cap_sup_sta.variant, hw->cap_sup_sta.bottom,
+		hw->cap_sup_sta.top);
 	} else {
 		WLAN_LOG_INFO(
 		"AP:SUP:role=0x%02x:id=0x%02x:var=0x%02x:b/t=%d/%d\n",
-		priv->cap_sup_sta.role, priv->cap_sup_sta.id,
-		priv->cap_sup_sta.variant, priv->cap_sup_sta.bottom,
-		priv->cap_sup_sta.top);
+		hw->cap_sup_sta.role, hw->cap_sup_sta.id,
+		hw->cap_sup_sta.variant, hw->cap_sup_sta.bottom,
+		hw->cap_sup_sta.top);
 	}
 
 	/* Compatibility range, primary f/w actor, CFI supplier */
 	result = hfa384x_drvr_getconfig(hw, HFA384x_RID_PRI_CFIACTRANGES,
-			&priv->cap_act_pri_cfi, sizeof(hfa384x_caplevel_t));
+			&hw->cap_act_pri_cfi, sizeof(hfa384x_caplevel_t));
 	if ( result ) {
-		WLAN_LOG_ERROR0("Failed to retrieve PRI_CFIACTRANGES\n");
+		WLAN_LOG_ERROR("Failed to retrieve PRI_CFIACTRANGES\n");
 		goto failed;
 	}
 
 	/* get all the Compatibility range, primary f/w actor, CFI supplier
 	fields in byte order */
-	priv->cap_act_pri_cfi.role = hfa384x2host_16(priv->cap_act_pri_cfi.role);
-	priv->cap_act_pri_cfi.id = hfa384x2host_16(priv->cap_act_pri_cfi.id);
-	priv->cap_act_pri_cfi.variant = hfa384x2host_16(priv->cap_act_pri_cfi.variant);
-	priv->cap_act_pri_cfi.bottom = hfa384x2host_16(priv->cap_act_pri_cfi.bottom);
-	priv->cap_act_pri_cfi.top = hfa384x2host_16(priv->cap_act_pri_cfi.top);
+	hw->cap_act_pri_cfi.role = hfa384x2host_16(hw->cap_act_pri_cfi.role);
+	hw->cap_act_pri_cfi.id = hfa384x2host_16(hw->cap_act_pri_cfi.id);
+	hw->cap_act_pri_cfi.variant = hfa384x2host_16(hw->cap_act_pri_cfi.variant);
+	hw->cap_act_pri_cfi.bottom = hfa384x2host_16(hw->cap_act_pri_cfi.bottom);
+	hw->cap_act_pri_cfi.top = hfa384x2host_16(hw->cap_act_pri_cfi.top);
 
 	WLAN_LOG_INFO(
 		"PRI-CFI:ACT:role=0x%02x:id=0x%02x:var=0x%02x:b/t=%d/%d\n",
-		priv->cap_act_pri_cfi.role, priv->cap_act_pri_cfi.id,
-		priv->cap_act_pri_cfi.variant, priv->cap_act_pri_cfi.bottom,
-		priv->cap_act_pri_cfi.top);
+		hw->cap_act_pri_cfi.role, hw->cap_act_pri_cfi.id,
+		hw->cap_act_pri_cfi.variant, hw->cap_act_pri_cfi.bottom,
+		hw->cap_act_pri_cfi.top);
 	
 	/* Compatibility range, sta f/w actor, CFI supplier */
 	result = hfa384x_drvr_getconfig(hw, HFA384x_RID_STA_CFIACTRANGES,
-			&priv->cap_act_sta_cfi, sizeof(hfa384x_caplevel_t));
+			&hw->cap_act_sta_cfi, sizeof(hfa384x_caplevel_t));
 	if ( result ) {
-		WLAN_LOG_ERROR0("Failed to retrieve STA_CFIACTRANGES\n");
+		WLAN_LOG_ERROR("Failed to retrieve STA_CFIACTRANGES\n");
 		goto failed;
 	}
 
 	/* get all the Compatibility range, station f/w actor, CFI supplier
 	fields in byte order */
-	priv->cap_act_sta_cfi.role = hfa384x2host_16(priv->cap_act_sta_cfi.role);
-	priv->cap_act_sta_cfi.id = hfa384x2host_16(priv->cap_act_sta_cfi.id);
-	priv->cap_act_sta_cfi.variant = hfa384x2host_16(priv->cap_act_sta_cfi.variant);
-	priv->cap_act_sta_cfi.bottom = hfa384x2host_16(priv->cap_act_sta_cfi.bottom);
-	priv->cap_act_sta_cfi.top = hfa384x2host_16(priv->cap_act_sta_cfi.top);
+	hw->cap_act_sta_cfi.role = hfa384x2host_16(hw->cap_act_sta_cfi.role);
+	hw->cap_act_sta_cfi.id = hfa384x2host_16(hw->cap_act_sta_cfi.id);
+	hw->cap_act_sta_cfi.variant = hfa384x2host_16(hw->cap_act_sta_cfi.variant);
+	hw->cap_act_sta_cfi.bottom = hfa384x2host_16(hw->cap_act_sta_cfi.bottom);
+	hw->cap_act_sta_cfi.top = hfa384x2host_16(hw->cap_act_sta_cfi.top);
 
 	WLAN_LOG_INFO(
 		"STA-CFI:ACT:role=0x%02x:id=0x%02x:var=0x%02x:b/t=%d/%d\n",
-		priv->cap_act_sta_cfi.role, priv->cap_act_sta_cfi.id,
-		priv->cap_act_sta_cfi.variant, priv->cap_act_sta_cfi.bottom,
-		priv->cap_act_sta_cfi.top);
+		hw->cap_act_sta_cfi.role, hw->cap_act_sta_cfi.id,
+		hw->cap_act_sta_cfi.variant, hw->cap_act_sta_cfi.bottom,
+		hw->cap_act_sta_cfi.top);
 
 	/* Compatibility range, sta f/w actor, MFI supplier */
 	result = hfa384x_drvr_getconfig(hw, HFA384x_RID_STA_MFIACTRANGES,
-			&priv->cap_act_sta_mfi, sizeof(hfa384x_caplevel_t));
+			&hw->cap_act_sta_mfi, sizeof(hfa384x_caplevel_t));
 	if ( result ) {
-		WLAN_LOG_ERROR0("Failed to retrieve STA_MFIACTRANGES\n");
+		WLAN_LOG_ERROR("Failed to retrieve STA_MFIACTRANGES\n");
 		goto failed;
 	}
 
 	/* get all the Compatibility range, station f/w actor, MFI supplier
 	fields in byte order */
-	priv->cap_act_sta_mfi.role = hfa384x2host_16(priv->cap_act_sta_mfi.role);
-	priv->cap_act_sta_mfi.id = hfa384x2host_16(priv->cap_act_sta_mfi.id);
-	priv->cap_act_sta_mfi.variant = hfa384x2host_16(priv->cap_act_sta_mfi.variant);
-	priv->cap_act_sta_mfi.bottom = hfa384x2host_16(priv->cap_act_sta_mfi.bottom);
-	priv->cap_act_sta_mfi.top = hfa384x2host_16(priv->cap_act_sta_mfi.top);
+	hw->cap_act_sta_mfi.role = hfa384x2host_16(hw->cap_act_sta_mfi.role);
+	hw->cap_act_sta_mfi.id = hfa384x2host_16(hw->cap_act_sta_mfi.id);
+	hw->cap_act_sta_mfi.variant = hfa384x2host_16(hw->cap_act_sta_mfi.variant);
+	hw->cap_act_sta_mfi.bottom = hfa384x2host_16(hw->cap_act_sta_mfi.bottom);
+	hw->cap_act_sta_mfi.top = hfa384x2host_16(hw->cap_act_sta_mfi.top);
 
 	WLAN_LOG_INFO(
 		"STA-MFI:ACT:role=0x%02x:id=0x%02x:var=0x%02x:b/t=%d/%d\n",
-		priv->cap_act_sta_mfi.role, priv->cap_act_sta_mfi.id,
-		priv->cap_act_sta_mfi.variant, priv->cap_act_sta_mfi.bottom,
-		priv->cap_act_sta_mfi.top);
+		hw->cap_act_sta_mfi.role, hw->cap_act_sta_mfi.id,
+		hw->cap_act_sta_mfi.variant, hw->cap_act_sta_mfi.bottom,
+		hw->cap_act_sta_mfi.top);
 
 	/* Serial Number */
 	result = hfa384x_drvr_getconfig(hw, HFA384x_RID_NICSERIALNUMBER,
@@ -1650,7 +1348,7 @@ int prism2sta_getcardinfo(wlandevice_t *wlandev)
 				pstr, sizeof(pstr));
 		WLAN_LOG_INFO("Prism2 card SN: %s\n", pstr);
 	} else {
-		WLAN_LOG_ERROR0("Failed to retrieve Prism2 Card SN\n");
+		WLAN_LOG_ERROR("Failed to retrieve Prism2 Card SN\n");
 		goto failed;
 	}
 
@@ -1658,7 +1356,7 @@ int prism2sta_getcardinfo(wlandevice_t *wlandev)
 	result = hfa384x_drvr_getconfig(hw, HFA384x_RID_CNFOWNMACADDR, 
 		wlandev->netdev->dev_addr, WLAN_ADDR_LEN);
 	if ( result != 0 ) {
-		WLAN_LOG_ERROR0("Failed to retrieve mac address\n");
+		WLAN_LOG_ERROR("Failed to retrieve mac address\n");
 		goto failed;
 	}
 
@@ -1671,9 +1369,9 @@ int prism2sta_getcardinfo(wlandevice_t *wlandev)
 		wlandev->nsdcaps |= P80211_NSDCAP_HARDWAREWEP;
 
 	/* Only enable scan by default on newer firmware */
-        if (HFA384x_FIRMWARE_VERSION(priv->ident_sta_fw.major,
-                                     priv->ident_sta_fw.minor,
-                                     priv->ident_sta_fw.variant) <
+        if (HFA384x_FIRMWARE_VERSION(hw->ident_sta_fw.major,
+                                     hw->ident_sta_fw.minor,
+                                     hw->ident_sta_fw.variant) <
 	    HFA384x_FIRMWARE_VERSION(1,5,5)) {
 		wlandev->nsdcaps |= P80211_NSDCAP_NOSCAN;
 	}
@@ -1709,19 +1407,50 @@ done:
 ----------------------------------------------------------------*/
 int prism2sta_globalsetup(wlandevice_t *wlandev)
 {
-	prism2sta_priv_t	*priv = (prism2sta_priv_t*)wlandev->priv;
-	hfa384x_t		*hw = priv->hw;
-	UINT16			reg;
-	DBFENTER;
+	hfa384x_t               *hw = (hfa384x_t *)wlandev->priv;
 
 	/* Set the maximum frame size */
-	reg=WLAN_DATA_MAXLEN;
-	hfa384x_drvr_setconfig16(hw, HFA384x_RID_CNFMAXDATALEN, &reg);
-	
-	return 0;
-	DBFENTER;
+	return hfa384x_drvr_setconfig16(hw, HFA384x_RID_CNFMAXDATALEN,
+	                                    WLAN_DATA_MAXLEN);
 }
 
+int prism2sta_setmulticast(wlandevice_t *wlandev, netdevice_t *dev)
+{
+	int result = 0;
+	hfa384x_t               *hw = (hfa384x_t *)wlandev->priv;
+
+	UINT16  promisc;
+
+	DBFENTER;
+
+	/* If we're not ready, what's the point? */
+	if ( hw->state != HFA384x_STATE_RUNNING )
+		goto exit;
+
+	/* If we're an AP, do nothing here */
+	if (hw->ap)
+		goto exit;
+
+	if ( (dev->flags & (IFF_PROMISC | IFF_ALLMULTI)) != 0 )
+		promisc = P80211ENUM_truth_true;
+	else
+		promisc = P80211ENUM_truth_false;
+
+	result = hfa384x_drvr_setconfig16_async(
+	                              hw, HFA384x_RID_PROMISCMODE, promisc);
+	
+	/* XXX TODO: configure the multicast list */
+	// CLEAR_HW_MULTICAST_LIST
+	// struct dev_mc_list element = dev->mc_list;
+	// while (element != null) {
+	//  HW_ADD_MULTICAST_ADDR(element->dmi_addr, dmi_addrlen)
+	//  element = element->next;
+	// }
+
+ exit:
+	DBFEXIT;
+	return result;
+}
 
 /*----------------------------------------------------------------
 * prism2sta_inf_handover
@@ -1744,7 +1473,7 @@ int prism2sta_globalsetup(wlandevice_t *wlandev)
 void prism2sta_inf_handover(wlandevice_t *wlandev, hfa384x_InfFrame_t *inf)
 {
 	DBFENTER;
-	WLAN_LOG_DEBUG0(2,"received infoframe:HANDOVER (unhandled)\n");
+	WLAN_LOG_DEBUG(2,"received infoframe:HANDOVER (unhandled)\n");
 	DBFEXIT;
 	return;
 }
@@ -1769,7 +1498,7 @@ void prism2sta_inf_handover(wlandevice_t *wlandev, hfa384x_InfFrame_t *inf)
 ----------------------------------------------------------------*/
 void prism2sta_inf_tallies(wlandevice_t *wlandev, hfa384x_InfFrame_t *inf)
 {
-	prism2sta_priv_t 	*priv = wlandev->priv;
+        hfa384x_t               *hw = (hfa384x_t *)wlandev->priv;
 	UINT16			*src16;
 	UINT32			*dst;
 	UINT32			*src32;
@@ -1785,12 +1514,12 @@ void prism2sta_inf_tallies(wlandevice_t *wlandev, hfa384x_InfFrame_t *inf)
 
 	cnt = sizeof(hfa384x_CommTallies32_t) / sizeof(UINT32);
 	if (inf->framelen > 22) {
-		dst   = (UINT32 *) &priv->tallies;
+		dst   = (UINT32 *) &hw->tallies;
 		src32 = (UINT32 *) &inf->info.commtallies32;
 		for (i = 0; i < cnt; i++, dst++, src32++)
 			*dst += hfa384x2host_32(*src32);
 	} else {
-		dst   = (UINT32 *) &priv->tallies;
+		dst   = (UINT32 *) &hw->tallies;
 		src16 = (UINT16 *) &inf->info.commtallies16;
 		for (i = 0; i < cnt; i++, dst++, src16++)
 			*dst += hfa384x2host_16(*src16);
@@ -1820,8 +1549,8 @@ void prism2sta_inf_tallies(wlandevice_t *wlandev, hfa384x_InfFrame_t *inf)
 ----------------------------------------------------------------*/
 void prism2sta_inf_scanresults(wlandevice_t *wlandev, hfa384x_InfFrame_t *inf)
 {
-	prism2sta_priv_t	*priv = wlandev->priv;
-	hfa384x_t		*hw = priv->hw;
+
+        hfa384x_t               *hw = (hfa384x_t *)wlandev->priv;
 	int			nbss;
 	hfa384x_ScanResult_t	*sr = &(inf->info.scanresult);
 	int			i;
@@ -1882,19 +1611,18 @@ void prism2sta_inf_scanresults(wlandevice_t *wlandev, hfa384x_InfFrame_t *inf)
 void prism2sta_inf_hostscanresults(wlandevice_t *wlandev, 
 				   hfa384x_InfFrame_t *inf)
 {
-	prism2sta_priv_t	*priv = wlandev->priv;
-	hfa384x_t		*hw = priv->hw;
+        hfa384x_t               *hw = (hfa384x_t *)wlandev->priv;
 	int			nbss;
 	DBFENTER;
 
-	nbss = (hfa384x2host_16(inf->framelen) - 3) / 32;
+	nbss = (inf->framelen - 3) / 32;
 	WLAN_LOG_DEBUG(2, "Received %d hostscan results\n", nbss);
 
-	if (priv->scanresults)
-		kfree(priv->scanresults);
+	if (hw->scanresults)
+		kfree(hw->scanresults);
 
-	priv->scanresults = kmalloc(sizeof(hfa384x_InfFrame_t), GFP_ATOMIC);
-	memcpy(priv->scanresults, inf, sizeof(hfa384x_InfFrame_t));
+	hw->scanresults = kmalloc(sizeof(hfa384x_InfFrame_t), GFP_ATOMIC);
+	memcpy(hw->scanresults, inf, sizeof(hfa384x_InfFrame_t));
 
 	if (nbss == 0)
 		nbss = -1;
@@ -1925,21 +1653,20 @@ void prism2sta_inf_hostscanresults(wlandevice_t *wlandev,
 ----------------------------------------------------------------*/
 void prism2sta_inf_chinforesults(wlandevice_t *wlandev, hfa384x_InfFrame_t *inf)
 {
-	prism2sta_priv_t	*priv = wlandev->priv;
+        hfa384x_t               *hw = (hfa384x_t *)wlandev->priv;
 	unsigned int		i, n;
 
 	DBFENTER;
-	priv->channel_info.results.scanchannels = 
+	hw->channel_info.results.scanchannels = 
 		hfa384x2host_16(inf->info.chinforesult.scanchannels);
-
 #if 0
-	memcpy(&inf->info.chinforesult, &priv->channel_info.results, sizeof(hfa384x_ChInfoResult_t));
+	memcpy(&inf->info.chinforesult, &hw->channel_info.results, sizeof(hfa384x_ChInfoResult_t));
 #endif
 
 	for (i=0, n=0; i<HFA384x_CHINFORESULT_MAX; i++) {
-		if (priv->channel_info.results.scanchannels & (1<<i)) {
+		if (hw->channel_info.results.scanchannels & (1<<i)) {
 			int 	channel=hfa384x2host_16(inf->info.chinforesult.result[n].chid)-1;
-			hfa384x_ChInfoResultSub_t *chinforesult=&priv->channel_info.results.result[channel];
+			hfa384x_ChInfoResultSub_t *chinforesult=&hw->channel_info.results.result[channel];
 			chinforesult->chid   = channel;
 			chinforesult->anl    = hfa384x2host_16(inf->info.chinforesult.result[n].anl);
 			chinforesult->pnl    = hfa384x2host_16(inf->info.chinforesult.result[n].pnl);
@@ -1954,24 +1681,39 @@ void prism2sta_inf_chinforesults(wlandevice_t *wlandev, hfa384x_InfFrame_t *inf)
 			n++;
 		}
 	}
-	atomic_set(&priv->channel_info.done, 2);
+	atomic_set(&hw->channel_info.done, 2);
 
-	priv->channel_info.count = n;
+	hw->channel_info.count = n;
 	DBFEXIT;
 	return;
 }
-#ifdef DECLARE_TASKLET
-void prism2sta_linkstatus_defer(unsigned long data)
-#else
-void prism2sta_linkstatus_defer(void *data)
-#endif
+
+void prism2sta_processing_defer(void *data)
 {
 	hfa384x_t		*hw = (hfa384x_t *) data;
 	wlandevice_t            *wlandev = hw->wlandev;
-	UINT16 linkstatus = hw->link_status;
+	hfa384x_bytestr32_t ssid;
 
 	DBFENTER;
-	switch(linkstatus) {
+	/* First let's process the auth frames */
+	{
+		struct sk_buff          *skb;
+		hfa384x_InfFrame_t *inf;
+		
+		while ( (skb = skb_dequeue(&hw->authq)) ) {
+			inf = (hfa384x_InfFrame_t *) skb->data;
+			prism2sta_inf_authreq_defer(wlandev, inf);
+		}
+
+	}
+
+	/* Now let's handle the linkstatus stuff */
+	if (hw->link_status == hw->link_status_new)
+		goto failed;
+
+	hw->link_status = hw->link_status_new;
+
+	switch(hw->link_status) {
 	case HFA384x_LINK_NOTCONNECTED:
 		/* I'm currently assuming that this is the initial link 
 		 * state.  It should only be possible immediately
@@ -2018,6 +1760,18 @@ void prism2sta_linkstatus_defer(void *data)
 			goto failed;
 		  }
 
+		  result = hfa384x_drvr_getconfig(hw, 
+						  HFA384x_RID_CURRENTSSID,
+						  &ssid, sizeof(ssid));
+		  if ( result ) {
+			  WLAN_LOG_DEBUG(1,
+					 "getconfig(0x%02x) failed, result = %d\n",
+					 HFA384x_RID_CURRENTSSID, result);
+			  goto failed;
+		  }
+		  prism2mgmt_bytestr2pstr((hfa384x_bytestr_t *)&ssid, 
+					  (p80211pstrd_t *) &wlandev->ssid);
+
 		  /* Collect the port status */
 		  result = hfa384x_drvr_getconfig16(hw, 
 				HFA384x_RID_PORTSTATUS, &portstatus);
@@ -2027,7 +1781,6 @@ void prism2sta_linkstatus_defer(void *data)
 				HFA384x_RID_PORTSTATUS, result);
 			goto failed;
 		  }
-		  portstatus = hfa384x2host_16(portstatus);
 		  wlandev->macmode = 
 			(portstatus == HFA384x_PSTATUS_CONN_IBSS) ?
 			WLAN_MACMODE_IBSS_STA : WLAN_MACMODE_ESS_STA;
@@ -2059,6 +1812,7 @@ void prism2sta_linkstatus_defer(void *data)
 		  if (wlandev->netdev->type == ARPHRD_ETHER)
 		    WLAN_LOG_INFO("linkstatus=DISCONNECTED (unhandled)\n");
 		}
+		wlandev->macmode = WLAN_MACMODE_NONE;
 
 		break;
 
@@ -2133,7 +1887,7 @@ void prism2sta_linkstatus_defer(void *data)
 	default:
 		/* This is bad, IO port problems? */
 		WLAN_LOG_WARNING( 
-			"unknown linkstatus=0x%02x\n", linkstatus);
+			"unknown linkstatus=0x%02x\n", hw->link_status);
 		goto failed;
 		break;
 	}
@@ -2161,21 +1915,13 @@ void prism2sta_linkstatus_defer(void *data)
 ----------------------------------------------------------------*/
 void prism2sta_inf_linkstatus(wlandevice_t *wlandev, hfa384x_InfFrame_t *inf)
 {
-	prism2sta_priv_t	*priv = wlandev->priv;
+        hfa384x_t               *hw = (hfa384x_t *)wlandev->priv;
 
 	DBFENTER;
-	/* Convert */
-	if (priv->hw->link_status != hfa384x2host_16(inf->info.linkstatus.linkstatus)) {
-	  priv->hw->link_status = hfa384x2host_16(inf->info.linkstatus.linkstatus);
 
-#ifdef DECLARE_TASKLET
-	  tasklet_schedule(&priv->hw->link_bh);
-#elif (LINUX_VERSION_CODE < KERNEL_VERSION(2,4,0))
-	  queue_task(&priv->hw->link_bh, &tq_scheduler);
-#else
-	  schedule_task(&priv->hw->link_bh);
-#endif
-	}
+	hw->link_status_new = hfa384x2host_16(inf->info.linkstatus.linkstatus);
+
+	schedule_work(&hw->link_bh);
 
 	DBFEXIT;
 	return;
@@ -2201,10 +1947,8 @@ void prism2sta_inf_linkstatus(wlandevice_t *wlandev, hfa384x_InfFrame_t *inf)
 ----------------------------------------------------------------*/
 void prism2sta_inf_assocstatus(wlandevice_t *wlandev, hfa384x_InfFrame_t *inf)
 {
-	prism2sta_priv_t	*priv = wlandev->priv;
+        hfa384x_t               *hw = (hfa384x_t *)wlandev->priv;
 	hfa384x_AssocStatus_t	rec;
-	char			macbuf[WLAN_ADDR_LEN*3];
-	char			macbuf2[WLAN_ADDR_LEN*3];
 	int			i;
 
 	DBFENTER;
@@ -2212,37 +1956,6 @@ void prism2sta_inf_assocstatus(wlandevice_t *wlandev, hfa384x_InfFrame_t *inf)
 	memcpy(&rec, &inf->info.assocstatus, sizeof(rec));
 	rec.assocstatus = hfa384x2host_16(rec.assocstatus);
 	rec.reason      = hfa384x2host_16(rec.reason);
-
-	if (priv->log) {
-		p802addr_to_str(macbuf, rec.sta_addr);
-		switch (rec.assocstatus) {
-			case HFA384x_ASSOCSTATUS_STAASSOC:
-				printk(KERN_INFO "wlan-ap: %s Associated\n",
-					macbuf);
-				break;
-			case HFA384x_ASSOCSTATUS_REASSOC:
-				p802addr_to_str(macbuf2, rec.old_ap_addr);
-				printk(KERN_INFO "wlan-ap: %s Reassociated from %s\n",
-					macbuf, macbuf2);
-				break;
-			case HFA384x_ASSOCSTATUS_DISASSOC:
-				printk(KERN_INFO "wlan-ap: %s Disssociated.  Reason = %d\n",
-					macbuf, rec.reason);
-				break;
-			case HFA384x_ASSOCSTATUS_ASSOCFAIL:
-				printk(KERN_INFO "wlan-ap: %s Association failed.  Reason = %d\n",
-					macbuf, rec.reason);
-				break;
-			case HFA384x_ASSOCSTATUS_AUTHFAIL:
-				printk(KERN_INFO "wlan-ap: %s Authentication failed.  Reason = %d\n",
-					macbuf, rec.reason);
-				break;
-			default:
-				printk(KERN_INFO "wlan-ap: %s Unknown failure.  Reason = %d\n",
-					macbuf, rec.reason);
-				break;
-		}
-	}
 
 	/*
 	** Find the address in the list of authenticated stations.  If it wasn't
@@ -2255,20 +1968,20 @@ void prism2sta_inf_assocstatus(wlandevice_t *wlandev, hfa384x_InfFrame_t *inf)
 	** stations but we are getting an "authentication failed" message.
 	*/
 
-	for (i = 0; i < priv->authlist.cnt; i++)
-		if (memcmp(rec.sta_addr, priv->authlist.addr[i], WLAN_ADDR_LEN) == 0)
+	for (i = 0; i < hw->authlist.cnt; i++)
+		if (memcmp(rec.sta_addr, hw->authlist.addr[i], WLAN_ADDR_LEN) == 0)
 			break;
 
-	if (i >= priv->authlist.cnt) {
+	if (i >= hw->authlist.cnt) {
 		if (rec.assocstatus != HFA384x_ASSOCSTATUS_AUTHFAIL)
-			WLAN_LOG_WARNING0("assocstatus info frame received for non-authenticated station.\n");
+			WLAN_LOG_WARNING("assocstatus info frame received for non-authenticated station.\n");
 	} else {
-		priv->authlist.assoc[i] =
+		hw->authlist.assoc[i] =
 			(rec.assocstatus == HFA384x_ASSOCSTATUS_STAASSOC ||
 			 rec.assocstatus == HFA384x_ASSOCSTATUS_REASSOC);
 
 		if (rec.assocstatus == HFA384x_ASSOCSTATUS_AUTHFAIL)
-			WLAN_LOG_WARNING0("authfail assocstatus info frame received for authenticated station.\n");
+			WLAN_LOG_WARNING("authfail assocstatus info frame received for authenticated station.\n");
 	}
 
 	DBFEXIT;
@@ -2294,19 +2007,33 @@ void prism2sta_inf_assocstatus(wlandevice_t *wlandev, hfa384x_InfFrame_t *inf)
 * Call context:
 *	interrupt
 *
-* TODO: Make sure that the correct status values are returned.  Is
-*       "unspecified failure" correct?
-*
 ----------------------------------------------------------------*/
 void prism2sta_inf_authreq( wlandevice_t *wlandev, hfa384x_InfFrame_t *inf)
 {
-	prism2sta_priv_t                    *priv = wlandev->priv;
-	hfa384x_t                           *hw = priv->hw;
+        hfa384x_t               *hw = (hfa384x_t *)wlandev->priv;
+	struct sk_buff *skb;
+	
+	DBFENTER;
+
+	skb = dev_alloc_skb(sizeof(*inf));
+	if (skb) {
+		skb_put(skb, sizeof(*inf));
+		memcpy(skb->data, inf, sizeof(*inf));
+		skb_queue_tail(&hw->authq, skb);
+		schedule_work(&hw->link_bh);
+	}		
+
+	DBFEXIT;
+}
+
+void prism2sta_inf_authreq_defer(wlandevice_t *wlandev, 
+				 hfa384x_InfFrame_t *inf)
+{
+        hfa384x_t               *hw = (hfa384x_t *)wlandev->priv;
 	hfa384x_authenticateStation_data_t  rec;
 
 	int    i, added, result, cnt;
 	UINT8  *addr;
-	char   macbuf[WLAN_ADDR_LEN*3];
 
 	DBFENTER;
 
@@ -2322,7 +2049,7 @@ void prism2sta_inf_authreq( wlandevice_t *wlandev, hfa384x_InfFrame_t *inf)
 	** Authenticate based on the access mode.
 	*/
 
-	switch (priv->accessmode) {
+	switch (hw->accessmode) {
 		case WLAN_ACCESS_NONE:
 
 			/*
@@ -2330,8 +2057,8 @@ void prism2sta_inf_authreq( wlandevice_t *wlandev, hfa384x_InfFrame_t *inf)
 			** is ALREADY authenticated, then accept it.
 			*/
 
-			for (i = 0; i < priv->authlist.cnt; i++)
-				if (memcmp(rec.address, priv->authlist.addr[i],
+			for (i = 0; i < hw->authlist.cnt; i++)
+				if (memcmp(rec.address, hw->authlist.addr[i],
 						WLAN_ADDR_LEN) == 0) {
 					rec.status = P80211ENUM_status_successful;
 					break;
@@ -2360,12 +2087,12 @@ void prism2sta_inf_authreq( wlandevice_t *wlandev, hfa384x_InfFrame_t *inf)
 			** See "prism2mib_priv_accessallow()" for details.
 			*/
 
-			if (priv->allow.modify == 0) {
-				cnt  = priv->allow.cnt;
-				addr = priv->allow.addr[0];
+			if (hw->allow.modify == 0) {
+				cnt  = hw->allow.cnt;
+				addr = hw->allow.addr[0];
 			} else {
-				cnt  = priv->allow.cnt1;
-				addr = priv->allow.addr1[0];
+				cnt  = hw->allow.cnt1;
+				addr = hw->allow.addr1[0];
 			}
 
 			for (i = 0; i < cnt; i++, addr += WLAN_ADDR_LEN)
@@ -2388,12 +2115,12 @@ void prism2sta_inf_authreq( wlandevice_t *wlandev, hfa384x_InfFrame_t *inf)
 			** See "prism2mib_priv_accessdeny()" for details.
 			*/
 
-			if (priv->deny.modify == 0) {
-				cnt  = priv->deny.cnt;
-				addr = priv->deny.addr[0];
+			if (hw->deny.modify == 0) {
+				cnt  = hw->deny.cnt;
+				addr = hw->deny.addr[0];
 			} else {
-				cnt  = priv->deny.cnt1;
-				addr = priv->deny.addr1[0];
+				cnt  = hw->deny.cnt1;
+				addr = hw->deny.addr1[0];
 			}
 
 			rec.status = P80211ENUM_status_successful;
@@ -2419,31 +2146,20 @@ void prism2sta_inf_authreq( wlandevice_t *wlandev, hfa384x_InfFrame_t *inf)
 	added = 0;
 
 	if (rec.status == P80211ENUM_status_successful) {
-		for (i = 0; i < priv->authlist.cnt; i++)
-			if (memcmp(rec.address, priv->authlist.addr[i], WLAN_ADDR_LEN) == 0)
+		for (i = 0; i < hw->authlist.cnt; i++)
+			if (memcmp(rec.address, hw->authlist.addr[i], WLAN_ADDR_LEN) == 0)
 				break;
 
-		if (i >= priv->authlist.cnt) {
-			if (priv->authlist.cnt >= WLAN_AUTH_MAX) {
+		if (i >= hw->authlist.cnt) {
+			if (hw->authlist.cnt >= WLAN_AUTH_MAX) {
 				rec.status = P80211ENUM_status_ap_full;
 			} else {
-				memcpy(priv->authlist.addr[priv->authlist.cnt],
+				memcpy(hw->authlist.addr[hw->authlist.cnt],
 					rec.address, WLAN_ADDR_LEN);
-				priv->authlist.cnt++;
+				hw->authlist.cnt++;
 				added = 1;
 			}
 		}
-	}
-
-	if (priv->log) {
-		p802addr_to_str(macbuf, rec.address);
-		printk(KERN_INFO "wlan-ap: %s %s\n",
-			macbuf,
-			(rec.status == P80211ENUM_status_successful) ?
-				"Authenticated" :
-			(rec.status == P80211ENUM_status_ap_full) ?
-				"Authentication denied (AP full)" :
-				"Authentication denied (Access List)");
 	}
 
 	/*
@@ -2455,11 +2171,10 @@ void prism2sta_inf_authreq( wlandevice_t *wlandev, hfa384x_InfFrame_t *inf)
 	rec.status = host2hfa384x_16(rec.status);
 	rec.algorithm = inf->info.authreq.algorithm;
 
-#warning "hfa384x_drvr_setconfig() is not safe to call in interrupt context!"
 	result = hfa384x_drvr_setconfig(hw, HFA384x_RID_AUTHENTICATESTA,
 							&rec, sizeof(rec));
 	if (result) {
-		if (added) priv->authlist.cnt--;
+		if (added) hw->authlist.cnt--;
 		WLAN_LOG_ERROR("setconfig(authenticatestation) failed, result=%d\n", result);
 	}
 
@@ -2489,11 +2204,11 @@ void prism2sta_inf_authreq( wlandevice_t *wlandev, hfa384x_InfFrame_t *inf)
 ----------------------------------------------------------------*/
 void prism2sta_inf_psusercnt( wlandevice_t *wlandev, hfa384x_InfFrame_t *inf)
 {
-	prism2sta_priv_t  *priv = wlandev->priv;
+        hfa384x_t               *hw = (hfa384x_t *)wlandev->priv;
 
 	DBFENTER;
 
-	priv->psusercount = hfa384x2host_16(inf->info.psusercnt.usercnt);
+	hw->psusercount = hfa384x2host_16(inf->info.psusercnt.usercnt);
 
 	DBFEXIT;
 
@@ -2519,11 +2234,10 @@ void prism2sta_inf_psusercnt( wlandevice_t *wlandev, hfa384x_InfFrame_t *inf)
 void prism2sta_ev_dtim(wlandevice_t *wlandev)
 {
 #if 0
-	prism2sta_priv_t	*priv = wlandev->priv;
-	hfa384x_t		*hw = priv->hw;
+        hfa384x_t               *hw = (hfa384x_t *)wlandev->priv;
 #endif
 	DBFENTER;
-	WLAN_LOG_DEBUG0(3, "DTIM event, currently unhandled.\n");
+	WLAN_LOG_DEBUG(3, "DTIM event, currently unhandled.\n");
 	DBFEXIT;
 	return;
 }
@@ -2548,11 +2262,10 @@ void prism2sta_ev_dtim(wlandevice_t *wlandev)
 void prism2sta_ev_infdrop(wlandevice_t *wlandev)
 {
 #if 0
-	prism2sta_priv_t	*priv = wlandev->priv;
-	hfa384x_t		*hw = priv->hw;
+        hfa384x_t               *hw = (hfa384x_t *)wlandev->priv;
 #endif
 	DBFENTER;
-	WLAN_LOG_DEBUG0(3, "Info frame dropped due to card mem low.\n");
+	WLAN_LOG_DEBUG(3, "Info frame dropped due to card mem low.\n");
 	DBFEXIT;
 	return;
 }
@@ -2609,13 +2322,13 @@ void prism2sta_ev_info(wlandevice_t *wlandev, hfa384x_InfFrame_t *inf)
 			prism2sta_inf_psusercnt(wlandev, inf);
 			break;
 	        case HFA384x_IT_KEYIDCHANGED:
-			WLAN_LOG_WARNING0("Unhandled IT_KEYIDCHANGED\n");
+			WLAN_LOG_WARNING("Unhandled IT_KEYIDCHANGED\n");
 			break;
 	        case HFA384x_IT_ASSOCREQ:
-			WLAN_LOG_WARNING0("Unhandled IT_ASSOCREQ\n");
+			WLAN_LOG_WARNING("Unhandled IT_ASSOCREQ\n");
 			break;
 	        case HFA384x_IT_MICFAILURE:
-			WLAN_LOG_WARNING0("Unhandled IT_MICFAILURE\n");
+			WLAN_LOG_WARNING("Unhandled IT_MICFAILURE\n");
 			break;
 		default:
 			WLAN_LOG_WARNING(
@@ -2736,907 +2449,6 @@ void prism2sta_ev_alloc(wlandevice_t *wlandev)
 	return;
 }
 
-/*----------------------------------------------------------------
-* prism2sta_hwremoved
-*
-* Called by p80211netdev in response to kernel-bus support code
-* notifying the wlandev that the device has been removed.  
-* The idea here is that this function is called almost immediately
-* after the device has been detected removed by the kernel-bus
-* stuff.  This function's purpose is to quickly make sure that
-* if there are any 'active' data structures, then we should halt 
-* them.  Basically, the prism2sta_* section of 
-* the code should generate no events on its own after this function
-* is called.
-*
-* TODO: Currently for prism2, the only thing to do is notify the
-* hfa384x code.
-*
-* Arguments:
-*	wlandev		wlan device struct
-*
-* Returns: 
-*	nothing
-*
-* Side effects:
-*
-* Call context:
-*	Probably interrupt
-----------------------------------------------------------------*/
-void prism2sta_hwremoved(wlandevice_t *wlandev)
-{
-	prism2sta_priv_t	*priv;
-	DBFENTER;
-	if (wlandev) {
-		priv = wlandev->priv;
-		if (priv && priv->hw) {
-			hfa384x_hwremoved(priv->hw);
-		}
-	}
-	DBFEXIT;
-	return;
-}
-
-#if (WLAN_HOSTIF == WLAN_PCMCIA)
-/*----------------------------------------------------------------
-* prism2sta_attach
-*
-* Half of the attach/detach pair.  Creates and registers a device
-* instance with Card Services.  In this case, it also creates the
-* wlandev structure and device private structure.  These are 
-* linked to the device instance via its priv member.
-*
-* Arguments:
-*	none
-*
-* Returns: 
-*	A valid ptr to dev_link_t on success, NULL otherwise
-*
-* Side effects:
-*	
-*
-* Call context:
-*	process thread (insmod/init_module/register_pccard_driver)
-----------------------------------------------------------------*/
-dev_link_t *prism2sta_attach(void)
-{
-	client_reg_t		client_reg;
-	int			result;
-	dev_link_t		*link = NULL;
-	wlandevice_t		*wlandev = NULL;
-	prism2sta_priv_t	*priv = NULL;
-	hfa384x_t		*hw = NULL;
-
-	DBFENTER;
-
-	/* Alloc our structures */
-	link =		kmalloc(sizeof(struct dev_link_t), GFP_KERNEL);
-
-	if (!link || ((wlandev = create_wlan()) == NULL)) {
-		WLAN_LOG_ERROR("%s: Memory allocation failure.\n", dev_info);
-		result = -EIO;
-		goto failed;
-	}
-	priv = wlandev->priv;
-	hw = priv->hw;
-
-	/* Clear all the structs */
-	memset(link, 0, sizeof(struct dev_link_t));
-
-	if ( wlan_setup(wlandev) != 0 ) {
-		WLAN_LOG_ERROR("%s: wlan_setup() failed.\n", dev_info);
-		result = -EIO;
-		goto failed;
-	}
-
-	/* Initialize the device private data stucture. */
-	priv->cs_link = link;
-
-	/* Initialize the PC card device object. */
-	link->release.function = &prism2sta_release;
-	link->release.data = (u_long)link;
-	link->conf.IntType = INT_MEMORY_AND_IO;
-	link->priv = wlandev;
-#if CS_RELEASE_CODE > 0x2911
-	link->irq.Instance = wlandev;
-#endif
-
-	/* Link in to the list of devices managed by this driver */
-	link->next = dev_list;
-	dev_list = link;	
-
-	/* Register with Card Services */
-	client_reg.dev_info = &dev_info;
-	client_reg.Attributes = INFO_IO_CLIENT | INFO_CARD_SHARE;
-	client_reg.EventMask =
-		CS_EVENT_CARD_INSERTION | CS_EVENT_CARD_REMOVAL |
-		CS_EVENT_RESET_REQUEST |
-		CS_EVENT_RESET_PHYSICAL | CS_EVENT_CARD_RESET |
-		CS_EVENT_PM_SUSPEND | CS_EVENT_PM_RESUME;
-	client_reg.event_handler = &prism2sta_event;
-	client_reg.Version = 0x0210;
-	client_reg.event_callback_args.client_data = link;
-
-	result = CardServices(RegisterClient, &link->handle, &client_reg);
-	if (result != 0) {
-		cs_error(link->handle, RegisterClient, result);
-		prism2sta_detach(link);
-		return NULL;
-	}
-
-	goto done;
-
- failed:
-	if (link)	kfree(link);
-	if (wlandev)	kfree(wlandev);
-	if (priv)	kfree(priv);
-	if (hw)		kfree(hw);
-	link = NULL;
-
- done:
-	DBFEXIT;
-	return link;
-}
-
-
-/*----------------------------------------------------------------
-* prism2sta_detach
-*
-* Remove one of the device instances managed by this driver.
-*   Search the list for the given instance, 
-*   check our flags for a waiting timer'd release call
-*   call release
-*   Deregister the instance with Card Services
-*   (netdevice) unregister the network device.
-*   unlink the instance from the list
-*   free the link, priv, and priv->priv memory
-* Note: the dev_list variable is a driver scoped static used to
-*	maintain a list of device instances managed by this
-*	driver.
-*
-* Arguments:
-*	link	ptr to the instance to detach
-*
-* Returns: 
-*	nothing
-*
-* Side effects:
-*	the link structure is gone, the netdevice is gone
-*
-* Call context:
-*	Might be interrupt, don't block.
-----------------------------------------------------------------*/
-void prism2sta_detach(dev_link_t *link)
-{
-	dev_link_t		**linkp;
-	UINT32			flags;
-	wlandevice_t		*wlandev;
-	prism2sta_priv_t	*priv;
-
-	DBFENTER;
-
-	/* Locate prev device structure */
-	for (linkp = &dev_list; *linkp; linkp = &(*linkp)->next) {
-		if (*linkp == link) break;
-	}
-
-	if (*linkp != NULL) {
-		/* Get rid of any timer'd release call */	
-		save_flags(flags);
-		cli();
-		if (link->state & DEV_RELEASE_PENDING) {
-			del_timer(&link->release);
-			link->state &= ~DEV_RELEASE_PENDING;
-		}
-		restore_flags(flags);
-		
-		/* If link says we're still config'd, call release */
-		if (link->state & DEV_CONFIG) {
-			prism2sta_release((u_long)link);
-			if (link->state & DEV_STALE_CONFIG) {
-				link->state |= DEV_STALE_LINK;
-				return;
-			}
-		}
-		
-		/* Tell Card Services we're not around any more */
-		if (link->handle) {
-			CardServices(DeregisterClient, link->handle);
-		}	
-
-		/* Unlink device structure, free bits */
-		*linkp = link->next;
-		if ( link->priv != NULL ) {
-			wlandev = (wlandevice_t*)link->priv;
-			if (link->dev != NULL) {
-				unregister_wlandev(wlandev);
-			}
-			wlan_unsetup(wlandev);
-			if (wlandev->priv) {
-				priv = (prism2sta_priv_t*)wlandev->priv;
-				if ( priv->hw )
-					kfree(priv->hw);
-				kfree(wlandev->priv);
-			}
-			kfree(link->priv);
-		}
-		kfree(link);
-	}
-
-	DBFEXIT;
-	return;
-}
-
-
-/*----------------------------------------------------------------
-* prism2sta_config
-*
-* Half of the config/release pair.  Usually called in response to
-* a card insertion event.  At this point, we _know_ there's some
-* physical device present.  That means we can start poking around
-* at the CIS and at any device specific config data we want.
-*
-* Note the gotos and the macros.  I recoded this once without
-* them, and it got incredibly ugly.  It's actually simpler with
-* them.
-*
-* Arguments:
-*	link	the dev_link_t structure created in attach that 
-*		represents this device instance.
-*
-* Returns: 
-*	nothing
-*
-* Side effects:
-*	Resources (irq, io, mem) are allocated
-*	The pcmcia dev_link->node->name is set
-*	(For netcards) The device structure is finished and,
-*	  most importantly, registered.  This means that there
-*	  is now a _named_ device that can be configured from
-*	  userland.
-*
-* Call context:
-*	May be called from a timer.  Don't block!
-----------------------------------------------------------------*/
-#define CS_CHECK(fn, args...) \
-while ((last_ret=CardServices(last_fn=(fn), args))!=0) goto cs_failed;
-
-#if defined(WLAN_INCLUDE_DEBUG)
-#define CFG_CHECK(fn, args...) \
-if ((last_ret=CardServices(last_fn=(fn), args))!=0) {  \
-	WLAN_LOG_DEBUG0(1,"CFG_CHECK failed\n"); \
-	cs_error(link->handle, last_fn, last_ret); \
-	goto next_entry; \
-}
-#else
-#define CFG_CHECK(fn, args...) if (CardServices(fn, args)!=0) goto next_entry;
-#endif 
-
-void prism2sta_config(dev_link_t *link)
-{
-	client_handle_t		handle;
-	wlandevice_t		*wlandev;
-	prism2sta_priv_t	*priv;
-	int			last_fn;
-	int			last_ret;
-	tuple_t			tuple;
-	cisparse_t		parse;
-	config_info_t		socketconf;
-	UINT8			buf[64];
-	int			i;
-	int			minVcc = 0;
-	int			maxVcc = 0;
-	cistpl_cftable_entry_t	dflt = { 0 };
-
-	DBFENTER;
-
-	handle = link->handle;
-	wlandev = (wlandevice_t*)link->priv;
-	priv = wlandev->priv;
-
-	/* Collect the config register info */
-	tuple.DesiredTuple = CISTPL_CONFIG;
-	tuple.Attributes = 0;
-	tuple.TupleData = buf;
-	tuple.TupleDataMax = sizeof(buf);
-	tuple.TupleOffset = 0;
-	CS_CHECK(GetFirstTuple, handle, &tuple);
-	CS_CHECK(GetTupleData, handle, &tuple);
-	CS_CHECK(ParseTuple, handle, &tuple, &parse);
-	link->conf.ConfigBase = parse.config.base;
-	link->conf.Present = parse.config.rmask[0];
-	
-	/* Configure card */
-	link->state |= DEV_CONFIG;
-
-	/* Acquire the current socket config (need Vcc setting) */
-	CS_CHECK(GetConfigurationInfo, handle, &socketconf);
-
-	/* Loop through the config table entries until we find one that works */
-	/* Assumes a complete and valid CIS */
-	tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY;
-	CS_CHECK(GetFirstTuple, handle, &tuple);
-	while (1) {
-		cistpl_cftable_entry_t *cfg = &(parse.cftable_entry);
-		CFG_CHECK(GetTupleData, handle, &tuple);
-		CFG_CHECK(ParseTuple, handle, &tuple, &parse);
-
-		if (cfg->index == 0) goto next_entry;
-		link->conf.ConfigIndex = cfg->index;
-
-		/* Lets print out the Vcc that the controller+pcmcia-cs set
-		 * for us, cause that's what we're going to use.
-		 */
-		WLAN_LOG_DEBUG(1,"Initial Vcc=%d/10v\n", socketconf.Vcc);
-		if (prism2_ignorevcc) {
-			link->conf.Vcc = socketconf.Vcc;
-			goto skipvcc;
-		}
-
-		/* Use power settings for Vcc and Vpp if present */
-		/* Note that the CIS values need to be rescaled */
-		if (cfg->vcc.present & (1<<CISTPL_POWER_VNOM)) {
-			WLAN_LOG_DEBUG0(1, "Vcc obtained from curtupl.VNOM\n");
-			minVcc = maxVcc = 
-				cfg->vcc.param[CISTPL_POWER_VNOM]/10000;
-		} else if (dflt.vcc.present & (1<<CISTPL_POWER_VNOM)) {
-			WLAN_LOG_DEBUG0(1, "Vcc set from dflt.VNOM\n");
-			minVcc = maxVcc = 
-				dflt.vcc.param[CISTPL_POWER_VNOM]/10000;
-		} else if ((cfg->vcc.present & (1<<CISTPL_POWER_VMAX)) &&
-			   (cfg->vcc.present & (1<<CISTPL_POWER_VMIN)) ) {
-			WLAN_LOG_DEBUG0(1, "Vcc set from curtupl(VMIN,VMAX)\n");			minVcc = cfg->vcc.param[CISTPL_POWER_VMIN]/10000;
-			maxVcc = cfg->vcc.param[CISTPL_POWER_VMAX]/10000;
-		} else if ((dflt.vcc.present & (1<<CISTPL_POWER_VMAX)) &&
-			   (dflt.vcc.present & (1<<CISTPL_POWER_VMIN)) ) {
-			WLAN_LOG_DEBUG0(1, "Vcc set from dflt(VMIN,VMAX)\n");
-			minVcc = dflt.vcc.param[CISTPL_POWER_VMIN]/10000;
-			maxVcc = dflt.vcc.param[CISTPL_POWER_VMAX]/10000;
-		}
-
-		if ( socketconf.Vcc >= minVcc && socketconf.Vcc <= maxVcc) {
-			link->conf.Vcc = socketconf.Vcc;
-		} else {
-			/* [MSM]: Note that I've given up trying to change 
-			 * the Vcc if a change is indicated.  It seems the
-			 * system&socketcontroller&card vendors can't seem
-			 * to get it right, so I'm tired of trying to hack
-			 * my way around it.  pcmcia-cs does its best using 
-			 * the voltage sense pins but sometimes the controller
-			 * lies.  Then, even if we have a good read on the VS 
-			 * pins, some system designs will silently ignore our
-			 * requests to set the voltage.  Additionally, some 
-			 * vendors have 3.3v indicated on their sense pins, 
-			 * but 5v specified in the CIS or vice-versa.  I've
-			 * had it.  My only recommendation is "let the buyer
-			 * beware".  Your system might supply 5v to a 3v card
-			 * (possibly causing damage) or a 3v capable system 
-			 * might supply 5v to a 3v capable card (wasting 
-			 * precious battery life).
-			 * My only recommendation (if you care) is to get 
-			 * yourself an extender card (I don't know where, I 
-			 * have only one myself) and a meter and test it for
-			 * yourself.
-			 */
-			goto next_entry;
-		}
-skipvcc:			
-		WLAN_LOG_DEBUG(1, "link->conf.Vcc=%d\n", link->conf.Vcc);
-
-		/* Do we need to allocate an interrupt? */
-		/* HACK: due to a bad CIS....we ALWAYS need an interrupt */
-		/* if (cfg->irq.IRQInfo1 || dflt.irq.IRQInfo1) */
-			link->conf.Attributes |= CONF_ENABLE_IRQ;
-
-		/* IO window settings */
-		link->io.NumPorts1 = link->io.NumPorts2 = 0;
-		if ((cfg->io.nwin > 0) || (dflt.io.nwin > 0)) {
-			cistpl_io_t *io = (cfg->io.nwin) ? &cfg->io : &dflt.io;
-			link->io.Attributes1 = IO_DATA_PATH_WIDTH_AUTO;
-			if (!(io->flags & CISTPL_IO_8BIT))
-				link->io.Attributes1 = IO_DATA_PATH_WIDTH_16;
-			if (!(io->flags & CISTPL_IO_16BIT))
-				link->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
-			link->io.BasePort1 = io->win[0].base;
-			if  ( link->io.BasePort1 != 0 ) {
-				WLAN_LOG_WARNING(
-				"Brain damaged CIS: hard coded iobase="
-				"0x%x, try letting pcmcia_cs decide...\n",
-				link->io.BasePort1 );
-				link->io.BasePort1 = 0;
-			}
-			link->io.NumPorts1 = io->win[0].len;
-			if (io->nwin > 1) {
-				link->io.Attributes2 = link->io.Attributes1;
-				link->io.BasePort2 = io->win[1].base;
-				link->io.NumPorts2 = io->win[1].len;
-			}
-		}
-
-		/* This reserves IO space but doesn't actually enable it */
-		CFG_CHECK(RequestIO, link->handle, &link->io);
-
-		/* If we got this far, we're cool! */
-		break;
-
-next_entry:
-		if (cfg->flags & CISTPL_CFTABLE_DEFAULT)
-			dflt = *cfg;
-		CS_CHECK(GetNextTuple, handle, &tuple);
-	}
-
-	/* Allocate an interrupt line.  Note that this does not assign a */
-	/* handler to the interrupt, unless the 'Handler' member of the */
-	/* irq structure is initialized. */
-	if (link->conf.Attributes & CONF_ENABLE_IRQ)
-	{
-		link->irq.Attributes = IRQ_TYPE_EXCLUSIVE | IRQ_HANDLE_PRESENT;
-		link->irq.IRQInfo1 = IRQ_INFO2_VALID | IRQ_LEVEL_ID;
-		if (irq_list[0] == -1)
-			link->irq.IRQInfo2 = irq_mask;
-		else
-			for (i=0; i<4; i++)
-				link->irq.IRQInfo2 |= 1 << irq_list[i];
-		link->irq.Handler = hfa384x_interrupt;
-		link->irq.Instance = wlandev;
-		CS_CHECK(RequestIRQ, link->handle, &link->irq);
-	}
-
-	/* This actually configures the PCMCIA socket -- setting up */
-	/* the I/O windows and the interrupt mapping, and putting the */
-	/* card and host interface into "Memory and IO" mode. */
-	CS_CHECK(RequestConfiguration, link->handle, &link->conf);
-
-	/* Fill the netdevice with this info */
-	wlandev->netdev->irq = link->irq.AssignedIRQ;
-	wlandev->netdev->base_addr = link->io.BasePort1;
-
-	/* Report what we've done */
-	printk(KERN_INFO "%s: index 0x%02x: Vcc %d.%d", 
-		dev_info, link->conf.ConfigIndex, 
-		link->conf.Vcc/10, link->conf.Vcc%10);
-	if (link->conf.Vpp1)
-		printk(", Vpp %d.%d", link->conf.Vpp1/10, link->conf.Vpp1%10);
-	if (link->conf.Attributes & CONF_ENABLE_IRQ)
-		printk(", irq %d", link->irq.AssignedIRQ);
-	if (link->io.NumPorts1)
-		printk(", io 0x%04x-0x%04x", link->io.BasePort1, link->io.BasePort1+link->io.NumPorts1-1);
-	if (link->io.NumPorts2)
-		printk(" & 0x%04x-0x%04x", link->io.BasePort2, link->io.BasePort2+link->io.NumPorts2-1);
-	printk("\n");
-
-	link->state &= ~DEV_CONFIG_PENDING;
-
-	/* Register the network device and get assigned a name */
-	if (register_wlandev(wlandev) != 0) {
-		WLAN_LOG_NOTICE0("prism2sta_cs: register_wlandev() failed.\n");
-		goto failed;
-	}
-
-	/* Let pcmcia know the device name */
-	link->dev = &priv->node;
-	
-
-	/* Any device custom config/query stuff should be done here */
-	/* For a netdevice, we should at least grab the mac address */
-
-	return;
-cs_failed:
-	cs_error(link->handle, last_fn, last_ret);
-	WLAN_LOG_ERROR0("NextTuple failure? It's probably a Vcc mismatch.\n");
-
-failed:
-	prism2sta_release((UINT32)link);
-	return;
-}
-
-
-
-
-/*----------------------------------------------------------------
-* prism2sta_release
-*
-* Half of the config/release pair.  Usually called in response to 
-* a card ejection event.  Checks to make sure no higher layers
-* are still (or think they are) using the card via the link->open
-* field.  
-*
-* NOTE: Don't forget to increment the link->open variable in the 
-*  device_open method, and decrement it in the device_close 
-*  method.
-*
-* Arguments:
-*	arg	a generic 32 bit variable.  It's the value that
-*		we assigned to link->release.data in sta_attach().
-*
-* Returns: 
-*	nothing
-*
-* Side effects:
-*	All resources should be released after this function
-*	executes and finds the device !open.
-*
-* Call context:
-*	Possibly in a timer context.  Don't do anything that'll
-*	block.
-----------------------------------------------------------------*/
-void prism2sta_release(UINT32 arg)
-{
-        dev_link_t	*link = (dev_link_t *)arg;
-
-	DBFENTER;
-
-	/* First thing we should do is get the MSD back to the
-	 * HWPRESENT state.  I.e. everything quiescent.
-	 */
-	prism2sta_ifstate(link->priv, P80211ENUM_ifstate_disable);
-
-        if (link->open) {
-		/* TODO: I don't think we're even using this bit of code
-		 * and I don't think it's hurting us at the moment.
-		 */
-                WLAN_LOG_DEBUG(1, 
-			"prism2sta_cs: release postponed, '%s' still open\n",
-			link->dev->dev_name);
-                link->state |= DEV_STALE_CONFIG;
-                return;
-        }
-
-        CardServices(ReleaseConfiguration, link->handle);
-        CardServices(ReleaseIO, link->handle, &link->io);
-        CardServices(ReleaseIRQ, link->handle, &link->irq);
-
-        link->state &= ~(DEV_CONFIG | DEV_RELEASE_PENDING);
-
-	DBFEXIT;
-}
-
-
-
-/*----------------------------------------------------------------
-* prism2sta_event
-*
-* Handler for card services events.
-*
-* Arguments:
-*	event		The event code
-*	priority	hi/low - REMOVAL is the only hi
-*	args		ptr to card services struct containing info about
-*			pcmcia status
-*
-* Returns: 
-*	Zero on success, non-zero otherwise
-*
-* Side effects:
-*	
-*
-* Call context:
-*	Both interrupt and process thread, depends on the event.
-----------------------------------------------------------------*/
-static int 
-prism2sta_event (
-	event_t event, 
-	int priority, 
-	event_callback_args_t *args)
-{
-	int			result = 0;
-	dev_link_t		*link = (dev_link_t *) args->client_data;
-	wlandevice_t		*wlandev = (wlandevice_t*)link->priv;
-	prism2sta_priv_t	*priv = NULL;
-	hfa384x_t		*hw = NULL;
-	DBFENTER;
-
-	if (wlandev) priv = wlandev->priv;
-	if (priv) hw = priv->hw;
-
-	switch (event)
-	{
-	case CS_EVENT_CARD_INSERTION:
-		WLAN_LOG_DEBUG0(5,"event is INSERTION\n");
-		link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
-		prism2sta_config(link);
-		if (!(link->state & DEV_CONFIG)) {
-			wlandev->netdev->irq = 0;
-			WLAN_LOG_ERROR(
-				"%s: Initialization failed!\n", dev_info);
-			wlandev->msdstate = WLAN_MSD_HWFAIL;
-			break;
-		}
-
-		hfa384x_create(
-			((prism2sta_priv_t*)wlandev->priv)->hw, 
-			wlandev->netdev->irq,
-			wlandev->netdev->base_addr, 
-			(UINT32)link);
-		hw->wlandev = wlandev;
-
-		if (prism2_doreset) {
-			result = hfa384x_corereset(priv->hw, 
-					prism2_reset_holdtime, 
-					prism2_reset_settletime);
-			if ( result ) {
-				WLAN_LOG_ERROR(
-					"corereset() failed, result=%d.\n", 
-					result);
-				wlandev->msdstate = WLAN_MSD_HWFAIL;
-				break;
-			}
-		}
-
-#if 0
-		/*
-		 * TODO: test_hostif() not implemented yet.
-		 */
-		result = hfa384x_test_hostif(priv->hw);
-		if (result) {
-			WLAN_LOG_ERROR(
-			"test_hostif() failed, result=%d.\n", result);
-			wlandev->msdstate = WLAN_MSD_HWFAIL;
-			break;
-		}
-#endif
-		wlandev->msdstate = WLAN_MSD_HWPRESENT;
-		break;
-
-	case CS_EVENT_CARD_REMOVAL:
-		WLAN_LOG_DEBUG0(5,"event is REMOVAL\n");
-		link->state &= ~DEV_PRESENT;
-
-		/* 
-		 * Notify wlandev that the h/w is gone,
-		 * this will result in a call to prism2sta_hwremoved()
-		 */
-		if (wlandev) {
-			p80211netdev_hwremoved(wlandev);
-		}
-
-		if (link->state & DEV_CONFIG)
-		{
-			link->release.expires = jiffies + (HZ/20);
-			add_timer(&link->release);
-		}
-		break;
-	case CS_EVENT_RESET_REQUEST:
-		WLAN_LOG_DEBUG0(5,"event is RESET_REQUEST\n");
-		WLAN_LOG_NOTICE0(
-			"prism2 card reset not supported "
-			"due to post-reset user mode configuration "
-			"requirements.\n");
-		WLAN_LOG_NOTICE0(
-			"  From user mode, use "
-			"'cardctl suspend;cardctl resume' "
-			"instead.\n");
-		break;
-	case CS_EVENT_RESET_PHYSICAL:
-	case CS_EVENT_CARD_RESET:
-		WLAN_LOG_WARNING0("Rx'd CS_EVENT_RESET_xxx, should not "
-			"be possible since RESET_REQUEST was denied.\n");
-		break;
-
-	case CS_EVENT_PM_SUSPEND:
-		WLAN_LOG_DEBUG0(5,"event is SUSPEND\n");
-		link->state |= DEV_SUSPEND;
-		if (link->state & DEV_CONFIG)
-		{
-			prism2sta_ifstate(wlandev, P80211ENUM_ifstate_disable);
-			CardServices(ReleaseConfiguration, link->handle);
-		}
-		break;
-
-	case CS_EVENT_PM_RESUME:
-		WLAN_LOG_DEBUG0(5,"event is RESUME\n");
-		link->state &= ~DEV_SUSPEND;
-		if (link->state & DEV_CONFIG)
-		{
-			CardServices(
-				RequestConfiguration, 
-				link->handle, &link->conf);
-		}
-		break;
-	}
-
-	DBFEXIT;
-	return 0;  /* noone else does anthing with the return value */
-}
-#endif /* WLAN_PCMCIA */
-
-#if (WLAN_HOSTIF == WLAN_PCI)
-/*----------------------------------------------------------------
-* prism2sta_probe_pci
-*
-* Probe routine called when a PCI device w/ matching ID is found. 
-* The ISL3874 implementation uses the following map:
-*   BAR0: Prism2.x registers memory mapped, size=4k
-* Here's the sequence:
-*   - Allocate the PCI resources.  
-*   - Read the PCMCIA attribute memory to make sure we have a WLAN card
-*   - Reset the MAC 
-*   - Initialize the netdev and wlan data
-*   - Initialize the MAC
-*
-* Arguments:
-*	pdev		ptr to pci device structure containing info about 
-*			pci configuration.
-*	id		ptr to the device id entry that matched this device.
-*
-* Returns: 
-*	zero		- success
-*	negative	- failed
-*
-* Side effects:
-*	
-*
-* Call context:
-*	process thread
-*	
-----------------------------------------------------------------*/
-static int 
-prism2sta_probe_pci(
-	struct pci_dev *pdev, 
-	const struct pci_device_id *id)
-{
-	int		result;
-	unsigned long   phymem = 0;
-	unsigned long	mem = 0;
-        wlandevice_t    *wlandev = NULL;
-	hfa384x_t	*hw = NULL;
-        prism2sta_priv_t *priv = NULL;
-
-	DBFENTER;
-
-	/* Enable the pci device */
-	if (pci_enable_device(pdev)) {
-		WLAN_LOG_ERROR("%s: pci_enable_device() failed.\n", dev_info);
-		result = -EIO;
-		goto fail;
-	}
-
-	/* Figure out our resources */
-	phymem = pci_resource_start(pdev, 0);
-
-        if (!request_mem_region(phymem, pci_resource_len(pdev, 0), "Prism2")) {
-		printk(KERN_ERR "prism2: Cannot reserve PCI memory region\n");
-		result = -EIO;
-		goto fail;
-        }
-
-	mem = (unsigned long) ioremap(phymem, PCI_SIZE);
-	if ( mem == 0 ) {
-		WLAN_LOG_ERROR("%s: ioremap() failed.\n", dev_info);
-		result = -EIO;
-		goto fail;
-	}
-
-	/* Log the device */
-        WLAN_LOG_INFO("A Prism2.5 PCI device found, "
-		"phymem:0x%lx, irq:%d, mem:0x%lx\n", 
-		phymem, pdev->irq, mem);
-	
-	if ((wlandev = create_wlan()) == NULL) {
-		WLAN_LOG_ERROR("%s: Memory allocation failure.\n", dev_info);
-		result = -EIO;
-		goto fail;
-	}
-	priv = wlandev->priv;
-	hw = priv->hw;
-	
-	if ( wlan_setup(wlandev) != 0 ) {
-		WLAN_LOG_ERROR("%s: wlan_setup() failed.\n", dev_info);
-		result = -EIO;
-		goto fail;
-	}
-
-	/* Setup netdevice's ability to report resources 
-	 * Note: the netdevice was allocated by wlan_setup()
-	 */
-        wlandev->netdev->irq = pdev->irq;
-        wlandev->netdev->mem_start = mem;
-        wlandev->netdev->mem_end = mem + pci_resource_len(pdev, 0);
-
-	/* Register the wlandev, this gets us a name and registers the
-	 * linux netdevice.
-	 */
-        if ( register_wlandev(wlandev) != 0 ) {
-		WLAN_LOG_ERROR("%s: wlan_setup() failed.\n", dev_info);
-		result = -EIO;
-		goto fail;
-        }
-
-#if 0
-	/* TODO: Move this and an irq test into an hfa384x_testif() routine.
-	 */
-	outw(PRISM2STA_MAGIC, HFA384x_SWSUPPORT0(wlandev->netdev->base_addr));
-	reg=inw( HFA384x_SWSUPPORT0(wlandev->netdev->base_addr));
-	if ( reg != PRISM2STA_MAGIC ) {
-		kfree_s(priv->hw, sizeof(hfa384x_t));		
-                kfree_s(wlandev->priv, sizeof(prism2sta_priv_t));
-                kfree_s(wlandev, sizeof(wlandevice_t));		
-		WLAN_LOG_ERROR0("MAC register access test failed!\n");
-		result = -EIO;
-		goto fail;
-	}		
-#endif
-
-	/* Initialize the hw data */
-	// XXX uint32?
-        hfa384x_create(hw, wlandev->netdev->irq, 0, (UINT32)mem);
-	hw->wlandev = wlandev;
-
-	/* Do a chip-level reset on the MAC */
-	if (prism2_doreset) {
-		result = hfa384x_corereset(hw, 
-				prism2_reset_holdtime, 
-				prism2_reset_settletime);
-		if (result != 0) {
-			WLAN_LOG_ERROR(
-				"%s: hfa384x_corereset() failed.\n", 
-				dev_info);
-			unregister_wlandev(wlandev);
-			hfa384x_destroy(hw);
-			result = -EIO;
-			goto fail;
-		}
-	}
-
-#if (LINUX_VERSION_CODE > KERNEL_VERSION(2,4,0))
-	memcpy(wlandev->slotname, pdev->slot_name, sizeof(pdev->slot_name));
-#endif
-        pci_set_drvdata(pdev, wlandev);
-
-	/* Shouldn't actually hook up the IRQ until we 
-	 * _know_ things are alright.  A test routine would help.
-	 */
-       	request_irq(wlandev->netdev->irq, hfa384x_interrupt, 
-		SA_SHIRQ, wlandev->name, wlandev);
-
-	wlandev->msdstate = WLAN_MSD_HWPRESENT;
-
-	result = 0;
-	goto done;
-
- fail:
-	if (wlandev)	kfree(wlandev);
-	if (priv)	kfree(priv);
-	if (hw)		kfree(hw);
-        if (mem)        iounmap((void *) mem);
-
- done:
-	DBFEXIT;
-	return result;
-}
-
-static void prism2sta_remove_pci(struct pci_dev *pdev)
-{
-       	wlandevice_t		*wlandev;
-	prism2sta_priv_t	*priv;
-
-	wlandev = (wlandevice_t *) pci_get_drvdata(pdev);
-	priv = (prism2sta_priv_t*) wlandev->priv;
-
-	/* reset hardware */
-	prism2sta_ifstate(wlandev, P80211ENUM_ifstate_disable);
-
-        if (pdev->irq)
-		free_irq(pdev->irq, wlandev);
-
-	unregister_wlandev(wlandev);
-        iounmap((void*)wlandev->netdev->mem_start);
-
-	/* free local stuff */
-	wlan_unsetup(wlandev);
-	hfa384x_destroy(priv->hw);
-
-	if (priv->hw)             kfree(priv->hw);
-	if (priv)                 kfree(priv);
-
-        release_mem_region(pci_resource_start(pdev, 0),
-                           pci_resource_len(pdev, 0));
-
-        pci_disable_device(pdev);
-	pci_set_drvdata(pdev, NULL);
-}
-#endif /* WLAN_PCI */
-
 #if (WLAN_HOSTIF == WLAN_PLX || WLAN_HOSTIF == WLAN_PCI)
 #ifdef CONFIG_PM
 static int prism2sta_suspend_pci(struct pci_dev *pdev, u32 state)
@@ -3646,8 +2458,10 @@ static int prism2sta_suspend_pci(struct pci_dev *pdev, u32 state)
 	wlandev = (wlandevice_t *) pci_get_drvdata(pdev);
 
 	/* reset hardware */
-	if (wlandev)
+	if (wlandev) {
 		prism2sta_ifstate(wlandev, P80211ENUM_ifstate_disable);
+		p80211_suspend(wlandev);
+	}
 
 	// call a netif_device_detach(wlandev->netdev) ?
 
@@ -3660,617 +2474,15 @@ static int prism2sta_resume_pci (struct pci_dev *pdev)
 
 	wlandev = (wlandevice_t *) pci_get_drvdata(pdev);
 
-	if (wlandev)
+	if (wlandev) {
 		prism2sta_ifstate(wlandev, P80211ENUM_ifstate_disable);
+		p80211_resume(wlandev);
+	}
 		
         return 0;
 }
 #endif
 #endif
-
-#if (WLAN_HOSTIF == WLAN_PLX)
-/*----------------------------------------------------------------
-* prism2sta_probe_plx
-*
-* Probe routine called when a PCI device w/ matching ID is found. 
-* This PLX implementation uses the following map:
-*   BAR0: Unused
-*   BAR1: ????
-*   BAR2: PCMCIA attribute memory
-*   BAR3: PCMCIA i/o space 
-* Here's the sequence:
-*   - Allocate the PCI resources.  
-*   - Read the PCMCIA attribute memory to make sure we have a WLAN card
-*   - Reset the MAC using the PCMCIA COR
-*   - Initialize the netdev and wlan data
-*   - Initialize the MAC
-*
-* Arguments:
-*	pdev		ptr to pci device structure containing info about 
-*			pci configuration.
-*	id		ptr to the device id entry that matched this device.
-*
-* Returns: 
-*	zero		- success
-*	negative	- failed
-*
-* Side effects:
-*	
-*
-* Call context:
-*	process thread
-*	
-----------------------------------------------------------------*/
-static int 
-prism2sta_probe_plx(
-	struct pci_dev			*pdev, 
-	const struct pci_device_id	*id)
-{
-	int		result;
-        unsigned long	pccard_ioaddr;
-	unsigned long   pccard_attr_mem;
-        unsigned int    pccard_attr_len;
-	unsigned char   *attr_mem = NULL;
-	UINT32		plx_addr; 
-        wlandevice_t    *wlandev = NULL;
-        prism2sta_priv_t *priv = NULL;
-	hfa384x_t	*hw = NULL;
-	int		reg;
-        u32		regic;
-
-	if (pci_enable_device(pdev))
-		return -EIO;
-
-	/* TMC7160 boards are special */
-	if ((pdev->vendor == PCIVENDOR_NDC) && 
-	    (pdev->device == PCIDEVICE_NCP130_ASIC)) {
-		unsigned long delay;
-
-		pccard_attr_mem = 0;
-		pccard_ioaddr = pci_resource_start(pdev, 1);
-
-		outb(0x45, pccard_ioaddr);
-		delay = jiffies + 1*HZ;
-		while (delay > jiffies);
-
-		if (inb(pccard_ioaddr) != 0x45) {
-			WLAN_LOG_ERROR("Initialize the TMC7160 failed. (0x%x)\n", inb(pccard_ioaddr));
-			return -EIO;
-		}
-		
-		pccard_ioaddr = pci_resource_start(pdev, 2);
-		prism2_doreset = 0;
-
-		WLAN_LOG_INFO("NDC NCP130 with TMC7160(ASIC) PCI interface device found at io:0x%lx, irq:%d\n", pccard_ioaddr, pdev->irq);
-		goto init;
-	}
-
-	/* Collect the resource requirements */
-	pccard_attr_mem = pci_resource_start(pdev, 2);
-	pccard_attr_len = pci_resource_len(pdev, 2);
-        if (pccard_attr_len < PLX_MIN_ATTR_LEN)
-		return -EIO;
-
-	pccard_ioaddr = pci_resource_start(pdev, 3);
-
-	/* bjoern: We need to tell the card to enable interrupts, in
-	 * case the serial eprom didn't do this already. See the
-	 * PLX9052 data book, p8-1 and 8-24 for reference.
-	 * [MSM]: This bit of code came from the orinoco_cs driver.
-	 */
-	plx_addr = pci_resource_start(pdev, 1);
-
-	regic = 0;
-	regic = inl(plx_addr+PLX_INTCSR);
-	if(regic & PLX_INTCSR_INTEN) {
-		WLAN_LOG_DEBUG(1,
-			"%s: Local Interrupt already enabled\n", dev_info);
-	} else {
-		regic |= PLX_INTCSR_INTEN;
-		outl(regic, plx_addr+PLX_INTCSR);
-		regic = inl(plx_addr+PLX_INTCSR);
-		if(!(regic & PLX_INTCSR_INTEN)) {
-			WLAN_LOG_ERROR(
-				"%s: Couldn't enable Local Interrupts\n",
-				dev_info);
-			return -EIO;
-		}
-	}
-
-	/* These assignments are here in case of future mappings for
-	 * io space and irq that might be similar to ioremap 
-	 */
-        if (!request_mem_region(pccard_attr_mem, pci_resource_len(pdev, 2), "Prism2")) {
-		WLAN_LOG_ERROR("%s: Couldn't reserve PCI memory region\n", dev_info);
-		return -EIO;
-        }
-
-	attr_mem = ioremap(pccard_attr_mem, pccard_attr_len);
-
-	WLAN_LOG_INFO("A PLX PCI/PCMCIA interface device found, "
-		"phymem:0x%lx, phyio=0x%lx, irq:%d, "
-		"mem: 0x%lx\n", 
-		pccard_attr_mem, pccard_ioaddr, pdev->irq,
-		(long)attr_mem);
-
-	/* Verify whether PC card is present. 
-	 * [MSM] This needs improvement, the right thing to do is
-	 * probably to walk the CIS looking for the vendor and product
-	 * IDs.  It would be nice if this could be tied in with the
-	 * etc/pcmcia/wlan-ng.conf file.  Any volunteers?  ;-)
-	 */
-	if (
-	attr_mem[0] != 0x01 || attr_mem[2] != 0x03 ||
-	attr_mem[4] != 0x00 || attr_mem[6] != 0x00 ||
-	attr_mem[8] != 0xFF || attr_mem[10] != 0x17 ||
-	attr_mem[12] != 0x04 || attr_mem[14] != 0x67) {
-		WLAN_LOG_ERROR0("Prism2 PC card CIS is invalid.\n");
-		return -EIO;
-        }
-
-        WLAN_LOG_INFO("A PCMCIA WLAN adapter was found.\n");
-
-        /* Write COR to enable PC card */
-	attr_mem[COR_OFFSET] = COR_VALUE; reg = attr_mem[COR_OFFSET];
-	
- init:
-
-	/*
-	 * Now do everything the same as a PCI device
-	 * [MSM] TODO: We could probably factor this out of pcmcia/pci/plx
-	 * and perhaps usb.  Perhaps a task for another day.......
-	 */
-
-	if ((wlandev = create_wlan()) == NULL) {
-		WLAN_LOG_ERROR("%s: Memory allocation failure.\n", dev_info);
-		result = -EIO;
-		goto failed;
-	}
-
-	priv = wlandev->priv;
-	hw = priv->hw;
-
-	if ( wlan_setup(wlandev) != 0 ) {
-		WLAN_LOG_ERROR("%s: wlan_setup() failed.\n", dev_info);
-		result = -EIO;
-		goto failed;
-	}
-
-	/* Setup netdevice's ability to report resources 
-	 * Note: the netdevice was allocated by wlan_setup()
-	 */
-        wlandev->netdev->irq = pdev->irq;
-        wlandev->netdev->base_addr = pccard_ioaddr;
-        wlandev->netdev->mem_start = (unsigned long)attr_mem;
-        wlandev->netdev->mem_end = (unsigned long)attr_mem + pci_resource_len(pdev, 0);
-	/* Register the wlandev, this gets us a name and registers the
-	 * linux netdevice.
-	 */
-        if ( register_wlandev(wlandev) != 0 ) {
-		WLAN_LOG_ERROR("%s: wlan_setup() failed.\n", dev_info);
-		result = -EIO;
-		goto failed;
-        }
-
-#if 0
-	/* TODO: Move this and an irq test into an hfa384x_testif() routine.
-	 */
-	outw(PRISM2STA_MAGIC, HFA384x_SWSUPPORT0(wlandev->netdev->base_addr));
-	reg=inw( HFA384x_SWSUPPORT0(wlandev->netdev->base_addr));
-	if ( reg != PRISM2STA_MAGIC ) {
-		kfree_s(priv->hw, sizeof(hfa384x_t));		
-                kfree_s(wlandev->priv, sizeof(prism2sta_priv_t));
-                kfree_s(wlandev, sizeof(wlandevice_t));		
-		WLAN_LOG_ERROR0("MAC register access test failed!\n");
- 		return -EIO;
-	}		
-#endif
-
-	/* Initialize the hw data */
-        hfa384x_create(hw, wlandev->netdev->irq, pccard_ioaddr, (UINT32)attr_mem);
-	hw->wlandev = wlandev;
-
-	/* Do a chip-level reset on the MAC */
-	if (prism2_doreset) {
-		result = hfa384x_corereset(hw, 
-				prism2_reset_holdtime, 
-				prism2_reset_settletime);
-		if (result != 0) {
-			unregister_wlandev(wlandev);
-			hfa384x_destroy(hw);
-			WLAN_LOG_ERROR(
-				"%s: hfa384x_corereset() failed.\n", 
-				dev_info);
-			result = -EIO;
-			goto failed;
-		}
-	}
-
-#if (LINUX_VERSION_CODE > KERNEL_VERSION(2,4,0))
-	memcpy(wlandev->slotname, pdev->slot_name, sizeof(pdev->slot_name));
-#endif
-	pci_set_drvdata(pdev, wlandev);
-
-	/* Shouldn't actually hook up the IRQ until we 
-	 * _know_ things are alright.  A test routine would help.
-	 */
-       	request_irq(wlandev->netdev->irq, hfa384x_interrupt, 
-		SA_SHIRQ, wlandev->name, wlandev);
-
-	wlandev->msdstate = WLAN_MSD_HWPRESENT;
-
-	result = 0;
-
-	goto done;
-	
- failed:
-	if (wlandev)	kfree(wlandev);
-	if (priv)	kfree(priv);
-	if (hw)		kfree(hw);
-        if (attr_mem)        iounmap((void *) attr_mem);
- done:
-	DBFEXIT;
-        return result;
-}
-
-static void prism2sta_remove_plx(struct pci_dev *pdev)
-{
-       	wlandevice_t		*wlandev;
-	prism2sta_priv_t	*priv;
-
-	wlandev = (wlandevice_t *) pci_get_drvdata(pdev);
-	priv = (prism2sta_priv_t*) wlandev->priv;
-
-	/* reset hardware */
-	prism2sta_ifstate(wlandev, P80211ENUM_ifstate_disable);
-
-        if (pdev->irq)
-		free_irq(pdev->irq, wlandev);
-
-	unregister_wlandev(wlandev);
-        iounmap((void*)wlandev->netdev->mem_start);
-
-	/* free local stuff */
-	wlan_unsetup(wlandev);
-	hfa384x_destroy(priv->hw);
-
-	if (priv->hw)             kfree(priv->hw);
-	if (priv)                 kfree(priv);
-
-        release_mem_region(pci_resource_start(pdev, 2),
-                           pci_resource_len(pdev, 2));
-
-        pci_disable_device(pdev);
-	pci_set_drvdata(pdev, NULL);
-}
-
-#endif /* WLAN_PLX */
-
-#if (WLAN_HOSTIF == WLAN_USB)
-
-/*----------------------------------------------------------------
-* prism2sta_probe_usb
-*
-* Probe routine called by the USB subsystem.
-*
-* Arguments:
-*	dev		ptr to the usb_device struct
-*	ifnum		interface number being offered
-*
-* Returns: 
-*	NULL		- we're not claiming the device+interface
-*	non-NULL	- we are claiming the device+interface and
-*			  this is a ptr to the data we want back
-*			  when disconnect is called.
-*
-* Side effects:
-*	
-* Call context:
-*	I'm not sure, assume it's interrupt.
-*	
-----------------------------------------------------------------*/
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,4,0))
-
-static void *
-prism2sta_probe_usb(struct usb_device *dev, unsigned int ifnum)
-
-#else
-
-static void *prism2sta_probe_usb(
-		struct usb_device *dev, 
-		unsigned int ifnum,
-		const struct usb_device_id *id)
-#endif
-{
-	wlandevice_t	*wlandev = NULL;
-	hfa384x_t	*hw = NULL;
-        prism2sta_priv_t *priv = NULL;
-	int result;
-
-	DBFENTER;
-
-	if ((wlandev = create_wlan()) == NULL) {
-		WLAN_LOG_ERROR("%s: Memory allocation failure.\n", dev_info);
-		result = -EIO;
-		goto failed;
-	}
-	priv = wlandev->priv;
-	hw = priv->hw;
-
-	if ( wlan_setup(wlandev) != 0 ) {
-		WLAN_LOG_ERROR("%s: wlan_setup() failed.\n", dev_info);
-		result = -EIO;
-		goto failed;
-	}	
-
-	/* Register the wlandev, this gets us a name and registers the
-	 * linux netdevice.
-	 */
-        if ( register_wlandev(wlandev) != 0 ) {
-		WLAN_LOG_ERROR("%s: wlan_setup() failed.\n", dev_info);
-		result = -EIO;
-		goto failed;
-        }
-
-	/* Initialize the hw data */
-        hfa384x_create(hw, dev, wlandev);
-	hw->wlandev = wlandev;
-
-	/* set up the endpoints */
-	/* XXXX endpoint length is 64 bytes.  We may have a problem. */
-	{
-		int i;
-		struct usb_interface_descriptor *iface_desc;
-		struct usb_endpoint_descriptor *endpoint;
-		struct usb_interface *interface;
-
-		interface = &dev->actconfig->interface[ifnum];
-		iface_desc = &interface->altsetting[0];
-
-		for (i = 0; i < iface_desc->bNumEndpoints; ++i) {
-			endpoint = &iface_desc->endpoint[i];
-			if ((endpoint->bEndpointAddress & 0x80) &&
-			    ((endpoint->bmAttributes & 3) == 0x02)) {
-				/* we found a bulk in endpoint */
-				hw->endp_in = endpoint->bEndpointAddress;
-			}
-           
-			if (((endpoint->bEndpointAddress & 0x80) == 0x00) &&
-			    ((endpoint->bmAttributes & 3) == 0x02)) {
-				/* we found a bulk out endpoint */
-				hw->endp_out = endpoint->bEndpointAddress;
-			}
-		}
-
-		if ((hw->endp_in == -1) || (hw->endp_out == -1)) {
-			WLAN_LOG_ERROR("%s: endpoints not found! (in:%d out:%d)\n", dev_info, hw->endp_in, hw->endp_out);
-		}
-	}
-
-	/* Do a chip-level reset on the MAC */
-	if (prism2_doreset) {
-		result = hfa384x_corereset(hw, 
-				prism2_reset_holdtime, 
-				prism2_reset_settletime);
-		if (result != 0) {
-			unregister_wlandev(wlandev);
-			hfa384x_destroy(hw);
-			result = -EIO;
-			WLAN_LOG_ERROR(
-				"%s: hfa384x_corereset() failed.\n", 
-				dev_info);
-			goto failed;
-		}
-	}
-
-
-	/* OK, we're ready to go. */
-	sprintf(wlandev->slotname, "%03d:%03d", dev->bus->busnum, dev->devnum);
-
-	usb_inc_dev_use(dev);
-	wlandev->msdstate = WLAN_MSD_HWPRESENT;
-
-	goto done;
-
- failed:
-	if (wlandev)	kfree(wlandev);
-	if (priv)	kfree(priv);
-	if (hw)		kfree(hw);
-	wlandev = NULL;
-
- done:
-	DBFEXIT;
-	return wlandev;
-}
-
-
-/*----------------------------------------------------------------
-* prism2sta_disconnect_usb
-*
-* Called when a device previously claimed by probe is removed 
-* from the USB. 
-*
-* Arguments:
-*	dev		ptr to the usb_device struct
-*	ptr		ptr returned by probe() when the device
-*                       was claimed.
-*
-* Returns: 
-*	Nothing
-*
-* Side effects:
-*	
-* Call context:
-*	I'm not sure, assume it's interrupt.
-*	
-----------------------------------------------------------------*/
-static void 
-prism2sta_disconnect_usb(struct usb_device *dev, void *ptr)
-{
-	wlandevice_t		*wlandev = (wlandevice_t*)ptr;
-	prism2sta_priv_t	*priv = NULL;
-	hfa384x_t		*hw = NULL;
-
-        DBFENTER;
-	if ( wlandev != NULL ) {
-		/* Notify wlandev and setup ptrs */
-		p80211netdev_hwremoved(wlandev);
-		priv = wlandev->priv; 
-		hw = priv->hw;	
-		hw->hwremoved = 1;
-	
-		/* Get everything into the HWPRESENT (ie. quiescent) state */
-		prism2sta_ifstate(wlandev, P80211ENUM_ifstate_disable);
-
-		/* Unhook the wlandev */
-		unregister_wlandev(wlandev);
-		wlan_unsetup(wlandev);
-
-		usb_dec_dev_use(hw->usb);
-
-		kfree(wlandev);
-		kfree(priv);
-		kfree(hw);
-	}
-	DBFEXIT;
-	return;
-}
-
-#endif /* WLAN_USB */
-
-/*----------------------------------------------------------------
-* init_module
-*
-* Module initialization routine, called once at module load time.
-* This one simulates some of the pcmcia calls.
-*
-* Arguments:
-*	none
-*
-* Returns: 
-*	0	- success 
-*	~0	- failure, module is unloaded.
-*
-* Side effects:
-* 	alot
-*
-* Call context:
-*	process thread (insmod or modprobe)
-----------------------------------------------------------------*/
-int init_module(void)
-{
-#if (WLAN_HOSTIF == WLAN_PCMCIA)
-	servinfo_t	serv;
-#endif
-
-        DBFENTER;
-
-        WLAN_LOG_NOTICE("%s Loaded\n", version);
-        WLAN_LOG_NOTICE("dev_info is: %s\n", dev_info);
-
-#if (WLAN_HOSTIF == WLAN_PCMCIA)
-	CardServices(GetCardServicesInfo, &serv);
-	if ( serv.Revision != CS_RELEASE_CODE )
-	{
-		printk(KERN_NOTICE"%s: CardServices release does not match!\n", dev_info);
-		return -1;
-	}
-
-	/* This call will result in a call to prism2sta_attach */
-	/*   and eventually prism2sta_detach */
-	register_pcmcia_driver( &dev_info, &prism2sta_attach, &prism2sta_detach);
-
-#elif (WLAN_HOSTIF == WLAN_PLX)
-	/* This call will result in a call to prism2sta_probe_plx 
-	 * if there is a matched PCI card present (ie., which 
-	 * vendor+device id are matched) 
-	 */
-	if (pci_register_driver(&prism2_plx_drv_id) <= 0) {
-		WLAN_LOG_NOTICE0("prism2_plx: No devices found, driver not installed.\n");
-		pci_unregister_driver(&prism2_plx_drv_id);
-		return -ENODEV;
-	}
-
-#elif (WLAN_HOSTIF == WLAN_PCI)
-	/* This call will result in a call to prism2sta_probe_pci 
-	 * if there is a matched PCI card present (ie., which 
-	 * vendor+device id are matched) 
-	 */
-	if (pci_register_driver(&prism2_pci_drv_id) <= 0) {
-		WLAN_LOG_NOTICE0("prism2_pci: No devices found, driver not installed.\n");
-		pci_unregister_driver(&prism2_pci_drv_id);
-		return -ENODEV;
-	}
-
-#elif (WLAN_HOSTIF == WLAN_USB)
-	/* This call will result in calls to prism2sta_probe_usb. */
-	return usb_register(&prism2_usb_driver);
-#endif 
-
-        DBFEXIT;
-        return 0;
-}
-
-
-/*----------------------------------------------------------------
-* cleanup_module
-*
-* Called at module unload time.  This is our last chance to
-* clean up after ourselves.
-*
-* Arguments:
-*	none
-*
-* Returns: 
-*	nothing
-*
-* Side effects:
-* 	alot
-*
-* Call context:
-*	process thread
-*
-----------------------------------------------------------------*/
-void cleanup_module(void)
-{
-#if (WLAN_HOSTIF == WLAN_PCMCIA)
-        dev_link_t *link = dev_list;
-        dev_link_t *nlink;
-        DBFENTER;
-
-	for (link=dev_list; link != NULL; link = nlink) {
-		nlink = link->next;
-		if ( link->state & DEV_CONFIG ) {
-			prism2sta_release((u_long)link);
-		}
-		prism2sta_detach(link); /* remember detach() frees link */
-	}
-	unregister_pcmcia_driver( &dev_info);
-
-#elif (WLAN_HOSTIF == WLAN_PLX)
-
-        DBFENTER;
-	pci_unregister_driver(&prism2_plx_drv_id);
-
-#elif (WLAN_HOSTIF == WLAN_PCI)
-
-        DBFENTER;
-	pci_unregister_driver(&prism2_pci_drv_id);
-
-#elif (WLAN_HOSTIF == WLAN_USB)
-	/* The nice folks who did the USB code made this easy....
-	 * usb_deregister() calls the driver disconnect function
-	 * for each configured device.  That should clean things up nicely.
-	 */
-        DBFENTER;
-	usb_deregister(&prism2_usb_driver);
-#endif
-
-        printk(KERN_NOTICE "%s Unloaded\n", version);
-
-        DBFEXIT;
-        return;
-}
 
 /*----------------------------------------------------------------
 * create_wlan
@@ -4295,47 +2507,111 @@ static wlandevice_t *create_wlan(void)
 {
         wlandevice_t    *wlandev = NULL;
 	hfa384x_t	*hw = NULL;
-        prism2sta_priv_t *priv = NULL;
 
       	/* Alloc our structures */
 	wlandev =	kmalloc(sizeof(wlandevice_t), GFP_KERNEL);
-	priv =		kmalloc(sizeof(prism2sta_priv_t), GFP_KERNEL);
 	hw =		kmalloc(sizeof(hfa384x_t), GFP_KERNEL);
 
-	if (!wlandev || !priv || !hw) {
+	if (!wlandev || !hw) {
 		WLAN_LOG_ERROR("%s: Memory allocation failure.\n", dev_info);
 		if (wlandev)	kfree(wlandev);
-		if (priv)	kfree(priv);
 		if (hw)		kfree(hw);
 		return NULL;
 	}
 
 	/* Clear all the structs */
 	memset(wlandev, 0, sizeof(wlandevice_t));
-	memset(priv, 0, sizeof(prism2sta_priv_t));
 	memset(hw, 0, sizeof(hfa384x_t));
 
 	/* Initialize the network device object. */
+	wlandev->nsdname = dev_info;
 	wlandev->msdstate = WLAN_MSD_HWPRESENT_PENDING;
-	wlandev->priv = priv;
-	wlandev->open = &prism2sta_open;
-	wlandev->close = &prism2sta_close;
-	wlandev->reset = &prism2sta_reset;
-	wlandev->txframe = &prism2sta_txframe;
-	wlandev->mlmerequest = &prism2sta_mlmerequest;
-	wlandev->hwremovedfn = &prism2sta_hwremoved;
+	wlandev->priv = hw;
+	wlandev->open = prism2sta_open;
+	wlandev->close = prism2sta_close;
+	wlandev->reset = prism2sta_reset;
+#ifdef CONFIG_PROC_FS
+	wlandev->nsd_proc_read = prism2sta_proc_read;
+#endif
+	wlandev->txframe = prism2sta_txframe;
+	wlandev->mlmerequest = prism2sta_mlmerequest;
+	wlandev->set_multicast_list = prism2sta_setmulticast;
+	wlandev->tx_timeout = hfa384x_tx_timeout;
 
 	wlandev->nsdcaps = P80211_NSDCAP_HWFRAGMENT | 
 	                   P80211_NSDCAP_AUTOJOIN;
 
-#if (WLAN_HOSTIF == WLAN_PCMCIA)
-	wlandev->name = ((prism2sta_priv_t*)wlandev->priv)->node.dev_name;
-#else
-        wlandev->name = ((prism2sta_priv_t*)wlandev->priv)->name;
-#endif	
 	/* Initialize the device private data stucture. */
-        priv->dot11_desired_bss_type = 1;
-	priv->hw = hw;
+        hw->dot11_desired_bss_type = 1;
 
 	return wlandev;
 }
+
+#ifdef CONFIG_PROC_FS
+static int
+prism2sta_proc_read(
+	char	*page, 
+	char	**start, 
+	off_t	offset, 
+	int	count,
+	int	*eof,
+	void	*data)
+{
+	char	 *p = page;
+	wlandevice_t *wlandev = (wlandevice_t *) data;
+	hfa384x_t *hw = (hfa384x_t *) wlandev->priv;
+
+	UINT16 hwtype = 0;
+
+	DBFENTER;
+	if (offset != 0) {
+		*eof = 1;
+		goto exit;
+	} 
+
+	// XXX 0x0001 for prism2.5/3, 0x0000 for prism2.
+	hwtype = BIT0;
+
+#if (WLAN_HOSTIF != WLAN_USB)
+	if (hw->isram16)
+		hwtype |= BIT1;
+#endif
+
+#if (WLAN_HOSTIF == WLAN_PCI)
+	hwtype |= BIT2;
+#endif
+
+#define PRISM2_CVS_ID "$Id$"
+
+	p += sprintf(p, "# prism2_%s version %s (%s) '%s'\n\n", 
+		     dev_info,
+		     WLAN_RELEASE, WLAN_BUILD_DATE, PRISM2_CVS_ID);
+
+	p += sprintf(p, "# nic h/w: id=0x%02x %d.%d.%d\n",
+		     hw->ident_nic.id, hw->ident_nic.major,
+		     hw->ident_nic.minor, hw->ident_nic.variant);
+
+	p += sprintf(p, "# pri f/w: id=0x%02x %d.%d.%d\n",
+		     hw->ident_pri_fw.id, hw->ident_pri_fw.major,
+		     hw->ident_pri_fw.minor, hw->ident_pri_fw.variant);
+
+	if (hw->ident_sta_fw.id == 0x1f) {
+		p += sprintf(p, "# sta f/w: id=0x%02x %d.%d.%d\n",
+			     hw->ident_sta_fw.id, hw->ident_sta_fw.major,
+			     hw->ident_sta_fw.minor, hw->ident_sta_fw.variant);
+	} else {
+		p += sprintf(p, "# ap f/w: id=0x%02x %d.%d.%d\n",
+			     hw->ident_sta_fw.id, hw->ident_sta_fw.major,
+			     hw->ident_sta_fw.minor, hw->ident_sta_fw.variant);
+	}
+	
+#if (WLAN_HOSTIF != WLAN_USB)
+	p += sprintf(p, "# initial nic hw type, needed for SSF ramdl\n");
+	p += sprintf(p, "initnichw=%04x\n", hwtype);
+#endif
+
+ exit:
+	DBFEXIT;
+	return (p - page);
+}
+#endif

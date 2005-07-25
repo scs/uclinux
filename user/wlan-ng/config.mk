@@ -2,11 +2,29 @@ WLAN_VERSION=0
 WLAN_PATCHLEVEL=2
 WLAN_SUBLEVEL=1
 WLAN_EXTRAVERSION=-pre1
-# PRISM2_PCMCIA is not defined
+ifdef CONFIG_USER_WLAN_NG_PCMCIA
+PRISM2_PCMCIA=y
+else
+#PRISM2_PCMCIA is not defined
+endif
+ifdef CONFIG_USER_WLAN_NG_PLX
+PRISM2_PLX=y
+else
 # PRISM2_PLX is not defined
+endif
+ifdef CONFIG_USER_WLAN_NG_PCI
 PRISM2_PCI=y
+else
+# PRISM2_PCI is not defined
+endif
+ifdef CONFIG_USER_WLAN_NG_USB
+PRISM2_USB=y
+else
 # PRISM2_USB is not defined
+endif
 LINUX_SRC=$(ROOTDIR)/$(LINUXDIR)
+VERFILE := $(LINUX_SRC)/include/linux/version.h
+KERNEL_RELEASE := $(shell grep UTS_RELEASE $(VERFILE) | sed -e 's/^[^\"]*\"//' -e 's/\".*$$//')
 # CONFIG_NETLINK is not defined
 CONFIG_PACKET=y
 KERNEL_CFLAGS=-D__KERNEL__ -I$(LINUX_SRC)/include -fno-builtin -Wall -Wstrict-prototypes -Wno-trigraphs -O2 -fno-strict-aliasing -fno-common 

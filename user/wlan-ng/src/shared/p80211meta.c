@@ -614,8 +614,6 @@ int p80211item_gettype(p80211meta_t *meta)
 		type = P80211_TYPE_OCTETSTR;
 	else if (meta->totextptr == p80211_totext_displaystr)
 		type = P80211_TYPE_DISPLAYSTR;
-	else if (meta->totextptr == p80211_totext_boundedint)
-		type = P80211_TYPE_BOUNDEDINT;
 	else if (meta->totextptr == p80211_totext_int)
 		type = P80211_TYPE_INT;
 	else if (meta->totextptr == p80211_totext_enumint)
@@ -696,7 +694,6 @@ UINT32 p80211item_maxdatalen( catlistitem_t *metalist, UINT32 did )
 				break;
 
 			case P80211_TYPE_INT:
-			case P80211_TYPE_BOUNDEDINT:
 			case P80211_TYPE_ENUMINT:
 			case P80211_TYPE_BITARRAY:
 				/* all int types are 4 bytes */

@@ -101,7 +101,6 @@ p80211meta_t MKREQMETANAME(dot11req_mibget)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ NULL,
 	/* fromtextptr */ NULL,
 	/* validfunptr */ NULL
@@ -115,7 +114,6 @@ p80211meta_t MKREQMETANAME(dot11req_mibget)[] = {
 	/* maxlen      */ MAXLEN_MIBATTRIBUTE,
 	/* minlen      */ MAXLEN_MIBATTRIBUTE,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_getmibattribute,
 	/* fromtextptr */ p80211_fromtext_getmibattribute,
 	/* validfunptr */ p80211_isvalid_getmibattribute
@@ -129,7 +127,6 @@ p80211meta_t MKREQMETANAME(dot11req_mibget)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(resultcode),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -153,7 +150,6 @@ p80211meta_t MKREQMETANAME(dot11req_mibset)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ NULL,
 	/* fromtextptr */ NULL,
 	/* validfunptr */ NULL
@@ -167,7 +163,6 @@ p80211meta_t MKREQMETANAME(dot11req_mibset)[] = {
 	/* maxlen      */ MAXLEN_MIBATTRIBUTE,
 	/* minlen      */ MAXLEN_MIBATTRIBUTE,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_setmibattribute,
 	/* fromtextptr */ p80211_fromtext_setmibattribute,
 	/* validfunptr */ p80211_isvalid_setmibattribute
@@ -181,7 +176,6 @@ p80211meta_t MKREQMETANAME(dot11req_mibset)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(resultcode),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -206,7 +200,6 @@ p80211meta_t MKREQMETANAME(dot11req_powermgmt)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ NULL,
 	/* fromtextptr */ NULL,
 	/* validfunptr */ NULL
@@ -220,7 +213,6 @@ p80211meta_t MKREQMETANAME(dot11req_powermgmt)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(powermgmt),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -234,7 +226,6 @@ p80211meta_t MKREQMETANAME(dot11req_powermgmt)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(truth),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -248,7 +239,6 @@ p80211meta_t MKREQMETANAME(dot11req_powermgmt)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(truth),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -262,7 +252,6 @@ p80211meta_t MKREQMETANAME(dot11req_powermgmt)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(resultcode),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -287,7 +276,6 @@ p80211meta_t MKREQMETANAME(dot11req_scan)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ NULL,
 	/* fromtextptr */ NULL,
 	/* validfunptr */ NULL
@@ -301,7 +289,6 @@ p80211meta_t MKREQMETANAME(dot11req_scan)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(bsstype),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -315,7 +302,6 @@ p80211meta_t MKREQMETANAME(dot11req_scan)[] = {
 	/* maxlen      */ MAXLEN_PSTR6,
 	/* minlen      */ MAXLEN_PSTR6,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_octetstr,
 	/* fromtextptr */ p80211_fromtext_octetstr,
 	/* validfunptr */ p80211_isvalid_octetstr
@@ -329,7 +315,6 @@ p80211meta_t MKREQMETANAME(dot11req_scan)[] = {
 	/* maxlen      */ MAXLEN_PSTR32,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_displaystr,
 	/* fromtextptr */ p80211_fromtext_displaystr,
 	/* validfunptr */ p80211_isvalid_displaystr
@@ -343,7 +328,6 @@ p80211meta_t MKREQMETANAME(dot11req_scan)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(scantype),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -357,7 +341,6 @@ p80211meta_t MKREQMETANAME(dot11req_scan)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_int,
 	/* fromtextptr */ p80211_fromtext_int,
 	/* validfunptr */ p80211_isvalid_int
@@ -369,9 +352,8 @@ p80211meta_t MKREQMETANAME(dot11req_scan)[] = {
 	/* min         */ 0,
 	/* max         */ 0,
 	/* maxlen      */ MAXLEN_PSTR14,
-	/* minlen      */ MAXLEN_PSTR14,
+	/* minlen      */ 1,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_octetstr,
 	/* fromtextptr */ p80211_fromtext_octetstr,
 	/* validfunptr */ p80211_isvalid_octetstr
@@ -385,7 +367,6 @@ p80211meta_t MKREQMETANAME(dot11req_scan)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_int,
 	/* fromtextptr */ p80211_fromtext_int,
 	/* validfunptr */ p80211_isvalid_int
@@ -399,7 +380,6 @@ p80211meta_t MKREQMETANAME(dot11req_scan)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_int,
 	/* fromtextptr */ p80211_fromtext_int,
 	/* validfunptr */ p80211_isvalid_int
@@ -413,7 +393,6 @@ p80211meta_t MKREQMETANAME(dot11req_scan)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(resultcode),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -427,11 +406,23 @@ p80211meta_t MKREQMETANAME(dot11req_scan)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_int,
 	/* fromtextptr */ p80211_fromtext_int,
 	/* validfunptr */ p80211_isvalid_int
-}
+},
+{
+        /* name        */ MKITEMNAME("append"),
+        /* did         */ 0,
+        /* flags       */ P80211ITEM_SETFLAGS(ISREQUEST, 0UL, 0UL),
+        /* min         */ 0,
+        /* max         */ 0,
+        /* maxlen      */ 0,
+        /* minlen      */ 0,
+        /* enumptr     */ &MKENUMNAME(truth),
+        /* totextptr   */ p80211_totext_enumint,
+        /* fromtextptr */ p80211_fromtext_enumint,
+        /* validfunptr */ p80211_isvalid_enumint
+} 
 };  /* end of dot11req_scan request message metadata list */
 
 UINT32	MKREQMETASIZE(dot11req_scan) = 
@@ -452,7 +443,6 @@ p80211meta_t MKREQMETANAME(dot11req_scan_results)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ NULL,
 	/* fromtextptr */ NULL,
 	/* validfunptr */ NULL
@@ -466,7 +456,6 @@ p80211meta_t MKREQMETANAME(dot11req_scan_results)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_int,
 	/* fromtextptr */ p80211_fromtext_int,
 	/* validfunptr */ p80211_isvalid_int
@@ -480,7 +469,6 @@ p80211meta_t MKREQMETANAME(dot11req_scan_results)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(resultcode),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -494,7 +482,6 @@ p80211meta_t MKREQMETANAME(dot11req_scan_results)[] = {
         /* maxlen      */ 0,
         /* minlen      */ 0,
         /* enumptr     */ NULL,
-        /* collptr     */ NULL,
         /* totextptr   */ p80211_totext_int,
         /* fromtextptr */ p80211_fromtext_int,
         /* validfunptr */ p80211_isvalid_int
@@ -508,7 +495,6 @@ p80211meta_t MKREQMETANAME(dot11req_scan_results)[] = {
         /* maxlen      */ 0,
         /* minlen      */ 0,
         /* enumptr     */ NULL,
-        /* collptr     */ NULL,
         /* totextptr   */ p80211_totext_int,
         /* fromtextptr */ p80211_fromtext_int,
         /* validfunptr */ p80211_isvalid_int
@@ -522,7 +508,6 @@ p80211meta_t MKREQMETANAME(dot11req_scan_results)[] = {
 	/* maxlen      */ MAXLEN_PSTR6,
 	/* minlen      */ MAXLEN_PSTR6,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_octetstr,
 	/* fromtextptr */ p80211_fromtext_octetstr,
 	/* validfunptr */ p80211_isvalid_octetstr
@@ -536,7 +521,6 @@ p80211meta_t MKREQMETANAME(dot11req_scan_results)[] = {
 	/* maxlen      */ MAXLEN_PSTR32,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_displaystr,
 	/* fromtextptr */ p80211_fromtext_displaystr,
 	/* validfunptr */ p80211_isvalid_displaystr
@@ -550,7 +534,6 @@ p80211meta_t MKREQMETANAME(dot11req_scan_results)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(bsstype),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -564,7 +547,6 @@ p80211meta_t MKREQMETANAME(dot11req_scan_results)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_int,
 	/* fromtextptr */ p80211_fromtext_int,
 	/* validfunptr */ p80211_isvalid_int
@@ -578,10 +560,9 @@ p80211meta_t MKREQMETANAME(dot11req_scan_results)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("timestamp"),
@@ -592,7 +573,6 @@ p80211meta_t MKREQMETANAME(dot11req_scan_results)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_int,
 	/* fromtextptr */ p80211_fromtext_int,
 	/* validfunptr */ p80211_isvalid_int
@@ -606,7 +586,6 @@ p80211meta_t MKREQMETANAME(dot11req_scan_results)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_int,
 	/* fromtextptr */ p80211_fromtext_int,
 	/* validfunptr */ p80211_isvalid_int
@@ -620,10 +599,9 @@ p80211meta_t MKREQMETANAME(dot11req_scan_results)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("fhhopset"),
@@ -634,10 +612,9 @@ p80211meta_t MKREQMETANAME(dot11req_scan_results)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("fhhoppattern"),
@@ -648,10 +625,9 @@ p80211meta_t MKREQMETANAME(dot11req_scan_results)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("fhhopindex"),
@@ -662,10 +638,9 @@ p80211meta_t MKREQMETANAME(dot11req_scan_results)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("dschannel"),
@@ -676,10 +651,9 @@ p80211meta_t MKREQMETANAME(dot11req_scan_results)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("cfpcount"),
@@ -690,7 +664,6 @@ p80211meta_t MKREQMETANAME(dot11req_scan_results)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_int,
 	/* fromtextptr */ p80211_fromtext_int,
 	/* validfunptr */ p80211_isvalid_int
@@ -704,10 +677,9 @@ p80211meta_t MKREQMETANAME(dot11req_scan_results)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("cfpmaxduration"),
@@ -718,10 +690,9 @@ p80211meta_t MKREQMETANAME(dot11req_scan_results)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("cfpdurremaining"),
@@ -732,7 +703,6 @@ p80211meta_t MKREQMETANAME(dot11req_scan_results)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_int,
 	/* fromtextptr */ p80211_fromtext_int,
 	/* validfunptr */ p80211_isvalid_int
@@ -746,7 +716,6 @@ p80211meta_t MKREQMETANAME(dot11req_scan_results)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_int,
 	/* fromtextptr */ p80211_fromtext_int,
 	/* validfunptr */ p80211_isvalid_int
@@ -760,7 +729,6 @@ p80211meta_t MKREQMETANAME(dot11req_scan_results)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(truth),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -774,7 +742,6 @@ p80211meta_t MKREQMETANAME(dot11req_scan_results)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(truth),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -788,7 +755,6 @@ p80211meta_t MKREQMETANAME(dot11req_scan_results)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(truth),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -802,10 +768,9 @@ p80211meta_t MKREQMETANAME(dot11req_scan_results)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("basicrate2"),
@@ -816,10 +781,9 @@ p80211meta_t MKREQMETANAME(dot11req_scan_results)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("basicrate3"),
@@ -830,10 +794,9 @@ p80211meta_t MKREQMETANAME(dot11req_scan_results)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("basicrate4"),
@@ -844,10 +807,9 @@ p80211meta_t MKREQMETANAME(dot11req_scan_results)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("basicrate5"),
@@ -858,10 +820,9 @@ p80211meta_t MKREQMETANAME(dot11req_scan_results)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("basicrate6"),
@@ -872,10 +833,9 @@ p80211meta_t MKREQMETANAME(dot11req_scan_results)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("basicrate7"),
@@ -886,10 +846,9 @@ p80211meta_t MKREQMETANAME(dot11req_scan_results)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("basicrate8"),
@@ -900,10 +859,9 @@ p80211meta_t MKREQMETANAME(dot11req_scan_results)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("supprate1"),
@@ -914,10 +872,9 @@ p80211meta_t MKREQMETANAME(dot11req_scan_results)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("supprate2"),
@@ -928,10 +885,9 @@ p80211meta_t MKREQMETANAME(dot11req_scan_results)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("supprate3"),
@@ -942,10 +898,9 @@ p80211meta_t MKREQMETANAME(dot11req_scan_results)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("supprate4"),
@@ -956,10 +911,9 @@ p80211meta_t MKREQMETANAME(dot11req_scan_results)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("supprate5"),
@@ -970,10 +924,9 @@ p80211meta_t MKREQMETANAME(dot11req_scan_results)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("supprate6"),
@@ -984,10 +937,9 @@ p80211meta_t MKREQMETANAME(dot11req_scan_results)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("supprate7"),
@@ -998,10 +950,9 @@ p80211meta_t MKREQMETANAME(dot11req_scan_results)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("supprate8"),
@@ -1012,10 +963,9 @@ p80211meta_t MKREQMETANAME(dot11req_scan_results)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 };  /* end of dot11req_scan_results metadata list */
 
@@ -1037,7 +987,6 @@ p80211meta_t MKREQMETANAME(dot11req_join)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ NULL,
 	/* fromtextptr */ NULL,
 	/* validfunptr */ NULL
@@ -1051,7 +1000,6 @@ p80211meta_t MKREQMETANAME(dot11req_join)[] = {
 	/* maxlen      */ MAXLEN_PSTR6,
 	/* minlen      */ MAXLEN_PSTR6,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_octetstr,
 	/* fromtextptr */ p80211_fromtext_octetstr,
 	/* validfunptr */ p80211_isvalid_octetstr
@@ -1065,10 +1013,9 @@ p80211meta_t MKREQMETANAME(dot11req_join)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("basicrate1"),
@@ -1079,10 +1026,9 @@ p80211meta_t MKREQMETANAME(dot11req_join)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("basicrate2"),
@@ -1093,10 +1039,9 @@ p80211meta_t MKREQMETANAME(dot11req_join)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("basicrate3"),
@@ -1107,10 +1052,9 @@ p80211meta_t MKREQMETANAME(dot11req_join)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("basicrate4"),
@@ -1121,10 +1065,9 @@ p80211meta_t MKREQMETANAME(dot11req_join)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("basicrate5"),
@@ -1135,10 +1078,9 @@ p80211meta_t MKREQMETANAME(dot11req_join)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("basicrate6"),
@@ -1149,10 +1091,9 @@ p80211meta_t MKREQMETANAME(dot11req_join)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("basicrate7"),
@@ -1163,10 +1104,9 @@ p80211meta_t MKREQMETANAME(dot11req_join)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("basicrate8"),
@@ -1177,10 +1117,9 @@ p80211meta_t MKREQMETANAME(dot11req_join)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("operationalrate1"),
@@ -1191,10 +1130,9 @@ p80211meta_t MKREQMETANAME(dot11req_join)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("operationalrate2"),
@@ -1205,10 +1143,9 @@ p80211meta_t MKREQMETANAME(dot11req_join)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("operationalrate3"),
@@ -1219,10 +1156,9 @@ p80211meta_t MKREQMETANAME(dot11req_join)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("operationalrate4"),
@@ -1233,10 +1169,9 @@ p80211meta_t MKREQMETANAME(dot11req_join)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("operationalrate5"),
@@ -1247,10 +1182,9 @@ p80211meta_t MKREQMETANAME(dot11req_join)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("operationalrate6"),
@@ -1261,10 +1195,9 @@ p80211meta_t MKREQMETANAME(dot11req_join)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("operationalrate7"),
@@ -1275,10 +1208,9 @@ p80211meta_t MKREQMETANAME(dot11req_join)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("operationalrate8"),
@@ -1289,10 +1221,9 @@ p80211meta_t MKREQMETANAME(dot11req_join)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("resultcode"),
@@ -1303,7 +1234,6 @@ p80211meta_t MKREQMETANAME(dot11req_join)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(resultcode),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -1328,7 +1258,6 @@ p80211meta_t MKREQMETANAME(dot11req_authenticate)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ NULL,
 	/* fromtextptr */ NULL,
 	/* validfunptr */ NULL
@@ -1342,7 +1271,6 @@ p80211meta_t MKREQMETANAME(dot11req_authenticate)[] = {
 	/* maxlen      */ MAXLEN_PSTR6,
 	/* minlen      */ MAXLEN_PSTR6,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_octetstr,
 	/* fromtextptr */ p80211_fromtext_octetstr,
 	/* validfunptr */ p80211_isvalid_octetstr
@@ -1356,7 +1284,6 @@ p80211meta_t MKREQMETANAME(dot11req_authenticate)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(authalg),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -1370,10 +1297,9 @@ p80211meta_t MKREQMETANAME(dot11req_authenticate)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("resultcode"),
@@ -1384,7 +1310,6 @@ p80211meta_t MKREQMETANAME(dot11req_authenticate)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(resultcode),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -1409,7 +1334,6 @@ p80211meta_t MKREQMETANAME(dot11req_deauthenticate)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ NULL,
 	/* fromtextptr */ NULL,
 	/* validfunptr */ NULL
@@ -1423,7 +1347,6 @@ p80211meta_t MKREQMETANAME(dot11req_deauthenticate)[] = {
 	/* maxlen      */ MAXLEN_PSTR6,
 	/* minlen      */ MAXLEN_PSTR6,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_octetstr,
 	/* fromtextptr */ p80211_fromtext_octetstr,
 	/* validfunptr */ p80211_isvalid_octetstr
@@ -1437,7 +1360,6 @@ p80211meta_t MKREQMETANAME(dot11req_deauthenticate)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(reason),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -1451,7 +1373,6 @@ p80211meta_t MKREQMETANAME(dot11req_deauthenticate)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(resultcode),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -1476,7 +1397,6 @@ p80211meta_t MKREQMETANAME(dot11req_associate)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ NULL,
 	/* fromtextptr */ NULL,
 	/* validfunptr */ NULL
@@ -1490,7 +1410,6 @@ p80211meta_t MKREQMETANAME(dot11req_associate)[] = {
 	/* maxlen      */ MAXLEN_PSTR6,
 	/* minlen      */ MAXLEN_PSTR6,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_octetstr,
 	/* fromtextptr */ p80211_fromtext_octetstr,
 	/* validfunptr */ p80211_isvalid_octetstr
@@ -1504,10 +1423,9 @@ p80211meta_t MKREQMETANAME(dot11req_associate)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("cfpollable"),
@@ -1518,7 +1436,6 @@ p80211meta_t MKREQMETANAME(dot11req_associate)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(truth),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -1532,7 +1449,6 @@ p80211meta_t MKREQMETANAME(dot11req_associate)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(truth),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -1546,7 +1462,6 @@ p80211meta_t MKREQMETANAME(dot11req_associate)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(truth),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -1560,7 +1475,6 @@ p80211meta_t MKREQMETANAME(dot11req_associate)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_int,
 	/* fromtextptr */ p80211_fromtext_int,
 	/* validfunptr */ p80211_isvalid_int
@@ -1574,7 +1488,6 @@ p80211meta_t MKREQMETANAME(dot11req_associate)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(resultcode),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -1599,7 +1512,6 @@ p80211meta_t MKREQMETANAME(dot11req_reassociate)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ NULL,
 	/* fromtextptr */ NULL,
 	/* validfunptr */ NULL
@@ -1613,7 +1525,6 @@ p80211meta_t MKREQMETANAME(dot11req_reassociate)[] = {
 	/* maxlen      */ MAXLEN_PSTR6,
 	/* minlen      */ MAXLEN_PSTR6,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_octetstr,
 	/* fromtextptr */ p80211_fromtext_octetstr,
 	/* validfunptr */ p80211_isvalid_octetstr
@@ -1627,10 +1538,9 @@ p80211meta_t MKREQMETANAME(dot11req_reassociate)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("cfpollable"),
@@ -1641,7 +1551,6 @@ p80211meta_t MKREQMETANAME(dot11req_reassociate)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(truth),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -1655,7 +1564,6 @@ p80211meta_t MKREQMETANAME(dot11req_reassociate)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(truth),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -1669,7 +1577,6 @@ p80211meta_t MKREQMETANAME(dot11req_reassociate)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(truth),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -1683,7 +1590,6 @@ p80211meta_t MKREQMETANAME(dot11req_reassociate)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_int,
 	/* fromtextptr */ p80211_fromtext_int,
 	/* validfunptr */ p80211_isvalid_int
@@ -1697,7 +1603,6 @@ p80211meta_t MKREQMETANAME(dot11req_reassociate)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(resultcode),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -1721,7 +1626,6 @@ p80211meta_t MKREQMETANAME(dot11req_disassociate)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ NULL,
 	/* fromtextptr */ NULL,
 	/* validfunptr */ NULL
@@ -1735,7 +1639,6 @@ p80211meta_t MKREQMETANAME(dot11req_disassociate)[] = {
 	/* maxlen      */ MAXLEN_PSTR6,
 	/* minlen      */ MAXLEN_PSTR6,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_octetstr,
 	/* fromtextptr */ p80211_fromtext_octetstr,
 	/* validfunptr */ p80211_isvalid_octetstr
@@ -1749,7 +1652,6 @@ p80211meta_t MKREQMETANAME(dot11req_disassociate)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(reason),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -1763,7 +1665,6 @@ p80211meta_t MKREQMETANAME(dot11req_disassociate)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(resultcode),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -1787,7 +1688,6 @@ p80211meta_t MKREQMETANAME(dot11req_reset)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ NULL,
 	/* fromtextptr */ NULL,
 	/* validfunptr */ NULL
@@ -1801,7 +1701,6 @@ p80211meta_t MKREQMETANAME(dot11req_reset)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(truth),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -1815,7 +1714,6 @@ p80211meta_t MKREQMETANAME(dot11req_reset)[] = {
 	/* maxlen      */ MAXLEN_PSTR6,
 	/* minlen      */ MAXLEN_PSTR6,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_octetstr,
 	/* fromtextptr */ p80211_fromtext_octetstr,
 	/* validfunptr */ p80211_isvalid_octetstr
@@ -1829,7 +1727,6 @@ p80211meta_t MKREQMETANAME(dot11req_reset)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(resultcode),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -1853,7 +1750,6 @@ p80211meta_t MKREQMETANAME(dot11req_start)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ NULL,
 	/* fromtextptr */ NULL,
 	/* validfunptr */ NULL
@@ -1867,7 +1763,6 @@ p80211meta_t MKREQMETANAME(dot11req_start)[] = {
 	/* maxlen      */ MAXLEN_PSTR32,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_displaystr,
 	/* fromtextptr */ p80211_fromtext_displaystr,
 	/* validfunptr */ p80211_isvalid_displaystr
@@ -1881,7 +1776,6 @@ p80211meta_t MKREQMETANAME(dot11req_start)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(bsstype),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -1895,10 +1789,9 @@ p80211meta_t MKREQMETANAME(dot11req_start)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("dtimperiod"),
@@ -1909,10 +1802,9 @@ p80211meta_t MKREQMETANAME(dot11req_start)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("cfpperiod"),
@@ -1923,10 +1815,9 @@ p80211meta_t MKREQMETANAME(dot11req_start)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("cfpmaxduration"),
@@ -1937,10 +1828,9 @@ p80211meta_t MKREQMETANAME(dot11req_start)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("fhdwelltime"),
@@ -1951,10 +1841,9 @@ p80211meta_t MKREQMETANAME(dot11req_start)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("fhhopset"),
@@ -1965,10 +1854,9 @@ p80211meta_t MKREQMETANAME(dot11req_start)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("fhhoppattern"),
@@ -1979,10 +1867,9 @@ p80211meta_t MKREQMETANAME(dot11req_start)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("dschannel"),
@@ -1993,10 +1880,9 @@ p80211meta_t MKREQMETANAME(dot11req_start)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("ibssatimwindow"),
@@ -2007,7 +1893,6 @@ p80211meta_t MKREQMETANAME(dot11req_start)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_int,
 	/* fromtextptr */ p80211_fromtext_int,
 	/* validfunptr */ p80211_isvalid_int
@@ -2021,7 +1906,6 @@ p80211meta_t MKREQMETANAME(dot11req_start)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_int,
 	/* fromtextptr */ p80211_fromtext_int,
 	/* validfunptr */ p80211_isvalid_int
@@ -2035,7 +1919,6 @@ p80211meta_t MKREQMETANAME(dot11req_start)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(truth),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -2049,7 +1932,6 @@ p80211meta_t MKREQMETANAME(dot11req_start)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(truth),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -2063,10 +1945,9 @@ p80211meta_t MKREQMETANAME(dot11req_start)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("basicrate2"),
@@ -2077,10 +1958,9 @@ p80211meta_t MKREQMETANAME(dot11req_start)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("basicrate3"),
@@ -2091,10 +1971,9 @@ p80211meta_t MKREQMETANAME(dot11req_start)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("basicrate4"),
@@ -2105,10 +1984,9 @@ p80211meta_t MKREQMETANAME(dot11req_start)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("basicrate5"),
@@ -2119,10 +1997,9 @@ p80211meta_t MKREQMETANAME(dot11req_start)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("basicrate6"),
@@ -2133,10 +2010,9 @@ p80211meta_t MKREQMETANAME(dot11req_start)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("basicrate7"),
@@ -2147,10 +2023,9 @@ p80211meta_t MKREQMETANAME(dot11req_start)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("basicrate8"),
@@ -2161,10 +2036,9 @@ p80211meta_t MKREQMETANAME(dot11req_start)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("operationalrate1"),
@@ -2175,10 +2049,9 @@ p80211meta_t MKREQMETANAME(dot11req_start)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("operationalrate2"),
@@ -2189,10 +2062,9 @@ p80211meta_t MKREQMETANAME(dot11req_start)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("operationalrate3"),
@@ -2203,10 +2075,9 @@ p80211meta_t MKREQMETANAME(dot11req_start)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("operationalrate4"),
@@ -2217,10 +2088,9 @@ p80211meta_t MKREQMETANAME(dot11req_start)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("operationalrate5"),
@@ -2231,10 +2101,9 @@ p80211meta_t MKREQMETANAME(dot11req_start)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("operationalrate6"),
@@ -2245,10 +2114,9 @@ p80211meta_t MKREQMETANAME(dot11req_start)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("operationalrate7"),
@@ -2259,10 +2127,9 @@ p80211meta_t MKREQMETANAME(dot11req_start)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("operationalrate8"),
@@ -2273,10 +2140,9 @@ p80211meta_t MKREQMETANAME(dot11req_start)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("resultcode"),
@@ -2287,7 +2153,6 @@ p80211meta_t MKREQMETANAME(dot11req_start)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(resultcode),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -2312,7 +2177,6 @@ p80211meta_t MKINDMETANAME(dot11ind_authenticate)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ NULL,
 	/* fromtextptr */ NULL,
 	/* validfunptr */ NULL
@@ -2326,7 +2190,6 @@ p80211meta_t MKINDMETANAME(dot11ind_authenticate)[] = {
 	/* maxlen      */ MAXLEN_PSTR6,
 	/* minlen      */ MAXLEN_PSTR6,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_octetstr,
 	/* fromtextptr */ p80211_fromtext_octetstr,
 	/* validfunptr */ p80211_isvalid_octetstr
@@ -2340,7 +2203,6 @@ p80211meta_t MKINDMETANAME(dot11ind_authenticate)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(authalg),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -2365,7 +2227,6 @@ p80211meta_t MKINDMETANAME(dot11ind_deauthenticate)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ NULL,
 	/* fromtextptr */ NULL,
 	/* validfunptr */ NULL
@@ -2379,7 +2240,6 @@ p80211meta_t MKINDMETANAME(dot11ind_deauthenticate)[] = {
 	/* maxlen      */ MAXLEN_PSTR6,
 	/* minlen      */ MAXLEN_PSTR6,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_octetstr,
 	/* fromtextptr */ p80211_fromtext_octetstr,
 	/* validfunptr */ p80211_isvalid_octetstr
@@ -2393,7 +2253,6 @@ p80211meta_t MKINDMETANAME(dot11ind_deauthenticate)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(reason),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -2418,7 +2277,6 @@ p80211meta_t MKINDMETANAME(dot11ind_associate)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ NULL,
 	/* fromtextptr */ NULL,
 	/* validfunptr */ NULL
@@ -2432,11 +2290,23 @@ p80211meta_t MKINDMETANAME(dot11ind_associate)[] = {
 	/* maxlen      */ MAXLEN_PSTR6,
 	/* minlen      */ MAXLEN_PSTR6,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_octetstr,
 	/* fromtextptr */ p80211_fromtext_octetstr,
 	/* validfunptr */ p80211_isvalid_octetstr
-}
+},
+{
+	/* name        */ MKITEMNAME("aid"),
+	/* did         */ 0,
+	/* flags       */ P80211ITEM_SETFLAGS(ISREQUIRED, ISREQUEST, 0UL),
+	/* min         */ 0,
+	/* max         */ 2003,
+	/* maxlen      */ 0,
+	/* minlen      */ 0,
+	/* enumptr     */ NULL,
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
+},
 };  /* end of dot11ind_associate indication metadata list */
 
 UINT32	MKINDMETASIZE(dot11ind_associate) =
@@ -2457,7 +2327,6 @@ p80211meta_t MKINDMETANAME(dot11ind_reassociate)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ NULL,
 	/* fromtextptr */ NULL,
 	/* validfunptr */ NULL
@@ -2471,11 +2340,36 @@ p80211meta_t MKINDMETANAME(dot11ind_reassociate)[] = {
 	/* maxlen      */ MAXLEN_PSTR6,
 	/* minlen      */ MAXLEN_PSTR6,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_octetstr,
 	/* fromtextptr */ p80211_fromtext_octetstr,
 	/* validfunptr */ p80211_isvalid_octetstr
-}
+},
+{
+	/* name        */ MKITEMNAME("aid"),
+	/* did         */ 0,
+	/* flags       */ P80211ITEM_SETFLAGS(ISREQUIRED, ISREQUEST, 0UL),
+	/* min         */ 0,
+	/* max         */ 2003,
+	/* maxlen      */ 0,
+	/* minlen      */ 0,
+	/* enumptr     */ NULL,
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
+},
+{
+	/* name        */ MKITEMNAME("oldapaddress"),
+	/* did         */ 0,
+	/* flags       */ P80211ITEM_SETFLAGS(ISREQUIRED, ISREQUEST, 0UL),
+	/* min         */ 0,
+	/* max         */ 0,
+	/* maxlen      */ MAXLEN_PSTR6,
+	/* minlen      */ MAXLEN_PSTR6,
+	/* enumptr     */ NULL,
+	/* totextptr   */ p80211_totext_octetstr,
+	/* fromtextptr */ p80211_fromtext_octetstr,
+	/* validfunptr */
+},
 };  /* end of dot11ind_reassociate indication metadata list */
 
 UINT32	MKINDMETASIZE(dot11ind_reassociate) = 
@@ -2496,7 +2390,6 @@ p80211meta_t MKINDMETANAME(dot11ind_disassociate)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ NULL,
 	/* fromtextptr */ NULL,
 	/* validfunptr */ NULL
@@ -2510,7 +2403,6 @@ p80211meta_t MKINDMETANAME(dot11ind_disassociate)[] = {
 	/* maxlen      */ MAXLEN_PSTR6,
 	/* minlen      */ MAXLEN_PSTR6,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_octetstr,
 	/* fromtextptr */ p80211_fromtext_octetstr,
 	/* validfunptr */ p80211_isvalid_octetstr
@@ -2524,7 +2416,6 @@ p80211meta_t MKINDMETANAME(dot11ind_disassociate)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(reason),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -2533,6 +2424,40 @@ p80211meta_t MKINDMETANAME(dot11ind_disassociate)[] = {
 
 UINT32	MKINDMETASIZE(dot11ind_disassociate) = 
 		sizeof(MKINDMETANAME(dot11ind_disassociate))/sizeof(p80211meta_t);
+
+extern	UINT32	MKINDMETASIZE(lnxind_roam);
+
+p80211meta_t MKINDMETANAME(lnxind_roam)[] = {
+{
+	/* name        */ (char *)&(MKINDMETASIZE(lnxind_roam)),
+	/* did         */ 0,
+	/* flags       */ 0,
+	/* min         */ 0,
+	/* max         */ 0,
+	/* maxlen      */ 0,
+	/* minlen      */ 0,
+	/* enumptr     */ NULL,
+	/* totextptr   */ NULL,
+	/* fromtextptr */ NULL,
+	/* validfunptr */ NULL
+},
+{
+	/* name        */ MKITEMNAME("reason"),
+	/* did         */ 0,
+	/* flags       */ P80211ITEM_SETFLAGS(ISREQUIRED, ISREQUEST, 0UL),
+	/* min         */ 0,
+	/* max         */ 0,
+	/* maxlen      */ 0,
+	/* minlen      */ 0,
+	/* enumptr     */ &MKENUMNAME(lnxroam_reason),
+	/* totextptr   */ p80211_totext_enumint,
+	/* fromtextptr */ p80211_fromtext_enumint,
+	/* validfunptr */ p80211_isvalid_enumint
+}
+};  /* end of dot11ind_associate indication metadata list */
+
+UINT32	MKINDMETASIZE(lnxind_roam) =
+		sizeof(MKINDMETANAME(lnxind_roam))/sizeof(p80211meta_t);
 
 
 /*--------------------------------------------------------------------*/
@@ -2550,7 +2475,6 @@ p80211meta_t MKREQMETANAME(lnxreq_ifstate)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ NULL,
 	/* fromtextptr */ NULL,
 	/* validfunptr */ NULL
@@ -2564,7 +2488,6 @@ p80211meta_t MKREQMETANAME(lnxreq_ifstate)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(ifstate),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -2578,7 +2501,6 @@ p80211meta_t MKREQMETANAME(lnxreq_ifstate)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(resultcode),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -2602,7 +2524,6 @@ p80211meta_t MKREQMETANAME(lnxreq_commsquality)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ NULL,
 	/* fromtextptr */ NULL,
 	/* validfunptr */ NULL
@@ -2616,7 +2537,6 @@ p80211meta_t MKREQMETANAME(lnxreq_commsquality)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(resultcode),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -2630,7 +2550,6 @@ p80211meta_t MKREQMETANAME(lnxreq_commsquality)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(truth),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -2644,10 +2563,9 @@ p80211meta_t MKREQMETANAME(lnxreq_commsquality)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("level"),
@@ -2658,10 +2576,9 @@ p80211meta_t MKREQMETANAME(lnxreq_commsquality)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("noise"),
@@ -2672,10 +2589,9 @@ p80211meta_t MKREQMETANAME(lnxreq_commsquality)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 }; /* end of lnxreq_commsquality list */
 
@@ -2696,7 +2612,6 @@ p80211meta_t MKREQMETANAME(lnxreq_hostwep)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ NULL,
 	/* fromtextptr */ NULL,
 	/* validfunptr */ NULL
@@ -2710,7 +2625,6 @@ p80211meta_t MKREQMETANAME(lnxreq_hostwep)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(resultcode),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -2724,7 +2638,6 @@ p80211meta_t MKREQMETANAME(lnxreq_hostwep)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(truth),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -2738,7 +2651,6 @@ p80211meta_t MKREQMETANAME(lnxreq_hostwep)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(truth),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -2763,7 +2675,6 @@ p80211meta_t MKREQMETANAME(lnxreq_wlansniff)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ NULL,
 	/* fromtextptr */ NULL,
 	/* validfunptr */ NULL
@@ -2777,7 +2688,6 @@ p80211meta_t MKREQMETANAME(lnxreq_wlansniff)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(truth),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -2785,16 +2695,15 @@ p80211meta_t MKREQMETANAME(lnxreq_wlansniff)[] = {
 {
 	/* name        */ MKITEMNAME("channel"),
 	/* did         */ 0,
-	/* flags       */ P80211ITEM_SETFLAGS(0UL, ISREQUEST, 0UL),
+	/* flags       */ P80211ITEM_SETFLAGS(ISREQUIRED, ISREQUEST, 0UL),
 	/* min         */ 1,
 	/* max         */ 14,
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("prismheader"),
@@ -2805,7 +2714,6 @@ p80211meta_t MKREQMETANAME(lnxreq_wlansniff)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(truth),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -2819,7 +2727,6 @@ p80211meta_t MKREQMETANAME(lnxreq_wlansniff)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(truth),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -2833,7 +2740,6 @@ p80211meta_t MKREQMETANAME(lnxreq_wlansniff)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(truth),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -2847,7 +2753,6 @@ p80211meta_t MKREQMETANAME(lnxreq_wlansniff)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(truth),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -2861,10 +2766,9 @@ p80211meta_t MKREQMETANAME(lnxreq_wlansniff)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("resultcode"),
@@ -2875,7 +2779,6 @@ p80211meta_t MKREQMETANAME(lnxreq_wlansniff)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(resultcode),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -2900,7 +2803,6 @@ p80211meta_t MKREQMETANAME(lnxreq_autojoin)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ NULL,
 	/* fromtextptr */ NULL,
 	/* validfunptr */ NULL
@@ -2914,7 +2816,6 @@ p80211meta_t MKREQMETANAME(lnxreq_autojoin)[] = {
 	/* maxlen      */ MAXLEN_PSTR32,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_displaystr,
 	/* fromtextptr */ p80211_fromtext_displaystr,
 	/* validfunptr */ p80211_isvalid_displaystr
@@ -2928,7 +2829,6 @@ p80211meta_t MKREQMETANAME(lnxreq_autojoin)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(authalg),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -2942,7 +2842,6 @@ p80211meta_t MKREQMETANAME(lnxreq_autojoin)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(resultcode),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -2968,7 +2867,6 @@ p80211meta_t MKINDMETANAME(lnxind_wlansniffrm)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ NULL,
 	/* fromtextptr */ NULL,
 	/* validfunptr */ NULL
@@ -2982,7 +2880,6 @@ p80211meta_t MKINDMETANAME(lnxind_wlansniffrm)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_int,
 	/* fromtextptr */ p80211_fromtext_int,
 	/* validfunptr */ p80211_isvalid_int
@@ -2996,7 +2893,6 @@ p80211meta_t MKINDMETANAME(lnxind_wlansniffrm)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_int,
 	/* fromtextptr */ p80211_fromtext_int,
 	/* validfunptr */ p80211_isvalid_int
@@ -3010,7 +2906,6 @@ p80211meta_t MKINDMETANAME(lnxind_wlansniffrm)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_int,
 	/* fromtextptr */ p80211_fromtext_int,
 	/* validfunptr */ p80211_isvalid_int
@@ -3024,7 +2919,6 @@ p80211meta_t MKINDMETANAME(lnxind_wlansniffrm)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_int,
 	/* fromtextptr */ p80211_fromtext_int,
 	/* validfunptr */ p80211_isvalid_int
@@ -3038,7 +2932,6 @@ p80211meta_t MKINDMETANAME(lnxind_wlansniffrm)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_int,
 	/* fromtextptr */ p80211_fromtext_int,
 	/* validfunptr */ p80211_isvalid_int
@@ -3052,7 +2945,6 @@ p80211meta_t MKINDMETANAME(lnxind_wlansniffrm)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_int,
 	/* fromtextptr */ p80211_fromtext_int,
 	/* validfunptr */ p80211_isvalid_int
@@ -3066,7 +2958,6 @@ p80211meta_t MKINDMETANAME(lnxind_wlansniffrm)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_int,
 	/* fromtextptr */ p80211_fromtext_int,
 	/* validfunptr */ p80211_isvalid_int
@@ -3080,7 +2971,6 @@ p80211meta_t MKINDMETANAME(lnxind_wlansniffrm)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_int,
 	/* fromtextptr */ p80211_fromtext_int,
 	/* validfunptr */ p80211_isvalid_int
@@ -3094,7 +2984,6 @@ p80211meta_t MKINDMETANAME(lnxind_wlansniffrm)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -3108,7 +2997,6 @@ p80211meta_t MKINDMETANAME(lnxind_wlansniffrm)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_int,
 	/* fromtextptr */ p80211_fromtext_int,
 	/* validfunptr */ p80211_isvalid_int
@@ -3133,7 +3021,6 @@ p80211meta_t MKREQMETANAME(p2req_join)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ NULL,
 	/* fromtextptr */ NULL,
 	/* validfunptr */ NULL
@@ -3147,7 +3034,6 @@ p80211meta_t MKREQMETANAME(p2req_join)[] = {
 	/* maxlen      */ MAXLEN_PSTR6,
 	/* minlen      */ MAXLEN_PSTR6,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_octetstr,
 	/* fromtextptr */ p80211_fromtext_octetstr,
 	/* validfunptr */ p80211_isvalid_octetstr
@@ -3161,10 +3047,9 @@ p80211meta_t MKREQMETANAME(p2req_join)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("basicrate2"),
@@ -3175,10 +3060,9 @@ p80211meta_t MKREQMETANAME(p2req_join)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("basicrate3"),
@@ -3189,10 +3073,9 @@ p80211meta_t MKREQMETANAME(p2req_join)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("basicrate4"),
@@ -3203,10 +3086,9 @@ p80211meta_t MKREQMETANAME(p2req_join)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("basicrate5"),
@@ -3217,10 +3099,9 @@ p80211meta_t MKREQMETANAME(p2req_join)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("basicrate6"),
@@ -3231,10 +3112,9 @@ p80211meta_t MKREQMETANAME(p2req_join)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("basicrate7"),
@@ -3245,10 +3125,9 @@ p80211meta_t MKREQMETANAME(p2req_join)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("basicrate8"),
@@ -3259,10 +3138,9 @@ p80211meta_t MKREQMETANAME(p2req_join)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("operationalrate1"),
@@ -3273,10 +3151,9 @@ p80211meta_t MKREQMETANAME(p2req_join)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("operationalrate2"),
@@ -3287,10 +3164,9 @@ p80211meta_t MKREQMETANAME(p2req_join)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("operationalrate3"),
@@ -3301,10 +3177,9 @@ p80211meta_t MKREQMETANAME(p2req_join)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("operationalrate4"),
@@ -3315,10 +3190,9 @@ p80211meta_t MKREQMETANAME(p2req_join)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("operationalrate5"),
@@ -3329,10 +3203,9 @@ p80211meta_t MKREQMETANAME(p2req_join)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("operationalrate6"),
@@ -3343,10 +3216,9 @@ p80211meta_t MKREQMETANAME(p2req_join)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("operationalrate7"),
@@ -3357,10 +3229,9 @@ p80211meta_t MKREQMETANAME(p2req_join)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("operationalrate8"),
@@ -3371,10 +3242,9 @@ p80211meta_t MKREQMETANAME(p2req_join)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("ssid"),
@@ -3385,7 +3255,6 @@ p80211meta_t MKREQMETANAME(p2req_join)[] = {
 	/* maxlen      */ MAXLEN_PSTR32,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_displaystr,
 	/* fromtextptr */ p80211_fromtext_displaystr,
 	/* validfunptr */ p80211_isvalid_displaystr
@@ -3399,10 +3268,9 @@ p80211meta_t MKREQMETANAME(p2req_join)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("authtype"),
@@ -3413,7 +3281,6 @@ p80211meta_t MKREQMETANAME(p2req_join)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(authalg),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -3427,7 +3294,6 @@ p80211meta_t MKREQMETANAME(p2req_join)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(resultcode),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -3452,7 +3318,6 @@ p80211meta_t MKREQMETANAME(p2req_readpda)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ NULL,
 	/* fromtextptr */ NULL,
 	/* validfunptr */ NULL
@@ -3466,7 +3331,6 @@ p80211meta_t MKREQMETANAME(p2req_readpda)[] = {
 	/* maxlen      */ 1024,
 	/* minlen      */ 1024,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ NULL,  /* data only used by program...*/
 	/* fromtextptr */ NULL,
 	/* validfunptr */ NULL
@@ -3480,7 +3344,6 @@ p80211meta_t MKREQMETANAME(p2req_readpda)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(resultcode),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -3505,7 +3368,6 @@ p80211meta_t MKREQMETANAME(p2req_readcis)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ NULL,
 	/* fromtextptr */ NULL,
 	/* validfunptr */ NULL
@@ -3519,7 +3381,6 @@ p80211meta_t MKREQMETANAME(p2req_readcis)[] = {
 	/* maxlen      */ 1024,
 	/* minlen      */ 1024,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ NULL,  /* data only used by program...*/
 	/* fromtextptr */ NULL,
 	/* validfunptr */ NULL
@@ -3533,7 +3394,6 @@ p80211meta_t MKREQMETANAME(p2req_readcis)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(resultcode),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -3558,7 +3418,6 @@ p80211meta_t MKREQMETANAME(p2req_auxport_state)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ NULL,
 	/* fromtextptr */ NULL,
 	/* validfunptr */ NULL
@@ -3572,7 +3431,6 @@ p80211meta_t MKREQMETANAME(p2req_auxport_state)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(truth),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -3586,7 +3444,6 @@ p80211meta_t MKREQMETANAME(p2req_auxport_state)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(resultcode),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -3611,7 +3468,6 @@ p80211meta_t MKREQMETANAME(p2req_auxport_read)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ NULL,
 	/* fromtextptr */ NULL,
 	/* validfunptr */ NULL
@@ -3625,7 +3481,6 @@ p80211meta_t MKREQMETANAME(p2req_auxport_read)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_int,
 	/* fromtextptr */ p80211_fromtext_int,
 	/* validfunptr */ p80211_isvalid_int
@@ -3639,7 +3494,6 @@ p80211meta_t MKREQMETANAME(p2req_auxport_read)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_int,
 	/* fromtextptr */ p80211_fromtext_int,
 	/* validfunptr */ p80211_isvalid_int
@@ -3653,7 +3507,6 @@ p80211meta_t MKREQMETANAME(p2req_auxport_read)[] = {
 	/* maxlen      */ 1024,
 	/* minlen      */ 1024,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ NULL,	/* data only handled by programs */
 	/* fromtextptr */ NULL,
 	/* validfunptr */ NULL
@@ -3667,7 +3520,6 @@ p80211meta_t MKREQMETANAME(p2req_auxport_read)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(resultcode),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -3692,7 +3544,6 @@ p80211meta_t MKREQMETANAME(p2req_auxport_write)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ NULL,
 	/* fromtextptr */ NULL,
 	/* validfunptr */ NULL
@@ -3706,7 +3557,6 @@ p80211meta_t MKREQMETANAME(p2req_auxport_write)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_int,
 	/* fromtextptr */ p80211_fromtext_int,
 	/* validfunptr */ p80211_isvalid_int
@@ -3720,7 +3570,6 @@ p80211meta_t MKREQMETANAME(p2req_auxport_write)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_int,
 	/* fromtextptr */ p80211_fromtext_int,
 	/* validfunptr */ p80211_isvalid_int
@@ -3734,7 +3583,6 @@ p80211meta_t MKREQMETANAME(p2req_auxport_write)[] = {
 	/* maxlen      */ 1024,
 	/* minlen      */ 1024,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ NULL,	/* data only handled by programs */
 	/* fromtextptr */ NULL,
 	/* validfunptr */ NULL
@@ -3748,7 +3596,6 @@ p80211meta_t MKREQMETANAME(p2req_auxport_write)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(resultcode),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -3773,7 +3620,6 @@ p80211meta_t MKREQMETANAME(p2req_low_level)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ NULL,
 	/* fromtextptr */ NULL,
 	/* validfunptr */ NULL
@@ -3787,7 +3633,6 @@ p80211meta_t MKREQMETANAME(p2req_low_level)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_int,
 	/* fromtextptr */ p80211_fromtext_int,
 	/* validfunptr */ p80211_isvalid_int
@@ -3801,7 +3646,6 @@ p80211meta_t MKREQMETANAME(p2req_low_level)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_int,
 	/* fromtextptr */ p80211_fromtext_int,
 	/* validfunptr */ p80211_isvalid_int
@@ -3815,7 +3659,6 @@ p80211meta_t MKREQMETANAME(p2req_low_level)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_int,
 	/* fromtextptr */ p80211_fromtext_int,
 	/* validfunptr */ p80211_isvalid_int
@@ -3829,7 +3672,6 @@ p80211meta_t MKREQMETANAME(p2req_low_level)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_int,
 	/* fromtextptr */ p80211_fromtext_int,
 	/* validfunptr */ p80211_isvalid_int
@@ -3843,7 +3685,6 @@ p80211meta_t MKREQMETANAME(p2req_low_level)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_int,
 	/* fromtextptr */ p80211_fromtext_int,
 	/* validfunptr */ p80211_isvalid_int
@@ -3857,7 +3698,6 @@ p80211meta_t MKREQMETANAME(p2req_low_level)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_int,
 	/* fromtextptr */ p80211_fromtext_int,
 	/* validfunptr */ p80211_isvalid_int
@@ -3871,7 +3711,6 @@ p80211meta_t MKREQMETANAME(p2req_low_level)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_int,
 	/* fromtextptr */ p80211_fromtext_int,
 	/* validfunptr */ p80211_isvalid_int
@@ -3885,7 +3724,6 @@ p80211meta_t MKREQMETANAME(p2req_low_level)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(resultcode),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -3913,7 +3751,6 @@ p80211meta_t MKREQMETANAME(p2req_test_command)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ NULL,
 	/* fromtextptr */ NULL,
 	/* validfunptr */ NULL
@@ -3927,7 +3764,6 @@ p80211meta_t MKREQMETANAME(p2req_test_command)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_int,
 	/* fromtextptr */ p80211_fromtext_int,
 	/* validfunptr */ p80211_isvalid_int
@@ -3941,7 +3777,6 @@ p80211meta_t MKREQMETANAME(p2req_test_command)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_int,
 	/* fromtextptr */ p80211_fromtext_int,
 	/* validfunptr */ p80211_isvalid_int
@@ -3955,7 +3790,6 @@ p80211meta_t MKREQMETANAME(p2req_test_command)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(resultcode),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -3969,7 +3803,6 @@ p80211meta_t MKREQMETANAME(p2req_test_command)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_int,
 	/* fromtextptr */ p80211_fromtext_int,
 	/* validfunptr */ p80211_isvalid_int
@@ -3983,7 +3816,6 @@ p80211meta_t MKREQMETANAME(p2req_test_command)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_int,
 	/* fromtextptr */ p80211_fromtext_int,
 	/* validfunptr */ p80211_isvalid_int
@@ -3997,7 +3829,6 @@ p80211meta_t MKREQMETANAME(p2req_test_command)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_int,
 	/* fromtextptr */ p80211_fromtext_int,
 	/* validfunptr */ p80211_isvalid_int
@@ -4011,7 +3842,6 @@ p80211meta_t MKREQMETANAME(p2req_test_command)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_int,
 	/* fromtextptr */ p80211_fromtext_int,
 	/* validfunptr */ p80211_isvalid_int
@@ -4039,7 +3869,6 @@ p80211meta_t MKREQMETANAME(p2req_mmi_read)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ NULL,
 	/* fromtextptr */ NULL,
 	/* validfunptr */ NULL
@@ -4053,7 +3882,6 @@ p80211meta_t MKREQMETANAME(p2req_mmi_read)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_int,
 	/* fromtextptr */ p80211_fromtext_int,
 	/* validfunptr */ p80211_isvalid_int
@@ -4067,7 +3895,6 @@ p80211meta_t MKREQMETANAME(p2req_mmi_read)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_int,
 	/* fromtextptr */ p80211_fromtext_int,
 	/* validfunptr */ p80211_isvalid_int
@@ -4081,7 +3908,6 @@ p80211meta_t MKREQMETANAME(p2req_mmi_read)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(resultcode),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -4106,7 +3932,6 @@ p80211meta_t MKREQMETANAME(p2req_mmi_write)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ NULL,
 	/* fromtextptr */ NULL,
 	/* validfunptr */ NULL
@@ -4120,7 +3945,6 @@ p80211meta_t MKREQMETANAME(p2req_mmi_write)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_int,
 	/* fromtextptr */ p80211_fromtext_int,
 	/* validfunptr */ p80211_isvalid_int
@@ -4134,7 +3958,6 @@ p80211meta_t MKREQMETANAME(p2req_mmi_write)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_int,
 	/* fromtextptr */ p80211_fromtext_int,
 	/* validfunptr */ p80211_isvalid_int
@@ -4148,7 +3971,6 @@ p80211meta_t MKREQMETANAME(p2req_mmi_write)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(resultcode),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -4173,7 +3995,6 @@ p80211meta_t MKREQMETANAME(p2req_ramdl_state)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ NULL,
 	/* fromtextptr */ NULL,
 	/* validfunptr */ NULL
@@ -4187,7 +4008,6 @@ p80211meta_t MKREQMETANAME(p2req_ramdl_state)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(truth),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -4201,7 +4021,6 @@ p80211meta_t MKREQMETANAME(p2req_ramdl_state)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_int,
 	/* fromtextptr */ p80211_fromtext_int,
 	/* validfunptr */ p80211_isvalid_int
@@ -4215,7 +4034,6 @@ p80211meta_t MKREQMETANAME(p2req_ramdl_state)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(resultcode),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -4240,7 +4058,6 @@ p80211meta_t MKREQMETANAME(p2req_ramdl_write)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ NULL,
 	/* fromtextptr */ NULL,
 	/* validfunptr */ NULL
@@ -4254,7 +4071,6 @@ p80211meta_t MKREQMETANAME(p2req_ramdl_write)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_int,
 	/* fromtextptr */ p80211_fromtext_int,
 	/* validfunptr */ p80211_isvalid_int
@@ -4268,7 +4084,6 @@ p80211meta_t MKREQMETANAME(p2req_ramdl_write)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_int,
 	/* fromtextptr */ p80211_fromtext_int,
 	/* validfunptr */ p80211_isvalid_int
@@ -4282,7 +4097,6 @@ p80211meta_t MKREQMETANAME(p2req_ramdl_write)[] = {
 	/* maxlen      */ 4096,
 	/* minlen      */ 4096,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ NULL,	/* data only handled by programs */
 	/* fromtextptr */ NULL,
 	/* validfunptr */ NULL
@@ -4296,7 +4110,6 @@ p80211meta_t MKREQMETANAME(p2req_ramdl_write)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(resultcode),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -4321,7 +4134,6 @@ p80211meta_t MKREQMETANAME(p2req_flashdl_state)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ NULL,
 	/* fromtextptr */ NULL,
 	/* validfunptr */ NULL
@@ -4335,7 +4147,6 @@ p80211meta_t MKREQMETANAME(p2req_flashdl_state)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(truth),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -4349,7 +4160,6 @@ p80211meta_t MKREQMETANAME(p2req_flashdl_state)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(resultcode),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -4374,7 +4184,6 @@ p80211meta_t MKREQMETANAME(p2req_flashdl_write)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ NULL,
 	/* fromtextptr */ NULL,
 	/* validfunptr */ NULL
@@ -4388,7 +4197,6 @@ p80211meta_t MKREQMETANAME(p2req_flashdl_write)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_int,
 	/* fromtextptr */ p80211_fromtext_int,
 	/* validfunptr */ p80211_isvalid_int
@@ -4402,7 +4210,6 @@ p80211meta_t MKREQMETANAME(p2req_flashdl_write)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_int,
 	/* fromtextptr */ p80211_fromtext_int,
 	/* validfunptr */ p80211_isvalid_int
@@ -4416,7 +4223,6 @@ p80211meta_t MKREQMETANAME(p2req_flashdl_write)[] = {
 	/* maxlen      */ 4096,
 	/* minlen      */ 4096,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ NULL,	/* data only handled by programs */
 	/* fromtextptr */ NULL,
 	/* validfunptr */ NULL
@@ -4430,7 +4236,6 @@ p80211meta_t MKREQMETANAME(p2req_flashdl_write)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(resultcode),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -4455,7 +4260,6 @@ p80211meta_t MKREQMETANAME(p2req_mm_state)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ NULL,
 	/* fromtextptr */ NULL,
 	/* validfunptr */ NULL
@@ -4469,7 +4273,6 @@ p80211meta_t MKREQMETANAME(p2req_mm_state)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(truth),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -4483,7 +4286,6 @@ p80211meta_t MKREQMETANAME(p2req_mm_state)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(resultcode),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -4509,7 +4311,6 @@ p80211meta_t MKREQMETANAME(p2req_dump_state)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ NULL,
 	/* fromtextptr */ NULL,
 	/* validfunptr */ NULL
@@ -4523,10 +4324,9 @@ p80211meta_t MKREQMETANAME(p2req_dump_state)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("resultcode"),
@@ -4537,7 +4337,6 @@ p80211meta_t MKREQMETANAME(p2req_dump_state)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(resultcode),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -4562,7 +4361,6 @@ p80211meta_t MKREQMETANAME(p2req_channel_info)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ NULL,
 	/* fromtextptr */ NULL,
 	/* validfunptr */ NULL
@@ -4576,7 +4374,6 @@ p80211meta_t MKREQMETANAME(p2req_channel_info)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_bitarray,
 	/* fromtextptr */ p80211_fromtext_bitarray,
 	/* validfunptr */ p80211_isvalid_bitarray
@@ -4590,10 +4387,9 @@ p80211meta_t MKREQMETANAME(p2req_channel_info)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("resultcode"),
@@ -4604,7 +4400,6 @@ p80211meta_t MKREQMETANAME(p2req_channel_info)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(resultcode),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -4618,10 +4413,9 @@ p80211meta_t MKREQMETANAME(p2req_channel_info)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 }
 };  /* end of p2req_channel_info request metadata list */
 
@@ -4643,7 +4437,6 @@ p80211meta_t MKREQMETANAME(p2req_channel_info_results)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ NULL,
 	/* fromtextptr */ NULL,
 	/* validfunptr */ NULL
@@ -4657,10 +4450,9 @@ p80211meta_t MKREQMETANAME(p2req_channel_info_results)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("resultcode"),
@@ -4671,7 +4463,6 @@ p80211meta_t MKREQMETANAME(p2req_channel_info_results)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(resultcode),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -4685,7 +4476,6 @@ p80211meta_t MKREQMETANAME(p2req_channel_info_results)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_int,
 	/* fromtextptr */ p80211_fromtext_int,
 	/* validfunptr */ p80211_isvalid_int
@@ -4699,7 +4489,6 @@ p80211meta_t MKREQMETANAME(p2req_channel_info_results)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_int,
 	/* fromtextptr */ p80211_fromtext_int,
 	/* validfunptr */ p80211_isvalid_int
@@ -4713,7 +4502,6 @@ p80211meta_t MKREQMETANAME(p2req_channel_info_results)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(truth),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -4727,7 +4515,6 @@ p80211meta_t MKREQMETANAME(p2req_channel_info_results)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(truth),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -4752,7 +4539,6 @@ p80211meta_t MKREQMETANAME(p2req_enable)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ NULL,
 	/* fromtextptr */ NULL,
 	/* validfunptr */ NULL
@@ -4766,7 +4552,6 @@ p80211meta_t MKREQMETANAME(p2req_enable)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(resultcode),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -4876,7 +4661,6 @@ grplistitem_t MKGRPMETANAME(dot11ind)[] = {
 UINT32 MKGRPMETASIZE(dot11ind) =sizeof(MKGRPMETANAME(dot11ind)) /
 				sizeof(grplistitem_t);
 
-
 extern UINT32 MKGRPMETASIZE(lnxreq);
 
 grplistitem_t MKGRPMETANAME(lnxreq)[] = {
@@ -4921,7 +4705,11 @@ grplistitem_t MKGRPMETANAME(lnxind)[] = {
 	{
 		"lnxind_wlansniffrm",
 		MKINDMETANAME(lnxind_wlansniffrm)
-	}
+	},
+	{
+		"lnxind_roam",
+		MKINDMETANAME(lnxind_roam)
+	},
 };
 
 UINT32 MKGRPMETASIZE(lnxind) =sizeof(MKGRPMETANAME(lnxind)) /

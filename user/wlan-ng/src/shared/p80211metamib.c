@@ -121,7 +121,6 @@ p80211meta_t MKMIBMETANAME(p80211Table)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ NULL,
 	/* fromtextptr */ NULL,
 	/* validfunptr */ NULL
@@ -135,7 +134,6 @@ p80211meta_t MKMIBMETANAME(p80211Table)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(ifstate),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -156,7 +154,6 @@ p80211meta_t MKMIBMETANAME(dot11StationConfigTable)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ NULL,
 	/* fromtextptr */ NULL,
 	/* validfunptr */ NULL
@@ -170,7 +167,6 @@ p80211meta_t MKMIBMETANAME(dot11StationConfigTable)[] = {
 	/* maxlen      */ 6,
 	/* minlen      */ 6,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_octetstr,
 	/* fromtextptr */ p80211_fromtext_octetstr,
 	/* validfunptr */ p80211_isvalid_octetstr
@@ -185,10 +181,9 @@ p80211meta_t MKMIBMETANAME(dot11StationConfigTable)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("dot11CFPollable"),
@@ -199,7 +194,6 @@ p80211meta_t MKMIBMETANAME(dot11StationConfigTable)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(truth),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -214,10 +208,9 @@ p80211meta_t MKMIBMETANAME(dot11StationConfigTable)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* ??????? Appears to be not supported by Prism2! ??????? */
@@ -229,10 +222,9 @@ p80211meta_t MKMIBMETANAME(dot11StationConfigTable)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* ??????? Appears to be not supported by Prism2! ??????? */
@@ -244,7 +236,6 @@ p80211meta_t MKMIBMETANAME(dot11StationConfigTable)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_int,
 	/* fromtextptr */ p80211_fromtext_int,
 	/* validfunptr */ p80211_isvalid_int
@@ -258,7 +249,6 @@ p80211meta_t MKMIBMETANAME(dot11StationConfigTable)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(truth),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -272,7 +262,6 @@ p80211meta_t MKMIBMETANAME(dot11StationConfigTable)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(powermgmt),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -286,7 +275,6 @@ p80211meta_t MKMIBMETANAME(dot11StationConfigTable)[] = {
 	/* maxlen      */ 32,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_displaystr,
 	/* fromtextptr */ p80211_fromtext_displaystr,
 	/* validfunptr */ p80211_isvalid_displaystr
@@ -300,7 +288,6 @@ p80211meta_t MKMIBMETANAME(dot11StationConfigTable)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(bsstype),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -314,7 +301,6 @@ p80211meta_t MKMIBMETANAME(dot11StationConfigTable)[] = {
 	/* maxlen      */ 126,
 	/* minlen      */ 1,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_octetstr,
 	/* fromtextptr */ p80211_fromtext_octetstr,
 	/* validfunptr */ p80211_isvalid_octetstr
@@ -328,10 +314,9 @@ p80211meta_t MKMIBMETANAME(dot11StationConfigTable)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("dot11DTIMPeriod"),
@@ -342,10 +327,9 @@ p80211meta_t MKMIBMETANAME(dot11StationConfigTable)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* ??????? Read-write in 802.11 but read-only for Prism2! ??????? */
@@ -357,7 +341,6 @@ p80211meta_t MKMIBMETANAME(dot11StationConfigTable)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_int,
 	/* fromtextptr */ p80211_fromtext_int,
 	/* validfunptr */ p80211_isvalid_int
@@ -371,10 +354,9 @@ p80211meta_t MKMIBMETANAME(dot11StationConfigTable)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("dot11DisassociateStation"),
@@ -385,7 +367,6 @@ p80211meta_t MKMIBMETANAME(dot11StationConfigTable)[] = {
 	/* maxlen      */ 6,
 	/* minlen      */ 6,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_octetstr,
 	/* fromtextptr */ p80211_fromtext_octetstr,
 	/* validfunptr */ p80211_isvalid_octetstr
@@ -399,10 +380,9 @@ p80211meta_t MKMIBMETANAME(dot11StationConfigTable)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("dot11DeauthenticateStation"),
@@ -413,7 +393,6 @@ p80211meta_t MKMIBMETANAME(dot11StationConfigTable)[] = {
 	/* maxlen      */ 6,
 	/* minlen      */ 6,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_octetstr,
 	/* fromtextptr */ p80211_fromtext_octetstr,
 	/* validfunptr */ p80211_isvalid_octetstr
@@ -427,10 +406,9 @@ p80211meta_t MKMIBMETANAME(dot11StationConfigTable)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("dot11AuthenticateFailStation"),
@@ -441,7 +419,6 @@ p80211meta_t MKMIBMETANAME(dot11StationConfigTable)[] = {
 	/* maxlen      */ 6,
 	/* minlen      */ 6,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_octetstr,
 	/* fromtextptr */ p80211_fromtext_octetstr,
 	/* validfunptr */ p80211_isvalid_octetstr
@@ -462,7 +439,6 @@ p80211meta_t MKMIBMETANAME(dot11AuthenticationAlgorithmsTable)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ NULL,
 	/* fromtextptr */ NULL,
 	/* validfunptr */ NULL
@@ -477,7 +453,6 @@ p80211meta_t MKMIBMETANAME(dot11AuthenticationAlgorithmsTable)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(authalg),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -492,7 +467,6 @@ p80211meta_t MKMIBMETANAME(dot11AuthenticationAlgorithmsTable)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(truth),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -507,7 +481,6 @@ p80211meta_t MKMIBMETANAME(dot11AuthenticationAlgorithmsTable)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(authalg),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -522,7 +495,6 @@ p80211meta_t MKMIBMETANAME(dot11AuthenticationAlgorithmsTable)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(truth),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -537,7 +509,6 @@ p80211meta_t MKMIBMETANAME(dot11AuthenticationAlgorithmsTable)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(authalg),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -552,7 +523,6 @@ p80211meta_t MKMIBMETANAME(dot11AuthenticationAlgorithmsTable)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(truth),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -567,7 +537,6 @@ p80211meta_t MKMIBMETANAME(dot11AuthenticationAlgorithmsTable)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(authalg),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -582,7 +551,6 @@ p80211meta_t MKMIBMETANAME(dot11AuthenticationAlgorithmsTable)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(truth),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -597,7 +565,6 @@ p80211meta_t MKMIBMETANAME(dot11AuthenticationAlgorithmsTable)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(authalg),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -612,7 +579,6 @@ p80211meta_t MKMIBMETANAME(dot11AuthenticationAlgorithmsTable)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(truth),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -627,7 +593,6 @@ p80211meta_t MKMIBMETANAME(dot11AuthenticationAlgorithmsTable)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(authalg),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -642,7 +607,6 @@ p80211meta_t MKMIBMETANAME(dot11AuthenticationAlgorithmsTable)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(truth),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -663,7 +627,6 @@ p80211meta_t MKMIBMETANAME(dot11WEPDefaultKeysTable)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ NULL,
 	/* fromtextptr */ NULL,
 	/* validfunptr */ NULL
@@ -678,7 +641,6 @@ p80211meta_t MKMIBMETANAME(dot11WEPDefaultKeysTable)[] = {
 	/* maxlen      */ 13,
 	/* minlen      */ 5,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_octetstr,
 	/* fromtextptr */ p80211_fromtext_octetstr,
 	/* validfunptr */ p80211_isvalid_octetstr
@@ -693,7 +655,6 @@ p80211meta_t MKMIBMETANAME(dot11WEPDefaultKeysTable)[] = {
 	/* maxlen      */ 13,
 	/* minlen      */ 5,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_octetstr,
 	/* fromtextptr */ p80211_fromtext_octetstr,
 	/* validfunptr */ p80211_isvalid_octetstr
@@ -708,7 +669,6 @@ p80211meta_t MKMIBMETANAME(dot11WEPDefaultKeysTable)[] = {
 	/* maxlen      */ 13,
 	/* minlen      */ 5,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_octetstr,
 	/* fromtextptr */ p80211_fromtext_octetstr,
 	/* validfunptr */ p80211_isvalid_octetstr
@@ -723,7 +683,6 @@ p80211meta_t MKMIBMETANAME(dot11WEPDefaultKeysTable)[] = {
 	/* maxlen      */ 13,
 	/* minlen      */ 5,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_octetstr,
 	/* fromtextptr */ p80211_fromtext_octetstr,
 	/* validfunptr */ p80211_isvalid_octetstr
@@ -744,7 +703,6 @@ p80211meta_t MKMIBMETANAME(dot11WEPKeyMappingsTable)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ NULL,
 	/* fromtextptr */ NULL,
 	/* validfunptr */ NULL
@@ -759,7 +717,6 @@ p80211meta_t MKMIBMETANAME(dot11WEPKeyMappingsTable)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_int,
 	/* fromtextptr */ p80211_fromtext_int,
 	/* validfunptr */ p80211_isvalid_int
@@ -774,7 +731,6 @@ p80211meta_t MKMIBMETANAME(dot11WEPKeyMappingsTable)[] = {
 	/* maxlen      */ 6,
 	/* minlen      */ 6,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_octetstr,
 	/* fromtextptr */ p80211_fromtext_octetstr,
 	/* validfunptr */ p80211_isvalid_octetstr
@@ -789,7 +745,6 @@ p80211meta_t MKMIBMETANAME(dot11WEPKeyMappingsTable)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(truth),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -801,10 +756,9 @@ p80211meta_t MKMIBMETANAME(dot11WEPKeyMappingsTable)[] = {
 	/* flags       */ 0,
 	/* min         */ 0,
 	/* max         */ 0,
-	/* maxlen      */ 5,
+	/* maxlen      */ 13,
 	/* minlen      */ 5,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_octetstr,
 	/* fromtextptr */ p80211_fromtext_octetstr,
 	/* validfunptr */ p80211_isvalid_octetstr
@@ -825,7 +779,6 @@ p80211meta_t MKMIBMETANAME(dot11PrivacyTable)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ NULL,
 	/* fromtextptr */ NULL,
 	/* validfunptr */ NULL
@@ -839,7 +792,6 @@ p80211meta_t MKMIBMETANAME(dot11PrivacyTable)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(truth),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -853,10 +805,9 @@ p80211meta_t MKMIBMETANAME(dot11PrivacyTable)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("dot11WEPKeyMappingLength"),
@@ -867,7 +818,6 @@ p80211meta_t MKMIBMETANAME(dot11PrivacyTable)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_int,
 	/* fromtextptr */ p80211_fromtext_int,
 	/* validfunptr */ p80211_isvalid_int
@@ -881,7 +831,6 @@ p80211meta_t MKMIBMETANAME(dot11PrivacyTable)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(truth),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -895,7 +844,6 @@ p80211meta_t MKMIBMETANAME(dot11PrivacyTable)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_int,
 	/* fromtextptr */ p80211_fromtext_int,
 	/* validfunptr */ p80211_isvalid_int
@@ -909,7 +857,6 @@ p80211meta_t MKMIBMETANAME(dot11PrivacyTable)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_int,
 	/* fromtextptr */ p80211_fromtext_int,
 	/* validfunptr */ p80211_isvalid_int
@@ -966,7 +913,6 @@ p80211meta_t MKMIBMETANAME(dot11OperationTable)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ NULL,
 	/* fromtextptr */ NULL,
 	/* validfunptr */ NULL
@@ -980,7 +926,6 @@ p80211meta_t MKMIBMETANAME(dot11OperationTable)[] = {
 	/* maxlen      */ 6,
 	/* minlen      */ 6,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_octetstr,
 	/* fromtextptr */ p80211_fromtext_octetstr,
 	/* validfunptr */ p80211_isvalid_octetstr
@@ -994,10 +939,9 @@ p80211meta_t MKMIBMETANAME(dot11OperationTable)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* ??????? Read-write in 802.11 but read-only for Prism2! ??????? */
@@ -1009,10 +953,9 @@ p80211meta_t MKMIBMETANAME(dot11OperationTable)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* ??????? Read-write in 802.11 but read-only for Prism2! ??????? */
@@ -1024,10 +967,9 @@ p80211meta_t MKMIBMETANAME(dot11OperationTable)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("dot11FragmentationThreshold"),
@@ -1038,10 +980,9 @@ p80211meta_t MKMIBMETANAME(dot11OperationTable)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* ??????? Read-write in 802.11 but read-only for Prism2! ??????? */
@@ -1053,7 +994,6 @@ p80211meta_t MKMIBMETANAME(dot11OperationTable)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_int,
 	/* fromtextptr */ p80211_fromtext_int,
 	/* validfunptr */ p80211_isvalid_int
@@ -1068,7 +1008,6 @@ p80211meta_t MKMIBMETANAME(dot11OperationTable)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_int,
 	/* fromtextptr */ p80211_fromtext_int,
 	/* validfunptr */ p80211_isvalid_int
@@ -1082,7 +1021,6 @@ p80211meta_t MKMIBMETANAME(dot11OperationTable)[] = {
 	/* maxlen      */ 128,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_displaystr,
 	/* fromtextptr */ p80211_fromtext_displaystr,
 	/* validfunptr */ p80211_isvalid_displaystr
@@ -1096,7 +1034,6 @@ p80211meta_t MKMIBMETANAME(dot11OperationTable)[] = {
 	/* maxlen      */ 128,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_displaystr,
 	/* fromtextptr */ p80211_fromtext_displaystr,
 	/* validfunptr */ p80211_isvalid_displaystr
@@ -1117,7 +1054,6 @@ p80211meta_t MKMIBMETANAME(dot11CountersTable)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ NULL,
 	/* fromtextptr */ NULL,
 	/* validfunptr */ NULL
@@ -1131,7 +1067,6 @@ p80211meta_t MKMIBMETANAME(dot11CountersTable)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_int,
 	/* fromtextptr */ p80211_fromtext_int,
 	/* validfunptr */ p80211_isvalid_int
@@ -1145,7 +1080,6 @@ p80211meta_t MKMIBMETANAME(dot11CountersTable)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_int,
 	/* fromtextptr */ p80211_fromtext_int,
 	/* validfunptr */ p80211_isvalid_int
@@ -1159,7 +1093,6 @@ p80211meta_t MKMIBMETANAME(dot11CountersTable)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_int,
 	/* fromtextptr */ p80211_fromtext_int,
 	/* validfunptr */ p80211_isvalid_int
@@ -1173,7 +1106,6 @@ p80211meta_t MKMIBMETANAME(dot11CountersTable)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_int,
 	/* fromtextptr */ p80211_fromtext_int,
 	/* validfunptr */ p80211_isvalid_int
@@ -1187,7 +1119,6 @@ p80211meta_t MKMIBMETANAME(dot11CountersTable)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_int,
 	/* fromtextptr */ p80211_fromtext_int,
 	/* validfunptr */ p80211_isvalid_int
@@ -1201,7 +1132,6 @@ p80211meta_t MKMIBMETANAME(dot11CountersTable)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_int,
 	/* fromtextptr */ p80211_fromtext_int,
 	/* validfunptr */ p80211_isvalid_int
@@ -1215,7 +1145,6 @@ p80211meta_t MKMIBMETANAME(dot11CountersTable)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_int,
 	/* fromtextptr */ p80211_fromtext_int,
 	/* validfunptr */ p80211_isvalid_int
@@ -1229,7 +1158,6 @@ p80211meta_t MKMIBMETANAME(dot11CountersTable)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_int,
 	/* fromtextptr */ p80211_fromtext_int,
 	/* validfunptr */ p80211_isvalid_int
@@ -1243,7 +1171,6 @@ p80211meta_t MKMIBMETANAME(dot11CountersTable)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_int,
 	/* fromtextptr */ p80211_fromtext_int,
 	/* validfunptr */ p80211_isvalid_int
@@ -1257,7 +1184,6 @@ p80211meta_t MKMIBMETANAME(dot11CountersTable)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_int,
 	/* fromtextptr */ p80211_fromtext_int,
 	/* validfunptr */ p80211_isvalid_int
@@ -1271,7 +1197,6 @@ p80211meta_t MKMIBMETANAME(dot11CountersTable)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_int,
 	/* fromtextptr */ p80211_fromtext_int,
 	/* validfunptr */ p80211_isvalid_int
@@ -1285,7 +1210,6 @@ p80211meta_t MKMIBMETANAME(dot11CountersTable)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_int,
 	/* fromtextptr */ p80211_fromtext_int,
 	/* validfunptr */ p80211_isvalid_int
@@ -1299,7 +1223,6 @@ p80211meta_t MKMIBMETANAME(dot11CountersTable)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_int,
 	/* fromtextptr */ p80211_fromtext_int,
 	/* validfunptr */ p80211_isvalid_int
@@ -1313,7 +1236,6 @@ p80211meta_t MKMIBMETANAME(dot11CountersTable)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_int,
 	/* fromtextptr */ p80211_fromtext_int,
 	/* validfunptr */ p80211_isvalid_int
@@ -1334,7 +1256,6 @@ p80211meta_t MKMIBMETANAME(dot11GroupAddressesTable)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ NULL,
 	/* fromtextptr */ NULL,
 	/* validfunptr */ NULL
@@ -1349,7 +1270,6 @@ p80211meta_t MKMIBMETANAME(dot11GroupAddressesTable)[] = {
 	/* maxlen      */ 6,
 	/* minlen      */ 6,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_octetstr,
 	/* fromtextptr */ p80211_fromtext_octetstr,
 	/* validfunptr */ p80211_isvalid_octetstr
@@ -1364,7 +1284,6 @@ p80211meta_t MKMIBMETANAME(dot11GroupAddressesTable)[] = {
 	/* maxlen      */ 6,
 	/* minlen      */ 6,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_octetstr,
 	/* fromtextptr */ p80211_fromtext_octetstr,
 	/* validfunptr */ p80211_isvalid_octetstr
@@ -1379,7 +1298,6 @@ p80211meta_t MKMIBMETANAME(dot11GroupAddressesTable)[] = {
 	/* maxlen      */ 6,
 	/* minlen      */ 6,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_octetstr,
 	/* fromtextptr */ p80211_fromtext_octetstr,
 	/* validfunptr */ p80211_isvalid_octetstr
@@ -1394,7 +1312,6 @@ p80211meta_t MKMIBMETANAME(dot11GroupAddressesTable)[] = {
 	/* maxlen      */ 6,
 	/* minlen      */ 6,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_octetstr,
 	/* fromtextptr */ p80211_fromtext_octetstr,
 	/* validfunptr */ p80211_isvalid_octetstr
@@ -1409,7 +1326,6 @@ p80211meta_t MKMIBMETANAME(dot11GroupAddressesTable)[] = {
 	/* maxlen      */ 6,
 	/* minlen      */ 6,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_octetstr,
 	/* fromtextptr */ p80211_fromtext_octetstr,
 	/* validfunptr */ p80211_isvalid_octetstr
@@ -1424,7 +1340,6 @@ p80211meta_t MKMIBMETANAME(dot11GroupAddressesTable)[] = {
 	/* maxlen      */ 6,
 	/* minlen      */ 6,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_octetstr,
 	/* fromtextptr */ p80211_fromtext_octetstr,
 	/* validfunptr */ p80211_isvalid_octetstr
@@ -1439,7 +1354,6 @@ p80211meta_t MKMIBMETANAME(dot11GroupAddressesTable)[] = {
 	/* maxlen      */ 6,
 	/* minlen      */ 6,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_octetstr,
 	/* fromtextptr */ p80211_fromtext_octetstr,
 	/* validfunptr */ p80211_isvalid_octetstr
@@ -1454,7 +1368,6 @@ p80211meta_t MKMIBMETANAME(dot11GroupAddressesTable)[] = {
 	/* maxlen      */ 6,
 	/* minlen      */ 6,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_octetstr,
 	/* fromtextptr */ p80211_fromtext_octetstr,
 	/* validfunptr */ p80211_isvalid_octetstr
@@ -1469,7 +1382,6 @@ p80211meta_t MKMIBMETANAME(dot11GroupAddressesTable)[] = {
 	/* maxlen      */ 6,
 	/* minlen      */ 6,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_octetstr,
 	/* fromtextptr */ p80211_fromtext_octetstr,
 	/* validfunptr */ p80211_isvalid_octetstr
@@ -1484,7 +1396,6 @@ p80211meta_t MKMIBMETANAME(dot11GroupAddressesTable)[] = {
 	/* maxlen      */ 6,
 	/* minlen      */ 6,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_octetstr,
 	/* fromtextptr */ p80211_fromtext_octetstr,
 	/* validfunptr */ p80211_isvalid_octetstr
@@ -1499,7 +1410,6 @@ p80211meta_t MKMIBMETANAME(dot11GroupAddressesTable)[] = {
 	/* maxlen      */ 6,
 	/* minlen      */ 6,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_octetstr,
 	/* fromtextptr */ p80211_fromtext_octetstr,
 	/* validfunptr */ p80211_isvalid_octetstr
@@ -1514,7 +1424,6 @@ p80211meta_t MKMIBMETANAME(dot11GroupAddressesTable)[] = {
 	/* maxlen      */ 6,
 	/* minlen      */ 6,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_octetstr,
 	/* fromtextptr */ p80211_fromtext_octetstr,
 	/* validfunptr */ p80211_isvalid_octetstr
@@ -1529,7 +1438,6 @@ p80211meta_t MKMIBMETANAME(dot11GroupAddressesTable)[] = {
 	/* maxlen      */ 6,
 	/* minlen      */ 6,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_octetstr,
 	/* fromtextptr */ p80211_fromtext_octetstr,
 	/* validfunptr */ p80211_isvalid_octetstr
@@ -1544,7 +1452,6 @@ p80211meta_t MKMIBMETANAME(dot11GroupAddressesTable)[] = {
 	/* maxlen      */ 6,
 	/* minlen      */ 6,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_octetstr,
 	/* fromtextptr */ p80211_fromtext_octetstr,
 	/* validfunptr */ p80211_isvalid_octetstr
@@ -1559,7 +1466,6 @@ p80211meta_t MKMIBMETANAME(dot11GroupAddressesTable)[] = {
 	/* maxlen      */ 6,
 	/* minlen      */ 6,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_octetstr,
 	/* fromtextptr */ p80211_fromtext_octetstr,
 	/* validfunptr */ p80211_isvalid_octetstr
@@ -1574,7 +1480,6 @@ p80211meta_t MKMIBMETANAME(dot11GroupAddressesTable)[] = {
 	/* maxlen      */ 6,
 	/* minlen      */ 6,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_octetstr,
 	/* fromtextptr */ p80211_fromtext_octetstr,
 	/* validfunptr */ p80211_isvalid_octetstr
@@ -1589,7 +1494,6 @@ p80211meta_t MKMIBMETANAME(dot11GroupAddressesTable)[] = {
 	/* maxlen      */ 6,
 	/* minlen      */ 6,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_octetstr,
 	/* fromtextptr */ p80211_fromtext_octetstr,
 	/* validfunptr */ p80211_isvalid_octetstr
@@ -1604,7 +1508,6 @@ p80211meta_t MKMIBMETANAME(dot11GroupAddressesTable)[] = {
 	/* maxlen      */ 6,
 	/* minlen      */ 6,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_octetstr,
 	/* fromtextptr */ p80211_fromtext_octetstr,
 	/* validfunptr */ p80211_isvalid_octetstr
@@ -1619,7 +1522,6 @@ p80211meta_t MKMIBMETANAME(dot11GroupAddressesTable)[] = {
 	/* maxlen      */ 6,
 	/* minlen      */ 6,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_octetstr,
 	/* fromtextptr */ p80211_fromtext_octetstr,
 	/* validfunptr */ p80211_isvalid_octetstr
@@ -1634,7 +1536,6 @@ p80211meta_t MKMIBMETANAME(dot11GroupAddressesTable)[] = {
 	/* maxlen      */ 6,
 	/* minlen      */ 6,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_octetstr,
 	/* fromtextptr */ p80211_fromtext_octetstr,
 	/* validfunptr */ p80211_isvalid_octetstr
@@ -1649,7 +1550,6 @@ p80211meta_t MKMIBMETANAME(dot11GroupAddressesTable)[] = {
 	/* maxlen      */ 6,
 	/* minlen      */ 6,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_octetstr,
 	/* fromtextptr */ p80211_fromtext_octetstr,
 	/* validfunptr */ p80211_isvalid_octetstr
@@ -1664,7 +1564,6 @@ p80211meta_t MKMIBMETANAME(dot11GroupAddressesTable)[] = {
 	/* maxlen      */ 6,
 	/* minlen      */ 6,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_octetstr,
 	/* fromtextptr */ p80211_fromtext_octetstr,
 	/* validfunptr */ p80211_isvalid_octetstr
@@ -1679,7 +1578,6 @@ p80211meta_t MKMIBMETANAME(dot11GroupAddressesTable)[] = {
 	/* maxlen      */ 6,
 	/* minlen      */ 6,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_octetstr,
 	/* fromtextptr */ p80211_fromtext_octetstr,
 	/* validfunptr */ p80211_isvalid_octetstr
@@ -1694,7 +1592,6 @@ p80211meta_t MKMIBMETANAME(dot11GroupAddressesTable)[] = {
 	/* maxlen      */ 6,
 	/* minlen      */ 6,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_octetstr,
 	/* fromtextptr */ p80211_fromtext_octetstr,
 	/* validfunptr */ p80211_isvalid_octetstr
@@ -1709,7 +1606,6 @@ p80211meta_t MKMIBMETANAME(dot11GroupAddressesTable)[] = {
 	/* maxlen      */ 6,
 	/* minlen      */ 6,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_octetstr,
 	/* fromtextptr */ p80211_fromtext_octetstr,
 	/* validfunptr */ p80211_isvalid_octetstr
@@ -1724,7 +1620,6 @@ p80211meta_t MKMIBMETANAME(dot11GroupAddressesTable)[] = {
 	/* maxlen      */ 6,
 	/* minlen      */ 6,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_octetstr,
 	/* fromtextptr */ p80211_fromtext_octetstr,
 	/* validfunptr */ p80211_isvalid_octetstr
@@ -1739,7 +1634,6 @@ p80211meta_t MKMIBMETANAME(dot11GroupAddressesTable)[] = {
 	/* maxlen      */ 6,
 	/* minlen      */ 6,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_octetstr,
 	/* fromtextptr */ p80211_fromtext_octetstr,
 	/* validfunptr */ p80211_isvalid_octetstr
@@ -1754,7 +1648,6 @@ p80211meta_t MKMIBMETANAME(dot11GroupAddressesTable)[] = {
 	/* maxlen      */ 6,
 	/* minlen      */ 6,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_octetstr,
 	/* fromtextptr */ p80211_fromtext_octetstr,
 	/* validfunptr */ p80211_isvalid_octetstr
@@ -1769,7 +1662,6 @@ p80211meta_t MKMIBMETANAME(dot11GroupAddressesTable)[] = {
 	/* maxlen      */ 6,
 	/* minlen      */ 6,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_octetstr,
 	/* fromtextptr */ p80211_fromtext_octetstr,
 	/* validfunptr */ p80211_isvalid_octetstr
@@ -1784,7 +1676,6 @@ p80211meta_t MKMIBMETANAME(dot11GroupAddressesTable)[] = {
 	/* maxlen      */ 6,
 	/* minlen      */ 6,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_octetstr,
 	/* fromtextptr */ p80211_fromtext_octetstr,
 	/* validfunptr */ p80211_isvalid_octetstr
@@ -1799,7 +1690,6 @@ p80211meta_t MKMIBMETANAME(dot11GroupAddressesTable)[] = {
 	/* maxlen      */ 6,
 	/* minlen      */ 6,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_octetstr,
 	/* fromtextptr */ p80211_fromtext_octetstr,
 	/* validfunptr */ p80211_isvalid_octetstr
@@ -1814,7 +1704,6 @@ p80211meta_t MKMIBMETANAME(dot11GroupAddressesTable)[] = {
 	/* maxlen      */ 6,
 	/* minlen      */ 6,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_octetstr,
 	/* fromtextptr */ p80211_fromtext_octetstr,
 	/* validfunptr */ p80211_isvalid_octetstr
@@ -1859,7 +1748,6 @@ p80211meta_t MKMIBMETANAME(dot11PhyOperationTable)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ NULL,
 	/* fromtextptr */ NULL,
 	/* validfunptr */ NULL
@@ -1873,7 +1761,6 @@ p80211meta_t MKMIBMETANAME(dot11PhyOperationTable)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(phytype),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -1887,7 +1774,6 @@ p80211meta_t MKMIBMETANAME(dot11PhyOperationTable)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(regdomain),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -1901,7 +1787,6 @@ p80211meta_t MKMIBMETANAME(dot11PhyOperationTable)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(temptype),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -1915,7 +1800,6 @@ p80211meta_t MKMIBMETANAME(dot11PhyOperationTable)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(truth),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -1929,7 +1813,6 @@ p80211meta_t MKMIBMETANAME(dot11PhyOperationTable)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(truth),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -1943,7 +1826,6 @@ p80211meta_t MKMIBMETANAME(dot11PhyOperationTable)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(truth),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -1964,7 +1846,6 @@ p80211meta_t MKMIBMETANAME(dot11PhyAntennaTable)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ NULL,
 	/* fromtextptr */ NULL,
 	/* validfunptr */ NULL
@@ -1978,10 +1859,9 @@ p80211meta_t MKMIBMETANAME(dot11PhyAntennaTable)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("dot11DiversitySupport"),
@@ -1992,7 +1872,6 @@ p80211meta_t MKMIBMETANAME(dot11PhyAntennaTable)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(diversity),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -2006,10 +1885,9 @@ p80211meta_t MKMIBMETANAME(dot11PhyAntennaTable)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 }
 	};
 
@@ -2027,7 +1905,6 @@ p80211meta_t MKMIBMETANAME(dot11PhyTxPowerTable)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ NULL,
 	/* fromtextptr */ NULL,
 	/* validfunptr */ NULL
@@ -2041,10 +1918,9 @@ p80211meta_t MKMIBMETANAME(dot11PhyTxPowerTable)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("dot11TxPowerLevel1"),
@@ -2055,10 +1931,9 @@ p80211meta_t MKMIBMETANAME(dot11PhyTxPowerTable)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("dot11TxPowerLevel2"),
@@ -2069,10 +1944,9 @@ p80211meta_t MKMIBMETANAME(dot11PhyTxPowerTable)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("dot11TxPowerLevel3"),
@@ -2083,10 +1957,9 @@ p80211meta_t MKMIBMETANAME(dot11PhyTxPowerTable)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("dot11TxPowerLevel4"),
@@ -2097,10 +1970,9 @@ p80211meta_t MKMIBMETANAME(dot11PhyTxPowerTable)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("dot11TxPowerLevel5"),
@@ -2111,10 +1983,9 @@ p80211meta_t MKMIBMETANAME(dot11PhyTxPowerTable)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("dot11TxPowerLevel6"),
@@ -2125,10 +1996,9 @@ p80211meta_t MKMIBMETANAME(dot11PhyTxPowerTable)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("dot11TxPowerLevel7"),
@@ -2139,10 +2009,9 @@ p80211meta_t MKMIBMETANAME(dot11PhyTxPowerTable)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("dot11TxPowerLevel8"),
@@ -2153,10 +2022,9 @@ p80211meta_t MKMIBMETANAME(dot11PhyTxPowerTable)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("dot11CurrentTxPowerLevel"),
@@ -2167,10 +2035,9 @@ p80211meta_t MKMIBMETANAME(dot11PhyTxPowerTable)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 }
 	};
 
@@ -2188,7 +2055,6 @@ p80211meta_t MKMIBMETANAME(dot11PhyFHSSTable)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ NULL,
 	/* fromtextptr */ NULL,
 	/* validfunptr */ NULL
@@ -2202,7 +2068,6 @@ p80211meta_t MKMIBMETANAME(dot11PhyFHSSTable)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_int,
 	/* fromtextptr */ p80211_fromtext_int,
 	/* validfunptr */ p80211_isvalid_int
@@ -2216,10 +2081,9 @@ p80211meta_t MKMIBMETANAME(dot11PhyFHSSTable)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("dot11MaxDwellTime"),
@@ -2230,10 +2094,9 @@ p80211meta_t MKMIBMETANAME(dot11PhyFHSSTable)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("dot11CurrentDwellTime"),
@@ -2244,10 +2107,9 @@ p80211meta_t MKMIBMETANAME(dot11PhyFHSSTable)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("dot11CurrentSet"),
@@ -2258,10 +2120,9 @@ p80211meta_t MKMIBMETANAME(dot11PhyFHSSTable)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("dot11CurrentPattern"),
@@ -2272,10 +2133,9 @@ p80211meta_t MKMIBMETANAME(dot11PhyFHSSTable)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("dot11CurrentIndex"),
@@ -2286,10 +2146,9 @@ p80211meta_t MKMIBMETANAME(dot11PhyFHSSTable)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 }
 	};
 
@@ -2307,7 +2166,6 @@ p80211meta_t MKMIBMETANAME(dot11PhyDSSSTable)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ NULL,
 	/* fromtextptr */ NULL,
 	/* validfunptr */ NULL
@@ -2322,10 +2180,9 @@ p80211meta_t MKMIBMETANAME(dot11PhyDSSSTable)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("dot11CCAModeSupported"),
@@ -2336,7 +2193,6 @@ p80211meta_t MKMIBMETANAME(dot11PhyDSSSTable)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_int,
 	/* fromtextptr */ p80211_fromtext_int,
 	/* validfunptr */ p80211_isvalid_int
@@ -2351,7 +2207,6 @@ p80211meta_t MKMIBMETANAME(dot11PhyDSSSTable)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(ccamode),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -2365,7 +2220,6 @@ p80211meta_t MKMIBMETANAME(dot11PhyDSSSTable)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_int,
 	/* fromtextptr */ p80211_fromtext_int,
 	/* validfunptr */ p80211_isvalid_int
@@ -2379,7 +2233,6 @@ p80211meta_t MKMIBMETANAME(dot11PhyDSSSTable)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(truth),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -2393,7 +2246,6 @@ p80211meta_t MKMIBMETANAME(dot11PhyDSSSTable)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(truth),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -2414,7 +2266,6 @@ p80211meta_t MKMIBMETANAME(dot11PhyIRTable)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ NULL,
 	/* fromtextptr */ NULL,
 	/* validfunptr */ NULL
@@ -2428,7 +2279,6 @@ p80211meta_t MKMIBMETANAME(dot11PhyIRTable)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_int,
 	/* fromtextptr */ p80211_fromtext_int,
 	/* validfunptr */ p80211_isvalid_int
@@ -2442,7 +2292,6 @@ p80211meta_t MKMIBMETANAME(dot11PhyIRTable)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_int,
 	/* fromtextptr */ p80211_fromtext_int,
 	/* validfunptr */ p80211_isvalid_int
@@ -2456,7 +2305,6 @@ p80211meta_t MKMIBMETANAME(dot11PhyIRTable)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_int,
 	/* fromtextptr */ p80211_fromtext_int,
 	/* validfunptr */ p80211_isvalid_int
@@ -2470,7 +2318,6 @@ p80211meta_t MKMIBMETANAME(dot11PhyIRTable)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_int,
 	/* fromtextptr */ p80211_fromtext_int,
 	/* validfunptr */ p80211_isvalid_int
@@ -2491,7 +2338,6 @@ p80211meta_t MKMIBMETANAME(dot11RegDomainsSupportedTable)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ NULL,
 	/* fromtextptr */ NULL,
 	/* validfunptr */ NULL
@@ -2506,10 +2352,9 @@ p80211meta_t MKMIBMETANAME(dot11RegDomainsSupportedTable)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("dot11RegDomainsSupportValue"),
@@ -2521,7 +2366,6 @@ p80211meta_t MKMIBMETANAME(dot11RegDomainsSupportedTable)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(regdomain),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -2542,7 +2386,6 @@ p80211meta_t MKMIBMETANAME(dot11AntennasListTable)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ NULL,
 	/* fromtextptr */ NULL,
 	/* validfunptr */ NULL
@@ -2557,10 +2400,9 @@ p80211meta_t MKMIBMETANAME(dot11AntennasListTable)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("dot11SupportedTxAntenna"),
@@ -2572,7 +2414,6 @@ p80211meta_t MKMIBMETANAME(dot11AntennasListTable)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(truth),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -2587,7 +2428,6 @@ p80211meta_t MKMIBMETANAME(dot11AntennasListTable)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(truth),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -2602,7 +2442,6 @@ p80211meta_t MKMIBMETANAME(dot11AntennasListTable)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(truth),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -2623,7 +2462,6 @@ p80211meta_t MKMIBMETANAME(dot11SupportedDataRatesTxTable)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ NULL,
 	/* fromtextptr */ NULL,
 	/* validfunptr */ NULL
@@ -2638,10 +2476,9 @@ p80211meta_t MKMIBMETANAME(dot11SupportedDataRatesTxTable)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("dot11SupportedDataRatesTxValue"),
@@ -2653,10 +2490,9 @@ p80211meta_t MKMIBMETANAME(dot11SupportedDataRatesTxTable)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 }
 	};
 
@@ -2674,7 +2510,6 @@ p80211meta_t MKMIBMETANAME(dot11SupportedDataRatesRxTable)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ NULL,
 	/* fromtextptr */ NULL,
 	/* validfunptr */ NULL
@@ -2689,10 +2524,9 @@ p80211meta_t MKMIBMETANAME(dot11SupportedDataRatesRxTable)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("dot11SupportedDataRatesRxValue"),
@@ -2704,10 +2538,9 @@ p80211meta_t MKMIBMETANAME(dot11SupportedDataRatesRxTable)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 }
 	};
 
@@ -2778,7 +2611,6 @@ p80211meta_t MKMIBMETANAME(p2Table)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ NULL,
 	/* fromtextptr */ NULL,
 	/* validfunptr */ NULL
@@ -2792,7 +2624,6 @@ p80211meta_t MKMIBMETANAME(p2Table)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(truth),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -2807,7 +2638,6 @@ p80211meta_t MKMIBMETANAME(p2Table)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(truth),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -2821,7 +2651,6 @@ p80211meta_t MKMIBMETANAME(p2Table)[] = {
 	/* maxlen      */ 31,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_intarray,
 	/* fromtextptr */ p80211_fromtext_intarray,
 	/* validfunptr */ p80211_isvalid_intarray
@@ -2835,24 +2664,9 @@ p80211meta_t MKMIBMETANAME(p2Table)[] = {
 	/* maxlen      */ 21,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_intarray,
 	/* fromtextptr */ p80211_fromtext_intarray,
 	/* validfunptr */ p80211_isvalid_intarray
-},
-{
-	/* name        */ MKITEMNAME("p2State"),
-	/* did         */ P80211DID_ACCESS_READ,
-	/* flags       */ 0,
-	/* min         */ 0,
-	/* max         */ 1,
-	/* maxlen      */ 0,
-	/* minlen      */ 0,
-	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
 },
 {
 	/* name        */ MKITEMNAME("p2Authenticated"),
@@ -2863,7 +2677,6 @@ p80211meta_t MKMIBMETANAME(p2Table)[] = {
 	/* maxlen      */ 60,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_macarray,
 	/* fromtextptr */ p80211_fromtext_macarray,
 	/* validfunptr */ p80211_isvalid_macarray
@@ -2877,7 +2690,6 @@ p80211meta_t MKMIBMETANAME(p2Table)[] = {
 	/* maxlen      */ 60,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_macarray,
 	/* fromtextptr */ p80211_fromtext_macarray,
 	/* validfunptr */ p80211_isvalid_macarray
@@ -2891,7 +2703,6 @@ p80211meta_t MKMIBMETANAME(p2Table)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_int,
 	/* fromtextptr */ p80211_fromtext_int,
 	/* validfunptr */ p80211_isvalid_int
@@ -2905,7 +2716,6 @@ p80211meta_t MKMIBMETANAME(p2Table)[] = {
 	/* maxlen      */ 80,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_displaystr,
 	/* fromtextptr */ p80211_fromtext_displaystr,
 	/* validfunptr */ p80211_isvalid_displaystr
@@ -2919,10 +2729,9 @@ p80211meta_t MKMIBMETANAME(p2Table)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("p2AccessAllow"),
@@ -2933,7 +2742,6 @@ p80211meta_t MKMIBMETANAME(p2Table)[] = {
 	/* maxlen      */ 60,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_macarray,
 	/* fromtextptr */ p80211_fromtext_macarray,
 	/* validfunptr */ p80211_isvalid_macarray
@@ -2947,24 +2755,9 @@ p80211meta_t MKMIBMETANAME(p2Table)[] = {
 	/* maxlen      */ 60,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_macarray,
 	/* fromtextptr */ p80211_fromtext_macarray,
 	/* validfunptr */ p80211_isvalid_macarray
-},
-{
-	/* name        */ MKITEMNAME("p2LogEvents"),
-	/* did         */ P80211DID_ACCESS_READ | P80211DID_ACCESS_WRITE,
-	/* flags       */ 0,
-	/* min         */ 0,
-	/* max         */ 0,
-	/* maxlen      */ 0,
-	/* minlen      */ 0,
-	/* enumptr     */ &MKENUMNAME(truth),
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_enumint,
-	/* fromtextptr */ p80211_fromtext_enumint,
-	/* validfunptr */ p80211_isvalid_enumint
 },
 {
 	/* name        */ MKITEMNAME("p2ChannelInfoResults"),
@@ -2975,7 +2768,6 @@ p80211meta_t MKMIBMETANAME(p2Table)[] = {
 	/* maxlen      */ 70,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_intarray,
 	/* fromtextptr */ p80211_fromtext_intarray,
 	/* validfunptr */ p80211_isvalid_intarray
@@ -2997,7 +2789,6 @@ p80211meta_t MKMIBMETANAME(p2Static)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ NULL,
 	/* fromtextptr */ NULL,
 	/* validfunptr */ NULL
@@ -3011,10 +2802,9 @@ p80211meta_t MKMIBMETANAME(p2Static)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("p2CnfOwnMACAddress"),
@@ -3025,7 +2815,6 @@ p80211meta_t MKMIBMETANAME(p2Static)[] = {
 	/* maxlen      */ 6,
 	/* minlen      */ 6,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_octetstr,
 	/* fromtextptr */ p80211_fromtext_octetstr,
 	/* validfunptr */ p80211_isvalid_octetstr
@@ -3039,7 +2828,6 @@ p80211meta_t MKMIBMETANAME(p2Static)[] = {
 	/* maxlen      */ 32,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_displaystr,
 	/* fromtextptr */ p80211_fromtext_displaystr,
 	/* validfunptr */ p80211_isvalid_displaystr
@@ -3053,10 +2841,9 @@ p80211meta_t MKMIBMETANAME(p2Static)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("p2CnfOwnSSID"),
@@ -3067,7 +2854,6 @@ p80211meta_t MKMIBMETANAME(p2Static)[] = {
 	/* maxlen      */ 32,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_displaystr,
 	/* fromtextptr */ p80211_fromtext_displaystr,
 	/* validfunptr */ p80211_isvalid_displaystr
@@ -3081,10 +2867,9 @@ p80211meta_t MKMIBMETANAME(p2Static)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("p2CnfSystemScale"),
@@ -3095,10 +2880,9 @@ p80211meta_t MKMIBMETANAME(p2Static)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("p2CnfMaxDataLength"),
@@ -3109,10 +2893,9 @@ p80211meta_t MKMIBMETANAME(p2Static)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("p2CnfWDSAddress"),
@@ -3123,7 +2906,6 @@ p80211meta_t MKMIBMETANAME(p2Static)[] = {
 	/* maxlen      */ 6,
 	/* minlen      */ 6,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_octetstr,
 	/* fromtextptr */ p80211_fromtext_octetstr,
 	/* validfunptr */ p80211_isvalid_octetstr
@@ -3137,7 +2919,6 @@ p80211meta_t MKMIBMETANAME(p2Static)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(truth),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -3151,7 +2932,6 @@ p80211meta_t MKMIBMETANAME(p2Static)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(truth),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -3165,7 +2945,6 @@ p80211meta_t MKMIBMETANAME(p2Static)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(truth),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -3179,10 +2958,9 @@ p80211meta_t MKMIBMETANAME(p2Static)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("p2CnfPMHoldoverDuration"),
@@ -3193,10 +2971,9 @@ p80211meta_t MKMIBMETANAME(p2Static)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("p2CnfOwnName"),
@@ -3207,7 +2984,6 @@ p80211meta_t MKMIBMETANAME(p2Static)[] = {
 	/* maxlen      */ 32,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_displaystr,
 	/* fromtextptr */ p80211_fromtext_displaystr,
 	/* validfunptr */ p80211_isvalid_displaystr
@@ -3221,10 +2997,9 @@ p80211meta_t MKMIBMETANAME(p2Static)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("p2CnfWDSAddress1"),
@@ -3235,7 +3010,6 @@ p80211meta_t MKMIBMETANAME(p2Static)[] = {
 	/* maxlen      */ 6,
 	/* minlen      */ 6,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_octetstr,
 	/* fromtextptr */ p80211_fromtext_octetstr,
 	/* validfunptr */ p80211_isvalid_octetstr
@@ -3249,7 +3023,6 @@ p80211meta_t MKMIBMETANAME(p2Static)[] = {
 	/* maxlen      */ 6,
 	/* minlen      */ 6,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_octetstr,
 	/* fromtextptr */ p80211_fromtext_octetstr,
 	/* validfunptr */ p80211_isvalid_octetstr
@@ -3263,7 +3036,6 @@ p80211meta_t MKMIBMETANAME(p2Static)[] = {
 	/* maxlen      */ 6,
 	/* minlen      */ 6,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_octetstr,
 	/* fromtextptr */ p80211_fromtext_octetstr,
 	/* validfunptr */ p80211_isvalid_octetstr
@@ -3277,7 +3049,6 @@ p80211meta_t MKMIBMETANAME(p2Static)[] = {
 	/* maxlen      */ 6,
 	/* minlen      */ 6,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_octetstr,
 	/* fromtextptr */ p80211_fromtext_octetstr,
 	/* validfunptr */ p80211_isvalid_octetstr
@@ -3291,7 +3062,6 @@ p80211meta_t MKMIBMETANAME(p2Static)[] = {
 	/* maxlen      */ 6,
 	/* minlen      */ 6,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_octetstr,
 	/* fromtextptr */ p80211_fromtext_octetstr,
 	/* validfunptr */ p80211_isvalid_octetstr
@@ -3305,7 +3075,6 @@ p80211meta_t MKMIBMETANAME(p2Static)[] = {
 	/* maxlen      */ 6,
 	/* minlen      */ 6,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_octetstr,
 	/* fromtextptr */ p80211_fromtext_octetstr,
 	/* validfunptr */ p80211_isvalid_octetstr
@@ -3319,7 +3088,6 @@ p80211meta_t MKMIBMETANAME(p2Static)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(truth),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -3333,10 +3101,9 @@ p80211meta_t MKMIBMETANAME(p2Static)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("p2CnfWEPDefaultKey0"),
@@ -3347,7 +3114,6 @@ p80211meta_t MKMIBMETANAME(p2Static)[] = {
 	/* maxlen      */ 13,
 	/* minlen      */ 5,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_octetstr,
 	/* fromtextptr */ p80211_fromtext_octetstr,
 	/* validfunptr */ p80211_isvalid_octetstr
@@ -3361,7 +3127,6 @@ p80211meta_t MKMIBMETANAME(p2Static)[] = {
 	/* maxlen      */ 13,
 	/* minlen      */ 5,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_octetstr,
 	/* fromtextptr */ p80211_fromtext_octetstr,
 	/* validfunptr */ p80211_isvalid_octetstr
@@ -3375,7 +3140,6 @@ p80211meta_t MKMIBMETANAME(p2Static)[] = {
 	/* maxlen      */ 13,
 	/* minlen      */ 5,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_octetstr,
 	/* fromtextptr */ p80211_fromtext_octetstr,
 	/* validfunptr */ p80211_isvalid_octetstr
@@ -3389,7 +3153,6 @@ p80211meta_t MKMIBMETANAME(p2Static)[] = {
 	/* maxlen      */ 13,
 	/* minlen      */ 5,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_octetstr,
 	/* fromtextptr */ p80211_fromtext_octetstr,
 	/* validfunptr */ p80211_isvalid_octetstr
@@ -3403,7 +3166,6 @@ p80211meta_t MKMIBMETANAME(p2Static)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_bitarray,
 	/* fromtextptr */ p80211_fromtext_bitarray,
 },
@@ -3416,7 +3178,6 @@ p80211meta_t MKMIBMETANAME(p2Static)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_bitarray,
 	/* fromtextptr */ p80211_fromtext_bitarray,
 	/* validfunptr */ p80211_isvalid_bitarray
@@ -3430,10 +3191,9 @@ p80211meta_t MKMIBMETANAME(p2Static)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("p2CnfTxControl"),
@@ -3444,10 +3204,9 @@ p80211meta_t MKMIBMETANAME(p2Static)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("p2CnfRoamingMode"),
@@ -3458,10 +3217,9 @@ p80211meta_t MKMIBMETANAME(p2Static)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("p2CnfHostAuthentication"),
@@ -3472,7 +3230,6 @@ p80211meta_t MKMIBMETANAME(p2Static)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(truth),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -3486,7 +3243,6 @@ p80211meta_t MKMIBMETANAME(p2Static)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_bitarray,
 	/* fromtextptr */ p80211_fromtext_bitarray,
 	/* validfunptr */ p80211_isvalid_bitarray
@@ -3500,10 +3256,9 @@ p80211meta_t MKMIBMETANAME(p2Static)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("p2CnfBeaconInterval"),
@@ -3514,7 +3269,6 @@ p80211meta_t MKMIBMETANAME(p2Static)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_int,
 	/* fromtextptr */ p80211_fromtext_int,
 	/* validfunptr */ p80211_isvalid_int
@@ -3529,10 +3283,9 @@ p80211meta_t MKMIBMETANAME(p2Static)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* ??????? Appears to be not supported by Prism2! ??????? */
@@ -3544,7 +3297,6 @@ p80211meta_t MKMIBMETANAME(p2Static)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_int,
 	/* fromtextptr */ p80211_fromtext_int,
 	/* validfunptr */ p80211_isvalid_int
@@ -3559,7 +3311,6 @@ p80211meta_t MKMIBMETANAME(p2Static)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_int,
 	/* fromtextptr */ p80211_fromtext_int,
 	/* validfunptr */ p80211_isvalid_int
@@ -3574,7 +3325,6 @@ p80211meta_t MKMIBMETANAME(p2Static)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_bitarray,
 	/* fromtextptr */ p80211_fromtext_bitarray,
 	/* validfunptr */ p80211_isvalid_bitarray
@@ -3588,10 +3338,9 @@ p80211meta_t MKMIBMETANAME(p2Static)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* ??????? Appears to be not supported by Prism2! ??????? */
@@ -3603,7 +3352,6 @@ p80211meta_t MKMIBMETANAME(p2Static)[] = {
 	/* maxlen      */ 2,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_intarray,
 	/* fromtextptr */ p80211_fromtext_intarray,
 	/* validfunptr */ p80211_isvalid_intarray
@@ -3618,7 +3366,6 @@ p80211meta_t MKMIBMETANAME(p2Static)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_int,
 	/* fromtextptr */ p80211_fromtext_int,
 	/* validfunptr */ p80211_isvalid_int
@@ -3633,7 +3380,6 @@ p80211meta_t MKMIBMETANAME(p2Static)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(truth),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -3647,7 +3393,6 @@ p80211meta_t MKMIBMETANAME(p2Static)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_bitarray,
 	/* fromtextptr */ p80211_fromtext_bitarray,
 	/* validfunptr */ p80211_isvalid_bitarray
@@ -3661,7 +3406,6 @@ p80211meta_t MKMIBMETANAME(p2Static)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(p2preamble),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -3676,7 +3420,6 @@ p80211meta_t MKMIBMETANAME(p2Static)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(truth),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -3690,10 +3433,9 @@ p80211meta_t MKMIBMETANAME(p2Static)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("p2CnfBasicRates"),
@@ -3704,7 +3446,6 @@ p80211meta_t MKMIBMETANAME(p2Static)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_bitarray,
 	/* fromtextptr */ p80211_fromtext_bitarray,
 	/* validfunptr */ p80211_isvalid_bitarray
@@ -3718,7 +3459,6 @@ p80211meta_t MKMIBMETANAME(p2Static)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_bitarray,
 	/* fromtextptr */ p80211_fromtext_bitarray,
 	/* validfunptr */ p80211_isvalid_bitarray
@@ -3740,7 +3480,6 @@ p80211meta_t MKMIBMETANAME(p2Dynamic)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ NULL,
 	/* fromtextptr */ NULL,
 	/* validfunptr */ NULL
@@ -3754,7 +3493,6 @@ p80211meta_t MKMIBMETANAME(p2Dynamic)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(truth),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -3768,10 +3506,9 @@ p80211meta_t MKMIBMETANAME(p2Dynamic)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("p2RTSThreshold"),
@@ -3782,10 +3519,9 @@ p80211meta_t MKMIBMETANAME(p2Dynamic)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("p2TxRateControl"),
@@ -3796,7 +3532,6 @@ p80211meta_t MKMIBMETANAME(p2Dynamic)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_bitarray,
 	/* fromtextptr */ p80211_fromtext_bitarray,
 	/* validfunptr */ p80211_isvalid_bitarray
@@ -3810,7 +3545,6 @@ p80211meta_t MKMIBMETANAME(p2Dynamic)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ &MKENUMNAME(truth),
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_enumint,
 	/* fromtextptr */ p80211_fromtext_enumint,
 	/* validfunptr */ p80211_isvalid_enumint
@@ -3824,10 +3558,9 @@ p80211meta_t MKMIBMETANAME(p2Dynamic)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("p2FragmentationThreshold1"),
@@ -3838,10 +3571,9 @@ p80211meta_t MKMIBMETANAME(p2Dynamic)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("p2FragmentationThreshold2"),
@@ -3852,10 +3584,9 @@ p80211meta_t MKMIBMETANAME(p2Dynamic)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("p2FragmentationThreshold3"),
@@ -3866,10 +3597,9 @@ p80211meta_t MKMIBMETANAME(p2Dynamic)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("p2FragmentationThreshold4"),
@@ -3880,10 +3610,9 @@ p80211meta_t MKMIBMETANAME(p2Dynamic)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("p2FragmentationThreshold5"),
@@ -3894,10 +3623,9 @@ p80211meta_t MKMIBMETANAME(p2Dynamic)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("p2FragmentationThreshold6"),
@@ -3908,10 +3636,9 @@ p80211meta_t MKMIBMETANAME(p2Dynamic)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("p2RTSThreshold0"),
@@ -3922,10 +3649,9 @@ p80211meta_t MKMIBMETANAME(p2Dynamic)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("p2RTSThreshold1"),
@@ -3936,10 +3662,9 @@ p80211meta_t MKMIBMETANAME(p2Dynamic)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("p2RTSThreshold2"),
@@ -3950,10 +3675,9 @@ p80211meta_t MKMIBMETANAME(p2Dynamic)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("p2RTSThreshold3"),
@@ -3964,10 +3688,9 @@ p80211meta_t MKMIBMETANAME(p2Dynamic)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("p2RTSThreshold4"),
@@ -3978,10 +3701,9 @@ p80211meta_t MKMIBMETANAME(p2Dynamic)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("p2RTSThreshold5"),
@@ -3992,10 +3714,9 @@ p80211meta_t MKMIBMETANAME(p2Dynamic)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("p2RTSThreshold6"),
@@ -4006,10 +3727,9 @@ p80211meta_t MKMIBMETANAME(p2Dynamic)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("p2TxRateControl0"),
@@ -4020,7 +3740,6 @@ p80211meta_t MKMIBMETANAME(p2Dynamic)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_bitarray,
 	/* fromtextptr */ p80211_fromtext_bitarray,
 	/* validfunptr */ p80211_isvalid_bitarray
@@ -4034,7 +3753,6 @@ p80211meta_t MKMIBMETANAME(p2Dynamic)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_bitarray,
 	/* fromtextptr */ p80211_fromtext_bitarray,
 	/* validfunptr */ p80211_isvalid_bitarray
@@ -4048,7 +3766,6 @@ p80211meta_t MKMIBMETANAME(p2Dynamic)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_bitarray,
 	/* fromtextptr */ p80211_fromtext_bitarray,
 	/* validfunptr */ p80211_isvalid_bitarray
@@ -4062,7 +3779,6 @@ p80211meta_t MKMIBMETANAME(p2Dynamic)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_bitarray,
 	/* fromtextptr */ p80211_fromtext_bitarray,
 	/* validfunptr */ p80211_isvalid_bitarray
@@ -4076,7 +3792,6 @@ p80211meta_t MKMIBMETANAME(p2Dynamic)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_bitarray,
 	/* fromtextptr */ p80211_fromtext_bitarray,
 	/* validfunptr */ p80211_isvalid_bitarray
@@ -4090,7 +3805,6 @@ p80211meta_t MKMIBMETANAME(p2Dynamic)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_bitarray,
 	/* fromtextptr */ p80211_fromtext_bitarray,
 	/* validfunptr */ p80211_isvalid_bitarray
@@ -4104,7 +3818,6 @@ p80211meta_t MKMIBMETANAME(p2Dynamic)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_bitarray,
 	/* fromtextptr */ p80211_fromtext_bitarray,
 	/* validfunptr */ p80211_isvalid_bitarray
@@ -4126,7 +3839,6 @@ p80211meta_t MKMIBMETANAME(p2Behavior)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ NULL,
 	/* fromtextptr */ NULL,
 	/* validfunptr */ NULL
@@ -4140,10 +3852,9 @@ p80211meta_t MKMIBMETANAME(p2Behavior)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 }
 	};
 
@@ -4162,7 +3873,6 @@ p80211meta_t MKMIBMETANAME(p2NIC)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ NULL,
 	/* fromtextptr */ NULL,
 	/* validfunptr */ NULL
@@ -4176,7 +3886,6 @@ p80211meta_t MKMIBMETANAME(p2NIC)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_int,
 	/* fromtextptr */ p80211_fromtext_int,
 	/* validfunptr */ p80211_isvalid_int
@@ -4190,10 +3899,9 @@ p80211meta_t MKMIBMETANAME(p2NIC)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("p2DLBufferOffset"),
@@ -4204,10 +3912,9 @@ p80211meta_t MKMIBMETANAME(p2NIC)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("p2DLBufferLength"),
@@ -4218,10 +3925,9 @@ p80211meta_t MKMIBMETANAME(p2NIC)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("p2PRIIdentity"),
@@ -4232,7 +3938,6 @@ p80211meta_t MKMIBMETANAME(p2NIC)[] = {
 	/* maxlen      */ 4,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_intarray,
 	/* fromtextptr */ p80211_fromtext_intarray,
 	/* validfunptr */ p80211_isvalid_intarray
@@ -4246,7 +3951,6 @@ p80211meta_t MKMIBMETANAME(p2NIC)[] = {
 	/* maxlen      */ 5,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_intarray,
 	/* fromtextptr */ p80211_fromtext_intarray,
 	/* validfunptr */ p80211_isvalid_intarray
@@ -4260,7 +3964,6 @@ p80211meta_t MKMIBMETANAME(p2NIC)[] = {
 	/* maxlen      */ 5,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_intarray,
 	/* fromtextptr */ p80211_fromtext_intarray,
 	/* validfunptr */ p80211_isvalid_intarray
@@ -4274,7 +3977,6 @@ p80211meta_t MKMIBMETANAME(p2NIC)[] = {
 	/* maxlen      */ 12,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_displaystr,
 	/* fromtextptr */ p80211_fromtext_displaystr,
 	/* validfunptr */ p80211_isvalid_displaystr
@@ -4288,7 +3990,6 @@ p80211meta_t MKMIBMETANAME(p2NIC)[] = {
 	/* maxlen      */ 4,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_intarray,
 	/* fromtextptr */ p80211_fromtext_intarray,
 	/* validfunptr */ p80211_isvalid_intarray
@@ -4302,7 +4003,6 @@ p80211meta_t MKMIBMETANAME(p2NIC)[] = {
 	/* maxlen      */ 5,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_intarray,
 	/* fromtextptr */ p80211_fromtext_intarray,
 	/* validfunptr */ p80211_isvalid_intarray
@@ -4316,7 +4016,6 @@ p80211meta_t MKMIBMETANAME(p2NIC)[] = {
 	/* maxlen      */ 5,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_intarray,
 	/* fromtextptr */ p80211_fromtext_intarray,
 	/* validfunptr */ p80211_isvalid_intarray
@@ -4330,7 +4029,6 @@ p80211meta_t MKMIBMETANAME(p2NIC)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_bitarray,
 	/* fromtextptr */ p80211_fromtext_bitarray,
 	/* validfunptr */ p80211_isvalid_bitarray
@@ -4344,7 +4042,6 @@ p80211meta_t MKMIBMETANAME(p2NIC)[] = {
 	/* maxlen      */ 10,
 	/* minlen      */ 10,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_octetstr,
 	/* fromtextptr */ p80211_fromtext_octetstr,
 	/* validfunptr */ p80211_isvalid_octetstr
@@ -4358,7 +4055,6 @@ p80211meta_t MKMIBMETANAME(p2NIC)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_int,
 	/* fromtextptr */ p80211_fromtext_int,
 	/* validfunptr */ p80211_isvalid_int
@@ -4372,7 +4068,6 @@ p80211meta_t MKMIBMETANAME(p2NIC)[] = {
 	/* maxlen      */ 4,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_intarray,
 	/* fromtextptr */ p80211_fromtext_intarray,
 	/* validfunptr */ p80211_isvalid_intarray
@@ -4386,7 +4081,6 @@ p80211meta_t MKMIBMETANAME(p2NIC)[] = {
 	/* maxlen      */ 5,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_intarray,
 	/* fromtextptr */ p80211_fromtext_intarray,
 	/* validfunptr */ p80211_isvalid_intarray
@@ -4400,7 +4094,6 @@ p80211meta_t MKMIBMETANAME(p2NIC)[] = {
 	/* maxlen      */ 5,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_intarray,
 	/* fromtextptr */ p80211_fromtext_intarray,
 	/* validfunptr */ p80211_isvalid_intarray
@@ -4414,7 +4107,6 @@ p80211meta_t MKMIBMETANAME(p2NIC)[] = {
 	/* maxlen      */ 5,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_intarray,
 	/* fromtextptr */ p80211_fromtext_intarray,
 	/* validfunptr */ p80211_isvalid_intarray
@@ -4428,7 +4120,6 @@ p80211meta_t MKMIBMETANAME(p2NIC)[] = {
 	/* maxlen      */ 2,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_intarray,
 	/* fromtextptr */ p80211_fromtext_intarray,
 	/* validfunptr */ p80211_isvalid_intarray
@@ -4442,7 +4133,6 @@ p80211meta_t MKMIBMETANAME(p2NIC)[] = {
 	/* maxlen      */ 13,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_displaystr,
 	/* fromtextptr */ p80211_fromtext_displaystr,
 	/* validfunptr */ p80211_isvalid_displaystr
@@ -4456,7 +4146,6 @@ p80211meta_t MKMIBMETANAME(p2NIC)[] = {
 	/* maxlen      */ 13,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_displaystr,
 	/* fromtextptr */ p80211_fromtext_displaystr,
 	/* validfunptr */ p80211_isvalid_displaystr
@@ -4470,7 +4159,6 @@ p80211meta_t MKMIBMETANAME(p2NIC)[] = {
 	/* maxlen      */ 13,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_displaystr,
 	/* fromtextptr */ p80211_fromtext_displaystr,
 	/* validfunptr */ p80211_isvalid_displaystr
@@ -4492,7 +4180,6 @@ p80211meta_t MKMIBMETANAME(p2MAC)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ NULL,
 	/* fromtextptr */ NULL,
 	/* validfunptr */ NULL
@@ -4506,7 +4193,6 @@ p80211meta_t MKMIBMETANAME(p2MAC)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_int,
 	/* fromtextptr */ p80211_fromtext_int,
 	/* validfunptr */ p80211_isvalid_int
@@ -4520,7 +4206,6 @@ p80211meta_t MKMIBMETANAME(p2MAC)[] = {
 	/* maxlen      */ 32,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_displaystr,
 	/* fromtextptr */ p80211_fromtext_displaystr,
 	/* validfunptr */ p80211_isvalid_displaystr
@@ -4534,7 +4219,6 @@ p80211meta_t MKMIBMETANAME(p2MAC)[] = {
 	/* maxlen      */ 6,
 	/* minlen      */ 6,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_octetstr,
 	/* fromtextptr */ p80211_fromtext_octetstr,
 	/* validfunptr */ p80211_isvalid_octetstr
@@ -4548,7 +4232,6 @@ p80211meta_t MKMIBMETANAME(p2MAC)[] = {
 	/* maxlen      */ 3,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_intarray,
 	/* fromtextptr */ p80211_fromtext_intarray,
 	/* validfunptr */ p80211_isvalid_intarray
@@ -4562,10 +4245,9 @@ p80211meta_t MKMIBMETANAME(p2MAC)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("p2CommsQualityASL"),
@@ -4576,10 +4258,9 @@ p80211meta_t MKMIBMETANAME(p2MAC)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("p2CommsQualityANL"),
@@ -4590,10 +4271,9 @@ p80211meta_t MKMIBMETANAME(p2MAC)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("p2dbmCommsQuality"),
@@ -4604,7 +4284,6 @@ p80211meta_t MKMIBMETANAME(p2MAC)[] = {
 	/* maxlen      */ 3,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_intarray,
 	/* fromtextptr */ p80211_fromtext_intarray,
 	/* validfunptr */ p80211_isvalid_intarray
@@ -4618,10 +4297,9 @@ p80211meta_t MKMIBMETANAME(p2MAC)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("p2dbmCommsQualityASL"),
@@ -4632,10 +4310,9 @@ p80211meta_t MKMIBMETANAME(p2MAC)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("p2dbmCommsQualityANL"),
@@ -4646,10 +4323,9 @@ p80211meta_t MKMIBMETANAME(p2MAC)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
-	/* totextptr   */ p80211_totext_boundedint,
-	/* fromtextptr */ p80211_fromtext_boundedint,
-	/* validfunptr */ p80211_isvalid_boundedint
+	/* totextptr   */ p80211_totext_int,
+	/* fromtextptr */ p80211_fromtext_int,
+	/* validfunptr */ p80211_isvalid_int
 },
 {
 	/* name        */ MKITEMNAME("p2CurrentTxRate"),
@@ -4660,7 +4336,6 @@ p80211meta_t MKMIBMETANAME(p2MAC)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_int,
 	/* fromtextptr */ p80211_fromtext_int,
 	/* validfunptr */ p80211_isvalid_int
@@ -4674,7 +4349,6 @@ p80211meta_t MKMIBMETANAME(p2MAC)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_int,
 	/* fromtextptr */ p80211_fromtext_int,
 	/* validfunptr */ p80211_isvalid_int
@@ -4688,7 +4362,6 @@ p80211meta_t MKMIBMETANAME(p2MAC)[] = {
 	/* maxlen      */ 6,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_intarray,
 	/* fromtextptr */ p80211_fromtext_intarray,
 	/* validfunptr */ p80211_isvalid_intarray
@@ -4702,7 +4375,6 @@ p80211meta_t MKMIBMETANAME(p2MAC)[] = {
 	/* maxlen      */ 3,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_intarray,
 	/* fromtextptr */ p80211_fromtext_intarray,
 	/* validfunptr */ p80211_isvalid_intarray
@@ -4716,7 +4388,6 @@ p80211meta_t MKMIBMETANAME(p2MAC)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_int,
 	/* fromtextptr */ p80211_fromtext_int,
 	/* validfunptr */ p80211_isvalid_int
@@ -4730,7 +4401,6 @@ p80211meta_t MKMIBMETANAME(p2MAC)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_int,
 	/* fromtextptr */ p80211_fromtext_int,
 	/* validfunptr */ p80211_isvalid_int
@@ -4744,7 +4414,6 @@ p80211meta_t MKMIBMETANAME(p2MAC)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_int,
 	/* fromtextptr */ p80211_fromtext_int,
 	/* validfunptr */ p80211_isvalid_int
@@ -4758,7 +4427,6 @@ p80211meta_t MKMIBMETANAME(p2MAC)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_int,
 	/* fromtextptr */ p80211_fromtext_int,
 	/* validfunptr */ p80211_isvalid_int
@@ -4772,7 +4440,6 @@ p80211meta_t MKMIBMETANAME(p2MAC)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_int,
 	/* fromtextptr */ p80211_fromtext_int,
 	/* validfunptr */ p80211_isvalid_int
@@ -4786,7 +4453,6 @@ p80211meta_t MKMIBMETANAME(p2MAC)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_int,
 	/* fromtextptr */ p80211_fromtext_int,
 	/* validfunptr */ p80211_isvalid_int
@@ -4800,7 +4466,6 @@ p80211meta_t MKMIBMETANAME(p2MAC)[] = {
 	/* maxlen      */ 2,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_intarray,
 	/* fromtextptr */ p80211_fromtext_intarray,
 	/* validfunptr */ p80211_isvalid_intarray
@@ -4814,7 +4479,6 @@ p80211meta_t MKMIBMETANAME(p2MAC)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_int,
 	/* fromtextptr */ p80211_fromtext_int,
 	/* validfunptr */ p80211_isvalid_int
@@ -4828,7 +4492,6 @@ p80211meta_t MKMIBMETANAME(p2MAC)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_int,
 	/* fromtextptr */ p80211_fromtext_int,
 	/* validfunptr */ p80211_isvalid_int
@@ -4842,7 +4505,6 @@ p80211meta_t MKMIBMETANAME(p2MAC)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_int,
 	/* fromtextptr */ p80211_fromtext_int,
 	/* validfunptr */ p80211_isvalid_int
@@ -4856,7 +4518,6 @@ p80211meta_t MKMIBMETANAME(p2MAC)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_int,
 	/* fromtextptr */ p80211_fromtext_int,
 	/* validfunptr */ p80211_isvalid_int
@@ -4870,7 +4531,6 @@ p80211meta_t MKMIBMETANAME(p2MAC)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_int,
 	/* fromtextptr */ p80211_fromtext_int,
 	/* validfunptr */ p80211_isvalid_int
@@ -4884,7 +4544,6 @@ p80211meta_t MKMIBMETANAME(p2MAC)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_int,
 	/* fromtextptr */ p80211_fromtext_int,
 	/* validfunptr */ p80211_isvalid_int
@@ -4898,7 +4557,6 @@ p80211meta_t MKMIBMETANAME(p2MAC)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_int,
 	/* fromtextptr */ p80211_fromtext_int,
 	/* validfunptr */ p80211_isvalid_int
@@ -4912,7 +4570,6 @@ p80211meta_t MKMIBMETANAME(p2MAC)[] = {
 	/* maxlen      */ 6,
 	/* minlen      */ 6,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_octetstr,
 	/* fromtextptr */ p80211_fromtext_octetstr,
 	/* validfunptr */ p80211_isvalid_octetstr
@@ -4934,7 +4591,6 @@ p80211meta_t MKMIBMETANAME(p2Modem)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ NULL,
 	/* fromtextptr */ NULL,
 	/* validfunptr */ NULL
@@ -4948,7 +4604,6 @@ p80211meta_t MKMIBMETANAME(p2Modem)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_int,
 	/* fromtextptr */ p80211_fromtext_int,
 	/* validfunptr */ p80211_isvalid_int
@@ -4962,7 +4617,6 @@ p80211meta_t MKMIBMETANAME(p2Modem)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_int,
 	/* fromtextptr */ p80211_fromtext_int,
 	/* validfunptr */ p80211_isvalid_int
@@ -4976,7 +4630,6 @@ p80211meta_t MKMIBMETANAME(p2Modem)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_int,
 	/* fromtextptr */ p80211_fromtext_int,
 	/* validfunptr */ p80211_isvalid_int
@@ -4990,7 +4643,6 @@ p80211meta_t MKMIBMETANAME(p2Modem)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_int,
 	/* fromtextptr */ p80211_fromtext_int,
 	/* validfunptr */ p80211_isvalid_int
@@ -5004,7 +4656,6 @@ p80211meta_t MKMIBMETANAME(p2Modem)[] = {
 	/* maxlen      */ 10,
 	/* minlen      */ 10,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_octetstr,
 	/* fromtextptr */ p80211_fromtext_octetstr,
 	/* validfunptr */ p80211_isvalid_octetstr
@@ -5018,7 +4669,6 @@ p80211meta_t MKMIBMETANAME(p2Modem)[] = {
 	/* maxlen      */ 0,
 	/* minlen      */ 0,
 	/* enumptr     */ NULL,
-	/* collptr     */ NULL,
 	/* totextptr   */ p80211_totext_int,
 	/* fromtextptr */ p80211_fromtext_int,
 	/* validfunptr */ p80211_isvalid_int

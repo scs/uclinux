@@ -69,36 +69,6 @@ Top level directory for linux-wlan-ng:
 ./scripts	- contributed scripts that may do useful things
 ./src		- source code for various components
 
-
-=======================================================================
-Test Configurations:
-This release was tested on the following configurations:
-
-Intel:
-   Kernel | pcmcia_cs | Distribution |  Device Types    
-   -------+-----------+--------------+---------------------------------------
-   2.4.18 | 3.1.31    | Debian woody |  Prism2-PCMCIA-PFlash
-          |           |              |  Prism2.5-PCMCIA-PFlash
-          |           |              |  Prism2.5-PCI-PFlash
-          |           |              |  Prism2.5-USB-PFlash
-          |           |              |  Prism3-PCMCIA-PFlash
-   -------+-----------+--------------+---------------------------------------
-   2.4.19 | 3.2.0     | Redhat 7.2   |  Prism2.5-PCI-PFlash
-	  |           |              |  Prism2.5-USB-PFlash
-	  |	      | 	     |  Prism2-PCMCIA-PFlash   
-          |           |              |  Prism2.5-PCMCIA-PFlash
-
-PowerPC:
-   Kernel | pcmcia_cs | Distribution |  Device Types    
-   -------+-----------+--------------+---------------------------------------
-   2.2.13 | 3.1.10    | Custom       |  Prism2-PCMCIA-PFlash
-          |           |              |  Prism2.5-PCMCIA-PFlash
-          |           |              |  Prism3-PCMCIA-PFlash
-   -------+-----------+--------------+---------------------------------------
-   2.4.19 | 3.2.1     | Custom       |  Prism2-PCMCIA-PFlash
-          |           |              |  Prism2.5-PCMCIA-PFlash
-          |           |              |  Prism3-PCMCIA-PFlash
-
 =======================================================================
 Build Instructions:
 
@@ -268,6 +238,11 @@ A)  Edit /etc/pcmcia/network.opts file to set up your IP settings.
     current pcmcia scheme name.  You can use this to have different
     IP setups for different wireless LANs you connect to (e.g. home vs. work).
 
+    Note2:  This only applies if you are using a stock pcmcia-cs 
+    package.  Most (if not all) distros use their own mechanisms for 
+    configuring pcmcia network interfaces, and thus 
+    /etc/pcmcia/network.opts may not even be present.
+
 B)  Restart pcmcia-cs with the command:
 
     /etc/rc.d/init.d/pcmcia restart
@@ -304,6 +279,13 @@ B) Alternatively, you can use the rc.wlan script, which ties into the
    easily.  (patches welcome!)  Just make sure it is brought up early in 
    the process, namely, before the the network interfaces are brought up. 
 
+C) Add an alias for wlan0 in /etc/modules.conf.  For example, a usb 
+   interface on wlan0 would be set up as:
+
+   alias wlan0 prism2_usb
+
+   Substitute prism2_plx or prism2_pci as appropriate.
+
 ------------------------------
 FOR USB USERS:
 
@@ -333,4 +315,7 @@ The OOPS is due to bugs in the linux USB core, and newer kernels
 However, the good news is that primary firmware 1.1.2 seems to resolve
 the need for the port reset to begin with.  Contact your vendor to
 request this update.
+
+Also, using the 'Alt. UHCI' controller driver (uhci.o) is broken with 
+kernels older than 2.4.22 due to a bug in the controller driver.
 

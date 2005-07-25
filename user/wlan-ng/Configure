@@ -57,14 +57,15 @@ usage () {
     exit 1
 }
 
+if [ ! -r config.in ]; then
+    $ECHO "config.in does not exist!"
+    fail
+fi
+
+. ./config.in
+
 if [ -r config.out ]; then
-	. ./config.out 2>/dev/null
-else
-	if [ ! -r config.in ]; then
-		$ECHO "config.in does not exist!"
-		fail
-	fi
-	. ./config.in
+    . ./config.out 2>/dev/null
 fi
 
 PROMPT=y
@@ -157,94 +158,27 @@ ask_str () {
 
 mkversionh () {
 versionh=src/include/wlan/version.h 
-cat > $versionh <<END
-/* src/include/wlan/version.h
-*
-*
-* Copyright (C) 1999 AbsoluteValue Systems, Inc.  All Rights Reserved.
-* --------------------------------------------------------------------
-*
-* linux-wlan
-*
-*   The contents of this file are subject to the Mozilla Public
-*   License Version 1.1 (the "License"); you may not use this file
-*   except in compliance with the License. You may obtain a copy of
-*   the License at http://www.mozilla.org/MPL/
-*
-*   Software distributed under the License is distributed on an "AS
-*   IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
-*   implied. See the License for the specific language governing
-*   rights and limitations under the License.
-*
-*   Alternatively, the contents of this file may be used under the
-*   terms of the GNU Public License version 2 (the "GPL"), in which
-*   case the provisions of the GPL are applicable instead of the
-*   above.  If you wish to allow the use of your version of this file
-*   only under the terms of the GPL and not to allow others to use
-*   your version of this file under the MPL, indicate your decision
-*   by deleting the provisions above and replace them with the notice
-*   and other provisions required by the GPL.  If you do not delete
-*   the provisions above, a recipient may use your version of this
-*   file under either the MPL or the GPL.
-*
-* --------------------------------------------------------------------
-*
-* Inquiries regarding the linux-wlan Open Source project can be
-* made directly to:
-*
-* AbsoluteValue Systems Inc.
-* info@linux-wlan.com
-* http://www.linux-wlan.com
-*
-* --------------------------------------------------------------------
-*
-* Portions of the development of this software were funded by 
-* Intersil Corporation as part of PRISM(R) chipset product development.
-*
-* --------------------------------------------------------------------
-*/
-#ifndef _WLAN_VERSION_H
-#define _WLAN_VERSION_H
-#ifndef KERNEL_VERSION
-#define KERNEL_VERSION(a,b,c) (((a) << 16) + ((b) << 8) + (c))
-#endif
-
-/* WLAN_HOSTIF (generally set on the command line, not detected) */
-#define WLAN_PCMCIA                     1
-#define WLAN_ISA                        2
-#define WLAN_PCI                        3
-#define WLAN_USB                        4
-#define WLAN_PLX                        5
-#define WLAN_SLAVE                      6
-
-END
+cp src/version.h.in $versionh
 
 DATE=`date`
 
-
 printf '#define WLAN_RELEASE\t"%d.%d.%d%s"\n' \
-	${WLAN_VERSION} \
-	${WLAN_PATCHLEVEL} \
-	${WLAN_SUBLEVEL} \
-	${WLAN_EXTRAVERSION} >> $versionh
+        ${WLAN_VERSION} \
+        ${WLAN_PATCHLEVEL} \
+        ${WLAN_SUBLEVEL} \
+        ${WLAN_EXTRAVERSION} >> $versionh
 printf '#define WLAN_RELEASE_CODE 0x%02x%02x%02x\n' \
-	${WLAN_VERSION} \
-	${WLAN_PATCHLEVEL} \
-	${WLAN_SUBLEVEL} >> $versionh
-echo   '#define WLAN_BUILD_DATE "'"$DATE"'"' >> $versionh
+        ${WLAN_VERSION} \
+        ${WLAN_PATCHLEVEL} \
+        ${WLAN_SUBLEVEL} >> $versionh
+echo   "#define WLAN_BUILD_DATE \"$DATE\" " >> $versionh
 
 printf '\n' >> $versionh
-
 printf '#endif\n' >> $versionh
 
 }
-#=======================================================================
 
-# Dump the version variables
-write_str WLAN_VERSION
-write_str WLAN_PATCHLEVEL
-write_str WLAN_SUBLEVEL
-write_str WLAN_EXTRAVERSION
+#=======================================================================
 
 # If the src/include/wlan/version.h file needs a touchup, fix or create it
 if [ -r src/include/wlan/version.h ]; then
@@ -270,19 +204,14 @@ $ECHO ""
 
 ask_bool "Build Prism2.x PCMCIA Card Services (_cs) driver?" PRISM2_PCMCIA
 
-$ECHO ""
 #=======================================================================
 # Should we build for PLX9052 based PCI adapters?
 
 ask_bool "Build Prism2 PLX9052 based PCI (_plx) adapter driver?" PRISM2_PLX
-
-$ECHO ""
 #=======================================================================
 # Should we build for Prism2 native PCI?
 
 ask_bool "Build Prism2.5 native PCI (_pci) driver?" PRISM2_PCI
-
-$ECHO ""
 
 #=======================================================================
 # Should we build for Prism2.5 USB?
@@ -330,7 +259,7 @@ if [ $VERSION_CODE -lt `version 2 2 0` ] ; then
 fi
 
 if [ $VERSION_CODE -gt `version 2 5 0` ] ; then
-	$ECHO "Kernel 2.5 support is highly experimental."
+	$ECHO "Kernel 2.5/2.6 support is highly experimental."
         KERN_25=y
         write_bool KERN_25
 fi
@@ -374,20 +303,28 @@ $ECHO ""
 	# Test for netlink availability in the kernel
 	if grep -sq "#define.*CONFIG_NETLINK.*1" ${LINUX_SRC}/include/linux/autoconf.h; then
 		CONFIG_NETLINK=y
-		write_bool CONFIG_NETLINK
 	else
 		CONFIG_NETLINK=n
-		write_bool CONFIG_NETLINK
 	fi
+	write_bool CONFIG_NETLINK
+
 
 	# Test for pf_packet availability in the kernel
 	if grep -sq "#define.*CONFIG_PACKET.*1" ${LINUX_SRC}/include/linux/autoconf.h; then
 		CONFIG_PACKET=y
-		write_bool CONFIG_PACKET
 	else
 		CONFIG_PACKET=n
-		write_bool CONFIG_PACKET
 	fi
+	write_bool CONFIG_PACKET
+
+
+	# Test for pf_packet availability in the kernel
+	if grep -sq "#define.*CONFIG_HOTPLUG.*1" ${LINUX_SRC}/include/linux/autoconf.h; then
+		CONFIG_HOTPLUG=y
+	else
+		CONFIG_HOTPLUG=n
+	fi
+	write_bool CONFIG_HOTPLUG
 
 # test to see if __KERNEL__ is defined in KERNEL_CFLAGS
 # if not, $KERNEL_CFLAGS += __KERNEL__
@@ -585,6 +522,10 @@ fi
 ask_bool "Build for debugging (see doc/config.debug)" WLAN_DEBUG
 
 $ECHO ""
+
+FIRMWARE_DIR="/etc/wlan/"
+write_str FIRMWARE_DIR
+
 
 mv $CONFIG config.out
 

@@ -16,34 +16,10 @@ You need :
 		Note : CONFIG_NET_RADIO must be enabled
 	o (Optional) A Pcmcia package supporting Wireless Extension
 	o A driver supporting wireless extensions
-		-> Wavelan isa
-		-> Wavelan pcmcia
-		-> Netwave pcmcia
-		-> Wavelan IEEE pcmcia drivers
-		-> Aironet MPL driver
-		-> Proxim RangeLan2/Symphony driver
-		-> Raylink/WegGear2.4 driver
-		-> Check my web page for latest list of drivers,
+		-> Check my web pages for latest list of drivers,
 			otherwise patch your favourite driver...
 	Note : more recent kernels and drivers are likely to support
 		more wireless extension features...
-
-Recommended versions :
---------------------
-	This are the latest updates of the Wireless Extensions :
-	o Kernel (wireless extension definition) :
-		-> Kernel 2.2.14 onward
-		-> Kernel 2.3.24 onward
-	o Pcmcia package :
-		-> Pcmcia 3.1.15 onward
-	o Drivers with wireless extension support :
-		-> Wavelan isa from kernels above
-		-> Wavelan pcmcia from pcmcia 3.1.1 onward
-		-> Netwave pcmcia from pcmcia 3.1.2 onward
-		-> Wavelan IEEE pcmcia GPL driver (wvlan_cs) 1.0.5 onward
-		-> Aironet MPL driver (airo_cs.c) 1.4 onward
-		-> Proxim RangeLan2/Symphony driver 1.4.3 onward
-		-> Raylink/WegGear2.4 driver 1.70 (note : read only)
 
 Compile wireless tools :
 ----------------------
@@ -57,7 +33,9 @@ tools but to recompile your own.
 Installation :
 ------------
 	If I were you, I would not trust a "make install". If you feel
-courageous, just do "make install". It may even do the right thing.
+courageous, just do "make install". It may even do the right
+thing. Actually, with the various bugfixes that happened over the
+time, it nowadays tend to do the right thing.
 	I advise to copy the executable (iwconfig, iwspy and iwpriv)
 in /usr/local/sbin or /usr/sbin. The man pages (iwconfig.8, iwspy.8
 and iwpriv.8) should be copied in /usr/local/man/man8 or
@@ -68,12 +46,13 @@ mandatory...
 Kernel headers (why it doesn't compile) :
 ---------------------------------------
 	Some changes in the kernel headers and glibc headers are
-making my life difficult.
-	If you have glibc and kernel 2.2.X headers (or greater), that
-should be all right. This is the default for most modern distributions.
-	In the other cases, depending on which version of the kernel
-headers (might be different from kernel) and library headers you have,
-you need to play with the options at the top of the Makefile.
+making my life difficult. We now have a mechanism to automatically
+select the proper header based on various bits of information (libc
+version & kernel version), but it may fail to do the right thing.
+	You may also see the message :
+		"Your kernel/libc combination is not supported"
+	If this happens to you, you will need to hack the rules at the
+top of iwlib.h and send me the patch.
 
 	The second issue is that some distributions install some
 independant kernel headers in /usr/include. If you upgrade your
@@ -82,7 +61,36 @@ the latest Wireless Extensions. Even worse, it can sometimes prevent
 the tools from compiling.
 	The trick is to copy the file .../include/linux/wireless.h
 from the kernel to the /usr/include headers.
-	A similar procedure may be used to update Wireless Extensions
-in an older kernel...
+
+Multi-kernel installation (expert only) :
+---------------------------------------
+	People who run different kernel on the same system may have
+problems due to the fact that those kernel have different version of
+Wireless Extensions and the Wireless Tools need to match the version
+of Wireless Extension used.
+
+	It is now possible to install multiple versions of the
+Wireless Tools on a system and get the proper version used based on
+the kernel running, using a redirector. However, this support is still
+experimental and for expert users only.
+	The redirector will work properly only with kernel using
+Wireless Extensions version 16 and higher. Earlier version of Wireless
+Extensions will be detected as either v15 (v12, v13, v14 and v15) or
+as v11 (v11 and earlier).
+
+	The installation looks typically like :
+------------------------------------
+make clean
+make FORCE_WEXT_VERSION=11
+make vinstall FORCE_WEXT_VERSION=11
+make clean
+make FORCE_WEXT_VERSION=15
+make vinstall FORCE_WEXT_VERSION=15
+make clean
+make FORCE_WEXT_VERSION=16
+make vinstall FORCE_WEXT_VERSION=16
+[...]
+------------------------------------
+
 
 	Jean <jt@hpl.hp.com>

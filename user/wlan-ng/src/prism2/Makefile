@@ -44,8 +44,7 @@
 
 include ../../config.mk
 
-DIRS=driver ridlist
-
+DIRS=driver ridlist download
 
 ifneq ($(wildcard *.addon),) 
 DIRS+=`cat *.addon`
@@ -60,11 +59,19 @@ clean:
 	for i in *_obj; do if [ -d $$i ]; then rm -fr $$i; fi; done
 
 install:
+	mkdir -p $(TARGET_ROOT_ON_HOST)/etc/wlan
+	cp shared.prism2 $(TARGET_ROOT_ON_HOST)/etc/wlan
+	mkdir -p $(TARGET_ROOT_ON_HOST)$(FIRMWARE_DIR)
+	cp *pda $(TARGET_ROOT_ON_HOST)$(FIRMWARE_DIR)
+	for x in *.hex ; do \
+		if [ -f "$$x" ] ; then \
+			cp $$x $(TARGET_ROOT_ON_HOST)$(FIRMWARE_DIR)/prism2_`echo $$x |  cut -c1-2`.hex ; \
+		fi; \
+	done 
 	set -e; for d in $(DIRS); do $(MAKE) -C $$d install ; done
-
-romfs:
-	set -e; for d in $(DIRS); do $(MAKE) -C $$d romfs ; done
 
 ctags:
 	ctags -R
 
+romfs: 	 
+	set -e; for d in $(DIRS); do $(MAKE) -C $$d romfs ; done

@@ -57,14 +57,14 @@ OBJS =	../shared/p80211types.o \
 	../shared/p80211metamib.o 
 
 wlancfg: wlancfg.o $(OBJS)
-	$(CC) $(LDFLAGS) -o wlancfg wlancfg.o $(OBJS)
+	$(CC) $(LDFLAGS) -o wlancfg wlancfg.o $(OBJS) $(LDLIBS) $(LIBS)
 
 install:
 	cp wlancfg $(TARGET_INST_EXEDIR)
 
-romfs:
-	$(ROMFSINST) -e CONFIG_USER_WLAN_NG_WLANCFG /sbin/wlancfg
-
 clean: 
 	rm -f core core.* *.o .*.o *.s *.a .depend tmp_make *~ tags
 	rm -f wlancfg
+
+romfs:
+	$(ROMFSINST) -e CONFIG_USER_WLAN_NG_WLANCFG /sbin/wlancfg

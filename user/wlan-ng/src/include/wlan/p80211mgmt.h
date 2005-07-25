@@ -242,36 +242,30 @@
 
 /*-- Information Element Types --------------------*/
 /* prototype structure, all IEs start with these members */
-__WLAN_PRAGMA_PACK1__
+
 typedef struct wlan_ie
 {
 	UINT8	eid		__WLAN_ATTRIB_PACK__;
 	UINT8	len		__WLAN_ATTRIB_PACK__;
 } __WLAN_ATTRIB_PACK__ wlan_ie_t;
-__WLAN_PRAGMA_PACKDFLT__
 
 /*-- Service Set Identity (SSID)  -----------------*/
-__WLAN_PRAGMA_PACK1__
 typedef struct wlan_ie_ssid
 {
 	UINT8	eid		__WLAN_ATTRIB_PACK__;
 	UINT8	len		__WLAN_ATTRIB_PACK__;
 	UINT8	ssid[1]		__WLAN_ATTRIB_PACK__;  /* may be zero, ptrs may overlap */
 } __WLAN_ATTRIB_PACK__ wlan_ie_ssid_t;
-__WLAN_PRAGMA_PACKDFLT__
 
 /*-- Supported Rates  -----------------------------*/
-__WLAN_PRAGMA_PACK1__
 typedef struct wlan_ie_supp_rates
 {
 	UINT8	eid		__WLAN_ATTRIB_PACK__;
 	UINT8	len		__WLAN_ATTRIB_PACK__;
 	UINT8	rates[1]	__WLAN_ATTRIB_PACK__;  /* had better be at LEAST one! */
 } __WLAN_ATTRIB_PACK__ wlan_ie_supp_rates_t;
-__WLAN_PRAGMA_PACKDFLT__
 
 /*-- FH Parameter Set  ----------------------------*/
-__WLAN_PRAGMA_PACK1__
 typedef struct wlan_ie_fh_parms
 {
 	UINT8	eid		__WLAN_ATTRIB_PACK__;
@@ -281,20 +275,17 @@ typedef struct wlan_ie_fh_parms
 	UINT8	hoppattern	__WLAN_ATTRIB_PACK__;
 	UINT8	hopindex	__WLAN_ATTRIB_PACK__;
 } __WLAN_ATTRIB_PACK__ wlan_ie_fh_parms_t;
-__WLAN_PRAGMA_PACKDFLT__
 
 /*-- DS Parameter Set  ----------------------------*/
-__WLAN_PRAGMA_PACK1__
 typedef struct wlan_ie_ds_parms
 {
 	UINT8	eid		__WLAN_ATTRIB_PACK__;
 	UINT8	len		__WLAN_ATTRIB_PACK__;
 	UINT8	curr_ch		__WLAN_ATTRIB_PACK__;
 } __WLAN_ATTRIB_PACK__ wlan_ie_ds_parms_t;
-__WLAN_PRAGMA_PACKDFLT__
 
 /*-- CF Parameter Set  ----------------------------*/
-__WLAN_PRAGMA_PACK1__
+
 typedef struct wlan_ie_cf_parms
 {
 	UINT8	eid		__WLAN_ATTRIB_PACK__;
@@ -304,10 +295,8 @@ typedef struct wlan_ie_cf_parms
 	UINT16	cfp_maxdur	__WLAN_ATTRIB_PACK__;
 	UINT16	cfp_durremaining	__WLAN_ATTRIB_PACK__;
 } __WLAN_ATTRIB_PACK__ wlan_ie_cf_parms_t;
-__WLAN_PRAGMA_PACKDFLT__
 
 /*-- TIM ------------------------------------------*/
-__WLAN_PRAGMA_PACK1__
 typedef struct wlan_ie_tim
 {
 	UINT8	eid		__WLAN_ATTRIB_PACK__;
@@ -317,28 +306,22 @@ typedef struct wlan_ie_tim
 	UINT8	bitmap_ctl	__WLAN_ATTRIB_PACK__;
 	UINT8	virt_bm[1]	__WLAN_ATTRIB_PACK__;
 } __WLAN_ATTRIB_PACK__ wlan_ie_tim_t;
-__WLAN_PRAGMA_PACKDFLT__
 
 /*-- IBSS Parameter Set ---------------------------*/
-__WLAN_PRAGMA_PACK1__
 typedef struct wlan_ie_ibss_parms
 {
 	UINT8	eid		__WLAN_ATTRIB_PACK__;
 	UINT8	len		__WLAN_ATTRIB_PACK__;
 	UINT16	atim_win	__WLAN_ATTRIB_PACK__;
 } __WLAN_ATTRIB_PACK__ wlan_ie_ibss_parms_t;
-__WLAN_PRAGMA_PACKDFLT__
 
 /*-- Challenge Text  ------------------------------*/
-__WLAN_PRAGMA_PACK1__
 typedef struct wlan_ie_challenge
 {
 	UINT8	eid		__WLAN_ATTRIB_PACK__;
 	UINT8	len		__WLAN_ATTRIB_PACK__;
 	UINT8	challenge[1]	__WLAN_ATTRIB_PACK__;
 } __WLAN_ATTRIB_PACK__ wlan_ie_challenge_t;
-__WLAN_PRAGMA_PACKDFLT__
-
 
 /*-------------------------------------------------*/
 /*  Frame Types  */
