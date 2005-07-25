@@ -1,0 +1,110 @@
+$Id$
+
+RULES todo
+
+- BUGTRAQ 1199.  Old sig was sid:876, which doesn't actually catch exploit 
+  attempts.  
+
+- review sid:973.  where did this come from?  is it really bid 1448?
+
+- uh, sid:1044.  What are we really looking for?
+
+- sid:1143, 1144.  what the hell does /// do?  
+
+- sid:1147 - cat%20.  can it be done via post?
+
+- sid:1231 - doesnt seem to be bid:2808.  Whats this actually from?
+
+- PGPMail.pl vulnerablity
+  Message-Id: <0111291925580K.19881@ks40.eastnet.gatech.edu> sent to vuln-dev
+
+- sid:1377,1378 - add reference:cve,CAN-2001-0550
+
+- write sig for http://www.tempest.com.br/advisories/01-2001.html
+
+- bitchslap securiteam for resending other people's alerts without passing 
+  on any of the useful information.  
+
+- write sig for AOL 3.3 and prior AUTH Basic overflow
+
+- check on sid:895's group.  web-coldfusion instead of web-cgi?  
+  (Pointed out by Justin Mitzimberg <JMitzimberg@bco.com>)
+
+- rewrite the zillion of deepthroat 3.1 sigs and try and bring the count down 
+  to oh, say... 2
+
+- sid:340,341  What vulnerabilities are these?
+
+- sid:349.  It seems to suck badly.  How about 
+  content:"MKD "; offset:0; depth:4; dsize:>50;
+
+- sid:1229.  Where does "CWD ..." come from? -- warez kiddies (cmg)
+
+- BID 3744.  PHPFileExchange, Find the exploit, write a sig 
+
+- BID 3988.  NetJuke.  find exploit, write a sig
+
+- need FTP PORT bouncing signature
+
+-- did the QT stuiff
+
+- CAN-2000-1176
+
+- PIMP http://cvs.nessus.org/cgi-bin/cvsweb.cgi/~checkout~/nessus-plugins/scripts/pimp.nasl
+- SMB reg key smb_reg_ras_access.nasl
+
+- axent_raptor_dos.nasl
+
+- DNS ZXFR  sig
+
+- finished nessus sigs up to bonk.nasl, start with that and finish the rest
+- DCE sigs
+- verify dtspcd.nasl
+
+- convert all application ports to $APPNAME_PORTS if it makes sense for that
+  application
+
+
+- sid:1913,1914,1915,1916 
+  the content match detection stuff needs revisiting because we
+  can't add the checks for format string checks within the mon_name buffer.
+  The rule SHOULD look like the following if everything was working properly:
+
+  alert udp $EXTERNAL_NET any -> $HOME_NET 1024: (msg:"RPC STATD UDP stat \
+  mon_name format string exploit attempt"; content:"|00 01 86 B8|";       \
+  content:"|00 00 00 01|"; distance:4; within:4;                          \
+  byte_jump:4,12,relative,align; byte_test:4,>,100,20,relative;           \
+  content:"|25|"; distance:24; within:95; content:"|25|"; distance:1;     \
+  within:5; reference:cve,CVE-2000-0666; reference:bugtraq,1480;)
+
+  alert tcp $EXTERNAL_NET any -> $HOME_NET 1024: (msg:"RPC STATD TCP stat \
+  mon_name format string exploit attempt"; flow:to_server,established;    \
+  content:"|00 01 86 B8|"; content:"|00 00 00 01|"; distance:4; within:4; \
+  byte_jump:4,12,relative,align; byte_test:4,>,100,20,relative;           \
+  content:"|25|"; distance:24; within:95; content:"|25|"; distance:1;     \
+  within:5; reference:cve,CVE-2000-0666; reference:bugtraq,1480;)
+
+  alert udp $EXTERNAL_NET any -> $HOME_NET 1024: (msg:"RPC STATD UDP      \
+  monitor mon_name format string exploit attempt";                        \
+  content:"|00 01 86 B8|"; content:"|00 00 00 02|"; distance:4; within:4; \
+  byte_jump:4,12,relative,align; byte_test:4,>,100,20,relative;           \
+  content:"|25|"; distance:20; within:95; content:"|25|"; distance:1;     \
+  within:5; reference:cve,CVE-2000-0666; reference:bugtraq,1480;)
+
+  alert tcp $EXTERNAL_NET any -> $HOME_NET 1024: (msg:"RPC STATD TCP      \
+  monitor mon_name format string exploit attempt";                        \
+  flow:to_server,established; content:"|00 01 86 B8|";                    \
+  content:"|00 00 00 02|"; distance:4; within:4;                          \
+  byte_test:4,>,100,16,relative; content:"|25|"; distance:16; within:96;  \
+  content:"|25|"; distance:1; within:5; reference:cve,CVE-2000-0666;      \
+  reference:bugtraq,1480;)
+
+
+  alert tcp $EXTERNAL_NET any -> $HOME_NET 1024: (msg:"RPC ypupdate udp \
+  command execution attempt"; content:"|01 86 BC|";                     \
+  content:"|00 00 00 01|"; distance:4; within:4;                        \
+  byte_jump:4,12,relative,align; byte_jump:4,16,relative,align;         \ 
+  content:"\|"; distance:16; within:32; reference:cve,CVE-1999-0208;    \ 
+  classtype:attempted-admin;)
+
+- write rule that looks for exploit of sid:306
