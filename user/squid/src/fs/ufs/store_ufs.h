@@ -13,6 +13,7 @@ struct _ufsinfo_t {
     int l2;
     fileMap *map;
     int suggest;
+    int open_files;
 };
 
 struct _ufsstate_t {

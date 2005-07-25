@@ -243,6 +243,13 @@ memInit(void)
     memDataInit(MEM_CLIENT_REQ_BUF, "clientRequestBuffer", CLIENT_REQ_BUF_SZ, 0);
     memDataInit(MEM_SWAP_LOG_DATA, "storeSwapLogData", sizeof(storeSwapLogData), 0);
 
+#ifdef HS_FEAT_ICAP
+    memDataInit(MEM_ICAP_OPT_DATA, "IcapOptData", sizeof(IcapOptData), 0);
+    memDataInit(MEM_ICAP_SERVICE_LIST, "icap_service_list", sizeof(icap_service_list), 0);
+    memDataInit(MEM_ICAP_CLASS, "icap_class", sizeof(icap_class), 0);
+    memDataInit(MEM_ICAP_ACCESS, "icap_access", sizeof(icap_access), 0);
+#endif
+
     /* init string pools */
     for (i = 0; i < mem_str_pool_count; i++) {
 	StrPools[i].pool = memPoolCreate(StrPoolsAttrs[i].name, StrPoolsAttrs[i].obj_size);

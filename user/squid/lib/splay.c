@@ -53,8 +53,10 @@ splay_splay(const void *data, splayNode * top, SPLAYCMP * compare)
     splayNode *l;
     splayNode *r;
     splayNode *y;
-    if (top == NULL)
+    if (top == NULL) {
+	splayLastResult = -1;
 	return top;
+    }
     N.left = N.right = NULL;
     l = r = &N;
 

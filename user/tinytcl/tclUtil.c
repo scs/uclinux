@@ -17,7 +17,11 @@
  */
 
 #include "tclInt.h"
-#include <varargs.h>
+#include <stdarg.h>
+
+#ifndef __isascii
+#define __isascii isascii
+#endif
 
 /*
  * The following values are used in the flags returned by Tcl_ScanElement
@@ -39,16 +43,6 @@
 
 #define USE_BRACES		2
 #define BRACES_UNMATCHED	4
-
-/*
- * The variable below is set to NULL before invoking regexp functions
- * and checked after those functions.  If an error occurred then regerror
- * will set the variable to point to a (static) error message.  This
- * mechanism unfortunately does not support multi-threading, but then
- * neither does the rest of the regexp facilities.
- */
-
-char *tclRegexpError = NULL;
 
 /*
  * Function prototypes for local procedures in this file:
@@ -121,7 +115,7 @@ TclFindElement(interp, list, elementPtr, nextPtr, sizePtr, bracePtr)
      * be changed back eventually, or all of Tcl should call isascii.
      */
 
-    while (isascii(*list) && isspace(*list)) {
+    while (__isascii(*list) && isspace(*list)) {
 	list++;
     }
     if (*list == '{') {
@@ -166,7 +160,7 @@ TclFindElement(interp, list, elementPtr, nextPtr, sizePtr, bracePtr)
 
 		    size = p - list;
 		    p++;
-		    if ((isascii(*p) && isspace(*p)) || (*p == 0)) {
+		    if ((__isascii(*p) && isspace(*p)) || (*p == 0)) {
 			goto done;
 		    }
 		    for (p2 = p; (*p2 != 0) && (!isspace(*p2)) && (p2 < p+20);
@@ -176,7 +170,7 @@ TclFindElement(interp, list, elementPtr, nextPtr, sizePtr, bracePtr)
 		    Tcl_ResetResult(interp);
 		    sprintf(interp->result,
 			    "list element in braces followed by \"%.*s\" instead of space",
-			    p2-p, p);
+			    (int)(p2-p), p);
 		    return TCL_ERROR;
 		} else if (openBraces != 0) {
 		    openBraces--;
@@ -223,7 +217,7 @@ TclFindElement(interp, list, elementPtr, nextPtr, sizePtr, bracePtr)
 
 		    size = p-list;
 		    p++;
-		    if ((isascii(*p) && isspace(*p)) || (*p == 0)) {
+		    if ((__isascii(*p) && isspace(*p)) || (*p == 0)) {
 			goto done;
 		    }
 		    for (p2 = p; (*p2 != 0) && (!isspace(*p2)) && (p2 < p+20);
@@ -233,7 +227,7 @@ TclFindElement(interp, list, elementPtr, nextPtr, sizePtr, bracePtr)
 		    Tcl_ResetResult(interp);
 		    sprintf(interp->result,
 			    "list element in quotes followed by \"%.*s\" %s",
-			    p2-p, p, "instead of space");
+			    (int)(p2-p), p, "instead of space");
 		    return TCL_ERROR;
 		}
 		break;
@@ -260,7 +254,7 @@ TclFindElement(interp, list, elementPtr, nextPtr, sizePtr, bracePtr)
     }
 
     done:
-    while (isascii(*p) && isspace(*p)) {
+    while (__isascii(*p) && isspace(*p)) {
 	p++;
     }
     *elementPtr = list;
@@ -1007,23 +1001,11 @@ Tcl_SetResult(interp, string, freeProc)
  *----------------------------------------------------------------------
  */
 
-	/* VARARGS2 */
-#ifndef lint
 void
-Tcl_AppendResult(va_alist)
-#else
-void
-	/* VARARGS2 */ /* ARGSUSED */
-Tcl_AppendResult(interp, p, va_alist)
-    Tcl_Interp *interp;		/* Interpreter whose result is to be
-				 * extended. */
-    char *p;			/* One or more strings to add to the
-				 * result, terminated with NULL. */
-#endif
-    va_dcl
+Tcl_AppendResult(Tcl_Interp *interp, ...)
 {
     va_list argList;
-    register Interp *iPtr;
+    register Interp *iPtr = (Interp *)interp;
     char *string;
     int newSpace;
 
@@ -1032,8 +1014,7 @@ Tcl_AppendResult(interp, p, va_alist)
      * needed.
      */
 
-    va_start(argList);
-    iPtr = va_arg(argList, Interp *);
+    va_start(argList, interp);
     newSpace = 0;
     while (1) {
 	string = va_arg(argList, char *);
@@ -1053,14 +1034,14 @@ Tcl_AppendResult(interp, p, va_alist)
 	   || ((newSpace + iPtr->appendUsed) >= iPtr->appendAvl)) {
        SetupAppendBuffer(iPtr, newSpace);
     }
+	va_end(argList);
 
     /*
      * Final step:  go through all the argument strings again, copying
      * them into the buffer.
      */
 
-    va_start(argList);
-    (void) va_arg(argList, Tcl_Interp *);
+    va_start(argList, interp);
     while (1) {
 	string = va_arg(argList, char *);
 	if (string == NULL) {
@@ -1253,40 +1234,27 @@ Tcl_ResetResult(interp)
  *
  *----------------------------------------------------------------------
  */
-	/* VARARGS2 */
-#ifndef lint
 void
-Tcl_SetErrorCode(va_alist)
-#else
-void
-	/* VARARGS2 */ /* ARGSUSED */
-Tcl_SetErrorCode(interp, p, va_alist)
-    Tcl_Interp *interp;		/* Interpreter whose errorCode variable is
-				 * to be set. */
-    char *p;			/* One or more elements to add to errorCode,
-				 * terminated with NULL. */
-#endif
-    va_dcl
+Tcl_SetErrorCode(Tcl_Interp *interp, ...)
 {
     va_list argList;
     char *string;
     int flags;
-    Interp *iPtr;
+    register Interp *iPtr = (Interp *) interp;
 
     /*
      * Scan through the arguments one at a time, appending them to
      * $errorCode as list elements.
      */
 
-    va_start(argList);
-    iPtr = va_arg(argList, Interp *);
+    va_start(argList, interp);
     flags = TCL_GLOBAL_ONLY | TCL_LIST_ELEMENT;
     while (1) {
 	string = va_arg(argList, char *);
 	if (string == NULL) {
 	    break;
 	}
-	(void) Tcl_SetVar2((Tcl_Interp *) iPtr, "errorCode",
+	(void) Tcl_SetVar2(interp, "errorCode",
 		(char *) NULL, string, flags);
 	flags |= TCL_APPEND_VALUE;
     }
@@ -1364,20 +1332,24 @@ TclGetListIndex(interp, string, indexPtr)
  *----------------------------------------------------------------------
  */
 
-regexp *
-TclCompileRegexp(interp, string)
+regex_t * 
+TclCompileRegexp(interp, string, nocase)
     Tcl_Interp *interp;			/* For use in error reporting. */
     char *string;			/* String for which to produce
 					 * compiled regular expression. */
+    int nocase;                         /* Set if this is a case-insensitive search */
 {
+    regex_t *result;
     register Interp *iPtr = (Interp *) interp;
     int i, length;
-    regexp *result;
+    int ret;
+    char *pattern;
 
     length = strlen(string);
-    for (i = 0; i < NUM_REGEXPS; i++) {
-	if ((length == iPtr->patLengths[i])
-		&& (strcmp(string, iPtr->patterns[i]) == 0)) {
+    for (i = 0; i < iPtr->num_regexps; i++) {
+	if ((length == iPtr->regexps[i].length)
+		&& (nocase == iPtr->regexps[i].nocase)
+		&& (strcmp(string, iPtr->regexps[i].pattern) == 0)) {
 	    /*
 	     * Move the matched pattern to the first slot in the
 	     * cache and shift the other patterns down one position.
@@ -1387,18 +1359,20 @@ TclCompileRegexp(interp, string)
 		int j;
 		char *cachedString;
 
-		cachedString = iPtr->patterns[i];
-		result = iPtr->regexps[i];
+		cachedString = iPtr->regexps[i].pattern;
+		result = iPtr->regexps[i].regexp;
 		for (j = i-1; j >= 0; j--) {
-		    iPtr->patterns[j+1] = iPtr->patterns[j];
-		    iPtr->patLengths[j+1] = iPtr->patLengths[j];
-		    iPtr->regexps[j+1] = iPtr->regexps[j];
+		    iPtr->regexps[j+1].pattern = iPtr->regexps[j].pattern;
+		    iPtr->regexps[j+1].length = iPtr->regexps[j].length;
+		    iPtr->regexps[j+1].nocase = iPtr->regexps[j].nocase;
+		    iPtr->regexps[j+1].regexp = iPtr->regexps[j].regexp;
 		}
-		iPtr->patterns[0] = cachedString;
-		iPtr->patLengths[0] = length;
-		iPtr->regexps[0] = result;
+		iPtr->regexps[0].pattern = cachedString;
+		iPtr->regexps[0].length = length;
+		iPtr->regexps[0].nocase = nocase;
+		iPtr->regexps[0].regexp = result;
 	    }
-	    return iPtr->regexps[0];
+	    return iPtr->regexps[0].regexp;
 	}
     }
 
@@ -1407,51 +1381,42 @@ TclCompileRegexp(interp, string)
      * cache.
      */
 
-    tclRegexpError = NULL;
-    result = regcomp(string);
-    if (tclRegexpError != NULL) {
+    result = (regex_t *)ckalloc(sizeof(*result));
+
+    /* Allocate the original string before compiling, since regcomp
+     * expects it to exist for the life of the pattern */
+    pattern = (char *) ckalloc((unsigned) (length+1));
+    strcpy(pattern, string);
+
+#ifndef REG_ICASE
+    #define REG_ICASE 0
+#endif
+
+    if ((ret = regcomp(result, pattern, REG_EXTENDED | (nocase ? REG_ICASE : 0))) != 0) {
+	char buf[100];
+	regerror(ret, result, buf, sizeof(buf));
 	Tcl_AppendResult(interp,
 	    "couldn't compile regular expression pattern: ",
-	    tclRegexpError, (char *) NULL);
+	    buf, (char *) NULL);
+	ckfree((char *)result);
+	ckfree(pattern);
 	return NULL;
     }
-    if (iPtr->patterns[NUM_REGEXPS-1] != NULL) {
-	ckfree(iPtr->patterns[NUM_REGEXPS-1]);
-	ckfree((char *) iPtr->regexps[NUM_REGEXPS-1]);
+    if (iPtr->regexps[iPtr->num_regexps-1].pattern != NULL) {
+	ckfree(iPtr->regexps[iPtr->num_regexps-1].pattern);
+	regfree(iPtr->regexps[iPtr->num_regexps-1].regexp);
+	ckfree((char *)iPtr->regexps[iPtr->num_regexps-1].regexp);
+	iPtr->regexps[iPtr->num_regexps-1].pattern = 0;
     }
-    for (i = NUM_REGEXPS - 2; i >= 0; i--) {
-	iPtr->patterns[i+1] = iPtr->patterns[i];
-	iPtr->patLengths[i+1] = iPtr->patLengths[i];
-	iPtr->regexps[i+1] = iPtr->regexps[i];
+    for (i = iPtr->num_regexps - 2; i >= 0; i--) {
+	iPtr->regexps[i+1].pattern = iPtr->regexps[i].pattern;
+	iPtr->regexps[i+1].length = iPtr->regexps[i].length;
+	iPtr->regexps[i+1].nocase = iPtr->regexps[i].nocase;
+	iPtr->regexps[i+1].regexp = iPtr->regexps[i].regexp;
     }
-    iPtr->patterns[0] = (char *) ckalloc((unsigned) (length+1));
-    strcpy(iPtr->patterns[0], string);
-    iPtr->patLengths[0] = length;
-    iPtr->regexps[0] = result;
+    iPtr->regexps[0].pattern = pattern;
+    iPtr->regexps[0].nocase = nocase;
+    iPtr->regexps[0].length = length;
+    iPtr->regexps[0].regexp = result;
     return result;
-}
-
-/*
- *----------------------------------------------------------------------
- *
- * regerror --
- *
- *	This procedure is invoked by the Henry Spencer's regexp code
- *	when an error occurs.  It saves the error message so it can
- *	be seen by the code that called Spencer's code.
- *
- * Results:
- *	None.
- *
- * Side effects:
- *	The value of "string" is saved in "tclRegexpError".
- *
- *----------------------------------------------------------------------
- */
-
-void
-regerror(string)
-    char *string;			/* Error message. */
-{
-    tclRegexpError = string;
 }

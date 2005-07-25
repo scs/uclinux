@@ -48,8 +48,7 @@ static void neighborAliveHtcp(peer *, const MemObject *, const htcpReplyData *);
 static void neighborCountIgnored(peer *);
 static void peerRefreshDNS(void *);
 static IPH peerDNSConfigure;
-static void peerProbeConnect(peer *);
-static IPH peerProbeConnect2;
+static int peerProbeConnect(peer *);
 static CNCB peerProbeConnectDone;
 static void peerCountMcastPeersDone(void *data);
 static void peerCountMcastPeersStart(void *data);
@@ -430,6 +429,7 @@ neighborsUdpPing(request_t * request,
     int peers_pinged = 0;
     int parent_timeout = 0, parent_exprep = 0;
     int sibling_timeout = 0, sibling_exprep = 0;
+    int mcast_timeout = 0, mcast_exprep = 0;
 
     if (Config.peers == NULL)
 	return 0;
@@ -490,7 +490,8 @@ neighborsUdpPing(request_t * request,
 	     * says a multicast peer is dead.
 	     */
 	    p->stats.last_reply = squid_curtime;
-	    (*exprep) += p->mcast.n_replies_expected;
+	    mcast_exprep += p->mcast.n_replies_expected;
+	    mcast_timeout += (p->stats.rtt * p->mcast.n_replies_expected);
 	} else if (neighborUp(p)) {
 	    /* its alive, expect a reply from it */
 	    if (neighborType(p, request) == PEER_PARENT) {
@@ -551,7 +552,7 @@ neighborsUdpPing(request_t * request,
     /*
      * How many replies to expect?
      */
-    *exprep = parent_exprep + sibling_exprep;
+    *exprep = parent_exprep + sibling_exprep + mcast_exprep;
 
     /*
      * If there is a configured timeout, use it
@@ -562,6 +563,8 @@ neighborsUdpPing(request_t * request,
 	if (*exprep > 0) {
 	    if (parent_exprep)
 		*timeout = 2 * parent_timeout / parent_exprep;
+	    else if (mcast_exprep)
+		*timeout = 2 * mcast_timeout / mcast_exprep;
 	    else
 		*timeout = 2 * sibling_timeout / sibling_exprep;
 	} else
@@ -586,19 +589,16 @@ peerDigestLookup(peer * p, request_t * request)
     if (!p->digest) {
 	debug(15, 5) ("peerDigestLookup: gone!\n");
 	return LOOKUP_NONE;
-    } else if (!peerHTTPOkay(p, request)) {
-	debug(15, 5) ("peerDigestLookup: !peerHTTPOkay\n");
-	return LOOKUP_NONE;
-    } else if (p->digest->flags.usable) {
-	debug(15, 5) ("peerDigestLookup: usable\n");
-	/* fall through; put here to have common case on top */ ;
     } else if (!p->digest->flags.needed) {
 	debug(15, 5) ("peerDigestLookup: note need\n");
 	peerDigestNeeded(p->digest);
 	return LOOKUP_NONE;
-    } else {
+    } else if (!p->digest->flags.usable) {
 	debug(15, 5) ("peerDigestLookup: !ready && %srequested\n",
 	    p->digest->flags.requested ? "" : "!");
+	return LOOKUP_NONE;
+    } else if (!peerHTTPOkay(p, request)) {
+	debug(15, 5) ("peerDigestLookup: !peerHTTPOkay\n");
 	return LOOKUP_NONE;
     }
     debug(15, 5) ("peerDigestLookup: OK to lookup peer %s\n", p->host);
@@ -931,8 +931,8 @@ int
 neighborUp(const peer * p)
 {
     if (!p->tcp_up) {
-	peerProbeConnect((peer *) p);
-	return 0;
+	if (!peerProbeConnect((peer *) p))
+	    return 0;
     }
     if (p->options.no_query)
 	return 1;
@@ -1038,15 +1038,14 @@ peerRefreshDNS(void *data)
     eventAddIsh("peerRefreshDNS", peerRefreshDNS, NULL, 3600.0, 1);
 }
 
-void
-peerConnectFailed(peer * p)
+static void
+peerConnectFailedSilent(peer * p)
 {
     p->stats.last_connect_failure = squid_curtime;
     if (!p->tcp_up) {
 	debug(15, 2) ("TCP connection to %s/%d dead\n", p->host, p->http_port);
 	return;
     }
-    debug(15, 1) ("TCP connection to %s/%d failed\n", p->host, p->http_port);
     p->tcp_up--;
     if (!p->tcp_up) {
 	debug(15, 1) ("Detected DEAD %s: %s/%d/%d\n",
@@ -1054,6 +1053,13 @@ peerConnectFailed(peer * p)
 	    p->host, p->http_port, p->icp.port);
 	p->stats.logged_state = PEER_DEAD;
     }
+}
+
+void
+peerConnectFailed(peer * p)
+{
+    debug(15, 1) ("TCP connection to %s/%d failed\n", p->host, p->http_port);
+    peerConnectFailedSilent(p);
 }
 
 void
@@ -1069,35 +1075,42 @@ peerConnectSucceded(peer * p)
     p->tcp_up = PEER_TCP_MAGIC_COUNT;
 }
 
+static void
+peerProbeConnectTimeout(int fd, void *data)
+{
+    peer *p = data;
+    comm_close(fd);
+    p->test_fd = -1;
+    peerConnectFailedSilent(p);
+}
+
 /*
  * peerProbeConnect will be called on dead peers by neighborUp 
  */
-static void
+static int
 peerProbeConnect(peer * p)
 {
     int fd;
+    time_t ctimeout = p->connect_timeout > 0 ? p->connect_timeout
+    : Config.Timeout.peer_connect;
+    int ret = squid_curtime - p->stats.last_connect_failure > ctimeout * 10;
     if (p->test_fd != -1)
-	return;			/* probe already running */
-    if (squid_curtime - p->stats.last_connect_probe < Config.Timeout.connect)
-	return;			/* don't probe to often */
+	return ret;		/* probe already running */
+    if (squid_curtime - p->stats.last_connect_probe == 0)
+	return ret;		/* don't probe to often */
     fd = comm_open(SOCK_STREAM, 0, getOutgoingAddr(NULL),
 	0, COMM_NONBLOCKING, p->host);
     if (fd < 0)
-	return;
+	return ret;
+    commSetTimeout(fd, ctimeout, peerProbeConnectTimeout, p);
     p->test_fd = fd;
     p->stats.last_connect_probe = squid_curtime;
-    ipcache_nbgethostbyname(p->host, peerProbeConnect2, p);
-}
-
-static void
-peerProbeConnect2(const ipcache_addrs * ianotused, void *data)
-{
-    peer *p = data;
     commConnectStart(p->test_fd,
 	p->host,
 	p->http_port,
 	peerProbeConnectDone,
 	p);
+    return ret;
 }
 
 static void
@@ -1107,7 +1120,7 @@ peerProbeConnectDone(int fd, int status, void *data)
     if (status == COMM_OK) {
 	peerConnectSucceded(p);
     } else {
-	peerConnectFailed(p);
+	peerConnectFailedSilent(p);
     }
     comm_close(fd);
     p->test_fd = -1;

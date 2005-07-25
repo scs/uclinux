@@ -22,6 +22,12 @@
  *
  *  Modified 2004/01/21 David McCullough <davidm@snapgear.com>
  *      connect to IP:PORT instead of serial port
+ *
+ *  Modified 2004/06/28 David McCullough <davidm@snapgear.com>
+ *      add ~b (send break) escape code
+ *
+ *  Modified 2004/08/16 Peter Hunt <pchunt@snapgear.com>
+ *      -l can now take a relative device path from "/dev/" as well (like cu). 
  */
 
 /*****************************************************************************/
@@ -34,6 +40,7 @@
 #include <errno.h>
 #include <string.h>
 #include <signal.h>
+#include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/termios.h>
 #include <sys/time.h>
@@ -186,13 +193,14 @@ void restoreremotetermios(void)
 
 /*****************************************************************************/
 
-void saveremotetermios(void)
+int saveremotetermios(void)
 {
 	if (tcgetattr(rfd, &savetio_remote) < 0) {
 		fprintf(stderr, "ERROR: remote tcgetattr() failed, errno=%d\n",
 			errno);
-		exit(0);
+		return(0);
 	}
+	return(1);
 }
 
 /*****************************************************************************/
@@ -271,9 +279,9 @@ int setremotetermios()
 	if (tcsetattr(rfd, TCSAFLUSH, &tio) < 0) {
 		fprintf(stderr, "ERROR: remote tcsetattr(TCSAFLUSH) failed, "
 			"errno=%d\n", errno);
-		exit(1);
+		return(0);
 	}
-	return(0);
+	return(1);
 }
 
 /*****************************************************************************/
@@ -484,11 +492,6 @@ int loopit()
 #ifdef ALTERNATE
 			if ((n == 1) && (*bp == 26))
 				break;
-#else
-			if ((n == 1) && (*bp == 0x1d))
-				break;
-			if ((n == 1) && (*bp == 0x1))
-				break;
 #endif
 			if (partialescape) {
 				partialescape = 0;
@@ -496,6 +499,9 @@ int loopit()
 					break;
 				else if (*bp == 's') {
 					send_file();
+					continue;
+				} else if (*bp == 'b') {
+					tcsendbreak(rfd, 0);
 					continue;
 				}
 			} else {
@@ -591,7 +597,10 @@ void usage(FILE *fp, int rc)
 
 int main(int argc, char *argv[])
 {
-	int	c;
+	struct stat 	statbuf;
+	int		c;
+	size_t		len;
+	char 		*path = NULL;
 
 	ifd = 0;
 	ofd = 1;
@@ -721,10 +730,31 @@ int main(int argc, char *argv[])
 			exit(1);
 		}
 		net_connection = 1;
-	} else if ((rfd = open(devname, (O_RDWR | O_NDELAY))) < 0) {
-		fprintf(stderr, "ERROR: failed to open %s, errno=%d\n",
-			devname, errno);
-		exit(0);
+	} else {
+		/* If devname does not exist as is, prepend '/dev/' */
+		if (devname[0] != '/' && stat(devname, &statbuf) == -1) {
+			len = strlen(devname) + strlen("/dev/") + 1;
+			path = calloc(len, sizeof(*path));
+			strncpy(path, "/dev/", len);
+			strncat(path, devname, len);
+		} else {
+			path = strdup(devname);
+		}
+		if (path == NULL) {
+			fprintf(stderr, "ERROR: failed to alloc() path, "
+				"errno=%d\n", errno);
+				exit(1);
+		}
+		if ((rfd = open(path, (O_RDWR | O_NDELAY))) < 0) {
+			fprintf(stderr, "ERROR: failed to open() %s, "
+				"errno=%d\n", path, errno);
+		}
+		if (path != NULL) {
+			free(path);
+		}
+		if (rfd < 0) {
+			exit(1);
+		}
 	}
 
 	if (capfile != NULL) {
@@ -744,8 +774,14 @@ int main(int argc, char *argv[])
 	}
 
 	if (!net_connection) {
-	    saveremotetermios();
-	    setremotetermios();
+		if (!saveremotetermios()) {
+			restorelocaltermios();
+			exit(1);
+		}
+		if (!setremotetermios()) {
+			restorelocaltermios();
+			exit(1);
+		}
 	}
 
 	/*

@@ -137,6 +137,7 @@ LANGUAGES = \
 		Italian \
 		Japanese \
 		Korean \
+		Lithuanian \
 		Polish \
 		Portuguese \
 		Romanian \
@@ -148,7 +149,7 @@ LANGUAGES = \
 		Spanish \
 		Swedish \
 		Traditional_Chinese \
-		Turkish 
+		Turkish
 
 subdir = errors
 mkinstalldirs = $(SHELL) $(top_srcdir)/cfgaux/mkinstalldirs
@@ -245,8 +246,8 @@ romfs:
 	for l in $(INSTALL_LANGUAGES); do					\
 		[ -d $(ROMFSDIR)/etc/errors/$$l ] ||				\
 			mkdir $(ROMFSDIR)/etc/errors/$$l ;			\
-		for f in $$l/ERR_*; do						\
-			$(ROMFSINST) -p 644 $$f /etc/errors/$$f;		\
+		for f in $(srcdir)/$$l/ERR_*; do				\
+			$(ROMFSINST) -p 644 $$f /etc/errors/$$l/`basename $$f`;	\
 		done;								\
 	done
 
@@ -280,7 +281,7 @@ uninstall-am: uninstall-info-am uninstall-local
 	uninstall-info-am uninstall-local
 
 
-install-data-local: 
+install-data-local:
 	@for l in $(INSTALL_LANGUAGES); do \
 		$(mkinstalldirs) $(DESTDIR)$(DEFAULT_ERROR_DIR)/$$l && \
 		for f in $(srcdir)/$$l/ERR_*; do \
@@ -323,10 +324,14 @@ dist-hook:
 	    test -d $(distdir)/$$lang \
 	    || mkdir $(distdir)/$$lang \
 	    || exit 1; \
-	    cp -p $(srcdir)/$$lang/ERR_*  $(distdir)/$$lang \
+	    cp -p $(srcdir)/$$lang/ERR_* $(distdir)/$$lang \
+	    || exit 1; \
+	    if test -f $(srcdir)/$$lang/README; then \
+	      cp -p $(srcdir)/$$lang/README $(distdir)/$$lang \
 	      || exit 1; \
+	    fi; \
 	  fi; \
-	done		
+	done
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.
 .NOEXPORT:

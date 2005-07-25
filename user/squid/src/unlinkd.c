@@ -139,6 +139,7 @@ unlinkdUnlink(const char *path)
 	return;
     }
     statCounter.unlink.requests++;
+    statCounter.syscalls.disk.unlinks++;
     queuelen++;
 }
 

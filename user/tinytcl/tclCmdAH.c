@@ -1,4 +1,6 @@
 /* 
+ * vi:ts=8
+ *
  * tclCmdAH.c --
  *
  *	This file contains the top-level command routines for most of
@@ -219,13 +221,16 @@ Tcl_CatchCmd(dummy, interp, argc, argv)
     char **argv;			/* Argument strings. */
 {
     int result;
+    Interp *iPtr = (Interp *)interp;
 
     if ((argc != 2) && (argc != 3)) {
 	Tcl_AppendResult(interp, "wrong # args: should be \"",
 		argv[0], " command ?varName?\"", (char *) NULL);
 	return TCL_ERROR;
     }
+    iPtr->catch_level++;
     result = Tcl_Eval(interp, argv[1], 0, (char **) NULL);
+    iPtr->catch_level--;
     if (argc == 3) {
 	if (Tcl_SetVar(interp, argv[2], interp->result, 0) == NULL) {
 	    Tcl_SetResult(interp, "couldn't save command result in variable",
@@ -263,14 +268,10 @@ Tcl_ConcatCmd(dummy, interp, argc, argv)
     int argc;				/* Number of arguments. */
     char **argv;			/* Argument strings. */
 {
-    if (argc == 1) {
-	Tcl_AppendResult(interp, "wrong # args: should be \"", argv[0],
-		" arg ?arg ...?\"", (char *) NULL);
-	return TCL_ERROR;
+    if (argc >= 2) {
+	interp->result = Tcl_Concat(argc-1, argv+1);
+	interp->freeProc = (Tcl_FreeProc *) free;
     }
-
-    interp->result = Tcl_Concat(argc-1, argv+1);
-    interp->freeProc = (Tcl_FreeProc *) free;
     return TCL_OK;
 }
 
@@ -431,13 +432,21 @@ Tcl_ExprCmd(dummy, interp, argc, argv)
     int argc;				/* Number of arguments. */
     char **argv;			/* Argument strings. */
 {
-    if (argc != 2) {
+    if (argc < 2) {
 	Tcl_AppendResult(interp, "wrong # args: should be \"", argv[0],
-		" expression\"", (char *) NULL);
+		" arg ?arg ...?\"", (char *) NULL);
 	return TCL_ERROR;
     }
 
-    return Tcl_ExprString(interp, argv[1]);
+    if (argc == 2) {
+	return Tcl_ExprString(interp, argv[1]);
+    }
+    else {
+	char *buf = Tcl_Concat(argc - 1, argv + 1);
+	int result = Tcl_ExprString(interp, buf);
+	ckfree(buf);
+	return result;
+    }
 }
 
 /*

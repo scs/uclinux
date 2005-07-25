@@ -25,7 +25,6 @@
  */
 
 #include "config.h"
-#include <malloc.h>
 #include <ctype.h>
 #include <string.h>
 

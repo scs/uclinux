@@ -7,16 +7,21 @@
 #ifndef __STORE_ASYNCUFS_H__
 #define __STORE_ASYNCUFS_H__
 
-#ifdef AUFS_IO_THREADS
-#define NUMTHREADS AUFS_IO_THREADS
-#else
-#define NUMTHREADS (Config.cacheSwap.n_configured*16)
-#endif
+extern int n_asyncufs_dirs;
+extern int squidaio_nthreads;
+extern int squidaio_magic1;
+extern int squidaio_magic2;
+
+/* Base number of threads if not specified to configure.
+ * Weighted by number of directories (see aiops.c) */
+#define THREAD_FACTOR 16
 
 /* Queue limit where swapouts are deferred (load calculation) */
-#define MAGIC1 (NUMTHREADS*Config.cacheSwap.n_configured*5)
+#define MAGIC1_FACTOR 10
+#define MAGIC1 squidaio_magic1
 /* Queue limit where swapins are deferred (open/create fails) */
-#define MAGIC2 (NUMTHREADS*Config.cacheSwap.n_configured*20)
+#define MAGIC2_FACTOR 20
+#define MAGIC2 squidaio_magic2
 
 /* Which operations to run async */
 #define ASYNC_OPEN 1

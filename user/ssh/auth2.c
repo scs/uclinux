@@ -36,7 +36,7 @@ RCSID("$OpenBSD: auth2.c,v 1.102 2003/08/26 09:58:43 markus Exp $");
 #include "pathnames.h"
 #include "monitor_wrap.h"
 
-#ifdef CONFIG_AMAZON
+#ifdef SECURITY_COUNTS
 #define AA_EXTERN_ONLY
 #include "../login/logcnt.c"
 #endif
@@ -241,7 +241,7 @@ userauth_finish(Authctxt *authctxt, int authenticated, char *method)
 	}
 #endif /* _UNICOS */
 
-#ifdef CONFIG_AMAZON
+#ifdef SECURITY_COUNTS
 	access__attempted(!authenticated, authctxt->user);
 #endif
 

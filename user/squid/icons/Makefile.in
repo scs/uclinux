@@ -215,7 +215,7 @@ all-am: Makefile $(DATA)
 
 romfs:
 	[ -d "$(ROMFSDIR)/etc/icons" ] || mkdir $(ROMFSDIR)/etc/icons
-	for i in $(ICON1) $(ICON2); do $(ROMFSINST) -p 644 /etc/icons/$$i; done
+	for i in $(ICON1) $(ICON2); do $(ROMFSINST) -p 644 $(srcdir)/$$i /etc/icons/$$i; done
 
 installdirs:
 	$(mkinstalldirs) $(DESTDIR)$(icondir)

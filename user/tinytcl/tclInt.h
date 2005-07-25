@@ -1,4 +1,6 @@
 /*
+ * vi:ts=8
+ *
  * tclInt.h --
  *
  *	Declarations of things used internally by the Tcl interpreter.
@@ -36,8 +38,10 @@
 #ifndef _TCLHASH
 #include "tclHash.h"
 #endif
-#ifndef _REGEXP
-#include "regexp.h"
+#ifndef __UC_LIBC__
+#include <regex.h>
+#else
+#include "regex_compat.h"
 #endif
 
 #include <ctype.h>
@@ -241,6 +245,10 @@ typedef struct Proc {
 				 * the procedure (dynamically allocated). */
     Arg *argPtr;		/* Pointer to first of procedure's formal
 				 * arguments, or NULL if none. */
+    int uses;                   /* Counts references to this proc.
+                                 * 1 for initial definition, and 1 for each outstanding
+				 * execution. When this goes to 0 (proc must be deleted),
+				 * then it can be freed */
 } Proc;
 
 /*
@@ -376,6 +384,21 @@ typedef struct Command {
 } Command;
 
 #define CMD_SIZE(nameLength) ((unsigned) sizeof(Command) + nameLength - 3)
+typedef struct CompiledRegexp {
+    char *pattern;              /* String corresponding to compiled
+				 * regular expression pattern.
+				 * NULL means not used.
+				 * Malloc-ed. */
+    int length;                 /* Number of non-null characters in
+				 * corresponding entry in pattern.
+				 * -1 means entry isn't used. */
+    int nocase;                 /* Set if this regexp was compiled as
+                                 * case insensitive */
+    regex_t *regexp;            /* Compiled forms of above string. 
+				 * Only in use if 'pattern' is not NULL
+				 * Buf is malloc-ed.
+				 */
+} CompiledRegexp;
 
 typedef struct Interp {
 
@@ -483,17 +506,16 @@ typedef struct Interp {
      * in tclUtil.c for details.
      */
 
-#define NUM_REGEXPS 5
-    char *patterns[NUM_REGEXPS];/* Strings corresponding to compiled
-				 * regular expression patterns.  NULL
-				 * means that this slot isn't used.
-				 * Malloc-ed. */
-    int patLengths[NUM_REGEXPS];/* Number of non-null characters in
-				 * corresponding entry in patterns.
-				 * -1 means entry isn't used. */
-    regexp *regexps[NUM_REGEXPS];
-				/* Compiled forms of above strings.  Also
-				 * malloc-ed, or NULL if not in use yet. */
+/* Here is as good as anywhere to set the maximum number of submatches in regexp */
+#define MAX_SUB_MATCHES 20
+#define DEFAULT_NUM_REGEXPS 5
+    int num_regexps;             /* Current size of compiled regexp table.
+                                  * This can be changed at runtime
+				  */
+    CompiledRegexp *regexps;     /* Table of compiled regular expressions of size
+                                  * 'num_regexps'. The corresponding regexps->pattern
+				  * is non-NULL if the slot is in use.
+			          */
 
 
     /*
@@ -506,6 +528,13 @@ typedef struct Interp {
 				 * be executed:  just parse only.  Used in
 				 * expressions when the result is already
 				 * determined. */
+    int signal;			/* If a signal has been caught during execution,
+				 * it is stored here. Tcl_Eval will unwind back
+				 * to a catch, just like an error. */
+    int catch_level;		/* The current level of nested catch commands.
+			         * This is used to avoid throwing an error on a signal
+				 * unless we are in a catch statement
+				 */
     char *scriptFile;		/* NULL means there is no nested source
 				 * command active;  otherwise this points to
 				 * the name of the file being sourced (it's
@@ -627,13 +656,6 @@ extern char tclTypeTable[];
 #define MAX_NESTING_DEPTH	100
 
 /*
- * Variables shared among Tcl modules but not used by the outside
- * world:
- */
-
-extern char *		tclRegexpError;
-
-/*
  *----------------------------------------------------------------
  * Procedures shared among Tcl modules but not used by the outside
  * world:
@@ -641,8 +663,7 @@ extern char *		tclRegexpError;
  */
 
 extern void		panic();
-extern regexp *		TclCompileRegexp _ANSI_ARGS_((Tcl_Interp *interp,
-			    char *string));
+extern regex_t *	TclCompileRegexp _ANSI_ARGS_((Tcl_Interp *interp, char *string, int nocase));
 extern void		TclCopyAndCollapse _ANSI_ARGS_((int count, char *src,
 			    char *dst));
 extern void		TclDeleteVars _ANSI_ARGS_((Interp *iPtr,
@@ -677,6 +698,7 @@ extern int		TclParseWords _ANSI_ARGS_((Tcl_Interp *interp,
 			    ParseValue *pvPtr));
 extern void		TclSetupEnv _ANSI_ARGS_((Tcl_Interp *interp));
 extern char *		TclWordEnd _ANSI_ARGS_((char *start, int nested));
+extern int		Tcl_RecordAndEval _ANSI_ARGS_((Tcl_Interp *interp, char *cmd, int flags));
 
 /*
  *----------------------------------------------------------------
@@ -768,7 +790,7 @@ extern int	Tcl_UpvarCmd _ANSI_ARGS_((ClientData clientData,
 		    Tcl_Interp *interp, int argc, char **argv));
 extern int	Tcl_WhileCmd _ANSI_ARGS_((ClientData clientData,
 		    Tcl_Interp *interp, int argc, char **argv));
-extern int	Tcl_Cmd _ANSI_ARGS_((ClientData clientData,
+extern int	Tcl_HistoryCmd _ANSI_ARGS_((ClientData clientData,
 		    Tcl_Interp *interp, int argc, char **argv));
 extern int	Tcl_Cmd _ANSI_ARGS_((ClientData clientData,
 		    Tcl_Interp *interp, int argc, char **argv));
@@ -812,6 +834,10 @@ extern int	Tcl_SourceCmd _ANSI_ARGS_((ClientData clientData,
 extern int	Tcl_TellCmd _ANSI_ARGS_((ClientData clientData,
 		    Tcl_Interp *interp, int argc, char **argv));
 extern int	Tcl_TimeCmd _ANSI_ARGS_((ClientData clientData,
+		    Tcl_Interp *interp, int argc, char **argv));
+extern int	Tcl_LoadCmd _ANSI_ARGS_((ClientData clientData,
+		    Tcl_Interp *interp, int argc, char **argv));
+extern int	Tcl_PidCmd _ANSI_ARGS_((ClientData clientData,
 		    Tcl_Interp *interp, int argc, char **argv));
 
 #endif /* _TCLINT */

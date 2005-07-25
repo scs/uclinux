@@ -51,8 +51,20 @@ carpInit(void)
     double X_last;
     int k;
     peer *p;
+    P_last = 0;
     for (p = Config.peers; p; p = p->next) {
+	if (P_last > p->carp.load_factor) {
+	    /*
+	     * Section 3.3 of draft-vinod-carp-v1-03.txt says:
+	     *
+	     * The Load Factor Multiplier must be calculated from the smallest 
+	     * P_k to the largest P_k.  The sum of all P_k's must be 1.
+	     */
+	    debug(39, 0) ("WARNING: CARP load factor values must not decrease\n");
+	    debug(39, 0) ("WARNING: rearrange cache_peer lines so they increase\n");
+	}
 	a += p->carp.load_factor;
+	P_last = p->carp.load_factor;
 	K++;
     }
     if (a == 0.0) {

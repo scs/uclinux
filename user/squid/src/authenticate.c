@@ -94,7 +94,11 @@ authenticateDecodeAuth(const char *proxy_auth, auth_user_request_t * auth_user_r
 	/* we're configured to use this scheme - but is it active ? */
 	if ((i = authenticateAuthSchemeId(proxy_auth)) != -1) {
 	    authscheme_list[i].decodeauth(auth_user_request, proxy_auth);
-	    auth_user_request->auth_user->auth_module = i + 1;
+	    if (auth_user_request->auth_user) {
+		auth_user_request->auth_user->auth_module = i + 1;
+	    } else {
+		debug(29, 1) ("authenticateDecodeAuth: Invalid proxy-auth header, '%s'\n", proxy_auth);
+	    }
 	    return;
 	}
     }
@@ -381,6 +385,8 @@ authenticateUserAuthenticated(auth_user_request_t * auth_user_request)
 {
     if (!authenticateValidateUser(auth_user_request))
 	return 0;
+    if (auth_user_request->lastReply == AUTH_AUTHENTICATED)
+	return 1;
     if (auth_user_request->auth_user->auth_module > 0)
 	return authscheme_list[auth_user_request->auth_user->auth_module - 1].authenticated(auth_user_request);
     else
@@ -402,10 +408,12 @@ authenticateAuthenticateUser(auth_user_request_t * auth_user_request, request_t 
 }
 
 static auth_user_request_t *
-authTryGetUser(auth_user_request_t ** auth_user_request, ConnStateData * conn)
+authTryGetUser(auth_user_request_t ** auth_user_request, ConnStateData * conn, request_t * request)
 {
     if (*auth_user_request)
 	return *auth_user_request;
+    else if (request && request->auth_user_request)
+	return request->auth_user_request;
     else if (conn)
 	return conn->auth_user_request;
     else
@@ -445,7 +453,7 @@ authenticateAuthenticate(auth_user_request_t ** auth_user_request, http_hdr_type
      * authenticated connection so we test for an authenticated
      * connection when we recieve no authentication header.
      */
-    if (((proxy_auth == NULL) && (!authenticateUserAuthenticated(authTryGetUser(auth_user_request, conn))))
+    if (((proxy_auth == NULL) && (!authenticateUserAuthenticated(authTryGetUser(auth_user_request, conn, request))))
 	|| (conn && conn->auth_type == AUTH_BROKEN)) {
 	/* no header or authentication failed/got corrupted - restart */
 	if (conn)
@@ -459,10 +467,11 @@ authenticateAuthenticate(auth_user_request_t ** auth_user_request, http_hdr_type
 	if (*auth_user_request) {
 	    /* unlock the ACL lock */
 	    authenticateAuthUserRequestUnlock(*auth_user_request);
-	    auth_user_request = NULL;
+	    *auth_user_request = NULL;
 	}
 	return AUTH_ACL_CHALLENGE;
     }
+#if 0
     /* 
      * Is this an already authenticated connection with a new auth header?
      * No check for function required in the if: its compulsory for conn based 
@@ -487,6 +496,7 @@ authenticateAuthenticate(auth_user_request_t ** auth_user_request, http_hdr_type
 	/* Set the connection auth type */
 	conn->auth_type = AUTH_UNKNOWN;
     }
+#endif
     /* we have a proxy auth header and as far as we know this connection has
      * not had bungled connection oriented authentication happen on it. */
     debug(28, 9) ("authenticateAuthenticate: header %s.\n", proxy_auth ? proxy_auth : NULL);
@@ -581,6 +591,7 @@ authenticateAuthenticate(auth_user_request_t ** auth_user_request, http_hdr_type
     }
     /* Unlock the request - we've authenticated it */
     authenticateAuthUserRequestUnlock(*auth_user_request);
+    *auth_user_request = NULL;
     return AUTH_AUTHENTICATED;
 }
 
@@ -588,20 +599,27 @@ auth_acl_t
 authenticateTryToAuthenticateAndSetAuthUser(auth_user_request_t ** auth_user_request, http_hdr_type headertype, request_t * request, ConnStateData * conn, struct in_addr src_addr)
 {
     /* If we have already been called, return the cached value */
-    auth_user_request_t *t = authTryGetUser(auth_user_request, conn);
+    auth_user_request_t *t = authTryGetUser(auth_user_request, conn, request);
     auth_acl_t result;
     if (t && t->lastReply != AUTH_ACL_CANNOT_AUTHENTICATE
 	&& t->lastReply != AUTH_ACL_HELPER) {
-	if (!*auth_user_request)
+	if (!*auth_user_request) {
 	    *auth_user_request = t;
+	    authenticateAuthUserRequestLock(*auth_user_request);
+	}
+	if (!request->auth_user_request) {
+	    request->auth_user_request = t;
+	    authenticateAuthUserRequestLock(request->auth_user_request);
+	}
 	return t->lastReply;
     }
     /* ok, call the actual authenticator routine. */
     result = authenticateAuthenticate(auth_user_request, headertype, request, conn, src_addr);
-    t = authTryGetUser(auth_user_request, conn);
+    t = authTryGetUser(auth_user_request, conn, request);
     if (t && result != AUTH_ACL_CANNOT_AUTHENTICATE &&
-	result != AUTH_ACL_HELPER)
+	result != AUTH_ACL_HELPER) {
 	t->lastReply = result;
+    }
     return result;
 }
 
@@ -728,7 +746,7 @@ authenticateFixHeader(HttpReply * rep, auth_user_request_t * auth_user_request, 
 	    || (rep->sline.status == HTTP_UNAUTHORIZED)) && internal)
 	/* this is a authenticate-needed response */
     {
-	if ((auth_user_request != NULL) && (auth_user_request->auth_user->auth_module > 0) & !authenticateUserAuthenticated(auth_user_request))
+	if ((auth_user_request != NULL) && (auth_user_request->auth_user->auth_module > 0) && authenticateDirection(auth_user_request) == 1)
 	    authscheme_list[auth_user_request->auth_user->auth_module - 1].authFixHeader(auth_user_request, rep, type, request);
 	else {
 	    int i;
@@ -781,7 +799,7 @@ authenticateAuthUserUnlock(auth_user_t * auth_user)
     if (auth_user->references > 0) {
 	auth_user->references--;
     } else {
-	debug(29, 1) ("Attempt to lower Auth User %p refcount below 0!\n", auth_user);
+	fatalf("Attempt to lower Auth User %p refcount below 0!\n", auth_user);
     }
     debug(29, 9) ("authenticateAuthUserUnlock auth_user '%p' now at '%ld'.\n", auth_user, (long int) auth_user->references);
     if (auth_user->references == 0)

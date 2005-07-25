@@ -319,6 +319,10 @@ storeUfsDirOpenSwapLog(SwapDir * sd)
     char *path;
     int fd;
     path = storeUfsDirSwapLogFile(sd, NULL);
+    if (ufsinfo->swaplog_fd >= 0) {
+	debug(50, 1) ("storeUfsDirOpenSwapLog: %s already open\n", path);
+	return;
+    }
     fd = file_open(path, O_WRONLY | O_CREAT | O_BINARY);
     if (fd < 0) {
 	debug(50, 1) ("%s: %s\n", path, xstrerror());
@@ -961,6 +965,10 @@ storeUfsDirWriteCleanStart(SwapDir * sd)
     state->new = xstrdup(storeUfsDirSwapLogFile(sd, ".clean"));
     state->fd = file_open(state->new, O_WRONLY | O_CREAT | O_TRUNC | O_BINARY);
     if (state->fd < 0) {
+	debug(50, 0) ("storeDirWriteCleanStart: %s: open: %s\n",
+	    state->new, xstrerror());
+	debug(50, 0) ("storeDirWriteCleanStart: Current swap logfile "
+	    "not replaced.\n");
 	xfree(state->new);
 	xfree(state);
 	return -1;
@@ -1355,8 +1363,8 @@ storeUfsDirMaintain(SwapDir * SD)
 int
 storeUfsDirCheckObj(SwapDir * SD, const StoreEntry * e)
 {
-    /* Return 999 (99.9%) constant load */
-    return 999;
+    ufsinfo_t *ufsinfo = SD->fsdata;
+    return 500 + ufsinfo->open_files / 2;
 }
 
 /*
@@ -1636,6 +1644,7 @@ storeUfsDirParse(SwapDir * sd, int index, char *path)
     ufsinfo->swaplog_fd = -1;
     ufsinfo->map = NULL;	/* Debugging purposes */
     ufsinfo->suggest = 0;
+    ufsinfo->open_files = 0;
     sd->init = storeUfsDirInit;
     sd->newfs = storeUfsDirNewfs;
     sd->dump = storeUfsDirDump;

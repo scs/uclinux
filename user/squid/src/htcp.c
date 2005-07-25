@@ -926,7 +926,7 @@ htcpQuery(StoreEntry * e, request_t * req, peer * p)
     stuff.S.method = (char *) RequestMethodStr[req->method];
     stuff.S.uri = (char *) storeUrl(e);
     stuff.S.version = vbuf;
-    httpBuildRequestHeader(req, req, e, &hdr, -1, flags);
+    httpBuildRequestHeader(req, req, e, &hdr, flags);
     memBufDefInit(&mb);
     packerToMemInit(&pa, &mb);
     httpHeaderPackInto(&hdr, &pa);

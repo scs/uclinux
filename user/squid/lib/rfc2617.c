@@ -79,11 +79,16 @@ CvtBin(const HASHHEX Hex, HASH Bin)
     unsigned char j;
 
     for (i = 0; i < HASHHEXLEN; i++) {
+	unsigned char n;
 	j = Hex[i];
 	if (('0' <= j) && (j <= '9'))
-	    Bin[i / 2] |= ((j - '0') << ((i % 2 == 0) ? 4 : 0));
+	    n = j - '0';
 	else
-	    Bin[i / 2] |= ((j - 'a' + 10) << ((i % 2 == 0) ? 4 : 0));
+	    n = j - 'a' + 10;
+	if (i % 2 == 0)
+	    Bin[i / 2] = n << 4;
+	else
+	    Bin[i / 2] |= n;
     }
     Bin[HASHLEN] = '\0';
 }

@@ -50,7 +50,13 @@ typedef u_char m_int[1 + sizeof(unsigned int)];
 /* END of definitions for radix tree entries */
 
 /* Head for ip to asn radix tree */
-struct squid_radix_node_head *AS_tree_head;
+/* Silly union construct to get rid of GCC-3.3 warning */
+union {
+    struct squid_radix_node_head *rn;
+    void *ptr;
+} AS_tree_head_u;
+
+#define AS_tree_head AS_tree_head_u.rn
 
 /*
  * Structure for as number information. it could be simply 
@@ -160,7 +166,7 @@ asnInit(void)
     CBDATA_INIT_TYPE(ASState);
     if (0 == inited++)
 	squid_rn_init();
-    squid_rn_inithead((void **) &AS_tree_head, 8);
+    squid_rn_inithead(&AS_tree_head_u.ptr, 8);
     asnAclInitialize(Config.aclList);
     cachemgrRegister("asndb", "AS Number Database", asnStats, 0, 1);
 }

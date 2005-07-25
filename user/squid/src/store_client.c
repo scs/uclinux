@@ -511,13 +511,6 @@ storeUnregister(store_client * sc, StoreEntry * e, void *data)
 	return 0;
     if (mem->clients.head == NULL)
 	return 0;
-    if (sc == mem->clients.head->data) {
-	/*
-	 * If we are unregistering the _first_ client for this
-	 * entry, then we have to reset the client FD to -1.
-	 */
-	mem->fd = -1;
-    }
     dlinkDelete(&sc->node, &mem->clients);
     mem->nclients--;
     if (e->store_status == STORE_OK && e->swap_status != SWAPOUT_DONE)

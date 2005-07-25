@@ -44,6 +44,7 @@ struct _digest_request_h {
 	unsigned int authinfo_sent:1;
 	unsigned int credentials_ok:2;	/*0=unchecked,1=ok,2=helper,3=failed */
 	unsigned int nonce_stale:1;
+	unsigned int helper_queried:1;
     } flags;
     digest_nonce_h *nonce;
 };

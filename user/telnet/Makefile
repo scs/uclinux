@@ -4,7 +4,6 @@ OBJS = authenc.o commands.o main.o network.o ring.o sys_bsd.o telnet.o \
 	terminal.o tn3270.o utilities.o genget.o getent.o misc.o
 
 CFLAGS += -DPARANOID_TTYS -DTERMCAP -DUSE_TERMIO -DKLUDGELINEMODE -D_GNU_SOURCE
-CFLAGS += $(INCNET)
 
 all: $(EXEC)
 

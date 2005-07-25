@@ -359,7 +359,7 @@ DoGlob(interp, dir, rem)
 	} else {
 	    newDir = (char *) ckalloc((unsigned) l2);
 	}
-	sprintf(newDir, "%s%s%.*s", dir, separator, p-rem, rem);
+	sprintf(newDir, "%s%s%.*s", dir, separator, (int)(p-rem), rem);
 	result = DoGlob(interp, newDir, p+1);
 	if (newDir != static1) {
 	    ckfree(newDir);

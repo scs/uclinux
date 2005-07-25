@@ -66,6 +66,7 @@ typedef struct _auth_user_request_t auth_user_request_t;
 typedef struct _auth_user_hash_pointer auth_user_hash_pointer;
 typedef struct _auth_user_ip_t auth_user_ip_t;
 typedef struct _acl_proxy_auth_match_cache acl_proxy_auth_match_cache;
+typedef struct _acl_hdr_data acl_hdr_data;
 typedef struct _authscheme_entry authscheme_entry_t;
 typedef struct _authScheme authScheme;
 typedef struct _acl_user_data acl_user_data;
@@ -111,6 +112,15 @@ typedef struct _HttpHeaderStat HttpHeaderStat;
 typedef struct _HttpBody HttpBody;
 typedef struct _HttpReply HttpReply;
 typedef struct _HttpStateData HttpStateData;
+#ifdef HS_FEAT_ICAP
+typedef struct _IcapStateData IcapStateData;
+typedef struct _IcapConfig IcapConfig;
+typedef struct _icap_service icap_service;
+typedef struct _icap_service_list icap_service_list;
+typedef struct _icap_class icap_class;
+typedef struct _icap_access icap_access;
+typedef struct _IcapOptData IcapOptData;
+#endif
 typedef struct _icpUdpData icpUdpData;
 typedef struct _clientHttpRequest clientHttpRequest;
 typedef struct _ConnStateData ConnStateData;
@@ -235,6 +245,7 @@ typedef int DEFER(int fd, void *data);
 typedef int READ_HANDLER(int, char *, int);
 typedef int WRITE_HANDLER(int, const char *, int);
 typedef void CBCB(char *buf, ssize_t size, void *data);
+typedef void CB(void *, char *, size_t, CBCB *, void *);
 
 typedef void STIOCB(void *their_data, int errflag, storeIOState *);
 typedef void STFNCB(void *their_data, int errflag, storeIOState *);
@@ -249,11 +260,11 @@ typedef void OBJH(StoreEntry *);
 typedef void SIGHDLR(int sig);
 typedef void STVLDCB(void *, int, int);
 typedef void HLPCB(void *, char *buf);
-typedef stateful_helper_callback_t HLPSCB(void *, void *lastserver, char *buf);
+typedef void HLPSCB(void *, void *lastserver, char *buf);
 typedef int HLPSAVAIL(void *);
-typedef void HLPSONEQ(void *);
+typedef void HLPSRESET(void *);
 typedef void HLPCMDOPTS(int *argc, char **argv);
-typedef void IDNSCB(void *, rfc1035_rr *, int);
+typedef void IDNSCB(void *, rfc1035_rr *, int, const char *);
 
 typedef void STINIT(SwapDir *);
 typedef void STNEWFS(SwapDir *);
@@ -362,5 +373,8 @@ typedef int STDIRSELECT(const StoreEntry *);
 
 typedef struct _external_acl external_acl;
 typedef struct _external_acl_entry external_acl_entry;
+
+/* Request hooks */
+typedef int REQHOOK(ConnStateData * connState, clientHttpRequest * http, void *data);
 
 #endif /* SQUID_TYPEDEFS_H */

@@ -66,8 +66,7 @@ static FILE *fopen_wrapper(const char *filename, const char *mode)
 {
 	FILE *f;
 
-	f = fopen(filename, mode);	
-	//printf("filename=%s mode=%x f=%x\n",filename,mode,f);
+	f = fopen(filename, mode);
 	if (f == NULL) {
 		fprintf(stderr, "adduser: %s: %s\n", filename, strerror(errno));
 	}
@@ -103,7 +102,6 @@ static int passwd_study(const char *filename, struct passwd *p)
 		}
 		if ((pw->pw_uid >= p->pw_uid) && (pw->pw_uid < max)
 			&& (pw->pw_uid >= min)) {
-			printf("user not root\n");
 			p->pw_uid = pw->pw_uid + 1;
 		}
 	}
@@ -111,11 +109,11 @@ static int passwd_study(const char *filename, struct passwd *p)
 	/* EDR check for an already existing gid */
 	while (tlg_getgrgid(p->pw_uid) != NULL)
 		p->pw_uid++;
+
 	/* EDR also check for an existing group definition */
 	if (tlg_getgrnam(p->pw_name) != NULL)
 		return 3;
 
-	/* EDR also check for an existing group definition */
 	/* EDR bounds check */
 	if ((p->pw_uid > max) || (p->pw_uid < min))
 		return 2;
@@ -135,13 +133,10 @@ static void addgroup_wrapper(const char *login, gid_t gid)
 	char group_name[32];
 
 	strncpy(group_name, login, 32);
-//	printf("after strncpy\n");
 	argv[3] = group_name;
 	sprintf(group_id, "%d", gid);
-//	printf("after sprintf\n");
 	argv[2] = group_id;
 	optind = 0;
-//	printf("bef addgroup_main argc=%d argv[2]=%s argv[3]=%s\n",argc,argv[2],argv[3]);
 	addgroup_main(argc, argv);
 }
 
@@ -269,7 +264,7 @@ static uid_t i_am_not_root()
 int adduser_main(int argc, char **argv)
 {
 	int i;
-	char opt;
+	int opt;
 	char *login;
 	char *gecos;
 	char *home = NULL;
@@ -286,12 +281,12 @@ int adduser_main(int argc, char **argv)
 	shell = default_shell;
 
 	/* get args */
-	while((opt = getopt(argc, argv, "h:c:s:")) != EOF){
+	while((opt = getopt(argc, argv, "h:g:s:")) != -1){
 		switch (opt){
 		case 'h':
 			home = optarg;
 			break;
-		case 'c':
+		case 'g':
 			gecos = optarg;
 			break;
 		case 's':

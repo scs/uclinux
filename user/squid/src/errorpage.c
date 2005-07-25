@@ -192,7 +192,7 @@ errorTryLoadText(const char *page_name, const char *dir)
 	text = NULL;
     }
     file_close(fd);
-    if (strstr(text, "%s") == NULL)
+    if (text && strstr(text, "%s") == NULL)
 	strcat(text, "%S");	/* add signature */
     return text;
 }
@@ -223,7 +223,7 @@ errorPageId(const char *page_name)
 	    return i;
     }
     for (i = 0; i < ErrorDynamicPages.count; i++) {
-	if (strcmp(((ErrorDynamicPageInfo *) ErrorDynamicPages.items[i - ERR_MAX])->page_name, page_name) == 0)
+	if (strcmp(((ErrorDynamicPageInfo *) ErrorDynamicPages.items[i])->page_name, page_name) == 0)
 	    return i + ERR_MAX;
     }
     return ERR_NONE;
@@ -584,6 +584,7 @@ errorConvert(char token, ErrorState * err)
 	break;
     default:
 	memBufPrintf(&mb, "%%%c", token);
+	do_quote = 0;
 	break;
     }
     if (!p)
@@ -606,9 +607,11 @@ errorBuildReply(ErrorState * err)
     httpBuildVersion(&version, 1, 0);
     if (strchr(name, ':')) {
 	/* Redirection */
-	char *quoted_url = rfc1738_escape_part(errorConvert('u', err));
 	httpReplySetHeaders(rep, version, HTTP_MOVED_TEMPORARILY, NULL, "text/html", 0, 0, squid_curtime);
-	httpHeaderPutStrf(&rep->header, HDR_LOCATION, name, quoted_url);
+	if (err->request) {
+	    char *quoted_url = rfc1738_escape_part(urlCanonical(err->request));
+	    httpHeaderPutStrf(&rep->header, HDR_LOCATION, name, quoted_url);
+	}
 	httpHeaderPutStrf(&rep->header, HDR_X_SQUID_ERROR, "%d %s\n", err->http_status, "Access Denied");
     } else {
 	MemBuf content = errorBuildContent(err);

@@ -118,6 +118,13 @@ makesnmplib = @makesnmplib@
 
 @NEED_OWN_SNPRINTF_TRUE@SNPRINTFSOURCE = snprintf.c
 @NEED_OWN_SNPRINTF_FALSE@SNPRINTFSOURCE = 
+
+@NEED_OWN_STRNSTR_TRUE@STRNSTRSOURCE = strnstr.c
+@NEED_OWN_STRNSTR_FALSE@STRNSTRSOURCE = 
+
+@NEED_OWN_STRCASESTR_TRUE@STRCASESTRSOURCE = strcasestr.c
+@NEED_OWN_STRCASESTR_FALSE@STRCASESTRSOURCE = 
+
 @NEED_OWN_MD5_TRUE@MD5SOURCE = md5.c
 @NEED_OWN_MD5_FALSE@MD5SOURCE = 
 
@@ -153,6 +160,8 @@ libmiscutil_a_SOURCES = \
 	$(SNPRINTFSOURCE) \
 	splay.c \
 	Stack.c \
+	$(STRNSTRSOURCE) \
+	$(STRCASESTRSOURCE) \
 	stub_memaccount.c \
 	util.c \
 	uudecode.c
@@ -189,15 +198,20 @@ libmiscutil_a_AR = $(AR) cru
 libmiscutil_a_DEPENDENCIES = @LIBOBJS@
 @NEED_OWN_MD5_TRUE@am__objects_1 = md5.$(OBJEXT)
 @NEED_OWN_MD5_FALSE@am__objects_1 =
-@NEED_OWN_SNPRINTF_TRUE@am__objects_2 = snprintf.$(OBJEXT)
 @NEED_OWN_SNPRINTF_FALSE@am__objects_2 =
+@NEED_OWN_SNPRINTF_TRUE@am__objects_2 = snprintf.$(OBJEXT)
+@NEED_OWN_STRNSTR_FALSE@am__objects_3 =
+@NEED_OWN_STRNSTR_TRUE@am__objects_3 = strnstr.$(OBJEXT)
+@NEED_OWN_STRCASESTR_FALSE@am__objects_4 =
+@NEED_OWN_STRCASESTR_TRUE@am__objects_4 = strcasestr.$(OBJEXT)
 am_libmiscutil_a_OBJECTS = Array.$(OBJEXT) base64.$(OBJEXT) \
 	getfullhostname.$(OBJEXT) hash.$(OBJEXT) heap.$(OBJEXT) \
 	html_quote.$(OBJEXT) iso3307.$(OBJEXT) $(am__objects_1) \
 	radix.$(OBJEXT) rfc1035.$(OBJEXT) rfc1123.$(OBJEXT) \
 	rfc1738.$(OBJEXT) rfc2617.$(OBJEXT) safe_inet_addr.$(OBJEXT) \
 	$(am__objects_2) splay.$(OBJEXT) Stack.$(OBJEXT) \
-	stub_memaccount.$(OBJEXT) util.$(OBJEXT) uudecode.$(OBJEXT)
+	$(am__objects_3) $(am__objects_4) stub_memaccount.$(OBJEXT) \
+	util.$(OBJEXT) uudecode.$(OBJEXT)
 libmiscutil_a_OBJECTS = $(am_libmiscutil_a_OBJECTS)
 libntlmauth_a_AR = $(AR) cru
 libntlmauth_a_DEPENDENCIES = @LIBOBJS@
@@ -225,7 +239,8 @@ depcomp = $(SHELL) $(top_srcdir)/cfgaux/depcomp
 @AMDEP_TRUE@	$(DEPDIR)/rfc1123.Po $(DEPDIR)/rfc1738.Po \
 @AMDEP_TRUE@	$(DEPDIR)/rfc2617.Po $(DEPDIR)/safe_inet_addr.Po \
 @AMDEP_TRUE@	$(DEPDIR)/snprintf.Po $(DEPDIR)/splay.Po \
-@AMDEP_TRUE@	$(DEPDIR)/strerror.Po $(DEPDIR)/stub_memaccount.Po \
+@AMDEP_TRUE@	$(DEPDIR)/strcasestr.Po $(DEPDIR)/strerror.Po \
+@AMDEP_TRUE@	$(DEPDIR)/strnstr.Po $(DEPDIR)/stub_memaccount.Po \
 @AMDEP_TRUE@	$(DEPDIR)/tempnam.Po $(DEPDIR)/util.Po \
 @AMDEP_TRUE@	$(DEPDIR)/uudecode.Po
 COMPILE = $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) \
@@ -301,7 +316,9 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/safe_inet_addr.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/snprintf.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/splay.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/strcasestr.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/strerror.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/strnstr.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/stub_memaccount.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/tempnam.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/util.Po@am__quote@

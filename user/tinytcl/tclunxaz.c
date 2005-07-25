@@ -1,4 +1,6 @@
 /* 
+ * vi:ts=8 sw=4
+ *
  * tclUnixAZ.c --
  *
  *	This file contains the top-level command procedures for
@@ -21,6 +23,8 @@
 
 #include "tclInt.h"
 #include "tclUnix.h"
+#include <unistd.h>
+#include <syslog.h>
 
 /*
  * The variable below caches the name of the current working directory
@@ -34,8 +38,10 @@ static char *currentDir =  NULL;
  * Prototypes for local procedures defined in this file:
  */
 
+#ifndef NO_FORK
 static int		CleanupChildren _ANSI_ARGS_((Tcl_Interp *interp,
 			    int numPids, int *pidPtr, int errorId));
+#endif
 static char *		GetFileType _ANSI_ARGS_((int mode));
 static int		StoreStatData _ANSI_ARGS_((Tcl_Interp *interp,
 			    char *varName, struct stat *statPtr));
@@ -155,12 +161,14 @@ Tcl_CloseCmd(dummy, interp, argc, argv)
      * associated with the child processes.
      */
 
+#ifndef NO_FORK
     if (filePtr->numPids > 0) {
 	if (CleanupChildren(interp, filePtr->numPids, filePtr->pidPtr,
 		filePtr->errorId) != TCL_OK) {
 	    result = TCL_ERROR;
 	}
     }
+#endif
 
     ckfree((char *) filePtr);
     return result;
@@ -209,6 +217,7 @@ Tcl_EofCmd(notUsed, interp, argc, argv)
     return TCL_OK;
 }
 
+#ifndef NO_FORK
 /*
  *----------------------------------------------------------------------
  *
@@ -304,6 +313,85 @@ Tcl_ExecCmd(dummy, interp, argc, argv)
     }
     return result;
 }
+#else
+int
+Tcl_ExecCmd(dummy, interp, argc, argv)
+    ClientData dummy;			/* Not used. */
+    Tcl_Interp *interp;			/* Current interpreter. */
+    int argc;				/* Number of arguments. */
+    char **argv;			/* Argument strings. */
+{
+    int pid;
+    int tmpfd;
+    int status;
+    int result;
+
+#define TMP_NAME "/tmp/tcl.exec.XXXXXX"
+    char tmpname[sizeof(TMP_NAME) + 1];
+
+    
+    /* Create a temporary file for the output from our exec command */
+    strcpy(tmpname, TMP_NAME);
+    tmpfd = mkstemp(tmpname);
+    if (tmpfd < 0) {
+	Tcl_AppendResult(interp,
+		"couldn't create temp file file for exec: ", Tcl_UnixError(interp), (char *) NULL);
+	return TCL_ERROR;
+    }
+    /*printf("Writing output to %s, fd=%d\n", tmpname, tmpfd);*/
+    unlink(tmpname);
+
+    /* Use vfork and send output to this temporary file */
+    pid  = vfork(); 
+    if (pid == 0) {
+	close(0);
+	open("/dev/null", O_RDONLY);
+	close(1);
+	dup(tmpfd);
+	close(2);
+	/*open("/dev/null", O_WRONLY);*/
+	dup(tmpfd);
+	close(tmpfd);
+	execvp(argv[1], argv + 1);
+	_exit(127);
+    }
+
+    /* Wait for the child to exit */
+    do {
+	    waitpid(pid, &status, 0);
+    } while (!WIFEXITED(status));
+
+    /*
+     * Read the child's output (if any) and put it into the result.
+     */
+    lseek(tmpfd, SEEK_SET, 0);
+    result = TCL_OK;
+    while (1) {
+#	    define BUFFER_SIZE 1000
+	char buffer[BUFFER_SIZE+1];
+	int count;
+
+	count = read(tmpfd, buffer, BUFFER_SIZE);
+
+	if (count == 0) {
+	    break;
+	}
+	if (count < 0) {
+	    Tcl_ResetResult(interp);
+	    Tcl_AppendResult(interp,
+		    "error reading result: ",
+		    Tcl_UnixError(interp), (char *) NULL);
+	    result = TCL_ERROR;
+	    break;
+	}
+	buffer[count] = 0;
+	Tcl_AppendResult(interp, buffer, (char *) NULL);
+    }
+    close(tmpfd);
+
+    return result;
+}
+#endif /* NO_FORK */
 
 /*
  *----------------------------------------------------------------------
@@ -509,6 +597,24 @@ Tcl_FileCmd(dummy, interp, argc, argv)
     }
 
     /*
+     * Next, handle operations on the file
+     */
+
+    if ((c == 'd') && (strncmp(argv[1], "delete", length) == 0)
+	    && (length >= 3)) {
+	if (argc != 3) {
+	    argv[1] = "delete";
+	    goto not3Args;
+	}
+	if (unlink(fileName) == -1 && errno != ENOENT) {
+	    Tcl_AppendResult(interp, "couldn't delete \"", argv[2],
+		    "\": ", Tcl_UnixError(interp), (char *) NULL);
+	    return TCL_ERROR;
+	}
+	return TCL_OK;
+    }
+
+    /*
      * Lastly, check stuff that requires the file to be stat-ed.
      */
 
@@ -691,12 +797,12 @@ StoreStatData(interp, varName, statPtr)
 {
     char string[30];
 
-    sprintf(string, "%d", statPtr->st_dev);
+    sprintf(string, "%d", (int)statPtr->st_dev);
     if (Tcl_SetVar2(interp, varName, "dev", string, TCL_LEAVE_ERR_MSG)
 	    == NULL) {
 	return TCL_ERROR;
     }
-    sprintf(string, "%d", statPtr->st_ino);
+    sprintf(string, "%d", (int)statPtr->st_ino);
     if (Tcl_SetVar2(interp, varName, "ino", string, TCL_LEAVE_ERR_MSG)
 	    == NULL) {
 	return TCL_ERROR;
@@ -996,7 +1102,12 @@ Tcl_OpenCmd(notUsed, interp, argc, argv)
 
     pipeline = 0;
     if (argv[1][0] == '|') {
+#ifndef NO_FORK
 	pipeline = 1;
+#else
+	Tcl_AppendResult(interp, "open with pipeline not supported in this version of Tcl", (char *) NULL);
+	return TCL_ERROR;
+#endif
     }
     switch (access[0]) {
 	case 'r':
@@ -1023,6 +1134,11 @@ Tcl_OpenCmd(notUsed, interp, argc, argv)
 	goto badAccess;
     }
 
+    /* Before we open any files, make sure the file table is allocated
+     * so that stdin, etc. are sorted out
+     */
+    TclMakeFileTable(iPtr, 0);
+
     /*
      * Open the file or create a process pipeline.
      */
@@ -1042,7 +1158,12 @@ Tcl_OpenCmd(notUsed, interp, argc, argv)
 		    "\": ", Tcl_UnixError(interp), (char *) NULL);
 	    goto error;
 	}
-    } else {
+#ifdef DEBUG_FDS
+	syslog(LOG_INFO, "Opened %s to give fd %d", fileName, fileno(filePtr->f));
+#endif
+    }
+#ifndef NO_FORK
+    else {
 	int *inPipePtr, *outPipePtr;
 	int cmdArgc, inPipe, outPipe;
 	char **cmdArgv;
@@ -1083,6 +1204,7 @@ Tcl_OpenCmd(notUsed, interp, argc, argv)
 	    }
 	}
     }
+#endif
 
     /*
      * Enter this new OpenFile structure in the table for the
@@ -1105,10 +1227,12 @@ Tcl_OpenCmd(notUsed, interp, argc, argv)
     if (filePtr->f2 != NULL) {
 	fclose(filePtr->f2);
     }
+#ifndef NO_FORK
     if (filePtr->numPids > 0) {
 	Tcl_DetachPids(filePtr->numPids, filePtr->pidPtr);
 	ckfree((char *) filePtr->pidPtr);
     }
+#endif
     if (filePtr->errorId != -1) {
 	close(filePtr->errorId);
     }
@@ -1149,13 +1273,6 @@ Tcl_PwdCmd(dummy, interp, argc, argv)
 	return TCL_ERROR;
     }
     if (currentDir == NULL) {
-#if TCL_GETWD
-	if (getcwd(buffer, MAXPATHLEN) == NULL) {
-	    Tcl_AppendResult(interp, "error getting working directory name: ",
-		    buffer, (char *) NULL);
-	    return TCL_ERROR;
-	}
-#else
 	if (getcwd(buffer, MAXPATHLEN) == NULL) {
 	    if (errno == ERANGE) {
 		interp->result = "working directory name is too long";
@@ -1166,7 +1283,6 @@ Tcl_PwdCmd(dummy, interp, argc, argv)
 	    }
 	    return TCL_ERROR;
 	}
-#endif
 	currentDir = (char *) ckalloc((unsigned) (strlen(buffer) + 1));
 	strcpy(currentDir, buffer);
     }
@@ -1512,7 +1628,7 @@ Tcl_TellCmd(notUsed, interp, argc, argv)
     if (TclGetOpenFile(interp, argv[1], &filePtr) != TCL_OK) {
 	return TCL_ERROR;
     }
-    sprintf(interp->result, "%d", ftell(filePtr->f));
+    sprintf(interp->result, "%ld", ftell(filePtr->f));
     return TCL_OK;
 }
 
@@ -1594,6 +1710,7 @@ Tcl_TimeCmd(dummy, interp, argc, argv)
     return TCL_OK;
 }
 
+#ifndef NO_FORK
 /*
  *----------------------------------------------------------------------
  *
@@ -1633,8 +1750,11 @@ CleanupChildren(interp, numPids, pidPtr, errorId)
     for (i = 0; i < numPids; i++) {
 	pid = Tcl_WaitPids(1, &pidPtr[i], (int *) &waitStatus);
 	if (pid == -1) {
+	    /* This can happen if the process was already reaped, so just ignore it */
+#if 0
 	    Tcl_AppendResult(interp, "error waiting for process to exit: ",
 		    Tcl_UnixError(interp), (char *) NULL);
+#endif
 	    continue;
 	}
 
@@ -1720,4 +1840,36 @@ CleanupChildren(interp, numPids, pidPtr, errorId)
     }
 
     return result;
+}
+#endif /* NO_FORK */
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Tcl_PidCmd --
+ *     Implements the pid TCL command:
+ *         pid
+ *
+ * Results:
+ *      Standard TCL result.
+ *-----------------------------------------------------------------------------
+ */
+int
+Tcl_PidCmd (clientData, interp, argc, argv)
+    ClientData  clientData;
+    Tcl_Interp *interp;
+    int         argc;
+    char      **argv;
+{
+    char buf[10];
+
+    if (argc != 1) {
+        Tcl_AppendResult (interp, "bad # args: ", argv[0], 0);
+        return TCL_ERROR;
+    }
+    
+    sprintf(buf, "%d", getpid());
+
+    Tcl_AppendResult (interp, buf, 0);
+    return TCL_OK;
 }

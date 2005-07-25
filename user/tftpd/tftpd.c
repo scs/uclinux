@@ -270,7 +270,7 @@ validate_access(filename, mode)
 #else
 	if (mode == RRQ) {
 		if ((stbuf.st_mode&(S_IREAD >> 6)) == 0)
-			return (EACCESS);	
+			return (EACCESS);
 	} else {
 		if ((stbuf.st_mode&(S_IWRITE >> 6)) == 0)
 			return (EACCESS);
@@ -479,7 +479,7 @@ nak(error)
 		if (pe->e_code == error)
 			break;
 	if (pe->e_code < 0) {
-		pe->e_msg = sys_errlist[error - 100];
+		pe->e_msg = strerror(error - 100);
 		tp->th_code = EUNDEF;   /* set 'undef' errorcode */
 	}
 	strcpy(tp->th_msg, pe->e_msg);

@@ -404,7 +404,6 @@ delayClient(clientHttpRequest * http)
 	position |= 255;
 	if (!(delay_data[pool].class3->individual_255_used[i / 8] & (1 << (i % 8)))) {
 	    delay_data[pool].class3->individual_255_used[i / 8] |= (1 << (i % 8));
-	    assert(position < C3_IND_SZ);
 	    delay_data[pool].class3->individual[position] =
 		(int) (((double) Config.Delay.rates[pool]->individual.max_bytes *
 		    Config.Delay.initial) / 100);
@@ -422,7 +421,6 @@ delayClient(clientHttpRequest * http)
 	    assert(j < (IND_MAP_SZ - 1));
 	    delay_data[pool].class3->individual_map[i][j + 1] = 255;
 	    position |= j;
-	    assert(position < C3_IND_SZ);
 	    delay_data[pool].class3->individual[position] =
 		(int) (((double) Config.Delay.rates[pool]->individual.max_bytes *
 		    Config.Delay.initial) / 100);

@@ -16,6 +16,7 @@ RCSID("$OpenBSD: ssh-keygen.c,v 1.108 2003/08/14 16:08:58 markus Exp $");
 
 #include <openssl/evp.h>
 #include <openssl/pem.h>
+#include <openssl/engine.h>
 
 #include "xmalloc.h"
 #include "key.h"
@@ -812,6 +813,11 @@ main(int ac, char **av)
 	__progname = ssh_get_progname(av[0]);
 
 	SSLeay_add_all_algorithms();
+
+	/* Init available hardware crypto engines. */
+	ENGINE_load_builtin_engines();
+	ENGINE_register_all_complete();
+
 	log_init(av[0], SYSLOG_LEVEL_INFO, SYSLOG_FACILITY_USER, 1);
 
 	init_rng();

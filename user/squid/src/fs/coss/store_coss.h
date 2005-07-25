@@ -5,14 +5,6 @@
 #define	COSS_MEMBUF_SZ	1048576
 #endif
 
-#ifndef	COSS_BLOCK_SZ
-#define	COSS_BLOCK_SZ	512
-#endif
-
-/* Macros to help block<->offset transiting */
-#define	COSS_OFS_TO_BLK(ofs)		((ofs) / COSS_BLOCK_SZ)
-#define	COSS_BLK_TO_OFS(ofs)		((ofs) * COSS_BLOCK_SZ)
-
 /* Note that swap_filen in sio/e are actually disk offsets too! */
 
 /* What we're doing in storeCossAllocate() */
@@ -20,10 +12,29 @@
 #define COSS_ALLOC_ALLOCATE		1
 #define COSS_ALLOC_REALLOC		2
 
+struct _coss_stats {
+    int stripes;
+    struct {
+	int alloc;
+	int realloc;
+	int collisions;
+    } alloc;
+    int disk_overflows;
+    int stripe_overflows;
+    int open_mem_hits;
+    int open_mem_misses;
+    struct {
+	int ops;
+	int success;
+	int fail;
+    } open, create, close, unlink, read, write, stripe_write;
+};
+
+
 struct _cossmembuf {
     dlink_node node;
-    size_t diskstart;		/* in blocks */
-    size_t diskend;		/* in blocks */
+    size_t diskstart;		/* in bytes */
+    size_t diskend;		/* in bytes */
     SwapDir *SD;
     int lockcount;
     char buffer[COSS_MEMBUF_SZ];
@@ -38,7 +49,7 @@ struct _cossmembuf {
 struct _cossinfo {
     dlink_list membufs;
     struct _cossmembuf *current_membuf;
-    size_t current_offset;	/* in Blocks */
+    size_t current_offset;	/* in bytes */
     int fd;
     int swaplog_fd;
     int numcollisions;
@@ -46,6 +57,8 @@ struct _cossinfo {
     int count;
     async_queue_t aq;
     dlink_node *walk_current;
+    unsigned int blksz_bits;
+    unsigned int blksz_mask;	/* just 1<<blksz_bits - 1 */
 };
 
 struct _cossindex {
@@ -67,6 +80,7 @@ struct _cossstate {
 	unsigned int reading:1;
 	unsigned int writing:1;
     } flags;
+    struct _cossmembuf *locked_membuf;
 };
 
 typedef struct _cossmembuf CossMemBuf;
@@ -91,9 +105,10 @@ extern STOBJWRITE storeCossWrite;
 extern STOBJUNLINK storeCossUnlink;
 extern STSYNC storeCossSync;
 
-extern off_t storeCossAllocate(SwapDir * SD, const StoreEntry * e, int which);
 extern void storeCossAdd(SwapDir *, StoreEntry *);
 extern void storeCossRemove(SwapDir *, StoreEntry *);
 extern void storeCossStartMembuf(SwapDir * SD);
+
+extern struct _coss_stats coss_stats;
 
 #endif

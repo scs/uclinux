@@ -143,7 +143,8 @@ int
 main(argc, argv)
      int argc;
      char **argv;
-{	register int i; char optchar;
+{	register int i;
+	int optchar;
 	struct servent *service;
 	int bufsize;
 

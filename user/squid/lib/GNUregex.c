@@ -87,7 +87,7 @@ extern char *re_syntax_table;
 static char re_syntax_table[CHAR_SET_SIZE];
 
 static void
-init_syntax_once()
+init_syntax_once(void)
 {
     register int c;
     static int done = 0;
@@ -819,12 +819,6 @@ static const char *re_error_msg[] =
 
 /* Subroutine declarations and macros for regex_compile.  */
 
-static void store_op1(), store_op2();
-static void insert_op1(), insert_op2();
-static boolean at_begline_loc_p(), at_endline_loc_p();
-static boolean group_in_compile_stack();
-static reg_errcode_t compile_range();
-
 /* Fetch the next character in the uncompiled pattern---translating it 
  * if necessary.  Also cast from a signed character in the constant
  * string passed to us by the user to an unsigned char that we can use
@@ -975,6 +969,14 @@ typedef struct {
     unsigned avail;		/* Offset of next open position.  */
 } compile_stack_type;
 
+static void store_op1(re_opcode_t op, unsigned char *loc, int arg);
+static void store_op2( re_opcode_t op, unsigned char *loc, int arg1, int arg2);
+static void insert_op1(re_opcode_t op, unsigned char *loc, int arg, unsigned char *end);
+static void insert_op2(re_opcode_t op, unsigned char *loc, int arg1, int arg2, unsigned char *end);
+static boolean at_begline_loc_p(const char * pattern, const char *p, reg_syntax_t syntax);
+static boolean at_endline_loc_p(const char *p, const char *pend, int syntax);
+static boolean group_in_compile_stack(compile_stack_type compile_stack, regnum_t regnum);
+static reg_errcode_t compile_range(const char **p_ptr, const char *pend, char *translate, reg_syntax_t syntax, unsigned char *b);
 
 #define INIT_COMPILE_STACK_SIZE 32
 
@@ -1037,11 +1039,7 @@ typedef struct {
  * examined nor set.  */
 
 static reg_errcode_t
-regex_compile(pattern, size, syntax, bufp)
-     const char *pattern;
-     int size;
-     reg_syntax_t syntax;
-     struct re_pattern_buffer *bufp;
+regex_compile(const char *pattern, int size, reg_syntax_t syntax, struct re_pattern_buffer *bufp)
 {
     /* We fetch characters from PATTERN here.  Even though PATTERN is
      * `char *' (i.e., signed), we declare these variables as unsigned, so
@@ -1992,11 +1990,7 @@ regex_compile(pattern, size, syntax, bufp)
 
 /* Store OP at LOC followed by two-byte integer parameter ARG.  */
 
-static void
-store_op1(op, loc, arg)
-     re_opcode_t op;
-     unsigned char *loc;
-     int arg;
+void store_op1(re_opcode_t op, unsigned char *loc, int arg)
 {
     *loc = (unsigned char) op;
     STORE_NUMBER(loc + 1, arg);
@@ -2005,11 +1999,8 @@ store_op1(op, loc, arg)
 
 /* Like `store_op1', but for two two-byte parameters ARG1 and ARG2.  */
 
-static void
-store_op2(op, loc, arg1, arg2)
-     re_opcode_t op;
-     unsigned char *loc;
-     int arg1, arg2;
+void
+store_op2( re_opcode_t op, unsigned char *loc, int arg1, int arg2)
 {
     *loc = (unsigned char) op;
     STORE_NUMBER(loc + 1, arg1);
@@ -2020,12 +2011,8 @@ store_op2(op, loc, arg1, arg2)
 /* Copy the bytes from LOC to END to open up three bytes of space at LOC
  * for OP followed by two-byte integer parameter ARG.  */
 
-static void
-insert_op1(op, loc, arg, end)
-     re_opcode_t op;
-     unsigned char *loc;
-     int arg;
-     unsigned char *end;
+void
+insert_op1(re_opcode_t op, unsigned char *loc, int arg, unsigned char *end)
 {
     register unsigned char *pfrom = end;
     register unsigned char *pto = end + 3;
@@ -2039,12 +2026,8 @@ insert_op1(op, loc, arg, end)
 
 /* Like `insert_op1', but for two two-byte parameters ARG1 and ARG2.  */
 
-static void
-insert_op2(op, loc, arg1, arg2, end)
-     re_opcode_t op;
-     unsigned char *loc;
-     int arg1, arg2;
-     unsigned char *end;
+void
+insert_op2(re_opcode_t op, unsigned char *loc, int arg1, int arg2, unsigned char *end)
 {
     register unsigned char *pfrom = end;
     register unsigned char *pto = end + 5;
@@ -2060,10 +2043,8 @@ insert_op2(op, loc, arg1, arg2, end)
  * after an alternative or a begin-subexpression.  We assume there is at
  * least one character before the ^.  */
 
-static boolean
-at_begline_loc_p(pattern, p, syntax)
-     const char *pattern, *p;
-     reg_syntax_t syntax;
+boolean
+at_begline_loc_p(const char * pattern, const char *p, reg_syntax_t syntax)
 {
     const char *prev = p - 2;
     boolean prev_prev_backslash = prev > pattern && prev[-1] == '\\';
@@ -2079,10 +2060,8 @@ at_begline_loc_p(pattern, p, syntax)
 /* The dual of at_begline_loc_p.  This one is for $.  We assume there is
  * at least one character after the $, i.e., `P < PEND'.  */
 
-static boolean
-at_endline_loc_p(p, pend, syntax)
-     const char *p, *pend;
-     int syntax;
+boolean
+at_endline_loc_p(const char *p, const char *pend, int syntax)
 {
     const char *next = p;
     boolean next_backslash = *next == '\\';
@@ -2101,10 +2080,8 @@ at_endline_loc_p(p, pend, syntax)
 /* Returns true if REGNUM is in one of COMPILE_STACK's elements and 
  * false if it's not.  */
 
-static boolean
-group_in_compile_stack(compile_stack, regnum)
-     compile_stack_type compile_stack;
-     regnum_t regnum;
+boolean
+group_in_compile_stack(compile_stack_type compile_stack, regnum_t regnum)
 {
     int this_element;
 
@@ -2129,12 +2106,8 @@ group_in_compile_stack(compile_stack, regnum)
  * We use these short variable names so we can use the same macros as
  * `regex_compile' itself.  */
 
-static reg_errcode_t
-compile_range(p_ptr, pend, translate, syntax, b)
-     const char **p_ptr, *pend;
-     char *translate;
-     reg_syntax_t syntax;
-     unsigned char *b;
+reg_errcode_t
+compile_range(const char **p_ptr, const char *pend, char *translate, reg_syntax_t syntax, unsigned char *b)
 {
     unsigned this_char;
 
@@ -2900,10 +2873,6 @@ re_search_2(bufp, string1, size1, string2, size2, startpos, range, regs, stop)
 
 /* Declarations and macros for re_match_2.  */
 
-static int bcmp_translate();
-static boolean alt_match_null_string_p(), common_op_match_null_string_p(),
-        group_match_null_string_p();
-
 /* Structure for per-register (a.k.a. per-group) information.
  * This must not be longer than one word, because we push this value
  * onto the failure stack.  Other register information, such as the
@@ -2927,6 +2896,10 @@ typedef union {
 	unsigned ever_matched_something:1;
     } bits;
 } register_info_type;
+static boolean alt_match_null_string_p(unsigned char *p, unsigned char *end, register_info_type *reg_info);
+static boolean common_op_match_null_string_p( unsigned char **p, unsigned char *end, register_info_type *reg_info);
+static int bcmp_translate(unsigned char const *s1, unsigned char const *s2, register int len, char *translate);
+static boolean group_match_null_string_p(unsigned char **p, unsigned char *end, register_info_type *reg_info);
 
 #define REG_MATCH_NULL_STRING_P(R)  ((R).bits.match_null_string_p)
 #define IS_ACTIVE(R)  ((R).bits.is_active)
@@ -4175,7 +4148,6 @@ re_match_2(bufp, string1, size1, string2, size2, pos, regs, stop)
 
 /* Subroutine definitions for re_match_2.  */
 
-
 /* We are passed P pointing to a register number after a start_memory.
  * 
  * Return true if the pattern up to the corresponding stop_memory can
@@ -4186,10 +4158,8 @@ re_match_2(bufp, string1, size1, string2, size2, pos, regs, stop)
  * 
  * We don't handle duplicates properly (yet).  */
 
-static boolean
-group_match_null_string_p(p, end, reg_info)
-     unsigned char **p, *end;
-     register_info_type *reg_info;
+boolean
+group_match_null_string_p(unsigned char **p, unsigned char *end, register_info_type *reg_info)
 {
     int mcnt;
     /* Point to after the args to the start_memory.  */
@@ -4290,10 +4260,8 @@ group_match_null_string_p(p, end, reg_info)
  * It expects P to be the first byte of a single alternative and END one
  * byte past the last. The alternative can contain groups.  */
 
-static boolean
-alt_match_null_string_p(p, end, reg_info)
-     unsigned char *p, *end;
-     register_info_type *reg_info;
+boolean
+alt_match_null_string_p(unsigned char *p, unsigned char *end, register_info_type *reg_info)
 {
     int mcnt;
     unsigned char *p1 = p;
@@ -4325,10 +4293,8 @@ alt_match_null_string_p(p, end, reg_info)
  * 
  * Sets P to one after the op and its arguments, if any.  */
 
-static boolean
-common_op_match_null_string_p(p, end, reg_info)
-     unsigned char **p, *end;
-     register_info_type *reg_info;
+boolean
+common_op_match_null_string_p( unsigned char **p, unsigned char *end, register_info_type *reg_info)
 {
     int mcnt;
     boolean ret;
@@ -4410,13 +4376,10 @@ common_op_match_null_string_p(p, end, reg_info)
 /* Return zero if TRANSLATE[S1] and TRANSLATE[S2] are identical for LEN
  * bytes; nonzero otherwise.  */
 
-static int
-bcmp_translate(s1, s2, len, translate)
-     unsigned char *s1, *s2;
-     register int len;
-     char *translate;
+int
+bcmp_translate(unsigned char const *s1, unsigned char const*s2, register int len, char *translate)
 {
-    register unsigned char *p1 = s1, *p2 = s2;
+    register unsigned char const *p1 = s1, *p2 = s2;
     while (len) {
 	if (translate[*p1++] != translate[*p2++])
 	    return 1;

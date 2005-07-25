@@ -6,10 +6,10 @@ cgibindir=$(prefix)/cgi-bin
 bindir=${exec_prefix}/bin
 
 VERSION=0.7.2
-CFLAGS += $(INCZ) \
+CFLAGS += \
 	  -DHAVE_LIBM=1 -DHAVE_LIBZ=1 \
-	  -DHAVE_LIBPNG=1 $(INCPNG) \
-	  -DHAVE_LIBJPEG=1 $(INCJPEG) \
+	  -DHAVE_LIBPNG=1 \
+	  -DHAVE_LIBJPEG=1 \
 	  -DVIDEO_DEV=\"/dev/video\" -DVERSION=\"$(VERSION)\"
 LIBS = -lpng -ljpeg -lz -lm 
 

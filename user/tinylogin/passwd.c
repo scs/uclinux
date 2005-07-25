@@ -13,6 +13,7 @@
 #include <time.h>
 #include <sys/resource.h>
 #include <errno.h>
+
 static char crypt_passwd[128];
 
 static int create_backup(const char *backup, FILE * fp);
@@ -77,12 +78,10 @@ extern int passwd_main(int argc, char **argv)
 	}
 	ruid = getuid();
 	pw = (struct passwd *) tlg_getpwuid(ruid);
-//	printf("pw=%x\n",pw);
 	if (!pw) {
 		error_msg_and_die("Cannot determine your user name.\n");
 	}
 	myname = (char *) xstrdup(pw->pw_name);
-//	printf("myname=%s\n",myname);
 	if (optind < argc) {
 		name = argv[optind];
 	} else {
@@ -92,7 +91,6 @@ extern int passwd_main(int argc, char **argv)
 		usage(passwd_usage);
 	}
 	pw = tlg_getpwnam(name);
-//	printf("pwname=%x\n",pw);
 	if (!pw) {
 		error_msg_and_die("Unknown user %s\n", name);
 	}
@@ -113,7 +111,6 @@ extern int passwd_main(int argc, char **argv)
 #endif							/* TLG_FEATURE_SHADOWPASSWDS */
 
 	STRFCPY(crypt_passwd, cp);
-	//printf("after STRFCPY\n");
 	if (!(dflg || lflg || uflg)) {
 		if (!amroot) {
 			if (cp[0] == '!') {

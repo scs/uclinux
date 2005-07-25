@@ -58,11 +58,7 @@ struct group *__tlg_getgrent(int grp_fd)
 #ifndef GR_SCALE_DYNAMIC
 	/* Read the line into the static buffer */
 	if ((line_len = read(grp_fd, line_buff, GR_MAX_LINE_LEN)) <= 0)
-		{
-		//printf("line_len is less than 0\n");
 		return NULL;
-		}
-		//printf("line_len is %d\n",line_len);
 	field_begin = strchr(line_buff, '\n');
 	if (field_begin != NULL)
 		lseek(grp_fd, (long) (1 + field_begin - (line_buff + line_len)),
@@ -127,7 +123,6 @@ struct group *__tlg_getgrent(int grp_fd)
 	*ptr++ = '\0';
 
 	group.gr_gid = (gid_t) strtoul(field_begin, &endptr, 10);
-	//printf("group.gr_gid=%d\n",group.gr_gid);
 	if (*endptr != '\0')
 		goto restart;
 

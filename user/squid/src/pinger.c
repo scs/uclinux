@@ -177,7 +177,7 @@ pingerSendEcho(struct in_addr to, int opcode, char *payload, int len)
     echo = (icmpEchoData *) (icmp + 1);
     echo->opcode = (unsigned char) opcode;
     echo->tv = current_time;
-    icmp_pktsize += sizeof(icmpEchoData) - MAX_PAYLOAD;
+    icmp_pktsize += sizeof(struct timeval) + sizeof(char);
     if (payload) {
 	if (len > MAX_PAYLOAD)
 	    len = MAX_PAYLOAD;

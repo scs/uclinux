@@ -102,6 +102,9 @@ const char *ProtocolStr[] =
     "whois",
     "internal",
     "https",
+#ifdef HS_FEAT_ICAP
+    "icap",
+#endif
     "TOTAL"
 };
 
@@ -220,6 +223,10 @@ urlParseProtocol(const char *s)
 	return PROTO_WHOIS;
     if (strcasecmp(s, "internal") == 0)
 	return PROTO_INTERNAL;
+#ifdef HS_FEAT_ICAP
+    if (strcasecmp(s, "icap") == 0)
+	return PROTO_ICAP;
+#endif
     return PROTO_NONE;
 }
 
@@ -243,6 +250,10 @@ urlDefaultPort(protocol_t p)
 	return CACHE_HTTP_PORT;
     case PROTO_WHOIS:
 	return 43;
+#ifdef HS_FEAT_ICAP
+    case PROTO_ICAP:
+	return 1344;
+#endif
     default:
 	return 0;
     }

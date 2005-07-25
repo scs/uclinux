@@ -42,20 +42,14 @@ struct passwd *__tlg_getpwent(int pwd_fd)
 	char *uid_ptr=NULL;
 	int line_len;
 	int i;
-	//printf("in __tlg_getpwent pwd_fd=%d\n",pwd_fd);
+
 	/* We use the restart label to handle malformatted lines */
   restart:
 	/* Read the passwd line into the static buffer using a minimal of
 	   syscalls. */
-//	if ((line_len = read(pwd_fd, line_buff, PWD_BUFFER_SIZE)) <= 0)
-	line_len = read(pwd_fd, line_buff, PWD_BUFFER_SIZE);
-//	printf("line_len=%d\n",line_len);
-	if(line_len <= 0)
-	{	
-		return NULL;	
-	}
+	if ((line_len = read(pwd_fd, line_buff, PWD_BUFFER_SIZE)) <= 0)
+		return NULL;
 	field_begin = strchr(line_buff, '\n');
-	//printf("filed_begin=%x\n",field_begin);
 	if (field_begin != NULL)
 		lseek(pwd_fd, (long) (1 + field_begin - (line_buff + line_len)),
 			  SEEK_CUR);
@@ -69,14 +63,12 @@ struct passwd *__tlg_getpwent(int pwd_fd)
 			  SEEK_CUR);
 		goto restart;
 	}
-//	printf("after if line_buff=%s\n",line_buff);
 	if (*line_buff == '#' || *line_buff == ' ' || *line_buff == '\n' ||
 		*line_buff == '\t')
 		goto restart;
 	*field_begin = '\0';
 
 	/* We've read the line; now parse it. */
-	//printf("line read\n");
 	field_begin = line_buff;
 	for (i = 0; i < 7; i++) {
 		switch (i) {
@@ -104,20 +96,16 @@ struct passwd *__tlg_getpwent(int pwd_fd)
 		}
 		if (i < 6) {
 			field_begin = strchr(field_begin, ':');
-	//		printf("field_bnegin=%x\n",field_begin);
 			if (field_begin == NULL)
 				goto restart;
 			*field_begin++ = '\0';
 		}
 	}
-	//printf("after for loop\n");
 	passwd.pw_gid = (gid_t) strtoul(gid_ptr, &endptr, 10);
-//	printf("pw_gid=%d *endptr=%s\n",passwd.pw_gid,*endptr);
 	if (*endptr != '\0')
 		goto restart;
 
 	passwd.pw_uid = (uid_t) strtoul(uid_ptr, &endptr, 10);
-//	printf("pw_uid=%d\n",passwd.pw_uid);
 	if (*endptr != '\0')
 		goto restart;
 

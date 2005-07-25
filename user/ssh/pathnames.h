@@ -53,7 +53,7 @@
 #define _PATH_DH_PRIMES			SSHDIR "/primes"
 
 #ifndef _PATH_SSH_PROGRAM
-#define _PATH_SSH_PROGRAM		"/usr/bin/ssh"
+#define _PATH_SSH_PROGRAM		"/bin/ssh"
 #endif
 
 /*

@@ -40,7 +40,7 @@ srcdir = .
 #CC = gcc
 PROG = tcpdump
 #CCOPT = -O2
-INCLS += -I.  -Ilinux-include $(INCPCAP)
+INCLS += -I.  -Ilinux-include
 DEFS =  -DHAVE_FCNTL_H=1 -DHAVE_MALLOC_H=1 -DHAVE_MEMORY_H=1 -DTIME_WITH_SYS_TIME=1 -DHAVE_NET_SLIP_H=1 -DHAVE_VFPRINTF=1 -DHAVE_STRCASECMP=1 -DHAVE_SETLINEBUF=1 -DRETSIGTYPE=void -DRETSIGVAL= -D__USE_BSD=1
 
 # larger stack size required for tcpdump

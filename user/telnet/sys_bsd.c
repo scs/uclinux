@@ -691,7 +691,7 @@ TerminalNewMode(f)
     ioctl(tin, TIOCSETC, (char *)&tc);
     ioctl(tin, TIOCSETN, (char *)&sb);
 #else
-   if (tcsetattr(tin, TCSADRAIN, &tmp_tc) < 0)
+    if (tcsetattr(tin, TCSADRAIN, &tmp_tc) < 0)
 	tcsetattr(tin, TCSANOW, &tmp_tc);
 #endif
 

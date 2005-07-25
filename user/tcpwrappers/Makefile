@@ -4,7 +4,7 @@ romfs:
 	$(ROMFSINST) /bin/tcpd
 	$(ROMFSINST) -e CONFIG_USER_TCPWRAP_FINGER /bin/safe_finger
 	$(ROMFSINST) -e CONFIG_USER_TCPWRAP_TCPDMATCH /bin/tcpdmatch
-	$(ROMFSINST) -e CONFIG_UEER_TCPWRAP_TRYFROM /bin/try-from
+	$(ROMFSINST) -e CONFIG_USER_TCPWRAP_TRYFROM /bin/try-from
 	$(ROMFSINST) -e CONFIG_USER_TCPWRAP_TCPDCHK /bin/tcpdchk
 	$(ROMFSINST) -a "ALL:ALL" /etc/default/hosts.allow
 	$(ROMFSINST) -a '# No hosts denied' /etc/default/hosts.deny
@@ -387,15 +387,13 @@ machten:
 # library; some don't care as long as the modules are in the right order;
 # some systems don't even have a ranlib(1) command. Make your choice.
 
-#RANLIB	= m68k-elf-ranlib	# have ranlib (BSD-ish UNIX)
-RANLIB	= nisa-elf-ranlib	# have ranlib (BSD-ish UNIX)
+RANLIB	= m68k-elf-ranlib	# have ranlib (BSD-ish UNIX)
 #RANLIB	= echo		# no ranlib (SYSV-ish UNIX)
 
 ARFLAGS	= rv		# most systems
 #ARFLAGS= rvs		# IRIX 4.0.x
 
-#AR	= m68k-elf-ar
-AR	= nisa-elf-ar
+AR	= m68k-elf-ar
 #AR	= bld		# Unicos 8.x
 
 #############################################################################

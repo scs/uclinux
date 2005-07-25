@@ -43,6 +43,40 @@ static char *		TraceVarProc _ANSI_ARGS_((ClientData clientData,
 			    Tcl_Interp *interp, char *name1, char *name2,
 			    int flags));
 
+/* Resize the regexp cache */
+static void expand_regexp_cache(Interp *iPtr, int newsize)
+{
+    int i;
+
+    if (newsize > iPtr->num_regexps) {
+	/* Expand the cache */
+	iPtr->regexps = (CompiledRegexp *)ckrealloc((char *)iPtr->regexps, sizeof(CompiledRegexp) * newsize);
+
+	    /* And initialise the new entries */
+	for (i = iPtr->num_regexps; i < newsize; i++) {
+	    iPtr->regexps[i].pattern = NULL;
+	    iPtr->regexps[i].length = -1;
+	    iPtr->regexps[i].regexp = NULL;
+	}
+    }
+    else if (newsize < iPtr->num_regexps) {
+	/* Shrink the cache.
+	 * We just adjust our notion of the size
+	 * and free any extra entries
+	 */
+	for (i = newsize; i < iPtr->num_regexps; i++) {
+	    if (iPtr->regexps[i].pattern == NULL) {
+		break;
+	    }
+	    ckfree(iPtr->regexps[i].pattern);
+	    iPtr->regexps[i].pattern = NULL;
+	    regfree(iPtr->regexps[i].regexp);
+	    ckfree((char *)iPtr->regexps[i].regexp);
+	}
+    }
+    iPtr->num_regexps = newsize;
+}
+
 /*
  *----------------------------------------------------------------------
  *
@@ -60,6 +94,7 @@ static char *		TraceVarProc _ANSI_ARGS_((ClientData clientData,
  *----------------------------------------------------------------------
  */
 
+
 	/* ARGSUSED */
 int
 Tcl_RegexpCmd(dummy, interp, argc, argv)
@@ -70,14 +105,16 @@ Tcl_RegexpCmd(dummy, interp, argc, argv)
 {
     int noCase = 0;
     int indices = 0;
-    regexp *regexpPtr;
-    char **argPtr, *string;
+    regex_t *regexpPtr;
+    char **argPtr;
     int match, i;
+    int offset = 0;
+    regmatch_t pmatch[MAX_SUB_MATCHES + 1];
 
     if (argc < 3) {
 	wrongNumArgs:
 	Tcl_AppendResult(interp, "wrong # args: should be \"", argv[0],
-		" ?-nocase? exp string ?matchVar? ?subMatchVar ",
+		" ?-nocase? ?-indices? ?-start offset? exp string ?matchVar? ?subMatchVar ",
 		"subMatchVar ...?\"", (char *) NULL);
 	return TCL_ERROR;
     }
@@ -92,6 +129,31 @@ Tcl_RegexpCmd(dummy, interp, argc, argv)
 	    argPtr++;
 	    argc--;
 	    noCase = 1;
+	} else if (strcmp(argPtr[0], "-start") == 0) {
+	    argPtr++;
+	    argc--;
+	    if (argc == 0) {
+		goto wrongNumArgs;
+	    }
+	    if (Tcl_GetInt(interp, argPtr[0], &offset) != TCL_OK) {
+		return TCL_ERROR;
+	    }
+	    argPtr++;
+	    argc--;
+	} else if (strcmp(argPtr[0], "-cache") == 0) {
+	    int newsize;
+
+	    argPtr++;
+	    argc--;
+	    if (argc == 0) {
+		goto wrongNumArgs;
+	    }
+	    if (Tcl_GetInt(interp, argPtr[0], &newsize) != TCL_OK) {
+		return TCL_ERROR;
+	    }
+	    /* OK, increase the size of the regexp cache to 'newsize' */
+	    expand_regexp_cache((Interp *)interp, newsize);
+	    return TCL_OK;
 	} else {
 	    break;
 	}
@@ -99,42 +161,40 @@ Tcl_RegexpCmd(dummy, interp, argc, argv)
     if (argc < 2) {
 	goto wrongNumArgs;
     }
-    regexpPtr = TclCompileRegexp(interp, argPtr[0]);
+
+#ifndef REG_ICASE
+    if (noCase) {
+	Tcl_AppendResult(interp, "sorry, this implementation does not support -nocase", 0);
+	return TCL_ERROR;
+    }
+#endif
+
+    regexpPtr = TclCompileRegexp(interp, argPtr[0], noCase);
     if (regexpPtr == NULL) {
 	return TCL_ERROR;
     }
 
-    /*
-     * Convert the string to lower case, if desired, and perform
-     * the match.
+    /* If an offset has been specified, adjust for that now.
+     * If it points past the end of the string, point to the terminating null
      */
-
-    if (noCase) {
-	register char *dst, *src;
-
-	string = (char *) ckalloc((unsigned) (strlen(argPtr[1]) + 1));
-	for (src = argPtr[1], dst = string; *src != 0; src++, dst++) {
-	    if (isupper(*src)) {
-		*dst = tolower(*src);
-	    } else {
-		*dst = *src;
-	    }
+    if (offset) {
+	int len = strlen(argPtr[1]);
+	if (offset > len) {
+	    argPtr[1] = argPtr[1] + len;
+	} else {
+	    argPtr[1] = argPtr[1] + offset;
 	}
-	*dst = 0;
-    } else {
-	string = argPtr[1];
     }
-    tclRegexpError = NULL;
-    match = regexec(regexpPtr, string);
-    if (string != argPtr[1]) {
-	ckfree(string);
-    }
-    if (tclRegexpError != NULL) {
+
+    match = regexec(regexpPtr, argPtr[1], MAX_SUB_MATCHES, pmatch, 0);
+    if (match >= REG_BADPAT) {
+	char buf[100];
+	regerror(match, regexpPtr, buf, sizeof(buf));
 	Tcl_AppendResult(interp, "error while matching pattern: ",
-		tclRegexpError, (char *) NULL);
+		buf, (char *) NULL);
 	return TCL_ERROR;
     }
-    if (!match) {
+    if (match == REG_NOMATCH) {
 	interp->result = "0";
 	return TCL_OK;
     }
@@ -145,14 +205,14 @@ Tcl_RegexpCmd(dummy, interp, argc, argv)
      */
 
     argc -= 2;
-    if (argc > NSUBEXP) {
+    if (argc > MAX_SUB_MATCHES) {
 	interp->result = "too many substring variables";
 	return TCL_ERROR;
     }
     for (i = 0; i < argc; i++) {
 	char *result, info[50];
 
-	if (regexpPtr->startp[i] == NULL) {
+	if (pmatch[i].rm_so == -1) {
 	    if (indices) {
 		result = Tcl_SetVar(interp, argPtr[i+2], "-1 -1", 0);
 	    } else {
@@ -160,14 +220,13 @@ Tcl_RegexpCmd(dummy, interp, argc, argv)
 	    }
 	} else {
 	    if (indices) {
-		sprintf(info, "%d %d", regexpPtr->startp[i] - string,
-			regexpPtr->endp[i] - string - 1);
+		sprintf(info, "%d %d", offset + pmatch[i].rm_so, offset + pmatch[i].rm_eo - 1);
 		result = Tcl_SetVar(interp, argPtr[i+2], info, 0);
 	    } else {
 		char savedChar, *first, *last;
 
-		first = argPtr[1] + (regexpPtr->startp[i] - string);
-		last = argPtr[1] + (regexpPtr->endp[i] - string);
+		first = argPtr[1] + pmatch[i].rm_so;
+		last = argPtr[1] + pmatch[i].rm_eo;
 		savedChar = *last;
 		*last = 0;
 		result = Tcl_SetVar(interp, argPtr[i+2], first, 0);
@@ -210,10 +269,13 @@ Tcl_RegsubCmd(dummy, interp, argc, argv)
     char **argv;			/* Argument strings. */
 {
     int noCase = 0, all = 0;
-    regexp *regexpPtr;
-    char *string, *p, *firstChar, *newValue, **argPtr;
+    regex_t *regexpPtr;
+    char *p, *firstChar, *newValue, **argPtr;
     int match, result, flags;
     register char *src, c;
+    regmatch_t pmatch[MAX_SUB_MATCHES + 1];
+    int num_matches = 0;
+    char buf[100];
 
     if (argc < 5) {
 	wrongNumArgs:
@@ -239,29 +301,17 @@ Tcl_RegsubCmd(dummy, interp, argc, argv)
     if (argc != 4) {
 	goto wrongNumArgs;
     }
-    regexpPtr = TclCompileRegexp(interp, argPtr[0]);
-    if (regexpPtr == NULL) {
+
+#ifndef REG_ICASE
+    if (noCase) {
+	Tcl_AppendResult(interp, "sorry, this implementation does not support -nocase", 0);
 	return TCL_ERROR;
     }
+#endif
 
-    /*
-     * Convert the string to lower case, if desired.
-     */
-
-    if (noCase) {
-	register char *dst;
-
-	string = (char *) ckalloc((unsigned) (strlen(argPtr[1]) + 1));
-	for (src = argPtr[1], dst = string; *src != 0; src++, dst++) {
-	    if (isupper(*src)) {
-		*dst = tolower(*src);
-	    } else {
-		*dst = *src;
-	    }
-	}
-	*dst = 0;
-    } else {
-	string = argPtr[1];
+    regexpPtr = TclCompileRegexp(interp, argPtr[0], noCase);
+    if (regexpPtr == NULL) {
+	return TCL_ERROR;
     }
 
     /*
@@ -272,29 +322,31 @@ Tcl_RegsubCmd(dummy, interp, argc, argv)
      */
 
     flags = 0;
-    for (p = string; *p != 0; ) {
-	tclRegexpError = NULL;
-	match = regexec(regexpPtr, p);
-	if (tclRegexpError != NULL) {
+    for (p = argPtr[1]; *p != 0; ) {
+	match = regexec(regexpPtr, p, MAX_SUB_MATCHES, pmatch, 0);
+	if (match >= REG_BADPAT) {
+	    regerror(match, regexpPtr, buf, sizeof(buf));
 	    Tcl_AppendResult(interp, "error while matching pattern: ",
-		    tclRegexpError, (char *) NULL);
+		    buf, (char *) NULL);
 	    result = TCL_ERROR;
 	    goto done;
 	}
-	if (!match) {
+	if (match == REG_NOMATCH) {
 	    break;
 	}
+
+	num_matches++;
 
 	/*
 	 * Copy the portion of the source string before the match to the
 	 * result variable.
 	 */
     
-	src = argPtr[1] + (regexpPtr->startp[0] - string);
+	src = p + pmatch[0].rm_so;
 	c = *src;
 	*src = 0;
-	newValue = Tcl_SetVar(interp, argPtr[3], argPtr[1] + (p - string),
-		flags);
+
+	newValue = Tcl_SetVar(interp, argPtr[3], p, flags);
 	*src = c;
 	flags = TCL_APPEND_VALUE;
 	if (newValue == NULL) {
@@ -304,7 +356,7 @@ Tcl_RegsubCmd(dummy, interp, argc, argv)
 	    result = TCL_ERROR;
 	    goto done;
 	}
-    
+
 	/*
 	 * Append the subSpec argument to the variable, making appropriate
 	 * substitutions.  This code is a bit hairy because of the backslash
@@ -350,12 +402,11 @@ Tcl_RegsubCmd(dummy, interp, argc, argv)
 		    goto cantSet;
 		}
 	    }
-	    if ((index < NSUBEXP) && (regexpPtr->startp[index] != NULL)
-		    && (regexpPtr->endp[index] != NULL)) {
+	    if ((index < MAX_SUB_MATCHES) && pmatch[index].rm_so != -1 && pmatch[index].rm_eo != -1) {
 		char *first, *last, saved;
-    
-		first = argPtr[1] + (regexpPtr->startp[index] - string);
-		last = argPtr[1] + (regexpPtr->endp[index] - string);
+
+		first = p + pmatch[index].rm_so;
+		last = p + pmatch[index].rm_eo;
 		saved = *last;
 		*last = 0;
 		newValue = Tcl_SetVar(interp, argPtr[3], first,
@@ -376,24 +427,30 @@ Tcl_RegsubCmd(dummy, interp, argc, argv)
 		goto cantSet;
 	    }
 	}
-	p = regexpPtr->endp[0];
-	if (!all) {
+	p += pmatch[0].rm_eo;
+	if (!all || pmatch[0].rm_eo == 0 || argPtr[0][0] == '^') {
+	    /* If we are doing a single match, or we haven't moved with this match
+	     * or this is an anchored match, we stop */
 	    break;
 	}
     }
 
     /*
-     * If there were no matches at all, then return a "0" result.
+     * If there were no matches at all, copy the source string to the target
+     * and return a "0" result.
      */
 
-    if (p == string) {
+    if (flags == 0) {
+	if (Tcl_SetVar(interp, argPtr[3], argPtr[1], 0) == NULL) {
+	    goto cantSet;
+	}
 	interp->result = "0";
 	result = TCL_OK;
 	goto done;
     }
 
     /*
-     * Copy the portion of the source string after the last match to the
+     * Copy the portion of the string after the last match to the
      * result variable.
      */
 
@@ -402,13 +459,11 @@ Tcl_RegsubCmd(dummy, interp, argc, argv)
 	    goto cantSet;
 	}
     }
-    interp->result = "1";
+    sprintf(buf, "%d", num_matches);
+    Tcl_AppendResult (interp, buf, 0);
     result = TCL_OK;
 
     done:
-    if (string != argPtr[1]) {
-	ckfree(string);
-    }
     return result;
 }
 
@@ -880,6 +935,19 @@ Tcl_StringCmd(dummy, interp, argc, argv)
 	    interp->result = "0";
 	}
 	return TCL_OK;
+    } else if (strcmp(argv[1], "equal") == 0) {
+	if (argc != 4) {
+	    Tcl_AppendResult(interp, "wrong # args: should be \"", argv[0],
+		    " equal string1 string2\"", (char *) NULL);
+	    return TCL_ERROR;
+	}
+	match = strcmp(argv[2], argv[3]);
+	if (match == 0) {
+	    interp->result = "1";
+	} else {
+	    interp->result = "0";
+	}
+	return TCL_OK;
     } else if ((c == 'f') && (strncmp(argv[1], "first", length) == 0)) {
 	if (argc != 4) {
 	    Tcl_AppendResult(interp, "wrong # args: should be \"", argv[0],
@@ -937,7 +1005,7 @@ Tcl_StringCmd(dummy, interp, argc, argv)
 		    " length string\"", (char *) NULL);
 	    return TCL_ERROR;
 	}
-	sprintf(interp->result, "%d", strlen(argv[2]));
+	sprintf(interp->result, "%d", (int)strlen(argv[2]));
 	return TCL_OK;
     } else if ((c == 'm') && (strncmp(argv[1], "match", length) == 0)) {
 	if (argc != 4) {
@@ -991,6 +1059,25 @@ Tcl_StringCmd(dummy, interp, argc, argv)
 	    *p = saved;
 	}
 	return TCL_OK;
+    } else if (strcmp(argv[1], "repeat") == 0) {
+	int count;
+	if (argc != 4) {
+	    Tcl_AppendResult(interp, "wrong # args: should be \"", argv[0],
+		    " repeat string count\"", (char *) NULL);
+	    return TCL_ERROR;
+	}
+	if (Tcl_GetInt(interp, argv[3], &count) != TCL_OK) {
+	    Tcl_ResetResult(interp);
+	    Tcl_AppendResult(interp,
+		    "expected integer but got \"",
+		    argv[3], "\"", (char *) NULL);
+	    return TCL_ERROR;
+	}
+	Tcl_ResetResult(interp);
+	while (count-- > 0) {
+	    Tcl_AppendResult(interp, argv[2], 0);
+	}
+	return(TCL_OK);
     } else if ((c == 't') && (strncmp(argv[1], "tolower", length) == 0)
 	    && (length >= 3)) {
 	register char *p;
@@ -1078,7 +1165,8 @@ Tcl_StringCmd(dummy, interp, argc, argv)
 	right = 1;
 	argv[1] = "trimright";
 	goto trim;
-    } else {
+    }
+    else {
 	Tcl_AppendResult(interp, "bad option \"", argv[1],
 		"\": should be compare, first, index, last, length, match, ",
 		"range, tolower, toupper, trim, trimleft, or trimright",

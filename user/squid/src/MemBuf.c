@@ -98,8 +98,16 @@
  * }
  */
 
-
 #include "squid.h"
+
+#ifdef VA_COPY
+#undef VA_COPY
+#endif
+#if defined HAVE_VA_COPY
+#define VA_COPY va_copy
+#elif defined HAVE___VA_COPY
+#define VA_COPY __va_copy
+#endif
 
 /* local constants */
 
@@ -150,7 +158,7 @@ memBufClean(MemBuf * mb)
     (*mb->freefunc) (mb->buf);	/* free */
     mb->freefunc = NULL;	/* freeze */
     mb->buf = NULL;
-    mb->size = mb->capacity = 0;
+    mb->size = mb->capacity = mb->max_capacity = 0;
 }
 
 /* cleans the buffer without changing its capacity 
@@ -228,6 +236,9 @@ memBufPrintf(va_alist)
 void
 memBufVPrintf(MemBuf * mb, const char *fmt, va_list vargs)
 {
+#if defined VA_COPY
+    va_list ap;
+#endif
     int sz = 0;
     assert(mb && fmt);
     assert(mb->buf);
@@ -236,7 +247,17 @@ memBufVPrintf(MemBuf * mb, const char *fmt, va_list vargs)
     while (mb->capacity <= mb->max_capacity) {
 	mb_size_t free_space = mb->capacity - mb->size;
 	/* put as much as we can */
+
+#if defined VA_COPY
+	VA_COPY(ap, vargs);	/* Fix of bug 753. The value of vargs is undefined
+				 * * after vsnprintf() returns. Make a copy of vargs
+				 * * incase we loop around and call vsnprintf() again.
+				 */
+	sz = vsnprintf(mb->buf + mb->size, free_space, fmt, ap);
+	va_end(ap);
+#else
 	sz = vsnprintf(mb->buf + mb->size, free_space, fmt, vargs);
+#endif
 	/* check for possible overflow */
 	/* snprintf on Linuz returns -1 on overflows */
 	/* snprintf on FreeBSD returns at least free_space on overflows */
@@ -364,4 +385,16 @@ memBufReport(MemBuf * mb)
 {
     assert(mb);
     memBufPrintf(mb, "memBufReport is not yet implemented @?@\n");
+}
+
+int
+memBufRead(int fd, MemBuf * mb)
+{
+    int len;
+    if (mb->capacity == mb->size)
+	memBufGrow(mb, SQUID_TCP_SO_RCVBUF);
+    len = FD_READ_METHOD(fd, mb->buf + mb->size, mb->capacity - mb->size);
+    if (len)
+	mb->size += len;
+    return len;
 }

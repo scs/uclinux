@@ -1,4 +1,6 @@
 /* 
+ * vi:ts=8
+ *
  * tclBasic.c --
  *
  *	Contains the basic facilities for TCL command interpretation,
@@ -19,7 +21,7 @@
  */
 
 #include "tclInt.h"
-#include <varargs.h>
+#include <stdarg.h>
 
 /*
  * The following structure defines all of the commands in the Tcl core,
@@ -49,13 +51,16 @@ static CmdInfo builtInCmds[] = {
     {"continue",	Tcl_ContinueCmd},
     {"error",		Tcl_ErrorCmd},
     {"eval",		Tcl_EvalCmd},
-    {"exec",		Tcl_ExecCmd},
     {"expr",		Tcl_ExprCmd},
     {"for",		Tcl_ForCmd},
     {"foreach",		Tcl_ForeachCmd},
     {"format",		Tcl_FormatCmd},
     {"global",		Tcl_GlobalCmd},
     {"glob",		Tcl_GlobCmd},
+#ifndef TCL_NO_HISTORY
+    {"h",		Tcl_HistoryCmd},
+    {"history",		Tcl_HistoryCmd},
+#endif
     {"if",		Tcl_IfCmd},
     {"incr",		Tcl_IncrCmd},
     {"info",		Tcl_InfoCmd},
@@ -87,6 +92,12 @@ static CmdInfo builtInCmds[] = {
     /*
      * Commands in the UNIX core:
      */
+    {"exec",		Tcl_ExecCmd},
+    {"time",		Tcl_TimeCmd},
+    {"pid",		Tcl_PidCmd},
+#ifdef HAVE_TCL_LOAD
+    {"load",		Tcl_LoadCmd},
+#endif
 
 #ifndef TCL_GENERIC_ONLY
     {"cd",		Tcl_CdCmd},
@@ -135,6 +146,8 @@ Tcl_CreateInterp()
     int i;
 
     iPtr = (Interp *) ckalloc(sizeof(Interp));
+    memset(iPtr, 0, sizeof(*iPtr));
+
     iPtr->result = iPtr->resultSpace;
     iPtr->freeProc = 0;
     iPtr->errorLine = 0;
@@ -157,13 +170,17 @@ Tcl_CreateInterp()
     iPtr->appendUsed = 0;
     iPtr->numFiles = 0;
     iPtr->filePtrArray = NULL;
-    for (i = 0; i < NUM_REGEXPS; i++) {
-	iPtr->patterns[i] = NULL;
-	iPtr->patLengths[i] = -1;
-	iPtr->regexps[i] = NULL;
+    iPtr->num_regexps = DEFAULT_NUM_REGEXPS;
+    iPtr->regexps = (CompiledRegexp *)ckalloc(sizeof(CompiledRegexp) * iPtr->num_regexps);
+    for (i = 0; i < iPtr->num_regexps; i++) {
+	iPtr->regexps[i].pattern = NULL;
+	iPtr->regexps[i].length = -1;
+	iPtr->regexps[i].regexp = NULL;
     }
     iPtr->cmdCount = 0;
     iPtr->noEval = 0;
+    iPtr->signal = 0;
+    iPtr->catch_level = 0;
     iPtr->scriptFile = NULL;
     iPtr->flags = 0;
     iPtr->tracePtr = NULL;
@@ -291,13 +308,15 @@ Tcl_DeleteInterp(interp)
 	ckfree((char *) iPtr->filePtrArray);
     }
 #endif
-    for (i = 0; i < NUM_REGEXPS; i++) {
-	if (iPtr->patterns[i] == NULL) {
+    for (i = 0; i < iPtr->num_regexps; i++) {
+	if (iPtr->regexps[i].pattern == NULL) {
 	    break;
 	}
-	ckfree(iPtr->patterns[i]);
-	ckfree((char *) iPtr->regexps[i]);
+	ckfree(iPtr->regexps[i].pattern);
+	regfree(iPtr->regexps[i].regexp);
+	ckfree((char *)iPtr->regexps[i].regexp);
     }
+    ckfree((char *)iPtr->regexps);
     while (iPtr->tracePtr != NULL) {
 	Trace *nextPtr = iPtr->tracePtr->nextPtr;
 
@@ -534,6 +553,10 @@ Tcl_Eval(interp, cmd, flags, termPtr)
      */
 
     while (*src != termChar) {
+	if (iPtr->catch_level && iPtr->signal) {
+	    break;
+	}
+
 	iPtr->flags &= ~(ERR_IN_PROGRESS | ERROR_CODE_SET);
 
 	/*
@@ -542,7 +565,7 @@ Tcl_Eval(interp, cmd, flags, termPtr)
 	 */
 
 	while (1) {
-	    register char c = *src;
+	    register int c = *src;
 
 	    if ((CHAR_TYPE(c) != TCL_SPACE) && (c != ';') && (c != '\n')) {
 		break;
@@ -709,6 +732,13 @@ Tcl_Eval(interp, cmd, flags, termPtr)
 	}
     }
 
+    if (iPtr->catch_level && iPtr->signal) {
+	/* Got a signal in a catch so throw the signal */
+	result = TCL_SIGNAL;
+	Tcl_SetResult(interp, Tcl_SignalId(iPtr->signal), TCL_STATIC);
+	iPtr->signal = 0;
+    }
+
     /*
      * Free up any extra resources that were allocated.
      */
@@ -724,6 +754,9 @@ Tcl_Eval(interp, cmd, flags, termPtr)
     if (iPtr->numLevels == 0) {
 	if (result == TCL_RETURN) {
 	    result = TCL_OK;
+	}
+	if (result == TCL_SIGNAL) {
+	    result = TCL_ERROR;
 	}
 	if ((result != TCL_OK) && (result != TCL_ERROR)) {
 	    Tcl_ResetResult(interp);
@@ -973,24 +1006,14 @@ Tcl_AddErrorInfo(interp, message)
  *
  *----------------------------------------------------------------------
  */
-	/* VARARGS2 */ /* ARGSUSED */
 int
-#ifndef lint
-Tcl_VarEval(va_alist)
-#else
-Tcl_VarEval(iPtr, p, va_alist)
-    Tcl_Interp *iPtr;		/* Interpreter in which to execute command. */
-    char *p;			/* One or more strings to concatenate,
-				 * terminated with a NULL string. */
-#endif
-    va_dcl
+Tcl_VarEval(Tcl_Interp *interp, ...)
 {
     va_list argList;
 #define FIXED_SIZE 200
     char fixedSpace[FIXED_SIZE+1];
     int spaceAvl, spaceUsed, length;
     char *string, *cmd;
-    Tcl_Interp *interp;
     int result;
 
     /*
@@ -1000,8 +1023,7 @@ Tcl_VarEval(iPtr, p, va_alist)
      * space.
      */
 
-    va_start(argList);
-    interp = va_arg(argList, Tcl_Interp *);
+    va_start(argList, interp);
     spaceAvl = FIXED_SIZE;
     spaceUsed = 0;
     cmd = fixedSpace;

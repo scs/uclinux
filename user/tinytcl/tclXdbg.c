@@ -18,6 +18,7 @@
 
 #include "tclExtdInt.h"
 #include <stdio.h>
+#include <sys/time.h>
 
 /*
  * Client data structure for the cmdtrace command.
@@ -39,24 +40,24 @@ typedef struct traceInfo_t {
 /*
  * Prototypes of internal functions.
  */
-void
+static void
 PrintStr _ANSI_ARGS_((FILE *filePtr,
                       char *string,
                       int   numChars));
 
-void
+static void
 PrintArg _ANSI_ARGS_((FILE *filePtr,
                       char *argStr,
                       int   noTruncate));
 
-void
+static void
 TraceCode  _ANSI_ARGS_((traceInfo_pt traceInfoPtr,
                         int          level,
                         char        *command,
                         int          argc,
                         char       **argv));
 
-void
+static void
 CmdTraceRoutine _ANSI_ARGS_((ClientData    clientData,
                              Tcl_Interp   *interp,
                              int           level,
@@ -66,7 +67,7 @@ CmdTraceRoutine _ANSI_ARGS_((ClientData    clientData,
                              int           argc,
                              char        **argv));
 
-void
+static void
 CleanUpDebug _ANSI_ARGS_((ClientData clientData));
 
 
@@ -155,8 +156,18 @@ TraceCode (traceInfoPtr, level, command, argc, argv)
     char       **argv;
 {
     int idx, cmdLen, printLen;
+    static struct timeval last_time;
+    struct timeval this_time;
+
+    gettimeofday(&this_time, 0);
 
     fprintf (traceInfoPtr->filePtr, "%2d:", level);
+
+    if (last_time.tv_sec != 0) {
+        fprintf(traceInfoPtr->filePtr, " (%luus)", (this_time.tv_sec - last_time.tv_sec)*1000000 + (this_time.tv_usec - last_time.tv_usec));
+    }
+    last_time = this_time;
+
 
     if (level > 20)
         level = 20;
@@ -240,7 +251,7 @@ Tcl_CmdtraceCmd (clientData, interp, argc, argv)
     int           argc;
     char        **argv;
 {
-    Interp       *iPtr = (Interp *) interp;
+    /*Interp       *iPtr = (Interp *) interp;*/
     traceInfo_pt  infoPtr = (traceInfo_pt) clientData;
     int           idx;
     char         *fileHandle;

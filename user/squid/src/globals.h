@@ -166,5 +166,8 @@ extern char *WIN32_OS_string;	/* NULL */
 #if HAVE_SBRK
 extern void *sbrk_start;	/* 0 */
 #endif
+#if HS_FEAT_ICAP
+extern char *icap_service_type_str[];
+#endif
 
 #endif /* SQUID_GLOBALS_H */

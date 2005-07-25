@@ -153,7 +153,7 @@ storeDirSelectSwapDirRoundRobin(const StoreEntry * e)
 	    continue;
 	if (sd->cur_size > sd->max_size)
 	    continue;
-	if (!storeDirValidSwapDirSize(i, objsize))
+	if (!storeDirValidSwapDirSize(dirn, objsize))
 	    continue;
 	/* check for error or overload condition */
 	load = sd->checkobj(sd, e);

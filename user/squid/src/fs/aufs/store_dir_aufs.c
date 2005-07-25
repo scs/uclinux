@@ -64,7 +64,7 @@ struct _RebuildState {
     struct _store_rebuild_data counts;
 };
 
-static int n_asyncufs_dirs = 0;
+int n_asyncufs_dirs = 0;
 static int *asyncufs_dir_index = NULL;
 MemPool *squidaio_state_pool = NULL;
 MemPool *aufs_qread_pool = NULL;
@@ -320,6 +320,10 @@ storeAufsDirOpenSwapLog(SwapDir * sd)
     char *path;
     int fd;
     path = storeAufsDirSwapLogFile(sd, NULL);
+    if (aioinfo->swaplog_fd >= 0) {
+	debug(50, 1) ("storeAufsDirOpenSwapLog: %s already open\n", path);
+	return;
+    }
     fd = file_open(path, O_WRONLY | O_CREAT | O_BINARY);
     if (fd < 0) {
 	debug(50, 1) ("%s: %s\n", path, xstrerror());
@@ -963,6 +967,10 @@ storeAufsDirWriteCleanStart(SwapDir * sd)
     state->new = xstrdup(storeAufsDirSwapLogFile(sd, ".clean"));
     state->fd = file_open(state->new, O_WRONLY | O_CREAT | O_TRUNC | O_BINARY);
     if (state->fd < 0) {
+	debug(50, 0) ("storeDirWriteCleanStart: %s: open: %s\n",
+	    state->new, xstrerror());
+	debug(50, 0) ("storeDirWriteCleanStart: Current swap logfile "
+	    "not replaced.\n");
 	xfree(state->new);
 	xfree(state);
 	return -1;

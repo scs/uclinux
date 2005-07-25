@@ -1,7 +1,7 @@
 # Generated automatically from Makefile.in by configure.
 FLTFLAGS += -s 65536
-ifeq ($(CONFIG_PRODUCT),AmazonSME550)
-CFLAGS += -DCONFIG_AMAZON
+ifdef CONFIG_PROP_SSH_SECURITY_COUNT
+CFLAGS += -DSECURITY_COUNTS
 endif
 
 
@@ -27,7 +27,7 @@ ASKPASS_PROGRAM=$(ASKPASS_LOCATION)/ssh-askpass
 # CC=gcc
 # LD=gcc
 PATHS= -D_SSH_PROGRAM=\"/bin/ssh\" -DSSH_ASKPASS_DEFAULT=\"/bin/ssh-askpass\"
-CFLAGS += -g -O2 -Wall $(INCSSL) $(PATHS) -I. -DHAVE_CONFIG_H
+CFLAGS += -g -O2 -Wall $(PATHS) -I. -DHAVE_CONFIG_H
 LIBS=$(LIBCRYPTO) -lz
 # AR=ar
 # RANLIB=ranlib
@@ -41,12 +41,17 @@ INSTALL_SSH_PRNG_CMDS=
 TARGETS= sshd ssh ssh-keygen gen-keys
 # ssh ssh-add ssh-keygen ssh-agent scp $(EXTRA_TARGETS)
 
+ifeq ($(CONFIG_USER_SSH_SCP),y)
+TARGETS += scp
+endif
+
 LIBSSH_OBJS=atomicio.o authfd.o authfile.o bufaux.o buffer.o canohost.o channels.o cipher.o cipher-ctr.o cipher-3des1.o cipher-bf1.o compat.o compress.o crc32.o deattack.o dh.o dispatch.o fatal.o mac.o msg.o hostfile.o key.o kex.o kexdhs.o kexdh.o kexdhc.o kexgex.o log.o match.o misc.o mpaux.o nchan.o packet.o entropy.o readpass.o rsa.o scard.o scard-opensc.o ssh-dss.o ssh-rsa.o tildexpand.o ttymodes.o uidswap.o uuencode.o xmalloc.o monitor_wrap.o monitor_fdpass.o kexgexs.o kexgexc.o
 
 SSHOBJS= ssh.o sshconnect.o sshconnect1.o sshconnect2.o sshtty.o readconf.o clientloop.o
 
 SSHDOBJS= sshd.o auth.o auth1.o auth2.o auth2-hostbased.o auth2-kbdint.o auth2-none.o auth2-passwd.o auth2-pubkey.o auth-chall.o auth2-chall.o auth-rhosts.o auth-options.o auth-krb5.o auth-pam.o auth-passwd.o auth-rsa.o auth-rh-rsa.o auth-sia.o sshpty.o sshlogin.o loginrec.o servconf.o serverloop.o md5crypt.o session.o groupaccess.o auth-skey.o auth-bsdauth.o monitor_mm.o monitor.o
 
+SCPOBJS= scp.o progressmeter.o
 
 TROFFMAN	= scp.1 ssh-add.1 ssh-agent.1 ssh-keygen.1 ssh.1 sshd.8
 CATMAN		= scp.0 ssh-add.0 ssh-agent.0 ssh-keygen.0 ssh.0 sshd.0
@@ -76,29 +81,29 @@ libssh.a: $(LIBSSH_OBJS)
 	$(RANLIB) $@
 
 ssh: $(LIBCOMPAT) libssh.a $(SSHOBJS)
-	$(CC) $(LDFLAGS) -o $@ $(SSHOBJS) -lssh -lopenbsd-compat $(LIBS) $(LDLIBS)
+	$(CC) $(LDFLAGS) -o $@ $(SSHOBJS) -lssh -lopenbsd-compat $(LIBUTIL) $(LIBS) $(LDLIBS)
 
 sshdch: $(LIBCOMPAT) libssh.a $(SSHDCHOBJS)
-	$(CC) $(LDFLAGS) -o $@ $(SSHDCHOBJS) -lssh -lopenbsd-compat $(LIBS) $(LDLIBS)
+	$(CC) $(LDFLAGS) -o $@ $(SSHDCHOBJS) -lssh -lopenbsd-compat $(LIBUTIL) $(LIBS) $(LDLIBS)
 
 sshd: libssh.a	$(LIBCOMPAT) $(SSHDOBJS)
-	$(CC) $(LDFLAGS) -o $@ $(SSHDOBJS) -lssh -lopenbsd-compat $(LIBS) $(LDLIBS)
+	$(CC) $(LDFLAGS) -o $@ $(SSHDOBJS) -lssh -lopenbsd-compat $(LIBUTIL) $(LIBS) $(LDLIBS)
 
-scp: $(LIBCOMPAT) libssh.a scp.o
-	$(CC) $(LDFLAGS) -o $@ scp.o -lssh -lopenbsd-compat $(LIBS) $(LDLIBS)
+scp: $(LIBCOMPAT) libssh.a $(SCPOBJS)
+	$(CC) $(LDFLAGS) -o $@ $(SCPOBJS) -lssh -lopenbsd-compat $(LIBUTIL) $(LIBS) $(LDLIBS)
 
 ssh-add: $(LIBCOMPAT) libssh.a ssh-add.o
-	$(CC) $(LDFLAGS) -o $@ ssh-add.o -lssh -lopenbsd-compat $(LIBS) $(LDLIBS)
+	$(CC) $(LDFLAGS) -o $@ ssh-add.o -lssh -lopenbsd-compat $(LIBUTIL) $(LIBS) $(LDLIBS)
 
 ssh-agent: $(LIBCOMPAT) libssh.a ssh-agent.o
-	$(CC) $(LDFLAGS) -o $@ ssh-agent.o -lssh -lopenbsd-compat $(LIBS) $(LDLIBS)
+	$(CC) $(LDFLAGS) -o $@ ssh-agent.o -lssh -lopenbsd-compat $(LIBUTIL) $(LIBS) $(LDLIBS)
 
 ssh-keygen: $(LIBCOMPAT) libssh.a ssh-keygen.o moduli.o
-	$(CC) $(LDFLAGS) -o $@ ssh-keygen.o moduli.o -lssh -lopenbsd-compat $(LIBS) $(LDLIBS)
+	$(CC) $(LDFLAGS) -o $@ ssh-keygen.o moduli.o -lssh -lopenbsd-compat $(LIBUTIL) $(LIBS) $(LDLIBS)
 
 # test driver for the loginrec code - not built by default
 logintest: logintest.o $(LIBCOMPAT) libssh.a loginrec.o
-	$(CC) $(LDFLAGS) -o $@ logintest.o loginrec.o -lopenbsd-compat -lssh $(LIBS) $(LDLIBS)
+	$(CC) $(LDFLAGS) -o $@ logintest.o loginrec.o -lopenbsd-compat -lssh $(LIBUTIL) $(LIBS) $(LDLIBS)
 
 # The wrapper program that conditionally generates host keys
 # We shrink the stack size post hoc since this one hardly needs
@@ -127,6 +132,7 @@ endif
 	$(ROMFSINST) -e CONFIG_USER_SSH_SSHD /etc/default/sshd_config
 	$(ROMFSINST) -e CONFIG_USER_SSH_SSHKEYGEN /bin/ssh-keygen
 	$(ROMFSINST) -e CONFIG_USER_SSH_SSHKEYGEN /bin/gen-keys
+	$(ROMFSINST) -e CONFIG_USER_SSH_SCP /bin/scp
 
 	##
 	# Add the appropriate stuff to the start files.
@@ -143,6 +149,14 @@ endif
 		/etc/default/passwd
 	$(ROMFSINST) -o "$(CONFIG_USER_SSH_SSHD)" \
 		-A "nobody:" -a "nobody:x:65534:" /etc/default/group
+
+ifeq ($(CONFIG_USER_IPV6),y)
+	$(ROMFSINST) -e CONFIG_USER_SSH_SSHD \
+		-a "ssh     stream tcp6 nowait root /bin/sshd -i" /etc/inetd.conf
+else
+	$(ROMFSINST) -e CONFIG_USER_SSH_SSHD \
+		-a "ssh     stream tcp nowait root /bin/sshd -i" /etc/inetd.conf
+endif
 
 	##
 	# Optionally add the startup stuff to the /etc/default-static dir.

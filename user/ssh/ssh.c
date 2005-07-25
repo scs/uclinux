@@ -44,6 +44,7 @@ RCSID("$OpenBSD: ssh.c,v 1.201 2003/09/01 18:15:50 markus Exp $");
 
 #include <openssl/evp.h>
 #include <openssl/err.h>
+#include <openssl/engine.h>
 
 #include "ssh.h"
 #include "ssh1.h"
@@ -504,6 +505,10 @@ again:
 
 	SSLeay_add_all_algorithms();
 	ERR_load_crypto_strings();
+
+	/* Init available hardware crypto engines. */
+	ENGINE_load_builtin_engines();
+	ENGINE_register_all_complete();
 
 	/* Initialize the command to execute on remote host. */
 	buffer_init(&command);

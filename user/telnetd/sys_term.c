@@ -48,7 +48,12 @@ char st_rcsid[] =
 #include <libtelnet/auth.h>
 #endif
 
-//#define USE_OPENPTY 1
+#ifndef __UC_LIBC__
+#define USE_OPENPTY 1
+#endif
+#if defined(CONFIG_USER_TELNETD_DOES_NOT_USE_OPENPTY)
+#undef USE_OPENPTY
+#endif
 //#define DEVFS 1
 #ifdef USE_OPENPTY
 #include <pty.h>
@@ -1340,6 +1345,7 @@ void cleanup(int sig) {
     char *p;
     (void)sig;
 
+	if (line) {
     p = line + sizeof("/dev/") - 1;
     if (logout(p)) logwtmp(p, "", "");
 #ifdef PARANOID_TTYS
@@ -1356,6 +1362,7 @@ void cleanup(int sig) {
     *p = 'p';
     chmod(line, 0666);
     chown(line, 0, 0);
+	}
     shutdown(net, 2);
     exit(1);
 #else
@@ -1400,6 +1407,7 @@ void cleanup(int sig) {
 
     t = cleantmp(&wtmp);
     setutent();	/* just to make sure */
+	if (line)
     rmut(line);
     close(pty);
     shutdown(net, 2);

@@ -9,7 +9,7 @@ dnl
 dnl
 AC_INIT(src/main.c)
 AC_CONFIG_AUX_DIR(cfgaux)
-AM_INIT_AUTOMAKE(squid, 2.5.STABLE3)
+AM_INIT_AUTOMAKE(squid, 2.5.STABLE7)
 AM_CONFIG_HEADER(include/autoconf.h)
 AC_REVISION($Revision$)dnl
 AC_PREFIX_DEFAULT(/usr/local/squid)
@@ -31,6 +31,9 @@ AC_CANONICAL_HOST
 CRYPTLIB=''
 REGEXLIB=''	# -lregex
 LIBREGEX=''	# libregex.a
+
+dnl Check for pkg-config
+AC_PATH_PROG(PKGCONFIG, pkg-config, false)
 
 dnl find out the exe extension for this platform. If it's not empty, use it for CGI's as well.
 AC_EXEEXT
@@ -62,7 +65,7 @@ if test -z "$CACHE_ICP_PORT"; then
 	CACHE_ICP_PORT="3130"
 fi
 
-dnl Subsitutions
+dnl Substitutions
 AC_DEFINE_UNQUOTED(CACHE_HTTP_PORT, $CACHE_HTTP_PORT)
 AC_DEFINE_UNQUOTED(CACHE_ICP_PORT, $CACHE_ICP_PORT)
 
@@ -85,6 +88,8 @@ if test -z "$PRESET_CFLAGS"; then
     	    # sunos has too many warnings for this to be useful
 	    # motorola too
     	    ;;
+	*m88k*-openbsd*)
+	    ;;
 	*m88k*)
 	    # Motorola cc/ld does not like -02 but is ok on -O
 	    CFLAGS=`echo $CFLAGS | sed -e 's/-O[0-9]/-O/'`
@@ -368,10 +373,10 @@ done
 AC_SUBST(STORE_MODULES)
 AC_SUBST(STORE_MODULE_SUBDIRS)
 
-dnl --enable-heap-replacement compability option
+dnl --enable-heap-replacement compatibility option
 AC_ARG_ENABLE(heap-replacement,
 [  --enable-heap-replacement
-                          Backwards compability option. Please use the
+                          Backwards compatibility option. Please use the
 			  new --enable-removal-policies directive instead.],
 [ if test "$enableval" = "yes" ; then
     echo "--enable-heap-replacement is obsolete. please use the new"
@@ -430,6 +435,17 @@ AC_ARG_ENABLE(delay-pools,
     echo "Delay pools enabled"
     AC_DEFINE(DELAY_POOLS)
     AM_CONDITIONAL(USE_DELAY_POOLS, true)
+  fi
+])
+
+dnl Enable ICAP Support
+AM_CONDITIONAL(USE_ICAP, false)
+AC_ARG_ENABLE(icap-support,
+[  --enable-icap-support   	   Enable iCAP client capability],
+[ if test "$enableval" = "yes" ; then
+    echo "ICAP support enabled"
+    AC_DEFINE(HS_FEAT_ICAP)
+    AM_CONDITIONAL(USE_ICAP, true)
   fi
 ])
 
@@ -532,6 +548,8 @@ AC_ARG_ENABLE(arp-acl,
 	    ;;
 	*-solaris-*)
 	    ;;
+	*-freebsd*)
+	    ;;
 	*)
 	    echo "WARNING: ARP ACL support probably won't work on $host."
 	    sleep 10
@@ -552,6 +570,9 @@ AC_ARG_ENABLE(htcp,
 ])
 
 AM_CONDITIONAL(ENABLE_SSL, false)
+
+SSLLIB=''
+SSLFLAGS=''
 
 AC_ARG_ENABLE(ssl,
 [  --enable-ssl            Enable ssl gatewaying support using OpenSSL],
@@ -581,8 +602,10 @@ AC_ARG_WITH(openssl,
     USE_OPENSSL=
     ;;
   *)
-    SSLLIBDIR="$with_openssl/lib"
-    CPPFLAGS="-I$with_openssl/include $CPPFLAGS"
+    PKG_CONFIG_PATH="$with_openssl/lib/pkgconfig${PKG_CONFIG_PATH:+:}${PKG_CONFIG_PATH}"
+    export PKG_CONFIG_PATH
+    SSLLIB="-L$with_openssl/lib -lssl -lcrypto"
+    SSLFLAGS="-I$with_openssl/include"
     USE_OPENSSL=1
   esac
 ])
@@ -594,15 +617,11 @@ if test -n "$USE_OPENSSL"; then
   if test -z "$SSLLIB"; then
     SSLLIB="-lcrypto" # for MD5 routines
   fi
-  dnl This is a workaround for RedHat 9 brain damage..
-  if test -d /usr/kerberos/include && test -z "$SSLLIBDIR" && test -f /usr/include/openssl/kssl.h; then
-    echo "OpenSSL depends on Kerberos"
-    SSLLIBDIR="/usr/kerberos/lib"
-    CPPFLAGS="$CPPFLAGS -I/usr/kerberos/include"
+  if $PKGCONFIG --exists openssl; then
+    SSLLIB="`$PKGCONFIG --libs openssl`"
+    SSLFLAGS="`$PKGCONFIG --cflags openssl`"
   fi
-fi
-if test -n "$SSLLIBDIR"; then
-  SSLLIB="-L$SSLLIBDIR $SSLLIB"
+  CPPFLAGS="${SSLFLAGS} $CPPFLAGS"
 fi
 AC_SUBST(SSLLIB)
 
@@ -869,7 +888,7 @@ dnl Select basic auth scheme helpers to build
 BASIC_AUTH_HELPERS=""
 AC_ARG_ENABLE(auth-modules,
 [  --enable-auth-modules=\"list of helpers\"
-                          Backwards compability alias for
+                          Backwards compatibility alias for
                           --enable-basic-auth-helpers],
 [ echo "--enable-auth-modules is obsolete. Please use the new"
   echo "option --enable-basic-auth-helpers"
@@ -912,7 +931,9 @@ AC_ARG_ENABLE(basic-auth-helpers,
 if test -n "$BASIC_AUTH_HELPERS"; then
     for helper in $BASIC_AUTH_HELPERS; do
 	if test -f $srcdir/helpers/basic_auth/$helper/Makefile.in; then
-		:
+		if test "$helper" = "SASL"; then
+			require_sasl=yes
+		fi
 	else
 		echo "ERROR: Basic auth helper $helper does not exists"
 		exit 1
@@ -1054,6 +1075,24 @@ AC_ARG_WITH(samba-sources,
     fi
 ])
 AC_SUBST(SAMBASOURCES)
+
+dnl Check for Cyrus SASL
+if test "$require_sasl" = "yes"; then
+	AC_CHECK_HEADERS(sasl/sasl.h sasl.h)
+	if test "$ac_cv_header_sasl_sasl_h" = "yes"; then
+		echo "using SASL2"
+		LIBSASL="-lsasl2"
+	else
+		if test "$ac_cv_header_sasl_h" = "yes"; then
+			echo "using SASL"
+			LIBSASL="-lsasl"
+		else
+			echo "ERROR: Neither SASL nor SASL2 found"
+			exit 1
+		fi
+	fi
+	AC_SUBST(LIBSASL)
+fi
 
 dnl Disable "unlinkd" code
 AC_ARG_ENABLE(unlinkd,
@@ -1591,6 +1630,8 @@ dnl during compile.
 			;;
 		esac
 		;;
+	*m88k*-openbsd*)
+		;;
 	*m88k*)
 		CFLAGS="$CFLAGS -D_SQUID_MOTOROLA_"
 		AC_DEFINE(GETTIMEOFDAY_NO_TZP)
@@ -1644,9 +1685,10 @@ if test -z "$ac_cv_func_poll"; then
 			# Henrik Nordstrom (hno@squid-cache.org) 19980817
 			# poll is problematic on Linux.  We disable it
 			# by default until Linux gets it right.
+			# See also bug #932
 			rev=`uname -r | awk -F. '{printf "%03d%03d",$1,$2}'`
-			if test $rev -lt 002002; then
-			    echo "disabling poll for $host < 2.2..."
+			if test $rev -lt 002004; then
+			    echo "disabling poll for $host < 2.4..."
 			    ac_cv_func_poll='no'
 			fi
 			;;
@@ -1709,6 +1751,8 @@ AC_CHECK_FUNCS(\
 	srand48 \
 	srandom \
 	statfs \
+	strnstr \
+	strcasestr \
 	sysconf \
 	syslog \
 	timegm \
@@ -1741,7 +1785,65 @@ AM_CONDITIONAL(NEED_OWN_SNPRINTF, false)
 if test "$ac_cv_func_snprintf" = "no" || test "$ac_cv_func_vsnprintf" = "no" ; then
   AM_CONDITIONAL(NEED_OWN_SNPRINTF, true)
 fi
-  
+
+AM_CONDITIONAL(NEED_OWN_STRNSTR, false)
+if test "$ac_cv_func_strnstr" = "no" || test "$ac_cv_func_vstrnstr" = "no" ; then
+  AM_CONDITIONAL(NEED_OWN_STRNSTR, true)
+fi
+
+AM_CONDITIONAL(NEED_OWN_STRCASESTR, false)
+if test "$ac_cv_func_strcasestr" = "no" || test "$ac_cv_func_vstrcasestr" = "no"; then
+  AM_CONDITIONAL(NEED_OWN_STRCASESTR, true)
+fi
+
+dnl
+dnl Test for va_copy
+dnl
+AC_CACHE_CHECK(if va_copy is implemented, ac_cv_func_va_copy,
+  AC_TRY_RUN([
+      #include <stdarg.h>
+      void f (int i, ...) {
+         va_list args1, args2;
+         va_start (args1, i);
+         va_copy (args2, args1);
+         if (va_arg (args2, int) != 42 || va_arg (args1, int) != 42)
+            exit (1);
+         va_end (args1); va_end (args2);
+      }
+      int main() {
+         f (0, 42);
+         return 0;
+      }
+      ],ac_cv_func_va_copy="yes",ac_cv_func_va_copy="no")
+)
+if test "$ac_cv_func_va_copy" = "yes" ; then
+  AC_DEFINE(HAVE_VA_COPY)
+fi
+
+dnl
+dnl Some systems support __va_copy
+dnl
+AC_CACHE_CHECK(if __va_copy is implemented, ac_cv_func___va_copy,
+  AC_TRY_RUN([
+      #include <stdarg.h>
+      void f (int i, ...) {
+         va_list args1, args2;
+         va_start (args1, i);
+         __va_copy (args2, args1);
+         if (va_arg (args2, int) != 42 || va_arg (args1, int) != 42)
+            exit (1);
+         va_end (args1); va_end (args2);
+      }
+      int main() {
+         f (0, 42);
+         return 0;
+      }
+      ],ac_cv_func___va_copy="yes",ac_cv_func___va_copy="no")
+)
+if test "$ac_cv_func___va_copy" = "yes" ; then
+  AC_DEFINE(HAVE___VA_COPY)
+fi
+
 dnl IP-Filter support requires ipf header files. These aren't
 dnl installed by default, so we need to check for them
 if test "$IPF_TRANSPARENT" ; then
@@ -1848,6 +1950,7 @@ AC_REPLACE_FUNCS(\
 	drand48 \
 	tempnam \
 	strerror \
+	initgroups
 )
 
 dnl Not cached since people are likely to tune this
@@ -1943,7 +2046,7 @@ main() {
         i++;
 #endif /* IF !DEF CYGWIN */
 	fp = fopen("conftestval", "w");
-	fprintf (fp, "%d\n", i);
+	fprintf (fp, "%d\n", i & ~0x3F);
 	exit(0);
 }
 ],
@@ -1957,7 +2060,7 @@ if test "$SQUID_MAXFD" -lt 512 ; then
     echo "         cache will be very busy.  Please see the FAQ page"
     echo "         http://www.squid-cache.org/FAQ/FAQ-11.html#filedescriptors"
     echo "         on how to increase your filedescriptor limit"
-    sleep 10
+#    sleep 10
 fi
 LDFLAGS="$TLDFLAGS"
 
@@ -2037,6 +2140,10 @@ SQUID_TCP_SO_SNDBUF=`cat conftestval`,
 SQUID_TCP_SO_SNDBUF=16384,
 SQUID_TCP_SO_SNDBUF=16384)
 AC_MSG_RESULT($SQUID_TCP_SO_SNDBUF)
+if test $SQUID_TCP_SO_SNDBUF -gt 32768; then
+    echo "Limiting send buffer size to 32K"
+    SQUID_TCP_SO_SNDBUF=32768
+fi
 AC_DEFINE_UNQUOTED(SQUID_TCP_SO_SNDBUF, $SQUID_TCP_SO_SNDBUF)
 
 dnl Not cached since people are likely to tune this
@@ -2063,8 +2170,11 @@ SQUID_TCP_SO_RCVBUF=`cat conftestval`,
 SQUID_TCP_SO_RCVBUF=16384,
 SQUID_TCP_SO_RCVBUF=16384)
 AC_MSG_RESULT($SQUID_TCP_SO_RCVBUF)
+if test $SQUID_TCP_SO_RCVBUF -gt 65535; then
+    echo "Limiting receive buffer size to 64K"
+    SQUID_TCP_SO_RCVBUF=65535
+fi
 AC_DEFINE_UNQUOTED(SQUID_TCP_SO_RCVBUF, $SQUID_TCP_SO_RCVBUF)
-
 AC_CACHE_CHECK(if sys_errlist is already defined, ac_cv_needs_sys_errlist,
   AC_TRY_COMPILE([#include <stdio.h>],[char *s = sys_errlist;],
     ac_cv_needs_sys_errlist="no",

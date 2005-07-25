@@ -1,6 +1,7 @@
 
 #include <linux/ledman.h>
 #include <signal.h>
+#include <stdio.h>
 #include "main.h"
 //#include <pthread.h>
 
@@ -16,7 +17,7 @@ int main (void) {
 
 
 	sa.sa_handler = (void *)userHandler1;
-	sa.sa_mask = 0; //dont block any signals while this one is working
+	memset(&sa.sa_mask, 0, sizeof(sa.sa_mask)); //dont block any signals while this one is working
 	sa.sa_flags = SA_RESTART; //restart the signal
 	sigaction(SIGUSR1,&sa,NULL);
 

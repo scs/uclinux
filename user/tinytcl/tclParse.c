@@ -1,4 +1,6 @@
 /* 
+ * vi:ts=8
+ *
  * tclParse.c --
  *
  *	This file contains a collection of procedures that are used
@@ -277,7 +279,8 @@ TclParseQuotes(interp, string, termChar, flags, termPtr, pvPtr)
     ParseValue *pvPtr;		/* Information about where to place
 				 * fully-substituted result of parse. */
 {
-    register char *src, *dst, c;
+    register char *src, *dst;
+    int c;
 
     src = string;
     dst = pvPtr->next;
@@ -461,7 +464,7 @@ TclParseBraces(interp, string, termPtr, pvPtr)
 {
     int level;
     register char *src, *dst, *end;
-    register char c;
+    register int c;
 
     src = string;
     dst = pvPtr->next;
@@ -592,7 +595,7 @@ TclParseWords(interp, string, flags, maxWords, termPtr, argcPtr, argv, pvPtr)
 				 * fully-substituted word. */
 {
     register char *src, *dst;
-    register char c;
+    register int c;
     int type, result, argc;
     char *oldBuffer;		/* Used to detect when pvPtr's buffer gets
 				 * reallocated, so we can adjust all of the
@@ -1060,6 +1063,10 @@ VarNameEnd(string)
 	}
 	return p;
     }
+    /* Two leading colons are OK */
+    if (p[0] == ':' && p[1] == ':') {
+	p += 2;
+    }
     while (isalnum(*p) || (*p == '_')) {
 	p++;
     }
@@ -1118,7 +1125,7 @@ Tcl_ParseVar(interp, string, termPtr)
      *    open parenthesis, then the information between parentheses is
      *    the array element name, which can include any of the substitutions
      *    permissible between quotes.
-     * 3. The $ sign is followed by something that isn't a letter, digit,
+     * 3. The $ sign is followed by something that isn't a letter, digit, colon
      *    or underscore:  in this case, there is no variable name, and "$"
      *    is returned.
      */
@@ -1143,6 +1150,10 @@ Tcl_ParseVar(interp, string, termPtr)
 	string++;
     } else {
 	name1 = string;
+	/* Two leading colons are OK */
+	if (string[0] == ':' && string[1] == ':') {
+	    string += 2;
+	}
 	while (isalnum(*string) || (*string == '_')) {
 	    string++;
 	}
@@ -1169,7 +1180,7 @@ Tcl_ParseVar(interp, string, termPtr)
 		    != TCL_OK) {
 		char msg[100];
 		sprintf(msg, "\n    (parsing index for array \"%.*s\")",
-			string-name1, name1);
+			(int)(string-name1), name1);
 		Tcl_AddErrorInfo(interp, msg);
 		result = NULL;
 		name2 = pv.buffer;

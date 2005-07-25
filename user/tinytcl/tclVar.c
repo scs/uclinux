@@ -1,4 +1,6 @@
 /* 
+ * vi:ts=8 sw=4
+ *
  * tclVar.c --
  *
  *	This file contains routines that implement Tcl variables
@@ -156,6 +158,12 @@ Tcl_GetVar2(interp, part1, part2, flags)
     /*
      * Lookup the first name.
      */
+	
+    /* If the name starts with ::, we lookup in the global scope */
+    if (part1[0] == ':' && part1[1] == ':') {
+	part1 += 2;
+	flags |= TCL_GLOBAL_ONLY;
+    }
 
     if ((flags & TCL_GLOBAL_ONLY) || (iPtr->varFramePtr == NULL)) {
 	hPtr = Tcl_FindHashEntry(&iPtr->globalTable, part1);
@@ -348,6 +356,12 @@ Tcl_SetVar2(interp, part1, part2, newValue, flags)
     /*
      * Lookup the first name.
      */
+
+    /* If the name starts with ::, we lookup in the global scope */
+    if (part1[0] == ':' && part1[1] == ':') {
+	part1 += 2;
+	flags |= TCL_GLOBAL_ONLY;
+    }
 
     if ((flags & TCL_GLOBAL_ONLY) || (iPtr->varFramePtr == NULL)) {
 	hPtr = Tcl_CreateHashEntry(&iPtr->globalTable, part1, &new);
@@ -597,6 +611,12 @@ Tcl_UnsetVar2(interp, part1, part2, flags)
     Interp *iPtr = (Interp *) interp;
     Var *arrayPtr = NULL;
 
+    /* If the name starts with ::, we lookup in the global scope */
+    if (part1[0] == ':' && part1[1] == ':') {
+	part1 += 2;
+	flags |= TCL_GLOBAL_ONLY;
+    }
+
     if ((flags & TCL_GLOBAL_ONLY) || (iPtr->varFramePtr == NULL)) {
 	hPtr = Tcl_FindHashEntry(&iPtr->globalTable, part1);
     } else {
@@ -837,6 +857,12 @@ Tcl_TraceVar2(interp, part1, part2, flags, proc, clientData)
      * Locate the variable, making a new (undefined) one if necessary.
      */
 
+    /* If the name starts with ::, we lookup in the global scope */
+    if (part1[0] == ':' && part1[1] == ':') {
+	part1 += 2;
+	flags |= TCL_GLOBAL_ONLY;
+    }
+
     if ((flags & TCL_GLOBAL_ONLY) || (iPtr->varFramePtr == NULL)) {
 	hPtr = Tcl_CreateHashEntry(&iPtr->globalTable, part1, &new);
     } else {
@@ -1008,6 +1034,12 @@ Tcl_UntraceVar2(interp, part1, part2, flags, proc, clientData)
      * First, lookup the variable.
      */
 
+    /* If the name starts with ::, we lookup in the global scope */
+    if (part1[0] == ':' && part1[1] == ':') {
+	part1 += 2;
+	flags |= TCL_GLOBAL_ONLY;
+    }
+
     if ((flags & TCL_GLOBAL_ONLY) || (iPtr->varFramePtr == NULL)) {
 	hPtr = Tcl_FindHashEntry(&iPtr->globalTable, part1);
     } else {
@@ -1177,6 +1209,12 @@ Tcl_VarTraceInfo2(interp, part1, part2, flags, proc, prevClientData)
     /*
      * First, lookup the variable.
      */
+
+    /* If the name starts with ::, we lookup in the global scope */
+    if (part1[0] == ':' && part1[1] == ':') {
+	part1 += 2;
+	flags |= TCL_GLOBAL_ONLY;
+    }
 
     if ((flags & TCL_GLOBAL_ONLY) || (iPtr->varFramePtr == NULL)) {
 	hPtr = Tcl_FindHashEntry(&iPtr->globalTable, part1);
@@ -1431,9 +1469,10 @@ Tcl_ArrayCmd(dummy, interp, argc, argv)
     int argc;				/* Number of arguments. */
     char **argv;			/* Argument strings. */
 {
-    int length;
-    char c;
-    Var *varPtr;
+    int c, notArray;
+    size_t length;
+    Var *varPtr = NULL;		/* Initialization needed only to prevent
+				 * compiler warning. */
     Tcl_HashEntry *hPtr;
     Interp *iPtr = (Interp *) interp;
 
@@ -1447,23 +1486,26 @@ Tcl_ArrayCmd(dummy, interp, argc, argv)
      * Locate the array variable (and it better be an array).
      */
 
-    if (iPtr->varFramePtr == NULL) {
+    /* If the name starts with ::, we lookup in the global scope */
+    if (argv[2][0] == ':' && argv[2][1] == ':') {
+	hPtr = Tcl_FindHashEntry(&iPtr->globalTable, argv[2] + 2);
+    }
+    else if (iPtr->varFramePtr == NULL) {
 	hPtr = Tcl_FindHashEntry(&iPtr->globalTable, argv[2]);
     } else {
 	hPtr = Tcl_FindHashEntry(&iPtr->varFramePtr->varTable, argv[2]);
     }
+    notArray = 0;
     if (hPtr == NULL) {
-	notArray:
-	Tcl_AppendResult(interp, "\"", argv[2], "\" isn't an array",
-		(char *) NULL);
-	return TCL_ERROR;
-    }
-    varPtr = (Var *) Tcl_GetHashValue(hPtr);
-    if (varPtr->flags & VAR_UPVAR) {
-	varPtr = (Var *) Tcl_GetHashValue(varPtr->value.upvarPtr);
-    }
-    if (!(varPtr->flags & VAR_ARRAY)) {
-	goto notArray;
+	notArray = 1;
+    } else {
+	varPtr = (Var *) Tcl_GetHashValue(hPtr);
+	if (varPtr->flags & VAR_UPVAR) {
+	    varPtr = (Var *)varPtr->value.upvarPtr;
+	}
+	if (!(varPtr->flags & VAR_ARRAY)) {
+	    notArray = 1;
+	}
     }
 
     /*
@@ -1479,6 +1521,9 @@ Tcl_ArrayCmd(dummy, interp, argc, argv)
 	    Tcl_AppendResult(interp, "wrong # args: should be \"",
 		    argv[0], " anymore arrayName searchId\"", (char *) NULL);
 	    return TCL_ERROR;
+	}
+	if (notArray) {
+	    goto error;
 	}
 	searchPtr = ParseSearchId(interp, varPtr, argv[2], argv[3]);
 	if (searchPtr == NULL) {
@@ -1509,6 +1554,9 @@ Tcl_ArrayCmd(dummy, interp, argc, argv)
 		    argv[0], " donesearch arrayName searchId\"", (char *) NULL);
 	    return TCL_ERROR;
 	}
+	if (notArray) {
+	    goto error;
+	}
 	searchPtr = ParseSearchId(interp, varPtr, argv[2], argv[3]);
 	if (searchPtr == NULL) {
 	    return TCL_ERROR;
@@ -1524,15 +1572,25 @@ Tcl_ArrayCmd(dummy, interp, argc, argv)
 	    }
 	}
 	ckfree((char *) searchPtr);
-    } else if ((c == 'n') && (strncmp(argv[1], "names", length) == 0)
-	    && (length >= 2)) {
-	Tcl_HashSearch search;
-	Var *varPtr2;
-
+    } else if ((c == 'e') && (strncmp(argv[1], "exists", length) == 0)) {
 	if (argc != 3) {
 	    Tcl_AppendResult(interp, "wrong # args: should be \"",
-		    argv[0], " names arrayName\"", (char *) NULL);
+		    argv[0], " exists arrayName\"", (char *) NULL);
 	    return TCL_ERROR;
+	}
+	interp->result = (notArray) ? "0" : "1";
+    } else if ((c == 'g') && (strncmp(argv[1], "get", length) == 0)) {
+	Tcl_HashSearch search;
+	Var *varPtr2;
+	char *name;
+
+	if ((argc != 3) && (argc != 4)) {
+	    Tcl_AppendResult(interp, "wrong # args: should be \"",
+		    argv[0], " get arrayName ?pattern?\"", (char *) NULL);
+	    return TCL_ERROR;
+	}
+	if (notArray) {
+	    return TCL_OK;
 	}
 	for (hPtr = Tcl_FirstHashEntry(varPtr->value.tablePtr, &search);
 		hPtr != NULL; hPtr = Tcl_NextHashEntry(&search)) {
@@ -1540,8 +1598,65 @@ Tcl_ArrayCmd(dummy, interp, argc, argv)
 	    if (varPtr2->flags & VAR_UNDEFINED) {
 		continue;
 	    }
-	    Tcl_AppendElement(interp,
-		    Tcl_GetHashKey(varPtr->value.tablePtr, hPtr), 0);
+	    name = Tcl_GetHashKey(varPtr->value.tablePtr, hPtr);
+	    if ((argc == 4) && !Tcl_StringMatch(name, argv[3])) {
+		continue;
+	    }
+	    Tcl_AppendElement(interp, name, 0);
+	    Tcl_AppendElement(interp, varPtr2->value.string, 0);
+	}
+    } else if ((c == 'n') && (strncmp(argv[1], "names", length) == 0)
+	    && (length >= 2)) {
+	Tcl_HashSearch search;
+	Var *varPtr2;
+	char *name;
+
+	if ((argc != 3) && (argc != 4)) {
+	    Tcl_AppendResult(interp, "wrong # args: should be \"",
+		    argv[0], " names arrayName ?pattern?\"", (char *) NULL);
+	    return TCL_ERROR;
+	}
+	if (notArray) {
+	    return TCL_OK;
+	}
+	for (hPtr = Tcl_FirstHashEntry(varPtr->value.tablePtr, &search);
+		hPtr != NULL; hPtr = Tcl_NextHashEntry(&search)) {
+	    varPtr2 = (Var *) Tcl_GetHashValue(hPtr);
+	    if (varPtr2->flags & VAR_UNDEFINED) {
+		continue;
+	    }
+	    name = Tcl_GetHashKey(varPtr->value.tablePtr, hPtr);
+	    if ((argc == 4) && !Tcl_StringMatch(name, argv[3])) {
+		continue;
+	    }
+	    Tcl_AppendElement(interp, name, 0);
+	}
+    } else if ((c == 'u') && (strncmp(argv[1], "unset", length) == 0)
+	    && (length >= 2)) {
+	Tcl_HashSearch search;
+	Var *varPtr2;
+	char *name;
+
+	if ((argc != 3) && (argc != 4)) {
+	    Tcl_AppendResult(interp, "wrong # args: should be \"",
+		    argv[0], " unset arrayName ?pattern?\"", (char *) NULL);
+	    return TCL_ERROR;
+	}
+	if (notArray) {
+	    return TCL_OK;
+	}
+	for (hPtr = Tcl_FirstHashEntry(varPtr->value.tablePtr, &search);
+		hPtr != NULL; hPtr = Tcl_NextHashEntry(&search)) {
+	    varPtr2 = (Var *) Tcl_GetHashValue(hPtr);
+	    if (varPtr2->flags & VAR_UNDEFINED) {
+		continue;
+	    }
+	    name = Tcl_GetHashKey(varPtr->value.tablePtr, hPtr);
+	    if ((argc == 3) || Tcl_StringMatch(name, argv[3])) {
+		if (Tcl_UnsetVar2(interp, argv[2], name, 0) != TCL_OK) {
+		    return TCL_ERROR;
+		}
+	    }
 	}
     } else if ((c == 'n') && (strncmp(argv[1], "nextelement", length) == 0)
 	    && (length >= 2)) {
@@ -1553,6 +1668,9 @@ Tcl_ArrayCmd(dummy, interp, argc, argv)
 		    argv[0], " nextelement arrayName searchId\"",
 		    (char *) NULL);
 	    return TCL_ERROR;
+	}
+	if (notArray) {
+	    goto error;
 	}
 	searchPtr = ParseSearchId(interp, varPtr, argv[2], argv[3]);
 	if (searchPtr == NULL) {
@@ -1576,6 +1694,35 @@ Tcl_ArrayCmd(dummy, interp, argc, argv)
 	    }
 	}
 	interp->result = Tcl_GetHashKey(varPtr->value.tablePtr, hPtr);
+    } else if ((c == 's') && (strncmp(argv[1], "set", length) == 0)
+	    && (length >= 2)) {
+	char **valueArgv;
+	int valueArgc, i, result;
+
+	if (argc != 4) {
+	    Tcl_AppendResult(interp, "wrong # args: should be \"",
+		    argv[0], " set arrayName list\"", (char *) NULL);
+	    return TCL_ERROR;
+	}
+	if (Tcl_SplitList(interp, argv[3], &valueArgc, &valueArgv) != TCL_OK) {
+	    return TCL_ERROR;
+	}
+	result = TCL_OK;
+	if (valueArgc & 1) {
+	    interp->result = "list must have an even number of elements";
+	    result = TCL_ERROR;
+	    goto setDone;
+	}
+	for (i = 0; i < valueArgc; i += 2) {
+	    if (Tcl_SetVar2(interp, argv[2], valueArgv[i], valueArgv[i+1],
+		    TCL_LEAVE_ERR_MSG) == NULL) {
+		result = TCL_ERROR;
+		break;
+	    }
+	}
+	setDone:
+	ckfree((char *) valueArgv);
+	return result;
     } else if ((c == 's') && (strncmp(argv[1], "size", length) == 0)
 	    && (length >= 2)) {
 	Tcl_HashSearch search;
@@ -1588,13 +1735,15 @@ Tcl_ArrayCmd(dummy, interp, argc, argv)
 	    return TCL_ERROR;
 	}
 	size = 0;
-	for (hPtr = Tcl_FirstHashEntry(varPtr->value.tablePtr, &search);
-		hPtr != NULL; hPtr = Tcl_NextHashEntry(&search)) {
-	    varPtr2 = (Var *) Tcl_GetHashValue(hPtr);
-	    if (varPtr2->flags & VAR_UNDEFINED) {
-		continue;
+	if (!notArray) {
+	    for (hPtr = Tcl_FirstHashEntry(varPtr->value.tablePtr, &search);
+		    hPtr != NULL; hPtr = Tcl_NextHashEntry(&search)) {
+		varPtr2 = (Var *) Tcl_GetHashValue(hPtr);
+		if (varPtr2->flags & VAR_UNDEFINED) {
+		    continue;
+		}
+		size++;
 	    }
-	    size++;
 	}
 	sprintf(interp->result, "%d", size);
     } else if ((c == 's') && (strncmp(argv[1], "startsearch", length) == 0)
@@ -1605,6 +1754,9 @@ Tcl_ArrayCmd(dummy, interp, argc, argv)
 	    Tcl_AppendResult(interp, "wrong # args: should be \"",
 		    argv[0], " startsearch arrayName\"", (char *) NULL);
 	    return TCL_ERROR;
+	}
+	if (notArray) {
+	    goto error;
 	}
 	searchPtr = (ArraySearch *) ckalloc(sizeof(ArraySearch));
 	if (varPtr->searchPtr == NULL) {
@@ -1625,11 +1777,17 @@ Tcl_ArrayCmd(dummy, interp, argc, argv)
 	varPtr->searchPtr = searchPtr;
     } else {
 	Tcl_AppendResult(interp, "bad option \"", argv[1],
-		"\": should be anymore, donesearch, names, nextelement, ",
-		"size, or startsearch", (char *) NULL);
+		"\": should be anymore, donesearch, exists, ",
+		"get, names, nextelement, ",
+		"set, size, or startsearch", (char *) NULL);
 	return TCL_ERROR;
     }
     return TCL_OK;
+
+    error:
+    Tcl_AppendResult(interp, "\"", argv[2], "\" isn't an array",
+	    (char *) NULL);
+    return TCL_ERROR;
 }
 
 /*

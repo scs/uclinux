@@ -16,6 +16,7 @@ $pat{'err_type'} = "err_type_str";
 $pat{'icp_opcode'} = "icp_opcode_str";
 $pat{'swap_log_op'} = "swap_log_op_str";
 $pat{'lookup_t'} = "lookup_t_str";
+$pat{'icap_service_t'} = "icap_service_type_str";
 
 $state = 0;	# start state
 while (<>) {

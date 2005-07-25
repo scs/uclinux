@@ -1751,7 +1751,7 @@ storeDiskdDirDumpQ2(StoreEntry * e, const char *option, SwapDir * sd)
     storeAppendPrintf(e, " Q2=%d", diskdinfo->magic2);
 }
 
-struct cache_dir_option options[] =
+static struct cache_dir_option options[] =
 {
 #if NOT_YET
     {"L1", storeDiskdDirParseL1, storeDiskdDirDumpL1},

@@ -39,6 +39,7 @@ RCSID("$OpenBSD: ssh-agent.c,v 1.112 2003/09/18 08:49:45 markus Exp $");
 
 #include <openssl/evp.h>
 #include <openssl/md5.h>
+#include <openssl/engine.h>
 
 #include "ssh.h"
 #include "rsa.h"
@@ -1024,6 +1025,10 @@ main(int ac, char **av)
 	setgid(getgid());
 
 	SSLeay_add_all_algorithms();
+
+	/* Init available hardware crypto engines. */
+	ENGINE_load_builtin_engines();
+	ENGINE_register_all_complete();
 
 	__progname = ssh_get_progname(av[0]);
 	init_rng();

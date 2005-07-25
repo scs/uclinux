@@ -6,6 +6,12 @@
 #  Uncomment and customize the following to suit your needs:
 #
 
+if USE_ICAP
+ICAPSOURCE = icap_common.c icap_reqmod.c icap_respmod.c icap_opt.c
+else
+ICAPSOURCE = 
+endif
+
 if USE_DNSSERVER
 DNSSOURCE = dns.c
 DNSSERVER = dnsserver
@@ -150,6 +156,7 @@ squid_SOURCES = \
 	HttpMsg.c \
 	HttpReply.c \
 	HttpRequest.c \
+	$(ICAPSOURCE) \
 	icmp.c \
 	icp_v2.c \
 	icp_v3.c \
@@ -273,16 +280,16 @@ EXTRA_DIST = \
 DEFAULT_PREFIX		= $(prefix)
 DEFAULT_CONFIG_FILE     = $(sysconfdir)/squid.conf
 DEFAULT_MIME_TABLE	= $(sysconfdir)/mime.conf
-DEFAULT_DNSSERVER       = $(libexecdir)/dnsserver$(EXEEXT)
+DEFAULT_DNSSERVER       = $(libexecdir)/`echo dnsserver | sed '$(transform);s/$$/$(EXEEXT)/'`
 DEFAULT_LOG_PREFIX	= $(localstatedir)/logs
 DEFAULT_CACHE_LOG       = $(DEFAULT_LOG_PREFIX)/cache.log
 DEFAULT_ACCESS_LOG      = $(DEFAULT_LOG_PREFIX)/access.log
 DEFAULT_STORE_LOG       = $(DEFAULT_LOG_PREFIX)/store.log
 DEFAULT_PID_FILE        = $(DEFAULT_LOG_PREFIX)/squid.pid
 DEFAULT_SWAP_DIR        = $(localstatedir)/cache
-DEFAULT_PINGER		= $(libexecdir)/pinger$(EXEEXT)
-DEFAULT_UNLINKD		= $(libexecdir)/unlinkd$(EXEEXT)
-DEFAULT_DISKD		= $(libexecdir)/diskd$(EXEEXT)
+DEFAULT_PINGER		= $(libexecdir)/`echo pinger | sed '$(transform);s/$$/$(EXEEXT)/'`
+DEFAULT_UNLINKD		= $(libexecdir)/`echo unlinkd | sed '$(transform);s/$$/$(EXEEXT)/'`
+DEFAULT_DISKD		= $(libexecdir)/`echo diskd | sed '$(transform);s/$$/$(EXEEXT)/'`
 DEFAULT_ICON_DIR	= $(datadir)/icons
 DEFAULT_ERROR_DIR	= $(datadir)/errors/@ERR_DEFAULT_LANGUAGE@
 DEFAULT_MIB_PATH	= $(datadir)/mib.txt

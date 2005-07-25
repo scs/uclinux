@@ -38,6 +38,7 @@
 RCSID("$OpenBSD: ssh-add.c,v 1.68 2003/06/16 10:22:45 markus Exp $");
 
 #include <openssl/evp.h>
+#include <openssl/engine.h>
 
 #include "ssh.h"
 #include "rsa.h"
@@ -324,6 +325,10 @@ main(int argc, char **argv)
 	seed_rng();
 
 	SSLeay_add_all_algorithms();
+
+	/* Init available hardware crypto engines. */
+	ENGINE_load_builtin_engines();
+	ENGINE_register_all_complete();
 
 	/* At first, get a connection to the authentication agent. */
 	ac = ssh_get_authentication_connection();

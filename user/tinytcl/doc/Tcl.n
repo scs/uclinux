@@ -9,12 +9,8 @@
 '\" 
 '\" $Id$
 '
-.so man.macros
-.de UL
-\\$1\l'|0\(ul'\\$2
-..
-.HS Tcl tcl
-.BS
+.TH Tcl n
+.LO 1
 .SH NAME
 Tcl \- overview of tool command language facilities
 .BE
@@ -311,7 +307,7 @@ For example, if the variable \fBx\fR is an array with one element
 named \fBfirst\fR and value \fB87\fR and another element named
 \fB14\fR and value \fBmore\fR, then the command
 .DS C
-\fBset a xyz$x(first)zyx
+\fBset a xyz$x(first)zyx\fR
 .DE
 is equivalent to the command
 .DS C
@@ -319,11 +315,11 @@ is equivalent to the command
 .DE
 If the variable \fBindex\fR has the value \fB14\fR, then the command
 .DS C
-\fBset a xyz$x($index)zyx
+\fBset a xyz$x($index)zyx\fR
 .DE
 is equivalent to the command
 .DS C
-\fBset a xyzmorezyx
+\fBset a xyzmorezyx\fR
 .DE
 For more information on arrays, see VARIABLES AND ARRAYS below.
 .PP
@@ -1897,6 +1893,8 @@ more efficient than ``\fBset a [concat $a [list $b]]\fR'' when
 \fBlindex \fIlist index\fR
 Treats \fIlist\fR as a Tcl list and returns the \fIindex\fR'th element
 from it (0 refers to the first element of the list).
+\fIIndex\fR may be \fBend\fR (or any
+abbreviation of it) to refer to the last element of the list.
 In extracting the element, \fIlindex\fR observes the same rules
 concerning braces and quotes and backslashes as the Tcl command
 interpreter; however, variable
@@ -1991,10 +1989,15 @@ If not, the command returns \fB\-1\fR.
 Pattern matching is done in the same way as for the \fBstring match\fR
 command.
 .TP
-\fBlsort \fIlist\fR
+\fBlsort ?\fI-integer|-command cmdname\fR? \fIlist\fR
 Sort the elements of \fIlist\fR, returning a new list in sorted
 order.
-ASCII sorting is used, with the result in increasing order.
+By default, ASCII sorting is used, with the result in increasing order.
+If \fI-integer\fR is specified, numeric sorting is used.
+If \fI-command cmdname\fR is specified, \fIcmdname\fR is treated as a
+command name. For each comparison, \fIcmdname $value1 $value2\fR is called
+which should return \fB-1\fR if $value1 is less than $value2, \fB0\fR if
+they are equal, or \fB1\fR otherwise.
 .VE
 .TP
 \fBopen \fIfileName\fR ?\fIaccess\fR?

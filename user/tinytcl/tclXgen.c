@@ -16,6 +16,9 @@
  *-----------------------------------------------------------------------------
  */
 
+#include <signal.h>
+#include <unistd.h>
+
 #include "tclExtdInt.h"
 
 /*
@@ -73,6 +76,33 @@ Tcl_InfoxCmd (clientData, interp, argc, argv)
                           "applongname, or appversion", (char *) NULL);
         return TCL_ERROR;
     }
+    return TCL_OK;
+}
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Tcl_SleepCmd --
+ *    Implements the TCL sleep command:
+ *        sleep seconds
+ *
+ *-----------------------------------------------------------------------------
+ */
+int
+Tcl_SleepCmd (clientData, interp, argc, argv)
+    ClientData  clientData;
+    Tcl_Interp *interp;
+    int         argc;
+    char      **argv;
+{
+    if (argc != 2) {
+        Tcl_AppendResult (interp, "bad # args: ", argv [0], 
+                          " seconds", (char *) NULL);
+        return TCL_ERROR;
+    }
+
+    sleep(atoi(argv[1]));
+
     return TCL_OK;
 }
 
@@ -154,7 +184,205 @@ Tcl_LoopCmd (dummy, interp, argc, argv)
 
     return result;
 }
+
+#define MAX_SIGNALS 32
 
+static int *sigloc;
+static unsigned long sigsblocked; 
+
+static void signal_handler(int sig)
+{
+    /* We just remember which signal occurred. Tcl_Eval() will
+     * notice this as soon as it can and throw an error
+     */
+    *sigloc = sig;
+}
+
+static void signal_ignorer(int sig)
+{
+    /* We just remember which signals occurred */
+    sigsblocked |= (1 << sig);
+}
+
+/**
+ * Given the name of a signal, returns the signal value if found,
+ * or returns -1 if not found.
+ * We accept -SIGINT, SIGINT, INT or any lowercase version
+ */
+static int
+find_signal_by_name(const char *name)
+{
+    int i;
+
+    /* Remove optional - and SIG from the front of the name */
+    if (*name == '-') {
+        name++;
+    }
+    if (strncasecmp(name, "sig", 3) == 0) {
+        name += 3;
+    }
+    for (i = 1; i < MAX_SIGNALS; i++) {
+        /* Tcl_SignalId() returns names such as SIGINT, and
+         * returns "unknown signal id" if unknown, so this will work
+         */
+        if (strcasecmp(Tcl_SignalId(i) + 3, name) == 0) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Tcl_SignalCmd --
+ *     Implements the TCL signal command:
+ *         signal ?handle|ignore|default SIG...?
+ *
+ *     Specifies which signals are handled by Tcl code.
+ *     If the one of the given signals is caught, it causes a TCL_SIGNAL
+ *     exception to be thrown which can be caught by catch.
+ *
+ *     Use 'signal ignore' to ignore the signal(s)
+ *     Use 'signal default' to go back to the default behaviour
+ *
+ *     If no arguments are given, returns the list of signals which are being handled
+ *
+ * Results:
+ *      Standard TCL results.
+ *
+ *-----------------------------------------------------------------------------
+ */
+int
+Tcl_SignalCmd(dummy, interp, argc, argv)
+    ClientData  dummy;
+    Tcl_Interp *interp;
+    int         argc;
+    char      **argv;
+{
+    struct sigaction sa;
+
+    #define ACTION_HANDLE 1
+    #define ACTION_IGNORE -1
+    #define ACTION_DEFAULT 0
+
+    static struct sigaction sa_old[MAX_SIGNALS];
+    static int handling[MAX_SIGNALS];
+    int action = ACTION_HANDLE;
+    int i;
+
+    if (argc == 1) {
+        Tcl_AppendResult (interp, "bad # args: ", argv [0], 
+                          " handle|ignore|default ?SIG...?", 0);
+        return TCL_ERROR;
+    }
+
+    if (strcmp(argv[1], "ignore") == 0) {
+        action = ACTION_IGNORE;
+    }
+    else if (strcmp(argv[1], "default") == 0) {
+        action = ACTION_DEFAULT;
+    }
+
+    if (argc == 2) {
+        for (i = 1; i < MAX_SIGNALS; i++) {
+            if (handling[i] == action) {
+                Tcl_AppendElement(interp, Tcl_SignalId(i), 0);
+            }
+        }
+        return TCL_OK;
+    }
+
+    /* Make sure we know where to store the signals which occur */
+    if (!sigloc) {
+        sigloc = &((Interp *)interp)->signal;
+    }
+
+    /* Catch all the signals we care about */
+    if (action != ACTION_DEFAULT) {
+        sa.sa_flags = 0;
+        sigemptyset(&sa.sa_mask);
+        if (action == ACTION_HANDLE) {
+            sa.sa_handler = signal_handler;
+        }
+        else {
+            sa.sa_handler = signal_ignorer;
+        }
+    }
+
+    /* Iterate through the provided signals */
+    for (i = 2; i < argc; i++) {
+        int sig = find_signal_by_name(argv[i]);
+        if (sig < 0) {
+            Tcl_AppendResult (interp, argv [0], 
+                              " unknown signal ", argv[i], 0);
+            return TCL_ERROR;
+        }
+        if (action != handling[sig]) {
+            /* Need to change the action for this signal */
+            switch (action) {
+                case ACTION_HANDLE:
+                case ACTION_IGNORE:
+                    if (handling[sig] == ACTION_DEFAULT) {
+                        sigaction(sig, &sa, &sa_old[sig]);
+                    }
+                    else {
+                        sigaction(sig, &sa, 0);
+                    }
+                    break;
+
+                case ACTION_DEFAULT:
+                    /* Restore old handler */
+                    sigaction(sig, &sa_old[sig], 0);
+            }
+            handling[sig] = action;
+        }
+    }
+
+    return TCL_OK;
+}
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Tcl_KillCmd --
+ *     Implements the TCL kill command:
+ *         kill SIG pid
+ *
+ * Results:
+ *      Standard TCL results.
+ *
+ *-----------------------------------------------------------------------------
+ */
+int
+Tcl_KillCmd(dummy, interp, argc, argv)
+    ClientData  dummy;
+    Tcl_Interp *interp;
+    int         argc;
+    char      **argv;
+{
+    int sig;
+
+    if (argc != 3) {
+        Tcl_AppendResult (interp, "bad # args: ", argv [0], 
+                          " SIG pid", 0);
+        return TCL_ERROR;
+    }
+
+    sig = find_signal_by_name(argv[1]);
+    if (sig < 0) {
+        Tcl_AppendResult (interp, argv[0], 
+                          " unknown signal ", argv[1], 0);
+        return TCL_ERROR;
+    }
+
+    if (kill(atoi(argv[2]), sig) == 0) {
+        return TCL_OK;
+    }
+
+    Tcl_AppendResult (interp, "Failed to deliver signal", 0);
+    return TCL_ERROR;
+}
 
 void
 TclX_InitGeneral (interp)
@@ -166,7 +394,15 @@ TclX_InitGeneral (interp)
     Tcl_CreateCommand (interp, "loop", Tcl_LoopCmd, 
                        (ClientData)NULL, NULL);
 
-    return TCL_OK;
+    Tcl_CreateCommand (interp, "signal", Tcl_SignalCmd, 
+                       (ClientData)NULL, NULL);
+
+    Tcl_CreateCommand (interp, "sleep", Tcl_SleepCmd, 
+                       (ClientData)NULL, NULL);
+
+    Tcl_CreateCommand (interp, "kill", Tcl_KillCmd, 
+                       (ClientData)NULL, NULL);
+
 }
 
 

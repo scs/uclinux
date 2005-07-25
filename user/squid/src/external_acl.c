@@ -89,6 +89,10 @@ struct _external_acl {
     int cache_entries;
     dlink_list queue;
     int require_auth;
+    enum {
+	QUOTE_METHOD_SHELL = 1,
+	QUOTE_METHOD_URL
+    } quote;
 };
 
 struct _external_acl_format {
@@ -169,6 +173,7 @@ parse_externalAclHelper(external_acl ** list)
     if (!token)
 	self_destruct();
     a->name = xstrdup(token);
+    a->quote = QUOTE_METHOD_SHELL;
 
     token = strtok(NULL, w_space);
     /* Parse options */
@@ -177,10 +182,20 @@ parse_externalAclHelper(external_acl ** list)
 	    a->ttl = atoi(token + 4);
 	} else if (strncmp(token, "negative_ttl=", 13) == 0) {
 	    a->negative_ttl = atoi(token + 13);
+	} else if (strncmp(token, "children=", 9) == 0) {
+	    a->children = atoi(token + 9);
 	} else if (strncmp(token, "concurrency=", 12) == 0) {
 	    a->children = atoi(token + 12);
 	} else if (strncmp(token, "cache=", 6) == 0) {
 	    a->cache_size = atoi(token + 6);
+	} else if (strcmp(token, "protocol=2.5") == 0) {
+	    a->quote = QUOTE_METHOD_SHELL;
+	} else if (strcmp(token, "protocol=3.0") == 0) {
+	    a->quote = QUOTE_METHOD_URL;
+	} else if (strcmp(token, "quote=url") == 0) {
+	    a->quote = QUOTE_METHOD_URL;
+	} else if (strcmp(token, "quote=shell") == 0) {
+	    a->quote = QUOTE_METHOD_SHELL;
 	} else {
 	    break;
 	}
@@ -417,7 +432,10 @@ aclMatchExternal(void *data, aclCheck_t * ch)
 	}
     }
     key = makeExternalAclKey(ch, acl);
-    ch->auth_user_request = NULL;
+    if (!key) {
+	/* Not sufficient data to process */
+	return -1;
+    }
     if (entry) {
 	if (entry->def != acl->def || strcmp(entry->hash.key, key) != 0) {
 	    /* Not ours.. get rid of it */
@@ -502,12 +520,12 @@ makeExternalAclKey(aclCheck_t * ch, external_acl_data * acl_data)
 	const char *str = NULL;
 	switch (format->type) {
 	case EXT_ACL_LOGIN:
-	    str = authenticateUserRequestUsername(ch->auth_user_request);
+	    str = authenticateUserRequestUsername(request->auth_user_request);
 	    break;
 #if USE_IDENT
 	case EXT_ACL_IDENT:
 	    str = ch->rfc931;
-	    if (!str) {
+	    if (!str || !*str) {
 		ch->state[ACL_IDENT] = ACL_LOOKUP_NEEDED;
 		return NULL;
 	    }
@@ -553,14 +571,24 @@ makeExternalAclKey(aclCheck_t * ch, external_acl_data * acl_data)
 	    str = "-";
 	if (!first)
 	    memBufAppend(&mb, " ", 1);
-	strwordquote(&mb, str);
+	if (acl_data->def->quote == QUOTE_METHOD_URL) {
+	    const char *quoted = rfc1738_escape(str);
+	    memBufAppend(&mb, quoted, strlen(quoted));
+	} else {
+	    strwordquote(&mb, str);
+	}
 	stringClean(&sb);
 	first = 0;
     }
     for (arg = acl_data->arguments; arg; arg = arg->next) {
 	if (!first)
 	    memBufAppend(&mb, " ", 1);
-	strwordquote(&mb, arg->key);
+	if (acl_data->def->quote == QUOTE_METHOD_URL) {
+	    const char *quoted = rfc1738_escape(arg->key);
+	    memBufAppend(&mb, quoted, strlen(quoted));
+	} else {
+	    strwordquote(&mb, arg->key);
+	}
 	first = 0;
     }
     return mb.buf;
@@ -703,6 +731,8 @@ externalAclHandleReply(void *data, char *reply)
 	    value = strchr(token, '=');
 	    if (value) {
 		*value++ = '\0';	/* terminate the token, and move up to the value */
+		if (state->def->quote == QUOTE_METHOD_URL)
+		    rfc1738_unescape(value);
 		if (strcmp(token, "user") == 0)
 		    user = value;
 		else if (strcmp(token, "error") == 0)
@@ -754,7 +784,6 @@ externalAclLookup(aclCheck_t * ch, void *acl_data, EAH * callback, void *callbac
 	}
     }
     key = makeExternalAclKey(ch, acl);
-    ch->auth_user_request = NULL;
     if (!key) {
 	debug(82, 1) ("externalAclLookup: lookup in '%s', prerequisit failure\n", def->name);
 	callback(callback_data, NULL);

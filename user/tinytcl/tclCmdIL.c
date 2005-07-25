@@ -19,6 +19,7 @@
  */
 
 #include "tclInt.h"
+#include "tclUnix.h"
 
 /*
  * Forward declarations for procedures defined in this file:
@@ -397,7 +398,28 @@ Tcl_InfoCmd(dummy, interp, argc, argv)
 	    Tcl_AppendElement(interp, name, 0);
 	}
 	return TCL_OK;
-    } else if ((c == 'l') && (strncmp(argv[1], "level", length) == 0)
+
+    }
+#ifdef HAVE_GETHOSTNAME
+    else if ((c == 'h') && (strncmp(argv[1], "hostname", length) == 0)) {
+	static char hostname[128];
+	static int  hostnameInited = 0;
+
+	if (argc != 2) {
+	    Tcl_AppendResult(interp, "wrong # args: should be \"", argv[0],
+		    " hostname\"", (char *) NULL);
+	    return TCL_ERROR;
+	}
+
+	if (!hostnameInited) {
+	    gethostname(hostname, sizeof(hostname));
+	    hostnameInited = 1;
+	}
+	iPtr->result = hostname;
+	return TCL_OK;
+    }
+#endif
+    else if ((c == 'l') && (strncmp(argv[1], "level", length) == 0)
 	    && (length >= 2)) {
 	if (argc == 2) {
 	    if (iPtr->varFramePtr == NULL) {
@@ -648,12 +670,34 @@ Tcl_LindexCmd(dummy, interp, argc, argv)
 		" list index\"", (char *) NULL);
 	return TCL_ERROR;
     }
-    if (Tcl_GetInt(interp, argv[2], &index) != TCL_OK) {
-	return TCL_ERROR;
+    if (strcmp(argv[2], "end") == 0) {
+	/* Find the length of the list */
+	for (index = 0, p = argv[1]; *p != 0 ; index++) {
+	    result = TclFindElement(interp, p, &element, &p, (int *) NULL, (int *) NULL);
+	    if (result != TCL_OK) {
+		return result;
+	    }
+	    if (*element == 0) {
+		break;
+	    }
+	}
+	Tcl_ResetResult(interp);
+
+	/* and subtract 1 */
+	index--;
+    } else {
+	if (Tcl_GetInt(interp, argv[2], &index) != TCL_OK) {
+	    Tcl_ResetResult(interp);
+	    Tcl_AppendResult(interp,
+		    "expected integer or \"end\" but got \"",
+		    argv[2], "\"", (char *) NULL);
+	    return TCL_ERROR;
+	}
     }
     if (index < 0) {
 	return TCL_OK;
     }
+
     for (p = argv[1] ; index >= 0; index--) {
 	result = TclFindElement(interp, p, &element, &p, &size,
 		&parenthesized);
@@ -787,13 +831,10 @@ Tcl_ListCmd(dummy, interp, argc, argv)
     int argc;				/* Number of arguments. */
     char **argv;			/* Argument strings. */
 {
-    if (argc < 2) {
-	Tcl_AppendResult(interp, "wrong # args: should be \"", argv[0],
-		" arg ?arg ...?\"", (char *) NULL);
-	return TCL_ERROR;
+    if (argc >= 2) {
+	interp->result = Tcl_Merge(argc-1, argv+1);
+	interp->freeProc = (Tcl_FreeProc *) free;
     }
-    interp->result = Tcl_Merge(argc-1, argv+1);
-    interp->freeProc = (Tcl_FreeProc *) free;
     return TCL_OK;
 }
 
@@ -1123,32 +1164,6 @@ Tcl_LsearchCmd(notUsed, interp, argc, argv)
  *----------------------------------------------------------------------
  */
 
-	/* ARGSUSED */
-int
-Tcl_LsortCmd(notUsed, interp, argc, argv)
-    ClientData notUsed;			/* Not used. */
-    Tcl_Interp *interp;			/* Current interpreter. */
-    int argc;				/* Number of arguments. */
-    char **argv;			/* Argument strings. */
-{
-    int listArgc;
-    char **listArgv;
-
-    if (argc != 2) {
-	Tcl_AppendResult(interp, "wrong # args: should be \"", argv[0],
-		" list\"", (char *) NULL);
-	return TCL_ERROR;
-    }
-    if (Tcl_SplitList(interp, argv[1], &listArgc, &listArgv) != TCL_OK) {
-	return TCL_ERROR;
-    }
-    qsort((VOID *) listArgv, listArgc, sizeof (char *), SortCompareProc);
-    interp->result = Tcl_Merge(listArgc, listArgv);
-    interp->freeProc = (Tcl_FreeProc *) free;
-    ckfree((char *) listArgv);
-    return TCL_OK;
-}
-
 /*
  * The procedure below is called back by qsort to determine
  * the proper ordering between two elements.
@@ -1159,4 +1174,100 @@ SortCompareProc(first, second)
     CONST VOID *first, *second;		/* Elements to be compared. */
 {
     return strcmp(*((char **) first), *((char **) second));
+}
+
+static int
+IntegerSortCompareProc(first, second)
+    CONST VOID *first, *second;		/* Elements to be compared. */
+{
+    int firstint = atoi(*((char **) first));
+    int secondint = atoi(*((char **) second));
+
+    return (firstint < secondint) ? -1 : (firstint == secondint) ? 0 : 1;
+}
+
+/* Why doesn't qsort allow a user arg!!! */
+static char *sort_command = 0;
+static int sort_result = TCL_OK;
+static Tcl_Interp *sort_interp = 0;
+
+static int
+CommandSortCompareProc(first, second)
+    CONST VOID *first, *second;		/* Elements to be compared. */
+{
+    char *cmdargv[4];
+    char *compare_cmd;
+    
+    /* We have already had an error and we need to return something, so fallback to strcmp */
+    if (sort_result != TCL_OK) {
+	return strcmp(cmdargv[1], cmdargv[2]);
+    }
+
+    cmdargv[0] = sort_command;
+    cmdargv[1] = *((char **) first);
+    cmdargv[2] = *((char **) second);
+    cmdargv[3] = *((char **) second);
+    compare_cmd = Tcl_Merge(3, cmdargv);
+
+    sort_result = Tcl_Eval(sort_interp, compare_cmd, 0, 0);
+    ckfree(compare_cmd);
+
+    if (sort_result != TCL_OK) {
+	/* We need to return something, so fallback to strcmp */
+	return strcmp(cmdargv[1], cmdargv[2]);
+    }
+
+    return atoi(sort_interp->result);
+}
+
+	/* ARGSUSED */
+int
+Tcl_LsortCmd(notUsed, interp, argc, argv)
+    ClientData notUsed;			/* Not used. */
+    Tcl_Interp *interp;			/* Current interpreter. */
+    int argc;				/* Number of arguments. */
+    char **argv;			/* Argument strings. */
+{
+    int listArgc;
+    char **listArgv;
+    char *cmd = argv[0];
+    typedef int (compare_function_type)(const void *, const void *);
+    compare_function_type *compare = SortCompareProc;
+
+    sort_result = TCL_OK;
+
+    while (argc > 2) {
+	argc--;
+	argv++;
+	if (strcmp(argv[0], "-integer") == 0) {
+	    compare = IntegerSortCompareProc;
+	    break;
+	}
+	if (strcmp(argv[0], "-command") == 0) {
+	    compare = CommandSortCompareProc;
+	    sort_command = argv[1];
+	    sort_interp = interp;
+	    argc--;
+	    argv++;
+	    break;
+	}
+    }
+
+    if (argc != 2) {
+	Tcl_AppendResult(interp, "wrong # args: should be \"", cmd,
+		" ?-integer|-command cmd? list\"", (char *) NULL);
+	return TCL_ERROR;
+    }
+
+    if (Tcl_SplitList(interp, argv[1], &listArgc, &listArgv) != TCL_OK) {
+	return TCL_ERROR;
+    }
+    qsort((VOID *) listArgv, listArgc, sizeof (char *), compare);
+    if (sort_result != TCL_OK) {
+	return sort_result;
+    }
+    interp->result = Tcl_Merge(listArgc, listArgv);
+    interp->freeProc = (Tcl_FreeProc *) free;
+    ckfree((char *) listArgv);
+    return TCL_OK;
 }

@@ -748,6 +748,17 @@ statAvgDump(StoreEntry * sentry, int minutes, int hours)
     storeAppendPrintf(sentry, "server.other.kbytes_out = %f/sec\n",
 	XAVG(server.other.kbytes_out.kb));
 
+#ifdef HS_FEAT_ICAP
+    storeAppendPrintf(sentry, "icap.all.requests = %f/sec\n",
+	XAVG(icap.all.requests));
+    storeAppendPrintf(sentry, "icap.all.errors = %f/sec\n",
+	XAVG(icap.all.errors));
+    storeAppendPrintf(sentry, "icap.all.kbytes_in = %f/sec\n",
+	XAVG(icap.all.kbytes_in.kb));
+    storeAppendPrintf(sentry, "icap.all.kbytes_out = %f/sec\n",
+	XAVG(icap.all.kbytes_out.kb));
+#endif
+
     storeAppendPrintf(sentry, "icp.pkts_sent = %f/sec\n",
 	XAVG(icp.pkts_sent));
     storeAppendPrintf(sentry, "icp.pkts_recv = %f/sec\n",
@@ -950,6 +961,8 @@ statAvgTick(void *notused)
 #elif HAVE_MALLINFO && HAVE_STRUCT_MALLINFO
 	struct mallinfo mp = mallinfo();
 	i = mp.arena;
+#elif HAVE_SBRK
+	i = (size_t) ((char *) sbrk(0) - (char *) sbrk_start);
 #endif
 	if (Config.warnings.high_memory < i)
 	    debug(18, 0) ("WARNING: Memory usage at %d MB\n", i >> 20);
@@ -1126,6 +1139,17 @@ statCountersDump(StoreEntry * sentry)
 	(int) f->server.other.kbytes_in.kb);
     storeAppendPrintf(sentry, "server.other.kbytes_out = %d\n",
 	(int) f->server.other.kbytes_out.kb);
+
+#if HS_FEAT_ICAP
+    storeAppendPrintf(sentry, "icap.all.requests = %d\n",
+	(int) f->icap.all.requests);
+    storeAppendPrintf(sentry, "icap.all.errors = %d\n",
+	(int) f->icap.all.errors);
+    storeAppendPrintf(sentry, "icap.all.kbytes_in = %d\n",
+	(int) f->icap.all.kbytes_in.kb);
+    storeAppendPrintf(sentry, "icap.all.kbytes_out = %d\n",
+	(int) f->icap.all.kbytes_out.kb);
+#endif
 
     storeAppendPrintf(sentry, "icp.pkts_sent = %d\n",
 	f->icp.pkts_sent);
@@ -1444,6 +1468,9 @@ statClientRequests(StoreEntry * s)
 	    (long int) http->start.tv_sec,
 	    (int) http->start.tv_usec,
 	    tvSubDsec(http->start, current_time));
+#if DELAY_POOLS
+	storeAppendPrintf(s, "delay_pool %d\n", delayClient(http) >> 16);
+#endif
 	storeAppendPrintf(s, "\n");
     }
 }

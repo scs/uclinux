@@ -48,6 +48,7 @@ RCSID("$OpenBSD: sshd.c,v 1.276 2003/08/28 12:54:34 markus Exp $");
 #include <openssl/bn.h>
 #include <openssl/md5.h>
 #include <openssl/rand.h>
+#include <openssl/engine.h>
 #ifdef HAVE_SECUREWARE
 #include <sys/security.h>
 #include <prot.h>
@@ -951,6 +952,10 @@ main(int ac, char **av)
 	}
 	SSLeay_add_all_algorithms();
 	channel_set_af(IPv4or6);
+
+	/* Init available hardware crypto engines. */
+	ENGINE_load_builtin_engines();
+	ENGINE_register_all_complete();
 
 	/*
 	 * Force logging to stderr until we have loaded the private host

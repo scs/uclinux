@@ -228,7 +228,7 @@ squid MODULE-IDENTITY
         ::= { cacheSysPerf 8 }
 
         cacheCurrentUnlinkRequests OBJECT-TYPE
-                SYNTAX Gauge32
+                SYNTAX Counter32
                 MAX-ACCESS read-only
                 STATUS current
 		DESCRIPTION

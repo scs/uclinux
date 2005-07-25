@@ -91,6 +91,7 @@ httpMsgIsolateHeaders(const char **parse_start, const char **blk_start, const ch
 int
 httpMsgIsPersistent(http_version_t http_ver, const HttpHeader * hdr)
 {
+#if WHEN_SQUID_IS_HTTP1_1
     if ((http_ver.major >= 1) && (http_ver.minor >= 1)) {
 	/*
 	 * for modern versions of HTTP: persistent unless there is
@@ -98,6 +99,9 @@ httpMsgIsPersistent(http_version_t http_ver, const HttpHeader * hdr)
 	 */
 	return !httpHeaderHasConnDir(hdr, "close");
     } else {
+#else
+    {
+#endif
 	/*
 	 * Persistent connections in Netscape 3.x are allegedly broken,
 	 * return false if it is a browser connection.  If there is a

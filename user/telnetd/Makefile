@@ -12,10 +12,12 @@ endif
 all: $(EXEC)
 
 $(EXEC): $(OBJS)
-	$(CC) $(LDFLAGS) -o $@ $(OBJS) $(LDLIBS$(LDLIBS_$@))
+	$(CC) $(LDFLAGS) -o $@ $(OBJS) $(LIBUTIL) $(LDLIBS$(LDLIBS_$@))
 
 romfs:
 	$(ROMFSINST) /bin/$(EXEC)
+	$(ROMFSINST) -e CONFIG_USER_TELNETD_TELNETD \
+		-a "telnet  stream tcp nowait root /bin/telnetd" /etc/inetd.conf
 
 clean:
 	-rm -f $(EXEC) *.elf *.gdb *.o

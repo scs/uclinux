@@ -25,7 +25,7 @@
 
 #ifdef TCL_MEM_DEBUG
 #ifndef TCL_GENERIC_ONLY
-#include "tclDos.h"
+/*#include "tclDos.h"*/
 #endif
 
 #define GUARD_SIZE 8
@@ -122,9 +122,9 @@ ValidateMemory (memHeaderP, file, line, nukeGuards)
     if (guard_failed) {
         dump_memory_info (stderr);
         fprintf (stderr, "low guard failed at %lx, %s %d\n",
-                 memHeaderP->body, file, line);
+                 (unsigned long)memHeaderP->body, file, line);
         fflush (stderr);  /* In case name pointer is bad. */
-        fprintf (stderr, "%d bytes allocated at (%s %d)\n", memHeaderP->length,
+        fprintf (stderr, "%ld bytes allocated at (%s %d)\n", memHeaderP->length,
 		memHeaderP->file, memHeaderP->line);
         panic ("Memory validation failure");
     }
@@ -144,9 +144,9 @@ ValidateMemory (memHeaderP, file, line, nukeGuards)
     if (guard_failed) {
         dump_memory_info (stderr);
         fprintf (stderr, "high guard failed at %lx, %s %d\n",
-                 memHeaderP->body, file, line);
+                 (unsigned long)memHeaderP->body, file, line);
         fflush (stderr);  /* In case name pointer is bad. */
-        fprintf (stderr, "%d bytes allocated at (%s %d)\n", memHeaderP->length,
+        fprintf (stderr, "%ld bytes allocated at (%s %d)\n", memHeaderP->length,
 		memHeaderP->file, memHeaderP->line);
         panic ("Memory validation failure");
     }
@@ -203,8 +203,8 @@ Tcl_DumpActiveMemory (fileName)
 
     for (memScanP = allocHead; memScanP != NULL; memScanP = memScanP->flink) {
         address = &memScanP->body [0];
-        fprintf (fileP, "%8lx - %8lx  %7d @ %s %d", address,
-                 address + memScanP->length - 1, memScanP->length,
+        fprintf (fileP, "%8lx - %8lx  %7ld @ %s %d", (unsigned long)address,
+                 (unsigned long)address + memScanP->length - 1, memScanP->length,
                  memScanP->file, memScanP->line);
         if (strcmp(memScanP->file, "tclhash.c") == 0 && memScanP->line == 515){
 	    fprintf(fileP, "\t|%s|", ((Tcl_HashEntry *) address)->key.string);
@@ -279,7 +279,7 @@ Tcl_DbCkalloc(size, file, line)
     }
 
     if (alloc_tracing)
-        fprintf(stderr,"ckalloc %lx %d %s %d\n", result->body, size, 
+        fprintf(stderr,"ckalloc %lx %d %s %d\n", (unsigned long)result->body, size, 
                 file, line);
 
     if (break_on_malloc && (total_mallocs >= break_on_malloc)) {
@@ -338,7 +338,7 @@ Tcl_DbCkfree(ptr, file, line)
     memp = (struct mem_header *)(((char *) ptr) - (int)memp->body);
 
     if (alloc_tracing)
-        fprintf(stderr, "ckfree %lx %ld %s %d\n", memp->body, 
+        fprintf(stderr, "ckfree %lx %ld %s %d\n", (unsigned long)memp->body, 
                 memp->length, file, line);
 
     if (validate_memory)

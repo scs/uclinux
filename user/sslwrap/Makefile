@@ -2,7 +2,7 @@
 EXEC = sslwrap
 OBJS = s_server.o s_socket.o s_cb.o
 
-CFLAGS += $(INCSSL) -DFLAT_INC
+CFLAGS += -DFLAT_INC
 LIBS += $(LIBSSL) $(LIBCRYPTO)
 
 all: $(EXEC)

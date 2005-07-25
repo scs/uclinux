@@ -93,6 +93,7 @@ typedef enum {
     ERR_ONLY_IF_CACHED_MISS,	/* failure to satisfy only-if-cached request */
     ERR_TOO_BIG,
     TCP_RESET,
+    ERR_ICAP_FAILURE,
     ERR_MAX
 } err_type;
 
@@ -134,8 +135,11 @@ typedef enum {
     ACL_MAXCONN,
     ACL_REQ_MIME_TYPE,
     ACL_REP_MIME_TYPE,
+    ACL_REP_HEADER,
+    ACL_REQ_HEADER,
     ACL_MAX_USER_IP,
     ACL_EXTERNAL,
+    ACL_URLLOGIN,
     ACL_ENUM_MAX
 } squid_acl;
 
@@ -187,6 +191,7 @@ typedef enum {
     HDR_CACHE_CONTROL,
     HDR_CONNECTION,
     HDR_CONTENT_BASE,
+    HDR_CONTENT_DISPOSITION,
     HDR_CONTENT_ENCODING,
     HDR_CONTENT_LANGUAGE,
     HDR_CONTENT_LENGTH,
@@ -430,6 +435,9 @@ typedef enum {
     PROTO_WHOIS,
     PROTO_INTERNAL,
     PROTO_HTTPS,
+#if HS_FEAT_ICAP
+    PROTO_ICAP,
+#endif
     PROTO_MAX
 } protocol_t;
 
@@ -528,14 +536,6 @@ typedef enum {
     AUTH_BROKEN			/* known type, but broken data */
 } auth_type_t;
 
-/* stateful helper callback response codes */
-typedef enum {
-    S_HELPER_UNKNOWN,
-    S_HELPER_RESERVE,
-    S_HELPER_RELEASE,
-    S_HELPER_DEFER
-} stateful_helper_callback_t;
-
 /* stateful helper reservation info */
 typedef enum {
     S_HELPER_FREE,		/* available for requests */
@@ -609,6 +609,12 @@ typedef enum {
     MEM_TLV,
     MEM_SWAP_LOG_DATA,
     MEM_CLIENT_REQ_BUF,
+#if HS_FEAT_ICAP
+    MEM_ICAP_OPT_DATA,
+    MEM_ICAP_SERVICE_LIST,
+    MEM_ICAP_CLASS,
+    MEM_ICAP_ACCESS,
+#endif
     MEM_MAX
 } mem_type;
 
@@ -706,8 +712,13 @@ typedef enum {
     CBDATA_RemovalPolicyWalker,
     CBDATA_RemovalPurgeWalker,
     CBDATA_store_client,
+#ifdef HS_FEAT_ICAP
+    CBDATA_IcapStateData,
+    CBDATA_icap_service,
+#endif
     CBDATA_FIRST_CUSTOM_TYPE = 1000
 } cbdata_type;
+
 
 /*
  * Return codes from checkVary(request)
@@ -737,5 +748,69 @@ enum {
 };
 
 #endif
+
+#if HS_FEAT_ICAP
+typedef enum {
+    ICAP_STATUS_NONE = 0,
+    ICAP_STATUS_CONTINUE = 100,
+    ICAP_STATUS_SWITCHING_PROTOCOLS = 101,
+    ICAP_STATUS_STATUS_OK = 200,
+    ICAP_CREATED = 201,
+    ICAP_STATUS_ACCEPTED = 202,
+    ICAP_STATUS_NON_AUTHORITATIVE_INFORMATION = 203,
+    ICAP_STATUS_NO_MODIFICATION_NEEDED = 204,
+    ICAP_STATUS_RESET_CONTENT = 205,
+    ICAP_STATUS_PARTIAL_CONTENT = 206,
+    ICAP_STATUS_MULTIPLE_CHOICES = 300,
+    ICAP_STATUS_MOVED_PERMANENTLY = 301,
+    ICAP_STATUS_MOVED_TEMPORARILY = 302,
+    ICAP_STATUS_SEE_OTHER = 303,
+    ICAP_STATUS_NOT_MODIFIED = 304,
+    ICAP_STATUS_USE_PROXY = 305,
+    ICAP_STATUS_BAD_REQUEST = 400,
+    ICAP_STATUS_UNAUTHORIZED = 401,
+    ICAP_STATUS_PAYMENT_REQUIRED = 402,
+    ICAP_STATUS_FORBIDDEN = 403,
+    ICAP_STATUS_SERVICE_NOT_FOUND = 404,
+    ICAP_STATUS_METHOD_NOT_ALLOWED = 405,
+    ICAP_STATUS_NOT_ACCEPTABLE = 406,
+    ICAP_STATUS_PROXY_AUTHENTICATION_REQUIRED = 407,
+    ICAP_STATUS_REQUEST_TIMEOUT = 408,
+    ICAP_STATUS_CONFLICT = 409,
+    ICAP_STATUS_GONE = 410,
+    ICAP_STATUS_LENGTH_REQUIRED = 411,
+    ICAP_STATUS_PRECONDITION_FAILED = 412,
+    ICAP_STATUS_REQUEST_ENTITY_TOO_LARGE = 413,
+    ICAP_STATUS_REQUEST_URI_TOO_LARGE = 414,
+    ICAP_STATUS_UNSUPPORTED_MEDIA_TYPE = 415,
+    ICAP_STATUS_INTERNAL_SERVER_ERROR = 500,
+    ICAP_STATUS_NOT_IMPLEMENTED = 501,
+    ICAP_STATUS_BAD_GATEWAY = 502,
+    ICAP_STATUS_SERVICE_OVERLOADED = 503,
+    ICAP_STATUS_GATEWAY_TIMEOUT = 504,
+    ICAP_STATUS_ICAP_VERSION_NOT_SUPPORTED = 505,
+    ICAP_STATUS_INVALID_HEADER = 600
+} icap_status;
+
+/*
+ * these values are used as index in an array, so it seems to be better to 
+ * assign some numbers
+ */
+typedef enum {
+    ICAP_SERVICE_REQMOD_PRECACHE = 0,
+    ICAP_SERVICE_REQMOD_POSTCACHE = 1,
+    ICAP_SERVICE_RESPMOD_PRECACHE = 2,
+    ICAP_SERVICE_RESPMOD_POSTCACHE = 3,
+    ICAP_SERVICE_MAX = 4
+} icap_service_t;
+
+typedef enum {
+    ICAP_METHOD_NONE,
+    ICAP_METHOD_OPTION,
+    ICAP_METHOD_REQMOD,
+    ICAP_METHOD_RESPMOD
+} icap_method_t;
+
+#endif /* HS_FEAT_ICAP */
 
 #endif /* SQUID_ENUMS_H */

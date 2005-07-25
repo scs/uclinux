@@ -5,7 +5,7 @@
 prefix=/usr/local
 sbindir=/usr/local/sbin
 
-CFLAGS += -I.. -I. $(INCJPEG) -DDEBUG -DCAM_PORT=8999 -D_REENTRANT
+CFLAGS += -I.. -I. -DDEBUG -DCAM_PORT=8999 -D_REENTRANT
 
 default: w3camd
 

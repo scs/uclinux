@@ -163,6 +163,7 @@
 #define xisascii(x) isascii((unsigned char)x)
 #define xislower(x) islower((unsigned char)x)
 #define xisalpha(x) isalpha((unsigned char)x)
+#define xisgraph(x) isgraph((unsigned char)x)
 
 #if HAVE_RANDOM
 #define squid_random random

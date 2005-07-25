@@ -38,6 +38,14 @@
 #include "config.h"
 
 /*
+ * experimental defines for ICAP; apparently this Squid-Icap *requires*
+ * ICAP_CHUNKED : Basile Starynkevitch, june 14th 2002
+ */
+
+#ifdef HS_FEAT_ICAP
+#define ICAP_CHUNKED 1
+#endif
+/*
  * On some systems, FD_SETSIZE is set to something lower than the
  * actual number of files which can be opened.  IRIX is one case,
  * NetBSD is another.  So here we increase FD_SETSIZE to our

@@ -120,6 +120,9 @@ am__quote = @am__quote@
 install_sh = @install_sh@
 makesnmplib = @makesnmplib@
 
+@USE_ICAP_TRUE@ICAPSOURCE = icap_common.c icap_reqmod.c icap_respmod.c icap_opt.c
+@USE_ICAP_FALSE@ICAPSOURCE = 
+
 @USE_DNSSERVER_TRUE@DNSSOURCE = dns.c
 @USE_DNSSERVER_FALSE@DNSSOURCE = dns_internal.c
 @USE_DNSSERVER_TRUE@DNSSERVER = dnsserver
@@ -243,6 +246,7 @@ squid_SOURCES = \
 	HttpMsg.c \
 	HttpReply.c \
 	HttpRequest.c \
+	$(ICAPSOURCE) \
 	icmp.c \
 	icp_v2.c \
 	icp_v3.c \
@@ -458,54 +462,58 @@ pinger_OBJECTS = $(am_pinger_OBJECTS) $(nodist_pinger_OBJECTS)
 pinger_LDADD = $(LDADD)
 pinger_DEPENDENCIES =
 pinger_LDFLAGS =
-@USE_DELAY_POOLS_FALSE@am__objects_3 =
-@USE_DELAY_POOLS_TRUE@am__objects_3 = delay_pools.$(OBJEXT)
-@USE_DNSSERVER_FALSE@am__objects_4 = dns_internal.$(OBJEXT)
-@USE_DNSSERVER_TRUE@am__objects_4 = dns.$(OBJEXT)
-@ENABLE_HTCP_TRUE@am__objects_5 = htcp.$(OBJEXT)
-@MAKE_LEAKFINDER_TRUE@am__objects_6 = leakfinder.$(OBJEXT)
-@MAKE_LEAKFINDER_FALSE@am__objects_6 =
-@USE_SNMP_TRUE@am__objects_7 = snmp_core.$(OBJEXT) snmp_agent.$(OBJEXT)
-@USE_SNMP_FALSE@am__objects_7 =
-@ENABLE_SSL_FALSE@am__objects_8 =
-@ENABLE_SSL_TRUE@am__objects_8 = ssl_support.$(OBJEXT)
-@ENABLE_UNLINKD_TRUE@am__objects_9 = unlinkd.$(OBJEXT)
-@ENABLE_UNLINKD_FALSE@am__objects_9 =
-@ENABLE_WIN32SPECIFIC_FALSE@am__objects_10 =
-@ENABLE_WIN32SPECIFIC_TRUE@am__objects_10 = win32.$(OBJEXT)
+@USE_DELAY_POOLS_TRUE@am__objects_5 = delay_pools.$(OBJEXT)
+@USE_DELAY_POOLS_FALSE@am__objects_5 =
+@USE_DNSSERVER_FALSE@am__objects_6 = dns_internal.$(OBJEXT)
+@USE_DNSSERVER_TRUE@am__objects_6 = dns.$(OBJEXT)
+@ENABLE_HTCP_TRUE@am__objects_7 = htcp.$(OBJEXT)
+@USE_ICAP_FALSE@am__objects_8 =
+@USE_ICAP_TRUE@am__objects_8 = icap_common.$(OBJEXT) \
+@USE_ICAP_TRUE@	icap_reqmod.$(OBJEXT) icap_respmod.$(OBJEXT) \
+@USE_ICAP_TRUE@	icap_opt.$(OBJEXT)
+@MAKE_LEAKFINDER_FALSE@am__objects_9 =
+@MAKE_LEAKFINDER_TRUE@am__objects_9 = leakfinder.$(OBJEXT)
+@USE_SNMP_TRUE@am__objects_10 = snmp_core.$(OBJEXT) snmp_agent.$(OBJEXT)
+@USE_SNMP_FALSE@am__objects_10 =
+@ENABLE_SSL_TRUE@am__objects_11 = ssl_support.$(OBJEXT)
+@ENABLE_SSL_FALSE@am__objects_11 =
+@ENABLE_UNLINKD_FALSE@am__objects_12 =
+@ENABLE_UNLINKD_TRUE@am__objects_12 = unlinkd.$(OBJEXT)
+@ENABLE_WIN32SPECIFIC_TRUE@am__objects_13 = win32.$(OBJEXT)
+@ENABLE_WIN32SPECIFIC_FALSE@am__objects_13 =
 am_squid_OBJECTS = access_log.$(OBJEXT) acl.$(OBJEXT) asn.$(OBJEXT) \
 	authenticate.$(OBJEXT) cache_cf.$(OBJEXT) CacheDigest.$(OBJEXT) \
 	cache_manager.$(OBJEXT) carp.$(OBJEXT) cbdata.$(OBJEXT) \
 	client_db.$(OBJEXT) client_side.$(OBJEXT) comm.$(OBJEXT) \
-	comm_select.$(OBJEXT) debug.$(OBJEXT) $(am__objects_3) \
-	disk.$(OBJEXT) $(am__objects_4) errorpage.$(OBJEXT) \
+	comm_select.$(OBJEXT) debug.$(OBJEXT) $(am__objects_5) \
+	disk.$(OBJEXT) $(am__objects_6) errorpage.$(OBJEXT) \
 	ETag.$(OBJEXT) event.$(OBJEXT) external_acl.$(OBJEXT) \
 	fd.$(OBJEXT) filemap.$(OBJEXT) forward.$(OBJEXT) \
 	fqdncache.$(OBJEXT) ftp.$(OBJEXT) gopher.$(OBJEXT) \
-	helper.$(OBJEXT) $(am__objects_5) http.$(OBJEXT) \
+	helper.$(OBJEXT) $(am__objects_7) http.$(OBJEXT) \
 	HttpStatusLine.$(OBJEXT) HttpHdrCc.$(OBJEXT) \
 	HttpHdrRange.$(OBJEXT) HttpHdrContRange.$(OBJEXT) \
 	HttpHeader.$(OBJEXT) HttpHeaderTools.$(OBJEXT) \
 	HttpBody.$(OBJEXT) HttpMsg.$(OBJEXT) HttpReply.$(OBJEXT) \
-	HttpRequest.$(OBJEXT) icmp.$(OBJEXT) icp_v2.$(OBJEXT) \
-	icp_v3.$(OBJEXT) ident.$(OBJEXT) internal.$(OBJEXT) \
-	ipc.$(OBJEXT) ipcache.$(OBJEXT) $(am__objects_6) \
-	logfile.$(OBJEXT) main.$(OBJEXT) mem.$(OBJEXT) \
+	HttpRequest.$(OBJEXT) $(am__objects_8) icmp.$(OBJEXT) \
+	icp_v2.$(OBJEXT) icp_v3.$(OBJEXT) ident.$(OBJEXT) \
+	internal.$(OBJEXT) ipc.$(OBJEXT) ipcache.$(OBJEXT) \
+	$(am__objects_9) logfile.$(OBJEXT) main.$(OBJEXT) mem.$(OBJEXT) \
 	MemPool.$(OBJEXT) MemBuf.$(OBJEXT) mime.$(OBJEXT) \
 	multicast.$(OBJEXT) neighbors.$(OBJEXT) net_db.$(OBJEXT) \
 	Packer.$(OBJEXT) pconn.$(OBJEXT) peer_digest.$(OBJEXT) \
 	peer_select.$(OBJEXT) redirect.$(OBJEXT) referer.$(OBJEXT) \
-	refresh.$(OBJEXT) send-announce.$(OBJEXT) $(am__objects_7) \
-	ssl.$(OBJEXT) $(am__objects_8) stat.$(OBJEXT) \
+	refresh.$(OBJEXT) send-announce.$(OBJEXT) $(am__objects_10) \
+	ssl.$(OBJEXT) $(am__objects_11) stat.$(OBJEXT) \
 	StatHist.$(OBJEXT) String.$(OBJEXT) stmem.$(OBJEXT) \
 	store.$(OBJEXT) store_io.$(OBJEXT) store_client.$(OBJEXT) \
 	store_digest.$(OBJEXT) store_dir.$(OBJEXT) \
 	store_key_md5.$(OBJEXT) store_log.$(OBJEXT) \
 	store_rebuild.$(OBJEXT) store_swapin.$(OBJEXT) \
 	store_swapmeta.$(OBJEXT) store_swapout.$(OBJEXT) \
-	tools.$(OBJEXT) $(am__objects_9) url.$(OBJEXT) urn.$(OBJEXT) \
+	tools.$(OBJEXT) $(am__objects_12) url.$(OBJEXT) urn.$(OBJEXT) \
 	useragent.$(OBJEXT) wais.$(OBJEXT) wccp.$(OBJEXT) \
-	whois.$(OBJEXT) $(am__objects_10)
+	whois.$(OBJEXT) $(am__objects_13)
 nodist_squid_OBJECTS = repl_modules.$(OBJEXT) auth_modules.$(OBJEXT) \
 	store_modules.$(OBJEXT) globals.$(OBJEXT) \
 	string_arrays.$(OBJEXT)
@@ -523,7 +531,7 @@ unlinkd_DEPENDENCIES = unlinkd-daemon.o
 unlinkd_LDFLAGS =
 DEFAULT_INCLUDES =  -I. -I$(srcdir) -I$(top_builddir)/include
 CPPFLAGS = @CPPFLAGS@
-LDFLAGS += @LDFLAGS@
+LDFLAGS = @LDFLAGS@
 LIBS = @LIBS@ $(LDLIBS)
 depcomp = $(SHELL) $(top_srcdir)/cfgaux/depcomp
 @AMDEP_TRUE@DEP_FILES = $(DEPDIR)/CacheDigest.Po $(DEPDIR)/ETag.Po \
@@ -552,7 +560,9 @@ depcomp = $(SHELL) $(top_srcdir)/cfgaux/depcomp
 @AMDEP_TRUE@	$(DEPDIR)/fqdncache.Po $(DEPDIR)/ftp.Po \
 @AMDEP_TRUE@	$(DEPDIR)/globals.Po $(DEPDIR)/gopher.Po \
 @AMDEP_TRUE@	$(DEPDIR)/helper.Po $(DEPDIR)/htcp.Po \
-@AMDEP_TRUE@	$(DEPDIR)/http.Po $(DEPDIR)/icmp.Po \
+@AMDEP_TRUE@	$(DEPDIR)/http.Po $(DEPDIR)/icap_common.Po \
+@AMDEP_TRUE@	$(DEPDIR)/icap_opt.Po $(DEPDIR)/icap_reqmod.Po \
+@AMDEP_TRUE@	$(DEPDIR)/icap_respmod.Po $(DEPDIR)/icmp.Po \
 @AMDEP_TRUE@	$(DEPDIR)/icp_v2.Po $(DEPDIR)/icp_v3.Po \
 @AMDEP_TRUE@	$(DEPDIR)/ident.Po $(DEPDIR)/internal.Po \
 @AMDEP_TRUE@	$(DEPDIR)/ipc.Po $(DEPDIR)/ipcache.Po \
@@ -690,7 +700,7 @@ cachemgr$(CGIEXT)$(EXEEXT): $(cachemgr__CGIEXT__OBJECTS) $(cachemgr__CGIEXT__DEP
 	$(LINK) $(cachemgr__CGIEXT__LDFLAGS) $(cachemgr__CGIEXT__OBJECTS) $(cachemgr__CGIEXT__LDADD) $(LIBS)
 cf_gen$(EXEEXT): cf_gen.c ../lib/util.c $(cf_gen_DEPENDENCIES) 
 	@rm -f cf_gen$(EXEEXT)
-	$(HOSTCC) -I../include $(cf_gen_LDFLAGS) cf_gen.c -lm -lresolv -lnsl -o cf_gen$(EXEEXT)
+	$(HOSTCC) -I$(top_srcdir)/include -I../include -I. $(cf_gen_LDFLAGS) $< -lm -lresolv -lnsl -o cf_gen$(EXEEXT)
 dnsserver$(EXEEXT): $(dnsserver_OBJECTS) $(dnsserver_DEPENDENCIES) 
 	@rm -f dnsserver$(EXEEXT)
 	$(LINK) $(dnsserver_LDFLAGS) $(dnsserver_OBJECTS) $(dnsserver_LDADD) $(LIBS)
@@ -765,6 +775,10 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/helper.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/htcp.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/http.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/icap_common.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/icap_opt.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/icap_reqmod.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/icap_respmod.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/icmp.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/icp_v2.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/icp_v3.Po@am__quote@
@@ -1003,13 +1017,13 @@ installdirs-am:
 	$(mkinstalldirs) $(DESTDIR)$(bindir) $(DESTDIR)$(libexecdir) $(DESTDIR)$(sbindir) $(DESTDIR)$(datadir) $(DESTDIR)$(sysconfdir)
 
 romfs:
-	$(ROMFSINST) /bin/squid
-	$(ROMFSINST) /bin/squidclient
-	$(ROMFSINST) /bin/unlinkd
-	$(ROMFSINST) /bin/dnsserver
-	$(ROMFSINST) snapgear.conf /etc/default/squid.conf
-	$(ROMFSINST) mime.conf.default /etc/mime.conf
-	$(ROMFSINST) /etc/mib.txt
+	$(ROMFSINST) squid /bin/squid
+	$(ROMFSINST) squidclient /bin/squidclient
+	$(ROMFSINST) unlinkd /bin/unlinkd
+	$(ROMFSINST) dnsserver /bin/dnsserver
+	$(ROMFSINST) $(srcdir)/snapgear.conf /etc/default/squid.conf
+	$(ROMFSINST) $(srcdir)/mime.conf.default /etc/mime.conf
+	$(ROMFSINST) $(srcdir)/mib.txt /etc/mib.txt
 
 install: install-recursive
 install-exec: install-exec-recursive

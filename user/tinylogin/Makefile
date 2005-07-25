@@ -37,8 +37,7 @@ DOSTATIC = false
 # I will get fewer emails asking about how glibc NSS works.  Enabling this adds
 # just 1.5k to the binary size (which is a _lot_ less then glibc NSS costs),
 # Most people will want to leave this set to false.
-#USE_SYSTEM_PWD_GRP = true BFin
-USE_SYSTEM_PWD_GRP = false
+USE_SYSTEM_PWD_GRP = true
 USE_SYSTEM_SHADOW = true
 
 # GNU libc needs libcrypt, but libc5 wants it compiled out...

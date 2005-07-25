@@ -47,7 +47,7 @@ static CWCB httpSendRequestEntry;
 
 static PF httpReadReply;
 static void httpSendRequest(HttpStateData *);
-static PF httpStateFree;
+PF httpStateFree;
 static PF httpTimeout;
 static void httpCacheNegatively(StoreEntry *);
 static void httpMakePrivate(StoreEntry *);
@@ -55,15 +55,26 @@ static void httpMakePublic(StoreEntry *);
 static int httpCachableReply(HttpStateData *);
 static void httpMaybeRemovePublic(StoreEntry *, http_status);
 
-static void
+void
 httpStateFree(int fd, void *data)
 {
     HttpStateData *httpState = data;
 #if DELAY_POOLS
-    delayClearNoDelay(fd);
+    if (fd >= 0)
+	delayClearNoDelay(fd);
 #endif
     if (httpState == NULL)
 	return;
+    debug(11, 3) ("httpStateFree: FD %d, httpState = %p\n", fd, data);
+    if (httpState->body_buf) {
+	if (httpState->orig_request->body_connection) {
+	    clientAbortBody(httpState->orig_request);
+	}
+	if (httpState->body_buf) {
+	    memFree(httpState->body_buf, MEM_8K_BUF);
+	    httpState->body_buf = NULL;
+	}
+    }
     storeUnlockObject(httpState->entry);
     if (httpState->reply_hdr) {
 	memFree(httpState->reply_hdr, MEM_8K_BUF);
@@ -73,6 +84,9 @@ httpStateFree(int fd, void *data)
     requestUnlink(httpState->orig_request);
     httpState->request = NULL;
     httpState->orig_request = NULL;
+#if HS_FEAT_ICAP
+    cbdataUnlock(httpState->icap_writer);
+#endif
     cbdataFree(httpState);
 }
 
@@ -341,6 +355,13 @@ httpMakeVaryMark(request_t * request, HttpReply * reply)
 	char *name = xmalloc(ilen + 1);
 	xstrncpy(name, item, ilen + 1);
 	Tolower(name);
+	if (strcmp(name, "*") == 0) {
+	    /* Can not handle "Vary: *" withtout ETag support */
+	    safe_free(name);
+	    stringClean(&vary);
+	    stringClean(&vstr);
+	    break;
+	}
 	strListAdd(&vstr, name, ',');
 	hdr = httpHeaderGetByName(&request->header, name);
 	safe_free(name);
@@ -428,35 +449,36 @@ httpProcessReplyHeader(HttpStateData * httpState, const char *buf, int size)
     debug(11, 3) ("httpProcessReplyHeader: HTTP CODE: %d\n", reply->sline.status);
     if (neighbors_do_private_keys)
 	httpMaybeRemovePublic(entry, reply->sline.status);
+    if (httpHeaderHas(&reply->header, HDR_VARY)
+#if X_ACCELERATOR_VARY
+	|| httpHeaderHas(&reply->header, HDR_X_ACCELERATOR_VARY)
+#endif
+	) {
+	const char *vary = httpMakeVaryMark(httpState->orig_request, reply);
+	if (!vary) {
+	    httpMakePrivate(entry);
+	    goto no_cache;
+	}
+	entry->mem_obj->vary_headers = xstrdup(vary);
+    }
     switch (httpCachableReply(httpState)) {
     case 1:
-	if (httpHeaderHas(&reply->header, HDR_VARY)
-#if X_ACCELERATOR_VARY
-	    || httpHeaderHas(&reply->header, HDR_X_ACCELERATOR_VARY)
-#endif
-	    ) {
-	    const char *vary = httpMakeVaryMark(httpState->orig_request, reply);
-	    if (vary) {
-		entry->mem_obj->vary_headers = xstrdup(vary);
-		/* Kill the old base object if a change in variance is detected */
-		httpMakePublic(entry);
-	    } else {
-		httpMakePrivate(entry);
-	    }
-	} else {
-	    httpMakePublic(entry);
-	}
+	httpMakePublic(entry);
 	break;
     case 0:
 	httpMakePrivate(entry);
 	break;
     case -1:
-	httpCacheNegatively(entry);
+	if (Config.negativeTtl > 0)
+	    httpCacheNegatively(entry);
+	else
+	    httpMakePrivate(entry);
 	break;
     default:
 	assert(0);
 	break;
     }
+  no_cache:
     if (reply->cache_control) {
 	if (EBIT_TEST(reply->cache_control->mask, CC_PROXY_REVALIDATE))
 	    EBIT_SET(entry->flags, ENTRY_REVALIDATE);
@@ -466,9 +488,16 @@ httpProcessReplyHeader(HttpStateData * httpState, const char *buf, int size)
     if (httpState->flags.keepalive)
 	if (httpState->peer)
 	    httpState->peer->stats.n_keepalives_sent++;
-    if (reply->keep_alive)
+    if (reply->keep_alive) {
 	if (httpState->peer)
 	    httpState->peer->stats.n_keepalives_recv++;
+	if (Config.onoff.detect_broken_server_pconns && httpReplyBodySize(httpState->request->method, reply) == -1) {
+	    debug(11, 1) ("httpProcessReplyHeader: Impossible keep-alive header from '%s'\n", storeUrl(entry));
+	    debug(11, 2) ("GOT HTTP REPLY HDR:\n---------\n%s\n----------\n",
+		httpState->reply_hdr);
+	    httpState->flags.keepalive_broken = 1;
+	}
+    }
     if (reply->date > -1 && !httpState->peer) {
 	int skew = abs(reply->date - squid_curtime);
 	if (skew > 86400)
@@ -482,19 +511,19 @@ httpProcessReplyHeader(HttpStateData * httpState, const char *buf, int size)
 }
 
 static int
-httpPconnTransferDone(HttpStateData * httpState)
+httpPconnTransferDone(int fd, HttpStateData * httpState)
 {
     /* return 1 if we got the last of the data on a persistent connection */
     MemObject *mem = httpState->entry->mem_obj;
     HttpReply *reply = mem->reply;
     int clen;
-    debug(11, 3) ("httpPconnTransferDone: FD %d\n", httpState->fd);
+    off_t content_bytes_read;
+
+    debug(11, 3) ("httpPconnTransferDone: FD %d\n", fd);
     /*
      * If we didn't send a keep-alive request header, then this
      * can not be a persistent connection.
      */
-    if (!httpState->flags.keepalive)
-	return 0;
     /*
      * What does the reply have to say about keep-alive?
      */
@@ -507,24 +536,45 @@ httpPconnTransferDone(HttpStateData * httpState)
      * and an error status code, and we might have to wait until
      * the server times out the socket.
      */
+
+    debug(11, 3) ("httpPconnTransferDone: reply->keep_alive=%d\n", reply->keep_alive);
     if (!reply->keep_alive)
 	return 0;
     debug(11, 5) ("httpPconnTransferDone: content_length=%d\n",
 	reply->content_length);
     /* If we haven't seen the end of reply headers, we are not done */
-    if (httpState->reply_hdr_state < 2)
+    if (httpState->reply_hdr_state < 2) {
+	debug(11, 3) ("httpPconnTransferDone: reply_hdr_state=%d, returning 0\n",
+	    httpState->reply_hdr_state);
 	return 0;
+    }
     clen = httpReplyBodySize(httpState->request->method, reply);
     /* If there is no message body, we can be persistent */
-    if (0 == clen)
+    if (0 == clen) {
+	debug(11, 3) ("httpPconnTransferDone: no content returning 1\n");
 	return 1;
+    }
     /* If the body size is unknown we must wait for EOF */
-    if (clen < 0)
+    if (clen < 0) {
+	debug(11, 3) ("httpPconnTransferDone: body size unknown, wait for EOF, returning 0\n");
 	return 0;
+    }
+    content_bytes_read = mem->inmem_hi;
+#ifdef HS_FEAT_ICAP
+    if (httpState->icap_writer) {
+	content_bytes_read = httpState->icap_writer->fake_content_length;
+	debug(11, 3) ("using fake conten length %d\n", (int) content_bytes_read);
+    }
+#endif
     /* If the body size is known, we must wait until we've gotten all of it.  */
-    if (mem->inmem_hi < reply->content_length + reply->hdr_sz)
+    if (content_bytes_read < reply->content_length + reply->hdr_sz) {
+	debug(11, 3) ("httpPconnTransferDone: content_bytes_read=%d, returning 0\n",
+	    (int) content_bytes_read);
 	return 0;
+    }
     /* We got it all */
+    debug(11, 3) ("httpPconnTransferDone: FD %d we got it all %d %d %d\n",
+	httpState->fd, (int) content_bytes_read, reply->content_length, reply->hdr_sz);
     return 1;
 }
 
@@ -551,6 +601,7 @@ httpReadReply(int fd, void *data)
     else
 	delay_id = delayMostBytesAllowed(entry->mem_obj);
 #endif
+    debug(11, 5) ("httpReadReply: FD %d: httpState %p.\n", fd, data);
     if (EBIT_TEST(entry->flags, ENTRY_ABORTED)) {
 	comm_close(fd);
 	return;
@@ -561,6 +612,33 @@ httpReadReply(int fd, void *data)
 #if DELAY_POOLS
     read_sz = delayBytesWanted(delay_id, 1, read_sz);
 #endif
+#if HS_FEAT_ICAP
+    if (httpState->icap_writer) {
+       IcapStateData * icap = httpState->icap_writer;
+       /*
+	* Ok we have a received a response from the web server, so try to 
+	* connect the icap server if it's the first attemps. If we try
+	* to connect to the icap server, defer this request (do not read
+	* the buffer), and defer until icapConnectOver() is not called.
+	*/
+       if (icap->flags.connect_requested == 0) {
+	  debug(81, 2) ("icapSendRespMod: Create a new connection to icap server\n");
+	  if (!icapConnect(icap, icapConnectOver))
+	   {
+	     debug(81, 2) ("icapSendRespMod: Something strange while creating a socket to icap server\n");
+	     commSetSelect(fd, COMM_SELECT_READ, httpReadReply, httpState, 0);
+	     return;
+	   }
+	  debug(81, 2) ("icapSendRespMod: new connection to icap server (using FD=%d)\n",icap->icap_fd);
+	  icap->flags.connect_requested = 1;
+	  /* Wait for more data or EOF condition */
+	  commSetTimeout(fd, httpState->flags.keepalive_broken?10:Config.Timeout.read, NULL, NULL);
+	  commSetSelect(fd, COMM_SELECT_READ, httpReadReply, httpState, 0);
+	  return;
+       }
+    }
+#endif
+
     statCounter.syscalls.sock.reads++;
     len = FD_READ_METHOD(fd, buf, read_sz);
     debug(11, 5) ("httpReadReply: FD %d: len %d.\n", fd, len);
@@ -571,18 +649,24 @@ httpReadReply(int fd, void *data)
 #endif
 	kb_incr(&statCounter.server.all.kbytes_in, len);
 	kb_incr(&statCounter.server.http.kbytes_in, len);
-	commSetTimeout(fd, Config.Timeout.read, NULL, NULL);
 	IOStats.Http.reads++;
 	for (clen = len - 1, bin = 0; clen; bin++)
 	    clen >>= 1;
 	IOStats.Http.read_hist[bin]++;
     }
-    if (!httpState->reply_hdr && len > 0) {
+#ifdef HS_FEAT_ICAP
+    if (httpState->icap_writer)
+	(void) 0;
+    else
+#endif
+
+    if (!httpState->reply_hdr && len > 0 && fd_table[fd].uses > 1) {
 	/* Skip whitespace */
 	while (len > 0 && xisspace(*buf))
 	    xmemmove(buf, buf + 1, len--);
 	if (len == 0) {
 	    /* Continue to read... */
+	    /* Timeout NOT increased. This whitespace was from previous reply */
 	    commSetSelect(fd, COMM_SELECT_READ, httpReadReply, httpState, 0);
 	    return;
 	}
@@ -602,6 +686,14 @@ httpReadReply(int fd, void *data)
 	} else {
 	    comm_close(fd);
 	}
+#ifdef HS_FEAT_ICAP
+    } else if (len == 0 && httpState->icap_writer) {
+	debug(81, 3) ("httpReadReply: EOF for ICAP writer\n");
+	if (cbdataValid(httpState->icap_writer))
+	    icapSendRespMod(httpState->icap_writer, buf, len, 1);
+	httpState->eof = 1;
+	comm_close(fd);
+#endif
     } else if (len == 0 && entry->mem_obj->inmem_hi == 0) {
 	ErrorState *err;
 	err = errorCon(ERR_ZERO_SIZE_OBJECT, HTTP_SERVICE_UNAVAILABLE);
@@ -624,6 +716,27 @@ httpReadReply(int fd, void *data)
 	fwdComplete(httpState->fwd);
 	comm_close(fd);
     } else {
+
+#ifdef HS_FEAT_ICAP
+	if (httpState->icap_writer) {
+	    /*
+	     * We need to parse this HTTP reply here, at least to
+	     * get the connection: keep-alive status
+	     */
+	    if (httpState->reply_hdr_state < 2)
+		httpProcessReplyHeader(httpState, buf, len);
+	    /*
+	     * this is where we give data coming from an origin
+	     * server to a "respmod" service
+	     */
+	    debug(11, 5) ("calling icapSendRespMod from %s:%d\n", __FILE__, __LINE__);
+	    if (cbdataValid(httpState->icap_writer)) {
+		icapSendRespMod(httpState->icap_writer, buf, len, 0);
+		httpState->icap_writer->fake_content_length += len;
+	    }
+	} else
+#endif
+
 	if (httpState->reply_hdr_state < 2) {
 	    httpProcessReplyHeader(httpState, buf, len);
 	    if (httpState->reply_hdr_state == 2) {
@@ -639,7 +752,17 @@ httpReadReply(int fd, void *data)
 		    EBIT_CLR(entry->flags, ENTRY_FWD_HDR_WAIT);
 	    }
 	}
-	storeAppend(entry, buf, len);
+#ifdef HS_FEAT_ICAP
+	if (httpState->icap_writer)
+	    (void) 0;
+	else
+#endif
+	if (fd == httpState->fd)
+	    storeAppend(entry, buf, len);
+
+
+	debug(11, 5) ("httpReadReply: after storeAppend FD %d read %d\n", fd, len);
+
 	if (EBIT_TEST(entry->flags, ENTRY_ABORTED)) {
 	    /*
 	     * the above storeAppend() call could ABORT this entry,
@@ -647,7 +770,7 @@ httpReadReply(int fd, void *data)
 	     * there's nothing for us to do.
 	     */
 	    (void) 0;
-	} else if (httpPconnTransferDone(httpState)) {
+	} else if (httpPconnTransferDone(fd, httpState)) {
 	    /* yes we have to clear all these! */
 	    commSetDefer(fd, NULL, NULL);
 	    commSetTimeout(fd, -1, NULL, NULL);
@@ -655,18 +778,55 @@ httpReadReply(int fd, void *data)
 #if DELAY_POOLS
 	    delayClearNoDelay(fd);
 #endif
+#ifdef HS_FEAT_ICAP
+	    if (httpState->icap_writer)
+		icapSendRespMod(httpState->icap_writer, NULL, 0, 1);
+#endif
 	    comm_remove_close_handler(fd, httpStateFree, httpState);
 	    fwdUnregister(fd, httpState->fwd);
-	    pconnPush(fd, request->host, request->port);
+	    pconnPush(fd, fd_table[fd].pconn_name, fd_table[fd].remote_port);
 	    fwdComplete(httpState->fwd);
 	    httpState->fd = -1;
 	    httpStateFree(fd, httpState);
 	} else {
-	    /* Wait for EOF condition */
+	    /* Wait for more data or EOF condition */
+	    if (httpState->flags.keepalive_broken) {
+		commSetTimeout(fd, 10, NULL, NULL);
+	    } else {
+		commSetTimeout(fd, Config.Timeout.read, NULL, NULL);
+	    }
 	    commSetSelect(fd, COMM_SELECT_READ, httpReadReply, httpState, 0);
 	}
     }
 }
+
+#ifdef HS_FEAT_ICAP
+int
+httpReadReplyWaitForIcap(int fd, void *data)
+{
+    HttpStateData *httpState = data;
+    if (NULL == httpState->icap_writer)
+	return 0;
+    /* 
+     * Do not defer when we are not connected to the icap server.
+     * Defer when the icap server connection is not established but pending
+     * Defer when the icap server is busy (writing on the socket)
+     */
+    debug(11, 5) ("httpReadReplyWaitForIcap: FD %d, connect_requested=%d\n",
+	fd, httpState->icap_writer->flags.connect_requested);
+    if (!httpState->icap_writer->flags.connect_requested)
+      return 0;
+    debug(11, 5) ("httpReadReplyWaitForIcap: FD %d, connect_pending=%d\n",
+	fd, httpState->icap_writer->flags.connect_pending);
+    if (httpState->icap_writer->flags.connect_pending)
+	return 1;
+    debug(11, 5) ("httpReadReplyWaitForIcap: FD %d, write_pending=%d\n",
+	fd, httpState->icap_writer->flags.write_pending);
+    if (httpState->icap_writer->flags.write_pending)
+	return 1;
+    return 0;
+}
+#endif
 
 /* This will be called when request write is complete. Schedule read of
  * reply. */
@@ -689,15 +849,71 @@ httpSendComplete(int fd, char *bufnotused, size_t size, int errflag, void *data)
     if (errflag == COMM_ERR_CLOSING)
 	return;
     if (errflag) {
-	err = errorCon(ERR_WRITE_ERROR, HTTP_INTERNAL_SERVER_ERROR);
-	err->xerrno = errno;
-	err->request = requestLink(httpState->orig_request);
-	errorAppendEntry(entry, err);
+	if (entry->mem_obj->inmem_hi == 0) {
+	    err = errorCon(ERR_WRITE_ERROR, HTTP_INTERNAL_SERVER_ERROR);
+	    err->xerrno = errno;
+	    err->request = requestLink(httpState->orig_request);
+	    errorAppendEntry(entry, err);
+	}
 	comm_close(fd);
 	return;
     } else {
 	/* Schedule read reply. */
-	commSetSelect(fd, COMM_SELECT_READ, httpReadReply, httpState, 0);
+#ifdef HS_FEAT_ICAP
+	if (icapService(ICAP_SERVICE_RESPMOD_PRECACHE, httpState->orig_request)) {
+	    httpState->icap_writer = icapRespModStart(
+		ICAP_SERVICE_RESPMOD_PRECACHE,
+		httpState->orig_request, httpState->entry, httpState->flags);
+	    if (-1 == (int) httpState->icap_writer) {
+		/* TODO: send error here and exit */
+		httpState->icap_writer = 0;
+		err = errorCon(ERR_ICAP_FAILURE, HTTP_INTERNAL_SERVER_ERROR);
+		err->xerrno = errno;
+		err->request = requestLink(httpState->orig_request);
+		errorAppendEntry(entry, err);
+		comm_close(fd);
+		return;
+	    } else if (httpState->icap_writer) {
+		request_flags fake_flags = httpState->orig_request->flags;
+		method_t fake_method = entry->mem_obj->method;
+		const char *fake_msg = "this is a fake entry for "
+		" response sent to an ICAP RESPMOD server";
+		cbdataLock(httpState->icap_writer);
+		/*
+		 * this httpState will give the data it reads to
+		 * the icap server, rather than put it into
+		 * a StoreEntry
+		 */
+		storeUnlockObject(httpState->entry);
+		storeUnregisterAbort(httpState->entry);
+		/*
+		 * create a bogus entry because the code assumes one is
+		 * always there.
+		 */
+		fake_flags.cachable = 0;
+		fake_flags.hierarchical = 0;	/* force private key */
+		httpState->entry = storeCreateEntry("fake", "fake", fake_flags, fake_method);
+		storeAppend(httpState->entry, fake_msg, strlen(fake_msg));
+		/*
+		 * pull a switcheroo on fwdState->entry.
+		 */
+		storeUnlockObject(httpState->fwd->entry);
+		httpState->fwd->entry = httpState->entry;
+		storeLockObject(httpState->fwd->entry);
+		/*
+		 * Note that we leave fwdState connected to httpState,
+		 * but we changed the entry.  So when fwdComplete
+		 * or whatever is called it does no harm -- its
+		 * just the fake entry.
+		 */
+	    } else {
+		/*
+		 * failed to open connection to ICAP server. 
+		 * But bypass request, so just continue here.
+		 */
+	    }
+	}
+#endif
 	/*
 	 * Set the read timeout here because it hasn't been set yet.
 	 * We only set the read timeout after the request has been
@@ -706,8 +922,18 @@ httpSendComplete(int fd, char *bufnotused, size_t size, int errflag, void *data)
 	 * the timeout for POST/PUT requests that have very large
 	 * request bodies.
 	 */
+
+	/* removed in stable5:
+	 * commSetSelect(fd, COMM_SELECT_READ, httpReadReply, httpState, 0);
+	 */
 	commSetTimeout(fd, Config.Timeout.read, httpTimeout, httpState);
-	commSetDefer(fd, fwdCheckDeferRead, entry);
+#ifdef HS_FEAT_ICAP
+	if (httpState->icap_writer) {
+	    debug(11, 5) ("FD %d, setting httpReadReplyWaitForIcap\n", httpState->fd);
+	    commSetDefer(httpState->fd, httpReadReplyWaitForIcap, httpState);
+	} else
+#endif
+	commSetDefer(httpState->fd, fwdCheckDeferRead, entry);
     }
 }
 
@@ -721,7 +947,6 @@ httpBuildRequestHeader(request_t * request,
     request_t * orig_request,
     StoreEntry * entry,
     HttpHeader * hdr_out,
-    int cfd,
     http_state_flags flags)
 {
     /* building buffer for complex strings */
@@ -795,15 +1020,22 @@ httpBuildRequestHeader(request_t * request,
 	    break;
 	case HDR_HOST:
 	    /*
-	     * Normally Squid does not copy the Host: header from
-	     * a client request into the forwarded request headers.
-	     * However, there is one case when we do: If the URL
+	     * Normally Squid rewrites the Host: header.
+	     * However, there is one case when we don't: If the URL
 	     * went through our redirector and the admin configured
 	     * 'redir_rewrites_host' to be off.
 	     */
-	    if (request->flags.redirected)
-		if (!Config.onoff.redir_rewrites_host)
-		    httpHeaderAddEntry(hdr_out, httpHeaderEntryClone(e));
+	    if (request->flags.redirected && !Config.onoff.redir_rewrites_host)
+		httpHeaderAddEntry(hdr_out, httpHeaderEntryClone(e));
+	    else {
+		/* use port# only if not default */
+		if (orig_request->port == urlDefaultPort(orig_request->protocol)) {
+		    httpHeaderPutStr(hdr_out, HDR_HOST, orig_request->host);
+		} else {
+		    httpHeaderPutStrf(hdr_out, HDR_HOST, "%s:%d",
+			orig_request->host, (int) orig_request->port);
+		}
+	    }
 	    break;
 	case HDR_IF_MODIFIED_SINCE:
 	    /* append unless we added our own;
@@ -849,7 +1081,9 @@ httpBuildRequestHeader(request_t * request,
 
     /* append X-Forwarded-For */
     strFwd = httpHeaderGetList(hdr_in, HDR_X_FORWARDED_FOR);
-    strListAdd(&strFwd, (cfd < 0 ? "unknown" : fd_table[cfd].ipaddr), ',');
+    strListAdd(&strFwd,
+	(((orig_request->client_addr.s_addr != no_addr.s_addr) && opt_forwarded_for) ?
+	    inet_ntoa(orig_request->client_addr) : "unknown"), ',');
     httpHeaderPutStr(hdr_out, HDR_X_FORWARDED_FOR, strBuf(strFwd));
     stringClean(&strFwd);
 
@@ -896,9 +1130,16 @@ httpBuildRequestHeader(request_t * request,
 	if (!EBIT_TEST(cc->mask, CC_MAX_AGE)) {
 	    const char *url = entry ? storeUrl(entry) : urlCanonical(orig_request);
 	    httpHdrCcSetMaxAge(cc, getMaxAge(url));
+#ifndef HS_FEAT_ICAP
+	    /* Don;t bother - if  the url you want to cache is redirected? */
 	    if (strLen(request->urlpath))
 		assert(strstr(url, strBuf(request->urlpath)));
+#endif
 	}
+	/* Set no-cache if determined needed but not found */
+	if (orig_request->flags.nocache && !httpHeaderHas(hdr_in, HDR_PRAGMA))
+	    EBIT_SET(cc->mask, CC_NO_CACHE);
+	/* Enforce sibling relations */
 	if (flags.only_if_cached)
 	    EBIT_SET(cc->mask, CC_ONLY_IF_CACHED);
 	httpHeaderPutCc(hdr_out, cc);
@@ -913,7 +1154,7 @@ httpBuildRequestHeader(request_t * request,
 	}
     }
     /* Now mangle the headers. */
-    httpHdrMangleList(hdr_out, request);
+    httpHdrMangleList(hdr_out, orig_request);
     stringClean(&strConnection);
 }
 
@@ -924,7 +1165,6 @@ httpBuildRequestPrefix(request_t * request,
     request_t * orig_request,
     StoreEntry * entry,
     MemBuf * mb,
-    int cfd,
     http_state_flags flags)
 {
     const int offset = mb->size;
@@ -935,7 +1175,7 @@ httpBuildRequestPrefix(request_t * request,
     {
 	HttpHeader hdr;
 	Packer p;
-	httpBuildRequestHeader(request, orig_request, entry, &hdr, cfd, flags);
+	httpBuildRequestHeader(request, orig_request, entry, &hdr, flags);
 	packerToMemInit(&p, mb);
 	httpHeaderPackInto(&hdr, &p);
 	httpHeaderClean(&hdr);
@@ -952,24 +1192,21 @@ httpSendRequest(HttpStateData * httpState)
     MemBuf mb;
     request_t *req = httpState->request;
     StoreEntry *entry = httpState->entry;
-    int cfd;
     peer *p = httpState->peer;
     CWCB *sendHeaderDone;
+    int fd = httpState->fd;
 
-    debug(11, 5) ("httpSendRequest: FD %d: httpState %p.\n", httpState->fd, httpState);
+    debug(11, 5) ("httpSendRequest: FD %d: httpState %p.\n", fd, httpState);
 
-    if (httpState->orig_request->body_connection)
+    /* Schedule read reply. (but no timeout set until request fully sent) */
+    commSetTimeout(fd, Config.Timeout.lifetime, httpTimeout, httpState);
+    commSetSelect(fd, COMM_SELECT_READ, httpReadReply, httpState, 0);
+
+    if (httpState->orig_request->body_reader)
 	sendHeaderDone = httpSendRequestEntry;
     else
 	sendHeaderDone = httpSendComplete;
 
-    if (!opt_forwarded_for)
-	cfd = -1;
-    else if (entry->mem_obj == NULL)
-	cfd = -1;
-    else
-	cfd = entry->mem_obj->fd;
-    assert(-1 == cfd || FD_SOCKET == fd_table[cfd].type);
     if (p != NULL)
 	httpState->flags.proxying = 1;
     else
@@ -994,10 +1231,9 @@ httpSendRequest(HttpStateData * httpState)
 	httpState->orig_request,
 	entry,
 	&mb,
-	cfd,
 	httpState->flags);
-    debug(11, 6) ("httpSendRequest: FD %d:\n%s\n", httpState->fd, mb.buf);
-    comm_write_mbuf(httpState->fd, mb, sendHeaderDone, httpState);
+    debug(11, 6) ("httpSendRequest: FD %d:\n%s\n", fd, mb.buf);
+    comm_write_mbuf(fd, mb, sendHeaderDone, httpState);
 }
 
 void
@@ -1006,6 +1242,7 @@ httpStart(FwdState * fwd)
     int fd = fwd->server_fd;
     HttpStateData *httpState;
     request_t *proxy_req;
+    /* ErrorState *err; */
     request_t *orig_req = fwd->request;
     debug(11, 3) ("httpStart: \"%s %s\"\n",
 	RequestMethodStr[orig_req->method],
@@ -1043,12 +1280,22 @@ httpStart(FwdState * fwd)
 	httpState->request = requestLink(orig_req);
 	httpState->orig_request = requestLink(orig_req);
     }
+#ifdef HS_FEAT_ICAP
+    if (icapService(ICAP_SERVICE_REQMOD_POSTCACHE, httpState->orig_request)) {
+	httpState->icap_writer = icapRespModStart(ICAP_SERVICE_REQMOD_POSTCACHE,
+	    httpState->orig_request, httpState->entry, httpState->flags);
+	if (httpState->icap_writer) {
+	    return;
+	}
+    }
+#endif
     /*
      * register the handler to free HTTP state data when the FD closes
      */
     comm_add_close_handler(fd, httpStateFree, httpState);
     statCounter.server.all.requests++;
     statCounter.server.http.requests++;
+
     httpSendRequest(httpState);
     /*
      * We used to set the read timeout here, but not any more.
@@ -1079,10 +1326,37 @@ httpSendRequestEntryDone(int fd, void *data)
 }
 
 static void
+httpRequestBodyHandler2(void *data)
+{
+    HttpStateData *httpState = (HttpStateData *) data;
+    char *buf = httpState->body_buf;
+    httpState->body_buf = NULL;
+    comm_write(httpState->fd, buf, httpState->body_buf_sz, httpSendRequestEntry, data, memFree8K);
+}
+
+static void
 httpRequestBodyHandler(char *buf, ssize_t size, void *data)
 {
     HttpStateData *httpState = (HttpStateData *) data;
+    httpState->body_buf = NULL;
     if (size > 0) {
+	if (httpState->reply_hdr_state >= 2 && !httpState->flags.abuse_detected) {
+	    httpState->flags.abuse_detected = 1;
+	    debug(11, 1) ("httpSendRequestEntryDone: Likely proxy abuse detected '%s' -> '%s'\n",
+		inet_ntoa(httpState->orig_request->client_addr),
+		storeUrl(httpState->entry));
+	    if (httpState->entry->mem_obj->reply->sline.status == HTTP_INVALID_HEADER) {
+		memFree8K(buf);
+		comm_close(httpState->fd);
+		return;
+	    }
+	    httpState->body_buf = buf;
+	    httpState->body_buf_sz = size;
+	    /* Give response some time to propagate before sending rest
+	     * of request in case of error */
+	    eventAdd("POST delay on response", httpRequestBodyHandler2, httpState, 2.0, 1);
+	    return;
+	}
 	comm_write(httpState->fd, buf, size, httpSendRequestEntry, data, memFree8K);
     } else if (size == 0) {
 	/* End of body */
@@ -1111,10 +1385,12 @@ httpSendRequestEntry(int fd, char *bufnotused, size_t size, int errflag, void *d
     if (errflag == COMM_ERR_CLOSING)
 	return;
     if (errflag) {
-	err = errorCon(ERR_WRITE_ERROR, HTTP_INTERNAL_SERVER_ERROR);
-	err->xerrno = errno;
-	err->request = requestLink(httpState->orig_request);
-	errorAppendEntry(entry, err);
+	if (entry->mem_obj->inmem_hi == 0) {
+	    err = errorCon(ERR_WRITE_ERROR, HTTP_INTERNAL_SERVER_ERROR);
+	    err->xerrno = errno;
+	    err->request = requestLink(httpState->orig_request);
+	    errorAppendEntry(entry, err);
+	}
 	comm_close(fd);
 	return;
     }
@@ -1122,7 +1398,10 @@ httpSendRequestEntry(int fd, char *bufnotused, size_t size, int errflag, void *d
 	comm_close(fd);
 	return;
     }
-    clientReadBody(httpState->orig_request, memAllocate(MEM_8K_BUF), 8192, httpRequestBodyHandler, httpState);
+    httpState->body_buf = memAllocate(MEM_8K_BUF);
+    httpState->orig_request->body_reader(
+	httpState->orig_request->body_reader_data,
+	httpState->body_buf, 8192, httpRequestBodyHandler, httpState);
 }
 
 void

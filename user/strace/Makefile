@@ -24,6 +24,7 @@ CFLAGS += -DARM=1 -DHAVE_SYS_USER_H=1
 endif
 ifdef CONFIG_USERMODE
 CFLAGS += -DHAVE_SYS_USER_H=1 -DHAVE_SYS_REG_H=1
+ARCH := $(shell uname -m | sed -e s/i.86/i386/ -e s/sun4u/sparc64/ -e s/arm.*/arm/ -e s/sa110/arm/)
 endif
 
 #CPPFLAGS	= 
@@ -49,7 +50,7 @@ EXTRA_DEFS += -DM68K
 endif
 
 # Where include files are located, useful for cross-compiling.
-includedir	= $(ROOTDIR)/lib/$(LIBCDIR)/include
+includedir	= $(ROOTDIR)/include
 
 # Where to install the program:
 # I recommend `/usr' for Linux, `/usr/local' for the others.

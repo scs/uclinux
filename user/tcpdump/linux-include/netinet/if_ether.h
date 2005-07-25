@@ -49,7 +49,7 @@ struct	ether_header {
 	u_char	ether_dhost[6];
 	u_char	ether_shost[6];
 	u_short	ether_type;
-};
+} __attribute__((packed));
 
 #define	ETHERTYPE_PUP		0x0200	/* PUP protocol */
 #define	ETHERTYPE_IP		0x0800	/* IP protocol */

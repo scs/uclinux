@@ -33,42 +33,10 @@
 #if ((defined(__STDC__) || defined(SABER)) && !defined(NO_PROTOTYPE)) || defined(__cplusplus)
 #   define _ANSI_ARGS_(x)	x
 #   define CONST const
-#   ifdef __cplusplus
-#       define VARARGS (...)
-#   else
-#       define VARARGS ()
-#   endif
 #else
 #   define _ANSI_ARGS_(x)	()
 #   define CONST
 #endif
-
-/*
- * Definitions that allow Tcl functions with variable numbers of
- * arguments to be used with either varargs.h or stdarg.h.  TCL_VARARGS
- * is used in procedure prototypes.  TCL_VARARGS_DEF is used to declare
- * the arguments in a function definiton: it takes the type and name of
- * the first argument and supplies the appropriate argument declaration
- * string for use in the function definition.  TCL_VARARGS_START
- * initializes the va_list data structure and returns the first argument.
- */
-
-#if defined(__STDC__) || defined(HAS_STDARG)
-#   define TCL_VARARGS(type, name) (type name, ...)
-#   define TCL_VARARGS_DEF(type, name) (type name, ...)
-#   define TCL_VARARGS_START(type, name, list) (va_start(list, name), name)
-#else
-#   ifdef __cplusplus
-#	define TCL_VARARGS(type, name) (type name, ...)
-#	define TCL_VARARGS_DEF(type, name) (type va_alist, ...)
-#   else
-#	define TCL_VARARGS(type, name) ()
-#	define TCL_VARARGS_DEF(type, name) (va_alist)
-#   endif
-#   define TCL_VARARGS_START(type, name, list) \
-	(va_start(list), va_arg(list, type))
-#endif
-
 
 #ifdef __cplusplus
 #   define EXTERN extern "C"
@@ -146,6 +114,7 @@ typedef int *Tcl_CmdBuf;
  *			be exited;  interp->result is meaningless.
  * TCL_CONTINUE		Go on to the next iteration of the current loop;
  *			interp->result is meaninless.
+ * TCL_SIGNAL		A signal was caught. interp->result contains the signal name
  */
 
 #define TCL_OK		0
@@ -153,6 +122,7 @@ typedef int *Tcl_CmdBuf;
 #define TCL_RETURN	2
 #define TCL_BREAK	3
 #define TCL_CONTINUE	4
+#define TCL_SIGNAL	5
 
 #define TCL_RESULT_SIZE 199
 
@@ -276,7 +246,7 @@ EXTERN void		Tcl_ValidateAllMemory _ANSI_ARGS_((char *file,
 
 EXTERN void		Tcl_AppendElement _ANSI_ARGS_((Tcl_Interp *interp,
 			    char *string, int noSep));
-EXTERN void		Tcl_AppendResult _ANSI_ARGS_(VARARGS);
+EXTERN void		Tcl_AppendResult _ANSI_ARGS_((Tcl_Interp *interp, ...));
 EXTERN char *		Tcl_AssembleCmd _ANSI_ARGS_((Tcl_CmdBuf buffer,
 			    char *string));
 EXTERN void		Tcl_AddErrorInfo _ANSI_ARGS_((Tcl_Interp *interp,
@@ -335,6 +305,7 @@ EXTERN int		Tcl_GlobalEval _ANSI_ARGS_((Tcl_Interp *interp,
 			    char *command));
 EXTERN void		Tcl_InitHistory _ANSI_ARGS_((Tcl_Interp *interp));
 EXTERN void		Tcl_InitMemory _ANSI_ARGS_((Tcl_Interp *interp));
+EXTERN void		Tcl_InitUnix _ANSI_ARGS_((Tcl_Interp *interp));
 EXTERN char *		Tcl_Merge _ANSI_ARGS_((int argc, char **argv));
 EXTERN char *		Tcl_ParseVar _ANSI_ARGS_((Tcl_Interp *interp,
 			    char *string, char **termPtr));
@@ -344,8 +315,7 @@ EXTERN void		Tcl_ResetResult _ANSI_ARGS_((Tcl_Interp *interp));
 #define Tcl_Return Tcl_SetResult
 EXTERN int		Tcl_ScanElement _ANSI_ARGS_((char *string,
 			    int *flagPtr));
-EXTERN void		Tcl_SetErrorCode _ANSI_ARGS_(
-				VARARGS);
+EXTERN void		Tcl_SetErrorCode _ANSI_ARGS_((Tcl_Interp *interp, ...));
 EXTERN void		Tcl_SetResult _ANSI_ARGS_((Tcl_Interp *interp,
 			    char *string, Tcl_FreeProc *freeProc));
 EXTERN char *		Tcl_SetVar _ANSI_ARGS_((Tcl_Interp *interp,
@@ -378,8 +348,7 @@ EXTERN void		Tcl_UntraceVar _ANSI_ARGS_((Tcl_Interp *interp,
 EXTERN void		Tcl_UntraceVar2 _ANSI_ARGS_((Tcl_Interp *interp,
 			    char *part1, char *part2, int flags,
 			    Tcl_VarTraceProc *proc, ClientData clientData));
-EXTERN int		Tcl_VarEval _ANSI_ARGS_(
-				VARARGS);
+EXTERN int		Tcl_VarEval _ANSI_ARGS_((Tcl_Interp *interp, ...));
 EXTERN ClientData	Tcl_VarTraceInfo _ANSI_ARGS_((Tcl_Interp *interp,
 			    char *varName, int flags,
 			    Tcl_VarTraceProc *procPtr,

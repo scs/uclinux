@@ -144,6 +144,10 @@ cbdataInit(void)
     CREATE_CBDATA(statefulhelper);
     CREATE_CBDATA(helper_stateful_server);
     CREATE_CBDATA(HttpStateData);
+#ifdef HS_FEAT_ICAP
+    CREATE_CBDATA(IcapStateData);
+    CREATE_CBDATA(icap_service);
+#endif
     CREATE_CBDATA_FREE(peer, peerDestroy);
     CREATE_CBDATA(ps_state);
     CREATE_CBDATA(RemovalPolicy);
@@ -183,6 +187,7 @@ cbdataInternalFree(void *p)
     debug(45, 3) ("cbdataFree: %p\n", p);
     c = (cbdata *) (((char *) p) - OFFSET_OF(cbdata, data));
     assert(c->y == c);
+    assert(c->valid);
     c->valid = 0;
     if (c->locks) {
 	debug(45, 3) ("cbdataFree: %p has %d locks, not freeing\n",

@@ -113,6 +113,7 @@
  * [including the GNU Public Licence.]
  */
 
+#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -164,6 +165,13 @@ int errno;
 
 #ifndef S_ISDIR
 #define S_ISDIR(a)	(((a) & _S_IFMT) == _S_IFDIR)
+#endif
+
+#define ERR_TO_SYSLOG
+#ifdef ERR_TO_SYSLOG
+	#define errprint(A...) syslog(LOG_ERR, A)
+#else
+	#define errprint(A...) BIO_printf(bio_err, A), BIO_printf(bio_err, "\n")
 #endif
 
 static unsigned char dh512_p[]={
@@ -247,10 +255,8 @@ static void sv_usage()
 	BIO_printf(bio_err," -nbio_test    - test with the non-blocking test bio\n");
 	BIO_printf(bio_err," -debug        - Print more output\n");
 	BIO_printf(bio_err," -state        - Print the SSL states\n");
-#if 0
 	BIO_printf(bio_err," -CApath arg   - PEM format directory of CA's\n");
 	BIO_printf(bio_err," -CAfile arg   - PEM format file of CA's\n");
-#endif
 	BIO_printf(bio_err," -nocert       - Don't use any certificates (Anon-DH)\n");
 	BIO_printf(bio_err," -cipher arg   - play with 'ssleay ciphers' to see what goes here\n");
 	BIO_printf(bio_err," -quiet        - No server output\n");
@@ -291,6 +297,10 @@ char *argv[];
 	apps_startup();
 	s_quiet=0;
 	s_debug=0;
+
+#ifdef ERR_TO_SYSLOG
+	openlog("sslwrap", 0, 0);
+#endif
 
 	if (bio_err == NULL)
 		bio_err=BIO_new_fp(stderr,BIO_NOCLOSE);
@@ -351,7 +361,9 @@ char *argv[];
 			verify=SSL_VERIFY_PEER|SSL_VERIFY_CLIENT_ONCE;
 			if (--argc < 1) goto bad;
 			verify_depth=atoi(*(++argv));
+#ifdef DEBUG
 			BIO_printf(bio_err,"verify depth is %d\n",verify_depth);
+#endif
 			}
 		else if	(strcmp(*argv,"-Verify") == 0)
 			{
@@ -359,7 +371,9 @@ char *argv[];
 				SSL_VERIFY_CLIENT_ONCE;
 			if (--argc < 1) goto bad;
 			verify_depth=atoi(*(++argv));
+#ifdef DEBUG
 			BIO_printf(bio_err,"verify depth is %d, must return a certificate\n",verify_depth);
+#endif
 			}
 		else if	(strcmp(*argv,"-cert") == 0)
 			{
@@ -423,7 +437,7 @@ char *argv[];
 #endif
 		else
 			{
-			BIO_printf(bio_err,"unknown option %s\n",*argv);
+			errprint("unknown option %s",*argv);
 			badop=1;
 			break;
 			}
@@ -432,16 +446,16 @@ char *argv[];
 		}
 #ifndef NO_EXEC
 	if (exec_pgm_argc && dstPort) {
-	    BIO_printf(bio_err,"options -port and -exec are incompatible\n");
+	    errprint("options -port and -exec are incompatible");
 	    badop=1;
 	}
 	if (!exec_pgm_argc && !dstPort) {
-	    BIO_printf(bio_err,"one of -port or -exec must be supplied\n");
+	    errprint("one of -port or -exec must be supplied");
 	    badop=1;
 	}
 #else  /*NO_EXEC*/
 	if (!dstPort) {
-	    BIO_printf(bio_err,"-port must be supplied\n");
+	    errprint("-port must be supplied");
 	    badop=1;
 	}
 #endif /*NO_EXEC*/
@@ -504,15 +518,26 @@ bad:
 #endif
 
 	/* 980921 RRK - Removed this code; not necessary for sslwrap */
-#if 0
-	if ((!SSL_CTX_load_verify_locations(ctx,CAfile,CApath)) ||
-		(!SSL_CTX_set_default_verify_paths(ctx)))
-		{
-		BIO_printf(bio_err,"X509_load_verify_locations\n");
-		ERR_print_errors(bio_err);
-		goto end;
+	/* 041004 matthewn@snapgear.com - Re-add this code to work with client
+		certificates */
+	if (CAfile || CApath) {
+		if (!SSL_CTX_load_verify_locations(ctx,CAfile,CApath) || !SSL_CTX_set_default_verify_paths(ctx)) {
+			BIO_printf(bio_err,"X509_load_verify_locations\n");
+			ERR_print_errors(bio_err);
+			goto end;
+		} else {
+			STACK_OF(X509_NAME) *list = SSL_load_client_CA_file(CAfile);
+			if (list == NULL) {
+				BIO_printf(bio_err,"Couldn't load CA file.\n");
+				ERR_print_errors(bio_err);
+				goto end;
+			}
+			else {
+				SSL_CTX_set_client_CA_list(ctx, list);
+				/*syslog(LOG_INFO, "Added client certs successfully.\n");*/
+			}
 		}
-#endif
+	}
 
 #ifndef NO_DH
 	/* EAY EAY EAY evil hack */
@@ -561,9 +586,6 @@ bad:
 		SSL_CTX_set_cipher_list(ctx,cipher);
 	SSL_CTX_set_verify(ctx,verify,verify_callback);
 
-	if (s_cert_file != NULL) {
-	    SSL_CTX_set_client_CA_list(ctx,SSL_load_client_CA_file(s_cert_file));
-	}
 
 	if (port) {
 		/* BIO_printf(bio_s_out,"ACCEPT\n"); */
@@ -620,6 +642,7 @@ int s_stdout;
 	BIO *sbi, *sbo;
 	int s_in, s_out;
 	struct sockaddr_in srvr;
+	int flags;
 	
 	if (dstPort) {
 	    s_in = s_out = socket( AF_INET, SOCK_STREAM, 0 );
@@ -633,7 +656,7 @@ int s_stdout;
 #ifndef NO_EXEC
 	} else {
 	    if (spawn(exec_pgm_argc, exec_pgm, &s_in, &s_out) < 0) {
-		BIO_printf(bio_err,"could not run %s\n", exec_pgm[0]);
+		errprint("could not run %s", exec_pgm[0]);
 		goto err;
 	    }
 #endif /*NO_EXEC*/
@@ -641,13 +664,16 @@ int s_stdout;
 
 	if ((buf=malloc(BUFSIZZ)) == NULL)
 		{
-		BIO_printf(bio_err,"out of memory\n");
+		errprint("out of memory");
 		goto err;
 		}
 
 	if (con == NULL)
 		con=(SSL *)SSL_new(ctx);
 	SSL_clear(con);
+
+	fcntl(s_stdin, F_SETFL, (flags = fcntl(s_stdin, F_GETFL))
+		| O_NONBLOCK);
 
 	sbi=BIO_new_socket(s_stdin,BIO_NOCLOSE);	
 	sbo=BIO_new_socket(s_stdout,BIO_NOCLOSE);
@@ -718,6 +744,7 @@ int s_stdout;
 				}
 			else
 				{
+read:
 				i=SSL_read(con,(char *)buf,BUFSIZZ);
 				if ((i <= 0) &&
 					BIO_sock_should_retry(i))
@@ -730,8 +757,12 @@ int s_stdout;
 					goto err;
 					}
 				else
+					{
 					write(s_out,buf,
 						(unsigned int)i);
+					if (i == BUFSIZZ)
+						goto read;
+					}
 				}
 			}
 		}
@@ -748,6 +779,8 @@ err:
 		memset(buf,0,BUFSIZZ);
 		free(buf);
 		}
+
+	fcntl(s_stdin, F_SETFL, flags);
 
 	return(ret);
 	}
@@ -771,11 +804,10 @@ SSL *con;
 			return(1);
 			}
 
-		BIO_printf(bio_err,"ERROR\n");
 		verify_error=SSL_get_verify_result(con);
 		if (verify_error != X509_V_OK)
 			{
-			BIO_printf(bio_err,"verify error:%s\n",
+			errprint("verify error:%s",
 				X509_verify_cert_error_string(verify_error));
 			}
 		else

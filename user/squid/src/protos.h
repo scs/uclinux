@@ -141,8 +141,8 @@ extern void clientOpenListenSockets(void);
 extern void clientHttpConnectionsClose(void);
 extern StoreEntry *clientCreateStoreEntry(clientHttpRequest *, method_t, request_flags);
 extern int isTcpHit(log_type);
-extern void clientReadBody(request_t * req, char *buf, size_t size, CBCB * callback, void *data);
-extern int clientAbortBody(request_t * req);
+extern CB clientReadBody;
+extern void clientAbortBody(request_t * req);
 
 extern int commSetNonBlocking(int fd);
 extern int commUnsetNonBlocking(int fd);
@@ -269,6 +269,7 @@ extern void fd_bytes(int fd, int len, unsigned int type);
 extern void fdFreeMemory(void);
 extern void fdDumpOpen(void);
 extern int fdNFree(void);
+extern int fdUsageHigh(void);
 extern void fdAdjustReserved(void);
 
 extern fileMap *file_map_create(void);
@@ -309,12 +310,11 @@ extern mb_size_t httpBuildRequestPrefix(request_t * request,
     request_t * orig_request,
     StoreEntry * entry,
     MemBuf * mb,
-    int cfd,
     http_state_flags);
 extern void httpAnonInitModule(void);
 extern int httpAnonHdrAllowed(http_hdr_type hdr_id);
 extern int httpAnonHdrDenied(http_hdr_type hdr_id);
-extern void httpBuildRequestHeader(request_t *, request_t *, StoreEntry *, HttpHeader *, int, http_state_flags);
+extern void httpBuildRequestHeader(request_t *, request_t *, StoreEntry *, HttpHeader *, http_state_flags);
 extern void httpBuildVersion(http_version_t * version, unsigned int major, unsigned int minor);
 extern const char *httpMakeVaryMark(request_t * request, HttpReply * reply);
 
@@ -585,10 +585,9 @@ extern void ipcache_nbgethostbyname(const char *name,
 extern EVH ipcache_purgelru;
 extern const ipcache_addrs *ipcache_gethostbyname(const char *, int flags);
 extern void ipcacheInvalidate(const char *);
-extern void ipcacheReleaseInvalid(const char *);
+extern void ipcacheInvalidateNegative(const char *);
 extern void ipcache_init(void);
 extern void stat_ipcache_get(StoreEntry *);
-extern int ipcacheQueueDrain(void);
 extern void ipcacheCycleAddr(const char *name, ipcache_addrs *);
 extern void ipcacheMarkBadAddr(const char *name, struct in_addr);
 extern void ipcacheMarkGoodAddr(const char *name, struct in_addr);
@@ -623,6 +622,7 @@ extern void memBufVPrintf(MemBuf * mb, const char *fmt, va_list ap);
 extern FREE *memBufFreeFunc(MemBuf * mb);
 /* puts report on MemBuf _module_ usage into mb */
 extern void memBufReport(MemBuf * mb);
+extern int memBufRead(int fd, MemBuf * mb);
 
 extern char *mime_get_header(const char *mime, const char *header);
 extern char *mime_get_header_field(const char *mime, const char *name, const char *prefix);
@@ -1274,7 +1274,7 @@ extern void helperStatefulFree(statefulhelper *);
 extern void helperStatefulReset(helper_stateful_server * srv);
 extern void helperStatefulReleaseServer(helper_stateful_server * srv);
 extern void *helperStatefulServerGetData(helper_stateful_server * srv);
-extern helper_stateful_server *helperStatefulDefer(statefulhelper *);
+extern helper_stateful_server *helperStatefulGetServer(statefulhelper *);
 
 
 
@@ -1345,5 +1345,50 @@ extern void externalAclLookup(aclCheck_t * ch, void *acl_data, EAH * handler, vo
 extern void externalAclInit(void);
 extern void externalAclShutdown(void);
 extern char *strtokFile(void);
+
+#ifdef HS_FEAT_ICAP
+/*
+ * icap_common.c
+ */
+void icapInit(void);
+void icapClose(void);
+void icapParseEncapsulated(IcapStateData *, const char *, const char *);
+icap_service *icapService(icap_service_t, request_t *);
+int icapConnect(IcapStateData *, CNCB *);
+IcapStateData *icapAllocate(void);
+PF icapStateFree;
+PF icapConnectTimeout;
+PF icapReadTimeout;
+icap_service_t icapServiceToType(const char *);
+const char *icapServiceToStr(const icap_service_t);
+int icapCheckAcl(clientHttpRequest *);
+size_t icapLineLength(const char *, int);
+int icapReadHeader(int, IcapStateData *, int *);
+int icapFindHeader(const char *, const char *, const char **, const char **);
+int icapParseKeepAlive(const IcapStateData *, const char *, const char *);
+void icapSetKeepAlive(IcapStateData * icap, const char *hdrs);
+size_t icapParseChunkedBody(IcapStateData *, STRCB *, void *);
+void icapAddAuthUserHeader(MemBuf *, auth_user_request_t *);
+
+
+/*
+ * icap_respmod.c
+ */
+IcapStateData *icapRespModStart(icap_service_t, request_t *, StoreEntry *, http_state_flags);
+void icapSendRespMod(IcapStateData *, char *, int, int);
+CNCB icapConnectOver;
+
+/*
+ * icap_reqmod.c
+ */
+IcapStateData *icapReqModStart(icap_service_t, const char *, request_t *, int, struct timeval, struct in_addr, void *);
+
+/* icap_opt.c */
+void icapOptInit(void);
+void icapOptShutdown(void);
+void icapOptSetUnreachable(icap_service * s);
+/* for debugging purposes only */
+void dump_icap_config(IcapConfig * cfg);
+#endif
 
 #endif /* SQUID_PROTOS_H */

@@ -97,7 +97,7 @@ dnsSubmit(const char *lookup, HLPCB * callback, void *data)
 	if (squid_curtime - first_warn > 3 * 60)
 	    fatal("DNS servers not responding for 3 minutes");
 	debug(34, 1) ("dnsSubmit: queue overload, rejecting %s\n", lookup);
-	callback(data, "$fail Temporary network problem, please retry later");
+	callback(data, (char *) "$fail Temporary network problem, please retry later");
 	return;
     }
     first_warn = 0;
@@ -112,7 +112,7 @@ variable_list *
 snmp_netDnsFn(variable_list * Var, snint * ErrP)
 {
     variable_list *Answer = NULL;
-    debug(49, 5) ("snmp_netDnsFn: Processing request:\n", Var->name[LEN_SQ_NET + 1]);
+    debug(49, 5) ("snmp_netDnsFn: Processing request: %d\n", Var->name[LEN_SQ_NET + 1]);
     snmpDebugOid(5, Var->name, Var->name_length);
     *ErrP = SNMP_ERR_NOERROR;
     switch (Var->name[LEN_SQ_NET + 1]) {

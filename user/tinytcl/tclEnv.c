@@ -56,9 +56,9 @@ static void		EnvInit _ANSI_ARGS_((void));
 static char *		EnvTraceProc _ANSI_ARGS_((ClientData clientData,
 			    Tcl_Interp *interp, char *name1, char *name2,
 			    int flags));
+/*
 static int		FindVariable _ANSI_ARGS_((CONST char *name,
 			    int *lengthPtr));
-/*
 void			setenv _ANSI_ARGS_((CONST char *name,
 			    CONST char *value));
 */
@@ -104,6 +104,20 @@ TclSetupEnv(interp)
 	EnvInit();
     }
 
+    /* Next, verify that file descriptors 0, 1 and 2 are connected to something.
+     * If not, we open them connected to /dev/null since Tcl assumes that
+     * a normal open() will never return 0, 1 or 2
+     */
+    if (fcntl(0, F_GETFL, 0) < 0 && errno == EBADF) {
+	open("/dev/null", O_RDONLY);
+    }
+    if (fcntl(1, F_GETFL, 0) < 0 && errno == EBADF) {
+	open("/dev/null", O_WRONLY);
+    }
+    if (fcntl(2, F_GETFL, 0) < 0 && errno == EBADF) {
+	open("/dev/null", O_WRONLY);
+    }
+
     /*
      * Next, add the interpreter to the list of those that we manage.
      */
@@ -124,7 +138,7 @@ TclSetupEnv(interp)
 	char *p, *p2;
 
 	p = environ[i];
-	if (p == NULL) {
+	if (!p || !*p ) {
 	    break;
 	}
 	for (p2 = p; *p2 != '='; p2++) {
@@ -139,6 +153,7 @@ TclSetupEnv(interp)
 	    EnvTraceProc, (ClientData) NULL);
 }
 
+#if 0
 /*
  *----------------------------------------------------------------------
  *
@@ -183,7 +198,6 @@ FindVariable(name, lengthPtr)
     return -1;
 }
 
-#if 0
 /*
  *----------------------------------------------------------------------
  *

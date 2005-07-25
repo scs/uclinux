@@ -23,15 +23,21 @@
  * This program authenticates users against using cyrus-sasl
  *
  * Compile this program with: gcc -Wall -o sasl_auth sasl_auth.c -lsasl
+ *             or with SASL2: gcc -Wall -o sasl_auth sasl_auth.c -lsasl2
  *
  */
-#include <sasl.h>
 #include <stdio.h>
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include "util.h"
+
+#ifdef HAVE_SASL_SASL_H
+#include <sasl/sasl.h>
+#else
+#include <sasl.h>
+#endif
 
 #define APP_NAME_SASL	"squid_sasl_auth"
 
@@ -40,7 +46,9 @@ main()
 {
 	char line[8192];
 	char *username, *password;
+#if SASL_VERSION_MAJOR < 2
 	const char *errstr;
+#endif
 
 	int rc;
         sasl_conn_t *conn = NULL;
@@ -56,7 +64,11 @@ main()
 		return 1;
 	}
 
+	#if SASL_VERSION_MAJOR < 2
 	rc = sasl_server_new( APP_NAME_SASL, NULL, NULL, NULL, 0, &conn );
+	#else
+	rc = sasl_server_new( APP_NAME_SASL, NULL, NULL, NULL, NULL, NULL, 0, &conn );
+	#endif
 
 	if ( rc != SASL_OK ) {
 		fprintf( stderr, "error %d %s\n", rc, sasl_errstring(rc, NULL, NULL ));
@@ -84,15 +96,21 @@ main()
 		rfc1738_unescape(username);
 		rfc1738_unescape(password);
 
+		#if SASL_VERSION_MAJOR < 2
 		rc = sasl_checkpass(conn, username, strlen(username), password, strlen(password), &errstr);
+		#else
+		rc = sasl_checkpass(conn, username, strlen(username), password, strlen(password));
+		#endif
 
 		if ( rc != SASL_OK ) {
+			#if SASL_VERSION_MAJOR < 2
 			if ( errstr ) {
 				fprintf( stderr, "errstr %s\n", errstr );
 			}
 			if ( rc != SASL_BADAUTH ) {
 				fprintf( stderr, "error %d %s\n", rc, sasl_errstring(rc, NULL, NULL ));
 			}
+			#endif
 			fprintf( stdout, "ERR\n" );
 		}
 		else {

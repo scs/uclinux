@@ -8,7 +8,7 @@ DIST_SUBDIRS	= lib snmplib scripts src icons errors contrib doc helpers
 SUBDIRS		= lib @makesnmplib@ scripts src icons errors doc helpers
 
 DISTCLEANFILES = include/stamp-h include/stamp-h[0-9]*
-DEFAULT_PINGER		= $(libexecdir)/pinger$(EXEEXT)
+DEFAULT_PINGER		= $(libexecdir)/`echo pinger | sed '$(transform);s/$$/$(EXEEXT)/'`
 
 dist-hook:
 	@ for subdir in include include/samba/nsswitch; do \

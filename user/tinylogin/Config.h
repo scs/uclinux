@@ -22,7 +22,7 @@
 //
 //
 // Enable using shadow passwords
-//BFin #define TLG_FEATURE_SHADOWPASSWDS
+#define TLG_FEATURE_SHADOWPASSWDS
 //
 // Enable checking of /etc/securetty by login
 //#define TLG_FEATURE_SECURETTY

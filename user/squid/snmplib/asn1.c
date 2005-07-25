@@ -484,7 +484,7 @@ asn_parse_header(u_char * data, int *datalength, u_char * type)
 	return (NULL);
 
     header_len = bufp - data;
-    if (header_len + asn_length > *datalength) {
+    if (header_len + asn_length > *datalength || (int) asn_length < 0) {
 	snmp_set_api_error(SNMPERR_ASN_DECODE);
 	return (NULL);
     }

@@ -100,23 +100,6 @@ redirectStart(clientHttpRequest * http, RH * handler, void *data)
     assert(http);
     assert(handler);
     debug(61, 5) ("redirectStart: '%s'\n", http->uri);
-    if (Config.Program.redirect == NULL) {
-	handler(data, NULL);
-	return;
-    }
-    if (Config.accessList.redirector) {
-	aclCheck_t ch;
-	memset(&ch, '\0', sizeof(ch));
-	ch.src_addr = http->conn->peer.sin_addr;
-	ch.my_addr = http->conn->me.sin_addr;
-	ch.my_port = ntohs(http->conn->me.sin_port);
-	ch.request = http->request;
-	if (!aclCheckFast(Config.accessList.redirector, &ch)) {
-	    /* denied -- bypass redirector */
-	    handler(data, NULL);
-	    return;
-	}
-    }
     if (Config.onoff.redirector_bypass && redirectors->stats.queue_size) {
 	/* Skip redirector if there is one request queued */
 	n_bypassed++;
@@ -143,7 +126,7 @@ redirectStart(clientHttpRequest * http, RH * handler, void *data)
 	r->orig_url,
 	inet_ntoa(r->client_addr),
 	fqdn,
-	r->client_ident,
+	r->client_ident[0] ? rfc1738_escape(r->client_ident) : dash_str,
 	r->method_s);
     helperSubmit(redirectors, buf, redirectHandleReply, r);
 }

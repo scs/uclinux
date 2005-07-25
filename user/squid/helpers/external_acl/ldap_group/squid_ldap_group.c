@@ -13,8 +13,7 @@
  *  Henrik Nordstrom <hno@marasystems.com>
  *  MARA Systems AB, Sweden <http://www.marasystems.com>
  *
- * With contributions from others mentioned in the change histor section
- * below.
+ * With contributions from others mentioned in the ChangeLog file
  *
  * In part based on squid_ldap_auth by Glen Newton and Henrik Nordstrom.
  *
@@ -32,93 +31,6 @@
  * and/or modify it under the terms of the GNU General Public License 
  * as published by the Free Software Foundation; either version 2, 
  * or (at your option) any later version.
- *
- * History:
- *
- * Version 2.10
- * 2003-01-07 Jon Kinred
- *		Fixed user search mode (-F/-u) when -g is not used
- * Version 2.9
- * 2003-01-03 Henrik Nordstrom <hno@marasystems.com>
- *		Fixed missing string termination on ldap_escape_vale,
- *		and corrected build problem with LDAPv2 libraries
- * Version 2.8
- * 2002-11-27 Henrik Nordstrom <hno@marasystems.com>
- * 		Replacement for ldap_build_filter. Also changed
- * 		the % codes to %u (user) and %g (group) which
- * 		is a bit more intuitive.
- * 2002-11-21 Gerard Eviston
- * 		Fix ldap_search_s error management. This fixes
- * 		a core dump if there is a LDAP search filter
- * 		syntax error (possibly caused by malformed input).
- * Version 2.7
- * 2002-10-22: Henrik Nordstrom <hno@marasystems.com>
- * 		strwordtok bugfix
- * Version 2.6
- * 2002-09-21: Gerard Eviston
- * 		-S option to strip NT domain names from
- * 		login names
- * Version 2.5
- * 2002-09-09: Henrik Nordstrom <hno@marasystems.com>
- * 		Added support for user DN lookups
- * 		(-u -B -F options)
- * Version 2.4
- * 2002-09-06: Henrik Nordstrom <hno@marasystems.com>
- * 		Many bugfixes in connection management
- * 		-g option added, and added support
- * 		for multiple groups. Prior versions
- * 		only supported one group and an optional
- * 		group base RDN
- * Version 2.3
- * 2002-09-04: Henrik Nordstrom <hno@marasystems.com>
- *              Minor cleanups
- * Version 2.2
- * 2002-09-04: Henrik Nordstrom <hno@marasystems.com>
- *              Merged changes from squid_ldap_auth.c
- *              - TLS support (Michael Cunningham)
- *              - -p option to specify port
- *              Documented the % codes to use in -f
- * Version 2.1
- * 2002-08-21: Henrik Nordstrom <hno@marasystems.com>
- *              Support groups or usernames having spaces
- * Version 2.0
- * 2002-01-22: Henrik Nordstrom <hno@marasystems.com>
- *              Added optional third query argument for search RDN
- * 2002-01-22: Henrik Nordstrom <hno@marasystems.com>
- *              Removed unused options, and fully changed name
- *              to squid_ldap_group.
- * Version 1.0
- * 2001-07-17: Flavio Pescuma <flavio@marasystems.com>
- *              Using the main function from squid_ldap_auth
- *              wrote squid_ldap_group. This program replaces 
- *              the %a and %v (ldapfilter.conf) from the filter 
- *              template supplied with -f with the two arguments 
- *              sent by squid. Returns OK if the ldap_search 
- *              using the composed filter succeeds.
- *
- * Changes from squid_ldap_auth.c:
- *
- * 2001-12-12: Michael Cunningham <m.cunningham@xpedite.com>
- *             - Added TLS support and partial ldap version 3 support. 
- * 2001-09-05: Henrik Nordstrom <hno@squid-cache.org>
- *             - Added ability to specify another default LDAP port to
- *               connect to. Persistent connections moved to -P
- * 2001-05-02: Henrik Nordstrom <hno@squid-cache.org>
- *             - Support newer OpenLDAP 2.x libraries using the
- *               revised Internet Draft API which unfortunately
- *               is not backwards compatible with RFC1823..
- * 2001-04-15: Henrik Nordstrom <hno@squid-cache.org>
- *             - Added command line option for basedn
- *             - Added the ability to search for the user DN
- * 2001-04-16: Henrik Nordstrom <hno@squid-cache.org>
- *             - Added -D binddn -w bindpasswd.
- * 2001-04-17: Henrik Nordstrom <hno@squid-cache.org>
- *             - Added -R to disable referrals
- *             - Added -a to control alias dereferencing
- * 2001-04-17: Henrik Nordstrom <hno@squid-cache.org>
- *             - Added -u, DN username attribute name
- * 2001-04-18: Henrik Nordstrom <hno@squid-cache.org>
- *             - Allow full filter specifications in -f
  */
 
 #include <stdio.h>
@@ -126,8 +38,10 @@
 #include <stdlib.h>
 #include <ctype.h>
 #include <lber.h>
-#include <ldap_cdefs.h>
 #include <ldap.h>
+#if defined(LDAP_OPT_NETWORK_TIMEOUT)
+#include <sys/time.h>
+#endif
 
 #define PROGRAM_NAME "squid_ldap_group"
 
@@ -145,6 +59,12 @@ static int persistent = 0;
 static int noreferrals = 0;
 static int debug = 0;
 static int aliasderef = LDAP_DEREF_NEVER;
+#if defined(NETSCAPE_SSL)
+static char *sslpath = NULL;
+static int sslinit = 0;
+#endif
+static int connect_timeout = 0;
+static int timelimit = LDAP_NO_LIMIT;
 
 #ifdef LDAP_VERSION3
 /* Added for TLS support and version 3 */
@@ -153,6 +73,8 @@ static int version = -1;
 #endif
 
 static int searchLDAP(LDAP * ld, char *group, char *user, char *extension_dn);
+
+static int readSecret(char *filename);
 
 /* Yuck.. we need to glue to different versions of the API */
 
@@ -174,6 +96,24 @@ squid_ldap_set_referrals(LDAP * ld, int referrals)
 {
     int *value = referrals ? LDAP_OPT_ON : LDAP_OPT_OFF;
     ldap_set_option(ld, LDAP_OPT_REFERRALS, value);
+}
+static void
+squid_ldap_set_timelimit(LDAP *ld, int timelimit)
+{
+    ldap_set_option(ld, LDAP_OPT_TIMELIMIT, &timelimit);
+}
+static void
+squid_ldap_set_connect_timeout(LDAP *ld, int timelimit)
+{
+#if defined(LDAP_OPT_NETWORK_TIMEOUT)
+    struct timeval tv;
+    tv.tv_sec = timelimit;
+    tv.tv_usec = 0;
+    ldap_set_option(ld, LDAP_OPT_NETWORK_TIMEOUT, &tv);
+#elif defined(LDAP_X_OPT_CONNECT_TIMEOUT)
+    timelimit *= 1000;
+    ldap_set_option(ld, LDAP_X_OPT_CONNECT_TIMEOUT, &timelimit);
+#endif
 }
 static void 
 squid_ldap_memfree(char *p)
@@ -199,11 +139,27 @@ squid_ldap_set_referrals(LDAP * ld, int referrals)
     else
 	ld->ld_options &= ~LDAP_OPT_REFERRALS;
 }
+static void
+squid_ldap_set_timelimit(LDAP *ld, int timelimit)
+{
+    ld->ld_timelimit = timelimit;
+}
+static void
+squid_ldap_set_connect_timeout(LDAP *ld, int timelimit)
+{
+    fprintf(stderr, "Connect timeouts not supported in your LDAP library\n");
+}
 static void 
 squid_ldap_memfree(char *p)
 {
     free(p);
 }
+#endif
+
+#ifdef LDAP_API_FEATURE_X_OPENLDAP
+  #if LDAP_VENDOR_VERSION > 194
+    #define HAS_URI_SUPPORT 1
+  #endif
 #endif
 
 static char *
@@ -254,7 +210,7 @@ strwordtok(char *buf, char **t)
 int
 main(int argc, char **argv)
 {
-    char buf[256];
+    char buf[8192];
     char *user, *group, *extension_dn = NULL;
     char *ldapServer = NULL;
     LDAP *ld = NULL;
@@ -273,6 +229,7 @@ main(int argc, char **argv)
 	case 'R':
 	case 'z':
 	case 'Z':
+	case 'd':
 	case 'g':
 	case 'S':
 	    break;
@@ -290,6 +247,12 @@ main(int argc, char **argv)
 	argv++;
 	argc--;
 	switch (option) {
+	case 'H':
+#if !HAS_URI_SUPPORT
+	    fprintf(stderr, "ERROR: Your LDAP library does not have URI support\n");
+	    exit(1);
+#endif
+	    /* Fall thru to -h */
 	case 'h':
 	    if (ldapServer) {
 		int len = strlen(ldapServer) + 1 + strlen(value) + 1;
@@ -301,7 +264,6 @@ main(int argc, char **argv)
 		ldapServer = strdup(value);
 	    }
 	    break;
-
 	case 'b':
 	    basedn = value;
 	    break;
@@ -329,6 +291,22 @@ main(int argc, char **argv)
 		exit(1);
 	    }
 	    break;
+	case 'E':
+#if defined(NETSCAPE_SSL)
+	    sslpath = value;
+	    if (port == LDAP_PORT)
+		port = LDAPS_PORT;
+#else
+	    fprintf(stderr, PROGRAM_NAME " ERROR: -E unsupported with this LDAP library\n");
+	    exit(1);
+#endif
+	    break;
+	case 'c':
+	    connect_timeout = atoi(value);
+	    break;
+	case 't':
+	    timelimit = atoi(value);
+	    break;
 	case 'a':
 	    if (strcmp(value, "never") == 0)
 		aliasderef = LDAP_DEREF_NEVER;
@@ -348,6 +326,9 @@ main(int argc, char **argv)
 	    break;
 	case 'w':
 	    bindpasswd = value;
+	    break;
+	case 'W':
+	    readSecret (value);
 	    break;
 	case 'P':
 	    persistent = !persistent;
@@ -424,17 +405,28 @@ main(int argc, char **argv)
 	fprintf(stderr, "\t-s base|one|sub\t\tsearch scope\n");
 	fprintf(stderr, "\t-D binddn\t\tDN to bind as to perform searches\n");
 	fprintf(stderr, "\t-w bindpasswd\t\tpassword for binddn\n");
+	fprintf(stderr, "\t-W secretfile\t\tread password for binddn from file secretfile\n");
+#if HAS_URI_SUPPORT
+	fprintf(stderr, "\t-H URI\t\t\tLDAPURI (defaults to ldap://localhost)\n");
+#endif
 	fprintf(stderr, "\t-h server\t\tLDAP server (defaults to localhost)\n");
 	fprintf(stderr, "\t-p port\t\t\tLDAP server port (defaults to %d)\n", LDAP_PORT);
 	fprintf(stderr, "\t-P\t\t\tpersistent LDAP connection\n");
+#if defined(NETSCAPE_SSL)
+	fprintf(stderr, "\t-E sslcertpath\t\tenable LDAP over SSL\n");
+#endif
+	fprintf(stderr, "\t-c timeout\t\tconnect timeout\n");
+	fprintf(stderr, "\t-t timelimit\t\tsearch time limit\n");
 	fprintf(stderr, "\t-R\t\t\tdo not follow referrals\n");
 	fprintf(stderr, "\t-a never|always|search|find\n\t\t\t\twhen to dereference aliases\n");
-	fprintf(stderr, "\t-v 1|2\t\t\tLDAP version\n");
+#ifdef LDAP_VERSION3
+	fprintf(stderr, "\t-v 2|3\t\t\tLDAP version\n");
 	fprintf(stderr, "\t-Z\t\t\tTLS encrypt the LDAP connection, requires\n\t\t\t\tLDAP version 3\n");
+#endif
 	fprintf(stderr, "\t-g\t\t\tfirst query parameter is base DN extension\n\t\t\t\tfor this query\n");
 	fprintf(stderr, "\t-S\t\t\tStrip NT domain from usernames\n");
 	fprintf(stderr, "\n");
-	fprintf(stderr, "\tIf you need to bind as a user to perform searches then use the\n\t-D binddn -w bindpasswd options\n\n");
+	fprintf(stderr, "\tIf you need to bind as a user to perform searches then use the\n\t-D binddn -w bindpasswd or -D binddn -W secretfile options\n\n");
 	exit(1);
     }
     while (fgets(buf, 256, stdin) != NULL) {
@@ -455,11 +447,39 @@ main(int argc, char **argv)
 
 	  recover:
 	    if (ld == NULL) {
+#if HAS_URI_SUPPORT
+	    	if (strstr(ldapServer, "://") != NULL) {
+		    rc = ldap_initialize( &ld, ldapServer );
+		    if( rc != LDAP_SUCCESS ) {
+			fprintf(stderr, "\nUnable to connect to LDAPURI:%s\n", ldapServer);
+			break;
+		    }
+	    	} else
+#endif
+#if NETSCAPE_SSL
+		if (sslpath) {
+		    if ( !sslinit && (ldapssl_client_init(sslpath, NULL) != LDAP_SUCCESS)) {
+			fprintf(stderr, "\nUnable to initialise SSL with cert path %s\n",
+				sslpath);
+			exit(1);
+		    } else {
+			sslinit++;
+		    }
+		    if ((ld = ldapssl_init(ldapServer, port, 1)) == NULL) {
+			fprintf(stderr, "\nUnable to connect to SSL LDAP server: %s port:%d\n",
+				ldapServer, port);
+			exit(1);
+		    }
+		} else
+#endif
 		if ((ld = ldap_init(ldapServer, port)) == NULL) {
-		    fprintf(stderr, "\nUnable to connect to LDAP server:%s port:%d\n",
-			ldapServer, port);
+		    fprintf(stderr, "\nUnable to connect to LDAP server:%s port:%d\n",ldapServer, port);
 		    break;
 		}
+
+		if (connect_timeout)
+		    squid_ldap_set_connect_timeout(ld, connect_timeout);
+
 #ifdef LDAP_VERSION3
 		if (version == -1) {
 		    version = LDAP_VERSION2;
@@ -472,13 +492,14 @@ main(int argc, char **argv)
 		    ld = NULL;
 		    break;
 		}
-		if (use_tls && (version == LDAP_VERSION3) && (ldap_start_tls_s(ld, NULL, NULL) == LDAP_SUCCESS)) {
+		if (use_tls && (version == LDAP_VERSION3) && (ldap_start_tls_s(ld, NULL, NULL) != LDAP_SUCCESS)) {
 		    fprintf(stderr, "Could not Activate TLS connection\n");
 		    ldap_unbind(ld);
 		    ld = NULL;
 		    break;
 		}
 #endif
+		squid_ldap_set_timelimit(ld, timelimit);
 		squid_ldap_set_referrals(ld, !noreferrals);
 		squid_ldap_set_aliasderef(ld, aliasderef);
 		if (binddn && bindpasswd && *binddn && *bindpasswd) {
@@ -538,7 +559,7 @@ ldap_escape_value(char *escaped, int size, const char *src)
 	    size -= 3;
 	    if (size > 0) {
 		*escaped++ = '\\';
-		snprintf(escaped, 3, "%02x", (int)*src++);
+		snprintf(escaped, 3, "%02x", (unsigned char)*src++);
 		escaped+=2;
 	    }
 	    break;
@@ -622,7 +643,7 @@ searchLDAPGroup(LDAP * ld, char *group, char *member, char *extension_dn)
     }
 
     if (debug)
-	fprintf(stderr, "filter %s\n", filter);
+	fprintf(stderr, "group filter '%s', searchbase '%s'\n", filter, searchbase);
 
     rc = ldap_search_s(ld, searchbase, searchscope, filter, NULL, 1, &res);
     if (rc != LDAP_SUCCESS) {
@@ -632,6 +653,12 @@ searchLDAPGroup(LDAP * ld, char *group, char *member, char *extension_dn)
 	     */
 	} else {
 	    fprintf(stderr, PROGRAM_NAME " WARNING, LDAP search error '%s'\n", ldap_err2string(rc));
+#if defined(NETSCAPE_SSL)
+	    if (sslpath && ((rc == LDAP_SERVER_DOWN) || (rc == LDAP_CONNECT_ERROR))) {
+		int sslerr = PORT_GetError();
+		fprintf(stderr, PROGRAM_NAME ": WARNING, SSL error %d (%s)\n", sslerr, ldapssl_err2string(sslerr));
+	    }
+#endif
 	    ldap_msgfree(res);
 	    return 1;
 	}
@@ -664,7 +691,7 @@ searchLDAP(LDAP *ld, char *group, char *login, char *extension_dn)
 	ldap_escape_value(escaped_login, sizeof(escaped_login), login);
 	snprintf(filter, sizeof(filter), usersearchfilter, escaped_login, escaped_login, escaped_login, escaped_login, escaped_login, escaped_login, escaped_login, escaped_login, escaped_login, escaped_login, escaped_login, escaped_login, escaped_login, escaped_login, escaped_login, escaped_login);
 	if (debug)
-	    fprintf(stderr, "user filter %s\n", filter);
+	    fprintf(stderr, "user filter '%s', searchbase '%s'\n", filter, searchbase);
 	rc = ldap_search_s(ld, searchbase, searchscope, filter, NULL, 1, &res);
 	if (rc != LDAP_SUCCESS) {
 	    if (noreferrals && rc == LDAP_PARTIAL_RESULTS) {
@@ -673,13 +700,19 @@ searchLDAP(LDAP *ld, char *group, char *login, char *extension_dn)
 		 */
 	    } else {
 		fprintf(stderr, PROGRAM_NAME " WARNING, LDAP search error '%s'\n", ldap_err2string(rc));
+#if defined(NETSCAPE_SSL)
+		if (sslpath && ((rc == LDAP_SERVER_DOWN) || (rc == LDAP_CONNECT_ERROR))) {
+		    int sslerr = PORT_GetError();
+		    fprintf(stderr, PROGRAM_NAME ": WARNING, SSL error %d (%s)\n", sslerr, ldapssl_err2string(sslerr));
+		}
+#endif
 		ldap_msgfree(res);
 		return 1;
 	    }
 	}
 	entry = ldap_first_entry(ld, res);
 	if (!entry) {
-	    fprintf(stderr, PROGRAM_NAME " WARNING, User '%s' not found\n", filter);
+	    fprintf(stderr, PROGRAM_NAME " WARNING, User '%s' not found in '%s'\n", login, searchbase);
 	    ldap_msgfree(res);
 	    return 1;
 	}
@@ -698,4 +731,38 @@ searchLDAP(LDAP *ld, char *group, char *login, char *extension_dn)
     } else {
 	return searchLDAPGroup(ld, group, login, extension_dn);
     }
+}
+
+
+int readSecret(char *filename)
+{
+  char  buf[BUFSIZ];
+  char  *e=0;
+  FILE  *f;
+
+  if(!(f=fopen(filename, "r"))) {
+    fprintf(stderr, PROGRAM_NAME " ERROR: Can not read secret file %s\n", filename);
+    return 1;
+  }
+
+  if( !fgets(buf, sizeof(buf)-1, f)) {
+    fprintf(stderr, PROGRAM_NAME " ERROR: Secret file %s is empty\n", filename);
+    fclose(f);
+    return 1;
+  }
+
+  /* strip whitespaces on end */
+  if((e = strrchr(buf, '\n'))) *e = 0;
+  if((e = strrchr(buf, '\r'))) *e = 0;
+
+  bindpasswd = (char *) calloc(sizeof(char), strlen(buf)+1);
+  if (bindpasswd) {
+    strcpy(bindpasswd, buf);
+  } else {
+    fprintf(stderr, PROGRAM_NAME " ERROR: can not allocate memory\n"); 
+  }
+
+  fclose(f);
+
+  return 0;
 }

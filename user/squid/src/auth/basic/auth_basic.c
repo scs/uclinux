@@ -43,6 +43,10 @@
 static void
 authenticateStateFree(authenticateStateData * r)
 {
+    if (r->auth_user_request) {
+	authenticateAuthUserRequestUnlock(r->auth_user_request);
+	r->auth_user_request = NULL;
+    }
     cbdataFree(r);
 }
 
@@ -212,7 +216,7 @@ authenticateBasicDirection(auth_user_request_t * auth_user_request)
     case 2:			/* paused while waiting for a username:password check on another request */
 	return -1;
     case 3:			/* authentication process failed. */
-	return -2;
+	return 0;
     }
     return -2;
 }
@@ -305,10 +309,11 @@ authBasicCfgDump(StoreEntry * entry, const char *name, authScheme * scheme)
 	storeAppendPrintf(entry, " %s", list->key);
 	list = list->next;
     }
-    storeAppendPrintf(entry, "\n%s %s realm %s\n%s %s children %d\n%s %s credentialsttl %d seconds\n",
+    storeAppendPrintf(entry, "\n%s %s realm %s\n%s %s children %d\n%s %s credentialsttl %d seconds\n%s %s casesensitive %s\n",
 	name, "basic", config->basicAuthRealm,
 	name, "basic", config->authenticateChildren,
-	name, "basic", (int) config->credentialsTTL);
+	name, "basic", (int) config->credentialsTTL,
+	name, "basic", config->casesensitive ? "on" : "off");
 
 }
 
@@ -321,6 +326,7 @@ authBasicParse(authScheme * scheme, int n_configured, char *param_str)
 	scheme->scheme_data = xmalloc(sizeof(auth_basic_config));
 	memset(scheme->scheme_data, 0, sizeof(auth_basic_config));
 	basicConfig = scheme->scheme_data;
+	basicConfig->basicAuthRealm = xstrdup("Squid proxy-caching web server");
 	basicConfig->authenticateChildren = 5;
 	basicConfig->credentialsTTL = 2 * 60 * 60;	/* two hours */
     }
@@ -336,6 +342,8 @@ authBasicParse(authScheme * scheme, int n_configured, char *param_str)
 	parse_eol(&basicConfig->basicAuthRealm);
     } else if (strcasecmp(param_str, "credentialsttl") == 0) {
 	parse_time_t(&basicConfig->credentialsTTL);
+    } else if (strcasecmp(param_str, "casesensitive") == 0) {
+	parse_onoff(&basicConfig->casesensitive);
     } else {
 	debug(28, 0) ("unrecognised basic auth scheme parameter '%s'\n", param_str);
     }
@@ -416,7 +424,7 @@ authenticateBasicDecodeAuth(auth_user_request_t * auth_user_request, const char 
 
     /* decode the username */
     /* trim BASIC from string */
-    while (!xisspace(*proxy_auth))
+    while (xisgraph(*proxy_auth))
 	proxy_auth++;
 
     local_basic.passwd = NULL;
@@ -481,6 +489,8 @@ authenticateBasicDecodeAuth(auth_user_request_t * auth_user_request, const char 
 	local_basic.passwd = xstrndup(cleartext, USER_IDENT_SZ);
     }
 
+    if (!basicConfig->casesensitive)
+	Tolower(local_basic.username);
     /* now lookup and see if we have a matching auth_user structure in memory. */
 
     if ((auth_user = authBasicAuthUserFindUsername(local_basic.username)) == NULL) {
@@ -583,7 +593,6 @@ authenticateBasicStart(auth_user_request_t * auth_user_request, RH * handler, vo
 	/* save the details */
 	node->next = basic_auth->auth_queue;
 	basic_auth->auth_queue = node;
-	node->auth_user_request = auth_user_request;
 	node->handler = handler;
 	node->data = data;
 	cbdataLock(data);
@@ -594,6 +603,7 @@ authenticateBasicStart(auth_user_request_t * auth_user_request, RH * handler, vo
 	cbdataLock(data);
 	r->data = data;
 	r->auth_user_request = auth_user_request;
+	authenticateAuthUserRequestLock(r->auth_user_request);
 	/* mark the user as haveing verification in progress */
 	basic_auth->flags.credentials_ok = 2;
 	xstrncpy(user, rfc1738_escape(basic_auth->username), sizeof(user));

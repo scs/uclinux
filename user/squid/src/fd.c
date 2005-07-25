@@ -178,6 +178,17 @@ fdNFree(void)
     return Squid_MaxFD - Number_FD - Opening_FD;
 }
 
+int
+fdUsageHigh(void)
+{
+    int nrfree = fdNFree();
+    if (nrfree < (RESERVED_FD << 1))
+	return 1;
+    if (nrfree < (Number_FD >> 2))
+	return 1;
+    return 0;
+}
+
 /* Called when we runs out of file descriptors */
 void
 fdAdjustReserved(void)

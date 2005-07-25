@@ -150,7 +150,7 @@ ntlmGetString(ntlmhdr * hdr, strhdr * str, int flags)
     o = WSWAP(str->offset);
 
     /* Sanity checks. XXX values arbitrarialy chosen */
-    if (l <= 0 || l >= 32 || o >= 256) {
+    if (l <= 0 || o <= 0 || l >= 32 || o >= 256) {
 	fprintf(stderr, "ntlmGetString: insane: l:%d o:%d\n", l, o);
 	return (NULL);
     }

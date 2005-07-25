@@ -70,6 +70,7 @@ Tcl_ProcCmd(dummy, interp, argc, argv)
     procPtr->command = (char *) ckalloc((unsigned) strlen(argv[3]) + 1);
     strcpy(procPtr->command, argv[3]);
     procPtr->argPtr = NULL;
+    procPtr->uses = 1; /* 1 for initial definition */
 
     /*
      * Break up the argument list into argument specifiers, then process
@@ -490,11 +491,28 @@ InterpProc(clientData, interp, argc, argv)
 	goto procDone;
     }
 
+    /* Increment the usage count */
+    procPtr->uses++;
+
     /*
      * Invoke the commands in the procedure's body.
      */
 
     result = Tcl_Eval(interp, procPtr->command, 0, &end);
+
+    if (procPtr->uses == 1) {
+	/* Now we "delete" the proc. This will decrement the reference
+	 * count, and only delete the proc if the usage count reaches 0.
+	 * This might happen if the proc was renamed/deleted while it was
+	 * executing.
+	 * We can't reference procPtr after this point.
+	 */
+	ProcDeleteProc((ClientData)procPtr);
+    } else {
+	procPtr->uses--;
+    }
+
+
     if (result == TCL_RETURN) {
 	result = TCL_OK;
     } else if (result == TCL_ERROR) {
@@ -537,6 +555,7 @@ InterpProc(clientData, interp, argc, argv)
  *	This procedure is invoked just before a command procedure is
  *	removed from an interpreter.  Its job is to release all the
  *	resources allocated to the procedure.
+ *	'uses' is decremented, but if it doesn't go to zero, it is not deleted.
  *
  * Results:
  *	None.
@@ -546,7 +565,6 @@ InterpProc(clientData, interp, argc, argv)
  *
  *----------------------------------------------------------------------
  */
-
 static void
 ProcDeleteProc(clientData)
     ClientData clientData;		/* Procedure to be deleted. */
@@ -554,12 +572,14 @@ ProcDeleteProc(clientData)
     register Proc *procPtr = (Proc *) clientData;
     register Arg *argPtr;
 
-    ckfree((char *) procPtr->command);
-    for (argPtr = procPtr->argPtr; argPtr != NULL; ) {
-	Arg *nextPtr = argPtr->nextPtr;
+    if (--procPtr->uses <= 0) {
+	ckfree((char *) procPtr->command);
+	for (argPtr = procPtr->argPtr; argPtr != NULL; ) {
+	    Arg *nextPtr = argPtr->nextPtr;
 
-	ckfree((char *) argPtr);
-	argPtr = nextPtr;
+	    ckfree((char *) argPtr);
+	    argPtr = nextPtr;
+	}
+	ckfree((char *) procPtr);
     }
-    ckfree((char *) procPtr);
 }

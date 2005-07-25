@@ -11,31 +11,9 @@
 # default value.
 
 #Port 22
-#Protocol 2,1
+Protocol 2
 #ListenAddress 0.0.0.0
 #ListenAddress ::
-
-
-#
-# uClinux settings
-#
-ServerKeyBits 768
-LoginGraceTime 600
-KeyRegenerationInterval 3600
-PermitRootLogin yes
-#
-# Don't read ~/.rhosts and ~/.shosts files
-IgnoreRhosts yes
-# Uncomment if you don't trust ~/.ssh/known_hosts for RhostsRSAAuthentication
-#IgnoreUserKnownHosts yes
-StrictModes yes
-X11Forwarding no
-X11DisplayOffset 10
-PrintMotd yes
-KeepAlive yes
-
-
-
 
 # HostKey for protocol version 1
 #HostKey /etc/ssh/ssh_host_key
@@ -56,7 +34,7 @@ KeepAlive yes
 
 #LoginGraceTime 2m
 #PermitRootLogin yes
-#StrictModes yes
+StrictModes no
 
 #RSAAuthentication yes
 #PubkeyAuthentication yes
@@ -115,4 +93,4 @@ KeepAlive yes
 #Banner /some/path
 
 # override default of no subsystems
-Subsystem	sftp	/usr/libexec/sftp-server
+#Subsystem	sftp	/usr/libexec/sftp-server

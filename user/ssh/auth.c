@@ -52,7 +52,7 @@ RCSID("$OpenBSD: auth.c,v 1.49 2003/08/26 09:58:43 markus Exp $");
 #include "bufaux.h"
 #include "packet.h"
 
-#ifdef CONFIG_AMAZON
+#ifdef SECURITY_COUNTS
 #include "../login/logcnt.c"
 #endif
 
@@ -306,7 +306,7 @@ auth_log(Authctxt *authctxt, int authenticated, char *method, char *info)
 	if (authenticated == 0 && strcmp(method, "password") == 0)
 		record_failed_login(authctxt->user, "ssh");
 #endif
-#ifdef CONFIG_AMAZON
+#ifdef SECURITY_COUNTS
 	if (strcmp(method, "password") == 0)
 		access__attempted(!authenticated, authctxt->user);
 #endif
@@ -531,7 +531,7 @@ getpwnamallow(const char *user)
 	if (pw == NULL) {
 		logit("Illegal user %.100s from %.100s",
 		    user, get_remote_ipaddr());
-#ifdef CONFIG_AMAZON
+#ifdef SECURITY_COUNTS
 		access__attempted(1, user);
 #endif
 #ifdef CUSTOM_FAILED_LOGIN
@@ -540,7 +540,7 @@ getpwnamallow(const char *user)
 		return (NULL);
 	}
 	if (!allowed_user(pw)) {
-#ifdef CONFIG_AMAZON
+#ifdef SECURITY_COUNTS
 		access__attempted(1, user);
 #endif
 		return (NULL);
@@ -548,7 +548,7 @@ getpwnamallow(const char *user)
 #ifdef HAVE_LOGIN_CAP
 	if ((lc = login_getclass(pw->pw_class)) == NULL) {
 		debug("unable to get login class: %s", user);
-#ifdef CONFIG_AMAZON
+#ifdef SECURITY_COUNTS
 		access__attempted(1, user);
 #endif
 		return (NULL);

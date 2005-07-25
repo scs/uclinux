@@ -53,6 +53,14 @@
 
 #define RIDICULOUS_LENGTH	4096
 
+#ifdef AUFS_IO_THREADS
+int squidaio_nthreads = AUFS_IO_THREADS;
+#else
+int squidaio_nthreads = 0;
+#endif
+int squidaio_magic1 = 1;	/* dummy initializer value */
+int squidaio_magic2 = 1;	/* real value set in aiops.c */
+
 enum _squidaio_thread_status {
     _THREAD_STARTING = 0,
     _THREAD_WAITING,
@@ -132,7 +140,6 @@ static void squidaio_poll_queues(void);
 
 static squidaio_thread_t *threads = NULL;
 static int squidaio_initialised = 0;
-
 
 #define AIO_LARGE_BUFS  16384
 #define AIO_MEDIUM_BUFS	AIO_LARGE_BUFS >> 1
@@ -309,7 +316,18 @@ squidaio_init(void)
 
     /* Create threads and get them to sit in their wait loop */
     squidaio_thread_pool = memPoolCreate("aio_thread", sizeof(squidaio_thread_t));
-    for (i = 0; i < NUMTHREADS; i++) {
+    if (squidaio_nthreads == 0) {
+	int j = 16;
+	for (i = 0; i < n_asyncufs_dirs; i++) {
+	    squidaio_nthreads += j;
+	    j = j * 2 / 3;
+	    if (j < 4)
+		j = 4;
+	}
+    }
+    squidaio_magic1 = squidaio_nthreads * MAGIC1_FACTOR;
+    squidaio_magic2 = squidaio_nthreads * MAGIC2_FACTOR;
+    for (i = 0; i < squidaio_nthreads; i++) {
 	threadp = memPoolAlloc(squidaio_thread_pool);
 	threadp->status = _THREAD_STARTING;
 	threadp->current_req = NULL;

@@ -19,6 +19,8 @@
 #ifndef TCLEXTDINT_H
 #define TCLEXTDINT_H
 
+#include <time.h>
+
 #include "tclExtend.h"
 #include "tclInt.h"
 //#include "tcldos.h"
@@ -66,7 +68,7 @@
 #    include <sys/times.h>
 #endif 
 
-#include <values.h>
+#include <limits.h>
 /* #include <grp.h> */
 /*
  * On some systems this is not included by tclUnix.h.
@@ -79,15 +81,23 @@
 struct tm *gmtime ();
 struct tm *localtime ();
 
+#ifdef INT_MAX
+#define MAXINT INT_MAX
+#endif
+
 #ifndef MAXINT
 #    define BITSPERBYTE   8
 #    define BITS(type)    (BITSPERBYTE * (int)sizeof(type))
-#    define HIBITI        (1 << BITS(int) - 1)
+#    define HIBITI        ((1 << BITS(int)) - 1)
 #    define MAXINT        (~HIBITI)
 #endif
 
 #ifndef MININT
+#ifdef INT_MIN
+#    define MININT INT_MIN
+#else
 #    define MININT (-MAXINT)-1
+#endif
 #endif
 
 #ifndef TRUE
@@ -101,7 +111,7 @@ struct tm *localtime ();
  */
 
 typedef struct regexp_t {
-    regexp *progPtr;
+    regex_t progPtr;
     char   *boyerMoorePtr;
     int     noCase;
     } regexp_t;
@@ -267,6 +277,12 @@ Tcl_CommandloopCmd _ANSI_ARGS_((ClientData, Tcl_Interp*, int, char**));
  */
 extern void
 Tcl_InitDebug _ANSI_ARGS_((Tcl_Interp *interp));
+
+/*
+ * from tclXgen.c
+ */
+extern void
+TclX_InitGeneral _ANSI_ARGS_((Tcl_Interp *interp));
 
 /*
  * from tclXdup.c

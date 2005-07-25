@@ -140,17 +140,16 @@ static int addgroup(const char *filename, char *group, gid_t gid)
  * ________________________________________________________________________ */
 int addgroup_main(int argc, char **argv)
 {
-	char opt;
+	int opt;
 	char *group;
 	gid_t gid = 0;
 
-	//printf("in addgroup_main argc=%d argv=%s\n",argc,argv);
 	if (argc < 2) {
 		usage(addgroup_usage);
 		return 1;
 	}
 
-	while ((opt = getopt(argc, argv, "g:")) != EOF) {
+	while ((opt = getopt(argc, argv, "g:")) != -1) {
 		switch (opt) {
 		case 'g':
 			gid = strtol(optarg, NULL, 10);
@@ -160,13 +159,12 @@ int addgroup_main(int argc, char **argv)
 			exit(1);
 		}
 	}
-//	printf("after getopt gid=%d\n",gid);
+
 	if (optind >= argc) {
 		usage(addgroup_usage);
 	} else {
 		group = argv[optind];
 	}
-//	printf("after getopt group=%x\n",group);
 
 	if (geteuid() != 0) {
 		error_msg_and_die
@@ -174,7 +172,6 @@ int addgroup_main(int argc, char **argv)
 	}
 
 	/* werk */
-//	printf("bef addgroup group=%x gid=%d\n",group,gid);
 	return addgroup(GROUP_FILE, group, gid);
 }
 

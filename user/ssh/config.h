@@ -622,7 +622,11 @@
 /* #undef HAVE_OGETADDRINFO */
 
 /* Define to 1 if you have the `openpty' function. */
+#ifdef __UC_LIBC__
 #undef HAVE_OPENPTY
+#else
+#define HAVE_OPENPTY 1
+#endif
 
 /* Define to 1 if you have the `pam_getenvlist' function. */
 /* #undef HAVE_PAM_GETENVLIST */

@@ -30,13 +30,12 @@ struct passwd *tlg_getpwuid(uid_t uid)
 
 	if ((passwd_fd = open("/etc/passwd", O_RDONLY)) < 0)
 		return NULL;
+
 	while ((passwd = __tlg_getpwent(passwd_fd)) != NULL)
-	{
 		if (passwd->pw_uid == uid) {
 			close(passwd_fd);
 			return passwd;
 		}
-	}
 
 	close(passwd_fd);
 	return NULL;

@@ -1,7 +1,7 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
 <HTML>
 <HEAD>
- <META NAME="GENERATOR" CONTENT="LinuxDoc-Tools 0.9.20">
+ <META NAME="GENERATOR" CONTENT="LinuxDoc-Tools 0.9.16">
  <TITLE>Squid 2.5 release notes</TITLE>
 </HEAD>
 <BODY>
@@ -129,27 +129,45 @@ exacly where you want to have them in your system.</LI>
 <DT><B>sleep_after_fork</B><DD><P>Give the OS a small amount of time to accomodate the fork+exec used to launch helpers - if squid has a lot of virtual memory allocated the OS may run out of virtual memory during helper spawning otherwise.</P>
 <DT><B>reference_age</B><DD><P>This has been removed - starting with Squid-2.4 this directive have had no effect and has now been fully removed to avoid confusion.</P>
 <DT><B>siteselect_timeout</B><DD><P>This has been removed - it is not referenced anywhere in the source code.</P>
+<DT><B>minimum_retry_timeout</B><DD><P>This has been removed - it is not referenced anywhere in the source code.</P>
+<DT><B>short_icon_urls</B><DD><P>New directive to enable an alternative way of referring to icons in FTP directory listings etc.</P>
+<DT><B>acl urllogin</B><DD><P>New acl type to match the login component of Internet style URLs (protocol://user:password@host/path/to/file)</P>
+<DT><B>balance_on_multiple_ip</B><DD><P>New directive to make it possible to disable the automatic round-robin load balancing on multiple IP addresses normally done by Squid.</P>
+<DT><B>reply_header_max_size</B><DD><P>New directive limiting the size of HTTP reply headers, similar to request_header_max_size but in the reply direction (from servers to clients). Default is 20KB.</P>
 </DL>
 </P>
 
 <H2><A NAME="s3">3. Known issues and limitations</A></H2>
 
-<P>There is a few limitations and issues in this version of Squid which we hope to correct in a later release</P>
+<P>There is a few known issues and limitations in this version of Squid which we hope to correct in a later release</P>
 <P>
 <DL>
-<DT><B>deny_info</B><DD><P>deny_info only works for http_access, not for the acls listen in http_reply_access </P>
-<DT><B>Bug #616</B><DD><P>Negative cached 404 replies with VARY header never matches</P>
-<DT><B>Bug #592</B><DD><P>always/never_direct and NTLM authentication</P>
-<DT><B>Bug #585</B><DD><P>cache_peer_access fails with NTLM authentication</P>
-<DT><B>Bug #581</B><DD><P>acl max_user_ip and multiple authentication schemes</P>
-<DT><B>Bug #513</B><DD><P>squid -F is starting server sockets to early</P>
-<DT><B>Bug #518</B><DD><P>wb_auth fails on TRU64 and probably other 64 bit platforms</P>
-<DT><B>Bug #500</B><DD><P>delay_pools stops working on -k reconfigure</P>
-<DT><B>Bug #457</B><DD><P>does not handle swap.state corruption properly</P>
-<DT><B>Bug #426</B><DD><P>Vary: * does not work</P>
-<DT><B>Bug #410</B><DD><P>unstable if runs out of disk space</P>
-<DT><B>Bug #355</B><DD><P>diskd may appear slow on low loads</P>
-<DT><B>Bug #267</B><DD><P>Form POSTing troubles with NTLM authentication</P>
+<DT><B>Bug 
+<A HREF="http://www.squid-cache.org/bugs/show_bug.cgi?id=761">#761</A></B><DD><P>assertion failed: cbdata.c:249: "c-&gt;locks &gt; 0" when using diskd</P>
+<DT><B>Bug 
+<A HREF="http://www.squid-cache.org/bugs/show_bug.cgi?id=779">#779</A></B><DD><P>users going above their allowed IP count no longer logged in cache.log</P>
+<DT><B>Bug 
+<A HREF="http://www.squid-cache.org/bugs/show_bug.cgi?id=1059">#1059</A></B><DD><P>mime.conf and referenced icons must be within chroot</P>
+<DT><B>Bug 
+<A HREF="http://www.squid-cache.org/bugs/show_bug.cgi?id=1033">#1033</A></B><DD><P>CARP ignores cache_peer_access and cache_peer_domain</P>
+<DT><B>Bug 
+<A HREF="http://www.squid-cache.org/bugs/show_bug.cgi?id=692">#692</A></B><DD><P>tcp_outgoing_address using an ident ACL does not work</P>
+<DT><B>Bug 
+<A HREF="http://www.squid-cache.org/bugs/show_bug.cgi?id=581">#581</A></B><DD><P>acl max_user_ip and multiple authentication schemes</P>
+<DT><B>Bug 
+<A HREF="http://www.squid-cache.org/bugs/show_bug.cgi?id=528">#528</A></B><DD><P>miss_access fails on "slow" acl types such as dst.</P>
+<DT><B>Bug 
+<A HREF="http://www.squid-cache.org/bugs/show_bug.cgi?id=513">#513</A></B><DD><P>squid -F is starting server sockets to early</P>
+<DT><B>Bug 
+<A HREF="http://www.squid-cache.org/bugs/show_bug.cgi?id=518">#518</A></B><DD><P>wb_auth fails on TRU64 and probably other 64 bit platforms</P>
+<DT><B>Bug 
+<A HREF="http://www.squid-cache.org/bugs/show_bug.cgi?id=500">#500</A></B><DD><P>delay_pools stops working on -k reconfigure</P>
+<DT><B>Bug 
+<A HREF="http://www.squid-cache.org/bugs/show_bug.cgi?id=457">#457</A></B><DD><P>does not handle swap.state corruption properly</P>
+<DT><B>Bug 
+<A HREF="http://www.squid-cache.org/bugs/show_bug.cgi?id=410">#410</A></B><DD><P>unstable if runs out of disk space</P>
+<DT><B>Bug 
+<A HREF="http://www.squid-cache.org/bugs/show_bug.cgi?id=355">#355</A></B><DD><P>diskd may appear slow on low loads</P>
 </DL>
 </P>
 
@@ -180,9 +198,130 @@ helpers should be built for if different than the above versions.</LI>
 
 <H2><A NAME="s5">5. Key changes squid-2.5.STABLE2 to 2.5.STABLE3:</A></H2>
 
-<P>Squid-2.5.STABLE3 is a bugfix release. See the list of 
+<P>
+<UL>
+<LI>a large number of minor bug fixes. See the list of 
 <A HREF="http://www.squid-cache.org/Versions/v2/2.5/bugs/#STABLE2">squid-2.5.STABLE2 patches</A> and the 
-<A HREF="ChangeLog">ChangeLog</A> file for details on corrected issues.</P>
+<A HREF="ChangeLog">ChangeLog</A> file for details.</LI>
+</UL>
+</P>
+
+<H2><A NAME="s6">6. Key changes squid-2.5.STABLE3 to 2.5.STABLE4:</A></H2>
+
+<P>
+<UL>
+<LI>several memory leaks corrected</LI>
+<LI>segmentation fault if more than one deny_info corrected</LI>
+<LI>Lithuanian error messages added</LI>
+<LI>a crash related to ftpTimeout: timeout in SENT_PASV state corrected</LI>
+<LI>http_reply_access deny now logs the request with
+TCP_DENIED to allow them to be accounted for properly in statistics</LI>
+<LI>minimum_retry_timeout configuration directive removed. If
+you have this directive in your existing squid.conf you will
+need to remove the line. </LI>
+<LI>Improvements to the (experimental) COSS storage scheme.</LI>
+<LI>Updates to allow Squid to be compiled with GCC-3.3</LI>
+<LI>POST now works well with NTLM and Digest authentication</LI>
+<LI>http_header_access now works in combination with cache_peer</LI>
+<LI>Most Squid generated errors are now logged as TCP_DENIED/XXX
+rather than TCP_MISS/XXX or NONE/XXX. This to work around issues
+relating to access controls.</LI>
+<LI>external_acl_type concurrency= option renamed to children=
+to prepare for Squid-3 upgrade. The old syntax is still accepted
+but you may want to upgrade your configuration now to save you
+from the trouble when upgrading to Squid-3 later.</LI>
+<LI>a large number of minor bugfixes. See the list of 
+<A HREF="http://www.squid-cache.org/Versions/v2/2.5/bugs/#STABLE3">squid-2.5.STABLE3 patches</A> and the 
+<A HREF="ChangeLog">ChangeLog</A> file for details.</LI>
+</UL>
+</P>
+
+<H2><A NAME="s7">7. Key changes squid-2.5.STABLE4 to 2.5.STABLE5:</A></H2>
+
+<P>
+<UL>
+<LI>redirector interface modified to try to deal with login names
+containing spaces or other odd characters. This is accomplished
+by URL-encoding the login name before sent to redirectors. Note:
+Existing redirectors or their configuration may need to be slightly
+modified in how they process the ident column to support the new
+username format (only applies to redirectors looking into the username)</LI>
+<LI>new forward_timeout option to complement connect_timeout in
+management of timeouts while connecting to origin servers or peers</LI>
+<LI>various timeouts adjusted: connect_timeout 1 minute (was 2 minutes
+which is now forward_timeout), negative_dns_ttl 1 minute (was 5 minutes)
+and is now also used as minimum positive dns ttl, dns_timeout 2 minutes
+(was 5 minutes)</LI>
+<LI>"short_icon_urls on" can be used to simplify the URLs used for
+icons etc to avoid issues with proxy host naming and authentication
+when requesting icons.</LI>
+<LI>A new "urllogin" ACL type has been introducing allowing regex
+matches to the "login" component of Internet style URLs
+(protocol://user:password@host/path/to/file).</LI>
+<LI>Squid now respects the Telnet protocol on connections to FTP
+servers. The ftp_telnet_protocol directice can be used to revert back
+to the old incorrect implementation.</LI>
+<LI>Several NTLM related bugfixes and improvements fixing the problem
+of random auth popups and account lockouts. Support for the NEGOTIATE
+NTLM packet is also added to allow Samba-3.0.2 or later to negotiate the
+use of NTLMv2.</LI>
+<LI>Several authentication related bugfixes to allow authentication
+to work in additional acl driven directives, correct an number
+of assertion or segmentation and some memory leaks.</LI>
+<LI>The default mime.conf has been updated with many new mime types
+and a few minor corrections. In addition the download and view links
+is used more frequently to allow view/download of different ftp://
+contents regardless of their mime type assignment.</LI>
+<LI>url_regex enhanced to allow matching of %00</LI>
+<LI>a large number of minor and cosmetic bugfixes. See the list of 
+<A HREF="http://www.squid-cache.org/Versions/v2/2.5/bugs/#STABLE4">squid-2.5.STABLE4 patches</A> and the 
+<A HREF="ChangeLog">ChangeLog</A> file for details.</LI>
+</UL>
+</P>
+
+<H2><A NAME="s8">8. Key changes squid-2.5.STABLE5 to 2.5.STABLE6:</A></H2>
+
+<P>
+<UL>
+<LI>Several "Assertion error" bugs fixed</LI>
+<LI>Several "Segmentation fault" bugs fixes</LI>
+<LI>Corrects a security issue in the old ntlm_auth NTLM helper
+used in transparent NTLM authentication to a NT domain without
+using samba.</LI>
+<LI>Processing of Vary: * and Vary on error messages corrected</LI>
+<LI>a large number of minor and cosmetic bugfixes. See the list of 
+<A HREF="http://www.squid-cache.org/Versions/v2/2.5/bugs/#STABLE5">squid-2.5.STABLE5 patches</A> and the 
+<A HREF="ChangeLog">ChangeLog</A> file for details.</LI>
+</UL>
+</P>
+
+<H2><A NAME="s9">9. Key changes squid-2.5.STABLE6 to 2.5.STABLE7:</A></H2>
+
+<P>
+<UL>
+<LI>SNMP related Denial of Service issue corrected (CAN-2004-0918)</LI>
+<LI>NTLM related bugfix noticed by the Samba group</LI>
+<LI>UFS cache_dir bugfix to issue introduced in STABLE6 causing
+no objects to get cached in some configurations.</LI>
+<LI>cache_effective_user now sets supplementary group list
+if cache_effective_group not set</LI>
+<LI>cache_effective_group now used if specified even if not started
+as root. If you do not start Squid as root you may need to remove this
+directive from your squid.conf if not set correctly.</LI>
+<LI>request_header_max_size directive corrected. You may need to increase
+this value after upgrading if set very low. The default have been increased
+from 10 KB to 20 KB which should be sufficient for most uses.</LI>
+<LI>reply_header_max_size directive added</LI>
+<LI>http_header_access &amp; replace now support arbitrary headers,
+not only the well known headers known by Squid</LI>
+<LI>new acl types req_hdr and resp_hdr to match arbitrary HTTP headers,
+useful to block certain malware/spyware etc.</LI>
+<LI>new balance_on_multiple_ip squid.conf directive</LI>
+<LI>a number of other minor and cosmetic bugfixes. See the list of 
+<A HREF="http://www.squid-cache.org/Versions/v2/2.5/bugs/#STABLE6">squid-2.5.STABLE6 patches</A> and the 
+<A HREF="ChangeLog">ChangeLog</A> file for details.</LI>
+</UL>
+</P>
 
 </BODY>
 </HTML>

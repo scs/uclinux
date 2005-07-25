@@ -132,4 +132,12 @@ double drand48(void);
  */
 int statMemoryAccounted(void);
 
+#ifndef HAVE_STRNSTR
+extern char *strnstr(const char *haystack, const char *needle, size_t haystacklen);
+#endif
+
+#ifndef HAVE_STRCASESTR
+extern char *strcasestr(const char *haystack, const char *needle);
+#endif
+
 #endif /* SQUID_UTIL_H */

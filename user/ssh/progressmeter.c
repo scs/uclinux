@@ -122,6 +122,8 @@ refresh_progress_meter(void)
 		elapsed = now - last_update;
 	else
 		elapsed = now - start;
+	
+	if (elapsed == 0) elapsed++;
 
 	/* calculate speed */
 	if (elapsed != 0)

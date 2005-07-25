@@ -56,6 +56,9 @@
  * [including the GNU Public Licence.]
  */
 
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -632,17 +635,15 @@ int *out;
 #define PARENT_WRITE	p1[1]
 	int p1[2],p2[2];
 
-#if 0
-	int i;
-	for (i = 0; i < argc; i++) {
-		syslog(LOG_INFO, "argv[%d]=[%s]", i, argv[i]);
-	}
-#endif
-	/* REVISIT: Removing this syslog causes some wierd race condition
-	 *          which stops things working!
+	/* For some reason, stderr may not be open.
+	 * If it isn't we relegate it to oblivion
 	 */
-	syslog(LOG_INFO, "argc=%d", argc);
-
+	int fd = open("/dev/null", O_WRONLY);
+	if (fd != fileno(stderr)) {
+		/* We had stderr, so we don't need this one */
+		close(fd);
+	}
+		
 	if ((pipe(p1) < 0) || (pipe(p2) < 0)) return(-1);
 
 #ifdef __uClinux__
@@ -653,8 +654,10 @@ int *out;
 		{ /* child */
 		if (dup2(CHILD_WRITE,fileno(stdout)) < 0)
 			perror("dup2");
+#if 0
 		if (dup2(CHILD_WRITE,fileno(stderr)) < 0)
 			perror("dup2");
+#endif
 		if (dup2(CHILD_READ,fileno(stdin)) < 0)
 			perror("dup2");
 		close(CHILD_READ); 

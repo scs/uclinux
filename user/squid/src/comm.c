@@ -49,7 +49,6 @@ typedef struct {
     CNCB *callback;
     void *data;
     struct in_addr in_addr;
-    int locks;
     int fd;
     int tries;
     int addrcount;
@@ -272,7 +271,7 @@ commConnectStart(int fd, const char *host, u_short port, CNCB * callback, void *
     cs->data = data;
     cbdataLock(cs->data);
     comm_add_close_handler(fd, commConnectFree, cs);
-    cs->locks++;
+    xstrncpy(fd_table[fd].pconn_name, host, SQUIDHOSTNAMELEN);
     ipcache_nbgethostbyname(host, commConnectDnsHandle, cs);
 }
 
@@ -280,8 +279,6 @@ static void
 commConnectDnsHandle(const ipcache_addrs * ia, void *data)
 {
     ConnectStateData *cs = data;
-    assert(cs->locks == 1);
-    cs->locks--;
     if (ia == NULL) {
 	debug(5, 3) ("commConnectDnsHandle: Unknown host: %s\n", cs->host);
 	if (!dns_error_message) {
@@ -398,6 +395,13 @@ commRetryConnect(ConnectStateData * cs)
     return commResetFD(cs);
 }
 
+static void
+commReconnect(void *data)
+{
+    ConnectStateData *cs = data;
+    ipcache_nbgethostbyname(cs->host, commConnectDnsHandle, cs);
+}
+
 /* Connect SOCK to specified DEST_PORT at DEST_HOST. */
 static void
 commConnectHandle(int fd, void *data)
@@ -425,8 +429,7 @@ commConnectHandle(int fd, void *data)
 	if (Config.onoff.test_reachability)
 	    netdbDeleteAddrNetwork(cs->S.sin_addr);
 	if (commRetryConnect(cs)) {
-	    cs->locks++;
-	    ipcache_nbgethostbyname(cs->host, commConnectDnsHandle, cs);
+	    eventAdd("commReconnect", commReconnect, cs, cs->addrcount == 1 ? 0.05 : 0.0, 0);
 	} else {
 	    commConnectCallback(cs, COMM_ERR_CONNECT);
 	}

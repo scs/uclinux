@@ -15,7 +15,7 @@ typedef enum {
     AUTHENTICATE_STATE_RESPONSE,
     AUTHENTICATE_STATE_DONE,
     AUTHENTICATE_STATE_FAILED
-} auth_state_t;                 /* connection level auth state */
+} auth_state_t;			/* connection level auth state */
 
 /* Generic */
 typedef struct {
@@ -27,8 +27,23 @@ typedef struct {
 struct _ntlm_user {
     /* what username did this connection get? */
     char *username;
-    dlink_list proxy_auth_list;
+    dlink_list challenge_list;
 };
+
+struct _ntlm_challenge_hash_pointer {
+    /* first two items must be same as hash_link */
+    char *key;
+    auth_user_hash_pointer *next;
+    struct {
+	auth_user_t *auth_user;
+	dlink_node link;	/* other hash entries that point to the same auth_user */
+    } user;
+    struct {
+	helper_stateful_server *authserver;
+	dlink_node link;	/* other hash entries that point to the same challenge */
+    } challenge;
+};
+
 
 struct _ntlm_request {
     /* what negotiate string did the client use? */
@@ -52,6 +67,7 @@ struct _ntlm_helper_state_t {
     int starve;			/* 0= normal operation. 1=don't hand out any more challenges */
     int challengeuses;		/* the number of times this challenge has been issued */
     time_t renewed;
+    dlink_list user_list;	/* ntlm_challenge_hash_pointer list referring to this challenge */
 };
 
 /* configuration runtime data */
@@ -60,12 +76,14 @@ struct _auth_ntlm_config {
     wordlist *authenticate;
     int challengeuses;
     time_t challengelifetime;
+    int use_ntlm_negotiate;
 };
 
 typedef struct _ntlm_user ntlm_user_t;
 typedef struct _ntlm_request ntlm_request_t;
 typedef struct _ntlm_helper_state_t ntlm_helper_state_t;
 typedef struct _auth_ntlm_config auth_ntlm_config;
+typedef struct _ntlm_challenge_hash_pointer ntlm_challenge_hash_pointer;
 
 extern MemPool *ntlm_helper_state_pool;
 extern MemPool *ntlm_user_pool;

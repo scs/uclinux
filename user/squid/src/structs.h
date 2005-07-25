@@ -88,6 +88,13 @@ struct _acl_proxy_auth_match_cache {
     void *acl_data;
 };
 
+struct _acl_hdr_data {
+    acl_hdr_data *next;
+    relist *reglist;
+    http_hdr_type hdr_id;
+    const char *hdr_name;
+};
+
 struct _auth_user_hash_pointer {
     /* first two items must be same as hash_link */
     char *key;
@@ -214,6 +221,9 @@ struct _String {
 struct _header_mangler {
     acl_access *access_list;
     char *replacement;
+    /* What follows is only used by HDR_OTHER to build a list of named headers */
+    char *name;
+    header_mangler *next;
 };
 
 struct _body_size {
@@ -374,6 +384,22 @@ struct _RemovalPolicySettings {
     wordlist *args;
 };
 
+#if HS_FEAT_ICAP
+struct _IcapConfig {
+    int onoff;
+    int preview_enable;
+    icap_service *service_head;
+    icap_class *class_head;
+    icap_access *access_head;
+    int preview_size;
+    int check_interval;
+    int send_client_ip;
+    int send_auth_user;
+    char *auth_scheme;
+};
+
+#endif /* HS_FEAT_ICAP */
+
 struct _SquidConfig {
     struct {
 	size_t maxSize;
@@ -400,6 +426,7 @@ struct _SquidConfig {
     struct {
 	time_t read;
 	time_t lifetime;
+	time_t forward;
 	time_t connect;
 	time_t peer_connect;
 	time_t request;
@@ -592,6 +619,8 @@ struct _SquidConfig {
 	int vary_ignore_expire;
 	int pipeline_prefetch;
 	int request_entities;
+	int detect_broken_server_pconns;
+	int balance_on_multiple_ip;
     } onoff;
     acl *aclList;
     struct {
@@ -626,6 +655,7 @@ struct _SquidConfig {
 	char *anon_user;
 	int passive;
 	int sanitycheck;
+	int telnet;
     } Ftp;
     refresh_t *Refresh;
     struct _cacheSwap {
@@ -635,10 +665,10 @@ struct _SquidConfig {
     } cacheSwap;
     struct {
 	char *directory;
+	int use_short_names;
     } icons;
     char *errorDirectory;
     struct {
-	time_t timeout;
 	int maxtries;
     } retry;
     struct {
@@ -692,6 +722,9 @@ struct _SquidConfig {
     char *store_dir_select_algorithm;
     int sleep_after_fork;	/* microseconds */
     external_acl *externalAclHelperList;
+#ifdef HS_FEAT_ICAP
+    IcapConfig icapcfg;
+#endif
 };
 
 struct _SquidConfig2 {
@@ -761,6 +794,7 @@ struct _fde {
     unsigned char tos;
     char ipaddr[16];		/* dotted decimal address of peer */
     char desc[FD_DESC_SZ];
+    char pconn_name[SQUIDHOSTNAMELEN];
     struct {
 	unsigned int open:1;
 	unsigned int close_request:1;
@@ -966,7 +1000,132 @@ struct _http_state_flags {
     unsigned int proxying:1;
     unsigned int keepalive:1;
     unsigned int only_if_cached:1;
+    unsigned int keepalive_broken:1;
+    unsigned int abuse_detected:1;
 };
+
+#ifdef HS_FEAT_ICAP
+struct _IcapStateData {
+    request_t *request;
+    http_state_flags http_flags;
+    HttpStateData *httpState;	/* needed to parse HTTP headers only */
+    int icap_fd;
+    int sc;
+    icap_service *current_service;
+    MemBuf icap_hdr;
+    struct {
+	int res_hdr;
+	int res_body;
+	int req_hdr;
+	int req_body;
+	int opt_body;
+	int null_body;
+    } enc;
+    int bytes_to_gobble;
+    int chunk_size;
+    MemBuf chunk_buf;
+    int preview_size;
+    off_t fake_content_length;
+    int http_header_bytes_read_so_far;
+    struct {
+	const char *uri;	/* URI for REQMODs */
+	int client_fd;
+	struct timeval start;	/* for logging */
+	struct in_addr log_addr;	/* for logging */
+	int hdr_state;
+	MemBuf hdr_buf;
+	void *client_cookie;
+	struct {
+	    MemBuf buf;
+	    CBCB *callback;
+	    void *callback_data;
+	    char *callback_buf;
+	    size_t callback_bufsize;
+	    size_t bytes_read;
+	} http_entity;
+    } reqmod;
+    struct {
+	StoreEntry *entry;
+	MemBuf buffer;
+	MemBuf req_hdr_copy;	/* XXX barf */
+	MemBuf resp_copy;	/* XXX barf^max */
+	int res_body_sz;
+    } respmod;
+    struct {
+	unsigned int connect_requested:1;
+	unsigned int connect_pending:1;
+	unsigned int write_pending:1;
+	unsigned int keep_alive:1;
+	unsigned int http_server_eof:1;
+	unsigned int send_zero_chunk:1;
+	unsigned int got_reply:1;
+	unsigned int wait_for_reply:1;
+	unsigned int wait_for_preview_reply:1;
+	unsigned int preview_done:1;
+	unsigned int copy_response:1;
+	unsigned int no_content:1;
+	unsigned int reqmod_http_entity_eof:1;
+    } flags;
+};
+
+struct _icap_service {
+    icap_service *next;
+    char *name;			/* name to be used when referencing ths service */
+    char *uri;			/* uri of server/service to use */
+    char *type_name;		/* {req|resp}mod_{pre|post}cache */
+
+    char *hostname;
+    unsigned short int port;
+    char *resource;
+    icap_service_t type;	/* parsed type */
+    icap_method_t method;
+    ushort bypass;		/* flag: bypass allowed */
+    ushort unreachable;		/* flag: set to 1 if options request fails */
+    IcapOptData *opt;		/* temp data needed during opt request */
+    struct {
+	unsigned int allow_204:1;
+	unsigned int need_x_client_ip:1;
+	unsigned int need_x_authenticated_user:1;
+    } flags;
+    int preview;
+    String istag;
+    String transfer_preview;
+    String transfer_ignore;
+    String transfer_complete;
+    int max_connections;
+    int options_ttl;
+};
+
+struct _icap_service_list {
+    icap_service_list *next;
+    icap_service *services[16];
+    int nservices;		/* Number of services already used */
+    int last_service_used;	/* Last services used, use to do a round robin */
+};
+
+struct _icap_class {
+    icap_class *next;
+    char *name;
+    wordlist *services;
+    icap_service_list *isl;
+    ushort hidden;		/* for unnamed classes */
+};
+
+struct _icap_access {
+    icap_access *next;
+    char *service_name;
+    icap_class *class;
+    acl_access *access;
+};
+
+struct _IcapOptData {
+    char *buf;
+    off_t offset;
+    size_t size;
+    off_t headlen;
+};
+
+#endif
 
 struct _HttpStateData {
     StoreEntry *entry;
@@ -980,7 +1139,13 @@ struct _HttpStateData {
     int fd;
     http_state_flags flags;
     FwdState *fwd;
+#ifdef HS_FEAT_ICAP
+    struct _IcapStateData *icap_writer;
+#endif
+    char *body_buf;
+    int body_buf_sz;
 };
+
 
 struct _icpUdpData {
     struct sockaddr_in address;
@@ -1077,6 +1242,7 @@ struct _clientHttpRequest {
 	unsigned int internal:1;
 	unsigned int done_copying:1;
 	unsigned int purging:1;
+	unsigned int did_icap_reqmod:1;
     } flags;
     struct {
 	http_status status;
@@ -1084,6 +1250,9 @@ struct _clientHttpRequest {
     } redirect;
     dlink_node active;
     size_t maxBodySize;
+#if HS_FEAT_ICAP
+    IcapStateData *icap_reqmod;
+#endif
 };
 
 struct _ConnStateData {
@@ -1116,6 +1285,8 @@ struct _ConnStateData {
 	int n;
 	time_t until;
     } defer;
+    REQHOOK *read_request_hook;
+    void *read_request_hook_data;
 };
 
 struct _ipcache_addrs {
@@ -1493,7 +1664,6 @@ struct _MemObject {
     struct timeval start_ping;
     IRCB *ping_reply_callback;
     void *ircb_data;
-    int fd;			/* FD of client creating this entry */
     struct {
 	STABH *callback;
 	void *data;
@@ -1662,6 +1832,11 @@ struct _request_t {
     char *peer_login;		/* Configured peer login:password */
     time_t lastmod;		/* Used on refreshes */
     const char *vary_headers;	/* Used when varying entities are detected. Changes how the store key is calculated */
+#if HS_FEAT_ICAP
+    icap_class *class;
+#endif
+    CB *body_reader;
+    void *body_reader_data;
 };
 
 struct _cachemgr_passwd {
@@ -1766,7 +1941,11 @@ struct _StatCounters {
 	    kb_t kbytes_in;
 	    kb_t kbytes_out;
 	} all , http, ftp, other;
-    } server;
+    }
+#if HS_FEAT_ICAP
+	icap,
+#endif
+	server;
     struct {
 	int pkts_sent;
 	int queries_sent;
@@ -1934,6 +2113,7 @@ struct _ClientInfo {
 	int n_denied;
     } cutoff;
     int n_established;		/* number of current established connections */
+    time_t last_seen;
 };
 
 struct _CacheDigest {
@@ -1953,7 +2133,7 @@ struct _FwdServer {
 };
 
 struct _FwdState {
-    int client_fd;
+    int client_fd;		/* XXX unnecessary */
     StoreEntry *entry;
     request_t *request;
     FwdServer *servers;
@@ -1961,6 +2141,7 @@ struct _FwdState {
     ErrorState *err;
     time_t start;
     int n_tries;
+    int origin_tries;
 #if WIP_FWD_LOG
     http_status last_status;
 #endif
@@ -1996,8 +2177,6 @@ struct _helper_request {
 struct _helper_stateful_request {
     char *buf;
     HLPSCB *callback;
-    int placeholder;		/* if 1, this is a dummy request waiting for a stateful helper
-				 * to become available for deferred requests.*/
     void *data;
 };
 
@@ -2015,8 +2194,10 @@ struct _helper {
 	int requests;
 	int replies;
 	int queue_size;
+	int max_queue_size;
 	int avg_svc_time;
     } stats;
+    time_t last_restart;
 };
 
 struct _helper_stateful {
@@ -2029,14 +2210,16 @@ struct _helper_stateful {
     int ipc_type;
     MemPool *datapool;
     HLPSAVAIL *IsAvailable;
-    HLPSONEQ *OnEmptyQueue;
+    HLPSRESET *Reset;
     time_t last_queue_warn;
     struct {
 	int requests;
 	int replies;
 	int queue_size;
+	int max_queue_size;
 	int avg_svc_time;
     } stats;
+    time_t last_restart;
 };
 
 struct _helper_server {
@@ -2075,7 +2258,6 @@ struct _helper_stateful_server {
     struct timeval dispatch_time;
     struct timeval answer_time;
     dlink_node link;
-    dlink_list queue;
     statefulhelper *parent;
     helper_stateful_request *request;
     struct _helper_stateful_flags {
@@ -2083,16 +2265,13 @@ struct _helper_stateful_server {
 	unsigned int busy:1;
 	unsigned int closing:1;
 	unsigned int shutdown:1;
-	stateful_helper_reserve_t reserved;
+	unsigned int reserved:1;
     } flags;
     struct {
 	int uses;
 	int submits;
 	int releases;
-	int deferbyfunc;
-	int deferbycb;
     } stats;
-    int deferred_requests;	/* current number of deferred requests */
     void *data;			/* State data used by the calling routines */
 };
 

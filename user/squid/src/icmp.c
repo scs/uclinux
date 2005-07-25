@@ -78,7 +78,7 @@ icmpRecv(int unused1, void *unused2)
 	(char *) &preply,
 	sizeof(pingerReplyData),
 	0);
-    if (n < 0) {
+    if (n < 0 && EAGAIN != errno) {
 	debug(50, 1) ("icmpRecv: recv: %s\n", xstrerror());
 	if (++fail_count == 10 || errno == ECONNREFUSED)
 	    icmpClose();

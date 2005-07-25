@@ -350,8 +350,6 @@ configDoConfigure(void)
 	Config.appendDomainLen = 0;
     safe_free(debug_options)
 	debug_options = xstrdup(Config.debugOptions);
-    if (Config.retry.timeout < 5)
-	fatal("minimum_retry_timeout must be at least 5 seconds");
     if (Config.retry.maxtries > 10)
 	fatal("maximum_single_addr_tries cannot be larger than 10");
     if (Config.retry.maxtries < 1) {
@@ -433,6 +431,14 @@ configDoConfigure(void)
 	    debug(22, 0) ("WARNING: 'maxconn' ACL (%s) won't work with client_db disabled\n", a->name);
 	}
     }
+    if (Config.negativeDnsTtl <= 0) {
+	debug(22, 0) ("WARNING: resetting negative_dns_ttl to 1 second\n");
+	Config.negativeDnsTtl = 1;
+    }
+    if (Config.positiveDnsTtl < Config.negativeDnsTtl) {
+	debug(22, 0) ("NOTICE: positive_dns_ttl must be larger than negative_dns_ttl. Resetting negative_dns_ttl to match\n");
+	Config.positiveDnsTtl = Config.negativeDnsTtl;
+    }
 }
 
 /* Parse a time specification from the config file.  Store the
@@ -496,6 +502,10 @@ parseBytesLine(size_t * bptr, const char *units)
 	self_destruct();
     if ((token = strtok(NULL, w_space)) == NULL)
 	self_destruct();
+    if (strcmp(token, "none") == 0 || strcmp(token, "-1") == 0) {
+	*bptr = (size_t) - 1;
+	return;
+    }
     d = atof(token);
     m = u;			/* default to 'units' if none specified */
     if (0.0 == d)
@@ -506,6 +516,8 @@ parseBytesLine(size_t * bptr, const char *units)
     else if ((m = parseBytesUnits(token)) == 0)
 	self_destruct();
     *bptr = m * d / u;
+    if ((double) *bptr != m * d / u)
+	self_destruct();
 }
 
 static size_t
@@ -905,12 +917,20 @@ static void
 dump_http_header_access(StoreEntry * entry, const char *name, header_mangler header[])
 {
     int i;
+    header_mangler *other;
     for (i = 0; i < HDR_ENUM_END; i++) {
-	if (header[i].access_list != NULL) {
-	    storeAppendPrintf(entry, "%s ", name);
-	    dump_acl_access(entry, httpHeaderNameById(i),
-		header[i].access_list);
-	}
+	if (header[i].access_list == NULL)
+	    continue;
+	storeAppendPrintf(entry, "%s ", name);
+	dump_acl_access(entry, httpHeaderNameById(i),
+	    header[i].access_list);
+    }
+    for (other = header[HDR_OTHER].next; other; other = other->next) {
+	if (other->access_list == NULL)
+	    continue;
+	storeAppendPrintf(entry, "%s ", name);
+	dump_acl_access(entry, other->name,
+	    other->access_list);
     }
 }
 
@@ -932,9 +952,16 @@ parse_http_header_access(header_mangler header[])
     else if (strcmp(t, "Other") == 0)
 	id = HDR_OTHER;
     else if (id == -1) {
-	debug(3, 0) ("%s line %d: %s\n",
-	    cfg_filename, config_lineno, config_input_line);
-	debug(3, 0) ("parse_http_header_access: unknown header name %s.\n", t);
+	header_mangler *hdr = header[HDR_OTHER].next;
+	while (hdr && strcasecmp(hdr->name, t) != 0)
+	    hdr = hdr->next;
+	if (!hdr) {
+	    hdr = xcalloc(1, sizeof *hdr);
+	    hdr->name = xstrdup(t);
+	    hdr->next = header[HDR_OTHER].next;
+	    header[HDR_OTHER].next = hdr;
+	}
+	parse_acl_access(&hdr->access_list);
 	return;
     }
     if (id != HDR_ENUM_END) {
@@ -956,8 +983,21 @@ static void
 free_http_header_access(header_mangler header[])
 {
     int i;
+    header_mangler **hdrp;
     for (i = 0; i < HDR_ENUM_END; i++) {
 	free_acl_access(&header[i].access_list);
+    }
+    hdrp = &header[HDR_OTHER].next;
+    while (*hdrp) {
+	header_mangler *hdr = *hdrp;
+	free_acl_access(&hdr->access_list);
+	if (!hdr->replacement) {
+	    *hdrp = hdr->next;
+	    safe_free(hdr->name);
+	    safe_free(hdr);
+	} else {
+	    hdrp = &hdr->next;
+	}
     }
 }
 
@@ -966,11 +1006,17 @@ dump_http_header_replace(StoreEntry * entry, const char *name, header_mangler
     header[])
 {
     int i;
+    header_mangler *other;
     for (i = 0; i < HDR_ENUM_END; i++) {
 	if (NULL == header[i].replacement)
 	    continue;
 	storeAppendPrintf(entry, "%s %s %s\n", name, httpHeaderNameById(i),
 	    header[i].replacement);
+    }
+    for (other = header[HDR_OTHER].next; other; other = other->next) {
+	if (other->replacement == NULL)
+	    continue;
+	storeAppendPrintf(entry, "%s %s %s\n", name, other->name, other->replacement);
     }
 }
 
@@ -992,10 +1038,18 @@ parse_http_header_replace(header_mangler header[])
     else if (strcmp(t, "Other") == 0)
 	id = HDR_OTHER;
     else if (id == -1) {
-	debug(3, 0) ("%s line %d: %s\n",
-	    cfg_filename, config_lineno, config_input_line);
-	debug(3, 0) ("parse_http_header_replace: unknown header name %s.\n",
-	    t);
+	header_mangler *hdr = header[HDR_OTHER].next;
+	while (hdr && strcasecmp(hdr->name, t) != 0)
+	    hdr = hdr->next;
+	if (!hdr) {
+	    hdr = xcalloc(1, sizeof *hdr);
+	    hdr->name = xstrdup(t);
+	    hdr->next = header[HDR_OTHER].next;
+	    header[HDR_OTHER].next = hdr;
+	}
+	if (hdr->replacement != NULL)
+	    safe_free(hdr->replacement);
+	hdr->replacement = xstrdup(t + strlen(t) + 1);
 	return;
     }
     if (id != HDR_ENUM_END) {
@@ -1015,9 +1069,22 @@ static void
 free_http_header_replace(header_mangler header[])
 {
     int i;
+    header_mangler **hdrp;
     for (i = 0; i < HDR_ENUM_END; i++) {
 	if (header[i].replacement != NULL)
 	    safe_free(header[i].replacement);
+    }
+    hdrp = &header[HDR_OTHER].next;
+    while (*hdrp) {
+	header_mangler *hdr = *hdrp;
+	free_acl_access(&hdr->access_list);
+	if (!hdr->access_list) {
+	    *hdrp = hdr->next;
+	    safe_free(hdr->name);
+	    safe_free(hdr);
+	} else {
+	    hdrp = &hdr->next;
+	}
     }
 }
 #endif
@@ -2061,6 +2128,576 @@ check_null_body_size_t(dlink_list bodylist)
     return bodylist.head == NULL;
 }
 
+#ifdef HS_FEAT_ICAP
+
+/***************************************************
+ * prototypes
+ */
+static int icap_service_process(icap_service * s);
+static void icap_service_init(icap_service * s);
+static void icap_service_destroy(icap_service * s);
+icap_service *icap_service_lookup(char *name);
+static int icap_class_process(icap_class * c);
+static void icap_class_destroy(icap_class * c);
+static void icap_access_destroy(icap_access * a);
+static void dump_wordlist(StoreEntry * entry, const char *name, wordlist * list);
+static void icap_class_add(icap_class * c);
+
+/***************************************************
+ * icap_service
+ */
+
+/* 
+ * example:
+ * icap_service reqmode_precache 0 icap://192.168.0.1:1344/respmod
+ */
+
+static void
+parse_icap_service_type(IcapConfig * cfg)
+{
+    icap_service *A = NULL;
+    icap_service *B = NULL;
+    icap_service **T = NULL;
+
+    A = cbdataAlloc(icap_service);
+    icap_service_init(A);
+    parse_string(&A->name);
+    parse_string(&A->type_name);
+    parse_ushort(&A->bypass);
+    parse_string(&A->uri);
+    debug(3, 5) ("parse_icap_service_type (line %d): %s %s %d %s\n", config_lineno, A->name, A->type_name, A->bypass, A->name);
+
+    if (icap_service_process(A)) {
+	/* put into linked list */
+	for (B = cfg->service_head, T = &cfg->service_head; B; T = &B->next, B = B->next);
+	*T = A;
+    } else {
+	/* clean up structure */
+	debug(3, 0) ("parse_icap_service_type (line %d): skipping %s\n", config_lineno, A->name);
+	icap_service_destroy(A);
+	cbdataFree(A);
+    }
+
+}
+
+static void
+dump_icap_service_type(StoreEntry * e, const char *name, IcapConfig cfg)
+{
+    icap_service *current_node = NULL;
+
+    if (!cfg.service_head) {
+	storeAppendPrintf(e, "%s 0\n", name);
+	return;
+    }
+    current_node = cfg.service_head;
+
+    while (current_node) {
+	storeAppendPrintf(e, "%s %s %s %d %s\n", name, current_node->name, current_node->type_name, current_node->bypass, current_node->uri);
+	current_node = current_node->next;
+    }
+
+}
+
+static void
+free_icap_service_type(IcapConfig * cfg)
+{
+    while (cfg->service_head) {
+	icap_service *current_node = cfg->service_head;
+	cfg->service_head = current_node->next;
+	icap_service_destroy(current_node);
+	cbdataFree(current_node);
+    }
+}
+
+/* 
+ * parse the raw string and cache some parts that are needed later 
+ * returns 1 if everything was ok
+ */
+static int
+icap_service_process(icap_service * s)
+{
+    char *start, *end, *tempEnd;
+    char *tailp;
+    unsigned int len;
+    int port_in_uri, resource_in_uri=0;
+    s->type = icapServiceToType(s->type_name);
+    if (s->type >= ICAP_SERVICE_MAX) {
+	debug(3, 0) ("icap_service_process (line %d): wrong service type %s\n", config_lineno, s->type_name);
+	return 0;
+    }
+    if (s->type == ICAP_SERVICE_REQMOD_PRECACHE)
+	s->method = ICAP_METHOD_REQMOD;
+    else if (s->type == ICAP_SERVICE_REQMOD_PRECACHE)
+	s->method = ICAP_METHOD_REQMOD;
+    else if (s->type == ICAP_SERVICE_REQMOD_POSTCACHE)
+	s->method = ICAP_METHOD_REQMOD;
+    else if (s->type == ICAP_SERVICE_RESPMOD_PRECACHE)
+	s->method = ICAP_METHOD_RESPMOD;
+    else if (s->type == ICAP_SERVICE_RESPMOD_POSTCACHE)
+	s->method = ICAP_METHOD_RESPMOD;
+    debug(3, 5) ("icap_service_process (line %d): type=%s\n", config_lineno, icapServiceToStr(s->type));
+    if (strncmp(s->uri, "icap://", 7) != 0) {
+	debug(3, 0) ("icap_service_process (line %d): wrong uri: %s\n", config_lineno, s->uri);
+	return 0;
+    }
+    start = s->uri + 7;
+    if ((end = strchr(start, ':')) != NULL) {
+	/* ok */
+	port_in_uri = 1;
+	debug(3, 5) ("icap_service_process (line %d): port given\n", config_lineno);
+    } else {
+	/* ok */
+	port_in_uri = 0;
+	debug(3, 5) ("icap_service_process (line %d): no port given\n", config_lineno);
+    }
+
+    if ((tempEnd = strchr(start, '/')) != NULL) {
+	/* ok */
+	resource_in_uri = 1;
+	debug(3, 5) ("icap_service_process (line %d): resource given\n", config_lineno);
+	if (end == '\0') {
+	    end = tempEnd;
+	}
+    } else {
+	/* ok */
+	resource_in_uri = 0;
+	debug(3, 5) ("icap_service_process (line %d): no resource given\n", config_lineno);
+    }
+
+    tempEnd = strchr(start, '\0');
+    if (end == '\0') {
+	end = tempEnd;
+    }
+
+    len = end - start;
+    s->hostname = xstrndup(start, len + 1);
+    s->hostname[len] = 0;
+    debug(3, 5) ("icap_service_process (line %d): hostname=%s\n", config_lineno, s->hostname);
+    start = end;
+
+    if (port_in_uri) {
+	start++;		/* skip ':' */
+	if (resource_in_uri)
+            end = strchr(start, '/');
+	else
+  	    end = strchr(start, '\0');
+	s->port = strtoul(start, &tailp, 0) % 65536;
+	if (tailp != end) {
+	    debug(3, 0) ("icap_service_process (line %d): wrong service uri (port could not be parsed): %s\n", config_lineno, s->uri);
+	    return 0;
+	}
+	debug(3, 5) ("icap_service_process (line %d): port=%d\n", config_lineno, s->port);
+	start = end;
+    } else {
+	/* no explicit ICAP port; first ask by getservbyname or default to
+	 * hardwired port 1344 per ICAP specification section 4.2 */
+	struct servent *serv = getservbyname("icap", "tcp");
+	if (serv) {
+	    s->port = htons(serv->s_port);
+	    debug(3, 5) ("icap_service_process (line %d): default port=%d getservbyname(icap,tcp)\n", config_lineno, s->port);
+	} else {
+	    s->port = 1344;
+	    debug(3, 5) ("icap_service_process (line %d): default hardwired port=%d\n", config_lineno, s->port);
+	}
+    }
+
+    if (resource_in_uri) {
+        start++;			/* skip '/' */
+        /* the rest is resource name */
+        end = strchr(start, '\0');
+        len = end - start;
+        if (len > 1024) {
+	    debug(3, 0) ("icap_service_process (line %d): long resource name (>1024), probably wrong\n", config_lineno);
+        }
+        s->resource = xstrndup(start, len + 1);
+        s->resource[len] = 0;
+	debug(3, 5) ("icap_service_process (line %d): service=%s\n", config_lineno, s->resource);
+    }
+
+    /* check bypass */
+    if ((s->bypass != 0) && (s->bypass != 1)) {
+	debug(3, 0) ("icap_service_process (line %d): invalid bypass value\n", config_lineno);
+	return 0;
+    }
+    return 1;
+}
+
+/*
+ * constructor
+ */
+static void
+icap_service_init(icap_service * s)
+{
+    s->type = ICAP_SERVICE_MAX;	/* means undefined */
+    s->preview = Config.icapcfg.preview_size;
+    s->opt = 0;
+    s->istag = StringNull;
+    s->transfer_preview = StringNull;
+    s->transfer_ignore = StringNull;
+    s->transfer_complete = StringNull;
+}
+
+/*
+ * destructor
+ * frees only strings, but don't touch the linked list
+ */
+static void
+icap_service_destroy(icap_service * s)
+{
+    xfree(s->name);
+    xfree(s->uri);
+    xfree(s->type_name);
+    xfree(s->hostname);
+    xfree(s->resource);
+    assert(s->opt == 0);	/* there should be no opt request running now */
+    stringClean(&s->istag);
+    stringClean(&s->transfer_preview);
+    stringClean(&s->transfer_ignore);
+    stringClean(&s->transfer_complete);
+}
+
+icap_service *
+icap_service_lookup(char *name)
+{
+    icap_service *iter;
+    for (iter = Config.icapcfg.service_head; iter; iter = iter->next) {
+	if (!strcmp(name, iter->name)) {
+	    return iter;
+	}
+    }
+    return NULL;
+}
+
+/***************************************************
+ * icap_service_list
+ */
+
+static void
+icap_service_list_add(icap_service_list ** isl, char * service_name)
+{
+    icap_service_list **iter;
+    icap_service_list *new;
+    icap_service      *gbl_service;
+    int	              i;
+    int		      max_services;
+
+    new = memAllocate(MEM_ICAP_SERVICE_LIST);
+    /* Found all services with that name, and add to the array */
+    max_services = sizeof(new->services)/sizeof(icap_service *);
+    gbl_service = Config.icapcfg.service_head;
+    i=0;
+    while(gbl_service && i < max_services) {
+       if (!strcmp(service_name, gbl_service->name))
+	  new->services[i++] = gbl_service;
+       gbl_service = gbl_service->next;
+    }
+    new->nservices = i;
+
+    if (*isl) {
+	iter = isl;
+	while ((*iter)->next)
+	    iter = &((*iter)->next);
+	(*iter)->next = new;
+    } else {
+	*isl = new;
+    }
+}
+
+/*
+ * free the linked list without touching references icap_service
+ */
+static void
+icap_service_list_destroy(icap_service_list * isl)
+{
+    icap_service_list *current;
+    icap_service_list *next;
+
+    current = isl;
+    while (current) {
+	next = current->next;
+	memFree(current, MEM_ICAP_SERVICE_LIST);
+	current = next;
+    }
+}
+
+/***************************************************
+ * icap_class
+ */
+static void
+parse_icap_class_type(IcapConfig * cfg)
+{
+    icap_class *s = NULL;
+
+    s = memAllocate(MEM_ICAP_CLASS);
+    parse_string(&s->name);
+    parse_wordlist(&s->services);
+
+    if (icap_class_process(s)) {
+	/* if ok, put into linked list */
+	icap_class_add(s);
+    } else {
+	/* clean up structure */
+	debug(3, 0) ("parse_icap_class_type (line %d): skipping %s\n", config_lineno, s->name);
+	icap_class_destroy(s);
+	memFree(s, MEM_ICAP_CLASS);
+    }
+}
+
+static void
+dump_icap_class_type(StoreEntry * e, const char *name, IcapConfig cfg)
+{
+    icap_class *current_node = NULL;
+    LOCAL_ARRAY(char, nom, 64);
+
+    if (!cfg.class_head) {
+	storeAppendPrintf(e, "%s 0\n", name);
+	return;
+    }
+    current_node = cfg.class_head;
+
+    while (current_node) {
+	snprintf(nom, 64, "%s %s", name, current_node->name);
+	dump_wordlist(e, nom, current_node->services);
+	current_node = current_node->next;
+    }
+}
+
+static void
+free_icap_class_type(IcapConfig * cfg)
+{
+    while (cfg->class_head) {
+	icap_class *current_node = cfg->class_head;
+	cfg->class_head = current_node->next;
+	icap_class_destroy(current_node);
+	memFree(current_node, MEM_ICAP_CLASS);
+    }
+}
+
+/*
+ * process services list, return 1, if at least one service was found
+ */
+static int
+icap_class_process(icap_class * c)
+{
+    icap_service_list *isl = NULL;
+    wordlist *iter;
+    icap_service *service;
+    /* take services list and build icap_service_list from it */
+    for (iter = c->services; iter; iter = iter->next) {
+	service = icap_service_lookup(iter->key);
+	if (service) {
+	    icap_service_list_add(&isl, iter->key);
+	} else {
+	    debug(3, 0) ("icap_class_process (line %d): skipping service %s in class %s\n", config_lineno, iter->key, c->name);
+	}
+    }
+
+    if (isl) {
+	c->isl = isl;
+	return 1;
+    }
+    return 0;
+}
+
+/*
+ * search for an icap_class in the global IcapConfig
+ * classes with hidden-flag are skipped
+ */
+static icap_class *
+icap_class_lookup(char *name)
+{
+    icap_class *iter;
+    for (iter = Config.icapcfg.class_head; iter; iter = iter->next) {
+	if ((!strcmp(name, iter->name)) && (!iter->hidden)) {
+	    return iter;
+	}
+    }
+    return NULL;
+}
+
+/*
+ * adds an icap_class to the global IcapConfig
+ */
+static void
+icap_class_add(icap_class * c)
+{
+    icap_class *cp = NULL;
+    icap_class **t = NULL;
+    IcapConfig *cfg = &Config.icapcfg;
+    if (c) {
+	for (cp = cfg->class_head, t = &cfg->class_head; cp; t = &cp->next, cp = cp->next);
+	*t = c;
+    }
+}
+
+/*
+ * free allocated memory inside icap_class
+ */
+static void
+icap_class_destroy(icap_class * c)
+{
+    xfree(c->name);
+    wordlistDestroy(&c->services);
+    icap_service_list_destroy(c->isl);
+}
+
+/***************************************************
+ * icap_access
+ */
+
+/* format: icap_access <servicename> {allow|deny} acl, ... */
+static void
+parse_icap_access_type(IcapConfig * cfg)
+{
+    icap_access *A = NULL;
+    icap_access *B = NULL;
+    icap_access **T = NULL;
+    icap_service *s = NULL;
+    icap_class *c = NULL;
+    ushort no_class = 0;
+
+    A = memAllocate(MEM_ICAP_ACCESS);
+    parse_string(&A->service_name);
+
+    /* 
+     * try to find a class with the given name first. if not found, search 
+     * the services. if a service is found, create a new hidden class with 
+     * only this service. this is for backward compatibility.
+     *
+     * the special classname All is allowed only in deny rules, because
+     * the class is not used there.
+     */
+    if (!strcmp(A->service_name, "None")) {
+	no_class = 1;
+    } else {
+	A->class = icap_class_lookup(A->service_name);
+	if (!A->class) {
+	    s = icap_service_lookup(A->service_name);
+	    if (s) {
+		c = memAllocate(MEM_ICAP_CLASS);
+		c->name = xstrdup("(hidden)");
+		c->hidden = 1;
+		wordlistAdd(&c->services, A->service_name);
+		c->isl = memAllocate(MEM_ICAP_SERVICE_LIST);
+		/* FIXME:luc: check what access do */
+		c->isl->services[0] = s;
+		c->isl->nservices = 1;
+		icap_class_add(c);
+		A->class = c;
+	    } else {
+		debug(3, 0) ("parse_icap_access_type (line %d): servicename %s not found. skipping.\n", config_lineno, A->service_name);
+		memFree(A, MEM_ICAP_ACCESS);
+		return;
+	    }
+	}
+    }
+
+    aclParseAccessLine(&(A->access));
+    debug(3, 5) ("parse_icap_access_type (line %d): %s\n", config_lineno, A->service_name);
+
+    /* check that All class is only used in deny rule */
+    if (no_class && A->access->allow) {
+	memFree(A, MEM_ICAP_ACCESS);
+	debug(3, 0) ("parse_icap_access (line %d): special class 'None' only allowed in deny rule. skipping.\n", config_lineno);
+	return;
+    }
+    if (A->access) {
+	for (B = cfg->access_head, T = &cfg->access_head; B; T = &B->next, B = B->next);
+	*T = A;
+    } else {
+	debug(3, 0) ("parse_icap_access_type (line %d): invalid line skipped\n", config_lineno);
+	memFree(A, MEM_ICAP_ACCESS);
+    }
+}
+
+static void
+dump_icap_access_type(StoreEntry * e, const char *name, IcapConfig cfg)
+{
+    icap_access *current_node = NULL;
+    LOCAL_ARRAY(char, nom, 64);
+
+    if (!cfg.access_head) {
+	storeAppendPrintf(e, "%s 0\n", name);
+	return;
+    }
+    current_node = cfg.access_head;
+
+    while (current_node) {
+	snprintf(nom, 64, "%s %s", name, current_node->service_name);
+	dump_acl_access(e, nom, current_node->access);
+	current_node = current_node->next;
+    }
+}
+
+static void
+free_icap_access_type(IcapConfig * cfg)
+{
+    while (cfg->access_head) {
+	icap_access *current_node = cfg->access_head;
+	cfg->access_head = current_node->next;
+	icap_access_destroy(current_node);
+	memFree(current_node, MEM_ICAP_ACCESS);
+    }
+}
+
+/*
+ * destructor
+ * frees everything but the linked list
+ */
+static void
+icap_access_destroy(icap_access * a)
+{
+    xfree(a->service_name);
+    aclDestroyAccessList(&a->access);
+}
+
+/***************************************************
+ * for debugging purposes only
+ */
+void
+dump_icap_config(IcapConfig * cfg)
+{
+    icap_service *s_iter;
+    icap_class *c_iter;
+    icap_access *a_iter;
+    icap_service_list *isl_iter;
+    acl_list *l;
+    debug(3, 0) ("IcapConfig: onoff        = %d\n", cfg->onoff);
+    debug(3, 0) ("IcapConfig: service_head = %d\n", (int) cfg->service_head);
+    debug(3, 0) ("IcapConfig: class_head   = %d\n", (int) cfg->class_head);
+    debug(3, 0) ("IcapConfig: access_head  = %d\n", (int) cfg->access_head);
+
+    debug(3, 0) ("IcapConfig: services =\n");
+    for (s_iter = cfg->service_head; s_iter; s_iter = s_iter->next) {
+	printf("  %s: \n", s_iter->name);
+	printf("    bypass   = %d\n", s_iter->bypass);
+	printf("    hostname = %s\n", s_iter->hostname);
+	printf("    port     = %d\n", s_iter->port);
+	printf("    resource = %s\n", s_iter->resource);
+    }
+    debug(3, 0) ("IcapConfig: classes =\n");
+    for (c_iter = cfg->class_head; c_iter; c_iter = c_iter->next) {
+	printf("  %s: \n", c_iter->name);
+	printf("    services = \n");
+	for (isl_iter = c_iter->isl; isl_iter; isl_iter = isl_iter->next) {
+	   int i;
+	   for (i = 0; i < isl_iter->nservices; i++)
+	     printf("      %s\n", isl_iter->services[i]->name);
+	}
+    }
+    debug(3, 0) ("IcapConfig: access =\n");
+    for (a_iter = cfg->access_head; a_iter; a_iter = a_iter->next) {
+	printf("  service_name  = %s\n", a_iter->service_name);
+	printf("    access        = %s", a_iter->access->allow ? "allow" : "deny");
+	for (l = a_iter->access->acl_list; l != NULL; l = l->next) {
+	    printf(" %s%s",
+		l->op ? null_string : "!",
+		l->acl->name);
+	}
+	printf("\n");
+    }
+}
+#endif /* HS_FEAT_ICAP */
 
 static void
 parse_kb_size_t(size_t * var)

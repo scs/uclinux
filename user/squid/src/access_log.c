@@ -147,10 +147,10 @@ log_quote(const char *header)
 #endif
 	    if (c <= 0x1F
 		|| c >= 0x7F
+		|| c == '%'
 #if OLD_LOG_MIME
 		|| c == '"'
 		|| c == '#'
-		|| c == '%'
 		|| c == ';'
 		|| c == '<'
 		|| c == '>'
@@ -210,6 +210,7 @@ username_quote(const char *header)
 	    *buf_cursor++ = 'n';
 	} else if (c <= 0x1F
 		|| c >= 0x7F
+		|| c == '%'
 	    || c == ' ') {
 	    *buf_cursor++ = '%';
 	    i = c * 2;
@@ -228,6 +229,8 @@ accessLogFormatName(const char *name)
 {
     if (NULL == name)
 	return NULL;
+    if (name[0] == '\0')
+	return NULL;
     return username_quote(name);
 }
 
@@ -242,14 +245,14 @@ accessLogSquid(AccessLogEntry * al)
 	client = inet_ntoa(al->cache.caddr);
     user = accessLogFormatName(al->cache.authuser ?
 	al->cache.authuser : al->cache.rfc931);
-    logfilePrintf(logfile, "%9d.%03d %6d %s %s/%03d %ld %s %s %s %s%s/%s %s",
+    logfilePrintf(logfile, "%9d.%03d %6d %s %s/%03d %lu %s %s %s %s%s/%s %s",
 	(int) current_time.tv_sec,
 	(int) current_time.tv_usec / 1000,
 	al->cache.msec,
 	client,
 	log_tags[al->cache.code],
 	al->http.code,
-	(long int) al->cache.size,
+	(unsigned long) al->cache.size,
 	al->private.method_str,
 	al->url,
 	user && *user ? user : dash_str,
@@ -386,7 +389,7 @@ accessLogInit(void)
     logfile = logfileOpen(Config.Log.access, MAX_URL << 1, 1);
     LogfileStatus = LOG_ENABLE;
 #if HEADERS_LOG
-    headerslog = logfileOpen("/usr/local/squid/logs/headers.log", 512);
+    headerslog = logfileOpen("/usr/local/squid/logs/headers.log", MAX_URL << 1, 0);
     assert(NULL != headerslog);
 #endif
 #if FORW_VIA_DB

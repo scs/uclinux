@@ -23,7 +23,7 @@
 #include "pwd.h"
 
 struct passwd *tlg_fgetpwent(FILE * file)
-{	
+{
 	if (file == NULL) {
 		errno = EINTR;
 		return NULL;

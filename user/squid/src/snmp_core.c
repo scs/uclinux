@@ -607,10 +607,10 @@ snmpAgentResponse(struct snmp_pdu *PDU)
 	    return (Answer);
 	} else if (PDU->command == SNMP_PDU_GETNEXT) {
 	    oid *NextOidName = NULL;
-	    int NextOidNameLen = 0;
+	    snint NextOidNameLen = 0;
 
 	    ParseFn = snmpTreeNext(PDU->variables->name, PDU->variables->name_length,
-		&(NextOidName), (snint *) & NextOidNameLen);
+		&NextOidName, &NextOidNameLen);
 
 	    if (ParseFn == NULL) {
 		Answer->errstat = SNMP_ERR_NOSUCHNAME;

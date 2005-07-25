@@ -18,14 +18,14 @@ vconfig.h: Makefile
 
 
 $(VCONFIG): $(VLAN_OBJS)
-	$(CC) $(CCFLAGS) $(LDFLAGS) -o $(VCONFIG) $(VLAN_OBJS) $(LDLIBS)
-	$(STRIP) $(VCONFIG)
+	$(CC) $(LDFLAGS) -o $@ $(VLAN_OBJS) $(LDLIBS$(LDLIBS_$@))
+	$(STRIP) $@
 
 
 $(ALL_OBJS): %.o: %.c %.h
 	@echo " "
 	@echo "Making $<"
-	$(CC) $(CCFLAGS) -c $<
+	$(CC) $(CFLAGS) -c $<
 
 clean:
 	rm -f *.o $(VCONFIG) vconfig.h

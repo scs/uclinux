@@ -47,6 +47,10 @@ extern AUTHSSETUP authSchemeSetup_digest;
 static void
 authenticateStateFree(authenticateStateData * r)
 {
+    if (r->auth_user_request) {
+	authenticateAuthUserRequestUnlock(r->auth_user_request);
+	r->auth_user_request = NULL;
+    }
     cbdataFree(r);
 }
 
@@ -523,8 +527,10 @@ authDigestRequestDelete(digest_request_h * digest_request)
 static void
 authDigestAURequestFree(auth_user_request_t * auth_user_request)
 {
-    if (auth_user_request->scheme_data != NULL)
+    if (auth_user_request->scheme_data != NULL) {
 	authDigestRequestDelete((digest_request_h *) auth_user_request->scheme_data);
+	auth_user_request->scheme_data = NULL;
+    }
 }
 
 static digest_request_h *
@@ -695,7 +701,13 @@ authenticateDigestAuthenticateUser(auth_user_request_t * auth_user_request, requ
     debug(29, 9) ("\nResponse = '%s'\n"
 	"squid is = '%s'\n", digest_request->response, Response);
 
-    if (strcasecmp(digest_request->response, Response)) {
+    if (strcasecmp(digest_request->response, Response) != 0) {
+	if (!digest_request->flags.helper_queried) {
+	    /* Query the helper in case the password has changed */
+	    digest_request->flags.helper_queried = 1;
+	    digest_request->flags.credentials_ok = 2;
+	    return;
+	}
 	if (digestConfig->PostWorkaround && request->method != METHOD_GET) {
 	    /* Ugly workaround for certain very broken browsers using the
 	     * wrong method to calculate the request-digest on POST request.
@@ -711,8 +723,13 @@ authenticateDigestAuthenticateUser(auth_user_request_t * auth_user_request, requ
 		return;
 	    } else {
 		const char *useragent = httpHeaderGetStr(&request->header, HDR_USER_AGENT);
-		static struct in_addr last_broken_addr =
-		{0};
+		static struct in_addr last_broken_addr;
+		static int seen_broken_client = 0;
+
+		if (!seen_broken_client) {
+		    last_broken_addr = no_addr;
+		    seen_broken_client = 1;
+		}
 		if (memcmp(&last_broken_addr, &request->client_addr, sizeof(last_broken_addr)) != 0) {
 		    debug(29, 1) ("\nDigest POST bug detected from %s using '%s'. Please upgrade browser. See Bug #630 for details.\n", inet_ntoa(request->client_addr), useragent ? useragent : "-");
 		    last_broken_addr = request->client_addr;
@@ -747,7 +764,8 @@ static int
 authenticateDigestDirection(auth_user_request_t * auth_user_request)
 {
     digest_request_h *digest_request = auth_user_request->scheme_data;
-    /* null auth_user is checked for by authenticateDirection */
+    if (!digest_request)
+	return -2;
     switch (digest_request->flags.credentials_ok) {
     case 0:			/* not checked */
 	return -1;
@@ -773,6 +791,8 @@ authDigestAddHeader(auth_user_request_t * auth_user_request, HttpReply * rep, in
     if (!auth_user_request)
 	return;
     digest_request = auth_user_request->scheme_data;
+    if (!digest_request)
+	return;
     /* don't add to authentication error pages */
     if ((!accel && rep->sline.status == HTTP_PROXY_AUTHENTICATION_REQUIRED)
 	|| (accel && rep->sline.status == HTTP_UNAUTHORIZED))
@@ -873,7 +893,7 @@ authenticateDigestHandleReply(void *data, char *reply)
     if (reply) {
 	if ((t = strchr(reply, ' ')))
 	    *t = '\0';
-	if (*reply == '\0')
+	if (*reply == '\0' || *reply == '\n')
 	    reply = NULL;
     }
     assert(r->auth_user_request != NULL);
@@ -883,7 +903,7 @@ authenticateDigestHandleReply(void *data, char *reply)
     digest_user = auth_user_request->auth_user->scheme_data;
     if (reply && (strncasecmp(reply, "ERR", 3) == 0))
 	digest_request->flags.credentials_ok = 3;
-    else {
+    else if (reply) {
 	CvtBin(reply, digest_user->HA1);
 	digest_user->HA1created = 1;
     }
@@ -947,6 +967,7 @@ authDigestParse(authScheme * scheme, int n_configured, char *param_str)
 	memset(scheme->scheme_data, 0, sizeof(auth_digest_config));
 	digestConfig = scheme->scheme_data;
 	digestConfig->authenticateChildren = 5;
+	digestConfig->digestAuthRealm = xstrdup("Squid proxy-caching web server");
 	/* 5 minutes */
 	digestConfig->nonceGCInterval = 5 * 60;
 	/* 30 minutes */
@@ -957,6 +978,7 @@ authDigestParse(authScheme * scheme, int n_configured, char *param_str)
 	digestConfig->NonceStrictness = 0;
 	/* Verify nonce count */
 	digestConfig->CheckNonceCount = 1;
+	digestConfig->PostWorkaround = 0;
     }
     digestConfig = scheme->scheme_data;
     if (strcasecmp(param_str, "program") == 0) {
@@ -1117,7 +1139,7 @@ authenticateDigestDecodeAuth(auth_user_request_t * auth_user_request, const char
     digest_request = authDigestRequestNew();
 
     /* trim DIGEST from string */
-    while (!xisspace(*proxy_auth))
+    while (xisgraph(*proxy_auth))
 	proxy_auth++;
 
     /* Trim leading whitespace before decoding */
@@ -1389,6 +1411,7 @@ authenticateDigestStart(auth_user_request_t * auth_user_request, RH * handler, v
     cbdataLock(data);
     r->data = data;
     r->auth_user_request = auth_user_request;
+    authenticateAuthUserRequestLock(r->auth_user_request);
     snprintf(buf, 8192, "\"%s\":\"%s\"\n", digest_user->username, digest_request->realm);
     helperSubmit(digestauthenticators, buf, authenticateDigestHandleReply, r);
 }

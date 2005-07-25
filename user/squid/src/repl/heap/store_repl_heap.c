@@ -191,6 +191,7 @@ heap_purgeNext(RemovalPurgeWalker * walker)
     age = heap_peepminkey(heap->heap);
     entry = heap_extractmin(heap->heap);
     if (storeEntryLocked(entry)) {
+	storeLockObject(entry);
 	linklistPush(&heap_walker->locked_entries, entry);
 	goto try_again;
     }
@@ -220,6 +221,7 @@ heap_purgeDone(RemovalPurgeWalker * walker)
     while ((entry = linklistShift(&heap_walker->locked_entries))) {
 	heap_node *node = heap_insert(heap->heap, entry);
 	SET_POLICY_NODE(entry, node);
+	storeUnlockObject(entry);
     }
     safe_free(walker->_data);
     cbdataFree(walker);

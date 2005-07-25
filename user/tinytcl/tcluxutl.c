@@ -1,4 +1,6 @@
 /* 
+ * vi:ts=8 sw=4
+ *
  * tclUnixUtil.c --
  *
  *	This file contains a collection of utility procedures that
@@ -24,7 +26,9 @@
 
 #include "tclInt.h"
 #include "tclUnix.h"
+#include <syslog.h>
 
+#ifndef NO_FORK
 /*
  * Data structures of the following type are used by Tcl_Fork and
  * Tcl_WaitPids to keep track of child processes.
@@ -61,6 +65,7 @@ static int waitTableUsed = 0;	/* Number of entries in waitTable that
 				 * entries are always at the beginning
 				 * of the table. */
 #define WAIT_TABLE_GROW_BY 4
+#endif /* NO_FORK */
 
 /*
  *----------------------------------------------------------------------
@@ -148,6 +153,7 @@ Tcl_EvalFile(interp, fileName)
     return TCL_ERROR;
 }
 
+#ifndef NO_FORK
 /*
  *----------------------------------------------------------------------
  *
@@ -465,11 +471,24 @@ Tcl_CreatePipeline(interp, argc, argv, pidArrayPtr, inPipePtr,
     char *input = NULL;		/* Describes input for pipeline, depending
 				 * on "inputFile".  NULL means take input
 				 * from stdin/pipe. */
-    int inputFile = 0;		/* Non-zero means input is name of input
-				 * file.  Zero means input holds actual
+    int inputFile = 0;		/* 1 means input is name of input file.
+				 * 2 means input is filehandle name.
+				 * 0 means input holds actual
 				 * text to be input to command. */
+    int outputFile = 0;		/* 0 means output is the name of output file.
+				 * 1 means output is the name of output file, and append.
+				 * 2 means output is filehandle name.
+				 * All this is ignored if output is NULL
+				 */
+    int errorFile = 0;		/* 0 means error is the name of error file.
+				 * 1 means error is the name of error file, and append.
+				 * 2 means error is filehandle name.
+				 * All this is ignored if error is NULL
+				 */
     char *output = NULL;	/* Holds name of output file to pipe to,
 				 * or NULL if output goes to stdout/pipe. */
+    char *error = NULL;		/* Holds name of stderr file to pipe to,
+				 * or NULL if stderr goes to stderr/pipe. */
     int inputId = -1;		/* Readable file id input to current command in
 				 * pipeline (could be file or pipe).  -1
 				 * means use stdin. */
@@ -511,6 +530,7 @@ Tcl_CreatePipeline(interp, argc, argv, pidArrayPtr, inPipePtr,
     cmdCount = 1;
     lastBar = -1;
     for (i = 0; i < argc; i++) {
+	int removecount = 1;
 	if ((argv[i][0] == '|') && ((argv[i][1] == 0))) {
 	    if ((i == (lastBar+1)) || (i == (argc-1))) {
 		interp->result = "illegal use of | in command";
@@ -520,30 +540,64 @@ Tcl_CreatePipeline(interp, argc, argv, pidArrayPtr, inPipePtr,
 	    cmdCount++;
 	    continue;
 	} else if (argv[i][0] == '<') {
-	    if (argv[i][1] == 0) {
-		input = argv[i+1];
-		inputFile = 1;
-	    } else if ((argv[i][1] == '<') && (argv[i][2] == 0)) {
-		input = argv[i+1];
+	    input = argv[i] + 1;
+	    inputFile = 1;
+	    if (*input == '<') {
 		inputFile = 0;
-	    } else {
-		continue;
+		input++;
 	    }
-	} else if ((argv[i][0] == '>') && (argv[i][1] == 0)) {
-	    output = argv[i+1];
+	    else if (*input == '@') {
+		inputFile = 2;
+		input++;
+	    }
+
+	    if (!*input) {
+		input = argv[i + 1];
+		removecount++;
+	    }
+	} else if (argv[i][0] == '>') {
+	    output = argv[i] + 1;
+	    outputFile = 0;
+	    if (*output == '@') {
+		outputFile = 2;
+		output++;
+	    }
+	    else if (*output == '>') {
+		outputFile = 1;
+		output++;
+	    }
+	    if (!*output) {
+		output = argv[i + 1];
+		removecount++;
+	    }
+	} else if (argv[i][0] == '2' && argv[i][1] == '>') {
+	    error = argv[i] + 2;
+	    errorFile = 0;
+	    if (*error == '@') {
+		errorFile = 2;
+		error++;
+	    }
+	    else if (*error == '>') {
+		errorFile = 1;
+		error++;
+	    }
+	    if (!*error) {
+		error = argv[i + 1];
+		removecount++;
+	    }
 	} else {
 	    continue;
 	}
-	if (i >= (argc-1)) {
+	if (i + removecount > argc) {
 	    Tcl_AppendResult(interp, "can't specify \"", argv[i],
 		    "\" as last word in command", (char *) NULL);
 	    return -1;
 	}
-	for (j = i+2; j < argc; j++) {
-	    argv[j-2] = argv[j];
+	for (j = i+removecount; j < argc; j++) {
+	    argv[j-removecount] = argv[j];
 	}
-	argc -= 2;
-	i--;			/* Process new arg from same position. */
+	argc -= removecount;
+	i -= removecount;			/* Process new arg from same position. */
     }
     if (argc == 0) {
 	interp->result =  "didn't specify command to execute";
@@ -556,7 +610,7 @@ Tcl_CreatePipeline(interp, argc, argv, pidArrayPtr, inPipePtr,
      */
 
     if (input != NULL) {
-	if (!inputFile) {
+	if (inputFile == 1) {
 	    /*
 	     * Immediate data in command.  Create temporary file and
 	     * put data into file.
@@ -567,8 +621,12 @@ Tcl_CreatePipeline(interp, argc, argv, pidArrayPtr, inPipePtr,
 	    int length;
 
 	    strcpy(inName, TMP_STDIN_NAME);
+#ifdef HAVE_MKSTEMP
+	    inputId = mkstemp(inName);
+#else
 	    mktemp(inName);
 	    inputId = open(inName, O_RDWR|O_CREAT|O_TRUNC, 0600);
+#endif
 	    if (inputId < 0) {
 		Tcl_AppendResult(interp,
 			"couldn't create input file for command: ",
@@ -588,6 +646,21 @@ Tcl_CreatePipeline(interp, argc, argv, pidArrayPtr, inPipePtr,
 			Tcl_UnixError(interp), (char *) NULL);
 		goto error;
 	    }
+	} else if (inputFile == 2) {
+	    OpenFile *filePtr;
+
+	    /*
+	     * File redirection.  Just open the file.
+	     */
+	    if (TclGetOpenFile(interp, input, &filePtr) != TCL_OK) {
+		goto error;
+	    }
+	    if (!filePtr->readable) {
+		Tcl_AppendResult(interp, "\"", input,
+			"\" wasn't opened for reading", (char *) NULL);
+		goto error;
+	    }
+	    inputId = dup(fileno(filePtr->f2 ?: filePtr->f));
 	} else {
 	    /*
 	     * File redirection.  Just open the file.
@@ -619,16 +692,37 @@ Tcl_CreatePipeline(interp, argc, argv, pidArrayPtr, inPipePtr,
      */
 
     if (output != NULL) {
-	/*
-	 * Output is to go to a file.
-	 */
+	if (outputFile == 2) {
+	    OpenFile *filePtr;
 
-	lastOutputId = open(output, O_WRONLY|O_CREAT|O_TRUNC, 0666);
-	if (lastOutputId < 0) {
-	    Tcl_AppendResult(interp,
-		    "couldn't write file \"", output, "\": ",
-		    Tcl_UnixError(interp), (char *) NULL);
-	    goto error;
+	    if (TclGetOpenFile(interp, output, &filePtr) != TCL_OK) {
+		goto error;
+	    }
+	    if (!filePtr->writable) {
+		Tcl_AppendResult(interp, "\"", input,
+			"\" wasn't opened for writing", (char *) NULL);
+		goto error;
+	    }
+	    fflush(filePtr->f2 ?: filePtr->f);
+	    lastOutputId = dup(fileno(filePtr->f2 ?: filePtr->f));
+	}
+	else {
+	    /*
+	     * Output is to go to a file.
+	     */
+	    int mode = O_WRONLY|O_CREAT|O_TRUNC;
+
+	    if (outputFile == 1) {
+		mode = O_WRONLY|O_CREAT|O_APPEND;
+	    }
+
+	    lastOutputId = open(output, mode, 0666);
+	    if (lastOutputId < 0) {
+		Tcl_AppendResult(interp,
+			"couldn't write file \"", output, "\": ",
+			Tcl_UnixError(interp), (char *) NULL);
+		goto error;
+	    }
 	}
     } else if (outPipePtr != NULL) {
 	/*
@@ -646,22 +740,60 @@ Tcl_CreatePipeline(interp, argc, argv, pidArrayPtr, inPipePtr,
 	pipeIds[0] = pipeIds[1] = -1;
     }
 
-    /*
-     * Set up the standard error output sink for the pipeline, if
-     * requested.  Use a temporary file which is opened, then deleted.
-     * Could potentially just use pipe, but if it filled up it could
-     * cause the pipeline to deadlock:  we'd be waiting for processes
-     * to complete before reading stderr, and processes couldn't complete
-     * because stderr was backed up.
-     */
+    /* If we are redirecting stderr with 2>filename or 2>@fileId, then we ignore errFilePtr */
+    if (error != NULL) {
+	if (errorFile == 2) {
+	    OpenFile *filePtr;
 
-    if (errFilePtr != NULL) {
+	    if (TclGetOpenFile(interp, error, &filePtr) != TCL_OK) {
+		goto error;
+	    }
+	    if (!filePtr->writable) {
+		Tcl_AppendResult(interp, "\"", input,
+			"\" wasn't opened for writing", (char *) NULL);
+		goto error;
+	    }
+	    fflush(filePtr->f2 ?: filePtr->f);
+	    errorId = dup(fileno(filePtr->f2 ?: filePtr->f));
+	}
+	else {
+	    /*
+	     * Output is to go to a file.
+	     */
+	    int mode = O_WRONLY|O_CREAT|O_TRUNC;
+
+	    if (errorFile == 1) {
+		mode = O_WRONLY|O_CREAT|O_APPEND;
+	    }
+
+	    errorId = open(error, mode, 0666);
+	    if (errorId < 0) {
+		Tcl_AppendResult(interp,
+			"couldn't write file \"", error, "\": ",
+			Tcl_UnixError(interp), (char *) NULL);
+		goto error;
+	    }
+	}
+    } else if (errFilePtr != NULL) {
+	/*
+	 * Set up the standard error output sink for the pipeline, if
+	 * requested.  Use a temporary file which is opened, then deleted.
+	 * Could potentially just use pipe, but if it filled up it could
+	 * cause the pipeline to deadlock:  we'd be waiting for processes
+	 * to complete before reading stderr, and processes couldn't complete
+	 * because stderr was backed up.
+	 */
+
 #	define TMP_STDERR_NAME "/tmp/tcl.err.XXXXXX"
 	char errName[sizeof(TMP_STDERR_NAME) + 1];
 
 	strcpy(errName, TMP_STDERR_NAME);
+#ifdef HAVE_MKSTEMP
+	errorId = mkstemp(errName);
+#else
 	mktemp(errName);
 	errorId = open(errName, O_WRONLY|O_CREAT|O_TRUNC, 0600);
+#endif
 	if (errorId < 0) {
 	    errFileError:
 	    Tcl_AppendResult(interp,
@@ -806,6 +938,7 @@ cleanup:
     numPids = -1;
     goto cleanup;
 }
+#endif /* NO_FORK */
 
 /*
  *----------------------------------------------------------------------
@@ -870,57 +1003,104 @@ TclMakeFileTable(iPtr, index)
      * If the table doesn't even exist, then create it and initialize
      * entries for standard files.
      */
+#ifdef DEBUG_FDS
+    syslog(LOG_INFO, "TclMakeFileTable() numFiles=%d, index=%d", iPtr->numFiles, index);
+#endif
 
     if (iPtr->numFiles == 0) {
 	OpenFile *filePtr;
 	int i;
+	long dummy;
 
 	if (index < 2) {
 	    iPtr->numFiles = 3;
 	} else {
 	    iPtr->numFiles = index+1;
 	}
+
+#ifdef DEBUG_FDS
+	syslog(LOG_INFO, "TclMakeFileTable() allocating table of size %d", iPtr->numFiles);
+#endif
+
 	iPtr->filePtrArray = (OpenFile **) ckalloc((unsigned)
 		((iPtr->numFiles)*sizeof(OpenFile *)));
 	for (i = iPtr->numFiles-1; i >= 0; i--) {
 	    iPtr->filePtrArray[i] = NULL;
 	}
 
-	filePtr = (OpenFile *) ckalloc(sizeof(OpenFile));
-	filePtr->f = stdin;
-	filePtr->f2 = NULL;
-	filePtr->readable = 1;
-	filePtr->writable = 0;
-	filePtr->numPids = 0;
-	filePtr->pidPtr = NULL;
-	filePtr->errorId = -1;
-	iPtr->filePtrArray[0] = filePtr;
+#ifdef DEBUG_FDS
+	syslog(LOG_INFO, "TclMakeFileTable() stdin fd=%d, stdout fd=%d, stderr fd=%d", fileno(stdin), fileno(stdout), fileno(stderr));
+#endif
 
-	filePtr = (OpenFile *) ckalloc(sizeof(OpenFile));
-	filePtr->f = stdout;
-	filePtr->f2 = NULL;
-	filePtr->readable = 0;
-	filePtr->writable = 1;
-	filePtr->numPids = 0;
-	filePtr->pidPtr = NULL;
-	filePtr->errorId = -1;
-	iPtr->filePtrArray[1] = filePtr;
+	if (fcntl(fileno(stdout), F_GETFL, &dummy) == -1 && errno == EBADF) {
+#ifdef DEBUG_FDS
+		syslog(LOG_INFO, "TclMakeFileTable() reopening stdout");
+#endif
+	    freopen("/dev/null", "w", stdout);
+	}
+	if (fcntl(fileno(stdin), F_GETFL, &dummy) == -1 && errno == EBADF) {
+#ifdef DEBUG_FDS
+		syslog(LOG_INFO, "TclMakeFileTable() reopening stdin");
+#endif
+	    freopen("/dev/null", "r", stdin);
+	}
+	if (fcntl(fileno(stderr), F_GETFL, &dummy) == -1 && errno == EBADF) {
+#ifdef DEBUG_FDS
+		syslog(LOG_INFO, "TclMakeFileTable() reopening stderr");
+#endif
+	    freopen("/dev/console", "w", stderr);
+	}
 
-	filePtr = (OpenFile *) ckalloc(sizeof(OpenFile));
-	filePtr->f = stderr;
-	filePtr->f2 = NULL;
-	filePtr->readable = 0;
-	filePtr->writable = 1;
-	filePtr->numPids = 0;
-	filePtr->pidPtr = NULL;
-	filePtr->errorId = -1;
-	iPtr->filePtrArray[2] = filePtr;
+#ifdef DEBUG_FDS
+	syslog(LOG_INFO, "TclMakeFileTable() after freopen(): stdin fd=%d, stdout fd=%d, stderr fd=%d", fileno(stdin), fileno(stdout), fileno(stderr));
+#endif
+
+	if (fileno(stdin) >= 0) {
+	    filePtr = (OpenFile *) ckalloc(sizeof(OpenFile));
+	    filePtr->f = stdin;
+	    filePtr->f2 = NULL;
+	    filePtr->readable = 1;
+	    filePtr->writable = 0;
+	    filePtr->numPids = 0;
+	    filePtr->pidPtr = NULL;
+	    filePtr->errorId = -1;
+	    iPtr->filePtrArray[fileno(stdin)] = filePtr;
+	}
+
+	if (fileno(stdout) >= 0) {
+	    filePtr = (OpenFile *) ckalloc(sizeof(OpenFile));
+	    filePtr->f = stdout;
+	    filePtr->f2 = NULL;
+	    filePtr->readable = 0;
+	    filePtr->writable = 1;
+	    filePtr->numPids = 0;
+	    filePtr->pidPtr = NULL;
+	    filePtr->errorId = -1;
+	    iPtr->filePtrArray[fileno(stdout)] = filePtr;
+	}
+
+	if (fileno(stderr) >= 0) {
+	    filePtr = (OpenFile *) ckalloc(sizeof(OpenFile));
+	    filePtr->f = stderr;
+	    filePtr->f2 = NULL;
+	    filePtr->readable = 0;
+	    filePtr->writable = 1;
+	    filePtr->numPids = 0;
+	    filePtr->pidPtr = NULL;
+	    filePtr->errorId = -1;
+	    iPtr->filePtrArray[fileno(stderr)] = filePtr;
+	}
     } else if (index >= iPtr->numFiles) {
 	int newSize;
 	OpenFile **newPtrArray;
 	int i;
 
 	newSize = index+1;
+
+#ifdef DEBUG_FDS
+	syslog(LOG_INFO, "TclMakeFileTable() increasing size from %d to %d", iPtr->numFiles, newSize);
+#endif
+
 	newPtrArray = (OpenFile **) ckalloc((unsigned)
 		((newSize)*sizeof(OpenFile *)));
 	memcpy((VOID *) newPtrArray, (VOID *) iPtr->filePtrArray,
@@ -976,11 +1156,11 @@ TclGetOpenFile(interp, string, filePtrPtr)
     } else if ((string[0] == 's') && (string[1] == 't')
 	    && (string[2] == 'd')) {
 	if (strcmp(string+3, "in") == 0) {
-	    fd = 0;
+	    fd = fileno(stdin);
 	} else if (strcmp(string+3, "out") == 0) {
-	    fd = 1;
+	    fd = fileno(stdout);
 	} else if (strcmp(string+3, "err") == 0) {
-	    fd = 2;
+	    fd = fileno(stderr);
 	} else {
 	    goto badId;
 	}
@@ -991,19 +1171,20 @@ TclGetOpenFile(interp, string, filePtrPtr)
 	return TCL_ERROR;
     }
 
-    if (fd >= iPtr->numFiles) {
-	if ((iPtr->numFiles == 0) && (fd <= 2)) {
-	    TclMakeFileTable(iPtr, fd);
-	} else {
-	    notOpen:
-	    Tcl_AppendResult(interp, "file \"", string, "\" isn't open",
-		    (char *) NULL);
-	    return TCL_ERROR;
-	}
+#ifdef DEBUG_FDS
+    syslog(LOG_INFO, "TclGetOpenFile(%s), fd=%d, numFiles=%d", string, fd, iPtr->numFiles);
+#endif
+    if (iPtr->numFiles == 0) {
+	TclMakeFileTable(iPtr, fd);
     }
-    if (iPtr->filePtrArray[fd] == NULL) {
-	goto notOpen;
+    if (fd >= iPtr->numFiles || iPtr->filePtrArray[fd] == NULL) {
+	Tcl_AppendResult(interp, "file \"", string, "\" isn't open",
+		(char *) NULL);
+	return TCL_ERROR;
     }
+#ifdef DEBUG_FDS
+    syslog(LOG_INFO, "TclGetOpenFile(%s): filePtrArray[%d]=%p", string, fd, iPtr->filePtrArray[fd]);
+#endif
     *filePtrPtr = iPtr->filePtrArray[fd];
     return TCL_OK;
 }

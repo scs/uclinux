@@ -56,19 +56,22 @@
  *				uid_t.  0 means that it doesn't.
  */
 
-#define TCL_GETTOD 0
-#define TCL_GETWD 1
+#define TCL_GETTOD 1
 #define TCL_SYS_ERRLIST 1
-#define TCL_SYS_TIME_H 0
-#define TCL_SYS_WAIT_H 0
+#define TCL_SYS_TIME_H 1
+#define TCL_SYS_WAIT_H 1
 #define TCL_UNION_WAIT 0
-#define TCL_PID_T 0
+#define TCL_PID_T 1
 #define TCL_UID_T 1
+
+#define HAVE_MKSTEMP
+#define HAVE_GETHOSTNAME
 
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
 #include <pwd.h>
+#include <unistd.h>
 	   #if 0
        #include <pwd.h>
        #include <sys/types.h>
@@ -80,13 +83,14 @@
 #include <dirent.h>
 /* #include <sys/file.h> */
 #include <sys/stat.h>
+#include <sys/stat.h>
 #if TCL_SYS_TIME_H
-/* #   include <sys/time.h> */
+ #   include <sys/time.h> 
 #else
 #   include <time.h>
 #endif
 #if TCL_SYS_WAIT_H
-/* #   include <sys/wait.h> */
+ #   include <sys/wait.h> 
 #endif
 
 /*
@@ -289,6 +293,11 @@ extern int sys_nerr;
 #endif
 extern char **environ;
 
+/* uClinux can't do fork(), only vfork() */
+#ifdef __uClinux__
+#define NO_FORK
+#endif
+
 /*
  * Library procedures used by Tcl but not declared in a header file:
  */
@@ -314,7 +323,7 @@ extern int	open	   _ANSI_ARGS_((CONST char *path, int flags, ...));
 #endif
 extern int	pipe	   _ANSI_ARGS_((int *fdPtr));
 /* extern int	read	   _ANSI_ARGS_((int fd, char *buf, int numBytes)); */
-extern int	readlink   _ANSI_ARGS_((CONST char *path, char *buf, int size));
+/*extern int	readlink   _ANSI_ARGS_((CONST char *path, char *buf, int size));*/
 extern int	unlink 	   _ANSI_ARGS_((CONST char *path));
 /* extern int	write	   _ANSI_ARGS_((int fd, char *buf, int numBytes)); */
 #endif /* _CRAY */

@@ -62,14 +62,14 @@ a_file_read(async_queue_t * q, int fd, void *buf, int req_len, off_t offset,
 
     assert(q->aq_state == AQ_STATE_SETUP);
 
-#if 0
-    file_read(fd, buf, req_len, offset, callback, data);
-#endif
     /* Find a free slot */
     slot = a_file_findslot(q);
     if (slot < 0) {
 	/* No free slot? Callback error, and return */
-	fatal("Aiee! out of aiocb slots!\n");
+	debug(79, 1) ("WARNING: out of aiocb slots!\n");
+	/* fall back to blocking method */
+	file_read(fd, buf, req_len, offset, callback, data);
+	return;
     }
     /* Mark slot as ours */
     qe = &q->aq_queue[slot];
@@ -94,7 +94,9 @@ a_file_read(async_queue_t * q, int fd, void *buf, int req_len, off_t offset,
 
     /* Initiate aio */
     if (aio_read(&qe->aq_e_aiocb) < 0) {
-	fatalf("Aiee! aio_read() returned error (%d)!\n", errno);
+	debug(79, 1) ("WARNING: aio_read() returned error: %s\n", xstrerror());
+	/* fall back to blocking method */
+	file_read(fd, buf, req_len, offset, callback, data);
     }
 }
 
@@ -108,14 +110,14 @@ a_file_write(async_queue_t * q, int fd, off_t offset, void *buf, int len,
 
     assert(q->aq_state == AQ_STATE_SETUP);
 
-#if 0
-    file_write(fd, offset, buf, len, callback, data, freefunc);
-#endif
     /* Find a free slot */
     slot = a_file_findslot(q);
     if (slot < 0) {
 	/* No free slot? Callback error, and return */
-	fatal("Aiee! out of aiocb slots!\n");
+	debug(79, 1) ("WARNING: out of aiocb slots!\n");
+	/* fall back to blocking method */
+	file_write(fd, offset, buf, len, callback, data, freefunc);
+	return;
     }
     /* Mark slot as ours */
     qe = &q->aq_queue[slot];
@@ -140,7 +142,9 @@ a_file_write(async_queue_t * q, int fd, off_t offset, void *buf, int len,
 
     /* Initiate aio */
     if (aio_write(&qe->aq_e_aiocb) < 0) {
-	fatalf("Aiee! aio_read() returned error (%d)!\n", errno);
+	debug(79, 1) ("WARNING: aio_write() returned error: %s\n", xstrerror());
+	/* fall back to blocking method */
+	file_write(fd, offset, buf, len, callback, data, freefunc);
     }
 }
 

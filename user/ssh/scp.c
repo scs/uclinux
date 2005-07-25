@@ -510,7 +510,7 @@ source(int argc, char **argv)
 	static BUF buffer;
 	BUF *bp;
 	off_t i, amt, result, statbytes;
-	int fd, haderr, indx;
+	int fd = -1, haderr, indx;
 	char *last, *name, buf[2048];
 	int len;
 

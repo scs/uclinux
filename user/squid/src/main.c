@@ -329,7 +329,7 @@ serverConnectionsClose(void)
 static void
 mainReconfigure(void)
 {
-    debug(1, 1) ("Restarting Squid Cache (version %s)...\n", version_string);
+    debug(1, 1) ("Reconfiguring Squid Cache (version %s)...\n", version_string);
     reconfiguring = 1;
     /* Already called serverConnectionsClose and ipcacheShutdownServers() */
     serverConnectionsClose();
@@ -347,6 +347,9 @@ mainReconfigure(void)
     dnsShutdown();
 #else
     idnsShutdown();
+#endif
+#ifdef HS_FEAT_ICAP
+    icapClose();
 #endif
     redirectShutdown();
     authenticateShutdown();
@@ -376,6 +379,9 @@ mainReconfigure(void)
     idnsInit();
 #endif
     redirectInit();
+#ifdef HS_FEAT_ICAP
+    icapInit();
+#endif
     authenticateInit(&Config.authConfig);
     externalAclInit();
 #if USE_WCCP
@@ -504,6 +510,9 @@ mainInitialize(void)
     idnsInit();
 #endif
     redirectInit();
+#ifdef HS_FEAT_ICAP
+    icapInit();
+#endif
     authenticateInit(&Config.authConfig);
     externalAclInit();
     useragentOpenLog();
@@ -832,6 +841,10 @@ checkRunningPid(void)
 {
     pid_t pid;
     debug_log = stderr;
+    if (strcmp(Config.pidFilename, "none") == 0) {
+	debug(0, 1) ("No pid_filename specified. Trusting you know what you are doing.\n");
+	return 0;
+    }
     pid = readPidFile();
     if (pid < 2)
 	return 0;
@@ -881,6 +894,8 @@ watch_child(char *argv[])
      */
     /* Connect stdio to /dev/null in daemon mode */
     nullfd = open("/dev/null", O_RDWR | O_TEXT);
+    if (nullfd < 0)
+	fatalf("/dev/null: %s\n", xstrerror());
     dup2(nullfd, 0);
     if (opt_debug_stderr < 0) {
 	dup2(nullfd, 1);

@@ -87,6 +87,13 @@
  */
 #undef DELAY_POOLS
 
+
+/* 
+ * ICAP - Internet Content Adaptation Protocol 
+ */
+#undef HS_FEAT_ICAP
+
+
 /*
  * If you want to log User-Agent request header values, define this.
  * By default, they are written to useragent.log in the Squid log
@@ -281,6 +288,15 @@
  * we check for the existance of struct mallinfo
  */
 #undef HAVE_STRUCT_MALLINFO
+
+/*
+ * Some systems dont have va_copy */
+#undef HAVE_VA_COPY
+
+/*
+ * Some systems support __va_copy */
+#undef HAVE___VA_COPY
+
 
 /*
  * Do we want to use truncate(2) or unlink(2)?

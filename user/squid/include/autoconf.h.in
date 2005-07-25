@@ -1,4 +1,4 @@
-/* include/autoconf.h.in.  Generated automatically from configure.in by autoheader.  */
+/* include/autoconf.h.in.  Generated automatically from configure.in by autoheader 2.13.  */
 /* 
  * All configurable options are enabled by using --enable-....
  * when running configure. See configure --help for a list
@@ -123,6 +123,11 @@
  * Traffic management via "delay pools".
  */
 #undef DELAY_POOLS
+
+/* 
+ * ICAP - Internet Content Adaptation Protocol 
+ */
+#undef HS_FEAT_ICAP
 
 /*
  * If you want to log User-Agent request header values, define this.
@@ -307,6 +312,14 @@
 #undef HAVE_STRUCT_MALLINFO
 
 /*
+ * Some systems dont have va_copy */
+#undef HAVE_VA_COPY
+
+/*
+ * Some systems support __va_copy */
+#undef HAVE___VA_COPY
+
+/*
  * Do we want to use truncate(2) or unlink(2)?
  */
 #undef USE_TRUNCATE
@@ -462,6 +475,9 @@
 /* Define if you have the getspnam function.  */
 #undef HAVE_GETSPNAM
 
+/* Define if you have the initgroups function.  */
+#undef HAVE_INITGROUPS
+
 /* Define if you have the lrand48 function.  */
 #undef HAVE_LRAND48
 
@@ -561,8 +577,14 @@
 /* Define if you have the statfs function.  */
 #undef HAVE_STATFS
 
+/* Define if you have the strcasestr function.  */
+#undef HAVE_STRCASESTR
+
 /* Define if you have the strerror function.  */
 #undef HAVE_STRERROR
+
+/* Define if you have the strnstr function.  */
+#undef HAVE_STRNSTR
 
 /* Define if you have the sysconf function.  */
 #undef HAVE_SYSCONF
@@ -719,6 +741,12 @@
 
 /* Define if you have the <resolv.h> header file.  */
 #undef HAVE_RESOLV_H
+
+/* Define if you have the <sasl.h> header file.  */
+#undef HAVE_SASL_H
+
+/* Define if you have the <sasl/sasl.h> header file.  */
+#undef HAVE_SASL_SASL_H
 
 /* Define if you have the <sched.h> header file.  */
 #undef HAVE_SCHED_H

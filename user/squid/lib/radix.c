@@ -113,9 +113,15 @@
 
 #include "radix.h"
 
+
 int squid_max_keylen;
 struct squid_radix_mask *squid_rn_mkfreelist;
-struct squid_radix_node_head *squid_mask_rnhead;
+/* Silly construct to get rid of GCC-3.3 warning about type-punning */
+union {
+	struct squid_radix_node_head *rn;
+	void *ptr;
+} squid_mask_rnhead_u;
+#define squid_mask_rnhead squid_mask_rnhead_u.rn
 static char *addmask_key;
 static unsigned char normal_chars[] =
 {0, 0x80, 0xc0, 0xe0, 0xf0, 0xf8, 0xfc, 0xfe, 0xFF};
@@ -981,7 +987,7 @@ squid_rn_init(void)
     addmask_key = cplim = rn_ones + squid_max_keylen;
     while (cp < cplim)
 	*cp++ = -1;
-    if (squid_rn_inithead((void **) &squid_mask_rnhead, 0) == 0) {
+    if (squid_rn_inithead(&squid_mask_rnhead_u.ptr, 0) == 0) {
 	fprintf(stderr, "rn_init2 failed.\n");
 	exit(-1);
     }
