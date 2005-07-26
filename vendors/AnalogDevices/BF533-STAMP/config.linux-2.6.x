@@ -494,6 +494,7 @@ CONFIG_SOUND_GAMEPORT=y
 # CONFIG_BF533_PFLAGS is not set
 # CONFIG_VT is not set
 # CONFIG_SERIAL_NONSTANDARD is not set
+# CONFIG_BF5xx_PPIFCD is not set
 
 #
 # Serial drivers
