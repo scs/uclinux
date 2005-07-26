@@ -4,6 +4,7 @@ comment 'Vendor/Product Selection'
 comment 'Select the Vendor you wish to target'
 choice 'Vendor' "3com CONFIG_DEFAULTS_3COM \
 ADI CONFIG_DEFAULTS_ADI \
+AnalogDevices CONFIG_DEFAULTS_ANALOGDEVICES \
 Arcturus CONFIG_DEFAULTS_ARCTURUS \
 Arnewsh CONFIG_DEFAULTS_ARNEWSH \
 Atmel CONFIG_DEFAULTS_ATMEL \
@@ -50,9 +51,14 @@ Xcopilot CONFIG_DEFAULTS_3COM_XCOPILOT \
 " PalmIIIx
 fi
 if [ "$CONFIG_DEFAULTS_ADI" = "y" ]; then
-choice 'ADI Products' "BF533 CONFIG_DEFAULTS_ADI_BF533 \
-Coyote CONFIG_DEFAULTS_ADI_COYOTE \
-" BF533
+choice 'ADI Products' "Coyote CONFIG_DEFAULTS_ADI_COYOTE \
+" Coyote
+fi
+if [ "$CONFIG_DEFAULTS_ANALOGDEVICES" = "y" ]; then
+choice 'AnalogDevices Products' "BF533-EZKIT CONFIG_DEFAULTS_ANALOGDEVICES_BF533_EZKIT \
+BF533-STAMP CONFIG_DEFAULTS_ANALOGDEVICES_BF533_STAMP \
+BF537-EZKIT CONFIG_DEFAULTS_ANALOGDEVICES_BF537_EZKIT \
+" BF533-EZKIT
 fi
 if [ "$CONFIG_DEFAULTS_ARCTURUS" = "y" ]; then
 choice 'Arcturus Products' "uC5272 CONFIG_DEFAULTS_ARCTURUS_UC5272 \
@@ -256,10 +262,8 @@ fi
 endmenu
 mainmenu_option next_comment
 comment 'Kernel/Library/Defaults Selection'
-choice 'Kernel Version' "linux-2.0.x CONFIG_DEFAULTS_KERNEL_2_0 \
-linux-2.4.x CONFIG_DEFAULTS_KERNEL_2_4 \
-linux-2.6.x CONFIG_DEFAULTS_KERNEL_2_6 \
-" linux-2.6.x
+comment 'Kernel is linux-2.6.x'
+define_bool CONFIG_DEFAULTS_KERNEL_2_6 y
 choice 'Libc Version' "glibc CONFIG_DEFAULTS_LIBC_GLIBC \
 uC-libc CONFIG_DEFAULTS_LIBC_UC_LIBC \
 uClibc CONFIG_DEFAULTS_LIBC_UCLIBC \
