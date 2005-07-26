@@ -95,6 +95,18 @@ asmlinkage void trap_c(struct pt_regs *fp)
 		fp->pc = fp->retx;      /* gdb wants the value of the pc*/
 		sig = SIGTRAP;
 		break;
+	    case VEC_EXCPT04:		/* Atomic test and set service */
+		{
+		  int *spinlock = (int *)fp->r0;
+		  if (*spinlock)
+		    fp->r0 = 1;
+		  else
+		    {
+		      *spinlock = 1;
+		      fp->r0 = 0;
+		    }
+		}
+		goto nsig;
 	    case VEC_UNDEF_I:
 		info.si_code = ILL_ILLOPC;
 		sig = SIGILL;
