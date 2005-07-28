@@ -86,6 +86,19 @@ int rtc_get(time_t *time_in_seconds)
 					MIN_TO_SECS(tm_min) + 
 						HRS_TO_SECS(tm_hour) + 
 							DAYS_TO_SECS(tm_day);
+
+	/* a time_t greater than "7FFF FFFF" would be treated as negative manywhere,so we just reset it.*/
+	/* This will happen in following situations:
+	     1. No battery for RTC. The random time value will be reset to 0.
+	     2. On a system with battery, user sets time value to be greater than 7FFF FFFF.
+	     3. Many many years passed after user sets it!  
+	*/
+	if ((unsigned long)(*(time_in_seconds)) >= 0x7FFFFFFF) {
+	  *(volatile unsigned long *) RTC_STAT = 0;
+	  *(time_in_seconds) = 0;
+	  wait_for_complete();
+	}
+	
 	return 0;
 }
 
