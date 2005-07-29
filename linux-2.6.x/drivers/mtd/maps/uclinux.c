@@ -91,7 +91,7 @@ int __init uclinux_mtd_init(void)
 
 #if defined(CONFIG_EXT2_FS) || defined(CONFIG_EXT3_FS)
 	mapp->size = PAGE_ALIGN(*((unsigned long *)(addr + 0x404)));
-	mapp->size = (mapp->size * 1000);
+	mapp->size = (mapp->size * 1024);
 #endif
 
 	mapp->bankwidth = 4;

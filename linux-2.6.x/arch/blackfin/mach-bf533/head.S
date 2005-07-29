@@ -190,7 +190,7 @@ _clear_bss:
 	r0 = r0 + r1;
 	p2 = r0;
 	r1 = [p2];
-	r0 = 1000;
+	r0 = 1024;
 	r1 *= r0;
 	r0.l = _end;
 	r0.h = _end;
