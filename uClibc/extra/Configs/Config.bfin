@@ -8,10 +8,22 @@ config TARGET_ARCH
 
 config HAVE_ELF
 	bool
-	select ARCH_HAS_NO_MMU
-	select ARCH_LITTLE_ENDIAN
-	select HAVE_NO_SHARED
-	select ARCH_HAS_NO_LDSO
+	default y
+
+config ARCH_SUPPORTS_LITTLE_ENDIAN
+	bool
+	default y
+	
+config ARCH_HAS_NO_MMU
+	bool
+	default y
+
+config HAVE_NO_SHARED
+	bool
+	default y
+
+config ARCH_HAS_NO_LDSO
+	bool
 	default y
 
 config ARCH_CFLAGS
