@@ -9,7 +9,7 @@
 MY_CFLAGS = -I/usr/include -I.
 BUILD_CFLAGS += $(MY_CFLAGS)
 BUILD_CC = gcc
-CFLAGS += -D__USE_BSD -I.
+CFLAGS += -D__USE_BSD -I$(ROOTDIR)/lib/zlib -I.
 
 TARGETS = erase eraseall \
 	      nftl_format nftldump doc_loadbios doc_loadipl \
