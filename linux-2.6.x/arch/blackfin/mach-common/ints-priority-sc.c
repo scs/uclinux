@@ -338,7 +338,7 @@ void do_irq(int vec, struct pt_regs *fp)
           struct ivgx *ivg_stop = ivg7_13[vec-IVG7].istop;
 	  unsigned long sic_status;	
 
-	  __builtin_bfin_csync();
+	  __builtin_bfin_ssync();
  	  sic_status = *pSIC_IMASK & *pSIC_ISR;
 
 	  for(;; ivg++) {
