@@ -289,6 +289,9 @@ PERL		= perl
 CHECK		= sparse
 MODFLAGS	= -DMODULE
 CFLAGS_MODULE   = $(MODFLAGS)
+ifeq ($(ARCH), bfinnommu)
+CFLAGS_MODULE   += -mlong-calls
+endif
 AFLAGS_MODULE   = $(MODFLAGS)
 LDFLAGS_MODULE  = -r
 CFLAGS_KERNEL	=

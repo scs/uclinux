@@ -715,22 +715,23 @@ config SERIAL_MPC52xx_CONSOLE_BAUD
 	  console baudrate
 
 config SERIAL_BLACKFIN
-	tristate 'Blackfin Serial Driver'
+	bool 'Blackfin Serial Driver'
+	depends on BFIN
+	
 choice
-	prompt	""
-	depends on (BF533 || BF532 || BF531 || BF537 || BF536 || BF534 || BF561) 
+	prompt	"Mode"
+	depends on SERIAL_BLACKFIN
 	default SERIAL_BLACKFIN_DMA
 	---help---
 	  This driver supports the built-in serial ports of the Blackfin family of CPUs
 
 config SERIAL_BLACKFIN_DMA
-	bool 'DMA mode on RX and TX'
-	depends on BLKFIN_SIMPLE_DMA
+	bool 'DMA on RX and TX'
 	help
 	  This driver works under DMA mode. If this option is selected, the blackfin simple dma driver is also enabled.
 	
 config SERIAL_BLACKFIN_PIO
-	bool 'PIO mode on RX and TX' 
+	bool 'PIO on RX and TX' 
 	help
 	  This driver works under PIO mode.
 endchoice
