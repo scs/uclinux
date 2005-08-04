@@ -222,6 +222,8 @@ _clear_bss:
 	p1.h = _ramstart;
 	p3.l = _ebss;
 	p3.h = _ebss;
+
+#if defined(CONFIG_ROMFS_FS)
 	r0 = p3;
 	r1.l = lo(FILE_HEAD_START);
 	r1.h = hi(FILE_HEAD_START);
@@ -234,6 +236,10 @@ _clear_bss:
 	r0.h = _end;
 	r1 = r0 + r1;
 	[p1] = r1;
+#else
+	r1 = p3;
+	[p1] = r1;
+#endif
 
 	r0.l = lo(RAM_END);
 	r0.h = hi(RAM_END);
