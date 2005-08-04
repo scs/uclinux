@@ -21,6 +21,8 @@
 #4.2 "./test_kgdb /dev/ttyS0 source_code_dir"
 #
 
+set send_slow {1 .01}
+
 set SERIAL_PORT_BAUD_RATE   "57600"
 set TITLE "KGDB Test"
 set targetip 10.100.4.2
@@ -82,7 +84,7 @@ while 1 {
 }
 
 for {set i 0} {$i < $nkparams} {incr i} {
-    send [lindex $kparams $i]
+    send -s [lindex $kparams $i]
 
     while 1 {
 	  expect {
@@ -101,7 +103,7 @@ for {set i 0} {$i < $nkparams} {incr i} {
     }
 }
 
-send "connect\r"
+send -s "connect\r"
 while 1 {
 	expect {
 		"ype the escape character*" {
@@ -118,9 +120,9 @@ while 1 {
 set timeout 1
 set flag 0
 for {set i 0} {$i<4} {incr i} {
-   send "\r"
+   send -s "\r"
    expect {
-      "stamp>" {
+      ">" {
          set flag 1
       }
    }
@@ -132,14 +134,14 @@ if {$flag==0} {
 
 set timeout 2
 set flag 0
-send "tftpboot\r"
+send -s "tftpboot\r"
 while 1 {
    expect {
-      "Using MAC" {
+      "TFTP" {
          set flag 1
          set timeout 30
       }
-      "stamp>" {
+      ">" {
          break
       }
    }
@@ -151,7 +153,7 @@ if {$flag==0} {
 
 set timeout 1
 set flag 0
-send "bootelf\r"
+send -s "bootelf\r"
 while 1 {
    expect {
       "Loading .text" {
@@ -169,7 +171,7 @@ if {$flag==0} {
 }
 
 set timeout 3
-send "ifconfig eth0 $targetip\r"
+send -s "ifconfig eth0 $targetip\r"
 expect {
 	"> " {
 	}
@@ -261,7 +263,7 @@ while 1 {
 			exit
 		}
 	}
-	send "cat /proc/kgdbtest\r"
+	send -s "cat /proc/kgdbtest\r"
 	set spawn_id $gdb_id
 	expect {
 		"Breakpoint 1" {
@@ -315,7 +317,7 @@ while 1 {
 			exit
 		}
 	}
-	send "cat /proc/kgdbtest\r"
+	send -s "cat /proc/kgdbtest\r"
 	set spawn_id $gdb_id
 	expect {
 		"Breakpoint 1" {
@@ -456,7 +458,7 @@ while 1 {
 			exit
 		}
 	}
-	send "cat /proc/kgdbtest\r"
+	send -s "cat /proc/kgdbtest\r"
 	set spawn_id $gdb_id
 	expect {
 		"Breakpoint 2" {

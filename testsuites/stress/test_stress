@@ -16,6 +16,8 @@
 #4.2 "./test_stress /dev/ttyS0"
 #
 
+set send_slow {1 .01}
+
 set SERIAL_PORT_BAUD_RATE   "57600"
 set TITLE "Stress Test"
 set PING_COUNT   1999
@@ -80,7 +82,7 @@ while 1 {
 }
 
 for {set i 0} {$i < $nkparams} {incr i} {
-    send [lindex $kparams $i]
+    send -s [lindex $kparams $i]
 
     while 1 {
 	  expect {
@@ -99,7 +101,7 @@ for {set i 0} {$i < $nkparams} {incr i} {
     }
 }
 
-send "connect\r"
+send -s "connect\r"
 while 1 {
 	expect {
 		"ype the escape character*" {
@@ -116,9 +118,9 @@ while 1 {
 set timeout 1
 set flag 0
 for {set i 0} {$i<4} {incr i} {
-   send "\r"
+   send -s "\r"
    expect {
-      "stamp>" {
+      ">" {
          set flag 1
       }
    }
@@ -130,14 +132,14 @@ if {$flag==0} {
 
 set timeout 2
 set flag 0
-send "tftpboot\r"
+send -s "tftpboot\r"
 while 1 {
    expect {
-      "Using MAC" {
+      "TFTP" {
          set flag 1
          set timeout 30
       }
-      "stamp>" {
+      ">" {
          break
       }
    }
@@ -149,7 +151,7 @@ if {$flag==0} {
 
 set timeout 1
 set flag 0
-send "bootelf\r"
+send -s "bootelf\r"
 while 1 {
    expect {
       "Loading .text" {
@@ -167,7 +169,7 @@ if {$flag==0} {
 }
 
    set timeout 3
-   send "ifconfig eth0 down\r"
+   send -s "ifconfig eth0 down\r"
    expect {
 	"> " {
 	}
@@ -178,7 +180,7 @@ if {$flag==0} {
          }
    }
    
-   send "ifconfig eth0 $targetip\r"
+   send -s "ifconfig eth0 $targetip\r"
    expect {
 	"eth0: link up" {
 	}
@@ -201,11 +203,11 @@ puts "*********************************\r"
    set test_telnet_id $spawn_id
    
    set spawn_id $kermit_spawn_id
-   send "ping $serverip\r"
+   send -s "ping $serverip\r"
    while 1 {
       expect {
 	"icmp_seq=$PING_COUNT" {
-		send "\3"
+		send -s "\3"
 		break
 	}
 
@@ -260,9 +262,9 @@ puts "*********************************\r"
    
    if {$found == 2} {
 		set spawn_id $test_telnet_id
-		send "\3"
+		send -s "\3"
 		set spawn_id $test_ftp_id
-		send "\3"
+		send -s "\3"
 		puts "                                                                        \r"
 		puts "$TITLE ............\[PASS\]\r"
 		exit

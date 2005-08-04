@@ -14,6 +14,8 @@
 #4.2 "./test_reboot /dev/ttyS0"
 #
 
+set send_slow {1 .01}
+
 set SERIAL_PORT_BAUD_RATE   "57600"
 set TITLE "Reboot Test"
 set count 30
@@ -69,7 +71,7 @@ while 1 {
 }
 
 for {set i 0} {$i < $nkparams} {incr i} {
-    send [lindex $kparams $i]
+    send -s [lindex $kparams $i]
 
     while 1 {
 	  expect {
@@ -88,7 +90,7 @@ for {set i 0} {$i < $nkparams} {incr i} {
     }
 }
 
-send "connect\r"
+send -s "connect\r"
 while 1 {
 	expect {
 		"ype the escape character*" {
@@ -122,9 +124,9 @@ sleep 1
 
 set timeout 2
 while 1 {
-   send "\r"
+   send -s "\r"
    expect {
-      "stamp>" {
+      ">" {
          break
       }
 	timeout {
@@ -136,12 +138,12 @@ while 1 {
 }
 
 set timeout 30
-send "tftpboot\r"
+send -s "tftpboot\r"
 while 1 {
    expect {
-      "Using MAC" {
+      "TFTP" {
       }
-      "stamp>" {
+      ">" {
          break
       }
 	timeout {
@@ -153,7 +155,7 @@ while 1 {
 }
 
 set timeout 5
-send "bootelf\r"
+send -s "bootelf\r"
 while 1 {
    expect {
       "Linux version" {
@@ -181,7 +183,7 @@ puts "Wait for 1 minutes before reboot.\r"
 sleep 60
 
 set timeout 5
-send "\r\r"
+send -s "\r\r"
 while 1 {
    expect {
 	">" {
@@ -197,7 +199,7 @@ while 1 {
    }
 }
 
-send "reboot\r"
+send -s "reboot\r"
 
 }
 

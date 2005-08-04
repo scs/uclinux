@@ -20,6 +20,8 @@
 #5.2 "./test_audio /dev/ttyS0"
 #
 
+set send_slow {1 .01}
+
 set SERIAL_PORT_BAUD_RATE   "57600"
 set STRDATA "abcdefghijklmnopqrstuvwxyz0123456789"
 set TITLE "Audio Test"
@@ -72,7 +74,7 @@ while 1 {
 }
 
 for {set i 0} {$i < $nkparams} {incr i} {
-    send [lindex $kparams $i]
+    send -s [lindex $kparams $i]
 
     while 1 {
 	  expect {
@@ -91,7 +93,7 @@ for {set i 0} {$i < $nkparams} {incr i} {
     }
 }
 
-send "connect\r"
+send -s "connect\r"
 while 1 {
 	expect {
 		"ype the escape character*" {
@@ -108,9 +110,9 @@ while 1 {
 set timeout 1
 set flag 0
 for {set i 0} {$i<4} {incr i} {
-   send "\r"
+   send -s "\r"
    expect {
-      "stamp>" {
+      ">" {
          set flag 1
       }
    }
@@ -122,14 +124,14 @@ if {$flag==0} {
 
 set timeout 2
 set flag 0
-send "tftpboot\r"
+send -s "tftpboot\r"
 while 1 {
    expect {
-      "Using MAC" {
+      "TFTP" {
          set flag 1
          set timeout 30
       }
-      "stamp>" {
+      ">" {
          break
       }
    }
@@ -141,7 +143,7 @@ if {$flag==0} {
 
 set timeout 1
 set flag 0
-send "bootelf\r"
+send -s "bootelf\r"
 while 1 {
    expect {
       "Loading .text" {
@@ -190,7 +192,7 @@ sleep 3
 while 1 {
    set timeout 10
    incr case_num
-   send "vrec -w -S -b 16 -s 44100 -t 4 aaa\r"
+   send -s "vrec -w -S -b 16 -s 44100 -t 4 aaa\r"
    expect {
 	"> " {
 	}
@@ -200,7 +202,7 @@ while 1 {
 		exit
          }
    }
-   send "vplay aaa\r"
+   send -s "vplay aaa\r"
    expect {
 	"> " {
 		puts "\rCase $case_num ...DONE\r"
@@ -213,7 +215,7 @@ while 1 {
          }
    }
    incr case_num
-   send "vrec -w -S -b 16 -s 22000 -t 6 aaa\r"
+   send -s "vrec -w -S -b 16 -s 22000 -t 6 aaa\r"
    expect {
 	"> " {
 	}
@@ -224,31 +226,7 @@ while 1 {
 		exit
          }
    }
-   send "vplay aaa\r"
-   expect {
-	"> " {
-		puts "\rCase $case_num ...DONE\r"
-	}
-
-         timeout {
-		puts "\rCase $case_num ...FAIL\r"
-		puts "$TITLE ............\[FAIL\]\r"
-		exit
-         }
-   }
-   incr case_num
-   send "vrec -w -S -b 16 -s 11000 -t 6 aaa\r"
-   expect {
-	"> " {
-	}
-
-         timeout {
-		puts "\rCase $case_num ...FAIL\r"
-		puts "$TITLE ............\[FAIL\]\r"
-		exit
-         }
-   }
-   send "vplay aaa\r"
+   send -s "vplay aaa\r"
    expect {
 	"> " {
 		puts "\rCase $case_num ...DONE\r"
@@ -261,7 +239,7 @@ while 1 {
          }
    }
    incr case_num
-   send "vrec -w -S -b 16 -s 8000 -t 6 aaa\r"
+   send -s "vrec -w -S -b 16 -s 11000 -t 6 aaa\r"
    expect {
 	"> " {
 	}
@@ -272,31 +250,7 @@ while 1 {
 		exit
          }
    }
-   send "vplay aaa\r"
-   expect {
-	"> " {
-		puts "\rCase $case_num ...DONE\r"
-	}
-
-         timeout {
-		puts "\rCase $case_num ...FAIL\r"
-		puts "$TITLE ............\[FAIL\]\r"
-		exit
-         }
-   }
-   incr case_num
-   send "vrec -w -S -b 8 -s 44100 -t 6 aaa\r"
-   expect {
-	"> " {
-	}
-
-         timeout {
-		puts "\rCase $case_num ...FAIL\r"
-		puts "$TITLE ............\[FAIL\]\r"
-		exit
-         }
-   }
-   send "vplay aaa\r"
+   send -s "vplay aaa\r"
    expect {
 	"> " {
 		puts "\rCase $case_num ...DONE\r"
@@ -309,7 +263,7 @@ while 1 {
          }
    }
    incr case_num
-   send "vrec -w -S -b 8 -s 8000 -t 6 aaa\r"
+   send -s "vrec -w -S -b 16 -s 8000 -t 6 aaa\r"
    expect {
 	"> " {
 	}
@@ -320,31 +274,7 @@ while 1 {
 		exit
          }
    }
-   send "vplay aaa\r"
-   expect {
-	"> " {
-		puts "\rCase $case_num ...DONE\r"
-	}
-
-         timeout {
-		puts "\rCase $case_num ...FAIL\r"
-		puts "$TITLE ............\[FAIL\]\r"
-		exit
-         }
-   }
-   incr case_num
-   send "vrec -w -b 16 -s 44100 -t 6 aaa\r"
-   expect {
-	"> " {
-	}
-
-         timeout {
-		puts "\rCase $case_num ...FAIL\r"
-		puts "$TITLE ............\[FAIL\]\r"
-		exit
-         }
-   }
-   send "vplay aaa\r"
+   send -s "vplay aaa\r"
    expect {
 	"> " {
 		puts "\rCase $case_num ...DONE\r"
@@ -357,7 +287,7 @@ while 1 {
          }
    }
    incr case_num
-   send "vrec -w -b 16 -s 11000 -t 6 aaa\r"
+   send -s "vrec -w -S -b 8 -s 44100 -t 6 aaa\r"
    expect {
 	"> " {
 	}
@@ -368,7 +298,7 @@ while 1 {
 		exit
          }
    }
-   send "vplay aaa\r"
+   send -s "vplay aaa\r"
    expect {
 	"> " {
 		puts "\rCase $case_num ...DONE\r"
@@ -381,7 +311,7 @@ while 1 {
          }
    }
    incr case_num
-   send "vrec -w -b 8 -s 22000 -t 6 aaa\r"
+   send -s "vrec -w -S -b 8 -s 8000 -t 6 aaa\r"
    expect {
 	"> " {
 	}
@@ -392,7 +322,79 @@ while 1 {
 		exit
          }
    }
-   send "vplay aaa\r"
+   send -s "vplay aaa\r"
+   expect {
+	"> " {
+		puts "\rCase $case_num ...DONE\r"
+	}
+
+         timeout {
+		puts "\rCase $case_num ...FAIL\r"
+		puts "$TITLE ............\[FAIL\]\r"
+		exit
+         }
+   }
+   incr case_num
+   send -s "vrec -w -b 16 -s 44100 -t 6 aaa\r"
+   expect {
+	"> " {
+	}
+
+         timeout {
+		puts "\rCase $case_num ...FAIL\r"
+		puts "$TITLE ............\[FAIL\]\r"
+		exit
+         }
+   }
+   send -s "vplay aaa\r"
+   expect {
+	"> " {
+		puts "\rCase $case_num ...DONE\r"
+	}
+
+         timeout {
+		puts "\rCase $case_num ...FAIL\r"
+		puts "$TITLE ............\[FAIL\]\r"
+		exit
+         }
+   }
+   incr case_num
+   send -s "vrec -w -b 16 -s 11000 -t 6 aaa\r"
+   expect {
+	"> " {
+	}
+
+         timeout {
+		puts "\rCase $case_num ...FAIL\r"
+		puts "$TITLE ............\[FAIL\]\r"
+		exit
+         }
+   }
+   send -s "vplay aaa\r"
+   expect {
+	"> " {
+		puts "\rCase $case_num ...DONE\r"
+	}
+
+         timeout {
+		puts "\rCase $case_num ...FAIL\r"
+		puts "$TITLE ............\[FAIL\]\r"
+		exit
+         }
+   }
+   incr case_num
+   send -s "vrec -w -b 8 -s 22000 -t 6 aaa\r"
+   expect {
+	"> " {
+	}
+
+         timeout {
+		puts "\rCase $case_num ...FAIL\r"
+		puts "$TITLE ............\[FAIL\]\r"
+		exit
+         }
+   }
+   send -s "vplay aaa\r"
    expect {
 	"> " {
 		puts "\rCase $case_num ...DONE\r"
@@ -409,14 +411,14 @@ while 1 {
    sleep 1
    set timeout 10
 
-   send "\r"
+   send -s "\r"
    expect {
 	"> " {
 	}
    }
 
    incr case_num
-   send "vrec -w -S -b 16 -s 8000 -t 6|vplay\r"
+   send -s "vrec -w -S -b 16 -s 8000 -t 6|vplay\r"
    expect {
 	"> " {
 	}
@@ -430,7 +432,7 @@ while 1 {
 
    sleep 1
    incr case_num
-   send "vrec -w -S -b 16 -s 48000 -t 6|vplay\r"
+   send -s "vrec -w -S -b 16 -s 48000 -t 6|vplay\r"
    expect {
 	"> " {
 	}
@@ -444,7 +446,7 @@ while 1 {
    
    sleep 1
    incr case_num
-   send "vrec -w -b 16 -s 8000 -t 6|vplay\r"
+   send -s "vrec -w -b 16 -s 8000 -t 6|vplay\r"
    expect {
 	"> " {
 	}
@@ -458,7 +460,7 @@ while 1 {
    
    sleep 1
    incr case_num
-   send "vrec -w -b 16 -s 48000 -t 6|vplay\r"
+   send -s "vrec -w -b 16 -s 48000 -t 6|vplay\r"
    expect {
 	"> " {
 	}
@@ -472,7 +474,7 @@ while 1 {
    
    sleep 1
    incr case_num
-   send "vrec -w -b 8 -s 8000 -t 6|vplay\r"
+   send -s "vrec -w -b 8 -s 8000 -t 6|vplay\r"
    expect {
 	"> " {
 	}
@@ -486,7 +488,7 @@ while 1 {
 
    sleep 1
    incr case_num
-   send "vrec -w -b 8 -s 48000 -t 6|vplay\r"
+   send -s "vrec -w -b 8 -s 48000 -t 6|vplay\r"
    expect {
 	"> " {
 	}
@@ -500,7 +502,7 @@ while 1 {
 
    sleep 1
    incr case_num
-   send "vrec -w -b 16 -s 11000 -t 8 aaa\r"
+   send -s "vrec -w -b 16 -s 11000 -t 8 aaa\r"
    expect {
 	"> " {
 	}
@@ -511,7 +513,7 @@ while 1 {
 		exit
          }
    }
-   send "vplay aaa &\r"
+   send -s "vplay aaa &\r"
    expect {
 	"Playing WAVE" {
 	}
@@ -523,7 +525,7 @@ while 1 {
          }
    }
 
-   send "\r"
+   send -s "\r"
    expect {
 	"> " {
 	}
@@ -534,7 +536,7 @@ while 1 {
 		exit
          }
    }
-   send "vrec -w -b 16 -s 11000 -t 4 bbb\r"
+   send -s "vrec -w -b 16 -s 11000 -t 4 bbb\r"
    expect {
 	"> " {
 	}

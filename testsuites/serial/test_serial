@@ -14,6 +14,8 @@
 #4.2 "./test_serial /dev/ttyS0"
 #
 
+set send_slow {1 .01}
+
 set SERIAL_PORT_BAUD_RATE   "57600"
 set STRDATA "abcdefghijklmnopqrstuvwxyz0123456789"
 set TITLE "Serial Test"
@@ -66,7 +68,7 @@ while 1 {
 }
 
 for {set i 0} {$i < $nkparams} {incr i} {
-    send [lindex $kparams $i]
+    send -s [lindex $kparams $i]
 
     while 1 {
 	  expect {
@@ -85,7 +87,7 @@ for {set i 0} {$i < $nkparams} {incr i} {
     }
 }
 
-send "connect\r"
+send -s "connect\r"
 while 1 {
 	expect {
 		"ype the escape character*" {
@@ -102,9 +104,9 @@ while 1 {
 set timeout 1
 set flag 0
 for {set i 0} {$i<4} {incr i} {
-   send "\r"
+   send -s "\r"
    expect {
-      "stamp>" {
+      ">" {
          set flag 1
       }
    }
@@ -116,14 +118,14 @@ if {$flag==0} {
 
 set timeout 2
 set flag 0
-send "tftpboot\r"
+send -s "tftpboot\r"
 while 1 {
    expect {
-      "Using MAC" {
+      "TFTP" {
          set flag 1
          set timeout 30
       }
-      "stamp>" {
+      ">" {
          break
       }
    }
@@ -135,7 +137,7 @@ if {$flag==0} {
 
 set timeout 1
 set flag 0
-send "bootelf\r"
+send -s "bootelf\r"
 while 1 {
    expect {
       "Loading .text" {
@@ -160,7 +162,7 @@ set case_num 0
 
 incr case_num
 set timeout 30
-send "$STRDATA\r"
+send -s "$STRDATA\r"
 while 1 {
    expect {
 	"> " {
@@ -179,7 +181,7 @@ while 1 {
 incr case_num
 while 1 {
    set timeout 5
-   send "\3"
+   send -s "\3"
    expect {
 	"> " {
 		puts "\rCase $case_num ...PASS\r"
@@ -197,7 +199,7 @@ while 1 {
 incr case_num
 while 1 {
    set timeout 5
-   send "ls\r"
+   send -s "ls\r"
    expect {
 	"> " {
 		puts "\rCase $case_num ...PASS\r"
@@ -215,10 +217,10 @@ while 1 {
 incr case_num
 while 1 {
    set timeout 5
-   send "dmesg\r"
-   send "dmesg\r"
-   send "dmesg\r"
-   send "cat proc/slabinfo\r"
+   send -s "dmesg\r"
+   send -s "dmesg\r"
+   send -s "dmesg\r"
+   send -s "cat proc/slabinfo\r"
    expect {
 	"slabinfo - version" {
 		break
@@ -249,7 +251,7 @@ while 1 {
 incr case_num
 while 1 {
    set timeout 5
-   send "cat proc/kallsyms\r"
+   send -s "cat proc/kallsyms\r"
    expect {
 	"start" {
 		break
@@ -265,7 +267,7 @@ while 1 {
 
 while 1 {
    sleep 1
-   send "\3"
+   send -s "\3"
    expect {
 	"> " {
 		puts "\rCase $case_num ...PASS\r"
@@ -285,7 +287,7 @@ set timeout 30
 for {set i 0} {$i<100} {incr i} {
    send "$STRDATA\r"
 }
-send "====================================\r"
+send -s "====================================\r"
 
 while 1 {
    expect {
@@ -305,7 +307,7 @@ while 1 {
 incr case_num
 while 1 {
    set timeout 5
-   send "vi\r"
+   send -s "vi\r"
    expect {
 	"line 1 of 1" {
 		break
@@ -321,16 +323,16 @@ while 1 {
 
 while 1 {
    set timeout 30
-   send "i"
-   send "adskf\r"
-   send "werigji\r"
-   send "werigji\r"
-   send "werigji\r"
-   send "werigji\r"
-   send "werigji\r"
-   send "werigji\r"
+   send -s "i"
+   send -s "adskf\r"
+   send -s "werigji\r"
+   send -s "werigji\r"
+   send -s "werigji\r"
+   send -s "werigji\r"
+   send -s "werigji\r"
+   send -s "werigji\r"
    for {set i 0} {$i<100} {incr i} {
-      send "x"
+      send -s "x"
       expect {
 	"x" {
 	}
@@ -341,21 +343,21 @@ while 1 {
          }
       }
    }
-   send "a\r"
-   send "b\r"
-   send "c\r"
-   send "d\r"
-   send "e\r"
-   send "f\r"
-   send "\r"
-   send "$STRDATA"
-   send "$STRDATA"
-   send "$STRDATA"
-   send "$STRDATA\r"
+   send -s "a\r"
+   send -s "b\r"
+   send -s "c\r"
+   send -s "d\r"
+   send -s "e\r"
+   send -s "f\r"
+   send -s "\r"
+   send -s "$STRDATA"
+   send -s "$STRDATA"
+   send -s "$STRDATA"
+   send -s "$STRDATA\r"
    for {set i 0} {$i<100} {incr i} {
       send "$STRDATA\r"
    }
-   send "===================================#"
+   send -s "===================================#"
    expect {
 	"#" {
 		sleep 1
