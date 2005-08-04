@@ -874,9 +874,9 @@ extern int msh_main(int argc, char **argv)
 #ifdef CONFIG_FEATURE_SH_FANCY_PROMPT
 	if (prompt->value == null)
 #endif
-		setval(prompt, "$ ");
+		setval(prompt, "\\u:\\w$ ");
 	if (geteuid() == 0) {
-		setval(prompt, "# ");
+		setval(prompt, "\\u:\\w> ");
 		prompt->status &= ~EXPORT;
 	}
 	cprompt = lookup("PS2");
