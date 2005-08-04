@@ -473,12 +473,17 @@ CONFIG_SOUND_GAMEPORT=y
 # Input Device Drivers
 #
 
+# I2C support
+#
+# CONFIG_I2C is not set
+
 #
 # Character devices
 #
 # CONFIG_SPI_BF533 is not set
 # CONFIG_SPI_ADC_BF533 is not set
 # CONFIG_BF533_PFLAGS is not set
+# CONFIG_BF5xx_PPIFCD is not set
 # CONFIG_VT is not set
 # CONFIG_SERIAL_NONSTANDARD is not set
 
