@@ -185,7 +185,7 @@ _clear_bss:
 	p3.l = _ebss;
 	p3.h = _ebss;
 
-#if defined(CONFIG_ROMFS_FS)
+#if defined(CONFIG_ROOTFS_TIED_TO_KERNEL)
 	r0 = p3;
 	r1.l = lo(FILE_HEAD_START);
 	r1.h = hi(FILE_HEAD_START);

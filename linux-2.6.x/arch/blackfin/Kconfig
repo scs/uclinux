@@ -173,6 +173,15 @@ config	ROMKERNEL
 
 endchoice
 
+config ROOTFS_TIED_TO_KERNEL
+	bool "Enable RAM RootFS attached to the Kernel image (linux)"
+	depends on BLACKFIN
+	default y
+	help
+	  When using the vmlinux image only this option should be disabled.
+	  It prevents that the memory start location of the kernel is adjusted 
+	  by the RAM RootFS size.
+
 config LARGE_ALLOCS
 	bool "Allow allocating large blocks (> 1MB) of memory"
 	help
