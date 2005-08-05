@@ -32,6 +32,8 @@
 #ifndef _PATHS_H_
 #define	_PATHS_H_
 
+#include <config/autoconf.h>
+
 /* Default search path. */
 #define	_PATH_DEFPATH	"/usr/bin:/bin"
 /* All standard utilities path. */
