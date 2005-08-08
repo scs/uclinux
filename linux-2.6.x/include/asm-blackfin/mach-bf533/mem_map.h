@@ -36,16 +36,21 @@
 #define L1_CODE_START       0xFFA00000
 #define L1_DATA_A_START     0xFF800000
 #define L1_DATA_B_START     0xFF900000
+
 #ifdef CONFIG_BLKFIN_CACHE
-#define L1_CODE_LENGTH      (0x10000 - 0x4000)
+#define L1_CODE_LENGTH      (0x14000 - 0x4000)
 #else
-#define L1_CODE_LENGTH      0x10000
+#define L1_CODE_LENGTH      0x14000
 #endif
+
 #ifdef CONFIG_BLKFIN_DCACHE
+#define DMEM_CNTR (ACACHE_BCACHE | ENDCPLB | PORT_PREF0)
 #define L1_DATA_A_LENGTH      (0x8000 - 0x4000)
 #else
+#define DMEM_CNTR (ASRAM_BSRAM | ENDCPLB | PORT_PREF0)
 #define L1_DATA_A_LENGTH      0x8000
 #endif
+
 #ifdef CONFIG_BLKFIN_DCACHE
 #define L1_DATA_B_LENGTH      (0x8000 - 0x4000)
 #else
@@ -59,16 +64,21 @@
 #define L1_CODE_START       0xFFA08000
 #define L1_DATA_A_START     0xFF804000
 #define L1_DATA_B_START     0xFF904000
+
 #ifdef CONFIG_BLKFIN_CACHE
 #define L1_CODE_LENGTH      (0xC000 - 0x4000)
 #else
 #define L1_CODE_LENGTH      0xC000
 #endif
+
 #ifdef CONFIG_BLKFIN_DCACHE
+#define DMEM_CNTR (ACACHE_BCACHE | ENDCPLB | PORT_PREF0)
 #define L1_DATA_A_LENGTH      (0x4000 - 0x4000)
 #else
+#define DMEM_CNTR (ASRAM_BSRAM | ENDCPLB | PORT_PREF0)
 #define L1_DATA_A_LENGTH      0x4000
 #endif
+
 #ifdef CONFIG_BLKFIN_DCACHE
 #define L1_DATA_B_LENGTH      (0x4000 - 0x4000)
 #else
@@ -85,8 +95,10 @@
 #define L1_CODE_LENGTH      0x4000
 #define L1_DATA_B_LENGTH      0x0000
 #ifdef CONFIG_BLKFIN_DCACHE
+#define DMEM_CNTR (ACACHE_BSRAM | ENDCPLB)
 #define L1_DATA_A_LENGTH      (0x4000 - 0x4000)
 #else
+#define DMEM_CNTR (ASRAM_BSRAM | ENDCPLB)
 #define L1_DATA_A_LENGTH      0x4000
 #endif
 #endif

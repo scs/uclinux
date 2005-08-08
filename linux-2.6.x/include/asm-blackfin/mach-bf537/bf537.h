@@ -7,6 +7,7 @@
 
 #include <linux/config.h>
 
+#define SUPPORTED_DSPID 2
 
 #define OFFSET_( x ) ((x) & 0x0000FFFF) /* define macro for offset */
 
@@ -29,7 +30,7 @@
 
 #define BLKFIN_ICACHESIZE	(16*1024)
 
-#if defined(CONFIG_BF533) || defined(CONFIG_BF532)
+#if defined(CONFIG_BF537) || defined(CONFIG_BF534)
 #define BLKFIN_DCACHESIZE	(32*1024)
 #define BLKFIN_DSUPBANKS	2
 #else

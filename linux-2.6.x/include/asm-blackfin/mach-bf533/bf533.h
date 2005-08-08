@@ -7,6 +7,7 @@
 
 #include <linux/config.h>
 
+#define SUPPORTED_DSPID 2
 
 #define OFFSET_( x ) ((x) & 0x0000FFFF) /* define macro for offset */
 

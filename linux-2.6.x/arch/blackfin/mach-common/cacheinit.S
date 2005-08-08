@@ -101,11 +101,8 @@ ddone:
 	P0.H = (DMEM_CONTROL >> 16);
 	R1 = [P0];
 
-#if defined(CONFIG_BF533) || defined(CONFIG_BF532)
-	R0 = (ACACHE_BCACHE | ENDCPLB | PORT_PREF0);
-#else
-	R0 = (ACACHE_BSRAM | ENDCPLB);
-#endif
+	R0 = DMEM_CNTR;
+
 	R0 = R0 | R1;
 	/*Anamoly 05000125 */
 	CLI R2;

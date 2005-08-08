@@ -139,7 +139,7 @@ void __init setup_arch(char **cmdline_p)
 
 	printk(KERN_INFO "Blackfin support (C) 2004 Analog Devices, Inc.\n");
 	printk(KERN_INFO "ADSP-%s Rev. 0.%d\n",CPU,id);
-	if(id <= 2)
+	if(id < SUPPORTED_DSPID)
 		printk(KERN_INFO "Warning: Unsupported Chip Revision ADSP-%s Rev. 0.%d detected \n",CPU,id);
 
 #if defined(CONFIG_BOOTPARAM)
