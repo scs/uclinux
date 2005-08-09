@@ -9,6 +9,16 @@
 
 #define SUPPORTED_DSPID 2
 
+/* Masks for generic ERROR IRQ demultiplexing used in int-priority-sc.c */
+
+#define SPI_ERR_MASK (TXCOL | RBSY | MODF | TXE)	/* SPI_STAT */
+#define SPORT_ERR_MASK (ROVF | RUVF | TOVF | TUVF)	/* SPORTx_STAT */
+#define PPI_ERR_MASK (0xFFFF & ~FLD)				/* PPI_STATUS */
+#define EMAC_ERR_MASK (PHYINT | MMCINT | RXFSINT | TXFSINT | WAKEDET | RXDMAERR | TXDMAERR | STMDONE) /* EMAC_SYSTAT */
+#define UART_ERR_MASK_STAT1 (0x4)					/* UARTx_IIR */
+#define UART_ERR_MASK_STAT0 (0x2)					/* UARTx_IIR */
+#define CAN_ERR_MASK  (EWTIF | EWRIF | EPIF | BOIF | WUIF | UIAIF | AAIF | RMLIF | UCEIF | EXTIF | ADIF) /* CAN_GIF */
+
 #define OFFSET_( x ) ((x) & 0x0000FFFF) /* define macro for offset */
 
 /*some misc defines*/
@@ -23,7 +33,7 @@
 #define IMASK_IVG8		0x0100
 
 #define IMASK_IVG7		0x0080
-#define IMASK_IVGTMR		0x0040
+#define IMASK_IVGTMR	0x0040
 #define IMASK_IVGHW		0x0020
 
 /***************************/
@@ -64,36 +74,6 @@
 #define	WAYALL_L		0xF
 
 #define DMC_ENABLE (2<<2)	/*yes, 2, not 1*/
-
-/* IAR0 BIT FIELDS*/
-#define RTC_ERROR_BIT			0x0FFFFFFF
-#define UART_ERROR_BIT			0xF0FFFFFF
-#define SPORT1_ERROR_BIT		0xFF0FFFFF
-#define SPI_ERROR_BIT			0xFFF0FFFF
-#define SPORT0_ERROR_BIT		0xFFFF0FFF
-#define PPI_ERROR_BIT			0xFFFFF0FF
-#define DMA_ERROR_BIT			0xFFFFFF0F
-#define PLLWAKE_ERROR_BIT		0xFFFFFFFF
-
-/* IAR1 BIT FIELDS*/
-#define DMA7_UARTTX_BIT			0x0FFFFFFF
-#define DMA6_UARTRX_BIT			0xF0FFFFFF
-#define DMA5_SPI_BIT			0xFF0FFFFF
-#define DMA4_SPORT1TX_BIT		0xFFF0FFFF
-#define DMA3_SPORT1RX_BIT		0xFFFF0FFF
-#define DMA2_SPORT0TX_BIT		0xFFFFF0FF
-#define DMA1_SPORT0RX_BIT		0xFFFFFF0F
-#define DMA0_PPI_BIT			0xFFFFFFFF
-
-/* IAR2 BIT FIELDS*/
-#define WDTIMER_BIT			0x0FFFFFFF
-#define MEMDMA1_BIT			0xF0FFFFFF
-#define MEMDMA0_BIT			0xFF0FFFFF
-#define PFB_BIT				0xFFF0FFFF
-#define PFA_BIT				0xFFFF0FFF
-#define TIMER2_BIT			0xFFFFF0FF
-#define TIMER1_BIT			0xFFFFFF0F
-#define TIMER0_BIT		        0xFFFFFFFF
 
 #define ZERO		0x0
 

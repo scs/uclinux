@@ -92,6 +92,12 @@ ENTRY(_stext)
 	W[P0] = R0.L; /* Enable peripheral function of PORTF for UART0 and UART1 */
 	SSYNC;
 
+	p0.h = hi(EMAC_SYSTAT);
+	p0.l = lo(EMAC_SYSTAT);
+	R0.h = 0xFFFF; /* Clear EMAC Interrupt Status bits */
+	R0.l = 0xFFFF;
+	[P0] = R0;
+	SSYNC;
 
 /*Initialise UART*/
 	p0.h = hi(UART_LCR);
