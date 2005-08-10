@@ -15,7 +15,10 @@ OBJS=	version.o $(SRCS:.c=.o)
 LIBS=	../libntp/libntp.a ../libparse/libparse.a
 
 version.c: $(SRCS)
-	env CSET=`cat ../../version` ../../scripts/mkver $(PROG)
+	CSET=`cat ../../version`		;\
+	DATE=`LC_TIME=C date`			;\
+	echo '#include <config.h>' > version.c	;\
+	echo "const char * Version = \"$(PROG) \" VERSION \"@$$CSET $$DATE (uCbuild)\";" >> version.c
 
 $(PROG): $(OBJS) $(LIBS)
 	$(CC) $(LDFLAGS) -o $@ $^ $(LDLIBS) -lm
