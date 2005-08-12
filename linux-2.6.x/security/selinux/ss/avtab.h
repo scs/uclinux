@@ -58,14 +58,8 @@ struct avtab {
 };
 
 int avtab_init(struct avtab *);
-int avtab_insert(struct avtab *h, struct avtab_key *k, struct avtab_datum *d);
 struct avtab_datum *avtab_search(struct avtab *h, struct avtab_key *k, int specified);
 void avtab_destroy(struct avtab *h);
-int avtab_map(struct avtab *h,
-	      int (*apply) (struct avtab_key *k,
-			    struct avtab_datum *d,
-			    void *args),
-	      void *args);
 void avtab_hash_eval(struct avtab *h, char *tag);
 
 int avtab_read_item(void *fp, struct avtab_datum *avdatum, struct avtab_key *avkey);
@@ -77,6 +71,9 @@ struct avtab_node *avtab_insert_nonunique(struct avtab *h, struct avtab_key *key
 struct avtab_node *avtab_search_node(struct avtab *h, struct avtab_key *key, int specified);
 
 struct avtab_node *avtab_search_node_next(struct avtab_node *node, int specified);
+
+void avtab_cache_init(void);
+void avtab_cache_destroy(void);
 
 #define AVTAB_HASH_BITS 15
 #define AVTAB_HASH_BUCKETS (1 << AVTAB_HASH_BITS)

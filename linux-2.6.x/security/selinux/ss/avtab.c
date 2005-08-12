@@ -28,12 +28,15 @@
  (keyp->source_type << 9)) & \
  AVTAB_HASH_MASK)
 
+static kmem_cache_t *avtab_node_cachep;
+
 static struct avtab_node*
-avtab_insert_node(struct avtab *h, int hvalue, struct avtab_node * prev, struct avtab_node * cur,
+avtab_insert_node(struct avtab *h, int hvalue,
+		  struct avtab_node * prev, struct avtab_node * cur,
 		  struct avtab_key *key, struct avtab_datum *datum)
 {
 	struct avtab_node * newnode;
-	newnode = (struct avtab_node *) kmalloc(sizeof(struct avtab_node),GFP_KERNEL);
+	newnode = kmem_cache_alloc(avtab_node_cachep, SLAB_KERNEL);
 	if (newnode == NULL)
 		return NULL;
 	memset(newnode, 0, sizeof(struct avtab_node));
@@ -51,7 +54,7 @@ avtab_insert_node(struct avtab *h, int hvalue, struct avtab_node * prev, struct 
 	return newnode;
 }
 
-int avtab_insert(struct avtab *h, struct avtab_key *key, struct avtab_datum *datum)
+static int avtab_insert(struct avtab *h, struct avtab_key *key, struct avtab_datum *datum)
 {
 	int hvalue;
 	struct avtab_node *prev, *cur, *newnode;
@@ -226,7 +229,7 @@ void avtab_destroy(struct avtab *h)
 		while (cur != NULL) {
 			temp = cur;
 			cur = cur->next;
-			kfree(temp);
+			kmem_cache_free(avtab_node_cachep, temp);
 		}
 		h->htable[i] = NULL;
 	}
@@ -234,30 +237,6 @@ void avtab_destroy(struct avtab *h)
 	h->htable = NULL;
 }
 
-
-int avtab_map(struct avtab *h,
-	      int (*apply) (struct avtab_key *k,
-			    struct avtab_datum *d,
-			    void *args),
-	      void *args)
-{
-	int i, ret;
-	struct avtab_node *cur;
-
-	if (!h)
-		return 0;
-
-	for (i = 0; i < AVTAB_SIZE; i++) {
-		cur = h->htable[i];
-		while (cur != NULL) {
-			ret = apply(&cur->key, &cur->datum, args);
-			if (ret)
-				return ret;
-			cur = cur->next;
-		}
-	}
-	return 0;
-}
 
 int avtab_init(struct avtab *h)
 {
@@ -301,20 +280,25 @@ void avtab_hash_eval(struct avtab *h, char *tag)
 
 int avtab_read_item(void *fp, struct avtab_datum *avdatum, struct avtab_key *avkey)
 {
-	__u32 *buf;
-	__u32 items, items2;
+	u32 buf[7];
+	u32 items, items2;
+	int rc;
 
 	memset(avkey, 0, sizeof(struct avtab_key));
 	memset(avdatum, 0, sizeof(struct avtab_datum));
 
-	buf = next_entry(fp, sizeof(__u32));
-	if (!buf) {
+	rc = next_entry(buf, fp, sizeof(u32));
+	if (rc < 0) {
 		printk(KERN_ERR "security: avtab: truncated entry\n");
 		goto bad;
 	}
 	items2 = le32_to_cpu(buf[0]);
-	buf = next_entry(fp, sizeof(__u32)*items2);
-	if (!buf) {
+	if (items2 > ARRAY_SIZE(buf)) {
+		printk(KERN_ERR "security: avtab: entry overflow\n");
+		goto bad;
+	}
+	rc = next_entry(buf, fp, sizeof(u32)*items2);
+	if (rc < 0) {
 		printk(KERN_ERR "security: avtab: truncated entry\n");
 		goto bad;
 	}
@@ -360,26 +344,29 @@ bad:
 
 int avtab_read(struct avtab *a, void *fp, u32 config)
 {
-	int i, rc = -EINVAL;
+	int rc;
 	struct avtab_key avkey;
 	struct avtab_datum avdatum;
-	u32 *buf;
-	u32 nel;
+	u32 buf[1];
+	u32 nel, i;
 
 
-	buf = next_entry(fp, sizeof(u32));
-	if (!buf) {
+	rc = next_entry(buf, fp, sizeof(u32));
+	if (rc < 0) {
 		printk(KERN_ERR "security: avtab: truncated table\n");
 		goto bad;
 	}
 	nel = le32_to_cpu(buf[0]);
 	if (!nel) {
 		printk(KERN_ERR "security: avtab: table is empty\n");
+		rc = -EINVAL;
 		goto bad;
 	}
 	for (i = 0; i < nel; i++) {
-		if (avtab_read_item(fp, &avdatum, &avkey))
+		if (avtab_read_item(fp, &avdatum, &avkey)) {
+			rc = -EINVAL;
 			goto bad;
+		}
 		rc = avtab_insert(a, &avkey, &avdatum);
 		if (rc) {
 			if (rc == -ENOMEM)
@@ -399,3 +386,14 @@ bad:
 	goto out;
 }
 
+void avtab_cache_init(void)
+{
+	avtab_node_cachep = kmem_cache_create("avtab_node",
+					      sizeof(struct avtab_node),
+					      0, SLAB_PANIC, NULL, NULL);
+}
+
+void avtab_cache_destroy(void)
+{
+	kmem_cache_destroy (avtab_node_cachep);
+}

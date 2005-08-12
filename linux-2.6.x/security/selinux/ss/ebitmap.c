@@ -9,49 +9,6 @@
 #include "ebitmap.h"
 #include "policydb.h"
 
-int ebitmap_or(struct ebitmap *dst, struct ebitmap *e1, struct ebitmap *e2)
-{
-	struct ebitmap_node *n1, *n2, *new, *prev;
-
-	ebitmap_init(dst);
-
-	n1 = e1->node;
-	n2 = e2->node;
-	prev = NULL;
-	while (n1 || n2) {
-		new = kmalloc(sizeof(*new), GFP_ATOMIC);
-		if (!new) {
-			ebitmap_destroy(dst);
-			return -ENOMEM;
-		}
-		memset(new, 0, sizeof(*new));
-		if (n1 && n2 && n1->startbit == n2->startbit) {
-			new->startbit = n1->startbit;
-			new->map = n1->map | n2->map;
-			n1 = n1->next;
-			n2 = n2->next;
-		} else if (!n2 || (n1 && n1->startbit < n2->startbit)) {
-			new->startbit = n1->startbit;
-			new->map = n1->map;
-			n1 = n1->next;
-		} else {
-			new->startbit = n2->startbit;
-			new->map = n2->map;
-			n2 = n2->next;
-		}
-
-		new->next = NULL;
-		if (prev)
-			prev->next = new;
-		else
-			dst->node = new;
-		prev = new;
-	}
-
-	dst->highbit = (e1->highbit > e2->highbit) ? e1->highbit : e2->highbit;
-	return 0;
-}
-
 int ebitmap_cmp(struct ebitmap *e1, struct ebitmap *e2)
 {
 	struct ebitmap_node *n1, *n2;
@@ -237,15 +194,15 @@ void ebitmap_destroy(struct ebitmap *e)
 
 int ebitmap_read(struct ebitmap *e, void *fp)
 {
-	int rc = -EINVAL;
+	int rc;
 	struct ebitmap_node *n, *l;
-	u32 *buf, mapsize, count, i;
+	u32 buf[3], mapsize, count, i;
 	u64 map;
 
 	ebitmap_init(e);
 
-	buf = next_entry(fp, sizeof(u32)*3);
-	if (!buf)
+	rc = next_entry(buf, fp, sizeof buf);
+	if (rc < 0)
 		goto out;
 
 	mapsize = le32_to_cpu(buf[0]);
@@ -256,7 +213,7 @@ int ebitmap_read(struct ebitmap *e, void *fp)
 		printk(KERN_ERR "security: ebitmap: map size %u does not "
 		       "match my size %Zd (high bit was %d)\n", mapsize,
 		       MAPSIZE, e->highbit);
-		goto out;
+		goto bad;
 	}
 	if (!e->highbit) {
 		e->node = NULL;
@@ -269,8 +226,8 @@ int ebitmap_read(struct ebitmap *e, void *fp)
 	}
 	l = NULL;
 	for (i = 0; i < count; i++) {
-		buf = next_entry(fp, sizeof(u32));
-		if (!buf) {
+		rc = next_entry(buf, fp, sizeof(u32));
+		if (rc < 0) {
 			printk(KERN_ERR "security: ebitmap: truncated map\n");
 			goto bad;
 		}
@@ -296,12 +253,11 @@ int ebitmap_read(struct ebitmap *e, void *fp)
 			       n->startbit, (e->highbit - MAPSIZE));
 			goto bad_free;
 		}
-		buf = next_entry(fp, sizeof(u64));
-		if (!buf) {
+		rc = next_entry(&map, fp, sizeof(u64));
+		if (rc < 0) {
 			printk(KERN_ERR "security: ebitmap: truncated map\n");
 			goto bad_free;
 		}
-		memcpy(&map, buf, sizeof(u64));
 		n->map = le64_to_cpu(map);
 
 		if (!n->map) {
@@ -330,6 +286,8 @@ out:
 bad_free:
 	kfree(n);
 bad:
+	if (!rc)
+		rc = -EINVAL;
 	ebitmap_destroy(e);
 	goto out;
 }

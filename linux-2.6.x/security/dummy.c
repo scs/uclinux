@@ -74,11 +74,8 @@ static int dummy_acct (struct file *file)
 
 static int dummy_capable (struct task_struct *tsk, int cap)
 {
-	if (cap_is_fs_cap (cap) ? tsk->fsuid == 0 : tsk->euid == 0)
-		/* capability granted */
+	if (cap_raised (tsk->cap_effective, cap))
 		return 0;
-
-	/* capability denied */
 	return -EPERM;
 }
 
@@ -92,7 +89,7 @@ static int dummy_quotactl (int cmds, int type, int id, struct super_block *sb)
 	return 0;
 }
 
-static int dummy_quota_on (struct file *f)
+static int dummy_quota_on (struct dentry *dentry)
 {
 	return 0;
 }
@@ -104,61 +101,20 @@ static int dummy_syslog (int type)
 	return 0;
 }
 
-/*
- * Check that a process has enough memory to allocate a new virtual
- * mapping. 0 means there is enough memory for the allocation to
- * succeed and -ENOMEM implies there is not.
- *
- * We currently support three overcommit policies, which are set via the
- * vm.overcommit_memory sysctl.  See Documentation/vm/overcommit-accounting
- */
+static int dummy_settime(struct timespec *ts, struct timezone *tz)
+{
+	if (!capable(CAP_SYS_TIME))
+		return -EPERM;
+	return 0;
+}
+
 static int dummy_vm_enough_memory(long pages)
 {
-	unsigned long free, allowed;
+	int cap_sys_admin = 0;
 
-	vm_acct_memory(pages);
-
-	/*
-	 * Sometimes we want to use more memory than we have
-	 */
-	if (sysctl_overcommit_memory == 1)
-		return 0;
-
-	if (sysctl_overcommit_memory == 0) {
-		free = get_page_cache_size();
-		free += nr_free_pages();
-		free += nr_swap_pages;
-
-		/*
-		 * Any slabs which are created with the
-		 * SLAB_RECLAIM_ACCOUNT flag claim to have contents
-		 * which are reclaimable, under pressure.  The dentry
-		 * cache and most inode caches should fall into this
-		 */
-		free += atomic_read(&slab_reclaim_pages);
-
-		/*
-		 * Leave the last 3% for root
-		 */
-		if (current->euid)
-			free -= free / 32;
-
-		if (free > pages)
-			return 0;
-		vm_unacct_memory(pages);
-		return -ENOMEM;
-	}
-
-	allowed = (totalram_pages - hugetlb_total_pages())
-		* sysctl_overcommit_ratio / 100;
-	allowed += total_swap_pages;
-
-	if (atomic_read(&vm_committed_space) < allowed)
-		return 0;
-
-	vm_unacct_memory(pages);
-
-	return -ENOMEM;
+	if (dummy_capable(current, CAP_SYS_ADMIN) == 0)
+		cap_sys_admin = 1;
+	return __vm_enough_memory(pages, cap_sys_admin);
 }
 
 static int dummy_bprm_alloc_security (struct linux_binprm *bprm)
@@ -184,6 +140,13 @@ static void dummy_bprm_apply_creds (struct linux_binprm *bprm, int unsafe)
 
 	current->suid = current->euid = current->fsuid = bprm->e_uid;
 	current->sgid = current->egid = current->fsgid = bprm->e_gid;
+
+	dummy_capget(current, &current->cap_effective, &current->cap_inheritable, &current->cap_permitted);
+}
+
+static void dummy_bprm_post_apply_creds (struct linux_binprm *bprm)
+{
+	return;
 }
 
 static int dummy_bprm_set_security (struct linux_binprm *bprm)
@@ -447,17 +410,17 @@ static int dummy_inode_removexattr (struct dentry *dentry, char *name)
 	return 0;
 }
 
-static int dummy_inode_getsecurity(struct dentry *dentry, const char *name, void *buffer, size_t size)
+static int dummy_inode_getsecurity(struct inode *inode, const char *name, void *buffer, size_t size)
 {
 	return -EOPNOTSUPP;
 }
 
-static int dummy_inode_setsecurity(struct dentry *dentry, const char *name, const void *value, size_t size, int flags) 
+static int dummy_inode_setsecurity(struct inode *inode, const char *name, const void *value, size_t size, int flags)
 {
 	return -EOPNOTSUPP;
 }
 
-static int dummy_inode_listsecurity(struct dentry *dentry, char *buffer)
+static int dummy_inode_listsecurity(struct inode *inode, char *buffer, size_t buffer_size)
 {
 	return 0;
 }
@@ -483,13 +446,16 @@ static int dummy_file_ioctl (struct file *file, unsigned int command,
 	return 0;
 }
 
-static int dummy_file_mmap (struct file *file, unsigned long prot,
+static int dummy_file_mmap (struct file *file, unsigned long reqprot,
+			    unsigned long prot,
 			    unsigned long flags)
 {
 	return 0;
 }
 
-static int dummy_file_mprotect (struct vm_area_struct *vma, unsigned long prot)
+static int dummy_file_mprotect (struct vm_area_struct *vma,
+				unsigned long reqprot,
+				unsigned long prot)
 {
 	return 0;
 }
@@ -511,8 +477,7 @@ static int dummy_file_set_fowner (struct file *file)
 }
 
 static int dummy_file_send_sigiotask (struct task_struct *tsk,
-				      struct fown_struct *fown, int fd,
-				      int reason)
+				      struct fown_struct *fown, int sig)
 {
 	return 0;
 }
@@ -544,6 +509,7 @@ static int dummy_task_setuid (uid_t id0, uid_t id1, uid_t id2, int flags)
 
 static int dummy_task_post_setuid (uid_t id0, uid_t id1, uid_t id2, int flags)
 {
+	dummy_capget(current, &current->cap_effective, &current->cap_inheritable, &current->cap_permitted);
 	return 0;
 }
 
@@ -722,10 +688,7 @@ static int dummy_sem_semop (struct sem_array *sma,
 
 static int dummy_netlink_send (struct sock *sk, struct sk_buff *skb)
 {
-	if (current->euid == 0)
-		cap_raise (NETLINK_CB (skb).eff_cap, CAP_NET_ADMIN);
-	else
-		NETLINK_CB (skb).eff_cap = 0;
+	NETLINK_CB(skb).eff_cap = current->cap_effective;
 	return 0;
 }
 
@@ -897,10 +860,12 @@ void security_fixup_ops (struct security_operations *ops)
 	set_to_dummy_if_null(ops, quota_on);
 	set_to_dummy_if_null(ops, sysctl);
 	set_to_dummy_if_null(ops, syslog);
+	set_to_dummy_if_null(ops, settime);
 	set_to_dummy_if_null(ops, vm_enough_memory);
 	set_to_dummy_if_null(ops, bprm_alloc_security);
 	set_to_dummy_if_null(ops, bprm_free_security);
 	set_to_dummy_if_null(ops, bprm_apply_creds);
+	set_to_dummy_if_null(ops, bprm_post_apply_creds);
 	set_to_dummy_if_null(ops, bprm_set_security);
 	set_to_dummy_if_null(ops, bprm_check_security);
 	set_to_dummy_if_null(ops, bprm_secureexec);

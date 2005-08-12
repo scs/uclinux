@@ -16,8 +16,8 @@
 (sid & SIDTAB_HASH_MASK)
 
 #define INIT_SIDTAB_LOCK(s) spin_lock_init(&s->lock)
-#define SIDTAB_LOCK(s) spin_lock_irq(&s->lock)
-#define SIDTAB_UNLOCK(s) spin_unlock_irq(&s->lock)
+#define SIDTAB_LOCK(s, x) spin_lock_irqsave(&s->lock, x)
+#define SIDTAB_UNLOCK(s, x) spin_unlock_irqrestore(&s->lock, x)
 
 int sidtab_init(struct sidtab *s)
 {
@@ -83,42 +83,6 @@ int sidtab_insert(struct sidtab *s, u32 sid, struct context *context)
 	s->nel++;
 	if (sid >= s->next_sid)
 		s->next_sid = sid + 1;
-out:
-	return rc;
-}
-
-int sidtab_remove(struct sidtab *s, u32 sid)
-{
-	int hvalue, rc = 0;
-	struct sidtab_node *cur, *last;
-
-	if (!s) {
-		rc = -ENOENT;
-		goto out;
-	}
-
-	hvalue = SIDTAB_HASH(sid);
-	last = NULL;
-	cur = s->htable[hvalue];
-	while (cur != NULL && sid > cur->sid) {
-		last = cur;
-		cur = cur->next;
-	}
-
-	if (cur == NULL || sid != cur->sid) {
-		rc = -ENOENT;
-		goto out;
-	}
-
-	if (last == NULL)
-		s->htable[hvalue] = cur->next;
-	else
-		last->next = cur->next;
-
-	context_destroy(&cur->context);
-
-	kfree(cur);
-	s->nel--;
 out:
 	return rc;
 }
@@ -237,12 +201,13 @@ int sidtab_context_to_sid(struct sidtab *s,
 {
 	u32 sid;
 	int ret = 0;
+	unsigned long flags;
 
 	*out_sid = SECSID_NULL;
 
 	sid = sidtab_search_context(s, context);
 	if (!sid) {
-		SIDTAB_LOCK(s);
+		SIDTAB_LOCK(s, flags);
 		/* Rescan now that we hold the lock. */
 		sid = sidtab_search_context(s, context);
 		if (sid)
@@ -257,7 +222,7 @@ int sidtab_context_to_sid(struct sidtab *s,
 		if (ret)
 			s->next_sid--;
 unlock_out:
-		SIDTAB_UNLOCK(s);
+		SIDTAB_UNLOCK(s, flags);
 	}
 
 	if (ret)
@@ -320,17 +285,21 @@ void sidtab_destroy(struct sidtab *s)
 
 void sidtab_set(struct sidtab *dst, struct sidtab *src)
 {
-	SIDTAB_LOCK(src);
+	unsigned long flags;
+
+	SIDTAB_LOCK(src, flags);
 	dst->htable = src->htable;
 	dst->nel = src->nel;
 	dst->next_sid = src->next_sid;
 	dst->shutdown = 0;
-	SIDTAB_UNLOCK(src);
+	SIDTAB_UNLOCK(src, flags);
 }
 
 void sidtab_shutdown(struct sidtab *s)
 {
-	SIDTAB_LOCK(s);
+	unsigned long flags;
+
+	SIDTAB_LOCK(s, flags);
 	s->shutdown = 1;
-	SIDTAB_UNLOCK(s);
+	SIDTAB_UNLOCK(s, flags);
 }
