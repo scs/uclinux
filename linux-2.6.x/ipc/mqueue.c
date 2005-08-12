@@ -22,6 +22,8 @@
 #include <linux/msg.h>
 #include <linux/skbuff.h>
 #include <linux/netlink.h>
+#include <linux/syscalls.h>
+#include <linux/signal.h>
 #include <net/sock.h>
 #include "util.h"
 
@@ -145,7 +147,7 @@ static struct inode *mqueue_get_inode(struct super_block *sb, int mode,
 			spin_lock(&mq_lock);
 			if (u->mq_bytes + mq_bytes < u->mq_bytes ||
 		 	    u->mq_bytes + mq_bytes >
-			    p->rlim[RLIMIT_MSGQUEUE].rlim_cur) {
+			    p->signal->rlim[RLIMIT_MSGQUEUE].rlim_cur) {
 				spin_unlock(&mq_lock);
 				goto out_inode;
 			}
@@ -766,7 +768,7 @@ static inline void pipelined_send(struct mqueue_inode_info *info,
 	list_del(&receiver->list);
 	receiver->state = STATE_PENDING;
 	wake_up_process(receiver->task);
-	wmb();
+	smp_wmb();
 	receiver->state = STATE_READY;
 }
 
@@ -785,7 +787,7 @@ static inline void pipelined_receive(struct mqueue_inode_info *info)
 	list_del(&sender->list);
 	sender->state = STATE_PENDING;
 	wake_up_process(sender->task);
-	wmb();
+	smp_wmb();
 	sender->state = STATE_READY;
 }
 
@@ -828,7 +830,7 @@ asmlinkage long sys_mq_timedsend(mqd_t mqdes, const char __user *u_msg_ptr,
 	/* First try to allocate memory, before doing anything with
 	 * existing queues. */
 	msg_ptr = load_msg(u_msg_ptr, msg_len);
-	if (unlikely(IS_ERR(msg_ptr))) {
+	if (IS_ERR(msg_ptr)) {
 		ret = PTR_ERR(msg_ptr);
 		goto out_fput;
 	}
@@ -975,8 +977,7 @@ asmlinkage long sys_mq_notify(mqd_t mqdes,
 			     notification.sigev_notify != SIGEV_THREAD))
 			return -EINVAL;
 		if (notification.sigev_notify == SIGEV_SIGNAL &&
-			(notification.sigev_signo < 0 ||
-			 notification.sigev_signo > _NSIG)) {
+			!valid_signal(notification.sigev_signo)) {
 			return -EINVAL;
 		}
 		if (notification.sigev_notify == SIGEV_THREAD) {
@@ -1218,11 +1219,8 @@ static int __init init_mqueue_fs(void)
 	if (mqueue_inode_cachep == NULL)
 		return -ENOMEM;
 
+	/* ignore failues - they are not fatal */
 	mq_sysctl_table = register_sysctl_table(mq_sysctl_root, 0);
-	if (!mq_sysctl_table) {
-		error = -ENOMEM;
-		goto out_cache;
-	}
 
 	error = register_filesystem(&mqueue_fs_type);
 	if (error)
@@ -1242,8 +1240,8 @@ static int __init init_mqueue_fs(void)
 out_filesystem:
 	unregister_filesystem(&mqueue_fs_type);
 out_sysctl:
-	unregister_sysctl_table(mq_sysctl_table);
-out_cache:
+	if (mq_sysctl_table)
+		unregister_sysctl_table(mq_sysctl_table);
 	if (kmem_cache_destroy(mqueue_inode_cachep)) {
 		printk(KERN_INFO
 			"mqueue_inode_cache: not all structures were freed\n");

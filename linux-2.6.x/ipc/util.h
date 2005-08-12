@@ -15,18 +15,19 @@ void sem_init (void);
 void msg_init (void);
 void shm_init (void);
 
-struct ipc_ids {
+struct ipc_id_ary {
 	int size;
+	struct kern_ipc_perm *p[0];
+};
+
+struct ipc_ids {
 	int in_use;
 	int max_id;
 	unsigned short seq;
 	unsigned short seq_max;
 	struct semaphore sem;	
-	struct ipc_id* entries;
-};
-
-struct ipc_id {
-	struct kern_ipc_perm* p;
+	struct ipc_id_ary nullentry;
+	struct ipc_id_ary* entries;
 };
 
 void __init ipc_init_ids(struct ipc_ids* ids, int size);
@@ -45,14 +46,20 @@ int ipcperms (struct kern_ipc_perm *ipcp, short flg);
  */
 void* ipc_alloc(int size);
 void ipc_free(void* ptr, int size);
-/* for allocation that need to be freed by RCU
- * both function can sleep
+
+/*
+ * For allocation that need to be freed by RCU.
+ * Objects are reference counted, they start with reference count 1.
+ * getref increases the refcount, the putref call that reduces the recount
+ * to 0 schedules the rcu destruction. Caller must guarantee locking.
  */
 void* ipc_rcu_alloc(int size);
-void ipc_rcu_free(void* arg, int size);
+void ipc_rcu_getref(void *ptr);
+void ipc_rcu_putref(void *ptr);
 
 struct kern_ipc_perm* ipc_get(struct ipc_ids* ids, int id);
 struct kern_ipc_perm* ipc_lock(struct ipc_ids* ids, int id);
+void ipc_lock_by_ptr(struct kern_ipc_perm *ipcp);
 void ipc_unlock(struct kern_ipc_perm* perm);
 int ipc_buildid(struct ipc_ids* ids, int id, int seq);
 int ipc_checkid(struct ipc_ids* ids, struct kern_ipc_perm* ipcp, int uid);
