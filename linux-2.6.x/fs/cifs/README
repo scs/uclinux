@@ -32,9 +32,9 @@ the cifs download to your kernel build directory e.g.
 6) make modules (or "make" if CIFS VFS not to be built as a module)
 
 For Linux 2.6:
-1) Download the kernel (e.g. from http://www.kernel.org or from bitkeeper
-at bk://linux.bkbits.net/linux-2.5) and change directory into the top
-of the kernel directory tree (e.g. /usr/src/linux-2.5.73)
+1) Download the kernel (e.g. from http://www.kernel.org)
+and change directory into the top of the kernel directory tree
+(e.g. /usr/src/linux-2.5.73)
 2) make menuconfig (or make xconfig)
 3) select cifs from within the network filesystem choices
 4) save and exit
@@ -64,11 +64,18 @@ trivially built from Samba 3.0 or later source e.g. by executing:
 
 	gcc samba/source/client/mount.cifs.c -o mount.cifs
 
+If cifs is built as a module, then the size and number of network buffers
+and maximum number of simultaneous requests to one server can be configured.
+Changing these from their defaults is not recommended. By executing modinfo
+	modinfo kernel/fs/cifs/cifs.ko
+on kernel/fs/cifs/cifs.ko the list of configuration changes that can be made
+at module initialization time (by running insmod cifs.ko) can be seen.
+
 Allowing User Mounts
 ====================
 To permit users to mount and unmount over directories they own is possible
 with the cifs vfs.  A way to enable such mounting is to mark the mount.cifs
-utility as suid (e.g. "chmod +s /sbin/mount/cifs). To enable users to 
+utility as suid (e.g. "chmod +s /sbin/mount.cifs). To enable users to 
 umount shares they mount requires
 1) mount.cifs version 1.4 or later
 2) an entry for the share in /etc/fstab indicating that a user may
@@ -89,6 +96,26 @@ mount.cifs with the following flag:
 
 There is a corresponding manual page for cifs mounting in the Samba 3.0 and
 later source tree in docs/manpages/mount.cifs.8 
+
+Allowing User Unmounts
+======================
+To permit users to ummount directories that they have user mounted (see above),
+the utility umount.cifs may be used.  It may be invoked directly, or if 
+umount.cifs is placed in /sbin, umount can invoke the cifs umount helper
+(at least for most versions of the umount utility) for umount of cifs
+mounts, unless umount is invoked with -i (which will avoid invoking a umount
+helper). As with mount.cifs, to enable user unmounts umount.cifs must be marked
+as suid (e.g. "chmod +s /sbin/umount.cifs") or equivalent (some distributions
+allow adding entries to a file to the /etc/permissions file to achieve the
+equivalent suid effect).  For this utility to succeed the target path
+must be a cifs mount, and the uid of the current user must match the uid
+of the user who mounted the resource.
+
+Also note that the customary way of allowing user mounts and unmounts is 
+(instead of using mount.cifs and unmount.cifs as suid) to add a line
+to the file /etc/fstab for each //server/share you wish to mount, but
+this can become unwieldy when potential mount targets include many
+or  unpredictable UNC names.
 
 Samba Considerations 
 ==================== 
@@ -115,11 +142,22 @@ cifs client, and that EA support is present in later versions of Samba (e.g.
 3.0.6 and later (also EA support works in all versions of Windows, at least to
 shares on NTFS filesystems).  Extended Attribute (xattr) support is an optional
 feature of most Linux filesystems which may require enabling via
-make menuconfig
+make menuconfig. Client support for extended attributes (user xattr) can be
+disabled on a per-mount basis by specifying "nouser_xattr" on mount.
+
+The CIFS client can get and set POSIX ACLs (getfacl, setfacl) to Samba servers
+version 3.10 and later.  Setting POSIX ACLs requires enabling both XATTR and 
+then POSIX support in the CIFS configuration options when building the cifs
+module.  POSIX ACL support can be disabled on a per mount basic by specifying
+"noacl" on mount.
  
 Some administrators may want to change Samba's smb.conf "map archive" and 
-"create mask" parameters from the default.  Creating special devices (mknod) 
-remotely may require specifying a mkdev function to Samba if you are not using 
+"create mask" parameters from the default.  Unless the create mask is changed
+newly created files can end up with an unnecessarily restrictive default mode,
+which may not be what you want, although if the CIFS Unix extensions are
+enabled on the server and client, subsequent setattr calls (e.g. chmod) can
+fix the mode.  Note that creating special devices (mknod) remotely 
+may require specifying a mkdev function to Samba if you are not using 
 Samba 3.0.6 or later.  For more information on these see the manual pages
 ("man smb.conf") on the Samba server system.  Note that the cifs vfs,
 unlike the smbfs vfs, does not read the smb.conf on the client system 
@@ -191,7 +229,20 @@ Servers must support the NTLM SMB dialect (which is the most recent, supported
 by Samba and Windows NT version 4, 2000 and XP and many other SMB/CIFS servers) 
 Servers must support either "pure-TCP" (port 445 TCP/IP CIFS connections) or RFC 
 1001/1002 support for "Netbios-Over-TCP/IP." Neither of these is likely to be a 
-problem as most servers support this.  IPv6 support is planned for the future.  
+problem as most servers support this.  IPv6 support is planned for the future,
+and is almost complete.
+
+Valid filenames differ between Windows and Linux.  Windows typically restricts
+filenames which contain certain reserved characters (e.g.the character : 
+which is used to delimit the beginning of a stream name by Windows), while
+Linux allows a slightly wider set of valid characters in filenames. Windows
+servers can remap such characters when an explicit mapping is specified in
+the Server's registry.  Samba starting with version 3.10 will allow such 
+filenames (ie those which contain valid Linux characters, which normally
+would be forbidden for Windows/CIFS semantics) as long as the server is
+configured for Unix Extensions (and the client has not disabled
+/proc/fs/cifs/LinuxExtensionsEnabled).
+  
 
 CIFS VFS Mount Options
 ======================
@@ -266,6 +317,10 @@ A partial list of the supported mount options follows:
 		If you do not trust the servers in your network (your mount
 		targets) it is recommended that you specify this option for
 		greater security.
+  exec		Permit execution of binaries on the mount.
+  noexec	Do not permit execution of binaries on the mount.
+  dev		Recognize block devices on the remote mount.
+  nodev		Do not recognize devices on the remote mount.
   suid          Allow remote files on this mountpoint with suid enabled to 
 		be executed (default for mounts when executed as root,
 		nosuid is default for user mounts).
@@ -292,6 +347,22 @@ A partial list of the supported mount options follows:
 		Note that this does not affect the normal ACL check on the
 		target machine done by the server software (of the server
 		ACL against the user name provided at mount time).
+  serverino	Use servers inode numbers instead of generating automatically
+		incrementing inode numbers on the client.  Although this will
+		make it easier to spot hardlinked files (as they will have
+		the same inode numbers) and inode numbers may be persistent,
+		note that the server does not guarantee that the inode numbers
+		are unique if multiple server side mounts are exported under a
+		single share (since inode numbers on the servers might not
+		be unique if multiple filesystems are mounted under the same
+		shared higher level directory).  Note that this requires that
+		the server support the CIFS Unix Extensions as other servers
+		do not return a unique IndexNumber on SMB FindFirst (most
+		servers return zero as the IndexNumber).  Parameter has no
+		effect to Windows servers and others which do not support the
+		CIFS Unix Extensions.
+  noserverino   Client generates inode numbers (rather than using the actual one
+		from the server) by default.
   setuids       If the CIFS Unix extensions are negotiated with the server
 		the client will attempt to set the effective uid and gid of
 		the local process on newly created files, directories, and
@@ -300,10 +371,44 @@ A partial list of the supported mount options follows:
 		on newly created files, directories, and devices (create, 
 		mkdir, mknod) which will result in the server setting the
 		uid and gid to the default (usually the server uid of the
-		usern who mounted the share).  Letting the server (rather than
+		user who mounted the share).  Letting the server (rather than
 		the client) set the uid and gid is the default. This
 		parameter has no effect if the CIFS Unix Extensions are not
 		negotiated.
+  netbiosname   When mounting to servers via port 139, specifies the RFC1001
+		source name to use to represent the client netbios machine 
+		name when doing the RFC1001 netbios session initialize.
+  direct        Do not do inode data caching on files opened on this mount.
+		This precludes mmaping files on this mount. In some cases
+		with fast networks and little or no caching benefits on the
+		client (e.g. when the application is doing large sequential
+		reads bigger than page size without rereading the same data) 
+		this can provide better performance than the default
+		behavior which caches reads (readahead) and writes 
+		(writebehind) through the local Linux client pagecache 
+		if oplock (caching token) is granted and held. Note that
+		direct allows write operations larger than page size
+		to be sent to the server.
+  acl   	Allow setfacl and getfacl to manage posix ACLs if server
+		supports them.  (default)
+  noacl 	Do not allow setfacl and getfacl calls on this mount
+  user_xattr    Allow getting and setting user xattrs as OS/2 EAs (extended
+		attributes) to the server (default) e.g. via setfattr 
+		and getfattr utilities. 
+  nouser_xattr  Do not allow getfattr/setfattr to get/set xattrs 
+  mapchars      Translate six of the seven reserved characters (not backslash)
+			*?<>|:
+		to the remap range (above 0xF000), which also
+		allows the CIFS client to recognize files created with
+		such characters by Windows's POSIX emulation. This can
+		also be useful when mounting to most versions of Samba
+		(which also forbids creating and opening files
+		whose names contain any of these seven characters).
+		This has no effect if the server does not support
+		Unicode on the wire.
+ nomapchars     Do not translate any of these seven characters (default).
+ remount        remount the share (often used to change from ro to rw mounts
+	        or vice versa)
 		
 The mount.cifs mount helper also accepts a few mount options before -o
 including:
@@ -320,7 +425,7 @@ Misc /proc/fs/cifs Flags and Debug Info
 =======================================
 Informational pseudo-files:
 DebugData		Displays information about active CIFS sessions
-			and shares.
+			and shares, as well as the cifs.ko version.
 Stats			Lists summary resource usage information as well as per
 			share statistics, if CONFIG_CIFS_STATS in enabled
 			in the kernel configuration.
@@ -375,14 +480,14 @@ and for more extensive tracing including the start of smb requests and responses
 	echo 1 > /proc/fs/cifs/traceSMB
 
 Two other experimental features are under development and to test 
-require enabling an ifdef (e.g. by  adding "#define CIFS_FCNTL" in cifsglob.h)
+require enabling CONFIG_CIFS_EXPERIMENTAL
 
-	CONFIG_CIFS_QUOTA
+	More efficient write operations
 
-	CONFIG_CIFS_FCNTL  (fcntl needed for support of directory change 
+	DNOTIFY fcntl: needed for support of directory change 
 			    notification and perhaps later for file leases)
 
-Per share (per client mount) statistics are available in /proc/fs/cifs/DebugData
+Per share (per client mount) statistics are available in /proc/fs/cifs/Stats
 if the kernel was configured with cifs statistics enabled.  The statistics
 represent the number of successful (ie non-zero return code from the server) 
 SMB responses to some of the more common commands (open, delete, mkdir etc.).
@@ -395,8 +500,8 @@ returned success.
 	
 Also note that "cat /proc/fs/cifs/DebugData" will display information about 
 the active sessions and the shares that are mounted.  Note: NTLMv2 enablement 
-will not work since they its implementation is not quite complete yet.
-Do not alter these configuration values unless you are doing specific testing.  
+will not work since its implementation is not quite complete yet. Do not alter
+the ExtendedSecurity configuration value unless you are doing specific testing.
 Enabling extended security works to Windows 2000 Workstations and XP but not to 
 Windows 2000 server or Samba since it does not usually send "raw NTLMSSP" 
 (instead it sends NTLMSSP encapsulated in SPNEGO/GSSAPI, which support is not 

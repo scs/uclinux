@@ -11,7 +11,6 @@
 #include <linux/unistd.h>
 #include <linux/cpu.h>
 #include <linux/module.h>
-#include <linux/kmod.h>		/* for hotplug_path */
 #include <linux/kthread.h>
 #include <linux/stop_machine.h>
 #include <asm/semaphore.h>
@@ -49,39 +48,14 @@ static inline void check_for_tasks(int cpu)
 
 	write_lock_irq(&tasklist_lock);
 	for_each_process(p) {
-		if (task_cpu(p) == cpu && (p->utime != 0 || p->stime != 0))
+		if (task_cpu(p) == cpu &&
+		    (!cputime_eq(p->utime, cputime_zero) ||
+		     !cputime_eq(p->stime, cputime_zero)))
 			printk(KERN_WARNING "Task %s (pid = %d) is on cpu %d\
 				(state = %ld, flags = %lx) \n",
 				 p->comm, p->pid, cpu, p->state, p->flags);
 	}
 	write_unlock_irq(&tasklist_lock);
-}
-
-/* Notify userspace when a cpu event occurs, by running '/sbin/hotplug
- * cpu' with certain environment variables set.  */
-static int cpu_run_sbin_hotplug(unsigned int cpu, const char *action)
-{
-	char *argv[3], *envp[5], cpu_str[12], action_str[32];
-	int i;
-
-	sprintf(cpu_str, "CPU=%d", cpu);
-	sprintf(action_str, "ACTION=%s", action);
-	/* FIXME: Add DEVPATH. --RR */
-
-	i = 0;
-	argv[i++] = hotplug_path;
-	argv[i++] = "cpu";
-	argv[i] = NULL;
-
-	i = 0;
-	/* minimal command environment */
-	envp[i++] = "HOME=/";
-	envp[i++] = "PATH=/sbin:/bin:/usr/sbin:/usr/bin";
-	envp[i++] = cpu_str;
-	envp[i++] = action_str;
-	envp[i] = NULL;
-
-	return call_usermodehelper(argv[0], argv, envp, 0);
 }
 
 /* Take this CPU down. */
@@ -123,6 +97,15 @@ int cpu_down(unsigned int cpu)
 		goto out;
 	}
 
+	err = notifier_call_chain(&cpu_chain, CPU_DOWN_PREPARE,
+						(void *)(long)cpu);
+	if (err == NOTIFY_BAD) {
+		printk("%s: attempt to take down CPU %u failed\n",
+				__FUNCTION__, cpu);
+		err = -EINVAL;
+		goto out;
+	}
+
 	/* Ensure that we are not runnable on dying cpu */
 	old_allowed = current->cpus_allowed;
 	tmp = CPU_MASK_ALL;
@@ -131,6 +114,11 @@ int cpu_down(unsigned int cpu)
 
 	p = __stop_machine_run(take_cpu_down, NULL, cpu);
 	if (IS_ERR(p)) {
+		/* CPU didn't die: tell everyone.  Can't complain. */
+		if (notifier_call_chain(&cpu_chain, CPU_DOWN_FAILED,
+				(void *)(long)cpu) == NOTIFY_BAD)
+			BUG();
+
 		err = PTR_ERR(p);
 		goto out_allowed;
 	}
@@ -146,7 +134,8 @@ int cpu_down(unsigned int cpu)
 	__cpu_die(cpu);
 
 	/* Move it here so it can run. */
-	kthread_bind(p, smp_processor_id());
+	kthread_bind(p, get_cpu());
+	put_cpu();
 
 	/* CPU is completely dead: tell everyone.  Too late to complain. */
 	if (notifier_call_chain(&cpu_chain, CPU_DEAD, (void *)(long)cpu)
@@ -155,8 +144,6 @@ int cpu_down(unsigned int cpu)
 
 	check_for_tasks(cpu);
 
-	cpu_run_sbin_hotplug(cpu, "offline");
-
 out_thread:
 	err = kthread_stop(p);
 out_allowed:
@@ -164,11 +151,6 @@ out_allowed:
 out:
 	unlock_cpu_hotplug();
 	return err;
-}
-#else
-static inline int cpu_run_sbin_hotplug(unsigned int cpu, const char *action)
-{
-	return 0;
 }
 #endif /*CONFIG_HOTPLUG_CPU*/
 

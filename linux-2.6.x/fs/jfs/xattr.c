@@ -1,5 +1,5 @@
 /*
- *   Copyright (C) International Business Machines  Corp., 2000-2003
+ *   Copyright (C) International Business Machines  Corp., 2000-2004
  *   Copyright (C) Christoph Hellwig, 2002
  *
  *   This program is free software;  you can redistribute it and/or modify
@@ -19,6 +19,7 @@
 
 #include <linux/fs.h>
 #include <linux/xattr.h>
+#include <linux/quotaops.h>
 #include "jfs_incore.h"
 #include "jfs_superblock.h"
 #include "jfs_dmap.h"
@@ -90,6 +91,12 @@ struct ea_buffer {
 #define XATTR_OS2_PREFIX "os2."
 #define XATTR_OS2_PREFIX_LEN (sizeof (XATTR_OS2_PREFIX) - 1)
 
+/* XATTR_SECURITY_PREFIX is defined in include/linux/xattr.h */
+#define XATTR_SECURITY_PREFIX_LEN (sizeof (XATTR_SECURITY_PREFIX) - 1)
+
+#define XATTR_TRUSTED_PREFIX "trusted."
+#define XATTR_TRUSTED_PREFIX_LEN (sizeof (XATTR_TRUSTED_PREFIX) - 1)
+
 /*
  * These three routines are used to recognize on-disk extended attributes
  * that are in a recognized namespace.  If the attribute is not recognized,
@@ -108,6 +115,19 @@ static inline int is_os2_xattr(struct jfs_ea *ea)
 	 */
 	if ((ea->namelen >= XATTR_USER_PREFIX_LEN) &&
 	    !strncmp(ea->name, XATTR_USER_PREFIX, XATTR_USER_PREFIX_LEN))
+		return FALSE;
+	/*
+	 * Check for "security."
+	 */
+	if ((ea->namelen >= XATTR_SECURITY_PREFIX_LEN) &&
+	    !strncmp(ea->name, XATTR_SECURITY_PREFIX,
+		     XATTR_SECURITY_PREFIX_LEN))
+		return FALSE;
+	/*
+	 * Check for "trusted."
+	 */
+	if ((ea->namelen >= XATTR_TRUSTED_PREFIX_LEN) &&
+	    !strncmp(ea->name, XATTR_TRUSTED_PREFIX, XATTR_TRUSTED_PREFIX_LEN))
 		return FALSE;
 	/*
 	 * Add any other valid namespace prefixes here
@@ -251,9 +271,17 @@ static int ea_write(struct inode *ip, struct jfs_ea_list *ealist, int size,
 	/* figure out how many blocks we need */
 	nblocks = (size + (sb->s_blocksize - 1)) >> sb->s_blocksize_bits;
 
+	/* Allocate new blocks to quota. */
+	if (DQUOT_ALLOC_BLOCK(ip, nblocks)) {
+		return -EDQUOT;
+	}
+
 	rc = dbAlloc(ip, INOHINT(ip), nblocks, &blkno);
-	if (rc)
+	if (rc) {
+		/*Rollback quota allocation. */
+		DQUOT_FREE_BLOCK(ip, nblocks);
 		return rc;
+	}
 
 	/*
 	 * Now have nblocks worth of storage to stuff into the FEALIST.
@@ -315,6 +343,9 @@ static int ea_write(struct inode *ip, struct jfs_ea_list *ealist, int size,
 	return 0;
 
       failed:
+	/* Rollback quota allocation. */
+	DQUOT_FREE_BLOCK(ip, nblocks);
+
 	dbFree(ip, blkno, nblocks);
 	return rc;
 }
@@ -448,6 +479,7 @@ static int ea_get(struct inode *inode, struct ea_buffer *ea_buf, int min_size)
 	int blocks_needed, current_blocks;
 	s64 blkno;
 	int rc;
+	int quota_allocation = 0;
 
 	/* When fsck.jfs clears a bad ea, it doesn't clear the size */
 	if (ji->ea.flag == 0)
@@ -517,10 +549,16 @@ static int ea_get(struct inode *inode, struct ea_buffer *ea_buf, int min_size)
 	    sb->s_blocksize_bits;
 
 	if (blocks_needed > current_blocks) {
+		/* Allocate new blocks to quota. */
+		if (DQUOT_ALLOC_BLOCK(inode, blocks_needed))
+			return -EDQUOT;
+
+		quota_allocation = blocks_needed;
+
 		rc = dbAlloc(inode, INOHINT(inode), (s64) blocks_needed,
 			     &blkno);
 		if (rc)
-			return rc;
+			goto clean_up;
 
 		DXDlength(&ea_buf->new_ea, blocks_needed);
 		DXDaddress(&ea_buf->new_ea, blkno);
@@ -534,7 +572,8 @@ static int ea_get(struct inode *inode, struct ea_buffer *ea_buf, int min_size)
 					  1);
 		if (ea_buf->mp == NULL) {
 			dbFree(inode, blkno, (s64) blocks_needed);
-			return -EIO;
+			rc = -EIO;
+			goto clean_up;
 		}
 		ea_buf->xattr = ea_buf->mp->data;
 		ea_buf->max_size = (min_size + sb->s_blocksize - 1) &
@@ -544,7 +583,7 @@ static int ea_get(struct inode *inode, struct ea_buffer *ea_buf, int min_size)
 		if ((rc = ea_read(inode, ea_buf->xattr))) {
 			discard_metapage(ea_buf->mp);
 			dbFree(inode, blkno, (s64) blocks_needed);
-			return rc;
+			goto clean_up;
 		}
 		goto size_check;
 	}
@@ -552,8 +591,10 @@ static int ea_get(struct inode *inode, struct ea_buffer *ea_buf, int min_size)
 	ea_buf->mp = read_metapage(inode, addressDXD(&ji->ea),
 				   lengthDXD(&ji->ea) << sb->s_blocksize_bits,
 				   1);
-	if (ea_buf->mp == NULL)
-		return -EIO;
+	if (ea_buf->mp == NULL) {
+		rc = -EIO;
+		goto clean_up;
+	}
 	ea_buf->xattr = ea_buf->mp->data;
 	ea_buf->max_size = (ea_size + sb->s_blocksize - 1) &
 	    ~(sb->s_blocksize - 1);
@@ -563,10 +604,18 @@ static int ea_get(struct inode *inode, struct ea_buffer *ea_buf, int min_size)
 		printk(KERN_ERR "ea_get: invalid extended attribute\n");
 		dump_mem("xattr", ea_buf->xattr, ea_size);
 		ea_release(inode, ea_buf);
-		return -EIO;
+		rc = -EIO;
+		goto clean_up;
 	}
 
 	return ea_size;
+
+      clean_up:
+	/* Rollback quota allocation */
+	if (quota_allocation)
+		DQUOT_FREE_BLOCK(inode, quota_allocation);
+
+	return (rc);
 }
 
 static void ea_release(struct inode *inode, struct ea_buffer *ea_buf)
@@ -640,7 +689,10 @@ static int ea_put(struct inode *inode, struct ea_buffer *ea_buf, int new_size)
 		ji->ea.size = 0;
 	}
 
-	inode->i_blocks += LBLK2PBLK(inode->i_sb, new_blocks - old_blocks);
+	/* If old blocks exist, they must be removed from quota allocation. */
+	if (old_blocks)
+		DQUOT_FREE_BLOCK(inode, old_blocks);
+
 	inode->i_ctime = CURRENT_TIME;
 	rc = txCommit(tid, 1, &inode, 0);
 	txEnd(tid);
@@ -737,6 +789,15 @@ static int can_set_xattr(struct inode *inode, const char *name,
 		 */
 		return can_set_system_xattr(inode, name, value, value_len);
 
+	if(strncmp(name, XATTR_TRUSTED_PREFIX, XATTR_TRUSTED_PREFIX_LEN) != 0)
+		return (capable(CAP_SYS_ADMIN) ? 0 : -EPERM);
+
+#ifdef CONFIG_JFS_SECURITY
+	if (strncmp(name, XATTR_SECURITY_PREFIX, XATTR_SECURITY_PREFIX_LEN)
+	    != 0)
+		return 0;	/* Leave it to the security module */
+#endif
+		
 	if((strncmp(name, XATTR_USER_PREFIX, XATTR_USER_PREFIX_LEN) != 0) &&
 	   (strncmp(name, XATTR_OS2_PREFIX, XATTR_OS2_PREFIX_LEN) != 0))
 		return -EOPNOTSUPP;
@@ -904,8 +965,17 @@ int jfs_setxattr(struct dentry *dentry, const char *name, const void *value,
 
 static int can_get_xattr(struct inode *inode, const char *name)
 {
+#ifdef CONFIG_JFS_SECURITY
+	if(strncmp(name, XATTR_SECURITY_PREFIX, XATTR_SECURITY_PREFIX_LEN) == 0)
+		return 0;
+#endif
+
+	if(strncmp(name, XATTR_TRUSTED_PREFIX, XATTR_TRUSTED_PREFIX_LEN) == 0)
+		return (capable(CAP_SYS_ADMIN) ? 0 : -EPERM);
+
 	if(strncmp(name, XATTR_SYSTEM_PREFIX, XATTR_SYSTEM_PREFIX_LEN) == 0)
 		return 0;
+
 	return permission(inode, MAY_READ, NULL);
 }
 
@@ -988,6 +1058,16 @@ ssize_t jfs_getxattr(struct dentry *dentry, const char *name, void *data,
 	return err;
 }
 
+/*
+ * No special permissions are needed to list attributes except for trusted.*
+ */
+static inline int can_list(struct jfs_ea *ea)
+{
+	return (strncmp(ea->name, XATTR_TRUSTED_PREFIX,
+			    XATTR_TRUSTED_PREFIX_LEN) ||
+		capable(CAP_SYS_ADMIN));
+}
+
 ssize_t jfs_listxattr(struct dentry * dentry, char *data, size_t buf_size)
 {
 	struct inode *inode = dentry->d_inode;
@@ -1012,8 +1092,10 @@ ssize_t jfs_listxattr(struct dentry * dentry, char *data, size_t buf_size)
 	ealist = (struct jfs_ea_list *) ea_buf.xattr;
 
 	/* compute required size of list */
-	for (ea = FIRST_EA(ealist); ea < END_EALIST(ealist); ea = NEXT_EA(ea))
-		size += name_size(ea) + 1;
+	for (ea = FIRST_EA(ealist); ea < END_EALIST(ealist); ea = NEXT_EA(ea)) {
+	    	if (can_list(ea))
+			size += name_size(ea) + 1;
+	}
 
 	if (!data)
 		goto release;
@@ -1026,8 +1108,10 @@ ssize_t jfs_listxattr(struct dentry * dentry, char *data, size_t buf_size)
 	/* Copy attribute names to buffer */
 	buffer = data;
 	for (ea = FIRST_EA(ealist); ea < END_EALIST(ealist); ea = NEXT_EA(ea)) {
-		int namelen = copy_name(buffer, ea);
-		buffer += namelen + 1;
+	    	if (can_list(ea)) {
+			int namelen = copy_name(buffer, ea);
+			buffer += namelen + 1;
+		}
 	}
 
       release:

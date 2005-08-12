@@ -194,7 +194,7 @@ static s8 budtab[256] = {
 int dbMount(struct inode *ipbmap)
 {
 	struct bmap *bmp;
-	struct dbmap *dbmp_le;
+	struct dbmap_disk *dbmp_le;
 	struct metapage *mp;
 	int i;
 
@@ -216,7 +216,7 @@ int dbMount(struct inode *ipbmap)
 	}
 
 	/* copy the on-disk bmap descriptor to its in-memory version. */
-	dbmp_le = (struct dbmap *) mp->data;
+	dbmp_le = (struct dbmap_disk *) mp->data;
 	bmp->db_mapsize = le64_to_cpu(dbmp_le->dn_mapsize);
 	bmp->db_nfree = le64_to_cpu(dbmp_le->dn_nfree);
 	bmp->db_l2nbperpage = le32_to_cpu(dbmp_le->dn_l2nbperpage);
@@ -301,7 +301,7 @@ int dbUnmount(struct inode *ipbmap, int mounterror)
  */
 int dbSync(struct inode *ipbmap)
 {
-	struct dbmap *dbmp_le;
+	struct dbmap_disk *dbmp_le;
 	struct bmap *bmp = JFS_SBI(ipbmap->i_sb)->bmap;
 	struct metapage *mp;
 	int i;
@@ -318,7 +318,7 @@ int dbSync(struct inode *ipbmap)
 		return -EIO;
 	}
 	/* copy the in-memory version of the bmap to the on-disk version */
-	dbmp_le = (struct dbmap *) mp->data;
+	dbmp_le = (struct dbmap_disk *) mp->data;
 	dbmp_le->dn_mapsize = cpu_to_le64(bmp->db_mapsize);
 	dbmp_le->dn_nfree = cpu_to_le64(bmp->db_nfree);
 	dbmp_le->dn_l2nbperpage = cpu_to_le32(bmp->db_l2nbperpage);
@@ -471,6 +471,7 @@ dbUpdatePMap(struct inode *ipbmap,
 	struct metapage *mp;
 	struct jfs_log *log;
 	int lsn, difft, diffp;
+	unsigned long flags;
 
 	/* the blocks better be within the mapsize. */
 	if (blkno + nblocks > bmp->db_mapsize) {
@@ -504,6 +505,7 @@ dbUpdatePMap(struct inode *ipbmap,
 					   0);
 			if (mp == NULL)
 				return -EIO;
+			metapage_wait_for_io(mp);
 		}
 		dp = (struct dmap *) mp->data;
 
@@ -578,34 +580,32 @@ dbUpdatePMap(struct inode *ipbmap,
 		if (mp->lsn != 0) {
 			/* inherit older/smaller lsn */
 			logdiff(diffp, mp->lsn, log);
+			LOGSYNC_LOCK(log, flags);
 			if (difft < diffp) {
 				mp->lsn = lsn;
 
 				/* move bp after tblock in logsync list */
-				LOGSYNC_LOCK(log);
 				list_move(&mp->synclist, &tblk->synclist);
-				LOGSYNC_UNLOCK(log);
 			}
 
 			/* inherit younger/larger clsn */
-			LOGSYNC_LOCK(log);
 			logdiff(difft, tblk->clsn, log);
 			logdiff(diffp, mp->clsn, log);
 			if (difft > diffp)
 				mp->clsn = tblk->clsn;
-			LOGSYNC_UNLOCK(log);
+			LOGSYNC_UNLOCK(log, flags);
 		} else {
 			mp->log = log;
 			mp->lsn = lsn;
 
 			/* insert bp after tblock in logsync list */
-			LOGSYNC_LOCK(log);
+			LOGSYNC_LOCK(log, flags);
 
 			log->count++;
 			list_add(&mp->synclist, &tblk->synclist);
 
 			mp->clsn = tblk->clsn;
-			LOGSYNC_UNLOCK(log);
+			LOGSYNC_UNLOCK(log, flags);
 		}
 	}
 
@@ -3782,7 +3782,7 @@ static int dbInitDmap(struct dmap * dp, s64 Blkno, int nblocks)
 
 	/* set the rest of the words in the page to allocated (ONES) */
 	for (i = w; i < LPERDMAP; i++)
-		dp->pmap[i] = dp->wmap[i] = ONES;
+		dp->pmap[i] = dp->wmap[i] = cpu_to_le32(ONES);
 
 	/*
 	 * init tree

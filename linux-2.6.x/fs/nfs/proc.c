@@ -49,18 +49,6 @@
 
 extern struct rpc_procinfo nfs_procedures[];
 
-static struct rpc_cred *
-nfs_cred(struct inode *inode, struct file *filp)
-{
-	struct rpc_cred *cred = NULL;
-
-	if (filp)
-		cred = (struct rpc_cred *)filp->private_data;
-	if (!cred)
-		cred = NFS_I(inode)->mm_cred;
-	return cred;
-}
-
 /*
  * Bare-bones access to getattr: this is for nfs_read_super.
  */
@@ -75,12 +63,12 @@ nfs_proc_get_root(struct nfs_server *server, struct nfs_fh *fhandle,
 	dprintk("%s: call getattr\n", __FUNCTION__);
 	fattr->valid = 0;
 	status = rpc_call(server->client_sys, NFSPROC_GETATTR, fhandle, fattr, 0);
-	dprintk("%s: reply getattr %d\n", __FUNCTION__, status);
+	dprintk("%s: reply getattr: %d\n", __FUNCTION__, status);
 	if (status)
 		return status;
 	dprintk("%s: call statfs\n", __FUNCTION__);
 	status = rpc_call(server->client_sys, NFSPROC_STATFS, fhandle, &fsinfo, 0);
-	dprintk("%s: reply statfs %d\n", __FUNCTION__, status);
+	dprintk("%s: reply statfs: %d\n", __FUNCTION__, status);
 	if (status)
 		return status;
 	info->rtmax  = NFS_MAXDATA;
@@ -99,15 +87,16 @@ nfs_proc_get_root(struct nfs_server *server, struct nfs_fh *fhandle,
  * One function for each procedure in the NFS protocol.
  */
 static int
-nfs_proc_getattr(struct inode *inode, struct nfs_fattr *fattr)
+nfs_proc_getattr(struct nfs_server *server, struct nfs_fh *fhandle,
+		struct nfs_fattr *fattr)
 {
 	int	status;
 
 	dprintk("NFS call  getattr\n");
 	fattr->valid = 0;
-	status = rpc_call(NFS_CLIENT(inode), NFSPROC_GETATTR,
-				NFS_FH(inode), fattr, 0);
-	dprintk("NFS reply getattr\n");
+	status = rpc_call(server->client, NFSPROC_GETATTR,
+				fhandle, fattr, 0);
+	dprintk("NFS reply getattr: %d\n", status);
 	return status;
 }
 
@@ -125,7 +114,7 @@ nfs_proc_setattr(struct dentry *dentry, struct nfs_fattr *fattr,
 	dprintk("NFS call  setattr\n");
 	fattr->valid = 0;
 	status = rpc_call(NFS_CLIENT(inode), NFSPROC_SETATTR, &arg, fattr, 0);
-	dprintk("NFS reply setattr\n");
+	dprintk("NFS reply setattr: %d\n", status);
 	return status;
 }
 
@@ -151,12 +140,13 @@ nfs_proc_lookup(struct inode *dir, struct qstr *name,
 	return status;
 }
 
-static int
-nfs_proc_readlink(struct inode *inode, struct page *page)
+static int nfs_proc_readlink(struct inode *inode, struct page *page,
+		unsigned int pgbase, unsigned int pglen)
 {
 	struct nfs_readlinkargs	args = {
 		.fh		= NFS_FH(inode),
-		.count		= PAGE_CACHE_SIZE,
+		.pgbase		= pgbase,
+		.pglen		= pglen,
 		.pages		= &page
 	};
 	int			status;
@@ -167,8 +157,7 @@ nfs_proc_readlink(struct inode *inode, struct page *page)
 	return status;
 }
 
-static int
-nfs_proc_read(struct nfs_read_data *rdata, struct file *filp)
+static int nfs_proc_read(struct nfs_read_data *rdata)
 {
 	int			flags = rdata->flags;
 	struct inode *		inode = rdata->inode;
@@ -177,15 +166,14 @@ nfs_proc_read(struct nfs_read_data *rdata, struct file *filp)
 		.rpc_proc	= &nfs_procedures[NFSPROC_READ],
 		.rpc_argp	= &rdata->args,
 		.rpc_resp	= &rdata->res,
+		.rpc_cred	= rdata->cred,
 	};
 	int			status;
 
 	dprintk("NFS call  read %d @ %Ld\n", rdata->args.count,
 			(long long) rdata->args.offset);
 	fattr->valid = 0;
-	msg.rpc_cred = nfs_cred(inode, filp);
 	status = rpc_call_sync(NFS_CLIENT(inode), &msg, flags);
-
 	if (status >= 0) {
 		nfs_refresh_inode(inode, fattr);
 		/* Emulate the eof flag, which isn't normally needed in NFSv2
@@ -198,8 +186,7 @@ nfs_proc_read(struct nfs_read_data *rdata, struct file *filp)
 	return status;
 }
 
-static int
-nfs_proc_write(struct nfs_write_data *wdata, struct file *filp)
+static int nfs_proc_write(struct nfs_write_data *wdata)
 {
 	int			flags = wdata->flags;
 	struct inode *		inode = wdata->inode;
@@ -208,13 +195,13 @@ nfs_proc_write(struct nfs_write_data *wdata, struct file *filp)
 		.rpc_proc	= &nfs_procedures[NFSPROC_WRITE],
 		.rpc_argp	= &wdata->args,
 		.rpc_resp	= &wdata->res,
+		.rpc_cred	= wdata->cred,
 	};
 	int			status;
 
 	dprintk("NFS call  write %d @ %Ld\n", wdata->args.count,
 			(long long) wdata->args.offset);
 	fattr->valid = 0;
-	msg.rpc_cred = nfs_cred(inode, filp);
 	status = rpc_call_sync(NFS_CLIENT(inode), &msg, flags);
 	if (status >= 0) {
 		nfs_refresh_inode(inode, fattr);
@@ -225,16 +212,16 @@ nfs_proc_write(struct nfs_write_data *wdata, struct file *filp)
 	return status < 0? status : wdata->res.count;
 }
 
-static struct inode *
-nfs_proc_create(struct inode *dir, struct qstr *name, struct iattr *sattr,
+static int
+nfs_proc_create(struct inode *dir, struct dentry *dentry, struct iattr *sattr,
 		int flags)
 {
 	struct nfs_fh		fhandle;
 	struct nfs_fattr	fattr;
 	struct nfs_createargs	arg = {
 		.fh		= NFS_FH(dir),
-		.name		= name->name,
-		.len		= name->len,
+		.name		= dentry->d_name.name,
+		.len		= dentry->d_name.len,
 		.sattr		= sattr
 	};
 	struct nfs_diropok	res = {
@@ -244,39 +231,36 @@ nfs_proc_create(struct inode *dir, struct qstr *name, struct iattr *sattr,
 	int			status;
 
 	fattr.valid = 0;
-	dprintk("NFS call  create %s\n", name->name);
+	dprintk("NFS call  create %s\n", dentry->d_name.name);
 	status = rpc_call(NFS_CLIENT(dir), NFSPROC_CREATE, &arg, &res, 0);
+	if (status == 0)
+		status = nfs_instantiate(dentry, &fhandle, &fattr);
 	dprintk("NFS reply create: %d\n", status);
-	if (status == 0) {
-		struct inode *inode;
-		inode = nfs_fhget(dir->i_sb, &fhandle, &fattr);
-		if (inode)
-			return inode;
-		status = -ENOMEM;
-	}
-	return ERR_PTR(status);
+	return status;
 }
 
 /*
  * In NFSv2, mknod is grafted onto the create call.
  */
 static int
-nfs_proc_mknod(struct inode *dir, struct qstr *name, struct iattr *sattr,
-	       dev_t rdev, struct nfs_fh *fhandle, struct nfs_fattr *fattr)
+nfs_proc_mknod(struct inode *dir, struct dentry *dentry, struct iattr *sattr,
+	       dev_t rdev)
 {
+	struct nfs_fh fhandle;
+	struct nfs_fattr fattr;
 	struct nfs_createargs	arg = {
 		.fh		= NFS_FH(dir),
-		.name		= name->name,
-		.len		= name->len,
+		.name		= dentry->d_name.name,
+		.len		= dentry->d_name.len,
 		.sattr		= sattr
 	};
 	struct nfs_diropok	res = {
-		.fh		= fhandle,
-		.fattr		= fattr
+		.fh		= &fhandle,
+		.fattr		= &fattr
 	};
-	int			status, mode;
+	int status, mode;
 
-	dprintk("NFS call  mknod %s\n", name->name);
+	dprintk("NFS call  mknod %s\n", dentry->d_name.name);
 
 	mode = sattr->ia_mode;
 	if (S_ISFIFO(mode)) {
@@ -287,14 +271,16 @@ nfs_proc_mknod(struct inode *dir, struct qstr *name, struct iattr *sattr,
 		sattr->ia_size = new_encode_dev(rdev);/* get out your barf bag */
 	}
 
-	fattr->valid = 0;
+	fattr.valid = 0;
 	status = rpc_call(NFS_CLIENT(dir), NFSPROC_CREATE, &arg, &res, 0);
 
 	if (status == -EINVAL && S_ISFIFO(mode)) {
 		sattr->ia_mode = mode;
-		fattr->valid = 0;
+		fattr.valid = 0;
 		status = rpc_call(NFS_CLIENT(dir), NFSPROC_CREATE, &arg, &res, 0);
 	}
+	if (status == 0)
+		status = nfs_instantiate(dentry, &fhandle, &fattr);
 	dprintk("NFS reply mknod: %d\n", status);
 	return status;
 }
@@ -400,32 +386,38 @@ nfs_proc_symlink(struct inode *dir, struct qstr *name, struct qstr *path,
 	};
 	int			status;
 
+	if (path->len > NFS2_MAXPATHLEN)
+		return -ENAMETOOLONG;
 	dprintk("NFS call  symlink %s -> %s\n", name->name, path->name);
 	fattr->valid = 0;
+	fhandle->size = 0;
 	status = rpc_call(NFS_CLIENT(dir), NFSPROC_SYMLINK, &arg, NULL, 0);
 	dprintk("NFS reply symlink: %d\n", status);
 	return status;
 }
 
 static int
-nfs_proc_mkdir(struct inode *dir, struct qstr *name, struct iattr *sattr,
-	       struct nfs_fh *fhandle, struct nfs_fattr *fattr)
+nfs_proc_mkdir(struct inode *dir, struct dentry *dentry, struct iattr *sattr)
 {
+	struct nfs_fh fhandle;
+	struct nfs_fattr fattr;
 	struct nfs_createargs	arg = {
 		.fh		= NFS_FH(dir),
-		.name		= name->name,
-		.len		= name->len,
+		.name		= dentry->d_name.name,
+		.len		= dentry->d_name.len,
 		.sattr		= sattr
 	};
 	struct nfs_diropok	res = {
-		.fh		= fhandle,
-		.fattr		= fattr
+		.fh		= &fhandle,
+		.fattr		= &fattr
 	};
 	int			status;
 
-	dprintk("NFS call  mkdir %s\n", name->name);
-	fattr->valid = 0;
+	dprintk("NFS call  mkdir %s\n", dentry->d_name.name);
+	fattr.valid = 0;
 	status = rpc_call(NFS_CLIENT(dir), NFSPROC_MKDIR, &arg, &res, 0);
+	if (status == 0)
+		status = nfs_instantiate(dentry, &fhandle, &fattr);
 	dprintk("NFS reply mkdir: %d\n", status);
 	return status;
 }
@@ -619,27 +611,6 @@ nfs_proc_commit_setup(struct nfs_write_data *data, int how)
 	BUG();
 }
 
-/*
- * Set up the nfspage struct with the right credentials
- */
-static void
-nfs_request_init(struct nfs_page *req, struct file *filp)
-{
-	req->wb_cred = get_rpccred(nfs_cred(req->wb_inode, filp));
-}
-
-static int
-nfs_request_compatible(struct nfs_page *req, struct file *filp, struct page *page)
-{
-	if (req->wb_file != filp)
-		return 0;
-	if (req->wb_page != page)
-		return 0;
-	if (req->wb_cred != nfs_file_cred(filp))
-		return 0;
-	return 1;
-}
-
 static int
 nfs_proc_lock(struct file *filp, int cmd, struct file_lock *fl)
 {
@@ -680,7 +651,5 @@ struct nfs_rpc_ops	nfs_v2_clientops = {
 	.commit_setup	= nfs_proc_commit_setup,
 	.file_open	= nfs_open,
 	.file_release	= nfs_release,
-	.request_init	= nfs_request_init,
-	.request_compatible = nfs_request_compatible,
 	.lock		= nfs_proc_lock,
 };

@@ -13,6 +13,7 @@
 #include <linux/dnotify.h>
 #include <linux/security.h>
 #include <linux/module.h>
+#include <linux/syscalls.h>
 
 #include <asm/uaccess.h>
 #include <asm/unistd.h>
@@ -145,7 +146,6 @@ asmlinkage off_t sys_lseek(unsigned int fd, off_t offset, unsigned int origin)
 bad:
 	return retval;
 }
-EXPORT_SYMBOL_GPL(sys_lseek);
 
 #ifdef __ARCH_WANT_SYS_LLSEEK
 asmlinkage long sys_llseek(unsigned int fd, unsigned long offset_high,
@@ -182,6 +182,27 @@ bad:
 }
 #endif
 
+
+int rw_verify_area(int read_write, struct file *file, loff_t *ppos, size_t count)
+{
+	struct inode *inode;
+	loff_t pos;
+
+	if (unlikely(count > file->f_maxcount))
+		goto Einval;
+	pos = *ppos;
+	if (unlikely((pos < 0) || (loff_t) (pos + count) < 0))
+		goto Einval;
+
+	inode = file->f_dentry->d_inode;
+	if (inode->i_flock && MANDATORY_LOCK(inode))
+		return locks_mandatory_area(read_write == READ ? FLOCK_VERIFY_READ : FLOCK_VERIFY_WRITE, inode, file, pos, count);
+	return 0;
+
+Einval:
+	return -EINVAL;
+}
+
 ssize_t do_sync_read(struct file *filp, char __user *buf, size_t len, loff_t *ppos)
 {
 	struct kiocb kiocb;
@@ -200,15 +221,16 @@ EXPORT_SYMBOL(do_sync_read);
 
 ssize_t vfs_read(struct file *file, char __user *buf, size_t count, loff_t *pos)
 {
-	struct inode *inode = file->f_dentry->d_inode;
 	ssize_t ret;
 
 	if (!(file->f_mode & FMODE_READ))
 		return -EBADF;
 	if (!file->f_op || (!file->f_op->read && !file->f_op->aio_read))
 		return -EINVAL;
+	if (unlikely(!access_ok(VERIFY_WRITE, buf, count)))
+		return -EFAULT;
 
-	ret = locks_verify_area(FLOCK_VERIFY_READ, inode, file, *pos, count);
+	ret = rw_verify_area(READ, file, pos, count);
 	if (!ret) {
 		ret = security_file_permission (file, MAY_READ);
 		if (!ret) {
@@ -216,8 +238,11 @@ ssize_t vfs_read(struct file *file, char __user *buf, size_t count, loff_t *pos)
 				ret = file->f_op->read(file, buf, count, pos);
 			else
 				ret = do_sync_read(file, buf, count, pos);
-			if (ret > 0)
+			if (ret > 0) {
 				dnotify_parent(file->f_dentry, DN_ACCESS);
+				current->rchar += ret;
+			}
+			current->syscr++;
 		}
 	}
 
@@ -244,15 +269,16 @@ EXPORT_SYMBOL(do_sync_write);
 
 ssize_t vfs_write(struct file *file, const char __user *buf, size_t count, loff_t *pos)
 {
-	struct inode *inode = file->f_dentry->d_inode;
 	ssize_t ret;
 
 	if (!(file->f_mode & FMODE_WRITE))
 		return -EBADF;
 	if (!file->f_op || (!file->f_op->write && !file->f_op->aio_write))
 		return -EINVAL;
+	if (unlikely(!access_ok(VERIFY_READ, buf, count)))
+		return -EFAULT;
 
-	ret = locks_verify_area(FLOCK_VERIFY_WRITE, inode, file, *pos, count);
+	ret = rw_verify_area(WRITE, file, pos, count);
 	if (!ret) {
 		ret = security_file_permission (file, MAY_WRITE);
 		if (!ret) {
@@ -260,8 +286,11 @@ ssize_t vfs_write(struct file *file, const char __user *buf, size_t count, loff_
 				ret = file->f_op->write(file, buf, count, pos);
 			else
 				ret = do_sync_write(file, buf, count, pos);
-			if (ret > 0)
+			if (ret > 0) {
 				dnotify_parent(file->f_dentry, DN_MODIFY);
+				current->wchar += ret;
+			}
+			current->syscw++;
 		}
 	}
 
@@ -379,6 +408,9 @@ unsigned long iov_shorten(struct iovec *iov, unsigned long nr_segs, size_t to)
 
 EXPORT_SYMBOL(iov_shorten);
 
+/* A write operation does a read from user space and vice versa */
+#define vrfy_dir(type) ((type) == READ ? VERIFY_WRITE : VERIFY_READ)
+
 static ssize_t do_readv_writev(int type, struct file *file,
 			       const struct iovec __user * uvector,
 			       unsigned long nr_segs, loff_t *pos)
@@ -393,7 +425,6 @@ static ssize_t do_readv_writev(int type, struct file *file,
 	int seg;
 	io_fn_t fn;
 	iov_fn_t fnv;
-	struct inode *inode;
 
 	/*
 	 * SuS says "The readv() function *may* fail if the iovcnt argument
@@ -433,10 +464,13 @@ static ssize_t do_readv_writev(int type, struct file *file,
 	tot_len = 0;
 	ret = -EINVAL;
 	for (seg = 0; seg < nr_segs; seg++) {
+		void __user *buf = iov[seg].iov_base;
 		ssize_t len = (ssize_t)iov[seg].iov_len;
 
 		if (len < 0)	/* size_t not fitting an ssize_t .. */
 			goto out;
+		if (unlikely(!access_ok(vrfy_dir(type), buf, len)))
+			goto Efault;
 		tot_len += len;
 		if ((ssize_t)tot_len < 0) /* maths overflow on the ssize_t */
 			goto out;
@@ -446,11 +480,7 @@ static ssize_t do_readv_writev(int type, struct file *file,
 		goto out;
 	}
 
-	inode = file->f_dentry->d_inode;
-	/* VERIFY_WRITE actually means a read, as we write to user space */
-	ret = locks_verify_area((type == READ 
-				 ? FLOCK_VERIFY_READ : FLOCK_VERIFY_WRITE),
-				inode, file, *pos, tot_len);
+	ret = rw_verify_area(type, file, pos, tot_len);
 	if (ret)
 		goto out;
 
@@ -497,6 +527,9 @@ out:
 		dnotify_parent(file->f_dentry,
 				(type == READ) ? DN_ACCESS : DN_MODIFY);
 	return ret;
+Efault:
+	ret = -EFAULT;
+	goto out;
 }
 
 ssize_t vfs_readv(struct file *file, const struct iovec __user *vec,
@@ -540,6 +573,9 @@ sys_readv(unsigned long fd, const struct iovec __user *vec, unsigned long vlen)
 		fput_light(file, fput_needed);
 	}
 
+	if (ret > 0)
+		current->rchar += ret;
+	current->syscr++;
 	return ret;
 }
 
@@ -558,6 +594,9 @@ sys_writev(unsigned long fd, const struct iovec __user *vec, unsigned long vlen)
 		fput_light(file, fput_needed);
 	}
 
+	if (ret > 0)
+		current->wchar += ret;
+	current->syscw++;
 	return ret;
 }
 
@@ -591,7 +630,7 @@ static ssize_t do_sendfile(int out_fd, int in_fd, loff_t *ppos,
 	else
 		if (!(in_file->f_mode & FMODE_PREAD))
 			goto fput_in;
-	retval = locks_verify_area(FLOCK_VERIFY_READ, in_inode, in_file, *ppos, count);
+	retval = rw_verify_area(READ, in_file, ppos, count);
 	if (retval)
 		goto fput_in;
 
@@ -612,7 +651,7 @@ static ssize_t do_sendfile(int out_fd, int in_fd, loff_t *ppos,
 	if (!out_file->f_op || !out_file->f_op->sendpage)
 		goto fput_out;
 	out_inode = out_file->f_dentry->d_inode;
-	retval = locks_verify_area(FLOCK_VERIFY_WRITE, out_inode, out_file, out_file->f_pos, count);
+	retval = rw_verify_area(WRITE, out_file, &out_file->f_pos, count);
 	if (retval)
 		goto fput_out;
 
@@ -635,6 +674,13 @@ static ssize_t do_sendfile(int out_fd, int in_fd, loff_t *ppos,
 	}
 
 	retval = in_file->f_op->sendfile(in_file, ppos, count, file_send_actor, out_file);
+
+	if (retval > 0) {
+		current->rchar += retval;
+		current->wchar += retval;
+	}
+	current->syscr++;
+	current->syscw++;
 
 	if (*ppos > max)
 		retval = -EOVERFLOW;

@@ -41,7 +41,7 @@ extern struct export_operations export_op_default;
  * if not, require that we can walk up to exp->ex_dentry
  * doing some checks on the 'x' bits
  */
-int nfsd_acceptable(void *expv, struct dentry *dentry)
+static int nfsd_acceptable(void *expv, struct dentry *dentry)
 {
 	struct svc_export *exp = expv;
 	int rv;
@@ -71,6 +71,35 @@ int nfsd_acceptable(void *expv, struct dentry *dentry)
 	return rv;
 }
 
+/* Type check. The correct error return for type mismatches does not seem to be
+ * generally agreed upon. SunOS seems to use EISDIR if file isn't S_IFREG; a
+ * comment in the NFSv3 spec says this is incorrect (implementation notes for
+ * the write call).
+ */
+static inline int
+nfsd_mode_check(struct svc_rqst *rqstp, umode_t mode, int type)
+{
+	/* Type can be negative when creating hardlinks - not to a dir */
+	if (type > 0 && (mode & S_IFMT) != type) {
+		if (rqstp->rq_vers == 4 && (mode & S_IFMT) == S_IFLNK)
+			return nfserr_symlink;
+		else if (type == S_IFDIR)
+			return nfserr_notdir;
+		else if ((mode & S_IFMT) == S_IFDIR)
+			return nfserr_isdir;
+		else
+			return nfserr_inval;
+	}
+	if (type < 0 && (mode & S_IFMT) == -type) {
+		if (rqstp->rq_vers == 4 && (mode & S_IFMT) == S_IFLNK)
+			return nfserr_symlink;
+		else if (type == -S_IFDIR)
+			return nfserr_isdir;
+		else
+			return nfserr_notdir;
+	}
+	return 0;
+}
 
 /*
  * Perform sanity checks on the dentry in a client's file handle.
@@ -87,7 +116,6 @@ fh_verify(struct svc_rqst *rqstp, struct svc_fh *fhp, int type, int access)
 	struct knfsd_fh	*fh = &fhp->fh_handle;
 	struct svc_export *exp = NULL;
 	struct dentry	*dentry;
-	struct inode	*inode;
 	u32		error = 0;
 
 	dprintk("nfsd: fh_verify(%s)\n", SVCFH_fmt(fhp));
@@ -153,8 +181,8 @@ fh_verify(struct svc_rqst *rqstp, struct svc_fh *fhp, int type, int access)
 		error = nfserr_perm;
 		if (!rqstp->rq_secure && EX_SECURE(exp)) {
 			printk(KERN_WARNING
-			       "nfsd: request from insecure port (%08x:%d)!\n",
-			       ntohl(rqstp->rq_addr.sin_addr.s_addr),
+			       "nfsd: request from insecure port (%u.%u.%u.%u:%d)!\n",
+			       NIPQUAD(rqstp->rq_addr.sin_addr.s_addr),
 			       ntohs(rqstp->rq_addr.sin_port));
 			goto out;
 		}
@@ -190,10 +218,10 @@ fh_verify(struct svc_rqst *rqstp, struct svc_fh *fhp, int type, int access)
 			dentry = dget(exp->ex_dentry);
 		else {
 			struct export_operations *nop = exp->ex_mnt->mnt_sb->s_export_op;
-				dentry = CALL(nop,decode_fh)(exp->ex_mnt->mnt_sb,
-							     datap, data_left,
-							     fileid_type,
-							     nfsd_acceptable, exp);
+			dentry = CALL(nop,decode_fh)(exp->ex_mnt->mnt_sb,
+						     datap, data_left,
+						     fileid_type,
+						     nfsd_acceptable, exp);
 		}
 		if (dentry == NULL)
 			goto out;
@@ -223,37 +251,9 @@ fh_verify(struct svc_rqst *rqstp, struct svc_fh *fhp, int type, int access)
 	}
 	cache_get(&exp->h);
 
-	inode = dentry->d_inode;
-
-
-	/* Type check. The correct error return for type mismatches
-	 * does not seem to be generally agreed upon. SunOS seems to
-	 * use EISDIR if file isn't S_IFREG; a comment in the NFSv3
-	 * spec says this is incorrect (implementation notes for the
-	 * write call).
-	 */
-
-	/* Type can be negative when creating hardlinks - not to a dir */
-	if (type > 0 && (inode->i_mode & S_IFMT) != type) {
-		if (rqstp->rq_vers == 4 && (inode->i_mode & S_IFMT) == S_IFLNK)
-			error = nfserr_symlink;
-		else if (type == S_IFDIR)
-			error = nfserr_notdir;
-		else if ((inode->i_mode & S_IFMT) == S_IFDIR)
-			error = nfserr_isdir;
-		else
-			error = nfserr_inval;
+	error = nfsd_mode_check(rqstp, dentry->d_inode->i_mode, type);
+	if (error)
 		goto out;
-	}
-	if (type < 0 && (inode->i_mode & S_IFMT) == -type) {
-		if (rqstp->rq_vers == 4 && (inode->i_mode & S_IFMT) == S_IFLNK)
-			error = nfserr_symlink;
-		else if (type == -S_IFDIR)
-			error = nfserr_isdir;
-		else
-			error = nfserr_notdir;
-		goto out;
-	}
 
 	/* Finally, check access permissions. */
 	error = nfsd_permission(exp, dentry, access);
@@ -280,8 +280,8 @@ out:
  * an inode.  In this case a call to fh_update should be made
  * before the fh goes out on the wire ...
  */
-inline int _fh_update(struct dentry *dentry, struct svc_export *exp,
-		      __u32 *datap, int *maxsize)
+static inline int _fh_update(struct dentry *dentry, struct svc_export *exp,
+			     __u32 *datap, int *maxsize)
 {
 	struct export_operations *nop = exp->ex_mnt->mnt_sb->s_export_op;
 	
@@ -297,8 +297,9 @@ inline int _fh_update(struct dentry *dentry, struct svc_export *exp,
 /*
  * for composing old style file handles
  */
-inline void _fh_update_old(struct dentry *dentry, struct svc_export *exp,
-			   struct knfsd_fh *fh)
+static inline void _fh_update_old(struct dentry *dentry,
+				  struct svc_export *exp,
+				  struct knfsd_fh *fh)
 {
 	fh->ofh_ino = ino_t_to_u32(dentry->d_inode->i_ino);
 	fh->ofh_generation = dentry->d_inode->i_generation;
@@ -339,13 +340,16 @@ fh_compose(struct svc_fh *fhp, struct svc_export *exp, struct dentry *dentry, st
 			ref_fh_fsid_type = ref_fh->fh_handle.fh_fsid_type;
 		if (ref_fh_fsid_type > 3)
 			ref_fh_fsid_type = 0;
-	}
-	/* make sure ref_fh type works for given export */
-	if (ref_fh_fsid_type == 1 &&
-	    !(exp->ex_flags & NFSEXP_FSID)) {
-		/* if we don't have an fsid, we cannot provide one... */
-		ref_fh_fsid_type = 0;
-	}
+
+		/* make sure ref_fh type works for given export */
+		if (ref_fh_fsid_type == 1 &&
+		    !(exp->ex_flags & NFSEXP_FSID)) {
+			/* if we don't have an fsid, we cannot provide one... */
+			ref_fh_fsid_type = 0;
+		}
+	} else if (exp->ex_flags & NFSEXP_FSID)
+		ref_fh_fsid_type = 1;
+
 	if (!old_valid_dev(ex_dev) && ref_fh_fsid_type == 0) {
 		/* for newer device numbers, we must use a newer fsid format */
 		ref_fh_version = 1;

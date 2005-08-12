@@ -22,6 +22,7 @@
 #include <asm/uaccess.h>
 #include <linux/fs.h>
 #include <linux/pagemap.h>
+#include <linux/syscalls.h>
 
 #include <asm/unistd.h>
 
@@ -202,10 +203,9 @@ int do_truncate(struct dentry *dentry, loff_t length)
 
 	newattrs.ia_size = length;
 	newattrs.ia_valid = ATTR_SIZE | ATTR_CTIME;
+
 	down(&dentry->d_inode->i_sem);
-	down_write(&dentry->d_inode->i_alloc_sem);
 	err = notify_change(dentry, &newattrs);
-	up_write(&dentry->d_inode->i_alloc_sem);
 	up(&dentry->d_inode->i_sem);
 	return err;
 }
@@ -852,29 +852,21 @@ repeat:
 	 * N.B. For clone tasks sharing a files structure, this test
 	 * will limit the total number of files that can be opened.
 	 */
-	if (fd >= current->rlim[RLIMIT_NOFILE].rlim_cur)
+	if (fd >= current->signal->rlim[RLIMIT_NOFILE].rlim_cur)
 		goto out;
 
-	/* Do we need to expand the fdset array? */
-	if (fd >= files->max_fdset) {
-		error = expand_fdset(files, fd);
-		if (!error) {
-			error = -EMFILE;
-			goto repeat;
-		}
+	/* Do we need to expand the fd array or fd set?  */
+	error = expand_files(files, fd);
+	if (error < 0)
 		goto out;
-	}
-	
-	/* 
-	 * Check whether we need to expand the fd array.
-	 */
-	if (fd >= files->max_fds) {
-		error = expand_fd_array(files, fd);
-		if (!error) {
-			error = -EMFILE;
-			goto repeat;
-		}
-		goto out;
+
+	if (error) {
+		/*
+	 	 * If we needed to expand the fs array we
+		 * might have blocked - try again.
+		 */
+		error = -EMFILE;
+		goto repeat;
 	}
 
 	FD_SET(fd, files->open_fds);

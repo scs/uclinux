@@ -28,7 +28,6 @@
 
 #define BIO_POOL_SIZE 256
 
-static mempool_t *bio_pool;
 static kmem_cache_t *bio_slab;
 
 #define BIOVEC_NR_POOLS 6
@@ -40,11 +39,10 @@ static kmem_cache_t *bio_slab;
 #define BIO_SPLIT_ENTRIES 8	
 mempool_t *bio_split_pool;
 
-struct biovec_pool {
+struct biovec_slab {
 	int nr_vecs;
 	char *name; 
 	kmem_cache_t *slab;
-	mempool_t *pool;
 };
 
 /*
@@ -54,15 +52,32 @@ struct biovec_pool {
  */
 
 #define BV(x) { .nr_vecs = x, .name = "biovec-"__stringify(x) }
-static struct biovec_pool bvec_array[BIOVEC_NR_POOLS] = {
+static struct biovec_slab bvec_slabs[BIOVEC_NR_POOLS] = {
 	BV(1), BV(4), BV(16), BV(64), BV(128), BV(BIO_MAX_PAGES),
 };
 #undef BV
 
-static inline struct bio_vec *bvec_alloc(int gfp_mask, int nr, unsigned long *idx)
+/*
+ * bio_set is used to allow other portions of the IO system to
+ * allocate their own private memory pools for bio and iovec structures.
+ * These memory pools in turn all allocate from the bio_slab
+ * and the bvec_slabs[].
+ */
+struct bio_set {
+	mempool_t *bio_pool;
+	mempool_t *bvec_pools[BIOVEC_NR_POOLS];
+};
+
+/*
+ * fs_bio_set is the bio_set containing bio and iovec memory pools used by
+ * IO code that does not need private memory pools.
+ */
+static struct bio_set *fs_bio_set;
+
+static inline struct bio_vec *bvec_alloc_bs(unsigned int __nocast gfp_mask, int nr, unsigned long *idx, struct bio_set *bs)
 {
-	struct biovec_pool *bp;
 	struct bio_vec *bvl;
+	struct biovec_slab *bp;
 
 	/*
 	 * see comment near bvec_array define!
@@ -80,31 +95,27 @@ static inline struct bio_vec *bvec_alloc(int gfp_mask, int nr, unsigned long *id
 	/*
 	 * idx now points to the pool we want to allocate from
 	 */
-	bp = bvec_array + *idx;
 
-	bvl = mempool_alloc(bp->pool, gfp_mask);
+	bp = bvec_slabs + *idx;
+	bvl = mempool_alloc(bs->bvec_pools[*idx], gfp_mask);
 	if (bvl)
 		memset(bvl, 0, bp->nr_vecs * sizeof(struct bio_vec));
+
 	return bvl;
 }
 
 /*
- * default destructor for a bio allocated with bio_alloc()
+ * default destructor for a bio allocated with bio_alloc_bioset()
  */
-void bio_destructor(struct bio *bio)
+static void bio_destructor(struct bio *bio)
 {
 	const int pool_idx = BIO_POOL_IDX(bio);
-	struct biovec_pool *bp = bvec_array + pool_idx;
+	struct bio_set *bs = bio->bi_set;
 
 	BIO_BUG_ON(pool_idx >= BIOVEC_NR_POOLS);
 
-	/*
-	 * cloned bio doesn't own the veclist
-	 */
-	if (!bio_flagged(bio, BIO_CLONED))
-		mempool_free(bio->bi_io_vec, bp->pool);
-
-	mempool_free(bio, bio_pool);
+	mempool_free(bio->bi_io_vec, bs->bvec_pools[pool_idx]);
+	mempool_free(bio, bs->bio_pool);
 }
 
 inline void bio_init(struct bio *bio)
@@ -126,45 +137,66 @@ inline void bio_init(struct bio *bio)
 }
 
 /**
- * bio_alloc - allocate a bio for I/O
+ * bio_alloc_bioset - allocate a bio for I/O
  * @gfp_mask:   the GFP_ mask given to the slab allocator
  * @nr_iovecs:	number of iovecs to pre-allocate
+ * @bs:		the bio_set to allocate from
  *
  * Description:
- *   bio_alloc will first try it's on mempool to satisfy the allocation.
+ *   bio_alloc_bioset will first try it's on mempool to satisfy the allocation.
  *   If %__GFP_WAIT is set then we will block on the internal pool waiting
  *   for a &struct bio to become free.
+ *
+ *   allocate bio and iovecs from the memory pools specified by the
+ *   bio_set structure.
  **/
-struct bio *bio_alloc(int gfp_mask, int nr_iovecs)
+struct bio *bio_alloc_bioset(unsigned int __nocast gfp_mask, int nr_iovecs, struct bio_set *bs)
 {
-	struct bio_vec *bvl = NULL;
-	unsigned long idx;
-	struct bio *bio;
+	struct bio *bio = mempool_alloc(bs->bio_pool, gfp_mask);
 
-	bio = mempool_alloc(bio_pool, gfp_mask);
-	if (unlikely(!bio))
-		goto out;
+	if (likely(bio)) {
+		struct bio_vec *bvl = NULL;
 
-	bio_init(bio);
+		bio_init(bio);
+		if (likely(nr_iovecs)) {
+			unsigned long idx;
 
-	if (unlikely(!nr_iovecs))
-		goto noiovec;
-
-	bvl = bvec_alloc(gfp_mask, nr_iovecs, &idx);
-	if (bvl) {
-		bio->bi_flags |= idx << BIO_POOL_OFFSET;
-		bio->bi_max_vecs = bvec_array[idx].nr_vecs;
-noiovec:
+			bvl = bvec_alloc_bs(gfp_mask, nr_iovecs, &idx, bs);
+			if (unlikely(!bvl)) {
+				mempool_free(bio, bs->bio_pool);
+				bio = NULL;
+				goto out;
+			}
+			bio->bi_flags |= idx << BIO_POOL_OFFSET;
+			bio->bi_max_vecs = bvec_slabs[idx].nr_vecs;
+		}
 		bio->bi_io_vec = bvl;
 		bio->bi_destructor = bio_destructor;
-out:
-		return bio;
+		bio->bi_set = bs;
 	}
-
-	mempool_free(bio, bio_pool);
-	bio = NULL;
-	goto out;
+out:
+	return bio;
 }
+
+struct bio *bio_alloc(unsigned int __nocast gfp_mask, int nr_iovecs)
+{
+	return bio_alloc_bioset(gfp_mask, nr_iovecs, fs_bio_set);
+}
+
+void zero_fill_bio(struct bio *bio)
+{
+	unsigned long flags;
+	struct bio_vec *bv;
+	int i;
+
+	bio_for_each_segment(bv, bio, i) {
+		char *data = bvec_kmap_irq(bv, &flags);
+		memset(data, 0, bv->bv_len);
+		flush_dcache_page(bv->bv_page);
+		bvec_kunmap_irq(data, &flags);
+	}
+}
+EXPORT_SYMBOL(zero_fill_bio);
 
 /**
  * bio_put - release a reference to a bio
@@ -214,7 +246,9 @@ inline int bio_hw_segments(request_queue_t *q, struct bio *bio)
  */
 inline void __bio_clone(struct bio *bio, struct bio *bio_src)
 {
-	bio->bi_io_vec = bio_src->bi_io_vec;
+	request_queue_t *q = bdev_get_queue(bio_src->bi_bdev);
+
+	memcpy(bio->bi_io_vec, bio_src->bi_io_vec, bio_src->bi_max_vecs * sizeof(struct bio_vec));
 
 	bio->bi_sector = bio_src->bi_sector;
 	bio->bi_bdev = bio_src->bi_bdev;
@@ -226,21 +260,9 @@ inline void __bio_clone(struct bio *bio, struct bio *bio_src)
 	 * for the clone
 	 */
 	bio->bi_vcnt = bio_src->bi_vcnt;
-	bio->bi_idx = bio_src->bi_idx;
-	if (bio_flagged(bio, BIO_SEG_VALID)) {
-		bio->bi_phys_segments = bio_src->bi_phys_segments;
-		bio->bi_hw_segments = bio_src->bi_hw_segments;
-		bio->bi_flags |= (1 << BIO_SEG_VALID);
-	}
 	bio->bi_size = bio_src->bi_size;
-
-	/*
-	 * cloned bio does not own the bio_vec, so users cannot fiddle with
-	 * it. clear bi_max_vecs and clear the BIO_POOL_BITS to make this
-	 * apparent
-	 */
-	bio->bi_max_vecs = 0;
-	bio->bi_flags &= (BIO_POOL_MASK - 1);
+	bio_phys_segments(q, bio);
+	bio_hw_segments(q, bio);
 }
 
 /**
@@ -250,9 +272,9 @@ inline void __bio_clone(struct bio *bio, struct bio *bio_src)
  *
  * 	Like __bio_clone, only also allocates the returned bio
  */
-struct bio *bio_clone(struct bio *bio, int gfp_mask)
+struct bio *bio_clone(struct bio *bio, unsigned int __nocast gfp_mask)
 {
-	struct bio *b = bio_alloc(gfp_mask, 0);
+	struct bio *b = bio_alloc_bioset(gfp_mask, bio->bi_max_vecs, fs_bio_set);
 
 	if (b)
 		__bio_clone(b, bio);
@@ -376,6 +398,38 @@ int bio_add_page(struct bio *bio, struct page *page, unsigned int len,
 			      len, offset);
 }
 
+struct bio_map_data {
+	struct bio_vec *iovecs;
+	void __user *userptr;
+};
+
+static void bio_set_map_data(struct bio_map_data *bmd, struct bio *bio)
+{
+	memcpy(bmd->iovecs, bio->bi_io_vec, sizeof(struct bio_vec) * bio->bi_vcnt);
+	bio->bi_private = bmd;
+}
+
+static void bio_free_map_data(struct bio_map_data *bmd)
+{
+	kfree(bmd->iovecs);
+	kfree(bmd);
+}
+
+static struct bio_map_data *bio_alloc_map_data(int nr_segs)
+{
+	struct bio_map_data *bmd = kmalloc(sizeof(*bmd), GFP_KERNEL);
+
+	if (!bmd)
+		return NULL;
+
+	bmd->iovecs = kmalloc(sizeof(struct bio_vec) * nr_segs, GFP_KERNEL);
+	if (bmd->iovecs)
+		return bmd;
+
+	kfree(bmd);
+	return NULL;
+}
+
 /**
  *	bio_uncopy_user	-	finish previously mapped bio
  *	@bio: bio being terminated
@@ -385,23 +439,22 @@ int bio_add_page(struct bio *bio, struct page *page, unsigned int len,
  */
 int bio_uncopy_user(struct bio *bio)
 {
+	struct bio_map_data *bmd = bio->bi_private;
+	const int read = bio_data_dir(bio) == READ;
 	struct bio_vec *bvec;
 	int i, ret = 0;
 
-	if (bio_data_dir(bio) == READ) {
-		char *uaddr = bio->bi_private;
+	__bio_for_each_segment(bvec, bio, i, 0) {
+		char *addr = page_address(bvec->bv_page);
+		unsigned int len = bmd->iovecs[i].bv_len;
 
-		__bio_for_each_segment(bvec, bio, i, 0) {
-			char *addr = page_address(bvec->bv_page);
+		if (read && !ret && copy_to_user(bmd->userptr, addr, len))
+			ret = -EFAULT;
 
-			if (!ret && copy_to_user(uaddr, addr, bvec->bv_len))
-				ret = -EFAULT;
-
-			__free_page(bvec->bv_page);
-			uaddr += bvec->bv_len;
-		}
+		__free_page(bvec->bv_page);
+		bmd->userptr += len;
 	}
-
+	bio_free_map_data(bmd);
 	bio_put(bio);
 	return ret;
 }
@@ -422,14 +475,24 @@ struct bio *bio_copy_user(request_queue_t *q, unsigned long uaddr,
 {
 	unsigned long end = (uaddr + len + PAGE_SIZE - 1) >> PAGE_SHIFT;
 	unsigned long start = uaddr >> PAGE_SHIFT;
+	struct bio_map_data *bmd;
 	struct bio_vec *bvec;
 	struct page *page;
 	struct bio *bio;
 	int i, ret;
 
+	bmd = bio_alloc_map_data(end - start);
+	if (!bmd)
+		return ERR_PTR(-ENOMEM);
+
+	bmd->userptr = (void __user *) uaddr;
+
+	ret = -ENOMEM;
 	bio = bio_alloc(GFP_KERNEL, end - start);
 	if (!bio)
-		return ERR_PTR(-ENOMEM);
+		goto out_bmd;
+
+	bio->bi_rw |= (!write_to_vm << BIO_RW);
 
 	ret = 0;
 	while (len) {
@@ -452,36 +515,37 @@ struct bio *bio_copy_user(request_queue_t *q, unsigned long uaddr,
 		len -= bytes;
 	}
 
+	if (ret)
+		goto cleanup;
+
 	/*
 	 * success
 	 */
-	if (!ret) {
-		if (!write_to_vm) {
-			bio->bi_rw |= (1 << BIO_RW);
-			/*
-	 		 * for a write, copy in data to kernel pages
-			 */
-			ret = -EFAULT;
-			bio_for_each_segment(bvec, bio, i) {
-				char *addr = page_address(bvec->bv_page);
+	if (!write_to_vm) {
+		char __user *p = (char __user *) uaddr;
 
-				if (copy_from_user(addr, (char *) uaddr, bvec->bv_len))
-					goto cleanup;
-			}
+		/*
+		 * for a write, copy in data to kernel pages
+		 */
+		ret = -EFAULT;
+		bio_for_each_segment(bvec, bio, i) {
+			char *addr = page_address(bvec->bv_page);
+
+			if (copy_from_user(addr, p, bvec->bv_len))
+				goto cleanup;
+			p += bvec->bv_len;
 		}
-
-		bio->bi_private = (void *) uaddr;
-		return bio;
 	}
 
-	/*
-	 * cleanup
-	 */
+	bio_set_map_data(bmd, bio);
+	return bio;
 cleanup:
 	bio_for_each_segment(bvec, bio, i)
 		__free_page(bvec->bv_page);
 
 	bio_put(bio);
+out_bmd:
+	bio_free_map_data(bmd);
 	return ERR_PTR(ret);
 }
 
@@ -566,6 +630,7 @@ out:
 
 /**
  *	bio_map_user	-	map user address into bio
+ *	@q: the request_queue_t for the bio
  *	@bdev: destination block device
  *	@uaddr: start of user address
  *	@len: length in bytes
@@ -607,18 +672,6 @@ static void __bio_unmap_user(struct bio *bio)
 {
 	struct bio_vec *bvec;
 	int i;
-
-	/*
-	 * find original bio if it was bounced
-	 */
-	if (bio->bi_private) {
-		/*
-		 * someone stole our bio, must not happen
-		 */
-		BUG_ON(!bio_flagged(bio, BIO_BOUNCED));
-	
-		bio = bio->bi_private;
-	}
 
 	/*
 	 * make sure we dirty pages we wrote to
@@ -717,7 +770,7 @@ static void bio_release_pages(struct bio *bio)
 static void bio_dirty_fn(void *data);
 
 static DECLARE_WORK(bio_dirty_work, bio_dirty_fn, NULL);
-static spinlock_t bio_dirty_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(bio_dirty_lock);
 static struct bio *bio_dirty_list;
 
 /*
@@ -883,7 +936,7 @@ struct bio_pair *bio_split(struct bio *bi, mempool_t *pool, int first_sectors)
 	return bp;
 }
 
-static void *bio_pair_alloc(int gfp_flags, void *data)
+static void *bio_pair_alloc(unsigned int __nocast gfp_flags, void *data)
 {
 	return kmalloc(sizeof(struct bio_pair), gfp_flags);
 }
@@ -893,10 +946,98 @@ static void bio_pair_free(void *bp, void *data)
 	kfree(bp);
 }
 
-static void __init biovec_init_pools(void)
+
+/*
+ * create memory pools for biovec's in a bio_set.
+ * use the global biovec slabs created for general use.
+ */
+static int biovec_create_pools(struct bio_set *bs, int pool_entries, int scale)
 {
-	int i, size, megabytes, pool_entries = BIO_POOL_SIZE;
+	int i;
+
+	for (i = 0; i < BIOVEC_NR_POOLS; i++) {
+		struct biovec_slab *bp = bvec_slabs + i;
+		mempool_t **bvp = bs->bvec_pools + i;
+
+		if (i >= scale)
+			pool_entries >>= 1;
+
+		*bvp = mempool_create(pool_entries, mempool_alloc_slab,
+					mempool_free_slab, bp->slab);
+		if (!*bvp)
+			return -ENOMEM;
+	}
+	return 0;
+}
+
+static void biovec_free_pools(struct bio_set *bs)
+{
+	int i;
+
+	for (i = 0; i < BIOVEC_NR_POOLS; i++) {
+		mempool_t *bvp = bs->bvec_pools[i];
+
+		if (bvp)
+			mempool_destroy(bvp);
+	}
+
+}
+
+void bioset_free(struct bio_set *bs)
+{
+	if (bs->bio_pool)
+		mempool_destroy(bs->bio_pool);
+
+	biovec_free_pools(bs);
+
+	kfree(bs);
+}
+
+struct bio_set *bioset_create(int bio_pool_size, int bvec_pool_size, int scale)
+{
+	struct bio_set *bs = kmalloc(sizeof(*bs), GFP_KERNEL);
+
+	if (!bs)
+		return NULL;
+
+	memset(bs, 0, sizeof(*bs));
+	bs->bio_pool = mempool_create(bio_pool_size, mempool_alloc_slab,
+			mempool_free_slab, bio_slab);
+
+	if (!bs->bio_pool)
+		goto bad;
+
+	if (!biovec_create_pools(bs, bvec_pool_size, scale))
+		return bs;
+
+bad:
+	bioset_free(bs);
+	return NULL;
+}
+
+static void __init biovec_init_slabs(void)
+{
+	int i;
+
+	for (i = 0; i < BIOVEC_NR_POOLS; i++) {
+		int size;
+		struct biovec_slab *bvs = bvec_slabs + i;
+
+		size = bvs->nr_vecs * sizeof(struct bio_vec);
+		bvs->slab = kmem_cache_create(bvs->name, size, 0,
+                                SLAB_HWCACHE_ALIGN|SLAB_PANIC, NULL, NULL);
+	}
+}
+
+static int __init init_bio(void)
+{
+	int megabytes, bvec_pool_entries;
 	int scale = BIOVEC_NR_POOLS;
+
+	bio_slab = kmem_cache_create("bio", sizeof(struct bio), 0,
+				SLAB_HWCACHE_ALIGN|SLAB_PANIC, NULL, NULL);
+
+	biovec_init_slabs();
 
 	megabytes = nr_free_pages() >> (20 - PAGE_SHIFT);
 
@@ -917,38 +1058,13 @@ static void __init biovec_init_pools(void)
 	/*
 	 * scale number of entries
 	 */
-	pool_entries = megabytes * 2;
-	if (pool_entries > 256)
-		pool_entries = 256;
+	bvec_pool_entries = megabytes * 2;
+	if (bvec_pool_entries > 256)
+		bvec_pool_entries = 256;
 
-	for (i = 0; i < BIOVEC_NR_POOLS; i++) {
-		struct biovec_pool *bp = bvec_array + i;
-
-		size = bp->nr_vecs * sizeof(struct bio_vec);
-
-		bp->slab = kmem_cache_create(bp->name, size, 0,
-				SLAB_HWCACHE_ALIGN|SLAB_PANIC, NULL, NULL);
-
-		if (i >= scale)
-			pool_entries >>= 1;
-
-		bp->pool = mempool_create(pool_entries, mempool_alloc_slab,
-					mempool_free_slab, bp->slab);
-		if (!bp->pool)
-			panic("biovec: can't init mempool\n");
-	}
-}
-
-static int __init init_bio(void)
-{
-	bio_slab = kmem_cache_create("bio", sizeof(struct bio), 0,
-				SLAB_HWCACHE_ALIGN|SLAB_PANIC, NULL, NULL);
-	bio_pool = mempool_create(BIO_POOL_SIZE, mempool_alloc_slab,
-				mempool_free_slab, bio_slab);
-	if (!bio_pool)
-		panic("bio: can't create mempool\n");
-
-	biovec_init_pools();
+	fs_bio_set = bioset_create(BIO_POOL_SIZE, bvec_pool_entries, scale);
+	if (!fs_bio_set)
+		panic("bio: can't allocate bios\n");
 
 	bio_split_pool = mempool_create(BIO_SPLIT_ENTRIES,
 				bio_pair_alloc, bio_pair_free, NULL);
@@ -977,3 +1093,6 @@ EXPORT_SYMBOL(bio_split);
 EXPORT_SYMBOL(bio_split_pool);
 EXPORT_SYMBOL(bio_copy_user);
 EXPORT_SYMBOL(bio_uncopy_user);
+EXPORT_SYMBOL(bioset_create);
+EXPORT_SYMBOL(bioset_free);
+EXPORT_SYMBOL(bio_alloc_bioset);

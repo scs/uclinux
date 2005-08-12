@@ -29,6 +29,7 @@
 static void afs_vlocation_update_timer(struct afs_timer *timer);
 static void afs_vlocation_update_attend(struct afs_async_op *op);
 static void afs_vlocation_update_discard(struct afs_async_op *op);
+static void __afs_put_vlocation(struct afs_vlocation *vlocation);
 
 static void __afs_vlocation_timeout(struct afs_timer *timer)
 {
@@ -56,7 +57,7 @@ static const struct afs_async_op_ops afs_vlocation_update_op_ops = {
 
 static LIST_HEAD(afs_vlocation_update_pendq);	/* queue of VLs awaiting update */
 static struct afs_vlocation *afs_vlocation_update;	/* VL currently being updated */
-static spinlock_t afs_vlocation_update_lock = SPIN_LOCK_UNLOCKED; /* lock guarding update queue */
+static DEFINE_SPINLOCK(afs_vlocation_update_lock); /* lock guarding update queue */
 
 #ifdef AFS_CACHING_SUPPORT
 static cachefs_match_val_t afs_vlocation_cache_match(void *target,
@@ -455,7 +456,7 @@ int afs_vlocation_lookup(struct afs_cell *cell,
  * finish using a volume location record
  * - caller must have cell->vol_sem write-locked
  */
-void __afs_put_vlocation(struct afs_vlocation *vlocation)
+static void __afs_put_vlocation(struct afs_vlocation *vlocation)
 {
 	struct afs_cell *cell;
 

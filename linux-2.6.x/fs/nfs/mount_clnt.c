@@ -31,7 +31,7 @@
 
 static struct rpc_clnt *	mnt_create(char *, struct sockaddr_in *,
 								int, int);
-struct rpc_program		mnt_program;
+static struct rpc_program	mnt_program;
 
 struct mnt_fhstatus {
 	unsigned int		status;
@@ -108,7 +108,6 @@ xdr_decode_fhstatus(struct rpc_rqst *req, u32 *p, struct mnt_fhstatus *res)
 {
 	struct nfs_fh *fh = res->fh;
 
-	memset((void *)fh, 0, sizeof(*fh));
 	if ((res->status = ntohl(*p++)) == 0) {
 		fh->size = NFS2_FHSIZE;
 		memcpy(fh->data, p, NFS2_FHSIZE);
@@ -121,7 +120,6 @@ xdr_decode_fhstatus3(struct rpc_rqst *req, u32 *p, struct mnt_fhstatus *res)
 {
 	struct nfs_fh *fh = res->fh;
 
-	memset((void *)fh, 0, sizeof(*fh));
 	if ((res->status = ntohl(*p++)) == 0) {
 		int size = ntohl(*p++);
 		if (size <= NFS3_FHSIZE) {
@@ -176,7 +174,7 @@ static struct rpc_version *	mnt_version[] = {
 
 static struct rpc_stat		mnt_stats;
 
-struct rpc_program	mnt_program = {
+static struct rpc_program	mnt_program = {
 	.name		= "mount",
 	.number		= NFS_MNT_PROGRAM,
 	.nrvers		= sizeof(mnt_version)/sizeof(mnt_version[0]),

@@ -14,7 +14,7 @@
 #include <linux/quotaops.h>
 #include <linux/buffer_head.h>
 #include <linux/sched.h>
-#include <asm/bitops.h>
+#include <linux/bitops.h>
 #include <asm/byteorder.h>
 
 #include "swab.h"
@@ -28,12 +28,12 @@
 #define UFSD(x)
 #endif
 
-unsigned ufs_add_fragments (struct inode *, unsigned, unsigned, unsigned, int *);
-unsigned ufs_alloc_fragments (struct inode *, unsigned, unsigned, unsigned, int *);
-unsigned ufs_alloccg_block (struct inode *, struct ufs_cg_private_info *, unsigned, int *);
-unsigned ufs_bitmap_search (struct super_block *, struct ufs_cg_private_info *, unsigned, unsigned);
+static unsigned ufs_add_fragments (struct inode *, unsigned, unsigned, unsigned, int *);
+static unsigned ufs_alloc_fragments (struct inode *, unsigned, unsigned, unsigned, int *);
+static unsigned ufs_alloccg_block (struct inode *, struct ufs_cg_private_info *, unsigned, int *);
+static unsigned ufs_bitmap_search (struct super_block *, struct ufs_cg_private_info *, unsigned, unsigned);
 static unsigned char ufs_fragtable_8fpb[], ufs_fragtable_other[];
-void ufs_clusteracct(struct super_block *, struct ufs_cg_private_info *, unsigned, int);
+static void ufs_clusteracct(struct super_block *, struct ufs_cg_private_info *, unsigned, int);
 
 /*
  * Free 'count' fragments from fragment number 'fragment'
@@ -235,7 +235,7 @@ failed:
 		brelse (bh); \
 	}
 
-unsigned ufs_new_fragments (struct inode * inode, u32 * p, unsigned fragment,
+unsigned ufs_new_fragments (struct inode * inode, __fs32 * p, unsigned fragment,
 	unsigned goal, unsigned count, int * err )
 {
 	struct super_block * sb;
@@ -393,8 +393,9 @@ unsigned ufs_new_fragments (struct inode * inode, u32 * p, unsigned fragment,
 	return 0;
 }		
 
-unsigned ufs_add_fragments (struct inode * inode, unsigned fragment,
-	unsigned oldcount, unsigned newcount, int * err)
+static unsigned
+ufs_add_fragments (struct inode * inode, unsigned fragment,
+		   unsigned oldcount, unsigned newcount, int * err)
 {
 	struct super_block * sb;
 	struct ufs_sb_private_info * uspi;
@@ -411,7 +412,7 @@ unsigned ufs_add_fragments (struct inode * inode, unsigned fragment,
 	count = newcount - oldcount;
 	
 	cgno = ufs_dtog(fragment);
-	if (UFS_SB(sb)->fs_cs(cgno).cs_nffree < count)
+	if (fs32_to_cpu(sb, UFS_SB(sb)->fs_cs(cgno).cs_nffree) < count)
 		return 0;
 	if ((ufs_fragnum (fragment) + newcount) > uspi->s_fpb)
 		return 0;
@@ -477,7 +478,7 @@ unsigned ufs_add_fragments (struct inode * inode, unsigned fragment,
 		if (fs32_to_cpu(sb, ucg->cg_frsum[k])) \
 			goto cg_found; 
 
-unsigned ufs_alloc_fragments (struct inode * inode, unsigned cgno,
+static unsigned ufs_alloc_fragments (struct inode * inode, unsigned cgno,
 	unsigned goal, unsigned count, int * err)
 {
 	struct super_block * sb;
@@ -595,7 +596,7 @@ succed:
 	return result;
 }
 
-unsigned ufs_alloccg_block (struct inode * inode,
+static unsigned ufs_alloccg_block (struct inode * inode,
 	struct ufs_cg_private_info * ucpi, unsigned goal, int * err)
 {
 	struct super_block * sb;
@@ -653,7 +654,7 @@ gotit:
 	return result;
 }
 
-unsigned ufs_bitmap_search (struct super_block * sb,
+static unsigned ufs_bitmap_search (struct super_block * sb,
 	struct ufs_cg_private_info * ucpi, unsigned goal, unsigned count)
 {
 	struct ufs_sb_private_info * uspi;
@@ -724,7 +725,7 @@ unsigned ufs_bitmap_search (struct super_block * sb,
 	return (unsigned)-1;
 }
 
-void ufs_clusteracct(struct super_block * sb, 
+static void ufs_clusteracct(struct super_block * sb,
 	struct ufs_cg_private_info * ucpi, unsigned blkno, int cnt)
 {
 	struct ufs_sb_private_info * uspi;
@@ -770,11 +771,11 @@ void ufs_clusteracct(struct super_block * sb,
 	i = back + forw + 1;
 	if (i > uspi->s_contigsumsize)
 		i = uspi->s_contigsumsize;
-	fs32_add(sb, (u32*)ubh_get_addr(UCPI_UBH, ucpi->c_clustersumoff + (i << 2)), cnt);
+	fs32_add(sb, (__fs32*)ubh_get_addr(UCPI_UBH, ucpi->c_clustersumoff + (i << 2)), cnt);
 	if (back > 0)
-		fs32_sub(sb, (u32*)ubh_get_addr(UCPI_UBH, ucpi->c_clustersumoff + (back << 2)), cnt);
+		fs32_sub(sb, (__fs32*)ubh_get_addr(UCPI_UBH, ucpi->c_clustersumoff + (back << 2)), cnt);
 	if (forw > 0)
-		fs32_sub(sb, (u32*)ubh_get_addr(UCPI_UBH, ucpi->c_clustersumoff + (forw << 2)), cnt);
+		fs32_sub(sb, (__fs32*)ubh_get_addr(UCPI_UBH, ucpi->c_clustersumoff + (forw << 2)), cnt);
 }
 
 

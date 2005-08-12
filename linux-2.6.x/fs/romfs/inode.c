@@ -95,15 +95,16 @@ static inline struct romfs_inode_info *ROMFS_I(struct inode *inode)
 	return list_entry(inode, struct romfs_inode_info, vfs_inode);
 }
 
-static __s32
+static __u32
 romfs_checksum(void *data, int size)
 {
-	__s32 sum, *ptr;
+	__u32 sum;
+	__be32 *ptr;
 
 	sum = 0; ptr = data;
 	size>>=2;
 	while (size>0) {
-		sum += ntohl(*ptr++);
+		sum += be32_to_cpu(*ptr++);
 		size--;
 	}
 	return sum;
@@ -131,7 +132,7 @@ static int romfs_fill_super(struct super_block *s, void *data, int silent)
 	}
 
 	rsb = (struct romfs_super_block *)bh->b_data;
-	sz = ntohl(rsb->size);
+	sz = be32_to_cpu(rsb->size);
 	if (rsb->word0 != ROMSB_WORD0 || rsb->word1 != ROMSB_WORD1
 	   || sz < ROMFH_SIZE) {
 		if (!silent)
@@ -160,8 +161,7 @@ static int romfs_fill_super(struct super_block *s, void *data, int silent)
 	if (!root)
 		goto out;
 
-	s->s_root = d_alloc_root(iget(s, sz));
-
+	s->s_root = d_alloc_root(root);
 	if (!s->s_root)
 		goto outiput;
 
@@ -292,7 +292,7 @@ romfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 		offset = i->i_ino & ROMFH_MASK;
 		if (romfs_copyfrom(i, &ri, offset, ROMFH_SIZE) <= 0)
 			goto out;
-		offset = ntohl(ri.spec) & ROMFH_MASK;
+		offset = be32_to_cpu(ri.spec) & ROMFH_MASK;
 	}
 
 	/* Not really failsafe, but we are read-only... */
@@ -316,9 +316,9 @@ romfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 		romfs_copyfrom(i, fsname, offset+ROMFH_SIZE, j);
 
 		ino = offset;
-		nextfh = ntohl(ri.next);
+		nextfh = be32_to_cpu(ri.next);
 		if ((nextfh & ROMFH_TYPE) == ROMFH_HRD)
-			ino = ntohl(ri.spec);
+			ino = be32_to_cpu(ri.spec);
 		if (filldir(dirent, fsname, j, offset, ino,
 			    romfs_dtype_table[nextfh & ROMFH_TYPE]) < 0) {
 			goto out;
@@ -349,7 +349,7 @@ romfs_lookup(struct inode *dir, struct dentry *dentry, struct nameidata *nd)
 		goto out;
 
 	maxoff = romfs_maxsize(dir->i_sb);
-	offset = ntohl(ri.spec) & ROMFH_MASK;
+	offset = be32_to_cpu(ri.spec) & ROMFH_MASK;
 
 	/* OK, now find the file whose name is in "dentry" in the
 	 * directory specified by "dir".  */
@@ -382,12 +382,12 @@ romfs_lookup(struct inode *dir, struct dentry *dentry, struct nameidata *nd)
 			}
 		}
 		/* next entry */
-		offset = ntohl(ri.next) & ROMFH_MASK;
+		offset = be32_to_cpu(ri.next) & ROMFH_MASK;
 	}
 
 	/* Hard link handling */
-	if ((ntohl(ri.next) & ROMFH_TYPE) == ROMFH_HRD)
-		offset = ntohl(ri.spec) & ROMFH_MASK;
+	if ((be32_to_cpu(ri.next) & ROMFH_TYPE) == ROMFH_HRD)
+		offset = be32_to_cpu(ri.spec) & ROMFH_MASK;
 
 	if ((inode = iget(dir->i_sb, offset)))
 		goto outi;
@@ -495,15 +495,15 @@ romfs_read_inode(struct inode *i)
 		}
 		/* XXX: do romfs_checksum here too (with name) */
 
-		nextfh = ntohl(ri.next);
+		nextfh = be32_to_cpu(ri.next);
 		if ((nextfh & ROMFH_TYPE) != ROMFH_HRD)
 			break;
 
-		ino = ntohl(ri.spec) & ROMFH_MASK;
+		ino = be32_to_cpu(ri.spec) & ROMFH_MASK;
 	}
 
 	i->i_nlink = 1;		/* Hard to decide.. */
-	i->i_size = ntohl(ri.size);
+	i->i_size = be32_to_cpu(ri.size);
 	i->i_mtime.tv_sec = i->i_atime.tv_sec = i->i_ctime.tv_sec = 0;
 	i->i_mtime.tv_nsec = i->i_atime.tv_nsec = i->i_ctime.tv_nsec = 0;
 	i->i_uid = i->i_gid = 0;
@@ -544,7 +544,7 @@ romfs_read_inode(struct inode *i)
 			break;
 		default:
 			/* depending on MBZ for sock/fifos */
-			nextfh = ntohl(ri.spec);
+			nextfh = be32_to_cpu(ri.spec);
 			init_special_inode(i, ino,
 					MKDEV(nextfh>>16,nextfh&0xffff));
 	}
@@ -579,7 +579,7 @@ static int init_inodecache(void)
 {
 	romfs_inode_cachep = kmem_cache_create("romfs_inode_cache",
 					     sizeof(struct romfs_inode_info),
-					     0, SLAB_HWCACHE_ALIGN|SLAB_RECLAIM_ACCOUNT,
+					     0, SLAB_RECLAIM_ACCOUNT,
 					     init_once, NULL);
 	if (romfs_inode_cachep == NULL)
 		return -ENOMEM;

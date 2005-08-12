@@ -12,10 +12,10 @@
 #include <linux/buffer_head.h>
 #include <asm/uaccess.h>
 
-extern struct key  MIN_KEY;
+extern struct reiserfs_key  MIN_KEY;
 
 static int reiserfs_readdir (struct file *, void *, filldir_t);
-int reiserfs_dir_fsync(struct file *filp, struct dentry *dentry, int datasync) ;
+static int reiserfs_dir_fsync(struct file *filp, struct dentry *dentry, int datasync) ;
 
 struct file_operations reiserfs_dir_operations = {
     .read	= generic_read_dir,
@@ -24,12 +24,15 @@ struct file_operations reiserfs_dir_operations = {
     .ioctl	= reiserfs_ioctl,
 };
 
-int reiserfs_dir_fsync(struct file *filp, struct dentry *dentry, int datasync) {
+static int reiserfs_dir_fsync(struct file *filp, struct dentry *dentry, int datasync) {
   struct inode *inode = dentry->d_inode;
+  int err;
   reiserfs_write_lock(inode->i_sb);
-  reiserfs_commit_for_inode(inode) ;
+  err = reiserfs_commit_for_inode(inode) ;
   reiserfs_write_unlock(inode->i_sb) ;
-  return 0 ;
+  if (err < 0)
+      return err;
+  return 0;
 }
 
 
@@ -43,7 +46,7 @@ static int reiserfs_readdir (struct file * filp, void * dirent, filldir_t filldi
     INITIALIZE_PATH (path_to_entry);
     struct buffer_head * bh;
     int item_num, entry_num;
-    const struct key * rkey;
+    const struct reiserfs_key * rkey;
     struct item_head * ih, tmp_ih;
     int search_res;
     char * local_buf;
@@ -206,8 +209,8 @@ static int reiserfs_readdir (struct file * filp, void * dirent, filldir_t filldi
 /* compose directory item containing "." and ".." entries (entries are
    not aligned to 4 byte boundary) */
 /* the last four params are LE */
-void make_empty_dir_item_v1 (char * body, __u32 dirid, __u32 objid,
-			     __u32 par_dirid, __u32 par_objid)
+void make_empty_dir_item_v1 (char * body, __le32 dirid, __le32 objid,
+			     __le32 par_dirid, __le32 par_objid)
 {
     struct reiserfs_de_head * deh;
 
@@ -239,8 +242,8 @@ void make_empty_dir_item_v1 (char * body, __u32 dirid, __u32 objid,
 }
 
 /* compose directory item containing "." and ".." entries */
-void make_empty_dir_item (char * body, __u32 dirid, __u32 objid,
-			  __u32 par_dirid, __u32 par_objid)
+void make_empty_dir_item (char * body, __le32 dirid, __le32 objid,
+			  __le32 par_dirid, __le32 par_objid)
 {
     struct reiserfs_de_head * deh;
 

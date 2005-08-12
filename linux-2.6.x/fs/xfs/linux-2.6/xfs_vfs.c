@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000-2003 Silicon Graphics, Inc.  All Rights Reserved.
+ * Copyright (c) 2000-2004 Silicon Graphics, Inc.  All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -249,6 +249,8 @@ vfs_allocate( void )
 
 	vfsp = kmem_zalloc(sizeof(vfs_t), KM_SLEEP);
 	bhv_head_init(VFS_BHVHEAD(vfsp), "vfs");
+	INIT_LIST_HEAD(&vfsp->vfs_sync_list);
+	spin_lock_init(&vfsp->vfs_sync_lock);
 	init_waitqueue_head(&vfsp->vfs_wait_sync_task);
 	init_waitqueue_head(&vfsp->vfs_wait_single_sync_task);
 	return vfsp;

@@ -31,6 +31,9 @@
 #define UFSD(x)
 #endif
 
+static int
+ufs_check_dir_entry (const char *, struct inode *, struct ufs_dir_entry *,
+		     struct buffer_head *, unsigned long);
 
 
 /*
@@ -292,9 +295,10 @@ failed:
 	return NULL;
 }
 
-int ufs_check_dir_entry (const char * function,	struct inode * dir,
-	struct ufs_dir_entry * de, struct buffer_head * bh, 
-	unsigned long offset)
+static int
+ufs_check_dir_entry (const char *function, struct inode *dir,
+		     struct ufs_dir_entry *de, struct buffer_head *bh,
+		     unsigned long offset)
 {
 	struct super_block *sb = dir->i_sb;
 	const char *error_msg = NULL;
@@ -458,7 +462,7 @@ int ufs_add_link(struct dentry *dentry, struct inode *inode)
 	if (IS_DIRSYNC(dir))
 		sync_dirty_buffer(bh);
 	brelse (bh);
-	dir->i_mtime = dir->i_ctime = CURRENT_TIME;
+	dir->i_mtime = dir->i_ctime = CURRENT_TIME_SEC;
 	dir->i_version++;
 	mark_inode_dirty(dir);
 
@@ -501,7 +505,7 @@ int ufs_delete_entry (struct inode * inode, struct ufs_dir_entry * dir,
 					fs16_to_cpu(sb, dir->d_reclen));
 			dir->d_ino = 0;
 			inode->i_version++;
-			inode->i_ctime = inode->i_mtime = CURRENT_TIME;
+			inode->i_ctime = inode->i_mtime = CURRENT_TIME_SEC;
 			mark_inode_dirty(inode);
 			mark_buffer_dirty(bh);
 			if (IS_DIRSYNC(inode))

@@ -15,7 +15,6 @@
  */
 
 #include <asm/system.h>
-#include <asm/signal.h>
 #include <linux/signal.h>
 
 #include <linux/types.h>
@@ -55,7 +54,7 @@ static void *alloc_upcall(int opcode, int size)
         inp->ih.opcode = opcode;
 	inp->ih.pid = current->pid;
 	inp->ih.pgid = process_group(current);
-#ifdef CODA_FS_OLD_API
+#ifdef CONFIG_CODA_FS_OLD_API
 	memset(&inp->ih.cred, 0, sizeof(struct coda_cred));
 	inp->ih.cred.cr_fsuid = current->fsuid;
 #else
@@ -172,7 +171,7 @@ int venus_store(struct super_block *sb, struct CodaFid *fid, int flags,
         union inputArgs *inp;
         union outputArgs *outp;
         int insize, outsize, error;
-#ifdef CODA_FS_OLD_API
+#ifdef CONFIG_CODA_FS_OLD_API
 	struct coda_cred cred = { 0, };
 	cred.cr_fsuid = uid;
 #endif
@@ -180,7 +179,7 @@ int venus_store(struct super_block *sb, struct CodaFid *fid, int flags,
 	insize = SIZE(store);
 	UPARG(CODA_STORE);
 	
-#ifdef CODA_FS_OLD_API
+#ifdef CONFIG_CODA_FS_OLD_API
 	memcpy(&(inp->ih.cred), &cred, sizeof(cred));
 #else
 	inp->ih.uid = uid;
@@ -219,7 +218,7 @@ int venus_close(struct super_block *sb, struct CodaFid *fid, int flags,
 	union inputArgs *inp;
 	union outputArgs *outp;
 	int insize, outsize, error;
-#ifdef CODA_FS_OLD_API
+#ifdef CONFIG_CODA_FS_OLD_API
 	struct coda_cred cred = { 0, };
 	cred.cr_fsuid = uid;
 #endif
@@ -227,7 +226,7 @@ int venus_close(struct super_block *sb, struct CodaFid *fid, int flags,
 	insize = SIZE(release);
 	UPARG(CODA_CLOSE);
 	
-#ifdef CODA_FS_OLD_API
+#ifdef CONFIG_CODA_FS_OLD_API
 	memcpy(&(inp->ih.cred), &cred, sizeof(cred));
 #else
 	inp->ih.uid = uid;
@@ -331,7 +330,7 @@ int venus_rename(struct super_block *sb, struct CodaFid *old_fid,
 }
 
 int venus_create(struct super_block *sb, struct CodaFid *dirfid, 
-		 const char *name, int length, int excl, int mode, dev_t rdev,
+		 const char *name, int length, int excl, int mode,
 		 struct CodaFid *newfid, struct coda_vattr *attrs) 
 {
         union inputArgs *inp;
@@ -345,7 +344,6 @@ int venus_create(struct super_block *sb, struct CodaFid *dirfid,
 
         inp->coda_create.VFid = *dirfid;
         inp->coda_create.attr.va_mode = mode;
-        inp->coda_create.attr.va_rdev = huge_encode_dev(rdev);
 	inp->coda_create.excl = excl;
         inp->coda_create.mode = mode;
         inp->coda_create.name = offset;
@@ -555,6 +553,11 @@ int venus_pioctl(struct super_block *sb, struct CodaFid *fid,
 		goto exit;
         }
 
+        if (data->vi.out_size > VC_MAXDATASIZE) {
+		error = -EINVAL;
+		goto exit;
+	}
+
         inp->coda_ioctl.VFid = *fid;
     
         /* the cmd field was mutated by increasing its size field to
@@ -583,18 +586,25 @@ int venus_pioctl(struct super_block *sb, struct CodaFid *fid,
 		       error, coda_f2s(fid));
 		goto exit; 
 	}
+
+	if (outsize < (long)outp->coda_ioctl.data + outp->coda_ioctl.len) {
+		error = -EINVAL;
+		goto exit;
+	}
         
 	/* Copy out the OUT buffer. */
         if (outp->coda_ioctl.len > data->vi.out_size) {
 		error = -EINVAL;
-        } else {
-		if (copy_to_user(data->vi.out, 
-				 (char *)outp + (long)outp->coda_ioctl.data, 
-				 data->vi.out_size)) {
-			error = -EFAULT;
-			goto exit;
-		}
+		goto exit;
         }
+
+	/* Copy out the OUT buffer. */
+	if (copy_to_user(data->vi.out,
+			 (char *)outp + (long)outp->coda_ioctl.data,
+			 outp->coda_ioctl.len)) {
+		error = -EFAULT;
+		goto exit;
+	}
 
  exit:
 	CODA_FREE(inp, insize);

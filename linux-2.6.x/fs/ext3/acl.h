@@ -7,21 +7,20 @@
 #include <linux/xattr_acl.h>
 
 #define EXT3_ACL_VERSION	0x0001
-#define EXT3_ACL_MAX_ENTRIES	32
 
 typedef struct {
-	__u16		e_tag;
-	__u16		e_perm;
-	__u32		e_id;
+	__le16		e_tag;
+	__le16		e_perm;
+	__le32		e_id;
 } ext3_acl_entry;
 
 typedef struct {
-	__u16		e_tag;
-	__u16		e_perm;
+	__le16		e_tag;
+	__le16		e_perm;
 } ext3_acl_entry_short;
 
 typedef struct {
-	__u32		a_version;
+	__le32		a_version;
 } ext3_acl_header;
 
 static inline size_t ext3_acl_size(int count)
@@ -79,7 +78,6 @@ ext3_acl_chmod(struct inode *inode)
 static inline int
 ext3_init_acl(handle_t *handle, struct inode *inode, struct inode *dir)
 {
-	inode->i_mode &= ~current->fs->umask;
 	return 0;
 }
 #endif  /* CONFIG_EXT3_FS_POSIX_ACL */

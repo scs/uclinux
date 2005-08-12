@@ -54,7 +54,7 @@ typedef struct {
 	struct dentry *dentry;
 } Node;
 
-static rwlock_t entries_lock = RW_LOCK_UNLOCKED;
+static DEFINE_RWLOCK(entries_lock);
 static struct vfsmount *bm_mnt;
 static int entry_count;
 
@@ -509,7 +509,8 @@ static struct inode *bm_get_inode(struct super_block *sb, int mode)
 		inode->i_gid = 0;
 		inode->i_blksize = PAGE_CACHE_SIZE;
 		inode->i_blocks = 0;
-		inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
+		inode->i_atime = inode->i_mtime = inode->i_ctime =
+			current_fs_time(inode->i_sb);
 	}
 	return inode;
 }

@@ -54,13 +54,13 @@ struct timeval			nfssvc_boot;
 static struct svc_serv 		*nfsd_serv;
 static atomic_t			nfsd_busy;
 static unsigned long		nfsd_last_call;
-static spinlock_t		nfsd_call_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(nfsd_call_lock);
 
 struct nfsd_list {
 	struct list_head 	list;
 	struct task_struct	*task;
 };
-struct list_head nfsd_list = LIST_HEAD_INIT(nfsd_list);
+static struct list_head nfsd_list = LIST_HEAD_INIT(nfsd_list);
 
 /*
  * Maximum number of nfsd processes
@@ -92,7 +92,9 @@ nfsd_svc(unsigned short port, int nrservs)
 	
 	/* Readahead param cache - will no-op if it already exists */
 	error =	nfsd_racache_init(2*nrservs);
-	nfs4_state_init();
+	if (error<0)
+		goto out;
+	error = nfs4_state_init();
 	if (error<0)
 		goto out;
 	if (!nfsd_serv) {
@@ -180,7 +182,6 @@ nfsd(struct svc_rqst *rqstp)
 	/* Lock module and set up kernel thread */
 	lock_kernel();
 	daemonize("nfsd");
-	current->rlim[RLIMIT_FSIZE].rlim_cur = RLIM_INFINITY;
 
 	/* After daemonize() this kernel thread shares current->fs
 	 * with the init process. We need to create files with a
@@ -257,6 +258,8 @@ nfsd(struct svc_rqst *rqstp)
 				break;
 		err = signo;
 	}
+	/* Clear signals before calling lockd_down() and svc_exit_thread() */
+	flush_signals(current);
 
 	lock_kernel();
 
@@ -328,6 +331,8 @@ nfsd_dispatch(struct svc_rqst *rqstp, u32 *statp)
 
 	/* Now call the procedure handler, and encode NFS status. */
 	nfserr = proc->pc_func(rqstp, rqstp->rq_argp, rqstp->rq_resp);
+	if (nfserr == nfserr_jukebox && rqstp->rq_vers == 2)
+		nfserr = nfserr_dropit;
 	if (nfserr == nfserr_dropit) {
 		dprintk("nfsd: Dropping request due to malloc failure!\n");
 		nfsd_cache_update(rqstp, RC_NOCACHE, NULL);
@@ -377,4 +382,6 @@ struct svc_program		nfsd_program = {
 	.pg_name		= "nfsd",		/* program name */
 	.pg_class		= "nfsd",		/* authentication class */
 	.pg_stats		= &nfsd_svcstats,	/* version table */
+	.pg_authenticate	= &svc_set_client,	/* export authentication */
+
 };

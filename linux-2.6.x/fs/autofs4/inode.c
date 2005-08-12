@@ -15,7 +15,7 @@
 #include <linux/file.h>
 #include <linux/pagemap.h>
 #include <linux/parser.h>
-#include <asm/bitops.h>
+#include <linux/bitops.h>
 #include "autofs_i.h"
 #include <linux/module.h>
 
@@ -206,11 +206,13 @@ int autofs4_fill_super(struct super_block *s, void *data, int silent)
 	sbi->version = 0;
 	sbi->sub_version = 0;
 	init_MUTEX(&sbi->wq_sem);
+	spin_lock_init(&sbi->fs_lock);
 	sbi->queues = NULL;
 	s->s_blocksize = 1024;
 	s->s_blocksize_bits = 10;
 	s->s_magic = AUTOFS_SUPER_MAGIC;
 	s->s_op = &autofs4_sops;
+	s->s_time_gran = 1;
 
 	/*
 	 * Get the root inode and dentry, but defer checking for errors.

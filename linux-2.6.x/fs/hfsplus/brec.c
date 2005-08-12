@@ -11,10 +11,14 @@
 #include "hfsplus_fs.h"
 #include "hfsplus_raw.h"
 
+static struct hfs_bnode *hfs_bnode_split(struct hfs_find_data *fd);
+static int hfs_brec_update_parent(struct hfs_find_data *fd);
+static int hfs_btree_inc_height(struct hfs_btree *);
+
 /* Get the length and offset of the given record in the given node */
 u16 hfs_brec_lenoff(struct hfs_bnode *node, u16 rec, u16 *off)
 {
-	u16 retval[2];
+	__be16 retval[2];
 	u16 dataoff;
 
 	dataoff = node->tree->node_size - (rec + 2) * 2;
@@ -53,7 +57,7 @@ int hfs_brec_insert(struct hfs_find_data *fd, void *entry, int entry_len)
 	int size, key_len, rec;
 	int data_off, end_off;
 	int idx_rec_off, data_rec_off, end_rec_off;
-	u32 cnid;
+	__be32 cnid;
 
 	tree = fd->tree;
 	if (!fd->bnode) {
@@ -209,7 +213,7 @@ skip:
 	return 0;
 }
 
-struct hfs_bnode *hfs_bnode_split(struct hfs_find_data *fd)
+static struct hfs_bnode *hfs_bnode_split(struct hfs_find_data *fd)
 {
 	struct hfs_btree *tree;
 	struct hfs_bnode *node, *new_node;
@@ -318,7 +322,7 @@ struct hfs_bnode *hfs_bnode_split(struct hfs_find_data *fd)
 	return new_node;
 }
 
-int hfs_brec_update_parent(struct hfs_find_data *fd)
+static int hfs_brec_update_parent(struct hfs_find_data *fd)
 {
 	struct hfs_btree *tree;
 	struct hfs_bnode *node, *new_node, *parent;
@@ -387,7 +391,7 @@ skip:
 	node = parent;
 
 	if (new_node) {
-		u32 cnid;
+		__be32 cnid;
 
 		fd->bnode = hfs_bnode_find(tree, new_node->parent);
 		/* create index key and entry */
@@ -414,12 +418,12 @@ out:
 	return 0;
 }
 
-int hfs_btree_inc_height(struct hfs_btree *tree)
+static int hfs_btree_inc_height(struct hfs_btree *tree)
 {
 	struct hfs_bnode *node, *new_node;
 	struct hfs_bnode_desc node_desc;
 	int key_size, rec;
-	u32 cnid;
+	__be32 cnid;
 
 	node = NULL;
 	if (tree->root) {

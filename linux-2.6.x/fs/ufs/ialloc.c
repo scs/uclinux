@@ -28,7 +28,7 @@
 #include <linux/quotaops.h>
 #include <linux/buffer_head.h>
 #include <linux/sched.h>
-#include <asm/bitops.h>
+#include <linux/bitops.h>
 #include <asm/byteorder.h>
 
 #include "swab.h"
@@ -267,7 +267,7 @@ cg_found:
 	inode->i_ino = cg * uspi->s_ipg + bit;
 	inode->i_blksize = PAGE_SIZE;	/* This is the optimal IO size (for stat), not the fs block size */
 	inode->i_blocks = 0;
-	inode->i_mtime = inode->i_atime = inode->i_ctime = CURRENT_TIME;
+	inode->i_mtime = inode->i_atime = inode->i_ctime = CURRENT_TIME_SEC;
 	ufsi->i_flags = UFS_I(dir)->i_flags;
 	ufsi->i_lastfrag = 0;
 	ufsi->i_gen = 0;

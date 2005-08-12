@@ -73,8 +73,8 @@ int reiserfs_global_version_in_proc( char *buffer, char **start, off_t offset,
 #define DFL( x ) D4C( rs -> s_v1.x )
 
 #define objectid_map( s, rs ) (old_format_only (s) ?				\
-                         (__u32 *)((struct reiserfs_super_block_v1 *)rs + 1) :	\
-			 (__u32 *)(rs + 1))
+                         (__le32 *)((struct reiserfs_super_block_v1 *)rs + 1) :	\
+			 (__le32 *)(rs + 1))
 #define MAP( i ) D4C( objectid_map( sb, rs )[ i ] )
 
 #define DJF( x ) le32_to_cpu( rs -> x )
@@ -399,7 +399,7 @@ static int show_journal(struct seq_file *m, struct super_block *sb)
                         DJP( jp_journal_trans_max ),
                         DJP( jp_journal_magic ),
                         DJP( jp_journal_max_batch ),
-                        SB_JOURNAL_MAX_COMMIT_AGE(sb),
+			SB_JOURNAL(sb)->j_max_commit_age,
                         DJP( jp_journal_max_trans_age ),
 
 			JF( j_1st_reserved_block ),			
@@ -638,8 +638,8 @@ int reiserfs_global_version_in_proc( char *buffer, char **start,
 
 /*
  * $Log$
- * Revision 1.3  2004/09/08 15:57:07  lgsoft
- * Import of 2.6.8
+ * Revision 1.4  2005/08/12 04:12:03  magicyang
+ *  update kernel 2.6.8 to 2.6.12
  *
  * Revision 1.1.8.2  2001/07/15 17:08:42  god
  *  . use get_super() in procfs.c

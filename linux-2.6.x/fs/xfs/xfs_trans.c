@@ -131,7 +131,7 @@ xfs_trans_alloc(
 	xfs_mount_t	*mp,
 	uint		type)
 {
-	vfs_check_frozen(XFS_MTOVFS(mp)->vfs_super, SB_FREEZE_TRANS);
+	fs_check_frozen(XFS_MTOVFS(mp), SB_FREEZE_TRANS);
 	atomic_inc(&mp->m_active_trans);
 
 	return (_xfs_trans_alloc(mp, type));
@@ -490,6 +490,9 @@ xfs_trans_apply_sb_deltas(
 
 	if (tp->t_frextents_delta != 0) {
 		INT_MOD(sbp->sb_frextents, ARCH_CONVERT, tp->t_frextents_delta);
+	}
+	if (tp->t_res_frextents_delta != 0) {
+		INT_MOD(sbp->sb_frextents, ARCH_CONVERT, tp->t_res_frextents_delta);
 	}
 	if (tp->t_dblocks_delta != 0) {
 		INT_MOD(sbp->sb_dblocks, ARCH_CONVERT, tp->t_dblocks_delta);

@@ -71,9 +71,6 @@ static struct buffer_head *ext3_append(handle_t *handle,
 #define swap(x, y) do { typeof(x) z = x; x = y; y = z; } while (0)
 #endif
 
-typedef struct { u32 v; } le_u32;
-typedef struct { u16 v; } le_u16;
-
 #ifdef DX_DEBUG
 #define dxtrace(command) command
 #else
@@ -82,22 +79,22 @@ typedef struct { u16 v; } le_u16;
 
 struct fake_dirent
 {
-	/*le*/u32 inode;
-	/*le*/u16 rec_len;
+	__le32 inode;
+	__le16 rec_len;
 	u8 name_len;
 	u8 file_type;
 };
 
 struct dx_countlimit
 {
-	le_u16 limit;
-	le_u16 count;
+	__le16 limit;
+	__le16 count;
 };
 
 struct dx_entry
 {
-	le_u32 hash;
-	le_u32 block;
+	__le32 hash;
+	__le32 block;
 };
 
 /*
@@ -114,7 +111,7 @@ struct dx_root
 	char dotdot_name[4];
 	struct dx_root_info
 	{
-		le_u32 reserved_zero;
+		__le32 reserved_zero;
 		u8 hash_version;
 		u8 info_length; /* 8 */
 		u8 indirect_levels;
@@ -184,42 +181,42 @@ static int ext3_dx_add_entry(handle_t *handle, struct dentry *dentry,
 
 static inline unsigned dx_get_block (struct dx_entry *entry)
 {
-	return le32_to_cpu(entry->block.v) & 0x00ffffff;
+	return le32_to_cpu(entry->block) & 0x00ffffff;
 }
 
 static inline void dx_set_block (struct dx_entry *entry, unsigned value)
 {
-	entry->block.v = cpu_to_le32(value);
+	entry->block = cpu_to_le32(value);
 }
 
 static inline unsigned dx_get_hash (struct dx_entry *entry)
 {
-	return le32_to_cpu(entry->hash.v);
+	return le32_to_cpu(entry->hash);
 }
 
 static inline void dx_set_hash (struct dx_entry *entry, unsigned value)
 {
-	entry->hash.v = cpu_to_le32(value);
+	entry->hash = cpu_to_le32(value);
 }
 
 static inline unsigned dx_get_count (struct dx_entry *entries)
 {
-	return le16_to_cpu(((struct dx_countlimit *) entries)->count.v);
+	return le16_to_cpu(((struct dx_countlimit *) entries)->count);
 }
 
 static inline unsigned dx_get_limit (struct dx_entry *entries)
 {
-	return le16_to_cpu(((struct dx_countlimit *) entries)->limit.v);
+	return le16_to_cpu(((struct dx_countlimit *) entries)->limit);
 }
 
 static inline void dx_set_count (struct dx_entry *entries, unsigned value)
 {
-	((struct dx_countlimit *) entries)->count.v = cpu_to_le16(value);
+	((struct dx_countlimit *) entries)->count = cpu_to_le16(value);
 }
 
 static inline void dx_set_limit (struct dx_entry *entries, unsigned value)
 {
-	((struct dx_countlimit *) entries)->limit.v = cpu_to_le16(value);
+	((struct dx_countlimit *) entries)->limit = cpu_to_le16(value);
 }
 
 static inline unsigned dx_root_limit (struct inode *dir, unsigned infosize)
@@ -613,10 +610,14 @@ int ext3_htree_fill_tree(struct file *dir_file, __u32 start_hash,
 		de = (struct ext3_dir_entry_2 *) frames[0].bh->b_data;
 		if ((err = ext3_htree_store_dirent(dir_file, 0, 0, de)) != 0)
 			goto errout;
+		count++;
+	}
+	if (start_hash < 2 || (start_hash ==2 && start_minor_hash==0)) {
+		de = (struct ext3_dir_entry_2 *) frames[0].bh->b_data;
 		de = ext3_next_entry(de);
-		if ((err = ext3_htree_store_dirent(dir_file, 0, 0, de)) != 0)
+		if ((err = ext3_htree_store_dirent(dir_file, 2, 0, de)) != 0)
 			goto errout;
-		count += 2;
+		count++;
 	}
 
 	while (1) {
@@ -674,6 +675,7 @@ static int dx_make_map (struct ext3_dir_entry_2 *de, int size,
 			map_tail->hash = h.hash;
 			map_tail->offs = (u32) ((char *) de - base);
 			count++;
+			cond_resched();
 		}
 		/* XXX: do we need to check rec_len == 0 case? -Chris */
 		de = (struct ext3_dir_entry_2 *) ((char *) de + le16_to_cpu(de->rec_len));
@@ -875,7 +877,7 @@ restart:
 		if (!buffer_uptodate(bh)) {
 			/* read error, skip block & hope for the best */
 			ext3_error(sb, __FUNCTION__, "reading directory #%lu "
-				   "offset %lu\n", dir->i_ino, block);
+				   "offset %lu", dir->i_ino, block);
 			brelse(bh);
 			goto next;
 		}
@@ -1254,7 +1256,7 @@ static int add_dirent_to_buf(handle_t *handle, struct dentry *dentry,
 	 * happen is that the times are slightly out of date
 	 * and/or different from the directory change time.
 	 */
-	dir->i_mtime = dir->i_ctime = CURRENT_TIME;
+	dir->i_mtime = dir->i_ctime = CURRENT_TIME_SEC;
 	ext3_update_dx_flag(dir);
 	dir->i_version++;
 	ext3_mark_inode_dirty(handle, dir);
@@ -2032,7 +2034,7 @@ static int ext3_rmdir (struct inode * dir, struct dentry *dentry)
 	 * recovery. */
 	inode->i_size = 0;
 	ext3_orphan_add(handle, inode);
-	inode->i_ctime = dir->i_ctime = dir->i_mtime = CURRENT_TIME;
+	inode->i_ctime = dir->i_ctime = dir->i_mtime = CURRENT_TIME_SEC;
 	ext3_mark_inode_dirty(handle, inode);
 	dir->i_nlink--;
 	ext3_update_dx_flag(dir);
@@ -2082,7 +2084,7 @@ static int ext3_unlink(struct inode * dir, struct dentry *dentry)
 	retval = ext3_delete_entry(handle, dir, de, bh);
 	if (retval)
 		goto end_unlink;
-	dir->i_ctime = dir->i_mtime = CURRENT_TIME;
+	dir->i_ctime = dir->i_mtime = CURRENT_TIME_SEC;
 	ext3_update_dx_flag(dir);
 	ext3_mark_inode_dirty(handle, dir);
 	inode->i_nlink--;
@@ -2172,7 +2174,7 @@ retry:
 	if (IS_DIRSYNC(dir))
 		handle->h_sync = 1;
 
-	inode->i_ctime = CURRENT_TIME;
+	inode->i_ctime = CURRENT_TIME_SEC;
 	ext3_inc_count(handle, inode);
 	atomic_inc(&inode->i_count);
 
@@ -2258,7 +2260,7 @@ static int ext3_rename (struct inode * old_dir, struct dentry *old_dentry,
 	} else {
 		BUFFER_TRACE(new_bh, "get write access");
 		ext3_journal_get_write_access(handle, new_bh);
-		new_de->inode = le32_to_cpu(old_inode->i_ino);
+		new_de->inode = cpu_to_le32(old_inode->i_ino);
 		if (EXT3_HAS_INCOMPAT_FEATURE(new_dir->i_sb,
 					      EXT3_FEATURE_INCOMPAT_FILETYPE))
 			new_de->file_type = old_de->file_type;
@@ -2273,7 +2275,7 @@ static int ext3_rename (struct inode * old_dir, struct dentry *old_dentry,
 	 * Like most other Unix systems, set the ctime for inodes on a
 	 * rename.
 	 */
-	old_inode->i_ctime = CURRENT_TIME;
+	old_inode->i_ctime = CURRENT_TIME_SEC;
 	ext3_mark_inode_dirty(handle, old_inode);
 
 	/*
@@ -2306,14 +2308,14 @@ static int ext3_rename (struct inode * old_dir, struct dentry *old_dentry,
 
 	if (new_inode) {
 		new_inode->i_nlink--;
-		new_inode->i_ctime = CURRENT_TIME;
+		new_inode->i_ctime = CURRENT_TIME_SEC;
 	}
-	old_dir->i_ctime = old_dir->i_mtime = CURRENT_TIME;
+	old_dir->i_ctime = old_dir->i_mtime = CURRENT_TIME_SEC;
 	ext3_update_dx_flag(old_dir);
 	if (dir_bh) {
 		BUFFER_TRACE(dir_bh, "get_write_access");
 		ext3_journal_get_write_access(handle, dir_bh);
-		PARENT_INO(dir_bh->b_data) = le32_to_cpu(new_dir->i_ino);
+		PARENT_INO(dir_bh->b_data) = cpu_to_le32(new_dir->i_ino);
 		BUFFER_TRACE(dir_bh, "call ext3_journal_dirty_metadata");
 		ext3_journal_dirty_metadata(handle, dir_bh);
 		old_dir->i_nlink--;
@@ -2355,18 +2357,22 @@ struct inode_operations ext3_dir_inode_operations = {
 	.mknod		= ext3_mknod,
 	.rename		= ext3_rename,
 	.setattr	= ext3_setattr,
-	.setxattr	= ext3_setxattr,
-	.getxattr	= ext3_getxattr,
+#ifdef CONFIG_EXT3_FS_XATTR
+	.setxattr	= generic_setxattr,
+	.getxattr	= generic_getxattr,
 	.listxattr	= ext3_listxattr,
-	.removexattr	= ext3_removexattr,
+	.removexattr	= generic_removexattr,
+#endif
 	.permission	= ext3_permission,
 };
 
 struct inode_operations ext3_special_inode_operations = {
 	.setattr	= ext3_setattr,
-	.setxattr	= ext3_setxattr,
-	.getxattr	= ext3_getxattr,
+#ifdef CONFIG_EXT3_FS_XATTR
+	.setxattr	= generic_setxattr,
+	.getxattr	= generic_getxattr,
 	.listxattr	= ext3_listxattr,
-	.removexattr	= ext3_removexattr,
+	.removexattr	= generic_removexattr,
+#endif
 	.permission	= ext3_permission,
 }; 

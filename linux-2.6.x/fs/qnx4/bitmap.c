@@ -21,16 +21,15 @@
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/buffer_head.h>
-
-#include <asm/bitops.h>
+#include <linux/bitops.h>
 
 int qnx4_new_block(struct super_block *sb)
 {
 	return 0;
 }
 
-void count_bits(register const char *bmPart, register int size,
-		int *const tf)
+static void count_bits(register const char *bmPart, register int size,
+		       int *const tf)
 {
 	char b;
 	int tot = *tf;

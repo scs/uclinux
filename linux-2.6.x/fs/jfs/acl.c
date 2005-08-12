@@ -1,7 +1,7 @@
 /*
- *   Copyright (c) International Business Machines  Corp., 2002
- *   Copyright (c) Andreas Gruenbacher, 2001
- *   Copyright (c) Linus Torvalds, 1991, 1992
+ *   Copyright (C) International Business Machines  Corp., 2002-2004
+ *   Copyright (C) Andreas Gruenbacher, 2001
+ *   Copyright (C) Linus Torvalds, 1991, 1992
  *
  *   This program is free software;  you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -20,6 +20,7 @@
 
 #include <linux/sched.h>
 #include <linux/fs.h>
+#include <linux/quotaops.h>
 #include "jfs_incore.h"
 #include "jfs_xattr.h"
 #include "jfs_acl.h"
@@ -122,88 +123,25 @@ out:
 	return rc;
 }
 
-/*
- *	jfs_permission()
- *
- * modified vfs_permission to check posix acl
- */
-int jfs_permission(struct inode * inode, int mask, struct nameidata *nd)
+static int jfs_check_acl(struct inode *inode, int mask)
 {
-	umode_t mode = inode->i_mode;
 	struct jfs_inode_info *ji = JFS_IP(inode);
 
-	if (mask & MAY_WRITE) {
-		/*
-		 * Nobody gets write access to a read-only fs.
-		 */
-		if (IS_RDONLY(inode) &&
-		    (S_ISREG(mode) || S_ISDIR(mode) || S_ISLNK(mode)))
-			return -EROFS;
-
-		/*
-		 * Nobody gets write access to an immutable file.
-		 */
-		if (IS_IMMUTABLE(inode))
-			return -EACCES;
-	}
-
-	if (current->fsuid == inode->i_uid) {
-		mode >>= 6;
-		goto check_mode;
-	}
-	/*
-	 * ACL can't contain additional permissions if the ACL_MASK entry
-	 * is zero.
-	 */
-	if (!(mode & S_IRWXG))
-		goto check_groups;
-
 	if (ji->i_acl == JFS_ACL_NOT_CACHED) {
-		struct posix_acl *acl;
-
-		acl = jfs_get_acl(inode, ACL_TYPE_ACCESS);
-
+		struct posix_acl *acl = jfs_get_acl(inode, ACL_TYPE_ACCESS);
 		if (IS_ERR(acl))
 			return PTR_ERR(acl);
 		posix_acl_release(acl);
 	}
 
-	if (ji->i_acl) {
-		int rc = posix_acl_permission(inode, ji->i_acl, mask);
-		if (rc == -EACCES)
-			goto check_capabilities;
-		return rc;
-	}
+	if (ji->i_acl)
+		return posix_acl_permission(inode, ji->i_acl, mask);
+	return -EAGAIN;
+}
 
-check_groups:
-	if (in_group_p(inode->i_gid))
-		mode >>= 3;
-
-check_mode:
-	/*
-	 * If the DACs are ok we don't need any capability check.
-	 */
-	if (((mode & mask & (MAY_READ|MAY_WRITE|MAY_EXEC)) == mask))
-		return 0;
-
-check_capabilities:
-	/*
-	 * Read/write DACs are always overridable.
-	 * Executable DACs are overridable if at least one exec bit is set.
-	 */
-	if (!(mask & MAY_EXEC) ||
-	    (inode->i_mode & S_IXUGO) || S_ISDIR(inode->i_mode))
-		if (capable(CAP_DAC_OVERRIDE))
-			return 0;
-
-	/*
-	 * Searching includes executable on directories, else just read.
-	 */
-	if (mask == MAY_READ || (S_ISDIR(inode->i_mode) && !(mask & MAY_WRITE)))
-		if (capable(CAP_DAC_READ_SEARCH))
-			return 0;
-
-	return -EACCES;
+int jfs_permission(struct inode *inode, int mask, struct nameidata *nd)
+{
+	return generic_permission(inode, mask, jfs_check_acl);
 }
 
 int jfs_init_acl(struct inode *inode, struct inode *dir)
@@ -280,6 +218,12 @@ int jfs_setattr(struct dentry *dentry, struct iattr *iattr)
 	rc = inode_change_ok(inode, iattr);
 	if (rc)
 		return rc;
+
+	if ((iattr->ia_valid & ATTR_UID && iattr->ia_uid != inode->i_uid) ||
+	    (iattr->ia_valid & ATTR_GID && iattr->ia_gid != inode->i_gid)) {
+		if (DQUOT_TRANSFER(inode, iattr))
+			return -EDQUOT;
+	}
 
 	rc = inode_setattr(inode, iattr);
 

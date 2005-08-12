@@ -49,7 +49,7 @@ ifeq ($(CONFIG_XFS_TRACE),y)
 	EXTRA_CFLAGS += -DXFS_LOG_TRACE
 	EXTRA_CFLAGS += -DXFS_RW_TRACE
 	EXTRA_CFLAGS += -DPAGEBUF_TRACE
-	# EXTRA_CFLAGS += -DXFS_VNODE_TRACE
+	EXTRA_CFLAGS += -DXFS_VNODE_TRACE
 endif
 
 obj-$(CONFIG_XFS_FS)		+= xfs.o
@@ -67,10 +67,10 @@ endif
 
 xfs-$(CONFIG_XFS_RT)		+= xfs_rtalloc.o
 xfs-$(CONFIG_XFS_POSIX_ACL)	+= xfs_acl.o
-xfs-$(CONFIG_XFS_POSIX_CAP)	+= xfs_cap.o
-xfs-$(CONFIG_XFS_POSIX_MAC)	+= xfs_mac.o
 xfs-$(CONFIG_PROC_FS)		+= linux-2.6/xfs_stats.o
 xfs-$(CONFIG_SYSCTL)		+= linux-2.6/xfs_sysctl.o
+xfs-$(CONFIG_COMPAT)		+= linux-2.6/xfs_ioctl32.o
+xfs-$(CONFIG_XFS_EXPORT)	+= linux-2.6/xfs_export.o
 
 
 xfs-y				+= xfs_alloc.o \

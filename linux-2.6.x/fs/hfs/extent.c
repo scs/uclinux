@@ -49,22 +49,21 @@ static void hfs_ext_build_key(hfs_btree_key *key, u32 cnid, u16 block, u8 type)
  *   This function has no side-effects */
 int hfs_ext_keycmp(const btree_key *key1, const btree_key *key2)
 {
-	unsigned int tmp;
-	int retval;
+	__be32 fnum1, fnum2;
+	__be16 block1, block2;
 
-	tmp = be32_to_cpu(key1->ext.FNum) - be32_to_cpu(key2->ext.FNum);
-	if (tmp != 0) {
-		retval = (int)tmp;
-	} else {
-		tmp = (unsigned char)key1->ext.FkType - (unsigned char)key2->ext.FkType;
-		if (tmp != 0) {
-			retval = (int)tmp;
-		} else {
-			retval = (int)(be16_to_cpu(key1->ext.FABN)
-				       - be16_to_cpu(key2->ext.FABN));
-		}
-	}
-	return retval;
+	fnum1 = key1->ext.FNum;
+	fnum2 = key2->ext.FNum;
+	if (fnum1 != fnum2)
+		return be32_to_cpu(fnum1) < be32_to_cpu(fnum2) ? -1 : 1;
+	if (key1->ext.FkType != key2->ext.FkType)
+		return key1->ext.FkType < key2->ext.FkType ? -1 : 1;
+
+	block1 = key1->ext.FABN;
+	block2 = key2->ext.FABN;
+	if (block1 == block2)
+		return 0;
+	return be16_to_cpu(block1) < be16_to_cpu(block2) ? -1 : 1;
 }
 
 /*
@@ -231,8 +230,8 @@ static int hfs_add_extent(struct hfs_extent *extent, u16 offset,
 	return -EIO;
 }
 
-int hfs_free_extents(struct super_block *sb, struct hfs_extent *extent,
-		     u16 offset, u16 block_nr)
+static int hfs_free_extents(struct super_block *sb, struct hfs_extent *extent,
+			    u16 offset, u16 block_nr)
 {
 	u16 count, start;
 	int i;
@@ -279,13 +278,13 @@ int hfs_free_fork(struct super_block *sb, struct hfs_cat_file *file, int type)
 	int res, i;
 
 	if (type == HFS_FK_DATA) {
-		total_blocks = file->PyLen;
+		total_blocks = be32_to_cpu(file->PyLen);
 		extent = file->ExtRec;
 	} else {
-		total_blocks = file->RPyLen;
+		total_blocks = be32_to_cpu(file->RPyLen);
 		extent = file->RExtRec;
 	}
-	total_blocks = be32_to_cpu(total_blocks) / HFS_SB(sb)->alloc_blksz;
+	total_blocks /= HFS_SB(sb)->alloc_blksz;
 	if (!total_blocks)
 		return 0;
 
@@ -328,8 +327,8 @@ int hfs_get_block(struct inode *inode, sector_t block,
 	/* Convert inode block to disk allocation block */
 	ablock = (u32)block / HFS_SB(sb)->fs_div;
 
-	if (block >= inode->i_blocks) {
-		if (block > inode->i_blocks || !create)
+	if (block >= HFS_I(inode)->fs_blocks) {
+		if (block > HFS_I(inode)->fs_blocks || !create)
 			return -EIO;
 		if (ablock >= HFS_I(inode)->alloc_blocks) {
 			res = hfs_extend_file(inode);
@@ -363,7 +362,8 @@ done:
 	if (create) {
 		set_buffer_new(bh_result);
 		HFS_I(inode)->phys_size += sb->s_blocksize;
-		inode->i_blocks++;
+		HFS_I(inode)->fs_blocks++;
+		inode_add_bytes(inode, sb->s_blocksize);
 		mark_inode_dirty(inode);
 	}
 	return 0;
@@ -521,6 +521,7 @@ void hfs_file_truncate(struct inode *inode)
 	HFS_I(inode)->alloc_blocks = blk_cnt;
 out:
 	HFS_I(inode)->phys_size = inode->i_size;
+	HFS_I(inode)->fs_blocks = (inode->i_size + sb->s_blocksize - 1) >> sb->s_blocksize_bits;
+	inode_set_bytes(inode, HFS_I(inode)->fs_blocks << sb->s_blocksize_bits);
 	mark_inode_dirty(inode);
-	inode->i_blocks = (inode->i_size + sb->s_blocksize - 1) >> sb->s_blocksize_bits;
 }

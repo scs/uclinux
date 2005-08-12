@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2001-2003 Red Hat, Inc.
  *
- * Created by David Woodhouse <dwmw2@redhat.com>
+ * Created by David Woodhouse <dwmw2@infradead.org>
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
@@ -217,7 +217,6 @@ static int jffs2_create(struct inode *dir_i, struct dentry *dentry, int mode,
 			      dentry->d_name.name, dentry->d_name.len);
 
 	if (ret) {
-		jffs2_clear_inode(inode);
 		make_bad_inode(inode);
 		iput(inode);
 		jffs2_free_raw_inode(ri);

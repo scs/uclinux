@@ -16,10 +16,18 @@
 
 struct vfsmount *sysfs_mount;
 struct super_block * sysfs_sb = NULL;
+kmem_cache_t *sysfs_dir_cachep;
 
 static struct super_operations sysfs_ops = {
 	.statfs		= simple_statfs,
 	.drop_inode	= generic_delete_inode,
+};
+
+static struct sysfs_dirent sysfs_root = {
+	.s_sibling	= LIST_HEAD_INIT(sysfs_root.s_sibling),
+	.s_children	= LIST_HEAD_INIT(sysfs_root.s_children),
+	.s_element	= NULL,
+	.s_type		= SYSFS_ROOT,
 };
 
 static int sysfs_fill_super(struct super_block *sb, void *data, int silent)
@@ -31,12 +39,13 @@ static int sysfs_fill_super(struct super_block *sb, void *data, int silent)
 	sb->s_blocksize_bits = PAGE_CACHE_SHIFT;
 	sb->s_magic = SYSFS_MAGIC;
 	sb->s_op = &sysfs_ops;
+	sb->s_time_gran = 1;
 	sysfs_sb = sb;
 
 	inode = sysfs_new_inode(S_IFDIR | S_IRWXU | S_IRUGO | S_IXUGO);
 	if (inode) {
-		inode->i_op = &simple_dir_inode_operations;
-		inode->i_fop = &simple_dir_operations;
+		inode->i_op = &sysfs_dir_inode_operations;
+		inode->i_fop = &sysfs_dir_operations;
 		/* directory inodes start off with i_nlink == 2 (for "." entry) */
 		inode->i_nlink++;	
 	} else {
@@ -50,6 +59,7 @@ static int sysfs_fill_super(struct super_block *sb, void *data, int silent)
 		iput(inode);
 		return -ENOMEM;
 	}
+	root->d_fsdata = &sysfs_root;
 	sb->s_root = root;
 	return 0;
 }
@@ -68,7 +78,13 @@ static struct file_system_type sysfs_fs_type = {
 
 int __init sysfs_init(void)
 {
-	int err;
+	int err = -ENOMEM;
+
+	sysfs_dir_cachep = kmem_cache_create("sysfs_dir_cache",
+					      sizeof(struct sysfs_dirent),
+					      0, 0, NULL, NULL);
+	if (!sysfs_dir_cachep)
+		goto out;
 
 	err = register_filesystem(&sysfs_fs_type);
 	if (!err) {
@@ -77,7 +93,15 @@ int __init sysfs_init(void)
 			printk(KERN_ERR "sysfs: could not mount!\n");
 			err = PTR_ERR(sysfs_mount);
 			sysfs_mount = NULL;
+			unregister_filesystem(&sysfs_fs_type);
+			goto out_err;
 		}
-	}
+	} else
+		goto out_err;
+out:
 	return err;
+out_err:
+	kmem_cache_destroy(sysfs_dir_cachep);
+	sysfs_dir_cachep = NULL;
+	goto out;
 }

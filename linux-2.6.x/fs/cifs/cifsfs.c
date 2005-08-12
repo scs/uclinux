@@ -50,24 +50,35 @@ int cifsFYI = 0;
 int cifsERROR = 1;
 int traceSMB = 0;
 unsigned int oplockEnabled = 1;
-unsigned int quotaEnabled = 0;
+unsigned int experimEnabled = 0;
 unsigned int linuxExtEnabled = 1;
 unsigned int lookupCacheEnabled = 1;
 unsigned int multiuser_mount = 0;
 unsigned int extended_security = 0;
 unsigned int ntlmv2_support = 0;
 unsigned int sign_CIFS_PDUs = 1;
-unsigned int CIFSMaximumBufferSize = CIFS_MAX_MSGSIZE;
+extern struct task_struct * oplockThread; /* remove sparse warning */
 struct task_struct * oplockThread = NULL;
-
-extern int cifs_mount(struct super_block *, struct cifs_sb_info *, char *,
-			const char *);
-extern int cifs_umount(struct super_block *, struct cifs_sb_info *);
-void cifs_proc_init(void);
-void cifs_proc_clean(void);
+unsigned int CIFSMaxBufSize = CIFS_MAX_MSGSIZE;
+module_param(CIFSMaxBufSize, int, 0);
+MODULE_PARM_DESC(CIFSMaxBufSize,"Network buffer size (not including header). Default: 16384 Range: 8192 to 130048");
+unsigned int cifs_min_rcv = CIFS_MIN_RCV_POOL;
+module_param(cifs_min_rcv, int, 0);
+MODULE_PARM_DESC(cifs_min_rcv,"Network buffers in pool. Default: 4 Range: 1 to 64");
+unsigned int cifs_min_small = 30;
+module_param(cifs_min_small, int, 0);
+MODULE_PARM_DESC(cifs_min_small,"Small network buffers in pool. Default: 30 Range: 2 to 256");
+unsigned int cifs_max_pending = CIFS_MAX_REQ;
+module_param(cifs_max_pending, int, 0);
+MODULE_PARM_DESC(cifs_max_pending,"Simultaneous requests to server. Default: 50 Range: 2 to 256");
 
 static DECLARE_COMPLETION(cifs_oplock_exited);
 
+extern mempool_t *cifs_sm_req_poolp;
+extern mempool_t *cifs_req_poolp;
+extern mempool_t *cifs_mid_poolp;
+
+extern kmem_cache_t *cifs_oplock_cachep;
 
 static int
 cifs_read_super(struct super_block *sb, void *data,
@@ -158,7 +169,8 @@ cifs_put_super(struct super_block *sb)
 static int
 cifs_statfs(struct super_block *sb, struct kstatfs *buf)
 {
-	int xid, rc;
+	int xid; 
+	int rc = -EOPNOTSUPP;
 	struct cifs_sb_info *cifs_sb;
 	struct cifsTconInfo *pTcon;
 
@@ -170,22 +182,34 @@ cifs_statfs(struct super_block *sb, struct kstatfs *buf)
 	buf->f_type = CIFS_MAGIC_NUMBER;
 
 	/* instead could get the real value via SMB_QUERY_FS_ATTRIBUTE_INFO */
-	buf->f_namelen = PATH_MAX;	/* PATH_MAX may be too long - it would presumably
-					   be length of total path, note that some servers may be 
-					   able to support more than this, but best to be safe
-					   since Win2k and others can not handle very long filenames */
+	buf->f_namelen = PATH_MAX; /* PATH_MAX may be too long - it would 
+				      presumably be total path, but note
+				      that some servers (includinng Samba 3)
+				      have a shorter maximum path */
 	buf->f_files = 0;	/* undefined */
 	buf->f_ffree = 0;	/* unlimited */
 
-	rc = CIFSSMBQFSInfo(xid, pTcon, buf, cifs_sb->local_nls);
+#ifdef CONFIG_CIFS_EXPERIMENTAL
+/* BB we could add a second check for a QFS Unix capability bit */
+/* BB FIXME check CIFS_POSIX_EXTENSIONS Unix cap first FIXME BB */
+    if ((pTcon->ses->capabilities & CAP_UNIX) && (CIFS_POSIX_EXTENSIONS &
+			le64_to_cpu(pTcon->fsUnixInfo.Capability)))
+	    rc = CIFSSMBQFSPosixInfo(xid, pTcon, buf);
+
+    /* Only need to call the old QFSInfo if failed
+    on newer one */
+    if(rc)
+#endif /* CIFS_EXPERIMENTAL */
+	rc = CIFSSMBQFSInfo(xid, pTcon, buf);
 
 	/*     
 	   int f_type;
 	   __fsid_t f_fsid;
 	   int f_namelen;  */
-	/* BB get from info put in tcon struct at mount time with call to QFSAttrInfo */
+	/* BB get from info in tcon struct at mount time call to QFSAttrInfo */
 	FreeXid(xid);
-	return 0;		/* always return success? what if volume is no longer available? */
+	return 0;		/* always return success? what if volume is no
+				   longer available? */
 }
 
 static int cifs_permission(struct inode * inode, int mask, struct nameidata *nd)
@@ -200,13 +224,15 @@ static int cifs_permission(struct inode * inode, int mask, struct nameidata *nd)
 		on the client (above and beyond ACL on servers) for  
 		servers which do not support setting and viewing mode bits,
 		so allowing client to check permissions is useful */ 
-		return vfs_permission(inode, mask);
+		return generic_permission(inode, mask, NULL);
 }
 
 static kmem_cache_t *cifs_inode_cachep;
 static kmem_cache_t *cifs_req_cachep;
 static kmem_cache_t *cifs_mid_cachep;
 kmem_cache_t *cifs_oplock_cachep;
+static kmem_cache_t *cifs_sm_req_cachep;
+mempool_t *cifs_sm_req_poolp;
 mempool_t *cifs_req_poolp;
 mempool_t *cifs_mid_poolp;
 
@@ -214,9 +240,7 @@ static struct inode *
 cifs_alloc_inode(struct super_block *sb)
 {
 	struct cifsInodeInfo *cifs_inode;
-	cifs_inode =
-	    (struct cifsInodeInfo *) kmem_cache_alloc(cifs_inode_cachep,
-						      SLAB_KERNEL);
+	cifs_inode = kmem_cache_alloc(cifs_inode_cachep, SLAB_KERNEL);
 	if (!cifs_inode)
 		return NULL;
 	cifs_inode->cifsAttrs = 0x20;	/* default */
@@ -255,12 +279,14 @@ cifs_show_options(struct seq_file *s, struct vfsmount *m)
 	if (cifs_sb) {
 		if (cifs_sb->tcon) {
 			seq_printf(s, ",unc=%s", cifs_sb->tcon->treeName);
-			if ((cifs_sb->tcon->ses) && (cifs_sb->tcon->ses->userName))
-				seq_printf(s, ",username=%s",
+			if (cifs_sb->tcon->ses) {
+				if (cifs_sb->tcon->ses->userName)
+					seq_printf(s, ",username=%s",
 					   cifs_sb->tcon->ses->userName);
-			if(cifs_sb->tcon->ses->domainName)
-				seq_printf(s, ",domain=%s",
-					cifs_sb->tcon->ses->domainName);
+				if(cifs_sb->tcon->ses->domainName)
+					seq_printf(s, ",domain=%s",
+					   cifs_sb->tcon->ses->domainName);
+			}
 		}
 		seq_printf(s, ",rsize=%d",cifs_sb->rsize);
 		seq_printf(s, ",wsize=%d",cifs_sb->wsize);
@@ -421,14 +447,13 @@ static ssize_t
 cifs_read_wrapper(struct file * file, char __user *read_data, size_t read_size,
           loff_t * poffset)
 {
-	if(file == NULL)
-		return -EIO;
-	else if(file->f_dentry == NULL)
+	if(file->f_dentry == NULL)
 		return -EIO;
 	else if(file->f_dentry->d_inode == NULL)
 		return -EIO;
 
 	cFYI(1,("In read_wrapper size %zd at %lld",read_size,*poffset));
+
 	if(CIFS_I(file->f_dentry->d_inode)->clientCanCacheRead) {
 		return generic_file_read(file,read_data,read_size,poffset);
 	} else {
@@ -452,16 +477,13 @@ cifs_write_wrapper(struct file * file, const char __user *write_data,
 {
 	ssize_t written;
 
-	if(file == NULL)
-		return -EIO;
-	else if(file->f_dentry == NULL)
+	if(file->f_dentry == NULL)
 		return -EIO;
 	else if(file->f_dentry->d_inode == NULL)
 		return -EIO;
 
 	cFYI(1,("In write_wrapper size %zd at %lld",write_size,*poffset));
 
-	/* check whether we can cache writes locally */
 	written = generic_file_write(file,write_data,write_size,poffset);
 	if(!CIFS_I(file->f_dentry->d_inode)->clientCanCacheAll)  {
 		if(file->f_dentry->d_inode->i_mapping) {
@@ -493,6 +515,12 @@ struct inode_operations cifs_dir_inode_ops = {
 	.setattr = cifs_setattr,
 	.symlink = cifs_symlink,
 	.mknod   = cifs_mknod,
+#ifdef CONFIG_CIFS_XATTR
+	.setxattr = cifs_setxattr,
+	.getxattr = cifs_getxattr,
+	.listxattr = cifs_listxattr,
+	.removexattr = cifs_removexattr,
+#endif
 };
 
 struct inode_operations cifs_file_inode_ops = {
@@ -510,8 +538,9 @@ struct inode_operations cifs_file_inode_ops = {
 };
 
 struct inode_operations cifs_symlink_inode_ops = {
-	.readlink = cifs_readlink,
+	.readlink = generic_readlink, 
 	.follow_link = cifs_follow_link,
+	.put_link = cifs_put_link,
 	.permission = cifs_permission,
 	/* BB add the following two eventually */
 	/* revalidate: cifs_revalidate,
@@ -534,20 +563,53 @@ struct file_operations cifs_file_ops = {
 	.flush = cifs_flush,
 	.mmap  = cifs_file_mmap,
 	.sendfile = generic_file_sendfile,
+#ifdef CONFIG_CIFS_POSIX
+	.ioctl	= cifs_ioctl,
+#endif /* CONFIG_CIFS_POSIX */
+
+#ifdef CONFIG_CIFS_EXPERIMENTAL
+	.readv = generic_file_readv,
+	.writev = generic_file_writev,
+	.aio_read = generic_file_aio_read,
+	.aio_write = generic_file_aio_write,
 	.dir_notify = cifs_dir_notify,
+#endif /* CONFIG_CIFS_EXPERIMENTAL */
+};
+
+struct file_operations cifs_file_direct_ops = {
+	/* no mmap, no aio, no readv - 
+	   BB reevaluate whether they can be done with directio, no cache */
+	.read = cifs_user_read,
+	.write = cifs_user_write,
+	.open = cifs_open,
+	.release = cifs_close,
+	.lock = cifs_lock,
+	.fsync = cifs_fsync,
+	.flush = cifs_flush,
+	.sendfile = generic_file_sendfile, /* BB removeme BB */
+#ifdef CONFIG_CIFS_POSIX
+	.ioctl  = cifs_ioctl,
+#endif /* CONFIG_CIFS_POSIX */
+
+#ifdef CONFIG_CIFS_EXPERIMENTAL
+	.dir_notify = cifs_dir_notify,
+#endif /* CONFIG_CIFS_EXPERIMENTAL */
 };
 
 struct file_operations cifs_dir_ops = {
 	.readdir = cifs_readdir,
 	.release = cifs_closedir,
 	.read    = generic_read_dir,
+#ifdef CONFIG_CIFS_EXPERIMENTAL
 	.dir_notify = cifs_dir_notify,
+#endif /* CONFIG_CIFS_EXPERIMENTAL */
+        .ioctl  = cifs_ioctl,
 };
 
 static void
 cifs_init_once(void *inode, kmem_cache_t * cachep, unsigned long flags)
 {
-	struct cifsInodeInfo *cifsi = (struct cifsInodeInfo *) inode;
+	struct cifsInodeInfo *cifsi = inode;
 
 	if ((flags & (SLAB_CTOR_VERIFY | SLAB_CTOR_CONSTRUCTOR)) ==
 	    SLAB_CTOR_CONSTRUCTOR) {
@@ -561,7 +623,7 @@ cifs_init_inodecache(void)
 {
 	cifs_inode_cachep = kmem_cache_create("cifs_inode_cache",
 					      sizeof (struct cifsInodeInfo),
-					      0, SLAB_HWCACHE_ALIGN|SLAB_RECLAIM_ACCOUNT,
+					      0, SLAB_RECLAIM_ACCOUNT,
 					      cifs_init_once, NULL);
 	if (cifs_inode_cachep == NULL)
 		return -ENOMEM;
@@ -579,20 +641,71 @@ cifs_destroy_inodecache(void)
 static int
 cifs_init_request_bufs(void)
 {
+	if(CIFSMaxBufSize < 8192) {
+	/* Buffer size can not be smaller than 2 * PATH_MAX since maximum
+	Unicode path name has to fit in any SMB/CIFS path based frames */
+		CIFSMaxBufSize = 8192;
+	} else if (CIFSMaxBufSize > 1024*127) {
+		CIFSMaxBufSize = 1024 * 127;
+	} else {
+		CIFSMaxBufSize &= 0x1FE00; /* Round size to even 512 byte mult*/
+	}
+/*	cERROR(1,("CIFSMaxBufSize %d 0x%x",CIFSMaxBufSize,CIFSMaxBufSize)); */
 	cifs_req_cachep = kmem_cache_create("cifs_request",
-					    CIFS_MAX_MSGSIZE +
+					    CIFSMaxBufSize +
 					    MAX_CIFS_HDR_SIZE, 0,
 					    SLAB_HWCACHE_ALIGN, NULL, NULL);
 	if (cifs_req_cachep == NULL)
 		return -ENOMEM;
 
-	cifs_req_poolp = mempool_create(CIFS_MIN_RCV_POOL,
+	if(cifs_min_rcv < 1)
+		cifs_min_rcv = 1;
+	else if (cifs_min_rcv > 64) {
+		cifs_min_rcv = 64;
+		cERROR(1,("cifs_min_rcv set to maximum (64)"));
+	}
+
+	cifs_req_poolp = mempool_create(cifs_min_rcv,
 					mempool_alloc_slab,
 					mempool_free_slab,
 					cifs_req_cachep);
 
 	if(cifs_req_poolp == NULL) {
 		kmem_cache_destroy(cifs_req_cachep);
+		return -ENOMEM;
+	}
+	/* 256 (MAX_CIFS_HDR_SIZE bytes is enough for most SMB responses and
+	almost all handle based requests (but not write response, nor is it
+	sufficient for path based requests).  A smaller size would have
+	been more efficient (compacting multiple slab items on one 4k page) 
+	for the case in which debug was on, but this larger size allows
+	more SMBs to use small buffer alloc and is still much more
+	efficient to alloc 1 per page off the slab compared to 17K (5page) 
+	alloc of large cifs buffers even when page debugging is on */
+	cifs_sm_req_cachep = kmem_cache_create("cifs_small_rq",
+			MAX_CIFS_HDR_SIZE, 0, SLAB_HWCACHE_ALIGN, NULL, NULL);
+	if (cifs_sm_req_cachep == NULL) {
+		mempool_destroy(cifs_req_poolp);
+		kmem_cache_destroy(cifs_req_cachep);
+		return -ENOMEM;              
+	}
+
+	if(cifs_min_small < 2)
+		cifs_min_small = 2;
+	else if (cifs_min_small > 256) {
+		cifs_min_small = 256;
+		cFYI(1,("cifs_min_small set to maximum (256)"));
+	}
+
+	cifs_sm_req_poolp = mempool_create(cifs_min_small,
+				mempool_alloc_slab,
+				mempool_free_slab,
+				cifs_sm_req_cachep);
+
+	if(cifs_sm_req_poolp == NULL) {
+		mempool_destroy(cifs_req_poolp);
+		kmem_cache_destroy(cifs_req_cachep);
+		kmem_cache_destroy(cifs_sm_req_cachep);
 		return -ENOMEM;
 	}
 
@@ -606,6 +719,10 @@ cifs_destroy_request_bufs(void)
 	if (kmem_cache_destroy(cifs_req_cachep))
 		printk(KERN_WARNING
 		       "cifs_destroy_request_cache: error not all structures were freed\n");
+	mempool_destroy(cifs_sm_req_poolp);
+	if (kmem_cache_destroy(cifs_sm_req_cachep))
+		printk(KERN_WARNING
+		      "cifs_destroy_request_cache: cifs_small_rq free error\n");
 }
 
 static int
@@ -718,6 +835,7 @@ static int cifs_oplock_thread(void * dummyarg)
 		}
 	} while(!signal_pending(current));
 	complete_and_exit (&cifs_oplock_exited, 0);
+	oplockThread = NULL;
 }
 
 static int __init
@@ -745,8 +863,16 @@ init_cifs(void)
 	GlobalCurrentXid = 0;
 	GlobalTotalActiveXid = 0;
 	GlobalMaxActiveXid = 0;
-	GlobalSMBSeslock = RW_LOCK_UNLOCKED;
-	GlobalMid_Lock = SPIN_LOCK_UNLOCKED;
+	rwlock_init(&GlobalSMBSeslock);
+	spin_lock_init(&GlobalMid_Lock);
+
+	if(cifs_max_pending < 2) {
+		cifs_max_pending = 2;
+		cFYI(1,("cifs_max_pending set to min of 2"));
+	} else if(cifs_max_pending > 256) {
+		cifs_max_pending = 256;
+		cFYI(1,("cifs_max_pending set to max of 256"));
+	}
 
 	rc = cifs_init_inodecache();
 	if (!rc) {
@@ -756,11 +882,14 @@ init_cifs(void)
 			if (!rc) {
 				rc = register_filesystem(&cifs_fs_type);
 				if (!rc) {                
-					kernel_thread(cifs_oplock_thread, NULL, 
+					rc = (int)kernel_thread(cifs_oplock_thread, NULL, 
 						CLONE_FS | CLONE_FILES | CLONE_VM);
-					return rc; /* Success */
-				} else
-					cifs_destroy_request_bufs();
+					if(rc > 0)
+						return 0;
+					else 
+						cERROR(1,("error %d create oplock thread",rc));
+				}
+				cifs_destroy_request_bufs();
 			}
 			cifs_destroy_mids();
 		}

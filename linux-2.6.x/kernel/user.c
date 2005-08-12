@@ -12,12 +12,14 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/bitops.h>
+#include <linux/key.h>
 
 /*
  * UID task count cache, to get fast user lookup in "alloc_uid"
  * when changing user ID's (ie setuid() and friends).
  */
-#define UIDHASH_BITS		8
+
+#define UIDHASH_BITS (CONFIG_BASE_SMALL ? 3 : 8)
 #define UIDHASH_SZ		(1 << UIDHASH_BITS)
 #define UIDHASH_MASK		(UIDHASH_SZ - 1)
 #define __uidhashfn(uid)	(((uid >> UIDHASH_BITS) + uid) & UIDHASH_MASK)
@@ -25,14 +27,19 @@
 
 static kmem_cache_t *uid_cachep;
 static struct list_head uidhash_table[UIDHASH_SZ];
-static spinlock_t uidhash_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(uidhash_lock);
 
 struct user_struct root_user = {
 	.__count	= ATOMIC_INIT(1),
 	.processes	= ATOMIC_INIT(1),
 	.files		= ATOMIC_INIT(0),
 	.sigpending	= ATOMIC_INIT(0),
-	.mq_bytes	= 0
+	.mq_bytes	= 0,
+	.locked_shm     = 0,
+#ifdef CONFIG_KEYS
+	.uid_keyring	= &root_user_keyring,
+	.session_keyring = &root_session_keyring,
+#endif
 };
 
 /*
@@ -86,6 +93,8 @@ void free_uid(struct user_struct *up)
 {
 	if (up && atomic_dec_and_lock(&up->__count, &uidhash_lock)) {
 		uid_hash_remove(up);
+		key_put(up->uid_keyring);
+		key_put(up->session_keyring);
 		kmem_cache_free(uid_cachep, up);
 		spin_unlock(&uidhash_lock);
 	}
@@ -113,6 +122,12 @@ struct user_struct * alloc_uid(uid_t uid)
 		atomic_set(&new->sigpending, 0);
 
 		new->mq_bytes = 0;
+		new->locked_shm = 0;
+
+		if (alloc_uid_keyring(new) < 0) {
+			kmem_cache_free(uid_cachep, new);
+			return NULL;
+		}
 
 		/*
 		 * Before adding this, check whether we raced
@@ -121,6 +136,8 @@ struct user_struct * alloc_uid(uid_t uid)
 		spin_lock(&uidhash_lock);
 		up = uid_hash_find(uid, hashent);
 		if (up) {
+			key_put(new->uid_keyring);
+			key_put(new->session_keyring);
 			kmem_cache_free(uid_cachep, new);
 		} else {
 			uid_hash_insert(new, hashent);
@@ -144,8 +161,10 @@ void switch_uid(struct user_struct *new_user)
 	old_user = current->user;
 	atomic_inc(&new_user->processes);
 	atomic_dec(&old_user->processes);
+	switch_uid_keyring(new_user);
 	current->user = new_user;
 	free_uid(old_user);
+	suid_keys(current);
 }
 
 

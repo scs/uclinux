@@ -10,6 +10,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/moduleparam.h>
 #include <linux/init.h>
 #include <linux/sched.h>
 #include <linux/completion.h>
@@ -28,18 +29,9 @@
 
 struct rxrpc_transport *afs_transport;
 
-static int afs_init(void);
-static void afs_exit(void);
 static int afs_adding_peer(struct rxrpc_peer *peer);
 static void afs_discarding_peer(struct rxrpc_peer *peer);
 
-/* XXX late_initcall is kludgy, but the only alternative seems to create
- * a transport upon the first mount, which is worse. Or is it?
- */
-/* module_init(afs_init); */
-late_initcall(afs_init);	/* must be called after net/ to create socket */
-
-module_exit(afs_exit);
 
 MODULE_DESCRIPTION("AFS Client File System");
 MODULE_AUTHOR("Red Hat, Inc.");
@@ -47,7 +39,7 @@ MODULE_LICENSE("GPL");
 
 static char *rootcell;
 
-MODULE_PARM(rootcell, "s");
+module_param(rootcell, charp, 0);
 MODULE_PARM_DESC(rootcell, "root AFS cell name and VL server IP addr list");
 
 
@@ -57,7 +49,7 @@ static struct rxrpc_peer_ops afs_peer_ops = {
 };
 
 struct list_head afs_cb_hash_tbl[AFS_CB_HASH_COUNT];
-spinlock_t afs_cb_hash_lock = SPIN_LOCK_UNLOCKED;
+DEFINE_SPINLOCK(afs_cb_hash_lock);
 
 #ifdef AFS_CACHING_SUPPORT
 static struct cachefs_netfs_operations afs_cache_ops = {
@@ -75,7 +67,7 @@ struct cachefs_netfs afs_cache_netfs = {
 /*
  * initialise the AFS client FS module
  */
-static int afs_init(void)
+static int __init afs_init(void)
 {
 	int loop, ret;
 
@@ -99,7 +91,7 @@ static int afs_init(void)
 		goto error;
 #endif
 
-#ifdef CONFIG_KEYS
+#ifdef CONFIG_KEYS_TURNED_OFF
 	ret = afs_key_register();
 	if (ret < 0)
 		goto error_cache;
@@ -141,7 +133,7 @@ static int afs_init(void)
  error_kafstimod:
 	afs_kafstimod_stop();
  error_keys:
-#ifdef CONFIG_KEYS
+#ifdef CONFIG_KEYS_TURNED_OFF
 	afs_key_unregister();
  error_cache:
 #endif
@@ -155,6 +147,10 @@ static int afs_init(void)
 	return ret;
 } /* end afs_init() */
 
+/* XXX late_initcall is kludgy, but the only alternative seems to create
+ * a transport upon the first mount, which is worse. Or is it?
+ */
+late_initcall(afs_init);	/* must be called after net/ to create socket */
 /*****************************************************************************/
 /*
  * clean up on module removal
@@ -168,7 +164,7 @@ static void __exit afs_exit(void)
 	afs_kafstimod_stop();
 	afs_kafsasyncd_stop();
 	afs_cell_purge();
-#ifdef CONFIG_KEYS
+#ifdef CONFIG_KEYS_TURNED_OFF
 	afs_key_unregister();
 #endif
 #ifdef AFS_CACHING_SUPPORT
@@ -177,6 +173,8 @@ static void __exit afs_exit(void)
 	afs_proc_cleanup();
 
 } /* end afs_exit() */
+
+module_exit(afs_exit);
 
 /*****************************************************************************/
 /*

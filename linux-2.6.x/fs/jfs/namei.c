@@ -19,6 +19,7 @@
 
 #include <linux/fs.h>
 #include <linux/ctype.h>
+#include <linux/quotaops.h>
 #include "jfs_incore.h"
 #include "jfs_superblock.h"
 #include "jfs_inode.h"
@@ -123,10 +124,10 @@ static int jfs_create(struct inode *dip, struct dentry *dentry, int mode,
 	 */
 	ino = ip->i_ino;
 	if ((rc = dtInsert(tid, dip, &dname, &ino, &btstack))) {
-		jfs_err("jfs_create: dtInsert returned %d", rc);
-		if (rc == -EIO)
+		if (rc == -EIO) {
+			jfs_err("jfs_create: dtInsert returned -EIO");
 			txAbort(tid, 1);	/* Marks Filesystem dirty */
-		else
+		} else
 			txAbort(tid, 0);	/* Filesystem full */
 		goto out3;
 	}
@@ -250,11 +251,10 @@ static int jfs_mkdir(struct inode *dip, struct dentry *dentry, int mode)
 	 */
 	ino = ip->i_ino;
 	if ((rc = dtInsert(tid, dip, &dname, &ino, &btstack))) {
-		jfs_err("jfs_mkdir: dtInsert returned %d", rc);
-
-		if (rc == -EIO)
+		if (rc == -EIO) {
+			jfs_err("jfs_mkdir: dtInsert returned -EIO");
 			txAbort(tid, 1);	/* Marks Filesystem dirty */
-		else
+		} else
 			txAbort(tid, 0);	/* Filesystem full */
 		goto out3;
 	}
@@ -262,8 +262,6 @@ static int jfs_mkdir(struct inode *dip, struct dentry *dentry, int mode)
 	ip->i_nlink = 2;	/* for '.' */
 	ip->i_op = &jfs_dir_inode_operations;
 	ip->i_fop = &jfs_dir_operations;
-	ip->i_mapping->a_ops = &jfs_aops;
-	mapping_set_gfp_mask(ip->i_mapping, GFP_NOFS);
 
 	insert_inode_hash(ip);
 	mark_inode_dirty(ip);
@@ -329,6 +327,9 @@ static int jfs_rmdir(struct inode *dip, struct dentry *dentry)
 	struct tblock *tblk;
 
 	jfs_info("jfs_rmdir: dip:0x%p name:%s", dip, dentry->d_name.name);
+
+	/* Init inode for quota operations. */
+	DQUOT_INIT(ip);
 
 	/* directory must be empty to be removed */
 	if (!dtEmpty(ip)) {
@@ -454,6 +455,9 @@ static int jfs_unlink(struct inode *dip, struct dentry *dentry)
 	int commit_flag;
 
 	jfs_info("jfs_unlink: dip:0x%p name:%s", dip, dentry->d_name.name);
+
+	/* Init inode for quota operations. */
+	DQUOT_INIT(ip);
 
 	if ((rc = get_UCSname(&dname, dentry)))
 		goto out;
@@ -813,7 +817,10 @@ static int jfs_link(struct dentry *old_dentry,
 	iplist[1] = dir;
 	rc = txCommit(tid, 2, &iplist[0], 0);
 
-	if (!rc)
+	if (rc) {
+		ip->i_nlink--;
+		iput(ip);
+	} else
 		d_instantiate(dentry, ip);
 
       free_dname:
@@ -964,7 +971,7 @@ static int jfs_symlink(struct inode *dip, struct dentry *dentry,
 			mp = get_metapage(ip, xaddr, PSIZE, 1);
 
 			if (mp == NULL) {
-				dbFree(ip, extent, xlen);
+				xtTruncate(tid, ip, 0, COMMIT_PWMAP);
 				rc = -EIO;
 				txAbort(tid, 0);
 				goto out3;
@@ -975,7 +982,6 @@ static int jfs_symlink(struct inode *dip, struct dentry *dentry,
 			name += copy_size;
 			xaddr += JFS_SBI(sb)->nbperpage;
 		}
-		ip->i_blocks = LBLK2PBLK(sb, xlen);
 	}
 
 	/*
@@ -988,7 +994,7 @@ static int jfs_symlink(struct inode *dip, struct dentry *dentry,
 	}
 	if (rc) {
 		if (xlen)
-			dbFree(ip, extent, xlen);
+			xtTruncate(tid, ip, 0, COMMIT_PWMAP);
 		txAbort(tid, 0);
 		/* discard new inode */
 		goto out3;
@@ -1104,8 +1110,11 @@ static int jfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 			rc = -EMLINK;
 			goto out3;
 		}
-	} else if (new_ip)
+	} else if (new_ip) {
 		IWRITE_LOCK(new_ip);
+		/* Init inode for quota operations. */
+		DQUOT_INIT(new_ip);
+	}
 
 	/*
 	 * The real work starts here
@@ -1174,8 +1183,8 @@ static int jfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 		ino = old_ip->i_ino;
 		rc = dtInsert(tid, new_dir, &new_dname, &ino, &btstack);
 		if (rc) {
-			jfs_err("jfs_rename: dtInsert failed w/rc = %d",
-				rc);
+			if (rc == -EIO)
+				jfs_err("jfs_rename: dtInsert returned -EIO");
 			goto out4;
 		}
 		if (S_ISDIR(old_ip->i_mode))
@@ -1222,7 +1231,7 @@ static int jfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	old_ip->i_ctime = CURRENT_TIME;
 	mark_inode_dirty(old_ip);
 
-	new_dir->i_ctime = new_dir->i_mtime = CURRENT_TIME;
+	new_dir->i_ctime = new_dir->i_mtime = current_fs_time(new_dir->i_sb);
 	mark_inode_dirty(new_dir);
 
 	/* Build list of inodes modified by this transaction */

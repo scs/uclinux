@@ -137,7 +137,7 @@ struct inode * sysv_new_inode(const struct inode * dir, mode_t mode)
 	struct super_block *sb = dir->i_sb;
 	struct sysv_sb_info *sbi = SYSV_SB(sb);
 	struct inode *inode;
-	u16 ino;
+	sysv_ino_t ino;
 	unsigned count;
 
 	inode = new_inode(sb);
@@ -169,7 +169,7 @@ struct inode * sysv_new_inode(const struct inode * dir, mode_t mode)
 
 	inode->i_uid = current->fsuid;
 	inode->i_ino = fs16_to_cpu(sbi, ino);
-	inode->i_mtime = inode->i_atime = inode->i_ctime = CURRENT_TIME;
+	inode->i_mtime = inode->i_atime = inode->i_ctime = CURRENT_TIME_SEC;
 	inode->i_blocks = inode->i_blksize = 0;
 	memset(SYSV_I(inode)->i_data, 0, sizeof(SYSV_I(inode)->i_data));
 	SYSV_I(inode)->i_dir_start_lookup = 0;

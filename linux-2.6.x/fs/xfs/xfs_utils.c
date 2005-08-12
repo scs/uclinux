@@ -110,7 +110,7 @@ xfs_dir_lookup_int(
 		 * reservation in the inactive routine.
 		 */
 		xfs_iunlock(dp, lock_mode);
-		error = xfs_iget(dp->i_mount, NULL, *inum, 0, ipp, 0);
+		error = xfs_iget(dp->i_mount, NULL, *inum, 0, 0, ipp, 0);
 		xfs_ilock(dp, lock_mode);
 
 		if (error) {
@@ -147,7 +147,7 @@ xfs_dir_ialloc(
 	xfs_inode_t	*dp,		/* directory within whose allocate
 					   the inode. */
 	mode_t		mode,
-	nlink_t		nlink,
+	xfs_nlink_t	nlink,
 	xfs_dev_t	rdev,
 	cred_t		*credp,
 	prid_t		prid,		/* project id */

@@ -13,9 +13,11 @@
 #include <linux/kernel.h>
 #include <linux/smp_lock.h>
 #include <linux/security.h>
+#include <linux/syscalls.h>
+#include <linux/buffer_head.h>
 
-/* Check validity of quotactl */
-static int check_quotactl_valid(struct super_block *sb, int type, int cmd, qid_t id)
+/* Check validity of generic quotactl commands */
+static int generic_quotactl_valid(struct super_block *sb, int type, int cmd, qid_t id)
 {
 	if (type >= MAXQUOTAS)
 		return -EINVAL;
@@ -56,6 +58,48 @@ static int check_quotactl_valid(struct super_block *sb, int type, int cmd, qid_t
 			if (sb && !sb->s_qcop->quota_sync)
 				return -ENOSYS;
 			break;
+		default:
+			return -EINVAL;
+	}
+
+	/* Is quota turned on for commands which need it? */
+	switch (cmd) {
+		case Q_GETFMT:
+		case Q_GETINFO:
+		case Q_QUOTAOFF:
+		case Q_SETINFO:
+		case Q_SETQUOTA:
+		case Q_GETQUOTA:
+			/* This is just informative test so we are satisfied without a lock */
+			if (!sb_has_quota_enabled(sb, type))
+				return -ESRCH;
+	}
+
+	/* Check privileges */
+	if (cmd == Q_GETQUOTA) {
+		if (((type == USRQUOTA && current->euid != id) ||
+		     (type == GRPQUOTA && !in_egroup_p(id))) &&
+		    !capable(CAP_SYS_ADMIN))
+			return -EPERM;
+	}
+	else if (cmd != Q_GETFMT && cmd != Q_SYNC && cmd != Q_GETINFO)
+		if (!capable(CAP_SYS_ADMIN))
+			return -EPERM;
+
+	return 0;
+}
+
+/* Check validity of XFS Quota Manager commands */
+static int xqm_quotactl_valid(struct super_block *sb, int type, int cmd, qid_t id)
+{
+	if (type >= XQM_MAXQUOTAS)
+		return -EINVAL;
+	if (!sb)
+		return -ENODEV;
+	if (!sb->s_qcop)
+		return -ENOSYS;
+
+	switch (cmd) {
 		case Q_XQUOTAON:
 		case Q_XQUOTAOFF:
 		case Q_XQUOTARM:
@@ -78,30 +122,31 @@ static int check_quotactl_valid(struct super_block *sb, int type, int cmd, qid_t
 			return -EINVAL;
 	}
 
-	/* Is quota turned on for commands which need it? */
-	switch (cmd) {
-		case Q_GETFMT:
-		case Q_GETINFO:
-		case Q_QUOTAOFF:
-		case Q_SETINFO:
-		case Q_SETQUOTA:
-		case Q_GETQUOTA:
-			/* This is just informative test so we are satisfied without a lock */
-			if (!sb_has_quota_enabled(sb, type))
-				return -ESRCH;
-	}
 	/* Check privileges */
-	if (cmd == Q_GETQUOTA || cmd == Q_XGETQUOTA) {
-		if (((type == USRQUOTA && current->euid != id) ||
-		     (type == GRPQUOTA && !in_egroup_p(id))) &&
-		    !capable(CAP_SYS_ADMIN))
+	if (cmd == Q_XGETQUOTA) {
+		if (((type == XQM_USRQUOTA && current->euid != id) ||
+		     (type == XQM_GRPQUOTA && !in_egroup_p(id))) &&
+		     !capable(CAP_SYS_ADMIN))
 			return -EPERM;
-	}
-	else if (cmd != Q_GETFMT && cmd != Q_SYNC && cmd != Q_GETINFO && cmd != Q_XGETQSTAT)
+	} else if (cmd != Q_XGETQSTAT) {
 		if (!capable(CAP_SYS_ADMIN))
 			return -EPERM;
+	}
 
-	return security_quotactl (cmd, type, id, sb);
+	return 0;
+}
+
+static int check_quotactl_valid(struct super_block *sb, int type, int cmd, qid_t id)
+{
+	int error;
+
+	if (XQM_COMMAND(cmd))
+		error = xqm_quotactl_valid(sb, type, cmd, id);
+	else
+		error = generic_quotactl_valid(sb, type, cmd, id);
+	if (!error)
+		error = security_quotactl(cmd, type, id, sb);
+	return error;
 }
 
 static struct super_block *get_super_to_sync(int type)
@@ -134,16 +179,54 @@ restart:
 	return NULL;
 }
 
+static void quota_sync_sb(struct super_block *sb, int type)
+{
+	int cnt;
+	struct inode *discard[MAXQUOTAS];
+
+	sb->s_qcop->quota_sync(sb, type);
+	/* This is not very clever (and fast) but currently I don't know about
+	 * any other simple way of getting quota data to disk and we must get
+	 * them there for userspace to be visible... */
+	if (sb->s_op->sync_fs)
+		sb->s_op->sync_fs(sb, 1);
+	sync_blockdev(sb->s_bdev);
+
+	/* Now when everything is written we can discard the pagecache so
+	 * that userspace sees the changes. We need i_sem and so we could
+	 * not do it inside dqonoff_sem. Moreover we need to be carefull
+	 * about races with quotaoff() (that is the reason why we have own
+	 * reference to inode). */
+	down(&sb_dqopt(sb)->dqonoff_sem);
+	for (cnt = 0; cnt < MAXQUOTAS; cnt++) {
+		discard[cnt] = NULL;
+		if (type != -1 && cnt != type)
+			continue;
+		if (!sb_has_quota_enabled(sb, cnt))
+			continue;
+		discard[cnt] = igrab(sb_dqopt(sb)->files[cnt]);
+	}
+	up(&sb_dqopt(sb)->dqonoff_sem);
+	for (cnt = 0; cnt < MAXQUOTAS; cnt++) {
+		if (discard[cnt]) {
+			down(&discard[cnt]->i_sem);
+			truncate_inode_pages(&discard[cnt]->i_data, 0);
+			up(&discard[cnt]->i_sem);
+			iput(discard[cnt]);
+		}
+	}
+}
+
 void sync_dquots(struct super_block *sb, int type)
 {
 	if (sb) {
 		if (sb->s_qcop->quota_sync)
-			sb->s_qcop->quota_sync(sb, type);
+			quota_sync_sb(sb, type);
 	}
 	else {
-		while ((sb = get_super_to_sync(type)) != 0) {
+		while ((sb = get_super_to_sync(type)) != NULL) {
 			if (sb->s_qcop->quota_sync)
-				sb->s_qcop->quota_sync(sb, type);
+				quota_sync_sb(sb, type);
 			drop_super(sb);
 		}
 	}

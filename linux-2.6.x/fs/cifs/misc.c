@@ -1,7 +1,7 @@
 /*
  *   fs/cifs/misc.c
  *
- *   Copyright (C) International Business Machines  Corp., 2002,2003
+ *   Copyright (C) International Business Machines  Corp., 2002,2004
  *   Author(s): Steve French (sfrench@us.ibm.com)
  *
  *   This library is free software; you can redistribute it and/or modify
@@ -28,11 +28,13 @@
 #include "cifs_debug.h"
 #include "smberr.h"
 #include "nterr.h"
+#include "cifs_unicode.h"
 
+extern mempool_t *cifs_sm_req_poolp;
 extern mempool_t *cifs_req_poolp;
 extern struct task_struct * oplockThread;
 
-__u16 GlobalMid;		/* multiplex id - rotating counter */
+static __u16 GlobalMid;		/* multiplex id - rotating counter */
 
 /* The xid serves as a useful identifier for each incoming vfs request, 
    in a similar way to the mid which is useful to track each sent smb, 
@@ -124,7 +126,7 @@ tconInfoAlloc(void)
 		INIT_LIST_HEAD(&ret_buf->openFileList);
 		init_MUTEX(&ret_buf->tconSem);
 #ifdef CONFIG_CIFS_STATS
-		ret_buf->stat_lock = SPIN_LOCK_UNLOCKED;
+		spin_lock_init(&ret_buf->stat_lock);
 #endif
 		write_unlock(&GlobalSMBSeslock);
 	}
@@ -160,8 +162,9 @@ cifs_buf_get(void)
 	    (struct smb_hdr *) mempool_alloc(cifs_req_poolp, SLAB_KERNEL | SLAB_NOFS);
 
 	/* clear the first few header bytes */
+	/* for most paths, more is cleared in header_assemble */
 	if (ret_buf) {
-		memset(ret_buf, 0, sizeof (struct smb_hdr));
+		memset(ret_buf, 0, sizeof(struct smb_hdr) + 3);
 		atomic_inc(&bufAllocCount);
 	}
 
@@ -173,7 +176,7 @@ cifs_buf_release(void *buf_to_free)
 {
 
 	if (buf_to_free == NULL) {
-		cFYI(1, ("Null buffer passed to cifs_buf_release"));
+		/* cFYI(1, ("Null buffer passed to cifs_buf_release"));*/
 		return;
 	}
 	mempool_free(buf_to_free,cifs_req_poolp);
@@ -182,21 +185,49 @@ cifs_buf_release(void *buf_to_free)
 	return;
 }
 
+struct smb_hdr *
+cifs_small_buf_get(void)
+{
+	struct smb_hdr *ret_buf = NULL;
+
+/* We could use negotiated size instead of max_msgsize - 
+   but it may be more efficient to always alloc same size 
+   albeit slightly larger than necessary and maxbuffersize 
+   defaults to this and can not be bigger */
+	ret_buf =
+	    (struct smb_hdr *) mempool_alloc(cifs_sm_req_poolp, SLAB_KERNEL | SLAB_NOFS);
+	if (ret_buf) {
+	/* No need to clear memory here, cleared in header assemble */
+	/*	memset(ret_buf, 0, sizeof(struct smb_hdr) + 27);*/
+		atomic_inc(&smBufAllocCount);
+	}
+	return ret_buf;
+}
+
+void
+cifs_small_buf_release(void *buf_to_free)
+{
+
+	if (buf_to_free == NULL) {
+		cFYI(1, ("Null buffer passed to cifs_small_buf_release"));
+		return;
+	}
+	mempool_free(buf_to_free,cifs_sm_req_poolp);
+
+	atomic_dec(&smBufAllocCount);
+	return;
+}
+
 void
 header_assemble(struct smb_hdr *buffer, char smb_command /* command */ ,
 		const struct cifsTconInfo *treeCon, int word_count
-		/* length of fixed section (word count) in two byte units  */
-    )
+		/* length of fixed section (word count) in two byte units  */)
 {
-	int i;
-	__u32 tmp;
 	struct list_head* temp_item;
 	struct cifsSesInfo * ses;
 	char *temp = (char *) buffer;
 
-	for (i = 0; i < MAX_CIFS_HDR_SIZE; i++) {
-		temp[i] = 0;	/* BB is this needed ?? */
-	}
+	memset(temp,0,MAX_CIFS_HDR_SIZE);
 
 	buffer->smb_buf_length =
 	    (2 * word_count) + sizeof (struct smb_hdr) -
@@ -211,10 +242,8 @@ header_assemble(struct smb_hdr *buffer, char smb_command /* command */ ,
 	buffer->Command = smb_command;
 	buffer->Flags = 0x00;	/* case sensitive */
 	buffer->Flags2 = SMBFLG2_KNOWS_LONG_NAMES;
-	tmp = cpu_to_le32(current->tgid);
-	buffer->Pid = tmp & 0xFFFF;
-	tmp >>= 16;
-	buffer->PidHigh = tmp & 0xFFFF;
+	buffer->Pid = cpu_to_le16((__u16)current->tgid);
+	buffer->PidHigh = cpu_to_le16((__u16)(current->tgid >> 16));
 	spin_lock(&GlobalMid_Lock);
 	GlobalMid++;
 	buffer->Mid = GlobalMid;
@@ -276,7 +305,7 @@ header_assemble(struct smb_hdr *buffer, char smb_command /* command */ ,
 		}
 		if (treeCon->Flags & SMB_SHARE_IS_IN_DFS)
 			buffer->Flags2 |= SMBFLG2_DFS;
-		if(treeCon->ses->server)
+		if((treeCon->ses) && (treeCon->ses->server))
 			if(treeCon->ses->server->secMode & 
 			  (SECMODE_SIGN_REQUIRED | SECMODE_SIGN_ENABLED))
 				buffer->Flags2 |= SMBFLG2_SECURITY_SIGNATURE;
@@ -292,7 +321,7 @@ checkSMBhdr(struct smb_hdr *smb, __u16 mid)
 {
 	/* Make sure that this really is an SMB, that it is a response, 
 	   and that the message ids match */
-	if ((*(unsigned int *) smb->Protocol == cpu_to_le32(0x424d53ff)) && 
+	if ((*(__le32 *) smb->Protocol == cpu_to_le32(0x424d53ff)) && 
 		(mid == smb->Mid)) {    
 		if(smb->Flags & SMBFLG_RESPONSE)
 			return 0;                    
@@ -304,7 +333,7 @@ checkSMBhdr(struct smb_hdr *smb, __u16 mid)
 				cERROR(1, ("Rcvd Request not response "));         
 		}
 	} else { /* bad signature or mid */
-		if (*(unsigned int *) smb->Protocol != cpu_to_le32(0x424d53ff))
+		if (*(__le32 *) smb->Protocol != cpu_to_le32(0x424d53ff))
 			cERROR(1,
 			       ("Bad protocol string signature header %x ",
 				*(unsigned int *) smb->Protocol));
@@ -318,23 +347,26 @@ checkSMBhdr(struct smb_hdr *smb, __u16 mid)
 int
 checkSMB(struct smb_hdr *smb, __u16 mid, int length)
 {
+	__u32 len = be32_to_cpu(smb->smb_buf_length);
 	cFYI(0,
 	     ("Entering checkSMB with Length: %x, smb_buf_length: %x ",
-	      length, ntohl(smb->smb_buf_length)));
-	if (((unsigned int)length < 2 + sizeof (struct smb_hdr))
-	    || (ntohl(smb->smb_buf_length) >
-		CIFS_MAX_MSGSIZE + MAX_CIFS_HDR_SIZE - 4)) {
+	      length, len));
+	if (((unsigned int)length < 2 + sizeof (struct smb_hdr)) ||
+	    (len > CIFSMaxBufSize + MAX_CIFS_HDR_SIZE - 4)) {
 		if ((unsigned int)length < 2 + sizeof (struct smb_hdr)) {
-			cERROR(1, ("Length less than 2 + sizeof smb_hdr "));
-			if (((unsigned int)length >= sizeof (struct smb_hdr) - 1)
-			    && (smb->Status.CifsError != 0))
+			if (((unsigned int)length >= 
+				sizeof (struct smb_hdr) - 1)
+			    && (smb->Status.CifsError != 0)) {
+				smb->WordCount = 0;
 				return 0;	/* some error cases do not return wct and bcc */
+			} else {
+				cERROR(1, ("Length less than smb header size"));
+			}
 
 		}
-		if (ntohl(smb->smb_buf_length) >
-		    CIFS_MAX_MSGSIZE + MAX_CIFS_HDR_SIZE - 4)
+		if (len > CIFSMaxBufSize + MAX_CIFS_HDR_SIZE - 4)
 			cERROR(1,
-			       ("smb_buf_length greater than CIFS_MAX_MSGSIZE ... "));
+			       ("smb_buf_length greater than MaxBufSize"));
 		cERROR(1,
 		       ("bad smb detected. Illegal length. The mid=%d",
 			smb->Mid));
@@ -344,8 +376,8 @@ checkSMB(struct smb_hdr *smb, __u16 mid, int length)
 	if (checkSMBhdr(smb, mid))
 		return 1;
 
-	if ((4 + ntohl(smb->smb_buf_length) != smbCalcSize(smb))
-	    || (4 + ntohl(smb->smb_buf_length) != (unsigned int)length)) {
+	if ((4 + len != smbCalcSize(smb))
+	    || (4 + len != (unsigned int)length)) {
 		return 0;
 	} else {
 		cERROR(1, ("smbCalcSize %x ", smbCalcSize(smb)));
@@ -363,8 +395,29 @@ is_valid_oplock_break(struct smb_hdr *buf)
 	struct cifsTconInfo *tcon;
 	struct cifsFileInfo *netfile;
 
-	/* could add check for smb response flag 0x80 */
-	cFYI(1,("Checking for oplock break"));    
+	cFYI(1,("Checking for oplock break or dnotify response"));
+	if((pSMB->hdr.Command == SMB_COM_NT_TRANSACT) &&
+	   (pSMB->hdr.Flags & SMBFLG_RESPONSE)) {
+		struct smb_com_transaction_change_notify_rsp * pSMBr =
+			(struct smb_com_transaction_change_notify_rsp *)buf;
+		struct file_notify_information * pnotify;
+		__u32 data_offset = 0;
+		if(pSMBr->ByteCount > sizeof(struct file_notify_information)) {
+			data_offset = le32_to_cpu(pSMBr->DataOffset);
+
+			pnotify = (struct file_notify_information *)((char *)&pSMBr->hdr.Protocol
+				+ data_offset);
+			cFYI(1,("dnotify on %s with action: 0x%x",pnotify->FileName,
+				pnotify->Action));  /* BB removeme BB */
+	             /*   cifs_dump_mem("Received notify Data is: ",buf,sizeof(struct smb_hdr)+60); */
+			return TRUE;
+		}
+		if(pSMBr->hdr.Status.CifsError) {
+			cFYI(1,("notify err 0x%d",pSMBr->hdr.Status.CifsError));
+			return TRUE;
+		}
+		return FALSE;
+	}  
 	if(pSMB->hdr.Command != SMB_COM_LOCKING_ANDX)
 		return FALSE;
 	if(pSMB->hdr.Flags & SMBFLG_RESPONSE) {
@@ -399,25 +452,30 @@ is_valid_oplock_break(struct smb_hdr *buf)
 			atomic_inc(&tcon->num_oplock_brks);
 #endif
 			list_for_each(tmp1,&tcon->openFileList){
-				netfile = list_entry(tmp1,struct cifsFileInfo,tlist);
+				netfile = list_entry(tmp1,struct cifsFileInfo,
+						     tlist);
 				if(pSMB->Fid == netfile->netfid) {
 					struct cifsInodeInfo *pCifsInode;
 					read_unlock(&GlobalSMBSeslock);
-					cFYI(1,("Matching file id, processing oplock break"));
+					cFYI(1,("file id match, oplock break"));
 					pCifsInode = 
 						CIFS_I(netfile->pInode);
 					pCifsInode->clientCanCacheAll = FALSE;
 					if(pSMB->OplockLevel == 0)
-						pCifsInode->clientCanCacheRead = FALSE;
+						pCifsInode->clientCanCacheRead
+							= FALSE;
 					pCifsInode->oplockPending = TRUE;
-					AllocOplockQEntry(netfile->pInode, netfile->netfid, tcon);
+					AllocOplockQEntry(netfile->pInode,
+							  netfile->netfid,
+							  tcon);
 					cFYI(1,("about to wake up oplock thd"));
-					wake_up_process(oplockThread);               
+					if(oplockThread)
+					    wake_up_process(oplockThread);
 					return TRUE;
 				}
 			}
 			read_unlock(&GlobalSMBSeslock);
-			cFYI(1,("No matching file for oplock break on connection"));
+			cFYI(1,("No matching file for oplock break"));
 			return TRUE;
 		}
 	}
@@ -438,7 +496,7 @@ dump_smb(struct smb_hdr *smb_buf, int smb_buf_length)
 
 	buffer = (unsigned char *) smb_buf;
 	for (i = 0, j = 0; i < smb_buf_length; i++, j++) {
-		if (i % 8 == 0) {	/* we have reached the beginning of line  */
+		if (i % 8 == 0) {	/* have reached the beginning of line */
 			printk(KERN_DEBUG "| ");
 			j = 0;
 		}
@@ -449,7 +507,7 @@ dump_smb(struct smb_hdr *smb_buf, int smb_buf_length)
 		else
 			debug_line[1 + (2 * j)] = '_';
 
-		if (i % 8 == 7) {	/* we have reached end of line, time to print ascii */
+		if (i % 8 == 7) { /* reached end of line, time to print ascii */
 			debug_line[16] = 0;
 			printk(" | %s\n", debug_line);
 		}
@@ -461,4 +519,143 @@ dump_smb(struct smb_hdr *smb_buf, int smb_buf_length)
 	}
 	printk( " | %s\n", debug_line);
 	return;
+}
+
+/* Windows maps these to the user defined 16 bit Unicode range since they are
+   reserved symbols (along with \ and /), otherwise illegal to store
+   in filenames in NTFS */
+#define UNI_ASTERIK     (__u16) ('*' + 0xF000)
+#define UNI_QUESTION    (__u16) ('?' + 0xF000)
+#define UNI_COLON       (__u16) (':' + 0xF000)
+#define UNI_GRTRTHAN    (__u16) ('>' + 0xF000)
+#define UNI_LESSTHAN    (__u16) ('<' + 0xF000)
+#define UNI_PIPE        (__u16) ('|' + 0xF000)
+#define UNI_SLASH       (__u16) ('\\' + 0xF000)
+
+/* Convert 16 bit Unicode pathname from wire format to string in current code
+   page.  Conversion may involve remapping up the seven characters that are
+   only legal in POSIX-like OS (if they are present in the string). Path
+   names are little endian 16 bit Unicode on the wire */
+int
+cifs_convertUCSpath(char *target, const __le16 * source, int maxlen,
+		    const struct nls_table * cp)
+{
+	int i,j,len;
+	__u16 src_char;
+
+	for(i = 0, j = 0; i < maxlen; i++) {
+		src_char = le16_to_cpu(source[i]);
+		switch (src_char) {
+			case 0:
+				goto cUCS_out; /* BB check this BB */
+			case UNI_COLON:
+				target[j] = ':';
+				break;
+			case UNI_ASTERIK:
+				target[j] = '*';
+				break;
+			case UNI_QUESTION:
+				target[j] = '?';
+				break;
+			/* BB We can not handle remapping slash until
+			   all the calls to build_path_from_dentry
+			   are modified, as they use slash as separator BB */
+			/* case UNI_SLASH:
+				target[j] = '\\';
+				break;*/
+			case UNI_PIPE:
+				target[j] = '|';
+				break;
+			case UNI_GRTRTHAN:
+				target[j] = '>';
+				break;
+			case UNI_LESSTHAN:
+				target[j] = '<';
+				break;
+			default: 
+				len = cp->uni2char(src_char, &target[j], 
+						NLS_MAX_CHARSET_SIZE);
+				if(len > 0) {
+					j += len;
+					continue;
+				} else {
+					target[j] = '?';
+				}
+		}
+		j++;
+		/* make sure we do not overrun callers allocated temp buffer */
+		if(j >= (2 * NAME_MAX))
+			break;
+	}
+cUCS_out:
+	target[j] = 0;
+	return j;
+}
+
+/* Convert 16 bit Unicode pathname to wire format from string in current code
+   page.  Conversion may involve remapping up the seven characters that are
+   only legal in POSIX-like OS (if they are present in the string). Path
+   names are little endian 16 bit Unicode on the wire */
+int
+cifsConvertToUCS(__le16 * target, const char *source, int maxlen, 
+		 const struct nls_table * cp, int mapChars)
+{
+	int i,j,charlen;
+	int len_remaining = maxlen;
+	char src_char;
+
+	if(!mapChars) 
+		return cifs_strtoUCS((wchar_t *) target, source, PATH_MAX, cp);
+
+	for(i = 0, j = 0; i < maxlen; j++) {
+		src_char = source[i];
+		switch (src_char) {
+			case 0:
+				goto ctoUCS_out;
+			case ':':
+				target[j] = cpu_to_le16(UNI_COLON);
+				break;
+			case '*':
+				target[j] = cpu_to_le16(UNI_ASTERIK);
+				break;
+			case '?':
+				target[j] = cpu_to_le16(UNI_QUESTION);
+				break;
+			case '<':
+				target[j] = cpu_to_le16(UNI_LESSTHAN);
+				break;
+			case '>':
+				target[j] = cpu_to_le16(UNI_GRTRTHAN);
+				break;
+			case '|':
+				target[j] = cpu_to_le16(UNI_PIPE);
+				break;			
+			/* BB We can not handle remapping slash until
+			   all the calls to build_path_from_dentry
+			   are modified, as they use slash as separator BB */
+			/* case '\\':
+				target[j] = cpu_to_le16(UNI_SLASH);
+				break;*/
+			default:
+				charlen = cp->char2uni(source+i,
+					len_remaining, target+j);
+				/* if no match, use question mark, which
+				at least in some cases servers as wild card */
+				if(charlen < 1) {
+					target[j] = cpu_to_le16(0x003f);
+					charlen = 1;
+				}
+				len_remaining -= charlen;
+				/* character may take more than one byte in the
+				   the source string, but will take exactly two
+				   bytes in the target string */
+				i+= charlen;
+				continue;
+		}
+		i++; /* move to next char in source string */
+		len_remaining--;
+	}
+
+ctoUCS_out:
+	return i;
 }

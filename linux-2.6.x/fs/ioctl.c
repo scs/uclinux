@@ -5,6 +5,7 @@
  */
 
 #include <linux/config.h>
+#include <linux/syscalls.h>
 #include <linux/mm.h>
 #include <linux/smp_lock.h>
 #include <linux/file.h>
@@ -15,7 +16,32 @@
 #include <asm/uaccess.h>
 #include <asm/ioctls.h>
 
-static int file_ioctl(struct file *filp,unsigned int cmd,unsigned long arg)
+static long do_ioctl(struct file *filp, unsigned int cmd,
+		unsigned long arg)
+{
+	int error = -ENOTTY;
+
+	if (!filp->f_op)
+		goto out;
+
+	if (filp->f_op->unlocked_ioctl) {
+		error = filp->f_op->unlocked_ioctl(filp, cmd, arg);
+		if (error == -ENOIOCTLCMD)
+			error = -EINVAL;
+		goto out;
+	} else if (filp->f_op->ioctl) {
+		lock_kernel();
+		error = filp->f_op->ioctl(filp->f_dentry->d_inode,
+					  filp, cmd, arg);
+		unlock_kernel();
+	}
+
+ out:
+	return error;
+}
+
+static int file_ioctl(struct file *filp, unsigned int cmd,
+		unsigned long arg)
 {
 	int error;
 	int block;
@@ -35,7 +61,9 @@ static int file_ioctl(struct file *filp,unsigned int cmd,unsigned long arg)
 			if ((error = get_user(block, p)) != 0)
 				return error;
 
+			lock_kernel();
 			res = mapping->a_ops->bmap(mapping, block);
+			unlock_kernel();
 			return put_user(res, p);
 		}
 		case FIGETBSZ:
@@ -45,29 +73,22 @@ static int file_ioctl(struct file *filp,unsigned int cmd,unsigned long arg)
 		case FIONREAD:
 			return put_user(i_size_read(inode) - filp->f_pos, p);
 	}
-	if (filp->f_op && filp->f_op->ioctl)
-		return filp->f_op->ioctl(inode, filp, cmd, arg);
-	return -ENOTTY;
+
+	return do_ioctl(filp, cmd, arg);
 }
 
-
-asmlinkage long sys_ioctl(unsigned int fd, unsigned int cmd, unsigned long arg)
-{	
-	struct file * filp;
+/*
+ * When you add any new common ioctls to the switches above and below
+ * please update compat_sys_ioctl() too.
+ *
+ * vfs_ioctl() is not for drivers and not intended to be EXPORT_SYMBOL()'d.
+ * It's just a simple helper for sys_ioctl and compat_sys_ioctl.
+ */
+int vfs_ioctl(struct file *filp, unsigned int fd, unsigned int cmd, unsigned long arg)
+{
 	unsigned int flag;
-	int on, error = -EBADF;
+	int on, error = 0;
 
-	filp = fget(fd);
-	if (!filp)
-		goto out;
-
-	error = security_file_ioctl(filp, cmd, arg);
-	if (error) {
-                fput(filp);
-                goto out;
-        }
-
-	lock_kernel();
 	switch (cmd) {
 		case FIOCLEX:
 			set_close_on_exec(fd, 1);
@@ -99,8 +120,11 @@ asmlinkage long sys_ioctl(unsigned int fd, unsigned int cmd, unsigned long arg)
 
 			/* Did FASYNC state change ? */
 			if ((flag ^ filp->f_flags) & FASYNC) {
-				if (filp->f_op && filp->f_op->fasync)
+				if (filp->f_op && filp->f_op->fasync) {
+					lock_kernel();
 					error = filp->f_op->fasync(fd, filp, on);
+					unlock_kernel();
+				}
 				else error = -ENOTTY;
 			}
 			if (error != 0)
@@ -123,16 +147,33 @@ asmlinkage long sys_ioctl(unsigned int fd, unsigned int cmd, unsigned long arg)
 				error = -ENOTTY;
 			break;
 		default:
-			error = -ENOTTY;
 			if (S_ISREG(filp->f_dentry->d_inode->i_mode))
 				error = file_ioctl(filp, cmd, arg);
-			else if (filp->f_op && filp->f_op->ioctl)
-				error = filp->f_op->ioctl(filp->f_dentry->d_inode, filp, cmd, arg);
+			else
+				error = do_ioctl(filp, cmd, arg);
+			break;
 	}
-	unlock_kernel();
-	fput(filp);
+	return error;
+}
 
-out:
+asmlinkage long sys_ioctl(unsigned int fd, unsigned int cmd, unsigned long arg)
+{
+	struct file * filp;
+	int error = -EBADF;
+	int fput_needed;
+
+	filp = fget_light(fd, &fput_needed);
+	if (!filp)
+		goto out;
+
+	error = security_file_ioctl(filp, cmd, arg);
+	if (error)
+		goto out_fput;
+
+	error = vfs_ioctl(filp, fd, cmd, arg);
+ out_fput:
+	fput_light(filp, fput_needed);
+ out:
 	return error;
 }
 

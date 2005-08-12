@@ -1,5 +1,5 @@
 /*
- *   Copyright (C) International Business Machines  Corp., 2000-2003
+ *   Copyright (C) International Business Machines  Corp., 2000-2004
  *
  *   This program is free software;  you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -18,6 +18,7 @@
 
 #include <linux/fs.h>
 #include <linux/buffer_head.h>
+#include <linux/quotaops.h>
 #include "jfs_incore.h"
 #include "jfs_filsys.h"
 #include "jfs_metapage.h"
@@ -208,6 +209,9 @@ int jfs_extendfs(struct super_block *sb, s64 newLVSize, int newLogSize)
 	 */
 	txQuiesce(sb);
 
+	/* Reset size of direct inode */
+	sbi->direct_inode->i_size =  sb->s_bdev->bd_inode->i_size;
+
 	if (sbi->mntflag & JFS_INLINELOG) {
 		/*
 		 * deactivate old inline log
@@ -390,7 +394,7 @@ int jfs_extendfs(struct super_block *sb, s64 newLVSize, int newLogSize)
 	}
 	/* update bmap file size */
 	ipbmap->i_size += xlen << sbi->l2bsize;
-	ipbmap->i_blocks += LBLK2PBLK(sb, xlen);
+	inode_add_bytes(ipbmap, xlen << sbi->l2bsize);
 
 	iplist[0] = ipbmap;
 	rc = txCommit(tid, 1, &iplist[0], COMMIT_FORCE);

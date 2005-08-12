@@ -49,8 +49,7 @@ static int udf_adinicb_readpage(struct file *file, struct page * page)
 	struct inode *inode = page->mapping->host;
 	char *kaddr;
 
-	if (!PageLocked(page))
-		PAGE_BUG(page);
+	BUG_ON(!PageLocked(page));
 
 	kaddr = kmap(page);
 	memset(kaddr, 0, PAGE_CACHE_SIZE);
@@ -67,8 +66,7 @@ static int udf_adinicb_writepage(struct page *page, struct writeback_control *wb
 	struct inode *inode = page->mapping->host;
 	char *kaddr;
 
-	if (!PageLocked(page))
-		PAGE_BUG(page);
+	BUG_ON(!PageLocked(page));
 
 	kaddr = kmap(page);
 	memcpy(UDF_I_DATA(inode) + UDF_I_LENEATTR(inode), kaddr, inode->i_size);
@@ -254,30 +252,10 @@ static int udf_release_file(struct inode * inode, struct file * filp)
 	return 0;
 }
 
-/*
- * udf_open_file
- *
- * PURPOSE
- *  Called when an inode is about to be open.
- *
- * DESCRIPTION
- *  Use this to disallow opening RW large files on 32 bit systems.
- *  On 64 bit systems we force on O_LARGEFILE in sys_open.
- *
- * HISTORY
- *
- */
-static int udf_open_file(struct inode * inode, struct file * filp)
-{
-	if ((inode->i_size & 0xFFFFFFFF80000000ULL) && !(filp->f_flags & O_LARGEFILE))
-		return -EFBIG;
-	return 0;
-}
-
 struct file_operations udf_file_operations = {
 	.read			= generic_file_read,
 	.ioctl			= udf_ioctl,
-	.open			= udf_open_file,
+	.open			= generic_file_open,
 	.mmap			= generic_file_mmap,
 	.write			= udf_file_write,
 	.release		= udf_release_file,

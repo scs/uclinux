@@ -10,26 +10,7 @@
  *  (C) 1991  Linus Torvalds - minix filesystem
  */
 
-#include <asm/div64.h>
-#include <linux/errno.h>
-#include <linux/fs.h>
-#include <linux/slab.h>
-#include <linux/stat.h>
-#include <linux/time.h>
-#include <linux/affs_fs.h>
-#include <linux/kernel.h>
-#include <linux/mm.h>
-#include <linux/string.h>
-#include <linux/genhd.h>
-#include <linux/amigaffs.h>
-#include <linux/major.h>
-#include <linux/blkdev.h>
-#include <linux/init.h>
-#include <linux/smp_lock.h>
-#include <linux/buffer_head.h>
-#include <asm/system.h>
-#include <asm/uaccess.h>
-#include <linux/module.h>
+#include "affs.h"
 
 extern struct inode_operations affs_symlink_inode_operations;
 extern struct timezone sys_tz;
@@ -181,7 +162,7 @@ bad_inode:
 	return;
 }
 
-void
+int
 affs_write_inode(struct inode *inode, int unused)
 {
 	struct super_block	*sb = inode->i_sb;
@@ -194,14 +175,14 @@ affs_write_inode(struct inode *inode, int unused)
 
 	if (!inode->i_nlink)
 		// possibly free block
-		return;
+		return 0;
 	bh = affs_bread(sb, inode->i_ino);
 	if (!bh) {
 		affs_error(sb,"write_inode","Cannot read block %lu",inode->i_ino);
-		return;
+		return -EIO;
 	}
 	tail = AFFS_TAIL(sb, bh);
-	if (tail->stype == be32_to_cpu(ST_ROOT)) {
+	if (tail->stype == cpu_to_be32(ST_ROOT)) {
 		secs_to_datestamp(inode->i_mtime.tv_sec,&AFFS_ROOT_TAIL(sb, bh)->root_change);
 	} else {
 		tail->protect = cpu_to_be32(AFFS_I(inode)->i_protect);
@@ -226,6 +207,7 @@ affs_write_inode(struct inode *inode, int unused)
 	mark_buffer_dirty_inode(bh, inode);
 	affs_brelse(bh);
 	affs_free_prealloc(inode);
+	return 0;
 }
 
 int
@@ -321,7 +303,7 @@ affs_new_inode(struct inode *dir)
 	inode->i_gid     = current->fsgid;
 	inode->i_ino     = block;
 	inode->i_nlink   = 1;
-	inode->i_mtime   = inode->i_atime = inode->i_ctime = CURRENT_TIME;
+	inode->i_mtime   = inode->i_atime = inode->i_ctime = CURRENT_TIME_SEC;
 	AFFS_I(inode)->i_opencnt = 0;
 	AFFS_I(inode)->i_blkcnt = 0;
 	AFFS_I(inode)->i_lc = NULL;
@@ -396,7 +378,7 @@ affs_add_entry(struct inode *dir, struct inode *inode, struct dentry *dentry, s3
 	AFFS_TAIL(sb, bh)->parent = cpu_to_be32(dir->i_ino);
 
 	if (inode_bh) {
-		u32 chain;
+		__be32 chain;
 	       	chain = AFFS_TAIL(sb, inode_bh)->link_chain;
 		AFFS_TAIL(sb, bh)->original = cpu_to_be32(inode->i_ino);
 		AFFS_TAIL(sb, bh)->link_chain = chain;
@@ -427,4 +409,3 @@ err:
 	affs_unlock_link(inode);
 	goto done;
 }
-MODULE_LICENSE("GPL");

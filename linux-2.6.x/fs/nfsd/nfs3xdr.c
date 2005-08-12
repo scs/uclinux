@@ -102,22 +102,6 @@ decode_filename(u32 *p, char **namp, int *lenp)
 }
 
 static inline u32 *
-decode_pathname(u32 *p, char **namp, int *lenp)
-{
-	char		*name;
-	int		i;
-
-	if ((p = xdr_decode_string_inplace(p, namp, lenp, NFS3_MAXPATHLEN)) != NULL) {
-		for (i = 0, name = *namp; i < *lenp; i++, name++) {
-			if (*name == '\0')
-				return NULL;
-		}
-	}
-
-	return p;
-}
-
-static inline u32 *
 decode_sattr3(u32 *p, struct iattr *iap)
 {
 	u32	tmp;
@@ -762,10 +746,16 @@ nfs3svc_encode_readdirres(struct svc_rqst *rqstp, u32 *p,
 		/* stupid readdir cookie */
 		memcpy(p, resp->verf, 8); p += 2;
 		xdr_ressize_check(rqstp, p);
-		p = resp->buffer;
+		if (rqstp->rq_res.head[0].iov_len + (2<<2) > PAGE_SIZE)
+			return 1; /*No room for trailer */
+		rqstp->rq_res.page_len = (resp->count) << 2;
+
+		/* add the 'tail' to the end of the 'head' page - page 0. */
+		rqstp->rq_restailpage = 0;
+		rqstp->rq_res.tail[0].iov_base = p;
 		*p++ = 0;		/* no more entries */
 		*p++ = htonl(resp->common.err == nfserr_eof);
-		rqstp->rq_res.page_len = (resp->count + 2) << 2;
+		rqstp->rq_res.tail[0].iov_len = 2<<2;
 		return 1;
 	} else
 		return xdr_ressize_check(rqstp, p);
@@ -811,6 +801,11 @@ compose_entry_fh(struct nfsd3_readdirres *cd, struct svc_fh *fhp,
 	if (isdotent(name, namlen)) {
 		if (namlen == 2) {
 			dchild = dget_parent(dparent);
+			if (dchild == dparent) {
+				/* filesystem root - cannot return filehandle for ".." */
+				dput(dchild);
+				return 1;
+			}
 		} else
 			dchild = dget(dparent);
 	} else

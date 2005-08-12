@@ -22,13 +22,9 @@
 #ifndef _LINUX_NTFS_DEBUG_H
 #define _LINUX_NTFS_DEBUG_H
 
-#include <linux/kernel.h>
-#include <linux/string.h>
-#include <linux/spinlock.h>
 #include <linux/fs.h>
 
-#include "inode.h"
-#include "attrib.h"
+#include "runlist.h"
 
 #ifdef DEBUG
 
@@ -51,7 +47,7 @@ extern void __ntfs_debug (const char *file, int line, const char *function,
 #define ntfs_debug(f, a...)						\
 	__ntfs_debug(__FILE__, __LINE__, __FUNCTION__, f, ##a)
 
-extern void ntfs_debug_dump_runlist(const run_list_element *rl);
+extern void ntfs_debug_dump_runlist(const runlist_element *rl);
 
 #else	/* !DEBUG */
 

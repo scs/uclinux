@@ -57,7 +57,7 @@ extern int			nfs_stat_to_errno(int stat);
 
 #define NFS_attrstat_sz		(1+NFS_fattr_sz)
 #define NFS_diropres_sz		(1+NFS_fhandle_sz+NFS_fattr_sz)
-#define NFS_readlinkres_sz	(1)
+#define NFS_readlinkres_sz	(2)
 #define NFS_readres_sz		(1+NFS_fattr_sz+1)
 #define NFS_writeres_sz         (NFS_attrstat_sz)
 #define NFS_stat_sz		(1)
@@ -77,8 +77,6 @@ xdr_encode_fhandle(u32 *p, struct nfs_fh *fhandle)
 static inline u32 *
 xdr_decode_fhandle(u32 *p, struct nfs_fh *fhandle)
 {
-	/* Zero handle first to allow comparisons */
-	memset(fhandle, 0, sizeof(*fhandle));
 	/* NFSv2 handles have a fixed length */
 	fhandle->size = NFS2_FHSIZE;
 	memcpy(fhandle->data, p, NFS2_FHSIZE);
@@ -91,6 +89,23 @@ xdr_encode_time(u32 *p, struct timespec *timep)
 	*p++ = htonl(timep->tv_sec);
 	/* Convert nanoseconds into microseconds */
 	*p++ = htonl(timep->tv_nsec ? timep->tv_nsec / 1000 : 0);
+	return p;
+}
+
+static inline u32*
+xdr_encode_current_server_time(u32 *p, struct timespec *timep)
+{
+	/*
+	 * Passing the invalid value useconds=1000000 is a
+	 * Sun convention for "set to current server time".
+	 * It's needed to make permissions checks for the
+	 * "touch" program across v2 mounts to Solaris and
+	 * Irix boxes work correctly. See description of
+	 * sattr in section 6.1 of "NFS Illustrated" by
+	 * Brent Callaghan, Addison-Wesley, ISBN 0-201-32750-5
+	 */
+	*p++ = htonl(timep->tv_sec);
+	*p++ = htonl(1000000);
 	return p;
 }
 
@@ -142,15 +157,19 @@ xdr_encode_sattr(u32 *p, struct iattr *attr)
 	SATTR(p, attr, ATTR_GID, ia_gid);
 	SATTR(p, attr, ATTR_SIZE, ia_size);
 
-	if (attr->ia_valid & (ATTR_ATIME|ATTR_ATIME_SET)) {
+	if (attr->ia_valid & ATTR_ATIME_SET) {
 		p = xdr_encode_time(p, &attr->ia_atime);
+	} else if (attr->ia_valid & ATTR_ATIME) {
+		p = xdr_encode_current_server_time(p, &attr->ia_atime);
 	} else {
 		*p++ = ~(u32) 0;
 		*p++ = ~(u32) 0;
 	}
 
-	if (attr->ia_valid & (ATTR_MTIME|ATTR_MTIME_SET)) {
+	if (attr->ia_valid & ATTR_MTIME_SET) {
 		p = xdr_encode_time(p, &attr->ia_mtime);
+	} else if (attr->ia_valid & ATTR_MTIME) {
+		p = xdr_encode_current_server_time(p, &attr->ia_mtime);
 	} else {
 		*p++ = ~(u32) 0;	
 		*p++ = ~(u32) 0;
@@ -511,7 +530,6 @@ static int
 nfs_xdr_readlinkargs(struct rpc_rqst *req, u32 *p, struct nfs_readlinkargs *args)
 {
 	struct rpc_auth *auth = req->rq_task->tk_auth;
-	unsigned int count = args->count - 5;
 	unsigned int replen;
 
 	p = xdr_encode_fhandle(p, args->fh);
@@ -519,7 +537,7 @@ nfs_xdr_readlinkargs(struct rpc_rqst *req, u32 *p, struct nfs_readlinkargs *args
 
 	/* Inline the page array */
 	replen = (RPC_REPHDRSIZE + auth->au_rslack + NFS_readlinkres_sz) << 2;
-	xdr_inline_pages(&req->rq_rcv_buf, replen, args->pages, 0, count);
+	xdr_inline_pages(&req->rq_rcv_buf, replen, args->pages, args->pgbase, args->pglen);
 	return 0;
 }
 
@@ -531,32 +549,38 @@ nfs_xdr_readlinkres(struct rpc_rqst *req, u32 *p, void *dummy)
 {
 	struct xdr_buf *rcvbuf = &req->rq_rcv_buf;
 	struct kvec *iov = rcvbuf->head;
-	unsigned int hdrlen;
-	u32	*strlen, len;
-	char	*string;
+	int hdrlen, len, recvd;
+	char	*kaddr;
 	int	status;
 
 	if ((status = ntohl(*p++)))
 		return -nfs_stat_to_errno(status);
+	/* Convert length of symlink */
+	len = ntohl(*p++);
+	if (len >= rcvbuf->page_len || len <= 0) {
+		dprintk(KERN_WARNING "nfs: server returned giant symlink!\n");
+		return -ENAMETOOLONG;
+	}
 	hdrlen = (u8 *) p - (u8 *) iov->iov_base;
-	if (iov->iov_len > hdrlen) {
+	if (iov->iov_len < hdrlen) {
+		printk(KERN_WARNING "NFS: READLINK reply header overflowed:"
+				"length %d > %Zu\n", hdrlen, iov->iov_len);
+		return -errno_NFSERR_IO;
+	} else if (iov->iov_len != hdrlen) {
 		dprintk("NFS: READLINK header is short. iovec will be shifted.\n");
 		xdr_shift_buf(rcvbuf, iov->iov_len - hdrlen);
 	}
-
-	strlen = (u32*)kmap_atomic(rcvbuf->pages[0], KM_USER0);
-	/* Convert length of symlink */
-	len = ntohl(*strlen);
-	if (len > rcvbuf->page_len) {
-		dprintk(KERN_WARNING "nfs: server returned giant symlink!\n");
-		kunmap_atomic(strlen, KM_USER0);
-		return -ENAMETOOLONG;
+	recvd = req->rq_rcv_buf.len - hdrlen;
+	if (recvd < len) {
+		printk(KERN_WARNING "NFS: server cheating in readlink reply: "
+				"count %u > recvd %u\n", len, recvd);
+		return -EIO;
 	}
-	*strlen = len;
+
 	/* NULL terminate the string we got */
-	string = (char *)(strlen + 1);
-	string[len] = '\0';
-	kunmap_atomic(strlen, KM_USER0);
+	kaddr = (char *)kmap_atomic(rcvbuf->pages[0], KM_USER0);
+	kaddr[len+rcvbuf->page_base] = '\0';
+	kunmap_atomic(kaddr, KM_USER0);
 	return 0;
 }
 

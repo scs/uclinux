@@ -16,6 +16,7 @@
 #include <linux/smp_lock.h>
 #include <linux/ptrace.h>
 #include <linux/security.h>
+#include <linux/signal.h>
 
 #include <asm/pgtable.h>
 #include <asm/uaccess.h>
@@ -39,6 +40,26 @@ void __ptrace_link(task_t *child, task_t *new_parent)
 }
  
 /*
+ * Turn a tracing stop into a normal stop now, since with no tracer there
+ * would be no way to wake it up with SIGCONT or SIGKILL.  If there was a
+ * signal sent that would resume the child, but didn't because it was in
+ * TASK_TRACED, resume it now.
+ * Requires that irqs be disabled.
+ */
+void ptrace_untrace(task_t *child)
+{
+	spin_lock(&child->sighand->siglock);
+	if (child->state == TASK_TRACED) {
+		if (child->signal->flags & SIGNAL_STOP_STOPPED) {
+			child->state = TASK_STOPPED;
+		} else {
+			signal_wake_up(child, 1);
+		}
+	}
+	spin_unlock(&child->sighand->siglock);
+}
+
+/*
  * unptrace a task: move it back to its original parent and
  * remove it from the ptrace list.
  *
@@ -49,12 +70,15 @@ void __ptrace_unlink(task_t *child)
 	if (!child->ptrace)
 		BUG();
 	child->ptrace = 0;
-	if (list_empty(&child->ptrace_list))
-		return;
-	list_del_init(&child->ptrace_list);
-	REMOVE_LINKS(child);
-	child->parent = child->real_parent;
-	SET_LINKS(child);
+	if (!list_empty(&child->ptrace_list)) {
+		list_del_init(&child->ptrace_list);
+		REMOVE_LINKS(child);
+		child->parent = child->real_parent;
+		SET_LINKS(child);
+	}
+
+	if (child->state == TASK_TRACED)
+		ptrace_untrace(child);
 }
 
 /*
@@ -62,20 +86,36 @@ void __ptrace_unlink(task_t *child)
  */
 int ptrace_check_attach(struct task_struct *child, int kill)
 {
-	if (!(child->ptrace & PT_PTRACED))
-		return -ESRCH;
+	int ret = -ESRCH;
 
-	if (child->parent != current)
-		return -ESRCH;
+	/*
+	 * We take the read lock around doing both checks to close a
+	 * possible race where someone else was tracing our child and
+	 * detached between these two checks.  After this locked check,
+	 * we are sure that this is our traced child and that can only
+	 * be changed by us so it's not changing right after this.
+	 */
+	read_lock(&tasklist_lock);
+	if ((child->ptrace & PT_PTRACED) && child->parent == current &&
+	    (!(child->ptrace & PT_ATTACHED) || child->real_parent != current)
+	    && child->signal != NULL) {
+		ret = 0;
+		spin_lock_irq(&child->sighand->siglock);
+		if (child->state == TASK_STOPPED) {
+			child->state = TASK_TRACED;
+		} else if (child->state != TASK_TRACED && !kill) {
+			ret = -ESRCH;
+		}
+		spin_unlock_irq(&child->sighand->siglock);
+	}
+	read_unlock(&tasklist_lock);
 
-	if (!kill) {
-		if (child->state != TASK_STOPPED)
-			return -ESRCH;
+	if (!ret && !kill) {
 		wait_task_inactive(child);
 	}
 
 	/* All systems go.. */
-	return 0;
+	return ret;
 }
 
 int ptrace_attach(struct task_struct *task)
@@ -96,7 +136,7 @@ int ptrace_attach(struct task_struct *task)
  	    (current->gid != task->sgid) ||
  	    (current->gid != task->gid)) && !capable(CAP_SYS_PTRACE))
 		goto bad;
-	rmb();
+	smp_rmb();
 	if (!task->mm->dumpable && !capable(CAP_SYS_PTRACE))
 		goto bad;
 	/* the same process cannot be attached many times */
@@ -107,7 +147,8 @@ int ptrace_attach(struct task_struct *task)
 		goto bad;
 
 	/* Go */
-	task->ptrace |= PT_PTRACED;
+	task->ptrace |= PT_PTRACED | ((task->real_parent != current)
+				      ? PT_ATTACHED : 0);
 	if (capable(CAP_SYS_PTRACE))
 		task->ptrace |= PT_PTRACE_CAP;
 	task_unlock(task);
@@ -126,7 +167,7 @@ bad:
 
 int ptrace_detach(struct task_struct *child, unsigned int data)
 {
-	if ((unsigned long) data > _NSIG)
+	if (!valid_signal(data))
 		return	-EIO;
 
 	/* Architecture-specific hardware disable .. */
@@ -138,7 +179,7 @@ int ptrace_detach(struct task_struct *child, unsigned int data)
 	write_lock_irq(&tasklist_lock);
 	__ptrace_unlink(child);
 	/* .. and wake it up. */
-	if (child->state != TASK_ZOMBIE)
+	if (child->exit_state != EXIT_ZOMBIE)
 		wake_up_process(child);
 	write_unlock_irq(&tasklist_lock);
 
@@ -177,8 +218,6 @@ int access_process_vm(struct task_struct *tsk, unsigned long addr, void *buf, in
 		offset = addr & (PAGE_SIZE-1);
 		if (bytes > PAGE_SIZE-offset)
 			bytes = PAGE_SIZE-offset;
-
-		flush_cache_page(vma, addr);
 
 		maddr = kmap(page);
 		if (write) {
@@ -281,18 +320,45 @@ static int ptrace_setoptions(struct task_struct *child, long data)
 
 static int ptrace_getsiginfo(struct task_struct *child, siginfo_t __user * data)
 {
-	if (child->last_siginfo == NULL)
-		return -EINVAL;
-	return copy_siginfo_to_user(data, child->last_siginfo);
+	siginfo_t lastinfo;
+	int error = -ESRCH;
+
+	read_lock(&tasklist_lock);
+	if (likely(child->sighand != NULL)) {
+		error = -EINVAL;
+		spin_lock_irq(&child->sighand->siglock);
+		if (likely(child->last_siginfo != NULL)) {
+			lastinfo = *child->last_siginfo;
+			error = 0;
+		}
+		spin_unlock_irq(&child->sighand->siglock);
+	}
+	read_unlock(&tasklist_lock);
+	if (!error)
+		return copy_siginfo_to_user(data, &lastinfo);
+	return error;
 }
 
 static int ptrace_setsiginfo(struct task_struct *child, siginfo_t __user * data)
 {
-	if (child->last_siginfo == NULL)
-		return -EINVAL;
-	if (copy_from_user(child->last_siginfo, data, sizeof (siginfo_t)) != 0)
+	siginfo_t newinfo;
+	int error = -ESRCH;
+
+	if (copy_from_user(&newinfo, data, sizeof (siginfo_t)))
 		return -EFAULT;
-	return 0;
+
+	read_lock(&tasklist_lock);
+	if (likely(child->sighand != NULL)) {
+		error = -EINVAL;
+		spin_lock_irq(&child->sighand->siglock);
+		if (likely(child->last_siginfo != NULL)) {
+			*child->last_siginfo = newinfo;
+			error = 0;
+		}
+		spin_unlock_irq(&child->sighand->siglock);
+	}
+	read_unlock(&tasklist_lock);
+	return error;
 }
 
 int ptrace_request(struct task_struct *child, long request,
@@ -322,24 +388,3 @@ int ptrace_request(struct task_struct *child, long request,
 
 	return ret;
 }
-
-void ptrace_notify(int exit_code)
-{
-	BUG_ON (!(current->ptrace & PT_PTRACED));
-
-	/* Let the debugger run.  */
-	current->exit_code = exit_code;
-	set_current_state(TASK_STOPPED);
-	notify_parent(current, SIGCHLD);
-	schedule();
-
-	/*
-	 * Signals sent while we were stopped might set TIF_SIGPENDING.
-	 */
-
-	spin_lock_irq(&current->sighand->siglock);
-	recalc_sigpending();
-	spin_unlock_irq(&current->sighand->siglock);
-}
-
-EXPORT_SYMBOL(ptrace_notify);

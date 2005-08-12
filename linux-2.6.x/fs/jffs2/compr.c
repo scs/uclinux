@@ -15,23 +15,13 @@
 
 #include "compr.h"
 
-static spinlock_t jffs2_compressor_list_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(jffs2_compressor_list_lock);
 
 /* Available compressors are on this list */
 static LIST_HEAD(jffs2_compressor_list);
 
 /* Actual compression mode */
 static int jffs2_compression_mode = JFFS2_COMPR_MODE_PRIORITY;
-
-void jffs2_set_compression_mode(int mode) 
-{
-        jffs2_compression_mode = mode;
-}
-
-int jffs2_get_compression_mode(void)
-{
-        return jffs2_compression_mode;
-}
 
 /* Statistics for blocks stored without compression */
 static uint32_t none_stat_compr_blocks=0,none_stat_decompr_blocks=0,none_stat_compr_size=0;
@@ -180,6 +170,11 @@ int jffs2_decompress(struct jffs2_sb_info *c, struct jffs2_inode_info *f,
         struct jffs2_compressor *this;
         int ret;
 
+	/* Older code had a bug where it would write non-zero 'usercompr'
+	   fields. Deal with it. */
+	if ((comprtype & 0xff) <= JFFS2_COMPR_ZLIB)
+		comprtype &= 0xff;
+
 	switch (comprtype & 0xff) {
 	case JFFS2_COMPR_NONE:
 		/* This should be special-cased elsewhere, but we might as well deal with it */
@@ -208,7 +203,7 @@ int jffs2_decompress(struct jffs2_sb_info *c, struct jffs2_inode_info *f,
                                 return ret;
                         }
                 }
-		printk(KERN_WARNING "JFFS2 compression type 0x%02x not avaiable.\n", comprtype);
+		printk(KERN_WARNING "JFFS2 compression type 0x%02x not available.\n", comprtype);
                 spin_unlock(&jffs2_compressor_list_lock);
 		return -EIO;
 	}

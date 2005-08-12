@@ -9,6 +9,8 @@
 #include <linux/reiserfs_acl.h>
 #include <asm/uaccess.h>
 
+static int reiserfs_set_acl(struct inode *inode, int type, struct posix_acl *acl);
+
 static int
 xattr_set_acl(struct inode *inode, int type, const void *value, size_t size)
 {
@@ -243,7 +245,7 @@ reiserfs_get_acl(struct inode *inode, int type)
  * inode->i_sem: down
  * BKL held [before 2.5.x]
  */
-int
+static int
 reiserfs_set_acl(struct inode *inode, int type, struct posix_acl *acl)
 {
         char *name;
@@ -289,8 +291,14 @@ reiserfs_set_acl(struct inode *inode, int type, struct posix_acl *acl)
             error = reiserfs_xattr_set(inode, name, value, size, 0);
 	} else {
             error = reiserfs_xattr_del (inode, name);
-            if (error == -ENODATA)
+            if (error == -ENODATA) {
+                /* This may seem odd here, but it means that the ACL was set
+                 * with a value representable with mode bits. If there was
+                 * an ACL before, reiserfs_xattr_del already dirtied the inode.
+                 */
+                mark_inode_dirty (inode);
                 error = 0;
+            }
         }
 
 	if (value)
@@ -331,7 +339,7 @@ reiserfs_inherit_default_acl (struct inode *dir, struct dentry *dentry, struct i
      * would be useless since permissions are ignored, and a pain because
      * it introduces locking cycles */
     if (is_reiserfs_priv_object (dir)) {
-        REISERFS_I(inode)->i_flags |= i_priv_object;
+        reiserfs_mark_inode_private (inode);
         goto apply_umask;
     }
 
@@ -502,11 +510,11 @@ posix_acl_access_list (struct inode *inode, const char *name, int namelen, char 
 }
 
 struct reiserfs_xattr_handler posix_acl_access_handler = {
-    prefix: XATTR_NAME_ACL_ACCESS,
-    get: posix_acl_access_get,
-    set: posix_acl_access_set,
-    del: posix_acl_access_del,
-    list: posix_acl_access_list,
+	.prefix = XATTR_NAME_ACL_ACCESS,
+	.get = posix_acl_access_get,
+	.set = posix_acl_access_set,
+	.del = posix_acl_access_del,
+	.list = posix_acl_access_list,
 };
 
 static int
@@ -555,9 +563,9 @@ posix_acl_default_list (struct inode *inode, const char *name, int namelen, char
 }
 
 struct reiserfs_xattr_handler posix_acl_default_handler = {
-    prefix: XATTR_NAME_ACL_DEFAULT,
-    get: posix_acl_default_get,
-    set: posix_acl_default_set,
-    del: posix_acl_default_del,
-    list: posix_acl_default_list,
+	.prefix = XATTR_NAME_ACL_DEFAULT,
+	.get = posix_acl_default_get,
+	.set = posix_acl_default_set,
+	.del = posix_acl_default_del,
+	.list = posix_acl_default_list,
 };

@@ -58,11 +58,12 @@ typedef enum { B_FALSE,B_TRUE }	boolean_t;
 typedef __int64_t		prid_t;		/* project ID */
 typedef __uint32_t		inst_t;		/* an instruction */
 
-typedef __u64			xfs_off_t;
+typedef __s64			xfs_off_t;	/* <file offset> type */
 typedef __u64			xfs_ino_t;	/* <inode> type */
 typedef __s64			xfs_daddr_t;	/* <disk address> type */
 typedef char *			xfs_caddr_t;	/* <core address> type */
 typedef __u32			xfs_dev_t;
+typedef __u32			xfs_nlink_t;
 
 /* __psint_t is the same size as a pointer */
 #if (BITS_PER_LONG == 32)

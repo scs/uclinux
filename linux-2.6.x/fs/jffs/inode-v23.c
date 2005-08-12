@@ -298,7 +298,7 @@ jffs_setattr(struct dentry *dentry, struct iattr *iattr)
 		if (len) {
 			invalidate_inode_pages(inode->i_mapping);
 		}
-		inode->i_ctime = CURRENT_TIME;
+		inode->i_ctime = CURRENT_TIME_SEC;
 		inode->i_mtime = inode->i_ctime;
 	}
 	if (update_all || iattr->ia_valid & ATTR_ATIME) {
@@ -334,7 +334,7 @@ out:
 } /* jffs_notify_change()  */
 
 
-struct inode *
+static struct inode *
 jffs_new_inode(const struct inode * dir, struct jffs_raw_inode *raw_inode,
 	       int * err)
 {
@@ -376,7 +376,7 @@ jffs_new_inode(const struct inode * dir, struct jffs_raw_inode *raw_inode,
 }
 
 /* Get statistics of the file system.  */
-int
+static int
 jffs_statfs(struct super_block *sb, struct kstatfs *buf)
 {
 	struct jffs_control *c = (struct jffs_control *) sb->s_fs_info;
@@ -410,7 +410,7 @@ jffs_statfs(struct super_block *sb, struct kstatfs *buf)
 
 
 /* Rename a file.  */
-int
+static int
 jffs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	    struct inode *new_dir, struct dentry *new_dentry)
 {
@@ -548,7 +548,7 @@ jffs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	/* This is a kind of update of the inode we're about to make
 	   here.  This is what they do in ext2fs.  Kind of.  */
 	if ((inode = iget(new_dir->i_sb, f->ino))) {
-		inode->i_ctime = CURRENT_TIME;
+		inode->i_ctime = CURRENT_TIME_SEC;
 		mark_inode_dirty(inode);
 		iput(inode);
 	}
@@ -1051,7 +1051,7 @@ jffs_remove(struct inode *dir, struct dentry *dentry, int type)
 	   from the in-memory file system structures.  */
 	jffs_insert_node(c, del_f, &raw_inode, NULL, del_node);
 
-	dir->i_ctime = dir->i_mtime = CURRENT_TIME;
+	dir->i_ctime = dir->i_mtime = CURRENT_TIME_SEC;
 	mark_inode_dirty(dir);
 	inode->i_nlink--;
 	inode->i_ctime = dir->i_ctime;
@@ -1518,7 +1518,7 @@ jffs_file_write(struct file *filp, const char *buf, size_t count,
 		inode->i_size = pos;
 		inode->i_blocks = (inode->i_size + 511) >> 9;
 	}
-	inode->i_ctime = inode->i_mtime = CURRENT_TIME;
+	inode->i_ctime = inode->i_mtime = CURRENT_TIME_SEC;
 	mark_inode_dirty(inode);
 	invalidate_inode_pages(inode->i_mapping);
 
@@ -1739,7 +1739,7 @@ jffs_read_inode(struct inode *inode)
 }
 
 
-void
+static void
 jffs_delete_inode(struct inode *inode)
 {
 	struct jffs_file *f;
@@ -1762,7 +1762,7 @@ jffs_delete_inode(struct inode *inode)
 }
 
 
-void
+static void
 jffs_write_super(struct super_block *sb)
 {
 	struct jffs_control *c = (struct jffs_control *)sb->s_fs_info;

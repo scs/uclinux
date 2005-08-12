@@ -7,21 +7,13 @@
  *  block allocation, deallocation, calculation of free space.
  */
 
-#include <linux/time.h>
-#include <linux/affs_fs.h>
-#include <linux/stat.h>
-#include <linux/kernel.h>
-#include <linux/slab.h>
-#include <linux/string.h>
-#include <linux/bitops.h>
-#include <linux/amigaffs.h>
-#include <linux/buffer_head.h>
+#include "affs.h"
 
 /* This is, of course, shamelessly stolen from fs/minix */
 
 static int nibblemap[] = { 0,1,1,2,1,2,2,3,1,2,2,3,2,3,3,4 };
 
-u32
+static u32
 affs_count_free_bits(u32 blocksize, const void *data)
 {
 	const u32 *map;
@@ -72,7 +64,7 @@ affs_free_block(struct super_block *sb, u32 block)
 	struct affs_bm_info *bm;
 	struct buffer_head *bh;
 	u32 blk, bmap, bit, mask, tmp;
-	u32 *data;
+	__be32 *data;
 
 	pr_debug("AFFS: free_block(%u)\n", block);
 
@@ -97,7 +89,7 @@ affs_free_block(struct super_block *sb, u32 block)
 	}
 
 	mask = 1 << (bit & 31);
-	data = (u32 *)bh->b_data + bit / 32 + 1;
+	data = (__be32 *)bh->b_data + bit / 32 + 1;
 
 	/* mark block free */
 	tmp = be32_to_cpu(*data);
@@ -106,8 +98,8 @@ affs_free_block(struct super_block *sb, u32 block)
 	*data = cpu_to_be32(tmp | mask);
 
 	/* fix checksum */
-	tmp = be32_to_cpu(*(u32 *)bh->b_data);
-	*(u32 *)bh->b_data = cpu_to_be32(tmp - mask);
+	tmp = be32_to_cpu(*(__be32 *)bh->b_data);
+	*(__be32 *)bh->b_data = cpu_to_be32(tmp - mask);
 
 	mark_buffer_dirty(bh);
 	sb->s_dirt = 1;
@@ -149,7 +141,7 @@ affs_alloc_block(struct inode *inode, u32 goal)
 	struct affs_sb_info *sbi;
 	struct affs_bm_info *bm;
 	struct buffer_head *bh;
-	u32 *data, *enddata;
+	__be32 *data, *enddata;
 	u32 blk, bmap, bit, mask, mask2, tmp;
 	int i;
 
@@ -211,8 +203,8 @@ find_bmap_bit:
 
 	/* find an unused block in this bitmap block */
 	bit = blk % sbi->s_bmap_bits;
-	data = (u32 *)bh->b_data + bit / 32 + 1;
-	enddata = (u32 *)((u8 *)bh->b_data + sb->s_blocksize);
+	data = (__be32 *)bh->b_data + bit / 32 + 1;
+	enddata = (__be32 *)((u8 *)bh->b_data + sb->s_blocksize);
 	mask = ~0UL << (bit & 31);
 	blk &= ~31UL;
 
@@ -228,8 +220,8 @@ find_bmap_bit:
 			 * if scan didn't start at 0, try next bmap
 			 */
 			goto find_bmap;
-	} while (!(tmp = *data));
-	tmp = be32_to_cpu(tmp);
+	} while (!*data);
+	tmp = be32_to_cpu(*data);
 	mask = ~0;
 
 find_bit:
@@ -251,8 +243,8 @@ find_bit:
 	*data = cpu_to_be32(tmp & ~mask);
 
 	/* fix checksum */
-	tmp = be32_to_cpu(*(u32 *)bh->b_data);
-	*(u32 *)bh->b_data = cpu_to_be32(tmp + mask);
+	tmp = be32_to_cpu(*(__be32 *)bh->b_data);
+	*(__be32 *)bh->b_data = cpu_to_be32(tmp + mask);
 
 	mark_buffer_dirty(bh);
 	sb->s_dirt = 1;
@@ -276,7 +268,7 @@ int affs_init_bitmap(struct super_block *sb, int *flags)
 {
 	struct affs_bm_info *bm;
 	struct buffer_head *bmap_bh = NULL, *bh = NULL;
-	u32 *bmap_blk;
+	__be32 *bmap_blk;
 	u32 size, blk, end, offset, mask;
 	int i, res = 0;
 	struct affs_sb_info *sbi = AFFS_SB(sb);
@@ -304,7 +296,7 @@ int affs_init_bitmap(struct super_block *sb, int *flags)
 	}
 	memset(sbi->s_bitmap, 0, size);
 
-	bmap_blk = (u32 *)sbi->s_root_bh->b_data;
+	bmap_blk = (__be32 *)sbi->s_root_bh->b_data;
 	blk = sb->s_blocksize / 4 - 49;
 	end = blk + 25;
 
@@ -340,7 +332,7 @@ int affs_init_bitmap(struct super_block *sb, int *flags)
 			res = -EIO;
 			goto out;
 		}
-		bmap_blk = (u32 *)bmap_bh->b_data;
+		bmap_blk = (__be32 *)bmap_bh->b_data;
 		blk = 0;
 		end = sb->s_blocksize / 4 - 1;
 	}
@@ -354,23 +346,23 @@ int affs_init_bitmap(struct super_block *sb, int *flags)
 		u32 old, new;
 
 		/* Mark unused bits in the last word as allocated */
-		old = be32_to_cpu(((u32 *)bh->b_data)[offset]);
+		old = be32_to_cpu(((__be32 *)bh->b_data)[offset]);
 		new = old & mask;
 		//if (old != new) {
-			((u32 *)bh->b_data)[offset] = cpu_to_be32(new);
+			((__be32 *)bh->b_data)[offset] = cpu_to_be32(new);
 			/* fix checksum */
 			//new -= old;
-			//old = be32_to_cpu(*(u32 *)bh->b_data);
-			//*(u32 *)bh->b_data = cpu_to_be32(old - new);
+			//old = be32_to_cpu(*(__be32 *)bh->b_data);
+			//*(__be32 *)bh->b_data = cpu_to_be32(old - new);
 			//mark_buffer_dirty(bh);
 		//}
 		/* correct offset for the bitmap count below */
 		//offset++;
 	}
 	while (++offset < sb->s_blocksize / 4)
-		((u32 *)bh->b_data)[offset] = 0;
-	((u32 *)bh->b_data)[0] = 0;
-	((u32 *)bh->b_data)[0] = cpu_to_be32(-affs_checksum_block(sb, bh));
+		((__be32 *)bh->b_data)[offset] = 0;
+	((__be32 *)bh->b_data)[0] = 0;
+	((__be32 *)bh->b_data)[0] = cpu_to_be32(-affs_checksum_block(sb, bh));
 	mark_buffer_dirty(bh);
 
 	/* recalculate bitmap count for last block */

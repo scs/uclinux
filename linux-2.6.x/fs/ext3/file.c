@@ -33,25 +33,13 @@
  */
 static int ext3_release_file (struct inode * inode, struct file * filp)
 {
-	if (filp->f_mode & FMODE_WRITE)
-		ext3_discard_prealloc (inode);
+	/* if we are the last writer on the inode, drop the block reservation */
+	if ((filp->f_mode & FMODE_WRITE) &&
+			(atomic_read(&inode->i_writecount) == 1))
+		ext3_discard_reservation(inode);
 	if (is_dx(inode) && filp->private_data)
 		ext3_htree_free_dir_info(filp->private_data);
 
-	return 0;
-}
-
-/*
- * Called when an inode is about to be opened.
- * We use this to disallow opening RW large files on 32bit systems if
- * the caller didn't specify O_LARGEFILE.  On 64bit systems we force
- * on this flag in sys_open.
- */
-static int ext3_open_file (struct inode *inode, struct file *filp)
-{
-	if (!(filp->f_flags & O_LARGEFILE) &&
-	    inode->i_size > 0x7FFFFFFFLL)
-		return -EFBIG;
 	return 0;
 }
 
@@ -123,7 +111,7 @@ struct file_operations ext3_file_operations = {
 	.writev		= generic_file_writev,
 	.ioctl		= ext3_ioctl,
 	.mmap		= generic_file_mmap,
-	.open		= ext3_open_file,
+	.open		= generic_file_open,
 	.release	= ext3_release_file,
 	.fsync		= ext3_sync_file,
 	.sendfile	= generic_file_sendfile,
@@ -132,10 +120,12 @@ struct file_operations ext3_file_operations = {
 struct inode_operations ext3_file_inode_operations = {
 	.truncate	= ext3_truncate,
 	.setattr	= ext3_setattr,
-	.setxattr	= ext3_setxattr,
-	.getxattr	= ext3_getxattr,
+#ifdef CONFIG_EXT3_FS_XATTR
+	.setxattr	= generic_setxattr,
+	.getxattr	= generic_getxattr,
 	.listxattr	= ext3_listxattr,
-	.removexattr	= ext3_removexattr,
+	.removexattr	= generic_removexattr,
+#endif
 	.permission	= ext3_permission,
 };
 

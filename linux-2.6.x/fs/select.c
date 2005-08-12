@@ -14,6 +14,7 @@
  *     of fds to overcome nfds < 16390 descriptors limit (Tigran Aivazian).
  */
 
+#include <linux/syscalls.h>
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/smp_lock.h>
@@ -54,7 +55,8 @@ struct poll_table_page {
  * as all select/poll functions have to call it to add an entry to the
  * poll table.
  */
-void __pollwait(struct file *filp, wait_queue_head_t *wait_address, poll_table *p);
+static void __pollwait(struct file *filp, wait_queue_head_t *wait_address,
+		       poll_table *p);
 
 void poll_initwait(struct poll_wqueues *pwq)
 {
@@ -86,7 +88,8 @@ void poll_freewait(struct poll_wqueues *pwq)
 
 EXPORT_SYMBOL(poll_freewait);
 
-void __pollwait(struct file *filp, wait_queue_head_t *wait_address, poll_table *_p)
+static void __pollwait(struct file *filp, wait_queue_head_t *wait_address,
+		       poll_table *_p)
 {
 	struct poll_wqueues *p = container_of(_p, struct poll_wqueues, pt);
 	struct poll_table_page *table = p->table;
@@ -118,15 +121,11 @@ void __pollwait(struct file *filp, wait_queue_head_t *wait_address, poll_table *
 	}
 }
 
+#define FDS_IN(fds, n)		(fds->in + n)
+#define FDS_OUT(fds, n)		(fds->out + n)
+#define FDS_EX(fds, n)		(fds->ex + n)
 
-#define __IN(fds, n)		(fds->in + n)
-#define __OUT(fds, n)		(fds->out + n)
-#define __EX(fds, n)		(fds->ex + n)
-#define __RES_IN(fds, n)	(fds->res_in + n)
-#define __RES_OUT(fds, n)	(fds->res_out + n)
-#define __RES_EX(fds, n)	(fds->res_ex + n)
-
-#define BITS(fds, n)		(*__IN(fds, n)|*__OUT(fds, n)|*__EX(fds, n))
+#define BITS(fds, n)	(*FDS_IN(fds, n)|*FDS_OUT(fds, n)|*FDS_EX(fds, n))
 
 static int max_select_fd(unsigned long n, fd_set_bits *fds)
 {
@@ -243,6 +242,7 @@ int do_select(int n, fd_set_bits *fds, long *timeout)
 						retval++;
 					}
 				}
+				cond_resched();
 			}
 			if (res_in)
 				*rinp = res_in;
@@ -270,8 +270,6 @@ int do_select(int n, fd_set_bits *fds, long *timeout)
 	*timeout = __timeout;
 	return retval;
 }
-
-EXPORT_SYMBOL(do_select);
 
 static void *select_bits_alloc(int size)
 {
@@ -306,10 +304,12 @@ sys_select(int n, fd_set __user *inp, fd_set __user *outp, fd_set __user *exp, s
 	if (tvp) {
 		time_t sec, usec;
 
-		if ((ret = verify_area(VERIFY_READ, tvp, sizeof(*tvp)))
-		    || (ret = __get_user(sec, &tvp->tv_sec))
-		    || (ret = __get_user(usec, &tvp->tv_usec)))
+		if (!access_ok(VERIFY_READ, tvp, sizeof(*tvp))
+		    || __get_user(sec, &tvp->tv_sec)
+		    || __get_user(usec, &tvp->tv_usec)) {
+			ret = -EFAULT;
 			goto out_nofds;
+		}
 
 		ret = -EINVAL;
 		if (sec < 0 || usec < 0)
@@ -377,9 +377,10 @@ sys_select(int n, fd_set __user *inp, fd_set __user *outp, fd_set __user *exp, s
 		ret = 0;
 	}
 
-	set_fd_set(n, inp, fds.res_in);
-	set_fd_set(n, outp, fds.res_out);
-	set_fd_set(n, exp, fds.res_ex);
+	if (set_fd_set(n, inp, fds.res_in) ||
+	    set_fd_set(n, outp, fds.res_out) ||
+	    set_fd_set(n, exp, fds.res_ex))
+		ret = -EFAULT;
 
 out:
 	select_bits_free(bits, size);

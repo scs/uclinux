@@ -25,6 +25,7 @@
 #include "cifs_debug.h"
 #include "md5.h"
 #include "cifs_unicode.h"
+#include "cifsproto.h"
 
 /* Calculate and return the CIFS signature based on the mac key and the smb pdu */
 /* the 16 byte signature must be allocated by the caller  */
@@ -49,7 +50,7 @@ static int cifs_calculate_signature(const struct smb_hdr * cifs_pdu, const char 
 	return 0;
 }
 
-int cifs_sign_smb(struct smb_hdr * cifs_pdu, struct cifsSesInfo * ses,
+int cifs_sign_smb(struct smb_hdr * cifs_pdu, struct TCP_Server_Info * server,
 	__u32 * pexpected_response_sequence_number)
 {
 	int rc = 0;
@@ -58,21 +59,21 @@ int cifs_sign_smb(struct smb_hdr * cifs_pdu, struct cifsSesInfo * ses,
 	/* BB remember to initialize sequence number elsewhere and initialize mac_signing key elsewhere BB */
 	/* BB remember to add code to save expected sequence number in midQ entry BB */
 
-	if((cifs_pdu == NULL) || (ses == NULL))
+	if((cifs_pdu == NULL) || (server == NULL))
 		return -EINVAL;
 
-	if((le32_to_cpu(cifs_pdu->Flags2) & SMBFLG2_SECURITY_SIGNATURE) == 0) 
+	if((cifs_pdu->Flags2 & SMBFLG2_SECURITY_SIGNATURE) == 0) 
 		return rc;
 
 	spin_lock(&GlobalMid_Lock);
-	cifs_pdu->Signature.Sequence.SequenceNumber = cpu_to_le32(ses->sequence_number);
+	cifs_pdu->Signature.Sequence.SequenceNumber = cpu_to_le32(server->sequence_number);
 	cifs_pdu->Signature.Sequence.Reserved = 0;
 	
-	*pexpected_response_sequence_number = ses->sequence_number++;
-	ses->sequence_number++;
+	*pexpected_response_sequence_number = server->sequence_number++;
+	server->sequence_number++;
 	spin_unlock(&GlobalMid_Lock);
 
-	rc = cifs_calculate_signature(cifs_pdu, ses->mac_signing_key,smb_signature);
+	rc = cifs_calculate_signature(cifs_pdu, server->mac_signing_key,smb_signature);
 	if(rc)
 		memset(cifs_pdu->Signature.SecuritySignature, 0, 8);
 	else
@@ -107,13 +108,11 @@ int cifs_verify_signature(struct smb_hdr * cifs_pdu, const char * mac_key,
 	if(memcmp(cifs_pdu->Signature.SecuritySignature,"BSRSPYL ",8)==0)
 		cFYI(1,("dummy signature received for smb command 0x%x",cifs_pdu->Command));
 
-	expected_sequence_number = cpu_to_le32(expected_sequence_number);
-
 	/* save off the origiginal signature so we can modify the smb and check
 		its signature against what the server sent */
 	memcpy(server_response_sig,cifs_pdu->Signature.SecuritySignature,8);
 
-	cifs_pdu->Signature.Sequence.SequenceNumber = expected_sequence_number;
+	cifs_pdu->Signature.Sequence.SequenceNumber = cpu_to_le32(expected_sequence_number);
 	cifs_pdu->Signature.Sequence.Reserved = 0;
 
 	rc = cifs_calculate_signature(cifs_pdu, mac_key,
@@ -153,7 +152,7 @@ int CalcNTLMv2_partial_mac_key(struct cifsSesInfo * ses, struct nls_table * nls_
 	wchar_t * unicode_buf;
 	unsigned int i,user_name_len,dom_name_len;
 
-	if(ses)
+	if(ses == NULL)
 		return -EINVAL;
 
 	E_md4hash(ses->password, temp_hash);
@@ -167,7 +166,13 @@ int CalcNTLMv2_partial_mac_key(struct cifsSesInfo * ses, struct nls_table * nls_
 		return -EINVAL;
   
 	ucase_buf = kmalloc((MAX_USERNAME_SIZE+1), GFP_KERNEL);
+	if(ucase_buf == NULL)
+		return -ENOMEM;
 	unicode_buf = kmalloc((MAX_USERNAME_SIZE+1)*4, GFP_KERNEL);
+	if(unicode_buf == NULL) {
+		kfree(ucase_buf);
+		return -ENOMEM;
+	}
    
 	for(i=0;i<user_name_len;i++)
 		ucase_buf[i] = nls_info->charset2upper[(int)ses->userName[i]];
@@ -185,7 +190,7 @@ int CalcNTLMv2_partial_mac_key(struct cifsSesInfo * ses, struct nls_table * nls_
 	hmac_md5_update((const unsigned char *) unicode_buf,
 		(user_name_len+dom_name_len)*2,&ctx);
 
-	hmac_md5_final(ses->mac_signing_key,&ctx);
+	hmac_md5_final(ses->server->mac_signing_key,&ctx);
 	kfree(ucase_buf);
 	kfree(unicode_buf);
 	return 0;
@@ -195,7 +200,7 @@ void CalcNTLMv2_response(const struct cifsSesInfo * ses,char * v2_session_respon
 	struct HMACMD5Context context;
 	memcpy(v2_session_response + 8, ses->server->cryptKey,8);
 	/* gen_blob(v2_session_response + 16); */
-	hmac_md5_init_limK_to_64(ses->mac_signing_key, 16, &context);
+	hmac_md5_init_limK_to_64(ses->server->mac_signing_key, 16, &context);
 
 	hmac_md5_update(ses->server->cryptKey,8,&context);
 /*	hmac_md5_update(v2_session_response+16)client thing,8,&context); */ /* BB fix */

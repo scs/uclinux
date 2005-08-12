@@ -86,10 +86,11 @@ typedef struct vnode {
 	vnumber_t	v_number;		/* in-core vnode number */
 	vn_bhv_head_t	v_bh;			/* behavior head */
 	spinlock_t	v_lock;			/* VN_LOCK/VN_UNLOCK */
-	struct inode	v_inode;		/* Linux inode */
 #ifdef XFS_VNODE_TRACE
 	struct ktrace	*v_trace;		/* trace header structure    */
 #endif
+	struct inode	v_inode;		/* Linux inode */
+	/* inode MUST be last */
 } vnode_t;
 
 #define v_fbhv			v_bh.bh_first	       /* first behavior */
@@ -194,7 +195,7 @@ typedef ssize_t (*vop_sendfile_t)(bhv_desc_t *, struct file *,
 				loff_t *, int, size_t, read_actor_t,
 				void *, struct cred *);
 typedef int	(*vop_ioctl_t)(bhv_desc_t *, struct inode *, struct file *,
-				int, unsigned int, unsigned long);
+				int, unsigned int, void __user *);
 typedef int	(*vop_getattr_t)(bhv_desc_t *, struct vattr *, int,
 				struct cred *);
 typedef int	(*vop_setattr_t)(bhv_desc_t *, struct vattr *, int,
@@ -379,6 +380,7 @@ typedef struct vnodeops {
 /*
  * Flags for read/write calls - same values as IRIX
  */
+#define IO_ISAIO	0x00001		/* don't wait for completion */
 #define IO_ISDIRECT	0x00004		/* bypass page cache */
 #define IO_INVIS	0x00020		/* don't update inode timestamps */
 
@@ -408,7 +410,7 @@ typedef struct vattr {
 	int		va_mask;	/* bit-mask of attributes present */
 	enum vtype	va_type;	/* vnode type (for create) */
 	mode_t		va_mode;	/* file access mode and type */
-	nlink_t		va_nlink;	/* number of references to file */
+	xfs_nlink_t	va_nlink;	/* number of references to file */
 	uid_t		va_uid;		/* owner user id */
 	gid_t		va_gid;		/* owner group id */
 	xfs_ino_t	va_nodeid;	/* file id */
@@ -532,6 +534,7 @@ typedef struct vnode_map {
 extern void	vn_purge(struct vnode *, vmap_t *);
 extern vnode_t	*vn_get(struct vnode *, vmap_t *);
 extern int	vn_revalidate(struct vnode *);
+extern void	vn_revalidate_core(struct vnode *, vattr_t *);
 extern void	vn_remove(struct vnode *);
 
 static inline int vn_count(struct vnode *vp)
@@ -594,6 +597,19 @@ static __inline__ void vn_flagclr(struct vnode *vp, uint flag)
 #define VN_CTIMESET(vp, tvp)	(LINVFS_GET_IP(vp)->i_ctime = *(tvp))
 
 /*
+ * Dealing with bad inodes
+ */
+static inline void vn_mark_bad(struct vnode *vp)
+{
+	make_bad_inode(LINVFS_GET_IP(vp));
+}
+
+static inline int VN_BAD(struct vnode *vp)
+{
+	return is_bad_inode(LINVFS_GET_IP(vp));
+}
+
+/*
  * Some useful predicates.
  */
 #define VN_MAPPED(vp)	mapping_mapped(LINVFS_GET_IP(vp)->i_mapping)
@@ -610,6 +626,7 @@ static __inline__ void vn_flagclr(struct vnode *vp, uint flag)
 #define	ATTR_DMI	0x08	/* invocation from a DMI function */
 #define	ATTR_LAZY	0x80	/* set/get attributes lazily */
 #define	ATTR_NONBLOCK	0x100	/* return EAGAIN if operation would block */
+#define ATTR_NOLOCK	0x200	/* Don't grab any conflicting locks */
 
 /*
  * Flags to VOP_FSYNC and VOP_RECLAIM.
@@ -631,8 +648,8 @@ static __inline__ void vn_flagclr(struct vnode *vp, uint flag)
 #define	VNODE_KTRACE_REF	4
 #define	VNODE_KTRACE_RELE	5
 
-extern void vn_trace_entry(struct vnode *, char *, inst_t *);
-extern void vn_trace_exit(struct vnode *, char *, inst_t *);
+extern void vn_trace_entry(struct vnode *, const char *, inst_t *);
+extern void vn_trace_exit(struct vnode *, const char *, inst_t *);
 extern void vn_trace_hold(struct vnode *, char *, int, inst_t *);
 extern void vn_trace_ref(struct vnode *, char *, int, inst_t *);
 extern void vn_trace_rele(struct vnode *, char *, int, inst_t *);

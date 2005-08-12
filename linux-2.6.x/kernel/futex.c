@@ -6,7 +6,7 @@
  *  (C) Copyright 2003 Red Hat Inc, All Rights Reserved
  *
  *  Removed page pinning, fix privately mapped COW pages and other cleanups
- *  (C) Copyright 2003 Jamie Lokier
+ *  (C) Copyright 2003, 2004 Jamie Lokier
  *
  *  Thanks to Ben LaHaise for yelling "hashed waitqueues" loudly
  *  enough at me, Linus for the original (flawed) idea, Matthew
@@ -39,8 +39,9 @@
 #include <linux/mount.h>
 #include <linux/pagemap.h>
 #include <linux/syscalls.h>
+#include <linux/signal.h>
 
-#define FUTEX_HASHBITS 8
+#define FUTEX_HASHBITS (CONFIG_BASE_SMALL ? 4 : 8)
 
 /*
  * Futexes are matched on equal values of this key.
@@ -97,7 +98,6 @@ struct futex_q {
  */
 struct futex_hash_bucket {
        spinlock_t              lock;
-       unsigned int	    nqueued;
        struct list_head       chain;
 };
 
@@ -258,6 +258,17 @@ static void drop_key_refs(union futex_key *key)
 	}
 }
 
+static inline int get_futex_value_locked(int *dest, int __user *from)
+{
+	int ret;
+
+	inc_preempt_count();
+	ret = __copy_from_user_inatomic(dest, from, sizeof(int));
+	dec_preempt_count();
+
+	return ret ? -EFAULT : 0;
+}
+
 /*
  * The hash bucket lock must be held when this is called.
  * Afterwards, the futex_q must not be accessed.
@@ -327,8 +338,8 @@ static int futex_requeue(unsigned long uaddr1, unsigned long uaddr2,
 	struct list_head *head1;
 	struct futex_q *this, *next;
 	int ret, drop_count = 0;
-	unsigned int nqueued;
 
+ retry:
 	down_read(&current->mm->mmap_sem);
 
 	ret = get_futex_key(uaddr1, &key1);
@@ -341,39 +352,38 @@ static int futex_requeue(unsigned long uaddr1, unsigned long uaddr2,
 	bh1 = hash_futex(&key1);
 	bh2 = hash_futex(&key2);
 
-	nqueued = bh1->nqueued;
-	if (likely(valp != NULL)) {
-		int curval;
-
-		/* In order to avoid doing get_user while
-		   holding bh1->lock and bh2->lock, nqueued
-		   (monotonically increasing field) must be first
-		   read, then *uaddr1 fetched from userland and
-		   after acquiring lock nqueued field compared with
-		   the stored value.  The smp_mb () below
-		   makes sure that bh1->nqueued is read from memory
-		   before *uaddr1.  */
-		smp_mb();
-
-		if (get_user(curval, (int __user *)uaddr1) != 0) {
-			ret = -EFAULT;
-			goto out;
-		}
-		if (curval != *valp) {
-			ret = -EAGAIN;
-			goto out;
-		}
-	}
-
 	if (bh1 < bh2)
 		spin_lock(&bh1->lock);
 	spin_lock(&bh2->lock);
 	if (bh1 > bh2)
 		spin_lock(&bh1->lock);
 
-	if (unlikely(nqueued != bh1->nqueued && valp != NULL)) {
-		ret = -EAGAIN;
-		goto out_unlock;
+	if (likely(valp != NULL)) {
+		int curval;
+
+		ret = get_futex_value_locked(&curval, (int __user *)uaddr1);
+
+		if (unlikely(ret)) {
+			spin_unlock(&bh1->lock);
+			if (bh1 != bh2)
+				spin_unlock(&bh2->lock);
+
+			/* If we would have faulted, release mmap_sem, fault
+			 * it in and start all over again.
+			 */
+			up_read(&current->mm->mmap_sem);
+
+			ret = get_user(curval, (int __user *)uaddr1);
+
+			if (!ret)
+				goto retry;
+
+			return ret;
+		}
+		if (curval != *valp) {
+			ret = -EAGAIN;
+			goto out_unlock;
+		}
 	}
 
 	head1 = &bh1->chain;
@@ -411,13 +421,9 @@ out:
 	return ret;
 }
 
-/*
- * queue_me and unqueue_me must be called as a pair, each
- * exactly once.  They are called with the hashed spinlock held.
- */
-
 /* The key must be already stored in q->key. */
-static void queue_me(struct futex_q *q, int fd, struct file *filp)
+static inline struct futex_hash_bucket *
+queue_lock(struct futex_q *q, int fd, struct file *filp)
 {
 	struct futex_hash_bucket *bh;
 
@@ -431,9 +437,33 @@ static void queue_me(struct futex_q *q, int fd, struct file *filp)
 	q->lock_ptr = &bh->lock;
 
 	spin_lock(&bh->lock);
-	bh->nqueued++;
+	return bh;
+}
+
+static inline void __queue_me(struct futex_q *q, struct futex_hash_bucket *bh)
+{
 	list_add_tail(&q->list, &bh->chain);
 	spin_unlock(&bh->lock);
+}
+
+static inline void
+queue_unlock(struct futex_q *q, struct futex_hash_bucket *bh)
+{
+	spin_unlock(&bh->lock);
+	drop_key_refs(&q->key);
+}
+
+/*
+ * queue_me and unqueue_me must be called as a pair, each
+ * exactly once.  They are called with the hashed spinlock held.
+ */
+
+/* The key must be already stored in q->key. */
+static void queue_me(struct futex_q *q, int fd, struct file *filp)
+{
+	struct futex_hash_bucket *bh;
+	bh = queue_lock(q, fd, filp);
+	__queue_me(q, bh);
 }
 
 /* Return 1 if we were still queued (ie. 0 means we were woken) */
@@ -479,28 +509,62 @@ static int futex_wait(unsigned long uaddr, int val, unsigned long time)
 	DECLARE_WAITQUEUE(wait, current);
 	int ret, curval;
 	struct futex_q q;
+	struct futex_hash_bucket *bh;
 
+ retry:
 	down_read(&current->mm->mmap_sem);
 
 	ret = get_futex_key(uaddr, &q.key);
 	if (unlikely(ret != 0))
 		goto out_release_sem;
 
-	queue_me(&q, -1, NULL);
+	bh = queue_lock(&q, -1, NULL);
 
 	/*
-	 * Access the page after the futex is queued.
+	 * Access the page AFTER the futex is queued.
+	 * Order is important:
+	 *
+	 *   Userspace waiter: val = var; if (cond(val)) futex_wait(&var, val);
+	 *   Userspace waker:  if (cond(var)) { var = new; futex_wake(&var); }
+	 *
+	 * The basic logical guarantee of a futex is that it blocks ONLY
+	 * if cond(var) is known to be true at the time of blocking, for
+	 * any cond.  If we queued after testing *uaddr, that would open
+	 * a race condition where we could block indefinitely with
+	 * cond(var) false, which would violate the guarantee.
+	 *
+	 * A consequence is that futex_wait() can return zero and absorb
+	 * a wakeup when *uaddr != val on entry to the syscall.  This is
+	 * rare, but normal.
+	 *
 	 * We hold the mmap semaphore, so the mapping cannot have changed
-	 * since we looked it up.
+	 * since we looked it up in get_futex_key.
 	 */
-	if (get_user(curval, (int __user *)uaddr) != 0) {
-		ret = -EFAULT;
-		goto out_unqueue;
+
+	ret = get_futex_value_locked(&curval, (int __user *)uaddr);
+
+	if (unlikely(ret)) {
+		queue_unlock(&q, bh);
+
+		/* If we would have faulted, release mmap_sem, fault it in and
+		 * start all over again.
+		 */
+		up_read(&current->mm->mmap_sem);
+
+		ret = get_user(curval, (int __user *)uaddr);
+
+		if (!ret)
+			goto retry;
+		return ret;
 	}
 	if (curval != val) {
 		ret = -EWOULDBLOCK;
-		goto out_unqueue;
+		queue_unlock(&q, bh);
+		goto out_release_sem;
 	}
+
+	/* Only actually queue if *uaddr contained val.  */
+	__queue_me(&q, bh);
 
 	/*
 	 * Now the futex is queued and we have checked the data, we
@@ -538,14 +602,10 @@ static int futex_wait(unsigned long uaddr, int val, unsigned long time)
 		return 0;
 	if (time == 0)
 		return -ETIMEDOUT;
-	/* A spurious wakeup should never happen. */
-	WARN_ON(!signal_pending(current));
+	/* We expect signal_pending(current), but another thread may
+	 * have handled it for us already. */
 	return -EINTR;
 
- out_unqueue:
-	/* If we were woken (and unqueued), we succeeded, whatever. */
-	if (!unqueue_me(&q))
-		ret = 0;
  out_release_sem:
 	up_read(&current->mm->mmap_sem);
 	return ret;
@@ -595,7 +655,7 @@ static int futex_fd(unsigned long uaddr, int signal)
 	int ret, err;
 
 	ret = -EINVAL;
-	if (signal < 0 || signal > _NSIG)
+	if (!valid_signal(signal))
 		goto out;
 
 	ret = get_unused_fd();
@@ -732,7 +792,7 @@ static int __init init(void)
 
 	for (i = 0; i < ARRAY_SIZE(futex_queues); i++) {
 		INIT_LIST_HEAD(&futex_queues[i].chain);
-		futex_queues[i].lock = SPIN_LOCK_UNLOCKED;
+		spin_lock_init(&futex_queues[i].lock);
 	}
 	return 0;
 }

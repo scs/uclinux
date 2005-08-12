@@ -14,6 +14,7 @@
 #include <linux/fs.h>
 #include <linux/dirent.h>
 #include <linux/security.h>
+#include <linux/syscalls.h>
 #include <linux/unistd.h>
 
 #include <asm/uaccess.h>
@@ -286,7 +287,9 @@ asmlinkage long sys_getdents64(unsigned int fd, struct linux_dirent64 __user * d
 	lastdirent = buf.previous;
 	if (lastdirent) {
 		typeof(lastdirent->d_off) d_off = file->f_pos;
-		__put_user(d_off, &lastdirent->d_off);
+		error = -EFAULT;
+		if (__put_user(d_off, &lastdirent->d_off))
+			goto out_putf;
 		error = count - buf.count;
 	}
 

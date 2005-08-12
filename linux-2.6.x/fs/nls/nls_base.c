@@ -21,7 +21,7 @@
 
 static struct nls_table default_table;
 static struct nls_table *tables = &default_table;
-static spinlock_t nls_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(nls_lock);
 
 /*
  * Sample implementation from Unicode home page.
@@ -243,7 +243,7 @@ void unload_nls(struct nls_table *nls)
 	module_put(nls->owner);
 }
 
-wchar_t charset2uni[256] = {
+static wchar_t charset2uni[256] = {
 	/* 0x00*/
 	0x0000, 0x0001, 0x0002, 0x0003,
 	0x0004, 0x0005, 0x0006, 0x0007,

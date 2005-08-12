@@ -26,7 +26,7 @@
  * to protect concurrent accesses to it.
  */
 static char err_buf[1024];
-static spinlock_t err_buf_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(err_buf_lock);
 
 /**
  * __ntfs_warning - output a warning to the syslog
@@ -53,6 +53,10 @@ void __ntfs_warning(const char *function, const struct super_block *sb,
 	va_list args;
 	int flen = 0;
 
+#ifndef DEBUG
+	if (!printk_ratelimit())
+		return;
+#endif
 	if (function)
 		flen = strlen(function);
 	spin_lock(&err_buf_lock);
@@ -93,6 +97,10 @@ void __ntfs_error(const char *function, const struct super_block *sb,
 	va_list args;
 	int flen = 0;
 
+#ifndef DEBUG
+	if (!printk_ratelimit())
+		return;
+#endif
 	if (function)
 		flen = strlen(function);
 	spin_lock(&err_buf_lock);
@@ -127,23 +135,21 @@ void __ntfs_debug (const char *file, int line, const char *function,
 	va_start(args, fmt);
 	vsnprintf(err_buf, sizeof(err_buf), fmt, args);
 	va_end(args);
-	printk(KERN_DEBUG "NTFS-fs DEBUG (%s, %d): %s: %s\n",
-		file, line, flen ? function : "", err_buf);
+	printk(KERN_DEBUG "NTFS-fs DEBUG (%s, %d): %s(): %s\n", file, line,
+			flen ? function : "", err_buf);
 	spin_unlock(&err_buf_lock);
 }
 
-/* Dump a run list. Caller has to provide synchronisation for @rl. */
-void ntfs_debug_dump_runlist(const run_list_element *rl)
+/* Dump a runlist. Caller has to provide synchronisation for @rl. */
+void ntfs_debug_dump_runlist(const runlist_element *rl)
 {
 	int i;
 	const char *lcn_str[5] = { "LCN_HOLE         ", "LCN_RL_NOT_MAPPED",
-				   "LCN_ENOENT       ", "LCN_EINVAL       ",
-				   "LCN_unknown      " };
+				   "LCN_ENOENT       ", "LCN_unknown      " };
 
 	if (!debug_msgs)
 		return;
-	printk(KERN_DEBUG "NTFS-fs DEBUG: Dumping run list (values "
-			"in hex):\n");
+	printk(KERN_DEBUG "NTFS-fs DEBUG: Dumping runlist (values in hex):\n");
 	if (!rl) {
 		printk(KERN_DEBUG "Run list not present.\n");
 		return;
@@ -155,17 +161,17 @@ void ntfs_debug_dump_runlist(const run_list_element *rl)
 		if (lcn < (LCN)0) {
 			int index = -lcn - 1;
 
-			if (index > -LCN_EINVAL - 1)
-				index = 4;
+			if (index > -LCN_ENOENT - 1)
+				index = 3;
 			printk(KERN_DEBUG "%-16Lx %s %-16Lx%s\n",
-				(rl + i)->vcn, lcn_str[index],
-				(rl + i)->length, (rl + i)->length ?
-				"" : " (run list end)");
+					(rl + i)->vcn, lcn_str[index],
+					(rl + i)->length, (rl + i)->length ?
+					"" : " (runlist end)");
 		} else
 			printk(KERN_DEBUG "%-16Lx %-16Lx  %-16Lx%s\n",
-				(rl + i)->vcn, (rl + i)->lcn,
-				(rl + i)->length, (rl + i)->length ?
-				"" : " (run list end)");
+					(rl + i)->vcn, (rl + i)->lcn,
+					(rl + i)->length, (rl + i)->length ?
+					"" : " (runlist end)");
 		if (!(rl + i)->length)
 			break;
 	}

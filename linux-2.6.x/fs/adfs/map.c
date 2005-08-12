@@ -53,7 +53,7 @@
 /*
  * For the future...
  */
-static rwlock_t adfs_map_lock = RW_LOCK_UNLOCKED;
+static DEFINE_RWLOCK(adfs_map_lock);
 
 /*
  * This is fun.  We need to load up to 19 bits from the map at an
@@ -92,9 +92,8 @@ lookup_zone(const struct adfs_discmap *dm, const unsigned int idlen,
 		 * find end of fragment
 		 */
 		{
-			u32 v, *_map = (u32 *)map;
-
-			v = le32_to_cpu(_map[mapptr >> 5]) >> (mapptr & 31);
+			__le32 *_map = (__le32 *)map;
+			u32 v = le32_to_cpu(_map[mapptr >> 5]) >> (mapptr & 31);
 			while (v == 0) {
 				mapptr = (mapptr & ~31) + 32;
 				if (mapptr >= mapsize)
@@ -171,9 +170,8 @@ scan_free_map(struct adfs_sb_info *asb, struct adfs_discmap *dm)
 		 * find end of fragment
 		 */
 		{
-			u32 v, *_map = (u32 *)map;
-
-			v = le32_to_cpu(_map[mapptr >> 5]) >> (mapptr & 31);
+			__le32 *_map = (__le32 *)map;
+			u32 v = le32_to_cpu(_map[mapptr >> 5]) >> (mapptr & 31);
 			while (v == 0) {
 				mapptr = (mapptr & ~31) + 32;
 				if (mapptr >= mapsize)

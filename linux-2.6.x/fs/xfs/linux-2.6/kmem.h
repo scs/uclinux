@@ -83,7 +83,7 @@ typedef unsigned long xfs_pflags_t;
 
 static __inline unsigned int kmem_flags_convert(int flags)
 {
-	int lflags;
+	int	lflags = __GFP_NOWARN;	/* we'll report problems, if need be */
 
 #ifdef DEBUG
 	if (unlikely(flags & ~(KM_SLEEP|KM_NOSLEEP|KM_NOFS|KM_MAYFAIL))) {
@@ -94,9 +94,9 @@ static __inline unsigned int kmem_flags_convert(int flags)
 #endif
 
 	if (flags & KM_NOSLEEP) {
-		lflags = GFP_ATOMIC;
+		lflags |= GFP_ATOMIC;
 	} else {
-		lflags = GFP_KERNEL;
+		lflags |= GFP_KERNEL;
 
 		/* avoid recusive callbacks to filesystem during transactions */
 		if (PFLAGS_TEST_FSTRANS() || (flags & KM_NOFS))
@@ -123,12 +123,6 @@ kmem_zone_destroy(kmem_zone_t *zone)
 {
 	if (zone && kmem_cache_destroy(zone))
 		BUG();
-}
-
-static __inline int
-kmem_zone_shrink(kmem_zone_t *zone)
-{
-	return kmem_cache_shrink(zone);
 }
 
 extern void	    *kmem_zone_zalloc(kmem_zone_t *, int);

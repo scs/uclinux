@@ -39,7 +39,7 @@ struct resource iomem_resource = {
 
 EXPORT_SYMBOL(iomem_resource);
 
-static rwlock_t resource_lock = RW_LOCK_UNLOCKED;
+static DEFINE_RWLOCK(resource_lock);
 
 #ifdef CONFIG_PROC_FS
 
@@ -57,6 +57,7 @@ static void *r_next(struct seq_file *m, void *v, loff_t *pos)
 }
 
 static void *r_start(struct seq_file *m, loff_t *pos)
+	__acquires(resource_lock)
 {
 	struct resource *p = m->private;
 	loff_t l = 0;
@@ -67,6 +68,7 @@ static void *r_start(struct seq_file *m, loff_t *pos)
 }
 
 static void r_stop(struct seq_file *m, void *v)
+	__releases(resource_lock)
 {
 	read_unlock(&resource_lock);
 }
@@ -89,7 +91,7 @@ static int r_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-struct seq_operations resource_op = {
+static struct seq_operations resource_op = {
 	.start	= r_start,
 	.next	= r_next,
 	.stop	= r_stop,
@@ -264,7 +266,7 @@ static int find_resource(struct resource *root, struct resource *new,
 		new->start = (new->start + align - 1) & ~(align - 1);
 		if (alignf)
 			alignf(alignf_data, new, size, align);
-		if (new->start < new->end && new->end - new->start + 1 >= size) {
+		if (new->start < new->end && new->end - new->start >= size - 1) {
 			new->end = new->start + size - 1;
 			return 0;
 		}
@@ -315,11 +317,12 @@ EXPORT_SYMBOL(allocate_resource);
  */
 int insert_resource(struct resource *parent, struct resource *new)
 {
-	int result = 0;
+	int result;
 	struct resource *first, *next;
 
 	write_lock(&resource_lock);
  begin:
+ 	result = 0;
 	first = __request_resource(parent, new);
 	if (!first)
 		goto out;
@@ -328,15 +331,20 @@ int insert_resource(struct resource *parent, struct resource *new)
 	if (first == parent)
 		goto out;
 
-	for (next = first; next->sibling; next = next->sibling)
+	/* Resource fully contained by the clashing resource? Recurse into it */
+	if (first->start <= new->start && first->end >= new->end) {
+		parent = first;
+		goto begin;
+	}
+
+	for (next = first; ; next = next->sibling) {
+		/* Partial overlap? Bad, and unfixable */
+		if (next->start < new->start || next->end > new->end)
+			goto out;
+		if (!next->sibling)
+			break;
 		if (next->sibling->start > new->end)
 			break;
-
-	/* existing resource includes new resource */
-	if (next->end >= new->end) {
-		parent = next;
-		result = 0;
-		goto begin;
 	}
 
 	result = 0;

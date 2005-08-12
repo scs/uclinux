@@ -26,7 +26,7 @@
 
 /* if CODA_STORE fails with EOPNOTSUPP, venus clearly doesn't support
  * CODA_STORE/CODA_RELEASE and we fall back on using the CODA_CLOSE upcall */
-int use_coda_close;
+static int use_coda_close;
 
 static ssize_t
 coda_file_read(struct file *coda_file, char __user *buf, size_t count, loff_t *ppos)
@@ -42,6 +42,23 @@ coda_file_read(struct file *coda_file, char __user *buf, size_t count, loff_t *p
 		return -EINVAL;
 
 	return host_file->f_op->read(host_file, buf, count, ppos);
+}
+
+static ssize_t
+coda_file_sendfile(struct file *coda_file, loff_t *ppos, size_t count,
+		   read_actor_t actor, void *target)
+{
+	struct coda_file_info *cfi;
+	struct file *host_file;
+
+	cfi = CODA_FTOC(coda_file);
+	BUG_ON(!cfi || cfi->cfi_magic != CODA_MAGIC);
+	host_file = cfi->cfi_container;
+
+	if (!host_file->f_op || !host_file->f_op->sendfile)
+		return -EINVAL;
+
+	return host_file->f_op->sendfile(host_file, ppos, count, actor, target);
 }
 
 static ssize_t
@@ -66,7 +83,7 @@ coda_file_write(struct file *coda_file, const char __user *buf, size_t count, lo
 
 	coda_inode->i_size = host_inode->i_size;
 	coda_inode->i_blocks = (coda_inode->i_size + 511) >> 9;
-	coda_inode->i_mtime = coda_inode->i_ctime = CURRENT_TIME;
+	coda_inode->i_mtime = coda_inode->i_ctime = CURRENT_TIME_SEC;
 	up(&coda_inode->i_sem);
 
 	return ret;
@@ -278,5 +295,6 @@ struct file_operations coda_file_operations = {
 	.flush		= coda_flush,
 	.release	= coda_release,
 	.fsync		= coda_fsync,
+	.sendfile	= coda_file_sendfile,
 };
 

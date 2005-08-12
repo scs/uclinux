@@ -2,7 +2,8 @@
  * linux/fs/ext2/namei.c
  *
  * Rewrite to pagecache. Almost all code had been changed, so blame me
- * if the things go wrong. Please, send bug reports to viro@math.psu.edu
+ * if the things go wrong. Please, send bug reports to
+ * viro@parcelfarce.linux.theplanet.co.uk
  *
  * Stuff here is basically a glue between the VFS and generic UNIXish
  * filesystem that keeps everything in pagecache. All knowledge of the
@@ -210,7 +211,7 @@ static int ext2_link (struct dentry * old_dentry, struct inode * dir,
 	if (inode->i_nlink >= EXT2_LINK_MAX)
 		return -EMLINK;
 
-	inode->i_ctime = CURRENT_TIME;
+	inode->i_ctime = CURRENT_TIME_SEC;
 	ext2_inc_count(inode);
 	atomic_inc(&inode->i_count);
 
@@ -336,7 +337,7 @@ static int ext2_rename (struct inode * old_dir, struct dentry * old_dentry,
 			goto out_dir;
 		ext2_inc_count(old_inode);
 		ext2_set_link(new_dir, new_de, new_page, old_inode);
-		new_inode->i_ctime = CURRENT_TIME;
+		new_inode->i_ctime = CURRENT_TIME_SEC;
 		if (dir_de)
 			new_inode->i_nlink--;
 		ext2_dec_count(new_inode);
@@ -361,7 +362,7 @@ static int ext2_rename (struct inode * old_dir, struct dentry * old_dentry,
  	 * rename.
 	 * ext2_dec_count() will mark the inode dirty.
 	 */
-	old_inode->i_ctime = CURRENT_TIME;
+	old_inode->i_ctime = CURRENT_TIME_SEC;
 
 	ext2_delete_entry (old_de, old_page);
 	ext2_dec_count(old_inode);
@@ -395,19 +396,23 @@ struct inode_operations ext2_dir_inode_operations = {
 	.rmdir		= ext2_rmdir,
 	.mknod		= ext2_mknod,
 	.rename		= ext2_rename,
-	.setxattr	= ext2_setxattr,
-	.getxattr	= ext2_getxattr,
+#ifdef CONFIG_EXT2_FS_XATTR
+	.setxattr	= generic_setxattr,
+	.getxattr	= generic_getxattr,
 	.listxattr	= ext2_listxattr,
-	.removexattr	= ext2_removexattr,
+	.removexattr	= generic_removexattr,
+#endif
 	.setattr	= ext2_setattr,
 	.permission	= ext2_permission,
 };
 
 struct inode_operations ext2_special_inode_operations = {
-	.setxattr	= ext2_setxattr,
-	.getxattr	= ext2_getxattr,
+#ifdef CONFIG_EXT2_FS_XATTR
+	.setxattr	= generic_setxattr,
+	.getxattr	= generic_getxattr,
 	.listxattr	= ext2_listxattr,
-	.removexattr	= ext2_removexattr,
+	.removexattr	= generic_removexattr,
+#endif
 	.setattr	= ext2_setattr,
 	.permission	= ext2_permission,
 };

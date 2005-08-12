@@ -54,6 +54,10 @@
 		printk(KERN_ERR f); \
 		printk("\n"); \
 	} while(0)
+
+#define MB_CACHE_WRITER ((unsigned short)~0U >> 1)
+
+static DECLARE_WAIT_QUEUE_HEAD(mb_cache_queue);
 		
 MODULE_AUTHOR("Andreas Gruenbacher <a.gruenbacher@computer.org>");
 MODULE_DESCRIPTION("Meta block cache (for extended attributes)");
@@ -65,14 +69,26 @@ EXPORT_SYMBOL(mb_cache_destroy);
 EXPORT_SYMBOL(mb_cache_entry_alloc);
 EXPORT_SYMBOL(mb_cache_entry_insert);
 EXPORT_SYMBOL(mb_cache_entry_release);
-EXPORT_SYMBOL(mb_cache_entry_takeout);
 EXPORT_SYMBOL(mb_cache_entry_free);
-EXPORT_SYMBOL(mb_cache_entry_dup);
 EXPORT_SYMBOL(mb_cache_entry_get);
 #if !defined(MB_CACHE_INDEXES_COUNT) || (MB_CACHE_INDEXES_COUNT > 0)
 EXPORT_SYMBOL(mb_cache_entry_find_first);
 EXPORT_SYMBOL(mb_cache_entry_find_next);
 #endif
+
+struct mb_cache {
+	struct list_head		c_cache_list;
+	const char			*c_name;
+	struct mb_cache_op		c_op;
+	atomic_t			c_entry_count;
+	int				c_bucket_bits;
+#ifndef MB_CACHE_INDEXES_COUNT
+	int				c_indexes_count;
+#endif
+	kmem_cache_t			*c_entry_cache;
+	struct list_head		*c_block_hash;
+	struct list_head		*c_indexes_hash[0];
+};
 
 
 /*
@@ -83,7 +99,7 @@ EXPORT_SYMBOL(mb_cache_entry_find_next);
 
 static LIST_HEAD(mb_cache_list);
 static LIST_HEAD(mb_cache_lru_list);
-static spinlock_t mb_cache_spinlock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(mb_cache_spinlock);
 static struct shrinker *mb_shrinker;
 
 static inline int
@@ -128,7 +144,7 @@ __mb_cache_entry_forget(struct mb_cache_entry *ce, int gfp_mask)
 {
 	struct mb_cache *cache = ce->e_cache;
 
-	mb_assert(atomic_read(&ce->e_used) == 0);
+	mb_assert(!(ce->e_used || ce->e_queued));
 	if (cache->c_op.free && cache->c_op.free(ce, gfp_mask)) {
 		/* free failed -- put back on the lru list
 		   for freeing later. */
@@ -145,9 +161,16 @@ __mb_cache_entry_forget(struct mb_cache_entry *ce, int gfp_mask)
 static inline void
 __mb_cache_entry_release_unlock(struct mb_cache_entry *ce)
 {
-	if (atomic_dec_and_test(&ce->e_used)) {
+	/* Wake up all processes queuing for this cache entry. */
+	if (ce->e_queued)
+		wake_up_all(&mb_cache_queue);
+	if (ce->e_used >= MB_CACHE_WRITER)
+		ce->e_used -= MB_CACHE_WRITER;
+	ce->e_used--;
+	if (!(ce->e_used || ce->e_queued)) {
 		if (!__mb_cache_entry_is_hashed(ce))
 			goto forget;
+		mb_assert(list_empty(&ce->e_lru_list));
 		list_add_tail(&ce->e_lru_list, &mb_cache_lru_list);
 	}
 	spin_unlock(&mb_cache_spinlock);
@@ -202,7 +225,7 @@ mb_cache_shrink_fn(int nr_to_scan, unsigned int gfp_mask)
 						   e_lru_list), gfp_mask);
 	}
 out:
-	return count;
+	return (count / 100) * sysctl_vfs_cache_pressure;
 }
 
 
@@ -231,7 +254,7 @@ mb_cache_create(const char *name, struct mb_cache_op *cache_op,
 	struct mb_cache *cache = NULL;
 
 	if(entry_size < sizeof(struct mb_cache_entry) +
-	   indexes_count * sizeof(struct mb_cache_entry_index))
+	   indexes_count * sizeof(((struct mb_cache_entry *) 0)->e_indexes[0]))
 		return NULL;
 
 	cache = kmalloc(sizeof(struct mb_cache) +
@@ -384,7 +407,8 @@ mb_cache_entry_alloc(struct mb_cache *cache)
 		INIT_LIST_HEAD(&ce->e_lru_list);
 		INIT_LIST_HEAD(&ce->e_block_list);
 		ce->e_cache = cache;
-		atomic_set(&ce->e_used, 1);
+		ce->e_used = 1 + MB_CACHE_WRITER;
+		ce->e_queued = 0;
 	}
 	return ce;
 }
@@ -456,23 +480,6 @@ mb_cache_entry_release(struct mb_cache_entry *ce)
 
 
 /*
- * mb_cache_entry_takeout()
- *
- * Take a cache entry out of the cache, making it invalid. The entry can later
- * be re-inserted using mb_cache_entry_insert(), or released using
- * mb_cache_entry_release().
- */
-void
-mb_cache_entry_takeout(struct mb_cache_entry *ce)
-{
-	spin_lock(&mb_cache_spinlock);
-	mb_assert(list_empty(&ce->e_lru_list));
-	__mb_cache_entry_unhash(ce);
-	spin_unlock(&mb_cache_spinlock);
-}
-
-
-/*
  * mb_cache_entry_free()
  *
  * This is equivalent to the sequence mb_cache_entry_takeout() --
@@ -489,25 +496,12 @@ mb_cache_entry_free(struct mb_cache_entry *ce)
 
 
 /*
- * mb_cache_entry_dup()
- *
- * Duplicate a handle to a cache entry (does not duplicate the cache entry
- * itself). After the call, both the old and the new handle must be released.
- */
-struct mb_cache_entry *
-mb_cache_entry_dup(struct mb_cache_entry *ce)
-{
-	atomic_inc(&ce->e_used);
-	return ce;
-}
-
-
-/*
  * mb_cache_entry_get()
  *
  * Get a cache entry  by device / block number. (There can only be one entry
  * in the cache per device and block.) Returns NULL if no such cache entry
- * exists.
+ * exists. The returned cache entry is locked for exclusive access ("single
+ * writer").
  */
 struct mb_cache_entry *
 mb_cache_entry_get(struct mb_cache *cache, struct block_device *bdev,
@@ -523,9 +517,27 @@ mb_cache_entry_get(struct mb_cache *cache, struct block_device *bdev,
 	list_for_each(l, &cache->c_block_hash[bucket]) {
 		ce = list_entry(l, struct mb_cache_entry, e_block_list);
 		if (ce->e_bdev == bdev && ce->e_block == block) {
+			DEFINE_WAIT(wait);
+
 			if (!list_empty(&ce->e_lru_list))
 				list_del_init(&ce->e_lru_list);
-			atomic_inc(&ce->e_used);
+
+			while (ce->e_used > 0) {
+				ce->e_queued++;
+				prepare_to_wait(&mb_cache_queue, &wait,
+						TASK_UNINTERRUPTIBLE);
+				spin_unlock(&mb_cache_spinlock);
+				schedule();
+				spin_lock(&mb_cache_spinlock);
+				ce->e_queued--;
+			}
+			finish_wait(&mb_cache_queue, &wait);
+			ce->e_used += 1 + MB_CACHE_WRITER;
+
+			if (!__mb_cache_entry_is_hashed(ce)) {
+				__mb_cache_entry_release_unlock(ce);
+				return NULL;
+			}
 			goto cleanup;
 		}
 	}
@@ -547,9 +559,30 @@ __mb_cache_entry_find(struct list_head *l, struct list_head *head,
 			list_entry(l, struct mb_cache_entry,
 			           e_indexes[index].o_list);
 		if (ce->e_bdev == bdev && ce->e_indexes[index].o_key == key) {
+			DEFINE_WAIT(wait);
+
 			if (!list_empty(&ce->e_lru_list))
 				list_del_init(&ce->e_lru_list);
-			atomic_inc(&ce->e_used);
+
+			/* Incrementing before holding the lock gives readers
+			   priority over writers. */
+			ce->e_used++;
+			while (ce->e_used >= MB_CACHE_WRITER) {
+				ce->e_queued++;
+				prepare_to_wait(&mb_cache_queue, &wait,
+						TASK_UNINTERRUPTIBLE);
+				spin_unlock(&mb_cache_spinlock);
+				schedule();
+				spin_lock(&mb_cache_spinlock);
+				ce->e_queued--;
+			}
+			finish_wait(&mb_cache_queue, &wait);
+
+			if (!__mb_cache_entry_is_hashed(ce)) {
+				__mb_cache_entry_release_unlock(ce);
+				spin_lock(&mb_cache_spinlock);
+				return ERR_PTR(-EAGAIN);
+			}
 			return ce;
 		}
 		l = l->next;
@@ -563,7 +596,8 @@ __mb_cache_entry_find(struct list_head *l, struct list_head *head,
  *
  * Find the first cache entry on a given device with a certain key in
  * an additional index. Additonal matches can be found with
- * mb_cache_entry_find_next(). Returns NULL if no match was found.
+ * mb_cache_entry_find_next(). Returns NULL if no match was found. The
+ * returned cache entry is locked for shared access ("multiple readers").
  *
  * @cache: the cache to search
  * @index: the number of the additonal index to search (0<=index<indexes_count)

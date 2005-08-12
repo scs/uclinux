@@ -6,6 +6,7 @@
 #include <linux/suspend.h>
 #include <linux/root_dev.h>
 #include <linux/security.h>
+#include <linux/delay.h>
 
 #include <linux/nfs_fs.h>
 #include <linux/nfs_fs_sb.h>
@@ -52,7 +53,7 @@ static int __init readwrite(char *str)
 __setup("ro", readonly);
 __setup("rw", readwrite);
 
-static dev_t __init try_name(char *name, int part)
+static dev_t try_name(char *name, int part)
 {
 	char path[64];
 	char buf[32];
@@ -134,7 +135,7 @@ fail:
  *	is mounted on rootfs /sys.
  */
 
-dev_t __init name_to_dev_t(char *name)
+dev_t name_to_dev_t(char *name)
 {
 	char s[32];
 	char *p;
@@ -142,7 +143,7 @@ dev_t __init name_to_dev_t(char *name)
 	int part;
 
 #ifdef CONFIG_SYSFS
-	sys_mkdir("/sys", 0700);
+	int mkdir_err = sys_mkdir("/sys", 0700);
 	if (sys_mount("sysfs", "/sys", "sysfs", 0, NULL) < 0)
 		goto out;
 #endif
@@ -197,7 +198,8 @@ done:
 #ifdef CONFIG_SYSFS
 	sys_umount("/sys", 0);
 out:
-	sys_rmdir("/sys");
+	if (!mkdir_err)
+		sys_rmdir("/sys");
 #endif
 	return res;
 fail:
@@ -227,8 +229,16 @@ static int __init fs_names_setup(char *str)
 	return 1;
 }
 
+static unsigned int __initdata root_delay;
+static int __init root_delay_setup(char *str)
+{
+	root_delay = simple_strtoul(str, NULL, 0);
+	return 1;
+}
+
 __setup("rootflags=", root_data_setup);
 __setup("rootfstype=", fs_names_setup);
+__setup("rootdelay=", root_delay_setup);
 
 static void __init get_fs_names(char *page)
 {
@@ -296,7 +306,6 @@ retry:
 		 * and bad superblock on root device.
 		 */
 		__bdevname(ROOT_DEV, b);
-
 		printk("VFS: Cannot open root device \"%s\" or %s\n",
 				root_device_name, b);
 		printk("Please append a correct \"root=\" boot option\n");
@@ -386,6 +395,12 @@ void __init prepare_namespace(void)
 	int is_floppy;
 
 	mount_devfs();
+
+	if (root_delay) {
+		printk(KERN_INFO "Waiting %dsec before mounting root device...\n",
+		       root_delay);
+		ssleep(root_delay);
+	}
 
 	md_run_setup();
 

@@ -39,7 +39,7 @@ static int kafsasyncd(void *arg);
 
 static LIST_HEAD(kafsasyncd_async_attnq);
 static LIST_HEAD(kafsasyncd_async_busyq);
-static spinlock_t kafsasyncd_async_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(kafsasyncd_async_lock);
 
 static void kafsasyncd_null_call_attn_func(struct rxrpc_call *call)
 {
@@ -115,6 +115,8 @@ static int kafsasyncd(void *arg)
 
 		remove_wait_queue(&kafsasyncd_sleepq, &myself);
 		set_current_state(TASK_RUNNING);
+
+		try_to_freeze(PF_FREEZE);
 
 		/* discard pending signals */
 		afs_discard_my_signals();

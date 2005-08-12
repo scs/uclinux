@@ -24,7 +24,7 @@
 /*
  * For future.  This should probably be per-directory.
  */
-static rwlock_t adfs_dir_lock = RW_LOCK_UNLOCKED;
+static DEFINE_RWLOCK(adfs_dir_lock);
 
 static int
 adfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
@@ -268,7 +268,8 @@ struct dentry_operations adfs_dentry_operations = {
 	.d_compare	= adfs_compare,
 };
 
-struct dentry *adfs_lookup(struct inode *dir, struct dentry *dentry, struct nameidata *nd)
+static struct dentry *
+adfs_lookup(struct inode *dir, struct dentry *dentry, struct nameidata *nd)
 {
 	struct inode *inode = NULL;
 	struct object_info obj;

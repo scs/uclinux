@@ -246,6 +246,9 @@ parse_bsd(struct parsed_partitions *state, struct block_device *bdev,
 		put_partition(state, state->next++, bsd_start, bsd_size);
 	}
 	put_dev_sector(sect);
+	if (le16_to_cpu(l->d_npartitions) > max_partitions)
+		printk(" (ignored %d more)",
+		       le16_to_cpu(l->d_npartitions) - max_partitions);
 	printk(" >\n");
 }
 #endif
@@ -371,6 +374,7 @@ static struct {
 	{MINIX_PARTITION, parse_minix},
 	{UNIXWARE_PARTITION, parse_unixware},
 	{SOLARIS_X86_PARTITION, parse_solaris_x86},
+	{NEW_SOLARIS_X86_PARTITION, parse_solaris_x86},
 	{0, NULL},
 };
  

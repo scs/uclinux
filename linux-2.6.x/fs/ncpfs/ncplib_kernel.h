@@ -71,19 +71,19 @@ int ncp_obtain_info(struct ncp_server *server, struct inode *, char *,
 		struct nw_info_struct *target);
 int ncp_obtain_nfs_info(struct ncp_server *server, struct nw_info_struct *target);
 int ncp_get_volume_root(struct ncp_server *server, const char *volname,
-			__u32 *volume, __u32 *dirent, __u32 *dosdirent);
+			__u32 *volume, __le32 *dirent, __le32 *dosdirent);
 int ncp_lookup_volume(struct ncp_server *, const char *, struct nw_info_struct *);
 int ncp_modify_file_or_subdir_dos_info(struct ncp_server *, struct inode *,
-	 __u32, const struct nw_modify_dos_info *info);
+	 __le32, const struct nw_modify_dos_info *info);
 int ncp_modify_file_or_subdir_dos_info_path(struct ncp_server *, struct inode *,
-	 const char* path, __u32, const struct nw_modify_dos_info *info);
-int ncp_modify_nfs_info(struct ncp_server *, __u8 volnum, __u32 dirent,
+	 const char* path, __le32, const struct nw_modify_dos_info *info);
+int ncp_modify_nfs_info(struct ncp_server *, __u8 volnum, __le32 dirent,
 			__u32 mode, __u32 rdev);
 
 int ncp_del_file_or_subdir2(struct ncp_server *, struct dentry*);
 int ncp_del_file_or_subdir(struct ncp_server *, struct inode *, char *);
 int ncp_open_create_file_or_subdir(struct ncp_server *, struct inode *, char *,
-				int, __u32, int, struct ncp_entry_info *);
+				int, __le32, __le16, struct ncp_entry_info *);
 
 int ncp_initialize_search(struct ncp_server *, struct inode *,
 		      struct nw_search_sequence *target);
@@ -113,13 +113,13 @@ ncp_ClearPhysicalRecord(struct ncp_server *server,
 #endif	/* CONFIG_NCPFS_IOCTL_LOCKING */
 
 int
-ncp_mount_subdir(struct ncp_server *, __u8, __u8, __u32,
-		 __u32* volume, __u32* dirent, __u32* dosdirent);
-int ncp_dirhandle_alloc(struct ncp_server *, __u8 vol, __u32 dirent, __u8 *dirhandle);
+ncp_mount_subdir(struct ncp_server *, __u8, __u8, __le32,
+		 __u32* volume, __le32* dirent, __le32* dosdirent);
+int ncp_dirhandle_alloc(struct ncp_server *, __u8 vol, __le32 dirent, __u8 *dirhandle);
 int ncp_dirhandle_free(struct ncp_server *, __u8 dirhandle);
 
 int ncp_create_new(struct inode *dir, struct dentry *dentry,
-                          int mode, dev_t rdev, int attributes);
+                          int mode, dev_t rdev, __le32 attributes);
 
 static inline int ncp_is_nfs_extras(struct ncp_server* server, unsigned int volnum) {
 #ifdef CONFIG_NCPFS_NFS_NS
@@ -132,8 +132,6 @@ static inline int ncp_is_nfs_extras(struct ncp_server* server, unsigned int voln
 
 #ifdef CONFIG_NCPFS_NLS
 
-unsigned char ncp__tolower(struct nls_table *, unsigned char);
-unsigned char ncp__toupper(struct nls_table *, unsigned char);
 int ncp__io2vol(struct ncp_server *, unsigned char *, unsigned int *,
 				const unsigned char *, unsigned int, int);
 int ncp__vol2io(struct ncp_server *, unsigned char *, unsigned int *,
@@ -141,8 +139,10 @@ int ncp__vol2io(struct ncp_server *, unsigned char *, unsigned int *,
 
 #define NCP_ESC			':'
 #define NCP_IO_TABLE(dentry)	(NCP_SERVER((dentry)->d_inode)->nls_io)
-#define ncp_tolower(t, c)	ncp__tolower(t, c)
-#define ncp_toupper(t, c)	ncp__toupper(t, c)
+#define ncp_tolower(t, c)	nls_tolower(t, c)
+#define ncp_toupper(t, c)	nls_toupper(t, c)
+#define ncp_strnicmp(t, s1, s2, len) \
+	nls_strnicmp(t, s1, s2, len)
 #define ncp_io2vol(S,m,i,n,k,U)	ncp__io2vol(S,m,i,n,k,U)
 #define ncp_vol2io(S,m,i,n,k,U)	ncp__vol2io(S,m,i,n,k,U)
 
@@ -159,11 +159,19 @@ int ncp__vol2io(unsigned char *, unsigned int *,
 #define ncp_io2vol(S,m,i,n,k,U)	ncp__io2vol(m,i,n,k,U)
 #define ncp_vol2io(S,m,i,n,k,U)	ncp__vol2io(m,i,n,k,U)
 
-#endif /* CONFIG_NCPFS_NLS */
 
-int
-ncp_strnicmp(struct nls_table *,
-		const unsigned char *, const unsigned char *, int);
+static inline int ncp_strnicmp(struct nls_table *t, const unsigned char *s1,
+		const unsigned char *s2, int len)
+{
+	while (len--) {
+		if (tolower(*s1++) != tolower(*s2++))
+			return 1;
+	}
+
+	return 0;
+}
+
+#endif /* CONFIG_NCPFS_NLS */
 
 #define NCP_GET_AGE(dentry)	(jiffies - (dentry)->d_time)
 #define NCP_MAX_AGE(server)	((server)->dentry_ttl)

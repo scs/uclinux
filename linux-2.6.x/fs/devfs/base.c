@@ -677,13 +677,13 @@
 #include <linux/rwsem.h>
 #include <linux/sched.h>
 #include <linux/namei.h>
+#include <linux/bitops.h>
 
 #include <asm/uaccess.h>
 #include <asm/io.h>
 #include <asm/processor.h>
 #include <asm/system.h>
 #include <asm/pgtable.h>
-#include <asm/bitops.h>
 #include <asm/atomic.h>
 
 #define DEVFS_VERSION            "2004-01-31"
@@ -831,7 +831,7 @@ static kmem_cache_t *devfsd_buf_cache;
 #ifdef CONFIG_DEVFS_DEBUG
 static unsigned int devfs_debug_init __initdata = DEBUG_NONE;
 static unsigned int devfs_debug = DEBUG_NONE;
-static spinlock_t stat_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(stat_lock);
 static unsigned int stat_num_entries;
 static unsigned int stat_num_bytes;
 #endif
@@ -966,7 +966,7 @@ static struct devfs_entry *_devfs_alloc_entry(const char *name,
 {
 	struct devfs_entry *new;
 	static unsigned long inode_counter = FIRST_INODE;
-	static spinlock_t counter_lock = SPIN_LOCK_UNLOCKED;
+	static DEFINE_SPINLOCK(counter_lock);
 
 	if (name && (namelen < 1))
 		namelen = strlen(name);
@@ -1063,7 +1063,7 @@ static int _devfs_append_entry(devfs_handle_t dir, devfs_handle_t de,
 static struct devfs_entry *_devfs_get_root_entry(void)
 {
 	struct devfs_entry *new;
-	static spinlock_t root_lock = SPIN_LOCK_UNLOCKED;
+	static DEFINE_SPINLOCK(root_lock);
 
 	if (root_entry)
 		return root_entry;
@@ -1802,7 +1802,6 @@ static int __init devfs_setup(char *str)
 
 __setup("devfs=", devfs_setup);
 
-EXPORT_SYMBOL(devfs_mk_symlink);
 EXPORT_SYMBOL(devfs_mk_dir);
 EXPORT_SYMBOL(devfs_remove);
 
@@ -2534,6 +2533,7 @@ static int devfs_fill_super(struct super_block *sb, void *data, int silent)
 	sb->s_blocksize_bits = 10;
 	sb->s_magic = DEVFS_SUPER_MAGIC;
 	sb->s_op = &devfs_sops;
+	sb->s_time_gran = 1;
 	if ((root_inode = _devfs_get_vfs_inode(sb, root_entry, NULL)) == NULL)
 		goto out_no_root;
 	sb->s_root = d_alloc_root(root_inode);
@@ -2683,7 +2683,7 @@ static int devfsd_ioctl(struct inode *inode, struct file *file,
 		   work even if the global kernel lock were to be removed, because it
 		   doesn't matter who gets in first, as long as only one gets it  */
 		if (fs_info->devfsd_task == NULL) {
-			static spinlock_t lock = SPIN_LOCK_UNLOCKED;
+			static DEFINE_SPINLOCK(lock);
 
 			if (!spin_trylock(&lock))
 				return -EBUSY;

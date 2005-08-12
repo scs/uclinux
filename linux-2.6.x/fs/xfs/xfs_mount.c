@@ -65,8 +65,6 @@ STATIC void	xfs_mount_log_sbunit(xfs_mount_t *, __int64_t);
 STATIC int	xfs_uuid_mount(xfs_mount_t *);
 STATIC void	xfs_uuid_unmount(xfs_mount_t *mp);
 
-void xfs_xlatesb(void *, xfs_sb_t *, int, xfs_arch_t, __int64_t);
-
 static struct {
     short offset;
     short type;     /* 0 = integer
@@ -278,23 +276,37 @@ xfs_mount_validate_sb(
 		return XFS_ERROR(EFSCORRUPTED);
 	}
 
-#if !XFS_BIG_BLKNOS
+	ASSERT(PAGE_SHIFT >= sbp->sb_blocklog);
+	ASSERT(sbp->sb_blocklog >= BBSHIFT);
+
+#if XFS_BIG_BLKNOS     /* Limited by ULONG_MAX of page cache index */
 	if (unlikely(
-	    (sbp->sb_dblocks << (__uint64_t)(sbp->sb_blocklog - BBSHIFT))
-		> UINT_MAX ||
-	    (sbp->sb_rblocks << (__uint64_t)(sbp->sb_blocklog - BBSHIFT))
-		> UINT_MAX)) {
+	    (sbp->sb_dblocks >> (PAGE_SHIFT - sbp->sb_blocklog)) > ULONG_MAX ||
+	    (sbp->sb_rblocks >> (PAGE_SHIFT - sbp->sb_blocklog)) > ULONG_MAX)) {
+#else                  /* Limited by UINT_MAX of sectors */
+	if (unlikely(
+	    (sbp->sb_dblocks << (sbp->sb_blocklog - BBSHIFT)) > UINT_MAX ||
+	    (sbp->sb_rblocks << (sbp->sb_blocklog - BBSHIFT)) > UINT_MAX)) {
+#endif
 		cmn_err(CE_WARN,
 	"XFS: File system is too large to be mounted on this system.");
 		return XFS_ERROR(E2BIG);
 	}
-#endif
 
 	if (unlikely(sbp->sb_inprogress)) {
 		cmn_err(CE_WARN, "XFS: file system busy");
 		XFS_ERROR_REPORT("xfs_mount_validate_sb(5)",
 				 XFS_ERRLEVEL_LOW, mp);
 		return XFS_ERROR(EFSCORRUPTED);
+	}
+
+	/*
+	 * Version 1 directory format has never worked on Linux.
+	 */
+	if (unlikely(!XFS_SB_VERSION_HASDIRV2(sbp))) {
+		cmn_err(CE_WARN,
+	"XFS: Attempted to mount file system using version 1 directory format");
+		return XFS_ERROR(ENOSYS);
 	}
 
 	/*
@@ -313,10 +325,10 @@ xfs_mount_validate_sb(
 	return 0;
 }
 
-void
-xfs_initialize_perag(xfs_mount_t *mp, int agcount)
+xfs_agnumber_t
+xfs_initialize_perag(xfs_mount_t *mp, xfs_agnumber_t agcount)
 {
-	int		index, max_metadata;
+	xfs_agnumber_t	index, max_metadata;
 	xfs_perag_t	*pag;
 	xfs_agino_t	agino;
 	xfs_ino_t	ino;
@@ -372,7 +384,7 @@ xfs_initialize_perag(xfs_mount_t *mp, int agcount)
 			pag->pagi_inodeok = 1;
 		}
 	}
-	mp->m_maxagi = index;
+	return index;
 }
 
 /*
@@ -382,7 +394,6 @@ xfs_initialize_perag(xfs_mount_t *mp, int agcount)
  *     sb         - a superblock
  *     dir        - conversion direction: <0 - convert sb to buf
  *                                        >0 - convert buf to sb
- *     arch       - architecture to read/write from/to buf
  *     fields     - which fields to copy (bitmask)
  */
 void
@@ -390,7 +401,6 @@ xfs_xlatesb(
 	void		*data,
 	xfs_sb_t	*sb,
 	int		dir,
-	xfs_arch_t	arch,
 	__int64_t	fields)
 {
 	xfs_caddr_t	buf_ptr;
@@ -415,9 +425,7 @@ xfs_xlatesb(
 
 		ASSERT(xfs_sb_info[f].type == 0 || xfs_sb_info[f].type == 1);
 
-		if (arch == ARCH_NOCONVERT ||
-		    size == 1 ||
-		    xfs_sb_info[f].type == 1) {
+		if (size == 1 || xfs_sb_info[f].type == 1) {
 			if (dir > 0) {
 				memcpy(mem_ptr + first, buf_ptr + first, size);
 			} else {
@@ -428,16 +436,16 @@ xfs_xlatesb(
 			case 2:
 				INT_XLATE(*(__uint16_t*)(buf_ptr+first),
 					  *(__uint16_t*)(mem_ptr+first),
-					  dir, arch);
+					  dir, ARCH_CONVERT);
 				break;
 			case 4:
 				INT_XLATE(*(__uint32_t*)(buf_ptr+first),
 					  *(__uint32_t*)(mem_ptr+first),
-					  dir, arch);
+					  dir, ARCH_CONVERT);
 				break;
 			case 8:
 				INT_XLATE(*(__uint64_t*)(buf_ptr+first),
-					  *(__uint64_t*)(mem_ptr+first), dir, arch);
+					  *(__uint64_t*)(mem_ptr+first), dir, ARCH_CONVERT);
 				break;
 			default:
 				ASSERT(0);
@@ -488,8 +496,7 @@ xfs_readsb(xfs_mount_t *mp)
 	 * But first do some basic consistency checking.
 	 */
 	sbp = XFS_BUF_TO_SBP(bp);
-	xfs_xlatesb(XFS_BUF_PTR(bp), &(mp->m_sb), 1,
-				ARCH_CONVERT, XFS_SB_ALL_BITS);
+	xfs_xlatesb(XFS_BUF_PTR(bp), &(mp->m_sb), 1, XFS_SB_ALL_BITS);
 
 	error = xfs_mount_validate_sb(mp, &(mp->m_sb));
 	if (error) {
@@ -633,9 +640,8 @@ xfs_mountfs(
 	xfs_buf_t	*bp;
 	xfs_sb_t	*sbp = &(mp->m_sb);
 	xfs_inode_t	*rip;
-	vnode_t		*rvp = 0;
+	vnode_t		*rvp = NULL;
 	int		readio_log, writeio_log;
-	vmap_t		vmap;
 	xfs_daddr_t	d;
 	__uint64_t	ret64;
 	__int64_t	update_flags;
@@ -947,7 +953,7 @@ xfs_mountfs(
 	mp->m_perag =
 		kmem_zalloc(sbp->sb_agcount * sizeof(xfs_perag_t), KM_SLEEP);
 
-	xfs_initialize_perag(mp, sbp->sb_agcount);
+	mp->m_maxagi = xfs_initialize_perag(mp, sbp->sb_agcount);
 
 	/*
 	 * log's mount-time initialization. Perform 1st part recovery if needed
@@ -971,7 +977,7 @@ xfs_mountfs(
 	 * Get and sanity-check the root inode.
 	 * Save the pointer to it in the mount structure.
 	 */
-	error = xfs_iget(mp, NULL, sbp->sb_rootino, XFS_ILOCK_EXCL, &rip, 0);
+	error = xfs_iget(mp, NULL, sbp->sb_rootino, 0, XFS_ILOCK_EXCL, &rip, 0);
 	if (error) {
 		cmn_err(CE_WARN, "XFS: failed to read root inode");
 		goto error3;
@@ -979,7 +985,6 @@ xfs_mountfs(
 
 	ASSERT(rip != NULL);
 	rvp = XFS_ITOV(rip);
-	VMAP(rvp, vmap);
 
 	if (unlikely((rip->i_d.di_mode & S_IFMT) != S_IFDIR)) {
 		cmn_err(CE_WARN, "XFS: corrupted root inode");
@@ -1033,7 +1038,7 @@ xfs_mountfs(
 	/*
 	 * Complete the quota initialisation, post-log-replay component.
 	 */
-	if ((error = XFS_QM_MOUNT(mp, quotamount, quotaflags)))
+	if ((error = XFS_QM_MOUNT(mp, quotamount, quotaflags, mfsi_flags)))
 		goto error4;
 
 	return 0;
@@ -1043,7 +1048,6 @@ xfs_mountfs(
 	 * Free up the root inode.
 	 */
 	VN_RELE(rvp);
-	vn_purge(rvp, &vmap);
  error3:
 	xfs_log_unmount_dealloc(mp);
  error2:
@@ -1096,6 +1100,8 @@ xfs_unmountfs(xfs_mount_t *mp, struct cred *cr)
 
 	xfs_unmountfs_writesb(mp);
 
+	xfs_unmountfs_wait(mp); 		/* wait for async bufs */
+
 	xfs_log_unmount(mp);			/* Done! No more fs ops. */
 
 	xfs_freesb(mp);
@@ -1138,6 +1144,16 @@ xfs_unmountfs_close(xfs_mount_t *mp, struct cred *cr)
 	if (mp->m_rtdev_targp)
 		xfs_free_buftarg(mp->m_rtdev_targp, 1);
 	xfs_free_buftarg(mp->m_ddev_targp, 0);
+}
+
+void
+xfs_unmountfs_wait(xfs_mount_t *mp)
+{
+	if (mp->m_logdev_targp != mp->m_ddev_targp)
+		xfs_wait_buftarg(mp->m_logdev_targp);
+	if (mp->m_rtdev_targp)
+		xfs_wait_buftarg(mp->m_rtdev_targp);
+	xfs_wait_buftarg(mp->m_ddev_targp);
 }
 
 int
@@ -1213,7 +1229,7 @@ xfs_mod_sb(xfs_trans_t *tp, __int64_t fields)
 
 	/* translate/copy */
 
-	xfs_xlatesb(XFS_BUF_PTR(bp), &(mp->m_sb), -1, ARCH_CONVERT, fields);
+	xfs_xlatesb(XFS_BUF_PTR(bp), &(mp->m_sb), -1, fields);
 
 	/* find modified range */
 

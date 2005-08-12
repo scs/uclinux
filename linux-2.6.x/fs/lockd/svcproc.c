@@ -82,8 +82,9 @@ nlmsvc_retrieve_args(struct svc_rqst *rqstp, struct nlm_args *argp,
 		*filp = file;
 
 		/* Set up the missing parts of the file_lock structure */
-		lock->fl.fl_file  = &file->f_file;
+		lock->fl.fl_file  = file->f_file;
 		lock->fl.fl_owner = (fl_owner_t) host;
+		lock->fl.fl_lmops = &nlmsvc_lock_operations;
 	}
 
 	return 0;
@@ -570,10 +571,10 @@ struct nlm_void			{ int dummy; };
    .pc_xdrressize = respsize,				\
  }
 
-#define	Ck	(1+8)	/* cookie */
-#define	St	1	/* status */
-#define	No	(1+1024/4) /* Net Obj */
-#define	Rg	2	/* range - offset + size */
+#define	Ck	(1+XDR_QUADLEN(NLM_MAXCOOKIELEN))	/* cookie */
+#define	St	1				/* status */
+#define	No	(1+1024/4)			/* Net Obj */
+#define	Rg	2				/* range - offset + size */
 
 struct svc_procedure		nlmsvc_procedures[] = {
   PROC(null,		void,		void,		void,	void, 1),

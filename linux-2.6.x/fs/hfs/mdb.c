@@ -71,7 +71,7 @@ int hfs_mdb_get(struct super_block *sb)
 	int off2, len, size, sect;
 	sector_t part_start, part_size;
 	loff_t off;
-	u16 attrib;
+	__be16 attrib;
 
 	/* set the device driver to 512-byte blocks */
 	size = sb_min_blocksize(sb, HFS_SECTOR_SIZE);
@@ -164,7 +164,7 @@ int hfs_mdb_get(struct super_block *sb)
 		hfs_warn("hfs_fs: continuing without an alternate MDB\n");
 	}
 
-	HFS_SB(sb)->bitmap = (u32 *)__get_free_pages(GFP_KERNEL, PAGE_SIZE < 8192 ? 1 : 0);
+	HFS_SB(sb)->bitmap = (__be32 *)__get_free_pages(GFP_KERNEL, PAGE_SIZE < 8192 ? 1 : 0);
 	if (!HFS_SB(sb)->bitmap)
 		goto out;
 
@@ -200,8 +200,7 @@ int hfs_mdb_get(struct super_block *sb)
 	}
 
 	attrib = mdb->drAtrb;
-	if (!(attrib & cpu_to_be16(HFS_SB_ATTRIB_UNMNT))
-	    || (attrib & cpu_to_be16(HFS_SB_ATTRIB_INCNSTNT))) {
+	if (!(attrib & cpu_to_be16(HFS_SB_ATTRIB_UNMNT))) {
 		hfs_warn("HFS-fs warning: Filesystem was not cleanly unmounted, "
 			 "running fsck.hfs is recommended.  mounting read-only.\n");
 		sb->s_flags |= MS_RDONLY;
@@ -212,8 +211,9 @@ int hfs_mdb_get(struct super_block *sb)
 	}
 	if (!(sb->s_flags & MS_RDONLY)) {
 		/* Mark the volume uncleanly unmounted in case we crash */
-		mdb->drAtrb = attrib & cpu_to_be16(~HFS_SB_ATTRIB_UNMNT);
-		mdb->drAtrb = attrib | cpu_to_be16(HFS_SB_ATTRIB_INCNSTNT);
+		attrib &= cpu_to_be16(~HFS_SB_ATTRIB_UNMNT);
+		attrib |= cpu_to_be16(HFS_SB_ATTRIB_INCNSTNT);
+		mdb->drAtrb = attrib;
 		mdb->drWrCnt = cpu_to_be32(be32_to_cpu(mdb->drWrCnt) + 1);
 		mdb->drLsMod = hfs_mtime();
 
@@ -333,6 +333,8 @@ void hfs_mdb_close(struct super_block *sb)
  * Release the resources associated with the in-core MDB.  */
 void hfs_mdb_put(struct super_block *sb)
 {
+	if (!HFS_SB(sb))
+		return;
 	/* free the B-trees */
 	hfs_btree_close(HFS_SB(sb)->ext_tree);
 	hfs_btree_close(HFS_SB(sb)->cat_tree);
@@ -340,4 +342,7 @@ void hfs_mdb_put(struct super_block *sb)
 	/* free the buffers holding the primary and alternate MDBs */
 	brelse(HFS_SB(sb)->mdb_bh);
 	brelse(HFS_SB(sb)->alt_mdb_bh);
+
+	kfree(HFS_SB(sb));
+	sb->s_fs_info = NULL;
 }

@@ -15,6 +15,7 @@
 #include <linux/percpu.h>
 #include <linux/cpu.h>
 #include <linux/kthread.h>
+#include <linux/rcupdate.h>
 
 #include <asm/irq.h>
 /*
@@ -75,10 +76,12 @@ asmlinkage void __do_softirq(void)
 	struct softirq_action *h;
 	__u32 pending;
 	int max_restart = MAX_SOFTIRQ_RESTART;
+	int cpu;
 
 	pending = local_softirq_pending();
 
 	local_bh_disable();
+	cpu = smp_processor_id();
 restart:
 	/* Reset the pending bitmask before enabling irqs */
 	local_softirq_pending() = 0;
@@ -88,8 +91,10 @@ restart:
 	h = softirq_vec;
 
 	do {
-		if (pending & 1)
+		if (pending & 1) {
 			h->action(h);
+			rcu_bh_qsctr_inc(cpu);
+		}
 		h++;
 		pending >>= 1;
 	} while (pending);
@@ -132,14 +137,38 @@ EXPORT_SYMBOL(do_softirq);
 
 void local_bh_enable(void)
 {
-	__local_bh_enable();
 	WARN_ON(irqs_disabled());
-	if (unlikely(!in_interrupt() &&
-		     local_softirq_pending()))
-		invoke_softirq();
+	/*
+	 * Keep preemption disabled until we are done with
+	 * softirq processing:
+ 	 */
+ 	sub_preempt_count(SOFTIRQ_OFFSET - 1);
+
+	if (unlikely(!in_interrupt() && local_softirq_pending()))
+		do_softirq();
+
+	dec_preempt_count();
 	preempt_check_resched();
 }
 EXPORT_SYMBOL(local_bh_enable);
+
+#ifdef __ARCH_IRQ_EXIT_IRQS_DISABLED
+# define invoke_softirq()	__do_softirq()
+#else
+# define invoke_softirq()	do_softirq()
+#endif
+
+/*
+ * Exit an interrupt context. Process softirqs if needed and possible:
+ */
+void irq_exit(void)
+{
+	account_system_vtime(current);
+	sub_preempt_count(IRQ_EXIT_OFFSET);
+	if (!in_interrupt() && local_softirq_pending())
+		invoke_softirq();
+	preempt_enable_no_resched();
+}
 
 /*
  * This function must run with irqs disabled!
@@ -171,8 +200,6 @@ void fastcall raise_softirq(unsigned int nr)
 	raise_softirq_irqoff(nr);
 	local_irq_restore(flags);
 }
-
-EXPORT_SYMBOL(raise_softirq);
 
 void open_softirq(int nr, void (*action)(struct softirq_action*), void *data)
 {
@@ -328,8 +355,12 @@ static int ksoftirqd(void * __bind_cpu)
 	set_current_state(TASK_INTERRUPTIBLE);
 
 	while (!kthread_should_stop()) {
-		if (!local_softirq_pending())
+		preempt_disable();
+		if (!local_softirq_pending()) {
+			preempt_enable_no_resched();
 			schedule();
+			preempt_disable();
+		}
 
 		__set_current_state(TASK_RUNNING);
 
@@ -337,14 +368,14 @@ static int ksoftirqd(void * __bind_cpu)
 			/* Preempt disable stops cpu going offline.
 			   If already offline, we'll be on wrong CPU:
 			   don't process */
-			preempt_disable();
 			if (cpu_is_offline((long)__bind_cpu))
 				goto wait_to_die;
 			do_softirq();
-			preempt_enable();
+			preempt_enable_no_resched();
 			cond_resched();
+			preempt_disable();
 		}
-
+		preempt_enable();
 		set_current_state(TASK_INTERRUPTIBLE);
 	}
 	__set_current_state(TASK_RUNNING);

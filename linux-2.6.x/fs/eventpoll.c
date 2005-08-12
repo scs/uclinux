@@ -33,7 +33,7 @@
 #include <linux/wait.h>
 #include <linux/eventpoll.h>
 #include <linux/mount.h>
-#include <asm/bitops.h>
+#include <linux/bitops.h>
 #include <asm/uaccess.h>
 #include <asm/system.h>
 #include <asm/io.h>
@@ -147,6 +147,9 @@
 
 /* Get the "struct epitem" from an epoll queue wrapper */
 #define EP_ITEM_FROM_EPQUEUE(p) (container_of(p, struct ep_pqueue, pt)->epi)
+
+/* Tells if the epoll_ctl(2) operation needs an event copy from userspace */
+#define EP_OP_HASH_EVENT(op) ((op) != EPOLL_CTL_DEL)
 
 
 struct epoll_filefd {
@@ -317,7 +320,7 @@ static struct super_block *eventpollfs_get_sb(struct file_system_type *fs_type,
 /*
  * This semaphore is used to serialize ep_free() and eventpoll_release_file().
  */
-struct semaphore epsem;
+static struct semaphore epsem;
 
 /* Safe wake up implementation */
 static struct poll_safewake psw;
@@ -531,7 +534,8 @@ sys_epoll_ctl(int epfd, int op, int fd, struct epoll_event __user *event)
 		     current, epfd, op, fd, event));
 
 	error = -EFAULT;
-	if (copy_from_user(&epds, event, sizeof(struct epoll_event)))
+	if (EP_OP_HASH_EVENT(op) &&
+	    copy_from_user(&epds, event, sizeof(struct epoll_event)))
 		goto eexit_1;
 
 	/* Get the "struct file *" for the eventpoll file */
@@ -615,6 +619,7 @@ eexit_1:
 	return error;
 }
 
+#define MAX_EVENTS (INT_MAX / sizeof(struct epoll_event))
 
 /*
  * Implement the event wait interface for the eventpoll file. It is the kernel
@@ -631,12 +636,14 @@ asmlinkage long sys_epoll_wait(int epfd, struct epoll_event __user *events,
 		     current, epfd, events, maxevents, timeout));
 
 	/* The maximum number of event must be greater than zero */
-	if (maxevents <= 0)
+	if (maxevents <= 0 || maxevents > MAX_EVENTS)
 		return -EINVAL;
 
 	/* Verify that the area passed by the user is writeable */
-	if ((error = verify_area(VERIFY_WRITE, events, maxevents * sizeof(struct epoll_event))))
+	if (!access_ok(VERIFY_WRITE, events, maxevents * sizeof(struct epoll_event))) {
+		error = -EFAULT;
 		goto eexit_1;
+	}
 
 	/* Get the "struct file *" for the eventpoll file */
 	error = -EBADF;

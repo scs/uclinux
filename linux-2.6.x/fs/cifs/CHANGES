@@ -1,12 +1,131 @@
+Version 1.34
+------------
+Fix error mapping of the TOO_MANY_LINKS (hardlinks) case.
+Do not oops if root user kills cifs oplock kernel thread or
+kills the cifsd thread (NB: killing the cifs kernel threads is not
+recommended, unmount and rmmod cifs will kill them when they are
+no longer needed).  Fix readdir to ASCII servers (ie older servers
+which do not support Unicode) and also require asterik.
+Fix out of memory case in which data could be written one page
+off in the page cache.
+
+Version 1.33
+------------
+Fix caching problem, in which readdir of directory containing a file
+which was cached could cause the file's time stamp to be updated
+without invalidating the readahead data (so we could get stale
+file data on the client for that file even as the server copy changed).
+Cleanup response processing so cifsd can not loop when abnormally
+terminated.
+
+
+Version 1.32
+------------
+Fix oops in ls when Transact2 FindFirst (or FindNext) returns more than one
+transact response for an SMB request and search entry split across two frames.
+Add support for lsattr (getting ext2/ext3/reiserfs attr flags from the server)
+as new protocol extensions. Do not send Get/Set calls for POSIX ACLs
+unless server explicitly claims to support them in CIFS Unix extensions
+POSIX ACL capability bit. Fix packet signing when multiuser mounting with
+different users from the same client to the same server. Fix oops in
+cifs_close. Add mount option for remapping reserved characters in
+filenames (also allow recognizing files with created by SFU which have any
+of these seven reserved characters, except backslash, to be recognized).
+Fix invalid transact2 message (we were sometimes trying to interpret
+oplock breaks as SMB responses). Add ioctl for checking that the
+current uid matches the uid of the mounter (needed by umount.cifs).
+Reduce the number of large buffer allocations in cifs response processing
+(significantly reduces memory pressure under heavy stress with multiple
+processes accessing the same server at the same time).
+
+Version 1.31
+------------
+Fix updates of DOS attributes and time fields so that files on NT4 servers
+do not get marked delete on close. Display sizes of cifs buffer pools in
+cifs stats. Fix oops in unmount when cifsd thread being killed by 
+shutdown. Add generic readv/writev and aio support. Report inode numbers 
+consistently in readdir and lookup (when serverino mount option is
+specified use the inode number that the server reports - for both lookup
+and readdir, otherwise by default the locally generated inode number is used
+for inodes created in either path since servers are not always able to 
+provide unique inode numbers when exporting multiple volumes from under one
+sharename).
+
+Version 1.30
+------------
+Allow new nouser_xattr mount parm to disable xattr support for user namespace.
+Do not flag user_xattr mount parm in dmesg.  Retry failures setting file time  
+(mostly affects NT4 servers) by retry with handle based network operation. 
+Add new POSIX Query FS Info for returning statfs info more accurately.
+Handle passwords with multiple commas in them.
+
+Version 1.29
+------------
+Fix default mode in sysfs of cifs module parms.  Remove old readdir routine.
+Fix capabilities flags for large readx so as to allow reads larger than 64K.
+
+Version 1.28
+------------
+Add module init parm for large SMB buffer size (to allow it to be changed
+from its default of 16K) which is especially useful for large file copy
+when mounting with the directio mount option. Fix oops after 
+returning from mount when experimental ExtendedSecurity enabled and
+SpnegoNegotiated returning invalid error. Fix case to retry better when 
+peek returns from 1 to 3 bytes on socket which should have more data.
+Fixed path based calls (such as cifs lookup) to handle path names
+longer than 530 (now can handle PATH_MAX). Fix pass through authentication
+from Samba server to DC (Samba required dummy LM password).
+
+Version 1.27
+------------
+Turn off DNOTIFY (directory change notification support) by default
+(unless built with the experimental flag) to fix hang with KDE
+file browser. Fix DNOTIFY flag mappings.  Fix hang (in wait_event
+waiting on an SMB response) in SendReceive when session dies but
+reconnects quickly from another task.  Add module init  parms for
+minimum number of large and small network buffers in the buffer pools,
+and for the maximum number of simultaneous requests.
+
+Version 1.26
+------------
+Add setfacl support to allow setting of ACLs remotely to Samba 3.10 and later
+and other POSIX CIFS compliant servers.  Fix error mapping for getfacl 
+to EOPNOTSUPP when server does not support posix acls on the wire. Fix 
+improperly zeroed buffer in CIFS Unix extensions set times call. 
+
+Version 1.25
+------------
+Fix internationlization problem in cifs readdir with filenames that map to 
+longer UTF8 strings than the string on the wire was in Unicode.  Add workaround
+for readdir to netapp servers. Fix search rewind (seek into readdir to return 
+non-consecutive entries).  Do not do readdir when server negotiates 
+buffer size to small to fit filename. Add support for reading POSIX ACLs from
+the server (add also acl and noacl mount options).
+
+Version 1.24
+------------
+Optionally allow using server side inode numbers, rather than client generated
+ones by specifying mount option "serverino" - this is required for some apps
+to work which double check hardlinked files and have persistent inode numbers.
+
+Version 1.23
+------------
+Multiple bigendian fixes. On little endian systems (for reconnect after
+network failure) fix tcp session reconnect code so we do not try first
+to reconnect on reverse of port 445. Treat reparse points (NTFS junctions)
+as directories rather than symlinks because we can do follow link on them.
+
 Version 1.22
 ------------
 Add config option to enable XATTR (extended attribute) support, mapping
-xattr names in the "user." namespace space to SMB/CIFS EAs.
+xattr names in the "user." namespace space to SMB/CIFS EAs. Lots of
+minor fixes pointed out by the Stanford SWAT checker (mostly missing
+or out of order NULL pointer checks in little used error paths).
 
 Version 1.21
 ------------
-Add new mount parm to control whether mode check (vfs_permission) is done on
-the client.  If Unix extensions are enabled and the uids on the client
+Add new mount parm to control whether mode check (generic_permission) is done
+on the client.  If Unix extensions are enabled and the uids on the client
 and server do not match, client permission checks are meaningless on
 server uids that do not exist on the client (this does not affect the
 normal ACL check which occurs on the server).  Fix default uid

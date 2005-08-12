@@ -181,8 +181,6 @@ open_xa_dir (const struct inode *inode, int flags)
             dput (xadir);
             return ERR_PTR (-ENODATA);
         }
-        /* Newly created object.. Need to mark it private */
-        REISERFS_I(xadir->d_inode)->i_flags |= i_priv_object;
     }
 
     dput (xaroot);
@@ -230,8 +228,6 @@ get_xa_file_dentry (const struct inode *inode, const char *name, int flags)
             dput (xafile);
             goto out;
         }
-        /* Newly created object.. Need to mark it private */
-        REISERFS_I(xafile->d_inode)->i_flags |= i_priv_object;
     }
 
 out:
@@ -589,8 +585,14 @@ open_file:
             break;
     }
 
-    inode->i_ctime = CURRENT_TIME;
-    mark_inode_dirty (inode);
+    /* We can't mark the inode dirty if it's not hashed. This is the case
+     * when we're inheriting the default ACL. If we dirty it, the inode
+     * gets marked dirty, but won't (ever) make it onto the dirty list until
+     * it's synced explicitly to clear I_DIRTY. This is bad. */
+    if (!hlist_unhashed(&inode->i_hash)) {
+        inode->i_ctime = CURRENT_TIME_SEC;
+        mark_inode_dirty (inode);
+    }
 
 out_filp:
     up (&xinode->i_sem);
@@ -760,6 +762,11 @@ reiserfs_xattr_del (struct inode *inode, const char *name)
 
     err = __reiserfs_xattr_del (dir, name, strlen (name));
     dput (dir);
+
+    if (!err) {
+        inode->i_ctime = CURRENT_TIME_SEC;
+        mark_inode_dirty (inode);
+    }
 
 out:
     return err;
@@ -1029,7 +1036,7 @@ reiserfs_removexattr (struct dentry *dentry, const char *name)
 
     err = reiserfs_xattr_del (dentry->d_inode, name);
 
-    dentry->d_inode->i_ctime = CURRENT_TIME;
+    dentry->d_inode->i_ctime = CURRENT_TIME_SEC;
     mark_inode_dirty (dentry->d_inode);
 
 out:
@@ -1141,7 +1148,7 @@ out:
 
 /* This is the implementation for the xattr plugin infrastructure */
 static struct list_head xattr_handlers = LIST_HEAD_INIT (xattr_handlers);
-static rwlock_t handler_lock = RW_LOCK_UNLOCKED;
+static DEFINE_RWLOCK(handler_lock);
 
 static struct reiserfs_xattr_handler *
 find_xattr_handler_prefix (const char *prefix)
@@ -1240,8 +1247,10 @@ xattr_lookup_poison (struct dentry *dentry, struct qstr *q1, struct qstr *name)
         name->hash == priv_root->d_name.hash &&
         !memcmp (name->name, priv_root->d_name.name, name->len)) {
             return -ENOENT;
-    }
-    return 0;
+    } else if (q1->len == name->len &&
+               !memcmp(q1->name, name->name, name->len))
+        return 0;
+    return 1;
 }
 
 static struct dentry_operations xattr_lookup_poison_ops = {
@@ -1303,7 +1312,7 @@ reiserfs_xattr_init (struct super_block *s, int mount_flags)
 
       if (!err && dentry) {
           s->s_root->d_op = &xattr_lookup_poison_ops;
-          REISERFS_I(dentry->d_inode)->i_flags |= i_priv_object;
+          reiserfs_mark_inode_private (dentry->d_inode);
           REISERFS_SB(s)->priv_root = dentry;
       } else if (!(mount_flags & MS_RDONLY)) { /* xattrs are unavailable */
           /* If we're read-only it just means that the dir hasn't been

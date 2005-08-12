@@ -17,7 +17,6 @@
 #define EXT2_XATTR_REFCOUNT_MAX		1024
 
 /* Name indexes */
-#define EXT2_XATTR_INDEX_MAX			10
 #define EXT2_XATTR_INDEX_USER			1
 #define EXT2_XATTR_INDEX_POSIX_ACL_ACCESS	2
 #define EXT2_XATTR_INDEX_POSIX_ACL_DEFAULT	3
@@ -26,20 +25,20 @@
 #define EXT2_XATTR_INDEX_SECURITY	        6
 
 struct ext2_xattr_header {
-	__u32	h_magic;	/* magic number for identification */
-	__u32	h_refcount;	/* reference count */
-	__u32	h_blocks;	/* number of disk blocks used */
-	__u32	h_hash;		/* hash value of all attributes */
+	__le32	h_magic;	/* magic number for identification */
+	__le32	h_refcount;	/* reference count */
+	__le32	h_blocks;	/* number of disk blocks used */
+	__le32	h_hash;		/* hash value of all attributes */
 	__u32	h_reserved[4];	/* zero right now */
 };
 
 struct ext2_xattr_entry {
 	__u8	e_name_len;	/* length of name */
 	__u8	e_name_index;	/* attribute name index */
-	__u16	e_value_offs;	/* offset in disk block of value */
-	__u32	e_value_block;	/* disk block attribute is stored on (n/i) */
-	__u32	e_value_size;	/* size of attribute value */
-	__u32	e_hash;		/* hash value of name and value */
+	__le16	e_value_offs;	/* offset in disk block of value */
+	__le32	e_value_block;	/* disk block attribute is stored on (n/i) */
+	__le32	e_value_size;	/* size of attribute value */
+	__le32	e_hash;		/* hash value of name and value */
 	char	e_name[0];	/* attribute name */
 };
 
@@ -57,26 +56,15 @@ struct ext2_xattr_entry {
 
 # ifdef CONFIG_EXT2_FS_XATTR
 
-struct ext2_xattr_handler {
-	char *prefix;
-	size_t (*list)(char *list, struct inode *inode, const char *name,
-		       int name_len);
-	int (*get)(struct inode *inode, const char *name, void *buffer,
-		   size_t size);
-	int (*set)(struct inode *inode, const char *name, const void *buffer,
-		   size_t size, int flags);
-};
+extern struct xattr_handler ext2_xattr_user_handler;
+extern struct xattr_handler ext2_xattr_trusted_handler;
+extern struct xattr_handler ext2_xattr_acl_access_handler;
+extern struct xattr_handler ext2_xattr_acl_default_handler;
+extern struct xattr_handler ext2_xattr_security_handler;
 
-extern int ext2_xattr_register(int, struct ext2_xattr_handler *);
-extern void ext2_xattr_unregister(int, struct ext2_xattr_handler *);
-
-extern int ext2_setxattr(struct dentry *, const char *, const void *, size_t, int);
-extern ssize_t ext2_getxattr(struct dentry *, const char *, void *, size_t);
 extern ssize_t ext2_listxattr(struct dentry *, char *, size_t);
-extern int ext2_removexattr(struct dentry *, const char *);
 
 extern int ext2_xattr_get(struct inode *, int, const char *, void *, size_t);
-extern int ext2_xattr_list(struct inode *, char *, size_t);
 extern int ext2_xattr_set(struct inode *, int, const char *, const void *, size_t, int);
 
 extern void ext2_xattr_delete_inode(struct inode *);
@@ -85,21 +73,13 @@ extern void ext2_xattr_put_super(struct super_block *);
 extern int init_ext2_xattr(void);
 extern void exit_ext2_xattr(void);
 
+extern struct xattr_handler *ext2_xattr_handlers[];
+
 # else  /* CONFIG_EXT2_FS_XATTR */
-#  define ext2_setxattr		NULL
-#  define ext2_getxattr		NULL
-#  define ext2_listxattr	NULL
-#  define ext2_removexattr	NULL
 
 static inline int
 ext2_xattr_get(struct inode *inode, int name_index,
 	       const char *name, void *buffer, size_t size)
-{
-	return -EOPNOTSUPP;
-}
-
-static inline int
-ext2_xattr_list(struct inode *inode, char *buffer, size_t size)
 {
 	return -EOPNOTSUPP;
 }
@@ -132,9 +112,7 @@ exit_ext2_xattr(void)
 {
 }
 
-# endif  /* CONFIG_EXT2_FS_XATTR */
+#define ext2_xattr_handlers NULL
 
-extern struct ext2_xattr_handler ext2_xattr_user_handler;
-extern struct ext2_xattr_handler ext2_xattr_trusted_handler;
-extern struct ext2_xattr_handler ext2_xattr_security_handler;
+# endif  /* CONFIG_EXT2_FS_XATTR */
 

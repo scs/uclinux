@@ -72,7 +72,7 @@ static int init_inodecache(void)
 {
 	ncp_inode_cachep = kmem_cache_create("ncp_inode_cache",
 					     sizeof(struct ncp_inode_info),
-					     0, SLAB_HWCACHE_ALIGN|SLAB_RECLAIM_ACCOUNT,
+					     0, SLAB_RECLAIM_ACCOUNT,
 					     init_once, NULL);
 	if (ncp_inode_cachep == NULL)
 		return -ENOMEM;
@@ -142,12 +142,9 @@ static void ncp_update_dates(struct inode *inode, struct nw_info_struct *nwi)
 
 	inode->i_blocks = (inode->i_size + NCP_BLOCK_SIZE - 1) >> NCP_BLOCK_SHIFT;
 
-	inode->i_mtime.tv_sec = ncp_date_dos2unix(le16_to_cpu(nwi->modifyTime),
-					   le16_to_cpu(nwi->modifyDate));
-	inode->i_ctime.tv_sec = ncp_date_dos2unix(le16_to_cpu(nwi->creationTime),
-					   le16_to_cpu(nwi->creationDate));
-	inode->i_atime.tv_sec = ncp_date_dos2unix(0,
-					   le16_to_cpu(nwi->lastAccessDate));
+	inode->i_mtime.tv_sec = ncp_date_dos2unix(nwi->modifyTime, nwi->modifyDate);
+	inode->i_ctime.tv_sec = ncp_date_dos2unix(nwi->creationTime, nwi->creationDate);
+	inode->i_atime.tv_sec = ncp_date_dos2unix(0, nwi->lastAccessDate);
 	inode->i_atime.tv_nsec = 0;
 	inode->i_mtime.tv_nsec = 0;
 	inode->i_ctime.tv_nsec = 0;
@@ -235,8 +232,9 @@ static void ncp_set_attr(struct inode *inode, struct ncp_entry_info *nwinfo)
 
 #if defined(CONFIG_NCPFS_EXTRAS) || defined(CONFIG_NCPFS_NFS_NS)
 static struct inode_operations ncp_symlink_inode_operations = {
-	.readlink	= page_readlink,
-	.follow_link	= page_follow_link,
+	.readlink	= generic_readlink,
+	.follow_link	= page_follow_link_light,
+	.put_link	= page_put_link,
 	.setattr	= ncp_notify_change,
 };
 #endif
@@ -462,7 +460,7 @@ static int ncp_fill_super(struct super_block *sb, void *raw_data, int silent)
 			break;
 		default:
 			error = -ECHRNG;
-			if (*(__u32*)raw_data == cpu_to_be32(0x76657273)) {
+			if (memcmp(raw_data, "vers", 4) == 0) {
 				error = ncp_parse_options(&data, raw_data);
 			}
 			if (error)
@@ -625,7 +623,7 @@ static int ncp_fill_super(struct super_block *sb, void *raw_data, int silent)
 
 	memset(&finfo, 0, sizeof(finfo));
 	finfo.i.attributes	= aDIR;
-	finfo.i.dataStreamSize	= NCP_BLOCK_SIZE;
+	finfo.i.dataStreamSize	= 0;	/* ignored */
 	finfo.i.dirEntNum	= 0;
 	finfo.i.DosDirNum	= 0;
 #ifdef CONFIG_NCPFS_SMALLDOS
@@ -794,7 +792,7 @@ int ncp_notify_change(struct dentry *dentry, struct iattr *attr)
 {
 	struct inode *inode = dentry->d_inode;
 	int result = 0;
-	int info_mask;
+	__le32 info_mask;
 	struct nw_modify_dos_info info;
 	struct ncp_server *server;
 
@@ -917,23 +915,18 @@ int ncp_notify_change(struct dentry *dentry, struct iattr *attr)
 	if ((attr->ia_valid & ATTR_CTIME) != 0) {
 		info_mask |= (DM_CREATE_TIME | DM_CREATE_DATE);
 		ncp_date_unix2dos(attr->ia_ctime.tv_sec,
-			     &(info.creationTime), &(info.creationDate));
-		info.creationTime = le16_to_cpu(info.creationTime);
-		info.creationDate = le16_to_cpu(info.creationDate);
+			     &info.creationTime, &info.creationDate);
 	}
 	if ((attr->ia_valid & ATTR_MTIME) != 0) {
 		info_mask |= (DM_MODIFY_TIME | DM_MODIFY_DATE);
 		ncp_date_unix2dos(attr->ia_mtime.tv_sec,
-				  &(info.modifyTime), &(info.modifyDate));
-		info.modifyTime = le16_to_cpu(info.modifyTime);
-		info.modifyDate = le16_to_cpu(info.modifyDate);
+				  &info.modifyTime, &info.modifyDate);
 	}
 	if ((attr->ia_valid & ATTR_ATIME) != 0) {
-		__u16 dummy;
+		__le16 dummy;
 		info_mask |= (DM_LAST_ACCESS_DATE);
 		ncp_date_unix2dos(attr->ia_atime.tv_sec,
-				  &(dummy), &(info.lastAccessDate));
-		info.lastAccessDate = le16_to_cpu(info.lastAccessDate);
+				  &dummy, &info.lastAccessDate);
 	}
 	if (info_mask != 0) {
 		result = ncp_modify_file_or_subdir_dos_info(NCP_SERVER(inode),

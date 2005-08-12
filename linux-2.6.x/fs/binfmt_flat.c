@@ -756,7 +756,7 @@ static int load_flat_file(struct linux_binprm * bprm,
 	 * size limits imposed on them by creating programs with large
 	 * arrays in the data or bss.
 	 */
-	rlim = current->rlim[RLIMIT_DATA].rlim_cur;
+	rlim = current->signal->rlim[RLIMIT_DATA].rlim_cur;
 	if (rlim >= RLIM_INFINITY)
 		rlim = ~0;
 	if (data_len + bss_len > rlim)
@@ -790,7 +790,7 @@ static int load_flat_file(struct linux_binprm * bprm,
 		DBG_FLT("BINFMT_FLAT: ROM mapping of file (we hope)\n");
 
 		down_write(&current->mm->mmap_sem);
-		textpos = do_mmap(bprm->file, 0, text_len, PROT_READ|PROT_EXEC, 0, 0);
+		textpos = do_mmap(bprm->file, 0, text_len, PROT_READ|PROT_EXEC, MAP_SHARED, 0);
 		up_write(&current->mm->mmap_sem);
 		if (!textpos  || textpos >= (unsigned long) -4096) {
 			if (!textpos)
@@ -802,7 +802,7 @@ static int load_flat_file(struct linux_binprm * bprm,
 		down_write(&current->mm->mmap_sem);
 		realdatastart = do_mmap(0, 0, data_len + extra +
 				MAX_SHARED_LIBS * sizeof(unsigned long),
-				PROT_READ|PROT_WRITE|PROT_EXEC, 0, 0);
+				PROT_READ|PROT_WRITE|PROT_EXEC, MAP_PRIVATE, 0);
 		up_write(&current->mm->mmap_sem);
 
 		if (realdatastart == 0 || realdatastart >= (unsigned long)-4096) {
@@ -844,7 +844,7 @@ static int load_flat_file(struct linux_binprm * bprm,
 		down_write(&current->mm->mmap_sem);
 		textpos = do_mmap(0, 0, text_len + data_len + extra +
 					MAX_SHARED_LIBS * sizeof(unsigned long),
-				PROT_READ | PROT_EXEC | PROT_WRITE, 0, 0);
+				PROT_READ | PROT_EXEC | PROT_WRITE, MAP_PRIVATE, 0);
 		up_write(&current->mm->mmap_sem);
 		if (!textpos  || textpos >= (unsigned long) -4096) {
 			if (!textpos)
@@ -920,12 +920,7 @@ static int load_flat_file(struct linux_binprm * bprm,
 		current->mm->start_brk = datapos + data_len + bss_len;
 		current->mm->brk = (current->mm->start_brk + 3) & ~3;
 		current->mm->context.end_brk = memp + ksize((void *) memp) - stack_len;
-		current->mm->rss = 0;
-		if (flags & FLAT_FLAG_KTRACE)
-		    printk ("data start %p end %p, bss len %lx, brk %p start %p end %p\n",
-			    current->mm->start_data, current->mm->end_data,
-			    bss_len, current->mm->brk, current->mm->start_brk,
-			    current->mm->context.end_brk);
+		set_mm_counter(current->mm, rss, 0);
 	}
 
 	if (flags & FLAT_FLAG_KTRACE)

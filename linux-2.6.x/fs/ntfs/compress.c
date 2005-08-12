@@ -24,7 +24,11 @@
 #include <linux/fs.h>
 #include <linux/buffer_head.h>
 #include <linux/blkdev.h>
+#include <linux/vmalloc.h>
 
+#include "attrib.h"
+#include "inode.h"
+#include "debug.h"
 #include "ntfs.h"
 
 /**
@@ -58,7 +62,7 @@ static u8 *ntfs_compression_buffer = NULL;
 /**
  * ntfs_cb_lock - spinlock which protects ntfs_compression_buffer
  */
-static spinlock_t ntfs_cb_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(ntfs_cb_lock);
 
 /**
  * allocate_compression_buffers - allocate the decompression buffers
@@ -203,7 +207,7 @@ do_next_sb:
 	 * position in the compression block is one byte before its end so the
 	 * first two checks do not detect it.
 	 */
-	if (cb == cb_end || !le16_to_cpup((u16*)cb) ||
+	if (cb == cb_end || !le16_to_cpup((le16*)cb) ||
 			(*dest_index == dest_max_index &&
 			*dest_ofs == dest_max_ofs)) {
 		int i;
@@ -255,7 +259,7 @@ return_error:
 
 	/* Setup the current sub-block source pointers and validate range. */
 	cb_sb_start = cb;
-	cb_sb_end = cb_sb_start + (le16_to_cpup((u16*)cb) & NTFS_SB_SIZE_MASK)
+	cb_sb_end = cb_sb_start + (le16_to_cpup((le16*)cb) & NTFS_SB_SIZE_MASK)
 			+ 3;
 	if (cb_sb_end > cb_end)
 		goto return_overflow;
@@ -277,7 +281,7 @@ return_error:
 	dp_addr = (u8*)page_address(dp) + do_sb_start;
 
 	/* Now, we are ready to process the current sub-block (sb). */
-	if (!(le16_to_cpup((u16*)cb) & NTFS_SB_IS_COMPRESSED)) {
+	if (!(le16_to_cpup((le16*)cb) & NTFS_SB_IS_COMPRESSED)) {
 		ntfs_debug("Found uncompressed sub-block.");
 		/* This sb is not compressed, just copy it into destination. */
 
@@ -382,7 +386,7 @@ do_next_tag:
 			lg++;
 
 		/* Get the phrase token into i. */
-		pt = le16_to_cpup((u16*)cb);
+		pt = le16_to_cpup((le16*)cb);
 
 		/*
 		 * Calculate starting position of the byte sequence in
@@ -478,7 +482,7 @@ int ntfs_read_compressed_block(struct page *page)
 	ntfs_inode *ni = NTFS_I(mapping->host);
 	ntfs_volume *vol = ni->vol;
 	struct super_block *sb = vol->sb;
-	run_list_element *rl;
+	runlist_element *rl;
 	unsigned long block_size = sb->s_blocksize;
 	unsigned char block_size_bits = sb->s_blocksize_bits;
 	u8 *cb, *cb_pos, *cb_end;
@@ -575,7 +579,7 @@ int ntfs_read_compressed_block(struct page *page)
 	}
 
 	/*
-	 * We have the run list, and all the destination pages we need to fill.
+	 * We have the runlist, and all the destination pages we need to fill.
 	 * Now read the first compression block.
 	 */
 	cur_page = 0;
@@ -593,16 +597,16 @@ do_next_cb:
 
 		if (!rl) {
 lock_retry_remap:
-			down_read(&ni->run_list.lock);
-			rl = ni->run_list.rl;
+			down_read(&ni->runlist.lock);
+			rl = ni->runlist.rl;
 		}
 		if (likely(rl != NULL)) {
 			/* Seek to element containing target vcn. */
 			while (rl->length && rl[1].vcn <= vcn)
 				rl++;
-			lcn = vcn_to_lcn(rl, vcn);
+			lcn = ntfs_rl_vcn_to_lcn(rl, vcn);
 		} else
-			lcn = (LCN)LCN_RL_NOT_MAPPED;
+			lcn = LCN_RL_NOT_MAPPED;
 		ntfs_debug("Reading vcn = 0x%llx, lcn = 0x%llx.",
 				(unsigned long long)vcn,
 				(unsigned long long)lcn);
@@ -617,11 +621,11 @@ lock_retry_remap:
 				goto rl_err;
 			is_retry = TRUE;
 			/*
-			 * Attempt to map run list, dropping lock for the
+			 * Attempt to map runlist, dropping lock for the
 			 * duration.
 			 */
-			up_read(&ni->run_list.lock);
-			if (!map_run_list(ni, vcn))
+			up_read(&ni->runlist.lock);
+			if (!ntfs_map_runlist(ni, vcn))
 				goto lock_retry_remap;
 			goto map_rl_err;
 		}
@@ -638,7 +642,7 @@ lock_retry_remap:
 
 	/* Release the lock if we took it. */
 	if (rl)
-		up_read(&ni->run_list.lock);
+		up_read(&ni->runlist.lock);
 
 	/* Setup and initiate io on all buffer heads. */
 	for (i = 0; i < nr_bhs; i++) {
@@ -920,18 +924,18 @@ read_err:
 	goto err_out;
 
 map_rl_err:
-	ntfs_error(vol->sb, "map_run_list() failed. Cannot read compression "
-			"block.");
+	ntfs_error(vol->sb, "ntfs_map_runlist() failed. Cannot read "
+			"compression block.");
 	goto err_out;
 
 rl_err:
-	up_read(&ni->run_list.lock);
-	ntfs_error(vol->sb, "vcn_to_lcn() failed. Cannot read compression "
-			"block.");
+	up_read(&ni->runlist.lock);
+	ntfs_error(vol->sb, "ntfs_rl_vcn_to_lcn() failed. Cannot read "
+			"compression block.");
 	goto err_out;
 
 getblk_err:
-	up_read(&ni->run_list.lock);
+	up_read(&ni->runlist.lock);
 	ntfs_error(vol->sb, "getblk() failed. Cannot read compression block.");
 
 err_out:

@@ -24,12 +24,10 @@ struct files_stat_struct files_stat = {
 
 EXPORT_SYMBOL(files_stat); /* Needed by unix.o */
 
-/* public *and* exported. Not pretty! */
-spinlock_t __cacheline_aligned_in_smp files_lock = SPIN_LOCK_UNLOCKED;
+/* public. Not pretty! */
+ __cacheline_aligned_in_smp DEFINE_SPINLOCK(files_lock);
 
-EXPORT_SYMBOL(files_lock);
-
-static spinlock_t filp_count_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(filp_count_lock);
 
 /* slab constructors and destructors are called from arbitrary
  * context and must be fully threaded - use a local spinlock
@@ -84,9 +82,10 @@ static int old_max;
 			atomic_set(&f->f_count, 1);
 			f->f_uid = current->fsuid;
 			f->f_gid = current->fsgid;
-			f->f_owner.lock = RW_LOCK_UNLOCKED;
+			rwlock_init(&f->f_owner.lock);
 			/* f->f_version: 0 */
 			INIT_LIST_HEAD(&f->f_list);
+			f->f_maxcount = INT_MAX;
 			return f;
 		}
 	}
@@ -106,52 +105,6 @@ fail:
 
 EXPORT_SYMBOL(get_empty_filp);
 
-/*
- * Clear and initialize a (private) struct file for the given dentry,
- * allocate the security structure, and call the open function (if any).  
- * The file should be released using close_private_file.
- */
-int open_private_file(struct file *filp, struct dentry *dentry, int flags)
-{
-	int error;
-	memset(filp, 0, sizeof(*filp));
-	eventpoll_init_file(filp);
-	filp->f_flags  = flags;
-	filp->f_mode   = ((flags+1) & O_ACCMODE) | FMODE_LSEEK | FMODE_PREAD | FMODE_PWRITE;
-	atomic_set(&filp->f_count, 1);
-	filp->f_dentry = dentry;
-	filp->f_mapping = dentry->d_inode->i_mapping;
-	filp->f_uid    = current->fsuid;
-	filp->f_gid    = current->fsgid;
-	filp->f_op     = dentry->d_inode->i_fop;
-	INIT_LIST_HEAD(&filp->f_list);
-	error = security_file_alloc(filp);
-	if (!error)
-		if (filp->f_op && filp->f_op->open) {
-			error = filp->f_op->open(dentry->d_inode, filp);
-			if (error)
-				security_file_free(filp);
-		}
-	return error;
-}
-
-EXPORT_SYMBOL(open_private_file);
-
-/*
- * Release a private file by calling the release function (if any) and
- * freeing the security structure.
- */
-void close_private_file(struct file *file)
-{
-	struct inode * inode = file->f_dentry->d_inode;
-
-	if (file->f_op && file->f_op->release)
-		file->f_op->release(inode, file);
-	security_file_free(file);
-}
-
-EXPORT_SYMBOL(close_private_file);
-
 void fastcall fput(struct file *file)
 {
 	if (atomic_dec_and_test(&file->f_count))
@@ -169,6 +122,7 @@ void fastcall __fput(struct file *file)
 	struct vfsmount *mnt = file->f_vfsmnt;
 	struct inode *inode = dentry->d_inode;
 
+	might_sleep();
 	/*
 	 * The function eventpoll_release() should be the first called
 	 * in the file cleanup chain.
@@ -243,8 +197,6 @@ void put_filp(struct file *file)
 		file_free(file);
 	}
 }
-
-EXPORT_SYMBOL(put_filp);
 
 void file_move(struct file *file, struct list_head *list)
 {

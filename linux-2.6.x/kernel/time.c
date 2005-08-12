@@ -22,12 +22,20 @@
  *	"A Kernel Model for Precision Timekeeping" by Dave Mills
  *	Allow time_constant larger than MAXTC(6) for NTP v4 (MAXTC == 10)
  *	(Even though the technical memorandum forbids it)
+ * 2004-07-14	 Christoph Lameter
+ *	Added getnstimeofday to allow the posix timer functions to return
+ *	with nanosecond accuracy
  */
 
 #include <linux/module.h>
 #include <linux/timex.h>
 #include <linux/errno.h>
 #include <linux/smp_lock.h>
+#include <linux/syscalls.h>
+#include <linux/security.h>
+#include <linux/fs.h>
+#include <linux/module.h>
+
 #include <asm/uaccess.h>
 #include <asm/unistd.h>
 
@@ -46,12 +54,10 @@ EXPORT_SYMBOL(sys_tz);
  * sys_gettimeofday().  Is this for backwards compatibility?  If so,
  * why not move it into the appropriate arch directory (for those
  * architectures that need it).
- *
- * XXX This function is NOT 64-bit clean!
  */
-asmlinkage long sys_time(int __user * tloc)
+asmlinkage long sys_time(time_t __user * tloc)
 {
-	int i;
+	time_t i;
 	struct timeval tv;
 
 	do_gettimeofday(&tv);
@@ -74,13 +80,17 @@ asmlinkage long sys_time(int __user * tloc)
 asmlinkage long sys_stime(time_t __user *tptr)
 {
 	struct timespec tv;
+	int err;
 
-	if (!capable(CAP_SYS_TIME))
-		return -EPERM;
 	if (get_user(tv.tv_sec, tptr))
 		return -EFAULT;
 
 	tv.tv_nsec = 0;
+
+	err = security_settime(&tv, NULL);
+	if (err)
+		return err;
+
 	do_settimeofday(&tv);
 	return 0;
 }
@@ -123,7 +133,7 @@ inline static void warp_clock(void)
 	write_seqlock_irq(&xtime_lock);
 	wall_to_monotonic.tv_sec -= sys_tz.tz_minuteswest * 60;
 	xtime.tv_sec += sys_tz.tz_minuteswest * 60;
-	time_interpolator_update(sys_tz.tz_minuteswest * 60 * NSEC_PER_SEC);
+	time_interpolator_reset();
 	write_sequnlock_irq(&xtime_lock);
 	clock_was_set();
 }
@@ -142,10 +152,12 @@ inline static void warp_clock(void)
 int do_sys_settimeofday(struct timespec *tv, struct timezone *tz)
 {
 	static int firsttime = 1;
+	int error = 0;
 
-	if (!capable(CAP_SYS_TIME))
-		return -EPERM;
-		
+	error = security_settime(tv, tz);
+	if (error)
+		return error;
+
 	if (tz) {
 		/* SMP safe, global irq locking makes it work. */
 		sys_tz = *tz;
@@ -203,6 +215,14 @@ long pps_stbcnt;		/* stability limit exceeded */
 
 /* hook for a loadable hardpps kernel module */
 void (*hardpps_ptr)(struct timeval *);
+
+/* we call this to notify the arch when the clock is being
+ * controlled.  If no such arch routine, do nothing.
+ */
+void __attribute__ ((weak)) notify_arch_cmos_timer(void)
+{
+	return;
+}
 
 /* adjtimex mainly allows reading (and writing, if superuser) of
  * kernel time-keeping variables. used by xntpd.
@@ -387,6 +407,7 @@ leave:	if ((time_status & (STA_UNSYNC|STA_CLOCKERR)) != 0
 	txc->stbcnt	   = pps_stbcnt;
 	write_sequnlock_irq(&xtime_lock);
 	do_gettimeofday(&txc->time);
+	notify_arch_cmos_timer();
 	return(result);
 }
 
@@ -405,7 +426,7 @@ asmlinkage long sys_adjtimex(struct timex __user *txc_p)
 	return copy_to_user(txc_p, &txc, sizeof(struct timex)) ? -EFAULT : ret;
 }
 
-struct timespec current_kernel_time(void)
+inline struct timespec current_kernel_time(void)
 {
         struct timespec now;
         unsigned long seq;
@@ -420,6 +441,136 @@ struct timespec current_kernel_time(void)
 }
 
 EXPORT_SYMBOL(current_kernel_time);
+
+/**
+ * current_fs_time - Return FS time
+ * @sb: Superblock.
+ *
+ * Return the current time truncated to the time granuality supported by
+ * the fs.
+ */
+struct timespec current_fs_time(struct super_block *sb)
+{
+	struct timespec now = current_kernel_time();
+	return timespec_trunc(now, sb->s_time_gran);
+}
+EXPORT_SYMBOL(current_fs_time);
+
+/**
+ * timespec_trunc - Truncate timespec to a granuality
+ * @t: Timespec
+ * @gran: Granuality in ns.
+ *
+ * Truncate a timespec to a granuality. gran must be smaller than a second.
+ * Always rounds down.
+ *
+ * This function should be only used for timestamps returned by
+ * current_kernel_time() or CURRENT_TIME, not with do_gettimeofday() because
+ * it doesn't handle the better resolution of the later.
+ */
+struct timespec timespec_trunc(struct timespec t, unsigned gran)
+{
+	/*
+	 * Division is pretty slow so avoid it for common cases.
+	 * Currently current_kernel_time() never returns better than
+	 * jiffies resolution. Exploit that.
+	 */
+	if (gran <= jiffies_to_usecs(1) * 1000) {
+		/* nothing */
+	} else if (gran == 1000000000) {
+		t.tv_nsec = 0;
+	} else {
+		t.tv_nsec -= t.tv_nsec % gran;
+	}
+	return t;
+}
+EXPORT_SYMBOL(timespec_trunc);
+
+#ifdef CONFIG_TIME_INTERPOLATION
+void getnstimeofday (struct timespec *tv)
+{
+	unsigned long seq,sec,nsec;
+
+	do {
+		seq = read_seqbegin(&xtime_lock);
+		sec = xtime.tv_sec;
+		nsec = xtime.tv_nsec+time_interpolator_get_offset();
+	} while (unlikely(read_seqretry(&xtime_lock, seq)));
+
+	while (unlikely(nsec >= NSEC_PER_SEC)) {
+		nsec -= NSEC_PER_SEC;
+		++sec;
+	}
+	tv->tv_sec = sec;
+	tv->tv_nsec = nsec;
+}
+EXPORT_SYMBOL_GPL(getnstimeofday);
+
+int do_settimeofday (struct timespec *tv)
+{
+	time_t wtm_sec, sec = tv->tv_sec;
+	long wtm_nsec, nsec = tv->tv_nsec;
+
+	if ((unsigned long)tv->tv_nsec >= NSEC_PER_SEC)
+		return -EINVAL;
+
+	write_seqlock_irq(&xtime_lock);
+	{
+		wtm_sec  = wall_to_monotonic.tv_sec + (xtime.tv_sec - sec);
+		wtm_nsec = wall_to_monotonic.tv_nsec + (xtime.tv_nsec - nsec);
+
+		set_normalized_timespec(&xtime, sec, nsec);
+		set_normalized_timespec(&wall_to_monotonic, wtm_sec, wtm_nsec);
+
+		time_adjust = 0;		/* stop active adjtime() */
+		time_status |= STA_UNSYNC;
+		time_maxerror = NTP_PHASE_LIMIT;
+		time_esterror = NTP_PHASE_LIMIT;
+		time_interpolator_reset();
+	}
+	write_sequnlock_irq(&xtime_lock);
+	clock_was_set();
+	return 0;
+}
+
+void do_gettimeofday (struct timeval *tv)
+{
+	unsigned long seq, nsec, usec, sec, offset;
+	do {
+		seq = read_seqbegin(&xtime_lock);
+		offset = time_interpolator_get_offset();
+		sec = xtime.tv_sec;
+		nsec = xtime.tv_nsec;
+	} while (unlikely(read_seqretry(&xtime_lock, seq)));
+
+	usec = (nsec + offset) / 1000;
+
+	while (unlikely(usec >= USEC_PER_SEC)) {
+		usec -= USEC_PER_SEC;
+		++sec;
+	}
+
+	tv->tv_sec = sec;
+	tv->tv_usec = usec;
+}
+
+EXPORT_SYMBOL(do_gettimeofday);
+
+
+#else
+/*
+ * Simulate gettimeofday using do_gettimeofday which only allows a timeval
+ * and therefore only yields usec accuracy
+ */
+void getnstimeofday(struct timespec *tv)
+{
+	struct timeval x;
+
+	do_gettimeofday(&x);
+	tv->tv_sec = x.tv_sec;
+	tv->tv_nsec = x.tv_usec * NSEC_PER_USEC;
+}
+#endif
 
 #if (BITS_PER_LONG < 64)
 u64 get_jiffies_64(void)

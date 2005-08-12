@@ -78,7 +78,7 @@ static void qnx4_write_super(struct super_block *sb)
 	unlock_kernel();
 }
 
-static void qnx4_write_inode(struct inode *inode, int unused)
+static int qnx4_write_inode(struct inode *inode, int unused)
 {
 	struct qnx4_inode_entry *raw_inode;
 	int block, ino;
@@ -87,12 +87,12 @@ static void qnx4_write_inode(struct inode *inode, int unused)
 
 	QNX4DEBUG(("qnx4: write inode 1.\n"));
 	if (inode->i_nlink == 0) {
-		return;
+		return 0;
 	}
 	if (!ino) {
 		printk("qnx4: bad inode number on dev %s: %d is out of range\n",
 		       inode->i_sb->s_id, ino);
-		return;
+		return -EIO;
 	}
 	QNX4DEBUG(("qnx4: write inode 2.\n"));
 	block = ino / QNX4_INODES_PER_BLOCK;
@@ -101,7 +101,7 @@ static void qnx4_write_inode(struct inode *inode, int unused)
 		printk("qnx4: major problem: unable to read inode from dev "
 		       "%s\n", inode->i_sb->s_id);
 		unlock_kernel();
-		return;
+		return -EIO;
 	}
 	raw_inode = ((struct qnx4_inode_entry *) bh->b_data) +
 	    (ino % QNX4_INODES_PER_BLOCK);
@@ -117,6 +117,7 @@ static void qnx4_write_inode(struct inode *inode, int unused)
 	mark_buffer_dirty(bh);
 	brelse(bh);
 	unlock_kernel();
+	return 0;
 }
 
 #endif
@@ -161,8 +162,8 @@ static int qnx4_remount(struct super_block *sb, int *flags, char *data)
 	return 0;
 }
 
-struct buffer_head *qnx4_getblk(struct inode *inode, int nr,
-				 int create)
+static struct buffer_head *qnx4_getblk(struct inode *inode, int nr,
+				       int create)
 {
 	struct buffer_head *result = NULL;
 
@@ -188,7 +189,7 @@ struct buffer_head *qnx4_getblk(struct inode *inode, int nr,
 	}
 	tst = tmp;
 #endif
-	inode->i_ctime = CURRENT_TIME;
+	inode->i_ctime = CURRENT_TIME_SEC;
 	mark_inode_dirty(inode);
 	return result;
 }
@@ -211,7 +212,7 @@ struct buffer_head *qnx4_bread(struct inode *inode, int block, int create)
 	return NULL;
 }
 
-int qnx4_get_block( struct inode *inode, sector_t iblock, struct buffer_head *bh, int create )
+static int qnx4_get_block( struct inode *inode, sector_t iblock, struct buffer_head *bh, int create )
 {
 	unsigned long phys;
 
@@ -446,7 +447,7 @@ static sector_t qnx4_bmap(struct address_space *mapping, sector_t block)
 {
 	return generic_block_bmap(mapping,block,qnx4_get_block);
 }
-struct address_space_operations qnx4_aops = {
+static struct address_space_operations qnx4_aops = {
 	.readpage	= qnx4_readpage,
 	.writepage	= qnx4_writepage,
 	.sync_page	= block_sync_page,
@@ -544,7 +545,7 @@ static int init_inodecache(void)
 {
 	qnx4_inode_cachep = kmem_cache_create("qnx4_inode_cache",
 					     sizeof(struct qnx4_inode_info),
-					     0, SLAB_HWCACHE_ALIGN|SLAB_RECLAIM_ACCOUNT,
+					     0, SLAB_RECLAIM_ACCOUNT,
 					     init_once, NULL);
 	if (qnx4_inode_cachep == NULL)
 		return -ENOMEM;

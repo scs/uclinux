@@ -142,6 +142,7 @@ xfs_growfs_data_private(
 	int			dpct;
 	int			error;
 	xfs_agnumber_t		nagcount;
+	xfs_agnumber_t		nagimax = 0;
 	xfs_rfsblock_t		nb, nb_mod;
 	xfs_rfsblock_t		new;
 	xfs_rfsblock_t		nfree;
@@ -183,7 +184,7 @@ xfs_growfs_data_private(
 		memset(&mp->m_perag[oagcount], 0,
 			(nagcount - oagcount) * sizeof(xfs_perag_t));
 		mp->m_flags |= XFS_MOUNT_32BITINODES;
-		xfs_initialize_perag(mp, nagcount);
+		nagimax = xfs_initialize_perag(mp, nagcount);
 		up_write(&mp->m_peraglock);
 	}
 	tp = xfs_trans_alloc(mp, XFS_TRANS_GROWFS);
@@ -219,9 +220,9 @@ xfs_growfs_data_private(
 			XFS_CNT_BLOCK(mp));
 		INT_SET(agf->agf_levels[XFS_BTNUM_BNOi], ARCH_CONVERT, 1);
 		INT_SET(agf->agf_levels[XFS_BTNUM_CNTi], ARCH_CONVERT, 1);
-		INT_ZERO(agf->agf_flfirst, ARCH_CONVERT);
+		agf->agf_flfirst = 0;
 		INT_SET(agf->agf_fllast, ARCH_CONVERT, XFS_AGFL_SIZE(mp) - 1);
-		INT_ZERO(agf->agf_flcount, ARCH_CONVERT);
+		agf->agf_flcount = 0;
 		tmpsize = agsize - XFS_PREALLOC_BLOCKS(mp);
 		INT_SET(agf->agf_freeblks, ARCH_CONVERT, tmpsize);
 		INT_SET(agf->agf_longest, ARCH_CONVERT, tmpsize);
@@ -241,10 +242,10 @@ xfs_growfs_data_private(
 		INT_SET(agi->agi_versionnum, ARCH_CONVERT, XFS_AGI_VERSION);
 		INT_SET(agi->agi_seqno, ARCH_CONVERT, agno);
 		INT_SET(agi->agi_length, ARCH_CONVERT, agsize);
-		INT_ZERO(agi->agi_count, ARCH_CONVERT);
+		agi->agi_count = 0;
 		INT_SET(agi->agi_root, ARCH_CONVERT, XFS_IBT_BLOCK(mp));
 		INT_SET(agi->agi_level, ARCH_CONVERT, 1);
-		INT_ZERO(agi->agi_freecount, ARCH_CONVERT);
+		agi->agi_freecount = 0;
 		INT_SET(agi->agi_newino, ARCH_CONVERT, NULLAGINO);
 		INT_SET(agi->agi_dirino, ARCH_CONVERT, NULLAGINO);
 		for (bucket = 0; bucket < XFS_AGI_UNLINKED_BUCKETS; bucket++)
@@ -263,7 +264,7 @@ xfs_growfs_data_private(
 		block = XFS_BUF_TO_SBLOCK(bp);
 		memset(block, 0, mp->m_sb.sb_blocksize);
 		INT_SET(block->bb_magic, ARCH_CONVERT, XFS_ABTB_MAGIC);
-		INT_ZERO(block->bb_level, ARCH_CONVERT);
+		block->bb_level = 0;
 		INT_SET(block->bb_numrecs, ARCH_CONVERT, 1);
 		INT_SET(block->bb_leftsib, ARCH_CONVERT, NULLAGBLOCK);
 		INT_SET(block->bb_rightsib, ARCH_CONVERT, NULLAGBLOCK);
@@ -286,7 +287,7 @@ xfs_growfs_data_private(
 		block = XFS_BUF_TO_SBLOCK(bp);
 		memset(block, 0, mp->m_sb.sb_blocksize);
 		INT_SET(block->bb_magic, ARCH_CONVERT, XFS_ABTC_MAGIC);
-		INT_ZERO(block->bb_level, ARCH_CONVERT);
+		block->bb_level = 0;
 		INT_SET(block->bb_numrecs, ARCH_CONVERT, 1);
 		INT_SET(block->bb_leftsib, ARCH_CONVERT, NULLAGBLOCK);
 		INT_SET(block->bb_rightsib, ARCH_CONVERT, NULLAGBLOCK);
@@ -310,8 +311,8 @@ xfs_growfs_data_private(
 		block = XFS_BUF_TO_SBLOCK(bp);
 		memset(block, 0, mp->m_sb.sb_blocksize);
 		INT_SET(block->bb_magic, ARCH_CONVERT, XFS_IBT_MAGIC);
-		INT_ZERO(block->bb_level, ARCH_CONVERT);
-		INT_ZERO(block->bb_numrecs, ARCH_CONVERT);
+		block->bb_level = 0;
+		block->bb_numrecs = 0;
 		INT_SET(block->bb_leftsib, ARCH_CONVERT, NULLAGBLOCK);
 		INT_SET(block->bb_rightsib, ARCH_CONVERT, NULLAGBLOCK);
 		error = xfs_bwrite(mp, bp);
@@ -372,6 +373,9 @@ xfs_growfs_data_private(
 	if (error) {
 		return error;
 	}
+	/* New allocation groups fully initialized, so update mount struct */
+	if (nagimax)
+		mp->m_maxagi = nagimax;
 	if (mp->m_sb.sb_imax_pct) {
 		__uint64_t icount = mp->m_sb.sb_dblocks * mp->m_sb.sb_imax_pct;
 		do_div(icount, 100);
@@ -389,7 +393,7 @@ xfs_growfs_data_private(
 			break;
 		}
 		sbp = XFS_BUF_TO_SBP(bp);
-		xfs_xlatesb(sbp, &mp->m_sb, -1, ARCH_CONVERT, XFS_SB_ALL_BITS);
+		xfs_xlatesb(sbp, &mp->m_sb, -1, XFS_SB_ALL_BITS);
 		/*
 		 * If we get an error writing out the alternate superblocks,
 		 * just issue a warning and continue.  The real work is
@@ -507,9 +511,9 @@ xfs_reserve_blocks(
 	__uint64_t              *inval,
 	xfs_fsop_resblks_t      *outval)
 {
-	__uint64_t              lcounter, delta;
-	__uint64_t              request;
-	unsigned long s;
+	__int64_t		lcounter, delta;
+	__uint64_t		request;
+	unsigned long		s;
 
 	/* If inval is null, report current values and return */
 
@@ -536,8 +540,7 @@ xfs_reserve_blocks(
 		mp->m_resblks = request;
 	} else {
 		delta = request - mp->m_resblks;
-		lcounter = mp->m_sb.sb_fdblocks;
-		lcounter -= delta;
+		lcounter = mp->m_sb.sb_fdblocks - delta;
 		if (lcounter < 0) {
 			/* We can't satisfy the request, just get what we can */
 			mp->m_resblks += mp->m_sb.sb_fdblocks;
@@ -587,9 +590,6 @@ xfs_fs_goingdown(
 	xfs_mount_t	*mp,
 	__uint32_t	inflags)
 {
-	if (!capable(CAP_SYS_ADMIN))
-		return -EPERM;
-
 	switch (inflags) {
 	case XFS_FSOP_GOING_FLAGS_DEFAULT: {
 		struct vfs *vfsp = XFS_MTOVFS(mp);
@@ -599,7 +599,7 @@ xfs_fs_goingdown(
 			xfs_force_shutdown(mp, XFS_FORCE_UMOUNT);
 			thaw_bdev(sb->s_bdev, sb);
 		}
-
+	
 		break;
 	}
 	case XFS_FSOP_GOING_FLAGS_LOGFLUSH:

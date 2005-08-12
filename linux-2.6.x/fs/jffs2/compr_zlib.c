@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2001-2003 Red Hat, Inc.
  *
- * Created by David Woodhouse <dwmw2@redhat.com>
+ * Created by David Woodhouse <dwmw2@infradead.org>
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
@@ -69,8 +69,10 @@ static void free_workspaces(void)
 #define free_workspaces() do { } while(0)
 #endif /* __KERNEL__ */
 
-int jffs2_zlib_compress(unsigned char *data_in, unsigned char *cpage_out, 
-		   uint32_t *sourcelen, uint32_t *dstlen, void *model)
+static int jffs2_zlib_compress(unsigned char *data_in,
+			       unsigned char *cpage_out,
+			       uint32_t *sourcelen, uint32_t *dstlen,
+			       void *model)
 {
 	int ret;
 
@@ -135,8 +137,10 @@ int jffs2_zlib_compress(unsigned char *data_in, unsigned char *cpage_out,
 	return ret;
 }
 
-int jffs2_zlib_decompress(unsigned char *data_in, unsigned char *cpage_out,
-		      uint32_t srclen, uint32_t destlen, void *model)
+static int jffs2_zlib_decompress(unsigned char *data_in,
+				 unsigned char *cpage_out,
+				 uint32_t srclen, uint32_t destlen,
+				 void *model)
 {
 	int ret;
 	int wbits = MAX_WBITS;

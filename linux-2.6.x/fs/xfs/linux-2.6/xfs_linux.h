@@ -85,8 +85,10 @@
 #include <linux/vfs.h>
 #include <linux/seq_file.h>
 #include <linux/init.h>
+#include <linux/list.h>
 #include <linux/proc_fs.h>
 #include <linux/version.h>
+#include <linux/sort.h>
 
 #include <asm/page.h>
 #include <asm/div64.h>
@@ -140,8 +142,13 @@ static inline void set_buffer_unwritten_io(struct buffer_head *bh)
 #define xfs_inherit_noatime	xfs_params.inherit_noatim.val
 #define xfs_buf_timer_centisecs	xfs_params.xfs_buf_timer.val
 #define xfs_buf_age_centisecs	xfs_params.xfs_buf_age.val
+#define xfs_inherit_nosymlinks	xfs_params.inherit_nosym.val
+#define xfs_rotorstep		xfs_params.rotorstep.val
 
-#define current_cpu()		smp_processor_id()
+#ifndef __smp_processor_id
+#define __smp_processor_id()	smp_processor_id()
+#endif
+#define current_cpu()		__smp_processor_id()
 #define current_pid()		(current->pid)
 #define current_fsuid(cred)	(current->fsuid)
 #define current_fsgid(cred)	(current->fsgid)
@@ -361,5 +368,7 @@ static inline __uint64_t roundup_64(__uint64_t x, __uint32_t y)
 	do_div(x, y);
 	return(x * y);
 }
+
+#define qsort(a, n, s, cmp) sort(a, n, s, cmp, NULL)
 
 #endif /* __XFS_LINUX__ */

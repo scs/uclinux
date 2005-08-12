@@ -209,7 +209,7 @@ xfs_alloc_delrec(
 		 * No free extents left.
 		 */
 		else
-			INT_ZERO(agf->agf_longest, ARCH_CONVERT);
+			agf->agf_longest = 0;
 		mp->m_perag[INT_GET(agf->agf_seqno, ARCH_CONVERT)].pagf_longest =
 			INT_GET(agf->agf_longest, ARCH_CONVERT);
 		xfs_alloc_log_agf(cur->bc_tp, cur->bc_private.a.agbp,
@@ -263,7 +263,7 @@ xfs_alloc_delrec(
 			/*
 			 * Update the cursor so there's one fewer level.
 			 */
-			xfs_btree_setbuf(cur, level, 0);
+			xfs_btree_setbuf(cur, level, NULL);
 			cur->bc_nlevels--;
 		} else if (level > 0 &&
 			   (error = xfs_alloc_decrement(cur, level, &i)))

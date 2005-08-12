@@ -11,26 +11,10 @@
  */
 
 #include <linux/module.h>
-#include <linux/errno.h>
-#include <linux/fs.h>
-#include <linux/slab.h>
-#include <linux/stat.h>
-#include <linux/time.h>
-#include <linux/affs_fs.h>
-#include <linux/kernel.h>
-#include <linux/mm.h>
-#include <linux/string.h>
-#include <linux/genhd.h>
-#include <linux/amigaffs.h>
-#include <linux/major.h>
-#include <linux/blkdev.h>
 #include <linux/init.h>
-#include <linux/smp_lock.h>
-#include <linux/buffer_head.h>
-#include <linux/vfs.h>
+#include <linux/statfs.h>
 #include <linux/parser.h>
-#include <asm/system.h>
-#include <asm/uaccess.h>
+#include "affs.h"
 
 extern struct timezone sys_tz;
 
@@ -44,7 +28,7 @@ affs_put_super(struct super_block *sb)
 	pr_debug("AFFS: put_super()\n");
 
 	if (!(sb->s_flags & MS_RDONLY)) {
-		AFFS_ROOT_TAIL(sb, sbi->s_root_bh)->bm_flag = be32_to_cpu(1);
+		AFFS_ROOT_TAIL(sb, sbi->s_root_bh)->bm_flag = cpu_to_be32(1);
 		secs_to_datestamp(get_seconds(),
 				  &AFFS_ROOT_TAIL(sb, sbi->s_root_bh)->disk_change);
 		affs_fix_checksum(sb, sbi->s_root_bh);
@@ -70,7 +54,7 @@ affs_write_super(struct super_block *sb)
 		//	if (sbi->s_bitmap[i].bm_bh) {
 		//		if (buffer_dirty(sbi->s_bitmap[i].bm_bh)) {
 		//			clean = 0;
-		AFFS_ROOT_TAIL(sb, sbi->s_root_bh)->bm_flag = be32_to_cpu(clean);
+		AFFS_ROOT_TAIL(sb, sbi->s_root_bh)->bm_flag = cpu_to_be32(clean);
 		secs_to_datestamp(get_seconds(),
 				  &AFFS_ROOT_TAIL(sb, sbi->s_root_bh)->disk_change);
 		affs_fix_checksum(sb, sbi->s_root_bh);
@@ -115,7 +99,7 @@ static int init_inodecache(void)
 {
 	affs_inode_cachep = kmem_cache_create("affs_inode_cache",
 					     sizeof(struct affs_inode_info),
-					     0, SLAB_HWCACHE_ALIGN|SLAB_RECLAIM_ACCOUNT,
+					     0, SLAB_RECLAIM_ACCOUNT,
 					     init_once, NULL);
 	if (affs_inode_cachep == NULL)
 		return -ENOMEM;
@@ -387,7 +371,7 @@ got_root:
 		printk(KERN_ERR "AFFS: Cannot read boot block\n");
 		goto out_error;
 	}
-	chksum = be32_to_cpu(*(u32 *)boot_bh->b_data);
+	chksum = be32_to_cpu(*(__be32 *)boot_bh->b_data);
 	brelse(boot_bh);
 
 	/* Dircache filesystems are compatible with non-dircache ones

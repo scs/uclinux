@@ -16,6 +16,7 @@
 #include <linux/slab.h>
 #include <linux/version.h>
 #include <linux/vfs.h>
+#include <linux/nls.h>
 
 static struct inode *hfsplus_alloc_inode(struct super_block *sb);
 static void hfsplus_destroy_inode(struct inode *inode);
@@ -94,20 +95,20 @@ static void hfsplus_read_inode(struct inode *inode)
 	make_bad_inode(inode);
 }
 
-void hfsplus_write_inode(struct inode *inode, int unused)
+static int hfsplus_write_inode(struct inode *inode, int unused)
 {
 	struct hfsplus_vh *vhdr;
+	int ret = 0;
 
 	dprint(DBG_INODE, "hfsplus_write_inode: %lu\n", inode->i_ino);
 	hfsplus_ext_write_extent(inode);
 	if (inode->i_ino >= HFSPLUS_FIRSTUSER_CNID) {
-		hfsplus_cat_write_inode(inode);
-		return;
+		return hfsplus_cat_write_inode(inode);
 	}
 	vhdr = HFSPLUS_SB(inode->i_sb).s_vhdr;
 	switch (inode->i_ino) {
 	case HFSPLUS_ROOT_CNID:
-		hfsplus_cat_write_inode(inode);
+		ret = hfsplus_cat_write_inode(inode);
 		break;
 	case HFSPLUS_EXT_CNID:
 		if (vhdr->ext_file.total_size != cpu_to_be64(inode->i_size)) {
@@ -148,6 +149,7 @@ void hfsplus_write_inode(struct inode *inode, int unused)
 		hfs_btree_write(HFSPLUS_SB(inode->i_sb).attr_tree);
 		break;
 	}
+	return ret;
 }
 
 static void hfsplus_clear_inode(struct inode *inode)
@@ -206,7 +208,9 @@ static void hfsplus_write_super(struct super_block *sb)
 static void hfsplus_put_super(struct super_block *sb)
 {
 	dprint(DBG_SUPER, "hfsplus_put_super\n");
-	if (!(sb->s_flags & MS_RDONLY)) {
+	if (!sb->s_fs_info)
+		return;
+	if (!(sb->s_flags & MS_RDONLY) && HFSPLUS_SB(sb).s_vhdr) {
 		struct hfsplus_vh *vhdr = HFSPLUS_SB(sb).s_vhdr;
 
 		vhdr->modify_date = hfsp_now2mt();
@@ -222,6 +226,10 @@ static void hfsplus_put_super(struct super_block *sb)
 	iput(HFSPLUS_SB(sb).alloc_file);
 	iput(HFSPLUS_SB(sb).hidden_dir);
 	brelse(HFSPLUS_SB(sb).s_vhbh);
+	if (HFSPLUS_SB(sb).nls)
+		unload_nls(HFSPLUS_SB(sb).nls);
+	kfree(sb->s_fs_info);
+	sb->s_fs_info = NULL;
 }
 
 static int hfsplus_statfs(struct super_block *sb, struct kstatfs *buf)
@@ -238,15 +246,14 @@ static int hfsplus_statfs(struct super_block *sb, struct kstatfs *buf)
 	return 0;
 }
 
-int hfsplus_remount(struct super_block *sb, int *flags, char *data)
+static int hfsplus_remount(struct super_block *sb, int *flags, char *data)
 {
 	if ((*flags & MS_RDONLY) == (sb->s_flags & MS_RDONLY))
 		return 0;
 	if (!(*flags & MS_RDONLY)) {
 		struct hfsplus_vh *vhdr = HFSPLUS_SB(sb).s_vhdr;
 
-		if ((vhdr->attributes & cpu_to_be32(HFSPLUS_VOL_INCNSTNT)) ||
-		    !(vhdr->attributes & cpu_to_be32(HFSPLUS_VOL_UNMNT))) {
+		if (!(vhdr->attributes & cpu_to_be32(HFSPLUS_VOL_UNMNT))) {
 			printk("HFS+-fs warning: Filesystem was not cleanly unmounted, "
 			       "running fsck.hfsplus is recommended.  leaving read-only.\n");
 			sb->s_flags |= MS_RDONLY;
@@ -280,13 +287,13 @@ static int hfsplus_fill_super(struct super_block *sb, void *data, int silent)
 	struct hfs_find_data fd;
 	struct inode *root;
 	struct qstr str;
+	struct nls_table *nls = NULL;
 	int err = -EINVAL;
 
 	sbi = kmalloc(sizeof(struct hfsplus_sb_info), GFP_KERNEL);
-	if (!sbi) {
-		err = -ENOMEM;
-		goto out2;
-	}
+	if (!sbi)
+		return -ENOMEM;
+
 	memset(sbi, 0, sizeof(HFSPLUS_SB(sb)));
 	sb->s_fs_info = sbi;
 	INIT_HLIST_HEAD(&sbi->rsrc_inodes);
@@ -295,7 +302,16 @@ static int hfsplus_fill_super(struct super_block *sb, void *data, int silent)
 		if (!silent)
 			printk("HFS+-fs: unable to parse mount options\n");
 		err = -EINVAL;
-		goto out2;
+		goto cleanup;
+	}
+
+	/* temporarily use utf8 to correctly find the hidden dir below */
+	nls = sbi->nls;
+	sbi->nls = load_nls("utf8");
+	if (!nls) {
+		printk("HFS+: unable to load nls for utf8\n");
+		err = -EINVAL;
+		goto cleanup;
 	}
 
 	/* Grab the volume header */
@@ -303,7 +319,7 @@ static int hfsplus_fill_super(struct super_block *sb, void *data, int silent)
 		if (!silent)
 			printk("HFS+-fs: unable to find HFS+ superblock\n");
 		err = -EINVAL;
-		goto out2;
+		goto cleanup;
 	}
 	vhdr = HFSPLUS_SB(sb).s_vhdr;
 
@@ -331,8 +347,7 @@ static int hfsplus_fill_super(struct super_block *sb, void *data, int silent)
 	sb->s_op = &hfsplus_sops;
 	sb->s_maxbytes = MAX_LFS_FILESIZE;
 
-	if ((vhdr->attributes & cpu_to_be32(HFSPLUS_VOL_INCNSTNT)) ||
-	    !(vhdr->attributes & cpu_to_be32(HFSPLUS_VOL_UNMNT))) {
+	if (!(vhdr->attributes & cpu_to_be32(HFSPLUS_VOL_UNMNT))) {
 		if (!silent)
 			printk("HFS+-fs warning: Filesystem was not cleanly unmounted, "
 			       "running fsck.hfsplus is recommended.  mounting read-only.\n");
@@ -377,7 +392,7 @@ static int hfsplus_fill_super(struct super_block *sb, void *data, int silent)
 	str.len = sizeof(HFSP_HIDDENDIR_NAME) - 1;
 	str.name = HFSP_HIDDENDIR_NAME;
 	hfs_find_init(HFSPLUS_SB(sb).cat_tree, &fd);
-	hfsplus_cat_build_key(fd.search_key, HFSPLUS_ROOT_CNID, &str);
+	hfsplus_cat_build_key(sb, fd.search_key, HFSPLUS_ROOT_CNID, &str);
 	if (!hfs_brec_read(&fd, &entry, sizeof(entry))) {
 		hfs_find_exit(&fd);
 		if (entry.type != cpu_to_be16(HFSPLUS_FOLDER))
@@ -411,11 +426,14 @@ static int hfsplus_fill_super(struct super_block *sb, void *data, int silent)
 		mark_inode_dirty(HFSPLUS_SB(sb).hidden_dir);
 	}
 out:
+	unload_nls(sbi->nls);
+	sbi->nls = nls;
 	return 0;
 
 cleanup:
 	hfsplus_put_super(sb);
-out2:
+	if (nls)
+		unload_nls(nls);
 	return err;
 }
 

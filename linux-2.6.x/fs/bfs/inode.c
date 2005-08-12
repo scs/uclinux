@@ -85,7 +85,7 @@ static void bfs_read_inode(struct inode * inode)
 	brelse(bh);
 }
 
-static void bfs_write_inode(struct inode * inode, int unused)
+static int bfs_write_inode(struct inode * inode, int unused)
 {
 	unsigned long ino = inode->i_ino;
 	struct bfs_inode * di;
@@ -94,7 +94,7 @@ static void bfs_write_inode(struct inode * inode, int unused)
 
 	if (ino < BFS_ROOT_INO || ino > BFS_SB(inode->i_sb)->si_lasti) {
 		printf("Bad inode number %s:%08lx\n", inode->i_sb->s_id, ino);
-		return;
+		return -EIO;
 	}
 
 	lock_kernel();
@@ -103,7 +103,7 @@ static void bfs_write_inode(struct inode * inode, int unused)
 	if (!bh) {
 		printf("Unable to read inode %s:%08lx\n", inode->i_sb->s_id, ino);
 		unlock_kernel();
-		return;
+		return -EIO;
 	}
 
 	off = (ino - BFS_ROOT_INO)%BFS_INODES_PER_BLOCK;
@@ -129,6 +129,7 @@ static void bfs_write_inode(struct inode * inode, int unused)
 	mark_buffer_dirty(bh);
 	brelse(bh);
 	unlock_kernel();
+	return 0;
 }
 
 static void bfs_delete_inode(struct inode * inode)
@@ -148,7 +149,7 @@ static void bfs_delete_inode(struct inode * inode)
 	}
 	
 	inode->i_size = 0;
-	inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
+	inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME_SEC;
 	lock_kernel();
 	mark_inode_dirty(inode);
 	block = (ino - BFS_ROOT_INO)/BFS_INODES_PER_BLOCK + 1;
@@ -245,7 +246,7 @@ static int init_inodecache(void)
 {
 	bfs_inode_cachep = kmem_cache_create("bfs_inode_cache",
 					     sizeof(struct bfs_inode_info),
-					     0, SLAB_HWCACHE_ALIGN|SLAB_RECLAIM_ACCOUNT,
+					     0, SLAB_RECLAIM_ACCOUNT,
 					     init_once, NULL);
 	if (bfs_inode_cachep == NULL)
 		return -ENOMEM;

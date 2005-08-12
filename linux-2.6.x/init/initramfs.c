@@ -26,7 +26,7 @@ static void __init free(void *where)
 
 /* link hash */
 
-static struct hash {
+static __initdata struct hash {
 	int ino, minor, major;
 	struct hash *next;
 	char *name;
@@ -241,10 +241,9 @@ static __initdata int wfd;
 static int __init do_name(void)
 {
 	state = SkipIt;
-	next_state = Start;
+	next_state = Reset;
 	if (strcmp(collected, "TRAILER!!!") == 0) {
 		free_hash();
-		next_state = Reset;
 		return 0;
 	}
 	if (dry_run)
@@ -295,7 +294,7 @@ static int __init do_symlink(void)
 	sys_symlink(collected + N_ALIGN(name_len), collected);
 	sys_lchown(collected, uid, gid);
 	state = SkipIt;
-	next_state = Start;
+	next_state = Reset;
 	return 0;
 }
 
@@ -331,6 +330,10 @@ static void __init flush_buffer(char *buf, unsigned len)
 			buf += written;
 			len -= written;
 			state = Start;
+		} else if (c == 0) {
+			buf += written;
+			len -= written;
+			state = Reset;
 		} else
 			error("junk in compressed archive");
 	}
@@ -372,11 +375,12 @@ static long bytes_out;
 #define Tracecv(c,x)
 
 #define STATIC static
+#define INIT __init
 
-static void flush_window(void);
-static void error(char *m);
-static void gzip_mark(void **);
-static void gzip_release(void **);
+static void __init flush_window(void);
+static void __init error(char *m);
+static void __init gzip_mark(void **);
+static void __init gzip_release(void **);
 
 #include "../lib/inflate.c"
 
@@ -409,7 +413,7 @@ static void __init flush_window(void)
 	outcnt = 0;
 }
 
-char * __init unpack_to_rootfs(char *buf, unsigned len, int check_only)
+static char * __init unpack_to_rootfs(char *buf, unsigned len, int check_only)
 {
 	int written;
 	dry_run = check_only;
@@ -445,8 +449,7 @@ char * __init unpack_to_rootfs(char *buf, unsigned len, int check_only)
 		bytes_out = 0;
 		crc = (ulg)0xffffffffL; /* shift register contents */
 		makecrc();
-		if (gunzip())
-			message = "ungzip failed";
+		gunzip();
 		if (state != Reset)
 			error("junk in gzipped archive");
 		this_header = saved_offset + inptr;
@@ -460,15 +463,15 @@ char * __init unpack_to_rootfs(char *buf, unsigned len, int check_only)
 	return message;
 }
 
-extern char __initramfs_start, __initramfs_end;
+extern char __initramfs_start[], __initramfs_end[];
 #ifdef CONFIG_BLK_DEV_INITRD
 #include <linux/initrd.h>
 #endif
 
 void __init populate_rootfs(void)
 {
-	char *err = unpack_to_rootfs(&__initramfs_start,
-			 &__initramfs_end - &__initramfs_start, 0);
+	char *err = unpack_to_rootfs(__initramfs_start,
+			 __initramfs_end - __initramfs_start, 0);
 	if (err)
 		panic(err);
 #ifdef CONFIG_BLK_DEV_INITRD

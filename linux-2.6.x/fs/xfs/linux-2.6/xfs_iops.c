@@ -174,8 +174,9 @@ linvfs_mknod(
 				 */
 				teardown.d_inode = ip = LINVFS_GET_IP(vp);
 				teardown.d_name = dentry->d_name;
-				remove_inode_hash(ip);
-				make_bad_inode(ip);
+
+				vn_mark_bad(vp);
+				
 				if (S_ISDIR(mode))
 					VOP_RMDIR(dvp, &teardown, NULL, err2);
 				else
@@ -225,26 +226,21 @@ linvfs_lookup(
 	struct dentry	*dentry,
 	struct nameidata *nd)
 {
-	struct inode	*ip = NULL;
-	vnode_t		*vp, *cvp = NULL;
+	struct vnode	*vp = LINVFS_GET_VP(dir), *cvp;
 	int		error;
 
 	if (dentry->d_name.len >= MAXNAMELEN)
 		return ERR_PTR(-ENAMETOOLONG);
 
-	vp = LINVFS_GET_VP(dir);
 	VOP_LOOKUP(vp, dentry, &cvp, 0, NULL, NULL, error);
-	if (!error) {
-		ASSERT(cvp);
-		ip = LINVFS_GET_IP(cvp);
-		if (!ip) {
-			VN_RELE(cvp);
-			return ERR_PTR(-EACCES);
-		}
+	if (error) {
+		if (unlikely(error != ENOENT))
+			return ERR_PTR(-error);
+		d_add(dentry, NULL);
+		return NULL;
 	}
-	if (error && (error != ENOENT))
-		return ERR_PTR(-error);
-	return d_splice_alias(ip, dentry);
+
+	return d_splice_alias(LINVFS_GET_IP(cvp), dentry);
 }
 
 STATIC int
@@ -304,7 +300,7 @@ linvfs_symlink(
 {
 	struct inode	*ip;
 	vattr_t		va;
-	vnode_t		*dvp;	/* directory containing name to remove */
+	vnode_t		*dvp;	/* directory containing name of symlink */
 	vnode_t		*cvp;	/* used to lookup symlink to put in dentry */
 	int		error;
 
@@ -371,33 +367,6 @@ linvfs_rename(
 	if (ndir != odir)
 		validate_fields(ndir);
 	return 0;
-}
-
-STATIC int
-linvfs_readlink(
-	struct dentry	*dentry,
-	char		*buf,
-	int		size)
-{
-	vnode_t		*vp = LINVFS_GET_VP(dentry->d_inode);
-	uio_t		uio;
-	iovec_t		iov;
-	int		error;
-
-	iov.iov_base = buf;
-	iov.iov_len = size;
-
-	uio.uio_iov = &iov;
-	uio.uio_offset = 0;
-	uio.uio_segflg = UIO_USERSPACE;
-	uio.uio_resid = size;
-	uio.uio_iovcnt = 1;
-
-	VOP_READLINK(vp, &uio, 0, NULL, error);
-	if (error)
-		return -error;
-
-	return (size - uio.uio_resid);
 }
 
 /*
@@ -698,7 +667,7 @@ struct inode_operations linvfs_dir_inode_operations = {
 };
 
 struct inode_operations linvfs_symlink_inode_operations = {
-	.readlink		= linvfs_readlink,
+	.readlink		= generic_readlink,
 	.follow_link		= linvfs_follow_link,
 	.put_link		= linvfs_put_link,
 	.permission		= linvfs_permission,

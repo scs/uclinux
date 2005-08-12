@@ -4,6 +4,7 @@
  *  Copyright (C) 1991, 1992  Linus Torvalds
  */
 
+#include <linux/syscalls.h>
 #include <linux/init.h>
 #include <linux/mm.h>
 #include <linux/fs.h>
@@ -14,6 +15,7 @@
 #include <linux/module.h>
 #include <linux/security.h>
 #include <linux/ptrace.h>
+#include <linux/signal.h>
 
 #include <asm/poll.h>
 #include <asm/siginfo.h>
@@ -40,38 +42,6 @@ static inline int get_close_on_exec(unsigned int fd)
 	return res;
 }
 
-
-/* Expand files.  Return <0 on error; 0 nothing done; 1 files expanded,
- * we may have blocked. 
- *
- * Should be called with the files->file_lock spinlock held for write.
- */
-static int expand_files(struct files_struct *files, int nr)
-{
-	int err, expand = 0;
-#ifdef FDSET_DEBUG	
-	printk (KERN_ERR "%s %d: nr = %d\n", __FUNCTION__, current->pid, nr);
-#endif
-	
-	if (nr >= files->max_fdset) {
-		expand = 1;
-		if ((err = expand_fdset(files, nr)))
-			goto out;
-	}
-	if (nr >= files->max_fds) {
-		expand = 1;
-		if ((err = expand_fd_array(files, nr)))
-			goto out;
-	}
-	err = expand;
- out:
-#ifdef FDSET_DEBUG	
-	if (err)
-		printk (KERN_ERR "%s %d: return %d\n", __FUNCTION__, current->pid, err);
-#endif
-	return err;
-}
-
 /*
  * locate_fd finds a free file descriptor in the open_fds fdset,
  * expanding the fd arrays if necessary.  Must be called with the
@@ -86,7 +56,7 @@ static int locate_fd(struct files_struct *files,
 	int error;
 
 	error = -EINVAL;
-	if (orig_start >= current->rlim[RLIMIT_NOFILE].rlim_cur)
+	if (orig_start >= current->signal->rlim[RLIMIT_NOFILE].rlim_cur)
 		goto out;
 
 repeat:
@@ -105,7 +75,7 @@ repeat:
 	}
 	
 	error = -EMFILE;
-	if (newfd >= current->rlim[RLIMIT_NOFILE].rlim_cur)
+	if (newfd >= current->signal->rlim[RLIMIT_NOFILE].rlim_cur)
 		goto out;
 
 	error = expand_files(files, newfd);
@@ -161,7 +131,7 @@ asmlinkage long sys_dup2(unsigned int oldfd, unsigned int newfd)
 	if (newfd == oldfd)
 		goto out_unlock;
 	err = -EBADF;
-	if (newfd >= current->rlim[RLIMIT_NOFILE].rlim_cur)
+	if (newfd >= current->signal->rlim[RLIMIT_NOFILE].rlim_cur)
 		goto out_unlock;
 	get_file(file);			/* We are now finished with oldfd */
 
@@ -290,8 +260,6 @@ void f_delown(struct file *filp)
 	f_modown(filp, 0, 0, 0, 1);
 }
 
-EXPORT_SYMBOL(f_delown);
-
 static long do_fcntl(int fd, unsigned int cmd, unsigned long arg,
 		struct file *filp)
 {
@@ -341,7 +309,7 @@ static long do_fcntl(int fd, unsigned int cmd, unsigned long arg,
 		break;
 	case F_SETSIG:
 		/* arg == 0 restores default behaviour. */
-		if (arg < 0 || arg > _NSIG) {
+		if (!valid_signal(arg)) {
 			break;
 		}
 		err = 0;
@@ -362,7 +330,7 @@ static long do_fcntl(int fd, unsigned int cmd, unsigned long arg,
 	return err;
 }
 
-asmlinkage long sys_fcntl(int fd, unsigned int cmd, unsigned long arg)
+asmlinkage long sys_fcntl(unsigned int fd, unsigned int cmd, unsigned long arg)
 {	
 	struct file *filp;
 	long err = -EBADF;
@@ -432,11 +400,12 @@ static long band_table[NSIGPOLL] = {
 };
 
 static inline int sigio_perm(struct task_struct *p,
-                             struct fown_struct *fown)
+                             struct fown_struct *fown, int sig)
 {
-	return ((fown->euid == 0) ||
- 	        (fown->euid == p->suid) || (fown->euid == p->uid) ||
- 	        (fown->uid == p->suid) || (fown->uid == p->uid));
+	return (((fown->euid == 0) ||
+		 (fown->euid == p->suid) || (fown->euid == p->uid) ||
+		 (fown->uid == p->suid) || (fown->uid == p->uid)) &&
+		!security_file_send_sigiotask(p, fown, sig));
 }
 
 static void send_sigio_to_task(struct task_struct *p,
@@ -444,10 +413,7 @@ static void send_sigio_to_task(struct task_struct *p,
 			       int fd,
 			       int reason)
 {
-	if (!sigio_perm(p, fown))
-		return;
-
-	if (security_file_send_sigiotask(p, fown, fd, reason))
+	if (!sigio_perm(p, fown, fown->signum))
 		return;
 
 	switch (fown->signum) {
@@ -472,7 +438,7 @@ static void send_sigio_to_task(struct task_struct *p,
 			else
 				si.si_band = band_table[reason - POLL_IN];
 			si.si_fd    = fd;
-			if (!send_sig_info(fown->signum, &si, p))
+			if (!send_group_sig_info(fown->signum, &si, p))
 				break;
 		/* fall-through: fall back on the old plain SIGIO signal */
 		case 0:
@@ -497,11 +463,9 @@ void send_sigio(struct fown_struct *fown, int fd, int band)
 			send_sigio_to_task(p, fown, fd, band);
 		}
 	} else {
-		struct list_head *l;
-		struct pid *pidptr;
-		for_each_task_pid(-pid, PIDTYPE_PGID, p, l, pidptr) {
+		do_each_task_pid(-pid, PIDTYPE_PGID, p) {
 			send_sigio_to_task(p, fown, fd, band);
-		}
+		} while_each_task_pid(-pid, PIDTYPE_PGID, p);
 	}
 	read_unlock(&tasklist_lock);
  out_unlock_fown:
@@ -511,7 +475,7 @@ void send_sigio(struct fown_struct *fown, int fd, int band)
 static void send_sigurg_to_task(struct task_struct *p,
                                 struct fown_struct *fown)
 {
-	if (sigio_perm(p, fown))
+	if (sigio_perm(p, fown, SIGURG))
 		send_group_sig_info(SIGURG, SEND_SIG_PRIV, p);
 }
 
@@ -534,11 +498,9 @@ int send_sigurg(struct fown_struct *fown)
 			send_sigurg_to_task(p, fown);
 		}
 	} else {
-		struct list_head *l;
-		struct pid *pidptr;
-		for_each_task_pid(-pid, PIDTYPE_PGID, p, l, pidptr) {
+		do_each_task_pid(-pid, PIDTYPE_PGID, p) {
 			send_sigurg_to_task(p, fown);
-		}
+		} while_each_task_pid(-pid, PIDTYPE_PGID, p);
 	}
 	read_unlock(&tasklist_lock);
  out_unlock_fown:
@@ -546,7 +508,7 @@ int send_sigurg(struct fown_struct *fown)
 	return ret;
 }
 
-static rwlock_t fasync_lock = RW_LOCK_UNLOCKED;
+static DEFINE_RWLOCK(fasync_lock);
 static kmem_cache_t *fasync_cache;
 
 /*
