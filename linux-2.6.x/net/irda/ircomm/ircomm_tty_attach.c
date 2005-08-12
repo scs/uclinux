@@ -52,8 +52,9 @@ static void ircomm_tty_discovery_indication(discinfo_t *discovery,
 					    void *priv);
 static void ircomm_tty_getvalue_confirm(int result, __u16 obj_id, 
 					struct ias_value *value, void *priv);
-void ircomm_tty_start_watchdog_timer(struct ircomm_tty_cb *self, int timeout);
-void ircomm_tty_watchdog_timer_expired(void *data);
+static void ircomm_tty_start_watchdog_timer(struct ircomm_tty_cb *self,
+					    int timeout);
+static void ircomm_tty_watchdog_timer_expired(void *data);
 
 static int ircomm_tty_state_idle(struct ircomm_tty_cb *self, 
 				 IRCOMM_TTY_EVENT event, 
@@ -90,7 +91,8 @@ char *ircomm_tty_state[] = {
 	"*** ERROR *** ",
 };
 
-char *ircomm_tty_event[] = {
+#ifdef CONFIG_IRDA_DEBUG
+static char *ircomm_tty_event[] = {
 	"IRCOMM_TTY_ATTACH_CABLE",
 	"IRCOMM_TTY_DETACH_CABLE",
 	"IRCOMM_TTY_DATA_REQUEST",
@@ -106,6 +108,7 @@ char *ircomm_tty_event[] = {
 	"IRCOMM_TTY_GOT_LSAPSEL",
 	"*** ERROR ****",
 };
+#endif /* CONFIG_IRDA_DEBUG */
 
 static int (*state[])(struct ircomm_tty_cb *self, IRCOMM_TTY_EVENT event,
 		      struct sk_buff *skb, struct ircomm_tty_info *info) = 
@@ -129,8 +132,8 @@ int ircomm_tty_attach_cable(struct ircomm_tty_cb *self)
 {
 	IRDA_DEBUG(0, "%s()\n", __FUNCTION__ );
 
-	ASSERT(self != NULL, return -1;);
-	ASSERT(self->magic == IRCOMM_TTY_MAGIC, return -1;);
+	IRDA_ASSERT(self != NULL, return -1;);
+	IRDA_ASSERT(self->magic == IRCOMM_TTY_MAGIC, return -1;);
 
        	/* Check if somebody has already connected to us */
 	if (ircomm_is_connected(self->ircomm)) {
@@ -142,12 +145,6 @@ int ircomm_tty_attach_cable(struct ircomm_tty_cb *self)
 	self->tty->hw_stopped = 1;
 
 	ircomm_tty_ias_register(self);
-
-	/* Check if somebody has already connected to us */
-	if (ircomm_is_connected(self->ircomm)) {
-		IRDA_DEBUG(0, "%s(), already connected!\n", __FUNCTION__ );
-		return 0;
-	}
 
 	ircomm_tty_do_event(self, IRCOMM_TTY_ATTACH_CABLE, NULL, NULL);
 
@@ -164,14 +161,21 @@ void ircomm_tty_detach_cable(struct ircomm_tty_cb *self)
 {
 	IRDA_DEBUG(0, "%s()\n", __FUNCTION__ );
 
-	ASSERT(self != NULL, return;);
-	ASSERT(self->magic == IRCOMM_TTY_MAGIC, return;);
+	IRDA_ASSERT(self != NULL, return;);
+	IRDA_ASSERT(self->magic == IRCOMM_TTY_MAGIC, return;);
 
 	del_timer(&self->watchdog_timer);
 
+	/* Remove discovery handler */
+	if (self->ckey) {
+		irlmp_unregister_client(self->ckey);
+		self->ckey = NULL;
+	}
 	/* Remove IrCOMM hint bits */
-	irlmp_unregister_client(self->ckey);
-	irlmp_unregister_service(self->skey);
+	if (self->skey) {
+		irlmp_unregister_service(self->skey);
+		self->skey = NULL;
+	}
 
 	if (self->iriap) { 
 		iriap_close(self->iriap);
@@ -206,21 +210,33 @@ static void ircomm_tty_ias_register(struct ircomm_tty_cb *self)
 
 	IRDA_DEBUG(0, "%s()\n", __FUNCTION__ );
 
-	ASSERT(self != NULL, return;);
-	ASSERT(self->magic == IRCOMM_TTY_MAGIC, return;);
+	IRDA_ASSERT(self != NULL, return;);
+	IRDA_ASSERT(self->magic == IRCOMM_TTY_MAGIC, return;);
 	
+	/* Compute hint bits based on service */
+	hints = irlmp_service_to_hint(S_COMM);
+	if (self->service_type & IRCOMM_3_WIRE_RAW)
+		hints |= irlmp_service_to_hint(S_PRINTER);
+
+	/* Advertise IrCOMM hint bit in discovery */
+	if (!self->skey)
+		self->skey = irlmp_register_service(hints);
+	/* Set up a discovery handler */
+	if (!self->ckey)
+		self->ckey = irlmp_register_client(hints,
+						   ircomm_tty_discovery_indication,
+						   NULL, (void *) self);
+
+	/* If already done, no need to do it again */
+	if (self->obj)
+		return;
+
 	if (self->service_type & IRCOMM_3_WIRE_RAW) {
-		hints = irlmp_service_to_hint(S_PRINTER);
-		hints |= irlmp_service_to_hint(S_COMM);
-		
 		/* Register IrLPT with LM-IAS */
 		self->obj = irias_new_object("IrLPT", IAS_IRLPT_ID);
 		irias_add_integer_attrib(self->obj, "IrDA:IrLMP:LsapSel", 
 					 self->slsap_sel, IAS_KERNEL_ATTR);
-		irias_insert_object(self->obj);
 	} else {
-		hints = irlmp_service_to_hint(S_COMM);
-
 		/* Register IrCOMM with LM-IAS */
 		self->obj = irias_new_object("IrDA:IrCOMM", IAS_IRCOMM_ID);
 		irias_add_integer_attrib(self->obj, "IrDA:TinyTP:LsapSel", 
@@ -234,12 +250,45 @@ static void ircomm_tty_ias_register(struct ircomm_tty_cb *self)
 		/* Register parameters with LM-IAS */
 		irias_add_octseq_attrib(self->obj, "Parameters", oct_seq, 6,
 					IAS_KERNEL_ATTR);
-		irias_insert_object(self->obj);
 	}
-	self->skey = irlmp_register_service(hints);
-	self->ckey = irlmp_register_client(hints,
-					   ircomm_tty_discovery_indication,
-					   NULL, (void *) self);
+	irias_insert_object(self->obj);
+}
+
+/*
+ * Function ircomm_tty_ias_unregister (self)
+ *
+ *    Remove our IAS object and client hook while connected.
+ *
+ */
+static void ircomm_tty_ias_unregister(struct ircomm_tty_cb *self)
+{
+	/* Remove LM-IAS object now so it is not reused.
+	 * IrCOMM deals very poorly with multiple incoming connections.
+	 * It should looks a lot more like IrNET, and "dup" a server TSAP
+	 * to the application TSAP (based on various rules).
+	 * This is a cheap workaround allowing multiple clients to
+	 * connect to us. It will not always work.
+	 * Each IrCOMM socket has an IAS entry. Incoming connection will
+	 * pick the first one found. So, when we are fully connected,
+	 * we remove our IAS entries so that the next IAS entry is used.
+	 * We do that for *both* client and server, because a server
+	 * can also create client instances.
+	 * Jean II */
+	if (self->obj) {
+		irias_delete_object(self->obj);
+		self->obj = NULL;
+	}
+
+#if 0
+	/* Remove discovery handler.
+	 * While we are connected, we no longer need to receive
+	 * discovery events. This would be the case if there is
+	 * multiple IrLAP interfaces. Jean II */
+	if (self->ckey) {
+		irlmp_unregister_client(self->ckey);
+		self->ckey = NULL;
+	}
+#endif
 }
 
 /*
@@ -250,8 +299,8 @@ static void ircomm_tty_ias_register(struct ircomm_tty_cb *self)
  */
 int ircomm_tty_send_initial_parameters(struct ircomm_tty_cb *self)
 {
-	ASSERT(self != NULL, return -1;);
-	ASSERT(self->magic == IRCOMM_TTY_MAGIC, return -1;);
+	IRDA_ASSERT(self != NULL, return -1;);
+	IRDA_ASSERT(self->magic == IRCOMM_TTY_MAGIC, return -1;);
 
 	if (self->service_type & IRCOMM_3_WIRE_RAW) 
 		return 0;
@@ -333,11 +382,12 @@ static void ircomm_tty_discovery_indication(discinfo_t *discovery,
 	info.daddr = discovery->daddr;
 	info.saddr = discovery->saddr;
 
-	/* FIXME. We probably need to use hashbin_find_next(), but we first
+	/* FIXME. We have a locking problem on the hashbin here.
+	 * We probably need to use hashbin_find_next(), but we first
 	 * need to ensure that "line" is unique. - Jean II */
 	self = (struct ircomm_tty_cb *) hashbin_get_first(ircomm_tty);
 	while (self != NULL) {
-		ASSERT(self->magic == IRCOMM_TTY_MAGIC, return;);
+		IRDA_ASSERT(self->magic == IRCOMM_TTY_MAGIC, return;);
 		
 		ircomm_tty_do_event(self, IRCOMM_TTY_DISCOVERY_INDICATION, 
 				    NULL, &info);
@@ -360,8 +410,8 @@ void ircomm_tty_disconnect_indication(void *instance, void *sap,
 
 	IRDA_DEBUG(2, "%s()\n", __FUNCTION__ );
 
-	ASSERT(self != NULL, return;);
-	ASSERT(self->magic == IRCOMM_TTY_MAGIC, return;);
+	IRDA_ASSERT(self != NULL, return;);
+	IRDA_ASSERT(self->magic == IRCOMM_TTY_MAGIC, return;);
 
 	if (!self->tty)
 		return;
@@ -390,8 +440,8 @@ static void ircomm_tty_getvalue_confirm(int result, __u16 obj_id,
 
 	IRDA_DEBUG(2, "%s()\n", __FUNCTION__ );
 
-	ASSERT(self != NULL, return;);
-	ASSERT(self->magic == IRCOMM_TTY_MAGIC, return;);
+	IRDA_ASSERT(self != NULL, return;);
+	IRDA_ASSERT(self->magic == IRCOMM_TTY_MAGIC, return;);
 
 	/* We probably don't need to make any more queries */
 	iriap_close(self->iriap);
@@ -451,8 +501,8 @@ void ircomm_tty_connect_confirm(void *instance, void *sap,
 
 	IRDA_DEBUG(2, "%s()\n", __FUNCTION__ );
 
-	ASSERT(self != NULL, return;);
-	ASSERT(self->magic == IRCOMM_TTY_MAGIC, return;);
+	IRDA_ASSERT(self != NULL, return;);
+	IRDA_ASSERT(self->magic == IRCOMM_TTY_MAGIC, return;);
 
 	self->client = TRUE;
 	self->max_data_size = max_data_size;
@@ -482,8 +532,8 @@ void ircomm_tty_connect_indication(void *instance, void *sap,
 
 	IRDA_DEBUG(2, "%s()\n", __FUNCTION__ );
 
-	ASSERT(self != NULL, return;);
-	ASSERT(self->magic == IRCOMM_TTY_MAGIC, return;);
+	IRDA_ASSERT(self != NULL, return;);
+	IRDA_ASSERT(self->magic == IRCOMM_TTY_MAGIC, return;);
 
 	self->client = FALSE;
 	self->max_data_size = max_data_size;
@@ -511,30 +561,13 @@ void ircomm_tty_link_established(struct ircomm_tty_cb *self)
 {
 	IRDA_DEBUG(2, "%s()\n", __FUNCTION__ );
 
-	ASSERT(self != NULL, return;);
-	ASSERT(self->magic == IRCOMM_TTY_MAGIC, return;);
+	IRDA_ASSERT(self != NULL, return;);
+	IRDA_ASSERT(self->magic == IRCOMM_TTY_MAGIC, return;);
 
 	if (!self->tty)
 		return;
 	
 	del_timer(&self->watchdog_timer);
-
-	/* Remove LM-IAS object now so it is not reused.
-	 * IrCOMM deals very poorly with multiple incoming connections.
-	 * It should looks a lot more like IrNET, and "dup" a server TSAP
-	 * to the application TSAP (based on various rules).
-	 * This is a cheap workaround allowing multiple clients to
-	 * connect to us. It will not always work.
-	 * Each IrCOMM socket has an IAS entry. Incoming connection will
-	 * pick the first one found. So, when we are fully connected,
-	 * we remove our IAS entries so that the next IAS entry is used.
-	 * We do that for *both* client and server, because a server
-	 * can also create client instances.
-	 * Jean II */
-	if (self->obj) {
-		irias_delete_object(self->obj);
-		self->obj = NULL;
-	}
 
 	/* 
 	 * IrCOMM link is now up, and if we are not using hardware
@@ -558,16 +591,17 @@ void ircomm_tty_link_established(struct ircomm_tty_cb *self)
 }
 
 /*
- * Function irlan_start_watchdog_timer (self, timeout)
+ * Function ircomm_tty_start_watchdog_timer (self, timeout)
  *
  *    Start the watchdog timer. This timer is used to make sure that any 
  *    connection attempt is successful, and if not, we will retry after 
  *    the timeout
  */
-void ircomm_tty_start_watchdog_timer(struct ircomm_tty_cb *self, int timeout)
+static void ircomm_tty_start_watchdog_timer(struct ircomm_tty_cb *self,
+					    int timeout)
 {
-	ASSERT(self != NULL, return;);
-	ASSERT(self->magic == IRCOMM_TTY_MAGIC, return;);
+	IRDA_ASSERT(self != NULL, return;);
+	IRDA_ASSERT(self->magic == IRCOMM_TTY_MAGIC, return;);
 
 	irda_start_timer(&self->watchdog_timer, timeout, (void *) self,
 			 ircomm_tty_watchdog_timer_expired);
@@ -579,16 +613,53 @@ void ircomm_tty_start_watchdog_timer(struct ircomm_tty_cb *self, int timeout)
  *    Called when the connect procedure have taken to much time.
  *
  */
-void ircomm_tty_watchdog_timer_expired(void *data)
+static void ircomm_tty_watchdog_timer_expired(void *data)
 {
 	struct ircomm_tty_cb *self = (struct ircomm_tty_cb *) data;
 	
 	IRDA_DEBUG(2, "%s()\n", __FUNCTION__ );
 
-	ASSERT(self != NULL, return;);
-	ASSERT(self->magic == IRCOMM_TTY_MAGIC, return;);
+	IRDA_ASSERT(self != NULL, return;);
+	IRDA_ASSERT(self->magic == IRCOMM_TTY_MAGIC, return;);
 
 	ircomm_tty_do_event(self, IRCOMM_TTY_WD_TIMER_EXPIRED, NULL, NULL);
+}
+
+
+/*
+ * Function ircomm_tty_do_event (self, event, skb)
+ *
+ *    Process event
+ *
+ */
+int ircomm_tty_do_event(struct ircomm_tty_cb *self, IRCOMM_TTY_EVENT event,
+			struct sk_buff *skb, struct ircomm_tty_info *info) 
+{
+	IRDA_ASSERT(self != NULL, return -1;);
+	IRDA_ASSERT(self->magic == IRCOMM_TTY_MAGIC, return -1;);
+
+	IRDA_DEBUG(2, "%s: state=%s, event=%s\n", __FUNCTION__ ,
+		   ircomm_tty_state[self->state], ircomm_tty_event[event]);
+	
+	return (*state[self->state])(self, event, skb, info);
+}
+
+/*
+ * Function ircomm_tty_next_state (self, state)
+ *
+ *    Switch state
+ *
+ */
+static inline void ircomm_tty_next_state(struct ircomm_tty_cb *self, IRCOMM_TTY_STATE state)
+{
+	/*
+	IRDA_ASSERT(self != NULL, return;);
+	IRDA_ASSERT(self->magic == IRCOMM_TTY_MAGIC, return;);
+
+	IRDA_DEBUG(2, "%s: next state=%s, service type=%d\n", __FUNCTION__ , 
+		   ircomm_tty_state[self->state], self->service_type);
+	*/
+	self->state = state;
 }
 
 /*
@@ -619,7 +690,8 @@ static int ircomm_tty_state_idle(struct ircomm_tty_cb *self,
 		self->saddr = info->saddr;
 
 		if (self->iriap) {
-			WARNING("%s(), busy with a previous query\n", __FUNCTION__);
+			IRDA_WARNING("%s(), busy with a previous query\n",
+				     __FUNCTION__);
 			return -EBUSY;
 		}
 
@@ -676,7 +748,8 @@ static int ircomm_tty_state_search(struct ircomm_tty_cb *self,
 		self->saddr = info->saddr;
 
 		if (self->iriap) {
-			WARNING("%s(), busy with a previous query\n", __FUNCTION__);
+			IRDA_WARNING("%s(), busy with a previous query\n",
+				     __FUNCTION__);
 			return -EBUSY;
 		}
 		
@@ -700,6 +773,7 @@ static int ircomm_tty_state_search(struct ircomm_tty_cb *self,
 		break;
 	case IRCOMM_TTY_CONNECT_INDICATION:
 		del_timer(&self->watchdog_timer);
+		ircomm_tty_ias_unregister(self);
 
 		/* Accept connection */
 		ircomm_connect_response(self->ircomm, NULL);
@@ -744,7 +818,8 @@ static int ircomm_tty_state_query_parameters(struct ircomm_tty_cb *self,
 	switch (event) {
 	case IRCOMM_TTY_GOT_PARAMETERS:
 		if (self->iriap) {
-			WARNING("%s(), busy with a previous query\n", __FUNCTION__);
+			IRDA_WARNING("%s(), busy with a previous query\n",
+				     __FUNCTION__);
 			return -EBUSY;
 		}
 		
@@ -765,6 +840,7 @@ static int ircomm_tty_state_query_parameters(struct ircomm_tty_cb *self,
 		break;
 	case IRCOMM_TTY_CONNECT_INDICATION:
 		del_timer(&self->watchdog_timer);
+		ircomm_tty_ias_unregister(self);
 
 		/* Accept connection */
 		ircomm_connect_response(self->ircomm, NULL);
@@ -813,6 +889,7 @@ static int ircomm_tty_state_query_lsap_sel(struct ircomm_tty_cb *self,
 		break;
 	case IRCOMM_TTY_CONNECT_INDICATION:
 		del_timer(&self->watchdog_timer);
+		ircomm_tty_ias_unregister(self);
 
 		/* Accept connection */
 		ircomm_connect_response(self->ircomm, NULL);
@@ -848,7 +925,7 @@ static int ircomm_tty_state_setup(struct ircomm_tty_cb *self,
 	switch (event) {
 	case IRCOMM_TTY_CONNECT_CONFIRM:
 		del_timer(&self->watchdog_timer);
-		ircomm_tty_next_state(self, IRCOMM_TTY_READY);
+		ircomm_tty_ias_unregister(self);
 		
 		/* 
 		 * Send initial parameters. This will also send out queued
@@ -856,9 +933,11 @@ static int ircomm_tty_state_setup(struct ircomm_tty_cb *self,
 		 */
 		ircomm_tty_send_initial_parameters(self);
 		ircomm_tty_link_established(self);
+		ircomm_tty_next_state(self, IRCOMM_TTY_READY);
 		break;
 	case IRCOMM_TTY_CONNECT_INDICATION:
 		del_timer(&self->watchdog_timer);
+		ircomm_tty_ias_unregister(self);
 		
 		/* Accept connection */
 		ircomm_connect_response(self->ircomm, NULL);
@@ -903,6 +982,7 @@ static int ircomm_tty_state_ready(struct ircomm_tty_cb *self,
 		ircomm_tty_next_state(self, IRCOMM_TTY_IDLE);
 		break;
 	case IRCOMM_TTY_DISCONNECT_INDICATION:
+		ircomm_tty_ias_register(self);
 		ircomm_tty_next_state(self, IRCOMM_TTY_SEARCH);
 		ircomm_tty_start_watchdog_timer(self, 3*HZ);
 
@@ -922,40 +1002,5 @@ static int ircomm_tty_state_ready(struct ircomm_tty_cb *self,
 		ret = -EINVAL;
 	}
 	return ret;
-}
-
-/*
- * Function ircomm_tty_do_event (self, event, skb)
- *
- *    Process event
- *
- */
-int ircomm_tty_do_event(struct ircomm_tty_cb *self, IRCOMM_TTY_EVENT event,
-			struct sk_buff *skb, struct ircomm_tty_info *info) 
-{
-	ASSERT(self != NULL, return -1;);
-	ASSERT(self->magic == IRCOMM_TTY_MAGIC, return -1;);
-
-	IRDA_DEBUG(2, "%s: state=%s, event=%s\n", __FUNCTION__ ,
-		   ircomm_tty_state[self->state], ircomm_tty_event[event]);
-	
-	return (*state[self->state])(self, event, skb, info);
-}
-
-/*
- * Function ircomm_tty_next_state (self, state)
- *
- *    Switch state
- *
- */
-void ircomm_tty_next_state(struct ircomm_tty_cb *self, IRCOMM_TTY_STATE state)
-{
-	ASSERT(self != NULL, return;);
-	ASSERT(self->magic == IRCOMM_TTY_MAGIC, return;);
-
-	self->state = state;
-	
-	IRDA_DEBUG(2, "%s: next state=%s, service type=%d\n", __FUNCTION__ , 
-		   ircomm_tty_state[self->state], self->service_type);
 }
 

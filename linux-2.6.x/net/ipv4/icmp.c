@@ -207,6 +207,7 @@ int sysctl_icmp_ignore_bogus_error_responses;
 
 int sysctl_icmp_ratelimit = 1 * HZ;
 int sysctl_icmp_ratemask = 0x1818;
+int sysctl_icmp_errors_use_inbound_ifaddr;
 
 /*
  *	ICMP control array. This specifies what to do with each ICMP.
@@ -327,8 +328,8 @@ static void icmp_out_count(int type)
  *	Checksum each fragment, and on the first include the headers and final
  *	checksum.
  */
-int icmp_glue_bits(void *from, char *to, int offset, int len, int odd,
-		   struct sk_buff *skb)
+static int icmp_glue_bits(void *from, char *to, int offset, int len, int odd,
+			  struct sk_buff *skb)
 {
 	struct icmp_bxm *icmp_param = (struct icmp_bxm *)from;
 	unsigned int csum;
@@ -338,6 +339,8 @@ int icmp_glue_bits(void *from, char *to, int offset, int len, int odd,
 				      to, len, 0);
 
 	skb->csum = csum_block_add(skb->csum, csum, odd);
+	if (icmp_pointers[icmp_param->data.icmph.type].error)
+		nf_ct_attach(skb, icmp_param->skb);
 	return 0;
 }
 
@@ -375,7 +378,7 @@ static void icmp_push_reply(struct icmp_bxm *icmp_param,
 static void icmp_reply(struct icmp_bxm *icmp_param, struct sk_buff *skb)
 {
 	struct sock *sk = icmp_socket->sk;
-	struct inet_opt *inet = inet_sk(sk);
+	struct inet_sock *inet = inet_sk(sk);
 	struct ipcm_cookie ipc;
 	struct rtable *rt = (struct rtable *)skb->dst;
 	u32 daddr;
@@ -478,20 +481,25 @@ void icmp_send(struct sk_buff *skb_in, int type, int code, u32 info)
 		 *	ICMP error
 		 */
 		if (iph->protocol == IPPROTO_ICMP) {
-			u8 inner_type;
+			u8 _inner_type, *itp;
 
-			if (skb_copy_bits(skb_in,
-					  skb_in->nh.raw + (iph->ihl << 2) +
-					  offsetof(struct icmphdr, type) -
-					  skb_in->data, &inner_type, 1))
+			itp = skb_header_pointer(skb_in,
+						 skb_in->nh.raw +
+						 (iph->ihl << 2) +
+						 offsetof(struct icmphdr,
+							  type) -
+						 skb_in->data,
+						 sizeof(_inner_type),
+						 &_inner_type);
+			if (itp == NULL)
 				goto out;
 
 			/*
 			 *	Assume any unknown ICMP type is an error. This
 			 *	isn't specified by the RFC, but think about it..
 			 */
-			if (inner_type > NR_ICMP_TYPES ||
-			    icmp_pointers[inner_type].error)
+			if (*itp > NR_ICMP_TYPES ||
+			    icmp_pointers[*itp].error)
 				goto out;
 		}
 	}
@@ -503,32 +511,18 @@ void icmp_send(struct sk_buff *skb_in, int type, int code, u32 info)
 	 *	Construct source address and options.
 	 */
 
-#ifdef CONFIG_IP_ROUTE_NAT
-	/*
-	 *	Restore original addresses if packet has been translated.
-	 */
-	if (rt->rt_flags & RTCF_NAT && IPCB(skb_in)->flags & IPSKB_TRANSLATED) {
-		iph->daddr = rt->fl.fl4_dst;
-		iph->saddr = rt->fl.fl4_src;
-	}
-#endif
-
 	saddr = iph->daddr;
-	if (!(rt->rt_flags & RTCF_LOCAL))
-		saddr = 0;
+	if (!(rt->rt_flags & RTCF_LOCAL)) {
+		if (sysctl_icmp_errors_use_inbound_ifaddr)
+			saddr = inet_select_addr(skb_in->dev, 0, RT_SCOPE_LINK);
+		else
+			saddr = 0;
+	}
 
 	tos = icmp_pointers[type].error ? ((iph->tos & IPTOS_TOS_MASK) |
 					   IPTOS_PREC_INTERNETCONTROL) :
 					  iph->tos;
 
-	{
-		struct flowi fl = { .nl_u = { .ip4_u = { .daddr = iph->saddr,
-							 .saddr = saddr,
-							 .tos = RT_TOS(tos) } },
-				    .proto = IPPROTO_ICMP };
-		if (ip_route_output_key(&rt, &fl))
-		    goto out_unlock;
-	}
 	if (ip_options_echo(&icmp_param.replyopts, skb_in))
 		goto ende;
 
@@ -547,13 +541,26 @@ void icmp_send(struct sk_buff *skb_in, int type, int code, u32 info)
 	inet_sk(icmp_socket->sk)->tos = tos;
 	ipc.addr = iph->saddr;
 	ipc.opt = &icmp_param.replyopts;
-	if (icmp_param.replyopts.srr) {
-		struct flowi fl = { .nl_u = { .ip4_u =
-					      { .daddr = icmp_param.replyopts.faddr,
-						.saddr = saddr,
-						.tos = RT_TOS(tos) } },
-				    .proto = IPPROTO_ICMP };
-		ip_rt_put(rt);
+
+	{
+		struct flowi fl = {
+			.nl_u = {
+				.ip4_u = {
+					.daddr = icmp_param.replyopts.srr ?
+						icmp_param.replyopts.faddr :
+						iph->saddr,
+					.saddr = saddr,
+					.tos = RT_TOS(tos)
+				}
+			},
+			.proto = IPPROTO_ICMP,
+			.uli_u = {
+				.icmpt = {
+					.type = type,
+					.code = code
+				}
+			}
+		};
 		if (ip_route_output_key(&rt, &fl))
 			goto out_unlock;
 	}
@@ -563,7 +570,7 @@ void icmp_send(struct sk_buff *skb_in, int type, int code, u32 info)
 
 	/* RFC says return as much as we can without exceeding 576 bytes. */
 
-	room = dst_pmtu(&rt->u.dst);
+	room = dst_mtu(&rt->u.dst);
 	if (room > 576)
 		room = 576;
 	room -= sizeof(struct iphdr) + icmp_param.replyopts.optlen;
@@ -705,8 +712,7 @@ static void icmp_unreach(struct sk_buff *skb)
 	read_unlock(&raw_v4_lock);
 
 	rcu_read_lock();
-	ipprot = inet_protos[hash];
-	smp_read_barrier_depends();
+	ipprot = rcu_dereference(inet_protos[hash]);
 	if (ipprot && ipprot->err_handler)
 		ipprot->err_handler(skb, info);
 	rcu_read_unlock();
@@ -880,7 +886,6 @@ static void icmp_address_reply(struct sk_buff *skb)
 	struct net_device *dev = skb->dev;
 	struct in_device *in_dev;
 	struct in_ifaddr *ifa;
-	u32 mask;
 
 	if (skb->len < 4 || !(rt->rt_flags&RTCF_DIRECTSRC))
 		goto out;
@@ -888,24 +893,27 @@ static void icmp_address_reply(struct sk_buff *skb)
 	in_dev = in_dev_get(dev);
 	if (!in_dev)
 		goto out;
-	read_lock(&in_dev->lock);
+	rcu_read_lock();
 	if (in_dev->ifa_list &&
 	    IN_DEV_LOG_MARTIANS(in_dev) &&
 	    IN_DEV_FORWARD(in_dev)) {
-		if (skb_copy_bits(skb, 0, &mask, 4))
+		u32 _mask, *mp;
+
+		mp = skb_header_pointer(skb, 0, sizeof(_mask), &_mask);
+		if (mp == NULL)
 			BUG();
 		for (ifa = in_dev->ifa_list; ifa; ifa = ifa->ifa_next) {
-			if (mask == ifa->ifa_mask &&
+			if (*mp == ifa->ifa_mask &&
 			    inet_ifa_match(rt->rt_src, ifa))
 				break;
 		}
 		if (!ifa && net_ratelimit()) {
 			printk(KERN_INFO "Wrong address mask %u.%u.%u.%u from "
 					 "%s/%u.%u.%u.%u\n",
-			       NIPQUAD(mask), dev->name, NIPQUAD(rt->rt_src));
+			       NIPQUAD(*mp), dev->name, NIPQUAD(rt->rt_src));
 		}
 	}
-	read_unlock(&in_dev->lock);
+	rcu_read_unlock();
 	in_dev_put(in_dev);
 out:;
 }
@@ -1099,7 +1107,7 @@ static struct icmp_control icmp_pointers[NR_ICMP_TYPES + 1] = {
 
 void __init icmp_init(struct net_proto_family *ops)
 {
-	struct inet_opt *inet;
+	struct inet_sock *inet;
 	int i;
 
 	for (i = 0; i < NR_CPUS; i++) {

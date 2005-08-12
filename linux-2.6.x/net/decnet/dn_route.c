@@ -1,4 +1,3 @@
-
 /*
  * DECnet       An implementation of the DECnet protocol suite for the LINUX
  *              operating system.  DECnet is implemented using the  BSD Socket
@@ -100,9 +99,9 @@ extern struct neigh_table dn_neigh_table;
 
 static unsigned char dn_hiord_addr[6] = {0xAA,0x00,0x04,0x00,0x00,0x00};
 
-int dn_rt_min_delay = 2 * HZ;
-int dn_rt_max_delay = 10 * HZ;
-int dn_rt_mtu_expires = 10 * 60 * HZ;
+static const int dn_rt_min_delay = 2 * HZ;
+static const int dn_rt_max_delay = 10 * HZ;
+static const int dn_rt_mtu_expires = 10 * 60 * HZ;
 
 static unsigned long dn_rt_deadline;
 
@@ -146,14 +145,14 @@ static __inline__ unsigned dn_hash(unsigned short src, unsigned short dst)
 
 static inline void dnrt_free(struct dn_route *rt)
 {
-	call_rcu(&rt->u.dst.rcu_head, dst_rcu_free);
+	call_rcu_bh(&rt->u.dst.rcu_head, dst_rcu_free);
 }
 
 static inline void dnrt_drop(struct dn_route *rt)
 {
 	if (rt)
 		dst_release(&rt->u.dst);
-	call_rcu(&rt->u.dst.rcu_head, dst_rcu_free);
+	call_rcu_bh(&rt->u.dst.rcu_head, dst_rcu_free);
 }
 
 static void dn_dst_check_expire(unsigned long dummy)
@@ -254,7 +253,6 @@ static void dn_dst_update_pmtu(struct dst_entry *dst, u32 mtu)
  */
 static struct dst_entry *dn_dst_check(struct dst_entry *dst, __u32 cookie)
 {
-	dst_release(dst);
 	return NULL;
 }
 
@@ -288,10 +286,9 @@ static int dn_insert_route(struct dn_route *rt, unsigned hash, struct dn_route *
 		if (compare_keys(&rth->fl, &rt->fl)) {
 			/* Put it first */
 			*rthp = rth->u.rt_next;
-			smp_wmb();
-			rth->u.rt_next = dn_rt_hash_table[hash].chain;
-			smp_wmb();
-			dn_rt_hash_table[hash].chain = rth;
+			rcu_assign_pointer(rth->u.rt_next,
+					   dn_rt_hash_table[hash].chain);
+			rcu_assign_pointer(dn_rt_hash_table[hash].chain, rth);
 
 			rth->u.dst.__use++;
 			dst_hold(&rth->u.dst);
@@ -305,10 +302,8 @@ static int dn_insert_route(struct dn_route *rt, unsigned hash, struct dn_route *
 		rthp = &rth->u.rt_next;
 	}
 
-	smp_wmb();
-	rt->u.rt_next = dn_rt_hash_table[hash].chain;
-	smp_wmb();
-	dn_rt_hash_table[hash].chain = rt;
+	rcu_assign_pointer(rt->u.rt_next, dn_rt_hash_table[hash].chain);
+	rcu_assign_pointer(dn_rt_hash_table[hash].chain, rt);
 	
 	dst_hold(&rt->u.dst);
 	rt->u.dst.__use++;
@@ -340,7 +335,7 @@ nothing_to_declare:
 	}
 }
 
-static spinlock_t dn_rt_flush_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(dn_rt_flush_lock);
 
 void dn_rt_cache_flush(int delay)
 {
@@ -684,9 +679,8 @@ out:
 	return NET_RX_DROP;
 }
 
-static int dn_output(struct sk_buff **pskb)
+static int dn_output(struct sk_buff *skb)
 {
-	struct sk_buff *skb = *pskb;
 	struct dst_entry *dst = skb->dst;
 	struct dn_route *rt = (struct dn_route *)dst;
 	struct net_device *dev = dst->dev;
@@ -797,11 +791,6 @@ static int dn_rt_bug(struct sk_buff *skb)
 	return NET_RX_BAD;
 }
 
-static int dn_rt_bug_out(struct sk_buff **pskb)
-{
-	return dn_rt_bug(*pskb);
-}
-
 static int dn_rt_set_next_hop(struct dn_route *rt, struct dn_fib_res *res)
 {
 	struct dn_fib_info *fi = res->fi;
@@ -828,7 +817,7 @@ static int dn_rt_set_next_hop(struct dn_route *rt, struct dn_fib_res *res)
 	if (rt->u.dst.metrics[RTAX_MTU-1] == 0 || 
             rt->u.dst.metrics[RTAX_MTU-1] > rt->u.dst.dev->mtu)
 		rt->u.dst.metrics[RTAX_MTU-1] = rt->u.dst.dev->mtu;
-	mss = dn_mss_from_pmtu(dev, dst_pmtu(&rt->u.dst));
+	mss = dn_mss_from_pmtu(dev, dst_mtu(&rt->u.dst));
 	if (rt->u.dst.metrics[RTAX_ADVMSS-1] == 0 ||
 	    rt->u.dst.metrics[RTAX_ADVMSS-1] > mss)
 		rt->u.dst.metrics[RTAX_ADVMSS-1] = mss;
@@ -997,7 +986,7 @@ source_ok:
 		 * here
 		 */
 		if (!try_hard) {
-			neigh = dn_neigh_lookup(&dn_neigh_table, &fl.fld_dst);
+			neigh = neigh_lookup_nodev(&dn_neigh_table, &fl.fld_dst);
 			if (neigh) {
 				if ((oldflp->oif && 
 				    (neigh->dev->ifindex != oldflp->oif)) ||
@@ -1174,9 +1163,9 @@ static int __dn_route_output_key(struct dst_entry **pprt, const struct flowi *fl
 	struct dn_route *rt = NULL;
 
 	if (!(flags & MSG_TRYHARD)) {
-		rcu_read_lock();
-		for(rt = dn_rt_hash_table[hash].chain; rt; rt = rt->u.rt_next) {
-			read_barrier_depends();
+		rcu_read_lock_bh();
+		for(rt = rcu_dereference(dn_rt_hash_table[hash].chain); rt;
+			rt = rcu_dereference(rt->u.rt_next)) {
 			if ((flp->fld_dst == rt->fl.fld_dst) &&
 			    (flp->fld_src == rt->fl.fld_src) &&
 #ifdef CONFIG_DECNET_ROUTE_FWMARK
@@ -1187,12 +1176,12 @@ static int __dn_route_output_key(struct dst_entry **pprt, const struct flowi *fl
 				rt->u.dst.lastuse = jiffies;
 				dst_hold(&rt->u.dst);
 				rt->u.dst.__use++;
-				rcu_read_unlock();
+				rcu_read_unlock_bh();
 				*pprt = &rt->u.dst;
 				return 0;
 			}
 		}
-		rcu_read_unlock();
+		rcu_read_unlock_bh();
 	}
 
 	return dn_route_output_slow(pprt, flp, flags);
@@ -1393,7 +1382,7 @@ make_route:
 	rt->u.dst.neighbour = neigh;
 	rt->u.dst.dev = out_dev;
 	rt->u.dst.lastuse = jiffies;
-	rt->u.dst.output = dn_rt_bug_out;
+	rt->u.dst.output = dn_rt_bug;
 	switch(res.type) {
 		case RTN_UNICAST:
 			rt->u.dst.input = dn_forward;
@@ -1454,8 +1443,8 @@ int dn_route_input(struct sk_buff *skb)
 		return 0;
 
 	rcu_read_lock();
-	for(rt = dn_rt_hash_table[hash].chain; rt != NULL; rt = rt->u.rt_next) {
-		read_barrier_depends();
+	for(rt = rcu_dereference(dn_rt_hash_table[hash].chain); rt != NULL;
+	    rt = rcu_dereference(rt->u.rt_next)) {
 		if ((rt->fl.fld_src == cb->src) &&
 	 	    (rt->fl.fld_dst == cb->dst) &&
 		    (rt->fl.oif == 0) &&
@@ -1647,21 +1636,22 @@ int dn_cache_dump(struct sk_buff *skb, struct netlink_callback *cb)
 			continue;
 		if (h > s_h)
 			s_idx = 0;
-		rcu_read_lock();
-		for(rt = dn_rt_hash_table[h].chain, idx = 0; rt; rt = rt->u.rt_next, idx++) {
-			read_barrier_depends();
+		rcu_read_lock_bh();
+		for(rt = rcu_dereference(dn_rt_hash_table[h].chain), idx = 0;
+			rt;
+			rt = rcu_dereference(rt->u.rt_next), idx++) {
 			if (idx < s_idx)
 				continue;
 			skb->dst = dst_clone(&rt->u.dst);
 			if (dn_rt_fill_info(skb, NETLINK_CB(cb->skb).pid,
 					cb->nlh->nlmsg_seq, RTM_NEWROUTE, 1) <= 0) {
 				dst_release(xchg(&skb->dst, NULL));
-				rcu_read_unlock();
+				rcu_read_unlock_bh();
 				goto done;
 			}
 			dst_release(xchg(&skb->dst, NULL));
 		}
-		rcu_read_unlock();
+		rcu_read_unlock_bh();
 	}
 
 done:
@@ -1681,26 +1671,25 @@ static struct dn_route *dn_rt_cache_get_first(struct seq_file *seq)
 	struct dn_rt_cache_iter_state *s = seq->private;
 
 	for(s->bucket = dn_rt_hash_mask; s->bucket >= 0; --s->bucket) {
-		rcu_read_lock();
+		rcu_read_lock_bh();
 		rt = dn_rt_hash_table[s->bucket].chain;
 		if (rt)
 			break;
-		rcu_read_unlock();
+		rcu_read_unlock_bh();
 	}
 	return rt;
 }
 
 static struct dn_route *dn_rt_cache_get_next(struct seq_file *seq, struct dn_route *rt)
 {
-	struct dn_rt_cache_iter_state *s = seq->private;
+	struct dn_rt_cache_iter_state *s = rcu_dereference(seq->private);
 
-	smp_read_barrier_depends();
 	rt = rt->u.rt_next;
 	while(!rt) {
-		rcu_read_unlock();
+		rcu_read_unlock_bh();
 		if (--s->bucket < 0)
 			break;
-		rcu_read_lock();
+		rcu_read_lock_bh();
 		rt = dn_rt_hash_table[s->bucket].chain;
 	}
 	return rt;
@@ -1727,7 +1716,7 @@ static void *dn_rt_cache_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 static void dn_rt_cache_seq_stop(struct seq_file *seq, void *v)
 {
 	if (v)
-		rcu_read_unlock();
+		rcu_read_unlock_bh();
 }
 
 static int dn_rt_cache_seq_show(struct seq_file *seq, void *v)
@@ -1832,7 +1821,7 @@ void __init dn_route_init(void)
 
 	dn_rt_hash_mask--;
         for(i = 0; i <= dn_rt_hash_mask; i++) {
-                dn_rt_hash_table[i].lock = SPIN_LOCK_UNLOCKED;
+                spin_lock_init(&dn_rt_hash_table[i].lock);
                 dn_rt_hash_table[i].chain = NULL;
         }
 

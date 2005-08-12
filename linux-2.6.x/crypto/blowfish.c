@@ -3,9 +3,9 @@
  *
  * Blowfish Cipher Algorithm, by Bruce Schneier.
  * http://www.counterpane.com/blowfish.html
- * 
- * Adapated from Kerneli implementation.
- * 
+ *
+ * Adapted from Kerneli implementation.
+ *
  * Copyright (c) Herbert Valerio Riedel <hvr@hvrlab.org>
  * Copyright (c) Kyle McMartin <kyle@debian.org>
  * Copyright (c) 2002 James Morris <jmorris@intercode.com.au>
@@ -316,7 +316,7 @@ static const u32 bf_sbox[256 * 4] = {
  * The blowfish encipher, processes 64-bit blocks.
  * NOTE: This function MUSTN'T respect endianess 
  */
-static inline void encrypt_block(struct bf_ctx *bctx, u32 *dst, u32 *src)
+static void encrypt_block(struct bf_ctx *bctx, u32 *dst, u32 *src)
 {
 	const u32 *P = bctx->p;
 	const u32 *S = bctx->s;
@@ -349,8 +349,8 @@ static inline void encrypt_block(struct bf_ctx *bctx, u32 *dst, u32 *src)
 
 static void bf_encrypt(void *ctx, u8 *dst, const u8 *src)
 {
-	const u32 *in_blk = (const u32 *)src;
-	u32 *const out_blk = (u32 *)dst;
+	const __be32 *in_blk = (const __be32 *)src;
+	__be32 *const out_blk = (__be32 *)dst;
 	u32 in32[2], out32[2];
 
 	in32[0] = be32_to_cpu(in_blk[0]);
@@ -362,8 +362,8 @@ static void bf_encrypt(void *ctx, u8 *dst, const u8 *src)
 
 static void bf_decrypt(void *ctx, u8 *dst, const u8 *src)
 {
-	const u32 *in_blk = (const u32 *)src;
-	u32 *const out_blk = (u32 *)dst;
+	const __be32 *in_blk = (const __be32 *)src;
+	__be32 *const out_blk = (__be32 *)dst;
 	const u32 *P = ((struct bf_ctx *)ctx)->p;
 	const u32 *S = ((struct bf_ctx *)ctx)->s;
 	u32 yl = be32_to_cpu(in_blk[0]);

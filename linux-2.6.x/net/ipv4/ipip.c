@@ -132,7 +132,7 @@ static struct ip_tunnel *tunnels_l[HASH_SIZE];
 static struct ip_tunnel *tunnels_wc[1];
 static struct ip_tunnel **tunnels[4] = { tunnels_wc, tunnels_l, tunnels_r, tunnels_r_l };
 
-static rwlock_t ipip_lock = RW_LOCK_UNLOCKED;
+static DEFINE_RWLOCK(ipip_lock);
 
 static struct ip_tunnel * ipip_tunnel_lookup(u32 remote, u32 local)
 {
@@ -246,7 +246,6 @@ static struct ip_tunnel * ipip_tunnel_locate(struct ip_tunnel_parm *parms, int c
 	nt = dev->priv;
 	SET_MODULE_OWNER(dev);
 	dev->init = ipip_tunnel_init;
-	dev->destructor = free_netdev;
 	nt->parms = *parms;
 
 	if (register_netdevice(dev) < 0) {
@@ -437,7 +436,7 @@ out:
 
 	/* change mtu on this route */
 	if (type == ICMP_DEST_UNREACH && code == ICMP_FRAG_NEEDED) {
-		if (rel_info > dst_pmtu(skb2->dst)) {
+		if (rel_info > dst_mtu(skb2->dst)) {
 			kfree_skb(skb2);
 			return;
 		}
@@ -461,8 +460,7 @@ static inline void ipip_ecn_decapsulate(struct iphdr *outer_iph, struct sk_buff 
 {
 	struct iphdr *inner_iph = skb->nh.iph;
 
-	if (INET_ECN_is_ce(outer_iph->tos) &&
-	    INET_ECN_is_not_ce(inner_iph->tos))
+	if (INET_ECN_is_ce(outer_iph->tos))
 		IP_ECN_set_ce(inner_iph);
 }
 
@@ -571,9 +569,9 @@ static int ipip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	if (tiph->frag_off)
-		mtu = dst_pmtu(&rt->u.dst) - sizeof(struct iphdr);
+		mtu = dst_mtu(&rt->u.dst) - sizeof(struct iphdr);
 	else
-		mtu = skb->dst ? dst_pmtu(skb->dst) : dev->mtu;
+		mtu = skb->dst ? dst_mtu(skb->dst) : dev->mtu;
 
 	if (mtu < 68) {
 		tunnel->stat.collisions++;
@@ -785,6 +783,7 @@ static void ipip_tunnel_setup(struct net_device *dev)
 	dev->get_stats		= ipip_tunnel_get_stats;
 	dev->do_ioctl		= ipip_tunnel_ioctl;
 	dev->change_mtu		= ipip_tunnel_change_mtu;
+	dev->destructor		= free_netdev;
 
 	dev->type		= ARPHRD_TUNNEL;
 	dev->hard_header_len 	= LL_MAX_HEADER + sizeof(struct iphdr);
@@ -877,18 +876,19 @@ static int __init ipip_init(void)
 					   ipip_tunnel_setup);
 	if (!ipip_fb_tunnel_dev) {
 		err = -ENOMEM;
-		goto fail;
+		goto err1;
 	}
 
 	ipip_fb_tunnel_dev->init = ipip_fb_tunnel_init;
 
 	if ((err = register_netdev(ipip_fb_tunnel_dev)))
-	    goto fail;
+		goto err2;
  out:
 	return err;
- fail:
-	xfrm4_tunnel_deregister(&ipip_handler);
+ err2:
 	free_netdev(ipip_fb_tunnel_dev);
+ err1:
+	xfrm4_tunnel_deregister(&ipip_handler);
 	goto out;
 }
 

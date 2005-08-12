@@ -248,13 +248,6 @@ Summary of ide driver parameters for kernel command line
  			  allowing ide-floppy, ide-tape, and ide-cdrom|writers
  			  to use ide-scsi emulation on a device specific option.
 
- "hdx=stroke"		: Should you have a system w/ an AWARD Bios and your
-			  drives are larger than 32GB and it will not boot,
-			  one is required to perform a few OEM operations first.
-			  The option is called "stroke" because it allows one
-			  to "soft clip" the drive to work around a barrier
-			  limit.
-
  "idebus=xx"		: inform IDE driver of VESA/PCI bus speed in MHz,
 			  where "xx" is between 20 and 66 inclusive,
 			  used when tuning chipset PIO modes.
@@ -304,7 +297,9 @@ Summary of ide driver parameters for kernel command line
 
  "ide=reverse"		: formerly called to pci sub-system, but now local.
 
-The following are valid ONLY on ide0 (except dc4030), which usually corresponds
+ "ide=nodma"		: disable DMA globally for the IDE subsystem.
+
+The following are valid ONLY on ide0, which usually corresponds
 to the first ATA interface found on the particular host, and the defaults for
 the base,ctl ports must not be altered.
 
@@ -315,7 +310,7 @@ the base,ctl ports must not be altered.
  "ide0=qd65xx"		: probe/support qd65xx interface
  "ide0=ali14xx"		: probe/support ali14xx chipsets (ALI M1439/M1443/M1445)
  "ide0=umc8672"		: probe/support umc8672 chipsets
- "idex=dc4030"		: probe/support Promise DC4030VL interface
+
  "ide=doubler"		: probe/support IDE doublers on Amiga
 
 There may be more options than shown -- use the source, Luke!

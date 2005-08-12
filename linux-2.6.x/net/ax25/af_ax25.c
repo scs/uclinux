@@ -52,7 +52,7 @@
 
 
 HLIST_HEAD(ax25_list);
-spinlock_t ax25_list_lock = SPIN_LOCK_UNLOCKED;
+DEFINE_SPINLOCK(ax25_list_lock);
 
 static struct proto_ops ax25_proto_ops;
 
@@ -180,8 +180,7 @@ struct sock *ax25_get_socket(ax25_address *my_addr, ax25_address *dest_addr,
 		    !ax25cmp(&s->dest_addr, dest_addr) &&
 		    s->sk->sk_type == type) {
 			sk = s->sk;
-			/* XXX Sleeps with spinlock held, use refcounts instead. XXX */
-			lock_sock(sk);
+			sock_hold(sk);
 			break;
 		}
 	}
@@ -307,9 +306,7 @@ void ax25_destroy_socket(ax25_cb *ax25)
 
 			kfree_skb(skb);
 		}
-		while ((skb = skb_dequeue(&ax25->sk->sk_write_queue)) != NULL) {
-			kfree_skb(skb);
-		}
+		skb_queue_purge(&ax25->sk->sk_write_queue);
 	}
 
 	if (ax25->sk != NULL) {
@@ -763,7 +760,17 @@ out:
 	return res;
 }
 
-int ax25_create(struct socket *sock, int protocol)
+/*
+ * XXX: when creating ax25_sock we should update the .obj_size setting
+ * below.
+ */
+static struct proto ax25_proto = {
+	.name	  = "AX25",
+	.owner	  = THIS_MODULE,
+	.obj_size = sizeof(struct sock),
+};
+
+static int ax25_create(struct socket *sock, int protocol)
 {
 	struct sock *sk;
 	ax25_cb *ax25;
@@ -813,7 +820,7 @@ int ax25_create(struct socket *sock, int protocol)
 		return -ESOCKTNOSUPPORT;
 	}
 
-	if ((sk = sk_alloc(PF_AX25, GFP_ATOMIC, 1, NULL)) == NULL)
+	if ((sk = sk_alloc(PF_AX25, GFP_ATOMIC, &ax25_proto, 1)) == NULL)
 		return -ENOMEM;
 
 	ax25 = sk->sk_protinfo = ax25_create_cb();
@@ -823,7 +830,6 @@ int ax25_create(struct socket *sock, int protocol)
 	}
 
 	sock_init_data(sock, sk);
-	sk_set_owner(sk, THIS_MODULE);
 
 	sk->sk_destruct = ax25_free_sock;
 	sock->ops    = &ax25_proto_ops;
@@ -839,7 +845,7 @@ struct sock *ax25_make_new(struct sock *osk, struct ax25_dev *ax25_dev)
 	struct sock *sk;
 	ax25_cb *ax25, *oax25;
 
-	if ((sk = sk_alloc(PF_AX25, GFP_ATOMIC, 1, NULL)) == NULL)
+	if ((sk = sk_alloc(PF_AX25, GFP_ATOMIC, osk->sk_prot, 1)) == NULL)
 		return NULL;
 
 	if ((ax25 = ax25_create_cb()) == NULL) {
@@ -859,7 +865,6 @@ struct sock *ax25_make_new(struct sock *osk, struct ax25_dev *ax25_dev)
 	}
 
 	sock_init_data(NULL, sk);
-	sk_set_owner(sk, THIS_MODULE);
 
 	sk->sk_destruct = ax25_free_sock;
 	sk->sk_type     = osk->sk_type;
@@ -868,10 +873,14 @@ struct sock *ax25_make_new(struct sock *osk, struct ax25_dev *ax25_dev)
 	sk->sk_protocol = osk->sk_protocol;
 	sk->sk_rcvbuf   = osk->sk_rcvbuf;
 	sk->sk_sndbuf   = osk->sk_sndbuf;
-	sk->sk_debug    = osk->sk_debug;
 	sk->sk_state    = TCP_ESTABLISHED;
 	sk->sk_sleep    = osk->sk_sleep;
-	sk->sk_zapped   = osk->sk_zapped;
+
+	if (sock_flag(osk, SOCK_DBG))
+		sock_set_flag(sk, SOCK_DBG);
+
+	if (sock_flag(osk, SOCK_ZAPPED))
+		sock_set_flag(sk, SOCK_ZAPPED);
 
 	oax25 = ax25_sk(osk);
 
@@ -1025,7 +1034,7 @@ static int ax25_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 	lock_sock(sk);
 
 	ax25 = ax25_sk(sk);
-	if (!sk->sk_zapped) {
+	if (!sock_flag(sk, SOCK_ZAPPED)) {
 		err = -EINVAL;
 		goto out;
 	}
@@ -1059,7 +1068,7 @@ static int ax25_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 
 done:
 	ax25_cb_add(ax25);
-	sk->sk_zapped = 0;
+	sock_reset_flag(sk, SOCK_ZAPPED);
 
 out:
 	release_sock(sk);
@@ -1172,17 +1181,20 @@ static int ax25_connect(struct socket *sock, struct sockaddr *uaddr,
 	 *	the socket is already bound, check to see if the device has
 	 *	been filled in, error if it hasn't.
 	 */
-	if (sk->sk_zapped) {
+	if (sock_flag(sk, SOCK_ZAPPED)) {
 		/* check if we can remove this feature. It is broken. */
 		printk(KERN_WARNING "ax25_connect(): %s uses autobind, please contact jreuter@yaina.de\n",
 			current->comm);
-		if ((err = ax25_rt_autobind(ax25, &fsa->fsa_ax25.sax25_call)) < 0)
+		if ((err = ax25_rt_autobind(ax25, &fsa->fsa_ax25.sax25_call)) < 0) {
+			kfree(digi);
 			goto out;
+		}
 
 		ax25_fillin_cb(ax25, ax25->ax25_dev);
 		ax25_cb_add(ax25);
 	} else {
 		if (ax25->ax25_dev == NULL) {
+			kfree(digi);
 			err = -EHOSTUNREACH;
 			goto out;
 		}
@@ -1191,8 +1203,7 @@ static int ax25_connect(struct socket *sock, struct sockaddr *uaddr,
 	if (sk->sk_type == SOCK_SEQPACKET &&
 	    (ax25t=ax25_find_cb(&ax25->source_addr, &fsa->fsa_ax25.sax25_call, digi,
 		    	 ax25->ax25_dev->dev))) {
-		if (digi != NULL)
-			kfree(digi);
+		kfree(digi);
 		err = -EADDRINUSE;		/* Already such a connection */
 		ax25_cb_put(ax25t);
 		goto out;
@@ -1336,7 +1347,6 @@ static int ax25_accept(struct socket *sock, struct socket *newsock, int flags)
 	remove_wait_queue(sk->sk_sleep, &wait);
 
 	newsk		 = skb->sk;
-	newsk->sk_pair	 = NULL;
 	newsk->sk_socket = newsock;
 	newsk->sk_sleep	 = &newsock->wait;
 
@@ -1419,7 +1429,7 @@ static int ax25_sendmsg(struct kiocb *iocb, struct socket *sock,
 	lock_sock(sk);
 	ax25 = ax25_sk(sk);
 
-	if (sk->sk_zapped) {
+	if (sock_flag(sk, SOCK_ZAPPED)) {
 		err = -EADDRNOTAVAIL;
 		goto out;
 	}
@@ -1577,9 +1587,7 @@ static int ax25_sendmsg(struct kiocb *iocb, struct socket *sock,
 	*asmptr = AX25_UI;
 
 	/* Datagram frames go straight out of the door as UI */
-	skb->dev = ax25->ax25_dev->dev;
-
-	ax25_queue_xmit(skb);
+	ax25_queue_xmit(skb, ax25->ax25_dev->dev);
 
 	err = len;
 
@@ -1996,6 +2004,11 @@ EXPORT_SYMBOL(ax25_display_timer);
 
 static int __init ax25_init(void)
 {
+	int rc = proto_register(&ax25_proto, 0);
+
+	if (rc != 0)
+		goto out;
+
 	sock_register(&ax25_family_ops);
 	dev_add_pack(&ax25_packet_type);
 	register_netdevice_notifier(&ax25_dev_notifier);
@@ -2004,8 +2017,8 @@ static int __init ax25_init(void)
 	proc_net_fops_create("ax25_route", S_IRUGO, &ax25_route_fops);
 	proc_net_fops_create("ax25", S_IRUGO, &ax25_info_fops);
 	proc_net_fops_create("ax25_calls", S_IRUGO, &ax25_uid_fops);
-
-	return 0;
+out:
+	return rc;
 }
 module_init(ax25_init);
 
@@ -2030,5 +2043,6 @@ static void __exit ax25_exit(void)
 	dev_remove_pack(&ax25_packet_type);
 
 	sock_unregister(PF_AX25);
+	proto_unregister(&ax25_proto);
 }
 module_exit(ax25_exit);

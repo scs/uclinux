@@ -223,6 +223,11 @@ If you are running v0.1.17 or earlier, you should upgrade to
 version v0.99.0 or higher. Running old versions may cause problems
 with programs using shared memory.
 
+udev
+----
+udev is a userspace application for populating /dev dynamically with
+only entries for devices actually present. udev replaces devfs.
+
 Networking
 ==========
 
@@ -334,7 +339,7 @@ o  <http://prdownloads.sourceforge.net/e2fsprogs/e2fsprogs-1.29.tar.gz>
 
 JFSutils
 --------
-o  <http://oss.software.ibm.com/jfs>
+o  <http://jfs.sourceforge.net/>
 
 Reiserfsprogs
 -------------
@@ -352,13 +357,13 @@ Quota-tools
 ----------
 o  <http://sourceforge.net/projects/linuxquota/>
 
-Jade
-----
-o  <ftp://ftp.jclark.com/pub/jade/jade-1.2.1.tar.gz>
-
 DocBook Stylesheets
 -------------------
 o  <http://nwalsh.com/docbook/dsssl/>
+
+XMLTO XSLT Frontend
+-------------------
+o  <http://cyberelk.net/tim/xmlto/>
 
 Intel P6 microcode
 ------------------
@@ -367,6 +372,10 @@ o  <http://www.urbanmyth.org/microcode/>
 Powertweak
 ----------
 o  <http://powertweak.sourceforge.net/>
+
+udev
+----
+o <http://www.kernel.org/pub/linux/utils/kernel/hotplug/udev.html>
 
 Networking
 **********
@@ -398,5 +407,4 @@ o  <http://oprofile.sf.net/download/>
 NFS-Utils
 ---------
 o  <http://nfs.sourceforge.net/>
-
 

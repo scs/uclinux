@@ -13,6 +13,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/pfkeyv2.h>
+#include <linux/crypto.h>
 #include <net/xfrm.h>
 #if defined(CONFIG_INET_AH) || defined(CONFIG_INET_AH_MODULE) || defined(CONFIG_INET6_AH) || defined(CONFIG_INET6_AH_MODULE)
 #include <net/ah.h>
@@ -315,6 +316,7 @@ struct xfrm_algo_desc *xfrm_aalg_get_byid(int alg_id)
 	}
 	return NULL;
 }
+EXPORT_SYMBOL_GPL(xfrm_aalg_get_byid);
 
 struct xfrm_algo_desc *xfrm_ealg_get_byid(int alg_id)
 {
@@ -330,6 +332,7 @@ struct xfrm_algo_desc *xfrm_ealg_get_byid(int alg_id)
 	}
 	return NULL;
 }
+EXPORT_SYMBOL_GPL(xfrm_ealg_get_byid);
 
 struct xfrm_algo_desc *xfrm_calg_get_byid(int alg_id)
 {
@@ -345,60 +348,54 @@ struct xfrm_algo_desc *xfrm_calg_get_byid(int alg_id)
 	}
 	return NULL;
 }
+EXPORT_SYMBOL_GPL(xfrm_calg_get_byid);
 
-struct xfrm_algo_desc *xfrm_aalg_get_byname(char *name)
+static struct xfrm_algo_desc *xfrm_get_byname(struct xfrm_algo_desc *list,
+					      int entries, char *name,
+					      int probe)
 {
-	int i;
+	int i, status;
 
 	if (!name)
 		return NULL;
 
-	for (i=0; i < aalg_entries(); i++) {
-		if (strcmp(name, aalg_list[i].name) == 0) {
-			if (aalg_list[i].available)
-				return &aalg_list[i];
-			else
-				break;
-		}
+	for (i = 0; i < entries; i++) {
+		if (strcmp(name, list[i].name))
+			continue;
+
+		if (list[i].available)
+			return &list[i];
+
+		if (!probe)
+			break;
+
+		status = crypto_alg_available(name, 0);
+		if (!status)
+			break;
+
+		list[i].available = status;
+		return &list[i];
 	}
 	return NULL;
 }
 
-struct xfrm_algo_desc *xfrm_ealg_get_byname(char *name)
+struct xfrm_algo_desc *xfrm_aalg_get_byname(char *name, int probe)
 {
-	int i;
-
-	if (!name)
-		return NULL;
-
-	for (i=0; i < ealg_entries(); i++) {
-		if (strcmp(name, ealg_list[i].name) == 0) {
-			if (ealg_list[i].available)
-				return &ealg_list[i];
-			else
-				break;
-		}
-	}
-	return NULL;
+	return xfrm_get_byname(aalg_list, aalg_entries(), name, probe);
 }
+EXPORT_SYMBOL_GPL(xfrm_aalg_get_byname);
 
-struct xfrm_algo_desc *xfrm_calg_get_byname(char *name)
+struct xfrm_algo_desc *xfrm_ealg_get_byname(char *name, int probe)
 {
-	int i;
-
-	if (!name)
-		return NULL;
-
-	for (i=0; i < calg_entries(); i++) {
-		if (strcmp(name, calg_list[i].name) == 0) {
-			if (calg_list[i].available)
-				return &calg_list[i];
-			else
-				break;
-		}
-	}
-	return NULL;
+	return xfrm_get_byname(ealg_list, ealg_entries(), name, probe);
 }
+EXPORT_SYMBOL_GPL(xfrm_ealg_get_byname);
+
+struct xfrm_algo_desc *xfrm_calg_get_byname(char *name, int probe)
+{
+	return xfrm_get_byname(calg_list, calg_entries(), name, probe);
+}
+EXPORT_SYMBOL_GPL(xfrm_calg_get_byname);
 
 struct xfrm_algo_desc *xfrm_aalg_get_byidx(unsigned int idx)
 {
@@ -407,6 +404,7 @@ struct xfrm_algo_desc *xfrm_aalg_get_byidx(unsigned int idx)
 
 	return &aalg_list[idx];
 }
+EXPORT_SYMBOL_GPL(xfrm_aalg_get_byidx);
 
 struct xfrm_algo_desc *xfrm_ealg_get_byidx(unsigned int idx)
 {
@@ -415,14 +413,7 @@ struct xfrm_algo_desc *xfrm_ealg_get_byidx(unsigned int idx)
 
 	return &ealg_list[idx];
 }
-
-struct xfrm_algo_desc *xfrm_calg_get_byidx(unsigned int idx)
-{
-	if (idx >= calg_entries())
-		return NULL;
-
-	return &calg_list[idx];
-}
+EXPORT_SYMBOL_GPL(xfrm_ealg_get_byidx);
 
 /*
  * Probe for the availability of crypto algorithms, and set the available
@@ -455,6 +446,7 @@ void xfrm_probe_algs(void)
 	}
 #endif
 }
+EXPORT_SYMBOL_GPL(xfrm_probe_algs);
 
 int xfrm_count_auth_supported(void)
 {
@@ -465,6 +457,7 @@ int xfrm_count_auth_supported(void)
 			n++;
 	return n;
 }
+EXPORT_SYMBOL_GPL(xfrm_count_auth_supported);
 
 int xfrm_count_enc_supported(void)
 {
@@ -475,6 +468,7 @@ int xfrm_count_enc_supported(void)
 			n++;
 	return n;
 }
+EXPORT_SYMBOL_GPL(xfrm_count_enc_supported);
 
 /* Move to common area: it is shared with AH. */
 
@@ -549,6 +543,7 @@ void skb_icv_walk(const struct sk_buff *skb, struct crypto_tfm *tfm,
 	if (len)
 		BUG();
 }
+EXPORT_SYMBOL_GPL(skb_icv_walk);
 
 #if defined(CONFIG_INET_ESP) || defined(CONFIG_INET_ESP_MODULE) || defined(CONFIG_INET6_ESP) || defined(CONFIG_INET6_ESP_MODULE)
 
@@ -703,7 +698,7 @@ int skb_cow_data(struct sk_buff *skb, int tailbits, struct sk_buff **trailer)
 				return -ENOMEM;
 
 			if (skb1->sk)
-				skb_set_owner_w(skb, skb1->sk);
+				skb_set_owner_w(skb2, skb1->sk);
 
 			/* Looking around. Are we still alive?
 			 * OK, link new skb, drop old one */

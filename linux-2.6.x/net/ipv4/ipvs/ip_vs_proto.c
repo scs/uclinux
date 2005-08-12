@@ -45,7 +45,7 @@ static struct ip_vs_protocol *ip_vs_proto_table[IP_VS_PROTO_TAB_SIZE];
 /*
  *	register an ipvs protocol
  */
-int register_ip_vs_protocol(struct ip_vs_protocol *pp)
+static int register_ip_vs_protocol(struct ip_vs_protocol *pp)
 {
 	unsigned hash = IP_VS_PROTO_HASH(pp->protocol);
 
@@ -62,7 +62,7 @@ int register_ip_vs_protocol(struct ip_vs_protocol *pp)
 /*
  *	unregister an ipvs protocol
  */
-int unregister_ip_vs_protocol(struct ip_vs_protocol *pp)
+static int unregister_ip_vs_protocol(struct ip_vs_protocol *pp)
 {
 	struct ip_vs_protocol **pp_p;
 	unsigned hash = IP_VS_PROTO_HASH(pp->protocol);
@@ -166,27 +166,33 @@ ip_vs_tcpudp_debug_packet(struct ip_vs_protocol *pp,
 			  const char *msg)
 {
 	char buf[128];
-	__u16 ports[2];
-	struct iphdr iph;
+	struct iphdr _iph, *ih;
 
-	if (skb_copy_bits(skb, offset, &iph, sizeof(iph)) < 0)
+	ih = skb_header_pointer(skb, offset, sizeof(_iph), &_iph);
+	if (ih == NULL)
 		sprintf(buf, "%s TRUNCATED", pp->name);
-	else if (iph.frag_off & __constant_htons(IP_OFFSET))
+	else if (ih->frag_off & __constant_htons(IP_OFFSET))
 		sprintf(buf, "%s %u.%u.%u.%u->%u.%u.%u.%u frag",
-			pp->name, NIPQUAD(iph.saddr),
-			NIPQUAD(iph.daddr));
-	else if (skb_copy_bits(skb, offset + iph.ihl*4, ports, sizeof(ports)) < 0)
-		sprintf(buf, "%s TRUNCATED %u.%u.%u.%u->%u.%u.%u.%u",
-			pp->name,
-			NIPQUAD(iph.saddr),
-			NIPQUAD(iph.daddr));
-	else
-		sprintf(buf, "%s %u.%u.%u.%u:%u->%u.%u.%u.%u:%u",
-			pp->name,
-			NIPQUAD(iph.saddr),
-			ntohs(ports[0]),
-			NIPQUAD(iph.daddr),
-			ntohs(ports[1]));
+			pp->name, NIPQUAD(ih->saddr),
+			NIPQUAD(ih->daddr));
+	else {
+		__u16 _ports[2], *pptr
+;
+		pptr = skb_header_pointer(skb, offset + ih->ihl*4,
+					  sizeof(_ports), _ports);
+		if (pptr == NULL)
+			sprintf(buf, "%s TRUNCATED %u.%u.%u.%u->%u.%u.%u.%u",
+				pp->name,
+				NIPQUAD(ih->saddr),
+				NIPQUAD(ih->daddr));
+		else
+			sprintf(buf, "%s %u.%u.%u.%u:%u->%u.%u.%u.%u:%u",
+				pp->name,
+				NIPQUAD(ih->saddr),
+				ntohs(pptr[0]),
+				NIPQUAD(ih->daddr),
+				ntohs(pptr[1]));
+	}
 
 	printk(KERN_DEBUG "IPVS: %s: %s\n", msg, buf);
 }
@@ -209,9 +215,6 @@ int ip_vs_protocol_init(void)
 #endif
 #ifdef CONFIG_IP_VS_PROTO_UDP
 	REGISTER_PROTOCOL(&ip_vs_protocol_udp);
-#endif
-#ifdef CONFIG_IP_VS_PROTO_ICMP
-	REGISTER_PROTOCOL(&ip_vs_protocol_icmp);
 #endif
 #ifdef CONFIG_IP_VS_PROTO_AH
 	REGISTER_PROTOCOL(&ip_vs_protocol_ah);

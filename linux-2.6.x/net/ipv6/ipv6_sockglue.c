@@ -63,7 +63,7 @@ static struct packet_type ipv6_packet_type = {
 };
 
 struct ip6_ra_chain *ip6_ra_chain;
-rwlock_t ip6_ra_lock = RW_LOCK_UNLOCKED;
+DEFINE_RWLOCK(ip6_ra_lock);
 
 int ip6_ra_control(struct sock *sk, int sel, void (*destructor)(struct sock *))
 {
@@ -164,7 +164,7 @@ int ipv6_setsockopt(struct sock *sk, int level, int optname,
 			ipv6_sock_mc_close(sk);
 
 			if (sk->sk_protocol == IPPROTO_TCP) {
-				struct tcp_opt *tp = tcp_sk(sk);
+				struct tcp_sock *tp = tcp_sk(sk);
 
 				local_bh_disable();
 				sock_prot_dec_use(sk->sk_prot);
@@ -281,7 +281,7 @@ update:
 		retv = 0;
 		if (sk->sk_type == SOCK_STREAM) {
 			if (opt) {
-				struct tcp_opt *tp = tcp_sk(sk);
+				struct tcp_sock *tp = tcp_sk(sk);
 				if (!((1 << sk->sk_state) &
 				      (TCPF_LISTEN | TCPF_CLOSE))
 				    && inet_sk(sk)->daddr != LOOPBACK4_IPV6) {
@@ -607,7 +607,7 @@ int ipv6_getsockopt(struct sock *sk, int level, int optname,
 		lock_sock(sk);
 		dst = sk_dst_get(sk);
 		if (dst) {
-			val = dst_pmtu(dst) - dst->header_len;
+			val = dst_mtu(dst);
 			dst_release(dst);
 		}
 		release_sock(sk);
@@ -698,7 +698,7 @@ void __init ipv6_packet_init(void)
 	dev_add_pack(&ipv6_packet_type);
 }
 
-void __exit ipv6_packet_cleanup(void)
+void ipv6_packet_cleanup(void)
 {
 	dev_remove_pack(&ipv6_packet_type);
 }

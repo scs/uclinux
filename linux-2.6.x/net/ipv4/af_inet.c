@@ -7,7 +7,7 @@
  *
  * Version:	$Id$
  *
- * Authors:	Ross Biro, <bir7@leland.Stanford.Edu>
+ * Authors:	Ross Biro
  *		Fred N. van Kempen, <waltje@uWalt.NL.Mugnet.ORG>
  *		Florian La Roche, <flla@stud.uni-sb.de>
  *		Alan Cox, <A.Cox@swansea.ac.uk>
@@ -73,7 +73,6 @@
 #include <linux/socket.h>
 #include <linux/in.h>
 #include <linux/kernel.h>
-#include <linux/major.h>
 #include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/timer.h>
@@ -121,22 +120,17 @@ atomic_t inet_sock_nr;
 
 extern void ip_mc_drop_socket(struct sock *sk);
 
-/* Per protocol sock slabcache */
-kmem_cache_t *tcp_sk_cachep;
-static kmem_cache_t *udp_sk_cachep;
-static kmem_cache_t *raw4_sk_cachep;
-
 /* The inetsw table contains everything that inet_create needs to
  * build a new socket.
  */
 static struct list_head inetsw[SOCK_MAX];
-static spinlock_t inetsw_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(inetsw_lock);
 
 /* New destruction routine */
 
 void inet_sock_destruct(struct sock *sk)
 {
-	struct inet_opt *inet = inet_sk(sk);
+	struct inet_sock *inet = inet_sk(sk);
 
 	__skb_queue_purge(&sk->sk_receive_queue);
 	__skb_queue_purge(&sk->sk_error_queue);
@@ -178,7 +172,7 @@ void inet_sock_destruct(struct sock *sk)
 
 static int inet_autobind(struct sock *sk)
 {
-	struct inet_opt *inet;
+	struct inet_sock *inet;
 	/* We may need to bind the socket. */
 	lock_sock(sk);
 	inet = inet_sk(sk);
@@ -228,28 +222,6 @@ out:
 	return err;
 }
 
-static __inline__ kmem_cache_t *inet_sk_slab(int protocol)
-{
-	kmem_cache_t* rc = tcp_sk_cachep;
-
-	if (protocol == IPPROTO_UDP)
-		rc = udp_sk_cachep;
-	else if (protocol == IPPROTO_RAW)
-		rc = raw4_sk_cachep;
-	return rc;
-}
-
-static __inline__ int inet_sk_size(int protocol)
-{
-	int rc = sizeof(struct tcp_sock);
-
-	if (protocol == IPPROTO_UDP)
-		rc = sizeof(struct udp_sock);
-	else if (protocol == IPPROTO_RAW)
-		rc = sizeof(struct raw_sock);
-	return rc;
-}
-
 /*
  *	Create an inet socket.
  */
@@ -259,14 +231,13 @@ static int inet_create(struct socket *sock, int protocol)
 	struct sock *sk;
 	struct list_head *p;
 	struct inet_protosw *answer;
-	struct inet_opt *inet;
-	int err = -ENOBUFS;
+	struct inet_sock *inet;
+	struct proto *answer_prot;
+	unsigned char answer_flags;
+	char answer_no_check;
+	int err;
 
 	sock->state = SS_UNCONNECTED;
-	sk = sk_alloc(PF_INET, GFP_KERNEL, inet_sk_size(protocol),
-		      inet_sk_slab(protocol));
-	if (!sk)
-		goto out;
 
 	/* Look for the requested type/protocol pair. */
 	answer = NULL;
@@ -292,20 +263,31 @@ static int inet_create(struct socket *sock, int protocol)
 
 	err = -ESOCKTNOSUPPORT;
 	if (!answer)
-		goto out_sk_free;
+		goto out_rcu_unlock;
 	err = -EPERM;
 	if (answer->capability > 0 && !capable(answer->capability))
-		goto out_sk_free;
+		goto out_rcu_unlock;
 	err = -EPROTONOSUPPORT;
 	if (!protocol)
-		goto out_sk_free;
-	err = 0;
+		goto out_rcu_unlock;
+
 	sock->ops = answer->ops;
-	sk->sk_prot = answer->prot;
-	sk->sk_no_check = answer->no_check;
-	if (INET_PROTOSW_REUSE & answer->flags)
-		sk->sk_reuse = 1;
+	answer_prot = answer->prot;
+	answer_no_check = answer->no_check;
+	answer_flags = answer->flags;
 	rcu_read_unlock();
+
+	BUG_TRAP(answer_prot->slab != NULL);
+
+	err = -ENOBUFS;
+	sk = sk_alloc(PF_INET, GFP_KERNEL, answer_prot, 1);
+	if (sk == NULL)
+		goto out;
+
+	err = 0;
+	sk->sk_no_check = answer_no_check;
+	if (INET_PROTOSW_REUSE & answer_flags)
+		sk->sk_reuse = 1;
 
 	inet = inet_sk(sk);
 
@@ -323,10 +305,8 @@ static int inet_create(struct socket *sock, int protocol)
 	inet->id = 0;
 
 	sock_init_data(sock, sk);
-	sk_set_owner(sk, THIS_MODULE);
 
 	sk->sk_destruct	   = inet_sock_destruct;
-	sk->sk_zapped	   = 0;
 	sk->sk_family	   = PF_INET;
 	sk->sk_protocol	   = protocol;
 	sk->sk_backlog_rcv = sk->sk_prot->backlog_rcv;
@@ -359,9 +339,8 @@ static int inet_create(struct socket *sock, int protocol)
 	}
 out:
 	return err;
-out_sk_free:
+out_rcu_unlock:
 	rcu_read_unlock();
-	sk_free(sk);
 	goto out;
 }
 
@@ -405,7 +384,7 @@ int inet_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 {
 	struct sockaddr_in *addr = (struct sockaddr_in *)uaddr;
 	struct sock *sk = sock->sk;
-	struct inet_opt *inet = inet_sk(sk);
+	struct inet_sock *inet = inet_sk(sk);
 	unsigned short snum;
 	int chk_addr_ret;
 	int err;
@@ -639,7 +618,7 @@ int inet_getname(struct socket *sock, struct sockaddr *uaddr,
 			int *uaddr_len, int peer)
 {
 	struct sock *sk		= sock->sk;
-	struct inet_opt *inet	= inet_sk(sk);
+	struct inet_sock *inet	= inet_sk(sk);
 	struct sockaddr_in *sin	= (struct sockaddr_in *)uaddr;
 
 	sin->sin_family = AF_INET;
@@ -675,7 +654,7 @@ int inet_sendmsg(struct kiocb *iocb, struct socket *sock, struct msghdr *msg,
 }
 
 
-ssize_t inet_sendpage(struct socket *sock, struct page *page, int offset, size_t size, int flags)
+static ssize_t inet_sendpage(struct socket *sock, struct page *page, int offset, size_t size, int flags)
 {
 	struct sock *sk = sock->sk;
 
@@ -825,6 +804,31 @@ struct proto_ops inet_dgram_ops = {
 	.socketpair =	sock_no_socketpair,
 	.accept =	sock_no_accept,
 	.getname =	inet_getname,
+	.poll =		udp_poll,
+	.ioctl =	inet_ioctl,
+	.listen =	sock_no_listen,
+	.shutdown =	inet_shutdown,
+	.setsockopt =	sock_common_setsockopt,
+	.getsockopt =	sock_common_getsockopt,
+	.sendmsg =	inet_sendmsg,
+	.recvmsg =	sock_common_recvmsg,
+	.mmap =		sock_no_mmap,
+	.sendpage =	inet_sendpage,
+};
+
+/*
+ * For SOCK_RAW sockets; should be the same as inet_dgram_ops but without
+ * udp_poll
+ */
+static struct proto_ops inet_sockraw_ops = {
+	.family =	PF_INET,
+	.owner =	THIS_MODULE,
+	.release =	inet_release,
+	.bind =		inet_bind,
+	.connect =	inet_dgram_connect,
+	.socketpair =	sock_no_socketpair,
+	.accept =	sock_no_accept,
+	.getname =	inet_getname,
 	.poll =		datagram_poll,
 	.ioctl =	inet_ioctl,
 	.listen =	sock_no_listen,
@@ -837,7 +841,7 @@ struct proto_ops inet_dgram_ops = {
 	.sendpage =	inet_sendpage,
 };
 
-struct net_proto_family inet_family_ops = {
+static struct net_proto_family inet_family_ops = {
 	.family = PF_INET,
 	.create = inet_create,
 	.owner	= THIS_MODULE,
@@ -877,7 +881,7 @@ static struct inet_protosw inetsw_array[] =
                .type =       SOCK_RAW,
                .protocol =   IPPROTO_IP,	/* wild card */
                .prot =       &raw_prot,
-               .ops =        &inet_dgram_ops,
+               .ops =        &inet_sockraw_ops,
                .capability = CAP_NET_RAW,
                .no_check =   UDP_CSUM_DEFAULT,
                .flags =      INET_PROTOSW_REUSE,
@@ -925,7 +929,6 @@ void inet_register_protosw(struct inet_protosw *p)
 	list_add_rcu(&p->list, last_perm);
 out:
 	spin_unlock_bh(&inetsw_lock);
-
 	synchronize_net();
 
 	return;
@@ -1002,7 +1005,7 @@ static int __init init_ipv4_mibs(void)
 	return 0;
 }
 
-int ipv4_proc_init(void);
+static int ipv4_proc_init(void);
 extern void ipfrag_init(void);
 
 static int __init inet_init(void)
@@ -1010,24 +1013,25 @@ static int __init inet_init(void)
 	struct sk_buff *dummy_skb;
 	struct inet_protosw *q;
 	struct list_head *r;
+	int rc = -EINVAL;
 
 	if (sizeof(struct inet_skb_parm) > sizeof(dummy_skb->cb)) {
 		printk(KERN_CRIT "%s: panic\n", __FUNCTION__);
-		return -EINVAL;
+		goto out;
 	}
 
-	tcp_sk_cachep = kmem_cache_create("tcp_sock",
-					  sizeof(struct tcp_sock), 0,
-					  SLAB_HWCACHE_ALIGN, NULL, NULL);
-	udp_sk_cachep = kmem_cache_create("udp_sock",
-					  sizeof(struct udp_sock), 0,
-					  SLAB_HWCACHE_ALIGN, NULL, NULL);
-	raw4_sk_cachep = kmem_cache_create("raw4_sock",
-					   sizeof(struct raw_sock), 0,
-					   SLAB_HWCACHE_ALIGN, NULL, NULL);
-	if (!tcp_sk_cachep || !udp_sk_cachep || !raw4_sk_cachep)
-		printk(KERN_CRIT
-		       "inet_init: Can't create protocol sock SLAB caches!\n");
+	rc = proto_register(&tcp_prot, 1);
+	if (rc)
+		goto out;
+
+	rc = proto_register(&udp_prot, 1);
+	if (rc)
+		goto out_unregister_tcp_proto;
+
+	rc = proto_register(&raw_prot, 1);
+	if (rc)
+		goto out_unregister_udp_proto;
+
 	/*
 	 *	Tell SOCKET that we are alive... 
 	 */
@@ -1097,7 +1101,14 @@ static int __init inet_init(void)
 
 	ipfrag_init();
 
-	return 0;
+	rc = 0;
+out:
+	return rc;
+out_unregister_tcp_proto:
+	proto_unregister(&tcp_prot);
+out_unregister_udp_proto:
+	proto_unregister(&udp_prot);
+	goto out;
 }
 
 module_init(inet_init);
@@ -1115,7 +1126,7 @@ extern void tcp4_proc_exit(void);
 extern int  udp4_proc_init(void);
 extern void udp4_proc_exit(void);
 
-int __init ipv4_proc_init(void)
+static int __init ipv4_proc_init(void)
 {
 	int rc = 0;
 
@@ -1145,7 +1156,7 @@ out_raw:
 }
 
 #else /* CONFIG_PROC_FS */
-int __init ipv4_proc_init(void)
+static int __init ipv4_proc_init(void)
 {
 	return 0;
 }
@@ -1157,7 +1168,6 @@ EXPORT_SYMBOL(inet_accept);
 EXPORT_SYMBOL(inet_bind);
 EXPORT_SYMBOL(inet_dgram_connect);
 EXPORT_SYMBOL(inet_dgram_ops);
-EXPORT_SYMBOL(inet_family_ops);
 EXPORT_SYMBOL(inet_getname);
 EXPORT_SYMBOL(inet_ioctl);
 EXPORT_SYMBOL(inet_listen);
@@ -1170,8 +1180,7 @@ EXPORT_SYMBOL(inet_stream_connect);
 EXPORT_SYMBOL(inet_stream_ops);
 EXPORT_SYMBOL(inet_unregister_protosw);
 EXPORT_SYMBOL(net_statistics);
-EXPORT_SYMBOL(tcp_protocol);
-EXPORT_SYMBOL(udp_protocol);
+EXPORT_SYMBOL(sysctl_ip_nonlocal_bind);
 
 #ifdef INET_REFCNT_DEBUG
 EXPORT_SYMBOL(inet_sock_nr);

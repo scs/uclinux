@@ -46,6 +46,51 @@ ports_match(const u_int16_t *portlist, enum ipt_multiport_flags flags,
 	return 0;
 }
 
+/* Returns 1 if the port is matched by the test, 0 otherwise. */
+static inline int
+ports_match_v1(const struct ipt_multiport_v1 *minfo,
+	       u_int16_t src, u_int16_t dst)
+{
+	unsigned int i;
+	u_int16_t s, e;
+
+	for (i=0; i < minfo->count; i++) {
+		s = minfo->ports[i];
+
+		if (minfo->pflags[i]) {
+			/* range port matching */
+			e = minfo->ports[++i];
+			duprintf("src or dst matches with %d-%d?\n", s, e);
+
+			if (minfo->flags == IPT_MULTIPORT_SOURCE
+			    && src >= s && src <= e)
+				return 1 ^ minfo->invert;
+			if (minfo->flags == IPT_MULTIPORT_DESTINATION
+			    && dst >= s && dst <= e)
+				return 1 ^ minfo->invert;
+			if (minfo->flags == IPT_MULTIPORT_EITHER
+			    && ((dst >= s && dst <= e)
+				|| (src >= s && src <= e)))
+				return 1 ^ minfo->invert;
+		} else {
+			/* exact port matching */
+			duprintf("src or dst matches with %d?\n", s);
+
+			if (minfo->flags == IPT_MULTIPORT_SOURCE
+			    && src == s)
+				return 1 ^ minfo->invert;
+			if (minfo->flags == IPT_MULTIPORT_DESTINATION
+			    && dst == s)
+				return 1 ^ minfo->invert;
+			if (minfo->flags == IPT_MULTIPORT_EITHER
+			    && (src == s || dst == s))
+				return 1 ^ minfo->invert;
+		}
+	}
+ 
+ 	return minfo->invert;
+}
+
 static int
 match(const struct sk_buff *skb,
       const struct net_device *in,
@@ -54,27 +99,56 @@ match(const struct sk_buff *skb,
       int offset,
       int *hotdrop)
 {
-	u16 ports[2];
+	u16 _ports[2], *pptr;
 	const struct ipt_multiport *multiinfo = matchinfo;
 
-	/* Must not be a fragment. */
 	if (offset)
 		return 0;
 
-	/* Must be big enough to read ports (both UDP and TCP have
-           them at the start). */
-	if (skb_copy_bits(skb, skb->nh.iph->ihl*4, ports, sizeof(ports)) < 0) {
+	pptr = skb_header_pointer(skb, skb->nh.iph->ihl * 4,
+				  sizeof(_ports), _ports);
+	if (pptr == NULL) {
 		/* We've been asked to examine this packet, and we
-		   can't.  Hence, no choice but to drop. */
-			duprintf("ipt_multiport:"
-				 " Dropping evil offset=0 tinygram.\n");
-			*hotdrop = 1;
-			return 0;
+		 * can't.  Hence, no choice but to drop.
+		 */
+		duprintf("ipt_multiport:"
+			 " Dropping evil offset=0 tinygram.\n");
+		*hotdrop = 1;
+		return 0;
 	}
 
 	return ports_match(multiinfo->ports,
 			   multiinfo->flags, multiinfo->count,
-			   ntohs(ports[0]), ntohs(ports[1]));
+			   ntohs(pptr[0]), ntohs(pptr[1]));
+}
+
+static int
+match_v1(const struct sk_buff *skb,
+	 const struct net_device *in,
+	 const struct net_device *out,
+	 const void *matchinfo,
+	 int offset,
+	 int *hotdrop)
+{
+	u16 _ports[2], *pptr;
+	const struct ipt_multiport_v1 *multiinfo = matchinfo;
+
+	if (offset)
+		return 0;
+
+	pptr = skb_header_pointer(skb, skb->nh.iph->ihl * 4,
+				  sizeof(_ports), _ports);
+	if (pptr == NULL) {
+		/* We've been asked to examine this packet, and we
+		 * can't.  Hence, no choice but to drop.
+		 */
+		duprintf("ipt_multiport:"
+			 " Dropping evil offset=0 tinygram.\n");
+		*hotdrop = 1;
+		return 0;
+	}
+
+	return ports_match_v1(multiinfo, ntohs(pptr[0]), ntohs(pptr[1]));
 }
 
 /* Called when user tries to insert an entry of this type. */
@@ -85,36 +159,53 @@ checkentry(const char *tablename,
 	   unsigned int matchsize,
 	   unsigned int hook_mask)
 {
-	const struct ipt_multiport *multiinfo = matchinfo;
+	return (matchsize == IPT_ALIGN(sizeof(struct ipt_multiport)));
+}
 
-	if (matchsize != IPT_ALIGN(sizeof(struct ipt_multiport)))
-		return 0;
-
-	/* Must specify proto == TCP/UDP, no unknown flags or bad count */
-	return (ip->proto == IPPROTO_TCP || ip->proto == IPPROTO_UDP)
-		&& !(ip->invflags & IPT_INV_PROTO)
-		&& matchsize == IPT_ALIGN(sizeof(struct ipt_multiport))
-		&& (multiinfo->flags == IPT_MULTIPORT_SOURCE
-		    || multiinfo->flags == IPT_MULTIPORT_DESTINATION
-		    || multiinfo->flags == IPT_MULTIPORT_EITHER)
-		&& multiinfo->count <= IPT_MULTI_PORTS;
+static int
+checkentry_v1(const char *tablename,
+	      const struct ipt_ip *ip,
+	      void *matchinfo,
+	      unsigned int matchsize,
+	      unsigned int hook_mask)
+{
+	return (matchsize == IPT_ALIGN(sizeof(struct ipt_multiport_v1)));
 }
 
 static struct ipt_match multiport_match = {
 	.name		= "multiport",
+	.revision	= 0,
 	.match		= &match,
 	.checkentry	= &checkentry,
 	.me		= THIS_MODULE,
 };
 
+static struct ipt_match multiport_match_v1 = {
+	.name		= "multiport",
+	.revision	= 1,
+	.match		= &match_v1,
+	.checkentry	= &checkentry_v1,
+	.me		= THIS_MODULE,
+};
+
 static int __init init(void)
 {
-	return ipt_register_match(&multiport_match);
+	int err;
+
+	err = ipt_register_match(&multiport_match);
+	if (!err) {
+		err = ipt_register_match(&multiport_match_v1);
+		if (err)
+			ipt_unregister_match(&multiport_match);
+	}
+
+	return err;
 }
 
 static void __exit fini(void)
 {
 	ipt_unregister_match(&multiport_match);
+	ipt_unregister_match(&multiport_match_v1);
 }
 
 module_init(init);

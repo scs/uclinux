@@ -16,6 +16,12 @@
 #include "irnet_ppp.h"		/* Private header */
 /* Please put other headers in irnet.h - Thanks */
 
+/* Generic PPP callbacks (to call us) */
+static struct ppp_channel_ops irnet_ppp_ops = {
+	.start_xmit = ppp_irnet_send,
+	.ioctl = ppp_irnet_ioctl
+};
+
 /************************* CONTROL CHANNEL *************************/
 /*
  * When a pppd instance is not active on /dev/irnet, it acts as a control
@@ -165,18 +171,44 @@ irnet_ctrl_write(irnet_socket *	ap,
 #ifdef INITIAL_DISCOVERY
 /*------------------------------------------------------------------*/
 /*
- * Function irnet_read_discovery_log (self)
+ * Function irnet_get_discovery_log (self)
+ *
+ *    Query the content on the discovery log if not done
+ *
+ * This function query the current content of the discovery log
+ * at the startup of the event channel and save it in the internal struct.
+ */
+static void
+irnet_get_discovery_log(irnet_socket *	ap)
+{
+  __u16		mask = irlmp_service_to_hint(S_LAN);
+
+  /* Ask IrLMP for the current discovery log */
+  ap->discoveries = irlmp_get_discoveries(&ap->disco_number, mask,
+					  DISCOVERY_DEFAULT_SLOTS);
+
+  /* Check if the we got some results */
+  if(ap->discoveries == NULL)
+    ap->disco_number = -1;
+
+  DEBUG(CTRL_INFO, "Got the log (0x%p), size is %d\n",
+	ap->discoveries, ap->disco_number);
+}
+
+/*------------------------------------------------------------------*/
+/*
+ * Function irnet_read_discovery_log (self, event)
  *
  *    Read the content on the discovery log
  *
  * This function dump the current content of the discovery log
  * at the startup of the event channel.
- * Return 1 if written on the control channel...
+ * Return 1 if wrote an event on the control channel...
  *
  * State of the ap->disco_XXX variables :
- *	at socket creation :	disco_index = 0 ; disco_number = 0
- *	while reading :		disco_index = X ; disco_number = Y
- *	After reading :		disco_index = Y ; disco_number = -1
+ * Socket creation :  discoveries = NULL ; disco_index = 0 ; disco_number = 0
+ * While reading :    discoveries = ptr  ; disco_index = X ; disco_number = Y
+ * After reading :    discoveries = NULL ; disco_index = Y ; disco_number = -1
  */
 static inline int
 irnet_read_discovery_log(irnet_socket *	ap,
@@ -195,19 +227,8 @@ irnet_read_discovery_log(irnet_socket *	ap,
     }
 
   /* Test if it's the first time and therefore we need to get the log */
-  if(ap->disco_index == 0)
-    {
-      __u16		mask = irlmp_service_to_hint(S_LAN);
-
-      /* Ask IrLMP for the current discovery log */
-      ap->discoveries = irlmp_get_discoveries(&ap->disco_number, mask,
-					      DISCOVERY_DEFAULT_SLOTS);
-      /* Check if the we got some results */
-      if(ap->discoveries == NULL)
-	ap->disco_number = -1;
-      DEBUG(CTRL_INFO, "Got the log (0x%p), size is %d\n",
-	    ap->discoveries, ap->disco_number);
-    }
+  if(ap->discoveries == NULL)
+    irnet_get_discovery_log(ap);
 
   /* Check if we have more item to dump */
   if(ap->disco_index < ap->disco_number)
@@ -411,7 +432,14 @@ irnet_ctrl_poll(irnet_socket *	ap,
     mask |= POLLIN | POLLRDNORM;
 #ifdef INITIAL_DISCOVERY
   if(ap->disco_number != -1)
-    mask |= POLLIN | POLLRDNORM;
+    {
+      /* Test if it's the first time and therefore we need to get the log */
+      if(ap->discoveries == NULL)
+	irnet_get_discovery_log(ap);
+      /* Recheck */
+      if(ap->disco_number != -1)
+	mask |= POLLIN | POLLRDNORM;
+    }
 #endif /* INITIAL_DISCOVERY */
 
   DEXIT(CTRL_TRACE, " - mask=0x%X\n", mask);
@@ -1095,7 +1123,7 @@ irnet_init(void)
 /*
  * Module exit
  */
-void __exit
+static void __exit
 irnet_cleanup(void)
 {
   irda_irnet_cleanup();
@@ -1111,3 +1139,4 @@ module_exit(irnet_cleanup);
 MODULE_AUTHOR("Jean Tourrilhes <jt@hpl.hp.com>");
 MODULE_DESCRIPTION("IrNET : Synchronous PPP over IrDA"); 
 MODULE_LICENSE("GPL");
+MODULE_ALIAS_CHARDEV(10, 187);

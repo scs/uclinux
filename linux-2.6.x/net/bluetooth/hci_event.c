@@ -30,7 +30,6 @@
 #include <linux/types.h>
 #include <linux/errno.h>
 #include <linux/kernel.h>
-#include <linux/major.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/poll.h>
@@ -104,7 +103,7 @@ static void hci_cc_link_policy(struct hci_dev *hdev, __u16 ocf, struct sk_buff *
 			else
 				conn->link_mode |= HCI_LM_MASTER;
 		}
-			
+
 		hci_dev_unlock(hdev);
 		break;
 
@@ -229,8 +228,11 @@ static void hci_cc_host_ctl(struct hci_dev *hdev, __u16 ocf, struct sk_buff *skb
 
 			BT_DBG("%s: voice setting 0x%04x", hdev->name, setting);
 
-			if (hdev->notify)
+			if (hdev->notify) {
+				tasklet_disable(&hdev->tx_task);
 				hdev->notify(hdev, HCI_NOTIFY_VOICE_SETTING);
+				tasklet_enable(&hdev->tx_task);
+			}
 		}
 		break;
 
@@ -247,8 +249,11 @@ static void hci_cc_host_ctl(struct hci_dev *hdev, __u16 ocf, struct sk_buff *skb
 
 			BT_DBG("%s: voice setting 0x%04x", hdev->name, setting);
 
-			if (hdev->notify)
+			if (hdev->notify) {
+				tasklet_disable(&hdev->tx_task);
 				hdev->notify(hdev, HCI_NOTIFY_VOICE_SETTING);
+				tasklet_enable(&hdev->tx_task);
+			}
 		}
 		hci_req_complete(hdev, status);
 		break;
@@ -320,7 +325,7 @@ static void hci_cc_info_param(struct hci_dev *hdev, __u16 ocf, struct sk_buff *s
 		hdev->sco_pkts = hdev->sco_cnt = __le16_to_cpu(bs->sco_max_pkt);
 
 		BT_DBG("%s mtu: acl %d, sco %d max_pkt: acl %d, sco %d", hdev->name,
-			    hdev->acl_mtu, hdev->sco_mtu, hdev->acl_pkts, hdev->sco_pkts);
+			hdev->acl_mtu, hdev->sco_mtu, hdev->acl_pkts, hdev->sco_pkts);
 		break;
 
 	case OCF_READ_BD_ADDR:
@@ -400,7 +405,7 @@ static void hci_cs_link_ctl(struct hci_dev *hdev, __u16 ocf, __u8 status)
 			BT_DBG("%s Add SCO error: handle %d status 0x%x", hdev->name, handle, status);
 
 			hci_dev_lock(hdev);
-	
+
 			acl = hci_conn_hash_lookup_handle(hdev, handle);
 			if (acl && (sco = acl->link)) {
 				sco->state = BT_CLOSED;
@@ -485,8 +490,18 @@ static inline void hci_inquiry_result_evt(struct hci_dev *hdev, struct sk_buff *
 	BT_DBG("%s num_rsp %d", hdev->name, num_rsp);
 
 	hci_dev_lock(hdev);
-	for (; num_rsp; num_rsp--)
-		hci_inquiry_cache_update(hdev, info++);
+	for (; num_rsp; num_rsp--) {
+		struct inquiry_data data;
+		bacpy(&data.bdaddr, &info->bdaddr);
+		data.pscan_rep_mode	= info->pscan_rep_mode;
+		data.pscan_period_mode	= info->pscan_period_mode;
+		data.pscan_mode		= info->pscan_mode;
+		memcpy(data.dev_class, info->dev_class, 3);
+		data.clock_offset	= info->clock_offset;
+		data.rssi		= 0x00;
+		info++;
+		hci_inquiry_cache_update(hdev, &data);
+	}
 	hci_dev_unlock(hdev);
 }
 
@@ -500,15 +515,16 @@ static inline void hci_inquiry_result_with_rssi_evt(struct hci_dev *hdev, struct
 
 	hci_dev_lock(hdev);
 	for (; num_rsp; num_rsp--) {
-		struct inquiry_info tmp;
-		bacpy(&tmp.bdaddr, &info->bdaddr);
-		tmp.pscan_rep_mode    = info->pscan_rep_mode;
-		tmp.pscan_period_mode = info->pscan_period_mode;
-		tmp.pscan_mode        = 0x00;
-		memcpy(tmp.dev_class, &info->dev_class, 3);
-		tmp.clock_offset      = info->clock_offset;
+		struct inquiry_data data;
+		bacpy(&data.bdaddr, &info->bdaddr);
+		data.pscan_rep_mode	= info->pscan_rep_mode;
+		data.pscan_period_mode	= info->pscan_period_mode;
+		data.pscan_mode		= 0x00;
+		memcpy(data.dev_class, info->dev_class, 3);
+		data.clock_offset	= info->clock_offset;
+		data.rssi		= info->rssi;
 		info++;
-		hci_inquiry_cache_update(hdev, &tmp);
+		hci_inquiry_cache_update(hdev, &data);
 	}
 	hci_dev_unlock(hdev);
 }
@@ -538,11 +554,12 @@ static inline void hci_conn_request_evt(struct hci_dev *hdev, struct sk_buff *sk
 				return;
 			}
 		}
+		memcpy(conn->dev_class, ev->dev_class, 3);
 		conn->state = BT_CONNECT;
 		hci_dev_unlock(hdev);
 
 		bacpy(&cp.bdaddr, &ev->bdaddr);
-	
+
 		if (lmp_rswitch_capable(hdev) && (mask & HCI_LM_MASTER))
 			cp.role = 0x00; /* Become master */
 		else
@@ -584,7 +601,6 @@ static inline void hci_conn_complete_evt(struct hci_dev *hdev, struct sk_buff *s
 
 		if (test_bit(HCI_ENCRYPT, &hdev->flags))
 			conn->link_mode |= HCI_LM_ENCRYPT;
-
 
 		/* Set link policy */
 		if (conn->type == ACL_LINK && hdev->link_policy) {
@@ -701,17 +717,20 @@ static inline void hci_role_change_evt(struct hci_dev *hdev, struct sk_buff *skb
 
 	BT_DBG("%s status %d", hdev->name, ev->status);
 
-	if (ev->status)
-		return;
-
 	hci_dev_lock(hdev);
 
 	conn = hci_conn_hash_lookup_ba(hdev, ACL_LINK, &ev->bdaddr);
 	if (conn) {
-		if (ev->role)
-			conn->link_mode &= ~HCI_LM_MASTER;
-		else 
-			conn->link_mode |= HCI_LM_MASTER;
+		if (!ev->status) {
+			if (ev->role)
+				conn->link_mode &= ~HCI_LM_MASTER;
+			else
+				conn->link_mode |= HCI_LM_MASTER;
+		}
+
+		clear_bit(HCI_CONN_RSWITCH_PEND, &conn->pend);
+
+		hci_role_switch_cfm(conn, ev->status, ev->role);
 	}
 
 	hci_dev_unlock(hdev);
@@ -732,9 +751,10 @@ static inline void hci_auth_complete_evt(struct hci_dev *hdev, struct sk_buff *s
 	if (conn) {
 		if (!ev->status)
 			conn->link_mode |= HCI_LM_AUTH;
+
 		clear_bit(HCI_CONN_AUTH_PEND, &conn->pend);
 
-		hci_proto_auth_cfm(conn, ev->status);
+		hci_auth_cfm(conn, ev->status);
 
 		if (test_bit(HCI_CONN_ENCRYPT_PEND, &conn->pend)) {
 			if (!ev->status) {
@@ -746,7 +766,7 @@ static inline void hci_auth_complete_evt(struct hci_dev *hdev, struct sk_buff *s
 						sizeof(cp), &cp);
 			} else {
 				clear_bit(HCI_CONN_ENCRYPT_PEND, &conn->pend);
-				hci_proto_encrypt_cfm(conn, ev->status);
+				hci_encrypt_cfm(conn, ev->status, 0x00);
 			}
 		}
 	}
@@ -773,9 +793,73 @@ static inline void hci_encrypt_change_evt(struct hci_dev *hdev, struct sk_buff *
 			else
 				conn->link_mode &= ~HCI_LM_ENCRYPT;
 		}
+
 		clear_bit(HCI_CONN_ENCRYPT_PEND, &conn->pend);
-		
-		hci_proto_encrypt_cfm(conn, ev->status);
+
+		hci_encrypt_cfm(conn, ev->status, ev->encrypt);
+	}
+
+	hci_dev_unlock(hdev);
+}
+
+/* Change Connection Link Key Complete */
+static inline void hci_change_conn_link_key_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
+{
+	struct hci_ev_change_conn_link_key_complete *ev = (struct hci_ev_change_conn_link_key_complete *) skb->data;
+	struct hci_conn *conn = NULL;
+	__u16 handle = __le16_to_cpu(ev->handle);
+
+	BT_DBG("%s status %d", hdev->name, ev->status);
+
+	hci_dev_lock(hdev);
+
+	conn = hci_conn_hash_lookup_handle(hdev, handle);
+	if (conn) {
+		if (!ev->status)
+			conn->link_mode |= HCI_LM_SECURE;
+
+		clear_bit(HCI_CONN_AUTH_PEND, &conn->pend);
+
+		hci_key_change_cfm(conn, ev->status);
+	}
+
+	hci_dev_unlock(hdev);
+}
+
+/* Pin Code Request*/
+static inline void hci_pin_code_request_evt(struct hci_dev *hdev, struct sk_buff *skb)
+{
+}
+
+/* Link Key Request */
+static inline void hci_link_key_request_evt(struct hci_dev *hdev, struct sk_buff *skb)
+{
+}
+
+/* Link Key Notification */
+static inline void hci_link_key_notify_evt(struct hci_dev *hdev, struct sk_buff *skb)
+{
+}
+
+/* Clock Offset */
+static inline void hci_clock_offset_evt(struct hci_dev *hdev, struct sk_buff *skb)
+{
+	struct hci_ev_clock_offset *ev = (struct hci_ev_clock_offset *) skb->data;
+	struct hci_conn *conn = NULL;
+	__u16 handle = __le16_to_cpu(ev->handle);
+
+	BT_DBG("%s status %d", hdev->name, ev->status);
+
+	hci_dev_lock(hdev);
+
+	conn = hci_conn_hash_lookup_handle(hdev, handle);
+	if (conn && !ev->status) {
+		struct inquiry_entry *ie;
+
+		if ((ie = hci_inquiry_cache_lookup(hdev, &conn->dst))) {
+			ie->data.clock_offset = ev->clock_offset;
+			ie->timestamp = jiffies;
+		}
 	}
 
 	hci_dev_unlock(hdev);
@@ -831,6 +915,26 @@ void hci_event_packet(struct hci_dev *hdev, struct sk_buff *skb)
 
 	case HCI_EV_ENCRYPT_CHANGE:
 		hci_encrypt_change_evt(hdev, skb);
+		break;
+
+	case HCI_EV_CHANGE_CONN_LINK_KEY_COMPLETE:
+		hci_change_conn_link_key_complete_evt(hdev, skb);
+		break;
+
+	case HCI_EV_PIN_CODE_REQ:
+		hci_pin_code_request_evt(hdev, skb);
+		break;
+
+	case HCI_EV_LINK_KEY_REQ:
+		hci_link_key_request_evt(hdev, skb);
+		break;
+
+	case HCI_EV_LINK_KEY_NOTIFY:
+		hci_link_key_notify_evt(hdev, skb);
+		break;
+
+	case HCI_EV_CLOCK_OFFSET:
+		hci_clock_offset_evt(hdev, skb);
 		break;
 
 	case HCI_EV_CMD_STATUS:

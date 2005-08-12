@@ -62,7 +62,7 @@ extern int  irlap_driver_rcv(struct sk_buff *, struct net_device *,
 #ifdef CONFIG_IRDA_DEBUG
 unsigned int irda_debug = IRDA_DEBUG_LEVEL;
 module_param_named(debug, irda_debug, uint, 0);
-MODULE_PARM_DESC(irda_debug, "IRDA debugging level");
+MODULE_PARM_DESC(debug, "IRDA debugging level");
 EXPORT_SYMBOL(irda_debug);
 #endif
 
@@ -100,7 +100,7 @@ EXPORT_SYMBOL(irda_notify_init);
  *  Protocol stack initialisation entry point.
  *  Initialise the various components of the IrDA stack
  */
-int __init irda_init(void)
+static int __init irda_init(void)
 {
 	IRDA_DEBUG(0, "%s()\n", __FUNCTION__);
 
@@ -136,7 +136,7 @@ int __init irda_init(void)
  *  Protocol stack cleanup/removal entry point.
  *  Cleanup the various components of the IrDA stack
  */
-void __exit irda_cleanup(void)
+static void __exit irda_cleanup(void)
 {
 	/* Remove External APIs */
 #ifdef CONFIG_SYSCTL

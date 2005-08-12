@@ -381,7 +381,6 @@ static int rsc_parse(struct cache_detail *cd,
 	else {
 		int N, i;
 		struct gss_api_mech *gm;
-		struct xdr_netobj tmp_buf;
 
 		/* gid */
 		if (get_int(&mesg, &rsci.cred.cr_gid))
@@ -420,9 +419,7 @@ static int rsc_parse(struct cache_detail *cd,
 			gss_mech_put(gm);
 			goto out;
 		}
-		tmp_buf.len = len;
-		tmp_buf.data = buf;
-		if (gss_import_sec_context(&tmp_buf, gm, &rsci.mechctx)) {
+		if (gss_import_sec_context(buf, len, gm, &rsci.mechctx)) {
 			gss_mech_put(gm);
 			goto out;
 		}
@@ -448,7 +445,7 @@ static struct cache_detail rsc_cache = {
 
 static DefineSimpleCacheLookup(rsc, 0);
 
-struct rsc *
+static struct rsc *
 gss_svc_searchbyctx(struct xdr_netobj *handle)
 {
 	struct rsc rsci;
@@ -643,7 +640,6 @@ svcauth_gss_register_pseudoflavor(u32 pseudoflavor, char * name)
 	if (!new)
 		goto out;
 	cache_init(&new->h.h);
-	atomic_inc(&new->h.h.refcnt);
 	new->h.name = kmalloc(strlen(name) + 1, GFP_KERNEL);
 	if (!new->h.name)
 		goto out_free_dom;
@@ -651,7 +647,6 @@ svcauth_gss_register_pseudoflavor(u32 pseudoflavor, char * name)
 	new->h.flavour = RPC_AUTH_GSS;
 	new->pseudoflavor = pseudoflavor;
 	new->h.h.expiry_time = NEVER;
-	new->h.h.flags = 0;
 
 	test = auth_domain_lookup(&new->h, 1);
 	if (test == &new->h) {
@@ -731,6 +726,19 @@ struct gss_svc_data {
 	u32				*body_start;
 	struct rsc			*rsci;
 };
+
+static int
+svcauth_gss_set_client(struct svc_rqst *rqstp)
+{
+	struct gss_svc_data *svcdata = rqstp->rq_auth_data;
+	struct rsc *rsci = svcdata->rsci;
+	struct rpc_gss_wire_cred *gc = &svcdata->clcred;
+
+	rqstp->rq_client = find_gss_auth_domain(rsci->mechctx, gc->gc_svc);
+	if (rqstp->rq_client == NULL)
+		return SVC_DENIED;
+	return SVC_OK;
+}
 
 /*
  * Accept an rpcsec packet.
@@ -895,11 +903,6 @@ svcauth_gss_accept(struct svc_rqst *rqstp, u32 *authp)
 		svc_putu32(resv, rpc_success);
 		goto complete;
 	case RPC_GSS_PROC_DATA:
-		*authp = rpc_autherr_badcred;
-		rqstp->rq_client =
-			find_gss_auth_domain(rsci->mechctx, gc->gc_svc);
-		if (rqstp->rq_client == NULL)
-			goto auth_err;
 		*authp = rpcsec_gsserr_ctxproblem;
 		if (gss_write_verf(rqstp, rsci->mechctx, gc->gc_seq))
 			goto auth_err;
@@ -913,8 +916,6 @@ svcauth_gss_accept(struct svc_rqst *rqstp, u32 *authp)
 			if (unwrap_integ_data(&rqstp->rq_arg,
 					gc->gc_seq, rsci->mechctx))
 				goto auth_err;
-			svcdata->rsci = rsci;
-			cache_get(&rsci->h);
 			/* placeholders for length and seq. number: */
 			svcdata->body_start = resv->iov_base + resv->iov_len;
 			svc_putu32(resv, 0);
@@ -925,6 +926,8 @@ svcauth_gss_accept(struct svc_rqst *rqstp, u32 *authp)
 		default:
 			goto auth_err;
 		}
+		svcdata->rsci = rsci;
+		cache_get(&rsci->h);
 		ret = SVC_OK;
 		goto out;
 	}
@@ -960,7 +963,7 @@ svcauth_gss_release(struct svc_rqst *rqstp)
 	if (gc->gc_proc != RPC_GSS_PROC_DATA)
 		goto out;
 	/* Release can be called twice, but we only wrap once. */
-	if (gsd->body_start == 0)
+	if (gsd->body_start == NULL)
 		goto out;
 	/* normally not set till svc_send, but we need it here: */
 	resbuf->len = resbuf->head[0].iov_len
@@ -1047,13 +1050,14 @@ svcauth_gss_domain_release(struct auth_domain *dom)
 	kfree(gd);
 }
 
-struct auth_ops svcauthops_gss = {
+static struct auth_ops svcauthops_gss = {
 	.name		= "rpcsec_gss",
 	.owner		= THIS_MODULE,
 	.flavour	= RPC_AUTH_GSS,
 	.accept		= svcauth_gss_accept,
 	.release	= svcauth_gss_release,
 	.domain_release = svcauth_gss_domain_release,
+	.set_client	= svcauth_gss_set_client,
 };
 
 int

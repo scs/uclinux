@@ -83,33 +83,41 @@ udp_unique_tuple(struct ip_conntrack_tuple *tuple,
 
 static int
 udp_manip_pkt(struct sk_buff **pskb,
-	      unsigned int hdroff,
-	      const struct ip_conntrack_manip *manip,
+	      unsigned int iphdroff,
+	      const struct ip_conntrack_tuple *tuple,
 	      enum ip_nat_manip_type maniptype)
 {
+	struct iphdr *iph = (struct iphdr *)((*pskb)->data + iphdroff);
 	struct udphdr *hdr;
-	u_int32_t oldip;
-	u_int16_t *portptr;
+	unsigned int hdroff = iphdroff + iph->ihl*4;
+	u32 oldip, newip;
+	u16 *portptr, newport;
 
-	if (!skb_ip_make_writable(pskb, hdroff + sizeof(hdr)))
+	if (!skb_ip_make_writable(pskb, hdroff + sizeof(*hdr)))
 		return 0;
 
-	hdr = (void *)(*pskb)->data + hdroff;
+	iph = (struct iphdr *)((*pskb)->data + iphdroff);
+	hdr = (struct udphdr *)((*pskb)->data + hdroff);
+
 	if (maniptype == IP_NAT_MANIP_SRC) {
 		/* Get rid of src ip and src pt */
-		oldip = (*pskb)->nh.iph->saddr;
+		oldip = iph->saddr;
+		newip = tuple->src.ip;
+		newport = tuple->src.u.udp.port;
 		portptr = &hdr->source;
 	} else {
 		/* Get rid of dst ip and dst pt */
-		oldip = (*pskb)->nh.iph->daddr;
+		oldip = iph->daddr;
+		newip = tuple->dst.ip;
+		newport = tuple->dst.u.udp.port;
 		portptr = &hdr->dest;
 	}
 	if (hdr->check) /* 0 is a special case meaning no checksum */
-		hdr->check = ip_nat_cheat_check(~oldip, manip->ip,
+		hdr->check = ip_nat_cheat_check(~oldip, newip,
 					ip_nat_cheat_check(*portptr ^ 0xFFFF,
-							   manip->u.udp.port,
+							   newport,
 							   hdr->check));
-	*portptr = manip->u.udp.port;
+	*portptr = newport;
 	return 1;
 }
 
@@ -148,7 +156,7 @@ udp_print_range(char *buffer, const struct ip_nat_range *range)
 }
 
 struct ip_nat_protocol ip_nat_protocol_udp
-= { { NULL, NULL }, "UDP", IPPROTO_UDP,
+= { "UDP", IPPROTO_UDP,
     udp_manip_pkt,
     udp_in_range,
     udp_unique_tuple,

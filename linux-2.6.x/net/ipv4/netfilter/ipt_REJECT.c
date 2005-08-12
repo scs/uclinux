@@ -22,6 +22,7 @@
 #include <net/ip.h>
 #include <net/tcp.h>
 #include <net/route.h>
+#include <net/dst.h>
 #include <linux/netfilter_ipv4/ip_tables.h>
 #include <linux/netfilter_ipv4/ipt_REJECT.h>
 #ifdef CONFIG_BRIDGE_NETFILTER
@@ -38,21 +39,8 @@ MODULE_DESCRIPTION("iptables REJECT target module");
 #define DEBUGP(format, args...)
 #endif
 
-/* If the original packet is part of a connection, but the connection
-   is not confirmed, our manufactured reply will not be associated
-   with it, so we need to do this manually. */
-static void connection_attach(struct sk_buff *new_skb, struct nf_ct_info *nfct)
-{
-	void (*attach)(struct sk_buff *, struct nf_ct_info *);
-
-	/* Avoid module unload race with ip_ct_attach being NULLed out */
-	if (nfct && (attach = ip_ct_attach) != NULL) {
-		mb(); /* Just to be sure: must be read before executing this */
-		attach(new_skb, nfct);
-	}
-}
-
-static inline struct rtable *route_reverse(struct sk_buff *skb, int hook)
+static inline struct rtable *route_reverse(struct sk_buff *skb, 
+					   struct tcphdr *tcph, int hook)
 {
 	struct iphdr *iph = skb->nh.iph;
 	struct dst_entry *odst;
@@ -89,9 +77,22 @@ static inline struct rtable *route_reverse(struct sk_buff *skb, int hook)
 		dst_release(&rt->u.dst);
 		rt = (struct rtable *)skb->dst;
 		skb->dst = odst;
+
+		fl.nl_u.ip4_u.daddr = iph->saddr;
+		fl.nl_u.ip4_u.saddr = iph->daddr;
+		fl.nl_u.ip4_u.tos = RT_TOS(iph->tos);
 	}
 
 	if (rt->u.dst.error) {
+		dst_release(&rt->u.dst);
+		return NULL;
+	}
+
+	fl.proto = IPPROTO_TCP;
+	fl.fl_ip_sport = tcph->dest;
+	fl.fl_ip_dport = tcph->source;
+
+	if (xfrm_lookup((struct dst_entry **)&rt, &fl, NULL, 0)) {
 		dst_release(&rt->u.dst);
 		rt = NULL;
 	}
@@ -103,7 +104,7 @@ static inline struct rtable *route_reverse(struct sk_buff *skb, int hook)
 static void send_reset(struct sk_buff *oldskb, int hook)
 {
 	struct sk_buff *nskb;
-	struct tcphdr otcph, *tcph;
+	struct tcphdr _otcph, *oth, *tcph;
 	struct rtable *rt;
 	u_int16_t tmp_port;
 	u_int32_t tmp_addr;
@@ -114,16 +115,17 @@ static void send_reset(struct sk_buff *oldskb, int hook)
 	if (oldskb->nh.iph->frag_off & htons(IP_OFFSET))
 		return;
 
-	if (skb_copy_bits(oldskb, oldskb->nh.iph->ihl*4,
-			  &otcph, sizeof(otcph)) < 0)
+	oth = skb_header_pointer(oldskb, oldskb->nh.iph->ihl * 4,
+				 sizeof(_otcph), &_otcph);
+	if (oth == NULL)
  		return;
 
 	/* No RST for RST. */
-	if (otcph.rst)
+	if (oth->rst)
 		return;
 
 	/* FIXME: Check checksum --RR */
-	if ((rt = route_reverse(oldskb, hook)) == NULL)
+	if ((rt = route_reverse(oldskb, oth, hook)) == NULL)
 		return;
 
 	hh_len = LL_RESERVED_SPACE(rt->u.dst.dev);
@@ -167,13 +169,13 @@ static void send_reset(struct sk_buff *oldskb, int hook)
 
 	if (tcph->ack) {
 		needs_ack = 0;
-		tcph->seq = otcph.ack_seq;
+		tcph->seq = oth->ack_seq;
 		tcph->ack_seq = 0;
 	} else {
 		needs_ack = 1;
-		tcph->ack_seq = htonl(ntohl(otcph.seq) + otcph.syn + otcph.fin
+		tcph->ack_seq = htonl(ntohl(oth->seq) + oth->syn + oth->fin
 				      + oldskb->len - oldskb->nh.iph->ihl*4
-				      - (otcph.doff<<2));
+				      - (oth->doff<<2));
 		tcph->seq = 0;
 	}
 
@@ -205,164 +207,22 @@ static void send_reset(struct sk_buff *oldskb, int hook)
 					   nskb->nh.iph->ihl);
 
 	/* "Never happens" */
-	if (nskb->len > dst_pmtu(nskb->dst))
+	if (nskb->len > dst_mtu(nskb->dst))
 		goto free_nskb;
 
-	connection_attach(nskb, oldskb->nfct);
+	nf_ct_attach(nskb, oldskb);
 
 	NF_HOOK(PF_INET, NF_IP_LOCAL_OUT, nskb, NULL, nskb->dst->dev,
-		ip_finish_output);
+		dst_output);
 	return;
 
  free_nskb:
 	kfree_skb(nskb);
 }
 
-static void send_unreach(struct sk_buff *skb_in, int code)
+static inline void send_unreach(struct sk_buff *skb_in, int code)
 {
-	struct iphdr *iph;
-	struct udphdr *udph;
-	struct icmphdr *icmph;
-	struct sk_buff *nskb;
-	u32 saddr;
-	u8 tos;
-	int hh_len, length;
-	struct rtable *rt = (struct rtable*)skb_in->dst;
-	unsigned char *data;
-
-	if (!rt)
-		return;
-
-	/* FIXME: Use sysctl number. --RR */
-	if (!xrlim_allow(&rt->u.dst, 1*HZ))
-		return;
-
-	iph = skb_in->nh.iph;
-
-	/* No replies to physical multicast/broadcast */
-	if (skb_in->pkt_type!=PACKET_HOST)
-		return;
-
-	/* Now check at the protocol level */
-	if (rt->rt_flags&(RTCF_BROADCAST|RTCF_MULTICAST))
-		return;
-
-	/* Only reply to fragment 0. */
-	if (iph->frag_off&htons(IP_OFFSET))
-		return;
-
-	/* Ensure we have at least 8 bytes of proto header. */
-	if (skb_in->len < skb_in->nh.iph->ihl*4 + 8)
-		return;
-
-	/* if UDP checksum is set, verify it's correct */
-	if (iph->protocol == IPPROTO_UDP
-	    && skb_in->tail-(u8*)iph >= sizeof(struct udphdr)) {
-		int datalen = skb_in->len - (iph->ihl<<2);
-		udph = (struct udphdr *)((char *)iph + (iph->ihl<<2));
-		if (udph->check
-		    && csum_tcpudp_magic(iph->saddr, iph->daddr,
-		                         datalen, IPPROTO_UDP,
-		                         csum_partial((char *)udph, datalen,
-		                                      0)) != 0)
-			return;
-	}
-
-	/* If we send an ICMP error to an ICMP error a mess would result.. */
-	if (iph->protocol == IPPROTO_ICMP
-	    && skb_in->tail-(u8*)iph >= sizeof(struct icmphdr)) {
-		icmph = (struct icmphdr *)((char *)iph + (iph->ihl<<2));
-
-		if (skb_copy_bits(skb_in, skb_in->nh.iph->ihl*4,
-				  icmph, sizeof(*icmph)) < 0)
-			return;
-
-		/* Between echo-reply (0) and timestamp (13),
-		   everything except echo-request (8) is an error.
-		   Also, anything greater than NR_ICMP_TYPES is
-		   unknown, and hence should be treated as an error... */
-		if ((icmph->type < ICMP_TIMESTAMP
-		     && icmph->type != ICMP_ECHOREPLY
-		     && icmph->type != ICMP_ECHO)
-		    || icmph->type > NR_ICMP_TYPES)
-			return;
-	}
-
-	saddr = iph->daddr;
-	if (!(rt->rt_flags & RTCF_LOCAL))
-		saddr = 0;
-
-	tos = (iph->tos & IPTOS_TOS_MASK) | IPTOS_PREC_INTERNETCONTROL;
-
-	{
-		struct flowi fl = { .nl_u = { .ip4_u =
-					      { .daddr = skb_in->nh.iph->saddr,
-						.saddr = saddr,
-						.tos = RT_TOS(tos) } } };
-		if (ip_route_output_key(&rt, &fl))
-			return;
-	}
-	/* RFC says return as much as we can without exceeding 576 bytes. */
-	length = skb_in->len + sizeof(struct iphdr) + sizeof(struct icmphdr);
-
-	if (length > dst_pmtu(&rt->u.dst))
-		length = dst_pmtu(&rt->u.dst);
-	if (length > 576)
-		length = 576;
-
-	hh_len = LL_RESERVED_SPACE(rt->u.dst.dev);
-
-	nskb = alloc_skb(hh_len + length, GFP_ATOMIC);
-	if (!nskb) {
-		ip_rt_put(rt);
-		return;
-	}
-
-	nskb->priority = 0;
-	nskb->dst = &rt->u.dst;
-	skb_reserve(nskb, hh_len);
-
-	/* Set up IP header */
-	iph = nskb->nh.iph
-		= (struct iphdr *)skb_put(nskb, sizeof(struct iphdr));
-	iph->version=4;
-	iph->ihl=5;
-	iph->tos=tos;
-	iph->tot_len = htons(length);
-
-	/* PMTU discovery never applies to ICMP packets. */
-	iph->frag_off = 0;
-
-	iph->ttl = MAXTTL;
-	ip_select_ident(iph, &rt->u.dst, NULL);
-	iph->protocol=IPPROTO_ICMP;
-	iph->saddr=rt->rt_src;
-	iph->daddr=rt->rt_dst;
-	iph->check=0;
-	iph->check = ip_fast_csum((unsigned char *)iph, iph->ihl);
-
-	/* Set up ICMP header. */
-	icmph = nskb->h.icmph
-		= (struct icmphdr *)skb_put(nskb, sizeof(struct icmphdr));
-	icmph->type = ICMP_DEST_UNREACH;
-	icmph->code = code;	
-	icmph->un.gateway = 0;
-	icmph->checksum = 0;
-	
-	/* Copy as much of original packet as will fit */
-	data = skb_put(nskb,
-		       length - sizeof(struct iphdr) - sizeof(struct icmphdr));
-
-	skb_copy_bits(skb_in, 0, data,
-		      length - sizeof(struct iphdr) - sizeof(struct icmphdr));
-
-	icmph->checksum = ip_compute_csum((unsigned char *)icmph,
-					  length - sizeof(struct iphdr));
-
-	connection_attach(nskb, skb_in->nfct);
-
-	NF_HOOK(PF_INET, NF_IP_LOCAL_OUT, nskb, NULL, nskb->dst->dev,
-		ip_finish_output);
+	icmp_send(skb_in, ICMP_DEST_UNREACH, code, 0);
 }	
 
 static unsigned int reject(struct sk_buff **pskb,

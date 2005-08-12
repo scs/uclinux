@@ -9,7 +9,7 @@
  *
  * Version:	$Id$
  *
- * Authors:	Ross Biro, <bir7@leland.Stanford.Edu>
+ * Authors:	Ross Biro
  *		Fred N. van Kempen, <waltje@uWalt.NL.Mugnet.ORG>
  *		Florian La Roche, <flla@stud.uni-sb.de>
  *		Alan Cox, <A.Cox@swansea.ac.uk>
@@ -97,8 +97,9 @@
 #include <linux/socket.h>
 #include <linux/in.h>
 #include <linux/kernel.h>
-#include <linux/major.h>
 #include <linux/module.h>
+#include <linux/proc_fs.h>
+#include <linux/seq_file.h>
 #include <linux/sched.h>
 #include <linux/timer.h>
 #include <linux/string.h>
@@ -166,7 +167,7 @@ static int sock_set_timeout(long *timeo_p, char __user *optval, int optlen)
 static void sock_warn_obsolete_bsdism(const char *name)
 {
 	static int warned;
-	static char warncomm[16];
+	static char warncomm[TASK_COMM_LEN];
 	if (strcmp(warncomm, current->comm) && warned < 5) { 
 		strcpy(warncomm,  current->comm); 
 		printk(KERN_WARNING "process `%s' is using obsolete "
@@ -174,6 +175,15 @@ static void sock_warn_obsolete_bsdism(const char *name)
 		warned++;
 	}
 }
+
+static void sock_disable_timestamp(struct sock *sk)
+{	
+	if (sock_flag(sk, SOCK_TIMESTAMP)) { 
+		sock_reset_flag(sk, SOCK_TIMESTAMP);
+		net_disable_timestamp();
+	}
+}
+
 
 /*
  *	This is meant for all protocols to use and covers goings on
@@ -219,8 +229,10 @@ int sock_setsockopt(struct socket *sock, int level, int optname,
 			{
 				ret = -EACCES;
 			}
+			else if (valbool)
+				sock_set_flag(sk, SOCK_DBG);
 			else
-				sk->sk_debug = valbool;
+				sock_reset_flag(sk, SOCK_DBG);
 			break;
 		case SO_REUSEADDR:
 			sk->sk_reuse = valbool;
@@ -230,7 +242,10 @@ int sock_setsockopt(struct socket *sock, int level, int optname,
 			ret = -ENOPROTOOPT;
 		  	break;
 		case SO_DONTROUTE:
-			sk->sk_localroute = valbool;
+			if (valbool)
+				sock_set_flag(sk, SOCK_LOCALROUTE);
+			else
+				sock_reset_flag(sk, SOCK_LOCALROUTE);
 			break;
 		case SO_BROADCAST:
 			sock_valbool_flag(sk, SOCK_BROADCAST, valbool);
@@ -324,13 +339,18 @@ int sock_setsockopt(struct socket *sock, int level, int optname,
 			break;
 
 		case SO_PASSCRED:
-			sock->passcred = valbool;
+			if (valbool)
+				set_bit(SOCK_PASSCRED, &sock->flags);
+			else
+				clear_bit(SOCK_PASSCRED, &sock->flags);
 			break;
 
 		case SO_TIMESTAMP:
-			sk->sk_rcvtstamp = valbool;
-			if (valbool) 
+			if (valbool)  {
+				sock_set_flag(sk, SOCK_RCVTSTAMP);
 				sock_enable_timestamp(sk);
+			} else
+				sock_reset_flag(sk, SOCK_RCVTSTAMP);
 			break;
 
 		case SO_RCVLOWAT:
@@ -454,11 +474,11 @@ int sock_getsockopt(struct socket *sock, int level, int optname,
   	switch(optname) 
   	{
 		case SO_DEBUG:		
-			v.val = sk->sk_debug;
+			v.val = sock_flag(sk, SOCK_DBG);
 			break;
 		
 		case SO_DONTROUTE:
-			v.val = sk->sk_localroute;
+			v.val = sock_flag(sk, SOCK_LOCALROUTE);
 			break;
 		
 		case SO_BROADCAST:
@@ -514,7 +534,7 @@ int sock_getsockopt(struct socket *sock, int level, int optname,
 			break;
 
 		case SO_TIMESTAMP:
-			v.val = sk->sk_rcvtstamp;
+			v.val = sock_flag(sk, SOCK_RCVTSTAMP);
 			break;
 
 		case SO_RCVTIMEO:
@@ -548,7 +568,7 @@ int sock_getsockopt(struct socket *sock, int level, int optname,
 			break; 
 
 		case SO_PASSCRED:
-			v.val = sock->passcred;
+			v.val = test_bit(SOCK_PASSCRED, &sock->flags) ? 1 : 0;
 			break;
 
 		case SO_PEERCRED:
@@ -594,40 +614,43 @@ lenout:
   	return 0;
 }
 
-static kmem_cache_t *sk_cachep;
-
 /**
  *	sk_alloc - All socket objects are allocated here
- *	@family - protocol family
- *	@priority - for allocation (%GFP_KERNEL, %GFP_ATOMIC, etc)
- *	@zero_it - zeroes the allocated sock
- *	@slab - alternate slab
- *
- *	All socket objects are allocated here. If @zero_it is non-zero
- *	it should have the size of the are to be zeroed, because the
- *	private slabcaches have different sizes of the generic struct sock.
- *	1 has been kept as a way to say sizeof(struct sock).
+ *	@family: protocol family
+ *	@priority: for allocation (%GFP_KERNEL, %GFP_ATOMIC, etc)
+ *	@prot: struct proto associated with this new sock instance
+ *	@zero_it: if we should zero the newly allocated sock
  */
-struct sock *sk_alloc(int family, int priority, int zero_it, kmem_cache_t *slab)
+struct sock *sk_alloc(int family, int priority, struct proto *prot, int zero_it)
 {
 	struct sock *sk = NULL;
+	kmem_cache_t *slab = prot->slab;
 
-	if (!slab)
-		slab = sk_cachep;
-	sk = kmem_cache_alloc(slab, priority);
+	if (slab != NULL)
+		sk = kmem_cache_alloc(slab, priority);
+	else
+		sk = kmalloc(prot->obj_size, priority);
+
 	if (sk) {
 		if (zero_it) {
-			memset(sk, 0,
-			       zero_it == 1 ? sizeof(struct sock) : zero_it);
+			memset(sk, 0, prot->obj_size);
 			sk->sk_family = family;
+			/*
+			 * See comment in struct sock definition to understand
+			 * why we need sk_prot_creator -acme
+			 */
+			sk->sk_prot = sk->sk_prot_creator = prot;
 			sock_lock_init(sk);
 		}
-		sk->sk_slab = slab;
 		
 		if (security_sk_alloc(sk, family, priority)) {
-			kmem_cache_free(slab, sk);
+			if (slab != NULL)
+				kmem_cache_free(slab, sk);
+			else
+				kfree(sk);
 			sk = NULL;
-		}
+		} else
+			__module_get(prot->owner);
 	}
 	return sk;
 }
@@ -635,7 +658,7 @@ struct sock *sk_alloc(int family, int priority, int zero_it, kmem_cache_t *slab)
 void sk_free(struct sock *sk)
 {
 	struct sk_filter *filter;
-	struct module *owner = sk->sk_owner;
+	struct module *owner = sk->sk_prot_creator->owner;
 
 	if (sk->sk_destruct)
 		sk->sk_destruct(sk);
@@ -653,17 +676,15 @@ void sk_free(struct sock *sk)
 		       __FUNCTION__, atomic_read(&sk->sk_omem_alloc));
 
 	security_sk_free(sk);
-	kmem_cache_free(sk->sk_slab, sk);
+	if (sk->sk_prot_creator->slab != NULL)
+		kmem_cache_free(sk->sk_prot_creator->slab, sk);
+	else
+		kfree(sk);
 	module_put(owner);
 }
 
 void __init sk_init(void)
 {
-	sk_cachep = kmem_cache_create("sock", sizeof(struct sock), 0,
-				      SLAB_HWCACHE_ALIGN, NULL, NULL);
-	if (!sk_cachep)
-		printk(KERN_CRIT "sk_init: Cannot create sock SLAB cache!");
-
 	if (num_physpages <= 4096) {
 		sysctl_wmem_max = 32767;
 		sysctl_rmem_max = 32767;
@@ -689,7 +710,7 @@ void sock_wfree(struct sk_buff *skb)
 
 	/* In case it might be waiting for more memory. */
 	atomic_sub(skb->truesize, &sk->sk_wmem_alloc);
-	if (!sk->sk_use_write_queue)
+	if (!sock_flag(sk, SOCK_USE_WRITE_QUEUE))
 		sk->sk_write_space(sk);
 	sock_put(sk);
 }
@@ -816,8 +837,10 @@ static long sock_wait_for_wmem(struct sock * sk, long timeo)
  *	Generic send/receive buffer handlers
  */
 
-struct sk_buff *sock_alloc_send_pskb(struct sock *sk, unsigned long header_len,
-				     unsigned long data_len, int noblock, int *errcode)
+static struct sk_buff *sock_alloc_send_pskb(struct sock *sk,
+					    unsigned long header_len,
+					    unsigned long data_len,
+					    int noblock, int *errcode)
 {
 	struct sk_buff *skb;
 	unsigned int gfp_mask;
@@ -904,7 +927,7 @@ struct sk_buff *sock_alloc_send_skb(struct sock *sk, unsigned long size,
 	return sock_alloc_send_pskb(sk, size, 0, noblock, errcode);
 }
 
-void __lock_sock(struct sock *sk)
+static void __lock_sock(struct sock *sk)
 {
 	DEFINE_WAIT(wait);
 
@@ -920,7 +943,7 @@ void __lock_sock(struct sock *sk)
 	finish_wait(&sk->sk_lock.wq, &wait);
 }
 
-void __release_sock(struct sock *sk)
+static void __release_sock(struct sock *sk)
 {
 	struct sk_buff *skb = sk->sk_backlog.head;
 
@@ -933,6 +956,15 @@ void __release_sock(struct sock *sk)
 
 			skb->next = NULL;
 			sk->sk_backlog_rcv(sk, skb);
+
+			/*
+			 * We are in process context here with softirqs
+			 * disabled, use cond_resched_softirq() to preempt.
+			 * This is safe to do because we've taken the backlog
+			 * queue private:
+			 */
+			cond_resched_softirq();
+
 			skb = next;
 		} while (skb != NULL);
 
@@ -942,8 +974,8 @@ void __release_sock(struct sock *sk)
 
 /**
  * sk_wait_data - wait for data to arrive at sk_receive_queue
- * sk - sock to wait on
- * timeo - for how long
+ * @sk:    sock to wait on
+ * @timeo: for how long
  *
  * Now socket state including sk->sk_err is changed only under lock,
  * hence we may omit checks after joining wait queue.
@@ -971,11 +1003,6 @@ EXPORT_SYMBOL(sk_wait_data);
  * cases where it makes no sense for a protocol to have a "do nothing"
  * function, some default processing is provided.
  */
-
-int sock_no_release(struct socket *sock)
-{
-	return 0;
-}
 
 int sock_no_bind(struct socket *sock, struct sockaddr *saddr, int len)
 {
@@ -1071,7 +1098,7 @@ ssize_t sock_no_sendpage(struct socket *sock, struct page *page, int offset, siz
  *	Default Socket Callbacks
  */
 
-void sock_def_wakeup(struct sock *sk)
+static void sock_def_wakeup(struct sock *sk)
 {
 	read_lock(&sk->sk_callback_lock);
 	if (sk->sk_sleep && waitqueue_active(sk->sk_sleep))
@@ -1079,7 +1106,7 @@ void sock_def_wakeup(struct sock *sk)
 	read_unlock(&sk->sk_callback_lock);
 }
 
-void sock_def_error_report(struct sock *sk)
+static void sock_def_error_report(struct sock *sk)
 {
 	read_lock(&sk->sk_callback_lock);
 	if (sk->sk_sleep && waitqueue_active(sk->sk_sleep))
@@ -1088,7 +1115,7 @@ void sock_def_error_report(struct sock *sk)
 	read_unlock(&sk->sk_callback_lock);
 }
 
-void sock_def_readable(struct sock *sk, int len)
+static void sock_def_readable(struct sock *sk, int len)
 {
 	read_lock(&sk->sk_callback_lock);
 	if (sk->sk_sleep && waitqueue_active(sk->sk_sleep))
@@ -1097,7 +1124,7 @@ void sock_def_readable(struct sock *sk, int len)
 	read_unlock(&sk->sk_callback_lock);
 }
 
-void sock_def_write_space(struct sock *sk)
+static void sock_def_write_space(struct sock *sk)
 {
 	read_lock(&sk->sk_callback_lock);
 
@@ -1116,7 +1143,7 @@ void sock_def_write_space(struct sock *sk)
 	read_unlock(&sk->sk_callback_lock);
 }
 
-void sock_def_destruct(struct sock *sk)
+static void sock_def_destruct(struct sock *sk)
 {
 	if (sk->sk_protinfo)
 		kfree(sk->sk_protinfo);
@@ -1160,8 +1187,9 @@ void sock_init_data(struct socket *sock, struct sock *sk)
 	sk->sk_rcvbuf		=	sysctl_rmem_default;
 	sk->sk_sndbuf		=	sysctl_wmem_default;
 	sk->sk_state		=	TCP_CLOSE;
-	sk->sk_zapped		=	1;
 	sk->sk_socket		=	sock;
+
+	sock_set_flag(sk, SOCK_ZAPPED);
 
 	if(sock)
 	{
@@ -1171,8 +1199,8 @@ void sock_init_data(struct socket *sock, struct sock *sk)
 	} else
 		sk->sk_sleep	=	NULL;
 
-	sk->sk_dst_lock		=	RW_LOCK_UNLOCKED;
-	sk->sk_callback_lock	=	RW_LOCK_UNLOCKED;
+	rwlock_init(&sk->sk_dst_lock);
+	rwlock_init(&sk->sk_callback_lock);
 
 	sk->sk_state_change	=	sock_def_wakeup;
 	sk->sk_data_ready	=	sock_def_readable;
@@ -1190,7 +1218,6 @@ void sock_init_data(struct socket *sock, struct sock *sk)
 	sk->sk_rcvlowat		=	1;
 	sk->sk_rcvtimeo		=	MAX_SCHEDULE_TIMEOUT;
 	sk->sk_sndtimeo		=	MAX_SCHEDULE_TIMEOUT;
-	sk->sk_owner		=	NULL;
 
 	sk->sk_stamp.tv_sec     = -1L;
 	sk->sk_stamp.tv_usec    = -1L;
@@ -1222,9 +1249,6 @@ void fastcall release_sock(struct sock *sk)
 }
 EXPORT_SYMBOL(release_sock);
 
-/* When > 0 there are consumers of rx skb time stamps */
-atomic_t netstamp_needed = ATOMIC_INIT(0); 
-
 int sock_get_timestamp(struct sock *sk, struct timeval __user *userstamp)
 { 
 	if (!sock_flag(sk, SOCK_TIMESTAMP))
@@ -1242,19 +1266,10 @@ void sock_enable_timestamp(struct sock *sk)
 {	
 	if (!sock_flag(sk, SOCK_TIMESTAMP)) { 
 		sock_set_flag(sk, SOCK_TIMESTAMP);
-		atomic_inc(&netstamp_needed);
+		net_enable_timestamp();
 	}
 }
 EXPORT_SYMBOL(sock_enable_timestamp); 
-
-void sock_disable_timestamp(struct sock *sk)
-{	
-	if (sock_flag(sk, SOCK_TIMESTAMP)) { 
-		sock_reset_flag(sk, SOCK_TIMESTAMP);
-		atomic_dec(&netstamp_needed);
-	}
-}
-EXPORT_SYMBOL(sock_disable_timestamp);
 
 /*
  *	Get a socket option on an socket.
@@ -1343,14 +1358,187 @@ void sk_common_release(struct sock *sk)
 
 EXPORT_SYMBOL(sk_common_release);
 
-EXPORT_SYMBOL(__lock_sock);
-EXPORT_SYMBOL(__release_sock);
+static DEFINE_RWLOCK(proto_list_lock);
+static LIST_HEAD(proto_list);
+
+int proto_register(struct proto *prot, int alloc_slab)
+{
+	int rc = -ENOBUFS;
+
+	if (alloc_slab) {
+		prot->slab = kmem_cache_create(prot->name, prot->obj_size, 0,
+					       SLAB_HWCACHE_ALIGN, NULL, NULL);
+
+		if (prot->slab == NULL) {
+			printk(KERN_CRIT "%s: Can't create sock SLAB cache!\n",
+			       prot->name);
+			goto out;
+		}
+	}
+
+	write_lock(&proto_list_lock);
+	list_add(&prot->node, &proto_list);
+	write_unlock(&proto_list_lock);
+	rc = 0;
+out:
+	return rc;
+}
+
+EXPORT_SYMBOL(proto_register);
+
+void proto_unregister(struct proto *prot)
+{
+	write_lock(&proto_list_lock);
+
+	if (prot->slab != NULL) {
+		kmem_cache_destroy(prot->slab);
+		prot->slab = NULL;
+	}
+
+	list_del(&prot->node);
+	write_unlock(&proto_list_lock);
+}
+
+EXPORT_SYMBOL(proto_unregister);
+
+#ifdef CONFIG_PROC_FS
+static inline struct proto *__proto_head(void)
+{
+	return list_entry(proto_list.next, struct proto, node);
+}
+
+static inline struct proto *proto_head(void)
+{
+	return list_empty(&proto_list) ? NULL : __proto_head();
+}
+
+static inline struct proto *proto_next(struct proto *proto)
+{
+	return proto->node.next == &proto_list ? NULL :
+		list_entry(proto->node.next, struct proto, node);
+}
+
+static inline struct proto *proto_get_idx(loff_t pos)
+{
+	struct proto *proto;
+	loff_t i = 0;
+
+	list_for_each_entry(proto, &proto_list, node)
+		if (i++ == pos)
+			goto out;
+
+	proto = NULL;
+out:
+	return proto;
+}
+
+static void *proto_seq_start(struct seq_file *seq, loff_t *pos)
+{
+	read_lock(&proto_list_lock);
+	return *pos ? proto_get_idx(*pos - 1) : SEQ_START_TOKEN;
+}
+
+static void *proto_seq_next(struct seq_file *seq, void *v, loff_t *pos)
+{
+	++*pos;
+	return v == SEQ_START_TOKEN ? proto_head() : proto_next(v);
+}
+
+static void proto_seq_stop(struct seq_file *seq, void *v)
+{
+	read_unlock(&proto_list_lock);
+}
+
+static char proto_method_implemented(const void *method)
+{
+	return method == NULL ? 'n' : 'y';
+}
+
+static void proto_seq_printf(struct seq_file *seq, struct proto *proto)
+{
+	seq_printf(seq, "%-9s %4u %6d  %6d   %-3s %6u   %-3s  %-10s "
+			"%2c %2c %2c %2c %2c %2c %2c %2c %2c %2c %2c %2c %2c %2c %2c %2c %2c %2c %2c\n",
+		   proto->name,
+		   proto->obj_size,
+		   proto->sockets_allocated != NULL ? atomic_read(proto->sockets_allocated) : -1,
+		   proto->memory_allocated != NULL ? atomic_read(proto->memory_allocated) : -1,
+		   proto->memory_pressure != NULL ? *proto->memory_pressure ? "yes" : "no" : "NI",
+		   proto->max_header,
+		   proto->slab == NULL ? "no" : "yes",
+		   module_name(proto->owner),
+		   proto_method_implemented(proto->close),
+		   proto_method_implemented(proto->connect),
+		   proto_method_implemented(proto->disconnect),
+		   proto_method_implemented(proto->accept),
+		   proto_method_implemented(proto->ioctl),
+		   proto_method_implemented(proto->init),
+		   proto_method_implemented(proto->destroy),
+		   proto_method_implemented(proto->shutdown),
+		   proto_method_implemented(proto->setsockopt),
+		   proto_method_implemented(proto->getsockopt),
+		   proto_method_implemented(proto->sendmsg),
+		   proto_method_implemented(proto->recvmsg),
+		   proto_method_implemented(proto->sendpage),
+		   proto_method_implemented(proto->bind),
+		   proto_method_implemented(proto->backlog_rcv),
+		   proto_method_implemented(proto->hash),
+		   proto_method_implemented(proto->unhash),
+		   proto_method_implemented(proto->get_port),
+		   proto_method_implemented(proto->enter_memory_pressure));
+}
+
+static int proto_seq_show(struct seq_file *seq, void *v)
+{
+	if (v == SEQ_START_TOKEN)
+		seq_printf(seq, "%-9s %-4s %-8s %-6s %-5s %-7s %-4s %-10s %s",
+			   "protocol",
+			   "size",
+			   "sockets",
+			   "memory",
+			   "press",
+			   "maxhdr",
+			   "slab",
+			   "module",
+			   "cl co di ac io in de sh ss gs se re sp bi br ha uh gp em\n");
+	else
+		proto_seq_printf(seq, v);
+	return 0;
+}
+
+static struct seq_operations proto_seq_ops = {
+	.start  = proto_seq_start,
+	.next   = proto_seq_next,
+	.stop   = proto_seq_stop,
+	.show   = proto_seq_show,
+};
+
+static int proto_seq_open(struct inode *inode, struct file *file)
+{
+	return seq_open(file, &proto_seq_ops);
+}
+
+static struct file_operations proto_seq_fops = {
+	.owner		= THIS_MODULE,
+	.open		= proto_seq_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= seq_release,
+};
+
+static int __init proto_init(void)
+{
+	/* register /proc/net/protocols */
+	return proc_net_fops_create("protocols", S_IRUGO, &proto_seq_fops) == NULL ? -ENOBUFS : 0;
+}
+
+subsys_initcall(proto_init);
+
+#endif /* PROC_FS */
+
 EXPORT_SYMBOL(sk_alloc);
 EXPORT_SYMBOL(sk_free);
 EXPORT_SYMBOL(sk_send_sigurg);
-EXPORT_SYMBOL(sock_alloc_send_pskb);
 EXPORT_SYMBOL(sock_alloc_send_skb);
-EXPORT_SYMBOL(sock_getsockopt);
 EXPORT_SYMBOL(sock_init_data);
 EXPORT_SYMBOL(sock_kfree_s);
 EXPORT_SYMBOL(sock_kmalloc);
@@ -1364,14 +1552,12 @@ EXPORT_SYMBOL(sock_no_listen);
 EXPORT_SYMBOL(sock_no_mmap);
 EXPORT_SYMBOL(sock_no_poll);
 EXPORT_SYMBOL(sock_no_recvmsg);
-EXPORT_SYMBOL(sock_no_release);
 EXPORT_SYMBOL(sock_no_sendmsg);
 EXPORT_SYMBOL(sock_no_sendpage);
 EXPORT_SYMBOL(sock_no_setsockopt);
 EXPORT_SYMBOL(sock_no_shutdown);
 EXPORT_SYMBOL(sock_no_socketpair);
 EXPORT_SYMBOL(sock_rfree);
-EXPORT_SYMBOL(sock_rmalloc);
 EXPORT_SYMBOL(sock_setsockopt);
 EXPORT_SYMBOL(sock_wfree);
 EXPORT_SYMBOL(sock_wmalloc);

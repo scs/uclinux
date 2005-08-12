@@ -4,7 +4,7 @@
  * Version:	@(#)socket.c	1.1.93	18/02/95
  *
  * Authors:	Orest Zborowski, <obz@Kodak.COM>
- *		Ross Biro, <bir7@leland.Stanford.Edu>
+ *		Ross Biro
  *		Fred N. van Kempen, <waltje@uWalt.NL.Mugnet.ORG>
  *
  * Fixes:
@@ -104,7 +104,7 @@ static int sock_mmap(struct file *file, struct vm_area_struct * vma);
 static int sock_close(struct inode *inode, struct file *file);
 static unsigned int sock_poll(struct file *file,
 			      struct poll_table_struct *wait);
-static int sock_ioctl(struct inode *inode, struct file *file,
+static long sock_ioctl(struct file *file,
 		      unsigned int cmd, unsigned long arg);
 static int sock_fasync(int fd, struct file *filp, int on);
 static ssize_t sock_readv(struct file *file, const struct iovec *vector,
@@ -126,7 +126,7 @@ static struct file_operations socket_file_ops = {
 	.aio_read =	sock_aio_read,
 	.aio_write =	sock_aio_write,
 	.poll =		sock_poll,
-	.ioctl =	sock_ioctl,
+	.unlocked_ioctl = sock_ioctl,
 	.mmap =		sock_mmap,
 	.open =		sock_no_open,	/* special open code to disallow open via /proc */
 	.release =	sock_close,
@@ -144,7 +144,7 @@ static struct net_proto_family *net_families[NPROTO];
 
 #if defined(CONFIG_SMP) || defined(CONFIG_PREEMPT)
 static atomic_t net_family_lockct = ATOMIC_INIT(0);
-static spinlock_t net_family_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(net_family_lock);
 
 /* The strategy is: modifications net_family vector are short, do not
    sleep and veeery rare, but read access should be free of any exclusive
@@ -287,7 +287,7 @@ static struct inode *sock_alloc_inode(struct super_block *sb)
 	ei->socket.ops = NULL;
 	ei->socket.sk = NULL;
 	ei->socket.file = NULL;
-	ei->socket.passcred = 0;
+	ei->socket.flags = 0;
 
 	return &ei->vfs_inode;
 }
@@ -437,13 +437,13 @@ struct socket *sockfd_lookup(int fd, int *err)
 	}
 
 	inode = file->f_dentry->d_inode;
-	if (!inode->i_sock || !(sock = SOCKET_I(inode)))
-	{
+	if (!S_ISSOCK(inode->i_mode)) {
 		*err = -ENOTSOCK;
 		fput(file);
 		return NULL;
 	}
 
+	sock = SOCKET_I(inode);
 	if (sock->file != file) {
 		printk(KERN_ERR "socki_lookup: socket file changed!\n");
 		sock->file = file;
@@ -459,7 +459,7 @@ struct socket *sockfd_lookup(int fd, int *err)
  *	NULL is returned.
  */
 
-struct socket *sock_alloc(void)
+static struct socket *sock_alloc(void)
 {
 	struct inode * inode;
 	struct socket * sock;
@@ -471,7 +471,6 @@ struct socket *sock_alloc(void)
 	sock = SOCKET_I(inode);
 
 	inode->i_mode = S_IFSOCK|S_IRWXUGO;
-	inode->i_sock = 1;
 	inode->i_uid = current->fsuid;
 	inode->i_gid = current->fsgid;
 
@@ -736,8 +735,9 @@ ssize_t sock_sendpage(struct file *file, struct page *page,
 	return sock->ops->sendpage(sock, page, offset, size, flags);
 }
 
-int sock_readv_writev(int type, struct inode * inode, struct file * file,
-		      const struct iovec * iov, long count, size_t size)
+static int sock_readv_writev(int type, struct inode * inode,
+			     struct file * file, const struct iovec * iov,
+			     long count, size_t size)
 {
 	struct msghdr msg;
 	struct socket *sock;
@@ -828,15 +828,13 @@ EXPORT_SYMBOL(dlci_ioctl_set);
  *	what to do with it - that's up to the protocol still.
  */
 
-static int sock_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
-		      unsigned long arg)
+static long sock_ioctl(struct file *file, unsigned cmd, unsigned long arg)
 {
 	struct socket *sock;
 	void __user *argp = (void __user *)arg;
 	int pid, err;
 
-	unlock_kernel();
-	sock = SOCKET_I(inode);
+	sock = SOCKET_I(file->f_dentry->d_inode);
 	if (cmd >= SIOCDEVPRIVATE && cmd <= (SIOCDEVPRIVATE + 15)) {
 		err = dev_ioctl(cmd, argp);
 	} else
@@ -902,8 +900,6 @@ static int sock_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 			err = sock->ops->ioctl(sock, cmd, arg);
 			break;
 	}
-	lock_kernel();
-
 	return err;
 }
 
@@ -996,8 +992,7 @@ static int sock_fasync(int fd, struct file *filp, int on)
 	sock = SOCKET_I(filp->f_dentry->d_inode);
 
 	if ((sk=sock->sk) == NULL) {
-		if (fna)
-			kfree(fna);
+		kfree(fna);
 		return -EINVAL;
 	}
 
@@ -1073,7 +1068,6 @@ int sock_wake_async(struct socket *sock, int how, int band)
 
 static int __sock_create(int family, int type, int protocol, struct socket **res, int kern)
 {
-	int i;
 	int err;
 	struct socket *sock;
 
@@ -1118,7 +1112,7 @@ static int __sock_create(int family, int type, int protocol, struct socket **res
 
 	net_family_read_lock();
 	if (net_families[family] == NULL) {
-		i = -EAFNOSUPPORT;
+		err = -EAFNOSUPPORT;
 		goto out;
 	}
 
@@ -1128,10 +1122,9 @@ static int __sock_create(int family, int type, int protocol, struct socket **res
  *	default.
  */
 
-	if (!(sock = sock_alloc())) 
-	{
+	if (!(sock = sock_alloc())) {
 		printk(KERN_WARNING "socket: no more sockets\n");
-		i = -ENFILE;		/* Not exactly a match, but its the
+		err = -ENFILE;		/* Not exactly a match, but its the
 					   closest posix thing */
 		goto out;
 	}
@@ -1142,11 +1135,11 @@ static int __sock_create(int family, int type, int protocol, struct socket **res
 	 * We will call the ->create function, that possibly is in a loadable
 	 * module, so we have to bump that loadable module refcnt first.
 	 */
-	i = -EAFNOSUPPORT;
+	err = -EAFNOSUPPORT;
 	if (!try_module_get(net_families[family]->owner))
 		goto out_release;
 
-	if ((i = net_families[family]->create(sock, protocol)) < 0)
+	if ((err = net_families[family]->create(sock, protocol)) < 0)
 		goto out_module_put;
 	/*
 	 * Now to bump the refcnt of the [loadable] module that owns this
@@ -1166,7 +1159,7 @@ static int __sock_create(int family, int type, int protocol, struct socket **res
 
 out:
 	net_family_read_unlock();
-	return i;
+	return err;
 out_module_put:
 	module_put(net_families[family]->owner);
 out_release:
@@ -1354,7 +1347,7 @@ asmlinkage long sys_accept(int fd, struct sockaddr __user *upeer_sockaddr, int _
 	if (!sock)
 		goto out;
 
-	err = -EMFILE;
+	err = -ENFILE;
 	if (!(newsock = sock_alloc())) 
 		goto out_put;
 
@@ -2031,15 +2024,6 @@ extern void sk_init(void);
 
 void __init sock_init(void)
 {
-	int i;
-
-	/*
-	 *	Initialize all address (protocol) families. 
-	 */
-	 
-	for (i = 0; i < NPROTO; i++) 
-		net_families[i] = NULL;
-
 	/*
 	 *	Initialize sock SLAB cache.
 	 */
@@ -2089,8 +2073,6 @@ void socket_seq_show(struct seq_file *seq)
 /* ABI emulation layers need these two */
 EXPORT_SYMBOL(move_addr_to_kernel);
 EXPORT_SYMBOL(move_addr_to_user);
-EXPORT_SYMBOL(sock_alloc);
-EXPORT_SYMBOL(sock_alloc_inode);
 EXPORT_SYMBOL(sock_create);
 EXPORT_SYMBOL(sock_create_kern);
 EXPORT_SYMBOL(sock_create_lite);

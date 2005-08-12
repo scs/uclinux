@@ -7,7 +7,7 @@
  *
  * Version:	$Id$
  *
- * Authors:	Ross Biro, <bir7@leland.Stanford.Edu>
+ * Authors:	Ross Biro
  *		Fred N. van Kempen, <waltje@uWalt.NL.Mugnet.ORG>
  *		Donald Becker, <becker@super.org>
  *		Alan Cox, <Alan.Cox@linux.org>
@@ -172,7 +172,7 @@ int ip_call_ra_chain(struct sk_buff *skb)
 		    (!sk->sk_bound_dev_if ||
 		     sk->sk_bound_dev_if == skb->dev->ifindex)) {
 			if (skb->nh.iph->frag_off & htons(IP_MF|IP_OFFSET)) {
-				skb = ip_defrag(skb);
+				skb = ip_defrag(skb, IP_DEFRAG_CALL_RA_CHAIN);
 				if (skb == NULL) {
 					read_unlock(&ip_ra_lock);
 					return 1;
@@ -231,10 +231,9 @@ static inline int ip_local_deliver_finish(struct sk_buff *skb)
 		if (raw_sk)
 			raw_v4_input(skb, skb->nh.iph, hash);
 
-		if ((ipprot = inet_protos[hash]) != NULL) {
+		if ((ipprot = rcu_dereference(inet_protos[hash])) != NULL) {
 			int ret;
 
-			smp_read_barrier_depends();
 			if (!ipprot->no_policy &&
 			    !xfrm4_policy_check(NULL, XFRM_POLICY_IN, skb)) {
 				kfree_skb(skb);
@@ -274,7 +273,7 @@ int ip_local_deliver(struct sk_buff *skb)
 	 */
 
 	if (skb->nh.iph->frag_off & htons(IP_MF|IP_OFFSET)) {
-		skb = ip_defrag(skb);
+		skb = ip_defrag(skb, IP_DEFRAG_LOCAL_DELIVER);
 		if (!skb)
 			return 0;
 	}
@@ -411,10 +410,9 @@ int ip_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt)
 		 * is IP we can trim to the true length of the frame.
 		 * Note this now means skb->len holds ntohs(iph->tot_len).
 		 */
-		if (skb->len > len) {
-			__pskb_trim(skb, len);
-			if (skb->ip_summed == CHECKSUM_HW)
-				skb->ip_summed = CHECKSUM_NONE;
+		if (pskb_trim_rcsum(skb, len)) {
+			IP_INC_STATS_BH(IPSTATS_MIB_INDISCARDS);
+			goto drop;
 		}
 	}
 

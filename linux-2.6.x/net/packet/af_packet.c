@@ -7,7 +7,7 @@
  *
  * Version:	$Id$
  *
- * Authors:	Ross Biro, <bir7@leland.Stanford.Edu>
+ * Authors:	Ross Biro
  *		Fred N. van Kempen, <waltje@uWalt.NL.Mugnet.ORG>
  *		Alan Cox, <gw4pts@gw4pts.ampr.org>
  *
@@ -65,6 +65,8 @@
 #include <asm/system.h>
 #include <asm/uaccess.h>
 #include <asm/ioctls.h>
+#include <asm/page.h>
+#include <asm/io.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <linux/poll.h>
@@ -143,10 +145,10 @@ dev->hard_header == NULL (ll header is added by device, we cannot control it)
  */
 
 /* List of all packet sockets. */
-HLIST_HEAD(packet_sklist);
-static rwlock_t packet_sklist_lock = RW_LOCK_UNLOCKED;
+static HLIST_HEAD(packet_sklist);
+static DEFINE_RWLOCK(packet_sklist_lock);
 
-atomic_t packet_socks_nr;
+static atomic_t packet_socks_nr;
 
 
 /* Private packet socket structures. */
@@ -168,11 +170,12 @@ static int packet_set_ring(struct sock *sk, struct tpacket_req *req, int closing
 
 static void packet_flush_mclist(struct sock *sk);
 
-struct packet_opt
-{
+struct packet_sock {
+	/* struct sock has to be the first member of packet_sock */
+	struct sock		sk;
 	struct tpacket_stats	stats;
 #ifdef CONFIG_PACKET_MMAP
-	unsigned long		*pg_vec;
+	char *			*pg_vec;
 	unsigned int		head;
 	unsigned int            frames_per_block;
 	unsigned int		frame_size;
@@ -197,23 +200,26 @@ struct packet_opt
 
 #ifdef CONFIG_PACKET_MMAP
 
-static inline unsigned long packet_lookup_frame(struct packet_opt *po, unsigned int position)
+static inline char *packet_lookup_frame(struct packet_sock *po, unsigned int position)
 {
 	unsigned int pg_vec_pos, frame_offset;
-	unsigned long frame;
+	char *frame;
 
 	pg_vec_pos = position / po->frames_per_block;
 	frame_offset = position % po->frames_per_block;
 
-	frame = (unsigned long) (po->pg_vec[pg_vec_pos] + (frame_offset * po->frame_size));
+	frame = po->pg_vec[pg_vec_pos] + (frame_offset * po->frame_size);
 	
 	return frame;
 }
 #endif
 
-#define pkt_sk(__sk) ((struct packet_opt *)(__sk)->sk_protinfo)
+static inline struct packet_sock *pkt_sk(struct sock *sk)
+{
+	return (struct packet_sock *)sk;
+}
 
-void packet_sock_destruct(struct sock *sk)
+static void packet_sock_destruct(struct sock *sk)
 {
 	BUG_TRAP(!atomic_read(&sk->sk_rmem_alloc));
 	BUG_TRAP(!atomic_read(&sk->sk_wmem_alloc));
@@ -223,8 +229,6 @@ void packet_sock_destruct(struct sock *sk)
 		return;
 	}
 
-	if (pkt_sk(sk))
-		kfree(pkt_sk(sk));
 	atomic_dec(&packet_socks_nr);
 #ifdef PACKET_REFCNT_DEBUG
 	printk(KERN_DEBUG "PACKET socket %p is free, %d are alive\n", sk, atomic_read(&packet_socks_nr));
@@ -232,10 +236,10 @@ void packet_sock_destruct(struct sock *sk)
 }
 
 
-extern struct proto_ops packet_ops;
+static struct proto_ops packet_ops;
 
 #ifdef CONFIG_SOCK_PACKET
-extern struct proto_ops packet_ops_spkt;
+static struct proto_ops packet_ops_spkt;
 
 static int packet_rcv_spkt(struct sk_buff *skb, struct net_device *dev,  struct packet_type *pt)
 {
@@ -438,7 +442,7 @@ static int packet_rcv(struct sk_buff *skb, struct net_device *dev,  struct packe
 {
 	struct sock *sk;
 	struct sockaddr_ll *sll;
-	struct packet_opt *po;
+	struct packet_sock *po;
 	u8 * skb_head = skb->data;
 	int skb_len = skb->len;
 	unsigned snaplen;
@@ -539,7 +543,7 @@ drop:
 static int tpacket_rcv(struct sk_buff *skb, struct net_device *dev,  struct packet_type *pt)
 {
 	struct sock *sk;
-	struct packet_opt *po;
+	struct packet_sock *po;
 	struct sockaddr_ll *sll;
 	struct tpacket_hdr *h;
 	u8 * skb_head = skb->data;
@@ -697,7 +701,7 @@ static int packet_sendmsg(struct kiocb *iocb, struct socket *sock,
 	 */
 	 
 	if (saddr == NULL) {
-		struct packet_opt *po = pkt_sk(sk);
+		struct packet_sock *po = pkt_sk(sk);
 
 		ifindex	= po->ifindex;
 		proto	= po->num;
@@ -784,10 +788,12 @@ out:
 static int packet_release(struct socket *sock)
 {
 	struct sock *sk = sock->sk;
-	struct packet_opt *po = pkt_sk(sk);
+	struct packet_sock *po;
 
 	if (!sk)
 		return 0;
+
+	po = pkt_sk(sk);
 
 	write_lock_bh(&packet_sklist_lock);
 	sk_del_node_init(sk);
@@ -840,7 +846,7 @@ static int packet_release(struct socket *sock)
 
 static int packet_do_bind(struct sock *sk, struct net_device *dev, int protocol)
 {
-	struct packet_opt *po = pkt_sk(sk);
+	struct packet_sock *po = pkt_sk(sk);
 	/*
 	 *	Detach an existing hook if present.
 	 */
@@ -949,6 +955,11 @@ out:
 	return err;
 }
 
+static struct proto packet_proto = {
+	.name	  = "PACKET",
+	.owner	  = THIS_MODULE,
+	.obj_size = sizeof(struct packet_sock),
+};
 
 /*
  *	Create a packet of type SOCK_PACKET. 
@@ -957,7 +968,7 @@ out:
 static int packet_create(struct socket *sock, int protocol)
 {
 	struct sock *sk;
-	struct packet_opt *po;
+	struct packet_sock *po;
 	int err;
 
 	if (!capable(CAP_NET_RAW))
@@ -972,7 +983,7 @@ static int packet_create(struct socket *sock, int protocol)
 	sock->state = SS_UNCONNECTED;
 
 	err = -ENOBUFS;
-	sk = sk_alloc(PF_PACKET, GFP_KERNEL, 1, NULL);
+	sk = sk_alloc(PF_PACKET, GFP_KERNEL, &packet_proto, 1);
 	if (sk == NULL)
 		goto out;
 
@@ -981,13 +992,9 @@ static int packet_create(struct socket *sock, int protocol)
 	if (sock->type == SOCK_PACKET)
 		sock->ops = &packet_ops_spkt;
 #endif
-	sock_init_data(sock,sk);
-	sk_set_owner(sk, THIS_MODULE);
+	sock_init_data(sock, sk);
 
-	po = sk->sk_protinfo = kmalloc(sizeof(*po), GFP_KERNEL);
-	if (!po)
-		goto out_free;
-	memset(po, 0, sizeof(*po));
+	po = pkt_sk(sk);
 	sk->sk_family = PF_PACKET;
 	po->num = protocol;
 
@@ -1017,9 +1024,6 @@ static int packet_create(struct socket *sock, int protocol)
 	sk_add_node(sk, &packet_sklist);
 	write_unlock_bh(&packet_sklist_lock);
 	return(0);
-
-out_free:
-	sk_free(sk);
 out:
 	return err;
 }
@@ -1137,7 +1141,7 @@ static int packet_getname(struct socket *sock, struct sockaddr *uaddr,
 {
 	struct net_device *dev;
 	struct sock *sk = sock->sk;
-	struct packet_opt *po = pkt_sk(sk);
+	struct packet_sock *po = pkt_sk(sk);
 	struct sockaddr_ll *sll = (struct sockaddr_ll*)uaddr;
 
 	if (peer)
@@ -1191,7 +1195,7 @@ static void packet_dev_mclist(struct net_device *dev, struct packet_mclist *i, i
 
 static int packet_mc_add(struct sock *sk, struct packet_mreq *mreq)
 {
-	struct packet_opt *po = pkt_sk(sk);
+	struct packet_sock *po = pkt_sk(sk);
 	struct packet_mclist *ml, *i;
 	struct net_device *dev;
 	int err;
@@ -1270,7 +1274,7 @@ static int packet_mc_drop(struct sock *sk, struct packet_mreq *mreq)
 
 static void packet_flush_mclist(struct sock *sk)
 {
-	struct packet_opt *po = pkt_sk(sk);
+	struct packet_sock *po = pkt_sk(sk);
 	struct packet_mclist *ml;
 
 	if (!po->mclist)
@@ -1346,12 +1350,12 @@ packet_setsockopt(struct socket *sock, int level, int optname, char __user *optv
 	}
 }
 
-int packet_getsockopt(struct socket *sock, int level, int optname,
-		      char __user *optval, int __user *optlen)
+static int packet_getsockopt(struct socket *sock, int level, int optname,
+			     char __user *optval, int __user *optlen)
 {
 	int len;
 	struct sock *sk = sock->sk;
-	struct packet_opt *po = pkt_sk(sk);
+	struct packet_sock *po = pkt_sk(sk);
 
 	if (level != SOL_PACKET)
 		return -ENOPROTOOPT;
@@ -1397,7 +1401,7 @@ static int packet_notifier(struct notifier_block *this, unsigned long msg, void 
 
 	read_lock(&packet_sklist_lock);
 	sk_for_each(sk, node, &packet_sklist) {
-		struct packet_opt *po = pkt_sk(sk);
+		struct packet_sock *po = pkt_sk(sk);
 
 		switch (msg) {
 		case NETDEV_UNREGISTER:
@@ -1496,10 +1500,11 @@ static int packet_ioctl(struct socket *sock, unsigned int cmd,
 #define packet_poll datagram_poll
 #else
 
-unsigned int packet_poll(struct file * file, struct socket *sock, poll_table *wait)
+static unsigned int packet_poll(struct file * file, struct socket *sock,
+				poll_table *wait)
 {
 	struct sock *sk = sock->sk;
-	struct packet_opt *po = pkt_sk(sk);
+	struct packet_sock *po = pkt_sk(sk);
 	unsigned int mask = datagram_poll(file, sock, wait);
 
 	spin_lock_bh(&sk->sk_receive_queue.lock);
@@ -1548,7 +1553,12 @@ static struct vm_operations_struct packet_mmap_ops = {
 	.close =packet_mm_close,
 };
 
-static void free_pg_vec(unsigned long *pg_vec, unsigned order, unsigned len)
+static inline struct page *pg_vec_endpage(char *one_pg_vec, unsigned int order)
+{
+	return virt_to_page(one_pg_vec + (PAGE_SIZE << order) - 1);
+}
+
+static void free_pg_vec(char **pg_vec, unsigned order, unsigned len)
 {
 	int i;
 
@@ -1556,10 +1566,10 @@ static void free_pg_vec(unsigned long *pg_vec, unsigned order, unsigned len)
 		if (pg_vec[i]) {
 			struct page *page, *pend;
 
-			pend = virt_to_page(pg_vec[i] + (PAGE_SIZE << order) - 1);
+			pend = pg_vec_endpage(pg_vec[i], order);
 			for (page = virt_to_page(pg_vec[i]); page <= pend; page++)
 				ClearPageReserved(page);
-			free_pages(pg_vec[i], order);
+			free_pages((unsigned long)pg_vec[i], order);
 		}
 	}
 	kfree(pg_vec);
@@ -1568,8 +1578,8 @@ static void free_pg_vec(unsigned long *pg_vec, unsigned order, unsigned len)
 
 static int packet_set_ring(struct sock *sk, struct tpacket_req *req, int closing)
 {
-	unsigned long *pg_vec = NULL;
-	struct packet_opt *po = pkt_sk(sk);
+	char **pg_vec = NULL;
+	struct packet_sock *po = pkt_sk(sk);
 	int was_running, num, order = 0;
 	int err = 0;
 	
@@ -1603,18 +1613,18 @@ static int packet_set_ring(struct sock *sk, struct tpacket_req *req, int closing
 
 		err = -ENOMEM;
 
-		pg_vec = kmalloc(req->tp_block_nr*sizeof(unsigned long*), GFP_KERNEL);
+		pg_vec = kmalloc(req->tp_block_nr*sizeof(char *), GFP_KERNEL);
 		if (pg_vec == NULL)
 			goto out;
-		memset(pg_vec, 0, req->tp_block_nr*sizeof(unsigned long*));
+		memset(pg_vec, 0, req->tp_block_nr*sizeof(char **));
 
 		for (i=0; i<req->tp_block_nr; i++) {
 			struct page *page, *pend;
-			pg_vec[i] = __get_free_pages(GFP_KERNEL, order);
+			pg_vec[i] = (char *)__get_free_pages(GFP_KERNEL, order);
 			if (!pg_vec[i])
 				goto out_free_pgvec;
 
-			pend = virt_to_page(pg_vec[i] + (PAGE_SIZE << order) - 1);
+			pend = pg_vec_endpage(pg_vec[i], order);
 			for (page = virt_to_page(pg_vec[i]); page <= pend; page++)
 				SetPageReserved(page);
 		}
@@ -1622,7 +1632,7 @@ static int packet_set_ring(struct sock *sk, struct tpacket_req *req, int closing
 
 		l = 0;
 		for (i=0; i<req->tp_block_nr; i++) {
-			unsigned long ptr = pg_vec[i];
+			char *ptr = pg_vec[i];
 			struct tpacket_hdr *header;
 			int k;
 
@@ -1699,7 +1709,7 @@ out:
 static int packet_mmap(struct file *file, struct socket *sock, struct vm_area_struct *vma)
 {
 	struct sock *sk = sock->sk;
-	struct packet_opt *po = pkt_sk(sk);
+	struct packet_sock *po = pkt_sk(sk);
 	unsigned long size;
 	unsigned long start;
 	int err = -EINVAL;
@@ -1720,7 +1730,8 @@ static int packet_mmap(struct file *file, struct socket *sock, struct vm_area_st
 	start = vma->vm_start;
 	err = -EAGAIN;
 	for (i=0; i<po->pg_vec_len; i++) {
-		if (remap_page_range(vma, start, __pa(po->pg_vec[i]),
+		if (remap_pfn_range(vma, start,
+				     __pa(po->pg_vec[i]) >> PAGE_SHIFT,
 				     po->pg_vec_pages*PAGE_SIZE,
 				     vma->vm_page_prot))
 			goto out;
@@ -1737,7 +1748,7 @@ out:
 
 
 #ifdef CONFIG_SOCK_PACKET
-struct proto_ops packet_ops_spkt = {
+static struct proto_ops packet_ops_spkt = {
 	.family =	PF_PACKET,
 	.owner =	THIS_MODULE,
 	.release =	packet_release,
@@ -1759,7 +1770,7 @@ struct proto_ops packet_ops_spkt = {
 };
 #endif
 
-struct proto_ops packet_ops = {
+static struct proto_ops packet_ops = {
 	.family =	PF_PACKET,
 	.owner =	THIS_MODULE,
 	.release =	packet_release,
@@ -1828,7 +1839,7 @@ static int packet_seq_show(struct seq_file *seq, void *v)
 		seq_puts(seq, "sk       RefCnt Type Proto  Iface R Rmem   User   Inode\n");
 	else {
 		struct sock *s = v;
-		const struct packet_opt *po = pkt_sk(s);
+		const struct packet_sock *po = pkt_sk(s);
 
 		seq_printf(seq,
 			   "%p %-6d %-4d %04x   %-5d %1d %-6u %-6u %-6lu\n",
@@ -1873,16 +1884,21 @@ static void __exit packet_exit(void)
 	proc_net_remove("packet");
 	unregister_netdevice_notifier(&packet_netdev_notifier);
 	sock_unregister(PF_PACKET);
-	return;
+	proto_unregister(&packet_proto);
 }
 
 static int __init packet_init(void)
 {
+	int rc = proto_register(&packet_proto, 0);
+
+	if (rc != 0)
+		goto out;
+
 	sock_register(&packet_family_ops);
 	register_netdevice_notifier(&packet_netdev_notifier);
 	proc_net_fops_create("packet", 0, &packet_seq_fops);
-
-	return 0;
+out:
+	return rc;
 }
 
 module_init(packet_init);

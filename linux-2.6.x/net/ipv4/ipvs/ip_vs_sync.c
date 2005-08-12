@@ -16,13 +16,14 @@
  *	Alexandre Cassen	:	Added master & backup support at a time.
  *	Alexandre Cassen	:	Added SyncID support for incoming sync
  *					messages filtering.
+ *	Justin Ossevoort	:	Fix endian problem on sync message size.
  */
 
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/net.h>
 #include <linux/completion.h>
-
+#include <linux/delay.h>
 #include <linux/skbuff.h>
 #include <linux/in.h>
 #include <linux/igmp.h>                 /* for ip_mc_join_group */
@@ -118,11 +119,11 @@ struct ip_vs_sync_buff {
 
 /* the sync_buff list head and the lock */
 static LIST_HEAD(ip_vs_sync_queue);
-static spinlock_t ip_vs_sync_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(ip_vs_sync_lock);
 
 /* current sync_buff for accepting new conn entries */
 static struct ip_vs_sync_buff   *curr_sb = NULL;
-static spinlock_t curr_sb_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(curr_sb_lock);
 
 /* ipvs sync daemon state */
 volatile int ip_vs_sync_state = IP_VS_STATE_NONE;
@@ -279,6 +280,9 @@ static void ip_vs_process_message(const char *buffer, const size_t buflen)
 	char *p;
 	int i;
 
+	/* Convert size back to host byte order */
+	m->size = ntohs(m->size);
+
 	if (buflen != m->size) {
 		IP_VS_ERR("bogus message\n");
 		return;
@@ -339,7 +343,7 @@ static void ip_vs_process_message(const char *buffer, const size_t buflen)
  */
 static void set_mcast_loop(struct sock *sk, u_char loop)
 {
-	struct inet_opt *inet = inet_sk(sk);
+	struct inet_sock *inet = inet_sk(sk);
 
 	/* setsockopt(sock, SOL_IP, IP_MULTICAST_LOOP, &loop, sizeof(loop)); */
 	lock_sock(sk);
@@ -352,7 +356,7 @@ static void set_mcast_loop(struct sock *sk, u_char loop)
  */
 static void set_mcast_ttl(struct sock *sk, u_char ttl)
 {
-	struct inet_opt *inet = inet_sk(sk);
+	struct inet_sock *inet = inet_sk(sk);
 
 	/* setsockopt(sock, SOL_IP, IP_MULTICAST_TTL, &ttl, sizeof(ttl)); */
 	lock_sock(sk);
@@ -366,7 +370,7 @@ static void set_mcast_ttl(struct sock *sk, u_char ttl)
 static int set_mcast_if(struct sock *sk, char *ifname)
 {
 	struct net_device *dev;
-	struct inet_opt *inet = inet_sk(sk);
+	struct inet_sock *inet = inet_sk(sk);
 
 	if ((dev = __dev_get_by_name(ifname)) == NULL)
 		return -ENODEV;
@@ -569,6 +573,19 @@ ip_vs_send_async(struct socket *sock, const char *buffer, const size_t length)
 	return len;
 }
 
+static void
+ip_vs_send_sync_msg(struct socket *sock, struct ip_vs_sync_mesg *msg)
+{
+	int msize;
+
+	msize = msg->size;
+
+	/* Put size in network byte order */
+	msg->size = htons(msg->size);
+
+	if (ip_vs_send_async(sock, (char *)msg, msize) != msize)
+		IP_VS_ERR("ip_vs_send_async error\n");
+}
 
 static int
 ip_vs_receive(struct socket *sock, char *buffer, const size_t buflen)
@@ -605,7 +622,6 @@ static void sync_master_loop(void)
 {
 	struct socket *sock;
 	struct ip_vs_sync_buff *sb;
-	struct ip_vs_sync_mesg *m;
 
 	/* create the sending multicast socket */
 	sock = make_send_sock();
@@ -618,27 +634,20 @@ static void sync_master_loop(void)
 
 	for (;;) {
 		while ((sb=sb_dequeue())) {
-			m = sb->mesg;
-			if (ip_vs_send_async(sock, (char *)m,
-					     m->size) != m->size)
-				IP_VS_ERR("ip_vs_send_async error\n");
+			ip_vs_send_sync_msg(sock, sb->mesg);
 			ip_vs_sync_buff_release(sb);
 		}
 
 		/* check if entries stay in curr_sb for 2 seconds */
 		if ((sb = get_curr_sync_buff(2*HZ))) {
-			m = sb->mesg;
-			if (ip_vs_send_async(sock, (char *)m,
-					     m->size) != m->size)
-				IP_VS_ERR("ip_vs_send_async error\n");
+			ip_vs_send_sync_msg(sock, sb->mesg);
 			ip_vs_sync_buff_release(sb);
 		}
 
 		if (stop_master_sync)
 			break;
 
-		__set_current_state(TASK_INTERRUPTIBLE);
-		schedule_timeout(HZ);
+		ssleep(1);
 	}
 
 	/* clean up the sync_buff queue */
@@ -695,8 +704,7 @@ static void sync_backup_loop(void)
 		if (stop_backup_sync)
 			break;
 
-		__set_current_state(TASK_INTERRUPTIBLE);
-		schedule_timeout(HZ);
+		ssleep(1);
 	}
 
 	/* release the sending multicast socket */
@@ -808,8 +816,7 @@ static int fork_sync_thread(void *startup)
 	if ((pid = kernel_thread(sync_thread, startup, 0)) < 0) {
 		IP_VS_ERR("could not create sync_thread due to %d... "
 			  "retrying.\n", pid);
-		current->state = TASK_UNINTERRUPTIBLE;
-		schedule_timeout(HZ);
+		ssleep(1);
 		goto repeat;
 	}
 
@@ -843,8 +850,7 @@ int start_sync_thread(int state, char *mcast_ifn, __u8 syncid)
 	if ((pid = kernel_thread(fork_sync_thread, &startup, 0)) < 0) {
 		IP_VS_ERR("could not create fork_sync_thread due to %d... "
 			  "retrying.\n", pid);
-		current->state = TASK_UNINTERRUPTIBLE;
-		schedule_timeout(HZ);
+		ssleep(1);
 		goto repeat;
 	}
 

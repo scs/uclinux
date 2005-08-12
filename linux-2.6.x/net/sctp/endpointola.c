@@ -63,36 +63,13 @@
 /* Forward declarations for internal helpers. */
 static void sctp_endpoint_bh_rcv(struct sctp_endpoint *ep);
 
-/* Create a sctp_endpoint with all that boring stuff initialized.
- * Returns NULL if there isn't enough memory.
- */
-struct sctp_endpoint *sctp_endpoint_new(struct sock *sk, int gfp)
-{
-	struct sctp_endpoint *ep;
-
-	/* Build a local endpoint. */
-	ep = t_new(struct sctp_endpoint, gfp);
-	if (!ep)
-		goto fail;
-	if (!sctp_endpoint_init(ep, sk, gfp))
-		goto fail_init;
-	ep->base.malloced = 1;
-	SCTP_DBG_OBJCNT_INC(ep);
-	return ep;
-
-fail_init:
-	kfree(ep);
-fail:
-	return NULL;
-}
-
 /*
  * Initialize the base fields of the endpoint structure.
  */
-struct sctp_endpoint *sctp_endpoint_init(struct sctp_endpoint *ep,
-					 struct sock *sk, int gfp)
+static struct sctp_endpoint *sctp_endpoint_init(struct sctp_endpoint *ep,
+						struct sock *sk, int gfp)
 {
-	struct sctp_opt *sp = sctp_sk(sk);
+	struct sctp_sock *sp = sctp_sk(sk);
 	memset(ep, 0, sizeof(struct sctp_endpoint));
 
 	/* Initialize the base structure. */
@@ -113,7 +90,7 @@ struct sctp_endpoint *sctp_endpoint_init(struct sctp_endpoint *ep,
 
 	/* Initialize the bind addr area */
 	sctp_bind_addr_init(&ep->base.bind_addr, 0);
-	ep->base.addr_lock = RW_LOCK_UNLOCKED;
+	rwlock_init(&ep->base.addr_lock);
 
 	/* Remember who we are attached to.  */
 	ep->base.sk = sk;
@@ -148,8 +125,9 @@ struct sctp_endpoint *sctp_endpoint_init(struct sctp_endpoint *ep,
 		sp->autoclose * HZ;
 
 	/* Use SCTP specific send buffer space queues.  */
+	ep->sndbuf_policy = sctp_sndbuf_policy;
 	sk->sk_write_space = sctp_write_space;
-	sk->sk_use_write_queue = 1;
+	sock_set_flag(sk, SOCK_USE_WRITE_QUEUE);
 
 	/* Initialize the secret key used with cookie. */
 	get_random_bytes(&ep->secret_key[0], SCTP_SECRET_SIZE);
@@ -158,6 +136,29 @@ struct sctp_endpoint *sctp_endpoint_init(struct sctp_endpoint *ep,
 
 	ep->debug_name = "unnamedEndpoint";
 	return ep;
+}
+
+/* Create a sctp_endpoint with all that boring stuff initialized.
+ * Returns NULL if there isn't enough memory.
+ */
+struct sctp_endpoint *sctp_endpoint_new(struct sock *sk, int gfp)
+{
+	struct sctp_endpoint *ep;
+
+	/* Build a local endpoint. */
+	ep = t_new(struct sctp_endpoint, gfp);
+	if (!ep)
+		goto fail;
+	if (!sctp_endpoint_init(ep, sk, gfp))
+		goto fail_init;
+	ep->base.malloced = 1;
+	SCTP_DBG_OBJCNT_INC(ep);
+	return ep;
+
+fail_init:
+	kfree(ep);
+fail:
+	return NULL;
 }
 
 /* Add an association to an endpoint.  */
@@ -184,7 +185,7 @@ void sctp_endpoint_free(struct sctp_endpoint *ep)
 }
 
 /* Final destructor for endpoint.  */
-void sctp_endpoint_destroy(struct sctp_endpoint *ep)
+static void sctp_endpoint_destroy(struct sctp_endpoint *ep)
 {
 	SCTP_ASSERT(ep->base.dead, "Endpoint is not dead", return);
 
@@ -257,7 +258,7 @@ out:
  * We do a linear search of the associations for this endpoint.
  * We return the matching transport address too.
  */
-struct sctp_association *__sctp_endpoint_lookup_assoc(
+static struct sctp_association *__sctp_endpoint_lookup_assoc(
 	const struct sctp_endpoint *ep,
 	const union sctp_addr *paddr,
 	struct sctp_transport **transport)
@@ -345,7 +346,7 @@ static void sctp_endpoint_bh_rcv(struct sctp_endpoint *ep)
 	sk = ep->base.sk;
 
 	while (NULL != (chunk = sctp_inq_pop(inqueue))) {
-		subtype.chunk = chunk->chunk_hdr->type;
+		subtype = SCTP_ST_CHUNK(chunk->chunk_hdr->type);
 
 		/* We might have grown an association since last we
 		 * looked, so try again.

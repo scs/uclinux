@@ -155,7 +155,7 @@ void irlmp_expire_discoveries(hashbin_t *log, __u32 saddr, int force)
 	int			n;		/* Size of the full log */
 	int			i = 0;		/* How many we expired */
 
-	ASSERT(log != NULL, return;);
+	IRDA_ASSERT(log != NULL, return;);
 	IRDA_DEBUG(4, "%s()\n", __FUNCTION__);
 
 	spin_lock_irqsave(&log->hb_spinlock, flags);
@@ -226,7 +226,7 @@ void irlmp_dump_discoveries(hashbin_t *log)
 {
 	discovery_t *discovery;
 
-	ASSERT(log != NULL, return;);
+	IRDA_ASSERT(log != NULL, return;);
 
 	discovery = (discovery_t *) hashbin_get_first(log);
 	while (discovery != NULL) {
@@ -270,8 +270,8 @@ struct irda_device_info *irlmp_copy_discoveries(hashbin_t *log, int *pn,
 	int			n;		/* Size of the full log */
 	int			i = 0;		/* How many we picked */
 
-	ASSERT(pn != NULL, return NULL;);
-	ASSERT(log != NULL, return NULL;);
+	IRDA_ASSERT(pn != NULL, return NULL;);
+	IRDA_ASSERT(log != NULL, return NULL;);
 
 	/* Save spin lock */
 	spin_lock_irqsave(&log->hb_spinlock, flags);
@@ -313,41 +313,6 @@ struct irda_device_info *irlmp_copy_discoveries(hashbin_t *log, int *pn,
 	/* Get the actual number of device in the buffer and return */
 	*pn = i;
 	return(buffer);
-}
-
-/*
- * Function irlmp_find_device (name, saddr)
- *
- *    Look through the discovery log at each of the links and try to find 
- *    the device with the given name. Return daddr and saddr. If saddr is
- *    specified, that look at that particular link only (not impl).
- */
-__u32 irlmp_find_device(hashbin_t *cachelog, char *name, __u32 *saddr)
-{
-	unsigned long flags;
-	discovery_t *d;
-
-	spin_lock_irqsave(&cachelog->hb_spinlock, flags);
-
-	/* Look at all discoveries for that link */
-	d = (discovery_t *) hashbin_get_first(cachelog);
-	while (d != NULL) {
-		IRDA_DEBUG(1, "Discovery:\n");
-		IRDA_DEBUG(1, "  daddr=%08x\n", d->data.daddr);
-		IRDA_DEBUG(1, "  nickname=%s\n", d->data.info);
-
-		if (strcmp(name, d->data.info) == 0) {
-			*saddr = d->data.saddr;
-			
-			spin_unlock_irqrestore(&cachelog->hb_spinlock, flags);
-			return d->data.daddr;
-		}
-		d = (discovery_t *) hashbin_get_next(cachelog);
-	}
-
-	spin_unlock_irqrestore(&cachelog->hb_spinlock, flags);
-
-	return 0;
 }
 
 #ifdef CONFIG_PROC_FS
@@ -439,7 +404,7 @@ static struct seq_operations discovery_seq_ops = {
 
 static int discovery_seq_open(struct inode *inode, struct file *file)
 {
-	ASSERT(irlmp != NULL, return -EINVAL;);
+	IRDA_ASSERT(irlmp != NULL, return -EINVAL;);
 
 	return seq_open(file, &discovery_seq_ops);
 }

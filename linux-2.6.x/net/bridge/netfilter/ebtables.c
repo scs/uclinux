@@ -90,10 +90,10 @@ static struct ebt_target ebt_standard_target =
 { {NULL, NULL}, EBT_STANDARD_TARGET, NULL, NULL, NULL, NULL};
 
 static inline int ebt_do_watcher (struct ebt_entry_watcher *w,
-   const struct sk_buff *skb, const struct net_device *in,
+   const struct sk_buff *skb, unsigned int hooknr, const struct net_device *in,
    const struct net_device *out)
 {
-	w->u.watcher->watcher(skb, in, out, w->data,
+	w->u.watcher->watcher(skb, hooknr, in, out, w->data,
 	   w->watcher_size);
 	/* watchers don't give a verdict */
 	return 0;
@@ -109,11 +109,17 @@ static inline int ebt_do_match (struct ebt_entry_match *m,
 
 static inline int ebt_dev_check(char *entry, const struct net_device *device)
 {
+	int i = 0;
+	char *devname = device->name;
+
 	if (*entry == '\0')
 		return 0;
 	if (!device)
 		return 1;
-	return !!strcmp(entry, device->name);
+	/* 1 is the wildcard token */
+	while (entry[i] != '\0' && entry[i] != 1 && entry[i] == devname[i])
+		i++;
+	return (devname[i] != entry[i] && entry[i] != 1);
 }
 
 #define FWINV2(bool,invflg) ((bool) ^ !!(e->invflags & invflg))
@@ -173,9 +179,10 @@ unsigned int ebt_do_table (unsigned int hook, struct sk_buff **pskb,
 	struct ebt_chainstack *cs;
 	struct ebt_entries *chaininfo;
 	char *base;
-	struct ebt_table_info *private = table->private;
+	struct ebt_table_info *private;
 
 	read_lock_bh(&table->lock);
+	private = table->private;
 	cb_base = COUNTER_BASE(private->counters, private->nentries,
 	   smp_processor_id());
 	if (private->chainstack)
@@ -190,7 +197,7 @@ unsigned int ebt_do_table (unsigned int hook, struct sk_buff **pskb,
 	base = private->entries;
 	i = 0;
 	while (i < nentries) {
-		if (ebt_basic_match(point, (**pskb).mac.ethernet, in, out))
+		if (ebt_basic_match(point, eth_hdr(*pskb), in, out))
 			goto letscontinue;
 
 		if (EBT_MATCH_ITERATE(point, ebt_do_match, *pskb, in, out) != 0)
@@ -202,7 +209,7 @@ unsigned int ebt_do_table (unsigned int hook, struct sk_buff **pskb,
 
 		/* these should only watch: not modify, nor tell us
 		   what to do with the packet */
-		EBT_WATCHER_ITERATE(point, ebt_do_watcher, *pskb, in,
+		EBT_WATCHER_ITERATE(point, ebt_do_watcher, *pskb, hook, in,
 		   out);
 
 		t = (struct ebt_entry_target *)
@@ -816,10 +823,10 @@ static int translate_table(struct ebt_replace *repl,
 		/* this will get free'd in do_replace()/ebt_register_table()
 		   if an error occurs */
 		newinfo->chainstack = (struct ebt_chainstack **)
-		   vmalloc(NR_CPUS * sizeof(struct ebt_chainstack));
+		   vmalloc(num_possible_cpus() * sizeof(struct ebt_chainstack));
 		if (!newinfo->chainstack)
 			return -ENOMEM;
-		for (i = 0; i < NR_CPUS; i++) {
+		for (i = 0; i < num_possible_cpus(); i++) {
 			newinfo->chainstack[i] =
 			   vmalloc(udc_cnt * sizeof(struct ebt_chainstack));
 			if (!newinfo->chainstack[i]) {
@@ -892,7 +899,7 @@ static void get_counters(struct ebt_counter *oldcounters,
 	memcpy(counters, oldcounters,
 	   sizeof(struct ebt_counter) * nentries);
 	/* add other counters to those of cpu 0 */
-	for (cpu = 1; cpu < NR_CPUS; cpu++) {
+	for (cpu = 1; cpu < num_possible_cpus(); cpu++) {
 		counter_base = COUNTER_BASE(oldcounters, nentries, cpu);
 		for (i = 0; i < nentries; i++) {
 			counters[i].pcnt += counter_base[i].pcnt;
@@ -924,7 +931,7 @@ static int do_replace(void __user *user, unsigned int len)
 		BUGPRINT("Entries_size never zero\n");
 		return -EINVAL;
 	}
-	countersize = COUNTER_OFFSET(tmp.nentries) * NR_CPUS;
+	countersize = COUNTER_OFFSET(tmp.nentries) * num_possible_cpus();
 	newinfo = (struct ebt_table_info *)
 	   vmalloc(sizeof(struct ebt_table_info) + countersize);
 	if (!newinfo)
@@ -1017,7 +1024,7 @@ static int do_replace(void __user *user, unsigned int len)
 
 	vfree(table->entries);
 	if (table->chainstack) {
-		for (i = 0; i < NR_CPUS; i++)
+		for (i = 0; i < num_possible_cpus(); i++)
 			vfree(table->chainstack[i]);
 		vfree(table->chainstack);
 	}
@@ -1037,7 +1044,7 @@ free_counterstmp:
 		vfree(counterstmp);
 	/* can be initialized in translate_table() */
 	if (newinfo->chainstack) {
-		for (i = 0; i < NR_CPUS; i++)
+		for (i = 0; i < num_possible_cpus(); i++)
 			vfree(newinfo->chainstack[i]);
 		vfree(newinfo->chainstack);
 	}
@@ -1131,7 +1138,7 @@ int ebt_register_table(struct ebt_table *table)
 		return -EINVAL;
 	}
 
-	countersize = COUNTER_OFFSET(table->table->nentries) * NR_CPUS;
+	countersize = COUNTER_OFFSET(table->table->nentries) * num_possible_cpus();
 	newinfo = (struct ebt_table_info *)
 	   vmalloc(sizeof(struct ebt_table_info) + countersize);
 	ret = -ENOMEM;
@@ -1162,7 +1169,7 @@ int ebt_register_table(struct ebt_table *table)
 	}
 
 	table->private = newinfo;
-	table->lock = RW_LOCK_UNLOCKED;
+	rwlock_init(&table->lock);
 	ret = down_interruptible(&ebt_mutex);
 	if (ret != 0)
 		goto free_chainstack;
@@ -1185,7 +1192,7 @@ free_unlock:
 	up(&ebt_mutex);
 free_chainstack:
 	if (newinfo->chainstack) {
-		for (i = 0; i < NR_CPUS; i++)
+		for (i = 0; i < num_possible_cpus(); i++)
 			vfree(newinfo->chainstack[i]);
 		vfree(newinfo->chainstack);
 	}
@@ -1209,7 +1216,7 @@ void ebt_unregister_table(struct ebt_table *table)
 	if (table->private->entries)
 		vfree(table->private->entries);
 	if (table->private->chainstack) {
-		for (i = 0; i < NR_CPUS; i++)
+		for (i = 0; i < num_possible_cpus(); i++)
 			vfree(table->private->chainstack[i]);
 		vfree(table->private->chainstack);
 	}

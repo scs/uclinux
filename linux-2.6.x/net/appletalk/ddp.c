@@ -9,6 +9,7 @@
  *		Wesley Craig <netatalk@umich.edu>
  *
  *	Fixes:
+ *		Neil Horman		:	Added missing device ioctls
  *		Michael Callahan	:	Made routing work
  *		Wesley Craig		:	Fix probing to listen to a
  *						passed node id.
@@ -61,16 +62,6 @@
 #include <net/route.h>
 #include <linux/atalk.h>
 
-extern void aarp_cleanup_module(void);
-
-extern void aarp_probe_network(struct atalk_iface *atif);
-extern int  aarp_proxy_probe_network(struct atalk_iface *atif,
-				     struct atalk_addr *sa);
-extern void aarp_proxy_remove(struct net_device *dev, struct atalk_addr *sa);
-
-extern void atalk_register_sysctl(void);
-extern void atalk_unregister_sysctl(void);
-
 struct datalink_proto *ddp_dl, *aarp_dl;
 static struct proto_ops atalk_dgram_ops;
 
@@ -81,18 +72,11 @@ static struct proto_ops atalk_dgram_ops;
 \**************************************************************************/
 
 HLIST_HEAD(atalk_sockets);
-rwlock_t atalk_sockets_lock = RW_LOCK_UNLOCKED;
+DEFINE_RWLOCK(atalk_sockets_lock);
 
 static inline void __atalk_insert_socket(struct sock *sk)
 {
 	sk_add_node(sk, &atalk_sockets);
-}
-
-static inline void atalk_insert_socket(struct sock *sk)
-{
-	write_lock_bh(&atalk_sockets_lock);
-	__atalk_insert_socket(sk);
-	write_unlock_bh(&atalk_sockets_lock);
 }
 
 static inline void atalk_remove_socket(struct sock *sk)
@@ -210,10 +194,10 @@ static inline void atalk_destroy_socket(struct sock *sk)
 
 /* Anti-deadlock ordering is atalk_routes_lock --> iface_lock -DaveM */
 struct atalk_route *atalk_routes;
-rwlock_t atalk_routes_lock = RW_LOCK_UNLOCKED;
+DEFINE_RWLOCK(atalk_routes_lock);
 
 struct atalk_iface *atalk_interfaces;
-rwlock_t atalk_interfaces_lock = RW_LOCK_UNLOCKED;
+DEFINE_RWLOCK(atalk_interfaces_lock);
 
 /* For probing devices or in a routerless network */
 struct atalk_route atrtr_default;
@@ -580,7 +564,7 @@ static int atrtr_create(struct rtentry *r, struct net_device *devhint)
 
 		retval = -ENOBUFS;
 		if (!rt)
-			goto out;
+			goto out_unlock;
 		memset(rt, 0, sizeof(*rt));
 
 		rt->next = atalk_routes;
@@ -589,6 +573,7 @@ static int atrtr_create(struct rtentry *r, struct net_device *devhint)
 
 	/* Fill in the routing entry */
 	rt->target  = ta->sat_addr;
+	dev_hold(devhint);
 	rt->dev     = devhint;
 	rt->flags   = r->rt_flags;
 	rt->gateway = ga->sat_addr;
@@ -629,7 +614,7 @@ out:
  * Called when a device is downed. Just throw away any routes
  * via it.
  */
-void atrtr_device_down(struct net_device *dev)
+static void atrtr_device_down(struct net_device *dev)
 {
 	struct atalk_route **r = &atalk_routes;
 	struct atalk_route *tmp;
@@ -1031,6 +1016,12 @@ static unsigned short atalk_checksum(const struct sk_buff *skb, int len)
 	return sum ? htons((unsigned short)sum) : 0xFFFF;
 }
 
+static struct proto ddp_proto = {
+	.name	  = "DDP",
+	.owner	  = THIS_MODULE,
+	.obj_size = sizeof(struct atalk_sock),
+};
+
 /*
  * Create a socket. Initialise the socket, blank the addresses
  * set the state.
@@ -1038,7 +1029,6 @@ static unsigned short atalk_checksum(const struct sk_buff *skb, int len)
 static int atalk_create(struct socket *sock, int protocol)
 {
 	struct sock *sk;
-	struct atalk_sock *at;
 	int rc = -ESOCKTNOSUPPORT;
 
 	/*
@@ -1048,25 +1038,17 @@ static int atalk_create(struct socket *sock, int protocol)
 	if (sock->type != SOCK_RAW && sock->type != SOCK_DGRAM)
 		goto out;
 	rc = -ENOMEM;
-	sk = sk_alloc(PF_APPLETALK, GFP_KERNEL, 1, NULL);
+	sk = sk_alloc(PF_APPLETALK, GFP_KERNEL, &ddp_proto, 1);
 	if (!sk)
 		goto out;
-	at = sk->sk_protinfo = kmalloc(sizeof(*at), GFP_KERNEL);
-	if (!at)
-		goto outsk;
-	memset(at, 0, sizeof(*at));
 	rc = 0;
 	sock->ops = &atalk_dgram_ops;
 	sock_init_data(sock, sk);
-	sk_set_owner(sk, THIS_MODULE);
 
 	/* Checksums on by default */
-	sk->sk_zapped = 1;
+	sock_set_flag(sk, SOCK_ZAPPED);
 out:
 	return rc;
-outsk:
-	sk_free(sk);
-	goto out;
 }
 
 /* Free a socket. No work needed */
@@ -1143,7 +1125,7 @@ static int atalk_autobind(struct sock *sk)
 
 	n = atalk_pick_and_bind_port(sk, &sat);
 	if (!n)
-		sk->sk_zapped = 0;
+		sock_reset_flag(sk, SOCK_ZAPPED);
 out:
 	return n;
 }
@@ -1155,7 +1137,8 @@ static int atalk_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 	struct sock *sk = sock->sk;
 	struct atalk_sock *at = at_sk(sk);
 
-	if (!sk->sk_zapped || addr_len != sizeof(struct sockaddr_at))
+	if (!sock_flag(sk, SOCK_ZAPPED) ||
+	    addr_len != sizeof(struct sockaddr_at))
 		return -EINVAL;
 
 	if (addr->sat_family != AF_APPLETALK)
@@ -1190,7 +1173,7 @@ static int atalk_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 			return -EADDRINUSE;
 	}
 
-	sk->sk_zapped = 0;
+	sock_reset_flag(sk, SOCK_ZAPPED);
 	return 0;
 }
 
@@ -1225,7 +1208,7 @@ static int atalk_connect(struct socket *sock, struct sockaddr *uaddr,
 #endif			
 	}
 
-	if (sk->sk_zapped)
+	if (sock_flag(sk, SOCK_ZAPPED))
 		if (atalk_autobind(sk) < 0)
 			return -EBUSY;
 
@@ -1252,7 +1235,7 @@ static int atalk_getname(struct socket *sock, struct sockaddr *uaddr,
 	struct sock *sk = sock->sk;
 	struct atalk_sock *at = at_sk(sk);
 
-	if (sk->sk_zapped)
+	if (sock_flag(sk, SOCK_ZAPPED))
 		if (atalk_autobind(sk) < 0)
 			return -ENOBUFS;
 
@@ -1574,7 +1557,7 @@ static int atalk_sendmsg(struct kiocb *iocb, struct socket *sock, struct msghdr 
 		return -EMSGSIZE;
 
 	if (usat) {
-		if (sk->sk_zapped)
+		if (sock_flag(sk, SOCK_ZAPPED))
 			if (atalk_autobind(sk) < 0)
 				return -EBUSY;
 
@@ -1823,6 +1806,8 @@ static int atalk_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 		case SIOCSIFHWADDR:
 		case SIOCGIFFLAGS:
 		case SIOCSIFFLAGS:
+		case SIOCGIFTXQLEN:
+		case SIOCSIFTXQLEN:
 		case SIOCGIFMTU:
 		case SIOCGIFCONF:
 		case SIOCADDMULTI:
@@ -1871,12 +1856,12 @@ static struct notifier_block ddp_notifier = {
 	.notifier_call	= ddp_device_event,
 };
 
-struct packet_type ltalk_packet_type = {
+static struct packet_type ltalk_packet_type = {
 	.type		= __constant_htons(ETH_P_LOCALTALK),
 	.func		= ltalk_rcv,
 };
 
-struct packet_type ppptalk_packet_type = {
+static struct packet_type ppptalk_packet_type = {
 	.type		= __constant_htons(ETH_P_PPPTALK),
 	.func		= atalk_rcv,
 };
@@ -1894,6 +1879,11 @@ static char atalk_err_snap[] __initdata =
 /* Called by proto.c on kernel start up */
 static int __init atalk_init(void)
 {
+	int rc = proto_register(&ddp_proto, 0);
+
+	if (rc != 0)
+		goto out;
+
 	(void)sock_register(&atalk_family_ops);
 	ddp_dl = register_snap_client(ddp_snap_id, atalk_rcv);
 	if (!ddp_dl)
@@ -1906,7 +1896,8 @@ static int __init atalk_init(void)
 	aarp_proto_init();
 	atalk_proc_init();
 	atalk_register_sysctl();
-	return 0;
+out:
+	return rc;
 }
 module_init(atalk_init);
 
@@ -1931,6 +1922,7 @@ static void __exit atalk_exit(void)
 	dev_remove_pack(&ppptalk_packet_type);
 	unregister_snap_client(ddp_dl);
 	sock_unregister(PF_APPLETALK);
+	proto_unregister(&ddp_proto);
 }
 module_exit(atalk_exit);
 

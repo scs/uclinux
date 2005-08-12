@@ -5,8 +5,8 @@
  * Added /proc/sys/net directories for each protocol family. [MS]
  *
  * $Log$
- * Revision 1.3  2004/09/08 16:29:09  lgsoft
- * Import of 2.6.8
+ * Revision 1.4  2005/08/12 03:51:11  magicyang
+ *  Update kernel 2.6.8 to 2.6.12
  *
  * Revision 1.2  1996/05/08  20:24:40  shaver
  * Added bits for NET_BRIDGE and the NET_IPV4_ARP stuff and

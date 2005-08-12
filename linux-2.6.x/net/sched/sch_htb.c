@@ -31,7 +31,7 @@
 #include <linux/module.h>
 #include <asm/uaccess.h>
 #include <asm/system.h>
-#include <asm/bitops.h>
+#include <linux/bitops.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
@@ -71,7 +71,7 @@
 
 #define HTB_HSIZE 16	/* classid hash size */
 #define HTB_EWMAC 2	/* rate average over HTB_EWMAC*HTB_HSIZE sec */
-#define HTB_DEBUG 1	/* compile debugging support (activated by tc tool) */
+#undef HTB_DEBUG	/* compile debugging support (activated by tc tool) */
 #define HTB_RATECM 1    /* whether to use rate computer */
 #define HTB_HYSTERESIS 1/* whether to use mode hysteresis for speedup */
 #define HTB_QLOCK(S) spin_lock_bh(&(S)->dev->queue_lock)
@@ -142,8 +142,9 @@ struct htb_class
 #endif
     /* general class parameters */
     u32 classid;
-    struct tc_stats	stats;	/* generic stats */
-    spinlock_t		*stats_lock;
+    struct gnet_stats_basic bstats;
+    struct gnet_stats_queue qstats;
+    struct gnet_stats_rate_est rate_est;
     struct tc_htb_xstats xstats;/* our special stats */
     int refcnt;			/* usage count of this class */
 
@@ -304,7 +305,7 @@ static inline u32 htb_classid(struct htb_class *cl)
 	return (cl && cl != HTB_DIRECT) ? cl->classid : TC_H_UNSPEC;
 }
 
-static struct htb_class *htb_classify(struct sk_buff *skb, struct Qdisc *sch, int *qres)
+static struct htb_class *htb_classify(struct sk_buff *skb, struct Qdisc *sch, int *qerr)
 {
 	struct htb_sched *q = qdisc_priv(sch);
 	struct htb_class *cl;
@@ -320,35 +321,20 @@ static struct htb_class *htb_classify(struct sk_buff *skb, struct Qdisc *sch, in
 	if ((cl = htb_find(skb->priority,sch)) != NULL && cl->level == 0) 
 		return cl;
 
+	*qerr = NET_XMIT_DROP;
 	tcf = q->filter_list;
 	while (tcf && (result = tc_classify(skb, tcf, &res)) >= 0) {
 #ifdef CONFIG_NET_CLS_ACT
-		int terminal = 0;
 		switch (result) {
-		case TC_ACT_SHOT: /* Stop and kfree */
-			*qres = NET_XMIT_DROP;
-			terminal = 1;
-			break;
 		case TC_ACT_QUEUED:
 		case TC_ACT_STOLEN: 
-			terminal = 1;
-			break;
-		case TC_ACT_RECLASSIFY:  /* Things look good */
-		case TC_ACT_OK:
-		case TC_ACT_UNSPEC:
-		default:
-		break;
-		}
-
-		if (terminal) {
-			kfree_skb(skb);
+			*qerr = NET_XMIT_SUCCESS;
+		case TC_ACT_SHOT:
 			return NULL;
 		}
-#else
-#ifdef CONFIG_NET_CLS_POLICE
+#elif defined(CONFIG_NET_CLS_POLICE)
 		if (result == TC_POLICE_SHOT)
-			return NULL;
-#endif
+			return HTB_DIRECT;
 #endif
 		if ((cl = (void*)res.class) == NULL) {
 			if (res.classid == sch->handle)
@@ -722,47 +708,38 @@ htb_deactivate(struct htb_sched *q,struct htb_class *cl)
 
 static int htb_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 {
-    int ret = NET_XMIT_SUCCESS;
+    int ret;
     struct htb_sched *q = qdisc_priv(sch);
     struct htb_class *cl = htb_classify(skb,sch,&ret);
 
-
-#ifdef CONFIG_NET_CLS_ACT
-    if (cl == HTB_DIRECT ) {
-	if (q->direct_queue.qlen < q->direct_qlen ) {
-	    __skb_queue_tail(&q->direct_queue, skb);
-	    q->direct_pkts++;
-	}
-    } else if (!cl) {
-	    if (NET_XMIT_DROP == ret) {
-		    sch->stats.drops++;
-	    }
-	    return ret;
-    }
-#else
-    if (cl == HTB_DIRECT || !cl) {
+    if (cl == HTB_DIRECT) {
 	/* enqueue to helper queue */
-	if (q->direct_queue.qlen < q->direct_qlen && cl) {
+	if (q->direct_queue.qlen < q->direct_qlen) {
 	    __skb_queue_tail(&q->direct_queue, skb);
 	    q->direct_pkts++;
 	} else {
-	    kfree_skb (skb);
-	    sch->stats.drops++;
+	    kfree_skb(skb);
+	    sch->qstats.drops++;
 	    return NET_XMIT_DROP;
 	}
-    }
+#ifdef CONFIG_NET_CLS_ACT
+    } else if (!cl) {
+	if (ret == NET_XMIT_DROP)
+		sch->qstats.drops++;
+	kfree_skb (skb);
+	return ret;
 #endif
-    else if (cl->un.leaf.q->enqueue(skb, cl->un.leaf.q) != NET_XMIT_SUCCESS) {
-	sch->stats.drops++;
-	cl->stats.drops++;
+    } else if (cl->un.leaf.q->enqueue(skb, cl->un.leaf.q) != NET_XMIT_SUCCESS) {
+	sch->qstats.drops++;
+	cl->qstats.drops++;
 	return NET_XMIT_DROP;
     } else {
-	cl->stats.packets++; cl->stats.bytes += skb->len;
+	cl->bstats.packets++; cl->bstats.bytes += skb->len;
 	htb_activate (q,cl);
     }
 
     sch->q.qlen++;
-    sch->stats.packets++; sch->stats.bytes += skb->len;
+    sch->bstats.packets++; sch->bstats.bytes += skb->len;
     HTB_DBG(1,1,"htb_enq_ok cl=%X skb=%p\n",(cl && cl != HTB_DIRECT)?cl->classid:0,skb);
     return NET_XMIT_SUCCESS;
 }
@@ -783,17 +760,18 @@ static int htb_requeue(struct sk_buff *skb, struct Qdisc *sch)
             __skb_queue_head(&q->direct_queue, skb);
             tskb = __skb_dequeue_tail(&q->direct_queue);
             kfree_skb (tskb);
-            sch->stats.drops++;
+            sch->qstats.drops++;
             return NET_XMIT_CN;	
 	}
     } else if (cl->un.leaf.q->ops->requeue(skb, cl->un.leaf.q) != NET_XMIT_SUCCESS) {
-	sch->stats.drops++;
-	cl->stats.drops++;
+	sch->qstats.drops++;
+	cl->qstats.drops++;
 	return NET_XMIT_DROP;
     } else 
 	    htb_activate (q,cl);
 
     sch->q.qlen++;
+    sch->qstats.requeues++;
     HTB_DBG(1,1,"htb_req_ok cl=%X skb=%p\n",(cl && cl != HTB_DIRECT)?cl->classid:0,skb);
     return NET_XMIT_SUCCESS;
 }
@@ -905,8 +883,8 @@ static void htb_charge_class(struct htb_sched *q,struct htb_class *cl,
 
 		/* update byte stats except for leaves which are already updated */
 		if (cl->level) {
-			cl->stats.bytes += bytes;
-			cl->stats.packets++;
+			cl->bstats.bytes += bytes;
+			cl->bstats.packets++;
 		}
 		cl = cl->parent;
 	}
@@ -1117,7 +1095,7 @@ static void htb_delay_by(struct Qdisc *sch,long delay)
 	/* why don't use jiffies here ? because expires can be in past */
 	mod_timer(&q->timer, q->jiffies + delay);
 	sch->flags |= TCQ_F_THROTTLED;
-	sch->stats.overlimits++;
+	sch->qstats.overlimits++;
 	HTB_DBG(3,1,"htb_deq t_delay=%ld\n",delay);
 }
 
@@ -1265,7 +1243,7 @@ static int htb_init(struct Qdisc *sch, struct rtattr *opt)
 	printk(KERN_INFO "HTB init, kernel part version %d.%d\n",
 			  HTB_VER >> 16,HTB_VER & 0xffff);
 #endif
-	if (!opt || rtattr_parse(tb, TCA_HTB_INIT, RTA_DATA(opt), RTA_PAYLOAD(opt)) ||
+	if (!opt || rtattr_parse_nested(tb, TCA_HTB_INIT, opt) ||
 			tb[TCA_HTB_INIT-1] == NULL ||
 			RTA_PAYLOAD(tb[TCA_HTB_INIT-1]) < sizeof(*gopt)) {
 		printk(KERN_ERR "HTB: hey probably you have bad tc tool ?\n");
@@ -1277,7 +1255,6 @@ static int htb_init(struct Qdisc *sch, struct rtattr *opt)
 				HTB_VER >> 16,HTB_VER & 0xffff,gopt->version);
 		return -EINVAL;
 	}
-	memset(q,0,sizeof(*q));
 	q->debug = gopt->debug;
 	HTB_DBG(0,1,"htb_init sch=%p handle=%X r2q=%d\n",sch,sch->handle,gopt->rate2quantum);
 
@@ -1317,7 +1294,6 @@ static int htb_dump(struct Qdisc *sch, struct sk_buff *skb)
 	struct rtattr *rta;
 	struct tc_htb_glob gopt;
 	HTB_DBG(0,1,"htb_dump sch=%p, handle=%X\n",sch,sch->handle);
-	/* stats */
 	HTB_QLOCK(sch);
 	gopt.direct_pkts = q->direct_pkts;
 
@@ -1333,8 +1309,6 @@ static int htb_dump(struct Qdisc *sch, struct sk_buff *skb)
 	RTA_PUT(skb, TCA_OPTIONS, 0, NULL);
 	RTA_PUT(skb, TCA_HTB_INIT, sizeof(gopt), &gopt);
 	rta->rta_len = skb->tail - b;
-	sch->stats.qlen = sch->q.qlen;
-	RTA_PUT(skb, TCA_STATS, sizeof(sch->stats), &sch->stats);
 	HTB_QUNLOCK(sch);
 	return skb->len;
 rtattr_failure:
@@ -1359,10 +1333,8 @@ static int htb_dump_class(struct Qdisc *sch, unsigned long arg,
 	HTB_QLOCK(sch);
 	tcm->tcm_parent = cl->parent ? cl->parent->classid : TC_H_ROOT;
 	tcm->tcm_handle = cl->classid;
-	if (!cl->level && cl->un.leaf.q) {
+	if (!cl->level && cl->un.leaf.q)
 		tcm->tcm_info = cl->un.leaf.q->handle;
-		cl->stats.qlen = cl->un.leaf.q->q.qlen;
-	}
 
 	rta = (struct rtattr*)b;
 	RTA_PUT(skb, TCA_OPTIONS, 0, NULL);
@@ -1375,22 +1347,36 @@ static int htb_dump_class(struct Qdisc *sch, unsigned long arg,
 	opt.level = cl->level; 
 	RTA_PUT(skb, TCA_HTB_PARMS, sizeof(opt), &opt);
 	rta->rta_len = skb->tail - b;
-
-#ifdef HTB_RATECM
-	cl->stats.bps = cl->rate_bytes/(HTB_EWMAC*HTB_HSIZE);
-	cl->stats.pps = cl->rate_packets/(HTB_EWMAC*HTB_HSIZE);
-#endif
-
-	cl->xstats.tokens = cl->tokens;
-	cl->xstats.ctokens = cl->ctokens;
-	RTA_PUT(skb, TCA_STATS, sizeof(cl->stats), &cl->stats);
-	RTA_PUT(skb, TCA_XSTATS, sizeof(cl->xstats), &cl->xstats);
 	HTB_QUNLOCK(sch);
 	return skb->len;
 rtattr_failure:
 	HTB_QUNLOCK(sch);
 	skb_trim(skb, b - skb->data);
 	return -1;
+}
+
+static int
+htb_dump_class_stats(struct Qdisc *sch, unsigned long arg,
+	struct gnet_dump *d)
+{
+	struct htb_class *cl = (struct htb_class*)arg;
+
+#ifdef HTB_RATECM
+	cl->rate_est.bps = cl->rate_bytes/(HTB_EWMAC*HTB_HSIZE);
+	cl->rate_est.pps = cl->rate_packets/(HTB_EWMAC*HTB_HSIZE);
+#endif
+
+	if (!cl->level && cl->un.leaf.q)
+		cl->qstats.qlen = cl->un.leaf.q->q.qlen;
+	cl->xstats.tokens = cl->tokens;
+	cl->xstats.ctokens = cl->ctokens;
+
+	if (gnet_stats_copy_basic(d, &cl->bstats) < 0 ||
+	    gnet_stats_copy_rate_est(d, &cl->rate_est) < 0 ||
+	    gnet_stats_copy_queue(d, &cl->qstats) < 0)
+		return -1;
+
+	return gnet_stats_copy_app(d, &cl->xstats, sizeof(cl->xstats));
 }
 
 static int htb_graft(struct Qdisc *sch, unsigned long arg, struct Qdisc *new,
@@ -1457,9 +1443,6 @@ static void htb_destroy_class(struct Qdisc* sch,struct htb_class *cl)
 	qdisc_put_rtab(cl->rate);
 	qdisc_put_rtab(cl->ceil);
 	
-#ifdef CONFIG_NET_ESTIMATOR
-	qdisc_kill_estimator(&cl->stats);
-#endif
 	htb_destroy_filters (&cl->filter_list);
 	
 	while (!list_empty(&cl->children)) 
@@ -1552,7 +1535,7 @@ static int htb_change_class(struct Qdisc *sch, u32 classid,
 	struct tc_htb_opt *hopt;
 
 	/* extract all subattrs from opt attr */
-	if (!opt || rtattr_parse(tb, TCA_HTB_RTAB, RTA_DATA(opt), RTA_PAYLOAD(opt)) ||
+	if (!opt || rtattr_parse_nested(tb, TCA_HTB_RTAB, opt) ||
 			tb[TCA_HTB_PARMS-1] == NULL ||
 			RTA_PAYLOAD(tb[TCA_HTB_PARMS-1]) < sizeof(*hopt))
 		goto failure;
@@ -1747,6 +1730,7 @@ static struct Qdisc_class_ops htb_class_ops = {
 	.bind_tcf	=	htb_bind_filter,
 	.unbind_tcf	=	htb_unbind_filter,
 	.dump		=	htb_dump_class,
+	.dump_stats	=	htb_dump_class_stats,
 };
 
 static struct Qdisc_ops htb_qdisc_ops = {

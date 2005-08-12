@@ -23,6 +23,7 @@ extern int sysctl_ip_nonlocal_bind;
 extern int sysctl_icmp_echo_ignore_all;
 extern int sysctl_icmp_echo_ignore_broadcasts;
 extern int sysctl_icmp_ignore_bogus_error_responses;
+extern int sysctl_icmp_errors_use_inbound_ifaddr;
 
 /* From ip_fragment.c */
 extern int sysctl_ipfrag_low_thresh;
@@ -396,6 +397,14 @@ ctl_table ipv4_table[] = {
 		.proc_handler	= &proc_dointvec
 	},
 	{
+		.ctl_name	= NET_IPV4_ICMP_ERRORS_USE_INBOUND_IFADDR,
+		.procname	= "icmp_errors_use_inbound_ifaddr",
+		.data		= &sysctl_icmp_errors_use_inbound_ifaddr,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec
+	},
+	{
 		.ctl_name	= NET_IPV4_ROUTE,
 		.procname	= "route",
 		.maxlen		= 0,
@@ -667,17 +676,25 @@ ctl_table ipv4_table[] = {
 		.proc_handler	= &proc_dointvec,
 	},
 	{
-		.ctl_name	= NET_TCP_DEFAULT_WIN_SCALE,
-		.procname	= "tcp_default_win_scale",
-		.data		= &sysctl_tcp_default_win_scale,
+		.ctl_name	= NET_TCP_MODERATE_RCVBUF,
+		.procname	= "tcp_moderate_rcvbuf",
+		.data		= &sysctl_tcp_moderate_rcvbuf,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec,
 	},
 	{
-		.ctl_name	= NET_TCP_MODERATE_RCVBUF,
-		.procname	= "tcp_moderate_rcvbuf",
-		.data		= &sysctl_tcp_moderate_rcvbuf,
+		.ctl_name	= NET_TCP_TSO_WIN_DIVISOR,
+		.procname	= "tcp_tso_win_divisor",
+		.data		= &sysctl_tcp_tso_win_divisor,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec,
+	},
+	{
+		.ctl_name	= NET_TCP_BIC_BETA,
+		.procname	= "tcp_bic_beta",
+		.data		= &sysctl_tcp_bic_beta,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec,

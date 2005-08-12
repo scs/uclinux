@@ -72,6 +72,7 @@ Code	Seq#	Include File		Comments
 0x09	all	linux/md.h
 0x12	all	linux/fs.h
 		linux/blkpg.h
+0x1b	all	InfiniBand Subsystem	<http://www.openib.org/>
 0x20	all	drivers/cdrom/cm206.h
 0x22	all	scsi/sg.h
 '#'	00-3F	IEEE 1394 Subsystem	Block for the entire subsystem
@@ -117,6 +118,7 @@ Code	Seq#	Include File		Comments
 					<mailto:natalia@nikhefk.nikhef.nl>
 'c'	00-7F	linux/comstats.h	conflict!
 'c'	00-7F	linux/coda.h		conflict!
+'d'	00-FF	linux/char/drm/drm/h	conflict!
 'd'	00-1F	linux/devfs_fs.h	conflict!
 'd'	00-DF	linux/video_decoder.h	conflict!
 'd'	F0-FF	linux/digi1.h
@@ -144,7 +146,7 @@ Code	Seq#	Include File		Comments
 'p'	40-7F	linux/nvram.h
 'p'	80-9F				user-space parport
 					<mailto:tim@cyberelk.net>
-'q'	00-1F	linux/videotext.h	conflict!
+'q'	00-1F	linux/serio.h
 'q'	80-FF				Internet PhoneJACK, Internet LineJACK
 					<http://www.quicknet.net>
 'r'	00-1F	linux/msdos_fs.h
@@ -162,6 +164,7 @@ Code	Seq#	Include File		Comments
 'z'	40-7F				CAN bus card
 					<mailto:oe@port.de>
 0x80	00-1F	linux/fb.h
+0x81	00-1F	linux/videotext.h
 0x89	00-06	asm-i386/sockios.h
 0x89	0B-DF	linux/sockios.h
 0x89	E0-EF	linux/sockios.h		SIOCPROTOPRIVATE range

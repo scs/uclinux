@@ -110,7 +110,7 @@ struct sctp_packet *sctp_packet_init(struct sctp_packet *packet,
 	packet->destination_port = dport;
 	skb_queue_head_init(&packet->chunks);
 	if (asoc) {
-		struct sctp_opt *sp = sctp_sk(asoc->base.sk);	
+		struct sctp_sock *sp = sctp_sk(asoc->base.sk);	
 		overhead = sp->pf->af->net_header_len; 
 	} else {
 		overhead = sizeof(struct ipv6hdr);
@@ -313,12 +313,12 @@ int sctp_packet_transmit(struct sctp_packet *packet)
 	sk = chunk->skb->sk;
 
 	/* Allocate the new skb.  */
-	nskb = dev_alloc_skb(packet->size);
+	nskb = alloc_skb(packet->size + LL_MAX_HEADER, GFP_ATOMIC);
 	if (!nskb)
 		goto nomem;
 
 	/* Make sure the outbound skb has enough header room reserved. */
-	skb_reserve(nskb, packet->overhead);
+	skb_reserve(nskb, packet->overhead + LL_MAX_HEADER);
 
 	/* Set the owning socket so that we know where to get the
 	 * destination IP address.
@@ -534,7 +534,7 @@ static sctp_xmit_t sctp_packet_append_data(struct sctp_packet *packet,
 	struct sctp_transport *transport = packet->transport;
 	__u32 max_burst_bytes;
 	struct sctp_association *asoc = transport->asoc;
-	struct sctp_opt *sp = sctp_sk(asoc->base.sk);
+	struct sctp_sock *sp = sctp_sk(asoc->base.sk);
 	struct sctp_outq *q = &asoc->outqueue;
 
 	/* RFC 2960 6.1  Transmission of DATA Chunks

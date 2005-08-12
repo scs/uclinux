@@ -41,6 +41,7 @@
 #include <linux/sysctl.h>
 #include <linux/notifier.h>
 #include <asm/uaccess.h>
+#include <asm/system.h>
 #include <net/neighbour.h>
 #include <net/dst.h>
 #include <net/flow.h>
@@ -64,7 +65,7 @@ extern struct neigh_table dn_neigh_table;
  */
 dn_address decnet_address = 0;
 
-static rwlock_t dndev_lock = RW_LOCK_UNLOCKED;
+static DEFINE_RWLOCK(dndev_lock);
 static struct net_device *decnet_default_device;
 static struct notifier_block *dnaddr_chain;
 
@@ -247,21 +248,6 @@ static struct dn_dev_sysctl_table {
 	}, {0}}
 };
 
-static inline __u16 mtu2blksize(struct net_device *dev)
-{
-	u32 blksize = dev->mtu;
-	if (blksize > 0xffff)
-		blksize = 0xffff;
-
-	if (dev->type == ARPHRD_ETHER ||
-	    dev->type == ARPHRD_PPP ||
-	    dev->type == ARPHRD_IPGRE ||
-	    dev->type == ARPHRD_LOOPBACK)
-		blksize -= 2;
-
-	return (__u16)blksize;
-}
-
 static void dn_dev_sysctl_register(struct net_device *dev, struct dn_dev_parms *parms)
 {
 	struct dn_dev_sysctl_table *t;
@@ -312,52 +298,6 @@ static void dn_dev_sysctl_unregister(struct dn_dev_parms *parms)
 		unregister_sysctl_table(t->sysctl_header);
 		kfree(t);
 	}
-}
-
-struct net_device *dn_dev_get_default(void)
-{
-	struct net_device *dev;
-	read_lock(&dndev_lock);
-	dev = decnet_default_device;
-	if (dev) {
-		if (dev->dn_ptr)
-			dev_hold(dev);
-		else
-			dev = NULL;
-	}
-	read_unlock(&dndev_lock);
-	return dev;
-}
-
-int dn_dev_set_default(struct net_device *dev, int force)
-{
-	struct net_device *old = NULL;
-	int rv = -EBUSY;
-	if (!dev->dn_ptr)
-		return -ENODEV;
-	write_lock(&dndev_lock);
-	if (force || decnet_default_device == NULL) {
-		old = decnet_default_device;
-		decnet_default_device = dev;
-		rv = 0;
-	}
-	write_unlock(&dndev_lock);
-	if (old)
-		dev_put(dev);
-	return rv;
-}
-
-static void dn_dev_check_default(struct net_device *dev)
-{
-	write_lock(&dndev_lock);
-	if (dev == decnet_default_device) {
-		decnet_default_device = NULL;
-	} else {
-		dev = NULL;
-	}
-	write_unlock(&dndev_lock);
-	if (dev)
-		dev_put(dev);
 }
 
 static int dn_forwarding_proc(ctl_table *table, int write, 
@@ -453,6 +393,21 @@ static void dn_dev_sysctl_register(struct net_device *dev, struct dn_dev_parms *
 }
 
 #endif /* CONFIG_SYSCTL */
+
+static inline __u16 mtu2blksize(struct net_device *dev)
+{
+	u32 blksize = dev->mtu;
+	if (blksize > 0xffff)
+		blksize = 0xffff;
+
+	if (dev->type == ARPHRD_ETHER ||
+	    dev->type == ARPHRD_PPP ||
+	    dev->type == ARPHRD_IPGRE ||
+	    dev->type == ARPHRD_LOOPBACK)
+		blksize -= 2;
+
+	return (__u16)blksize;
+}
 
 static struct dn_ifaddr *dn_dev_alloc_ifa(void)
 {
@@ -635,6 +590,52 @@ rarok:
 	goto done;
 }
 
+struct net_device *dn_dev_get_default(void)
+{
+	struct net_device *dev;
+	read_lock(&dndev_lock);
+	dev = decnet_default_device;
+	if (dev) {
+		if (dev->dn_ptr)
+			dev_hold(dev);
+		else
+			dev = NULL;
+	}
+	read_unlock(&dndev_lock);
+	return dev;
+}
+
+int dn_dev_set_default(struct net_device *dev, int force)
+{
+	struct net_device *old = NULL;
+	int rv = -EBUSY;
+	if (!dev->dn_ptr)
+		return -ENODEV;
+	write_lock(&dndev_lock);
+	if (force || decnet_default_device == NULL) {
+		old = decnet_default_device;
+		decnet_default_device = dev;
+		rv = 0;
+	}
+	write_unlock(&dndev_lock);
+	if (old)
+		dev_put(dev);
+	return rv;
+}
+
+static void dn_dev_check_default(struct net_device *dev)
+{
+	write_lock(&dndev_lock);
+	if (dev == decnet_default_device) {
+		decnet_default_device = NULL;
+	} else {
+		dev = NULL;
+	}
+	write_unlock(&dndev_lock);
+	if (dev)
+		dev_put(dev);
+}
+
 static struct dn_dev *dn_dev_by_index(int ifindex)
 {
 	struct net_device *dev;
@@ -661,7 +662,7 @@ static int dn_dev_rtm_deladdr(struct sk_buff *skb, struct nlmsghdr *nlh, void *a
 	for(ifap = &dn_db->ifa_list; (ifa=*ifap) != NULL; ifap = &ifa->ifa_next) {
 		void *tmp = rta[IFA_LOCAL-1];
 		if ((tmp && memcmp(RTA_DATA(tmp), &ifa->ifa_local, 2)) ||
-				(rta[IFA_LABEL-1] && strcmp(RTA_DATA(rta[IFA_LABEL-1]), ifa->ifa_label)))
+		    (rta[IFA_LABEL-1] && rtattr_strcmp(rta[IFA_LABEL-1], ifa->ifa_label)))
 			continue;
 
 		dn_dev_del_ifa(dn_db, ifap, 1);
@@ -704,7 +705,7 @@ static int dn_dev_rtm_newaddr(struct sk_buff *skb, struct nlmsghdr *nlh, void *a
 	ifa->ifa_scope = ifm->ifa_scope;
 	ifa->ifa_dev = dn_db;
 	if (rta[IFA_LABEL-1])
-		memcpy(ifa->ifa_label, RTA_DATA(rta[IFA_LABEL-1]), IFNAMSIZ);
+		rtattr_strlcpy(ifa->ifa_label, rta[IFA_LABEL-1], IFNAMSIZ);
 	else
 		memcpy(ifa->ifa_label, dev->name, IFNAMSIZ);
 
@@ -1108,6 +1109,7 @@ struct dn_dev *dn_dev_create(struct net_device *dev, int *err)
 
 	memset(dn_db, 0, sizeof(struct dn_dev));
 	memcpy(&dn_db->parms, p, sizeof(struct dn_dev_parms));
+	smp_wmb();
 	dev->dn_ptr = dn_db;
 	dn_db->dev = dev;
 	init_timer(&dn_db->timer);
@@ -1215,6 +1217,7 @@ static void dn_dev_delete(struct net_device *dev)
 	dev->dn_ptr = NULL;
 
 	neigh_parms_release(&dn_neigh_table, dn_db->neigh_parms);
+	neigh_ifdown(&dn_neigh_table, dev);
 
 	if (dn_db->router)
 		neigh_release(dn_db->router);
@@ -1287,59 +1290,6 @@ int unregister_dnaddr_notifier(struct notifier_block *nb)
 {
 	return notifier_chain_unregister(&dnaddr_chain, nb);
 }
-
-#ifdef CONFIG_DECNET_SIOCGIFCONF
-/*
- * Now we support multiple addresses per interface.
- * Since we don't want to break existing code, you have to enable
- * it as a compile time option. Probably you should use the
- * rtnetlink interface instead.
- */
-int dnet_gifconf(struct net_device *dev, char __user *buf, int len)
-{
-	struct dn_dev *dn_db = (struct dn_dev *)dev->dn_ptr;
-	struct dn_ifaddr *ifa;
-	char buffer[DN_IFREQ_SIZE];
-	struct ifreq *ifr = (struct ifreq *)buffer;
-	struct sockaddr_dn *addr = (struct sockaddr_dn *)&ifr->ifr_addr;
-	int done = 0;
-
-	if ((dn_db == NULL) || ((ifa = dn_db->ifa_list) == NULL))
-		return 0;
-
-	for(; ifa; ifa = ifa->ifa_next) {
-		if (!buf) {
-			done += sizeof(DN_IFREQ_SIZE);
-			continue;
-		}
-		if (len < DN_IFREQ_SIZE)
-			return done;
-		memset(buffer, 0, DN_IFREQ_SIZE);
-
-		if (ifa->ifa_label)
-			strcpy(ifr->ifr_name, ifa->ifa_label);
-		else
-			strcpy(ifr->ifr_name, dev->name);
-
-		addr->sdn_family = AF_DECnet;
-		addr->sdn_add.a_len = 2;
-		memcpy(addr->sdn_add.a_addr, &ifa->ifa_local,
-			sizeof(dn_address));
-
-		if (copy_to_user(buf, buffer, DN_IFREQ_SIZE)) {
-			done = -EFAULT;
-			break;
-		}
-
-		buf  += DN_IFREQ_SIZE;
-		len  -= DN_IFREQ_SIZE;
-		done += DN_IFREQ_SIZE;
-	}
-
-	return done;
-}
-#endif /* CONFIG_DECNET_SIOCGIFCONF */
-
 
 #ifdef CONFIG_PROC_FS
 static inline struct net_device *dn_dev_get_next(struct seq_file *seq, struct net_device *dev)
@@ -1461,28 +1411,28 @@ static struct file_operations dn_dev_seq_fops = {
 
 #endif /* CONFIG_PROC_FS */
 
-static struct rtnetlink_link dnet_rtnetlink_table[RTM_MAX-RTM_BASE+1] = 
+static struct rtnetlink_link dnet_rtnetlink_table[RTM_NR_MSGTYPES] =
 {
-	 [4] = { .doit   = dn_dev_rtm_newaddr,	},
-	 [5] = { .doit   = dn_dev_rtm_deladdr,	},
-	 [6] = { .dumpit = dn_dev_dump_ifaddr,	},
-
+	[RTM_NEWADDR  - RTM_BASE] = { .doit	= dn_dev_rtm_newaddr,	},
+	[RTM_DELADDR  - RTM_BASE] = { .doit	= dn_dev_rtm_deladdr,	},
+	[RTM_GETADDR  - RTM_BASE] = { .dumpit	= dn_dev_dump_ifaddr,	},
 #ifdef CONFIG_DECNET_ROUTER
-	 [8] = { .doit   = dn_fib_rtm_newroute,	},
-	 [9] = { .doit   = dn_fib_rtm_delroute,	},
-	[10] = { .doit   = dn_cache_getroute, .dumpit = dn_fib_dump, },
-	[16] = { .doit   = dn_fib_rtm_newrule, },
-	[17] = { .doit   = dn_fib_rtm_delrule, },
-	[18] = { .dumpit = dn_fib_dump_rules,  },
+	[RTM_NEWROUTE - RTM_BASE] = { .doit	= dn_fib_rtm_newroute,	},
+	[RTM_DELROUTE - RTM_BASE] = { .doit	= dn_fib_rtm_delroute,	},
+	[RTM_GETROUTE - RTM_BASE] = { .doit	= dn_cache_getroute,
+				      .dumpit	= dn_fib_dump,		},
+	[RTM_NEWRULE  - RTM_BASE] = { .doit	= dn_fib_rtm_newrule,	},
+	[RTM_DELRULE  - RTM_BASE] = { .doit	= dn_fib_rtm_delrule,	},
+	[RTM_GETRULE  - RTM_BASE] = { .dumpit	= dn_fib_dump_rules,	},
 #else
-	[10] = { .doit   = dn_cache_getroute, .dumpit = dn_cache_dump, },
+	[RTM_GETROUTE - RTM_BASE] = { .doit	= dn_cache_getroute,
+				      .dumpit	= dn_cache_dump,	},
 #endif
 
 };
 
 static int __initdata addr[2];
-static int __initdata num;
-module_param_array(addr, int, num, 0444);
+module_param_array(addr, int, NULL, 0444);
 MODULE_PARM_DESC(addr, "The DECnet address of this machine: area,node");
 
 void __init dn_dev_init(void)
@@ -1500,9 +1450,6 @@ void __init dn_dev_init(void)
         decnet_address = dn_htons((addr[0] << 10) | addr[1]);
 
 	dn_dev_devices_on();
-#ifdef CONFIG_DECNET_SIOCGIFCONF
-	register_gifconf(PF_DECnet, dnet_gifconf);
-#endif /* CONFIG_DECNET_SIOCGIFCONF */
 
 	rtnetlink_links[PF_DECnet] = dnet_rtnetlink_table;
 
@@ -1520,10 +1467,6 @@ void __init dn_dev_init(void)
 void __exit dn_dev_cleanup(void)
 {
 	rtnetlink_links[PF_DECnet] = NULL;
-
-#ifdef CONFIG_DECNET_SIOCGIFCONF
-	unregister_gifconf(PF_DECnet);
-#endif /* CONFIG_DECNET_SIOCGIFCONF */
 
 #ifdef CONFIG_SYSCTL
 	{

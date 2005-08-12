@@ -30,6 +30,8 @@ LIST_HEAD(rxrpc_conns);
 DECLARE_RWSEM(rxrpc_conns_sem);
 unsigned long rxrpc_conn_timeout = 60 * 60;
 
+static void rxrpc_conn_do_timeout(struct rxrpc_connection *conn);
+
 static void __rxrpc_conn_timeout(rxrpc_timer_t *timer)
 {
 	struct rxrpc_connection *conn =
@@ -88,8 +90,8 @@ static inline int __rxrpc_create_connection(struct rxrpc_peer *peer,
  * create a new connection record for outgoing connections
  */
 int rxrpc_create_connection(struct rxrpc_transport *trans,
-			    uint16_t port,
-			    uint32_t addr,
+			    __be16 port,
+			    __be32 addr,
 			    uint16_t service_id,
 			    void *security,
 			    struct rxrpc_connection **_conn)
@@ -97,7 +99,7 @@ int rxrpc_create_connection(struct rxrpc_transport *trans,
 	struct rxrpc_connection *candidate, *conn;
 	struct rxrpc_peer *peer;
 	struct list_head *_p;
-	uint32_t connid;
+	__be32 connid;
 	int ret;
 
 	_enter("%p{%hu},%u,%hu", trans, trans->port, ntohs(port), service_id);
@@ -169,7 +171,7 @@ int rxrpc_create_connection(struct rxrpc_transport *trans,
 	spin_unlock(&peer->conn_gylock);
 
 	/* pick the new candidate */
-	_debug("created connection: {%08x} [out]", htonl(candidate->conn_id));
+	_debug("created connection: {%08x} [out]", ntohl(candidate->conn_id));
 	atomic_inc(&peer->conn_count);
 	conn = candidate;
 	candidate = NULL;
@@ -199,7 +201,7 @@ int rxrpc_create_connection(struct rxrpc_transport *trans,
 
 	/* handle resurrecting a connection from the graveyard */
  found_in_graveyard:
-	_debug("resurrecting connection: {%08x} [out]", htonl(conn->conn_id));
+	_debug("resurrecting connection: {%08x} [out]", ntohl(conn->conn_id));
 	rxrpc_get_connection(conn);
 	rxrpc_krxtimod_del_timer(&conn->timeout);
 	list_del_init(&conn->link);
@@ -219,8 +221,9 @@ int rxrpc_connection_lookup(struct rxrpc_peer *peer,
 	struct rxrpc_connection *conn, *candidate = NULL;
 	struct list_head *_p;
 	int ret, fresh = 0;
-	u32 x_epoch, x_connid;
-	u16 x_port, x_secix, x_servid;
+	__be32 x_epoch, x_connid;
+	__be16 x_port, x_servid;
+	__u32 x_secix;
 	u8 x_clflag;
 
 	_enter("%p{{%hu}},%u,%hu",
@@ -310,7 +313,7 @@ int rxrpc_connection_lookup(struct rxrpc_peer *peer,
 	}
 
 	/* we can now add the new candidate to the list */
-	_debug("created connection: {%08x} [in]", htonl(candidate->conn_id));
+	_debug("created connection: {%08x} [in]", ntohl(candidate->conn_id));
 	rxrpc_get_peer(peer);
 	conn = candidate;
 	candidate = NULL;
@@ -351,7 +354,7 @@ int rxrpc_connection_lookup(struct rxrpc_peer *peer,
 
 	/* handle resurrecting a connection from the graveyard */
  found_in_graveyard:
-	_debug("resurrecting connection: {%08x} [in]", htonl(conn->conn_id));
+	_debug("resurrecting connection: {%08x} [in]", ntohl(conn->conn_id));
 	rxrpc_get_peer(peer);
 	rxrpc_get_connection(conn);
 	rxrpc_krxtimod_del_timer(&conn->timeout);
@@ -397,7 +400,7 @@ void rxrpc_put_connection(struct rxrpc_connection *conn)
 	}
 
 	/* move to graveyard queue */
-	_debug("burying connection: {%08x}", htonl(conn->conn_id));
+	_debug("burying connection: {%08x}", ntohl(conn->conn_id));
 	list_del(&conn->link);
 	list_add_tail(&conn->link, &peer->conn_graveyard);
 
@@ -414,7 +417,7 @@ void rxrpc_put_connection(struct rxrpc_connection *conn)
 /*
  * free a connection record
  */
-void rxrpc_conn_do_timeout(struct rxrpc_connection *conn)
+static void rxrpc_conn_do_timeout(struct rxrpc_connection *conn)
 {
 	struct rxrpc_peer *peer;
 
@@ -442,7 +445,7 @@ void rxrpc_conn_do_timeout(struct rxrpc_connection *conn)
 	}
 
 	_debug("--- Destroying Connection %p{%08x} ---",
-	       conn, htonl(conn->conn_id));
+	       conn, ntohl(conn->conn_id));
 
 	down_write(&rxrpc_conns_sem);
 	list_del(&conn->proc_link);
@@ -640,8 +643,8 @@ int rxrpc_conn_sendmsg(struct rxrpc_connection *conn,
 	_net("Sending message type %d of %Zd bytes to %08x:%d",
 	     msg->hdr.type,
 	     msg->dsize,
-	     htonl(conn->addr.sin_addr.s_addr),
-	     htons(conn->addr.sin_port));
+	     ntohl(conn->addr.sin_addr.s_addr),
+	     ntohs(conn->addr.sin_port));
 
 	/* send the message */
 	ret = kernel_sendmsg(conn->trans->socket, &msghdr,
@@ -699,11 +702,11 @@ int rxrpc_conn_receive_call_packet(struct rxrpc_connection *conn,
 	}
 
 	_proto("Received packet %%%u [%u] on call %hu:%u:%u",
-	       htonl(msg->hdr.serial),
-	       htonl(msg->hdr.seq),
-	       htons(msg->hdr.serviceId),
-	       htonl(conn->conn_id),
-	       htonl(call->call_id));
+	       ntohl(msg->hdr.serial),
+	       ntohl(msg->hdr.seq),
+	       ntohs(msg->hdr.serviceId),
+	       ntohl(conn->conn_id),
+	       ntohl(call->call_id));
 
 	call->pkt_rcv_count++;
 

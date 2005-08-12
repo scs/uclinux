@@ -24,7 +24,7 @@ static DECLARE_WAIT_QUEUE_HEAD(krxtimod_sleepq);
 static int krxtimod_die;
 
 static LIST_HEAD(krxtimod_list);
-static spinlock_t krxtimod_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(krxtimod_lock);
 
 static int krxtimod(void *arg);
 
@@ -89,6 +89,8 @@ static int krxtimod(void *arg)
 			_leave("");
 			complete_and_exit(&krxtimod_dead, 0);
 		}
+
+		try_to_freeze(PF_FREEZE);
 
 		/* discard pending signals */
 		rxrpc_discard_my_signals();

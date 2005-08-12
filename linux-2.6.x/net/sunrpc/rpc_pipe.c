@@ -276,12 +276,7 @@ rpc_pipe_ioctl(struct inode *ino, struct file *filp,
 	}
 }
 
-struct inode_operations rpc_pipe_iops = {
-	.lookup		= simple_lookup,
-};
-
-
-struct file_operations rpc_pipe_fops = {
+static struct file_operations rpc_pipe_fops = {
 	.owner		= THIS_MODULE,
 	.llseek		= no_llseek,
 	.read		= rpc_pipe_read,
@@ -523,16 +518,12 @@ rpc_populate(struct dentry *parent,
 {
 	struct inode *inode, *dir = parent->d_inode;
 	void *private = RPC_I(dir)->private;
-	struct qstr name;
 	struct dentry *dentry;
 	int mode, i;
 
 	down(&dir->i_sem);
 	for (i = start; i < eof; i++) {
-		name.name = files[i].name;
-		name.len = strlen(name.name);
-		name.hash = full_name_hash(name.name, name.len);
-		dentry = d_alloc(parent, &name);
+		dentry = d_alloc_name(parent, files[i].name);
 		if (!dentry)
 			goto out_bad;
 		mode = files[i].mode;
@@ -599,7 +590,7 @@ __rpc_rmdir(struct inode *dir, struct dentry *dentry)
 	return 0;
 }
 
-struct dentry *
+static struct dentry *
 rpc_lookup_negative(char *path, struct nameidata *nd)
 {
 	struct dentry *dentry;
@@ -773,6 +764,7 @@ rpc_fill_super(struct super_block *sb, void *data, int silent)
 	sb->s_blocksize_bits = PAGE_CACHE_SHIFT;
 	sb->s_magic = RPCAUTH_GSSMAGIC;
 	sb->s_op = &s_ops;
+	sb->s_time_gran = 1;
 
 	inode = rpc_get_inode(sb, S_IFDIR | 0755);
 	if (!inode)

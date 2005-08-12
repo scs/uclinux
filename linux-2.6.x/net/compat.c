@@ -22,6 +22,7 @@
 #include <linux/filter.h>
 #include <linux/compat.h>
 #include <linux/netfilter_ipv4/ip_tables.h>
+#include <linux/security.h>
 
 #include <net/scm.h>
 #include <net/sock.h>
@@ -123,6 +124,12 @@ int verify_compat_iovec(struct msghdr *kern_msg, struct iovec *kern_iov,
 	 (struct compat_cmsghdr __user *)((msg)->msg_control) :		\
 	 (struct compat_cmsghdr __user *)NULL)
 
+#define CMSG_COMPAT_OK(ucmlen, ucmsg, mhdr) \
+	((ucmlen) >= sizeof(struct compat_cmsghdr) && \
+	 (ucmlen) <= (unsigned long) \
+	 ((mhdr)->msg_controllen - \
+	  ((char *)(ucmsg) - (char *)(mhdr)->msg_control)))
+
 static inline struct compat_cmsghdr __user *cmsg_compat_nxthdr(struct msghdr *msg,
 		struct compat_cmsghdr __user *cmsg, int cmsg_len)
 {
@@ -153,11 +160,7 @@ int cmsghdr_from_user_compat_to_kern(struct msghdr *kmsg,
 			return -EFAULT;
 
 		/* Catch bogons. */
-		if(CMSG_COMPAT_ALIGN(ucmlen) <
-		   CMSG_COMPAT_ALIGN(sizeof(struct compat_cmsghdr)))
-			return -EINVAL;
-		if((unsigned long)(((char __user *)ucmsg - (char __user *)kmsg->msg_control)
-				   + ucmlen) > kmsg->msg_controllen)
+		if (!CMSG_COMPAT_OK(ucmlen, ucmsg, kmsg))
 			return -EINVAL;
 
 		tmp = ((ucmlen - CMSG_COMPAT_ALIGN(sizeof(*ucmsg))) +
@@ -264,6 +267,9 @@ void scm_detach_fds_compat(struct msghdr *kmsg, struct scm_cookie *scm)
 
 	for (i = 0, cmfptr = (int __user *) CMSG_COMPAT_DATA(cm); i < fdmax; i++, cmfptr++) {
 		int new_fd;
+		err = security_file_receive(fp[i]);
+		if (err)
+			break;
 		err = get_unused_fd();
 		if (err < 0)
 			break;
@@ -455,13 +461,15 @@ static int do_set_sock_timeout(int fd, int level, int optname, char __user *optv
 asmlinkage long compat_sys_setsockopt(int fd, int level, int optname,
 				char __user *optval, int optlen)
 {
+	/* SO_SET_REPLACE seems to be the same in all levels */
 	if (optname == IPT_SO_SET_REPLACE)
 		return do_netfilter_replace(fd, level, optname,
 					    optval, optlen);
-	if (optname == SO_ATTACH_FILTER)
+	if (level == SOL_SOCKET && optname == SO_ATTACH_FILTER)
 		return do_set_attach_filter(fd, level, optname,
 					    optval, optlen);
-	if (optname == SO_RCVTIMEO || optname == SO_SNDTIMEO)
+	if (level == SOL_SOCKET &&
+	    (optname == SO_RCVTIMEO || optname == SO_SNDTIMEO))
 		return do_set_sock_timeout(fd, level, optname, optval, optlen);
 
 	return sys_setsockopt(fd, level, optname, optval, optlen);
@@ -499,7 +507,8 @@ static int do_get_sock_timeout(int fd, int level, int optname,
 asmlinkage long compat_sys_getsockopt(int fd, int level, int optname,
 				char __user *optval, int __user *optlen)
 {
-	if (optname == SO_RCVTIMEO || optname == SO_SNDTIMEO)
+	if (level == SOL_SOCKET &&
+	    (optname == SO_RCVTIMEO || optname == SO_SNDTIMEO))
 		return do_get_sock_timeout(fd, level, optname, optval, optlen);
 	return sys_getsockopt(fd, level, optname, optval, optlen);
 }

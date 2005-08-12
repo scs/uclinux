@@ -67,6 +67,31 @@ config CRYPTO_SHA512
 	  This code also includes SHA-384, a 384 bit hash with 192 bits
 	  of security against collision attacks.
 
+config CRYPTO_WP512
+	tristate "Whirlpool digest algorithms"
+	depends on CRYPTO
+	help
+	  Whirlpool hash algorithm 512, 384 and 256-bit hashes
+
+	  Whirlpool-512 is part of the NESSIE cryptographic primitives.
+	  Whirlpool will be part of the ISO/IEC 10118-3:2003(E) standard
+
+	  See also:
+	  <http://planeta.terra.com.br/informatica/paulobarreto/WhirlpoolPage.html>
+
+config CRYPTO_TGR192
+	tristate "Tiger digest algorithms"
+	depends on CRYPTO
+	help
+	  Tiger hash algorithm 192, 160 and 128-bit hashes
+
+	  Tiger is a hash function optimized for 64-bit processors while
+	  still having decent performance on 32-bit processors.
+	  Tiger was developed by Ross Anderson and Eli Biham.
+
+	  See also:
+	  <http://www.cs.technion.ac.il/~biham/Reports/Tiger/>.
+
 config CRYPTO_DES
 	tristate "DES and Triple DES EDE cipher algorithms"
 	depends on CRYPTO
@@ -90,7 +115,7 @@ config CRYPTO_BLOWFISH
 	  designed for use on "large microprocessors".
 	  
 	  See also:
-	  http://www.schneier.com/blowfish.html
+	  <http://www.schneier.com/blowfish.html>
 
 config CRYPTO_TWOFISH
 	tristate "Twofish cipher algorithm"
@@ -104,7 +129,7 @@ config CRYPTO_TWOFISH
 	  bits.
 	  
 	  See also:
-	  http://www.schneier.com/twofish.html
+	  <http://www.schneier.com/twofish.html>
 
 config CRYPTO_SERPENT
 	tristate "Serpent cipher algorithm"
@@ -113,14 +138,15 @@ config CRYPTO_SERPENT
 	  Serpent cipher algorithm, by Anderson, Biham & Knudsen.
 
 	  Keys are allowed to be from 0 to 256 bits in length, in steps
-	  of 8 bits.
+	  of 8 bits.  Also includes the 'Tnepres' algorithm, a reversed
+	  variant of Serpent for compatibility with old kerneli code.
 
 	  See also:
-	  http://www.cl.cam.ac.uk/~rja14/serpent.html
+	  <http://www.cl.cam.ac.uk/~rja14/serpent.html>
 
 config CRYPTO_AES
 	tristate "AES cipher algorithms"
-	depends on CRYPTO && !(X86 && !X86_64)
+	depends on CRYPTO && !((X86 || UML_X86) && !64BIT)
 	help
 	  AES cipher algorithms (FIPS-197). AES uses the Rijndael 
 	  algorithm.
@@ -136,11 +162,11 @@ config CRYPTO_AES
 
 	  The AES specifies three key sizes: 128, 192 and 256 bits	  
 
-	  See http://csrc.nist.gov/CryptoToolkit/aes/ for more information.
+	  See <http://csrc.nist.gov/CryptoToolkit/aes/> for more information.
 
 config CRYPTO_AES_586
 	tristate "AES cipher algorithms (i586)"
-	depends on CRYPTO && (X86 && !X86_64)
+	depends on CRYPTO && ((X86 || UML_X86) && !64BIT)
 	help
 	  AES cipher algorithms (FIPS-197). AES uses the Rijndael 
 	  algorithm.
@@ -156,7 +182,7 @@ config CRYPTO_AES_586
 
 	  The AES specifies three key sizes: 128, 192 and 256 bits	  
 
-	  See http://csrc.nist.gov/encryption/aes/ for more information.
+	  See <http://csrc.nist.gov/encryption/aes/> for more information.
 
 config CRYPTO_CAST5
 	tristate "CAST5 (CAST-128) cipher algorithm"
@@ -182,7 +208,7 @@ config CRYPTO_TEA
 	  many rounds for security.  It is very fast and uses
 	  little memory.
 
-	  Xtendend Tiny Encryption Algorithm is a modifcation to
+	  Xtendend Tiny Encryption Algorithm is a modification to
 	  the TEA algorithm to address a potential key weakness
 	  in the TEA algorithm.
 
@@ -208,7 +234,22 @@ config CRYPTO_KHAZAD
 	  on 32-bit processors.  Khazad uses an 128 bit key size.
 
 	  See also:
-	  http://planeta.terra.com.br/informatica/paulobarreto/KhazadPage.html
+	  <http://planeta.terra.com.br/informatica/paulobarreto/KhazadPage.html>
+
+config CRYPTO_ANUBIS
+	tristate "Anubis cipher algorithm"
+	depends on CRYPTO
+	help
+	  Anubis cipher algorithm.
+
+	  Anubis is a variable key length cipher which can use keys from 
+	  128 bits to 320 bits in length.  It was evaluated as a entrant
+	  in the NESSIE competition.
+	  
+	  See also:
+	  <https://www.cosic.esat.kuleuven.ac.be/nessie/reports/>
+	  <http://planeta.terra.com.br/informatica/paulobarreto/AnubisPage.html>
+
 
 config CRYPTO_DEFLATE
 	tristate "Deflate compression algorithm"
@@ -246,5 +287,6 @@ config CRYPTO_TEST
 	help
 	  Quick & dirty crypto test module.
 
+source "drivers/crypto/Kconfig"
 endmenu
 

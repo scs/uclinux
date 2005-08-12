@@ -23,7 +23,7 @@
 #include <linux/errno.h>	/* return codes */
 #include <linux/kernel.h>
 #include <linux/slab.h>		/* kmalloc(), kfree() */
-#include <linux/mm.h>		/* verify_area(), etc. */
+#include <linux/mm.h>
 #include <linux/string.h>	/* inline mem*, str* functions */
 #include <linux/init.h>		/* __initfunc et al. */
 #include <asm/byteorder.h>	/* htons(), etc. */
@@ -239,7 +239,7 @@ int vlan_proc_rem_dev(struct net_device *vlandev)
  */
 
 /* starting at dev, find a VLAN device */
-struct net_device *vlan_skip(struct net_device *dev) 
+static struct net_device *vlan_skip(struct net_device *dev) 
 {
 	while (dev && !(dev->priv_flags & IFF_802_1Q_VLAN)) 
 		dev = dev->next;

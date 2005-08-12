@@ -24,31 +24,17 @@
  */
 
 #include <linux/errno.h>
-#include <linux/types.h>
-#include <linux/socket.h>
-#include <linux/in.h>
 #include <linux/kernel.h>
-#include <linux/sched.h>
-#include <linux/timer.h>
 #include <linux/string.h>
-#include <linux/sockios.h>
-#include <linux/net.h>
-#include <linux/inet.h>
-#include <linux/netdevice.h>
 #include <linux/skbuff.h>
 #include <net/sock.h>
-#include <net/ip.h>			/* For ip_rcv */
 #include <net/tcp.h>
-#include <asm/system.h>
-#include <linux/fcntl.h>
-#include <linux/mm.h>
-#include <linux/interrupt.h>
 #include <net/x25.h>
 
 static int x25_queue_rx_frame(struct sock *sk, struct sk_buff *skb, int more)
 {
 	struct sk_buff *skbo, *skbn = skb;
-	struct x25_opt *x25 = x25_sk(sk);
+	struct x25_sock *x25 = x25_sk(sk);
 
 	if (more) {
 		x25->fraglen += skb->len;
@@ -103,7 +89,7 @@ static int x25_state1_machine(struct sock *sk, struct sk_buff *skb, int frametyp
 
 	switch (frametype) {
 		case X25_CALL_ACCEPTED: {
-			struct x25_opt *x25 = x25_sk(sk);
+			struct x25_sock *x25 = x25_sk(sk);
 
 			x25_stop_timer(sk);
 			x25->condition = 0x00;
@@ -179,7 +165,7 @@ static int x25_state3_machine(struct sock *sk, struct sk_buff *skb, int frametyp
 {
 	int queued = 0;
 	int modulus;
-	struct x25_opt *x25 = x25_sk(sk);
+	struct x25_sock *x25 = x25_sk(sk);
 	
 	modulus = (x25->neighbour->extended) ? X25_EMODULUS : X25_SMODULUS;
 
@@ -309,7 +295,7 @@ static int x25_state4_machine(struct sock *sk, struct sk_buff *skb, int frametyp
 		case X25_RESET_REQUEST:
 			x25_write_internal(sk, X25_RESET_CONFIRMATION);
 		case X25_RESET_CONFIRMATION: {
-			struct x25_opt *x25 = x25_sk(sk);
+			struct x25_sock *x25 = x25_sk(sk);
 
 			x25_stop_timer(sk);
 			x25->condition = 0x00;
@@ -336,7 +322,7 @@ static int x25_state4_machine(struct sock *sk, struct sk_buff *skb, int frametyp
 /* Higher level upcall for a LAPB frame */
 int x25_process_rx_frame(struct sock *sk, struct sk_buff *skb)
 {
-	struct x25_opt *x25 = x25_sk(sk);
+	struct x25_sock *x25 = x25_sk(sk);
 	int queued = 0, frametype, ns, nr, q, d, m;
 
 	if (x25->state == X25_STATE_0)

@@ -54,34 +54,10 @@
 
 /* 1st Level Abstractions.  */
 
-/* Allocate and initialize a new transport.  */
-struct sctp_transport *sctp_transport_new(const union sctp_addr *addr, int gfp)
-{
-        struct sctp_transport *transport;
-
-        transport = t_new(struct sctp_transport, gfp);
-	if (!transport)
-		goto fail;
-
-	if (!sctp_transport_init(transport, addr, gfp))
-		goto fail_init;
-
-	transport->malloced = 1;
-	SCTP_DBG_OBJCNT_INC(transport);
-
-	return transport;
-
-fail_init:
-	kfree(transport);
-
-fail:
-	return NULL;
-}
-
 /* Initialize a new transport from provided memory.  */
-struct sctp_transport *sctp_transport_init(struct sctp_transport *peer,
-					   const union sctp_addr *addr,
-					   int gfp)
+static struct sctp_transport *sctp_transport_init(struct sctp_transport *peer,
+						  const union sctp_addr *addr,
+						  int gfp)
 {
 	/* Copy in the address.  */
 	peer->ipaddr = *addr;
@@ -112,7 +88,6 @@ struct sctp_transport *sctp_transport_init(struct sctp_transport *peer,
 
 	/* Initialize the default path max_retrans.  */
 	peer->max_retrans = sctp_max_retrans_path;
-	peer->error_threshold = 0;
 	peer->error_count = 0;
 
 	INIT_LIST_HEAD(&peer->transmitted);
@@ -144,6 +119,30 @@ struct sctp_transport *sctp_transport_init(struct sctp_transport *peer,
 	return peer;
 }
 
+/* Allocate and initialize a new transport.  */
+struct sctp_transport *sctp_transport_new(const union sctp_addr *addr, int gfp)
+{
+        struct sctp_transport *transport;
+
+        transport = t_new(struct sctp_transport, gfp);
+	if (!transport)
+		goto fail;
+
+	if (!sctp_transport_init(transport, addr, gfp))
+		goto fail_init;
+
+	transport->malloced = 1;
+	SCTP_DBG_OBJCNT_INC(transport);
+
+	return transport;
+
+fail_init:
+	kfree(transport);
+
+fail:
+	return NULL;
+}
+
 /* This transport is no longer needed.  Free up if possible, or
  * delay until it last reference count.
  */
@@ -155,13 +154,23 @@ void sctp_transport_free(struct sctp_transport *transport)
 	if (del_timer(&transport->hb_timer))
 		sctp_transport_put(transport);
 
+	/* Delete the T3_rtx timer if it's active.
+	 * There is no point in not doing this now and letting
+	 * structure hang around in memory since we know
+	 * the tranport is going away.
+	 */
+	if (timer_pending(&transport->T3_rtx_timer) &&
+	    del_timer(&transport->T3_rtx_timer))
+		sctp_transport_put(transport);
+
+
 	sctp_transport_put(transport);
 }
 
 /* Destroy the transport data structure.
  * Assumes there are no more users of this structure.
  */
-void sctp_transport_destroy(struct sctp_transport *transport)
+static void sctp_transport_destroy(struct sctp_transport *transport)
 {
 	SCTP_ASSERT(transport->dead, "Transport is not dead", return);
 
@@ -218,7 +227,7 @@ void sctp_transport_pmtu(struct sctp_transport *transport)
 	dst = transport->af_specific->get_dst(NULL, &transport->ipaddr, NULL);
 
 	if (dst) {
-		transport->pmtu = dst_pmtu(dst);
+		transport->pmtu = dst_mtu(dst);
 		dst_release(dst);
 	} else
 		transport->pmtu = SCTP_DEFAULT_MAXSEGMENT;
@@ -228,7 +237,7 @@ void sctp_transport_pmtu(struct sctp_transport *transport)
  * address.
  */
 void sctp_transport_route(struct sctp_transport *transport,
-			  union sctp_addr *saddr, struct sctp_opt *opt)
+			  union sctp_addr *saddr, struct sctp_sock *opt)
 {
 	struct sctp_association *asoc = transport->asoc;
 	struct sctp_af *af = transport->af_specific;
@@ -244,7 +253,7 @@ void sctp_transport_route(struct sctp_transport *transport,
 
 	transport->dst = dst;
 	if (dst) {
-		transport->pmtu = dst_pmtu(dst);
+		transport->pmtu = dst_mtu(dst);
 
 		/* Initialize sk->sk_rcv_saddr, if the transport is the
 		 * association's active path for getsockname().
@@ -421,15 +430,15 @@ void sctp_transport_lower_cwnd(struct sctp_transport *transport,
 {
 	switch (reason) {
 	case SCTP_LOWER_CWND_T3_RTX:
-		/* RFC 2960 Section 7.2.3, sctpimpguide-05 Section 2.9.2
+		/* RFC 2960 Section 7.2.3, sctpimpguide
 		 * When the T3-rtx timer expires on an address, SCTP should
 		 * perform slow start by:
-		 *      ssthresh = max(cwnd/2, 2*MTU)
+		 *      ssthresh = max(cwnd/2, 4*MTU)
 		 *      cwnd = 1*MTU
 		 *      partial_bytes_acked = 0
 		 */
 		transport->ssthresh = max(transport->cwnd/2,
-					  2*transport->asoc->pmtu);
+					  4*transport->asoc->pmtu);
 		transport->cwnd = transport->asoc->pmtu;
 		break;
 
@@ -439,15 +448,15 @@ void sctp_transport_lower_cwnd(struct sctp_transport *transport,
 		 * were last sent, according to the formula described in
 		 * Section 7.2.3.
 	 	 *
-	 	 * RFC 2960 7.2.3, sctpimpguide-05 2.9.2 Upon detection of
-		 * packet losses from SACK (see Section 7.2.4), An endpoint
+	 	 * RFC 2960 7.2.3, sctpimpguide Upon detection of packet
+		 * losses from SACK (see Section 7.2.4), An endpoint
 		 * should do the following:
-		 *      ssthresh = max(cwnd/2, 2*MTU)
+		 *      ssthresh = max(cwnd/2, 4*MTU)
 		 *      cwnd = ssthresh
 		 *      partial_bytes_acked = 0
 		 */
 		transport->ssthresh = max(transport->cwnd/2,
-					  2*transport->asoc->pmtu);
+					  4*transport->asoc->pmtu);
 		transport->cwnd = transport->ssthresh;
 		break;
 
@@ -467,23 +476,24 @@ void sctp_transport_lower_cwnd(struct sctp_transport *transport,
 		if ((jiffies - transport->last_time_ecne_reduced) >
 		    transport->rtt) {
 			transport->ssthresh = max(transport->cwnd/2,
-					  	  2*transport->asoc->pmtu);
+					  	  4*transport->asoc->pmtu);
 			transport->cwnd = transport->ssthresh;
 			transport->last_time_ecne_reduced = jiffies;
 		}
 		break;
 
 	case SCTP_LOWER_CWND_INACTIVE:
-		/* RFC 2960 Section 7.2.1, sctpimpguide-05 Section 2.14.2
-		 * When the association does not transmit data on a given
-		 * transport address within an RTO, the cwnd of the transport
-		 * address should be adjusted to 2*MTU.
+		/* RFC 2960 Section 7.2.1, sctpimpguide
+		 * When the endpoint does not transmit data on a given
+		 * transport address, the cwnd of the transport address
+		 * should be adjusted to max(cwnd/2, 4*MTU) per RTO.
 		 * NOTE: Although the draft recommends that this check needs
 		 * to be done every RTO interval, we do it every hearbeat
 		 * interval.
 		 */
 		if ((jiffies - transport->last_time_used) > transport->rto)
-			transport->cwnd = 2*transport->asoc->pmtu;
+			transport->cwnd = max(transport->cwnd/2,
+						 4*transport->asoc->pmtu);
 		break;
 	};
 

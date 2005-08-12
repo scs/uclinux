@@ -26,7 +26,6 @@
 #include <linux/types.h>
 #include <linux/errno.h>
 #include <linux/kernel.h>
-#include <linux/major.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/poll.h>
@@ -35,6 +34,7 @@
 #include <linux/socket.h>
 #include <linux/ioctl.h>
 #include <linux/file.h>
+#include <linux/wait.h>
 #include <net/sock.h>
 
 #include <linux/isdn/capilli.h>
@@ -139,6 +139,19 @@ static int cmtp_msgnum_get(struct cmtp_session *session)
 	return session->msgnum;
 }
 
+static void cmtp_send_capimsg(struct cmtp_session *session, struct sk_buff *skb)
+{
+	struct cmtp_scb *scb = (void *) skb->cb;
+
+	BT_DBG("session %p skb %p len %d", session, skb, skb->len);
+
+	scb->id = -1;
+	scb->data = (CAPIMSG_COMMAND(skb->data) == CAPI_DATA_B3);
+
+	skb_queue_tail(&session->transmit, skb);
+
+	cmtp_schedule(session);
+}
 
 static void cmtp_send_interopmsg(struct cmtp_session *session,
 					__u8 subcmd, __u16 appl, __u16 msgnum,
@@ -337,21 +350,6 @@ void cmtp_recv_capimsg(struct cmtp_session *session, struct sk_buff *skb)
 	capi_ctr_handle_message(ctrl, appl, skb);
 }
 
-void cmtp_send_capimsg(struct cmtp_session *session, struct sk_buff *skb)
-{
-	struct cmtp_scb *scb = (void *) skb->cb;
-
-	BT_DBG("session %p skb %p len %d", session, skb, skb->len);
-
-	scb->id = -1;
-	scb->data = (CAPIMSG_COMMAND(skb->data) == CAPI_DATA_B3);
-
-	skb_queue_tail(&session->transmit, skb);
-
-	cmtp_schedule(session);
-}
-
-
 static int cmtp_load_firmware(struct capi_ctr *ctrl, capiloaddata *data)
 {
 	BT_DBG("ctrl %p data %p", ctrl, data);
@@ -442,10 +440,8 @@ static void cmtp_register_appl(struct capi_ctr *ctrl, __u16 appl, capi_register_
 
 static void cmtp_release_appl(struct capi_ctr *ctrl, __u16 appl)
 {
-	DECLARE_WAITQUEUE(wait, current);
 	struct cmtp_session *session = ctrl->driverdata;
 	struct cmtp_application *application;
-	unsigned long timeo = CMTP_INTEROP_TIMEOUT;
 
 	BT_DBG("ctrl %p appl %d", ctrl, appl);
 
@@ -460,20 +456,8 @@ static void cmtp_release_appl(struct capi_ctr *ctrl, __u16 appl)
 	cmtp_send_interopmsg(session, CAPI_REQ, application->mapping, application->msgnum,
 				CAPI_FUNCTION_RELEASE, NULL, 0);
 
-	add_wait_queue(&session->wait, &wait);
-	while (timeo) {
-		set_current_state(TASK_INTERRUPTIBLE);
-
-		if (application->state == BT_CLOSED)
-			break;
-
-		if (signal_pending(current))
-			break;
-
-		timeo = schedule_timeout(timeo);
-	}
-	set_current_state(TASK_RUNNING);
-	remove_wait_queue(&session->wait, &wait);
+	wait_event_interruptible_timeout(session->wait,
+			(application->state == BT_CLOSED), CMTP_INTEROP_TIMEOUT);
 
 	cmtp_application_del(session, application);
 }
@@ -493,7 +477,6 @@ static u16 cmtp_send_message(struct capi_ctr *ctrl, struct sk_buff *skb)
 	application = cmtp_application_get(session, CMTP_APPLID, appl);
 	if ((!application) || (application->state != BT_CONNECTED)) {
 		BT_ERR("Can't find application with id %d", appl);
-		kfree_skb(skb);
 		return CAPI_ILLAPPNR;
 	}
 
@@ -544,9 +527,8 @@ static int cmtp_ctr_read_proc(char *page, char **start, off_t off, int count, in
 
 int cmtp_attach_device(struct cmtp_session *session)
 {
-	DECLARE_WAITQUEUE(wait, current);
-	unsigned long timeo = CMTP_INTEROP_TIMEOUT;
 	unsigned char buf[4];
+	long ret;
 
 	BT_DBG("session %p", session);
 
@@ -555,29 +537,16 @@ int cmtp_attach_device(struct cmtp_session *session)
 	cmtp_send_interopmsg(session, CAPI_REQ, 0xffff, CMTP_INITIAL_MSGNUM,
 				CAPI_FUNCTION_GET_PROFILE, buf, 4);
 
-	add_wait_queue(&session->wait, &wait);
-	while (timeo) {
-		set_current_state(TASK_INTERRUPTIBLE);
-
-		if (session->ncontroller)
-			break;
-
-		if (signal_pending(current))
-			break;
-
-		timeo = schedule_timeout(timeo);
-	}
-	set_current_state(TASK_RUNNING);
-	remove_wait_queue(&session->wait, &wait);
-
+	ret = wait_event_interruptible_timeout(session->wait,
+			session->ncontroller, CMTP_INTEROP_TIMEOUT);
+	
 	BT_INFO("Found %d CAPI controller(s) on device %s", session->ncontroller, session->name);
 
-	if (!timeo)
+	if (!ret)
 		return -ETIMEDOUT;
 
 	if (!session->ncontroller)
 		return -ENODEV;
-
 
 	if (session->ncontroller > 1)
 		BT_INFO("Setting up only CAPI controller 1");

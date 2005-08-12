@@ -33,11 +33,18 @@ static int llc_conn_ac_inc_vs_by_1(struct sock *sk, struct sk_buff *skb);
 static void llc_process_tmr_ev(struct sock *sk, struct sk_buff *skb);
 static int llc_conn_ac_data_confirm(struct sock *sk, struct sk_buff *ev);
 
+static int llc_conn_ac_inc_npta_value(struct sock *sk, struct sk_buff *skb);
+
+static int llc_conn_ac_send_rr_rsp_f_set_ackpf(struct sock *sk,
+					       struct sk_buff *skb);
+
+static int llc_conn_ac_set_p_flag_1(struct sock *sk, struct sk_buff *skb);
+
 #define INCORRECT 0
 
 int llc_conn_ac_clear_remote_busy(struct sock *sk, struct sk_buff *skb)
 {
-	struct llc_opt *llc = llc_sk(sk);
+	struct llc_sock *llc = llc_sk(sk);
 
 	if (llc->remote_busy_flag) {
 		u8 nr;
@@ -61,7 +68,7 @@ int llc_conn_ac_conn_ind(struct sock *sk, struct sk_buff *skb)
 	sap = llc_sap_find(dsap);
 	if (sap) {
 		struct llc_conn_state_ev *ev = llc_conn_ev(skb);
-		struct llc_opt *llc = llc_sk(sk);
+		struct llc_sock *llc = llc_sk(sk);
 
 		llc_pdu_decode_sa(skb, llc->daddr.mac);
 		llc_pdu_decode_da(skb, llc->laddr.mac);
@@ -139,7 +146,7 @@ int llc_conn_ac_rst_ind(struct sock *sk, struct sk_buff *skb)
 	int rc = 1;
 	struct llc_conn_state_ev *ev = llc_conn_ev(skb);
 	struct llc_pdu_un *pdu = llc_pdu_un_hdr(skb);
-	struct llc_opt *llc = llc_sk(sk);
+	struct llc_sock *llc = llc_sk(sk);
 
 	switch (ev->type) {
 	case LLC_CONN_EV_TYPE_PDU:
@@ -185,11 +192,6 @@ int llc_conn_ac_rst_confirm(struct sock *sk, struct sk_buff *skb)
 	return 0;
 }
 
-int llc_conn_ac_report_status(struct sock *sk, struct sk_buff *skb)
-{
-	return 0;
-}
-
 int llc_conn_ac_clear_remote_busy_if_f_eq_1(struct sock *sk,
 					    struct sk_buff *skb)
 {
@@ -205,7 +207,7 @@ int llc_conn_ac_clear_remote_busy_if_f_eq_1(struct sock *sk,
 int llc_conn_ac_stop_rej_tmr_if_data_flag_eq_2(struct sock *sk,
 					       struct sk_buff *skb)
 {
-	struct llc_opt *llc = llc_sk(sk);
+	struct llc_sock *llc = llc_sk(sk);
 
 	if (llc->data_flag == 2)
 		del_timer(&llc->rej_sent_timer.timer);
@@ -218,7 +220,7 @@ int llc_conn_ac_send_disc_cmd_p_set_x(struct sock *sk, struct sk_buff *skb)
 	struct sk_buff *nskb = llc_alloc_frame();
 
 	if (nskb) {
-		struct llc_opt *llc = llc_sk(sk);
+		struct llc_sock *llc = llc_sk(sk);
 		struct llc_sap *sap = llc->sap;
 
 		nskb->dev = llc->dev;
@@ -244,7 +246,7 @@ int llc_conn_ac_send_dm_rsp_f_set_p(struct sock *sk, struct sk_buff *skb)
 	struct sk_buff *nskb = llc_alloc_frame();
 
 	if (nskb) {
-		struct llc_opt *llc = llc_sk(sk);
+		struct llc_sock *llc = llc_sk(sk);
 		struct llc_sap *sap = llc->sap;
 		u8 f_bit;
 
@@ -271,35 +273,9 @@ int llc_conn_ac_send_dm_rsp_f_set_1(struct sock *sk, struct sk_buff *skb)
 	struct sk_buff *nskb = llc_alloc_frame();
 
 	if (nskb) {
-		struct llc_opt *llc = llc_sk(sk);
+		struct llc_sock *llc = llc_sk(sk);
 		struct llc_sap *sap = llc->sap;
 		u8 f_bit = 1;
-
-		nskb->dev = llc->dev;
-		llc_pdu_header_init(nskb, LLC_PDU_TYPE_U, sap->laddr.lsap,
-				    llc->daddr.lsap, LLC_PDU_RSP);
-		llc_pdu_init_as_dm_rsp(nskb, f_bit);
-		rc = llc_mac_hdr_init(nskb, llc->dev->dev_addr, llc->daddr.mac);
-		if (rc)
-			goto free;
-		llc_conn_send_pdu(sk, nskb);
-	}
-out:
-	return rc;
-free:
-	kfree_skb(nskb);
-	goto out;
-}
-
-int llc_conn_ac_send_dm_rsp_f_set_f_flag(struct sock *sk, struct sk_buff *skb)
-{
-	int rc = -ENOBUFS;
-	struct sk_buff *nskb = llc_alloc_frame();
-
-	if (nskb) {
-		struct llc_opt *llc = llc_sk(sk);
-		struct llc_sap *sap = llc->sap;
-		u8 f_bit = llc->f_flag;
 
 		nskb->dev = llc->dev;
 		llc_pdu_header_init(nskb, LLC_PDU_TYPE_U, sap->laddr.lsap,
@@ -323,7 +299,7 @@ int llc_conn_ac_send_frmr_rsp_f_set_x(struct sock *sk, struct sk_buff *skb)
 	int rc = -ENOBUFS;
 	struct sk_buff *nskb;
 	struct llc_pdu_sn *pdu = llc_pdu_sn_hdr(skb);
-	struct llc_opt *llc = llc_sk(sk);
+	struct llc_sock *llc = llc_sk(sk);
 
 	llc->rx_pdu_hdr = *((u32 *)pdu);
 	if (LLC_PDU_IS_CMD(pdu))
@@ -358,7 +334,7 @@ int llc_conn_ac_resend_frmr_rsp_f_set_0(struct sock *sk, struct sk_buff *skb)
 
 	if (nskb) {
 		u8 f_bit = 0;
-		struct llc_opt *llc = llc_sk(sk);
+		struct llc_sock *llc = llc_sk(sk);
 		struct llc_sap *sap = llc->sap;
 		struct llc_pdu_sn *pdu = (struct llc_pdu_sn *)&llc->rx_pdu_hdr;
 
@@ -388,7 +364,7 @@ int llc_conn_ac_resend_frmr_rsp_f_set_p(struct sock *sk, struct sk_buff *skb)
 	llc_pdu_decode_pf_bit(skb, &f_bit);
 	nskb = llc_alloc_frame();
 	if (nskb) {
-		struct llc_opt *llc = llc_sk(sk);
+		struct llc_sock *llc = llc_sk(sk);
 		struct llc_sap *sap = llc->sap;
 		struct llc_pdu_sn *pdu = llc_pdu_sn_hdr(skb);
 
@@ -412,7 +388,7 @@ free:
 int llc_conn_ac_send_i_cmd_p_set_1(struct sock *sk, struct sk_buff *skb)
 {
 	int rc;
-	struct llc_opt *llc = llc_sk(sk);
+	struct llc_sock *llc = llc_sk(sk);
 	struct llc_sap *sap = llc->sap;
 
 	llc_pdu_header_init(skb, LLC_PDU_TYPE_I, sap->laddr.lsap,
@@ -426,10 +402,10 @@ int llc_conn_ac_send_i_cmd_p_set_1(struct sock *sk, struct sk_buff *skb)
 	return rc;
 }
 
-int llc_conn_ac_send_i_cmd_p_set_0(struct sock *sk, struct sk_buff *skb)
+static int llc_conn_ac_send_i_cmd_p_set_0(struct sock *sk, struct sk_buff *skb)
 {
 	int rc;
-	struct llc_opt *llc = llc_sk(sk);
+	struct llc_sock *llc = llc_sk(sk);
 	struct llc_sap *sap = llc->sap;
 
 	llc_pdu_header_init(skb, LLC_PDU_TYPE_I, sap->laddr.lsap,
@@ -443,31 +419,10 @@ int llc_conn_ac_send_i_cmd_p_set_0(struct sock *sk, struct sk_buff *skb)
 	return rc;
 }
 
-int llc_conn_ac_resend_i_cmd_p_set_1(struct sock *sk, struct sk_buff *skb)
-{
-	struct llc_pdu_sn *pdu = llc_pdu_sn_hdr(skb);
-	u8 nr = LLC_I_GET_NR(pdu);
-
-	llc_conn_resend_i_pdu_as_cmd(sk, nr, 1);
-	return 0;
-}
-
-int llc_conn_ac_resend_i_cmd_p_set_1_or_send_rr(struct sock *sk,
-						struct sk_buff *skb)
-{
-	struct llc_pdu_sn *pdu = llc_pdu_sn_hdr(skb);
-	u8 nr = LLC_I_GET_NR(pdu);
-	int rc = llc_conn_ac_send_rr_cmd_p_set_1(sk, skb);
-
-	if (!rc)
-		llc_conn_resend_i_pdu_as_cmd(sk, nr, 0);
-	return rc;
-}
-
 int llc_conn_ac_send_i_xxx_x_set_0(struct sock *sk, struct sk_buff *skb)
 {
 	int rc;
-	struct llc_opt *llc = llc_sk(sk);
+	struct llc_sock *llc = llc_sk(sk);
 	struct llc_sap *sap = llc->sap;
 
 	llc_pdu_header_init(skb, LLC_PDU_TYPE_I, sap->laddr.lsap,
@@ -499,7 +454,7 @@ int llc_conn_ac_resend_i_xxx_x_set_0_or_send_rr(struct sock *sk,
 	struct sk_buff *nskb = llc_alloc_frame();
 
 	if (nskb) {
-		struct llc_opt *llc = llc_sk(sk);
+		struct llc_sock *llc = llc_sk(sk);
 		struct llc_sap *sap = llc->sap;
 
 		nskb->dev = llc->dev;
@@ -535,7 +490,7 @@ int llc_conn_ac_send_rej_cmd_p_set_1(struct sock *sk, struct sk_buff *skb)
 	struct sk_buff *nskb = llc_alloc_frame();
 
 	if (nskb) {
-		struct llc_opt *llc = llc_sk(sk);
+		struct llc_sock *llc = llc_sk(sk);
 		struct llc_sap *sap = llc->sap;
 
 		nskb->dev = llc->dev;
@@ -561,7 +516,7 @@ int llc_conn_ac_send_rej_rsp_f_set_1(struct sock *sk, struct sk_buff *skb)
 
 	if (nskb) {
 		u8 f_bit = 1;
-		struct llc_opt *llc = llc_sk(sk);
+		struct llc_sock *llc = llc_sk(sk);
 		struct llc_sap *sap = llc->sap;
 
 		nskb->dev = llc->dev;
@@ -586,7 +541,7 @@ int llc_conn_ac_send_rej_xxx_x_set_0(struct sock *sk, struct sk_buff *skb)
 	struct sk_buff *nskb = llc_alloc_frame();
 
 	if (nskb) {
-		struct llc_opt *llc = llc_sk(sk);
+		struct llc_sock *llc = llc_sk(sk);
 		struct llc_sap *sap = llc->sap;
 		u8 f_bit = 0;
 
@@ -612,7 +567,7 @@ int llc_conn_ac_send_rnr_cmd_p_set_1(struct sock *sk, struct sk_buff *skb)
 	struct sk_buff *nskb = llc_alloc_frame();
 
 	if (nskb) {
-		struct llc_opt *llc = llc_sk(sk);
+		struct llc_sock *llc = llc_sk(sk);
 		struct llc_sap *sap = llc->sap;
 
 		nskb->dev = llc->dev;
@@ -637,7 +592,7 @@ int llc_conn_ac_send_rnr_rsp_f_set_1(struct sock *sk, struct sk_buff *skb)
 	struct sk_buff *nskb = llc_alloc_frame();
 
 	if (nskb) {
-		struct llc_opt *llc = llc_sk(sk);
+		struct llc_sock *llc = llc_sk(sk);
 		struct llc_sap *sap = llc->sap;
 		u8 f_bit = 1;
 
@@ -664,7 +619,7 @@ int llc_conn_ac_send_rnr_xxx_x_set_0(struct sock *sk, struct sk_buff *skb)
 
 	if (nskb) {
 		u8 f_bit = 0;
-		struct llc_opt *llc = llc_sk(sk);
+		struct llc_sock *llc = llc_sk(sk);
 		struct llc_sap *sap = llc->sap;
 
 		nskb->dev = llc->dev;
@@ -685,7 +640,7 @@ free:
 
 int llc_conn_ac_set_remote_busy(struct sock *sk, struct sk_buff *skb)
 {
-	struct llc_opt *llc = llc_sk(sk);
+	struct llc_sock *llc = llc_sk(sk);
 
 	if (!llc->remote_busy_flag) {
 		llc->remote_busy_flag = 1;
@@ -701,7 +656,7 @@ int llc_conn_ac_opt_send_rnr_xxx_x_set_0(struct sock *sk, struct sk_buff *skb)
 	struct sk_buff *nskb = llc_alloc_frame();
 
 	if (nskb) {
-		struct llc_opt *llc = llc_sk(sk);
+		struct llc_sock *llc = llc_sk(sk);
 		struct llc_sap *sap = llc->sap;
 
 		nskb->dev = llc->dev;
@@ -726,32 +681,7 @@ int llc_conn_ac_send_rr_cmd_p_set_1(struct sock *sk, struct sk_buff *skb)
 	struct sk_buff *nskb = llc_alloc_frame();
 
 	if (nskb) {
-		struct llc_opt *llc = llc_sk(sk);
-		struct llc_sap *sap = llc->sap;
-
-		nskb->dev = llc->dev;
-		llc_pdu_header_init(nskb, LLC_PDU_TYPE_S, sap->laddr.lsap,
-				    llc->daddr.lsap, LLC_PDU_CMD);
-		llc_pdu_init_as_rr_cmd(nskb, 1, llc->vR);
-		rc = llc_mac_hdr_init(nskb, llc->dev->dev_addr, llc->daddr.mac);
-		if (rc)
-			goto free;
-		llc_conn_send_pdu(sk, nskb);
-	}
-out:
-	return rc;
-free:
-	kfree_skb(nskb);
-	goto out;
-}
-
-int llc_conn_ac_send_ack_cmd_p_set_1(struct sock *sk, struct sk_buff *skb)
-{
-	int rc = -ENOBUFS;
-	struct sk_buff *nskb = llc_alloc_frame();
-
-	if (nskb) {
-		struct llc_opt *llc = llc_sk(sk);
+		struct llc_sock *llc = llc_sk(sk);
 		struct llc_sap *sap = llc->sap;
 
 		nskb->dev = llc->dev;
@@ -776,7 +706,7 @@ int llc_conn_ac_send_rr_rsp_f_set_1(struct sock *sk, struct sk_buff *skb)
 	struct sk_buff *nskb = llc_alloc_frame();
 
 	if (nskb) {
-		struct llc_opt *llc = llc_sk(sk);
+		struct llc_sock *llc = llc_sk(sk);
 		struct llc_sap *sap = llc->sap;
 		u8 f_bit = 1;
 
@@ -802,7 +732,7 @@ int llc_conn_ac_send_ack_rsp_f_set_1(struct sock *sk, struct sk_buff *skb)
 	struct sk_buff *nskb = llc_alloc_frame();
 
 	if (nskb) {
-		struct llc_opt *llc = llc_sk(sk);
+		struct llc_sock *llc = llc_sk(sk);
 		struct llc_sap *sap = llc->sap;
 		u8 f_bit = 1;
 
@@ -828,7 +758,7 @@ int llc_conn_ac_send_rr_xxx_x_set_0(struct sock *sk, struct sk_buff *skb)
 	struct sk_buff *nskb = llc_alloc_frame();
 
 	if (nskb) {
-		struct llc_opt *llc = llc_sk(sk);
+		struct llc_sock *llc = llc_sk(sk);
 		struct llc_sap *sap = llc->sap;
 
 		nskb->dev = llc->dev;
@@ -853,7 +783,7 @@ int llc_conn_ac_send_ack_xxx_x_set_0(struct sock *sk, struct sk_buff *skb)
 	struct sk_buff *nskb = llc_alloc_frame();
 
 	if (nskb) {
-		struct llc_opt *llc = llc_sk(sk);
+		struct llc_sock *llc = llc_sk(sk);
 		struct llc_sap *sap = llc->sap;
 
 		nskb->dev = llc->dev;
@@ -886,7 +816,7 @@ int llc_conn_ac_send_sabme_cmd_p_set_x(struct sock *sk, struct sk_buff *skb)
 {
 	int rc = -ENOBUFS;
 	struct sk_buff *nskb = llc_alloc_frame();
-	struct llc_opt *llc = llc_sk(sk);
+	struct llc_sock *llc = llc_sk(sk);
 
 	if (nskb) {
 		struct llc_sap *sap = llc->sap;
@@ -911,31 +841,6 @@ free:
 	goto out;
 }
 
-int llc_conn_ac_send_ua_rsp_f_set_f_flag(struct sock *sk, struct sk_buff *skb)
-{
-	int rc = -ENOBUFS;
-	struct sk_buff *nskb = llc_alloc_frame();
-
-	if (nskb) {
-		struct llc_opt *llc = llc_sk(sk);
-		struct llc_sap *sap = llc->sap;
-
-		nskb->dev = llc->dev;
-		llc_pdu_header_init(nskb, LLC_PDU_TYPE_U, sap->laddr.lsap,
-				    llc->daddr.lsap, LLC_PDU_RSP);
-		llc_pdu_init_as_ua_rsp(nskb, llc->f_flag);
-		rc = llc_mac_hdr_init(nskb, llc->dev->dev_addr, llc->daddr.mac);
-		if (rc)
-			goto free;
-		llc_conn_send_pdu(sk, nskb);
-	}
-out:
-	return rc;
-free:
-	kfree_skb(nskb);
-	goto out;
-}
-
 int llc_conn_ac_send_ua_rsp_f_set_p(struct sock *sk, struct sk_buff *skb)
 {
 	u8 f_bit;
@@ -944,7 +849,7 @@ int llc_conn_ac_send_ua_rsp_f_set_p(struct sock *sk, struct sk_buff *skb)
 
 	llc_pdu_decode_pf_bit(skb, &f_bit);
 	if (nskb) {
-		struct llc_opt *llc = llc_sk(sk);
+		struct llc_sock *llc = llc_sk(sk);
 		struct llc_sap *sap = llc->sap;
 
 		nskb->dev = llc->dev;
@@ -977,7 +882,7 @@ int llc_conn_ac_set_s_flag_1(struct sock *sk, struct sk_buff *skb)
 
 int llc_conn_ac_start_p_timer(struct sock *sk, struct sk_buff *skb)
 {
-	struct llc_opt *llc = llc_sk(sk);
+	struct llc_sock *llc = llc_sk(sk);
 
 	llc_conn_set_p_flag(sk, 1);
 	mod_timer(&llc->pf_cycle_timer.timer,
@@ -998,7 +903,7 @@ int llc_conn_ac_start_p_timer(struct sock *sk, struct sk_buff *skb)
 int llc_conn_ac_send_ack_if_needed(struct sock *sk, struct sk_buff *skb)
 {
 	u8 pf_bit;
-	struct llc_opt *llc = llc_sk(sk);
+	struct llc_sock *llc = llc_sk(sk);
 
 	llc_pdu_decode_pf_bit(skb, &pf_bit);
 	llc->ack_pf |= pf_bit & 1;
@@ -1041,10 +946,11 @@ int llc_conn_ac_rst_sendack_flag(struct sock *sk, struct sk_buff *skb)
  *	set to one if one PDU with p-bit set to one is received.  Returns 0 for
  *	success, 1 otherwise.
  */
-int llc_conn_ac_send_i_rsp_f_set_ackpf(struct sock *sk, struct sk_buff *skb)
+static int llc_conn_ac_send_i_rsp_f_set_ackpf(struct sock *sk,
+					      struct sk_buff *skb)
 {
 	int rc;
-	struct llc_opt *llc = llc_sk(sk);
+	struct llc_sock *llc = llc_sk(sk);
 	struct llc_sap *sap = llc->sap;
 
 	llc_pdu_header_init(skb, LLC_PDU_TYPE_I, sap->laddr.lsap,
@@ -1070,7 +976,7 @@ int llc_conn_ac_send_i_rsp_f_set_ackpf(struct sock *sk, struct sk_buff *skb)
  */
 int llc_conn_ac_send_i_as_ack(struct sock *sk, struct sk_buff *skb)
 {
-	struct llc_opt *llc = llc_sk(sk);
+	struct llc_sock *llc = llc_sk(sk);
 
 	if (llc->ack_must_be_send) {
 		llc_conn_ac_send_i_rsp_f_set_ackpf(sk, skb);
@@ -1091,13 +997,14 @@ int llc_conn_ac_send_i_as_ack(struct sock *sk, struct sk_buff *skb)
  *	if there is any. ack_pf flag indicates if a PDU has been received with
  *	p-bit set to one. Returns 0 for success, 1 otherwise.
  */
-int llc_conn_ac_send_rr_rsp_f_set_ackpf(struct sock *sk, struct sk_buff *skb)
+static int llc_conn_ac_send_rr_rsp_f_set_ackpf(struct sock *sk,
+					       struct sk_buff *skb)
 {
 	int rc = -ENOBUFS;
 	struct sk_buff *nskb = llc_alloc_frame();
 
 	if (nskb) {
-		struct llc_opt *llc = llc_sk(sk);
+		struct llc_sock *llc = llc_sk(sk);
 		struct llc_sap *sap = llc->sap;
 
 		nskb->dev = llc->dev;
@@ -1126,9 +1033,9 @@ free:
  *	acknowledgements decreases by increasing of "npta". Returns 0 for
  *	success, 1 otherwise.
  */
-int llc_conn_ac_inc_npta_value(struct sock *sk, struct sk_buff *skb)
+static int llc_conn_ac_inc_npta_value(struct sock *sk, struct sk_buff *skb)
 {
-	struct llc_opt *llc = llc_sk(sk);
+	struct llc_sock *llc = llc_sk(sk);
 
 	if (!llc->inc_cntr) {
 		llc->dec_step = 0;
@@ -1151,7 +1058,7 @@ int llc_conn_ac_inc_npta_value(struct sock *sk, struct sk_buff *skb)
  */
 int llc_conn_ac_adjust_npta_by_rr(struct sock *sk, struct sk_buff *skb)
 {
-	struct llc_opt *llc = llc_sk(sk);
+	struct llc_sock *llc = llc_sk(sk);
 
 	if (!llc->connect_step && !llc->remote_busy_flag) {
 		if (!llc->dec_step) {
@@ -1177,7 +1084,7 @@ int llc_conn_ac_adjust_npta_by_rr(struct sock *sk, struct sk_buff *skb)
  */
 int llc_conn_ac_adjust_npta_by_rnr(struct sock *sk, struct sk_buff *skb)
 {
-	struct llc_opt *llc = llc_sk(sk);
+	struct llc_sock *llc = llc_sk(sk);
 
 	if (llc->remote_busy_flag)
 		if (!llc->dec_step) {
@@ -1202,7 +1109,7 @@ int llc_conn_ac_adjust_npta_by_rnr(struct sock *sk, struct sk_buff *skb)
  */
 int llc_conn_ac_dec_tx_win_size(struct sock *sk, struct sk_buff *skb)
 {
-	struct llc_opt *llc = llc_sk(sk);
+	struct llc_sock *llc = llc_sk(sk);
 	u8 unacked_pdu = skb_queue_len(&llc->pdu_unack_q);
 
 	llc->k -= unacked_pdu;
@@ -1221,7 +1128,7 @@ int llc_conn_ac_dec_tx_win_size(struct sock *sk, struct sk_buff *skb)
  */
 int llc_conn_ac_inc_tx_win_size(struct sock *sk, struct sk_buff *skb)
 {
-	struct llc_opt *llc = llc_sk(sk);
+	struct llc_sock *llc = llc_sk(sk);
 
 	llc->k += 1;
 	if (llc->k > 128)
@@ -1231,7 +1138,7 @@ int llc_conn_ac_inc_tx_win_size(struct sock *sk, struct sk_buff *skb)
 
 int llc_conn_ac_stop_all_timers(struct sock *sk, struct sk_buff *skb)
 {
-	struct llc_opt *llc = llc_sk(sk);
+	struct llc_sock *llc = llc_sk(sk);
 
 	del_timer(&llc->pf_cycle_timer.timer);
 	del_timer(&llc->ack_timer.timer);
@@ -1244,7 +1151,7 @@ int llc_conn_ac_stop_all_timers(struct sock *sk, struct sk_buff *skb)
 
 int llc_conn_ac_stop_other_timers(struct sock *sk, struct sk_buff *skb)
 {
-	struct llc_opt *llc = llc_sk(sk);
+	struct llc_sock *llc = llc_sk(sk);
 
 	del_timer(&llc->rej_sent_timer.timer);
 	del_timer(&llc->pf_cycle_timer.timer);
@@ -1256,7 +1163,7 @@ int llc_conn_ac_stop_other_timers(struct sock *sk, struct sk_buff *skb)
 
 int llc_conn_ac_start_ack_timer(struct sock *sk, struct sk_buff *skb)
 {
-	struct llc_opt *llc = llc_sk(sk);
+	struct llc_sock *llc = llc_sk(sk);
 
 	mod_timer(&llc->ack_timer.timer, jiffies + llc->ack_timer.expire * HZ);
 	return 0;
@@ -1264,7 +1171,7 @@ int llc_conn_ac_start_ack_timer(struct sock *sk, struct sk_buff *skb)
 
 int llc_conn_ac_start_rej_timer(struct sock *sk, struct sk_buff *skb)
 {
-	struct llc_opt *llc = llc_sk(sk);
+	struct llc_sock *llc = llc_sk(sk);
 
 	mod_timer(&llc->rej_sent_timer.timer,
 		  jiffies + llc->rej_sent_timer.expire * HZ);
@@ -1274,7 +1181,7 @@ int llc_conn_ac_start_rej_timer(struct sock *sk, struct sk_buff *skb)
 int llc_conn_ac_start_ack_tmr_if_not_running(struct sock *sk,
 					     struct sk_buff *skb)
 {
-	struct llc_opt *llc = llc_sk(sk);
+	struct llc_sock *llc = llc_sk(sk);
 
 	if (!timer_pending(&llc->ack_timer.timer))
 		mod_timer(&llc->ack_timer.timer,
@@ -1290,7 +1197,7 @@ int llc_conn_ac_stop_ack_timer(struct sock *sk, struct sk_buff *skb)
 
 int llc_conn_ac_stop_p_timer(struct sock *sk, struct sk_buff *skb)
 {
-	struct llc_opt *llc = llc_sk(sk);
+	struct llc_sock *llc = llc_sk(sk);
 
 	del_timer(&llc->pf_cycle_timer.timer);
 	llc_conn_set_p_flag(sk, 0);
@@ -1308,7 +1215,7 @@ int llc_conn_ac_upd_nr_received(struct sock *sk, struct sk_buff *skb)
 	int acked;
 	u16 unacked = 0;
 	struct llc_pdu_sn *pdu = llc_pdu_sn_hdr(skb);
-	struct llc_opt *llc = llc_sk(sk);
+	struct llc_sock *llc = llc_sk(sk);
 
 	llc->last_nr = PDU_SUPV_GET_Nr(pdu);
 	acked = llc_conn_remove_acked_pdus(sk, llc->last_nr, &unacked);
@@ -1387,7 +1294,7 @@ int llc_conn_ac_set_p_flag_0(struct sock *sk, struct sk_buff *skb)
 	return 0;
 }
 
-int llc_conn_ac_set_p_flag_1(struct sock *sk, struct sk_buff *skb)
+static int llc_conn_ac_set_p_flag_1(struct sock *sk, struct sk_buff *skb)
 {
 	llc_conn_set_p_flag(sk, 1);
 	return 0;
@@ -1450,12 +1357,6 @@ int llc_conn_ac_set_vs_nr(struct sock *sk, struct sk_buff *skb)
 int llc_conn_ac_inc_vs_by_1(struct sock *sk, struct sk_buff *skb)
 {
 	llc_sk(sk)->vS = (llc_sk(sk)->vS + 1) % 128;
-	return 0;
-}
-
-int llc_conn_ac_set_f_flag_p(struct sock *sk, struct sk_buff *skb)
-{
-	llc_pdu_decode_pf_bit(skb, &llc_sk(sk)->f_flag);
 	return 0;
 }
 

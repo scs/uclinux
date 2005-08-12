@@ -40,6 +40,35 @@
 #include <net/irda/ircomm_event.h>
 #include <net/irda/ircomm_ttp.h>
 
+static int ircomm_ttp_data_indication(void *instance, void *sap,
+				      struct sk_buff *skb);
+static void ircomm_ttp_connect_confirm(void *instance, void *sap,
+				       struct qos_info *qos, 
+				       __u32 max_sdu_size, 
+				       __u8 max_header_size,
+				       struct sk_buff *skb);
+static void ircomm_ttp_connect_indication(void *instance, void *sap,
+					  struct qos_info *qos,
+					  __u32 max_sdu_size,
+					  __u8 max_header_size,
+					  struct sk_buff *skb);
+static void ircomm_ttp_flow_indication(void *instance, void *sap,
+				       LOCAL_FLOW cmd);
+static void ircomm_ttp_disconnect_indication(void *instance, void *sap, 
+					     LM_REASON reason,
+					     struct sk_buff *skb);
+static int ircomm_ttp_data_request(struct ircomm_cb *self,
+				   struct sk_buff *skb, 
+				   int clen);
+static int ircomm_ttp_connect_request(struct ircomm_cb *self, 
+				      struct sk_buff *userdata, 
+				      struct ircomm_info *info);
+static int ircomm_ttp_connect_response(struct ircomm_cb *self,
+				       struct sk_buff *userdata);
+static int ircomm_ttp_disconnect_request(struct ircomm_cb *self, 
+					 struct sk_buff *userdata, 
+					 struct ircomm_info *info);
+
 /*
  * Function ircomm_open_tsap (self)
  *
@@ -87,9 +116,9 @@ int ircomm_open_tsap(struct ircomm_cb *self)
  *    
  *
  */
-int ircomm_ttp_connect_request(struct ircomm_cb *self, 
-			       struct sk_buff *userdata, 
-			       struct ircomm_info *info)
+static int ircomm_ttp_connect_request(struct ircomm_cb *self, 
+				      struct sk_buff *userdata, 
+				      struct ircomm_info *info)
 {
 	int ret = 0;
 
@@ -112,8 +141,8 @@ int ircomm_ttp_connect_request(struct ircomm_cb *self,
  *    
  *
  */
-int ircomm_ttp_connect_response(struct ircomm_cb *self,
-				struct sk_buff *userdata)
+static int ircomm_ttp_connect_response(struct ircomm_cb *self,
+				       struct sk_buff *userdata)
 {
 	int ret;
 
@@ -137,13 +166,13 @@ int ircomm_ttp_connect_response(struct ircomm_cb *self,
  *    some of them are sent after connection establishment, so this can 
  *    increase the latency a bit.
  */
-int ircomm_ttp_data_request(struct ircomm_cb *self,
-			    struct sk_buff *skb, 
-			    int clen)
+static int ircomm_ttp_data_request(struct ircomm_cb *self,
+				   struct sk_buff *skb, 
+				   int clen)
 {
 	int ret;
 
-	ASSERT(skb != NULL, return -1;);
+	IRDA_ASSERT(skb != NULL, return -1;);
 
 	IRDA_DEBUG(2, "%s(), clen=%d\n", __FUNCTION__ , clen);
 
@@ -151,7 +180,7 @@ int ircomm_ttp_data_request(struct ircomm_cb *self,
 	 * Insert clen field, currently we either send data only, or control
 	 * only frames, to make things easier and avoid queueing
 	 */
-	ASSERT(skb_headroom(skb) >= IRCOMM_HEADER_SIZE, return -1;);
+	IRDA_ASSERT(skb_headroom(skb) >= IRCOMM_HEADER_SIZE, return -1;);
 
 	/* Don't forget to refcount it - see ircomm_tty_do_softint() */
 	skb_get(skb);
@@ -162,7 +191,7 @@ int ircomm_ttp_data_request(struct ircomm_cb *self,
 
 	ret = irttp_data_request(self->tsap, skb);
 	if (ret) {
-		ERROR("%s(), failed\n", __FUNCTION__);
+		IRDA_ERROR("%s(), failed\n", __FUNCTION__);
 		/* irttp_data_request already free the packet */
 	}
 
@@ -175,16 +204,16 @@ int ircomm_ttp_data_request(struct ircomm_cb *self,
  *    Incoming data
  *
  */
-int ircomm_ttp_data_indication(void *instance, void *sap,
-			       struct sk_buff *skb)
+static int ircomm_ttp_data_indication(void *instance, void *sap,
+				      struct sk_buff *skb)
 {
 	struct ircomm_cb *self = (struct ircomm_cb *) instance;
 
 	IRDA_DEBUG(4, "%s()\n", __FUNCTION__ );
 	
-	ASSERT(self != NULL, return -1;);
-	ASSERT(self->magic == IRCOMM_MAGIC, return -1;);
-	ASSERT(skb != NULL, return -1;);
+	IRDA_ASSERT(self != NULL, return -1;);
+	IRDA_ASSERT(self->magic == IRCOMM_MAGIC, return -1;);
+	IRDA_ASSERT(skb != NULL, return -1;);
 
 	ircomm_do_event(self, IRCOMM_TTP_DATA_INDICATION, skb, NULL);
 
@@ -194,24 +223,25 @@ int ircomm_ttp_data_indication(void *instance, void *sap,
 	return 0;
 }
 
-void ircomm_ttp_connect_confirm(void *instance, void *sap,
-				struct qos_info *qos, 
-				__u32 max_sdu_size, 
-				__u8 max_header_size,
-				struct sk_buff *skb)
+static void ircomm_ttp_connect_confirm(void *instance, void *sap,
+				       struct qos_info *qos, 
+				       __u32 max_sdu_size, 
+				       __u8 max_header_size,
+				       struct sk_buff *skb)
 {
 	struct ircomm_cb *self = (struct ircomm_cb *) instance;
 	struct ircomm_info info;
 
 	IRDA_DEBUG(4, "%s()\n", __FUNCTION__ );
 
-	ASSERT(self != NULL, return;);
-	ASSERT(self->magic == IRCOMM_MAGIC, return;);
-	ASSERT(skb != NULL, return;);
-	ASSERT(qos != NULL, goto out;);
+	IRDA_ASSERT(self != NULL, return;);
+	IRDA_ASSERT(self->magic == IRCOMM_MAGIC, return;);
+	IRDA_ASSERT(skb != NULL, return;);
+	IRDA_ASSERT(qos != NULL, goto out;);
 
 	if (max_sdu_size != TTP_SAR_DISABLE) {
-		ERROR("%s(), SAR not allowed for IrCOMM!\n", __FUNCTION__);
+		IRDA_ERROR("%s(), SAR not allowed for IrCOMM!\n",
+			   __FUNCTION__);
 		goto out;
 	}
 
@@ -234,24 +264,25 @@ out:
  *    
  *
  */
-void ircomm_ttp_connect_indication(void *instance, void *sap,
-				   struct qos_info *qos,
-				   __u32 max_sdu_size,
-				   __u8 max_header_size,
-				   struct sk_buff *skb)
+static void ircomm_ttp_connect_indication(void *instance, void *sap,
+					  struct qos_info *qos,
+					  __u32 max_sdu_size,
+					  __u8 max_header_size,
+					  struct sk_buff *skb)
 {
 	struct ircomm_cb *self = (struct ircomm_cb *)instance;
 	struct ircomm_info info;
 
 	IRDA_DEBUG(4, "%s()\n", __FUNCTION__ );
 
-	ASSERT(self != NULL, return;);
-	ASSERT(self->magic == IRCOMM_MAGIC, return;);
-	ASSERT(skb != NULL, return;);
-	ASSERT(qos != NULL, goto out;);
+	IRDA_ASSERT(self != NULL, return;);
+	IRDA_ASSERT(self->magic == IRCOMM_MAGIC, return;);
+	IRDA_ASSERT(skb != NULL, return;);
+	IRDA_ASSERT(qos != NULL, goto out;);
 
 	if (max_sdu_size != TTP_SAR_DISABLE) {
-		ERROR("%s(), SAR not allowed for IrCOMM!\n", __FUNCTION__);
+		IRDA_ERROR("%s(), SAR not allowed for IrCOMM!\n",
+			   __FUNCTION__);
 		goto out;
 	}
 
@@ -273,9 +304,9 @@ out:
  *    
  *
  */
-int ircomm_ttp_disconnect_request(struct ircomm_cb *self, 
-				  struct sk_buff *userdata, 
-				  struct ircomm_info *info)
+static int ircomm_ttp_disconnect_request(struct ircomm_cb *self, 
+					 struct sk_buff *userdata, 
+					 struct ircomm_info *info)
 {
 	int ret;
 
@@ -294,17 +325,17 @@ int ircomm_ttp_disconnect_request(struct ircomm_cb *self,
  *    
  *
  */
-void ircomm_ttp_disconnect_indication(void *instance, void *sap, 
-				      LM_REASON reason,
-				      struct sk_buff *skb)
+static void ircomm_ttp_disconnect_indication(void *instance, void *sap, 
+					     LM_REASON reason,
+					     struct sk_buff *skb)
 {
 	struct ircomm_cb *self = (struct ircomm_cb *) instance;
 	struct ircomm_info info;
 
 	IRDA_DEBUG(2, "%s()\n", __FUNCTION__ );
 
-	ASSERT(self != NULL, return;);
-	ASSERT(self->magic == IRCOMM_MAGIC, return;);
+	IRDA_ASSERT(self != NULL, return;);
+	IRDA_ASSERT(self->magic == IRCOMM_MAGIC, return;);
 
 	info.reason = reason;
 
@@ -321,14 +352,15 @@ void ircomm_ttp_disconnect_indication(void *instance, void *sap,
  *    Layer below is telling us to start or stop the flow of data
  *
  */
-void ircomm_ttp_flow_indication(void *instance, void *sap, LOCAL_FLOW cmd)
+static void ircomm_ttp_flow_indication(void *instance, void *sap,
+				       LOCAL_FLOW cmd)
 {
 	struct ircomm_cb *self = (struct ircomm_cb *) instance;
 
 	IRDA_DEBUG(4, "%s()\n", __FUNCTION__ );
 
-	ASSERT(self != NULL, return;);
-	ASSERT(self->magic == IRCOMM_MAGIC, return;);
+	IRDA_ASSERT(self != NULL, return;);
+	IRDA_ASSERT(self->magic == IRCOMM_MAGIC, return;);
 	
 	if (self->notify.flow_indication)
 		self->notify.flow_indication(self->notify.instance, self, cmd);

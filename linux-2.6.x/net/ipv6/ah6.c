@@ -154,12 +154,10 @@ static int ipv6_clear_mutable_options(struct ipv6hdr *iph, int len)
 	return 0;
 }
 
-int ah6_output(struct sk_buff **pskb)
+static int ah6_output(struct xfrm_state *x, struct sk_buff *skb)
 {
 	int err;
 	int extlen;
-	struct dst_entry *dst = (*pskb)->dst;
-	struct xfrm_state *x  = dst->xfrm;
 	struct ipv6hdr *top_iph;
 	struct ip_auth_hdr *ah;
 	struct ah_data *ahp;
@@ -170,11 +168,11 @@ int ah6_output(struct sk_buff **pskb)
 		char hdrs[0];
 	} *tmp_ext;
 
-	top_iph = (struct ipv6hdr *)(*pskb)->data;
-	top_iph->payload_len = htons((*pskb)->len - sizeof(*top_iph));
+	top_iph = (struct ipv6hdr *)skb->data;
+	top_iph->payload_len = htons(skb->len - sizeof(*top_iph));
 
-	nexthdr = *(*pskb)->nh.raw;
-	*(*pskb)->nh.raw = IPPROTO_AH;
+	nexthdr = *skb->nh.raw;
+	*skb->nh.raw = IPPROTO_AH;
 
 	/* When there are no extension headers, we only need to save the first
 	 * 8 bytes of the base IP header.
@@ -182,7 +180,7 @@ int ah6_output(struct sk_buff **pskb)
 	memcpy(tmp_base, top_iph, sizeof(tmp_base));
 
 	tmp_ext = NULL;
-	extlen = (*pskb)->h.raw - (unsigned char *)(top_iph + 1);
+	extlen = skb->h.raw - (unsigned char *)(top_iph + 1);
 	if (extlen) {
 		extlen += sizeof(*tmp_ext);
 		tmp_ext = kmalloc(extlen, GFP_ATOMIC);
@@ -198,7 +196,7 @@ int ah6_output(struct sk_buff **pskb)
 			goto error_free_iph;
 	}
 
-	ah = (struct ip_auth_hdr *)(*pskb)->h.raw;
+	ah = (struct ip_auth_hdr *)skb->h.raw;
 	ah->nexthdr = nexthdr;
 
 	top_iph->priority    = 0;
@@ -214,7 +212,7 @@ int ah6_output(struct sk_buff **pskb)
 	ah->reserved = 0;
 	ah->spi = x->id.spi;
 	ah->seq_no = htonl(++x->replay.oseq);
-	ahp->icv(ahp, *pskb, ah->auth_data);
+	ahp->icv(ahp, skb, ah->auth_data);
 
 	err = 0;
 
@@ -229,7 +227,7 @@ error:
 	return err;
 }
 
-int ah6_input(struct xfrm_state *x, struct xfrm_decap_state *decap, struct sk_buff *skb)
+static int ah6_input(struct xfrm_state *x, struct xfrm_decap_state *decap, struct sk_buff *skb)
 {
 	/*
 	 * Before process AH
@@ -319,8 +317,8 @@ out:
 	return -EINVAL;
 }
 
-void ah6_err(struct sk_buff *skb, struct inet6_skb_parm *opt, 
-	 int type, int code, int offset, __u32 info)
+static void ah6_err(struct sk_buff *skb, struct inet6_skb_parm *opt, 
+                    int type, int code, int offset, __u32 info)
 {
 	struct ipv6hdr *iph = (struct ipv6hdr*)skb->data;
 	struct ip_auth_hdr *ah = (struct ip_auth_hdr*)(skb->data+offset);
@@ -353,6 +351,9 @@ static int ah6_init_state(struct xfrm_state *x, void *args)
 	if (x->aalg->alg_key_len > 512)
 		goto error;
 
+	if (x->encap)
+		goto error;
+
 	ahp = kmalloc(sizeof(*ahp), GFP_KERNEL);
 	if (ahp == NULL)
 		return -ENOMEM;
@@ -372,7 +373,7 @@ static int ah6_init_state(struct xfrm_state *x, void *args)
 	 * we need for AH processing.  This lookup cannot fail here
 	 * after a successful crypto_alloc_tfm().
 	 */
-	aalg_desc = xfrm_aalg_get_byname(x->aalg->alg_name);
+	aalg_desc = xfrm_aalg_get_byname(x->aalg->alg_name, 0);
 	BUG_ON(!aalg_desc);
 
 	if (aalg_desc->uinfo.auth.icv_fullbits/8 !=
@@ -445,7 +446,7 @@ static struct inet6_protocol ah6_protocol = {
 	.flags		=	INET6_PROTO_NOPOLICY,
 };
 
-int __init ah6_init(void)
+static int __init ah6_init(void)
 {
 	if (xfrm_register_type(&ah6_type, AF_INET6) < 0) {
 		printk(KERN_INFO "ipv6 ah init: can't add xfrm type\n");

@@ -15,8 +15,6 @@
 #include <net/sock.h>
 #include <linux/atalk.h>
 
-#ifdef CONFIG_PROC_FS
-extern struct file_operations atalk_seq_arp_fops;
 
 static __inline__ struct atalk_iface *atalk_get_interface_idx(loff_t pos)
 {
@@ -207,21 +205,21 @@ out:
 	return 0;
 }
 
-struct seq_operations atalk_seq_interface_ops = {
+static struct seq_operations atalk_seq_interface_ops = {
 	.start  = atalk_seq_interface_start,
 	.next   = atalk_seq_interface_next,
 	.stop   = atalk_seq_interface_stop,
 	.show   = atalk_seq_interface_show,
 };
 
-struct seq_operations atalk_seq_route_ops = {
+static struct seq_operations atalk_seq_route_ops = {
 	.start  = atalk_seq_route_start,
 	.next   = atalk_seq_route_next,
 	.stop   = atalk_seq_route_stop,
 	.show   = atalk_seq_route_show,
 };
 
-struct seq_operations atalk_seq_socket_ops = {
+static struct seq_operations atalk_seq_socket_ops = {
 	.start  = atalk_seq_socket_start,
 	.next   = atalk_seq_socket_next,
 	.stop   = atalk_seq_socket_stop,
@@ -321,14 +319,3 @@ void __exit atalk_proc_exit(void)
 	remove_proc_entry("arp", atalk_proc_dir);
 	remove_proc_entry("atalk", proc_net);
 }
-
-#else /* CONFIG_PROC_FS */
-int __init atalk_proc_init(void)
-{
-	return 0;
-}
-
-void __exit atalk_proc_exit(void)
-{
-}
-#endif /* CONFIG_PROC_FS */

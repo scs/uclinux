@@ -50,6 +50,7 @@
 #include <net/ipip.h>
 #include <net/inet_ecn.h>
 #include <net/xfrm.h>
+#include <net/dsfield.h>
 
 /*
    This version of net/ipv6/sit.c is cloned of net/ipv4/ip_gre.c
@@ -72,7 +73,7 @@ static struct ip_tunnel *tunnels_l[HASH_SIZE];
 static struct ip_tunnel *tunnels_wc[1];
 static struct ip_tunnel **tunnels[4] = { tunnels_wc, tunnels_l, tunnels_r, tunnels_r_l };
 
-static rwlock_t ipip6_lock = RW_LOCK_UNLOCKED;
+static DEFINE_RWLOCK(ipip6_lock);
 
 static struct ip_tunnel * ipip6_tunnel_lookup(u32 remote, u32 local)
 {
@@ -134,10 +135,10 @@ static void ipip6_tunnel_link(struct ip_tunnel *t)
 {
 	struct ip_tunnel **tp = ipip6_bucket(t);
 
-	write_lock_bh(&ipip6_lock);
 	t->next = *tp;
-	write_unlock_bh(&ipip6_lock);
+	write_lock_bh(&ipip6_lock);
 	*tp = t;
+	write_unlock_bh(&ipip6_lock);
 }
 
 static struct ip_tunnel * ipip6_tunnel_locate(struct ip_tunnel_parm *parms, int create)
@@ -360,8 +361,7 @@ out:
 
 static inline void ipip6_ecn_decapsulate(struct iphdr *iph, struct sk_buff *skb)
 {
-	if (INET_ECN_is_ce(iph->tos) &&
-	    INET_ECN_is_not_ce(ip6_get_dsfield(skb->nh.ipv6h)))
+	if (INET_ECN_is_ce(iph->tos))
 		IP6_ECN_set_ce(skb->nh.ipv6h);
 }
 
@@ -487,6 +487,7 @@ static int ipip6_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 		}
 	}
 	if (rt->rt_type != RTN_UNICAST) {
+		ip_rt_put(rt);
 		tunnel->stat.tx_carrier_errors++;
 		goto tx_error_icmp;
 	}
@@ -499,9 +500,9 @@ static int ipip6_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	if (tiph->frag_off)
-		mtu = dst_pmtu(&rt->u.dst) - sizeof(struct iphdr);
+		mtu = dst_mtu(&rt->u.dst) - sizeof(struct iphdr);
 	else
-		mtu = skb->dst ? dst_pmtu(skb->dst) : dev->mtu;
+		mtu = skb->dst ? dst_mtu(skb->dst) : dev->mtu;
 
 	if (mtu < 68) {
 		tunnel->stat.collisions++;
@@ -567,7 +568,7 @@ static int ipip6_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 		iph->frag_off	=	0;
 
 	iph->protocol		=	IPPROTO_IPV6;
-	iph->tos		=	INET_ECN_encapsulate(tos, ip6_get_dsfield(iph6));
+	iph->tos		=	INET_ECN_encapsulate(tos, ipv6_get_dsfield(iph6));
 	iph->daddr		=	rt->rt_dst;
 	iph->saddr		=	rt->rt_src;
 
@@ -814,18 +815,19 @@ int __init sit_init(void)
 					   ipip6_tunnel_setup);
 	if (!ipip6_fb_tunnel_dev) {
 		err = -ENOMEM;
-		goto fail;
+		goto err1;
 	}
 
 	ipip6_fb_tunnel_dev->init = ipip6_fb_tunnel_init;
 
 	if ((err =  register_netdev(ipip6_fb_tunnel_dev)))
-		goto fail;
+		goto err2;
 
  out:
 	return err;
- fail:
-	inet_del_protocol(&sit_protocol, IPPROTO_IPV6);
+ err2:
 	free_netdev(ipip6_fb_tunnel_dev);
+ err1:
+	inet_del_protocol(&sit_protocol, IPPROTO_IPV6);
 	goto out;
 }

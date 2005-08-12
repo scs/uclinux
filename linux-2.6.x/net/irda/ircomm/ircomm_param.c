@@ -92,23 +92,6 @@ static pi_major_info_t pi_major_call_table[] = {
 pi_param_info_t ircomm_param_info = { pi_major_call_table, 3, 0x0f, 4 };
 
 /*
- * Function ircomm_param_flush (self)
- *
- *    Flush (send) out all queued parameters
- *
- */
-int ircomm_param_flush(struct ircomm_tty_cb *self)
-{
-	/* we should lock here, but I guess this function is unused...
-	 * Jean II */
-	if (self->ctrl_skb) {
-		ircomm_control_request(self->ircomm, self->ctrl_skb);
-		self->ctrl_skb = NULL;	
-	}
-	return 0;
-}
-
-/*
  * Function ircomm_param_request (self, pi, flush)
  *
  *    Queue a parameter for the control channel
@@ -123,8 +106,8 @@ int ircomm_param_request(struct ircomm_tty_cb *self, __u8 pi, int flush)
 
 	IRDA_DEBUG(2, "%s()\n", __FUNCTION__ );
 
-	ASSERT(self != NULL, return -1;);
-	ASSERT(self->magic == IRCOMM_TTY_MAGIC, return -1;);
+	IRDA_ASSERT(self != NULL, return -1;);
+	IRDA_ASSERT(self->magic == IRCOMM_TTY_MAGIC, return -1;);
 
 	tty = self->tty;
 	if (!tty)
@@ -154,7 +137,7 @@ int ircomm_param_request(struct ircomm_tty_cb *self, __u8 pi, int flush)
 	count = irda_param_insert(self, pi, skb->tail, skb_tailroom(skb),
 				  &ircomm_param_info);
 	if (count < 0) {
-		WARNING("%s(), no room for parameter!\n", __FUNCTION__);
+		IRDA_WARNING("%s(), no room for parameter!\n", __FUNCTION__);
 		spin_unlock_irqrestore(&self->spinlock, flags);
 		return -1;
 	}
@@ -185,8 +168,8 @@ static int ircomm_param_service_type(void *instance, irda_param_t *param,
 	struct ircomm_tty_cb *self = (struct ircomm_tty_cb *) instance;
 	__u8 service_type = (__u8) param->pv.i;
 
-	ASSERT(self != NULL, return -1;);
-	ASSERT(self->magic == IRCOMM_TTY_MAGIC, return -1;);
+	IRDA_ASSERT(self != NULL, return -1;);
+	IRDA_ASSERT(self->magic == IRCOMM_TTY_MAGIC, return -1;);
 
 	if (get) {
 		param->pv.i = self->settings.service_type;
@@ -250,8 +233,8 @@ static int ircomm_param_port_type(void *instance, irda_param_t *param, int get)
 {
 	struct ircomm_tty_cb *self = (struct ircomm_tty_cb *) instance;
 
-	ASSERT(self != NULL, return -1;);
-	ASSERT(self->magic == IRCOMM_TTY_MAGIC, return -1;);
+	IRDA_ASSERT(self != NULL, return -1;);
+	IRDA_ASSERT(self->magic == IRCOMM_TTY_MAGIC, return -1;);
 	
 	if (get)
 		param->pv.i = IRCOMM_SERIAL;
@@ -274,8 +257,8 @@ static int ircomm_param_port_name(void *instance, irda_param_t *param, int get)
 {
 	struct ircomm_tty_cb *self = (struct ircomm_tty_cb *) instance;
 	
-	ASSERT(self != NULL, return -1;);
-	ASSERT(self->magic == IRCOMM_TTY_MAGIC, return -1;);
+	IRDA_ASSERT(self != NULL, return -1;);
+	IRDA_ASSERT(self->magic == IRCOMM_TTY_MAGIC, return -1;);
 
 	if (get) {
 		IRDA_DEBUG(0, "%s(), not imp!\n", __FUNCTION__ );
@@ -297,8 +280,8 @@ static int ircomm_param_data_rate(void *instance, irda_param_t *param, int get)
 {
 	struct ircomm_tty_cb *self = (struct ircomm_tty_cb *) instance;
 	
-	ASSERT(self != NULL, return -1;);
-	ASSERT(self->magic == IRCOMM_TTY_MAGIC, return -1;);
+	IRDA_ASSERT(self != NULL, return -1;);
+	IRDA_ASSERT(self->magic == IRCOMM_TTY_MAGIC, return -1;);
 
 	if (get)
 		param->pv.i = self->settings.data_rate;
@@ -321,8 +304,8 @@ static int ircomm_param_data_format(void *instance, irda_param_t *param,
 {
 	struct ircomm_tty_cb *self = (struct ircomm_tty_cb *) instance;
 
-	ASSERT(self != NULL, return -1;);
-	ASSERT(self->magic == IRCOMM_TTY_MAGIC, return -1;);
+	IRDA_ASSERT(self != NULL, return -1;);
+	IRDA_ASSERT(self->magic == IRCOMM_TTY_MAGIC, return -1;);
 
 	if (get)
 		param->pv.i = self->settings.data_format;
@@ -343,8 +326,8 @@ static int ircomm_param_flow_control(void *instance, irda_param_t *param,
 {
 	struct ircomm_tty_cb *self = (struct ircomm_tty_cb *) instance;
 
-	ASSERT(self != NULL, return -1;);
-	ASSERT(self->magic == IRCOMM_TTY_MAGIC, return -1;);
+	IRDA_ASSERT(self != NULL, return -1;);
+	IRDA_ASSERT(self->magic == IRCOMM_TTY_MAGIC, return -1;);
 	
 	if (get)
 		param->pv.i = self->settings.flow_control;
@@ -366,8 +349,8 @@ static int ircomm_param_xon_xoff(void *instance, irda_param_t *param, int get)
 {
 	struct ircomm_tty_cb *self = (struct ircomm_tty_cb *) instance;
 
-	ASSERT(self != NULL, return -1;);
-	ASSERT(self->magic == IRCOMM_TTY_MAGIC, return -1;);
+	IRDA_ASSERT(self != NULL, return -1;);
+	IRDA_ASSERT(self->magic == IRCOMM_TTY_MAGIC, return -1;);
 	
 	if (get) {
 		param->pv.i = self->settings.xonxoff[0];
@@ -393,8 +376,8 @@ static int ircomm_param_enq_ack(void *instance, irda_param_t *param, int get)
 {
 	struct ircomm_tty_cb *self = (struct ircomm_tty_cb *) instance;
 
-	ASSERT(self != NULL, return -1;);
-	ASSERT(self->magic == IRCOMM_TTY_MAGIC, return -1;);
+	IRDA_ASSERT(self != NULL, return -1;);
+	IRDA_ASSERT(self->magic == IRCOMM_TTY_MAGIC, return -1;);
 	
 	if (get) {
 		param->pv.i = self->settings.enqack[0];
@@ -435,8 +418,8 @@ static int ircomm_param_dte(void *instance, irda_param_t *param, int get)
 	struct ircomm_tty_cb *self = (struct ircomm_tty_cb *) instance;
 	__u8 dte;
 
-	ASSERT(self != NULL, return -1;);
-	ASSERT(self->magic == IRCOMM_TTY_MAGIC, return -1;);
+	IRDA_ASSERT(self != NULL, return -1;);
+	IRDA_ASSERT(self->magic == IRCOMM_TTY_MAGIC, return -1;);
 
 	if (get)
 		param->pv.i = self->settings.dte;
@@ -484,8 +467,8 @@ static int ircomm_param_dce(void *instance, irda_param_t *param, int get)
 
 	dce = (__u8) param->pv.i;
 
-	ASSERT(self != NULL, return -1;);
-	ASSERT(self->magic == IRCOMM_TTY_MAGIC, return -1;);
+	IRDA_ASSERT(self != NULL, return -1;);
+	IRDA_ASSERT(self->magic == IRCOMM_TTY_MAGIC, return -1;);
 
 	self->settings.dce = dce;
 
@@ -511,8 +494,8 @@ static int ircomm_param_poll(void *instance, irda_param_t *param, int get)
 {
 	struct ircomm_tty_cb *self = (struct ircomm_tty_cb *) instance;
 
-	ASSERT(self != NULL, return -1;);
-	ASSERT(self->magic == IRCOMM_TTY_MAGIC, return -1;);
+	IRDA_ASSERT(self != NULL, return -1;);
+	IRDA_ASSERT(self->magic == IRCOMM_TTY_MAGIC, return -1;);
 
 	/* Poll parameters are always of lenght 0 (just a signal) */
 	if (!get) {

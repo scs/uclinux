@@ -185,7 +185,7 @@ config NET_SCH_GRED
 	depends on NET_SCHED
 	help
 	  Say Y here if you want to use the Generic Random Early Detection
-	  (RED) packet scheduling algorithm for some of your network devices
+	  (GRED) packet scheduling algorithm for some of your network devices
 	  (see the top of <file:net/sched/sch_red.c> for details and
 	  references about the algorithm).
 
@@ -269,6 +269,16 @@ config NET_CLS
 	  Documentation and software is at
 	  <http://diffserv.sourceforge.net/>.
 
+config NET_CLS_BASIC
+	tristate "Basic classifier"
+	depends on NET_CLS
+	---help---
+	  Say Y here if you want to be able to classify packets using
+	  only extended matches and actions.
+
+	  To compile this code as a module, choose M here: the
+	  module will be called cls_basic.
+
 config NET_CLS_TCINDEX
 	tristate "TC index classifier"
 	depends on NET_CLS
@@ -317,7 +327,7 @@ config NET_CLS_U32
 	  module will be called cls_u32.
 
 config CLS_U32_PERF
-	bool "     U32 classifier performance counters"
+	bool "U32 classifier performance counters"
 	depends on NET_CLS_U32
 	help
 	  gathers stats that could be used to tune u32 classifier performance.
@@ -333,6 +343,18 @@ config NET_CLS_IND
           Available only for u32 and fw classifiers.
 	  Requires a new iproute2
 	  You MUST NOT turn this on if you dont have an update iproute2.
+
+config CLS_U32_MARK
+	bool "Use nfmark as a key in U32 classifier"
+	depends on NET_CLS_U32 && NETFILTER
+	help
+	  This allows you to match mark in a u32 filter.
+	  Example:
+	  tc filter add dev eth0 protocol ip parent 1:0 prio 5 u32 \
+		match mark 0x0090 0xffff \
+		match ip dst 4.4.4.4 \
+		flowid 1:90
+	  You must use a new iproute2 to use this feature.
 
 config NET_CLS_RSVP
 	tristate "Special RSVP classifier"
@@ -363,27 +385,134 @@ config NET_CLS_RSVP6
 	  To compile this code as a module, choose M here: the
 	  module will be called cls_rsvp6.
 
+config NET_EMATCH
+	bool "Extended Matches"
+	depends on NET_CLS
+	---help---
+	  Say Y here if you want to use extended matches on top of classifiers
+	  and select the extended matches below.
+
+	  Extended matches are small classification helpers not worth writing
+	  a separate classifier.
+
+	  You must have a recent version of the iproute2 tools in order to use
+	  extended matches.
+
+config NET_EMATCH_STACK
+	int "Stack size"
+	depends on NET_EMATCH
+	default "32"
+	---help---
+	  Size of the local stack variable used while evaluating the tree of
+	  ematches. Limits the depth of the tree, i.e. the number of
+	  encapsulated precedences. Every level requires 4 bytes of additional
+	  stack space.
+
+config NET_EMATCH_CMP
+	tristate "Simple packet data comparison"
+	depends on NET_EMATCH
+	---help---
+	  Say Y here if you want to be able to classify packets based on
+	  simple packet data comparisons for 8, 16, and 32bit values.
+
+	  To compile this code as a module, choose M here: the
+	  module will be called em_cmp.
+
+config NET_EMATCH_NBYTE
+	tristate "Multi byte comparison"
+	depends on NET_EMATCH
+	---help---
+	  Say Y here if you want to be able to classify packets based on
+	  multiple byte comparisons mainly useful for IPv6 address comparisons.
+
+	  To compile this code as a module, choose M here: the
+	  module will be called em_nbyte.
+
+config NET_EMATCH_U32
+	tristate "U32 hashing key"
+	depends on NET_EMATCH
+	---help---
+	  Say Y here if you want to be able to classify packets using
+	  the famous u32 key in combination with logic relations.
+
+	  To compile this code as a module, choose M here: the
+	  module will be called em_u32.
+
+config NET_EMATCH_META
+	tristate "Metadata"
+	depends on NET_EMATCH
+	---help---
+	  Say Y here if you want to be ablt to classify packets based on
+	  metadata such as load average, netfilter attributes, socket
+	  attributes and routing decisions.
+
+	  To compile this code as a module, choose M here: the
+	  module will be called em_meta.
+
 config NET_CLS_ACT
-	bool '  Packet ACTION ' 
+	bool "Packet ACTION"
 	depends on EXPERIMENTAL && NET_CLS && NET_QOS
 	---help---
 	This option requires you have a new iproute2. It enables
 	tc extensions which can be used with tc classifiers.
-	Only the u32 and fw classifiers are supported at the moment.
 	  You MUST NOT turn this on if you dont have an update iproute2.
 
 config NET_ACT_POLICE
-	tristate '      Policing Actions' 
+	tristate "Policing Actions"
         depends on NET_CLS_ACT 
         ---help---
         If you are using a newer iproute2 select this one, otherwise use one
 	below to select a policer.
 	  You MUST NOT turn this on if you dont have an update iproute2.
 
+config NET_ACT_GACT
+        tristate "generic Actions"
+        depends on NET_CLS_ACT
+        ---help---
+        You must have new iproute2 to use this feature.
+        This adds simple filtering actions like drop, accept etc.
+
+config GACT_PROB
+        bool "generic Actions probability"
+        depends on NET_ACT_GACT
+        ---help---
+        Allows generic actions to be randomly or deterministically used.
+
+config NET_ACT_MIRRED
+        tristate "Packet In/Egress redirecton/mirror Actions"
+        depends on NET_CLS_ACT
+        ---help---
+        requires new iproute2
+        This allows packets to be mirrored or redirected to netdevices
+
+config NET_ACT_IPT
+        tristate "iptables Actions"
+        depends on NET_CLS_ACT && NETFILTER && IP_NF_IPTABLES
+        ---help---
+        requires new iproute2
+        This allows iptables targets to be used by tc filters
+
+config NET_ACT_PEDIT
+        tristate "Generic Packet Editor Actions"
+        depends on NET_CLS_ACT
+        ---help---
+        requires new iproute2
+        This allows for packets to be generically edited
+
 config NET_CLS_POLICE
 	bool "Traffic policing (needed for in/egress)"
-	depends on NET_CLS && NET_QOS && NET_ACT_POLICE!=y && NET_ACT_POLICE!=m
+	depends on NET_CLS && NET_QOS && NET_CLS_ACT!=y
 	help
 	  Say Y to support traffic policing (bandwidth limits).  Needed for
 	  ingress and egress rate limiting.
+
+config NET_ACT_SIMP
+        tristate "Simple action"
+        depends on NET_CLS_ACT
+        ---help---
+        You must have new iproute2 to use this feature.
+        This adds a very simple action for demonstration purposes
+	The idea is to give action authors a basic example to look at.
+	All this action will do is print on the console the configured
+	policy string followed by _ then packet count.
 

@@ -28,7 +28,6 @@
 #include <linux/socket.h>
 #include <linux/in.h>
 #include <linux/kernel.h>
-#include <linux/major.h>
 #include <linux/sched.h>
 #include <linux/timer.h>
 #include <linux/string.h>
@@ -88,18 +87,14 @@ int sysctl_ipv6_bindv6only;
 
 #ifdef INET_REFCNT_DEBUG
 atomic_t inet6_sock_nr;
+EXPORT_SYMBOL(inet6_sock_nr);
 #endif
-
-/* Per protocol sock slabcache */
-kmem_cache_t *tcp6_sk_cachep;
-kmem_cache_t *udp6_sk_cachep;
-kmem_cache_t *raw6_sk_cachep;
 
 /* The inetsw table contains everything that inet_create needs to
  * build a new socket.
  */
 static struct list_head inetsw6[SOCK_MAX];
-static spinlock_t inetsw6_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(inetsw6_lock);
 
 static void inet6_sock_destruct(struct sock *sk)
 {
@@ -110,52 +105,24 @@ static void inet6_sock_destruct(struct sock *sk)
 #endif
 }
 
-static __inline__ kmem_cache_t *inet6_sk_slab(int protocol)
-{
-        kmem_cache_t* rc = tcp6_sk_cachep;
-
-        if (protocol == IPPROTO_UDP)
-                rc = udp6_sk_cachep;
-        else if (protocol == IPPROTO_RAW)
-                rc = raw6_sk_cachep;
-        return rc;
-}
-
-static __inline__ int inet6_sk_size(int protocol)
-{
-        int rc = sizeof(struct tcp6_sock);
-
-        if (protocol == IPPROTO_UDP)
-                rc = sizeof(struct udp6_sock);
-        else if (protocol == IPPROTO_RAW)
-                rc = sizeof(struct raw6_sock);
-        return rc;
-}
-
 static __inline__ struct ipv6_pinfo *inet6_sk_generic(struct sock *sk)
 {
-	struct ipv6_pinfo *rc = (&((struct tcp6_sock *)sk)->inet6);
+	const int offset = sk->sk_prot->obj_size - sizeof(struct ipv6_pinfo);
 
-        if (sk->sk_protocol == IPPROTO_UDP)
-                rc = (&((struct udp6_sock *)sk)->inet6);
-        else if (sk->sk_protocol == IPPROTO_RAW)
-                rc = (&((struct raw6_sock *)sk)->inet6);
-        return rc;
+	return (struct ipv6_pinfo *)(((u8 *)sk) + offset);
 }
 
 static int inet6_create(struct socket *sock, int protocol)
 {
-	struct inet_opt *inet;
+	struct inet_sock *inet;
 	struct ipv6_pinfo *np;
 	struct sock *sk;
-	struct tcp6_sock* tcp6sk;
 	struct list_head *p;
 	struct inet_protosw *answer;
-
-	sk = sk_alloc(PF_INET6, GFP_KERNEL, inet6_sk_size(protocol),
-		      inet6_sk_slab(protocol));
-	if (sk == NULL) 
-		goto do_oom;
+	struct proto *answer_prot;
+	unsigned char answer_flags;
+	char answer_no_check;
+	int rc;
 
 	/* Look for the requested type/protocol pair. */
 	answer = NULL;
@@ -179,22 +146,36 @@ static int inet6_create(struct socket *sock, int protocol)
 		answer = NULL;
 	}
 
+	rc = -ESOCKTNOSUPPORT;
 	if (!answer)
-		goto free_and_badtype;
+		goto out_rcu_unlock;
+	rc = -EPERM;
 	if (answer->capability > 0 && !capable(answer->capability))
-		goto free_and_badperm;
+		goto out_rcu_unlock;
+	rc = -EPROTONOSUPPORT;
 	if (!protocol)
-		goto free_and_noproto;
+		goto out_rcu_unlock;
 
 	sock->ops = answer->ops;
-	sock_init_data(sock, sk);
-	sk_set_owner(sk, THIS_MODULE);
 
-	sk->sk_prot = answer->prot;
-	sk->sk_no_check = answer->no_check;
-	if (INET_PROTOSW_REUSE & answer->flags)
-		sk->sk_reuse = 1;
+	answer_prot = answer->prot;
+	answer_no_check = answer->no_check;
+	answer_flags = answer->flags;
 	rcu_read_unlock();
+
+	BUG_TRAP(answer_prot->slab != NULL);
+
+	rc = -ENOBUFS;
+	sk = sk_alloc(PF_INET6, GFP_KERNEL, answer_prot, 1);
+	if (sk == NULL)
+		goto out;
+
+	sock_init_data(sock, sk);
+
+	rc = 0;
+	sk->sk_no_check = answer_no_check;
+	if (INET_PROTOSW_REUSE & answer_flags)
+		sk->sk_reuse = 1;
 
 	inet = inet_sk(sk);
 
@@ -205,14 +186,12 @@ static int inet6_create(struct socket *sock, int protocol)
 	}
 
 	sk->sk_destruct		= inet6_sock_destruct;
-	sk->sk_zapped		= 0;
 	sk->sk_family		= PF_INET6;
 	sk->sk_protocol		= protocol;
 
 	sk->sk_backlog_rcv	= answer->prot->backlog_rcv;
 
-	tcp6sk		= (struct tcp6_sock *)sk;
-	tcp6sk->pinet6 = np = inet6_sk_generic(sk);
+	inet_sk(sk)->pinet6 = np = inet6_sk_generic(sk);
 	np->hop_limit	= -1;
 	np->mcast_hops	= -1;
 	np->mc_loop	= 1;
@@ -248,28 +227,17 @@ static int inet6_create(struct socket *sock, int protocol)
 		sk->sk_prot->hash(sk);
 	}
 	if (sk->sk_prot->init) {
-		int err = sk->sk_prot->init(sk);
-		if (err != 0) {
+		rc = sk->sk_prot->init(sk);
+		if (rc) {
 			sk_common_release(sk);
-			return err;
+			goto out;
 		}
 	}
-	return 0;
-
-free_and_badtype:
+out:
+	return rc;
+out_rcu_unlock:
 	rcu_read_unlock();
-	sk_free(sk);
-	return -ESOCKTNOSUPPORT;
-free_and_badperm:
-	rcu_read_unlock();
-	sk_free(sk);
-	return -EPERM;
-free_and_noproto:
-	rcu_read_unlock();
-	sk_free(sk);
-	return -EPROTONOSUPPORT;
-do_oom:
-	return -ENOBUFS;
+	goto out;
 }
 
 
@@ -278,7 +246,7 @@ int inet6_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 {
 	struct sockaddr_in6 *addr=(struct sockaddr_in6 *)uaddr;
 	struct sock *sk = sock->sk;
-	struct inet_opt *inet = inet_sk(sk);
+	struct inet_sock *inet = inet_sk(sk);
 	struct ipv6_pinfo *np = inet6_sk(sk);
 	__u32 v4addr = 0;
 	unsigned short snum;
@@ -436,7 +404,7 @@ int inet6_getname(struct socket *sock, struct sockaddr *uaddr,
 {
 	struct sockaddr_in6 *sin=(struct sockaddr_in6 *)uaddr;
 	struct sock *sk = sock->sk;
-	struct inet_opt *inet = inet_sk(sk);
+	struct inet_sock *inet = inet_sk(sk);
 	struct ipv6_pinfo *np = inet6_sk(sk);
   
 	sin->sin6_family = AF_INET6;
@@ -527,7 +495,7 @@ struct proto_ops inet6_dgram_ops = {
 	.socketpair =	sock_no_socketpair,		/* a do nothing	*/
 	.accept =	sock_no_accept,			/* a do nothing	*/
 	.getname =	inet6_getname, 
-	.poll =		datagram_poll,			/* ok		*/
+	.poll =		udp_poll,			/* ok		*/
 	.ioctl =	inet6_ioctl,			/* must change  */
 	.listen =	sock_no_listen,			/* ok		*/
 	.shutdown =	inet_shutdown,			/* ok		*/
@@ -550,11 +518,33 @@ extern void ipv6_sysctl_register(void);
 extern void ipv6_sysctl_unregister(void);
 #endif
 
+/* Same as inet6_dgram_ops, sans udp_poll.  */
+static struct proto_ops inet6_sockraw_ops = {
+	.family =	PF_INET6,
+	.owner =	THIS_MODULE,
+	.release =	inet6_release,
+	.bind =		inet6_bind,
+	.connect =	inet_dgram_connect,		/* ok		*/
+	.socketpair =	sock_no_socketpair,		/* a do nothing	*/
+	.accept =	sock_no_accept,			/* a do nothing	*/
+	.getname =	inet6_getname, 
+	.poll =		datagram_poll,			/* ok		*/
+	.ioctl =	inet6_ioctl,			/* must change  */
+	.listen =	sock_no_listen,			/* ok		*/
+	.shutdown =	inet_shutdown,			/* ok		*/
+	.setsockopt =	sock_common_setsockopt,		/* ok		*/
+	.getsockopt =	sock_common_getsockopt,		/* ok		*/
+	.sendmsg =	inet_sendmsg,			/* ok		*/
+	.recvmsg =	sock_common_recvmsg,		/* ok		*/
+	.mmap =		sock_no_mmap,
+	.sendpage =	sock_no_sendpage,
+};
+
 static struct inet_protosw rawv6_protosw = {
 	.type		= SOCK_RAW,
 	.protocol	= IPPROTO_IP,	/* wild card */
 	.prot		= &rawv6_prot,
-	.ops		= &inet6_dgram_ops,
+	.ops		= &inet6_sockraw_ops,
 	.capability	= CAP_NET_RAW,
 	.no_check	= UDP_CSUM_DEFAULT,
 	.flags		= INET_PROTOSW_REUSE,
@@ -658,8 +648,10 @@ snmp6_mib_free(void *ptr[2])
 {
 	if (ptr == NULL)
 		return;
-	free_percpu(ptr[0]);
-	free_percpu(ptr[1]);
+	if (ptr[0])
+		free_percpu(ptr[0]);
+	if (ptr[1])
+		free_percpu(ptr[1]);
 	ptr[0] = ptr[1] = NULL;
 }
 
@@ -709,24 +701,23 @@ static int __init inet6_init(void)
 #endif
 #endif
 
-	if (sizeof(struct inet6_skb_parm) > sizeof(dummy_skb->cb))
-	{
+	if (sizeof(struct inet6_skb_parm) > sizeof(dummy_skb->cb)) {
 		printk(KERN_CRIT "inet6_proto_init: size fault\n");
 		return -EINVAL;
 	}
-	/* allocate our sock slab caches */
-        tcp6_sk_cachep = kmem_cache_create("tcp6_sock",
-					   sizeof(struct tcp6_sock), 0,
-                                           SLAB_HWCACHE_ALIGN, NULL, NULL);
-        udp6_sk_cachep = kmem_cache_create("udp6_sock",
-					   sizeof(struct udp6_sock), 0,
-                                           SLAB_HWCACHE_ALIGN, NULL, NULL);
-        raw6_sk_cachep = kmem_cache_create("raw6_sock",
-					   sizeof(struct raw6_sock), 0,
-                                           SLAB_HWCACHE_ALIGN, NULL, NULL);
-        if (!tcp6_sk_cachep || !udp6_sk_cachep || !raw6_sk_cachep)
-                printk(KERN_CRIT "%s: Can't create protocol sock SLAB "
-		       "caches!\n", __FUNCTION__);
+
+	err = proto_register(&tcpv6_prot, 1);
+	if (err)
+		goto out;
+
+	err = proto_register(&udpv6_prot, 1);
+	if (err)
+		goto out_unregister_tcp_proto;
+
+	err = proto_register(&rawv6_prot, 1);
+	if (err)
+		goto out_unregister_udp_proto;
+
 
 	/* Register the socket-side information for inet6_create.  */
 	for(r = &inetsw6[0]; r < &inetsw6[SOCK_MAX]; ++r)
@@ -745,7 +736,7 @@ static int __init inet6_init(void)
 	/* Initialise ipv6 mibs */
 	err = init_ipv6_mibs();
 	if (err)
-		goto init_mib_fail;
+		goto out_unregister_raw_proto;
 	
 	/*
 	 *	ipngwg API draft makes clear that the correct semantics
@@ -786,7 +777,9 @@ static int __init inet6_init(void)
 	ipv6_packet_init();
 	ip6_route_init();
 	ip6_flowlabel_init();
-	addrconf_init();
+	err = addrconf_init();
+	if (err)
+		goto addrconf_fail;
 	sit_init();
 
 	/* Init v6 extension headers. */
@@ -798,10 +791,16 @@ static int __init inet6_init(void)
 	/* Init v6 transport protocols. */
 	udpv6_init();
 	tcpv6_init();
+	err = 0;
+out:
+	return err;
 
-	return 0;
-
+addrconf_fail:
+	ip6_flowlabel_cleanup();
+	ip6_route_cleanup();
+	ipv6_packet_cleanup();
 #ifdef CONFIG_PROC_FS
+	if6_proc_exit();
 proc_if6_fail:
 	ac6_proc_exit();
 proc_anycast6_fail:
@@ -813,8 +812,8 @@ proc_udp6_fail:
 proc_tcp6_fail:
 	raw6_proc_exit();
 proc_raw6_fail:
-	igmp6_cleanup();
 #endif
+	igmp6_cleanup();
 igmp_fail:
 	ndisc_cleanup();
 ndisc_fail:
@@ -824,8 +823,13 @@ icmp_fail:
 	ipv6_sysctl_unregister();
 #endif
 	cleanup_ipv6_mibs();
-init_mib_fail:
-	return err;
+out_unregister_raw_proto:
+	proto_unregister(&rawv6_prot);
+out_unregister_udp_proto:
+	proto_unregister(&udpv6_prot);
+out_unregister_tcp_proto:
+	proto_unregister(&tcpv6_prot);
+	goto out;
 }
 module_init(inet6_init);
 
@@ -854,9 +858,9 @@ static void __exit inet6_exit(void)
 	ipv6_sysctl_unregister();	
 #endif
 	cleanup_ipv6_mibs();
-	kmem_cache_destroy(tcp6_sk_cachep);
-	kmem_cache_destroy(udp6_sk_cachep);
-	kmem_cache_destroy(raw6_sk_cachep);
+	proto_unregister(&rawv6_prot);
+	proto_unregister(&udpv6_prot);
+	proto_unregister(&tcpv6_prot);
 }
 module_exit(inet6_exit);
 

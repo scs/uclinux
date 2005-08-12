@@ -31,7 +31,6 @@
 #include <linux/types.h>
 #include <linux/errno.h>
 #include <linux/kernel.h>
-#include <linux/major.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/poll.h>
@@ -59,11 +58,15 @@ static void hci_rx_task(unsigned long arg);
 static void hci_tx_task(unsigned long arg);
 static void hci_notify(struct hci_dev *hdev, int event);
 
-rwlock_t hci_task_lock = RW_LOCK_UNLOCKED;
+static DEFINE_RWLOCK(hci_task_lock);
 
 /* HCI device list */
 LIST_HEAD(hci_dev_list);
-rwlock_t hci_dev_list_lock = RW_LOCK_UNLOCKED;
+DEFINE_RWLOCK(hci_dev_list_lock);
+
+/* HCI callback list */
+LIST_HEAD(hci_cb_list);
+DEFINE_RWLOCK(hci_cb_list_lock);
 
 /* HCI protocols */
 #define HCI_MAX_PROTO	2
@@ -102,7 +105,7 @@ void hci_req_complete(struct hci_dev *hdev, int result)
 	}
 }
 
-void hci_req_cancel(struct hci_dev *hdev, int err)
+static void hci_req_cancel(struct hci_dev *hdev, int err)
 {
 	BT_DBG("%s err 0x%2.2x", hdev->name, err);
 
@@ -179,9 +182,21 @@ static void hci_reset_req(struct hci_dev *hdev, unsigned long opt)
 
 static void hci_init_req(struct hci_dev *hdev, unsigned long opt)
 {
+	struct sk_buff *skb;
 	__u16 param;
 
 	BT_DBG("%s %ld", hdev->name, opt);
+
+	/* Driver initialization */
+
+	/* Special commands */
+	while ((skb = skb_dequeue(&hdev->driver_init))) {
+		skb->pkt_type = HCI_COMMAND_PKT;
+		skb->dev = (void *) hdev;
+		skb_queue_tail(&hdev->cmd_q, skb);
+		hci_sched_cmd(hdev);
+	}
+	skb_queue_purge(&hdev->driver_init);
 
 	/* Mandatory initialization */
 
@@ -309,19 +324,19 @@ struct inquiry_entry *hci_inquiry_cache_lookup(struct hci_dev *hdev, bdaddr_t *b
 	BT_DBG("cache %p, %s", cache, batostr(bdaddr));
 
 	for (e = cache->list; e; e = e->next)
-		if (!bacmp(&e->info.bdaddr, bdaddr))
+		if (!bacmp(&e->data.bdaddr, bdaddr))
 			break;
 	return e;
 }
 
-void hci_inquiry_cache_update(struct hci_dev *hdev, struct inquiry_info *info)
+void hci_inquiry_cache_update(struct hci_dev *hdev, struct inquiry_data *data)
 {
 	struct inquiry_cache *cache = &hdev->inq_cache;
 	struct inquiry_entry *e;
 
-	BT_DBG("cache %p, %s", cache, batostr(&info->bdaddr));
+	BT_DBG("cache %p, %s", cache, batostr(&data->bdaddr));
 
-	if (!(e = hci_inquiry_cache_lookup(hdev, &info->bdaddr))) {
+	if (!(e = hci_inquiry_cache_lookup(hdev, &data->bdaddr))) {
 		/* Entry not in the cache. Add new one. */
 		if (!(e = kmalloc(sizeof(struct inquiry_entry), GFP_ATOMIC)))
 			return;
@@ -330,7 +345,7 @@ void hci_inquiry_cache_update(struct hci_dev *hdev, struct inquiry_info *info)
 		cache->list = e;
 	}
 
-	memcpy(&e->info, info, sizeof(*info));
+	memcpy(&e->data, data, sizeof(*data));
 	e->timestamp = jiffies;
 	cache->timestamp = jiffies;
 }
@@ -342,8 +357,16 @@ static int inquiry_cache_dump(struct hci_dev *hdev, int num, __u8 *buf)
 	struct inquiry_entry *e;
 	int copied = 0;
 
-	for (e = cache->list; e && copied < num; e = e->next, copied++)
-		memcpy(info++, &e->info, sizeof(*info));
+	for (e = cache->list; e && copied < num; e = e->next, copied++) {
+		struct inquiry_data *data = &e->data;
+		bacpy(&info->bdaddr, &data->bdaddr);
+		info->pscan_rep_mode	= data->pscan_rep_mode;
+		info->pscan_period_mode	= data->pscan_period_mode;
+		info->pscan_mode	= data->pscan_mode;
+		memcpy(info->dev_class, data->dev_class, 3);
+		info->clock_offset	= data->clock_offset;
+		info++;
+	}
 
 	BT_DBG("cache %p, copied %d", cache, copied);
 	return copied;
@@ -445,6 +468,9 @@ int hci_dev_open(__u16 dev)
 		goto done;
 	}
 
+	if (test_bit(HCI_QUIRK_RAW_DEVICE, &hdev->quirks))
+		set_bit(HCI_RAW, &hdev->flags);
+
 	if (hdev->open(hdev)) {
 		ret = -EIO;
 		goto done;
@@ -520,9 +546,11 @@ static int hci_dev_do_close(struct hci_dev *hdev)
 	/* Reset device */
 	skb_queue_purge(&hdev->cmd_q);
 	atomic_set(&hdev->cmd_cnt, 1);
-	set_bit(HCI_INIT, &hdev->flags);
-	__hci_request(hdev, hci_reset_req, 0, HZ/4);
-	clear_bit(HCI_INIT, &hdev->flags);
+	if (!test_bit(HCI_RAW, &hdev->flags)) {
+		set_bit(HCI_INIT, &hdev->flags);
+		__hci_request(hdev, hci_reset_req, 0, HZ/4);
+		clear_bit(HCI_INIT, &hdev->flags);
+	}
 
 	/* Kill cmd task */
 	tasklet_kill(&hdev->cmd_task);
@@ -592,7 +620,8 @@ int hci_dev_reset(__u16 dev)
 	atomic_set(&hdev->cmd_cnt, 1); 
 	hdev->acl_cnt = 0; hdev->sco_cnt = 0;
 
-	ret = __hci_request(hdev, hci_reset_req, 0, HCI_INIT_TIMEOUT);
+	if (!test_bit(HCI_RAW, &hdev->flags))
+		ret = __hci_request(hdev, hci_reset_req, 0, HCI_INIT_TIMEOUT);
 
 done:
 	tasklet_enable(&hdev->tx_task);
@@ -774,6 +803,8 @@ struct hci_dev *hci_alloc_dev(void)
 
 	memset(hdev, 0, sizeof(struct hci_dev));
 
+	skb_queue_head_init(&hdev->driver_init);
+
 	return hdev;
 }
 EXPORT_SYMBOL(hci_alloc_dev);
@@ -781,6 +812,8 @@ EXPORT_SYMBOL(hci_alloc_dev);
 /* Free HCI device */
 void hci_free_dev(struct hci_dev *hdev)
 {
+	skb_queue_purge(&hdev->driver_init);
+
 	/* will free via class release */
 	class_device_put(&hdev->class_dev);
 }
@@ -929,6 +962,30 @@ int hci_unregister_proto(struct hci_proto *hp)
 	return err;
 }
 EXPORT_SYMBOL(hci_unregister_proto);
+
+int hci_register_cb(struct hci_cb *cb)
+{
+	BT_DBG("%p name %s", cb, cb->name);
+
+	write_lock_bh(&hci_cb_list_lock);
+	list_add(&cb->list, &hci_cb_list);
+	write_unlock_bh(&hci_cb_list_lock);
+
+	return 0;
+}
+EXPORT_SYMBOL(hci_register_cb);
+
+int hci_unregister_cb(struct hci_cb *cb)
+{
+	BT_DBG("%p name %s", cb, cb->name);
+
+	write_lock_bh(&hci_cb_list_lock);
+	list_del(&cb->list);
+	write_unlock_bh(&hci_cb_list_lock);
+
+	return 0;
+}
+EXPORT_SYMBOL(hci_unregister_cb);
 
 static int hci_send_frame(struct sk_buff *skb)
 {
@@ -1156,10 +1213,12 @@ static inline void hci_sched_acl(struct hci_dev *hdev)
 
 	BT_DBG("%s", hdev->name);
 
-	/* ACL tx timeout must be longer than maximum
-	 * link supervision timeout (40.9 seconds) */
-	if (!hdev->acl_cnt && (jiffies - hdev->acl_last_tx) > (HZ * 45))
-		hci_acl_tx_to(hdev);
+	if (!test_bit(HCI_RAW, &hdev->flags)) {
+		/* ACL tx timeout must be longer than maximum
+		 * link supervision timeout (40.9 seconds) */
+		if (!hdev->acl_cnt && (jiffies - hdev->acl_last_tx) > (HZ * 45))
+			hci_acl_tx_to(hdev);
+	}
 
 	while (hdev->acl_cnt && (conn = hci_low_sent(hdev, ACL_LINK, &quote))) {
 		while (quote-- && (skb = skb_dequeue(&conn->data_q))) {

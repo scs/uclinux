@@ -30,6 +30,8 @@ LIST_HEAD(rxrpc_peers);
 DECLARE_RWSEM(rxrpc_peers_sem);
 unsigned long rxrpc_peer_timeout = 12 * 60 * 60;
 
+static void rxrpc_peer_do_timeout(struct rxrpc_peer *peer);
+
 static void __rxrpc_peer_timeout(rxrpc_timer_t *timer)
 {
 	struct rxrpc_peer *peer =
@@ -48,7 +50,7 @@ static const struct rxrpc_timer_ops rxrpc_peer_timer_ops = {
 /*
  * create a peer record
  */
-static int __rxrpc_create_peer(struct rxrpc_transport *trans, uint32_t addr,
+static int __rxrpc_create_peer(struct rxrpc_transport *trans, __be32 addr,
 			       struct rxrpc_peer **_peer)
 {
 	struct rxrpc_peer *peer;
@@ -96,7 +98,7 @@ static int __rxrpc_create_peer(struct rxrpc_transport *trans, uint32_t addr,
  * - returns (if successful) with peer record usage incremented
  * - resurrects it from the graveyard if found there
  */
-int rxrpc_peer_lookup(struct rxrpc_transport *trans, uint32_t addr,
+int rxrpc_peer_lookup(struct rxrpc_transport *trans, __be32 addr,
 		      struct rxrpc_peer **_peer)
 {
 	struct rxrpc_peer *peer, *candidate = NULL;
@@ -259,7 +261,7 @@ void rxrpc_put_peer(struct rxrpc_peer *peer)
  * handle a peer timing out in the graveyard
  * - called from krxtimod
  */
-void rxrpc_peer_do_timeout(struct rxrpc_peer *peer)
+static void rxrpc_peer_do_timeout(struct rxrpc_peer *peer)
 {
 	struct rxrpc_transport *trans = peer->trans;
 

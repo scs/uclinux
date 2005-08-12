@@ -16,6 +16,7 @@
 #include <linux/kernel.h> /* for barrier */
 #include <linux/module.h>
 #include <linux/bitops.h>
+#include <linux/delay.h>
 #include <net/sock.h>	 /* for struct sock */
 
 #include "common.h"
@@ -24,7 +25,7 @@
 
 
 LIST_HEAD(atm_devs);
-spinlock_t atm_dev_lock = SPIN_LOCK_UNLOCKED;
+DEFINE_SPINLOCK(atm_dev_lock);
 
 static struct atm_dev *__alloc_atm_dev(const char *type)
 {
@@ -38,13 +39,9 @@ static struct atm_dev *__alloc_atm_dev(const char *type)
 	dev->signal = ATM_PHY_SIG_UNKNOWN;
 	dev->link_rate = ATM_OC3_PCR;
 	spin_lock_init(&dev->lock);
+	INIT_LIST_HEAD(&dev->local);
 
 	return dev;
-}
-
-static void __free_atm_dev(struct atm_dev *dev)
-{
-	kfree(dev);
 }
 
 static struct atm_dev *__atm_dev_lookup(int number)
@@ -88,7 +85,7 @@ struct atm_dev *atm_dev_register(const char *type, const struct atmdev_ops *ops,
 		if ((inuse = __atm_dev_lookup(number))) {
 			atm_dev_put(inuse);
 			spin_unlock(&atm_dev_lock);
-			__free_atm_dev(dev);
+			kfree(dev);
 			return NULL;
 		}
 		dev->number = number;
@@ -117,7 +114,7 @@ struct atm_dev *atm_dev_register(const char *type, const struct atmdev_ops *ops,
 		spin_lock(&atm_dev_lock);
 		list_del(&dev->dev_list);
 		spin_unlock(&atm_dev_lock);
-		__free_atm_dev(dev);
+		kfree(dev);
 		return NULL;
 	}
 
@@ -137,8 +134,7 @@ void atm_dev_deregister(struct atm_dev *dev)
 
         warning_time = jiffies;
         while (atomic_read(&dev->refcnt) != 1) {
-                current->state = TASK_INTERRUPTIBLE;
-                schedule_timeout(HZ / 4);
+                msleep(250);
                 if ((jiffies - warning_time) > 10 * HZ) {
                         printk(KERN_EMERG "atm_dev_deregister: waiting for "
                                "dev %d to become free. Usage count = %d\n",
@@ -147,7 +143,7 @@ void atm_dev_deregister(struct atm_dev *dev)
                 }
         }
 
-	__free_atm_dev(dev);
+	kfree(dev);
 }
 
 void shutdown_atm_dev(struct atm_dev *dev)

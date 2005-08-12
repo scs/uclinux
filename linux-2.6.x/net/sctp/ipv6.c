@@ -78,11 +78,14 @@
 
 #include <asm/uaccess.h>
 
-extern struct notifier_block sctp_inetaddr_notifier;
+extern int sctp_inetaddr_event(struct notifier_block *, unsigned long, void *);
+static struct notifier_block sctp_inet6addr_notifier = {
+	.notifier_call = sctp_inetaddr_event,
+};
 
 /* ICMP error handler. */
-void sctp_v6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
-		 int type, int code, int offset, __u32 info)
+SCTP_STATIC void sctp_v6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
+			     int type, int code, int offset, __u32 info)
 {
 	struct inet6_dev *idev;
 	struct ipv6hdr *iph = (struct ipv6hdr *)skb->data;
@@ -119,6 +122,12 @@ void sctp_v6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 	case ICMPV6_PKT_TOOBIG:
 		sctp_icmp_frag_needed(sk, asoc, transport, ntohl(info));
 		goto out_unlock;
+	case ICMPV6_PARAMPROB:
+		if (ICMPV6_UNK_NEXTHDR == code) {
+			sctp_icmp_proto_unreachable(sk, ep, asoc, transport);
+			goto out_unlock;
+		}
+		break;
 	default:
 		break;
 	}
@@ -185,9 +194,9 @@ static int sctp_v6_xmit(struct sk_buff *skb, struct sctp_transport *transport,
 /* Returns the dst cache entry for the given source and destination ip
  * addresses.
  */
-struct dst_entry *sctp_v6_get_dst(struct sctp_association *asoc,
-				  union sctp_addr *daddr,
-				  union sctp_addr *saddr)
+static struct dst_entry *sctp_v6_get_dst(struct sctp_association *asoc,
+					 union sctp_addr *daddr,
+					 union sctp_addr *saddr)
 {
 	struct dst_entry *dst;
 	struct flowi fl;
@@ -248,8 +257,10 @@ static inline int sctp_v6_addr_match_len(union sctp_addr *s1,
 /* Fills in the source address(saddr) based on the destination address(daddr)
  * and asoc's bind address list.
  */
-void sctp_v6_get_saddr(struct sctp_association *asoc, struct dst_entry *dst,
-		       union sctp_addr *daddr, union sctp_addr *saddr)
+static void sctp_v6_get_saddr(struct sctp_association *asoc,
+			      struct dst_entry *dst,
+			      union sctp_addr *daddr,
+			      union sctp_addr *saddr)
 {
 	struct sctp_bind_addr *bp;
 	rwlock_t *addr_lock;
@@ -461,7 +472,7 @@ static int sctp_v6_cmp_addr(const union sctp_addr *addr1,
 		}
 		return 0;
 	}
-	if (ipv6_addr_cmp(&addr1->v6.sin6_addr, &addr2->v6.sin6_addr))
+	if (!ipv6_addr_equal(&addr1->v6.sin6_addr, &addr2->v6.sin6_addr))
 		return 0;
 	/* If this is a linklocal address, compare the scope_id. */
 	if (ipv6_addr_type(&addr1->v6.sin6_addr) & IPV6_ADDR_LINKLOCAL) {
@@ -485,13 +496,11 @@ static void sctp_v6_inaddr_any(union sctp_addr *addr, unsigned short port)
 /* Is this a wildcard address? */
 static int sctp_v6_is_any(const union sctp_addr *addr)
 {
-	int type;
-	type = ipv6_addr_type((struct in6_addr *)&addr->v6.sin6_addr);
-	return IPV6_ADDR_ANY == type;
+	return ipv6_addr_any(&addr->v6.sin6_addr);
 }
 
 /* Should this be available for binding?   */
-static int sctp_v6_available(union sctp_addr *addr, struct sctp_opt *sp)
+static int sctp_v6_available(union sctp_addr *addr, struct sctp_sock *sp)
 {
 	int type;
 	struct in6_addr *in6 = (struct in6_addr *)&addr->v6.sin6_addr;
@@ -520,14 +529,14 @@ static int sctp_v6_available(union sctp_addr *addr, struct sctp_opt *sp)
  * Return 0 - If the address is a non-unicast or an illegal address.
  * Return 1 - If the address is a unicast.
  */
-static int sctp_v6_addr_valid(union sctp_addr *addr, struct sctp_opt *sp)
+static int sctp_v6_addr_valid(union sctp_addr *addr, struct sctp_sock *sp)
 {
 	int ret = ipv6_addr_type(&addr->v6.sin6_addr);
 
 	/* Support v4-mapped-v6 address. */
 	if (ret == IPV6_ADDR_MAPPED) {
 		/* Note: This routine is used in input, so v4-mapped-v6
-		 * are disallowed here when there is no sctp_opt.
+		 * are disallowed here when there is no sctp_sock.
 		 */
 		if (!sp || !sp->v4mapped)
 			return 0;
@@ -574,22 +583,20 @@ static sctp_scope_t sctp_v6_scope(union sctp_addr *addr)
 }
 
 /* Create and initialize a new sk for the socket to be returned by accept(). */
-struct sock *sctp_v6_create_accept_sk(struct sock *sk,
-				      struct sctp_association *asoc)
+static struct sock *sctp_v6_create_accept_sk(struct sock *sk,
+					     struct sctp_association *asoc)
 {
-	struct inet_opt *inet = inet_sk(sk);
+	struct inet_sock *inet = inet_sk(sk);
 	struct sock *newsk;
-	struct inet_opt *newinet;
+	struct inet_sock *newinet;
 	struct ipv6_pinfo *newnp, *np = inet6_sk(sk);
 	struct sctp6_sock *newsctp6sk;
 
-	newsk = sk_alloc(PF_INET6, GFP_KERNEL, sizeof(struct sctp6_sock),
-			 sk->sk_slab);
+	newsk = sk_alloc(PF_INET6, GFP_KERNEL, sk->sk_prot, 1);
 	if (!newsk)
 		goto out;
 
 	sock_init_data(NULL, newsk);
-	sk_set_owner(newsk, THIS_MODULE);
 
 	newsk->sk_type = SOCK_STREAM;
 
@@ -598,14 +605,14 @@ struct sock *sctp_v6_create_accept_sk(struct sock *sk,
 	newsk->sk_reuse = sk->sk_reuse;
 
 	newsk->sk_destruct = inet_sock_destruct;
-	newsk->sk_zapped = 0;
 	newsk->sk_family = PF_INET6;
 	newsk->sk_protocol = IPPROTO_SCTP;
 	newsk->sk_backlog_rcv = sk->sk_prot->backlog_rcv;
 	newsk->sk_shutdown = sk->sk_shutdown;
+	sock_reset_flag(sk, SOCK_ZAPPED);
 
 	newsctp6sk = (struct sctp6_sock *)newsk;
-	newsctp6sk->pinet6 = &newsctp6sk->inet6;
+	inet_sk(newsk)->pinet6 = &newsctp6sk->inet6;
 
 	newinet = inet_sk(newsk);
 	newnp = inet6_sk(newsk);
@@ -650,7 +657,7 @@ out:
 }
 
 /* Map v4 address to mapped v6 address */
-static void sctp_v6_addr_v4map(struct sctp_opt *sp, union sctp_addr *addr)
+static void sctp_v6_addr_v4map(struct sctp_sock *sp, union sctp_addr *addr)
 {
 	if (sp->v4mapped && AF_INET == addr->sa.sa_family)
 		sctp_v4_map_v6(addr);
@@ -755,7 +762,7 @@ static void sctp_inet6_skb_msgname(struct sk_buff *skb, char *msgname,
 }
 
 /* Do we support this AF? */
-static int sctp_inet6_af_supported(sa_family_t family, struct sctp_opt *sp)
+static int sctp_inet6_af_supported(sa_family_t family, struct sctp_sock *sp)
 {
 	switch (family) {
 	case AF_INET6:
@@ -775,7 +782,7 @@ static int sctp_inet6_af_supported(sa_family_t family, struct sctp_opt *sp)
  */
 static int sctp_inet6_cmp_addr(const union sctp_addr *addr1,
 			       const union sctp_addr *addr2,
-			       struct sctp_opt *opt)
+			       struct sctp_sock *opt)
 {
 	struct sctp_af *af1, *af2;
 
@@ -797,7 +804,7 @@ static int sctp_inet6_cmp_addr(const union sctp_addr *addr1,
 /* Verify that the provided sockaddr looks bindable.   Common verification,
  * has already been taken care of.
  */
-static int sctp_inet6_bind_verify(struct sctp_opt *opt, union sctp_addr *addr)
+static int sctp_inet6_bind_verify(struct sctp_sock *opt, union sctp_addr *addr)
 {
 	struct sctp_af *af;
 
@@ -805,29 +812,26 @@ static int sctp_inet6_bind_verify(struct sctp_opt *opt, union sctp_addr *addr)
 	if (addr->sa.sa_family != AF_INET6)
 		af = sctp_get_af_specific(addr->sa.sa_family);
 	else {
-		struct sock *sk;
 		int type = ipv6_addr_type(&addr->v6.sin6_addr);
-		sk = sctp_opt2sk(opt);
-		if (type & IPV6_ADDR_LINKLOCAL) {
-			/* Note: Behavior similar to af_inet6.c:
-			 *  1) Overrides previous bound_dev_if
-			 *  2) Destructive even if bind isn't successful.
-			 */
+		struct net_device *dev;
 
-			if (addr->v6.sin6_scope_id)
-				sk->sk_bound_dev_if = addr->v6.sin6_scope_id;
-			if (!sk->sk_bound_dev_if)
+		if (type & IPV6_ADDR_LINKLOCAL) {
+			if (!addr->v6.sin6_scope_id)
 				return 0;
+			dev = dev_get_by_index(addr->v6.sin6_scope_id);
+			if (!dev)
+				return 0;
+			dev_put(dev);
 		}
 		af = opt->pf->af;
 	}
 	return af->available(addr, opt);
 }
 
-/* Verify that the provided sockaddr looks bindable.   Common verification,
+/* Verify that the provided sockaddr looks sendable.   Common verification,
  * has already been taken care of.
  */
-static int sctp_inet6_send_verify(struct sctp_opt *opt, union sctp_addr *addr)
+static int sctp_inet6_send_verify(struct sctp_sock *opt, union sctp_addr *addr)
 {
 	struct sctp_af *af = NULL;
 
@@ -835,19 +839,16 @@ static int sctp_inet6_send_verify(struct sctp_opt *opt, union sctp_addr *addr)
 	if (addr->sa.sa_family != AF_INET6)
 		af = sctp_get_af_specific(addr->sa.sa_family);
 	else {
-		struct sock *sk;
 		int type = ipv6_addr_type(&addr->v6.sin6_addr);
-		sk = sctp_opt2sk(opt);
-		if (type & IPV6_ADDR_LINKLOCAL) {
-			/* Note: Behavior similar to af_inet6.c:
-			 *  1) Overrides previous bound_dev_if
-			 *  2) Destructive even if bind isn't successful.
-			 */
+		struct net_device *dev;
 
-			if (addr->v6.sin6_scope_id)
-				sk->sk_bound_dev_if = addr->v6.sin6_scope_id;
-			if (!sk->sk_bound_dev_if)
+		if (type & IPV6_ADDR_LINKLOCAL) {
+			if (!addr->v6.sin6_scope_id)
 				return 0;
+			dev = dev_get_by_index(addr->v6.sin6_scope_id);
+			if (!dev)
+				return 0;
+			dev_put(dev);
 		}
 		af = opt->pf->af;
 	}
@@ -861,7 +862,7 @@ static int sctp_inet6_send_verify(struct sctp_opt *opt, union sctp_addr *addr)
  * addresses.
  * Returns number of addresses supported.
  */
-static int sctp_inet6_supported_addrs(const struct sctp_opt *opt,
+static int sctp_inet6_supported_addrs(const struct sctp_sock *opt,
 				      __u16 *types)
 {
 	types[0] = SCTP_PARAM_IPV4_ADDRESS;
@@ -892,7 +893,7 @@ static struct proto_ops inet6_seqpacket_ops = {
 static struct inet_protosw sctpv6_seqpacket_protosw = {
 	.type          = SOCK_SEQPACKET,
 	.protocol      = IPPROTO_SCTP,
-	.prot 	       = &sctp_prot,
+	.prot 	       = &sctpv6_prot,
 	.ops           = &inet6_seqpacket_ops,
 	.capability    = -1,
 	.no_check      = 0,
@@ -901,7 +902,7 @@ static struct inet_protosw sctpv6_seqpacket_protosw = {
 static struct inet_protosw sctpv6_stream_protosw = {
 	.type          = SOCK_STREAM,
 	.protocol      = IPPROTO_SCTP,
-	.prot 	       = &sctp_prot,
+	.prot 	       = &sctpv6_prot,
 	.ops           = &inet6_seqpacket_ops,
 	.capability    = -1,
 	.no_check      = 0,
@@ -963,9 +964,14 @@ static struct sctp_pf sctp_pf_inet6_specific = {
 /* Initialize IPv6 support and register with inet6 stack.  */
 int sctp_v6_init(void)
 {
+	int rc = proto_register(&sctpv6_prot, 1);
+
+	if (rc)
+		goto out;
 	/* Register inet6 protocol. */
+	rc = -EAGAIN;
 	if (inet6_add_protocol(&sctpv6_protocol, IPPROTO_SCTP) < 0)
-		return -EAGAIN;
+		goto out_unregister_sctp_proto;
 
 	/* Add SCTPv6(UDP and TCP style) to inetsw6 linked list. */
 	inet6_register_protosw(&sctpv6_seqpacket_protosw);
@@ -978,9 +984,13 @@ int sctp_v6_init(void)
 	sctp_register_af(&sctp_ipv6_specific);
 
 	/* Register notifier for inet6 address additions/deletions. */
-	register_inet6addr_notifier(&sctp_inetaddr_notifier);
-
-	return 0;
+	register_inet6addr_notifier(&sctp_inet6addr_notifier);
+	rc = 0;
+out:
+	return rc;
+out_unregister_sctp_proto:
+	proto_unregister(&sctpv6_prot);
+	goto out;
 }
 
 /* IPv6 specific exit support. */
@@ -990,5 +1000,6 @@ void sctp_v6_exit(void)
 	inet6_del_protocol(&sctpv6_protocol, IPPROTO_SCTP);
 	inet6_unregister_protosw(&sctpv6_seqpacket_protosw);
 	inet6_unregister_protosw(&sctpv6_stream_protosw);
-	unregister_inet6addr_notifier(&sctp_inetaddr_notifier);
+	unregister_inet6addr_notifier(&sctp_inet6addr_notifier);
+	proto_unregister(&sctpv6_prot);
 }

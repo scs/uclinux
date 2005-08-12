@@ -45,7 +45,7 @@ int llc_build_and_send_pkt(struct sock *sk, struct sk_buff *skb)
 {
 	struct llc_conn_state_ev *ev;
 	int rc = -ECONNABORTED;
-	struct llc_opt *llc = llc_sk(sk);
+	struct llc_sock *llc = llc_sk(sk);
 
 	if (llc->state == LLC_CONN_STATE_ADM)
 		goto out;
@@ -86,7 +86,7 @@ int llc_establish_connection(struct sock *sk, u8 *lmac, u8 *dmac, u8 dsap)
 	int rc = -EISCONN;
 	struct llc_addr laddr, daddr;
 	struct sk_buff *skb;
-	struct llc_opt *llc = llc_sk(sk);
+	struct llc_sock *llc = llc_sk(sk);
 	struct sock *existing;
 
 	laddr.lsap = llc->sap->laddr.lsap;
@@ -155,27 +155,3 @@ out:
 	return rc;
 }
 
-/**
- *	llc_build_and_send_reset_pkt - Resets an established LLC connection
- *	@prim: pointer to structure that contains service parameters.
- *
- *	Called when upper layer wants to reset an established LLC connection
- *	with a remote machine. This function packages a proper event and sends
- *	it to connection component state machine. Returns 0 for success, 1
- *	otherwise.
- */
-int llc_build_and_send_reset_pkt(struct sock *sk)
-{
-	int rc = 1;
-	struct sk_buff *skb = alloc_skb(0, GFP_ATOMIC);
-
-	if (skb) {
-		struct llc_conn_state_ev *ev = llc_conn_ev(skb);
-
-		ev->type      = LLC_CONN_EV_TYPE_PRIM;
-		ev->prim      = LLC_RESET_PRIM;
-		ev->prim_type = LLC_PRIM_TYPE_REQ;
-		rc = llc_conn_state_process(sk, skb);
-	}
-	return rc;
-}

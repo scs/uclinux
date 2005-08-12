@@ -21,25 +21,11 @@
  *	jun/24/01	Arnaldo C. Melo	  use skb_queue_purge, cleanups
  */
 
-#include <linux/errno.h>
-#include <linux/types.h>
-#include <linux/socket.h>
-#include <linux/in.h>
 #include <linux/kernel.h>
-#include <linux/sched.h>
-#include <linux/timer.h>
 #include <linux/string.h>
-#include <linux/sockios.h>
-#include <linux/net.h>
-#include <linux/inet.h>
-#include <linux/netdevice.h>
 #include <linux/skbuff.h>
 #include <net/sock.h>
 #include <net/tcp.h>
-#include <asm/system.h>
-#include <linux/fcntl.h>
-#include <linux/mm.h>
-#include <linux/interrupt.h>
 #include <net/x25.h>
 
 /*
@@ -47,7 +33,7 @@
  */
 void x25_clear_queues(struct sock *sk)
 {
-	struct x25_opt *x25 = x25_sk(sk);
+	struct x25_sock *x25 = x25_sk(sk);
 
 	skb_queue_purge(&sk->sk_write_queue);
 	skb_queue_purge(&x25->ack_queue);
@@ -65,7 +51,7 @@ void x25_clear_queues(struct sock *sk)
 void x25_frames_acked(struct sock *sk, unsigned short nr)
 {
 	struct sk_buff *skb;
-	struct x25_opt *x25 = x25_sk(sk);
+	struct x25_sock *x25 = x25_sk(sk);
 	int modulus = x25->neighbour->extended ? X25_EMODULUS : X25_SMODULUS;
 
 	/*
@@ -103,7 +89,7 @@ void x25_requeue_frames(struct sock *sk)
  */
 int x25_validate_nr(struct sock *sk, unsigned short nr)
 {
-	struct x25_opt *x25 = x25_sk(sk);
+	struct x25_sock *x25 = x25_sk(sk);
 	unsigned short vc = x25->va;
 	int modulus = x25->neighbour->extended ? X25_EMODULUS : X25_SMODULUS;
 
@@ -122,7 +108,7 @@ int x25_validate_nr(struct sock *sk, unsigned short nr)
  */
 void x25_write_internal(struct sock *sk, int frametype)
 {
-	struct x25_opt *x25 = x25_sk(sk);
+	struct x25_sock *x25 = x25_sk(sk);
 	struct sk_buff *skb;
 	unsigned char  *dptr;
 	unsigned char  facilities[X25_MAX_FAC_LEN];
@@ -262,7 +248,7 @@ void x25_write_internal(struct sock *sk, int frametype)
 int x25_decode(struct sock *sk, struct sk_buff *skb, int *ns, int *nr, int *q,
 	       int *d, int *m)
 {
-	struct x25_opt *x25 = x25_sk(sk);
+	struct x25_sock *x25 = x25_sk(sk);
 	unsigned char *frame = skb->data;
 
 	*ns = *nr = *q = *d = *m = 0;
@@ -329,7 +315,7 @@ int x25_decode(struct sock *sk, struct sk_buff *skb, int *ns, int *nr, int *q,
 void x25_disconnect(struct sock *sk, int reason, unsigned char cause,
 		    unsigned char diagnostic)
 {
-	struct x25_opt *x25 = x25_sk(sk);
+	struct x25_sock *x25 = x25_sk(sk);
 
 	x25_clear_queues(sk);
 	x25_stop_timer(sk);
@@ -356,7 +342,7 @@ void x25_disconnect(struct sock *sk, int reason, unsigned char cause,
  */
 void x25_check_rbuf(struct sock *sk)
 {
-	struct x25_opt *x25 = x25_sk(sk);
+	struct x25_sock *x25 = x25_sk(sk);
 
 	if (atomic_read(&sk->sk_rmem_alloc) < (sk->sk_rcvbuf / 2) &&
 	    (x25->condition & X25_COND_OWN_RX_BUSY)) {
@@ -367,3 +353,22 @@ void x25_check_rbuf(struct sock *sk)
 		x25_stop_timer(sk);
 	}
 }
+
+/*
+ * Compare 2 calluserdata structures, used to find correct listening sockets
+ * when call user data is used.
+ */
+int x25_check_calluserdata(struct x25_calluserdata *ours, struct x25_calluserdata *theirs)
+{
+	int i;
+	if (ours->cudlength != theirs->cudlength)
+		return 0;
+
+	for (i=0;i<ours->cudlength;i++) {
+		if (ours->cuddata[i] != theirs->cuddata[i]) {
+			return 0;
+		}
+	}
+	return 1;
+}
+

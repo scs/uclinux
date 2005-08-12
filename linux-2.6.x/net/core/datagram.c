@@ -115,10 +115,10 @@ out_noerr:
 
 /**
  *	skb_recv_datagram - Receive a datagram skbuff
- *	@sk - socket
- *	@flags - MSG_ flags
- *	@noblock - blocking operation?
- *	@err - error code returned
+ *	@sk: socket
+ *	@flags: MSG_ flags
+ *	@noblock: blocking operation?
+ *	@err: error code returned
  *
  *	Get a datagram skbuff, understands the peeking, nonblocking wakeups
  *	and possible races. This replaces identical code in packet, raw and
@@ -199,25 +199,12 @@ void skb_free_datagram(struct sock *sk, struct sk_buff *skb)
 	kfree_skb(skb);
 }
 
-/*
- *	Copy a datagram to a linear buffer.
- */
-int skb_copy_datagram(const struct sk_buff *skb, int offset, char __user *to, int size)
-{
-	struct iovec iov = {
-		.iov_base = to,
-		.iov_len =size,
-	};
-
-	return skb_copy_datagram_iovec(skb, offset, &iov, size);
-}
-
 /**
  *	skb_copy_datagram_iovec - Copy a datagram to an iovec.
- *	@skb - buffer to copy
- *	@offset - offset in the buffer to start copying from
- *	@iovec - io vector to copy to
- *	@len - amount of data to copy from buffer to iovec
+ *	@skb: buffer to copy
+ *	@offset: offset in the buffer to start copying from
+ *	@to: io vector to copy to
+ *	@len: amount of data to copy from buffer to iovec
  *
  *	Note: the iovec is modified during the copy.
  */
@@ -296,8 +283,9 @@ fault:
 	return -EFAULT;
 }
 
-int skb_copy_and_csum_datagram(const struct sk_buff *skb, int offset,
-			       u8 __user *to, int len, unsigned int *csump)
+static int skb_copy_and_csum_datagram(const struct sk_buff *skb, int offset,
+				      u8 __user *to, int len,
+				      unsigned int *csump)
 {
 	int start = skb_headlen(skb);
 	int pos = 0;
@@ -389,9 +377,9 @@ fault:
 
 /**
  *	skb_copy_and_csum_datagram_iovec - Copy and checkum skb to user iovec.
- *	@skb - skbuff
- *	@hlen - hardware length
- *	@iovec - io vector
+ *	@skb: skbuff
+ *	@hlen: hardware length
+ *	@iov: io vector
  * 
  *	Caller _must_ check that skb will fit to this iovec.
  *
@@ -437,9 +425,9 @@ fault:
 
 /**
  * 	datagram_poll - generic datagram poll
- *	@file - file struct
- *	@sock - socket
- *	@wait - poll table
+ *	@file: file struct
+ *	@sock: socket
+ *	@wait: poll table
  *
  *	Datagram poll: Again totally generic. This also handles
  *	sequenced packet sockets providing the socket receive queue
@@ -489,7 +477,6 @@ unsigned int datagram_poll(struct file *file, struct socket *sock,
 
 EXPORT_SYMBOL(datagram_poll);
 EXPORT_SYMBOL(skb_copy_and_csum_datagram_iovec);
-EXPORT_SYMBOL(skb_copy_datagram);
 EXPORT_SYMBOL(skb_copy_datagram_iovec);
 EXPORT_SYMBOL(skb_free_datagram);
 EXPORT_SYMBOL(skb_recv_datagram);

@@ -222,7 +222,13 @@ int irlan_eth_receive(void *instance, void *sap, struct sk_buff *skb)
 		++self->stats.rx_dropped; 
 		return 0;
 	}
-	ASSERT(skb->len > 1, return 0;);
+	if (skb->len < ETH_HLEN) {
+		IRDA_DEBUG(0, "%s() : IrLAN frame too short (%d)\n",
+			   __FUNCTION__, skb->len);
+		++self->stats.rx_dropped; 
+		dev_kfree_skb(skb);
+		return 0;
+	}
 		
 	/* 
 	 * Adopt this frame! Important to set all these fields since they 
@@ -261,12 +267,12 @@ void irlan_eth_flow_indication(void *instance, void *sap, LOCAL_FLOW flow)
 
 	self = (struct irlan_cb *) instance;
 
-	ASSERT(self != NULL, return;);
-	ASSERT(self->magic == IRLAN_MAGIC, return;);
+	IRDA_ASSERT(self != NULL, return;);
+	IRDA_ASSERT(self->magic == IRLAN_MAGIC, return;);
 	
 	dev = self->dev;
 
-	ASSERT(dev != NULL, return;);
+	IRDA_ASSERT(dev != NULL, return;);
 	
 	IRDA_DEBUG(0, "%s() : flow %s ; running %d\n", __FUNCTION__,
 		   flow == FLOW_STOP ? "FLOW_STOP" : "FLOW_START",
@@ -303,10 +309,10 @@ void irlan_eth_send_gratuitous_arp(struct net_device *dev)
 	 */
 #ifdef CONFIG_INET
 	IRDA_DEBUG(4, "IrLAN: Sending gratuitous ARP\n");
-	in_dev = in_dev_get(dev);
+	rcu_read_lock();
+	in_dev = __in_dev_get(dev);
 	if (in_dev == NULL)
-		return;
-	read_lock(&in_dev->lock);
+		goto out;
 	if (in_dev->ifa_list)
 		
 	arp_send(ARPOP_REQUEST, ETH_P_ARP, 
@@ -314,8 +320,8 @@ void irlan_eth_send_gratuitous_arp(struct net_device *dev)
 		 dev, 
 		 in_dev->ifa_list->ifa_address,
 		 NULL, dev->dev_addr, NULL);
-	read_unlock(&in_dev->lock);
-	in_dev_put(in_dev);
+out:
+	rcu_read_unlock();
 #endif /* CONFIG_INET */
 }
 
@@ -340,7 +346,7 @@ static void irlan_eth_set_multicast_list(struct net_device *dev)
 
 	if (dev->flags & IFF_PROMISC) {
 		/* Enable promiscuous mode */
-		WARNING("Promiscous mode not implemented by IrLAN!\n");
+		IRDA_WARNING("Promiscous mode not implemented by IrLAN!\n");
 	} 
 	else if ((dev->flags & IFF_ALLMULTI) || dev->mc_count > HW_MAX_ADDRS) {
 		/* Disable promiscuous mode, use normal mode. */

@@ -22,7 +22,7 @@
 #include <linux/config.h>
 #include <asm/uaccess.h>
 #include <asm/system.h>
-#include <asm/bitops.h>
+#include <linux/bitops.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
@@ -99,7 +99,7 @@ static struct fib_rule local_rule = {
 };
 
 static struct fib_rule *fib_rules = &local_rule;
-static rwlock_t fib_rules_lock = RW_LOCK_UNLOCKED;
+static DEFINE_RWLOCK(fib_rules_lock);
 
 int inet_rtm_delrule(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg)
 {
@@ -119,7 +119,7 @@ int inet_rtm_delrule(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg)
 #endif
 		    (!rtm->rtm_type || rtm->rtm_type == r->r_action) &&
 		    (!rta[RTA_PRIORITY-1] || memcmp(RTA_DATA(rta[RTA_PRIORITY-1]), &r->r_preference, 4) == 0) &&
-		    (!rta[RTA_IIF-1] || strcmp(RTA_DATA(rta[RTA_IIF-1]), r->r_ifname) == 0) &&
+		    (!rta[RTA_IIF-1] || rtattr_strcmp(rta[RTA_IIF-1], r->r_ifname) == 0) &&
 		    (!rtm->rtm_table || (r && rtm->rtm_table == r->r_table))) {
 			err = -EPERM;
 			if (r == &local_rule)
@@ -176,7 +176,7 @@ int inet_rtm_newrule(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg)
 	table_id = rtm->rtm_table;
 	if (table_id == RT_TABLE_UNSPEC) {
 		struct fib_table *table;
-		if (rtm->rtm_type == RTN_UNICAST || rtm->rtm_type == RTN_NAT) {
+		if (rtm->rtm_type == RTN_UNICAST) {
 			if ((table = fib_empty_table()) == NULL)
 				return -ENOBUFS;
 			table_id = table->tb_id;
@@ -209,8 +209,7 @@ int inet_rtm_newrule(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg)
 	new_r->r_table = table_id;
 	if (rta[RTA_IIF-1]) {
 		struct net_device *dev;
-		memcpy(new_r->r_ifname, RTA_DATA(rta[RTA_IIF-1]), IFNAMSIZ);
-		new_r->r_ifname[IFNAMSIZ-1] = 0;
+		rtattr_strlcpy(new_r->r_ifname, rta[RTA_IIF-1], IFNAMSIZ);
 		new_r->r_ifindex = -1;
 		dev = __dev_get_by_name(new_r->r_ifname);
 		if (dev)
@@ -243,32 +242,6 @@ int inet_rtm_newrule(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg)
 	*rp = new_r;
 	write_unlock_bh(&fib_rules_lock);
 	return 0;
-}
-
-u32 fib_rules_map_destination(u32 daddr, struct fib_result *res)
-{
-	u32 mask = inet_make_mask(res->prefixlen);
-	return (daddr&~mask)|res->fi->fib_nh->nh_gw;
-}
-
-u32 fib_rules_policy(u32 saddr, struct fib_result *res, unsigned *flags)
-{
-	struct fib_rule *r = res->r;
-
-	if (r->r_action == RTN_NAT) {
-		int addrtype = inet_addr_type(r->r_srcmap);
-
-		if (addrtype == RTN_NAT) {
-			/* Packet is from  translated source; remember it */
-			saddr = (saddr&~r->r_srcmask)|r->r_srcmap;
-			*flags |= RTCF_SNAT;
-		} else if (addrtype == RTN_LOCAL || r->r_srcmap == 0) {
-			/* Packet is from masqueraded source; remember it */
-			saddr = r->r_srcmap;
-			*flags |= RTCF_MASQ;
-		}
-	}
-	return saddr;
 }
 
 #ifdef CONFIG_NET_CLS_ROUTE
@@ -322,9 +295,7 @@ FRprintk("Lookup: %u.%u.%u.%u <- %u.%u.%u.%u ",
 	for (r = fib_rules; r; r=r->r_next) {
 		if (((saddr^r->r_src) & r->r_srcmask) ||
 		    ((daddr^r->r_dst) & r->r_dstmask) ||
-#ifdef CONFIG_IP_ROUTE_TOS
 		    (r->r_tos && r->r_tos != flp->fl4_tos) ||
-#endif
 #ifdef CONFIG_IP_ROUTE_FWMARK
 		    (r->r_fwmark && r->r_fwmark != flp->fl4_fwmark) ||
 #endif
@@ -334,7 +305,6 @@ FRprintk("Lookup: %u.%u.%u.%u <- %u.%u.%u.%u ",
 FRprintk("tb %d r %d ", r->r_table, r->r_action);
 		switch (r->r_action) {
 		case RTN_UNICAST:
-		case RTN_NAT:
 			policy = r;
 			break;
 		case RTN_UNREACHABLE:
@@ -391,7 +361,7 @@ static int fib_rules_event(struct notifier_block *this, unsigned long event, voi
 }
 
 
-struct notifier_block fib_rules_notifier = {
+static struct notifier_block fib_rules_notifier = {
 	.notifier_call =fib_rules_event,
 };
 

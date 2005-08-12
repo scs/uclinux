@@ -28,7 +28,8 @@ Offset	Type		Description
 
  0xa0	16 bytes	System description table truncated to 16 bytes.
 			( struct sys_desc_table_struct )
- 0xb0 - 0x1c3		Free. Add more parameters here if you really need them.
+ 0xb0 - 0x13f		Free. Add more parameters here if you really need them.
+ 0x140- 0x1be		EDID_INFO Video mode setup
 
 0x1c4	unsigned long	EFI system table pointer
 0x1c8	unsigned long	EFI memory descriptor size
@@ -73,7 +74,11 @@ Offset	Type		Description
 0x21c	unsigned long	INITRD_SIZE, size in bytes of ramdisk image
 0x220	4 bytes		(setup.S)
 0x224	unsigned short	setup.S heap end pointer
+0x226   unsigned short	zero_pad
+0x228   unsigned long	cmd_line_ptr
+0x22c   unsigned long	ramdisk_max
+0x230   16 bytes 	trampoline
 0x290 - 0x2cf		EDD_MBR_SIG_BUFFER (edd.S)
-0x2d0 - 0x600		E820MAP
-0x600 - 0x7ff		EDDBUF (edd.S) for disk signature read sector
-0x600 - 0x7eb		EDDBUF (edd.S) for edd data
+0x2d0 - 0xd00		E820MAP
+0xd00 - 0xeff		EDDBUF (edd.S) for disk signature read sector
+0xd00 - 0xeeb		EDDBUF (edd.S) for edd data

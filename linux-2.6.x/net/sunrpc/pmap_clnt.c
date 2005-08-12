@@ -3,9 +3,6 @@
  *
  * Portmapper client.
  *
- * FIXME: In a secure environment, we may want to use an authentication
- * flavor other than AUTH_NULL.
- *
  * Copyright (C) 1996, Olaf Kirch <okir@monad.swb.de>
  */
 
@@ -31,8 +28,8 @@
 static struct rpc_procinfo	pmap_procedures[];
 static struct rpc_clnt *	pmap_create(char *, struct sockaddr_in *, int);
 static void			pmap_getport_done(struct rpc_task *);
-extern struct rpc_program	pmap_program;
-static spinlock_t		pmap_lock = SPIN_LOCK_UNLOCKED;
+static struct rpc_program	pmap_program;
+static DEFINE_SPINLOCK(pmap_lock);
 
 /*
  * Obtain the port for a given RPC service on a given host. This one can
@@ -212,7 +209,7 @@ pmap_create(char *hostname, struct sockaddr_in *srvaddr, int proto)
 	/* printk("pmap: create clnt\n"); */
 	clnt = rpc_create_client(xprt, hostname,
 				&pmap_program, RPC_PMAP_VERSION,
-				RPC_AUTH_NULL);
+				RPC_AUTH_UNIX);
 	if (IS_ERR(clnt)) {
 		xprt_destroy(xprt);
 	} else {
@@ -292,7 +289,7 @@ static struct rpc_version *	pmap_version[] = {
 
 static struct rpc_stat		pmap_stats;
 
-struct rpc_program	pmap_program = {
+static struct rpc_program	pmap_program = {
 	.name		= "portmap",
 	.number		= RPC_PMAP_PROGRAM,
 	.nrvers		= ARRAY_SIZE(pmap_version),

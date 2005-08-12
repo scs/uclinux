@@ -14,6 +14,7 @@
 #include <linux/netdevice.h>
 #include <linux/rtnetlink.h>
 #include <linux/netfilter_ipv4.h>
+#include <linux/netfilter_ipv6.h>
 #include <linux/netfilter.h>
 #include <linux/smp.h>
 #include <net/pkt_sched.h>
@@ -151,12 +152,12 @@ static int ingress_enqueue(struct sk_buff *skb,struct Qdisc *sch)
 	 * firewall FW_* code.
 	 */
 #ifdef CONFIG_NET_CLS_ACT
-	sch->stats.packets++;
-	sch->stats.bytes += skb->len;
+	sch->bstats.packets++;
+	sch->bstats.bytes += skb->len;
 	switch (result) {
 		case TC_ACT_SHOT:
 			result = TC_ACT_SHOT;
-			sch->stats.drops++;
+			sch->qstats.drops++;
 			break;
 		case TC_ACT_STOLEN:
 		case TC_ACT_QUEUED:
@@ -176,14 +177,14 @@ static int ingress_enqueue(struct sk_buff *skb,struct Qdisc *sch)
 	switch (result) {
 		case TC_POLICE_SHOT:
 		result = NF_DROP;
-		sch->stats.drops++;
+		sch->qstats.drops++;
 		break;
 		case TC_POLICE_RECLASSIFY: /* DSCP remarking here ? */
 		case TC_POLICE_OK:
 		case TC_POLICE_UNSPEC:
 		default:
-		sch->stats.packets++;
-		sch->stats.bytes += skb->len;
+		sch->bstats.packets++;
+		sch->bstats.bytes += skb->len;
 		result = NF_ACCEPT;
 		break;
 	};
@@ -191,8 +192,8 @@ static int ingress_enqueue(struct sk_buff *skb,struct Qdisc *sch)
 #else
 	D2PRINTK("Overriding result to ACCEPT\n");
 	result = NF_ACCEPT;
-	sch->stats.packets++;
-	sch->stats.bytes += skb->len;
+	sch->bstats.packets++;
+	sch->bstats.bytes += skb->len;
 #endif
 #endif
 
@@ -271,10 +272,18 @@ static struct nf_hook_ops ing_ops = {
 	.priority       = NF_IP_PRI_FILTER + 1,
 };
 
+static struct nf_hook_ops ing6_ops = {
+	.hook           = ing_hook,
+	.owner		= THIS_MODULE,
+	.pf             = PF_INET6,
+	.hooknum        = NF_IP6_PRE_ROUTING,
+	.priority       = NF_IP6_PRI_FILTER + 1,
+};
+
 #endif
 #endif
 
-int ingress_init(struct Qdisc *sch,struct rtattr *opt)
+static int ingress_init(struct Qdisc *sch,struct rtattr *opt)
 {
 	struct ingress_qdisc_data *p = PRIV(sch);
 
@@ -283,34 +292,33 @@ int ingress_init(struct Qdisc *sch,struct rtattr *opt)
 #ifndef CONFIG_NET_CLS_ACT
 #ifndef CONFIG_NETFILTER
 	printk("You MUST compile classifier actions into the kernel\n");
-	goto error;
+	return -EINVAL;
 #else
 	printk("Ingress scheduler: Classifier actions prefered over netfilter\n");
 #endif
 #endif
                                                                                 
-	if (NULL == p)
-		goto error;
-
 #ifndef CONFIG_NET_CLS_ACT
 #ifdef CONFIG_NETFILTER
 	if (!nf_registered) {
 		if (nf_register_hook(&ing_ops) < 0) {
 			printk("ingress qdisc registration error \n");
-			goto error;
+			return -EINVAL;
 		}
 		nf_registered++;
+
+		if (nf_register_hook(&ing6_ops) < 0) {
+			printk("IPv6 ingress qdisc registration error, " \
+			    "disabling IPv6 support.\n");
+		} else
+			nf_registered++;
 	}
 #endif
 #endif
 
 	DPRINTK("ingress_init(sch %p,[qdisc %p],opt %p)\n",sch,p,opt);
-	memset(p, 0, sizeof(*p));
-	p->filter_list = NULL;
 	p->q = &noop_qdisc;
 	return 0;
-error:
-	return -EINVAL;
 }
 
 
@@ -346,9 +354,6 @@ static void ingress_destroy(struct Qdisc *sch)
 		p->filter_list = tp->next;
 		tcf_destroy(tp);
 	}
-	memset(p, 0, sizeof(*p));
-	p->filter_list = NULL;
-
 #if 0
 /* for future use */
 	qdisc_destroy(p->q);
@@ -418,8 +423,11 @@ static void __exit ingress_module_exit(void)
 	unregister_qdisc(&ingress_qdisc_ops);
 #ifndef CONFIG_NET_CLS_ACT
 #ifdef CONFIG_NETFILTER
-	if (nf_registered)
+	if (nf_registered) {
 		nf_unregister_hook(&ing_ops);
+		if (nf_registered > 1)
+			nf_unregister_hook(&ing6_ops);
+	}
 #endif
 #endif
 }

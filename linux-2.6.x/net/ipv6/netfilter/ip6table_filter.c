@@ -10,6 +10,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/moduleparam.h>
 #include <linux/netfilter_ipv6/ip6_tables.h>
 
 MODULE_LICENSE("GPL");
@@ -93,7 +94,6 @@ static struct
 
 static struct ip6t_table packet_filter = {
 	.name		= "filter",
-	.table		= &initial_table.repl,
 	.valid_hooks	= FILTER_VALID_HOOKS,
 	.lock		= RW_LOCK_UNLOCKED,
 	.me		= THIS_MODULE,
@@ -156,7 +156,7 @@ static struct nf_hook_ops ip6t_ops[] = {
 
 /* Default to forward because I got too much mail already. */
 static int forward = NF_ACCEPT;
-MODULE_PARM(forward, "i");
+module_param(forward, bool, 0000);
 
 static int __init init(void)
 {
@@ -171,7 +171,7 @@ static int __init init(void)
 	initial_table.entries[1].target.verdict = -forward - 1;
 
 	/* Register table */
-	ret = ip6t_register_table(&packet_filter);
+	ret = ip6t_register_table(&packet_filter, &initial_table.repl);
 	if (ret < 0)
 		return ret;
 

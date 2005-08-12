@@ -98,16 +98,6 @@ static inline void sctp_outq_tail_data(struct sctp_outq *q,
 	return;
 }
 
-/* Insert a chunk behind chunk 'pos'. */
-static inline void sctp_outq_insert_data(struct sctp_outq *q,
-					 struct sctp_chunk *ch,
-					 struct sctp_chunk *pos)
-{
-	__skb_insert((struct sk_buff *)ch, (struct sk_buff *)pos->prev,
-		     (struct sk_buff *)pos, pos->list);
-	q->out_qlen += ch->skb->len;
-}
-
 /*
  * SFR-CACC algorithm:
  * D) If count_of_newacks is greater than or equal to 2
@@ -198,19 +188,6 @@ static inline int sctp_cacc_skip(struct sctp_transport *primary,
 	     || sctp_cacc_skip_3_2(primary, tsn)))
 		return 1;
 	return 0;
-}
-
-/* Generate a new outqueue.  */
-struct sctp_outq *sctp_outq_new(struct sctp_association *asoc)
-{
-	struct sctp_outq *q;
-
-	q = t_new(struct sctp_outq, GFP_KERNEL);
-	if (q) {
-		sctp_outq_init(asoc, q);
-		q->malloced = 1;
-	}
-	return q;
 }
 
 /* Initialize an existing sctp_outq.  This does the boring stuff.
@@ -372,7 +349,7 @@ int sctp_outq_tail(struct sctp_outq *q, struct sctp_chunk *chunk)
 /* Insert a chunk into the sorted list based on the TSNs.  The retransmit list
  * and the abandoned list are in ascending order.
  */
-void sctp_insert_list(struct list_head *head, struct list_head *new)
+static void sctp_insert_list(struct list_head *head, struct list_head *new)
 {
 	struct list_head *pos;
 	struct sctp_chunk *nchunk, *lchunk;
@@ -706,10 +683,19 @@ int sctp_outq_flush(struct sctp_outq *q, int rtx_timeout)
 		if (!new_transport) {
 			new_transport = asoc->peer.active_path;
 		} else if (!new_transport->active) {
-			/* If the chunk is Heartbeat, send it to
-			 * chunk->transport, even it's inactive.
+			/* If the chunk is Heartbeat or Heartbeat Ack, 
+			 * send it to chunk->transport, even if it's 
+			 * inactive.
+			 *
+			 * 3.3.6 Heartbeat Acknowledgement:
+			 * ...  
+			 * A HEARTBEAT ACK is always sent to the source IP
+			 * address of the IP datagram containing the
+			 * HEARTBEAT chunk to which this ack is responding.
+			 * ...  
 			 */
-			if (chunk->chunk_hdr->type != SCTP_CID_HEARTBEAT)
+			if (chunk->chunk_hdr->type != SCTP_CID_HEARTBEAT &&
+			    chunk->chunk_hdr->type != SCTP_CID_HEARTBEAT_ACK)
 				new_transport = asoc->peer.active_path;
 		}
 

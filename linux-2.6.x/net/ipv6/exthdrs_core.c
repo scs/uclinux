@@ -41,8 +41,8 @@ int ipv6_ext_hdr(u8 nexthdr)
  * when Linux implements ESP (and maybe AUTH) headers.
  * --AK
  *
- * This function parses (probably truncated) exthdr set "hdr"
- * of length "len". "nexthdrp" initially points to some place,
+ * This function parses (probably truncated) exthdr set "hdr".
+ * "nexthdrp" initially points to some place,
  * where type of the first header can be found.
  *
  * It skips all well-known exthdrs, and returns pointer to the start
@@ -63,40 +63,38 @@ int ipv6_ext_hdr(u8 nexthdr)
  * --ANK (980726)
  */
 
-int ipv6_skip_exthdr(const struct sk_buff *skb, int start, u8 *nexthdrp, int len)
+int ipv6_skip_exthdr(const struct sk_buff *skb, int start, u8 *nexthdrp)
 {
 	u8 nexthdr = *nexthdrp;
 
 	while (ipv6_ext_hdr(nexthdr)) {
-		struct ipv6_opt_hdr hdr;
+		struct ipv6_opt_hdr _hdr, *hp;
 		int hdrlen;
 
-		if (len < (int)sizeof(struct ipv6_opt_hdr))
-			return -1;
 		if (nexthdr == NEXTHDR_NONE)
 			return -1;
-		if (skb_copy_bits(skb, start, &hdr, sizeof(hdr)))
-			BUG();
+		hp = skb_header_pointer(skb, start, sizeof(_hdr), &_hdr);
+		if (hp == NULL)
+			return -1;
 		if (nexthdr == NEXTHDR_FRAGMENT) {
-			unsigned short frag_off;
-			if (skb_copy_bits(skb,
-					  start+offsetof(struct frag_hdr,
-							 frag_off),
-					  &frag_off,
-					  sizeof(frag_off))) {
+			unsigned short _frag_off, *fp;
+			fp = skb_header_pointer(skb,
+						start+offsetof(struct frag_hdr,
+							       frag_off),
+						sizeof(_frag_off),
+						&_frag_off);
+			if (fp == NULL)
 				return -1;
-			}
 
-			if (ntohs(frag_off) & ~0x7)
+			if (ntohs(*fp) & ~0x7)
 				break;
 			hdrlen = 8;
 		} else if (nexthdr == NEXTHDR_AUTH)
-			hdrlen = (hdr.hdrlen+2)<<2; 
+			hdrlen = (hp->hdrlen+2)<<2; 
 		else
-			hdrlen = ipv6_optlen(&hdr); 
+			hdrlen = ipv6_optlen(hp); 
 
-		nexthdr = hdr.nexthdr;
-		len -= hdrlen;
+		nexthdr = hp->nexthdr;
 		start += hdrlen;
 	}
 

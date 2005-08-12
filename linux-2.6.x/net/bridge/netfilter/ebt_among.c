@@ -72,42 +72,55 @@ static int ebt_mac_wormhash_check_integrity(const struct ebt_mac_wormhash
 
 static int get_ip_dst(const struct sk_buff *skb, uint32_t *addr)
 {
-	if (skb->mac.ethernet->h_proto == __constant_htons(ETH_P_IP)) {
-		struct iphdr iph;
+	if (eth_hdr(skb)->h_proto == htons(ETH_P_IP)) {
+		struct iphdr _iph, *ih;
 
-		if (skb_copy_bits(skb, 0, &iph, sizeof(iph)))
+		ih = skb_header_pointer(skb, 0, sizeof(_iph), &_iph);
+		if (ih == NULL)
 			return -1;
-		*addr = iph.daddr;
-	} else if (skb->mac.ethernet->h_proto == __constant_htons(ETH_P_ARP)) {
-		struct arphdr arph;
+		*addr = ih->daddr;
+	} else if (eth_hdr(skb)->h_proto == htons(ETH_P_ARP)) {
+		struct arphdr _arph, *ah;
+		uint32_t buf, *bp;
 
-		if (skb_copy_bits(skb, 0, &arph, sizeof(arph)) ||
-		    arph.ar_pln != sizeof(uint32_t) || arph.ar_hln != ETH_ALEN)
+		ah = skb_header_pointer(skb, 0, sizeof(_arph), &_arph);
+		if (ah == NULL ||
+		    ah->ar_pln != sizeof(uint32_t) ||
+		    ah->ar_hln != ETH_ALEN)
 			return -1;
-		if (skb_copy_bits(skb, sizeof(struct arphdr) +
-		    2 * ETH_ALEN + sizeof(uint32_t), addr, sizeof(uint32_t)))
+		bp = skb_header_pointer(skb, sizeof(struct arphdr) +
+					2 * ETH_ALEN + sizeof(uint32_t),
+					sizeof(uint32_t), &buf);
+		if (bp == NULL)
 			return -1;
+		*addr = *bp;
 	}
 	return 0;
 }
 
 static int get_ip_src(const struct sk_buff *skb, uint32_t *addr)
 {
-	if (skb->mac.ethernet->h_proto == __constant_htons(ETH_P_IP)) {
-		struct iphdr iph;
+	if (eth_hdr(skb)->h_proto == htons(ETH_P_IP)) {
+		struct iphdr _iph, *ih;
 
-		if (skb_copy_bits(skb, 0, &iph, sizeof(iph)))
+		ih = skb_header_pointer(skb, 0, sizeof(_iph), &_iph);
+		if (ih == NULL)
 			return -1;
-		*addr = iph.saddr;
-	} else if (skb->mac.ethernet->h_proto == __constant_htons(ETH_P_ARP)) {
-		struct arphdr arph;
+		*addr = ih->saddr;
+	} else if (eth_hdr(skb)->h_proto == htons(ETH_P_ARP)) {
+		struct arphdr _arph, *ah;
+		uint32_t buf, *bp;
 
-		if (skb_copy_bits(skb, 0, &arph, sizeof(arph)) ||
-		    arph.ar_pln != sizeof(uint32_t) || arph.ar_hln != ETH_ALEN)
+		ah = skb_header_pointer(skb, 0, sizeof(_arph), &_arph);
+		if (ah == NULL ||
+		    ah->ar_pln != sizeof(uint32_t) ||
+		    ah->ar_hln != ETH_ALEN)
 			return -1;
-		if (skb_copy_bits(skb, sizeof(struct arphdr) +
-		    ETH_ALEN, addr, sizeof(uint32_t)))
+		bp = skb_header_pointer(skb, sizeof(struct arphdr) +
+					ETH_ALEN, sizeof(uint32_t), &buf);
+		if (bp == NULL)
 			return -1;
+		*addr = *bp;
 	}
 	return 0;
 }
@@ -126,7 +139,7 @@ static int ebt_filter_among(const struct sk_buff *skb,
 	wh_src = ebt_among_wh_src(info);
 
 	if (wh_src) {
-		smac = skb->mac.ethernet->h_source;
+		smac = eth_hdr(skb)->h_source;
 		if (get_ip_src(skb, &sip))
 			return EBT_NOMATCH;
 		if (!(info->bitmask & EBT_AMONG_SRC_NEG)) {
@@ -141,7 +154,7 @@ static int ebt_filter_among(const struct sk_buff *skb,
 	}
 
 	if (wh_dst) {
-		dmac = skb->mac.ethernet->h_dest;
+		dmac = eth_hdr(skb)->h_dest;
 		if (get_ip_dst(skb, &dip))
 			return EBT_NOMATCH;
 		if (!(info->bitmask & EBT_AMONG_DST_NEG)) {

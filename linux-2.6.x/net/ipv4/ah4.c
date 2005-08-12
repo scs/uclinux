@@ -53,11 +53,9 @@ static int ip_clear_mutable_options(struct iphdr *iph, u32 *daddr)
 	return 0;
 }
 
-static int ah_output(struct sk_buff **pskb)
+static int ah_output(struct xfrm_state *x, struct sk_buff *skb)
 {
 	int err;
-	struct dst_entry *dst = (*pskb)->dst;
-	struct xfrm_state *x  = dst->xfrm;
 	struct iphdr *iph, *top_iph;
 	struct ip_auth_hdr *ah;
 	struct ah_data *ahp;
@@ -66,7 +64,7 @@ static int ah_output(struct sk_buff **pskb)
 		char 		buf[60];
 	} tmp_iph;
 
-	top_iph = (*pskb)->nh.iph;
+	top_iph = skb->nh.iph;
 	iph = &tmp_iph.iph;
 
 	iph->tos = top_iph->tos;
@@ -85,7 +83,7 @@ static int ah_output(struct sk_buff **pskb)
 	ah->nexthdr = top_iph->protocol;
 
 	top_iph->tos = 0;
-	top_iph->tot_len = htons((*pskb)->len);
+	top_iph->tot_len = htons(skb->len);
 	top_iph->frag_off = 0;
 	top_iph->ttl = 0;
 	top_iph->protocol = IPPROTO_AH;
@@ -98,7 +96,7 @@ static int ah_output(struct sk_buff **pskb)
 	ah->reserved = 0;
 	ah->spi = x->id.spi;
 	ah->seq_no = htonl(++x->replay.oseq);
-	ahp->icv(ahp, *pskb, ah->auth_data);
+	ahp->icv(ahp, skb, ah->auth_data);
 
 	top_iph->tos = iph->tos;
 	top_iph->ttl = iph->ttl;
@@ -116,7 +114,7 @@ error:
 	return err;
 }
 
-int ah_input(struct xfrm_state *x, struct xfrm_decap_state *decap, struct sk_buff *skb)
+static int ah_input(struct xfrm_state *x, struct xfrm_decap_state *decap, struct sk_buff *skb)
 {
 	int ah_hlen;
 	struct iphdr *iph;
@@ -184,7 +182,7 @@ out:
 	return -EINVAL;
 }
 
-void ah4_err(struct sk_buff *skb, u32 info)
+static void ah4_err(struct sk_buff *skb, u32 info)
 {
 	struct iphdr *iph = (struct iphdr*)skb->data;
 	struct ip_auth_hdr *ah = (struct ip_auth_hdr*)(skb->data+(iph->ihl<<2));
@@ -214,6 +212,9 @@ static int ah_init_state(struct xfrm_state *x, void *args)
 	if (x->aalg->alg_key_len > 512)
 		goto error;
 
+	if (x->encap)
+		goto error;
+
 	ahp = kmalloc(sizeof(*ahp), GFP_KERNEL);
 	if (ahp == NULL)
 		return -ENOMEM;
@@ -233,7 +234,7 @@ static int ah_init_state(struct xfrm_state *x, void *args)
 	 * we need for AH processing.  This lookup cannot fail here
 	 * after a successful crypto_alloc_tfm().
 	 */
-	aalg_desc = xfrm_aalg_get_byname(x->aalg->alg_name);
+	aalg_desc = xfrm_aalg_get_byname(x->aalg->alg_name, 0);
 	BUG_ON(!aalg_desc);
 
 	if (aalg_desc->uinfo.auth.icv_fullbits/8 !=

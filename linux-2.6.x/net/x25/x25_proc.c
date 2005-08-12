@@ -32,10 +32,11 @@ static __inline__ struct x25_route *x25_get_route_idx(loff_t pos)
 
 	list_for_each(route_entry, &x25_route_list) {
 		rt = list_entry(route_entry, struct x25_route, node);
-		if (--pos)
-			break;
+		if (!pos--)
+			goto found;
 	}
-
+	rt = NULL;
+found:
 	return rt;
 }
 
@@ -133,7 +134,7 @@ static void x25_seq_socket_stop(struct seq_file *seq, void *v)
 static int x25_seq_socket_show(struct seq_file *seq, void *v)
 {
 	struct sock *s;
-	struct x25_opt *x25;
+	struct x25_sock *x25;
 	struct net_device *dev;
 	const char *devname;
 
@@ -165,14 +166,14 @@ out:
 	return 0;
 } 
 
-struct seq_operations x25_seq_route_ops = {
+static struct seq_operations x25_seq_route_ops = {
 	.start  = x25_seq_route_start,
 	.next   = x25_seq_route_next,
 	.stop   = x25_seq_route_stop,
 	.show   = x25_seq_route_show,
 };
 
-struct seq_operations x25_seq_socket_ops = {
+static struct seq_operations x25_seq_socket_ops = {
 	.start  = x25_seq_socket_start,
 	.next   = x25_seq_socket_next,
 	.stop   = x25_seq_socket_stop,

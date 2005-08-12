@@ -1,4 +1,6 @@
-<!DOCTYPE book PUBLIC "-//OASIS//DTD DocBook V3.1//EN"[]>
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE book PUBLIC "-//OASIS//DTD DocBook XML V4.1.2//EN"
+	"http://www.oasis-open.org/docbook/xml/4.1.2/docbookx.dtd" []>
 
 <book id="lk-hacking-guide">
  <bookinfo>
@@ -145,7 +147,7 @@
     In user context, the <varname>current</varname> pointer (indicating 
     the task we are currently executing) is valid, and
     <function>in_interrupt()</function>
-    (<filename>include/asm/hardirq.h</filename>) is <returnvalue>false
+    (<filename>include/linux/interrupt.h</filename>) is <returnvalue>false
     </returnvalue>.  
    </para>
 
@@ -241,7 +243,7 @@
    <para>
     You can tell you are in a softirq (or bottom half, or tasklet)
     using the <function>in_softirq()</function> macro 
-    (<filename class="headerfile">include/asm/hardirq.h</filename>).
+    (<filename class="headerfile">include/linux/interrupt.h</filename>).
    </para>
    <caution>
     <para>
@@ -888,7 +890,7 @@ printk(KERN_INFO "my ip: %d.%d.%d.%d\n", NIPQUAD(ipaddress));
    The second class of atomic operations is atomic bit operations on a
    <type>long</type>, defined in
 
-   <filename class="headerfile">include/asm/bitops.h</filename>.  These
+   <filename class="headerfile">include/linux/bitops.h</filename>.  These
    operations generally take a pointer to the bit pattern, and a bit
    number: 0 is the least significant bit.
    <function>set_bit()</function>, <function>clear_bit()</function>

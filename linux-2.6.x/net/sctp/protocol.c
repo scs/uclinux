@@ -65,7 +65,7 @@ struct proc_dir_entry	*proc_net_sctp;
 DEFINE_SNMP_STAT(struct sctp_mib, sctp_statistics);
 
 struct idr sctp_assocs_id;
-spinlock_t sctp_assocs_id_lock = SPIN_LOCK_UNLOCKED;
+DEFINE_SPINLOCK(sctp_assocs_id_lock);
 
 /* This is the global socket data structure used for responding to
  * the Out-of-the-blue (OOTB) packets.  A control sock will be created
@@ -81,8 +81,6 @@ static struct sctp_af *sctp_af_v6_specific;
 kmem_cache_t *sctp_chunk_cachep;
 kmem_cache_t *sctp_bucket_cachep;
 
-extern struct net_proto_family inet_family_ops;
-
 extern int sctp_snmp_proc_init(void);
 extern int sctp_snmp_proc_exit(void);
 extern int sctp_eps_proc_init(void);
@@ -97,7 +95,7 @@ struct sock *sctp_get_ctl_sock(void)
 }
 
 /* Set up the proc fs entry for the SCTP protocol. */
-__init int sctp_proc_init(void)
+static __init int sctp_proc_init(void)
 {
 	if (!proc_net_sctp) {
 		struct proc_dir_entry *ent;
@@ -126,7 +124,7 @@ out_nomem:
  * Note: Do not make this __exit as it is used in the init error
  * path.
  */
-void sctp_proc_exit(void)
+static void sctp_proc_exit(void)
 {
 	sctp_snmp_proc_exit();
 	sctp_eps_proc_exit();
@@ -148,13 +146,12 @@ static void sctp_v4_copy_addrlist(struct list_head *addrlist,
 	struct in_ifaddr *ifa;
 	struct sctp_sockaddr_entry *addr;
 
-	read_lock(&inetdev_lock);
+	rcu_read_lock();
 	if ((in_dev = __in_dev_get(dev)) == NULL) {
-		read_unlock(&inetdev_lock);
+		rcu_read_unlock();
 		return;
 	}
 
-	read_lock(&in_dev->lock);
 	for (ifa = in_dev->ifa_list; ifa; ifa = ifa->ifa_next) {
 		/* Add the address to the local list.  */
 		addr = t_new(struct sctp_sockaddr_entry, GFP_ATOMIC);
@@ -166,8 +163,7 @@ static void sctp_v4_copy_addrlist(struct list_head *addrlist,
 		}
 	}
 
-	read_unlock(&in_dev->lock);
-	read_unlock(&inetdev_lock);
+	rcu_read_unlock();
 }
 
 /* Extract our IP addresses from the system and stash them in the
@@ -368,7 +364,7 @@ static int sctp_v4_is_any(const union sctp_addr *addr)
  * Return 0 - If the address is a non-unicast or an illegal address.
  * Return 1 - If the address is a unicast.
  */
-static int sctp_v4_addr_valid(union sctp_addr *addr, struct sctp_opt *sp)
+static int sctp_v4_addr_valid(union sctp_addr *addr, struct sctp_sock *sp)
 {
 	/* Is this a non-unicast address or a unusable SCTP address? */
 	if (IS_IPV4_UNUSABLE_ADDRESS(&addr->v4.sin_addr.s_addr))
@@ -378,14 +374,17 @@ static int sctp_v4_addr_valid(union sctp_addr *addr, struct sctp_opt *sp)
 }
 
 /* Should this be available for binding?   */
-static int sctp_v4_available(union sctp_addr *addr, struct sctp_opt *sp)
+static int sctp_v4_available(union sctp_addr *addr, struct sctp_sock *sp)
 {
 	int ret = inet_addr_type(addr->v4.sin_addr.s_addr);
 
-	/* FIXME: ip_nonlocal_bind sysctl support. */
 
-	if (addr->v4.sin_addr.s_addr != INADDR_ANY && ret != RTN_LOCAL)
+	if (addr->v4.sin_addr.s_addr != INADDR_ANY &&
+	   ret != RTN_LOCAL &&
+	   !sp->inet.freebind &&
+	   !sysctl_ip_nonlocal_bind)
 		return 0;
+
 	return 1;
 }
 
@@ -432,9 +431,9 @@ static sctp_scope_t sctp_v4_scope(union sctp_addr *addr)
  * addresses. If an association is passed, trys to get a dst entry with a
  * source address that matches an address in the bind address list.
  */
-struct dst_entry *sctp_v4_get_dst(struct sctp_association *asoc,
-				  union sctp_addr *daddr,
-				  union sctp_addr *saddr)
+static struct dst_entry *sctp_v4_get_dst(struct sctp_association *asoc,
+					 union sctp_addr *daddr,
+					 union sctp_addr *saddr)
 {
 	struct rtable *rt;
 	struct flowi fl;
@@ -524,10 +523,10 @@ out:
 /* For v4, the source address is cached in the route entry(dst). So no need
  * to cache it separately and hence this is an empty routine.
  */
-void sctp_v4_get_saddr(struct sctp_association *asoc,
-		       struct dst_entry *dst,
-		       union sctp_addr *daddr,
-		       union sctp_addr *saddr)
+static void sctp_v4_get_saddr(struct sctp_association *asoc,
+			      struct dst_entry *dst,
+			      union sctp_addr *daddr,
+			      union sctp_addr *saddr)
 {
 	struct rtable *rt = (struct rtable *)dst;
 
@@ -551,33 +550,29 @@ static int sctp_v4_is_ce(const struct sk_buff *skb)
 }
 
 /* Create and initialize a new sk for the socket returned by accept(). */
-struct sock *sctp_v4_create_accept_sk(struct sock *sk,
-				      struct sctp_association *asoc)
+static struct sock *sctp_v4_create_accept_sk(struct sock *sk,
+					     struct sctp_association *asoc)
 {
-	struct sock *newsk;
-	struct inet_opt *inet = inet_sk(sk);
-	struct inet_opt *newinet;
+	struct inet_sock *inet = inet_sk(sk);
+	struct inet_sock *newinet;
+	struct sock *newsk = sk_alloc(PF_INET, GFP_KERNEL, sk->sk_prot, 1);
 
-	newsk = sk_alloc(PF_INET, GFP_KERNEL, sizeof(struct sctp_sock),
-			 sk->sk_slab);
 	if (!newsk)
 		goto out;
 
 	sock_init_data(NULL, newsk);
-	sk_set_owner(newsk, THIS_MODULE);
 
 	newsk->sk_type = SOCK_STREAM;
 
-	newsk->sk_prot = sk->sk_prot;
 	newsk->sk_no_check = sk->sk_no_check;
 	newsk->sk_reuse = sk->sk_reuse;
 	newsk->sk_shutdown = sk->sk_shutdown;
 
 	newsk->sk_destruct = inet_sock_destruct;
-	newsk->sk_zapped = 0;
 	newsk->sk_family = PF_INET;
 	newsk->sk_protocol = IPPROTO_SCTP;
 	newsk->sk_backlog_rcv = sk->sk_prot->backlog_rcv;
+	sock_reset_flag(newsk, SOCK_ZAPPED);
 
 	newinet = inet_sk(newsk);
 
@@ -612,7 +607,7 @@ out:
 }
 
 /* Map address, empty for v4 family */
-static void sctp_v4_addr_v4map(struct sctp_opt *sp, union sctp_addr *addr)
+static void sctp_v4_addr_v4map(struct sctp_sock *sp, union sctp_addr *addr)
 {
 	/* Empty */
 }
@@ -626,8 +621,8 @@ static void sctp_v4_seq_dump_addr(struct seq_file *seq, union sctp_addr *addr)
 /* Event handler for inet address addition/deletion events.
  * Basically, whenever there is an event, we re-build our local address list.
  */
-static int sctp_inetaddr_event(struct notifier_block *this, unsigned long ev,
-			       void *ptr)
+int sctp_inetaddr_event(struct notifier_block *this, unsigned long ev,
+                        void *ptr)
 {
 	unsigned long flags;
 
@@ -643,7 +638,7 @@ static int sctp_inetaddr_event(struct notifier_block *this, unsigned long ev,
  * Initialize the control inode/socket with a control endpoint data
  * structure.  This endpoint is reserved exclusively for the OOTB processing.
  */
-int sctp_ctl_sock_init(void)
+static int sctp_ctl_sock_init(void)
 {
 	int err;
 	sa_family_t family;
@@ -749,7 +744,7 @@ static void sctp_inet_skb_msgname(struct sk_buff *skb, char *msgname, int *len)
 }
 
 /* Do we support this AF? */
-static int sctp_inet_af_supported(sa_family_t family, struct sctp_opt *sp)
+static int sctp_inet_af_supported(sa_family_t family, struct sctp_sock *sp)
 {
 	/* PF_INET only supports AF_INET addresses. */
 	return (AF_INET == family);
@@ -758,7 +753,7 @@ static int sctp_inet_af_supported(sa_family_t family, struct sctp_opt *sp)
 /* Address matching with wildcards allowed. */
 static int sctp_inet_cmp_addr(const union sctp_addr *addr1,
 			      const union sctp_addr *addr2,
-			      struct sctp_opt *opt)
+			      struct sctp_sock *opt)
 {
 	/* PF_INET only supports AF_INET addresses. */
 	if (addr1->sa.sa_family != addr2->sa.sa_family)
@@ -775,7 +770,7 @@ static int sctp_inet_cmp_addr(const union sctp_addr *addr1,
 /* Verify that provided sockaddr looks bindable.  Common verification has
  * already been taken care of.
  */
-static int sctp_inet_bind_verify(struct sctp_opt *opt, union sctp_addr *addr)
+static int sctp_inet_bind_verify(struct sctp_sock *opt, union sctp_addr *addr)
 {
 	return sctp_v4_available(addr, opt);
 }
@@ -783,7 +778,7 @@ static int sctp_inet_bind_verify(struct sctp_opt *opt, union sctp_addr *addr)
 /* Verify that sockaddr looks sendable.  Common verification has already
  * been taken care of.
  */
-static int sctp_inet_send_verify(struct sctp_opt *opt, union sctp_addr *addr)
+static int sctp_inet_send_verify(struct sctp_sock *opt, union sctp_addr *addr)
 {
 	return 1;
 }
@@ -791,7 +786,7 @@ static int sctp_inet_send_verify(struct sctp_opt *opt, union sctp_addr *addr)
 /* Fill in Supported Address Type information for INIT and INIT-ACK
  * chunks.  Returns number of addresses supported.
  */
-static int sctp_inet_supported_addrs(const struct sctp_opt *opt,
+static int sctp_inet_supported_addrs(const struct sctp_sock *opt,
 				     __u16 *types)
 {
 	types[0] = SCTP_PARAM_IPV4_ADDRESS;
@@ -812,7 +807,7 @@ static inline int sctp_v4_xmit(struct sk_buff *skb,
 	return ip_queue_xmit(skb, ipfragok);
 }
 
-struct sctp_af sctp_ipv4_specific;
+static struct sctp_af sctp_ipv4_specific;
 
 static struct sctp_pf sctp_pf_inet = {
 	.event_msgname = sctp_inet_event_msgname,
@@ -828,12 +823,12 @@ static struct sctp_pf sctp_pf_inet = {
 };
 
 /* Notifier for inetaddr addition/deletion events.  */
-struct notifier_block sctp_inetaddr_notifier = {
+static struct notifier_block sctp_inetaddr_notifier = {
 	.notifier_call = sctp_inetaddr_event,
 };
 
 /* Socket operations.  */
-struct proto_ops inet_seqpacket_ops = {
+static struct proto_ops inet_seqpacket_ops = {
 	.family      = PF_INET,
 	.owner       = THIS_MODULE,
 	.release     = inet_release,       /* Needs to be wrapped... */
@@ -882,7 +877,7 @@ static struct net_protocol sctp_protocol = {
 };
 
 /* IPv4 address related functions.  */
-struct sctp_af sctp_ipv4_specific = {
+static struct sctp_af sctp_ipv4_specific = {
 	.sctp_xmit      = sctp_v4_xmit,
 	.setsockopt     = ip_setsockopt,
 	.getsockopt     = ip_getsockopt,
@@ -963,26 +958,32 @@ static void cleanup_sctp_mibs(void)
 }
 
 /* Initialize the universe into something sensible.  */
-__init int sctp_init(void)
+SCTP_STATIC __init int sctp_init(void)
 {
 	int i;
-	int status = 0;
+	int status = -EINVAL;
 	unsigned long goal;
 	int order;
 
 	/* SCTP_DEBUG sanity check. */
 	if (!sctp_sanity_check())
-		return -EINVAL;
+		goto out;
+
+	status = proto_register(&sctp_prot, 1);
+	if (status)
+		goto out;
 
 	/* Add SCTP to inet_protos hash table.  */
+	status = -EAGAIN;
 	if (inet_add_protocol(&sctp_protocol, IPPROTO_SCTP) < 0)
-		return -EAGAIN;
+		goto err_add_protocol;
 
 	/* Add SCTP(TCP and UDP style) to inetsw linked list.  */
 	inet_register_protosw(&sctp_seqpacket_protosw);
 	inet_register_protosw(&sctp_stream_protosw);
 
 	/* Allocate a cache pools. */
+	status = -ENOBUFS;
 	sctp_bucket_cachep = kmem_cache_create("sctp_bind_bucket",
 					       sizeof(struct sctp_bind_bucket),
 					       0, SLAB_HWCACHE_ALIGN,
@@ -1045,6 +1046,9 @@ __init int sctp_init(void)
 	sctp_max_retrans_path		= 5;
 	sctp_max_retrans_init		= 8;
 
+	/* Sendbuffer growth	    - do per-socket accounting */
+	sctp_sndbuf_policy		= 0;
+
 	/* HB.interval              - 30 seconds */
 	sctp_hb_interval		= 30 * HZ;
 
@@ -1082,7 +1086,7 @@ __init int sctp_init(void)
 		goto err_ahash_alloc;
 	}
 	for (i = 0; i < sctp_assoc_hashsize; i++) {
-		sctp_assoc_hashtable[i].lock = RW_LOCK_UNLOCKED;
+		rwlock_init(&sctp_assoc_hashtable[i].lock);
 		sctp_assoc_hashtable[i].chain = NULL;
 	}
 
@@ -1096,7 +1100,7 @@ __init int sctp_init(void)
 		goto err_ehash_alloc;
 	}
 	for (i = 0; i < sctp_ep_hashsize; i++) {
-		sctp_ep_hashtable[i].lock = RW_LOCK_UNLOCKED;
+		rwlock_init(&sctp_ep_hashtable[i].lock);
 		sctp_ep_hashtable[i].chain = NULL;
 	}
 
@@ -1115,11 +1119,11 @@ __init int sctp_init(void)
 		goto err_bhash_alloc;
 	}
 	for (i = 0; i < sctp_port_hashsize; i++) {
-		sctp_port_hashtable[i].lock = SPIN_LOCK_UNLOCKED;
+		spin_lock_init(&sctp_port_hashtable[i].lock);
 		sctp_port_hashtable[i].chain = NULL;
 	}
 
-	sctp_port_alloc_lock = SPIN_LOCK_UNLOCKED;
+	spin_lock_init(&sctp_port_alloc_lock);
 	sctp_port_rover = sysctl_local_port_range[0] - 1;
 
 	printk(KERN_INFO "SCTP: Hash tables configured "
@@ -1150,7 +1154,7 @@ __init int sctp_init(void)
 
 	/* Initialize the local address list. */
 	INIT_LIST_HEAD(&sctp_local_addr_list);
-	sctp_local_addr_lock = SPIN_LOCK_UNLOCKED;
+	spin_lock_init(&sctp_local_addr_lock);
 
 	/* Register notifier for inet address additions/deletions. */
 	register_inetaddr_notifier(&sctp_inetaddr_notifier);
@@ -1158,8 +1162,9 @@ __init int sctp_init(void)
 	sctp_get_local_addr_list();
 
 	__unsafe(THIS_MODULE);
-	return 0;
-
+	status = 0;
+out:
+	return status;
 err_ctl_sock_init:
 	sctp_v6_exit();
 err_v6_init:
@@ -1187,11 +1192,13 @@ err_bucket_cachep:
 	inet_del_protocol(&sctp_protocol, IPPROTO_SCTP);
 	inet_unregister_protosw(&sctp_seqpacket_protosw);
 	inet_unregister_protosw(&sctp_stream_protosw);
-	return status;
+err_add_protocol:
+	proto_unregister(&sctp_prot);
+	goto out;
 }
 
 /* Exit handler for the SCTP protocol.  */
-__exit void sctp_exit(void)
+SCTP_STATIC __exit void sctp_exit(void)
 {
 	/* BUG.  This should probably do something useful like clean
 	 * up all the remaining associations and all that memory.
@@ -1228,6 +1235,7 @@ __exit void sctp_exit(void)
 	inet_del_protocol(&sctp_protocol, IPPROTO_SCTP);
 	inet_unregister_protosw(&sctp_seqpacket_protosw);
 	inet_unregister_protosw(&sctp_stream_protosw);
+	proto_unregister(&sctp_prot);
 }
 
 module_init(sctp_init);

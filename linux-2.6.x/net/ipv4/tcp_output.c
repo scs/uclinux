@@ -7,7 +7,7 @@
  *
  * Version:	$Id$
  *
- * Authors:	Ross Biro, <bir7@leland.Stanford.Edu>
+ * Authors:	Ross Biro
  *		Fred N. van Kempen, <waltje@uWalt.NL.Mugnet.ORG>
  *		Mark Evans, <evansmp@uhura.aston.ac.uk>
  *		Corey Minyard <wf-rch!minyard@relay.EU.net>
@@ -45,15 +45,20 @@
 /* People can turn this off for buggy TCP's found in printers etc. */
 int sysctl_tcp_retrans_collapse = 1;
 
-static __inline__
-void update_send_head(struct sock *sk, struct tcp_opt *tp, struct sk_buff *skb)
+/* This limits the percentage of the congestion window which we
+ * will allow a single TSO frame to consume.  Building TSO frames
+ * which are too large can cause TCP streams to be bursty.
+ */
+int sysctl_tcp_tso_win_divisor = 8;
+
+static inline void update_send_head(struct sock *sk, struct tcp_sock *tp,
+				    struct sk_buff *skb)
 {
 	sk->sk_send_head = skb->next;
 	if (sk->sk_send_head == (struct sk_buff *)&sk->sk_write_queue)
 		sk->sk_send_head = NULL;
 	tp->snd_nxt = TCP_SKB_CB(skb)->end_seq;
-	if (tp->packets_out++ == 0)
-		tcp_reset_xmit_timer(sk, TCP_TIME_RETRANS, tp->rto);
+	tcp_packets_out_inc(sk, tp, skb);
 }
 
 /* SND.NXT, if window was not shrunk.
@@ -62,7 +67,7 @@ void update_send_head(struct sock *sk, struct tcp_opt *tp, struct sk_buff *skb)
  * Anything in between SND.UNA...SND.UNA+SND.WND also can be already
  * invalid. OK, let's make this for now:
  */
-static __inline__ __u32 tcp_acceptable_seq(struct sock *sk, struct tcp_opt *tp)
+static inline __u32 tcp_acceptable_seq(struct sock *sk, struct tcp_sock *tp)
 {
 	if (!before(tp->snd_una+tp->snd_wnd, tp->snd_nxt))
 		return tp->snd_nxt;
@@ -86,7 +91,7 @@ static __inline__ __u32 tcp_acceptable_seq(struct sock *sk, struct tcp_opt *tp)
  */
 static __u16 tcp_advertise_mss(struct sock *sk)
 {
-	struct tcp_opt *tp = tcp_sk(sk);
+	struct tcp_sock *tp = tcp_sk(sk);
 	struct dst_entry *dst = __sk_dst_get(sk);
 	int mss = tp->advmss;
 
@@ -100,7 +105,7 @@ static __u16 tcp_advertise_mss(struct sock *sk)
 
 /* RFC2861. Reset CWND after idle period longer RTO to "restart window".
  * This is the first part of cwnd validation mechanism. */
-static void tcp_cwnd_restart(struct tcp_opt *tp, struct dst_entry *dst)
+static void tcp_cwnd_restart(struct tcp_sock *tp, struct dst_entry *dst)
 {
 	s32 delta = tcp_time_stamp - tp->lsndtime;
 	u32 restart_cwnd = tcp_init_cwnd(tp, dst);
@@ -119,7 +124,8 @@ static void tcp_cwnd_restart(struct tcp_opt *tp, struct dst_entry *dst)
 	tp->snd_cwnd_used = 0;
 }
 
-static __inline__ void tcp_event_data_sent(struct tcp_opt *tp, struct sk_buff *skb, struct sock *sk)
+static inline void tcp_event_data_sent(struct tcp_sock *tp,
+				       struct sk_buff *skb, struct sock *sk)
 {
 	u32 now = tcp_time_stamp;
 
@@ -137,20 +143,79 @@ static __inline__ void tcp_event_data_sent(struct tcp_opt *tp, struct sk_buff *s
 
 static __inline__ void tcp_event_ack_sent(struct sock *sk)
 {
-	struct tcp_opt *tp = tcp_sk(sk);
+	struct tcp_sock *tp = tcp_sk(sk);
 
 	tcp_dec_quickack_mode(tp);
 	tcp_clear_xmit_timer(sk, TCP_TIME_DACK);
 }
 
-/* Chose a new window to advertise, update state in tcp_opt for the
+/* Determine a window scaling and initial window to offer.
+ * Based on the assumption that the given amount of space
+ * will be offered. Store the results in the tp structure.
+ * NOTE: for smooth operation initial space offering should
+ * be a multiple of mss if possible. We assume here that mss >= 1.
+ * This MUST be enforced by all callers.
+ */
+void tcp_select_initial_window(int __space, __u32 mss,
+			       __u32 *rcv_wnd, __u32 *window_clamp,
+			       int wscale_ok, __u8 *rcv_wscale)
+{
+	unsigned int space = (__space < 0 ? 0 : __space);
+
+	/* If no clamp set the clamp to the max possible scaled window */
+	if (*window_clamp == 0)
+		(*window_clamp) = (65535 << 14);
+	space = min(*window_clamp, space);
+
+	/* Quantize space offering to a multiple of mss if possible. */
+	if (space > mss)
+		space = (space / mss) * mss;
+
+	/* NOTE: offering an initial window larger than 32767
+	 * will break some buggy TCP stacks. We try to be nice.
+	 * If we are not window scaling, then this truncates
+	 * our initial window offering to 32k. There should also
+	 * be a sysctl option to stop being nice.
+	 */
+	(*rcv_wnd) = min(space, MAX_TCP_WINDOW);
+	(*rcv_wscale) = 0;
+	if (wscale_ok) {
+		/* Set window scaling on max possible window
+		 * See RFC1323 for an explanation of the limit to 14 
+		 */
+		space = max_t(u32, sysctl_tcp_rmem[2], sysctl_rmem_max);
+		while (space > 65535 && (*rcv_wscale) < 14) {
+			space >>= 1;
+			(*rcv_wscale)++;
+		}
+	}
+
+	/* Set initial window to value enough for senders,
+	 * following RFC1414. Senders, not following this RFC,
+	 * will be satisfied with 2.
+	 */
+	if (mss > (1<<*rcv_wscale)) {
+		int init_cwnd = 4;
+		if (mss > 1460*3)
+			init_cwnd = 2;
+		else if (mss > 1460)
+			init_cwnd = 3;
+		if (*rcv_wnd > init_cwnd*mss)
+			*rcv_wnd = init_cwnd*mss;
+	}
+
+	/* Set the clamp no higher than max representable value */
+	(*window_clamp) = min(65535U << (*rcv_wscale), *window_clamp);
+}
+
+/* Chose a new window to advertise, update state in tcp_sock for the
  * socket, and return result with RFC1323 scaling applied.  The return
  * value can be stuffed directly into th->window for an outgoing
  * frame.
  */
 static __inline__ u16 tcp_select_window(struct sock *sk)
 {
-	struct tcp_opt *tp = tcp_sk(sk);
+	struct tcp_sock *tp = tcp_sk(sk);
 	u32 cur_win = tcp_receive_window(tp);
 	u32 new_win = __tcp_select_window(sk);
 
@@ -171,13 +236,13 @@ static __inline__ u16 tcp_select_window(struct sock *sk)
 	/* Make sure we do not exceed the maximum possible
 	 * scaled window.
 	 */
-	if (!tp->rcv_wscale)
+	if (!tp->rx_opt.rcv_wscale)
 		new_win = min(new_win, MAX_TCP_WINDOW);
 	else
-		new_win = min(new_win, (65535U << tp->rcv_wscale));
+		new_win = min(new_win, (65535U << tp->rx_opt.rcv_wscale));
 
 	/* RFC1323 scaling applied */
-	new_win >>= tp->rcv_wscale;
+	new_win >>= tp->rx_opt.rcv_wscale;
 
 	/* If we advertise zero window, disable fast path. */
 	if (new_win == 0)
@@ -198,16 +263,18 @@ static __inline__ u16 tcp_select_window(struct sock *sk)
  * We are working here with either a clone of the original
  * SKB, or a fresh unique copy made by the retransmit engine.
  */
-int tcp_transmit_skb(struct sock *sk, struct sk_buff *skb)
+static int tcp_transmit_skb(struct sock *sk, struct sk_buff *skb)
 {
-	if(skb != NULL) {
-		struct inet_opt *inet = inet_sk(sk);
-		struct tcp_opt *tp = tcp_sk(sk);
+	if (skb != NULL) {
+		struct inet_sock *inet = inet_sk(sk);
+		struct tcp_sock *tp = tcp_sk(sk);
 		struct tcp_skb_cb *tcb = TCP_SKB_CB(skb);
 		int tcp_header_size = tp->tcp_header_len;
 		struct tcphdr *th;
 		int sysctl_flags;
 		int err;
+
+		BUG_ON(!tcp_skb_pcount(skb));
 
 #define SYSCTL_FLAG_TSTAMPS	0x1
 #define SYSCTL_FLAG_WSCALE	0x2
@@ -229,12 +296,12 @@ int tcp_transmit_skb(struct sock *sk, struct sk_buff *skb)
 				if(!(sysctl_flags & SYSCTL_FLAG_TSTAMPS))
 					tcp_header_size += TCPOLEN_SACKPERM_ALIGNED;
 			}
-		} else if (tp->eff_sacks) {
+		} else if (tp->rx_opt.eff_sacks) {
 			/* A SACK is 2 pad bytes, a 2 byte header, plus
 			 * 2 32-bit sequence numbers for each SACK block.
 			 */
 			tcp_header_size += (TCPOLEN_SACK_BASE_ALIGNED +
-					    (tp->eff_sacks * TCPOLEN_SACK_PERBLOCK));
+					    (tp->rx_opt.eff_sacks * TCPOLEN_SACK_PERBLOCK));
 		}
 		
 		/*
@@ -282,9 +349,9 @@ int tcp_transmit_skb(struct sock *sk, struct sk_buff *skb)
 					      (sysctl_flags & SYSCTL_FLAG_TSTAMPS),
 					      (sysctl_flags & SYSCTL_FLAG_SACK),
 					      (sysctl_flags & SYSCTL_FLAG_WSCALE),
-					      tp->rcv_wscale,
+					      tp->rx_opt.rcv_wscale,
 					      tcb->when,
-		      			      tp->ts_recent);
+		      			      tp->rx_opt.ts_recent);
 		} else {
 			tcp_build_and_update_options((__u32 *)(th + 1),
 						     tp, tcb->when);
@@ -329,10 +396,11 @@ int tcp_transmit_skb(struct sock *sk, struct sk_buff *skb)
  */
 static void tcp_queue_skb(struct sock *sk, struct sk_buff *skb)
 {
-	struct tcp_opt *tp = tcp_sk(sk);
+	struct tcp_sock *tp = tcp_sk(sk);
 
 	/* Advance write_seq and place onto the write_queue. */
 	tp->write_seq = TCP_SKB_CB(skb)->end_seq;
+	skb_header_release(skb);
 	__skb_queue_tail(&sk->sk_write_queue, skb);
 	sk_charge_skb(sk, skb);
 
@@ -341,24 +409,55 @@ static void tcp_queue_skb(struct sock *sk, struct sk_buff *skb)
 		sk->sk_send_head = skb;
 }
 
+static inline void tcp_tso_set_push(struct sk_buff *skb)
+{
+	/* Force push to be on for any TSO frames to workaround
+	 * problems with busted implementations like Mac OS-X that
+	 * hold off socket receive wakeups until push is seen.
+	 */
+	if (tcp_skb_pcount(skb) > 1)
+		TCP_SKB_CB(skb)->flags |= TCPCB_FLAG_PSH;
+}
+
 /* Send _single_ skb sitting at the send head. This function requires
  * true push pending frames to setup probe timer etc.
  */
 void tcp_push_one(struct sock *sk, unsigned cur_mss)
 {
-	struct tcp_opt *tp = tcp_sk(sk);
+	struct tcp_sock *tp = tcp_sk(sk);
 	struct sk_buff *skb = sk->sk_send_head;
 
-	if (tcp_snd_test(tp, skb, cur_mss, TCP_NAGLE_PUSH)) {
+	if (tcp_snd_test(sk, skb, cur_mss, TCP_NAGLE_PUSH)) {
 		/* Send it out now. */
 		TCP_SKB_CB(skb)->when = tcp_time_stamp;
+		tcp_tso_set_push(skb);
 		if (!tcp_transmit_skb(sk, skb_clone(skb, sk->sk_allocation))) {
 			sk->sk_send_head = NULL;
 			tp->snd_nxt = TCP_SKB_CB(skb)->end_seq;
-			if (tp->packets_out++ == 0)
-				tcp_reset_xmit_timer(sk, TCP_TIME_RETRANS, tp->rto);
+			tcp_packets_out_inc(sk, tp, skb);
 			return;
 		}
+	}
+}
+
+void tcp_set_skb_tso_segs(struct sock *sk, struct sk_buff *skb)
+{
+	struct tcp_sock *tp = tcp_sk(sk);
+
+	if (skb->len <= tp->mss_cache_std ||
+	    !(sk->sk_route_caps & NETIF_F_TSO)) {
+		/* Avoid the costly divide in the normal
+		 * non-TSO case.
+		 */
+		skb_shinfo(skb)->tso_segs = 1;
+		skb_shinfo(skb)->tso_size = 0;
+	} else {
+		unsigned int factor;
+
+		factor = skb->len + (tp->mss_cache_std - 1);
+		factor /= tp->mss_cache_std;
+		skb_shinfo(skb)->tso_segs = factor;
+		skb_shinfo(skb)->tso_size = tp->mss_cache_std;
 	}
 }
 
@@ -369,10 +468,14 @@ void tcp_push_one(struct sock *sk, unsigned cur_mss)
  */
 static int tcp_fragment(struct sock *sk, struct sk_buff *skb, u32 len)
 {
-	struct tcp_opt *tp = tcp_sk(sk);
+	struct tcp_sock *tp = tcp_sk(sk);
 	struct sk_buff *buff;
-	int nsize = skb->len - len;
+	int nsize;
 	u16 flags;
+
+	nsize = skb_headlen(skb) - len;
+	if (nsize < 0)
+		nsize = 0;
 
 	if (skb_cloned(skb) &&
 	    skb_is_nonlinear(skb) &&
@@ -394,11 +497,9 @@ static int tcp_fragment(struct sock *sk, struct sk_buff *skb, u32 len)
 	flags = TCP_SKB_CB(skb)->flags;
 	TCP_SKB_CB(skb)->flags = flags & ~(TCPCB_FLAG_FIN|TCPCB_FLAG_PSH);
 	TCP_SKB_CB(buff)->flags = flags;
-	TCP_SKB_CB(buff)->sacked = TCP_SKB_CB(skb)->sacked&(TCPCB_LOST|TCPCB_EVER_RETRANS|TCPCB_AT_TAIL);
-	if (TCP_SKB_CB(buff)->sacked&TCPCB_LOST) {
-		tp->lost_out++;
-		tp->left_out++;
-	}
+	TCP_SKB_CB(buff)->sacked =
+		(TCP_SKB_CB(skb)->sacked &
+		 (TCPCB_LOST | TCPCB_EVER_RETRANS | TCPCB_AT_TAIL));
 	TCP_SKB_CB(skb)->sacked &= ~TCPCB_AT_TAIL;
 
 	if (!skb_shinfo(skb)->nr_frags && skb->ip_summed != CHECKSUM_HW) {
@@ -421,6 +522,25 @@ static int tcp_fragment(struct sock *sk, struct sk_buff *skb, u32 len)
 	 */
 	TCP_SKB_CB(buff)->when = TCP_SKB_CB(skb)->when;
 
+	if (TCP_SKB_CB(skb)->sacked & TCPCB_LOST) {
+		tp->lost_out -= tcp_skb_pcount(skb);
+		tp->left_out -= tcp_skb_pcount(skb);
+	}
+
+	/* Fix up tso_factor for both original and new SKB.  */
+	tcp_set_skb_tso_segs(sk, skb);
+	tcp_set_skb_tso_segs(sk, buff);
+
+	if (TCP_SKB_CB(skb)->sacked & TCPCB_LOST) {
+		tp->lost_out += tcp_skb_pcount(skb);
+		tp->left_out += tcp_skb_pcount(skb);
+	}
+
+	if (TCP_SKB_CB(buff)->sacked&TCPCB_LOST) {
+		tp->lost_out += tcp_skb_pcount(buff);
+		tp->left_out += tcp_skb_pcount(buff);
+	}
+
 	/* Link BUFF into the send queue. */
 	__skb_append(skb, buff);
 
@@ -431,7 +551,7 @@ static int tcp_fragment(struct sock *sk, struct sk_buff *skb, u32 len)
  * eventually). The difference is that pulled data not copied, but
  * immediately discarded.
  */
-unsigned char * __pskb_trim_head(struct sk_buff *skb, int len)
+static unsigned char *__pskb_trim_head(struct sk_buff *skb, int len)
 {
 	int i, k, eat;
 
@@ -459,7 +579,7 @@ unsigned char * __pskb_trim_head(struct sk_buff *skb, int len)
 	return skb->tail;
 }
 
-static int tcp_trim_head(struct sock *sk, struct sk_buff *skb, u32 len)
+int tcp_trim_head(struct sock *sk, struct sk_buff *skb, u32 len)
 {
 	if (skb_cloned(skb) &&
 	    pskb_expand_head(skb, 0, 0, GFP_ATOMIC))
@@ -474,15 +594,27 @@ static int tcp_trim_head(struct sock *sk, struct sk_buff *skb, u32 len)
 
 	TCP_SKB_CB(skb)->seq += len;
 	skb->ip_summed = CHECKSUM_HW;
+
+	skb->truesize	     -= len;
+	sk->sk_wmem_queued   -= len;
+	sk->sk_forward_alloc += len;
+	sock_set_flag(sk, SOCK_QUEUE_SHRUNK);
+
+	/* Any change of skb->len requires recalculation of tso
+	 * factor and mss.
+	 */
+	if (tcp_skb_pcount(skb) > 1)
+		tcp_set_skb_tso_segs(sk, skb);
+
 	return 0;
 }
 
 /* This function synchronize snd mss to current pmtu/exthdr set.
 
-   tp->user_mss is mss set by user by TCP_MAXSEG. It does NOT counts
+   tp->rx_opt.user_mss is mss set by user by TCP_MAXSEG. It does NOT counts
    for TCP options, but includes only bare TCP header.
 
-   tp->mss_clamp is mss negotiated at connection setup.
+   tp->rx_opt.mss_clamp is mss negotiated at connection setup.
    It is minumum of user_mss and mss received with SYN.
    It also does not include TCP options.
 
@@ -491,7 +623,7 @@ static int tcp_trim_head(struct sock *sk, struct sk_buff *skb, u32 len)
    tp->mss_cache is current effective sending mss, including
    all tcp options except for SACKs. It is evaluated,
    taking into account current pmtu, but never exceeds
-   tp->mss_clamp.
+   tp->rx_opt.mss_clamp.
 
    NOTE1. rfc1122 clearly states that advertised MSS
    DOES NOT include either tcp or ip options.
@@ -500,14 +632,10 @@ static int tcp_trim_head(struct sock *sk, struct sk_buff *skb, u32 len)
    this function.			--ANK (980731)
  */
 
-int tcp_sync_mss(struct sock *sk, u32 pmtu)
+unsigned int tcp_sync_mss(struct sock *sk, u32 pmtu)
 {
-	struct tcp_opt *tp = tcp_sk(sk);
-	struct dst_entry *dst = __sk_dst_get(sk);
+	struct tcp_sock *tp = tcp_sk(sk);
 	int mss_now;
-
-	if (dst && dst->ops->get_mss)
-		pmtu = dst->ops->get_mss(dst, pmtu);
 
 	/* Calculate base mss without TCP options:
 	   It is MMS_S - sizeof(tcphdr) of rfc1122
@@ -515,11 +643,11 @@ int tcp_sync_mss(struct sock *sk, u32 pmtu)
 	mss_now = pmtu - tp->af_specific->net_header_len - sizeof(struct tcphdr);
 
 	/* Clamp it (mss_clamp does not include tcp options) */
-	if (mss_now > tp->mss_clamp)
-		mss_now = tp->mss_clamp;
+	if (mss_now > tp->rx_opt.mss_clamp)
+		mss_now = tp->rx_opt.mss_clamp;
 
 	/* Now subtract optional transport overhead */
-	mss_now -= tp->ext_header_len + tp->ext2_header_len;
+	mss_now -= tp->ext_header_len;
 
 	/* Then reserve room for full set of TCP options and 8 bytes of data */
 	if (mss_now < 48)
@@ -536,22 +664,68 @@ int tcp_sync_mss(struct sock *sk, u32 pmtu)
 	tp->pmtu_cookie = pmtu;
 	tp->mss_cache = tp->mss_cache_std = mss_now;
 
-	if (sk->sk_route_caps & NETIF_F_TSO) {
-		int large_mss;
-
-		large_mss = 65535 - tp->af_specific->net_header_len -
-			tp->ext_header_len - tp->ext2_header_len - tp->tcp_header_len;
-
-		if (tp->max_window && large_mss > (tp->max_window>>1))
-			large_mss = max((tp->max_window>>1), 68U - tp->tcp_header_len);
-
-		/* Always keep large mss multiple of real mss. */
-		tp->mss_cache = mss_now*(large_mss/mss_now);
-	}
-
 	return mss_now;
 }
 
+/* Compute the current effective MSS, taking SACKs and IP options,
+ * and even PMTU discovery events into account.
+ *
+ * LARGESEND note: !urg_mode is overkill, only frames up to snd_up
+ * cannot be large. However, taking into account rare use of URG, this
+ * is not a big flaw.
+ */
+
+unsigned int tcp_current_mss(struct sock *sk, int large)
+{
+	struct tcp_sock *tp = tcp_sk(sk);
+	struct dst_entry *dst = __sk_dst_get(sk);
+	unsigned int do_large, mss_now;
+
+	mss_now = tp->mss_cache_std;
+	if (dst) {
+		u32 mtu = dst_mtu(dst);
+		if (mtu != tp->pmtu_cookie)
+			mss_now = tcp_sync_mss(sk, mtu);
+	}
+
+	do_large = (large &&
+		    (sk->sk_route_caps & NETIF_F_TSO) &&
+		    !tp->urg_mode);
+
+	if (do_large) {
+		unsigned int large_mss, factor, limit;
+
+		large_mss = 65535 - tp->af_specific->net_header_len -
+			tp->ext_header_len - tp->tcp_header_len;
+
+		if (tp->max_window && large_mss > (tp->max_window>>1))
+			large_mss = max((tp->max_window>>1),
+					68U - tp->tcp_header_len);
+
+		factor = large_mss / mss_now;
+
+		/* Always keep large mss multiple of real mss, but
+		 * do not exceed 1/tso_win_divisor of the congestion window
+		 * so we can keep the ACK clock ticking and minimize
+		 * bursting.
+		 */
+		limit = tp->snd_cwnd;
+		if (sysctl_tcp_tso_win_divisor)
+			limit /= sysctl_tcp_tso_win_divisor;
+		limit = max(1U, limit);
+		if (factor > limit)
+			factor = limit;
+
+		tp->mss_cache = mss_now * factor;
+
+		mss_now = tp->mss_cache;
+	}
+
+	if (tp->rx_opt.eff_sacks)
+		mss_now -= (TCPOLEN_SACK_BASE_ALIGNED +
+			    (tp->rx_opt.eff_sacks * TCPOLEN_SACK_PERBLOCK));
+	return mss_now;
+}
 
 /* This routine writes packets to the network.  It advances the
  * send_head.  This happens as incoming acks open up the remote
@@ -562,7 +736,7 @@ int tcp_sync_mss(struct sock *sk, u32 pmtu)
  */
 int tcp_write_xmit(struct sock *sk, int nonagle)
 {
-	struct tcp_opt *tp = tcp_sk(sk);
+	struct tcp_sock *tp = tcp_sk(sk);
 	unsigned int mss_now;
 
 	/* If we are closed, the bytes will have to remain here.
@@ -581,7 +755,7 @@ int tcp_write_xmit(struct sock *sk, int nonagle)
 		mss_now = tcp_current_mss(sk, 1);
 
 		while ((skb = sk->sk_send_head) &&
-		       tcp_snd_test(tp, skb, mss_now,
+		       tcp_snd_test(sk, skb, mss_now,
 			       	    tcp_skb_is_last(sk, skb) ? nonagle :
 				    			       TCP_NAGLE_PUSH)) {
 			if (skb->len > mss_now) {
@@ -590,10 +764,15 @@ int tcp_write_xmit(struct sock *sk, int nonagle)
 			}
 
 			TCP_SKB_CB(skb)->when = tcp_time_stamp;
+			tcp_tso_set_push(skb);
 			if (tcp_transmit_skb(sk, skb_clone(skb, GFP_ATOMIC)))
 				break;
-			/* Advance the send_head.  This one is sent out. */
+
+			/* Advance the send_head.  This one is sent out.
+			 * This call will increment packets_out.
+			 */
 			update_send_head(sk, tp, skb);
+
 			tcp_minshall_update(tp, mss_now, skb);
 			sent_pkts = 1;
 		}
@@ -662,7 +841,7 @@ int tcp_write_xmit(struct sock *sk, int nonagle)
  */
 u32 __tcp_select_window(struct sock *sk)
 {
-	struct tcp_opt *tp = tcp_sk(sk);
+	struct tcp_sock *tp = tcp_sk(sk);
 	/* MSS for the peer's data.  Previous verions used mss_clamp
 	 * here.  I don't know if the value based on our guesses
 	 * of peer's MSS is better for the performance.  It's more correct
@@ -694,16 +873,16 @@ u32 __tcp_select_window(struct sock *sk)
 	 * scaled window will not line up with the MSS boundary anyway.
 	 */
 	window = tp->rcv_wnd;
-	if (tp->rcv_wscale) {
+	if (tp->rx_opt.rcv_wscale) {
 		window = free_space;
 
 		/* Advertise enough space so that it won't get scaled away.
 		 * Import case: prevent zero window announcement if
 		 * 1<<rcv_wscale > mss.
 		 */
-		if (((window >> tp->rcv_wscale) << tp->rcv_wscale) != window)
-			window = (((window >> tp->rcv_wscale) + 1)
-				  << tp->rcv_wscale);
+		if (((window >> tp->rx_opt.rcv_wscale) << tp->rx_opt.rcv_wscale) != window)
+			window = (((window >> tp->rx_opt.rcv_wscale) + 1)
+				  << tp->rx_opt.rcv_wscale);
 	} else {
 		/* Get the largest window that is a nice multiple of mss.
 		 * Window clamp already applied above.
@@ -723,13 +902,13 @@ u32 __tcp_select_window(struct sock *sk)
 /* Attempt to collapse two adjacent SKB's during retransmission. */
 static void tcp_retrans_try_collapse(struct sock *sk, struct sk_buff *skb, int mss_now)
 {
-	struct tcp_opt *tp = tcp_sk(sk);
+	struct tcp_sock *tp = tcp_sk(sk);
 	struct sk_buff *next_skb = skb->next;
 
 	/* The first test we must make is that neither of these two
 	 * SKB's are still referenced by someone else.
 	 */
-	if(!skb_cloned(skb) && !skb_cloned(next_skb)) {
+	if (!skb_cloned(skb) && !skb_cloned(next_skb)) {
 		int skb_size = skb->len, next_skb_size = next_skb->len;
 		u16 flags = TCP_SKB_CB(skb)->flags;
 
@@ -748,6 +927,9 @@ static void tcp_retrans_try_collapse(struct sock *sk, struct sk_buff *skb, int m
 		if ((next_skb_size > skb_tailroom(skb)) ||
 		    ((skb_size + next_skb_size) > mss_now))
 			return;
+
+		BUG_ON(tcp_skb_pcount(skb) != 1 ||
+		       tcp_skb_pcount(next_skb) != 1);
 
 		/* Ok.  We will be able to collapse the packet. */
 		__skb_unlink(next_skb, next_skb->list);
@@ -772,24 +954,23 @@ static void tcp_retrans_try_collapse(struct sock *sk, struct sk_buff *skb, int m
 		 */
 		TCP_SKB_CB(skb)->sacked |= TCP_SKB_CB(next_skb)->sacked&(TCPCB_EVER_RETRANS|TCPCB_AT_TAIL);
 		if (TCP_SKB_CB(next_skb)->sacked&TCPCB_SACKED_RETRANS)
-			tp->retrans_out--;
+			tp->retrans_out -= tcp_skb_pcount(next_skb);
 		if (TCP_SKB_CB(next_skb)->sacked&TCPCB_LOST) {
-			tp->lost_out--;
-			tp->left_out--;
+			tp->lost_out -= tcp_skb_pcount(next_skb);
+			tp->left_out -= tcp_skb_pcount(next_skb);
 		}
 		/* Reno case is special. Sigh... */
-		if (!tp->sack_ok && tp->sacked_out) {
-			tp->sacked_out--;
-			tp->left_out--;
+		if (!tp->rx_opt.sack_ok && tp->sacked_out) {
+			tcp_dec_pcount_approx(&tp->sacked_out, next_skb);
+			tp->left_out -= tcp_skb_pcount(next_skb);
 		}
 
 		/* Not quite right: it can be > snd.fack, but
 		 * it is better to underestimate fackets.
 		 */
-		if (tp->fackets_out)
-			tp->fackets_out--;
+		tcp_dec_pcount_approx(&tp->fackets_out, next_skb);
+		tcp_packets_out_dec(tp, next_skb);
 		sk_stream_free_skb(sk, next_skb);
-		tp->packets_out--;
 	}
 }
 
@@ -799,7 +980,7 @@ static void tcp_retrans_try_collapse(struct sock *sk, struct sk_buff *skb, int m
  */ 
 void tcp_simple_retransmit(struct sock *sk)
 {
-	struct tcp_opt *tp = tcp_sk(sk);
+	struct tcp_sock *tp = tcp_sk(sk);
 	struct sk_buff *skb;
 	unsigned int mss = tcp_current_mss(sk, 0);
 	int lost = 0;
@@ -809,11 +990,11 @@ void tcp_simple_retransmit(struct sock *sk)
 		    !(TCP_SKB_CB(skb)->sacked&TCPCB_SACKED_ACKED)) {
 			if (TCP_SKB_CB(skb)->sacked&TCPCB_SACKED_RETRANS) {
 				TCP_SKB_CB(skb)->sacked &= ~TCPCB_SACKED_RETRANS;
-				tp->retrans_out--;
+				tp->retrans_out -= tcp_skb_pcount(skb);
 			}
 			if (!(TCP_SKB_CB(skb)->sacked&TCPCB_LOST)) {
 				TCP_SKB_CB(skb)->sacked |= TCPCB_LOST;
-				tp->lost_out++;
+				tp->lost_out += tcp_skb_pcount(skb);
 				lost = 1;
 			}
 		}
@@ -845,7 +1026,7 @@ void tcp_simple_retransmit(struct sock *sk)
  */
 int tcp_retransmit_skb(struct sock *sk, struct sk_buff *skb)
 {
-	struct tcp_opt *tp = tcp_sk(sk);
+	struct tcp_sock *tp = tcp_sk(sk);
  	unsigned int cur_mss = tcp_current_mss(sk, 0);
 	int err;
 
@@ -862,7 +1043,7 @@ int tcp_retransmit_skb(struct sock *sk, struct sk_buff *skb)
 
 		if (sk->sk_route_caps & NETIF_F_TSO) {
 			sk->sk_route_caps &= ~NETIF_F_TSO;
-			sk->sk_no_largesend = 1;
+			sock_set_flag(sk, SOCK_NO_LARGESEND);
 			tp->mss_cache = tp->mss_cache_std;
 		}
 
@@ -879,12 +1060,17 @@ int tcp_retransmit_skb(struct sock *sk, struct sk_buff *skb)
 	    && TCP_SKB_CB(skb)->seq != tp->snd_una)
 		return -EAGAIN;
 
-	if(skb->len > cur_mss) {
-		if(tcp_fragment(sk, skb, cur_mss))
+	if (skb->len > cur_mss) {
+		int old_factor = tcp_skb_pcount(skb);
+		int new_factor;
+
+		if (tcp_fragment(sk, skb, cur_mss))
 			return -ENOMEM; /* We'll try again later. */
 
 		/* New SKB created, account for it. */
-		tp->packets_out++;
+		new_factor = tcp_skb_pcount(skb);
+		tp->packets_out -= old_factor - new_factor;
+		tp->packets_out += tcp_skb_pcount(skb->next);
 	}
 
 	/* Collapse two adjacent packets if worthwhile and we can. */
@@ -893,6 +1079,7 @@ int tcp_retransmit_skb(struct sock *sk, struct sk_buff *skb)
 	   (skb->next != sk->sk_send_head) &&
 	   (skb->next != (struct sk_buff *)&sk->sk_write_queue) &&
 	   (skb_shinfo(skb)->nr_frags == 0 && skb_shinfo(skb->next)->nr_frags == 0) &&
+	   (tcp_skb_pcount(skb) == 1 && tcp_skb_pcount(skb->next) == 1) &&
 	   (sysctl_tcp_retrans_collapse != 0))
 		tcp_retrans_try_collapse(sk, skb, cur_mss);
 
@@ -908,6 +1095,8 @@ int tcp_retransmit_skb(struct sock *sk, struct sk_buff *skb)
 	   tp->snd_una == (TCP_SKB_CB(skb)->end_seq - 1)) {
 		if (!pskb_trim(skb, 0)) {
 			TCP_SKB_CB(skb)->seq = TCP_SKB_CB(skb)->end_seq - 1;
+			skb_shinfo(skb)->tso_segs = 1;
+			skb_shinfo(skb)->tso_size = 0;
 			skb->ip_summed = CHECKSUM_NONE;
 			skb->csum = 0;
 		}
@@ -917,6 +1106,7 @@ int tcp_retransmit_skb(struct sock *sk, struct sk_buff *skb)
 	 * is still in somebody's hands, else make a clone.
 	 */
 	TCP_SKB_CB(skb)->when = tcp_time_stamp;
+	tcp_tso_set_push(skb);
 
 	err = tcp_transmit_skb(sk, (skb_cloned(skb) ?
 				    pskb_copy(skb, GFP_ATOMIC):
@@ -926,6 +1116,8 @@ int tcp_retransmit_skb(struct sock *sk, struct sk_buff *skb)
 		/* Update global TCP statistics. */
 		TCP_INC_STATS(TCP_MIB_RETRANSSEGS);
 
+		tp->total_retrans++;
+
 #if FASTRETRANS_DEBUG > 0
 		if (TCP_SKB_CB(skb)->sacked&TCPCB_SACKED_RETRANS) {
 			if (net_ratelimit())
@@ -933,7 +1125,7 @@ int tcp_retransmit_skb(struct sock *sk, struct sk_buff *skb)
 		}
 #endif
 		TCP_SKB_CB(skb)->sacked |= TCPCB_RETRANS;
-		tp->retrans_out++;
+		tp->retrans_out += tcp_skb_pcount(skb);
 
 		/* Save stamp of the first retransmit. */
 		if (!tp->retrans_stamp)
@@ -959,7 +1151,7 @@ int tcp_retransmit_skb(struct sock *sk, struct sk_buff *skb)
  */
 void tcp_xmit_retransmit_queue(struct sock *sk)
 {
-	struct tcp_opt *tp = tcp_sk(sk);
+	struct tcp_sock *tp = tcp_sk(sk);
 	struct sk_buff *skb;
 	int packet_cnt = tp->lost_out;
 
@@ -968,6 +1160,13 @@ void tcp_xmit_retransmit_queue(struct sock *sk)
 		sk_stream_for_retrans_queue(skb, sk) {
 			__u8 sacked = TCP_SKB_CB(skb)->sacked;
 
+			/* Assume this retransmit will generate
+			 * only one packet for congestion window
+			 * calculation purposes.  This works because
+			 * tcp_retransmit_skb() will chop up the
+			 * packet to be MSS sized and all the
+			 * packet counting works out.
+			 */
 			if (tcp_packets_in_flight(tp) >= tp->snd_cwnd)
 				return;
 
@@ -985,7 +1184,8 @@ void tcp_xmit_retransmit_queue(struct sock *sk)
 						tcp_reset_xmit_timer(sk, TCP_TIME_RETRANS, tp->rto);
 				}
 
-				if (--packet_cnt <= 0)
+				packet_cnt -= tcp_skb_pcount(skb);
+				if (packet_cnt <= 0)
 					break;
 			}
 		}
@@ -998,13 +1198,13 @@ void tcp_xmit_retransmit_queue(struct sock *sk)
 		return;
 
 	/* No forward retransmissions in Reno are possible. */
-	if (!tp->sack_ok)
+	if (!tp->rx_opt.sack_ok)
 		return;
 
 	/* Yeah, we have to make difficult choice between forward transmission
 	 * and retransmission... Both ways have their merits...
 	 *
-	 * For now we do not retrnamsit anything, while we have some new
+	 * For now we do not retransmit anything, while we have some new
 	 * segments to send.
 	 */
 
@@ -1014,17 +1214,23 @@ void tcp_xmit_retransmit_queue(struct sock *sk)
 	packet_cnt = 0;
 
 	sk_stream_for_retrans_queue(skb, sk) {
-		if(++packet_cnt > tp->fackets_out)
+		/* Similar to the retransmit loop above we
+		 * can pretend that the retransmitted SKB
+		 * we send out here will be composed of one
+		 * real MSS sized packet because tcp_retransmit_skb()
+		 * will fragment it if necessary.
+		 */
+		if (++packet_cnt > tp->fackets_out)
 			break;
 
 		if (tcp_packets_in_flight(tp) >= tp->snd_cwnd)
 			break;
 
-		if(TCP_SKB_CB(skb)->sacked & TCPCB_TAGBITS)
+		if (TCP_SKB_CB(skb)->sacked & TCPCB_TAGBITS)
 			continue;
 
 		/* Ok, retransmit it. */
-		if(tcp_retransmit_skb(sk, skb))
+		if (tcp_retransmit_skb(sk, skb))
 			break;
 
 		if (skb == skb_peek(&sk->sk_write_queue))
@@ -1040,15 +1246,15 @@ void tcp_xmit_retransmit_queue(struct sock *sk)
  */
 void tcp_send_fin(struct sock *sk)
 {
-	struct tcp_opt *tp = tcp_sk(sk);	
+	struct tcp_sock *tp = tcp_sk(sk);	
 	struct sk_buff *skb = skb_peek_tail(&sk->sk_write_queue);
-	unsigned int mss_now;
+	int mss_now;
 	
 	/* Optimization, tack on the FIN if we have a queue of
 	 * unsent frames.  But be careful about outgoing SACKS
 	 * and IP options.
 	 */
-	mss_now = tcp_current_mss(sk, 1); 
+	mss_now = tcp_current_mss(sk, 1);
 
 	if (sk->sk_send_head != NULL) {
 		TCP_SKB_CB(skb)->flags |= TCPCB_FLAG_FIN;
@@ -1068,6 +1274,8 @@ void tcp_send_fin(struct sock *sk)
 		skb->csum = 0;
 		TCP_SKB_CB(skb)->flags = (TCPCB_FLAG_ACK | TCPCB_FLAG_FIN);
 		TCP_SKB_CB(skb)->sacked = 0;
+		skb_shinfo(skb)->tso_segs = 1;
+		skb_shinfo(skb)->tso_size = 0;
 
 		/* FIN eats a sequence byte, write_seq advanced by tcp_queue_skb(). */
 		TCP_SKB_CB(skb)->seq = tp->write_seq;
@@ -1084,7 +1292,7 @@ void tcp_send_fin(struct sock *sk)
  */
 void tcp_send_active_reset(struct sock *sk, int priority)
 {
-	struct tcp_opt *tp = tcp_sk(sk);
+	struct tcp_sock *tp = tcp_sk(sk);
 	struct sk_buff *skb;
 
 	/* NOTE: No TCP options attached and we never retransmit this. */
@@ -1099,6 +1307,8 @@ void tcp_send_active_reset(struct sock *sk, int priority)
 	skb->csum = 0;
 	TCP_SKB_CB(skb)->flags = (TCPCB_FLAG_ACK | TCPCB_FLAG_RST);
 	TCP_SKB_CB(skb)->sacked = 0;
+	skb_shinfo(skb)->tso_segs = 1;
+	skb_shinfo(skb)->tso_size = 0;
 
 	/* Send it off. */
 	TCP_SKB_CB(skb)->seq = tcp_acceptable_seq(sk, tp);
@@ -1128,6 +1338,7 @@ int tcp_send_synack(struct sock *sk)
 			if (nskb == NULL)
 				return -ENOMEM;
 			__skb_unlink(skb, &sk->sk_write_queue);
+			skb_header_release(nskb);
 			__skb_queue_head(&sk->sk_write_queue, nskb);
 			sk_stream_free_skb(sk, skb);
 			sk_charge_skb(sk, nskb);
@@ -1147,7 +1358,7 @@ int tcp_send_synack(struct sock *sk)
 struct sk_buff * tcp_make_synack(struct sock *sk, struct dst_entry *dst,
 				 struct open_request *req)
 {
-	struct tcp_opt *tp = tcp_sk(sk);
+	struct tcp_sock *tp = tcp_sk(sk);
 	struct tcphdr *th;
 	int tcp_header_size;
 	struct sk_buff *skb;
@@ -1178,6 +1389,9 @@ struct sk_buff * tcp_make_synack(struct sock *sk, struct dst_entry *dst,
 	th->dest = req->rmt_port;
 	TCP_SKB_CB(skb)->seq = req->snt_isn;
 	TCP_SKB_CB(skb)->end_seq = TCP_SKB_CB(skb)->seq + 1;
+	TCP_SKB_CB(skb)->sacked = 0;
+	skb_shinfo(skb)->tso_segs = 1;
+	skb_shinfo(skb)->tso_size = 0;
 	th->seq = htonl(TCP_SKB_CB(skb)->seq);
 	th->ack_seq = htonl(req->rcv_isn + 1);
 	if (req->rcv_wnd == 0) { /* ignored for retransmitted syns */
@@ -1215,7 +1429,8 @@ struct sk_buff * tcp_make_synack(struct sock *sk, struct dst_entry *dst,
 static inline void tcp_connect_init(struct sock *sk)
 {
 	struct dst_entry *dst = __sk_dst_get(sk);
-	struct tcp_opt *tp = tcp_sk(sk);
+	struct tcp_sock *tp = tcp_sk(sk);
+	__u8 rcv_wscale;
 
 	/* We'll fix this up when we get a response from the other end.
 	 * See tcp_input.c:tcp_rcv_state_process case TCP_SYN_SENT.
@@ -1224,24 +1439,25 @@ static inline void tcp_connect_init(struct sock *sk)
 		(sysctl_tcp_timestamps ? TCPOLEN_TSTAMP_ALIGNED : 0);
 
 	/* If user gave his TCP_MAXSEG, record it to clamp */
-	if (tp->user_mss)
-		tp->mss_clamp = tp->user_mss;
+	if (tp->rx_opt.user_mss)
+		tp->rx_opt.mss_clamp = tp->rx_opt.user_mss;
 	tp->max_window = 0;
-	tcp_sync_mss(sk, dst_pmtu(dst));
+	tcp_sync_mss(sk, dst_mtu(dst));
 
 	if (!tp->window_clamp)
 		tp->window_clamp = dst_metric(dst, RTAX_WINDOW);
 	tp->advmss = dst_metric(dst, RTAX_ADVMSS);
 	tcp_initialize_rcv_mss(sk);
-	tcp_vegas_init(tp);
+	tcp_ca_init(tp);
 
 	tcp_select_initial_window(tcp_full_space(sk),
-				  tp->advmss - (tp->ts_recent_stamp ? tp->tcp_header_len - sizeof(struct tcphdr) : 0),
+				  tp->advmss - (tp->rx_opt.ts_recent_stamp ? tp->tcp_header_len - sizeof(struct tcphdr) : 0),
 				  &tp->rcv_wnd,
 				  &tp->window_clamp,
 				  sysctl_tcp_window_scaling,
-				  &tp->rcv_wscale);
+				  &rcv_wscale);
 
+	tp->rx_opt.rcv_wscale = rcv_wscale;
 	tp->rcv_ssthresh = tp->rcv_wnd;
 
 	sk->sk_err = 0;
@@ -1264,7 +1480,7 @@ static inline void tcp_connect_init(struct sock *sk)
  */ 
 int tcp_connect(struct sock *sk)
 {
-	struct tcp_opt *tp = tcp_sk(sk);
+	struct tcp_sock *tp = tcp_sk(sk);
 	struct sk_buff *buff;
 
 	tcp_connect_init(sk);
@@ -1279,19 +1495,22 @@ int tcp_connect(struct sock *sk)
 	TCP_SKB_CB(buff)->flags = TCPCB_FLAG_SYN;
 	TCP_ECN_send_syn(sk, tp, buff);
 	TCP_SKB_CB(buff)->sacked = 0;
+	skb_shinfo(buff)->tso_segs = 1;
+	skb_shinfo(buff)->tso_size = 0;
 	buff->csum = 0;
 	TCP_SKB_CB(buff)->seq = tp->write_seq++;
 	TCP_SKB_CB(buff)->end_seq = tp->write_seq;
 	tp->snd_nxt = tp->write_seq;
 	tp->pushed_seq = tp->write_seq;
-	tcp_vegas_init(tp);
+	tcp_ca_init(tp);
 
 	/* Send it off. */
 	TCP_SKB_CB(buff)->when = tcp_time_stamp;
 	tp->retrans_stamp = TCP_SKB_CB(buff)->when;
+	skb_header_release(buff);
 	__skb_queue_tail(&sk->sk_write_queue, buff);
 	sk_charge_skb(sk, buff);
-	tp->packets_out++;
+	tp->packets_out += tcp_skb_pcount(buff);
 	tcp_transmit_skb(sk, skb_clone(buff, GFP_KERNEL));
 	TCP_INC_STATS(TCP_MIB_ACTIVEOPENS);
 
@@ -1306,7 +1525,7 @@ int tcp_connect(struct sock *sk)
  */
 void tcp_send_delayed_ack(struct sock *sk)
 {
-	struct tcp_opt *tp = tcp_sk(sk);
+	struct tcp_sock *tp = tcp_sk(sk);
 	int ato = tp->ack.ato;
 	unsigned long timeout;
 
@@ -1358,7 +1577,7 @@ void tcp_send_ack(struct sock *sk)
 {
 	/* If we have been reset, we may not send again. */
 	if (sk->sk_state != TCP_CLOSE) {
-		struct tcp_opt *tp = tcp_sk(sk);
+		struct tcp_sock *tp = tcp_sk(sk);
 		struct sk_buff *buff;
 
 		/* We are not putting this on the write queue, so
@@ -1378,6 +1597,8 @@ void tcp_send_ack(struct sock *sk)
 		buff->csum = 0;
 		TCP_SKB_CB(buff)->flags = TCPCB_FLAG_ACK;
 		TCP_SKB_CB(buff)->sacked = 0;
+		skb_shinfo(buff)->tso_segs = 1;
+		skb_shinfo(buff)->tso_size = 0;
 
 		/* Send it off, this clears delayed acks for us. */
 		TCP_SKB_CB(buff)->seq = TCP_SKB_CB(buff)->end_seq = tcp_acceptable_seq(sk, tp);
@@ -1399,7 +1620,7 @@ void tcp_send_ack(struct sock *sk)
  */
 static int tcp_xmit_probe_skb(struct sock *sk, int urgent)
 {
-	struct tcp_opt *tp = tcp_sk(sk);
+	struct tcp_sock *tp = tcp_sk(sk);
 	struct sk_buff *skb;
 
 	/* We don't queue it, tcp_transmit_skb() sets ownership. */
@@ -1412,6 +1633,8 @@ static int tcp_xmit_probe_skb(struct sock *sk, int urgent)
 	skb->csum = 0;
 	TCP_SKB_CB(skb)->flags = TCPCB_FLAG_ACK;
 	TCP_SKB_CB(skb)->sacked = urgent;
+	skb_shinfo(skb)->tso_segs = 1;
+	skb_shinfo(skb)->tso_size = 0;
 
 	/* Use a previous sequence.  This should cause the other
 	 * end to send an ack.  Don't queue or clone SKB, just
@@ -1426,14 +1649,14 @@ static int tcp_xmit_probe_skb(struct sock *sk, int urgent)
 int tcp_write_wakeup(struct sock *sk)
 {
 	if (sk->sk_state != TCP_CLOSE) {
-		struct tcp_opt *tp = tcp_sk(sk);
+		struct tcp_sock *tp = tcp_sk(sk);
 		struct sk_buff *skb;
 
 		if ((skb = sk->sk_send_head) != NULL &&
 		    before(TCP_SKB_CB(skb)->seq, tp->snd_una+tp->snd_wnd)) {
 			int err;
-			int mss = tcp_current_mss(sk, 0);
-			int seg_size = tp->snd_una+tp->snd_wnd-TCP_SKB_CB(skb)->seq;
+			unsigned int mss = tcp_current_mss(sk, 0);
+			unsigned int seg_size = tp->snd_una+tp->snd_wnd-TCP_SKB_CB(skb)->seq;
 
 			if (before(tp->pushed_seq, TCP_SKB_CB(skb)->end_seq))
 				tp->pushed_seq = TCP_SKB_CB(skb)->end_seq;
@@ -1451,13 +1674,16 @@ int tcp_write_wakeup(struct sock *sk)
 				/* SWS override triggered forced fragmentation.
 				 * Disable TSO, the connection is too sick. */
 				if (sk->sk_route_caps & NETIF_F_TSO) {
-					sk->sk_no_largesend = 1;
+					sock_set_flag(sk, SOCK_NO_LARGESEND);
 					sk->sk_route_caps &= ~NETIF_F_TSO;
 					tp->mss_cache = tp->mss_cache_std;
 				}
-			}
+			} else if (!tcp_skb_pcount(skb))
+				tcp_set_skb_tso_segs(sk, skb);
+
 			TCP_SKB_CB(skb)->flags |= TCPCB_FLAG_PSH;
 			TCP_SKB_CB(skb)->when = tcp_time_stamp;
+			tcp_tso_set_push(skb);
 			err = tcp_transmit_skb(sk, skb_clone(skb, GFP_ATOMIC));
 			if (!err) {
 				update_send_head(sk, tp, skb);
@@ -1478,7 +1704,7 @@ int tcp_write_wakeup(struct sock *sk)
  */
 void tcp_send_probe0(struct sock *sk)
 {
-	struct tcp_opt *tp = tcp_sk(sk);
+	struct tcp_sock *tp = tcp_sk(sk);
 	int err;
 
 	err = tcp_write_wakeup(sk);
@@ -1510,13 +1736,7 @@ void tcp_send_probe0(struct sock *sk)
 	}
 }
 
-EXPORT_SYMBOL(tcp_acceptable_seq);
 EXPORT_SYMBOL(tcp_connect);
-EXPORT_SYMBOL(tcp_connect_init);
 EXPORT_SYMBOL(tcp_make_synack);
-EXPORT_SYMBOL(tcp_send_synack);
 EXPORT_SYMBOL(tcp_simple_retransmit);
 EXPORT_SYMBOL(tcp_sync_mss);
-EXPORT_SYMBOL(tcp_transmit_skb);
-EXPORT_SYMBOL(tcp_write_wakeup);
-EXPORT_SYMBOL(tcp_write_xmit);

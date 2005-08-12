@@ -52,39 +52,41 @@ set_ect_ip(struct sk_buff **pskb, const struct ipt_ECN_info *einfo)
 static inline int
 set_ect_tcp(struct sk_buff **pskb, const struct ipt_ECN_info *einfo, int inward)
 {
-	struct tcphdr tcph;
+	struct tcphdr _tcph, *tcph;
 	u_int16_t diffs[2];
 
 	/* Not enought header? */
-	if (skb_copy_bits(*pskb, (*pskb)->nh.iph->ihl*4, &tcph, sizeof(tcph))
-	    < 0)
+	tcph = skb_header_pointer(*pskb, (*pskb)->nh.iph->ihl*4,
+				  sizeof(_tcph), &_tcph);
+	if (!tcph)
 		return 0;
 
-	diffs[0] = ((u_int16_t *)&tcph)[6];
+	if (!(einfo->operation & IPT_ECN_OP_SET_ECE
+	      || tcph->ece == einfo->proto.tcp.ece)
+	    && (!(einfo->operation & IPT_ECN_OP_SET_CWR
+		  || tcph->cwr == einfo->proto.tcp.cwr)))
+		return 1;
+
+	if (!skb_ip_make_writable(pskb, (*pskb)->nh.iph->ihl*4+sizeof(*tcph)))
+		return 0;
+	tcph = (void *)(*pskb)->nh.iph + (*pskb)->nh.iph->ihl*4;
+
+	diffs[0] = ((u_int16_t *)tcph)[6];
 	if (einfo->operation & IPT_ECN_OP_SET_ECE)
-		tcph.ece = einfo->proto.tcp.ece;
-
+		tcph->ece = einfo->proto.tcp.ece;
 	if (einfo->operation & IPT_ECN_OP_SET_CWR)
-		tcph.cwr = einfo->proto.tcp.cwr;
-	diffs[1] = ((u_int16_t *)&tcph)[6];
+		tcph->cwr = einfo->proto.tcp.cwr;
+	diffs[1] = ((u_int16_t *)tcph)[6];
+	diffs[0] = diffs[0] ^ 0xFFFF;
 
-	/* Only mangle if it's changed. */
-	if (diffs[0] != diffs[1]) {
-		diffs[0] = diffs[0] ^ 0xFFFF;
-		if (!skb_ip_make_writable(pskb,
-					  (*pskb)->nh.iph->ihl*4+sizeof(tcph)))
+	if ((*pskb)->ip_summed != CHECKSUM_HW)
+		tcph->check = csum_fold(csum_partial((char *)diffs,
+						     sizeof(diffs),
+						     tcph->check^0xFFFF));
+	else
+		if (skb_checksum_help(*pskb, inward))
 			return 0;
-		if ((*pskb)->ip_summed != CHECKSUM_HW)
-			tcph.check = csum_fold(csum_partial((char *)diffs,
-					       sizeof(diffs),
-					       tcph.check^0xFFFF));
-		memcpy((*pskb)->data + (*pskb)->nh.iph->ihl*4,
-		       &tcph, sizeof(tcph));
-		if ((*pskb)->ip_summed == CHECKSUM_HW)
-			if (skb_checksum_help(pskb, inward))
-				return 0;
-		(*pskb)->nfcache |= NFC_ALTERED;
-	}
+	(*pskb)->nfcache |= NFC_ALTERED;
 	return 1;
 }
 
@@ -143,7 +145,7 @@ checkentry(const char *tablename,
 	}
 
 	if ((einfo->operation & (IPT_ECN_OP_SET_ECE|IPT_ECN_OP_SET_CWR))
-	    && e->ip.proto != IPPROTO_TCP) {
+	    && (e->ip.proto != IPPROTO_TCP || (e->ip.invflags & IPT_INV_PROTO))) {
 		printk(KERN_WARNING "ECN: cannot use TCP operations on a "
 		       "non-tcp rule\n");
 		return 0;

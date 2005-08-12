@@ -89,6 +89,8 @@ EXPORT_SYMBOL(svc_makesock);
 EXPORT_SYMBOL(svc_reserve);
 EXPORT_SYMBOL(svc_auth_register);
 EXPORT_SYMBOL(auth_domain_lookup);
+EXPORT_SYMBOL(svc_authenticate);
+EXPORT_SYMBOL(svc_set_client);
 
 /* RPC statistics */
 #ifdef CONFIG_PROC_FS
@@ -106,7 +108,6 @@ EXPORT_SYMBOL(auth_unix_add_addr);
 EXPORT_SYMBOL(auth_unix_forget_old);
 EXPORT_SYMBOL(auth_unix_lookup);
 EXPORT_SYMBOL(cache_check);
-EXPORT_SYMBOL(cache_clean);
 EXPORT_SYMBOL(cache_flush);
 EXPORT_SYMBOL(cache_purge);
 EXPORT_SYMBOL(cache_fresh);

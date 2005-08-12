@@ -53,7 +53,7 @@
  *    Change speed of the driver. If the remote device is a DCE, then this
  *    should make it change the speed of its serial port
  */
-void ircomm_tty_change_speed(struct ircomm_tty_cb *self)
+static void ircomm_tty_change_speed(struct ircomm_tty_cb *self)
 {
 	unsigned cflag, cval;
 	int baud;
@@ -95,7 +95,7 @@ void ircomm_tty_change_speed(struct ircomm_tty_cb *self)
 		self->settings.flow_control |= IRCOMM_RTS_CTS_IN;
 		/* This got me. Bummer. Jean II */
 		if (self->service_type == IRCOMM_3_WIRE_RAW)
-			WARNING("%s(), enabling RTS/CTS on link that doesn't support it (3-wire-raw)\n", __FUNCTION__);
+			IRDA_WARNING("%s(), enabling RTS/CTS on link that doesn't support it (3-wire-raw)\n", __FUNCTION__);
 	} else {
 		self->flags &= ~ASYNC_CTS_FLOW;
 		self->settings.flow_control &= ~IRCOMM_RTS_CTS_IN;
@@ -230,8 +230,8 @@ int ircomm_tty_tiocmset(struct tty_struct *tty, struct file *file,
 	if (tty->flags & (1 << TTY_IO_ERROR))
 		return -EIO;
 
-	ASSERT(self != NULL, return -1;);
-	ASSERT(self->magic == IRCOMM_TTY_MAGIC, return -1;);
+	IRDA_ASSERT(self != NULL, return -1;);
+	IRDA_ASSERT(self->magic == IRCOMM_TTY_MAGIC, return -1;);
 
 	if (set & TIOCM_RTS)
 		self->settings.dte |= IRCOMM_RTS;

@@ -11,29 +11,52 @@ for NetBSD, FreeBSD, the GNU HURD, Windows 95/98/NT, OS/2 and RISC OS.
 Options
 =======
 
-When mounting an ext2 filesystem, the following options are accepted.
-Defaults are marked with (*).
+Most defaults are determined by the filesystem superblock, and can be
+set using tune2fs(8). Kernel-determined defaults are indicated by (*).
 
 bsddf			(*)	Makes `df' act like BSD.
 minixdf				Makes `df' act like Minix.
 
+check				Check block and inode bitmaps at mount time
+				(requires CONFIG_EXT2_CHECK).
 check=none, nocheck	(*)	Don't do extra checking of bitmaps on mount
 				(check=normal and check=strict options removed)
 
 debug				Extra debugging information is sent to the
 				kernel syslog.  Useful for developers.
 
-errors=continue		(*)	Keep going on a filesystem error.
+errors=continue			Keep going on a filesystem error.
 errors=remount-ro		Remount the filesystem read-only on an error.
 errors=panic			Panic and halt the machine if an error occurs.
 
 grpid, bsdgroups		Give objects the same group ID as their parent.
-nogrpid, sysvgroups	(*)	New objects have the group ID of their creator.
+nogrpid, sysvgroups		New objects have the group ID of their creator.
+
+nouid32				Use 16-bit UIDs and GIDs.
+
+oldalloc			Enable the old block allocator. Orlov should
+				have better performance, we'd like to get some
+				feedback if it's the contrary for you.
+orlov			(*)	Use the Orlov block allocator.
+				(See http://lwn.net/Articles/14633/ and
+				http://lwn.net/Articles/14446/.)
 
 resuid=n			The user ID which may use the reserved blocks.
-resgid=n			The group ID which may use the reserved blocks. 
+resgid=n			The group ID which may use the reserved blocks.
 
 sb=n				Use alternate superblock at this location.
+
+user_xattr			Enable "user." POSIX Extended Attributes
+				(requires CONFIG_EXT2_FS_XATTR).
+				See also http://acl.bestbits.at
+nouser_xattr			Don't support "user." extended attributes.
+
+acl				Enable POSIX Access Control Lists support
+				(requires CONFIG_EXT2_FS_POSIX_ACL).
+				See also http://acl.bestbits.at
+noacl				Don't support POSIX ACLs.
+
+nobh				Do not attach buffer_heads to file pagecache.
 
 grpquota,noquota,quota,usrquota	Quota options are silently ignored by ext2.
 
@@ -336,9 +359,8 @@ and are copied into the filesystem.  If a transaction is incomplete at
 the time of the crash, then there is no guarantee of consistency for
 the blocks in that transaction so they are discarded (which means any
 filesystem changes they represent are also lost).
-
-The ext3 code is currently (Apr 2001) available for 2.2 kernels only,
-and not yet available for 2.4 kernels.
+Check Documentation/filesystems/ext3.txt if you want to read more about
+ext3 and journaling.
 
 References
 ==========
@@ -349,8 +371,6 @@ Design & Implementation	http://e2fsprogs.sourceforge.net/ext2intro.html
 Journaling (ext3)	ftp://ftp.uk.linux.org/pub/linux/sct/fs/jfs/
 Hashed Directories	http://kernelnewbies.org/~phillips/htree/
 Filesystem Resizing	http://ext2resize.sourceforge.net/
-Extended Attributes &
-Access Control Lists	http://acl.bestbits.at/
 Compression (*)		http://www.netspace.net.au/~reiter/e2compr/
 
 Implementations for:

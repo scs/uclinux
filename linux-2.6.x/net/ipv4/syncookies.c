@@ -17,10 +17,87 @@
 #include <linux/tcp.h>
 #include <linux/slab.h>
 #include <linux/random.h>
+#include <linux/cryptohash.h>
 #include <linux/kernel.h>
 #include <net/tcp.h>
 
 extern int sysctl_tcp_syncookies;
+
+static __u32 syncookie_secret[2][16-3+SHA_DIGEST_WORDS];
+
+static __init int init_syncookies(void)
+{
+	get_random_bytes(syncookie_secret, sizeof(syncookie_secret));
+	return 0;
+}
+module_init(init_syncookies);
+
+#define COOKIEBITS 24	/* Upper bits store count */
+#define COOKIEMASK (((__u32)1 << COOKIEBITS) - 1)
+
+static u32 cookie_hash(u32 saddr, u32 daddr, u32 sport, u32 dport,
+		       u32 count, int c)
+{
+	__u32 tmp[16 + 5 + SHA_WORKSPACE_WORDS];
+
+	memcpy(tmp + 3, syncookie_secret[c], sizeof(syncookie_secret[c]));
+	tmp[0] = saddr;
+	tmp[1] = daddr;
+	tmp[2] = (sport << 16) + dport;
+	tmp[3] = count;
+	sha_transform(tmp + 16, (__u8 *)tmp, tmp + 16 + 5);
+
+	return tmp[17];
+}
+
+static __u32 secure_tcp_syn_cookie(__u32 saddr, __u32 daddr, __u16 sport,
+				   __u16 dport, __u32 sseq, __u32 count,
+				   __u32 data)
+{
+	/*
+	 * Compute the secure sequence number.
+	 * The output should be:
+   	 *   HASH(sec1,saddr,sport,daddr,dport,sec1) + sseq + (count * 2^24)
+	 *      + (HASH(sec2,saddr,sport,daddr,dport,count,sec2) % 2^24).
+	 * Where sseq is their sequence number and count increases every
+	 * minute by 1.
+	 * As an extra hack, we add a small "data" value that encodes the
+	 * MSS into the second hash value.
+	 */
+
+	return (cookie_hash(saddr, daddr, sport, dport, 0, 0) +
+		sseq + (count << COOKIEBITS) +
+		((cookie_hash(saddr, daddr, sport, dport, count, 1) + data)
+		 & COOKIEMASK));
+}
+
+/*
+ * This retrieves the small "data" value from the syncookie.
+ * If the syncookie is bad, the data returned will be out of
+ * range.  This must be checked by the caller.
+ *
+ * The count value used to generate the cookie must be within
+ * "maxdiff" if the current (passed-in) "count".  The return value
+ * is (__u32)-1 if this test fails.
+ */
+static __u32 check_tcp_syn_cookie(__u32 cookie, __u32 saddr, __u32 daddr,
+				  __u16 sport, __u16 dport, __u32 sseq,
+				  __u32 count, __u32 maxdiff)
+{
+	__u32 diff;
+
+	/* Strip away the layers from the cookie */
+	cookie -= cookie_hash(saddr, daddr, sport, dport, 0, 0) + sseq;
+
+	/* Cookie is now reduced to (count * 2^24) ^ (hash % 2^24) */
+	diff = (count - (cookie >> COOKIEBITS)) & ((__u32) - 1 >> COOKIEBITS);
+	if (diff >= maxdiff)
+		return (__u32)-1;
+
+	return (cookie -
+		cookie_hash(saddr, daddr, sport, dport, count - diff, 1))
+		& COOKIEMASK;	/* Leaving the data behind */
+}
 
 /* 
  * This table has to be sorted and terminated with (__u16)-1.
@@ -47,7 +124,7 @@ static __u16 const msstab[] = {
  */
 __u32 cookie_v4_init_sequence(struct sock *sk, struct sk_buff *skb, __u16 *mssp)
 {
-	struct tcp_opt *tp = tcp_sk(sk);
+	struct tcp_sock *tp = tcp_sk(sk);
 	int mssind;
 	const __u16 mss = *mssp;
 
@@ -98,14 +175,13 @@ static inline struct sock *get_cookie_sock(struct sock *sk, struct sk_buff *skb,
 					   struct open_request *req,
 					   struct dst_entry *dst)
 {
-	struct tcp_opt *tp = tcp_sk(sk);
+	struct tcp_sock *tp = tcp_sk(sk);
 	struct sock *child;
 
 	child = tp->af_specific->syn_recv_sock(sk, skb, req, dst);
-	if (child) {
-		sk_set_owner(child, sk->sk_owner);
+	if (child)
 		tcp_acceptq_queue(sk, req, child);
-	} else
+	else
 		tcp_openreq_free(req);
 
 	return child;
@@ -114,7 +190,7 @@ static inline struct sock *get_cookie_sock(struct sock *sk, struct sk_buff *skb,
 struct sock *cookie_v4_check(struct sock *sk, struct sk_buff *skb,
 			     struct ip_options *opt)
 {
-	struct tcp_opt *tp = tcp_sk(sk);
+	struct tcp_sock *tp = tcp_sk(sk);
 	__u32 cookie = ntohl(skb->h.th->ack_seq) - 1; 
 	struct sock *ret = sk;
 	struct open_request *req; 

@@ -57,7 +57,6 @@ EXPORT_SYMBOL(ip_vs_conn_put);
 #ifdef CONFIG_IP_VS_DEBUG
 EXPORT_SYMBOL(ip_vs_get_debug_level);
 #endif
-EXPORT_SYMBOL(check_for_ip_vs_out);
 EXPORT_SYMBOL(ip_vs_make_skb_writable);
 
 
@@ -383,21 +382,23 @@ ip_vs_schedule(struct ip_vs_service *svc, const struct sk_buff *skb)
 	struct ip_vs_conn *cp = NULL;
 	struct iphdr *iph = skb->nh.iph;
 	struct ip_vs_dest *dest;
-	__u16 ports[2];
+	__u16 _ports[2], *pptr;
 
-	if (skb_copy_bits(skb, iph->ihl*4, ports, sizeof(ports)) < 0)
+	pptr = skb_header_pointer(skb, iph->ihl*4,
+				  sizeof(_ports), _ports);
+	if (pptr == NULL)
 		return NULL;
 
 	/*
 	 *    Persistent service
 	 */
 	if (svc->flags & IP_VS_SVC_F_PERSISTENT)
-		return ip_vs_sched_persist(svc, skb, ports);
+		return ip_vs_sched_persist(svc, skb, pptr);
 
 	/*
 	 *    Non-persistent service
 	 */
-	if (!svc->fwmark && ports[1] != svc->port) {
+	if (!svc->fwmark && pptr[1] != svc->port) {
 		if (!svc->port)
 			IP_VS_ERR("Schedule: port zero only supported "
 				  "in persistent services, "
@@ -415,9 +416,9 @@ ip_vs_schedule(struct ip_vs_service *svc, const struct sk_buff *skb)
 	 *    Create a connection entry.
 	 */
 	cp = ip_vs_conn_new(iph->protocol,
-			    iph->saddr, ports[0],
-			    iph->daddr, ports[1],
-			    dest->addr, dest->port?dest->port:ports[1],
+			    iph->saddr, pptr[0],
+			    iph->daddr, pptr[1],
+			    dest->addr, dest->port?dest->port:pptr[1],
 			    0,
 			    dest);
 	if (cp == NULL)
@@ -444,10 +445,12 @@ ip_vs_schedule(struct ip_vs_service *svc, const struct sk_buff *skb)
 int ip_vs_leave(struct ip_vs_service *svc, struct sk_buff *skb,
 		struct ip_vs_protocol *pp)
 {
-	__u16 ports[2];
+	__u16 _ports[2], *pptr;
 	struct iphdr *iph = skb->nh.iph;
 
-	if (skb_copy_bits(skb, iph->ihl*4, ports, sizeof(ports)) < 0) {
+	pptr = skb_header_pointer(skb, iph->ihl*4,
+				  sizeof(_ports), _ports);
+	if (pptr == NULL) {
 		ip_vs_service_put(svc);
 		return NF_DROP;
 	}
@@ -465,8 +468,8 @@ int ip_vs_leave(struct ip_vs_service *svc, struct sk_buff *skb,
 		/* create a new connection entry */
 		IP_VS_DBG(6, "ip_vs_leave: create a cache_bypass entry\n");
 		cp = ip_vs_conn_new(iph->protocol,
-				    iph->saddr, ports[0],
-				    iph->daddr, ports[1],
+				    iph->saddr, pptr[0],
+				    iph->daddr, pptr[1],
 				    0, 0,
 				    IP_VS_CONN_F_BYPASS,
 				    NULL);
@@ -494,7 +497,7 @@ int ip_vs_leave(struct ip_vs_service *svc, struct sk_buff *skb,
 	 * listed in the ipvs table), pass the packets, because it is
 	 * not ipvs job to decide to drop the packets.
 	 */
-	if ((svc->port == FTPPORT) && (ports[1] != FTPPORT)) {
+	if ((svc->port == FTPPORT) && (pptr[1] != FTPPORT)) {
 		ip_vs_service_put(svc);
 		return NF_ACCEPT;
 	}
@@ -541,9 +544,9 @@ u16 ip_vs_checksum_complete(struct sk_buff *skb, int offset)
 }
 
 static inline struct sk_buff *
-ip_vs_gather_frags(struct sk_buff *skb)
+ip_vs_gather_frags(struct sk_buff *skb, u_int32_t user)
 {
-	skb = ip_defrag(skb);
+	skb = ip_defrag(skb, user);
 	if (skb)
 		ip_send_check(skb->nh.iph);
 	return skb;
@@ -607,8 +610,8 @@ static int ip_vs_out_icmp(struct sk_buff **pskb, int *related)
 {
 	struct sk_buff *skb = *pskb;
 	struct iphdr *iph;
-	struct icmphdr	icmph;
-	struct iphdr	ciph;	/* The ip header contained within the ICMP */
+	struct icmphdr	_icmph, *ic;
+	struct iphdr	_ciph, *cih;	/* The ip header contained within the ICMP */
 	struct ip_vs_conn *cp;
 	struct ip_vs_protocol *pp;
 	unsigned int offset, ihl, verdict;
@@ -617,7 +620,7 @@ static int ip_vs_out_icmp(struct sk_buff **pskb, int *related)
 
 	/* reassemble IP fragments */
 	if (skb->nh.iph->frag_off & __constant_htons(IP_MF|IP_OFFSET)) {
-		skb = ip_vs_gather_frags(skb);
+		skb = ip_vs_gather_frags(skb, IP_DEFRAG_VS_OUT);
 		if (!skb)
 			return NF_STOLEN;
 		*pskb = skb;
@@ -625,11 +628,12 @@ static int ip_vs_out_icmp(struct sk_buff **pskb, int *related)
 
 	iph = skb->nh.iph;
 	offset = ihl = iph->ihl * 4;
-	if (skb_copy_bits(skb, offset, &icmph, sizeof(icmph)) < 0)
+	ic = skb_header_pointer(skb, offset, sizeof(_icmph), &_icmph);
+	if (ic == NULL)
 		return NF_DROP;
 
 	IP_VS_DBG(12, "Outgoing ICMP (%d,%d) %u.%u.%u.%u->%u.%u.%u.%u\n",
-		  icmph.type, ntohs(icmp_id(&icmph)),
+		  ic->type, ntohs(icmp_id(ic)),
 		  NIPQUAD(iph->saddr), NIPQUAD(iph->daddr));
 
 	/*
@@ -639,33 +643,34 @@ static int ip_vs_out_icmp(struct sk_buff **pskb, int *related)
 	 * this means that some packets will manage to get a long way
 	 * down this stack and then be rejected, but that's life.
 	 */
-	if ((icmph.type != ICMP_DEST_UNREACH) &&
-	    (icmph.type != ICMP_SOURCE_QUENCH) &&
-	    (icmph.type != ICMP_TIME_EXCEEDED)) {
+	if ((ic->type != ICMP_DEST_UNREACH) &&
+	    (ic->type != ICMP_SOURCE_QUENCH) &&
+	    (ic->type != ICMP_TIME_EXCEEDED)) {
 		*related = 0;
 		return NF_ACCEPT;
 	}
 
 	/* Now find the contained IP header */
-	offset += sizeof(icmph);
-	if (skb_copy_bits(skb, offset, &ciph, sizeof(ciph)) < 0)
+	offset += sizeof(_icmph);
+	cih = skb_header_pointer(skb, offset, sizeof(_ciph), &_ciph);
+	if (cih == NULL)
 		return NF_ACCEPT; /* The packet looks wrong, ignore */
 
-	pp = ip_vs_proto_get(ciph.protocol);
+	pp = ip_vs_proto_get(cih->protocol);
 	if (!pp)
 		return NF_ACCEPT;
 
 	/* Is the embedded protocol header present? */
-	if (unlikely(ciph.frag_off & __constant_htons(IP_OFFSET) &&
+	if (unlikely(cih->frag_off & __constant_htons(IP_OFFSET) &&
 		     pp->dont_defrag))
 		return NF_ACCEPT;
 
 	IP_VS_DBG_PKT(11, pp, skb, offset, "Checking outgoing ICMP for");
 
-	offset += ciph.ihl * 4;
+	offset += cih->ihl * 4;
 
 	/* The embedded headers contain source and dest in reverse order */
-	cp = pp->conn_out_get(skb, pp, &ciph, offset, 1);
+	cp = pp->conn_out_get(skb, pp, cih, offset, 1);
 	if (!cp)
 		return NF_ACCEPT;
 
@@ -685,7 +690,7 @@ static int ip_vs_out_icmp(struct sk_buff **pskb, int *related)
 		goto out;
 	}
 
-	if (IPPROTO_TCP == ciph.protocol || IPPROTO_UDP == ciph.protocol)
+	if (IPPROTO_TCP == cih->protocol || IPPROTO_UDP == cih->protocol)
 		offset += 2 * sizeof(__u16);
 	if (!ip_vs_make_skb_writable(pskb, offset))
 		goto out;
@@ -707,11 +712,13 @@ static int ip_vs_out_icmp(struct sk_buff **pskb, int *related)
 
 static inline int is_tcp_reset(const struct sk_buff *skb)
 {
-	struct tcphdr tcph;
+	struct tcphdr _tcph, *th;
 
-	if (skb_copy_bits(skb, skb->nh.iph->ihl * 4, &tcph, sizeof(tcph)) < 0)
+	th = skb_header_pointer(skb, skb->nh.iph->ihl * 4,
+				sizeof(_tcph), &_tcph);
+	if (th == NULL)
 		return 0;
-	return tcph.rst;
+	return th->rst;
 }
 
 /*
@@ -735,13 +742,6 @@ ip_vs_out(unsigned int hooknum, struct sk_buff **pskb,
 	if (skb->nfcache & NFC_IPVS_PROPERTY)
 		return NF_ACCEPT;
 
-	if (skb->ip_summed == CHECKSUM_HW) {
-		if (skb_checksum_help(pskb, (out == NULL)))
-			return NF_DROP;
-		if (skb != *pskb)
-			skb = *pskb;
-	}
-
 	iph = skb->nh.iph;
 	if (unlikely(iph->protocol == IPPROTO_ICMP)) {
 		int related, verdict = ip_vs_out_icmp(pskb, &related);
@@ -759,7 +759,7 @@ ip_vs_out(unsigned int hooknum, struct sk_buff **pskb,
 	/* reassemble IP fragments */
 	if (unlikely(iph->frag_off & __constant_htons(IP_MF|IP_OFFSET) &&
 		     !pp->dont_defrag)) {
-		skb = ip_vs_gather_frags(skb);
+		skb = ip_vs_gather_frags(skb, IP_DEFRAG_VS_OUT);
 		if (!skb)
 			return NF_STOLEN;
 		iph = skb->nh.iph;
@@ -777,12 +777,14 @@ ip_vs_out(unsigned int hooknum, struct sk_buff **pskb,
 		if (sysctl_ip_vs_nat_icmp_send &&
 		    (pp->protocol == IPPROTO_TCP ||
 		     pp->protocol == IPPROTO_UDP)) {
-			__u16 ports[2];
+			__u16 _ports[2], *pptr;
 
-			if (skb_copy_bits(skb, ihl, ports, sizeof(ports)) < 0)
+			pptr = skb_header_pointer(skb, ihl,
+						  sizeof(_ports), _ports);
+			if (pptr == NULL)
 				return NF_ACCEPT;	/* Not for me */
 			if (ip_vs_lookup_real_service(iph->protocol,
-						      iph->saddr, ports[0])) {
+						      iph->saddr, pptr[0])) {
 				/*
 				 * Notify the real server: there is no
 				 * existing entry if it is not RST
@@ -832,42 +834,18 @@ ip_vs_out(unsigned int hooknum, struct sk_buff **pskb,
 
 
 /*
- *      Check if the packet is for VS/NAT connections, then send it
- *      immediately.
- *      Called by ip_fw_compact to detect packets for VS/NAT before
- *      they are changed by ipchains masquerading code.
- */
-unsigned int
-check_for_ip_vs_out(struct sk_buff **pskb, int (*okfn)(struct sk_buff *))
-{
-	unsigned int ret;
-
-	ret = ip_vs_out(NF_IP_FORWARD, pskb, NULL, NULL, NULL);
-	if (ret != NF_ACCEPT) {
-		return ret;
-	} else {
-		/* send the packet immediately if it is already mangled
-		   by ip_vs_out */
-		if ((*pskb)->nfcache & NFC_IPVS_PROPERTY) {
-			(*okfn)(*pskb);
-			return NF_STOLEN;
-		}
-	}
-	return NF_ACCEPT;
-}
-
-/*
  *	Handle ICMP messages in the outside-to-inside direction (incoming).
  *	Find any that might be relevant, check against existing connections,
  *	forward to the right destination host if relevant.
  *	Currently handles error types - unreachable, quench, ttl exceeded.
  */
-static int ip_vs_in_icmp(struct sk_buff **pskb, int *related)
+static int 
+ip_vs_in_icmp(struct sk_buff **pskb, int *related, unsigned int hooknum)
 {
 	struct sk_buff *skb = *pskb;
 	struct iphdr *iph;
-	struct icmphdr	icmph;
-	struct iphdr	ciph;	/* The ip header contained within the ICMP */
+	struct icmphdr	_icmph, *ic;
+	struct iphdr	_ciph, *cih;	/* The ip header contained within the ICMP */
 	struct ip_vs_conn *cp;
 	struct ip_vs_protocol *pp;
 	unsigned int offset, ihl, verdict;
@@ -876,7 +854,9 @@ static int ip_vs_in_icmp(struct sk_buff **pskb, int *related)
 
 	/* reassemble IP fragments */
 	if (skb->nh.iph->frag_off & __constant_htons(IP_MF|IP_OFFSET)) {
-		skb = ip_vs_gather_frags(skb);
+		skb = ip_vs_gather_frags(skb,
+		                         hooknum == NF_IP_LOCAL_IN ?
+					 IP_DEFRAG_VS_IN : IP_DEFRAG_VS_FWD);
 		if (!skb)
 			return NF_STOLEN;
 		*pskb = skb;
@@ -884,11 +864,12 @@ static int ip_vs_in_icmp(struct sk_buff **pskb, int *related)
 
 	iph = skb->nh.iph;
 	offset = ihl = iph->ihl * 4;
-	if (skb_copy_bits(skb, offset, &icmph, sizeof(icmph)) < 0)
+	ic = skb_header_pointer(skb, offset, sizeof(_icmph), &_icmph);
+	if (ic == NULL)
 		return NF_DROP;
 
 	IP_VS_DBG(12, "Incoming ICMP (%d,%d) %u.%u.%u.%u->%u.%u.%u.%u\n",
-		  icmph.type, ntohs(icmp_id(&icmph)),
+		  ic->type, ntohs(icmp_id(ic)),
 		  NIPQUAD(iph->saddr), NIPQUAD(iph->daddr));
 
 	/*
@@ -898,33 +879,34 @@ static int ip_vs_in_icmp(struct sk_buff **pskb, int *related)
 	 * this means that some packets will manage to get a long way
 	 * down this stack and then be rejected, but that's life.
 	 */
-	if ((icmph.type != ICMP_DEST_UNREACH) &&
-	    (icmph.type != ICMP_SOURCE_QUENCH) &&
-	    (icmph.type != ICMP_TIME_EXCEEDED)) {
+	if ((ic->type != ICMP_DEST_UNREACH) &&
+	    (ic->type != ICMP_SOURCE_QUENCH) &&
+	    (ic->type != ICMP_TIME_EXCEEDED)) {
 		*related = 0;
 		return NF_ACCEPT;
 	}
 
 	/* Now find the contained IP header */
-	offset += sizeof(icmph);
-	if (skb_copy_bits(skb, offset, &ciph, sizeof(ciph)) < 0)
+	offset += sizeof(_icmph);
+	cih = skb_header_pointer(skb, offset, sizeof(_ciph), &_ciph);
+	if (cih == NULL)
 		return NF_ACCEPT; /* The packet looks wrong, ignore */
 
-	pp = ip_vs_proto_get(ciph.protocol);
+	pp = ip_vs_proto_get(cih->protocol);
 	if (!pp)
 		return NF_ACCEPT;
 
 	/* Is the embedded protocol header present? */
-	if (unlikely(ciph.frag_off & __constant_htons(IP_OFFSET) &&
+	if (unlikely(cih->frag_off & __constant_htons(IP_OFFSET) &&
 		     pp->dont_defrag))
 		return NF_ACCEPT;
 
 	IP_VS_DBG_PKT(11, pp, skb, offset, "Checking incoming ICMP for");
 
-	offset += ciph.ihl * 4;
+	offset += cih->ihl * 4;
 
 	/* The embedded headers contain source and dest in reverse order */
-	cp = pp->conn_in_get(skb, pp, &ciph, offset, 1);
+	cp = pp->conn_in_get(skb, pp, cih, offset, 1);
 	if (!cp)
 		return NF_ACCEPT;
 
@@ -941,7 +923,7 @@ static int ip_vs_in_icmp(struct sk_buff **pskb, int *related)
 
 	/* do the statistics and put it back */
 	ip_vs_in_stats(cp, skb);
-	if (IPPROTO_TCP == ciph.protocol || IPPROTO_UDP == ciph.protocol)
+	if (IPPROTO_TCP == cih->protocol || IPPROTO_UDP == cih->protocol)
 		offset += 2 * sizeof(__u16);
 	verdict = ip_vs_icmp_xmit(skb, cp, pp, offset);
 	/* do not touch skb anymore */
@@ -981,16 +963,9 @@ ip_vs_in(unsigned int hooknum, struct sk_buff **pskb,
 		return NF_ACCEPT;
 	}
 
-	if (skb->ip_summed == CHECKSUM_HW) {
-		if (skb_checksum_help(pskb, (out == NULL)))
-			return NF_DROP;
-		if (skb != *pskb)
-			skb = *pskb;
-	}
-
 	iph = skb->nh.iph;
 	if (unlikely(iph->protocol == IPPROTO_ICMP)) {
-		int related, verdict = ip_vs_in_icmp(pskb, &related);
+		int related, verdict = ip_vs_in_icmp(pskb, &related, hooknum);
 
 		if (related)
 			return verdict;
@@ -1028,7 +1003,7 @@ ip_vs_in(unsigned int hooknum, struct sk_buff **pskb,
 
 	/* Check the server status */
 	if (cp->dest && !(cp->dest->flags & IP_VS_DEST_F_AVAILABLE)) {
-		/* the destination server is not availabe */
+		/* the destination server is not available */
 
 		if (sysctl_ip_vs_expire_nodest_conn) {
 			/* try to expire the connection immediately */
@@ -1085,7 +1060,7 @@ ip_vs_forward_icmp(unsigned int hooknum, struct sk_buff **pskb,
 	if ((*pskb)->nh.iph->protocol != IPPROTO_ICMP)
 		return NF_ACCEPT;
 
-	return ip_vs_in_icmp(pskb, &r);
+	return ip_vs_in_icmp(pskb, &r, hooknum);
 }
 
 

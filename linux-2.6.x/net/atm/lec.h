@@ -14,14 +14,6 @@
 #include <linux/netdevice.h>
 #include <linux/atmlec.h>
 
-#if defined (CONFIG_BRIDGE) || defined(CONFIG_BRIDGE_MODULE)
-#include <linux/if_bridge.h>
-struct net_bridge;
-extern struct net_bridge_fdb_entry *(*br_fdb_get_hook)(struct net_bridge *br,
-                                                unsigned char *addr);
-extern void (*br_fdb_put_hook)(struct net_bridge_fdb_entry *ent);
-#endif /* defined(CONFIG_BRIDGE) || defined(CONFIG_BRIDGE_MODULE) */
-
 #define LEC_HEADER_LEN 16
 
 struct lecdatahdr_8023 {
@@ -95,7 +87,6 @@ struct lec_priv {
            establishes multiple Multicast Forward VCCs to us. This list
            collects all those VCCs. LANEv1 client has only one item in this
            list. These entries are not aged out. */
-        atomic_t lec_arp_users;
         spinlock_t lec_arp_lock;
         struct atm_vcc *mcast_vcc; /* Default Multicast Send VCC */
         struct atm_vcc *lecd;
@@ -146,16 +137,6 @@ struct lec_vcc_priv {
 };
 
 #define LEC_VCC_PRIV(vcc)	((struct lec_vcc_priv *)((vcc)->user_back))
-
-int lecd_attach(struct atm_vcc *vcc, int arg);
-int lec_vcc_attach(struct atm_vcc *vcc, void __user *arg);
-int lec_mcast_attach(struct atm_vcc *vcc, int arg);
-struct net_device *get_dev_lec(int itf);
-int make_lec(struct atm_vcc *vcc);
-int send_to_lecd(struct lec_priv *priv,
-                 atmlec_msg_type type, unsigned char *mac_addr,
-                 unsigned char *atm_addr, struct sk_buff *data);
-void lec_push(struct atm_vcc *vcc, struct sk_buff *skb);
 
 #endif /* _LEC_H_ */
 

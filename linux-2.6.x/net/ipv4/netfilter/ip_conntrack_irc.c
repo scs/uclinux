@@ -32,6 +32,7 @@
 #include <linux/netfilter_ipv4/lockhelp.h>
 #include <linux/netfilter_ipv4/ip_conntrack_helper.h>
 #include <linux/netfilter_ipv4/ip_conntrack_irc.h>
+#include <linux/moduleparam.h>
 
 #define MAX_PORTS 8
 static int ports[MAX_PORTS];
@@ -40,22 +41,27 @@ static int max_dcc_channels = 8;
 static unsigned int dcc_timeout = 300;
 /* This is slow, but it's simple. --RR */
 static char irc_buffer[65536];
+static DECLARE_LOCK(irc_buffer_lock);
+
+unsigned int (*ip_nat_irc_hook)(struct sk_buff **pskb,
+				enum ip_conntrack_info ctinfo,
+				unsigned int matchoff,
+				unsigned int matchlen,
+				struct ip_conntrack_expect *exp);
+EXPORT_SYMBOL_GPL(ip_nat_irc_hook);
 
 MODULE_AUTHOR("Harald Welte <laforge@netfilter.org>");
 MODULE_DESCRIPTION("IRC (DCC) connection tracking helper");
 MODULE_LICENSE("GPL");
-MODULE_PARM(ports, "1-" __MODULE_STRING(MAX_PORTS) "i");
+module_param_array(ports, int, &ports_c, 0400);
 MODULE_PARM_DESC(ports, "port numbers of IRC servers");
-MODULE_PARM(max_dcc_channels, "i");
+module_param(max_dcc_channels, int, 0400);
 MODULE_PARM_DESC(max_dcc_channels, "max number of expected DCC channels per IRC session");
-MODULE_PARM(dcc_timeout, "i");
+module_param(dcc_timeout, int, 0400);
 MODULE_PARM_DESC(dcc_timeout, "timeout on for unestablished DCC channels");
 
 static char *dccprotos[] = { "SEND ", "CHAT ", "MOVE ", "TSEND ", "SCHAT " };
 #define MINMATCHLEN	5
-
-DECLARE_LOCK(ip_irc_lock);
-struct module *ip_conntrack_irc = THIS_MODULE;
 
 #if 0
 #define DEBUGP(format, args...) printk(KERN_DEBUG "%s:%s:" format, \
@@ -64,8 +70,8 @@ struct module *ip_conntrack_irc = THIS_MODULE;
 #define DEBUGP(format, args...)
 #endif
 
-int parse_dcc(char *data, char *data_end, u_int32_t * ip, u_int16_t * port,
-	      char **ad_beg_p, char **ad_end_p)
+static int parse_dcc(char *data, char *data_end, u_int32_t *ip,
+		     u_int16_t *port, char **ad_beg_p, char **ad_end_p)
 /* tries to get the ip_addr and port out of a dcc command
    return value: -1 on failure, 0 on success 
 	data		pointer to first byte of DCC command data
@@ -97,19 +103,18 @@ int parse_dcc(char *data, char *data_end, u_int32_t * ip, u_int16_t * port,
 	return 0;
 }
 
-static int help(struct sk_buff *skb,
+static int help(struct sk_buff **pskb,
 		struct ip_conntrack *ct, enum ip_conntrack_info ctinfo)
 {
 	unsigned int dataoff;
-	struct tcphdr tcph;
-	char *data, *data_limit;
+	struct tcphdr _tcph, *th;
+	char *data, *data_limit, *ib_ptr;
 	int dir = CTINFO2DIR(ctinfo);
 	struct ip_conntrack_expect *exp;
-	struct ip_ct_irc_expect *exp_irc_info = NULL;
-
+	u32 seq;
 	u_int32_t dcc_ip;
 	u_int16_t dcc_port;
-	int i;
+	int i, ret = NF_ACCEPT;
 	char *addr_beg_p, *addr_end_p;
 
 	DEBUGP("entered\n");
@@ -126,19 +131,23 @@ static int help(struct sk_buff *skb,
 	}
 
 	/* Not a full tcp header? */
-	if (skb_copy_bits(skb, skb->nh.iph->ihl*4, &tcph, sizeof(tcph)) != 0)
+	th = skb_header_pointer(*pskb, (*pskb)->nh.iph->ihl*4,
+				sizeof(_tcph), &_tcph);
+	if (th == NULL)
 		return NF_ACCEPT;
 
 	/* No data? */
-	dataoff = skb->nh.iph->ihl*4 + tcph.doff*4;
-	if (dataoff >= skb->len)
+	dataoff = (*pskb)->nh.iph->ihl*4 + th->doff*4;
+	if (dataoff >= (*pskb)->len)
 		return NF_ACCEPT;
 
-	LOCK_BH(&ip_irc_lock);
-	skb_copy_bits(skb, dataoff, irc_buffer, skb->len - dataoff);
+	LOCK_BH(&irc_buffer_lock);
+	ib_ptr = skb_header_pointer(*pskb, dataoff,
+				    (*pskb)->len - dataoff, irc_buffer);
+	BUG_ON(ib_ptr == NULL);
 
-	data = irc_buffer;
-	data_limit = irc_buffer + skb->len - dataoff;
+	data = ib_ptr;
+	data_limit = ib_ptr + (*pskb)->len - dataoff;
 
 	/* strlen("\1DCC SENT t AAAAAAAA P\1\n")=24
 	 * 5+MINMATCHLEN+strlen("t AAAAAAAA P\1\n")=14 */
@@ -152,8 +161,8 @@ static int help(struct sk_buff *skb,
 		/* we have at least (19+MINMATCHLEN)-5 bytes valid data left */
 
 		DEBUGP("DCC found in master %u.%u.%u.%u:%u %u.%u.%u.%u:%u...\n",
-			NIPQUAD(iph->saddr), ntohs(tcph.source),
-			NIPQUAD(iph->daddr), ntohs(tcph.dest));
+			NIPQUAD(iph->saddr), ntohs(th->source),
+			NIPQUAD(iph->daddr), ntohs(th->dest));
 
 		for (i = 0; i < ARRAY_SIZE(dccprotos); i++) {
 			if (memcmp(data, dccprotos[i], strlen(dccprotos[i]))) {
@@ -190,45 +199,46 @@ static int help(struct sk_buff *skb,
 			}
 
 			exp = ip_conntrack_expect_alloc();
-			if (exp == NULL)
+			if (exp == NULL) {
+				ret = NF_DROP;
 				goto out;
-
-			exp_irc_info = &exp->help.exp_irc_info;
+			}
 
 			/* save position of address in dcc string,
 			 * necessary for NAT */
-			DEBUGP("tcph->seq = %u\n", tcph.seq);
-			exp->seq = ntohl(tcph.seq) + (addr_beg_p - irc_buffer);
-			exp_irc_info->len = (addr_end_p - addr_beg_p);
-			exp_irc_info->port = dcc_port;
-			DEBUGP("wrote info seq=%u (ofs=%u), len=%d\n",
-				exp->seq, (addr_end_p - _data), exp_irc_info->len);
+			DEBUGP("tcph->seq = %u\n", th->seq);
+			seq = ntohl(th->seq) + (addr_beg_p - ib_ptr);
 
+			/* We refer to the reverse direction ("!dir")
+			 * tuples here, because we're expecting
+			 * something in the other * direction.
+			 * Doesn't matter unless NAT is happening.  */
 			exp->tuple = ((struct ip_conntrack_tuple)
 				{ { 0, { 0 } },
-				  { ct->tuplehash[dir].tuple.src.ip, { .tcp = { htons(dcc_port) } },
+				  { ct->tuplehash[!dir].tuple.dst.ip,
+				    { .tcp = { htons(dcc_port) } },
 				    IPPROTO_TCP }});
 			exp->mask = ((struct ip_conntrack_tuple)
 				{ { 0, { 0 } },
-				  { 0xFFFFFFFF, { .tcp = { 0xFFFF } }, 0xFFFF }});
-
+				  { 0xFFFFFFFF, { .tcp = { 0xFFFF } }, 0xFF }});
 			exp->expectfn = NULL;
-
-			DEBUGP("expect_related %u.%u.%u.%u:%u-%u.%u.%u.%u:%u\n",
-				NIPQUAD(exp->tuple.src.ip),
-				ntohs(exp->tuple.src.u.tcp.port),
-				NIPQUAD(exp->tuple.dst.ip),
-				ntohs(exp->tuple.dst.u.tcp.port));
-
-			ip_conntrack_expect_related(exp, ct);
-
+			exp->master = ct;
+			if (ip_nat_irc_hook)
+				ret = ip_nat_irc_hook(pskb, ctinfo, 
+						      addr_beg_p - ib_ptr,
+						      addr_end_p - addr_beg_p,
+						      exp);
+			else if (ip_conntrack_expect_related(exp) != 0) {
+				ip_conntrack_expect_free(exp);
+				ret = NF_DROP;
+			}
 			goto out;
 		} /* for .. NUM_DCCPROTO */
 	} /* while data < ... */
 
  out:
-	UNLOCK_BH(&ip_irc_lock);
-	return NF_ACCEPT;
+	UNLOCK_BH(&irc_buffer_lock);
+	return ret;
 }
 
 static struct ip_conntrack_helper irc_helpers[MAX_PORTS];
@@ -252,19 +262,18 @@ static int __init init(void)
 	}
 	
 	/* If no port given, default to standard irc port */
-	if (ports[0] == 0)
-		ports[0] = IRC_PORT;
+	if (ports_c == 0)
+		ports[ports_c++] = IRC_PORT;
 
-	for (i = 0; (i < MAX_PORTS) && ports[i]; i++) {
+	for (i = 0; i < ports_c; i++) {
 		hlpr = &irc_helpers[i];
 		hlpr->tuple.src.u.tcp.port = htons(ports[i]);
 		hlpr->tuple.dst.protonum = IPPROTO_TCP;
 		hlpr->mask.src.u.tcp.port = 0xFFFF;
-		hlpr->mask.dst.protonum = 0xFFFF;
+		hlpr->mask.dst.protonum = 0xFF;
 		hlpr->max_expected = max_dcc_channels;
 		hlpr->timeout = dcc_timeout;
-		hlpr->flags = IP_CT_HELPER_F_REUSE_EXPECT;
-		hlpr->me = ip_conntrack_irc;
+		hlpr->me = THIS_MODULE;
 		hlpr->help = help;
 
 		tmpname = &irc_names[i][0];
@@ -284,7 +293,6 @@ static int __init init(void)
 			fini();
 			return -EBUSY;
 		}
-		ports_c++;
 	}
 	return 0;
 }
@@ -300,9 +308,6 @@ static void fini(void)
 		ip_conntrack_helper_unregister(&irc_helpers[i]);
 	}
 }
-
-PROVIDES_CONNTRACK(irc);
-EXPORT_SYMBOL(ip_irc_lock);
 
 module_init(init);
 module_exit(fini);

@@ -17,7 +17,6 @@
 #include <linux/interrupt.h>
 #include <linux/init.h>
 #include <linux/kmod.h>
-#include <asm/hardirq.h>
 #include <asm/kmap_types.h>
 
 extern enum km_type crypto_km_types[];
@@ -39,7 +38,7 @@ static inline void crypto_kunmap(void *vaddr, int out)
 
 static inline void crypto_yield(struct crypto_tfm *tfm)
 {
-	if (!in_softirq())
+	if (!in_atomic())
 		cond_resched();
 }
 

@@ -10,7 +10,7 @@
  * Authors:	Lawrence V. Stefani, <stefani@lkg.dec.com>
  *
  *		fddi.c is based on previous eth.c and tr.c work by
- *			Ross Biro, <bir7@leland.Stanford.Edu>
+ *			Ross Biro
  *			Fred N. van Kempen, <waltje@uWalt.NL.Mugnet.ORG>
  *			Mark Evans, <evansmp@uhura.aston.ac.uk>
  *			Florian La Roche, <rzsfl@rz.uni-sb.de>
@@ -52,8 +52,9 @@
  * daddr=NULL	means leave destination address (eg unresolved arp)
  */
 
-int fddi_header(struct sk_buff	*skb, struct net_device *dev, unsigned short type,
-		void *daddr, void *saddr, unsigned len)
+static int fddi_header(struct sk_buff *skb, struct net_device *dev,
+		       unsigned short type,
+		       void *daddr, void *saddr, unsigned len)
 {
 	int hl = FDDI_K_SNAP_HLEN;
 	struct fddihdr *fddi;
@@ -96,7 +97,7 @@ int fddi_header(struct sk_buff	*skb, struct net_device *dev, unsigned short type
  * this sk_buff.  We now let ARP fill in the other fields.
  */
  
-int fddi_rebuild_header(struct sk_buff	*skb)
+static int fddi_rebuild_header(struct sk_buff	*skb)
 {
 	struct fddihdr *fddi = (struct fddihdr *)skb->data;
 
@@ -166,3 +167,44 @@ unsigned short fddi_type_trans(struct sk_buff *skb, struct net_device *dev)
 }
 
 EXPORT_SYMBOL(fddi_type_trans);
+
+static int fddi_change_mtu(struct net_device *dev, int new_mtu)
+{
+	if ((new_mtu < FDDI_K_SNAP_HLEN) || (new_mtu > FDDI_K_SNAP_DLEN))
+		return(-EINVAL);
+	dev->mtu = new_mtu;
+	return(0);
+}
+
+static void fddi_setup(struct net_device *dev)
+{
+	dev->change_mtu		= fddi_change_mtu;
+	dev->hard_header	= fddi_header;
+	dev->rebuild_header	= fddi_rebuild_header;
+
+	dev->type		= ARPHRD_FDDI;
+	dev->hard_header_len	= FDDI_K_SNAP_HLEN+3;	/* Assume 802.2 SNAP hdr len + 3 pad bytes */
+	dev->mtu		= FDDI_K_SNAP_DLEN;	/* Assume max payload of 802.2 SNAP frame */
+	dev->addr_len		= FDDI_K_ALEN;
+	dev->tx_queue_len	= 100;			/* Long queues on FDDI */
+	dev->flags		= IFF_BROADCAST | IFF_MULTICAST;
+	
+	memset(dev->broadcast, 0xFF, FDDI_K_ALEN);
+}
+
+/**
+ * alloc_fddidev - Register FDDI device
+ * @sizeof_priv: Size of additional driver-private structure to be allocated
+ *	for this FDDI device
+ *
+ * Fill in the fields of the device structure with FDDI-generic values.
+ *
+ * Constructs a new net device, complete with a private data area of
+ * size @sizeof_priv.  A 32-byte (not bit) alignment is enforced for
+ * this private data area.
+ */
+struct net_device *alloc_fddidev(int sizeof_priv)
+{
+	return alloc_netdev(sizeof_priv, "fddi%d", fddi_setup);
+}
+EXPORT_SYMBOL(alloc_fddidev);

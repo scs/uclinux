@@ -27,11 +27,12 @@
  *	JHS: We should remove the CONFIG_NET_CLS_IND from here
  *	eventually when the meta match extension is made available
  *
+ *	nfmark match added by Catalin(ux aka Dino) BOIE <catab at umbrella.ro>
  */
 
 #include <asm/uaccess.h>
 #include <asm/system.h>
-#include <asm/bitops.h>
+#include <linux/bitops.h>
 #include <linux/config.h>
 #include <linux/module.h>
 #include <linux/types.h>
@@ -54,21 +55,15 @@
 #include <net/route.h>
 #include <linux/skbuff.h>
 #include <net/sock.h>
-#include <net/pkt_sched.h>
-
+#include <net/act_api.h>
+#include <net/pkt_cls.h>
 
 struct tc_u_knode
 {
 	struct tc_u_knode	*next;
 	u32			handle;
 	struct tc_u_hnode	*ht_up;
-#ifdef CONFIG_NET_CLS_ACT
-	struct tc_action	*action;
-#else
-#ifdef CONFIG_NET_CLS_POLICE
-	struct tcf_police	*police;
-#endif
-#endif
+	struct tcf_exts		exts;
 #ifdef CONFIG_NET_CLS_IND
 	char                     indev[IFNAMSIZ];
 #endif
@@ -78,6 +73,9 @@ struct tc_u_knode
 #ifdef CONFIG_CLS_U32_PERF
 	struct tc_u32_pcnt	*pf;
 #endif
+#ifdef CONFIG_CLS_U32_MARK
+	struct tc_u32_mark	mark;
+#endif
 	struct tc_u32_sel	sel;
 };
 
@@ -85,10 +83,10 @@ struct tc_u_hnode
 {
 	struct tc_u_hnode	*next;
 	u32			handle;
+	u32			prio;
 	struct tc_u_common	*tp_c;
 	int			refcnt;
 	unsigned		divisor;
-	u32			hgenerator;
 	struct tc_u_knode	*ht[1];
 };
 
@@ -99,6 +97,11 @@ struct tc_u_common
 	struct Qdisc		*q;
 	int			refcnt;
 	u32			hgenerator;
+};
+
+static struct tcf_ext_map u32_ext_map = {
+	.action = TCA_U32_ACT,
+	.police = TCA_U32_POLICE
 };
 
 static struct tc_u_common *u32_list;
@@ -126,7 +129,7 @@ static int u32_classify(struct sk_buff *skb, struct tcf_proto *tp, struct tcf_re
 #ifdef CONFIG_CLS_U32_PERF
 	int j;
 #endif
-	int i;
+	int i, r;
 
 next_ht:
 	n = ht->ht[sel];
@@ -139,6 +142,16 @@ next_knode:
 		n->pf->rcnt +=1;
 		j = 0;
 #endif
+
+#ifdef CONFIG_CLS_U32_MARK
+		if ((skb->nfmark & n->mark.mask) != n->mark.val) {
+			n = n->next;
+			goto next_knode;
+		} else {
+			n->mark.success++;
+		}
+#endif
+
 		for (i = n->sel.nkeys; i>0; i--, key++) {
 
 			if ((*(u32*)(ptr+key->off+(off2&key->offmask))^key->val)&key->mask) {
@@ -156,44 +169,21 @@ check_terminal:
 
 				*res = n->res;
 #ifdef CONFIG_NET_CLS_IND
-				/* yes, i know it sucks but the feature is 
-				** optional dammit! - JHS */
-				if (0 != n->indev[0]) {
-					if  (NULL == skb->input_dev) {
-						n = n->next;
-						goto next_knode;
-					} else {
-						if (0 != strcmp(n->indev, skb->input_dev->name)) {
-							n = n->next;
-							goto next_knode;
-						}
-					}
+				if (!tcf_match_indev(skb, n->indev)) {
+					n = n->next;
+					goto next_knode;
 				}
 #endif
 #ifdef CONFIG_CLS_U32_PERF
 				n->pf->rhit +=1;
 #endif
-#ifdef CONFIG_NET_CLS_ACT
-				if (n->action) {
-					int pol_res = tcf_action_exec(skb, n->action);
-					if (skb->tc_classid > 0) {
-						res->classid = skb->tc_classid;
-						skb->tc_classid = 0;
-					}
+				r = tcf_exts_exec(skb, &n->exts, res);
+				if (r < 0) {
+					n = n->next;
+					goto next_knode;
+				}
 
-					if (pol_res >= 0)
-						return pol_res;
-				} else
-#else
-#ifdef CONFIG_NET_CLS_POLICE
-				if (n->police) {
-					int pol_res = tcf_police(skb, n->police);
-					if (pol_res >= 0)
-						return pol_res;
-				} else
-#endif
-#endif
-					return 0;
+				return r;
 			}
 			n = n->next;
 			goto next_knode;
@@ -326,6 +316,7 @@ static int u32_init(struct tcf_proto *tp)
 	root_ht->divisor = 0;
 	root_ht->refcnt++;
 	root_ht->handle = tp_c ? gen_new_htid(tp_c) : 0x80000000;
+	root_ht->prio = tp->prio;
 
 	if (tp_c == NULL) {
 		tp_c = kmalloc(sizeof(*tp_c), GFP_KERNEL);
@@ -351,19 +342,8 @@ static int u32_init(struct tcf_proto *tp)
 
 static int u32_destroy_key(struct tcf_proto *tp, struct tc_u_knode *n)
 {
-	unsigned long cl;
-
-	if ((cl = __cls_set_class(&n->res.class, 0)) != 0)
-		tp->q->ops->cl_ops->unbind_tcf(tp->q, cl);
-#ifdef CONFIG_NET_CLS_ACT
-	if (n->action) {
-		tcf_action_destroy(n->action, TCA_ACT_UNBIND);
-	}
-#else
-#ifdef CONFIG_NET_CLS_POLICE
-	tcf_police_release(n->police, TCA_ACT_UNBIND);
-#endif
-#endif
+	tcf_unbind_filter(tp, &n->res);
+	tcf_exts_destroy(tp, &n->exts);
 	if (n->ht_down)
 		n->ht_down->refcnt--;
 #ifdef CONFIG_CLS_U32_PERF
@@ -500,116 +480,59 @@ static u32 gen_new_kid(struct tc_u_hnode *ht, u32 handle)
 	return handle|(i>0xFFF ? 0xFFF : i);
 }
 
-static int u32_set_parms(struct Qdisc *q, unsigned long base,
+static int u32_set_parms(struct tcf_proto *tp, unsigned long base,
 			 struct tc_u_hnode *ht,
 			 struct tc_u_knode *n, struct rtattr **tb,
 			 struct rtattr *est)
 {
-#ifdef CONFIG_NET_CLS_ACT
-	struct tc_action *act = NULL;
-	int ret;
-#endif
+	int err;
+	struct tcf_exts e;
+
+	err = tcf_exts_validate(tp, tb, est, &e, &u32_ext_map);
+	if (err < 0)
+		return err;
+
+	err = -EINVAL;
 	if (tb[TCA_U32_LINK-1]) {
 		u32 handle = *(u32*)RTA_DATA(tb[TCA_U32_LINK-1]);
 		struct tc_u_hnode *ht_down = NULL;
 
 		if (TC_U32_KEY(handle))
-			return -EINVAL;
+			goto errout;
 
 		if (handle) {
 			ht_down = u32_lookup_ht(ht->tp_c, handle);
 
 			if (ht_down == NULL)
-				return -EINVAL;
+				goto errout;
 			ht_down->refcnt++;
 		}
 
-		sch_tree_lock(q);
+		tcf_tree_lock(tp);
 		ht_down = xchg(&n->ht_down, ht_down);
-		sch_tree_unlock(q);
+		tcf_tree_unlock(tp);
 
 		if (ht_down)
 			ht_down->refcnt--;
 	}
 	if (tb[TCA_U32_CLASSID-1]) {
-		unsigned long cl;
-
 		n->res.classid = *(u32*)RTA_DATA(tb[TCA_U32_CLASSID-1]);
-		sch_tree_lock(q);
-		cl = __cls_set_class(&n->res.class, q->ops->cl_ops->bind_tcf(q, base, n->res.classid));
-		sch_tree_unlock(q);
-		if (cl)
-			q->ops->cl_ops->unbind_tcf(q, cl);
-	}
-#ifdef CONFIG_NET_CLS_ACT
-	/*backward compatibility */
-	if (tb[TCA_U32_POLICE-1])
-	{
-		act = kmalloc(sizeof(*act),GFP_KERNEL);
-		if (NULL == act)
-			return -ENOMEM;
-
-		memset(act,0,sizeof(*act));
-		ret = tcf_action_init_1(tb[TCA_U32_POLICE-1], est,act,"police", TCA_ACT_NOREPLACE, TCA_ACT_BIND);
-		if (0 > ret){
-			tcf_action_destroy(act, TCA_ACT_UNBIND);
-			return ret;
-		}
-		act->type = TCA_OLD_COMPAT;
-
-		sch_tree_lock(q);
-		act = xchg(&n->action, act);
-		sch_tree_unlock(q);
-
-		tcf_action_destroy(act, TCA_ACT_UNBIND);
-
+		tcf_bind_filter(tp, &n->res, base);
 	}
 
-	if(tb[TCA_U32_ACT-1]) {
-		act = kmalloc(sizeof(*act),GFP_KERNEL);
-		if (NULL == act)
-			return -ENOMEM;
-		memset(act,0,sizeof(*act));
-		ret = tcf_action_init(tb[TCA_U32_ACT-1], est,act,NULL,TCA_ACT_NOREPLACE, TCA_ACT_BIND);
-		if (0 > ret) {
-			tcf_action_destroy(act, TCA_ACT_UNBIND);
-			return ret;
-		}
-
-		sch_tree_lock(q);
-		act = xchg(&n->action, act);
-		sch_tree_unlock(q);
-
-		tcf_action_destroy(act, TCA_ACT_UNBIND);
-	}
-
-
-#else
-#ifdef CONFIG_NET_CLS_POLICE
-	if (tb[TCA_U32_POLICE-1]) {
-		struct tcf_police *police = tcf_police_locate(tb[TCA_U32_POLICE-1], est);
-		sch_tree_lock(q);
-		police = xchg(&n->police, police);
-		sch_tree_unlock(q);
-		tcf_police_release(police, TCA_ACT_UNBIND);
-	}
-#endif
-#endif
 #ifdef CONFIG_NET_CLS_IND
-	n->indev[0] = 0;
-	if(tb[TCA_U32_INDEV-1]) {
-		struct rtattr *input_dev = tb[TCA_U32_INDEV-1];
-		if (RTA_PAYLOAD(input_dev) >= IFNAMSIZ) {
-			printk("cls_u32: bad indev name %s\n",(char*)RTA_DATA(input_dev));
-			/* should we clear state first? */
-			return  -EINVAL;
-		}
-		sprintf(n->indev, "%s", (char*)RTA_DATA(input_dev));
-		printk("got IND %s\n",n->indev);
+	if (tb[TCA_U32_INDEV-1]) {
+		int err = tcf_change_indev(tp, n->indev, tb[TCA_U32_INDEV-1]);
+		if (err < 0)
+			goto errout;
 	}
 #endif
+	tcf_exts_change(tp, &n->exts, &e);
 
 	return 0;
+errout:
+	tcf_exts_destroy(tp, &e);
+	return err;
 }
 
 static int u32_change(struct tcf_proto *tp, unsigned long base, u32 handle,
@@ -628,14 +551,14 @@ static int u32_change(struct tcf_proto *tp, unsigned long base, u32 handle,
 	if (opt == NULL)
 		return handle ? -EINVAL : 0;
 
-	if (rtattr_parse(tb, TCA_U32_MAX, RTA_DATA(opt), RTA_PAYLOAD(opt)) < 0)
+	if (rtattr_parse_nested(tb, TCA_U32_MAX, opt) < 0)
 		return -EINVAL;
 
 	if ((n = (struct tc_u_knode*)*arg) != NULL) {
 		if (TC_U32_KEY(n->handle) == 0)
 			return -EINVAL;
 
-		return u32_set_parms(tp->q, base, n->ht_up, n, tb, tca[TCA_RATE-1]);
+		return u32_set_parms(tp, base, n->ht_up, n, tb, tca[TCA_RATE-1]);
 	}
 
 	if (tb[TCA_U32_DIVISOR-1]) {
@@ -658,6 +581,7 @@ static int u32_change(struct tcf_proto *tp, unsigned long base, u32 handle,
 		ht->refcnt = 0;
 		ht->divisor = divisor;
 		ht->handle = handle;
+		ht->prio = tp->prio;
 		ht->next = tp_c->hlist;
 		tp_c->hlist = ht;
 		*arg = (unsigned long)ht;
@@ -701,12 +625,12 @@ static int u32_change(struct tcf_proto *tp, unsigned long base, u32 handle,
 
 	memset(n, 0, sizeof(*n) + s->nkeys*sizeof(struct tc_u32_key));
 #ifdef CONFIG_CLS_U32_PERF
-	n->pf = kmalloc(sizeof(struct tc_u32_pcnt) + s->nkeys*sizeof(__u64), GFP_KERNEL);
+	n->pf = kmalloc(sizeof(struct tc_u32_pcnt) + s->nkeys*sizeof(u64), GFP_KERNEL);
 	if (n->pf == NULL) {
 		kfree(n);
 		return -ENOBUFS;
 	}
-	memset(n->pf, 0, sizeof(struct tc_u32_pcnt) + s->nkeys*sizeof(__u64));
+	memset(n->pf, 0, sizeof(struct tc_u32_pcnt) + s->nkeys*sizeof(u64));
 #endif
 
 	memcpy(&n->sel, s, sizeof(*s) + s->nkeys*sizeof(struct tc_u32_key));
@@ -723,7 +647,25 @@ static int u32_change(struct tcf_proto *tp, unsigned long base, u32 handle,
 	}
 	n->fshift = i;
 }
-	err = u32_set_parms(tp->q, base, ht, n, tb, tca[TCA_RATE-1]);
+
+#ifdef CONFIG_CLS_U32_MARK
+	if (tb[TCA_U32_MARK-1]) {
+		struct tc_u32_mark *mark;
+
+		if (RTA_PAYLOAD(tb[TCA_U32_MARK-1]) < sizeof(struct tc_u32_mark)) {
+#ifdef CONFIG_CLS_U32_PERF
+			kfree(n->pf);
+#endif
+			kfree(n);
+			return -EINVAL;
+		}
+		mark = RTA_DATA(tb[TCA_U32_MARK-1]);
+		memcpy(&n->mark, mark, sizeof(struct tc_u32_mark));
+		n->mark.success = 0;
+	}
+#endif
+
+	err = u32_set_parms(tp, base, ht, n, tb, tca[TCA_RATE-1]);
 	if (err == 0) {
 		struct tc_u_knode **ins;
 		for (ins = &ht->ht[TC_U32_HASH(handle)]; *ins; ins = &(*ins)->next)
@@ -756,6 +698,8 @@ static void u32_walk(struct tcf_proto *tp, struct tcf_walker *arg)
 		return;
 
 	for (ht = tp_c->hlist; ht; ht = ht->next) {
+		if (ht->prio != tp->prio)
+			continue;
 		if (arg->count >= arg->skip) {
 			if (arg->fn(tp, (unsigned long)ht, arg) < 0) {
 				arg->stop = 1;
@@ -810,75 +754,30 @@ static int u32_dump(struct tcf_proto *tp, unsigned long fh,
 			RTA_PUT(skb, TCA_U32_CLASSID, 4, &n->res.classid);
 		if (n->ht_down)
 			RTA_PUT(skb, TCA_U32_LINK, 4, &n->ht_down->handle);
-#ifdef CONFIG_NET_CLS_ACT
-		/* again for backward compatible mode - we want
-		*  to work with both old and new modes of entering
-		*  tc data even if iproute2  was newer - jhs 
-		*/
-		if (n->action) {
-			struct rtattr * p_rta = (struct rtattr*)skb->tail;
 
-			if (n->action->type != TCA_OLD_COMPAT) {
-				RTA_PUT(skb, TCA_U32_ACT, 0, NULL);
-				if (tcf_action_dump(skb,n->action, 0, 0) < 0) {
-					goto rtattr_failure;
-				}
-			} else {
-				RTA_PUT(skb, TCA_U32_POLICE, 0, NULL);
-				if (tcf_action_dump_old(skb,n->action,0,0) < 0) {
-					goto rtattr_failure;
-				}
-			}
-
-			p_rta->rta_len = skb->tail - (u8*)p_rta;
-		}
-
-#else
-#ifdef CONFIG_NET_CLS_POLICE
-		if (n->police) {
-			struct rtattr * p_rta = (struct rtattr*)skb->tail;
-			RTA_PUT(skb, TCA_U32_POLICE, 0, NULL);
-	 
-			if (tcf_police_dump(skb, n->police) < 0)
-				goto rtattr_failure;
-
-			p_rta->rta_len = skb->tail - (u8*)p_rta;
-
-		}
+#ifdef CONFIG_CLS_U32_MARK
+		if (n->mark.val || n->mark.mask)
+			RTA_PUT(skb, TCA_U32_MARK, sizeof(n->mark), &n->mark);
 #endif
-#endif
+
+		if (tcf_exts_dump(skb, &n->exts, &u32_ext_map) < 0)
+			goto rtattr_failure;
 
 #ifdef CONFIG_NET_CLS_IND
-		if(strlen(n->indev)) {
-			struct rtattr * p_rta = (struct rtattr*)skb->tail;
+		if(strlen(n->indev))
 			RTA_PUT(skb, TCA_U32_INDEV, IFNAMSIZ, n->indev);
-			p_rta->rta_len = skb->tail - (u8*)p_rta;
-		}
 #endif
 #ifdef CONFIG_CLS_U32_PERF
 		RTA_PUT(skb, TCA_U32_PCNT, 
-		sizeof(struct tc_u32_pcnt) + n->sel.nkeys*sizeof(__u64),
+		sizeof(struct tc_u32_pcnt) + n->sel.nkeys*sizeof(u64),
 			n->pf);
 #endif
 	}
 
 	rta->rta_len = skb->tail - b;
-#ifdef CONFIG_NET_CLS_ACT
-	if (TC_U32_KEY(n->handle) != 0) {
-		if (TC_U32_KEY(n->handle) && n->action && n->action->type == TCA_OLD_COMPAT) {
-			if (tcf_action_copy_stats(skb,n->action))
-				goto rtattr_failure;
-		}
-	}
-#else
-#ifdef CONFIG_NET_CLS_POLICE
-	if (TC_U32_KEY(n->handle) && n->police) {
-		if (qdisc_copy_stats(skb, &n->police->stats,
-				     n->police->stats_lock))
+	if (TC_U32_KEY(n->handle))
+		if (tcf_exts_dump_stats(skb, &n->exts, &u32_ext_map) < 0)
 			goto rtattr_failure;
-	}
-#endif
-#endif
 	return skb->len;
 
 rtattr_failure:

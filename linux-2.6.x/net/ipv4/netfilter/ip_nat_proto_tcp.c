@@ -84,13 +84,15 @@ tcp_unique_tuple(struct ip_conntrack_tuple *tuple,
 
 static int
 tcp_manip_pkt(struct sk_buff **pskb,
-	      unsigned int hdroff,
-	      const struct ip_conntrack_manip *manip,
+	      unsigned int iphdroff,
+	      const struct ip_conntrack_tuple *tuple,
 	      enum ip_nat_manip_type maniptype)
 {
+	struct iphdr *iph = (struct iphdr *)((*pskb)->data + iphdroff);
 	struct tcphdr *hdr;
-	u_int32_t oldip;
-	u_int16_t *portptr, oldport;
+	unsigned int hdroff = iphdroff + iph->ihl*4;
+	u32 oldip, newip;
+	u16 *portptr, newport, oldport;
 	int hdrsize = 8; /* TCP connection tracking guarantees this much */
 
 	/* this could be a inner header returned in icmp packet; in such
@@ -102,27 +104,32 @@ tcp_manip_pkt(struct sk_buff **pskb,
 	if (!skb_ip_make_writable(pskb, hdroff + hdrsize))
 		return 0;
 
-	hdr = (void *)(*pskb)->data + hdroff;
+	iph = (struct iphdr *)((*pskb)->data + iphdroff);
+	hdr = (struct tcphdr *)((*pskb)->data + hdroff);
 
 	if (maniptype == IP_NAT_MANIP_SRC) {
 		/* Get rid of src ip and src pt */
-		oldip = (*pskb)->nh.iph->saddr;
+		oldip = iph->saddr;
+		newip = tuple->src.ip;
+		newport = tuple->src.u.tcp.port;
 		portptr = &hdr->source;
 	} else {
 		/* Get rid of dst ip and dst pt */
-		oldip = (*pskb)->nh.iph->daddr;
+		oldip = iph->daddr;
+		newip = tuple->dst.ip;
+		newport = tuple->dst.u.tcp.port;
 		portptr = &hdr->dest;
 	}
 
 	oldport = *portptr;
-	*portptr = manip->u.tcp.port;
+	*portptr = newport;
 
 	if (hdrsize < sizeof(*hdr))
 		return 1;
 
-	hdr->check = ip_nat_cheat_check(~oldip, manip->ip,
+	hdr->check = ip_nat_cheat_check(~oldip, newip,
 					ip_nat_cheat_check(oldport ^ 0xFFFF,
-							   manip->u.tcp.port,
+							   newport,
 							   hdr->check));
 	return 1;
 }
@@ -162,7 +169,7 @@ tcp_print_range(char *buffer, const struct ip_nat_range *range)
 }
 
 struct ip_nat_protocol ip_nat_protocol_tcp
-= { { NULL, NULL }, "TCP", IPPROTO_TCP,
+= { "TCP", IPPROTO_TCP,
     tcp_manip_pkt,
     tcp_in_range,
     tcp_unique_tuple,

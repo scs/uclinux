@@ -30,7 +30,6 @@
 #include <linux/types.h>
 #include <linux/errno.h>
 #include <linux/kernel.h>
-#include <linux/major.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/poll.h>
@@ -111,7 +110,8 @@ void hci_send_to_sock(struct hci_dev *hdev, struct sk_buff *skb)
 		/* Apply filter */
 		flt = &hci_pi(sk)->filter;
 
-		if (!test_bit((skb->pkt_type & HCI_FLT_TYPE_BITS), &flt->type_mask))
+		if (!test_bit((skb->pkt_type == HCI_VENDOR_PKT) ?
+				0 : (skb->pkt_type & HCI_FLT_TYPE_BITS), &flt->type_mask))
 			continue;
 
 		if (skb->pkt_type == HCI_EVENT_PKT) {
@@ -178,10 +178,24 @@ static inline int hci_sock_bound_ioctl(struct sock *sk, unsigned int cmd, unsign
 		if (!capable(CAP_NET_ADMIN))
 			return -EACCES;
 
+		if (test_bit(HCI_QUIRK_RAW_DEVICE, &hdev->quirks))
+			return -EPERM;
+
 		if (arg)
 			set_bit(HCI_RAW, &hdev->flags);
 		else
 			clear_bit(HCI_RAW, &hdev->flags);
+
+		return 0;
+
+	case HCISETSECMGR:
+		if (!capable(CAP_NET_ADMIN))
+			return -EACCES;
+
+		if (arg)
+			set_bit(HCI_SECMGR, &hdev->flags);
+		else
+			clear_bit(HCI_SECMGR, &hdev->flags);
 
 		return 0;
 
@@ -435,7 +449,7 @@ drop:
 	goto done;
 }
 
-int hci_sock_setsockopt(struct socket *sock, int level, int optname, char __user *optval, int len)
+static int hci_sock_setsockopt(struct socket *sock, int level, int optname, char __user *optval, int len)
 {
 	struct hci_ufilter uf = { .opcode = 0 };
 	struct sock *sk = sock->sk;
@@ -502,7 +516,7 @@ int hci_sock_setsockopt(struct socket *sock, int level, int optname, char __user
 	return err;
 }
 
-int hci_sock_getsockopt(struct socket *sock, int level, int optname, char __user *optval, int __user *optlen)
+static int hci_sock_getsockopt(struct socket *sock, int level, int optname, char __user *optval, int __user *optlen)
 {
 	struct hci_ufilter uf;
 	struct sock *sk = sock->sk;
@@ -555,7 +569,7 @@ int hci_sock_getsockopt(struct socket *sock, int level, int optname, char __user
 	return 0;
 }
 
-struct proto_ops hci_sock_ops = {
+static struct proto_ops hci_sock_ops = {
 	.family		= PF_BLUETOOTH,
 	.owner		= THIS_MODULE,
 	.release	= hci_sock_release,
@@ -575,6 +589,12 @@ struct proto_ops hci_sock_ops = {
 	.mmap		= sock_no_mmap
 };
 
+static struct proto hci_sk_proto = {
+	.name		= "HCI",
+	.owner		= THIS_MODULE,
+	.obj_size	= sizeof(struct hci_pinfo)
+};
+
 static int hci_sock_create(struct socket *sock, int protocol)
 {
 	struct sock *sk;
@@ -586,11 +606,15 @@ static int hci_sock_create(struct socket *sock, int protocol)
 
 	sock->ops = &hci_sock_ops;
 
-	sk = bt_sock_alloc(sock, protocol, sizeof(struct hci_pinfo), GFP_KERNEL);
+	sk = sk_alloc(PF_BLUETOOTH, GFP_KERNEL, &hci_sk_proto, 1);
 	if (!sk)
 		return -ENOMEM;
 
-	sk_set_owner(sk, THIS_MODULE);
+	sock_init_data(sock, sk);
+
+	sock_reset_flag(sk, SOCK_ZAPPED);
+
+	sk->sk_protocol = protocol;
 
 	sock->state = SS_UNCONNECTED;
 	sk->sk_state = BT_OPEN;
@@ -635,35 +659,48 @@ static int hci_sock_dev_event(struct notifier_block *this, unsigned long event, 
 	return NOTIFY_DONE;
 }
 
-struct net_proto_family hci_sock_family_ops = {
+static struct net_proto_family hci_sock_family_ops = {
 	.family	= PF_BLUETOOTH,
 	.owner	= THIS_MODULE,
 	.create	= hci_sock_create,
 };
 
-struct notifier_block hci_sock_nblock = {
+static struct notifier_block hci_sock_nblock = {
 	.notifier_call = hci_sock_dev_event
 };
 
 int __init hci_sock_init(void)
 {
-	if (bt_sock_register(BTPROTO_HCI, &hci_sock_family_ops)) {
-		BT_ERR("HCI socket registration failed");
-		return -EPROTO;
-	}
+	int err;
+
+	err = proto_register(&hci_sk_proto, 0);
+	if (err < 0)
+		return err;
+
+	err = bt_sock_register(BTPROTO_HCI, &hci_sock_family_ops);
+	if (err < 0)
+		goto error;
 
 	hci_register_notifier(&hci_sock_nblock);
 
 	BT_INFO("HCI socket layer initialized");
 
 	return 0;
+
+error:
+	BT_ERR("HCI socket registration failed");
+	proto_unregister(&hci_sk_proto);
+	return err;
 }
 
 int __exit hci_sock_cleanup(void)
 {
-	if (bt_sock_unregister(BTPROTO_HCI))
+	if (bt_sock_unregister(BTPROTO_HCI) < 0)
 		BT_ERR("HCI socket unregistration failed");
 
 	hci_unregister_notifier(&hci_sock_nblock);
+
+	proto_unregister(&hci_sk_proto);
+
 	return 0;
 }

@@ -39,7 +39,7 @@ static atomic_t rxrpc_krxsecd_qcount;
 /* queue of unprocessed inbound messages with seqno #1 and
  * RXRPC_CLIENT_INITIATED flag set */
 static LIST_HEAD(rxrpc_krxsecd_initmsgq);
-static spinlock_t rxrpc_krxsecd_initmsgq_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(rxrpc_krxsecd_initmsgq_lock);
 
 static void rxrpc_krxsecd_process_incoming_call(struct rxrpc_message *msg);
 
@@ -106,6 +106,8 @@ static int rxrpc_krxsecd(void *arg)
 		}
 
 		_debug("### End Inbound Calls");
+
+		try_to_freeze(PF_FREEZE);
 
                 /* discard pending signals */
 		rxrpc_discard_my_signals();

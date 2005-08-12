@@ -22,24 +22,11 @@
  *					needed cleaned seq-number fields.
  */
 
-#include <linux/errno.h>
-#include <linux/types.h>
 #include <linux/socket.h>
-#include <linux/in.h>
 #include <linux/kernel.h>
-#include <linux/sched.h>
-#include <linux/timer.h>
 #include <linux/string.h>
-#include <linux/sockios.h>
-#include <linux/net.h>
-#include <linux/inet.h>
-#include <linux/netdevice.h>
 #include <linux/skbuff.h>
 #include <net/sock.h>
-#include <asm/system.h>
-#include <linux/fcntl.h>
-#include <linux/mm.h>
-#include <linux/interrupt.h>
 #include <net/x25.h>
 
 static int x25_pacsize_to_bytes(unsigned int pacsize)
@@ -67,7 +54,7 @@ int x25_output(struct sock *sk, struct sk_buff *skb)
 	unsigned char header[X25_EXT_MIN_LEN];
 	int err, frontlen, len;
 	int sent=0, noblock = X25_SKB_CB(skb)->flags & MSG_DONTWAIT;
-	struct x25_opt *x25 = x25_sk(sk);
+	struct x25_sock *x25 = x25_sk(sk);
 	int header_len = x25->neighbour->extended ? X25_EXT_MIN_LEN :
 						    X25_STD_MIN_LEN;
 	int max_len = x25_pacsize_to_bytes(x25->facilities.pacsize_out);
@@ -129,7 +116,7 @@ int x25_output(struct sock *sk, struct sk_buff *skb)
  */
 static void x25_send_iframe(struct sock *sk, struct sk_buff *skb)
 {
-	struct x25_opt *x25 = x25_sk(sk);
+	struct x25_sock *x25 = x25_sk(sk);
 
 	if (!skb)
 		return;
@@ -152,7 +139,7 @@ void x25_kick(struct sock *sk)
 	struct sk_buff *skb, *skbn;
 	unsigned short start, end;
 	int modulus;
-	struct x25_opt *x25 = x25_sk(sk);
+	struct x25_sock *x25 = x25_sk(sk);
 
 	if (x25->state != X25_STATE_3)
 		return;
@@ -225,7 +212,7 @@ void x25_kick(struct sock *sk)
 
 void x25_enquiry_response(struct sock *sk)
 {
-	struct x25_opt *x25 = x25_sk(sk);
+	struct x25_sock *x25 = x25_sk(sk);
 
 	if (x25->condition & X25_COND_OWN_RX_BUSY)
 		x25_write_internal(sk, X25_RNR);

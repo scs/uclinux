@@ -36,9 +36,10 @@
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/rtnetlink.h>
+#include <linux/moduleparam.h>
+#include <linux/bitops.h>
 
 #include <asm/system.h>
-#include <asm/bitops.h>
 #include <asm/byteorder.h>
 
 #include <net/irda/irda.h>
@@ -104,10 +105,13 @@ static struct file_operations irlan_fops = {
 extern struct proc_dir_entry *proc_irda;
 #endif /* CONFIG_PROC_FS */
 
+static struct irlan_cb *irlan_open(__u32 saddr, __u32 daddr);
 static void __irlan_close(struct irlan_cb *self);
 static int __irlan_insert_param(struct sk_buff *skb, char *param, int type, 
 				__u8 value_byte, __u16 value_short, 
 				__u8 *value_array, __u16 value_len);
+static void irlan_open_unicast_addr(struct irlan_cb *self);
+static void irlan_get_unicast_addr(struct irlan_cb *self);
 void irlan_close_tsaps(struct irlan_cb *self);
 
 /*
@@ -184,7 +188,7 @@ static void __exit irlan_cleanup(void)
  *    Open new instance of a client/provider, we should only register the 
  *    network device if this instance is ment for a particular client/provider
  */
-struct irlan_cb *irlan_open(__u32 saddr, __u32 daddr)
+static struct irlan_cb *irlan_open(__u32 saddr, __u32 daddr)
 {
 	struct net_device *dev;
 	struct irlan_cb *self;
@@ -257,8 +261,8 @@ static void __irlan_close(struct irlan_cb *self)
 	IRDA_DEBUG(2, "%s()\n", __FUNCTION__ );
 	
 	ASSERT_RTNL();
-	ASSERT(self != NULL, return;);
-	ASSERT(self->magic == IRLAN_MAGIC, return;);
+	IRDA_ASSERT(self != NULL, return;);
+	IRDA_ASSERT(self->magic == IRLAN_MAGIC, return;);
 
 	del_timer_sync(&self->watchdog_timer);
 	del_timer_sync(&self->client.kick_timer);
@@ -293,9 +297,11 @@ struct irlan_cb *irlan_get_any(void)
  *    Here we receive the connect indication for the data channel
  *
  */
-void irlan_connect_indication(void *instance, void *sap, struct qos_info *qos,
-			      __u32 max_sdu_size, __u8 max_header_size, 
-			      struct sk_buff *skb)
+static void irlan_connect_indication(void *instance, void *sap,
+				     struct qos_info *qos,
+				     __u32 max_sdu_size,
+				     __u8 max_header_size, 
+				     struct sk_buff *skb)
 {
 	struct irlan_cb *self;
 	struct tsap_cb *tsap;
@@ -305,9 +311,9 @@ void irlan_connect_indication(void *instance, void *sap, struct qos_info *qos,
 	self = (struct irlan_cb *) instance;
 	tsap = (struct tsap_cb *) sap;
 	
-	ASSERT(self != NULL, return;);
-	ASSERT(self->magic == IRLAN_MAGIC, return;);
-	ASSERT(tsap == self->tsap_data,return;);
+	IRDA_ASSERT(self != NULL, return;);
+	IRDA_ASSERT(self->magic == IRLAN_MAGIC, return;);
+	IRDA_ASSERT(tsap == self->tsap_data,return;);
 
 	self->max_sdu_size = max_sdu_size;
 	self->max_header_size = max_header_size;
@@ -338,16 +344,18 @@ void irlan_connect_indication(void *instance, void *sap, struct qos_info *qos,
 	netif_start_queue(self->dev); /* Clear reason */
 }
 
-void irlan_connect_confirm(void *instance, void *sap, struct qos_info *qos, 
-			   __u32 max_sdu_size, __u8 max_header_size, 
-			   struct sk_buff *skb) 
+static void irlan_connect_confirm(void *instance, void *sap,
+				  struct qos_info *qos, 
+				  __u32 max_sdu_size,
+				  __u8 max_header_size, 
+				  struct sk_buff *skb) 
 {
 	struct irlan_cb *self;
 
 	self = (struct irlan_cb *) instance;
 
-	ASSERT(self != NULL, return;);
-	ASSERT(self->magic == IRLAN_MAGIC, return;);
+	IRDA_ASSERT(self != NULL, return;);
+	IRDA_ASSERT(self->magic == IRLAN_MAGIC, return;);
 
 	self->max_sdu_size = max_sdu_size;
 	self->max_header_size = max_header_size;
@@ -383,8 +391,9 @@ void irlan_connect_confirm(void *instance, void *sap, struct qos_info *qos,
  *    Callback function for the IrTTP layer. Indicates a disconnection of
  *    the specified connection (handle)
  */
-void irlan_disconnect_indication(void *instance, void *sap, LM_REASON reason, 
-				 struct sk_buff *userdata) 
+static void irlan_disconnect_indication(void *instance,
+					void *sap, LM_REASON reason, 
+					struct sk_buff *userdata) 
 {
 	struct irlan_cb *self;
 	struct tsap_cb *tsap;
@@ -394,12 +403,12 @@ void irlan_disconnect_indication(void *instance, void *sap, LM_REASON reason,
 	self = (struct irlan_cb *) instance;
 	tsap = (struct tsap_cb *) sap;
 
-	ASSERT(self != NULL, return;);
-	ASSERT(self->magic == IRLAN_MAGIC, return;);	
-	ASSERT(tsap != NULL, return;);
-	ASSERT(tsap->magic == TTP_TSAP_MAGIC, return;);
+	IRDA_ASSERT(self != NULL, return;);
+	IRDA_ASSERT(self->magic == IRLAN_MAGIC, return;);	
+	IRDA_ASSERT(tsap != NULL, return;);
+	IRDA_ASSERT(tsap->magic == TTP_TSAP_MAGIC, return;);
 	
-	ASSERT(tsap == self->tsap_data, return;);
+	IRDA_ASSERT(tsap == self->tsap_data, return;);
 
 	IRDA_DEBUG(2, "IrLAN, data channel disconnected by peer!\n");
 
@@ -423,7 +432,7 @@ void irlan_disconnect_indication(void *instance, void *sap, LM_REASON reason,
 		IRDA_DEBUG(2, "%s(), IrLMP connect failed\n", __FUNCTION__ );
 		break;
 	default:
-		ERROR("%s(), Unknown disconnect reason\n", __FUNCTION__);
+		IRDA_ERROR("%s(), Unknown disconnect reason\n", __FUNCTION__);
 		break;
 	}
 	
@@ -447,8 +456,8 @@ void irlan_open_data_tsap(struct irlan_cb *self)
 
 	IRDA_DEBUG(2, "%s()\n", __FUNCTION__ );
 
-	ASSERT(self != NULL, return;);
-	ASSERT(self->magic == IRLAN_MAGIC, return;);
+	IRDA_ASSERT(self != NULL, return;);
+	IRDA_ASSERT(self->magic == IRLAN_MAGIC, return;);
 
 	/* Check if already open */
 	if (self->tsap_data)
@@ -483,8 +492,8 @@ void irlan_close_tsaps(struct irlan_cb *self)
 {
 	IRDA_DEBUG(4, "%s()\n", __FUNCTION__ );
 
-	ASSERT(self != NULL, return;);
-	ASSERT(self->magic == IRLAN_MAGIC, return;);
+	IRDA_ASSERT(self != NULL, return;);
+	IRDA_ASSERT(self->magic == IRLAN_MAGIC, return;);
 
 	/* Disconnect and close all open TSAP connections */
 	if (self->tsap_data) {
@@ -518,8 +527,8 @@ void irlan_ias_register(struct irlan_cb *self, __u8 tsap_sel)
 	struct ias_object *obj;
 	struct ias_value *new_value;
 
-	ASSERT(self != NULL, return;);
-	ASSERT(self->magic == IRLAN_MAGIC, return;);
+	IRDA_ASSERT(self != NULL, return;);
+	IRDA_ASSERT(self->magic == IRLAN_MAGIC, return;);
 	
 	/* 
 	 * Check if object has already been registered by a previous provider.
@@ -601,7 +610,7 @@ int irlan_run_ctrl_tx_queue(struct irlan_cb *self)
  *    This function makes sure that commands on the control channel is being
  *    sent in a command/response fashion
  */
-void irlan_ctrl_data_request(struct irlan_cb *self, struct sk_buff *skb)
+static void irlan_ctrl_data_request(struct irlan_cb *self, struct sk_buff *skb)
 {
 	IRDA_DEBUG(2, "%s()\n", __FUNCTION__ );
 
@@ -625,8 +634,8 @@ void irlan_get_provider_info(struct irlan_cb *self)
 
 	IRDA_DEBUG(4, "%s()\n", __FUNCTION__ );
 	
-	ASSERT(self != NULL, return;);
-	ASSERT(self->magic == IRLAN_MAGIC, return;);
+	IRDA_ASSERT(self != NULL, return;);
+	IRDA_ASSERT(self->magic == IRLAN_MAGIC, return;);
 
 	skb = dev_alloc_skb(64);
 	if (!skb)
@@ -657,8 +666,8 @@ void irlan_open_data_channel(struct irlan_cb *self)
 	
 	IRDA_DEBUG(4, "%s()\n", __FUNCTION__ );
 
-	ASSERT(self != NULL, return;);
-	ASSERT(self->magic == IRLAN_MAGIC, return;);
+	IRDA_ASSERT(self != NULL, return;);
+	IRDA_ASSERT(self->magic == IRLAN_MAGIC, return;);
 	
 	skb = dev_alloc_skb(64);
 	if (!skb)
@@ -689,8 +698,8 @@ void irlan_close_data_channel(struct irlan_cb *self)
 	
 	IRDA_DEBUG(4, "%s()\n", __FUNCTION__ );
 
-	ASSERT(self != NULL, return;);
-	ASSERT(self->magic == IRLAN_MAGIC, return;);
+	IRDA_ASSERT(self != NULL, return;);
+	IRDA_ASSERT(self->magic == IRLAN_MAGIC, return;);
 
 	/* Check if the TSAP is still there */
 	if (self->client.tsap_ctrl == NULL)
@@ -721,15 +730,15 @@ void irlan_close_data_channel(struct irlan_cb *self)
  *    address.
  *
  */
-void irlan_open_unicast_addr(struct irlan_cb *self) 
+static void irlan_open_unicast_addr(struct irlan_cb *self)
 {
 	struct sk_buff *skb;
 	__u8 *frame;
 	
 	IRDA_DEBUG(4, "%s()\n", __FUNCTION__ );
 
-	ASSERT(self != NULL, return;);
-	ASSERT(self->magic == IRLAN_MAGIC, return;);	
+	IRDA_ASSERT(self != NULL, return;);
+	IRDA_ASSERT(self->magic == IRLAN_MAGIC, return;);	
 	
 	skb = dev_alloc_skb(128);
 	if (!skb)
@@ -766,8 +775,8 @@ void irlan_set_broadcast_filter(struct irlan_cb *self, int status)
 	
 	IRDA_DEBUG(2, "%s()\n", __FUNCTION__ );
 
-	ASSERT(self != NULL, return;);
-	ASSERT(self->magic == IRLAN_MAGIC, return;);
+	IRDA_ASSERT(self != NULL, return;);
+	IRDA_ASSERT(self->magic == IRLAN_MAGIC, return;);
 	
  	skb = dev_alloc_skb(128);
 	if (!skb)
@@ -805,8 +814,8 @@ void irlan_set_multicast_filter(struct irlan_cb *self, int status)
 	
 	IRDA_DEBUG(2, "%s()\n", __FUNCTION__ );
 
-	ASSERT(self != NULL, return;);
-	ASSERT(self->magic == IRLAN_MAGIC, return;);
+	IRDA_ASSERT(self != NULL, return;);
+	IRDA_ASSERT(self->magic == IRLAN_MAGIC, return;);
 
  	skb = dev_alloc_skb(128);
 	if (!skb)
@@ -838,15 +847,15 @@ void irlan_set_multicast_filter(struct irlan_cb *self, int status)
  *    can construct its packets.
  *
  */
-void irlan_get_unicast_addr(struct irlan_cb *self) 
+static void irlan_get_unicast_addr(struct irlan_cb *self)
 {
 	struct sk_buff *skb;
 	__u8 *frame;
 		
 	IRDA_DEBUG(2, "%s()\n", __FUNCTION__ );
 
-	ASSERT(self != NULL, return;);
-	ASSERT(self->magic == IRLAN_MAGIC, return;);
+	IRDA_ASSERT(self != NULL, return;);
+	IRDA_ASSERT(self->magic == IRLAN_MAGIC, return;);
 	
 	skb = dev_alloc_skb(128);
 	if (!skb)
@@ -880,8 +889,8 @@ void irlan_get_media_char(struct irlan_cb *self)
 	
 	IRDA_DEBUG(4, "%s()\n", __FUNCTION__ );
 
-	ASSERT(self != NULL, return;);
-	ASSERT(self->magic == IRLAN_MAGIC, return;);
+	IRDA_ASSERT(self != NULL, return;);
+	IRDA_ASSERT(self->magic == IRLAN_MAGIC, return;);
 	
 	skb = dev_alloc_skb(64);
 	if (!skb)
@@ -976,8 +985,8 @@ static int __irlan_insert_param(struct sk_buff *skb, char *param, int type,
 		value_len = 2;
 		break;
 	case IRLAN_ARRAY:
-		ASSERT(value_array != NULL, return 0;);
-		ASSERT(value_len > 0, return 0;);
+		IRDA_ASSERT(value_array != NULL, return 0;);
+		IRDA_ASSERT(value_len > 0, return 0;);
 		break;
 	default:
 		IRDA_DEBUG(2, "%s(), Unknown parameter type!\n", __FUNCTION__ );
@@ -1020,7 +1029,7 @@ static int __irlan_insert_param(struct sk_buff *skb, char *param, int type,
 	default:
 		break;
 	}
-	ASSERT(n == (param_len+value_len+3), return 0;);
+	IRDA_ASSERT(n == (param_len+value_len+3), return 0;);
 
 	return param_len+value_len+3;
 }
@@ -1133,8 +1142,8 @@ static int irlan_seq_show(struct seq_file *seq, void *v)
 	else {
 		struct irlan_cb *self = v;
 		
-		ASSERT(self != NULL, return -1;);
-		ASSERT(self->magic == IRLAN_MAGIC, return -1;);
+		IRDA_ASSERT(self != NULL, return -1;);
+		IRDA_ASSERT(self->magic == IRLAN_MAGIC, return -1;);
 
 		seq_printf(seq,"ifname: %s,\n",
 			       self->dev->name);
@@ -1181,9 +1190,9 @@ MODULE_AUTHOR("Dag Brattli <dagb@cs.uit.no>");
 MODULE_DESCRIPTION("The Linux IrDA LAN protocol"); 
 MODULE_LICENSE("GPL");
 
-MODULE_PARM(eth, "i");
+module_param(eth, bool, 0);
 MODULE_PARM_DESC(eth, "Name devices ethX (0) or irlanX (1)");
-MODULE_PARM(access, "i");
+module_param(access, int, 0);
 MODULE_PARM_DESC(access, "Access type DIRECT=1, PEER=2, HOSTED=3");
 
 module_init(irlan_init);

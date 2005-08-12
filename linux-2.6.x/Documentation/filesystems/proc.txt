@@ -55,7 +55,7 @@ This work is  based on the 2.2.*  kernel version and the  upcoming 2.4.*. I'm
 afraid it's still far from complete, but we  hope it will be useful. As far as
 we know, it is the first 'all-in-one' document about the /proc file system. It
 is focused  on the Intel  x86 hardware,  so if you  are looking for  PPC, ARM,
-SPARC, APX, etc., features, you probably  won't find what you are looking for.
+SPARC, AXP, etc., features, you probably  won't find what you are looking for.
 It also only covers IPv4 networking, not IPv6 nor other protocols - sorry. But
 additions and patches  are welcome and will  be added to this  document if you
 mail them to Bodo.
@@ -169,16 +169,18 @@ information. The  statm  file  contains  more  detailed  information about the
 process memory usage. Its seven fields are explained in Table 1-2.
 
 
-Table 1-2: Contents of the statm files 
+Table 1-2: Contents of the statm files (as of 2.6.8-rc3)
 ..............................................................................
- File     Content                         
- size     total program size              
- resident size of memory portions         
- shared   number of pages that are shared 
- trs      number of pages that are 'code' 
- drs      number of pages of data/stack   
- lrs      number of pages of library      
- dt       number of dirty pages           
+ Field    Content
+ size     total program size (pages)		(same as VmSize in status)
+ resident size of memory portions (pages)	(same as VmRSS in status)
+ shared   number of pages that are shared	(i.e. backed by a file)
+ trs      number of pages that are 'code'	(not including libs; broken,
+							includes data segment)
+ lrs      number of pages of library		(always 0 on 2.6)
+ drs      number of pages of data/stack		(including libs; broken,
+							includes library text)
+ dt       number of dirty pages			(always 0 on 2.6)
 ..............................................................................
 
 1.2 Kernel data
@@ -348,22 +350,6 @@ available.  In this case, there are 0 chunks of 2^0*PAGE_SIZE available in
 ZONE_DMA, 4 chunks of 2^1*PAGE_SIZE in ZONE_DMA, 101 chunks of 2^4*PAGE_SIZE 
 available in ZONE_NORMAL, etc... 
 
-
-1.3 IDE devices in /proc/ide
-----------------------------
-
-The subdirectory /proc/ide contains information about all IDE devices of which
-the kernel  is  aware.  There is one subdirectory for each IDE controller, the
-file drivers  and a link for each IDE device, pointing to the device directory
-in the controller specific subtree.
-
-The file  drivers  contains general information about the drivers used for the
-IDE devices:
-
-  > cat /proc/ide/drivers 
-  ide-cdrom version 4.53 
-  ide-disk version 1.08 
-
 ..............................................................................
 
 meminfo:
@@ -392,9 +378,9 @@ Dirty:             968 kB
 Writeback:           0 kB
 Mapped:         280372 kB
 Slab:           684068 kB
-Committed_AS:  1576424 kB
+CommitLimit:   7669796 kB
+Committed_AS:   100056 kB
 PageTables:      24448 kB
-ReverseMaps:   1080904
 VmallocTotal:   112216 kB
 VmallocUsed:       428 kB
 VmallocChunk:   111088 kB
@@ -432,25 +418,53 @@ VmallocChunk:   111088 kB
    Writeback: Memory which is actively being written back to the disk
       Mapped: files which have been mmaped, such as libraries
               Slab: in-kernel data structures cache
-Committed_AS: An estimate of how much RAM you would need to make a
-              99.99% guarantee that there never is OOM (out of memory)
-              for this workload. Normally the kernel will overcommit
-              memory. That means, say you do a 1GB malloc, nothing
-              happens, really. Only when you start USING that malloc
-              memory you will get real memory on demand, and just as
-              much as you use. So you sort of take a mortgage and hope
-              the bank doesn't go bust. Other cases might include when
-              you mmap a file that's shared only when you write to it
-              and you get a private copy of that data. While it normally
-              is shared between processes. The Committed_AS is a
-              guesstimate of how much RAM/swap you would need
-              worst-case.
+ CommitLimit: Based on the overcommit ratio ('vm.overcommit_ratio'),
+              this is the total amount of  memory currently available to
+              be allocated on the system. This limit is only adhered to
+              if strict overcommit accounting is enabled (mode 2 in
+              'vm.overcommit_memory').
+              The CommitLimit is calculated with the following formula:
+              CommitLimit = ('vm.overcommit_ratio' * Physical RAM) + Swap
+              For example, on a system with 1G of physical RAM and 7G
+              of swap with a `vm.overcommit_ratio` of 30 it would
+              yield a CommitLimit of 7.3G.
+              For more details, see the memory overcommit documentation
+              in vm/overcommit-accounting.
+Committed_AS: The amount of memory presently allocated on the system.
+              The committed memory is a sum of all of the memory which
+              has been allocated by processes, even if it has not been
+              "used" by them as of yet. A process which malloc()'s 1G
+              of memory, but only touches 300M of it will only show up
+              as using 300M of memory even if it has the address space
+              allocated for the entire 1G. This 1G is memory which has
+              been "committed" to by the VM and can be used at any time
+              by the allocating application. With strict overcommit
+              enabled on the system (mode 2 in 'vm.overcommit_memory'),
+              allocations which would exceed the CommitLimit (detailed
+              above) will not be permitted. This is useful if one needs
+              to guarantee that processes will not fail due to lack of
+              memory once that memory has been successfully allocated.
   PageTables: amount of memory dedicated to the lowest level of page
               tables.
- ReverseMaps: number of reverse mappings performed
 VmallocTotal: total size of vmalloc memory area
  VmallocUsed: amount of vmalloc area which is used
 VmallocChunk: largest contigious block of vmalloc area which is free
+
+
+1.3 IDE devices in /proc/ide
+----------------------------
+
+The subdirectory /proc/ide contains information about all IDE devices of which
+the kernel  is  aware.  There is one subdirectory for each IDE controller, the
+file drivers  and a link for each IDE device, pointing to the device directory
+in the controller specific subtree.
+
+The file  drivers  contains general information about the drivers used for the
+IDE devices:
+
+  > cat /proc/ide/drivers
+  ide-cdrom version 4.53
+  ide-disk version 1.08
 
 More detailed  information  can  be  found  in  the  controller  specific
 subdirectories. These  are  named  ide0,  ide1  and  so  on.  Each  of  these
@@ -895,16 +909,6 @@ nr_free_inodes
 Represents the  number of free inodes. Ie. The number of inuse inodes is
 (nr_inodes - nr_free_inodes).
 
-super-nr and super-max
-----------------------
-
-Again, super  block structures are allocated by the kernel, but not freed. The
-file super-max  contains  the  maximum  number  of super block handlers, where
-super-nr shows the number of currently allocated ones.
-
-Every mounted file system needs a super block, so if you plan to mount lots of
-file systems, you may want to increase these numbers.
-
 aio-nr and aio-max-nr
 ---------------------
 
@@ -1109,6 +1113,23 @@ modprobe
 The location  where  the  modprobe  binary  is  located.  The kernel uses this
 program to load modules on demand.
 
+unknown_nmi_panic
+-----------------
+
+The value in this file affects behavior of handling NMI. When the value is
+non-zero, unknown NMI is trapped and then panic occurs. At that time, kernel
+debugging information is displayed on console.
+
+NMI switch that most IA32 servers have fires unknown NMI up, for example.
+If a system hangs up, try pressing the NMI switch.
+
+[NOTE]
+   This function and oprofile share a NMI callback. Therefore this function
+   cannot be enabled when oprofile is activated.
+   And NMI watchdog will be disabled when the value in this file is set to
+   non-zero.
+
+
 2.4 /proc/sys/vm - The virtual memory subsystem
 -----------------------------------------------
 
@@ -1156,6 +1177,12 @@ This tunable is used to define when dirty data is old enough to be eligible
 for writeout by the pdflush daemons.  It is expressed in 100'ths of a second. 
 Data which has been dirty in-memory for longer than this interval will be
 written out next time a pdflush daemon wakes up.
+
+legacy_va_layout
+----------------
+
+If non-zero, this sysctl disables the new 32-bit mmap mmap layout - the kernel
+will use the legacy (2.4) layout for all processes.
 
 lower_zone_protection
 ---------------------
@@ -1243,6 +1270,14 @@ block_dump
 
 block_dump enables block I/O debugging when set to a nonzero value. More
 information on block I/O debugging is in Documentation/laptop-mode.txt.
+
+swap_token_timeout
+------------------
+
+This file contains valid hold time of swap out protection token. The Linux
+VM has token based thrashing control mechanism and uses the token to prevent
+unnecessary page faults in thrashing situation. The unit of the value is
+second. The value would be useful to tune thrashing behavior.
 
 2.5 /proc/sys/dev - Device specific parameters
 ----------------------------------------------
@@ -1664,12 +1699,13 @@ flush
 
 Writing to this file results in a flush of the routing cache.
 
-gc_elasticity, gc_interval, gc_min_interval, gc_tresh, gc_timeout,
-gc_thresh, gc_thresh1, gc_thresh2, gc_thresh3
---------------------------------------------------------------
+gc_elasticity, gc_interval, gc_min_interval_ms, gc_timeout, gc_thresh
+---------------------------------------------------------------------
 
 Values to  control  the  frequency  and  behavior  of  the  garbage collection
-algorithm for the routing cache.
+algorithm for the routing cache. gc_min_interval is deprecated and replaced
+by gc_min_interval_ms.
+
 
 max_size
 --------
@@ -1708,18 +1744,25 @@ settings contain additional options to set garbage collection parameters.
 
 In the interface directories you'll find the following entries:
 
-base_reachable_time
--------------------
+base_reachable_time, base_reachable_time_ms
+-------------------------------------------
 
 A base  value  used for computing the random reachable time value as specified
 in RFC2461.
 
-retrans_time
-------------
+Expression of base_reachable_time, which is deprecated, is in seconds.
+Expression of base_reachable_time_ms is in milliseconds.
 
-The time,  expressed  in  jiffies  (1/100 sec), between retransmitted Neighbor
-Solicitation messages.  Used  for  address  resolution  and  to determine if a
-neighbor is unreachable.
+retrans_time, retrans_time_ms
+-----------------------------
+
+The time between retransmitted Neighbor Solicitation messages.
+Used for address resolution and to determine if a neighbor is
+unreachable.
+
+Expression of retrans_time, which is deprecated, is in 1/100 seconds (for
+IPv4) or in jiffies (for IPv6).
+Expression of retrans_time_ms is in milliseconds.
 
 unres_qlen
 ----------
