@@ -90,15 +90,16 @@
 #define L1_CODE_LENGTH      0xC000
 
 #ifdef CONFIG_BLKFIN_DCACHE
+
 #define DMEM_CNTR (ACACHE_BCACHE | ENDCPLB | PORT_PREF0)
 #define L1_DATA_A_LENGTH      (0x8000 - 0x4000)
 #else
 #define DMEM_CNTR (ASRAM_BSRAM | ENDCPLB | PORT_PREF0)
 #define L1_DATA_A_LENGTH      0x8000
 #endif
-
 #ifdef CONFIG_BLKFIN_DCACHE
 #define L1_DATA_B_LENGTH      (0x8000 - 0x4000)
+
 #else
 #define L1_DATA_B_LENGTH      0x8000
 #endif

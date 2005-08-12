@@ -184,7 +184,6 @@ _clear_bss:
 	p1.h = _ramstart;
 	p3.l = _ebss;
 	p3.h = _ebss;
-
 #if defined(CONFIG_ROOTFS_TIED_TO_KERNEL)
 	r0 = p3;
 	r1.l = lo(FILE_HEAD_START);

@@ -149,6 +149,80 @@ static struct irqchip bf533_internal_irqchip = {
 	.unmask		= bf533_internal_unmask_irq,
 };
 
+#ifdef BF537_GENERIC_ERROR_INT_DEMUX
+static int error_int_mask;
+
+static void bf537_generic_error_ack_irq(unsigned int irq)
+{
+
+}
+
+static void bf537_generic_error_mask_irq(unsigned int irq)
+{
+	error_int_mask &= ~(1L << (irq - IRQ_PPI_ERROR));
+
+	if(!error_int_mask) 
+		{
+			local_irq_disable();
+		   	*pSIC_IMASK |= (1<<(IRQ_GENERIC_ERROR - (IRQ_CORETMR+1)));
+			__builtin_bfin_ssync();
+			local_irq_enable();		
+		}
+}
+
+static void bf537_generic_error_unmask_irq(unsigned int irq)
+{
+	local_irq_disable();
+	*pSIC_IMASK |= (1<<(IRQ_GENERIC_ERROR - (IRQ_CORETMR+1)));
+	__builtin_bfin_ssync();
+	local_irq_enable();
+
+	error_int_mask |= (1L << (irq - IRQ_PPI_ERROR));
+}
+
+
+static struct irqchip bf537_generic_error_irqchip = {
+	.ack		= bf537_generic_error_ack_irq,
+	.mask		= bf537_generic_error_mask_irq,
+	.unmask		= bf537_generic_error_unmask_irq,
+};
+
+static void bf537_demux_error_irq(unsigned int int_err_irq, struct irqdesc *intb_desc,
+				 struct pt_regs *regs)
+{
+	int irq = 0;
+
+	 __builtin_bfin_ssync();
+	
+#if (defined(CONFIG_BF537) || defined(CONFIG_BF536))
+		if (*pEMAC_SYSTAT & EMAC_ERR_MASK) irq = IRQ_MAC_ERROR; else
+#endif
+		if (*pSPORT0_STAT & SPORT_ERR_MASK) irq = IRQ_SPORT0_ERROR; else
+		if (*pSPORT1_STAT & SPORT_ERR_MASK) irq = IRQ_SPORT1_ERROR; else
+		if (*pPPI_STATUS & PPI_ERR_MASK) irq = IRQ_PPI_ERROR; else
+		if (*pCAN_GIF & CAN_ERR_MASK) irq = IRQ_CAN_ERROR; else	
+		if (*pSPI_STAT & SPI_ERR_MASK) irq = IRQ_SPI_ERROR; else
+		if ((*pUART0_IIR & UART_ERR_MASK_STAT1)  && (*pUART0_IIR & UART_ERR_MASK_STAT0)) irq = IRQ_UART0_ERROR; else	
+		if ((*pUART1_IIR & UART_ERR_MASK_STAT1)  && (*pUART1_IIR & UART_ERR_MASK_STAT0)) irq = IRQ_UART1_ERROR;	
+
+		if(irq)
+		  {	
+			  if(error_int_mask & (1L << (irq - IRQ_PPI_ERROR)))
+				{
+					struct irqdesc *desc = irq_desc + irq;
+					desc->handle(irq, desc, regs);
+				}
+				  else 
+				  	printk(KERN_ERR "%s : %s : LINE %d  : \nIRQ %d: MASKED PERIPHERAL ERROR INTERRUPT ASSERTED\n",
+				  	  __FUNCTION__,__FILE__,__LINE__,irq);
+		  }
+			else
+			  printk(KERN_ERR "%s : %s : LINE %d :\nIRQ ?: PERIPHERAL ERROR INTERRUPT ASSERTED BUT NO SOURCE FOUND\n",
+			    __FUNCTION__,__FILE__,__LINE__);
+
+}
+#endif /* BF537_GENERIC_ERROR_INT_DEMUX */
+
 
 #ifdef BF537_GENERIC_ERROR_INT_DEMUX
 static int error_int_mask;
@@ -386,6 +460,11 @@ int __init  init_arch_irq(void)
 			set_irq_chained_handler(irq, bf533_demux_gpio_irq);
 		}
 #endif
+#ifdef BF537_GENERIC_ERROR_INT_DEMUX
+		} else {
+			set_irq_handler(irq, bf537_demux_error_irq);
+		}
+#endif
 
 #ifdef BF537_GENERIC_ERROR_INT_DEMUX
 		} else {
@@ -393,6 +472,15 @@ int __init  init_arch_irq(void)
 		}
 #endif
 	}
+#ifdef BF537_GENERIC_ERROR_INT_DEMUX
+  	for (irq = IRQ_PPI_ERROR; irq <= IRQ_UART1_ERROR; irq++) {
+		set_irq_chip(irq, &bf537_generic_error_irqchip);
+		set_irq_handler(irq, do_level_IRQ); 
+		set_irq_flags(irq, IRQF_VALID);
+	}
+#endif
+
+
 
 #ifdef BF537_GENERIC_ERROR_INT_DEMUX
   	for (irq = IRQ_PPI_ERROR; irq <= IRQ_UART1_ERROR; irq++) {
