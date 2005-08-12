@@ -1,7 +1,7 @@
 /* Postprocess module symbol versions
  *
  * Copyright 2003       Kai Germaschewski
- *           2002-2003  Rusty Russell, IBM Corporation
+ * Copyright 2002-2004  Rusty Russell, IBM Corporation
  *
  * Based in part on module-init-tools/depmod.c,file2alias
  *
@@ -18,6 +18,8 @@
 int modversions = 0;
 /* Warn about undefined symbols? (do so if we have vmlinux) */
 int have_vmlinux = 0;
+/* Is CONFIG_MODULE_SRCVERSION_ALL set? */
+static int all_versions = 0;
 
 void
 fatal(const char *fmt, ...)
@@ -45,11 +47,10 @@ warn(const char *fmt, ...)
 	va_end(arglist);
 }
 
-void *do_nofail(void *ptr, const char *file, int line, const char *expr)
+void *do_nofail(void *ptr, const char *expr)
 {
 	if (!ptr) {
-		fatal("Memory allocation failure %s line %d: %s.\n",
-		      file, line, expr);
+		fatal("modpost: Memory allocation failure: %s.\n", expr);
 	}
 	return ptr;
 }
@@ -102,6 +103,7 @@ struct symbol {
 	struct module *module;
 	unsigned int crc;
 	int crc_valid;
+	unsigned int weak:1;
 	char name[0];
 };
 
@@ -124,12 +126,13 @@ static inline unsigned int tdb_hash(const char *name)
  * the list of unresolved symbols per module */
 
 struct symbol *
-alloc_symbol(const char *name, struct symbol *next)
+alloc_symbol(const char *name, unsigned int weak, struct symbol *next)
 {
 	struct symbol *s = NOFAIL(malloc(sizeof(*s) + strlen(name) + 1));
 
 	memset(s, 0, sizeof(*s));
 	strcpy(s->name, name);
+	s->weak = weak;
 	s->next = next;
 	return s;
 }
@@ -143,7 +146,7 @@ new_symbol(const char *name, struct module *module, unsigned int *crc)
 	struct symbol *new;
 
 	hash = tdb_hash(name) % SYMBOL_HASH_SIZE;
-	new = symbolhash[hash] = alloc_symbol(name, symbolhash[hash]);
+	new = symbolhash[hash] = alloc_symbol(name, 0, symbolhash[hash]);
 	new->module = module;
 	if (crc) {
 		new->crc = *crc;
@@ -215,7 +218,7 @@ get_next_line(unsigned long *pos, void *file, unsigned long size)
 	static char line[4096];
 	int skip = 1;
 	size_t len = 0;
-	char *p = (char *)file + *pos;
+	signed char *p = (signed char *)file + *pos;
 	char *s = line;
 
 	for (; *pos < size ; (*pos)++)
@@ -343,12 +346,12 @@ handle_modversions(struct module *mod, struct elf_info *info,
 			crc = (unsigned int) sym->st_value;
 			add_exported_symbol(symname + strlen(CRC_PFX),
 					    mod, &crc);
-			modversions = 1;
 		}
 		break;
 	case SHN_UNDEF:
 		/* undefined symbol */
-		if (ELF_ST_BIND(sym->st_info) != STB_GLOBAL)
+		if (ELF_ST_BIND(sym->st_info) != STB_GLOBAL &&
+		    ELF_ST_BIND(sym->st_info) != STB_WEAK)
 			break;
 		/* ignore global offset table */
 		if (strcmp(symname, "_GLOBAL_OFFSET_TABLE_") == 0)
@@ -369,6 +372,7 @@ handle_modversions(struct module *mod, struct elf_info *info,
 			   strlen(MODULE_SYMBOL_PREFIX)) == 0)
 			mod->unres = alloc_symbol(symname +
 						  strlen(MODULE_SYMBOL_PREFIX),
+						  ELF_ST_BIND(sym->st_info) == STB_WEAK,
 						  mod->unres);
 		break;
 	default:
@@ -377,6 +381,10 @@ handle_modversions(struct module *mod, struct elf_info *info,
 			add_exported_symbol(symname + strlen(KSYMTAB_PFX),
 					    mod, NULL);
 		}
+		if (strcmp(symname, MODULE_SYMBOL_PREFIX "init_module") == 0)
+			mod->has_init = 1;
+		if (strcmp(symname, MODULE_SYMBOL_PREFIX "cleanup_module") == 0)
+			mod->has_cleanup = 1;
 		break;
 	}
 }
@@ -394,10 +402,44 @@ is_vmlinux(const char *modname)
 	return strcmp(myname, "vmlinux") == 0;
 }
 
+/* Parse tag=value strings from .modinfo section */
+static char *next_string(char *string, unsigned long *secsize)
+{
+	/* Skip non-zero chars */
+	while (string[0]) {
+		string++;
+		if ((*secsize)-- <= 1)
+			return NULL;
+	}
+
+	/* Skip any zero padding. */
+	while (!string[0]) {
+		string++;
+		if ((*secsize)-- <= 1)
+			return NULL;
+	}
+	return string;
+}
+
+static char *get_modinfo(void *modinfo, unsigned long modinfo_len,
+			 const char *tag)
+{
+	char *p;
+	unsigned int taglen = strlen(tag);
+	unsigned long size = modinfo_len;
+
+	for (p = modinfo; p; p = next_string(p, &size)) {
+		if (strncmp(p, tag, taglen) == 0 && p[taglen] == '=')
+			return p + taglen + 1;
+	}
+	return NULL;
+}
+
 void
 read_symbols(char *modname)
 {
 	const char *symname;
+	char *version;
 	struct module *mod;
 	struct elf_info info = { };
 	Elf_Sym *sym;
@@ -411,9 +453,6 @@ read_symbols(char *modname)
 	if (is_vmlinux(modname)) {
 		unsigned int fake_crc = 0;
 		have_vmlinux = 1;
-		/* May not have this if !CONFIG_MODULE_UNLOAD: fake it.
-		   If it appears, we'll get the real CRC. */
-		add_exported_symbol("cleanup_module", mod, &fake_crc);
 		add_exported_symbol("struct_module", mod, &fake_crc);
 		mod->skip = 1;
 	}
@@ -424,22 +463,23 @@ read_symbols(char *modname)
 		handle_modversions(mod, &info, sym, symname);
 		handle_moddevtable(mod, &info, sym, symname);
 	}
-	maybe_frob_version(modname, info.modinfo, info.modinfo_len,
-			   (void *)info.modinfo - (void *)info.hdr);
+
+	version = get_modinfo(info.modinfo, info.modinfo_len, "version");
+	if (version)
+		maybe_frob_rcs_version(modname, version, info.modinfo,
+				       version - (char *)info.hdr);
+	if (version || (all_versions && !is_vmlinux(modname)))
+		get_src_version(modname, mod->srcversion,
+				sizeof(mod->srcversion)-1);
+
 	parse_elf_finish(&info);
 
 	/* Our trick to get versioning for struct_module - it's
 	 * never passed as an argument to an exported function, so
 	 * the automatic versioning doesn't pick it up, but it's really
 	 * important anyhow */
-	if (modversions) {
-		mod->unres = alloc_symbol("struct_module", mod->unres);
-
-		/* Always version init_module and cleanup_module, in
-		 * case module doesn't have its own. */
-		mod->unres = alloc_symbol("init_module", mod->unres);
-		mod->unres = alloc_symbol("cleanup_module", mod->unres);
-	}
+	if (modversions)
+		mod->unres = alloc_symbol("struct_module", 0, mod->unres);
 }
 
 #define SZ 500
@@ -480,7 +520,7 @@ buf_write(struct buffer *buf, const char *s, int len)
 /* Header for the generated file */
 
 void
-add_header(struct buffer *b)
+add_header(struct buffer *b, struct module *mod)
 {
 	buf_printf(b, "#include <linux/module.h>\n");
 	buf_printf(b, "#include <linux/vermagic.h>\n");
@@ -492,10 +532,12 @@ add_header(struct buffer *b)
 	buf_printf(b, "struct module __this_module\n");
 	buf_printf(b, "__attribute__((section(\".gnu.linkonce.this_module\"))) = {\n");
 	buf_printf(b, " .name = __stringify(KBUILD_MODNAME),\n");
-	buf_printf(b, " .init = init_module,\n");
-	buf_printf(b, "#ifdef CONFIG_MODULE_UNLOAD\n");
-	buf_printf(b, " .exit = cleanup_module,\n");
-	buf_printf(b, "#endif\n");
+	if (mod->has_init)
+		buf_printf(b, " .init = init_module,\n");
+	if (mod->has_cleanup)
+		buf_printf(b, "#ifdef CONFIG_MODULE_UNLOAD\n"
+			      " .exit = cleanup_module,\n"
+			      "#endif\n");
 	buf_printf(b, "};\n");
 }
 
@@ -509,7 +551,7 @@ add_versions(struct buffer *b, struct module *mod)
 	for (s = mod->unres; s; s = s->next) {
 		exp = find_symbol(s->name);
 		if (!exp || exp->module == mod) {
-			if (have_vmlinux)
+			if (have_vmlinux && !s->weak)
 				fprintf(stderr, "*** Warning: \"%s\" [%s.ko] "
 				"undefined!\n",	s->name, mod->name);
 			continue;
@@ -572,6 +614,16 @@ add_depends(struct buffer *b, struct module *mod, struct module *modules)
 		first = 0;
 	}
 	buf_printf(b, "\";\n");
+}
+
+void
+add_srcversion(struct buffer *b, struct module *mod)
+{
+	if (mod->srcversion[0]) {
+		buf_printf(b, "\n");
+		buf_printf(b, "MODULE_INFO(srcversion, \"%s\");\n",
+			   mod->srcversion);
+	}
 }
 
 void
@@ -649,7 +701,6 @@ read_dump(const char *fname)
 
 		if (!(mod = find_module(modname))) {
 			if (is_vmlinux(modname)) {
-				modversions = 1;
 				have_vmlinux = 1;
 			}
 			mod = new_module(NOFAIL(strdup(modname)));
@@ -696,13 +747,19 @@ main(int argc, char **argv)
 	char *dump_read = NULL, *dump_write = NULL;
 	int opt;
 
-	while ((opt = getopt(argc, argv, "i:o:")) != -1) {
+	while ((opt = getopt(argc, argv, "i:mo:a")) != -1) {
 		switch(opt) {
 			case 'i':
 				dump_read = optarg;
 				break;
+			case 'm':
+				modversions = 1;
+				break;
 			case 'o':
 				dump_write = optarg;
+				break;
+			case 'a':
+				all_versions = 1;
 				break;
 			default:
 				exit(1);
@@ -722,10 +779,11 @@ main(int argc, char **argv)
 
 		buf.pos = 0;
 
-		add_header(&buf);
+		add_header(&buf, mod);
 		add_versions(&buf, mod);
 		add_depends(&buf, mod, modules);
 		add_moddevtable(&buf, mod);
+		add_srcversion(&buf, mod);
 
 		sprintf(fname, "%s.mod.c", mod->name);
 		write_if_changed(&buf, fname);

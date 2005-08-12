@@ -25,12 +25,13 @@
 #include <linux/rmap.h>
 #include <linux/security.h>
 #include <linux/backing-dev.h>
+#include <linux/syscalls.h>
 
 #include <asm/pgtable.h>
 #include <asm/tlbflush.h>
 #include <linux/swapops.h>
 
-spinlock_t swaplock = SPIN_LOCK_UNLOCKED;
+DEFINE_SPINLOCK(swaplock);
 unsigned int nr_swapfiles;
 long total_swap_pages;
 static int swap_overflow;
@@ -78,7 +79,7 @@ void swap_unplug_io_fn(struct backing_dev_info *unused_bdi, struct page *page)
 		WARN_ON(page_count(page) <= 1);
 
 		bdi = bdev->bd_inode->i_mapping->backing_dev_info;
-		bdi->unplug_io_fn(bdi, page);
+		blk_run_backing_dev(bdi, page);
 	}
 	up_read(&swap_unplug_sem);
 }
@@ -290,10 +291,10 @@ static int exclusive_swap_page(struct page *page)
 		/* Is the only swap cache user the cache itself? */
 		if (p->swap_map[swp_offset(entry)] == 1) {
 			/* Recheck the page count with the swapcache lock held.. */
-			spin_lock_irq(&swapper_space.tree_lock);
+			write_lock_irq(&swapper_space.tree_lock);
 			if (page_count(page) == 2)
 				retval = 1;
-			spin_unlock_irq(&swapper_space.tree_lock);
+			write_unlock_irq(&swapper_space.tree_lock);
 		}
 		swap_info_put(p);
 	}
@@ -361,13 +362,13 @@ int remove_exclusive_swap_page(struct page *page)
 	retval = 0;
 	if (p->swap_map[swp_offset(entry)] == 1) {
 		/* Recheck the page count with the swapcache lock held.. */
-		spin_lock_irq(&swapper_space.tree_lock);
+		write_lock_irq(&swapper_space.tree_lock);
 		if ((page_count(page) == 2) && !PageWriteback(page)) {
 			__delete_from_swap_cache(page);
 			SetPageDirty(page);
 			retval = 1;
 		}
-		spin_unlock_irq(&swapper_space.tree_lock);
+		write_unlock_irq(&swapper_space.tree_lock);
 	}
 	swap_info_put(p);
 
@@ -390,14 +391,8 @@ void free_swap_and_cache(swp_entry_t entry)
 
 	p = swap_info_get(entry);
 	if (p) {
-		if (swap_entry_free(p, swp_offset(entry)) == 1) {
-			spin_lock_irq(&swapper_space.tree_lock);
-			page = radix_tree_lookup(&swapper_space.page_tree,
-				entry.val);
-			if (page && TestSetPageLocked(page))
-				page = NULL;
-			spin_unlock_irq(&swapper_space.tree_lock);
-		}
+		if (swap_entry_free(p, swp_offset(entry)) == 1)
+			page = find_trylock_page(&swapper_space, entry.val);
 		swap_info_put(p);
 	}
 	if (page) {
@@ -417,137 +412,121 @@ void free_swap_and_cache(swp_entry_t entry)
 }
 
 /*
- * The swap entry has been read in advance, and we return 1 to indicate
- * that the page has been used or is no longer needed.
- *
  * Always set the resulting pte to be nowrite (the same as COW pages
  * after one process has exited).  We don't know just how many PTEs will
  * share this swap entry, so be cautious and let do_wp_page work out
  * what to do if a write is requested later.
+ *
+ * vma->vm_mm->page_table_lock is held.
  */
-/* vma->vm_mm->page_table_lock is held */
-static void
-unuse_pte(struct vm_area_struct *vma, unsigned long address, pte_t *dir,
-	swp_entry_t entry, struct page *page)
+static void unuse_pte(struct vm_area_struct *vma, pte_t *pte,
+		unsigned long addr, swp_entry_t entry, struct page *page)
 {
-	vma->vm_mm->rss++;
+	inc_mm_counter(vma->vm_mm, rss);
 	get_page(page);
-	set_pte(dir, pte_mkold(mk_pte(page, vma->vm_page_prot)));
-	page_add_anon_rmap(page, vma, address);
+	set_pte_at(vma->vm_mm, addr, pte,
+		   pte_mkold(mk_pte(page, vma->vm_page_prot)));
+	page_add_anon_rmap(page, vma, addr);
 	swap_free(entry);
+	/*
+	 * Move the page to the active list so it is not
+	 * immediately swapped out again after swapon.
+	 */
+	activate_page(page);
 }
 
-/* vma->vm_mm->page_table_lock is held */
-static unsigned long unuse_pmd(struct vm_area_struct * vma, pmd_t *dir,
-	unsigned long address, unsigned long size, unsigned long offset,
-	swp_entry_t entry, struct page *page)
+static int unuse_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
+				unsigned long addr, unsigned long end,
+				swp_entry_t entry, struct page *page)
 {
-	pte_t * pte;
-	unsigned long end;
+	pte_t *pte;
 	pte_t swp_pte = swp_entry_to_pte(entry);
 
-	if (pmd_none(*dir))
-		return 0;
-	if (pmd_bad(*dir)) {
-		pmd_ERROR(*dir);
-		pmd_clear(dir);
-		return 0;
-	}
-	pte = pte_offset_map(dir, address);
-	offset += address & PMD_MASK;
-	address &= ~PMD_MASK;
-	end = address + size;
-	if (end > PMD_SIZE)
-		end = PMD_SIZE;
+	pte = pte_offset_map(pmd, addr);
 	do {
 		/*
 		 * swapoff spends a _lot_ of time in this loop!
 		 * Test inline before going to call unuse_pte.
 		 */
 		if (unlikely(pte_same(*pte, swp_pte))) {
-			unuse_pte(vma, offset + address, pte, entry, page);
+			unuse_pte(vma, pte, addr, entry, page);
 			pte_unmap(pte);
-
-			/*
-			 * Move the page to the active list so it is not
-			 * immediately swapped out again after swapon.
-			 */
-			activate_page(page);
-
-			/* add 1 since address may be 0 */
-			return 1 + offset + address;
+			return 1;
 		}
-		address += PAGE_SIZE;
-		pte++;
-	} while (address && (address < end));
+	} while (pte++, addr += PAGE_SIZE, addr != end);
 	pte_unmap(pte - 1);
 	return 0;
 }
 
-/* vma->vm_mm->page_table_lock is held */
-static unsigned long unuse_pgd(struct vm_area_struct * vma, pgd_t *dir,
-	unsigned long address, unsigned long size,
-	swp_entry_t entry, struct page *page)
+static inline int unuse_pmd_range(struct vm_area_struct *vma, pud_t *pud,
+				unsigned long addr, unsigned long end,
+				swp_entry_t entry, struct page *page)
 {
-	pmd_t * pmd;
-	unsigned long offset, end;
-	unsigned long foundaddr;
+	pmd_t *pmd;
+	unsigned long next;
 
-	if (pgd_none(*dir))
-		return 0;
-	if (pgd_bad(*dir)) {
-		pgd_ERROR(*dir);
-		pgd_clear(dir);
-		return 0;
+	pmd = pmd_offset(pud, addr);
+	do {
+		next = pmd_addr_end(addr, end);
+		if (pmd_none_or_clear_bad(pmd))
+			continue;
+		if (unuse_pte_range(vma, pmd, addr, next, entry, page))
+			return 1;
+	} while (pmd++, addr = next, addr != end);
+	return 0;
+}
+
+static inline int unuse_pud_range(struct vm_area_struct *vma, pgd_t *pgd,
+				unsigned long addr, unsigned long end,
+				swp_entry_t entry, struct page *page)
+{
+	pud_t *pud;
+	unsigned long next;
+
+	pud = pud_offset(pgd, addr);
+	do {
+		next = pud_addr_end(addr, end);
+		if (pud_none_or_clear_bad(pud))
+			continue;
+		if (unuse_pmd_range(vma, pud, addr, next, entry, page))
+			return 1;
+	} while (pud++, addr = next, addr != end);
+	return 0;
+}
+
+static int unuse_vma(struct vm_area_struct *vma,
+				swp_entry_t entry, struct page *page)
+{
+	pgd_t *pgd;
+	unsigned long addr, end, next;
+
+	if (page->mapping) {
+		addr = page_address_in_vma(page, vma);
+		if (addr == -EFAULT)
+			return 0;
+		else
+			end = addr + PAGE_SIZE;
+	} else {
+		addr = vma->vm_start;
+		end = vma->vm_end;
 	}
-	pmd = pmd_offset(dir, address);
-	offset = address & PGDIR_MASK;
-	address &= ~PGDIR_MASK;
-	end = address + size;
-	if (end > PGDIR_SIZE)
-		end = PGDIR_SIZE;
-	if (address >= end)
-		BUG();
+
+	pgd = pgd_offset(vma->vm_mm, addr);
 	do {
-		foundaddr = unuse_pmd(vma, pmd, address, end - address,
-						offset, entry, page);
-		if (foundaddr)
-			return foundaddr;
-		address = (address + PMD_SIZE) & PMD_MASK;
-		pmd++;
-	} while (address && (address < end));
+		next = pgd_addr_end(addr, end);
+		if (pgd_none_or_clear_bad(pgd))
+			continue;
+		if (unuse_pud_range(vma, pgd, addr, next, entry, page))
+			return 1;
+	} while (pgd++, addr = next, addr != end);
 	return 0;
 }
 
-/* vma->vm_mm->page_table_lock is held */
-static unsigned long unuse_vma(struct vm_area_struct * vma, pgd_t *pgdir,
-	swp_entry_t entry, struct page *page)
+static int unuse_mm(struct mm_struct *mm,
+				swp_entry_t entry, struct page *page)
 {
-	unsigned long start = vma->vm_start, end = vma->vm_end;
-	unsigned long foundaddr;
+	struct vm_area_struct *vma;
 
-	if (start >= end)
-		BUG();
-	do {
-		foundaddr = unuse_pgd(vma, pgdir, start, end - start,
-						entry, page);
-		if (foundaddr)
-			return foundaddr;
-		start = (start + PGDIR_SIZE) & PGDIR_MASK;
-		pgdir++;
-	} while (start && (start < end));
-	return 0;
-}
-
-static int unuse_process(struct mm_struct * mm,
-			swp_entry_t entry, struct page* page)
-{
-	struct vm_area_struct* vma;
-	unsigned long foundaddr = 0;
-
-	/*
-	 * Go through process' page directory.
-	 */
 	if (!down_read_trylock(&mm->mmap_sem)) {
 		/*
 		 * Our reference to the page stops try_to_unmap_one from
@@ -559,17 +538,13 @@ static int unuse_process(struct mm_struct * mm,
 	}
 	spin_lock(&mm->page_table_lock);
 	for (vma = mm->mmap; vma; vma = vma->vm_next) {
-		if (!is_vm_hugetlb_page(vma)) {
-			pgd_t * pgd = pgd_offset(mm, vma->vm_start);
-			foundaddr = unuse_vma(vma, pgd, entry, page);
-			if (foundaddr)
-				break;
-		}
+		if (vma->anon_vma && unuse_vma(vma, entry, page))
+			break;
 	}
 	spin_unlock(&mm->page_table_lock);
 	up_read(&mm->mmap_sem);
 	/*
-	 * Currently unuse_process cannot fail, but leave error handling
+	 * Currently unuse_mm cannot fail, but leave error handling
 	 * at call sites for now, since we change it from time to time.
 	 */
 	return 0;
@@ -638,11 +613,12 @@ static int try_to_unuse(unsigned int type)
 	 *
 	 * A simpler strategy would be to start at the last mm we
 	 * freed the previous entry from; but that would take less
-	 * advantage of mmlist ordering (now preserved by swap_out()),
-	 * which clusters forked address spaces together, most recent
-	 * child immediately after parent.  If we race with dup_mmap(),
-	 * we very much want to resolve parent before child, otherwise
-	 * we may miss some entries: using last mm would invert that.
+	 * advantage of mmlist ordering, which clusters forked mms
+	 * together, child after parent.  If we race with dup_mmap(), we
+	 * prefer to resolve parent before child, lest we miss entries
+	 * duplicated after we scanned child: using last mm would invert
+	 * that.  Though it's only a serious concern when an overflowed
+	 * swap count is reset from SWAP_MAP_MAX, preventing a rescan.
 	 */
 	start_mm = &init_mm;
 	atomic_inc(&init_mm.mm_users);
@@ -650,15 +626,7 @@ static int try_to_unuse(unsigned int type)
 	/*
 	 * Keep on scanning until all entries have gone.  Usually,
 	 * one pass through swap_map is enough, but not necessarily:
-	 * mmput() removes mm from mmlist before exit_mmap() and its
-	 * zap_page_range().  That's not too bad, those entries are
-	 * on their way out, and handled faster there than here.
-	 * do_munmap() behaves similarly, taking the range out of mm's
-	 * vma list before zap_page_range().  But unfortunately, when
-	 * unmapping a part of a vma, it takes the whole out first,
-	 * then reinserts what's left after (might even reschedule if
-	 * open() method called) - so swap entries may be invisible
-	 * to swapoff for a while, then reappear - but that is rare.
+	 * there are races when an instance of an entry might be missed.
 	 */
 	while ((i = find_next_to_unuse(si, i)) != 0) {
 		if (signal_pending(current)) {
@@ -710,7 +678,7 @@ static int try_to_unuse(unsigned int type)
 		wait_on_page_writeback(page);
 
 		/*
-		 * Remove all references to entry, without blocking.
+		 * Remove all references to entry.
 		 * Whenever we reach init_mm, there's no address space
 		 * to search, but use it as a reminder to search shmem.
 		 */
@@ -720,7 +688,7 @@ static int try_to_unuse(unsigned int type)
 			if (start_mm == &init_mm)
 				shmem = shmem_unuse(entry, page);
 			else
-				retval = unuse_process(start_mm, entry, page);
+				retval = unuse_mm(start_mm, entry, page);
 		}
 		if (*swap_map > 1) {
 			int set_start_mm = (*swap_map >= swcount);
@@ -735,7 +703,10 @@ static int try_to_unuse(unsigned int type)
 			while (*swap_map > 1 && !retval &&
 					(p = p->next) != &start_mm->mmlist) {
 				mm = list_entry(p, struct mm_struct, mmlist);
-				atomic_inc(&mm->mm_users);
+				if (atomic_inc_return(&mm->mm_users) == 1) {
+					atomic_dec(&mm->mm_users);
+					continue;
+				}
 				spin_unlock(&mmlist_lock);
 				mmput(prev_mm);
 				prev_mm = mm;
@@ -749,7 +720,7 @@ static int try_to_unuse(unsigned int type)
 					set_start_mm = 1;
 					shmem = shmem_unuse(entry, page);
 				} else
-					retval = unuse_process(mm, entry, page);
+					retval = unuse_mm(mm, entry, page);
 				if (set_start_mm && *swap_map < swcount) {
 					mmput(new_start_mm);
 					atomic_inc(&mm->mm_users);
@@ -846,6 +817,26 @@ static int try_to_unuse(unsigned int type)
 		swap_overflow = 0;
 	}
 	return retval;
+}
+
+/*
+ * After a successful try_to_unuse, if no swap is now in use, we know we
+ * can empty the mmlist.  swap_list_lock must be held on entry and exit.
+ * Note that mmlist_lock nests inside swap_list_lock, and an mm must be
+ * added to the mmlist just after page_duplicate - before would be racy.
+ */
+static void drain_mmlist(void)
+{
+	struct list_head *p, *next;
+	unsigned int i;
+
+	for (i = 0; i < nr_swapfiles; i++)
+		if (swap_info[i].inuse_pages)
+			return;
+	spin_lock(&mmlist_lock);
+	list_for_each_safe(p, next, &init_mm.mmlist)
+		list_del_init(p);
+	spin_unlock(&mmlist_lock);
 }
 
 /*
@@ -1162,6 +1153,7 @@ asmlinkage long sys_swapoff(const char __user * specialfile)
 	}
 	down(&swapon_sem);
 	swap_list_lock();
+	drain_mmlist();
 	swap_device_lock(p);
 	swap_file = p->swap_file;
 	p->swap_file = NULL;
@@ -1347,7 +1339,7 @@ asmlinkage long sys_swapon(const char __user * specialfile, int swap_flags)
 	p->highest_bit = 0;
 	p->cluster_nr = 0;
 	p->inuse_pages = 0;
-	p->sdev_lock = SPIN_LOCK_UNLOCKED;
+	spin_lock_init(&p->sdev_lock);
 	p->next = -1;
 	if (swap_flags & SWAP_FLAG_PREFER) {
 		p->prio =
@@ -1565,8 +1557,7 @@ bad_swap_2:
 		++least_priority;
 	swap_list_unlock();
 	destroy_swap_extents(p);
-	if (swap_map)
-		vfree(swap_map);
+	vfree(swap_map);
 	if (swap_file)
 		filp_close(swap_file, NULL);
 out:

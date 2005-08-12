@@ -1,5 +1,9 @@
 HOST_EXTRACFLAGS := -DLOCALE 
+ifeq ($(shell uname),SunOS)
+HOST_LOADLIBES   := -lcurses
+else
 HOST_LOADLIBES   := -lncurses
+endif
 
 ifeq (/usr/include/ncurses/ncurses.h, $(wildcard /usr/include/ncurses/ncurses.h))
         HOST_EXTRACFLAGS += -I/usr/include/ncurses -DCURSES_LOC="<ncurses.h>"
@@ -15,8 +19,8 @@ endif
 endif
 endif
 
-host-progs	:= lxdialog
-always		:= ncurses $(host-progs)
+hostprogs-y	:= lxdialog
+always		:= ncurses $(hostprogs-y)
 
 lxdialog-objs := checklist.o menubox.o textbox.o yesno.o inputbox.o \
 		 util.o lxdialog.o msgbox.o

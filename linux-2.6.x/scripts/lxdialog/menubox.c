@@ -327,7 +327,7 @@ dialog_menu (const char *title, const char *prompt, int height, int width,
                    ) {
 		    /* Scroll menu up */
 		    scrollok (menu, TRUE);
-                    scroll (menu);
+		    wscrl (menu, 1);
                     scrollok (menu, FALSE);
 
                     scroll++;
@@ -357,7 +357,7 @@ dialog_menu (const char *title, const char *prompt, int height, int width,
                 for (i=0; (i < max_choice); i++) {
                     if (scroll+max_choice < item_no) {
 			scrollok (menu, TRUE);
-			scroll(menu);
+			wscrl (menu, 1);
 			scrollok (menu, FALSE);
                 	scroll++;
                 	print_item (menu, items[(scroll+max_choice-1)*2+1],
@@ -399,6 +399,7 @@ dialog_menu (const char *title, const char *prompt, int height, int width,
 	case 'y':
 	case 'n':
 	case 'm':
+	case '/':
 	    /* save scroll info */
 	    if ( (f=fopen("lxdialog.scrltmp","w")) != NULL ) {
 		fprintf(f,"%d\n",scroll);
@@ -412,6 +413,7 @@ dialog_menu (const char *title, const char *prompt, int height, int width,
             case 'n': return 4;
             case 'm': return 5;
             case ' ': return 6;
+            case '/': return 7;
             }
 	    return 0;
 	case 'h':

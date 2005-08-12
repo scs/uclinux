@@ -93,6 +93,14 @@
  * (Note: it'd be easy to port over the complete mkdep state machine,
  *  but I don't think the added complexity is worth it)
  */
+/*
+ * Note 2: if somebody writes HELLO_CONFIG_BOOM in a file, it will depend onto
+ * CONFIG_BOOM. This could seem a bug (not too hard to fix), but please do not
+ * fix it! Some UserModeLinux files (look at arch/um/) call CONFIG_BOOM as
+ * UML_CONFIG_BOOM, to avoid conflicts with /usr/include/linux/autoconf.h,
+ * through arch/um/include/uml-config.h; this fixdep "bug" makes sure that
+ * those files will have correct dependencies.
+ */
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -104,7 +112,7 @@
 #include <stdio.h>
 #include <limits.h>
 #include <ctype.h>
-#include <netinet/in.h>
+#include <arpa/inet.h>
 
 #define INT_CONF ntohl(0x434f4e46)
 #define INT_ONFI ntohl(0x4f4e4649)
@@ -209,18 +217,18 @@ void use_config(char *m, int slen)
 	printf("    $(wildcard include/config/%s.h) \\\n", s);
 }
 
-void parse_config_file(char *map, size_t len)
+void parse_config_file(signed char *map, size_t len)
 {
 	int *end = (int *) (map + len);
 	/* start at +1, so that p can never be < map */
 	int *m   = (int *) map + 1;
-	char *p, *q;
+	signed char *p, *q;
 
 	for (; m < end; m++) {
-		if (*m == INT_CONF) { p = (char *) m  ; goto conf; }
-		if (*m == INT_ONFI) { p = (char *) m-1; goto conf; }
-		if (*m == INT_NFIG) { p = (char *) m-2; goto conf; }
-		if (*m == INT_FIG_) { p = (char *) m-3; goto conf; }
+		if (*m == INT_CONF) { p = (signed char *) m  ; goto conf; }
+		if (*m == INT_ONFI) { p = (signed char *) m-1; goto conf; }
+		if (*m == INT_NFIG) { p = (signed char *) m-2; goto conf; }
+		if (*m == INT_FIG_) { p = (signed char *) m-3; goto conf; }
 		continue;
 	conf:
 		if (p > map + len - 7)
@@ -283,9 +291,9 @@ void do_config_file(char *filename)
 
 void parse_dep_file(void *map, size_t len)
 {
-	char *m = map;
-	char *end = m + len;
-	char *p;
+	signed char *m = map;
+	signed char *end = m + len;
+	signed char *p;
 	char s[PATH_MAX];
 
 	p = strchr(m, ':');
@@ -310,6 +318,7 @@ void parse_dep_file(void *map, size_t len)
 		}
 		memcpy(s, m, p-m); s[p-m] = 0;
 		if (strrcmp(s, "include/linux/autoconf.h") &&
+		    strrcmp(s, "arch/um/include/uml-config.h") &&
 		    strrcmp(s, ".ver")) {
 			printf("  %s \\\n", s);
 			do_config_file(s);

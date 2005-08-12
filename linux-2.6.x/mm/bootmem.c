@@ -19,6 +19,7 @@
 #include <linux/module.h>
 #include <asm/dma.h>
 #include <asm/io.h>
+#include "internal.h"
 
 /*
  * Access to this subsystem has to be serialized externally. (this is
@@ -259,6 +260,7 @@ static unsigned long __init free_all_bootmem_core(pg_data_t *pgdat)
 	unsigned long i, count, total = 0;
 	unsigned long idx;
 	unsigned long *map; 
+	int gofast = 0;
 
 	BUG_ON(!bdata->node_bootmem_map);
 
@@ -267,15 +269,34 @@ static unsigned long __init free_all_bootmem_core(pg_data_t *pgdat)
 	page = virt_to_page(phys_to_virt(bdata->node_boot_start));
 	idx = bdata->node_low_pfn - (bdata->node_boot_start >> PAGE_SHIFT);
 	map = bdata->node_bootmem_map;
+	/* Check physaddr is O(LOG2(BITS_PER_LONG)) page aligned */
+	if (bdata->node_boot_start == 0 ||
+	    ffs(bdata->node_boot_start) - PAGE_SHIFT > ffs(BITS_PER_LONG))
+		gofast = 1;
 	for (i = 0; i < idx; ) {
 		unsigned long v = ~map[i / BITS_PER_LONG];
-		if (v) {
+		if (gofast && v == ~0UL) {
+			int j, order;
+
+			count += BITS_PER_LONG;
+			__ClearPageReserved(page);
+			order = ffs(BITS_PER_LONG) - 1;
+			set_page_refs(page, order);
+			for (j = 1; j < BITS_PER_LONG; j++) {
+				if (j + 16 < BITS_PER_LONG)
+					prefetchw(page + j + 16);
+				__ClearPageReserved(page + j);
+			}
+			__free_pages(page, order);
+			i += BITS_PER_LONG;
+			page += BITS_PER_LONG;
+		} else if (v) {
 			unsigned long m;
 			for (m = 1; m && i < idx; m<<=1, page++, i++) {
 				if (v & m) {
 					count++;
-					ClearPageReserved(page);
-					set_page_count(page, 1);
+					__ClearPageReserved(page);
+					set_page_refs(page, 0);
 					__free_page(page);
 				}
 			}
@@ -294,7 +315,7 @@ static unsigned long __init free_all_bootmem_core(pg_data_t *pgdat)
 	count = 0;
 	for (i = 0; i < ((bdata->node_low_pfn-(bdata->node_boot_start >> PAGE_SHIFT))/8 + PAGE_SIZE-1)/PAGE_SIZE; i++,page++) {
 		count++;
-		ClearPageReserved(page);
+		__ClearPageReserved(page);
 		set_page_count(page, 1);
 		__free_page(page);
 	}
@@ -324,31 +345,29 @@ unsigned long __init free_all_bootmem_node (pg_data_t *pgdat)
 	return(free_all_bootmem_core(pgdat));
 }
 
-#ifndef CONFIG_DISCONTIGMEM
 unsigned long __init init_bootmem (unsigned long start, unsigned long pages)
 {
 	max_low_pfn = pages;
 	min_low_pfn = start;
-	return(init_bootmem_core(&contig_page_data, start, 0, pages));
+	return(init_bootmem_core(NODE_DATA(0), start, 0, pages));
 }
 
 #ifndef CONFIG_HAVE_ARCH_BOOTMEM_NODE
 void __init reserve_bootmem (unsigned long addr, unsigned long size)
 {
-	reserve_bootmem_core(contig_page_data.bdata, addr, size);
+	reserve_bootmem_core(NODE_DATA(0)->bdata, addr, size);
 }
 #endif /* !CONFIG_HAVE_ARCH_BOOTMEM_NODE */
 
 void __init free_bootmem (unsigned long addr, unsigned long size)
 {
-	free_bootmem_core(contig_page_data.bdata, addr, size);
+	free_bootmem_core(NODE_DATA(0)->bdata, addr, size);
 }
 
 unsigned long __init free_all_bootmem (void)
 {
-	return(free_all_bootmem_core(&contig_page_data));
+	return(free_all_bootmem_core(NODE_DATA(0)));
 }
-#endif /* !CONFIG_DISCONTIGMEM */
 
 void * __init __alloc_bootmem (unsigned long size, unsigned long align, unsigned long goal)
 {

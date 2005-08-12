@@ -53,8 +53,8 @@ static inline void __endian(const void *src, void *dest, unsigned int size)
 
 #endif
 
-#define NOFAIL(ptr)   do_nofail((ptr), __FILE__, __LINE__, #ptr)
-void *do_nofail(void *ptr, const char *file, int line, const char *expr);
+#define NOFAIL(ptr)   do_nofail((ptr), #ptr)
+void *do_nofail(void *ptr, const char *expr);
 
 struct buffer {
 	char *p;
@@ -74,7 +74,10 @@ struct module {
 	struct symbol *unres;
 	int seen;
 	int skip;
+	int has_init;
+	int has_cleanup;
 	struct buffer dev_table_buf;
+	char	     srcversion[25];
 };
 
 struct elf_info {
@@ -93,10 +96,11 @@ void handle_moddevtable(struct module *mod, struct elf_info *info,
 
 void add_moddevtable(struct buffer *buf, struct module *mod);
 
-void maybe_frob_version(const char *modfilename,
-			void *modinfo,
-			unsigned long modinfo_len,
-			unsigned long modinfo_offset);
+void maybe_frob_rcs_version(const char *modfilename,
+			    char *version,
+			    void *modinfo,
+			    unsigned long modinfo_offset);
+void get_src_version(const char *modname, char sum[], unsigned sumlen);
 
 void *grab_file(const char *filename, unsigned long *size);
 char* get_next_line(unsigned long *pos, void *file, unsigned long size);

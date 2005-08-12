@@ -62,7 +62,7 @@ foreach $object (keys(%object)) {
 		$l = read(OBJECT, $comment, $size);
 		die "read $size bytes from $object .comment failed" if ($l != $size);
 		close(OBJECT);
-		if ($comment =~ /GCC\:.*GCC\:/m) {
+		if ($comment =~ /GCC\:.*GCC\:/m || $object =~ /built-in\.o/) {
 			++$ignore;
 			delete($object{$object});
 		}
@@ -90,6 +90,7 @@ foreach $object (keys(%object)) {
 		     $from !~ /\.data\.exit$/ &&
 		     $from !~ /\.exit\.data$/ &&
 		     $from !~ /\.altinstructions$/ &&
+		     $from !~ /\.pdr$/ &&
 		     $from !~ /\.debug_info$/ &&
 		     $from !~ /\.debug_aranges$/ &&
 		     $from !~ /\.debug_ranges$/ &&

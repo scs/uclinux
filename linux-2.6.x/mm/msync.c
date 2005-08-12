@@ -12,6 +12,7 @@
 #include <linux/mm.h>
 #include <linux/mman.h>
 #include <linux/hugetlb.h>
+#include <linux/syscalls.h>
 
 #include <asm/pgtable.h>
 #include <asm/tlbflush.h>
@@ -20,116 +21,111 @@
  * Called with mm->page_table_lock held to protect against other
  * threads/the swapper from ripping pte's out from under us.
  */
-static int filemap_sync_pte(pte_t *ptep, struct vm_area_struct *vma,
-	unsigned long address, unsigned int flags)
-{
-	pte_t pte = *ptep;
-	unsigned long pfn = pte_pfn(pte);
-	struct page *page;
 
-	if (pte_present(pte) && pfn_valid(pfn)) {
-		page = pfn_to_page(pfn);
-		if (!PageReserved(page) &&
-		    (ptep_clear_flush_dirty(vma, address, ptep) ||
-		     page_test_and_clear_dirty(page)))
-			set_page_dirty(page);
-	}
-	return 0;
-}
-
-static int filemap_sync_pte_range(pmd_t * pmd,
-	unsigned long address, unsigned long end, 
-	struct vm_area_struct *vma, unsigned int flags)
+static void sync_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
+				unsigned long addr, unsigned long end)
 {
 	pte_t *pte;
-	int error;
 
-	if (pmd_none(*pmd))
-		return 0;
-	if (pmd_bad(*pmd)) {
-		pmd_ERROR(*pmd);
-		pmd_clear(pmd);
-		return 0;
-	}
-	pte = pte_offset_map(pmd, address);
-	if ((address & PMD_MASK) != (end & PMD_MASK))
-		end = (address & PMD_MASK) + PMD_SIZE;
-	error = 0;
+	pte = pte_offset_map(pmd, addr);
 	do {
-		error |= filemap_sync_pte(pte, vma, address, flags);
-		address += PAGE_SIZE;
-		pte++;
-	} while (address && (address < end));
+		unsigned long pfn;
+		struct page *page;
 
+		if (!pte_present(*pte))
+			continue;
+		pfn = pte_pfn(*pte);
+		if (!pfn_valid(pfn))
+			continue;
+		page = pfn_to_page(pfn);
+		if (PageReserved(page))
+			continue;
+
+		if (ptep_clear_flush_dirty(vma, addr, pte) ||
+		    page_test_and_clear_dirty(page))
+			set_page_dirty(page);
+	} while (pte++, addr += PAGE_SIZE, addr != end);
 	pte_unmap(pte - 1);
-
-	return error;
 }
 
-static inline int filemap_sync_pmd_range(pgd_t * pgd,
-	unsigned long address, unsigned long end, 
-	struct vm_area_struct *vma, unsigned int flags)
+static inline void sync_pmd_range(struct vm_area_struct *vma, pud_t *pud,
+				unsigned long addr, unsigned long end)
 {
-	pmd_t * pmd;
-	int error;
+	pmd_t *pmd;
+	unsigned long next;
 
-	if (pgd_none(*pgd))
-		return 0;
-	if (pgd_bad(*pgd)) {
-		pgd_ERROR(*pgd);
-		pgd_clear(pgd);
-		return 0;
-	}
-	pmd = pmd_offset(pgd, address);
-	if ((address & PGDIR_MASK) != (end & PGDIR_MASK))
-		end = (address & PGDIR_MASK) + PGDIR_SIZE;
-	error = 0;
+	pmd = pmd_offset(pud, addr);
 	do {
-		error |= filemap_sync_pte_range(pmd, address, end, vma, flags);
-		address = (address + PMD_SIZE) & PMD_MASK;
-		pmd++;
-	} while (address && (address < end));
-	return error;
+		next = pmd_addr_end(addr, end);
+		if (pmd_none_or_clear_bad(pmd))
+			continue;
+		sync_pte_range(vma, pmd, addr, next);
+	} while (pmd++, addr = next, addr != end);
 }
 
-static int filemap_sync(struct vm_area_struct * vma, unsigned long address,
-	size_t size, unsigned int flags)
+static inline void sync_pud_range(struct vm_area_struct *vma, pgd_t *pgd,
+				unsigned long addr, unsigned long end)
 {
-	pgd_t * dir;
-	unsigned long end = address + size;
-	int error = 0;
+	pud_t *pud;
+	unsigned long next;
 
-	/* Aquire the lock early; it may be possible to avoid dropping
-	 * and reaquiring it repeatedly.
-	 */
-	spin_lock(&vma->vm_mm->page_table_lock);
+	pud = pud_offset(pgd, addr);
+	do {
+		next = pud_addr_end(addr, end);
+		if (pud_none_or_clear_bad(pud))
+			continue;
+		sync_pmd_range(vma, pud, addr, next);
+	} while (pud++, addr = next, addr != end);
+}
 
-	dir = pgd_offset(vma->vm_mm, address);
-	flush_cache_range(vma, address, end);
+static void sync_page_range(struct vm_area_struct *vma,
+				unsigned long addr, unsigned long end)
+{
+	struct mm_struct *mm = vma->vm_mm;
+	pgd_t *pgd;
+	unsigned long next;
 
 	/* For hugepages we can't go walking the page table normally,
 	 * but that's ok, hugetlbfs is memory based, so we don't need
 	 * to do anything more on an msync() */
 	if (is_vm_hugetlb_page(vma))
-		goto out;
+		return;
 
-	if (address >= end)
-		BUG();
+	BUG_ON(addr >= end);
+	pgd = pgd_offset(mm, addr);
+	flush_cache_range(vma, addr, end);
+	spin_lock(&mm->page_table_lock);
 	do {
-		error |= filemap_sync_pmd_range(dir, address, end, vma, flags);
-		address = (address + PGDIR_SIZE) & PGDIR_MASK;
-		dir++;
-	} while (address && (address < end));
-	/*
-	 * Why flush ? filemap_sync_pte already flushed the tlbs with the
-	 * dirty bits.
-	 */
-	flush_tlb_range(vma, end - size, end);
- out:
-	spin_unlock(&vma->vm_mm->page_table_lock);
-
-	return error;
+		next = pgd_addr_end(addr, end);
+		if (pgd_none_or_clear_bad(pgd))
+			continue;
+		sync_pud_range(vma, pgd, addr, next);
+	} while (pgd++, addr = next, addr != end);
+	spin_unlock(&mm->page_table_lock);
 }
+
+#ifdef CONFIG_PREEMPT
+static inline void filemap_sync(struct vm_area_struct *vma,
+				unsigned long addr, unsigned long end)
+{
+	const size_t chunk = 64 * 1024;	/* bytes */
+	unsigned long next;
+
+	do {
+		next = addr + chunk;
+		if (next > end || next < addr)
+			next = end;
+		sync_page_range(vma, addr, next);
+		cond_resched();
+	} while (addr = next, addr != end);
+}
+#else
+static inline void filemap_sync(struct vm_area_struct *vma,
+				unsigned long addr, unsigned long end)
+{
+	sync_page_range(vma, addr, end);
+}
+#endif
 
 /*
  * MS_SYNC syncs the entire file - including mappings.
@@ -142,25 +138,28 @@ static int filemap_sync(struct vm_area_struct * vma, unsigned long address,
  * So my _not_ starting I/O in MS_ASYNC we provide complete flexibility to
  * applications.
  */
-static int msync_interval(struct vm_area_struct * vma,
-	unsigned long start, unsigned long end, int flags)
+static int msync_interval(struct vm_area_struct *vma,
+			unsigned long addr, unsigned long end, int flags)
 {
 	int ret = 0;
-	struct file * file = vma->vm_file;
+	struct file *file = vma->vm_file;
 
 	if ((flags & MS_INVALIDATE) && (vma->vm_flags & VM_LOCKED))
 		return -EBUSY;
 
 	if (file && (vma->vm_flags & VM_SHARED)) {
-		ret = filemap_sync(vma, start, end-start, flags);
+		filemap_sync(vma, addr, end);
 
-		if (!ret && (flags & MS_SYNC)) {
+		if (flags & MS_SYNC) {
 			struct address_space *mapping = file->f_mapping;
 			int err;
 
-			down(&mapping->host->i_sem);
 			ret = filemap_fdatawrite(mapping);
 			if (file->f_op && file->f_op->fsync) {
+				/*
+				 * We don't take i_sem here because mmap_sem
+				 * is already held.
+				 */
 				err = file->f_op->fsync(file,file->f_dentry,1);
 				if (err && !ret)
 					ret = err;
@@ -168,7 +167,6 @@ static int msync_interval(struct vm_area_struct * vma,
 			err = filemap_fdatawait(mapping);
 			if (!ret)
 				ret = err;
-			up(&mapping->host->i_sem);
 		}
 	}
 	return ret;
@@ -177,8 +175,11 @@ static int msync_interval(struct vm_area_struct * vma,
 asmlinkage long sys_msync(unsigned long start, size_t len, int flags)
 {
 	unsigned long end;
-	struct vm_area_struct * vma;
+	struct vm_area_struct *vma;
 	int unmapped_error, error = -EINVAL;
+
+	if (flags & MS_SYNC)
+		current->flags |= PF_SYNCWRITE;
 
 	down_read(&current->mm->mmap_sem);
 	if (flags & ~(MS_ASYNC | MS_INVALIDATE | MS_SYNC))
@@ -230,5 +231,6 @@ asmlinkage long sys_msync(unsigned long start, size_t len, int flags)
 	}
 out:
 	up_read(&current->mm->mmap_sem);
+	current->flags &= ~PF_SYNCWRITE;
 	return error;
 }

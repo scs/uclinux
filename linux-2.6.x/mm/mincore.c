@@ -11,6 +11,7 @@
 #include <linux/pagemap.h>
 #include <linux/mm.h>
 #include <linux/mman.h>
+#include <linux/syscalls.h>
 
 #include <asm/uaccess.h>
 #include <asm/pgtable.h>
@@ -96,8 +97,7 @@ static long mincore_vma(struct vm_area_struct * vma,
  * return values:
  *  zero    - success
  *  -EFAULT - vec points to an illegal address
- *  -EINVAL - addr is not a multiple of PAGE_CACHE_SIZE,
- *		or len has a nonpositive value
+ *  -EINVAL - addr is not a multiple of PAGE_CACHE_SIZE
  *  -ENOMEM - Addresses in the range [addr, addr + len] are
  *		invalid for the address space of this process, or
  *		specify one or more pages which are not currently
@@ -108,39 +108,45 @@ asmlinkage long sys_mincore(unsigned long start, size_t len,
 	unsigned char __user * vec)
 {
 	int index = 0;
-	unsigned long end;
+	unsigned long end, limit;
 	struct vm_area_struct * vma;
+	size_t max;
 	int unmapped_error = 0;
-	long error = -EINVAL;
+	long error;
 
+	/* check the arguments */
+ 	if (start & ~PAGE_CACHE_MASK)
+		goto einval;
+
+	limit = TASK_SIZE;
+	if (start >= limit)
+		goto enomem;
+
+	if (!len)
+		return 0;
+
+	max = limit - start;
+	len = PAGE_CACHE_ALIGN(len);
+	if (len > max || !len)
+		goto enomem;
+
+	end = start + len;
+
+	/* check the output buffer whilst holding the lock */
+	error = -EFAULT;
 	down_read(&current->mm->mmap_sem);
 
-	if (start & ~PAGE_CACHE_MASK)
-		goto out;
-	len = (len + ~PAGE_CACHE_MASK) & PAGE_CACHE_MASK;
-	end = start + len;
-	if (end < start)
-		goto out;
-
-	error = -EFAULT;
 	if (!access_ok(VERIFY_WRITE, vec, len >> PAGE_SHIFT))
-		goto out;
-
-	error = 0;
-	if (end == start)
 		goto out;
 
 	/*
 	 * If the interval [start,end) covers some unmapped address
 	 * ranges, just ignore them, but return -ENOMEM at the end.
 	 */
-	vma = find_vma(current->mm, start);
-	for (;;) {
-		/* Still start < end. */
-		error = -ENOMEM;
-		if (!vma)
-			goto out;
+	error = 0;
 
+	vma = find_vma(current->mm, start);
+	while (vma) {
 		/* Here start < vma->vm_end. */
 		if (start < vma->vm_start) {
 			unmapped_error = -ENOMEM;
@@ -168,7 +174,15 @@ asmlinkage long sys_mincore(unsigned long start, size_t len,
 		vma = vma->vm_next;
 	}
 
+	/* we found a hole in the area queried if we arrive here */
+	error = -ENOMEM;
+
 out:
 	up_read(&current->mm->mmap_sem);
 	return error;
+
+einval:
+	return -EINVAL;
+enomem:
+	return -ENOMEM;
 }
