@@ -70,7 +70,7 @@ static void athlon_setup_ctrs(struct op_msrs const * const msrs)
 
 	/* enable active counters */
 	for (i = 0; i < NUM_COUNTERS; ++i) {
-		if (counter_config[i].event) {
+		if (counter_config[i].enabled) {
 			reset_value[i] = counter_config[i].count;
 
 			CTR_WRITE(counter_config[i].count, msrs, i);
@@ -90,19 +90,16 @@ static void athlon_setup_ctrs(struct op_msrs const * const msrs)
 }
 
  
-static int athlon_check_ctrs(unsigned int const cpu, 
-			      struct op_msrs const * const msrs, 
-			      struct pt_regs * const regs)
+static int athlon_check_ctrs(struct pt_regs * const regs,
+			     struct op_msrs const * const msrs)
 {
 	unsigned int low, high;
 	int i;
-	unsigned long eip = instruction_pointer(regs);
-	int is_kernel = !user_mode(regs);
 
 	for (i = 0 ; i < NUM_COUNTERS; ++i) {
 		CTR_READ(low, high, msrs, i);
 		if (CTR_OVERFLOWED(low)) {
-			oprofile_add_sample(eip, is_kernel, i, cpu);
+			oprofile_add_sample(regs, i);
 			CTR_WRITE(reset_value[i], msrs, i);
 		}
 	}

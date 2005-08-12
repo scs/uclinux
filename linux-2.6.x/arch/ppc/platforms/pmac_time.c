@@ -19,6 +19,7 @@
 #include <linux/adb.h>
 #include <linux/cuda.h>
 #include <linux/pmu.h>
+#include <linux/hardirq.h>
 
 #include <asm/sections.h>
 #include <asm/prom.h>
@@ -26,7 +27,6 @@
 #include <asm/io.h>
 #include <asm/pgtable.h>
 #include <asm/machdep.h>
-#include <asm/hardirq.h>
 #include <asm/time.h>
 #include <asm/nvram.h>
 
@@ -165,7 +165,7 @@ int __init
 via_calibrate_decr(void)
 {
 	struct device_node *vias;
-	volatile unsigned char *via;
+	volatile unsigned char __iomem *via;
 	int count = VIA_TIMER_FREQ_6 / 100;
 	unsigned int dstart, dend;
 
@@ -176,8 +176,7 @@ via_calibrate_decr(void)
 		vias = find_devices("via");
 	if (vias == 0 || vias->n_addrs == 0)
 		return 0;
-	via = (volatile unsigned char *)
-		ioremap(vias->addrs[0].address, vias->addrs[0].size);
+	via = ioremap(vias->addrs[0].address, vias->addrs[0].size);
 
 	/* set timer 1 for continuous interrupts */
 	out_8(&via[ACR], (via[ACR] & ~T1MODE) | T1MODE_CONT);
@@ -202,7 +201,7 @@ via_calibrate_decr(void)
 	printk(KERN_INFO "via_calibrate_decr: ticks per jiffy = %u (%u ticks)\n",
 	       tb_ticks_per_jiffy, dstart - dend);
 
-	iounmap((void*)via);
+	iounmap(via);
 	
 	return 1;
 }

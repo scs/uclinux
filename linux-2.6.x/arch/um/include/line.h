@@ -9,12 +9,14 @@
 #include "linux/list.h"
 #include "linux/workqueue.h"
 #include "linux/tty.h"
-#include "asm/semaphore.h"
+#include "linux/interrupt.h"
+#include "linux/spinlock.h"
 #include "chan_user.h"
 #include "mconsole_kern.h"
 
 struct line_driver {
 	char *name;
+	char *device_name;
 	char *devfs_name;
 	short major;
 	short minor_start;
@@ -35,11 +37,18 @@ struct line {
 	struct list_head chan_list;
 	int valid;
 	int count;
-	struct tty_struct *tty;
-	struct semaphore sem;
+	/*This lock is actually, mostly, local to*/
+	spinlock_t lock;
+
+	/* Yes, this is a real circular buffer.
+	 * XXX: And this should become a struct kfifo!
+	 *
+	 * buffer points to a buffer allocated on demand, of length
+	 * LINE_BUFSIZE, head to the start of the ring, tail to the end.*/
 	char *buffer;
 	char *head;
 	char *tail;
+
 	int sigio;
 	struct work_struct task;
 	struct line_driver *driver;
@@ -51,9 +60,6 @@ struct line {
 	  init_pri :	INIT_STATIC, \
 	  chan_list : 	{ }, \
 	  valid :	1, \
-	  count :	0, \
-	  tty :		NULL, \
-	  sem : 	{ }, \
 	  buffer :	NULL, \
 	  head :	NULL, \
 	  tail :	NULL, \
@@ -67,20 +73,25 @@ struct lines {
 
 #define LINES_INIT(n) {  num :		n }
 
-extern void line_interrupt(int irq, void *data, struct pt_regs *unused);
-extern void line_write_interrupt(int irq, void *data, struct pt_regs *unused);
-extern void line_close(struct line *lines, struct tty_struct *tty);
+extern void line_close(struct tty_struct *tty, struct file * filp);
 extern int line_open(struct line *lines, struct tty_struct *tty, 
 		     struct chan_opts *opts);
-extern int line_setup(struct line *lines, int num, char *init, 
+extern int line_setup(struct line *lines, unsigned int sizeof_lines, char *init,
 		      int all_allowed);
-extern int line_write(struct line *line, struct tty_struct *tty, int from_user,
-		      const char *buf, int len);
+extern int line_write(struct tty_struct *tty, const unsigned char *buf, int len);
+extern void line_put_char(struct tty_struct *tty, unsigned char ch);
+extern void line_set_termios(struct tty_struct *tty, struct termios * old);
+extern int line_chars_in_buffer(struct tty_struct *tty);
+extern void line_flush_buffer(struct tty_struct *tty);
+extern void line_flush_chars(struct tty_struct *tty);
 extern int line_write_room(struct tty_struct *tty);
+extern int line_ioctl(struct tty_struct *tty, struct file * file,
+		      unsigned int cmd, unsigned long arg);
+
 extern char *add_xterm_umid(char *base);
-extern int line_setup_irq(int fd, int input, int output, void *data);
+extern int line_setup_irq(int fd, int input, int output, struct tty_struct *tty);
 extern void line_close_chan(struct line *line);
-extern void line_disable(struct line *line, int current_irq);
+extern void line_disable(struct tty_struct *tty, int current_irq);
 extern struct tty_driver * line_register_devfs(struct lines *set, 
 				struct line_driver *line_driver, 
 				struct tty_operations *driver,
@@ -88,20 +99,10 @@ extern struct tty_driver * line_register_devfs(struct lines *set,
 				int nlines);
 extern void lines_init(struct line *lines, int nlines);
 extern void close_lines(struct line *lines, int nlines);
-extern int line_config(struct line *lines, int num, char *str);
-extern int line_remove(struct line *lines, int num, char *str);
-extern int line_get_config(char *dev, struct line *lines, int num, char *str, 
+
+extern int line_config(struct line *lines, unsigned int sizeof_lines, char *str);
+extern int line_remove(struct line *lines, unsigned int sizeof_lines, char *str);
+extern int line_get_config(char *dev, struct line *lines, unsigned int sizeof_lines, char *str,
 			   int size, char **error_out);
 
 #endif
-
-/*
- * Overrides for Emacs so that we follow Linus's tabbing style.
- * Emacs will notice this stuff at the end of the file and automatically
- * adjust the settings for this buffer only.  This must remain at the end
- * of the file.
- * ---------------------------------------------------------------------------
- * Local variables:
- * c-file-style: "linux"
- * End:
- */

@@ -34,6 +34,8 @@ return 0;
 	panic("Whooops in pcibios_map_irq");
 }
 
-struct pci_fixup pcibios_fixups[] = {
-	{0}
-};
+/* Do platform specific device initialization at pci_enable_device() time */
+int pcibios_plat_dev_init(struct pci_dev *dev)
+{
+	return 0;
+}

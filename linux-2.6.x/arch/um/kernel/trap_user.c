@@ -5,12 +5,9 @@
 
 #include <stdlib.h>
 #include <errno.h>
-#include <fcntl.h>
 #include <setjmp.h>
 #include <signal.h>
 #include <sys/time.h>
-#include <sys/ioctl.h>
-#include <sys/ptrace.h>
 #include <sys/wait.h>
 #include <asm/page.h>
 #include <asm/unistd.h>
@@ -20,7 +17,6 @@
 #include "sigcontext.h"
 #include "sysdep/sigcontext.h"
 #include "irq_user.h"
-#include "frame_user.h"
 #include "signal_user.h"
 #include "time_user.h"
 #include "task.h"
@@ -34,7 +30,14 @@ void kill_child_dead(int pid)
 {
 	kill(pid, SIGKILL);
 	kill(pid, SIGCONT);
-	while(waitpid(pid, NULL, 0) > 0) kill(pid, SIGCONT);
+	do {
+		int n;
+		CATCH_EINTR(n = waitpid(pid, NULL, 0));
+		if (n > 0)
+			kill(pid, SIGCONT);
+		else
+			break;
+	} while(1);
 }
 
 /* Unlocked - don't care if this is a bit off */
@@ -51,23 +54,22 @@ struct {
 void segv_handler(int sig, union uml_pt_regs *regs)
 {
 	int index, max;
+        struct faultinfo * fi = UPT_FAULTINFO(regs);
 
-	if(UPT_IS_USER(regs) && !UPT_SEGV_IS_FIXABLE(regs)){
-		bad_segv(UPT_FAULT_ADDR(regs), UPT_IP(regs), 
-			 UPT_FAULT_WRITE(regs));
+        if(UPT_IS_USER(regs) && !SEGV_IS_FIXABLE(fi)){
+                bad_segv(*fi, UPT_IP(regs));
 		return;
 	}
 	max = sizeof(segfault_record)/sizeof(segfault_record[0]);
 	index = next_trap_index(max);
 
 	nsegfaults++;
-	segfault_record[index].address = UPT_FAULT_ADDR(regs);
+        segfault_record[index].address = FAULT_ADDRESS(*fi);
 	segfault_record[index].pid = os_getpid();
-	segfault_record[index].is_write = UPT_FAULT_WRITE(regs);
+        segfault_record[index].is_write = FAULT_WRITE(*fi);
 	segfault_record[index].sp = UPT_SP(regs);
 	segfault_record[index].is_user = UPT_IS_USER(regs);
-	segv(UPT_FAULT_ADDR(regs), UPT_IP(regs), UPT_FAULT_WRITE(regs),
-	     UPT_IS_USER(regs), regs);
+        segv(*fi, UPT_IP(regs), UPT_IS_USER(regs), regs);
 }
 
 void usr2_handler(int sig, union uml_pt_regs *regs)
@@ -82,6 +84,8 @@ struct signal_info sig_info[] = {
 		     .is_irq 		= 0 },
 	[ SIGILL ] { .handler 		= relay_signal,
 		     .is_irq 		= 0 },
+	[ SIGWINCH ] { .handler		= winch,
+		       .is_irq		= 1 },
 	[ SIGBUS ] { .handler 		= bus_handler,
 		     .is_irq 		= 0 },
 	[ SIGSEGV] { .handler 		= segv_handler,
@@ -96,34 +100,11 @@ struct signal_info sig_info[] = {
 		      .is_irq 		= 0 },
 };
 
-void sig_handler(int sig, struct sigcontext sc)
-{
-	CHOOSE_MODE_PROC(sig_handler_common_tt, sig_handler_common_skas,
-			 sig, &sc);
-}
-
-extern int timer_irq_inited, missed_ticks[];
-
-void alarm_handler(int sig, struct sigcontext sc)
-{
-	if(!timer_irq_inited) return;
-	missed_ticks[cpu()]++;
-
-	if(sig == SIGALRM)
-		switch_timers(0);
-
-	CHOOSE_MODE_PROC(sig_handler_common_tt, sig_handler_common_skas,
-			 sig, &sc);
-
-	if(sig == SIGALRM)
-		switch_timers(1);
-}
-
 void do_longjmp(void *b, int val)
 {
-	jmp_buf *buf = b;
+	sigjmp_buf *buf = b;
 
-	longjmp(*buf, val);
+	siglongjmp(*buf, val);
 }
 
 /*

@@ -17,15 +17,6 @@
 
 #define EK(y...) EX(y)
 
-GLOBAL_ENTRY(bcopy)
-	.regstk 3,0,0,0
-	mov r8=in0
-	mov in0=in1
-	;;
-	mov in1=r8
-	;;
-END(bcopy)
-
 /* McKinley specific optimization */
 
 #define retval		r8
@@ -84,6 +75,7 @@ GLOBAL_ENTRY(memcpy)
 	mov	f6=f0
 	br.cond.sptk .common_code
 	;;
+END(memcpy)
 GLOBAL_ENTRY(__copy_user)
 	.prologue
 // check dest alignment
@@ -309,7 +301,7 @@ EK(.ex_handler,	(p[D])	st8 [dst1] = t15, 4*8)
 	add	src_pre_mem=0,src0	// prefetch src pointer
 	add	dst_pre_mem=0,dst0	// prefetch dest pointer
 	and	src0=-8,src0		// 1st src pointer
-(p7)	mov	ar.lc = r21
+(p7)	mov	ar.lc = cnt
 (p8)	mov	ar.lc = r0
 	;;
 	TEXT_ALIGN(32)
@@ -533,7 +525,6 @@ EK(.ex_handler,  (p17)	st8	[dst1]=r39,8);						\
 #undef B
 #undef C
 #undef D
-END(memcpy)
 
 /*
  * Due to lack of local tag support in gcc 2.x assembler, it is not clear which

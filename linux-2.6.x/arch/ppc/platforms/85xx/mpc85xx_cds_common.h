@@ -33,6 +33,10 @@
 #define CM_CSR	(1)
 #define CM_RST	(2)
 
+/* CDS NVRAM/RTC */
+#define CDS_RTC_ADDR	(0xf8000000)
+#define CDS_RTC_SIZE	(8 * 1024)
+
 /* PCI config */
 #define PCI1_CFG_ADDR_OFFSET	(0x8000)
 #define PCI1_CFG_DATA_OFFSET	(0x8004)
@@ -60,8 +64,10 @@
 #define MPC85XX_PCI1_IO_SIZE         0x01000000
 
 /* PCI 2 memory map */
-#define MPC85XX_PCI2_LOWER_IO        0x01000000
-#define MPC85XX_PCI2_UPPER_IO        0x01ffffff
+/* Note: the standard PPC fixups will cause IO space to get bumped by
+ * hose->io_base_virt - isa_io_base => MPC85XX_PCI1_IO_SIZE */
+#define MPC85XX_PCI2_LOWER_IO        0x00000000
+#define MPC85XX_PCI2_UPPER_IO        0x00ffffff
 
 #define MPC85XX_PCI2_LOWER_MEM       0xa0000000
 #define MPC85XX_PCI2_UPPER_MEM       0xbfffffff
@@ -71,8 +77,7 @@
 
 #define MPC85XX_PCI2_IO_SIZE         0x01000000
 
-#define SERIAL_PORT_DFNS		\
-	       STD_UART_OP(0)		\
-	       STD_UART_OP(1)
+#define NR_8259_INTS		     16
+#define CPM_IRQ_OFFSET		     NR_8259_INTS
 
 #endif /* __MACH_MPC85XX_CDS_H__ */

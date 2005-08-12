@@ -2,13 +2,13 @@
 # Makefile for the linux kernel.
 #
 
-extra-y		:= head.o vmlinux.lds.s
+extra-y		:= head.o vmlinux.lds
 EXTRA_AFLAGS	:= $(CFLAGS)
 EXTRA_CFLAGS	:= -Werror -Wno-sign-compare
 
 obj-y    := entry.o traps.o process.o init_task.o osf_sys.o irq.o \
 	    irq_alpha.o signal.o setup.o ptrace.o time.o semaphore.o \
-	    alpha_ksyms.o systbls.o err_common.o
+	    alpha_ksyms.o systbls.o err_common.o io.o
 
 obj-$(CONFIG_VGA_HOSE)	+= console.o
 obj-$(CONFIG_SMP)	+= smp.o

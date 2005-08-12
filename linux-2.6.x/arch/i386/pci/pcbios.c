@@ -172,7 +172,8 @@ static int __devinit pci_bios_find_device (unsigned short vendor, unsigned short
 	return (int) (ret & 0xff00) >> 8;
 }
 
-static int pci_bios_read (int seg, int bus, int devfn, int reg, int len, u32 *value)
+static int pci_bios_read(unsigned int seg, unsigned int bus,
+			 unsigned int devfn, int reg, int len, u32 *value)
 {
 	unsigned long result = 0;
 	unsigned long flags;
@@ -227,7 +228,8 @@ static int pci_bios_read (int seg, int bus, int devfn, int reg, int len, u32 *va
 	return (int)((result & 0xff00) >> 8);
 }
 
-static int pci_bios_write (int seg, int bus, int devfn, int reg, int len, u32 value)
+static int pci_bios_write(unsigned int seg, unsigned int bus,
+			  unsigned int devfn, int reg, int len, u32 value)
 {
 	unsigned long result = 0;
 	unsigned long flags;
@@ -365,7 +367,7 @@ void __devinit pcibios_sort(void)
 		idx = found = 0;
 		while (pci_bios_find_device(dev->vendor, dev->device, idx, &bus, &devfn) == PCIBIOS_SUCCESSFUL) {
 			idx++;
-			for (ln=pci_devices.next; ln != &pci_devices; ln=ln->next) {
+			list_for_each(ln, &pci_devices) {
 				d = pci_dev_g(ln);
 				if (d->bus->number == bus && d->devfn == devfn) {
 					list_del(&d->global_list);
@@ -385,8 +387,8 @@ void __devinit pcibios_sort(void)
 			}
 		}
 		if (!found) {
-			printk(KERN_WARNING "PCI: Device %02x:%02x not found by BIOS\n",
-				dev->bus->number, dev->devfn);
+			printk(KERN_WARNING "PCI: Device %s not found by BIOS\n",
+				pci_name(dev));
 			list_del(&dev->global_list);
 			list_add_tail(&dev->global_list, &sorted_devices);
 		}

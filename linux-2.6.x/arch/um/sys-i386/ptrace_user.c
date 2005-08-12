@@ -7,8 +7,8 @@
 #include <errno.h>
 #include <unistd.h>
 #include <linux/stddef.h>
-#include <sys/ptrace.h>
-#include <asm/ptrace.h>
+#include "ptrace_user.h"
+/* Grr, asm/user.h includes asm/ptrace.h, so has to follow ptrace_user.h */
 #include <asm/user.h>
 #include "kern_util.h"
 #include "sysdep/thread.h"
@@ -17,17 +17,30 @@
 
 int ptrace_getregs(long pid, unsigned long *regs_out)
 {
-	return(ptrace(PTRACE_GETREGS, pid, 0, regs_out));
+	if (ptrace(PTRACE_GETREGS, pid, 0, regs_out) < 0)
+		return -errno;
+	return 0;
 }
 
 int ptrace_setregs(long pid, unsigned long *regs)
 {
-	return(ptrace(PTRACE_SETREGS, pid, 0, regs));
+	if (ptrace(PTRACE_SETREGS, pid, 0, regs) < 0)
+		return -errno;
+	return 0;
 }
 
 int ptrace_getfpregs(long pid, unsigned long *regs)
 {
-	return(ptrace(PTRACE_GETFPREGS, pid, 0, regs));
+	if (ptrace(PTRACE_GETFPREGS, pid, 0, regs) < 0)
+		return -errno;
+	return 0;
+}
+
+int ptrace_setfpregs(long pid, unsigned long *regs)
+{
+	if (ptrace(PTRACE_SETFPREGS, pid, 0, regs) < 0)
+		return -errno;
+	return 0;
 }
 
 static void write_debugregs(int pid, unsigned long *regs)
@@ -41,8 +54,9 @@ static void write_debugregs(int pid, unsigned long *regs)
 		if((i == 4) || (i == 5)) continue;
 		if(ptrace(PTRACE_POKEUSR, pid, &dummy->u_debugreg[i],
 			  regs[i]) < 0)
-			printk("write_debugregs - ptrace failed, "
-			       "errno = %d\n", errno);
+			printk("write_debugregs - ptrace failed on "
+			       "register %d, value = 0x%x, errno = %d\n", i,
+			       regs[i], errno);
 	}
 }
 
@@ -54,7 +68,7 @@ static void read_debugregs(int pid, unsigned long *regs)
 	dummy = NULL;
 	nregs = sizeof(dummy->u_debugreg)/sizeof(dummy->u_debugreg[0]);
 	for(i = 0; i < nregs; i++){
-		regs[i] = ptrace(PTRACE_PEEKUSR, pid, 
+		regs[i] = ptrace(PTRACE_PEEKUSR, pid,
 				 &dummy->u_debugreg[i], 0);
 	}
 }

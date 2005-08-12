@@ -9,9 +9,9 @@
 #define HI_MAGIC 0x80808080
 
 	.align	32
-	.global strlen, __strlen
+	.globl	strlen
+	.type	strlen,#function
 strlen:
-__strlen:
 	mov	%o0, %o1
 	andcc	%o0, 3, %g0
 	be,pt	%icc, 9f
@@ -48,16 +48,16 @@ __strlen:
 	 add	%o0, 4, %o0
 
 	/* Check every byte. */
-	srl	%o5, 24, %g5
-	andcc	%g5, 0xff, %g0
+	srl	%o5, 24, %g7
+	andcc	%g7, 0xff, %g0
 	be,pn	%icc, 1f
 	 add	%o0, -4, %o4
-	srl	%o5, 16, %g5
-	andcc	%g5, 0xff, %g0
+	srl	%o5, 16, %g7
+	andcc	%g7, 0xff, %g0
 	be,pn	%icc, 1f
 	 add	%o4, 1, %o4
-	srl	%o5, 8, %g5
-	andcc	%g5, 0xff, %g0
+	srl	%o5, 8, %g7
+	andcc	%g7, 0xff, %g0
 	be,pn	%icc, 1f
 	 add	%o4, 1, %o4
 	andcc	%o5, 0xff, %g0
@@ -76,3 +76,5 @@ __strlen:
 13:
 	retl
 	 mov	2, %o0
+
+	.size	strlen, .-strlen

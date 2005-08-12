@@ -11,6 +11,7 @@ obj-y   := entry.o traps.o shadows.o debugport.o irq.o \
 
 obj-$(CONFIG_ETRAX_KGDB) += kgdb.o
 obj-$(CONFIG_ETRAX_FAST_TIMER) += fasttimer.o
+obj-$(CONFIG_MODULES)    += crisksyms.o
 
 clean:
 

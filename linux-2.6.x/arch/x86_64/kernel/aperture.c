@@ -31,7 +31,9 @@ int iommu_aperture_allowed __initdata = 0;
 int fallback_aper_order __initdata = 1; /* 64MB */
 int fallback_aper_force __initdata = 0; 
 
-/* This code runs before the PCI subsystem is initialized, so just 
+int fix_aperture __initdata = 1;
+
+/* This code runs before the PCI subsystem is initialized, so just
    access the northbridge directly. */
 
 #define NB_ID_3 (PCI_VENDOR_ID_AMD | (0x1103<<16))
@@ -51,9 +53,9 @@ static u32 __init allocate_aperture(void)
 	aper_size = (32 * 1024 * 1024) << fallback_aper_order; 
 
 	/* 
-	 * Aperture has to be naturally aligned. This means an 2GB aperture won't 
-	 * have much chances to find a place in the lower 4GB of memory. 
-	 * Unfortunately we cannot move it up because that would make the 
+	 * Aperture has to be naturally aligned. This means an 2GB aperture won't
+	 * have much chances to find a place in the lower 4GB of memory.
+	 * Unfortunately we cannot move it up because that would make the
 	 * IOMMU useless.
 	 */
 	p = __alloc_bootmem_node(nd0, aper_size, aper_size, 0); 
@@ -64,7 +66,7 @@ static u32 __init allocate_aperture(void)
 			free_bootmem_node(nd0, (unsigned long)p, aper_size); 
 		return 0;
 	}
-	printk("Mapping aperture over %d KB of RAM @ %lx\n",  
+	printk("Mapping aperture over %d KB of RAM @ %lx\n",
 	       aper_size >> 10, __pa(p)); 
 	return (u32)__pa(p); 
 }
@@ -88,7 +90,7 @@ static int __init aperture_valid(char *name, u64 aper_base, u32 aper_size)
 	return 1;
 } 
 
-/* Find a PCI capability */ 
+/* Find a PCI capability */
 static __u32 __init find_cap(int num, int slot, int func, int cap) 
 { 
 	u8 pos;
@@ -198,11 +200,11 @@ static __u32 __init search_agp_bridge(u32 *order, int *valid_agp)
 void __init iommu_hole_init(void) 
 { 
 	int fix, num; 
-	u32 aper_size, aper_alloc = 0, aper_order;
-	u64 aper_base; 
+	u32 aper_size, aper_alloc = 0, aper_order, last_aper_order = 0;
+	u64 aper_base, last_aper_base = 0;
 	int valid_agp = 0;
 
-	if (iommu_aperture_disabled)
+	if (iommu_aperture_disabled || !fix_aperture)
 		return;
 
 	printk("Checking aperture...\n"); 
@@ -228,7 +230,15 @@ void __init iommu_hole_init(void)
 		if (!aperture_valid(name, aper_base, aper_size)) { 
 			fix = 1; 
 			break; 
-		} 
+		}
+
+		if ((last_aper_order && aper_order != last_aper_order) ||
+		    (last_aper_base && aper_base != last_aper_base)) {
+			fix = 1;
+			break;
+		}
+		last_aper_order = aper_order;
+		last_aper_base = aper_base;
 	} 
 
 	if (!fix && !fallback_aper_force) 
@@ -241,20 +251,15 @@ void __init iommu_hole_init(void)
 		/* Got the aperture from the AGP bridge */
 	} else if ((!no_iommu && end_pfn >= 0xffffffff>>PAGE_SHIFT) ||
 		   force_iommu ||
-		   valid_agp || 
+		   valid_agp ||
 		   fallback_aper_force) { 
-		/* When there is a AGP bridge in the system assume the
-		   user wants to use the AGP driver too and needs an
-		   aperture.  However this case (AGP but no good
-		   aperture) should only happen with a more broken than
-		   usual BIOS, because it would even break Windows. */
+		printk("Your BIOS doesn't leave a aperture memory hole\n");
+		printk("Please enable the IOMMU option in the BIOS setup\n");
+		printk("This costs you %d MB of RAM\n",
+		       32 << fallback_aper_order);
 
-	printk("Your BIOS doesn't leave a aperture memory hole\n");
-	printk("Please enable the IOMMU option in the BIOS setup\n"); 
-		printk("This costs you %d MB of RAM\n", 32 << fallback_aper_order); 
- 
 		aper_order = fallback_aper_order;
-	aper_alloc = allocate_aperture(); 
+		aper_alloc = allocate_aperture();
 		if (!aper_alloc) { 
 			/* Could disable AGP and IOMMU here, but it's probably
 			   not worth it. But the later users cannot deal with

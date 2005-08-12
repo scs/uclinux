@@ -225,6 +225,19 @@ ENTRY(arm925_flush_user_cache_range)
  *	- end	- virtual end address
  */
 ENTRY(arm925_coherent_kern_range)
+	/* FALLTHROUGH */
+
+/*
+ *	coherent_user_range(start, end)
+ *
+ *	Ensure coherency between the Icache and the Dcache in the
+ *	region described by start, end.  If you have non-snooping
+ *	Harvard caches, you need to implement this function.
+ *
+ *	- start	- virtual start address
+ *	- end	- virtual end address
+ */
+ENTRY(arm925_coherent_user_range)
 	bic	r0, r0, #CACHE_DLINESIZE - 1
 1:	mcr	p15, 0, r0, c7, c10, 1		@ clean D entry
 	mcr	p15, 0, r0, c7, c5, 1		@ invalidate I entry
@@ -329,6 +342,7 @@ ENTRY(arm925_cache_fns)
 	.long	arm925_flush_user_cache_all
 	.long	arm925_flush_user_cache_range
 	.long	arm925_coherent_kern_range
+	.long	arm925_coherent_user_range
 	.long	arm925_flush_kern_dcache_page
 	.long	arm925_dma_inv_range
 	.long	arm925_dma_clean_range
@@ -425,44 +439,35 @@ __arm925_setup:
 	mcr	p15, 0, r0, c7, c7		@ invalidate I,D caches on v4
 	mcr	p15, 0, r0, c7, c10, 4		@ drain write buffer on v4
 	mcr	p15, 0, r0, c8, c7		@ invalidate I,D TLBs on v4
-	mcr	p15, 0, r4, c2, c0		@ load page table pointer
 
 #ifdef CONFIG_CPU_DCACHE_WRITETHROUGH
 	mov	r0, #4				@ disable write-back on caches explicitly
 	mcr	p15, 7, r0, c15, c0, 0
 #endif
 
-	mov	r0, #0x1f			@ Domains 0, 1 = client
-	mcr	p15, 0, r0, c3, c0		@ load domain access register
 	mrc	p15, 0, r0, c1, c0		@ get control register v4
-/*
- * Clear out 'unwanted' bits (then put them in if we need them)
- */
-						@   VI ZFRS BLDP WCAM
-	bic	r0, r0, #0x0e00
-	bic	r0, r0, #0x0002
-	bic	r0, r0, #0x000c
-	bic	r0, r0, #0x1000			@ ...0 000. .... 000.
-/*
- * Turn on what we want
- */
-	orr	r0, r0, #0x0031
-	orr	r0, r0, #0x2100			@ ..1. ...1 ..11 ...1
-
-	/* Writebuffer on */
-	orr	r0, r0, #0x0008			@ .... .... .... 1...
-
+	ldr	r5, arm925_cr1_clear
+	bic	r0, r0, r5
+	ldr	r5, arm925_cr1_set
+	orr	r0, r0, r5
 #ifdef CONFIG_CPU_CACHE_ROUND_ROBIN
 	orr	r0, r0, #0x4000			@ .1.. .... .... ....
 #endif
-#ifndef CONFIG_CPU_DCACHE_DISABLE
-	orr	r0, r0, #0x0004			@ .... .... .... .1..
-#endif
-#ifndef CONFIG_CPU_ICACHE_DISABLE
-	orr	r0, r0, #0x1000			@ ...1 .... .... ....
-#endif
 	mov	pc, lr
 	.size	__arm925_setup, . - __arm925_setup
+
+	/*
+	 *  R
+	 * .RVI ZFRS BLDP WCAM
+	 * .011 0001 ..11 1101
+	 * 
+	 */
+	.type	arm925_cr1_clear, #object
+	.type	arm925_cr1_set, #object
+arm925_cr1_clear:
+	.word	0x7f3f
+arm925_cr1_set:
+	.word	0x313d
 
 	__INITDATA
 
@@ -522,7 +527,10 @@ cpu_arm925_name:
 __arm925_proc_info:
 	.long	0x54029250
 	.long	0xfffffff0
-	.long	0x00000c12			@ mmuflags
+	.long   PMD_TYPE_SECT | \
+		PMD_BIT4 | \
+		PMD_SECT_AP_WRITE | \
+		PMD_SECT_AP_READ
 	b	__arm925_setup
 	.long	cpu_arch_name
 	.long	cpu_elf_name
@@ -538,7 +546,10 @@ __arm925_proc_info:
 __arm915_proc_info:
 	.long	0x54029150
 	.long	0xfffffff0
-	.long	0x00000c12			@ mmuflags
+	.long   PMD_TYPE_SECT | \
+		PMD_BIT4 | \
+		PMD_SECT_AP_WRITE | \
+		PMD_SECT_AP_READ
 	b	__arm925_setup
 	.long	cpu_arch_name
 	.long	cpu_elf_name

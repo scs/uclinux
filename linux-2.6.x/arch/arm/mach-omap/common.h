@@ -27,9 +27,10 @@
 #ifndef __ARCH_ARM_MACH_OMAP_COMMON_H
 #define __ARCH_ARM_MACH_OMAP_COMMON_H
 
+struct sys_timer;
+
 extern void omap_map_io(void);
-extern void omap_init_time(void);
+extern struct sys_timer omap_timer;
+extern void omap_serial_init(int ports[]);
 
 #endif /* __ARCH_ARM_MACH_OMAP_COMMON_H */
-
-

@@ -50,10 +50,6 @@
 #define _INLINE_ inline
 #endif
 
-#ifndef MIN
-#define MIN(a,b)	((a) < (b) ? (a) : (b))
-#endif
-
 #define IRQ_T(info) ((info->flags & ASYNC_SHARE_IRQ) ? SA_SHIRQ : SA_INTERRUPT)
 
 #define SSC_GETCHAR	21
@@ -275,7 +271,7 @@ static _INLINE_ void transmit_chars(struct async_struct *info, int *intr_done)
 	 * Then from the beginning of the buffer until necessary
 	 */
 
-	count = MIN(CIRC_CNT(info->xmit.head, info->xmit.tail, SERIAL_XMIT_SIZE),
+	count = min(CIRC_CNT(info->xmit.head, info->xmit.tail, SERIAL_XMIT_SIZE),
 		    SERIAL_XMIT_SIZE - info->xmit.tail);
 	console->write(console, info->xmit.buf+info->xmit.tail, count);
 
@@ -305,7 +301,7 @@ static void rs_flush_chars(struct tty_struct *tty)
 }
 
 
-static int rs_write(struct tty_struct * tty, int from_user,
+static int rs_write(struct tty_struct * tty,
 		    const unsigned char *buf, int count)
 {
 	int	c, ret = 0;
@@ -314,58 +310,22 @@ static int rs_write(struct tty_struct * tty, int from_user,
 
 	if (!tty || !info->xmit.buf || !tmp_buf) return 0;
 
-	if (from_user) {
-		down(&tmp_buf_sem);
-		while (1) {
-			int c1;
-			c = CIRC_SPACE_TO_END(info->xmit.head, info->xmit.tail, SERIAL_XMIT_SIZE);
-			if (count < c)
-				c = count;
-			if (c <= 0)
-				break;
-
-			c -= copy_from_user(tmp_buf, buf, c);
-			if (!c) {
-				if (!ret)
-					ret = -EFAULT;
-				break;
-			}
-
-			local_irq_save(flags);
-			{
-				c1 = CIRC_SPACE_TO_END(info->xmit.head, info->xmit.tail,
-						       SERIAL_XMIT_SIZE);
-				if (c1 < c)
-					c = c1;
-				memcpy(info->xmit.buf + info->xmit.head, tmp_buf, c);
-				info->xmit.head = ((info->xmit.head + c) &
-						   (SERIAL_XMIT_SIZE-1));
-			}
-			local_irq_restore(flags);
-
-			buf += c;
-			count -= c;
-			ret += c;
+	local_irq_save(flags);
+	while (1) {
+		c = CIRC_SPACE_TO_END(info->xmit.head, info->xmit.tail, SERIAL_XMIT_SIZE);
+		if (count < c)
+			c = count;
+		if (c <= 0) {
+			break;
 		}
-		up(&tmp_buf_sem);
-	} else {
-		local_irq_save(flags);
-		while (1) {
-			c = CIRC_SPACE_TO_END(info->xmit.head, info->xmit.tail, SERIAL_XMIT_SIZE);
-			if (count < c)
-				c = count;
-			if (c <= 0) {
-				break;
-			}
-			memcpy(info->xmit.buf + info->xmit.head, buf, c);
-			info->xmit.head = ((info->xmit.head + c) &
-					   (SERIAL_XMIT_SIZE-1));
-			buf += c;
-			count -= c;
-			ret += c;
-		}
-		local_irq_restore(flags);
+		memcpy(info->xmit.buf + info->xmit.head, buf, c);
+		info->xmit.head = ((info->xmit.head + c) &
+				   (SERIAL_XMIT_SIZE-1));
+		buf += c;
+		count -= c;
+		ret += c;
 	}
+	local_irq_restore(flags);
 	/*
 	 * Hey, we transmit directly from here in our case
 	 */
@@ -1055,7 +1015,7 @@ simrs_init (void)
 			ia64_ssc_connect_irq(KEYBOARD_INTR, state->irq);
 		}
 
-		printk(KERN_INFO "ttyS%02d at 0x%04lx (irq = %d) is a %s\n",
+		printk(KERN_INFO "ttyS%d at 0x%04lx (irq = %d) is a %s\n",
 		       state->line,
 		       state->port, state->irq,
 		       uart_config[state->type].name);

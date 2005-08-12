@@ -17,7 +17,7 @@
 #include <stdarg.h>	/* for va_ bits */
 #include <linux/config.h>
 #include <linux/string.h>
-#include "zlib.h"
+#include <linux/zlib.h>
 #include "nonstdio.h"
 
 /* If we're on a PReP, assume we have a keyboard controller
@@ -52,7 +52,6 @@ extern char _end[];
 void puts(const char *);
 void putc(const char c);
 void puthex(unsigned long val);
-void _bcopy(char *src, char *dst, int len);
 void gunzip(void *, int, unsigned char *, int *);
 static int _cvt(unsigned long val, char *buf, long radix, char *digits);
 
@@ -60,7 +59,8 @@ void _vprintk(void(*putc)(const char), const char *fmt0, va_list ap);
 unsigned char *ISA_io = NULL;
 
 #if defined(CONFIG_SERIAL_CPM_CONSOLE) || defined(CONFIG_SERIAL_8250_CONSOLE) \
-	|| defined(CONFIG_SERIAL_MPC52xx_CONSOLE)
+	|| defined(CONFIG_SERIAL_MPC52xx_CONSOLE) \
+	|| defined(CONFIG_SERIAL_MPSC_CONSOLE)
 extern unsigned long com_port;
 
 extern int serial_tstc(unsigned long com_port);
@@ -82,7 +82,8 @@ void exit(void)
 int tstc(void)
 {
 #if defined(CONFIG_SERIAL_CPM_CONSOLE) || defined(CONFIG_SERIAL_8250_CONSOLE) \
-	|| defined(CONFIG_SERIAL_MPC52xx_CONSOLE)
+	|| defined(CONFIG_SERIAL_MPC52xx_CONSOLE) \
+	|| defined(CONFIG_SERIAL_MPSC_CONSOLE)
 	if(keyb_present)
 		return (CRT_tstc() || serial_tstc(com_port));
 	else
@@ -96,7 +97,8 @@ int getc(void)
 {
 	while (1) {
 #if defined(CONFIG_SERIAL_CPM_CONSOLE) || defined(CONFIG_SERIAL_8250_CONSOLE) \
-	|| defined(CONFIG_SERIAL_MPC52xx_CONSOLE)
+	|| defined(CONFIG_SERIAL_MPC52xx_CONSOLE) \
+	|| defined(CONFIG_SERIAL_MPSC_CONSOLE)
 		if (serial_tstc(com_port))
 			return (serial_getc(com_port));
 #endif /* serial console */
@@ -112,7 +114,8 @@ putc(const char c)
 	int x,y;
 
 #if defined(CONFIG_SERIAL_CPM_CONSOLE) || defined(CONFIG_SERIAL_8250_CONSOLE) \
-	|| defined(CONFIG_SERIAL_MPC52xx_CONSOLE)
+	|| defined(CONFIG_SERIAL_MPC52xx_CONSOLE) \
+	|| defined(CONFIG_SERIAL_MPSC_CONSOLE)
 	serial_putc(com_port, c);
 	if ( c == '\n' )
 		serial_putc(com_port, '\r');
@@ -160,7 +163,8 @@ void puts(const char *s)
 
 	while ( ( c = *s++ ) != '\0' ) {
 #if defined(CONFIG_SERIAL_CPM_CONSOLE) || defined(CONFIG_SERIAL_8250_CONSOLE) \
-	|| defined(CONFIG_SERIAL_MPC52xx_CONSOLE)
+	|| defined(CONFIG_SERIAL_MPC52xx_CONSOLE) \
+	|| defined(CONFIG_SERIAL_MPSC_CONSOLE)
 	        serial_putc(com_port, c);
 	        if ( c == '\n' ) serial_putc(com_port, '\r');
 #endif /* serial console */
@@ -202,11 +206,10 @@ void error(char *x)
 	while(1);	/* Halt */
 }
 
-void *zalloc(void *x, unsigned items, unsigned size)
+static void *zalloc(unsigned size)
 {
 	void *p = avail_ram;
 
-	size *= items;
 	size = (size + 7) & -8;
 	avail_ram += size;
 	if (avail_ram > end_avail) {
@@ -216,17 +219,11 @@ void *zalloc(void *x, unsigned items, unsigned size)
 	return p;
 }
 
-void zfree(void *x, void *addr, unsigned nb)
-{
-}
-
 #define HEAD_CRC	2
 #define EXTRA_FIELD	4
 #define ORIG_NAME	8
 #define COMMENT		0x10
 #define RESERVED	0xe0
-
-#define DEFLATED	8
 
 void gunzip(void *dst, int dstlen, unsigned char *src, int *lenp)
 {
@@ -236,7 +233,7 @@ void gunzip(void *dst, int dstlen, unsigned char *src, int *lenp)
 	/* skip header */
 	i = 10;
 	flags = src[3];
-	if (src[2] != DEFLATED || (flags & RESERVED) != 0) {
+	if (src[2] != Z_DEFLATED || (flags & RESERVED) != 0) {
 		puts("bad gzipped data\n");
 		exit();
 	}
@@ -255,24 +252,24 @@ void gunzip(void *dst, int dstlen, unsigned char *src, int *lenp)
 		exit();
 	}
 
-	s.zalloc = zalloc;
-	s.zfree = zfree;
-	r = inflateInit2(&s, -MAX_WBITS);
+	/* Initialize ourself. */
+	s.workspace = zalloc(zlib_inflate_workspacesize());
+	r = zlib_inflateInit2(&s, -MAX_WBITS);
 	if (r != Z_OK) {
-		puts("inflateInit2 returned "); puthex(r); puts("\n");
+		puts("zlib_inflateInit2 returned "); puthex(r); puts("\n");
 		exit();
 	}
 	s.next_in = src + i;
 	s.avail_in = *lenp - i;
 	s.next_out = dst;
 	s.avail_out = dstlen;
-	r = inflate(&s, Z_FINISH);
+	r = zlib_inflate(&s, Z_FINISH);
 	if (r != Z_OK && r != Z_STREAM_END) {
 		puts("inflate returned "); puthex(r); puts("\n");
 		exit();
 	}
 	*lenp = s.next_out - (unsigned char *) dst;
-	inflateEnd(&s);
+	zlib_inflateEnd(&s);
 }
 
 void
@@ -525,6 +522,11 @@ _dump_buf(unsigned char *p, int s)
  * because on some platforms we give inb/outb an exact location, and
  * on others it's an offset from a given location. -- Tom
  */
+
+void ISA_init(unsigned long base)
+{
+	ISA_io = (unsigned char *)base;
+}
 
 void
 outb(int port, unsigned char val)

@@ -27,6 +27,7 @@
 #include <asm/asi.h>
 #include <asm/lsu.h>
 #include <asm/sections.h>
+#include <asm/kdebug.h>
 
 #define ELEMENTS(arr) (sizeof (arr)/sizeof (arr[0]))
 
@@ -143,10 +144,15 @@ static void unhandled_fault(unsigned long address, struct task_struct *tsk,
 		       "at virtual address %016lx\n", (unsigned long)address);
 	}
 	printk(KERN_ALERT "tsk->{mm,active_mm}->context = %016lx\n",
-	       (tsk->mm ? tsk->mm->context : tsk->active_mm->context));
+	       (tsk->mm ?
+		CTX_HWBITS(tsk->mm->context) :
+		CTX_HWBITS(tsk->active_mm->context)));
 	printk(KERN_ALERT "tsk->{mm,active_mm}->pgd = %016lx\n",
 	       (tsk->mm ? (unsigned long) tsk->mm->pgd :
 		          (unsigned long) tsk->active_mm->pgd));
+	if (notify_die(DIE_GPF, "general protection fault", regs,
+		       0, 0, SIGSEGV) == NOTIFY_STOP)
+		return;
 	die_if_kernel("Oops", regs);
 }
 
@@ -171,6 +177,7 @@ static void bad_kernel_pc(struct pt_regs *regs)
 static unsigned int get_user_insn(unsigned long tpc)
 {
 	pgd_t *pgdp = pgd_offset(current->mm, tpc);
+	pud_t *pudp;
 	pmd_t *pmdp;
 	pte_t *ptep, pte;
 	unsigned long pa;
@@ -179,7 +186,10 @@ static unsigned int get_user_insn(unsigned long tpc)
 
 	if (pgd_none(*pgdp))
 		goto outret;
-	pmdp = pmd_offset(pgdp, tpc);
+	pudp = pud_offset(pgdp, tpc);
+	if (pud_none(*pudp))
+		goto outret;
+	pmdp = pmd_offset(pudp, tpc);
 	if (pmd_none(*pmdp))
 		goto outret;
 
@@ -318,8 +328,13 @@ asmlinkage void do_sparc64_fault(struct pt_regs *regs)
 	int si_code, fault_code;
 	unsigned long address;
 
-	si_code = SEGV_MAPERR;
 	fault_code = get_thread_fault_code();
+
+	if (notify_die(DIE_PAGE_FAULT, "page_fault", regs,
+		       fault_code, 0, SIGSEGV) == NOTIFY_STOP)
+		return;
+
+	si_code = SEGV_MAPERR;
 	address = current_thread_info()->fault_address;
 
 	if ((fault_code & FAULT_CODE_ITLB) &&
@@ -343,7 +358,7 @@ asmlinkage void do_sparc64_fault(struct pt_regs *regs)
 	 * If we're in an interrupt or have no user
 	 * context, we must not take the fault..
 	 */
-	if (in_interrupt() || !mm)
+	if (in_atomic() || !mm)
 		goto intr_or_no_mm;
 
 	if (test_thread_flag(TIF_32BIT)) {
@@ -352,7 +367,15 @@ asmlinkage void do_sparc64_fault(struct pt_regs *regs)
 		address &= 0xffffffff;
 	}
 
-	down_read(&mm->mmap_sem);
+	if (!down_read_trylock(&mm->mmap_sem)) {
+		if ((regs->tstate & TSTATE_PRIV) &&
+		    !search_exception_tables(regs->tpc)) {
+			insn = get_fault_insn(regs, insn);
+			goto handle_kernel_fault;
+		}
+		down_read(&mm->mmap_sem);
+	}
+
 	vma = find_vma(mm, address);
 	if (!vma)
 		goto bad_area;
@@ -437,16 +460,18 @@ good_area:
 	}
 
 	switch (handle_mm_fault(mm, vma, address, (fault_code & FAULT_CODE_WRITE))) {
-	case 1:
+	case VM_FAULT_MINOR:
 		current->min_flt++;
 		break;
-	case 2:
+	case VM_FAULT_MAJOR:
 		current->maj_flt++;
 		break;
-	case 0:
+	case VM_FAULT_SIGBUS:
 		goto do_sigbus;
-	default:
+	case VM_FAULT_OOM:
 		goto out_of_memory;
+	default:
+		BUG();
 	}
 
 	up_read(&mm->mmap_sem);

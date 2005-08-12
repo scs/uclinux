@@ -13,6 +13,7 @@
 #include <asm/uaccess.h>
 #include <asm/apic.h>
 #include "mach_reboot.h"
+#include <linux/reboot_fixups.h>
 
 /*
  * Power off function, if any
@@ -20,7 +21,7 @@
 void (*pm_power_off)(void);
 
 static int reboot_mode;
-int reboot_thru_bios;
+static int reboot_thru_bios;
 
 #ifdef CONFIG_SMP
 int reboot_smp = 0;
@@ -137,7 +138,7 @@ static struct dmi_system_id __initdata reboot_dmi_table[] = {
 	{ }
 };
 
-static int reboot_init(void)
+static int __init reboot_init(void)
 {
 	dmi_check_system(reboot_dmi_table);
 	return 0;
@@ -331,13 +332,10 @@ void machine_restart(char * __unused)
 	 * other OSs see a clean IRQ state.
 	 */
 	smp_send_stop();
-#elif defined(CONFIG_X86_LOCAL_APIC)
-	if (cpu_has_apic) {
-		local_irq_disable();
-		disable_local_APIC();
-		local_irq_enable();
-	}
-#endif
+#endif /* CONFIG_SMP */
+
+	lapic_shutdown();
+
 #ifdef CONFIG_X86_IO_APIC
 	disable_IO_APIC();
 #endif
@@ -351,6 +349,7 @@ void machine_restart(char * __unused)
 		/* rebooting needs to touch the page at absolute addr 0 */
 		*((unsigned short *)__va(0x472)) = reboot_mode;
 		for (;;) {
+			mach_reboot_fixups(); /* for board specific fixups */
 			mach_reboot();
 			/* That didn't work - force a triple fault.. */
 			__asm__ __volatile__("lidt %0": :"m" (no_idt));
@@ -373,6 +372,8 @@ EXPORT_SYMBOL(machine_halt);
 
 void machine_power_off(void)
 {
+	lapic_shutdown();
+
 	if (efi_enabled)
 		efi.reset_system(EFI_RESET_SHUTDOWN, EFI_SUCCESS, 0, NULL);
 	if (pm_power_off)

@@ -42,6 +42,8 @@
 #include <asm/pci-bridge.h>
 #include <asm/bootinfo.h>
 
+#include <syslib/gen550.h>
+
 /* Function Prototypes */
 extern void abort(void);
 extern void ppc4xx_find_bridges(void);
@@ -56,14 +58,18 @@ bd_t __res;
 void __init
 ppc4xx_setup_arch(void)
 {
-	/* Setup PCI host bridges */
-
-#ifdef CONFIG_PCI
-	ppc4xx_find_bridges();
+#if !defined(CONFIG_BDI_SWITCH)
+	/*
+	 * The Abatron BDI JTAG debugger does not tolerate others
+	 * mucking with the debug registers.
+	 */
+        mtspr(SPRN_DBCR0, (DBCR0_IDM));
+	mtspr(SPRN_DBSR, 0xffffffff);
 #endif
 
-#if defined(CONFIG_FB)
-	conswitchp = &dummy_con;
+	/* Setup PCI host bridges */
+#ifdef CONFIG_PCI
+	ppc4xx_find_bridges();
 #endif
 }
 
@@ -127,12 +133,7 @@ ppc4xx_map_io(void)
 void __init
 ppc4xx_init_IRQ(void)
 {
-	int i;
-
 	ppc4xx_pic_init();
-
-	for (i = 0; i < NR_IRQS; i++)
-		irq_desc[i].handler = ppc4xx_pic;
 }
 
 static void
@@ -193,34 +194,6 @@ ppc4xx_calibrate_decr(void)
 	/* Set the PIT reload value and just let it run. */
 	mtspr(SPRN_PIT, tb_ticks_per_jiffy);
 }
-#ifdef CONFIG_SERIAL_TEXT_DEBUG
-
-/* We assume that the UART has already been initialized by the
-   firmware or the boot loader */
-static void
-serial_putc(u8 * com_port, unsigned char c)
-{
-	while ((readb(com_port + (UART_LSR)) & UART_LSR_THRE) == 0) ;
-	writeb(c, com_port);
-}
-
-static void
-ppc4xx_progress(char *s, unsigned short hex)
-{
-	char c;
-#ifdef SERIAL_DEBUG_IO_BASE
-	u8 *com_port = (u8 *) SERIAL_DEBUG_IO_BASE;
-
-	while ((c = *s++) != '\0') {
-		serial_putc(com_port, c);
-	}
-	serial_putc(com_port, '\r');
-	serial_putc(com_port, '\n');
-#else
-	printk("%s\r\n");
-#endif
-}
-#endif				/* CONFIG_SERIAL_TEXT_DEBUG */
 
 /*
  * IDE stuff.
@@ -323,14 +296,26 @@ ppc4xx_init(unsigned long r3, unsigned long r4, unsigned long r5,
 	ppc_md.setup_io_mappings = ppc4xx_map_io;
 
 #ifdef CONFIG_SERIAL_TEXT_DEBUG
-	ppc_md.progress = ppc4xx_progress;
+	ppc_md.progress = gen550_progress;
 #endif
 
-/*
-**   m8xx_setup.c, prep_setup.c use
-**     defined(CONFIG_BLK_DEV_IDE) || defined(CONFIG_BLK_DEV_IDE_MODULE)
-*/
 #if defined(CONFIG_PCI) && defined(CONFIG_IDE)
 	ppc_ide_md.ide_init_hwif = ppc4xx_ide_init_hwif_ports;
 #endif /* defined(CONFIG_PCI) && defined(CONFIG_IDE) */
+}
+
+/* Called from MachineCheckException */
+void platform_machine_check(struct pt_regs *regs)
+{
+#if defined(DCRN_PLB0_BEAR)
+	printk("PLB0: BEAR= 0x%08x ACR=   0x%08x BESR=  0x%08x\n",
+	    mfdcr(DCRN_PLB0_BEAR), mfdcr(DCRN_PLB0_ACR),
+	    mfdcr(DCRN_PLB0_BESR));
+#endif
+#if defined(DCRN_POB0_BEAR)
+	printk("PLB0 to OPB: BEAR= 0x%08x BESR0= 0x%08x BESR1= 0x%08x\n",
+	    mfdcr(DCRN_POB0_BEAR), mfdcr(DCRN_POB0_BESR0),
+	    mfdcr(DCRN_POB0_BESR1));
+#endif
+
 }

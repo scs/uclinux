@@ -140,10 +140,11 @@ static struct omap_irq_bank omap1510_irq_banks[] = {
 };
 #endif
 
-#if defined(CONFIG_ARCH_OMAP1610) || defined(CONFIG_ARCH_OMAP5912)
+#if defined(CONFIG_ARCH_OMAP16XX)
+
 static struct omap_irq_bank omap1610_irq_banks[] = {
 	{ .base_reg = OMAP_IH1_BASE, 		.trigger_map = 0xb3fefe8f },
-	{ .base_reg = OMAP_IH2_BASE, 		.trigger_map = 0xfffff7ff },
+	{ .base_reg = OMAP_IH2_BASE, 		.trigger_map = 0xfdb7c1fd },
 	{ .base_reg = OMAP_IH2_BASE + 0x100,	.trigger_map = 0xfffff7ff },
 	{ .base_reg = OMAP_IH2_BASE + 0x200,	.trigger_map = 0xffffffff },
 };
@@ -171,8 +172,8 @@ void __init omap_init_irq(void)
 		irq_bank_count = ARRAY_SIZE(omap1510_irq_banks);
 	}
 #endif
-#if defined(CONFIG_ARCH_OMAP1610) || defined(CONFIG_ARCH_OMAP5912)
-	if (cpu_is_omap1610() || cpu_is_omap5912()) {
+#if defined(CONFIG_ARCH_OMAP16XX)
+	if (cpu_is_omap16xx()) {
 		irq_banks = omap1610_irq_banks;
 		irq_bank_count = ARRAY_SIZE(omap1610_irq_banks);
 	}
@@ -190,6 +191,11 @@ void __init omap_init_irq(void)
 	irq_bank_writel(0x03, 0, IRQ_CONTROL_REG_OFFSET);
 	irq_bank_writel(0x03, 1, IRQ_CONTROL_REG_OFFSET);
 
+	/* Enable interrupts in global mask */
+	if (cpu_is_omap730()) {
+		irq_bank_writel(0x0, 0, IRQ_GMR_REG_OFFSET);
+	}
+
 	/* Install the interrupt handlers for each bank */
 	for (i = 0; i < irq_bank_count; i++) {
 		for (j = i * 32; j < (i + 1) * 32; j++) {
@@ -205,5 +211,9 @@ void __init omap_init_irq(void)
 	}
 
 	/* Unmask level 2 handler */
-	omap_unmask_irq(INT_IH2_IRQ);
+	if (cpu_is_omap730()) {
+		omap_unmask_irq(INT_730_IH2_IRQ);
+	} else {
+		omap_unmask_irq(INT_IH2_IRQ);
+	}
 }

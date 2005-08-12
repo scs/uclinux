@@ -36,6 +36,7 @@
 #include <linux/module.h>
 #include <linux/kallsyms.h>
 #include <linux/mqueue.h>
+#include <linux/hardirq.h>
 
 #include <asm/pgtable.h>
 #include <asm/uaccess.h>
@@ -44,7 +45,6 @@
 #include <asm/processor.h>
 #include <asm/mmu.h>
 #include <asm/prom.h>
-#include <asm/hardirq.h>
 
 extern unsigned long _get_SP(void);
 
@@ -321,20 +321,9 @@ void show_regs(struct pt_regs * regs)
 	trap = TRAP(regs);
 	if (trap == 0x300 || trap == 0x600)
 		printk("DAR: %08lX, DSISR: %08lX\n", regs->dar, regs->dsisr);
-	printk("TASK = %p[%d] '%s' THREAD: %p",
+	printk("TASK = %p[%d] '%s' THREAD: %p\n",
 	       current, current->pid, current->comm, current->thread_info);
 	printk("Last syscall: %ld ", current->thread.last_syscall);
-
-#if defined(CONFIG_4xx) && defined(DCRN_PLB0_BEAR)
-	printk("\nPLB0: bear= 0x%8.8x acr=   0x%8.8x besr=  0x%8.8x\n",
-	    mfdcr(DCRN_PLB0_BEAR), mfdcr(DCRN_PLB0_ACR),
-	    mfdcr(DCRN_PLB0_BESR));
-#endif
-#if defined(CONFIG_4xx) && defined(DCRN_POB0_BEAR)
-	printk("PLB0 to OPB: bear= 0x%8.8x besr0= 0x%8.8x besr1= 0x%8.8x\n",
-	    mfdcr(DCRN_POB0_BEAR), mfdcr(DCRN_POB0_BESR0),
-	    mfdcr(DCRN_POB0_BESR1));
-#endif
 
 #ifdef CONFIG_SMP
 	printk(" CPU: %d", smp_processor_id());
@@ -370,6 +359,10 @@ void exit_thread(void)
 		last_task_used_math = NULL;
 	if (last_task_used_altivec == current)
 		last_task_used_altivec = NULL;
+#ifdef CONFIG_SPE
+	if (last_task_used_spe == current)
+		last_task_used_spe = NULL;
+#endif
 }
 
 void flush_thread(void)
@@ -378,6 +371,10 @@ void flush_thread(void)
 		last_task_used_math = NULL;
 	if (last_task_used_altivec == current)
 		last_task_used_altivec = NULL;
+#ifdef CONFIG_SPE
+	if (last_task_used_spe == current)
+		last_task_used_spe = NULL;
+#endif
 }
 
 void
@@ -421,8 +418,6 @@ copy_thread(int nr, unsigned long clone_flags, unsigned long usp,
 	extern void ret_from_fork(void);
 	unsigned long sp = (unsigned long)p->thread_info + THREAD_SIZE;
 	unsigned long childframe;
-
-	p->set_child_tid = p->clear_child_tid = NULL;
 
 	CHECK_FULL_REGS(regs);
 	/* Copy registers */
@@ -482,6 +477,10 @@ void start_thread(struct pt_regs *regs, unsigned long nip, unsigned long sp)
 		last_task_used_math = NULL;
 	if (last_task_used_altivec == current)
 		last_task_used_altivec = NULL;
+#ifdef CONFIG_SPE
+	if (last_task_used_spe == current)
+		last_task_used_spe = NULL;
+#endif
 	memset(current->thread.fpr, 0, sizeof(current->thread.fpr));
 	current->thread.fpscr = 0;
 #ifdef CONFIG_ALTIVEC
@@ -555,8 +554,7 @@ int sys_clone(unsigned long clone_flags, unsigned long usp,
 	CHECK_FULL_REGS(regs);
 	if (usp == 0)
 		usp = regs->gpr[1];	/* stack pointer for child */
- 	return do_fork(clone_flags & ~CLONE_IDLETASK, usp, regs, 0,
-			parent_tidp, child_tidp);
+ 	return do_fork(clone_flags, usp, regs, 0, parent_tidp, child_tidp);
 }
 
 int sys_fork(int p1, int p2, int p3, int p4, int p5, int p6,
@@ -599,8 +597,11 @@ int sys_execve(unsigned long a0, unsigned long a1, unsigned long a2,
 	preempt_enable();
 	error = do_execve(filename, (char __user *__user *) a1,
 			  (char __user *__user *) a2, regs);
-	if (error == 0)
+	if (error == 0) {
+		task_lock(current);
 		current->ptrace &= ~PT_DTRACE;
+		task_unlock(current);
+	}
 	putname(filename);
 out:
 	return error;
@@ -662,7 +663,7 @@ void show_stack(struct task_struct *tsk, unsigned long *stack)
 		++count;
 		sp = *(unsigned long *)sp;
 	}
-#if !CONFIG_KALLSYMS
+#ifndef CONFIG_KALLSYMS
 	if (count > 0)
 		printk("\n");
 #endif

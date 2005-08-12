@@ -11,6 +11,7 @@
  * Free Software Foundation;  either version 2 of the  License, or (at your
  * option) any later version.
  */
+#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
@@ -134,6 +135,9 @@ static irqreturn_t gt64240_p0int_irq(int irq, void *dev, struct pt_regs *regs)
 
 		/* handle the timer call */
 		do_timer(regs);
+#ifndef CONFIG_SMP
+		update_process_times(user_mode(regs));
+#endif
 	}
 
 	if (irq_src) {
@@ -156,7 +160,6 @@ static irqreturn_t gt64240_p0int_irq(int irq, void *dev, struct pt_regs *regs)
  */
 void gt64240_time_init(void)
 {
-	extern irq_desc_t irq_desc[NR_IRQS];
 	static struct irqaction timer;
 
 	/* Stop the timer -- we'll use timer #0 */

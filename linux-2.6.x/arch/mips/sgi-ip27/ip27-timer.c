@@ -1,9 +1,8 @@
 /*
- * Copytight (C) 1999, 2000 Ralf Baechle (ralf@gnu.org)
+ * Copytight (C) 1999, 2000, 05 Ralf Baechle (ralf@linux-mips.org)
  * Copytight (C) 1999, 2000 Silicon Graphics, Inc.
  */
 #include <linux/bcd.h>
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
@@ -112,9 +111,7 @@ again:
 	if (cpu == 0)
 		do_timer(regs);
 
-#ifdef CONFIG_SMP
 	update_process_times(user_mode(regs));
-#endif /* CONFIG_SMP */
 
 	/*
 	 * If we have an externally synchronized Linux clock, then update

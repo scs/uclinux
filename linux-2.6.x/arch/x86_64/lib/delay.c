@@ -21,7 +21,7 @@ int x86_udelay_tsc = 0;		/* Delay via TSC */
 
 void __delay(unsigned long loops)
 {
-	unsigned long bclock, now;
+	unsigned bclock, now;
 	
 	rdtscl(bclock);
 	do
@@ -34,7 +34,7 @@ void __delay(unsigned long loops)
 
 inline void __const_udelay(unsigned long xloops)
 {
-        __delay(((xloops * current_cpu_data.loops_per_jiffy) >> 32) * HZ);
+	__delay(((xloops * cpu_data[_smp_processor_id()].loops_per_jiffy) >> 32) * HZ);
 }
 
 void __udelay(unsigned long usecs)

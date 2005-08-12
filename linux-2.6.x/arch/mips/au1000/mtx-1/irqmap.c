@@ -39,18 +39,20 @@
 #include <linux/slab.h>
 #include <linux/random.h>
 #include <linux/delay.h>
+#include <linux/bitops.h>
 
-#include <asm/bitops.h>
 #include <asm/bootinfo.h>
 #include <asm/io.h>
 #include <asm/mipsregs.h>
 #include <asm/system.h>
-#include <asm/au1000.h>
+#include <asm/mach-au1x00/au1000.h>
 
-/* Need to define this.
-*/
 au1xxx_irq_map_t au1xxx_irq_map[] = {
-	{ 0. 0. 0}
+       { AU1500_GPIO_204, INTC_INT_HIGH_LEVEL, 0},
+       { AU1500_GPIO_201, INTC_INT_LOW_LEVEL, 0 },
+       { AU1500_GPIO_202, INTC_INT_LOW_LEVEL, 0 },
+       { AU1500_GPIO_203, INTC_INT_LOW_LEVEL, 0 },
+       { AU1500_GPIO_205, INTC_INT_LOW_LEVEL, 0 },
 };
 
-int au1xxx_nr_irqs = 0;
+int au1xxx_nr_irqs = sizeof(au1xxx_irq_map)/sizeof(au1xxx_irq_map_t);

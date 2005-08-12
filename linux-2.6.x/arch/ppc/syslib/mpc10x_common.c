@@ -43,7 +43,7 @@
 
 #ifdef CONFIG_MPC10X_OPENPIC
 #ifdef CONFIG_EPIC_SERIAL_MODE
-#define EPIC_IRQ_BASE 16
+#define EPIC_IRQ_BASE (epic_serial_mode ? 16 : 5)
 #else
 #define EPIC_IRQ_BASE 5
 #endif
@@ -69,20 +69,16 @@ static struct ocp_def mpc10x_i2c_ocp = {
 	.vendor		= OCP_VENDOR_MOTOROLA,
 	.function	= OCP_FUNC_IIC,
 	.index		= 0,
-	.irq		= MPC10X_I2C_IRQ,
 	.additions	= &mpc10x_i2c_data
 };
 
 static struct ocp_def mpc10x_dma_ocp[2] = {
 {	.vendor		= OCP_VENDOR_MOTOROLA,
 	.function	= OCP_FUNC_DMA,
-	.index		= 0,
-	.irq		= MPC10X_DMA0_IRQ
-},
+	.index		= 0 },
 {	.vendor		= OCP_VENDOR_MOTOROLA,
 	.function	= OCP_FUNC_DMA,
-	.index		= 1,
-	.irq		= MPC10X_DMA1_IRQ }
+	.index		= 1 }
 };
 
 /* Set resources to match bridge memory map */
@@ -292,12 +288,15 @@ mpc10x_bridge_init(struct pci_controller *hose,
 				MPC10X_EUMB_EPIC_SIZE);
 #endif
 		mpc10x_i2c_ocp.paddr = phys_eumb_base + MPC10X_EUMB_I2C_OFFSET;
+		mpc10x_i2c_ocp.irq = MPC10X_I2C_IRQ;
 		ocp_add_one_device(&mpc10x_i2c_ocp);
 		mpc10x_dma_ocp[0].paddr = phys_eumb_base +
 					MPC10X_EUMB_DMA_OFFSET + 0x100;
+		mpc10x_dma_ocp[0].irq = MPC10X_DMA0_IRQ;
 		ocp_add_one_device(&mpc10x_dma_ocp[0]);
 		mpc10x_dma_ocp[1].paddr = phys_eumb_base +
 					MPC10X_EUMB_DMA_OFFSET + 0x200;
+		mpc10x_dma_ocp[1].irq = MPC10X_DMA1_IRQ;
 		ocp_add_one_device(&mpc10x_dma_ocp[1]);
 	}
 
@@ -306,6 +305,41 @@ mpc10x_bridge_init(struct pci_controller *hose,
 #else
 	mpc10x_disable_store_gathering(hose);
 #endif
+
+	/*
+	 * 8240 erratum 26, 8241/8245 erratum 29, 107 erratum 23: speculative
+	 * PCI reads may return stale data so turn off.
+	 */
+	if ((host_bridge == MPC10X_BRIDGE_8240)
+		|| (host_bridge == MPC10X_BRIDGE_8245)
+		|| (host_bridge == MPC10X_BRIDGE_107)) {
+
+		early_read_config_dword(hose, 0, PCI_DEVFN(0,0),
+			MPC10X_CFG_PICR1_REG, &picr1);
+
+		picr1 &= ~MPC10X_CFG_PICR1_SPEC_PCI_RD;
+
+		early_write_config_dword(hose, 0, PCI_DEVFN(0,0),
+			MPC10X_CFG_PICR1_REG, picr1);
+	}
+
+	/*
+	 * 8241/8245 erratum 28: PCI reads from local memory may return
+	 * stale data.  Workaround by setting PICR2[0] to disable copyback
+	 * optimization.  Oddly, the latest available user manual for the
+	 * 8245 (Rev 2., dated 10/2003) says PICR2[0] is reserverd.
+	 */
+	if (host_bridge == MPC10X_BRIDGE_8245) {
+		ulong	picr2;
+
+		early_read_config_dword(hose, 0, PCI_DEVFN(0,0),
+			MPC10X_CFG_PICR2_REG, &picr2);
+
+		picr2 |= MPC10X_CFG_PICR2_COPYBACK_OPT;
+
+		early_write_config_dword(hose, 0, PCI_DEVFN(0,0),
+			 MPC10X_CFG_PICR2_REG, picr2);
+	}
 
 	if (ppc_md.progress) ppc_md.progress("mpc10x:exit", 0x100);
 	return 0;

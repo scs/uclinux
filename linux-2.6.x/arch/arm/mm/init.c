@@ -14,6 +14,8 @@
 #include <linux/swap.h>
 #include <linux/init.h>
 #include <linux/bootmem.h>
+#include <linux/mman.h>
+#include <linux/nodemask.h>
 #include <linux/initrd.h>
 
 #include <asm/mach-types.h>
@@ -29,7 +31,7 @@
 DEFINE_PER_CPU(struct mmu_gather, mmu_gathers);
 
 extern pgd_t swapper_pg_dir[PTRS_PER_PGD];
-extern char _stext, _text, _etext, _end, __init_begin, __init_end;
+extern void _stext, _text, _etext, __data_start, _end, __init_begin, __init_end;
 extern unsigned long phys_initrd_start;
 extern unsigned long phys_initrd_size;
 
@@ -54,7 +56,7 @@ void show_mem(void)
 	show_free_areas();
 	printk("Free swap:       %6ldkB\n", nr_swap_pages<<(PAGE_SHIFT-10));
 
-	for (node = 0; node < numnodes; node++) {
+	for_each_online_node(node) {
 		struct page *page, *end;
 
 		page = NODE_MEM_MAP(node);
@@ -177,18 +179,14 @@ find_memend_and_nodes(struct meminfo *mi, struct node_info *np)
 
 		node = mi->bank[i].node;
 
-		if (node >= numnodes) {
-			numnodes = node + 1;
-
-			/*
-			 * Make sure we haven't exceeded the maximum number
-			 * of nodes that we have in this configuration.  If
-			 * we have, we're in trouble.  (maybe we ought to
-			 * limit, instead of bugging?)
-			 */
-			if (numnodes > MAX_NUMNODES)
-				BUG();
-		}
+		/*
+		 * Make sure we haven't exceeded the maximum number of nodes
+		 * that we have in this configuration.  If we have, we're in
+		 * trouble.  (maybe we ought to limit, instead of bugging?)
+		 */
+		if (node >= MAX_NUMNODES)
+			BUG();
+		node_set_online(node);
 
 		/*
 		 * Get the start and end pfns for this bank
@@ -210,7 +208,7 @@ find_memend_and_nodes(struct meminfo *mi, struct node_info *np)
 	 * Calculate the number of pages we require to
 	 * store the bootmem bitmaps.
 	 */
-	for (i = 0; i < numnodes; i++) {
+	for_each_online_node(i) {
 		if (np[i].end == 0)
 			continue;
 
@@ -225,6 +223,9 @@ find_memend_and_nodes(struct meminfo *mi, struct node_info *np)
 	 * This doesn't seem to be used by the Linux memory
 	 * manager any more.  If we can get rid of it, we
 	 * also get rid of some of the stuff above as well.
+	 *
+	 * Note: max_low_pfn and max_pfn reflect the number
+	 * of _pages_ in the system, not the maximum PFN.
 	 */
 	max_low_pfn = memend_pfn - O_PFN_DOWN(PHYS_OFFSET);
 	max_pfn = memend_pfn - O_PFN_DOWN(PHYS_OFFSET);
@@ -281,7 +282,11 @@ static __init void reserve_node_zero(unsigned int bootmap_pfn, unsigned int boot
 	 * Register the kernel text and data with bootmem.
 	 * Note that this can only be in node 0.
 	 */
+#ifdef CONFIG_XIP_KERNEL
+	reserve_bootmem_node(pgdat, __pa(&__data_start), &_end - &__data_start);
+#else
 	reserve_bootmem_node(pgdat, __pa(&_stext), &_end - &_stext);
+#endif
 
 	/*
 	 * Reserve the page tables.  These are already in use,
@@ -344,7 +349,7 @@ static inline void free_bootmem_node_bank(int node, struct meminfo *mi)
  * Initialise the bootmem allocator for all nodes.  This is called
  * early during the architecture specific initialisation.
  */
-void __init bootmem_init(struct meminfo *mi)
+static void __init bootmem_init(struct meminfo *mi)
 {
 	struct node_info node_info[MAX_NUMNODES], *np = node_info;
 	unsigned int bootmap_pages, bootmap_pfn, map_pg;
@@ -375,13 +380,13 @@ void __init bootmem_init(struct meminfo *mi)
 	 * (we could also do with rolling bootmem_init and paging_init
 	 * into one generic "memory_init" type function).
 	 */
-	np += numnodes - 1;
-	for (node = numnodes - 1; node >= 0; node--, np--) {
+	np += num_online_nodes() - 1;
+	for (node = num_online_nodes() - 1; node >= 0; node--, np--) {
 		/*
 		 * If there are no pages in this node, ignore it.
 		 * Note that node 0 must always have some pages.
 		 */
-		if (np->end == 0) {
+		if (np->end == 0 || !node_online(node)) {
 			if (node == 0)
 				BUG();
 			continue;
@@ -412,9 +417,7 @@ void __init bootmem_init(struct meminfo *mi)
 	}
 #endif
 
-	if (map_pg != bootmap_pfn + bootmap_pages)
-		BUG();
-
+	BUG_ON(map_pg != bootmap_pfn + bootmap_pages);
 }
 
 /*
@@ -425,6 +428,8 @@ void __init paging_init(struct meminfo *mi, struct machine_desc *mdesc)
 {
 	void *zero_page;
 	int node;
+
+	bootmem_init(mi);
 
 	memcpy(&meminfo, mi, sizeof(meminfo));
 
@@ -444,7 +449,7 @@ void __init paging_init(struct meminfo *mi, struct machine_desc *mdesc)
 	/*
 	 * initialise the zones within each node
 	 */
-	for (node = 0; node < numnodes; node++) {
+	for_each_online_node(node) {
 		unsigned long zone_size[MAX_NR_ZONES];
 		unsigned long zhole_size[MAX_NR_ZONES];
 		struct bootmem_data *bdata;
@@ -495,13 +500,9 @@ void __init paging_init(struct meminfo *mi, struct machine_desc *mdesc)
 		 */
 		arch_adjust_zones(node, zone_size, zhole_size);
 
-		free_area_init_node(node, pgdat, NULL, zone_size,
+		free_area_init_node(node, pgdat, zone_size,
 				bdata->node_boot_start >> PAGE_SHIFT, zhole_size);
 	}
-
-#ifndef CONFIG_DISCONTIGMEM
-	mem_map = contig_page_data.node_mem_map;
-#endif
 
 	/*
 	 * finish off the bad pages once
@@ -539,7 +540,7 @@ void __init mem_init(void)
 	int i, node;
 
 	codepages = &_etext - &_text;
-	datapages = &_end - &_etext;
+	datapages = &_end - &__data_start;
 	initpages = &__init_end - &__init_begin;
 
 #ifndef CONFIG_DISCONTIGMEM
@@ -553,7 +554,7 @@ void __init mem_init(void)
 		create_memmap_holes(&meminfo);
 
 	/* this will put all unused low memory onto the freelists */
-	for (node = 0; node < numnodes; node++) {
+	for_each_online_node(node) {
 		pg_data_t *pgdat = NODE_DATA(node);
 
 		if (pgdat->node_spanned_pages != 0)
@@ -590,7 +591,7 @@ void __init mem_init(void)
 		 * anywhere without overcommit, so turn
 		 * it on by default.
 		 */
-		sysctl_overcommit_memory = 1;
+		sysctl_overcommit_memory = OVERCOMMIT_ALWAYS;
 	}
 }
 

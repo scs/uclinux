@@ -32,6 +32,7 @@
  *  with this program; if not, write  to the Free Software Foundation, Inc.,
  *  675 Mass Ave, Cambridge, MA 02139, USA.
  */
+#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/kernel_stat.h>
 #include <linux/module.h>
@@ -73,6 +74,9 @@ void mips_timer_interrupt(struct pt_regs *regs)
 	do {
 		kstat_this_cpu.irqs[irq]++;
 		do_timer(regs);
+#ifndef CONFIG_SMP
+		update_process_times(user_mode(regs));
+#endif
 		r4k_cur += r4k_offset;
 		ack_r4ktimer(r4k_cur);
 

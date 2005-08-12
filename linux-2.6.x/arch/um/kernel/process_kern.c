@@ -1,5 +1,6 @@
 /* 
  * Copyright (C) 2000, 2001, 2002 Jeff Dike (jdike@karaya.com)
+ * Copyright 2003 PathScale, Inc.
  * Licensed under the GPL
  */
 
@@ -16,6 +17,11 @@
 #include "linux/module.h"
 #include "linux/init.h"
 #include "linux/capability.h"
+#include "linux/vmalloc.h"
+#include "linux/spinlock.h"
+#include "linux/proc_fs.h"
+#include "linux/ptrace.h"
+#include "linux/random.h"
 #include "asm/unistd.h"
 #include "asm/mman.h"
 #include "asm/segment.h"
@@ -23,7 +29,6 @@
 #include "asm/pgtable.h"
 #include "asm/processor.h"
 #include "asm/tlbflush.h"
-#include "asm/spinlock.h"
 #include "asm/uaccess.h"
 #include "asm/user.h"
 #include "user_util.h"
@@ -38,7 +43,6 @@
 #include "tlb.h"
 #include "frame_kern.h"
 #include "sigcontext.h"
-#include "2_5compat.h"
 #include "os.h"
 #include "mode.h"
 #include "mode_kern.h"
@@ -49,23 +53,6 @@
  * entry.
  */
 struct cpu_task cpu_tasks[NR_CPUS] = { [0 ... NR_CPUS - 1] = { -1, NULL } };
-
-struct task_struct *get_task(int pid, int require)
-{
-        struct task_struct *task, *ret;
-
-        ret = NULL;
-        read_lock(&tasklist_lock);
-        for_each_process(task){
-                if(task->pid == pid){
-                        ret = task;
-                        break;
-                }
-        }
-        read_unlock(&tasklist_lock);
-        if(require && (ret == NULL)) panic("get_task couldn't find a task\n");
-        return(ret);
-}
 
 int external_pid(void *t)
 {
@@ -95,7 +82,8 @@ unsigned long alloc_stack(int order, int atomic)
 	int flags = GFP_KERNEL;
 
 	if(atomic) flags |= GFP_ATOMIC;
-	if((page = __get_free_pages(flags, order)) == 0)
+	page = __get_free_pages(flags, order);
+	if(page == 0)
 		return(0);
 	stack_protections(page);
 	return(page);
@@ -103,22 +91,15 @@ unsigned long alloc_stack(int order, int atomic)
 
 int kernel_thread(int (*fn)(void *), void * arg, unsigned long flags)
 {
-	struct task_struct *p;
+	int pid;
 
 	current->thread.request.u.thread.proc = fn;
 	current->thread.request.u.thread.arg = arg;
-	p = do_fork(CLONE_VM | flags, 0, NULL, 0, NULL, NULL);
-	if(IS_ERR(p)) panic("do_fork failed in kernel_thread");
-	return(p->pid);
-}
-
-void switch_mm(struct mm_struct *prev, struct mm_struct *next, 
-	       struct task_struct *tsk)
-{
-	unsigned cpu = smp_processor_id();
-	if (prev != next) 
-		clear_bit(cpu, &prev->cpu_vm_mask);
-	set_bit(cpu, &next->cpu_vm_mask);
+	pid = do_fork(CLONE_VM | CLONE_UNTRACED | flags, 0, NULL, 0, NULL,
+		      NULL);
+	if(pid < 0)
+		panic("do_fork failed in kernel_thread, errno = %d", pid);
+	return(pid);
 }
 
 void set_current(void *t)
@@ -129,7 +110,7 @@ void set_current(void *t)
 		{ external_pid(task), task });
 }
 
-void *switch_to(void *prev, void *next, void *last)
+void *_switch_to(void *prev, void *next, void *last)
 {
 	return(CHOOSE_MODE(switch_to_tt(prev, next), 
 			   switch_to_skas(prev, next)));
@@ -138,7 +119,7 @@ void *switch_to(void *prev, void *next, void *last)
 void interrupt_end(void)
 {
 	if(need_resched()) schedule();
-	if(test_tsk_thread_flag(current, TIF_SIGPENDING)) do_signal(0);
+	if(test_tsk_thread_flag(current, TIF_SIGPENDING)) do_signal();
 }
 
 void release_thread(struct task_struct *task)
@@ -148,8 +129,7 @@ void release_thread(struct task_struct *task)
  
 void exit_thread(void)
 {
-	CHOOSE_MODE(exit_thread_tt(), exit_thread_skas());
-	unprotect_stack((unsigned long) current->thread_info);
+	unprotect_stack((unsigned long) current_thread);
 }
  
 void *get_current(void)
@@ -162,8 +142,6 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long sp,
 		struct pt_regs *regs)
 {
 	p->thread = (struct thread_struct) INIT_THREAD;
-	p->thread.kernel_stack = 
-		(unsigned long) p->thread_info + 2 * PAGE_SIZE;
 	return(CHOOSE_MODE_PROC(copy_thread_tt, copy_thread_skas, nr, 
 				clone_flags, sp, stack_top, p, regs));
 }
@@ -190,7 +168,7 @@ int current_pid(void)
 
 void default_idle(void)
 {
-	idle_timer();
+	uml_idle_timer();
 
 	atomic_inc(&init_mm.mm_count);
 	current->mm = &init_mm;
@@ -198,13 +176,11 @@ void default_idle(void)
 
 	while(1){
 		/* endless idle loop with no priority at all */
-		SET_PRI(current);
 
 		/*
 		 * although we are an idle CPU, we do not want to
 		 * get into the scheduler unnecessarily.
 		 */
-		irq_stat[smp_processor_id()].idle_timestamp = jiffies;
 		if(need_resched())
 			schedule();
 		
@@ -222,27 +198,32 @@ int page_size(void)
 	return(PAGE_SIZE);
 }
 
-int page_mask(void)
-{
-	return(PAGE_MASK);
-}
-
 void *um_virt_to_phys(struct task_struct *task, unsigned long addr, 
 		      pte_t *pte_out)
 {
 	pgd_t *pgd;
+	pud_t *pud;
 	pmd_t *pmd;
 	pte_t *pte;
 
 	if(task->mm == NULL) 
 		return(ERR_PTR(-EINVAL));
 	pgd = pgd_offset(task->mm, addr);
-	pmd = pmd_offset(pgd, addr);
+	if(!pgd_present(*pgd))
+		return(ERR_PTR(-EINVAL));
+
+	pud = pud_offset(pgd, addr);
+	if(!pud_present(*pud))
+		return(ERR_PTR(-EINVAL));
+
+	pmd = pmd_offset(pud, addr);
 	if(!pmd_present(*pmd)) 
 		return(ERR_PTR(-EINVAL));
+
 	pte = pte_offset_kernel(pmd, addr);
 	if(!pte_present(*pte)) 
 		return(ERR_PTR(-EINVAL));
+
 	if(pte_out != NULL)
 		*pte_out = *pte;
 	return((void *) (pte_val(*pte) & PAGE_MASK) + (addr & ~PAGE_MASK));
@@ -287,8 +268,6 @@ void disable_hlt(void)
 
 EXPORT_SYMBOL(disable_hlt);
 
-extern int signal_frame_size;
-
 void *um_kmalloc(int size)
 {
 	return(kmalloc(size, GFP_KERNEL));
@@ -297,6 +276,11 @@ void *um_kmalloc(int size)
 void *um_kmalloc_atomic(int size)
 {
 	return(kmalloc(size, GFP_ATOMIC));
+}
+
+void *um_vmalloc(int size)
+{
+	return(vmalloc(size));
 }
 
 unsigned long get_fault_addr(void)
@@ -318,8 +302,7 @@ int user_context(unsigned long sp)
 	unsigned long stack;
 
 	stack = sp & (PAGE_MASK << CONFIG_KERNEL_STACK_ORDER);
-	stack += 2 * PAGE_SIZE;
-	return(stack != current->thread.kernel_stack);
+	return(stack != (unsigned long) current_thread);
 }
 
 extern void remove_umid_dir(void);
@@ -347,30 +330,30 @@ char *uml_strdup(char *string)
 	return(new);
 }
 
-void *get_init_task(void)
-{
-	return(&init_thread_union.thread_info.task);
-}
-
-int copy_to_user_proc(void *to, void *from, int size)
+int copy_to_user_proc(void __user *to, void *from, int size)
 {
 	return(copy_to_user(to, from, size));
 }
 
-int copy_from_user_proc(void *to, void *from, int size)
+int copy_from_user_proc(void *to, void __user *from, int size)
 {
 	return(copy_from_user(to, from, size));
 }
 
-int clear_user_proc(void *buf, int size)
+int clear_user_proc(void __user *buf, int size)
 {
 	return(clear_user(buf, size));
+}
+
+int strlen_user_proc(char __user *str)
+{
+	return(strlen_user(str));
 }
 
 int smp_sigio_handler(void)
 {
 #ifdef CONFIG_SMP
-	int cpu = current->thread_info->cpu;
+	int cpu = current_thread->cpu;
 	IPI_handler(cpu);
 	if(cpu != 0)
 		return(1);
@@ -385,16 +368,91 @@ int um_in_interrupt(void)
 
 int cpu(void)
 {
-	return(current->thread_info->cpu);
+	return(current_thread->cpu);
+}
+
+static atomic_t using_sysemu = ATOMIC_INIT(0);
+int sysemu_supported;
+
+void set_using_sysemu(int value)
+{
+	if (value > sysemu_supported)
+		return;
+	atomic_set(&using_sysemu, value);
+}
+
+int get_using_sysemu(void)
+{
+	return atomic_read(&using_sysemu);
+}
+
+static int proc_read_sysemu(char *buf, char **start, off_t offset, int size,int *eof, void *data)
+{
+	if (snprintf(buf, size, "%d\n", get_using_sysemu()) < size) /*No overflow*/
+		*eof = 1;
+
+	return strlen(buf);
+}
+
+static int proc_write_sysemu(struct file *file,const char *buf, unsigned long count,void *data)
+{
+	char tmp[2];
+
+	if (copy_from_user(tmp, buf, 1))
+		return -EFAULT;
+
+	if (tmp[0] >= '0' && tmp[0] <= '2')
+		set_using_sysemu(tmp[0] - '0');
+	return count; /*We use the first char, but pretend to write everything*/
+}
+
+int __init make_proc_sysemu(void)
+{
+	struct proc_dir_entry *ent;
+	if (!sysemu_supported)
+		return 0;
+
+	ent = create_proc_entry("sysemu", 0600, &proc_root);
+
+	if (ent == NULL)
+	{
+		printk("Failed to register /proc/sysemu\n");
+		return(0);
+	}
+
+	ent->read_proc  = proc_read_sysemu;
+	ent->write_proc = proc_write_sysemu;
+
+	return 0;
+}
+
+late_initcall(make_proc_sysemu);
+
+int singlestepping(void * t)
+{
+	struct task_struct *task = t ? t : current;
+
+	if ( ! (task->ptrace & PT_DTRACE) )
+		return(0);
+
+	if (task->thread.singlestep_syscall)
+		return(1);
+
+	return 2;
 }
 
 /*
- * Overrides for Emacs so that we follow Linus's tabbing style.
- * Emacs will notice this stuff at the end of the file and automatically
- * adjust the settings for this buffer only.  This must remain at the end
- * of the file.
- * ---------------------------------------------------------------------------
- * Local variables:
- * c-file-style: "linux"
- * End:
+ * Only x86 and x86_64 have an arch_align_stack().
+ * All other arches have "#define arch_align_stack(x) (x)"
+ * in their asm/system.h
+ * As this is included in UML from asm-um/system-generic.h,
+ * we can use it to behave as the subarch does.
  */
+#ifndef arch_align_stack
+unsigned long arch_align_stack(unsigned long sp)
+{
+	if (randomize_va_space)
+		sp -= get_random_int() % 8192;
+	return sp & ~0xf;
+}
+#endif

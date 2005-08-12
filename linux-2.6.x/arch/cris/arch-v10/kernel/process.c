@@ -34,6 +34,15 @@ void default_idle(void)
 #endif
 }
 
+/*
+ * Free current thread data structures etc..
+ */
+
+void exit_thread(void)
+{
+	/* Nothing needs to be done.  */
+}
+
 /* if the watchdog is enabled, we can simply disable interrupts and go
  * into an eternal loop, and the watchdog will reset the CPU after 0.1s
  * if on the other hand the watchdog wasn't enabled, we just enable it and wait
@@ -123,7 +132,7 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long usp,
 	*childregs = *regs;  /* struct copy of pt_regs */
         
         p->set_child_tid = p->clear_child_tid = NULL;
-	
+
         childregs->r10 = 0;  /* child returns 0 after a fork/clone */
 	
 	/* put the switch stack right below the pt_regs */
@@ -180,7 +189,7 @@ asmlinkage int sys_clone(unsigned long newusp, unsigned long flags,
 {
 	if (!newusp)
 		newusp = rdusp();
-	return do_fork(flags & ~CLONE_IDLETASK, newusp, regs, 0, parent_tid, child_tid);
+	return do_fork(flags, newusp, regs, 0, parent_tid, child_tid);
 }
 
 /* vfork is a system call in i386 because of register-pressure - maybe
@@ -214,13 +223,6 @@ asmlinkage int sys_execve(const char *fname, char **argv, char **envp,
 	return error;
 }
 
-/*
- * These bracket the sleeping functions..
- */
-
-#define first_sched	((unsigned long)__sched_text_start)
-#define last_sched	((unsigned long)__sched_text_end)
-
 unsigned long get_wchan(struct task_struct *p)
 {
 #if 0
@@ -241,8 +243,8 @@ unsigned long get_wchan(struct task_struct *p)
                 if (ebp < stack_page || ebp > 8184+stack_page)
                         return 0;
                 eip = *(unsigned long *) (ebp+4);
-                if (eip < first_sched || eip >= last_sched)
-                        return eip;
+		if (!in_sched_functions(eip))
+			return eip;
                 ebp = *(unsigned long *) ebp;
         } while (count++ < 16);
 #endif

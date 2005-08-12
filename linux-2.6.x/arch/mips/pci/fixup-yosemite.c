@@ -34,6 +34,8 @@ int __init pcibios_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
 	return 3;			/* Everything goes to one irq bit */
 }
 
-struct pci_fixup pcibios_fixups[] = {
-	{0}
-};
+/* Do platform specific device initialization at pci_enable_device() time */
+int pcibios_plat_dev_init(struct pci_dev *dev)
+{
+	return 0;
+}

@@ -41,11 +41,11 @@
 #include <linux/bootmem.h>
 #include <linux/highmem.h>
 #include <linux/dma-mapping.h>
+#include <linux/hardirq.h>
 
 #include <asm/pgalloc.h>
 #include <asm/prom.h>
 #include <asm/io.h>
-#include <asm/hardirq.h>
 #include <asm/mmu_context.h>
 #include <asm/pgtable.h>
 #include <asm/mmu.h>
@@ -71,7 +71,7 @@ int map_page(unsigned long va, phys_addr_t pa, int flags);
  * This is the page table (2MB) covering uncached, DMA consistent allocations
  */
 static pte_t *consistent_pte;
-static spinlock_t consistent_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(consistent_lock);
 
 /*
  * VM region handling support.
@@ -219,7 +219,8 @@ __dma_alloc_coherent(size_t size, dma_addr_t *handle, int gfp)
 	c = vm_region_alloc(&consistent_head, size,
 			    gfp & ~(__GFP_DMA | __GFP_HIGHMEM));
 	if (c) {
-		pte_t *pte = consistent_pte + CONSISTENT_OFFSET(c->vm_start);
+		unsigned long vaddr = c->vm_start;
+		pte_t *pte = consistent_pte + CONSISTENT_OFFSET(vaddr);
 		struct page *end = page + (1 << order);
 
 		/*
@@ -232,9 +233,11 @@ __dma_alloc_coherent(size_t size, dma_addr_t *handle, int gfp)
 
 			set_page_count(page, 1);
 			SetPageReserved(page);
-			set_pte(pte, mk_pte(page, pgprot_noncached(PAGE_KERNEL)));
+			set_pte_at(&init_mm, vaddr,
+				   pte, mk_pte(page, pgprot_noncached(PAGE_KERNEL)));
 			page++;
 			pte++;
+			vaddr += PAGE_SIZE;
 		} while (size -= PAGE_SIZE);
 
 		/*
@@ -262,7 +265,7 @@ EXPORT_SYMBOL(__dma_alloc_coherent);
 void __dma_free_coherent(size_t size, void *vaddr)
 {
 	struct vm_region *c;
-	unsigned long flags;
+	unsigned long flags, addr;
 	pte_t *ptep;
 
 	size = PAGE_ALIGN(size);
@@ -281,11 +284,13 @@ void __dma_free_coherent(size_t size, void *vaddr)
 	}
 
 	ptep = consistent_pte + CONSISTENT_OFFSET(c->vm_start);
+	addr = c->vm_start;
 	do {
-		pte_t pte = ptep_get_and_clear(ptep);
+		pte_t pte = ptep_get_and_clear(&init_mm, addr, ptep);
 		unsigned long pfn;
 
 		ptep++;
+		addr += PAGE_SIZE;
 
 		if (!pte_none(pte) && pte_present(pte)) {
 			pfn = pte_pfn(pte);
@@ -381,6 +386,7 @@ void __dma_sync(void *vaddr, size_t size, int direction)
 		break;
 	}
 }
+EXPORT_SYMBOL(__dma_sync);
 
 #ifdef CONFIG_HIGHMEM
 /*
@@ -438,3 +444,4 @@ void __dma_sync_page(struct page *page, unsigned long offset,
 	__dma_sync((void *)start, size, direction);
 #endif
 }
+EXPORT_SYMBOL(__dma_sync_page);

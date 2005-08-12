@@ -41,24 +41,6 @@ static inline int set_rtc_mmss(unsigned long nowtime)
 	return -1;
 }
 
-static inline void do_profile (unsigned long pc)
-{
-	if (prof_buffer && current->pid) {
-		extern int _stext;
-		pc -= (unsigned long) &_stext;
-		pc >>= prof_shift;
-		if (pc < prof_len)
-			++prof_buffer[pc];
-		else
-		/*
-		 * Don't ignore out-of-bounds PC values silently,
-		 * put them into the last histogram slot, so if
-		 * present, they will show up as a sharp peak.
-		 */
-			++prof_buffer[prof_len-1];
-	}
-}
-
 /*
  * timer_interrupt() needs to keep up the real-time clock,
  * as well as call the "do_timer()" routine every clocktick
@@ -75,9 +57,11 @@ static irqreturn_t timer_interrupt(int irq, void *dummy, struct pt_regs * regs)
 	write_seqlock(&xtime_lock);
 
 	do_timer(regs);
-
-	if (!user_mode(regs))
-		do_profile(regs->pc);
+#ifndef CONFIG_SMP
+	update_process_times(user_mode(regs));
+#endif
+	if (current->pid)
+		profile_tick(CPU_PROFILING, regs);
 
 	/*
 	 * If we have an externally synchronized Linux clock, then update

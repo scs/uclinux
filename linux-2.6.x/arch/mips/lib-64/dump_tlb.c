@@ -32,6 +32,8 @@ static inline const char *msk2str(unsigned int mask)
 	case PM_256M:	return "256Mb";
 #endif
 	}
+
+	return "unknown";
 }
 
 #define BARRIER()					\
@@ -148,16 +150,16 @@ void dump_list_process(struct task_struct *t, void *address)
 	printk("tasks->mm.pgd        == %08lx\n", (unsigned long) t->mm->pgd);
 
 	page_dir = pgd_offset(t->mm, 0);
-	printk("page_dir == %08lx\n", (unsigned long) page_dir);
+	printk("page_dir == %016lx\n", (unsigned long) page_dir);
 
 	pgd = pgd_offset(t->mm, addr);
-	printk("pgd == %08lx, ", (unsigned long) pgd);
+	printk("pgd == %016lx\n", (unsigned long) pgd);
 
 	pmd = pmd_offset(pgd, addr);
-	printk("pmd == %08lx, ", (unsigned long) pmd);
+	printk("pmd == %016lx\n", (unsigned long) pmd);
 
 	pte = pte_offset(pmd, addr);
-	printk("pte == %08lx, ", (unsigned long) pte);
+	printk("pte == %016lx\n", (unsigned long) pte);
 
 	page = *pte;
 	printk("page == %08lx\n", pte_val(page));
@@ -190,7 +192,7 @@ unsigned int vtop(void *address)
 	pgd = pgd_offset(current->mm, addr);
 	pmd = pmd_offset(pgd, addr);
 	pte = pte_offset(pmd, addr);
-	paddr = (KSEG1 | (unsigned int) pte_val(*pte)) & PAGE_MASK;
+	paddr = (CKSEG1 | (unsigned int) pte_val(*pte)) & PAGE_MASK;
 	paddr |= (addr & ~PAGE_MASK);
 
 	return paddr;

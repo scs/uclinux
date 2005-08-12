@@ -20,6 +20,7 @@
 #include <linux/in6.h>
 #include <linux/spinlock.h>
 #include <linux/mm.h>
+#include <linux/syscalls.h>
 #ifdef CONFIG_PCI
 #include <linux/pci.h>
 #endif
@@ -41,7 +42,6 @@
 #include <asm/smp.h>
 #include <asm/mostek.h>
 #include <asm/ptrace.h>
-#include <asm/hardirq.h>
 #include <asm/user.h>
 #include <asm/uaccess.h>
 #include <asm/checksum.h>
@@ -76,7 +76,6 @@ extern void *__memscan_generic(void *, int, size_t);
 extern int __memcmp(const void *, const void *, __kernel_size_t);
 extern int __strncmp(const char *, const char *, __kernel_size_t);
 
-extern void bcopy (const char *, char *, int);
 extern int __ashrdi3(int, int);
 extern int __ashldi3(int, int);
 extern int __lshrdi3(int, int);
@@ -91,6 +90,9 @@ extern void ___atomic24_sub(void);
 extern void ___set_bit(void);
 extern void ___clear_bit(void);
 extern void ___change_bit(void);
+extern void ___rw_read_enter(void);
+extern void ___rw_read_exit(void);
+extern void ___rw_write_enter(void);
 
 /* Alias functions whose names begin with "." and export the aliases.
  * The module references will be fixed up by module_frob_arch_sections.
@@ -123,9 +125,9 @@ EXPORT_SYMBOL(_do_write_unlock);
 #endif
 #else
 // XXX find what uses (or used) these.
-// EXPORT_SYMBOL_PRIVATE(_rw_read_enter);
-// EXPORT_SYMBOL_PRIVATE(_rw_read_exit);
-// EXPORT_SYMBOL_PRIVATE(_rw_write_enter);
+EXPORT_SYMBOL(___rw_read_enter);
+EXPORT_SYMBOL(___rw_read_exit);
+EXPORT_SYMBOL(___rw_write_enter);
 #endif
 /* semaphores */
 EXPORT_SYMBOL(__up);
@@ -146,6 +148,9 @@ EXPORT_SYMBOL(___set_bit);
 EXPORT_SYMBOL(___clear_bit);
 EXPORT_SYMBOL(___change_bit);
 
+/* Per-CPU information table */
+EXPORT_PER_CPU_SYMBOL(__cpu_data);
+
 #ifdef CONFIG_SMP
 /* IRQ implementation. */
 EXPORT_SYMBOL(synchronize_irq);
@@ -153,6 +158,10 @@ EXPORT_SYMBOL(synchronize_irq);
 /* Misc SMP information */
 EXPORT_SYMBOL(__cpu_number_map);
 EXPORT_SYMBOL(__cpu_logical_map);
+
+/* CPU online map and active count. */
+EXPORT_SYMBOL(cpu_online_map);
+EXPORT_SYMBOL(phys_cpu_present_map);
 #endif
 
 EXPORT_SYMBOL(__udelay);
@@ -166,6 +175,7 @@ EXPORT_SYMBOL(get_auxio);
 #endif
 EXPORT_SYMBOL(request_fast_irq);
 EXPORT_SYMBOL(io_remap_page_range);
+EXPORT_SYMBOL(io_remap_pfn_range);
   /* P3: iounit_xxx may be needed, sun4d users */
 /* EXPORT_SYMBOL(iounit_map_dma_init); */
 /* EXPORT_SYMBOL(iounit_map_dma_page); */
@@ -204,6 +214,10 @@ EXPORT_SYMBOL(sbus_ioremap);
 #endif
 #ifdef CONFIG_PCI
 EXPORT_SYMBOL(ebus_chain);
+EXPORT_SYMBOL(insb);
+EXPORT_SYMBOL(outsb);
+EXPORT_SYMBOL(insw);
+EXPORT_SYMBOL(outsw);
 EXPORT_SYMBOL(insl);
 EXPORT_SYMBOL(outsl);
 EXPORT_SYMBOL(pci_alloc_consistent);
@@ -214,6 +228,10 @@ EXPORT_SYMBOL(pci_dma_sync_single_for_cpu);
 EXPORT_SYMBOL(pci_dma_sync_single_for_device);
 EXPORT_SYMBOL(pci_dma_sync_sg_for_cpu);
 EXPORT_SYMBOL(pci_dma_sync_sg_for_device);
+EXPORT_SYMBOL(pci_map_sg);
+EXPORT_SYMBOL(pci_unmap_sg);
+EXPORT_SYMBOL(pci_map_page);
+EXPORT_SYMBOL(pci_unmap_page);
 /* Actually, ioremap/iounmap are not PCI specific. But it is ok for drivers. */
 EXPORT_SYMBOL(ioremap);
 EXPORT_SYMBOL(iounmap);
@@ -258,7 +276,6 @@ EXPORT_SYMBOL(__prom_getchild);
 EXPORT_SYMBOL(__prom_getsibling);
 
 /* sparc library symbols */
-EXPORT_SYMBOL(bcopy);
 EXPORT_SYMBOL(memchr);
 EXPORT_SYMBOL(memscan);
 EXPORT_SYMBOL(strlen);
@@ -298,6 +315,9 @@ EXPORT_SYMBOL(csum_partial);
 /* Cache flushing.  */
 EXPORT_SYMBOL(sparc_flush_page_to_ram);
 
+/* For when serial stuff is built as modules. */
+EXPORT_SYMBOL(sun_do_break);
+
 EXPORT_SYMBOL(__ret_efault);
 
 EXPORT_SYMBOL(memcmp);
@@ -323,3 +343,6 @@ EXPORT_SYMBOL(do_BUG);
 
 /* Sun Power Management Idle Handler */
 EXPORT_SYMBOL(pm_idle);
+
+/* Binfmt_misc needs this */
+EXPORT_SYMBOL(sys_close);

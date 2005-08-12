@@ -85,11 +85,14 @@ _GLOBAL(__hash_page)
 	bne-	htab_wrong_access
 	/* Check if PTE is busy */
 	andi.	r0,r31,_PAGE_BUSY
-	bne-	1b
+	/* If so, just bail out and refault if needed. Someone else
+	 * is changing this PTE anyway and might hash it.
+	 */
+	bne-	bail_ok
 	/* Prepare new PTE value (turn access RW into DIRTY, then
 	 * add BUSY,HASHPTE and ACCESSED)
 	 */
-	rlwinm	r30,r4,5,24,24	/* _PAGE_RW -> _PAGE_DIRTY */
+	rlwinm	r30,r4,32-9+7,31-7,31-7	/* _PAGE_RW -> _PAGE_DIRTY */
 	or	r30,r30,r31
 	ori	r30,r30,_PAGE_BUSY | _PAGE_ACCESSED | _PAGE_HASHPTE
 	/* Write the linux PTE atomically (setting busy) */
@@ -112,11 +115,11 @@ _GLOBAL(__hash_page)
 	rldicl	r5,r5,0,25		/* vsid & 0x0000007fffffffff */
 	rldicl	r0,r3,64-12,48		/* (ea >> 12) & 0xffff */
 	xor	r28,r5,r0
-	
-	/* Convert linux PTE bits into HW equivalents
-	 */
-	andi.	r3,r30,0x1fa		/* Get basic set of flags */
-	rlwinm	r0,r30,32-2+1,30,30	/* _PAGE_RW -> _PAGE_USER (r0) */
+
+	/* Convert linux PTE bits into HW equivalents */
+	andi.	r3,r30,0x1fe		/* Get basic set of flags */
+	xori	r3,r3,HW_NO_EXEC	/* _PAGE_EXEC -> NOEXEC */
+	rlwinm	r0,r30,32-9+1,30,30	/* _PAGE_RW -> _PAGE_USER (r0) */
 	rlwinm	r4,r30,32-7+1,30,30	/* _PAGE_DIRTY -> _PAGE_USER (r4) */
 	and	r0,r0,r4		/* _PAGE_RW & _PAGE_DIRTY -> r0 bit 30 */
 	andc	r0,r30,r0		/* r0 = pte & ~r0 */
@@ -139,8 +142,8 @@ END_FTR_SECTION_IFCLR(CPU_FTR_COHERENT_ICACHE)
 	std	r3,STK_PARM(r4)(r1)
 
 	/* Get htab_hash_mask */
-	ld	r4,htab_data@got(2)
-	ld	r27,16(r4)	/* htab_data.htab_hash_mask -> r27 */
+	ld	r4,htab_hash_mask@got(2)
+	ld	r27,0(r4)	/* htab_hash_mask -> r27 */
 
 	/* Check if we may already be in the hashtable, in this case, we
 	 * go to out-of-line code to try to modify the HPTE
@@ -172,9 +175,9 @@ htab_insert_pte:
 	li	r9,0
 _GLOBAL(htab_call_hpte_insert1)
 	bl	.			/* Will be patched by htab_finish_init() */
-	cmpi	0,r3,0
+	cmpdi	0,r3,0
 	bge	htab_pte_insert_ok	/* Insertion successful */
-	cmpi	0,r3,-2			/* Critical failure */
+	cmpdi	0,r3,-2			/* Critical failure */
 	beq-	htab_pte_insert_failure
 
 	/* Now try secondary slot */
@@ -194,9 +197,9 @@ _GLOBAL(htab_call_hpte_insert1)
 	li	r9,0
 _GLOBAL(htab_call_hpte_insert2)
 	bl	.			/* Will be patched by htab_finish_init() */
-	cmpi	0,r3,0
+	cmpdi	0,r3,0
 	bge+	htab_pte_insert_ok	/* Insertion successful */
-	cmpi	0,r3,-2			/* Critical failure */
+	cmpdi	0,r3,-2			/* Critical failure */
 	beq-	htab_pte_insert_failure
 
 	/* Both are full, we need to evict something */
@@ -214,6 +217,10 @@ _GLOBAL(htab_call_hpte_remove)
 
 	/* Try all again */
 	b	htab_insert_pte	
+
+bail_ok:
+	li	r3,0
+	b	bail
 
 htab_pte_insert_ok:
 	/* Insert slot number & secondary bit in PTE */
@@ -263,7 +270,7 @@ _GLOBAL(htab_call_hpte_updatepp)
 	/* if we failed because typically the HPTE wasn't really here
 	 * we try an insertion. 
 	 */
-	cmpi	0,r3,-1
+	cmpdi	0,r3,-1
 	beq-	htab_insert_pte
 
 	/* Clear the BUSY bit and Write out the PTE */
@@ -278,6 +285,10 @@ htab_wrong_access:
 	b	bail
 
 htab_pte_insert_failure:
-	b	.htab_insert_failure
+	/* Bail out restoring old PTE */
+	ld	r6,STK_PARM(r6)(r1)
+	std	r31,0(r6)
+	li	r3,-1
+	b	bail
 
 

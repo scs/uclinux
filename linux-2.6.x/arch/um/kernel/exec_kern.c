@@ -16,7 +16,6 @@
 #include "kern.h"
 #include "irq_user.h"
 #include "tlb.h"
-#include "2_5compat.h"
 #include "os.h"
 #include "time_user.h"
 #include "choose-mode.h"
@@ -32,35 +31,44 @@ void start_thread(struct pt_regs *regs, unsigned long eip, unsigned long esp)
 	CHOOSE_MODE_PROC(start_thread_tt, start_thread_skas, regs, eip, esp);
 }
 
-static int execve1(char *file, char **argv, char **env)
-{
-        int error;
+extern void log_exec(char **argv, void *tty);
 
+static long execve1(char *file, char __user * __user *argv,
+		    char *__user __user *env)
+{
+        long error;
+
+#ifdef CONFIG_TTY_LOG
+	log_exec(argv, current->tty);
+#endif
         error = do_execve(file, argv, env, &current->thread.regs);
         if (error == 0){
+		task_lock(current);
                 current->ptrace &= ~PT_DTRACE;
+		task_unlock(current);
                 set_cmdline(current_cmd());
         }
         return(error);
 }
 
-int um_execve(char *file, char **argv, char **env)
+long um_execve(char *file, char __user *__user *argv, char __user *__user *env)
 {
-	int err;
+	long err;
 
 	err = execve1(file, argv, env);
-	if(!err) 
+	if(!err)
 		do_longjmp(current->thread.exec_buf, 1);
 	return(err);
 }
 
-int sys_execve(char *file, char **argv, char **env)
+long sys_execve(char *file, char __user *__user *argv,
+		char __user *__user *env)
 {
-	int error;
+	long error;
 	char *filename;
 
 	lock_kernel();
-	filename = getname((char *) file);
+	filename = getname((char __user *) file);
 	error = PTR_ERR(filename);
 	if (IS_ERR(filename)) goto out;
 	error = execve1(filename, argv, env);

@@ -34,8 +34,8 @@
 #include <linux/proc_fs.h>
 #include <linux/spinlock.h>
 #include <linux/bcd.h>
+#include <linux/interrupt.h>
 
-#include <asm/hardirq.h>
 #include <asm/io.h>
 #include <asm/uaccess.h>
 #include <asm/system.h>
@@ -185,11 +185,10 @@ static struct file_operations rtc_fops = {
 	.release =	rtc_release,
 };
 
-static struct miscdevice rtc_dev=
-{
-	RTC_MINOR,
-	"rtc",
-	&rtc_fops
+static struct miscdevice rtc_dev = {
+	.minor =	RTC_MINOR,
+	.name =		"rtc",
+	.fops =		&rtc_fops
 };
 
 static int __init rtc_init(void)
@@ -201,9 +200,11 @@ static int __init rtc_init(void)
 		return retval;
 
 #ifdef CONFIG_PROC_FS
-	if (create_proc_read_entry ("driver/rtc", 0, NULL, rtc_read_proc, NULL) == NULL)
+	if (create_proc_read_entry("driver/rtc", 0, NULL, rtc_read_proc, NULL)
+			== NULL) {
 		misc_deregister(&rtc_dev);
 		return -ENOMEM;
+	}
 #endif
 
 	printk(KERN_INFO "i/pSeries Real Time Clock Driver v" RTC_VERSION "\n");
@@ -275,7 +276,7 @@ void iSeries_get_rtc_time(struct rtc_time *rtc_tm)
 	if (piranha_simulator)
 		return;
 
-	mf_getRtc(rtc_tm);
+	mf_get_rtc(rtc_tm);
 	rtc_tm->tm_mon--;
 }
 
@@ -285,58 +286,21 @@ void iSeries_get_rtc_time(struct rtc_time *rtc_tm)
  */
 int iSeries_set_rtc_time(struct rtc_time *tm)
 {
-	mf_setRtc(tm);
+	mf_set_rtc(tm);
 	return 0;
 }
 
 void iSeries_get_boot_time(struct rtc_time *tm)
 {
-	unsigned long time;
-	static unsigned long lastsec = 1;
-
-	u32 dataWord1 = *((u32 *)(&xSpCommArea.xBcdTimeAtIplStart));
-	u32 dataWord2 = *(((u32 *)&(xSpCommArea.xBcdTimeAtIplStart)) + 1);
-	int year = 1970;
-	int year1 = ( dataWord1 >> 24 ) & 0x000000FF;
-	int year2 = ( dataWord1 >> 16 ) & 0x000000FF;
-	int sec = ( dataWord1 >> 8 ) & 0x000000FF;
-	int min = dataWord1 & 0x000000FF;
-	int hour = ( dataWord2 >> 24 ) & 0x000000FF;
-	int day = ( dataWord2 >> 8 ) & 0x000000FF;
-	int mon = dataWord2 & 0x000000FF;
-
 	if ( piranha_simulator )
 		return;
 
-	BCD_TO_BIN(sec);
-	BCD_TO_BIN(min);
-	BCD_TO_BIN(hour);
-	BCD_TO_BIN(day);
-	BCD_TO_BIN(mon);
-	BCD_TO_BIN(year1);
-	BCD_TO_BIN(year2);
-	year = year1 * 100 + year2;
-
-	time = mktime(year, mon, day, hour, min, sec);
-	time += ( jiffies / HZ );
-
-	/* Now THIS is a nasty hack!
-	* It ensures that the first two calls get different answers.  
-	* That way the loop in init_time (time.c) will not think
-	* the clock is stuck.
-	*/
-	if ( lastsec ) {
-		time -= lastsec;
-		--lastsec;
-	}
-
-	to_tm(time, tm); 
-	tm->tm_year -= 1900;
+	mf_get_boot_rtc(tm);
 	tm->tm_mon  -= 1;
 }
 #endif
 
-#ifdef CONFIG_PPC_PSERIES
+#ifdef CONFIG_PPC_RTAS
 #define MAX_RTC_WAIT 5000	/* 5 sec */
 #define RTAS_CLOCK_BUSY (-2)
 void pSeries_get_boot_time(struct rtc_time *rtc_tm)
@@ -356,7 +320,7 @@ void pSeries_get_boot_time(struct rtc_time *rtc_tm)
 		}
 	} while (error == RTAS_CLOCK_BUSY && (__get_tb() < max_wait_tb));
 
-	if (error != 0) {
+	if (error != 0 && printk_ratelimit()) {
 		printk(KERN_WARNING "error: reading the clock failed (%d)\n",
 			error);
 		return;
@@ -384,7 +348,7 @@ void pSeries_get_rtc_time(struct rtc_time *rtc_tm)
 	do {
 		error = rtas_call(rtas_token("get-time-of-day"), 0, 8, ret);
 		if (error == RTAS_CLOCK_BUSY || rtas_is_extended_busy(error)) {
-			if (in_interrupt()) {
+			if (in_interrupt() && printk_ratelimit()) {
 				printk(KERN_WARNING "error: reading clock would delay interrupt\n");
 				return;	/* delay not allowed */
 			}
@@ -395,7 +359,7 @@ void pSeries_get_rtc_time(struct rtc_time *rtc_tm)
 		}
 	} while (error == RTAS_CLOCK_BUSY && (__get_tb() < max_wait_tb));
 
-        if (error != 0) {
+        if (error != 0 && printk_ratelimit()) {
                 printk(KERN_WARNING "error: reading the clock failed (%d)\n",
 		       error);
 		return;
@@ -430,7 +394,7 @@ int pSeries_set_rtc_time(struct rtc_time *tm)
 		}
 	} while (error == RTAS_CLOCK_BUSY && (__get_tb() < max_wait_tb));
 
-        if (error != 0)
+        if (error != 0 && printk_ratelimit())
                 printk(KERN_WARNING "error: setting the clock failed (%d)\n",
 		       error); 
 

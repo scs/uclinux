@@ -17,8 +17,8 @@
 /* auxio_register is not static because it is referenced 
  * in entry.S::floppy_tdone
  */
-unsigned long auxio_register = 0UL;
-static spinlock_t auxio_lock = SPIN_LOCK_UNLOCKED;
+void __iomem *auxio_register = NULL;
+static DEFINE_SPINLOCK(auxio_lock);
 
 void __init auxio_probe(void)
 {
@@ -53,7 +53,8 @@ void __init auxio_probe(void)
 #endif
 		}
 	}
-	prom_getproperty(auxio_nd, "reg", (char *) auxregs, sizeof(auxregs));
+	if(prom_getproperty(auxio_nd, "reg", (char *) auxregs, sizeof(auxregs)) <= 0)
+		return;
 	prom_apply_obio_ranges(auxregs, 0x1);
 	/* Map the register both read and write */
 	r.flags = auxregs[0].which_io & 0xF;
@@ -63,7 +64,7 @@ void __init auxio_probe(void)
 	/* Fix the address on sun4m and sun4c. */
 	if((((unsigned long) auxregs[0].phys_addr) & 3) == 3 ||
 	   sparc_cpu_model == sun4c)
-		auxio_register |= 3;
+		auxio_register += (3 - ((unsigned long)auxio_register & 3));
 
 	set_auxio(AUXIO_LED, 0);
 }
@@ -121,7 +122,8 @@ void __init auxio_power_probe(void)
 		return;
 
 	/* Map the power control register. */
-	prom_getproperty(node, "reg", (char *)&regs, sizeof(regs));
+	if (prom_getproperty(node, "reg", (char *)&regs, sizeof(regs)) <= 0)
+		return;
 	prom_apply_obio_ranges(&regs, 1);
 	memset(&r, 0, sizeof(r));
 	r.flags = regs.which_io & 0xF;

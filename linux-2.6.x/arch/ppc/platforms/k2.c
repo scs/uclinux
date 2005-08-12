@@ -116,7 +116,7 @@ void k2_pcibios_fixup(void)
 	/*
 	 * Enable DMA support on hdc
 	 */
-	ide_dev = pci_find_device(PCI_VENDOR_ID_AL,
+	ide_dev = pci_get_device(PCI_VENDOR_ID_AL,
 				  PCI_DEVICE_ID_AL_M5229, NULL);
 
 	if (ide_dev) {
@@ -126,6 +126,7 @@ void k2_pcibios_fixup(void)
 		ide_dma_base = pci_resource_start(ide_dev, 4);
 		outb(0x00, ide_dma_base + 0x2);
 		outb(0x20, ide_dma_base + 0xa);
+		pci_dev_put(ide_dev);
 	}
 #endif
 }
@@ -391,9 +392,9 @@ static int k2_get_cpu_speed(void)
 	unsigned long hid1;
 	int cpu_speed;
 
-	hid1 = mfspr(HID1) >> 28;
+	hid1 = mfspr(SPRN_HID1) >> 28;
 
-	if ((mfspr(PVR) >> 16) == 8)
+	if ((mfspr(SPRN_PVR) >> 16) == 8)
 		hid1 = cpu_7xx[hid1];
 	else
 		hid1 = cpu_6xx[hid1];
@@ -464,10 +465,6 @@ static void __init k2_setup_arch(void)
 		ROOT_DEV = Root_HDC1;
 #endif
 
-#ifdef CONFIG_DUMMY_CONSOLE
-	conswitchp = &dummy_con;
-#endif
-
 	/* Identify the system */
 	printk(KERN_INFO "System Identification: SBS K2 - PowerPC 750 @ "
 			"%d Mhz\n", k2_get_cpu_speed() / 1000000);
@@ -475,7 +472,7 @@ static void __init k2_setup_arch(void)
 			"(source@mvista.com)\n");
 
 	/* Identify the CPU manufacturer */
-	cpu = PVR_REV(mfspr(PVR));
+	cpu = PVR_REV(mfspr(SPRN_PVR));
 	printk(KERN_INFO "CPU manufacturer: %s [rev=%04x]\n",
 			(cpu & (1 << 15)) ? "IBM" : "Motorola", cpu);
 }
@@ -489,8 +486,8 @@ static void k2_restart(char *cmd)
 
 	/* SRR0 has system reset vector, SRR1 has default MSR value */
 	/* rfi restores MSR from SRR1 and sets the PC to the SRR0 value */
-	mtspr(SRR0, 0xfff00100);
-	mtspr(SRR1, 0);
+	mtspr(SPRN_SRR0, 0xfff00100);
+	mtspr(SPRN_SRR1, 0);
 	__asm__ __volatile__("rfi\n\t");
 
 	/* not reached */
@@ -516,10 +513,10 @@ static __inline__ void k2_set_bat(void)
 	mb();
 
 	/* setup DBATs */
-	mtspr(DBAT2U, 0x80001ffe);
-	mtspr(DBAT2L, 0x8000002a);
-	mtspr(DBAT3U, 0xf0001ffe);
-	mtspr(DBAT3L, 0xf000002a);
+	mtspr(SPRN_DBAT2U, 0x80001ffe);
+	mtspr(SPRN_DBAT2L, 0x8000002a);
+	mtspr(SPRN_DBAT3U, 0xf0001ffe);
+	mtspr(SPRN_DBAT3L, 0xf000002a);
 
 	/* wait for updates */
 	mb();

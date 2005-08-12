@@ -36,9 +36,23 @@
 #include <asm/psrcompat.h>
 #include <asm/processor.h>
 #include <asm/timer.h>
+#include <asm/kdebug.h>
 #ifdef CONFIG_KMOD
 #include <linux/kmod.h>
 #endif
+
+struct notifier_block *sparc64die_chain;
+static DEFINE_SPINLOCK(die_notifier_lock);
+
+int register_die_notifier(struct notifier_block *nb)
+{
+	int err = 0;
+	unsigned long flags;
+	spin_lock_irqsave(&die_notifier_lock, flags);
+	err = notifier_chain_register(&sparc64die_chain, nb);
+	spin_unlock_irqrestore(&die_notifier_lock, flags);
+	return err;
+}
 
 /* When an irrecoverable trap occurs at tl > 0, the trap entry
  * code logs the trap state registers at every level in the trap
@@ -71,10 +85,19 @@ static void dump_tl1_traplog(struct tl1_traplog *p)
 	}
 }
 
-void bad_trap (struct pt_regs *regs, long lvl)
+void do_call_debug(struct pt_regs *regs) 
+{ 
+	notify_die(DIE_CALL, "debug call", regs, 0, 255, SIGINT); 
+}
+
+void bad_trap(struct pt_regs *regs, long lvl)
 {
 	char buffer[32];
 	siginfo_t info;
+
+	if (notify_die(DIE_TRAP, "bad trap", regs,
+		       0, lvl, SIGTRAP) == NOTIFY_STOP)
+		return;
 
 	if (lvl < 0x100) {
 		sprintf(buffer, "Bad hw trap %lx at tl0\n", lvl);
@@ -84,7 +107,7 @@ void bad_trap (struct pt_regs *regs, long lvl)
 	lvl -= 0x100;
 	if (regs->tstate & TSTATE_PRIV) {
 		sprintf(buffer, "Kernel bad sw trap %lx", lvl);
-		die_if_kernel (buffer, regs);
+		die_if_kernel(buffer, regs);
 	}
 	if (test_thread_flag(TIF_32BIT)) {
 		regs->tpc &= 0xffffffff;
@@ -98,10 +121,14 @@ void bad_trap (struct pt_regs *regs, long lvl)
 	force_sig_info(SIGILL, &info, current);
 }
 
-void bad_trap_tl1 (struct pt_regs *regs, long lvl)
+void bad_trap_tl1(struct pt_regs *regs, long lvl)
 {
 	char buffer[32];
 	
+	if (notify_die(DIE_TRAP_TL1, "bad trap tl1", regs,
+		       0, lvl, SIGTRAP) == NOTIFY_STOP)
+		return;
+
 	dump_tl1_traplog((struct tl1_traplog *)(regs + 1));
 
 	sprintf (buffer, "Bad trap %lx at tl>0", lvl);
@@ -120,6 +147,10 @@ void instruction_access_exception(struct pt_regs *regs,
 				  unsigned long sfsr, unsigned long sfar)
 {
 	siginfo_t info;
+
+	if (notify_die(DIE_TRAP, "instruction access exception", regs,
+		       0, 0x8, SIGTRAP) == NOTIFY_STOP)
+		return;
 
 	if (regs->tstate & TSTATE_PRIV) {
 		printk("instruction_access_exception: SFSR[%016lx] SFAR[%016lx], going.\n",
@@ -141,14 +172,22 @@ void instruction_access_exception(struct pt_regs *regs,
 void instruction_access_exception_tl1(struct pt_regs *regs,
 				      unsigned long sfsr, unsigned long sfar)
 {
+	if (notify_die(DIE_TRAP_TL1, "instruction access exception tl1", regs,
+		       0, 0x8, SIGTRAP) == NOTIFY_STOP)
+		return;
+
 	dump_tl1_traplog((struct tl1_traplog *)(regs + 1));
 	instruction_access_exception(regs, sfsr, sfar);
 }
 
-void data_access_exception (struct pt_regs *regs,
-			    unsigned long sfsr, unsigned long sfar)
+void data_access_exception(struct pt_regs *regs,
+			   unsigned long sfsr, unsigned long sfar)
 {
 	siginfo_t info;
+
+	if (notify_die(DIE_TRAP, "data access exception", regs,
+		       0, 0x30, SIGTRAP) == NOTIFY_STOP)
+		return;
 
 	if (regs->tstate & TSTATE_PRIV) {
 		/* Test if this comes from uaccess places. */
@@ -220,6 +259,10 @@ void do_iae(struct pt_regs *regs)
 
 	spitfire_clean_and_reenable_l1_caches();
 
+	if (notify_die(DIE_TRAP, "instruction access exception", regs,
+		       0, 0x8, SIGTRAP) == NOTIFY_STOP)
+		return;
+
 	info.si_signo = SIGBUS;
 	info.si_errno = 0;
 	info.si_code = BUS_OBJERR;
@@ -230,6 +273,8 @@ void do_iae(struct pt_regs *regs)
 
 void do_dae(struct pt_regs *regs)
 {
+	siginfo_t info;
+
 #ifdef CONFIG_PCI
 	if (pci_poke_in_progress && pci_poke_cpu == smp_processor_id()) {
 		spitfire_clean_and_reenable_l1_caches();
@@ -244,7 +289,18 @@ void do_dae(struct pt_regs *regs)
 		return;
 	}
 #endif
-	do_iae(regs);
+	spitfire_clean_and_reenable_l1_caches();
+
+	if (notify_die(DIE_TRAP, "data access exception", regs,
+		       0, 0x30, SIGTRAP) == NOTIFY_STOP)
+		return;
+
+	info.si_signo = SIGBUS;
+	info.si_errno = 0;
+	info.si_code = BUS_OBJERR;
+	info.si_addr = (void *)0;
+	info.si_trapno = 0;
+	force_sig_info(SIGBUS, &info, current);
 }
 
 static char ecc_syndrome_table[] = {
@@ -363,6 +419,25 @@ asmlinkage void cee_log(unsigned long ce_status,
 		       "Memory Module \"%s\"\n",
 		       smp_processor_id(), scode, p);
 	}
+}
+
+int cheetah_pcache_forced_on;
+
+void cheetah_enable_pcache(void)
+{
+	unsigned long dcr;
+
+	printk("CHEETAH: Enabling P-Cache on cpu %d.\n",
+	       smp_processor_id());
+
+	__asm__ __volatile__("ldxa [%%g0] %1, %0"
+			     : "=r" (dcr)
+			     : "i" (ASI_DCU_CONTROL_REG));
+	dcr |= (DCU_PE | DCU_HPE | DCU_SPE | DCU_SL);
+	__asm__ __volatile__("stxa %0, [%%g0] %1\n\t"
+			     "membar #Sync"
+			     : /* no outputs */
+			     : "r" (dcr), "i" (ASI_DCU_CONTROL_REG));
 }
 
 /* Cheetah error trap handling. */
@@ -749,48 +824,6 @@ static void cheetah_flush_ecache_line(unsigned long physaddr)
 			     : "r" (physaddr), "r" (alias),
 			       "i" (ASI_PHYS_USE_EC));
 }
-
-#ifdef CONFIG_SMP
-unsigned long __init cheetah_tune_scheduling(void)
-{
-	unsigned long tick1, tick2, raw;
-	unsigned long flush_base = ecache_flush_physbase;
-	unsigned long flush_linesize = ecache_flush_linesize;
-	unsigned long flush_size = ecache_flush_size;
-
-	/* Run through the whole cache to guarantee the timed loop
-	 * is really displacing cache lines.
-	 */
-	__asm__ __volatile__("1: subcc	%0, %4, %0\n\t"
-			     "   bne,pt	%%xcc, 1b\n\t"
-			     "    ldxa	[%2 + %0] %3, %%g0\n\t"
-			     : "=&r" (flush_size)
-			     : "0" (flush_size), "r" (flush_base),
-			       "i" (ASI_PHYS_USE_EC), "r" (flush_linesize));
-
-	/* The flush area is 2 X Ecache-size, so cut this in half for
-	 * the timed loop.
-	 */
-	flush_base = ecache_flush_physbase;
-	flush_linesize = ecache_flush_linesize;
-	flush_size = ecache_flush_size >> 1;
-
-	tick1 = tick_ops->get_tick();
-
-	__asm__ __volatile__("1: subcc	%0, %4, %0\n\t"
-			     "   bne,pt	%%xcc, 1b\n\t"
-			     "    ldxa	[%2 + %0] %3, %%g0\n\t"
-			     : "=&r" (flush_size)
-			     : "0" (flush_size), "r" (flush_base),
-			       "i" (ASI_PHYS_USE_EC), "r" (flush_linesize));
-
-	tick2 = tick_ops->get_tick();
-
-	raw = (tick2 - tick1);
-
-	return (raw - (raw >> 2));
-}
-#endif
 
 /* Unfortunately, the diagnostic access to the I-cache tags we need to
  * use to clear the thing interferes with I-cache coherency transactions.
@@ -1638,6 +1671,10 @@ void do_fpe_common(struct pt_regs *regs)
 
 void do_fpieee(struct pt_regs *regs)
 {
+	if (notify_die(DIE_TRAP, "fpu exception ieee", regs,
+		       0, 0x24, SIGFPE) == NOTIFY_STOP)
+		return;
+
 	do_fpe_common(regs);
 }
 
@@ -1647,6 +1684,10 @@ void do_fpother(struct pt_regs *regs)
 {
 	struct fpustate *f = FPUSTATE;
 	int ret = 0;
+
+	if (notify_die(DIE_TRAP, "fpu exception other", regs,
+		       0, 0x25, SIGFPE) == NOTIFY_STOP)
+		return;
 
 	switch ((current_thread_info()->xfsr[0] & 0x1c000)) {
 	case (2 << 14): /* unfinished_FPop */
@@ -1662,6 +1703,10 @@ void do_fpother(struct pt_regs *regs)
 void do_tof(struct pt_regs *regs)
 {
 	siginfo_t info;
+
+	if (notify_die(DIE_TRAP, "tagged arithmetic overflow", regs,
+		       0, 0x26, SIGEMT) == NOTIFY_STOP)
+		return;
 
 	if (regs->tstate & TSTATE_PRIV)
 		die_if_kernel("Penguin overflow trap from kernel mode", regs);
@@ -1680,6 +1725,10 @@ void do_tof(struct pt_regs *regs)
 void do_div0(struct pt_regs *regs)
 {
 	siginfo_t info;
+
+	if (notify_die(DIE_TRAP, "integer division by zero", regs,
+		       0, 0x28, SIGFPE) == NOTIFY_STOP)
+		return;
 
 	if (regs->tstate & TSTATE_PRIV)
 		die_if_kernel("TL0: Kernel divide by zero.", regs);
@@ -1771,6 +1820,37 @@ void dump_stack(void)
 
 EXPORT_SYMBOL(dump_stack);
 
+static inline int is_kernel_stack(struct task_struct *task,
+				  struct reg_window *rw)
+{
+	unsigned long rw_addr = (unsigned long) rw;
+	unsigned long thread_base, thread_end;
+
+	if (rw_addr < PAGE_OFFSET) {
+		if (task != &init_task)
+			return 0;
+	}
+
+	thread_base = (unsigned long) task->thread_info;
+	thread_end = thread_base + sizeof(union thread_union);
+	if (rw_addr >= thread_base &&
+	    rw_addr < thread_end &&
+	    !(rw_addr & 0x7UL))
+		return 1;
+
+	return 0;
+}
+
+static inline struct reg_window *kernel_stack_up(struct reg_window *rw)
+{
+	unsigned long fp = rw->ins[6];
+
+	if (!fp)
+		return NULL;
+
+	return (struct reg_window *) (fp + STACK_BIAS);
+}
+
 void die_if_kernel(char *str, struct pt_regs *regs)
 {
 	static int die_counter;
@@ -1786,6 +1866,7 @@ void die_if_kernel(char *str, struct pt_regs *regs)
 "                 \\__U_/\n");
 
 	printk("%s(%d): %s [#%d]\n", current->comm, current->pid, str, ++die_counter);
+	notify_die(DIE_OOPS, str, regs, 0, 255, SIGSEGV);
 	__asm__ __volatile__("flushw");
 	__show_regs(regs);
 	if (regs->tstate & TSTATE_PRIV) {
@@ -1795,17 +1876,14 @@ void die_if_kernel(char *str, struct pt_regs *regs)
 		/* Stop the back trace when we hit userland or we
 		 * find some badly aligned kernel stack.
 		 */
-		while (rw					&&
-		       count++ < 30				&&
-		       (((unsigned long) rw) >= PAGE_OFFSET)	&&
-		       (char *) rw < ((char *) current)
-		       + sizeof (union thread_union) 		&&
-		       !(((unsigned long) rw) & 0x7)) {
+		while (rw &&
+		       count++ < 30&&
+		       is_kernel_stack(current, rw)) {
 			printk("Caller[%016lx]", rw->ins[7]);
 			print_symbol(": %s", rw->ins[7]);
 			printk("\n");
-			rw = (struct reg_window *)
-				(rw->ins[6] + STACK_BIAS);
+
+			rw = kernel_stack_up(rw);
 		}
 		instruction_dump ((unsigned int *) regs->tpc);
 	} else {
@@ -1834,6 +1912,10 @@ void do_illegal_instruction(struct pt_regs *regs)
 	u32 insn;
 	siginfo_t info;
 
+	if (notify_die(DIE_TRAP, "illegal instruction", regs,
+		       0, 0x10, SIGILL) == NOTIFY_STOP)
+		return;
+
 	if (tstate & TSTATE_PRIV)
 		die_if_kernel("Kernel illegal instruction", regs);
 	if (test_thread_flag(TIF_32BIT))
@@ -1859,6 +1941,10 @@ void mem_address_unaligned(struct pt_regs *regs, unsigned long sfar, unsigned lo
 {
 	siginfo_t info;
 
+	if (notify_die(DIE_TRAP, "memory address unaligned", regs,
+		       0, 0x34, SIGSEGV) == NOTIFY_STOP)
+		return;
+
 	if (regs->tstate & TSTATE_PRIV) {
 		extern void kernel_unaligned_trap(struct pt_regs *regs,
 						  unsigned int insn, 
@@ -1880,6 +1966,10 @@ void mem_address_unaligned(struct pt_regs *regs, unsigned long sfar, unsigned lo
 void do_privop(struct pt_regs *regs)
 {
 	siginfo_t info;
+
+	if (notify_die(DIE_TRAP, "privileged operation", regs,
+		       0, 0x11, SIGILL) == NOTIFY_STOP)
+		return;
 
 	if (test_thread_flag(TIF_32BIT)) {
 		regs->tpc &= 0xffffffff;

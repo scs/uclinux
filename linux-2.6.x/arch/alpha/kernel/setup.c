@@ -111,8 +111,6 @@ struct alpha_machine_vector alpha_mv;
 int alpha_using_srm;
 #endif
 
-unsigned char aux_device_present = 0xaa;
-
 #define N(a) (sizeof(a)/sizeof(a[0]))
 
 static struct alpha_machine_vector *get_sysvec(unsigned long, unsigned long,
@@ -213,14 +211,14 @@ static void __init
 reserve_std_resources(void)
 {
 	static struct resource standard_io_resources[] = {
-		{ "rtc", -1, -1 },
-        	{ "dma1", 0x00, 0x1f },
-        	{ "pic1", 0x20, 0x3f },
-        	{ "timer", 0x40, 0x5f },
-        	{ "keyboard", 0x60, 0x6f },
-        	{ "dma page reg", 0x80, 0x8f },
-        	{ "pic2", 0xa0, 0xbf },
-        	{ "dma2", 0xc0, 0xdf },
+		{ .name = "rtc", .start = -1, .end = -1 },
+        	{ .name = "dma1", .start = 0x00, .end = 0x1f },
+        	{ .name = "pic1", .start = 0x20, .end = 0x3f },
+        	{ .name = "timer", .start = 0x40, .end = 0x5f },
+        	{ .name = "keyboard", .start = 0x60, .end = 0x6f },
+        	{ .name = "dma page reg", .start = 0x80, .end = 0x8f },
+        	{ .name = "pic2", .start = 0xa0, .end = 0xbf },
+        	{ .name = "dma2", .start = 0xc0, .end = 0xdf },
 	};
 
 	struct resource *io = &ioport_resource;

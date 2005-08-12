@@ -15,15 +15,13 @@
 #include <linux/errno.h>
 #include <asm/ptrace.h>
 #include <asm/system.h>
+#include <asm/pmc.h>
 
 #include "op_impl.h"
 
 extern struct op_ppc64_model op_model_rs64;
 extern struct op_ppc64_model op_model_power4;
 static struct op_ppc64_model *model;
-
-extern void (*perf_irq)(struct pt_regs *);
-static void (*save_perf_irq)(struct pt_regs *);
 
 static struct op_counter_config ctr[OP_MAX_COUNTER];
 static struct op_system_config sys;
@@ -35,11 +33,12 @@ static void op_handle_interrupt(struct pt_regs *regs)
 
 static int op_ppc64_setup(void)
 {
-	/* Install our interrupt handler into the existing hook.  */
-	save_perf_irq = perf_irq;
-	perf_irq = op_handle_interrupt;
+	int err;
 
-	mb();
+	/* Grab the hardware */
+	err = reserve_pmc_hardware(op_handle_interrupt);
+	if (err)
+		return err;
 
 	/* Pre-compute the values to stuff in the hardware registers.  */
 	model->reg_setup(ctr, &sys, model->num_counters);
@@ -52,17 +51,7 @@ static int op_ppc64_setup(void)
 
 static void op_ppc64_shutdown(void)
 {
-	/*
-	 * We need to be sure we have cleared all pending exceptions before
-	 * removing the interrupt handler. For the moment we play it safe and
-	 * leave it in
-	 */
-#if 0
-	mb();
-
-	/* Remove our interrupt handler. We may be removing this module. */
-	perf_irq = save_perf_irq;
-#endif
+	release_pmc_hardware();
 }
 
 static void op_ppc64_cpu_start(void *dummy)
@@ -90,6 +79,14 @@ static int op_ppc64_create_files(struct super_block *sb, struct dentry *root)
 {
 	int i;
 
+	/*
+	 * There is one mmcr0, mmcr1 and mmcra for setting the events for
+	 * all of the counters.
+	 */
+	oprofilefs_create_ulong(sb, root, "mmcr0", &sys.mmcr0);
+	oprofilefs_create_ulong(sb, root, "mmcr1", &sys.mmcr1);
+	oprofilefs_create_ulong(sb, root, "mmcra", &sys.mmcra);
+
 	for (i = 0; i < model->num_counters; ++i) {
 		struct dentry *dir;
 		char buf[3];
@@ -111,31 +108,31 @@ static int op_ppc64_create_files(struct super_block *sb, struct dentry *root)
 
 	oprofilefs_create_ulong(sb, root, "enable_kernel", &sys.enable_kernel);
 	oprofilefs_create_ulong(sb, root, "enable_user", &sys.enable_user);
+	oprofilefs_create_ulong(sb, root, "backtrace_spinlocks",
+				&sys.backtrace_spinlocks);
+
+	/* Default to tracing both kernel and user */
+	sys.enable_kernel = 1;
+	sys.enable_user = 1;
+
+	/* Turn on backtracing through spinlocks by default */
+	sys.backtrace_spinlocks = 1;
 
 	return 0;
 }
 
-static struct oprofile_operations oprof_ppc64_ops = {
-	.create_files	= op_ppc64_create_files,
-	.setup		= op_ppc64_setup,
-	.shutdown	= op_ppc64_shutdown,
-	.start		= op_ppc64_start,
-	.stop		= op_ppc64_stop,
-	.cpu_type	= NULL		/* To be filled in below. */
-};
-
-int __init oprofile_arch_init(struct oprofile_operations **ops)
+int __init oprofile_arch_init(struct oprofile_operations *ops)
 {
 	unsigned int pvr;
 
-	pvr = _get_PVR();
+	pvr = mfspr(SPRN_PVR);
 
 	switch (PVR_VER(pvr)) {
 		case PV_630:
 		case PV_630p:
 			model = &op_model_rs64;
 			model->num_counters = 8;
-			oprof_ppc64_ops.cpu_type = "ppc64/power3";
+			ops->cpu_type = "ppc64/power3";
 			break;
 
 		case PV_NORTHSTAR:
@@ -144,38 +141,42 @@ int __init oprofile_arch_init(struct oprofile_operations **ops)
 		case PV_SSTAR:
 			model = &op_model_rs64;
 			model->num_counters = 8;
-			oprof_ppc64_ops.cpu_type = "ppc64/rs64";
+			ops->cpu_type = "ppc64/rs64";
 			break;
 
 		case PV_POWER4:
 		case PV_POWER4p:
 			model = &op_model_power4;
 			model->num_counters = 8;
-			oprof_ppc64_ops.cpu_type = "ppc64/power4";
+			ops->cpu_type = "ppc64/power4";
 			break;
 
 		case PV_970:
 		case PV_970FX:
 			model = &op_model_power4;
 			model->num_counters = 8;
-			oprof_ppc64_ops.cpu_type = "ppc64/970";
+			ops->cpu_type = "ppc64/970";
 			break;
 
 		case PV_POWER5:
 		case PV_POWER5p:
 			model = &op_model_power4;
 			model->num_counters = 6;
-			oprof_ppc64_ops.cpu_type = "ppc64/power5";
+			ops->cpu_type = "ppc64/power5";
 			break;
 
 		default:
 			return -ENODEV;
 	}
 
-	*ops = &oprof_ppc64_ops;
+	ops->create_files = op_ppc64_create_files;
+	ops->setup = op_ppc64_setup;
+	ops->shutdown = op_ppc64_shutdown;
+	ops->start = op_ppc64_start;
+	ops->stop = op_ppc64_stop;
 
 	printk(KERN_INFO "oprofile: using %s performance monitoring.\n",
-	       oprof_ppc64_ops.cpu_type);
+	       ops->cpu_type);
 
 	return 0;
 }

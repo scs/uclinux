@@ -20,11 +20,11 @@
 #include <linux/swap.h>
 #include <linux/bootmem.h>
 #include <linux/irq.h>
+#include <linux/bitops.h>
 
 #include <asm/atomic.h>
 #include <asm/page.h>
 #include <asm/machdep.h>
-#include <asm/bitops.h>
 
 #include "mach.h"
 
@@ -42,7 +42,6 @@ void __init mach_early_init (void)
 	int i;
 	const u32 *src;
 	register u32 *dst asm ("ep");
-	extern int panic_timeout;
 	extern u32 _intv_end, _intv_load_start;
 
 	/* Set bus sizes: CS0 32-bit, CS1 16-bit, CS7 8-bit,

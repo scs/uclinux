@@ -142,7 +142,7 @@ asmlinkage int sunos_brk(u32 baddr)
 	}
 	/* Check against rlimit and stack.. */
 	retval = -ENOMEM;
-	rlim = current->rlim[RLIMIT_DATA].rlim_cur;
+	rlim = current->signal->rlim[RLIMIT_DATA].rlim_cur;
 	if (rlim >= RLIM_INFINITY)
 		rlim = ~0;
 	if (brk - current->mm->end_code > rlim)
@@ -291,7 +291,8 @@ static int sunos_filldir(void * __buf, const char * name, int namlen,
 	put_user(ino, &dirent->d_ino);
 	put_user(namlen, &dirent->d_namlen);
 	put_user(reclen, &dirent->d_reclen);
-	copy_to_user(dirent->d_name, name, namlen);
+	if (copy_to_user(dirent->d_name, name, namlen))
+		return -EFAULT;
 	put_user(0, dirent->d_name + namlen);
 	dirent = (void __user *) dirent + reclen;
 	buf->curr = dirent;
@@ -371,7 +372,8 @@ static int sunos_filldirentry(void * __buf, const char * name, int namlen,
 	put_user(ino, &dirent->d_ino);
 	put_user(namlen, &dirent->d_namlen);
 	put_user(reclen, &dirent->d_reclen);
-	copy_to_user(dirent->d_name, name, namlen);
+	if (copy_to_user(dirent->d_name, name, namlen))
+		return -EFAULT;
 	put_user(0, dirent->d_name + namlen);
 	dirent = (void __user *) dirent + reclen;
 	buf->curr = dirent;
@@ -1175,11 +1177,11 @@ asmlinkage int sunos_shmsys(int op, u32 arg1, u32 arg2, u32 arg3)
 	return rval;
 }
 
-extern asmlinkage long sparc32_open(const char * filename, int flags, int mode);
+extern asmlinkage long sparc32_open(const char __user * filename, int flags, int mode);
 
 asmlinkage int sunos_open(u32 fname, int flags, int mode)
 {
-	const char *filename = (const char *)(long)fname;
+	const char __user *filename = compat_ptr(fname);
 
 	return sparc32_open(filename, flags, mode);
 }
@@ -1292,7 +1294,7 @@ asmlinkage int sunos_sigaction (int sig,
 
 	if (!ret && oact) {
 		old_ka.sa.sa_flags ^= SUNOS_SV_INTERRUPT;
-		if (put_user((long)old_ka.sa.sa_handler, &oact->sa_handler) ||
+		if (put_user(ptr_to_compat(old_ka.sa.sa_handler), &oact->sa_handler) ||
 		    __put_user(old_ka.sa.sa_flags, &oact->sa_flags))
 			return -EFAULT;
 		__put_user(old_ka.sa.sa_mask.sig[0], &oact->sa_mask);

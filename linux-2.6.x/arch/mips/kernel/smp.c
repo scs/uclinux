@@ -18,7 +18,6 @@
  * Copyright (C) 2000, 2001 Silicon Graphics, Inc.
  * Copyright (C) 2000, 2001, 2003 Broadcom Corporation
  */
-#include <linux/config.h>
 #include <linux/cache.h>
 #include <linux/delay.h>
 #include <linux/init.h>
@@ -35,7 +34,6 @@
 #include <asm/cpu.h>
 #include <asm/processor.h>
 #include <asm/system.h>
-#include <asm/hardirq.h>
 #include <asm/mmu_context.h>
 #include <asm/smp.h>
 
@@ -45,10 +43,8 @@ cpumask_t cpu_online_map;		/* Bitmask of currently online CPUs */
 int __cpu_number_map[NR_CPUS];		/* Map physical to logical */
 int __cpu_logical_map[NR_CPUS];		/* Map logical to physical */
 
+EXPORT_SYMBOL(phys_cpu_present_map);
 EXPORT_SYMBOL(cpu_online_map);
-
-cycles_t cacheflush_time;
-unsigned long cache_decay_ticks;
 
 static void smp_tune_scheduling (void)
 {
@@ -72,28 +68,14 @@ static void smp_tune_scheduling (void)
 	 *  L1 cache), on PIIs it's around 50-100 usecs, depending on
 	 *  the cache size)
 	 */
-	if (!cpu_khz) {
-		/*
-		 * This basically disables processor-affinity scheduling on SMP
-		 * without a cycle counter.  Currently all SMP capable MIPS
-		 * processors have a cycle counter.
-		 */
-		cacheflush_time = 0;
+	if (!cpu_khz)
 		return;
-	}
 
 	cachesize = cd->linesz * cd->sets * cd->ways;
-	cacheflush_time = (cpu_khz>>10) * (cachesize<<10) / bandwidth;
-	cache_decay_ticks = (long)cacheflush_time/cpu_khz * HZ / 1000;
-
-	printk("per-CPU timeslice cutoff: %ld.%02ld usecs.\n",
-		(long)cacheflush_time/(cpu_khz/1000),
-		((long)cacheflush_time*100/(cpu_khz/1000)) % 100);
-	printk("task migration cache decay timeout: %ld msecs.\n",
-		(cache_decay_ticks + 1) * 1000 / HZ);
 }
 
 extern void __init calibrate_delay(void);
+extern ATTRIB_NORET void cpu_idle(void);
 
 /*
  * First C code run on the secondary CPUs after being started up by
@@ -123,7 +105,7 @@ asmlinkage void start_secondary(void)
 	cpu_idle();
 }
 
-spinlock_t smp_call_lock = SPIN_LOCK_UNLOCKED;
+DEFINE_SPINLOCK(smp_call_lock);
 
 struct call_data_struct *call_data;
 
@@ -236,7 +218,6 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 	init_new_context(current, &init_mm);
 	current_thread_info()->cpu = 0;
 	smp_tune_scheduling();
-	prom_build_cpu_map();
 	prom_prepare_cpus(max_cpus);
 }
 
@@ -254,16 +235,6 @@ void __devinit smp_prepare_boot_cpu(void)
 	cpu_set(0, cpu_callin_map);
 }
 
-static struct task_struct * __init fork_by_hand(void)
-{
-	struct pt_regs regs;
-	/*
-	 * don't care about the eip and regs settings since
-	 * we'll never reschedule the forked task.
-	 */
-	return copy_process(CLONE_VM|CLONE_IDLETASK, 0, &regs, 0, NULL, NULL);
-}
-
 /*
  * Startup the CPU with this logical number
  */
@@ -275,19 +246,9 @@ static int __init do_boot_cpu(int cpu)
 	 * The following code is purely to make sure
 	 * Linux can schedule processes on this slave.
 	 */
-	idle = fork_by_hand();
+	idle = fork_idle(cpu);
 	if (IS_ERR(idle))
 		panic("failed fork for CPU %d\n", cpu);
-
-	wake_up_forked_process(idle);
-
-	/*
-	 * We remove it from the pidhash and the runqueue once we've
-	 * got the process:
-	 */
-	init_idle(idle, cpu);
-
-	unhash_process(idle);
 
 	prom_boot_secondary(cpu, idle);
 

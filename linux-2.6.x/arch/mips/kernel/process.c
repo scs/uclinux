@@ -5,6 +5,7 @@
  *
  * Copyright (C) 1994 - 1999, 2000 by Ralf Baechle and others.
  * Copyright (C) 1999, 2000 Silicon Graphics, Inc.
+ * Copyright (C) 2004 Thiemo Seufer
  */
 #include <linux/config.h>
 #include <linux/errno.h>
@@ -75,7 +76,7 @@ void start_thread(struct pt_regs * regs, unsigned long pc, unsigned long sp)
 #endif
 	status |= KU_USER;
 	regs->cp0_status = status;
-	current->used_math = 0;
+	clear_used_math();
 	lose_fpu();
 	regs->cp0_epc = pc;
 	regs->regs[29] = sp;
@@ -99,28 +100,28 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long usp,
 
 	childksp = (unsigned long)ti + THREAD_SIZE - 32;
 
+	preempt_disable();
+
 	if (is_fpu_owner()) {
 		save_fp(p);
 	}
+
+	preempt_enable();
 
 	/* set up new TSS. */
 	childregs = (struct pt_regs *) childksp - 1;
 	*childregs = *regs;
 	childregs->regs[7] = 0;	/* Clear error flag */
 
-#ifdef CONFIG_BINFMT_IRIX
+#if defined(CONFIG_BINFMT_IRIX)
 	if (current->personality != PER_LINUX) {
 		/* Under IRIX things are a little different. */
-		childregs->regs[2] = 0;
 		childregs->regs[3] = 1;
-		regs->regs[2] = p->pid;
 		regs->regs[3] = 0;
-	} else
-#endif
-	{
-		childregs->regs[2] = 0;	/* Child gets zero as return value */
-		regs->regs[2] = p->pid;
 	}
+#endif
+	childregs->regs[2] = 0;	/* Child gets zero as return value */
+	regs->regs[2] = p->pid;
 
 	if (childregs->cp0_status & ST0_CU0) {
 		childregs->regs[28] = (unsigned long) ti;
@@ -140,7 +141,6 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long usp,
 	p->thread.cp0_status = read_c0_status() & ~(ST0_CU2|ST0_CU1);
 	childregs->cp0_status &= ~(ST0_CU2|ST0_CU1);
 	clear_tsk_thread_flag(p, TIF_USEDFPU);
-	p->set_child_tid = p->clear_child_tid = NULL;
 
 	return 0;
 }
@@ -149,45 +149,66 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long usp,
 int dump_fpu(struct pt_regs *regs, elf_fpregset_t *r)
 {
 	memcpy(r, &current->thread.fpu, sizeof(current->thread.fpu));
+
+	return 1;
+}
+
+void dump_regs(elf_greg_t *gp, struct pt_regs *regs)
+{
+	int i;
+
+	for (i = 0; i < EF_R0; i++)
+		gp[i] = 0;
+	gp[EF_R0] = 0;
+	for (i = 1; i <= 31; i++)
+		gp[EF_R0 + i] = regs->regs[i];
+	gp[EF_R26] = 0;
+	gp[EF_R27] = 0;
+	gp[EF_LO] = regs->lo;
+	gp[EF_HI] = regs->hi;
+	gp[EF_CP0_EPC] = regs->cp0_epc;
+	gp[EF_CP0_BADVADDR] = regs->cp0_badvaddr;
+	gp[EF_CP0_STATUS] = regs->cp0_status;
+	gp[EF_CP0_CAUSE] = regs->cp0_cause;
+#ifdef EF_UNUSED0
+	gp[EF_UNUSED0] = 0;
+#endif
+}
+
+int dump_task_fpu (struct task_struct *t, elf_fpregset_t *fpr)
+{
+	memcpy(fpr, &t->thread.fpu, sizeof(current->thread.fpu));
+
 	return 1;
 }
 
 /*
  * Create a kernel thread
  */
+ATTRIB_NORET void kernel_thread_helper(void *arg, int (*fn)(void *))
+{
+	do_exit(fn(arg));
+}
+
 long kernel_thread(int (*fn)(void *), void *arg, unsigned long flags)
 {
-	long retval;
+	struct pt_regs regs;
 
-	__asm__ __volatile__(
-		"	move	$6, $sp		\n"
-		"	move	$4, %5		\n"
-		"	li	$2, %1		\n"
-		"	syscall			\n"
-		"	beq	$6, $sp, 1f	\n"
-#ifdef CONFIG_MIPS32	/* On o32 the caller has to create the stackframe */
-		"	subu	$sp, 32		\n"
-#endif
-		"	move	$4, %3		\n"
-		"	jalr	%4		\n"
-		"	move	$4, $2		\n"
-		"	li	$2, %2		\n"
-		"	syscall			\n"
-#ifdef CONFIG_MIPS32	/* On o32 the caller has to deallocate the stackframe */
-		"	addiu	$sp, 32		\n"
-#endif
-		"1:	move	%0, $2"
-		: "=r" (retval)
-		: "i" (__NR_clone), "i" (__NR_exit), "r" (arg), "r" (fn),
-		  "r" (flags | CLONE_VM | CLONE_UNTRACED)
-		 /*
-		  * The called subroutine might have destroyed any of the
-		  * at, result, argument or temporary registers ...
-		  */
-		: "$2", "$3", "$4", "$5", "$6", "$7", "$8",
-		  "$9","$10","$11","$12","$13","$14","$15","$24","$25","$31");
+	memset(&regs, 0, sizeof(regs));
 
-	return retval;
+	regs.regs[4] = (unsigned long) arg;
+	regs.regs[5] = (unsigned long) fn;
+	regs.cp0_epc = (unsigned long) kernel_thread_helper;
+	regs.cp0_status = read_c0_status();
+#if defined(CONFIG_CPU_R3000) || defined(CONFIG_CPU_TX39XX)
+	regs.cp0_status &= ~(ST0_KUP | ST0_IEC);
+	regs.cp0_status |= ST0_IEP;
+#else
+	regs.cp0_status |= ST0_EXL;
+#endif
+
+	/* Ok, create the new process.. */
+	return do_fork(flags | CLONE_VM | CLONE_UNTRACED, 0, &regs, 0, NULL, NULL);
 }
 
 struct mips_frame_info {
@@ -268,7 +289,6 @@ arch_initcall(frame_info_init);
  */
 unsigned long thread_saved_pc(struct task_struct *tsk)
 {
-	extern void ret_from_fork(void);
 	struct thread_struct *t = &tsk->thread;
 
 	/* New born processes are a special case */

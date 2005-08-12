@@ -19,9 +19,10 @@
  * src and dst are best aligned to 64bits. 
  */ 
 unsigned int 
-csum_partial_copy_from_user(const char __user *src, char *dst, 
+csum_partial_copy_from_user(const unsigned char __user *src, unsigned char *dst,
 			    int len, unsigned int isum, int *errp)
 { 
+	might_sleep();
 	*errp = 0;
 	if (likely(access_ok(VERIFY_READ,src, len))) { 
 		/* Why 6, not 7? To handle odd addresses aligned we
@@ -66,9 +67,10 @@ EXPORT_SYMBOL(csum_partial_copy_from_user);
  * src and dst are best aligned to 64bits.
  */ 
 unsigned int 
-csum_partial_copy_to_user(const char *src, char __user *dst, 
+csum_partial_copy_to_user(unsigned const char *src, unsigned char __user *dst,
 			  int len, unsigned int isum, int *errp)
 { 
+	might_sleep();
 	if (unlikely(!access_ok(VERIFY_WRITE, dst, len))) {
 		*errp = -EFAULT;
 		return 0; 
@@ -103,7 +105,7 @@ EXPORT_SYMBOL(csum_partial_copy_to_user);
  * Returns an 32bit unfolded checksum of the buffer.
  */ 
 unsigned int 
-csum_partial_copy_nocheck(const char *src, char *dst, int len, unsigned int sum)
+csum_partial_copy_nocheck(const unsigned char *src, unsigned char *dst, int len, unsigned int sum)
 { 
 	return csum_partial_copy_generic(src,dst,len,sum,NULL,NULL);
 } 

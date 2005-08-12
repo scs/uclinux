@@ -175,6 +175,18 @@ ENTRY(arm1026_flush_user_cache_range)
  *	- end	- virtual end address
  */
 ENTRY(arm1026_coherent_kern_range)
+	/* FALLTHROUGH */
+/*
+ *	coherent_user_range(start, end)
+ *
+ *	Ensure coherency between the Icache and the Dcache in the
+ *	region described by start.  If you have non-snooping
+ *	Harvard caches, you need to implement this function.
+ *
+ *	- start	- virtual start address
+ *	- end	- virtual end address
+ */
+ENTRY(arm1026_coherent_user_range)
 	mov	ip, #0
 	bic	r0, r0, #CACHE_DLINESIZE - 1
 1:
@@ -286,6 +298,7 @@ ENTRY(arm1026_cache_fns)
 	.long	arm1026_flush_user_cache_all
 	.long	arm1026_flush_user_cache_range
 	.long	arm1026_coherent_kern_range
+	.long	arm1026_coherent_user_range
 	.long	arm1026_flush_kern_dcache_page
 	.long	arm1026_dma_inv_range
 	.long	arm1026_dma_clean_range
@@ -376,34 +389,29 @@ __arm1026_setup:
 	mov	r0, #4				@ explicitly disable writeback
 	mcr	p15, 7, r0, c15, c0, 0
 #endif
-	mov	r0, #0x1f			@ Domains 0, 1 = client
-	mcr	p15, 0, r0, c3, c0		@ load domain access register
 	mrc	p15, 0, r0, c1, c0		@ get control register v4
-/*
- * Clear out 'unwanted' bits (then put them in if we need them)
- */
-	bic	r0, r0, #0x1e00 		@ ...i??r.........
-	bic	r0, r0, #0x000e 		@ ............wca.
-/*
- * Turn on what we want
- */
-	orr	r0, r0, #0x0031 		@ ..........DP...M
-	orr	r0, r0, #0x2100 		@ ..V....S........
-
+	ldr	r5, arm1026_cr1_clear
+	bic	r0, r0, r5
+	ldr	r5, arm1026_cr1_set
+	orr	r0, r0, r5
 #ifdef CONFIG_CPU_CACHE_ROUND_ROBIN
-	orr	r0, r0, #0x4000 		@ .R..............
-#endif
-#ifndef CONFIG_CPU_BPREDICT_DISABLE
-	orr	r0, r0, #0x0800 		@ ....Z...........
-#endif
-#ifndef CONFIG_CPU_DCACHE_DISABLE
-	orr	r0, r0, #0x0004 		@ .............C..
-#endif
-#ifndef CONFIG_CPU_ICACHE_DISABLE
-	orr	r0, r0, #0x1000 		@ ...I............
+	orr	r0, r0, #0x4000 		@ .R.. .... .... ....
 #endif
 	mov	pc, lr
 	.size	__arm1026_setup, . - __arm1026_setup
+
+	/*
+	 *  R
+	 * .RVI ZFRS BLDP WCAM
+	 * .011 1001 ..11 0101
+	 * 
+	 */
+	.type	arm1026_cr1_clear, #object
+	.type	arm1026_cr1_set, #object
+arm1026_cr1_clear:
+	.word	0x7f3f
+arm1026_cr1_set:
+	.word	0x3935
 
 	__INITDATA
 
@@ -467,11 +475,14 @@ cpu_arm1026_name:
 __arm1026_proc_info:
 	.long	0x4106a260			@ ARM 1026EJ-S (v5TEJ)
 	.long	0xff0ffff0
-	.long	0x00000c12			@ mmuflags
+	.long   PMD_TYPE_SECT | \
+		PMD_BIT4 | \
+		PMD_SECT_AP_WRITE | \
+		PMD_SECT_AP_READ
 	b	__arm1026_setup
 	.long	cpu_arch_name
 	.long	cpu_elf_name
-	.long	HWCAP_SWP | HWCAP_HALF | HWCAP_THUMB | HWCAP_FAST_MULT
+	.long	HWCAP_SWP|HWCAP_HALF|HWCAP_THUMB|HWCAP_FAST_MULT|HWCAP_EDSP|HWCAP_JAVA
 	.long	cpu_arm1026_name
 	.long	arm1026_processor_functions
 	.long	v4wbi_tlb_fns

@@ -24,7 +24,6 @@
 #include <asm/irq.h>
 #include <asm/page.h>
 #include <asm/pgtable.h>
-#include <asm/hardirq.h>
 #include <asm/sections.h>
 #include <asm/io.h>
 #include <asm/prom.h>
@@ -58,7 +57,7 @@ smp_chrp_setup_cpu(int cpu_nr)
 		do_openpic_setup_cpu();
 }
 
-static spinlock_t timebase_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(timebase_lock);
 static unsigned int timebase_upper = 0, timebase_lower = 0;
 
 void __devinit

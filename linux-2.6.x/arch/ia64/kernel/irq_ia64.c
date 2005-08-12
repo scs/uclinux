@@ -30,8 +30,8 @@
 #include <linux/smp.h>
 #include <linux/smp_lock.h>
 #include <linux/threads.h>
+#include <linux/bitops.h>
 
-#include <asm/bitops.h>
 #include <asm/delay.h>
 #include <asm/intrinsics.h>
 #include <asm/io.h>
@@ -47,7 +47,8 @@
 #define IRQ_DEBUG	0
 
 /* default base addr of IPI table */
-unsigned long ipi_base_addr = (__IA64_UNCACHED_OFFSET | IA64_IPI_DEFAULT_BASE_ADDR);
+void __iomem *ipi_base_addr = ((void __iomem *)
+			       (__IA64_UNCACHED_OFFSET | IA64_IPI_DEFAULT_BASE_ADDR));
 
 /*
  * Legacy IRQ to IA-64 vector translation table.
@@ -59,33 +60,45 @@ __u8 isa_irq_to_vector_map[16] = {
 };
 EXPORT_SYMBOL(isa_irq_to_vector_map);
 
-static inline void
-irq_enter (void)
-{
-	preempt_count() += HARDIRQ_OFFSET;
-}
+static unsigned long ia64_vector_mask[BITS_TO_LONGS(IA64_NUM_DEVICE_VECTORS)];
 
-static inline void
-irq_exit (void)
+int
+assign_irq_vector_nopanic (int irq)
 {
-	preempt_count() -= IRQ_EXIT_OFFSET;
-	if (!in_interrupt() && local_softirq_pending())
-		do_softirq();
-	preempt_enable_no_resched();
+	int pos, vector;
+ again:
+	pos = find_first_zero_bit(ia64_vector_mask, IA64_NUM_DEVICE_VECTORS);
+	vector = IA64_FIRST_DEVICE_VECTOR + pos;
+	if (vector > IA64_LAST_DEVICE_VECTOR)
+		return -1;
+	if (test_and_set_bit(pos, ia64_vector_mask))
+		goto again;
+	return vector;
 }
 
 int
 assign_irq_vector (int irq)
 {
-	static int next_vector = IA64_FIRST_DEVICE_VECTOR;
+	int vector = assign_irq_vector_nopanic(irq);
 
-	if (next_vector > IA64_LAST_DEVICE_VECTOR)
-		/* XXX could look for sharable vectors instead of panic'ing... */
+	if (vector < 0)
 		panic("assign_irq_vector: out of interrupt vectors!");
-	return next_vector++;
+
+	return vector;
 }
 
-extern unsigned int do_IRQ(unsigned long irq, struct pt_regs *regs);
+void
+free_irq_vector (int vector)
+{
+	int pos;
+
+	if (vector < IA64_FIRST_DEVICE_VECTOR || vector > IA64_LAST_DEVICE_VECTOR)
+		return;
+
+	pos = vector - IA64_FIRST_DEVICE_VECTOR;
+	if (!test_and_clear_bit(pos, ia64_vector_mask))
+		printk(KERN_WARNING "%s: double free!\n", __FUNCTION__);
+}
 
 #ifdef CONFIG_SMP
 #	define IS_RESCHEDULE(vec)	(vec == IA64_IPI_RESCHEDULE)
@@ -114,7 +127,7 @@ ia64_handle_irq (ia64_vector vector, struct pt_regs *regs)
 		 * switched atomically.
 		 */
 		bsp = ia64_getreg(_IA64_REG_AR_BSP);
-		sp = ia64_getreg(_IA64_REG_AR_SP);
+		sp = ia64_getreg(_IA64_REG_SP);
 
 		if ((sp - bsp) < 1024) {
 			static unsigned char count;
@@ -145,7 +158,7 @@ ia64_handle_irq (ia64_vector vector, struct pt_regs *regs)
 			ia64_setreg(_IA64_REG_CR_TPR, vector);
 			ia64_srlz_d();
 
-			do_IRQ(local_vector_to_irq(vector), regs);
+			__do_IRQ(local_vector_to_irq(vector), regs);
 
 			/*
 			 * Disable interrupts and send EOI:
@@ -196,7 +209,7 @@ void ia64_process_pending_intr(void)
 			 * Probably could shared code.
 			 */
 			vectors_in_migration[local_vector_to_irq(vector)]=0;
-			do_IRQ(local_vector_to_irq(vector), NULL);
+			__do_IRQ(local_vector_to_irq(vector), NULL);
 
 			/*
 			 * Disable interrupts and send EOI
@@ -254,7 +267,7 @@ init_IRQ (void)
 void
 ia64_send_ipi (int cpu, int vector, int delivery_mode, int redirect)
 {
-	unsigned long ipi_addr;
+	void __iomem *ipi_addr;
 	unsigned long ipi_data;
 	unsigned long phys_cpu_id;
 
@@ -269,7 +282,7 @@ ia64_send_ipi (int cpu, int vector, int delivery_mode, int redirect)
 	 */
 
 	ipi_data = (delivery_mode << 8) | (vector & 0xff);
-	ipi_addr = ipi_base_addr | (phys_cpu_id << 4) | ((redirect & 1)  << 3);
+	ipi_addr = ipi_base_addr + ((phys_cpu_id << 4) | ((redirect & 1) << 3));
 
 	writeq(ipi_data, ipi_addr);
 }

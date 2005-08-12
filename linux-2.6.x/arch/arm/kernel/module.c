@@ -9,6 +9,7 @@
  *
  * Module allocation method suggested by Andi Kleen.
  */
+#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/elf.h>
@@ -19,47 +20,31 @@
 
 #include <asm/pgtable.h>
 
+#ifdef CONFIG_XIP_KERNEL
+/*
+ * The XIP kernel text is mapped in the module area for modules and
+ * some other stuff to work without any indirect relocations.
+ * MODULE_START is redefined here and not in asm/memory.h to avoid
+ * recompiling the whole kernel when CONFIG_XIP_KERNEL is turned on/off.
+ */
+extern void _etext;
+#undef MODULE_START
+#define MODULE_START	(((unsigned long)&_etext + ~PGDIR_MASK) & PGDIR_MASK)
+#endif
+
 void *module_alloc(unsigned long size)
 {
 	struct vm_struct *area;
-	struct page **pages;
-	unsigned int array_size, i;
 
 	size = PAGE_ALIGN(size);
 	if (!size)
-		goto out_null;
+		return NULL;
 
 	area = __get_vm_area(size, VM_ALLOC, MODULE_START, MODULE_END);
 	if (!area)
-		goto out_null;
+		return NULL;
 
-	area->nr_pages = size >> PAGE_SHIFT;
-	array_size = area->nr_pages * sizeof(struct page *);
-	area->pages = pages = kmalloc(array_size, GFP_KERNEL);
-	if (!area->pages) {
-		remove_vm_area(area->addr);
-		kfree(area);
-		goto out_null;
-	}
-
-	memset(pages, 0, array_size);
-
-	for (i = 0; i < area->nr_pages; i++) {
-		pages[i] = alloc_page(GFP_KERNEL);
-		if (unlikely(!pages[i])) {
-			area->nr_pages = i;
-			goto out_no_pages;
-		}
-	}
-
-	if (map_vm_area(area, PAGE_KERNEL, &pages))
-		goto out_no_pages;
-	return area->addr;
-
- out_no_pages:
-	vfree(area->addr);
- out_null:
-	return NULL;
+	return __vmalloc_area(area, GFP_KERNEL, PAGE_KERNEL);
 }
 
 void module_free(struct module *module, void *region)

@@ -15,29 +15,67 @@
 
 KERNELLOAD	:= 0xc000000000000000
 
-HAS_BIARCH      := $(shell if $(CC) -m64 -S -o /dev/null -xc /dev/null > /dev/null 2>&1; then echo y; else echo n; fi;)
+# Set default 32 bits cross compilers for vdso and boot wrapper
+CROSS32_COMPILE ?=
+
+CROSS32CC		:= $(CROSS32_COMPILE)gcc
+CROSS32AS		:= $(CROSS32_COMPILE)as
+CROSS32LD		:= $(CROSS32_COMPILE)ld
+CROSS32OBJCOPY		:= $(CROSS32_COMPILE)objcopy
+
+# If we have a biarch compiler, use it for 32 bits cross compile if
+# CROSS32_COMPILE wasn't explicitely defined, and add proper explicit
+# target type to target compilers
+
+HAS_BIARCH      := $(call cc-option-yn, -m64)
 ifeq ($(HAS_BIARCH),y)
+ifeq ($(CROSS32_COMPILE),)
+CROSS32CC	:= $(CC) -m32
+CROSS32AS	:= $(AS) -a32
+CROSS32LD	:= $(LD) -m elf32ppc
+CROSS32OBJCOPY	:= $(OBJCOPY)
+endif
 AS              := $(AS) -a64
 LD              := $(LD) -m elf64ppc
 CC		:= $(CC) -m64
 endif
 
-CHECK		:= $(CHECK) -m64 -D__powerpc__=1
+export CROSS32CC CROSS32AS CROSS32LD CROSS32OBJCOPY
+
+new_nm := $(shell if $(NM) --help 2>&1 | grep -- '--synthetic' > /dev/null; then echo y; else echo n; fi)
+
+ifeq ($(new_nm),y)
+NM		:= $(NM) --synthetic
+
+endif
+
+CHECKFLAGS	+= -m64 -D__powerpc__
 
 LDFLAGS		:= -m elf64ppc
 LDFLAGS_vmlinux	:= -Bstatic -e $(KERNELLOAD) -Ttext $(KERNELLOAD)
-CFLAGS		+= -msoft-float -pipe -Wno-uninitialized -mminimal-toc \
-		   -mtraceback=none
+CFLAGS		+= -msoft-float -pipe -mminimal-toc -mtraceback=none \
+		   -mcall-aixdesc
+
+GCC_VERSION     := $(call cc-version)
+GCC_BROKEN_VEC	:= $(shell if [ $(GCC_VERSION) -lt 0400 ] ; then echo "y"; fi ;)
 
 ifeq ($(CONFIG_POWER4_ONLY),y)
-	CFLAGS += $(call check_gcc,-mcpu=power4,)
+ifeq ($(CONFIG_ALTIVEC),y)
+ifeq ($(GCC_BROKEN_VEC),y)
+	CFLAGS += $(call cc-option,-mcpu=970)
 else
-	CFLAGS += $(call check_gcc,-mtune=power4,)
+	CFLAGS += $(call cc-option,-mcpu=power4)
+endif
+else
+	CFLAGS += $(call cc-option,-mcpu=power4)
+endif
+else
+	CFLAGS += $(call cc-option,-mtune=power4)
 endif
 
 # Enable unit-at-a-time mode when possible. It shrinks the
 # kernel considerably.
-CFLAGS += $(call check_gcc,-funit-at-a-time,)
+CFLAGS += $(call cc-option,-funit-at-a-time)
 
 head-y := arch/ppc64/kernel/head.o
 
@@ -50,17 +88,25 @@ drivers-$(CONFIG_OPROFILE)	+= arch/ppc64/oprofile/
 boot := arch/ppc64/boot
 
 boottarget-$(CONFIG_PPC_PSERIES) := zImage zImage.initrd
+boottarget-$(CONFIG_PPC_MAPLE) := zImage zImage.initrd
 boottarget-$(CONFIG_PPC_ISERIES) := vmlinux.sminitrd vmlinux.initrd vmlinux.sm
 $(boottarget-y): vmlinux
 	$(Q)$(MAKE) $(build)=$(boot) $(boot)/$@
 
-bootimage-$(CONFIG_PPC_PSERIES) := zImage
+bootimage-$(CONFIG_PPC_PSERIES) := $(boot)/zImage
+bootimage-$(CONFIG_PPC_PMAC) := vmlinux
+bootimage-$(CONFIG_PPC_MAPLE) := $(boot)/zImage
 bootimage-$(CONFIG_PPC_ISERIES) := vmlinux
 BOOTIMAGE := $(bootimage-y)
 install: vmlinux
 	$(Q)$(MAKE) $(build)=$(boot) BOOTIMAGE=$(BOOTIMAGE) $@
 
-all: $(BOOTIMAGE)
+defaultimage-$(CONFIG_PPC_PSERIES) := zImage
+defaultimage-$(CONFIG_PPC_PMAC) := vmlinux
+defaultimage-$(CONFIG_PPC_MAPLE) := zImage
+defaultimage-$(CONFIG_PPC_ISERIES) := vmlinux
+KBUILD_IMAGE := $(defaultimage-y)
+all: $(KBUILD_IMAGE)
 
 archclean:
 	$(Q)$(MAKE) $(clean)=$(boot)

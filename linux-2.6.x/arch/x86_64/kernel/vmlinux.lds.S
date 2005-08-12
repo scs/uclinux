@@ -7,15 +7,17 @@
 
 OUTPUT_FORMAT("elf64-x86-64", "elf64-x86-64", "elf64-x86-64")
 OUTPUT_ARCH(i386:x86-64)
-ENTRY(_start)
+ENTRY(phys_startup_64)
 jiffies_64 = jiffies;
 SECTIONS
 {
   . = 0xffffffff80100000;
+  phys_startup_64 = startup_64 - LOAD_OFFSET;
   _text = .;			/* Text and read-only data */
   .text : {
 	*(.text)
 	SCHED_TEXT
+	LOCK_TEXT
 	*(.fixup)
 	*(.gnu.warning)
 	} = 0x9090
@@ -44,32 +46,31 @@ SECTIONS
 	}
   __bss_end = .;
 
-  . = ALIGN(64);
+  . = ALIGN(CONFIG_X86_L1_CACHE_BYTES);
   .data.cacheline_aligned : { *(.data.cacheline_aligned) }
+
+#define AFTER(x)      BINALIGN(LOADADDR(x) + SIZEOF(x), 16)
+#define BINALIGN(x,y) (((x) + (y) - 1)  & ~((y) - 1))
+#define CACHE_ALIGN(x) BINALIGN(x, CONFIG_X86_L1_CACHE_BYTES)
 
   .vsyscall_0 -10*1024*1024: AT ((LOADADDR(.data.cacheline_aligned) + SIZEOF(.data.cacheline_aligned) + 4095) & ~(4095)) { *(.vsyscall_0) }
   __vsyscall_0 = LOADADDR(.vsyscall_0);
-  . = ALIGN(64);
-  .xtime_lock : AT ((LOADADDR(.vsyscall_0) + SIZEOF(.vsyscall_0) + 63) & ~(63)) { *(.xtime_lock) }
+  . = ALIGN(CONFIG_X86_L1_CACHE_BYTES);
+  .xtime_lock : AT CACHE_ALIGN(AFTER(.vsyscall_0)) { *(.xtime_lock) }
   xtime_lock = LOADADDR(.xtime_lock);
-  . = ALIGN(16);
-  .vxtime : AT ((LOADADDR(.xtime_lock) + SIZEOF(.xtime_lock) + 15) & ~(15)) { *(.vxtime) }
+  .vxtime : AT AFTER(.xtime_lock) { *(.vxtime) }
   vxtime = LOADADDR(.vxtime);
-  . = ALIGN(16);
-  .wall_jiffies : AT ((LOADADDR(.vxtime) + SIZEOF(.vxtime) + 15) & ~(15)) { *(.wall_jiffies) }
+  .wall_jiffies : AT AFTER(.vxtime) { *(.wall_jiffies) }
   wall_jiffies = LOADADDR(.wall_jiffies);
-  . = ALIGN(16);
-  .sys_tz : AT ((LOADADDR(.wall_jiffies) + SIZEOF(.wall_jiffies) + 15) & ~(15)) { *(.sys_tz) }
+  .sys_tz : AT AFTER(.wall_jiffies) { *(.sys_tz) }
   sys_tz = LOADADDR(.sys_tz);
-  . = ALIGN(16);
-  .sysctl_vsyscall : AT ((LOADADDR(.sys_tz) + SIZEOF(.sys_tz) + 15) & ~(15)) { *(.sysctl_vsyscall) }
-  sysctl_vsyscall = LOADADDR(.sysctl_vsyscall);
-  . = ALIGN(16);
-  .jiffies : AT ((LOADADDR(.sysctl_vsyscall) + SIZEOF(.sysctl_vsyscall) + 15) & ~(15)) { *(.jiffies) }
-  jiffies = LOADADDR(.jiffies);
-  . = ALIGN(16);
-  .xtime : AT ((LOADADDR(.jiffies) + SIZEOF(.jiffies) + 15) & ~(15)) { *(.xtime) }
+  .sysctl_vsyscall : AT AFTER(.sys_tz) { *(.sysctl_vsyscall) }
+  sysctl_vsyscall = LOADADDR(.sysctl_vsyscall); 
+  .xtime : AT AFTER(.sysctl_vsyscall) { *(.xtime) }
   xtime = LOADADDR(.xtime);
+  . = ALIGN(CONFIG_X86_L1_CACHE_BYTES);
+  .jiffies : AT CACHE_ALIGN(AFTER(.xtime)) { *(.jiffies) }
+  jiffies = LOADADDR(.jiffies);
   .vsyscall_1 ADDR(.vsyscall_0) + 1024: AT (LOADADDR(.vsyscall_0) + 1024) { *(.vsyscall_1) }
   . = LOADADDR(.vsyscall_0) + 4096;
 
@@ -86,14 +87,13 @@ SECTIONS
 	*(.init.text)
 	_einittext = .;
   }
+  __initdata_begin = .;
   .init.data : { *(.init.data) }
+  __initdata_end = .;
   . = ALIGN(16);
   __setup_start = .;
   .init.setup : { *(.init.setup) }
   __setup_end = .;
-  __start___param = .;
-  __param : { *(__param) }
-  __stop___param = .;
   __initcall_start = .;
   .initcall.init : {
 	*(.initcall1.init) 

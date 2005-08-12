@@ -17,7 +17,7 @@
 #include <linux/list.h>
 #include <asm/dma.h>
 
-spinlock_t dma_spin_lock = SPIN_LOCK_UNLOCKED;
+DEFINE_SPINLOCK(dma_spin_lock);
 static LIST_HEAD(registered_dmac_list);
 
 /*
@@ -211,8 +211,9 @@ int __init register_dmac(struct dma_info *info)
 
 	INIT_LIST_HEAD(&info->list);
 
-	printk(KERN_INFO "DMA: Registering %s handler (%d channels).\n",
-	       info->name, info->nr_channels);
+	printk(KERN_INFO "DMA: Registering %s handler (%d channel%s).\n",
+	       info->name, info->nr_channels,
+	       info->nr_channels > 1 ? "s" : "");
 
 	BUG_ON((info->flags & DMAC_CHANNELS_CONFIGURED) && !info->channels);
 
@@ -282,7 +283,6 @@ MODULE_LICENSE("GPL");
 EXPORT_SYMBOL(request_dma);
 EXPORT_SYMBOL(free_dma);
 EXPORT_SYMBOL(register_dmac);
-EXPORT_SYMBOL(unregister_dmac);
 EXPORT_SYMBOL(get_dma_residue);
 EXPORT_SYMBOL(get_dma_info);
 EXPORT_SYMBOL(get_dma_channel);

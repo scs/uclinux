@@ -166,14 +166,14 @@
  *         If an APM idle fails log it and idle sensibly
  *   1.15: Don't queue events to clients who open the device O_WRONLY.
  *         Don't expect replies from clients who open the device O_RDONLY.
- *         (Idea from Thomas Hood <jdthood@mail.com>)
+ *         (Idea from Thomas Hood)
  *         Minor waitqueue cleanups. (John Fremlin <chief@bandits.org>)
  *   1.16: Fix idle calling. (Andreas Steinmetz <ast@domdv.de> et al.)
  *         Notify listeners of standby or suspend events before notifying
  *         drivers. Return EBUSY to ioctl() if suspend is rejected.
  *         (Russell King <rmk@arm.linux.org.uk> and Thomas Hood)
  *         Ignore first resume after we generate our own resume event
- *         after a suspend (Thomas Hood <jdthood@mail.com>)
+ *         after a suspend (Thomas Hood)
  *         Daemonize now gets rid of our controlling terminal (sfr).
  *         CONFIG_APM_CPU_IDLE now just affects the default value of
  *         idle_threshold (sfr).
@@ -424,7 +424,7 @@ static int			broken_psr;
 static DECLARE_WAIT_QUEUE_HEAD(apm_waitqueue);
 static DECLARE_WAIT_QUEUE_HEAD(apm_suspend_waitqueue);
 static struct apm_user *	user_list;
-static spinlock_t		user_list_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(user_list_lock);
 static struct desc_struct	bad_bios_desc = { 0, 0x00409200 };
 
 static char			driver_version[] = "1.16ac";	/* no spaces */
@@ -601,8 +601,8 @@ static u8 apm_bios_call(u32 func, u32 ebx_in, u32 ecx_in,
 	cpus = apm_save_cpus();
 	
 	cpu = get_cpu();
-	save_desc_40 = cpu_gdt_table[cpu][0x40 / 8];
-	cpu_gdt_table[cpu][0x40 / 8] = bad_bios_desc;
+	save_desc_40 = per_cpu(cpu_gdt_table, cpu)[0x40 / 8];
+	per_cpu(cpu_gdt_table, cpu)[0x40 / 8] = bad_bios_desc;
 
 	local_save_flags(flags);
 	APM_DO_CLI;
@@ -610,7 +610,7 @@ static u8 apm_bios_call(u32 func, u32 ebx_in, u32 ecx_in,
 	apm_bios_call_asm(func, ebx_in, ecx_in, eax, ebx, ecx, edx, esi);
 	APM_DO_RESTORE_SEGS;
 	local_irq_restore(flags);
-	cpu_gdt_table[cpu][0x40 / 8] = save_desc_40;
+	per_cpu(cpu_gdt_table, cpu)[0x40 / 8] = save_desc_40;
 	put_cpu();
 	apm_restore_cpus(cpus);
 	
@@ -644,8 +644,8 @@ static u8 apm_bios_call_simple(u32 func, u32 ebx_in, u32 ecx_in, u32 *eax)
 	cpus = apm_save_cpus();
 	
 	cpu = get_cpu();
-	save_desc_40 = cpu_gdt_table[cpu][0x40 / 8];
-	cpu_gdt_table[cpu][0x40 / 8] = bad_bios_desc;
+	save_desc_40 = per_cpu(cpu_gdt_table, cpu)[0x40 / 8];
+	per_cpu(cpu_gdt_table, cpu)[0x40 / 8] = bad_bios_desc;
 
 	local_save_flags(flags);
 	APM_DO_CLI;
@@ -653,7 +653,7 @@ static u8 apm_bios_call_simple(u32 func, u32 ebx_in, u32 ecx_in, u32 *eax)
 	error = apm_bios_call_simple_asm(func, ebx_in, ecx_in, eax);
 	APM_DO_RESTORE_SEGS;
 	local_irq_restore(flags);
-	cpu_gdt_table[smp_processor_id()][0x40 / 8] = save_desc_40;
+	__get_cpu_var(cpu_gdt_table)[0x40 / 8] = save_desc_40;
 	put_cpu();
 	apm_restore_cpus(cpus);
 	return error;
@@ -1201,11 +1201,12 @@ static int suspend(int vetoable)
 		printk(KERN_CRIT "apm: suspend was vetoed, but suspending anyway.\n");
 	}
 
-	device_suspend(3);
-	device_power_down(3);
+	device_suspend(PMSG_SUSPEND);
+	local_irq_disable();
+	device_power_down(PMSG_SUSPEND);
 
 	/* serialize with the timer interrupt */
-	write_seqlock_irq(&xtime_lock);
+	write_seqlock(&xtime_lock);
 
 	/* protect against access to timer chip registers */
 	spin_lock(&i8253_lock);
@@ -1216,20 +1217,22 @@ static int suspend(int vetoable)
 	 * We'll undo any timer changes due to interrupts below.
 	 */
 	spin_unlock(&i8253_lock);
-	write_sequnlock_irq(&xtime_lock);
+	write_sequnlock(&xtime_lock);
+	local_irq_enable();
 
 	save_processor_state();
 	err = set_system_power_state(APM_STATE_SUSPEND);
+	ignore_normal_resume = 1;
 	restore_processor_state();
 
-	write_seqlock_irq(&xtime_lock);
+	local_irq_disable();
+	write_seqlock(&xtime_lock);
 	spin_lock(&i8253_lock);
 	reinit_timer();
 	set_time();
-	ignore_normal_resume = 1;
 
 	spin_unlock(&i8253_lock);
-	write_sequnlock_irq(&xtime_lock);
+	write_sequnlock(&xtime_lock);
 
 	if (err == APM_NO_ERROR)
 		err = APM_SUCCESS;
@@ -1237,6 +1240,7 @@ static int suspend(int vetoable)
 		apm_error("suspend", err);
 	err = (err == APM_SUCCESS) ? 0 : -EIO;
 	device_power_up();
+	local_irq_enable();
 	device_resume();
 	pm_send_all(PM_RESUME, (void *)0);
 	queue_event(APM_NORMAL_RESUME, NULL);
@@ -1255,17 +1259,22 @@ static void standby(void)
 {
 	int	err;
 
-	device_power_down(3);
+	local_irq_disable();
+	device_power_down(PMSG_SUSPEND);
 	/* serialize with the timer interrupt */
-	write_seqlock_irq(&xtime_lock);
+	write_seqlock(&xtime_lock);
 	/* If needed, notify drivers here */
 	get_time_diff();
-	write_sequnlock_irq(&xtime_lock);
+	write_sequnlock(&xtime_lock);
+	local_irq_enable();
 
 	err = set_system_power_state(APM_STATE_STANDBY);
 	if ((err != APM_SUCCESS) && (err != APM_NO_ERROR))
 		apm_error("standby", err);
+
+	local_irq_disable();
 	device_power_up();
+	local_irq_enable();
 }
 
 static apm_event_t get_event(void)
@@ -2271,10 +2280,12 @@ static int __init apm_init(void)
 	}
 	if ((num_online_cpus() > 1) && !power_off && !smp) {
 		printk(KERN_NOTICE "apm: disabled - APM is not SMP safe.\n");
+		apm_info.disabled = 1;
 		return -ENODEV;
 	}
 	if (PM_IS_ACTIVE()) {
 		printk(KERN_NOTICE "apm: overridden by ACPI.\n");
+		apm_info.disabled = 1;
 		return -ENODEV;
 	}
 	pm_active = 1;
@@ -2292,35 +2303,35 @@ static int __init apm_init(void)
 	apm_bios_entry.segment = APM_CS;
 
 	for (i = 0; i < NR_CPUS; i++) {
-		set_base(cpu_gdt_table[i][APM_CS >> 3],
+		set_base(per_cpu(cpu_gdt_table, i)[APM_CS >> 3],
 			 __va((unsigned long)apm_info.bios.cseg << 4));
-		set_base(cpu_gdt_table[i][APM_CS_16 >> 3],
+		set_base(per_cpu(cpu_gdt_table, i)[APM_CS_16 >> 3],
 			 __va((unsigned long)apm_info.bios.cseg_16 << 4));
-		set_base(cpu_gdt_table[i][APM_DS >> 3],
+		set_base(per_cpu(cpu_gdt_table, i)[APM_DS >> 3],
 			 __va((unsigned long)apm_info.bios.dseg << 4));
 #ifndef APM_RELAX_SEGMENTS
 		if (apm_info.bios.version == 0x100) {
 #endif
 			/* For ASUS motherboard, Award BIOS rev 110 (and others?) */
-			_set_limit((char *)&cpu_gdt_table[i][APM_CS >> 3], 64 * 1024 - 1);
+			_set_limit((char *)&per_cpu(cpu_gdt_table, i)[APM_CS >> 3], 64 * 1024 - 1);
 			/* For some unknown machine. */
-			_set_limit((char *)&cpu_gdt_table[i][APM_CS_16 >> 3], 64 * 1024 - 1);
+			_set_limit((char *)&per_cpu(cpu_gdt_table, i)[APM_CS_16 >> 3], 64 * 1024 - 1);
 			/* For the DEC Hinote Ultra CT475 (and others?) */
-			_set_limit((char *)&cpu_gdt_table[i][APM_DS >> 3], 64 * 1024 - 1);
+			_set_limit((char *)&per_cpu(cpu_gdt_table, i)[APM_DS >> 3], 64 * 1024 - 1);
 #ifndef APM_RELAX_SEGMENTS
 		} else {
-			_set_limit((char *)&cpu_gdt_table[i][APM_CS >> 3],
+			_set_limit((char *)&per_cpu(cpu_gdt_table, i)[APM_CS >> 3],
 				(apm_info.bios.cseg_len - 1) & 0xffff);
-			_set_limit((char *)&cpu_gdt_table[i][APM_CS_16 >> 3],
+			_set_limit((char *)&per_cpu(cpu_gdt_table, i)[APM_CS_16 >> 3],
 				(apm_info.bios.cseg_16_len - 1) & 0xffff);
-			_set_limit((char *)&cpu_gdt_table[i][APM_DS >> 3],
+			_set_limit((char *)&per_cpu(cpu_gdt_table, i)[APM_DS >> 3],
 				(apm_info.bios.dseg_len - 1) & 0xffff);
 		      /* workaround for broken BIOSes */
 	                if (apm_info.bios.cseg_len <= apm_info.bios.offset)
-        	                _set_limit((char *)&cpu_gdt_table[i][APM_CS >> 3], 64 * 1024 -1);
+        	                _set_limit((char *)&per_cpu(cpu_gdt_table, i)[APM_CS >> 3], 64 * 1024 -1);
                        if (apm_info.bios.dseg_len <= 0x40) { /* 0x40 * 4kB == 64kB */
                         	/* for the BIOS that assumes granularity = 1 */
-                        	cpu_gdt_table[i][APM_DS >> 3].b |= 0x800000;
+                        	per_cpu(cpu_gdt_table, i)[APM_DS >> 3].b |= 0x800000;
                         	printk(KERN_NOTICE "apm: we set the granularity of dseg.\n");
         	        }
 		}
@@ -2360,8 +2371,15 @@ static void __exit apm_exit(void)
 {
 	int	error;
 
-	if (set_pm_idle)
+	if (set_pm_idle) {
 		pm_idle = original_pm_idle;
+		/*
+		 * We are about to unload the current idle thread pm callback
+		 * (pm_idle), Wait for all processors to update cached/local
+		 * copies of pm_idle before proceeding.
+		 */
+		cpu_idle_wait();
+	}
 	if (((apm_info.bios.flags & APM_BIOS_DISENGAGED) == 0)
 	    && (apm_info.connection_version > 0x0100)) {
 		error = apm_engage_power_management(APM_DEVICE_ALL, 0);
@@ -2384,27 +2402,27 @@ module_exit(apm_exit);
 MODULE_AUTHOR("Stephen Rothwell");
 MODULE_DESCRIPTION("Advanced Power Management");
 MODULE_LICENSE("GPL");
-MODULE_PARM(debug, "i");
+module_param(debug, bool, 0644);
 MODULE_PARM_DESC(debug, "Enable debug mode");
-MODULE_PARM(power_off, "i");
+module_param(power_off, bool, 0444);
 MODULE_PARM_DESC(power_off, "Enable power off");
-MODULE_PARM(bounce_interval, "i");
+module_param(bounce_interval, int, 0444);
 MODULE_PARM_DESC(bounce_interval,
 		"Set the number of ticks to ignore suspend bounces");
-MODULE_PARM(allow_ints, "i");
+module_param(allow_ints, bool, 0444);
 MODULE_PARM_DESC(allow_ints, "Allow interrupts during BIOS calls");
-MODULE_PARM(broken_psr, "i");
+module_param(broken_psr, bool, 0444);
 MODULE_PARM_DESC(broken_psr, "BIOS has a broken GetPowerStatus call");
-MODULE_PARM(realmode_power_off, "i");
+module_param(realmode_power_off, bool, 0444);
 MODULE_PARM_DESC(realmode_power_off,
 		"Switch to real mode before powering off");
-MODULE_PARM(idle_threshold, "i");
+module_param(idle_threshold, int, 0444);
 MODULE_PARM_DESC(idle_threshold,
 	"System idle percentage above which to make APM BIOS idle calls");
-MODULE_PARM(idle_period, "i");
+module_param(idle_period, int, 0444);
 MODULE_PARM_DESC(idle_period,
 	"Period (in sec/100) over which to caculate the idle percentage");
-MODULE_PARM(smp, "i");
+module_param(smp, bool, 0444);
 MODULE_PARM_DESC(smp,
 	"Set this to enable APM use on an SMP platform. Use with caution on older systems");
 MODULE_ALIAS_MISCDEV(APM_MINOR_DEV);

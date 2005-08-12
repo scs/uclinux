@@ -33,6 +33,8 @@
 static unsigned int pci_probe = PCI_PROBE_CONF1;
 extern int pci_fixup_pcic(void);
 
+void pcibios_fixup_irqs(void) __attribute__ ((weak));
+
 /*
  * Direct access to PCI hardware...
  */
@@ -158,7 +160,6 @@ static int __init pci_check_direct(void)
  *  Handle bus scanning and fixups ....
  */
 
-#if !defined(CONFIG_SH_HS7751RVOIP) && !defined(CONFIG_SH_RTS7751R2D)
 static void __init pci_fixup_ide_bases(struct pci_dev *d)
 {
 	int i;
@@ -168,7 +169,7 @@ static void __init pci_fixup_ide_bases(struct pci_dev *d)
 	 */
 	if ((d->class >> 8) != PCI_CLASS_STORAGE_IDE)
 		return;
-	pr_debug("PCI: IDE base address fixup for %s\n", d->slot_name);
+	pr_debug("PCI: IDE base address fixup for %s\n", pci_name(d));
 	for(i=0; i<4; i++) {
 		struct resource *r = &d->resource[i];
 		if ((r->start & ~0x80) == 0x374) {
@@ -177,15 +178,8 @@ static void __init pci_fixup_ide_bases(struct pci_dev *d)
 		}
 	}
 }
-#endif
 
-/* Add future fixups here... */
-struct pci_fixup pcibios_fixups[] = {
-#if !defined(CONFIG_SH_HS7751RVOIP) && !defined(CONFIG_SH_RTS7751R2D)
-	{ PCI_FIXUP_HEADER,	PCI_ANY_ID,	PCI_ANY_ID,	pci_fixup_ide_bases },
-#endif
-	{ 0 }
-};
+DECLARE_PCI_FIXUP_HEADER(PCI_ANY_ID, PCI_ANY_ID, pci_fixup_ide_bases);
 
 /*
  *  Called after each bus is probed, but before its children
@@ -263,7 +257,7 @@ int __init sh7751_pcic_init(struct sh7751_pci_address_map *map)
 	outl(0, PCI_REG(SH7751_PCICLKR));
 	/* Clear Powerdown IRQ's (not done in reset) */
 	word = SH7751_PCIPINT_D3 | SH7751_PCIPINT_D0;
-	outl(word, PCI_REG(SH7751_PCICLKR));
+	outl(word, PCI_REG(SH7751_PCIPINT));
 
 	/*
 	 * This code is unused for some boards as it is done in the
@@ -368,7 +362,7 @@ int __init sh7751_pcic_init(struct sh7751_pci_address_map *map)
 	 * TODO: add support for the internal error interrupts and
 	 * DMA interrupts...
 	 */
-	 
+
 #ifdef CONFIG_SH_RTS7751R2D
 	pci_fixup_pcic();
 #endif
@@ -407,11 +401,11 @@ static int sh7751_pci_lookup_irq(struct pci_dev *dev, u8 slot, u8 pin)
 	/* now lookup the actual IRQ on a platform specific basis (pci-'platform'.c) */
 	irq = pcibios_map_platform_irq(slot,pin);
 	if( irq < 0 ) {
-		pr_debug("PCI: Error mapping IRQ on device %s\n", dev->slot_name);
+		pr_debug("PCI: Error mapping IRQ on device %s\n", pci_name(dev));
 		return irq;
 	}
-	
-	pr_debug("Setting IRQ for slot %s to %d\n", dev->slot_name, irq);
+
+	pr_debug("Setting IRQ for slot %s to %d\n", pci_name(dev), irq);
 
 	return irq;
 }

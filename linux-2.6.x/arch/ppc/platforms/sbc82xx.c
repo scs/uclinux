@@ -16,10 +16,11 @@
  */
 
 #include <linux/config.h>
-#include <linux/seq_file.h>
 #include <linux/stddef.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
+#include <linux/init.h>
+#include <linux/pci.h>
 
 #include <asm/mpc8260.h>
 #include <asm/machdep.h>
@@ -28,38 +29,11 @@
 #include <asm/immap_cpm2.h>
 #include <asm/pci.h>
 
-static void (*callback_setup_arch)(void);
 static void (*callback_init_IRQ)(void);
 
 extern unsigned char __res[sizeof(bd_t)];
 
-extern void m8260_init(unsigned long r3, unsigned long r4,
-	unsigned long r5, unsigned long r6, unsigned long r7);
-
 extern void (*late_time_init)(void);
-
-static int
-sbc82xx_show_cpuinfo(struct seq_file *m)
-{
-	bd_t	*binfo = (bd_t *)__res;
-
-	seq_printf(m, "vendor\t\t: Wind River\n"
-		      "machine\t\t: SBC PowerQUICC II\n"
-		      "\n"
-		      "mem size\t\t: 0x%08lx\n"
-		      "console baud\t\t: %ld\n"
-		      "\n",
-		      binfo->bi_memsize,
-		      binfo->bi_baudrate);
-	return 0;
-}
-
-static void __init
-sbc82xx_setup_arch(void)
-{
-	printk("SBC PowerQUICC II Port\n");
-	callback_setup_arch();
-}
 
 #ifdef CONFIG_GEN_RTC
 TODC_ALLOC();
@@ -94,7 +68,7 @@ static void sbc82xx_time_init(void)
 
 static volatile char *sbc82xx_i8259_map;
 static char sbc82xx_i8259_mask = 0xff;
-static spinlock_t sbc82xx_i8259_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(sbc82xx_i8259_lock);
 
 static void sbc82xx_i8259_mask_and_ack_irq(unsigned int irq_nr)
 {
@@ -168,9 +142,16 @@ static irqreturn_t sbc82xx_i8259_demux(int irq, void *dev_id, struct pt_regs *re
 			return IRQ_HANDLED;
 		}
 	}
-	ppc_irq_dispatch_handler(regs, NR_SIU_INTS + irq);
+	__do_IRQ(NR_SIU_INTS + irq, regs);
 	return IRQ_HANDLED;
 }
+
+static struct irqaction sbc82xx_i8259_irqaction = {
+	.handler = sbc82xx_i8259_demux,
+	.flags = SA_INTERRUPT,
+	.mask = CPU_MASK_NONE,
+	.name = "i8259 demux",
+};
 
 void __init sbc82xx_init_IRQ(void)
 {
@@ -212,8 +193,7 @@ void __init sbc82xx_init_IRQ(void)
 	sbc82xx_i8259_map[1] = sbc82xx_i8259_mask; /* Set interrupt mask */
 
 	/* Request cascade IRQ */
-	if (request_irq(SIU_INT_IRQ6, sbc82xx_i8259_demux, SA_INTERRUPT,
-			"i8259 demux", 0)) {
+	if (setup_irq(SIU_INT_IRQ6, &sbc82xx_i8259_irqaction)) {
 		printk("Installation of i8259 IRQ demultiplexer failed.\n");
 	}
 }
@@ -236,26 +216,36 @@ static int sbc82xx_pci_map_irq(struct pci_dev *dev, unsigned char idsel,
 	return PCI_IRQ_TABLE_LOOKUP;
 }
 
+static void __devinit quirk_sbc8260_cardbus(struct pci_dev *pdev)
+{
+	uint32_t ctrl;
 
+	if (pdev->bus->number != 0 || pdev->devfn != PCI_DEVFN(17, 0))
+		return;
+
+	printk(KERN_INFO "Setting up CardBus controller\n");
+
+	/* Set P2CCLK bit in System Control Register */
+	pci_read_config_dword(pdev, 0x80, &ctrl);
+	ctrl |= (1<<27);
+	pci_write_config_dword(pdev, 0x80, ctrl);
+
+	/* Set MFUNC up for PCI IRQ routing via INTA and INTB, and LEDs. */
+	pci_write_config_dword(pdev, 0x8c, 0x00c01d22);
+
+}
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_TI, PCI_DEVICE_ID_TI_1420, quirk_sbc8260_cardbus);
 
 void __init
-platform_init(unsigned long r3, unsigned long r4, unsigned long r5,
-	      unsigned long r6, unsigned long r7)
+m82xx_board_init(void)
 {
-	/* Generic 8260 platform initialization */
-	m8260_init(r3, r4, r5, r6, r7);
-
 	/* u-boot may be using one of the FCC Ethernet devices.
 	   Use the MAC address to the SCC. */
 	__res[offsetof(bd_t, bi_enetaddr[5])] &= ~3;
 
 	/* Anything special for this platform */
-	ppc_md.show_cpuinfo	= sbc82xx_show_cpuinfo;
-
-	callback_setup_arch	= ppc_md.setup_arch;
 	callback_init_IRQ	= ppc_md.init_IRQ;
 
-	ppc_md.setup_arch	= sbc82xx_setup_arch;
 	ppc_md.init_IRQ		= sbc82xx_init_IRQ;
 	ppc_md.pci_map_irq	= sbc82xx_pci_map_irq;
 #ifdef CONFIG_GEN_RTC

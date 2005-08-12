@@ -31,7 +31,7 @@
 #include "pci_impl.h"
 #include "machvec_impl.h"
 
-spinlock_t sable_lynx_irq_lock = SPIN_LOCK_UNLOCKED;
+DEFINE_SPINLOCK(sable_lynx_irq_lock);
 
 typedef struct irq_swizzle_struct
 {
@@ -566,7 +566,6 @@ struct alpha_machine_vector sable_mv __initmv = {
 	DO_EV4_MMU,
 	DO_DEFAULT_RTC,
 	DO_T2_IO,
-	DO_T2_BUS,
 	.machine_check		= t2_machine_check,
 	.max_isa_dma_address	= ALPHA_SABLE_MAX_ISA_DMA_ADDRESS,
 	.min_io_address		= EISA_DEFAULT_IO_BASE,
@@ -599,7 +598,6 @@ struct alpha_machine_vector sable_gamma_mv __initmv = {
 	DO_EV5_MMU,
 	DO_DEFAULT_RTC,
 	DO_T2_IO,
-	DO_T2_BUS,
 	.machine_check		= t2_machine_check,
 	.max_isa_dma_address	= ALPHA_SABLE_MAX_ISA_DMA_ADDRESS,
 	.min_io_address		= EISA_DEFAULT_IO_BASE,
@@ -631,7 +629,6 @@ struct alpha_machine_vector lynx_mv __initmv = {
 	DO_EV4_MMU,
 	DO_DEFAULT_RTC,
 	DO_T2_IO,
-	DO_T2_BUS,
 	.machine_check		= t2_machine_check,
 	.max_isa_dma_address	= ALPHA_SABLE_MAX_ISA_DMA_ADDRESS,
 	.min_io_address		= EISA_DEFAULT_IO_BASE,

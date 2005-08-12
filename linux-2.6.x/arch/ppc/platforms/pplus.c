@@ -359,7 +359,7 @@ void __init pplus_pib_init(void)
 	 * Perform specific configuration for the Via Tech or
 	 * or Winbond PCI-ISA-Bridge part.
 	 */
-	if ((dev = pci_find_device(PCI_VENDOR_ID_VIA,
+	if ((dev = pci_get_device(PCI_VENDOR_ID_VIA,
 				   PCI_DEVICE_ID_VIA_82C586_1, dev))) {
 		/*
 		 * PPCBUG does not set the enable bits
@@ -371,7 +371,7 @@ void __init pplus_pib_init(void)
 		pci_write_config_byte(dev, 0x40, reg);
 	}
 
-	if ((dev = pci_find_device(PCI_VENDOR_ID_VIA,
+	if ((dev = pci_get_device(PCI_VENDOR_ID_VIA,
 				   PCI_DEVICE_ID_VIA_82C586_2,
 				   dev)) && (dev->devfn = 0x5a)) {
 		/* Force correct USB interrupt */
@@ -379,7 +379,7 @@ void __init pplus_pib_init(void)
 		pci_write_config_byte(dev, PCI_INTERRUPT_LINE, dev->irq);
 	}
 
-	if ((dev = pci_find_device(PCI_VENDOR_ID_WINBOND,
+	if ((dev = pci_get_device(PCI_VENDOR_ID_WINBOND,
 				   PCI_DEVICE_ID_WINBOND_83C553, dev))) {
 		/* Clear PCI Interrupt Routing Control Register. */
 		short_reg = 0x0000;
@@ -389,7 +389,7 @@ void __init pplus_pib_init(void)
 		pci_write_config_byte(dev, 0x43, reg);
 	}
 
-	if ((dev = pci_find_device(PCI_VENDOR_ID_WINBOND,
+	if ((dev = pci_get_device(PCI_VENDOR_ID_WINBOND,
 				   PCI_DEVICE_ID_WINBOND_82C105, dev))) {
 		/*
 		 * Disable LEGIRQ mode so PCI INTS are routed
@@ -401,6 +401,7 @@ void __init pplus_pib_init(void)
 		dev->irq = 14;
 		pci_write_config_byte(dev, PCI_INTERRUPT_LINE, dev->irq);
 	}
+	pci_dev_put(dev);
 }
 
 void __init pplus_set_VIA_IDE_legacy(void)
@@ -583,8 +584,6 @@ static void __init pplus_setup_arch(void)
 	vgacon_remap_base = (unsigned long)ioremap(PPLUS_ISA_MEM_BASE,
 						   0x08000000);
 	conswitchp = &vga_con;
-#elif defined(CONFIG_DUMMY_CONSOLE)
-	conswitchp = &dummy_con;
 #endif
 #ifdef CONFIG_PPCBUG_NVRAM
 	/* Read in NVRAM data */
@@ -850,10 +849,10 @@ static __inline__ void pplus_set_bat(void)
 	mb();
 
 	/* setup DBATs */
-	mtspr(DBAT2U, 0x80001ffe);
-	mtspr(DBAT2L, 0x8000002a);
-	mtspr(DBAT3U, 0xf0001ffe);
-	mtspr(DBAT3L, 0xf000002a);
+	mtspr(SPRN_DBAT2U, 0x80001ffe);
+	mtspr(SPRN_DBAT2L, 0x8000002a);
+	mtspr(SPRN_DBAT3U, 0xf0001ffe);
+	mtspr(SPRN_DBAT3L, 0xf000002a);
 
 	/* wait for updates */
 	mb();

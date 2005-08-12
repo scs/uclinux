@@ -46,8 +46,8 @@ extern efi_status_t asmlinkage efi_call_phys(void *, ...);
 
 struct efi efi;
 EXPORT_SYMBOL(efi);
-struct efi efi_phys __initdata;
-struct efi_memory_map memmap __initdata;
+static struct efi efi_phys;
+struct efi_memory_map memmap;
 
 /*
  * We require an early boot_ioremap mapping mechanism initially
@@ -62,7 +62,7 @@ extern void * boot_ioremap(unsigned long, unsigned long);
  */
 
 static unsigned long efi_rt_eflags;
-static spinlock_t efi_rt_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(efi_rt_lock);
 static pgd_t efi_bak_pg_dir_pointer[2];
 
 static void efi_call_phys_prelog(void)
@@ -151,7 +151,7 @@ phys_efi_set_virtual_address_map(unsigned long memory_map_size,
 	return status;
 }
 
-efi_status_t
+static efi_status_t
 phys_efi_get_time(efi_time_t *tm, efi_time_cap_t *tc)
 {
 	efi_status_t status;
@@ -240,7 +240,8 @@ void __init efi_map_memmap(void)
 		printk(KERN_ERR PFX "Could not remap the EFI memmap!\n");
 }
 
-void __init print_efi_memmap(void)
+#if EFI_DEBUG
+static void __init print_efi_memmap(void)
 {
 	efi_memory_desc_t *md;
 	int i;
@@ -254,6 +255,7 @@ void __init print_efi_memmap(void)
 			(md->num_pages >> (20 - EFI_PAGE_SHIFT)));
 	}
 }
+#endif  /*  EFI_DEBUG  */
 
 /*
  * Walks the EFI memory map and calls CALLBACK once for each EFI

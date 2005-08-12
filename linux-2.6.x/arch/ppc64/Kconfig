@@ -1,4 +1,4 @@
-# 
+#
 # For a description of the syntax of this configuration file,
 # see Documentation/kbuild/kconfig-language.txt.
 #
@@ -20,6 +20,10 @@ config RWSEM_XCHGADD_ALGORITHM
 	bool
 	default y
 
+config GENERIC_CALIBRATE_DELAY
+	bool
+	default y
+
 config GENERIC_ISA_DMA
 	bool
 	default y
@@ -36,7 +40,7 @@ config COMPAT
 	bool
 	default y
 
-config FRAME_POINTER
+config SCHED_NO_NO_OMIT_FRAME_POINTER
 	bool
 	default y
 
@@ -58,15 +62,36 @@ menu "Platform support"
 
 choice
 	prompt "Platform Type"
-	default PPC_PSERIES
+	default PPC_MULTIPLATFORM
 
 config PPC_ISERIES
-	bool "iSeries"
+	bool "IBM Legacy iSeries"
 
-config PPC_PSERIES
-	bool "pSeries / PowerMac G5"
+config PPC_MULTIPLATFORM
+	bool "Generic"
 
 endchoice
+
+config PPC_PSERIES
+	depends on PPC_MULTIPLATFORM
+	bool "  IBM pSeries & new iSeries"
+	default y
+
+config PPC_PMAC
+	depends on PPC_MULTIPLATFORM
+	bool "  Apple G5 based machines"
+	default y
+	select U3_DART
+
+config PPC_MAPLE
+	depends on PPC_MULTIPLATFORM
+	bool "  Maple 970FX Evaluation Board"
+	select U3_DART
+	select MPIC_BROKEN_U3
+	default n
+	help
+          This option enables support for the Maple 970FX Evaluation Board.
+	  For more informations, refer to <http://www.970eval.com>
 
 config PPC
 	bool
@@ -77,7 +102,7 @@ config PPC64
 	default y
 
 config PPC_OF
-	depends on PPC_PSERIES
+	depends on PPC_MULTIPLATFORM
 	bool
 	default y
 
@@ -85,13 +110,8 @@ config PPC_OF
 # exception vectors for it
 config ALTIVEC
 	bool "Support for VMX (Altivec) vector unit"
-	depends on PPC_PSERIES
+	depends on PPC_MULTIPLATFORM
 	default y
-
-config PPC_PMAC
-	depends on PPC_PSERIES
-	bool "Apple PowerMac G5 support"
-	select ADB_PMU
 
 config PPC_SPLPAR
 	depends on PPC_PSERIES
@@ -103,16 +123,20 @@ config PPC_SPLPAR
 	  processors, that is, which share physical processors between
 	  two or more partitions.
 
-config PMAC_DART
-	bool "Enable DART/IOMMU on PowerMac (allow >2G of RAM)"
-	depends on PPC_PMAC
-	depends on EXPERIMENTAL
+config IBMVIO
+	depends on PPC_PSERIES || PPC_ISERIES
+	bool
+	default y
+
+config U3_DART
+	bool 
+	depends on PPC_MULTIPLATFORM
 	default n
-	help
-	  Enabling DART makes it possible to boot a PowerMac G5 with more
-	  than 2GB of memory. Note that the code is very new and untested
-	  at this time, so it has to be considered experimental. Enabling
-	  this might result in data loss.
+
+config MPIC_BROKEN_U3
+	bool
+	depends on PPC_MAPLE
+	default y
 
 config PPC_PMAC64
 	bool
@@ -161,14 +185,6 @@ config SMP
 
 	  If you don't know what to do here, say Y.
 
-config IRQ_ALL_CPUS
-	bool "Distribute interrupts on all CPUs by default"
-	depends on SMP && PPC_PSERIES
-	help
-	  This option gives the kernel permission to distribute IRQs across
-	  multiple CPUs.  Saying N here will route all IRQs to the first
-	  CPU.
-
 config NR_CPUS
 	int "Maximum number of CPUs (2-128)"
 	range 2 128
@@ -177,7 +193,10 @@ config NR_CPUS
 
 config HMT
 	bool "Hardware multithreading"
-	depends on SMP && PPC_PSERIES
+	depends on SMP && PPC_PSERIES && BROKEN
+	help
+	  This option enables hardware multithreading on RS64 cpus.
+	  pSeries systems p620 and p660 have such a cpu type.
 
 config DISCONTIGMEM
 	bool "Discontiguous Memory Support"
@@ -206,6 +225,29 @@ config PREEMPT
 	  Say Y here if you are building a kernel for a desktop, embedded
 	  or real-time system.  Say N if you are unsure.
 
+config PREEMPT_BKL
+	bool "Preempt The Big Kernel Lock"
+	depends on PREEMPT
+	default y
+	help
+	  This option reduces the latency of the kernel by making the
+	  big kernel lock preemptible.
+
+	  Say Y here if you are building a kernel for a desktop system.
+	  Say N if you are unsure.
+
+config EEH
+	bool "PCI Extended Error Handling (EEH)" if EMBEDDED
+	depends on PPC_PSERIES
+	default y if !EMBEDDED
+
+#
+# Use the generic interrupt handling code in kernel/irq/:
+#
+config GENERIC_HARDIRQS
+	bool
+	default y
+
 config MSCHUNKS
 	bool
 	depends on PPC_ISERIES
@@ -213,25 +255,52 @@ config MSCHUNKS
 
 
 config PPC_RTAS
+	bool
+	depends on PPC_PSERIES
+	default y
+
+config RTAS_PROC
 	bool "Proc interface to RTAS"
-	depends on !PPC_ISERIES
+	depends on PPC_RTAS
+	default y
 
 config RTAS_FLASH
 	tristate "Firmware flash interface"
-	depends on PPC_RTAS
+	depends on RTAS_PROC
 
 config SCANLOG
 	tristate "Scanlog dump interface"
-	depends on PPC_RTAS
+	depends on RTAS_PROC && PPC_PSERIES
 
 config LPARCFG
 	tristate "LPAR Configuration Data"
+	depends on PPC_PSERIES || PPC_ISERIES
 	help
-	Provide system capacity information via human readable 
+	Provide system capacity information via human readable
 	<key word>=<value> pairs through a /proc/ppc64/lparcfg interface.
+
+config SECCOMP
+	bool "Enable seccomp to safely compute untrusted bytecode"
+	depends on PROC_FS
+	default y
+	help
+	  This kernel feature is useful for number crunching applications
+	  that may need to compute untrusted bytecode during their
+	  execution. By using pipes or other transports made available to
+	  the process as file descriptors supporting the read/write
+	  syscalls, it's possible to isolate those applications in
+	  their own address space using seccomp. Once seccomp is
+	  enabled via /proc/<pid>/seccomp, it cannot be disabled
+	  and the task is only allowed to execute a few safe syscalls
+	  defined by each seccomp mode.
+
+	  If unsure, say Y. Only embedded should say N here.
 
 endmenu
 
+config ISA_DMA_API
+	bool
+	default y
 
 menu "General setup"
 
@@ -272,7 +341,8 @@ source "drivers/pci/Kconfig"
 
 config HOTPLUG_CPU
 	bool "Support for hot-pluggable CPUs"
-	depends on SMP && HOTPLUG && EXPERIMENTAL
+	depends on SMP && EXPERIMENTAL && (PPC_PSERIES || PPC_PMAC)
+	select HOTPLUG
 	---help---
 	  Say Y here to be able to turn CPUs off and on.
 
@@ -343,102 +413,15 @@ config VIOPATH
 
 source "arch/ppc64/oprofile/Kconfig"
 
-menu "Kernel hacking"
-
-config DEBUG_KERNEL
-	bool "Kernel debugging"
-	help
-	  Say Y here if you are developing drivers or trying to debug and
-	  identify kernel problems.
-
-config DEBUG_STACKOVERFLOW
-	bool "Check for stack overflows"
-	depends on DEBUG_KERNEL
-
-config DEBUG_STACK_USAGE
-	bool "Stack utilization instrumentation"
-	depends on DEBUG_KERNEL
-	help
-	  Enables the display of the minimum amount of free stack which each
-	  task has ever had available in the sysrq-T and sysrq-P debug output.
-
-	  This option will slow down process creation somewhat.
-
-config DEBUG_SLAB
-	bool "Debug memory allocations"
-	depends on DEBUG_KERNEL
-	help
-	  Say Y here to have the kernel do limited verification on memory
-	  allocation as well as poisoning memory on free to catch use of freed
-	  memory.
-
-config MAGIC_SYSRQ
-	bool "Magic SysRq key"
-	depends on DEBUG_KERNEL
-	help
-	  If you say Y here, you will have some control over the system even
-	  if the system crashes for example during kernel debugging (e.g., you
-	  will be able to flush the buffer cache to disk, reboot the system
-	  immediately or dump some status information). This is accomplished
-	  by pressing various keys while holding SysRq (Alt+PrintScreen). It
-	  also works on a serial console (on PC hardware at least), if you
-	  send a BREAK and then within 5 seconds a command keypress. The
-	  keys are documented in <file:Documentation/sysrq.txt>. Don't say Y
-	  unless you really know what this hack does.
-
-config DEBUGGER
-	bool "Enable debugger hooks"
-	depends on DEBUG_KERNEL
-	help
-	  Include in-kernel hooks for kernel debuggers. Unless you are
-	  intending to debug the kernel, say N here.
-
-config XMON
-	bool "Include xmon kernel debugger"
-	depends on DEBUGGER
-	help
-	  Include in-kernel hooks for the xmon kernel monitor/debugger.
-	  Unless you are intending to debug the kernel, say N here.
-
-config XMON_DEFAULT
-	bool "Enable xmon by default"
-	depends on XMON
-
-config PPCDBG
-	bool "Include PPCDBG realtime debugging"
-	depends on DEBUG_KERNEL
-
-config DEBUG_INFO
-	bool "Compile the kernel with debug info"
-	depends on DEBUG_KERNEL
-	help
-          If you say Y here the resulting kernel image will include
-	  debugging info resulting in a larger kernel image.
-	  Say Y here only if you plan to use gdb to debug the kernel.
-	  If you don't debug the kernel, you can say N.
-
-config IRQSTACKS
-	bool "Use separate kernel stacks when processing interrupts"
-	help
-	  If you say Y here the kernel will use separate kernel stacks
-	  for handling hard and soft interrupts.  This can help avoid
-	  overflowing the process kernel stacks.
-	  
-config SPINLINE
-	bool "Inline spinlock code at each call site"
-	depends on SMP && !PPC_SPLPAR && !PPC_ISERIES
-	help
-	  Say Y if you want to have the code for acquiring spinlocks
-	  and rwlocks inlined at each call site.  This makes the kernel
-	  somewhat bigger, but can be useful when profiling the kernel.
-
-	  If in doubt, say N.
-
-endmenu
+source "arch/ppc64/Kconfig.debug"
 
 source "security/Kconfig"
+
+config KEYS_COMPAT
+	bool
+	depends on COMPAT && KEYS
+	default y
 
 source "crypto/Kconfig"
 
 source "lib/Kconfig"
-

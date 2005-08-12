@@ -30,11 +30,23 @@ config RWSEM_XCHGADD_ALGORITHM
 	bool
 	default y
 
+config GENERIC_CALIBRATE_DELAY
+	bool
+	default y
+
 config TIME_INTERPOLATION
 	bool
 	default y
 
 config EFI
+	bool
+	default y
+
+config GENERIC_IOMAP
+	bool
+	default y
+
+config SCHED_NO_NO_OMIT_FRAME_POINTER
 	bool
 	default y
 
@@ -53,11 +65,12 @@ config IA64_GENERIC
 	  will run on any supported IA-64 system.  However, if you configure
 	  a kernel for your specific system, it will be faster and smaller.
 
-	  generic	 For any supported IA-64 system
-	  DIG-compliant	 For DIG ("Developer's Interface Guide") compliant systems
-	  HP-zx1/sx1000	 For HP systems
-	  SGI-SN2	 For SGI Altix systems
-	  Ski-simulator  For the HP simulator <http://www.hpl.hp.com/research/linux/ski/>
+	  generic		For any supported IA-64 system
+	  DIG-compliant		For DIG ("Developer's Interface Guide") compliant systems
+	  HP-zx1/sx1000		For HP systems
+	  HP-zx1/sx1000+swiotlb	For HP systems with (broken) DMA-constrained devices.
+	  SGI-SN2		For SGI Altix systems
+	  Ski-simulator		For the HP simulator <http://www.hpl.hp.com/research/linux/ski/>
 
 	  If you don't know what to do, choose "generic".
 
@@ -70,8 +83,23 @@ config IA64_HP_ZX1
 	  Build a kernel that runs on HP zx1 and sx1000 systems.  This adds
 	  support for the HP I/O MMU.
 
+config IA64_HP_ZX1_SWIOTLB
+	bool "HP-zx1/sx1000 with software I/O TLB"
+	help
+	  Build a kernel that runs on HP zx1 and sx1000 systems even when they
+	  have broken PCI devices which cannot DMA to full 32 bits.  Apart
+	  from support for the HP I/O MMU, this includes support for the software
+	  I/O TLB, which allows supporting the broken devices at the expense of
+	  wasting some kernel memory (about 2MB by default).
+
 config IA64_SGI_SN2
 	bool "SGI-SN2"
+	help
+	  Selecting this option will optimize the kernel for use on sn2 based
+	  systems, but the resulting kernel binary will not run on other
+	  types of ia64 systems.  If you have an SGI Altix system, it's safe
+	  to select this option.  If in doubt, select ia64 generic support
+	  instead.
 
 config IA64_HP_SIM
 	bool "Ski-simulator"
@@ -134,14 +162,6 @@ config IA64_BRL_EMU
 	depends on ITANIUM
 	default y
 
-config ITANIUM_BSTEP_SPECIFIC
-	bool "Itanium B-step specific code"
-	depends on ITANIUM
-	help
-	  Select this option to build a kernel for an Itanium prototype system
-	  with a B-step CPU.  You have a B-step CPU if the "revision" field in
-	  /proc/cpuinfo has a value in the range from 1 to 4.
-
 # align cache-sensitive data to 128 bytes
 config IA64_L1_CACHE_SHIFT
 	int
@@ -153,6 +173,7 @@ config NUMA
 	bool "NUMA support"
 	depends on !IA64_HP_SIM
 	default y if IA64_SGI_SN2
+	select ACPI_NUMA
 	help
 	  Say Y to compile the kernel to support NUMA (Non-Uniform Memory
 	  Access).  This option is for configuring high-end multiprocessor
@@ -168,9 +189,13 @@ config VIRTUAL_MEM_MAP
 	  require the DISCONTIGMEM option for your machine. If you are
 	  unsure, say Y.
 
+config HOLES_IN_ZONE
+	bool
+	default y if VIRTUAL_MEM_MAP
+
 config DISCONTIGMEM
 	bool "Discontiguous memory support"
-	depends on (IA64_DIG || IA64_SGI_SN2 || IA64_GENERIC || IA64_HP_ZX1) && NUMA && VIRTUAL_MEM_MAP
+	depends on (IA64_DIG || IA64_SGI_SN2 || IA64_GENERIC || IA64_HP_ZX1 || IA64_HP_ZX1_SWIOTLB) && NUMA && VIRTUAL_MEM_MAP
 	default y if (IA64_SGI_SN2 || IA64_GENERIC) && NUMA
 	help
 	  Say Y to support efficient handling of discontiguous physical memory,
@@ -195,6 +220,16 @@ config IA64_SGI_SN_SIM
 	help
 	  If you are compiling a kernel that will run under SGI's IA-64
 	  simulator (Medusa) then say Y, otherwise say N.
+
+config IA64_SGI_SN_XP
+	tristate "Support communication between SGI SSIs"
+	depends on MSPEC
+	help
+	  An SGI machine can be divided into multiple Single System
+	  Images which act independently of each other and have
+	  hardware based memory protection from the others.  Enabling
+	  this feature will allow for direct communication between SSIs
+	  based on a network adapter and DMA messaging.
 
 config FORCE_MAX_ZONEORDER
 	int
@@ -231,13 +266,23 @@ config NR_CPUS
 	  performance hit.
 
 config HOTPLUG_CPU
-    bool "Support for hot-pluggable CPUs (EXPERIMENTAL)"
-    depends on SMP && HOTPLUG && EXPERIMENTAL
+	bool "Support for hot-pluggable CPUs (EXPERIMENTAL)"
+	depends on SMP && EXPERIMENTAL
+	select HOTPLUG
 	default n
-    ---help---
-      Say Y here to experiment with turning CPUs off and on.  CPUs
-      can be controlled through /sys/devices/system/cpu/cpu#.
-      Say N if you want to disable CPU hotplug.
+	---help---
+	  Say Y here to experiment with turning CPUs off and on.  CPUs
+	  can be controlled through /sys/devices/system/cpu/cpu#.
+	  Say N if you want to disable CPU hotplug.
+
+config SCHED_SMT
+	bool "SMT scheduler support"
+	depends on SMP
+	default off
+	help
+	  Improves the CPU scheduler's decision making when dealing with
+	  Intel IA64 chips with MultiThreading at a cost of slightly increased
+	  overhead in some places. If unsure say N here.
 
 config PREEMPT
 	bool "Preemptible Kernel"
@@ -270,6 +315,9 @@ config COMPAT
 	depends on IA32_SUPPORT
 	default y
 
+config IA64_MCA_RECOVERY
+	tristate "MCA recovery from errors other than TLB."
+
 config PERFMON
 	bool "Performance monitor support"
 	help
@@ -289,6 +337,11 @@ config IA64_PALINFO
 	  To use this option, you have to ensure that the "/proc file system
 	  support" (CONFIG_PROC_FS) is enabled, too.
 
+config ACPI_DEALLOCATE_IRQ
+	bool
+	depends on IOSAPIC && EXPERIMENTAL
+	default y
+
 source "drivers/firmware/Kconfig"
 
 source "fs/Kconfig.binfmt"
@@ -299,7 +352,7 @@ menu "Power management and ACPI"
 
 config PM
 	bool "Power Management support"
-	depends on IA64_GENERIC || IA64_DIG || IA64_HP_ZX1
+	depends on !IA64_HP_SIM
 	default y
 	help
 	  "Power Management" means that parts of your computer are shut
@@ -368,123 +421,22 @@ source "fs/Kconfig"
 
 source "lib/Kconfig"
 
+#
+# Use the generic interrupt handling code in kernel/irq/:
+#
+config GENERIC_HARDIRQS
+	bool
+	default y
+
+config GENERIC_IRQ_PROBE
+	bool
+	default y
+
 source "arch/ia64/hp/sim/Kconfig"
 
 source "arch/ia64/oprofile/Kconfig"
 
-menu "Kernel hacking"
-
-choice
-	prompt "Physical memory granularity"
-	default IA64_GRANULE_64MB
-
-config IA64_GRANULE_16MB
-	bool "16MB"
-	help
-	  IA-64 identity-mapped regions use a large page size called "granules".
-
-	  Select "16MB" for a small granule size.
-	  Select "64MB" for a large granule size.  This is the current default.
-
-config IA64_GRANULE_64MB
-	bool "64MB"
-	depends on !(IA64_GENERIC || IA64_HP_ZX1 || IA64_SGI_SN2)
-
-endchoice
-
-config DEBUG_KERNEL
-	bool "Kernel debugging"
-	help
-	  Say Y here if you are developing drivers or trying to debug and
-	  identify kernel problems.
-
-config IA64_PRINT_HAZARDS
-	bool "Print possible IA-64 dependency violations to console"
-	depends on DEBUG_KERNEL
-	help
-	  Selecting this option prints more information for Illegal Dependency
-	  Faults, that is, for Read-after-Write (RAW), Write-after-Write (WAW),
-	  or Write-after-Read (WAR) violations.  This option is ignored if you
-	  are compiling for an Itanium A step processor
-	  (CONFIG_ITANIUM_ASTEP_SPECIFIC).  If you're unsure, select Y.
-
-config DISABLE_VHPT
-	bool "Disable VHPT"
-	depends on DEBUG_KERNEL
-	help
-	  The Virtual Hash Page Table (VHPT) enhances virtual address
-	  translation performance.  Normally you want the VHPT active but you
-	  can select this option to disable the VHPT for debugging.  If you're
-	  unsure, answer N.
-
-config MAGIC_SYSRQ
-	bool "Magic SysRq key"
-	depends on DEBUG_KERNEL
-	help
-	  If you say Y here, you will have some control over the system even
-	  if the system crashes for example during kernel debugging (e.g., you
-	  will be able to flush the buffer cache to disk, reboot the system
-	  immediately or dump some status information). This is accomplished
-	  by pressing various keys while holding SysRq (Alt+PrintScreen). It
-	  also works on a serial console (on PC hardware at least), if you
-	  send a BREAK and then within 5 seconds a command keypress. The
-	  keys are documented in <file:Documentation/sysrq.txt>. Don't say Y
-	  unless you really know what this hack does.
-
-config DEBUG_SLAB
-	bool "Debug memory allocations"
-	depends on DEBUG_KERNEL
-	help
-	  Say Y here to have the kernel do limited verification on memory
-	  allocation as well as poisoning memory on free to catch use of freed
-	  memory.
-
-config DEBUG_SPINLOCK
-	bool "Spinlock debugging"
-	depends on DEBUG_KERNEL
-	help
-	  Say Y here and build SMP to catch missing spinlock initialization
-	  and certain other kinds of spinlock errors commonly made.  This is
-	  best used in conjunction with the NMI watchdog so that spinlock
-	  deadlocks are also debuggable.
-
-config DEBUG_SPINLOCK_SLEEP
-	  bool "Sleep-inside-spinlock checking"
-	  help
-	    If you say Y here, various routines which may sleep will become very
-	    noisy if they are called with a spinlock held.
-
-config IA64_DEBUG_CMPXCHG
-	bool "Turn on compare-and-exchange bug checking (slow!)"
-	depends on DEBUG_KERNEL
-	help
-	  Selecting this option turns on bug checking for the IA-64
-	  compare-and-exchange instructions.  This is slow!  Itaniums
-	  from step B3 or later don't have this problem. If you're unsure,
-	  select N.
-
-config IA64_DEBUG_IRQ
-	bool "Turn on irq debug checks (slow!)"
-	depends on DEBUG_KERNEL
-	help
-	  Selecting this option turns on bug checking for the IA-64 irq_save
-	  and restore instructions.  It's useful for tracking down spinlock
-	  problems, but slow!  If you're unsure, select N.
-
-config DEBUG_INFO
-	bool "Compile the kernel with debug info"
-	depends on DEBUG_KERNEL
-	help
-          If you say Y here the resulting kernel image will include
-	  debugging info resulting in a larger kernel image.
-	  Say Y here only if you plan to use gdb to debug the kernel.
-	  If you don't debug the kernel, you can say N.
-
-config SYSVIPC_COMPAT
-	bool
-	depends on COMPAT && SYSVIPC
-	default y
-endmenu
+source "arch/ia64/Kconfig.debug"
 
 source "security/Kconfig"
 

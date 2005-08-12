@@ -59,7 +59,7 @@ static int amba_hotplug(struct device *dev, char **envp, int nr_env, char *buf, 
 #define amba_hotplug NULL
 #endif
 
-static int amba_suspend(struct device *dev, u32 state)
+static int amba_suspend(struct device *dev, pm_message_t state)
 {
 	struct amba_driver *drv = to_amba_driver(dev->driver);
 	int ret = 0;
@@ -194,7 +194,7 @@ amba_attr(resource, "\t%08lx\t%08lx\t%08lx\n",
 int amba_device_register(struct amba_device *dev, struct resource *parent)
 {
 	u32 pid, cid;
-	void *tmp;
+	void __iomem *tmp;
 	int i, ret;
 
 	dev->dev.release = amba_device_release;

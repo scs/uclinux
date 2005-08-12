@@ -43,7 +43,6 @@ extern void * __rd_start, * __rd_end;
  */
 struct sh_cpuinfo boot_cpu_data = { CPU_SH_NONE, 0, 10000000, };
 struct screen_info screen_info;
-unsigned char aux_device_present = 0xaa;
 
 #if defined(CONFIG_SH_UNKNOWN)
 struct sh_machine_vector sh_mv;
@@ -443,6 +442,7 @@ static const char *cpu_name[] = {
 	[CPU_SH7751]	= "SH7751",
 	[CPU_SH7751R]	= "SH7751R",
 	[CPU_SH7760]	= "SH7760",
+	[CPU_SH73180]	= "SH73180",
 	[CPU_ST40RA]	= "ST40RA",
 	[CPU_ST40GX1]	= "ST40GX1",
 	[CPU_SH4_202]	= "SH4-202",
@@ -457,7 +457,7 @@ const char *get_cpu_subtype(void)
 
 #ifdef CONFIG_PROC_FS
 static const char *cpu_flags[] = {
-	"none", "fpu", "p2flush", "mmuassoc", "dsp",
+	"none", "fpu", "p2flush", "mmuassoc", "dsp", "perfctr",
 };
 
 static void show_cpuflags(struct seq_file *m)

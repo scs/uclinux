@@ -1,7 +1,7 @@
 /*
  *	vmlinux.lds.S -- master linker script for m68knommu arch
  *
- *	(C) Copyright 2002-2003, Greg Ungerer <gerg@snapgear.com>
+ *	(C) Copyright 2002-2004, Greg Ungerer <gerg@snapgear.com>
  *
  *	This ends up looking compilcated, because of the number of
  *	address variations for ram and rom/flash layouts. The real
@@ -117,29 +117,28 @@
  */
 #if defined(CONFIG_M5206eC3) || defined(CONFIG_M5249C3) || \
     defined(CONFIG_M5272C3) || defined(CONFIG_M5307C3) || \
-    defined(CONFIG_ARN5307) || defined(CONFIG_M5407C3)
+    defined(CONFIG_ARN5307) || defined(CONFIG_M5407C3) || \
+    defined(CONFIG_M5271EVB) || defined(CONFIG_M5275EVB)
 #define	RAM_START	0x20000
 #define	RAM_LENGTH	0x3e0000
 #endif
 
 /*
- *   The senTec COBRA5272 board has nearly the same
- *   memory layout as the M5272C3.
- *   We assume 16MB ram.
+ *	The senTec COBRA5272 board has nearly the same memory layout as 
+ *	the M5272C3. We assume 16MiB ram.
  */
 #if defined(CONFIG_COBRA5272)
 #define RAM_START   0x20000
 #define RAM_LENGTH  0xfe0000
 #endif
 
-#if defined(CONFIG_M5282C3)
+#if defined(CONFIG_M5282EVB)
 #define	RAM_START	0x10000
 #define	RAM_LENGTH	0x3f0000
 #endif
 
 /*
- *   The senTec COBRA5282 board has the same
- *   memory layout as the M5282C3.
+ *	The senTec COBRA5282 board has the same memory layout as the M5282EVB.
  */
 #if defined(CONFIG_COBRA5282)
 #define  RAM_START   0x10000
@@ -153,10 +152,21 @@
  */
 #if defined(CONFIG_NETtel) || defined(CONFIG_eLIA) || \
     defined(CONFIG_DISKtel) || defined(CONFIG_SECUREEDGEMP3) || \
-    defined(CONFIG_CLEOPATRA)
+    defined(CONFIG_HW_FEITH)
 #define	RAM_START	0x400
 #define	RAM_LENGTH	0x3ffc00
 #endif
+
+/*
+ *	Sneha Boards mimimun memmory
+ *	The end of RAM will vary depending on how much ram is fitted,
+ *	but this isn't important here, we assume at least 4MiB.
+ */
+#if defined(CONFIG_CPU16B)   
+#define	RAM_START	0x20000
+#define	RAM_LENGTH	0x3e0000
+#endif
+
 
 #if defined(CONFIG_RAMKERNEL)
 #define	TEXT		ram
@@ -247,6 +257,11 @@ SECTIONS {
 		/* Kernel symbol table: strings */
 		*(__ksymtab_strings)
 
+		/* Built-in module parameters */
+		__start___param = .;
+		*(__param)
+		__stop___param = .;
+
 		. = ALIGN(4) ;
 		_etext = . ;
 	} > TEXT
@@ -284,9 +299,6 @@ SECTIONS {
 		__setup_start = .;
 		*(.init.setup)
 		__setup_end = .;
-		__start___param = .;
-		*(__param)
-		__stop___param = .;
 		__initcall_start = .;
 		*(.initcall1.init)
 		*(.initcall2.init)
@@ -306,7 +318,7 @@ SECTIONS {
 		__initramfs_start = .;
 		*(.init.ramfs)
 		__initramfs_end = .;
-		. = ALIGN(4);
+		. = ALIGN(4096);
 		__init_end = .;
 	} > INIT
 

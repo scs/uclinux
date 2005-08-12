@@ -28,8 +28,7 @@
 
 static struct saved_context saved_context;
 
-unsigned long saved_context_eax, saved_context_ebx;
-unsigned long saved_context_ecx, saved_context_edx;
+unsigned long saved_context_ebx;
 unsigned long saved_context_esp, saved_context_ebp;
 unsigned long saved_context_esi, saved_context_edi;
 unsigned long saved_context_eflags;
@@ -83,10 +82,10 @@ do_fpu_end(void)
 static void fix_processor_context(void)
 {
 	int cpu = smp_processor_id();
-	struct tss_struct * t = init_tss + cpu;
+	struct tss_struct * t = &per_cpu(init_tss, cpu);
 
 	set_tss_desc(cpu,t);	/* This just modifies memory; should not be necessary. But... This is necessary, because 386 hardware has concept of busy TSS or some similar stupidity. */
-        cpu_gdt_table[cpu][GDT_ENTRY_TSS].b &= 0xfffffdff;
+        per_cpu(cpu_gdt_table, cpu)[GDT_ENTRY_TSS].b &= 0xfffffdff;
 
 	load_TR_desc();				/* This does ltr */
 	load_LDT(&current->active_mm->context);	/* This does lldt */
@@ -148,6 +147,6 @@ void restore_processor_state(void)
 	__restore_processor_state(&saved_context);
 }
 
-
+/* Needed by apm.c */
 EXPORT_SYMBOL(save_processor_state);
 EXPORT_SYMBOL(restore_processor_state);

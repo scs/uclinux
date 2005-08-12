@@ -16,7 +16,7 @@ SECTIONS
 	SCHED_TEXT
 	*(.fixup)
 	*(.gnu.warning)
-	} = 0x4e75
+	} :text = 0x4e75
 	RODATA
 
   _etext = .;			/* End of text section */
@@ -28,7 +28,7 @@ SECTIONS
 	__start___ex_table = .;
 	*(__ex_table)
 	__stop___ex_table = .;
-	}
+	} :data
   /* End of data goes *here* so that freeing init code works properly. */
   _edata = .;
 
@@ -45,9 +45,6 @@ __init_begin = .;
 	__setup_start = .;
 	.init.setup : { *(.init.setup) }
 	__setup_end = .;
-	__start___param = .;
-	__param : { *(__param) }
-	__stop___param = .;
 	__initcall_start = .;
 	.initcall.init : {
 		*(.initcall1.init)

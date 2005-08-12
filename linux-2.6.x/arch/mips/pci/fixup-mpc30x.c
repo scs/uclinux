@@ -29,7 +29,7 @@ static const int internal_func_irqs[] __initdata = {
 	VRC4173_USB_IRQ,
 };
 
-static char irq_tab_mpc30x[] __initdata = {
+static const int irq_tab_mpc30x[] __initdata = {
  [12] = VRC4173_PCMCIA1_IRQ,
  [13] = VRC4173_PCMCIA2_IRQ,
  [29] = MQ200_IRQ,
@@ -43,6 +43,8 @@ int __init pcibios_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
 	return irq_tab_mpc30x[slot];
 }
 
-struct pci_fixup pcibios_fixups[] __initdata = {
-	{	.pass = 0,	},
-};
+/* Do platform specific device initialization at pci_enable_device() time */
+int pcibios_plat_dev_init(struct pci_dev *dev)
+{
+	return 0;
+}

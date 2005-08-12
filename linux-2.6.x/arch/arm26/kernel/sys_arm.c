@@ -13,6 +13,7 @@
  *  have a non-standard calling sequence on the Linux/arm
  *  platform.
  */
+#include <linux/module.h>
 #include <linux/errno.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
@@ -63,10 +64,10 @@ inline long do_mmap2(
 	flags &= ~(MAP_EXECUTABLE | MAP_DENYWRITE);
 
 	/*
-	 * If we are doing a fixed mapping, and address < PAGE_SIZE,
+	 * If we are doing a fixed mapping, and address < FIRST_USER_ADDRESS,
 	 * then deny it.
 	 */
-	if (flags & MAP_FIXED && addr < PAGE_SIZE && vectors_base() == 0)
+	if (flags & MAP_FIXED && addr < FIRST_USER_ADDRESS)
 		goto out;
 
 	error = -EBADF;
@@ -120,11 +121,10 @@ sys_arm_mremap(unsigned long addr, unsigned long old_len,
 	unsigned long ret = -EINVAL;
 
 	/*
-	 * If we are doing a fixed mapping, and address < PAGE_SIZE,
+	 * If we are doing a fixed mapping, and address < FIRST_USER_ADDRESS,
 	 * then deny it.
 	 */
-	if (flags & MREMAP_FIXED && new_addr < PAGE_SIZE &&
-	    vectors_base() == 0)
+	if (flags & MREMAP_FIXED && new_addr < FIRST_USER_ADDRESS)
 		goto out;
 
 	down_write(&current->mm->mmap_sem);
@@ -256,7 +256,7 @@ asmlinkage int sys_clone(unsigned long clone_flags, unsigned long newsp, struct 
 	if (!newsp)
 		newsp = regs->ARM_sp;
 
-	return do_fork(clone_flags & ~CLONE_IDLETASK, newsp, regs, 0, NULL, NULL);
+	return do_fork(clone_flags, newsp, regs, 0, NULL, NULL);
 }
 
 asmlinkage int sys_vfork(struct pt_regs *regs)
@@ -281,3 +281,43 @@ asmlinkage int sys_execve(char *filenamei, char **argv, char **envp, struct pt_r
 out:
 	return error;
 }
+
+/* FIXME - see if this is correct for arm26 */
+long execve(const char *filename, char **argv, char **envp)
+{
+	struct pt_regs regs;
+        int ret;
+         memset(&regs, 0, sizeof(struct pt_regs));
+        ret = do_execve((char *)filename, (char __user * __user *)argv,                         (char __user * __user *)envp, &regs);
+        if (ret < 0)
+                goto out;
+
+        /*
+         * Save argc to the register structure for userspace.
+         */
+        regs.ARM_r0 = ret;
+
+        /*
+         * We were successful.  We won't be returning to our caller, but
+         * instead to user space by manipulating the kernel stack.
+         */
+        asm(    "add    r0, %0, %1\n\t"
+                "mov    r1, %2\n\t"
+                "mov    r2, %3\n\t"
+                "bl     memmove\n\t"    /* copy regs to top of stack */
+                "mov    r8, #0\n\t"     /* not a syscall */
+                "mov    r9, %0\n\t"     /* thread structure */
+                "mov    sp, r0\n\t"     /* reposition stack pointer */
+                "b      ret_to_user"
+                :
+                : "r" (current_thread_info()),
+                  "Ir" (THREAD_SIZE - 8 - sizeof(regs)),
+                  "r" (&regs),
+                  "Ir" (sizeof(regs))
+                : "r0", "r1", "r2", "r3", "ip", "memory");
+
+ out:
+        return ret;
+}
+
+EXPORT_SYMBOL(execve);

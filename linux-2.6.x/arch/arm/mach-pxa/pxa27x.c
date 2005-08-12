@@ -16,8 +16,11 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/pm.h>
+#include <linux/device.h>
 
 #include <asm/hardware.h>
+#include <asm/irq.h>
+#include <asm/arch/pxa-regs.h>
 
 #include "generic.h"
 
@@ -116,3 +119,81 @@ unsigned int get_lcdclk_frequency_10khz(void)
 EXPORT_SYMBOL(get_clk_frequency_khz);
 EXPORT_SYMBOL(get_memclk_frequency_10khz);
 EXPORT_SYMBOL(get_lcdclk_frequency_10khz);
+
+#ifdef CONFIG_PM
+
+int pxa_cpu_pm_prepare(suspend_state_t state)
+{
+	switch (state) {
+	case PM_SUSPEND_MEM:
+		return 0;
+	default:
+		return -EINVAL;
+	}
+}
+
+void pxa_cpu_pm_enter(suspend_state_t state)
+{
+	extern void pxa_cpu_standby(void);
+	extern void pxa_cpu_suspend(unsigned int);
+	extern void pxa_cpu_resume(void);
+
+	CKEN = CKEN22_MEMC | CKEN9_OSTIMER;
+
+	/* ensure voltage-change sequencer not initiated, which hangs */
+	PCFR &= ~PCFR_FVC;
+
+	/* Clear edge-detect status register. */
+	PEDR = 0xDF12FE1B;
+
+	switch (state) {
+	case PM_SUSPEND_MEM:
+		/* set resume return address */
+		PSPR = virt_to_phys(pxa_cpu_resume);
+		pxa_cpu_suspend(3);
+		break;
+	}
+}
+
+#endif
+
+/*
+ * device registration specific to PXA27x.
+ */
+
+static u64 pxa27x_dmamask = 0xffffffffUL;
+
+static struct resource pxa27x_ohci_resources[] = {
+	[0] = {
+		.start  = 0x4C000000,
+		.end    = 0x4C00ff6f,
+		.flags  = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start  = IRQ_USBH1,
+		.end    = IRQ_USBH1,
+		.flags  = IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device ohci_device = {
+	.name		= "pxa27x-ohci",
+	.id		= -1,
+	.dev		= {
+		.dma_mask = &pxa27x_dmamask,
+		.coherent_dma_mask = 0xffffffff,
+	},
+	.num_resources  = ARRAY_SIZE(pxa27x_ohci_resources),
+	.resource       = pxa27x_ohci_resources,
+};
+
+static struct platform_device *devices[] __initdata = {
+	&ohci_device,
+};
+
+static int __init pxa27x_init(void)
+{
+	return platform_add_devices(devices, ARRAY_SIZE(devices));
+}
+
+subsys_initcall(pxa27x_init);

@@ -20,9 +20,9 @@
 #include <linux/smp.h>
 #include <linux/smp_lock.h>
 #include <linux/binfmts.h>	/* do_coredum */
+#include <linux/bitops.h>
 
 #include <asm/uaccess.h>
-#include <asm/bitops.h>
 #include <asm/ptrace.h>
 #include <asm/svr4.h>
 #include <asm/pgalloc.h>
@@ -202,10 +202,10 @@ restore_fpu_state(struct pt_regs *regs, __siginfo_fpu_t __user *fpu)
 		regs->psr &= ~PSR_EF;
 	}
 #endif
-	current->used_math = 1;
+	set_used_math();
 	clear_tsk_thread_flag(current, TIF_USEDFPU);
 
-	if (verify_area(VERIFY_READ, fpu, sizeof(*fpu)))
+	if (!access_ok(VERIFY_READ, fpu, sizeof(*fpu)))
 		return -EFAULT;
 
 	err = __copy_from_user(&current->thread.float_regs[0], &fpu->si_float_regs[0],
@@ -231,7 +231,7 @@ static inline void do_new_sigreturn (struct pt_regs *regs)
 	sf = (struct new_signal_frame __user *) regs->u_regs[UREG_FP];
 
 	/* 1. Make sure we are not getting garbage from the user */
-	if (verify_area(VERIFY_READ, sf, sizeof(*sf)))
+	if (!access_ok(VERIFY_READ, sf, sizeof(*sf)))
 		goto segv_and_exit;
 
 	if (((unsigned long) sf) & 3)
@@ -274,7 +274,7 @@ static inline void do_new_sigreturn (struct pt_regs *regs)
 	return;
 
 segv_and_exit:
-	do_exit(SIGSEGV);
+	force_sig(SIGSEGV, current);
 }
 
 asmlinkage void do_sigreturn(struct pt_regs *regs)
@@ -297,7 +297,7 @@ asmlinkage void do_sigreturn(struct pt_regs *regs)
 	scptr = (struct sigcontext __user *) regs->u_regs[UREG_I0];
 
 	/* Check sanity of the user arg. */
-	if (verify_area(VERIFY_READ, scptr, sizeof(struct sigcontext)) ||
+	if (!access_ok(VERIFY_READ, scptr, sizeof(struct sigcontext)) ||
 	    (((unsigned long) scptr) & 3))
 		goto segv_and_exit;
 
@@ -341,7 +341,7 @@ asmlinkage void do_sigreturn(struct pt_regs *regs)
 	return;
 
 segv_and_exit:
-	send_sig(SIGSEGV, current, 1);
+	force_sig(SIGSEGV, current);
 }
 
 asmlinkage void do_rt_sigreturn(struct pt_regs *regs)
@@ -356,7 +356,7 @@ asmlinkage void do_rt_sigreturn(struct pt_regs *regs)
 
 	synchronize_user_stack();
 	sf = (struct rt_signal_frame __user *) regs->u_regs[UREG_FP];
-	if (verify_area(VERIFY_READ, sf, sizeof(*sf)) ||
+	if (!access_ok(VERIFY_READ, sf, sizeof(*sf)) ||
 	    (((unsigned long) sf) & 0x03))
 		goto segv;
 
@@ -401,7 +401,7 @@ asmlinkage void do_rt_sigreturn(struct pt_regs *regs)
 	spin_unlock_irq(&current->sighand->siglock);
 	return;
 segv:
-	send_sig(SIGSEGV, current, 1);
+	force_sig(SIGSEGV, current);
 }
 
 /* Checks if the fp is valid */
@@ -535,7 +535,7 @@ setup_frame(struct sigaction *sa, struct pt_regs *regs, int signr, sigset_t *old
 			sig_address = NULL;
 		}
 	}
-	err |= __put_user((long)sig_address, &sframep->sig_address);
+	err |= __put_user((unsigned long)sig_address, &sframep->sig_address);
 	err |= __put_user(sig_code, &sframep->sig_code);
 	err |= __put_user(sc, &sframep->sig_scptr);
 	if (err)
@@ -549,7 +549,7 @@ setup_frame(struct sigaction *sa, struct pt_regs *regs, int signr, sigset_t *old
 sigill_and_return:
 	do_exit(SIGILL);
 sigsegv:
-	do_exit(SIGSEGV);
+	force_sigsegv(signr, current);
 }
 
 
@@ -584,7 +584,7 @@ save_fpu_state(struct pt_regs *regs, __siginfo_fpu_t __user *fpu)
 				      &current->thread.fpqueue[0],
 				      ((sizeof(unsigned long) +
 				      (sizeof(unsigned long *)))*16));
-	current->used_math = 0;
+	clear_used_math();
 	return err;
 }
 
@@ -599,7 +599,7 @@ new_setup_frame(struct k_sigaction *ka, struct pt_regs *regs,
 	synchronize_user_stack();
 
 	sigframe_size = NF_ALIGNEDSZ;
-	if (!current->used_math)
+	if (!used_math())
 		sigframe_size -= sizeof(__siginfo_fpu_t);
 
 	sf = (struct new_signal_frame __user *)
@@ -616,7 +616,7 @@ new_setup_frame(struct k_sigaction *ka, struct pt_regs *regs,
 	
 	err |= __put_user(0, &sf->extra_size);
 
-	if (current->used_math) {
+	if (used_math()) {
 		err |= save_fpu_state(regs, &sf->fpu_state);
 		err |= __put_user(&sf->fpu_state, &sf->fpu_save);
 	} else {
@@ -635,6 +635,7 @@ new_setup_frame(struct k_sigaction *ka, struct pt_regs *regs,
 	regs->u_regs[UREG_FP] = (unsigned long) sf;
 	regs->u_regs[UREG_I0] = signo;
 	regs->u_regs[UREG_I1] = (unsigned long) &sf->info;
+	regs->u_regs[UREG_I2] = (unsigned long) &sf->info;
 
 	/* 4. signal handler */
 	regs->pc = (unsigned long) ka->sa.sa_handler;
@@ -662,7 +663,7 @@ new_setup_frame(struct k_sigaction *ka, struct pt_regs *regs,
 sigill_and_return:
 	do_exit(SIGILL);
 sigsegv:
-	do_exit(SIGSEGV);
+	force_sigsegv(signo, current);
 }
 
 static inline void
@@ -676,7 +677,7 @@ new_setup_rt_frame(struct k_sigaction *ka, struct pt_regs *regs,
 
 	synchronize_user_stack();
 	sigframe_size = RT_ALIGNEDSZ;
-	if (!current->used_math)
+	if (!used_math())
 		sigframe_size -= sizeof(__siginfo_fpu_t);
 	sf = (struct rt_signal_frame __user *)
 		get_sigframe(&ka->sa, regs, sigframe_size);
@@ -689,7 +690,7 @@ new_setup_rt_frame(struct k_sigaction *ka, struct pt_regs *regs,
 	err |= __put_user(regs->npc, &sf->regs.npc);
 	err |= __put_user(regs->y, &sf->regs.y);
 	psr = regs->psr;
-	if (current->used_math)
+	if (used_math())
 		psr |= PSR_EF;
 	err |= __put_user(psr, &sf->regs.psr);
 	err |= __copy_to_user(&sf->regs.u_regs, regs->u_regs, sizeof(regs->u_regs));
@@ -719,6 +720,7 @@ new_setup_rt_frame(struct k_sigaction *ka, struct pt_regs *regs,
 	regs->u_regs[UREG_FP] = (unsigned long) sf;
 	regs->u_regs[UREG_I0] = signo;
 	regs->u_regs[UREG_I1] = (unsigned long) &sf->info;
+	regs->u_regs[UREG_I2] = (unsigned long) &sf->regs;
 
 	regs->pc = (unsigned long) ka->sa.sa_handler;
 	regs->npc = (regs->pc + 4);
@@ -744,7 +746,7 @@ new_setup_rt_frame(struct k_sigaction *ka, struct pt_regs *regs,
 sigill:
 	do_exit(SIGILL);
 sigsegv:
-	do_exit(SIGSEGV);
+	force_sigsegv(signo, current);
 }
 
 /* Setup a Solaris stack frame */
@@ -830,7 +832,7 @@ setup_svr4_frame(struct sigaction *sa, unsigned long pc, unsigned long npc,
 	 *    to flush the user windows.
 	 */
 	for (window = 0; window < tp->w_saved; window++) {
-		err |= __put_user((int *) &(gw->win[window]), &gw->winptr[window]);
+		err |= __put_user((int __user *) &(gw->win[window]), &gw->winptr[window]);
 		err |= __copy_to_user(&gw->win[window],
 				      &tp->reg_window[window],
 				      sizeof(svr4_rwindow_t));
@@ -874,7 +876,7 @@ setup_svr4_frame(struct sigaction *sa, unsigned long pc, unsigned long npc,
 sigill_and_return:
 	do_exit(SIGILL);
 sigsegv:
-	do_exit(SIGSEGV);
+	force_sigsegv(signr, current);
 }
 
 asmlinkage int svr4_getcontext(svr4_ucontext_t __user *uc, struct pt_regs *regs)
@@ -887,7 +889,7 @@ asmlinkage int svr4_getcontext(svr4_ucontext_t __user *uc, struct pt_regs *regs)
 	synchronize_user_stack();
 
 	if (current_thread_info()->w_saved)
-		goto sigsegv_and_return;
+		return -EFAULT;
 
 	err = clear_user(uc, sizeof(*uc));
 	if (err)
@@ -928,9 +930,6 @@ asmlinkage int svr4_getcontext(svr4_ucontext_t __user *uc, struct pt_regs *regs)
 	 * we have already stuffed all of it with sync_user_stack
 	 */
 	return (err ? -EFAULT : 0);
-
-sigsegv_and_return:
-	do_exit(SIGSEGV);
 }
 
 /* Set the context for a svr4 application, this is Solaris way to sigreturn */
@@ -1016,7 +1015,8 @@ asmlinkage int svr4_setcontext(svr4_ucontext_t __user *c, struct pt_regs *regs)
 	return (err ? -EFAULT : 0);
 
 sigsegv_and_return:
-	do_exit(SIGSEGV);
+	force_sig(SIGSEGV, current);
+	return -EFAULT;
 }
 
 static inline void
@@ -1034,8 +1034,6 @@ handle_signal(unsigned long signr, struct k_sigaction *ka,
 		else
 			setup_frame(&ka->sa, regs, signr, oldset, info);
 	}
-	if (ka->sa.sa_flags & SA_ONESHOT)
-		ka->sa.sa_handler = SIG_DFL;
 	if (!(ka->sa.sa_flags & SA_NOMASK)) {
 		spin_lock_irq(&current->sighand->siglock);
 		sigorsets(&current->blocked,&current->blocked,&ka->sa.sa_mask);
@@ -1075,6 +1073,7 @@ asmlinkage int do_signal(sigset_t *oldset, struct pt_regs * regs,
 {
 	siginfo_t info;
 	struct sparc_deliver_cookie cookie;
+	struct k_sigaction ka;
 	int signr;
 
 	/*
@@ -1094,15 +1093,12 @@ asmlinkage int do_signal(sigset_t *oldset, struct pt_regs * regs,
 	if (!oldset)
 		oldset = &current->blocked;
 
-	signr = get_signal_to_deliver(&info, regs, &cookie);
+	signr = get_signal_to_deliver(&info, &ka, regs, &cookie);
 	if (signr > 0) {
-		struct k_sigaction *ka;
-		
-		ka = &current->sighand->action[signr-1];
-
 		if (cookie.restart_syscall)
-			syscall_restart(cookie.orig_i0, regs, &ka->sa);
-		handle_signal(signr, ka, &info, oldset, regs, svr4_signal);
+			syscall_restart(cookie.orig_i0, regs, &ka.sa);
+		handle_signal(signr, &ka, &info, oldset,
+			      regs, svr4_signal);
 		return 1;
 	}
 	if (cookie.restart_syscall &&

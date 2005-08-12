@@ -1,4 +1,5 @@
-#include <asm/bitops.h>
+#include <linux/module.h>
+#include <linux/bitops.h>
 
 /* Find string of zero bits in a bitmap */ 
 unsigned long 
@@ -23,3 +24,5 @@ find_next_zero_string(unsigned long *bitmap, long start, long nbits, int len)
 	}
 	return n;
 }
+
+EXPORT_SYMBOL(find_next_zero_string);

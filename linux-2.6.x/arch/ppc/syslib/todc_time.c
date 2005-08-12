@@ -18,6 +18,7 @@
 #include <linux/time.h>
 #include <linux/timex.h>
 #include <linux/bcd.h>
+#include <linux/mc146818rtc.h>
 
 #include <asm/machdep.h>
 #include <asm/io.h>
@@ -47,8 +48,6 @@
  * 	 we set the 'R' bit before reading them, they basically stop counting.
  * 	 					--MAG
  */
-
-extern spinlock_t	rtc_lock;
 
 /*
  * 'todc_info' should be initialized in your *_setup.c file to
@@ -82,13 +81,13 @@ extern spinlock_t	rtc_lock;
 u_char
 todc_direct_read_val(int addr)
 {
-	return readb(todc_info->nvram_data + addr);
+	return readb((void __iomem *)(todc_info->nvram_data + addr));
 }
 
 void
 todc_direct_write_val(int addr, unsigned char val)
 {
-	writeb(val, todc_info->nvram_data + addr);
+	writeb(val, (void __iomem *)(todc_info->nvram_data + addr));
 	return;
 }
 
@@ -277,9 +276,9 @@ todc_time_init(void)
 ulong
 todc_get_rtc_time(void)
 {
-	uint	year, mon, day, hour, min, sec;
+	uint	year = 0, mon = 0, day = 0, hour = 0, min = 0, sec = 0;
 	uint	limit, i;
-	u_char	save_control, uip;
+	u_char	save_control, uip = 0;
 
 	spin_lock(&rtc_lock);
 	save_control = todc_read_val(todc_info->control_a);
@@ -288,6 +287,7 @@ todc_get_rtc_time(void)
 		limit = 1;
 
 		switch (todc_info->rtc_type) {
+			case TODC_TYPE_DS1553:
 			case TODC_TYPE_DS1557:
 			case TODC_TYPE_DS1743:
 			case TODC_TYPE_DS1746:	/* XXXX BAD HACK -> FIX */
@@ -323,6 +323,7 @@ todc_get_rtc_time(void)
 
 	if (todc_info->rtc_type != TODC_TYPE_MC146818) {
 		switch (todc_info->rtc_type) {
+			case TODC_TYPE_DS1553:
 			case TODC_TYPE_DS1557:
 			case TODC_TYPE_DS1743:
 			case TODC_TYPE_DS1746:	/* XXXX BAD HACK -> FIX */
@@ -361,7 +362,7 @@ int
 todc_set_rtc_time(unsigned long nowtime)
 {
 	struct rtc_time	tm;
-	u_char		save_control, save_freq_select;
+	u_char		save_control, save_freq_select = 0;
 
 	spin_lock(&rtc_lock);
 	to_tm(nowtime, &tm);
@@ -416,9 +417,10 @@ todc_set_rtc_time(unsigned long nowtime)
  */
 static unsigned char __init todc_read_timereg(int addr)
 {
-	unsigned char save_control, val;
+	unsigned char save_control = 0, val;
 
 	switch (todc_info->rtc_type) {
+		case TODC_TYPE_DS1553:
 		case TODC_TYPE_DS1557:
 		case TODC_TYPE_DS1746:	/* XXXX BAD HACK -> FIX */
 		case TODC_TYPE_DS1747:
@@ -433,6 +435,7 @@ static unsigned char __init todc_read_timereg(int addr)
 	val = todc_read_val(addr);
 
 	switch (todc_info->rtc_type) {
+		case TODC_TYPE_DS1553:
 		case TODC_TYPE_DS1557:
 		case TODC_TYPE_DS1746:	/* XXXX BAD HACK -> FIX */
 		case TODC_TYPE_DS1747:

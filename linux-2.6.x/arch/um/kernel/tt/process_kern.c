@@ -28,14 +28,10 @@
 
 void *switch_to_tt(void *prev, void *next, void *last)
 {
-	struct task_struct *from, *to;
+	struct task_struct *from, *to, *prev_sched;
 	unsigned long flags;
 	int err, vtalrm, alrm, prof, cpu;
 	char c;
-	/* jailing and SMP are incompatible, so this doesn't need to be 
-	 * made per-cpu 
-	 */
-	static int reading;
 
 	from = prev;
 	to = next;
@@ -59,36 +55,27 @@ void *switch_to_tt(void *prev, void *next, void *last)
 	c = 0;
 	set_current(to);
 
-	reading = 0;
 	err = os_write_file(to->thread.mode.tt.switch_pipe[1], &c, sizeof(c));
 	if(err != sizeof(c))
-		panic("write of switch_pipe failed, errno = %d", -err);
+		panic("write of switch_pipe failed, err = %d", -err);
 
-	reading = 1;
-	if((from->state == TASK_ZOMBIE) || (from->state == TASK_DEAD))
+	if(from->thread.mode.tt.switch_pipe[0] == -1)
 		os_kill_process(os_getpid(), 0);
 
 	err = os_read_file(from->thread.mode.tt.switch_pipe[0], &c, sizeof(c));
 	if(err != sizeof(c))
 		panic("read of switch_pipe failed, errno = %d", -err);
 
-	/* This works around a nasty race with 'jail'.  If we are switching
-	 * between two threads of a threaded app and the incoming process 
-	 * runs before the outgoing process reaches the read, and it makes
-	 * it all the way out to userspace, then it will have write-protected 
-	 * the outgoing process stack.  Then, when the outgoing process 
-	 * returns from the write, it will segfault because it can no longer
-	 * write its own stack.  So, in order to avoid that, the incoming 
-	 * thread sits in a loop yielding until 'reading' is set.  This 
-	 * isn't entirely safe, since there may be a reschedule from a timer
-	 * happening between setting 'reading' and sleeping in read.  But,
-	 * it should get a whole quantum in which to reach the read and sleep,
-	 * which should be enough.
+	/* If the process that we have just scheduled away from has exited,
+	 * then it needs to be killed here.  The reason is that, even though
+	 * it will kill itself when it next runs, that may be too late.  Its
+	 * stack will be freed, possibly before then, and if that happens,
+	 * we have a use-after-free situation.  So, it gets killed here
+	 * in case it has not already killed itself.
 	 */
-
-	if(jail){
-		while(!reading) sched_yield();
-	}
+	prev_sched = current->thread.prev_sched;
+        if(prev_sched->thread.mode.tt.switch_pipe[0] == -1)
+		os_kill_process(prev_sched->thread.mode.tt.extern_pid, 1);
 
 	change_sig(SIGVTALRM, vtalrm);
 	change_sig(SIGALRM, alrm);
@@ -104,50 +91,96 @@ void *switch_to_tt(void *prev, void *next, void *last)
 
 void release_thread_tt(struct task_struct *task)
 {
-	os_kill_process(task->thread.mode.tt.extern_pid, 0);
+	int pid = task->thread.mode.tt.extern_pid;
+
+	/*
+         * We first have to kill the other process, before
+         * closing its switch_pipe. Else it might wake up
+         * and receive "EOF" before we could kill it.
+         */
+	if(os_getpid() != pid)
+		os_kill_process(pid, 0);
+
+        os_close_file(task->thread.mode.tt.switch_pipe[0]);
+        os_close_file(task->thread.mode.tt.switch_pipe[1]);
+	/* use switch_pipe as flag: thread is released */
+        task->thread.mode.tt.switch_pipe[0] = -1;
 }
 
-void exit_thread_tt(void)
+void suspend_new_thread(int fd)
 {
-	close(current->thread.mode.tt.switch_pipe[0]);
-	close(current->thread.mode.tt.switch_pipe[1]);
+	int err;
+	char c;
+
+	os_stop_process(os_getpid());
+	err = os_read_file(fd, &c, sizeof(c));
+	if(err != sizeof(c))
+		panic("read failed in suspend_new_thread, err = %d", -err);
 }
 
 void schedule_tail(task_t *prev);
 
 static void new_thread_handler(int sig)
 {
+	unsigned long disable;
 	int (*fn)(void *);
 	void *arg;
 
 	fn = current->thread.request.u.thread.proc;
 	arg = current->thread.request.u.thread.arg;
+
 	UPT_SC(&current->thread.regs.regs) = (void *) (&sig + 1);
+	disable = (1 << (SIGVTALRM - 1)) | (1 << (SIGALRM - 1)) |
+		(1 << (SIGIO - 1)) | (1 << (SIGPROF - 1));
+	SC_SIGMASK(UPT_SC(&current->thread.regs.regs)) &= ~disable;
+
 	suspend_new_thread(current->thread.mode.tt.switch_pipe[0]);
 
-	block_signals();
+	force_flush_all();
+	if(current->thread.prev_sched != NULL)
+		schedule_tail(current->thread.prev_sched);
+	current->thread.prev_sched = NULL;
+
 	init_new_thread_signals(1);
-#ifdef CONFIG_SMP
-	schedule_tail(current->thread.prev_sched);
-#endif
 	enable_timer();
 	free_page(current->thread.temp_stack);
 	set_cmdline("(kernel thread)");
-	force_flush_all();
 
-	current->thread.prev_sched = NULL;
 	change_sig(SIGUSR1, 1);
 	change_sig(SIGVTALRM, 1);
 	change_sig(SIGPROF, 1);
-	unblock_signals();
+	local_irq_enable();
 	if(!run_kernel_thread(fn, arg, &current->thread.exec_buf))
 		do_exit(0);
+
+	/* XXX No set_user_mode here because a newly execed process will
+	 * immediately segfault on its non-existent IP, coming straight back
+	 * to the signal handler, which will call set_user_mode on its way
+	 * out.  This should probably change since it's confusing.
+	 */
 }
 
 static int new_thread_proc(void *stack)
 {
+	/* local_irq_disable is needed to block out signals until this thread is
+	 * properly scheduled.  Otherwise, the tracing thread will get mighty
+	 * upset about any signals that arrive before that.
+	 * This has the complication that it sets the saved signal mask in
+	 * the sigcontext to block signals.  This gets restored when this
+	 * thread (or a descendant, since they get a copy of this sigcontext)
+	 * returns to userspace.
+	 * So, this is compensated for elsewhere.
+	 * XXX There is still a small window until local_irq_disable() actually
+	 * finishes where signals are possible - shouldn't be a problem in
+	 * practice since SIGIO hasn't been forwarded here yet, and the
+	 * local_irq_disable should finish before a SIGVTALRM has time to be
+	 * delivered.
+	 */
+
+	local_irq_disable();
 	init_new_thread_stack(stack, new_thread_handler);
 	os_usr1_process(os_getpid());
+	change_sig(SIGUSR1, 1);
 	return(0);
 }
 
@@ -156,7 +189,7 @@ static int new_thread_proc(void *stack)
  * itself with a SIGUSR1.  set_user_mode has to be run with SIGUSR1 off,
  * so it is blocked before it's called.  They are re-enabled on sigreturn
  * despite the fact that they were blocked when the SIGUSR1 was issued because
- * copy_thread copies the parent's signcontext, including the signal mask
+ * copy_thread copies the parent's sigcontext, including the signal mask
  * onto the signal frame.
  */
 
@@ -165,35 +198,33 @@ void finish_fork_handler(int sig)
  	UPT_SC(&current->thread.regs.regs) = (void *) (&sig + 1);
 	suspend_new_thread(current->thread.mode.tt.switch_pipe[0]);
 
-#ifdef CONFIG_SMP	
-	schedule_tail(NULL);
-#endif
+	force_flush_all();
+	if(current->thread.prev_sched != NULL)
+		schedule_tail(current->thread.prev_sched);
+	current->thread.prev_sched = NULL;
+
 	enable_timer();
 	change_sig(SIGVTALRM, 1);
 	local_irq_enable();
-	force_flush_all();
 	if(current->mm != current->parent->mm)
 		protect_memory(uml_reserved, high_physmem - uml_reserved, 1, 
 			       1, 0, 1);
-	task_protections((unsigned long) current->thread_info);
-
-	current->thread.prev_sched = NULL;
+	task_protections((unsigned long) current_thread);
 
 	free_page(current->thread.temp_stack);
+	local_irq_disable();
 	change_sig(SIGUSR1, 0);
 	set_user_mode(current);
 }
 
-static int sigusr1 = SIGUSR1;
-
 int fork_tramp(void *stack)
 {
-	int sig = sigusr1;
-
 	local_irq_disable();
+	arch_init_thread();
 	init_new_thread_stack(stack, finish_fork_handler);
 
-	kill(os_getpid(), sig);
+	os_usr1_process(os_getpid());
+	change_sig(SIGUSR1, 1);
 	return(0);
 }
 
@@ -213,8 +244,8 @@ int copy_thread_tt(int nr, unsigned long clone_flags, unsigned long sp,
 	}
 
 	err = os_pipe(p->thread.mode.tt.switch_pipe, 1, 1);
-	if(err){
-		printk("copy_thread : pipe failed, errno = %d\n", -err);
+	if(err < 0){
+		printk("copy_thread : pipe failed, err = %d\n", -err);
 		return(err);
 	}
 
@@ -227,8 +258,7 @@ int copy_thread_tt(int nr, unsigned long clone_flags, unsigned long sp,
 
 	clone_flags &= CLONE_VM;
 	p->thread.temp_stack = stack;
-	new_pid = start_fork_tramp((void *) p->thread.kernel_stack, stack,
-				   clone_flags, tramp);
+	new_pid = start_fork_tramp(p->thread_info, stack, clone_flags, tramp);
 	if(new_pid < 0){
 		printk(KERN_ERR "copy_thread : clone failed - errno = %d\n", 
 		       -new_pid);
@@ -246,19 +276,29 @@ int copy_thread_tt(int nr, unsigned long clone_flags, unsigned long sp,
 	current->thread.request.op = OP_FORK;
 	current->thread.request.u.fork.pid = new_pid;
 	os_usr1_process(os_getpid());
-	return(0);
+
+	/* Enable the signal and then disable it to ensure that it is handled
+	 * here, and nowhere else.
+	 */
+	change_sig(SIGUSR1, 1);
+
+	change_sig(SIGUSR1, 0);
+	err = 0;
+	return(err);
 }
 
 void reboot_tt(void)
 {
 	current->thread.request.op = OP_REBOOT;
 	os_usr1_process(os_getpid());
+	change_sig(SIGUSR1, 1);
 }
 
 void halt_tt(void)
 {
 	current->thread.request.op = OP_HALT;
 	os_usr1_process(os_getpid());
+	change_sig(SIGUSR1, 1);
 }
 
 void kill_off_processes_tt(void)
@@ -285,6 +325,9 @@ void initial_thread_cb_tt(void (*proc)(void *), void *arg)
 		current->thread.request.u.cb.proc = proc;
 		current->thread.request.u.cb.arg = arg;
 		os_usr1_process(os_getpid());
+		change_sig(SIGUSR1, 1);
+
+		change_sig(SIGUSR1, 0);
 	}
 }
 
@@ -327,84 +370,6 @@ int do_proc_op(void *t, int proc_id)
 void init_idle_tt(void)
 {
 	default_idle();
-}
-
-/* Changed by jail_setup, which is a setup */
-int jail = 0;
-
-int __init jail_setup(char *line, int *add)
-{
-	int ok = 1;
-
-	if(jail) return(0);
-#ifdef CONFIG_SMP
-	printf("'jail' may not used used in a kernel with CONFIG_SMP "
-	       "enabled\n");
-	ok = 0;
-#endif
-#ifdef CONFIG_HOSTFS
-	printf("'jail' may not used used in a kernel with CONFIG_HOSTFS "
-	       "enabled\n");
-	ok = 0;
-#endif
-#ifdef CONFIG_MODULES
-	printf("'jail' may not used used in a kernel with CONFIG_MODULES "
-	       "enabled\n");
-	ok = 0;
-#endif	
-	if(!ok) exit(1);
-
-	/* CAP_SYS_RAWIO controls the ability to open /dev/mem and /dev/kmem.
-	 * Removing it from the bounding set eliminates the ability of anything
-	 * to acquire it, and thus read or write kernel memory.
-	 */
-	cap_lower(cap_bset, CAP_SYS_RAWIO);
-	jail = 1;
-	return(0);
-}
-
-__uml_setup("jail", jail_setup,
-"jail\n"
-"    Enables the protection of kernel memory from processes.\n\n"
-);
-
-static void mprotect_kernel_mem(int w)
-{
-	unsigned long start, end;
-	int pages;
-
-	if(!jail || (current == &init_task)) return;
-
-	pages = (1 << CONFIG_KERNEL_STACK_ORDER);
-
-	start = (unsigned long) current->thread_info + PAGE_SIZE;
-	end = (unsigned long) current + PAGE_SIZE * pages;
-	protect_memory(uml_reserved, start - uml_reserved, 1, w, 1, 1);
-	protect_memory(end, high_physmem - end, 1, w, 1, 1);
-
-	start = (unsigned long) UML_ROUND_DOWN(&_stext);
-	end = (unsigned long) UML_ROUND_UP(&_etext);
-	protect_memory(start, end - start, 1, w, 1, 1);
-
-	start = (unsigned long) UML_ROUND_DOWN(&_unprotected_end);
-	end = (unsigned long) UML_ROUND_UP(&_edata);
-	protect_memory(start, end - start, 1, w, 1, 1);
-
-	start = (unsigned long) UML_ROUND_DOWN(&__bss_start);
-	end = (unsigned long) UML_ROUND_UP(brk_start);
-	protect_memory(start, end - start, 1, w, 1, 1);
-
-	mprotect_kernel_vm(w);
-}
-
-void unprotect_kernel_mem(void)
-{
-	mprotect_kernel_mem(1);
-}
-
-void protect_kernel_mem(void)
-{
-	mprotect_kernel_mem(0);
 }
 
 extern void start_kernel(void);
@@ -454,24 +419,9 @@ void set_init_pid(int pid)
 
 	init_task.thread.mode.tt.extern_pid = pid;
 	err = os_pipe(init_task.thread.mode.tt.switch_pipe, 1, 1);
-	if(err)	panic("Can't create switch pipe for init_task, errno = %d", 
-		      err);
-}
-
-int singlestepping_tt(void *t)
-{
-	struct task_struct *task = t;
-
-	if(task->thread.mode.tt.singlestep_syscall)
-		return(0);
-	return(task->ptrace & PT_DTRACE);
-}
-
-void clear_singlestep(void *t)
-{
-	struct task_struct *task = t;
-
-	task->ptrace &= ~PT_DTRACE;
+	if(err)
+		panic("Can't create switch pipe for init_task, errno = %d",
+		      -err);
 }
 
 int start_uml_tt(void)
@@ -479,9 +429,9 @@ int start_uml_tt(void)
 	void *sp;
 	int pages;
 
-	pages = (1 << CONFIG_KERNEL_STACK_ORDER) - 2;
-	sp = (void *) init_task.thread.kernel_stack + pages * PAGE_SIZE - 
-		sizeof(unsigned long);
+	pages = (1 << CONFIG_KERNEL_STACK_ORDER);
+	sp = (void *) ((unsigned long) init_task.thread_info) +
+		pages * PAGE_SIZE - sizeof(unsigned long);
 	return(tracer(start_kernel_proc, sp));
 }
 

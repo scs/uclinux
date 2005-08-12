@@ -1,7 +1,7 @@
 /* linux/arch/arm/mach-s3c2410/s3c2410.c
  *
- * Copyright (c) 2003 Simtec Electronics
- * Ben Dooks <ben@simtec.co.uk>
+ * Copyright (c) 2003-2005 Simtec Electronics
+ *	Ben Dooks <ben@simtec.co.uk>
  *
  * http://www.simtec.co.uk/products/EB2410ITX/
  *
@@ -13,7 +13,11 @@
  *     16-May-2003 BJD  Created initial version
  *     16-Aug-2003 BJD  Fixed header files and copyright, added URL
  *     05-Sep-2003 BJD  Moved to kernel v2.6
- *     18-Jan-2003 BJD  Added serial port configuration
+ *     18-Jan-2004 BJD  Added serial port configuration
+ *     21-Aug-2004 BJD  Added new struct s3c2410_board handler
+ *     28-Sep-2004 BJD  Updates for new serial port bits
+ *     04-Nov-2004 BJD  Updated UART configuration process
+ *     10-Jan-2005 BJD  Removed s3c2410_clock_tick_rate
 */
 
 #include <linux/kernel.h>
@@ -35,45 +39,20 @@
 #include <asm/arch/regs-clock.h>
 #include <asm/arch/regs-serial.h>
 
-int s3c2410_clock_tick_rate = 12*1000*1000;  /* current timers at 12MHz */
+#include "s3c2410.h"
+#include "cpu.h"
+#include "clock.h"
 
-/* serial port setup */
-
-struct s3c2410_uartcfg *s3c2410_uartcfgs;
-
-/* clock info */
-
-unsigned long s3c2410_fclk;
-unsigned long s3c2410_hclk;
-unsigned long s3c2410_pclk;
-
-#ifndef MHZ
-#define MHZ (1000*1000)
-#endif
-
-#define print_mhz(m) ((m) / MHZ), ((m / 1000) % 1000)
-
-#define IODESC_ENT(x) { S3C2410_VA_##x, S3C2410_PA_##x, S3C2410_SZ_##x, MT_DEVICE }
+/* Initial IO mappings */
 
 static struct map_desc s3c2410_iodesc[] __initdata = {
-  IODESC_ENT(IRQ),
-  IODESC_ENT(MEMCTRL),
-  IODESC_ENT(USBHOST),
-  IODESC_ENT(DMA),
-  IODESC_ENT(CLKPWR),
-  IODESC_ENT(LCD),
-  IODESC_ENT(NAND),
-  IODESC_ENT(UART),
-  IODESC_ENT(TIMER),
-  IODESC_ENT(USBDEV),
-  IODESC_ENT(WATCHDOG),
-  IODESC_ENT(IIC),
-  IODESC_ENT(IIS),
-  IODESC_ENT(GPIO),
-  IODESC_ENT(RTC),
-  IODESC_ENT(ADC),
-  IODESC_ENT(SPI),
-  IODESC_ENT(SDI)
+	IODESC_ENT(USBHOST),
+	IODESC_ENT(CLKPWR),
+	IODESC_ENT(LCD),
+	IODESC_ENT(UART),
+	IODESC_ENT(TIMER),
+	IODESC_ENT(ADC),
+	IODESC_ENT(WATCHDOG)
 };
 
 static struct resource s3c_uart0_resource[] = {
@@ -146,45 +125,76 @@ static struct platform_device *uart_devices[] __initdata = {
 	&s3c_uart2
 };
 
-void __init s3c2410_map_io(struct map_desc *mach_desc, int size)
-{
-	unsigned long tmp;
+/* store our uart devices for the serial driver console */
+struct platform_device *s3c2410_uart_devices[3];
 
+static int s3c2410_uart_count = 0;
+
+/* uart registration process */
+
+void __init s3c2410_init_uarts(struct s3c2410_uartcfg *cfg, int no)
+{
+	struct platform_device *platdev;
+	int uart;
+
+	for (uart = 0; uart < no; uart++, cfg++) {
+		platdev = uart_devices[cfg->hwport];
+
+		s3c24xx_uart_devs[uart] = platdev;
+		platdev->dev.platform_data = cfg;
+	}
+
+	s3c2410_uart_count = uart;
+}
+
+/* s3c2410_map_io
+ *
+ * register the standard cpu IO areas, and any passed in from the
+ * machine specific initialisation.
+*/
+
+void __init s3c2410_map_io(struct map_desc *mach_desc, int mach_size)
+{
 	/* register our io-tables */
 
 	iotable_init(s3c2410_iodesc, ARRAY_SIZE(s3c2410_iodesc));
-	iotable_init(mach_desc, size);
+	iotable_init(mach_desc, mach_size);
+}
+
+void __init s3c2410_init_clocks(int xtal)
+{
+	unsigned long tmp;
+	unsigned long fclk;
+	unsigned long hclk;
+	unsigned long pclk;
 
 	/* now we've got our machine bits initialised, work out what
 	 * clocks we've got */
 
-	s3c2410_fclk = s3c2410_get_pll(__raw_readl(S3C2410_MPLLCON), 12*MHZ);
+	fclk = s3c2410_get_pll(__raw_readl(S3C2410_MPLLCON), xtal);
 
 	tmp = __raw_readl(S3C2410_CLKDIVN);
-	//printk("tmp=%08x, fclk=%d\n", tmp, s3c2410_fclk);
 
 	/* work out clock scalings */
 
-	s3c2410_hclk = s3c2410_fclk / ((tmp & S3C2410_CLKDIVN_HDIVN) ? 2 : 1);
-	s3c2410_pclk = s3c2410_hclk / ((tmp & S3C2410_CLKDIVN_PDIVN) ? 2 : 1);
+	hclk = fclk / ((tmp & S3C2410_CLKDIVN_HDIVN) ? 2 : 1);
+	pclk = hclk / ((tmp & S3C2410_CLKDIVN_PDIVN) ? 2 : 1);
 
 	/* print brieft summary of clocks, etc */
 
 	printk("S3C2410: core %ld.%03ld MHz, memory %ld.%03ld MHz, peripheral %ld.%03ld MHz\n",
-	       print_mhz(s3c2410_fclk), print_mhz(s3c2410_hclk),
-	       print_mhz(s3c2410_pclk));
+	       print_mhz(fclk), print_mhz(hclk), print_mhz(pclk));
+
+	/* initialise the clocks here, to allow other things like the
+	 * console to use them
+	 */
+
+	s3c24xx_setup_clocks(xtal, fclk, hclk, pclk);
 }
 
-
-static int __init s3c2410_init(void)
+int __init s3c2410_init(void)
 {
-	int ret;
-
 	printk("S3C2410: Initialising architecture\n");
 
-	ret = platform_add_devices(uart_devices, ARRAY_SIZE(uart_devices));
-
-	return ret;
+	return platform_add_devices(s3c24xx_uart_devs, s3c2410_uart_count);
 }
-
-arch_initcall(s3c2410_init);

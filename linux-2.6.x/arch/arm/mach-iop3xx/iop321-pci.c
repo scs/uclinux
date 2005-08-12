@@ -44,7 +44,7 @@ static u32 iop321_cfg_address(struct pci_bus *bus, int devfn, int where)
 	u32 addr;
 
 	if (sys->busnr == bus->number)
-		addr = 1 << (PCI_SLOT(devfn) + 16);
+		addr = 1 << (PCI_SLOT(devfn) + 16) | (PCI_SLOT(devfn) << 11);
 	else
 		addr = bus->number << 16 | PCI_SLOT(devfn) << 11 | 1;
 
@@ -158,6 +158,8 @@ iop321_write_config(struct pci_bus *bus, unsigned int devfn, int where,
 			: "r" (value), "r" (addr),
 			  "r" (IOP321_OCCAR), "r" (IOP321_OCCDR));
 	}
+
+	return PCIBIOS_SUCCESSFUL;
 }
 
 static struct pci_ops iop321_ops = {
@@ -193,65 +195,26 @@ struct pci_bus *iop321_scan_bus(int nr, struct pci_sys_data *sys)
 	return pci_scan_bus(sys->busnr, &iop321_ops, sys);
 }
 
-/*
- * Setup the system data for controller 'nr'.   Return 0 if none found,
- * 1 if found, or negative error.
- */
-int iop321_setup(int nr, struct pci_sys_data *sys)
-{
-	struct resource *res;
-
-	if (nr >= 1)
-		return 0;
-
-	res = kmalloc(sizeof(struct resource) * 2, GFP_KERNEL);
-	if (!res)
-		panic("PCI: unable to alloc resources");
-
-	memset(res, 0, sizeof(struct resource) * 2);
-
-	switch (nr) {
-	case 0:
-		res[0].start = IOP321_PCI_IO_BASE + 0x6e000000;
-		res[0].end   = IOP321_PCI_IO_BASE + IOP321_PCI_IO_SIZE-1 + 0x6e000000;
-		res[0].name  = "PCI IO Primary";
-		res[0].flags = IORESOURCE_IO;
-
-		res[1].start = IOP321_PCI_MEM_BASE;
-		res[1].end   = IOP321_PCI_MEM_BASE + IOP321_PCI_MEM_SIZE;
-		res[1].name  = "PCI Memory Primary";
-		res[1].flags = IORESOURCE_MEM;
-		break;
-	}
-
-	request_resource(&ioport_resource, &res[0]);
-	request_resource(&iomem_resource, &res[1]);
-
-	sys->resource[0] = &res[0];
-	sys->resource[1] = &res[1];
-	sys->resource[2] = NULL;
-	sys->io_offset   = 0x6e000000;
-
-	return 1;
-}
-
-
-
-
 void iop321_init(void)
 {
 	DBG("PCI:  Intel 80321 PCI init code.\n");
-	DBG("\tATU: IOP321_ATUCMD=0x%04x\n", *IOP321_ATUCMD);
-	DBG("\tATU: IOP321_OMWTVR0=0x%04x, IOP321_OIOWTVR=0x%04x\n",
+	DBG("ATU: IOP321_ATUCMD=0x%04x\n", *IOP321_ATUCMD);
+	DBG("ATU: IOP321_OMWTVR0=0x%04x, IOP321_OIOWTVR=0x%04x\n",
 			*IOP321_OMWTVR0,
 			*IOP321_OIOWTVR);
-	DBG("\tATU: IOP321_ATUCR=0x%08x\n", *IOP321_ATUCR);
-	DBG("\tATU: IOP321_IABAR0=0x%08x IOP321_IALR0=0x%08x IOP321_IATVR0=%08x\n", *IOP321_IABAR0, *IOP321_IALR0, *IOP321_IATVR0);
-	DBG("\tATU: IOP321_ERBAR=0x%08x IOP321_ERLR=0x%08x IOP321_ERTVR=%08x\n", *IOP321_ERBAR, *IOP321_ERLR, *IOP321_ERTVR);
-	DBG("\tATU: IOP321_IABAR2=0x%08x IOP321_IALR2=0x%08x IOP321_IATVR2=%08x\n", *IOP321_IABAR2, *IOP321_IALR2, *IOP321_IATVR2);
-	DBG("\tATU: IOP321_IABAR3=0x%08x IOP321_IALR3=0x%08x IOP321_IATVR3=%08x\n", *IOP321_IABAR3, *IOP321_IALR3, *IOP321_IATVR3);
+	DBG("ATU: IOP321_ATUCR=0x%08x\n", *IOP321_ATUCR);
+	DBG("ATU: IOP321_IABAR0=0x%08x IOP321_IALR0=0x%08x IOP321_IATVR0=%08x\n",
+			*IOP321_IABAR0, *IOP321_IALR0, *IOP321_IATVR0);
+	DBG("ATU: IOP321_OMWTVR0=0x%08x\n", *IOP321_OMWTVR0);
+	DBG("ATU: IOP321_IABAR1=0x%08x IOP321_IALR1=0x%08x\n",
+			*IOP321_IABAR1, *IOP321_IALR1);
+	DBG("ATU: IOP321_ERBAR=0x%08x IOP321_ERLR=0x%08x IOP321_ERTVR=%08x\n",
+			*IOP321_ERBAR, *IOP321_ERLR, *IOP321_ERTVR);
+	DBG("ATU: IOP321_IABAR2=0x%08x IOP321_IALR2=0x%08x IOP321_IATVR2=%08x\n",
+			*IOP321_IABAR2, *IOP321_IALR2, *IOP321_IATVR2);
+	DBG("ATU: IOP321_IABAR3=0x%08x IOP321_IALR3=0x%08x IOP321_IATVR3=%08x\n",
+			*IOP321_IABAR3, *IOP321_IALR3, *IOP321_IATVR3);
 
 	hook_fault_code(16+6, iop321_pci_abort, SIGBUS, "imprecise external abort");
-
 }
 

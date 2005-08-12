@@ -185,7 +185,7 @@ SYSCALL(sys_rt_sigreturn_glue,sys_rt_sigreturn_glue,sys32_rt_sigreturn_glue)
 SYSCALL(sys_rt_sigaction,sys_rt_sigaction,sys32_rt_sigaction_wrapper)
 SYSCALL(sys_rt_sigprocmask,sys_rt_sigprocmask,sys32_rt_sigprocmask_wrapper)	/* 175 */
 SYSCALL(sys_rt_sigpending,sys_rt_sigpending,sys32_rt_sigpending_wrapper)
-SYSCALL(sys_rt_sigtimedwait,sys_rt_sigtimedwait,sys32_rt_sigtimedwait_wrapper)
+SYSCALL(sys_rt_sigtimedwait,sys_rt_sigtimedwait,compat_sys_rt_sigtimedwait_wrapper)
 SYSCALL(sys_rt_sigqueueinfo,sys_rt_sigqueueinfo,sys32_rt_sigqueueinfo_wrapper)
 SYSCALL(sys_rt_sigsuspend_glue,sys_rt_sigsuspend_glue,sys32_rt_sigsuspend_glue)
 SYSCALL(sys_pread64,sys_pread64,sys32_pread64_wrapper)		/* 180 */
@@ -275,7 +275,7 @@ NI_SYSCALL							/* reserved for vserver */
 SYSCALL(s390_fadvise64_64,sys_ni_syscall,sys32_fadvise64_64_wrapper)
 SYSCALL(sys_statfs64,sys_statfs64,compat_sys_statfs64_wrapper)
 SYSCALL(sys_fstatfs64,sys_fstatfs64,compat_sys_fstatfs64_wrapper)
-NI_SYSCALL							/* 267 new sys_remap_file_pages */
+SYSCALL(sys_remap_file_pages,sys_remap_file_pages,sys32_remap_file_pages_wrapper)
 NI_SYSCALL							/* 268 sys_mbind */
 NI_SYSCALL							/* 269 sys_get_mempolicy */
 NI_SYSCALL							/* 270 sys_set_mempolicy */
@@ -283,5 +283,10 @@ SYSCALL(sys_mq_open,sys_mq_open,compat_sys_mq_open_wrapper)
 SYSCALL(sys_mq_unlink,sys_mq_unlink,sys32_mq_unlink_wrapper)
 SYSCALL(sys_mq_timedsend,sys_mq_timedsend,compat_sys_mq_timedsend_wrapper)
 SYSCALL(sys_mq_timedreceive,sys_mq_timedreceive,compat_sys_mq_timedreceive_wrapper)
-SYSCALL(sys_mq_notify,sys_mq_notify,compat_sys_mq_notify_wrapper)
+SYSCALL(sys_mq_notify,sys_mq_notify,compat_sys_mq_notify_wrapper) /* 275 */
 SYSCALL(sys_mq_getsetattr,sys_mq_getsetattr,compat_sys_mq_getsetattr_wrapper)
+NI_SYSCALL							/* reserved for kexec */
+SYSCALL(sys_add_key,sys_add_key,compat_sys_add_key_wrapper)
+SYSCALL(sys_request_key,sys_request_key,compat_sys_request_key_wrapper)
+SYSCALL(sys_keyctl,sys_keyctl,compat_sys_keyctl)		/* 280 */
+SYSCALL(sys_waitid,sys_waitid,compat_sys_waitid_wrapper)

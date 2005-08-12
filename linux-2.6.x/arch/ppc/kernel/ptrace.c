@@ -26,6 +26,7 @@
 #include <linux/ptrace.h>
 #include <linux/user.h>
 #include <linux/security.h>
+#include <linux/signal.h>
 
 #include <asm/uaccess.h>
 #include <asm/page.h>
@@ -35,7 +36,7 @@
 /*
  * Set of msr bits that gdb can change on behalf of a process.
  */
-#if defined(CONFIG_4xx) || defined(CONFIG_BOOKE)
+#if defined(CONFIG_40x) || defined(CONFIG_BOOKE)
 #define MSR_DEBUGCHANGE	0
 #else
 #define MSR_DEBUGCHANGE	(MSR_SE | MSR_BE)
@@ -201,9 +202,9 @@ set_single_step(struct task_struct *task)
 	struct pt_regs *regs = task->thread.regs;
 
 	if (regs != NULL) {
-#if defined(CONFIG_4xx) || defined(CONFIG_BOOKE)
+#if defined(CONFIG_40x) || defined(CONFIG_BOOKE)
 		task->thread.dbcr0 = DBCR0_IDM | DBCR0_IC;
-		/* MSR.DE should already be set */
+		regs->msr |= MSR_DE;
 #else
 		regs->msr |= MSR_SE;
 #endif
@@ -216,8 +217,9 @@ clear_single_step(struct task_struct *task)
 	struct pt_regs *regs = task->thread.regs;
 
 	if (regs != NULL) {
-#if defined(CONFIG_4xx) || defined(CONFIG_BOOKE)
+#if defined(CONFIG_40x) || defined(CONFIG_BOOKE)
 		task->thread.dbcr0 = 0;
+		regs->msr &= ~MSR_DE;
 #else
 		regs->msr &= ~MSR_SE;
 #endif
@@ -355,7 +357,7 @@ int sys_ptrace(long request, long pid, long addr, long data)
 	case PTRACE_SYSCALL: /* continue and stop at next (return from) syscall */
 	case PTRACE_CONT: { /* restart after signal. */
 		ret = -EIO;
-		if ((unsigned long) data > _NSIG)
+		if (!valid_signal(data))
 			break;
 		if (request == PTRACE_SYSCALL) {
 			set_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
@@ -377,7 +379,7 @@ int sys_ptrace(long request, long pid, long addr, long data)
  */
 	case PTRACE_KILL: {
 		ret = 0;
-		if (child->state == TASK_ZOMBIE)	/* already dead */
+		if (child->exit_state == EXIT_ZOMBIE)	/* already dead */
 			break;
 		child->exit_code = SIGKILL;
 		/* make sure the single step bit is not set. */
@@ -388,7 +390,7 @@ int sys_ptrace(long request, long pid, long addr, long data)
 
 	case PTRACE_SINGLESTEP: {  /* set the trap flag. */
 		ret = -EIO;
-		if ((unsigned long) data > _NSIG)
+		if (!valid_signal(data))
 			break;
 		clear_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
 		set_single_step(child);

@@ -1,5 +1,5 @@
 /*
- *  linux/arch/arm/kernel/setup.c
+ *  linux/arch/arm26/kernel/setup.c
  *
  *  Copyright (C) 1995-2001 Russell King
  *  Copyright (C) 2003 Ian Molton
@@ -37,7 +37,7 @@
 #endif
 
 #ifdef CONFIG_PREEMPT
-spinlock_t kernel_flag = SPIN_LOCK_UNLOCKED;
+DEFINE_SPINLOCK(kernel_flag);
 #endif
 
 #if defined(CONFIG_FPE_NWFPE)
@@ -74,7 +74,6 @@ unsigned int number_mfm_drives;
 
 struct processor processor;
 
-unsigned char aux_device_present;
 char elf_platform[ELF_PLATFORM_SIZE];
 
 unsigned long phys_initrd_start __initdata = 0;
@@ -119,7 +118,7 @@ static void __init setup_processor(void)
 	/*
 	 * locate processor in the list of supported processor
 	 * types.  The linker builds this table for us from the
-	 * entries in arch/arm/mm/proc-*.S
+	 * entries in arch/arm26/mm/proc-*.S
 	 */
 	for (list = &__proc_info_begin; list < &__proc_info_end ; list++)
 		if ((processor_id & list->cpu_mask) == list->cpu_val)

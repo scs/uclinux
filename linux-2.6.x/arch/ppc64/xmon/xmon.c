@@ -26,11 +26,13 @@
 #include <asm/pgtable.h>
 #include <asm/mmu.h>
 #include <asm/mmu_context.h>
-#include <asm/naca.h>
 #include <asm/paca.h>
 #include <asm/ppcdebug.h>
 #include <asm/cputable.h>
 #include <asm/rtas.h>
+#include <asm/sstep.h>
+#include <asm/bug.h>
+#include <asm/hvcall.h>
 
 #include "nonstdio.h"
 #include "privinst.h"
@@ -39,7 +41,7 @@
 #define skipbl	xmon_skipbl
 
 #ifdef CONFIG_SMP
-volatile cpumask_t cpus_in_xmon = CPU_MASK_NONE;
+cpumask_t cpus_in_xmon = CPU_MASK_NONE;
 static unsigned long xmon_taken = 1;
 static int xmon_owner;
 static int xmon_gate;
@@ -49,6 +51,7 @@ static unsigned long in_xmon = 0;
 
 static unsigned long adrs;
 static int size = 1;
+#define MAX_DUMP (128 * 1024)
 static unsigned long ndump = 64;
 static unsigned long nidump = 16;
 static unsigned long ncsum = 4096;
@@ -84,9 +87,6 @@ static struct bpt *iabr;
 static unsigned bpinstr = 0x7fe00008;	/* trap */
 
 #define BP_NUM(bp)	((bp) - bpts + 1)
-
-/* Bits in SRR1 that are copied from MSR */
-#define MSR_MASK	0xffffffff87c0ffff
 
 /* Prototypes */
 static int cmds(struct pt_regs *);
@@ -132,7 +132,6 @@ static void csum(void);
 static void bootcmds(void);
 void dump_segments(void);
 static void symbol_lookup(void);
-static int emulate_step(struct pt_regs *regs, unsigned int instr);
 static void xmon_print_symbol(unsigned long address, const char *mid,
 			      const char *after);
 static const char *getvecname(unsigned long vec);
@@ -148,9 +147,6 @@ extern int xmon_read_poll(void);
 extern int setjmp(long *);
 extern void longjmp(long *, int);
 extern unsigned long _ASR;
-extern char SystemCall_common[];
-
-pte_t *find_linux_pte(pgd_t *pgdir, unsigned long va);	/* from htab.c */
 
 #define GETWORD(v)	(((v)[0] << 24) + ((v)[1] << 16) + ((v)[2] << 8) + (v)[3])
 
@@ -233,17 +229,6 @@ extern inline void sync(void)
  */
 
 /*
- * We don't allow single-stepping an mtmsrd that would clear
- * MSR_RI, since that would make the exception unrecoverable.
- * Since we need to single-step to proceed from a breakpoint,
- * we don't allow putting a breakpoint on an mtmsrd instruction.
- * Similarly we don't allow breakpoints on rfid instructions.
- * These macros tell us if an instruction is a mtmsrd or rfid.
- */
-#define IS_MTMSRD(instr)	(((instr) & 0xfc0007fe) == 0x7c000164)
-#define IS_RFID(instr)		(((instr) & 0xfc0007fe) == 0x4c000024)
-
-/*
  * Disable surveillance (the service processor watchdog function)
  * while we are in xmon.
  * XXX we should re-enable it when we leave. :)
@@ -252,30 +237,28 @@ extern inline void sync(void)
 
 static inline void disable_surveillance(void)
 {
-#ifndef CONFIG_PPC_ISERIES
+#ifdef CONFIG_PPC_PSERIES
 	/* Since this can't be a module, args should end up below 4GB. */
 	static struct rtas_args args;
 
-	if (systemcfg->platform & PLATFORM_PSERIES) {
-		/*
-		 * At this point we have got all the cpus we can into
-		 * xmon, so there is hopefully no other cpu calling RTAS
-		 * at the moment, even though we don't take rtas.lock.
-		 * If we did try to take rtas.lock there would be a
-		 * real possibility of deadlock.
-		 */
-		args.token = rtas_token("set-indicator");
-		if (args.token == RTAS_UNKNOWN_SERVICE)
-			return;
-		args.nargs = 3;
-		args.nret = 1;
-		args.rets = &args.args[3];
-		args.args[0] = SURVEILLANCE_TOKEN;
-		args.args[1] = 0;
-		args.args[2] = 0;
-		enter_rtas(__pa(&args));
-	}
-#endif
+	/*
+	 * At this point we have got all the cpus we can into
+	 * xmon, so there is hopefully no other cpu calling RTAS
+	 * at the moment, even though we don't take rtas.lock.
+	 * If we did try to take rtas.lock there would be a
+	 * real possibility of deadlock.
+	 */
+	args.token = rtas_token("set-indicator");
+	if (args.token == RTAS_UNKNOWN_SERVICE)
+		return;
+	args.nargs = 3;
+	args.nret = 1;
+	args.rets = &args.args[3];
+	args.args[0] = SURVEILLANCE_TOKEN;
+	args.args[1] = 0;
+	args.args[2] = 0;
+	enter_rtas(__pa(&args));
+#endif /* CONFIG_PPC_PSERIES */
 }
 
 #ifdef CONFIG_SMP
@@ -403,9 +386,11 @@ int xmon_core(struct pt_regs *regs, int fromipi)
 		if (ncpus > 1) {
 			smp_send_debugger_break(MSG_ALL_BUT_SELF);
 			/* wait for other cpus to come in */
-			for (timeout = 100000000; timeout != 0; --timeout)
+			for (timeout = 100000000; timeout != 0; --timeout) {
 				if (cpus_weight(cpus_in_xmon) >= ncpus)
 					break;
+				barrier();
+			}
 		}
 		remove_bpts();
 		disable_surveillance();
@@ -490,6 +475,9 @@ int xmon_core(struct pt_regs *regs, int fromipi)
 			if (stepped == 0) {
 				regs->nip = (unsigned long) &bp->instr[0];
 				atomic_inc(&bp->ref_count);
+			} else if (stepped < 0) {
+				printf("Couldn't single-step %s instruction\n",
+				    (IS_RFID(bp->instr[0])? "rfid": "mtmsrd"));
 			}
 		}
 	}
@@ -637,6 +625,19 @@ int xmon_fault_handler(struct pt_regs *regs)
 	return 0;
 }
 
+/* On systems with a hypervisor, we can't set the DABR
+   (data address breakpoint register) directly. */
+static void set_controlled_dabr(unsigned long val)
+{
+#ifdef CONFIG_PPC_PSERIES
+	if (systemcfg->platform == PLATFORM_PSERIES_LPAR) {
+		int rc = plpar_hcall_norets(H_SET_DABR, val);
+		if (rc != H_Success)
+			xmon_printf("Warning: setting DABR failed (%d)\n", rc);
+	} else
+#endif
+		set_dabr(val);
+}
 
 static struct bpt *at_breakpoint(unsigned long pc)
 {
@@ -647,7 +648,7 @@ static struct bpt *at_breakpoint(unsigned long pc)
 	for (i = 0; i < NBPTS; ++i, ++bp)
 		if (bp->enabled && pc == bp->address)
 			return bp;
-	return 0;
+	return NULL;
 }
 
 static struct bpt *in_breakpoint_table(unsigned long nip, unsigned long *offp)
@@ -724,8 +725,8 @@ static void insert_bpts(void)
 static void insert_cpu_bpts(void)
 {
 	if (dabr.enabled)
-		set_dabr(dabr.address | (dabr.enabled & 7));
-	if (iabr && (cur_cpu_spec->cpu_features & CPU_FTR_IABR))
+		set_controlled_dabr(dabr.address | (dabr.enabled & 7));
+	if (iabr && cpu_has_feature(CPU_FTR_IABR))
 		set_iabr(iabr->address
 			 | (iabr->enabled & (BP_IABR|BP_IABR_TE)));
 }
@@ -752,111 +753,9 @@ static void remove_bpts(void)
 
 static void remove_cpu_bpts(void)
 {
-	set_dabr(0);
-	if ((cur_cpu_spec->cpu_features & CPU_FTR_IABR))
+	set_controlled_dabr(0);
+	if (cpu_has_feature(CPU_FTR_IABR))
 		set_iabr(0);
-}
-
-static int branch_taken(unsigned int instr, struct pt_regs *regs)
-{
-	unsigned int bo = (instr >> 21) & 0x1f;
-	unsigned int bi;
-
-	if ((bo & 4) == 0) {
-		/* decrement counter */
-		--regs->ctr;
-		if (((bo >> 1) & 1) ^ (regs->ctr == 0))
-			return 0;
-	}
-	if ((bo & 0x10) == 0) {
-		/* check bit from CR */
-		bi = (instr >> 16) & 0x1f;
-		if (((regs->ccr >> (31 - bi)) & 1) != ((bo >> 3) & 1))
-			return 0;
-	}
-	return 1;
-}
-
-/*
- * Emulate instructions that cause a transfer of control.
- * Returns 1 if the step was emulated, 0 if not,
- * or -1 if the instruction is one that should not be stepped,
- * such as an rfid, or a mtmsrd that would clear MSR_RI.
- */
-static int emulate_step(struct pt_regs *regs, unsigned int instr)
-{
-	unsigned int opcode, rd;
-	unsigned long int imm;
-
-	opcode = instr >> 26;
-	switch (opcode) {
-	case 16:	/* bc */
-		imm = (signed short)(instr & 0xfffc);
-		if ((instr & 2) == 0)
-			imm += regs->nip;
-		regs->nip += 4;		/* XXX check 32-bit mode */
-		if (instr & 1)
-			regs->link = regs->nip;
-		if (branch_taken(instr, regs))
-			regs->nip = imm;
-		return 1;
-	case 17:	/* sc */
-		regs->gpr[9] = regs->gpr[13];
-		regs->gpr[11] = regs->nip + 4;
-		regs->gpr[12] = regs->msr & MSR_MASK;
-		regs->gpr[13] = (unsigned long) get_paca();
-		regs->nip = (unsigned long) &SystemCall_common;
-		regs->msr = MSR_KERNEL;
-		return 1;
-	case 18:	/* b */
-		imm = instr & 0x03fffffc;
-		if (imm & 0x02000000)
-			imm -= 0x04000000;
-		if ((instr & 2) == 0)
-			imm += regs->nip;
-		if (instr & 1)
-			regs->link = regs->nip + 4;
-		regs->nip = imm;
-		return 1;
-	case 19:
-		switch (instr & 0x7fe) {
-		case 0x20:	/* bclr */
-		case 0x420:	/* bcctr */
-			imm = (instr & 0x400)? regs->ctr: regs->link;
-			regs->nip += 4;		/* XXX check 32-bit mode */
-			if (instr & 1)
-				regs->link = regs->nip;
-			if (branch_taken(instr, regs))
-				regs->nip = imm;
-			return 1;
-		case 0x24:	/* rfid, scary */
-			printf("Can't single-step an rfid instruction\n");
-			return -1;
-		}
-	case 31:
-		rd = (instr >> 21) & 0x1f;
-		switch (instr & 0x7fe) {
-		case 0xa6:	/* mfmsr */
-			regs->gpr[rd] = regs->msr & MSR_MASK;
-			regs->nip += 4;
-			return 1;
-		case 0x164:	/* mtmsrd */
-			/* only MSR_EE and MSR_RI get changed if bit 15 set */
-			/* mtmsrd doesn't change MSR_HV and MSR_ME */
-			imm = (instr & 0x10000)? 0x8002: 0xefffffffffffefffUL;
-			imm = (regs->msr & MSR_MASK & ~imm)
-				| (regs->gpr[rd] & imm);
-			if ((imm & MSR_RI) == 0) {
-				printf("Can't step an instruction that would "
-				       "clear MSR.RI\n");
-				return -1;
-			}
-			regs->msr = imm;
-			regs->nip += 4;
-			return 1;
-		}
-	}
-	return 0;
 }
 
 /* Command interpreting routine */
@@ -990,8 +889,11 @@ static int do_step(struct pt_regs *regs)
 	if ((regs->msr & (MSR_SF|MSR_PR|MSR_IR)) == (MSR_SF|MSR_IR)) {
 		if (mread(regs->nip, &instr, 4) == 4) {
 			stepped = emulate_step(regs, instr);
-			if (stepped < 0)
+			if (stepped < 0) {
+				printf("Couldn't single-step %s instruction\n",
+				       (IS_RFID(instr)? "rfid": "mtmsrd"));
 				return 0;
+			}
 			if (stepped > 0) {
 				regs->trap = 0xd00 | (regs->trap & 1);
 				printf("stepped to ");
@@ -1161,8 +1063,8 @@ static char *breakpoint_help_string =
     "b <addr> [cnt]   set breakpoint at given instr addr\n"
     "bc               clear all breakpoints\n"
     "bc <n/addr>      clear breakpoint number n or at addr\n"
-    "bi <addr> [cnt]  set hardware instr breakpoint (broken?)\n"
-    "bd <addr> [cnt]  set hardware data breakpoint (broken?)\n"
+    "bi <addr> [cnt]  set hardware instr breakpoint (POWER3/RS64 only)\n"
+    "bd <addr> [cnt]  set hardware data breakpoint\n"
     "";
 
 static void
@@ -1199,7 +1101,7 @@ bpt_cmds(void)
 		break;
 
 	case 'i':	/* bi - hardware instr breakpoint */
-		if (!(cur_cpu_spec->cpu_features & CPU_FTR_IABR)) {
+		if (!cpu_has_feature(CPU_FTR_IABR)) {
 			printf("Hardware instruction breakpoint "
 			       "not supported on this cpu\n");
 			break;
@@ -1432,6 +1334,26 @@ static void backtrace(struct pt_regs *excp)
 	scannl();
 }
 
+static void print_bug_trap(struct pt_regs *regs)
+{
+	struct bug_entry *bug;
+	unsigned long addr;
+
+	if (regs->msr & MSR_PR)
+		return;		/* not in kernel */
+	addr = regs->nip;	/* address of trap instruction */
+	if (addr < PAGE_OFFSET)
+		return;
+	bug = find_bug(regs->nip);
+	if (bug == NULL)
+		return;
+	if (bug->line & BUG_WARNING_TRAP)
+		return;
+
+	printf("kernel BUG in %s at %s:%d!\n",
+	       bug->function, bug->file, (unsigned int)bug->line);
+}
+
 void excprint(struct pt_regs *fp)
 {
 	unsigned long trap;
@@ -1463,6 +1385,9 @@ void excprint(struct pt_regs *fp)
 		printf("    pid   = %ld, comm = %s\n",
 		       current->pid, current->comm);
 	}
+
+	if (trap == 0x700)
+		print_bug_trap(fp);
 }
 
 void prregs(struct pt_regs *fp)
@@ -1555,7 +1480,17 @@ read_spr(int n)
 	store_inst(instrs+1);
 	code = (unsigned long (*)(void)) opd;
 
-	ret = code();
+	if (setjmp(bus_error_jmp) == 0) {
+		catch_memory_errors = 1;
+		sync();
+
+		ret = code();
+
+		sync();
+		/* wait a little while to see if we get a machine check */
+		__delay(200);
+		n = size;
+	}
 
 	return ret;
 }
@@ -1576,7 +1511,17 @@ write_spr(int n, unsigned long val)
 	store_inst(instrs+1);
 	code = (unsigned long (*)(unsigned long)) opd;
 
-	code(val);
+	if (setjmp(bus_error_jmp) == 0) {
+		catch_memory_errors = 1;
+		sync();
+
+		code(val);
+
+		sync();
+		/* wait a little while to see if we get a machine check */
+		__delay(200);
+		n = size;
+	}
 }
 
 static unsigned long regno;
@@ -1584,13 +1529,13 @@ extern char exc_prolog;
 extern char dec_exc;
 
 void
-super_regs()
+super_regs(void)
 {
 	int cmd;
 	unsigned long val;
 #ifdef CONFIG_PPC_ISERIES
 	struct paca_struct *ptrPaca = NULL;
-	struct ItLpPaca *ptrLpPaca = NULL;
+	struct lppaca *ptrLpPaca = NULL;
 	struct ItLpRegSave *ptrLpRegSave = NULL;
 #endif
 
@@ -1614,10 +1559,10 @@ super_regs()
 		printf("  Local Processor Control Area (LpPaca): \n");
 		ptrLpPaca = ptrPaca->lppaca_ptr;
 		printf("    Saved Srr0=%.16lx  Saved Srr1=%.16lx \n",
-		       ptrLpPaca->xSavedSrr0, ptrLpPaca->xSavedSrr1);
+		       ptrLpPaca->saved_srr0, ptrLpPaca->saved_srr1);
 		printf("    Saved Gpr3=%.16lx  Saved Gpr4=%.16lx \n",
-		       ptrLpPaca->xSavedGpr3, ptrLpPaca->xSavedGpr4);
-		printf("    Saved Gpr5=%.16lx \n", ptrLpPaca->xSavedGpr5);
+		       ptrLpPaca->saved_gpr3, ptrLpPaca->saved_gpr4);
+		printf("    Saved Gpr5=%.16lx \n", ptrLpPaca->saved_gpr5);
     
 		printf("  Local Processor Register Save Area (LpRegSave): \n");
 		ptrLpRegSave = ptrPaca->reg_save_ptr;
@@ -1818,7 +1763,7 @@ static char *memex_subcmd_help_string =
     "";
 
 void
-memex()
+memex(void)
 {
 	int cmd, inc, i, nslash;
 	unsigned long n;
@@ -1969,7 +1914,7 @@ memex()
 }
 
 int
-bsesc()
+bsesc(void)
 {
 	int c;
 
@@ -1987,7 +1932,7 @@ bsesc()
 			 || ('a' <= (c) && (c) <= 'f') \
 			 || ('A' <= (c) && (c) <= 'F'))
 void
-dump()
+dump(void)
 {
 	int c;
 
@@ -1995,18 +1940,22 @@ dump()
 	if ((isxdigit(c) && c != 'f' && c != 'd') || c == '\n')
 		termch = c;
 	scanhex((void *)&adrs);
-	if( termch != '\n')
+	if (termch != '\n')
 		termch = 0;
-	if( c == 'i' ){
+	if (c == 'i') {
 		scanhex(&nidump);
-		if( nidump == 0 )
+		if (nidump == 0)
 			nidump = 16;
+		else if (nidump > MAX_DUMP)
+			nidump = MAX_DUMP;
 		adrs += ppc_inst_dump(adrs, nidump, 1);
 		last_cmd = "di\n";
 	} else {
 		scanhex(&ndump);
-		if( ndump == 0 )
+		if (ndump == 0)
 			ndump = 64;
+		else if (ndump > MAX_DUMP)
+			ndump = MAX_DUMP;
 		prdump(adrs, ndump);
 		adrs += ndump;
 		last_cmd = "d\n";
@@ -2059,7 +2008,7 @@ ppc_inst_dump(unsigned long adr, long count, int praddr)
 {
 	int nr, dotted;
 	unsigned long first_adr;
-	unsigned long inst, last_inst;
+	unsigned long inst, last_inst = 0;
 	unsigned char val[4];
 
 	dotted = 0;
@@ -2152,7 +2101,7 @@ static unsigned mend;
 static unsigned mask;
 
 void
-memlocate()
+memlocate(void)
 {
 	unsigned a, n;
 	unsigned char val[4];
@@ -2185,7 +2134,7 @@ static unsigned long mskip = 0x1000;
 static unsigned long mlim = 0xffffffff;
 
 void
-memzcan()
+memzcan(void)
 {
 	unsigned char v;
 	unsigned a;
@@ -2214,7 +2163,7 @@ memzcan()
 
 /* Input scanning routines */
 int
-skipbl()
+skipbl(void)
 {
 	int c;
 
@@ -2239,8 +2188,7 @@ static char *regnames[N_PTREGS] = {
 };
 
 int
-scanhex(vp)
-unsigned long *vp;
+scanhex(unsigned long *vp)
 {
 	int c, d;
 	unsigned long v;
@@ -2324,7 +2272,7 @@ unsigned long *vp;
 }
 
 void
-scannl()
+scannl(void)
 {
 	int c;
 
@@ -2367,13 +2315,13 @@ static char line[256];
 static char *lineptr;
 
 void
-flush_input()
+flush_input(void)
 {
 	lineptr = NULL;
 }
 
 int
-inchar()
+inchar(void)
 {
 	if (lineptr == NULL || *lineptr == 0) {
 		if (fgets(line, sizeof(line), stdin) == NULL) {
@@ -2386,8 +2334,7 @@ inchar()
 }
 
 void
-take_input(str)
-char *str;
+take_input(char *str)
 {
 	lineptr = str;
 }
@@ -2462,9 +2409,9 @@ static void debug_trace(void)
 	if (cmd == '\n') {
 		/* show current state */
 		unsigned long i;
-		printf("naca->debug_switch = 0x%lx\n", naca->debug_switch);
+		printf("ppc64_debug_switch = 0x%lx\n", ppc64_debug_switch);
 		for (i = 0; i < PPCDBG_NUM_FLAGS ;i++) {
-			on = PPCDBG_BITVAL(i) & naca->debug_switch;
+			on = PPCDBG_BITVAL(i) & ppc64_debug_switch;
 			printf("%02x %s %12s   ", i, on ? "on " : "off",  trace_names[i] ? trace_names[i] : "");
 			if (((i+1) % 3) == 0)
 				printf("\n");
@@ -2478,7 +2425,7 @@ static void debug_trace(void)
 			on = (cmd == '+');
 			cmd = inchar();
 			if (cmd == ' ' || cmd == '\n') {  /* Turn on or off based on + or - */
-				naca->debug_switch = on ? PPCDBG_ALL:PPCDBG_NONE;
+				ppc64_debug_switch = on ? PPCDBG_ALL:PPCDBG_NONE;
 				printf("Setting all values to %s...\n", on ? "on" : "off");
 				if (cmd == '\n') return;
 				else cmd = skipbl(); 
@@ -2493,10 +2440,10 @@ static void debug_trace(void)
 			return;
 		}
 		if (on) {
-			naca->debug_switch |= PPCDBG_BITVAL(val);
+			ppc64_debug_switch |= PPCDBG_BITVAL(val);
 			printf("enable debug %x %s\n", val, trace_names[val] ? trace_names[val] : "");
 		} else {
-			naca->debug_switch &= ~PPCDBG_BITVAL(val);
+			ppc64_debug_switch &= ~PPCDBG_BITVAL(val);
 			printf("disable debug %x %s\n", val, trace_names[val] ? trace_names[val] : "");
 		}
 		cmd = skipbl();
@@ -2552,7 +2499,7 @@ void xmon_init(void)
 
 void dump_segments(void)
 {
-	if (cur_cpu_spec->cpu_features & CPU_FTR_SLB)
+	if (cpu_has_feature(CPU_FTR_SLB))
 		dump_slb();
 	else
 		dump_stab();

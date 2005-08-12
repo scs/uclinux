@@ -33,7 +33,6 @@
 #include <asm/system.h>
 #include <asm/mach/pci.h>
 #include <asm/hardware.h>
-#include <asm/sizes.h>
 
 
 /*
@@ -54,7 +53,7 @@ unsigned long ixp4xx_pci_reg_base = 0;
  * these transactions are atomic or we will end up
  * with corrupt data on the bus or in a driver.
  */
-static spinlock_t ixp4xx_pci_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(ixp4xx_pci_lock);
 
 /*
  * Read from PCI config space
@@ -239,9 +238,10 @@ static u32 byte_lane_enable_bits(u32 n, int size)
 	return 0xffffffff;
 }
 
-static int read_config(u8 bus_num, u16 devfn, int where, int size, u32 *value)
+static int ixp4xx_pci_read_config(struct pci_bus *bus, unsigned int devfn, int where, int size, u32 *value)
 {
 	u32 n, byte_enables, addr, data;
+	u8 bus_num = bus->number;
 
 	pr_debug("read_config from %d size %d dev %d:%d:%d\n", where, size,
 		bus_num, PCI_SLOT(devfn), PCI_FUNC(devfn));
@@ -261,9 +261,10 @@ static int read_config(u8 bus_num, u16 devfn, int where, int size, u32 *value)
 	return PCIBIOS_SUCCESSFUL;
 }
 
-static int write_config(u8 bus_num, u16 devfn, int where, int size, u32 value)
+static int ixp4xx_pci_write_config(struct pci_bus *bus,  unsigned int devfn, int where, int size, u32 value)
 {
 	u32 n, byte_enables, addr, data;
+	u8 bus_num = bus->number;
 
 	pr_debug("write_config_byte %#x to %d size %d dev %d:%d:%d\n", value, where,
 		size, bus_num, PCI_SLOT(devfn), PCI_FUNC(devfn));
@@ -281,30 +282,10 @@ static int write_config(u8 bus_num, u16 devfn, int where, int size, u32 value)
 	return PCIBIOS_SUCCESSFUL;
 }
 
-/*
- *	Generalized PCI config access functions.
- */
-static int ixp4xx_read_config(struct pci_bus *bus, unsigned int devfn,
-	int where, int size, u32 *value)
-{
-	if (bus->number && !PCI_SLOT(devfn))
-		return local_read_config(where, size, value);
-	return read_config(bus->number, devfn, where, size, value);
-}
-
-static int ixp4xx_write_config(struct pci_bus *bus, unsigned int devfn,
-	int where, int size, u32 value)
-{
-	if (bus->number && !PCI_SLOT(devfn))
-		return local_write_config(where, size, value);
-	return write_config(bus->number, devfn, where, size, value);
-}
-
 struct pci_ops ixp4xx_ops = {
-	.read =  ixp4xx_read_config,
-	.write = ixp4xx_write_config,
+	.read =  ixp4xx_pci_read_config,
+	.write = ixp4xx_pci_write_config,
 };
-
 
 /*
  * PCI abort handler
@@ -367,10 +348,11 @@ void __init ixp4xx_pci_preinit(void)
 	asm("mrc p15, 0, %0, cr0, cr0, 0;" : "=r"(processor_id) :);
 
 	/*
-	 * Determine which PCI read method to use
+	 * Determine which PCI read method to use.
+	 * Rev 0 IXP425 requires workaround.
 	 */
-	if (!(processor_id & 0xf)) {
-		printk("PCI: IXP4xx A0 silicon detected - "
+	if (!(processor_id & 0xf) && !cpu_is_ixp46x()) {
+		printk("PCI: IXP42x A0 silicon detected - "
 			"PCI Non-Prefetch Workaround Enabled\n");
 		ixp4xx_pci_read = ixp4xx_pci_read_errata;
 	} else
@@ -520,15 +502,6 @@ pci_set_dma_mask(struct pci_dev *dev, u64 mask)
 }
     
 int
-pci_dac_set_dma_mask(struct pci_dev *dev, u64 mask)
-{
-	if (mask >= SZ_64M - 1 )
-		return 0;
-
-	return -EIO;
-}
-
-int
 pci_set_consistent_dma_mask(struct pci_dev *dev, u64 mask)
 {
 	if (mask >= SZ_64M - 1 )
@@ -538,7 +511,6 @@ pci_set_consistent_dma_mask(struct pci_dev *dev, u64 mask)
 }
 
 EXPORT_SYMBOL(pci_set_dma_mask);
-EXPORT_SYMBOL(pci_dac_set_dma_mask);
 EXPORT_SYMBOL(pci_set_consistent_dma_mask);
 EXPORT_SYMBOL(ixp4xx_pci_read);
 EXPORT_SYMBOL(ixp4xx_pci_write);

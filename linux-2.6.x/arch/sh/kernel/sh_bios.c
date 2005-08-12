@@ -1,5 +1,4 @@
-/* $Id$
- *
+/*
  *  linux/arch/sh/kernel/sh_bios.c
  *  C interface for trapping into the standard LinuxSH BIOS.
  *

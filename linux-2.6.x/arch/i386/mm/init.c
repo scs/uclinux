@@ -40,10 +40,12 @@
 #include <asm/tlbflush.h>
 #include <asm/sections.h>
 
+unsigned int __VMALLOC_RESERVE = 128 << 20;
+
 DEFINE_PER_CPU(struct mmu_gather, mmu_gathers);
 unsigned long highstart_pfn, highend_pfn;
 
-static int do_test_wp_bit(void);
+static int noinline do_test_wp_bit(void);
 
 /*
  * Creates a middle page table and puts a pointer to it in the
@@ -52,15 +54,18 @@ static int do_test_wp_bit(void);
  */
 static pmd_t * __init one_md_table_init(pgd_t *pgd)
 {
+	pud_t *pud;
 	pmd_t *pmd_table;
 		
 #ifdef CONFIG_X86_PAE
 	pmd_table = (pmd_t *) alloc_bootmem_low_pages(PAGE_SIZE);
 	set_pgd(pgd, __pgd(__pa(pmd_table) | _PAGE_PRESENT));
-	if (pmd_table != pmd_offset(pgd, 0)) 
+	pud = pud_offset(pgd, 0);
+	if (pmd_table != pmd_offset(pud, 0)) 
 		BUG();
 #else
-	pmd_table = pmd_offset(pgd, 0);
+	pud = pud_offset(pgd, 0);
+	pmd_table = pmd_offset(pud, 0);
 #endif
 
 	return pmd_table;
@@ -98,6 +103,7 @@ static pte_t * __init one_page_table_init(pmd_t *pmd)
 static void __init page_table_range_init (unsigned long start, unsigned long end, pgd_t *pgd_base)
 {
 	pgd_t *pgd;
+	pud_t *pud;
 	pmd_t *pmd;
 	int pgd_idx, pmd_idx;
 	unsigned long vaddr;
@@ -110,8 +116,8 @@ static void __init page_table_range_init (unsigned long start, unsigned long end
 	for ( ; (pgd_idx < PTRS_PER_PGD) && (vaddr != end); pgd++, pgd_idx++) {
 		if (pgd_none(*pgd)) 
 			one_md_table_init(pgd);
-
-		pmd = pmd_offset(pgd, vaddr);
+		pud = pud_offset(pgd, vaddr);
+		pmd = pmd_offset(pud, vaddr);
 		for (; (pmd_idx < PTRS_PER_PMD) && (vaddr != end); pmd++, pmd_idx++) {
 			if (pmd_none(*pmd)) 
 				one_page_table_init(pmd);
@@ -124,7 +130,7 @@ static void __init page_table_range_init (unsigned long start, unsigned long end
 
 static inline int is_kernel_text(unsigned long addr)
 {
-	if (addr >= (unsigned long)_stext && addr <= (unsigned long)__init_end)
+	if (addr >= PAGE_OFFSET && addr <= (unsigned long)__init_end)
 		return 1;
 	return 0;
 }
@@ -227,13 +233,10 @@ static inline int page_is_ram(unsigned long pagenr)
 pte_t *kmap_pte;
 pgprot_t kmap_prot;
 
-EXPORT_SYMBOL(kmap_prot);
-EXPORT_SYMBOL(kmap_pte);
-
 #define kmap_get_fixmap_pte(vaddr)					\
-	pte_offset_kernel(pmd_offset(pgd_offset_k(vaddr), (vaddr)), (vaddr))
+	pte_offset_kernel(pmd_offset(pud_offset(pgd_offset_k(vaddr), vaddr), (vaddr)), (vaddr))
 
-void __init kmap_init(void)
+static void __init kmap_init(void)
 {
 	unsigned long kmap_vstart;
 
@@ -244,9 +247,10 @@ void __init kmap_init(void)
 	kmap_prot = PAGE_KERNEL;
 }
 
-void __init permanent_kmaps_init(pgd_t *pgd_base)
+static void __init permanent_kmaps_init(pgd_t *pgd_base)
 {
 	pgd_t *pgd;
+	pud_t *pud;
 	pmd_t *pmd;
 	pte_t *pte;
 	unsigned long vaddr;
@@ -255,7 +259,8 @@ void __init permanent_kmaps_init(pgd_t *pgd_base)
 	page_table_range_init(vaddr, vaddr + PAGE_SIZE*LAST_PKMAP, pgd_base);
 
 	pgd = swapper_pg_dir + pgd_index(vaddr);
-	pmd = pmd_offset(pgd, vaddr);
+	pud = pud_offset(pgd, vaddr);
+	pmd = pmd_offset(pud, vaddr);
 	pte = pte_offset_kernel(pmd, vaddr);
 	pkmap_page_table = pte;	
 }
@@ -273,7 +278,7 @@ void __init one_highpage_init(struct page *page, int pfn, int bad_ppro)
 }
 
 #ifndef CONFIG_DISCONTIGMEM
-void __init set_highmem_pages_init(int bad_ppro) 
+static void __init set_highmem_pages_init(int bad_ppro)
 {
 	int pfn;
 	for (pfn = highstart_pfn; pfn < highend_pfn; pfn++)
@@ -386,31 +391,6 @@ void zap_low_mappings (void)
 	flush_tlb_all();
 }
 
-#ifndef CONFIG_DISCONTIGMEM
-void __init zone_sizes_init(void)
-{
-	unsigned long zones_size[MAX_NR_ZONES] = {0, 0, 0};
-	unsigned int max_dma, high, low;
-	
-	max_dma = virt_to_phys((char *)MAX_DMA_ADDRESS) >> PAGE_SHIFT;
-	low = max_low_pfn;
-	high = highend_pfn;
-	
-	if (low < max_dma)
-		zones_size[ZONE_DMA] = low;
-	else {
-		zones_size[ZONE_DMA] = max_dma;
-		zones_size[ZONE_NORMAL] = low - max_dma;
-#ifdef CONFIG_HIGHMEM
-		zones_size[ZONE_HIGHMEM] = high - low;
-#endif
-	}
-	free_area_init(zones_size);	
-}
-#else
-extern void zone_sizes_init(void);
-#endif /* !CONFIG_DISCONTIGMEM */
-
 static int disable_nx __initdata = 0;
 u64 __supported_pte_mask = ~_PAGE_NX;
 
@@ -422,7 +402,7 @@ u64 __supported_pte_mask = ~_PAGE_NX;
  * on      Enable
  * off     Disable
  */
-static int __init noexec_setup(char *str)
+void __init noexec_setup(const char *str)
 {
 	if (!strncmp(str, "on",2) && cpu_has_nx) {
 		__supported_pte_mask |= _PAGE_NX;
@@ -431,13 +411,10 @@ static int __init noexec_setup(char *str)
 		disable_nx = 1;
 		__supported_pte_mask &= ~_PAGE_NX;
 	}
-	return 1;
 }
 
-__setup("noexec=", noexec_setup);
-
-#ifdef CONFIG_X86_PAE
 int nx_enabled = 0;
+#ifdef CONFIG_X86_PAE
 
 static void __init set_nx(void)
 {
@@ -514,7 +491,6 @@ void __init paging_init(void)
 	__flush_tlb_all();
 
 	kmap_init();
-	zone_sizes_init();
 }
 
 /*
@@ -524,7 +500,7 @@ void __init paging_init(void)
  * but fortunately the switch to using exceptions got rid of all that.
  */
 
-void __init test_wp_bit(void)
+static void __init test_wp_bit(void)
 {
 	printk("Checking if this processor honours the WP bit even in supervisor mode... ");
 
@@ -543,21 +519,17 @@ void __init test_wp_bit(void)
 	}
 }
 
-#ifndef CONFIG_DISCONTIGMEM
 static void __init set_max_mapnr_init(void)
 {
 #ifdef CONFIG_HIGHMEM
-	highmem_start_page = pfn_to_page(highstart_pfn);
-	max_mapnr = num_physpages = highend_pfn;
+	num_physpages = highend_pfn;
 #else
-	max_mapnr = num_physpages = max_low_pfn;
+	num_physpages = max_low_pfn;
+#endif
+#ifndef CONFIG_DISCONTIGMEM
+	max_mapnr = num_physpages;
 #endif
 }
-#define __free_all_bootmem() free_all_bootmem()
-#else
-#define __free_all_bootmem() free_all_bootmem_node(NODE_DATA(0))
-extern void set_max_mapnr_init(void);
-#endif /* !CONFIG_DISCONTIGMEM */
 
 static struct kcore_list kcore_mem, kcore_vmalloc; 
 
@@ -588,13 +560,13 @@ void __init mem_init(void)
 	set_max_mapnr_init();
 
 #ifdef CONFIG_HIGHMEM
-	high_memory = (void *) __va(highstart_pfn * PAGE_SIZE);
+	high_memory = (void *) __va(highstart_pfn * PAGE_SIZE - 1) + 1;
 #else
-	high_memory = (void *) __va(max_low_pfn * PAGE_SIZE);
+	high_memory = (void *) __va(max_low_pfn * PAGE_SIZE - 1) + 1;
 #endif
 
 	/* this will put all low memory onto the freelists */
-	totalram_pages += __free_all_bootmem();
+	totalram_pages += free_all_bootmem();
 
 	reservedpages = 0;
 	for (tmp = 0; tmp < max_low_pfn; tmp++)
@@ -671,7 +643,7 @@ void __init pgtable_cache_init(void)
  * This function cannot be __init, since exceptions don't work in that
  * section.  Put this after the callers, so that it cannot be inlined.
  */
-static int do_test_wp_bit(void)
+static int noinline do_test_wp_bit(void)
 {
 	char tmp_reg;
 	int flag;
@@ -702,6 +674,7 @@ void free_initmem(void)
 	for (; addr < (unsigned long)(&__init_end); addr += PAGE_SIZE) {
 		ClearPageReserved(virt_to_page(addr));
 		set_page_count(virt_to_page(addr), 1);
+		memset((void *)addr, 0xcc, PAGE_SIZE);
 		free_page(addr);
 		totalram_pages++;
 	}

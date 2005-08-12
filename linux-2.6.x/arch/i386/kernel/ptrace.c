@@ -15,6 +15,8 @@
 #include <linux/user.h>
 #include <linux/security.h>
 #include <linux/audit.h>
+#include <linux/seccomp.h>
+#include <linux/signal.h>
 
 #include <asm/uaccess.h>
 #include <asm/pgtable.h>
@@ -41,6 +43,12 @@
  * Offset of eflags on child stack..
  */
 #define EFL_OFFSET ((EFL-2)*4-sizeof(struct pt_regs))
+
+static inline struct pt_regs *get_child_regs(struct task_struct *task)
+{
+	void *stack_top = (void *)task->thread.esp0;
+	return stack_top - sizeof(struct pt_regs);
+}
 
 /*
  * this routine will get a word off of the processes privileged stack. 
@@ -138,6 +146,123 @@ static unsigned long getreg(struct task_struct *child,
 	return retval;
 }
 
+#define LDT_SEGMENT 4
+
+static unsigned long convert_eip_to_linear(struct task_struct *child, struct pt_regs *regs)
+{
+	unsigned long addr, seg;
+
+	addr = regs->eip;
+	seg = regs->xcs & 0xffff;
+	if (regs->eflags & VM_MASK) {
+		addr = (addr & 0xffff) + (seg << 4);
+		return addr;
+	}
+
+	/*
+	 * We'll assume that the code segments in the GDT
+	 * are all zero-based. That is largely true: the
+	 * TLS segments are used for data, and the PNPBIOS
+	 * and APM bios ones we just ignore here.
+	 */
+	if (seg & LDT_SEGMENT) {
+		u32 *desc;
+		unsigned long base;
+
+		down(&child->mm->context.sem);
+		desc = child->mm->context.ldt + (seg & ~7);
+		base = (desc[0] >> 16) | ((desc[1] & 0xff) << 16) | (desc[1] & 0xff000000);
+
+		/* 16-bit code segment? */
+		if (!((desc[1] >> 22) & 1))
+			addr &= 0xffff;
+		addr += base;
+		up(&child->mm->context.sem);
+	}
+	return addr;
+}
+
+static inline int is_at_popf(struct task_struct *child, struct pt_regs *regs)
+{
+	int i, copied;
+	unsigned char opcode[16];
+	unsigned long addr = convert_eip_to_linear(child, regs);
+
+	copied = access_process_vm(child, addr, opcode, sizeof(opcode), 0);
+	for (i = 0; i < copied; i++) {
+		switch (opcode[i]) {
+		/* popf */
+		case 0x9d:
+			return 1;
+		/* opcode and address size prefixes */
+		case 0x66: case 0x67:
+			continue;
+		/* irrelevant prefixes (segment overrides and repeats) */
+		case 0x26: case 0x2e:
+		case 0x36: case 0x3e:
+		case 0x64: case 0x65:
+		case 0xf0: case 0xf2: case 0xf3:
+			continue;
+
+		/*
+		 * pushf: NOTE! We should probably not let
+		 * the user see the TF bit being set. But
+		 * it's more pain than it's worth to avoid
+		 * it, and a debugger could emulate this
+		 * all in user space if it _really_ cares.
+		 */
+		case 0x9c:
+		default:
+			return 0;
+		}
+	}
+	return 0;
+}
+
+static void set_singlestep(struct task_struct *child)
+{
+	struct pt_regs *regs = get_child_regs(child);
+
+	/*
+	 * Always set TIF_SINGLESTEP - this guarantees that 
+	 * we single-step system calls etc..  This will also
+	 * cause us to set TF when returning to user mode.
+	 */
+	set_tsk_thread_flag(child, TIF_SINGLESTEP);
+
+	/*
+	 * If TF was already set, don't do anything else
+	 */
+	if (regs->eflags & TRAP_FLAG)
+		return;
+
+	/* Set TF on the kernel stack.. */
+	regs->eflags |= TRAP_FLAG;
+
+	/*
+	 * ..but if TF is changed by the instruction we will trace,
+	 * don't mark it as being "us" that set it, so that we
+	 * won't clear it by hand later.
+	 */
+	if (is_at_popf(child, regs))
+		return;
+	
+	child->ptrace |= PT_DTRACE;
+}
+
+static void clear_singlestep(struct task_struct *child)
+{
+	/* Always clear TIF_SINGLESTEP... */
+	clear_tsk_thread_flag(child, TIF_SINGLESTEP);
+
+	/* But touch TF only if it was set by us.. */
+	if (child->ptrace & PT_DTRACE) {
+		struct pt_regs *regs = get_child_regs(child);
+		regs->eflags &= ~TRAP_FLAG;
+		child->ptrace &= ~PT_DTRACE;
+	}
+}
+
 /*
  * Called by kernel/ptrace.c when detaching..
  *
@@ -145,10 +270,7 @@ static unsigned long getreg(struct task_struct *child,
  */
 void ptrace_disable(struct task_struct *child)
 { 
-	long tmp;
-
-	tmp = get_stack_long(child, EFL_OFFSET) & ~TRAP_FLAG;
-	put_stack_long(child, EFL_OFFSET, tmp);
+	clear_singlestep(child);
 }
 
 /*
@@ -343,6 +465,36 @@ asmlinkage int sys_ptrace(long request, long pid, long addr, long data)
 			  if(addr < (long) &dummy->u_debugreg[4] &&
 			     ((unsigned long) data) >= TASK_SIZE-3) break;
 			  
+			  /* Sanity-check data. Take one half-byte at once with
+			   * check = (val >> (16 + 4*i)) & 0xf. It contains the
+			   * R/Wi and LENi bits; bits 0 and 1 are R/Wi, and bits
+			   * 2 and 3 are LENi. Given a list of invalid values,
+			   * we do mask |= 1 << invalid_value, so that
+			   * (mask >> check) & 1 is a correct test for invalid
+			   * values.
+			   *
+			   * R/Wi contains the type of the breakpoint /
+			   * watchpoint, LENi contains the length of the watched
+			   * data in the watchpoint case.
+			   *
+			   * The invalid values are:
+			   * - LENi == 0x10 (undefined), so mask |= 0x0f00.
+			   * - R/Wi == 0x10 (break on I/O reads or writes), so
+			   *   mask |= 0x4444.
+			   * - R/Wi == 0x00 && LENi != 0x00, so we have mask |=
+			   *   0x1110.
+			   *
+			   * Finally, mask = 0x0f00 | 0x4444 | 0x1110 == 0x5f54.
+			   *
+			   * See the Intel Manual "System Programming Guide",
+			   * 15.2.4
+			   *
+			   * Note that LENi == 0x10 is defined on x86_64 in long
+			   * mode (i.e. even for 32-bit userspace software, but
+			   * 64-bit kernel), so the x86_64 mask value is 0x5454.
+			   * See the AMD manual no. 24593 (AMD64 System
+			   * Programming)*/
+
 			  if(addr == (long) &dummy->u_debugreg[7]) {
 				  data &= ~DR_CONTROL_RESERVED;
 				  for(i=0; i<4; i++)
@@ -357,12 +509,10 @@ asmlinkage int sys_ptrace(long request, long pid, long addr, long data)
 		  }
 		  break;
 
-	case PTRACE_SYSCALL: /* continue and stop at next (return from) syscall */
-	case PTRACE_CONT: { /* restart after signal. */
-		long tmp;
-
+	case PTRACE_SYSCALL:	/* continue and stop at next (return from) syscall */
+	case PTRACE_CONT:	/* restart after signal. */
 		ret = -EIO;
-		if ((unsigned long) data > _NSIG)
+		if (!valid_signal(data))
 			break;
 		if (request == PTRACE_SYSCALL) {
 			set_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
@@ -371,52 +521,38 @@ asmlinkage int sys_ptrace(long request, long pid, long addr, long data)
 			clear_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
 		}
 		child->exit_code = data;
-	/* make sure the single step bit is not set. */
-		tmp = get_stack_long(child, EFL_OFFSET) & ~TRAP_FLAG;
-		put_stack_long(child, EFL_OFFSET,tmp);
+		/* make sure the single step bit is not set. */
+		clear_singlestep(child);
 		wake_up_process(child);
 		ret = 0;
 		break;
-	}
 
 /*
  * make the child exit.  Best I can do is send it a sigkill. 
  * perhaps it should be put in the status that it wants to 
  * exit.
  */
-	case PTRACE_KILL: {
-		long tmp;
-
+	case PTRACE_KILL:
 		ret = 0;
-		if (child->state == TASK_ZOMBIE)	/* already dead */
+		if (child->exit_state == EXIT_ZOMBIE)	/* already dead */
 			break;
 		child->exit_code = SIGKILL;
 		/* make sure the single step bit is not set. */
-		tmp = get_stack_long(child, EFL_OFFSET) & ~TRAP_FLAG;
-		put_stack_long(child, EFL_OFFSET, tmp);
+		clear_singlestep(child);
 		wake_up_process(child);
 		break;
-	}
 
-	case PTRACE_SINGLESTEP: {  /* set the trap flag. */
-		long tmp;
-
+	case PTRACE_SINGLESTEP:	/* set the trap flag. */
 		ret = -EIO;
-		if ((unsigned long) data > _NSIG)
+		if (!valid_signal(data))
 			break;
 		clear_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
-		if ((child->ptrace & PT_DTRACE) == 0) {
-			/* Spurious delayed TF traps may occur */
-			child->ptrace |= PT_DTRACE;
-		}
-		tmp = get_stack_long(child, EFL_OFFSET) | TRAP_FLAG;
-		put_stack_long(child, EFL_OFFSET, tmp);
+		set_singlestep(child);
 		child->exit_code = data;
 		/* give it a chance to run. */
 		wake_up_process(child);
 		ret = 0;
 		break;
-	}
 
 	case PTRACE_DETACH:
 		/* detach a process that was attached. */
@@ -458,7 +594,7 @@ asmlinkage int sys_ptrace(long request, long pid, long addr, long data)
 			break;
 		}
 		ret = 0;
-		if (!child->used_math)
+		if (!tsk_used_math(child))
 			init_fpu(child);
 		get_fpregs((struct user_i387_struct __user *)data, child);
 		break;
@@ -470,7 +606,7 @@ asmlinkage int sys_ptrace(long request, long pid, long addr, long data)
 			ret = -EIO;
 			break;
 		}
-		child->used_math = 1;
+		set_stopped_child_used_math(child);
 		set_fpregs(child, (struct user_i387_struct __user *)data);
 		ret = 0;
 		break;
@@ -482,7 +618,7 @@ asmlinkage int sys_ptrace(long request, long pid, long addr, long data)
 			ret = -EIO;
 			break;
 		}
-		if (!child->used_math)
+		if (!tsk_used_math(child))
 			init_fpu(child);
 		ret = get_fpxregs((struct user_fxsr_struct __user *)data, child);
 		break;
@@ -494,7 +630,7 @@ asmlinkage int sys_ptrace(long request, long pid, long addr, long data)
 			ret = -EIO;
 			break;
 		}
-		child->used_math = 1;
+		set_stopped_child_used_math(child);
 		ret = set_fpxregs(child, (struct user_fxsr_struct __user *)data);
 		break;
 	}
@@ -520,29 +656,49 @@ out:
 	return ret;
 }
 
+void send_sigtrap(struct task_struct *tsk, struct pt_regs *regs, int error_code)
+{
+	struct siginfo info;
+
+	tsk->thread.trap_no = 1;
+	tsk->thread.error_code = error_code;
+
+	memset(&info, 0, sizeof(info));
+	info.si_signo = SIGTRAP;
+	info.si_code = TRAP_BRKPT;
+
+	/* User-mode eip? */
+	info.si_addr = user_mode(regs) ? (void __user *) regs->eip : NULL;
+
+	/* Send us the fakey SIGTRAP */
+	force_sig_info(SIGTRAP, &info, tsk);
+}
+
 /* notification of system call entry/exit
  * - triggered by current->work.syscall_trace
  */
 __attribute__((regparm(3)))
 void do_syscall_trace(struct pt_regs *regs, int entryexit)
 {
-	if (unlikely(current->audit_context)) {
-		if (!entryexit)
-			audit_syscall_entry(current, regs->orig_eax,
-					    regs->ebx, regs->ecx,
-					    regs->edx, regs->esi);
-		else
-			audit_syscall_exit(current, regs->eax);
-	}
+	/* do the secure computing check first */
+	secure_computing(regs->orig_eax);
+
+	if (unlikely(current->audit_context) && entryexit)
+		audit_syscall_exit(current, AUDITSC_RESULT(regs->eax), regs->eax);
+
+	if (!(current->ptrace & PT_PTRACED))
+		goto out;
+
+	/* Fake a debug trap */
+	if (test_thread_flag(TIF_SINGLESTEP))
+		send_sigtrap(current, regs, 0);
 
 	if (!test_thread_flag(TIF_SYSCALL_TRACE))
-		return;
-	if (!(current->ptrace & PT_PTRACED))
-		return;
+		goto out;
+
 	/* the 0x80 provides a way for the tracing parent to distinguish
 	   between a syscall stop and SIGTRAP delivery */
-	ptrace_notify(SIGTRAP | ((current->ptrace & PT_TRACESYSGOOD)
-				 ? 0x80 : 0));
+	ptrace_notify(SIGTRAP | ((current->ptrace & PT_TRACESYSGOOD) ? 0x80 : 0));
 
 	/*
 	 * this isn't the same as continuing with a signal, but it will do
@@ -553,4 +709,9 @@ void do_syscall_trace(struct pt_regs *regs, int entryexit)
 		send_sig(current->exit_code, current, 1);
 		current->exit_code = 0;
 	}
+ out:
+	if (unlikely(current->audit_context) && !entryexit)
+		audit_syscall_entry(current, AUDIT_ARCH_I386, regs->orig_eax,
+				    regs->ebx, regs->ecx, regs->edx, regs->esi);
+
 }

@@ -20,14 +20,15 @@
 #include <asm/leds.h>
 
 #include <asm/mach/time.h>
+#include "common.h"
 
 #if HZ < 100
-# define TIMER_CONTROL	TIMER_CONTROL1
-# define TIMER_LOAD	TIMER_LOAD1
+# define TIMER_CONTROL	TIMER_CONTROL2
+# define TIMER_LOAD	TIMER_LOAD2
 # define TIMER_CONSTANT	(508469/HZ)
 # define TIMER_MODE	(TIMER_C_ENABLE | TIMER_C_PERIODIC | TIMER_C_508KHZ)
-# define TIMER_EOI	TIMER_EOI1
-# define TIMER_IRQ	IRQ_T1UI
+# define TIMER_EOI	TIMER_EOI2
+# define TIMER_IRQ	IRQ_T2UI
 #else
 # define TIMER_CONTROL	TIMER_CONTROL3
 # define TIMER_LOAD	TIMER_LOAD3
@@ -40,8 +41,12 @@
 static irqreturn_t
 lh7a40x_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 {
+	write_seqlock(&xtime_lock);
+
 	TIMER_EOI = 0;
 	timer_tick(regs);
+
+	write_sequnlock(&xtime_lock);
 
 	return IRQ_HANDLED;
 }
@@ -52,7 +57,7 @@ static struct irqaction lh7a40x_timer_irq = {
 	.handler	= lh7a40x_timer_interrupt
 };
 
-void __init lh7a40x_init_time(void)
+static void __init lh7a40x_timer_init(void)
 {
 				/* Stop/disable all timers */
 	TIMER_CONTROL1 = 0;
@@ -65,3 +70,6 @@ void __init lh7a40x_init_time(void)
 	TIMER_CONTROL = TIMER_MODE;
 }
 
+struct sys_timer lh7a40x_timer = {
+	.init		= &lh7a40x_timer_init,
+};

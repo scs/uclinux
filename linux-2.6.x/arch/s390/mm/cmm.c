@@ -19,7 +19,11 @@
 
 #include <asm/pgalloc.h>
 #include <asm/uaccess.h>
-#include <asm/smp.h>
+
+static char *sender = "VMRMSVM";
+module_param(sender, charp, 0);
+MODULE_PARM_DESC(sender,
+		 "Guest name that may send SMSG messages (default VMRMSVM)");
 
 #include "../../../drivers/s390/net/smsgiucv.h"
 
@@ -124,7 +128,6 @@ cmm_thread(void *dummy)
 	int rc;
 
 	daemonize("cmmthread");
-	set_cpus_allowed(current, cpumask_of_cpu(0));
 	while (1) {
 		rc = wait_event_interruptible(cmm_thread_wait,
 			(cmm_pages != cmm_pages_target ||
@@ -369,10 +372,12 @@ static struct ctl_table cmm_dir_table[] = {
 #ifdef CONFIG_CMM_IUCV
 #define SMSG_PREFIX "CMM"
 static void
-cmm_smsg_target(char *msg)
+cmm_smsg_target(char *from, char *msg)
 {
 	long pages, seconds;
 
+	if (strlen(sender) > 0 && strcmp(from, sender) != 0)
+		return;
 	if (!cmm_skip_blanks(msg + strlen(SMSG_PREFIX), &msg))
 		return;
 	if (strncmp(msg, "SHRINK", 6) == 0) {
@@ -408,14 +413,6 @@ struct ctl_table_header *cmm_sysctl_header;
 static int
 cmm_init (void)
 {
-	int rc;
-
-	/* Prevent logical cpu 0 from being set offline. */
-	rc = smp_get_cpu(cpumask_of_cpu(0));
-	if (rc) {
-		printk(KERN_ERR "CMM: unable to reserve cpu 0\n");
-		return rc;
-	}
 #ifdef CONFIG_CMM_PROC
 	cmm_sysctl_header = register_sysctl_table(cmm_dir_table, 1);
 #endif
@@ -439,8 +436,6 @@ cmm_exit(void)
 #ifdef CONFIG_CMM_IUCV
 	smsg_unregister_callback(SMSG_PREFIX, cmm_smsg_target);
 #endif
-	/* Allow logical cpu 0 to be set offline again. */
-	smp_put_cpu(0);
 }
 
 module_init(cmm_init);

@@ -32,7 +32,8 @@
 #include <linux/delay.h>
 #include <linux/irq.h>
 #include <linux/ptrace.h>
-#include <linux/version.h>
+#include <linux/utsname.h>
+#include <linux/random.h>
 
 #include <asm/uaccess.h>
 #include <asm/pgtable.h>
@@ -52,12 +53,16 @@ asmlinkage extern void ret_from_fork(void);
 
 unsigned long kernel_thread_flags = CLONE_VM | CLONE_UNTRACED;
 
-atomic_t hlt_counter = ATOMIC_INIT(0);
+static atomic_t hlt_counter = ATOMIC_INIT(0);
+
+unsigned long boot_option_idle_override = 0;
+EXPORT_SYMBOL(boot_option_idle_override);
 
 /*
  * Powermanagement idle function, if any..
  */
 void (*pm_idle)(void);
+static DEFINE_PER_CPU(unsigned int, cpu_idle_state);
 
 void disable_hlt(void)
 {
@@ -120,6 +125,34 @@ static void poll_idle (void)
 	}
 }
 
+void cpu_idle_wait(void)
+{
+	unsigned int cpu, this_cpu = get_cpu();
+	cpumask_t map;
+
+	set_cpus_allowed(current, cpumask_of_cpu(this_cpu));
+	put_cpu();
+
+	cpus_clear(map);
+	for_each_online_cpu(cpu) {
+		per_cpu(cpu_idle_state, cpu) = 1;
+		cpu_set(cpu, map);
+	}
+
+	__get_cpu_var(cpu_idle_state) = 0;
+
+	wmb();
+	do {
+		ssleep(1);
+		for_each_online_cpu(cpu) {
+			if (cpu_isset(cpu, map) && !per_cpu(cpu_idle_state, cpu))
+				cpu_clear(cpu, map);
+		}
+		cpus_and(map, map, cpu_online_map);
+	} while (!cpus_empty(map));
+}
+EXPORT_SYMBOL_GPL(cpu_idle_wait);
+
 /*
  * The idle thread. There's no useful work to be
  * done, so just try to conserve power and have a
@@ -130,11 +163,19 @@ void cpu_idle (void)
 {
 	/* endless idle loop with no priority at all */
 	while (1) {
-		void (*idle)(void) = pm_idle;
-		if (!idle)
-			idle = default_idle;
-		while (!need_resched())
+		while (!need_resched()) {
+			void (*idle)(void);
+
+			if (__get_cpu_var(cpu_idle_state))
+				__get_cpu_var(cpu_idle_state) = 0;
+
+			rmb();
+			idle = pm_idle;
+			if (!idle)
+				idle = default_idle;
 			idle();
+		}
+
 		schedule();
 	}
 }
@@ -168,9 +209,7 @@ void __init select_idle_routine(const struct cpuinfo_x86 *c)
 	if (cpu_has(c, X86_FEATURE_MWAIT)) {
 		/*
 		 * Skip, if setup has overridden idle.
-		 * Also, take care of system with asymmetric CPUs.
-		 * Use, mwait_idle only if all cpus support it.
-		 * If not, we fallback to default_idle()
+		 * One CPU supports mwait => All CPUs supports mwait
 		 */
 		if (!pm_idle) {
 			if (!printed) {
@@ -179,10 +218,7 @@ void __init select_idle_routine(const struct cpuinfo_x86 *c)
 			}
 			pm_idle = mwait_idle;
 		}
-		return;
 	}
-	pm_idle = default_idle;
-	return;
 }
 
 static int __init idle_setup (char *str)
@@ -192,6 +228,7 @@ static int __init idle_setup (char *str)
 		pm_idle = poll_idle;
 	}
 
+	boot_option_idle_override = 1;
 	return 1;
 }
 
@@ -207,7 +244,7 @@ void __show_regs(struct pt_regs * regs)
 	printk("\n");
 	print_modules();
 	printk("Pid: %d, comm: %.20s %s %s\n", 
-	       current->pid, current->comm, print_tainted(), UTS_RELEASE);
+	       current->pid, current->comm, print_tainted(), system_utsname.release);
 	printk("RIP: %04lx:[<%016lx>] ", regs->cs & 0xffff, regs->rip);
 	printk_address(regs->rip); 
 	printk("\nRSP: %04lx:%016lx  EFLAGS: %08lx\n", regs->ss, regs->rsp, regs->eflags);
@@ -255,11 +292,17 @@ void show_regs(struct pt_regs *regs)
 void exit_thread(void)
 {
 	struct task_struct *me = current;
+	struct thread_struct *t = &me->thread;
 	if (me->thread.io_bitmap_ptr) { 
-		struct tss_struct *tss = init_tss + get_cpu();
-		kfree(me->thread.io_bitmap_ptr); 
-		me->thread.io_bitmap_ptr = NULL;
-		tss->io_bitmap_base = INVALID_IO_BITMAP_OFFSET;
+		struct tss_struct *tss = &per_cpu(init_tss, get_cpu());
+
+		kfree(t->io_bitmap_ptr);
+		t->io_bitmap_ptr = NULL;
+		/*
+		 * Careful, clear this in the TSS too:
+		 */
+		memset(tss->io_bitmap, 0xff, t->io_bitmap_max);
+		t->io_bitmap_max = 0;
 		put_cpu();
 	}
 }
@@ -283,7 +326,7 @@ void flush_thread(void)
 	 * Forget coprocessor state..
 	 */
 	clear_fpu(tsk);
-	tsk->used_math = 0;
+	clear_used_math();
 }
 
 void release_thread(struct task_struct *dead_task)
@@ -349,7 +392,6 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long rsp,
 	if (rsp == ~0UL) {
 		childregs->rsp = (unsigned long)childregs;
 	}
-	p->set_child_tid = p->clear_child_tid = NULL;
 
 	p->thread.rsp = (unsigned long) childregs;
 	p->thread.rsp0 = (unsigned long) (childregs+1);
@@ -360,15 +402,17 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long rsp,
 	p->thread.fs = me->thread.fs;
 	p->thread.gs = me->thread.gs;
 
-	asm("movl %%gs,%0" : "=m" (p->thread.gsindex));
-	asm("movl %%fs,%0" : "=m" (p->thread.fsindex));
-	asm("movl %%es,%0" : "=m" (p->thread.es));
-	asm("movl %%ds,%0" : "=m" (p->thread.ds));
+	asm("mov %%gs,%0" : "=m" (p->thread.gsindex));
+	asm("mov %%fs,%0" : "=m" (p->thread.fsindex));
+	asm("mov %%es,%0" : "=m" (p->thread.es));
+	asm("mov %%ds,%0" : "=m" (p->thread.ds));
 
 	if (unlikely(me->thread.io_bitmap_ptr != NULL)) { 
 		p->thread.io_bitmap_ptr = kmalloc(IO_BITMAP_BYTES, GFP_KERNEL);
-		if (!p->thread.io_bitmap_ptr) 
+		if (!p->thread.io_bitmap_ptr) {
+			p->thread.io_bitmap_max = 0;
 			return -ENOMEM;
+		}
 		memcpy(p->thread.io_bitmap_ptr, me->thread.io_bitmap_ptr, IO_BITMAP_BYTES);
 	} 
 
@@ -387,8 +431,10 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long rsp,
 	}
 	err = 0;
 out:
-	if (err && p->thread.io_bitmap_ptr)
+	if (err && p->thread.io_bitmap_ptr) {
 		kfree(p->thread.io_bitmap_ptr);
+		p->thread.io_bitmap_max = 0;
+	}
 	return err;
 }
 
@@ -409,7 +455,7 @@ struct task_struct *__switch_to(struct task_struct *prev_p, struct task_struct *
 	struct thread_struct *prev = &prev_p->thread,
 				 *next = &next_p->thread;
 	int cpu = smp_processor_id();  
-	struct tss_struct *tss = init_tss + cpu;
+	struct tss_struct *tss = &per_cpu(init_tss, cpu);
 
 	unlazy_fpu(prev_p);
 
@@ -422,11 +468,11 @@ struct task_struct *__switch_to(struct task_struct *prev_p, struct task_struct *
 	 * Switch DS and ES.
 	 * This won't pick up thread selector changes, but I guess that is ok.
 	 */
-	asm volatile("movl %%es,%0" : "=m" (prev->es)); 
+	asm volatile("mov %%es,%0" : "=m" (prev->es));
 	if (unlikely(next->es | prev->es))
 		loadsegment(es, next->es); 
 	
-	asm volatile ("movl %%ds,%0" : "=m" (prev->ds)); 
+	asm volatile ("mov %%ds,%0" : "=m" (prev->ds));
 	if (unlikely(next->ds | prev->ds))
 		loadsegment(ds, next->ds);
 
@@ -437,7 +483,7 @@ struct task_struct *__switch_to(struct task_struct *prev_p, struct task_struct *
 	 */
 	{ 
 		unsigned fsindex;
-		asm volatile("movl %%fs,%0" : "=g" (fsindex)); 
+		asm volatile("movl %%fs,%0" : "=r" (fsindex)); 
 		/* segment register != 0 always requires a reload. 
 		   also reload when it has changed. 
 		   when prev process used 64bit base always reload
@@ -458,7 +504,7 @@ struct task_struct *__switch_to(struct task_struct *prev_p, struct task_struct *
 	}
 	{ 
 		unsigned gsindex;
-		asm volatile("movl %%gs,%0" : "=g" (gsindex)); 
+		asm volatile("movl %%gs,%0" : "=r" (gsindex)); 
 		if (unlikely(gsindex | next->gsindex | prev->gs)) {
 			load_gs_index(next->gsindex);
 			if (gsindex)
@@ -495,22 +541,18 @@ struct task_struct *__switch_to(struct task_struct *prev_p, struct task_struct *
 	 * Handle the IO bitmap 
 	 */ 
 	if (unlikely(prev->io_bitmap_ptr || next->io_bitmap_ptr)) {
-		if (next->io_bitmap_ptr) {
+		if (next->io_bitmap_ptr)
 			/*
-			 * 2 cachelines copy ... not good, but not that
-			 * bad either. Anyone got something better?
-			 * This only affects processes which use ioperm().
-			 */
-			memcpy(tss->io_bitmap, next->io_bitmap_ptr, IO_BITMAP_BYTES);
-			tss->io_bitmap_base = IO_BITMAP_OFFSET;
-		} else {
+			 * Copy the relevant range of the IO bitmap.
+			 * Normally this is 128 bytes or less:
+ 			 */
+			memcpy(tss->io_bitmap, next->io_bitmap_ptr,
+				max(prev->io_bitmap_max, next->io_bitmap_max));
+		else {
 			/*
-			 * a bitmap offset pointing outside of the TSS limit
-			 * causes a nicely controllable SIGSEGV if a process
-			 * tries to use a port IO instruction. The first
-			 * sys_ioperm() call sets up the bitmap properly.
+			 * Clear any possible leftover bits:
 			 */
-			tss->io_bitmap_base = INVALID_IO_BITMAP_OFFSET;
+			memset(tss->io_bitmap, 0xff, prev->io_bitmap_max);
 		}
 	}
 
@@ -532,8 +574,11 @@ long sys_execve(char __user *name, char __user * __user *argv,
 	if (IS_ERR(filename)) 
 		return error;
 	error = do_execve(filename, argv, envp, &regs); 
-	if (error == 0)
+	if (error == 0) {
+		task_lock(current);
 		current->ptrace &= ~PT_DTRACE;
+		task_unlock(current);
+	}
 	putname(filename);
 	return error;
 }
@@ -544,19 +589,24 @@ void set_personality_64bit(void)
 
 	/* Make sure to be in 64bit mode */
 	clear_thread_flag(TIF_IA32); 
+
+	/* TBD: overwrites user setup. Should have two bits.
+	   But 64bit processes have always behaved this way,
+	   so it's not too bad. The main problem is just that
+   	   32bit childs are affected again. */
+	current->personality &= ~READ_IMPLIES_EXEC;
 }
 
-asmlinkage long sys_fork(struct pt_regs regs)
+asmlinkage long sys_fork(struct pt_regs *regs)
 {
-	return do_fork(SIGCHLD, regs.rsp, &regs, 0, NULL, NULL);
+	return do_fork(SIGCHLD, regs->rsp, regs, 0, NULL, NULL);
 }
 
-asmlinkage long sys_clone(unsigned long clone_flags, unsigned long newsp, void __user *parent_tid, void __user *child_tid, struct pt_regs regs)
+asmlinkage long sys_clone(unsigned long clone_flags, unsigned long newsp, void __user *parent_tid, void __user *child_tid, struct pt_regs *regs)
 {
 	if (!newsp)
-		newsp = regs.rsp;
-	return do_fork(clone_flags & ~CLONE_IDLETASK, newsp, &regs, 0, 
-		    parent_tid, child_tid);
+		newsp = regs->rsp;
+	return do_fork(clone_flags, newsp, regs, 0, parent_tid, child_tid);
 }
 
 /*
@@ -569,9 +619,9 @@ asmlinkage long sys_clone(unsigned long clone_flags, unsigned long newsp, void _
  * do not have enough call-clobbered registers to hold all
  * the information you need.
  */
-asmlinkage long sys_vfork(struct pt_regs regs)
+asmlinkage long sys_vfork(struct pt_regs *regs)
 {
-	return do_fork(CLONE_VFORK | CLONE_VM | SIGCHLD, regs.rsp, &regs, 0, 
+	return do_fork(CLONE_VFORK | CLONE_VM | SIGCHLD, regs->rsp, regs, 0,
 		    NULL, NULL);
 }
 
@@ -710,4 +760,11 @@ int dump_task_regs(struct task_struct *tsk, elf_gregset_t *regs)
 	elf_core_copy_regs(regs, &ptregs);
  
 	return 1;
+}
+
+unsigned long arch_align_stack(unsigned long sp)
+{
+	if (randomize_va_space)
+		sp -= get_random_int() % 8192;
+	return sp & ~0xf;
 }

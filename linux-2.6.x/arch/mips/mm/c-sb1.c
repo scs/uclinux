@@ -20,10 +20,13 @@
  */
 #include <linux/config.h>
 #include <linux/init.h>
-#include <asm/mmu_context.h>
+
+#include <asm/asm.h>
 #include <asm/bootinfo.h>
 #include <asm/cacheops.h>
 #include <asm/cpu.h>
+#include <asm/mipsregs.h>
+#include <asm/mmu_context.h>
 #include <asm/uaccess.h>
 
 extern void sb1_dma_init(void);
@@ -32,17 +35,17 @@ extern void sb1_dma_init(void);
 static unsigned long icache_size;
 static unsigned long dcache_size;
 
-static unsigned long icache_line_size;
-static unsigned long dcache_line_size;
+static unsigned short icache_line_size;
+static unsigned short dcache_line_size;
 
 static unsigned int icache_index_mask;
 static unsigned int dcache_index_mask;
 
-static unsigned long icache_assoc;
-static unsigned long dcache_assoc;
+static unsigned short icache_assoc;
+static unsigned short dcache_assoc;
 
-static unsigned int icache_sets;
-static unsigned int dcache_sets;
+static unsigned short icache_sets;
+static unsigned short dcache_sets;
 
 static unsigned int icache_range_cutoff;
 static unsigned int dcache_range_cutoff;
@@ -157,8 +160,7 @@ static inline void __sb1_flush_icache_all(void)
  * dcache first, then invalidate the icache.  If the page isn't
  * executable, nothing is required.
  */
-static void local_sb1_flush_cache_page(struct vm_area_struct *vma,
-	unsigned long addr)
+static void local_sb1_flush_cache_page(struct vm_area_struct *vma, unsigned long addr, unsigned long pfn)
 {
 	int cpu = smp_processor_id();
 
@@ -180,17 +182,18 @@ static void local_sb1_flush_cache_page(struct vm_area_struct *vma,
 struct flush_cache_page_args {
 	struct vm_area_struct *vma;
 	unsigned long addr;
+	unsigned long pfn;
 };
 
 static void sb1_flush_cache_page_ipi(void *info)
 {
 	struct flush_cache_page_args *args = info;
 
-	local_sb1_flush_cache_page(args->vma, args->addr);
+	local_sb1_flush_cache_page(args->vma, args->addr, args->pfn);
 }
 
 /* Dirty dcache could be on another CPU, so do the IPIs */
-static void sb1_flush_cache_page(struct vm_area_struct *vma, unsigned long addr)
+static void sb1_flush_cache_page(struct vm_area_struct *vma, unsigned long addr, unsigned long pfn)
 {
 	struct flush_cache_page_args args;
 
@@ -200,10 +203,11 @@ static void sb1_flush_cache_page(struct vm_area_struct *vma, unsigned long addr)
 	addr &= PAGE_MASK;
 	args.vma = vma;
 	args.addr = addr;
+	args.pfn = pfn;
 	on_each_cpu(sb1_flush_cache_page_ipi, (void *) &args, 1, 1);
 }
 #else
-void sb1_flush_cache_page(struct vm_area_struct *vma, unsigned long addr)
+void sb1_flush_cache_page(struct vm_area_struct *vma, unsigned long addr, unsigned long pfn)
 	__attribute__((alias("local_sb1_flush_cache_page")));
 #endif
 
@@ -449,6 +453,11 @@ static unsigned int decode_cache_line_size(unsigned int config_field)
  * 9:7   Dcache Associativity
  */
 
+static char *way_string[] = {
+	"direct mapped", "2-way", "3-way", "4-way",
+	"5-way", "6-way", "7-way", "8-way",
+};
+
 static __init void probe_cache_sizes(void)
 {
 	u32 config1;
@@ -473,6 +482,13 @@ static __init void probe_cache_sizes(void)
 	 */
 	icache_range_cutoff = icache_sets * icache_line_size;
 	dcache_range_cutoff = (dcache_sets / 2) * icache_line_size;
+
+	printk("Primary instruction cache %ldkB, %s, linesize %d bytes.\n",
+	       icache_size >> 10, way_string[icache_assoc - 1],
+	       icache_line_size);
+	printk("Primary data cache %ldkB, %s, linesize %d bytes.\n",
+	       dcache_size >> 10, way_string[dcache_assoc - 1],
+	       dcache_line_size);
 }
 
 /*
@@ -488,7 +504,7 @@ void ld_mmu_sb1(void)
 	/* Special cache error handler for SB1 */
 	memcpy((void *)(CAC_BASE   + 0x100), &except_vec2_sb1, 0x80);
 	memcpy((void *)(UNCAC_BASE + 0x100), &except_vec2_sb1, 0x80);
-	memcpy((void *)KSEG1ADDR(&handle_vec2_sb1), &handle_vec2_sb1, 0x80);
+	memcpy((void *)CKSEG1ADDR(&handle_vec2_sb1), &handle_vec2_sb1, 0x80);
 
 	probe_cache_sizes();
 
@@ -526,15 +542,14 @@ void ld_mmu_sb1(void)
 	 * before subsequent instruction fetch.
 	 */
 	__asm__ __volatile__(
+		".set	push			\n"
 	"	.set	noat			\n"
 	"	.set	noreorder		\n"
-	"	.set	mips3\n\t		\n"
-	"	la	$1, 1f			\n"
-	"	mtc0	$1, $14			\n"
+	"	.set	mips3			\n"
+	"	" STR(PTR_LA) "	$1, 1f		\n"
+	"	" STR(MTC0) "	$1, $14		\n"
 	"	eret				\n"
-	"1:	.set	mips0\n\t		\n"
-	"	.set	at			\n"
-	"	.set	reorder"
+	"1:	.set	pop"
 	:
 	:
 	: "memory");

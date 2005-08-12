@@ -6,8 +6,6 @@
  *  Licensed under the terms of the GNU GPL License version 2.
  *  Based upon datasheets & sample CPUs kindly provided by AMD.
  *
- *  BIG FAT DISCLAIMER: Work in progress code. Possibly *dangerous*
- *
  * Errata 5: Processor may fail to execute a FID/VID change in presence of interrupt.
  * - We cli/sti on stepping A0 CPUs around the FID/VID transition.
  * Errata 15: Processors with half frequency multipliers may hang upon wakeup from disconnect.
@@ -25,24 +23,17 @@
 #include <linux/dmi.h>
 
 #include <asm/msr.h>
+#include <asm/timer.h>
 #include <asm/timex.h>
 #include <asm/io.h>
 #include <asm/system.h>
 
-#if defined(CONFIG_ACPI_PROCESSOR) || defined(CONFIG_ACPI_PROCESSOR_MODULE)
+#ifdef CONFIG_X86_POWERNOW_K7_ACPI
 #include <linux/acpi.h>
 #include <acpi/processor.h>
 #endif
 
 #include "powernow-k7.h"
-
-#define DEBUG
-
-#ifdef DEBUG
-#define dprintk(msg...) printk(msg)
-#else
-#define dprintk(msg...) do { } while(0)
-#endif
 
 #define PFX "powernow: "
 
@@ -64,7 +55,7 @@ struct pst_s {
 	u8 numpstates;
 };
 
-#if defined(CONFIG_ACPI_PROCESSOR) || defined(CONFIG_ACPI_PROCESSOR_MODULE)
+#ifdef CONFIG_X86_POWERNOW_K7_ACPI
 union powernow_acpi_control_t {
 	struct {
 		unsigned long fid:5,
@@ -76,13 +67,15 @@ union powernow_acpi_control_t {
 };
 #endif
 
-/* divide by 1000 to get VID. */
+#ifdef CONFIG_CPU_FREQ_DEBUG
+/* divide by 1000 to get VCore voltage in V. */
 static int mobile_vid_table[32] = {
     2000, 1950, 1900, 1850, 1800, 1750, 1700, 1650,
     1600, 1550, 1500, 1450, 1400, 1350, 1300, 0,
     1275, 1250, 1225, 1200, 1175, 1150, 1125, 1100,
-    1075, 1050, 1024, 1000, 975, 950, 925, 0,
+    1075, 1050, 1025, 1000, 975, 950, 925, 0,
 };
+#endif
 
 /* divide by 10 to get FID. */
 static int fid_codes[32] = {
@@ -108,6 +101,8 @@ static unsigned int number_scales;
 static unsigned int fsb;
 static unsigned int latency;
 static char have_a0;
+
+#define dprintk(msg...) cpufreq_debug_printk(CPUFREQ_DEBUG_DRIVER, "powernow-k7", msg)
 
 static int check_fsb(unsigned int fsbspeed)
 {
@@ -190,14 +185,11 @@ static int get_ranges (unsigned char *pst)
 		speed = powernow_table[j].frequency;
 
 		if ((fid_codes[fid] % 10)==5) {
-#if defined(CONFIG_ACPI_PROCESSOR) || defined(CONFIG_ACPI_PROCESSOR_MODULE)
+#ifdef CONFIG_X86_POWERNOW_K7_ACPI
 			if (have_a0 == 1)
 				powernow_table[j].frequency = CPUFREQ_ENTRY_INVALID;
 #endif
 		}
-
-		dprintk (KERN_INFO PFX "   FID: 0x%x (%d.%dx [%dMHz])\t", fid,
-			fid_codes[fid] / 10, fid_codes[fid] % 10, speed/1000);
 
 		if (speed < minimum_speed)
 			minimum_speed = speed;
@@ -206,8 +198,12 @@ static int get_ranges (unsigned char *pst)
 
 		vid = *pst++;
 		powernow_table[j].index |= (vid << 8); /* upper 8 bits */
-		dprintk ("VID: 0x%x (%d.%03dV)\n", vid,	mobile_vid_table[vid]/1000,
-			mobile_vid_table[vid]%1000);
+
+		dprintk ("   FID: 0x%x (%d.%dx [%dMHz])  "
+			 "VID: 0x%x (%d.%03dV)\n", fid, fid_codes[fid] / 10, 
+			 fid_codes[fid] % 10, speed/1000, vid,	
+			 mobile_vid_table[vid]/1000,
+			 mobile_vid_table[vid]%1000);
 	}
 	powernow_table[number_scales].frequency = CPUFREQ_TABLE_END;
 	powernow_table[number_scales].index = 0;
@@ -285,7 +281,7 @@ static void change_speed (unsigned int index)
 		change_VID(vid);
 		change_FID(fid);
 	}
-	
+
 
 	if (have_a0 == 1)
 		local_irq_enable();
@@ -294,9 +290,9 @@ static void change_speed (unsigned int index)
 }
 
 
-#if defined(CONFIG_ACPI_PROCESSOR) || defined(CONFIG_ACPI_PROCESSOR_MODULE)
+#ifdef CONFIG_X86_POWERNOW_K7_ACPI
 
-struct acpi_processor_performance *acpi_processor_perf;
+static struct acpi_processor_performance *acpi_processor_perf;
 
 static int powernow_acpi_init(void)
 {
@@ -355,7 +351,7 @@ static int powernow_acpi_init(void)
 		unsigned int speed;
 
 		pc.val = (unsigned long) acpi_processor_perf->states[i].control;
-		dprintk (KERN_INFO PFX "acpi:  P%d: %d MHz %d mW %d uS control %08x SGTC %d\n",
+		dprintk ("acpi:  P%d: %d MHz %d mW %d uS control %08x SGTC %d\n",
 			 i,
 			 (u32) acpi_processor_perf->states[i].core_frequency,
 			 (u32) acpi_processor_perf->states[i].power,
@@ -377,10 +373,11 @@ static int powernow_acpi_init(void)
 				powernow_table[i].frequency = CPUFREQ_ENTRY_INVALID;
 		}
 
-		dprintk (KERN_INFO PFX "   FID: 0x%x (%d.%dx [%dMHz])\t", fid,
-			fid_codes[fid] / 10, fid_codes[fid] % 10, speed/1000);
-		dprintk ("VID: 0x%x (%d.%03dV)\n", vid,	mobile_vid_table[vid]/1000,
-			mobile_vid_table[vid]%1000);
+		dprintk ("   FID: 0x%x (%d.%dx [%dMHz])  "
+			 "VID: 0x%x (%d.%03dV)\n", fid, fid_codes[fid] / 10, 
+			 fid_codes[fid] % 10, speed/1000, vid,	
+			 mobile_vid_table[vid]/1000,
+			 mobile_vid_table[vid]%1000);
 
 		if (latency < pc.bits.sgtc)
 			latency = pc.bits.sgtc;
@@ -393,6 +390,9 @@ static int powernow_acpi_init(void)
 
 	powernow_table[i].frequency = CPUFREQ_TABLE_END;
 	powernow_table[i].index = 0;
+
+	/* notify BIOS that we exist */
+	acpi_processor_notify_smm(THIS_MODULE);
 
 	return 0;
 
@@ -430,21 +430,20 @@ static int powernow_decode_bios (int maxfid, int startvid)
 		p = phys_to_virt(i);
 
 		if (memcmp(p, "AMDK7PNOW!",  10) == 0){
-			dprintk (KERN_INFO PFX "Found PSB header at %p\n", p);
+			dprintk ("Found PSB header at %p\n", p);
 			psb = (struct psb_s *) p;
-			dprintk (KERN_INFO PFX "Table version: 0x%x\n", psb->tableversion);
+			dprintk ("Table version: 0x%x\n", psb->tableversion);
 			if (psb->tableversion != 0x12) {
 				printk (KERN_INFO PFX "Sorry, only v1.2 tables supported right now\n");
 				return -ENODEV;
 			}
 
-			dprintk (KERN_INFO PFX "Flags: 0x%x (", psb->flags);
+			dprintk ("Flags: 0x%x\n", psb->flags);
 			if ((psb->flags & 1)==0) {
-				dprintk ("Mobile");
+				dprintk ("Mobile voltage regulator\n");
 			} else {
-				dprintk ("Desktop");
+				dprintk ("Desktop voltage regulator\n");
 			}
-			dprintk (" voltage regulator)\n");
 
 			latency = psb->settlingtime;
 			if (latency < 100) {
@@ -452,8 +451,8 @@ static int powernow_decode_bios (int maxfid, int startvid)
 						"Should be at least 100. Correcting.\n", latency);
 				latency = 100;
 			}
-			dprintk (KERN_INFO PFX "Settling Time: %d microseconds.\n", psb->settlingtime);
-			dprintk (KERN_INFO PFX "Has %d PST tables. (Only dumping ones relevant to this CPU).\n", psb->numpst);
+			dprintk ("Settling Time: %d microseconds.\n", psb->settlingtime);
+			dprintk ("Has %d PST tables. (Only dumping ones relevant to this CPU).\n", psb->numpst);
 
 			p += sizeof (struct psb_s);
 
@@ -466,11 +465,9 @@ static int powernow_decode_bios (int maxfid, int startvid)
 				if ((etuple == pst->cpuid) && check_fsb(pst->fsbspeed) &&
 				    (maxfid==pst->maxfid) && (startvid==pst->startvid))
 				{
-					dprintk (KERN_INFO PFX "PST:%d (@%p)\n", i, pst);
-					dprintk (KERN_INFO PFX " cpuid: 0x%x\t", pst->cpuid);
-					dprintk ("fsb: %d\t", pst->fsbspeed);
-					dprintk ("maxFID: 0x%x\t", pst->maxfid);
-					dprintk ("startvid: 0x%x\n", pst->startvid);
+					dprintk ("PST:%d (@%p)\n", i, pst);
+					dprintk (" cpuid: 0x%x  fsb: %d  maxFID: 0x%x  startvid: 0x%x\n", 
+						 pst->cpuid, pst->fsbspeed, pst->maxfid, pst->startvid);
 
 					ret = get_ranges ((char *) pst + sizeof (struct pst_s));
 					return ret;
@@ -590,15 +587,19 @@ static int __init powernow_cpu_init (struct cpufreq_policy *policy)
 
 	rdmsrl (MSR_K7_FID_VID_STATUS, fidvidstatus.val);
 
-	/* A K7 with powernow technology is set to max frequency by BIOS */
+	/* recalibrate cpu_khz */
+	result = recalibrate_cpu_khz();
+	if (result)
+		return result;
+
 	fsb = (10 * cpu_khz) / fid_codes[fidvidstatus.bits.CFID];
 	if (!fsb) {
 		printk(KERN_WARNING PFX "can not determine bus frequency\n");
 		return -EINVAL;
 	}
-	dprintk(KERN_INFO PFX "FSB: %3d.%03d MHz\n", fsb/1000, fsb%1000);
+	dprintk("FSB: %3dMHz\n", fsb/1000);
 
- 	if (dmi_check_system(powernow_dmi_table) || acpi_force) {
+	if (dmi_check_system(powernow_dmi_table) || acpi_force) {
 		printk (KERN_INFO PFX "PSB/PST known to be broken.  Trying ACPI instead\n");
 		result = powernow_acpi_init();
 	} else {
@@ -628,7 +629,7 @@ static int __init powernow_cpu_init (struct cpufreq_policy *policy)
 
 	policy->governor = CPUFREQ_DEFAULT_GOVERNOR;
 
-	policy->cpuinfo.transition_latency = 20 * latency / fsb;
+	policy->cpuinfo.transition_latency = cpufreq_scale(2000000UL, fsb, latency);
 
 	policy->cur = powernow_get(0);
 
@@ -639,6 +640,17 @@ static int __init powernow_cpu_init (struct cpufreq_policy *policy)
 
 static int powernow_cpu_exit (struct cpufreq_policy *policy) {
 	cpufreq_frequency_table_put_attr(policy->cpu);
+
+#ifdef CONFIG_X86_POWERNOW_K7_ACPI
+	if (acpi_processor_perf) {
+		acpi_processor_unregister_performance(acpi_processor_perf, 0);
+		kfree(acpi_processor_perf);
+	}
+#endif
+
+	if (powernow_table)
+		kfree(powernow_table);
+
 	return 0;
 }
 
@@ -648,14 +660,14 @@ static struct freq_attr* powernow_table_attr[] = {
 };
 
 static struct cpufreq_driver powernow_driver = {
-	.verify 	= powernow_verify,
-	.target 	= powernow_target,
-	.get		= powernow_get,	
-	.init		= powernow_cpu_init,
-	.exit		= powernow_cpu_exit,
-	.name		= "powernow-k7",
-	.owner		= THIS_MODULE,
-	.attr		= powernow_table_attr,
+	.verify	= powernow_verify,
+	.target	= powernow_target,
+	.get	= powernow_get,
+	.init	= powernow_cpu_init,
+	.exit	= powernow_cpu_exit,
+	.name	= "powernow-k7",
+	.owner	= THIS_MODULE,
+	.attr	= powernow_table_attr,
 };
 
 static int __init powernow_init (void)
@@ -668,19 +680,11 @@ static int __init powernow_init (void)
 
 static void __exit powernow_exit (void)
 {
-#if defined(CONFIG_ACPI_PROCESSOR) || defined(CONFIG_ACPI_PROCESSOR_MODULE)
-	if (acpi_processor_perf) {
-		acpi_processor_unregister_performance(acpi_processor_perf, 0);
-		kfree(acpi_processor_perf);
-	}
-#endif
 	cpufreq_unregister_driver(&powernow_driver);
-	if (powernow_table)
-		kfree(powernow_table);
 }
 
 module_param(acpi_force,  int, 0444);
-MODULE_PARM_DESC(acpi_force, "Force ACPI to be used");
+MODULE_PARM_DESC(acpi_force, "Force ACPI to be used.");
 
 MODULE_AUTHOR ("Dave Jones <davej@codemonkey.org.uk>");
 MODULE_DESCRIPTION ("Powernow driver for AMD K7 processors.");

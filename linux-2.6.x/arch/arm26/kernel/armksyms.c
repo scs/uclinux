@@ -7,6 +7,7 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
+#include <linux/module.h>
 #include <linux/config.h>
 #include <linux/module.h>
 #include <linux/user.h>
@@ -27,8 +28,6 @@
 #include <asm/elf.h>
 #include <asm/io.h>
 #include <asm/irq.h>
-#include <asm/pgalloc.h>
-//#include <asm/proc-fns.h>
 #include <asm/processor.h>
 #include <asm/semaphore.h>
 #include <asm/system.h>
@@ -69,8 +68,9 @@ extern void fp_enter(void);
 /*
  * This has a special calling convention; it doesn't
  * modify any of the usual registers, except for LR.
+ * FIXME - we used to use our own local version - looks to be in kernel/softirq now
  */
-extern void __do_softirq(void);
+//extern void __do_softirq(void);
 
 #define EXPORT_SYMBOL_ALIAS(sym,orig)		\
  const char __kstrtab_##sym[]			\
@@ -95,7 +95,7 @@ EXPORT_SYMBOL(ret_from_exception);
 EXPORT_SYMBOL(kd_mksound);
 #endif
 
-EXPORT_SYMBOL_NOVERS(__do_softirq);
+//EXPORT_SYMBOL(__do_softirq);
 
 	/* platform dependent support */
 EXPORT_SYMBOL(dump_thread);
@@ -125,71 +125,71 @@ EXPORT_SYMBOL(__csum_ipv6_magic);
 
 	/* io */
 #ifndef __raw_readsb
-EXPORT_SYMBOL_NOVERS(__raw_readsb);
+EXPORT_SYMBOL(__raw_readsb);
 #endif
 #ifndef __raw_readsw
-EXPORT_SYMBOL_NOVERS(__raw_readsw);
+EXPORT_SYMBOL(__raw_readsw);
 #endif
 #ifndef __raw_readsl
-EXPORT_SYMBOL_NOVERS(__raw_readsl);
+EXPORT_SYMBOL(__raw_readsl);
 #endif
 #ifndef __raw_writesb
-EXPORT_SYMBOL_NOVERS(__raw_writesb);
+EXPORT_SYMBOL(__raw_writesb);
 #endif
 #ifndef __raw_writesw
-EXPORT_SYMBOL_NOVERS(__raw_writesw);
+EXPORT_SYMBOL(__raw_writesw);
 #endif
 #ifndef __raw_writesl
-EXPORT_SYMBOL_NOVERS(__raw_writesl);
+EXPORT_SYMBOL(__raw_writesl);
 #endif
 
 	/* string / mem functions */
-EXPORT_SYMBOL_NOVERS(strcpy);
-EXPORT_SYMBOL_NOVERS(strncpy);
-EXPORT_SYMBOL_NOVERS(strcat);
-EXPORT_SYMBOL_NOVERS(strncat);
-EXPORT_SYMBOL_NOVERS(strcmp);
-EXPORT_SYMBOL_NOVERS(strncmp);
-EXPORT_SYMBOL_NOVERS(strchr);
-EXPORT_SYMBOL_NOVERS(strlen);
-EXPORT_SYMBOL_NOVERS(strnlen);
-EXPORT_SYMBOL_NOVERS(strpbrk);
-EXPORT_SYMBOL_NOVERS(strrchr);
-EXPORT_SYMBOL_NOVERS(strstr);
-EXPORT_SYMBOL_NOVERS(memset);
-EXPORT_SYMBOL_NOVERS(memcpy);
-EXPORT_SYMBOL_NOVERS(memmove);
-EXPORT_SYMBOL_NOVERS(memcmp);
-EXPORT_SYMBOL_NOVERS(memscan);
-EXPORT_SYMBOL_NOVERS(__memzero);
+EXPORT_SYMBOL(strcpy);
+EXPORT_SYMBOL(strncpy);
+EXPORT_SYMBOL(strcat);
+EXPORT_SYMBOL(strncat);
+EXPORT_SYMBOL(strcmp);
+EXPORT_SYMBOL(strncmp);
+EXPORT_SYMBOL(strchr);
+EXPORT_SYMBOL(strlen);
+EXPORT_SYMBOL(strnlen);
+EXPORT_SYMBOL(strpbrk);
+EXPORT_SYMBOL(strrchr);
+EXPORT_SYMBOL(strstr);
+EXPORT_SYMBOL(memset);
+EXPORT_SYMBOL(memcpy);
+EXPORT_SYMBOL(memmove);
+EXPORT_SYMBOL(memcmp);
+EXPORT_SYMBOL(memscan);
+EXPORT_SYMBOL(__memzero);
 
 	/* user mem (segment) */
 EXPORT_SYMBOL(uaccess_kernel);
 EXPORT_SYMBOL(uaccess_user);
 
-EXPORT_SYMBOL_NOVERS(__get_user_1);
-EXPORT_SYMBOL_NOVERS(__get_user_2);
-EXPORT_SYMBOL_NOVERS(__get_user_4);
-EXPORT_SYMBOL_NOVERS(__get_user_8);
+EXPORT_SYMBOL(__get_user_1);
+EXPORT_SYMBOL(__get_user_2);
+EXPORT_SYMBOL(__get_user_4);
+EXPORT_SYMBOL(__get_user_8);
 
-EXPORT_SYMBOL_NOVERS(__put_user_1);
-EXPORT_SYMBOL_NOVERS(__put_user_2);
-EXPORT_SYMBOL_NOVERS(__put_user_4);
-EXPORT_SYMBOL_NOVERS(__put_user_8);
+EXPORT_SYMBOL(__put_user_1);
+EXPORT_SYMBOL(__put_user_2);
+EXPORT_SYMBOL(__put_user_4);
+EXPORT_SYMBOL(__put_user_8);
 
 	/* gcc lib functions */
-EXPORT_SYMBOL_NOVERS(__ashldi3);
-EXPORT_SYMBOL_NOVERS(__ashrdi3);
-EXPORT_SYMBOL_NOVERS(__divsi3);
-EXPORT_SYMBOL_NOVERS(__lshrdi3);
-EXPORT_SYMBOL_NOVERS(__modsi3);
-EXPORT_SYMBOL_NOVERS(__muldi3);
-EXPORT_SYMBOL_NOVERS(__ucmpdi2);
-EXPORT_SYMBOL_NOVERS(__udivdi3);
-EXPORT_SYMBOL_NOVERS(__umoddi3);
-EXPORT_SYMBOL_NOVERS(__udivmoddi4);
-EXPORT_SYMBOL_NOVERS(__udivsi3);
-EXPORT_SYMBOL_NOVERS(__umodsi3);
+EXPORT_SYMBOL(__ashldi3);
+EXPORT_SYMBOL(__ashrdi3);
+EXPORT_SYMBOL(__divsi3);
+EXPORT_SYMBOL(__lshrdi3);
+EXPORT_SYMBOL(__modsi3);
+EXPORT_SYMBOL(__muldi3);
+EXPORT_SYMBOL(__ucmpdi2);
+EXPORT_SYMBOL(__udivdi3);
+EXPORT_SYMBOL(__umoddi3);
+EXPORT_SYMBOL(__udivmoddi4);
+EXPORT_SYMBOL(__udivsi3);
+EXPORT_SYMBOL(__umodsi3);
 
 	/* bitops */
 EXPORT_SYMBOL(_set_bit_le);
@@ -212,12 +212,6 @@ EXPORT_SYMBOL(sys_lseek);
 EXPORT_SYMBOL(sys_open);
 EXPORT_SYMBOL(sys_exit);
 EXPORT_SYMBOL(sys_wait4);
-
-	/* semaphores */
-EXPORT_SYMBOL_NOVERS(__down_failed);
-EXPORT_SYMBOL_NOVERS(__down_interruptible_failed);
-EXPORT_SYMBOL_NOVERS(__down_trylock_failed);
-EXPORT_SYMBOL_NOVERS(__up_wakeup);
 
 EXPORT_SYMBOL(get_wchan);
 

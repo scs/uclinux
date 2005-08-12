@@ -21,15 +21,14 @@ struct powernow_k8_data {
 	u32 plllock; /* pll lock time, units 1 us */
 
 	/* keep track of the current fid / vid */
-	u32 currvid;
-	u32 currfid;
+	u32 currvid, currfid;
 
 	/* the powernow_table includes all frequency and vid/fid pairings:
 	 * fid are the lower 8 bits of the index, vid are the upper 8 bits.
 	 * frequency is in kHz */
 	struct cpufreq_frequency_table  *powernow_table;
 
-#if defined(CONFIG_ACPI_PROCESSOR) || defined(CONFIG_ACPI_PROCESSOR_MODULE)
+#ifdef CONFIG_X86_POWERNOW_K8_ACPI
 	/* the acpi table needs to be kept. it's only available if ACPI was
 	 * used to determine valid frequency/vid/fid states */
 	struct acpi_processor_performance acpi_data;
@@ -152,14 +151,14 @@ struct psb_s {
 	u8 signature[10];
 	u8 tableversion;
 	u8 flags1;
-	u16 voltagestabilizationtime;
+	u16 vstable;
 	u8 flags2;
-	u8 numpst;
+	u8 num_tables;
 	u32 cpuid;
 	u8 plllocktime;
 	u8 maxfid;
 	u8 maxvid;
-	u8 numpstates;
+	u8 numps;
 };
 
 /* Pairs of fid/vid values are appended to the version 1.4 PSB table. */
@@ -168,14 +167,25 @@ struct pst_s {
 	u8 vid;
 };
 
-#ifdef DEBUG
-#define dprintk(msg...) printk(msg)
-#else
-#define dprintk(msg...) do { } while(0)
-#endif
+#define dprintk(msg...) cpufreq_debug_printk(CPUFREQ_DEBUG_DRIVER, "powernow-k8", msg)
 
 static int core_voltage_pre_transition(struct powernow_k8_data *data, u32 reqvid);
 static int core_voltage_post_transition(struct powernow_k8_data *data, u32 reqvid);
 static int core_frequency_transition(struct powernow_k8_data *data, u32 reqfid);
 
 static void powernow_k8_acpi_pst_values(struct powernow_k8_data *data, unsigned int index);
+
+#ifndef for_each_cpu_mask
+#define for_each_cpu_mask(i,mask) for (i=0;i<1;i++)
+#endif
+                                                                                
+#ifdef CONFIG_SMP
+static inline void define_siblings(int cpu, cpumask_t cpu_sharedcore_mask[])
+{
+}
+#else
+static inline void define_siblings(int cpu, cpumask_t cpu_sharedcore_mask[])
+{
+	cpu_set(0, cpu_sharedcore_mask[0]);
+}
+#endif

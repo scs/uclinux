@@ -17,22 +17,14 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
-#include <linux/config.h>
 #include <linux/init.h>
 #include <asm/mmu_context.h>
 #include <asm/bootinfo.h>
 #include <asm/cpu.h>
 
-#ifdef CONFIG_MIPS32
-extern void except_vec0_sb1(void);
-extern void except_vec1_generic(void);
-#endif
-#ifdef CONFIG_MIPS64
-extern void except_vec0_generic(void);
-extern void except_vec1_sb1(void);
-#endif
+extern void build_tlb_refill_handler(void);
 
-#define UNIQUE_ENTRYHI(idx) (KSEG0 + ((idx) << (PAGE_SHIFT + 1)))
+#define UNIQUE_ENTRYHI(idx) (CKSEG0 + ((idx) << (PAGE_SHIFT + 1)))
 
 /* Dump the current entry* and pagemask registers */
 static inline void dump_cur_tlb_regs(void)
@@ -286,10 +278,17 @@ void local_flush_tlb_one(unsigned long page)
    these entries, we just bump the asid. */
 void local_flush_tlb_mm(struct mm_struct *mm)
 {
-	int cpu = smp_processor_id();
+	int cpu;
+
+	preempt_disable();
+
+	cpu = smp_processor_id();
+
 	if (cpu_context(cpu, mm) != 0) {
 		drop_mmu_context(mm, cpu);
 	}
+
+	preempt_enable();
 }
 
 /* Stolen from mips32 routines */
@@ -373,14 +372,5 @@ void tlb_init(void)
 	 */
 	sb1_sanitize_tlb();
 
-#ifdef CONFIG_MIPS32
-	memcpy((void *)KSEG0, &except_vec0_sb1, 0x80);
-	memcpy((void *)(KSEG0 + 0x080), &except_vec1_generic, 0x80);
-	flush_icache_range(KSEG0, KSEG0 + 0x100);
-#endif
-#ifdef CONFIG_MIPS64
-	memcpy((void *)CKSEG0, &except_vec0_generic, 0x80);
-	memcpy((void *)(CKSEG0 + 0x80), &except_vec1_sb1, 0x80);
-	flush_icache_range(CKSEG0, CKSEG0 + 0x100);
-#endif
+	build_tlb_refill_handler();
 }

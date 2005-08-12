@@ -21,13 +21,14 @@
 #include <linux/serial.h>
 #include <linux/tty.h>	/* for linux/serial_core.h */
 #include <linux/serial_core.h>
+#include <linux/serial_8250.h>
 
 #include <asm/prom.h>
 #include <asm/time.h>
 #include <asm/mpc85xx.h>
 #include <asm/immap_85xx.h>
 #include <asm/mmu.h>
-#include <asm/ocp.h>
+#include <asm/ppc_sys.h>
 #include <asm/kgdb.h>
 
 #include <syslib/ppc85xx_setup.h>
@@ -73,40 +74,39 @@ mpc85xx_calibrate_decr(void)
 void __init
 mpc85xx_early_serial_map(void)
 {
+#if defined(CONFIG_SERIAL_TEXT_DEBUG) || defined(CONFIG_KGDB)
 	struct uart_port serial_req;
+#endif
+	struct plat_serial8250_port *pdata;
 	bd_t *binfo = (bd_t *) __res;
-	phys_addr_t duart_paddr = binfo->bi_immr_base + MPC85xx_UART0_OFFSET;
+	pdata = (struct plat_serial8250_port *) ppc_sys_get_pdata(MPC85xx_DUART);
 
 	/* Setup serial port access */
-	memset(&serial_req, 0, sizeof (serial_req));
-	serial_req.uartclk = binfo->bi_busfreq;
-	serial_req.line = 0;
-	serial_req.irq = MPC85xx_IRQ_DUART;
-	serial_req.flags = ASYNC_BOOT_AUTOCONF | ASYNC_SKIP_TEST;
-	serial_req.iotype = SERIAL_IO_MEM;
-	serial_req.membase = ioremap(duart_paddr, MPC85xx_UART0_SIZE);
-	serial_req.mapbase = duart_paddr;
-	serial_req.regshift = 0;
+	pdata[0].uartclk = binfo->bi_busfreq;
+	pdata[0].mapbase += binfo->bi_immr_base;
+	pdata[0].membase = ioremap(pdata[0].mapbase, MPC85xx_UART0_SIZE);
 
 #if defined(CONFIG_SERIAL_TEXT_DEBUG) || defined(CONFIG_KGDB)
+	memset(&serial_req, 0, sizeof (serial_req));
+	serial_req.iotype = SERIAL_IO_MEM;
+	serial_req.mapbase = pdata[0].mapbase;
+	serial_req.membase = pdata[0].membase;
+	serial_req.regshift = 0;
+
 	gen550_init(0, &serial_req);
 #endif
 
-	if (early_serial_setup(&serial_req) != 0)
-		printk("Early serial init of port 0 failed\n");
-
-	/* Assume early_serial_setup() doesn't modify serial_req */
-	duart_paddr = binfo->bi_immr_base + MPC85xx_UART1_OFFSET;
-	serial_req.line = 1;
-	serial_req.mapbase = duart_paddr;
-	serial_req.membase = ioremap(duart_paddr, MPC85xx_UART1_SIZE);
+	pdata[1].uartclk = binfo->bi_busfreq;
+	pdata[1].mapbase += binfo->bi_immr_base;
+	pdata[1].membase = ioremap(pdata[1].mapbase, MPC85xx_UART0_SIZE);
 
 #if defined(CONFIG_SERIAL_TEXT_DEBUG) || defined(CONFIG_KGDB)
+	/* Assume gen550_init() doesn't modify serial_req */
+	serial_req.mapbase = pdata[1].mapbase;
+	serial_req.membase = pdata[1].membase;
+
 	gen550_init(1, &serial_req);
 #endif
-
-	if (early_serial_setup(&serial_req) != 0)
-		printk("Early serial init of port 1 failed\n");
 }
 #endif
 
@@ -132,6 +132,12 @@ mpc85xx_halt(void)
 }
 
 #ifdef CONFIG_PCI
+
+#if defined(CONFIG_MPC8555_CDS)
+extern void mpc85xx_cds_enable_via(struct pci_controller *hose);
+extern void mpc85xx_cds_fixup_via(struct pci_controller *hose);
+#endif
+
 static void __init
 mpc85xx_setup_pci1(struct pci_controller *hose)
 {
@@ -243,6 +249,8 @@ mpc85xx_setup_pci2(struct pci_controller *hose)
 }
 #endif /* CONFIG_85xx_PCI2 */
 
+int mpc85xx_pci1_last_busno = 0;
+
 void __init
 mpc85xx_setup_hose(void)
 {
@@ -277,17 +285,15 @@ mpc85xx_setup_hose(void)
 	hose_a->io_space.start = MPC85XX_PCI1_LOWER_IO;
 	hose_a->io_space.end = MPC85XX_PCI1_UPPER_IO;
 	hose_a->io_base_phys = MPC85XX_PCI1_IO_BASE;
-#if CONFIG_85xx_PCI2
-	isa_io_base =
-		(unsigned long) ioremap(MPC85XX_PCI1_IO_BASE,
+#ifdef CONFIG_85xx_PCI2
+	hose_a->io_base_virt =  ioremap(MPC85XX_PCI1_IO_BASE,
 					MPC85XX_PCI1_IO_SIZE +
 					MPC85XX_PCI2_IO_SIZE);
 #else
-	isa_io_base =
-		(unsigned long) ioremap(MPC85XX_PCI1_IO_BASE,
+	hose_a->io_base_virt =  ioremap(MPC85XX_PCI1_IO_BASE,
 					MPC85XX_PCI1_IO_SIZE);
 #endif
-	hose_a->io_base_virt = (void *) isa_io_base;
+	isa_io_base = (unsigned long)hose_a->io_base_virt;
 
 	/* setup resources */
 	pci_init_resource(&hose_a->mem_resources[0],
@@ -302,9 +308,19 @@ mpc85xx_setup_hose(void)
 
 	ppc_md.pci_exclude_device = mpc85xx_exclude_device;
 
+#if defined(CONFIG_MPC8555_CDS)
+	/* Pre pciauto_bus_scan VIA init */
+	mpc85xx_cds_enable_via(hose_a);
+#endif
+
 	hose_a->last_busno = pciauto_bus_scan(hose_a, hose_a->first_busno);
 
-#if CONFIG_85xx_PCI2
+#if defined(CONFIG_MPC8555_CDS)
+	/* Post pciauto_bus_scan VIA fixup */
+	mpc85xx_cds_fixup_via(hose_a);
+#endif
+
+#ifdef CONFIG_85xx_PCI2
 	hose_b = pcibios_alloc_controller();
 
 	if (!hose_b)
@@ -327,8 +343,8 @@ mpc85xx_setup_hose(void)
 	hose_b->io_space.start = MPC85XX_PCI2_LOWER_IO;
 	hose_b->io_space.end = MPC85XX_PCI2_UPPER_IO;
 	hose_b->io_base_phys = MPC85XX_PCI2_IO_BASE;
-	hose_b->io_base_virt = (void *) isa_io_base + MPC85XX_PCI1_IO_SIZE;
-
+	hose_b->io_base_virt = hose_a->io_base_virt + MPC85XX_PCI1_IO_SIZE;
+	
 	/* setup resources */
 	pci_init_resource(&hose_b->mem_resources[0],
 			MPC85XX_PCI2_LOWER_MEM,
@@ -341,6 +357,9 @@ mpc85xx_setup_hose(void)
 			IORESOURCE_IO, "PCI2 host bridge");
 
 	hose_b->last_busno = pciauto_bus_scan(hose_b, hose_b->first_busno);
+
+	/* let board code know what the last bus number was on PCI1 */
+	mpc85xx_pci1_last_busno = hose_a->last_busno;
 #endif
 	return;
 }

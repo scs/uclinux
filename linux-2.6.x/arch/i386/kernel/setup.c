@@ -33,12 +33,14 @@
 #include <linux/bootmem.h>
 #include <linux/seq_file.h>
 #include <linux/console.h>
+#include <linux/mca.h>
 #include <linux/root_dev.h>
 #include <linux/highmem.h>
 #include <linux/module.h>
 #include <linux/efi.h>
 #include <linux/init.h>
 #include <linux/edd.h>
+#include <linux/nodemask.h>
 #include <video/edid.h>
 #include <asm/e820.h>
 #include <asm/mpspec.h>
@@ -49,6 +51,7 @@
 #include <asm/ist.h>
 #include <asm/io.h>
 #include "setup_arch_pre.h"
+#include <bios_ebda.h>
 
 /* This value is set up by the early boot code to point to the value
    immediately after the boot time page tables.  It contains a *physical*
@@ -72,7 +75,6 @@ struct cpuinfo_x86 new_cpu_data __initdata = { 0, 0, 0, 0, -1, 1, 0, 0, -1 };
 struct cpuinfo_x86 boot_cpu_data = { 0, 0, 0, 0, -1, 1, 0, 0, -1 };
 
 unsigned long mmu_cr4_features;
-EXPORT_SYMBOL_GPL(mmu_cr4_features);
 
 #ifdef	CONFIG_ACPI_INTERPRETER
 	int acpi_disabled = 0;
@@ -86,7 +88,6 @@ int __initdata acpi_force = 0;
 extern acpi_interrupt_flags	acpi_sci_flags;
 #endif
 
-int MCA_bus;
 /* for MCA, but anyone else can use it if they want */
 unsigned int machine_id;
 unsigned int machine_submodel_id;
@@ -95,6 +96,9 @@ unsigned int mca_pentium_flag;
 
 /* For PCI or other memory-mapped resources */
 unsigned long pci_mem_start = 0x10000000;
+
+/* Boot loader ID as an integer, for the benefit of proc_dointvec */
+int bootloader_type;
 
 /* user-defined highmem size */
 static unsigned int highmem_pages = -1;
@@ -112,8 +116,6 @@ struct sys_desc_table_struct {
 struct edid_info edid_info;
 struct ist_info ist_info;
 struct e820map e820;
-
-unsigned char aux_device_present;
 
 extern void early_cpu_init(void);
 extern void dmi_scan_machine(void);
@@ -218,9 +220,14 @@ static struct resource standard_io_resources[] = { {
 	.end	= 0x0021,
 	.flags	= IORESOURCE_BUSY | IORESOURCE_IO
 }, {
-	.name	= "timer",
+	.name   = "timer0",
 	.start	= 0x0040,
-	.end	= 0x005f,
+	.end    = 0x0043,
+	.flags  = IORESOURCE_BUSY | IORESOURCE_IO
+}, {
+	.name   = "timer1",
+	.start  = 0x0050,
+	.end    = 0x0053,
 	.flags	= IORESOURCE_BUSY | IORESOURCE_IO
 }, {
 	.name	= "keyboard",
@@ -418,10 +425,10 @@ struct change_member {
 	struct e820entry *pbios; /* pointer to original bios entry */
 	unsigned long long addr; /* address for this change point */
 };
-struct change_member change_point_list[2*E820MAX] __initdata;
-struct change_member *change_point[2*E820MAX] __initdata;
-struct e820entry *overlap_list[E820MAX] __initdata;
-struct e820entry new_bios[E820MAX] __initdata;
+static struct change_member change_point_list[2*E820MAX] __initdata;
+static struct change_member *change_point[2*E820MAX] __initdata;
+static struct e820entry *overlap_list[E820MAX] __initdata;
+static struct e820entry new_bios[E820MAX] __initdata;
 
 static int __init sanitize_e820_map(struct e820entry * biosmap, char * pnr_map)
 {
@@ -666,6 +673,8 @@ static void __init parse_cmdline_early (char ** cmdline_p)
 	saved_command_line[COMMAND_LINE_SIZE-1] = '\0';
 
 	for (;;) {
+		if (c != ' ')
+			goto next_char;
 		/*
 		 * "mem=nopentium" disables the 4MB page tables.
 		 * "mem=XXX[kKmM]" defines a memory region from HIGH_MEM
@@ -676,7 +685,7 @@ static void __init parse_cmdline_early (char ** cmdline_p)
 		 * HPA tells me bootloaders need to parse mem=, so no new
 		 * option should be mem=  [also see Documentation/i386/boot.txt]
 		 */
-		if (c == ' ' && !memcmp(from, "mem=", 4)) {
+		if (!memcmp(from, "mem=", 4)) {
 			if (to != command_line)
 				to--;
 			if (!memcmp(from+4, "nopentium", 9)) {
@@ -698,7 +707,7 @@ static void __init parse_cmdline_early (char ** cmdline_p)
 			}
 		}
 
-		if (c == ' ' && !memcmp(from, "memmap=", 7)) {
+		else if (!memcmp(from, "memmap=", 7)) {
 			if (to != command_line)
 				to--;
 			if (!memcmp(from+7, "exactmap", 8)) {
@@ -730,6 +739,10 @@ static void __init parse_cmdline_early (char ** cmdline_p)
 				}
 			}
 		}
+
+		else if (!memcmp(from, "noexec=", 7))
+			noexec_setup(from + 7);
+
 
 #ifdef  CONFIG_X86_SMP
 		/*
@@ -806,9 +819,18 @@ static void __init parse_cmdline_early (char ** cmdline_p)
 		 * This works even on boxes that have no highmem otherwise.
 		 * This also works to reduce highmem size on bigger boxes.
 		 */
-		if (c == ' ' && !memcmp(from, "highmem=", 8))
+		else if (!memcmp(from, "highmem=", 8))
 			highmem_pages = memparse(from+8, &from) >> PAGE_SHIFT;
 	
+		/*
+		 * vmalloc=size forces the vmalloc area to be exactly 'size'
+		 * bytes. This can be used to increase (or decrease) the
+		 * vmalloc area - the default is 128m.
+		 */
+		else if (!memcmp(from, "vmalloc=", 8))
+			__VMALLOC_RESERVE = memparse(from+8, &from);
+
+	next_char:
 		c = *(from++);
 		if (!c)
 			break;
@@ -927,8 +949,6 @@ unsigned long __init find_max_low_pfn(void)
 	return max_low_pfn;
 }
 
-#ifndef CONFIG_DISCONTIGMEM
-
 /*
  * Free all available memory for boot time allocation.  Used
  * as a callback function by efi_memory_walk()
@@ -991,15 +1011,26 @@ static void __init register_bootmem_low_pages(unsigned long max_low_pfn)
 	}
 }
 
+/*
+ * workaround for Dell systems that neglect to reserve EBDA
+ */
+static void __init reserve_ebda_region(void)
+{
+	unsigned int addr;
+	addr = get_bios_ebda();
+	if (addr)
+		reserve_bootmem(addr, PAGE_SIZE);	
+}
+
+#ifndef CONFIG_DISCONTIGMEM
+void __init setup_bootmem_allocator(void);
 static unsigned long __init setup_memory(void)
 {
-	unsigned long bootmap_size, start_pfn, max_low_pfn;
-
 	/*
 	 * partially used pages are not usable - thus
 	 * we are rounding upwards:
 	 */
-	start_pfn = PFN_UP(init_pg_tables_end);
+	min_low_pfn = PFN_UP(init_pg_tables_end);
 
 	find_max_pfn();
 
@@ -1015,10 +1046,43 @@ static unsigned long __init setup_memory(void)
 #endif
 	printk(KERN_NOTICE "%ldMB LOWMEM available.\n",
 			pages_to_mb(max_low_pfn));
+
+	setup_bootmem_allocator();
+
+	return max_low_pfn;
+}
+
+void __init zone_sizes_init(void)
+{
+	unsigned long zones_size[MAX_NR_ZONES] = {0, 0, 0};
+	unsigned int max_dma, low;
+
+	max_dma = virt_to_phys((char *)MAX_DMA_ADDRESS) >> PAGE_SHIFT;
+	low = max_low_pfn;
+
+	if (low < max_dma)
+		zones_size[ZONE_DMA] = low;
+	else {
+		zones_size[ZONE_DMA] = max_dma;
+		zones_size[ZONE_NORMAL] = low - max_dma;
+#ifdef CONFIG_HIGHMEM
+		zones_size[ZONE_HIGHMEM] = highend_pfn - low;
+#endif
+	}
+	free_area_init(zones_size);
+}
+#else
+extern unsigned long setup_memory(void);
+extern void zone_sizes_init(void);
+#endif /* !CONFIG_DISCONTIGMEM */
+
+void __init setup_bootmem_allocator(void)
+{
+	unsigned long bootmap_size;
 	/*
 	 * Initialize the boot-time allocator (with low memory only):
 	 */
-	bootmap_size = init_bootmem(start_pfn, max_low_pfn);
+	bootmap_size = init_bootmem(min_low_pfn, max_low_pfn);
 
 	register_bootmem_low_pages(max_low_pfn);
 
@@ -1028,7 +1092,7 @@ static unsigned long __init setup_memory(void)
 	 * the (very unlikely) case of us accidentally initializing the
 	 * bootmem allocator with an invalid RAM area.
 	 */
-	reserve_bootmem(HIGH_MEMORY, (PFN_PHYS(start_pfn) +
+	reserve_bootmem(HIGH_MEMORY, (PFN_PHYS(min_low_pfn) +
 			 bootmap_size + PAGE_SIZE-1) - (HIGH_MEMORY));
 
 	/*
@@ -1036,6 +1100,9 @@ static unsigned long __init setup_memory(void)
 	 * enabling clean reboots, SMP operation, laptop functions.
 	 */
 	reserve_bootmem(0, PAGE_SIZE);
+
+	/* reserve EBDA region, it's a 4K region */
+	reserve_ebda_region();
 
     /* could be an AMD 768MPX chipset. Reserve a page  before VGA to prevent
        PCI prefetch into it (errata #56). Usually the page is reserved anyways,
@@ -1082,11 +1149,25 @@ static unsigned long __init setup_memory(void)
 		}
 	}
 #endif
-	return max_low_pfn;
 }
-#else
-extern unsigned long setup_memory(void);
-#endif /* !CONFIG_DISCONTIGMEM */
+
+/*
+ * The node 0 pgdat is initialized before all of these because
+ * it's needed for bootmem.  node>0 pgdats have their virtual
+ * space allocated before the pagetables are in place to access
+ * them, so they can't be cleared then.
+ *
+ * This should all compile down to nothing when NUMA is off.
+ */
+void __init remapped_pgdat_init(void)
+{
+	int nid;
+
+	for_each_online_node(nid) {
+		if (nid != 0)
+			memset(NODE_DATA(nid), 0, sizeof(struct pglist_data));
+	}
+}
 
 /*
  * Request address space for all standard RAM and ROM resources
@@ -1128,9 +1209,10 @@ legacy_init_iomem_resources(struct resource *code_resource, struct resource *dat
 /*
  * Request address space for all standard resources
  */
-static void __init register_memory(unsigned long max_low_pfn)
+static void __init register_memory(void)
 {
-	unsigned long low_mem_size;
+	unsigned long gapstart, gapsize;
+	unsigned long long last;
 	int	      i;
 
 	if (efi_enabled)
@@ -1145,10 +1227,46 @@ static void __init register_memory(unsigned long max_low_pfn)
 	for (i = 0; i < STANDARD_IO_RESOURCES; i++)
 		request_resource(&ioport_resource, &standard_io_resources[i]);
 
-	/* Tell the PCI layer not to allocate too close to the RAM area.. */
-	low_mem_size = ((max_low_pfn << PAGE_SHIFT) + 0xfffff) & ~0xfffff;
-	if (low_mem_size > pci_mem_start)
-		pci_mem_start = low_mem_size;
+	/*
+	 * Search for the bigest gap in the low 32 bits of the e820
+	 * memory space.
+	 */
+	last = 0x100000000ull;
+	gapstart = 0x10000000;
+	gapsize = 0x400000;
+	i = e820.nr_map;
+	while (--i >= 0) {
+		unsigned long long start = e820.map[i].addr;
+		unsigned long long end = start + e820.map[i].size;
+
+		/*
+		 * Since "last" is at most 4GB, we know we'll
+		 * fit in 32 bits if this condition is true
+		 */
+		if (last > end) {
+			unsigned long gap = last - end;
+
+			if (gap > gapsize) {
+				gapsize = gap;
+				gapstart = end;
+			}
+		}
+		if (start < last)
+			last = start;
+	}
+
+	/*
+	 * Start allocating dynamic PCI memory a bit into the gap,
+	 * aligned up to the nearest megabyte.
+	 *
+	 * Question: should we try to pad it up a bit (do something
+	 * like " + (gapsize >> 3)" in there too?). We now have the
+	 * technology.
+	 */
+	pci_mem_start = (gapstart + 0xfffff) & ~0xfffff;
+
+	printk("Allocating PCI resources starting at %08lx (gap: %08lx:%08lx)\n",
+		pci_mem_start, gapstart, gapsize);
 }
 
 /* Use inline assembly to define this because the nops are defined 
@@ -1260,6 +1378,15 @@ __setup("noreplacement", noreplacement_setup);
 
 static char * __init machine_specific_memory_setup(void);
 
+#ifdef CONFIG_MCA
+static void set_mca_bus(int x)
+{
+	MCA_bus = x;
+}
+#else
+static void set_mca_bus(int x) { }
+#endif
+
 /*
  * Determine if we were loaded by an EFI loader.  If so, then we have also been
  * passed the efi memmap, systab, etc., so we should use these data structures
@@ -1295,12 +1422,12 @@ void __init setup_arch(char **cmdline_p)
 	ist_info = IST_INFO;
 	saved_videomode = VIDEO_MODE;
 	if( SYS_DESC_TABLE.length != 0 ) {
-		MCA_bus = SYS_DESC_TABLE.table[3] &0x2;
+		set_mca_bus(SYS_DESC_TABLE.table[3] & 0x2);
 		machine_id = SYS_DESC_TABLE.table[0];
 		machine_submodel_id = SYS_DESC_TABLE.table[1];
 		BIOS_revision = SYS_DESC_TABLE.table[2];
 	}
-	aux_device_present = AUX_DEVICE_INFO;
+	bootloader_type = LOADER_TYPE;
 
 #ifdef CONFIG_BLK_DEV_RAM
 	rd_image_start = RAMDISK_FLAGS & RAMDISK_IMAGE_START_MASK;
@@ -1335,13 +1462,24 @@ void __init setup_arch(char **cmdline_p)
 
 	/*
 	 * NOTE: before this point _nobody_ is allowed to allocate
-	 * any memory using the bootmem allocator.
+	 * any memory using the bootmem allocator.  Although the
+	 * alloctor is now initialised only the first 8Mb of the kernel
+	 * virtual address space has been mapped.  All allocations before
+	 * paging_init() has completed must use the alloc_bootmem_low_pages()
+	 * variant (which allocates DMA'able memory) and care must be taken
+	 * not to exceed the 8Mb limit.
 	 */
 
 #ifdef CONFIG_SMP
 	smp_alloc_memory(); /* AP processor realmode stacks in low memory*/
 #endif
 	paging_init();
+	remapped_pgdat_init();
+	zone_sizes_init();
+
+	/*
+	 * NOTE: at this point the bootmem allocator is fully available.
+	 */
 
 #ifdef CONFIG_EARLY_PRINTK
 	{
@@ -1364,17 +1502,20 @@ void __init setup_arch(char **cmdline_p)
 	if (efi_enabled)
 		efi_map_memmap();
 
+#ifdef CONFIG_ACPI_BOOT
 	/*
 	 * Parse the ACPI tables for possible boot-time SMP configuration.
 	 */
+	acpi_boot_table_init();
 	acpi_boot_init();
+#endif
 
 #ifdef CONFIG_X86_LOCAL_APIC
 	if (smp_found_config)
 		get_smp_config();
 #endif
 
-	register_memory(max_low_pfn);
+	register_memory();
 
 #ifdef CONFIG_VT
 #if defined(CONFIG_VGA_CONSOLE)

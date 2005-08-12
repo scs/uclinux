@@ -21,20 +21,24 @@
 static pte_t *huge_pte_alloc(struct mm_struct *mm, unsigned long addr)
 {
 	pgd_t *pgd;
+	pud_t *pud;
 	pmd_t *pmd = NULL;
 
 	pgd = pgd_offset(mm, addr);
-	pmd = pmd_alloc(mm, pgd, addr);
+	pud = pud_alloc(mm, pgd, addr);
+	pmd = pmd_alloc(mm, pud, addr);
 	return (pte_t *) pmd;
 }
 
 static pte_t *huge_pte_offset(struct mm_struct *mm, unsigned long addr)
 {
 	pgd_t *pgd;
+	pud_t *pud;
 	pmd_t *pmd = NULL;
 
 	pgd = pgd_offset(mm, addr);
-	pmd = pmd_offset(pgd, addr);
+	pud = pud_offset(pgd, addr);
+	pmd = pmd_offset(pud, addr);
 	return (pte_t *) pmd;
 }
 
@@ -42,7 +46,7 @@ static void set_huge_pte(struct mm_struct *mm, struct vm_area_struct *vma, struc
 {
 	pte_t entry;
 
-	mm->rss += (HPAGE_SIZE / PAGE_SIZE);
+	add_mm_counter(mm, rss, HPAGE_SIZE / PAGE_SIZE);
 	if (write_access) {
 		entry =
 		    pte_mkwrite(pte_mkdirty(mk_pte(page, vma->vm_page_prot)));
@@ -82,7 +86,7 @@ int copy_hugetlb_page_range(struct mm_struct *dst, struct mm_struct *src,
 		ptepage = pte_page(entry);
 		get_page(ptepage);
 		set_pte(dst_pte, entry);
-		dst->rss += (HPAGE_SIZE / PAGE_SIZE);
+		add_mm_counter(dst, rss, HPAGE_SIZE / PAGE_SIZE);
 		addr += HPAGE_SIZE;
 	}
 	return 0;
@@ -205,20 +209,23 @@ void unmap_hugepage_range(struct vm_area_struct *vma,
 {
 	struct mm_struct *mm = vma->vm_mm;
 	unsigned long address;
-	pte_t pte;
+	pte_t pte, *ptep;
 	struct page *page;
 
 	BUG_ON(start & (HPAGE_SIZE - 1));
 	BUG_ON(end & (HPAGE_SIZE - 1));
 
 	for (address = start; address < end; address += HPAGE_SIZE) {
-		pte = ptep_get_and_clear(huge_pte_offset(mm, address));
+		ptep = huge_pte_offset(mm, address);
+		if (!ptep)
+			continue;
+		pte = ptep_get_and_clear(mm, address, ptep);
 		if (pte_none(pte))
 			continue;
 		page = pte_page(pte);
 		put_page(page);
 	}
-	mm->rss -= (end - start) >> PAGE_SHIFT;
+	add_mm_counter(mm ,rss, -((end - start) >> PAGE_SHIFT));
 	flush_tlb_range(vma, start, end);
 }
 
@@ -242,14 +249,8 @@ int hugetlb_prefault(struct address_space *mapping, struct vm_area_struct *vma)
 			goto out;
 		}
 
-		if (!pte_none(*pte)) {
-			pmd_t *pmd = (pmd_t *) pte;
-
-			page = pmd_page(*pmd);
-			pmd_clear(pmd);
-			dec_page_state(nr_page_table_pages);
-			page_cache_release(page);
-		}
+		if (!pte_none(*pte))
+			continue;
 
 		idx = ((addr - vma->vm_start) >> HPAGE_SHIFT)
 			+ (vma->vm_pgoff >> (HPAGE_SHIFT - PAGE_SHIFT));
@@ -281,3 +282,143 @@ out:
 	spin_unlock(&mm->page_table_lock);
 	return ret;
 }
+
+/* x86_64 also uses this file */
+
+#ifdef HAVE_ARCH_HUGETLB_UNMAPPED_AREA
+static unsigned long hugetlb_get_unmapped_area_bottomup(struct file *file,
+		unsigned long addr, unsigned long len,
+		unsigned long pgoff, unsigned long flags)
+{
+	struct mm_struct *mm = current->mm;
+	struct vm_area_struct *vma;
+	unsigned long start_addr;
+
+	start_addr = mm->free_area_cache;
+
+full_search:
+	addr = ALIGN(start_addr, HPAGE_SIZE);
+
+	for (vma = find_vma(mm, addr); ; vma = vma->vm_next) {
+		/* At this point:  (!vma || addr < vma->vm_end). */
+		if (TASK_SIZE - len < addr) {
+			/*
+			 * Start a new search - just in case we missed
+			 * some holes.
+			 */
+			if (start_addr != TASK_UNMAPPED_BASE) {
+				start_addr = TASK_UNMAPPED_BASE;
+				goto full_search;
+			}
+			return -ENOMEM;
+		}
+		if (!vma || addr + len <= vma->vm_start) {
+			mm->free_area_cache = addr + len;
+			return addr;
+		}
+		addr = ALIGN(vma->vm_end, HPAGE_SIZE);
+	}
+}
+
+static unsigned long hugetlb_get_unmapped_area_topdown(struct file *file,
+		unsigned long addr0, unsigned long len,
+		unsigned long pgoff, unsigned long flags)
+{
+	struct mm_struct *mm = current->mm;
+	struct vm_area_struct *vma, *prev_vma;
+	unsigned long base = mm->mmap_base, addr = addr0;
+	int first_time = 1;
+
+	/* don't allow allocations above current base */
+	if (mm->free_area_cache > base)
+		mm->free_area_cache = base;
+
+try_again:
+	/* make sure it can fit in the remaining address space */
+	if (mm->free_area_cache < len)
+		goto fail;
+
+	/* either no address requested or cant fit in requested address hole */
+	addr = (mm->free_area_cache - len) & HPAGE_MASK;
+	do {
+		/*
+		 * Lookup failure means no vma is above this address,
+		 * i.e. return with success:
+		 */
+		if (!(vma = find_vma_prev(mm, addr, &prev_vma)))
+			return addr;
+
+		/*
+		 * new region fits between prev_vma->vm_end and
+		 * vma->vm_start, use it:
+		 */
+		if (addr + len <= vma->vm_start &&
+				(!prev_vma || (addr >= prev_vma->vm_end)))
+			/* remember the address as a hint for next time */
+			return (mm->free_area_cache = addr);
+		else
+			/* pull free_area_cache down to the first hole */
+			if (mm->free_area_cache == vma->vm_end)
+				mm->free_area_cache = vma->vm_start;
+
+		/* try just below the current vma->vm_start */
+		addr = (vma->vm_start - len) & HPAGE_MASK;
+	} while (len <= vma->vm_start);
+
+fail:
+	/*
+	 * if hint left us with no space for the requested
+	 * mapping then try again:
+	 */
+	if (first_time) {
+		mm->free_area_cache = base;
+		first_time = 0;
+		goto try_again;
+	}
+	/*
+	 * A failed mmap() very likely causes application failure,
+	 * so fall back to the bottom-up function here. This scenario
+	 * can happen with large stack limits and large mmap()
+	 * allocations.
+	 */
+	mm->free_area_cache = TASK_UNMAPPED_BASE;
+	addr = hugetlb_get_unmapped_area_bottomup(file, addr0,
+			len, pgoff, flags);
+
+	/*
+	 * Restore the topdown base:
+	 */
+	mm->free_area_cache = base;
+
+	return addr;
+}
+
+unsigned long
+hugetlb_get_unmapped_area(struct file *file, unsigned long addr,
+		unsigned long len, unsigned long pgoff, unsigned long flags)
+{
+	struct mm_struct *mm = current->mm;
+	struct vm_area_struct *vma;
+
+	if (len & ~HPAGE_MASK)
+		return -EINVAL;
+	if (len > TASK_SIZE)
+		return -ENOMEM;
+
+	if (addr) {
+		addr = ALIGN(addr, HPAGE_SIZE);
+		vma = find_vma(mm, addr);
+		if (TASK_SIZE - len >= addr &&
+		    (!vma || addr + len <= vma->vm_start))
+			return addr;
+	}
+	if (mm->get_unmapped_area == arch_get_unmapped_area)
+		return hugetlb_get_unmapped_area_bottomup(file, addr, len,
+				pgoff, flags);
+	else
+		return hugetlb_get_unmapped_area_topdown(file, addr, len,
+				pgoff, flags);
+}
+
+#endif /*HAVE_ARCH_HUGETLB_UNMAPPED_AREA*/
+

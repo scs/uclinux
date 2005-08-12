@@ -4,6 +4,7 @@
 
 #include <linux/pci.h>
 #include <linux/init.h>
+#include <linux/nodemask.h>
 #include "pci.h"
 
 #define BUS2QUAD(global) (mp_bus_id_to_node[global])
@@ -13,11 +14,12 @@
 #define PCI_CONF1_MQ_ADDRESS(bus, devfn, reg) \
 	(0x80000000 | (BUS2LOCAL(bus) << 16) | (devfn << 8) | (reg & ~3))
 
-static int pci_conf1_mq_read (int seg, int bus, int devfn, int reg, int len, u32 *value)
+static int pci_conf1_mq_read(unsigned int seg, unsigned int bus,
+			     unsigned int devfn, int reg, int len, u32 *value)
 {
 	unsigned long flags;
 
-	if (!value || (bus > MAX_MP_BUSSES) || (devfn > 255) || (reg > 255))
+	if (!value || (bus >= MAX_MP_BUSSES) || (devfn > 255) || (reg > 255))
 		return -EINVAL;
 
 	spin_lock_irqsave(&pci_config_lock, flags);
@@ -41,11 +43,12 @@ static int pci_conf1_mq_read (int seg, int bus, int devfn, int reg, int len, u32
 	return 0;
 }
 
-static int pci_conf1_mq_write (int seg, int bus, int devfn, int reg, int len, u32 value)
+static int pci_conf1_mq_write(unsigned int seg, unsigned int bus,
+			      unsigned int devfn, int reg, int len, u32 value)
 {
 	unsigned long flags;
 
-	if ((bus > MAX_MP_BUSSES) || (devfn > 255) || (reg > 255)) 
+	if ((bus >= MAX_MP_BUSSES) || (devfn > 255) || (reg > 255)) 
 		return -EINVAL;
 
 	spin_lock_irqsave(&pci_config_lock, flags);
@@ -100,10 +103,7 @@ static void __devinit pci_fixup_i450nx(struct pci_dev *d)
 	}
 	pcibios_last_bus = -1;
 }
-
-struct pci_fixup pcibios_fixups[] = {
-	{ PCI_FIXUP_HEADER,	PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_82451NX,	pci_fixup_i450nx },
-};
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82451NX, pci_fixup_i450nx);
 
 static int __init pci_numa_init(void)
 {
@@ -115,14 +115,15 @@ static int __init pci_numa_init(void)
 		return 0;
 
 	pci_root_bus = pcibios_scan_root(0);
-	if (numnodes > 1) {
-		for (quad = 1; quad < numnodes; ++quad) {
+	if (num_online_nodes() > 1)
+		for_each_online_node(quad) {
+			if (quad == 0)
+				continue;
 			printk("Scanning PCI bus %d for quad %d\n", 
 				QUADLOCAL2BUS(quad,0), quad);
 			pci_scan_bus(QUADLOCAL2BUS(quad,0), 
 				&pci_root_ops, NULL);
 		}
-	}
 	return 0;
 }
 

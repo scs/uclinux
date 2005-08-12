@@ -68,7 +68,7 @@ void default_idle(void)
 	}
 }
 
-void cpu_idle(void *unused)
+void cpu_idle(void)
 {
 	default_idle();
 }
@@ -199,7 +199,7 @@ void exit_thread(void)
 
 void flush_thread(void)
 {
-#if defined(CONFIG_CPU_SH4)
+#if defined(CONFIG_SH_FPU)
 	struct task_struct *tsk = current;
 	struct pt_regs *regs = (struct pt_regs *)
 				((unsigned long)tsk->thread_info
@@ -208,7 +208,7 @@ void flush_thread(void)
 
 	/* Forget lazy FPU state */
 	clear_fpu(tsk, regs);
-	tsk->used_math = 0;
+	clear_used_math();
 #endif
 }
 
@@ -222,10 +222,10 @@ int dump_fpu(struct pt_regs *regs, elf_fpregset_t *fpu)
 {
 	int fpvalid = 0;
 
-#if defined(CONFIG_CPU_SH4)
+#if defined(CONFIG_SH_FPU)
 	struct task_struct *tsk = current;
 
-	fpvalid = tsk->used_math;
+	fpvalid = !!tsk_used_math(tsk);
 	if (fpvalid) {
 		unlazy_fpu(tsk, regs);
 		memcpy(fpu, &tsk->thread.fpu.hard, sizeof(*fpu));
@@ -259,8 +259,8 @@ dump_task_fpu (struct task_struct *tsk, elf_fpregset_t *fpu)
 {
 	int fpvalid = 0;
 
-#if defined(CONFIG_CPU_SH4)
-	fpvalid = tsk->used_math;
+#if defined(CONFIG_SH_FPU)
+	fpvalid = !!tsk_used_math(tsk);
 	if (fpvalid) {
 		struct pt_regs *regs = (struct pt_regs *)
 					((unsigned long)tsk->thread_info
@@ -281,12 +281,12 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long usp,
 		struct task_struct *p, struct pt_regs *regs)
 {
 	struct pt_regs *childregs;
-#if defined(CONFIG_CPU_SH4)
+#if defined(CONFIG_SH_FPU)
 	struct task_struct *tsk = current;
 
 	unlazy_fpu(tsk, regs);
 	p->thread.fpu = tsk->thread.fpu;
-	p->used_math = tsk->used_math;
+	copy_to_stopped_child_used_math(p);
 #endif
 
 	childregs = ((struct pt_regs *)
@@ -306,7 +306,6 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long usp,
 		childregs->gbr = childregs->regs[0];
 	}
 	childregs->regs[0] = 0; /* Set return value for child */
-	p->set_child_tid = p->clear_child_tid = NULL;
 
 	p->thread.sp = (unsigned long) childregs;
 	p->thread.pc = (unsigned long) ret_from_fork;
@@ -363,7 +362,7 @@ ubc_set_tracing(int asid, unsigned long pc)
  */
 struct task_struct *__switch_to(struct task_struct *prev, struct task_struct *next)
 {
-#if defined(CONFIG_CPU_SH4)
+#if defined(CONFIG_SH_FPU)
 	struct pt_regs *regs = (struct pt_regs *)
 				((unsigned long)prev->thread_info
 				 + THREAD_SIZE - sizeof(struct pt_regs)
@@ -440,7 +439,7 @@ asmlinkage int sys_clone(unsigned long clone_flags, unsigned long newsp,
 {
 	if (!newsp)
 		newsp = regs.regs[15];
-	return do_fork(clone_flags & ~CLONE_IDLETASK, newsp, &regs, 0,
+	return do_fork(clone_flags, newsp, &regs, 0,
 			(int __user *)parent_tidptr, (int __user *)child_tidptr);
 }
 
@@ -481,8 +480,11 @@ asmlinkage int sys_execve(char *ufilename, char **uargv,
 			  (char __user * __user *)uargv,
 			  (char __user * __user *)uenvp,
 			  &regs);
-	if (error == 0)
+	if (error == 0) {
+		task_lock(current);
 		current->ptrace &= ~PT_DTRACE;
+		task_unlock(current);
+	}
 	putname(filename);
 out:
 	return error;

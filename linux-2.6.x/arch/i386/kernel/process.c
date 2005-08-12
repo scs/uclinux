@@ -28,7 +28,7 @@
 #include <linux/a.out.h>
 #include <linux/interrupt.h>
 #include <linux/config.h>
-#include <linux/version.h>
+#include <linux/utsname.h>
 #include <linux/delay.h>
 #include <linux/reboot.h>
 #include <linux/init.h>
@@ -36,6 +36,7 @@
 #include <linux/module.h>
 #include <linux/kallsyms.h>
 #include <linux/ptrace.h>
+#include <linux/random.h>
 
 #include <asm/uaccess.h>
 #include <asm/pgtable.h>
@@ -55,7 +56,10 @@
 
 asmlinkage void ret_from_fork(void) __asm__("ret_from_fork");
 
-int hlt_counter;
+static int hlt_counter;
+
+unsigned long boot_option_idle_override = 0;
+EXPORT_SYMBOL(boot_option_idle_override);
 
 /*
  * Return saved PC of a blocked thread.
@@ -69,6 +73,7 @@ unsigned long thread_saved_pc(struct task_struct *tsk)
  * Powermanagement idle function, if any..
  */
 void (*pm_idle)(void);
+static DEFINE_PER_CPU(unsigned int, cpu_idle_state);
 
 void disable_hlt(void)
 {
@@ -90,12 +95,14 @@ EXPORT_SYMBOL(enable_hlt);
  */
 void default_idle(void)
 {
-	if (!hlt_counter && current_cpu_data.hlt_works_ok) {
+	if (!hlt_counter && boot_cpu_data.hlt_works_ok) {
 		local_irq_disable();
 		if (!need_resched())
 			safe_halt();
 		else
 			local_irq_enable();
+	} else {
+		cpu_relax();
 	}
 }
 
@@ -142,17 +149,51 @@ void cpu_idle (void)
 	/* endless idle loop with no priority at all */
 	while (1) {
 		while (!need_resched()) {
-			void (*idle)(void) = pm_idle;
+			void (*idle)(void);
+
+			if (__get_cpu_var(cpu_idle_state))
+				__get_cpu_var(cpu_idle_state) = 0;
+
+			rmb();
+			idle = pm_idle;
 
 			if (!idle)
 				idle = default_idle;
 
-			irq_stat[smp_processor_id()].idle_timestamp = jiffies;
+			__get_cpu_var(irq_stat).idle_timestamp = jiffies;
 			idle();
 		}
 		schedule();
 	}
 }
+
+void cpu_idle_wait(void)
+{
+	unsigned int cpu, this_cpu = get_cpu();
+	cpumask_t map;
+
+	set_cpus_allowed(current, cpumask_of_cpu(this_cpu));
+	put_cpu();
+
+	cpus_clear(map);
+	for_each_online_cpu(cpu) {
+		per_cpu(cpu_idle_state, cpu) = 1;
+		cpu_set(cpu, map);
+	}
+
+	__get_cpu_var(cpu_idle_state) = 0;
+
+	wmb();
+	do {
+		ssleep(1);
+		for_each_online_cpu(cpu) {
+			if (cpu_isset(cpu, map) && !per_cpu(cpu_idle_state, cpu))
+				cpu_clear(cpu, map);
+		}
+		cpus_and(map, map, cpu_online_map);
+	} while (!cpus_empty(map));
+}
+EXPORT_SYMBOL_GPL(cpu_idle_wait);
 
 /*
  * This uses new MONITOR/MWAIT instructions on P4 processors with PNI,
@@ -183,18 +224,13 @@ void __init select_idle_routine(const struct cpuinfo_x86 *c)
 		printk("monitor/mwait feature present.\n");
 		/*
 		 * Skip, if setup has overridden idle.
-		 * Also, take care of system with asymmetric CPUs.
-		 * Use, mwait_idle only if all cpus support it.
-		 * If not, we fallback to default_idle()
+		 * One CPU supports mwait => All CPUs supports mwait
 		 */
 		if (!pm_idle) {
 			printk("using mwait in idle threads.\n");
 			pm_idle = mwait_idle;
 		}
-		return;
 	}
-	pm_idle = default_idle;
-	return;
 }
 
 static int __init idle_setup (char *str)
@@ -211,6 +247,7 @@ static int __init idle_setup (char *str)
 		pm_idle = default_idle;
 	}
 
+	boot_option_idle_override = 1;
 	return 1;
 }
 
@@ -227,7 +264,8 @@ void show_regs(struct pt_regs * regs)
 
 	if (regs->xcs & 3)
 		printk(" ESP: %04x:%08lx",0xffff & regs->xss,regs->esp);
-	printk(" EFLAGS: %08lx    %s  (%s)\n",regs->eflags, print_tainted(),UTS_RELEASE);
+	printk(" EFLAGS: %08lx    %s  (%s)\n",
+	       regs->eflags, print_tainted(), system_utsname.release);
 	printk("EAX: %08lx EBX: %08lx ECX: %08lx EDX: %08lx\n",
 		regs->eax,regs->ebx,regs->ecx,regs->edx);
 	printk("ESI: %08lx EDI: %08lx EBP: %08lx",
@@ -294,13 +332,22 @@ int kernel_thread(int (*fn)(void *), void * arg, unsigned long flags)
 void exit_thread(void)
 {
 	struct task_struct *tsk = current;
+	struct thread_struct *t = &tsk->thread;
 
 	/* The process may have allocated an io port bitmap... nuke it. */
-	if (unlikely(NULL != tsk->thread.io_bitmap_ptr)) {
+	if (unlikely(NULL != t->io_bitmap_ptr)) {
 		int cpu = get_cpu();
-		struct tss_struct *tss = init_tss + cpu;
-		kfree(tsk->thread.io_bitmap_ptr);
-		tsk->thread.io_bitmap_ptr = NULL;
+		struct tss_struct *tss = &per_cpu(init_tss, cpu);
+
+		kfree(t->io_bitmap_ptr);
+		t->io_bitmap_ptr = NULL;
+		/*
+		 * Careful, clear this in the TSS too:
+		 */
+		memset(tss->io_bitmap, 0xff, tss->io_bitmap_max);
+		t->io_bitmap_max = 0;
+		tss->io_bitmap_owner = NULL;
+		tss->io_bitmap_max = 0;
 		tss->io_bitmap_base = INVALID_IO_BITMAP_OFFSET;
 		put_cpu();
 	}
@@ -316,7 +363,7 @@ void flush_thread(void)
 	 * Forget coprocessor state..
 	 */
 	clear_fpu(tsk);
-	tsk->used_math = 0;
+	clear_used_math();
 }
 
 void release_thread(struct task_struct *dead_task)
@@ -332,7 +379,7 @@ void release_thread(struct task_struct *dead_task)
 		}
 	}
 
-	release_x86_irqs(dead_task);
+	release_vm86_irqs(dead_task);
 }
 
 /*
@@ -353,10 +400,20 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long esp,
 	int err;
 
 	childregs = ((struct pt_regs *) (THREAD_SIZE + (unsigned long) p->thread_info)) - 1;
+	/*
+	 * The below -8 is to reserve 8 bytes on top of the ring0 stack.
+	 * This is necessary to guarantee that the entire "struct pt_regs"
+	 * is accessable even if the CPU haven't stored the SS/ESP registers
+	 * on the stack (interrupt gate does not save these registers
+	 * when switching to the same priv ring).
+	 * Therefore beware: accessing the xss/esp fields of the
+	 * "struct pt_regs" is possible, but they may contain the
+	 * completely wrong values.
+	 */
+	childregs = (struct pt_regs *) ((unsigned long) childregs - 8);
 	*childregs = *regs;
 	childregs->eax = 0;
 	childregs->esp = esp;
-	p->set_child_tid = p->clear_child_tid = NULL;
 
 	p->thread.esp = (unsigned long) childregs;
 	p->thread.esp0 = (unsigned long) (childregs+1);
@@ -369,8 +426,10 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long esp,
 	tsk = current;
 	if (unlikely(NULL != tsk->thread.io_bitmap_ptr)) {
 		p->thread.io_bitmap_ptr = kmalloc(IO_BITMAP_BYTES, GFP_KERNEL);
-		if (!p->thread.io_bitmap_ptr)
+		if (!p->thread.io_bitmap_ptr) {
+			p->thread.io_bitmap_max = 0;
 			return -ENOMEM;
+		}
 		memcpy(p->thread.io_bitmap_ptr, tsk->thread.io_bitmap_ptr,
 			IO_BITMAP_BYTES);
 	}
@@ -401,8 +460,10 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long esp,
 
 	err = 0;
  out:
-	if (err && p->thread.io_bitmap_ptr)
+	if (err && p->thread.io_bitmap_ptr) {
 		kfree(p->thread.io_bitmap_ptr);
+		p->thread.io_bitmap_max = 0;
+	}
 	return err;
 }
 
@@ -467,13 +528,37 @@ int dump_task_regs(struct task_struct *tsk, elf_gregset_t *regs)
 	return 1;
 }
 
-/*
- * This special macro can be used to load a debugging register
- */
-#define loaddebug(thread,register) \
-		__asm__("movl %0,%%db" #register  \
-			: /* no output */ \
-			:"r" (thread->debugreg[register]))
+static inline void
+handle_io_bitmap(struct thread_struct *next, struct tss_struct *tss)
+{
+	if (!next->io_bitmap_ptr) {
+		/*
+		 * Disable the bitmap via an invalid offset. We still cache
+		 * the previous bitmap owner and the IO bitmap contents:
+		 */
+		tss->io_bitmap_base = INVALID_IO_BITMAP_OFFSET;
+		return;
+	}
+	if (likely(next == tss->io_bitmap_owner)) {
+		/*
+		 * Previous owner of the bitmap (hence the bitmap content)
+		 * matches the next task, we dont have to do anything but
+		 * to set a valid offset in the TSS:
+		 */
+		tss->io_bitmap_base = IO_BITMAP_OFFSET;
+		return;
+	}
+	/*
+	 * Lazy TSS's I/O bitmap copy. We set an invalid offset here
+	 * and we let the task to get a GPF in case an I/O instruction
+	 * is performed.  The handler of the GPF will verify that the
+	 * faulting task has a valid I/O bitmap and, it true, does the
+	 * real copy and restart the instruction.  This will save us
+	 * redundant copies when the currently switched task does not
+	 * perform any I/O during its timeslice.
+	 */
+	tss->io_bitmap_base = INVALID_IO_BITMAP_OFFSET_LAZY;
+}
 
 /*
  *	switch_to(x,yn) should switch tasks from x to y.
@@ -507,7 +592,7 @@ struct task_struct fastcall * __switch_to(struct task_struct *prev_p, struct tas
 	struct thread_struct *prev = &prev_p->thread,
 				 *next = &next_p->thread;
 	int cpu = smp_processor_id();
-	struct tss_struct *tss = init_tss + cpu;
+	struct tss_struct *tss = &per_cpu(init_tss, cpu);
 
 	/* never put a printk in __switch_to... printk() calls wake_up*() indirectly */
 
@@ -527,8 +612,8 @@ struct task_struct fastcall * __switch_to(struct task_struct *prev_p, struct tas
 	 * Save away %fs and %gs. No need to save %es and %ds, as
 	 * those are always kernel segments while inside the kernel.
 	 */
-	asm volatile("movl %%fs,%0":"=m" (*(int *)&prev->fs));
-	asm volatile("movl %%gs,%0":"=m" (*(int *)&prev->gs));
+	asm volatile("mov %%fs,%0":"=m" (prev->fs));
+	asm volatile("mov %%gs,%0":"=m" (prev->gs));
 
 	/*
 	 * Restore %fs and %gs if needed.
@@ -551,28 +636,9 @@ struct task_struct fastcall * __switch_to(struct task_struct *prev_p, struct tas
 		loaddebug(next, 7);
 	}
 
-	if (unlikely(prev->io_bitmap_ptr || next->io_bitmap_ptr)) {
-		if (next->io_bitmap_ptr) {
-			/*
-			 * 4 cachelines copy ... not good, but not that
-			 * bad either. Anyone got something better?
-			 * This only affects processes which use ioperm().
-			 * [Putting the TSSs into 4k-tlb mapped regions
-			 * and playing VM tricks to switch the IO bitmap
-			 * is not really acceptable.]
-			 */
-			memcpy(tss->io_bitmap, next->io_bitmap_ptr,
-				IO_BITMAP_BYTES);
-			tss->io_bitmap_base = IO_BITMAP_OFFSET;
-		} else
-			/*
-			 * a bitmap offset pointing outside of the TSS limit
-			 * causes a nicely controllable SIGSEGV if a process
-			 * tries to use a port IO instruction. The first
-			 * sys_ioperm() call sets up the bitmap properly.
-			 */
-			tss->io_bitmap_base = INVALID_IO_BITMAP_OFFSET;
-	}
+	if (unlikely(prev->io_bitmap_ptr || next->io_bitmap_ptr))
+		handle_io_bitmap(next, tss);
+
 	return prev_p;
 }
 
@@ -593,7 +659,7 @@ asmlinkage int sys_clone(struct pt_regs regs)
 	child_tidptr = (int __user *)regs.edi;
 	if (!newsp)
 		newsp = regs.esp;
-	return do_fork(clone_flags & ~CLONE_IDLETASK, newsp, &regs, 0, parent_tidptr, child_tidptr);
+	return do_fork(clone_flags, newsp, &regs, 0, parent_tidptr, child_tidptr);
 }
 
 /*
@@ -628,7 +694,9 @@ asmlinkage int sys_execve(struct pt_regs regs)
 			(char __user * __user *) regs.edx,
 			&regs);
 	if (error == 0) {
+		task_lock(current);
 		current->ptrace &= ~PT_DTRACE;
+		task_unlock(current);
 		/* Make sure we don't return using sysenter.. */
 		set_thread_flag(TIF_IRET);
 	}
@@ -776,3 +844,9 @@ asmlinkage int sys_get_thread_area(struct user_desc __user *u_info)
 	return 0;
 }
 
+unsigned long arch_align_stack(unsigned long sp)
+{
+	if (randomize_va_space)
+		sp -= get_random_int() % 8192;
+	return sp & ~0xf;
+}

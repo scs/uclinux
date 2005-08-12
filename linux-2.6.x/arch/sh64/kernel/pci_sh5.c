@@ -39,7 +39,7 @@ static void __init pci_fixup_ide_bases(struct pci_dev *d)
 	 */
 	if ((d->class >> 8) != PCI_CLASS_STORAGE_IDE)
 		return;
-	printk("PCI: IDE base address fixup for %s\n", d->slot_name);
+	printk("PCI: IDE base address fixup for %s\n", pci_name(d));
 	for(i=0; i<4; i++) {
 		struct resource *r = &d->resource[i];
 		if ((r->start & ~0x80) == 0x374) {
@@ -48,12 +48,7 @@ static void __init pci_fixup_ide_bases(struct pci_dev *d)
 		}
 	}
 }
-
-/* Add future fixups here... */
-struct pci_fixup pcibios_fixups[] = {
-	{ PCI_FIXUP_HEADER,	PCI_ANY_ID,	PCI_ANY_ID,	pci_fixup_ide_bases },
-	{ 0 }
-};
+DECLARE_PCI_FIXUP_HEADER(PCI_ANY_ID, PCI_ANY_ID, pci_fixup_ide_bases);
 
 char * __init pcibios_setup(char *str)
 {
@@ -522,7 +517,7 @@ void __init pcibios_fixup_bus(struct pci_bus *bus)
 		bus->resource[0]->flags |= IORESOURCE_IO;
 		bus->resource[1]->flags |= IORESOURCE_MEM;
 
-		/* For now, propogate host limits to the bus;
+		/* For now, propagate host limits to the bus;
 		 * we'll adjust them later. */
 
 #if 1

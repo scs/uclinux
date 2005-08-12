@@ -59,9 +59,6 @@ unsigned long highstart_pfn, highend_pfn;
 pte_t *kmap_pte;
 pgprot_t kmap_prot;
 
-EXPORT_SYMBOL(kmap_prot);
-EXPORT_SYMBOL(kmap_pte);
-
 #define kmap_get_fixmap_pte(vaddr) \
 	pte_offset_kernel(pmd_offset(pgd_offset_k(vaddr), (vaddr)), (vaddr))
 
@@ -401,8 +398,6 @@ void __init mem_init(void)
 	int initpages = 0; 
 	int reservedpages = 0;
 	int i;
-
-	highmem_start_page = pfn_to_page(highstart_pfn);
 
 	if (PKMAP_BASE+LAST_PKMAP*PAGE_SIZE >= FIXADDR_START) {
 		prom_printf("BUG: fixmap and pkmap areas overlap\n");

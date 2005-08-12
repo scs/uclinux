@@ -1,5 +1,4 @@
-/* $Id$
- *
+/*
  * linux/arch/sh/mm/extable.c
  *  Taken from:
  *   linux/arch/i386/mm/extable.c

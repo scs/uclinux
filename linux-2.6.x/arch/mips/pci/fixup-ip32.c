@@ -1,7 +1,6 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/pci.h>
-#include <asm/pci_channel.h>
 #include <asm/ip32/ip32_ints.h>
 /*
  * O2 has up to 5 PCI devices connected into the MACE bridge.  The device
@@ -45,6 +44,8 @@ int __init pcibios_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
 	return irq_tab_mace[slot][pin];
 }
 
-struct pci_fixup pcibios_fixups[] = {
-	{0}
-};
+/* Do platform specific device initialization at pci_enable_device() time */
+int pcibios_plat_dev_init(struct pci_dev *dev)
+{
+	return 0;
+}

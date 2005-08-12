@@ -2,14 +2,27 @@
 #include <linux/string.h>
 #include <linux/delay.h>
 #include <linux/smp.h>
+#include <linux/module.h>
+#include <linux/percpu.h>
 #include <asm/semaphore.h>
 #include <asm/processor.h>
 #include <asm/i387.h>
 #include <asm/msr.h>
 #include <asm/io.h>
 #include <asm/mmu_context.h>
+#ifdef CONFIG_X86_LOCAL_APIC
+#include <asm/mpspec.h>
+#include <asm/apic.h>
+#include <mach_apic.h>
+#endif
 
 #include "cpu.h"
+
+DEFINE_PER_CPU(struct desc_struct, cpu_gdt_table[GDT_ENTRIES]);
+EXPORT_PER_CPU_SYMBOL(cpu_gdt_table);
+
+DEFINE_PER_CPU(unsigned char, cpu_16bit_stack[CPU_16BIT_STACK_SIZE]);
+EXPORT_PER_CPU_SYMBOL(cpu_16bit_stack);
 
 static int cachesize_override __initdata = -1;
 static int disable_x86_fxsr __initdata = 0;
@@ -189,7 +202,7 @@ static inline int flag_is_changeable_p(u32 flag)
 
 
 /* Probe for the CPUID instruction */
-int __init have_cpuid_p(void)
+static int __init have_cpuid_p(void)
 {
 	return flag_is_changeable_p(X86_EFLAGS_ID);
 }
@@ -197,7 +210,7 @@ int __init have_cpuid_p(void)
 /* Do minimum CPU detection early.
    Fields really needed: vendor, cpuid_level, family, model, mask, cache alignment.
    The others are not touched to avoid unwanted side effects. */
-void __init early_cpu_detect(void)
+static void __init early_cpu_detect(void)
 {
 	struct cpuinfo_x86 *c = &boot_cpu_data;
 
@@ -230,6 +243,10 @@ void __init early_cpu_detect(void)
 	}
 
 	early_intel_workaround(c);
+
+#ifdef CONFIG_X86_HT
+	phys_proc_id[smp_processor_id()] = (cpuid_ebx(1) >> 24) & 0xff;
+#endif
 }
 
 void __init generic_identify(struct cpuinfo_x86 * c)
@@ -269,8 +286,10 @@ void __init generic_identify(struct cpuinfo_x86 * c)
 		/* AMD-defined flags: level 0x80000001 */
 		xlvl = cpuid_eax(0x80000000);
 		if ( (xlvl & 0xffff0000) == 0x80000000 ) {
-			if ( xlvl >= 0x80000001 )
+			if ( xlvl >= 0x80000001 ) {
 				c->x86_capability[1] = cpuid_edx(0x80000001);
+				c->x86_capability[6] = cpuid_ecx(0x80000001);
+			}
 			if ( xlvl >= 0x80000004 )
 				get_model_name(c); /* Default name */
 		}
@@ -316,6 +335,7 @@ void __init identify_cpu(struct cpuinfo_x86 *c)
 	c->x86_model = c->x86_mask = 0;	/* So far unknown... */
 	c->x86_vendor_id[0] = '\0'; /* Unset */
 	c->x86_model_id[0] = '\0';  /* Unset */
+	c->x86_num_cores = 1;
 	memset(&c->x86_capability, 0, sizeof c->x86_capability);
 
 	if (!have_cpuid_p()) {
@@ -329,21 +349,19 @@ void __init identify_cpu(struct cpuinfo_x86 *c)
 
 	generic_identify(c);
 
-	printk(KERN_DEBUG "CPU: After generic identify, caps: %08lx %08lx %08lx %08lx\n",
-		c->x86_capability[0],
-		c->x86_capability[1],
-		c->x86_capability[2],
-		c->x86_capability[3]);
+	printk(KERN_DEBUG "CPU: After generic identify, caps:");
+	for (i = 0; i < NCAPINTS; i++)
+		printk(" %08lx", c->x86_capability[i]);
+	printk("\n");
 
 	if (this_cpu->c_identify) {
 		this_cpu->c_identify(c);
 
-	printk(KERN_DEBUG "CPU: After vendor identify, caps:  %08lx %08lx %08lx %08lx\n",
-		c->x86_capability[0],
-		c->x86_capability[1],
-		c->x86_capability[2],
-		c->x86_capability[3]);
-}
+		printk(KERN_DEBUG "CPU: After vendor identify, caps:");
+		for (i = 0; i < NCAPINTS; i++)
+			printk(" %08lx", c->x86_capability[i]);
+		printk("\n");
+	}
 
 	/*
 	 * Vendor-specific initialization.  In this section we
@@ -393,11 +411,10 @@ void __init identify_cpu(struct cpuinfo_x86 *c)
 
 	/* Now the feature flags better reflect actual CPU features! */
 
-	printk(KERN_DEBUG "CPU: After all inits, caps:        %08lx %08lx %08lx %08lx\n",
-	       c->x86_capability[0],
-	       c->x86_capability[1],
-	       c->x86_capability[2],
-	       c->x86_capability[3]);
+	printk(KERN_DEBUG "CPU: After all inits, caps:");
+	for (i = 0; i < NCAPINTS; i++)
+		printk(" %08lx", c->x86_capability[i]);
+	printk("\n");
 
 	/*
 	 * On SMP, boot_cpu_data holds the common feature set between
@@ -416,16 +433,62 @@ void __init identify_cpu(struct cpuinfo_x86 *c)
 	mcheck_init(c);
 #endif
 }
-/*
- *	Perform early boot up checks for a valid TSC. See arch/i386/kernel/time.c
- */
- 
-void __init dodgy_tsc(void)
+
+#ifdef CONFIG_X86_HT
+void __init detect_ht(struct cpuinfo_x86 *c)
 {
-	if (( boot_cpu_data.x86_vendor == X86_VENDOR_CYRIX ) ||
-	    ( boot_cpu_data.x86_vendor == X86_VENDOR_NSC   ))
-		cpu_devs[X86_VENDOR_CYRIX]->c_init(&boot_cpu_data);
+	u32 	eax, ebx, ecx, edx;
+	int 	index_msb, tmp;
+	int 	cpu = smp_processor_id();
+
+	if (!cpu_has(c, X86_FEATURE_HT) || cpu_has(c, X86_FEATURE_CMP_LEGACY))
+		return;
+
+	cpuid(1, &eax, &ebx, &ecx, &edx);
+	smp_num_siblings = (ebx & 0xff0000) >> 16;
+
+	if (smp_num_siblings == 1) {
+		printk(KERN_INFO  "CPU: Hyper-Threading is disabled\n");
+	} else if (smp_num_siblings > 1 ) {
+		index_msb = 31;
+
+		if (smp_num_siblings > NR_CPUS) {
+			printk(KERN_WARNING "CPU: Unsupported number of the siblings %d", smp_num_siblings);
+			smp_num_siblings = 1;
+			return;
+		}
+		tmp = smp_num_siblings;
+		while ((tmp & 0x80000000 ) == 0) {
+			tmp <<=1 ;
+			index_msb--;
+		}
+		if (smp_num_siblings & (smp_num_siblings - 1))
+			index_msb++;
+		phys_proc_id[cpu] = phys_pkg_id((ebx >> 24) & 0xFF, index_msb);
+
+		printk(KERN_INFO  "CPU: Physical Processor ID: %d\n",
+		       phys_proc_id[cpu]);
+
+		smp_num_siblings = smp_num_siblings / c->x86_num_cores;
+
+		tmp = smp_num_siblings;
+		index_msb = 31;
+		while ((tmp & 0x80000000) == 0) {
+			tmp <<=1 ;
+			index_msb--;
+		}
+
+		if (smp_num_siblings & (smp_num_siblings - 1))
+			index_msb++;
+
+		cpu_core_id[cpu] = phys_pkg_id((ebx >> 24) & 0xFF, index_msb);
+
+		if (c->x86_num_cores > 1)
+			printk(KERN_INFO  "CPU: Processor Core ID: %d\n",
+			       cpu_core_id[cpu]);
+	}
 }
+#endif
 
 void __init print_cpu_info(struct cpuinfo_x86 *c)
 {
@@ -450,7 +513,7 @@ void __init print_cpu_info(struct cpuinfo_x86 *c)
 		printk("\n");
 }
 
-unsigned long cpu_initialized __initdata = 0;
+cpumask_t cpu_initialized __initdata = CPU_MASK_NONE;
 
 /* This is hacky. :)
  * We're emulating future behavior.
@@ -469,7 +532,6 @@ extern int transmeta_init_cpu(void);
 extern int rise_init_cpu(void);
 extern int nexgen_init_cpu(void);
 extern int umc_init_cpu(void);
-void early_cpu_detect(void);
 
 void __init early_cpu_init(void)
 {
@@ -501,10 +563,11 @@ void __init early_cpu_init(void)
 void __init cpu_init (void)
 {
 	int cpu = smp_processor_id();
-	struct tss_struct * t = init_tss + cpu;
+	struct tss_struct * t = &per_cpu(init_tss, cpu);
 	struct thread_struct *thread = &current->thread;
+	__u32 stk16_off = (__u32)&per_cpu(cpu_16bit_stack, cpu);
 
-	if (test_and_set_bit(cpu, &cpu_initialized)) {
+	if (cpu_test_and_set(cpu, cpu_initialized)) {
 		printk(KERN_WARNING "CPU#%d already initialized!\n", cpu);
 		for (;;) local_irq_enable();
 	}
@@ -523,15 +586,24 @@ void __init cpu_init (void)
 	 * Initialize the per-CPU GDT with the boot GDT,
 	 * and set up the GDT descriptor:
 	 */
-	if (cpu) {
-		memcpy(cpu_gdt_table[cpu], cpu_gdt_table[0], GDT_SIZE);
-		cpu_gdt_descr[cpu].size = GDT_SIZE - 1;
-		cpu_gdt_descr[cpu].address = (unsigned long)cpu_gdt_table[cpu];
-	}
+	memcpy(&per_cpu(cpu_gdt_table, cpu), cpu_gdt_table,
+	       GDT_SIZE);
+
+	/* Set up GDT entry for 16bit stack */
+	*(__u64 *)&(per_cpu(cpu_gdt_table, cpu)[GDT_ENTRY_ESPFIX_SS]) |=
+		((((__u64)stk16_off) << 16) & 0x000000ffffff0000ULL) |
+		((((__u64)stk16_off) << 32) & 0xff00000000000000ULL) |
+		(CPU_16BIT_STACK_SIZE - 1);
+
+	cpu_gdt_descr[cpu].size = GDT_SIZE - 1;
+	cpu_gdt_descr[cpu].address =
+	    (unsigned long)&per_cpu(cpu_gdt_table, cpu);
+
 	/*
 	 * Set up the per-thread TLS descriptor cache:
 	 */
-	memcpy(thread->tls_array, cpu_gdt_table[cpu], GDT_ENTRY_TLS_ENTRIES * 8);
+	memcpy(thread->tls_array, &per_cpu(cpu_gdt_table, cpu),
+		GDT_ENTRY_TLS_ENTRIES * 8);
 
 	__asm__ __volatile__("lgdt %0" : : "m" (cpu_gdt_descr[cpu]));
 	__asm__ __volatile__("lidt %0" : : "m" (idt_descr));
@@ -552,13 +624,11 @@ void __init cpu_init (void)
 
 	load_esp0(t, thread);
 	set_tss_desc(cpu,t);
-	cpu_gdt_table[cpu][GDT_ENTRY_TSS].b &= 0xfffffdff;
 	load_TR_desc();
 	load_LDT(&init_mm.context);
 
 	/* Set up doublefault TSS pointer in the GDT */
 	__set_tss_desc(cpu, GDT_ENTRY_DOUBLEFAULT_TSS, &doublefault_tss);
-	cpu_gdt_table[cpu][GDT_ENTRY_DOUBLEFAULT_TSS].b &= 0xfffffdff;
 
 	/* Clear %fs and %gs. */
 	asm volatile ("xorl %eax, %eax; movl %eax, %fs; movl %eax, %gs");
@@ -575,6 +645,6 @@ void __init cpu_init (void)
 	 * Force FPU initialization:
 	 */
 	current_thread_info()->status = 0;
-	current->used_math = 0;
+	clear_used_math();
 	mxcsr_feature_mask_init();
 }

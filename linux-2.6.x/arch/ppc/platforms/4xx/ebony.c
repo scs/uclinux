@@ -1,11 +1,13 @@
 /*
- * arch/ppc/platforms/ebony.c
+ * arch/ppc/platforms/4xx/ebony.c
  *
  * Ebony board specific routines
  *
- * Matt Porter <mporter@mvista.com>
+ * Matt Porter <mporter@kernel.crashing.org>
+ * Copyright 2002-2005 MontaVista Software Inc.
  *
- * Copyright 2002 MontaVista Software Inc.
+ * Eugene Surovegin <eugene.surovegin@zultys.com> or <ebs@ebshome.net>
+ * Copyright (c) 2003, 2004 Zultys Technologies
  *
  * This program is free software; you can redistribute  it and/or modify it
  * under  the terms of  the GNU General  Public License as published by the
@@ -47,78 +49,40 @@
 #include <asm/todc.h>
 #include <asm/bootinfo.h>
 #include <asm/ppc4xx_pic.h>
+#include <asm/ppcboot.h>
+
+#include <syslib/gen550.h>
+#include <syslib/ibm440gp_common.h>
 
 /*
- * Ebony IRQ triggering/polarity settings
+ * This is a horrible kludge, we eventually need to abstract this
+ * generic PHY stuff, so the  standard phy mode defines can be
+ * easily used from arch code.
  */
-static u_char ebony_IRQ_initsenses[] __initdata = {
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* 0: UART 0 */
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* 1: UART 1 */
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* 2: IIC 0 */
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* 3: IIC 1 */
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* 4: PCI Inb Mess */
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* 5: PCI Cmd Wrt */
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* 6: PCI PM */
-	(IRQ_SENSE_EDGE  | IRQ_POLARITY_POSITIVE),	/* 7: PCI MSI 0 */
-	(IRQ_SENSE_EDGE  | IRQ_POLARITY_POSITIVE),	/* 8: PCI MSI 1 */
-	(IRQ_SENSE_EDGE  | IRQ_POLARITY_POSITIVE),	/* 9: PCI MSI 2 */
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* 10: MAL TX EOB */
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* 11: MAL RX EOB */
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* 12: DMA Chan 0 */
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* 13: DMA Chan 1 */
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* 14: DMA Chan 2 */
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* 15: DMA Chan 3 */
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* 16: Reserved */
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* 17: Reserved */
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* 18: GPT Timer 0 */
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* 19: GPT Timer 1 */
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* 20: GPT Timer 2 */
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* 21: GPT Timer 3 */
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* 22: GPT Timer 4 */
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_NEGATIVE),	/* 23: Ext Int 0 */
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_NEGATIVE),	/* 24: Ext Int 1 */
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_NEGATIVE),	/* 25: Ext Int 2 */
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_NEGATIVE),	/* 26: Ext Int 3 */
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* 27: Ext Int 4 */
-	(IRQ_SENSE_EDGE  | IRQ_POLARITY_NEGATIVE),	/* 28: Ext Int 5 */
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_NEGATIVE),	/* 29: Ext Int 6 */
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* 30: UIC1 NC Int */
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* 31: UIC1 Crit Int */
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* 32: MAL SERR */
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* 33: MAL TXDE */
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* 34: MAL RXDE */
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* 35: ECC Unc Err */
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* 36: ECC Corr Err */
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* 37: Ext Bus Ctrl */
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* 38: Ext Bus Mstr */
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* 39: OPB->PLB */
-	(IRQ_SENSE_EDGE  | IRQ_POLARITY_POSITIVE),	/* 40: PCI MSI 3 */
-	(IRQ_SENSE_EDGE  | IRQ_POLARITY_POSITIVE),	/* 41: PCI MSI 4 */
-	(IRQ_SENSE_EDGE  | IRQ_POLARITY_POSITIVE),	/* 42: PCI MSI 5 */
-	(IRQ_SENSE_EDGE  | IRQ_POLARITY_POSITIVE),	/* 43: PCI MSI 6 */
-	(IRQ_SENSE_EDGE  | IRQ_POLARITY_POSITIVE),	/* 44: PCI MSI 7 */
-	(IRQ_SENSE_EDGE  | IRQ_POLARITY_POSITIVE),	/* 45: PCI MSI 8 */
-	(IRQ_SENSE_EDGE  | IRQ_POLARITY_POSITIVE),	/* 46: PCI MSI 9 */
-	(IRQ_SENSE_EDGE  | IRQ_POLARITY_POSITIVE),	/* 47: PCI MSI 10 */
-	(IRQ_SENSE_EDGE  | IRQ_POLARITY_POSITIVE),	/* 48: PCI MSI 11 */
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* 49: PLB Perf Mon */
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* 50: Ext Int 7 */
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_NEGATIVE),	/* 51: Ext Int 8 */
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_NEGATIVE),	/* 52: Ext Int 9 */
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_NEGATIVE),	/* 53: Ext Int 10 */
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_NEGATIVE),	/* 54: Ext Int 11 */
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_NEGATIVE),	/* 55: Ext Int 12 */
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* 56: Ser ROM Err */
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* 57: Reserved */
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* 58: Reserved */
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* 59: PCI Async Err */
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* 60: EMAC 0 */
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* 61: EMAC 0 WOL */
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* 62: EMAC 1 */
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* 63: EMAC 1 WOL */
-};
+#include "../../../../drivers/net/ibm_emac/ibm_emac_phy.h"
 
-extern void abort(void);
+bd_t __res;
+
+static struct ibm44x_clocks clocks __initdata;
+
+/*
+ * Ebony external IRQ triggering/polarity settings
+ */
+unsigned char ppc4xx_uic_ext_irq_cfg[] __initdata = {
+	(IRQ_SENSE_LEVEL | IRQ_POLARITY_NEGATIVE),	/* IRQ0: PCI slot 0 */
+	(IRQ_SENSE_LEVEL | IRQ_POLARITY_NEGATIVE),	/* IRQ1: PCI slot 1 */
+	(IRQ_SENSE_LEVEL | IRQ_POLARITY_NEGATIVE),	/* IRQ2: PCI slot 2 */
+	(IRQ_SENSE_LEVEL | IRQ_POLARITY_NEGATIVE),	/* IRQ3: PCI slot 3 */
+	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* IRQ4: IRDA */
+	(IRQ_SENSE_EDGE  | IRQ_POLARITY_NEGATIVE),	/* IRQ5: SMI pushbutton */
+	(IRQ_SENSE_LEVEL | IRQ_POLARITY_NEGATIVE),	/* IRQ6: PHYs */
+	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* IRQ7: AUX */
+	(IRQ_SENSE_LEVEL | IRQ_POLARITY_NEGATIVE),	/* IRQ8: EXT */
+	(IRQ_SENSE_LEVEL | IRQ_POLARITY_NEGATIVE),	/* IRQ9: EXT */
+	(IRQ_SENSE_LEVEL | IRQ_POLARITY_NEGATIVE),	/* IRQ10: EXT */
+	(IRQ_SENSE_LEVEL | IRQ_POLARITY_NEGATIVE),	/* IRQ11: EXT */
+	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* IRQ12: EXT */
+};
 
 static void __init
 ebony_calibrate_decr(void)
@@ -133,7 +97,7 @@ ebony_calibrate_decr(void)
 	 * on Rev. C silicon then errata forces us to
 	 * use the internal clock.
 	 */
-	switch (PVR_REV(mfspr(PVR))) {
+	switch (PVR_REV(mfspr(SPRN_PVR))) {
 		case PVR_REV(PVR_440GP_RB):
 			freq = EBONY_440GP_RB_SYSCLK;
 			break;
@@ -143,18 +107,7 @@ ebony_calibrate_decr(void)
 			break;
 	}
 
-	tb_ticks_per_jiffy = freq / HZ;
-	tb_to_us = mulhwu_scale_factor(freq, 1000000);
-
-	/* Set the time base to zero */
-	mtspr(SPRN_TBWL, 0);
-	mtspr(SPRN_TBWU, 0);
-
-	/* Clear any pending timer interrupts */
-	mtspr(SPRN_TSR, TSR_ENW | TSR_WIS | TSR_DIS | TSR_FIS);
-
-	/* Enable decrementer interrupt */
-	mtspr(SPRN_TCR, TCR_DIE);
+	ibm44x_calibrate_decr(freq);
 }
 
 static int
@@ -186,7 +139,7 @@ ebony_map_irq(struct pci_dev *dev, unsigned char idsel, unsigned char pin)
 }
 
 #define PCIX_WRITEL(value, offset) \
-	(writel(value, (u32)pcix_reg_base+offset))
+	(writel(value, pcix_reg_base + offset))
 
 /*
  * FIXME: This is only here to "make it work".  This will move
@@ -196,9 +149,9 @@ ebony_map_irq(struct pci_dev *dev, unsigned char idsel, unsigned char pin)
 static void __init
 ebony_setup_pcix(void)
 {
-	void *pcix_reg_base;
+	void __iomem *pcix_reg_base;
 
-	pcix_reg_base = ioremap64(PCIX0_REG_BASE, PCIX0_REG_SIZE);
+	pcix_reg_base = ioremap64(PCIX0_REG_BASE, PCIX_REG_SIZE);
 
 	/* Disable all windows */
 	PCIX_WRITEL(0, PCIX0_POM0SA);
@@ -257,9 +210,8 @@ ebony_setup_hose(void)
 	hose->io_space.end = EBONY_PCI_UPPER_IO;
 	hose->mem_space.start = EBONY_PCI_LOWER_MEM;
 	hose->mem_space.end = EBONY_PCI_UPPER_MEM;
-	isa_io_base =
-		(unsigned long)ioremap64(EBONY_PCI_IO_BASE, EBONY_PCI_IO_SIZE);
-	hose->io_base_virt = (void *)isa_io_base;
+	hose->io_base_virt = ioremap64(EBONY_PCI_IO_BASE, EBONY_PCI_IO_SIZE);
+	isa_io_base = (unsigned long)hose->io_base_virt;
 
 	setup_indirect_pci(hose,
 			EBONY_PCI_CFGA_PLB32,
@@ -283,7 +235,7 @@ ebony_early_serial_map(void)
 	memset(&port, 0, sizeof(port));
 	port.membase = ioremap64(PPC440GP_UART0_ADDR, 8);
 	port.irq = 0;
-	port.uartclk = BASE_BAUD * 16;
+	port.uartclk = clocks.uart0;
 	port.regshift = 0;
 	port.iotype = SERIAL_IO_MEM;
 	port.flags = ASYNC_BOOT_AUTOCONF | ASYNC_SKIP_TEST;
@@ -293,40 +245,44 @@ ebony_early_serial_map(void)
 		printk("Early serial init of port 0 failed\n");
 	}
 
+#if defined(CONFIG_SERIAL_TEXT_DEBUG) || defined(CONFIG_KGDB)
+	/* Configure debug serial access */
+	gen550_init(0, &port);
+#endif
+
 	port.membase = ioremap64(PPC440GP_UART1_ADDR, 8);
 	port.irq = 1;
+	port.uartclk = clocks.uart1;
 	port.line = 1;
 
 	if (early_serial_setup(&port) != 0) {
 		printk("Early serial init of port 1 failed\n");
 	}
+
+#if defined(CONFIG_SERIAL_TEXT_DEBUG) || defined(CONFIG_KGDB)
+	/* Configure debug serial access */
+	gen550_init(1, &port);
+#endif
 }
 
 static void __init
 ebony_setup_arch(void)
 {
-	unsigned char * vpd_base;
-	struct ibm44x_clocks clocks;
 	struct ocp_def *def;
 	struct ocp_func_emac_data *emacdata;
 
-#if !defined(CONFIG_BDI_SWITCH)
-	/*
-	 * The Abatron BDI JTAG debugger does not tolerate others
-	 * mucking with the debug registers.
-	 */
-        mtspr(SPRN_DBCR0, (DBCR0_TDE | DBCR0_IDM));
-#endif
-
 	/* Set mac_addr for each EMAC */
-	vpd_base = ioremap64(EBONY_VPD_BASE, EBONY_VPD_SIZE);
 	def = ocp_get_one_device(OCP_VENDOR_IBM, OCP_FUNC_EMAC, 0);
 	emacdata = def->additions;
-	memcpy(emacdata->mac_addr, EBONY_NA0_ADDR(vpd_base), 6);
+	emacdata->phy_map = 0x00000001;	/* Skip 0x00 */
+	emacdata->phy_mode = PHY_MODE_RMII;
+	memcpy(emacdata->mac_addr, __res.bi_enetaddr, 6);
+
 	def = ocp_get_one_device(OCP_VENDOR_IBM, OCP_FUNC_EMAC, 1);
 	emacdata = def->additions;
-	memcpy(emacdata->mac_addr, EBONY_NA1_ADDR(vpd_base), 6);
-	iounmap(vpd_base);
+	emacdata->phy_map = 0x00000001;	/* Skip 0x00 */
+	emacdata->phy_mode = PHY_MODE_RMII;
+	memcpy(emacdata->mac_addr, __res.bi_enet1addr, 6);
 
 	/*
 	 * Determine various clocks.
@@ -361,164 +317,29 @@ ebony_setup_arch(void)
 		ROOT_DEV = Root_HDA1;
 #endif
 
-#ifdef CONFIG_VT
-	conswitchp = &dummy_con;
-#endif
-
 	ebony_early_serial_map();
-
-	ibm4xxPIC_InitSenses = ebony_IRQ_initsenses;
-	ibm4xxPIC_NumInitSenses = sizeof(ebony_IRQ_initsenses);
 
 	/* Identify the system */
 	printk("IBM Ebony port (MontaVista Software, Inc. (source@mvista.com))\n");
 }
 
-static void
-ebony_restart(char *cmd)
-{
-	local_irq_disable();
-	abort();
-}
-
-static void
-ebony_power_off(void)
-{
-	local_irq_disable();
-	for(;;);
-}
-
-static void
-ebony_halt(void)
-{
-	local_irq_disable();
-	for(;;);
-}
-
-/*
- * Read the 440GP memory controller to get size of system memory.
- */
-static unsigned long __init
-ebony_find_end_of_memory(void)
-{
-	u32 i, bank_config;
-	u32 mem_size = 0;
-
-	for (i=0; i<4; i++)
-	{
-		switch (i)
-		{
-			case 0:
-				mtdcr(DCRN_SDRAM0_CFGADDR, SDRAM0_B0CR);
-				break;
-			case 1:
-				mtdcr(DCRN_SDRAM0_CFGADDR, SDRAM0_B1CR);
-				break;
-			case 2:
-				mtdcr(DCRN_SDRAM0_CFGADDR, SDRAM0_B2CR);
-				break;
-			case 3:
-				mtdcr(DCRN_SDRAM0_CFGADDR, SDRAM0_B3CR);
-				break;
-		}
-
-		bank_config = mfdcr(DCRN_SDRAM0_CFGDATA);
-
-		if (!(bank_config & SDRAM_CONFIG_BANK_ENABLE))
-			continue;
-		switch (SDRAM_CONFIG_BANK_SIZE(bank_config))
-		{
-			case SDRAM_CONFIG_SIZE_8M:
-				mem_size += PPC44x_MEM_SIZE_8M;
-				break;
-			case SDRAM_CONFIG_SIZE_16M:
-				mem_size += PPC44x_MEM_SIZE_16M;
-				break;
-			case SDRAM_CONFIG_SIZE_32M:
-				mem_size += PPC44x_MEM_SIZE_32M;
-				break;
-			case SDRAM_CONFIG_SIZE_64M:
-				mem_size += PPC44x_MEM_SIZE_64M;
-				break;
-			case SDRAM_CONFIG_SIZE_128M:
-				mem_size += PPC44x_MEM_SIZE_128M;
-				break;
-			case SDRAM_CONFIG_SIZE_256M:
-				mem_size += PPC44x_MEM_SIZE_256M;
-				break;
-			case SDRAM_CONFIG_SIZE_512M:
-				mem_size += PPC44x_MEM_SIZE_512M;
-				break;
-		}
-	}
-	return mem_size;
-}
-
-static void __init
-ebony_init_irq(void)
-{
-	int i;
-
-	ppc4xx_pic_init();
-
-	for (i = 0; i < NR_IRQS; i++)
-		irq_desc[i].handler = ppc4xx_pic;
-}
-
-#ifdef CONFIG_SERIAL_TEXT_DEBUG
-#include <linux/serialP.h>
-#include <linux/serial_reg.h>
-#include <asm/serial.h>
-
-static struct serial_state rs_table[RS_TABLE_SIZE] = {
-	SERIAL_PORT_DFNS	/* Defined in <asm/serial.h> */
-};
-
-static void
-ebony_progress(char *s, unsigned short hex)
-{
-	volatile char c;
-	volatile unsigned long com_port;
-	u16 shift;
-
-	com_port = (unsigned long)rs_table[0].iomem_base;
-	shift = rs_table[0].iomem_reg_shift;
-
-	while ((c = *s++) != 0) {
-		while ((*((volatile unsigned char *)com_port +
-				(UART_LSR << shift)) & UART_LSR_THRE) == 0)
-			;
-		*(volatile unsigned char *)com_port = c;
-
-	}
-
-	/* Send LF/CR to pretty up output */
-	while ((*((volatile unsigned char *)com_port +
-		(UART_LSR << shift)) & UART_LSR_THRE) == 0)
-		;
-	*(volatile unsigned char *)com_port = '\r';
-	while ((*((volatile unsigned char *)com_port +
-		(UART_LSR << shift)) & UART_LSR_THRE) == 0)
-		;
-	*(volatile unsigned char *)com_port = '\n';
-}
-#endif /* CONFIG_SERIAL_TEXT_DEBUG */
-
 void __init platform_init(unsigned long r3, unsigned long r4,
 		unsigned long r5, unsigned long r6, unsigned long r7)
 {
-	parse_bootinfo((struct bi_record *) (r3 + KERNELBASE));
+	parse_bootinfo(find_bootinfo());
+
+	/*
+	 * If we were passed in a board information, copy it into the
+	 * residual data area.
+	 */
+	if (r3)
+		__res = *(bd_t *)(r3 + KERNELBASE);
+
+	ibm44x_platform_init();
 
 	ppc_md.setup_arch = ebony_setup_arch;
 	ppc_md.show_cpuinfo = ebony_show_cpuinfo;
-	ppc_md.init_IRQ = ebony_init_irq;
 	ppc_md.get_irq = NULL;		/* Set in ppc4xx_pic_init() */
-
-	ppc_md.find_end_of_memory = ebony_find_end_of_memory;
-
-	ppc_md.restart = ebony_restart;
-	ppc_md.power_off = ebony_power_off;
-	ppc_md.halt = ebony_halt;
 
 	ppc_md.calibrate_decr = ebony_calibrate_decr;
 	ppc_md.time_init = todc_time_init;
@@ -527,10 +348,6 @@ void __init platform_init(unsigned long r3, unsigned long r4,
 
 	ppc_md.nvram_read_val = todc_direct_read_val;
 	ppc_md.nvram_write_val = todc_direct_write_val;
-
-#ifdef CONFIG_SERIAL_TEXT_DEBUG
-	ppc_md.progress = ebony_progress;
-#endif /* CONFIG_SERIAL_TEXT_DEBUG */
 #ifdef CONFIG_KGDB
 	ppc_md.early_serial_map = ebony_early_serial_map;
 #endif

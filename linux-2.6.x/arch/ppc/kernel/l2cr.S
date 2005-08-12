@@ -45,6 +45,7 @@
 #include <asm/cputable.h>
 #include <asm/ppc_asm.h>
 #include <asm/cache.h>
+#include <asm/page.h>
 
 /* Usage:
 
@@ -124,14 +125,14 @@ END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
 	 * DPM can possibly interfere with the state machine in the processor
 	 * that invalidates the L2 cache tags.
 	 */
-	mfspr	r8,HID0			/* Save HID0 in r8 */
+	mfspr	r8,SPRN_HID0		/* Save HID0 in r8 */
 	rlwinm	r4,r8,0,12,10		/* Turn off HID0[DPM] */
 	sync
-	mtspr	HID0,r4			/* Disable DPM */
+	mtspr	SPRN_HID0,r4		/* Disable DPM */
 	sync
 
 	/* Get the current enable bit of the L2CR into r4 */
-	mfspr	r4,L2CR
+	mfspr	r4,SPRN_L2CR
 
 	/* Tweak some bits */
 	rlwinm	r5,r3,0,0,0		/* r5 contains the new enable bit */
@@ -185,7 +186,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
 	.balign	L1_CACHE_LINE_SIZE
 22:
 	sync
-	mtspr	L2CR,r3
+	mtspr	SPRN_L2CR,r3
 	sync
 	b	23f
 20:
@@ -198,27 +199,27 @@ END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
 	/* Perform a global invalidation */
 	oris	r3,r3,0x0020
 	sync
-	mtspr	L2CR,r3
+	mtspr	SPRN_L2CR,r3
 	sync
 	isync				/* For errata */
 
 BEGIN_FTR_SECTION
 	/* On the 7450, we wait for the L2I bit to clear......
 	*/
-10:	mfspr	r3,L2CR
+10:	mfspr	r3,SPRN_L2CR
 	andis.	r4,r3,0x0020
 	bne	10b
 	b	11f
 END_FTR_SECTION_IFSET(CPU_FTR_SPEC7450)
 
 	/* Wait for the invalidation to complete */
-3:	mfspr	r3,L2CR
+3:	mfspr	r3,SPRN_L2CR
 	rlwinm.	r4,r3,0,31,31
 	bne	3b
 
 11:	rlwinm	r3,r3,0,11,9		/* Turn off the L2I bit */
 	sync
-	mtspr	L2CR,r3
+	mtspr	SPRN_L2CR,r3
 	sync
 
 	/* See if we need to enable the cache */
@@ -227,7 +228,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_SPEC7450)
 
 	/* Enable the cache */
 	oris	r3,r3,0x8000
-	mtspr	L2CR,r3
+	mtspr	SPRN_L2CR,r3
 	sync
 
 4:
@@ -249,7 +250,7 @@ _GLOBAL(_get_L2CR)
 	/* Return the L2CR contents */
 	li	r3,0
 BEGIN_FTR_SECTION
-	mfspr	r3,L2CR
+	mfspr	r3,SPRN_L2CR
 END_FTR_SECTION_IFSET(CPU_FTR_L2CR)
 	blr
 
@@ -284,7 +285,7 @@ END_FTR_SECTION_IFCLR(CPU_FTR_L3CR)
 	/* Tweak some bits */
 	rlwinm	r5,r3,0,0,0		/* r5 contains the new enable bit */
 	rlwinm	r3,r3,0,22,20		/* Turn off the invalidate bit */
-	rlwinm	r3,r3,0,1,31		/* Turn off the enable bit */
+	rlwinm	r3,r3,0,2,31		/* Turn off the enable & PE bits */
 	rlwinm	r3,r3,0,5,3		/* Turn off the clken bit */
 	/* Check to see if we need to flush */
 	rlwinm.	r4,r4,0,0,0
@@ -379,7 +380,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_L3CR)
 /* flush_disable_L1()	- Flush and disable L1 cache
  *
  * clobbers r0, r3, ctr, cr0
- *
+ * Must be called with interrupts disabled and MMU enabled.
  */
 _GLOBAL(__flush_disable_L1)
 	/* Stop pending alitvec streams and memory accesses */
@@ -393,7 +394,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
 	 */
 	li	r3,0x4000	/* 512kB / 32B */
 	mtctr	r3
-	li	r3, 0
+	lis	r3,KERNELBASE@h
 1:
 	lwz	r0,0(r3)
 	addi	r3,r3,0x0020	/* Go to start of next cache line */
@@ -404,7 +405,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
 	/* Now flush those cache lines */
 	li	r3,0x4000	/* 512kB / 32B */
 	mtctr	r3
-	li	r3, 0
+	lis	r3,KERNELBASE@h
 1:
 	dcbf	0,r3
 	addi	r3,r3,0x0020	/* Go to start of next cache line */

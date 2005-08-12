@@ -28,7 +28,7 @@
 #ifdef CONFIG_HPET_TIMER
 static unsigned long hpet_usec_quotient;
 static unsigned long hpet_last;
-struct timer_opts timer_tsc;
+static struct timer_opts timer_tsc;
 #endif
 
 static inline void cpufreq_delayed_get(void);
@@ -265,7 +265,8 @@ time_cpufreq_notifier(struct notifier_block *nb, unsigned long val,
 {
 	struct cpufreq_freqs *freq = data;
 
-	write_seqlock_irq(&xtime_lock);
+	if (val != CPUFREQ_RESUMECHANGE)
+		write_seqlock_irq(&xtime_lock);
 	if (!ref_freq) {
 		ref_freq = freq->old;
 		loops_per_jiffy_ref = cpu_data[freq->cpu].loops_per_jiffy;
@@ -291,7 +292,9 @@ time_cpufreq_notifier(struct notifier_block *nb, unsigned long val,
 		}
 #endif
 	}
-	write_sequnlock_irq(&xtime_lock);
+
+	if (val != CPUFREQ_RESUMECHANGE)
+		write_sequnlock_irq(&xtime_lock);
 
 	return 0;
 }
@@ -316,6 +319,26 @@ core_initcall(cpufreq_tsc);
 #else /* CONFIG_CPU_FREQ */
 static inline void cpufreq_delayed_get(void) { return; }
 #endif 
+
+int recalibrate_cpu_khz(void)
+{
+#ifndef CONFIG_SMP
+	unsigned long cpu_khz_old = cpu_khz;
+
+	if (cpu_has_tsc) {
+		init_cpu_khz();
+		cpu_data[0].loops_per_jiffy =
+		    cpufreq_scale(cpu_data[0].loops_per_jiffy,
+			          cpu_khz_old,
+				  cpu_khz);
+		return 0;
+	} else
+		return -ENODEV;
+#else
+	return -ENODEV;
+#endif
+}
+EXPORT_SYMBOL(recalibrate_cpu_khz);
 
 static void mark_offset_tsc(void)
 {
@@ -474,7 +497,7 @@ static int __init init_tsc(char* override)
 	if (cpu_has_tsc) {
 		unsigned long tsc_quotient;
 #ifdef CONFIG_HPET_TIMER
-		if (is_hpet_enabled()){
+		if (is_hpet_enabled() && hpet_use_timer) {
 			unsigned long result, remain;
 			printk("Using TSC for gettimeofday\n");
 			tsc_quotient = calibrate_tsc_hpet(NULL);
@@ -543,11 +566,15 @@ __setup("notsc", tsc_setup);
 /************************************************************/
 
 /* tsc timer_opts struct */
-struct timer_opts timer_tsc = {
-	.name = 	"tsc",
-	.init =		init_tsc,
-	.mark_offset =	mark_offset_tsc, 
-	.get_offset =	get_offset_tsc,
-	.monotonic_clock =	monotonic_clock_tsc,
+static struct timer_opts timer_tsc = {
+	.name = "tsc",
+	.mark_offset = mark_offset_tsc, 
+	.get_offset = get_offset_tsc,
+	.monotonic_clock = monotonic_clock_tsc,
 	.delay = delay_tsc,
+};
+
+struct init_timer_opts __initdata timer_tsc_init = {
+	.init = init_tsc,
+	.opts = &timer_tsc,
 };

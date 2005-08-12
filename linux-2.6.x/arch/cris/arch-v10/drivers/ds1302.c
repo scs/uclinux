@@ -7,8 +7,11 @@
 *! Functions exported: ds1302_readreg, ds1302_writereg, ds1302_init
 *!
 *! $Log$
-*! Revision 1.4  2004/09/08 14:52:19  lgsoft
-*! Import of 2.6.8
+*! Revision 1.5  2005/08/12 03:32:52  magicyang
+*!   Update kernel 2.6.8 to 2.6.12
+*!
+*! Revision 1.14  2004/08/24 06:48:43  starvik
+*! Whitespace cleanup
 *!
 *! Revision 1.13  2004/05/28 09:26:59  starvik
 *! Modified I2C initialization to work in 2.6.

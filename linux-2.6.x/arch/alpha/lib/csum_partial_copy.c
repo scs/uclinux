@@ -193,7 +193,8 @@ csum_partial_cfu_dest_aligned(const unsigned long __user *src,
  * This is slightly less fun than the above..
  */
 static inline unsigned long
-csum_partial_cfu_src_aligned(const unsigned long *src, unsigned long *dst,
+csum_partial_cfu_src_aligned(const unsigned long __user *src,
+			     unsigned long *dst,
 			     unsigned long doff,
 			     long len, unsigned long checksum,
 			     unsigned long partial_dest,
@@ -250,7 +251,8 @@ out:
  * look at this too closely, you'll go blind.
  */
 static inline unsigned long
-csum_partial_cfu_unaligned(const unsigned long * src, unsigned long * dst,
+csum_partial_cfu_unaligned(const unsigned long __user * src,
+			   unsigned long * dst,
 			   unsigned long soff, unsigned long doff,
 			   long len, unsigned long checksum,
 			   unsigned long partial_dest,
@@ -372,7 +374,7 @@ unsigned int
 csum_partial_copy_from_user(const char __user *src, char *dst, int len,
 			    unsigned int sum, int *errp)
 {
-	if (!access_ok(src, len, VERIFY_READ)) {
+	if (!access_ok(VERIFY_READ, src, len)) {
 		*errp = -EFAULT;
 		memset(dst, 0, len);
 		return sum;
@@ -382,7 +384,8 @@ csum_partial_copy_from_user(const char __user *src, char *dst, int len,
 }
 
 unsigned int
-csum_partial_copy_nocheck(const char *src, char *dst, int len, unsigned int sum)
+csum_partial_copy_nocheck(const char __user *src, char *dst, int len,
+			  unsigned int sum)
 {
 	return do_csum_partial_copy_from_user(src, dst, len, sum, NULL);
 }

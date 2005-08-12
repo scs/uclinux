@@ -15,6 +15,7 @@ struct pci_bus * __devinit pci_acpi_scan_root(struct acpi_device *device, int do
 	return pcibios_scan_root(busnum);
 }
 
+extern int pci_routeirq;
 static int __init pci_acpi_init(void)
 {
 	struct pci_dev *dev = NULL;
@@ -30,13 +31,17 @@ static int __init pci_acpi_init(void)
 	pcibios_scanned++;
 	pcibios_enable_irq = acpi_pci_irq_enable;
 
-	/*
-	 * PCI IRQ routing is set up by pci_enable_device(), but we
-	 * also do it here in case there are still broken drivers that
-	 * don't use pci_enable_device().
-	 */
-	while ((dev = pci_find_device(PCI_ANY_ID, PCI_ANY_ID, dev)) != NULL)
-		acpi_pci_irq_enable(dev);
+	if (pci_routeirq) {
+		/*
+		 * PCI IRQ routing is set up by pci_enable_device(), but we
+		 * also do it here in case there are still broken drivers that
+		 * don't use pci_enable_device().
+		 */
+		printk(KERN_INFO "PCI: Routing PCI interrupts for all devices because \"pci=routeirq\" specified\n");
+		while ((dev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, dev)) != NULL)
+			acpi_pci_irq_enable(dev);
+	} else
+		printk(KERN_INFO "PCI: If a device doesn't work, try \"pci=routeirq\".  If it helps, post a report\n");
 
 #ifdef CONFIG_X86_IO_APIC
 	if (acpi_ioapic)

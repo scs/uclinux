@@ -26,10 +26,10 @@
 #include <linux/mm.h>
 #include <linux/init.h>
 #include <linux/percpu.h>
+#include <linux/hardirq.h>
 #include <asm/pgalloc.h>
 #include <asm/tlbflush.h>
 #include <asm/tlb.h>
-#include <asm/hardirq.h>
 #include <linux/highmem.h>
 
 DEFINE_PER_CPU(struct ppc64_tlb_batch, ppc64_tlb_batch);
@@ -74,19 +74,12 @@ void __pte_free_tlb(struct mmu_gather *tlb, struct page *ptepage)
  * change the existing HPTE to read-only rather than removing it
  * (if we remove it we should clear the _PTE_HPTEFLAGS bits).
  */
-void hpte_update(pte_t *ptep, unsigned long pte, int wrprot)
+void hpte_update(struct mm_struct *mm, unsigned long addr,
+		 unsigned long pte, int wrprot)
 {
-	struct page *ptepage;
-	struct mm_struct *mm;
-	unsigned long addr;
 	int i;
 	unsigned long context = 0;
 	struct ppc64_tlb_batch *batch = &__get_cpu_var(ppc64_tlb_batch);
-
-	ptepage = virt_to_page(ptep);
-	mm = (struct mm_struct *) ptepage->mapping;
-	addr = ptepage->index +
-		(((unsigned long)ptep & ~PAGE_MASK) * PTRS_PER_PTE);
 
 	if (REGION_ID(addr) == USER_REGION_ID)
 		context = mm->context.id;

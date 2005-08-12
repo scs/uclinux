@@ -16,6 +16,7 @@ SECTIONS
   {
     *(.text)
     SCHED_TEXT
+    LOCK_TEXT
     *(.gnu.warning)
   } =0
   _etext = .;
@@ -52,9 +53,6 @@ SECTIONS
   __setup_start = .;
   .init.setup : { *(.init.setup) }
   __setup_end = .;
-  __start___param = .;
-  __param : { *(__param) }
-  __stop___param = .;
   __initcall_start = .;
   .initcall.init : {
 	*(.initcall1.init) 
@@ -74,7 +72,7 @@ SECTIONS
   __initramfs_start = .;
   .init.ramfs : { *(.init.ramfs) }
   __initramfs_end = .;
-  . = ALIGN(32);
+  . = ALIGN(8192);
   __per_cpu_start = .;
   .data.percpu  : { *(.data.percpu) }
   __per_cpu_end = .;

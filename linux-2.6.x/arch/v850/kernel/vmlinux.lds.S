@@ -60,6 +60,11 @@
 		___start___kcrctab_gpl = .;				      \
 			*(__kcrctab_gpl)				      \
 		___stop___kcrctab_gpl = .;				      \
+		/* Built-in module parameters */			      \
+		___start___param = .;					      \
+		*(__param)						      \
+		___stop___param = .;
+
 
 /* Kernel text segment, and some constant data areas.  */
 #define TEXT_CONTENTS							      \
@@ -111,9 +116,6 @@
 			*(.init.setup)	/* 2.5 convention */		      \
 			*(.setup.init)	/* 2.4 convention */		      \
 		___setup_end = . ;					      \
-		___start___param = . ;					      \
-			*(__param)					      \
-		___stop___param = . ;					      \
 		___initcall_start = . ;					      \
 			*(.initcall.init)				      \
 			*(.initcall1.init)				      \

@@ -42,6 +42,7 @@
 #include <linux/proc_fs.h>
 #include <linux/smp.h>
 #include <linux/smp_lock.h>
+#include <linux/wait.h>
 
 #include <asm/segment.h>
 #include <asm/irq.h>
@@ -68,7 +69,7 @@ int wm97xx_comodule_present = 1;
 #define err(format, arg...) printk(KERN_ERR TS_NAME ": " format "\n" , ## arg)
 #define info(format, arg...) printk(KERN_INFO TS_NAME ": " format "\n" , ## arg)
 #define warn(format, arg...) printk(KERN_WARNING TS_NAME ": " format "\n" , ## arg)
-#define DPRINTK(format, arg...) printk(__FUNCTION__ ": " format "\n" , ## arg)
+#define DPRINTK(format, arg...) printk("%s: " format "\n", __FUNCTION__ , ## arg)
 
 
 #define PEN_DOWN_IRQ	AU1000_GPIO_7
@@ -147,10 +148,7 @@ static int ts_thread(void *id)
 	ts = wm97xx_ts_get_handle(0);
 
 	/* proceed only after everybody is ready */
-	while ( ! wm97xx_ts_ready(ts) ) {
-		/* give a little time for initializations to complete */
-		interruptible_sleep_on_timeout(&pendown_wait, HZ / 4);
-	}
+	wait_event_timeout(pendown_wait, wm97xx_ts_ready(ts), HZ/4);
 
 	/* board-specific calibration */
 	wm97xx_ts_set_cal(ts,

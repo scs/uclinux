@@ -20,9 +20,7 @@
  
 static int nmi_timer_callback(struct pt_regs * regs, int cpu)
 {
-	unsigned long eip = instruction_pointer(regs);
- 
-	oprofile_add_sample(eip, !user_mode(regs), 0, cpu);
+	oprofile_add_sample(regs, 0);
 	return 1;
 }
 
@@ -38,24 +36,20 @@ static void timer_stop(void)
 {
 	enable_timer_nmi_watchdog();
 	unset_nmi_callback();
-	synchronize_kernel();
+	synchronize_sched();  /* Allow already-started NMIs to complete. */
 }
 
 
-static struct oprofile_operations nmi_timer_ops = {
-	.start	= timer_start,
-	.stop	= timer_stop,
-	.cpu_type = "timer"
-};
-
-int __init nmi_timer_init(struct oprofile_operations ** ops)
+int __init nmi_timer_init(struct oprofile_operations * ops)
 {
 	extern int nmi_active;
 
 	if (nmi_active <= 0)
 		return -ENODEV;
 
-	*ops = &nmi_timer_ops;
+	ops->start = timer_start;
+	ops->stop = timer_stop;
+	ops->cpu_type = "timer";
 	printk(KERN_INFO "oprofile: using NMI timer interrupt.\n");
 	return 0;
 }

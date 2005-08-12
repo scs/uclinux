@@ -36,7 +36,7 @@ void *kmap_atomic(struct page *page, enum km_type type)
 
 	/* even !CONFIG_PREEMPT needs this, for in_atomic in do_page_fault */
 	inc_preempt_count();
-	if (page < highmem_start_page)
+	if (!PageHighMem(page))
 		return page_address(page);
 
 	idx = type + KM_TYPE_NR*smp_processor_id();
@@ -88,7 +88,7 @@ void kunmap_atomic(void *kvaddr, enum km_type type)
 	 * force other mappings to Oops if they'll try to access
 	 * this pte without first remap it
 	 */
-	pte_clear(kmap_pte-idx);
+	pte_clear(&init_mm, vaddr, kmap_pte-idx);
 /* XXX Fix - Anton */
 #if 0
 	__flush_tlb_one(vaddr);

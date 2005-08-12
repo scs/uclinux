@@ -635,7 +635,7 @@ static inline void unswap_pte(struct vm_area_struct * vma, unsigned long
 	set_pte(dir, pte_mkdirty(mk_pte(page, vma->vm_page_prot)));
 	swap_free(entry);
 	get_page(page);
-	++vma->vm_mm->rss;
+	inc_mm_counter(vma->vm_mm, rss);
 }
 
 static inline void unswap_pmd(struct vm_area_struct * vma, pmd_t *dir,
@@ -1033,7 +1033,7 @@ static struct block_device_operations stram_fops = {
 
 static struct gendisk *stram_disk;
 static struct request_queue *stram_queue;
-static spinlock_t stram_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(stram_lock);
 
 int __init stram_device_init(void)
 {

@@ -29,8 +29,11 @@ config GENERIC_ISA_DMA
 	bool
 	default y
 
-source "init/Kconfig"
+config GENERIC_IOMAP
+	bool
+	default y
 
+source "init/Kconfig"
 
 menu "Processor type and features"
 
@@ -55,20 +58,20 @@ config X86_ELAN
 config X86_VOYAGER
 	bool "Voyager (NCR)"
 	help
-	  Voyager is a MCA based 32 way capable SMP architecture proprietary
-	  to NCR Corp.  Machine classes 345x/35xx/4100/51xx are voyager based.
-	  
+	  Voyager is an MCA-based 32-way capable SMP architecture proprietary
+	  to NCR Corp.  Machine classes 345x/35xx/4100/51xx are Voyager-based.
+
 	  *** WARNING ***
-	
+
 	  If you do not specifically know you have a Voyager based machine,
-	  say N here otherwise the kernel you build will not be bootable.
+	  say N here, otherwise the kernel you build will not be bootable.
 
 config X86_NUMAQ
 	bool "NUMAQ (IBM/Sequent)"
 	select DISCONTIGMEM
 	select NUMA
 	help
-	  This option is used for getting Linux to run on a (IBM/Sequent) NUMA 
+	  This option is used for getting Linux to run on a (IBM/Sequent) NUMA
 	  multiquad box. This changes the way that processors are bootstrapped,
 	  and uses Clustered Logical APIC addressing mode instead of Flat Logical.
 	  You will need a new lynxer.elf file to flash your firmware with - send
@@ -115,8 +118,8 @@ config X86_ES7000
 	depends on SMP
 	help
 	  Support for Unisys ES7000 systems.  Say 'Y' here if this kernel is
-	  supposed to run on an IA32-based Unisys ES7000 system. 
-	  Only choose this option if you have such a system, otherwise you 
+	  supposed to run on an IA32-based Unisys ES7000 system.
+	  Only choose this option if you have such a system, otherwise you
 	  should say N here.
 
 endchoice
@@ -176,9 +179,11 @@ config M386
 	  - "K6" for the AMD K6, K6-II and K6-III (aka K6-3D).
 	  - "Athlon" for the AMD K7 family (Athlon/Duron/Thunderbird).
 	  - "Crusoe" for the Transmeta Crusoe series.
+	  - "Efficeon" for the Transmeta Efficeon series.
 	  - "Winchip-C6" for original IDT Winchip.
 	  - "Winchip-2" for IDT Winchip 2.
 	  - "Winchip-2A" for IDT Winchips with 3dNow! capabilities.
+	  - "GeodeGX1" for Geode GX1 (Cyrix MediaGX).
 	  - "CyrixIII/VIA C3" for VIA Cyrix III or VIA C3.
 	  - "VIA C3-2 for VIA C3-2 "Nehemiah" (model 9 and above).
 
@@ -196,7 +201,7 @@ config M586
 	bool "586/K5/5x86/6x86/6x86MX"
 	help
 	  Select this for an 586 or 686 series processor such as the AMD K5,
-	  the Intel 5x86 or 6x86, or the Intel 6x86MX.  This choice does not
+	  the Cyrix 5x86, 6x86 and 6x86MX.  This choice does not
 	  assume the RDTSC (Read Time Stamp Counter) instruction.
 
 config M586TSC
@@ -278,6 +283,11 @@ config MCRUSOE
 	  like a 586 with TSC, and sets some GCC optimization flags (like a
 	  Pentium Pro with no alignment requirements).
 
+config MEFFICEON
+	bool "Efficeon"
+	help
+	  Select this for a Transmeta Efficeon processor.
+
 config MWINCHIPC6
 	bool "Winchip-C6"
 	help
@@ -301,6 +311,11 @@ config MWINCHIP3D
 	  stores for this CPU, which can increase performance of some
 	  operations.
 
+config MGEODEGX1
+	bool "GeodeGX1"
+	help
+	  Select this for a Geode GX1 (Cyrix MediaGX) chip.
+
 config MCYRIXIII
 	bool "CyrixIII/VIA-C3"
 	help
@@ -322,7 +337,7 @@ config MVIAC3_2
 endchoice
 
 config X86_GENERIC
-       bool "Generic x86 support" 
+       bool "Generic x86 support"
        help
 	  Instead of just including optimizations for the selected
 	  x86 variant (e.g. PII, Crusoe or Athlon), include some more
@@ -351,7 +366,7 @@ config X86_L1_CACHE_SHIFT
 	int
 	default "7" if MPENTIUM4 || X86_GENERIC
 	default "4" if X86_ELAN || M486 || M386
-	default "5" if MWINCHIP3D || MWINCHIP2 || MWINCHIPC6 || MCRUSOE || MCYRIXIII || MK6 || MPENTIUMIII || MPENTIUMII || M686 || M586MMX || M586TSC || M586 || MVIAC3_2
+	default "5" if MWINCHIP3D || MWINCHIP2 || MWINCHIPC6 || MCRUSOE || MEFFICEON || MCYRIXIII || MK6 || MPENTIUMIII || MPENTIUMII || M686 || M586MMX || M586TSC || M586 || MVIAC3_2 || MGEODEGX1
 	default "6" if MK7 || MK8 || MPENTIUMM
 
 config RWSEM_GENERIC_SPINLOCK
@@ -364,9 +379,13 @@ config RWSEM_XCHGADD_ALGORITHM
 	depends on !M386
 	default y
 
+config GENERIC_CALIBRATE_DELAY
+	bool
+	default y
+
 config X86_PPRO_FENCE
 	bool
-	depends on M686 || M586MMX || M586TSC || M586 || M486 || M386
+	depends on M686 || M586MMX || M586TSC || M586 || M486 || M386 || MGEODEGX1
 	default y
 
 config X86_F00F_BUG
@@ -396,22 +415,22 @@ config X86_POPAD_OK
 
 config X86_ALIGNMENT_16
 	bool
-	depends on MWINCHIP3D || MWINCHIP2 || MWINCHIPC6 || MCYRIXIII || X86_ELAN || MK6 || M586MMX || M586TSC || M586 || M486 || MVIAC3_2
+	depends on MWINCHIP3D || MWINCHIP2 || MWINCHIPC6 || MCYRIXIII || X86_ELAN || MK6 || M586MMX || M586TSC || M586 || M486 || MVIAC3_2 || MGEODEGX1
 	default y
 
 config X86_GOOD_APIC
 	bool
-	depends on MK7 || MPENTIUM4 || MPENTIUMM || MPENTIUMIII || MPENTIUMII || M686 || M586MMX || MK8
+	depends on MK7 || MPENTIUM4 || MPENTIUMM || MPENTIUMIII || MPENTIUMII || M686 || M586MMX || MK8 || MEFFICEON
 	default y
 
 config X86_INTEL_USERCOPY
 	bool
-	depends on MPENTIUM4 || MPENTIUMM || MPENTIUMIII || MPENTIUMII || M586MMX || X86_GENERIC || MK8 || MK7
+	depends on MPENTIUM4 || MPENTIUMM || MPENTIUMIII || MPENTIUMII || M586MMX || X86_GENERIC || MK8 || MK7 || MEFFICEON
 	default y
 
 config X86_USE_PPRO_CHECKSUM
 	bool
-	depends on MWINCHIP3D || MWINCHIP2 || MWINCHIPC6 || MCYRIXIII || MK7 || MK6 || MPENTIUM4 || MPENTIUMM || MPENTIUMIII || MPENTIUMII || M686 || MK8 || MVIAC3_2
+	depends on MWINCHIP3D || MWINCHIP2 || MWINCHIPC6 || MCYRIXIII || MK7 || MK6 || MPENTIUM4 || MPENTIUMM || MPENTIUMIII || MPENTIUMII || M686 || MK8 || MVIAC3_2 || MEFFICEON
 	default y
 
 config X86_USE_3DNOW
@@ -504,10 +523,21 @@ config PREEMPT
 	  Say Y here if you are building a kernel for a desktop, embedded
 	  or real-time system.  Say N if you are unsure.
 
+config PREEMPT_BKL
+	bool "Preempt The Big Kernel Lock"
+	depends on PREEMPT
+	default y
+	help
+	  This option reduces the latency of the kernel by making the
+	  big kernel lock preemptible.
+
+	  Say Y here if you are building a kernel for a desktop system.
+	  Say N if you are unsure.
+
 config X86_UP_APIC
-	bool "Local APIC support on uniprocessors" if !SMP
-	depends on !(X86_VISWS || X86_VOYAGER)
-	---help---
+	bool "Local APIC support on uniprocessors"
+	depends on !SMP && !(X86_VISWS || X86_VOYAGER)
+	help
 	  A local APIC (Advanced Programmable Interrupt Controller) is an
 	  integrated interrupt controller in the CPU. If you have a single-CPU
 	  system which has a processor with a local APIC, you can say Y here to
@@ -517,36 +547,36 @@ config X86_UP_APIC
 	  performance counters), and the NMI watchdog which detects hard
 	  lockups.
 
-	  If you have a system with several CPUs, you do not need to say Y
-	  here: the local APIC will be used automatically.
-
 config X86_UP_IOAPIC
 	bool "IO-APIC support on uniprocessors"
-	depends on !SMP && X86_UP_APIC
+	depends on X86_UP_APIC
 	help
 	  An IO-APIC (I/O Advanced Programmable Interrupt Controller) is an
 	  SMP-capable replacement for PC-style interrupt controllers. Most
-	  SMP systems and a small number of uniprocessor systems have one.
+	  SMP systems and many recent uniprocessor systems have one.
+
 	  If you have a single-CPU system with an IO-APIC, you can say Y here
 	  to use it. If you say Y here even though your machine doesn't have
 	  an IO-APIC, then the kernel will still run with no slowdown at all.
 
-	  If you have a system with several CPUs, you do not need to say Y
-	  here: the IO-APIC will be used automatically.
-
 config X86_LOCAL_APIC
 	bool
-	depends on !SMP && X86_UP_APIC
+	depends on X86_UP_APIC || ((X86_VISWS || SMP) && !X86_VOYAGER)
 	default y
 
 config X86_IO_APIC
 	bool
-	depends on !SMP && X86_UP_IOAPIC
+	depends on X86_UP_IOAPIC || (SMP && !(X86_VISWS || X86_VOYAGER))
+	default y
+
+config X86_VISWS_APIC
+	bool
+	depends on X86_VISWS
 	default y
 
 config X86_TSC
 	bool
-	depends on (MWINCHIP3D || MWINCHIP2 || MCRUSOE || MCYRIXIII || MK7 || MK6 || MPENTIUM4 || MPENTIUMM || MPENTIUMIII || MPENTIUMII || M686 || M586MMX || M586TSC || MK8 || MVIAC3_2) && !X86_NUMAQ
+	depends on (MWINCHIP3D || MWINCHIP2 || MCRUSOE || MEFFICEON || MCYRIXIII || MK7 || MK6 || MPENTIUM4 || MPENTIUMM || MPENTIUMIII || MPENTIUMII || M686 || M586MMX || M586TSC || MK8 || MVIAC3_2 || MGEODEGX1) && !X86_NUMAQ
 	default y
 
 config X86_MCE
@@ -581,7 +611,7 @@ config X86_MCE_NONFATAL
 
 config X86_MCE_P4THERMAL
 	bool "check for P4 thermal throttling interrupt."
-	depends on X86_MCE && (X86_UP_APIC || SMP)
+	depends on X86_MCE && (X86_UP_APIC || SMP) && !X86_VISWS
 	help
 	  Enabling this feature will cause a message to be printed when the P4
 	  enters thermal throttling.
@@ -619,6 +649,24 @@ config I8K
 	  <http://people.debian.org/~dz/i8k/>
 
 	  Say Y if you intend to run this kernel on a Dell Inspiron 8000.
+	  Say N otherwise.
+
+config X86_REBOOTFIXUPS
+	bool "Enable X86 board specific fixups for reboot"
+	depends on X86
+	default n
+	---help---
+	  This enables chipset and/or board specific fixups to be done
+	  in order to get reboot to work correctly. This is only needed on
+	  some combinations of hardware and BIOS. The symptom, for which
+	  this config is intended, is when reboot ends with a stalled/hung
+	  system.
+
+	  Currently, the only fixup is for the Geode GX1/CS5530A/TROM2.1.
+	  combination.
+
+	  Say Y if you want to enable the fixup. Currently, it's safe to
+	  enable this option even if you don't need it.
 	  Say N otherwise.
 
 config MICROCODE
@@ -745,6 +793,16 @@ config HAVE_ARCH_BOOTMEM_NODE
 	depends on NUMA
 	default y
 
+config HAVE_MEMORY_PRESENT
+	bool
+	depends on DISCONTIGMEM
+	default y
+
+config NEED_NODE_MEMMAP_SIZE
+	bool
+	depends on DISCONTIGMEM
+	default y
+
 config HIGHPTE
 	bool "Allocate 3rd-level pagetables from highmem"
 	depends on HIGHMEM4G || HIGHMEM64G
@@ -818,7 +876,6 @@ config EFI
 	depends on ACPI
 	default n
 	---help---
-
 	This enables the the kernel to boot on EFI platforms using
 	system configuration information passed to it from the firmware.
 	This also enables the kernel to use any EFI runtime services that are
@@ -857,13 +914,30 @@ config REGPARM
 	depends on EXPERIMENTAL
 	default n
 	help
-	Compile the kernel with -mregparm=3. This uses an different ABI
+	Compile the kernel with -mregparm=3. This uses a different ABI
 	and passes the first three arguments of a function call in registers.
 	This will probably break binary only modules.
 
 	This feature is only enabled for gcc-3.0 and later - earlier compilers
 	generate incorrect output with certain kernel constructs when
 	-mregparm=3 is used.
+
+config SECCOMP
+	bool "Enable seccomp to safely compute untrusted bytecode"
+	depends on PROC_FS
+	default y
+	help
+	  This kernel feature is useful for number crunching applications
+	  that may need to compute untrusted bytecode during their
+	  execution. By using pipes or other transports made available to
+	  the process as file descriptors supporting the read/write
+	  syscalls, it's possible to isolate those applications in
+	  their own address space using seccomp. Once seccomp is
+	  enabled via /proc/<pid>/seccomp, it cannot be disabled
+	  and the task is only allowed to execute a few safe syscalls
+	  defined by each seccomp mode.
+
+	  If unsure, say Y. Only embedded should say N here.
 
 endmenu
 
@@ -876,7 +950,7 @@ source kernel/power/Kconfig
 source "drivers/acpi/Kconfig"
 
 menu "APM (Advanced Power Management) BIOS Support"
-depends on PM
+depends on PM && !X86_VISWS
 
 config APM
 	tristate "APM (Advanced Power Management) BIOS support"
@@ -1027,23 +1101,7 @@ source "arch/i386/kernel/cpu/cpufreq/Kconfig"
 
 endmenu
 
-
 menu "Bus options (PCI, PCMCIA, EISA, MCA, ISA)"
-
-config X86_VISWS_APIC
-	bool
-	depends on X86_VISWS
-	default y
-
-config X86_LOCAL_APIC
-	bool
-	depends on (X86_VISWS || SMP) && !X86_VOYAGER
-	default y
-
-config X86_IO_APIC
-	bool
-	depends on SMP && !(X86_VISWS || X86_VOYAGER)
-	default y
 
 config PCI
 	bool "PCI support" if !X86_VISWS
@@ -1105,11 +1163,17 @@ config PCI_DIRECT
 
 config PCI_MMCONFIG
 	bool
-	depends on PCI && (PCI_GOMMCONFIG || PCI_GOANY)
+	depends on PCI && ACPI && (PCI_GOMMCONFIG || PCI_GOANY)
 	select ACPI_BOOT
 	default y
 
+source "drivers/pci/pcie/Kconfig"
+
 source "drivers/pci/Kconfig"
+
+config ISA_DMA_API
+	bool
+	default y
 
 config ISA
 	bool "ISA support"
@@ -1140,17 +1204,13 @@ config EISA
 source "drivers/eisa/Kconfig"
 
 config MCA
-	bool "MCA support"
-	depends on !(X86_VISWS || X86_VOYAGER)
+	bool "MCA support" if !(X86_VISWS || X86_VOYAGER)
+	default y if X86_VOYAGER
 	help
 	  MicroChannel Architecture is found in some IBM PS/2 machines and
 	  laptops.  It is a bus system similar to PCI or ISA. See
 	  <file:Documentation/mca.txt> (and especially the web page given
 	  there) before attempting to build an MCA bus kernel.
-
-config MCA
-	depends on X86_VOYAGER
-	default y if X86_VOYAGER
 
 source "drivers/mca/Kconfig"
 
@@ -1158,7 +1218,7 @@ config SCx200
 	tristate "NatSemi SCx200 support"
 	depends on !X86_VOYAGER
 	help
-	  This provides basic support for the National Semiconductor SCx200 
+	  This provides basic support for the National Semiconductor SCx200
 	  processor.  Right now this is just a driver for the GPIO pins.
 
 	  If you don't know what to do here, say N.
@@ -1172,7 +1232,6 @@ source "drivers/pci/hotplug/Kconfig"
 
 endmenu
 
-
 menu "Executable file formats"
 
 source "fs/Kconfig.binfmt"
@@ -1185,136 +1244,24 @@ source "fs/Kconfig"
 
 source "arch/i386/oprofile/Kconfig"
 
-
-menu "Kernel hacking"
-
-config DEBUG_KERNEL
-	bool "Kernel debugging"
-	help
-	  Say Y here if you are developing drivers or trying to debug and
-	  identify kernel problems.
-
-config EARLY_PRINTK
-	bool "Early printk" if EMBEDDED
-	default y
-	help
-	  Write kernel log output directly into the VGA buffer or to a serial
-	  port.
-
-	  This is useful for kernel debugging when your machine crashes very
-	  early before the console code is initialized. For normal operation
-	  it is not recommended because it looks ugly and doesn't cooperate
-	  with klogd/syslogd or the X server. You should normally N here,
-	  unless you want to debug such a crash.
-
-config DEBUG_STACKOVERFLOW
-	bool "Check for stack overflows"
-	depends on DEBUG_KERNEL
-
-config DEBUG_STACK_USAGE
-	bool "Stack utilization instrumentation"
-	depends on DEBUG_KERNEL
-	help
-	  Enables the display of the minimum amount of free stack which each
-	  task has ever had available in the sysrq-T and sysrq-P debug output.
-
-	  This option will slow down process creation somewhat.
-
-config DEBUG_SLAB
-	bool "Debug memory allocations"
-	depends on DEBUG_KERNEL
-	help
-	  Say Y here to have the kernel do limited verification on memory
-	  allocation as well as poisoning memory on free to catch use of freed
-	  memory.
-
-config MAGIC_SYSRQ
-	bool "Magic SysRq key"
-	depends on DEBUG_KERNEL
-	help
-	  If you say Y here, you will have some control over the system even
-	  if the system crashes for example during kernel debugging (e.g., you
-	  will be able to flush the buffer cache to disk, reboot the system
-	  immediately or dump some status information). This is accomplished
-	  by pressing various keys while holding SysRq (Alt+PrintScreen). It
-	  also works on a serial console (on PC hardware at least), if you
-	  send a BREAK and then within 5 seconds a command keypress. The
-	  keys are documented in <file:Documentation/sysrq.txt>. Don't say Y
-	  unless you really know what this hack does.
-
-config DEBUG_SPINLOCK
-	bool "Spinlock debugging"
-	depends on DEBUG_KERNEL
-	help
-	  Say Y here and build SMP to catch missing spinlock initialization
-	  and certain other kinds of spinlock errors commonly made.  This is
-	  best used in conjunction with the NMI watchdog so that spinlock
-	  deadlocks are also debuggable.
-
-config DEBUG_PAGEALLOC
-	bool "Page alloc debugging"
-	depends on DEBUG_KERNEL
-	help
-	  Unmap pages from the kernel linear mapping after free_pages().
-	  This results in a large slowdown, but helps to find certain types
-	  of memory corruptions.
-
-config DEBUG_HIGHMEM
-	bool "Highmem debugging"
-	depends on DEBUG_KERNEL && HIGHMEM
-	help
-	  This options enables addition error checking for high memory systems.
-	  Disable for production systems.
-
-config DEBUG_INFO
-	bool "Compile the kernel with debug info"
-	depends on DEBUG_KERNEL
-	help
-          If you say Y here the resulting kernel image will include
-	  debugging info resulting in a larger kernel image.
-	  Say Y here only if you plan to use gdb to debug the kernel.
-	  If you don't debug the kernel, you can say N.
-	  
-config DEBUG_SPINLOCK_SLEEP
-	bool "Sleep-inside-spinlock checking"
-	help
-	  If you say Y here, various routines which may sleep will become very
-	  noisy if they are called with a spinlock held.	
-
-config FRAME_POINTER
-	bool "Compile the kernel with frame pointers"
-	help
-	  If you say Y here the resulting kernel image will be slightly larger
-	  and slower, but it will give very useful debugging information.
-	  If you don't debug the kernel, you can say N, but we may not be able
-	  to solve problems without frame pointers.
-
-config 4KSTACKS
-	bool "Use 4Kb for kernel stacks instead of 8Kb"
-	help
-	  If you say Y here the kernel will use a 4Kb stacksize for the
-	  kernel stack attached to each process/thread. This facilitates
-	  running more threads on a system and also reduces the pressure
-	  on the VM subsystem for higher order allocations. This option
-	  will also use IRQ stacks to compensate for the reduced stackspace.
-
-config X86_FIND_SMP_CONFIG
-	bool
-	depends on X86_LOCAL_APIC || X86_VOYAGER
-	default y
-
-config X86_MPPARSE
-	bool
-	depends on X86_LOCAL_APIC && !X86_VISWS
-	default y
-
-endmenu
+source "arch/i386/Kconfig.debug"
 
 source "security/Kconfig"
 
 source "crypto/Kconfig"
 
 source "lib/Kconfig"
+
+#
+# Use the generic interrupt handling code in kernel/irq/:
+#
+config GENERIC_HARDIRQS
+	bool
+	default y
+
+config GENERIC_IRQ_PROBE
+	bool
+	default y
 
 config X86_SMP
 	bool

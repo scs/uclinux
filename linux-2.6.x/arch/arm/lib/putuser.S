@@ -16,7 +16,7 @@
  * __put_user_X
  *
  * Inputs:	r0 contains the address
- *		r1, r2 contains the value
+ *		r2, r3 contains the value
  * Outputs:	r0 is the error code
  *		lr corrupted
  *
@@ -32,60 +32,35 @@
 
 	.global	__put_user_1
 __put_user_1:
-	bic	ip, sp, #0x1f00
-	bic	ip, ip, #0x00ff
-	ldr	ip, [ip, #TI_ADDR_LIMIT]
-	sub	ip, ip, #1
-	cmp	r0, ip
-1:	strlsbt	r1, [r0]
-	movls	r0, #0
-	movls	pc, lr
-	b	__put_user_bad
+1:	strbt	r2, [r0]
+	mov	r0, #0
+	mov	pc, lr
 
 	.global	__put_user_2
 __put_user_2:
-	bic	ip, sp, #0x1f00
-	bic	ip, ip, #0x00ff
-	ldr	ip, [ip, #TI_ADDR_LIMIT]
-	sub	ip, ip, #2
-	cmp	r0, ip
-	movls	ip, r1, lsr #8
+	mov	ip, r2, lsr #8
 #ifndef __ARMEB__
-2:	strlsbt	r1, [r0], #1
-3:	strlsbt	ip, [r0]
+2:	strbt	r2, [r0], #1
+3:	strbt	ip, [r0]
 #else
-2:	strlsbt	ip, [r0], #1
-3:	strlsbt	r1, [r0]
+2:	strbt	ip, [r0], #1
+3:	strbt	r2, [r0]
 #endif
-	movls	r0, #0
-	movls	pc, lr
-	b	__put_user_bad
+	mov	r0, #0
+	mov	pc, lr
 
 	.global	__put_user_4
 __put_user_4:
-	bic	ip, sp, #0x1f00
-	bic	ip, ip, #0x00ff
-	ldr	ip, [ip, #TI_ADDR_LIMIT]
-	sub	ip, ip, #4
-	cmp	r0, ip
-4:	strlst	r1, [r0]
-	movls	r0, #0
-	movls	pc, lr
-	b	__put_user_bad
+4:	strt	r2, [r0]
+	mov	r0, #0
+	mov	pc, lr
 
 	.global	__put_user_8
 __put_user_8:
-	bic	ip, sp, #0x1f00
-	bic	ip, ip, #0x00ff
-	ldr	ip, [ip, #TI_ADDR_LIMIT]
-	sub	ip, ip, #8
-	cmp	r0, ip
-5:	strlst	r1, [r0], #4
-6:	strlst	r2, [r0]
-	movls	r0, #0
-	movls	pc, lr
-
-	/* fall through */
+5:	strt	r2, [r0], #4
+6:	strt	r3, [r0]
+	mov	r0, #0
+	mov	pc, lr
 
 __put_user_bad:
 	mov	r0, #-EFAULT

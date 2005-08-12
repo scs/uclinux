@@ -161,12 +161,8 @@ _GLOBAL(low_sleep_handler)
 	addi r3,r3,sleep_storage@l
 	stw r5,0(r3)
 
-	/* Disable DPM during cache flush */
-	mfspr	r3, SPRN_HID0
-	rlwinm	r3,r3,0,12,10
-	sync
-	mtspr	SPRN_HID0,r3
-	sync
+	/* Flush & disable all caches */
+	bl	flush_disable_caches
 
 	/* Turn off data relocation. */
 	mfmsr	r3		/* Save MSR in r7 */
@@ -175,18 +171,23 @@ _GLOBAL(low_sleep_handler)
 	mtmsr	r3
 	isync
 
-	/* Flush & disable L1 cache */
-	bl	__flush_disable_L1
+BEGIN_FTR_SECTION
+	/* Flush any pending L2 data prefetches to work around HW bug */
+	sync
+	lis	r3,0xfff0
+	lwz	r0,0(r3)	/* perform cache-inhibited load to ROM */
+	sync			/* (caches are disabled at this point) */
+END_FTR_SECTION_IFSET(CPU_FTR_SPEC7450)
 
 /*
  * Set the HID0 and MSR for sleep.
  */
-	mfspr	r2,HID0
+	mfspr	r2,SPRN_HID0
 	rlwinm	r2,r2,0,10,7	/* clear doze, nap */
 	oris	r2,r2,HID0_SLEEP@h
 	sync
 	isync
-	mtspr	HID0,r2
+	mtspr	SPRN_HID0,r2
 	sync
 
 /* This loop puts us back to sleep in case we have a spurrious
@@ -212,16 +213,15 @@ _GLOBAL(low_sleep_handler)
  * r4 has the physical address of SL_PC(sp) (unused)
  */
 _GLOBAL(core99_wake_up)
-	/* Make sure HID0 no longer contains any sleep bit */
-	mfspr	r3,HID0
+	/* Make sure HID0 no longer contains any sleep bit and that data cache
+	 * is disabled
+	 */
+	mfspr	r3,SPRN_HID0
 	rlwinm	r3,r3,0,11,7		/* clear SLEEP, NAP, DOZE bits */
-	mtspr	HID0,r3
+	rlwinm	3,r3,0,18,15		/* clear DCE, ICE */
+	mtspr	SPRN_HID0,r3
 	sync
 	isync
-
-	/* Won't that cause problems on CPU that doesn't support it ? */
-	lis	r3, 0
-	mtspr	SPRN_MMCR0, r3
 
 	/* sanitize MSR */
 	mfmsr	r3
@@ -246,10 +246,6 @@ _GLOBAL(core99_wake_up)
  */
 
 grackle_wake_up:
-	/* Invalidate & enable L1 cache, we don't care about
-	 * whatever the ROM may have tried to write to memory
-	 */
-	bl	__inval_enable_L1
 
 	/* Restore the kernel's segment registers before
 	 * we do any r1 memory access as we are not sure they
@@ -270,6 +266,15 @@ grackle_wake_up:
 
 	/* Restore various CPU config stuffs */
 	bl	__restore_cpu_setup
+
+	/* Make sure all FPRs have been initialized */
+	bl	reloc_offset
+	bl	__init_fpu_registers
+
+	/* Invalidate & enable L1 cache, we don't care about
+	 * whatever the ROM may have tried to write to memory
+	 */
+	bl	__inval_enable_L1
 
 	/* Restore the BATs, and SDR1.  Then we can turn on the MMU. */
 	lwz	r4,SL_SDR1(r1)

@@ -99,7 +99,7 @@ int cp_compat_stat(struct kstat *stat, struct compat_stat *statbuf)
 }
 
 asmlinkage unsigned long
-sys32_mmap2(unsigned long addr, size_t len, unsigned long prot,
+sys32_mmap2(unsigned long addr, unsigned long len, unsigned long prot,
          unsigned long flags, unsigned long fd, unsigned long pgoff)
 {
 	struct file * file = NULL;
@@ -239,7 +239,7 @@ put_rusage (struct rusage32 *ru, struct rusage *r)
 {
 	int err;
 
-	if (verify_area(VERIFY_WRITE, ru, sizeof *ru))
+	if (!access_ok(VERIFY_WRITE, ru, sizeof *ru))
 		return -EFAULT;
 
 	err = __put_user (r->ru_utime.tv_sec, &ru->ru_utime.tv_sec);
@@ -468,8 +468,7 @@ asmlinkage ssize_t sys32_pread(unsigned int fd, char * buf,
 	if (!(file->f_mode & FMODE_READ))
 		goto out;
 	pos = merge_64(a4, a5);
-	ret = locks_verify_area(FLOCK_VERIFY_READ, file->f_dentry->d_inode,
-				file, pos, count);
+	ret = rw_verify_area(READ, file, &pos, count);
 	if (ret)
 		goto out;
 	ret = -EINVAL;
@@ -504,8 +503,7 @@ asmlinkage ssize_t sys32_pwrite(unsigned int fd, const char * buf,
 	if (!(file->f_mode & FMODE_WRITE))
 		goto out;
 	pos = merge_64(a4, a5);
-	ret = locks_verify_area(FLOCK_VERIFY_WRITE, file->f_dentry->d_inode,
-				file, pos, count);
+	ret = rw_verify_area(WRITE, file, &pos, count);
 	if (ret)
 		goto out;
 	ret = -EINVAL;
@@ -1117,7 +1115,7 @@ sys32_ipc (u32 call, int first, int second, int third, u32 ptr, u32 fifth)
 		err = sys_shmdt ((char *)A(ptr));
 		break;
 	case SHMGET:
-		err = sys_shmget (first, second, third);
+		err = sys_shmget (first, (unsigned)second, third);
 		break;
 	case SHMCTL:
 		err = do_sys32_shmctl (first, second, (void *)AA(ptr));
@@ -1192,13 +1190,6 @@ asmlinkage long sys32_sysctl(struct sysctl_args32 *args)
 		copy_to_user(args->__unused, tmp.__unused, sizeof(tmp.__unused));
 	}
 	return error;
-}
-
-#else /* CONFIG_SYSCTL */
-
-asmlinkage long sys32_sysctl(struct sysctl_args32 *args)
-{
-	return -ENOSYS;
 }
 
 #endif /* CONFIG_SYSCTL */

@@ -6,8 +6,7 @@
 mainmenu "Linux/PA-RISC Kernel Configuration"
 
 config PARISC
-	bool
-	default y
+	def_bool y
 	help
 	  The PA-RISC microprocessor is designed by Hewlett-Packard and used
 	  in many of their workstations & servers (HP9000 700 and 800 series,
@@ -15,29 +14,40 @@ config PARISC
 	  at <http://www.parisc-linux.org/>.
 
 config MMU
-	bool
-	default y
+	def_bool y
 
 config STACK_GROWSUP
-	bool
-	default y
+	def_bool y
 
 config UID16
 	bool
 
 config RWSEM_GENERIC_SPINLOCK
-	bool
-	default y
+	def_bool y
 
 config RWSEM_XCHGADD_ALGORITHM
 	bool
 
+config GENERIC_CALIBRATE_DELAY
+	bool
+	default y
+
 config GENERIC_ISA_DMA
 	bool
+
+config GENERIC_HARDIRQS
+	def_bool y
+
+config GENERIC_IRQ_PROBE
+	def_bool y
 
 # unless you want to implement ACPI on PA-RISC ... ;-)
 config PM
 	bool
+
+config ISA_DMA_API
+	bool
+	default y
 
 source "init/Kconfig"
 
@@ -101,21 +111,18 @@ config PREFETCH
 	def_bool y
 	depends on PA8X00
 
-config PARISC64
+config 64BIT
 	bool "64-bit kernel"
 	depends on PA8X00
 	help
 	  Enable this if you want to support 64bit kernel on PA-RISC platform.
-	  
+
 	  At the moment, only people willing to use more than 2GB of RAM,
 	  or having a 64bit-only capable PA-RISC machine should say Y here.
 
 	  Since there is no 64bit userland on PA-RISC, there is no point to
 	  enable this option otherwise. The 64bit kernel is significantly bigger
 	  and slower than the 32bit one.
-
-config 64BIT
-	def_bool PARISC64
 
 config SMP
 	bool "Symmetric multi-processing support"
@@ -156,13 +163,12 @@ config PREEMPT
 	default n
 
 config COMPAT
-	bool
-	depends on PARISC64
-	default y
+	def_bool y
+	depends on 64BIT
 
 config HPUX
 	bool "Support for HP-UX binaries"
-	depends on !PARISC64
+	depends on !64BIT
 
 config NR_CPUS
 	int "Maximum number of CPUs (2-32)"
@@ -188,76 +194,10 @@ source "fs/Kconfig"
 
 source "arch/parisc/oprofile/Kconfig"
 
-menu "Kernel hacking"
-
-config DEBUG_KERNEL
-	bool "Kernel debugging"
-	help
-	  Say Y here if you are developing drivers or trying to debug and
-	  identify kernel problems.
-
-config DEBUG_SLAB
-	bool "Debug memory allocations"
-	depends on DEBUG_KERNEL
-	help
-	  Say Y here to have the kernel do limited verification on memory
-	  allocation as well as poisoning memory on free to catch use of freed
-	  memory.
-
-config MAGIC_SYSRQ
-	bool "Magic SysRq key"
-	depends on DEBUG_KERNEL
-	help
-	  If you say Y here, you will have some control over the system even
-	  if the system crashes for example during kernel debugging (e.g., you
-	  will be able to flush the buffer cache to disk, reboot the system
-	  immediately or dump some status information). This is accomplished
-	  by pressing various keys while holding SysRq (Alt+PrintScreen). It
-	  also works on a serial console (on PC hardware at least), if you
-	  send a BREAK and then within 5 seconds a command keypress. The
-	  keys are documented in <file:Documentation/sysrq.txt>. Don't say Y
-	  unless you really know what this hack does.
-
-config DEBUG_SPINLOCK
-        bool "Spinlock debugging"
-        depends on DEBUG_KERNEL
-        help
-          Say Y here and build SMP to catch missing spinlock initialization
-          and certain other kinds of spinlock errors commonly made.  This is
-          best used in conjunction with the NMI watchdog so that spinlock
-          deadlocks are also debuggable.
-
-config DEBUG_RWLOCK
-        bool "Read-write spinlock debugging"
-        depends on DEBUG_KERNEL && SMP
-        help
-          If you say Y here then read-write lock processing will count how many
-          times it has tried to get the lock and issue an error message after
-          too many attempts.  If you suspect a rwlock problem or a kernel
-          hacker asks for this option then say Y.  Otherwise say N.
-
-config FRAME_POINTER
-	bool "Compile the kernel with frame pointers"
-	help
-	  If you say Y here the resulting kernel image will be slightly larger
-	  and slower, but it will give very useful debugging information.
-	  If you don't debug the kernel, you can say N, but we may not be able
-	  to solve problems without frame pointers.
-
-config DEBUG_INFO
-	bool "Compile the kernel with debug info"
-	depends on DEBUG_KERNEL
-	help
-          If you say Y here the resulting kernel image will include
-	  debugging info resulting in a larger kernel image.
-	  Say Y here only if you plan to use gdb to debug the kernel.
-	  If you don't debug the kernel, you can say N.
-	  
-endmenu
+source "arch/parisc/Kconfig.debug"
 
 source "security/Kconfig"
 
 source "crypto/Kconfig"
 
 source "lib/Kconfig"
-

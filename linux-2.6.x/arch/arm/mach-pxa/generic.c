@@ -30,8 +30,10 @@
 #include <asm/pgtable.h>
 #include <asm/mach/map.h>
 
+#include <asm/arch/pxa-regs.h>
 #include <asm/arch/udc.h>
 #include <asm/arch/pxafb.h>
+#include <asm/arch/mmc.h>
 
 #include "generic.h"
 
@@ -47,6 +49,10 @@ void pxa_gpio_mode(int gpio_mode)
 	int gafr;
 
 	local_irq_save(flags);
+	if (gpio_mode & GPIO_DFLT_LOW)
+		GPCR(gpio) = GPIO_bit(gpio);
+	else if (gpio_mode & GPIO_DFLT_HIGH)
+		GPSR(gpio) = GPIO_bit(gpio);
 	if (gpio_mode & GPIO_MD_MASK_DIR)
 		GPDR(gpio) |= GPIO_bit(gpio);
 	else
@@ -86,7 +92,7 @@ EXPORT_SYMBOL(pxa_set_cken);
  */
 static struct map_desc standard_io_desc[] __initdata = {
  /* virtual     physical    length      type */
-  { 0xf2000000, 0x40000000, 0x01800000, MT_DEVICE }, /* Devs */
+  { 0xf2000000, 0x40000000, 0x02000000, MT_DEVICE }, /* Devs */
   { 0xf4000000, 0x44000000, 0x00100000, MT_DEVICE }, /* LCD */
   { 0xf6000000, 0x48000000, 0x00100000, MT_DEVICE }, /* Mem Ctl */
   { 0xf8000000, 0x4c000000, 0x00100000, MT_DEVICE }, /* USB host */
@@ -128,6 +134,11 @@ static struct platform_device pxamci_device = {
 	.resource	= pxamci_resources,
 };
 
+void __init pxa_set_mci_info(struct pxamci_platform_data *info)
+{
+	pxamci_device.dev.platform_data = info;
+}
+
 
 static struct pxa2xx_udc_mach_info pxa_udc_info;
 
@@ -135,7 +146,6 @@ void __init pxa_set_udc_info(struct pxa2xx_udc_mach_info *info)
 {
 	memcpy(&pxa_udc_info, info, sizeof *info);
 }
-EXPORT_SYMBOL(pxa_set_udc_info);
 
 static struct resource pxa2xx_udc_resources[] = {
 	[0] = {
@@ -169,7 +179,6 @@ void __init set_pxa_fb_info(struct pxafb_mach_info *hard_pxa_fb_info)
 {
 	memcpy(&pxa_fb_info,hard_pxa_fb_info,sizeof(struct pxafb_mach_info));
 }
-EXPORT_SYMBOL(set_pxa_fb_info);
 
 static struct resource pxafb_resources[] = {
 	[0] = {
@@ -211,6 +220,30 @@ static struct platform_device stuart_device = {
 	.id		= 2,
 };
 
+static struct resource i2c_resources[] = {
+	{
+		.start	= 0x40301680,
+		.end	= 0x403016a3,
+		.flags	= IORESOURCE_MEM,
+	}, {
+		.start	= IRQ_I2C,
+		.end	= IRQ_I2C,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device i2c_device = {
+	.name		= "pxa2xx-i2c",
+	.id		= 0,
+	.resource	= i2c_resources,
+	.num_resources	= ARRAY_SIZE(i2c_resources),
+};
+
+void __init pxa_set_i2c_info(struct i2c_pxa_platform_data *info)
+{
+	i2c_device.dev.platform_data = info;
+}
+
 static struct platform_device *devices[] __initdata = {
 	&pxamci_device,
 	&udc_device,
@@ -218,6 +251,7 @@ static struct platform_device *devices[] __initdata = {
 	&ffuart_device,
 	&btuart_device,
 	&stuart_device,
+	&i2c_device,
 };
 
 static int __init pxa_init(void)

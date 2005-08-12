@@ -446,7 +446,7 @@ register_info(char *page)
 		     "RSE stacked physical registers   : %ld\n"
 		     "RSE load/store hints             : %ld (%s)\n",
 		     phys_stacked, hints.ph_data,
-		     hints.ph_data < RSE_HINTS_COUNT ? rse_hints[hints.ph_data]: "(\?\?)");
+		     hints.ph_data < RSE_HINTS_COUNT ? rse_hints[hints.ph_data]: "(??)");
 
 	if (ia64_pal_debug_info(&iregs, &dregs))
 		return 0;
@@ -479,7 +479,7 @@ static const char *proc_features[]={
 	"Enable CMCI promotion",
 	"Enable MCA to BINIT promotion",
 	"Enable MCA promotion",
-	"Enable BEER promotion"
+	"Enable BERR promotion"
 };
 
 

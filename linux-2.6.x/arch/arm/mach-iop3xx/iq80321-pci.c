@@ -5,6 +5,7 @@
  *
  * Author: Rory Bolt <rorybolt@pacbell.net>
  * Copyright (C) 2002 Rory Bolt
+ * Copyright (C) 2004 Intel Corp.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -38,37 +39,60 @@
 
 #define INTE	IRQ_IQ80321_I82544
 
-typedef u8 irq_table[4];
-
-static irq_table pci_irq_table[] = {
-	/*
-	 * PCI IDSEL/INTPIN->INTLINE
-	 * A       B       C       D
-	 */
-	{INTE, INTE, INTE, INTE}, /* Gig-E */
-	{INTD, INTC, INTD, INTA}, /* Unused */
-	{INTC, INTD, INTA, INTB}, /* PCI-X Slot */
-};
-
 static inline int __init
 iq80321_map_irq(struct pci_dev *dev, u8 idsel, u8 pin)
 {
+	static int pci_irq_table[][4] = {
+		/*
+		 * PCI IDSEL/INTPIN->INTLINE
+		 * A       B       C       D
+		 */
+		{INTE, INTE, INTE, INTE}, /* Gig-E */
+		{-1, -1, -1, -1}, 	  /* Unused */
+		{INTC, INTD, INTA, INTB}, /* PCI-X Slot */
+		{-1, -1, -1, -1},
+	};
+
 	BUG_ON(pin < 1 || pin > 4);
 
-	return PCI_IRQ_TABLE_LOOKUP(2, 3);
+//	return PCI_IRQ_TABLE_LOOKUP(4, 7);
+	return pci_irq_table[idsel%4][pin-1];
 }
 
 static int iq80321_setup(int nr, struct pci_sys_data *sys)
 {
-	switch (nr) {
-	case 0:
-		sys->map_irq = iq80321_map_irq;
-		break;
-	default:
-		return 0;
-	}
+	struct resource *res;
 
-	return iop321_setup(nr, sys);
+	if(nr != 0)
+		return 0;
+
+	res = kmalloc(sizeof(struct resource) * 2, GFP_KERNEL);
+	if (!res)
+		panic("PCI: unable to alloc resources");
+
+	memset(res, 0, sizeof(struct resource) * 2);
+
+	res[0].start = IOP321_PCI_LOWER_IO_VA;
+	res[0].end   = IOP321_PCI_UPPER_IO_VA;
+	res[0].name  = "IQ80321 PCI I/O Space";
+	res[0].flags = IORESOURCE_IO;
+
+	res[1].start = IOP321_PCI_LOWER_MEM_PA;
+	res[1].end   = IOP321_PCI_UPPER_MEM_PA;
+	res[1].name  = "IQ80321 PCI Memory Space";
+	res[1].flags = IORESOURCE_MEM;
+
+	request_resource(&ioport_resource, &res[0]);
+	request_resource(&iomem_resource, &res[1]);
+
+	sys->mem_offset = IOP321_PCI_MEM_OFFSET;
+	sys->io_offset  = IOP321_PCI_IO_OFFSET;
+
+	sys->resource[0] = &res[0];
+	sys->resource[1] = &res[1];
+	sys->resource[2] = NULL;
+
+	return 1;
 }
 
 static void iq80321_preinit(void)
@@ -82,6 +106,7 @@ static struct hw_pci iq80321_pci __initdata = {
 	.setup		= iq80321_setup,
 	.scan		= iop321_scan_bus,
 	.preinit	= iq80321_preinit,
+	.map_irq	= iq80321_map_irq
 };
 
 static int __init iq80321_pci_init(void)

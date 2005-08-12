@@ -8,8 +8,8 @@
  *  Authors:   Bjorn Wesen (bjornw@axis.com)
  *
  *  $Log$
- *  Revision 1.4  2004/09/08 14:53:02  lgsoft
- *  Import of 2.6.8
+ *  Revision 1.5  2005/08/12 03:32:53  magicyang
+ *    Update kernel 2.6.8 to 2.6.12
  *
  *  Revision 1.17  2004/04/05 13:53:48  starvik
  *  Merge of Linux 2.6.5

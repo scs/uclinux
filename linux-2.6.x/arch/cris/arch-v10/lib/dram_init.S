@@ -11,8 +11,8 @@
  * Authors:  Mikael Starvik (starvik@axis.com)	
  * 
  * $Log$
- * Revision 1.4  2004/09/08 14:52:41  lgsoft
- * Import of 2.6.8
+ * Revision 1.5  2005/08/12 03:32:53  magicyang
+ *   Update kernel 2.6.8 to 2.6.12
  *
  * Revision 1.4  2003/09/22 09:21:59  starvik
  * Decompresser is linked to 0x407xxxxx and sdram commands are at 0x000xxxxx

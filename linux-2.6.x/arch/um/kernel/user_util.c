@@ -5,12 +5,11 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <fcntl.h>
 #include <unistd.h>
 #include <limits.h>
-#include <sys/mman.h> 
+#include <setjmp.h>
+#include <sys/mman.h>
 #include <sys/stat.h>
-#include <sys/ptrace.h>
 #include <sys/utsname.h>
 #include <sys/param.h>
 #include <sys/time.h>
@@ -29,22 +28,8 @@
 #include "mem_user.h"
 #include "init.h"
 #include "helper.h"
+#include "ptrace_user.h"
 #include "uml-config.h"
-
-#define COMMAND_LINE_SIZE _POSIX_ARG_MAX
-
-/* Changed in linux_main and setup_arch, which run before SMP is started */
-char command_line[COMMAND_LINE_SIZE] = { 0 };
-
-void add_arg(char *cmd_line, char *arg)
-{
-	if (strlen(cmd_line) + strlen(arg) + 1 > COMMAND_LINE_SIZE) {
-		printf("add_arg: Too much command line!\n");
-		exit(1);
-	}
-	if(strlen(cmd_line) > 0) strcat(cmd_line, " ");
-	strcat(cmd_line, arg);
-}
 
 void stop(void)
 {
@@ -81,19 +66,19 @@ int wait_for_stop(int pid, int sig, int cont_type, void *relay)
 	int status, ret;
 
 	while(1){
-		if(((ret = waitpid(pid, &status, WUNTRACED)) < 0) ||
+		CATCH_EINTR(ret = waitpid(pid, &status, WUNTRACED));
+		if((ret < 0) ||
 		   !WIFSTOPPED(status) || (WSTOPSIG(status) != sig)){
 			if(ret < 0){
-				if(errno == EINTR) continue;
 				printk("wait failed, errno = %d\n",
 				       errno);
 			}
 			else if(WIFEXITED(status)) 
-				printk("process exited with status %d\n", 
-				       WEXITSTATUS(status));
+				printk("process %d exited with status %d\n",
+				       pid, WEXITSTATUS(status));
 			else if(WIFSIGNALED(status))
-				printk("process exited with signal %d\n", 
-				       WTERMSIG(status));
+				printk("process %d exited with signal %d\n",
+				       pid, WTERMSIG(status));
 			else if((WSTOPSIG(status) == SIGVTALRM) ||
 				(WSTOPSIG(status) == SIGALRM) ||
 				(WSTOPSIG(status) == SIGIO) ||
@@ -109,8 +94,8 @@ int wait_for_stop(int pid, int sig, int cont_type, void *relay)
 				ptrace(cont_type, pid, 0, WSTOPSIG(status));
 				continue;
 			}
-			else printk("process stopped with signal %d\n", 
-				    WSTOPSIG(status));
+			else printk("process %d stopped with signal %d\n",
+				    pid, WSTOPSIG(status));
 			panic("wait_for_stop failed to wait for %d to stop "
 			      "with %d\n", pid, sig);
 		}
@@ -118,29 +103,27 @@ int wait_for_stop(int pid, int sig, int cont_type, void *relay)
 	}
 }
 
-int clone_and_wait(int (*fn)(void *), void *arg, void *sp, int flags)
-{
-	int pid;
-
-	pid = clone(fn, sp, flags, arg);
- 	if(pid < 0) return(-1);
-	wait_for_stop(pid, SIGSTOP, PTRACE_CONT, NULL);
-	ptrace(PTRACE_CONT, pid, 0, 0);
-	return(pid);
-}
-
-int raw(int fd, int complain)
+int raw(int fd)
 {
 	struct termios tt;
 	int err;
 
-	tcgetattr(fd, &tt);
-	cfmakeraw(&tt);
-	err = tcsetattr(fd, TCSANOW, &tt);
-	if((err < 0) && complain){
-		printk("tcsetattr failed, errno = %d\n", errno);
+	CATCH_EINTR(err = tcgetattr(fd, &tt));
+	if (err < 0) {
+			printk("tcgetattr failed, errno = %d\n", errno);
 		return(-errno);
 	}
+
+	cfmakeraw(&tt);
+
+ 	CATCH_EINTR(err = tcsetattr(fd, TCSADRAIN, &tt));
+	if (err < 0) {
+			printk("tcsetattr failed, errno = %d\n", errno);
+		return(-errno);
+	}
+
+	/* XXX tcsetattr could have applied only some changes
+	 * (and cfmakeraw() is a set of changes) */
 	return(0);
 }
 
@@ -161,6 +144,21 @@ void setup_hostinfo(void)
 	uname(&host);
 	sprintf(host_info, "%s %s %s %s %s", host.sysname, host.nodename,
 		host.release, host.version, host.machine);
+}
+
+int setjmp_wrapper(void (*proc)(void *, void *), ...)
+{
+        va_list args;
+	sigjmp_buf buf;
+	int n;
+
+	n = sigsetjmp(buf, 1);
+	if(n == 0){
+		va_start(args, proc);
+		(*proc)(&buf, &args);
+	}
+	va_end(args);
+	return(n);
 }
 
 /*

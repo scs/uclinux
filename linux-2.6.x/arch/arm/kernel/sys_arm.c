@@ -62,11 +62,7 @@ inline long do_mmap2(
 
 	flags &= ~(MAP_EXECUTABLE | MAP_DENYWRITE);
 
-	/*
-	 * If we are doing a fixed mapping, and address < PAGE_SIZE,
-	 * then deny it.
-	 */
-	if (flags & MAP_FIXED && addr < PAGE_SIZE && vectors_base() == 0)
+	if (flags & MAP_FIXED && addr < FIRST_USER_ADDRESS)
 		goto out;
 
 	error = -EBADF;
@@ -119,12 +115,7 @@ sys_arm_mremap(unsigned long addr, unsigned long old_len,
 {
 	unsigned long ret = -EINVAL;
 
-	/*
-	 * If we are doing a fixed mapping, and address < PAGE_SIZE,
-	 * then deny it.
-	 */
-	if (flags & MREMAP_FIXED && new_addr < PAGE_SIZE &&
-	    vectors_base() == 0)
+	if (flags & MREMAP_FIXED && new_addr < FIRST_USER_ADDRESS)
 		goto out;
 
 	down_write(&current->mm->mmap_sem);
@@ -171,7 +162,11 @@ asmlinkage int sys_ipc(uint call, int first, int second, int third,
 
 	switch (call) {
 	case SEMOP:
-		return sys_semop(first, (struct sembuf __user *)ptr, second);
+		return sys_semtimedop (first, (struct sembuf __user *)ptr, second, NULL);
+	case SEMTIMEDOP:
+		return sys_semtimedop(first, (struct sembuf __user *)ptr, second,
+					(const struct timespec __user *)fifth);
+
 	case SEMGET:
 		return sys_semget (first, second, third);
 	case SEMCTL: {
@@ -217,11 +212,8 @@ asmlinkage int sys_ipc(uint call, int first, int second, int third,
 				return ret;
 			return put_user(raddr, (ulong __user *)third);
 		}
-		case 1:	/* iBCS2 emulator entry point */
-			if (!segment_eq(get_fs(), get_ds()))
-				return -EINVAL;
-			return do_shmat(first, (char __user *) ptr,
-					second, (ulong __user *) third);
+		case 1: /* Of course, we don't support iBCS2! */
+			return -EINVAL;
 		}
 	case SHMDT: 
 		return sys_shmdt ((char __user *)ptr);
@@ -246,18 +238,14 @@ asmlinkage int sys_fork(struct pt_regs *regs)
 /* Clone a task - this clones the calling program thread.
  * This is called indirectly via a small wrapper
  */
-asmlinkage int sys_clone(unsigned long clone_flags, unsigned long newsp, struct pt_regs *regs)
+asmlinkage int sys_clone(unsigned long clone_flags, unsigned long newsp,
+			 int __user *parent_tidptr, int tls_val,
+			 int __user *child_tidptr, struct pt_regs *regs)
 {
-	/*
-	 * We don't support SETTID / CLEARTID
-	 */
-	if (clone_flags & (CLONE_PARENT_SETTID | CLONE_CHILD_CLEARTID))
-		return -EINVAL;
-
 	if (!newsp)
 		newsp = regs->ARM_sp;
 
-	return do_fork(clone_flags & ~CLONE_IDLETASK, newsp, regs, 0, NULL, NULL);
+	return do_fork(clone_flags, newsp, regs, 0, parent_tidptr, child_tidptr);
 }
 
 asmlinkage int sys_vfork(struct pt_regs *regs)
@@ -314,7 +302,7 @@ long execve(const char *filename, char **argv, char **envp)
 		"b	ret_to_user"
 		:
 		: "r" (current_thread_info()),
-		  "Ir" (THREAD_SIZE - 8 - sizeof(regs)),
+		  "Ir" (THREAD_START_SP - sizeof(regs)),
 		  "r" (&regs),
 		  "Ir" (sizeof(regs))
 		: "r0", "r1", "r2", "r3", "ip", "memory");

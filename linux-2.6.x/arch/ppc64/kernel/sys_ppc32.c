@@ -72,8 +72,8 @@
 #include <asm/semaphore.h>
 #include <asm/ppcdebug.h>
 #include <asm/time.h>
-#include <asm/ppc32.h>
 #include <asm/mmu_context.h>
+#include <asm/systemcfg.h>
 
 #include "pci.h"
 
@@ -241,7 +241,7 @@ int cp_compat_stat(struct kstat *stat, struct compat_stat __user *statbuf)
 	    !new_valid_dev(stat->rdev))
 		return -EOVERFLOW;
 
-	err  = verify_area(VERIFY_WRITE, statbuf, sizeof(*statbuf));
+	err  = access_ok(VERIFY_WRITE, statbuf, sizeof(*statbuf)) ? 0 : -EFAULT;
 	err |= __put_user(new_encode_dev(stat->dev), &statbuf->st_dev);
 	err |= __put_user(stat->ino, &statbuf->st_ino);
 	err |= __put_user(stat->mode, &statbuf->st_mode);
@@ -492,6 +492,7 @@ asmlinkage long sys32_settimeofday(struct compat_timeval __user *tv, struct time
 	return do_sys_settimeofday(tv ? &kts : NULL, tz ? &ktz : NULL);
 }
 
+#ifdef CONFIG_SYSVIPC
 long sys32_ipc(u32 call, u32 first, u32 second, u32 third, compat_uptr_t ptr,
 	       u32 fifth)
 {
@@ -503,11 +504,11 @@ long sys32_ipc(u32 call, u32 first, u32 second, u32 third, compat_uptr_t ptr,
 	switch (call) {
 
 	case SEMTIMEDOP:
-		if (third)
+		if (fifth)
 			/* sign extend semid */
 			return compat_sys_semtimedop((int)first,
 						     compat_ptr(ptr), second,
-						     compat_ptr(third));
+						     compat_ptr(fifth));
 		/* else fall through for normal semop() */
 	case SEMOP:
 		/* struct sembuf is the same on 32 and 64bit :)) */
@@ -556,6 +557,7 @@ long sys32_ipc(u32 call, u32 first, u32 second, u32 third, compat_uptr_t ptr,
 
 	return -ENOSYS;
 }
+#endif
 
 /* Note: it is necessary to treat out_fd and in_fd as unsigned ints, 
  * with the corresponding cast to a signed int to insure that the 
@@ -622,8 +624,11 @@ long sys32_execve(unsigned long a0, unsigned long a1, unsigned long a2,
 
 	error = compat_do_execve(filename, compat_ptr(a1), compat_ptr(a2), regs);
 
-	if (error == 0)
+	if (error == 0) {
+		task_lock(current);
 		current->ptrace &= ~PT_DTRACE;
+		task_unlock(current);
+	}
 	putname(filename);
 
 out:
@@ -634,8 +639,24 @@ out:
 void start_thread32(struct pt_regs* regs, unsigned long nip, unsigned long sp)
 {
 	set_fs(USER_DS);
-	memset(regs->gpr, 0, sizeof(regs->gpr));
-	memset(&regs->ctr, 0, 4 * sizeof(regs->ctr));
+
+	/*
+	 * If we exec out of a kernel thread then thread.regs will not be
+	 * set. Do it now.
+	 */
+	if (!current->thread.regs) {
+		unsigned long childregs = (unsigned long)current->thread_info +
+						THREAD_SIZE;
+		childregs -= sizeof(struct pt_regs);
+		current->thread.regs = (struct pt_regs *)childregs;
+	}
+
+	/*
+	 * ELF_PLAT_INIT already clears all registers but it also sets r2.
+	 * So just clear r2 here.
+	 */
+	regs->gpr[2] = 0;
+
 	regs->nip = nip;
 	regs->gpr[1] = sp;
 	regs->msr = MSR_USER32;
@@ -700,7 +721,7 @@ asmlinkage int sys32_pciconfig_read(u32 bus, u32 dfn, u32 off, u32 len, u32 ubuf
 				  (unsigned long) dfn,
 				  (unsigned long) off,
 				  (unsigned long) len,
-				  (unsigned char __user *)AA(ubuf));
+				  compat_ptr(ubuf));
 }
 
 asmlinkage int sys32_pciconfig_write(u32 bus, u32 dfn, u32 off, u32 len, u32 ubuf)
@@ -709,7 +730,7 @@ asmlinkage int sys32_pciconfig_write(u32 bus, u32 dfn, u32 off, u32 len, u32 ubu
 				   (unsigned long) dfn,
 				   (unsigned long) off,
 				   (unsigned long) len,
-				   (unsigned char __user *)AA(ubuf));
+				   compat_ptr(ubuf));
 }
 
 #define IOBASE_BRIDGE_NUMBER	0
@@ -768,31 +789,6 @@ asmlinkage int sys32_pciconfig_iobase(u32 which, u32 in_bus, u32 in_devfn)
 
 	return -EOPNOTSUPP;
 }
-
-
-asmlinkage int ppc64_newuname(struct new_utsname __user * name)
-{
-	int errno = sys_newuname(name);
-
-	if (current->personality == PER_LINUX32 && !errno) {
-		if(copy_to_user(name->machine, "ppc\0\0", 8)) {
-			errno = -EFAULT;
-		}
-	}
-	return errno;
-}
-
-asmlinkage int ppc64_personality(unsigned long personality)
-{
-	int ret;
-	if (current->personality == PER_LINUX32 && personality == PER_LINUX)
-		personality = PER_LINUX32;
-	ret = sys_personality(personality);
-	if (ret == PER_LINUX32)
-		ret = PER_LINUX;
-	return ret;
-}
-
 
 
 /* Note: it is necessary to treat mode as an unsigned int,
@@ -1085,6 +1081,7 @@ asmlinkage long sys32_umask(u32 mask)
 	return sys_umask((int)mask);
 }
 
+#ifdef CONFIG_SYSCTL
 struct __sysctl_args32 {
 	u32 name;
 	int nlen;
@@ -1095,7 +1092,7 @@ struct __sysctl_args32 {
 	u32 __unused[4];
 };
 
-extern asmlinkage long sys32_sysctl(struct __sysctl_args32 __user *args)
+asmlinkage long sys32_sysctl(struct __sysctl_args32 __user *args)
 {
 	struct __sysctl_args32 tmp;
 	int error;
@@ -1114,63 +1111,69 @@ extern asmlinkage long sys32_sysctl(struct __sysctl_args32 __user *args)
 		   glibc's __sysctl uses rw memory for the structure
 		   anyway.  */
 		oldlenp = (size_t __user *)addr;
-		if (get_user(oldlen, (u32 __user *)A(tmp.oldlenp)) ||
+		if (get_user(oldlen, (compat_size_t __user *)compat_ptr(tmp.oldlenp)) ||
 		    put_user(oldlen, oldlenp))
 			return -EFAULT;
 	}
 
 	lock_kernel();
-	error = do_sysctl((int __user *)A(tmp.name), tmp.nlen, (void __user *)A(tmp.oldval),
-			  oldlenp, (void __user *)A(tmp.newval), tmp.newlen);
+	error = do_sysctl(compat_ptr(tmp.name), tmp.nlen,
+			  compat_ptr(tmp.oldval), oldlenp,
+			  compat_ptr(tmp.newval), tmp.newlen);
 	unlock_kernel();
 	if (oldlenp) {
 		if (!error) {
 			if (get_user(oldlen, oldlenp) ||
-			    put_user(oldlen, (u32 __user *)A(tmp.oldlenp)))
+			    put_user(oldlen, (compat_size_t __user *)compat_ptr(tmp.oldlenp)))
 				error = -EFAULT;
 		}
 		copy_to_user(args->__unused, tmp.__unused, sizeof(tmp.__unused));
 	}
 	return error;
 }
+#endif
 
-asmlinkage long sys32_time(compat_time_t __user * tloc)
+asmlinkage int sys32_uname(struct old_utsname __user * name)
 {
-	compat_time_t secs;
-
-	struct timeval tv;
-
-	do_gettimeofday( &tv );
-	secs = tv.tv_sec;
-
-	if (tloc) {
-		if (put_user(secs,tloc))
-			secs = -EFAULT;
+	int err = 0;
+	
+	down_read(&uts_sem);
+	if (copy_to_user(name, &system_utsname, sizeof(*name)))
+		err = -EFAULT;
+	up_read(&uts_sem);
+	if (!err && personality(current->personality) == PER_LINUX32) {
+		/* change "ppc64" to "ppc" */
+		if (__put_user(0, name->machine + 3)
+		    || __put_user(0, name->machine + 4))
+			err = -EFAULT;
 	}
-
-	return secs;
+	return err;
 }
 
 asmlinkage int sys32_olduname(struct oldold_utsname __user * name)
 {
 	int error;
-	
-	if (!name)
-		return -EFAULT;
+
 	if (!access_ok(VERIFY_WRITE,name,sizeof(struct oldold_utsname)))
 		return -EFAULT;
   
 	down_read(&uts_sem);
 	error = __copy_to_user(&name->sysname,&system_utsname.sysname,__OLD_UTS_LEN);
-	error -= __put_user(0,name->sysname+__OLD_UTS_LEN);
-	error -= __copy_to_user(&name->nodename,&system_utsname.nodename,__OLD_UTS_LEN);
-	error -= __put_user(0,name->nodename+__OLD_UTS_LEN);
-	error -= __copy_to_user(&name->release,&system_utsname.release,__OLD_UTS_LEN);
-	error -= __put_user(0,name->release+__OLD_UTS_LEN);
-	error -= __copy_to_user(&name->version,&system_utsname.version,__OLD_UTS_LEN);
-	error -= __put_user(0,name->version+__OLD_UTS_LEN);
-	error -= __copy_to_user(&name->machine,&system_utsname.machine,__OLD_UTS_LEN);
-	error = __put_user(0,name->machine+__OLD_UTS_LEN);
+	error |= __put_user(0,name->sysname+__OLD_UTS_LEN);
+	error |= __copy_to_user(&name->nodename,&system_utsname.nodename,__OLD_UTS_LEN);
+	error |= __put_user(0,name->nodename+__OLD_UTS_LEN);
+	error |= __copy_to_user(&name->release,&system_utsname.release,__OLD_UTS_LEN);
+	error |= __put_user(0,name->release+__OLD_UTS_LEN);
+	error |= __copy_to_user(&name->version,&system_utsname.version,__OLD_UTS_LEN);
+	error |= __put_user(0,name->version+__OLD_UTS_LEN);
+	error |= __copy_to_user(&name->machine,&system_utsname.machine,__OLD_UTS_LEN);
+	error |= __put_user(0,name->machine+__OLD_UTS_LEN);
+	if (personality(current->personality) == PER_LINUX32) {
+		/* change "ppc64" to "ppc" */
+		error |= __put_user(0, name->machine + 3);
+		error |= __put_user(0, name->machine + 4);
+	}
+	
 	up_read(&uts_sem);
 
 	error = error ? -EFAULT : 0;
@@ -1188,7 +1191,7 @@ unsigned long sys32_mmap2(unsigned long addr, size_t len,
 
 int get_compat_timeval(struct timeval *tv, struct compat_timeval __user *ctv)
 {
-	return (verify_area(VERIFY_READ, ctv, sizeof(*ctv)) ||
+	return (!access_ok(VERIFY_READ, ctv, sizeof(*ctv)) ||
 		__get_user(tv->tv_sec, &ctv->tv_sec) ||
 		__get_user(tv->tv_usec, &ctv->tv_usec)) ? -EFAULT : 0;
 }
@@ -1283,14 +1286,7 @@ long ppc32_timer_create(clockid_t clock,
 	if (ev32 == NULL)
 		return sys_timer_create(clock, NULL, timer_id);
 
-	memset(&event, 0, sizeof(event));
-	if (!access_ok(VERIFY_READ, ev32, sizeof(struct compat_sigevent))
-	    || __get_user(event.sigev_value.sival_int,
-			  &ev32->sigev_value.sival_int)
-	    || __get_user(event.sigev_signo, &ev32->sigev_signo)
-	    || __get_user(event.sigev_notify, &ev32->sigev_notify)
-	    || __get_user(event.sigev_notify_thread_id,
-			  &ev32->sigev_notify_thread_id))
+	if (get_compat_sigevent(&event, ev32))
 		return -EFAULT;
 
 	if (!access_ok(VERIFY_WRITE, timer_id, sizeof(timer_t)))
@@ -1309,3 +1305,21 @@ long ppc32_timer_create(clockid_t clock,
 
 	return err;
 }
+
+asmlinkage long sys32_add_key(const char __user *_type,
+			      const char __user *_description,
+			      const void __user *_payload,
+			      u32 plen,
+			      u32 ringid)
+{
+	return sys_add_key(_type, _description, _payload, plen, ringid);
+}
+
+asmlinkage long sys32_request_key(const char __user *_type,
+				  const char __user *_description,
+				  const char __user *_callout_info,
+				  u32 destringid)
+{
+	return sys_request_key(_type, _description, _callout_info, destringid);
+}
+

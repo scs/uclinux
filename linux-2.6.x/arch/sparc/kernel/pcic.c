@@ -36,10 +36,6 @@
 #include <asm/uaccess.h>
 
 
-struct pci_fixup pcibios_fixups[] = {
-	{ 0 }
-};
-
 unsigned int pcic_pin_to_irq(unsigned int pin, char *name);
 
 /*
@@ -165,7 +161,7 @@ static struct pcic_sn2list pcic_known_sysnames[] = {
 static int pcic0_up;
 static struct linux_pcic pcic0;
 
-unsigned int pcic_regs;
+void * __iomem pcic_regs;
 volatile int pcic_speculative;
 volatile int pcic_trapped;
 
@@ -317,8 +313,7 @@ int __init pcic_probe(void)
 	pcic0_up = 1;
 
 	pcic->pcic_res_regs.name = "pcic_registers";
-	pcic->pcic_regs = (unsigned long)
-	    ioremap(regs[0].phys_addr, regs[0].reg_size);
+	pcic->pcic_regs = ioremap(regs[0].phys_addr, regs[0].reg_size);
 	if (!pcic->pcic_regs) {
 		prom_printf("PCIC: Error, cannot map PCIC registers.\n");
 		prom_halt();
@@ -332,7 +327,7 @@ int __init pcic_probe(void)
 	}
 
 	pcic->pcic_res_cfg_addr.name = "pcic_cfg_addr";
-	if ((pcic->pcic_config_space_addr = (unsigned long)
+	if ((pcic->pcic_config_space_addr =
 	    ioremap(regs[2].phys_addr, regs[2].reg_size * 2)) == 0) {
 		prom_printf("PCIC: Error, cannot map" 
 			    "PCI Configuration Space Address.\n");
@@ -344,7 +339,7 @@ int __init pcic_probe(void)
 	 * must be the same. Thus, we need adjust size of data.
 	 */
 	pcic->pcic_res_cfg_data.name = "pcic_cfg_data";
-	if ((pcic->pcic_config_space_data = (unsigned long)
+	if ((pcic->pcic_config_space_data =
 	    ioremap(regs[3].phys_addr, regs[3].reg_size * 2)) == 0) {
 		prom_printf("PCIC: Error, cannot map" 
 			    "PCI Configuration Space Data.\n");
@@ -607,7 +602,7 @@ pcic_fill_irq(struct linux_pcic *pcic, struct pci_dev *dev, int node)
  */
 void __init pcibios_fixup_bus(struct pci_bus *bus)
 {
-	struct list_head *walk;
+	struct pci_dev *dev;
 	int i, has_io, has_mem;
 	unsigned int cmd;
 	struct linux_pcic *pcic;
@@ -629,9 +624,7 @@ void __init pcibios_fixup_bus(struct pci_bus *bus)
 		return;
 	}
 
-	walk = &bus->devices;
-	for (walk = walk->next; walk != &bus->devices; walk = walk->next) {
-		struct pci_dev *dev = pci_dev_b(walk);
+	list_for_each_entry(dev, &bus->devices, bus_list) {
 
 		/*
 		 * Comment from i386 branch:
@@ -720,6 +713,9 @@ static irqreturn_t pcic_timer_handler (int irq, void *h, struct pt_regs *regs)
 	write_seqlock(&xtime_lock);	/* Dummy, to show that we remember */
 	pcic_clear_clock_irq();
 	do_timer(regs);
+#ifndef CONFIG_SMP
+	update_process_times(user_mode(regs));
+#endif
 	write_sequnlock(&xtime_lock);
 	return IRQ_HANDLED;
 }
@@ -979,60 +975,66 @@ int pcibios_assign_resource(struct pci_dev *pdev, int resource)
  * We do not use horroble macroses here because we want to
  * advance pointer by sizeof(size).
  */
-void outsb(unsigned long addr, const void *src, unsigned long count) {
+void outsb(unsigned long addr, const void *src, unsigned long count)
+{
 	while (count) {
 		count -= 1;
-		writeb(*(const char *)src, addr);
+		outb(*(const char *)src, addr);
 		src += 1;
-		addr += 1;
+		/* addr += 1; */
 	}
 }
 
-void outsw(unsigned long addr, const void *src, unsigned long count) {
+void outsw(unsigned long addr, const void *src, unsigned long count)
+{
 	while (count) {
 		count -= 2;
-		writew(*(const short *)src, addr);
+		outw(*(const short *)src, addr);
 		src += 2;
-		addr += 2;
+		/* addr += 2; */
 	}
 }
 
-void outsl(unsigned long addr, const void *src, unsigned long count) {
+void outsl(unsigned long addr, const void *src, unsigned long count)
+{
 	while (count) {
 		count -= 4;
-		writel(*(const long *)src, addr);
+		outl(*(const long *)src, addr);
 		src += 4;
-		addr += 4;
+		/* addr += 4; */
 	}
 }
 
-void insb(unsigned long addr, void *dst, unsigned long count) {
+void insb(unsigned long addr, void *dst, unsigned long count)
+{
 	while (count) {
 		count -= 1;
-		*(unsigned char *)dst = readb(addr);
+		*(unsigned char *)dst = inb(addr);
 		dst += 1;
-		addr += 1;
+		/* addr += 1; */
 	}
 }
 
-void insw(unsigned long addr, void *dst, unsigned long count) {
+void insw(unsigned long addr, void *dst, unsigned long count)
+{
 	while (count) {
 		count -= 2;
-		*(unsigned short *)dst = readw(addr);
+		*(unsigned short *)dst = inw(addr);
 		dst += 2;
-		addr += 2;
+		/* addr += 2; */
 	}
 }
 
-void insl(unsigned long addr, void *dst, unsigned long count) {
+void insl(unsigned long addr, void *dst, unsigned long count)
+{
 	while (count) {
 		count -= 4;
 		/*
 		 * XXX I am sure we are in for an unaligned trap here.
 		 */
-		*(unsigned long *)dst = readl(addr);
+		*(unsigned long *)dst = inl(addr);
 		dst += 4;
-		addr += 4;
+		/* addr += 4; */
 	}
 }
 

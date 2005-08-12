@@ -5,14 +5,13 @@
  *
  * SNI specific PCI support for RM200/RM300.
  *
- * Copyright (C) 1997 - 2000, 2003 Ralf Baechle
+ * Copyright (C) 1997 - 2000, 2003, 04 Ralf Baechle (ralf@linux-mips.org)
  */
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/pci.h>
 
 #include <asm/mipsregs.h>
-#include <asm/pci_channel.h>
 #include <asm/sni.h>
 
 /*
@@ -83,6 +82,8 @@ int __init pcibios_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
 	return irq_tab_rm200[slot][pin];
 }
 
-struct pci_fixup pcibios_fixups[] = {
-	{0}
-};
+/* Do platform specific device initialization at pci_enable_device() time */
+int pcibios_plat_dev_init(struct pci_dev *dev)
+{
+	return 0;
+}

@@ -8,9 +8,9 @@
 /* Simple VGA output */
 
 #ifdef __i386__
-#define VGABASE		__pa(__PAGE_OFFSET + 0xb8000UL)
+#define VGABASE		(__ISA_IO_base + 0xb8000)
 #else
-#define VGABASE		0xffffffff800b8000UL
+#define VGABASE		((void __iomem *)0xffffffff800b8000UL)
 #endif
 
 #define MAX_YPOS	25
@@ -60,7 +60,7 @@ static struct console early_vga_console = {
 
 /* Serial functions loosely based on a similar package from Klaus P. Gerlicher */ 
 
-int early_serial_base = 0x3f8;  /* ttyS0 */ 
+static int early_serial_base = 0x3f8;  /* ttyS0 */
 
 #define XMTRDY          0x20
 
@@ -99,18 +99,17 @@ static void early_serial_write(struct console *con, const char *s, unsigned n)
 
 #define DEFAULT_BAUD 9600
 
-static __init void early_serial_init(char *opt)
+static __init void early_serial_init(char *s)
 {
 	unsigned char c; 
 	unsigned divisor;
 	unsigned baud = DEFAULT_BAUD;
-	char *s, *e;
+	char *e;
 
-	if (*opt == ',') 
-		++opt;
+	if (*s == ',')
+		++s;
 
-	s = strsep(&opt, ","); 
-	if (s != NULL) { 
+	if (*s) {
 		unsigned port; 
 		if (!strncmp(s,"0x",2)) {
 			early_serial_base = simple_strtoul(s, &e, 16);
@@ -124,6 +123,9 @@ static __init void early_serial_init(char *opt)
 				port = 0;
 			early_serial_base = bases[port];
 		}
+		s += strcspn(s, ",");
+		if (*s == ',')
+			s++;
 	}
 
 	outb(0x3, early_serial_base + LCR);	/* 8n1 */
@@ -131,8 +133,7 @@ static __init void early_serial_init(char *opt)
 	outb(0, early_serial_base + FCR);	/* no fifo */
 	outb(0x3, early_serial_base + MCR);	/* DTR + RTS */
 
-	s = strsep(&opt, ","); 
-	if (s != NULL) { 
+	if (*s) {
 		baud = simple_strtoul(s, &e, 0); 
 		if (baud == 0 || s == e) 
 			baud = DEFAULT_BAUD;
@@ -197,9 +198,6 @@ int __init setup_early_printk(char *opt)
 		early_console = &early_serial_console;		
 	} else if (!strncmp(buf, "vga", 3)) {
 		early_console = &early_vga_console; 
-	} else {
-		early_console = NULL; 		
-		return -1; 
 	}
 	early_console_initialized = 1;
 	register_console(early_console);       

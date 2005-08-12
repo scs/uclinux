@@ -1,6 +1,7 @@
 #include <linux/kallsyms.h>
 #include <linux/kernel.h>
 #include <linux/mmzone.h>
+#include <linux/nodemask.h>
 #include <linux/spinlock.h>
 #include <linux/smp.h>
 #include <asm/atomic.h>
@@ -21,7 +22,7 @@
 
 typedef unsigned long machreg_t;
 
-spinlock_t nmi_lock = SPIN_LOCK_UNLOCKED;
+DEFINE_SPINLOCK(nmi_lock);
 
 /*
  * Lets see what else we need to do here. Set up sp, gp?
@@ -183,7 +184,7 @@ nmi_eframes_save(void)
 {
 	cnodeid_t	cnode;
 
-	for(cnode = 0 ; cnode < numnodes; cnode++)
+	for_each_online_node(cnode)
 		nmi_node_eframe_save(cnode);
 }
 
@@ -214,13 +215,13 @@ cont_nmi_dump(void)
 	 * send NMIs to all cpus on a 256p system.
 	 */
 	for (i=0; i < 1500; i++) {
-		for (node=0; node < numnodes; node++)
+		for_each_online_node(node)
 			if (NODEPDA(node)->dump_count == 0)
 				break;
-		if (node == numnodes)
+		if (node == MAX_NUMNODES)
 			break;
 		if (i == 1000) {
-			for (node=0; node < numnodes; node++)
+			for_each_online_node(node)
 				if (NODEPDA(node)->dump_count == 0) {
 					cpu = node_to_first_cpu(node);
 					for (n=0; n < CNODE_NUM_CPUS(node); cpu++, n++) {

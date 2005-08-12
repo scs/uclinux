@@ -60,11 +60,8 @@ void default_idle(void)
 /*
  * the idle loop on a Sparc... ;)
  */
-int cpu_idle(void)
+void cpu_idle(void)
 {
-	if (current->pid != 0)
-		return -EPERM;
-
 	/* endless idle loop with no priority at all */
 	for (;;) {
 		/* If current->work.need_resched is zero we should really
@@ -80,7 +77,6 @@ int cpu_idle(void)
 		schedule();
 		check_pgt_cache();
 	}
-	return 0;
 }
 
 #else
@@ -90,7 +86,7 @@ int cpu_idle(void)
  */
 #define idle_me_harder()	(cpu_data(smp_processor_id()).idle_volume += 1)
 #define unidle_me()		(cpu_data(smp_processor_id()).idle_volume = 0)
-int cpu_idle(void)
+void cpu_idle(void)
 {
 	set_thread_flag(TIF_POLLING_NRFLAG);
 	while(1) {
@@ -167,7 +163,7 @@ static void show_regwindow32(struct pt_regs *regs)
 	mm_segment_t old_fs;
 	
 	__asm__ __volatile__ ("flushw");
-	rw = (struct reg_window32 __user *)((long)(unsigned)regs->u_regs[14]);
+	rw = compat_ptr((unsigned)regs->u_regs[14]);
 	old_fs = get_fs();
 	set_fs (USER_DS);
 	if (copy_from_user (&r_w, rw, sizeof(r_w))) {
@@ -282,7 +278,7 @@ void show_stackframe32(struct sparc_stackf32 *sf)
 }
 
 #ifdef CONFIG_SMP
-static spinlock_t regdump_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(regdump_lock);
 #endif
 
 void __show_regs(struct pt_regs * regs)
@@ -434,14 +430,13 @@ void flush_thread(void)
 		if (test_thread_flag(TIF_32BIT)) {
 			struct mm_struct *mm = t->task->mm;
 			pgd_t *pgd0 = &mm->pgd[0];
+			pud_t *pud0 = pud_offset(pgd0, 0);
 
-			if (pgd_none(*pgd0)) {
-				pmd_t *page = pmd_alloc_one_fast(NULL, 0);
-				if (!page)
-					page = pmd_alloc_one(NULL, 0);
-				pgd_set(pgd0, page);
+			if (pud_none(*pud0)) {
+				pmd_t *page = pmd_alloc_one(mm, 0);
+				pud_set(pud0, page);
 			}
-			pgd_cache = ((unsigned long) pgd_val(*pgd0)) << 11UL;
+			pgd_cache = get_pgd_cache(pgd0);
 		}
 		__asm__ __volatile__("stxa %0, [%1] %2\n\t"
 				     "membar #Sync"
@@ -588,8 +583,6 @@ asmlinkage long sparc_do_fork(unsigned long clone_flags,
 {
 	int __user *parent_tid_ptr, *child_tid_ptr;
 
-	clone_flags &= ~CLONE_IDLETASK;
-
 #ifdef CONFIG_COMPAT
 	if (test_thread_flag(TIF_32BIT)) {
 		parent_tid_ptr = compat_ptr(regs->u_regs[UREG_I2]);
@@ -622,8 +615,6 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long sp,
 	p->thread.smp_lock_count = 0;
 	p->thread.smp_lock_pc = 0;
 #endif
-
-	p->set_child_tid = p->clear_child_tid = NULL;
 
 	/* Calculate offset to stack_frame & pt_regs */
 	child_trap_frame = ((char *)t) + (THREAD_SIZE - (TRACEREG_SZ+STACKFRAME_SZ));
@@ -831,7 +822,9 @@ asmlinkage int sparc_execve(struct pt_regs *regs)
 		current_thread_info()->xfsr[0] = 0;
 		current_thread_info()->fpsaved[0] = 0;
 		regs->tstate &= ~TSTATE_PEF;
+		task_lock(current);
 		current->ptrace &= ~PT_DTRACE;
+		task_unlock(current);
 	}
 out:
 	return error;

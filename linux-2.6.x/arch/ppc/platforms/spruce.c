@@ -228,11 +228,6 @@ spruce_setup_arch(void)
 		ROOT_DEV = Root_SDA1;
 #endif
 
-#ifdef CONFIG_VT
-	conswitchp = &dummy_con;
-#endif
-
-
 	/* Identify the system */
 	printk(KERN_INFO "System Identification: IBM Spruce\n");
 	printk(KERN_INFO "Port by MontaVista Software, Inc. (source@mvista.com)\n");
@@ -283,8 +278,8 @@ static __inline__ void
 spruce_set_bat(void)
 {
 	mb();
-	mtspr(DBAT1U, 0xf8000ffe);
-	mtspr(DBAT1L, 0xf800002a);
+	mtspr(SPRN_DBAT1U, 0xf8000ffe);
+	mtspr(SPRN_DBAT1L, 0xf800002a);
 	mb();
 }
 

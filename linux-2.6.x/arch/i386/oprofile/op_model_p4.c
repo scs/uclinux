@@ -419,9 +419,28 @@ static void p4_fill_in_addresses(struct op_msrs * const msrs)
 		msrs->controls[i].addr = addr;
 	}
 	
-	/* 43 ESCR registers in three discontiguous group */
+	/* 43 ESCR registers in three or four discontiguous group */
 	for (addr = MSR_P4_BSU_ESCR0 + stag;
-	     addr <= MSR_P4_SSU_ESCR0; ++i, addr += addr_increment()) { 
+	     addr < MSR_P4_IQ_ESCR0; ++i, addr += addr_increment()) {
+		msrs->controls[i].addr = addr;
+	}
+
+	/* no IQ_ESCR0/1 on some models, we save a seconde time BSU_ESCR0/1
+	 * to avoid special case in nmi_{save|restore}_registers() */
+	if (boot_cpu_data.x86_model >= 0x3) {
+		for (addr = MSR_P4_BSU_ESCR0 + stag;
+		     addr <= MSR_P4_BSU_ESCR1; ++i, addr += addr_increment()) {
+			msrs->controls[i].addr = addr;
+		}
+	} else {
+		for (addr = MSR_P4_IQ_ESCR0 + stag;
+		     addr <= MSR_P4_IQ_ESCR1; ++i, addr += addr_increment()) {
+			msrs->controls[i].addr = addr;
+		}
+	}
+
+	for (addr = MSR_P4_RAT_ESCR0 + stag;
+	     addr <= MSR_P4_SSU_ESCR0; ++i, addr += addr_increment()) {
 		msrs->controls[i].addr = addr;
 	}
 	
@@ -553,7 +572,18 @@ static void p4_setup_ctrs(struct op_msrs const * const msrs)
 
 	/* clear all escrs (including those outside our concern) */
 	for (addr = MSR_P4_BSU_ESCR0 + stag;
-	     addr <= MSR_P4_SSU_ESCR0; addr += addr_increment()) { 
+	     addr <  MSR_P4_IQ_ESCR0; addr += addr_increment()) {
+		wrmsr(addr, 0, 0);
+	}
+
+	/* On older models clear also MSR_P4_IQ_ESCR0/1 */
+	if (boot_cpu_data.x86_model < 0x3) {
+		wrmsr(MSR_P4_IQ_ESCR0, 0, 0);
+		wrmsr(MSR_P4_IQ_ESCR1, 0, 0);
+	}
+
+	for (addr = MSR_P4_RAT_ESCR0 + stag;
+	     addr <= MSR_P4_SSU_ESCR0; ++i, addr += addr_increment()) {
 		wrmsr(addr, 0, 0);
 	}
 	
@@ -578,7 +608,7 @@ static void p4_setup_ctrs(struct op_msrs const * const msrs)
 	
 	/* setup all counters */
 	for (i = 0 ; i < num_counters ; ++i) {
-		if (counter_config[i].event) {
+		if (counter_config[i].enabled) {
 			reset_value[i] = counter_config[i].count;
 			pmc_setup_one_p4_counter(i);
 			CTR_WRITE(counter_config[i].count, VIRT_CTR(stag, i));
@@ -589,14 +619,11 @@ static void p4_setup_ctrs(struct op_msrs const * const msrs)
 }
 
 
-static int p4_check_ctrs(unsigned int const cpu, 
-			  struct op_msrs const * const msrs,
-			  struct pt_regs * const regs)
+static int p4_check_ctrs(struct pt_regs * const regs,
+			 struct op_msrs const * const msrs)
 {
 	unsigned long ctr, low, high, stag, real;
 	int i;
-	unsigned long eip = instruction_pointer(regs);
-	int is_kernel = !user_mode(regs);
 
 	stag = get_stagger();
 
@@ -627,7 +654,7 @@ static int p4_check_ctrs(unsigned int const cpu,
 		CCCR_READ(low, high, real);
  		CTR_READ(ctr, high, real);
 		if (CCCR_OVF_P(low) || CTR_OVERFLOW_P(ctr)) {
-			oprofile_add_sample(eip, is_kernel, i, cpu);
+			oprofile_add_sample(regs, i);
  			CTR_WRITE(reset_value[i], real);
 			CCCR_CLEAR_OVF(low);
 			CCCR_WRITE(low, high, real);

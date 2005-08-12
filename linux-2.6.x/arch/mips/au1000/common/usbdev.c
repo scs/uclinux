@@ -61,8 +61,6 @@
 #define vdbg(fmt, arg...) do {} while (0)
 #endif
 
-#define MAX(a,b)	(((a)>(b))?(a):(b))
-
 #define ALLOC_FLAGS (in_interrupt () ? GFP_ATOMIC : GFP_KERNEL)
 
 #define EP_FIFO_DEPTH 8
@@ -211,9 +209,8 @@ dump_setup(struct usb_ctrlrequest* s)
 static inline usbdev_pkt_t *
 alloc_packet(endpoint_t * ep, int data_size, void* data)
 {
-	usbdev_pkt_t* pkt =
-		(usbdev_pkt_t *)kmalloc(sizeof(usbdev_pkt_t) + data_size,
-					ALLOC_FLAGS);
+	usbdev_pkt_t* pkt = kmalloc(sizeof(usbdev_pkt_t) + data_size,
+				    ALLOC_FLAGS);
 	if (!pkt)
 		return NULL;
 	pkt->ep_addr = ep->address;
@@ -769,7 +766,7 @@ do_get_descriptor(struct usb_dev* dev, struct usb_ctrlrequest* setup)
 							 dev->conf_desc),
 					    0);
 				} else {
-				int len = dev->conf_desc->wTotalLength;
+				int len = le16_to_cpu(dev->conf_desc->wTotalLength);
 				dbg("sending whole config desc,"
 				    " size=%d, our size=%d", desc_len, len);
 				desc_len = desc_len > len ? len : desc_len;
@@ -1401,7 +1398,7 @@ usbdev_init(struct usb_device_descriptor* dev_desc,
 		epd->bEndpointAddress |= (u8)ep->address;
 		ep->direction = epd->bEndpointAddress & 0x80;
 		ep->type = epd->bmAttributes & 0x03;
-		ep->max_pkt_size = epd->wMaxPacketSize;
+		ep->max_pkt_size = le16_to_cpu(epd->wMaxPacketSize);
 		spin_lock_init(&ep->lock);
 		ep->desc = epd;
 		ep->reg = &ep_reg[ep->address];
@@ -1410,7 +1407,7 @@ usbdev_init(struct usb_device_descriptor* dev_desc,
 	/*
 	 * initialize the full config descriptor
 	 */
-	usbdev.full_conf_desc = fcd = kmalloc(config_desc->wTotalLength,
+	usbdev.full_conf_desc = fcd = kmalloc(le16_to_cpu(config_desc->wTotalLength),
 					      ALLOC_FLAGS);
 	if (!fcd) {
 		err("failed to alloc full config descriptor");

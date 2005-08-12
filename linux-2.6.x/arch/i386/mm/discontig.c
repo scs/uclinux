@@ -28,9 +28,11 @@
 #include <linux/mmzone.h>
 #include <linux/highmem.h>
 #include <linux/initrd.h>
+#include <linux/nodemask.h>
 #include <asm/e820.h>
 #include <asm/setup.h>
 #include <asm/mmzone.h>
+#include <bios_ebda.h>
 
 struct pglist_data *node_data[MAX_NUMNODES];
 bootmem_data_t node0_bdata;
@@ -39,7 +41,7 @@ bootmem_data_t node0_bdata;
  * numa interface - we expect the numa architecture specfic code to have
  *                  populated the following initialisation.
  *
- * 1) numnodes         - the total number of nodes configured in the system
+ * 1) node_online_map  - the map of all nodes configured (online) in the system
  * 2) physnode_map     - the mapping between a pfn and owning node
  * 3) node_start_pfn   - the starting page frame number for a node
  * 3) node_end_pfn     - the ending page fram number for a node
@@ -57,6 +59,32 @@ bootmem_data_t node0_bdata;
  *     physnode_map[8- ] = -1;
  */
 s8 physnode_map[MAX_ELEMENTS] = { [0 ... (MAX_ELEMENTS - 1)] = -1};
+
+void memory_present(int nid, unsigned long start, unsigned long end)
+{
+	unsigned long pfn;
+
+	printk(KERN_INFO "Node: %d, start_pfn: %ld, end_pfn: %ld\n",
+			nid, start, end);
+	printk(KERN_DEBUG "  Setting physnode_map array to node %d for pfns:\n", nid);
+	printk(KERN_DEBUG "  ");
+	for (pfn = start; pfn < end; pfn += PAGES_PER_ELEMENT) {
+		physnode_map[pfn / PAGES_PER_ELEMENT] = nid;
+		printk("%ld ", pfn);
+	}
+	printk("\n");
+}
+
+unsigned long node_memmap_size_bytes(int nid, unsigned long start_pfn,
+					      unsigned long end_pfn)
+{
+	unsigned long nr_pages = end_pfn - start_pfn;
+
+	if (!nr_pages)
+		return 0;
+
+	return (nr_pages + 1) * sizeof(struct page);
+}
 
 unsigned long node_start_pfn[MAX_NUMNODES];
 unsigned long node_end_pfn[MAX_NUMNODES];
@@ -91,12 +119,13 @@ int __init get_memcfg_numa_flat(void)
 
 	/* Run the memory configuration and find the top of memory. */
 	find_max_pfn();
-	node_start_pfn[0]  = 0;
-	node_end_pfn[0]	  = max_pfn;
+	node_start_pfn[0] = 0;
+	node_end_pfn[0] = max_pfn;
+	memory_present(0, 0, max_pfn);
 
         /* Indicate there is one node available. */
+	nodes_clear(node_online_map);
 	node_set_online(0);
-	numnodes = 1;
 	return 1;
 }
 
@@ -126,52 +155,11 @@ static void __init find_max_pfn_node(int nid)
  */
 static void __init allocate_pgdat(int nid)
 {
-	if (nid)
+	if (nid && node_has_online_mem(nid))
 		NODE_DATA(nid) = (pg_data_t *)node_remap_start_vaddr[nid];
 	else {
 		NODE_DATA(nid) = (pg_data_t *)(__va(min_low_pfn << PAGE_SHIFT));
 		min_low_pfn += PFN_UP(sizeof(pg_data_t));
-		memset(NODE_DATA(nid), 0, sizeof(pg_data_t));
-	}
-}
-
-/*
- * Register fully available low RAM pages with the bootmem allocator.
- */
-static void __init register_bootmem_low_pages(unsigned long system_max_low_pfn)
-{
-	int i;
-
-	for (i = 0; i < e820.nr_map; i++) {
-		unsigned long curr_pfn, last_pfn, size;
-		/*
-		 * Reserve usable low memory
-		 */
-		if (e820.map[i].type != E820_RAM)
-			continue;
-		/*
-		 * We are rounding up the start address of usable memory:
-		 */
-		curr_pfn = PFN_UP(e820.map[i].addr);
-		if (curr_pfn >= system_max_low_pfn)
-			continue;
-		/*
-		 * ... and at the end of the usable range downwards:
-		 */
-		last_pfn = PFN_DOWN(e820.map[i].addr + e820.map[i].size);
-
-		if (last_pfn > system_max_low_pfn)
-			last_pfn = system_max_low_pfn;
-
-		/*
-		 * .. finally, did all the rounding and playing
-		 * around just make the area go away?
-		 */
-		if (last_pfn <= curr_pfn)
-			continue;
-
-		size = last_pfn - curr_pfn;
-		free_bootmem_node(NODE_DATA(0), PFN_PHYS(curr_pfn), PFN_PHYS(size));
 	}
 }
 
@@ -181,7 +169,9 @@ void __init remap_numa_kva(void)
 	unsigned long pfn;
 	int node;
 
-	for (node = 1; node < numnodes; ++node) {
+	for_each_online_node(node) {
+		if (node == 0)
+			continue;
 		for (pfn=0; pfn < node_remap_size[node]; pfn += PTRS_PER_PTE) {
 			vaddr = node_remap_start_vaddr[node]+(pfn<<PAGE_SHIFT);
 			set_pmd_pfn((ulong) vaddr, 
@@ -196,10 +186,24 @@ static unsigned long calculate_numa_remap_pages(void)
 	int nid;
 	unsigned long size, reserve_pages = 0;
 
-	for (nid = 1; nid < numnodes; nid++) {
-		/* calculate the size of the mem_map needed in bytes */
-		size = (node_end_pfn[nid] - node_start_pfn[nid] + 1) 
-			* sizeof(struct page) + sizeof(pg_data_t);
+	for_each_online_node(nid) {
+		if (nid == 0)
+			continue;
+		if (!node_remap_size[nid])
+			continue;
+
+		/*
+		 * The acpi/srat node info can show hot-add memroy zones
+		 * where memory could be added but not currently present.
+		 */
+		if (node_start_pfn[nid] > max_pfn)
+			continue;
+		if (node_end_pfn[nid] > max_pfn)
+			node_end_pfn[nid] = max_pfn;
+
+		/* ensure the remap includes space for the pgdat. */
+		size = node_remap_size[nid] + sizeof(pg_data_t);
+
 		/* convert size to large (pmd size) pages, rounding up */
 		size = (size + LARGE_PAGE_BYTES - 1) / LARGE_PAGE_BYTES;
 		/* now the roundup is correct, convert to PAGE_SIZE pages */
@@ -219,11 +223,12 @@ static unsigned long calculate_numa_remap_pages(void)
 	return reserve_pages;
 }
 
+extern void setup_bootmem_allocator(void);
 unsigned long __init setup_memory(void)
 {
 	int nid;
-	unsigned long bootmap_size, system_start_pfn, system_max_low_pfn;
-	unsigned long reserve_pages, pfn;
+	unsigned long system_start_pfn, system_max_low_pfn;
+	unsigned long reserve_pages;
 
 	/*
 	 * When mapping a NUMA machine we allocate the node_mem_map arrays
@@ -232,28 +237,14 @@ unsigned long __init setup_memory(void)
 	 * this space and use it to adjust the boundry between ZONE_NORMAL
 	 * and ZONE_HIGHMEM.
 	 */
+	find_max_pfn();
 	get_memcfg_numa();
-
-	/* Fill in the physnode_map */
-	for (nid = 0; nid < numnodes; nid++) {
-		printk("Node: %d, start_pfn: %ld, end_pfn: %ld\n",
-				nid, node_start_pfn[nid], node_end_pfn[nid]);
-		printk("  Setting physnode_map array to node %d for pfns:\n  ",
-				nid);
-		for (pfn = node_start_pfn[nid]; pfn < node_end_pfn[nid];
-	       				pfn += PAGES_PER_ELEMENT) {
-			physnode_map[pfn / PAGES_PER_ELEMENT] = nid;
-			printk("%ld ", pfn);
-		}
-		printk("\n");
-	}
 
 	reserve_pages = calculate_numa_remap_pages();
 
 	/* partially used pages are not usable - thus round upwards */
 	system_start_pfn = min_low_pfn = PFN_UP(init_pg_tables_end);
 
-	find_max_pfn();
 	system_max_low_pfn = max_low_pfn = find_max_low_pfn() - reserve_pages;
 	printk("reserve_pages = %ld find_max_low_pfn() ~ %ld\n",
 			reserve_pages, max_low_pfn + reserve_pages);
@@ -272,7 +263,7 @@ unsigned long __init setup_memory(void)
 
 	printk("Low memory ends at vaddr %08lx\n",
 			(ulong) pfn_to_kaddr(max_low_pfn));
-	for (nid = 0; nid < numnodes; nid++) {
+	for_each_online_node(nid) {
 		node_remap_start_vaddr[nid] = pfn_to_kaddr(
 			(highstart_pfn + reserve_pages) - node_remap_offset[nid]);
 		allocate_pgdat(nid);
@@ -284,70 +275,13 @@ unsigned long __init setup_memory(void)
 	printk("High memory starts at vaddr %08lx\n",
 			(ulong) pfn_to_kaddr(highstart_pfn));
 	vmalloc_earlyreserve = reserve_pages * PAGE_SIZE;
-	for (nid = 0; nid < numnodes; nid++)
+	for_each_online_node(nid)
 		find_max_pfn_node(nid);
 
+	memset(NODE_DATA(0), 0, sizeof(struct pglist_data));
 	NODE_DATA(0)->bdata = &node0_bdata;
-
-	/*
-	 * Initialize the boot-time allocator (with low memory only):
-	 */
-	bootmap_size = init_bootmem_node(NODE_DATA(0), min_low_pfn, 0, system_max_low_pfn);
-
-	register_bootmem_low_pages(system_max_low_pfn);
-
-	/*
-	 * Reserve the bootmem bitmap itself as well. We do this in two
-	 * steps (first step was init_bootmem()) because this catches
-	 * the (very unlikely) case of us accidentally initializing the
-	 * bootmem allocator with an invalid RAM area.
-	 */
-	reserve_bootmem_node(NODE_DATA(0), HIGH_MEMORY, (PFN_PHYS(min_low_pfn) +
-		 bootmap_size + PAGE_SIZE-1) - (HIGH_MEMORY));
-
-	/*
-	 * reserve physical page 0 - it's a special BIOS page on many boxes,
-	 * enabling clean reboots, SMP operation, laptop functions.
-	 */
-	reserve_bootmem_node(NODE_DATA(0), 0, PAGE_SIZE);
-
-	/*
-	 * But first pinch a few for the stack/trampoline stuff
-	 * FIXME: Don't need the extra page at 4K, but need to fix
-	 * trampoline before removing it. (see the GDT stuff)
-	 */
-	reserve_bootmem_node(NODE_DATA(0), PAGE_SIZE, PAGE_SIZE);
-
-#ifdef CONFIG_ACPI_SLEEP
-	/*
-	 * Reserve low memory region for sleep support.
-	 */
-	acpi_reserve_bootmem();
-#endif
-
-	/*
-	 * Find and reserve possible boot-time SMP configuration:
-	 */
-	find_smp_config();
-
-#ifdef CONFIG_BLK_DEV_INITRD
-	if (LOADER_TYPE && INITRD_START) {
-		if (INITRD_START + INITRD_SIZE <= (system_max_low_pfn << PAGE_SHIFT)) {
-			reserve_bootmem_node(NODE_DATA(0), INITRD_START, INITRD_SIZE);
-			initrd_start =
-				INITRD_START ? INITRD_START + PAGE_OFFSET : 0;
-			initrd_end = initrd_start+INITRD_SIZE;
-		}
-		else {
-			printk(KERN_ERR "initrd extends beyond end of memory "
-			    "(0x%08lx > 0x%08lx)\ndisabling initrd\n",
-			    INITRD_START + INITRD_SIZE,
-			    system_max_low_pfn << PAGE_SHIFT);
-			initrd_start = 0;
-		}
-	}
-#endif
-	return system_max_low_pfn;
+	setup_bootmem_allocator();
+	return max_low_pfn;
 }
 
 void __init zone_sizes_init(void)
@@ -359,14 +293,14 @@ void __init zone_sizes_init(void)
 	 * Clobber node 0's links and NULL out pgdat_list before starting.
 	 */
 	pgdat_list = NULL;
-	for (nid = numnodes - 1; nid >= 0; nid--) {       
-		if (nid)
-			memset(NODE_DATA(nid), 0, sizeof(pg_data_t));
+	for (nid = MAX_NUMNODES - 1; nid >= 0; nid--) {
+		if (!node_online(nid))
+			continue;
 		NODE_DATA(nid)->pgdat_next = pgdat_list;
 		pgdat_list = NODE_DATA(nid);
 	}
 
-	for (nid = 0; nid < numnodes; nid++) {
+	for_each_online_node(nid) {
 		unsigned long zones_size[MAX_NR_ZONES] = {0, 0, 0};
 		unsigned long *zholes_size;
 		unsigned int max_dma;
@@ -377,24 +311,27 @@ void __init zone_sizes_init(void)
 
 		max_dma = virt_to_phys((char *)MAX_DMA_ADDRESS) >> PAGE_SHIFT;
 
-		if (start > low) {
+		if (node_has_online_mem(nid)){
+			if (start > low) {
 #ifdef CONFIG_HIGHMEM
-			BUG_ON(start > high);
-			zones_size[ZONE_HIGHMEM] = high - start;
+				BUG_ON(start > high);
+				zones_size[ZONE_HIGHMEM] = high - start;
 #endif
-		} else {
-			if (low < max_dma)
-				zones_size[ZONE_DMA] = low;
-			else {
-				BUG_ON(max_dma > low);
-				BUG_ON(low > high);
-				zones_size[ZONE_DMA] = max_dma;
-				zones_size[ZONE_NORMAL] = low - max_dma;
+			} else {
+				if (low < max_dma)
+					zones_size[ZONE_DMA] = low;
+				else {
+					BUG_ON(max_dma > low);
+					BUG_ON(low > high);
+					zones_size[ZONE_DMA] = max_dma;
+					zones_size[ZONE_NORMAL] = low - max_dma;
 #ifdef CONFIG_HIGHMEM
-				zones_size[ZONE_HIGHMEM] = high - low;
+					zones_size[ZONE_HIGHMEM] = high - low;
 #endif
+				}
 			}
 		}
+
 		zholes_size = get_zholes_size(nid);
 		/*
 		 * We let the lmem_map for node 0 be allocated from the
@@ -402,15 +339,15 @@ void __init zone_sizes_init(void)
 		 * remapped KVA area - mbligh
 		 */
 		if (!nid)
-			free_area_init_node(nid, NODE_DATA(nid), 0, 
-				zones_size, start, zholes_size);
+			free_area_init_node(nid, NODE_DATA(nid),
+					zones_size, start, zholes_size);
 		else {
 			unsigned long lmem_map;
 			lmem_map = (unsigned long)node_remap_start_vaddr[nid];
 			lmem_map += sizeof(pg_data_t) + PAGE_SIZE - 1;
 			lmem_map &= PAGE_MASK;
-			free_area_init_node(nid, NODE_DATA(nid), 
-				(struct page *)lmem_map, zones_size, 
+			NODE_DATA(nid)->node_mem_map = (struct page *)lmem_map;
+			free_area_init_node(nid, NODE_DATA(nid), zones_size,
 				start, zholes_size);
 		}
 	}
@@ -442,19 +379,5 @@ void __init set_highmem_pages_init(int bad_ppro)
 		}
 	}
 	totalram_pages += totalhigh_pages;
-#endif
-}
-
-void __init set_max_mapnr_init(void)
-{
-#ifdef CONFIG_HIGHMEM
-	struct zone *high0 = &NODE_DATA(0)->node_zones[ZONE_HIGHMEM];
-	if (high0->spanned_pages > 0)
-	      	highmem_start_page = high0->zone_mem_map;
-	else
-		highmem_start_page = pfn_to_page(max_low_pfn+1); 
-	num_physpages = highend_pfn;
-#else
-	num_physpages = max_low_pfn;
 #endif
 }

@@ -52,7 +52,7 @@ start_:
 	 */
 	li	r4,0x0000
 	isync
-	mtspr	HID0,r4
+	mtspr	SPRN_HID0,r4
 	sync
 	isync
 #endif
@@ -133,11 +133,6 @@ haveOF:
 	mr	r4,r29	/* put the board info pointer where the relocate
 			 * routine will find it
 			 */
-#endif
-
-#ifdef	CONFIG_EV64260
-	/* Move 64260's base regs & CS window for external UART */
-	bl	ev64260_init
 #endif
 
 	/* Get the load address.

@@ -18,6 +18,7 @@
 
 #include <asm/uaccess.h>
 #include <asm/pbm.h>
+#include <asm/pgtable.h>
 #include <asm/irq.h>
 #include <asm/ebus.h>
 #include <asm/isa.h>
@@ -41,7 +42,6 @@ asmlinkage int sys_pciconfig_write(unsigned long bus, unsigned long dfn,
 #else
 
 /* List of all PCI controllers found in the system. */
-spinlock_t pci_controller_lock = SPIN_LOCK_UNLOCKED;
 struct pci_controller_info *pci_controller_root = NULL;
 
 /* Each PCI controller found gets a unique index. */
@@ -57,7 +57,7 @@ volatile int pci_poke_in_progress;
 volatile int pci_poke_cpu = -1;
 volatile int pci_poke_faulted;
 
-static spinlock_t pci_poke_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(pci_poke_lock);
 
 void pci_config_read8(u8 *addr, u8 *ret)
 {
@@ -298,12 +298,9 @@ static void __init pci_controller_probe(void)
 static void __init pci_scan_each_controller_bus(void)
 {
 	struct pci_controller_info *p;
-	unsigned long flags;
 
-	spin_lock_irqsave(&pci_controller_lock, flags);
 	for (p = pci_controller_root; p; p = p->next)
 		p->scan_bus(p);
-	spin_unlock_irqrestore(&pci_controller_lock, flags);
 }
 
 /* Reorder the pci_dev chain, so that onboard devices come first
@@ -350,10 +347,6 @@ static int __init pcibios_init(void)
 }
 
 subsys_initcall(pcibios_init);
-
-struct pci_fixup pcibios_fixups[] = {
-	{ 0 }
-};
 
 void pcibios_fixup_bus(struct pci_bus *pbus)
 {
@@ -733,7 +726,7 @@ static int __pci_mmap_make_offset(struct pci_dev *dev, struct vm_area_struct *vm
 static void __pci_mmap_set_flags(struct pci_dev *dev, struct vm_area_struct *vma,
 					    enum pci_mmap_state mmap_state)
 {
-	vma->vm_flags |= (VM_SHM | VM_LOCKED);
+	vma->vm_flags |= (VM_IO | VM_RESERVED);
 }
 
 /* Set vm_page_prot of VMA, as appropriate for this architecture, for a pci
@@ -742,11 +735,9 @@ static void __pci_mmap_set_flags(struct pci_dev *dev, struct vm_area_struct *vma
 static void __pci_mmap_set_pgprot(struct pci_dev *dev, struct vm_area_struct *vma,
 					     enum pci_mmap_state mmap_state)
 {
-	/* Our io_remap_page_range takes care of this, do nothing. */
+	/* Our io_remap_page_range/io_remap_pfn_range takes care of this,
+	   do nothing. */
 }
-
-extern int io_remap_page_range(struct vm_area_struct *vma, unsigned long from, unsigned long offset,
-			       unsigned long size, pgprot_t prot, int space);
 
 /* Perform the actual remap of the pages for a PCI device mapping, as appropriate
  * for this architecture.  The region in the process to map is described by vm_start
@@ -769,10 +760,10 @@ int pci_mmap_page_range(struct pci_dev *dev, struct vm_area_struct *vma,
 	__pci_mmap_set_flags(dev, vma, mmap_state);
 	__pci_mmap_set_pgprot(dev, vma, mmap_state);
 
-	ret = io_remap_page_range(vma, vma->vm_start,
-				  (vma->vm_pgoff << PAGE_SHIFT |
-				   (write_combine ? 0x1UL : 0x0UL)),
-				  vma->vm_end - vma->vm_start, vma->vm_page_prot, 0);
+	ret = io_remap_pfn_range(vma, vma->vm_start,
+				 vma->vm_pgoff,
+				 vma->vm_end - vma->vm_start,
+				 vma->vm_page_prot);
 	if (ret)
 		return ret;
 
@@ -801,12 +792,6 @@ int pci_domain_nr(struct pci_bus *pbus)
 	return ret;
 }
 EXPORT_SYMBOL(pci_domain_nr);
-
-int pci_name_bus(char *name, struct pci_bus *bus)
-{
-	sprintf(name, "%04x:%02x", pci_domain_nr(bus), bus->number);
-	return 0;
-}
 
 int pcibios_prep_mwi(struct pci_dev *dev)
 {

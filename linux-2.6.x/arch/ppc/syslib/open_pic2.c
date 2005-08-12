@@ -20,6 +20,7 @@
 #include <linux/irq.h>
 #include <linux/interrupt.h>
 #include <linux/sysdev.h>
+#include <linux/errno.h>
 #include <asm/ptrace.h>
 #include <asm/signal.h>
 #include <asm/io.h>
@@ -28,7 +29,6 @@
 #include <asm/sections.h>
 #include <asm/open_pic.h>
 #include <asm/i8259.h>
-#include <asm/hardirq.h>
 
 #include "open_pic_defs.h"
 
@@ -386,7 +386,7 @@ static void openpic2_set_spurious(u_int vec)
 			   vec);
 }
 
-static spinlock_t openpic2_setup_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(openpic2_setup_lock);
 
 /*
  *  Initialize a timer interrupt (and disable it)

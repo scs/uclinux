@@ -11,11 +11,12 @@
 #include <linux/sched.h>
 #include <linux/string.h>
 #include <linux/bootmem.h>
+#include <linux/bitops.h>
+#include <asm/bootsetup.h>
 #include <asm/pda.h>
 #include <asm/pgtable.h>
 #include <asm/processor.h>
 #include <asm/desc.h>
-#include <asm/bitops.h>
 #include <asm/atomic.h>
 #include <asm/mmu_context.h>
 #include <asm/smp.h>
@@ -26,9 +27,9 @@
 #include <asm/mman.h>
 #include <asm/numa.h>
 
-char x86_boot_params[2048] __initdata = {0,};
+char x86_boot_params[BOOT_PARAM_SIZE] __initdata = {0,};
 
-unsigned long cpu_initialized __initdata = 0;
+cpumask_t cpu_initialized __initdata = CPU_MASK_NONE;
 
 struct x8664_pda cpu_pda[NR_CPUS] __cacheline_aligned; 
 
@@ -43,81 +44,48 @@ char boot_cpu_stack[IRQSTACKSIZE] __attribute__((section(".bss.page_aligned")));
 
 unsigned long __supported_pte_mask = ~0UL;
 static int do_not_nx __initdata = 0;
-unsigned long vm_stack_flags = __VM_STACK_FLAGS; 
-unsigned long vm_stack_flags32 = __VM_STACK_FLAGS; 
-unsigned long vm_data_default_flags = __VM_DATA_DEFAULT_FLAGS; 
-unsigned long vm_data_default_flags32 = __VM_DATA_DEFAULT_FLAGS; 
-unsigned long vm_force_exec32 = PROT_EXEC; 
 
 /* noexec=on|off
 Control non executable mappings for 64bit processes.
 
-on	Enable
+on	Enable(default)
 off	Disable
-noforce (default) Don't enable by default for heap/stack/data, 
-	but allow PROT_EXEC to be effective
-
 */ 
-static int __init nonx_setup(char *str)
+int __init nonx_setup(char *str)
 {
-	if (!strncmp(str, "on",3)) { 
+	if (!strncmp(str, "on", 2)) {
                 __supported_pte_mask |= _PAGE_NX; 
  		do_not_nx = 0; 
- 		vm_data_default_flags &= ~VM_EXEC; 
- 		vm_stack_flags &= ~VM_EXEC;  
-	} else if (!strncmp(str, "noforce",7) || !strncmp(str,"off",3)) { 
-		do_not_nx = (str[0] == 'o');
-		if (do_not_nx)
-			__supported_pte_mask &= ~_PAGE_NX; 
-		vm_data_default_flags |= VM_EXEC; 
-		vm_stack_flags |= VM_EXEC;
-        } 
-        return 1;
+	} else if (!strncmp(str, "off", 3)) {
+		do_not_nx = 1;
+		__supported_pte_mask &= ~_PAGE_NX;
+        }
+	return 0;
 } 
+__setup("noexec=", nonx_setup);	/* parsed early actually */
 
-__setup("noexec=", nonx_setup); 
+int force_personality32 = READ_IMPLIES_EXEC;
 
-/* noexec32=opt{,opt} 
+/* noexec32=on|off
+Control non executable heap for 32bit processes.
+To control the stack too use noexec=off
 
-Control the no exec default for 32bit processes. Can be also overwritten
-per executable using ELF header flags (e.g. needed for the X server)
-Requires noexec=on or noexec=noforce to be effective.
-
-Valid options: 
-   all,on    Heap,stack,data is non executable. 	
-   off       (default) Heap,stack,data is executable
-   stack     Stack is non executable, heap/data is.
-   force     Don't imply PROT_EXEC for PROT_READ 
-   compat    (default) Imply PROT_EXEC for PROT_READ
-
+on	PROT_READ does not imply PROT_EXEC for 32bit processes
+off	PROT_READ implies PROT_EXEC (default)
 */
- static int __init nonx32_setup(char *str)
- {
-	char *s;
-	while ((s = strsep(&str, ",")) != NULL) { 
-		if (!strcmp(s, "all") || !strcmp(s,"on")) {
-			vm_data_default_flags32 &= ~VM_EXEC; 
-			vm_stack_flags32 &= ~VM_EXEC;  
-		} else if (!strcmp(s, "off")) { 
-			vm_data_default_flags32 |= VM_EXEC; 
-			vm_stack_flags32 |= VM_EXEC;  
-		} else if (!strcmp(s, "stack")) { 
-			vm_data_default_flags32 |= VM_EXEC; 
-			vm_stack_flags32 &= ~VM_EXEC;  		
-		} else if (!strcmp(s, "force")) { 
-			vm_force_exec32 = 0; 
-		} else if (!strcmp(s, "compat")) { 
-			vm_force_exec32 = PROT_EXEC;
-		} 
-	} 
- 	return 1;
-} 
-
-__setup("noexec32=", nonx32_setup); 
+static int __init nonx32_setup(char *str)
+{
+	if (!strcmp(str, "on"))
+		force_personality32 &= ~READ_IMPLIES_EXEC;
+	else if (!strcmp(str, "off"))
+		force_personality32 |= READ_IMPLIES_EXEC;
+	return 0;
+}
+__setup("noexec32=", nonx32_setup);
 
 /*
  * Great future plan:
- * Declare PDA itself and support (irqstack,tss,pml4) as per cpu data.
+ * Declare PDA itself and support (irqstack,tss,pgd) as per cpu data.
  * Always point %gs to its beginning
  */
 void __init setup_per_cpu_areas(void)
@@ -134,13 +102,13 @@ void __init setup_per_cpu_areas(void)
 
 	for (i = 0; i < NR_CPUS; i++) { 
 		unsigned char *ptr;
-		/* If possible allocate on the node of the CPU.
-		   In case it doesn't exist round-robin nodes. */
-		if (!NODE_DATA(i % numnodes)) { 
-			printk("cpu with no node %d, numnodes %d\n", i, numnodes);
+
+		if (!NODE_DATA(cpu_to_node(i))) {
+			printk("cpu with no node %d, num_online_nodes %d\n",
+			       i, num_online_nodes());
 			ptr = alloc_bootmem(size);
 		} else { 
-			ptr = alloc_bootmem_node(NODE_DATA(i % numnodes), size);
+			ptr = alloc_bootmem_node(NODE_DATA(cpu_to_node(i)), size);
 		}
 		if (!ptr)
 			panic("Cannot allocate cpu data for CPU %d\n", i);
@@ -151,7 +119,6 @@ void __init setup_per_cpu_areas(void)
 
 void pda_init(int cpu)
 { 
-        pml4_t *level4;
 	struct x8664_pda *pda = &cpu_pda[cpu];
 
 	/* Setup up data that may be needed in __get_free_pages early */
@@ -170,22 +137,14 @@ void pda_init(int cpu)
 		/* others are initialized in smpboot.c */
 		pda->pcurrent = &init_task;
 		pda->irqstackptr = boot_cpu_stack; 
-		level4 = init_level4_pgt; 
 	} else {
-		level4 = (pml4_t *)__get_free_pages(GFP_ATOMIC, 0); 
-		if (!level4) 
-			panic("Cannot allocate top level page for cpu %d", cpu); 
 		pda->irqstackptr = (char *)
 			__get_free_pages(GFP_ATOMIC, IRQSTACK_ORDER);
 		if (!pda->irqstackptr)
 			panic("cannot allocate irqstack for cpu %d", cpu); 
 	}
 
-	pda->level4_pgt = (unsigned long *)level4; 
-	if (level4 != init_level4_pgt)
-		memcpy(level4, &init_level4_pgt, PAGE_SIZE); 
-	set_pml4(level4 + 510, mk_kernel_pml4(__pa_symbol(boot_vmalloc_pgt)));
-	asm volatile("movq %0,%%cr3" :: "r" (__pa(level4))); 
+	asm volatile("movq %0,%%cr3" :: "r" (__pa_symbol(&init_level4_pgt)));
 
 	pda->irqstackptr += IRQSTACKSIZE-64;
 } 
@@ -193,7 +152,8 @@ void pda_init(int cpu)
 char boot_exception_stacks[N_EXCEPTION_STACKS * EXCEPTION_STKSZ] 
 __attribute__((section(".bss.page_aligned")));
 
-void __init syscall_init(void)
+/* May not be marked __init: used by software suspend */
+void syscall_init(void)
 {
 	/* 
 	 * LSTAR and STAR live in a bit strange symbiosis.
@@ -235,10 +195,11 @@ void __init cpu_init (void)
 #else
 	int cpu = smp_processor_id();
 #endif
-	struct tss_struct * t = &init_tss[cpu];
+	struct tss_struct *t = &per_cpu(init_tss, cpu);
 	unsigned long v; 
 	char *estacks = NULL; 
 	struct task_struct *me;
+	int i;
 
 	/* CPU 0 is initialised in head64.c */
 	if (cpu != 0) {
@@ -248,7 +209,7 @@ void __init cpu_init (void)
 
 	me = current;
 
-	if (test_and_set_bit(cpu, &cpu_initialized))
+	if (cpu_test_and_set(cpu, cpu_initialized))
 		panic("CPU#%d already initialized!\n", cpu);
 
 	printk("Initializing CPU#%d\n", cpu);
@@ -265,8 +226,8 @@ void __init cpu_init (void)
 
 	cpu_gdt_descr[cpu].size = GDT_SIZE;
 	cpu_gdt_descr[cpu].address = (unsigned long)cpu_gdt_table[cpu];
-	__asm__ __volatile__("lgdt %0": "=m" (cpu_gdt_descr[cpu]));
-	__asm__ __volatile__("lidt %0": "=m" (idt_descr));
+	asm volatile("lgdt %0" :: "m" (cpu_gdt_descr[cpu]));
+	asm volatile("lidt %0" :: "m" (idt_descr));
 
 	memcpy(me->thread.tls_array, cpu_gdt_table[cpu], GDT_ENTRY_TLS_ENTRIES * 8);
 
@@ -275,9 +236,6 @@ void __init cpu_init (void)
 	 */
 
 	asm volatile("pushfq ; popq %%rax ; btr $14,%%rax ; pushq %%rax ; popfq" ::: "eax");
-
-	if (cpu == 0) 
-		early_identify_cpu(&boot_cpu_data);
 
 	syscall_init();
 
@@ -302,12 +260,13 @@ void __init cpu_init (void)
 		t->ist[v] = (unsigned long)estacks;
 	}
 
-	t->io_bitmap_base = INVALID_IO_BITMAP_OFFSET;
+	t->io_bitmap_base = offsetof(struct tss_struct, io_bitmap);
 	/*
-	 * This is required because the CPU will access up to
+	 * <= is required because the CPU will access up to
 	 * 8 bits beyond the end of the IO permission bitmap.
 	 */
-	t->io_bitmap[IO_BITMAP_LONGS] = ~0UL;
+	for (i = 0; i <= IO_BITMAP_LONGS; i++)
+		t->io_bitmap[i] = ~0UL;
 
 	atomic_inc(&init_mm.mm_count);
 	me->active_mm = &init_mm;
@@ -331,8 +290,4 @@ void __init cpu_init (void)
 	set_debug(0UL, 7);
 
 	fpu_init(); 
-
-#ifdef CONFIG_NUMA
-	numa_add_cpu(cpu);
-#endif
 }

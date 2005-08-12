@@ -1,15 +1,16 @@
 /*
- * irixelf.c: Code to load IRIX ELF executables which conform to
- *            the MIPS ABI.
+ * This file is subject to the terms and conditions of the GNU General Public
+ * License.  See the file "COPYING" in the main directory of this archive
+ * for more details.
  *
- * Copyright (C) 1996 David S. Miller (dm@engr.sgi.com)
+ * irixelf.c: Code to load IRIX ELF executables conforming to the MIPS ABI.
+ *            Based off of work by Eric Youngdale.
  *
- * Based upon work which is:
- * Copyright 1993, 1994: Eric Youngdale (ericy@cais.com).
+ * Copyright (C) 1993 - 1994 Eric Youngdale <ericy@cais.com>
+ * Copyright (C) 1996 - 2004 David S. Miller <dm@engr.sgi.com>
+ * Copyright (C) 2004 Steven J. Hill <sjhill@realitydiluted.com>
  */
-
 #include <linux/module.h>
-
 #include <linux/fs.h>
 #include <linux/stat.h>
 #include <linux/sched.h>
@@ -127,7 +128,9 @@ static void set_brk(unsigned long start, unsigned long end)
 	end = PAGE_ALIGN(end);
 	if (end <= start)
 		return;
+	down_write(&current->mm->mmap_sem);
 	do_brk(start, end - start);
+	up_write(&current->mm->mmap_sem);
 }
 
 
@@ -209,13 +212,13 @@ unsigned long * create_irix_tables(char * p, int argc, int envc,
 		__put_user((unsigned long)p,argv++);
 		p += strlen_user(p);
 	}
-	__put_user(NULL, argv);
+	__put_user((unsigned long) NULL, argv);
 	current->mm->arg_end = current->mm->env_start = (unsigned long) p;
 	while (envc-->0) {
 		__put_user((unsigned long)p,envp++);
 		p += strlen_user(p);
 	}
-	__put_user(NULL, envp);
+	__put_user((unsigned long) NULL, envp);
 	current->mm->env_end = (unsigned long) p;
 	return sp;
 }
@@ -265,9 +268,8 @@ static unsigned int load_irix_interp(struct elfhdr * interp_elf_ex,
 	    return 0xffffffff;
 	}
 
-	elf_phdata =  (struct elf_phdr *)
-		kmalloc(sizeof(struct elf_phdr) * interp_elf_ex->e_phnum,
-			GFP_KERNEL);
+	elf_phdata = kmalloc(sizeof(struct elf_phdr) * interp_elf_ex->e_phnum,
+			     GFP_KERNEL);
 
 	if(!elf_phdata) {
           printk("Cannot kmalloc phdata for IRIX interp.\n");
@@ -376,7 +378,9 @@ static unsigned int load_irix_interp(struct elfhdr * interp_elf_ex,
 
 	/* Map the last of the bss segment */
 	if (last_bss > len) {
+		down_write(&current->mm->mmap_sem);
 		do_brk(len, (last_bss - len));
+		up_write(&current->mm->mmap_sem);
 	}
 	kfree(elf_phdata);
 
@@ -436,9 +440,8 @@ static inline int look_for_irix_interpreter(char **name,
 		if (*name != NULL)
 			goto out;
 
-		*name = (char *) kmalloc((epp->p_filesz +
-					  strlen(IRIX_INTERP_PREFIX)),
-					 GFP_KERNEL);
+		*name = kmalloc((epp->p_filesz + strlen(IRIX_INTERP_PREFIX)),
+				GFP_KERNEL);
 		if (!*name)
 			return -ENOMEM;
 
@@ -564,7 +567,9 @@ void irix_map_prda_page (void)
 	unsigned long v;
 	struct prda *pp;
 
+	down_write(&current->mm->mmap_sem);
 	v =  do_brk (PRDA_ADDRESS, PAGE_SIZE);
+	up_write(&current->mm->mmap_sem);
 
 	if (v < 0)
 		return;
@@ -611,13 +616,14 @@ static int load_irix_binary(struct linux_binprm * bprm, struct pt_regs * regs)
 	size = elf_ex.e_phentsize * elf_ex.e_phnum;
 	if (size > 65536)
 		goto out;
-	elf_phdata = (struct elf_phdr *) kmalloc(size, GFP_KERNEL);
+	elf_phdata = kmalloc(size, GFP_KERNEL);
 	if (elf_phdata == NULL) {
 		retval = -ENOMEM;
 		goto out;
 	}
 
 	retval = kernel_read(bprm->file, elf_ex.e_phoff, (char *)elf_phdata, size);
+
 	if (retval < 0)
 		goto out_free_ph;
 
@@ -686,8 +692,8 @@ static int load_irix_binary(struct linux_binprm * bprm, struct pt_regs * regs)
 	/* Do this so that we can load the interpreter, if need be.  We will
 	 * change some of these later.
 	 */
-	current->mm->rss = 0;
-	setup_arg_pages(bprm, EXSTACK_DEFAULT);
+	set_mm_counter(current->mm, rss, 0);
+	setup_arg_pages(bprm, STACK_TOP, EXSTACK_DEFAULT);
 	current->mm->start_stack = bprm->p;
 
 	/* At this point, we assume that the image should be loaded at
@@ -814,8 +820,7 @@ static int load_irix_library(struct file *file)
 	if(sizeof(struct elf_phdr) * elf_ex.e_phnum > PAGE_SIZE)
 		return -ENOEXEC;
 
-	elf_phdata =  (struct elf_phdr *)
-		kmalloc(sizeof(struct elf_phdr) * elf_ex.e_phnum, GFP_KERNEL);
+	elf_phdata = kmalloc(sizeof(struct elf_phdr) * elf_ex.e_phnum, GFP_KERNEL);
 	if (elf_phdata == NULL)
 		return -ENOMEM;
 
@@ -855,8 +860,11 @@ static int load_irix_library(struct file *file)
 
 	len = (elf_phdata->p_filesz + elf_phdata->p_vaddr+ 0xfff) & 0xfffff000;
 	bss = elf_phdata->p_memsz + elf_phdata->p_vaddr;
-	if (bss > len)
+	if (bss > len) {
+	  down_write(&current->mm->mmap_sem);
 	  do_brk(len, bss-len);
+	  up_write(&current->mm->mmap_sem);
+	}
 	kfree(elf_phdata);
 	return 0;
 }
@@ -879,12 +887,11 @@ unsigned long irix_mapelf(int fd, struct elf_phdr *user_phdrp, int cnt)
 
 	/* First get the verification out of the way. */
 	hp = user_phdrp;
-	retval = verify_area(VERIFY_READ, hp, (sizeof(struct elf_phdr) * cnt));
-	if(retval) {
+	if (!access_ok(VERIFY_READ, hp, (sizeof(struct elf_phdr) * cnt))) {
 #ifdef DEBUG_ELF
-		printk("irix_mapelf: verify_area fails!\n");
+		printk("irix_mapelf: access_ok fails!\n");
 #endif
-		return retval;
+		return -EFAULT;
 	}
 
 #ifdef DEBUG_ELF
@@ -928,7 +935,8 @@ unsigned long irix_mapelf(int fd, struct elf_phdr *user_phdrp, int cnt)
 	}
 
 #ifdef DEBUG_ELF
-	printk("irix_mapelf: Success, returning %08lx\n", user_phdrp->p_vaddr);
+	printk("irix_mapelf: Success, returning %08lx\n",
+		(unsigned long) user_phdrp->p_vaddr);
 #endif
 	fput(filp);
 	return user_phdrp->p_vaddr;
@@ -1055,7 +1063,7 @@ static int irix_core_dump(long signr, struct pt_regs * regs, struct file *file)
 	struct vm_area_struct *vma;
 	struct elfhdr elf;
 	off_t offset = 0, dataoff;
-	int limit = current->rlim[RLIMIT_CORE].rlim_cur;
+	int limit = current->signal->rlim[RLIMIT_CORE].rlim_cur;
 	int numnote = 4;
 	struct memelfnote notes[4];
 	struct elf_prstatus prstatus;	/* NT_PRSTATUS */
@@ -1131,14 +1139,28 @@ static int irix_core_dump(long signr, struct pt_regs * regs, struct file *file)
 	psinfo.pr_ppid = prstatus.pr_ppid = current->parent->pid;
 	psinfo.pr_pgrp = prstatus.pr_pgrp = process_group(current);
 	psinfo.pr_sid = prstatus.pr_sid = current->signal->session;
-	prstatus.pr_utime.tv_sec = CT_TO_SECS(current->utime);
-	prstatus.pr_utime.tv_usec = CT_TO_USECS(current->utime);
-	prstatus.pr_stime.tv_sec = CT_TO_SECS(current->stime);
-	prstatus.pr_stime.tv_usec = CT_TO_USECS(current->stime);
-	prstatus.pr_cutime.tv_sec = CT_TO_SECS(current->cutime);
-	prstatus.pr_cutime.tv_usec = CT_TO_USECS(current->cutime);
-	prstatus.pr_cstime.tv_sec = CT_TO_SECS(current->cstime);
-	prstatus.pr_cstime.tv_usec = CT_TO_USECS(current->cstime);
+	if (current->pid == current->tgid) {
+		/*
+		 * This is the record for the group leader.  Add in the
+		 * cumulative times of previous dead threads.  This total
+		 * won't include the time of each live thread whose state
+		 * is included in the core dump.  The final total reported
+		 * to our parent process when it calls wait4 will include
+		 * those sums as well as the little bit more time it takes
+		 * this and each other thread to finish dying after the
+		 * core dump synchronization phase.
+		 */
+		jiffies_to_timeval(current->utime + current->signal->utime,
+		                   &prstatus.pr_utime);
+		jiffies_to_timeval(current->stime + current->signal->stime,
+		                   &prstatus.pr_stime);
+	} else {
+		jiffies_to_timeval(current->utime, &prstatus.pr_utime);
+		jiffies_to_timeval(current->stime, &prstatus.pr_stime);
+	}
+	jiffies_to_timeval(current->signal->cutime, &prstatus.pr_cutime);
+	jiffies_to_timeval(current->signal->cstime, &prstatus.pr_cstime);
+
 	if (sizeof(elf_gregset_t) != sizeof(struct pt_regs)) {
 		printk("sizeof(elf_gregset_t) (%d) != sizeof(struct pt_regs) "
 		       "(%d)\n", sizeof(elf_gregset_t), sizeof(struct pt_regs));
@@ -1277,6 +1299,20 @@ end_coredump:
 
 static int __init init_irix_binfmt(void)
 {
+	int init_inventory(void);
+	extern asmlinkage unsigned long sys_call_table;
+	extern asmlinkage unsigned long sys_call_table_irix5;
+
+	init_inventory();
+
+	/*
+	 * Copy the IRIX5 syscall table (8000 bytes) into the main syscall
+	 * table. The IRIX5 calls are located by an offset of 8000 bytes
+	 * from the beginning of the main table.
+	 */
+	memcpy((void *) ((unsigned long) &sys_call_table + 8000),
+		&sys_call_table_irix5, 8000);
+
 	return register_binfmt(&irix_format);
 }
 

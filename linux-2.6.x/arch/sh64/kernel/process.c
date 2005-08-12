@@ -338,7 +338,7 @@ void default_idle(void)
 	}
 }
 
-void cpu_idle(void *unused)
+void cpu_idle(void)
 {
 	default_idle();
 }
@@ -638,7 +638,6 @@ void free_task_struct(struct task_struct *p)
 int kernel_thread(int (*fn)(void *), void * arg, unsigned long flags)
 {
 	/* A bit less processor dependent than older sh ... */
-
 	unsigned int reply;
 
 static __inline__ _syscall2(int,clone,unsigned long,flags,unsigned long,newsp)
@@ -671,7 +670,7 @@ void exit_thread(void)
 	   null it here, there is no other path through which it would get safely
 	   nulled. */
 
-#ifndef CONFIG_NOFPU_SUPPORT
+#ifdef CONFIG_SH_FPU
 	if (last_task_used_math == current) {
 		last_task_used_math = NULL;
 	}
@@ -683,12 +682,12 @@ void flush_thread(void)
 
 	/* Called by fs/exec.c (flush_old_exec) to remove traces of a
 	 * previously running executable. */
-#ifndef CONFIG_NOFPU_SUPPORT
+#ifdef CONFIG_SH_FPU
 	if (last_task_used_math == current) {
 		last_task_used_math = NULL;
 	}
 	/* Force FPU state to be reinitialised after exec */
-	current->used_math = 0;
+	clear_used_math();
 #endif
 
 	/* if we are a kernel thread, about to change to user thread,
@@ -709,11 +708,11 @@ void release_thread(struct task_struct *dead_task)
 /* Fill in the fpu structure for a core dump.. */
 int dump_fpu(struct pt_regs *regs, elf_fpregset_t *fpu)
 {
-#ifndef CONFIG_NOFPU_SUPPORT
+#ifdef CONFIG_SH_FPU
 	int fpvalid;
 	struct task_struct *tsk = current;
 
-	fpvalid = tsk->used_math;
+	fpvalid = !!tsk_used_math(tsk);
 	if (fpvalid) {
 		if (current == last_task_used_math) {
 			grab_fpu();
@@ -741,7 +740,7 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long usp,
 	struct pt_regs *childregs;
 	unsigned long long se;			/* Sign extension */
 
-#ifndef CONFIG_NOFPU_SUPPORT
+#ifdef CONFIG_SH_FPU
 	if(last_task_used_math == current) {
 		grab_fpu();
 		fpsave(&current->thread.fpu.hard);
@@ -764,9 +763,6 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long usp,
 
 	childregs->regs[9] = 0; /* Set return value for child */
 	childregs->sr |= SR_FD; /* Invalidate FPU flag */
-
-	/* From sh */
-	p->set_child_tid = p->clear_child_tid = NULL;
 
 	p->thread.sp = (unsigned long) childregs;
 	p->thread.pc = (unsigned long) ret_from_fork;
@@ -820,7 +816,7 @@ asmlinkage int sys_clone(unsigned long clone_flags, unsigned long newsp,
 {
 	if (!newsp)
 		newsp = pregs->regs[15];
-	return do_fork(clone_flags & ~CLONE_IDLETASK, newsp, pregs, 0, 0, 0);
+	return do_fork(clone_flags, newsp, pregs, 0, 0, 0);
 }
 
 /*
@@ -862,8 +858,11 @@ asmlinkage int sys_execve(char *ufilename, char **uargv,
 			  (char __user * __user *)uargv,
 			  (char __user * __user *)uenvp,
 			  pregs);
-	if (error == 0)
+	if (error == 0) {
+		task_lock(current);
 		current->ptrace &= ~PT_DTRACE;
+		task_unlock(current);
+	}
 	putname(filename);
 out:
 	unlock_kernel();
@@ -901,7 +900,7 @@ unsigned long get_wchan(struct task_struct *p)
 	 */
 	pc = thread_saved_pc(p);
 
-#if CONFIG_FRAME_POINTER
+#ifdef CONFIG_FRAME_POINTER
 	if (in_sh64_switch_to(pc)) {
 		sh64_switch_to_fp = (long) p->thread.sp;
 		/* r14 is saved at offset 4 in the sh64_switch_to frame */
@@ -933,7 +932,7 @@ asids_proc_info(char *buf, char **start, off_t fpos, int length, int *eof, void 
 	int len=0;
 	struct task_struct *p;
 	read_lock(&tasklist_lock);
-	for_each_task(p) {
+	for_each_process(p) {
 		int pid = p->pid;
 		struct mm_struct *mm;
 		if (!pid) continue;
@@ -942,7 +941,7 @@ asids_proc_info(char *buf, char **start, off_t fpos, int length, int *eof, void 
 			unsigned long asid, context;
 			context = mm->context;
 			asid = (context & 0xff);
-			len += sprintf(buf+len, "%5d : %02x\n", pid, asid);
+			len += sprintf(buf+len, "%5d : %02lx\n", pid, asid);
 		} else {
 			len += sprintf(buf+len, "%5d : (none)\n", pid);
 		}

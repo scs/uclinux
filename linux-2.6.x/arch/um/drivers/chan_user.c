@@ -1,5 +1,5 @@
 /* 
- * Copyright (C) 2000, 2001 Jeff Dike (jdike@karaya.com)
+ * Copyright (C) 2000 - 2003 Jeff Dike (jdike@addtoit.com)
  * Licensed under the GPL
  */
 
@@ -7,7 +7,6 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <termios.h>
-#include <fcntl.h>
 #include <string.h>
 #include <signal.h>
 #include <sys/stat.h>
@@ -22,68 +21,51 @@
 #include "choose-mode.h"
 #include "mode.h"
 
-void generic_close(int fd, void *unused)
-{
-	close(fd);
-}
-
-int generic_read(int fd, char *c_out, void *unused)
-{
-	int n;
-
-	n = read(fd, c_out, sizeof(*c_out));
-	if(n < 0){
-		if(errno == EAGAIN) return(0);
-		return(-errno);
-	}
-	else if(n == 0) return(-EIO);
-	return(1);
-}
-
-int generic_write(int fd, const char *buf, int n, void *unused)
-{
-	int count;
-
-	count = write(fd, buf, n);
-	if(count < 0) return(-errno);
-	return(count);
-}
-
 int generic_console_write(int fd, const char *buf, int n, void *unused)
 {
 	struct termios save, new;
 	int err;
 
 	if(isatty(fd)){
-		tcgetattr(fd, &save);
+		CATCH_EINTR(err = tcgetattr(fd, &save));
+		if (err)
+			goto error;
 		new = save;
+		/* The terminal becomes a bit less raw, to handle \n also as
+		 * "Carriage Return", not only as "New Line". Otherwise, the new
+		 * line won't start at the first column.*/
 		new.c_oflag |= OPOST;
-		tcsetattr(fd, TCSAFLUSH, &new);
+		CATCH_EINTR(err = tcsetattr(fd, TCSAFLUSH, &new));
+		if (err)
+			goto error;
 	}
 	err = generic_write(fd, buf, n, NULL);
-	if(isatty(fd)) tcsetattr(fd, TCSAFLUSH, &save);
+	/* Restore raw mode, in any case; we *must* ignore any error apart
+	 * EINTR, except for debug.*/
+	if(isatty(fd))
+		CATCH_EINTR(tcsetattr(fd, TCSAFLUSH, &save));
 	return(err);
+error:
+	return(-errno);
 }
 
-int generic_window_size(int fd, void *unused, unsigned short *rows_out,
-			unsigned short *cols_out)
-{
-	struct winsize size;
-	int ret = 0;
-
-	if(ioctl(fd, TIOCGWINSZ, &size) == 0){
-		ret = ((*rows_out != size.ws_row) || 
-		       (*cols_out != size.ws_col));
-		*rows_out = size.ws_row;
-		*cols_out = size.ws_col;
-	}
-	return(ret);
-}
-
-void generic_free(void *data)
-{
-	kfree(data);
-}
+/*
+ * UML SIGWINCH handling
+ *
+ * The point of this is to handle SIGWINCH on consoles which have host ttys and
+ * relay them inside UML to whatever might be running on the console and cares
+ * about the window size (since SIGWINCH notifies about terminal size changes).
+ *
+ * So, we have a separate thread for each host tty attached to a UML device
+ * (side-issue - I'm annoyed that one thread can't have multiple controlling
+ * ttys for purposed of handling SIGWINCH, but I imagine there are other reasons
+ * that doesn't make any sense).
+ *
+ * SIGWINCH can't be received synchronously, so you have to set up to receive it
+ * as a signal.  That being the case, if you are going to wait for it, it is
+ * convenient to sit in a pause() and wait for the signal to bounce you out of
+ * it (see below for how we make sure to exit only on SIGWINCH).
+ */
 
 static void winch_handler(int sig)
 {
@@ -100,18 +82,25 @@ static int winch_thread(void *arg)
 	struct winch_data *data = arg;
 	sigset_t sigs;
 	int pty_fd, pipe_fd;
+	int count, err;
 	char c = 1;
 
-	close(data->close_me);
+	os_close_file(data->close_me);
 	pty_fd = data->pty_fd;
 	pipe_fd = data->pipe_fd;
-	if(write(pipe_fd, &c, sizeof(c)) != sizeof(c))
+	count = os_write_file(pipe_fd, &c, sizeof(c));
+	if(count != sizeof(c))
 		printk("winch_thread : failed to write synchronization "
-		       "byte, errno = %d\n", errno);
+		       "byte, err = %d\n", -count);
+
+	/* We are not using SIG_IGN on purpose, so don't fix it as I thought to
+	 * do! If using SIG_IGN, the pause() call below would not stop on
+	 * SIGWINCH. */
 
 	signal(SIGWINCH, winch_handler);
 	sigfillset(&sigs);
 	sigdelset(&sigs, SIGWINCH);
+	/* Block anything else than SIGWINCH. */
 	if(sigprocmask(SIG_SETMASK, &sigs, NULL) < 0){
 		printk("winch_thread : sigprocmask failed, errno = %d\n", 
 		       errno);
@@ -123,80 +112,96 @@ static int winch_thread(void *arg)
 		exit(1);
 	}
 
-	if(ioctl(pty_fd, TIOCSCTTY, 0) < 0){
-		printk("winch_thread : TIOCSCTTY failed, errno = %d\n", errno);
-		exit(1);
-	}
-	if(tcsetpgrp(pty_fd, os_getpid()) < 0){
-		printk("winch_thread : tcsetpgrp failed, errno = %d\n", errno);
+	err = os_new_tty_pgrp(pty_fd, os_getpid());
+	if(err < 0){
+		printk("winch_thread : new_tty_pgrp failed, err = %d\n", -err);
 		exit(1);
 	}
 
-	if(read(pipe_fd, &c, sizeof(c)) != sizeof(c))
+	/* These are synchronization calls between various UML threads on the
+	 * host - since they are not different kernel threads, we cannot use
+	 * kernel semaphores. We don't use SysV semaphores because they are
+	 * persistant. */
+	count = os_read_file(pipe_fd, &c, sizeof(c));
+	if(count != sizeof(c))
 		printk("winch_thread : failed to read synchronization byte, "
-		       "errno = %d\n", errno);
+		       "err = %d\n", -count);
 
 	while(1){
+		/* This will be interrupted by SIGWINCH only, since other signals
+		 * are blocked.*/
 		pause();
 
-		if(write(pipe_fd, &c, sizeof(c)) != sizeof(c)){
-			printk("winch_thread : write failed, errno = %d\n",
-			       errno);
-		}
+		count = os_write_file(pipe_fd, &c, sizeof(c));
+		if(count != sizeof(c))
+			printk("winch_thread : write failed, err = %d\n",
+			       -count);
 	}
 }
 
-static int winch_tramp(int fd, void *device_data, int *fd_out)
+static int winch_tramp(int fd, struct tty_struct *tty, int *fd_out)
 {
 	struct winch_data data;
 	unsigned long stack;
-	int fds[2], pid, n, err;
+	int fds[2], n, err;
 	char c;
 
 	err = os_pipe(fds, 1, 1);
-	if(err){
-		printk("winch_tramp : os_pipe failed, errno = %d\n", -err);
-		return(err);
+	if(err < 0){
+		printk("winch_tramp : os_pipe failed, err = %d\n", -err);
+		goto out;
 	}
 
 	data = ((struct winch_data) { .pty_fd 		= fd,
 				      .pipe_fd 		= fds[1],
 				      .close_me 	= fds[0] } );
-	pid = run_helper_thread(winch_thread, &data, 0, &stack, 0);
-	if(pid < 0){
+	err = run_helper_thread(winch_thread, &data, 0, &stack, 0);
+	if(err < 0){
 		printk("fork of winch_thread failed - errno = %d\n", errno);
-		return(pid);
+		goto out_close;
 	}
 
-	close(fds[1]);
+	os_close_file(fds[1]);
 	*fd_out = fds[0];
-	n = read(fds[0], &c, sizeof(c));
+	n = os_read_file(fds[0], &c, sizeof(c));
 	if(n != sizeof(c)){
 		printk("winch_tramp : failed to read synchronization byte\n");
-		printk("read returned %d, errno = %d\n", n, errno);
+		printk("read failed, err = %d\n", -n);
 		printk("fd %d will not support SIGWINCH\n", fd);
-		*fd_out = -1;
+                err = -EINVAL;
+		goto out_close1;
 	}
-	return(pid);
+	return err ;
+
+ out_close:
+	os_close_file(fds[1]);
+ out_close1:
+	os_close_file(fds[0]);
+ out:
+	return err;
 }
 
-void register_winch(int fd, void *device_data)
+void register_winch(int fd, struct tty_struct *tty)
 {
-	int pid, thread, thread_fd;
+	int pid, thread, thread_fd = -1;
+	int count;
 	char c = 1;
 
-	if(!isatty(fd)) return;
+	if(!isatty(fd))
+		return;
 
 	pid = tcgetpgrp(fd);
-	if(!CHOOSE_MODE(is_tracer_winch(pid, fd, device_data), 0) && 
-	   (pid == -1)){
-		thread = winch_tramp(fd, device_data, &thread_fd);
-		if(fd != -1){
-			register_winch_irq(thread_fd, fd, thread, device_data);
+	if(!CHOOSE_MODE_PROC(is_tracer_winch, is_skas_winch, pid, fd,
+			     tty) && (pid == -1)){
+		thread = winch_tramp(fd, tty, &thread_fd);
+		if(thread > 0){
+			register_winch_irq(thread_fd, fd, thread, tty);
 
-			if(write(thread_fd, &c, sizeof(c)) != sizeof(c))
+			count = os_write_file(thread_fd, &c, sizeof(c));
+			if(count != sizeof(c))
 				printk("register_winch : failed to write "
-				       "synchronization byte\n");
+				       "synchronization byte, err = %d\n",
+					-count);
 		}
 	}
 }

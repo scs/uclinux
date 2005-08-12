@@ -8,26 +8,27 @@
 # Copyright (C) 1995-2001 by Russell King
 
 LDFLAGS_vmlinux	:=-p --no-undefined -X
-LDFLAGS_BLOB	:=--format binary
-AFLAGS_vmlinux.lds.o = -DTEXTADDR=$(TEXTADDR) -DDATAADDR=$(DATAADDR)
+CPPFLAGS_vmlinux.lds = -DTEXTADDR=$(TEXTADDR) -DDATAADDR=$(DATAADDR)
 OBJCOPYFLAGS	:=-O binary -R .note -R .comment -S
 GZFLAGS		:=-9
 #CFLAGS		+=-pipe
+
+# Do not use arch/arm/defconfig - it's always outdated.
+# Select a platform tht is kept up-to-date
+KBUILD_DEFCONFIG := versatile_defconfig
 
 ifeq ($(CONFIG_FRAME_POINTER),y)
 CFLAGS		+=-fno-omit-frame-pointer -mapcs -mno-sched-prolog
 endif
 
 ifeq ($(CONFIG_CPU_BIG_ENDIAN),y)
-CFLAGS		+= -mbig-endian
+CPPFLAGS	+= -mbig-endian
 AS		+= -EB
 LD		+= -EB
-AFLAGS		+= -mbig-endian
 else
-CFLAGS		+= -mlittle-endian
+CPPFLAGS	+= -mlittle-endian
 AS		+= -EL
 LD		+= -EL
-AFLAGS		+= -mlittle-endian
 endif
 
 comma = ,
@@ -36,8 +37,8 @@ comma = ,
 # Note that GCC does not numerically define an architecture version
 # macro, but instead defines a whole series of macros which makes
 # testing for a specific architecture or later rather impossible.
-arch-$(CONFIG_CPU_32v6)		:=-D__LINUX_ARM_ARCH__=6 $(call check_gcc,-march=armv6,-march=armv5t -Wa$(comma)-march=armv6)
-arch-$(CONFIG_CPU_32v5)		:=-D__LINUX_ARM_ARCH__=5 $(call check_gcc,-march=armv5te,-march=armv4)
+arch-$(CONFIG_CPU_32v6)		:=-D__LINUX_ARM_ARCH__=6 $(call cc-option,-march=armv6,-march=armv5t -Wa$(comma)-march=armv6)
+arch-$(CONFIG_CPU_32v5)		:=-D__LINUX_ARM_ARCH__=5 $(call cc-option,-march=armv5te,-march=armv4)
 arch-$(CONFIG_CPU_32v4)		:=-D__LINUX_ARM_ARCH__=4 -march=armv4
 arch-$(CONFIG_CPU_32v3)		:=-D__LINUX_ARM_ARCH__=3 -march=armv3
 
@@ -51,18 +52,17 @@ tune-$(CONFIG_CPU_ARM925T)	:=-mtune=arm9tdmi
 tune-$(CONFIG_CPU_ARM926T)	:=-mtune=arm9tdmi
 tune-$(CONFIG_CPU_SA110)	:=-mtune=strongarm110
 tune-$(CONFIG_CPU_SA1100)	:=-mtune=strongarm1100
-tune-$(CONFIG_CPU_XSCALE)	:=$(call check_gcc,-mtune=xscale,-mtune=strongarm110) -Wa,-mcpu=xscale
+tune-$(CONFIG_CPU_XSCALE)	:=$(call cc-option,-mtune=xscale,-mtune=strongarm110) -Wa,-mcpu=xscale
 tune-$(CONFIG_CPU_V6)		:=-mtune=strongarm
 
 # Need -Uarm for gcc < 3.x
-CFLAGS		+=-mapcs-32 $(arch-y) $(tune-y) $(call check_gcc,-malignment-traps,-mshort-load-bytes) -msoft-float -Wa,-mno-fpu -Uarm
-AFLAGS		+=-mapcs-32 $(arch-y) $(tune-y) -msoft-float -Wa,-mno-fpu
+CFLAGS_ABI	:=$(call cc-option,-mapcs-32,-mabi=apcs-gnu)
+CFLAGS		+=$(CFLAGS_ABI) $(arch-y) $(tune-y) $(call cc-option,-mshort-load-bytes,$(call cc-option,-malignment-traps,)) -msoft-float -Uarm
+AFLAGS		+=$(CFLAGS_ABI) $(arch-y) $(tune-y) -msoft-float
 
-CHECK		:= $(CHECK) -D__arm__=1
+CHECKFLAGS	+= -D__arm__
 
 #Default value
-DATAADDR	:= .
-
 head-y		:= arch/arm/kernel/head.o arch/arm/kernel/init_task.o
 textaddr-y	:= 0xC0008000
 
@@ -90,10 +90,13 @@ textaddr-$(CONFIG_ARCH_CLPS711X)   := 0xc0028000
 textaddr-$(CONFIG_ARCH_FORTUNET)   := 0xc0008000
  machine-$(CONFIG_ARCH_IOP3XX)	   := iop3xx
  machine-$(CONFIG_ARCH_IXP4XX)	   := ixp4xx
+ machine-$(CONFIG_ARCH_IXP2000)    := ixp2000
  machine-$(CONFIG_ARCH_OMAP)	   := omap
  machine-$(CONFIG_ARCH_S3C2410)	   := s3c2410
  machine-$(CONFIG_ARCH_LH7A40X)	   := lh7a40x
- machine-$(CONFIG_ARCH_VERSATILE_PB) := versatile
+ machine-$(CONFIG_ARCH_VERSATILE)  := versatile
+ machine-$(CONFIG_ARCH_IMX)	   := imx
+ machine-$(CONFIG_ARCH_H720X)	   := h720x
 
 ifeq ($(CONFIG_ARCH_EBSA110),y)
 # This is what happens if you forget the IOCS16 line.
@@ -103,12 +106,27 @@ export CFLAGS_3c589_cs.o
 endif
 
 TEXTADDR := $(textaddr-y)
+ifeq ($(CONFIG_XIP_KERNEL),y)
+  DATAADDR := $(TEXTADDR)
+  xipaddr-$(CONFIG_ARCH_CO285) := 0x5f000000
+  xipaddr-y ?= 0xbf000000
+  # Replace phys addr with virt addr while keeping offset from base.
+  TEXTADDR := $(shell echo $(CONFIG_XIP_PHYS_ADDR) $(xipaddr-y) | \
+                      awk --non-decimal-data '/[:xdigit:]/ \
+                          { printf("0x%x\n", and($$1, 0x000fffff) + $$2) }' )
+endif
+
 ifeq ($(incdir-y),)
 incdir-y := $(machine-y)
 endif
 INCDIR   := arch-$(incdir-y)
+ifneq ($(machine-y),)
+MACHINE  := arch/arm/mach-$(machine-y)/
+else
+MACHINE  :=
+endif
   
-export	TEXTADDR GZFLAGS
+export	TEXTADDR DATAADDR GZFLAGS
 
 # Do we have FASTFPE?
 FASTFPE		:=arch/arm/fastfpe
@@ -118,9 +136,7 @@ endif
 
 # If we have a machine-specific directory, then include it in the build.
 core-y				+= arch/arm/kernel/ arch/arm/mm/ arch/arm/common/
-ifneq ($(machine-y),)
-core-y				+= arch/arm/mach-$(machine-y)/
-endif
+core-y				+= $(MACHINE)
 core-$(CONFIG_FPE_NWFPE)	+= arch/arm/nwfpe/
 core-$(CONFIG_FPE_FASTFPE)	+= $(FASTFPE_OBJ)
 core-$(CONFIG_VFP)		+= arch/arm/vfp/
@@ -132,7 +148,11 @@ drivers-$(CONFIG_ARCH_L7200)	+= drivers/acorn/char/
 libs-y				+= arch/arm/lib/
 
 # Default target when executing plain make
+ifeq ($(CONFIG_XIP_KERNEL),y)
+all: xipImage
+else
 all: zImage
+endif
 
 boot := arch/arm/boot
 
@@ -159,11 +179,11 @@ maketools: include/asm-arm/constants.h include/linux/version.h FORCE
 # Convert bzImage to zImage
 bzImage: zImage
 
-zImage Image bootpImage uImage: vmlinux
-	$(Q)$(MAKE) $(build)=$(boot) $(boot)/$@
+zImage Image xipImage bootpImage uImage: vmlinux
+	$(Q)$(MAKE) $(build)=$(boot) MACHINE=$(MACHINE) $(boot)/$@
 
 zinstall install: vmlinux
-	$(Q)$(MAKE) $(build)=$(boot) $@
+	$(Q)$(MAKE) $(build)=$(boot) MACHINE=$(MACHINE) $@
 
 CLEAN_FILES += include/asm-arm/constants.h* include/asm-arm/mach-types.h \
 	       include/asm-arm/arch include/asm-arm/.arch
@@ -173,8 +193,8 @@ archclean:
 	$(Q)$(MAKE) $(clean)=$(boot)
 
 # My testing targets (bypasses dependencies)
-bp:;	$(Q)$(MAKE) $(build)=$(boot) $(boot)/bootpImage
-i zi:;	$(Q)$(MAKE) $(build)=$(boot) $@
+bp:;	$(Q)$(MAKE) $(build)=$(boot) MACHINE=$(MACHINE) $(boot)/bootpImage
+i zi:;	$(Q)$(MAKE) $(build)=$(boot) MACHINE=$(MACHINE) $@
 
 arch/$(ARCH)/kernel/asm-offsets.s: include/asm include/linux/version.h \
 				   include/asm-arm/.arch
@@ -185,6 +205,7 @@ include/asm-$(ARCH)/constants.h: arch/$(ARCH)/kernel/asm-offsets.s
 define archhelp
   echo  '* zImage        - Compressed kernel image (arch/$(ARCH)/boot/zImage)'
   echo  '  Image         - Uncompressed kernel image (arch/$(ARCH)/boot/Image)'
+  echo  '* xipImage      - XIP kernel image, if configured (arch/$(ARCH)/boot/xipImage)'
   echo  '  bootpImage    - Combined zImage and initial RAM disk' 
   echo  '                  (supply initrd image via make variable INITRD=<path>)'
   echo  '  install       - Install uncompressed kernel'

@@ -6,32 +6,30 @@
 #include <stdlib.h>
 #include <signal.h>
 #include "kern_util.h"
+#include "uml-config.h"
 #include "syscall_user.h"
 #include "sysdep/ptrace.h"
 #include "sysdep/sigcontext.h"
-
-/* XXX Bogus */
-#define ERESTARTSYS	512
-#define ERESTARTNOINTR	513
-#define ERESTARTNOHAND	514
+#include "skas.h"
 
 void handle_syscall(union uml_pt_regs *regs)
 {
 	long result;
-	int index;
+#if UML_CONFIG_SYSCALL_DEBUG
+  	int index;
 
-	index = record_syscall_start(UPT_SYSCALL_NR(regs));
+  	index = record_syscall_start(UPT_SYSCALL_NR(regs));
+#endif
 
-	syscall_trace();
-	result = execute_syscall(regs);
+	syscall_trace(regs, 0);
+	result = execute_syscall_skas(regs);
 
 	REGS_SET_SYSCALL_RETURN(regs->skas.regs, result);
-	if((result == -ERESTARTNOHAND) || (result == -ERESTARTSYS) || 
-	   (result == -ERESTARTNOINTR))
-		do_signal(result);
 
-	syscall_trace();
-	record_syscall_end(index, result);
+	syscall_trace(regs, 1);
+#if UML_CONFIG_SYSCALL_DEBUG
+  	record_syscall_end(index, result);
+#endif
 }
 
 /*

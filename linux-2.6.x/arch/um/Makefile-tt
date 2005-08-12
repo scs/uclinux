@@ -3,5 +3,3 @@
 # Licensed under the GPL
 #
 
-MODE_INCLUDE += -I$(TOPDIR)/$(ARCH_DIR)/kernel/tt/include
-

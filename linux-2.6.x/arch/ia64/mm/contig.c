@@ -24,6 +24,7 @@
 #include <asm/pgalloc.h>
 #include <asm/pgtable.h>
 #include <asm/sections.h>
+#include <asm/mca.h>
 
 #ifdef CONFIG_VIRTUAL_MEM_MAP
 static unsigned long num_dma_physpages;
@@ -60,7 +61,8 @@ show_mem (void)
 	printk("%d reserved pages\n", reserved);
 	printk("%d pages shared\n", shared);
 	printk("%d pages swap cached\n", cached);
-	printk("%ld pages in page table cache\n", pgtable_cache_size);
+	printk("%ld pages in page table cache\n",
+		pgtable_quicklist_total_size());
 }
 
 /* physical address where the bootmem map is located */
@@ -116,19 +118,19 @@ find_bootmap_location (unsigned long start, unsigned long end, void *arg)
 		range_start = max(start, free_start);
 		range_end   = min(end, rsvd_region[i].start & PAGE_MASK);
 
+		free_start = PAGE_ALIGN(rsvd_region[i].end);
+
 		if (range_end <= range_start)
 			continue; /* skip over empty range */
 
-	       	if (range_end - range_start >= needed) {
+		if (range_end - range_start >= needed) {
 			bootmap_start = __pa(range_start);
-			return 1;	/* done */
+			return -1;	/* done */
 		}
 
 		/* nothing more available in this segment */
 		if (range_end == end)
 			return 0;
-
-		free_start = PAGE_ALIGN(rsvd_region[i].end);
 	}
 	return 0;
 }
@@ -214,8 +216,8 @@ count_dma_pages (u64 start, u64 end, void *arg)
 {
 	unsigned long *count = arg;
 
-	if (end <= MAX_DMA_ADDRESS)
-		*count += (end - start) >> PAGE_SHIFT;
+	if (start < MAX_DMA_ADDRESS)
+		*count += (min(end, MAX_DMA_ADDRESS) - start) >> PAGE_SHIFT;
 	return 0;
 }
 #endif
@@ -267,9 +269,8 @@ paging_init (void)
 	efi_memmap_walk(find_largest_hole, (u64 *)&max_gap);
 	if (max_gap < LARGE_GAP) {
 		vmem_map = (struct page *) 0;
-		free_area_init_node(0, &contig_page_data, NULL, zones_size, 0,
+		free_area_init_node(0, &contig_page_data, zones_size, 0,
 				    zholes_size);
-		mem_map = contig_page_data.node_mem_map;
 	} else {
 		unsigned long map_size;
 
@@ -278,12 +279,12 @@ paging_init (void)
 		map_size = PAGE_ALIGN(max_low_pfn * sizeof(struct page));
 		vmalloc_end -= map_size;
 		vmem_map = (struct page *) vmalloc_end;
-		efi_memmap_walk(create_mem_map_page_table, 0);
+		efi_memmap_walk(create_mem_map_page_table, NULL);
 
-		free_area_init_node(0, &contig_page_data, vmem_map, zones_size,
+		NODE_DATA(0)->node_mem_map = vmem_map;
+		free_area_init_node(0, &contig_page_data, zones_size,
 				    0, zholes_size);
 
-		mem_map = contig_page_data.node_mem_map;
 		printk("Virtual mem_map starts at 0x%p\n", mem_map);
 	}
 #else /* !CONFIG_VIRTUAL_MEM_MAP */

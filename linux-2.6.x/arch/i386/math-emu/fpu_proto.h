@@ -2,7 +2,6 @@
 #define _FPU_PROTO_H
 
 /* errors.c */
-extern void Un_impl(void);
 extern void FPU_illegal(void);
 extern void FPU_printall(void);
 asmlinkage void FPU_exception(int n);
@@ -41,7 +40,6 @@ extern void fsubp_(void);
 extern void fdivrp(void);
 extern void fdivp_(void);
 /* fpu_aux.c */
-extern void fclex(void);
 extern void finit(void);
 extern void finit_(void);
 extern void fstsw_(void);
@@ -69,7 +67,6 @@ extern int isNaN(FPU_REG const *ptr);
 extern void FPU_pop(void);
 extern int FPU_empty_i(int stnr);
 extern int FPU_stackoverflow(FPU_REG **st_new_ptr);
-extern void FPU_sync_tags(void);
 extern void FPU_copy_to_regi(FPU_REG const *r, u_char tag, int stnr);
 extern void FPU_copy_to_reg1(FPU_REG const *r, u_char tag);
 extern void FPU_copy_to_reg0(FPU_REG const *r, u_char tag);

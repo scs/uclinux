@@ -3,8 +3,8 @@ Memory management for CRIS/MMU
 HISTORY:
 
 $Log$
-Revision 1.4  2004/09/08 14:51:35  lgsoft
-Import of 2.6.8
+Revision 1.5  2005/08/12 03:32:52  magicyang
+  Update kernel 2.6.8 to 2.6.12
 
 Revision 1.1  2001/12/17 13:59:27  bjornw
 Initial revision

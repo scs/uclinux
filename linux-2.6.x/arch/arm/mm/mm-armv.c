@@ -15,6 +15,7 @@
 #include <linux/init.h>
 #include <linux/bootmem.h>
 #include <linux/highmem.h>
+#include <linux/nodemask.h>
 
 #include <asm/pgalloc.h>
 #include <asm/page.h>
@@ -35,6 +36,8 @@ static unsigned int ecc_mask __initdata = 0;
 pgprot_t pgprot_kernel;
 
 EXPORT_SYMBOL(pgprot_kernel);
+
+pmd_t *top_pmd;
 
 struct cachepolicy {
 	const char	policy[16];
@@ -141,6 +144,16 @@ __setup("noalign", noalign_setup);
 
 #define FIRST_KERNEL_PGD_NR	(FIRST_USER_PGD_NR + USER_PTRS_PER_PGD)
 
+static inline pmd_t *pmd_off(pgd_t *pgd, unsigned long virt)
+{
+	return pmd_offset(pgd, virt);
+}
+
+static inline pmd_t *pmd_off_k(unsigned long virt)
+{
+	return pmd_off(pgd_offset_k(virt), virt);
+}
+
 /*
  * need to get a 16k page for level 1
  */
@@ -158,7 +171,7 @@ pgd_t *get_pgd_slow(struct mm_struct *mm)
 
 	init_pgd = pgd_offset_k(0);
 
-	if (vectors_base() == 0) {
+	if (!vectors_high()) {
 		/*
 		 * This lock is here just to satisfy pmd_alloc and pte_lock
 		 */
@@ -219,7 +232,7 @@ void free_pgd_slow(pgd_t *pgd)
 		return;
 
 	/* pgd is always present and good */
-	pmd = (pmd_t *)pgd;
+	pmd = pmd_off(pgd, 0);
 	if (pmd_none(*pmd))
 		goto free;
 	if (pmd_bad(*pmd)) {
@@ -239,18 +252,36 @@ free:
 
 /*
  * Create a SECTION PGD between VIRT and PHYS in domain
- * DOMAIN with protection PROT
+ * DOMAIN with protection PROT.  This operates on half-
+ * pgdir entry increments.
  */
 static inline void
 alloc_init_section(unsigned long virt, unsigned long phys, int prot)
 {
-	pmd_t *pmdp;
+	pmd_t *pmdp = pmd_off_k(virt);
 
-	pmdp = pmd_offset(pgd_offset_k(virt), virt);
 	if (virt & (1 << 20))
 		pmdp++;
 
-	set_pmd(pmdp, __pmd(phys | prot));
+	*pmdp = __pmd(phys | prot);
+	flush_pmd_entry(pmdp);
+}
+
+/*
+ * Create a SUPER SECTION PGD between VIRT and PHYS with protection PROT
+ */
+static inline void
+alloc_init_supersection(unsigned long virt, unsigned long phys, int prot)
+{
+	int i;
+
+	for (i = 0; i < 16; i += 1) {
+		alloc_init_section(virt, phys & SUPERSECTION_MASK,
+				   prot | PMD_SECT_SUPER);
+
+		virt += (PGDIR_SIZE / 2);
+		phys += (PGDIR_SIZE / 2);
+	}
 }
 
 /*
@@ -263,10 +294,8 @@ alloc_init_section(unsigned long virt, unsigned long phys, int prot)
 static inline void
 alloc_init_page(unsigned long virt, unsigned long phys, unsigned int prot_l1, pgprot_t prot)
 {
-	pmd_t *pmdp;
+	pmd_t *pmdp = pmd_off_k(virt);
 	pte_t *ptep;
-
-	pmdp = pmd_offset(pgd_offset_k(virt), virt);
 
 	if (pmd_none(*pmdp)) {
 		unsigned long pmdval;
@@ -290,7 +319,7 @@ alloc_init_page(unsigned long virt, unsigned long phys, unsigned int prot_l1, pg
  */
 static inline void clear_mapping(unsigned long virt)
 {
-	pmd_clear(pmd_offset(pgd_offset_k(virt), virt));
+	pmd_clear(pmd_off_k(virt));
 }
 
 struct mem_types {
@@ -317,15 +346,34 @@ static struct mem_types mem_types[] __initdata = {
 		.prot_sect = PMD_TYPE_SECT | PMD_SECT_MINICACHE,
 		.domain    = DOMAIN_KERNEL,
 	},
-	[MT_VECTORS] = {
+	[MT_LOW_VECTORS] = {
 		.prot_pte  = L_PTE_PRESENT | L_PTE_YOUNG | L_PTE_DIRTY |
 				L_PTE_EXEC,
+		.prot_l1   = PMD_TYPE_TABLE,
+		.domain    = DOMAIN_USER,
+	},
+	[MT_HIGH_VECTORS] = {
+		.prot_pte  = L_PTE_PRESENT | L_PTE_YOUNG | L_PTE_DIRTY |
+				L_PTE_USER | L_PTE_EXEC,
 		.prot_l1   = PMD_TYPE_TABLE,
 		.domain    = DOMAIN_USER,
 	},
 	[MT_MEMORY] = {
 		.prot_sect = PMD_TYPE_SECT | PMD_SECT_AP_WRITE,
 		.domain    = DOMAIN_KERNEL,
+	},
+	[MT_ROM] = {
+		.prot_sect = PMD_TYPE_SECT,
+		.domain    = DOMAIN_KERNEL,
+	},
+	[MT_IXP2000_DEVICE] = { /* IXP2400 requires XCB=101 for on-chip I/O */
+		.prot_pte  = L_PTE_PRESENT | L_PTE_YOUNG | L_PTE_DIRTY |
+				L_PTE_WRITE,
+		.prot_l1   = PMD_TYPE_TABLE,
+		.prot_sect = PMD_TYPE_SECT | PMD_SECT_UNCACHED |
+				PMD_SECT_AP_WRITE | PMD_SECT_BUFFERABLE |
+				PMD_SECT_TEX(1),
+		.domain    = DOMAIN_IO,
 	}
 };
 
@@ -353,12 +401,12 @@ static void __init build_mem_type_table(void)
 	}
 
 	if (cpu_arch <= CPU_ARCH_ARMv5) {
-		mem_types[MT_DEVICE].prot_l1       |= PMD_BIT4;
-		mem_types[MT_DEVICE].prot_sect     |= PMD_BIT4;
-		mem_types[MT_CACHECLEAN].prot_sect |= PMD_BIT4;
-		mem_types[MT_MINICLEAN].prot_sect  |= PMD_BIT4;
-		mem_types[MT_VECTORS].prot_l1      |= PMD_BIT4;
-		mem_types[MT_MEMORY].prot_sect     |= PMD_BIT4;
+		for (i = 0; i < ARRAY_SIZE(mem_types); i++) {
+			if (mem_types[i].prot_l1)
+				mem_types[i].prot_l1 |= PMD_BIT4;
+			if (mem_types[i].prot_sect)
+				mem_types[i].prot_sect |= PMD_BIT4;
+		}
 	}
 
 	/*
@@ -370,10 +418,12 @@ static void __init build_mem_type_table(void)
 		 * kernel memory mapping.
 		 */
 		mem_types[MT_MEMORY].prot_sect &= ~PMD_BIT4;
+		mem_types[MT_ROM].prot_sect &= ~PMD_BIT4;
 		/*
-		 * Mark cache clean areas read only from SVC mode
-		 * and no access from userspace.
+		 * Mark cache clean areas and XIP ROM read only
+		 * from SVC mode and no access from userspace.
 		 */
+		mem_types[MT_ROM].prot_sect |= PMD_SECT_APX|PMD_SECT_AP_WRITE;
 		mem_types[MT_MINICLEAN].prot_sect |= PMD_SECT_APX|PMD_SECT_AP_WRITE;
 		mem_types[MT_CACHECLEAN].prot_sect |= PMD_SECT_APX|PMD_SECT_AP_WRITE;
 	}
@@ -381,14 +431,18 @@ static void __init build_mem_type_table(void)
 	cp = &cache_policies[cachepolicy];
 
 	if (cpu_arch >= CPU_ARCH_ARMv5) {
-		mem_types[MT_VECTORS].prot_pte |= cp->pte & PTE_CACHEABLE;
+		mem_types[MT_LOW_VECTORS].prot_pte |= cp->pte & PTE_CACHEABLE;
+		mem_types[MT_HIGH_VECTORS].prot_pte |= cp->pte & PTE_CACHEABLE;
 	} else {
-		mem_types[MT_VECTORS].prot_pte |= cp->pte;
+		mem_types[MT_LOW_VECTORS].prot_pte |= cp->pte;
+		mem_types[MT_HIGH_VECTORS].prot_pte |= cp->pte;
 		mem_types[MT_MINICLEAN].prot_sect &= ~PMD_SECT_TEX(1);
 	}
 
-	mem_types[MT_VECTORS].prot_l1 |= ecc_mask;
+	mem_types[MT_LOW_VECTORS].prot_l1 |= ecc_mask;
+	mem_types[MT_HIGH_VECTORS].prot_l1 |= ecc_mask;
 	mem_types[MT_MEMORY].prot_sect |= ecc_mask | cp->pmd;
+	mem_types[MT_ROM].prot_sect |= cp->pmd;
 
 	for (i = 0; i < 16; i++) {
 		unsigned long v = pgprot_val(protection_map[i]);
@@ -413,11 +467,14 @@ static void __init build_mem_type_table(void)
 		ecc_mask ? "en" : "dis", cp->policy);
 }
 
+#define vectors_base()	(vectors_high() ? 0xffff0000 : 0)
+
 /*
  * Create the page directory entries and any necessary
  * page tables for the mapping specified by `md'.  We
  * are able to cope here with varying sizes and address
- * offsets, and we take full advantage of sections.
+ * offsets, and we take full advantage of sections and
+ * supersections.
  */
 static void __init create_mapping(struct map_desc *md)
 {
@@ -426,14 +483,14 @@ static void __init create_mapping(struct map_desc *md)
 	pgprot_t prot_pte;
 	long off;
 
-	if (md->virtual != vectors_base() && md->virtual < PAGE_OFFSET) {
+	if (md->virtual != vectors_base() && md->virtual < TASK_SIZE) {
 		printk(KERN_WARNING "BUG: not creating mapping for "
 		       "0x%08lx at 0x%08lx in user region\n",
 		       md->physical, md->virtual);
 		return;
 	}
 
-	if (md->type == MT_DEVICE &&
+	if ((md->type == MT_DEVICE || md->type == MT_ROM) &&
 	    md->virtual >= PAGE_OFFSET && md->virtual < VMALLOC_END) {
 		printk(KERN_WARNING "BUG: mapping for 0x%08lx at 0x%08lx "
 		       "overlaps vmalloc space\n",
@@ -464,6 +521,33 @@ static void __init create_mapping(struct map_desc *md)
 		length -= PAGE_SIZE;
 	}
 
+	/* N.B.	ARMv6 supersections are only defined to work with domain 0.
+	 *	Since domain assignments can in fact be arbitrary, the
+	 *	'domain == 0' check below is required to insure that ARMv6
+	 *	supersections are only allocated for domain 0 regardless
+	 *	of the actual domain assignments in use.
+	 */
+	if (cpu_architecture() >= CPU_ARCH_ARMv6 && domain == 0) {
+		/* Align to supersection boundary */
+		while ((virt & ~SUPERSECTION_MASK || (virt + off) &
+			~SUPERSECTION_MASK) && length >= (PGDIR_SIZE / 2)) {
+			alloc_init_section(virt, virt + off, prot_sect);
+
+			virt   += (PGDIR_SIZE / 2);
+			length -= (PGDIR_SIZE / 2);
+		}
+
+		while (length >= SUPERSECTION_SIZE) {
+			alloc_init_supersection(virt, virt + off, prot_sect);
+
+			virt   += SUPERSECTION_SIZE;
+			length -= SUPERSECTION_SIZE;
+		}
+	}
+
+	/*
+	 * A section mapping covers half a "pgdir" entry.
+	 */
 	while (length >= (PGDIR_SIZE / 2)) {
 		alloc_init_section(virt, virt + off, prot_sect);
 
@@ -503,10 +587,14 @@ void setup_mm_for_reboot(char mode)
 			 PMD_TYPE_SECT;
 		if (cpu_arch <= CPU_ARCH_ARMv5)
 			pmdval |= PMD_BIT4;
-		pmd = pmd_offset(pgd + i, i << PGDIR_SHIFT);
-		set_pmd(pmd, __pmd(pmdval));
+		pmd = pmd_off(pgd, i << PGDIR_SHIFT);
+		pmd[0] = __pmd(pmdval);
+		pmd[1] = __pmd(pmdval + (1 << (PGDIR_SHIFT - 1)));
+		flush_pmd_entry(pmd);
 	}
 }
+
+extern void _stext, _etext;
 
 /*
  * Setup initial mappings.  We use the page we allocated for zero page to hold
@@ -522,6 +610,14 @@ void __init memtable_init(struct meminfo *mi)
 	build_mem_type_table();
 
 	init_maps = p = alloc_bootmem_low_pages(PAGE_SIZE);
+
+#ifdef CONFIG_XIP_KERNEL
+	p->physical   = CONFIG_XIP_PHYS_ADDR & PMD_MASK;
+	p->virtual    = (unsigned long)&_stext & PMD_MASK;
+	p->length     = ((unsigned long)&_etext - p->virtual + ~PMD_MASK) & PMD_MASK;
+	p->type       = MT_ROM;
+	p ++;
+#endif
 
 	for (i = 0; i < mi->nr_banks; i++) {
 		if (mi->bank[i].size == 0)
@@ -570,18 +666,26 @@ void __init memtable_init(struct meminfo *mi)
 	} while (address != 0);
 
 	/*
-	 * Create a mapping for the machine vectors at virtual address 0
-	 * or 0xffff0000.  We should always try the high mapping.
+	 * Create a mapping for the machine vectors at the high-vectors
+	 * location (0xffff0000).  If we aren't using high-vectors, also
+	 * create a mapping at the low-vectors virtual address.
 	 */
 	init_maps->physical   = virt_to_phys(init_maps);
-	init_maps->virtual    = vectors_base();
+	init_maps->virtual    = 0xffff0000;
 	init_maps->length     = PAGE_SIZE;
-	init_maps->type       = MT_VECTORS;
-
+	init_maps->type       = MT_HIGH_VECTORS;
 	create_mapping(init_maps);
+
+	if (!vectors_high()) {
+		init_maps->virtual = 0;
+		init_maps->type = MT_LOW_VECTORS;
+		create_mapping(init_maps);
+	}
 
 	flush_cache_all();
 	flush_tlb_all();
+
+	top_pmd = pmd_off_k(0xffff0000);
 }
 
 /*
@@ -663,6 +767,6 @@ void __init create_memmap_holes(struct meminfo *mi)
 {
 	int node;
 
-	for (node = 0; node < numnodes; node++)
+	for_each_online_node(node)
 		free_unused_memmap_node(node, mi);
 }

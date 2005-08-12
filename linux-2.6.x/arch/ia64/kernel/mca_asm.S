@@ -13,6 +13,9 @@
 //		   2. Restore current thread pointer to kr6
 //		   3. Move stack ptr 16 bytes to conform to C calling convention
 //
+// 04/11/12 Russ Anderson <rja@sgi.com>
+//		   Added per cpu MCA/INIT stack save areas.
+//
 #include <linux/config.h>
 #include <linux/threads.h>
 
@@ -98,84 +101,47 @@
 	ld8	tmp=[sal_to_os_handoff];;				\
 	st8     [os_to_sal_handoff]=tmp;;
 
+#define GET_IA64_MCA_DATA(reg)						\
+	GET_THIS_PADDR(reg, ia64_mca_data)				\
+	;;								\
+	ld8 reg=[reg]
+
 	.global ia64_os_mca_dispatch
 	.global ia64_os_mca_dispatch_end
 	.global ia64_sal_to_os_handoff_state
 	.global	ia64_os_to_sal_handoff_state
-	.global	ia64_mca_proc_state_dump
-	.global	ia64_mca_stack
-	.global	ia64_mca_stackframe
-	.global	ia64_mca_bspstore
-	.global ia64_init_stack
+	.global ia64_do_tlb_purge
 
 	.text
 	.align 16
 
-ia64_os_mca_dispatch:
+/*
+ * Just the TLB purge part is moved to a separate function
+ * so we can re-use the code for cpu hotplug code as well
+ * Caller should now setup b1, so we can branch once the
+ * tlb flush is complete.
+ */
 
-	// Serialize all MCA processing
-	mov	r3=1;;
-	LOAD_PHYSICAL(p0,r2,ia64_mca_serialize);;
-ia64_os_mca_spin:
-	xchg8	r4=[r2],r3;;
-	cmp.ne	p6,p0=r4,r0
-(p6)	br ia64_os_mca_spin
+ia64_do_tlb_purge:
+#define O(member)	IA64_CPUINFO_##member##_OFFSET
 
-	// Save the SAL to OS MCA handoff state as defined
-	// by SAL SPEC 3.0
-	// NOTE : The order in which the state gets saved
-	//	  is dependent on the way the C-structure
-	//	  for ia64_mca_sal_to_os_state_t has been
-	//	  defined in include/asm/mca.h
-	SAL_TO_OS_MCA_HANDOFF_STATE_SAVE(r2)
+	GET_THIS_PADDR(r2, cpu_info)	// load phys addr of cpu_info into r2
 	;;
-
-	// LOG PROCESSOR STATE INFO FROM HERE ON..
-begin_os_mca_dump:
-	br	ia64_os_mca_proc_state_dump;;
-
-ia64_os_mca_done_dump:
-
-	LOAD_PHYSICAL(p0,r16,ia64_sal_to_os_handoff_state+56)
+	addl r17=O(PTCE_STRIDE),r2
+	addl r2=O(PTCE_BASE),r2
 	;;
-	ld8 r18=[r16]		// Get processor state parameter on existing PALE_CHECK.
+	ld8 r18=[r2],(O(PTCE_COUNT)-O(PTCE_BASE));;	// r18=ptce_base
+	ld4 r19=[r2],4					// r19=ptce_count[0]
+	ld4 r21=[r17],4					// r21=ptce_stride[0]
 	;;
-	tbit.nz p6,p7=r18,60
-(p7)	br.spnt done_tlb_purge_and_reload
-
-	// The following code purges TC and TR entries. Then reload all TC entries.
-	// Purge percpu data TC entries.
-begin_tlb_purge_and_reload:
-	mov r16=cr.lid
-	LOAD_PHYSICAL(p0,r17,ia64_mca_tlb_list) // Physical address of ia64_mca_tlb_list
-	mov r19=0
-	mov r20=NR_CPUS
-	;;
-1:	cmp.eq p6,p7=r19,r20
-(p6)	br.spnt.few err
-	ld8 r18=[r17],IA64_MCA_TLB_INFO_SIZE
-	;;
-	add r19=1,r19
-	cmp.eq p6,p7=r18,r16
-(p7)	br.sptk.few 1b
-	;;
-	adds r17=-IA64_MCA_TLB_INFO_SIZE,r17
-	;;
-	mov r23=r17		// save current ia64_mca_percpu_info addr pointer.
-	adds r17=16,r17
-	;;
-	ld8 r18=[r17],8		// r18=ptce_base
-  	;;
-	ld4 r19=[r17],4		// r19=ptce_count[0]
-	;;
-	ld4 r20=[r17],4		// r20=ptce_count[1]
-	;;
-	ld4 r21=[r17],4		// r21=ptce_stride[0]
+	ld4 r20=[r2]					// r20=ptce_count[1]
+	ld4 r22=[r17]					// r22=ptce_stride[1]
 	mov r24=0
 	;;
-	ld4 r22=[r17],4		// r22=ptce_stride[1]
 	adds r20=-1,r20
 	;;
+#undef O
+
 2:
 	cmp.ltu p6,p7=r24,r19
 (p7)	br.cond.dpnt.few 4f
@@ -215,9 +181,9 @@ begin_tlb_purge_and_reload:
 	srlz.d
 	;;
 	// 3. Purge ITR for PAL code.
-	adds r17=48,r23
+	GET_THIS_PADDR(r2, ia64_mca_pal_base)
 	;;
-	ld8 r16=[r17]
+	ld8 r16=[r2]
 	mov r18=IA64_GRANULE_SHIFT<<2
 	;;
 	ptr.i r16,r18
@@ -237,6 +203,51 @@ begin_tlb_purge_and_reload:
 	;;
 	srlz.i
 	;;
+	// Now branch away to caller.
+	br.sptk.many b1
+	;;
+
+ia64_os_mca_dispatch:
+
+	// Serialize all MCA processing
+	mov	r3=1;;
+	LOAD_PHYSICAL(p0,r2,ia64_mca_serialize);;
+ia64_os_mca_spin:
+	xchg8	r4=[r2],r3;;
+	cmp.ne	p6,p0=r4,r0
+(p6)	br ia64_os_mca_spin
+
+	// Save the SAL to OS MCA handoff state as defined
+	// by SAL SPEC 3.0
+	// NOTE : The order in which the state gets saved
+	//	  is dependent on the way the C-structure
+	//	  for ia64_mca_sal_to_os_state_t has been
+	//	  defined in include/asm/mca.h
+	SAL_TO_OS_MCA_HANDOFF_STATE_SAVE(r2)
+	;;
+
+	// LOG PROCESSOR STATE INFO FROM HERE ON..
+begin_os_mca_dump:
+	br	ia64_os_mca_proc_state_dump;;
+
+ia64_os_mca_done_dump:
+
+	LOAD_PHYSICAL(p0,r16,ia64_sal_to_os_handoff_state+56)
+	;;
+	ld8 r18=[r16]		// Get processor state parameter on existing PALE_CHECK.
+	;;
+	tbit.nz p6,p7=r18,60
+(p7)	br.spnt done_tlb_purge_and_reload
+
+	// The following code purges TC and TR entries. Then reload all TC entries.
+	// Purge percpu data TC entries.
+begin_tlb_purge_and_reload:
+	movl r18=ia64_reload_tr;;
+	LOAD_PHYSICAL(p0,r18,ia64_reload_tr);;
+	mov b1=r18;;
+	br.sptk.many ia64_do_tlb_purge;;
+
+ia64_reload_tr:
 	// Finally reload the TR registers.
 	// 1. Reload DTR/ITR registers for kernel.
 	mov r18=KERNEL_TR_PAGE_SHIFT<<2
@@ -260,14 +271,15 @@ begin_tlb_purge_and_reload:
 	srlz.d
 	;;
 	// 2. Reload DTR register for PERCPU data.
-	adds r17=8,r23
+	GET_THIS_PADDR(r2, ia64_mca_per_cpu_pte)
+	;;
 	movl r16=PERCPU_ADDR		// vaddr
 	movl r18=PERCPU_PAGE_SHIFT<<2
 	;;
 	mov cr.itir=r18
 	mov cr.ifa=r16
 	;;
-	ld8 r18=[r17]			// pte
+	ld8 r18=[r2]			// load per-CPU PTE
 	mov r16=IA64_TR_PERCPU_DATA;
 	;;
 	itr.d dtr[r16]=r18
@@ -275,11 +287,13 @@ begin_tlb_purge_and_reload:
 	srlz.d
 	;;
 	// 3. Reload ITR for PAL code.
-	adds r17=40,r23
+	GET_THIS_PADDR(r2, ia64_mca_pal_pte)
 	;;
-	ld8 r18=[r17],8			// pte
+	ld8 r18=[r2]			// load PAL PTE
 	;;
-	ld8 r16=[r17]			// vaddr
+	GET_THIS_PADDR(r2, ia64_mca_pal_base)
+	;;
+	ld8 r16=[r2]			// load PAL vaddr
 	mov r19=IA64_GRANULE_SHIFT<<2
 	;;
 	mov cr.itir=r19
@@ -318,17 +332,18 @@ err:
 done_tlb_purge_and_reload:
 
 	// Setup new stack frame for OS_MCA handling
-	movl	r2=ia64_mca_bspstore;;	// local bspstore area location in r2
-	DATA_VA_TO_PA(r2);;
-	movl	r3=ia64_mca_stackframe;; // save stack frame to memory in r3
-	DATA_VA_TO_PA(r3);;
+	GET_IA64_MCA_DATA(r2)
+	;;
+	add r3 = IA64_MCA_CPU_STACKFRAME_OFFSET, r2
+	add r2 = IA64_MCA_CPU_RBSTORE_OFFSET, r2
+	;;
 	rse_switch_context(r6,r3,r2);;	// RSC management in this new context
-	movl	r12=ia64_mca_stack
-	mov	r2=8*1024;;		// stack size must be same as C array
-	add	r12=r2,r12;;		// stack base @ bottom of array
-	adds	r12=-16,r12;;		// allow 16 bytes of scratch
-					// (C calling convention)
-	DATA_VA_TO_PA(r12);;
+
+	GET_IA64_MCA_DATA(r2)
+	;;
+	add r2 = IA64_MCA_CPU_STACK_OFFSET+IA64_MCA_STACK_SIZE-16, r2
+	;;
+	mov r12=r2		// establish new stack-pointer
 
         // Enter virtual mode from physical mode
 	VIRTUAL_MODE_ENTER(r2, r3, ia64_os_mca_virtual_begin, r4)
@@ -344,9 +359,10 @@ ia64_os_mca_virtual_begin:
 ia64_os_mca_virtual_end:
 
 	// restore the original stack frame here
-	movl    r2=ia64_mca_stackframe	// restore stack frame from memory at r2
+	GET_IA64_MCA_DATA(r2)
 	;;
-	DATA_VA_TO_PA(r2)
+	add r2 = IA64_MCA_CPU_STACKFRAME_OFFSET, r2
+	;;
 	movl    r4=IA64_PSR_MC
 	;;
 	rse_return_context(r4,r3,r2)	// switch from interrupt context for RSE
@@ -387,8 +403,10 @@ ia64_os_mca_dispatch_end:
 ia64_os_mca_proc_state_dump:
 // Save bank 1 GRs 16-31 which will be used by c-language code when we switch
 //  to virtual addressing mode.
-	LOAD_PHYSICAL(p0,r2,ia64_mca_proc_state_dump)// convert OS state dump area to physical address
-
+	GET_IA64_MCA_DATA(r2)
+	;;
+	add r2 = IA64_MCA_CPU_PROC_STATE_DUMP_OFFSET, r2
+	;;
 // save ar.NaT
 	mov		r5=ar.unat                  // ar.unat
 
@@ -618,9 +636,9 @@ end_os_mca_dump:
 ia64_os_mca_proc_state_restore:
 
 // Restore bank1 GR16-31
-	movl		r2=ia64_mca_proc_state_dump	// Convert virtual address
-	;;						// of OS state dump area
-	DATA_VA_TO_PA(r2)				// to physical address
+	GET_IA64_MCA_DATA(r2)
+	;;
+	add r2 = IA64_MCA_CPU_PROC_STATE_DUMP_OFFSET, r2
 
 restore_GRs:                                    // restore bank-1 GRs 16-31
 	bsw.1;;
@@ -868,7 +886,7 @@ end_os_mca_restore:
 
 
 GLOBAL_ENTRY(ia64_monarch_init_handler)
-
+	.prologue
 	// stash the information the SAL passed to os
 	SAL_TO_OS_MCA_HANDOFF_STATE_SAVE(r2)
 	;;
@@ -907,6 +925,7 @@ IVirtual_Switch:
 	adds out0=16,sp				// out0 = pointer to pt_regs
 	;;
 	DO_SAVE_SWITCH_STACK
+	.body
 	adds out1=16,sp				// out0 = pointer to switch_stack
 
 	br.call.sptk.many rp=ia64_init_handler

@@ -4,15 +4,13 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/slab.h>
-#include <asm/acpi.h>
+#include <linux/acpi.h>
 #include <asm/io.h>
 #include <linux/pm.h>
 #include <asm/system.h>
 #include <linux/dmi.h>
 #include <linux/bootmem.h>
 
-
-int es7000_plat = 0;
 
 struct dmi_header
 {
@@ -102,11 +100,18 @@ inline static int __init dmi_checksum(u8 *buf)
 static int __init dmi_iterate(void (*decode)(struct dmi_header *))
 {
 	u8 buf[15];
-	u32 fp=0xF0000;
+	char __iomem *p, *q;
 
-	while (fp < 0xFFFFF)
-	{
-		isa_memcpy_fromio(buf, fp, 15);
+	/*
+	 * no iounmap() for that ioremap(); it would be a no-op, but it's
+	 * so early in setup that sucker gets confused into doing what
+	 * it shouldn't if we actually call it.
+	 */
+	p = ioremap(0xF0000, 0x10000);
+	if (p == NULL)
+		return -1;
+	for (q = p; q < p + 0x10000; q += 16) {
+		memcpy_fromio(buf, q, 15);
 		if(memcmp(buf, "_DMI_", 5)==0 && dmi_checksum(buf))
 		{
 			u16 num=buf[13]<<8|buf[12];
@@ -129,7 +134,6 @@ static int __init dmi_iterate(void (*decode)(struct dmi_header *))
 			if(dmi_table(base,len, num, decode)==0)
 				return 0;
 		}
-		fp+=16;
 	}
 	return -1;
 }
@@ -161,27 +165,6 @@ static void __init dmi_save_ident(struct dmi_header *dm, int slot, int string)
 #define dmi_blacklist	dmi_system_id
 #define NO_MATCH	{ DMI_NONE, NULL}
 #define MATCH		DMI_MATCH
-
-/*
- * Some machines, usually laptops, can't handle an enabled local APIC.
- * The symptoms include hangs or reboots when suspending or resuming,
- * attaching or detaching the power cord, or entering BIOS setup screens
- * through magic key sequences.
- */
-static int __init local_apic_kills_bios(struct dmi_blacklist *d)
-{
-#ifdef CONFIG_X86_LOCAL_APIC
-	extern int enable_local_apic;
-	if (enable_local_apic == 0) {
-		enable_local_apic = -1;
-		printk(KERN_WARNING "%s with broken BIOS detected. "
-		       "Refusing to enable the local APIC.\n",
-		       d->ident);
-	}
-#endif
-	return 0;
-}
-
 
 /*
  * Toshiba keyboard likes to repeat keys when they are not repeated.
@@ -235,20 +218,6 @@ static __init __attribute__((unused)) int force_acpi_ht(struct dmi_blacklist *d)
 	}
 	return 0;
 } 
-
-/*
- * early nForce2 reference BIOS shipped with a
- * bogus ACPI IRQ0 -> pin2 interrupt override -- ignore it
- */
-static __init int ignore_timer_override(struct dmi_blacklist *d)
-{
-	extern int acpi_skip_timer_override;
-	printk(KERN_NOTICE "%s detected: BIOS IRQ0 pin2 override"
-		" will be ignored\n", d->ident); 	
-
-	acpi_skip_timer_override = 1;
-	return 0;
-}
 #endif
 
 #ifdef	CONFIG_ACPI_PCI
@@ -283,32 +252,6 @@ static __init int disable_acpi_pci(struct dmi_blacklist *d)
  */
  
 static __initdata struct dmi_blacklist dmi_blacklist[]={
-
-	/* Machines which have problems handling enabled local APICs */
-
-	{ local_apic_kills_bios, "Dell Inspiron", {
-			MATCH(DMI_SYS_VENDOR, "Dell Computer Corporation"),
-			MATCH(DMI_PRODUCT_NAME, "Inspiron"),
-			NO_MATCH, NO_MATCH
-			} },
-
-	{ local_apic_kills_bios, "Dell Latitude", {
-			MATCH(DMI_SYS_VENDOR, "Dell Computer Corporation"),
-			MATCH(DMI_PRODUCT_NAME, "Latitude"),
-			NO_MATCH, NO_MATCH
-			} },
-
-	{ local_apic_kills_bios, "IBM Thinkpad T20", {
-			MATCH(DMI_BOARD_VENDOR, "IBM"),
-			MATCH(DMI_BOARD_NAME, "264741U"),
-			NO_MATCH, NO_MATCH
-			} },
-
-	{ local_apic_kills_bios, "ASUS L3C", {
-			MATCH(DMI_BOARD_VENDOR, "ASUSTeK Computer INC."),
-			MATCH(DMI_BOARD_NAME, "P4_L3C"),
-			NO_MATCH, NO_MATCH
-			} },
 
 	{ broken_toshiba_keyboard, "Toshiba Satellite 4030cdt", { /* Keyboard generates spurious repeats */
 			MATCH(DMI_PRODUCT_NAME, "S4030CDT/4.3"),
@@ -353,21 +296,6 @@ static __initdata struct dmi_blacklist dmi_blacklist[]={
 	{ force_acpi_ht, "HP VISUALIZE NT Workstation", {
 			MATCH(DMI_BOARD_VENDOR, "Hewlett-Packard"),
 			MATCH(DMI_PRODUCT_NAME, "HP VISUALIZE NT Workstation"),
-			NO_MATCH, NO_MATCH }},
-
-	{ force_acpi_ht, "Compaq ProLiant DL380 G2", {
-			MATCH(DMI_SYS_VENDOR, "Compaq"),
-			MATCH(DMI_PRODUCT_NAME, "ProLiant DL380 G2"),
-			NO_MATCH, NO_MATCH }},
-
-	{ force_acpi_ht, "Compaq ProLiant ML530 G2", {
-			MATCH(DMI_SYS_VENDOR, "Compaq"),
-			MATCH(DMI_PRODUCT_NAME, "ProLiant ML530 G2"),
-			NO_MATCH, NO_MATCH }},
-
-	{ force_acpi_ht, "Compaq ProLiant ML350 G3", {
-			MATCH(DMI_SYS_VENDOR, "Compaq"),
-			MATCH(DMI_PRODUCT_NAME, "ProLiant ML350 G3"),
 			NO_MATCH, NO_MATCH }},
 
 	{ force_acpi_ht, "Compaq Workstation W8000", {
@@ -415,48 +343,6 @@ static __initdata struct dmi_blacklist dmi_blacklist[]={
 			MATCH(DMI_PRODUCT_NAME, "eserver xSeries 440"),
 			NO_MATCH, NO_MATCH }},
 
-	/*
-	 * Systems with nForce2 BIOS timer override bug
-	 * nVidia claims all nForce have timer on pin0,
-	 * and applying this workaround is a NOP on fixed BIOS,
-	 * so prospects are good for replacing these entries
-	 * with something to key of chipset PCI-ID.
-	 */
-	{ ignore_timer_override, "Abit NF7-S v2", {
-			MATCH(DMI_BOARD_VENDOR, "http://www.abit.com.tw/"),
-			MATCH(DMI_BOARD_NAME, "NF7-S/NF7,NF7-V (nVidia-nForce2)"),
-			MATCH(DMI_BIOS_VERSION, "6.00 PG"),
-			MATCH(DMI_BIOS_DATE, "03/24/2004") }},
-
-	{ ignore_timer_override, "Asus A7N8X v2", {
-			MATCH(DMI_BOARD_VENDOR, "ASUSTeK Computer INC."),
-			MATCH(DMI_BOARD_NAME, "A7N8X2.0"),
-			MATCH(DMI_BIOS_VERSION, "ASUS A7N8X2.0 Deluxe ACPI BIOS Rev 1007"),
-			MATCH(DMI_BIOS_DATE, "10/06/2003") }},
-
-	{ ignore_timer_override, "Asus A7N8X-X", {
-			MATCH(DMI_BOARD_VENDOR, "ASUSTeK Computer INC."),
-			MATCH(DMI_BOARD_NAME, "A7N8X-X"),
-			MATCH(DMI_BIOS_VERSION, "ASUS A7N8X-X ACPI BIOS Rev 1009"),
-			MATCH(DMI_BIOS_DATE, "2/3/2004") }},
-
-	{ ignore_timer_override, "MSI K7N2-Delta", {
-			MATCH(DMI_BOARD_VENDOR, "MICRO-STAR INTERNATIONAL CO., LTD"),
-			MATCH(DMI_BOARD_NAME, "MS-6570"),
-			MATCH(DMI_BIOS_VERSION, "6.00 PG"),
-			MATCH(DMI_BIOS_DATE, "03/29/2004") }},
-
-	{ ignore_timer_override, "Shuttle SN41G2", {
-			MATCH(DMI_BOARD_VENDOR, "Shuttle Inc"),
-			MATCH(DMI_BOARD_NAME, "FN41"),
-			MATCH(DMI_BIOS_VERSION, "6.00 PG"),
-			MATCH(DMI_BIOS_DATE, "01/14/2004") }},
-
-	{ ignore_timer_override, "Shuttle AN35N", {
-			MATCH(DMI_BOARD_VENDOR, "Shuttle Inc"),
-			MATCH(DMI_BOARD_NAME, "AN35"),
-			MATCH(DMI_BIOS_VERSION, "6.00 PG"),
-			MATCH(DMI_BIOS_DATE, "12/05/2003") }},
 #endif	// CONFIG_ACPI_BOOT
 
 #ifdef	CONFIG_ACPI_PCI
@@ -490,41 +376,6 @@ static __initdata struct dmi_blacklist dmi_blacklist[]={
 
 	{ NULL, }
 };
-	
-	
-/*
- *	Walk the blacklist table running matching functions until someone 
- *	returns 1 or we hit the end.
- */
- 
-
-static __init void dmi_check_blacklist(void)
-{
-#ifdef	CONFIG_ACPI_BOOT
-#define	ACPI_BLACKLIST_CUTOFF_YEAR	2001
-
-	if (dmi_ident[DMI_BIOS_DATE]) { 
-		char *s = strrchr(dmi_ident[DMI_BIOS_DATE], '/'); 
-		if (s) { 
-			int year, disable = 0;
-			s++; 
-			year = simple_strtoul(s,NULL,0); 
-			if (year >= 1000) 
-				disable = year < ACPI_BLACKLIST_CUTOFF_YEAR; 
-			else if (year < 1 || (year > 90 && year <= 99))
-				disable = 1; 
-			if (disable && !acpi_force) { 
-				printk(KERN_NOTICE "ACPI disabled because your bios is from %s and too old\n", s);
-				printk(KERN_NOTICE "You can enable it with acpi=force\n");
-				disable_acpi();
-			} 
-		}
-	}
-#endif
- 	dmi_check_system(dmi_blacklist);
-}
-
-	
 
 /*
  *	Process a DMI table entry. Right now all we care about are the BIOS
@@ -582,7 +433,7 @@ void __init dmi_scan_machine(void)
 {
 	int err = dmi_iterate(dmi_decode);
 	if(err == 0)
-		dmi_check_blacklist();
+ 		dmi_check_system(dmi_blacklist);
 	else
 		printk(KERN_INFO "DMI not present.\n");
 }
@@ -634,4 +485,3 @@ char * dmi_get_system_info(int field)
 	return dmi_ident[field];
 }
 
-EXPORT_SYMBOL(dmi_get_system_info);

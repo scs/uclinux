@@ -11,17 +11,17 @@
 #include <linux/tty.h>
 #include <linux/init.h>
 #include <linux/device.h>
+#include <linux/interrupt.h>
 
 #include <asm/hardware.h>
 #include <asm/setup.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
-#include <asm/hardware.h>	/* io_p2v() */
 #include <asm/irq.h>
 #include <asm/mach/irq.h>
 #include <asm/mach/map.h>
 
-#include <linux/interrupt.h>
+#include "common.h"
 
 static struct resource smc91x_resources[] = {
 	[0] = {
@@ -45,7 +45,6 @@ static struct platform_device smc91x_device = {
 	.resource	= smc91x_resources,
 };
 
-#if 0
 static struct resource lh7a40x_usbclient_resources[] = {
 	[0] = {
 		.start	= USB_PHYS,
@@ -53,8 +52,8 @@ static struct resource lh7a40x_usbclient_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start	= IRQ_USB,
-		.end	= IRQ_USB,
+		.start	= IRQ_USBINTR,
+		.end	= IRQ_USBINTR,
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -62,7 +61,7 @@ static struct resource lh7a40x_usbclient_resources[] = {
 static u64 lh7a40x_usbclient_dma_mask = 0xffffffffUL;
 
 static struct platform_device lh7a40x_usbclient_device = {
-	.name		= "lh7a40x-udc",
+	.name		= "lh7a40x_udc",
 	.id		= 0,
 	.dev		= {
 		.dma_mask = &lh7a40x_usbclient_dma_mask,
@@ -71,7 +70,6 @@ static struct platform_device lh7a40x_usbclient_device = {
 	.num_resources	= ARRAY_SIZE (lh7a40x_usbclient_resources),
 	.resource	= lh7a40x_usbclient_resources,
 };
-#endif
 
 #if defined (CONFIG_ARCH_LH7A404)
 
@@ -105,8 +103,7 @@ static struct platform_device lh7a404_usbhost_device = {
 
 static struct platform_device *lpd7a40x_devs[] __initdata = {
 	&smc91x_device,
-/*	&lh7a40x_usbclient_device, */
-
+	&lh7a40x_usbclient_device,
 #if defined (CONFIG_ARCH_LH7A404)
 	&lh7a404_usbhost_device,
 #endif
@@ -159,8 +156,6 @@ static struct irqchip lpd7a40x_cpld_chip = {
 	.mask	= lh7a40x_mask_cpld_irq,
 	.unmask	= lh7a40x_unmask_cpld_irq,
 };
-
-#define IRQ_DISPATCH(irq) irq_desc[irq].handle ((irq), &irq_desc[irq], regs)
 
 static void lpd7a40x_cpld_handler (unsigned int irq, struct irqdesc *desc,
 				  struct pt_regs *regs)
@@ -264,16 +259,13 @@ lpd7a400_map_io(void)
 
 #ifdef CONFIG_MACH_LPD7A400
 
-extern void lh7a400_init_irq (void);
-extern void lh7a40x_init_time (void);
-
 MACHINE_START (LPD7A400, "Logic Product Development LPD7A400-10")
 	MAINTAINER ("Marc Singer")
 	BOOT_MEM (0xc0000000, 0x80000000, io_p2v (0x80000000))
 	BOOT_PARAMS (0xc0000100)
 	MAPIO (lpd7a400_map_io)
 	INITIRQ (lh7a400_init_irq)
-	INITTIME (lh7a40x_init_time)
+	.timer		= &lh7a40x_timer,
 	INIT_MACHINE (lpd7a40x_init)
 MACHINE_END
 
@@ -281,16 +273,13 @@ MACHINE_END
 
 #ifdef CONFIG_MACH_LPD7A404
 
-extern void lh7a404_init_irq (void);
-extern void lh7a40x_init_time (void);
-
 MACHINE_START (LPD7A404, "Logic Product Development LPD7A404-10")
 	MAINTAINER ("Marc Singer")
 	BOOT_MEM (0xc0000000, 0x80000000, io_p2v (0x80000000))
 	BOOT_PARAMS (0xc0000100)
 	MAPIO (lpd7a400_map_io)
 	INITIRQ (lh7a404_init_irq)
-	INITTIME (lh7a40x_init_time)
+	.timer		= &lh7a40x_timer,
 	INIT_MACHINE (lpd7a40x_init)
 MACHINE_END
 

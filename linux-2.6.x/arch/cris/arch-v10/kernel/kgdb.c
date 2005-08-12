@@ -18,8 +18,11 @@
 *! Jul 21 1999  Bjorn Wesen     eLinux port
 *!
 *! $Log$
-*! Revision 1.4  2004/09/08 14:52:21  lgsoft
-*! Import of 2.6.8
+*! Revision 1.5  2005/08/12 03:32:53  magicyang
+*!   Update kernel 2.6.8 to 2.6.12
+*!
+*! Revision 1.5  2004/10/07 13:59:08  starvik
+*! Corrected call to set_int_vector
 *!
 *! Revision 1.4  2003/04/09 05:20:44  starvik
 *! Merge of Linux 2.5.67
@@ -1560,7 +1563,7 @@ kgdb_init(void)
 	/* could initialize debug port as well but it's done in head.S already... */
 
         /* breakpoint handler is now set in irq.c */
-	set_int_vector(8, kgdb_handle_serial, 0);
+	set_int_vector(8, kgdb_handle_serial);
 	
 	enableDebugIRQ();
 }

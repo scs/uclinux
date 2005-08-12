@@ -57,7 +57,7 @@ pcibios_update_resource(struct pci_dev *dev, struct resource *root,
 	if (resource < 6) {
 		reg = PCI_BASE_ADDRESS_0 + 4*resource;
 	} else if (resource == PCI_ROM_RESOURCE) {
-		res->flags |= PCI_ROM_ADDRESS_ENABLE;
+		res->flags |= IORESOURCE_ROM_ENABLE;
 		new |= PCI_ROM_ADDRESS_ENABLE;
 		reg = dev->rom_base_reg;
 	} else {
@@ -106,6 +106,8 @@ int pcibios_enable_device(struct pci_dev *dev, int mask)
 	pci_read_config_word(dev, PCI_COMMAND, &cmd);
 	old_cmd = cmd;
 	for(idx=0; idx<6; idx++) {
+		if (!(mask & (1 << idx)))
+			continue;
 		r = &dev->resource[idx];
 		if (!r->start && r->end) {
 			printk(KERN_ERR "PCI: Device %s not available because "

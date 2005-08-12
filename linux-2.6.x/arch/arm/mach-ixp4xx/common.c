@@ -38,6 +38,10 @@
 #include <asm/mach/irq.h>
 #include <asm/mach/time.h>
 
+enum ixp4xx_irq_type {
+	IXP4XX_IRQ_LEVEL, IXP4XX_IRQ_EDGE
+};
+static void ixp4xx_config_irq(unsigned irq, enum ixp4xx_irq_type type);
 
 /*************************************************************************
  * GPIO acces functions
@@ -51,9 +55,13 @@
  */
 void gpio_line_config(u8 line, u32 style)
 {
+	static const int gpio2irq[] = {
+		6, 7, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29
+	};
 	u32 enable;
 	volatile u32 *int_reg;
 	u32 int_style;
+	enum ixp4xx_irq_type irq_type;
 
 	enable = *IXP4XX_GPIO_GPOER;
 
@@ -66,23 +74,32 @@ void gpio_line_config(u8 line, u32 style)
 		{
 		case (IXP4XX_GPIO_ACTIVE_HIGH):
 			int_style = IXP4XX_GPIO_STYLE_ACTIVE_HIGH;
+			irq_type = IXP4XX_IRQ_LEVEL;
 			break;
 		case (IXP4XX_GPIO_ACTIVE_LOW):
 			int_style = IXP4XX_GPIO_STYLE_ACTIVE_LOW;
+			irq_type = IXP4XX_IRQ_LEVEL;
 			break;
 		case (IXP4XX_GPIO_RISING_EDGE):
 			int_style = IXP4XX_GPIO_STYLE_RISING_EDGE;
+			irq_type = IXP4XX_IRQ_EDGE;
 			break;
 		case (IXP4XX_GPIO_FALLING_EDGE):
 			int_style = IXP4XX_GPIO_STYLE_FALLING_EDGE;
+			irq_type = IXP4XX_IRQ_EDGE;
 			break;
 		case (IXP4XX_GPIO_TRANSITIONAL):
 			int_style = IXP4XX_GPIO_STYLE_TRANSITIONAL;
+			irq_type = IXP4XX_IRQ_EDGE;
 			break;
 		default:
 			int_style = IXP4XX_GPIO_STYLE_ACTIVE_HIGH;
+			irq_type = IXP4XX_IRQ_LEVEL;
 			break;
 		}
+
+		if (style & IXP4XX_GPIO_INTSTYLE_MASK)
+			ixp4xx_config_irq(gpio2irq[line], irq_type);
 
 		if (line >= 8) {	/* pins 8-15 */ 
 			line -= 8;
@@ -138,47 +155,74 @@ void __init ixp4xx_map_io(void)
  *
  * TODO: GPIO IRQs should be marked invalid until the user of the IRQ
  *       (be it PCI or something else) configures that GPIO line
- *       as an IRQ. Also, we should use a different chip structure for 
- *       level-based GPIO vs edge-based GPIO. Currently nobody needs this as 
- *       all HW that's publically available uses level IRQs, so we'll
- *       worry about it if/when we have HW to test.
+ *       as an IRQ.
  **************************************************************************/
 static void ixp4xx_irq_mask(unsigned int irq)
 {
-	*IXP4XX_ICMR &= ~(1 << irq);
-}
-
-static void ixp4xx_irq_mask_ack(unsigned int irq)
-{
-	ixp4xx_irq_mask(irq);
+	if (cpu_is_ixp46x() && irq >= 32)
+		*IXP4XX_ICMR2 &= ~(1 << (irq - 32));
+	else
+		*IXP4XX_ICMR &= ~(1 << irq);
 }
 
 static void ixp4xx_irq_unmask(unsigned int irq)
 {
-	static int irq2gpio[NR_IRQS] = {
+	if (cpu_is_ixp46x() && irq >= 32)
+		*IXP4XX_ICMR2 |= (1 << (irq - 32));
+	else
+		*IXP4XX_ICMR |= (1 << irq);
+}
+
+static void ixp4xx_irq_ack(unsigned int irq)
+{
+	static int irq2gpio[32] = {
 		-1, -1, -1, -1, -1, -1,  0,  1,
 		-1, -1, -1, -1, -1, -1, -1, -1,
 		-1, -1, -1,  2,  3,  4,  5,  6,
 		 7,  8,  9, 10, 11, 12, -1, -1,
 	};
-	int line = irq2gpio[irq];
+	int line = (irq < 32) ? irq2gpio[irq] : -1;
 
-	/*
-	 * This only works for LEVEL gpio IRQs as per the IXP4xx developer's
-	 * manual. If edge-triggered, need to move it to the mask_ack.
-	 * Nobody seems to be using the edge-triggered mode on the GPIOs. 
-	 */
 	if (line >= 0)
 		gpio_line_isr_clear(line);
-
-	*IXP4XX_ICMR |= (1 << irq);
 }
 
-static struct irqchip ixp4xx_irq_chip = {
-	.ack	= ixp4xx_irq_mask_ack,
+/*
+ * Level triggered interrupts on GPIO lines can only be cleared when the
+ * interrupt condition disappears.
+ */
+static void ixp4xx_irq_level_unmask(unsigned int irq)
+{
+	ixp4xx_irq_ack(irq);
+	ixp4xx_irq_unmask(irq);
+}
+
+static struct irqchip ixp4xx_irq_level_chip = {
+	.ack	= ixp4xx_irq_mask,
+	.mask	= ixp4xx_irq_mask,
+	.unmask	= ixp4xx_irq_level_unmask,
+};
+
+static struct irqchip ixp4xx_irq_edge_chip = {
+	.ack	= ixp4xx_irq_ack,
 	.mask	= ixp4xx_irq_mask,
 	.unmask	= ixp4xx_irq_unmask,
 };
+
+static void ixp4xx_config_irq(unsigned irq, enum ixp4xx_irq_type type)
+{
+	switch (type) {
+	case IXP4XX_IRQ_LEVEL:
+		set_irq_chip(irq, &ixp4xx_irq_level_chip);
+		set_irq_handler(irq, do_level_IRQ);
+		break;
+	case IXP4XX_IRQ_EDGE:
+		set_irq_chip(irq, &ixp4xx_irq_edge_chip);
+		set_irq_handler(irq, do_edge_IRQ);
+		break;
+	}
+	set_irq_flags(irq, IRQF_VALID);
+}
 
 void __init ixp4xx_init_irq(void)
 {
@@ -190,12 +234,17 @@ void __init ixp4xx_init_irq(void)
 	/* Disable all interrupt */
 	*IXP4XX_ICMR = 0x0; 
 
-	for(i = 0; i < NR_IRQS; i++)
-	{
-		set_irq_chip(i, &ixp4xx_irq_chip);
-		set_irq_handler(i, do_level_IRQ);
-		set_irq_flags(i, IRQF_VALID);
+	if (cpu_is_ixp46x()) {
+		/* Route upper 32 sources to IRQ instead of FIQ */
+		*IXP4XX_ICLR2 = 0x00;
+
+		/* Disable upper 32 interrupts */
+		*IXP4XX_ICMR2 = 0x00;
 	}
+
+        /* Default to all level triggered */
+	for(i = 0; i < NR_IRQS; i++)
+		ixp4xx_config_irq(i, IXP4XX_IRQ_LEVEL);
 }
 
 
@@ -207,7 +256,7 @@ void __init ixp4xx_init_irq(void)
 
 static unsigned volatile last_jiffy_time;
 
-#define CLOCK_TICKS_PER_USEC	(CLOCK_TICK_RATE / USEC_PER_SEC)
+#define CLOCK_TICKS_PER_USEC	((CLOCK_TICK_RATE + USEC_PER_SEC/2) / USEC_PER_SEC)
 
 /* IRQs are disabled before entering here from do_gettimeofday() */
 static unsigned long ixp4xx_gettimeoffset(void)
@@ -221,16 +270,20 @@ static unsigned long ixp4xx_gettimeoffset(void)
 
 static irqreturn_t ixp4xx_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 {
+	write_seqlock(&xtime_lock);
+
 	/* Clear Pending Interrupt by writing '1' to it */
 	*IXP4XX_OSST = IXP4XX_OSST_TIMER_1_PEND;
 
 	/*
 	 * Catch up with the real idea of time
 	 */
-	do {	
+	while ((*IXP4XX_OSTS - last_jiffy_time) > LATCH) {
 		timer_tick(regs);
 		last_jiffy_time += LATCH;
-	} while((*IXP4XX_OSTS - last_jiffy_time) > LATCH);
+	}
+
+	write_sequnlock(&xtime_lock);
 
 	return IRQ_HANDLED;
 }
@@ -241,10 +294,8 @@ static struct irqaction ixp4xx_timer_irq = {
 	.handler	= ixp4xx_timer_interrupt
 };
 
-void __init ixp4xx_init_time(void)
+static void __init ixp4xx_timer_init(void)
 {
-	gettimeoffset = ixp4xx_gettimeoffset;
-
 	/* Clear Pending Interrupt by writing '1' to it */
 	*IXP4XX_OSST = IXP4XX_OSST_TIMER_1_PEND;
 
@@ -259,4 +310,44 @@ void __init ixp4xx_init_time(void)
 	setup_irq(IRQ_IXP4XX_TIMER1, &ixp4xx_timer_irq);
 }
 
+struct sys_timer ixp4xx_timer = {
+	.init		= ixp4xx_timer_init,
+	.offset		= ixp4xx_gettimeoffset,
+};
+
+static struct resource ixp46x_i2c_resources[] = {
+	[0] = {
+		.start 	= 0xc8011000,
+		.end	= 0xc801101c,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start 	= IRQ_IXP4XX_I2C,
+		.end	= IRQ_IXP4XX_I2C,
+		.flags	= IORESOURCE_IRQ
+	}
+};
+
+/*
+ * I2C controller. The IXP46x uses the same block as the IOP3xx, so
+ * we just use the same device name.
+ */
+static struct platform_device ixp46x_i2c_controller = {
+	.name		= "IOP3xx-I2C",
+	.id		= 0,
+	.num_resources	= 2,
+	.resource	= ixp46x_i2c_resources
+};
+
+static struct platform_device *ixp46x_devices[] __initdata = {
+	&ixp46x_i2c_controller
+};
+
+void __init ixp4xx_sys_init(void)
+{
+	if (cpu_is_ixp46x()) {
+		platform_add_devices(ixp46x_devices,
+				ARRAY_SIZE(ixp46x_devices));
+	}
+}
 

@@ -4,6 +4,7 @@
  *  Copyright (C) 2002 MontaVista Software Inc.
  *    Author: Yoichi Yuasa <yyuasa@mvista.com or source@mvista.com>
  *  Copyright (C) 2003-2004  Yoichi Yuasa <yuasa@hh.iij4u.or.jp>
+ *  Copyright (C) 2005 Ralf Baechle (ralf@linux-mips.org)
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -28,7 +29,6 @@
  *  - Added support for NEC VR4133.
  *  - Removed board_irq_init.
  */
-#include <linux/config.h>
 #include <linux/errno.h>
 #include <linux/init.h>
 #include <linux/irq.h>
@@ -62,6 +62,12 @@
 #define GIUREDGEINHH	0x26
 
 static uint32_t giu_base;
+
+static struct irqaction giu_cascade = {
+	.handler	= no_action,
+	.mask		= CPU_MASK_NONE,
+	.name		= "cascade",
+};
 
 #define read_giuint(offset)		readw(giu_base + (offset))
 #define write_giuint(val, offset)	writew((val), giu_base + (offset))
@@ -303,7 +309,6 @@ struct vr41xx_giuint_cascade {
 };
 
 static struct vr41xx_giuint_cascade giuint_cascade[GIUINT_NR_IRQS];
-static struct irqaction giu_cascade = {no_action, 0, CPU_MASK_NONE, "cascade", NULL, NULL};
 
 static int no_irq_number(int irq)
 {

@@ -11,10 +11,18 @@ config MMU
 config UID16
 	bool
 
+config GENERIC_HARDIRQS
+	bool
+	default y
+
 config RWSEM_GENERIC_SPINLOCK
 	bool
 
 config RWSEM_XCHGADD_ALGORITHM
+	bool
+	default y
+
+config GENERIC_CALIBRATE_DELAY
 	bool
 	default y
 
@@ -35,6 +43,10 @@ config GENERIC_NVRAM
 	bool
 	default y
 
+config SCHED_NO_NO_OMIT_FRAME_POINTER
+	bool
+	default y
+
 source "init/Kconfig"
 
 menu "Processor"
@@ -44,17 +56,18 @@ choice
 	default 6xx
 
 config 6xx
-	bool "6xx/7xx/74xx/52xx/8260"
+	bool "6xx/7xx/74xx/52xx/82xx/83xx"
+	select PPC_FPU
 	help
 	  There are four types of PowerPC chips supported.  The more common
 	  types (601, 603, 604, 740, 750, 7400), the Motorola embedded
-	  versions (821, 823, 850, 855, 860, 52xx, 8260), the IBM embedded
-	  versions (403 and 405) and the high end 64 bit Power processors 
+	  versions (821, 823, 850, 855, 860, 52xx, 82xx, 83xx), the IBM embedded
+	  versions (403 and 405) and the high end 64 bit Power processors
 	  (POWER 3, POWER4, and IBM 970 also known as G5)
 	  Unless you are building a kernel for one of the embedded processor
 	  systems, 64 bit IBM RS/6000 or an Apple G5, choose 6xx.
 	  Note that the kernel runs in 32-bit mode even on 64-bit chips.
-	  Also note that because the 52xx & 82xx family has a 603e core,
+	  Also note that because the 52xx, 82xx, & 83xx family has a 603e core,
 	  specific support for that chipset is asked later on.
 
 config 40x
@@ -64,18 +77,24 @@ config 44x
 	bool "44x"
 
 config POWER3
+	select PPC_FPU
 	bool "POWER3"
 
 config POWER4
+	select PPC_FPU
 	bool "POWER4 and 970 (G5)"
 
 config 8xx
+	depends on BROKEN
 	bool "8xx"
 
 config E500
 	bool "e500"
 
 endchoice
+
+config PPC_FPU
+	bool
 
 config BOOKE
 	bool
@@ -89,13 +108,24 @@ config FSL_BOOKE
 
 config PTE_64BIT
 	bool
-	depends on 44x
-	default y
+	depends on 44x || E500
+	default y if 44x
+	default y if E500 && PHYS_64BIT
+
+config PHYS_64BIT
+	bool 'Large physical address support' if E500
+	depends on 44x || E500
+	default y if 44x
+	---help---
+	  This option enables kernel support for larger than 32-bit physical
+	  addresses.  This features is not be available on all e500 cores.
+
+	  If in doubt, say N here.
 
 config ALTIVEC
 	bool "AltiVec Support"
 	depends on 6xx || POWER4
-	depends on !8260
+	depends on !8260 && !83xx
 	---help---
 	  This option enables kernel support for the Altivec extensions to the
 	  PowerPC processor. The kernel currently supports saving and restoring
@@ -126,7 +156,7 @@ config SPE
 
 config TAU
 	bool "Thermal Management Support"
-	depends on 6xx && !8260
+	depends on 6xx && !8260 && !83xx
 	help
 	  G3 and G4 processors have an on-chip temperature sensor called the
 	  'Thermal Assist Unit (TAU)', which, in theory, can measure the on-die
@@ -184,32 +214,16 @@ config MATH_EMULATION
 	  here.  Saying Y here will not hurt performance (on any machine) but
 	  will increase the size of the kernel.
 
-config CPU_FREQ
-	bool "CPU Frequency scaling"
-	help
-	  Clock scaling allows you to change the clock speed of CPUs on the
-	  fly. This is a nice method to save battery power on notebooks,
-	  because the lower the clock speed, the less power the CPU consumes.
-
-	  For more information, take a look at <file:Documentation/cpu-freq> or
-	  at <http://www.brodo.de/cpufreq/>
-
-	  If in doubt, say N.
-
 source "drivers/cpufreq/Kconfig"
 
 config CPU_FREQ_PMAC
 	bool "Support for Apple PowerBooks"
 	depends on CPU_FREQ && ADB_PMU
+	select CPU_FREQ_TABLE
 	help
 	  This adds support for frequency switching on Apple PowerBooks,
 	  this currently includes some models of iBook & Titanium
 	  PowerBook.
-
-config CPU_FREQ_TABLE
-	bool
-	depends on CPU_FREQ_PMAC
-	default y
 
 config PPC601_SYNC_FIX
 	bool "Workarounds for PPC601 bugs"
@@ -324,7 +338,7 @@ config RPXLITE
 
 	  HERMES:
 	  Hermes-Pro ISDN/LAN router with integrated 8 x hub
-	  Manufacturer: Multidata Gesellschaft für Datentechnik und Informatik
+	  Manufacturer: Multidata Gesellschaft fur Datentechnik und Informatik
 	  <http://www.multidata.de/>
 	  Date of Release: 2000 (?)
 	  End of life: -
@@ -507,8 +521,19 @@ config APUS
 	  More information is available at:
 	  <http://linux-apus.sourceforge.net/>.
 
+config KATANA
+	bool "Artesyn-Katana"
+	help
+	  Select KATANA if configuring an Artesyn KATANA 750i or 3750
+	  cPCI board.
+
 config WILLOW
 	bool "Cogent-Willow"
+
+config CPCI690
+	bool "Force-CPCI690"
+	help
+	  Select CPCI690 if configuring a Force CPCI690 cPCI board.
 
 config PCORE
 	bool "Force-PowerCore"
@@ -516,11 +541,31 @@ config PCORE
 config POWERPMC250
 	bool "Force-PowerPMC250"
 
-config EV64260
-	bool "Galileo-EV-64260-BP"
+config CHESTNUT
+	bool "IBM 750FX Eval board or 750GX Eval board"
+	help
+	  Select CHESTNUT if configuring an IBM 750FX Eval Board or a
+	  IBM 750GX Eval board.
 
 config SPRUCE
 	bool "IBM-Spruce"
+
+config HDPU
+	bool "Sky-HDPU"
+	help
+	  Select HDPU if configuring a Sky Computers Compute Blade.
+
+config HDPU_FEATURES
+	depends HDPU
+	tristate "HDPU-Features"
+	help
+	  Select to enable HDPU enhanced features.
+
+config EV64260
+	bool "Marvell-EV64260BP"
+	help
+	  Select EV64260 if configuring a Marvell (formerly Galileo)
+	  EV64260BP Evaluation platform.
 
 config LOPEC
 	bool "Motorola-LoPEC"
@@ -545,6 +590,9 @@ config SANDPOINT
 	help
 	  Select SANDPOINT if configuring for a Motorola Sandpoint X3
 	  (any flavor).
+
+config RADSTONE_PPC7D
+	bool "Radstone Technology PPC7D board"
 
 config ADIR
 	bool "SBS-Adirondack"
@@ -601,6 +649,12 @@ config TQM8260
 config ADS8272
 	bool "ADS8272"
 
+config PQ2FADS
+	bool "Freescale-PQ2FADS"
+	help
+	  Select PQ2FADS if you wish to configure for a Freescale
+	  PQ2FADS board (-VR or -ZU).
+
 config LITE5200
 	bool "Freescale LITE5200 / (IceCube)"
 	select PPC_MPC52xx
@@ -609,6 +663,11 @@ config LITE5200
 	  This is for the LITE5200 version 2.0 board. Don't know if it changes
 	  much but it's only been tested on this board version. I think this
 	  board is also known as IceCube.
+
+config MPC834x_SYS
+	bool "Freescale MPC834x SYS"
+	help
+	  This option enables support for the MPC 834x SYS evaluation board.
 
 endchoice
 
@@ -626,14 +685,14 @@ config EMBEDDEDBOOT
 	bool
 	depends on 8xx || 8260
 	default y
-	
+
 config PPC_MPC52xx
 	bool
 
 config 8260
 	bool "CPM2 Support" if WILLOW
 	depends on 6xx
-	default y if TQM8260 || RPX8260 || EST8260 || SBS8260 || SBC82xx
+	default y if TQM8260 || RPX8260 || EST8260 || SBS8260 || SBC82xx || PQ2FADS
 	help
 	  The MPC8260 is a typical embedded CPU made by Motorola.  Selecting
 	  this option means that you wish to build a kernel for a machine with
@@ -648,9 +707,17 @@ config 8272
 	  The MPC8272 CPM has a different internal dpram setup than other CPM2
 	  devices
 
+config 83xx
+	bool
+	default y if MPC834x_SYS
+
+config MPC834x
+	bool
+	default y if MPC834x_SYS
+
 config CPM2
 	bool
-	depends on 8260 || MPC8560
+	depends on 8260 || MPC8560 || MPC8555
 	default y
 	help
 	  The CPM2 (Communications Processor Module) is a coprocessor on
@@ -685,7 +752,10 @@ config PPC_OF
 
 config PPC_GEN550
 	bool
-	depends on SANDPOINT || MCPN765 || SPRUCE || PPLUS || PCORE || PRPMC750 || K2 || PRPMC800
+	depends on SANDPOINT || MCPN765 || SPRUCE || PPLUS || PCORE || \
+		PRPMC750 || K2 || PRPMC800 || LOPEC || \
+		(EV64260 && !SERIAL_MPSC) || CHESTNUT || RADSTONE_PPC7D || \
+		83xx
 	default y
 
 config FORCE
@@ -695,8 +765,47 @@ config FORCE
 
 config GT64260
 	bool
-	depends on EV64260
+	depends on EV64260 || CPCI690
 	default y
+
+config MV64360		# Really MV64360 & MV64460
+	bool
+	depends on CHESTNUT || KATANA || RADSTONE_PPC7D || HDPU
+	default y
+
+config MV64X60
+	bool
+	depends on (GT64260 || MV64360)
+	default y
+
+menu "Set bridge options"
+	depends on MV64X60
+
+config NOT_COHERENT_CACHE
+	bool "Turn off Cache Coherency"
+	default n
+	help
+	  Some 64x60 bridges lock up when trying to enforce cache coherency.
+	  When this option is selected, cache coherency will be turned off.
+	  Note that this can cause other problems (e.g., stale data being
+	  speculatively loaded via a cached mapping).  Use at your own risk.
+
+config MV64X60_BASE
+	hex "Set bridge base used by firmware"
+	default "0xf1000000"
+	help
+	  A firmware can leave the base address of the bridge's registers at
+	  a non-standard location.  If so, set this value to reflect the
+	  address of that non-standard location.
+
+config MV64X60_NEW_BASE
+	hex "Set bridge base used by kernel"
+	default "0xf1000000"
+	help
+	  If the current base address of the bridge's registers is not where
+	  you want it, set this value to the address that you want it moved to.
+
+endmenu
 
 config NONMONARCH_SUPPORT
 	bool "Enable Non-Monarch Support"
@@ -719,7 +828,7 @@ config MPC10X_BRIDGE
 
 config FSL_OCP
 	bool
-	depends on MPC10X_BRIDGE || PPC_MPC52xx
+	depends on MPC10X_BRIDGE
 	default y
 
 config MPC10X_OPENPIC
@@ -750,16 +859,6 @@ config SPRUCE_BAUD_33M
 config PC_KEYBOARD
 	bool "PC PS/2 style Keyboard"
 	depends on 4xx || CPM2
-
-config SERIAL_CONSOLE
-	bool
-	depends on 8xx
-	default y
-
-config SERIAL_CONSOLE_BAUD
-	int
-	depends on EV64260
-	default "115200"
 
 config PPCBUG_NVRAM
 	bool "Enable reading PPCBUG NVRAM during boot" if PPLUS || LOPEC
@@ -811,10 +910,6 @@ config PREEMPT
 config HIGHMEM
 	bool "High memory support"
 
-config KERNEL_ELF
-	bool
-	default y
-
 source "fs/Kconfig.binfmt"
 
 config PROC_DEVICETREE
@@ -832,10 +927,11 @@ config PREP_RESIDUAL
 	  Some PReP systems have residual data passed to the kernel by the
 	  firmware.  This allows detection of memory size, devices present and
 	  other useful pieces of information.  Sometimes this information is
-	  not present or incorrect.
+	  not present or incorrect, in which case it could lead to the machine 
+	  behaving incorrectly.  If this happens, either disable PREP_RESIDUAL
+	  or pass the 'noresidual' option to the kernel.
 
-	  Unless you expect to boot on a PReP system, there is no need to
-	  select Y.
+	  If you are running a PReP system, say Y here, otherwise say N.
 
 config PROC_PREPRESIDUAL
 	bool "Support for reading of PReP Residual Data in /proc"
@@ -985,7 +1081,13 @@ config PROC_HARDWARE
 
 source "drivers/zorro/Kconfig"
 
+source kernel/power/Kconfig
+
 endmenu
+
+config ISA_DMA_API
+	bool
+	default y
 
 menu "Bus options"
 
@@ -1018,8 +1120,8 @@ config MCA
 	bool
 
 config PCI
-	bool "PCI support" if 40x || CPM2 || 85xx
-	default y if !40x && !CPM2 && !8xx && !APUS && !85xx
+	bool "PCI support" if 40x || CPM2 || 83xx || 85xx || PPC_MPC52xx
+	default y if !40x && !CPM2 && !8xx && !APUS && !83xx && !85xx
 	default PCI_PERMEDIA if !4xx && !CPM2 && !8xx && APUS
 	default PCI_QSPAN if !4xx && !CPM2 && 8xx
 	help
@@ -1041,15 +1143,15 @@ config PCI_QSPAN
 
 config PCI_8260
 	bool
-	depends on PCI && 8260 && !8272
-	default y
-	
-config 8260_PCI9
-	bool "  Enable workaround for MPC826x erratum PCI 9"
-	depends on PCI_8260
+	depends on PCI && 8260
 	default y
 
-choice 
+config 8260_PCI9
+	bool "  Enable workaround for MPC826x erratum PCI 9"
+	depends on PCI_8260 && !ADS8272
+	default y
+
+choice
 	prompt "  IDMA channel for PCI 9 workaround"
 	depends on 8260_PCI9
 
@@ -1228,128 +1330,7 @@ source "lib/Kconfig"
 
 source "arch/ppc/oprofile/Kconfig"
 
-menu "Kernel hacking"
-
-config DEBUG_KERNEL
-	bool "Kernel debugging"
-
-config DEBUG_SLAB
-	bool "Debug memory allocations"
-	depends on DEBUG_KERNEL
-
-config MAGIC_SYSRQ
-	bool "Magic SysRq key"
-	depends on DEBUG_KERNEL
-	help
-	  If you say Y here, you will have some control over the system even
-	  if the system crashes for example during kernel debugging (e.g., you
-	  will be able to flush the buffer cache to disk, reboot the system
-	  immediately or dump some status information). This is accomplished
-	  by pressing various keys while holding SysRq (Alt+PrintScreen). It
-	  also works on a serial console (on PC hardware at least), if you
-	  send a BREAK and then within 5 seconds a command keypress. The
-	  keys are documented in <file:Documentation/sysrq.txt>. Don't say Y
-	  unless you really know what this hack does.
-
-config DEBUG_SPINLOCK
-	bool "Spinlock debugging"
-	depends on DEBUG_KERNEL
-	help
-	  Say Y here and to CONFIG_SMP to include code to check for missing
-	  spinlock initialization and some other common spinlock errors.
-
-config DEBUG_HIGHMEM
-	bool "Highmem debugging"
-	depends on DEBUG_KERNEL && HIGHMEM
-	help
-	  This options enables additional error checking for high memory
-	  systems.  Disable for production systems.
-
-config DEBUG_SPINLOCK_SLEEP
-	bool "Sleep-inside-spinlock checking"
-	depends on DEBUG_KERNEL
-	help
-	  If you say Y here, various routines which may sleep will become very
-	  noisy if they are called with a spinlock held.
-
-config KGDB
-	bool "Include kgdb kernel debugger"
-	depends on DEBUG_KERNEL && (BROKEN || PPC_GEN550 || 4xx)
-	select DEBUG_INFO
-	help
-	  Include in-kernel hooks for kgdb, the Linux kernel source level
-	  debugger.  See <http://kgdb.sourceforge.net/> for more information.
-	  Unless you are intending to debug the kernel, say N here.
-
-choice
-	prompt "Serial Port"
-	depends on KGDB
-	default KGDB_TTYS1
-
-config KGDB_TTYS0
-	bool "ttyS0"
-
-config KGDB_TTYS1
-	bool "ttyS1"
-
-config KGDB_TTYS2
-	bool "ttyS2"
-
-config KGDB_TTYS3
-	bool "ttyS3"
-
-endchoice
-
-config KGDB_CONSOLE
-	bool "Enable serial console thru kgdb port"
-	depends on KGDB && 8xx || CPM2
-	help
-	  If you enable this, all serial console messages will be sent
-	  over the gdb stub.
-	  If unsure, say N.
-
-config XMON
-	bool "Include xmon kernel debugger"
-	depends on DEBUG_KERNEL
-	help
-	  Include in-kernel hooks for the xmon kernel monitor/debugger.
-	  Unless you are intending to debug the kernel, say N here.
-
-config BDI_SWITCH
-	bool "Include BDI-2000 user context switcher"
-	depends on DEBUG_KERNEL
-	help
-	  Include in-kernel support for the Abatron BDI2000 debugger.
-	  Unless you are intending to debug the kernel with one of these
-	  machines, say N here.
-
-config DEBUG_INFO
-	bool "Compile the kernel with debug info"
-	depends on DEBUG_KERNEL
-	help
-          If you say Y here the resulting kernel image will include
-	  debugging info resulting in a larger kernel image.
-	  Say Y here only if you plan to use some sort of debugger to
-	  debug the kernel.
-	  If you don't debug the kernel, you can say N.
-
-config BOOTX_TEXT
-	bool "Support for early boot text console (BootX or OpenFirmware only)"
-	depends PPC_OF
-	help
-	  Say Y here to see progress messages from the boot firmware in text
-	  mode. Requires either BootX or Open Firmware.
-
-config SERIAL_TEXT_DEBUG
-	bool "Support for early boot texts over serial port"
-	depends on 4xx || GT64260 || LOPEC || PPLUS || PRPMC800 || PPC_GEN550 || PPC_MPC52xx
-
-config PPC_OCP
-	bool
-	depends on IBM_OCP || FSL_OCP
-	default y
-
-endmenu
+source "arch/ppc/Kconfig.debug"
 
 source "security/Kconfig"
 

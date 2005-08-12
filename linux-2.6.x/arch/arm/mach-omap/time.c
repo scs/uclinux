@@ -1,8 +1,14 @@
 /*
- * arch/arm/mach-omap/time.c
+ * linux/arch/arm/mach-omap/time.c
  *
- * OMAP Timer Tick 
+ * OMAP Timers
  *
+ * Copyright (C) 2004 Nokia Corporation
+ * Partial timer rewrite and additional VST timer support by
+ * Tony Lindgen <tony@atomide.com> and
+ * Tuukka Tikkanen <tuukka.tikkanen@elektrobit.com>
+ *
+ * MPU timer code based on the older MPU timer code for OMAP
  * Copyright (C) 2000 RidgeRun, Inc.
  * Author: Greg Lonnon <glonnon@ridgerun.com>
  *
@@ -33,6 +39,7 @@
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/sched.h>
+#include <linux/spinlock.h>
 
 #include <asm/system.h>
 #include <asm/hardware.h>
@@ -41,177 +48,337 @@
 #include <asm/irq.h>
 #include <asm/mach/irq.h>
 #include <asm/mach/time.h>
-#include <asm/arch/clocks.h>
 
-#ifndef __instrument
-#define __instrument
-#define __noinstrument __attribute__ ((no_instrument_function))
+struct sys_timer omap_timer;
+
+#ifdef CONFIG_OMAP_MPU_TIMER
+
+/*
+ * ---------------------------------------------------------------------------
+ * MPU timer
+ * ---------------------------------------------------------------------------
+ */
+#define OMAP_MPU_TIMER1_BASE		(0xfffec500)
+#define OMAP_MPU_TIMER2_BASE		(0xfffec600)
+#define OMAP_MPU_TIMER3_BASE		(0xfffec700)
+#define OMAP_MPU_TIMER_BASE		OMAP_MPU_TIMER1_BASE
+#define OMAP_MPU_TIMER_OFFSET		0x100
+
+#define MPU_TIMER_FREE			(1 << 6)
+#define MPU_TIMER_CLOCK_ENABLE		(1 << 5)
+#define MPU_TIMER_AR			(1 << 1)
+#define MPU_TIMER_ST			(1 << 0)
+
+/* cycles to nsec conversions taken from arch/i386/kernel/timers/timer_tsc.c,
+ * converted to use kHz by Kevin Hilman */
+/* convert from cycles(64bits) => nanoseconds (64bits)
+ *  basic equation:
+ *		ns = cycles / (freq / ns_per_sec)
+ *		ns = cycles * (ns_per_sec / freq)
+ *		ns = cycles * (10^9 / (cpu_khz * 10^3))
+ *		ns = cycles * (10^6 / cpu_khz)
+ *
+ *	Then we use scaling math (suggested by george at mvista.com) to get:
+ *		ns = cycles * (10^6 * SC / cpu_khz / SC
+ *		ns = cycles * cyc2ns_scale / SC
+ *
+ *	And since SC is a constant power of two, we can convert the div
+ *  into a shift.
+ *			-johnstul at us.ibm.com "math is hard, lets go shopping!"
+ */
+static unsigned long cyc2ns_scale;
+#define CYC2NS_SCALE_FACTOR 10 /* 2^10, carefully chosen */
+
+static inline void set_cyc2ns_scale(unsigned long cpu_khz)
+{
+	cyc2ns_scale = (1000000 << CYC2NS_SCALE_FACTOR)/cpu_khz;
+}
+
+static inline unsigned long long cycles_2_ns(unsigned long long cyc)
+{
+	return (cyc * cyc2ns_scale) >> CYC2NS_SCALE_FACTOR;
+}
+
+/*
+ * MPU_TICKS_PER_SEC must be an even number, otherwise machinecycles_to_usecs
+ * will break. On P2, the timer count rate is 6.5 MHz after programming PTV
+ * with 0. This divides the 13MHz input by 2, and is undocumented.
+ */
+#ifdef CONFIG_MACH_OMAP_PERSEUS2
+/* REVISIT: This ifdef construct should be replaced by a query to clock
+ * framework to see if timer base frequency is 12.0, 13.0 or 19.2 MHz.
+ */
+#define MPU_TICKS_PER_SEC		(13000000 / 2)
+#else
+#define MPU_TICKS_PER_SEC		(12000000 / 2)
 #endif
+
+#define MPU_TIMER_TICK_PERIOD		((MPU_TICKS_PER_SEC / HZ) - 1)
 
 typedef struct {
-	u32 cntl;     /* CNTL_TIMER, R/W */
-	u32 load_tim; /* LOAD_TIM,   W */
-	u32 read_tim; /* READ_TIM,   R */
-} mputimer_regs_t;
+	u32 cntl;			/* CNTL_TIMER, R/W */
+	u32 load_tim;			/* LOAD_TIM,   W */
+	u32 read_tim;			/* READ_TIM,   R */
+} omap_mpu_timer_regs_t;
 
-#define mputimer_base(n) \
-    ((volatile mputimer_regs_t*)IO_ADDRESS(OMAP_MPUTIMER_BASE + \
-				 (n)*OMAP_MPUTIMER_OFFSET))
+#define omap_mpu_timer_base(n)						\
+((volatile omap_mpu_timer_regs_t*)IO_ADDRESS(OMAP_MPU_TIMER_BASE +	\
+				 (n)*OMAP_MPU_TIMER_OFFSET))
 
-static inline unsigned long timer32k_read(int reg) {
-	unsigned long val;
-	val = omap_readw(reg + OMAP_32kHz_TIMER_BASE);
-	return val;
-}
-static inline void timer32k_write(int reg,int val) {
-	omap_writew(val, reg + OMAP_32kHz_TIMER_BASE);
-}
-
-/*
- * How long is the timer interval? 100 HZ, right...
- * IRQ rate = (TVR + 1) / 32768 seconds
- * TVR = 32768 * IRQ_RATE -1
- * IRQ_RATE =  1/100
- * TVR = 326
- */
-#define TIMER32k_PERIOD 326
-//#define TIMER32k_PERIOD 0x7ff
-
-static inline void start_timer32k(void) {
-	timer32k_write(TIMER32k_CR,
-		       TIMER32k_TSS | TIMER32k_TRB |
-		       TIMER32k_INT | TIMER32k_ARL);
-}
-
-#ifdef CONFIG_MACH_OMAP_PERSEUS2
-/*
- * After programming PTV with 0 and setting the MPUTIM_CLOCK_ENABLE
- * (external clock enable)  bit, the timer count rate is 6.5 MHz (13
- * MHZ input/2). !! The divider by 2 is undocumented !!
- */
-#define MPUTICKS_PER_SEC (13000000/2)
-#else
-/*
- * After programming PTV with 0, the timer count rate is 6 MHz.
- * WARNING! this must be an even number, or machinecycles_to_usecs
- * below will break.
- */
-#define MPUTICKS_PER_SEC  (12000000/2)
-#endif
-
-static int mputimer_started[3] = {0,0,0};
-
-static inline void __noinstrument start_mputimer(int n,
-						 unsigned long load_val)
+static inline unsigned long omap_mpu_timer_read(int nr)
 {
-	volatile mputimer_regs_t* timer = mputimer_base(n);
+	volatile omap_mpu_timer_regs_t* timer = omap_mpu_timer_base(nr);
+	return timer->read_tim;
+}
 
-	mputimer_started[n] = 0;
-	timer->cntl = MPUTIM_CLOCK_ENABLE;
+static inline void omap_mpu_timer_start(int nr, unsigned long load_val)
+{
+	volatile omap_mpu_timer_regs_t* timer = omap_mpu_timer_base(nr);
+
+	timer->cntl = MPU_TIMER_CLOCK_ENABLE;
 	udelay(1);
-
 	timer->load_tim = load_val;
         udelay(1);
-	timer->cntl = (MPUTIM_CLOCK_ENABLE | MPUTIM_AR | MPUTIM_ST);
-	mputimer_started[n] = 1;
+	timer->cntl = (MPU_TIMER_CLOCK_ENABLE | MPU_TIMER_AR | MPU_TIMER_ST);
 }
 
-static inline unsigned long __noinstrument
-read_mputimer(int n)
+unsigned long omap_mpu_timer_ticks_to_usecs(unsigned long nr_ticks)
 {
-	volatile mputimer_regs_t* timer = mputimer_base(n);
-	return (mputimer_started[n] ? timer->read_tim : 0);
-}
+	unsigned long long nsec;
 
-void __noinstrument start_mputimer1(unsigned long load_val)
-{
-	start_mputimer(0, load_val);
-}
-void __noinstrument start_mputimer2(unsigned long load_val)
-{
-	start_mputimer(1, load_val);
-}
-void __noinstrument start_mputimer3(unsigned long load_val)
-{
-	start_mputimer(2, load_val);
-}
-
-unsigned long __noinstrument read_mputimer1(void)
-{
-	return read_mputimer(0);
-}
-unsigned long __noinstrument read_mputimer2(void)
-{
-	return read_mputimer(1);
-}
-unsigned long __noinstrument read_mputimer3(void)
-{
-	return read_mputimer(2);
-}
-
-unsigned long __noinstrument do_getmachinecycles(void)
-{
-	return 0 - read_mputimer(0);
-}
-
-unsigned long __noinstrument machinecycles_to_usecs(unsigned long mputicks)
-{
-	/* Round up to nearest usec */
-	return ((mputicks * 1000) / (MPUTICKS_PER_SEC / 2 / 1000) + 1) >> 1;
+	nsec = cycles_2_ns((unsigned long long)nr_ticks);
+	return (unsigned long)nsec / 1000;
 }
 
 /*
- * This marks the time of the last system timer interrupt
- * that was *processed by the ISR* (timer 2).
+ * Last processed system timer interrupt
  */
-static unsigned long systimer_mark;
+static unsigned long omap_mpu_timer_last = 0;
 
-static unsigned long omap_gettimeoffset(void)
+/*
+ * Returns elapsed usecs since last system timer interrupt
+ */
+static unsigned long omap_mpu_timer_gettimeoffset(void)
 {
-	/* Return elapsed usecs since last system timer ISR */
-	return machinecycles_to_usecs(do_getmachinecycles() - systimer_mark);
+	unsigned long now = 0 - omap_mpu_timer_read(0);
+	unsigned long elapsed = now - omap_mpu_timer_last;
+
+	return omap_mpu_timer_ticks_to_usecs(elapsed);
 }
 
-static irqreturn_t
-omap_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+/*
+ * Elapsed time between interrupts is calculated using timer0.
+ * Latency during the interrupt is calculated using timer1.
+ * Both timer0 and timer1 are counting at 6MHz (P2 6.5MHz).
+ */
+static irqreturn_t omap_mpu_timer_interrupt(int irq, void *dev_id,
+					struct pt_regs *regs)
 {
-	unsigned long now, ilatency;
+	unsigned long now, latency;
 
-	/*
-	 * Mark the time at which the timer interrupt ocurred using
-	 * timer1. We need to remove interrupt latency, which we can
-	 * retrieve from the current system timer2 counter. Both the
-	 * offset timer1 and the system timer2 are counting at 6MHz,
-	 * so we're ok.
-	 */
-	now = 0 - read_mputimer1();
-	ilatency = MPUTICKS_PER_SEC / 100 - read_mputimer2();
-	systimer_mark = now - ilatency;
-
+	write_seqlock(&xtime_lock);
+	now = 0 - omap_mpu_timer_read(0);
+	latency = MPU_TICKS_PER_SEC / HZ - omap_mpu_timer_read(1);
+	omap_mpu_timer_last = now - latency;
 	timer_tick(regs);
+	write_sequnlock(&xtime_lock);
 
 	return IRQ_HANDLED;
 }
 
-static struct irqaction omap_timer_irq = {
-	.name		= "OMAP Timer Tick",
+static struct irqaction omap_mpu_timer_irq = {
+	.name		= "mpu timer",
 	.flags		= SA_INTERRUPT,
-	.handler	= omap_timer_interrupt
+	.handler	= omap_mpu_timer_interrupt
 };
 
-void __init omap_init_time(void)
+static unsigned long omap_mpu_timer1_overflows;
+static irqreturn_t omap_mpu_timer1_interrupt(int irq, void *dev_id,
+					     struct pt_regs *regs)
 {
-	/* Since we don't call request_irq, we must init the structure */
-	gettimeoffset = omap_gettimeoffset;
+	omap_mpu_timer1_overflows++;
+	return IRQ_HANDLED;
+}
 
-#ifdef OMAP1510_USE_32KHZ_TIMER
-	timer32k_write(TIMER32k_CR, 0x0);
-	timer32k_write(TIMER32k_TVR,TIMER32k_PERIOD);
-	setup_irq(INT_OS_32kHz_TIMER, &omap_timer_irq);
-	start_timer32k();
+static struct irqaction omap_mpu_timer1_irq = {
+	.name		= "mpu timer1 overflow",
+	.flags		= SA_INTERRUPT,
+	.handler	= omap_mpu_timer1_interrupt
+};
+
+static __init void omap_init_mpu_timer(void)
+{
+	set_cyc2ns_scale(MPU_TICKS_PER_SEC / 1000);
+	omap_timer.offset = omap_mpu_timer_gettimeoffset;
+	setup_irq(INT_TIMER1, &omap_mpu_timer1_irq);
+	setup_irq(INT_TIMER2, &omap_mpu_timer_irq);
+	omap_mpu_timer_start(0, 0xffffffff);
+	omap_mpu_timer_start(1, MPU_TIMER_TICK_PERIOD);
+}
+
+/*
+ * Scheduler clock - returns current time in nanosec units.
+ */
+unsigned long long sched_clock(void)
+{
+	unsigned long ticks = 0 - omap_mpu_timer_read(0);
+	unsigned long long ticks64;
+
+	ticks64 = omap_mpu_timer1_overflows;
+	ticks64 <<= 32;
+	ticks64 |= ticks;
+
+	return cycles_2_ns(ticks64);
+}
+#endif	/* CONFIG_OMAP_MPU_TIMER */
+
+#ifdef CONFIG_OMAP_32K_TIMER
+
+#ifdef CONFIG_ARCH_OMAP1510
+#error OMAP 32KHz timer does not currently work on 1510!
+#endif
+
+/*
+ * ---------------------------------------------------------------------------
+ * 32KHz OS timer
+ *
+ * This currently works only on 16xx, as 1510 does not have the continuous
+ * 32KHz synchronous timer. The 32KHz synchronous timer is used to keep track
+ * of time in addition to the 32KHz OS timer. Using only the 32KHz OS timer
+ * on 1510 would be possible, but the timer would not be as accurate as
+ * with the 32KHz synchronized timer.
+ * ---------------------------------------------------------------------------
+ */
+#define OMAP_32K_TIMER_BASE		0xfffb9000
+#define OMAP_32K_TIMER_CR		0x08
+#define OMAP_32K_TIMER_TVR		0x00
+#define OMAP_32K_TIMER_TCR		0x04
+
+#define OMAP_32K_TICKS_PER_HZ		(32768 / HZ)
+
+/*
+ * TRM says 1 / HZ = ( TVR + 1) / 32768, so TRV = (32768 / HZ) - 1
+ * so with HZ = 100, TVR = 327.68.
+ */
+#define OMAP_32K_TIMER_TICK_PERIOD	((32768 / HZ) - 1)
+#define MAX_SKIP_JIFFIES		25
+#define TIMER_32K_SYNCHRONIZED		0xfffbc410
+
+#define JIFFIES_TO_HW_TICKS(nr_jiffies, clock_rate)			\
+				(((nr_jiffies) * (clock_rate)) / HZ)
+
+static inline void omap_32k_timer_write(int val, int reg)
+{
+	omap_writew(val, reg + OMAP_32K_TIMER_BASE);
+}
+
+static inline unsigned long omap_32k_timer_read(int reg)
+{
+	return omap_readl(reg + OMAP_32K_TIMER_BASE) & 0xffffff;
+}
+
+/*
+ * The 32KHz synchronized timer is an additional timer on 16xx.
+ * It is always running.
+ */
+static inline unsigned long omap_32k_sync_timer_read(void)
+{
+	return omap_readl(TIMER_32K_SYNCHRONIZED);
+}
+
+static inline void omap_32k_timer_start(unsigned long load_val)
+{
+	omap_32k_timer_write(load_val, OMAP_32K_TIMER_TVR);
+	omap_32k_timer_write(0x0f, OMAP_32K_TIMER_CR);
+}
+
+static inline void omap_32k_timer_stop(void)
+{
+	omap_32k_timer_write(0x0, OMAP_32K_TIMER_CR);
+}
+
+/*
+ * Rounds down to nearest usec
+ */
+static inline unsigned long omap_32k_ticks_to_usecs(unsigned long ticks_32k)
+{
+	return (ticks_32k * 5*5*5*5*5*5) >> 9;
+}
+
+static unsigned long omap_32k_last_tick = 0;
+
+/*
+ * Returns elapsed usecs since last 32k timer interrupt
+ */
+static unsigned long omap_32k_timer_gettimeoffset(void)
+{
+	unsigned long now = omap_32k_sync_timer_read();
+	return omap_32k_ticks_to_usecs(now - omap_32k_last_tick);
+}
+
+/*
+ * Timer interrupt for 32KHz timer. When dynamic tick is enabled, this
+ * function is also called from other interrupts to remove latency
+ * issues with dynamic tick. In the dynamic tick case, we need to lock
+ * with irqsave.
+ */
+static irqreturn_t omap_32k_timer_interrupt(int irq, void *dev_id,
+					    struct pt_regs *regs)
+{
+	unsigned long flags;
+	unsigned long now;
+
+	write_seqlock_irqsave(&xtime_lock, flags);
+	now = omap_32k_sync_timer_read();
+
+	while (now - omap_32k_last_tick >= OMAP_32K_TICKS_PER_HZ) {
+		omap_32k_last_tick += OMAP_32K_TICKS_PER_HZ;
+		timer_tick(regs);
+	}
+
+	/* Restart timer so we don't drift off due to modulo or dynamic tick.
+	 * By default we program the next timer to be continuous to avoid
+	 * latencies during high system load. During dynamic tick operation the
+	 * continuous timer can be overridden from pm_idle to be longer.
+	 */
+	omap_32k_timer_start(omap_32k_last_tick + OMAP_32K_TICKS_PER_HZ - now);
+	write_sequnlock_irqrestore(&xtime_lock, flags);
+
+	return IRQ_HANDLED;
+}
+
+static struct irqaction omap_32k_timer_irq = {
+	.name		= "32KHz timer",
+	.flags		= SA_INTERRUPT,
+	.handler	= omap_32k_timer_interrupt
+};
+
+static __init void omap_init_32k_timer(void)
+{
+	setup_irq(INT_OS_TIMER, &omap_32k_timer_irq);
+	omap_timer.offset  = omap_32k_timer_gettimeoffset;
+	omap_32k_last_tick = omap_32k_sync_timer_read();
+	omap_32k_timer_start(OMAP_32K_TIMER_TICK_PERIOD);
+}
+#endif	/* CONFIG_OMAP_32K_TIMER */
+
+/*
+ * ---------------------------------------------------------------------------
+ * Timer initialization
+ * ---------------------------------------------------------------------------
+ */
+void __init omap_timer_init(void)
+{
+#if defined(CONFIG_OMAP_MPU_TIMER)
+	omap_init_mpu_timer();
+#elif defined(CONFIG_OMAP_32K_TIMER)
+	omap_init_32k_timer();
 #else
-	setup_irq(INT_TIMER2, &omap_timer_irq);
-	start_mputimer2(MPUTICKS_PER_SEC / 100 - 1);
+#error No system timer selected in Kconfig!
 #endif
 }
 
+struct sys_timer omap_timer = {
+	.init		= omap_timer_init,
+	.offset		= NULL,		/* Initialized later */
+};

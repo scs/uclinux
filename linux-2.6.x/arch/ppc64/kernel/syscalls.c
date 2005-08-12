@@ -57,7 +57,8 @@ check_bugs(void)
  * This is really horribly ugly.
  */
 asmlinkage int 
-sys_ipc (uint call, int first, int second, long third, void __user *ptr, long fifth)
+sys_ipc (uint call, int first, unsigned long second, long third,
+	 void __user *ptr, long fifth)
 {
 	int version, ret;
 
@@ -67,15 +68,16 @@ sys_ipc (uint call, int first, int second, long third, void __user *ptr, long fi
 	ret = -ENOSYS;
 	switch (call) {
 	case SEMOP:
-		ret = sys_semtimedop (first, (struct sembuf __user *)ptr, second,
-				      NULL);
+		ret = sys_semtimedop(first, (struct sembuf __user *)ptr,
+				      (unsigned)second, NULL);
 		break;
 	case SEMTIMEDOP:
-		ret = sys_semtimedop (first, (struct sembuf __user *)ptr, second,
+		ret = sys_semtimedop(first, (struct sembuf __user *)ptr,
+				      (unsigned)second,
 				      (const struct timespec __user *) fifth);
 		break;
 	case SEMGET:
-		ret = sys_semget (first, second, third);
+		ret = sys_semget (first, (int)second, third);
 		break;
 	case SEMCTL: {
 		union semun fourth;
@@ -85,11 +87,12 @@ sys_ipc (uint call, int first, int second, long third, void __user *ptr, long fi
 			break;
 		if ((ret = get_user(fourth.__pad, (void __user * __user *)ptr)))
 			break;
-		ret = sys_semctl (first, second, third, fourth);
+		ret = sys_semctl(first, (int)second, third, fourth);
 		break;
 	}
 	case MSGSND:
-		ret = sys_msgsnd (first, (struct msgbuf __user *) ptr, second, third);
+		ret = sys_msgsnd(first, (struct msgbuf __user *)ptr,
+				  (size_t)second, third);
 		break;
 	case MSGRCV:
 		switch (version) {
@@ -103,27 +106,29 @@ sys_ipc (uint call, int first, int second, long third, void __user *ptr, long fi
 						(struct ipc_kludge __user *) ptr,
 						sizeof (tmp)) ? -EFAULT : 0))
 				break;
-			ret = sys_msgrcv (first, tmp.msgp, second, tmp.msgtyp,
-					  third);
+			ret = sys_msgrcv(first, tmp.msgp, (size_t) second,
+					  tmp.msgtyp, third);
 			break;
 		}
 		default:
 			ret = sys_msgrcv (first, (struct msgbuf __user *) ptr,
-					  second, fifth, third);
+					  (size_t)second, fifth, third);
 			break;
 		}
 		break;
 	case MSGGET:
-		ret = sys_msgget ((key_t) first, second);
+		ret = sys_msgget ((key_t)first, (int)second);
 		break;
 	case MSGCTL:
-		ret = sys_msgctl (first, second, (struct msqid_ds __user *) ptr);
+		ret = sys_msgctl(first, (int)second,
+				  (struct msqid_ds __user *)ptr);
 		break;
 	case SHMAT:
 		switch (version) {
 		default: {
 			ulong raddr;
-			ret = do_shmat (first, (char __user *) ptr, second, &raddr);
+			ret = do_shmat(first, (char __user *) ptr,
+					(int)second, &raddr);
 			if (ret)
 				break;
 			ret = put_user (raddr, (ulong __user *) third);
@@ -133,8 +138,8 @@ sys_ipc (uint call, int first, int second, long third, void __user *ptr, long fi
 			ret = -EINVAL;
 			if (!segment_eq(get_fs(), get_ds()))
 				break;
-			ret = do_shmat (first, (char __user *) ptr, second,
-					 (ulong *) third);
+			ret = do_shmat(first, (char __user *)ptr,
+					(int)second, (ulong *)third);
 			break;
 		}
 		break;
@@ -142,10 +147,11 @@ sys_ipc (uint call, int first, int second, long third, void __user *ptr, long fi
 		ret = sys_shmdt ((char __user *)ptr);
 		break;
 	case SHMGET:
-		ret = sys_shmget (first, second, third);
+		ret = sys_shmget (first, (size_t)second, third);
 		break;
 	case SHMCTL:
-		ret = sys_shmctl (first, second, (struct shmid_ds __user *) ptr);
+		ret = sys_shmctl(first, (int)second,
+				  (struct shmid_ds __user *)ptr);
 		break;
 	}
 
@@ -193,24 +199,33 @@ out:
 	return ret;
 }
 
-static int __init set_fakeppc(char *str)
+long ppc64_personality(unsigned long personality)
 {
-	if (*str)
-		return 0;
-	init_task.personality = PER_LINUX32;
-	return 1;
-}
-__setup("fakeppc", set_fakeppc);
+	long ret;
 
-asmlinkage int sys_uname(struct old_utsname __user * name)
+	if (personality(current->personality) == PER_LINUX32
+	    && personality == PER_LINUX)
+		personality = PER_LINUX32;
+	ret = sys_personality(personality);
+	if (ret == PER_LINUX32)
+		ret = PER_LINUX;
+	return ret;
+}
+
+long ppc64_newuname(struct new_utsname __user * name)
 {
-	int err = -EFAULT;
-	
+	int err = 0;
+
 	down_read(&uts_sem);
-	if (name && !copy_to_user(name, &system_utsname, sizeof (*name)))
-		err = 0;
+	if (copy_to_user(name, &system_utsname, sizeof(*name)))
+		err = -EFAULT;
 	up_read(&uts_sem);
-	
+	if (!err && personality(current->personality) == PER_LINUX32) {
+		/* change ppc64 to ppc */
+		if (__put_user(0, name->machine + 3)
+		    || __put_user(0, name->machine + 4))
+			err = -EFAULT;
+	}
 	return err;
 }
 
@@ -250,6 +265,3 @@ void do_show_syscall_exit(unsigned long r3)
 {
 	printk(" -> %lx, current=%p cpu=%d\n", r3, current, smp_processor_id());
 }
-
-/* Only exists on P-series. */
-cond_syscall(ppc_rtas);

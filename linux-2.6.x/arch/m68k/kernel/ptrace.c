@@ -19,6 +19,7 @@
 #include <linux/ptrace.h>
 #include <linux/user.h>
 #include <linux/config.h>
+#include <linux/signal.h>
 
 #include <asm/uaccess.h>
 #include <asm/page.h>
@@ -251,7 +252,7 @@ asmlinkage int sys_ptrace(long request, long pid, long addr, long data)
 			long tmp;
 
 			ret = -EIO;
-			if ((unsigned long) data > _NSIG)
+			if (!valid_signal(data))
 				break;
 			if (request == PTRACE_SYSCALL) {
 					child->thread.work.syscall_trace = ~0;
@@ -277,7 +278,7 @@ asmlinkage int sys_ptrace(long request, long pid, long addr, long data)
 			long tmp;
 
 			ret = 0;
-			if (child->state == TASK_ZOMBIE) /* already dead */
+			if (child->exit_state == EXIT_ZOMBIE) /* already dead */
 				break;
 			child->exit_code = SIGKILL;
 	/* make sure the single step bit is not set. */
@@ -292,7 +293,7 @@ asmlinkage int sys_ptrace(long request, long pid, long addr, long data)
 			long tmp;
 
 			ret = -EIO;
-			if ((unsigned long) data > _NSIG)
+			if (!valid_signal(data))
 				break;
 			child->thread.work.syscall_trace = 0;
 			tmp = get_reg(child, PT_SR) | (TRACE_BITS << 16);
@@ -379,11 +380,8 @@ asmlinkage void syscall_trace(void)
 	if (!current->thread.work.delayed_trace &&
 	    !current->thread.work.syscall_trace)
 		return;
-	current->exit_code = SIGTRAP | ((current->ptrace & PT_TRACESYSGOOD)
-					? 0x80 : 0);
-	current->state = TASK_STOPPED;
-	notify_parent(current, SIGCHLD);
-	schedule();
+	ptrace_notify(SIGTRAP | ((current->ptrace & PT_TRACESYSGOOD)
+				 ? 0x80 : 0));
 	/*
 	 * this isn't the same as continuing with a signal, but it will do
 	 * for normal use.  strace only continues with a signal if the

@@ -41,6 +41,7 @@
 #ifdef CONFIG_PMAC_BACKLIGHT
 #include <asm/backlight.h>
 #endif
+#include <asm/perfmon.h>
 
 #ifdef CONFIG_XMON
 void (*debugger)(struct pt_regs *regs) = xmon;
@@ -71,8 +72,7 @@ void (*debugger_fault_handler)(struct pt_regs *regs);
  * Trap & Exception support
  */
 
-
-spinlock_t die_lock = SPIN_LOCK_UNLOCKED;
+DEFINE_SPINLOCK(die_lock);
 
 void die(const char * str, struct pt_regs * fp, long err)
 {
@@ -176,7 +176,7 @@ static inline int check_io_access(struct pt_regs *regs)
 #else
 #define get_mc_reason(regs)	(mfspr(SPRN_MCSR))
 #endif
-#define REASON_FP		0
+#define REASON_FP		ESR_FP
 #define REASON_ILLEGAL		ESR_PIL
 #define REASON_PRIVILEGED	ESR_PPR
 #define REASON_TRAP		ESR_PTR
@@ -198,6 +198,15 @@ static inline int check_io_access(struct pt_regs *regs)
 #define single_stepping(regs)	((regs)->msr & MSR_SE)
 #define clear_single_step(regs)	((regs)->msr &= ~MSR_SE)
 #endif
+
+/*
+ * This is "fall-back" implementation for configurations
+ * which don't provide platform-specific machine check info
+ */
+void __attribute__ ((weak))
+platform_machine_check(struct pt_regs *regs)
+{
+}
 
 void MachineCheckException(struct pt_regs *regs)
 {
@@ -323,6 +332,12 @@ void MachineCheckException(struct pt_regs *regs)
 	}
 #endif /* CONFIG_4xx */
 
+	/*
+	 * Optional platform-provided routine to print out
+	 * additional info, e.g. bus error registers.
+	 */
+	platform_machine_check(regs);
+
 	debugger(regs);
 	die("machine check", regs, SIGBUS);
 }
@@ -357,7 +372,7 @@ void RunModeException(struct pt_regs *regs)
 
 /* Illegal instruction emulation support.  Originally written to
  * provide the PVR to user applications using the mfspr rd, PVR.
- * Return non-zero if we can't emulate, or EFAULT if the associated
+ * Return non-zero if we can't emulate, or -EFAULT if the associated
  * memory access caused an access fault.  Return zero on success.
  *
  * There are a couple of ways to do this, either "decode" the instruction
@@ -368,16 +383,95 @@ void RunModeException(struct pt_regs *regs)
 #define INST_MFSPR_PVR		0x7c1f42a6
 #define INST_MFSPR_PVR_MASK	0xfc1fffff
 
+#define INST_DCBA		0x7c0005ec
+#define INST_DCBA_MASK		0x7c0007fe
+
+#define INST_MCRXR		0x7c000400
+#define INST_MCRXR_MASK		0x7c0007fe
+
+#define INST_STRING		0x7c00042a
+#define INST_STRING_MASK	0x7c0007fe
+#define INST_STRING_GEN_MASK	0x7c00067e
+#define INST_LSWI		0x7c0004aa
+#define INST_LSWX		0x7c00042a
+#define INST_STSWI		0x7c0005aa
+#define INST_STSWX		0x7c00052a
+
+static int emulate_string_inst(struct pt_regs *regs, u32 instword)
+{
+	u8 rT = (instword >> 21) & 0x1f;
+	u8 rA = (instword >> 16) & 0x1f;
+	u8 NB_RB = (instword >> 11) & 0x1f;
+	u32 num_bytes;
+	unsigned long EA;
+	int pos = 0;
+
+	/* Early out if we are an invalid form of lswx */
+	if ((instword & INST_STRING_MASK) == INST_LSWX)
+		if ((rT == rA) || (rT == NB_RB))
+			return -EINVAL;
+
+	EA = (rA == 0) ? 0 : regs->gpr[rA];
+
+	switch (instword & INST_STRING_MASK) {
+		case INST_LSWX:
+		case INST_STSWX:
+			EA += NB_RB;
+			num_bytes = regs->xer & 0x7f;
+			break;
+		case INST_LSWI:
+		case INST_STSWI:
+			num_bytes = (NB_RB == 0) ? 32 : NB_RB;
+			break;
+		default:
+			return -EINVAL;
+	}
+
+	while (num_bytes != 0)
+	{
+		u8 val;
+		u32 shift = 8 * (3 - (pos & 0x3));
+
+		switch ((instword & INST_STRING_MASK)) {
+			case INST_LSWX:
+			case INST_LSWI:
+				if (get_user(val, (u8 __user *)EA))
+					return -EFAULT;
+				/* first time updating this reg,
+				 * zero it out */
+				if (pos == 0)
+					regs->gpr[rT] = 0;
+				regs->gpr[rT] |= val << shift;
+				break;
+			case INST_STSWI:
+			case INST_STSWX:
+				val = regs->gpr[rT] >> shift;
+				if (put_user(val, (u8 __user *)EA))
+					return -EFAULT;
+				break;
+		}
+		/* move EA to next address */
+		EA += 1;
+		num_bytes--;
+
+		/* manage our position within the register */
+		if (++pos == 4) {
+			pos = 0;
+			if (++rT == 32)
+				rT = 0;
+		}
+	}
+
+	return 0;
+}
+
 static int emulate_instruction(struct pt_regs *regs)
 {
 	u32 instword;
 	u32 rd;
-	int retval;
-
-	retval = -EINVAL;
 
 	if (!user_mode(regs))
-		return retval;
+		return -EINVAL;
 	CHECK_FULL_REGS(regs);
 
 	if (get_user(instword, (u32 __user *)(regs->nip)))
@@ -387,11 +481,29 @@ static int emulate_instruction(struct pt_regs *regs)
 	 */
 	if ((instword & INST_MFSPR_PVR_MASK) == INST_MFSPR_PVR) {
 		rd = (instword >> 21) & 0x1f;
-		regs->gpr[rd] = mfspr(PVR);
-		retval = 0;
-		regs->nip += 4;
+		regs->gpr[rd] = mfspr(SPRN_PVR);
+		return 0;
 	}
-	return retval;
+
+	/* Emulating the dcba insn is just a no-op.  */
+	if ((instword & INST_DCBA_MASK) == INST_DCBA)
+		return 0;
+
+	/* Emulate the mcrxr insn.  */
+	if ((instword & INST_MCRXR_MASK) == INST_MCRXR) {
+		int shift = (instword >> 21) & 0x1c;
+		unsigned long msk = 0xf0000000UL >> shift;
+
+		regs->ccr = (regs->ccr & ~msk) | ((regs->xer >> shift) & msk);
+		regs->xer &= ~0xf0000000UL;
+		return 0;
+	}
+
+	/* Emulate load/store string insn. */
+	if ((instword & INST_STRING_GEN_MASK) == INST_STRING)
+		return emulate_string_inst(regs, instword);
+
+	return -EINVAL;
 }
 
 /*
@@ -528,22 +640,28 @@ void ProgramCheckException(struct pt_regs *regs)
 		return;
 	}
 
-	if (reason & REASON_PRIVILEGED) {
-		/* Try to emulate it if we should. */
-		if (emulate_instruction(regs) == 0) {
+	/* Try to emulate it if we should. */
+	if (reason & (REASON_ILLEGAL | REASON_PRIVILEGED)) {
+		switch (emulate_instruction(regs)) {
+		case 0:
+			regs->nip += 4;
 			emulate_single_step(regs);
 			return;
+		case -EFAULT:
+			_exception(SIGSEGV, regs, SEGV_MAPERR, regs->nip);
+			return;
 		}
-		_exception(SIGILL, regs, ILL_PRVOPC, regs->nip);
-		return;
 	}
 
-	_exception(SIGILL, regs, ILL_ILLOPC, regs->nip);
+	if (reason & REASON_PRIVILEGED)
+		_exception(SIGILL, regs, ILL_PRVOPC, regs->nip);
+	else
+		_exception(SIGILL, regs, ILL_ILLOPC, regs->nip);
 }
 
 void SingleStepException(struct pt_regs *regs)
 {
-	regs->msr &= ~MSR_SE;  /* Turn off 'trace' bit */
+	regs->msr &= ~(MSR_SE | MSR_BE);  /* Turn off 'trace' bits */
 	if (debugger_sstep(regs))
 		return;
 	_exception(SIGTRAP, regs, TRAP_TRACE, 0);
@@ -556,6 +674,7 @@ void AlignmentException(struct pt_regs *regs)
 	fixed = fix_alignment(regs);
 	if (fixed == 1) {
 		regs->nip += 4;	/* skip over emulated instruction */
+		emulate_single_step(regs);
 		return;
 	}
 	if (fixed == -EFAULT) {
@@ -624,22 +743,22 @@ void SoftwareEmulation(struct pt_regs *regs)
 }
 #endif /* CONFIG_8xx */
 
-#if defined(CONFIG_4xx) || defined(CONFIG_BOOKE)
+#if defined(CONFIG_40x) || defined(CONFIG_BOOKE)
 
 void DebugException(struct pt_regs *regs, unsigned long debug_status)
 {
-#if 0
-	if (debug_status & DBSR_TIE) {		/* trap instruction*/
-		if (!user_mode(regs) && debugger_bpt(regs))
-			return;
-		_exception(SIGTRAP, regs, 0, 0);
-
-	}
-#endif
 	if (debug_status & DBSR_IC) {	/* instruction completion */
-		if (!user_mode(regs) && debugger_sstep(regs))
-			return;
-		current->thread.dbcr0 &= ~DBCR0_IC;
+		regs->msr &= ~MSR_DE;
+		if (user_mode(regs)) {
+			current->thread.dbcr0 &= ~DBCR0_IC;
+		} else {
+			/* Disable instruction completion */
+			mtspr(SPRN_DBCR0, mfspr(SPRN_DBCR0) & ~DBCR0_IC);
+			/* Clear the instruction completion event */
+			mtspr(SPRN_DBSR, DBSR_IC);
+			if (debugger_sstep(regs))
+				return;
+		}
 		_exception(SIGTRAP, regs, TRAP_TRACE, 0);
 	}
 }
@@ -682,6 +801,13 @@ void AltivecAssistException(struct pt_regs *regs)
 	if (regs->msr & MSR_VEC)
 		giveup_altivec(current);
 	preempt_enable();
+	if (!user_mode(regs)) {
+		printk(KERN_ERR "altivec assist exception in kernel mode"
+		       " at %lx\n", regs->nip);
+		debugger(regs);
+		die("altivec assist exception", regs, SIGFPE);
+		return;
+	}
 
 	err = emulate_altivec(regs);
 	if (err == 0) {
@@ -702,6 +828,11 @@ void AltivecAssistException(struct pt_regs *regs)
 	}
 }
 #endif /* CONFIG_ALTIVEC */
+
+void PerformanceMonitorException(struct pt_regs *regs)
+{
+	perf_irq(regs);
+}
 
 #ifdef CONFIG_FSL_BOOKE
 void CacheLockingException(struct pt_regs *regs, unsigned long address,

@@ -1,6 +1,6 @@
-/* linux/arch/arm/mach-s3c2410/mach-ipaq.c
+/* linux/arch/arm/mach-s3c2410/mach-h1940.c
  *
- * Copyright (c) 2003 Simtec Electronics
+ * Copyright (c) 2003-2005 Simtec Electronics
  *   Ben Dooks <ben@simtec.co.uk>
  *
  * http://www.handhelds.org/projects/h1940.html
@@ -16,6 +16,14 @@
  *     06-Jan-2003 BJD  Updates for <arch/map.h>
  *     18-Jan-2003 BJD  Added serial port configuration
  *     17-Feb-2003 BJD  Copied to mach-ipaq.c
+ *     21-Aug-2004 BJD  Added struct s3c2410_board
+ *     04-Sep-2004 BJD  Changed uart init, renamed ipaq_ -> h1940_
+ *     18-Oct-2004 BJD  Updated new board structure name
+ *     04-Nov-2004 BJD  Change for new serial clock
+ *     04-Jan-2005 BJD  Updated uart init call
+ *     10-Jan-2005 BJD  Removed include of s3c2410.h
+ *     14-Jan-2005 BJD  Added clock init
+ *     10-Mar-2005 LCVR Changed S3C2410_VA to S3C24XX_VA
 */
 
 #include <linux/kernel.h>
@@ -38,9 +46,13 @@
 //#include <asm/debug-ll.h>
 #include <asm/arch/regs-serial.h>
 
-#include "s3c2410.h"
+#include <linux/serial_core.h>
 
-static struct map_desc ipaq_iodesc[] __initdata = {
+#include "clock.h"
+#include "devs.h"
+#include "cpu.h"
+
+static struct map_desc h1940_iodesc[] __initdata = {
 	/* nothing here yet */
 };
 
@@ -48,11 +60,10 @@ static struct map_desc ipaq_iodesc[] __initdata = {
 #define ULCON S3C2410_LCON_CS8 | S3C2410_LCON_PNONE | S3C2410_LCON_STOPB
 #define UFCON S3C2410_UFCON_RXTRIG8 | S3C2410_UFCON_FIFOMODE
 
-static struct s3c2410_uartcfg ipaq_uartcfgs[] = {
+static struct s3c2410_uartcfg h1940_uartcfgs[] = {
 	[0] = {
 		.hwport	     = 0,
 		.flags	     = 0,
-		.clock	     = &s3c2410_pclk,
 		.ucon	     = 0x3c5,
 		.ulcon	     = 0x03,
 		.ufcon	     = 0x51,
@@ -60,7 +71,6 @@ static struct s3c2410_uartcfg ipaq_uartcfgs[] = {
 	[1] = {
 		.hwport	     = 1,
 		.flags	     = 0,
-		.clock	     = &s3c2410_pclk,
 		.ucon	     = 0x245,
 		.ulcon	     = 0x03,
 		.ufcon	     = 0x00,
@@ -69,7 +79,7 @@ static struct s3c2410_uartcfg ipaq_uartcfgs[] = {
 	[2] = {
 		.hwport	     = 2,
 		.flags	     = 0,
-		.clock	     = &s3c2410_pclk,
+		.uart_flags  = UPF_CONS_FLOW,
 		.ucon	     = 0x3c5,
 		.ulcon	     = 0x43,
 		.ufcon	     = 0x51,
@@ -77,30 +87,40 @@ static struct s3c2410_uartcfg ipaq_uartcfgs[] = {
 };
 
 
-void __init ipaq_map_io(void)
+
+
+static struct platform_device *h1940_devices[] __initdata = {
+	&s3c_device_usb,
+	&s3c_device_lcd,
+	&s3c_device_wdt,
+	&s3c_device_i2c,
+	&s3c_device_iis,
+};
+
+static struct s3c24xx_board h1940_board __initdata = {
+	.devices       = h1940_devices,
+	.devices_count = ARRAY_SIZE(h1940_devices)
+};
+
+void __init h1940_map_io(void)
 {
-	s3c2410_map_io(ipaq_iodesc, ARRAY_SIZE(ipaq_iodesc));
-	s3c2410_uartcfgs = ipaq_uartcfgs;
+	s3c24xx_init_io(h1940_iodesc, ARRAY_SIZE(h1940_iodesc));
+	s3c24xx_init_clocks(0);
+	s3c24xx_init_uarts(h1940_uartcfgs, ARRAY_SIZE(h1940_uartcfgs));
+	s3c24xx_set_board(&h1940_board);
 }
 
-void __init ipaq_init_irq(void)
+void __init h1940_init_irq(void)
 {
-	//llprintk("ipaq_init_irq:\n");
+	s3c24xx_init_irq();
 
-	s3c2410_init_irq();
-
-}
-
-void __init ipaq_init_time(void)
-{
-	s3c2410_init_time();
 }
 
 MACHINE_START(H1940, "IPAQ-H1940")
      MAINTAINER("Ben Dooks <ben@fluff.org>")
-     BOOT_MEM(S3C2410_SDRAM_PA, S3C2410_PA_UART, S3C2410_VA_UART)
+     BOOT_MEM(S3C2410_SDRAM_PA, S3C2410_PA_UART, (u32)S3C24XX_VA_UART)
      BOOT_PARAMS(S3C2410_SDRAM_PA + 0x100)
-     MAPIO(ipaq_map_io)
-     INITIRQ(ipaq_init_irq)
-     INITTIME(ipaq_init_time)
+     MAPIO(h1940_map_io)
+     INITIRQ(h1940_init_irq)
+	.timer		= &s3c24xx_timer,
 MACHINE_END

@@ -26,7 +26,7 @@
 (pKStk) addl r1=-IA64_PT_REGS_SIZE,r1;			/* if in kernel mode, use sp (r12) */	\
 	;;											\
 (pUStk)	mov r18=ar.bsp;										\
-(pUStk)	mov ar.rsc=0x3;		/* set eager mode, pl 0, little-endian, loadrs=0 */		\
+(pUStk)	mov ar.rsc=0x3;		/* set eager mode, pl 0, little-endian, loadrs=0 */
 
 #define MINSTATE_END_SAVE_MIN_VIRT								\
 	bsw.1;			/* switch back to bank 1 (must be last in insn group) */	\
@@ -37,25 +37,26 @@
  * go virtual and don't want to destroy the iip or ipsr.
  */
 #define MINSTATE_START_SAVE_MIN_PHYS								\
-(pKStk) movl sp=ia64_init_stack+IA64_STK_OFFSET-IA64_PT_REGS_SIZE;				\
+(pKStk) mov r3=IA64_KR(PER_CPU_DATA);;								\
+(pKStk) addl r3=THIS_CPU(ia64_mca_data),r3;;							\
+(pKStk) ld8 r3 = [r3];;										\
+(pKStk) addl r3=IA64_MCA_CPU_INIT_STACK_OFFSET,r3;;						\
+(pKStk) addl r1=IA64_STK_OFFSET-IA64_PT_REGS_SIZE,r3;						\
 (pUStk)	mov ar.rsc=0;		/* set enforced lazy mode, pl 0, little-endian, loadrs=0 */	\
 (pUStk)	addl r22=IA64_RBS_OFFSET,r1;		/* compute base of register backing store */	\
 	;;											\
 (pUStk)	mov r24=ar.rnat;									\
-(pKStk) tpa r1=sp;				/* compute physical addr of sp	*/		\
 (pUStk)	addl r1=IA64_STK_OFFSET-IA64_PT_REGS_SIZE,r1;	/* compute base of memory stack */	\
 (pUStk)	mov r23=ar.bspstore;				/* save ar.bspstore */			\
 (pUStk)	dep r22=-1,r22,61,3;			/* compute kernel virtual addr of RBS */	\
 	;;											\
-(pKStk) addl r1=-IA64_PT_REGS_SIZE,r1;		/* if in kernel mode, use sp (r12) */		\
 (pUStk)	mov ar.bspstore=r22;			/* switch to kernel RBS */			\
 	;;											\
 (pUStk)	mov r18=ar.bsp;										\
 (pUStk)	mov ar.rsc=0x3;		/* set eager mode, pl 0, little-endian, loadrs=0 */		\
 
 #define MINSTATE_END_SAVE_MIN_PHYS								\
-	or r12=r12,r14;		/* make sp a kernel virtual address */				\
-	or r13=r13,r14;		/* make `current' a kernel virtual address */			\
+	dep r12=-1,r12,61,3;		/* make sp a kernel virtual address */			\
 	;;
 
 #ifdef MINSTATE_VIRT
@@ -65,7 +66,7 @@
 #endif
 
 #ifdef MINSTATE_PHYS
-# define MINSTATE_GET_CURRENT(reg)	mov reg=IA64_KR(CURRENT);; dep reg=0,reg,61,3
+# define MINSTATE_GET_CURRENT(reg)	mov reg=IA64_KR(CURRENT);; tpa reg=reg
 # define MINSTATE_START_SAVE_MIN	MINSTATE_START_SAVE_MIN_PHYS
 # define MINSTATE_END_SAVE_MIN		MINSTATE_END_SAVE_MIN_PHYS
 #endif
@@ -172,7 +173,6 @@
 	;;											\
 .mem.offset 0,0; st8.spill [r16]=r15,16;							\
 .mem.offset 8,0; st8.spill [r17]=r14,16;							\
-	dep r14=-1,r0,61,3;									\
 	;;											\
 .mem.offset 0,0; st8.spill [r16]=r2,16;								\
 .mem.offset 8,0; st8.spill [r17]=r3,16;								\

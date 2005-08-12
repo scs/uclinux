@@ -21,11 +21,13 @@ config RWSEM_GENERIC_SPINLOCK
 config RWSEM_XCHGADD_ALGORITHM
 	bool
 
+config GENERIC_CALIBRATE_DELAY
+	bool
+	default y
 
 mainmenu "Linux/68k Kernel Configuration"
 
 source "init/Kconfig"
-
 
 menu "Platform dependent setup"
 
@@ -187,17 +189,19 @@ config BVME6000
 	  drivers for SCSI, Ethernet and serial ports later on.
 
 config HP300
-	bool "HP9000/300 support"
+	bool "HP9000/300 and HP9000/400 support"
 	depends on !MMU_SUN3
 	help
-	  This option enables support for the HP9000/300 series of
-	  workstations. Support for these machines is still very experimental.
-	  If you plan to try to use the kernel on such a machine say Y here.
+	  This option enables support for the HP9000/300 and HP9000/400 series
+	  of workstations. Support for these machines is still somewhat
+	  experimental. If you plan to try to use the kernel on such a machine
+	  say Y here.
 	  Everybody else says N.
 
 config DIO
 	bool "DIO bus support"
 	depends on HP300
+	default y
 	help
 	  Say Y here to enable support for the "DIO" expansion bus used in
 	  HP300 machines. If you are using such a system you almost certainly
@@ -355,7 +359,6 @@ config 060_WRITETHROUGH
 
 endmenu
 
-
 menu "General setup"
 
 source "fs/Kconfig.binfmt"
@@ -382,8 +385,8 @@ config STRAM_SWAP
 	bool "Support for ST-RAM as swap space"
 	depends on ATARI && BROKEN
 	---help---
-	  Some Atari 68k macines (including the 520STF and 1020STE) divide
-	  their addressible memory into ST and TT sections.  The TT section
+	  Some Atari 68k machines (including the 520STF and 1020STE) divide
+	  their addressable memory into ST and TT sections.  The TT section
 	  (up to 512MB) is the main memory; the ST section (up to 4MB) is
 	  accessible to the built-in graphics board, runs slower, and is
 	  present mainly for backward compatibility with older machines.
@@ -446,7 +449,6 @@ source "drivers/zorro/Kconfig"
 endmenu
 
 source "drivers/Kconfig"
-
 
 menu "Character devices"
 
@@ -586,9 +588,16 @@ config ADB_KEYBOARD
 
 config HPDCA
 	tristate "HP DCA serial support"
-	depends on DIO
+	depends on DIO && SERIAL_8250
 	help
 	  If you want to use the internal "DCA" serial ports on an HP300
+	  machine, say Y here.
+
+config HPAPCI
+	tristate "HP APCI serial support"
+	depends on HP300 && SERIAL_8250 && EXPERIMENTAL
+	help
+	  If you want to use the internal "APCI" serial ports on an HP400
 	  machine, say Y here.
 
 config MVME147_SCC
@@ -627,7 +636,7 @@ config DN_SERIAL
 
 config SERIAL_CONSOLE
 	bool "Support for serial port console"
-	depends on (AMIGA || ATARI || MAC || HP300 || SUN3 || SUN3X || VME || APOLLO) && (ATARI_MFPSER=y || ATARI_SCC=y || ATARI_MIDI=y || MAC_SCC=y || AMIGA_BUILTIN_SERIAL=y || GVPIOEXT=y || MULTIFACE_III_TTY=y || HPDCA=y || SERIAL=y || MVME147_SCC || SERIAL167 || MVME162_SCC || BVME6000_SCC || DN_SERIAL)
+	depends on (AMIGA || ATARI || MAC || SUN3 || SUN3X || VME || APOLLO) && (ATARI_MFPSER=y || ATARI_SCC=y || ATARI_MIDI=y || MAC_SCC=y || AMIGA_BUILTIN_SERIAL=y || GVPIOEXT=y || MULTIFACE_III_TTY=y || SERIAL=y || MVME147_SCC || SERIAL167 || MVME162_SCC || BVME6000_SCC || DN_SERIAL)
 	---help---
 	  If you say Y here, it will be possible to use a serial port as the
 	  system console (the system console is the device which receives all
@@ -652,47 +661,10 @@ endmenu
 
 source "fs/Kconfig"
 
-menu "Kernel hacking"
-
-config DEBUG_KERNEL
-	bool "Kernel debugging"
-
-config MAGIC_SYSRQ
-	bool "Magic SysRq key"
-	depends on DEBUG_KERNEL
-	help
-	  If you say Y here, you will have some control over the system even
-	  if the system crashes for example during kernel debugging (e.g., you
-	  will be able to flush the buffer cache to disk, reboot the system
-	  immediately or dump some status information). This is accomplished
-	  by pressing various keys while holding SysRq (Alt+PrintScreen). It
-	  also works on a serial console (on PC hardware at least), if you
-	  send a BREAK and then within 5 seconds a command keypress. The
-	  keys are documented in <file:Documentation/sysrq.txt>. Don't say Y
-	  unless you really know what this hack does.
-
-config DEBUG_SLAB
-	bool "Debug memory allocations"
-	depends on DEBUG_KERNEL
-
-config DEBUG_BUGVERBOSE
-	bool "Verbose BUG() reporting"
-	depends on DEBUG_KERNEL
-
-config DEBUG_INFO
-	bool "Compile the kernel with debug info"
-	depends on DEBUG_KERNEL
-	help
-          If you say Y here the resulting kernel image will include
-	  debugging info resulting in a larger kernel image.
-	  Say Y here only if you plan to use gdb to debug the kernel.
-	  If you don't debug the kernel, you can say N.
-
-endmenu
+source "arch/m68k/Kconfig.debug"
 
 source "security/Kconfig"
 
 source "crypto/Kconfig"
 
 source "lib/Kconfig"
-

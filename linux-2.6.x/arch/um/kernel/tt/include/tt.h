@@ -24,13 +24,13 @@ extern void set_init_pid(int pid);
 extern int set_user_mode(void *task);
 extern void set_tracing(void *t, int tracing);
 extern int is_tracing(void *task);
-extern int singlestepping_tt(void *t);
-extern void clear_singlestep(void *t);
 extern void syscall_handler(int sig, union uml_pt_regs *regs);
 extern void exit_kernel(int pid, void *task);
-extern int do_syscall(void *task, int pid);
+extern void do_syscall(void *task, int pid, int local_using_sysemu);
+extern void do_sigtrap(void *task);
 extern int is_valid_pid(int pid);
 extern void remap_data(void *segment_start, void *segment_end, int w);
+extern long execute_syscall_tt(void *r);
 
 #endif
 

@@ -1,8 +1,8 @@
 /*
  * arch/v850/kernel/ptrace.c -- `ptrace' system call
  *
- *  Copyright (C) 2002,03  NEC Electronics Corporation
- *  Copyright (C) 2002,03  Miles Bader <miles@gnu.org>
+ *  Copyright (C) 2002,03,04  NEC Electronics Corporation
+ *  Copyright (C) 2002,03,04  Miles Bader <miles@gnu.org>
  *
  * Derived from arch/mips/kernel/ptrace.c:
  *
@@ -23,6 +23,7 @@
 #include <linux/sched.h>
 #include <linux/smp_lock.h>
 #include <linux/ptrace.h>
+#include <linux/signal.h>
 
 #include <asm/errno.h>
 #include <asm/ptrace.h>
@@ -147,14 +148,8 @@ int sys_ptrace(long request, long pid, long addr, long data)
 		rval = ptrace_attach(child);
 		goto out_tsk;
 	}
-	rval = -ESRCH;
-	if (!(child->ptrace & PT_PTRACED))
-		goto out_tsk;
-	if (child->state != TASK_STOPPED) {
-		if (request != PTRACE_KILL)
-			goto out_tsk;
-	}
-	if (child->parent != current)
+	rval = ptrace_check_attach(child, request == PTRACE_KILL);
+	if (rval < 0)
 		goto out_tsk;
 
 	switch (request) {
@@ -214,7 +209,7 @@ int sys_ptrace(long request, long pid, long addr, long data)
 	/* Execute a single instruction. */
 	case PTRACE_SINGLESTEP:
 		rval = -EIO;
-		if ((unsigned long) data > _NSIG)
+		if (!valid_signal(data))
 			break;
 
 		/* Turn CHILD's single-step flag on or off.  */
@@ -238,7 +233,7 @@ int sys_ptrace(long request, long pid, long addr, long data)
 	 */
 	case PTRACE_KILL:
 		rval = 0;
-		if (child->state == TASK_ZOMBIE)	/* already dead */
+		if (child->exit_state == EXIT_ZOMBIE)	/* already dead */
 			break;
 		child->exit_code = SIGKILL;
 		wake_up_process(child);
@@ -269,11 +264,8 @@ asmlinkage void syscall_trace(void)
 		return;
 	/* The 0x80 provides a way for the tracing parent to distinguish
 	   between a syscall stop and SIGTRAP delivery */
-	current->exit_code = SIGTRAP | ((current->ptrace & PT_TRACESYSGOOD)
-					? 0x80 : 0);
-	current->state = TASK_STOPPED;
-	notify_parent(current, SIGCHLD);
-	schedule();
+	ptrace_notify(SIGTRAP | ((current->ptrace & PT_TRACESYSGOOD)
+				 ? 0x80 : 0));
 	/*
 	 * this isn't the same as continuing with a signal, but it will do
 	 * for normal use.  strace only continues with a signal if the

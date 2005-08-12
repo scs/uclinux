@@ -24,12 +24,10 @@ SARCH :=
 endif
 
 LD = $(CROSS_COMPILE)ld -mcrislinux
-LDFLAGS_BLOB	:= --format binary --oformat elf32-cris \
-		   -T arch/cris/$(SARCH)/output_arch.ld
 
 OBJCOPYFLAGS := -O binary -R .note -R .comment -S
 
-AFLAGS_vmlinux.lds.o = -DDRAM_VIRTUAL_BASE=0x$(CONFIG_ETRAX_DRAM_VIRTUAL_BASE)
+CPPFLAGS_vmlinux.lds = -DDRAM_VIRTUAL_BASE=0x$(CONFIG_ETRAX_DRAM_VIRTUAL_BASE)
 AFLAGS += -mlinux
 
 CFLAGS := $(CFLAGS) -mlinux -march=$(arch-y) -pipe
@@ -39,7 +37,7 @@ CFLAGS := $(subst -fomit-frame-pointer,,$(CFLAGS)) -g
 CFLAGS += -fno-omit-frame-pointer
 endif
 
-HEAD := arch/$(ARCH)/$(SARCH)/kernel/head.o
+head-y := arch/$(ARCH)/$(SARCH)/kernel/head.o
 
 LIBGCC = $(shell $(CC) $(CFLAGS) -print-file-name=libgcc.a)
 
@@ -82,7 +80,7 @@ compressed: zImage
 archmrproper:
 archclean:
 	$(Q)$(MAKE) $(clean)=arch/$(ARCH)/boot
-	rm -f timage vmlinux.bin cramfs.img
+	rm -f timage vmlinux.bin decompress.bin rescue.bin cramfs.img
 	rm -rf $(LD_SCRIPT).tmp
 
 prepare: arch/$(ARCH)/.links include/asm-$(ARCH)/.arch \

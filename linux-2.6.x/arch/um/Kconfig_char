@@ -1,6 +1,12 @@
 
 menu "Character Devices"
 
+config STDERR_CONSOLE
+	bool "stderr console"
+	default y
+	help
+	console driver which dumps all printk messages to stderr.
+
 config STDIO_CONSOLE
 	bool
 	default y
@@ -16,15 +22,6 @@ config SSL
         information and command line examples of how to use this facility.
 
         Unless you have a specific reason for disabling this, say Y.
-
-config FD_CHAN
-	bool "file descriptor channel support"
-	help
-        This option enables support for attaching UML consoles and serial
-        lines to already set up file descriptors.  Generally, the main
-        console is attached to file descriptors 0 and 1 (stdin and stdout),
-        so it would be wise to leave this enabled unless you intend to
-        attach it to some other host device.
 
 config NULL_CHAN
 	bool "null channel support"
@@ -72,6 +69,10 @@ config XTERM_CHAN
         well, since UML's gdb currently requires an xterm.
         It is safe to say 'Y' here.
 
+config NOCONFIG_CHAN
+	bool
+	default !(XTERM_CHAN && TTY_CHAN && PTY_CHAN && PORT_CHAN && NULL_CHAN)
+
 config CON_ZERO_CHAN
 	string "Default main console channel initialization"
 	default "fd:0,fd:1"
@@ -108,11 +109,55 @@ config SSL_CHAN
 
 config UNIX98_PTYS
 	bool "Unix98 PTY support"
+	---help---
+	  A pseudo terminal (PTY) is a software device consisting of two
+	  halves: a master and a slave. The slave device behaves identical to
+	  a physical terminal; the master device is used by a process to
+	  read data from and write data to the slave, thereby emulating a
+	  terminal. Typical programs for the master side are telnet servers
+	  and xterms.
 
-config UNIX98_PTY_COUNT
-	int "Maximum number of Unix98 PTYs in use (0-2048)"
-	depends on UNIX98_PTYS
+	  Linux has traditionally used the BSD-like names /dev/ptyxx for
+	  masters and /dev/ttyxx for slaves of pseudo terminals. This scheme
+	  has a number of problems. The GNU C library glibc 2.1 and later,
+	  however, supports the Unix98 naming standard: in order to acquire a
+	  pseudo terminal, a process opens /dev/ptmx; the number of the pseudo
+	  terminal is then made available to the process and the pseudo
+	  terminal slave can be accessed as /dev/pts/<number>. What was
+	  traditionally /dev/ttyp2 will then be /dev/pts/2, for example.
+
+	  All modern Linux systems use the Unix98 ptys.  Say Y unless
+	  you're on an embedded system and want to conserve memory.
+
+config LEGACY_PTYS
+	bool "Legacy (BSD) PTY support"
+	default y
+	---help---
+	  A pseudo terminal (PTY) is a software device consisting of two
+	  halves: a master and a slave. The slave device behaves identical to
+	  a physical terminal; the master device is used by a process to
+	  read data from and write data to the slave, thereby emulating a
+	  terminal. Typical programs for the master side are telnet servers
+	  and xterms.
+
+	  Linux has traditionally used the BSD-like names /dev/ptyxx
+	  for masters and /dev/ttyxx for slaves of pseudo
+	  terminals. This scheme has a number of problems, including
+	  security.  This option enables these legacy devices; on most
+	  systems, it is safe to say N.
+
+
+config LEGACY_PTY_COUNT
+	int "Maximum number of legacy PTY in use"
+	depends on LEGACY_PTYS
 	default "256"
+	---help---
+	  The maximum number of legacy PTYs that can be used at any one time.
+	  The default is 256, and should be more than enough.  Embedded
+	  systems may want to reduce this to save memory.
+
+	  When not in use, each legacy PTY occupies 12 bytes on 32-bit
+	  architectures and 24 bytes on 64-bit architectures.
 
 config WATCHDOG
 	bool "Watchdog Timer Support"
@@ -144,6 +189,26 @@ config SOUND
 config HOSTAUDIO
 	tristate
 	default UML_SOUND
+
+config UML_RANDOM
+	tristate "Hardware random number generator"
+	help
+	This option enables UML's "hardware" random number generator.  It
+	attaches itself to the host's /dev/random, supplying as much entropy
+	as the host has, rather than the small amount the UML gets from its
+	own drivers.  It registers itself as a standard hardware random number
+	generator, major 10, minor 183, and the canonical device name is
+	/dev/hwrng.
+	The way to make use of this is to install the rng-tools package
+	(check your distro, or download from
+	http://sourceforge.net/projects/gkernel/).  rngd periodically reads
+	/dev/hwrng and injects the entropy into /dev/random.
+
+config MMAPPER
+	tristate "iomem emulation driver"
+	help
+	This driver allows a host file to be used as emulated IO memory inside
+	UML.
 
 endmenu
 

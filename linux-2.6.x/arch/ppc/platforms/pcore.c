@@ -89,7 +89,7 @@ pcore_pcibios_fixup(void)
 {
 	struct pci_dev *dev;
 
-	if ((dev = pci_find_device(PCI_VENDOR_ID_WINBOND,
+	if ((dev = pci_get_device(PCI_VENDOR_ID_WINBOND,
 				PCI_DEVICE_ID_WINBOND_83C553,
 				0)))
 	{
@@ -108,6 +108,7 @@ pcore_pcibios_fixup(void)
 		 */
  		outb(0x00, PCORE_WINBOND_PRI_EDG_LVL);
 		outb(0x1e, PCORE_WINBOND_SEC_EDG_LVL);
+		pci_dev_put(dev);
 	}
 }
 
@@ -228,10 +229,6 @@ pcore_setup_arch(void)
 		ROOT_DEV = Root_SDA2;
 #endif
 
-#ifdef CONFIG_DUMMY_CONSOLE
-	conswitchp = &dummy_con;
-#endif
-
  	printk(KERN_INFO "Force PowerCore ");
 	if (board_type == PCORE_TYPE_6750)
 		printk("6750\n");
@@ -285,8 +282,8 @@ static __inline__ void
 pcore_set_bat(void)
 {
 	mb();
-	mtspr(DBAT3U, 0xf0001ffe);
-	mtspr(DBAT3L, 0xfe80002a);
+	mtspr(SPRN_DBAT3U, 0xf0001ffe);
+	mtspr(SPRN_DBAT3L, 0xfe80002a);
 	mb();
 
 }

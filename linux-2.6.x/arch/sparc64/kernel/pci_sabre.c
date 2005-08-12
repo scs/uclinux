@@ -1100,7 +1100,7 @@ static void __init sabre_base_address_update(struct pci_dev *pdev, int resource)
 	       (((u32)(res->start - base)) & ~size));
 	if (resource == PCI_ROM_RESOURCE) {
 		reg |= PCI_ROM_ADDRESS_ENABLE;
-		res->flags |= PCI_ROM_ADDRESS_ENABLE;
+		res->flags |= IORESOURCE_ROM_ENABLE;
 	}
 	pci_write_config_dword(pdev, where, reg);
 
@@ -1113,10 +1113,9 @@ static void __init sabre_base_address_update(struct pci_dev *pdev, int resource)
 
 static void __init apb_init(struct pci_controller_info *p, struct pci_bus *sabre_bus)
 {
-	struct list_head *walk = &sabre_bus->devices;
+	struct pci_dev *pdev;
 
-	for (walk = walk->next; walk != &sabre_bus->devices; walk = walk->next) {
-		struct pci_dev *pdev = pci_dev_b(walk);
+	list_for_each_entry(pdev, &sabre_bus->devices, bus_list) {
 
 		if (pdev->vendor == PCI_VENDOR_ID_SUN &&
 		    pdev->device == PCI_DEVICE_ID_SUN_SIMBA) {
@@ -1178,10 +1177,9 @@ static struct pcidev_cookie *alloc_bridge_cookie(struct pci_pbm_info *pbm)
 static void __init sabre_scan_bus(struct pci_controller_info *p)
 {
 	static int once;
-	struct pci_bus *sabre_bus;
+	struct pci_bus *sabre_bus, *pbus;
 	struct pci_pbm_info *pbm;
 	struct pcidev_cookie *cookie;
-	struct list_head *walk;
 	int sabres_scanned;
 
 	/* The APB bridge speaks to the Sabre host PCI bridge
@@ -1217,9 +1215,7 @@ static void __init sabre_scan_bus(struct pci_controller_info *p)
 
 	sabres_scanned = 0;
 
-	walk = &sabre_bus->children;
-	for (walk = walk->next; walk != &sabre_bus->children; walk = walk->next) {
-		struct pci_bus *pbus = pci_bus_b(walk);
+	list_for_each_entry(pbus, &sabre_bus->children, node) {
 
 		if (pbus->number == p->pbm_A.pci_first_busno) {
 			pbm = &p->pbm_A;
@@ -1269,7 +1265,7 @@ static void __init sabre_iommu_init(struct pci_controller_info *p,
 
 	/* Setup initial software IOMMU state. */
 	spin_lock_init(&iommu->lock);
-	iommu->iommu_cur_ctx = 0;
+	iommu->ctx_lowest_free = 1;
 
 	/* Register addresses. */
 	iommu->iommu_control  = p->pbm_A.controller_regs + SABRE_IOMMU_CONTROL;
@@ -1293,6 +1289,14 @@ static void __init sabre_iommu_init(struct pci_controller_info *p,
 	 * in pci_iommu.c
 	 */
 
+	iommu->dummy_page = __get_free_pages(GFP_KERNEL, 0);
+	if (!iommu->dummy_page) {
+		prom_printf("PSYCHO_IOMMU: Error, gfp(dummy_page) failed.\n");
+		prom_halt();
+	}
+	memset((void *)iommu->dummy_page, 0, PAGE_SIZE);
+	iommu->dummy_page_pa = (unsigned long) __pa(iommu->dummy_page);
+
 	tsbbase = __get_free_pages(GFP_KERNEL, order = get_order(tsbsize * 1024 * 8));
 	if (!tsbbase) {
 		prom_printf("SABRE_IOMMU: Error, gfp(tsb) failed.\n");
@@ -1301,7 +1305,7 @@ static void __init sabre_iommu_init(struct pci_controller_info *p,
 	iommu->page_table = (iopte_t *)tsbbase;
 	iommu->page_table_map_base = dvma_offset;
 	iommu->dma_addr_mask = dma_mask;
-	memset((char *)tsbbase, 0, PAGE_SIZE << order);
+	pci_iommu_table_init(iommu, PAGE_SIZE << order);
 
 	sabre_write(p->pbm_A.controller_regs + SABRE_IOMMU_TSBBASE, __pa(tsbbase));
 
@@ -1546,7 +1550,6 @@ void __init sabre_init(int pnode, char *model_name)
 	struct linux_prom64_registers pr_regs[2];
 	struct pci_controller_info *p;
 	struct pci_iommu *iommu;
-	unsigned long flags;
 	int tsbsize, err;
 	u32 busrange[2];
 	u32 vdma[2];
@@ -1594,10 +1597,8 @@ void __init sabre_init(int pnode, char *model_name)
 
 	upa_portid = prom_getintdefault(pnode, "upa-portid", 0xff);
 
-	spin_lock_irqsave(&pci_controller_lock, flags);
 	p->next = pci_controller_root;
 	pci_controller_root = p;
-	spin_unlock_irqrestore(&pci_controller_lock, flags);
 
 	p->pbm_A.portid = upa_portid;
 	p->pbm_B.portid = upa_portid;

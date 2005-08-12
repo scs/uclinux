@@ -49,7 +49,7 @@ int mp_bus_id_to_node [MAX_MP_BUSSES];
 int mp_bus_id_to_local [MAX_MP_BUSSES];
 int quad_local_to_mp_bus_id [NR_CPUS/4][4];
 int mp_bus_id_to_pci_bus [MAX_MP_BUSSES] = { [0 ... MAX_MP_BUSSES-1] = -1 };
-int mp_current_pci_id;
+static int mp_current_pci_id;
 
 /* I/O APIC entries */
 struct mpc_config_ioapic mp_ioapics[MAX_IO_APICS];
@@ -119,7 +119,7 @@ static int MP_valid_apicid(int apicid, int version)
 }
 #endif
 
-void __init MP_processor_info (struct mpc_config_processor *m)
+static void __init MP_processor_info (struct mpc_config_processor *m)
 {
  	int ver, apicid;
 	physid_mask_t tmp;
@@ -309,8 +309,8 @@ static void __init MP_translation_info (struct mpc_config_translation *m)
 		printk(KERN_ERR "MAX_MPC_ENTRY exceeded!\n");
 	else
 		translation_table[mpc_record] = m; /* stash this for later */
-	if (m->trans_quad+1 > numnodes)
-		numnodes = m->trans_quad+1;
+	if (m->trans_quad < MAX_NUMNODES && !node_online(m->trans_quad))
+		node_set_online(m->trans_quad);
 }
 
 /*
@@ -808,7 +808,6 @@ void __init find_smp_config (void)
 		smp_scan_config(address, 0x400);
 }
 
-
 /* --------------------------------------------------------------------------
                             ACPI-based MP Configuration
    -------------------------------------------------------------------------- */
@@ -864,7 +863,7 @@ void __init mp_register_lapic (
 #define MP_ISA_BUS		0
 #define MP_MAX_IOAPIC_PIN	127
 
-struct mp_ioapic_routing {
+static struct mp_ioapic_routing {
 	int			apic_id;
 	int			gsi_base;
 	int			gsi_end;
@@ -983,6 +982,7 @@ void __init mp_override_legacy_irq (
 	return;
 }
 
+int es7000_plat;
 
 void __init mp_config_acpi_legacy_irqs (void)
 {
@@ -995,6 +995,12 @@ void __init mp_config_acpi_legacy_irqs (void)
 	 */
 	mp_bus_id_to_type[MP_ISA_BUS] = MP_BUS_ISA;
 	Dprintk("Bus #%d is ISA\n", MP_ISA_BUS);
+
+	/*
+	 * Older generations of ES7000 have no legacy identity mappings
+	 */
+	if (es7000_plat == 1)
+		return;
 
 	/* 
 	 * Locate the IOAPIC that manages the ISA IRQs (0-15). 
@@ -1049,9 +1055,7 @@ void __init mp_config_acpi_legacy_irqs (void)
 	}
 }
 
-int (*platform_rename_gsi)(int ioapic, int gsi);
-
-void mp_register_gsi (u32 gsi, int edge_level, int active_high_low)
+int mp_register_gsi (u32 gsi, int edge_level, int active_high_low)
 {
 	int			ioapic = -1;
 	int			ioapic_pin = 0;
@@ -1060,19 +1064,19 @@ void mp_register_gsi (u32 gsi, int edge_level, int active_high_low)
 #ifdef CONFIG_ACPI_BUS
 	/* Don't set up the ACPI SCI because it's already set up */
 	if (acpi_fadt.sci_int == gsi)
-		return;
+		return gsi;
 #endif
 
 	ioapic = mp_find_ioapic(gsi);
 	if (ioapic < 0) {
 		printk(KERN_WARNING "No IOAPIC for GSI %u\n", gsi);
-		return;
+		return gsi;
 	}
 
 	ioapic_pin = gsi - mp_ioapic_routing[ioapic].gsi_base;
 
-	if (platform_rename_gsi)
-		gsi = platform_rename_gsi(ioapic, gsi);
+	if (ioapic_renumber_irq)
+		gsi = ioapic_renumber_irq(ioapic, gsi);
 
 	/* 
 	 * Avoid pin reprogramming.  PRTs typically include entries  
@@ -1085,12 +1089,12 @@ void mp_register_gsi (u32 gsi, int edge_level, int active_high_low)
 		printk(KERN_ERR "Invalid reference to IOAPIC pin "
 			"%d-%d\n", mp_ioapic_routing[ioapic].apic_id, 
 			ioapic_pin);
-		return;
+		return gsi;
 	}
 	if ((1<<bit) & mp_ioapic_routing[ioapic].pin_programmed[idx]) {
 		Dprintk(KERN_DEBUG "Pin %d-%d already programmed\n",
 			mp_ioapic_routing[ioapic].apic_id, ioapic_pin);
-		return;
+		return gsi;
 	}
 
 	mp_ioapic_routing[ioapic].pin_programmed[idx] |= (1<<bit);
@@ -1098,6 +1102,7 @@ void mp_register_gsi (u32 gsi, int edge_level, int active_high_low)
 	io_apic_set_pci_routing(ioapic, ioapic_pin, gsi,
 		    edge_level == ACPI_EDGE_SENSITIVE ? 0 : 1,
 		    active_high_low == ACPI_ACTIVE_HIGH ? 0 : 1);
+	return gsi;
 }
 
 #endif /*CONFIG_X86_IO_APIC && (CONFIG_ACPI_INTERPRETER || CONFIG_ACPI_BOOT)*/

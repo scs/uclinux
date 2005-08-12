@@ -13,15 +13,18 @@
 #include "linux/ptrace.h"
 #include "asm/semaphore.h"
 #include "asm/pgtable.h"
+#include "asm/pgalloc.h"
 #include "asm/tlbflush.h"
 #include "asm/a.out.h"
 #include "asm/current.h"
+#include "asm/irq.h"
 #include "user_util.h"
 #include "kern_util.h"
 #include "kern.h"
 #include "chan_kern.h"
 #include "mconsole_kern.h"
-#include "2_5compat.h"
+#include "mem.h"
+#include "mem_kern.h"
 
 int handle_page_fault(unsigned long address, unsigned long ip, 
 		      int is_write, int is_user, int *code_out)
@@ -29,6 +32,7 @@ int handle_page_fault(unsigned long address, unsigned long ip,
 	struct mm_struct *mm = current->mm;
 	struct vm_area_struct *vma;
 	pgd_t *pgd;
+	pud_t *pud;
 	pmd_t *pmd;
 	pte_t *pte;
 	unsigned long page;
@@ -43,6 +47,8 @@ int handle_page_fault(unsigned long address, unsigned long ip,
 		goto good_area;
 	else if(!(vma->vm_flags & VM_GROWSDOWN)) 
 		goto out;
+	else if(is_user && !ARCH_IS_STACKGROW(address))
+		goto out;
 	else if(expand_stack(vma, address)) 
 		goto out;
 
@@ -50,13 +56,13 @@ int handle_page_fault(unsigned long address, unsigned long ip,
 	*code_out = SEGV_ACCERR;
 	if(is_write && !(vma->vm_flags & VM_WRITE)) 
 		goto out;
+
+        if(!(vma->vm_flags & (VM_READ | VM_EXEC)))
+                goto out;
+
 	page = address & PAGE_MASK;
-	if(page == (unsigned long) current->thread_info + PAGE_SIZE)
-		panic("Kernel stack overflow");
-	pgd = pgd_offset(mm, page);
-	pmd = pmd_offset(pgd, page);
- survive:
 	do {
+ survive:
 		switch (handle_mm_fault(mm, vma, address, is_write)){
 		case VM_FAULT_MINOR:
 			current->min_flt++;
@@ -73,12 +79,15 @@ int handle_page_fault(unsigned long address, unsigned long ip,
 		default:
 			BUG();
 		}
+		pgd = pgd_offset(mm, page);
+		pud = pud_offset(pgd, page);
+		pmd = pmd_offset(pud, page);
 		pte = pte_offset_kernel(pmd, page);
 	} while(!pte_present(*pte));
+	err = 0;
 	*pte = pte_mkyoung(*pte);
 	if(pte_write(*pte)) *pte = pte_mkdirty(*pte);
 	flush_tlb_page(vma, page);
-	err = 0;
  out:
 	up_read(&mm->mmap_sem);
 	return(err);
@@ -94,22 +103,28 @@ out_of_memory:
 		down_read(&mm->mmap_sem);
 		goto survive;
 	}
-	err = -ENOMEM;
 	goto out;
 }
 
-unsigned long segv(unsigned long address, unsigned long ip, int is_write, 
-		   int is_user, void *sc)
+/*
+ * We give a *copy* of the faultinfo in the regs to segv.
+ * This must be done, since nesting SEGVs could overwrite
+ * the info in the regs. A pointer to the info then would
+ * give us bad data!
+ */
+unsigned long segv(struct faultinfo fi, unsigned long ip, int is_user, void *sc)
 {
 	struct siginfo si;
 	void *catcher;
 	int err;
+        int is_write = FAULT_WRITE(fi);
+        unsigned long address = FAULT_ADDRESS(fi);
 
         if(!is_user && (address >= start_vm) && (address < end_vm)){
                 flush_tlb_kernel_vm();
                 return(0);
         }
-        if(current->mm == NULL)
+	else if(current->mm == NULL)
 		panic("Segfault with no mm");
 	err = handle_page_fault(address, ip, is_write, is_user, &si.si_code);
 
@@ -120,10 +135,9 @@ unsigned long segv(unsigned long address, unsigned long ip, int is_write,
 		current->thread.fault_addr = (void *) address;
 		do_longjmp(catcher, 1);
 	} 
-	else if(current->thread.fault_addr != NULL){
+	else if(current->thread.fault_addr != NULL)
 		panic("fault_addr set but no fault catcher");
-	}
-	else if(arch_fixup(ip, sc))
+        else if(!is_user && arch_fixup(ip, sc))
 		return(0);
 
  	if(!is_user) 
@@ -135,6 +149,7 @@ unsigned long segv(unsigned long address, unsigned long ip, int is_write,
 		si.si_errno = 0;
 		si.si_code = BUS_ADRERR;
 		si.si_addr = (void *)address;
+                current->thread.arch.faultinfo = fi;
 		force_sig_info(SIGBUS, &si, current);
 	}
 	else if(err == -ENOMEM){
@@ -144,24 +159,20 @@ unsigned long segv(unsigned long address, unsigned long ip, int is_write,
 	else {
 		si.si_signo = SIGSEGV;
 		si.si_addr = (void *) address;
-		current->thread.cr2 = address;
-		current->thread.err = is_write;
+                current->thread.arch.faultinfo = fi;
 		force_sig_info(SIGSEGV, &si, current);
 	}
 	return(0);
 }
 
-void bad_segv(unsigned long address, unsigned long ip, int is_write)
+void bad_segv(struct faultinfo fi, unsigned long ip)
 {
 	struct siginfo si;
 
-	printk(KERN_ERR "Unfixable SEGV in '%s' (pid %d) at 0x%lx "
-	       "(ip 0x%lx)\n", current->comm, current->pid, address, ip);
 	si.si_signo = SIGSEGV;
 	si.si_code = SEGV_ACCERR;
-	si.si_addr = (void *) address;
-	current->thread.cr2 = address;
-	current->thread.err = is_write;
+        si.si_addr = (void *) FAULT_ADDRESS(fi);
+        current->thread.arch.faultinfo = fi;
 	force_sig_info(SIGSEGV, &si, current);
 }
 
@@ -170,6 +181,7 @@ void relay_signal(int sig, union uml_pt_regs *regs)
 	if(arch_handle_signal(sig, regs)) return;
 	if(!UPT_IS_USER(regs))
 		panic("Kernel mode signal %d", sig);
+        current->thread.arch.faultinfo = *UPT_FAULTINFO(regs);
 	force_sig(sig, current);
 }
 
@@ -180,11 +192,16 @@ void bus_handler(int sig, union uml_pt_regs *regs)
 	else relay_signal(sig, regs);
 }
 
+void winch(int sig, union uml_pt_regs *regs)
+{
+	do_IRQ(WINCH_IRQ, regs);
+}
+
 void trap_init(void)
 {
 }
 
-spinlock_t trap_lock = SPIN_LOCK_UNLOCKED;
+DEFINE_SPINLOCK(trap_lock);
 
 static int trap_index = 0;
 

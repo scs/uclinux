@@ -41,12 +41,18 @@ end-y := elf
 # if present on 'classic' PPC.
 cacheflag-y	:= -DCLEAR_CACHES=""
 # This file will flush / disable the L2, and L3 if present.
-clear_L2_L3	:= $(boot)/simple/clear.S
+clear_L2_L3	:= $(srctree)/$(boot)/simple/clear.S
 
 #
 # See arch/ppc/kconfig and arch/ppc/platforms/Kconfig
 # for definition of what platform each config option refer to.
 #----------------------------------------------------------------------------
+      zimage-$(CONFIG_CPCI690)		:= zImage-STRIPELF
+zimageinitrd-$(CONFIG_CPCI690)		:= zImage.initrd-STRIPELF
+     extra.o-$(CONFIG_CPCI690)		:= misc-cpci690.o
+         end-$(CONFIG_CPCI690)		:= cpci690
+   cacheflag-$(CONFIG_CPCI690)		:= -include $(clear_L2_L3)
+
       zimage-$(CONFIG_IBM_OPENBIOS)	:= zImage-TREE
 zimageinitrd-$(CONFIG_IBM_OPENBIOS)	:= zImage.initrd-TREE
          end-$(CONFIG_IBM_OPENBIOS)	:= treeboot
@@ -59,23 +65,42 @@ zimageinitrd-$(CONFIG_IBM_OPENBIOS)	:= zImage.initrd-TREE
 zimageinitrd-$(CONFIG_EBONY)		:= zImage.initrd-TREE
          end-$(CONFIG_EBONY)		:= ebony
   entrypoint-$(CONFIG_EBONY)		:= 0x01000000
+     extra.o-$(CONFIG_EBONY)		:= openbios.o
+
+      zimage-$(CONFIG_LUAN)		:= zImage-TREE
+zimageinitrd-$(CONFIG_LUAN)		:= zImage.initrd-TREE
+         end-$(CONFIG_LUAN)		:= luan
+  entrypoint-$(CONFIG_LUAN)		:= 0x01000000
+     extra.o-$(CONFIG_LUAN)		:= pibs.o
 
       zimage-$(CONFIG_OCOTEA)		:= zImage-TREE
 zimageinitrd-$(CONFIG_OCOTEA)		:= zImage.initrd-TREE
          end-$(CONFIG_OCOTEA)		:= ocotea
   entrypoint-$(CONFIG_OCOTEA)		:= 0x01000000
+     extra.o-$(CONFIG_OCOTEA)		:= pibs.o
 
-     extra.o-$(CONFIG_EV64260)		:= direct.o misc-ev64260.o
+     extra.o-$(CONFIG_EV64260)		:= misc-ev64260.o
          end-$(CONFIG_EV64260)		:= ev64260
    cacheflag-$(CONFIG_EV64260)		:= -include $(clear_L2_L3)
+
+     extra.o-$(CONFIG_CHESTNUT)		:= misc-chestnut.o
+         end-$(CONFIG_CHESTNUT)		:= chestnut
 
       zimage-$(CONFIG_GEMINI)		:= zImage-STRIPELF
 zimageinitrd-$(CONFIG_GEMINI)		:= zImage.initrd-STRIPELF
          end-$(CONFIG_GEMINI)		:= gemini
 
-     extra.o-$(CONFIG_K2)		:= legacy.o
+     extra.o-$(CONFIG_K2)		:= prepmap.o
          end-$(CONFIG_K2)		:= k2
    cacheflag-$(CONFIG_K2)		:= -include $(clear_L2_L3)
+
+     extra.o-$(CONFIG_KATANA)		:= misc-katana.o
+         end-$(CONFIG_KATANA)		:= katana
+   cacheflag-$(CONFIG_KATANA)		:= -include $(clear_L2_L3)
+
+     extra.o-$(CONFIG_RADSTONE_PPC7D)	:= misc-radstone_ppc7d.o
+         end-$(CONFIG_RADSTONE_PPC7D)	:= radstone_ppc7d
+   cacheflag-$(CONFIG_RADSTONE_PPC7D)	:= -include $(clear_L2_L3)
 
 # kconfig 'feature', only one of these will ever be 'y' at a time.
 # The rest will be unset.
@@ -89,7 +114,7 @@ zimageinitrd-$(motorola)		:= zImage.initrd-PPLUS
          end-$(motorola)		:= pplus
 
 # Overrides previous assingment
-     extra.o-$(CONFIG_PPLUS)		:= legacy.o
+     extra.o-$(CONFIG_PPLUS)		:= prepmap.o
      extra.o-$(CONFIG_LOPEC)		:= mpc10x_memory.o
 
       zimage-$(pcore)			:= zImage-STRIPELF
@@ -98,10 +123,13 @@ zimageinitrd-$(pcore)			:= zImage.initrd-STRIPELF
          end-$(pcore)			:= pcore
    cacheflag-$(pcore)			:= -include $(clear_L2_L3)
 
+# Really only valid if CONFIG_6xx=y
       zimage-$(CONFIG_PPC_PREP)		:= zImage-PPLUS
 zimageinitrd-$(CONFIG_PPC_PREP)		:= zImage.initrd-PPLUS
-     extra.o-$(CONFIG_PPC_PREP)		:= legacy.o
+ifeq ($(CONFIG_6xx),y)
+     extra.o-$(CONFIG_PPC_PREP)		:= prepmap.o
         misc-$(CONFIG_PPC_PREP)		+= misc-prep.o mpc10x_memory.o
+endif
          end-$(CONFIG_PPC_PREP)		:= prep
 
          end-$(CONFIG_SANDPOINT)	:= sandpoint
@@ -142,6 +170,7 @@ boot-$(CONFIG_8xx)		+= embed_config.o
 boot-$(CONFIG_8260)		+= embed_config.o
 boot-$(CONFIG_BSEIP)		+= iic.o
 boot-$(CONFIG_MBX)		+= iic.o pci.o qspan_pci.o
+boot-$(CONFIG_MV64X60)		+= misc-mv64x60.o
 boot-$(CONFIG_RPXCLASSIC)	+= iic.o pci.o qspan_pci.o
 boot-$(CONFIG_RPXLITE)		+= iic.o
 # Different boards need different serial implementations.
@@ -149,8 +178,8 @@ ifeq ($(CONFIG_SERIAL_CPM_CONSOLE),y)
 boot-$(CONFIG_8xx)		+= m8xx_tty.o
 boot-$(CONFIG_8260)		+= m8260_tty.o
 endif
-boot-$(CONFIG_SERIAL_MPC52xx_CONSOLE) += mpc52xx_tty.o
-boot-$(CONFIG_GT64260_CONSOLE)	+= gt64260_tty.o
+boot-$(CONFIG_SERIAL_MPC52xx_CONSOLE)	+= mpc52xx_tty.o
+boot-$(CONFIG_SERIAL_MPSC_CONSOLE)	+= mv64x60_tty.o
 
 LIBS				:= $(common)/lib.a $(bootlib)/lib.a
 ifeq ($(CONFIG_PPC_PREP),y)

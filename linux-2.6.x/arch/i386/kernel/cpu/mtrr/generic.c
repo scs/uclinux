@@ -19,8 +19,7 @@ struct mtrr_state {
 };
 
 static unsigned long smp_changes_mask;
-struct mtrr_state mtrr_state = {};
-
+static struct mtrr_state mtrr_state = {};
 
 /*  Get the MSR pair relating to a var range  */
 static void __init
@@ -93,6 +92,16 @@ void __init mtrr_state_warn(void)
 	printk(KERN_INFO "mtrr: corrected configuration.\n");
 }
 
+/* Doesn't attempt to pass an error out to MTRR users
+   because it's quite complicated in some cases and probably not
+   worth it because the best error handling is to ignore it. */
+void mtrr_wrmsr(unsigned msr, unsigned a, unsigned b)
+{
+	if (wrmsr_safe(msr, a, b) < 0)
+		printk(KERN_ERR
+			"MTRR: CPU %u: Writing MSR %x to %x:%x failed\n",
+			smp_processor_id(), msr, a, b);
+}
 
 int generic_get_free_region(unsigned long base, unsigned long size)
 /*  [SUMMARY] Get a free MTRR.
@@ -115,8 +124,8 @@ int generic_get_free_region(unsigned long base, unsigned long size)
 	return -ENOSPC;
 }
 
-void generic_get_mtrr(unsigned int reg, unsigned long *base,
-		      unsigned int *size, mtrr_type * type)
+static void generic_get_mtrr(unsigned int reg, unsigned long *base,
+			     unsigned int *size, mtrr_type * type)
 {
 	unsigned int mask_lo, mask_hi, base_lo, base_hi;
 
@@ -151,14 +160,14 @@ static int set_fixed_ranges(mtrr_type * frs)
 
 	rdmsr(MTRRfix64K_00000_MSR, lo, hi);
 	if (p[0] != lo || p[1] != hi) {
-		wrmsr(MTRRfix64K_00000_MSR, p[0], p[1]);
+		mtrr_wrmsr(MTRRfix64K_00000_MSR, p[0], p[1]);
 		changed = TRUE;
 	}
 
 	for (i = 0; i < 2; i++) {
 		rdmsr(MTRRfix16K_80000_MSR + i, lo, hi);
 		if (p[2 + i * 2] != lo || p[3 + i * 2] != hi) {
-			wrmsr(MTRRfix16K_80000_MSR + i, p[2 + i * 2],
+			mtrr_wrmsr(MTRRfix16K_80000_MSR + i, p[2 + i * 2],
 			      p[3 + i * 2]);
 			changed = TRUE;
 		}
@@ -167,7 +176,7 @@ static int set_fixed_ranges(mtrr_type * frs)
 	for (i = 0; i < 8; i++) {
 		rdmsr(MTRRfix4K_C0000_MSR + i, lo, hi);
 		if (p[6 + i * 2] != lo || p[7 + i * 2] != hi) {
-			wrmsr(MTRRfix4K_C0000_MSR + i, p[6 + i * 2],
+			mtrr_wrmsr(MTRRfix4K_C0000_MSR + i, p[6 + i * 2],
 			      p[7 + i * 2]);
 			changed = TRUE;
 		}
@@ -184,16 +193,18 @@ static int set_mtrr_var_ranges(unsigned int index, struct mtrr_var_range *vr)
 
 	rdmsr(MTRRphysBase_MSR(index), lo, hi);
 	if ((vr->base_lo & 0xfffff0ffUL) != (lo & 0xfffff0ffUL)
-	    || (vr->base_hi & 0xfUL) != (hi & 0xfUL)) {
-		wrmsr(MTRRphysBase_MSR(index), vr->base_lo, vr->base_hi);
+	    || (vr->base_hi & (size_and_mask >> (32 - PAGE_SHIFT))) !=
+		(hi & (size_and_mask >> (32 - PAGE_SHIFT)))) {
+		mtrr_wrmsr(MTRRphysBase_MSR(index), vr->base_lo, vr->base_hi);
 		changed = TRUE;
 	}
 
 	rdmsr(MTRRphysMask_MSR(index), lo, hi);
 
 	if ((vr->mask_lo & 0xfffff800UL) != (lo & 0xfffff800UL)
-	    || (vr->mask_hi & 0xfUL) != (hi & 0xfUL)) {
-		wrmsr(MTRRphysMask_MSR(index), vr->mask_lo, vr->mask_hi);
+	    || (vr->mask_hi & (size_and_mask >> (32 - PAGE_SHIFT))) !=
+		(hi & (size_and_mask >> (32 - PAGE_SHIFT)))) {
+		mtrr_wrmsr(MTRRphysMask_MSR(index), vr->mask_lo, vr->mask_hi);
 		changed = TRUE;
 	}
 	return changed;
@@ -231,7 +242,14 @@ static unsigned long set_mtrr_state(u32 deftype_lo, u32 deftype_hi)
 
 static unsigned long cr4 = 0;
 static u32 deftype_lo, deftype_hi;
-static spinlock_t set_atomicity_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(set_atomicity_lock);
+
+/*
+ * Since we are disabling the cache don't allow any interrupts - they
+ * would run extremely slow and would only increase the pain.  The caller must
+ * ensure that local interrupts are disabled and are reenabled after post_set()
+ * has been called.
+ */
 
 static void prepare_set(void)
 {
@@ -240,18 +258,18 @@ static void prepare_set(void)
 	/*  Note that this is not ideal, since the cache is only flushed/disabled
 	   for this CPU while the MTRRs are changed, but changing this requires
 	   more invasive changes to the way the kernel boots  */
+
 	spin_lock(&set_atomicity_lock);
 
 	/*  Enter the no-fill (CD=1, NW=0) cache mode and flush caches. */
 	cr0 = read_cr0() | 0x40000000;	/* set CD flag */
-	wbinvd();
 	write_cr0(cr0);
 	wbinvd();
 
 	/*  Save value of CR4 and clear Page Global Enable (bit 7)  */
 	if ( cpu_has_pge ) {
 		cr4 = read_cr4();
-		write_cr4(cr4 & (unsigned char) ~(1 << 7));
+		write_cr4(cr4 & ~X86_CR4_PGE);
 	}
 
 	/* Flush all TLBs via a mov %cr3, %reg; mov %reg, %cr3 */
@@ -261,17 +279,16 @@ static void prepare_set(void)
 	rdmsr(MTRRdefType_MSR, deftype_lo, deftype_hi);
 
 	/*  Disable MTRRs, and set the default type to uncached  */
-	wrmsr(MTRRdefType_MSR, deftype_lo & 0xf300UL, deftype_hi);
+	mtrr_wrmsr(MTRRdefType_MSR, deftype_lo & 0xf300UL, deftype_hi);
 }
 
 static void post_set(void)
 {
-	/*  Flush caches and TLBs  */
-	wbinvd();
+	/*  Flush TLBs (no need to flush caches - they are disabled)  */
 	__flush_tlb();
 
 	/* Intel (P6) standard MTRRs */
-	wrmsr(MTRRdefType_MSR, deftype_lo, deftype_hi);
+	mtrr_wrmsr(MTRRdefType_MSR, deftype_lo, deftype_hi);
 		
 	/*  Enable caches  */
 	write_cr0(read_cr0() & 0xbfffffff);
@@ -285,13 +302,16 @@ static void post_set(void)
 static void generic_set_all(void)
 {
 	unsigned long mask, count;
+	unsigned long flags;
 
+	local_irq_save(flags);
 	prepare_set();
 
 	/* Actually set the state */
 	mask = set_mtrr_state(deftype_lo,deftype_hi);
 
 	post_set();
+	local_irq_restore(flags);
 
 	/*  Use the atomic bitops to update the global mask  */
 	for (count = 0; count < sizeof mask * 8; ++count) {
@@ -314,20 +334,24 @@ static void generic_set_mtrr(unsigned int reg, unsigned long base,
     [RETURNS] Nothing.
 */
 {
+	unsigned long flags;
+
+	local_irq_save(flags);
 	prepare_set();
 
 	if (size == 0) {
 		/* The invalid bit is kept in the mask, so we simply clear the
 		   relevant mask register to disable a range. */
-		wrmsr(MTRRphysMask_MSR(reg), 0, 0);
+		mtrr_wrmsr(MTRRphysMask_MSR(reg), 0, 0);
 	} else {
-		wrmsr(MTRRphysBase_MSR(reg), base << PAGE_SHIFT | type,
+		mtrr_wrmsr(MTRRphysBase_MSR(reg), base << PAGE_SHIFT | type,
 		      (base & size_and_mask) >> (32 - PAGE_SHIFT));
-		wrmsr(MTRRphysMask_MSR(reg), -size << PAGE_SHIFT | 0x800,
+		mtrr_wrmsr(MTRRphysMask_MSR(reg), -size << PAGE_SHIFT | 0x800,
 		      (-size & size_and_mask) >> (32 - PAGE_SHIFT));
 	}
 
 	post_set();
+	local_irq_restore(flags);
 }
 
 int generic_validate_add_page(unsigned long base, unsigned long size, unsigned int type)
@@ -370,7 +394,7 @@ int generic_validate_add_page(unsigned long base, unsigned long size, unsigned i
 }
 
 
-int generic_have_wrcomb(void)
+static int generic_have_wrcomb(void)
 {
 	unsigned long config, dummy;
 	rdmsr(MTRRcap_MSR, config, dummy);

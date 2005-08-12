@@ -45,13 +45,13 @@
 #include <asm/pgtable.h>
 #include <asm/au1000.h>
 
-extern struct rtc_ops no_rtc_ops;
+void board_reset (void)
+{
+}
 
 void __init board_setup(void)
 {
 	u32 pin_func;
-
-	rtc_ops = &no_rtc_ops;
 
 #ifdef CONFIG_AU1X00_USB_DEVICE
 	// 2nd USB port is USB device

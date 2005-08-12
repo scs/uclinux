@@ -18,48 +18,30 @@
  * Please select one of the following when turning on debugging.
  */
 #ifdef DEBUG
-#if defined(CONFIG_DEBUG_DC21285_PORT)
-		.macro	loadsp, rb
-		mov	\rb, #0x42000000
-		.endm
-		.macro	writeb, rb
-		str	\rb, [r3, #0x160]
-		.endm
-#elif defined(CONFIG_DEBUG_ICEDCC)
+
+#include <asm/arch/debug-macro.S>
+
+#if defined(CONFIG_DEBUG_ICEDCC)
 		.macro	loadsp, rb
 		.endm
-		.macro writeb, rb
-		mcr	p14, 0, \rb, c0, c1, 0
+		.macro writeb, ch, rb
+		mcr	p14, 0, \ch, c0, c1, 0
 		.endm
-#elif defined(CONFIG_FOOTBRIDGE)
+#else
+		.macro	writeb,	ch, rb
+		senduart \ch, \rb
+		.endm
+
+#if defined(CONFIG_FOOTBRIDGE) || \
+    defined(CONFIG_ARCH_RPC) || \
+    defined(CONFIG_ARCH_INTEGRATOR) || \
+    defined(CONFIG_ARCH_PXA) || \
+    defined(CONFIG_ARCH_IXP4XX) || \
+    defined(CONFIG_ARCH_IXP2000) || \
+    defined(CONFIG_ARCH_LH7A40X) || \
+    defined(CONFIG_ARCH_OMAP)
 		.macro	loadsp,	rb
-		mov	\rb, #0x7c000000
-		.endm
-		.macro	writeb,	rb
-		strb	\rb, [r3, #0x3f8]
-		.endm
-#elif defined(CONFIG_ARCH_RPC)
-		.macro	loadsp,	rb
-		mov	\rb, #0x03000000
-		orr	\rb, \rb, #0x00010000
-		.endm
-		.macro	writeb,	rb
-		strb	\rb, [r3, #0x3f8 << 2]
-		.endm
-#elif defined(CONFIG_ARCH_INTEGRATOR)
-		.macro	loadsp, rb
-		mov	\rb, #0x16000000
-		.endm
-		.macro	writeb, rb
-		strb	\rb, [r3, #0]
-		.endm
-#elif defined(CONFIG_ARCH_PXA) /* Xscale-type */
-		.macro 	loadsp, rb
-		mov	\rb, #0x40000000
-		orr	\rb, \rb, #0x00100000
-		.endm
-		.macro	writeb, rb
-		strb	\rb, [r3, #0]
+		addruart \rb
 		.endm
 #elif defined(CONFIG_ARCH_SA1100)
 		.macro	loadsp, rb
@@ -70,38 +52,20 @@
 		add	\rb, \rb, #0x00010000	@ Ser1
 #  endif
 		.endm
-		.macro	writeb, rb
-		str	\rb, [r3, #0x14]	@ UTDR
+#elif defined(CONFIG_ARCH_IOP331)
+		.macro loadsp, rb
+                mov   	\rb, #0xff000000
+                orr     \rb, \rb, #0x00ff0000
+                orr     \rb, \rb, #0x0000f700   @ location of the UART
 		.endm
-#elif defined(CONFIG_ARCH_IXP4XX)
-		.macro	loadsp, rb
-		mov	\rb, #0xc8000000
-		.endm
-		.macro	writeb, rb
-		str	\rb, [r3, #0]
-#elif defined(CONFIG_ARCH_LH7A40X)
-		.macro	loadsp, rb
-		ldr	\rb, =0x80000700	@ UART2 UARTBASE
-		.endm
-		.macro	writeb, rb
-		strb	\rb, [r3, #0]
-		.endm
-#elif defined(CONFIG_ARCH_OMAP)
-		.macro  loadsp, rb
-		mov	\rb, #0xff000000	@ physical base address
-		add	\rb, \rb, #0x00fb0000
-#if defined(CONFIG_OMAP_LL_DEBUG_UART2) || defined(CONFIG_OMAP_LL_DEBUG_UART3)
-		add	\rb, \rb, #0x00000800
-#endif
-#ifdef CONFIG_OMAP_LL_DEBUG_UART3
-		add	\rb, \rb, #0x00009000
-#endif
-		.endm
-		.macro	writeb, rb
-		strb	\rb, [r3]
+#elif defined(CONFIG_ARCH_S3C2410)
+		.macro loadsp, rb
+		mov	\rb, #0x50000000
+		add	\rb, \rb, #0x4000 * CONFIG_S3C2410_LOWLEVEL_UART_PORT
 		.endm
 #else
 #error no serial architecture defined
+#endif
 #endif
 #endif
 
@@ -331,6 +295,14 @@ LC0:		.word	LC0			@ r1
 		.word	user_stack+4096		@ sp
 LC1:		.word	reloc_end - reloc_start
 		.size	LC0, . - LC0
+
+#ifdef CONFIG_ARCH_RPC
+		.globl	params
+params:		ldr	r0, =params_phys
+		mov	pc, lr
+		.ltorg
+		.align
+#endif
 
 /*
  * Turn on the cache.  We need to setup some page tables so that we
@@ -568,6 +540,12 @@ proc_types:
 		b	__armv4_cache_off
 		b	__armv4_cache_flush
 
+		.word	0x00070000		@ ARMv6
+		.word	0x000f0000
+		b	__armv4_cache_on
+		b	__armv4_cache_off
+		b	__armv6_cache_flush
+
 		.word	0			@ unrecognised type
 		.word	0
 		mov	pc, lr
@@ -626,6 +604,14 @@ __armv3_cache_off:
 cache_clean_flush:
 		mov	r3, #16
 		b	call_cache_fn
+
+__armv6_cache_flush:
+		mov	r1, #0
+		mcr	p15, 0, r1, c7, c14, 0	@ clean+invalidate D
+		mcr	p15, 0, r1, c7, c5, 0	@ invalidate I+BTB
+		mcr	p15, 0, r1, c7, c15, 0	@ clean+invalidate unified
+		mcr	p15, 0, r1, c7, c10, 4	@ drain WB
+		mov	pc, lr
 
 __armv4_cache_flush:
 		mov	r2, #64*1024		@ default: 32K dcache size (*2)
@@ -687,7 +673,7 @@ puts:		loadsp	r3
 1:		ldrb	r2, [r0], #1
 		teq	r2, #0
 		moveq	pc, lr
-2:		writeb	r2
+2:		writeb	r2, r3
 		mov	r1, #0x00020000
 3:		subs	r1, r1, #1
 		bne	3b

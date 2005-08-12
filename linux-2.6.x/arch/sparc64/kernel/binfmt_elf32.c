@@ -27,12 +27,12 @@ typedef elf_greg_t elf_gregset_t[ELF_NGREG];
 #define ELF_CORE_COPY_REGS(__elf_regs, __pt_regs)	\
 do {	unsigned int *dest = &(__elf_regs[0]);		\
 	struct pt_regs *src = (__pt_regs);		\
-	unsigned int *sp;				\
+	unsigned int __user *sp;			\
 	int i;						\
 	for(i = 0; i < 16; i++)				\
 		dest[i] = (unsigned int) src->u_regs[i];\
 	/* Don't try this at home kids... */		\
-	sp = (unsigned int *) (src->u_regs[14] &	\
+	sp = (unsigned int __user *) (src->u_regs[14] &	\
 		0x00000000fffffffc);			\
 	for(i = 0; i < 16; i++)				\
 		__get_user(dest[i+16], &sp[i]);		\
@@ -79,7 +79,7 @@ typedef struct {
 
 #define elf_check_arch(x)	(((x)->e_machine == EM_SPARC) || ((x)->e_machine == EM_SPARC32PLUS))
 
-#define ELF_ET_DYN_BASE         0x08000000
+#define ELF_ET_DYN_BASE         0x70000000
 
 
 #include <asm/processor.h>
@@ -132,10 +132,12 @@ struct elf_prpsinfo32
 
 #include <linux/time.h>
 
-#define jiffies_to_timeval jiffies_to_compat_timeval
+#undef cputime_to_timeval
+#define cputime_to_timeval cputime_to_compat_timeval
 static __inline__ void
-jiffies_to_compat_timeval(unsigned long jiffies, struct compat_timeval *value)
+cputime_to_compat_timeval(const cputime_t cputime, struct compat_timeval *value)
 {
+	unsigned long jiffies = cputime_to_jiffies(cputime);
 	value->tv_usec = (jiffies % HZ) * (1000000L / HZ);
 	value->tv_sec = jiffies / HZ;
 }

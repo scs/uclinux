@@ -1,5 +1,4 @@
-/* $Id$
- *
+/*
  * linux/arch/sh/kernel/ptrace.c
  *
  * Original x86 implementation:
@@ -21,6 +20,7 @@
 #include <linux/user.h>
 #include <linux/slab.h>
 #include <linux/security.h>
+#include <linux/signal.h>
 
 #include <asm/io.h>
 #include <asm/uaccess.h>
@@ -150,7 +150,7 @@ asmlinkage int sys_ptrace(long request, long pid, long addr, long data)
 			tmp = get_stack_long(child, addr);
 		else if (addr >= (long) &dummy->fpu &&
 			 addr < (long) &dummy->u_fpvalid) {
-			if (!child->used_math) {
+			if (!tsk_used_math(child)) {
 				if (addr == (long)&dummy->fpu.fpscr)
 					tmp = FPSCR_INIT;
 				else
@@ -159,7 +159,7 @@ asmlinkage int sys_ptrace(long request, long pid, long addr, long data)
 				tmp = ((long *)&child->thread.fpu)
 					[(addr - (long)&dummy->fpu) >> 2];
 		} else if (addr == (long) &dummy->u_fpvalid)
-			tmp = child->used_math;
+			tmp = !!tsk_used_math(child);
 		else
 			tmp = 0;
 		ret = put_user(tmp, (unsigned long *)data);
@@ -185,12 +185,12 @@ asmlinkage int sys_ptrace(long request, long pid, long addr, long data)
 			ret = put_stack_long(child, addr, data);
 		else if (addr >= (long) &dummy->fpu &&
 			 addr < (long) &dummy->u_fpvalid) {
-			child->used_math = 1;
+			set_stopped_child_used_math(child);
 			((long *)&child->thread.fpu)
 				[(addr - (long)&dummy->fpu) >> 2] = data;
 			ret = 0;
 		} else if (addr == (long) &dummy->u_fpvalid) {
-			child->used_math = data?1:0;
+			conditional_stopped_child_used_math(data, child);
 			ret = 0;
 		}
 		break;
@@ -198,7 +198,7 @@ asmlinkage int sys_ptrace(long request, long pid, long addr, long data)
 	case PTRACE_SYSCALL: /* continue and stop at next (return from) syscall */
 	case PTRACE_CONT: { /* restart after signal. */
 		ret = -EIO;
-		if ((unsigned long) data > _NSIG)
+		if (!valid_signal(data))
 			break;
 		if (request == PTRACE_SYSCALL)
 			set_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
@@ -217,7 +217,7 @@ asmlinkage int sys_ptrace(long request, long pid, long addr, long data)
  */
 	case PTRACE_KILL: {
 		ret = 0;
-		if (child->state == TASK_ZOMBIE)	/* already dead */
+		if (child->exit_state == EXIT_ZOMBIE)	/* already dead */
 			break;
 		child->exit_code = SIGKILL;
 		wake_up_process(child);
@@ -229,7 +229,7 @@ asmlinkage int sys_ptrace(long request, long pid, long addr, long data)
 		struct pt_regs *dummy = NULL;
 
 		ret = -EIO;
-		if ((unsigned long) data > _NSIG)
+		if (!valid_signal(data))
 			break;
 		clear_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
 		if ((child->ptrace & PT_DTRACE) == 0) {

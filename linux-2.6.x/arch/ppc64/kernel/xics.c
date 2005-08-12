@@ -24,7 +24,6 @@
 #include <asm/io.h>
 #include <asm/pgtable.h>
 #include <asm/smp.h>
-#include <asm/naca.h>
 #include <asm/rtas.h>
 #include <asm/xics.h>
 #include <asm/hvcall.h>
@@ -85,13 +84,14 @@ struct xics_ipl {
 	} qirr;
 };
 
-static struct xics_ipl *xics_per_cpu[NR_CPUS];
+static struct xics_ipl __iomem *xics_per_cpu[NR_CPUS];
 
 static int xics_irq_8259_cascade = 0;
 static int xics_irq_8259_cascade_real = 0;
 static unsigned int default_server = 0xFF;
 /* also referenced in smp.c... */
 unsigned int default_distrib_server = 0;
+unsigned int interrupt_server_size = 8;
 
 /*
  * XICS only has a single IPI, so encode the messages per CPU
@@ -116,22 +116,22 @@ typedef struct {
 
 static int pSeries_xirr_info_get(int n_cpu)
 {
-	return xics_per_cpu[n_cpu]->xirr.word;
+	return in_be32(&xics_per_cpu[n_cpu]->xirr.word);
 }
 
 static void pSeries_xirr_info_set(int n_cpu, int value)
 {
-	xics_per_cpu[n_cpu]->xirr.word = value;
+	out_be32(&xics_per_cpu[n_cpu]->xirr.word, value);
 }
 
 static void pSeries_cppr_info(int n_cpu, u8 value)
 {
-	xics_per_cpu[n_cpu]->xirr.bytes[0] = value;
+	out_8(&xics_per_cpu[n_cpu]->xirr.bytes[0], value);
 }
 
 static void pSeries_qirr_info(int n_cpu, u8 value)
 {
-	xics_per_cpu[n_cpu]->qirr.bytes[0] = value;
+	out_8(&xics_per_cpu[n_cpu]->qirr.bytes[0], value);
 }
 
 static xics_ops pSeries_ops = {
@@ -216,12 +216,15 @@ xics_ops pSeriesLP_ops = {
 
 static unsigned int xics_startup(unsigned int virq)
 {
-	virq = irq_offset_down(virq);
-	if (radix_tree_insert(&irq_map, virt_irq_to_real(virq),
-			      &virt_irq_to_real_map[virq]) == -ENOMEM)
+	unsigned int irq;
+
+	irq = irq_offset_down(virq);
+	if (radix_tree_insert(&irq_map, virt_irq_to_real(irq),
+			      &virt_irq_to_real_map[irq]) == -ENOMEM)
 		printk(KERN_CRIT "Out of memory creating real -> virtual"
 		       " IRQ mapping for irq %u (real 0x%x)\n",
-		       virq, virt_irq_to_real(virq));
+		       virq, virt_irq_to_real(irq));
+	xics_enable_irq(virq);
 	return 0;	/* return value is ignored */
 }
 
@@ -239,28 +242,24 @@ static unsigned int real_irq_to_virt(unsigned int real_irq)
 static int get_irq_server(unsigned int irq)
 {
 	unsigned int server;
-
-#ifdef CONFIG_IRQ_ALL_CPUS
 	/* For the moment only implement delivery to all cpus or one cpu */
-	if (smp_threads_ready) {
-		cpumask_t cpumask = irq_affinity[irq];
-		cpumask_t tmp = CPU_MASK_NONE;
-		if (cpus_equal(cpumask, CPU_MASK_ALL)) {
-			server = default_distrib_server;
-		} else {
-			cpus_and(tmp, cpu_online_map, cpumask);
+	cpumask_t cpumask = irq_affinity[irq];
+	cpumask_t tmp = CPU_MASK_NONE;
 
-			if (cpus_empty(tmp))
-				server = default_distrib_server;
-			else
-				server = get_hard_smp_processor_id(first_cpu(tmp));
-		}
+	if (!distribute_irqs)
+		return default_server;
+
+	if (cpus_equal(cpumask, CPU_MASK_ALL)) {
+		server = default_distrib_server;
 	} else {
-		server = default_server;
+		cpus_and(tmp, cpu_online_map, cpumask);
+
+		if (cpus_empty(tmp))
+			server = default_distrib_server;
+		else
+			server = get_hard_smp_processor_id(first_cpu(tmp));
 	}
-#else
-	server = default_server;
-#endif
+
 	return server;
 
 }
@@ -433,6 +432,7 @@ void xics_cause_IPI(int cpu)
 {
 	ops->qirr_info(cpu, IPI_PRIORITY);
 }
+#endif /* CONFIG_SMP */
 
 void xics_setup_cpu(void)
 {
@@ -440,9 +440,17 @@ void xics_setup_cpu(void)
 
 	ops->cppr_info(cpu, 0xff);
 	iosync();
-}
 
-#endif /* CONFIG_SMP */
+	/*
+	 * Put the calling processor into the GIQ.  This is really only
+	 * necessary from a secondary thread as the OF start-cpu interface
+	 * performs this function for us on primary threads.
+	 *
+	 * XXX: undo of teardown on kexec needs this too, as may hotplug
+	 */
+	rtas_set_indicator(GLOBAL_INTERRUPT_QUEUE,
+		(1UL << interrupt_server_size) - 1 - default_distrib_server, 1);
+}
 
 void xics_init_IRQ(void)
 {
@@ -454,7 +462,7 @@ void xics_init_IRQ(void)
 	struct xics_interrupt_node {
 		unsigned long addr;
 		unsigned long size;
-	} inodes[NR_CPUS]; 
+	} intnodes[NR_CPUS]; 
 
 	ppc64_boot_msg(0x20, "XICS Init");
 
@@ -481,13 +489,13 @@ nextnode:
 		panic("xics_init_IRQ: can't find interrupt reg property");
 	
 	while (ilen) {
-		inodes[indx].addr = (unsigned long long)*ireg++ << 32;
+		intnodes[indx].addr = (unsigned long)*ireg++ << 32;
 		ilen -= sizeof(uint);
-		inodes[indx].addr |= *ireg++;
+		intnodes[indx].addr |= *ireg++;
 		ilen -= sizeof(uint);
-		inodes[indx].size = (unsigned long long)*ireg++ << 32;
+		intnodes[indx].size = (unsigned long)*ireg++ << 32;
 		ilen -= sizeof(uint);
-		inodes[indx].size |= *ireg++;
+		intnodes[indx].size |= *ireg++;
 		ilen -= sizeof(uint);
 		indx++;
 		if (indx >= NR_CPUS) break;
@@ -501,20 +509,25 @@ nextnode:
 	     np;
 	     np = of_find_node_by_type(np, "cpu")) {
 		ireg = (uint *)get_property(np, "reg", &ilen);
-		if (ireg && ireg[0] == hard_smp_processor_id()) {
-			ireg = (uint *)get_property(np, "ibm,ppc-interrupt-gserver#s", &ilen);
+		if (ireg && ireg[0] == boot_cpuid_phys) {
+			ireg = (uint *)get_property(np, "ibm,ppc-interrupt-gserver#s",
+						    &ilen);
 			i = ilen / sizeof(int);
 			if (ireg && i > 0) {
 				default_server = ireg[0];
 				default_distrib_server = ireg[i-1]; /* take last element */
 			}
+			ireg = (uint *)get_property(np,
+					"ibm,interrupt-server#-size", NULL);
+			if (ireg)
+				interrupt_server_size = *ireg;
 			break;
 		}
 	}
 	of_node_put(np);
 
-	intr_base = inodes[0].addr;
-	intr_size = (ulong)inodes[0].size;
+	intr_base = intnodes[0].addr;
+	intr_size = intnodes[0].size;
 
 	np = of_find_node_by_type(NULL, "interrupt-controller");
 	if (!np) {
@@ -535,16 +548,18 @@ nextnode:
 	if (systemcfg->platform == PLATFORM_PSERIES) {
 #ifdef CONFIG_SMP
 		for_each_cpu(i) {
+			int hard_id;
+
 			/* FIXME: Do this dynamically! --RR */
-			if (!cpu_present_at_boot(i))
+			if (!cpu_present(i))
 				continue;
-			xics_per_cpu[i] = __ioremap((ulong)inodes[get_hard_smp_processor_id(i)].addr, 
-						    (ulong)inodes[get_hard_smp_processor_id(i)].size,
-						    _PAGE_NO_CACHE);
+
+			hard_id = get_hard_smp_processor_id(i);
+			xics_per_cpu[i] = ioremap(intnodes[hard_id].addr, 
+						  intnodes[hard_id].size);
 		}
 #else
-		xics_per_cpu[0] = __ioremap((ulong)intr_base, intr_size,
-					    _PAGE_NO_CACHE);
+		xics_per_cpu[0] = ioremap(intr_base, intr_size);
 #endif /* CONFIG_SMP */
 	} else if (systemcfg->platform == PLATFORM_PSERIES_LPAR) {
 		ops = &pSeriesLP_ops;
@@ -557,8 +572,7 @@ nextnode:
 	for (; i < NR_IRQS; ++i)
 		get_irq_desc(i)->handler = &xics_pic;
 
-	ops->cppr_info(boot_cpuid, 0xff);
-	iosync();
+	xics_setup_cpu();
 
 	ppc64_boot_msg(0x21, "XICS Done");
 }
@@ -569,13 +583,13 @@ nextnode:
  */
 static int __init xics_setup_i8259(void)
 {
-	if (naca->interrupt_controller == IC_PPC_XIC &&
+	if (ppc64_interrupt_controller == IC_PPC_XIC &&
 	    xics_irq_8259_cascade != -1) {
 		if (request_irq(irq_offset_up(xics_irq_8259_cascade),
 				no_action, 0, "8259 cascade", NULL))
 			printk(KERN_ERR "xics_setup_i8259: couldn't get 8259 "
 					"cascade\n");
-		i8259_init();
+		i8259_init(0);
 	}
 	return 0;
 }
@@ -638,21 +652,17 @@ static void xics_set_affinity(unsigned int virq, cpumask_t cpumask)
 /* Interrupts are disabled. */
 void xics_migrate_irqs_away(void)
 {
-	int set_indicator = rtas_token("set-indicator");
-	const unsigned int giqs = 9005UL; /* Global Interrupt Queue Server */
-	int status = 0;
+	int status;
 	unsigned int irq, virq, cpu = smp_processor_id();
-
-	BUG_ON(set_indicator == RTAS_UNKNOWN_SERVICE);
 
 	/* Reject any interrupt that was queued to us... */
 	ops->cppr_info(cpu, 0);
 	iosync();
 
-	/* Refuse any new interrupts... */
-	rtas_call(set_indicator, 3, 1, &status, giqs,
-		  hard_smp_processor_id(), 0);
-	WARN_ON(status != 0);
+	/* remove ourselves from the global interrupt queue */
+	status = rtas_set_indicator(GLOBAL_INTERRUPT_QUEUE,
+		(1UL << interrupt_server_size) - 1 - default_distrib_server, 0);
+	WARN_ON(status < 0);
 
 	/* Allow IPIs again... */
 	ops->cppr_info(cpu, DEFAULT_PRIORITY);
@@ -702,15 +712,8 @@ void xics_migrate_irqs_away(void)
 		       virq, cpu);
 
 		/* Reset affinity to all cpus */
-		xics_status[0] = default_distrib_server;
-
-		status = rtas_call(ibm_set_xive, 3, 1, NULL, irq,
-				xics_status[0], xics_status[1]);
-		if (status)
-			printk(KERN_ERR "migrate_irqs_away: irq=%d "
-					"ibm,set-xive returns %d\n",
-					virq, status);
-
+		desc->handler->set_affinity(virq, CPU_MASK_ALL);
+		irq_affinity[virq] = CPU_MASK_ALL;
 unlock:
 		spin_unlock_irqrestore(&desc->lock, flags);
 	}

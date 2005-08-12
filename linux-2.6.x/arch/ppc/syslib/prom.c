@@ -19,6 +19,7 @@
 #include <linux/ioport.h>
 #include <linux/pci.h>
 #include <linux/slab.h>
+#include <linux/bitops.h>
 
 #include <asm/sections.h>
 #include <asm/prom.h>
@@ -31,7 +32,6 @@
 #include <asm/system.h>
 #include <asm/mmu.h>
 #include <asm/pgtable.h>
-#include <asm/bitops.h>
 #include <asm/bootinfo.h>
 #include <asm/btext.h>
 #include <asm/pci-bridge.h>
@@ -308,7 +308,7 @@ map_interrupt(unsigned int **irq, struct device_node **ictrler,
 	struct device_node *p, *ipar;
 	unsigned int *imap, *imask, *ip;
 	int i, imaplen, match;
-	int newintrc, newaddrc;
+	int newintrc = 1, newaddrc = 1;
 	unsigned int *reg;
 	int naddrc;
 
@@ -1397,7 +1397,7 @@ print_properties(struct device_node *np)
 }
 #endif
 
-static spinlock_t rtas_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(rtas_lock);
 
 /* this can be called after setup -- Cort */
 int __openfirmware

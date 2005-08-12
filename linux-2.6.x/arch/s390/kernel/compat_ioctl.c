@@ -16,6 +16,7 @@
 #define CODE
 #include "../../../fs/compat_ioctl.c"
 #include <asm/dasd.h>
+#include <asm/cmb.h>
 #include <asm/tape390.h>
 
 static int do_ioctl32_pointer(unsigned int fd, unsigned int cmd,
@@ -58,15 +59,16 @@ COMPATIBLE_IOCTL(BIODASDPRRD)
 COMPATIBLE_IOCTL(BIODASDPSRD)
 COMPATIBLE_IOCTL(BIODASDGATTR)
 COMPATIBLE_IOCTL(BIODASDSATTR)
-
+#if defined(CONFIG_DASD_CMB) || defined(CONFIG_DASD_CMB_MODULE)
+COMPATIBLE_IOCTL(BIODASDCMFENABLE)
+COMPATIBLE_IOCTL(BIODASDCMFDISABLE)
+COMPATIBLE_IOCTL(BIODASDREADALLCMB)
+#endif
 #endif
 
 #if defined(CONFIG_S390_TAPE) || defined(CONFIG_S390_TAPE_MODULE)
 COMPATIBLE_IOCTL(TAPE390_DISPLAY)
 #endif
-
-/* This one should be architecture independent */
-COMPATIBLE_IOCTL(TCSBRKP)
 
 /* s390 doesn't need handlers here */
 COMPATIBLE_IOCTL(TIOCGSERIAL)

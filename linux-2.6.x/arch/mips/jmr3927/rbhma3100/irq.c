@@ -45,8 +45,8 @@
 #include <linux/random.h>
 #include <linux/smp.h>
 #include <linux/smp_lock.h>
+#include <linux/bitops.h>
 
-#include <asm/bitops.h>
 #include <asm/io.h>
 #include <asm/mipsregs.h>
 #include <asm/system.h>
@@ -89,38 +89,10 @@ static unsigned char irc_level[TX3927_NUM_IR] = {
 	6, 6, 6			/* TMR */
 };
 
-static inline void mask_irq(unsigned int irq_nr)
-{
-	struct tb_irq_space* sp;
-	for (sp = tb_irq_spaces; sp; sp = sp->next) {
-		if (sp->start_irqno <= irq_nr &&
-		    irq_nr < sp->start_irqno + sp->nr_irqs) {
-			if (sp->mask_func)
-				sp->mask_func(irq_nr - sp->start_irqno,
-					      sp->space_id);
-			break;
-		}
-	}
-}
-
-static inline void unmask_irq(unsigned int irq_nr)
-{
-	struct tb_irq_space* sp;
-	for (sp = tb_irq_spaces; sp; sp = sp->next) {
-		if (sp->start_irqno <= irq_nr &&
-		    irq_nr < sp->start_irqno + sp->nr_irqs) {
-			if (sp->unmask_func)
-				sp->unmask_func(irq_nr - sp->start_irqno,
-						sp->space_id);
-			break;
-		}
-	}
-}
-
 static void jmr3927_irq_disable(unsigned int irq_nr);
 static void jmr3927_irq_enable(unsigned int irq_nr);
 
-static spinlock_t jmr3927_irq_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(jmr3927_irq_lock);
 
 static unsigned int jmr3927_irq_startup(unsigned int irq)
 {
@@ -133,9 +105,8 @@ static unsigned int jmr3927_irq_startup(unsigned int irq)
 
 static void jmr3927_irq_ack(unsigned int irq)
 {
-	if (irq == JMR3927_IRQ_IRC_TMR0) {
+	if (irq == JMR3927_IRQ_IRC_TMR0)
 		jmr3927_tmrptr->tisr = 0;       /* ack interrupt */
-	}
 
 	jmr3927_irq_disable(irq);
 }
@@ -147,19 +118,37 @@ static void jmr3927_irq_end(unsigned int irq)
 
 static void jmr3927_irq_disable(unsigned int irq_nr)
 {
+	struct tb_irq_space* sp;
 	unsigned long flags;
 
 	spinlock_irqsave(&jmr3927_irq_lock, flags);
-	mask_irq(irq_nr);
+	for (sp = tb_irq_spaces; sp; sp = sp->next) {
+		if (sp->start_irqno <= irq_nr &&
+		    irq_nr < sp->start_irqno + sp->nr_irqs) {
+			if (sp->mask_func)
+				sp->mask_func(irq_nr - sp->start_irqno,
+					      sp->space_id);
+			break;
+		}
+	}
 	spinlock_irqrestore(&jmr3927_irq_lock, flags);
 }
 
 static void jmr3927_irq_enable(unsigned int irq_nr)
 {
+	struct tb_irq_space* sp;
 	unsigned long flags;
 
 	spinlock_irqsave(&jmr3927_irq_lock, flags);
-	unmask_irq(irq_nr);
+	for (sp = tb_irq_spaces; sp; sp = sp->next) {
+		if (sp->start_irqno <= irq_nr &&
+		    irq_nr < sp->start_irqno + sp->nr_irqs) {
+			if (sp->unmask_func)
+				sp->unmask_func(irq_nr - sp->start_irqno,
+						sp->space_id);
+			break;
+		}
+	}
 	spinlock_irqrestore(&jmr3927_irq_lock, flags);
 }
 
@@ -343,7 +332,8 @@ static struct irqaction pcierr_action = {
 int jmr3927_ether1_irq = 0;
 
 void jmr3927_irq_init(u32 irq_base);
-void jmr3927_irq_setup(void)
+
+void __init arch_init_irq(void)
 {
 	/* look for io board's presence */
 	int have_isac = jmr3927_have_isac();
@@ -421,24 +411,6 @@ void jmr3927_irq_setup(void)
 	set_c0_status(ST0_IM);	/* IE bit is still 0. */
 }
 
-void (*irq_setup)(void);
-
-void __init init_IRQ(void)
-{
-
-#ifdef CONFIG_KGDB
-        extern void breakpoint(void);
-        extern void set_debug_traps(void);
-
-        puts("Wait for gdb client connection ...\n");
-        set_debug_traps();
-        breakpoint();
-#endif
-
-        /* invoke board-specific irq setup */
-        irq_setup();
-}
-
 static hw_irq_controller jmr3927_irq_controller = {
 	"jmr3927_irq",
 	jmr3927_irq_startup,
@@ -453,7 +425,6 @@ void jmr3927_irq_init(u32 irq_base)
 {
 	u32 i;
 
-	init_generic_irq();
 	for (i= irq_base; i< irq_base + JMR3927_NR_IRQ_IRC + JMR3927_NR_IRQ_IOC; i++) {
 		irq_desc[i].status = IRQ_DISABLED;
 		irq_desc[i].action = NULL;

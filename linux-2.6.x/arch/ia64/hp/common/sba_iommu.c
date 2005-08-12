@@ -1,9 +1,9 @@
 /*
 **  IA64 System Bus Adapter (SBA) I/O MMU manager
 **
-**	(c) Copyright 2002-2004 Alex Williamson
+**	(c) Copyright 2002-2005 Alex Williamson
 **	(c) Copyright 2002-2003 Grant Grundler
-**	(c) Copyright 2002-2004 Hewlett-Packard Company
+**	(c) Copyright 2002-2005 Hewlett-Packard Company
 **
 **	Portions (c) 2000 Grant Grundler (from parisc I/O MMU code)
 **	Portions (c) 1999 Dave S. Miller (from sparc64 I/O MMU code)
@@ -33,13 +33,14 @@
 #include <linux/seq_file.h>
 #include <linux/acpi.h>
 #include <linux/efi.h>
+#include <linux/nodemask.h>
+#include <linux/bitops.h>         /* hweight64() */
 
 #include <asm/delay.h>		/* ia64_get_itc() */
 #include <asm/io.h>
 #include <asm/page.h>		/* PAGE_OFFSET */
 #include <asm/dma.h>
 #include <asm/system.h>		/* wmb() */
-#include <asm/bitops.h>		/* hweight64() */
 
 #include <asm/acpi-ext.h>
 
@@ -156,6 +157,7 @@
 #define DELAYED_RESOURCE_CNT	64
 
 #define ZX1_IOC_ID	((PCI_DEVICE_ID_HP_ZX1_IOC << 16) | PCI_VENDOR_ID_HP)
+#define ZX2_IOC_ID	((PCI_DEVICE_ID_HP_ZX2_IOC << 16) | PCI_VENDOR_ID_HP)
 #define REO_IOC_ID	((PCI_DEVICE_ID_HP_REO_IOC << 16) | PCI_VENDOR_ID_HP)
 #define SX1000_IOC_ID	((PCI_DEVICE_ID_HP_SX1000_IOC << 16) | PCI_VENDOR_ID_HP)
 
@@ -191,7 +193,7 @@ static unsigned long iovp_shift;
 static unsigned long iovp_mask;
 
 struct ioc {
-	void		*ioc_hpa;	/* I/O MMU base address */
+	void __iomem	*ioc_hpa;	/* I/O MMU base address */
 	char		*res_map;	/* resource map, bit == pdir entry */
 	u64		*pdir_base;	/* physical base address */
 	unsigned long	ibase;		/* pdir IOV Space base */
@@ -203,6 +205,9 @@ struct ioc {
 					/* clearing pdir to prevent races with allocations. */
 	unsigned int	res_bitshift;	/* from the RIGHT! */
 	unsigned int	res_size;	/* size of resource map in bytes */
+#ifdef CONFIG_NUMA
+	unsigned int	node;		/* node where this IOC lives */
+#endif
 #if DELAYED_RESOURCE_CNT > 0
 	spinlock_t	saved_lock;	/* may want to try to get this on a separate cacheline */
 					/* than res_lock for bigger systems. */
@@ -454,20 +459,31 @@ get_iovp_order (unsigned long size)
  * sba_search_bitmap - find free space in IO PDIR resource bitmap
  * @ioc: IO MMU structure which owns the pdir we are interested in.
  * @bits_wanted: number of entries we need.
+ * @use_hint: use res_hint to indicate where to start looking
  *
  * Find consecutive free bits in resource bitmap.
  * Each bit represents one entry in the IO Pdir.
  * Cool perf optimization: search for log2(size) bits at a time.
  */
 static SBA_INLINE unsigned long
-sba_search_bitmap(struct ioc *ioc, unsigned long bits_wanted)
+sba_search_bitmap(struct ioc *ioc, unsigned long bits_wanted, int use_hint)
 {
-	unsigned long *res_ptr = ioc->res_hint;
+	unsigned long *res_ptr;
 	unsigned long *res_end = (unsigned long *) &(ioc->res_map[ioc->res_size]);
-	unsigned long pide = ~0UL;
+	unsigned long flags, pide = ~0UL;
 
 	ASSERT(((unsigned long) ioc->res_hint & (sizeof(unsigned long) - 1UL)) == 0);
 	ASSERT(res_ptr < res_end);
+
+	spin_lock_irqsave(&ioc->res_lock, flags);
+
+	/* Allow caller to force a search through the entire resource space */
+	if (likely(use_hint)) {
+		res_ptr = ioc->res_hint;
+	} else {
+		res_ptr = (ulong *)ioc->res_map;
+		ioc->res_bitshift = 0;
+	}
 
 	/*
 	 * N.B.  REO/Grande defect AR2305 can cause TLB fetch timeouts
@@ -475,7 +491,7 @@ sba_search_bitmap(struct ioc *ioc, unsigned long bits_wanted)
 	 * purges IOTLB entries in power-of-two sizes, so we also
 	 * allocate IOVA space in power-of-two sizes.
 	 */
-	bits_wanted = 1UL << get_iovp_order(bits_wanted << PAGE_SHIFT);
+	bits_wanted = 1UL << get_iovp_order(bits_wanted << iovp_shift);
 
 	if (likely(bits_wanted == 1)) {
 		unsigned int bitshiftcnt;
@@ -565,10 +581,12 @@ not_found:
 	prefetch(ioc->res_map);
 	ioc->res_hint = (unsigned long *) ioc->res_map;
 	ioc->res_bitshift = 0;
+	spin_unlock_irqrestore(&ioc->res_lock, flags);
 	return (pide);
 
 found_it:
 	ioc->res_hint = res_ptr;
+	spin_unlock_irqrestore(&ioc->res_lock, flags);
 	return (pide);
 }
 
@@ -589,12 +607,9 @@ sba_alloc_range(struct ioc *ioc, size_t size)
 	unsigned long itc_start;
 #endif
 	unsigned long pide;
-	unsigned long flags;
 
 	ASSERT(pages_needed);
 	ASSERT(0 == (size & ~iovp_mask));
-
-	spin_lock_irqsave(&ioc->res_lock, flags);
 
 #ifdef PDIR_SEARCH_TIMING
 	itc_start = ia64_get_itc();
@@ -602,23 +617,26 @@ sba_alloc_range(struct ioc *ioc, size_t size)
 	/*
 	** "seek and ye shall find"...praying never hurts either...
 	*/
-	pide = sba_search_bitmap(ioc, pages_needed);
+	pide = sba_search_bitmap(ioc, pages_needed, 1);
 	if (unlikely(pide >= (ioc->res_size << 3))) {
-		pide = sba_search_bitmap(ioc, pages_needed);
+		pide = sba_search_bitmap(ioc, pages_needed, 0);
 		if (unlikely(pide >= (ioc->res_size << 3))) {
 #if DELAYED_RESOURCE_CNT > 0
+			unsigned long flags;
+
 			/*
 			** With delayed resource freeing, we can give this one more shot.  We're
 			** getting close to being in trouble here, so do what we can to make this
 			** one count.
 			*/
-			spin_lock(&ioc->saved_lock);
+			spin_lock_irqsave(&ioc->saved_lock, flags);
 			if (ioc->saved_cnt > 0) {
 				struct sba_dma_pair *d;
 				int cnt = ioc->saved_cnt;
 
-				d = &(ioc->saved[ioc->saved_cnt]);
+				d = &(ioc->saved[ioc->saved_cnt - 1]);
 
+				spin_lock(&ioc->res_lock);
 				while (cnt--) {
 					sba_mark_invalid(ioc, d->iova, d->size);
 					sba_free_range(ioc, d->iova, d->size);
@@ -626,10 +644,11 @@ sba_alloc_range(struct ioc *ioc, size_t size)
 				}
 				ioc->saved_cnt = 0;
 				READ_REG(ioc->ioc_hpa+IOC_PCOM);	/* flush purges */
+				spin_unlock(&ioc->res_lock);
 			}
-			spin_unlock(&ioc->saved_lock);
+			spin_unlock_irqrestore(&ioc->saved_lock, flags);
 
-			pide = sba_search_bitmap(ioc, pages_needed);
+			pide = sba_search_bitmap(ioc, pages_needed, 0);
 			if (unlikely(pide >= (ioc->res_size << 3)))
 				panic(__FILE__ ": I/O MMU @ %p is out of mapping resources\n",
 				      ioc->ioc_hpa);
@@ -659,8 +678,6 @@ sba_alloc_range(struct ioc *ioc, size_t size)
 		(uint) ((unsigned long) ioc->res_hint - (unsigned long) ioc->res_map),
 		ioc->res_bitshift );
 
-	spin_unlock_irqrestore(&ioc->res_lock, flags);
-
 	return (pide);
 }
 
@@ -684,7 +701,7 @@ sba_free_range(struct ioc *ioc, dma_addr_t iova, size_t size)
 	unsigned long m;
 
 	/* Round up to power-of-two size: see AR2305 note above */
-	bits_not_wanted = 1UL << get_iovp_order(bits_not_wanted << PAGE_SHIFT);
+	bits_not_wanted = 1UL << get_iovp_order(bits_not_wanted << iovp_shift);
 	for (; bits_not_wanted > 0 ; res_ptr++) {
 		
 		if (unlikely(bits_not_wanted > BITS_PER_LONG)) {
@@ -757,7 +774,7 @@ sba_io_pdir_entry(u64 *pdir_ptr, unsigned long vba)
 #ifdef ENABLE_MARK_CLEAN
 /**
  * Since DMA is i-cache coherent, any (complete) pages that were written via
- * DMA can be marked as "clean" so that update_mmu_cache() doesn't have to
+ * DMA can be marked as "clean" so that lazy_mmu_prot_update() doesn't have to
  * flush them when they get mapped into an executable vm-area.
  */
 static void
@@ -945,6 +962,30 @@ sba_map_single(struct device *dev, void *addr, size_t size, int dir)
 	return SBA_IOVA(ioc, iovp, offset);
 }
 
+#ifdef ENABLE_MARK_CLEAN
+static SBA_INLINE void
+sba_mark_clean(struct ioc *ioc, dma_addr_t iova, size_t size)
+{
+	u32	iovp = (u32) SBA_IOVP(ioc,iova);
+	int	off = PDIR_INDEX(iovp);
+	void	*addr;
+
+	if (size <= iovp_size) {
+		addr = phys_to_virt(ioc->pdir_base[off] &
+		                    ~0xE000000000000FFFULL);
+		mark_clean(addr, size);
+	} else {
+		do {
+			addr = phys_to_virt(ioc->pdir_base[off] &
+			                    ~0xE000000000000FFFULL);
+			mark_clean(addr, min(size, iovp_size));
+			off++;
+			size -= iovp_size;
+		} while (size > 0);
+	}
+}
+#endif
+
 /**
  * sba_unmap_single - unmap one IOVA and free resources
  * @dev: instance of PCI owned by the driver that's asking.
@@ -990,6 +1031,10 @@ void sba_unmap_single(struct device *dev, dma_addr_t iova, size_t size, int dir)
 	size += offset;
 	size = ROUNDUP(size, iovp_size);
 
+#ifdef ENABLE_MARK_CLEAN
+	if (dir == DMA_FROM_DEVICE)
+		sba_mark_clean(ioc, iova, size);
+#endif
 
 #if DELAYED_RESOURCE_CNT > 0
 	spin_lock_irqsave(&ioc->saved_lock, flags);
@@ -1016,30 +1061,6 @@ void sba_unmap_single(struct device *dev, dma_addr_t iova, size_t size, int dir)
 	READ_REG(ioc->ioc_hpa+IOC_PCOM);	/* flush purges */
 	spin_unlock_irqrestore(&ioc->res_lock, flags);
 #endif /* DELAYED_RESOURCE_CNT == 0 */
-#ifdef ENABLE_MARK_CLEAN
-	if (dir == DMA_FROM_DEVICE) {
-		u32 iovp = (u32) SBA_IOVP(ioc,iova);
-		int off = PDIR_INDEX(iovp);
-		void *addr;
-
-		if (size <= iovp_size) {
-			addr = phys_to_virt(ioc->pdir_base[off] &
-					    ~0xE000000000000FFFULL);
-			mark_clean(addr, size);
-		} else {
-			size_t byte_cnt = size;
-
-			do {
-				addr = phys_to_virt(ioc->pdir_base[off] &
-				                    ~0xE000000000000FFFULL);
-				mark_clean(addr, min(byte_cnt, iovp_size));
-				off++;
-				byte_cnt -= iovp_size;
-
-			   } while (byte_cnt > 0);
-		}
-	}
-#endif
 }
 
 
@@ -1057,7 +1078,24 @@ sba_alloc_coherent (struct device *dev, size_t size, dma_addr_t *dma_handle, int
 	struct ioc *ioc;
 	void *addr;
 
+	ioc = GET_IOC(dev);
+	ASSERT(ioc);
+
+#ifdef CONFIG_NUMA
+	{
+		struct page *page;
+		page = alloc_pages_node(ioc->node == MAX_NUMNODES ?
+		                        numa_node_id() : ioc->node, flags,
+		                        get_order(size));
+
+		if (unlikely(!page))
+			return NULL;
+
+		addr = page_address(page);
+	}
+#else
 	addr = (void *) __get_free_pages(flags, get_order(size));
+#endif
 	if (unlikely(!addr))
 		return NULL;
 
@@ -1081,8 +1119,6 @@ sba_alloc_coherent (struct device *dev, size_t size, dma_addr_t *dma_handle, int
 	 * If device can't bypass or bypass is disabled, pass the 32bit fake
 	 * device to map single to get an iova mapping.
 	 */
-	ioc = GET_IOC(dev);
-	ASSERT(ioc);
 	*dma_handle = sba_map_single(&ioc->sac_only_dev->dev, addr, size, 0);
 
 	return addr;
@@ -1135,7 +1171,7 @@ sba_fill_pdir(
 {
 	struct scatterlist *dma_sg = startsg;	/* pointer to current DMA */
 	int n_mappings = 0;
-	u64 *pdirp = 0;
+	u64 *pdirp = NULL;
 	unsigned long dma_offset = 0;
 
 	dma_sg--;
@@ -1538,7 +1574,7 @@ ioc_iova_init(struct ioc *ioc)
 	** We program the next pdir index after we stop w/ a key for
 	** the GART code to handshake on.
 	*/
-	while ((device = pci_find_device(PCI_ANY_ID, PCI_ANY_ID, device)) != NULL)
+	for_each_pci_dev(device)	
 		agp_found |= pci_find_capability(device, PCI_CAP_ID_AGP);
 
 	if (agp_found && reserve_sba_gart) {
@@ -1688,6 +1724,7 @@ struct ioc_iommu {
 
 static struct ioc_iommu ioc_iommu_info[] __initdata = {
 	{ ZX1_IOC_ID, "zx1", ioc_zx1_init },
+	{ ZX2_IOC_ID, "zx2", NULL },
 	{ SX1000_IOC_ID, "sx1000", NULL },
 };
 
@@ -1799,6 +1836,10 @@ ioc_show(struct seq_file *s, void *v)
 
 	seq_printf(s, "Hewlett Packard %s IOC rev %d.%d\n",
 		ioc->name, ((ioc->rev >> 4) & 0xF), (ioc->rev & 0xF));
+#ifdef CONFIG_NUMA
+	if (ioc->node != MAX_NUMNODES)
+		seq_printf(s, "NUMA node       : %d\n", ioc->node);
+#endif
 	seq_printf(s, "IOVA size       : %ld MB\n", ((ioc->pdir_size >> 3) * iovp_size)/(1024*1024));
 	seq_printf(s, "IOVA page size  : %ld kb\n", iovp_size/1024);
 
@@ -1853,7 +1894,7 @@ ioc_proc_init(void)
 {
 	struct proc_dir_entry *dir, *entry;
 
-	dir = proc_mkdir("bus/mckinley", 0);
+	dir = proc_mkdir("bus/mckinley", NULL);
 	if (!dir)
 		return;
 
@@ -1899,6 +1940,32 @@ sba_connect_bus(struct pci_bus *bus)
 	printk(KERN_WARNING "No IOC for PCI Bus %04x:%02x in ACPI\n", pci_domain_nr(bus), bus->number);
 }
 
+#ifdef CONFIG_NUMA
+static void __init
+sba_map_ioc_to_node(struct ioc *ioc, acpi_handle handle)
+{
+	unsigned int node;
+	int pxm;
+
+	ioc->node = MAX_NUMNODES;
+
+	pxm = acpi_get_pxm(handle);
+
+	if (pxm < 0)
+		return;
+
+	node = pxm_to_nid_map[pxm];
+
+	if (node >= MAX_NUMNODES || !node_online(node))
+		return;
+
+	ioc->node = node;
+	return;
+}
+#else
+#define sba_map_ioc_to_node(ioc, handle)
+#endif
+
 static int __init
 acpi_sba_ioc_add(struct acpi_device *device)
 {
@@ -1941,6 +2008,8 @@ acpi_sba_ioc_add(struct acpi_device *device)
 	if (!ioc)
 		return 1;
 
+	/* setup NUMA node association */
+	sba_map_ioc_to_node(ioc, device->handle);
 	return 0;
 }
 

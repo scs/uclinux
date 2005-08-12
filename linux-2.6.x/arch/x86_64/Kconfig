@@ -4,7 +4,7 @@
 #
 # Note: ISA is disabled and will hopefully never be enabled.
 # If you managed to buy an ISA x86-64 box you'll have to fix all the
-# ISA drivers you need yourself. 
+# ISA drivers you need yourself.
 #
 
 mainmenu "Linux Kernel Configuration"
@@ -41,6 +41,10 @@ config RWSEM_GENERIC_SPINLOCK
 config RWSEM_XCHGADD_ALGORITHM
 	bool
 
+config GENERIC_CALIBRATE_DELAY
+	bool
+	default y
+
 config X86_CMPXCHG
 	bool
 	default y
@@ -48,33 +52,12 @@ config X86_CMPXCHG
 config EARLY_PRINTK
 	bool
 	default y
-	help
-	  Write kernel log output directly into the VGA buffer or to a serial
-	  port.
-
-	  This is useful for kernel debugging when your machine crashes very
-	  early before the console code is initialized. For normal operation
-	  it is not recommended because it looks ugly and doesn't cooperate
-	  with klogd/syslogd or the X server. You should normally N here,
-	  unless you want to debug such a crash.
-	  
-config HPET_TIMER
-	bool
-	default y
-	help
-	  Use the IA-PC HPET (High Precision Event Timer) to manage
-	  time in preference to the PIT and RTC, if a HPET is
-	  present.  The HPET provides a stable time base on SMP
-	  systems, unlike the RTC, but it is more expensive to access,
-	  as it is off-chip.  You can find the HPET spec at
-	  <http://www.intel.com/labs/platcomp/hpet/hpetspec.htm>.
-
-	  If unsure, say Y.
-
-config HPET_EMULATE_RTC
-	def_bool HPET_TIMER && RTC=y
 
 config GENERIC_ISA_DMA
+	bool
+	default y
+
+config GENERIC_IOMAP
 	bool
 	default y
 
@@ -90,14 +73,15 @@ choice
 config MK8
 	bool "AMD-Opteron/Athlon64"
 	help
-	  Optimize for AMD Opteron/Athlon64/Hammer/K8 CPUs. 
+	  Optimize for AMD Opteron/Athlon64/Hammer/K8 CPUs.
 
 config MPSC
-       bool "Intel x86-64" 
+       bool "Intel EM64T"
        help
-	  Optimize for Intel IA32 with 64bit extension CPUs
-	  (Prescott/Nocona/Potomac)
-       
+	  Optimize for Intel Pentium 4 and Xeon CPUs with Intel
+	  Extended Memory 64 Technology(EM64T). For details see
+	  <http://www.intel.com/technology/64bitextensions/>.
+
 config GENERIC_CPU
 	bool "Generic-x86-64"
 	help
@@ -130,8 +114,8 @@ config MICROCODE
 	tristate "/dev/cpu/microcode - Intel CPU microcode support"
 	---help---
 	  If you say Y here the 'File systems' section, you will be
-	  able to update the microcode on Intel processors. You will 
-	  obviously need the actual microcode binary data itself which is 
+	  able to update the microcode on Intel processors. You will
+	  obviously need the actual microcode binary data itself which is
 	  not shipped with the Linux kernel.
 
 	  For latest news and information on obtaining all the required
@@ -165,7 +149,7 @@ config X86_HT
 	bool
 	depends on SMP && !MK8
 	default y
-       
+
 config MATH_EMULATION
 	bool
 
@@ -231,18 +215,29 @@ config PREEMPT
 	  be preempted even if it is in kernel mode executing a system call.
 	  This allows applications to run more reliably even when the system is
 	  under load. On contrary it may also break your drivers and add
-	  priority inheritance problems to your system. Don't select it if 
+	  priority inheritance problems to your system. Don't select it if
 	  you rely on a stable system or have slightly obscure hardware.
 	  It's also not very well tested on x86-64 currently.
 	  You have been warned.
 
-	  Say Y here if you are feeling brave and building a kernel for a 
-	  desktop, embedded or real-time system.  Say N if you are unsure. 
+	  Say Y here if you are feeling brave and building a kernel for a
+	  desktop, embedded or real-time system.  Say N if you are unsure.
+
+config PREEMPT_BKL
+	bool "Preempt The Big Kernel Lock"
+	depends on PREEMPT
+	default y
+	help
+	  This option reduces the latency of the kernel by making the
+	  big kernel lock preemptible.
+
+	  Say Y here if you are building a kernel for a desktop system.
+	  Say N if you are unsure.
 
 config SCHED_SMT
 	bool "SMT (Hyperthreading) scheduler support"
 	depends on SMP
-	default off
+	default n
 	help
 	  SMT scheduler support improves the CPU scheduler's decision making
 	  when dealing with Intel Pentium 4 chips with HyperThreading at a
@@ -251,6 +246,7 @@ config SCHED_SMT
 
 config K8_NUMA
        bool "K8 NUMA support"
+       select NUMA
        depends on SMP
        help
 	  Enable NUMA (Non Unified Memory Architecture) support for
@@ -260,44 +256,81 @@ config K8_NUMA
 	  This code is recommended on all multiprocessor Opteron systems
 	  and normally doesn't hurt on others.
 
+config NUMA_EMU
+	bool "NUMA emulation support"
+	select NUMA
+	depends on SMP
+	help
+	  Enable NUMA emulation. A flat machine will be split
+	  into virtual nodes when booted with "numa=fake=N", where N is the
+	  number of nodes. This is only useful for debugging.
+
 config DISCONTIGMEM
        bool
-       depends on K8_NUMA
+       depends on NUMA
        default y
 
 config NUMA
        bool
-       depends on K8_NUMA
-       default y
+       default n
 
 config HAVE_DEC_LOCK
 	bool
 	depends on SMP
 	default y
 
-# actually 64 maximum, but you need to fix the APIC code first
-# to use clustered mode or whatever your big iron needs
 config NR_CPUS
-	int "Maximum number of CPUs (2-8)"
-	range 2 8
+	int "Maximum number of CPUs (2-256)"
+	range 2 256
 	depends on SMP
 	default "8"
 	help
 	  This allows you to specify the maximum number of CPUs which this
-	  kernel will support.  The maximum supported value is 32 and the
-	  minimum value which makes sense is 2.
+	  kernel will support. Current maximum is 256 CPUs due to
+	  APIC addressing limits. Less depending on the hardware.
 
 	  This is purely to save memory - each supported CPU requires
 	  memory in the static kernel configuration.
 
+config HPET_TIMER
+	bool
+	default y
+	help
+	  Use the IA-PC HPET (High Precision Event Timer) to manage
+	  time in preference to the PIT and RTC, if a HPET is
+	  present.  The HPET provides a stable time base on SMP
+	  systems, unlike the TSC, but it is more expensive to access,
+	  as it is off-chip.  You can find the HPET spec at
+	  <http://www.intel.com/labs/platcomp/hpet/hpetspec.htm>.
+
+config X86_PM_TIMER
+	bool "PM timer"
+	depends on ACPI
+	default y
+	help
+	  Support the ACPI PM timer for time keeping. This is slow,
+	  but is useful on some chipsets without HPET on systems with more
+	  than one CPU. On a single processor or single socket multi core
+	  system it is normally not required.
+	  When the PM timer is active 64bit vsyscalls are disabled
+	  and should not be enabled (/proc/sys/kernel/vsyscall64 should
+	  not be changed).
+	  The kernel selects the PM timer only as a last resort, so it is
+	  useful to enable just in case.
+
+config HPET_EMULATE_RTC
+	bool "Provide RTC interrupt"
+	depends on HPET_TIMER && RTC=y
+
 config GART_IOMMU
 	bool "IOMMU support"
+	depends on PCI
 	help
 	  Support the K8 IOMMU. Needed to run systems with more than 4GB of memory
 	  properly with 32-bit PCI devices that do not support DAC (Double Address
 	  Cycle). The IOMMU can be turned off at runtime with the iommu=off parameter.
 	  Normally the kernel will take the right choice by itself.
-	  If unsure say Y 
+	  If unsure, say Y.
 
 # need this always enabled with GART_IOMMU for the VIA workaround
 config SWIOTLB
@@ -310,16 +343,61 @@ config DUMMY_IOMMU
 	depends on !GART_IOMMU && !SWIOTLB
 	default y
 	help
-	  Don't use IOMMU code. This will cause problems when you have more than 4GB 
+	  Don't use IOMMU code. This will cause problems when you have more than 4GB
 	  of memory and any 32-bit devices. Don't turn on unless you know what you
 	  are doing.
 
 config X86_MCE
-	bool
+	bool "Machine check support" if EMBEDDED
 	default y
+	help
+	   Include a machine check error handler to report hardware errors.
+	   This version will require the mcelog utility to decode some
+	   machine check error logs. See
+	   ftp://ftp.x86-64.org/pub/linux/tools/mcelog
+
+config X86_MCE_INTEL
+	bool "Intel MCE features"
+	depends on X86_MCE && X86_LOCAL_APIC
+	default y
+	help
+	   Additional support for intel specific MCE features such as
+	   the thermal monitor.
+
+config SECCOMP
+	bool "Enable seccomp to safely compute untrusted bytecode"
+	depends on PROC_FS
+	default y
+	help
+	  This kernel feature is useful for number crunching applications
+	  that may need to compute untrusted bytecode during their
+	  execution. By using pipes or other transports made available to
+	  the process as file descriptors supporting the read/write
+	  syscalls, it's possible to isolate those applications in
+	  their own address space using seccomp. Once seccomp is
+	  enabled via /proc/<pid>/seccomp, it cannot be disabled
+	  and the task is only allowed to execute a few safe syscalls
+	  defined by each seccomp mode.
+
+	  If unsure, say Y. Only embedded should say N here.
 
 endmenu
 
+#
+# Use the generic interrupt handling code in kernel/irq/:
+#
+config GENERIC_HARDIRQS
+	bool
+	default y
+
+config GENERIC_IRQ_PROBE
+	bool
+	default y
+
+# we have no ISA slots, but we do have ISA-style DMA.
+config ISA_DMA_API
+	bool
+	default y
 
 menu "Power management options"
 
@@ -336,16 +414,28 @@ menu "Bus options (PCI etc.)"
 config PCI
 	bool "PCI support"
 
-# x86-64 doesn't support PCI BIOS access from long mode so always go direct. 
+# x86-64 doesn't support PCI BIOS access from long mode so always go direct.
 config PCI_DIRECT
 	bool
 	depends on PCI
 	default y
 
-config PCI_MMCONFIG 
-	bool "Support mmconfig PCI config space access" 
-	depends on PCI
+config PCI_MMCONFIG
+	bool "Support mmconfig PCI config space access"
+	depends on PCI && ACPI
 	select ACPI_BOOT
+
+config UNORDERED_IO
+       bool "Unordered IO mapping access"
+       depends on EXPERIMENTAL
+       help
+         Use unordered stores to access IO memory mappings in device drivers.
+	 Still very experimental. When a driver works on IA64/ppc64/pa-risc it should
+	 work with this option, but it makes the drivers behave differently
+	 from i386. Requires that the driver writer used memory barriers
+	 properly.
+
+source "drivers/pci/pcie/Kconfig"
 
 source "drivers/pci/Kconfig"
 
@@ -398,110 +488,10 @@ source fs/Kconfig
 
 source "arch/x86_64/oprofile/Kconfig"
 
-menu "Kernel hacking"
-
-config DEBUG_KERNEL
-	bool "Kernel debugging"
-	help
-	  Say Y here if you are developing drivers or trying to debug and
-	  identify kernel problems.
-
-config DEBUG_SLAB
-	bool "Debug memory allocations"
-	depends on DEBUG_KERNEL
-	help
-	  Say Y here to have the kernel do limited verification on memory
-	  allocation as well as poisoning memory on free to catch use of freed
-	  memory.
-
-config MAGIC_SYSRQ
-	bool "Magic SysRq key"
-	help
-	  If you say Y here, you will have some control over the system even
-	  if the system crashes for example during kernel debugging (e.g., you
-	  will be able to flush the buffer cache to disk, reboot the system
-	  immediately or dump some status information). This is accomplished
-	  by pressing various keys while holding SysRq (Alt+PrintScreen). It
-	  also works on a serial console (on PC hardware at least), if you
-	  send a BREAK and then within 5 seconds a command keypress. The
-	  keys are documented in <file:Documentation/sysrq.txt>. Don't say Y
-	  unless you really know what this hack does.
-
-config DEBUG_SPINLOCK
-	bool "Spinlock debugging"
-	depends on DEBUG_KERNEL
-	help
-	  Say Y here and build SMP to catch missing spinlock initialization
-	  and certain other kinds of spinlock errors commonly made.  This is
-	  best used in conjunction with the NMI watchdog so that spinlock
-	  deadlocks are also debuggable.
-
-# !SMP for now because the context switch early causes GPF in segment reloading
-# and the GS base checking does the wrong thing then, causing a hang.
-config CHECKING
-	bool "Additional run-time checks"
-	depends on DEBUG_KERNEL && !SMP
-	help
-	  Enables some internal consistency checks for kernel debugging.
-	  You should normally say N.
-
-config INIT_DEBUG
-	bool "Debug __init statements"
-	depends on DEBUG_KERNEL
-	help
-	  Fill __init and __initdata at the end of boot. This helps debugging
-	  illegal uses of __init and __initdata after initialization.	  
-
-config DEBUG_INFO
-	bool "Compile the kernel with debug info"
-	depends on DEBUG_KERNEL
-	help
-          If you say Y here the resulting kernel image will include
-	  debugging info resulting in a larger kernel image.
-	  Say Y here only if you plan to use gdb to debug the kernel.
-	  Please note that this option requires new binutils.
-	  If you don't debug the kernel, you can say N.
-	  
-config FRAME_POINTER
-       bool "Compile the kernel with frame pointers"
-       help
-	 Compile the kernel with frame pointers. This may help for some 
-	 debugging with external debuggers. Note the standard oops backtracer 
-	 doesn't make use of this  and the x86-64 kernel doesn't ensure an consistent
-	 frame pointer through inline assembly (semaphores etc.)
-	 Normally you should say N.
-
-config IOMMU_DEBUG
-       depends on GART_IOMMU && DEBUG_KERNEL
-       bool "Enable IOMMU debugging"
-       help
-         Force the IOMMU to on even when you have less than 4GB of
-	 memory and add debugging code. On overflow always panic. And
-	 allow to enable IOMMU leak tracing. Can be disabled at boot
-	 time with iommu=noforce. This will also enable scatter gather
-	 list merging.  Currently not recommended for production
-	 code. When you use it make sure you have a big enough
-	 IOMMU/AGP aperture.  Most of the options enabled by this can
-	 be set more finegrained using the iommu= command line
-	 options. See Documentation/x86_64/boot-options.txt for more
-	 details.
-
-config IOMMU_LEAK
-       bool "IOMMU leak tracing"
-       depends on DEBUG_KERNEL
-       depends on IOMMU_DEBUG
-       help
-         Add a simple leak tracer to the IOMMU code. This is useful when you
-	 are debugging a buggy device driver that leaks IOMMU mappings.
-       
-#config X86_REMOTE_DEBUG
-#       bool "kgdb debugging stub"
-
-endmenu
+source "arch/x86_64/Kconfig.debug"
 
 source "security/Kconfig"
 
 source "crypto/Kconfig"
 
 source "lib/Kconfig"
-

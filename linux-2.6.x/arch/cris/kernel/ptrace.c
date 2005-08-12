@@ -8,8 +8,8 @@
  * Authors:   Bjorn Wesen
  *
  * $Log$
- * Revision 1.4  2004/09/08 14:53:02  lgsoft
- * Import of 2.6.8
+ * Revision 1.5  2005/08/12 03:32:53  magicyang
+ *   Update kernel 2.6.8 to 2.6.12
  *
  * Revision 1.9  2003/07/04 12:56:11  tobiasa
  * Moved arch-specific code to arch-specific files.

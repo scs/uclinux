@@ -11,7 +11,6 @@
  *
  */
 
-#include <linux/config.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
@@ -19,12 +18,12 @@
 #include <linux/sched.h>
 #include <linux/seq_file.h>
 #include <linux/interrupt.h>
+#include <linux/hardirq.h>
 
 #include <asm/rtc.h>
 #include <asm/ptrace.h>
 #include <asm/system.h>
 #include <asm/irq.h>
-#include <asm/hardirq.h>
 #include <asm/traps.h>
 
 #include <asm/q40_master.h>

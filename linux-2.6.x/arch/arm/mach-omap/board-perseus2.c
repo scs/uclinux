@@ -14,34 +14,89 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/device.h>
+#include <linux/delay.h>
+#include <linux/mtd/mtd.h>
+#include <linux/mtd/partitions.h>
 
 #include <asm/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
+#include <asm/mach/flash.h>
 #include <asm/mach/map.h>
 
-#include <asm/arch/clocks.h>
 #include <asm/arch/gpio.h>
 #include <asm/arch/mux.h>
+#include <asm/arch/fpga.h>
 
 #include "common.h"
 
-void omap_perseus2_init_irq(void)
-{
-	omap_init_irq();
-}
-
 static struct resource smc91x_resources[] = {
 	[0] = {
-		.start	= OMAP730_FPGA_ETHR_START,	/* Physical */
-		.end	= OMAP730_FPGA_ETHR_START + SZ_4K,
+		.start	= H2P2_DBG_FPGA_ETHR_START,	/* Physical */
+		.end	= H2P2_DBG_FPGA_ETHR_START + 0xf,
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start	= 0,
+		.start	= INT_730_MPU_EXT_NIRQ,
 		.end	= 0,
-		.flags	= INT_ETHER,
+		.flags	= IORESOURCE_IRQ,
 	},
+};
+
+static int __initdata p2_serial_ports[OMAP_MAX_NR_PORTS] = {1, 1, 0};
+
+static struct mtd_partition p2_partitions[] = {
+	/* bootloader (U-Boot, etc) in first sector */
+	{
+	      .name		= "bootloader",
+	      .offset		= 0,
+	      .size		= SZ_128K,
+	      .mask_flags	= MTD_WRITEABLE, /* force read-only */
+	},
+	/* bootloader params in the next sector */
+	{
+	      .name		= "params",
+	      .offset		= MTDPART_OFS_APPEND,
+	      .size		= SZ_128K,
+	      .mask_flags	= 0,
+	},
+	/* kernel */
+	{
+	      .name		= "kernel",
+	      .offset		= MTDPART_OFS_APPEND,
+	      .size		= SZ_2M,
+	      .mask_flags	= 0
+	},
+	/* rest of flash is a file system */
+	{
+	      .name		= "rootfs",
+	      .offset		= MTDPART_OFS_APPEND,
+	      .size		= MTDPART_SIZ_FULL,
+	      .mask_flags	= 0
+	},
+};
+
+static struct flash_platform_data p2_flash_data = {
+	.map_name	= "cfi_probe",
+	.width		= 2,
+	.parts		= p2_partitions,
+	.nr_parts	= ARRAY_SIZE(p2_partitions),
+};
+
+static struct resource p2_flash_resource = {
+	.start		= OMAP_FLASH_0_START,
+	.end		= OMAP_FLASH_0_START + OMAP_FLASH_0_SIZE - 1,
+	.flags		= IORESOURCE_MEM,
+};
+
+static struct platform_device p2_flash_device = {
+	.name		= "omapflash",
+	.id		= 0,
+	.dev		= {
+		.platform_data	= &p2_flash_data,
+	},
+	.num_resources	= 1,
+	.resource	= &p2_flash_resource,
 };
 
 static struct platform_device smc91x_device = {
@@ -52,6 +107,7 @@ static struct platform_device smc91x_device = {
 };
 
 static struct platform_device *devices[] __initdata = {
+	&p2_flash_device,
 	&smc91x_device,
 };
 
@@ -60,9 +116,25 @@ static void __init omap_perseus2_init(void)
 	(void) platform_add_devices(devices, ARRAY_SIZE(devices));
 }
 
+static void __init perseus2_init_smc91x(void)
+{
+	fpga_write(1, H2P2_DBG_FPGA_LAN_RESET);
+	mdelay(50);
+	fpga_write(fpga_read(H2P2_DBG_FPGA_LAN_RESET) & ~1,
+		   H2P2_DBG_FPGA_LAN_RESET);
+	mdelay(50);
+}
+
+void omap_perseus2_init_irq(void)
+{
+	omap_init_irq();
+	omap_gpio_init();
+	perseus2_init_smc91x();
+}
+
 /* Only FPGA needs to be mapped here. All others are done with ioremap */
 static struct map_desc omap_perseus2_io_desc[] __initdata = {
-	{OMAP730_FPGA_BASE, OMAP730_FPGA_START, OMAP730_FPGA_SIZE,
+	{H2P2_DBG_FPGA_BASE, H2P2_DBG_FPGA_START, H2P2_DBG_FPGA_SIZE,
 	 MT_DEVICE},
 };
 
@@ -103,6 +175,7 @@ static void __init omap_perseus2_map_io(void)
 	 * It is used as the Ethernet controller interrupt
 	 */
 	omap_writel(omap_readl(OMAP730_IO_CONF_9) & 0x1FFFFFFF, OMAP730_IO_CONF_9);
+	omap_serial_init(p2_serial_ports);
 }
 
 MACHINE_START(OMAP_PERSEUS2, "OMAP730 Perseus2")
@@ -111,6 +184,6 @@ MACHINE_START(OMAP_PERSEUS2, "OMAP730 Perseus2")
 	BOOT_PARAMS(0x10000100)
 	MAPIO(omap_perseus2_map_io)
 	INITIRQ(omap_perseus2_init_irq)
-	INITTIME(omap_init_time)
 	INIT_MACHINE(omap_perseus2_init)
+	.timer		= &omap_timer,
 MACHINE_END

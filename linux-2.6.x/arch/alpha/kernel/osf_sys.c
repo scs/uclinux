@@ -91,8 +91,8 @@ osf_set_program_attributes(unsigned long text_start, unsigned long text_len,
  * braindamage (it can't really handle filesystems where the directory
  * offset differences aren't the same as "d_reclen").
  */
-#define NAME_OFFSET(de) ((int) ((de)->d_name - (char __user *) (de)))
-#define ROUND_UP(x) (((x)+3) & ~3)
+#define NAME_OFFSET	offsetof (struct osf_dirent, d_name)
+#define ROUND_UP(x)	(((x)+3) & ~3)
 
 struct osf_dirent {
 	unsigned int d_ino;
@@ -114,7 +114,7 @@ osf_filldir(void *__buf, const char *name, int namlen, loff_t offset,
 {
 	struct osf_dirent __user *dirent;
 	struct osf_dirent_callback *buf = (struct osf_dirent_callback *) __buf;
-	unsigned int reclen = ROUND_UP(NAME_OFFSET(dirent) + namlen + 1);
+	unsigned int reclen = ROUND_UP(NAME_OFFSET + namlen + 1);
 
 	buf->error = -EINVAL;	/* only used if we fail */
 	if (reclen > buf->count)
@@ -437,11 +437,10 @@ asmlinkage int
 osf_getdomainname(char __user *name, int namelen)
 {
 	unsigned len;
-	int i, error;
+	int i;
 
-	error = verify_area(VERIFY_WRITE, name, namelen);
-	if (error)
-		goto out;
+	if (!access_ok(VERIFY_WRITE, name, namelen))
+		return -EFAULT;
 
 	len = namelen;
 	if (namelen > 32)
@@ -454,25 +453,9 @@ osf_getdomainname(char __user *name, int namelen)
 			break;
 	}
 	up_read(&uts_sem);
- out:
-	return error;
+
+	return 0;
 }
-
-asmlinkage long
-osf_shmat(int shmid, void __user *shmaddr, int shmflg)
-{
-	unsigned long raddr;
-	long err;
-
-	err = do_shmat(shmid, shmaddr, shmflg, &raddr);
-
-	/*
-	 * This works because all user-level addresses are
-	 * non-negative longs!
-	 */
-	return err ? err : (long)raddr;
-}
-
 
 /*
  * The following stuff should move into a header file should it ever
@@ -723,7 +706,8 @@ osf_setsysinfo(unsigned long op, void __user *buffer, unsigned long nbytes,
 {
 	switch (op) {
 	case SSI_IEEE_FP_CONTROL: {
-		unsigned long swcr, fpcr, fex;
+		unsigned long swcr, fpcr;
+		unsigned int *state;
 
 		/* 
 		 * Alpha Architecture Handbook 4.7.7.3:
@@ -732,22 +716,42 @@ osf_setsysinfo(unsigned long op, void __user *buffer, unsigned long nbytes,
 		 * set in the trap shadow of a software-complete insn.
 		 */
 
-		/* Update softare trap enable bits.  */
 		if (get_user(swcr, (unsigned long __user *)buffer))
 			return -EFAULT;
-		current_thread_info()->ieee_state
-		  = ((current_thread_info()->ieee_state & ~IEEE_SW_MASK)
-		     | (swcr & IEEE_SW_MASK));
+		state = &current_thread_info()->ieee_state;
+
+		/* Update softare trap enable bits.  */
+		*state = (*state & ~IEEE_SW_MASK) | (swcr & IEEE_SW_MASK);
 
 		/* Update the real fpcr.  */
-		fpcr = rdfpcr();
-		fpcr &= FPCR_DYN_MASK;
+		fpcr = rdfpcr() & FPCR_DYN_MASK;
 		fpcr |= ieee_swcr_to_fpcr(swcr);
 		wrfpcr(fpcr);
 
- 		/* If any exceptions are now unmasked, send a signal.  */
-		fex = ((swcr & IEEE_STATUS_MASK)
-		       >> IEEE_STATUS_TO_EXCSUM_SHIFT) & swcr;
+		return 0;
+	}
+
+	case SSI_IEEE_RAISE_EXCEPTION: {
+		unsigned long exc, swcr, fpcr, fex;
+		unsigned int *state;
+
+		if (get_user(exc, (unsigned long __user *)buffer))
+			return -EFAULT;
+		state = &current_thread_info()->ieee_state;
+		exc &= IEEE_STATUS_MASK;
+
+		/* Update softare trap enable bits.  */
+ 		swcr = (*state & IEEE_SW_MASK) | exc;
+		*state |= exc;
+
+		/* Update the real fpcr.  */
+		fpcr = rdfpcr();
+		fpcr |= ieee_swcr_to_fpcr(swcr);
+		wrfpcr(fpcr);
+
+ 		/* If any exceptions set by this call, and are unmasked,
+		   send a signal.  Old exceptions are not signaled.  */
+		fex = (exc >> IEEE_STATUS_TO_EXCSUM_SHIFT) & swcr;
  		if (fex) {
 			siginfo_t info;
 			int si_code = 0;
@@ -765,7 +769,6 @@ osf_setsysinfo(unsigned long op, void __user *buffer, unsigned long nbytes,
 			info.si_addr = NULL;  /* FIXME */
  			send_sig_info(SIGFPE, &info, current);
  		}
-
 		return 0;
 	}
 
@@ -969,19 +972,20 @@ osf_select(int n, fd_set __user *inp, fd_set __user *outp, fd_set __user *exp,
 	fd_set_bits fds;
 	char *bits;
 	size_t size;
-	unsigned long timeout;
-	int ret;
+	long timeout;
+	int ret = -EINVAL;
 
 	timeout = MAX_SCHEDULE_TIMEOUT;
 	if (tvp) {
 		time_t sec, usec;
 
-		if ((ret = verify_area(VERIFY_READ, tvp, sizeof(*tvp)))
-		    || (ret = __get_user(sec, &tvp->tv_sec))
-		    || (ret = __get_user(usec, &tvp->tv_usec)))
+		if (!access_ok(VERIFY_READ, tvp, sizeof(*tvp))
+		    || __get_user(sec, &tvp->tv_sec)
+		    || __get_user(usec, &tvp->tv_usec)) {
+		    	ret = -EFAULT;
 			goto out_nofds;
+		}
 
-		ret = -EINVAL;
 		if (sec < 0 || usec < 0)
 			goto out_nofds;
 
@@ -991,7 +995,6 @@ osf_select(int n, fd_set __user *inp, fd_set __user *outp, fd_set __user *exp,
 		}
 	}
 
-	ret = -EINVAL;
 	if (n < 0 || n > current->files->max_fdset)
 		goto out_nofds;
 
@@ -1033,9 +1036,10 @@ osf_select(int n, fd_set __user *inp, fd_set __user *outp, fd_set __user *exp,
 		ret = 0;
 	}
 
-	set_fd_set(n, inp->fds_bits, fds.res_in);
-	set_fd_set(n, outp->fds_bits, fds.res_out);
-	set_fd_set(n, exp->fds_bits, fds.res_ex);
+	if (set_fd_set(n, inp->fds_bits, fds.res_in) ||
+	    set_fd_set(n, outp->fds_bits, fds.res_out) ||
+	    set_fd_set(n, exp->fds_bits, fds.res_ex))
+		ret = -EFAULT;
 
  out:
 	kfree(bits);
@@ -1079,64 +1083,57 @@ osf_getrusage(int who, struct rusage32 __user *ru)
 		r.ru_majflt = current->maj_flt;
 		break;
 	case RUSAGE_CHILDREN:
-		jiffies_to_timeval32(current->cutime, &r.ru_utime);
-		jiffies_to_timeval32(current->cstime, &r.ru_stime);
-		r.ru_minflt = current->cmin_flt;
-		r.ru_majflt = current->cmaj_flt;
-		break;
-	default:
-		jiffies_to_timeval32(current->utime + current->cutime,
-				   &r.ru_utime);
-		jiffies_to_timeval32(current->stime + current->cstime,
-				   &r.ru_stime);
-		r.ru_minflt = current->min_flt + current->cmin_flt;
-		r.ru_majflt = current->maj_flt + current->cmaj_flt;
+		jiffies_to_timeval32(current->signal->cutime, &r.ru_utime);
+		jiffies_to_timeval32(current->signal->cstime, &r.ru_stime);
+		r.ru_minflt = current->signal->cmin_flt;
+		r.ru_majflt = current->signal->cmaj_flt;
 		break;
 	}
 
 	return copy_to_user(ru, &r, sizeof(r)) ? -EFAULT : 0;
 }
 
-asmlinkage int
-osf_wait4(pid_t pid, int __user *ustatus, int options, struct rusage32 __user *ur)
+asmlinkage long
+osf_wait4(pid_t pid, int __user *ustatus, int options,
+	  struct rusage32 __user *ur)
 {
-	if (!ur) {
+	struct rusage r;
+	long ret, err;
+	mm_segment_t old_fs;
+
+	if (!ur)
 		return sys_wait4(pid, ustatus, options, NULL);
-	} else {
-		struct rusage r;
-		int ret, status;
-		mm_segment_t old_fs = get_fs();
+
+	old_fs = get_fs();
 		
-		set_fs (KERNEL_DS);
-		ret = sys_wait4(pid, &status, options, &r);
-		set_fs (old_fs);
+	set_fs (KERNEL_DS);
+	ret = sys_wait4(pid, ustatus, options, (struct rusage __user *) &r);
+	set_fs (old_fs);
 
-		if (!access_ok(VERIFY_WRITE, ur, sizeof(*ur)))
-			return -EFAULT;
-		__put_user(r.ru_utime.tv_sec, &ur->ru_utime.tv_sec);
-		__put_user(r.ru_utime.tv_usec, &ur->ru_utime.tv_usec);
-		__put_user(r.ru_stime.tv_sec, &ur->ru_stime.tv_sec);
-		__put_user(r.ru_stime.tv_usec, &ur->ru_stime.tv_usec);
-		__put_user(r.ru_maxrss, &ur->ru_maxrss);
-		__put_user(r.ru_ixrss, &ur->ru_ixrss);
-		__put_user(r.ru_idrss, &ur->ru_idrss);
-		__put_user(r.ru_isrss, &ur->ru_isrss);
-		__put_user(r.ru_minflt, &ur->ru_minflt);
-		__put_user(r.ru_majflt, &ur->ru_majflt);
-		__put_user(r.ru_nswap, &ur->ru_nswap);
-		__put_user(r.ru_inblock, &ur->ru_inblock);
-		__put_user(r.ru_oublock, &ur->ru_oublock);
-		__put_user(r.ru_msgsnd, &ur->ru_msgsnd);
-		__put_user(r.ru_msgrcv, &ur->ru_msgrcv);
-		__put_user(r.ru_nsignals, &ur->ru_nsignals);
-		__put_user(r.ru_nvcsw, &ur->ru_nvcsw);
-		if (__put_user(r.ru_nivcsw, &ur->ru_nivcsw))
-			return -EFAULT;
+	if (!access_ok(VERIFY_WRITE, ur, sizeof(*ur)))
+		return -EFAULT;
 
-		if (ustatus && put_user(status, ustatus))
-			return -EFAULT;
-		return ret;
-	}
+	err = 0;
+	err |= __put_user(r.ru_utime.tv_sec, &ur->ru_utime.tv_sec);
+	err |= __put_user(r.ru_utime.tv_usec, &ur->ru_utime.tv_usec);
+	err |= __put_user(r.ru_stime.tv_sec, &ur->ru_stime.tv_sec);
+	err |= __put_user(r.ru_stime.tv_usec, &ur->ru_stime.tv_usec);
+	err |= __put_user(r.ru_maxrss, &ur->ru_maxrss);
+	err |= __put_user(r.ru_ixrss, &ur->ru_ixrss);
+	err |= __put_user(r.ru_idrss, &ur->ru_idrss);
+	err |= __put_user(r.ru_isrss, &ur->ru_isrss);
+	err |= __put_user(r.ru_minflt, &ur->ru_minflt);
+	err |= __put_user(r.ru_majflt, &ur->ru_majflt);
+	err |= __put_user(r.ru_nswap, &ur->ru_nswap);
+	err |= __put_user(r.ru_inblock, &ur->ru_inblock);
+	err |= __put_user(r.ru_oublock, &ur->ru_oublock);
+	err |= __put_user(r.ru_msgsnd, &ur->ru_msgsnd);
+	err |= __put_user(r.ru_msgrcv, &ur->ru_msgrcv);
+	err |= __put_user(r.ru_nsignals, &ur->ru_nsignals);
+	err |= __put_user(r.ru_nvcsw, &ur->ru_nvcsw);
+	err |= __put_user(r.ru_nivcsw, &ur->ru_nivcsw);
+
+	return err ? err : ret;
 }
 
 /*
@@ -1153,16 +1150,13 @@ osf_usleep_thread(struct timeval32 __user *sleep, struct timeval32 __user *remai
 	if (get_tv32(&tmp, sleep))
 		goto fault;
 
-	ticks = tmp.tv_usec;
-	ticks = (ticks + (1000000 / HZ) - 1) / (1000000 / HZ);
-	ticks += tmp.tv_sec * HZ;
+	ticks = timeval_to_jiffies(&tmp);
 
 	current->state = TASK_INTERRUPTIBLE;
 	ticks = schedule_timeout(ticks);
 
 	if (remain) {
-		tmp.tv_sec = ticks / HZ;
-		tmp.tv_usec = ticks % HZ;
+		jiffies_to_timeval(ticks, &tmp);
 		if (put_tv32(remain, &tmp))
 			goto fault;
 	}

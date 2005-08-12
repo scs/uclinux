@@ -13,17 +13,23 @@
 #ifdef CONFIG_MODE_TT
 extern int modify_ldt(int func, void *ptr, unsigned long bytecount);
 
-int sys_modify_ldt_tt(int func, void *ptr, unsigned long bytecount)
+/* XXX this needs copy_to_user and copy_from_user */
+
+int sys_modify_ldt_tt(int func, void __user *ptr, unsigned long bytecount)
 {
-	if(verify_area(VERIFY_READ, ptr, bytecount)) return(-EFAULT);
-	return(modify_ldt(func, ptr, bytecount));
+	if (!access_ok(VERIFY_READ, ptr, bytecount))
+		return -EFAULT;
+
+	return modify_ldt(func, ptr, bytecount);
 }
 #endif
 
 #ifdef CONFIG_MODE_SKAS
-extern int userspace_pid;
+extern int userspace_pid[];
 
-int sys_modify_ldt_skas(int func, void *ptr, unsigned long bytecount)
+#include "skas_ptrace.h"
+
+int sys_modify_ldt_skas(int func, void __user *ptr, unsigned long bytecount)
 {
 	struct ptrace_ldt ldt;
 	void *buf;
@@ -50,7 +56,8 @@ int sys_modify_ldt_skas(int func, void *ptr, unsigned long bytecount)
 	ldt = ((struct ptrace_ldt) { .func	= func,
 				     .ptr	= buf,
 				     .bytecount = bytecount });
-	res = ptrace(PTRACE_LDT, userspace_pid, 0, (unsigned long) &ldt);
+#warning Need to look up userspace_pid by cpu
+	res = ptrace(PTRACE_LDT, userspace_pid[0], 0, (unsigned long) &ldt);
 	if(res < 0)
 		goto out;
 
@@ -72,7 +79,7 @@ int sys_modify_ldt_skas(int func, void *ptr, unsigned long bytecount)
 }
 #endif
 
-int sys_modify_ldt(int func, void *ptr, unsigned long bytecount)
+int sys_modify_ldt(int func, void __user *ptr, unsigned long bytecount)
 {
 	return(CHOOSE_MODE_PROC(sys_modify_ldt_tt, sys_modify_ldt_skas, func, 
 				ptr, bytecount));

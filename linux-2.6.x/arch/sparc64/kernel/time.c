@@ -29,6 +29,7 @@
 #include <linux/jiffies.h>
 #include <linux/cpufreq.h>
 #include <linux/percpu.h>
+#include <linux/profile.h>
 
 #include <asm/oplib.h>
 #include <asm/mostek.h>
@@ -45,9 +46,9 @@
 #include <asm/sections.h>
 #include <asm/cpudata.h>
 
-spinlock_t mostek_lock = SPIN_LOCK_UNLOCKED;
-spinlock_t rtc_lock = SPIN_LOCK_UNLOCKED;
-unsigned long mstk48t02_regs = 0UL;
+DEFINE_SPINLOCK(mostek_lock);
+DEFINE_SPINLOCK(rtc_lock);
+void __iomem *mstk48t02_regs = NULL;
 #ifdef CONFIG_PCI
 unsigned long ds1287_regs = 0UL;
 #endif
@@ -58,14 +59,35 @@ u64 jiffies_64 = INITIAL_JIFFIES;
 
 EXPORT_SYMBOL(jiffies_64);
 
-static unsigned long mstk48t08_regs = 0UL;
-static unsigned long mstk48t59_regs = 0UL;
+static void __iomem *mstk48t08_regs;
+static void __iomem *mstk48t59_regs;
 
 static int set_rtc_mmss(unsigned long);
 
-struct sparc64_tick_ops *tick_ops;
+static __init unsigned long dummy_get_tick(void)
+{
+	return 0;
+}
+
+static __initdata struct sparc64_tick_ops dummy_tick_ops = {
+	.get_tick	= dummy_get_tick,
+};
+
+struct sparc64_tick_ops *tick_ops = &dummy_tick_ops;
 
 #define TICK_PRIV_BIT	(1UL << 63)
+
+#ifdef CONFIG_SMP
+unsigned long profile_pc(struct pt_regs *regs)
+{
+	unsigned long pc = instruction_pointer(regs);
+
+	if (in_lock_functions(pc))
+		return regs->u_regs[UREG_RETPC];
+	return pc;
+}
+EXPORT_SYMBOL(profile_pc);
+#endif
 
 static void tick_disable_protection(void)
 {
@@ -418,7 +440,6 @@ static struct sparc64_tick_ops hbtick_operations = {
 unsigned long timer_tick_offset;
 unsigned long timer_tick_compare;
 
-static unsigned long timer_ticks_per_usec_quotient;
 static unsigned long timer_ticks_per_nsec_quotient;
 
 #define TICK_SIZE (tick_nsec / 1000)
@@ -441,28 +462,6 @@ static inline void timer_check_rtc(void)
 	}
 }
 
-void sparc64_do_profile(struct pt_regs *regs)
-{
-	unsigned long pc;
-
-	profile_hook(regs);
-
-	if (user_mode(regs))
-		return;
-
-	if (!prof_buffer)
-		return;
-
-	pc = regs->tpc;
-
-	pc -= (unsigned long) _stext;
-	pc >>= prof_shift;
-
-	if(pc >= prof_len)
-		pc = prof_len - 1;
-	atomic_inc((atomic_t *)&prof_buffer[pc]);
-}
-
 static irqreturn_t timer_interrupt(int irq, void *dev_id, struct pt_regs * regs)
 {
 	unsigned long ticks, pstate;
@@ -471,7 +470,8 @@ static irqreturn_t timer_interrupt(int irq, void *dev_id, struct pt_regs * regs)
 
 	do {
 #ifndef CONFIG_SMP
-		sparc64_do_profile(regs);
+		profile_tick(CPU_PROFILING, regs);
+		update_process_times(user_mode(regs));
 #endif
 		do_timer(regs);
 
@@ -520,7 +520,7 @@ void timer_tick_interrupt(struct pt_regs *regs)
 /* Kick start a stopped clock (procedure from the Sun NVRAM/hostid FAQ). */
 static void __init kick_start_clock(void)
 {
-	unsigned long regs = mstk48t02_regs;
+	void __iomem *regs = mstk48t02_regs;
 	u8 sec, tmp;
 	int i, count;
 
@@ -604,7 +604,7 @@ static void __init kick_start_clock(void)
 /* Return nonzero if the clock chip battery is low. */
 static int __init has_low_battery(void)
 {
-	unsigned long regs = mstk48t02_regs;
+	void __iomem *regs = mstk48t02_regs;
 	u8 data1, data2;
 
 	spin_lock_irq(&mostek_lock);
@@ -623,7 +623,7 @@ static int __init has_low_battery(void)
 static void __init set_system_time(void)
 {
 	unsigned int year, mon, day, hour, min, sec;
-	unsigned long mregs = mstk48t02_regs;
+	void __iomem *mregs = mstk48t02_regs;
 #ifdef CONFIG_PCI
 	unsigned long dregs = ds1287_regs;
 #else
@@ -779,6 +779,7 @@ void __init clock_probe(void)
 		    strcmp(model, "mk48t59") &&
 		    strcmp(model, "m5819") &&
 		    strcmp(model, "m5819p") &&
+		    strcmp(model, "m5823") &&
 		    strcmp(model, "ds1287")) {
 			if (cbus != NULL) {
 				prom_printf("clock_probe: Central bus lacks timer chip.\n");
@@ -838,10 +839,12 @@ void __init clock_probe(void)
 
 			if (!strcmp(model, "ds1287") ||
 			    !strcmp(model, "m5819") ||
-			    !strcmp(model, "m5819p")) {
+			    !strcmp(model, "m5819p") ||
+			    !strcmp(model, "m5823")) {
 				ds1287_regs = edev->resource[0].start;
 			} else {
-				mstk48t59_regs = edev->resource[0].start;
+				mstk48t59_regs = (void __iomem *)
+					edev->resource[0].start;
 				mstk48t02_regs = mstk48t59_regs + MOSTEK_48T59_48T02;
 			}
 			break;
@@ -859,10 +862,12 @@ try_isa_clock:
 			}
 			if (!strcmp(model, "ds1287") ||
 			    !strcmp(model, "m5819") ||
-			    !strcmp(model, "m5819p")) {
+			    !strcmp(model, "m5819p") ||
+			    !strcmp(model, "m5823")) {
 				ds1287_regs = isadev->resource.start;
 			} else {
-				mstk48t59_regs = isadev->resource.start;
+				mstk48t59_regs = (void __iomem *)
+					isadev->resource.start;
 				mstk48t02_regs = mstk48t59_regs + MOSTEK_48T59_48T02;
 			}
 			break;
@@ -890,21 +895,24 @@ try_isa_clock:
 		}
 
 		if(model[5] == '0' && model[6] == '2') {
-			mstk48t02_regs = (((u64)clk_reg[0].phys_addr) |
-					  (((u64)clk_reg[0].which_io)<<32UL));
+			mstk48t02_regs = (void __iomem *)
+				(((u64)clk_reg[0].phys_addr) |
+				 (((u64)clk_reg[0].which_io)<<32UL));
 		} else if(model[5] == '0' && model[6] == '8') {
-			mstk48t08_regs = (((u64)clk_reg[0].phys_addr) |
-					  (((u64)clk_reg[0].which_io)<<32UL));
+			mstk48t08_regs = (void __iomem *)
+				(((u64)clk_reg[0].phys_addr) |
+				 (((u64)clk_reg[0].which_io)<<32UL));
 			mstk48t02_regs = mstk48t08_regs + MOSTEK_48T08_48T02;
 		} else {
-			mstk48t59_regs = (((u64)clk_reg[0].phys_addr) |
-					  (((u64)clk_reg[0].which_io)<<32UL));
+			mstk48t59_regs = (void __iomem *)
+				(((u64)clk_reg[0].phys_addr) |
+				 (((u64)clk_reg[0].which_io)<<32UL));
 			mstk48t02_regs = mstk48t59_regs + MOSTEK_48T59_48T02;
 		}
 		break;
 	}
 
-	if (mstk48t02_regs != 0UL) {
+	if (mstk48t02_regs != NULL) {
 		/* Report a low battery voltage condition. */
 		if (has_low_battery())
 			prom_printf("NVRAM: Low battery voltage!\n");
@@ -920,10 +928,10 @@ try_isa_clock:
 }
 
 /* This is gets the master TICK_INT timer going. */
-static unsigned long sparc64_init_timers(irqreturn_t (*cfunc)(int, void *, struct pt_regs *))
+static unsigned long sparc64_init_timers(void)
 {
-	unsigned long pstate, clock;
-	int node, err;
+	unsigned long clock;
+	int node;
 #ifdef CONFIG_SMP
 	extern void smp_tick_init(void);
 #endif
@@ -956,6 +964,14 @@ static unsigned long sparc64_init_timers(irqreturn_t (*cfunc)(int, void *, struc
 	smp_tick_init();
 #endif
 
+	return clock;
+}
+
+static void sparc64_start_timers(irqreturn_t (*cfunc)(int, void *, struct pt_regs *))
+{
+	unsigned long pstate;
+	int err;
+
 	/* Register IRQ handler. */
 	err = request_irq(build_irq(0, 0, 0UL, 0UL), cfunc, SA_STATIC_ALLOC,
 			  "timer", NULL);
@@ -981,8 +997,6 @@ static unsigned long sparc64_init_timers(irqreturn_t (*cfunc)(int, void *, struc
 			     : "r" (pstate));
 
 	local_irq_enable();
-
-	return clock;
 }
 
 struct freq_table {
@@ -1034,18 +1048,28 @@ static int sparc64_cpufreq_notifier(struct notifier_block *nb, unsigned long val
 static struct notifier_block sparc64_cpufreq_notifier_block = {
 	.notifier_call	= sparc64_cpufreq_notifier
 };
-#endif
+
+#endif /* CONFIG_CPU_FREQ */
+
+static struct time_interpolator sparc64_cpu_interpolator = {
+	.source		=	TIME_SOURCE_CPU,
+	.shift		=	16,
+	.mask		=	0xffffffffffffffffLL
+};
 
 /* The quotient formula is taken from the IA64 port. */
-#define SPARC64_USEC_PER_CYC_SHIFT	30UL
 #define SPARC64_NSEC_PER_CYC_SHIFT	30UL
 void __init time_init(void)
 {
-	unsigned long clock = sparc64_init_timers(timer_interrupt);
+	unsigned long clock = sparc64_init_timers();
 
-	timer_ticks_per_usec_quotient =
-		(((1000000UL << SPARC64_USEC_PER_CYC_SHIFT) +
-		  (clock / 2)) / clock);
+	sparc64_cpu_interpolator.frequency = clock;
+	register_time_interpolator(&sparc64_cpu_interpolator);
+
+	/* Now that the interpolator is registered, it is
+	 * safe to start the timer ticking.
+	 */
+	sparc64_start_timers(timer_interrupt);
 
 	timer_ticks_per_nsec_quotient =
 		(((NSEC_PER_SEC << SPARC64_NSEC_PER_CYC_SHIFT) +
@@ -1057,17 +1081,6 @@ void __init time_init(void)
 #endif
 }
 
-static __inline__ unsigned long do_gettimeoffset(void)
-{
-	unsigned long ticks = tick_ops->get_tick();
-
-	ticks += timer_tick_offset;
-	ticks -= timer_tick_compare;
-
-	return (ticks * timer_ticks_per_usec_quotient)
-		>> SPARC64_USEC_PER_CYC_SHIFT;
-}
-
 unsigned long long sched_clock(void)
 {
 	unsigned long ticks = tick_ops->get_tick();
@@ -1076,104 +1089,10 @@ unsigned long long sched_clock(void)
 		>> SPARC64_NSEC_PER_CYC_SHIFT;
 }
 
-int do_settimeofday(struct timespec *tv)
-{
-	time_t wtm_sec, sec = tv->tv_sec;
-	long wtm_nsec, nsec = tv->tv_nsec;
-
-	if ((unsigned long)tv->tv_nsec >= NSEC_PER_SEC)
-		return -EINVAL;
-
-	if (this_is_starfire)
-		return 0;
-
-	write_seqlock_irq(&xtime_lock);
-	/*
-	 * This is revolting. We need to set "xtime" correctly. However, the
-	 * value in this location is the value at the most recent update of
-	 * wall time.  Discover what correction gettimeofday() would have
-	 * made, and then undo it!
-	 */
-	nsec -= do_gettimeoffset() * 1000;
-	nsec -= (jiffies - wall_jiffies) * (NSEC_PER_SEC / HZ);
-
-	wtm_sec  = wall_to_monotonic.tv_sec + (xtime.tv_sec - sec);
-	wtm_nsec = wall_to_monotonic.tv_nsec + (xtime.tv_nsec - nsec);
-
-	set_normalized_timespec(&xtime, sec, nsec);
-	set_normalized_timespec(&wall_to_monotonic, wtm_sec, wtm_nsec);
-
-	time_adjust = 0;		/* stop active adjtime() */
-	time_status |= STA_UNSYNC;
-	time_maxerror = NTP_PHASE_LIMIT;
-	time_esterror = NTP_PHASE_LIMIT;
-	write_sequnlock_irq(&xtime_lock);
-	clock_was_set();
-	return 0;
-}
-
-EXPORT_SYMBOL(do_settimeofday);
-
-/* Ok, my cute asm atomicity trick doesn't work anymore.
- * There are just too many variables that need to be protected
- * now (both members of xtime, wall_jiffies, et al.)
- */
-void do_gettimeofday(struct timeval *tv)
-{
-	unsigned long seq;
-	unsigned long usec, sec;
-	unsigned long max_ntp_tick = tick_usec - tickadj;
-
-	do {
-		unsigned long lost;
-
-		seq = read_seqbegin(&xtime_lock);
-		usec = do_gettimeoffset();
-		lost = jiffies - wall_jiffies;
-
-		/*
-		 * If time_adjust is negative then NTP is slowing the clock
-		 * so make sure not to go into next possible interval.
-		 * Better to lose some accuracy than have time go backwards..
-		 */
-		if (unlikely(time_adjust < 0)) {
-			usec = min(usec, max_ntp_tick);
-
-			if (lost)
-				usec += lost * max_ntp_tick;
-		}
-		else if (unlikely(lost))
-			usec += lost * tick_usec;
-
-		sec = xtime.tv_sec;
-
-		/* Believe it or not, this divide shows up on
-		 * kernel profiles.  The problem is that it is
-		 * both 64-bit and signed.  Happily, 32-bits
-		 * of precision is all we really need and in
-		 * doing so gcc ends up emitting a cheap multiply.
-		 *
-		 * XXX Why is tv_nsec 'long' and 'signed' in
-		 * XXX the first place, can it even be negative?
-		 */
-		usec += ((unsigned int) xtime.tv_nsec / 1000U);
-	} while (read_seqretry(&xtime_lock, seq));
-
-	while (usec >= 1000000) {
-		usec -= 1000000;
-		sec++;
-	}
-
-	tv->tv_sec = sec;
-	tv->tv_usec = usec;
-}
-
-EXPORT_SYMBOL(do_gettimeofday);
-
 static int set_rtc_mmss(unsigned long nowtime)
 {
 	int real_seconds, real_minutes, chip_minutes;
-	unsigned long mregs = mstk48t02_regs;
+	void __iomem *mregs = mstk48t02_regs;
 #ifdef CONFIG_PCI
 	unsigned long dregs = ds1287_regs;
 #else

@@ -1,11 +1,6 @@
-#include <asm-generic/vmlinux.lds.h>
-	
-OUTPUT_FORMAT(ELF_FORMAT)
-OUTPUT_ARCH(ELF_ARCH)
-ENTRY(_start)
-jiffies = jiffies_64;
-
-SECTIONS
-{
-#include "asm/common.lds.S"
-}
+#include <linux/config.h>
+#ifdef CONFIG_LD_SCRIPT_STATIC
+#include "uml.lds.S"
+#else
+#include "dyn.lds.S"
+#endif

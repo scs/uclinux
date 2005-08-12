@@ -2,9 +2,7 @@
  * AMD K8 NUMA support.
  * Discover the memory map and associated nodes.
  * 
- * Doesn't use the ACPI SRAT table because it has a questionable license.
- * Instead the northbridge registers are read directly. 
- * XXX in 2.5 we could use the generic SRAT code
+ * This version reads it directly from the K8 northbridge.
  * 
  * Copyright 2002,2003 Andi Kleen, SuSE Labs.
  */
@@ -12,6 +10,7 @@
 #include <linux/init.h>
 #include <linux/string.h>
 #include <linux/module.h>
+#include <linux/nodemask.h>
 #include <asm/io.h>
 #include <linux/pci_ids.h>
 #include <asm/types.h>
@@ -44,10 +43,14 @@ static __init int find_northbridge(void)
 int __init k8_scan_nodes(unsigned long start, unsigned long end)
 { 
 	unsigned long prevbase;
-	struct node nodes[MAXNODE];
+	struct node nodes[8];
 	int nodeid, i, nb; 
 	int found = 0;
 	u32 reg;
+	unsigned numnodes;
+	nodemask_t nodes_parsed;
+
+	nodes_clear(nodes_parsed);
 
 	nb = find_northbridge(); 
 	if (nb < 0) 
@@ -56,9 +59,9 @@ int __init k8_scan_nodes(unsigned long start, unsigned long end)
 	printk(KERN_INFO "Scanning NUMA topology in Northbridge %d\n", nb); 
 
 	reg = read_pci_config(0, nb, 0, 0x60); 
-	numnodes =  ((reg >> 4) & 7) + 1; 
+	numnodes = ((reg >> 4) & 0xF) + 1;
 
-	printk(KERN_INFO "Number of nodes %d (%x)\n", numnodes, reg);
+	printk(KERN_INFO "Number of nodes %d\n", numnodes);
 
 	memset(&nodes,0,sizeof(nodes)); 
 	prevbase = 0;
@@ -70,11 +73,11 @@ int __init k8_scan_nodes(unsigned long start, unsigned long end)
 
 		nodeid = limit & 7; 
 		if ((base & 3) == 0) { 
-			if (i < numnodes) 
+			if (i < numnodes)
 				printk("Skipping disabled node %d\n", i); 
 			continue;
 		} 
-		if (nodeid >= numnodes) { 
+		if (nodeid >= numnodes) {
 			printk("Ignoring excess node %d (%lx:%lx)\n", nodeid,
 			       base, limit); 
 			continue;
@@ -90,7 +93,7 @@ int __init k8_scan_nodes(unsigned long start, unsigned long end)
 			       nodeid, (base>>8)&3, (limit>>8) & 3); 
 			return -1; 
 		}	
-		if (node_online(nodeid)) { 
+		if (node_isset(nodeid, nodes_parsed)) { 
 			printk(KERN_INFO "Node %d already present. Skipping\n", 
 			       nodeid);
 			continue;
@@ -100,8 +103,8 @@ int __init k8_scan_nodes(unsigned long start, unsigned long end)
 		limit <<= 24; 
 		limit |= (1<<24)-1;
 
-		if (limit > end_pfn_map << PAGE_SHIFT) 
-			limit = end_pfn_map << PAGE_SHIFT; 
+		if (limit > end_pfn << PAGE_SHIFT)
+			limit = end_pfn << PAGE_SHIFT;
 		if (limit <= base)
 			continue; 
 			
@@ -138,24 +141,26 @@ int __init k8_scan_nodes(unsigned long start, unsigned long end)
 		nodes[nodeid].end = limit;
 
 		prevbase = base;
+
+		node_set(nodeid, nodes_parsed);
 	} 
 
 	if (!found)
 		return -1; 
 
-	memnode_shift = compute_hash_shift(nodes);
+	memnode_shift = compute_hash_shift(nodes, numnodes);
 	if (memnode_shift < 0) { 
 		printk(KERN_ERR "No NUMA node hash function found. Contact maintainer\n"); 
 		return -1; 
 	} 
 	printk(KERN_INFO "Using node hash shift of %d\n", memnode_shift); 
 
-	for (i = 0; i < MAXNODE; i++) { 
+	for (i = 0; i < 8; i++) {
 		if (nodes[i].start != nodes[i].end) { 
 			/* assume 1:1 NODE:CPU */
 			cpu_to_node[i] = i; 
-		setup_node_bootmem(i, nodes[i].start, nodes[i].end); 
-	} 
+			setup_node_bootmem(i, nodes[i].start, nodes[i].end); 
+		} 
 	}
 
 	numa_init_array();

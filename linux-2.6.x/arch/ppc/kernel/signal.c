@@ -28,6 +28,7 @@
 #include <linux/elf.h>
 #include <linux/tty.h>
 #include <linux/binfmts.h>
+#include <linux/suspend.h>
 #include <asm/ucontext.h>
 #include <asm/uaccess.h>
 #include <asm/pgtable.h>
@@ -118,7 +119,7 @@ sys_sigaction(int sig, const struct old_sigaction __user *act,
 
 	if (act) {
 		old_sigset_t mask;
-		if (verify_area(VERIFY_READ, act, sizeof(*act)) ||
+		if (!access_ok(VERIFY_READ, act, sizeof(*act)) ||
 		    __get_user(new_ka.sa.sa_handler, &act->sa_handler) ||
 		    __get_user(new_ka.sa.sa_restorer, &act->sa_restorer))
 			return -EFAULT;
@@ -130,7 +131,7 @@ sys_sigaction(int sig, const struct old_sigaction __user *act,
 	ret = do_sigaction(sig, (act? &new_ka: NULL), (oact? &old_ka: NULL));
 
 	if (!ret && oact) {
-		if (verify_area(VERIFY_WRITE, oact, sizeof(*oact)) ||
+		if (!access_ok(VERIFY_WRITE, oact, sizeof(*oact)) ||
 		    __put_user(old_ka.sa.sa_handler, &oact->sa_handler) ||
 		    __put_user(old_ka.sa.sa_restorer, &oact->sa_restorer))
 			return -EFAULT;
@@ -270,7 +271,7 @@ save_user_regs(struct pt_regs *regs, struct mcontext __user *frame, int sigret)
 static int
 restore_user_regs(struct pt_regs *regs, struct mcontext __user *sr, int sig)
 {
-	unsigned long save_r2;
+	unsigned long save_r2 = 0;
 #if defined(CONFIG_ALTIVEC) || defined(CONFIG_SPE)
 	unsigned long msr;
 #endif
@@ -290,7 +291,7 @@ restore_user_regs(struct pt_regs *regs, struct mcontext __user *sr, int sig)
 
 	/* force the process to reload the FP registers from
 	   current->thread when it next does FP instructions */
-	regs->msr &= ~MSR_FP;
+	regs->msr &= ~(MSR_FP | MSR_FE0 | MSR_FE1);
 	if (__copy_from_user(current->thread.fpr, &sr->mc_fregs,
 			     sizeof(sr->mc_fregs)))
 		return 1;
@@ -319,7 +320,7 @@ restore_user_regs(struct pt_regs *regs, struct mcontext __user *sr, int sig)
 	if (!__get_user(msr, &sr->mc_gregs[PT_MSR]) && (msr & MSR_SPE) != 0) {
 		/* restore spe registers from the stack */
 		if (__copy_from_user(current->thread.evr, &sr->mc_vregs,
-				     sizeof(sr->mc_vregs)))
+				     ELF_NEVRREG * sizeof(u32)))
 			return 1;
 	} else if (current->thread.used_spe)
 		memset(&current->thread.evr, 0, ELF_NEVRREG * sizeof(u32));
@@ -329,6 +330,16 @@ restore_user_regs(struct pt_regs *regs, struct mcontext __user *sr, int sig)
 		return 1;
 #endif /* CONFIG_SPE */
 
+#ifndef CONFIG_SMP
+	preempt_disable();
+	if (last_task_used_math == current)
+		last_task_used_math = NULL;
+	if (last_task_used_altivec == current)
+		last_task_used_altivec = NULL;
+	if (last_task_used_spe == current)
+		last_task_used_spe = NULL;
+	preempt_enable();
+#endif
 	return 0;
 }
 
@@ -366,7 +377,7 @@ handle_rt_signal(unsigned long sig, struct k_sigaction *ka,
 	/* create a stack frame for the caller of the handler */
 	newsp -= __SIGNAL_FRAMESIZE + 16;
 
-	if (verify_area(VERIFY_WRITE, (void __user *) newsp, origsp - newsp))
+	if (!access_ok(VERIFY_WRITE, (void __user *) newsp, origsp - newsp))
 		goto badframe;
 
 	/* Put the siginfo & fill in most of the ucontext */
@@ -404,9 +415,7 @@ badframe:
 	printk("badframe in handle_rt_signal, regs=%p frame=%p newsp=%lx\n",
 	       regs, frame, newsp);
 #endif
-	if (sig == SIGSEGV)
-		ka->sa.sa_handler = SIG_DFL;
-	force_sig(SIGSEGV, current);
+	force_sigsegv(sig, current);
 }
 
 static int do_setcontext(struct ucontext __user *ucp, struct pt_regs *regs, int sig)
@@ -437,7 +446,7 @@ int sys_swapcontext(struct ucontext __user *old_ctx,
 		return -EINVAL;
 
 	if (old_ctx != NULL) {
-		if (verify_area(VERIFY_WRITE, old_ctx, sizeof(*old_ctx))
+		if (!access_ok(VERIFY_WRITE, old_ctx, sizeof(*old_ctx))
 		    || save_user_regs(regs, &old_ctx->uc_mcontext, 0)
 		    || __copy_to_user(&old_ctx->uc_sigmask,
 				      &current->blocked, sizeof(sigset_t))
@@ -446,7 +455,7 @@ int sys_swapcontext(struct ucontext __user *old_ctx,
 	}
 	if (new_ctx == NULL)
 		return 0;
-	if (verify_area(VERIFY_READ, new_ctx, sizeof(*new_ctx))
+	if (!access_ok(VERIFY_READ, new_ctx, sizeof(*new_ctx))
 	    || __get_user(tmp, (u8 __user *) new_ctx)
 	    || __get_user(tmp, (u8 __user *) (new_ctx + 1) - 1))
 		return -EFAULT;
@@ -456,7 +465,7 @@ int sys_swapcontext(struct ucontext __user *old_ctx,
 	 * image of the user's registers, we can't just return -EFAULT
 	 * because the user's registers will be corrupted.  For instance
 	 * the NIP value may have been updated but not some of the
-	 * other registers.  Given that we have done the verify_area
+	 * other registers.  Given that we have done the access_ok
 	 * and successfully read the first and last bytes of the region
 	 * above, this should only happen in an out-of-memory situation
 	 * or if another thread unmaps the region containing the context.
@@ -479,7 +488,7 @@ int sys_rt_sigreturn(int r3, int r4, int r5, int r6, int r7, int r8,
 
 	rt_sf = (struct rt_sigframe __user *)
 		(regs->gpr[1] + __SIGNAL_FRAMESIZE + 16);
-	if (verify_area(VERIFY_READ, rt_sf, sizeof(struct rt_sigframe)))
+	if (!access_ok(VERIFY_READ, rt_sf, sizeof(struct rt_sigframe)))
 		goto bad;
 	if (do_setcontext(&rt_sf->uc, regs, 1))
 		goto bad;
@@ -498,6 +507,96 @@ int sys_rt_sigreturn(int r3, int r4, int r5, int r6, int r7, int r8,
 
  bad:
 	force_sig(SIGSEGV, current);
+	return 0;
+}
+
+int sys_debug_setcontext(struct ucontext __user *ctx,
+			 int ndbg, struct sig_dbg_op __user *dbg,
+			 int r6, int r7, int r8,
+			 struct pt_regs *regs)
+{
+	struct sig_dbg_op op;
+	int i;
+	unsigned long new_msr = regs->msr;
+#if defined(CONFIG_4xx) || defined(CONFIG_BOOKE)
+	unsigned long new_dbcr0 = current->thread.dbcr0;
+#endif
+
+	for (i=0; i<ndbg; i++) {
+		if (__copy_from_user(&op, dbg, sizeof(op)))
+			return -EFAULT;
+		switch (op.dbg_type) {
+		case SIG_DBG_SINGLE_STEPPING:
+#if defined(CONFIG_4xx) || defined(CONFIG_BOOKE)
+			if (op.dbg_value) {
+				new_msr |= MSR_DE;
+				new_dbcr0 |= (DBCR0_IDM | DBCR0_IC);
+			} else {
+				new_msr &= ~MSR_DE;
+				new_dbcr0 &= ~(DBCR0_IDM | DBCR0_IC);
+			}
+#else
+			if (op.dbg_value)
+				new_msr |= MSR_SE;
+			else
+				new_msr &= ~MSR_SE;
+#endif
+			break;
+		case SIG_DBG_BRANCH_TRACING:
+#if defined(CONFIG_4xx) || defined(CONFIG_BOOKE)
+			return -EINVAL;
+#else
+			if (op.dbg_value)
+				new_msr |= MSR_BE;
+			else
+				new_msr &= ~MSR_BE;
+#endif
+			break;
+
+		default:
+			return -EINVAL;
+		}
+	}
+
+	/* We wait until here to actually install the values in the
+	   registers so if we fail in the above loop, it will not
+	   affect the contents of these registers.  After this point,
+	   failure is a problem, anyway, and it's very unlikely unless
+	   the user is really doing something wrong. */
+	regs->msr = new_msr;
+#if defined(CONFIG_4xx) || defined(CONFIG_BOOKE)
+	current->thread.dbcr0 = new_dbcr0;
+#endif
+
+	/*
+	 * If we get a fault copying the context into the kernel's
+	 * image of the user's registers, we can't just return -EFAULT
+	 * because the user's registers will be corrupted.  For instance
+	 * the NIP value may have been updated but not some of the
+	 * other registers.  Given that we have done the access_ok
+	 * and successfully read the first and last bytes of the region
+	 * above, this should only happen in an out-of-memory situation
+	 * or if another thread unmaps the region containing the context.
+	 * We kill the task with a SIGSEGV in this situation.
+	 */
+	if (do_setcontext(ctx, regs, 1)) {
+		force_sig(SIGSEGV, current);
+		goto out;
+	}
+
+	/*
+	 * It's not clear whether or why it is desirable to save the
+	 * sigaltstack setting on signal delivery and restore it on
+	 * signal return.  But other architectures do this and we have
+	 * always done it up until now so it is probably better not to
+	 * change it.  -- paulus
+	 */
+	do_sigaltstack(&ctx->uc_stack, NULL, regs->gpr[1]);
+
+	sigreturn_exit(regs);
+	/* doesn't actually return back to here */
+
+ out:
 	return 0;
 }
 
@@ -524,7 +623,7 @@ handle_signal(unsigned long sig, struct k_sigaction *ka,
 	/* create a stack frame for the caller of the handler */
 	newsp -= __SIGNAL_FRAMESIZE;
 
-	if (verify_area(VERIFY_WRITE, (void __user *) newsp, origsp - newsp))
+	if (!access_ok(VERIFY_WRITE, (void __user *) newsp, origsp - newsp))
 		goto badframe;
 
 #if _NSIG != 64
@@ -533,7 +632,7 @@ handle_signal(unsigned long sig, struct k_sigaction *ka,
 	if (__put_user((unsigned long) ka->sa.sa_handler, &sc->handler)
 	    || __put_user(oldset->sig[0], &sc->oldmask)
 	    || __put_user(oldset->sig[1], &sc->_unused[3])
-	    || __put_user((struct pt_regs *)frame, &sc->regs)
+	    || __put_user((struct pt_regs __user *)frame, &sc->regs)
 	    || __put_user(sig, &sc->signal))
 		goto badframe;
 
@@ -556,9 +655,7 @@ badframe:
 	printk("badframe in handle_signal, regs=%p frame=%p newsp=%lx\n",
 	       regs, frame, newsp);
 #endif
-	if (sig == SIGSEGV)
-		ka->sa.sa_handler = SIG_DFL;
-	force_sig(SIGSEGV, current);
+	force_sigsegv(sig, current);
 }
 
 /*
@@ -584,7 +681,7 @@ int sys_sigreturn(int r3, int r4, int r5, int r6, int r7, int r8,
 	restore_sigmask(&set);
 
 	sr = (struct mcontext __user *) sigctx.regs;
-	if (verify_area(VERIFY_READ, sr, sizeof(*sr))
+	if (!access_ok(VERIFY_READ, sr, sizeof(*sr))
 	    || restore_user_regs(regs, sr, 1))
 		goto badframe;
 
@@ -604,19 +701,24 @@ badframe:
 int do_signal(sigset_t *oldset, struct pt_regs *regs)
 {
 	siginfo_t info;
-	struct k_sigaction *ka;
+	struct k_sigaction ka;
 	unsigned long frame, newsp;
 	int signr, ret;
+
+	if (current->flags & PF_FREEZE) {
+		refrigerator(PF_FREEZE);
+		signr = 0;
+		if (!signal_pending(current))
+			goto no_signal;
+	}
 
 	if (!oldset)
 		oldset = &current->blocked;
 
 	newsp = frame = 0;
 
-	signr = get_signal_to_deliver(&info, regs, NULL);
-
-	ka = (signr == 0)? NULL: &current->sighand->action[signr-1];
-
+	signr = get_signal_to_deliver(&info, &ka, regs, NULL);
+ no_signal:
 	if (TRAP(regs) == 0x0C00		/* System Call! */
 	    && regs->ccr & 0x10000000		/* error signalled */
 	    && ((ret = regs->gpr[3]) == ERESTARTSYS
@@ -626,7 +728,7 @@ int do_signal(sigset_t *oldset, struct pt_regs *regs)
 		if (signr > 0
 		    && (ret == ERESTARTNOHAND || ret == ERESTART_RESTARTBLOCK
 			|| (ret == ERESTARTSYS
-			    && !(ka->sa.sa_flags & SA_RESTART)))) {
+			    && !(ka.sa.sa_flags & SA_RESTART)))) {
 			/* make the system call return an EINTR error */
 			regs->result = -EINTR;
 			regs->gpr[3] = EINTR;
@@ -645,7 +747,7 @@ int do_signal(sigset_t *oldset, struct pt_regs *regs)
 	if (signr == 0)
 		return 0;		/* no signals delivered */
 
-	if ((ka->sa.sa_flags & SA_ONSTACK) && current->sas_ss_size
+	if ((ka.sa.sa_flags & SA_ONSTACK) && current->sas_ss_size
 	    && !on_sig_stack(regs->gpr[1]))
 		newsp = current->sas_ss_sp + current->sas_ss_size;
 	else
@@ -653,17 +755,14 @@ int do_signal(sigset_t *oldset, struct pt_regs *regs)
 	newsp &= ~0xfUL;
 
 	/* Whee!  Actually deliver the signal.  */
-	if (ka->sa.sa_flags & SA_SIGINFO)
-		handle_rt_signal(signr, ka, &info, oldset, regs, newsp);
+	if (ka.sa.sa_flags & SA_SIGINFO)
+		handle_rt_signal(signr, &ka, &info, oldset, regs, newsp);
 	else
-		handle_signal(signr, ka, &info, oldset, regs, newsp);
+		handle_signal(signr, &ka, &info, oldset, regs, newsp);
 
-	if (ka->sa.sa_flags & SA_ONESHOT)
-		ka->sa.sa_handler = SIG_DFL;
-
-	if (!(ka->sa.sa_flags & SA_NODEFER)) {
+	if (!(ka.sa.sa_flags & SA_NODEFER)) {
 		spin_lock_irq(&current->sighand->siglock);
-		sigorsets(&current->blocked,&current->blocked,&ka->sa.sa_mask);
+		sigorsets(&current->blocked,&current->blocked,&ka.sa.sa_mask);
 		sigaddset(&current->blocked, signr);
 		recalc_sigpending();
 		spin_unlock_irq(&current->sighand->siglock);

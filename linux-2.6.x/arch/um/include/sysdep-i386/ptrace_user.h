@@ -6,6 +6,8 @@
 #ifndef __SYSDEP_I386_PTRACE_USER_H__
 #define __SYSDEP_I386_PTRACE_USER_H__
 
+#include <sys/ptrace.h>
+#include <linux/ptrace.h>
 #include <asm/ptrace.h>
 
 #define PT_OFFSET(r) ((r) * sizeof(long))
@@ -56,7 +58,5 @@
 #ifdef PTRACE_SETFPXREGS
 #define UM_HAVE_SETFPXREGS
 #endif
-
-extern void update_debugregs(int seq);
 
 #endif

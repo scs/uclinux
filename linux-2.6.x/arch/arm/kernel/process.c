@@ -97,6 +97,8 @@ void default_idle(void)
  */
 void cpu_idle(void)
 {
+	local_fiq_enable();
+
 	/* endless idle loop with no priority at all */
 	while (1) {
 		void (*idle)(void) = pm_idle;
@@ -166,12 +168,11 @@ void machine_restart(char * __unused)
 
 EXPORT_SYMBOL(machine_restart);
 
-void show_regs(struct pt_regs * regs)
+void __show_regs(struct pt_regs *regs)
 {
-	unsigned long flags;
+	unsigned long flags = condition_codes(regs);
 
-	flags = condition_codes(regs);
-
+	printk("CPU: %d\n", smp_processor_id());
 	print_symbol("PC is at %s\n", instruction_pointer(regs));
 	print_symbol("LR is at %s\n", regs->ARM_lr);
 	printk("pc : [<%08lx>]    lr : [<%08lx>]    %s\n"
@@ -211,6 +212,14 @@ void show_regs(struct pt_regs * regs)
 	}
 }
 
+void show_regs(struct pt_regs * regs)
+{
+	printk("\n");
+	printk("Pid: %d, comm: %20s\n", current->pid, current->comm);
+	__show_regs(regs);
+	__backtrace();
+}
+
 void show_fpregs(struct user_fp *regs)
 {
 	int i;
@@ -247,8 +256,6 @@ static unsigned long *thread_info_head;
 static unsigned int nr_thread_info;
 
 #define EXTRA_TASK_STRUCT	4
-#define ll_alloc_task_struct() ((struct thread_info *) __get_free_pages(GFP_KERNEL,1))
-#define ll_free_task_struct(p) free_pages((unsigned long)(p),1)
 
 struct thread_info *alloc_thread_info(struct task_struct *task)
 {
@@ -265,17 +272,16 @@ struct thread_info *alloc_thread_info(struct task_struct *task)
 	}
 
 	if (!thread)
-		thread = ll_alloc_task_struct();
+		thread = (struct thread_info *)
+			   __get_free_pages(GFP_KERNEL, THREAD_SIZE_ORDER);
 
-#ifdef CONFIG_MAGIC_SYSRQ
+#ifdef CONFIG_DEBUG_STACK_USAGE
 	/*
 	 * The stack must be cleared if you want SYSRQ-T to
 	 * give sensible stack usage information
 	 */
-	if (thread) {
-		char *p = (char *)thread;
-		memzero(p+KERNEL_STACK_SIZE, KERNEL_STACK_SIZE);
-	}
+	if (thread)
+		memzero(thread, THREAD_SIZE);
 #endif
 	return thread;
 }
@@ -288,7 +294,7 @@ void free_thread_info(struct thread_info *thread)
 		thread_info_head = p;
 		nr_thread_info += 1;
 	} else
-		ll_free_task_struct(thread);
+		free_pages((unsigned long)thread, THREAD_SIZE_ORDER);
 }
 
 /*
@@ -313,6 +319,9 @@ void flush_thread(void)
 
 	memset(thread->used_cp, 0, sizeof(thread->used_cp));
 	memset(&tsk->thread.debug, 0, sizeof(struct debug_info));
+#if defined(CONFIG_IWMMXT)
+	iwmmxt_task_release(thread);
+#endif
 	fp_init(&thread->fpstate);
 #if defined(CONFIG_VFP)
 	vfp_flush_thread(&thread->vfpstate);
@@ -323,6 +332,9 @@ void release_thread(struct task_struct *dead_task)
 {
 #if defined(CONFIG_VFP)
 	vfp_release_thread(&dead_task->thread_info->vfpstate);
+#endif
+#if defined(CONFIG_IWMMXT)
+	iwmmxt_task_release(dead_task->thread_info);
 #endif
 }
 
@@ -335,7 +347,7 @@ copy_thread(int nr, unsigned long clone_flags, unsigned long stack_start,
 	struct thread_info *thread = p->thread_info;
 	struct pt_regs *childregs;
 
-	childregs = ((struct pt_regs *)((unsigned long)thread + THREAD_SIZE - 8)) - 1;
+	childregs = ((struct pt_regs *)((unsigned long)thread + THREAD_START_SP)) - 1;
 	*childregs = *regs;
 	childregs->ARM_r0 = 0;
 	childregs->ARM_sp = stack_start;
@@ -343,6 +355,9 @@ copy_thread(int nr, unsigned long clone_flags, unsigned long stack_start,
 	memset(&thread->cpu_context, 0, sizeof(struct cpu_context_save));
 	thread->cpu_context.sp = (unsigned long)childregs;
 	thread->cpu_context.pc = (unsigned long)ret_from_fork;
+
+	if (clone_flags & CLONE_SETTLS)
+		thread->tp_value = regs->ARM_r3;
 
 	return 0;
 }
@@ -429,15 +444,17 @@ EXPORT_SYMBOL(kernel_thread);
 unsigned long get_wchan(struct task_struct *p)
 {
 	unsigned long fp, lr;
-	unsigned long stack_page;
+	unsigned long stack_start, stack_end;
 	int count = 0;
 	if (!p || p == current || p->state == TASK_RUNNING)
 		return 0;
 
-	stack_page = 4096 + (unsigned long)p->thread_info;
+	stack_start = (unsigned long)(p->thread_info + 1);
+	stack_end = ((unsigned long)p->thread_info) + THREAD_SIZE;
+
 	fp = thread_saved_fp(p);
 	do {
-		if (fp < stack_page || fp > 4092+stack_page)
+		if (fp < stack_start || fp > stack_end)
 			return 0;
 		lr = pc_pointer (((unsigned long *)fp)[-1]);
 		if (!in_sched_functions(lr))

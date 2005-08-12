@@ -10,6 +10,7 @@
 
 #include <linux/kernel.h>
 #include <linux/init.h>
+#include <linux/module.h>
 #include <linux/spinlock.h>
 #include <linux/string.h>
 
@@ -17,7 +18,7 @@
 #include <asm/sal.h>
 #include <asm/pal.h>
 
-spinlock_t sal_lock __cacheline_aligned = SPIN_LOCK_UNLOCKED;
+ __cacheline_aligned DEFINE_SPINLOCK(sal_lock);
 unsigned long sal_platform_features;
 
 unsigned short sal_revision;
@@ -262,3 +263,40 @@ ia64_sal_init (struct ia64_sal_systab *systab)
 		p += SAL_DESC_SIZE(*p);
 	}
 }
+
+int
+ia64_sal_oemcall(struct ia64_sal_retval *isrvp, u64 oemfunc, u64 arg1,
+		 u64 arg2, u64 arg3, u64 arg4, u64 arg5, u64 arg6, u64 arg7)
+{
+	if (oemfunc < IA64_SAL_OEMFUNC_MIN || oemfunc > IA64_SAL_OEMFUNC_MAX)
+		return -1;
+	SAL_CALL(*isrvp, oemfunc, arg1, arg2, arg3, arg4, arg5, arg6, arg7);
+	return 0;
+}
+EXPORT_SYMBOL(ia64_sal_oemcall);
+
+int
+ia64_sal_oemcall_nolock(struct ia64_sal_retval *isrvp, u64 oemfunc, u64 arg1,
+			u64 arg2, u64 arg3, u64 arg4, u64 arg5, u64 arg6,
+			u64 arg7)
+{
+	if (oemfunc < IA64_SAL_OEMFUNC_MIN || oemfunc > IA64_SAL_OEMFUNC_MAX)
+		return -1;
+	SAL_CALL_NOLOCK(*isrvp, oemfunc, arg1, arg2, arg3, arg4, arg5, arg6,
+			arg7);
+	return 0;
+}
+EXPORT_SYMBOL(ia64_sal_oemcall_nolock);
+
+int
+ia64_sal_oemcall_reentrant(struct ia64_sal_retval *isrvp, u64 oemfunc,
+			   u64 arg1, u64 arg2, u64 arg3, u64 arg4, u64 arg5,
+			   u64 arg6, u64 arg7)
+{
+	if (oemfunc < IA64_SAL_OEMFUNC_MIN || oemfunc > IA64_SAL_OEMFUNC_MAX)
+		return -1;
+	SAL_CALL_REENTRANT(*isrvp, oemfunc, arg1, arg2, arg3, arg4, arg5, arg6,
+			   arg7);
+	return 0;
+}
+EXPORT_SYMBOL(ia64_sal_oemcall_reentrant);

@@ -1,5 +1,5 @@
 #
-# arch/arm/boot/Makefile
+# arch/arm26/boot/Makefile
 #
 # This file is subject to the terms and conditions of the GNU General Public
 # License.  See the file "COPYING" in the main directory of this archive
@@ -51,8 +51,10 @@ $(obj)/compressed/vmlinux: vmlinux FORCE
 
 ifeq ($(CONFIG_XIP_KERNEL),y)
 $(obj)/xipImage: vmlinux FORCE
-	$(OBJCOPY) -S -O binary -R .data -R .comment vmlinux vmlinux-text.bin
-	$(OBJCOPY) -S -O binary -R .init -R .text -R .comment -R __ex_table -R __ksymtab vmlinux vmlinux-data.bin
+#	$(OBJCOPY) -S -O binary -R .data -R .comment vmlinux vmlinux-text.bin
+# FIXME - where has .pci_fixup crept in from?
+	$(OBJCOPY) -S -O binary -R .data -R .pci_fixup -R .comment vmlinux vmlinux-text.bin
+	$(OBJCOPY) -S -O binary -R .init -R .text -R __ex_table -R .pci_fixup -R __ksymtab -R __ksymtab_gpl -R __kcrctab -R __kcrctab_gpl -R __param -R .comment vmlinux vmlinux-data.bin
 	cat vmlinux-text.bin vmlinux-data.bin > $@
 	$(RM) -f vmlinux-text.bin vmlinux-data.bin
 	@echo '  Kernel: $@ is ready'
@@ -67,12 +69,12 @@ initrd:
 
 install: $(obj)/Image
 	$(CONFIG_SHELL) $(obj)/install.sh \
-	$(VERSION).$(PATCHLEVEL).$(SUBLEVEL)$(EXTRAVERSION) \
+	$(KERNELRELEASE) \
 	$(obj)/Image System.map "$(INSTALL_PATH)"
 
 zinstall: $(obj)/zImage
 	$(CONFIG_SHELL) $(obj)/install.sh \
-	$(VERSION).$(PATCHLEVEL).$(SUBLEVEL)$(EXTRAVERSION) \
+	$(KERNELRELEASE) \
 	$(obj)/zImage System.map "$(INSTALL_PATH)"
 
 subdir-	    := compressed

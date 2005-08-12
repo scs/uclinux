@@ -45,6 +45,7 @@
 #include <linux/sysdev.h>
 #include <linux/bcd.h>
 #include <linux/efi.h>
+#include <linux/mca.h>
 
 #include <asm/io.h>
 #include <asm/smp.h>
@@ -80,12 +81,41 @@ unsigned long cpu_khz;	/* Detected as we calibrate the TSC */
 
 extern unsigned long wall_jiffies;
 
-spinlock_t rtc_lock = SPIN_LOCK_UNLOCKED;
+DEFINE_SPINLOCK(rtc_lock);
 
-spinlock_t i8253_lock = SPIN_LOCK_UNLOCKED;
+DEFINE_SPINLOCK(i8253_lock);
 EXPORT_SYMBOL(i8253_lock);
 
 struct timer_opts *cur_timer = &timer_none;
+
+/*
+ * This is a special lock that is owned by the CPU and holds the index
+ * register we are working with.  It is required for NMI access to the
+ * CMOS/RTC registers.  See include/asm-i386/mc146818rtc.h for details.
+ */
+volatile unsigned long cmos_lock = 0;
+EXPORT_SYMBOL(cmos_lock);
+
+/* Routines for accessing the CMOS RAM/RTC. */
+unsigned char rtc_cmos_read(unsigned char addr)
+{
+	unsigned char val;
+	lock_cmos_prefix(addr);
+	outb_p(addr, RTC_PORT(0));
+	val = inb_p(RTC_PORT(1));
+	lock_cmos_suffix(addr);
+	return val;
+}
+EXPORT_SYMBOL(rtc_cmos_read);
+
+void rtc_cmos_write(unsigned char val, unsigned char addr)
+{
+	lock_cmos_prefix(addr);
+	outb_p(addr, RTC_PORT(0));
+	outb_p(val, RTC_PORT(1));
+	lock_cmos_suffix(addr);
+}
+EXPORT_SYMBOL(rtc_cmos_write);
 
 /*
  * This version of gettimeofday has microsecond resolution
@@ -174,19 +204,19 @@ static int set_rtc_mmss(unsigned long nowtime)
 {
 	int retval;
 
+	WARN_ON(irqs_disabled());
+
 	/* gets recalled with irq locally disabled */
-	spin_lock(&rtc_lock);
+	spin_lock_irq(&rtc_lock);
 	if (efi_enabled)
 		retval = efi_set_rtc_mmss(nowtime);
 	else
 		retval = mach_set_rtc_mmss(nowtime);
-	spin_unlock(&rtc_lock);
+	spin_unlock_irq(&rtc_lock);
 
 	return retval;
 }
 
-/* last time the cmos clock got updated */
-static long last_rtc_update;
 
 int timer_ack;
 
@@ -200,6 +230,18 @@ unsigned long long monotonic_clock(void)
 }
 EXPORT_SYMBOL(monotonic_clock);
 
+#if defined(CONFIG_SMP) && defined(CONFIG_FRAME_POINTER)
+unsigned long profile_pc(struct pt_regs *regs)
+{
+	unsigned long pc = instruction_pointer(regs);
+
+	if (in_lock_functions(pc))
+		return *(unsigned long *)(regs->ebp + 4);
+
+	return pc;
+}
+EXPORT_SYMBOL(profile_pc);
+#endif
 
 /*
  * timer_interrupt() needs to keep up the real-time clock,
@@ -226,31 +268,8 @@ static inline void do_timer_interrupt(int irq, void *dev_id,
 
 	do_timer_interrupt_hook(regs);
 
-	/*
-	 * If we have an externally synchronized Linux clock, then update
-	 * CMOS clock accordingly every ~11 minutes. Set_rtc_mmss() has to be
-	 * called as close as possible to 500 ms before the new second starts.
-	 */
-	if ((time_status & STA_UNSYNC) == 0 &&
-	    xtime.tv_sec > last_rtc_update + 660 &&
-	    (xtime.tv_nsec / 1000)
-			>= USEC_AFTER - ((unsigned) TICK_SIZE) / 2 &&
-	    (xtime.tv_nsec / 1000)
-			<= USEC_BEFORE + ((unsigned) TICK_SIZE) / 2) {
-		/* horrible...FIXME */
-		if (efi_enabled) {
-	 		if (efi_set_rtc_mmss(xtime.tv_sec) == 0)
-				last_rtc_update = xtime.tv_sec;
-			else
-				last_rtc_update = xtime.tv_sec - 600;
-		} else if (set_rtc_mmss(xtime.tv_sec) == 0)
-			last_rtc_update = xtime.tv_sec;
-		else
-			last_rtc_update = xtime.tv_sec - 600; /* do it again in 60 s */
-	}
 
-#ifdef CONFIG_MCA
-	if( MCA_bus ) {
+	if (MCA_bus) {
 		/* The PS/2 uses level-triggered interrupts.  You can't
 		turn them off, nor would you want to (any attempt to
 		enable edge-triggered interrupts usually gets intercepted by a
@@ -263,7 +282,6 @@ static inline void do_timer_interrupt(int irq, void *dev_id,
 		irq = inb_p( 0x61 );	/* read the current state */
 		outb_p( irq|0x80, 0x61 );	/* reset the IRQ */
 	}
-#endif
 }
 
 /*
@@ -306,47 +324,108 @@ unsigned long get_cmos_time(void)
 
 	return retval;
 }
+static void sync_cmos_clock(unsigned long dummy);
 
-static long clock_cmos_diff;
+static struct timer_list sync_cmos_timer =
+                                      TIMER_INITIALIZER(sync_cmos_clock, 0, 0);
 
-static int time_suspend(struct sys_device *dev, u32 state)
+static void sync_cmos_clock(unsigned long dummy)
+{
+	struct timeval now, next;
+	int fail = 1;
+
+	/*
+	 * If we have an externally synchronized Linux clock, then update
+	 * CMOS clock accordingly every ~11 minutes. Set_rtc_mmss() has to be
+	 * called as close as possible to 500 ms before the new second starts.
+	 * This code is run on a timer.  If the clock is set, that timer
+	 * may not expire at the correct time.  Thus, we adjust...
+	 */
+	if ((time_status & STA_UNSYNC) != 0)
+		/*
+		 * Not synced, exit, do not restart a timer (if one is
+		 * running, let it run out).
+		 */
+		return;
+
+	do_gettimeofday(&now);
+	if (now.tv_usec >= USEC_AFTER - ((unsigned) TICK_SIZE) / 2 &&
+	    now.tv_usec <= USEC_BEFORE + ((unsigned) TICK_SIZE) / 2)
+		fail = set_rtc_mmss(now.tv_sec);
+
+	next.tv_usec = USEC_AFTER - now.tv_usec;
+	if (next.tv_usec <= 0)
+		next.tv_usec += USEC_PER_SEC;
+
+	if (!fail)
+		next.tv_sec = 659;
+	else
+		next.tv_sec = 0;
+
+	if (next.tv_usec >= USEC_PER_SEC) {
+		next.tv_sec++;
+		next.tv_usec -= USEC_PER_SEC;
+	}
+	mod_timer(&sync_cmos_timer, jiffies + timeval_to_jiffies(&next));
+}
+
+void notify_arch_cmos_timer(void)
+{
+	mod_timer(&sync_cmos_timer, jiffies + 1);
+}
+
+static long clock_cmos_diff, sleep_start;
+
+static int timer_suspend(struct sys_device *dev, pm_message_t state)
 {
 	/*
 	 * Estimate time zone so that set_time can update the clock
 	 */
 	clock_cmos_diff = -get_cmos_time();
 	clock_cmos_diff += get_seconds();
+	sleep_start = get_cmos_time();
 	return 0;
 }
 
-static int time_resume(struct sys_device *dev)
+static int timer_resume(struct sys_device *dev)
 {
-	unsigned long sec = get_cmos_time() + clock_cmos_diff;
-	write_seqlock_irq(&xtime_lock);
+	unsigned long flags;
+	unsigned long sec;
+	unsigned long sleep_length;
+
+#ifdef CONFIG_HPET_TIMER
+	if (is_hpet_enabled())
+		hpet_reenable();
+#endif
+	sec = get_cmos_time() + clock_cmos_diff;
+	sleep_length = (get_cmos_time() - sleep_start) * HZ;
+	write_seqlock_irqsave(&xtime_lock, flags);
 	xtime.tv_sec = sec;
 	xtime.tv_nsec = 0;
-	write_sequnlock_irq(&xtime_lock);
+	write_sequnlock_irqrestore(&xtime_lock, flags);
+	jiffies += sleep_length;
+	wall_jiffies += sleep_length;
 	return 0;
 }
 
-static struct sysdev_class pit_sysclass = {
-	.resume = time_resume,
-	.suspend = time_suspend,
-	set_kset_name("pit"),
+static struct sysdev_class timer_sysclass = {
+	.resume = timer_resume,
+	.suspend = timer_suspend,
+	set_kset_name("timer"),
 };
 
 
 /* XXX this driverfs stuff should probably go elsewhere later -john */
-static struct sys_device device_i8253 = {
+static struct sys_device device_timer = {
 	.id	= 0,
-	.cls	= &pit_sysclass,
+	.cls	= &timer_sysclass,
 };
 
 static int time_init_device(void)
 {
-	int error = sysdev_class_register(&pit_sysclass);
+	int error = sysdev_class_register(&timer_sysclass);
 	if (!error)
-		error = sysdev_register(&device_i8253);
+		error = sysdev_register(&device_timer);
 	return error;
 }
 
@@ -355,14 +434,14 @@ device_initcall(time_init_device);
 #ifdef CONFIG_HPET_TIMER
 extern void (*late_time_init)(void);
 /* Duplicate of time_init() below, with hpet_enable part added */
-void __init hpet_time_init(void)
+static void __init hpet_time_init(void)
 {
 	xtime.tv_sec = get_cmos_time();
-	wall_to_monotonic.tv_sec = -xtime.tv_sec;
 	xtime.tv_nsec = (INITIAL_JIFFIES % HZ) * (NSEC_PER_SEC / HZ);
-	wall_to_monotonic.tv_nsec = -xtime.tv_nsec;
+	set_normalized_timespec(&wall_to_monotonic,
+		-xtime.tv_sec, -xtime.tv_nsec);
 
-	if (hpet_enable() >= 0) {
+	if ((hpet_enable() >= 0) && hpet_use_timer) {
 		printk("Using HPET for base-timer\n");
 	}
 
@@ -386,9 +465,9 @@ void __init time_init(void)
 	}
 #endif
 	xtime.tv_sec = get_cmos_time();
-	wall_to_monotonic.tv_sec = -xtime.tv_sec;
 	xtime.tv_nsec = (INITIAL_JIFFIES % HZ) * (NSEC_PER_SEC / HZ);
-	wall_to_monotonic.tv_nsec = -xtime.tv_nsec;
+	set_normalized_timespec(&wall_to_monotonic,
+		-xtime.tv_sec, -xtime.tv_nsec);
 
 	cur_timer = select_timer();
 	printk(KERN_INFO "Using %s for high-res timesource\n",cur_timer->name);

@@ -8,7 +8,7 @@
 
 #include "sysdep/ptrace.h"
 
-extern int userspace_pid;
+extern int userspace_pid[];
 
 extern void switch_threads(void *me, void *next);
 extern void thread_wait(void *sw, void *fb);
@@ -22,18 +22,16 @@ extern void new_thread_proc(void *stack, void (*handler)(int sig));
 extern void remove_sigstack(void);
 extern void new_thread_handler(int sig);
 extern void handle_syscall(union uml_pt_regs *regs);
-extern void map(int fd, unsigned long virt, unsigned long phys, 
-		unsigned long len, int r, int w, int x);
-extern int unmap(int fd, void *addr, int len);
+extern void map(int fd, unsigned long virt, unsigned long len, int r, int w,
+		int x, int phys_fd, unsigned long long offset);
+extern int unmap(int fd, void *addr, unsigned long len);
 extern int protect(int fd, unsigned long addr, unsigned long len, 
-		   int r, int w, int x, int must_succeed);
-extern void user_signal(int sig, union uml_pt_regs *regs);
-extern int singlestepping_skas(void);
+		   int r, int w, int x);
+extern void user_signal(int sig, union uml_pt_regs *regs, int pid);
 extern int new_mm(int from);
-extern void save_registers(union uml_pt_regs *regs);
-extern void restore_registers(union uml_pt_regs *regs);
-extern void start_userspace(void);
-extern void init_registers(int pid);
+extern void start_userspace(int cpu);
+extern void get_skas_faultinfo(int pid, struct faultinfo * fi);
+extern long execute_syscall_skas(void *r);
 
 #endif
 

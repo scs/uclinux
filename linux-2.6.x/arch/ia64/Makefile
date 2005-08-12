@@ -13,6 +13,8 @@ READELF := $(CROSS_COMPILE)readelf
 
 export AWK
 
+CHECKFLAGS	+= -m64 -D__ia64=1 -D__ia64__=1 -D_LP64 -D__LP64__
+
 OBJCOPYFLAGS	:= --strip-all
 LDFLAGS_vmlinux	:= -static
 LDFLAGS_MODULE	+= -T $(srctree)/arch/ia64/module.lds
@@ -20,14 +22,12 @@ AFLAGS_KERNEL	:= -mconstant-gp
 EXTRA		:=
 
 cflags-y	:= -pipe $(EXTRA) -ffixed-r13 -mfixed-range=f12-f15,f32-f127 \
-		   -falign-functions=32 -frename-registers
+		   -falign-functions=32 -frename-registers -fno-optimize-sibling-calls
 CFLAGS_KERNEL	:= -mconstant-gp
 
-GCC_VERSION=$(shell $(CC) -v 2>&1 | fgrep 'gcc version' | cut -f3 -d' ' | cut -f1 -d'.')
-GCC_MINOR_VERSION=$(shell $(CC) -v 2>&1 | fgrep 'gcc version' | cut -f3 -d' ' | cut -f2 -d'.')
-
-GAS_STATUS	= $(shell $(srctree)/arch/ia64/scripts/check-gas $(CC) $(OBJDUMP))
-CPPFLAGS += $(shell $(srctree)/arch/ia64/scripts/toolchain-flags $(CC) $(OBJDUMP) $(READELF))
+GCC_VERSION     := $(call cc-version)
+GAS_STATUS	= $(shell $(srctree)/arch/ia64/scripts/check-gas "$(CC)" "$(OBJDUMP)")
+CPPFLAGS += $(shell $(srctree)/arch/ia64/scripts/toolchain-flags "$(CC)" "$(OBJDUMP)" "$(READELF)")
 
 ifeq ($(GAS_STATUS),buggy)
 $(error Sorry, you need a newer version of the assember, one that is built from	\
@@ -37,19 +37,14 @@ $(error Sorry, you need a newer version of the assember, one that is built from	
 		ftp://ftp.hpl.hp.com/pub/linux-ia64/gas-030124.tar.gz)
 endif
 
-ifeq ($(GCC_VERSION),2)
+ifneq ($(shell if [ $(GCC_VERSION) -lt 0300 ] ; then echo "bad"; fi ;),)
 $(error Sorry, your compiler is too old.  GCC v2.96 is known to generate bad code.)
 endif
 
-ifeq ($(GCC_VERSION),3)
- ifeq ($(GCC_MINOR_VERSION),4)
-# Workaround Itanium 1 bugs in gcc 3.4.
-#	cflags-$(CONFIG_ITANIUM)	+= -mtune=merced
+ifeq ($(GCC_VERSION),0304)
+	cflags-$(CONFIG_ITANIUM)	+= -mtune=merced
 	cflags-$(CONFIG_MCKINLEY)	+= -mtune=mckinley
- endif
 endif
-
-cflags-$(CONFIG_ITANIUM_BSTEP_SPECIFIC)	+= -mb-step
 
 CFLAGS += $(cflags-y)
 head-y := arch/ia64/kernel/head.o arch/ia64/kernel/init_task.o
@@ -60,11 +55,13 @@ core-$(CONFIG_IA32_SUPPORT)	+= arch/ia64/ia32/
 core-$(CONFIG_IA64_DIG) 	+= arch/ia64/dig/
 core-$(CONFIG_IA64_GENERIC) 	+= arch/ia64/dig/
 core-$(CONFIG_IA64_HP_ZX1)	+= arch/ia64/dig/
+core-$(CONFIG_IA64_HP_ZX1_SWIOTLB) += arch/ia64/dig/
 core-$(CONFIG_IA64_SGI_SN2)	+= arch/ia64/sn/
 
 drivers-$(CONFIG_PCI)		+= arch/ia64/pci/
 drivers-$(CONFIG_IA64_HP_SIM)	+= arch/ia64/hp/sim/
 drivers-$(CONFIG_IA64_HP_ZX1)	+= arch/ia64/hp/common/ arch/ia64/hp/zx1/
+drivers-$(CONFIG_IA64_HP_ZX1_SWIOTLB) += arch/ia64/hp/common/ arch/ia64/hp/zx1/
 drivers-$(CONFIG_IA64_GENERIC)	+= arch/ia64/hp/common/ arch/ia64/hp/zx1/ arch/ia64/hp/sim/ arch/ia64/sn/
 drivers-$(CONFIG_OPROFILE)	+= arch/ia64/oprofile/
 
@@ -85,7 +82,9 @@ unwcheck: vmlinux
 archclean:
 	$(Q)$(MAKE) $(clean)=$(boot)
 
-CLEAN_FILES += include/asm-ia64/.offsets.h.stamp include/asm-ia64/offsets.h vmlinux.gz bootloader
+CLEAN_FILES += include/asm-ia64/.offsets.h.stamp vmlinux.gz bootloader
+
+MRPROPER_FILES += include/asm-ia64/offsets.h
 
 prepare: include/asm-ia64/offsets.h
 

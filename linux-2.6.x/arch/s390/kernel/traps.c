@@ -38,6 +38,7 @@
 #include <asm/cpcmd.h>
 #include <asm/s390_ext.h>
 #include <asm/lowcore.h>
+#include <asm/debug.h>
 
 /* Called from entry.S only */
 extern void handle_per_exception(struct pt_regs *regs);
@@ -67,54 +68,93 @@ extern pgm_check_handler_t do_monitor_call;
 #define stack_pointer ({ void **sp; asm("la %0,0(15)" : "=&d" (sp)); sp; })
 
 #ifndef CONFIG_ARCH_S390X
-#define RET_ADDR 56
 #define FOURLONG "%08lx %08lx %08lx %08lx\n"
 static int kstack_depth_to_print = 12;
-
 #else /* CONFIG_ARCH_S390X */
-#define RET_ADDR 112
 #define FOURLONG "%016lx %016lx %016lx %016lx\n"
 static int kstack_depth_to_print = 20;
-
 #endif /* CONFIG_ARCH_S390X */
+
+/*
+ * For show_trace we have tree different stack to consider:
+ *   - the panic stack which is used if the kernel stack has overflown
+ *   - the asynchronous interrupt stack (cpu related)
+ *   - the synchronous kernel stack (process related)
+ * The stack trace can start at any of the three stack and can potentially
+ * touch all of them. The order is: panic stack, async stack, sync stack.
+ */
+static unsigned long
+__show_trace(unsigned long sp, unsigned long low, unsigned long high)
+{
+	struct stack_frame *sf;
+	struct pt_regs *regs;
+
+	while (1) {
+		sp = sp & PSW_ADDR_INSN;
+		if (sp < low || sp > high - sizeof(*sf))
+			return sp;
+		sf = (struct stack_frame *) sp;
+		printk("([<%016lx>] ", sf->gprs[8] & PSW_ADDR_INSN);
+		print_symbol("%s)\n", sf->gprs[8] & PSW_ADDR_INSN);
+		/* Follow the backchain. */
+		while (1) {
+			low = sp;
+			sp = sf->back_chain & PSW_ADDR_INSN;
+			if (!sp)
+				break;
+			if (sp <= low || sp > high - sizeof(*sf))
+				return sp;
+			sf = (struct stack_frame *) sp;
+			printk(" [<%016lx>] ", sf->gprs[8] & PSW_ADDR_INSN);
+			print_symbol("%s\n", sf->gprs[8] & PSW_ADDR_INSN);
+		}
+		/* Zero backchain detected, check for interrupt frame. */
+		sp = (unsigned long) (sf + 1);
+		if (sp <= low || sp > high - sizeof(*regs))
+			return sp;
+		regs = (struct pt_regs *) sp;
+		printk(" [<%016lx>] ", regs->psw.addr & PSW_ADDR_INSN);
+		print_symbol("%s\n", regs->psw.addr & PSW_ADDR_INSN);
+		low = sp;
+		sp = regs->gprs[15];
+	}
+}
 
 void show_trace(struct task_struct *task, unsigned long * stack)
 {
-	unsigned long backchain, low_addr, high_addr, ret_addr;
+	register unsigned long __r15 asm ("15");
+	unsigned long sp;
 
-	if (!stack)
-		stack = (task == NULL) ? *stack_pointer : &(task->thread.ksp);
-
+	sp = (unsigned long) stack;
+	if (!sp)
+		sp = task ? task->thread.ksp : __r15;
 	printk("Call Trace:\n");
-	low_addr = ((unsigned long) stack) & PSW_ADDR_INSN;
-	high_addr = (low_addr & (-THREAD_SIZE)) + THREAD_SIZE;
-	/* Skip the first frame (biased stack) */
-	backchain = *((unsigned long *) low_addr) & PSW_ADDR_INSN;
-	/* Print up to 8 lines */
-	while  (backchain > low_addr && backchain <= high_addr) {
-		ret_addr = *((unsigned long *) (backchain+RET_ADDR)) & PSW_ADDR_INSN;
-		printk(" [<%016lx>] ", ret_addr);
-		print_symbol("%s\n", ret_addr);
-		low_addr = backchain;
-		backchain = *((unsigned long *) backchain) & PSW_ADDR_INSN;
-	}
+#ifdef CONFIG_CHECK_STACK
+	sp = __show_trace(sp, S390_lowcore.panic_stack - 4096,
+			  S390_lowcore.panic_stack);
+#endif
+	sp = __show_trace(sp, S390_lowcore.async_stack - ASYNC_SIZE,
+			  S390_lowcore.async_stack);
+	if (task)
+		__show_trace(sp, (unsigned long) task->thread_info,
+			     (unsigned long) task->thread_info + THREAD_SIZE);
+	else
+		__show_trace(sp, S390_lowcore.thread_info,
+			     S390_lowcore.thread_info + THREAD_SIZE);
 	printk("\n");
 }
 
 void show_stack(struct task_struct *task, unsigned long *sp)
 {
+	register unsigned long * __r15 asm ("15");
 	unsigned long *stack;
 	int i;
 
 	// debugging aid: "show_stack(NULL);" prints the
 	// back trace for this cpu.
 
-	if (!sp) {
-		if (task)
-			sp = (unsigned long *) task->thread.ksp;
-		else
-			sp = *stack_pointer;
-	}
+	if (!sp)
+		sp = task ? (unsigned long *) task->thread.ksp : __r15;
 
 	stack = sp;
 	for (i = 0; i < kstack_depth_to_print; i++) {
@@ -233,13 +273,15 @@ char *task_show_regs(struct task_struct *task, char *buffer)
 	return buffer;
 }
 
-spinlock_t die_lock = SPIN_LOCK_UNLOCKED;
+DEFINE_SPINLOCK(die_lock);
 
 void die(const char * str, struct pt_regs * regs, long err)
 {
 	static int die_counter;
-        console_verbose();
-        spin_lock_irq(&die_lock);
+
+	debug_stop_all();
+	console_verbose();
+	spin_lock_irq(&die_lock);
 	bust_spinlocks(1);
 	printk("%s: %04lx [#%d]\n", str, err & 0xffff, ++die_counter);
         show_regs(regs);
@@ -250,6 +292,20 @@ void die(const char * str, struct pt_regs * regs, long err)
 	if (panic_on_oops)
 		panic("Fatal exception: panic_on_oops");
         do_exit(SIGSEGV);
+}
+
+static void inline
+report_user_fault(long interruption_code, struct pt_regs *regs)
+{
+#if defined(CONFIG_SYSCTL)
+	if (!sysctl_userprocess_debug)
+		return;
+#endif
+#if defined(CONFIG_SYSCTL) || defined(CONFIG_PROCESS_DEBUG)
+	printk("User process fault: interruption code 0x%lX\n",
+	       interruption_code);
+	show_regs(regs);
+#endif
 }
 
 static void inline do_trap(long interruption_code, int signr, char *str,
@@ -266,23 +322,8 @@ static void inline do_trap(long interruption_code, int signr, char *str,
                 struct task_struct *tsk = current;
 
                 tsk->thread.trap_no = interruption_code & 0xffff;
-		if (info)
-			force_sig_info(signr, info, tsk);
-		else
-                	force_sig(signr, tsk);
-#ifndef CONFIG_SYSCTL
-#ifdef CONFIG_PROCESS_DEBUG
-                printk("User process fault: interruption code 0x%lX\n",
-                       interruption_code);
-                show_regs(regs);
-#endif
-#else
-		if (sysctl_userprocess_debug) {
-			printk("User process fault: interruption code 0x%lX\n",
-			       interruption_code);
-			show_regs(regs);
-		}
-#endif
+		force_sig_info(signr, info, tsk);
+		report_user_fault(interruption_code, regs);
         } else {
                 const struct exception_table_entry *fixup;
                 fixup = search_exception_tables(regs->psw.addr & PSW_ADDR_INSN);
@@ -304,10 +345,15 @@ void do_single_step(struct pt_regs *regs)
 		force_sig(SIGTRAP, current);
 }
 
-#define DO_ERROR(signr, str, name) \
-asmlinkage void name(struct pt_regs * regs, long interruption_code) \
-{ \
-	do_trap(interruption_code, signr, str, regs, NULL); \
+asmlinkage void
+default_trap_handler(struct pt_regs * regs, long interruption_code)
+{
+        if (regs->psw.mask & PSW_MASK_PSTATE) {
+		local_irq_enable();
+		do_exit(SIGSEGV);
+		report_user_fault(interruption_code, regs);
+	} else
+		die("Unknown program exception", regs, interruption_code);
 }
 
 #define DO_ERROR_INFO(signr, str, name, sicode, siaddr) \
@@ -320,8 +366,6 @@ asmlinkage void name(struct pt_regs * regs, long interruption_code) \
         info.si_addr = (void *)siaddr; \
         do_trap(interruption_code, signr, str, regs, &info); \
 }
-
-DO_ERROR(SIGSEGV, "Unknown program exception", default_trap_handler)
 
 DO_ERROR_INFO(SIGILL, "addressing exception", addressing_exception,
 	      ILL_ILLADR, get_check_address(regs))
@@ -381,6 +425,7 @@ do_fp_trap(struct pt_regs *regs, void *location,
 
 asmlinkage void illegal_op(struct pt_regs * regs, long interruption_code)
 {
+	siginfo_t info;
         __u8 opcode[6];
 	__u16 *location;
 	int signal = 0;
@@ -424,12 +469,27 @@ asmlinkage void illegal_op(struct pt_regs * regs, long interruption_code)
 	} else
 		signal = SIGILL;
 
+#ifdef CONFIG_MATHEMU
         if (signal == SIGFPE)
 		do_fp_trap(regs, location,
                            current->thread.fp_regs.fpc, interruption_code);
-        else if (signal)
+        else if (signal == SIGSEGV) {
+		info.si_signo = signal;
+		info.si_errno = 0;
+		info.si_code = SEGV_MAPERR;
+		info.si_addr = (void *) location;
 		do_trap(interruption_code, signal,
-			"illegal operation", regs, NULL);
+			"user address fault", regs, &info);
+	} else
+#endif
+        if (signal) {
+		info.si_signo = signal;
+		info.si_errno = 0;
+		info.si_code = ILL_ILLOPC;
+		info.si_addr = (void *) location;
+		do_trap(interruption_code, signal,
+			"illegal operation", regs, &info);
+	}
 }
 
 
@@ -591,6 +651,26 @@ asmlinkage void data_exception(struct pt_regs * regs, long interruption_code)
 	}
 }
 
+asmlinkage void space_switch_exception(struct pt_regs * regs, long int_code)
+{
+        siginfo_t info;
+
+	/* Set user psw back to home space mode. */
+	if (regs->psw.mask & PSW_MASK_PSTATE)
+		regs->psw.mask |= PSW_ASC_HOME;
+	/* Send SIGILL. */
+        info.si_signo = SIGILL;
+        info.si_errno = 0;
+        info.si_code = ILL_PRVOPC;
+        info.si_addr = get_check_address(regs);
+        do_trap(int_code, SIGILL, "space switch event", regs, &info);
+}
+
+asmlinkage void kernel_stack_overflow(struct pt_regs * regs)
+{
+	die("Kernel stack overflow", regs, 0);
+	panic("Corrupt kernel stack, can't continue.");
+}
 
 
 /* init is done in lowcore.S and head.S */
@@ -629,7 +709,7 @@ void __init trap_init(void)
         pgm_check_table[0x3B] = &do_dat_exception;
 #endif /* CONFIG_ARCH_S390X */
         pgm_check_table[0x15] = &operand_exception;
-        pgm_check_table[0x1C] = &privileged_op;
+        pgm_check_table[0x1C] = &space_switch_exception;
         pgm_check_table[0x1D] = &hfp_sqrt_exception;
 	pgm_check_table[0x40] = &do_monitor_call;
 

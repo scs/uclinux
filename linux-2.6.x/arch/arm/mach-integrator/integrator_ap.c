@@ -40,7 +40,9 @@
 #include <asm/mach/flash.h>
 #include <asm/mach/irq.h>
 #include <asm/mach/map.h>
+#include <asm/mach/time.h>
 
+#include "common.h"
 
 /* 
  * All IO addresses are mapped onto VA 0xFFFx.xxxx, where x.xxxx
@@ -66,7 +68,6 @@
  * f1200000	12000000	EBI registers
  * f1300000	13000000	Counter/Timer
  * f1400000	14000000	Interrupt controller
- * f1500000	15000000	RTC
  * f1600000	16000000	UART 0
  * f1700000	17000000	UART 1
  * f1a00000	1a000000	Debug LEDs
@@ -79,7 +80,6 @@ static struct map_desc ap_io_desc[] __initdata = {
  { IO_ADDRESS(INTEGRATOR_EBI_BASE),   INTEGRATOR_EBI_BASE,   SZ_4K,  MT_DEVICE },
  { IO_ADDRESS(INTEGRATOR_CT_BASE),    INTEGRATOR_CT_BASE,    SZ_4K,  MT_DEVICE },
  { IO_ADDRESS(INTEGRATOR_IC_BASE),    INTEGRATOR_IC_BASE,    SZ_4K,  MT_DEVICE },
- { IO_ADDRESS(INTEGRATOR_RTC_BASE),   INTEGRATOR_RTC_BASE,   SZ_4K,  MT_DEVICE },
  { IO_ADDRESS(INTEGRATOR_UART0_BASE), INTEGRATOR_UART0_BASE, SZ_4K,  MT_DEVICE },
  { IO_ADDRESS(INTEGRATOR_UART1_BASE), INTEGRATOR_UART1_BASE, SZ_4K,  MT_DEVICE },
  { IO_ADDRESS(INTEGRATOR_DBG_BASE),   INTEGRATOR_DBG_BASE,   SZ_4K,  MT_DEVICE },
@@ -137,7 +137,7 @@ static void __init ap_init_irq(void)
 #ifdef CONFIG_PM
 static unsigned long ic_irq_enable;
 
-static int irq_suspend(struct sys_device *dev, u32 state)
+static int irq_suspend(struct sys_device *dev, pm_message_t state)
 {
 	ic_irq_enable = readl(VA_IC_BASE + IRQ_ENABLE);
 	return 0;
@@ -281,10 +281,15 @@ static void __init ap_init(void)
 	}
 }
 
-static void ap_time_init(void)
+static void __init ap_init_timer(void)
 {
 	integrator_time_init(1000000 * TICKS_PER_uSEC / HZ, 0);
 }
+
+static struct sys_timer ap_timer = {
+	.init		= ap_init_timer,
+	.offset		= integrator_gettimeoffset,
+};
 
 MACHINE_START(INTEGRATOR, "ARM-Integrator")
 	MAINTAINER("ARM Ltd/Deep Blue Solutions Ltd")
@@ -292,6 +297,6 @@ MACHINE_START(INTEGRATOR, "ARM-Integrator")
 	BOOT_PARAMS(0x00000100)
 	MAPIO(ap_map_io)
 	INITIRQ(ap_init_irq)
-	INITTIME(ap_time_init)
+	.timer		= &ap_timer,
 	INIT_MACHINE(ap_init)
 MACHINE_END

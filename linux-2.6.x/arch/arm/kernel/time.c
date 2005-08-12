@@ -33,17 +33,22 @@
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/leds.h>
-
+#include <asm/thread_info.h>
 #include <asm/mach/time.h>
 
 u64 jiffies_64 = INITIAL_JIFFIES;
 
 EXPORT_SYMBOL(jiffies_64);
 
+/*
+ * Our system timer.
+ */
+struct sys_timer *system_timer;
+
 extern unsigned long wall_jiffies;
 
 /* this needs a better home */
-spinlock_t rtc_lock = SPIN_LOCK_UNLOCKED;
+DEFINE_SPINLOCK(rtc_lock);
 
 #ifdef CONFIG_SA1100_RTC_MODULE
 EXPORT_SYMBOL(rtc_lock);
@@ -52,6 +57,20 @@ EXPORT_SYMBOL(rtc_lock);
 /* change this if you have some constant time drift */
 #define USECS_PER_JIFFY	(1000000/HZ)
 
+#ifdef CONFIG_SMP
+unsigned long profile_pc(struct pt_regs *regs)
+{
+	unsigned long fp, pc = instruction_pointer(regs);
+
+	if (in_lock_functions(pc)) {
+		fp = regs->ARM_fp;
+		pc = pc_pointer(((unsigned long *)fp)[-1]);
+	}
+
+	return pc;
+}
+EXPORT_SYMBOL(profile_pc);
+#endif
 
 /*
  * hook for setting the RTC's idea of the current time.
@@ -64,12 +83,6 @@ static unsigned long dummy_gettimeoffset(void)
 }
 
 /*
- * hook for getting the time offset.  Note that it is
- * always called with interrupts disabled.
- */
-unsigned long (*gettimeoffset)(void) = dummy_gettimeoffset;
-
-/*
  * Scheduler clock - returns current time in nanosec units.
  * This is the default implementation.  Sub-architecture
  * implementations can override this.
@@ -77,31 +90,6 @@ unsigned long (*gettimeoffset)(void) = dummy_gettimeoffset;
 unsigned long long __attribute__((weak)) sched_clock(void)
 {
 	return (unsigned long long)jiffies * (1000000000 / HZ);
-}
-
-/*
- * Handle kernel profile stuff...
- */
-static inline void do_profile(struct pt_regs *regs)
-{
-
-	profile_hook(regs);
-
-	if (!user_mode(regs) &&
-	    prof_buffer &&
-	    current->pid) {
-		unsigned long pc = instruction_pointer(regs);
-		extern int _stext;
-
-		pc -= (unsigned long)&_stext;
-
-		pc >>= prof_shift;
-
-		if (pc >= prof_len)
-			pc = prof_len - 1;
-
-		prof_buffer[pc] += 1;
-	}
 }
 
 static unsigned long next_rtc_update;
@@ -190,7 +178,7 @@ static ssize_t leds_store(struct sys_device *dev, const char *buf, size_t size)
 
 static SYSDEV_ATTR(event, 0200, NULL, leds_store);
 
-static int leds_suspend(struct sys_device *dev, u32 state)
+static int leds_suspend(struct sys_device *dev, pm_message_t state)
 {
 	leds_event(led_stop);
 	return 0;
@@ -258,7 +246,7 @@ void do_gettimeofday(struct timeval *tv)
 
 	do {
 		seq = read_seqbegin_irqsave(&xtime_lock, flags);
-		usec = gettimeoffset();
+		usec = system_timer->offset();
 
 		lost = jiffies - wall_jiffies;
 		if (lost)
@@ -295,7 +283,7 @@ int do_settimeofday(struct timespec *tv)
 	 * wall time.  Discover what correction gettimeofday() would have
 	 * done, and then undo it!
 	 */
-	nsec -= gettimeoffset() * NSEC_PER_USEC;
+	nsec -= system_timer->offset() * NSEC_PER_USEC;
 	nsec -= (jiffies - wall_jiffies) * TICK_NSEC;
 
 	wtm_sec  = wall_to_monotonic.tv_sec + (xtime.tv_sec - sec);
@@ -315,18 +303,100 @@ int do_settimeofday(struct timespec *tv)
 
 EXPORT_SYMBOL(do_settimeofday);
 
+/**
+ * save_time_delta - Save the offset between system time and RTC time
+ * @delta: pointer to timespec to store delta
+ * @rtc: pointer to timespec for current RTC time
+ *
+ * Return a delta between the system time and the RTC time, such
+ * that system time can be restored later with restore_time_delta()
+ */
+void save_time_delta(struct timespec *delta, struct timespec *rtc)
+{
+	set_normalized_timespec(delta,
+				xtime.tv_sec - rtc->tv_sec,
+				xtime.tv_nsec - rtc->tv_nsec);
+}
+EXPORT_SYMBOL(save_time_delta);
+
+/**
+ * restore_time_delta - Restore the current system time
+ * @delta: delta returned by save_time_delta()
+ * @rtc: pointer to timespec for current RTC time
+ */
+void restore_time_delta(struct timespec *delta, struct timespec *rtc)
+{
+	struct timespec ts;
+
+	set_normalized_timespec(&ts,
+				delta->tv_sec + rtc->tv_sec,
+				delta->tv_nsec + rtc->tv_nsec);
+
+	do_settimeofday(&ts);
+}
+EXPORT_SYMBOL(restore_time_delta);
+
+/*
+ * Kernel system timer support.
+ */
 void timer_tick(struct pt_regs *regs)
 {
-	do_profile(regs);
+	profile_tick(CPU_PROFILING, regs);
 	do_leds();
 	do_set_rtc();
 	do_timer(regs);
+#ifndef CONFIG_SMP
+	update_process_times(user_mode(regs));
+#endif
 }
 
-void (*init_arch_time)(void);
+#ifdef CONFIG_PM
+static int timer_suspend(struct sys_device *dev, pm_message_t state)
+{
+	struct sys_timer *timer = container_of(dev, struct sys_timer, dev);
+
+	if (timer->suspend != NULL)
+		timer->suspend();
+
+	return 0;
+}
+
+static int timer_resume(struct sys_device *dev)
+{
+	struct sys_timer *timer = container_of(dev, struct sys_timer, dev);
+
+	if (timer->resume != NULL)
+		timer->resume();
+
+	return 0;
+}
+#else
+#define timer_suspend NULL
+#define timer_resume NULL
+#endif
+
+static struct sysdev_class timer_sysclass = {
+	set_kset_name("timer"),
+	.suspend	= timer_suspend,
+	.resume		= timer_resume,
+};
+
+static int __init timer_init_sysfs(void)
+{
+	int ret = sysdev_class_register(&timer_sysclass);
+	if (ret == 0) {
+		system_timer->dev.cls = &timer_sysclass;
+		ret = sysdev_register(&system_timer->dev);
+	}
+	return ret;
+}
+
+device_initcall(timer_init_sysfs);
 
 void __init time_init(void)
 {
-	init_arch_time();
+	if (system_timer->offset == NULL)
+		system_timer->offset = dummy_gettimeoffset;
+	system_timer->init();
 }
 

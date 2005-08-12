@@ -9,15 +9,13 @@ terms and conditions.
 #include <errno.h>
 #include <signal.h>
 #include <sys/wait.h>
-#include <sys/ptrace.h>
-#include <asm/ptrace.h>
 
 #include "ptproxy.h"
 #include "sysdep.h"
 #include "wait.h"
 #include "user_util.h"
+#include "ptrace_user.h"
 #include "sysdep/ptrace.h"
-#include "sysdep/ptrace_user.h"
 #include "sysdep/sigcontext.h"
 
 int proxy_wait_return(struct debugger *debugger, pid_t unused)
@@ -56,21 +54,23 @@ int parent_wait_return(struct debugger *debugger, pid_t unused)
 int real_wait_return(struct debugger *debugger)
 {
 	unsigned long ip;
-	int err, pid;
+	int pid;
 
 	pid = debugger->pid;
-	ip = ptrace(PTRACE_PEEKUSER, pid, PT_IP_OFFSET, 0);
-	ip = IP_RESTART_SYSCALL(ip);
-	err = ptrace(PTRACE_POKEUSER, pid, PT_IP_OFFSET, ip);
-	if(ptrace(PTRACE_POKEUSER, pid, PT_IP_OFFSET, ip) < 0)
+
+	ip = ptrace(PTRACE_PEEKUSR, pid, PT_IP_OFFSET, 0);
+	IP_RESTART_SYSCALL(ip);
+
+	if(ptrace(PTRACE_POKEUSR, pid, PT_IP_OFFSET, ip) < 0)
 		tracer_panic("real_wait_return : Failed to restart system "
-			     "call, errno = %d\n");
+			     "call, errno = %d\n", errno);
+
 	if((ptrace(PTRACE_SYSCALL, debugger->pid, 0, SIGCHLD) < 0) ||
 	   (ptrace(PTRACE_SYSCALL, debugger->pid, 0, 0) < 0) ||
 	   (ptrace(PTRACE_SYSCALL, debugger->pid, 0, 0) < 0) ||
 	   debugger_normal_return(debugger, -1))
 		tracer_panic("real_wait_return : gdb failed to wait, "
-			     "errno = %d\n");
+			     "errno = %d\n", errno);
 	return(0);
 }
 

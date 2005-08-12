@@ -31,6 +31,7 @@
 #include <linux/bootmem.h>
 #include <linux/highmem.h>
 #include <linux/initrd.h>
+#include <linux/pagemap.h>
 
 #include <asm/pgalloc.h>
 #include <asm/prom.h>
@@ -104,6 +105,7 @@ extern unsigned long sysmap_size;
  * -- Cort
  */
 int __map_without_bats;
+int __map_without_ltlbs;
 
 /* max amount of RAM to use */
 unsigned long __max_memory;
@@ -177,6 +179,7 @@ void free_initmem(void)
 	if (!have_of)
 		FREESEC(openfirmware);
  	printk("\n");
+	ppc_md.progress = NULL;
 #undef FREESEC
 }
 
@@ -202,6 +205,10 @@ void MMU_setup(void)
 	/* Check for nobats option (used in mapin_ram). */
 	if (strstr(cmd_line, "nobats")) {
 		__map_without_bats = 1;
+	}
+
+	if (strstr(cmd_line, "noltlbs")) {
+		__map_without_ltlbs = 1;
 	}
 
 	/* Look for mem= option on command line */
@@ -406,7 +413,6 @@ void __init mem_init(void)
 	unsigned long highmem_mapnr;
 
 	highmem_mapnr = total_lowmem >> PAGE_SHIFT;
-	highmem_start_page = mem_map + highmem_mapnr;
 #endif /* CONFIG_HIGHMEM */
 	max_mapnr = total_memory >> PAGE_SHIFT;
 
@@ -484,18 +490,6 @@ void __init mem_init(void)
 	if (agp_special_page)
 		printk(KERN_INFO "AGP special page: 0x%08lx\n", agp_special_page);
 #endif
-
-	/* Make sure all our pagetable pages have page->mapping
-	   and page->index set correctly. */
-	for (addr = KERNELBASE; addr != 0; addr += PGDIR_SIZE) {
-		struct page *pg;
-		pmd_t *pmd = pmd_offset(pgd_offset_k(addr), addr);
-		if (pmd_present(*pmd)) {
-			pg = pmd_page(*pmd);
-			pg->mapping = (void *) &init_mm;
-			pg->index = addr;
-		}
-	}
 
 	mem_init_done = 1;
 }
@@ -648,3 +642,27 @@ void update_mmu_cache(struct vm_area_struct *vma, unsigned long address,
 	}
 #endif
 }
+
+/*
+ * This is called by /dev/mem to know if a given address has to
+ * be mapped non-cacheable or not
+ */
+int page_is_ram(unsigned long pfn)
+{
+	unsigned long paddr = (pfn << PAGE_SHIFT);
+
+	return paddr < __pa(high_memory);
+}
+
+pgprot_t phys_mem_access_prot(struct file *file, unsigned long addr,
+			      unsigned long size, pgprot_t vma_prot)
+{
+	if (ppc_md.phys_mem_access_prot)
+		return ppc_md.phys_mem_access_prot(file, addr, size, vma_prot);
+
+	if (!page_is_ram(addr >> PAGE_SHIFT))
+		vma_prot = __pgprot(pgprot_val(vma_prot)
+				    | _PAGE_GUARDED | _PAGE_NO_CACHE);
+	return vma_prot;
+}
+EXPORT_SYMBOL(phys_mem_access_prot);

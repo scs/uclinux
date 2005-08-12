@@ -4,7 +4,6 @@
  *  Copyright (C) 2000 Geert Uytterhoeven <geert@sonycom.com>
  *                     Sony Software Development Center Europe (SDCE), Brussels
  */
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/irq.h>
 #include <linux/signal.h>
@@ -134,14 +133,8 @@ void ddb_8254timer_irq(void)
 	printk("ddb_8254timer_irq called\n");
 }
 
-void __init ddb_irq_setup(void)
+void __init arch_init_irq(void)
 {
-#ifdef CONFIG_KGDB
-	if (remote_debug)
-		set_debug_traps();
-	breakpoint();		/* you may move this line to whereever you want :-) */
-#endif
-
 	/* setup cascade interrupts */
 	setup_irq(NILE4_IRQ_BASE  + NILE4_INT_INTE, &irq_cascade);
 	setup_irq(CPU_IRQ_BASE + CPU_NILE4_CASCADE, &irq_cascade);
@@ -163,6 +156,4 @@ void __init ddb_irq_setup(void)
 
 	/* Enable the interrupt cascade */
 	nile4_enable_irq(NILE4_IRQ_BASE+IRQ_I8259_CASCADE);
-
-
 }

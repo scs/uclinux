@@ -1,5 +1,4 @@
-/* $Id$
- *
+/*
  *  linux/arch/sh/kernel/signal.c
  *
  *  Copyright (C) 1991, 1992  Linus Torvalds
@@ -24,7 +23,6 @@
 #include <linux/tty.h>
 #include <linux/personality.h>
 #include <linux/binfmts.h>
-#include <linux/suspend.h>
 
 #include <asm/ucontext.h>
 #include <asm/uaccess.h>
@@ -101,7 +99,7 @@ sys_sigaction(int sig, const struct old_sigaction __user *act,
 
 	if (act) {
 		old_sigset_t mask;
-		if (verify_area(VERIFY_READ, act, sizeof(*act)) ||
+		if (!access_ok(VERIFY_READ, act, sizeof(*act)) ||
 		    __get_user(new_ka.sa.sa_handler, &act->sa_handler) ||
 		    __get_user(new_ka.sa.sa_restorer, &act->sa_restorer))
 			return -EFAULT;
@@ -113,7 +111,7 @@ sys_sigaction(int sig, const struct old_sigaction __user *act,
 	ret = do_sigaction(sig, act ? &new_ka : NULL, oact ? &old_ka : NULL);
 
 	if (!ret && oact) {
-		if (verify_area(VERIFY_WRITE, oact, sizeof(*oact)) ||
+		if (!access_ok(VERIFY_WRITE, oact, sizeof(*oact)) ||
 		    __put_user(old_ka.sa.sa_handler, &oact->sa_handler) ||
 		    __put_user(old_ka.sa.sa_restorer, &oact->sa_restorer))
 			return -EFAULT;
@@ -155,7 +153,7 @@ struct rt_sigframe
 	u16 retcode[8];
 };
 
-#ifdef CONFIG_CPU_SH4
+#ifdef CONFIG_SH_FPU
 static inline int restore_sigcontext_fpu(struct sigcontext __user *sc)
 {
 	struct task_struct *tsk = current;
@@ -163,7 +161,7 @@ static inline int restore_sigcontext_fpu(struct sigcontext __user *sc)
 	if (!(cpu_data->flags & CPU_HAS_FPU))
 		return 0;
 
-	tsk->used_math = 1;
+	set_used_math();
 	return __copy_from_user(&tsk->thread.fpu.hard, &sc->sc_fpregs[0],
 				sizeof(long)*(16*2+2));
 }
@@ -176,7 +174,7 @@ static inline int save_sigcontext_fpu(struct sigcontext __user *sc,
 	if (!(cpu_data->flags & CPU_HAS_FPU))
 		return 0;
 
-	if (!tsk->used_math) {
+	if (!used_math()) {
 		__put_user(0, &sc->sc_ownedfp);
 		return 0;
 	}
@@ -186,13 +184,13 @@ static inline int save_sigcontext_fpu(struct sigcontext __user *sc,
 	/* This will cause a "finit" to be triggered by the next
 	   attempted FPU operation by the 'current' process.
 	   */
-	tsk->used_math = 0;
+	clear_used_math();
 
 	unlazy_fpu(tsk, regs);
 	return __copy_to_user(&sc->sc_fpregs[0], &tsk->thread.fpu.hard,
 			      sizeof(long)*(16*2+2));
 }
-#endif /* CONFIG_CPU_SH4 */
+#endif /* CONFIG_SH_FPU */
 
 static int
 restore_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc, int *r0_p)
@@ -213,14 +211,14 @@ restore_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc, int *r0_p
 	COPY(sr);	COPY(pc);
 #undef COPY
 
-#ifdef CONFIG_CPU_SH4
+#ifdef CONFIG_SH_FPU
 	if (cpu_data->flags & CPU_HAS_FPU) {
 		int owned_fp;
 		struct task_struct *tsk = current;
 
 		regs->sr |= SR_FD; /* Release FPU */
 		clear_fpu(tsk, regs);
-		tsk->used_math = 0;
+		clear_used_math();
 		__get_user (owned_fp, &sc->sc_ownedfp);
 		if (owned_fp)
 			err |= restore_sigcontext_fpu(sc);
@@ -240,7 +238,7 @@ asmlinkage int sys_sigreturn(unsigned long r4, unsigned long r5,
 	sigset_t set;
 	int r0;
 
-	if (verify_area(VERIFY_READ, frame, sizeof(*frame)))
+	if (!access_ok(VERIFY_READ, frame, sizeof(*frame)))
 		goto badframe;
 
 	if (__get_user(set.sig[0], &frame->sc.oldmask)
@@ -274,7 +272,7 @@ asmlinkage int sys_rt_sigreturn(unsigned long r4, unsigned long r5,
 	stack_t st;
 	int r0;
 
-	if (verify_area(VERIFY_READ, frame, sizeof(*frame)))
+	if (!access_ok(VERIFY_READ, frame, sizeof(*frame)))
 		goto badframe;
 
 	if (__copy_from_user(&set, &frame->uc.uc_sigmask, sizeof(set)))
@@ -326,7 +324,7 @@ setup_sigcontext(struct sigcontext __user *sc, struct pt_regs *regs,
 	COPY(sr);	COPY(pc);
 #undef COPY
 
-#ifdef CONFIG_CPU_SH4
+#ifdef CONFIG_SH_FPU
 	err |= save_sigcontext_fpu(sc, regs);
 #endif
 
@@ -342,8 +340,10 @@ setup_sigcontext(struct sigcontext __user *sc, struct pt_regs *regs,
 static inline void __user *
 get_sigframe(struct k_sigaction *ka, unsigned long sp, size_t frame_size)
 {
-	if ((ka->sa.sa_flags & SA_ONSTACK) != 0 && ! on_sig_stack(sp))
-		sp = current->sas_ss_sp + current->sas_ss_size;
+	if (ka->sa.sa_flags & SA_ONSTACK) {
+		if (sas_ss_flags(sp) == 0)
+			sp = current->sas_ss_sp + current->sas_ss_size;
+	}
 
 	return (void __user *)((sp - frame_size) & -8ul);
 }
@@ -413,9 +413,7 @@ static void setup_frame(int sig, struct k_sigaction *ka,
 	return;
 
 give_sigsegv:
-	if (sig == SIGSEGV)
-		ka->sa.sa_handler = SIG_DFL;
-	force_sig(SIGSEGV, current);
+	force_sigsegv(sig, current);
 }
 
 static void setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
@@ -490,21 +488,17 @@ static void setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	return;
 
 give_sigsegv:
-	if (sig == SIGSEGV)
-		ka->sa.sa_handler = SIG_DFL;
-	force_sig(SIGSEGV, current);
+	force_sigsegv(sig, current);
 }
 
 /*
  * OK, we're invoking a handler
- */	
+ */
 
 static void
-handle_signal(unsigned long sig, siginfo_t *info, sigset_t *oldset,
-	struct pt_regs * regs)
+handle_signal(unsigned long sig, struct k_sigaction *ka, siginfo_t *info,
+	      sigset_t *oldset, struct pt_regs *regs)
 {
-	struct k_sigaction *ka = &current->sighand->action[sig-1];
-
 	/* Are we from a system call? */
 	if (regs->tra >= 0) {
 		/* If so, check system call restarting.. */
@@ -574,6 +568,7 @@ int do_signal(struct pt_regs *regs, sigset_t *oldset)
 {
 	siginfo_t info;
 	int signr;
+	struct k_sigaction ka;
 
 	/*
 	 * We want the common case to go fast, which
@@ -584,18 +579,16 @@ int do_signal(struct pt_regs *regs, sigset_t *oldset)
 	if (!user_mode(regs))
 		return 1;
 
-	if (current->flags & PF_FREEZE) {
-		refrigerator(0);
+	if (try_to_freeze(0))
 		goto no_signal;
-	}
 
 	if (!oldset)
 		oldset = &current->blocked;
 
-	signr = get_signal_to_deliver(&info, regs, NULL);
+	signr = get_signal_to_deliver(&info, &ka, regs, NULL);
 	if (signr > 0) {
 		/* Whee!  Actually deliver the signal.  */
-		handle_signal(signr, &info, oldset, regs);
+		handle_signal(signr, &ka, &info, oldset, regs);
 		return 1;
 	}
 

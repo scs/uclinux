@@ -15,6 +15,7 @@
 
 #include <linux/init.h>
 #include <linux/device.h>
+#include <linux/sysdev.h>
 #include <linux/interrupt.h>
 #include <linux/sched.h>
 #include <linux/bitops.h>
@@ -31,8 +32,11 @@
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 
+#include <asm/arch/pxa-regs.h>
 #include <asm/arch/mainstone.h>
+#include <asm/arch/audio.h>
 #include <asm/arch/pxafb.h>
+#include <asm/arch/mmc.h>
 
 #include "generic.h"
 
@@ -58,7 +62,6 @@ static struct irqchip mainstone_irq_chip = {
 	.mask		= mainstone_mask_irq,
 	.unmask		= mainstone_unmask_irq,
 };
-
 
 static void mainstone_irq_handler(unsigned int irq, struct irqdesc *desc,
 				  struct pt_regs *regs)
@@ -97,6 +100,35 @@ static void __init mainstone_init_irq(void)
 	set_irq_type(IRQ_GPIO(0), IRQT_FALLING);
 }
 
+#ifdef CONFIG_PM
+
+static int mainstone_irq_resume(struct sys_device *dev)
+{
+	MST_INTMSKENA = mainstone_irq_enabled;
+	return 0;
+}
+
+static struct sysdev_class mainstone_irq_sysclass = {
+	set_kset_name("cpld_irq"),
+	.resume = mainstone_irq_resume,
+};
+
+static struct sys_device mainstone_irq_device = {
+	.cls = &mainstone_irq_sysclass,
+};
+
+static int __init mainstone_irq_device_init(void)
+{
+	int ret = sysdev_class_register(&mainstone_irq_sysclass);
+	if (ret == 0)
+		ret = sysdev_register(&mainstone_irq_device);
+	return ret;
+}
+
+device_initcall(mainstone_irq_device_init);
+
+#endif
+
 
 static struct resource smc91x_resources[] = {
 	[0] = {
@@ -118,6 +150,44 @@ static struct platform_device smc91x_device = {
 	.resource	= smc91x_resources,
 };
 
+static int mst_audio_startup(snd_pcm_substream_t *substream, void *priv)
+{
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+		MST_MSCWR2 &= ~MST_MSCWR2_AC97_SPKROFF;
+	return 0;
+}
+
+static void mst_audio_shutdown(snd_pcm_substream_t *substream, void *priv)
+{
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+		MST_MSCWR2 |= MST_MSCWR2_AC97_SPKROFF;
+}
+
+static long mst_audio_suspend_mask;
+
+static void mst_audio_suspend(void *priv)
+{
+	mst_audio_suspend_mask = MST_MSCWR2;
+	MST_MSCWR2 |= MST_MSCWR2_AC97_SPKROFF;
+}
+
+static void mst_audio_resume(void *priv)
+{
+	MST_MSCWR2 &= mst_audio_suspend_mask | ~MST_MSCWR2_AC97_SPKROFF;
+}
+
+static pxa2xx_audio_ops_t mst_audio_ops = {
+	.startup	= mst_audio_startup,
+	.shutdown	= mst_audio_shutdown,
+	.suspend	= mst_audio_suspend,
+	.resume		= mst_audio_resume,
+};
+
+static struct platform_device mst_audio_device = {
+	.name		= "pxa2xx-ac97",
+	.id		= -1,
+	.dev		= { .platform_data = &mst_audio_ops },
+};
 
 static void mainstone_backlight_power(int on)
 {
@@ -169,9 +239,71 @@ static struct pxafb_mach_info toshiba_ltm035a776c __initdata = {
 	.pxafb_backlight_power	= mainstone_backlight_power,
 };
 
+static int mainstone_mci_init(struct device *dev, irqreturn_t (*mstone_detect_int)(int, void *, struct pt_regs *), void *data)
+{
+	int err;
+
+	/*
+	 * setup GPIO for PXA27x MMC controller
+	 */
+	pxa_gpio_mode(GPIO32_MMCCLK_MD);
+	pxa_gpio_mode(GPIO112_MMCCMD_MD);
+	pxa_gpio_mode(GPIO92_MMCDAT0_MD);
+	pxa_gpio_mode(GPIO109_MMCDAT1_MD);
+	pxa_gpio_mode(GPIO110_MMCDAT2_MD);
+	pxa_gpio_mode(GPIO111_MMCDAT3_MD);
+
+	/* make sure SD/Memory Stick multiplexer's signals
+	 * are routed to MMC controller
+	 */
+	MST_MSCWR1 &= ~MST_MSCWR1_MS_SEL;
+
+	err = request_irq(MAINSTONE_MMC_IRQ, mstone_detect_int, SA_INTERRUPT,
+			     "MMC card detect", data);
+	if (err) {
+		printk(KERN_ERR "mainstone_mci_init: MMC/SD: can't request MMC card detect IRQ\n");
+		return -1;
+	}
+
+	return 0;
+}
+
+static void mainstone_mci_setpower(struct device *dev, unsigned int vdd)
+{
+	struct pxamci_platform_data* p_d = dev->platform_data;
+
+	if (( 1 << vdd) & p_d->ocr_mask) {
+		printk(KERN_DEBUG "%s: on\n", __FUNCTION__);
+		MST_MSCWR1 |= MST_MSCWR1_MMC_ON;
+		MST_MSCWR1 &= ~MST_MSCWR1_MS_SEL;
+	} else {
+		printk(KERN_DEBUG "%s: off\n", __FUNCTION__);
+		MST_MSCWR1 &= ~MST_MSCWR1_MMC_ON;
+	}
+}
+
+static void mainstone_mci_exit(struct device *dev, void *data)
+{
+	free_irq(MAINSTONE_MMC_IRQ, data);
+}
+
+static struct pxamci_platform_data mainstone_mci_platform_data = {
+	.ocr_mask	= MMC_VDD_32_33|MMC_VDD_33_34,
+	.init 		= mainstone_mci_init,
+	.setpower 	= mainstone_mci_setpower,
+	.exit		= mainstone_mci_exit,
+};
+
 static void __init mainstone_init(void)
 {
+	/*
+	 * On Mainstone, we route AC97_SYSCLK via GPIO45 to
+	 * the audio daughter card
+	 */
+	pxa_gpio_mode(GPIO45_SYSCLK_AC97_MD);
+
 	platform_device_register(&smc91x_device);
+	platform_device_register(&mst_audio_device);
 
 	/* reading Mainstone's "Virtual Configuration Register"
 	   might be handy to select LCD type here */
@@ -179,6 +311,8 @@ static void __init mainstone_init(void)
 		set_pxa_fb_info(&toshiba_ltm04c380k);
 	else
 		set_pxa_fb_info(&toshiba_ltm035a776c);
+
+	pxa_set_mci_info(&mainstone_mci_platform_data);
 }
 
 
@@ -190,6 +324,24 @@ static void __init mainstone_map_io(void)
 {
 	pxa_map_io();
 	iotable_init(mainstone_io_desc, ARRAY_SIZE(mainstone_io_desc));
+
+	/* initialize sleep mode regs (wake-up sources, etc) */
+	PGSR0 = 0x00008800;
+	PGSR1 = 0x00000002;
+	PGSR2 = 0x0001FC00;
+	PGSR3 = 0x00001F81;
+	PWER  = 0xC0000002;
+	PRER  = 0x00000002;
+	PFER  = 0x00000002;
+ 	/*	for use I SRAM as framebuffer.	*/
+ 	PSLR |= 0xF04;
+ 	PCFR = 0x66;
+ 	/*	For Keypad wakeup.	*/
+ 	KPC &=~KPC_ASACT;
+ 	KPC |=KPC_AS;
+ 	PKWR  = 0x000FD000;
+ 	/*	Need read PKWR back after set it.	*/
+ 	PKWR;
 }
 
 MACHINE_START(MAINSTONE, "Intel HCDDBBVA0 Development Platform (aka Mainstone)")
@@ -197,6 +349,6 @@ MACHINE_START(MAINSTONE, "Intel HCDDBBVA0 Development Platform (aka Mainstone)")
 	BOOT_MEM(0xa0000000, 0x40000000, io_p2v(0x40000000))
 	MAPIO(mainstone_map_io)
 	INITIRQ(mainstone_init_irq)
-	INITTIME(pxa_init_time)
+	.timer		= &pxa_timer,
 	INIT_MACHINE(mainstone_init)
 MACHINE_END

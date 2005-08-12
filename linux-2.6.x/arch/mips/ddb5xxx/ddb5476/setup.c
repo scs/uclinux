@@ -4,7 +4,6 @@
  *  Copyright (C) 2000 Geert Uytterhoeven <geert@sonycom.com>
  *                     Sony Software Development Center Europe (SDCE), Brussels
  */
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/kbd_ll.h>
 #include <linux/kernel.h>
@@ -34,10 +33,6 @@
 #define TIMER_FREQUENCY			83000000
 #define TIMER_BASE			DDB_T2CTRL
 #define TIMER_IRQ			(VRC5476_IRQ_BASE + VRC5476_IRQ_GPT)
-#endif
-
-#ifdef CONFIG_KGDB
-extern void breakpoint(void);
 #endif
 
 static void (*back_to_prom) (void) = (void (*)(void)) 0xbfc00000;
@@ -70,7 +65,6 @@ static void ddb_machine_power_off(void)
 	while (1);
 }
 
-extern void ddb_irq_setup(void);
 extern void rtc_ds1386_init(unsigned long base);
 
 static void __init ddb_time_init(void)
@@ -129,14 +123,9 @@ static struct {
 
 
 static void ddb5476_board_init(void);
-extern void ddb5476_irq_setup(void);
-extern void (*irq_setup)(void);
 
 static void __init ddb5476_setup(void)
 {
-	extern int panic_timeout;
-
-	irq_setup = ddb5476_irq_setup;
 	set_io_port_base(KSEG1ADDR(DDB_PCI_IO_BASE));
 
 	board_time_init = ddb_time_init;

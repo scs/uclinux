@@ -7,12 +7,12 @@
 #include <unistd.h>
 #include <string.h>
 #include <errno.h>
-#include <fcntl.h>
 #include <termios.h>
 #include "chan_user.h"
 #include "user.h"
 #include "user_util.h"
 #include "kern_util.h"
+#include "os.h"
 
 struct pty_chan {
 	void (*announce)(char *dev_name, int dev);
@@ -22,80 +22,94 @@ struct pty_chan {
 	char dev_name[sizeof("/dev/pts/0123456\0")];
 };
 
-void *pty_chan_init(char *str, int device, struct chan_opts *opts)
+static void *pty_chan_init(char *str, int device, struct chan_opts *opts)
 {
 	struct pty_chan *data;
 
-	if((data = um_kmalloc(sizeof(*data))) == NULL) return(NULL);
+	data = um_kmalloc(sizeof(*data));
+	if(data == NULL) return(NULL);
 	*data = ((struct pty_chan) { .announce  	= opts->announce, 
 				     .dev  		= device,
 				     .raw  		= opts->raw });
 	return(data);
 }
 
-int pts_open(int input, int output, int primary, void *d, char **dev_out)
+static int pts_open(int input, int output, int primary, void *d,
+		    char **dev_out)
 {
 	struct pty_chan *data = d;
 	char *dev;
-	int fd;
+	int fd, err;
 
-	if((fd = get_pty()) < 0){
+	fd = get_pty();
+	if(fd < 0){
 		printk("open_pts : Failed to open pts\n");
 		return(-errno);
 	}
 	if(data->raw){
-		tcgetattr(fd, &data->tt);
-		raw(fd, 0);
+		CATCH_EINTR(err = tcgetattr(fd, &data->tt));
+		if(err)
+			return(err);
+
+		err = raw(fd);
+		if(err)
+			return(err);
 	}
 
 	dev = ptsname(fd);
 	sprintf(data->dev_name, "%s", dev);
 	*dev_out = data->dev_name;
-	if(data->announce) (*data->announce)(dev, data->dev);
+	if (data->announce)
+		(*data->announce)(dev, data->dev);
 	return(fd);
 }
 
-int getmaster(char *line)
+static int getmaster(char *line)
 {
-	struct stat stb;
 	char *pty, *bank, *cp;
-	int master;
+	int master, err;
 
 	pty = &line[strlen("/dev/ptyp")];
 	for (bank = "pqrs"; *bank; bank++) {
 		line[strlen("/dev/pty")] = *bank;
 		*pty = '0';
-		if (stat(line, &stb) < 0)
+		if (os_stat_file(line, NULL) < 0)
 			break;
 		for (cp = "0123456789abcdef"; *cp; cp++) {
 			*pty = *cp;
-			master = open(line, O_RDWR);
+			master = os_open_file(line, of_rdwr(OPENFLAGS()), 0);
 			if (master >= 0) {
 				char *tp = &line[strlen("/dev/")];
-				int ok;
 
 				/* verify slave side is usable */
 				*tp = 't';
-				ok = access(line, R_OK|W_OK) == 0;
+				err = os_access(line, OS_ACC_RW_OK);
 				*tp = 'p';
-				if (ok) return(master);
-				(void) close(master);
+				if(err == 0) return(master);
+				(void) os_close_file(master);
 			}
 		}
 	}
 	return(-1);
 }
 
-int pty_open(int input, int output, int primary, void *d, char **dev_out)
+static int pty_open(int input, int output, int primary, void *d,
+		    char **dev_out)
 {
 	struct pty_chan *data = d;
-	int fd;
+	int fd, err;
 	char dev[sizeof("/dev/ptyxx\0")] = "/dev/ptyxx";
 
 	fd = getmaster(dev);
-	if(fd < 0) return(-errno);
+	if(fd < 0)
+		return(-errno);
+
+	if(data->raw){
+		err = raw(fd);
+		if(err)
+			return(err);
+	}
 	
-	if(data->raw) raw(fd, 0);
 	if(data->announce) (*data->announce)(dev, data->dev);
 
 	sprintf(data->dev_name, "%s", dev);
@@ -103,7 +117,7 @@ int pty_open(int input, int output, int primary, void *d, char **dev_out)
 	return(fd);
 }
 
-int pty_console_write(int fd, const char *buf, int n, void *d)
+static int pty_console_write(int fd, const char *buf, int n, void *d)
 {
 	struct pty_chan *data = d;
 

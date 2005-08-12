@@ -46,19 +46,7 @@
 #include <asm/system.h>
 #include <asm/uaccess.h>
 
-#define FIQ_VECTOR (vectors_base() + 0x1c)
-
 static unsigned long no_fiq_insn;
-
-static inline void unprotect_page_0(void)
-{
-	modify_domain(DOMAIN_USER, DOMAIN_MANAGER);
-}
-
-static inline void protect_page_0(void)
-{
-	modify_domain(DOMAIN_USER, DOMAIN_CLIENT);
-}
 
 /* Default reacquire function
  * - we always relinquish FIQ control
@@ -66,12 +54,8 @@ static inline void protect_page_0(void)
  */
 static int fiq_def_op(void *ref, int relinquish)
 {
-	if (!relinquish) {
-		unprotect_page_0();
-		*(unsigned long *)FIQ_VECTOR = no_fiq_insn;
-		protect_page_0();
-		flush_icache_range(FIQ_VECTOR, FIQ_VECTOR + 4);
-	}
+	if (!relinquish)
+		set_fiq_handler(&no_fiq_insn, sizeof(no_fiq_insn));
 
 	return 0;
 }
@@ -93,56 +77,51 @@ int show_fiq_list(struct seq_file *p, void *v)
 
 void set_fiq_handler(void *start, unsigned int length)
 {
-	unprotect_page_0();
-
-	memcpy((void *)FIQ_VECTOR, start, length);
-
-	protect_page_0();
-	flush_icache_range(FIQ_VECTOR, FIQ_VECTOR + length);
+	memcpy((void *)0xffff001c, start, length);
+	flush_icache_range(0xffff001c, 0xffff001c + length);
+	if (!vectors_high())
+		flush_icache_range(0x1c, 0x1c + length);
 }
 
 /*
  * Taking an interrupt in FIQ mode is death, so both these functions
- * disable irqs for the duration. 
+ * disable irqs for the duration.  Note - these functions are almost
+ * entirely coded in assembly.
  */
-void set_fiq_regs(struct pt_regs *regs)
+void __attribute__((naked)) set_fiq_regs(struct pt_regs *regs)
 {
-	register unsigned long tmp, tmp2;
-	__asm__ volatile (
-	"mrs	%0, cpsr\n\
-	mov	%1, %3\n\
-	msr	cpsr_c, %1	@ select FIQ mode\n\
+	register unsigned long tmp;
+	asm volatile (
+	"mov	ip, sp\n\
+	stmfd	sp!, {fp, ip, lr, pc}\n\
+	sub	fp, ip, #4\n\
+	mrs	%0, cpsr\n\
+	msr	cpsr_c, %2	@ select FIQ mode\n\
 	mov	r0, r0\n\
-	ldmia	%2, {r8 - r14}\n\
+	ldmia	%1, {r8 - r14}\n\
 	msr	cpsr_c, %0	@ return to SVC mode\n\
-	mov	r0, r0"
-	: "=&r" (tmp), "=&r" (tmp2)
-	: "r" (&regs->ARM_r8), "I" (PSR_I_BIT | PSR_F_BIT | FIQ_MODE)
-	/* These registers aren't modified by the above code in a way
-	   visible to the compiler, but we mark them as clobbers anyway
-	   so that GCC won't put any of the input or output operands in
-	   them.  */
-	: "r8", "r9", "r10", "r11", "r12", "r13", "r14");
+	mov	r0, r0\n\
+	ldmea	fp, {fp, sp, pc}"
+	: "=&r" (tmp)
+	: "r" (&regs->ARM_r8), "I" (PSR_I_BIT | PSR_F_BIT | FIQ_MODE));
 }
 
-void get_fiq_regs(struct pt_regs *regs)
+void __attribute__((naked)) get_fiq_regs(struct pt_regs *regs)
 {
-	register unsigned long tmp, tmp2;
-	__asm__ volatile (
-	"mrs	%0, cpsr\n\
-	mov	%1, %3\n\
-	msr	cpsr_c, %1	@ select FIQ mode\n\
+	register unsigned long tmp;
+	asm volatile (
+	"mov	ip, sp\n\
+	stmfd	sp!, {fp, ip, lr, pc}\n\
+	sub	fp, ip, #4\n\
+	mrs	%0, cpsr\n\
+	msr	cpsr_c, %2	@ select FIQ mode\n\
 	mov	r0, r0\n\
-	stmia	%2, {r8 - r14}\n\
+	stmia	%1, {r8 - r14}\n\
 	msr	cpsr_c, %0	@ return to SVC mode\n\
-	mov	r0, r0"
-	: "=&r" (tmp), "=&r" (tmp2)
-	: "r" (&regs->ARM_r8), "I" (PSR_I_BIT | PSR_F_BIT | FIQ_MODE)
-	/* These registers aren't modified by the above code in a way
-	   visible to the compiler, but we mark them as clobbers anyway
-	   so that GCC won't put any of the input or output operands in
-	   them.  */
-	: "r8", "r9", "r10", "r11", "r12", "r13", "r14");
+	mov	r0, r0\n\
+	ldmea	fp, {fp, sp, pc}"
+	: "=&r" (tmp)
+	: "r" (&regs->ARM_r8), "I" (PSR_I_BIT | PSR_F_BIT | FIQ_MODE));
 }
 
 int claim_fiq(struct fiq_handler *f)
@@ -198,6 +177,5 @@ EXPORT_SYMBOL(disable_fiq);
 
 void __init init_FIQ(void)
 {
-	no_fiq_insn = *(unsigned long *)FIQ_VECTOR;
-	set_fs(get_fs());
+	no_fiq_insn = *(unsigned long *)0xffff001c;
 }

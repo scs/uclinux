@@ -36,6 +36,9 @@
 #include <linux/delay.h>
 #include <linux/bootmem.h>
 #include <linux/highmem.h>
+#include <linux/idr.h>
+#include <linux/nodemask.h>
+#include <linux/module.h>
 
 #include <asm/pgalloc.h>
 #include <asm/page.h>
@@ -51,7 +54,6 @@
 #include <asm/smp.h>
 #include <asm/machdep.h>
 #include <asm/tlb.h>
-#include <asm/naca.h>
 #include <asm/eeh.h>
 #include <asm/processor.h>
 #include <asm/mmzone.h>
@@ -61,9 +63,9 @@
 #include <asm/system.h>
 #include <asm/iommu.h>
 #include <asm/abs_addr.h>
+#include <asm/vdso.h>
+#include <asm/imalloc.h>
 
-
-struct mmu_context_queue_t mmu_context_queue;
 int mem_init_done;
 unsigned long ioremap_bot = IMALLOC_BASE;
 static unsigned long phbs_io_bot = PHBS_IO_BASE;
@@ -85,7 +87,6 @@ unsigned long __max_memory;
 /* info on what we think the IO hole is */
 unsigned long 	io_hole_start;
 unsigned long	io_hole_size;
-unsigned long	top_of_ram;
 
 void show_mem(void)
 {
@@ -118,32 +119,96 @@ void show_mem(void)
 
 #ifdef CONFIG_PPC_ISERIES
 
-void *ioremap(unsigned long addr, unsigned long size)
+void __iomem *ioremap(unsigned long addr, unsigned long size)
 {
-	return (void *)addr;
+	return (void __iomem *)addr;
 }
 
-extern void *__ioremap(unsigned long addr, unsigned long size,
+extern void __iomem *__ioremap(unsigned long addr, unsigned long size,
 		       unsigned long flags)
 {
-	return (void *)addr;
+	return (void __iomem *)addr;
 }
 
-void iounmap(void *addr)
+void iounmap(volatile void __iomem *addr)
 {
 	return;
 }
 
 #else
 
+static void unmap_im_area_pte(pmd_t *pmd, unsigned long addr,
+				  unsigned long end)
+{
+	pte_t *pte;
+
+	pte = pte_offset_kernel(pmd, addr);
+	do {
+		pte_t ptent = ptep_get_and_clear(&ioremap_mm, addr, pte);
+		WARN_ON(!pte_none(ptent) && !pte_present(ptent));
+	} while (pte++, addr += PAGE_SIZE, addr != end);
+}
+
+static inline void unmap_im_area_pmd(pud_t *pud, unsigned long addr,
+				     unsigned long end)
+{
+	pmd_t *pmd;
+	unsigned long next;
+
+	pmd = pmd_offset(pud, addr);
+	do {
+		next = pmd_addr_end(addr, end);
+		if (pmd_none_or_clear_bad(pmd))
+			continue;
+		unmap_im_area_pte(pmd, addr, next);
+	} while (pmd++, addr = next, addr != end);
+}
+
+static inline void unmap_im_area_pud(pgd_t *pgd, unsigned long addr,
+				     unsigned long end)
+{
+	pud_t *pud;
+	unsigned long next;
+
+	pud = pud_offset(pgd, addr);
+	do {
+		next = pud_addr_end(addr, end);
+		if (pud_none_or_clear_bad(pud))
+			continue;
+		unmap_im_area_pmd(pud, addr, next);
+	} while (pud++, addr = next, addr != end);
+}
+
+static void unmap_im_area(unsigned long addr, unsigned long end)
+{
+	struct mm_struct *mm = &ioremap_mm;
+	unsigned long next;
+	pgd_t *pgd;
+
+	spin_lock(&mm->page_table_lock);
+
+	pgd = pgd_offset_i(addr);
+	flush_cache_vunmap(addr, end);
+	do {
+		next = pgd_addr_end(addr, end);
+		if (pgd_none_or_clear_bad(pgd))
+			continue;
+		unmap_im_area_pud(pgd, addr, next);
+	} while (pgd++, addr = next, addr != end);
+	flush_tlb_kernel_range(start, end);
+
+	spin_unlock(&mm->page_table_lock);
+}
+
 /*
  * map_io_page currently only called by __ioremap
  * map_io_page adds an entry to the ioremap page table
  * and adds an entry to the HPT, possibly bolting it
  */
-static void map_io_page(unsigned long ea, unsigned long pa, int flags)
+static int map_io_page(unsigned long ea, unsigned long pa, int flags)
 {
 	pgd_t *pgdp;
+	pud_t *pudp;
 	pmd_t *pmdp;
 	pte_t *ptep;
 	unsigned long vsid;
@@ -151,11 +216,18 @@ static void map_io_page(unsigned long ea, unsigned long pa, int flags)
 	if (mem_init_done) {
 		spin_lock(&ioremap_mm.page_table_lock);
 		pgdp = pgd_offset_i(ea);
-		pmdp = pmd_alloc(&ioremap_mm, pgdp, ea);
+		pudp = pud_alloc(&ioremap_mm, pgdp, ea);
+		if (!pudp)
+			return -ENOMEM;
+		pmdp = pmd_alloc(&ioremap_mm, pudp, ea);
+		if (!pmdp)
+			return -ENOMEM;
 		ptep = pte_alloc_kernel(&ioremap_mm, pmdp, ea);
-
+		if (!ptep)
+			return -ENOMEM;
 		pa = abs_to_phys(pa);
-		set_pte(ptep, pfn_pte(pa >> PAGE_SHIFT, __pgprot(flags)));
+		set_pte_at(&ioremap_mm, ea, ptep, pfn_pte(pa >> PAGE_SHIFT,
+							  __pgprot(flags)));
 		spin_unlock(&ioremap_mm.page_table_lock);
 	} else {
 		unsigned long va, vpn, hash, hpteg;
@@ -171,7 +243,7 @@ static void map_io_page(unsigned long ea, unsigned long pa, int flags)
 
 		hash = hpt_hash(vpn, 0);
 
-		hpteg = ((hash & htab_data.htab_hash_mask)*HPTES_PER_GROUP);
+		hpteg = ((hash & htab_hash_mask) * HPTES_PER_GROUP);
 
 		/* Panic if a pte grpup is full */
 		if (ppc_md.hpte_insert(hpteg, va, pa >> PAGE_SHIFT, 0,
@@ -180,10 +252,11 @@ static void map_io_page(unsigned long ea, unsigned long pa, int flags)
 			panic("map_io_page: could not insert mapping");
 		}
 	}
+	return 0;
 }
 
 
-static void * __ioremap_com(unsigned long addr, unsigned long pa,
+static void __iomem * __ioremap_com(unsigned long addr, unsigned long pa,
 			    unsigned long ea, unsigned long size,
 			    unsigned long flags)
 {
@@ -191,30 +264,30 @@ static void * __ioremap_com(unsigned long addr, unsigned long pa,
 
 	if ((flags & _PAGE_PRESENT) == 0)
 		flags |= pgprot_val(PAGE_KERNEL);
-	if (flags & (_PAGE_NO_CACHE | _PAGE_WRITETHRU))
-		flags |= _PAGE_GUARDED;
 
-	for (i = 0; i < size; i += PAGE_SIZE) {
-		map_io_page(ea+i, pa+i, flags);
-	}
+	for (i = 0; i < size; i += PAGE_SIZE)
+		if (map_io_page(ea+i, pa+i, flags))
+			goto failure;
 
-	return (void *) (ea + (addr & ~PAGE_MASK));
+	return (void __iomem *) (ea + (addr & ~PAGE_MASK));
+ failure:
+	if (mem_init_done)
+		unmap_im_area(ea, ea + size);
+	return NULL;
 }
 
 
-void *
+void __iomem *
 ioremap(unsigned long addr, unsigned long size)
 {
-	void *ret = __ioremap(addr, size, _PAGE_NO_CACHE);
-	if(mem_init_done)
-		return eeh_ioremap(addr, ret);	/* may remap the addr */
-	return ret;
+	return __ioremap(addr, size, _PAGE_NO_CACHE | _PAGE_GUARDED);
 }
 
-void *
-__ioremap(unsigned long addr, unsigned long size, unsigned long flags)
+void __iomem * __ioremap(unsigned long addr, unsigned long size,
+			 unsigned long flags)
 {
 	unsigned long pa, ea;
+	void __iomem *ret;
 
 	/*
 	 * Choose an address to map it to.
@@ -237,12 +310,16 @@ __ioremap(unsigned long addr, unsigned long size, unsigned long flags)
 		if (area == NULL)
 			return NULL;
 		ea = (unsigned long)(area->addr);
+		ret = __ioremap_com(addr, pa, ea, size, flags);
+		if (!ret)
+			im_free(area->addr);
 	} else {
 		ea = ioremap_bot;
-		ioremap_bot += size;
+		ret = __ioremap_com(addr, pa, ea, size, flags);
+		if (ret)
+			ioremap_bot += size;
 	}
-
-	return __ioremap_com(addr, pa, ea, size, flags);
+	return ret;
 }
 
 #define IS_PAGE_ALIGNED(_val) ((_val) == ((_val) & PAGE_MASK))
@@ -251,6 +328,7 @@ int __ioremap_explicit(unsigned long pa, unsigned long ea,
 		       unsigned long size, unsigned long flags)
 {
 	struct vm_struct *area;
+	void __iomem *ret;
 	
 	/* For now, require page-aligned values for pa, ea, and size */
 	if (!IS_PAGE_ALIGNED(pa) || !IS_PAGE_ALIGNED(ea) ||
@@ -268,18 +346,25 @@ int __ioremap_explicit(unsigned long pa, unsigned long ea,
 		 */
 		;
 	} else {
-		area = im_get_area(ea, size, IM_REGION_UNUSED|IM_REGION_SUBSET);
+		area = im_get_area(ea, size,
+			IM_REGION_UNUSED|IM_REGION_SUBSET|IM_REGION_EXISTS);
 		if (area == NULL) {
-			printk(KERN_ERR "could not obtain imalloc area for ea 0x%lx\n", ea);
+			/* Expected when PHB-dlpar is in play */
 			return 1;
 		}
 		if (ea != (unsigned long) area->addr) {
-			printk(KERN_ERR "unexpected addr return from im_get_area\n");
+			printk(KERN_ERR "unexpected addr return from "
+			       "im_get_area\n");
 			return 1;
 		}
 	}
 	
-	if (__ioremap_com(pa, pa, ea, size, flags) != (void *) ea) {
+	ret = __ioremap_com(pa, pa, ea, size, flags);
+	if (ret == NULL) {
+		printk(KERN_ERR "ioremap_explicit() allocation failure !\n");
+		return 1;
+	}
+	if (ret != (void *) ea) {
 		printk(KERN_ERR "__ioremap_com() returned unexpected addr\n");
 		return 1;
 	}
@@ -287,136 +372,87 @@ int __ioremap_explicit(unsigned long pa, unsigned long ea,
 	return 0;
 }
 
-static void unmap_im_area_pte(pmd_t *pmd, unsigned long address,
-				  unsigned long size)
-{
-	unsigned long end;
-	pte_t *pte;
-
-	if (pmd_none(*pmd))
-		return;
-	if (pmd_bad(*pmd)) {
-		pmd_ERROR(*pmd);
-		pmd_clear(pmd);
-		return;
-	}
-
-	pte = pte_offset_kernel(pmd, address);
-	address &= ~PMD_MASK;
-	end = address + size;
-	if (end > PMD_SIZE)
-		end = PMD_SIZE;
-
-	do {
-		pte_t page;
-		page = ptep_get_and_clear(pte);
-		address += PAGE_SIZE;
-		pte++;
-		if (pte_none(page))
-			continue;
-		if (pte_present(page))
-			continue;
-		printk(KERN_CRIT "Whee.. Swapped out page in kernel page table\n");
-	} while (address < end);
-}
-
-static void unmap_im_area_pmd(pgd_t *dir, unsigned long address,
-				  unsigned long size)
-{
-	unsigned long end;
-	pmd_t *pmd;
-
-	if (pgd_none(*dir))
-		return;
-	if (pgd_bad(*dir)) {
-		pgd_ERROR(*dir);
-		pgd_clear(dir);
-		return;
-	}
-
-	pmd = pmd_offset(dir, address);
-	address &= ~PGDIR_MASK;
-	end = address + size;
-	if (end > PGDIR_SIZE)
-		end = PGDIR_SIZE;
-
-	do {
-		unmap_im_area_pte(pmd, address, end - address);
-		address = (address + PMD_SIZE) & PMD_MASK;
-		pmd++;
-	} while (address < end);
-}
-
 /*  
  * Unmap an IO region and remove it from imalloc'd list.
  * Access to IO memory should be serialized by driver.
  * This code is modeled after vmalloc code - unmap_vm_area()
  *
- * XXX	what about calls before mem_init_done (ie python_countermeasures())	
+ * XXX	what about calls before mem_init_done (ie python_countermeasures())
  */
-void iounmap(void *addr)
+void iounmap(volatile void __iomem *token)
 {
-	unsigned long address, start, end, size;
-	struct mm_struct *mm;
-	pgd_t *dir;
+	unsigned long address, size;
+	void *addr;
 
-	if (!mem_init_done) {
+	if (!mem_init_done)
 		return;
-	}
 	
-	/* addr could be in EEH or IO region, map it to IO region regardless.
-	 */
-	addr = (void *) (IO_TOKEN_TO_ADDR(addr) & PAGE_MASK);
+	addr = (void *) ((unsigned long __force) token & PAGE_MASK);
 	
-	if ((size = im_free(addr)) == 0) {
+	if ((size = im_free(addr)) == 0)
 		return;
-	}
 
 	address = (unsigned long)addr; 
-	start = address;
-	end = address + size;
-
-	mm = &ioremap_mm;
-	spin_lock(&mm->page_table_lock);
-
-	dir = pgd_offset_i(address);
-	flush_cache_vunmap(address, end);
-	do {
-		unmap_im_area_pmd(dir, address, end - address);
-		address = (address + PGDIR_SIZE) & PGDIR_MASK;
-		dir++;
-	} while (address && (address < end));
-	flush_tlb_kernel_range(start, end);
-
-	spin_unlock(&mm->page_table_lock);
-	return;
+	unmap_im_area(address, address + size);
 }
 
-int iounmap_explicit(void *addr, unsigned long size)
+static int iounmap_subset_regions(unsigned long addr, unsigned long size)
 {
 	struct vm_struct *area;
+
+	/* Check whether subsets of this region exist */
+	area = im_get_area(addr, size, IM_REGION_SUPERSET);
+	if (area == NULL)
+		return 1;
+
+	while (area) {
+		iounmap((void __iomem *) area->addr);
+		area = im_get_area(addr, size,
+				IM_REGION_SUPERSET);
+	}
+
+	return 0;
+}
+
+int iounmap_explicit(volatile void __iomem *start, unsigned long size)
+{
+	struct vm_struct *area;
+	unsigned long addr;
+	int rc;
 	
-	/* addr could be in EEH or IO region, map it to IO region regardless.
-	 */
-	addr = (void *) (IO_TOKEN_TO_ADDR(addr) & PAGE_MASK);
+	addr = (unsigned long __force) start & PAGE_MASK;
 
 	/* Verify that the region either exists or is a subset of an existing
 	 * region.  In the latter case, split the parent region to create 
 	 * the exact region 
 	 */
-	area = im_get_area((unsigned long) addr, size, 
+	area = im_get_area(addr, size, 
 			    IM_REGION_EXISTS | IM_REGION_SUBSET);
 	if (area == NULL) {
-		printk(KERN_ERR "%s() cannot unmap nonexistent range 0x%lx\n",
-				__FUNCTION__, (unsigned long) addr);
-		return 1;
+		/* Determine whether subset regions exist.  If so, unmap */
+		rc = iounmap_subset_regions(addr, size);
+		if (rc) {
+			printk(KERN_ERR
+			       "%s() cannot unmap nonexistent range 0x%lx\n",
+ 				__FUNCTION__, addr);
+			return 1;
+		}
+	} else {
+		iounmap((void __iomem *) area->addr);
 	}
-
+	/*
+	 * FIXME! This can't be right:
 	iounmap(area->addr);
+	 * Maybe it should be "iounmap(area);"
+	 */
 	return 0;
 }
 
 #endif
+
+EXPORT_SYMBOL(ioremap);
+EXPORT_SYMBOL(__ioremap);
+EXPORT_SYMBOL(iounmap);
 
 void free_initmem(void)
 {
@@ -447,41 +483,76 @@ void free_initrd_mem(unsigned long start, unsigned long end)
 }
 #endif
 
+static DEFINE_SPINLOCK(mmu_context_lock);
+static DEFINE_IDR(mmu_context_idr);
+
+int init_new_context(struct task_struct *tsk, struct mm_struct *mm)
+{
+	int index;
+	int err;
+
+#ifdef CONFIG_HUGETLB_PAGE
+	/* We leave htlb_segs as it was, but for a fork, we need to
+	 * clear the huge_pgdir. */
+	mm->context.huge_pgdir = NULL;
+#endif
+
+again:
+	if (!idr_pre_get(&mmu_context_idr, GFP_KERNEL))
+		return -ENOMEM;
+
+	spin_lock(&mmu_context_lock);
+	err = idr_get_new_above(&mmu_context_idr, NULL, 1, &index);
+	spin_unlock(&mmu_context_lock);
+
+	if (err == -EAGAIN)
+		goto again;
+	else if (err)
+		return err;
+
+	if (index > MAX_CONTEXT) {
+		idr_remove(&mmu_context_idr, index);
+		return -ENOMEM;
+	}
+
+	mm->context.id = index;
+
+	return 0;
+}
+
+void destroy_context(struct mm_struct *mm)
+{
+	spin_lock(&mmu_context_lock);
+	idr_remove(&mmu_context_idr, mm->context.id);
+	spin_unlock(&mmu_context_lock);
+
+	mm->context.id = NO_CONTEXT;
+
+	hugetlb_mm_free_pgd(mm);
+}
+
 /*
  * Do very early mm setup.
  */
 void __init mm_init_ppc64(void)
 {
+#ifndef CONFIG_PPC_ISERIES
 	unsigned long i;
+#endif
 
 	ppc64_boot_msg(0x100, "MM Init");
-
-	/* Reserve all contexts < FIRST_USER_CONTEXT for kernel use.
-	 * The range of contexts [FIRST_USER_CONTEXT, NUM_USER_CONTEXT)
-	 * are stored on a stack/queue for easy allocation and deallocation.
-	 */
-	mmu_context_queue.lock = SPIN_LOCK_UNLOCKED;
-	mmu_context_queue.head = 0;
-	mmu_context_queue.tail = NUM_USER_CONTEXT-1;
-	mmu_context_queue.size = NUM_USER_CONTEXT;
-	for (i = 0; i < NUM_USER_CONTEXT; i++)
-		mmu_context_queue.elements[i] = i + FIRST_USER_CONTEXT;
 
 	/* This is the story of the IO hole... please, keep seated,
 	 * unfortunately, we are out of oxygen masks at the moment.
 	 * So we need some rough way to tell where your big IO hole
 	 * is. On pmac, it's between 2G and 4G, on POWER3, it's around
 	 * that area as well, on POWER4 we don't have one, etc...
-	 * We need that to implement something approx. decent for
-	 * page_is_ram() so that /dev/mem doesn't map cacheable IO space
-	 * when XFree resquest some IO regions witout using O_SYNC, we
-	 * also need that as a "hint" when sizing the TCE table on POWER3
+	 * We need that as a "hint" when sizing the TCE table on POWER3
 	 * So far, the simplest way that seem work well enough for us it
 	 * to just assume that the first discontinuity in our physical
 	 * RAM layout is the IO hole. That may not be correct in the future
 	 * (and isn't on iSeries but then we don't care ;)
 	 */
-	top_of_ram = lmb_end_of_DRAM();
 
 #ifndef CONFIG_PPC_ISERIES
 	for (i = 1; i < lmb.memory.cnt; i++) {
@@ -504,22 +575,32 @@ void __init mm_init_ppc64(void)
 	ppc64_boot_msg(0x100, "MM Init Done");
 }
 
-
 /*
  * This is called by /dev/mem to know if a given address has to
  * be mapped non-cacheable or not
  */
-int page_is_ram(unsigned long physaddr)
+int page_is_ram(unsigned long pfn)
 {
-#ifdef CONFIG_PPC_ISERIES
-	return 1;
-#endif
-	if (physaddr >= top_of_ram)
-		return 0;
-	return io_hole_start == 0 ||  physaddr < io_hole_start ||
-		physaddr >= (io_hole_start + io_hole_size);
-}
+	int i;
+	unsigned long paddr = (pfn << PAGE_SHIFT);
 
+	for (i=0; i < lmb.memory.cnt; i++) {
+		unsigned long base;
+
+#ifdef CONFIG_MSCHUNKS
+		base = lmb.memory.region[i].physbase;
+#else
+		base = lmb.memory.region[i].base;
+#endif
+		if ((paddr >= base) &&
+			(paddr < (base + lmb.memory.region[i].size))) {
+			return 1;
+		}
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(page_is_ram);
 
 /*
  * Initialize the bootmem system and give it all the memory we
@@ -573,6 +654,7 @@ void __init paging_init(void)
 	unsigned long zones_size[MAX_NR_ZONES];
 	unsigned long zholes_size[MAX_NR_ZONES];
 	unsigned long total_ram = lmb_phys_mem_size();
+	unsigned long top_of_ram = lmb_end_of_DRAM();
 
 	printk(KERN_INFO "Top of RAM: 0x%lx, Total RAM: 0x%lx\n",
 	       top_of_ram, total_ram);
@@ -587,9 +669,8 @@ void __init paging_init(void)
 	zones_size[ZONE_DMA] = top_of_ram >> PAGE_SHIFT;
 	zholes_size[ZONE_DMA] = (top_of_ram - total_ram) >> PAGE_SHIFT;
 
-	free_area_init_node(0, &contig_page_data, NULL, zones_size,
+	free_area_init_node(0, NODE_DATA(0), zones_size,
 			    __pa(PAGE_OFFSET) >> PAGE_SHIFT, zholes_size);
-	mem_map = contig_page_data.node_mem_map;
 }
 #endif /* CONFIG_DISCONTIGMEM */
 
@@ -622,64 +703,60 @@ module_init(setup_kcore);
 
 void __init mem_init(void)
 {
-#ifndef CONFIG_DISCONTIGMEM
-	unsigned long addr;
+#ifdef CONFIG_DISCONTIGMEM
+	int nid;
 #endif
-	int codepages = 0;
-	int datapages = 0;
-	int initpages = 0;
+	pg_data_t *pgdat;
+	unsigned long i;
+	struct page *page;
+	unsigned long reservedpages = 0, codesize, initsize, datasize, bsssize;
 
 	num_physpages = max_low_pfn;	/* RAM is assumed contiguous */
 	high_memory = (void *) __va(max_low_pfn * PAGE_SIZE);
 
 #ifdef CONFIG_DISCONTIGMEM
-{
-	int nid;
-
-        for (nid = 0; nid < numnodes; nid++) {
-		if (node_data[nid].node_spanned_pages != 0) {
+        for_each_online_node(nid) {
+		if (NODE_DATA(nid)->node_spanned_pages != 0) {
 			printk("freeing bootmem node %x\n", nid);
 			totalram_pages +=
 				free_all_bootmem_node(NODE_DATA(nid));
 		}
 	}
-
-	printk("Memory: %luk available (%dk kernel code, %dk data, %dk init) [%08lx,%08lx]\n",
-	       (unsigned long)nr_free_pages()<< (PAGE_SHIFT-10),
-	       codepages<< (PAGE_SHIFT-10), datapages<< (PAGE_SHIFT-10),
-	       initpages<< (PAGE_SHIFT-10),
-	       PAGE_OFFSET, (unsigned long)__va(lmb_end_of_DRAM()));
-}
 #else
 	max_mapnr = num_physpages;
-
 	totalram_pages += free_all_bootmem();
+#endif
 
-	for (addr = KERNELBASE; addr < (unsigned long)__va(lmb_end_of_DRAM());
-	     addr += PAGE_SIZE) {
-		if (!PageReserved(virt_to_page(addr)))
-			continue;
-		if (addr < (unsigned long)_etext)
-			codepages++;
-
-		else if (addr >= (unsigned long)__init_begin
-			 && addr < (unsigned long)__init_end)
-			initpages++;
-		else if (addr < klimit)
-			datapages++;
+	for_each_pgdat(pgdat) {
+		for (i = 0; i < pgdat->node_spanned_pages; i++) {
+			page = pgdat->node_mem_map + i;
+			if (PageReserved(page))
+				reservedpages++;
+		}
 	}
 
-	printk("Memory: %luk available (%dk kernel code, %dk data, %dk init) [%08lx,%08lx]\n",
-	       (unsigned long)nr_free_pages()<< (PAGE_SHIFT-10),
-	       codepages<< (PAGE_SHIFT-10), datapages<< (PAGE_SHIFT-10),
-	       initpages<< (PAGE_SHIFT-10),
-	       PAGE_OFFSET, (unsigned long)__va(lmb_end_of_DRAM()));
-#endif
+	codesize = (unsigned long)&_etext - (unsigned long)&_stext;
+	initsize = (unsigned long)&__init_end - (unsigned long)&__init_begin;
+	datasize = (unsigned long)&_edata - (unsigned long)&__init_end;
+	bsssize = (unsigned long)&__bss_stop - (unsigned long)&__bss_start;
+
+	printk(KERN_INFO "Memory: %luk/%luk available (%luk kernel code, "
+	       "%luk reserved, %luk data, %luk bss, %luk init)\n",
+		(unsigned long)nr_free_pages() << (PAGE_SHIFT-10),
+		num_physpages << (PAGE_SHIFT-10),
+		codesize >> 10,
+		reservedpages << (PAGE_SHIFT-10),
+		datasize >> 10,
+		bsssize >> 10,
+		initsize >> 10);
+
 	mem_init_done = 1;
 
 #ifdef CONFIG_PPC_ISERIES
 	iommu_vio_init();
 #endif
+	/* Initialize the vDSO */
+	vdso_init();
 }
 
 /*
@@ -689,18 +766,19 @@ void __init mem_init(void)
  */
 void flush_dcache_page(struct page *page)
 {
-	if (cur_cpu_spec->cpu_features & CPU_FTR_COHERENT_ICACHE)
+	if (cpu_has_feature(CPU_FTR_COHERENT_ICACHE))
 		return;
 	/* avoid an atomic op if possible */
 	if (test_bit(PG_arch_1, &page->flags))
 		clear_bit(PG_arch_1, &page->flags);
 }
+EXPORT_SYMBOL(flush_dcache_page);
 
 void clear_user_page(void *page, unsigned long vaddr, struct page *pg)
 {
 	clear_page(page);
 
-	if (cur_cpu_spec->cpu_features & CPU_FTR_COHERENT_ICACHE)
+	if (cpu_has_feature(CPU_FTR_COHERENT_ICACHE))
 		return;
 	/*
 	 * We shouldnt have to do this, but some versions of glibc
@@ -712,6 +790,7 @@ void clear_user_page(void *page, unsigned long vaddr, struct page *pg)
 	if (test_bit(PG_arch_1, &pg->flags))
 		clear_bit(PG_arch_1, &pg->flags);
 }
+EXPORT_SYMBOL(clear_user_page);
 
 void copy_user_page(void *vto, void *vfrom, unsigned long vaddr,
 		    struct page *pg)
@@ -733,7 +812,7 @@ void copy_user_page(void *vto, void *vfrom, unsigned long vaddr,
 		return;
 #endif
 
-	if (cur_cpu_spec->cpu_features & CPU_FTR_COHERENT_ICACHE)
+	if (cpu_has_feature(CPU_FTR_COHERENT_ICACHE))
 		return;
 
 	/* avoid an atomic op if possible */
@@ -749,6 +828,7 @@ void flush_icache_user_range(struct vm_area_struct *vma, struct page *page,
 	maddr = (unsigned long)page_address(page) + (addr & ~PAGE_MASK);
 	flush_icache_range(maddr, maddr + len);
 }
+EXPORT_SYMBOL(flush_icache_user_range);
 
 /*
  * This is called at the end of handling a user page fault, when the
@@ -769,8 +849,8 @@ void update_mmu_cache(struct vm_area_struct *vma, unsigned long ea,
 	unsigned long flags;
 
 	/* handle i-cache coherency */
-	if (!(cur_cpu_spec->cpu_features & CPU_FTR_COHERENT_ICACHE) &&
-	    !(cur_cpu_spec->cpu_features & CPU_FTR_NOEXECUTE)) {
+	if (!cpu_has_feature(CPU_FTR_COHERENT_ICACHE) &&
+	    !cpu_has_feature(CPU_FTR_NOEXECUTE)) {
 		unsigned long pfn = pte_pfn(pte);
 		if (pfn_valid(pfn)) {
 			struct page *page = pfn_to_page(pfn);
@@ -806,14 +886,14 @@ void update_mmu_cache(struct vm_area_struct *vma, unsigned long ea,
 	local_irq_restore(flags);
 }
 
-void * reserve_phb_iospace(unsigned long size)
+void __iomem * reserve_phb_iospace(unsigned long size)
 {
-	void *virt_addr;
+	void __iomem *virt_addr;
 		
 	if (phbs_io_bot >= IMALLOC_BASE) 
 		panic("reserve_phb_iospace(): phb io space overflow\n");
 			
-	virt_addr = (void *) phbs_io_bot;
+	virt_addr = (void __iomem *) phbs_io_bot;
 	phbs_io_bot += size;
 
 	return virt_addr;
@@ -837,3 +917,16 @@ void pgtable_cache_init(void)
 	if (!zero_cache)
 		panic("pgtable_cache_init(): could not create zero_cache!\n");
 }
+
+pgprot_t phys_mem_access_prot(struct file *file, unsigned long addr,
+			      unsigned long size, pgprot_t vma_prot)
+{
+	if (ppc_md.phys_mem_access_prot)
+		return ppc_md.phys_mem_access_prot(file, addr, size, vma_prot);
+
+	if (!page_is_ram(addr >> PAGE_SHIFT))
+		vma_prot = __pgprot(pgprot_val(vma_prot)
+				    | _PAGE_GUARDED | _PAGE_NO_CACHE);
+	return vma_prot;
+}
+EXPORT_SYMBOL(phys_mem_access_prot);

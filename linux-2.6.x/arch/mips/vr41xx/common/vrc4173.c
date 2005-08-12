@@ -4,6 +4,7 @@
  *  Copyright (C) 2001-2003  MontaVista Software Inc.
  *    Author: Yoichi Yuasa <yyuasa@mvista.com, or source@mvista.com>
  *  Copyright (C) 2004  Yoichi Yuasa <yuasa@hh.iij4u.or.jp>
+ *  Copyright (C) 2005 Ralf Baechle (ralf@linux-mips.org)
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -19,7 +20,6 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/interrupt.h>
@@ -56,6 +56,9 @@ MODULE_LICENSE("GPL");
 
 #define VRC4173_SYSINT1REG	0x060
 #define VRC4173_MSYSINT1REG	0x06c
+#define VRC4173_MPIUINTREG	0x06e
+#define VRC4173_MAIUINTREG	0x070
+#define VRC4173_MKIUINTREG	0x072
 
 #define VRC4173_SELECTREG	0x09e
  #define SEL3			0x0008
@@ -315,6 +318,96 @@ static inline void vrc4173_giu_init(void)
 
 	spin_lock_init(&vrc4173_giu_lock);
 }
+
+void vrc4173_enable_piuint(uint16_t mask)
+{
+	irq_desc_t *desc = irq_desc + VRC4173_PIU_IRQ;
+	unsigned long flags;
+	uint16_t val;
+
+	spin_lock_irqsave(&desc->lock, flags);
+	val = vrc4173_inw(VRC4173_MPIUINTREG);
+	val |= mask;
+	vrc4173_outw(val, VRC4173_MPIUINTREG);
+	spin_unlock_irqrestore(&desc->lock, flags);
+}
+
+EXPORT_SYMBOL(vrc4173_enable_piuint);
+
+void vrc4173_disable_piuint(uint16_t mask)
+{
+	irq_desc_t *desc = irq_desc + VRC4173_PIU_IRQ;
+	unsigned long flags;
+	uint16_t val;
+
+	spin_lock_irqsave(&desc->lock, flags);
+	val = vrc4173_inw(VRC4173_MPIUINTREG);
+	val &= ~mask;
+	vrc4173_outw(val, VRC4173_MPIUINTREG);
+	spin_unlock_irqrestore(&desc->lock, flags);
+}
+
+EXPORT_SYMBOL(vrc4173_disable_piuint);
+
+void vrc4173_enable_aiuint(uint16_t mask)
+{
+	irq_desc_t *desc = irq_desc + VRC4173_AIU_IRQ;
+	unsigned long flags;
+	uint16_t val;
+
+	spin_lock_irqsave(&desc->lock, flags);
+	val = vrc4173_inw(VRC4173_MAIUINTREG);
+	val |= mask;
+	vrc4173_outw(val, VRC4173_MAIUINTREG);
+	spin_unlock_irqrestore(&desc->lock, flags);
+}
+
+EXPORT_SYMBOL(vrc4173_enable_aiuint);
+
+void vrc4173_disable_aiuint(uint16_t mask)
+{
+	irq_desc_t *desc = irq_desc + VRC4173_AIU_IRQ;
+	unsigned long flags;
+	uint16_t val;
+
+	spin_lock_irqsave(&desc->lock, flags);
+	val = vrc4173_inw(VRC4173_MAIUINTREG);
+	val &= ~mask;
+	vrc4173_outw(val, VRC4173_MAIUINTREG);
+	spin_unlock_irqrestore(&desc->lock, flags);
+}
+
+EXPORT_SYMBOL(vrc4173_disable_aiuint);
+
+void vrc4173_enable_kiuint(uint16_t mask)
+{
+	irq_desc_t *desc = irq_desc + VRC4173_KIU_IRQ;
+	unsigned long flags;
+	uint16_t val;
+
+	spin_lock_irqsave(&desc->lock, flags);
+	val = vrc4173_inw(VRC4173_MKIUINTREG);
+	val |= mask;
+	vrc4173_outw(val, VRC4173_MKIUINTREG);
+	spin_unlock_irqrestore(&desc->lock, flags);
+}
+
+EXPORT_SYMBOL(vrc4173_enable_kiuint);
+
+void vrc4173_disable_kiuint(uint16_t mask)
+{
+	irq_desc_t *desc = irq_desc + VRC4173_KIU_IRQ;
+	unsigned long flags;
+	uint16_t val;
+
+	spin_lock_irqsave(&desc->lock, flags);
+	val = vrc4173_inw(VRC4173_MKIUINTREG);
+	val &= ~mask;
+	vrc4173_outw(val, VRC4173_MKIUINTREG);
+	spin_unlock_irqrestore(&desc->lock, flags);
+}
+
+EXPORT_SYMBOL(vrc4173_disable_kiuint);
 
 static void enable_vrc4173_irq(unsigned int irq)
 {

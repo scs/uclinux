@@ -40,7 +40,6 @@
 #include <asm/io.h>
 #include <asm/uaccess.h>
 #include <asm/pgalloc.h>
-#include <asm/hardirq.h>
 #include <asm/mmu_context.h>
 #include <asm/registers.h>		/* required by inline asm statements */
 
@@ -76,7 +75,6 @@ inline void __do_tlb_refill(unsigned long address,
 
 	/* Set PTEL register, set_pte has performed the sign extension */
 	ptel &= _PAGE_FLAGS_HARDWARE_MASK; /* drop software flags */
-	ptel |= _PAGE_FLAGS_HARDWARE_DEFAULT; /* add default flags */
 
 	tlbp = is_text_not_data ? &(cpu_data->itlb) : &(cpu_data->dtlb);
 	next = tlbp->next;

@@ -14,6 +14,7 @@ config CPU_ARM610
 	depends on ARCH_RPC
 	select CPU_32v3
 	select CPU_CACHE_V3
+	select CPU_CACHE_VIVT
 	select CPU_COPY_V3
 	select CPU_TLB_V3
 	help
@@ -29,6 +30,7 @@ config CPU_ARM710
 	default y if ARCH_CLPS7500
 	select CPU_32v3
 	select CPU_CACHE_V3
+	select CPU_CACHE_VIVT
 	select CPU_COPY_V3
 	select CPU_TLB_V3
 	help
@@ -43,10 +45,11 @@ config CPU_ARM710
 # ARM720T
 config CPU_ARM720T
 	bool "Support ARM720T processor" if !ARCH_CLPS711X && !ARCH_L7200 && !ARCH_CDB89712 && ARCH_INTEGRATOR
-	default y if ARCH_CLPS711X || ARCH_L7200 || ARCH_CDB89712
+	default y if ARCH_CLPS711X || ARCH_L7200 || ARCH_CDB89712 || ARCH_H720X
 	select CPU_32v4
 	select CPU_ABRT_LV4T
 	select CPU_CACHE_V4
+	select CPU_CACHE_VIVT
 	select CPU_COPY_V4WT
 	select CPU_TLB_V4WT
 	help
@@ -59,11 +62,12 @@ config CPU_ARM720T
 # ARM920T
 config CPU_ARM920T
 	bool "Support ARM920T processor" if !ARCH_S3C2410
-	depends on ARCH_INTEGRATOR || ARCH_S3C2410
+	depends on ARCH_INTEGRATOR || ARCH_S3C2410 || ARCH_IMX
 	default y if ARCH_S3C2410
 	select CPU_32v4
 	select CPU_ABRT_EV4T
 	select CPU_CACHE_V4WT
+	select CPU_CACHE_VIVT
 	select CPU_COPY_V4WB
 	select CPU_TLB_V4WBI
 	help
@@ -78,12 +82,13 @@ config CPU_ARM920T
 
 # ARM922T
 config CPU_ARM922T
-	bool
-	depends on ARCH_CAMELOT || ARCH_LH7A40X
-	default y
+	bool "Support ARM922T processor" if ARCH_INTEGRATOR
+	depends on ARCH_CAMELOT || ARCH_LH7A40X || ARCH_INTEGRATOR
+	default y if ARCH_CAMELOT || ARCH_LH7A40X
 	select CPU_32v4
 	select CPU_ABRT_EV4T
 	select CPU_CACHE_V4WT
+	select CPU_CACHE_VIVT
 	select CPU_COPY_V4WB
 	select CPU_TLB_V4WBI
 	help
@@ -96,12 +101,13 @@ config CPU_ARM922T
 
 # ARM925T
 config CPU_ARM925T
- 	bool
+ 	bool "Support ARM925T processor" if ARCH_OMAP
  	depends on ARCH_OMAP1510
- 	default y
+ 	default y if ARCH_OMAP1510
 	select CPU_32v4
 	select CPU_ABRT_EV4T
 	select CPU_CACHE_V4WT
+	select CPU_CACHE_VIVT
 	select CPU_COPY_V4WB
 	select CPU_TLB_V4WBI
  	help
@@ -115,10 +121,11 @@ config CPU_ARM925T
 # ARM926T
 config CPU_ARM926T
 	bool "Support ARM926T processor" if ARCH_INTEGRATOR
-	depends on ARCH_INTEGRATOR || ARCH_VERSATILE_PB || ARCH_OMAP730 || ARCH_OMAP1610 || ARCH_OMAP5912
-	default y if ARCH_VERSATILE_PB
+	depends on ARCH_INTEGRATOR || ARCH_VERSATILE_PB || MACH_VERSATILE_AB || ARCH_OMAP730 || ARCH_OMAP16XX
+	default y if ARCH_VERSATILE_PB || MACH_VERSATILE_AB || ARCH_OMAP730 || ARCH_OMAP16XX
 	select CPU_32v5
 	select CPU_ABRT_EV5TJ
+	select CPU_CACHE_VIVT
 	select CPU_COPY_V4WB
 	select CPU_TLB_V4WBI
 	help
@@ -136,6 +143,7 @@ config CPU_ARM1020
 	select CPU_32v5
 	select CPU_ABRT_EV4T
 	select CPU_CACHE_V4WT
+	select CPU_CACHE_VIVT
 	select CPU_COPY_V4WB
 	select CPU_TLB_V4WBI
 	help
@@ -152,6 +160,7 @@ config CPU_ARM1020E
 	select CPU_32v5
 	select CPU_ABRT_EV4T
 	select CPU_CACHE_V4WT
+	select CPU_CACHE_VIVT
 	select CPU_COPY_V4WB
 	select CPU_TLB_V4WBI
 	depends on n
@@ -162,6 +171,7 @@ config CPU_ARM1022
 	depends on ARCH_INTEGRATOR
 	select CPU_32v5
 	select CPU_ABRT_EV4T
+	select CPU_CACHE_VIVT
 	select CPU_COPY_V4WB # can probably do better
 	select CPU_TLB_V4WBI
 	help
@@ -178,6 +188,7 @@ config CPU_ARM1026
 	depends on ARCH_INTEGRATOR
 	select CPU_32v5
 	select CPU_ABRT_EV5T # But need Jazelle, but EV5TJ ignores bit 10
+	select CPU_CACHE_VIVT
 	select CPU_COPY_V4WB # can probably do better
 	select CPU_TLB_V4WBI
 	help
@@ -195,6 +206,7 @@ config CPU_SA110
 	select CPU_32v4 if !ARCH_RPC
 	select CPU_ABRT_EV4
 	select CPU_CACHE_V4WB
+	select CPU_CACHE_VIVT
 	select CPU_COPY_V4WB
 	select CPU_TLB_V4WB
 	help
@@ -214,18 +226,18 @@ config CPU_SA1100
 	select CPU_32v4
 	select CPU_ABRT_EV4
 	select CPU_CACHE_V4WB
+	select CPU_CACHE_VIVT
 	select CPU_TLB_V4WB
-	select CPU_MINICACHE
 
 # XScale
 config CPU_XSCALE
 	bool
-	depends on ARCH_IOP3XX || ARCH_PXA || ARCH_IXP4XX
+	depends on ARCH_IOP3XX || ARCH_PXA || ARCH_IXP4XX || ARCH_IXP2000
 	default y
 	select CPU_32v5
 	select CPU_ABRT_EV5T
+	select CPU_CACHE_VIVT
 	select CPU_TLB_V4WBI
-	select CPU_MINICACHE
 
 # ARMv6
 config CPU_V6
@@ -234,6 +246,7 @@ config CPU_V6
 	select CPU_32v6
 	select CPU_ABRT_EV6
 	select CPU_CACHE_V6
+	select CPU_CACHE_VIPT
 	select CPU_COPY_V6
 	select CPU_TLB_V6
 
@@ -286,6 +299,12 @@ config CPU_CACHE_V4WB
 config CPU_CACHE_V6
 	bool
 
+config CPU_CACHE_VIVT
+	bool
+
+config CPU_CACHE_VIPT
+	bool
+
 # The copy-page model
 config CPU_COPY_V3
 	bool
@@ -323,11 +342,6 @@ config CPU_TLB_V4WBI
 
 config CPU_TLB_V6
 	bool
-
-config CPU_MINICACHE
-	bool
-	help
-	  Processor has a minicache.
 
 comment "Processor Features"
 
@@ -371,8 +385,9 @@ config CPU_DCACHE_DISABLE
 config CPU_DCACHE_WRITETHROUGH
 	bool "Force write through D-cache"
 	depends on (CPU_ARM920T || CPU_ARM922T || CPU_ARM925T || CPU_ARM926T || CPU_ARM1020) && !CPU_DISABLE_DCACHE
+	default y if CPU_ARM925T
 	help
-	  Say Y here to use the data cache in writethough mode. Unless you
+	  Say Y here to use the data cache in writethrough mode. Unless you
 	  specifically require this or are unsure, say N.
 
 config CPU_CACHE_ROUND_ROBIN
@@ -387,3 +402,31 @@ config CPU_BPREDICT_DISABLE
 	depends on CPU_ARM1020
 	help
 	  Say Y here to disable branch prediction.  If unsure, say N.
+
+config TLS_REG_EMUL
+	bool
+	default y if SMP && (CPU_32v5 || CPU_32v4 || CPU_32v3)
+	help
+	  An SMP system using a pre-ARMv6 processor (there are apparently
+	  a few prototypes like that in existence) and therefore access to
+	  that required register must be emulated.
+
+config HAS_TLS_REG
+	bool
+	depends on !TLS_REG_EMUL
+	default y if SMP || CPU_32v7
+	help
+	  This selects support for the CP15 thread register.
+	  It is defined to be available on some ARMv6 processors (including
+	  all SMP capable ARMv6's) or later processors.  User space may
+	  assume directly accessing that register and always obtain the
+	  expected value only on ARMv7 and above.
+
+config NEEDS_SYSCALL_FOR_CMPXCHG
+	bool
+	default y if SMP && (CPU_32v5 || CPU_32v4 || CPU_32v3)
+	help
+	  SMP on a pre-ARMv6 processor?  Well OK then.
+	  Forget about fast user space cmpxchg support.
+	  It is just not possible.
+

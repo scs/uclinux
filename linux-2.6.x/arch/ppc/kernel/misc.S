@@ -214,12 +214,12 @@ _GLOBAL(low_choose_750fx_pll)
 	mtmsr	r0
 
 	/* If switching to PLL1, disable HID0:BTIC */
-	cmpli	cr0,r3,0
+	cmplwi	cr0,r3,0
 	beq	1f
-	mfspr	r5,HID0
+	mfspr	r5,SPRN_HID0
 	rlwinm	r5,r5,0,27,25
 	sync
-	mtspr	HID0,r5
+	mtspr	SPRN_HID0,r5
 	isync
 	sync
 
@@ -239,12 +239,12 @@ _GLOBAL(low_choose_750fx_pll)
 	stw	r4,nap_save_hid1@l(r6)
 
 	/* If switching to PLL0, enable HID0:BTIC */
-	cmpli	cr0,r3,0
+	cmplwi	cr0,r3,0
 	bne	1f
-	mfspr	r5,HID0
+	mfspr	r5,SPRN_HID0
 	ori	r5,r5,HID0_BTIC
 	sync
-	mtspr	HID0,r5
+	mtspr	SPRN_HID0,r5
 	isync
 	sync
 
@@ -470,7 +470,7 @@ _GLOBAL(_tlbia)
 	ori	r9,r9,mmu_hash_lock@l
 	tophys(r9,r9)
 10:	lwarx	r7,0,r9
-	cmpi	0,r7,0
+	cmpwi	0,r7,0
 	bne-	10b
 	stwcx.	r8,0,r9
 	bne-	10b
@@ -551,7 +551,7 @@ _GLOBAL(_tlbie)
 	ori	r9,r9,mmu_hash_lock@l
 	tophys(r9,r9)
 10:	lwarx	r7,0,r9
-	cmpi	0,r7,0
+	cmpwi	0,r7,0
 	bne-	10b
 	stwcx.	r8,0,r9
 	bne-	10b
@@ -579,7 +579,7 @@ _GLOBAL(flush_instruction_cache)
 #if defined(CONFIG_8xx)
 	isync
 	lis	r5, IDC_INVALL@h
-	mtspr	IC_CST, r5
+	mtspr	SPRN_IC_CST, r5
 #elif defined(CONFIG_4xx)
 #ifdef CONFIG_403GCX
 	li      r3, 512
@@ -597,14 +597,14 @@ _GLOBAL(flush_instruction_cache)
 	ori	r3,r3,L1CSR1_ICFI|L1CSR1_ICLFR
 	mtspr	SPRN_L1CSR1,r3
 #else
-	mfspr	r3,PVR
+	mfspr	r3,SPRN_PVR
 	rlwinm	r3,r3,16,16,31
-	cmpi	0,r3,1
+	cmpwi	0,r3,1
 	beqlr			/* for 601, do nothing */
 	/* 603/604 processor - use invalidate-all bit in HID0 */
-	mfspr	r3,HID0
+	mfspr	r3,SPRN_HID0
 	ori	r3,r3,HID0_ICFI
-	mtspr	HID0,r3
+	mtspr	SPRN_HID0,r3
 #endif /* CONFIG_8xx/4xx */
 	isync
 	blr
@@ -617,10 +617,9 @@ _GLOBAL(flush_instruction_cache)
  * flush_icache_range(unsigned long start, unsigned long stop)
  */
 _GLOBAL(flush_icache_range)
-	mfspr	r5,PVR
-	rlwinm	r5,r5,16,16,31
-	cmpi	0,r5,1
-	beqlr				/* for 601, do nothing */
+BEGIN_FTR_SECTION
+	blr				/* for 601, do nothing */
+END_FTR_SECTION_IFCLR(CPU_FTR_SPLIT_ID_CACHE)
 	li	r5,L1_CACHE_LINE_SIZE-1
 	andc	r3,r3,r5
 	subf	r4,r3,r4
@@ -735,10 +734,9 @@ _GLOBAL(flush_dcache_all)
  *	void __flush_dcache_icache(void *page)
  */
 _GLOBAL(__flush_dcache_icache)
-	mfspr	r5,PVR
-	rlwinm	r5,r5,16,16,31
-	cmpi	0,r5,1
-	beqlr					/* for 601, do nothing */
+BEGIN_FTR_SECTION
+	blr					/* for 601, do nothing */
+END_FTR_SECTION_IFCLR(CPU_FTR_SPLIT_ID_CACHE)
 	rlwinm	r3,r3,0,0,19			/* Get page base address */
 	li	r4,4096/L1_CACHE_LINE_SIZE	/* Number of lines in a page */
 	mtctr	r4
@@ -764,10 +762,9 @@ _GLOBAL(__flush_dcache_icache)
  *	void __flush_dcache_icache_phys(unsigned long physaddr)
  */
 _GLOBAL(__flush_dcache_icache_phys)
-	mfspr	r5,PVR
-	rlwinm	r5,r5,16,16,31
-	cmpi	0,r5,1
-	beqlr					/* for 601, do nothing */
+BEGIN_FTR_SECTION
+	blr					/* for 601, do nothing */
+END_FTR_SECTION_IFCLR(CPU_FTR_SPLIT_ID_CACHE)
 	mfmsr	r10
 	rlwinm	r0,r10,0,28,26			/* clear DR */
 	mtmsr	r0
@@ -1099,17 +1096,7 @@ _GLOBAL(_get_SP)
  * and exceptions as if the cpu had performed the load or store.
  */
 
-#if defined(CONFIG_4xx) || defined(CONFIG_E500)
-_GLOBAL(cvt_fd)
-	lfs	0,0(r3)
-	stfd	0,0(r4)
-	blr
-
-_GLOBAL(cvt_df)
-	lfd	0,0(r3)
-	stfs	0,0(r4)
-	blr
-#else
+#ifdef CONFIG_PPC_FPU
 _GLOBAL(cvt_fd)
 	lfd	0,-4(r5)	/* load up fpscr value */
 	mtfsf	0xff,0
@@ -1144,7 +1131,7 @@ _GLOBAL(kernel_thread)
 	li	r4,0		/* new sp (unused) */
 	li	r0,__NR_clone
 	sc
-	cmpi	0,r3,0		/* parent or child? */
+	cmpwi	0,r3,0		/* parent or child? */
 	bne	1f		/* return if parent */
 	li	r0,0		/* make top-level stack frame */
 	stwu	r0,-16(r1)
@@ -1437,7 +1424,7 @@ _GLOBAL(sys_call_table)
 	.long sys_fstatfs64
 	.long ppc_fadvise64_64
 	.long sys_ni_syscall		/* 255 - rtas (used on ppc64) */
-	.long sys_ni_syscall		/* 256 reserved for sys_debug_setcontext */
+	.long sys_debug_setcontext
 	.long sys_ni_syscall		/* 257 reserved for vserver */
 	.long sys_ni_syscall		/* 258 reserved for new sys_remap_file_pages */
 	.long sys_ni_syscall		/* 259 reserved for new sys_mbind */
@@ -1450,3 +1437,7 @@ _GLOBAL(sys_call_table)
 	.long sys_mq_notify
 	.long sys_mq_getsetattr
 	.long sys_ni_syscall		/* 268 reserved for sys_kexec_load */
+	.long sys_add_key
+	.long sys_request_key		/* 270 */
+	.long sys_keyctl
+	.long sys_waitid

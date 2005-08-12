@@ -17,17 +17,18 @@
 #include "linux/sysrq.h"
 #include "linux/seq_file.h"
 #include "linux/delay.h"
+#include "linux/module.h"
 #include "asm/page.h"
 #include "asm/pgtable.h"
 #include "asm/ptrace.h"
 #include "asm/elf.h"
 #include "asm/user.h"
+#include "asm/setup.h"
 #include "ubd_user.h"
 #include "asm/current.h"
 #include "user_util.h"
 #include "kern_util.h"
 #include "kern.h"
-#include "mprot.h"
 #include "mem_user.h"
 #include "mem.h"
 #include "umid.h"
@@ -38,7 +39,21 @@
 #include "mode_kern.h"
 #include "mode.h"
 
-#define DEFAULT_COMMAND_LINE "root=6200"
+#define DEFAULT_COMMAND_LINE "root=98:0"
+
+/* Changed in linux_main and setup_arch, which run before SMP is started */
+static char command_line[COMMAND_LINE_SIZE] = { 0 };
+
+static void add_arg(char *arg)
+{
+	if (strlen(command_line) + strlen(arg) + 1 > COMMAND_LINE_SIZE) {
+		printf("add_arg: Too many command line arguments!\n");
+		exit(1);
+	}
+	if(strlen(command_line) > 0)
+		strcat(command_line, " ");
+	strcat(command_line, arg);
+}
 
 struct cpuinfo_um boot_cpu_data = { 
 	.loops_per_jiffy	= 0,
@@ -53,18 +68,22 @@ unsigned long thread_saved_pc(struct task_struct *task)
 
 static int show_cpuinfo(struct seq_file *m, void *v)
 {
-	int index;
+	int index = 0;
 
-	index = (struct cpuinfo_um *)v - cpu_data;
 #ifdef CONFIG_SMP
+	index = (struct cpuinfo_um *) v - cpu_data;
 	if (!cpu_online(index))
 		return 0;
 #endif
 
-	seq_printf(m, "bogomips\t: %lu.%02lu\n",
+	seq_printf(m, "processor\t: %d\n", index);
+	seq_printf(m, "vendor_id\t: User Mode Linux\n");
+	seq_printf(m, "model name\t: UML\n");
+	seq_printf(m, "mode\t\t: %s\n", CHOOSE_MODE("tt", "skas"));
+	seq_printf(m, "host\t\t: %s\n", host_info);
+	seq_printf(m, "bogomips\t: %lu.%02lu\n\n",
 		   loops_per_jiffy/(500000/HZ),
 		   (loops_per_jiffy/(5000/HZ)) % 100);
-	seq_printf(m, "host\t\t: %s\n", host_info);
 
 	return(0);
 }
@@ -90,12 +109,6 @@ struct seq_operations cpuinfo_op = {
 	.stop	= c_stop,
 	.show	= show_cpuinfo,
 };
-
-pte_t * __bad_pagetable(void)
-{
-	panic("Someone should implement __bad_pagetable");
-	return(NULL);
-}
 
 /* Set in linux_main */
 unsigned long host_task_size;
@@ -134,12 +147,12 @@ void set_cmdline(char *cmd)
 	if(umid != NULL){
 		snprintf(argv1_begin, 
 			 (argv1_end - argv1_begin) * sizeof(*ptr), 
-			 "(%s)", umid);
+			 "(%s) ", umid);
 		ptr = &argv1_begin[strlen(argv1_begin)];
 	}
 	else ptr = argv1_begin;
 
-	snprintf(ptr, (argv1_end - ptr) * sizeof(*ptr), " [%s]", cmd);
+	snprintf(ptr, (argv1_end - ptr) * sizeof(*ptr), "[%s]", cmd);
 	memset(argv1_begin + strlen(argv1_begin), '\0', 
 	       argv1_end - argv1_begin - strlen(argv1_begin));
 #endif
@@ -153,6 +166,8 @@ static int __init uml_version_setup(char *line, int *add)
 {
 	printf("%s\n", system_utsname.release);
 	exit(0);
+
+	return 0;
 }
 
 __uml_setup("--version", uml_version_setup,
@@ -179,7 +194,7 @@ __uml_setup("root=", uml_root_setup,
 static int __init uml_ncpus_setup(char *line, int *add)
 {
        if (!sscanf(line, "%d", &ncpus)) {
-               printk("Couldn't parse [%s]\n", line);
+               printf("Couldn't parse [%s]\n", line);
                return -1;
        }
 
@@ -192,7 +207,7 @@ __uml_setup("ncpus=", uml_ncpus_setup,
 );
 #endif
 
-int force_tt = 0;
+static int force_tt = 0;
 
 #if defined(CONFIG_MODE_TT) && defined(CONFIG_MODE_SKAS)
 #define DEFAULT_TT 0
@@ -210,7 +225,7 @@ static int __init mode_tt_setup(char *line, int *add)
 
 static int __init mode_tt_setup(char *line, int *add)
 {
-	printk("CONFIG_MODE_TT disabled - 'mode=tt' ignored\n");
+	printf("CONFIG_MODE_TT disabled - 'mode=tt' ignored\n");
 	return(0);
 }
 
@@ -221,7 +236,7 @@ static int __init mode_tt_setup(char *line, int *add)
 
 static int __init mode_tt_setup(char *line, int *add)
 {
-	printk("CONFIG_MODE_SKAS disabled - 'mode=tt' redundant\n");
+	printf("CONFIG_MODE_SKAS disabled - 'mode=tt' redundant\n");
 	return(0);
 }
 
@@ -253,6 +268,8 @@ static int __init Usage(char *line, int *add)
  		p++;
  	}
 	exit(0);
+
+	return 0;
 }
 
 __uml_setup("--help", Usage,
@@ -291,30 +308,56 @@ static void __init uml_postsetup(void)
 
 /* Set during early boot */
 unsigned long brk_start;
-static struct vm_reserved kernel_vm_reserved;
+unsigned long end_iomem;
+EXPORT_SYMBOL(end_iomem);
 
 #define MIN_VMALLOC (32 * 1024 * 1024)
 
 int linux_main(int argc, char **argv)
 {
-	unsigned long avail;
+	unsigned long avail, diff;
 	unsigned long virtmem_size, max_physmem;
-	unsigned int i, add, err;
+	unsigned int i, add;
 
 	for (i = 1; i < argc; i++){
 		if((i == 1) && (argv[i][0] == ' ')) continue;
 		add = 1;
 		uml_checksetup(argv[i], &add);
-		if(add) add_arg(saved_command_line, argv[i]);
+		if (add)
+			add_arg(argv[i]);
 	}
-	if(have_root == 0) add_arg(saved_command_line, DEFAULT_COMMAND_LINE);
+	if(have_root == 0)
+		add_arg(DEFAULT_COMMAND_LINE);
 
 	mode_tt = force_tt ? 1 : !can_do_skas();
+#ifndef CONFIG_MODE_TT
+	if (mode_tt) {
+		/*Since CONFIG_MODE_TT is #undef'ed, force_tt cannot be 1. So,
+		 * can_do_skas() returned 0, and the message is correct. */
+		printf("Support for TT mode is disabled, and no SKAS support is present on the host.\n");
+		exit(1);
+	}
+#endif
 	uml_start = CHOOSE_MODE_PROC(set_task_sizes_tt, set_task_sizes_skas, 0,
 				     &host_task_size, &task_size);
 
+	/* Need to check this early because mmapping happens before the
+	 * kernel is running.
+	 */
+	check_tmpexec();
+
 	brk_start = (unsigned long) sbrk(0);
 	CHOOSE_MODE_PROC(before_mem_tt, before_mem_skas, brk_start);
+	/* Increase physical memory size for exec-shield users
+	so they actually get what they asked for. This should
+	add zero for non-exec shield users */
+
+	diff = UML_ROUND_UP(brk_start) - UML_ROUND_UP(&_end);
+	if(diff > 1024 * 1024){
+		printf("Adding %ld bytes to physical memory to account for "
+		       "exec-shield gap\n", diff);
+		physmem_size += UML_ROUND_UP(brk_start) - UML_ROUND_UP(&_end);
+	}
 
 	uml_physmem = uml_start;
 
@@ -328,12 +371,16 @@ int linux_main(int argc, char **argv)
 	argv1_end = &argv[1][strlen(argv[1])];
 #endif
   
-	set_usable_vm(uml_physmem, get_kmem_end());
-
 	highmem = 0;
-	max_physmem = get_kmem_end() - uml_physmem - MIN_VMALLOC;
-	if(physmem_size > max_physmem){
-		highmem = physmem_size - max_physmem;
+	iomem_size = (iomem_size + PAGE_SIZE - 1) & PAGE_MASK;
+	max_physmem = get_kmem_end() - uml_physmem - iomem_size - MIN_VMALLOC;
+
+	/* Zones have to begin on a 1 << MAX_ORDER page boundary,
+	 * so this makes sure that's true for highmem
+	 */
+	max_physmem &= ~((1 << (PAGE_SHIFT + MAX_ORDER)) - 1);
+	if(physmem_size + iomem_size > max_physmem){
+		highmem = physmem_size + iomem_size - max_physmem;
 		physmem_size -= highmem;
 #ifndef CONFIG_HIGHMEM
 		highmem = 0;
@@ -343,11 +390,19 @@ int linux_main(int argc, char **argv)
 	}
 
 	high_physmem = uml_physmem + physmem_size;
-	high_memory = (void *) high_physmem;
+	end_iomem = high_physmem + iomem_size;
+	high_memory = (void *) end_iomem;
 
 	start_vm = VMALLOC_START;
 
-	setup_physmem(uml_physmem, uml_reserved, physmem_size);
+	setup_physmem(uml_physmem, uml_reserved, physmem_size, highmem);
+	if(init_maps(physmem_size, iomem_size, highmem)){
+		printf("Failed to allocate mem_map for %ld bytes of physical "
+		       "memory and %ld bytes of highmem\n", physmem_size,
+		       highmem);
+		exit(1);
+	}
+
 	virtmem_size = physmem_size;
 	avail = get_kmem_end() - start_vm;
 	if(physmem_size > avail) virtmem_size = avail;
@@ -357,28 +412,23 @@ int linux_main(int argc, char **argv)
 		printf("Kernel virtual memory size shrunk to %ld bytes\n",
 		       virtmem_size);
 
-	err = reserve_vm(high_physmem, end_vm, &kernel_vm_reserved);
-	if(err){
-		printf("Failed to reserve VM area for kernel VM\n");
-		exit(1);
-	}
-
   	uml_postsetup();
 
-	init_task.thread.kernel_stack = (unsigned long) &init_thread_info + 
-		2 * PAGE_SIZE;
-
 	task_protections((unsigned long) &init_thread_info);
+	os_flush_stdout();
 
 	return(CHOOSE_MODE(start_uml_tt(), start_uml_skas()));
 }
 
+extern int uml_exitcode;
+
 static int panic_exit(struct notifier_block *self, unsigned long unused1,
 		      void *unused2)
 {
-#ifdef CONFIG_MAGIC_SYSRQ
-	handle_sysrq('p', &current->thread.regs, NULL, NULL);
-#endif
+	bust_spinlocks(1);
+	show_regs(&(current->thread.regs));
+	bust_spinlocks(0);
+	uml_exitcode = 1;
 	machine_halt();
 	return(0);
 }
@@ -393,7 +443,7 @@ void __init setup_arch(char **cmdline_p)
 {
 	notifier_chain_register(&panic_notifier_list, &panic_exit_notifier);
 	paging_init();
- 	strcpy(command_line, saved_command_line);
+        strlcpy(saved_command_line, command_line, COMMAND_LINE_SIZE);
  	*cmdline_p = command_line;
 	setup_hostinfo();
 }
@@ -403,15 +453,9 @@ void __init check_bugs(void)
 	arch_check_bugs();
 	check_ptrace();
 	check_sigio();
+	check_devanon();
 }
 
-/*
- * Overrides for Emacs so that we follow Linus's tabbing style.
- * Emacs will notice this stuff at the end of the file and automatically
- * adjust the settings for this buffer only.  This must remain at the end
- * of the file.
- * ---------------------------------------------------------------------------
- * Local variables:
- * c-file-style: "linux"
- * End:
- */
+void apply_alternatives(void *start, void *end)
+{
+}

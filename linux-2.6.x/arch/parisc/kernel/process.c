@@ -54,7 +54,7 @@
 #include <asm/uaccess.h>
 #include <asm/unwind.h>
 
-int hlt_counter;
+static int hlt_counter;
 
 /*
  * Power off function, if any
@@ -251,7 +251,7 @@ int
 sys_clone(unsigned long clone_flags, unsigned long usp,
 	  struct pt_regs *regs)
 {
-	int *user_tid = (int *)regs->gr[26];
+	int __user *user_tid = (int __user *)regs->gr[26];
 
 	/* usp must be word aligned.  This also prevents users from
 	 * passing in the value 1 (which is the signal for a special
@@ -262,7 +262,7 @@ sys_clone(unsigned long clone_flags, unsigned long usp,
 	if(usp == 0)
 		usp = regs->gr[30];
 
-	return do_fork(clone_flags & ~CLONE_IDLETASK, usp, regs, 0, user_tid, NULL);
+	return do_fork(clone_flags, usp, regs, 0, user_tid, NULL);
 }
 
 int
@@ -357,14 +357,17 @@ asmlinkage int sys_execve(struct pt_regs *regs)
 	int error;
 	char *filename;
 
-	filename = getname((char *) regs->gr[26]);
+	filename = getname((const char __user *) regs->gr[26]);
 	error = PTR_ERR(filename);
 	if (IS_ERR(filename))
 		goto out;
-	error = do_execve(filename, (char **) regs->gr[25],
-		(char **) regs->gr[24], regs);
-	if (error == 0)
+	error = do_execve(filename, (char __user **) regs->gr[25],
+		(char __user **) regs->gr[24], regs);
+	if (error == 0) {
+		task_lock(current);
 		current->ptrace &= ~PT_DTRACE;
+		task_unlock(current);
+	}
 	putname(filename);
 out:
 

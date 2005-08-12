@@ -41,6 +41,7 @@
 #include <linux/interrupt.h>
 #include <linux/init.h>
 #include <linux/bcd.h>
+#include <linux/profile.h>
 
 #include <asm/uaccess.h>
 #include <asm/io.h>
@@ -62,7 +63,7 @@ extern unsigned long wall_jiffies;	/* kernel/timer.c */
 
 static int set_rtc_mmss(unsigned long);
 
-spinlock_t rtc_lock = SPIN_LOCK_UNLOCKED;
+DEFINE_SPINLOCK(rtc_lock);
 
 #define TICK_SIZE (tick_nsec / 1000)
 
@@ -118,8 +119,7 @@ irqreturn_t timer_interrupt(int irq, void *dev, struct pt_regs * regs)
 
 #ifndef CONFIG_SMP
 	/* Not SMP, do kernel PC profiling here.  */
-	if (!user_mode(regs))
-		alpha_do_profile(regs->pc);
+	profile_tick(CPU_PROFILING, regs);
 #endif
 
 	write_seqlock(&xtime_lock);
@@ -138,6 +138,9 @@ irqreturn_t timer_interrupt(int irq, void *dev, struct pt_regs * regs)
 
 	while (nticks > 0) {
 		do_timer(regs);
+#ifndef CONFIG_SMP
+		update_process_times(user_mode(regs));
+#endif
 		nticks--;
 	}
 
@@ -366,7 +369,7 @@ time_init(void)
 		BCD_TO_BIN(year);
 	}
 
-	/* PC-like is standard; used for year < 20 || year >= 70 */
+	/* PC-like is standard; used for year >= 70 */
 	epoch = 1900;
 	if (year < 20)
 		epoch = 2000;

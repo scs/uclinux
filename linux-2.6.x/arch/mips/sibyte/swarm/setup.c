@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2000, 2001, 2002, 2003 Broadcom Corporation
+ * Copyright (C) 2004 by Ralf Baechle (ralf@linux-mips.org)
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -26,6 +27,9 @@
 #include <linux/bootmem.h>
 #include <linux/blkdev.h>
 #include <linux/init.h>
+#include <linux/kernel.h>
+#include <linux/tty.h>
+#include <linux/initrd.h>
 
 #include <asm/irq.h>
 #include <asm/io.h>
@@ -34,7 +38,6 @@
 #include <asm/reboot.h>
 #include <asm/time.h>
 #include <asm/traps.h>
-#include <asm/pci_channel.h>
 #include <asm/sibyte/sb1250.h>
 #include <asm/sibyte/sb1250_regs.h>
 #include <asm/sibyte/sb1250_genbus.h>
@@ -83,8 +86,6 @@ int swarm_be_handler(struct pt_regs *regs, int is_fixup)
 
 static int __init swarm_setup(void)
 {
-	extern int panic_timeout;
-
 	sb1250_setup();
 
 	panic_timeout = 5;  /* For debug.  */

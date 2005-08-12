@@ -5,31 +5,34 @@
 
 #include "linux/errno.h"
 #include "linux/slab.h"
-#include "asm/semaphore.h"
+#include "linux/signal.h"
+#include "linux/interrupt.h"
 #include "asm/irq.h"
 #include "irq_user.h"
+#include "irq_kern.h"
 #include "kern_util.h"
 #include "os.h"
 #include "xterm.h"
 
 struct xterm_wait {
-	struct semaphore sem;
+	struct completion ready;
 	int fd;
 	int pid;
 	int new_fd;
 };
 
-static void xterm_interrupt(int irq, void *data, struct pt_regs *regs)
+static irqreturn_t xterm_interrupt(int irq, void *data, struct pt_regs *regs)
 {
 	struct xterm_wait *xterm = data;
 	int fd;
 
 	fd = os_rcv_fd(xterm->fd, &xterm->pid);
 	if(fd == -EAGAIN)
-		return;
+		return(IRQ_NONE);
 
 	xterm->new_fd = fd;
-	up(&xterm->sem);
+	complete(&xterm->ready);
+	return(IRQ_HANDLED);
 }
 
 int xterm_fd(int socket, int *pid_out)
@@ -42,26 +45,36 @@ int xterm_fd(int socket, int *pid_out)
 		printk(KERN_ERR "xterm_fd : failed to allocate xterm_wait\n");
 		return(-ENOMEM);
 	}
+
+	/* This is a locked semaphore... */
 	*data = ((struct xterm_wait) 
-		{ .sem  	= __SEMAPHORE_INITIALIZER(data->sem, 0),
-		  .fd 		= socket,
+		{ .fd 		= socket,
 		  .pid 		= -1,
 		  .new_fd 	= -1 });
+	init_completion(&data->ready);
 
 	err = um_request_irq(XTERM_IRQ, socket, IRQ_READ, xterm_interrupt, 
 			     SA_INTERRUPT | SA_SHIRQ | SA_SAMPLE_RANDOM, 
 			     "xterm", data);
-	if(err){
+	if (err){
 		printk(KERN_ERR "xterm_fd : failed to get IRQ for xterm, "
 		       "err = %d\n",  err);
-		return(err);
+		ret = err;
+		goto out;
 	}
-	down(&data->sem);
 
+	/* ... so here we wait for an xterm interrupt.
+	 *
+	 * XXX Note, if the xterm doesn't work for some reason (eg. DISPLAY
+	 * isn't set) this will hang... */
+	wait_for_completion(&data->ready);
+
+	free_irq_by_irq_and_dev(XTERM_IRQ, data);
 	free_irq(XTERM_IRQ, data);
 
 	ret = data->new_fd;
 	*pid_out = data->pid;
+ out:
 	kfree(data);
 
 	return(ret);

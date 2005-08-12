@@ -20,8 +20,8 @@
 *!                                  in the spin-lock.
 *!
 *!  $Log$
-*!  Revision 1.4  2004/09/08 14:52:19  lgsoft
-*!  Import of 2.6.8
+*!  Revision 1.5  2005/08/12 03:32:52  magicyang
+*!    Update kernel 2.6.8 to 2.6.12
 *!
 *!  Revision 1.10  2003/09/11 07:29:48  starvik
 *!  Merge of Linux 2.6.0-test5
@@ -602,7 +602,7 @@ static ssize_t eeprom_write(struct file * file, const char * buf, size_t count,
   int i, written, restart=1;
   unsigned long p;
 
-  if (verify_area(VERIFY_READ, buf, count))
+  if (!access_ok(VERIFY_READ, buf, count))
   {
     return -EFAULT;
   }

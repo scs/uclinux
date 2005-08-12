@@ -5,17 +5,26 @@
 #include <linux/percpu.h>
 #include <linux/init.h>
 #include <linux/sched.h>
+#include <linux/module.h>
+#include <linux/nodemask.h>
+#include <linux/cpumask.h>
+#include <linux/notifier.h>
+
 #include <asm/current.h>
 #include <asm/processor.h>
 #include <asm/cputable.h>
 #include <asm/hvcall.h>
 #include <asm/prom.h>
+#include <asm/systemcfg.h>
+#include <asm/paca.h>
+#include <asm/lppaca.h>
+#include <asm/machdep.h>
 
+static DEFINE_PER_CPU(struct cpu, cpu_devices);
 
 /* SMT stuff */
 
-#ifndef CONFIG_PPC_ISERIES
-
+#ifdef CONFIG_PPC_MULTIPLATFORM
 /* default to snooze disabled */
 DEFINE_PER_CPU(unsigned long, smt_snooze_delay);
 
@@ -54,7 +63,7 @@ static int __init smt_setup(void)
 	unsigned int *val;
 	unsigned int cpu;
 
-	if (!cur_cpu_spec->cpu_features & CPU_FTR_SMT)
+	if (!cpu_has_feature(CPU_FTR_SMT))
 		return 1;
 
 	options = find_path_device("/options");
@@ -77,7 +86,7 @@ static int __init setup_smt_snooze_delay(char *str)
 	unsigned int cpu;
 	int snooze;
 
-	if (!cur_cpu_spec->cpu_features & CPU_FTR_SMT)
+	if (!cpu_has_feature(CPU_FTR_SMT))
 		return 1;
 
 	smt_snooze_cmdline = 1;
@@ -91,11 +100,6 @@ static int __init setup_smt_snooze_delay(char *str)
 }
 __setup("smt-snooze-delay=", setup_smt_snooze_delay);
 
-#endif
-
-
-/* PMC stuff */
-
 /*
  * Enabling PMCs will slow partition context switch times so we only do
  * it the first time we write to the PMCs.
@@ -103,18 +107,13 @@ __setup("smt-snooze-delay=", setup_smt_snooze_delay);
 
 static DEFINE_PER_CPU(char, pmcs_enabled);
 
-#ifdef CONFIG_PPC_ISERIES
-void ppc64_enable_pmcs(void)
-{
-	/* XXX Implement for iseries */
-}
-#else
 void ppc64_enable_pmcs(void)
 {
 	unsigned long hid0;
+#ifdef CONFIG_PPC_PSERIES
 	unsigned long set, reset;
 	int ret;
-	unsigned int ctrl;
+#endif /* CONFIG_PPC_PSERIES */
 
 	/* Only need to enable them once */
 	if (__get_cpu_var(pmcs_enabled))
@@ -123,54 +122,65 @@ void ppc64_enable_pmcs(void)
 	__get_cpu_var(pmcs_enabled) = 1;
 
 	switch (systemcfg->platform) {
-		case PLATFORM_PSERIES:
-			hid0 = mfspr(HID0);
-			hid0 |= 1UL << (63 - 20);
+	case PLATFORM_PSERIES:
+	case PLATFORM_POWERMAC:
+		hid0 = mfspr(HID0);
+		hid0 |= 1UL << (63 - 20);
 
-			/* POWER4 requires the following sequence */
-			asm volatile(
-				"sync\n"
-				"mtspr	%1, %0\n"
-				"mfspr	%0, %1\n"
-				"mfspr	%0, %1\n"
-				"mfspr	%0, %1\n"
-				"mfspr	%0, %1\n"
-				"mfspr	%0, %1\n"
-				"mfspr	%0, %1\n"
-				"isync" : "=&r" (hid0) : "i" (HID0), "0" (hid0):
-				"memory");
-			break;
+		/* POWER4 requires the following sequence */
+		asm volatile(
+			     "sync\n"
+			     "mtspr	%1, %0\n"
+			     "mfspr	%0, %1\n"
+			     "mfspr	%0, %1\n"
+			     "mfspr	%0, %1\n"
+			     "mfspr	%0, %1\n"
+			     "mfspr	%0, %1\n"
+			     "mfspr	%0, %1\n"
+			     "isync" : "=&r" (hid0) : "i" (HID0), "0" (hid0):
+			     "memory");
+		break;
 
-		case PLATFORM_PSERIES_LPAR:
-			set = 1UL << 63;
-			reset = 0;
-			ret = plpar_hcall_norets(H_PERFMON, set, reset);
-			if (ret)
-				printk(KERN_ERR "H_PERFMON call returned %d",
-				       ret);
-			break;
+#ifdef CONFIG_PPC_PSERIES
+	case PLATFORM_PSERIES_LPAR:
+		set = 1UL << 63;
+		reset = 0;
+		ret = plpar_hcall_norets(H_PERFMON, set, reset);
+		if (ret)
+			printk(KERN_ERR "H_PERFMON call on cpu %u "
+			       "returned %d\n",
+			       smp_processor_id(), ret);
+		break;
+#endif /* CONFIG_PPC_PSERIES */
 
-		default:
-			break;
+	default:
+		break;
 	}
 
+#ifdef CONFIG_PPC_PSERIES
 	/* instruct hypervisor to maintain PMCs */
-	if (cur_cpu_spec->firmware_features & FW_FEATURE_SPLPAR) {
-		char *ptr = (char *)&paca[smp_processor_id()].lppaca;
-		ptr[0xBB] = 1;
-	}
+	if (cur_cpu_spec->firmware_features & FW_FEATURE_SPLPAR)
+		get_paca()->lppaca.pmcregs_in_use = 1;
 
 	/*
 	 * On SMT machines we have to set the run latch in the ctrl register
 	 * in order to make PMC6 spin.
 	 */
-	if (cur_cpu_spec->cpu_features & CPU_FTR_SMT) {
-		ctrl = mfspr(CTRLF);
-		ctrl |= RUNLATCH;
-		mtspr(CTRLT, ctrl);
-	}
+	if (cpu_has_feature(CPU_FTR_SMT))
+		ppc64_runlatch_on();
+#endif /* CONFIG_PPC_PSERIES */
 }
-#endif
+
+#else
+
+/* PMC stuff */
+void ppc64_enable_pmcs(void)
+{
+	/* XXX Implement for iseries */
+}
+#endif /* CONFIG_PPC_MULTIPLATFORM */
+
+EXPORT_SYMBOL(ppc64_enable_pmcs);
 
 /* XXX convert to rusty's on_one_cpu */
 static unsigned long run_on_cpu(unsigned long cpu,
@@ -246,12 +256,22 @@ static SYSDEV_ATTR(pmc7, 0600, show_pmc7, store_pmc7);
 static SYSDEV_ATTR(pmc8, 0600, show_pmc8, store_pmc8);
 static SYSDEV_ATTR(purr, 0600, show_purr, NULL);
 
-static void __init register_cpu_pmc(struct sys_device *s)
+static void register_cpu_online(unsigned int cpu)
 {
+	struct cpu *c = &per_cpu(cpu_devices, cpu);
+	struct sys_device *s = &c->sysdev;
+
+#ifndef CONFIG_PPC_ISERIES
+	if (cpu_has_feature(CPU_FTR_SMT))
+		sysdev_create_file(s, &attr_smt_snooze_delay);
+#endif
+
+	/* PMC stuff */
+
 	sysdev_create_file(s, &attr_mmcr0);
 	sysdev_create_file(s, &attr_mmcr1);
 
-	if (cur_cpu_spec->cpu_features & CPU_FTR_MMCRA)
+	if (cpu_has_feature(CPU_FTR_MMCRA))
 		sysdev_create_file(s, &attr_mmcra);
 
 	sysdev_create_file(s, &attr_pmc1);
@@ -261,15 +281,74 @@ static void __init register_cpu_pmc(struct sys_device *s)
 	sysdev_create_file(s, &attr_pmc5);
 	sysdev_create_file(s, &attr_pmc6);
 
-	if (cur_cpu_spec->cpu_features & CPU_FTR_PMC8) {
+	if (cpu_has_feature(CPU_FTR_PMC8)) {
 		sysdev_create_file(s, &attr_pmc7);
 		sysdev_create_file(s, &attr_pmc8);
 	}
 
-	if (cur_cpu_spec->cpu_features & CPU_FTR_SMT)
+	if (cpu_has_feature(CPU_FTR_SMT))
 		sysdev_create_file(s, &attr_purr);
 }
 
+#ifdef CONFIG_HOTPLUG_CPU
+static void unregister_cpu_online(unsigned int cpu)
+{
+	struct cpu *c = &per_cpu(cpu_devices, cpu);
+	struct sys_device *s = &c->sysdev;
+
+	BUG_ON(c->no_control);
+
+#ifndef CONFIG_PPC_ISERIES
+	if (cpu_has_feature(CPU_FTR_SMT))
+		sysdev_remove_file(s, &attr_smt_snooze_delay);
+#endif
+
+	/* PMC stuff */
+
+	sysdev_remove_file(s, &attr_mmcr0);
+	sysdev_remove_file(s, &attr_mmcr1);
+
+	if (cpu_has_feature(CPU_FTR_MMCRA))
+		sysdev_remove_file(s, &attr_mmcra);
+
+	sysdev_remove_file(s, &attr_pmc1);
+	sysdev_remove_file(s, &attr_pmc2);
+	sysdev_remove_file(s, &attr_pmc3);
+	sysdev_remove_file(s, &attr_pmc4);
+	sysdev_remove_file(s, &attr_pmc5);
+	sysdev_remove_file(s, &attr_pmc6);
+
+	if (cpu_has_feature(CPU_FTR_PMC8)) {
+		sysdev_remove_file(s, &attr_pmc7);
+		sysdev_remove_file(s, &attr_pmc8);
+	}
+
+	if (cpu_has_feature(CPU_FTR_SMT))
+		sysdev_remove_file(s, &attr_purr);
+}
+#endif /* CONFIG_HOTPLUG_CPU */
+
+static int __devinit sysfs_cpu_notify(struct notifier_block *self,
+				      unsigned long action, void *hcpu)
+{
+	unsigned int cpu = (unsigned int)(long)hcpu;
+
+	switch (action) {
+	case CPU_ONLINE:
+		register_cpu_online(cpu);
+		break;
+#ifdef CONFIG_HOTPLUG_CPU
+	case CPU_DEAD:
+		unregister_cpu_online(cpu);
+		break;
+#endif
+	}
+	return NOTIFY_OK;
+}
+
+static struct notifier_block __devinitdata sysfs_cpu_nb = {
+	.notifier_call	= sysfs_cpu_notify,
+};
 
 /* NUMA stuff */
 
@@ -299,18 +378,14 @@ static void register_nodes(void)
 }
 #endif
 
-
-/* Only valid if CPU is online. */
+/* Only valid if CPU is present. */
 static ssize_t show_physical_id(struct sys_device *dev, char *buf)
 {
 	struct cpu *cpu = container_of(dev, struct cpu, sysdev);
 
-	return sprintf(buf, "%u\n", get_hard_smp_processor_id(cpu->sysdev.id));
+	return sprintf(buf, "%d\n", get_hard_smp_processor_id(cpu->sysdev.id));
 }
 static SYSDEV_ATTR(physical_id, 0444, show_physical_id, NULL);
-
-
-static DEFINE_PER_CPU(struct cpu, cpu_devices);
 
 static int __init topology_init(void)
 {
@@ -318,6 +393,8 @@ static int __init topology_init(void)
 	struct node *parent = NULL;
 
 	register_nodes();
+
+	register_cpu_notifier(&sysfs_cpu_nb);
 
 	for_each_cpu(cpu) {
 		struct cpu *c = &per_cpu(cpu_devices, cpu);
@@ -332,19 +409,17 @@ static int __init topology_init(void)
 		 * CPU.  For instance, the boot cpu might never be valid
 		 * for hotplugging.
 		 */
-		if (systemcfg->platform != PLATFORM_PSERIES_LPAR)
+		if (!ppc_md.cpu_die)
 			c->no_control = 1;
 
-		register_cpu(c, cpu, parent);
+		if (cpu_online(cpu) || (c->no_control == 0)) {
+			register_cpu(c, cpu, parent);
 
-		register_cpu_pmc(&c->sysdev);
+			sysdev_create_file(&c->sysdev, &attr_physical_id);
+		}
 
-		sysdev_create_file(&c->sysdev, &attr_physical_id);
-
-#ifndef CONFIG_PPC_ISERIES
-		if (cur_cpu_spec->cpu_features & CPU_FTR_SMT)
-			sysdev_create_file(&c->sysdev, &attr_smt_snooze_delay);
-#endif
+		if (cpu_online(cpu))
+			register_cpu_online(cpu);
 	}
 
 	return 0;

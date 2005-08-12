@@ -331,7 +331,7 @@ asmlinkage long sys32_ipc(u32 call, int first, int second, int third, u32 ptr)
 	case SHMDT:
 		return sys_shmdt(compat_ptr(ptr));
 	case SHMGET:
-		return sys_shmget(first, second, third);
+		return sys_shmget(first, (unsigned)second, third);
 	case SHMCTL:
 		return compat_sys_shmctl(first, second, compat_ptr(ptr));
 	}
@@ -354,136 +354,6 @@ asmlinkage long sys32_ftruncate64(unsigned int fd, unsigned long high, unsigned 
 	else
 		return sys_ftruncate(fd, (high << 32) | low);
 }
-
-/* readdir & getdents */
-
-#define NAME_OFFSET(de) ((int) ((de)->d_name - (char *) (de)))
-#define ROUND_UP(x) (((x)+sizeof(u32)-1) & ~(sizeof(u32)-1))
-
-struct old_linux_dirent32 {
-	u32		d_ino;
-	u32		d_offset;
-	unsigned short	d_namlen;
-	char		d_name[1];
-};
-
-struct readdir_callback32 {
-	struct old_linux_dirent32 * dirent;
-	int count;
-};
-
-static int fillonedir(void * __buf, const char * name, int namlen,
-		      loff_t offset, ino_t ino, unsigned int d_type)
-{
-	struct readdir_callback32 * buf = (struct readdir_callback32 *) __buf;
-	struct old_linux_dirent32 * dirent;
-
-	if (buf->count)
-		return -EINVAL;
-	buf->count++;
-	dirent = buf->dirent;
-	put_user(ino, &dirent->d_ino);
-	put_user(offset, &dirent->d_offset);
-	put_user(namlen, &dirent->d_namlen);
-	copy_to_user(dirent->d_name, name, namlen);
-	put_user(0, dirent->d_name + namlen);
-	return 0;
-}
-
-asmlinkage long old32_readdir(unsigned int fd, struct old_linux_dirent32 *dirent, unsigned int count)
-{
-	int error = -EBADF;
-	struct file * file;
-	struct readdir_callback32 buf;
-
-	file = fget(fd);
-	if (!file)
-		goto out;
-
-	buf.count = 0;
-	buf.dirent = dirent;
-
-	error = vfs_readdir(file, fillonedir, &buf);
-	if (error < 0)
-		goto out_putf;
-	error = buf.count;
-
-out_putf:
-	fput(file);
-out:
-	return error;
-}
-
-struct linux_dirent32 {
-	u32		d_ino;
-	u32		d_off;
-	unsigned short	d_reclen;
-	char		d_name[1];
-};
-
-struct getdents_callback32 {
-	struct linux_dirent32 * current_dir;
-	struct linux_dirent32 * previous;
-	int count;
-	int error;
-};
-
-static int filldir(void * __buf, const char * name, int namlen, loff_t offset, ino_t ino,
-		   unsigned int d_type)
-{
-	struct linux_dirent32 * dirent;
-	struct getdents_callback32 * buf = (struct getdents_callback32 *) __buf;
-	int reclen = ROUND_UP(NAME_OFFSET(dirent) + namlen + 1);
-
-	buf->error = -EINVAL;	/* only used if we fail.. */
-	if (reclen > buf->count)
-		return -EINVAL;
-	dirent = buf->previous;
-	if (dirent)
-		put_user(offset, &dirent->d_off);
-	dirent = buf->current_dir;
-	buf->previous = dirent;
-	put_user(ino, &dirent->d_ino);
-	put_user(reclen, &dirent->d_reclen);
-	copy_to_user(dirent->d_name, name, namlen);
-	put_user(0, dirent->d_name + namlen);
-	buf->current_dir = ((void *)dirent) + reclen;
-	buf->count -= reclen;
-	return 0;
-}
-
-asmlinkage long sys32_getdents(unsigned int fd, struct linux_dirent32 *dirent, unsigned int count)
-{
-	struct file * file;
-	struct linux_dirent32 * lastdirent;
-	struct getdents_callback32 buf;
-	int error = -EBADF;
-
-	file = fget(fd);
-	if (!file)
-		goto out;
-
-	buf.current_dir = dirent;
-	buf.previous = NULL;
-	buf.count = count;
-	buf.error = 0;
-
-	error = vfs_readdir(file, filldir, &buf);
-	if (error < 0)
-		goto out_putf;
-	lastdirent = buf.previous;
-	error = buf.error;
-	if(lastdirent) {
-		put_user(file->f_pos, &lastdirent->d_off);
-		error = count - buf.count;
-	}
-out_putf:
-	fput(file);
-out:
-	return error;
-}
-
-/* end of readdir & getdents */
 
 int cp_compat_stat(struct kstat *stat, struct compat_stat *statbuf)
 {
@@ -634,99 +504,14 @@ asmlinkage long sys32_rt_sigpending(compat_sigset_t __user *set,
 	return ret;
 }
 
-extern int
-copy_siginfo_to_user32(siginfo_t32 *to, siginfo_t *from);
-
 asmlinkage long
-sys32_rt_sigtimedwait(compat_sigset_t *uthese, siginfo_t32 *uinfo,
-		      struct compat_timespec *uts, size_t sigsetsize)
-{
-	int ret, sig;
-	sigset_t these;
-	compat_sigset_t these32;
-	struct timespec ts;
-	siginfo_t info;
-	long timeout = 0;
-
-	/* XXX: Don't preclude handling different sized sigset_t's.  */
-	if (sigsetsize != sizeof(sigset_t))
-		return -EINVAL;
-
-	if (copy_from_user (&these32, uthese, sizeof(compat_sigset_t)))
-		return -EFAULT;
-
-	switch (_NSIG_WORDS) {
-	case 4: these.sig[3] = these32.sig[6] | (((long)these32.sig[7]) << 32);
-	case 3: these.sig[2] = these32.sig[4] | (((long)these32.sig[5]) << 32);
-	case 2: these.sig[1] = these32.sig[2] | (((long)these32.sig[3]) << 32);
-	case 1: these.sig[0] = these32.sig[0] | (((long)these32.sig[1]) << 32);
-	}
-		
-	/*
-	 * Invert the set of allowed signals to get those we
-	 * want to block.
-	 */
-	sigdelsetmask(&these, sigmask(SIGKILL)|sigmask(SIGSTOP));
-	signotset(&these);
-
-	if (uts) {
-		if (get_compat_timespec(&ts, uts))
-			return -EINVAL;
-		if (ts.tv_nsec >= 1000000000L || ts.tv_nsec < 0
-		    || ts.tv_sec < 0)
-			return -EINVAL;
-	}
-
-	spin_lock_irq(&current->sighand->siglock);
-	sig = dequeue_signal(current, &these, &info);
-	if (!sig) {
-		/* None ready -- temporarily unblock those we're interested
-		   in so that we'll be awakened when they arrive.  */
-		current->real_blocked = current->blocked;
-		sigandsets(&current->blocked, &current->blocked, &these);
-		recalc_sigpending();
-		spin_unlock_irq(&current->sighand->siglock);
-
-		timeout = MAX_SCHEDULE_TIMEOUT;
-		if (uts)
-			timeout = (timespec_to_jiffies(&ts)
-				   + (ts.tv_sec || ts.tv_nsec));
-
-		current->state = TASK_INTERRUPTIBLE;
-		timeout = schedule_timeout(timeout);
-
-		spin_lock_irq(&current->sighand->siglock);
-		sig = dequeue_signal(current, &these, &info);
-		current->blocked = current->real_blocked;
-		siginitset(&current->real_blocked, 0);
-		recalc_sigpending();
-	}
-	spin_unlock_irq(&current->sighand->siglock);
-
-	if (sig) {
-		ret = sig;
-		if (uinfo) {
-			if (copy_siginfo_to_user32(uinfo, &info))
-				ret = -EFAULT;
-		}
-	} else {
-		ret = -EAGAIN;
-		if (timeout)
-			ret = -EINTR;
-	}
-
-	return ret;
-}
-
-asmlinkage long
-sys32_rt_sigqueueinfo(int pid, int sig, siginfo_t32 __user *uinfo)
+sys32_rt_sigqueueinfo(int pid, int sig, compat_siginfo_t __user *uinfo)
 {
 	siginfo_t info;
 	int ret;
 	mm_segment_t old_fs = get_fs();
 	
-	if (copy_from_user (&info, uinfo, 3*sizeof(int)) ||
-	    copy_from_user (info._sifields._pad, uinfo->_sifields._pad, SI_PAD_SIZE))
+	if (copy_siginfo_from_user32(&info, uinfo))
 		return -EFAULT;
 	set_fs (KERNEL_DS);
 	ret = sys_rt_sigqueueinfo(pid, sig, &info);
@@ -752,7 +537,9 @@ sys32_execve(struct pt_regs regs)
 				 compat_ptr(regs.gprs[4]), &regs);
 	if (error == 0)
 	{
+		task_lock(current);
 		current->ptrace &= ~PT_DTRACE;
+		task_unlock(current);
 		current->thread.fp_regs.fpc=0;
 		__asm__ __volatile__
 		        ("sr  0,0\n\t"
@@ -989,6 +776,7 @@ asmlinkage long sys32_adjtimex(struct timex32 *utp)
 	return ret;
 }
 
+#ifdef CONFIG_SYSCTL
 struct __sysctl_args32 {
 	u32 name;
 	int nlen;
@@ -1036,6 +824,7 @@ asmlinkage long sys32_sysctl(struct __sysctl_args32 *args)
 	}
 	return error;
 }
+#endif
 
 struct stat64_emu31 {
 	unsigned long long  st_dev;
@@ -1219,7 +1008,7 @@ asmlinkage long sys32_clone(struct pt_regs regs)
 	child_tidptr = (int *) (regs.gprs[5] & 0x7fffffffUL);
         if (!newsp)
                 newsp = regs.gprs[15];
-        return do_fork(clone_flags & ~CLONE_IDLETASK, newsp, &regs, 0,
+        return do_fork(clone_flags, newsp, &regs, 0,
 		       parent_tidptr, child_tidptr);
 }
 
@@ -1230,7 +1019,7 @@ extern asmlinkage long
 sys_timer_create(clockid_t, struct sigevent *, timer_t *);
 
 asmlinkage long
-sys32_timer_create(clockid_t which_clock, struct sigevent32 *se32,
+sys32_timer_create(clockid_t which_clock, struct compat_sigevent *se32,
 		timer_t *timer_id)
 {
 	struct sigevent se;
@@ -1241,16 +1030,7 @@ sys32_timer_create(clockid_t which_clock, struct sigevent32 *se32,
 	if (se32 == NULL)
 		return sys_timer_create(which_clock, NULL, timer_id);
 
-	/* XXX: converting se32 to se is filthy because of the
-	 * two union members. For now it is ok, because the pointers
-	 * are not touched in kernel.
-	 */
-	memset(&se, 0, sizeof(se));
-	if (get_user(se.sigev_value.sival_int,  &se32->sigev_value.sival_int) ||
-	    get_user(se.sigev_signo, &se32->sigev_signo) ||
-	    get_user(se.sigev_notify, &se32->sigev_notify) ||
-	    copy_from_user(&se._sigev_un._pad, &se32->_sigev_un._pad,
-	    sizeof(se._sigev_un._pad)))
+	if (get_compat_sigevent(&se, se32))
 		return -EFAULT;
 
 	old_fs = get_fs();

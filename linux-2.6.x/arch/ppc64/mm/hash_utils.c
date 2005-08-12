@@ -18,6 +18,8 @@
  * 2 of the License, or (at your option) any later version.
  */
 
+#undef DEBUG
+
 #include <linux/config.h>
 #include <linux/spinlock.h>
 #include <linux/errno.h>
@@ -28,6 +30,7 @@
 #include <linux/ctype.h>
 #include <linux/cache.h>
 #include <linux/init.h>
+#include <linux/signal.h>
 
 #include <asm/ppcdebug.h>
 #include <asm/processor.h>
@@ -38,7 +41,6 @@
 #include <asm/types.h>
 #include <asm/system.h>
 #include <asm/uaccess.h>
-#include <asm/naca.h>
 #include <asm/machdep.h>
 #include <asm/lmb.h>
 #include <asm/abs_addr.h>
@@ -49,6 +51,13 @@
 #include <asm/cacheflush.h>
 #include <asm/cputable.h>
 #include <asm/abs_addr.h>
+#include <asm/sections.h>
+
+#ifdef DEBUG
+#define DBG(fmt...) udbg_printf(fmt)
+#else
+#define DBG(fmt...)
+#endif
 
 /*
  * Note:  pte   --> Linux PTE
@@ -62,11 +71,12 @@
  *
  */
 
-#ifdef CONFIG_PMAC_DART
+#ifdef CONFIG_U3_DART
 extern unsigned long dart_tablebase;
-#endif /* CONFIG_PMAC_DART */
+#endif /* CONFIG_U3_DART */
 
-HTAB htab_data = {NULL, 0, 0, 0, 0};
+HPTE		*htab_address;
+unsigned long	htab_hash_mask;
 
 extern unsigned long _SDR1;
 
@@ -80,12 +90,13 @@ static inline void loop_forever(void)
 		;
 }
 
-#ifdef CONFIG_PPC_PSERIES
+#ifdef CONFIG_PPC_MULTIPLATFORM
 static inline void create_pte_mapping(unsigned long start, unsigned long end,
 				      unsigned long mode, int large)
 {
 	unsigned long addr;
 	unsigned int step;
+	unsigned long tmp_mode;
 
 	if (large)
 		step = 16*MB;
@@ -99,22 +110,31 @@ static inline void create_pte_mapping(unsigned long start, unsigned long end,
 		int ret;
 
 		if (large)
-			vpn = va >> LARGE_PAGE_SHIFT;
+			vpn = va >> HPAGE_SHIFT;
 		else
 			vpn = va >> PAGE_SHIFT;
 
+
+		tmp_mode = mode;
+		
+		/* Make non-kernel text non-executable */
+		if (!in_kernel_text(addr))
+			tmp_mode = mode | HW_NO_EXEC;
+
 		hash = hpt_hash(vpn, large);
 
-		hpteg = ((hash & htab_data.htab_hash_mask)*HPTES_PER_GROUP);
+		hpteg = ((hash & htab_hash_mask) * HPTES_PER_GROUP);
 
-		if (systemcfg->platform == PLATFORM_PSERIES_LPAR)
+#ifdef CONFIG_PPC_PSERIES
+		if (systemcfg->platform & PLATFORM_LPAR)
 			ret = pSeries_lpar_hpte_insert(hpteg, va,
 				virt_to_abs(addr) >> PAGE_SHIFT,
-				0, mode, 1, large);
+				0, tmp_mode, 1, large);
 		else
-			ret = pSeries_hpte_insert(hpteg, va,
+#endif /* CONFIG_PPC_PSERIES */
+			ret = native_hpte_insert(hpteg, va,
 				virt_to_abs(addr) >> PAGE_SHIFT,
-				0, mode, 1, large);
+				0, tmp_mode, 1, large);
 
 		if (ret == -1) {
 			ppc64_terminate_msg(0x20, "create_pte_mapping");
@@ -129,12 +149,16 @@ void __init htab_initialize(void)
 	unsigned long pteg_count;
 	unsigned long mode_rw;
 	int i, use_largepages = 0;
+	unsigned long base = 0, size = 0;
+	extern unsigned long tce_alloc_start, tce_alloc_end;
+
+	DBG(" -> htab_initialize()\n");
 
 	/*
 	 * Calculate the required size of the htab.  We want the number of
 	 * PTEGs to equal one half the number of real pages.
 	 */ 
-	htab_size_bytes = 1UL << naca->pftSize;
+	htab_size_bytes = 1UL << ppc64_pft_size;
 	pteg_count = htab_size_bytes >> 7;
 
 	/* For debug, make the HTAB 1/8 as big as it normally would be. */
@@ -143,30 +167,32 @@ void __init htab_initialize(void)
 		htab_size_bytes = pteg_count << 7;
 	}
 
-	htab_data.htab_num_ptegs = pteg_count;
-	htab_data.htab_hash_mask = pteg_count - 1;
+	htab_hash_mask = pteg_count - 1;
 
-	if (systemcfg->platform == PLATFORM_PSERIES ||
-	    systemcfg->platform == PLATFORM_POWERMAC) {
+	if (systemcfg->platform & PLATFORM_LPAR) {
+		/* Using a hypervisor which owns the htab */
+		htab_address = NULL;
+		_SDR1 = 0; 
+	} else {
 		/* Find storage for the HPT.  Must be contiguous in
 		 * the absolute address space.
 		 */
 		table = lmb_alloc(htab_size_bytes, htab_size_bytes);
+
+		DBG("Hash table allocated at %lx, size: %lx\n", table,
+		    htab_size_bytes);
+
 		if ( !table ) {
 			ppc64_terminate_msg(0x20, "hpt space");
 			loop_forever();
 		}
-		htab_data.htab = abs_to_virt(table);
+		htab_address = abs_to_virt(table);
 
 		/* htab absolute addr + encoded htabsize */
 		_SDR1 = table + __ilog2(pteg_count) - 11;
 
 		/* Initialize the HPT with no entries */
 		memset((void *)table, 0, htab_size_bytes);
-	} else {
-		/* Using a hypervisor which owns the htab */
-		htab_data.htab = NULL;
-		_SDR1 = 0; 
 	}
 
 	mode_rw = _PAGE_ACCESSED | _PAGE_COHERENT | PP_RWXX;
@@ -175,17 +201,17 @@ void __init htab_initialize(void)
 	 * _NOT_ map it to avoid cache paradoxes as it's remapped non
 	 * cacheable later on
 	 */
-	if (cur_cpu_spec->cpu_features & CPU_FTR_16M_PAGE)
+	if (cpu_has_feature(CPU_FTR_16M_PAGE))
 		use_largepages = 1;
 
-	/* add all physical memory to the bootmem map */
+	/* create bolted the linear mapping in the hash table */
 	for (i=0; i < lmb.memory.cnt; i++) {
-		unsigned long base, size;
-
 		base = lmb.memory.region[i].physbase + KERNELBASE;
 		size = lmb.memory.region[i].size;
 
-#ifdef CONFIG_PMAC_DART
+		DBG("creating mapping for region: %lx : %lx\n", base, size);
+
+#ifdef CONFIG_U3_DART
 		/* Do not map the DART space. Fortunately, it will be aligned
 		 * in such a way that it will not cross two lmb regions and will
 		 * fit within a single 16Mb page.
@@ -193,6 +219,8 @@ void __init htab_initialize(void)
 		 * only use 2Mb of that space. We will use more of it later for
 		 * AGP GART. We have to use a full 16Mb large page.
 		 */
+		DBG("DART base: %lx\n", dart_tablebase);
+
 		if (dart_tablebase != 0 && dart_tablebase >= base
 		    && dart_tablebase < (base + size)) {
 			if (base != dart_tablebase)
@@ -203,13 +231,33 @@ void __init htab_initialize(void)
 						   mode_rw, use_largepages);
 			continue;
 		}
-#endif /* CONFIG_PMAC_DART */
+#endif /* CONFIG_U3_DART */
 		create_pte_mapping(base, base + size, mode_rw, use_largepages);
 	}
+
+	/*
+	 * If we have a memory_limit and we've allocated TCEs then we need to
+	 * explicitly map the TCE area at the top of RAM. We also cope with the
+	 * case that the TCEs start below memory_limit.
+	 * tce_alloc_start/end are 16MB aligned so the mapping should work
+	 * for either 4K or 16MB pages.
+	 */
+	if (tce_alloc_start) {
+		tce_alloc_start += KERNELBASE;
+		tce_alloc_end += KERNELBASE;
+
+		if (base + size >= tce_alloc_start)
+			tce_alloc_start = base + size + 1;
+
+		create_pte_mapping(tce_alloc_start, tce_alloc_end,
+			mode_rw, use_largepages);
+	}
+
+	DBG(" <- htab_initialize()\n");
 }
 #undef KB
 #undef MB
-#endif
+#endif /* CONFIG_PPC_MULTIPLATFORM */
 
 /*
  * Called by asm hashtable.S for doing lazy icache flush
@@ -217,8 +265,6 @@ void __init htab_initialize(void)
 unsigned int hash_page_do_lazy_icache(unsigned int pp, pte_t pte, int trap)
 {
 	struct page *page;
-
-#define PPC64_HWNOEXEC (1 << 2)
 
 	if (!pfn_valid(pte_pfn(pte)))
 		return pp;
@@ -231,19 +277,16 @@ unsigned int hash_page_do_lazy_icache(unsigned int pp, pte_t pte, int trap)
 			__flush_dcache_icache(page_address(page));
 			set_bit(PG_arch_1, &page->flags);
 		} else
-			pp |= PPC64_HWNOEXEC;
+			pp |= HW_NO_EXEC;
 	}
 	return pp;
 }
 
-/*
- * Called by asm hashtable.S in case of critical insert failure
+/* Result code is:
+ *  0 - handled
+ *  1 - normal page fault
+ * -1 - critical hash insertion error
  */
-void htab_insert_failure(void)
-{
-	panic("hash_page: pte_insert failed\n");
-}
-
 int hash_page(unsigned long ea, unsigned long access, unsigned long trap)
 {
 	void *pgdir;
@@ -255,15 +298,14 @@ int hash_page(unsigned long ea, unsigned long access, unsigned long trap)
 	int local = 0;
 	cpumask_t tmp;
 
-	/* Check for invalid addresses. */
-	if (!IS_VALID_EA(ea))
+	if ((ea & ~REGION_MASK) > EADDR_MASK)
 		return 1;
 
  	switch (REGION_ID(ea)) {
 	case USER_REGION_ID:
 		user_region = 1;
 		mm = current->mm;
-		if (mm == NULL)
+		if (! mm)
 			return 1;
 
 		vsid = get_vsid(mm->context.id, ea);
@@ -277,12 +319,6 @@ int hash_page(unsigned long ea, unsigned long access, unsigned long trap)
 		vsid = get_kernel_vsid(ea);
 		break;
 #if 0
-	case EEH_REGION_ID:
-		/*
-		 * Should only be hit if there is an access to MMIO space
-		 * which is protected by EEH.
-		 * Send the problem up to do_page_fault 
-		 */
 	case KERNEL_REGION_ID:
 		/*
 		 * Should never get here - entire 0xC0... region is bolted.
@@ -323,28 +359,26 @@ void flush_hash_page(unsigned long context, unsigned long ea, pte_t pte,
 		     int local)
 {
 	unsigned long vsid, vpn, va, hash, secondary, slot;
+	unsigned long huge = pte_huge(pte);
 
-	/* XXX fix for large ptes */
-	unsigned long large = 0;
-
-	if ((ea >= USER_START) && (ea <= USER_END))
+	if (ea < KERNELBASE)
 		vsid = get_vsid(context, ea);
 	else
 		vsid = get_kernel_vsid(ea);
 
 	va = (vsid << 28) | (ea & 0x0fffffff);
-	if (large)
-		vpn = va >> LARGE_PAGE_SHIFT;
+	if (huge)
+		vpn = va >> HPAGE_SHIFT;
 	else
 		vpn = va >> PAGE_SHIFT;
-	hash = hpt_hash(vpn, large);
+	hash = hpt_hash(vpn, huge);
 	secondary = (pte_val(pte) & _PAGE_SECONDARY) >> 15;
 	if (secondary)
 		hash = ~hash;
-	slot = (hash & htab_data.htab_hash_mask) * HPTES_PER_GROUP;
+	slot = (hash & htab_hash_mask) * HPTES_PER_GROUP;
 	slot += (pte_val(pte) & _PAGE_GROUP_IX) >> 12;
 
-	ppc_md.hpte_invalidate(slot, va, large, local);
+	ppc_md.hpte_invalidate(slot, va, huge, local);
 }
 
 void flush_hash_range(unsigned long context, unsigned long number, int local)
@@ -369,6 +403,25 @@ static inline void make_bl(unsigned int *insn_addr, void *func)
 	*insn_addr = (unsigned int)(0x48000001 | (offset & 0x03fffffc));
 	flush_icache_range((unsigned long)insn_addr, 4+
 			   (unsigned long)insn_addr);
+}
+
+/*
+ * low_hash_fault is called when we the low level hash code failed
+ * to instert a PTE due to an hypervisor error
+ */
+void low_hash_fault(struct pt_regs *regs, unsigned long address)
+{
+	if (user_mode(regs)) {
+		siginfo_t info;
+
+		info.si_signo = SIGBUS;
+		info.si_errno = 0;
+		info.si_code = BUS_ADRERR;
+		info.si_addr = (void __user *)address;
+		force_sig_info(SIGBUS, &info, current);
+		return;
+	}
+	bad_page_fault(regs, address, SIGBUS);
 }
 
 void __init htab_finish_init(void)

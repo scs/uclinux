@@ -1,9 +1,10 @@
 /* 
- * Copyright (C) 2002 Jeff Dike (jdike@karaya.com)
+ * Copyright (C) 2002 - 2003 Jeff Dike (jdike@addtoit.com)
  * Licensed under the GPL
  */
 
 #include "linux/sys.h"
+#include "linux/ptrace.h"
 #include "asm/errno.h"
 #include "asm/unistd.h"
 #include "asm/ptrace.h"

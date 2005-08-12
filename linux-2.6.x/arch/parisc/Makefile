@@ -17,9 +17,12 @@
 # Mike Shaver, Helge Deller and Martin K. Petersen
 #
 NM		= sh $(srctree)/arch/parisc/nm
-ifdef CONFIG_PARISC64
+CHECKFLAGS	+= -D__hppa__=1
+
+ifdef CONFIG_64BIT
 CROSS_COMPILE	:= hppa64-linux-
 UTS_MACHINE	:= parisc64
+CHECKFLAGS	+= -D__LP64__=1 -m64
 else
 MACHINE := $(subst 64,,$(shell uname -m))
 ifneq ($(MACHINE),parisc)
@@ -37,8 +40,10 @@ cflags-y	:= -pipe
 # are not in gcc 3.2.
 cflags-y	+= -mno-space-regs -mfast-indirect-calls
 
-# No fixed-point multiply
-cflags-y	+= -mdisable-fpregs
+# Currently we save and restore fpregs on all kernel entry/interruption paths.
+# If that gets optimized, we might need to disable the use of fpregs in the
+# kernel.
+#cflags-y	+= -mdisable-fpregs
 
 # Without this, "ld -r" results in .text sections that are too big
 # (> 0x40000) for branches to reach stubs.
@@ -52,7 +57,6 @@ cflags-$(CONFIG_PA7300LC)	+= -march=1.1 -mschedule=7300
 cflags-$(CONFIG_PA8X00)		+= -march=2.0 -mschedule=8000
 
 head-y			:= arch/parisc/kernel/head.o 
-head-$(CONFIG_PARISC64)	:= arch/parisc/kernel/head64.o
 
 CFLAGS	+= $(cflags-y)
 
@@ -64,8 +68,12 @@ libs-y	+= arch/parisc/lib/ `$(CC) -print-libgcc-file-name`
 
 drivers-$(CONFIG_OPROFILE)		+= arch/parisc/oprofile/
 
+PALO := $(shell if which palo; then : ; \
+	elif [ -x /sbin/palo ]; then echo /sbin/palo; \
+	fi)
+
 palo: vmlinux
-	@if [ $$(palo -f /dev/null >/dev/null 2>&1 ; echo $$?) != 2 ]; then \
+	@if [ -x $PALO ]; then \
 		echo 'ERROR: Please install palo first (apt-get install palo)';\
 		echo 'or build it from source and install it somewhere in your $$PATH';\
 		false; \
@@ -77,7 +85,7 @@ palo: vmlinux
 		echo 'WARNING: the "lifimage" file is now placed in this directory by default!'; \
 		false; \
 	fi
-	palo -f ./palo.conf
+	$(PALO) -f ./palo.conf
 
 oldpalo: vmlinux
 	export TOPDIR=`pwd`; \
@@ -85,6 +93,12 @@ oldpalo: vmlinux
 
 # Shorthands for known targets not supported by parisc, use palo as default
 Image zImage bzImage: palo
+
+kernel_install: vmlinux
+	sh $(src)/arch/parisc/install.sh \
+			$(KERNELRELEASE) $< System.map "$(INSTALL_PATH)"
+
+install: kernel_install modules_install
 
 prepare: include/asm-parisc/offsets.h
 
@@ -100,4 +114,8 @@ MRPROPER_FILES	+= palo.conf
 define archhelp
 	@echo  '* vmlinux	- Uncompressed kernel image (./vmlinux)'
 	@echo  '  palo		- Bootable image (./lifimage)'
+	@echo  '  install	- Install kernel using'
+	@echo  '		  (your) ~/bin/installkernel or'
+	@echo  '		  (distribution) /sbin/installkernel or'
+	@echo  '		  copy to $$(INSTALL_PATH)'
 endef

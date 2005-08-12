@@ -26,7 +26,6 @@
 #include <asm/atomic.h>
 #include <asm/processor.h>
 #include <asm/system.h>
-#include <asm/hardirq.h>
 #include <asm/mmu_context.h>
 #include <asm/smp.h>
 
@@ -35,15 +34,12 @@
  * but is designed to be usable regardless if there's an MMU
  * present or not.
  */
-int smp_threads_ready = 0;
 struct sh_cpuinfo cpu_data[NR_CPUS];
 
-extern int cpu_idle(void *unused);
 extern void per_cpu_trap_init(void);
 
 cpumask_t cpu_possible_map;
 cpumask_t cpu_online_map;
-unsigned long cache_decay_ticks = HZ / 100;
 static atomic_t cpus_booted = ATOMIC_INIT(0);
 
 /* These are defined by the board-specific code. */
@@ -98,18 +94,11 @@ void __devinit smp_prepare_boot_cpu(void)
 int __cpu_up(unsigned int cpu)
 {
 	struct task_struct *tsk;
-	struct pt_regs regs;
 
-	memset(&regs, 0, sizeof(struct pt_regs));
-	tsk = copy_process(CLONE_VM | CLONE_IDLETASK, 0, &regs, 0, 0, 0);
+	tsk = fork_idle(cpu);
 
 	if (IS_ERR(tsk))
 		panic("Failed forking idle task for cpu %d\n", cpu);
-	
-	wake_up_forked_process(tsk);
-
-	init_idle(tsk, cpu);
-	unhash_process(tsk);
 	
 	tsk->thread_info->cpu = cpu;
 
@@ -132,12 +121,12 @@ int start_secondary(void *unused)
 	
 	atomic_inc(&cpus_booted);
 
-	return cpu_idle(0);
+	cpu_idle();
+	return 0;
 }
 
 void __init smp_cpus_done(unsigned int max_cpus)
 {
-	smp_threads_ready = 1;
 	smp_mb();
 }
 

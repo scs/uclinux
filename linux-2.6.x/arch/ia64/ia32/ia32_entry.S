@@ -41,7 +41,7 @@ ENTRY(ia32_clone)
 	zxt4 out1=in1				// newsp
 	mov out3=16				// stacksize (compensates for 16-byte scratch area)
 	adds out2=IA64_SWITCH_STACK_SIZE+16,sp	// out2 = &regs
-	dep out0=0,in0,CLONE_IDLETASK_BIT,1	// out0 = clone_flags & ~CLONE_IDLETASK
+	mov out0=in0				// out0 = clone_flags
 	zxt4 out4=in2				// out4 = parent_tidptr
 	zxt4 out5=in4				// out5 = child_tidptr
 	br.call.sptk.many rp=do_fork
@@ -223,7 +223,7 @@ ia32_syscall_table:
 	data8 sys_unlink	  /* 10 */
 	data8 ia32_execve
 	data8 sys_chdir
-	data8 sys32_time
+	data8 compat_sys_time
 	data8 sys_mknod
 	data8 sys_chmod		  /* 15 */
 	data8 sys_lchown	/* 16-bit version */
@@ -235,7 +235,7 @@ ia32_syscall_table:
 	data8 sys_oldumount
 	data8 sys_setuid	/* 16-bit version */
 	data8 sys_getuid	/* 16-bit version */
-	data8 sys_ni_syscall	/* sys_stime is not supported on IA64 */  /* 25 */
+	data8 compat_sys_stime    /* 25 */
 	data8 sys32_ptrace
 	data8 sys32_alarm
 	data8 sys_ni_syscall
@@ -311,7 +311,7 @@ ia32_syscall_table:
 	data8 sys_ni_syscall	  /* old profil syscall holder */
 	data8 compat_sys_statfs
 	data8 compat_sys_fstatfs	  /* 100 */
-	data8 sys32_ioperm
+	data8 sys_ni_syscall	/* ioperm */
 	data8 compat_sys_socketcall
 	data8 sys_syslog
 	data8 compat_sys_setitimer
@@ -320,7 +320,7 @@ ia32_syscall_table:
 	data8 compat_sys_newlstat
 	data8 compat_sys_newfstat
 	data8 sys_ni_syscall
-	data8 sys32_iopl		  /* 110 */
+	data8 sys_ni_syscall	/* iopl */	/* 110 */
 	data8 sys_vhangup
 	data8 sys_ni_syscall		/* used to be sys_idle */
 	data8 sys_ni_syscall
@@ -387,7 +387,7 @@ ia32_syscall_table:
 	data8 sys32_rt_sigaction
 	data8 sys32_rt_sigprocmask /* 175 */
 	data8 sys_rt_sigpending
-	data8 sys32_rt_sigtimedwait
+	data8 compat_sys_rt_sigtimedwait
 	data8 sys32_rt_sigqueueinfo
 	data8 sys32_rt_sigsuspend
 	data8 sys32_pread	  /* 180 */
@@ -470,16 +470,16 @@ ia32_syscall_table:
 	data8 sys_remap_file_pages
 	data8 sys_set_tid_address
  	data8 sys32_timer_create
- 	data8 compat_timer_settime	/* 260 */
- 	data8 compat_timer_gettime
+ 	data8 compat_sys_timer_settime	/* 260 */
+ 	data8 compat_sys_timer_gettime
  	data8 sys_timer_getoverrun
  	data8 sys_timer_delete
- 	data8 compat_clock_settime
- 	data8 compat_clock_gettime /* 265 */
- 	data8 compat_clock_getres
- 	data8 compat_clock_nanosleep
-	data8 compat_statfs64
-	data8 compat_fstatfs64
+ 	data8 compat_sys_clock_settime
+ 	data8 compat_sys_clock_gettime /* 265 */
+ 	data8 compat_sys_clock_getres
+ 	data8 compat_sys_clock_nanosleep
+	data8 compat_sys_statfs64
+	data8 compat_sys_fstatfs64
  	data8 sys_tgkill	/* 270 */
  	data8 compat_sys_utimes
  	data8 sys32_fadvise64_64
@@ -493,6 +493,8 @@ ia32_syscall_table:
   	data8 compat_sys_mq_timedreceive	/* 280 */
   	data8 compat_sys_mq_notify
   	data8 compat_sys_mq_getsetattr
+	data8 sys_ni_syscall		/* reserved for kexec */
+	data8 compat_sys_waitid
 
 	// guard against failures to increase IA32_NR_syscalls
 	.org ia32_syscall_table + 8*IA32_NR_syscalls

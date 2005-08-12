@@ -50,7 +50,7 @@ void __init arc_init_irq(void);
 #define MAX_IRQ_CNT	100000
 
 static volatile unsigned long irq_err_count;
-static spinlock_t irq_controller_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(irq_controller_lock);
 
 struct irqdesc irq_desc[NR_IRQS];
 
@@ -187,6 +187,7 @@ static void
 __do_irq(unsigned int irq, struct irqaction *action, struct pt_regs *regs)
 {
 	unsigned int status;
+	int ret;
 
 	spin_unlock(&irq_controller_lock);
 	if (!(action->flags & SA_INTERRUPT))
@@ -194,8 +195,9 @@ __do_irq(unsigned int irq, struct irqaction *action, struct pt_regs *regs)
 
 	status = 0;
 	do {
-		status |= action->flags;
-		action->handler(irq, action->dev_id, regs);
+		ret = action->handler(irq, action->dev_id, regs);
+		if (ret == IRQ_HANDLED)
+			status |= action->flags;
 		action = action->next;
 	} while (action);
 

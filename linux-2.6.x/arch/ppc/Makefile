@@ -13,7 +13,7 @@
 # This must match PAGE_OFFSET in include/asm-ppc/page.h.
 KERNELLOAD	:= $(CONFIG_KERNEL_START)
 
-HAS_BIARCH	:= $(shell if $(CC) -m32 -S -o /dev/null -xc /dev/null > /dev/null 2>&1; then echo y; else echo n; fi;)
+HAS_BIARCH	:= $(call cc-option-yn, -m32)
 ifeq ($(HAS_BIARCH),y)
 AS		:= $(AS) -a32
 LD		:= $(LD) -m elf32ppc
@@ -24,10 +24,10 @@ LDFLAGS_vmlinux	:= -Ttext $(KERNELLOAD) -Bstatic
 CPPFLAGS	+= -Iarch/$(ARCH)
 AFLAGS		+= -Iarch/$(ARCH)
 CFLAGS		+= -Iarch/$(ARCH) -msoft-float -pipe \
-		-ffixed-r2 -Wno-uninitialized -mmultiple
+		-ffixed-r2 -mmultiple
 CPP		= $(CC) -E $(CFLAGS)
 
-CHECK		:= $(CHECK) -D__powerpc__=1
+CHECKFLAGS	+= -D__powerpc__
 
 ifndef CONFIG_E500
 CFLAGS		+= -mstring
@@ -42,18 +42,23 @@ cpu-as-$(CONFIG_E500)		+= -Wa,-me500
 AFLAGS += $(cpu-as-y)
 CFLAGS += $(cpu-as-y)
 
+# Default to the common case.
+KBUILD_DEFCONFIG := common_defconfig
+
 head-y				:= arch/ppc/kernel/head.o
 head-$(CONFIG_8xx)		:= arch/ppc/kernel/head_8xx.o
 head-$(CONFIG_4xx)		:= arch/ppc/kernel/head_4xx.o
 head-$(CONFIG_44x)		:= arch/ppc/kernel/head_44x.o
-head-$(CONFIG_E500)		:= arch/ppc/kernel/head_e500.o
+head-$(CONFIG_FSL_BOOKE)	:= arch/ppc/kernel/head_fsl_booke.o
 
 head-$(CONFIG_6xx)		+= arch/ppc/kernel/idle_6xx.o
 head-$(CONFIG_POWER4)		+= arch/ppc/kernel/idle_power4.o
+head-$(CONFIG_PPC_FPU)		+= arch/ppc/kernel/fpu.o
 
 core-y				+= arch/ppc/kernel/ arch/ppc/platforms/ \
 				   arch/ppc/mm/ arch/ppc/lib/ arch/ppc/syslib/
 core-$(CONFIG_4xx)		+= arch/ppc/platforms/4xx/
+core-$(CONFIG_83xx)		+= arch/ppc/platforms/83xx/
 core-$(CONFIG_85xx)		+= arch/ppc/platforms/85xx/
 core-$(CONFIG_MATH_EMULATION)	+= arch/ppc/math-emu/
 core-$(CONFIG_XMON)		+= arch/ppc/xmon/
@@ -68,9 +73,9 @@ BOOT_TARGETS = zImage zImage.initrd znetboot znetboot.initrd vmlinux.sm
 
 .PHONY: $(BOOT_TARGETS)
 
-all: zImage
+all: uImage zImage
 
-AFLAGS_vmlinux.lds.o	:= -Upowerpc
+CPPFLAGS_vmlinux.lds	:= -Upowerpc
 
 # All the instructions talk about "make bzImage".
 bzImage: zImage
@@ -104,31 +109,31 @@ arch/$(ARCH)/kernel/asm-offsets.s: include/asm include/linux/version.h \
 include/asm-$(ARCH)/offsets.h: arch/$(ARCH)/kernel/asm-offsets.s
 	$(call filechk,gen-asm-offsets)
 
-ifdef CONFIG_6xx
-# Ensure this is binutils 2.12.1 (or 2.12.90.0.7) or later
-NEW_AS	:= $(shell echo dssall | $(AS) -many -o /dev/null >/dev/null 2>&1 ; echo $$?)
-GOODVER	:= 2.12.1
-else
-NEW_AS	:= 0
-endif
+# Use the file '.tmp_gas_check' for binutils tests, as gas won't output
+# to stdout and these checks are run even on install targets.
+TOUT	:= .tmp_gas_check
+# Ensure this is binutils 2.12.1 (or 2.12.90.0.7) or later for altivec
+# instructions.
 # gcc-3.4 and binutils-2.14 are a fatal combination.
-GCC_VERSION	:= $(shell $(CONFIG_SHELL) $(srctree)/scripts/gcc-version.sh $(CC))
-BAD_GCC_AS	:= $(shell echo mftb 5 | $(AS) -mppc -many -o /dev/null >/dev/null 2>&1 && echo 0 || echo 1)
+GCC_VERSION	:= $(call cc-version)
 
 checkbin:
-ifeq ($(GCC_VERSION)$(BAD_GCC_AS),03041)
-	@echo -n '*** ${VERSION}.${PATCHLEVEL} kernels no longer build '
-	@echo 'correctly with gcc-3.4 and your version of binutils.'
-	@echo '*** Please upgrade your binutils or downgrade your gcc'
-	@false
-endif
-ifneq ($(NEW_AS),0)
-	@echo -n '*** ${VERSION}.${PATCHLEVEL} kernels no longer build '
-	@echo 'correctly with old versions of binutils.'
-	@echo '*** Please upgrade your binutils to ${GOODVER} or newer'
-	@false
-endif
-	@true
+	@if test "$(GCC_VERSION)" = "0304" ; then \
+		if ! /bin/echo mftb 5 | $(AS) -v -mppc -many -o $(TOUT) >/dev/null 2>&1 ; then \
+			echo -n '*** ${VERSION}.${PATCHLEVEL} kernels no longer build '; \
+			echo 'correctly with gcc-3.4 and your version of binutils.'; \
+			echo '*** Please upgrade your binutils or downgrade your gcc'; \
+			false; \
+		fi ; \
+	fi
+	@if ! /bin/echo dssall | $(AS) -many -o $(TOUT) >/dev/null 2>&1 ; then \
+		echo -n '*** ${VERSION}.${PATCHLEVEL} kernels no longer build ' ; \
+		echo 'correctly with old versions of binutils.' ; \
+		echo '*** Please upgrade your binutils to 2.12.1 or newer' ; \
+		false ; \
+	fi
 
 CLEAN_FILES +=	include/asm-$(ARCH)/offsets.h \
-		arch/$(ARCH)/kernel/asm-offsets.s
+		arch/$(ARCH)/kernel/asm-offsets.s \
+		$(TOUT)
+

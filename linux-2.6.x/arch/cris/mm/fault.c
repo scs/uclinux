@@ -6,8 +6,8 @@
  *  Authors:  Bjorn Wesen 
  * 
  *  $Log$
- *  Revision 1.4  2004/09/08 14:53:04  lgsoft
- *  Import of 2.6.8
+ *  Revision 1.5  2005/08/12 03:32:53  magicyang
+ *    Update kernel 2.6.8 to 2.6.12
  *
  *  Revision 1.11  2004/05/14 07:58:05  starvik
  *  Merge of changes from 2.4

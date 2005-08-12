@@ -25,7 +25,6 @@
 #include <asm/io.h>
 #include <asm/uaccess.h>
 #include <asm/pgalloc.h>
-#include <asm/hardirq.h>
 #include <asm/mmu_context.h>
 #include <asm/cacheflush.h>
 
@@ -39,6 +38,16 @@ void update_mmu_cache(struct vm_area_struct * vma,
 	/* Ptrace may call this routine. */
 	if (vma && current->active_mm != vma->vm_mm)
 		return;
+
+#if defined(CONFIG_SH7705_CACHE_32KB)
+	struct page *page;
+	page = pte_page(pte);
+	if (VALID_PAGE(page) && !test_bit(PG_mapped, &page->flags)) {
+		unsigned long phys = pte_val(pte) & PTE_PHYS_MASK;
+		__flush_wback_region((void *)P1SEGADDR(phys), PAGE_SIZE);
+		__set_bit(PG_mapped, &page->flags);
+	}
+#endif
 
 	local_irq_save(flags);
 

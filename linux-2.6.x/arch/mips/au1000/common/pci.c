@@ -6,6 +6,8 @@
  * Author: MontaVista Software, Inc.
  *         	ppopov@mvista.com or source@mvista.com
  *
+ * Copyright (C) 2004 by Ralf Baechle (ralf@linux-mips.org)
+ *
  *  Support for all devices (greater than 16) added by David Gathright.
  *
  *  This program is free software; you can redistribute  it and/or modify it
@@ -35,7 +37,6 @@
 #include <linux/init.h>
 
 #include <asm/mach-au1x00/au1000.h>
-#include <asm/pci_channel.h>
 
 /* TBD */
 static struct resource pci_io_resource = {
@@ -67,23 +68,23 @@ static unsigned long virt_io_addr;
 static int __init au1x_pci_setup(void)
 {
 #if defined(CONFIG_SOC_AU1500) || defined(CONFIG_SOC_AU1550)
-	int i;
-	struct pci_dev *dev;
-	
 	virt_io_addr = (unsigned long)ioremap(Au1500_PCI_IO_START, 
 			Au1500_PCI_IO_END - Au1500_PCI_IO_START + 1);
 
 	if (!virt_io_addr) {
 		printk(KERN_ERR "Unable to ioremap pci space\n");
-		return;
+		return 1;
 	}
 
 #ifdef CONFIG_DMA_NONCOHERENT
 	/* 
-	 *  Set the NC bit in controller for pre-AC silicon
+         *  Set the NC bit in controller for Au1500 pre-AC silicon
 	 */
-	au_writel( 1<<16 | au_readl(Au1500_PCI_CFG), Au1500_PCI_CFG);
-	printk("Non-coherent PCI accesses enabled\n");
+	u32 prid = read_c0_prid();
+	if ( (prid & 0xFF000000) == 0x01000000 && prid < 0x01030202) {
+	       au_writel( 1<<16 | au_readl(Au1500_PCI_CFG), Au1500_PCI_CFG);
+	       printk("Non-coherent PCI accesses enabled\n");
+	}
 #endif
 
 	set_io_port_base(virt_io_addr);

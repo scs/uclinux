@@ -6,22 +6,26 @@
 #include "linux/list.h"
 #include "linux/sched.h"
 #include "linux/slab.h"
+#include "linux/interrupt.h"
 #include "linux/irq.h"
 #include "linux/spinlock.h"
 #include "linux/errno.h"
+#include "asm/atomic.h"
 #include "asm/semaphore.h"
 #include "asm/errno.h"
 #include "kern_util.h"
 #include "kern.h"
 #include "irq_user.h"
+#include "irq_kern.h"
 #include "port.h"
 #include "init.h"
 #include "os.h"
 
 struct port_list {
 	struct list_head list;
+	atomic_t wait_count;
 	int has_connection;
-	struct semaphore sem;
+	struct completion done;
 	int port;
 	int fd;
 	spinlock_t lock;
@@ -38,21 +42,21 @@ struct port_dev {
 struct connection {
 	struct list_head list;
 	int fd;
- 	int helper_pid;
+	int helper_pid;
 	int socket[2];
 	int telnetd_pid;
 	struct port_list *port;
 };
 
-static void pipe_interrupt(int irq, void *data, struct pt_regs *regs)
+static irqreturn_t pipe_interrupt(int irq, void *data, struct pt_regs *regs)
 {
 	struct connection *conn = data;
 	int fd;
 
- 	fd = os_rcv_fd(conn->socket[0], &conn->helper_pid);
+	fd = os_rcv_fd(conn->socket[0], &conn->helper_pid);
 	if(fd < 0){
 		if(fd == -EAGAIN)
-			return;
+			return(IRQ_NONE);
 
 		printk(KERN_ERR "pipe_interrupt : os_rcv_fd returned %d\n", 
 		       -fd);
@@ -64,8 +68,16 @@ static void pipe_interrupt(int irq, void *data, struct pt_regs *regs)
 	conn->fd = fd;
 	list_add(&conn->list, &conn->port->connections);
 
-	up(&conn->port->sem);
+	complete(&conn->port->done);
+	return(IRQ_HANDLED);
 }
+
+#define NO_WAITER_MSG \
+    "****\n" \
+    "There are currently no UML consoles waiting for port connections.\n" \
+    "Either disconnect from one to make it available or activate some more\n" \
+    "by enabling more consoles in the UML /etc/inittab.\n" \
+    "****\n"
 
 static int port_accept(struct port_list *port)
 {
@@ -101,9 +113,12 @@ static int port_accept(struct port_list *port)
 		goto out_free;
 	}
 
+	if(atomic_read(&port->wait_count) == 0){
+		os_write_file(fd, NO_WAITER_MSG, sizeof(NO_WAITER_MSG));
+		printk("No one waiting for port\n");
+	}
 	list_add(&conn->list, &port->pending);
-	ret = 1;
-	goto out;
+	return(1);
 
  out_free:
 	kfree(conn);
@@ -138,12 +153,13 @@ void port_work_proc(void *unused)
 
 DECLARE_WORK(port_work, port_work_proc, NULL);
 
-static void port_interrupt(int irq, void *data, struct pt_regs *regs)
+static irqreturn_t port_interrupt(int irq, void *data, struct pt_regs *regs)
 {
 	struct port_list *port = data;
 
 	port->has_connection = 1;
 	schedule_work(&port_work);
+	return(IRQ_HANDLED);
 } 
 
 void *port_data(int port_num)
@@ -179,14 +195,14 @@ void *port_data(int port_num)
 
 	*port = ((struct port_list) 
 		{ .list 	 	= LIST_HEAD_INIT(port->list),
+		  .wait_count		= ATOMIC_INIT(0),
 		  .has_connection 	= 0,
-		  .sem 			= __SEMAPHORE_INITIALIZER(port->sem, 
-								  0),
-		  .lock 		= SPIN_LOCK_UNLOCKED,
 		  .port 	 	= port_num,
 		  .fd  			= fd,
 		  .pending 		= LIST_HEAD_INIT(port->pending),
 		  .connections 		= LIST_HEAD_INIT(port->connections) });
+	spin_lock_init(&port->lock);
+	init_completion(&port->done);
 	list_add(&port->list, &ports);
 
  found:
@@ -217,9 +233,11 @@ int port_wait(void *data)
 	struct port_list *port = dev->port;
 	int fd;
 
+        atomic_inc(&port->wait_count);
 	while(1){
-		if(down_interruptible(&port->sem))
-			return(-ERESTARTSYS);
+		fd = -ERESTARTSYS;
+                if(wait_for_completion_interruptible(&port->done))
+                        goto out;
 
 		spin_lock(&port->lock);
 
@@ -239,6 +257,7 @@ int port_wait(void *data)
 		 * connection.  Then we loop here throwing out failed 
 		 * connections until a good one is found.
 		 */
+		free_irq_by_irq_and_dev(TELNETD_IRQ, conn);
 		free_irq(TELNETD_IRQ, conn);
 
 		if(conn->fd >= 0) break;
@@ -250,8 +269,9 @@ int port_wait(void *data)
 	dev->helper_pid = conn->helper_pid;
 	dev->telnetd_pid = conn->telnetd_pid;
 	kfree(conn);
-
-	return(fd);
+ out:
+	atomic_dec(&port->wait_count);
+	return fd;
 }
 
 void port_remove_dev(void *d)
@@ -287,14 +307,3 @@ static void free_port(void)
 }
 
 __uml_exitcall(free_port);
-
-/*
- * Overrides for Emacs so that we follow Linus's tabbing style.
- * Emacs will notice this stuff at the end of the file and automatically
- * adjust the settings for this buffer only.  This must remain at the end
- * of the file.
- * ---------------------------------------------------------------------------
- * Local variables:
- * c-file-style: "linux"
- * End:
- */

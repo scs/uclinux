@@ -8,7 +8,6 @@
 #include <unistd.h>
 #include <string.h>
 #include <errno.h>
-#include <fcntl.h>
 #include <termios.h>
 #include <signal.h>
 #include <sched.h>
@@ -32,11 +31,13 @@ struct xterm_chan {
 	int direct_rcv;
 };
 
+/* Not static because it's called directly by the tt mode gdb code */
 void *xterm_init(char *str, int device, struct chan_opts *opts)
 {
 	struct xterm_chan *data;
 
-	if((data = malloc(sizeof(*data))) == NULL) return(NULL);
+	data = malloc(sizeof(*data));
+	if(data == NULL) return(NULL);
 	*data = ((struct xterm_chan) { .pid 		= -1, 
 				       .helper_pid 	= -1,
 				       .device 		= device, 
@@ -83,7 +84,11 @@ __uml_setup("xterm=", xterm_setup,
 "    are 'xterm=gnome-terminal,-t,-x'.\n\n"
 );
 
-int xterm_open(int input, int output, int primary, void *d, char **dev_out)
+/* XXX This badly needs some cleaning up in the error paths
+ * Not static because it's called directly by the tt mode gdb code
+ */
+int xterm_open(int input, int output, int primary, void *d,
+		      char **dev_out)
 {
 	struct xterm_chan *data = d;
 	unsigned long stack;
@@ -93,8 +98,15 @@ int xterm_open(int input, int output, int primary, void *d, char **dev_out)
 			 "/usr/lib/uml/port-helper", "-uml-socket",
 			 file, NULL };
 
-	if(access(argv[4], X_OK))
+	if(os_access(argv[4], OS_ACC_X_OK) < 0)
 		argv[4] = "port-helper";
+
+	/* Check that DISPLAY is set, this doesn't guarantee the xterm
+	 * will work but w/o it we can be pretty sure it won't. */
+	if (!getenv("DISPLAY")) {
+		printk("xterm_open: $DISPLAY not set.\n");
+		return -ENODEV;
+	}
 
 	fd = mkstemp(file);
 	if(fd < 0){
@@ -106,13 +118,13 @@ int xterm_open(int input, int output, int primary, void *d, char **dev_out)
 		printk("xterm_open : unlink failed, errno = %d\n", errno);
 		return(-errno);
 	}
-	close(fd);
+	os_close_file(fd);
 
-	fd = create_unix_socket(file, sizeof(file));
+	fd = os_create_unix_socket(file, sizeof(file), 1);
 	if(fd < 0){
 		printk("xterm_open : create_unix_socket failed, errno = %d\n", 
 		       -fd);
-		return(-fd);
+		return(fd);
 	}
 
 	sprintf(title, data->title, data->device);
@@ -125,23 +137,35 @@ int xterm_open(int input, int output, int primary, void *d, char **dev_out)
 
 	if(data->stack == 0) free_stack(stack, 0);
 
-	if(data->direct_rcv)
+	if (data->direct_rcv) {
 		new = os_rcv_fd(fd, &data->helper_pid);
-	else {
-		if((err = os_set_fd_block(fd, 0)) != 0){
+	} else {
+		err = os_set_fd_block(fd, 0);
+		if(err < 0){
 			printk("xterm_open : failed to set descriptor "
-			       "non-blocking, errno = %d\n", err);
+			       "non-blocking, err = %d\n", -err);
 			return(err);
 		}
 		new = xterm_fd(fd, &data->helper_pid);
 	}
 	if(new < 0){
-		printk("xterm_open : os_rcv_fd failed, errno = %d\n", -new);
+		printk("xterm_open : os_rcv_fd failed, err = %d\n", -new);
 		goto out;
 	}
 
-	tcgetattr(new, &data->tt);
-	if(data->raw) raw(new, 0);
+	CATCH_EINTR(err = tcgetattr(new, &data->tt));
+	if(err){
+		new = err;
+		goto out;
+	}
+
+	if(data->raw){
+		err = raw(new);
+		if(err){
+			new = err;
+			goto out;
+		}
+	}
 
 	data->pid = pid;
 	*dev_out = NULL;
@@ -150,6 +174,7 @@ int xterm_open(int input, int output, int primary, void *d, char **dev_out)
 	return(new);
 }
 
+/* Not static because it's called directly by the tt mode gdb code */
 void xterm_close(int fd, void *d)
 {
 	struct xterm_chan *data = d;
@@ -160,15 +185,15 @@ void xterm_close(int fd, void *d)
 	if(data->helper_pid != -1) 
 		os_kill_process(data->helper_pid, 0);
 	data->helper_pid = -1;
-	close(fd);
+	os_close_file(fd);
 }
 
-void xterm_free(void *d)
+static void xterm_free(void *d)
 {
 	free(d);
 }
 
-int xterm_console_write(int fd, const char *buf, int n, void *d)
+static int xterm_console_write(int fd, const char *buf, int n, void *d)
 {
 	struct xterm_chan *data = d;
 

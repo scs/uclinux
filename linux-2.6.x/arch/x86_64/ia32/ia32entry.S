@@ -78,7 +78,7 @@ ENTRY(ia32_sysenter_target)
  	.quad 1b,ia32_badarg
  	.previous	
 	GET_THREAD_INFO(%r10)
-	testl  $(_TIF_SYSCALL_TRACE|_TIF_SYSCALL_AUDIT),threadinfo_flags(%r10)
+	testl  $(_TIF_SYSCALL_TRACE|_TIF_SYSCALL_AUDIT|_TIF_SECCOMP),threadinfo_flags(%r10)
 	jnz  sysenter_tracesys
 sysenter_do_call:	
 	cmpl	$(IA32_NR_syscalls),%eax
@@ -163,7 +163,7 @@ ENTRY(ia32_cstar_target)
 	.quad 1b,ia32_badarg
 	.previous	
 	GET_THREAD_INFO(%r10)
-	testl $(_TIF_SYSCALL_TRACE|_TIF_SYSCALL_AUDIT),threadinfo_flags(%r10)
+	testl $(_TIF_SYSCALL_TRACE|_TIF_SYSCALL_AUDIT|_TIF_SECCOMP),threadinfo_flags(%r10)
 	jnz   cstar_tracesys
 cstar_do_call:	
 	cmpl $IA32_NR_syscalls,%eax
@@ -236,7 +236,7 @@ ENTRY(ia32_syscall)
 	   this could be a problem. */
 	SAVE_ARGS 0,0,1
 	GET_THREAD_INFO(%r10)
-	testl $(_TIF_SYSCALL_TRACE|_TIF_SYSCALL_AUDIT),threadinfo_flags(%r10)
+	testl $(_TIF_SYSCALL_TRACE|_TIF_SYSCALL_AUDIT|_TIF_SECCOMP),threadinfo_flags(%r10)
 	jnz ia32_tracesys
 ia32_do_syscall:	
 	cmpl $(IA32_NR_syscalls),%eax
@@ -270,35 +270,32 @@ quiet_ni_syscall:
 	ret
 	CFI_ENDPROC
 	
-	.macro PTREGSCALL label, func
+	.macro PTREGSCALL label, func, arg
 	.globl \label
 \label:
 	leaq \func(%rip),%rax
+	leaq -ARGOFFSET+8(%rsp),\arg	/* 8 for return address */
 	jmp  ia32_ptregs_common	
 	.endm
 
-	PTREGSCALL stub32_rt_sigreturn, sys32_rt_sigreturn
-	PTREGSCALL stub32_sigreturn, sys32_sigreturn
-	PTREGSCALL stub32_sigaltstack, sys32_sigaltstack
-	PTREGSCALL stub32_sigsuspend, sys32_sigsuspend
-	PTREGSCALL stub32_execve, sys32_execve
-	PTREGSCALL stub32_fork, sys_fork
-	PTREGSCALL stub32_clone, sys32_clone
-	PTREGSCALL stub32_vfork, sys_vfork
-	PTREGSCALL stub32_iopl, sys_iopl
-	PTREGSCALL stub32_rt_sigsuspend, sys_rt_sigsuspend
+	PTREGSCALL stub32_rt_sigreturn, sys32_rt_sigreturn, %rdi
+	PTREGSCALL stub32_sigreturn, sys32_sigreturn, %rdi
+	PTREGSCALL stub32_sigaltstack, sys32_sigaltstack, %rdx
+	PTREGSCALL stub32_sigsuspend, sys32_sigsuspend, %rcx
+	PTREGSCALL stub32_execve, sys32_execve, %rcx
+	PTREGSCALL stub32_fork, sys_fork, %rdi
+	PTREGSCALL stub32_clone, sys32_clone, %rdx
+	PTREGSCALL stub32_vfork, sys_vfork, %rdi
+	PTREGSCALL stub32_iopl, sys_iopl, %rsi
+	PTREGSCALL stub32_rt_sigsuspend, sys_rt_sigsuspend, %rdx
 
 ENTRY(ia32_ptregs_common)
 	CFI_STARTPROC
 	popq %r11
 	SAVE_REST
-	movq %r11, %r15
 	call *%rax
-	movq %r15, %r11
 	RESTORE_REST
-	leaq ia32_sysret(%rip),%r11
-	pushq %r11
-	ret
+	jmp  ia32_sysret	/* misbalances the return cache */
 	CFI_ENDPROC
 
 	.data
@@ -318,7 +315,7 @@ ia32_sys_call_table:
 	.quad sys_unlink		/* 10 */
 	.quad stub32_execve
 	.quad sys_chdir
-	.quad sys32_time
+	.quad compat_sys_time
 	.quad sys_mknod
 	.quad sys_chmod		/* 15 */
 	.quad sys_lchown16
@@ -330,9 +327,9 @@ ia32_sys_call_table:
 	.quad sys_oldumount	/* old_umount  */
 	.quad sys_setuid16
 	.quad sys_getuid16
-	.quad sys_stime		/* stime */		/* 25 */
+	.quad compat_sys_stime	/* stime */		/* 25 */
 	.quad sys32_ptrace	/* ptrace */
-	.quad sys_alarm		/* XXX sign extension??? */ 
+	.quad sys_alarm
 	.quad sys_fstat	/* (old)fstat */
 	.quad sys_pause
 	.quad compat_sys_utime	/* 30 */
@@ -391,10 +388,14 @@ ia32_sys_call_table:
 	.quad sys_symlink
 	.quad sys_lstat
 	.quad sys_readlink		/* 85 */
+#ifdef CONFIG_IA32_AOUT
 	.quad sys_uselib
+#else
+	.quad quiet_ni_syscall
+#endif
 	.quad sys_swapon
 	.quad sys_reboot
-	.quad sys32_oldreaddir
+	.quad compat_sys_old_readdir
 	.quad sys32_mmap		/* 90 */
 	.quad sys_munmap
 	.quad sys_truncate
@@ -436,7 +437,7 @@ ia32_sys_call_table:
 	.quad sys_init_module
 	.quad sys_delete_module
 	.quad quiet_ni_syscall		/* 130  get_kernel_syms */
-	.quad sys32_quotactl		/* quotactl */ 
+	.quad sys_quotactl
 	.quad sys_getpgid
 	.quad sys_fchdir
 	.quad quiet_ni_syscall	/* bdflush */
@@ -446,7 +447,7 @@ ia32_sys_call_table:
 	.quad sys_setfsuid16
 	.quad sys_setfsgid16
 	.quad sys_llseek		/* 140 */
-	.quad sys32_getdents
+	.quad compat_sys_getdents
 	.quad compat_sys_select
 	.quad sys_flock
 	.quad sys_msync
@@ -482,7 +483,7 @@ ia32_sys_call_table:
 	.quad sys32_rt_sigaction
 	.quad sys32_rt_sigprocmask	/* 175 */
 	.quad sys32_rt_sigpending
-	.quad sys32_rt_sigtimedwait
+	.quad compat_sys_rt_sigtimedwait
 	.quad sys32_rt_sigqueueinfo
 	.quad stub32_rt_sigsuspend
 	.quad sys32_pread		/* 180 */
@@ -525,7 +526,7 @@ ia32_sys_call_table:
 	.quad sys_pivot_root
 	.quad sys_mincore
 	.quad sys_madvise
-	.quad sys_getdents64	/* 220 getdents64 */ 
+	.quad compat_sys_getdents64	/* 220 getdents64 */
 	.quad compat_sys_fcntl64	
 	.quad quiet_ni_syscall		/* tux */
 	.quad quiet_ni_syscall    	/* security */
@@ -550,37 +551,37 @@ ia32_sys_call_table:
 	.quad compat_sys_sched_getaffinity
 	.quad sys32_set_thread_area
 	.quad sys32_get_thread_area
-	.quad sys32_io_setup		/* 245 */
+	.quad compat_sys_io_setup	/* 245 */
 	.quad sys_io_destroy
-	.quad sys32_io_getevents
-	.quad sys32_io_submit
+	.quad compat_sys_io_getevents
+	.quad compat_sys_io_submit
 	.quad sys_io_cancel
 	.quad sys_fadvise64		/* 250 */
 	.quad quiet_ni_syscall 	/* free_huge_pages */
 	.quad sys_exit_group
-	.quad sys_lookup_dcookie
+	.quad sys32_lookup_dcookie
 	.quad sys_epoll_create
 	.quad sys_epoll_ctl		/* 255 */
 	.quad sys_epoll_wait
 	.quad sys_remap_file_pages
 	.quad sys_set_tid_address
 	.quad sys32_timer_create
-	.quad compat_timer_settime	/* 260 */
-	.quad compat_timer_gettime
+	.quad compat_sys_timer_settime	/* 260 */
+	.quad compat_sys_timer_gettime
 	.quad sys_timer_getoverrun
 	.quad sys_timer_delete
-	.quad compat_clock_settime
-	.quad compat_clock_gettime	/* 265 */
-	.quad compat_clock_getres
-	.quad compat_clock_nanosleep
-	.quad compat_statfs64
-	.quad compat_fstatfs64
+	.quad compat_sys_clock_settime
+	.quad compat_sys_clock_gettime	/* 265 */
+	.quad compat_sys_clock_getres
+	.quad compat_sys_clock_nanosleep
+	.quad compat_sys_statfs64
+	.quad compat_sys_fstatfs64
 	.quad sys_tgkill		/* 270 */
 	.quad compat_sys_utimes
 	.quad sys32_fadvise64_64
 	.quad quiet_ni_syscall	/* sys_vserver */
 	.quad sys_mbind
-	.quad compat_get_mempolicy	/* 275 */
+	.quad compat_sys_get_mempolicy	/* 275 */
 	.quad sys_set_mempolicy
 	.quad compat_sys_mq_open
 	.quad sys_mq_unlink
@@ -589,6 +590,11 @@ ia32_sys_call_table:
 	.quad compat_sys_mq_notify
 	.quad compat_sys_mq_getsetattr
 	.quad quiet_ni_syscall		/* reserved for kexec */
+	.quad compat_sys_waitid
+	.quad quiet_ni_syscall		/* sys_altroot */
+	.quad sys_add_key
+	.quad sys_request_key
+	.quad sys_keyctl
 	/* don't forget to change IA32_NR_syscalls */
 ia32_syscall_end:		
 	.rept IA32_NR_syscalls-(ia32_syscall_end-ia32_sys_call_table)/8

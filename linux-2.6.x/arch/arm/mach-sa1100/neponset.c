@@ -173,10 +173,12 @@ static int neponset_probe(struct device *dev)
 	return 0;
 }
 
+#ifdef CONFIG_PM
+
 /*
  * LDM power management.
  */
-static int neponset_suspend(struct device *dev, u32 state, u32 level)
+static int neponset_suspend(struct device *dev, pm_message_t state, u32 level)
 {
 	/*
 	 * Save state.
@@ -184,12 +186,12 @@ static int neponset_suspend(struct device *dev, u32 state, u32 level)
 	if (level == SUSPEND_SAVE_STATE ||
 	    level == SUSPEND_DISABLE ||
 	    level == SUSPEND_POWER_DOWN) {
-		if (!dev->saved_state)
-			dev->saved_state = kmalloc(sizeof(unsigned int), GFP_KERNEL);
-		if (!dev->saved_state)
+		if (!dev->power.saved_state)
+			dev->power.saved_state = kmalloc(sizeof(unsigned int), GFP_KERNEL);
+		if (!dev->power.saved_state)
 			return -ENOMEM;
 
-		*(unsigned int *)dev->saved_state = NCR_0;
+		*(unsigned int *)dev->power.saved_state = NCR_0;
 	}
 
 	return 0;
@@ -198,15 +200,20 @@ static int neponset_suspend(struct device *dev, u32 state, u32 level)
 static int neponset_resume(struct device *dev, u32 level)
 {
 	if (level == RESUME_RESTORE_STATE || level == RESUME_ENABLE) {
-		if (dev->saved_state) {
-			NCR_0 = *(unsigned int *)dev->saved_state;
-			kfree(dev->saved_state);
-			dev->saved_state = NULL;
+		if (dev->power.saved_state) {
+			NCR_0 = *(unsigned int *)dev->power.saved_state;
+			kfree(dev->power.saved_state);
+			dev->power.saved_state = NULL;
 		}
 	}
 
 	return 0;
 }
+
+#else
+#define neponset_suspend NULL
+#define neponset_resume  NULL
+#endif
 
 static struct device_driver neponset_device_driver = {
 	.name		= "neponset",
@@ -259,6 +266,7 @@ static struct platform_device sa1111_device = {
 
 static struct resource smc91x_resources[] = {
 	[0] = {
+		.name	= "smc91x-regs",
 		.start	= SA1100_CS3_PHYS,
 		.end	= SA1100_CS3_PHYS + 0x01ffffff,
 		.flags	= IORESOURCE_MEM,
@@ -269,6 +277,7 @@ static struct resource smc91x_resources[] = {
 		.flags	= IORESOURCE_IRQ,
 	},
 	[2] = {
+		.name	= "smc91x-attrib",
 		.start	= SA1100_CS3_PHYS + 0x02000000,
 		.end	= SA1100_CS3_PHYS + 0x03ffffff,
 		.flags	= IORESOURCE_MEM,

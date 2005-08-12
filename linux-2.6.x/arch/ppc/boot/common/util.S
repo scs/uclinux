@@ -27,6 +27,7 @@
 
 	.text
 
+#ifdef CONFIG_6xx
 	.globl	disable_6xx_mmu
 disable_6xx_mmu:
 	/* Establish default MSR value, exception prefix 0xFFF.
@@ -41,28 +42,28 @@ disable_6xx_mmu:
 	/* Test for a 601 */
 	mfpvr	r10
 	srwi	r10,r10,16
-	cmpi	0,r10,1		/* 601 ? */
+	cmpwi	0,r10,1		/* 601 ? */
 	beq	.clearbats_601
 
 	/* Clear BATs */
 	li	r8,0
-	mtspr	DBAT0U,r8
-	mtspr	DBAT0L,r8
-	mtspr	DBAT1U,r8
-	mtspr	DBAT1L,r8
-	mtspr	DBAT2U,r8
-	mtspr	DBAT2L,r8
-	mtspr	DBAT3U,r8
-	mtspr	DBAT3L,r8
+	mtspr	SPRN_DBAT0U,r8
+	mtspr	SPRN_DBAT0L,r8
+	mtspr	SPRN_DBAT1U,r8
+	mtspr	SPRN_DBAT1L,r8
+	mtspr	SPRN_DBAT2U,r8
+	mtspr	SPRN_DBAT2L,r8
+	mtspr	SPRN_DBAT3U,r8
+	mtspr	SPRN_DBAT3L,r8
 .clearbats_601:
-	mtspr	IBAT0U,r8
-	mtspr	IBAT0L,r8
-	mtspr	IBAT1U,r8
-	mtspr	IBAT1L,r8
-	mtspr	IBAT2U,r8
-	mtspr	IBAT2L,r8
-	mtspr	IBAT3U,r8
-	mtspr	IBAT3L,r8
+	mtspr	SPRN_IBAT0U,r8
+	mtspr	SPRN_IBAT0L,r8
+	mtspr	SPRN_IBAT1U,r8
+	mtspr	SPRN_IBAT1L,r8
+	mtspr	SPRN_IBAT2U,r8
+	mtspr	SPRN_IBAT2L,r8
+	mtspr	SPRN_IBAT3U,r8
+	mtspr	SPRN_IBAT3L,r8
 	isync
 	sync
 	sync
@@ -83,17 +84,18 @@ disable_6xx_l1cache:
 	/* Enable, invalidate and then disable the L1 icache/dcache. */
 	li	r8,0
 	ori	r8,r8,(HID0_ICE|HID0_DCE|HID0_ICFI|HID0_DCI)
-	mfspr	r11,HID0
+	mfspr	r11,SPRN_HID0
 	or	r11,r11,r8
 	andc	r10,r11,r8
 	isync
-	mtspr	HID0,r8
+	mtspr	SPRN_HID0,r8
 	sync
 	isync
-	mtspr	HID0,r10
+	mtspr	SPRN_HID0,r10
 	sync
 	isync
 	blr
+#endif
 
 	.globl	_setup_L2CR
 _setup_L2CR:
@@ -105,38 +107,38 @@ _setup_L2CR:
 	/* Invalidate/disable L2 cache */
 	sync
 	isync
-	mfspr	r8,L2CR
+	mfspr	r8,SPRN_L2CR
 	rlwinm	r8,r8,0,1,31
 	oris	r8,r8,L2CR_L2I@h
 	sync
 	isync
-	mtspr	L2CR,r8
+	mtspr	SPRN_L2CR,r8
 	sync
 	isync
 
 	/* Wait for the invalidation to complete */
-	mfspr   r8,PVR
+	mfspr   r8,SPRN_PVR
 	srwi    r8,r8,16
-	cmpli	cr0,r8,0x8000			/* 7450 */
-	cmpli	cr1,r8,0x8001			/* 7455 */
-	cmpli	cr2,r8,0x8002			/* 7457 */
+	cmplwi	cr0,r8,0x8000			/* 7450 */
+	cmplwi	cr1,r8,0x8001			/* 7455 */
+	cmplwi	cr2,r8,0x8002			/* 7457 */
 	cror	4*cr0+eq,4*cr0+eq,4*cr1+eq	/* Now test if any are true. */
 	cror	4*cr0+eq,4*cr0+eq,4*cr2+eq
 	bne     2f
 
-1:	mfspr	r8,L2CR		/* On 745x, poll L2I bit (bit 10) */
+1:	mfspr	r8,SPRN_L2CR	/* On 745x, poll L2I bit (bit 10) */
 	rlwinm.	r9,r8,0,10,10
 	bne	1b
 	b	3f
 
-2:      mfspr   r8,L2CR		/* On 75x & 74[01]0, poll L2IP bit (bit 31) */
+2:      mfspr   r8,SPRN_L2CR	/* On 75x & 74[01]0, poll L2IP bit (bit 31) */
 	rlwinm. r9,r8,0,31,31
 	bne     2b
 
 3:	rlwinm	r8,r8,0,11,9	/* Turn off L2I bit */
 	sync
 	isync
-	mtspr	L2CR,r8
+	mtspr	SPRN_L2CR,r8
 	sync
 	isync
 	blr
@@ -146,24 +148,24 @@ _setup_L3CR:
 	/* Invalidate/disable L3 cache */
 	sync
 	isync
-	mfspr	r8,L3CR
+	mfspr	r8,SPRN_L3CR
 	rlwinm	r8,r8,0,1,31
 	ori	r8,r8,L3CR_L3I@l
 	sync
 	isync
-	mtspr	L3CR,r8
+	mtspr	SPRN_L3CR,r8
 	sync
 	isync
 
 	/* Wait for the invalidation to complete */
-1:	mfspr	r8,L3CR
+1:	mfspr	r8,SPRN_L3CR
 	rlwinm.	r9,r8,0,21,21
 	bne	1b
 
 	rlwinm	r8,r8,0,22,20		/* Turn off L3I bit */
 	sync
 	isync
-	mtspr	L3CR,r8
+	mtspr	SPRN_L3CR,r8
 	sync
 	isync
 	blr
@@ -188,9 +190,9 @@ timebase_period_ns:
  */
 	.globl	udelay
 udelay:
-	mfspr	r4,PVR
+	mfspr	r4,SPRN_PVR
 	srwi	r4,r4,16
-	cmpi	0,r4,1		/* 601 ? */
+	cmpwi	0,r4,1		/* 601 ? */
 	bne	.udelay_not_601
 00:	li	r0,86	/* Instructions / microsecond? */
 	mtctr	r0
@@ -213,16 +215,16 @@ udelay:
 1:	mftbu	r5
 	mftb	r6
 	mftbu	r7
-	cmp	0,r5,r7
+	cmpw	0,r5,r7
 	bne	1b		/* Get [synced] base time */
 	addc	r9,r6,r4	/* Compute end time */
 	addze	r8,r5
 2:	mftbu	r5
-	cmp	0,r5,r8
+	cmpw	0,r5,r8
 	blt	2b
 	bgt	3f
 	mftb	r6
-	cmp	0,r6,r9
+	cmpw	0,r6,r9
 	blt	2b
 3:	blr
 
@@ -238,11 +240,11 @@ _GLOBAL(flush_instruction_cache)
 
 #ifdef CONFIG_8xx
 	lis	r3, IDC_INVALL@h
-	mtspr	IC_CST, r3
+	mtspr	SPRN_IC_CST, r3
 	lis	r3, IDC_ENABLE@h
-	mtspr	IC_CST, r3
+	mtspr	SPRN_IC_CST, r3
 	lis	r3, IDC_DISABLE@h
-	mtspr	DC_CST, r3
+	mtspr	SPRN_DC_CST, r3
 #elif CONFIG_4xx
 	lis	r3,start@h		# r9 = &_start
 	lis	r4,_etext@ha
@@ -256,14 +258,14 @@ _GLOBAL(flush_instruction_cache)
 	/* Enable, invalidate and then disable the L1 icache/dcache. */
 	li	r3,0
 	ori	r3,r3,(HID0_ICE|HID0_DCE|HID0_ICFI|HID0_DCI)
-	mfspr	r4,HID0
+	mfspr	r4,SPRN_HID0
 	or	r5,r4,r3
 	isync
-	mtspr	HID0,r5
+	mtspr	SPRN_HID0,r5
 	sync
 	isync
 	ori	r5,r4,HID0_ICE	/* Enable cache */
-	mtspr	HID0,r5
+	mtspr	SPRN_HID0,r5
 	sync
 	isync
 #endif

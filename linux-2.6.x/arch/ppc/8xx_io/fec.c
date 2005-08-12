@@ -44,6 +44,7 @@
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
 #include <linux/spinlock.h>
+#include <linux/bitops.h>
 #ifdef CONFIG_FEC_PACKETHOOK
 #include <linux/pkthook.h>
 #endif
@@ -52,7 +53,6 @@
 #include <asm/pgtable.h>
 #include <asm/mpc8xx.h>
 #include <asm/irq.h>
-#include <asm/bitops.h>
 #include <asm/uaccess.h>
 #include <asm/commproc.h>
 
@@ -389,6 +389,7 @@ fec_enet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	flush_dcache_range((unsigned long)skb->data,
 			   (unsigned long)skb->data + skb->len);
 
+	/* disable interrupts while triggering transmit */
 	spin_lock_irq(&fep->lock);
 
 	/* Send it on its way.  Tell FEC its ready, interrupt when done,
@@ -539,6 +540,7 @@ fec_enet_tx(struct net_device *dev)
 	struct	sk_buff	*skb;
 
 	fep = dev->priv;
+	/* lock while transmitting */
 	spin_lock(&fep->lock);
 	bdp = fep->dirty_tx;
 
@@ -799,6 +801,7 @@ fec_enet_mii(struct net_device *dev)
 
 	if ((mip = mii_head) != NULL) {
 		ep->fec_mii_data = mip->mii_regval;
+
 	}
 }
 
@@ -817,8 +820,8 @@ mii_queue(struct net_device *dev, int regval, void (*func)(uint, struct net_devi
 
 	retval = 0;
 
-	save_flags(flags);
-	cli();
+	/* lock while modifying mii_list */
+	spin_lock_irqsave(&fep->lock, flags);
 
 	if ((mip = mii_free) != NULL) {
 		mii_free = mip->mii_next;
@@ -836,7 +839,7 @@ mii_queue(struct net_device *dev, int regval, void (*func)(uint, struct net_devi
 		retval = 1;
 	}
 
-	restore_flags(flags);
+	spin_unlock_irqrestore(&fep->lock, flags);
 
 	return(retval);
 }
@@ -1684,7 +1687,7 @@ static int __init fec_enet_init(void)
 
 	/* Install our interrupt handler.
 	*/
-	if (request_8xxirq(FEC_INTERRUPT, fec_enet_interrupt, 0, "fec", dev) != 0)
+	if (request_irq(FEC_INTERRUPT, fec_enet_interrupt, 0, "fec", dev) != 0)
 		panic("Could not allocate FEC IRQ!");
 
 #ifdef CONFIG_RPXCLASSIC
@@ -1705,7 +1708,7 @@ static int __init fec_enet_init(void)
 	((immap_t *)IMAP_ADDR)->im_siu_conf.sc_siel |=
 		(0x80000000 >> PHY_INTERRUPT);
 
-	if (request_8xxirq(PHY_INTERRUPT, mii_link_interrupt, 0, "mii", dev) != 0)
+	if (request_irq(PHY_INTERRUPT, mii_link_interrupt, 0, "mii", dev) != 0)
 		panic("Could not allocate MII IRQ!");
 #endif
 
@@ -1732,7 +1735,7 @@ static int __init fec_enet_init(void)
 
 	/* Bits moved from Rev. D onward.
 	*/
-	if ((mfspr(IMMR) & 0xffff) < 0x0501)
+	if ((mfspr(SPRN_IMMR) & 0xffff) < 0x0501)
 		immap->im_ioport.iop_pddir = 0x1c58;	/* Pre rev. D */
 	else
 		immap->im_ioport.iop_pddir = 0x1fff;	/* Rev. D and later */

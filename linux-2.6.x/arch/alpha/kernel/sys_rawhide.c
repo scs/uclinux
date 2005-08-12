@@ -42,7 +42,7 @@ static unsigned int hose_irq_masks[4] = {
 	0xff0000, 0xfe0000, 0xff0000, 0xff0000
 };
 static unsigned int cached_irq_masks[4];
-spinlock_t rawhide_irq_lock = SPIN_LOCK_UNLOCKED;
+DEFINE_SPINLOCK(rawhide_irq_lock);
 
 static inline void
 rawhide_update_irq_hw(int hose, int mask)
@@ -250,7 +250,6 @@ struct alpha_machine_vector rawhide_mv __initmv = {
 	DO_EV5_MMU,
 	DO_DEFAULT_RTC,
 	DO_MCPCIA_IO,
-	DO_MCPCIA_BUS,
 	.machine_check		= mcpcia_machine_check,
 	.max_isa_dma_address	= ALPHA_MAX_ISA_DMA_ADDRESS,
 	.min_io_address		= DEFAULT_IO_BASE,

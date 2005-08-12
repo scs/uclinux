@@ -10,6 +10,7 @@
 #include <linux/errno.h>
 #include <linux/ptrace.h>
 #include <linux/user.h>
+#include <linux/signal.h>
 
 #include <asm/uaccess.h>
 #include <asm/page.h>
@@ -23,8 +24,37 @@
  */
 #define DCCR_MASK 0x0000001f     /* XNZVC */
 
-extern inline long get_reg(struct task_struct *, unsigned int);
-extern inline long put_reg(struct task_struct *, unsigned int, unsigned long);
+/*
+ * Get contents of register REGNO in task TASK.
+ */
+inline long get_reg(struct task_struct *task, unsigned int regno)
+{
+	/* USP is a special case, it's not in the pt_regs struct but
+	 * in the tasks thread struct
+	 */
+
+	if (regno == PT_USP)
+		return task->thread.usp;
+	else if (regno < PT_MAX)
+		return ((unsigned long *)user_regs(task->thread_info))[regno];
+	else
+		return 0;
+}
+
+/*
+ * Write contents of register REGNO in task TASK.
+ */
+inline int put_reg(struct task_struct *task, unsigned int regno,
+			  unsigned long data)
+{
+	if (regno == PT_USP)
+		task->thread.usp = data;
+	else if (regno < PT_MAX)
+		((unsigned long *)user_regs(task->thread_info))[regno] = data;
+	else
+		return -1;
+	return 0;
+}
 
 /*
  * Called by kernel/ptrace.c when detaching.
@@ -50,6 +80,7 @@ sys_ptrace(long request, long pid, long addr, long data)
 {
 	struct task_struct *child;
 	int ret;
+	unsigned long __user *datap = (unsigned long __user *)data;
 
 	lock_kernel();
 	ret = -EPERM;
@@ -85,17 +116,8 @@ sys_ptrace(long request, long pid, long addr, long data)
 		goto out_tsk;
 	}
 	
-	ret = -ESRCH;
-	
-	if (!(child->ptrace & PT_PTRACED))
-		goto out_tsk;
-	
-	if (child->state != TASK_STOPPED) {
-		if (request != PTRACE_KILL)
-			goto out_tsk;
-	}
-	
-	if (child->parent != current)
+	ret = ptrace_check_attach(child, request == PTRACE_KILL);
+	if (ret < 0)
 		goto out_tsk;
 
 	switch (request) {
@@ -111,7 +133,7 @@ sys_ptrace(long request, long pid, long addr, long data)
 			if (copied != sizeof(tmp))
 				break;
 			
-			ret = put_user(tmp,(unsigned long *) data);
+			ret = put_user(tmp,datap);
 			break;
 		}
 
@@ -124,7 +146,7 @@ sys_ptrace(long request, long pid, long addr, long data)
 				break;
 
 			tmp = get_reg(child, addr >> 2);
-			ret = put_user(tmp, (unsigned long *)data);
+			ret = put_user(tmp, datap);
 			break;
 		}
 		
@@ -163,7 +185,7 @@ sys_ptrace(long request, long pid, long addr, long data)
 		case PTRACE_CONT:
 			ret = -EIO;
 			
-			if ((unsigned long) data > _NSIG)
+			if (!valid_signal(data))
 				break;
                         
 			if (request == PTRACE_SYSCALL) {
@@ -198,7 +220,7 @@ sys_ptrace(long request, long pid, long addr, long data)
 		case PTRACE_SINGLESTEP:
 			ret = -EIO;
 			
-			if ((unsigned long) data > _NSIG)
+			if (!valid_signal(data))
 				break;
 			
 			clear_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
@@ -222,7 +244,7 @@ sys_ptrace(long request, long pid, long addr, long data)
 			for (i = 0; i <= PT_MAX; i++) {
 				tmp = get_reg(child, i);
 				
-				if (put_user(tmp, (unsigned long *) data)) {
+				if (put_user(tmp, datap)) {
 					ret = -EFAULT;
 					goto out_tsk;
 				}
@@ -240,7 +262,7 @@ sys_ptrace(long request, long pid, long addr, long data)
 			unsigned long tmp;
 			
 			for (i = 0; i <= PT_MAX; i++) {
-				if (get_user(tmp, (unsigned long *) data)) {
+				if (get_user(tmp, datap)) {
 					ret = -EFAULT;
 					goto out_tsk;
 				}

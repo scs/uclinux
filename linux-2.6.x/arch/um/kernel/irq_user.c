@@ -6,7 +6,6 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <errno.h>
-#include <fcntl.h>
 #include <signal.h>
 #include <string.h>
 #include <sys/poll.h>
@@ -49,7 +48,8 @@ void sigio_handler(int sig, union uml_pt_regs *regs)
 
 	if(smp_sigio_handler()) return;
 	while(1){
-		if((n = poll(pollfds, pollfds_num, 0)) < 0){
+		n = poll(pollfds, pollfds_num, 0);
+		if(n < 0){
 			if(errno == EINTR) continue;
 			printk("sigio_handler : poll returned %d, "
 			       "errno = %d\n", n, errno);
@@ -83,8 +83,11 @@ void sigio_handler(int sig, union uml_pt_regs *regs)
 				 * can be freed here.
 				 */
 				next = irq_fd->next;
-				if(irq_fd->freed)
+				if(irq_fd->freed){
 					free_irq(irq_fd->irq, irq_fd->id);
+					free_irq_by_irq_and_dev(irq_fd->irq,
+								irq_fd->id);
+				}
 			}
 		}
 	}
@@ -233,9 +236,15 @@ static void free_irq_by_cb(int (*test)(struct irq_fd *, void *), void *arg)
 				       (*prev)->fd, pollfds[i].fd);
 				goto out;
 			}
-			memcpy(&pollfds[i], &pollfds[i + 1],
-			       (pollfds_num - i - 1) * sizeof(pollfds[0]));
+
 			pollfds_num--;
+
+			/* This moves the *whole* array after pollfds[i] (though
+			 * it doesn't spot as such)! */
+
+			memmove(&pollfds[i], &pollfds[i + 1],
+			       (pollfds_num - i) * sizeof(pollfds[0]));
+
 			if(last_irq_ptr == &old_fd->next) 
 				last_irq_ptr = prev;
 			*prev = (*prev)->next;
@@ -263,7 +272,7 @@ static int same_irq_and_dev(struct irq_fd *irq, void *d)
 	return((irq->irq == data->irq) && (irq->id == data->dev));
 }
 
-void free_irq_by_irq_and_dev(int irq, void *dev)
+void free_irq_by_irq_and_dev(unsigned int irq, void *dev)
 {
 	struct irq_and_dev data = ((struct irq_and_dev) { .irq  = irq,
 							  .dev  = dev });
@@ -364,36 +373,49 @@ void deactivate_fd(int fd, int irqnum)
 	irq_unlock(flags);
 }
 
+int deactivate_all_fds(void)
+{
+	struct irq_fd *irq;
+	int err;
+
+	for(irq=active_fds;irq != NULL;irq = irq->next){
+		err = os_clear_fd_async(irq->fd);
+		if(err)
+			return(err);
+	}
+	/* If there is a signal already queued, after unblocking ignore it */
+	set_handler(SIGIO, SIG_IGN, 0, -1);
+
+	return(0);
+}
+
 void forward_ipi(int fd, int pid)
 {
-	if(fcntl(fd, F_SETOWN, pid) < 0){
-		int save_errno = errno;
-		if(fcntl(fd, F_GETOWN, 0) != pid){
-			printk("forward_ipi: F_SETOWN failed, fd = %d, "
-			       "me = %d, target = %d, errno = %d\n", fd, 
-			       os_getpid(), pid, save_errno);
-		}
-	}
+	int err;
+
+	err = os_set_owner(fd, pid);
+	if(err < 0)
+		printk("forward_ipi: set_owner failed, fd = %d, me = %d, "
+		       "target = %d, err = %d\n", fd, os_getpid(), pid, -err);
 }
 
 void forward_interrupts(int pid)
 {
 	struct irq_fd *irq;
 	unsigned long flags;
+	int err;
 
 	flags = irq_lock();
 	for(irq=active_fds;irq != NULL;irq = irq->next){
-		if(fcntl(irq->fd, F_SETOWN, pid) < 0){
-			int save_errno = errno;
-			if(fcntl(irq->fd, F_GETOWN, 0) != pid){
-				/* XXX Just remove the irq rather than
-				 * print out an infinite stream of these
-				 */
-				printk("Failed to forward %d to pid %d, "
-				       "errno = %d\n", irq->fd, pid, 
-				       save_errno);
-			}
+		err = os_set_owner(irq->fd, pid);
+		if(err < 0){
+			/* XXX Just remove the irq rather than
+			 * print out an infinite stream of these
+			 */
+			printk("Failed to forward %d to pid %d, err = %d\n",
+			       irq->fd, pid, -err);
 		}
+
 		irq->pid = pid;
 	}
 	irq_unlock(flags);

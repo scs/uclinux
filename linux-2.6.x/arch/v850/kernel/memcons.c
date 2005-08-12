@@ -25,7 +25,7 @@ extern char memcons_output[], memcons_output_end;
 static unsigned long memcons_offs = 0;
 
 /* Spinlock protecting memcons_offs.  */
-static spinlock_t memcons_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(memcons_lock);
 
 
 static size_t write (const char *buf, size_t len)
@@ -88,8 +88,7 @@ int memcons_tty_open (struct tty_struct *tty, struct file *filp)
 	return 0;
 }
 
-int memcons_tty_write (struct tty_struct *tty, int from_user,
-		       const unsigned char *buf, int len)
+int memcons_tty_write (struct tty_struct *tty, const unsigned char *buf, int len)
 {
 	return write (buf, len);
 }

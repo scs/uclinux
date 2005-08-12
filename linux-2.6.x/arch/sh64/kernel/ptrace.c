@@ -27,6 +27,7 @@
 #include <linux/errno.h>
 #include <linux/ptrace.h>
 #include <linux/user.h>
+#include <linux/signal.h>
 
 #include <asm/io.h>
 #include <asm/uaccess.h>
@@ -63,7 +64,7 @@ get_fpu_long(struct task_struct *task, unsigned long addr)
 	struct pt_regs *regs;
 	regs = (struct pt_regs*)((unsigned char *)task + THREAD_SIZE) - 1;
 
-	if (!task->used_math) {
+	if (!tsk_used_math(task)) {
 		if (addr == offsetof(struct user_fpu_struct, fpscr)) {
 			tmp = FPSCR_INIT;
 		} else {
@@ -105,9 +106,9 @@ put_fpu_long(struct task_struct *task, unsigned long addr, unsigned long data)
 
 	regs = (struct pt_regs*)((unsigned char *)task + THREAD_SIZE) - 1;
 
-	if (!task->used_math) {
+	if (!tsk_used_math(task)) {
 		fpinit(&task->thread.fpu.hard);
-		task->used_math = 1;
+		set_stopped_child_used_math(task);
 	} else if (last_task_used_math == task) {
 		grab_fpu();
 		fpsave(&task->thread.fpu.hard);
@@ -123,9 +124,26 @@ put_fpu_long(struct task_struct *task, unsigned long addr, unsigned long data)
 asmlinkage int sys_ptrace(long request, long pid, long addr, long data)
 {
 	struct task_struct *child;
+	extern void poke_real_address_q(unsigned long long addr, unsigned long long data);
+#define WPC_DBRMODE 0x0d104008
+	static int first_call = 1;
 	int ret;
 
 	lock_kernel();
+
+	if (first_call) {
+		/* Set WPC.DBRMODE to 0.  This makes all debug events get
+		 * delivered through RESVEC, i.e. into the handlers in entry.S.
+		 * (If the kernel was downloaded using a remote gdb, WPC.DBRMODE
+		 * would normally be left set to 1, which makes debug events get
+		 * delivered through DBRVEC, i.e. into the remote gdb's
+		 * handlers.  This prevents ptrace getting them, and confuses
+		 * the remote gdb.) */
+		printk("DBRMODE set to 0 to permit native debugging\n");
+		poke_real_address_q(WPC_DBRMODE, 0);
+		first_call = 0;
+	}
+
 	ret = -EPERM;
 	if (request == PTRACE_TRACEME) {
 		/* are we already being traced? */
@@ -187,7 +205,7 @@ asmlinkage int sys_ptrace(long request, long pid, long addr, long data)
 			 (addr <  offsetof(struct user, u_fpvalid))) {
 			tmp = get_fpu_long(child, addr - offsetof(struct user, fpu));
 		} else if (addr == offsetof(struct user, u_fpvalid)) {
-			tmp = child->used_math;
+			tmp = !!tsk_used_math(child);
 		} else {
 			break;
 		}
@@ -238,7 +256,7 @@ asmlinkage int sys_ptrace(long request, long pid, long addr, long data)
 	case PTRACE_SYSCALL: /* continue and stop at next (return from) syscall */
 	case PTRACE_CONT: { /* restart after signal. */
 		ret = -EIO;
-		if ((unsigned long) data > _NSIG)
+		if (!valid_signal(data))
 			break;
 		if (request == PTRACE_SYSCALL)
 			set_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
@@ -257,7 +275,7 @@ asmlinkage int sys_ptrace(long request, long pid, long addr, long data)
  */
 	case PTRACE_KILL: {
 		ret = 0;
-		if (child->state == TASK_ZOMBIE)	/* already dead */
+		if (child->exit_state == EXIT_ZOMBIE)	/* already dead */
 			break;
 		child->exit_code = SIGKILL;
 		wake_up_process(child);
@@ -268,7 +286,7 @@ asmlinkage int sys_ptrace(long request, long pid, long addr, long data)
 		struct pt_regs *regs;
 
 		ret = -EIO;
-		if ((unsigned long) data > _NSIG)
+		if (!valid_signal(data))
 			break;
 		clear_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
 		if ((child->ptrace & PT_DTRACE) == 0) {
@@ -311,11 +329,8 @@ asmlinkage void syscall_trace(void)
 	if (!(tsk->ptrace & PT_PTRACED))
 		return;
 
-	tsk->exit_code = SIGTRAP | ((current->ptrace & PT_TRACESYSGOOD)
-				    ? 0x80 : 0);
-	tsk->state = TASK_STOPPED;
-	notify_parent(tsk, SIGCHLD);
-	schedule();
+	ptrace_notify(SIGTRAP | ((current->ptrace & PT_TRACESYSGOOD)
+				 ? 0x80 : 0));
 	/*
 	 * this isn't the same as continuing with a signal, but it will do
 	 * for normal use.  strace only continues with a signal if the

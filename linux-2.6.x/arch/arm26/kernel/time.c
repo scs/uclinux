@@ -32,7 +32,7 @@
 #include <asm/hardware.h>
 #include <asm/io.h>
 #include <asm/irq.h>
-#include <asm/leds.h>
+#include <asm/ioc.h>
 
 u64 jiffies_64 = INITIAL_JIFFIES;
 
@@ -41,7 +41,7 @@ EXPORT_SYMBOL(jiffies_64);
 extern unsigned long wall_jiffies;
 
 /* this needs a better home */
-spinlock_t rtc_lock = SPIN_LOCK_UNLOCKED;
+DEFINE_SPINLOCK(rtc_lock);
 
 /* change this if you have some constant time drift */
 #define USECS_PER_JIFFY	(1000000/HZ)
@@ -56,37 +56,52 @@ static int dummy_set_rtc(void)
  */
 int (*set_rtc)(void) = dummy_set_rtc;
 
-static unsigned long dummy_gettimeoffset(void)
+/*
+ * Get time offset based on IOCs timer.
+ * FIXME - if this is called with interrutps off, why the shennanigans
+ * below ?
+ */
+static unsigned long gettimeoffset(void)
 {
-	return 0;
+        unsigned int count1, count2, status;
+        long offset;
+
+        ioc_writeb (0, IOC_T0LATCH);
+        barrier ();
+        count1 = ioc_readb(IOC_T0CNTL) | (ioc_readb(IOC_T0CNTH) << 8);
+        barrier ();
+        status = ioc_readb(IOC_IRQREQA);
+        barrier ();
+        ioc_writeb (0, IOC_T0LATCH);
+        barrier ();
+        count2 = ioc_readb(IOC_T0CNTL) | (ioc_readb(IOC_T0CNTH) << 8);
+
+        offset = count2;
+        if (count2 < count1) {
+                /*
+                 * We have not had an interrupt between reading count1
+                 * and count2.
+                 */
+                if (status & (1 << 5))
+                        offset -= LATCH;
+        } else if (count2 > count1) {
+                /*
+                 * We have just had another interrupt between reading
+                 * count1 and count2.
+                 */
+                offset -= LATCH;
+        }
+
+        offset = (LATCH - offset) * (tick_nsec / 1000);
+        return (offset + LATCH/2) / LATCH;
 }
 
 /*
- * hook for getting the time offset.  Note that it is
- * always called with interrupts disabled.
+ * Scheduler clock - returns current time in nanosec units.
  */
-unsigned long (*gettimeoffset)(void) = dummy_gettimeoffset;
-
-/*
- * Handle kernel profile stuff...
- */
-static inline void do_profile(struct pt_regs *regs)
+unsigned long long sched_clock(void)
 {
-	if (!user_mode(regs) &&
-	    prof_buffer &&
-	    current->pid) {
-		unsigned long pc = instruction_pointer(regs);
-		extern int _stext;
-
-		pc -= (unsigned long)&_stext;
-
-		pc >>= prof_shift;
-
-		if (pc >= prof_len)
-			pc = prof_len - 1;
-
-		prof_buffer[pc] += 1;
-	}
+	return (unsigned long long)jiffies * (1000000000 / HZ);
 }
 
 static unsigned long next_rtc_update;
@@ -188,8 +203,11 @@ EXPORT_SYMBOL(do_settimeofday);
 static irqreturn_t timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 {
         do_timer(regs);
+#ifndef CONFIG_SMP
+	update_process_times(user_mode(regs));
+#endif
         do_set_rtc(); //FIME - EVERY timer IRQ?
-        do_profile(regs);
+        profile_tick(CPU_PROFILING, regs);
 	return IRQ_HANDLED; //FIXME - is this right?
 }
 
@@ -206,7 +224,10 @@ extern void ioctime_init(void);
  */
 void __init time_init(void)
 {
-        ioctime_init();
+	ioc_writeb(LATCH & 255, IOC_T0LTCHL);
+        ioc_writeb(LATCH >> 8, IOC_T0LTCHH);
+        ioc_writeb(0, IOC_T0GO);
+
 
         setup_irq(IRQ_TIMER, &timer_irq);
 }

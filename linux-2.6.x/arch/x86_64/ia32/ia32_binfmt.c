@@ -182,6 +182,7 @@ struct elf_prpsinfo
 #define user user32
 
 #define __ASM_X86_64_ELF_H 1
+#define elf_read_implies_exec(ex, have_pt_gnu_stack)	(!(have_pt_gnu_stack))
 //#include <asm/ia32.h>
 #include <linux/elf.h>
 
@@ -213,7 +214,7 @@ elf_core_copy_task_fpregs(struct task_struct *tsk, struct pt_regs *regs, elf_fpr
 	struct _fpstate_ia32 *fpstate = (void*)fpu; 
 	mm_segment_t oldfs = get_fs();
 
-	if (!tsk->used_math) 
+	if (!tsk_used_math(tsk))
 		return 0;
 	if (!regs)
 		regs = (struct pt_regs *)tsk->thread.rsp0;
@@ -234,7 +235,7 @@ static inline int
 elf_core_copy_task_xfpregs(struct task_struct *t, elf_fpxregset_t *xfpu)
 {
 	struct pt_regs *regs = ((struct pt_regs *)(t->thread.rsp0))-1; 
-	if (!t->used_math) 
+	if (!tsk_used_math(t))
 		return 0;
 	if (t == current)
 		unlazy_fpu(t); 
@@ -247,6 +248,8 @@ elf_core_copy_task_xfpregs(struct task_struct *t, elf_fpxregset_t *xfpu)
 #undef elf_check_arch
 #define elf_check_arch(x) \
 	((x)->e_machine == EM_386)
+
+extern int force_personality32;
 
 #define ELF_EXEC_PAGESIZE PAGE_SIZE
 #define ELF_HWCAP (boot_cpu_data.x86_capability[0])
@@ -261,6 +264,8 @@ do {							\
 		set_thread_flag(TIF_ABI_PENDING);		\
 	else							\
 		clear_thread_flag(TIF_ABI_PENDING);		\
+	/* XXX This overwrites the user set personality */	\
+	current->personality |= force_personality32;		\
 } while (0)
 
 /* Override some function names */
@@ -272,8 +277,9 @@ do {							\
 #define load_elf_binary load_elf32_binary
 
 #define ELF_PLAT_INIT(r, load_addr)	elf32_init(r)
-#define setup_arg_pages(bprm, exec_stack)	ia32_setup_arg_pages(bprm, exec_stack)
-int ia32_setup_arg_pages(struct linux_binprm *bprm, int executable_stack);
+#define setup_arg_pages(bprm, stack_top, exec_stack) \
+	ia32_setup_arg_pages(bprm, stack_top, exec_stack)
+int ia32_setup_arg_pages(struct linux_binprm *bprm, unsigned long stack_top, int executable_stack);
 
 #undef start_thread
 #define start_thread(regs,new_rip,new_rsp) do { \
@@ -301,7 +307,14 @@ MODULE_AUTHOR("Eric Youngdale, Andi Kleen");
 
 #define elf_addr_t __u32
 
+#undef TASK_SIZE
+#define TASK_SIZE 0xffffffff
+
 static void elf32_init(struct pt_regs *);
+
+#define ARCH_HAS_SETUP_ADDITIONAL_PAGES 1
+#define arch_setup_additional_pages syscall32_setup_pages
+extern int syscall32_setup_pages(struct linux_binprm *, int exstack);
 
 #include "../../../fs/binfmt_elf.c" 
 
@@ -325,12 +338,12 @@ static void elf32_init(struct pt_regs *regs)
 	me->thread.es = __USER_DS;
 }
 
-int setup_arg_pages(struct linux_binprm *bprm, int executable_stack)
+int setup_arg_pages(struct linux_binprm *bprm, unsigned long stack_top, int executable_stack)
 {
 	unsigned long stack_base;
 	struct vm_area_struct *mpnt;
 	struct mm_struct *mm = current->mm;
-	int i;
+	int i, ret;
 
 	stack_base = IA32_STACK_TOP - MAX_ARG_PAGES * PAGE_SIZE;
 	mm->arg_start = bprm->p + stack_base;
@@ -357,15 +370,19 @@ int setup_arg_pages(struct linux_binprm *bprm, int executable_stack)
 		mpnt->vm_start = PAGE_MASK & (unsigned long) bprm->p;
 		mpnt->vm_end = IA32_STACK_TOP;
 		if (executable_stack == EXSTACK_ENABLE_X)
-			mpnt->vm_flags = vm_stack_flags32 |  VM_EXEC;
+			mpnt->vm_flags = VM_STACK_FLAGS |  VM_EXEC;
 		else if (executable_stack == EXSTACK_DISABLE_X)
-			mpnt->vm_flags = vm_stack_flags32 & ~VM_EXEC;
+			mpnt->vm_flags = VM_STACK_FLAGS & ~VM_EXEC;
 		else
-			mpnt->vm_flags = vm_stack_flags32;
+			mpnt->vm_flags = VM_STACK_FLAGS;
  		mpnt->vm_page_prot = (mpnt->vm_flags & VM_EXEC) ? 
  			PAGE_COPY_EXEC : PAGE_COPY;
-		insert_vm_struct(mm, mpnt);
-		mm->total_vm = (mpnt->vm_end - mpnt->vm_start) >> PAGE_SHIFT;
+		if ((ret = insert_vm_struct(mm, mpnt))) {
+			up_write(&mm->mmap_sem);
+			kmem_cache_free(vm_area_cachep, mpnt);
+			return ret;
+		}
+		mm->stack_vm = mm->total_vm = vma_pages(mpnt);
 	} 
 
 	for (i = 0 ; i < MAX_ARG_PAGES ; i++) {
@@ -386,9 +403,6 @@ elf32_map (struct file *filep, unsigned long addr, struct elf_phdr *eppnt, int p
 {
 	unsigned long map_addr;
 	struct task_struct *me = current; 
-
-	if (prot & PROT_READ) 
-		prot |= vm_force_exec32;
 
 	down_write(&me->mm->mmap_sem);
 	map_addr = do_mmap(filep, ELF_PAGESTART(addr),

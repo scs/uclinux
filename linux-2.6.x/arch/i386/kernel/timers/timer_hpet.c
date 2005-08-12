@@ -79,7 +79,7 @@ static unsigned long get_offset_hpet(void)
 
 	eax = hpet_readl(HPET_COUNTER);
 	eax -= hpet_last;	/* hpet delta */
-
+	eax = min(hpet_tick, eax);
 	/*
          * Time offset = (hpet delta) * ( usecs per HPET clock )
 	 *             = (hpet delta) * ( usecs per tick / HPET clocks per tick)
@@ -105,9 +105,12 @@ static void mark_offset_hpet(void)
 	last_offset = ((unsigned long long)last_tsc_high<<32)|last_tsc_low;
 	rdtsc(last_tsc_low, last_tsc_high);
 
-	offset = hpet_readl(HPET_T0_CMP) - hpet_tick;
-	if (unlikely(((offset - hpet_last) > hpet_tick) && (hpet_last != 0))) {
-		int lost_ticks = (offset - hpet_last) / hpet_tick;
+	if (hpet_use_timer)
+		offset = hpet_readl(HPET_T0_CMP) - hpet_tick;
+	else
+		offset = hpet_readl(HPET_COUNTER);
+	if (unlikely(((offset - hpet_last) >= (2*hpet_tick)) && (hpet_last != 0))) {
+		int lost_ticks = ((offset - hpet_last) / hpet_tick) - 1;
 		jiffies_64 += lost_ticks;
 	}
 	hpet_last = offset;
@@ -118,7 +121,7 @@ static void mark_offset_hpet(void)
 	write_sequnlock(&monotonic_lock);
 }
 
-void delay_hpet(unsigned long loops)
+static void delay_hpet(unsigned long loops)
 {
 	unsigned long hpet_start, hpet_end;
 	unsigned long eax;
@@ -177,11 +180,15 @@ static int __init init_hpet(char* override)
 /************************************************************/
 
 /* tsc timer_opts struct */
-struct timer_opts timer_hpet = {
+static struct timer_opts timer_hpet = {
 	.name = 		"hpet",
-	.init =			init_hpet,
 	.mark_offset =		mark_offset_hpet,
 	.get_offset =		get_offset_hpet,
 	.monotonic_clock =	monotonic_clock_hpet,
 	.delay = 		delay_hpet,
+};
+
+struct init_timer_opts __initdata timer_hpet_init = {
+	.init =	init_hpet,
+	.opts = &timer_hpet,
 };

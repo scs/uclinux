@@ -8,7 +8,7 @@
 #include <linux/acpi.h>
 #include <linux/bootmem.h>
 #include <asm/smp.h>
-
+#include <asm/tlbflush.h>
 
 /* address in low memory of the wakeup routine. */
 unsigned long acpi_wakeup_address = 0;
@@ -27,6 +27,7 @@ static void init_low_mapping(pgd_t *pgd, int pgd_limit)
 		set_pgd(pgd, *(pgd+USER_PTRS_PER_PGD));
 		pgd_ofs++, pgd++;
 	}
+	flush_tlb_all();
 }
 
 /**
@@ -46,17 +47,8 @@ int acpi_save_state_mem (void)
 	return 0;
 }
 
-/**
- * acpi_save_state_disk - save kernel state to disk
- *
- */
-int acpi_save_state_disk (void)
-{
-	return 1;
-}
-
 /*
- * acpi_restore_state
+ * acpi_restore_state - undo effects of acpi_save_state_mem
  */
 void acpi_restore_state_mem (void)
 {
@@ -77,10 +69,7 @@ void __init acpi_reserve_bootmem(void)
 		printk(KERN_ERR "ACPI: Wakeup code way too big, S3 disabled.\n");
 		return;
 	}
-#ifdef CONFIG_X86_PAE
-	printk(KERN_ERR "ACPI: S3 and PAE do not like each other for now, S3 disabled.\n");
-	return;
-#endif
+
 	acpi_wakeup_address = (unsigned long)alloc_bootmem_low(PAGE_SIZE);
 	if (!acpi_wakeup_address)
 		printk(KERN_ERR "ACPI: Cannot allocate lowmem, S3 disabled.\n");

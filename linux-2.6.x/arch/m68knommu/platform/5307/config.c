@@ -23,7 +23,6 @@
 #include <asm/mcftimer.h>
 #include <asm/mcfsim.h>
 #include <asm/mcfdma.h>
-#include <asm/delay.h>
 #include <asm/mcfwdebug.h>
 
 /***************************************************************************/
@@ -37,6 +36,14 @@ void coldfire_reset(void);
 extern unsigned int mcf_timervector;
 extern unsigned int mcf_profilevector;
 extern unsigned int mcf_timerlevel;
+
+/***************************************************************************/
+
+/*
+ *	Some platforms need software versions of the GPIO data registers.
+ */
+unsigned short ppdata;
+unsigned char ledbank = 0xff;
 
 /***************************************************************************/
 

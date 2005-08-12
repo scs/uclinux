@@ -26,7 +26,6 @@
 #include <asm/irq.h>
 #include <asm/page.h>
 #include <asm/pgtable.h>
-#include <asm/hardirq.h>
 #include <asm/io.h>
 #include <asm/prom.h>
 #include <asm/smp.h>
@@ -36,16 +35,12 @@
 #include <asm/tlbflush.h>
 #include <asm/xmon.h>
 
-int smp_threads_ready;
 volatile int smp_commenced;
 int smp_tb_synchronized;
 struct cpuinfo_PPC cpu_data[NR_CPUS];
 struct klock_info_struct klock_info = { KLOCK_CLEAR, 0 };
 atomic_t ipi_recv;
 atomic_t ipi_sent;
-DEFINE_PER_CPU(unsigned int, prof_multiplier);
-DEFINE_PER_CPU(unsigned int, prof_counter);
-unsigned long cache_decay_ticks = HZ/100;
 cpumask_t cpu_online_map;
 cpumask_t cpu_possible_map;
 int smp_hw_index[NR_CPUS];
@@ -61,7 +56,6 @@ static struct smp_ops_t *smp_ops;
 volatile unsigned long cpu_callin_map[NR_CPUS];
 
 int start_secondary(void *);
-extern int cpu_idle(void *unused);
 void smp_call_function_interrupt(void);
 static int __smp_call_function(void (*func) (void *info), void *info,
 			       int wait, int target);
@@ -90,16 +84,6 @@ smp_message_pass(int target, int msg, unsigned long data, int wait)
 /*
  * Common functions
  */
-void smp_local_timer_interrupt(struct pt_regs * regs)
-{
-	int cpu = smp_processor_id();
-
-	if (!--per_cpu(prof_counter, cpu)) {
-		update_process_times(user_mode(regs));
-		per_cpu(prof_counter, cpu) = per_cpu(prof_multiplier, cpu);
-	}
-}
-
 void smp_message_recv(int msg, struct pt_regs *regs)
 {
 	atomic_inc(&ipi_recv);
@@ -133,7 +117,7 @@ void smp_message_recv(int msg, struct pt_regs *regs)
  */
 void smp_send_tlb_invalidate(int cpu)
 {
-	if ( PVR_VER(mfspr(PVR)) == 8 )
+	if ( PVR_VER(mfspr(SPRN_PVR)) == 8 )
 		smp_message_pass(MSG_ALL_BUT_SELF, PPC_MSG_INVALIDATE_TLB, 0, 0);
 }
 
@@ -177,7 +161,7 @@ void smp_send_stop(void)
  * static memory requirements. It also looks cleaner.
  * Stolen from the i386 version.
  */
-static spinlock_t call_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(call_lock);
 
 static struct call_data_struct {
 	void (*func) (void *info);
@@ -297,9 +281,7 @@ static void __devinit smp_store_cpu_info(int id)
 
 	/* assume bogomips are same for everything */
         c->loops_per_jiffy = loops_per_jiffy;
-        c->pvr = mfspr(PVR);
-	per_cpu(prof_counter, id) = 1;
-	per_cpu(prof_multiplier, id) = 1;
+        c->pvr = mfspr(SPRN_PVR);
 }
 
 void __init smp_prepare_cpus(unsigned int max_cpus)
@@ -359,27 +341,21 @@ int __devinit start_secondary(void *unused)
 	smp_ops->take_timebase();
 	printk("CPU %i done timebase take...\n", cpu);
 
-	return cpu_idle(NULL);
+	cpu_idle();
+	return 0;
 }
 
 int __cpu_up(unsigned int cpu)
 {
-	struct pt_regs regs;
 	struct task_struct *p;
 	char buf[32];
 	int c;
 
 	/* create a process for the processor */
 	/* only regs.msr is actually used, and 0 is OK for it */
-	memset(&regs, 0, sizeof(struct pt_regs));
-	p = copy_process(CLONE_VM|CLONE_IDLETASK, 0, &regs, 0, NULL, NULL);
+	p = fork_idle(cpu);
 	if (IS_ERR(p))
 		panic("failed fork for CPU %u: %li", cpu, PTR_ERR(p));
-	wake_up_forked_process(p);
-
-	init_idle(p, cpu);
-	unhash_process(p);
-
 	secondary_ti = p->thread_info;
 	p->thread_info->cpu = cpu;
 

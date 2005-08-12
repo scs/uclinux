@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2001 Lennert Buytenhek (buytenh@gnu.org)
- * Copyright (C) 2001, 2002 Jeff Dike (jdike@karaya.com)
+ * Copyright (C) 2001 - 2003 Jeff Dike (jdike@addtoit.com)
  * Licensed under the GPL
  */
 
@@ -15,7 +15,11 @@
 #include "linux/sysrq.h"
 #include "linux/workqueue.h"
 #include "linux/module.h"
+#include "linux/file.h"
+#include "linux/fs.h"
+#include "linux/namei.h"
 #include "linux/proc_fs.h"
+#include "linux/syscalls.h"
 #include "asm/irq.h"
 #include "asm/uaccess.h"
 #include "user_util.h"
@@ -27,6 +31,7 @@
 #include "init.h"
 #include "os.h"
 #include "umid.h"
+#include "irq_kern.h"
 
 static int do_unlink_socket(struct notifier_block *notifier, 
 			    unsigned long what, void *data)
@@ -47,37 +52,38 @@ static struct notifier_block reboot_notifier = {
 
 LIST_HEAD(mc_requests);
 
-void mc_work_proc(void *unused)
+static void mc_work_proc(void *unused)
 {
 	struct mconsole_entry *req;
 	unsigned long flags;
-	int done;
 
-	do {
+	while(!list_empty(&mc_requests)){
 		local_save_flags(flags);
 		req = list_entry(mc_requests.next, struct mconsole_entry, 
 				 list);
 		list_del(&req->list);
-		done = list_empty(&mc_requests);
 		local_irq_restore(flags);
 		req->request.cmd->handler(&req->request);
 		kfree(req);
-	} while(!done);
+	}
 }
 
 DECLARE_WORK(mconsole_work, mc_work_proc, NULL);
 
-void mconsole_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t mconsole_interrupt(int irq, void *dev_id,
+				      struct pt_regs *regs)
 {
-	int fd;
+	/* long to avoid size mismatch warnings from gcc */
+	long fd;
 	struct mconsole_entry *new;
 	struct mc_request req;
 
-	fd = (int) dev_id;
+	fd = (long) dev_id;
 	while (mconsole_get_request(fd, &req)){
-		if(req.cmd->as_interrupt) (*req.cmd->handler)(&req);
+		if(req.cmd->context == MCONSOLE_INTR)
+			(*req.cmd->handler)(&req);
 		else {
-			new = kmalloc(sizeof(req), GFP_ATOMIC);
+			new = kmalloc(sizeof(*new), GFP_ATOMIC);
 			if(new == NULL)
 				mconsole_reply(&req, "Out of memory", 1, 0);
 			else {
@@ -86,8 +92,10 @@ void mconsole_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 			}
 		}
 	}
-	if(!list_empty(&mc_requests)) schedule_work(&mconsole_work);
+	if(!list_empty(&mc_requests))
+		schedule_work(&mconsole_work);
 	reactivate_fd(fd, MCONSOLE_IRQ);
+	return(IRQ_HANDLED);
 }
 
 void mconsole_version(struct mc_request *req)
@@ -100,20 +108,174 @@ void mconsole_version(struct mc_request *req)
 	mconsole_reply(req, version, 0, 0);
 }
 
+void mconsole_log(struct mc_request *req)
+{
+	int len;
+	char *ptr = req->request.data;
+
+	ptr += strlen("log ");
+
+	len = req->len - (ptr - req->request.data);
+	printk("%.*s", len, ptr);
+	mconsole_reply(req, "", 0, 0);
+}
+
+/* This is a more convoluted version of mconsole_proc, which has some stability
+ * problems; however, we need it fixed, because it is expected that UML users
+ * mount HPPFS instead of procfs on /proc. And we want mconsole_proc to still
+ * show the real procfs content, not the ones from hppfs.*/
+#if 0
+void mconsole_proc(struct mc_request *req)
+{
+	struct nameidata nd;
+	struct file_system_type *proc;
+	struct super_block *super;
+	struct file *file;
+	int n, err;
+	char *ptr = req->request.data, *buf;
+
+	ptr += strlen("proc");
+	while(isspace(*ptr)) ptr++;
+
+	proc = get_fs_type("proc");
+	if(proc == NULL){
+		mconsole_reply(req, "procfs not registered", 1, 0);
+		goto out;
+	}
+
+	super = (*proc->get_sb)(proc, 0, NULL, NULL);
+	put_filesystem(proc);
+	if(super == NULL){
+		mconsole_reply(req, "Failed to get procfs superblock", 1, 0);
+		goto out;
+	}
+	up_write(&super->s_umount);
+
+	nd.dentry = super->s_root;
+	nd.mnt = NULL;
+	nd.flags = O_RDONLY + 1;
+	nd.last_type = LAST_ROOT;
+
+	/* START: it was experienced that the stability problems are closed
+	 * if commenting out these two calls + the below read cycle. To
+	 * make UML crash again, it was enough to readd either one.*/
+	err = link_path_walk(ptr, &nd);
+	if(err){
+		mconsole_reply(req, "Failed to look up file", 1, 0);
+		goto out_kill;
+	}
+
+	file = dentry_open(nd.dentry, nd.mnt, O_RDONLY);
+	if(IS_ERR(file)){
+		mconsole_reply(req, "Failed to open file", 1, 0);
+		goto out_kill;
+	}
+	/*END*/
+
+	buf = kmalloc(PAGE_SIZE, GFP_KERNEL);
+	if(buf == NULL){
+		mconsole_reply(req, "Failed to allocate buffer", 1, 0);
+		goto out_fput;
+	}
+
+	if((file->f_op != NULL) && (file->f_op->read != NULL)){
+		do {
+			n = (*file->f_op->read)(file, buf, PAGE_SIZE - 1,
+						&file->f_pos);
+			if(n >= 0){
+				buf[n] = '\0';
+				mconsole_reply(req, buf, 0, (n > 0));
+			}
+			else {
+				mconsole_reply(req, "Read of file failed",
+					       1, 0);
+				goto out_free;
+			}
+		} while(n > 0);
+	}
+	else mconsole_reply(req, "", 0, 0);
+
+ out_free:
+	kfree(buf);
+ out_fput:
+	fput(file);
+ out_kill:
+	deactivate_super(super);
+ out: ;
+}
+#endif
+
+void mconsole_proc(struct mc_request *req)
+{
+	char path[64];
+	char *buf;
+	int len;
+	int fd;
+	int first_chunk = 1;
+	char *ptr = req->request.data;
+
+	ptr += strlen("proc");
+	while(isspace(*ptr)) ptr++;
+	snprintf(path, sizeof(path), "/proc/%s", ptr);
+
+	fd = sys_open(path, 0, 0);
+	if (fd < 0) {
+		mconsole_reply(req, "Failed to open file", 1, 0);
+		printk("open %s: %d\n",path,fd);
+		goto out;
+	}
+
+	buf = kmalloc(PAGE_SIZE, GFP_KERNEL);
+	if(buf == NULL){
+		mconsole_reply(req, "Failed to allocate buffer", 1, 0);
+		goto out_close;
+	}
+
+	for (;;) {
+		len = sys_read(fd, buf, PAGE_SIZE-1);
+		if (len < 0) {
+			mconsole_reply(req, "Read of file failed", 1, 0);
+			goto out_free;
+		}
+		/*Begin the file content on his own line.*/
+		if (first_chunk) {
+			mconsole_reply(req, "\n", 0, 1);
+			first_chunk = 0;
+		}
+		if (len == PAGE_SIZE-1) {
+			buf[len] = '\0';
+			mconsole_reply(req, buf, 0, 1);
+		} else {
+			buf[len] = '\0';
+			mconsole_reply(req, buf, 0, 0);
+			break;
+		}
+	}
+
+ out_free:
+	kfree(buf);
+ out_close:
+	sys_close(fd);
+ out:
+	/* nothing */;
+}
+
 #define UML_MCONSOLE_HELPTEXT \
-"Commands:
-    version - Get kernel version
-    help - Print this message
-    halt - Halt UML
-    reboot - Reboot UML
-    config <dev>=<config> - Add a new device to UML; 
-	same syntax as command line
-    config <dev> - Query the configuration of a device
-    remove <dev> - Remove a device from UML
-    sysrq <letter> - Performs the SysRq action controlled by the letter
-    cad - invoke the Ctl-Alt-Del handler
-    stop - pause the UML; it will do nothing until it receives a 'go'
-    go - continue the UML after a 'stop'
+"Commands: \n\
+    version - Get kernel version \n\
+    help - Print this message \n\
+    halt - Halt UML \n\
+    reboot - Reboot UML \n\
+    config <dev>=<config> - Add a new device to UML;  \n\
+	same syntax as command line \n\
+    config <dev> - Query the configuration of a device \n\
+    remove <dev> - Remove a device from UML \n\
+    sysrq <letter> - Performs the SysRq action controlled by the letter \n\
+    cad - invoke the Ctl-Alt-Del handler \n\
+    stop - pause the UML; it will do nothing until it receives a 'go' \n\
+    go - continue the UML after a 'stop' \n\
+    log <string> - make UML enter <string> into the kernel log\n\
+    proc <file> - returns the contents of the UML's /proc/<file>\n\
 "
 
 void mconsole_help(struct mc_request *req)
@@ -279,8 +441,8 @@ void mconsole_sysrq(struct mc_request *req)
 	ptr += strlen("sysrq");
 	while(isspace(*ptr)) ptr++;
 
-	handle_sysrq(*ptr, &current->thread.regs, NULL);
 	mconsole_reply(req, "", 0, 0);
+	handle_sysrq(*ptr, &current->thread.regs, NULL);
 }
 #else
 void mconsole_sysrq(struct mc_request *req)
@@ -296,13 +458,15 @@ static char *notify_socket = NULL;
 
 int mconsole_init(void)
 {
-	int err, sock;
+	/* long to avoid size mismatch warnings from gcc */
+	long sock;
+	int err;
 	char file[256];
 
 	if(umid_file_name("mconsole", file, sizeof(file))) return(-1);
 	snprintf(mconsole_socket_name, sizeof(file), "%s", file);
 
-	sock = create_unix_socket(file, sizeof(file));
+	sock = os_create_unix_socket(file, sizeof(file), 1);
 	if (sock < 0){
 		printk("Failed to initialize management console\n");
 		return(1);
@@ -335,7 +499,7 @@ int mconsole_init(void)
 
 __initcall(mconsole_init);
 
-static int write_proc_mconsole(struct file *file, const char *buffer,
+static int write_proc_mconsole(struct file *file, const char __user *buffer,
 			       unsigned long count, void *data)
 {
 	char *buf;
@@ -344,11 +508,16 @@ static int write_proc_mconsole(struct file *file, const char *buffer,
 	if(buf == NULL) 
 		return(-ENOMEM);
 
-	if(copy_from_user(buf, buffer, count))
-		return(-EFAULT);
+	if(copy_from_user(buf, buffer, count)){
+		count = -EFAULT;
+		goto out;
+	}
+
 	buf[count] = '\0';
 
 	mconsole_notify(notify_socket, MCONSOLE_USER_NOTIFY, buf, count);
+ out:
+	kfree(buf);
 	return(count);
 }
 
@@ -369,7 +538,7 @@ static int create_proc_mconsole(void)
 	return(0);
 }
 
-static spinlock_t notify_spinlock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(notify_spinlock);
 
 void lock_notify(void)
 {

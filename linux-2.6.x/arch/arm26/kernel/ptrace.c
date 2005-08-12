@@ -18,6 +18,7 @@
 #include <linux/ptrace.h>
 #include <linux/user.h>
 #include <linux/security.h>
+#include <linux/signal.h>
 
 #include <asm/uaccess.h>
 #include <asm/pgtable.h>
@@ -540,7 +541,7 @@ static int ptrace_getfpregs(struct task_struct *tsk, void *ufp)
  */
 static int ptrace_setfpregs(struct task_struct *tsk, void *ufp)
 {
-	tsk->used_math = 1;
+	set_stopped_child_used_math(tsk);
 	return copy_from_user(&tsk->thread_info->fpstate, ufp,
 			      sizeof(struct user_fp)) ? -EFAULT : 0;
 }
@@ -591,7 +592,7 @@ static int do_ptrace(int request, struct task_struct *child, long addr, long dat
 		case PTRACE_SYSCALL:
 		case PTRACE_CONT:
 			ret = -EIO;
-			if ((unsigned long) data > _NSIG)
+			if (!valid_signal(data))
 				break;
 			if (request == PTRACE_SYSCALL)
 				set_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
@@ -614,7 +615,7 @@ static int do_ptrace(int request, struct task_struct *child, long addr, long dat
 			/* make sure single-step breakpoint is gone. */
 			child->ptrace &= ~PT_SINGLESTEP;
 			ptrace_cancel_bpt(child);
-			if (child->state != TASK_ZOMBIE) {
+			if (child->exit_state != EXIT_ZOMBIE) {
 				child->exit_code = SIGKILL;
 				wake_up_process(child);
 			}
@@ -626,7 +627,7 @@ static int do_ptrace(int request, struct task_struct *child, long addr, long dat
 		 */
 		case PTRACE_SINGLESTEP:
 			ret = -EIO;
-			if ((unsigned long) data > _NSIG)
+			if (!valid_signal(data))
 				break;
 			child->ptrace |= PT_SINGLESTEP;
 			clear_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
@@ -729,11 +730,8 @@ asmlinkage void syscall_trace(int why, struct pt_regs *regs)
 
 	/* the 0x80 provides a way for the tracing parent to distinguish
 	   between a syscall stop and SIGTRAP delivery */
-	current->exit_code = SIGTRAP | ((current->ptrace & PT_TRACESYSGOOD)
-					? 0x80 : 0);
-	current->state = TASK_STOPPED;
-	notify_parent(current, SIGCHLD);
-	schedule();
+	ptrace_notify(SIGTRAP | ((current->ptrace & PT_TRACESYSGOOD)
+				 ? 0x80 : 0));
 	/*
 	 * this isn't the same as continuing with a signal, but it will do
 	 * for normal use.  strace only continues with a signal if the

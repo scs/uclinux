@@ -19,15 +19,76 @@
 #include <linux/ptrace.h>
 #include <linux/compat.h>
 #include <linux/suspend.h>
+#include <linux/compiler.h>
 
 #include <asm/asm.h>
-#include <asm/bitops.h>
+#include <linux/bitops.h>
 #include <asm/cacheflush.h>
 #include <asm/sim.h>
 #include <asm/uaccess.h>
 #include <asm/ucontext.h>
 #include <asm/system.h>
 #include <asm/fpu.h>
+
+#define SI_PAD_SIZE32   ((SI_MAX_SIZE/sizeof(int)) - 3)
+
+typedef struct compat_siginfo {
+	int si_signo;
+	int si_code;
+	int si_errno;
+
+	union {
+		int _pad[SI_PAD_SIZE32];
+
+		/* kill() */
+		struct {
+			compat_pid_t _pid;	/* sender's pid */
+			compat_uid_t _uid;	/* sender's uid */
+		} _kill;
+
+		/* SIGCHLD */
+		struct {
+			compat_pid_t _pid;	/* which child */
+			compat_uid_t _uid;	/* sender's uid */
+			int _status;		/* exit code */
+			compat_clock_t _utime;
+			compat_clock_t _stime;
+		} _sigchld;
+
+		/* IRIX SIGCHLD */
+		struct {
+			compat_pid_t _pid;	/* which child */
+			compat_clock_t _utime;
+			int _status;		/* exit code */
+			compat_clock_t _stime;
+		} _irix_sigchld;
+
+		/* SIGILL, SIGFPE, SIGSEGV, SIGBUS */
+		struct {
+			s32 _addr; /* faulting insn/memory ref. */
+		} _sigfault;
+
+		/* SIGPOLL, SIGXFSZ (To do ...)  */
+		struct {
+			int _band;	/* POLL_IN, POLL_OUT, POLL_MSG */
+			int _fd;
+		} _sigpoll;
+
+		/* POSIX.1b timers */
+		struct {
+			unsigned int _timer1;
+			unsigned int _timer2;
+		} _timer;
+
+		/* POSIX.1b signals */
+		struct {
+			compat_pid_t _pid;	/* sender's pid */
+			compat_uid_t _uid;	/* sender's uid */
+			compat_sigval_t _sigval;
+		} _rt;
+
+	} _sifields;
+} compat_siginfo_t;
 
 /*
  * Including <asm/unistd.h> would give use the 64-bit syscall numbers ...
@@ -40,7 +101,7 @@
 
 #define _BLOCKABLE (~(sigmask(SIGKILL) | sigmask(SIGSTOP)))
 
-extern asmlinkage int do_signal32(sigset_t *oldset, struct pt_regs *regs);
+extern int do_signal32(sigset_t *oldset, struct pt_regs *regs);
 
 /* 32-bit compatibility types */
 
@@ -126,8 +187,10 @@ static inline int get_sigset(sigset_t *kbuf, const compat_sigset_t *ubuf)
 /*
  * Atomically swap in the new signal mask, and wait for a signal.
  */
+
 save_static_function(sys32_sigsuspend);
-static_unused int _sys32_sigsuspend(nabi_no_regargs struct pt_regs regs)
+__attribute_used__ noinline static int
+_sys32_sigsuspend(nabi_no_regargs struct pt_regs regs)
 {
 	compat_sigset_t *uset;
 	sigset_t newset, saveset;
@@ -154,7 +217,8 @@ static_unused int _sys32_sigsuspend(nabi_no_regargs struct pt_regs regs)
 }
 
 save_static_function(sys32_rt_sigsuspend);
-static_unused int _sys32_rt_sigsuspend(nabi_no_regargs struct pt_regs regs)
+__attribute_used__ noinline static int
+_sys32_rt_sigsuspend(nabi_no_regargs struct pt_regs regs)
 {
 	compat_sigset_t *uset;
 	sigset_t newset, saveset;
@@ -265,10 +329,10 @@ asmlinkage int sys32_sigaltstack(nabi_no_regargs struct pt_regs regs)
 	return ret;
 }
 
-static asmlinkage int restore_sigcontext32(struct pt_regs *regs,
-					   struct sigcontext32 *sc)
+static int restore_sigcontext32(struct pt_regs *regs, struct sigcontext32 *sc)
 {
 	int err = 0;
+	__u32 used_math;
 
 	/* Always make any pending restarted system calls return -EINTR */
 	current_thread_info()->restart_block.fn = do_no_restart_syscall;
@@ -293,9 +357,12 @@ static asmlinkage int restore_sigcontext32(struct pt_regs *regs,
 	restore_gp_reg(31);
 #undef restore_gp_reg
 
-	err |= __get_user(current->used_math, &sc->sc_used_math);
+	err |= __get_user(used_math, &sc->sc_used_math);
+	conditional_used_math(used_math);
 
-	if (current->used_math) {
+	preempt_disable();
+
+	if (used_math()) {
 		/* restore fpu context if we have used it before */
 		own_fpu();
 		err |= restore_fp_context32(sc);
@@ -303,6 +370,8 @@ static asmlinkage int restore_sigcontext32(struct pt_regs *regs,
 		/* signal handler may have used FPU.  Give it up. */
 		lose_fpu();
 	}
+
+	preempt_enable();
 
 	return err;
 }
@@ -317,15 +386,15 @@ struct sigframe {
 struct rt_sigframe32 {
 	u32 rs_ass[4];			/* argument save space for o32 */
 	u32 rs_code[2];			/* signal trampoline */
-	struct siginfo32 rs_info;
+	compat_siginfo_t rs_info;
 	struct ucontext32 rs_uc;
 };
 
-static int copy_siginfo_to_user32(siginfo_t32 *to, siginfo_t *from)
+int copy_siginfo_to_user32(compat_siginfo_t *to, siginfo_t *from)
 {
 	int err;
 
-	if (!access_ok (VERIFY_WRITE, to, sizeof(siginfo_t32)))
+	if (!access_ok (VERIFY_WRITE, to, sizeof(compat_siginfo_t)))
 		return -EFAULT;
 
 	/* If you change siginfo_t structure, please be sure
@@ -368,7 +437,9 @@ static int copy_siginfo_to_user32(siginfo_t32 *to, siginfo_t *from)
 	return err;
 }
 
-asmlinkage void sys32_sigreturn(nabi_no_regargs struct pt_regs regs)
+save_static_function(sys32_sigreturn);
+__attribute_used__ noinline static void
+_sys32_sigreturn(nabi_no_regargs struct pt_regs regs)
 {
 	struct sigframe *frame;
 	sigset_t blocked;
@@ -404,7 +475,9 @@ badframe:
 	force_sig(SIGSEGV, current);
 }
 
-asmlinkage void sys32_rt_sigreturn(nabi_no_regargs struct pt_regs regs)
+save_static_function(sys32_rt_sigreturn);
+__attribute_used__ noinline static void
+_sys32_rt_sigreturn(nabi_no_regargs struct pt_regs regs)
 {
 	struct rt_sigframe32 *frame;
 	sigset_t set;
@@ -480,20 +553,24 @@ static inline int setup_sigcontext32(struct pt_regs *regs,
 	err |= __put_user(regs->cp0_cause, &sc->sc_cause);
 	err |= __put_user(regs->cp0_badvaddr, &sc->sc_badvaddr);
 
-	err |= __put_user(current->used_math, &sc->sc_used_math);
+	err |= __put_user(!!used_math(), &sc->sc_used_math);
 
-	if (!current->used_math)
+	if (!used_math())
 		goto out;
 
 	/* 
 	 * Save FPU state to signal context.  Signal handler will "inherit"
 	 * current FPU state.
 	 */
+	preempt_disable();
+
 	if (!is_fpu_owner()) {
 		own_fpu();
 		restore_fp(current);
 	}
 	err |= save_fp_context32(sc);
+
+	preempt_enable();
 
 out:
 	return err;
@@ -574,9 +651,7 @@ static inline void setup_frame(struct k_sigaction * ka, struct pt_regs *regs,
         return;
 
 give_sigsegv:
-	if (signr == SIGSEGV)
-		ka->sa.sa_handler = SIG_DFL;
-	force_sig(SIGSEGV, current);
+	force_sigsegv(signr, current);
 }
 
 static inline void setup_rt_frame(struct k_sigaction * ka,
@@ -603,7 +678,7 @@ static inline void setup_rt_frame(struct k_sigaction * ka,
 	err |= __put_user(0x0000000c                      , frame->rs_code + 1);
 	flush_cache_sigtramp((unsigned long) frame->rs_code);
 
-	/* Convert (siginfo_t -> siginfo_t32) and copy to user. */
+	/* Convert (siginfo_t -> compat_siginfo_t) and copy to user. */
 	err |= copy_siginfo_to_user32(&frame->rs_info, info);
 
 	/* Create the ucontext.  */
@@ -647,16 +722,12 @@ static inline void setup_rt_frame(struct k_sigaction * ka,
 	return;
 
 give_sigsegv:
-	if (signr == SIGSEGV)
-		ka->sa.sa_handler = SIG_DFL;
-	force_sig(SIGSEGV, current);
+	force_sigsegv(signr, current);
 }
 
 static inline void handle_signal(unsigned long sig, siginfo_t *info,
-	sigset_t *oldset, struct pt_regs * regs)
+	struct k_sigaction *ka, sigset_t *oldset, struct pt_regs * regs)
 {
-	struct k_sigaction *ka = &current->sighand->action[sig-1];
-
 	switch (regs->regs[0]) {
 	case ERESTART_RESTARTBLOCK:
 	case ERESTARTNOHAND:
@@ -680,8 +751,6 @@ static inline void handle_signal(unsigned long sig, siginfo_t *info,
 	else
 		setup_frame(ka, regs, sig, oldset);
 
-	if (ka->sa.sa_flags & SA_ONESHOT)
-		ka->sa.sa_handler = SIG_DFL;
 	if (!(ka->sa.sa_flags & SA_NODEFER)) {
 		spin_lock_irq(&current->sighand->siglock);
 		sigorsets(&current->blocked,&current->blocked,&ka->sa.sa_mask);
@@ -691,8 +760,9 @@ static inline void handle_signal(unsigned long sig, siginfo_t *info,
 	}
 }
 
-asmlinkage int do_signal32(sigset_t *oldset, struct pt_regs *regs)
+int do_signal32(sigset_t *oldset, struct pt_regs *regs)
 {
+	struct k_sigaction ka;
 	siginfo_t info;
 	int signr;
 
@@ -704,17 +774,15 @@ asmlinkage int do_signal32(sigset_t *oldset, struct pt_regs *regs)
 	if (!user_mode(regs))
 		return 1;
 
-	if (current->flags & PF_FREEZE) {
-		refrigerator(0);
+	if (try_to_freeze(0))
 		goto no_signal;
-	}
 
 	if (!oldset)
 		oldset = &current->blocked;
 
-	signr = get_signal_to_deliver(&info, regs, NULL);
+	signr = get_signal_to_deliver(&info, &ka, regs, NULL);
 	if (signr > 0) {
-		handle_signal(signr, &info, oldset, regs);
+		handle_signal(signr, &info, &ka, oldset, regs);
 		return 1;
 	}
 
@@ -821,98 +889,7 @@ asmlinkage int sys32_rt_sigpending(compat_sigset_t *uset,
 	return ret;
 }
 
-asmlinkage int sys32_rt_sigtimedwait(compat_sigset_t *uthese,
-	siginfo_t32 *uinfo, struct compat_timespec *uts,
-	compat_time_t sigsetsize)
-{
-	int ret, sig;
-	sigset_t these;
-	compat_sigset_t these32;
-	struct timespec ts;
-	siginfo_t info;
-	long timeout = 0;
-
-	/*
-	 * As the result of a brainfarting competition a few years ago the
-	 * size of sigset_t for the 32-bit kernel was choosen to be 128 bits
-	 * but nothing so far is actually using that many, 64 are enough.  So
-	 * for now we just drop the high bits.
-	 */
-	if (copy_from_user (&these32, uthese, sizeof(compat_old_sigset_t)))
-		return -EFAULT;
-
-	switch (_NSIG_WORDS) {
-#ifdef __MIPSEB__
-	case 4: these.sig[3] = these32.sig[6] | (((long)these32.sig[7]) << 32);
-	case 3: these.sig[2] = these32.sig[4] | (((long)these32.sig[5]) << 32);
-	case 2: these.sig[1] = these32.sig[2] | (((long)these32.sig[3]) << 32);
-	case 1: these.sig[0] = these32.sig[0] | (((long)these32.sig[1]) << 32);
-#endif
-#ifdef __MIPSEL__
-	case 4: these.sig[3] = these32.sig[7] | (((long)these32.sig[6]) << 32);
-	case 3: these.sig[2] = these32.sig[5] | (((long)these32.sig[4]) << 32);
-	case 2: these.sig[1] = these32.sig[3] | (((long)these32.sig[2]) << 32);
-	case 1: these.sig[0] = these32.sig[1] | (((long)these32.sig[0]) << 32);
-#endif
-	}
-
-	/*
-	 * Invert the set of allowed signals to get those we
-	 * want to block.
-	 */
-	sigdelsetmask(&these, sigmask(SIGKILL)|sigmask(SIGSTOP));
-	signotset(&these);
-
-	if (uts) {
-		if (get_user (ts.tv_sec, &uts->tv_sec) ||
-		    get_user (ts.tv_nsec, &uts->tv_nsec))
-			return -EINVAL;
-		if (ts.tv_nsec >= 1000000000L || ts.tv_nsec < 0
-		    || ts.tv_sec < 0)
-			return -EINVAL;
-	}
-
-	spin_lock_irq(&current->sighand->siglock);
-	sig = dequeue_signal(current, &these, &info);
-	if (!sig) {
-		/* None ready -- temporarily unblock those we're interested
-		   in so that we'll be awakened when they arrive.  */
-		sigset_t oldblocked = current->blocked;
-		sigandsets(&current->blocked, &current->blocked, &these);
-		recalc_sigpending();
-		spin_unlock_irq(&current->sighand->siglock);
-
-		timeout = MAX_SCHEDULE_TIMEOUT;
-		if (uts)
-			timeout = (timespec_to_jiffies(&ts)
-				   + (ts.tv_sec || ts.tv_nsec));
-
-		current->state = TASK_INTERRUPTIBLE;
-		timeout = schedule_timeout(timeout);
-
-		spin_lock_irq(&current->sighand->siglock);
-		sig = dequeue_signal(current, &these, &info);
-		current->blocked = oldblocked;
-		recalc_sigpending();
-	}
-	spin_unlock_irq(&current->sighand->siglock);
-
-	if (sig) {
-		ret = sig;
-		if (uinfo) {
-			if (copy_siginfo_to_user32(uinfo, &info))
-				ret = -EFAULT;
-		}
-	} else {
-		ret = -EAGAIN;
-		if (timeout)
-			ret = -EINTR;
-	}
-
-	return ret;
-}
-
-asmlinkage int sys32_rt_sigqueueinfo(int pid, int sig, siginfo_t32 *uinfo)
+asmlinkage int sys32_rt_sigqueueinfo(int pid, int sig, compat_siginfo_t *uinfo)
 {
 	siginfo_t info;
 	int ret;

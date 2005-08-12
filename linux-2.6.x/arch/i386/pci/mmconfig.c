@@ -1,4 +1,11 @@
 /*
+ * Copyright (C) 2004 Matthew Wilcox <matthew@wil.cx>
+ * Copyright (C) 2004 Intel Corp.
+ *
+ * This code is released under the GNU General Public License version 2.
+ */
+
+/*
  * mmconfig.c - Low-level direct PCI config space access via MMCONFIG
  */
 
@@ -9,7 +16,7 @@
 /* The physical address of the MMCONFIG aperture.  Set from ACPI tables. */
 u32 pci_mmcfg_base_addr;
 
-#define mmcfg_virt_addr (fix_to_virt(FIX_PCIE_MCFG))
+#define mmcfg_virt_addr ((void __iomem *) fix_to_virt(FIX_PCIE_MCFG))
 
 /* The base address of the last MMCONFIG device accessed */
 static u32 mmcfg_last_accessed_device;
@@ -23,11 +30,12 @@ static inline void pci_exp_set_dev_base(int bus, int devfn)
 	u32 dev_base = pci_mmcfg_base_addr | (bus << 20) | (devfn << 12);
 	if (dev_base != mmcfg_last_accessed_device) {
 		mmcfg_last_accessed_device = dev_base;
-		set_fixmap(FIX_PCIE_MCFG, dev_base);
+		set_fixmap_nocache(FIX_PCIE_MCFG, dev_base);
 	}
 }
 
-static int pci_mmcfg_read(int seg, int bus, int devfn, int reg, int len, u32 *value)
+static int pci_mmcfg_read(unsigned int seg, unsigned int bus,
+			  unsigned int devfn, int reg, int len, u32 *value)
 {
 	unsigned long flags;
 
@@ -55,7 +63,8 @@ static int pci_mmcfg_read(int seg, int bus, int devfn, int reg, int len, u32 *va
 	return 0;
 }
 
-static int pci_mmcfg_write(int seg, int bus, int devfn, int reg, int len, u32 value)
+static int pci_mmcfg_write(unsigned int seg, unsigned int bus,
+			   unsigned int devfn, int reg, int len, u32 value)
 {
 	unsigned long flags;
 
@@ -78,9 +87,6 @@ static int pci_mmcfg_write(int seg, int bus, int devfn, int reg, int len, u32 va
 		break;
 	}
 
-	/* Dummy read to flush PCI write */
-	readl(mmcfg_virt_addr);
-
 	spin_unlock_irqrestore(&pci_config_lock, flags);
 
 	return 0;
@@ -97,6 +103,13 @@ static int __init pci_mmcfg_init(void)
 		goto out;
 	if (!pci_mmcfg_base_addr)
 		goto out;
+
+	/* Kludge for now. Don't use mmconfig on AMD systems because
+	   those have some busses where mmconfig doesn't work,
+	   and we don't parse ACPI MCFG well enough to handle that. 
+	   Remove when proper handling is added. */
+	if (boot_cpu_data.x86_vendor == X86_VENDOR_AMD)
+		goto out; 
 
 	printk(KERN_INFO "PCI: Using MMCONFIG\n");
 	raw_pci_ops = &pci_mmcfg;

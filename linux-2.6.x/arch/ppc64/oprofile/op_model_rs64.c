@@ -15,14 +15,14 @@
 #include <asm/processor.h>
 #include <asm/cputable.h>
 
-#define dbg(args...) printk(args)
+#define dbg(args...)
 
 #include "op_impl.h"
 
 static void ctrl_write(unsigned int i, unsigned int val)
 {
-	unsigned int tmp;
-	unsigned long shift, mask;
+	unsigned int tmp = 0;
+	unsigned long shift = 0, mask = 0;
 
 	dbg("ctrl_write %d %x\n", i, val);
 
@@ -114,12 +114,12 @@ static void rs64_cpu_setup(void *unused)
 	/* reset MMCR1, MMCRA */
 	mtspr(SPRN_MMCR1, 0);
 
-	if (cur_cpu_spec->cpu_features & CPU_FTR_MMCRA)
+	if (cpu_has_feature(CPU_FTR_MMCRA))
 		mtspr(SPRN_MMCRA, 0);
 
 	mmcr0 |= MMCR0_FCM1|MMCR0_PMXE|MMCR0_FCECE;
 	/* Only applies to POWER3, but should be safe on RS64 */
-	mmcr0 |= MMCR0_PMC1INTCONTROL|MMCR0_PMCNINTCONTROL;
+	mmcr0 |= MMCR0_PMC1CE|MMCR0_PMCjCE;
 	mtspr(SPRN_MMCR0, mmcr0);
 
 	dbg("setup on cpu %d, mmcr0 %lx\n", smp_processor_id(),
@@ -180,7 +180,6 @@ static void rs64_handle_interrupt(struct pt_regs *regs,
 	int i;
 	unsigned long pc = mfspr(SPRN_SIAR);
 	int is_kernel = (pc >= KERNELBASE);
-	unsigned int cpu = smp_processor_id();
 
 	/* set the PMM bit (see comment below) */
 	mtmsrd(mfmsr() | MSR_PMM);
@@ -189,7 +188,7 @@ static void rs64_handle_interrupt(struct pt_regs *regs,
 		val = ctr_read(i);
 		if (val < 0) {
 			if (ctr[i].enabled) {
-				oprofile_add_sample(pc, is_kernel, i, cpu);
+				oprofile_add_pc(pc, is_kernel, i);
 				ctr_write(i, reset_value[i]);
 			} else {
 				ctr_write(i, 0);

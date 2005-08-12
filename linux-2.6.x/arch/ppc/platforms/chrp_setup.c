@@ -37,6 +37,7 @@
 #include <linux/seq_file.h>
 #include <linux/root_dev.h>
 #include <linux/initrd.h>
+#include <linux/module.h>
 
 #include <asm/io.h>
 #include <asm/pgtable.h>
@@ -67,6 +68,9 @@ void btext_progress(char *, unsigned short);
 
 extern unsigned long pmac_find_end_of_memory(void);
 extern int of_show_percpuinfo(struct seq_file *, int);
+
+int _chrp_type;
+EXPORT_SYMBOL(_chrp_type);
 
 /*
  * XXX this should be in xmon.h, but putting it there means xmon.h
@@ -118,13 +122,12 @@ chrp_show_cpuinfo(struct seq_file *m)
 	if (!strncmp(model, "IBM,LongTrail", 13)) {
 		/* VLSI VAS96011/12 `Golden Gate 2' */
 		/* Memory banks */
-		sdramen = (in_le32((unsigned *)(gg2_pci_config_base+
-						GG2_PCI_DRAM_CTRL))
+		sdramen = (in_le32(gg2_pci_config_base + GG2_PCI_DRAM_CTRL)
 			   >>31) & 1;
 		for (i = 0; i < (sdramen ? 4 : 6); i++) {
-			t = in_le32((unsigned *)(gg2_pci_config_base+
+			t = in_le32(gg2_pci_config_base+
 						 GG2_PCI_DRAM_BANK0+
-						 i*4));
+						 i*4);
 			if (!(t & 1))
 				continue;
 			switch ((t>>8) & 0x1f) {
@@ -154,7 +157,7 @@ chrp_show_cpuinfo(struct seq_file *m)
 				   gg2_memtypes[sdramen ? 1 : ((t>>1) & 3)]);
 		}
 		/* L2 cache */
-		t = in_le32((unsigned *)(gg2_pci_config_base+GG2_PCI_CC_CTRL));
+		t = in_le32(gg2_pci_config_base+GG2_PCI_CC_CTRL);
 		seq_printf(m, "board l2\t: %s %s (%s)\n",
 			   gg2_cachesizes[(t>>7) & 3],
 			   gg2_cachetypes[(t>>2) & 3],
@@ -215,8 +218,33 @@ static void __init sio_init(void)
 }
 
 
-void __init
-chrp_setup_arch(void)
+static void __init pegasos_set_l2cr(void)
+{
+	struct device_node *np;
+
+	/* On Pegasos, enable the l2 cache if needed, as the OF forgets it */
+	if (_chrp_type != _CHRP_Pegasos)
+		return;
+
+	/* Enable L2 cache if needed */
+	np = find_type_devices("cpu");
+	if (np != NULL) {
+		unsigned int *l2cr = (unsigned int *)
+			get_property (np, "l2cr", NULL);
+		if (l2cr == NULL) {
+			printk ("Pegasos l2cr : no cpu l2cr property found\n");
+			return;
+		}
+		if (!((*l2cr) & 0x80000000)) {
+			printk ("Pegasos l2cr : L2 cache was not active, "
+				"activating\n");
+			_set_L2CR(0);
+			_set_L2CR((*l2cr) | 0x80000000);
+		}
+	}
+}
+
+void __init chrp_setup_arch(void)
 {
 	struct device_node *device;
 
@@ -232,6 +260,9 @@ chrp_setup_arch(void)
 	else
 #endif
 		ROOT_DEV = Root_SDA2; /* sda2 (sda1 is for the kernel) */
+
+	/* On pegasos, enable the L2 cache if not already done by OF */
+	pegasos_set_l2cr();
 
 	/* Lookup PCI host bridges */
 	chrp_find_bridges();
@@ -249,13 +280,6 @@ chrp_setup_arch(void)
 	 *  Fix the Super I/O configuration
 	 */
 	sio_init();
-
-	/*
-	 *  Setup the console operations
-	 */
-#ifdef CONFIG_DUMMY_CONSOLE
-	conswitchp = &dummy_con;
-#endif
 
 	/* Get the event scan rate for the rtas so we know how
 	 * often it expects a heartbeat. -- Cort
@@ -332,7 +356,7 @@ static void __init chrp_find_openpic(void)
 	struct device_node *np;
 	int len, i;
 	unsigned int *iranges;
-	void *isu;
+	void __iomem *isu;
 
 	np = find_type_devices("open-pic");
 	if (np == NULL || np->n_addrs == 0)
@@ -378,11 +402,19 @@ static void __init chrp_find_openpic(void)
 	}
 }
 
+#if defined(CONFIG_VT) && defined(CONFIG_INPUT_ADBHID) && defined(XMON)
+static struct irqaction xmon_irqaction = {
+	.handler = xmon_irq,
+	.mask = CPU_MASK_NONE,
+	.name = "XMON break",
+};
+#endif
+
 void __init chrp_init_IRQ(void)
 {
 	struct device_node *np;
 	int i;
-	unsigned long chrp_int_ack;
+	unsigned long chrp_int_ack = 0;
 	unsigned char init_senses[NR_IRQS - NUM_8259_INTERRUPTS];
 #if defined(CONFIG_VT) && defined(CONFIG_INPUT_ADBHID) && defined(XMON)
 	struct device_node *kbd;
@@ -402,15 +434,17 @@ void __init chrp_init_IRQ(void)
 
 	chrp_find_openpic();
 
-	prom_get_irq_senses(init_senses, NUM_8259_INTERRUPTS, NR_IRQS);
-	OpenPIC_InitSenses = init_senses;
-	OpenPIC_NumInitSenses = NR_IRQS - NUM_8259_INTERRUPTS;
+	if (OpenPIC_Addr) {
+		prom_get_irq_senses(init_senses, NUM_8259_INTERRUPTS, NR_IRQS);
+		OpenPIC_InitSenses = init_senses;
+		OpenPIC_NumInitSenses = NR_IRQS - NUM_8259_INTERRUPTS;
 
-	openpic_init(NUM_8259_INTERRUPTS);
-	/* We have a cascade on OpenPIC IRQ 0, Linux IRQ 16 */
-	openpic_hookup_cascade(NUM_8259_INTERRUPTS, "82c59 cascade",
-			       i8259_irq);
+		openpic_init(NUM_8259_INTERRUPTS);
+		/* We have a cascade on OpenPIC IRQ 0, Linux IRQ 16 */
+		openpic_hookup_cascade(NUM_8259_INTERRUPTS, "82c59 cascade",
+				       i8259_irq);
 
+	}
 	for (i = 0; i < NUM_8259_INTERRUPTS; i++)
 		irq_desc[i].handler = &i8259_pic;
 	i8259_init(chrp_int_ack);
@@ -423,7 +457,7 @@ void __init chrp_init_IRQ(void)
 		    && strcmp(kbd->parent->type, "adb") == 0)
 			break;
 	if (kbd)
-		request_irq(HYDRA_INT_ADB_NMI, xmon_irq, 0, "XMON break", 0);
+		setup_irq(HYDRA_INT_ADB_NMI, &xmon_irqaction);
 #endif
 }
 
@@ -450,6 +484,9 @@ void __init
 chrp_init(unsigned long r3, unsigned long r4, unsigned long r5,
 	  unsigned long r6, unsigned long r7)
 {
+	struct device_node *root = find_path_device ("/");
+	char *machine = NULL;
+
 #ifdef CONFIG_BLK_DEV_INITRD
 	/* take care of initrd if we have one */
 	if ( r6 )
@@ -464,14 +501,33 @@ chrp_init(unsigned long r3, unsigned long r4, unsigned long r5,
 	DMA_MODE_WRITE = 0x48;
 	isa_io_base = CHRP_ISA_IO_BASE;		/* default value */
 
+	if (root)
+		machine = get_property(root, "model", NULL);
+	if (machine && strncmp(machine, "Pegasos", 7) == 0) {
+		_chrp_type = _CHRP_Pegasos;
+	} else if (machine && strncmp(machine, "IBM", 3) == 0) {
+		_chrp_type = _CHRP_IBM;
+	} else if (machine && strncmp(machine, "MOT", 3) == 0) {
+		_chrp_type = _CHRP_Motorola;
+	} else {
+		/* Let's assume it is an IBM chrp if all else fails */
+		_chrp_type = _CHRP_IBM;
+	}
+
 	ppc_md.setup_arch     = chrp_setup_arch;
 	ppc_md.show_percpuinfo = of_show_percpuinfo;
 	ppc_md.show_cpuinfo   = chrp_show_cpuinfo;
+
 	ppc_md.irq_canonicalize = chrp_irq_canonicalize;
 	ppc_md.init_IRQ       = chrp_init_IRQ;
-	ppc_md.get_irq        = openpic_get_irq;
+	if (_chrp_type == _CHRP_Pegasos)
+		ppc_md.get_irq        = i8259_irq;
+	else
+		ppc_md.get_irq        = openpic_get_irq;
 
 	ppc_md.init           = chrp_init2;
+
+	ppc_md.phys_mem_access_prot = pci_phys_mem_access_prot;
 
 	ppc_md.restart        = chrp_restart;
 	ppc_md.power_off      = chrp_power_off;

@@ -45,6 +45,7 @@
 #define TMU_TOCR_INIT	0x00
 #define TMU0_TCR_INIT	0x0020
 #define TMU_TSTR_INIT	1
+#define TMU_TSTR_OFF	0
 
 /* RCR1 Bits */
 #define RCR1_CF		0x80	/* Carry Flag             */
@@ -298,37 +299,6 @@ static int set_rtc_time(unsigned long nowtime)
 /* last time the RTC clock got updated */
 static long last_rtc_update = 0;
 
-static inline void sh64_do_profile(struct pt_regs *regs)
-{
-	extern int _stext;
-	unsigned long pc;
-
-	profile_hook(regs);
-
-	if (user_mode(regs))
-		return;
-
-	/* Don't profile cpu_idle..  */
-	if (!prof_buffer || !current->pid)
-		return;
-
-	pc = instruction_pointer(regs);
-	pc -= (unsigned long) &_stext;
-	pc >>= prof_shift;
-
-	/*
-	 * Don't ignore out-of-bounds PC values silently, put them into the
-	 * last histogram slot, so if present, they will show up as a sharp
-	 * peak.
-	 */
-	if (pc > prof_len - 1)
-		pc = prof_len - 1;
-
-	/* We could just be sloppy and not lock against a re-entry on this
-	   increment, but the profiling code won't always be linked in anyway. */
-	atomic_inc((atomic_t *)&prof_buffer[pc]);
-}
-
 /*
  * timer_interrupt() needs to keep up the real-time clock,
  * as well as call the "do_timer()" routine every clocktick
@@ -340,8 +310,10 @@ static inline void do_timer_interrupt(int irq, void *dev_id, struct pt_regs *reg
 	ctc_last_interrupt = (unsigned long) current_ctc;
 
 	do_timer(regs);
-
-	sh64_do_profile(regs);
+#ifndef CONFIG_SMP
+	update_process_times(user_mode(regs));
+#endif
+	profile_tick(CPU_PROFILING, regs);
 
 #ifdef CONFIG_HEARTBEAT
 	{
@@ -453,7 +425,7 @@ static __init unsigned int get_cpu_hz(void)
 	*/
 	register unsigned long long  __rtc_irq_flag __asm__ ("r3");
 
-	sti();
+	local_irq_enable();
 	do {} while (ctrl_inb(R64CNT) != 0);
 	ctrl_outb(RCR1_CIE, RCR1); /* Enable carry interrupt */
 
@@ -472,7 +444,7 @@ static __init unsigned int get_cpu_hz(void)
 		     "getcon	" __CTC ", %0\n\t"
 		: "=r"(ctc_val), "=r" (__dummy), "=r" (__rtc_irq_flag)
 		: "0" (0));
-	cli();
+	local_irq_disable();
 	/*
 	 * SH-3:
 	 * CPU clock = 4 stages * loop
@@ -590,6 +562,7 @@ void __init time_init(void)
 	current_cpu_data.module_clock = module_clock;
 
 	/* Start TMU0 */
+	ctrl_outb(TMU_TSTR_OFF, TMU_TSTR);
 	ctrl_outb(TMU_TOCR_INIT, TMU_TOCR);
 	ctrl_outw(TMU0_TCR_INIT, TMU0_TCR);
 	ctrl_outl(interval, TMU0_TCOR);

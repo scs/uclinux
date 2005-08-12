@@ -58,8 +58,6 @@
 #include <asm/kgdb.h>
 
 #include "mcpn765.h"
-#include "mcpn765_serial.h"
-
 
 static u_char mcpn765_openpic_initsenses[] __initdata = {
 	(IRQ_SENSE_EDGE  | IRQ_POLARITY_POSITIVE),/* 16: i8259 cascade */
@@ -187,7 +185,7 @@ mcpn765_setup_via_82c586b(void)
 	struct pci_dev	*dev;
 	u_char		c;
 
-	if ((dev = pci_find_device(PCI_VENDOR_ID_VIA,
+	if ((dev = pci_get_device(PCI_VENDOR_ID_VIA,
 				   PCI_DEVICE_ID_VIA_82C586_0,
 				   NULL)) == NULL) {
 		printk("No VIA ISA bridge found\n");
@@ -211,8 +209,8 @@ mcpn765_setup_via_82c586b(void)
 	pci_write_config_dword(dev, 0x54, 0);
 	pci_write_config_byte(dev, 0x58, 0);
 
-
-	if ((dev = pci_find_device(PCI_VENDOR_ID_VIA,
+	pci_dev_put(dev);
+	if ((dev = pci_get_device(PCI_VENDOR_ID_VIA,
 				   PCI_DEVICE_ID_VIA_82C586_1,
 				   NULL)) == NULL) {
 		printk("No VIA ISA bridge found\n");
@@ -227,6 +225,7 @@ mcpn765_setup_via_82c586b(void)
 	pci_read_config_byte(dev, 0x40, &c);
 	c |= 0x03;
 	pci_write_config_byte(dev, 0x40, c);
+	pci_dev_put(dev);
 
 	return;
 }
@@ -322,10 +321,6 @@ mcpn765_setup_arch(void)
 		ROOT_DEV = Root_NFS;
 #else
 		ROOT_DEV = Root_SDA2;
-#endif
-
-#ifdef CONFIG_DUMMY_CONSOLE
-	conswitchp = &dummy_con;
 #endif
 
 	if ( ppc_md.progress )
@@ -475,8 +470,8 @@ static __inline__ void
 mcpn765_set_bat(void)
 {
 	mb();
-	mtspr(DBAT1U, 0xfe8000fe);
-	mtspr(DBAT1L, 0xfe80002a);
+	mtspr(SPRN_DBAT1U, 0xfe8000fe);
+	mtspr(SPRN_DBAT1L, 0xfe80002a);
 	mb();
 }
 

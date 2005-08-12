@@ -25,11 +25,11 @@
 #include <linux/init.h>
 #include <linux/console.h>
 #include <linux/module.h>
+#include <linux/hardirq.h>
 
 #include <asm/system.h>
 #include <asm/uaccess.h>
 #include <asm/pgtable.h>
-#include <asm/hardirq.h>
 
 #ifndef CONFIG_ARCH_S390X
 #define __FAIL_ADDR_MASK 0x7ffff000
@@ -62,8 +62,8 @@ void bust_spinlocks(int yes)
 		oops_in_progress = 1;
 	} else {
 		int loglevel_save = console_loglevel;
-		oops_in_progress = 0;
 		console_unblank();
+		oops_in_progress = 0;
 		/*
 		 * OK, the message is on the console.  Now we call printk()
 		 * without oops_in_progress set so that printk will give klogd
@@ -87,6 +87,7 @@ static int __check_access_register(struct pt_regs *regs, int error_code)
 	if (areg == 0)
 		/* Access via access register 0 -> kernel address */
 		return 0;
+	save_access_regs(current->thread.acrs);
 	if (regs && areg < NUM_ACRS && current->thread.acrs[areg] <= 1)
 		/*
 		 * access register contains 0 -> kernel address,
@@ -115,19 +116,19 @@ static inline int check_user_space(struct pt_regs *regs, int error_code)
 	 *   3: Home Segment Table Descriptor
 	 */
 	int descriptor = S390_lowcore.trans_exc_code & 3;
-	if (descriptor == 1) {
-		save_access_regs(current->thread.acrs);
+	if (unlikely(descriptor == 1))
 		return __check_access_register(regs, error_code);
-	}
-	return descriptor >> 1;
+	if (descriptor == 2)
+		return current->thread.mm_segment.ar4;
+	return descriptor != 0;
 }
 
 /*
  * Send SIGSEGV to task.  This is an external routine
  * to keep the stack usage of do_page_fault small.
  */
-static void force_sigsegv(struct pt_regs *regs, unsigned long error_code,
-			  int si_code, unsigned long address)
+static void do_sigsegv(struct pt_regs *regs, unsigned long error_code,
+		       int si_code, unsigned long address)
 {
 	struct siginfo si;
 
@@ -206,7 +207,7 @@ do_exception(struct pt_regs *regs, unsigned long error_code, int is_protection)
 	 * we are not in an interrupt and that there is a 
 	 * user context.
 	 */
-        if (user_address == 0 || in_interrupt() || !mm)
+        if (user_address == 0 || in_atomic() || !mm)
                 goto no_context;
 
 	/*
@@ -282,7 +283,7 @@ bad_area:
         if (regs->psw.mask & PSW_MASK_PSTATE) {
                 tsk->thread.prot_addr = address;
                 tsk->thread.trap_no = error_code;
-		force_sigsegv(regs, error_code, si_code, address);
+		do_sigsegv(regs, error_code, si_code, address);
                 return;
 	}
 

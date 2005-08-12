@@ -14,6 +14,10 @@ config RWSEM_XCHGADD_ALGORITHM
 	bool
 	default y
 
+config GENERIC_CALIBRATE_DELAY
+	bool
+	default y
+
 config GENERIC_BUST_SPINLOCK
 	bool
 
@@ -48,34 +52,6 @@ config ARCH_S390_31
 	depends on ARCH_S390X = 'n'
 	default y
 
-choice 
-	prompt "Processor type"
-	default MARCH_G5
-
-config MARCH_G5
-	bool "S/390 model G5 and G6"
-	depends on ARCH_S390_31
-	help
-	  Select this to build a 31 bit kernel that works
-	  on all S/390 and zSeries machines.
-
-config MARCH_Z900
-	bool "IBM eServer zSeries model z800 and z900"
-	help
-	  Select this to optimize for zSeries machines. This
-	  will enable some optimizations that are not available
-	  on older 31 bit only CPUs.
-
-config MARCH_Z990
-	bool "IBM eServer zSeries model z890 and z990"
-	help
-	  Select this enable optimizations for model z890/z990.
-	  This will be slightly faster but does not work on
-	  older machines such as the z900.
-
-endchoice 
-
-
 config SMP
 	bool "Symmetric multi-processing support"
 	---help---
@@ -108,11 +84,12 @@ config NR_CPUS
 	  approximately sixteen kilobytes to the kernel image.
 
 config HOTPLUG_CPU
-	bool "Support for hot-pluggable CPUs (EXPERIMENTAL)"
-	depends on SMP && HOTPLUG && EXPERIMENTAL
+	bool "Support for hot-pluggable CPUs"
+	depends on SMP
+	select HOTPLUG
 	default n
 	help
-	  Say Y here to experiment with turning CPUs off and on.  CPUs
+	  Say Y here to be able to turn CPUs off and on. CPUs
 	  can be controlled through /sys/devices/system/cpu/cpu#.
 	  Say N if you want to disable CPU hotplug.
 
@@ -121,7 +98,7 @@ config MATHEMU
 	depends on MARCH_G5
 	help
 	  This option is required for IEEE compliant floating point arithmetic
-	  on older S/390 machines. Say Y unless you know your machine doesn't 
+	  on older S/390 machines. Say Y unless you know your machine doesn't
 	  need this.
 
 config S390_SUPPORT
@@ -150,13 +127,112 @@ config BINFMT_ELF32
 	  This allows you to run 32-bit Linux/ELF binaries on your zSeries
 	  in 64 bit mode. Everybody wants this; say Y.
 
+comment "Code generation options"
+
+choice
+	prompt "Processor type"
+	default MARCH_G5
+
+config MARCH_G5
+	bool "S/390 model G5 and G6"
+	depends on ARCH_S390_31
+	help
+	  Select this to build a 31 bit kernel that works
+	  on all S/390 and zSeries machines.
+
+config MARCH_Z900
+	bool "IBM eServer zSeries model z800 and z900"
+	help
+	  Select this to optimize for zSeries machines. This
+	  will enable some optimizations that are not available
+	  on older 31 bit only CPUs.
+
+config MARCH_Z990
+	bool "IBM eServer zSeries model z890 and z990"
+	help
+	  Select this enable optimizations for model z890/z990.
+	  This will be slightly faster but does not work on
+	  older machines such as the z900.
+
+endchoice
+
+config PACK_STACK
+	bool "Pack kernel stack"
+	help
+	  This option enables the compiler option -mkernel-backchain if it
+	  is available. If the option is available the compiler supports
+	  the new stack layout which dramatically reduces the minimum stack
+	  frame size. With an old compiler a non-leaf function needs a
+	  minimum of 96 bytes on 31 bit and 160 bytes on 64 bit. With
+	  -mkernel-backchain the minimum size drops to 16 byte on 31 bit
+	  and 24 byte on 64 bit.
+
+	  Say Y if you are unsure.
+
+config SMALL_STACK
+	bool "Use 4kb/8kb for kernel stack instead of 8kb/16kb"
+	depends on PACK_STACK
+	help
+	  If you say Y here and the compiler supports the -mkernel-backchain
+	  option the kernel will use a smaller kernel stack size. For 31 bit
+	  the reduced size is 4kb instead of 8kb and for 64 bit it is 8kb
+	  instead of 16kb. This allows to run more thread on a system and
+	  reduces the pressure on the memory management for higher order
+	  page allocations.
+
+	  Say N if you are unsure.
+
+
+config CHECK_STACK
+	bool "Detect kernel stack overflow"
+	help
+	  This option enables the compiler option -mstack-guard and
+	  -mstack-size if they are available. If the compiler supports them
+	  it will emit additional code to each function prolog to trigger
+	  an illegal operation if the kernel stack is about to overflow.
+
+	  Say N if you are unsure.
+
+config STACK_GUARD
+	int "Size of the guard area (128-1024)"
+	range 128 1024
+	depends on CHECK_STACK
+	default "256"
+	help
+	  This allows you to specify the size of the guard area at the lower
+	  end of the kernel stack. If the kernel stack points into the guard
+	  area on function entry an illegal operation is triggered. The size
+	  needs to be a power of 2. Please keep in mind that the size of an
+	  interrupt frame is 184 bytes for 31 bit and 328 bytes on 64 bit.
+	  The minimum size for the stack guard should be 256 for 31 bit and
+	  512 for 64 bit.
+
+config WARN_STACK
+	bool "Emit compiler warnings for function with broken stack usage"
+	help
+	  This option enables the compiler options -mwarn-framesize and
+	  -mwarn-dynamicstack. If the compiler supports these options it
+	  will generate warnings for function which either use alloca or
+	  create a stack frame bigger then CONFIG_WARN_STACK_SIZE.
+
+	  Say N if you are unsure.
+
+config WARN_STACK_SIZE
+	int "Maximum frame size considered safe (128-2048)"
+	range 128 2048
+	depends on WARN_STACK
+	default "256"
+	help
+	  This allows you to specify the maximum frame size a function may
+	  have without the compiler complaining about it.
+
 comment "I/O subsystem configuration"
 
 config MACHCHK_WARNING
 	bool "Process warning machine checks"
 	help
 	  Select this option if you want the machine check handler on IBM S/390 or
-	  zSeries to process warning machine checks (e.g. on power failures). 
+	  zSeries to process warning machine checks (e.g. on power failures).
 	  If unsure, say "Y".
 
 config QDIO
@@ -291,6 +367,13 @@ config VIRT_TIMER
 	  This provides a kernel interface for virtual CPU timers.
 	  Default is disabled.
 
+config VIRT_CPU_ACCOUNTING
+	bool "Base user process accounting on virtual cpu timer"
+	depends on VIRT_TIMER
+	help
+	  Select this option to use CPU timer deltas to do user
+	  process accounting.
+
 config APPLDATA_BASE
 	bool "Linux - VM Monitor Stream, base infrastructure"
 	depends on PROC_FS && VIRT_TIMER=y
@@ -388,64 +471,10 @@ source "fs/Kconfig"
 
 source "arch/s390/oprofile/Kconfig"
 
-menu "Kernel hacking"
-
-config DEBUG_KERNEL
-	bool "Kernel debugging"
-	help
-	  Say Y here if you are developing drivers or trying to debug and
-	  identify kernel problems.
-
-config MAGIC_SYSRQ
-	bool "Magic SysRq key"
-	depends on DEBUG_KERNEL
-	help
-	  If you say Y here, you will have some control over the system even
-	  if the system crashes for example during kernel debugging (e.g., you
-	  will be able to flush the buffer cache to disk, reboot the system
-	  immediately or dump some status information). This is accomplished
-	  by pressing various keys while holding SysRq (Alt+PrintScreen). It
-	  also works on a serial console (on PC hardware at least), if you
-	  send a BREAK and then within 5 seconds a command keypress. The
-	  keys are documented in <file:Documentation/sysrq.txt>. Don't say Y
-	  unless you really know what this hack does.
-
-config DEBUG_SLAB
-	bool "Debug memory allocations"
-	depends on DEBUG_KERNEL
-	help
-	  Say Y here to have the kernel do limited verification on memory
-	  allocation as well as poisoning memory on free to catch use of freed
-	  memory.
-
-config KALLSYMS
-	bool "Load all symbols for debugging/kksymoops"
-	depends on DEBUG_KERNEL
-	help
-	  Say Y here to let the kernel print out symbolic crash information and
-	  symbolic stack backtraces. This increases the size of the kernel
-	  somewhat, as all symbols have to be loaded into the kernel image.
-
-config DEBUG_INFO
-	bool "Compile the kernel with debug info"
-	depends on DEBUG_KERNEL
-	help
-          If you say Y here the resulting kernel image will include
-	  debugging info resulting in a larger kernel image.
-	  Say Y here only if you plan to use gdb to debug the kernel.
-	  If you don't debug the kernel, you can say N.
-	  
-config DEBUG_SPINLOCK_SLEEP
-	bool "Sleep-inside-spinlock checking"
-	help
-	  If you say Y here, various routines which may sleep will become very
-	  noisy if they are called with a spinlock held.	
-
-endmenu
+source "arch/s390/Kconfig.debug"
 
 source "security/Kconfig"
 
 source "crypto/Kconfig"
 
 source "lib/Kconfig"
-

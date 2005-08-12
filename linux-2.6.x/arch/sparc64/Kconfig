@@ -12,10 +12,45 @@ config MMU
 	bool
 	default y
 
+config TIME_INTERPOLATION
+	bool
+	default y
+
+choice
+	prompt "Kernel page size"
+	default SPARC64_PAGE_SIZE_8KB
+
+config SPARC64_PAGE_SIZE_8KB
+	bool "8KB"
+	help
+	  This lets you select the page size of the kernel.
+
+	  8KB and 64KB work quite well, since Sparc ELF sections
+	  provide for up to 64KB alignment.
+
+	  Therefore, 512KB and 4MB are for expert hackers only.
+
+	  If you don't know what to do, choose 8KB.
+
+config SPARC64_PAGE_SIZE_64KB
+	bool "64KB"
+
+config SPARC64_PAGE_SIZE_512KB
+	bool "512KB"
+
+config SPARC64_PAGE_SIZE_4MB
+	bool "4MB"
+
+endchoice
+
 source "init/Kconfig"
 
+config SYSVIPC_COMPAT
+	bool
+	depends on COMPAT && SYSVIPC
+	default y
 
-menu "General setup"
+menu "General machine setup"
 
 config BBC_I2C
 	tristate "UltraSPARC-III bootbus i2c controller driver"
@@ -83,14 +118,15 @@ config VT_CONSOLE
 
 config HW_CONSOLE
 	bool
+	depends on VT
 	default y
 
 config SMP
 	bool "Symmetric multi-processing support"
 	---help---
 	  This enables support for systems with more than one CPU. If you have
-	  a system with only one CPU, like most personal computers, say N. If
-	  you have a system with more than one CPU, say Y.
+	  a system with only one CPU, say N. If you have a system with more than
+	  one CPU, say Y.
 
 	  If you say N here, the kernel will run on single and multiprocessor
 	  machines, but will use only one CPU of a multiprocessor machine. If
@@ -98,17 +134,11 @@ config SMP
 	  singleprocessor machines. On a singleprocessor machine, the kernel
 	  will run faster if you say N here.
 
-	  Note that if you say Y here and choose architecture "586" or
-	  "Pentium" under "Processor family", the kernel will not work on 486
-	  architectures. Similarly, multiprocessor kernels for the "PPro"
-	  architecture may not work on all Pentium based boards.
-
 	  People using multiprocessor machines who say Y here should also say
 	  Y to "Enhanced Real Time Clock Support", below. The "Advanced Power
 	  Management" code will be disabled if you say Y here.
 
 	  See also the <file:Documentation/smp.txt>,
-	  <file:Documentation/i386/IO-APIC.txt>,
 	  <file:Documentation/nmi_watchdog.txt> and the SMP-HOWTO available at
 	  <http://www.tldp.org/docs.html#howto>.
 
@@ -132,30 +162,12 @@ config NR_CPUS
 	depends on SMP
 	default "32"
 
-config CPU_FREQ
-	bool "CPU Frequency scaling"
-	help
-	  Clock scaling allows you to change the clock speed of CPUs on the
-	  fly.  Currently there are only sparc64 drivers for UltraSPARC-III
-	  and UltraSPARC-IIe processors.
-
-	  For details, take a look at <file:Documentation/cpu-freq>.
-
-	  If in doubt, say N.
-
-config CPU_FREQ_TABLE
-       tristate "CPU frequency table helpers"
-       depends on CPU_FREQ
-       default y
-       help
-         Many CPUFreq drivers use these helpers, so only say N here if
-	 the CPUFreq driver of your choice doesn't need these helpers.
-
-	 If in doubt, say Y.
+source "drivers/cpufreq/Kconfig"
 
 config US3_FREQ
 	tristate "UltraSPARC-III CPU Frequency driver"
-	depends on CPU_FREQ_TABLE
+	depends on CPU_FREQ
+	select CPU_FREQ_TABLE
 	help
 	  This adds the CPUFreq driver for UltraSPARC-III processors.
 
@@ -165,15 +177,14 @@ config US3_FREQ
 
 config US2E_FREQ
 	tristate "UltraSPARC-IIe CPU Frequency driver"
-	depends on CPU_FREQ_TABLE
+	depends on CPU_FREQ
+	select CPU_FREQ_TABLE
 	help
 	  This adds the CPUFreq driver for UltraSPARC-IIe processors.
 
 	  For details, take a look at <file:Documentation/cpu-freq>.
 
 	  If in doubt, say N.
-
-source "drivers/cpufreq/Kconfig"
 
 # Identify this as a Sparc64 build
 config SPARC64
@@ -194,6 +205,10 @@ config RWSEM_XCHGADD_ALGORITHM
 	bool
 	default y
 
+config GENERIC_CALIBRATE_DELAY
+	bool
+	default y
+
 choice
 	prompt "SPARC64 Huge TLB Page Size"
 	depends on HUGETLB_PAGE
@@ -203,9 +218,11 @@ config HUGETLB_PAGE_SIZE_4MB
 	bool "4MB"
 
 config HUGETLB_PAGE_SIZE_512K
+	depends on !SPARC64_PAGE_SIZE_4MB
 	bool "512K"
 
 config HUGETLB_PAGE_SIZE_64K
+	depends on !SPARC64_PAGE_SIZE_4MB && !SPARC64_PAGE_SIZE_512K
 	bool "64K"
 
 endchoice
@@ -549,7 +566,6 @@ config UNIX98_PTY_COUNT
 
 endmenu
 
-
 menu "XFree86 DRI support"
 
 config DRM
@@ -565,7 +581,7 @@ config DRM
 
 config DRM_FFB
 	tristate "Creator/Creator3D"
-	depends on DRM
+	depends on DRM && BROKEN
 	help
 	  Choose this option if you have one of Sun's Creator3D-based graphics
 	  and frame buffer cards.  Product page at
@@ -600,117 +616,16 @@ source "sound/Kconfig"
 
 source "drivers/usb/Kconfig"
 
+source "drivers/infiniband/Kconfig"
+
 source "drivers/char/watchdog/Kconfig"
 
 source "arch/sparc64/oprofile/Kconfig"
 
-menu "Kernel hacking"
-
-config DEBUG_KERNEL
-	bool "Kernel debugging"
-	help
-	  Say Y here if you are developing drivers or trying to debug and
-	  identify kernel problems.
-
-config DEBUG_STACK_USAGE
-	bool "Enable stack utilization instrumentation"
-	depends on DEBUG_KERNEL
-	help
-	  Enables the display of the minimum amount of free stack which each
-	  task has ever had available in the sysrq-T and sysrq-P debug output.
-
-	  This option will slow down process creation somewhat.
-
-config DEBUG_SLAB
-	bool "Debug memory allocations"
-	depends on DEBUG_KERNEL
-	help
-	  Say Y here to have the kernel do limited verification on memory
-	  allocation as well as poisoning memory on free to catch use of freed
-	  memory.
-
-config MAGIC_SYSRQ
-	bool "Magic SysRq key"
-	depends on DEBUG_KERNEL
-	help
-	  If you say Y here, you will have some control over the system even
-	  if the system crashes for example during kernel debugging (e.g., you
-	  will be able to flush the buffer cache to disk, reboot the system
-	  immediately or dump some status information). This is accomplished
-	  by pressing various keys while holding SysRq (Alt+PrintScreen). It
-	  also works on a serial console (on PC hardware at least), if you
-	  send a BREAK and then within 5 seconds a command keypress. The
-	  keys are documented in <file:Documentation/sysrq.txt>. Don't say Y
-	  unless you really know what this hack does.
-
-config DEBUG_SPINLOCK
-	bool "Spinlock debugging"
-	depends on DEBUG_KERNEL
-	help
-	  Say Y here and build SMP to catch missing spinlock initialization
-	  and certain other kinds of spinlock errors commonly made.  This is
-	  best used in conjunction with the NMI watchdog so that spinlock
-	  deadlocks are also debuggable.
-
-config DEBUG_SPINLOCK_SLEEP
-	bool "Sleep-inside-spinlock checking"
-	depends DEBUG_KERNEL
-	help
-	  If you say Y here, various routines which may sleep will become very
-	  noisy if they are called with a spinlock held.	
-
-config DEBUG_BUGVERBOSE
-	bool "Verbose BUG() reporting (adds 70K)"
-	depends on DEBUG_KERNEL
-	help
-	  Say Y here to make BUG() panics output the file name and line number
-	  of the BUG call as well as the EIP and oops trace.  This aids
-	  debugging but costs about 70-100K of memory.
-
-config DEBUG_DCFLUSH
-	bool "D-cache flush debugging"
-	depends on DEBUG_KERNEL
-
-config DEBUG_INFO
-	bool "Compile the kernel with debug info"
-	depends on DEBUG_KERNEL
-	help
-          If you say Y here the resulting kernel image will include
-	  debugging info resulting in a larger kernel image.
-	  Say Y here only if you plan to use gdb to debug the kernel.
-	  If you don't debug the kernel, you can say N.
-	  
-config STACK_DEBUG
-	depends on DEBUG_KERNEL
-	bool "Stack Overflow Detection Support"
-
-config DEBUG_BOOTMEM
-	depends on DEBUG_KERNEL
-	bool "Debug BOOTMEM initialization"
-
-# We have a custom atomic_dec_and_lock() implementation but it's not
-# compatible with spinlock debugging so we need to fall back on
-# the generic version in that case.
-config HAVE_DEC_LOCK
-	bool
-	depends on SMP && !DEBUG_SPINLOCK
-	default y
-
-config MCOUNT
-	bool
-	depends on STACK_DEBUG
-	default y
-
-config FRAME_POINTER
-	bool
-	depends on MCOUNT
-	default y
-
-endmenu
+source "arch/sparc64/Kconfig.debug"
 
 source "security/Kconfig"
 
 source "crypto/Kconfig"
 
 source "lib/Kconfig"
-

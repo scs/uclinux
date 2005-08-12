@@ -32,6 +32,7 @@ SECTIONS
   {
     *(.text)
     SCHED_TEXT
+    LOCK_TEXT
     *(.fixup)
     *(.got1)
     __got2_start = .;
@@ -73,6 +74,12 @@ SECTIONS
     CONSTRUCTORS
   }
 
+  . = ALIGN(4096);
+  __nosave_begin = .;
+  .data_nosave : { *(.data.nosave) }
+  . = ALIGN(4096);
+  __nosave_end = .;
+
   . = ALIGN(32);
   .data.cacheline_aligned : { *(.data.cacheline_aligned) }
 
@@ -102,9 +109,6 @@ SECTIONS
   __setup_start = .;
   .init.setup : { *(.init.setup) }
   __setup_end = .;
-  __start___param = .;
-  __param : { *(__param) }
-  __stop___param = .;
   __initcall_start = .;
   .initcall.init : {
 	*(.initcall1.init)
@@ -141,6 +145,7 @@ SECTIONS
   __init_end = .;
 
   . = ALIGN(4096);
+  _sextratext = .;
   __pmac_begin = .;
   .pmac.text : { *(.pmac.text) }
   .pmac.data : { *(.pmac.data) }
@@ -167,6 +172,7 @@ SECTIONS
   .openfirmware.data : { *(.openfirmware.data) }
   . = ALIGN(4096);
   __openfirmware_end = .;
+  _eextratext = .;
 
   __bss_start = .;
   .bss       :

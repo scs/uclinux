@@ -69,7 +69,8 @@
  *		Thanks to Stuart Swales for pointing out this bug.
  */
 
-
+//#define DEBUG /* pr_debug */
+#include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/sched.h>
 #include <linux/module.h>
@@ -88,12 +89,6 @@ MODULE_AUTHOR("Tigran Aivazian <tigran@veritas.com>");
 MODULE_LICENSE("GPL");
 
 #define MICROCODE_VERSION 	"1.14"
-#define MICRO_DEBUG 		0
-#if MICRO_DEBUG
-#define dprintk(x...) printk(KERN_INFO x)
-#else
-#define dprintk(x...)
-#endif
 
 #define DEFAULT_UCODE_DATASIZE 	(2000) 	  /* 2000 bytes */
 #define MC_HEADER_SIZE		(sizeof (microcode_header_t))  	  /* 48 bytes */
@@ -114,7 +109,7 @@ MODULE_LICENSE("GPL");
 #define exttable_size(et) ((et)->count * EXT_SIGNATURE_SIZE + EXT_HEADER_SIZE)
 
 /* serialize access to the physical write to MSR 0x79 */
-static spinlock_t microcode_update_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(microcode_update_lock);
 
 /* no concurrent ->write()s are allowed on /dev/cpu/microcode */
 static DECLARE_MUTEX(microcode_sem);
@@ -172,7 +167,7 @@ static void collect_cpu_info (void *unused)
 	__asm__ __volatile__ ("cpuid" : : : "ax", "bx", "cx", "dx");
 	/* get the current revision from MSR 0x8B */
 	rdmsr(MSR_IA32_UCODE_REV, val[0], uci->rev);
-	dprintk("microcode: collect_cpu_info : sig=0x%x, pf=0x%x, rev=0x%x\n", 
+	pr_debug("microcode: collect_cpu_info : sig=0x%x, pf=0x%x, rev=0x%x\n",
 			uci->sig, uci->pf, uci->rev);
 }
 
@@ -180,22 +175,22 @@ static inline void mark_microcode_update (int cpu_num, microcode_header_t *mc_he
 {
 	struct ucode_cpu_info *uci = ucode_cpu_info + cpu_num;
 
-	dprintk("Microcode Found.\n");
-	dprintk("   Header Revision 0x%x\n", mc_header->hdrver);
-	dprintk("   Loader Revision 0x%x\n", mc_header->ldrver);
-	dprintk("   Revision 0x%x \n", mc_header->rev);
-	dprintk("   Date %x/%x/%x\n",
+	pr_debug("Microcode Found.\n");
+	pr_debug("   Header Revision 0x%x\n", mc_header->hdrver);
+	pr_debug("   Loader Revision 0x%x\n", mc_header->ldrver);
+	pr_debug("   Revision 0x%x \n", mc_header->rev);
+	pr_debug("   Date %x/%x/%x\n",
 		((mc_header->date >> 24 ) & 0xff),
 		((mc_header->date >> 16 ) & 0xff),
 		(mc_header->date & 0xFFFF));
-	dprintk("   Signature 0x%x\n", sig);
-	dprintk("   Type 0x%x Family 0x%x Model 0x%x Stepping 0x%x\n",
+	pr_debug("   Signature 0x%x\n", sig);
+	pr_debug("   Type 0x%x Family 0x%x Model 0x%x Stepping 0x%x\n",
 		((sig >> 12) & 0x3),
 		((sig >> 8) & 0xf),
 		((sig >> 4) & 0xf),
 		((sig & 0xf)));
-	dprintk("   Processor Flags 0x%x\n", pf);
-	dprintk("   Checksum 0x%x\n", cksum);
+	pr_debug("   Processor Flags 0x%x\n", pf);
+	pr_debug("   Checksum 0x%x\n", cksum);
 
 	if (mc_header->rev < uci->rev) {
 		printk(KERN_ERR "microcode: CPU%d not 'upgrading' to earlier revision"
@@ -209,7 +204,7 @@ static inline void mark_microcode_update (int cpu_num, microcode_header_t *mc_he
 		goto out;
 	}
 
-	dprintk("microcode: CPU%d found a matching microcode update with "
+	pr_debug("microcode: CPU%d found a matching microcode update with "
 		" revision 0x%x (current=0x%x)\n", cpu_num, mc_header->rev, uci->rev);
 	uci->cksum = cksum;
 	uci->pf = pf; /* keep the original mc pf for cksum calculation */
@@ -369,7 +364,7 @@ static void do_update_one (void * unused)
 	struct ucode_cpu_info *uci = ucode_cpu_info + cpu_num;
 
 	if (uci->mc == NULL) {
-		printk(KERN_INFO "microcode: No suitable data for CPU%d\n", cpu_num);
+		printk(KERN_INFO "microcode: No new microcode data for CPU%d\n", cpu_num);
 		return;
 	}
 
@@ -485,6 +480,7 @@ static struct file_operations microcode_fops = {
 static struct miscdevice microcode_dev = {
 	.minor		= MICROCODE_MINOR,
 	.name		= "microcode",
+	.devfs_name	= "cpu/microcode",
 	.fops		= &microcode_fops,
 };
 

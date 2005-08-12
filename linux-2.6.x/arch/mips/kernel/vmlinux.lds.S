@@ -29,6 +29,7 @@ SECTIONS
   .text : {
     *(.text)
     SCHED_TEXT
+    LOCK_TEXT
     *(.fixup)
     *(.gnu.warning)
   } =0
@@ -48,7 +49,7 @@ SECTIONS
 
   /* writeable */
   .data : {			/* Data */
-    . = . + MAPPED_OFFSET;	/* for CONFIG_MAPPED_KERNEL */
+    . = . + DATAOFFSET;		/* for CONFIG_MAPPED_KERNEL */
     *(.data.init_task)
 
     *(.data)
@@ -84,8 +85,6 @@ SECTIONS
   /* will be freed after init */
   . = ALIGN(4096);		/* Init code and data */
   __init_begin = .;
-  /* /DISCARD/ doesn't work for .reginfo */
-  .reginfo : { *(.reginfo) }
   .init.text : {
 	_sinittext = .;
 	*(.init.text)
@@ -96,9 +95,6 @@ SECTIONS
   __setup_start = .;
   .init.setup : { *(.init.setup) }
   __setup_end = .;
-  __start___param = .;
-  __param : { *(__param) }
-  __stop___param = .;
 
   .early_initcall.init : {
   __earlyinitcall_start = .;
@@ -152,6 +148,15 @@ SECTIONS
         *(.exit.text)
         *(.exit.data)
         *(.exitcall.exit)
+
+	/* ABI crap starts here */
+	*(.comment)
+	*(.MIPS.options)
+	*(.note)
+	*(.options)
+	*(.pdr)
+	*(.reginfo)
+	*(.mdebug*)
   }
 
   /* This is the MIPS specific mdebug section.  */

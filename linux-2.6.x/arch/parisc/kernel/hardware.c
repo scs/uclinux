@@ -7,7 +7,7 @@
  *    Reference Specification", March 7, 1999, version 0.96.  This
  *    is available at http://parisc-linux.org/documentation/
  *
- *    Copyright 1999 by Alex deVries <adevries@thepuffingroup.com>
+ *    Copyright 1999 by Alex deVries <alex@onefishtwo.ca>
  *    and copyright 1999 The Puffin Group Inc.
  *
  *    This program is free software; you can redistribute it and/or modify
@@ -1296,18 +1296,18 @@ static struct hp_cpu_type_mask {
 };
 
 char *cpu_name_version[][2] = {
-	[pcx]	{ "PA7000 (PCX)",	"1.0" },
-	[pcxs]	{ "PA7000 (PCX-S)",	"1.1a" },
-	[pcxt]	{ "PA7100 (PCX-T)",	"1.1b" },
-	[pcxt_]	{ "PA7200 (PCX-T')",	"1.1c" },
-	[pcxl]	{ "PA7100LC (PCX-L)",	"1.1d" },
-	[pcxl2]	{ "PA7300LC (PCX-L2)",	"1.1e" },
-	[pcxu]	{ "PA8000 (PCX-U)",	"2.0" },
-	[pcxu_]	{ "PA8200 (PCX-U+)",	"2.0" },
-	[pcxw]	{ "PA8500 (PCX-W)",	"2.0" },
-	[pcxw_]	{ "PA8600 (PCX-W+)",	"2.0" },
-	[pcxw2]	{ "PA8700 (PCX-W2)",	"2.0" },
-	[mako]	{ "PA8800 (Mako)",	"2.0" }
+	[pcx]	= { "PA7000 (PCX)",	"1.0" },
+	[pcxs]	= { "PA7000 (PCX-S)",	"1.1a" },
+	[pcxt]	= { "PA7100 (PCX-T)",	"1.1b" },
+	[pcxt_]	= { "PA7200 (PCX-T')",	"1.1c" },
+	[pcxl]	= { "PA7100LC (PCX-L)",	"1.1d" },
+	[pcxl2]	= { "PA7300LC (PCX-L2)",	"1.1e" },
+	[pcxu]	= { "PA8000 (PCX-U)",	"2.0" },
+	[pcxu_]	= { "PA8200 (PCX-U+)",	"2.0" },
+	[pcxw]	= { "PA8500 (PCX-W)",	"2.0" },
+	[pcxw_]	= { "PA8600 (PCX-W+)",	"2.0" },
+	[pcxw2]	= { "PA8700 (PCX-W2)",	"2.0" },
+	[mako]	= { "PA8800 (Mako)",	"2.0" }
 };
 
 const char * __init

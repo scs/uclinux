@@ -38,11 +38,12 @@
 #include <linux/kernel_stat.h>
 #include <linux/sched.h>
 #include <linux/spinlock.h>
+#include <linux/hardirq.h>
 
+#include <asm/compiler.h>
 #include <asm/mipsregs.h>
 #include <asm/ptrace.h>
 #include <asm/time.h>
-#include <asm/hardirq.h>
 #include <asm/div64.h>
 #include <asm/mach-au1x00/au1000.h>
 
@@ -68,7 +69,7 @@ extern void startup_match20_interrupt(void);
 static unsigned long last_pc0, last_match20;
 #endif
 
-static spinlock_t time_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(time_lock);
 
 static inline void ack_r4ktimer(unsigned long newval)
 {
@@ -99,6 +100,9 @@ void mips_timer_interrupt(struct pt_regs *regs)
 
 		kstat_this_cpu.irqs[irq]++;
 		do_timer(regs);
+#ifndef CONFIG_SMP
+		update_process_times(user_mode(regs));
+#endif
 		r4k_cur += r4k_offset;
 		ack_r4ktimer(r4k_cur);
 
@@ -137,6 +141,9 @@ void counter0_irq(int irq, void *dev_id, struct pt_regs *regs)
 
 	while (time_elapsed > 0) {
 		do_timer(regs);
+#ifndef CONFIG_SMP
+		update_process_times(user_mode(regs));
+#endif
 		time_elapsed -= MATCH20_INC;
 		last_match20 += MATCH20_INC;
 		jiffie_drift++;
@@ -153,6 +160,9 @@ void counter0_irq(int irq, void *dev_id, struct pt_regs *regs)
 	if (jiffie_drift >= 999) {
 		jiffie_drift -= 999;
 		do_timer(regs); /* increment jiffies by one */
+#ifndef CONFIG_SMP
+		update_process_times(user_mode(regs));
+#endif
 	}
 }
 
@@ -294,8 +304,7 @@ unsigned long cal_r4koff(void)
 
 /* This is for machines which generate the exact clock. */
 #define USECS_PER_JIFFY (1000000/HZ)
-#define USECS_PER_JIFFY_FRAC (0x100000000*1000000/HZ&0xffffffff)
-
+#define USECS_PER_JIFFY_FRAC (0x100000000LL*1000000/HZ&0xffffffff)
 
 static unsigned long
 div64_32(unsigned long v1, unsigned long v2, unsigned long v3)
@@ -342,9 +351,9 @@ static unsigned long do_fast_cp0_gettimeoffset(void)
 
 	__asm__("multu\t%1,%2\n\t"
 		"mfhi\t%0"
-		:"=r" (res)
-		:"r" (count),
-		 "r" (quotient));
+		: "=r" (res)
+		: "r" (count), "r" (quotient)
+		: "hi", "lo", GCC_REG_ACCUM);
 
 	/*
  	 * Due to possible jiffies inconsistencies, we need to check 
@@ -396,10 +405,6 @@ void au1xxx_timer_setup(struct irqaction *irq)
 
 	r4k_cur = (read_c0_count() + r4k_offset);
 	write_c0_compare(r4k_cur);
-
-	/* no RTC on the pb1000 */
-	xtime.tv_sec = 0;
-	//xtime.tv_usec = 0;
 
 #ifdef CONFIG_PM
 	/*

@@ -33,7 +33,6 @@
 #include <asm/oplib.h>
 #include <asm/timer.h>
 #include <asm/smp.h>
-#include <asm/hardirq.h>
 #include <asm/starfire.h>
 #include <asm/uaccess.h>
 #include <asm/cache.h>
@@ -102,7 +101,7 @@ struct irqaction *irq_action[NR_IRQS+1] = {
  * read things in the table.  IRQ handler processing orders
  * its' accesses such that no locking is needed.
  */
-static spinlock_t irq_action_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(irq_action_lock);
 
 static void register_irq_proc (unsigned int irq);
 
@@ -757,7 +756,7 @@ void handler_irq(int irq, struct pt_regs *regs)
 		clear_softint(clr_mask);
 	}
 #else
-	int should_forward = 1;
+	int should_forward = 0;
 
 	clear_softint(1 << irq);
 #endif
@@ -791,16 +790,24 @@ void handler_irq(int irq, struct pt_regs *regs)
 #endif
 			if ((flags & IBF_MULTI) == 0) {
 				struct irqaction *ap = bp->irq_info;
-				ap->handler(__irq(bp), ap->dev_id, regs);
-				random |= ap->flags & SA_SAMPLE_RANDOM;
+				int ret;
+
+				ret = ap->handler(__irq(bp), ap->dev_id, regs);
+				if (ret == IRQ_HANDLED)
+					random |= ap->flags;
 			} else {
 				void **vector = (void **)bp->irq_info;
 				int ent;
 				for (ent = 0; ent < 4; ent++) {
 					struct irqaction *ap = vector[ent];
 					if (ap != NULL) {
-						ap->handler(__irq(bp), ap->dev_id, regs);
-						random |= ap->flags & SA_SAMPLE_RANDOM;
+						int ret;
+
+						ret = ap->handler(__irq(bp),
+								  ap->dev_id,
+								  regs);
+						if (ret == IRQ_HANDLED)
+							random |= ap->flags;
 					}
 				}
 			}
@@ -813,8 +820,9 @@ void handler_irq(int irq, struct pt_regs *regs)
 				}
 #endif
 				upa_writel(ICLR_IDLE, bp->iclr);
+
 				/* Test and add entropy */
-				if (random)
+				if (random & SA_SAMPLE_RANDOM)
 					add_interrupt_randomness(irq);
 			}
 		} else
@@ -999,10 +1007,10 @@ static int retarget_one_irq(struct irqaction *p, int goal_cpu)
 	}
 	upa_writel(tid | IMAP_VALID, imap);
 
-	while (!cpu_online(goal_cpu)) {
+	do {
 		if (++goal_cpu >= NR_CPUS)
 			goal_cpu = 0;
-	}
+	} while (!cpu_online(goal_cpu));
 
 	return goal_cpu;
 }
@@ -1104,7 +1112,7 @@ void enable_prom_timer(void)
 void init_irqwork_curcpu(void)
 {
 	register struct irq_work_struct *workp asm("o2");
-	unsigned long tmp;
+	register unsigned long tmp asm("o3");
 	int cpu = hard_smp_processor_id();
 
 	memset(__irq_work + cpu, 0, sizeof(*workp));

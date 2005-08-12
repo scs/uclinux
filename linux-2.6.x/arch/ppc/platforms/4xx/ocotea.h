@@ -3,9 +3,9 @@
  *
  * Ocotea board definitions
  *
- * Matt Porter <mporter@mvista.com>
+ * Matt Porter <mporter@kernel.crashing.org>
  *
- * Copyright 2003 MontaVista Software Inc.
+ * Copyright 2003-2005 MontaVista Software Inc.
  *
  * This program is free software; you can redistribute  it and/or modify it
  * under  the terms of  the GNU General  Public License as published by the
@@ -22,15 +22,16 @@
 #include <platforms/4xx/ibm440gx.h>
 
 /* F/W TLB mapping used in bootloader glue to reset EMAC */
-#define PPC44x_EMAC0_MR0	0xE0000800
+#define PPC44x_EMAC0_MR0	0xe0000800
 
-/* Location of MAC addresses in firmware */
-#define OCOTEA_MAC_BASE		(OCOTEA_SMALL_FLASH_HIGH+0xb0500)
-#define OCOTEA_MAC_SIZE		0x200
-#define OCOTEA_MAC_OFFSET	0x100
+/* Location of MAC addresses in PIBS image */
+#define PIBS_FLASH_BASE		0xfff00000
+#define PIBS_MAC_BASE		(PIBS_FLASH_BASE+0xb0500)
+#define PIBS_MAC_SIZE		0x200
+#define PIBS_MAC_OFFSET		0x100
 
-/* Default clock rate */
-#define OCOTEA_SYSCLK		25000000
+/* External timer clock frequency */
+#define OCOTEA_TMR_CLK	25000000
 
 /* RTC/NVRAM location */
 #define OCOTEA_RTC_ADDR		0x0000000148000000ULL
@@ -55,8 +56,8 @@
 #define RS_TABLE_SIZE	2
 
 /* OpenBIOS defined UART mappings, used before early_serial_setup */
-#define UART0_IO_BASE	(u8 *) 0xE0000200
-#define UART1_IO_BASE	(u8 *) 0xE0000300
+#define UART0_IO_BASE	0xE0000200
+#define UART1_IO_BASE	0xE0000300
 
 #define BASE_BAUD	11059200/16
 #define STD_UART_OP(num)					\

@@ -2,7 +2,7 @@
  * cp1emu.c: a MIPS coprocessor 1 (fpu) instruction emulator
  *
  * MIPS floating point support
- * Copyright (C) 1994-2000 Algorithmics Ltd.  All rights reserved.
+ * Copyright (C) 1994-2000 Algorithmics Ltd.
  * http://www.algor.co.uk
  *
  * Kevin D. Kissell, kevink@mips.com and Carsten Langgaard, carstenl@mips.com
@@ -528,9 +528,9 @@ static int cop1Emulate(struct pt_regs *xcp, struct mips_fpu_soft_struct *ctx)
 		if (MIPSInst_FUNC(ir) != movc_op)
 			return SIGILL;
 		cond = fpucondbit[MIPSInst_RT(ir) >> 2];
-		if (((ctx->fcr31 & cond) != 0) != ((MIPSInst_RT(ir) & 1) != 0))
-			return 0;
-		xcp->regs[MIPSInst_RD(ir)] = xcp->regs[MIPSInst_RS(ir)];
+		if (((ctx->fcr31 & cond) != 0) == ((MIPSInst_RT(ir) & 1) != 0))
+			xcp->regs[MIPSInst_RD(ir)] =
+				xcp->regs[MIPSInst_RS(ir)];
 		break;
 #endif
 

@@ -4,7 +4,7 @@
  * Free Software Foundation;  either version 2 of the  License, or (at your
  * option) any later version.
  *
- * Copyright (C) 2003 Ralf Baechle (ralf@linux-mips.org)
+ * Copyright (C) 2003, 04 Ralf Baechle (ralf@linux-mips.org)
  */
 #include <linux/config.h>
 #include <linux/kernel.h>
@@ -13,8 +13,6 @@
 #include <linux/init.h>
 #include <linux/types.h>
 #include <linux/pci.h>
-
-#include <asm/pci_channel.h>
 
 /*
  * Indicate whether we respect the PCI setup left by the firmware.
@@ -61,7 +59,7 @@ pcibios_align_resource(void *data, struct resource *res,
 
 	if (res->flags & IORESOURCE_IO) {
 		/* Make sure we start at our min on all hoses */
-		if (start - hose->io_resource->start < PCIBIOS_MIN_IO)
+		if (start < PCIBIOS_MIN_IO + hose->io_resource->start)
 			start = PCIBIOS_MIN_IO + hose->io_resource->start;
 
 		/*
@@ -71,7 +69,7 @@ pcibios_align_resource(void *data, struct resource *res,
 			start = (start + 0x3ff) & ~0x3ff;
 	} else if (res->flags & IORESOURCE_MEM) {
 		/* Make sure we start at our min on all hoses */
-		if (start - hose->mem_resource->start < PCIBIOS_MIN_MEM)
+		if (start < PCIBIOS_MIN_MEM + hose->mem_resource->start)
 			start = PCIBIOS_MIN_MEM + hose->mem_resource->start;
 	}
 
@@ -223,7 +221,7 @@ int pcibios_enable_device(struct pci_dev *dev, int mask)
 	if ((err = pcibios_enable_resources(dev, mask)) < 0)
 		return err;
 
-	return 0;
+	return pcibios_plat_dev_init(dev);
 }
 
 static void __init pcibios_fixup_device_resources(struct pci_dev *dev,
@@ -296,6 +294,8 @@ pcibios_resource_to_bus(struct pci_dev *dev, struct pci_bus_region *region,
 
 #ifdef CONFIG_HOTPLUG
 EXPORT_SYMBOL(pcibios_resource_to_bus);
+EXPORT_SYMBOL(PCIBIOS_MIN_IO);
+EXPORT_SYMBOL(PCIBIOS_MIN_MEM);
 #endif
 
 char *pcibios_setup(char *str)

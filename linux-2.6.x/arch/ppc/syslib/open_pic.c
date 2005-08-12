@@ -16,6 +16,7 @@
 #include <linux/irq.h>
 #include <linux/interrupt.h>
 #include <linux/sysdev.h>
+#include <linux/errno.h>
 #include <asm/ptrace.h>
 #include <asm/signal.h>
 #include <asm/io.h>
@@ -24,7 +25,6 @@
 #include <asm/sections.h>
 #include <asm/open_pic.h>
 #include <asm/i8259.h>
-#include <asm/hardirq.h>
 
 #include "open_pic_defs.h"
 
@@ -32,8 +32,8 @@
 #define OPENPIC_BIG_ENDIAN
 #endif
 
-void* OpenPIC_Addr;
-static volatile struct OpenPIC *OpenPIC = NULL;
+void __iomem *OpenPIC_Addr;
+static volatile struct OpenPIC __iomem *OpenPIC = NULL;
 
 /*
  * We define OpenPIC_InitSenses table thusly:
@@ -47,13 +47,12 @@ extern int use_of_interrupt_tree;
 static u_int NumProcessors;
 static u_int NumSources;
 static int open_pic_irq_offset;
-static volatile OpenPIC_Source *ISR[NR_IRQS];
+static volatile OpenPIC_Source __iomem *ISR[NR_IRQS];
 static int openpic_cascade_irq = -1;
 static int (*openpic_cascade_fn)(struct pt_regs *);
 
 /* Global Operations */
 static void openpic_disable_8259_pass_through(void);
-static void openpic_set_priority(u_int pri);
 static void openpic_set_spurious(u_int vector);
 
 #ifdef CONFIG_SMP
@@ -79,7 +78,6 @@ static void openpic_mapirq(u_int irq, cpumask_t cpumask, cpumask_t keepmask);
  */
 #ifdef notused
 static void openpic_enable_8259_pass_through(void);
-static u_int openpic_get_priority(void);
 static u_int openpic_get_spurious(void);
 static void openpic_set_sense(u_int irq, int sense);
 #endif /* notused */
@@ -164,7 +162,7 @@ struct hw_interrupt_type open_pic_ipi = {
 #define check_arg_cpu(cpu)	do {} while (0)
 #endif
 
-u_int openpic_read(volatile u_int *addr)
+u_int openpic_read(volatile u_int __iomem *addr)
 {
 	u_int val;
 
@@ -176,7 +174,7 @@ u_int openpic_read(volatile u_int *addr)
 	return val;
 }
 
-static inline void openpic_write(volatile u_int *addr, u_int val)
+static inline void openpic_write(volatile u_int __iomem *addr, u_int val)
 {
 #ifdef OPENPIC_BIG_ENDIAN
 	out_be32(addr, val);
@@ -185,30 +183,30 @@ static inline void openpic_write(volatile u_int *addr, u_int val)
 #endif
 }
 
-static inline u_int openpic_readfield(volatile u_int *addr, u_int mask)
+static inline u_int openpic_readfield(volatile u_int __iomem *addr, u_int mask)
 {
 	u_int val = openpic_read(addr);
 	return val & mask;
 }
 
-inline void openpic_writefield(volatile u_int *addr, u_int mask,
+inline void openpic_writefield(volatile u_int __iomem *addr, u_int mask,
 			       u_int field)
 {
 	u_int val = openpic_read(addr);
 	openpic_write(addr, (val & ~mask) | (field & mask));
 }
 
-static inline void openpic_clearfield(volatile u_int *addr, u_int mask)
+static inline void openpic_clearfield(volatile u_int __iomem *addr, u_int mask)
 {
 	openpic_writefield(addr, mask, 0);
 }
 
-static inline void openpic_setfield(volatile u_int *addr, u_int mask)
+static inline void openpic_setfield(volatile u_int __iomem *addr, u_int mask)
 {
 	openpic_writefield(addr, mask, mask);
 }
 
-static void openpic_safe_writefield(volatile u_int *addr, u_int mask,
+static void openpic_safe_writefield(volatile u_int __iomem *addr, u_int mask,
 				    u_int field)
 {
 	openpic_setfield(addr, OPENPIC_MASK);
@@ -218,7 +216,7 @@ static void openpic_safe_writefield(volatile u_int *addr, u_int mask,
 
 #ifdef CONFIG_SMP
 /* yes this is right ... bug, feature, you decide! -- tgall */
-u_int openpic_read_IPI(volatile u_int* addr)
+u_int openpic_read_IPI(volatile u_int __iomem * addr)
 {
          u_int val = 0;
 #if defined(OPENPIC_BIG_ENDIAN) || defined(CONFIG_POWER3)
@@ -230,23 +228,23 @@ u_int openpic_read_IPI(volatile u_int* addr)
 }
 
 /* because of the power3 be / le above, this is needed */
-inline void openpic_writefield_IPI(volatile u_int* addr, u_int mask, u_int field)
+inline void openpic_writefield_IPI(volatile u_int __iomem * addr, u_int mask, u_int field)
 {
         u_int  val = openpic_read_IPI(addr);
         openpic_write(addr, (val & ~mask) | (field & mask));
 }
 
-static inline void openpic_clearfield_IPI(volatile u_int *addr, u_int mask)
+static inline void openpic_clearfield_IPI(volatile u_int __iomem *addr, u_int mask)
 {
         openpic_writefield_IPI(addr, mask, 0);
 }
 
-static inline void openpic_setfield_IPI(volatile u_int *addr, u_int mask)
+static inline void openpic_setfield_IPI(volatile u_int __iomem *addr, u_int mask)
 {
         openpic_writefield_IPI(addr, mask, mask);
 }
 
-static void openpic_safe_writefield_IPI(volatile u_int *addr, u_int mask, u_int field)
+static void openpic_safe_writefield_IPI(volatile u_int __iomem *addr, u_int mask, u_int field)
 {
         openpic_setfield_IPI(addr, OPENPIC_MASK);
 
@@ -261,6 +259,9 @@ static void openpic_safe_writefield_IPI(volatile u_int *addr, u_int mask, u_int 
 #endif /* CONFIG_SMP */
 
 #ifdef CONFIG_EPIC_SERIAL_MODE
+/* On platforms that may use EPIC serial mode, the default is enabled. */
+int epic_serial_mode = 1;
+
 static void __init openpic_eicr_set_clk(u_int clkval)
 {
 	openpic_writefield(&OpenPIC->Global.Global_Configuration1,
@@ -274,7 +275,7 @@ static void __init openpic_enable_sie(void)
 }
 #endif
 
-#if defined(CONFIG_EPIC_SERIAL_MODE) || defined(CONFIG_PM)
+#if defined(CONFIG_EPIC_SERIAL_MODE)
 static void openpic_reset(void)
 {
 	openpic_setfield(&OpenPIC->Global.Global_Configuration0,
@@ -285,16 +286,16 @@ static void openpic_reset(void)
 }
 #endif
 
-void __init openpic_set_sources(int first_irq, int num_irqs, void *first_ISR)
+void __init openpic_set_sources(int first_irq, int num_irqs, void __iomem *first_ISR)
 {
-	volatile OpenPIC_Source *src = first_ISR;
+	volatile OpenPIC_Source __iomem *src = first_ISR;
 	int i, last_irq;
 
 	last_irq = first_irq + num_irqs;
 	if (last_irq > NumSources)
 		NumSources = last_irq;
 	if (src == 0)
-		src = &((struct OpenPIC *)OpenPIC_Addr)->Source[first_irq];
+		src = &((struct OpenPIC __iomem *)OpenPIC_Addr)->Source[first_irq];
 	for (i = first_irq; i < last_irq; ++i, ++src)
 		ISR[i] = src;
 }
@@ -316,7 +317,7 @@ void __init openpic_init(int offset)
 		printk("No OpenPIC found !\n");
 		return;
 	}
-	OpenPIC = (volatile struct OpenPIC *)OpenPIC_Addr;
+	OpenPIC = (volatile struct OpenPIC __iomem *)OpenPIC_Addr;
 
 #ifdef CONFIG_EPIC_SERIAL_MODE
 	/* Have to start from ground zero.
@@ -412,11 +413,13 @@ void __init openpic_init(int offset)
 
 	/* Initialize the spurious interrupt */
 	if (ppc_md.progress) ppc_md.progress("openpic: spurious",0x3bd);
-	openpic_set_spurious(OPENPIC_VEC_SPURIOUS+offset);
+	openpic_set_spurious(OPENPIC_VEC_SPURIOUS);
 	openpic_disable_8259_pass_through();
 #ifdef CONFIG_EPIC_SERIAL_MODE
-	openpic_eicr_set_clk(7);	/* Slowest value until we know better */
-	openpic_enable_sie();
+	if (epic_serial_mode) {
+		openpic_eicr_set_clk(7);	/* Slowest value until we know better */
+		openpic_enable_sie();
+	}
 #endif
 	openpic_set_priority(0);
 
@@ -461,8 +464,7 @@ void openpic_eoi(void)
 	(void)openpic_read(&OpenPIC->THIS_CPU.EOI);
 }
 
-#ifdef notused
-static u_int openpic_get_priority(void)
+u_int openpic_get_priority(void)
 {
 	DECL_THIS_CPU;
 
@@ -470,9 +472,8 @@ static u_int openpic_get_priority(void)
 	return openpic_readfield(&OpenPIC->THIS_CPU.Current_Task_Priority,
 				 OPENPIC_CURRENT_TASK_PRIORITY_MASK);
 }
-#endif /* notused */
 
-static void __init openpic_set_priority(u_int pri)
+void openpic_set_priority(u_int pri)
 {
 	DECL_THIS_CPU;
 
@@ -527,7 +528,7 @@ void openpic_reset_processor_phys(u_int mask)
 }
 
 #if defined(CONFIG_SMP) || defined(CONFIG_PM)
-static spinlock_t openpic_setup_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(openpic_setup_lock);
 #endif
 
 #ifdef CONFIG_SMP
@@ -556,12 +557,10 @@ static void __init openpic_initipi(u_int ipi, u_int pri, u_int vec)
  */
 void openpic_cause_IPI(u_int ipi, cpumask_t cpumask)
 {
-	cpumask_t phys;
 	DECL_THIS_CPU;
 
 	CHECK_THIS_CPU;
 	check_arg_ipi(ipi);
-	phys = physmask(cpumask);
 	openpic_write(&OpenPIC->THIS_CPU.IPI_Dispatch(ipi),
 		      cpus_addr(physmask(cpumask))[0]);
 }
@@ -681,13 +680,21 @@ openpic_init_nmi_irq(u_int irq)
 /*
  * Hookup a cascade to the OpenPIC.
  */
+
+static struct irqaction openpic_cascade_irqaction = {
+	.handler = no_action,
+	.flags = SA_INTERRUPT,
+	.mask = CPU_MASK_NONE,
+};
+
 void __init
 openpic_hookup_cascade(u_int irq, char *name,
 	int (*cascade_fn)(struct pt_regs *))
 {
 	openpic_cascade_irq = irq;
 	openpic_cascade_fn = cascade_fn;
-	if (request_irq(irq, no_action, SA_INTERRUPT, name, NULL))
+
+	if (setup_irq(irq, &openpic_cascade_irqaction))
 		printk("Unable to get OpenPIC IRQ %d for cascade\n",
 				irq - open_pic_irq_offset);
 }
@@ -699,7 +706,7 @@ openpic_hookup_cascade(u_int irq, char *name,
  */
 static void openpic_enable_irq(u_int irq)
 {
-	volatile u_int *vpp;
+	volatile u_int __iomem *vpp;
 
 	check_arg_irq(irq);
 	vpp = &ISR[irq - open_pic_irq_offset]->Vector_Priority;
@@ -712,7 +719,7 @@ static void openpic_enable_irq(u_int irq)
 
 static void openpic_disable_irq(u_int irq)
 {
-	volatile u_int *vpp;
+	volatile u_int __iomem *vpp;
 	u32 vp;
 
 	check_arg_irq(irq);
@@ -865,7 +872,7 @@ openpic_get_irq(struct pt_regs *regs)
 			irq = cirq;
 			openpic_eoi();
 		}
-        } else if (irq == OPENPIC_VEC_SPURIOUS + open_pic_irq_offset)
+	} else if (irq == OPENPIC_VEC_SPURIOUS)
 		irq = -1;
 	return irq;
 }
@@ -942,6 +949,8 @@ int openpic_suspend(struct sys_device *sysdev, u32 state)
 		return 0;
 	}
 
+ 	openpic_set_priority(0xf);
+
 	open_pic.enable = openpic_cached_enable_irq;
 	open_pic.disable = openpic_cached_disable_irq;
 
@@ -984,13 +993,11 @@ int openpic_resume(struct sys_device *sysdev)
 		return 0;
 	}
 
-	openpic_reset();
-
 	/* OpenPIC sometimes seem to need some time to be fully back up... */
 	do {
-		openpic_set_spurious(OPENPIC_VEC_SPURIOUS+open_pic_irq_offset);
+		openpic_set_spurious(OPENPIC_VEC_SPURIOUS);
 	} while(openpic_readfield(&OpenPIC->Global.Spurious_Vector, OPENPIC_VECTOR_MASK)
-			!= (OPENPIC_VEC_SPURIOUS + open_pic_irq_offset));
+			!= OPENPIC_VEC_SPURIOUS);
 	
 	openpic_disable_8259_pass_through();
 
@@ -1014,6 +1021,8 @@ int openpic_resume(struct sys_device *sysdev)
 
 	open_pic.enable = openpic_enable_irq;
 	open_pic.disable = openpic_disable_irq;
+
+ 	openpic_set_priority(0);
 
 	spin_unlock_irqrestore(&openpic_setup_lock, flags);
 
