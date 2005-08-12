@@ -35,11 +35,9 @@ MODULE_AUTHOR("Jaroslav Kysela <perex@suse.cz>, Hannu Savolainen 1993-1996, Rob 
 MODULE_DESCRIPTION("Routines for control of AdLib FM cards (OPL2/OPL3/OPL4 chips)");
 MODULE_LICENSE("GPL");
 
-#define chip_t opl3_t
-
 extern char snd_opl3_regmap[MAX_OPL2_VOICES][4];
 
-void snd_opl2_command(opl3_t * opl3, unsigned short cmd, unsigned char val)
+static void snd_opl2_command(opl3_t * opl3, unsigned short cmd, unsigned char val)
 {
 	unsigned long flags;
 	unsigned long port;
@@ -62,7 +60,7 @@ void snd_opl2_command(opl3_t * opl3, unsigned short cmd, unsigned char val)
 	spin_unlock_irqrestore(&opl3->reg_lock, flags);
 }
 
-void snd_opl3_command(opl3_t * opl3, unsigned short cmd, unsigned char val)
+static void snd_opl3_command(opl3_t * opl3, unsigned short cmd, unsigned char val)
 {
 	unsigned long flags;
 	unsigned long port;
@@ -83,28 +81,6 @@ void snd_opl3_command(opl3_t * opl3, unsigned short cmd, unsigned char val)
 	outb((unsigned char) val, port + 1);
 	inb(opl3->l_port);
 	inb(opl3->l_port);
-
-	spin_unlock_irqrestore(&opl3->reg_lock, flags);
-}
-
-void snd_opl3_cs4281_command(opl3_t * opl3, unsigned short cmd, unsigned char val)
-{
-	unsigned long flags;
-	unsigned long port;
-
-	/*
-	 * CS4281 requires a special access to I/O registers
-	 */
-
-	port = (cmd & OPL3_RIGHT) ? opl3->r_port : opl3->l_port;
-
-	spin_lock_irqsave(&opl3->reg_lock, flags);
-
-	writel((unsigned int)cmd, port << 2);
-	udelay(10);
-
-	writel((unsigned int)val, (port + 1) << 2);
-	udelay(30);
 
 	spin_unlock_irqrestore(&opl3->reg_lock, flags);
 }
@@ -322,7 +298,7 @@ void snd_opl3_interrupt(snd_hwdep_t * hw)
 	if (hw == NULL)
 		return;
 
-	opl3 = snd_magic_cast(opl3_t, hw->private_data, return);
+	opl3 = hw->private_data;
 	status = inb(opl3->l_port);
 #if 0
 	snd_printk("AdLib IRQ status = 0x%x\n", status);
@@ -346,6 +322,9 @@ void snd_opl3_interrupt(snd_hwdep_t * hw)
 
 static int snd_opl3_free(opl3_t *opl3)
 {
+	snd_assert(opl3 != NULL, return -ENXIO);
+	if (opl3->private_free)
+		opl3->private_free(opl3);
 	if (opl3->res_l_port) {
 		release_resource(opl3->res_l_port);
 		kfree_nocheck(opl3->res_l_port);
@@ -354,14 +333,68 @@ static int snd_opl3_free(opl3_t *opl3)
 		release_resource(opl3->res_r_port);
 		kfree_nocheck(opl3->res_r_port);
 	}
-	snd_magic_kfree(opl3);
+	kfree(opl3);
 	return 0;
 }
 
 static int snd_opl3_dev_free(snd_device_t *device)
 {
-	opl3_t *opl3 = snd_magic_cast(opl3_t, device->device_data, return -ENXIO);
+	opl3_t *opl3 = device->device_data;
 	return snd_opl3_free(opl3);
+}
+
+int snd_opl3_new(snd_card_t *card,
+		 unsigned short hardware,
+		 opl3_t **ropl3)
+{
+	static snd_device_ops_t ops = {
+		.dev_free = snd_opl3_dev_free,
+	};
+	opl3_t *opl3;
+	int err;
+
+	*ropl3 = NULL;
+	opl3 = kcalloc(1, sizeof(*opl3), GFP_KERNEL);
+	if (opl3 == NULL)
+		return -ENOMEM;
+
+	opl3->card = card;
+	opl3->hardware = hardware;
+	spin_lock_init(&opl3->reg_lock);
+	spin_lock_init(&opl3->timer_lock);
+	init_MUTEX(&opl3->access_mutex);
+
+	if ((err = snd_device_new(card, SNDRV_DEV_CODEC, opl3, &ops)) < 0) {
+		snd_opl3_free(opl3);
+		return err;
+	}
+
+	*ropl3 = opl3;
+	return 0;
+}
+
+int snd_opl3_init(opl3_t *opl3)
+{
+	if (! opl3->command) {
+		printk(KERN_ERR "snd_opl3_init: command not defined!\n");
+		return -EINVAL;
+	}
+
+	opl3->command(opl3, OPL3_LEFT | OPL3_REG_TEST, OPL3_ENABLE_WAVE_SELECT);
+	/* Melodic mode */
+	opl3->command(opl3, OPL3_LEFT | OPL3_REG_PERCUSSION, 0x00);
+
+	switch (opl3->hardware & OPL3_HW_MASK) {
+	case OPL3_HW_OPL2:
+		opl3->max_voices = MAX_OPL2_VOICES;
+		break;
+	case OPL3_HW_OPL3:
+	case OPL3_HW_OPL4:
+		opl3->max_voices = MAX_OPL3_VOICES;
+		/* Enter OPL3 mode */
+		opl3->command(opl3, OPL3_RIGHT | OPL3_REG_MODE, OPL3_OPL3_ENABLE);
+	}
+	return 0;
 }
 
 int snd_opl3_create(snd_card_t * card,
@@ -373,41 +406,25 @@ int snd_opl3_create(snd_card_t * card,
 {
 	opl3_t *opl3;
 	int err;
-	static snd_device_ops_t ops = {
-		.dev_free = snd_opl3_dev_free,
-	};
 
 	*ropl3 = NULL;
-
-	opl3 = snd_magic_kcalloc(opl3_t, 0, GFP_KERNEL);
-	if (opl3 == NULL)
-		return -ENOMEM;
-
-	if (integrated)
-		goto __step1; /* ports are already reserved */
-
-	if ((opl3->res_l_port = request_region(l_port, 2, "OPL2/3 (left)")) == NULL) {
-		snd_printk(KERN_ERR "opl3: can't grab left port 0x%lx\n", l_port);
-		snd_opl3_free(opl3);
-		return -EBUSY;
+	if ((err = snd_opl3_new(card, hardware, &opl3)) < 0)
+		return err;
+	if (! integrated) {
+		if ((opl3->res_l_port = request_region(l_port, 2, "OPL2/3 (left)")) == NULL) {
+			snd_printk(KERN_ERR "opl3: can't grab left port 0x%lx\n", l_port);
+			snd_opl3_free(opl3);
+			return -EBUSY;
+		}
+		if (r_port != 0 &&
+		    (opl3->res_r_port = request_region(r_port, 2, "OPL2/3 (right)")) == NULL) {
+			snd_printk(KERN_ERR "opl3: can't grab right port 0x%lx\n", r_port);
+			snd_opl3_free(opl3);
+			return -EBUSY;
+		}
 	}
-	if (r_port != 0 &&
-	    (opl3->res_r_port = request_region(r_port, 2, "OPL2/3 (right)")) == NULL) {
-		snd_printk(KERN_ERR "opl3: can't grab right port 0x%lx\n", r_port);
-		snd_opl3_free(opl3);
-		return -EBUSY;
-	}
-
-      __step1:
-
-	opl3->card = card;
-	opl3->hardware = hardware;
 	opl3->l_port = l_port;
 	opl3->r_port = r_port;
-
-	spin_lock_init(&opl3->reg_lock);
-	spin_lock_init(&opl3->timer_lock);
-	init_MUTEX(&opl3->access_mutex);
 
 	switch (opl3->hardware) {
 	/* some hardware doesn't support timers */
@@ -415,9 +432,6 @@ int snd_opl3_create(snd_card_t * card,
 	case OPL3_HW_OPL3_CS:
 	case OPL3_HW_OPL3_FM801:
 		opl3->command = &snd_opl3_command;
-		break;
-	case OPL3_HW_OPL3_CS4281:
-		opl3->command = &snd_opl3_cs4281_command;
 		break;
 	default:
 		opl3->command = &snd_opl2_command;
@@ -435,23 +449,7 @@ int snd_opl3_create(snd_card_t * card,
 		}
 	}
 
-	opl3->command(opl3, OPL3_LEFT | OPL3_REG_TEST, OPL3_ENABLE_WAVE_SELECT);
-	opl3->command(opl3, OPL3_LEFT | OPL3_REG_PERCUSSION, 0x00);	/* Melodic mode */
-
-	switch (opl3->hardware & OPL3_HW_MASK) {
-	case OPL3_HW_OPL2:
-		opl3->max_voices = MAX_OPL2_VOICES;
-		break;
-	case OPL3_HW_OPL3:
-	case OPL3_HW_OPL4:
-		opl3->max_voices = MAX_OPL3_VOICES;
-		snd_assert(opl3->r_port != 0, snd_opl3_free(opl3); return -ENODEV);
-		opl3->command(opl3, OPL3_RIGHT | OPL3_REG_MODE, OPL3_OPL3_ENABLE);	/* Enter OPL3 mode */
-	}
-	if ((err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, opl3, &ops)) < 0) {
-		snd_opl3_free(opl3);
-		return err;
-	}
+	snd_opl3_init(opl3);
 
 	*ropl3 = opl3;
 	return 0;
@@ -533,6 +531,8 @@ int snd_opl3_hwdep_new(opl3_t * opl3,
 }
 
 EXPORT_SYMBOL(snd_opl3_interrupt);
+EXPORT_SYMBOL(snd_opl3_new);
+EXPORT_SYMBOL(snd_opl3_init);
 EXPORT_SYMBOL(snd_opl3_create);
 EXPORT_SYMBOL(snd_opl3_timer_new);
 EXPORT_SYMBOL(snd_opl3_hwdep_new);

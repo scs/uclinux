@@ -101,7 +101,6 @@
 #include <linux/ac97_codec.h>
 #include <linux/bitops.h>
 #include <asm/uaccess.h>
-#include <asm/hardirq.h>
 
 #define DRIVER_VERSION "1.01"
 
@@ -112,6 +111,7 @@ static int ftsodell;
 static int strict_clocking;
 static unsigned int clocking;
 static int spdif_locked;
+static int ac97_quirk = AC97_TUNE_DEFAULT;
 
 //#define DEBUG
 //#define DEBUG2
@@ -407,7 +407,6 @@ struct i810_card {
 	u16 pci_id_internal; /* used to access card_cap[] */
 #ifdef CONFIG_PM	
 	u16 pm_suspended;
-	u32 pm_save_state[64/sizeof(u32)];
 	int pm_saved_mixer_settings[SOUND_MIXER_NRDEVICES][NR_AC97];
 #endif
 	/* soundcore stuff */
@@ -431,8 +430,8 @@ struct i810_card {
 
 	unsigned long ac97base_mmio_phys;
 	unsigned long iobase_mmio_phys;
-	u_int8_t *ac97base_mmio;
-	u_int8_t *iobase_mmio;
+	u_int8_t __iomem *ac97base_mmio;
+	u_int8_t __iomem *iobase_mmio;
 
 	int           use_mmio;
 	
@@ -482,6 +481,124 @@ struct i810_card {
 /* set LVI from CIV */
 #define CIV_TO_LVI(card, port, off) \
 	I810_IOWRITEB(MODULOP2(GET_CIV((card), (port)) + (off), SG_LEN), (card), (port) + OFF_LVI)
+
+static struct ac97_quirk ac97_quirks[] __devinitdata = {
+	{
+		.vendor = 0x0e11,
+		.device = 0x00b8,
+		.name = "Compaq Evo D510C",
+		.type = AC97_TUNE_HP_ONLY
+	},
+	{
+		.vendor = 0x1028,
+		.device = 0x00d8,
+		.name = "Dell Precision 530",   /* AD1885 */
+		.type = AC97_TUNE_HP_ONLY
+	},
+	{
+		.vendor = 0x1028,
+		.device = 0x0126,
+		.name = "Dell Optiplex GX260",  /* AD1981A */
+		.type = AC97_TUNE_HP_ONLY
+	},
+	{
+		.vendor = 0x1028,
+		.device = 0x012d,
+		.name = "Dell Precision 450",   /* AD1981B*/
+		.type = AC97_TUNE_HP_ONLY
+	},
+	{       /* FIXME: which codec? */
+		.vendor = 0x103c,
+		.device = 0x00c3,
+		.name = "Hewlett-Packard onboard",
+		.type = AC97_TUNE_HP_ONLY
+	},
+	{
+		.vendor = 0x103c,
+		.device = 0x12f1,
+		.name = "HP xw8200",    /* AD1981B*/
+		.type = AC97_TUNE_HP_ONLY
+	},
+	{
+		.vendor = 0x103c,
+		.device = 0x3008,
+		.name = "HP xw4200",    /* AD1981B*/
+		.type = AC97_TUNE_HP_ONLY
+	},
+	{
+		.vendor = 0x10f1,
+		.device = 0x2665,
+		.name = "Fujitsu-Siemens Celsius",      /* AD1981? */
+		.type = AC97_TUNE_HP_ONLY
+	},
+	{
+		.vendor = 0x10f1,
+		.device = 0x2885,
+		.name = "AMD64 Mobo",   /* ALC650 */
+		.type = AC97_TUNE_HP_ONLY
+	},
+	{
+		.vendor = 0x110a,
+		.device = 0x0056,
+		.name = "Fujitsu-Siemens Scenic",       /* AD1981? */
+		.type = AC97_TUNE_HP_ONLY
+	},
+	{
+		.vendor = 0x11d4,
+		.device = 0x5375,
+		.name = "ADI AD1985 (discrete)",
+		.type = AC97_TUNE_HP_ONLY
+	},
+	{
+		.vendor = 0x1462,
+		.device = 0x5470,
+		.name = "MSI P4 ATX 645 Ultra",
+		.type = AC97_TUNE_HP_ONLY
+	},
+	{
+		.vendor = 0x1734,
+		.device = 0x0088,
+		.name = "Fujitsu-Siemens D1522",	/* AD1981 */
+		.type = AC97_TUNE_HP_ONLY
+	},
+	{
+		.vendor = 0x8086,
+		.device = 0x4856,
+		.name = "Intel D845WN (82801BA)",
+		.type = AC97_TUNE_SWAP_HP
+	},
+	{
+		.vendor = 0x8086,
+		.device = 0x4d44,
+		.name = "Intel D850EMV2",       /* AD1885 */
+		.type = AC97_TUNE_HP_ONLY
+	},
+	{
+		.vendor = 0x8086,
+		.device = 0x4d56,
+		.name = "Intel ICH/AD1885",
+		.type = AC97_TUNE_HP_ONLY
+	},
+	{
+		.vendor = 0x1028,
+		.device = 0x012d,
+		.name = "Dell Precision 450",   /* AD1981B*/
+		.type = AC97_TUNE_HP_ONLY
+	},
+	{
+		.vendor = 0x103c,
+		.device = 0x3008,
+		.name = "HP xw4200",    /* AD1981B*/
+		.type = AC97_TUNE_HP_ONLY
+	},
+	{
+		.vendor = 0x103c,
+		.device = 0x12f1,
+		.name = "HP xw8200",    /* AD1981B*/
+		.type = AC97_TUNE_HP_ONLY
+	},
+	{ } /* terminator */
+};
 
 static struct i810_card *devs = NULL;
 
@@ -918,7 +1035,7 @@ static int alloc_dmabuf(struct i810_state *state)
 	dmabuf->rawbuf = rawbuf;
 	dmabuf->buforder = order;
 	
-	/* now mark the pages as reserved; otherwise remap_page_range doesn't do what we want */
+	/* now mark the pages as reserved; otherwise remap_pfn_range doesn't do what we want */
 	pend = virt_to_page(rawbuf + (PAGE_SIZE << order) - 1);
 	for (page = virt_to_page(rawbuf); page <= pend; page++)
 		SetPageReserved(page);
@@ -1079,9 +1196,22 @@ static void __i810_update_lvi(struct i810_state *state, int rec)
 	if (count < fragsize)
 		return;
 
+	/* if we are currently stopped, then our CIV is actually set to our
+	 * *last* sg segment and we are ready to wrap to the next.  However,
+	 * if we set our LVI to the last sg segment, then it won't wrap to
+	 * the next sg segment, it won't even get a start.  So, instead, when
+	 * we are stopped, we set both the LVI value and also we increment
+	 * the CIV value to the next sg segment to be played so that when
+	 * we call start, things will operate properly.  Since the CIV can't
+	 * be written to directly for this purpose, we set the LVI to CIV + 1
+	 * temporarily.  Once the engine has started we set the LVI to its
+	 * final value.
+	 */
 	if (!dmabuf->enable && dmabuf->ready) {
 		if (!(dmabuf->trigger & trigger))
 			return;
+
+		CIV_TO_LVI(state->card, port, 1);
 
 		start(state);
 		while (!(I810_IOREADB(state->card, port + OFF_CR) & ((1<<4) | (1<<2))))
@@ -1751,7 +1881,8 @@ static int i810_mmap(struct file *file, struct vm_area_struct *vma)
 	if (size > (PAGE_SIZE << dmabuf->buforder))
 		goto out;
 	ret = -EAGAIN;
-	if (remap_page_range(vma, vma->vm_start, virt_to_phys(dmabuf->rawbuf),
+	if (remap_pfn_range(vma, vma->vm_start,
+			     virt_to_phys(dmabuf->rawbuf) >> PAGE_SHIFT,
 			     size, vma->vm_page_prot))
 		goto out;
 	dmabuf->mapped = 1;
@@ -3044,6 +3175,9 @@ static int __devinit i810_ac97_init(struct i810_card *card)
 		card->ac97_codec[num_ac97] = codec;
 	}
 
+	/* tune up the primary codec */
+	ac97_tune_hardware(card->pci_dev, ac97_quirks, ac97_quirk);
+
 	/* pick the minimum of channels supported by ICHx or codec(s) */
 	card->channels = (card->channels > total_channels)?total_channels:card->channels;
 
@@ -3216,8 +3350,14 @@ static int __devinit i810_probe(struct pci_dev *pci_dev, const struct pci_device
 	}
 
 	/* claim our iospace and irq */
-	request_region(card->iobase, 64, card_names[pci_id->driver_data]);
-	request_region(card->ac97base, 256, card_names[pci_id->driver_data]);
+	if (!request_region(card->iobase, 64, card_names[pci_id->driver_data])) {
+		printk(KERN_ERR "i810_audio: unable to allocate region %lx\n", card->iobase);
+		goto out_region1;
+	}
+	if (!request_region(card->ac97base, 256, card_names[pci_id->driver_data])) {
+		printk(KERN_ERR "i810_audio: unable to allocate region %lx\n", card->ac97base);
+		goto out_region2;
+	}
 
 	if (request_irq(card->irq, &i810_interrupt, SA_SHIRQ,
 			card_names[pci_id->driver_data], card)) {
@@ -3291,7 +3431,9 @@ out_iospace:
 	}
 out_pio:	
 	release_region(card->iobase, 64);
+out_region2:
 	release_region(card->ac97base, 256);
+out_region1:
 	pci_free_consistent(pci_dev, sizeof(struct i810_channel)*NR_HW_CH,
 	    card->channel, card->chandma);
 out_mem:
@@ -3328,7 +3470,7 @@ static void __devexit i810_remove(struct pci_dev *pci_dev)
 }
 
 #ifdef CONFIG_PM
-static int i810_pm_suspend(struct pci_dev *dev, u32 pm_state)
+static int i810_pm_suspend(struct pci_dev *dev, pm_message_t pm_state)
 {
         struct i810_card *card = pci_get_drvdata(dev);
         struct i810_state *state;
@@ -3378,7 +3520,7 @@ static int i810_pm_suspend(struct pci_dev *dev, u32 pm_state)
 			}
 		}
 	}
-	pci_save_state(dev,card->pm_save_state); /* XXX do we need this? */
+	pci_save_state(dev); /* XXX do we need this? */
 	pci_disable_device(dev); /* disable busmastering */
 	pci_set_power_state(dev,3); /* Zzz. */
 
@@ -3391,7 +3533,7 @@ static int i810_pm_resume(struct pci_dev *dev)
 	int num_ac97,i=0;
 	struct i810_card *card=pci_get_drvdata(dev);
 	pci_enable_device(dev);
-	pci_restore_state (dev,card->pm_save_state);
+	pci_restore_state (dev);
 
 	/* observation of a toshiba portege 3440ct suggests that the 
 	   hardware has to be more or less completely reinitialized from
@@ -3453,15 +3595,15 @@ static int i810_pm_resume(struct pci_dev *dev)
 }	
 #endif /* CONFIG_PM */
 
-MODULE_AUTHOR("");
+MODULE_AUTHOR("The Linux kernel team");
 MODULE_DESCRIPTION("Intel 810 audio support");
 MODULE_LICENSE("GPL");
-MODULE_PARM(ftsodell, "i");
-MODULE_PARM(clocking, "i");
-MODULE_PARM(strict_clocking, "i");
-MODULE_PARM(spdif_locked, "i");
+module_param(ftsodell, int, 0444);
+module_param(clocking, uint, 0444);
+module_param(strict_clocking, int, 0444);
+module_param(spdif_locked, int, 0444);
 
-#define I810_MODULE_NAME "intel810_audio"
+#define I810_MODULE_NAME "i810_audio"
 
 static struct pci_driver i810_pci_driver = {
 	.name		= I810_MODULE_NAME,
@@ -3477,13 +3619,15 @@ static struct pci_driver i810_pci_driver = {
 
 static int __init i810_init_module (void)
 {
+	int retval;
+
 	printk(KERN_INFO "Intel 810 + AC97 Audio, version "
 	       DRIVER_VERSION ", " __TIME__ " " __DATE__ "\n");
 
-	if (!pci_register_driver(&i810_pci_driver)) {
-		pci_unregister_driver(&i810_pci_driver);
-                return -ENODEV;
-	}
+	retval = pci_register_driver(&i810_pci_driver);
+	if (retval)
+		return retval;
+
 	if(ftsodell != 0) {
 		printk("i810_audio: ftsodell is now a deprecated option.\n");
 	}

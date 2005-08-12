@@ -127,7 +127,7 @@ static int get_mixer_levels(void __user * arg)
 {
 	int n;
 
-	if (__get_user(n, (int __user *)(&(((mixer_vol_table *__user )arg)->num))))
+	if (__get_user(n, (int __user *)(&(((mixer_vol_table __user *)arg)->num))))
 		return -EFAULT;
 	if (n < 0 || n >= num_mixer_volumes)
 		return -EINVAL;
@@ -329,7 +329,7 @@ static int sound_mixer_ioctl(int mixdev, unsigned int cmd, void __user *arg)
 static int sound_ioctl(struct inode *inode, struct file *file,
 		       unsigned int cmd, unsigned long arg)
 {
-	int err, len = 0, dtype;
+	int len = 0, dtype;
 	int dev = iminor(inode);
 	void __user *p = (void __user *)arg;
 
@@ -341,11 +341,11 @@ static int sound_ioctl(struct inode *inode, struct file *file,
 		if (len < 1 || len > 65536 || !p)
 			return -EFAULT;
 		if (_SIOC_DIR(cmd) & _SIOC_WRITE)
-			if ((err = verify_area(VERIFY_READ, p, len)) < 0)
-				return err;
+			if (!access_ok(VERIFY_READ, p, len))
+				return -EFAULT;
 		if (_SIOC_DIR(cmd) & _SIOC_READ)
-			if ((err = verify_area(VERIFY_WRITE, p, len)) < 0)
-				return err;
+			if (!access_ok(VERIFY_WRITE, p, len))
+				return -EFAULT;
 	}
 	DEB(printk("sound_ioctl(dev=%d, cmd=0x%x, arg=0x%x)\n", dev, cmd, arg));
 	if (cmd == OSS_GETVERSION)
@@ -463,9 +463,9 @@ static int sound_mmap(struct file *file, struct vm_area_struct *vma)
 	if (size != dmap->bytes_in_use) {
 		printk(KERN_WARNING "Sound: mmap() size = %ld. Should be %d\n", size, dmap->bytes_in_use);
 	}
-	if (remap_page_range(vma, vma->vm_start, virt_to_phys(dmap->raw_buf),
-		vma->vm_end - vma->vm_start,
-		vma->vm_page_prot)) {
+	if (remap_pfn_range(vma, vma->vm_start,
+			virt_to_phys(dmap->raw_buf) >> PAGE_SHIFT,
+			vma->vm_end - vma->vm_start, vma->vm_page_prot)) {
 		unlock_kernel();
 		return -EAGAIN;
 	}
@@ -535,8 +535,8 @@ static const struct {
 static int dmabuf;
 static int dmabug;
 
-MODULE_PARM(dmabuf, "i");
-MODULE_PARM(dmabug, "i");
+module_param(dmabuf, int, 0444);
+module_param(dmabug, int, 0444);
 
 static int __init oss_init(void)
 {

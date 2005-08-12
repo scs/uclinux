@@ -52,6 +52,7 @@
 #include <linux/errno.h>
 #include <linux/bitops.h>
 #include <linux/delay.h>
+#include <linux/pci.h>
 #include <linux/ac97_codec.h>
 #include <asm/uaccess.h>
 
@@ -70,6 +71,7 @@ static int wolfson_init03(struct ac97_codec * codec);
 static int wolfson_init04(struct ac97_codec * codec);
 static int wolfson_init05(struct ac97_codec * codec);
 static int wolfson_init11(struct ac97_codec * codec);
+static int wolfson_init13(struct ac97_codec * codec);
 static int tritech_init(struct ac97_codec * codec);
 static int tritech_maestro_init(struct ac97_codec * codec);
 static int sigmatel_9708_init(struct ac97_codec *codec);
@@ -106,6 +108,7 @@ static struct ac97_ops wolfson_ops03 = { wolfson_init03, NULL, NULL };
 static struct ac97_ops wolfson_ops04 = { wolfson_init04, NULL, NULL };
 static struct ac97_ops wolfson_ops05 = { wolfson_init05, NULL, NULL };
 static struct ac97_ops wolfson_ops11 = { wolfson_init11, NULL, NULL };
+static struct ac97_ops wolfson_ops13 = { wolfson_init13, NULL, NULL };
 static struct ac97_ops tritech_ops = { tritech_init, NULL, NULL };
 static struct ac97_ops tritech_m_ops = { tritech_maestro_init, NULL, NULL };
 static struct ac97_ops sigmatel_9708_ops = { sigmatel_9708_init, NULL, NULL };
@@ -128,6 +131,9 @@ static const struct {
 	{0x41445348, "Analog Devices AD1881A",	&null_ops},
 	{0x41445360, "Analog Devices AD1885",	&default_ops},
 	{0x41445361, "Analog Devices AD1886",	&ad1886_ops},
+	{0x41445370, "Analog Devices AD1981",	&null_ops},
+	{0x41445372, "Analog Devices AD1981A",	&null_ops},
+	{0x41445374, "Analog Devices AD1981B",	&null_ops},
 	{0x41445460, "Analog Devices AD1885",	&default_ops},
 	{0x41445461, "Analog Devices AD1886",	&ad1886_ops},
 	{0x414B4D00, "Asahi Kasei AK4540",	&null_ops},
@@ -149,6 +155,7 @@ static const struct {
 	{0x43525931, "Cirrus Logic CS4299 rev A", &crystal_digital_ops},
 	{0x43525933, "Cirrus Logic CS4299 rev C", &crystal_digital_ops},
 	{0x43525934, "Cirrus Logic CS4299 rev D", &crystal_digital_ops},
+	{0x43585430, "CXT48",			&default_ops,		AC97_DELUDED_MODEM },
 	{0x43585442, "CXT66",			&default_ops,		AC97_DELUDED_MODEM },
 	{0x44543031, "Diamond Technology DT0893", &default_ops},
 	{0x45838308, "ESS Allegro ES1988",	&null_ops},
@@ -167,12 +174,14 @@ static const struct {
 	{0x574D4C05, "Wolfson WM9705/WM9710",   &wolfson_ops05},
 	{0x574D4C09, "Wolfson WM9709",		&null_ops},
 	{0x574D4C12, "Wolfson WM9711/9712",	&wolfson_ops11},
+	{0x574D4C13, "Wolfson WM9713",	&wolfson_ops13, AC97_DEFAULT_POWER_OFF},
 	{0x83847600, "SigmaTel STAC????",	&null_ops},
 	{0x83847604, "SigmaTel STAC9701/3/4/5", &null_ops},
 	{0x83847605, "SigmaTel STAC9704",	&null_ops},
 	{0x83847608, "SigmaTel STAC9708",	&sigmatel_9708_ops},
 	{0x83847609, "SigmaTel STAC9721/23",	&sigmatel_9721_ops},
 	{0x83847644, "SigmaTel STAC9744/45",	&sigmatel_9744_ops},
+	{0x83847652, "SigmaTel STAC9752/53",	&default_ops},
 	{0x83847656, "SigmaTel STAC9756/57",	&sigmatel_9744_ops},
 	{0x83847666, "SigmaTel STAC9750T",	&sigmatel_9744_ops},
 	{0x83847684, "SigmaTel STAC9783/84?",	&null_ops},
@@ -793,6 +802,9 @@ EXPORT_SYMBOL(ac97_release_codec);
  *	Currently codec_wait is used to wait for AC97 codec
  *	reset to complete. 
  *
+ *     Some codecs will power down when a register reset is
+ *     performed. We now check for such codecs.
+ *
  *	Returns 1 (true) on success, or 0 (false) on failure.
  */
  
@@ -806,34 +818,17 @@ int ac97_probe_codec(struct ac97_codec *codec)
 	struct list_head *l;
 	struct ac97_driver *d;
 	
-	/* probing AC97 codec, AC97 2.0 says that bit 15 of register 0x00 (reset) should 
-	 * be read zero.
-	 *
-	 * FIXME: is the following comment outdated?  -jgarzik 
-	 * Probing of AC97 in this way is not reliable, it is not even SAFE !!
-	 */
-	codec->codec_write(codec, AC97_RESET, 0L);
-
-	/* also according to spec, we wait for codec-ready state */	
+	/* wait for codec-ready state */
 	if (codec->codec_wait)
 		codec->codec_wait(codec);
 	else
 		udelay(10);
 
-	if ((audio = codec->codec_read(codec, AC97_RESET)) & 0x8000) {
-		printk(KERN_ERR "ac97_codec: %s ac97 codec not present\n",
-		       (codec->id & 0x2) ? (codec->id&1 ? "4th" : "Tertiary") 
-		       : (codec->id&1 ? "Secondary":  "Primary"));
-		return 0;
-	}
-
-	/* probe for Modem Codec */
-	codec->modem = ac97_check_modem(codec);
-	codec->name = NULL;
-	codec->codec_ops = &default_ops;
-
+	/* will the codec power down if register reset ? */
 	id1 = codec->codec_read(codec, AC97_VENDOR_ID1);
 	id2 = codec->codec_read(codec, AC97_VENDOR_ID2);
+	codec->name = NULL;
+	codec->codec_ops = &null_ops;
 	for (i = 0; i < ARRAY_SIZE(ac97_codec_ids); i++) {
 		if (ac97_codec_ids[i].id == ((id1 << 16) | id2)) {
 			codec->type = ac97_codec_ids[i].id;
@@ -845,9 +840,34 @@ int ac97_probe_codec(struct ac97_codec *codec)
 	}
 
 	codec->model = (id1 << 16) | id2;
+	if ((codec->flags & AC97_DEFAULT_POWER_OFF) == 0) {
+		/* reset codec and wait for the ready bit before we continue */
+		codec->codec_write(codec, AC97_RESET, 0L);
+		if (codec->codec_wait)
+			codec->codec_wait(codec);
+		else
+			udelay(10);
+	}
+
+	/* probing AC97 codec, AC97 2.0 says that bit 15 of register 0x00 (reset) should
+	 * be read zero.
+	 *
+	 * FIXME: is the following comment outdated?  -jgarzik
+	 * Probing of AC97 in this way is not reliable, it is not even SAFE !!
+	 */
+	if ((audio = codec->codec_read(codec, AC97_RESET)) & 0x8000) {
+		printk(KERN_ERR "ac97_codec: %s ac97 codec not present\n",
+		       (codec->id & 0x2) ? (codec->id&1 ? "4th" : "Tertiary")
+		       : (codec->id&1 ? "Secondary":  "Primary"));
+		return 0;
+	}
 	
+	/* probe for Modem Codec */
+	codec->modem = ac97_check_modem(codec);
+
+	/* enable SPDIF */
 	f = codec->codec_read(codec, AC97_EXTENDED_STATUS);
-	if(f & 4)
+	if((codec->codec_ops == &null_ops) && (f & 4))
 		codec->codec_ops = &default_digital_ops;
 	
 	/* A device which thinks its a modem but isnt */
@@ -916,11 +936,6 @@ static int ac97_init_mixer(struct ac97_codec *codec)
 	codec->recmask_io = ac97_recmask_io;
 	codec->mixer_ioctl = ac97_mixer_ioctl;
 
-	/* codec specific initialization for 4-6 channel output or secondary codec stuff */
-	if (codec->codec_ops->init != NULL) {
-		codec->codec_ops->init(codec);
-	}
-
 	/* initialize mixer channel volumes */
 	for (i = 0; i < SOUND_MIXER_NRDEVICES; i++) {
 		struct mixer_defaults *md = &mixer_defaults[i];
@@ -929,6 +944,11 @@ static int ac97_init_mixer(struct ac97_codec *codec)
 		if (!supported_mixer(codec, md->mixer)) 
 			continue;
 		ac97_set_mixer(codec, md->mixer, md->value);
+	}
+
+	/* codec specific initialization for 4-6 channel output or secondary codec stuff */
+	if (codec->codec_ops->init != NULL) {
+		codec->codec_ops->init(codec);
 	}
 
 	/*
@@ -1083,6 +1103,19 @@ static int wolfson_init11(struct ac97_codec * codec)
 
 	/* set out3 volume */
 	codec->codec_write(codec, AC97_WM9711_OUT3VOL, 0x0808);
+	return 0;
+}
+
+/* WM9713 */
+static int wolfson_init13(struct ac97_codec * codec)
+{
+	codec->codec_write(codec, AC97_RECORD_GAIN, 0x00a0);
+	codec->codec_write(codec, AC97_POWER_CONTROL, 0x0000);
+	codec->codec_write(codec, AC97_EXTENDED_MODEM_ID, 0xDA00);
+	codec->codec_write(codec, AC97_EXTEND_MODEM_STAT, 0x3810);
+	codec->codec_write(codec, AC97_PHONE_VOL, 0x0808);
+	codec->codec_write(codec, AC97_PCBEEP_VOL, 0x0808);
+
 	return 0;
 }
 
@@ -1453,5 +1486,92 @@ void ac97_unregister_driver(struct ac97_driver *driver)
 }
 
 EXPORT_SYMBOL_GPL(ac97_unregister_driver);
+
+static int swap_headphone(int remove_master)
+{
+	struct list_head *l;
+	struct ac97_codec *c;
 	
+	if (remove_master) {
+		down(&codec_sem);
+		list_for_each(l, &codecs)
+		{
+			c = list_entry(l, struct ac97_codec, list);
+			if (supported_mixer(c, SOUND_MIXER_PHONEOUT))
+				c->supported_mixers &= ~SOUND_MASK_PHONEOUT;
+		}
+		up(&codec_sem);
+	} else
+		ac97_hw[SOUND_MIXER_PHONEOUT].offset = AC97_MASTER_VOL_STEREO;
+
+	/* Scale values already match */
+	ac97_hw[SOUND_MIXER_VOLUME].offset = AC97_MASTER_VOL_MONO;
+	return 0;
+}
+
+static int apply_quirk(int quirk)
+{
+	switch (quirk) {
+	case AC97_TUNE_NONE:
+		return 0;
+	case AC97_TUNE_HP_ONLY:
+		return swap_headphone(1);
+	case AC97_TUNE_SWAP_HP:
+		return swap_headphone(0);
+	case AC97_TUNE_SWAP_SURROUND:
+		return -ENOSYS; /* not yet implemented */
+	case AC97_TUNE_AD_SHARING:
+		return -ENOSYS; /* not yet implemented */
+	case AC97_TUNE_ALC_JACK:
+		return -ENOSYS; /* not yet implemented */
+	}
+	return -EINVAL;
+}
+
+/**
+ *	ac97_tune_hardware - tune up the hardware
+ *	@pdev: pci_dev pointer
+ *	@quirk: quirk list
+ *	@override: explicit quirk value (overrides if not AC97_TUNE_DEFAULT)
+ *
+ *	Do some workaround for each pci device, such as renaming of the
+ *	headphone (true line-out) control as "Master".
+ *	The quirk-list must be terminated with a zero-filled entry.
+ *
+ *	Returns zero if successful, or a negative error code on failure.
+ */
+
+int ac97_tune_hardware(struct pci_dev *pdev, struct ac97_quirk *quirk, int override)
+{
+	int result;
+
+	if (!quirk)
+		return -EINVAL;
+
+	if (override != AC97_TUNE_DEFAULT) {
+		result = apply_quirk(override);
+		if (result < 0)
+			printk(KERN_ERR "applying quirk type %d failed (%d)\n", override, result);
+		return result;
+	}
+
+	for (; quirk->vendor; quirk++) {
+		if (quirk->vendor != pdev->subsystem_vendor)
+			continue;
+		if ((! quirk->mask && quirk->device == pdev->subsystem_device) ||
+		    quirk->device == (quirk->mask & pdev->subsystem_device)) {
+#ifdef DEBUG
+			printk("ac97 quirk for %s (%04x:%04x)\n", quirk->name, ac97->subsystem_vendor, pdev->subsystem_device);
+#endif
+			result = apply_quirk(quirk->type);
+			if (result < 0)
+				printk(KERN_ERR "applying quirk type %d for %s failed (%d)\n", quirk->type, quirk->name, result);
+			return result;
+		}
+	}
+	return 0;
+}
+
+EXPORT_SYMBOL_GPL(ac97_tune_hardware);
+
 MODULE_LICENSE("GPL");

@@ -34,8 +34,6 @@
 #include <sound/pcm_params.h>
 #include "gus_tables.h"
 
-#define chip_t snd_gus_card_t
-
 /* maximum rate */
 
 #define SNDRV_GF1_PCM_RATE		48000
@@ -66,7 +64,7 @@ static int snd_gf1_pcm_use_dma = 1;
 
 static void snd_gf1_pcm_block_change_ack(snd_gus_card_t * gus, void *private_data)
 {
-	gus_pcm_private_t *pcmp = snd_magic_cast(gus_pcm_private_t, private_data, return);
+	gus_pcm_private_t *pcmp = private_data;
 
 	if (pcmp) {
 		atomic_dec(&pcmp->dma_count);
@@ -81,7 +79,7 @@ static int snd_gf1_pcm_block_change(snd_pcm_substream_t * substream,
 {
 	snd_gf1_dma_block_t block;
 	snd_pcm_runtime_t *runtime = substream->runtime;
-	gus_pcm_private_t *pcmp = snd_magic_cast(gus_pcm_private_t, runtime->private_data, return -ENXIO);
+	gus_pcm_private_t *pcmp = runtime->private_data;
 
 	count += offset & 31;
 	offset &= ~31;
@@ -106,7 +104,7 @@ static int snd_gf1_pcm_block_change(snd_pcm_substream_t * substream,
 static void snd_gf1_pcm_trigger_up(snd_pcm_substream_t * substream)
 {
 	snd_pcm_runtime_t *runtime = substream->runtime;
-	gus_pcm_private_t *pcmp = snd_magic_cast(gus_pcm_private_t, runtime->private_data, return);
+	gus_pcm_private_t *pcmp = runtime->private_data;
 	snd_gus_card_t * gus = pcmp->gus;
 	unsigned long flags;
 	unsigned char voice_ctrl, ramp_ctrl;
@@ -194,7 +192,7 @@ static void snd_gf1_pcm_interrupt_wave(snd_gus_card_t * gus, snd_gus_voice_t *pv
 		snd_gf1_smart_stop_voice(gus, pvoice->number);
 		return;
 	}
-	pcmp = snd_magic_cast(gus_pcm_private_t, pvoice->private_data, return);
+	pcmp = pvoice->private_data;
 	if (pcmp == NULL) {
 		snd_printd("snd_gf1_pcm: unknown wave irq?\n");
 		snd_gf1_smart_stop_voice(gus, pvoice->number);
@@ -267,7 +265,7 @@ static void snd_gf1_pcm_interrupt_volume(snd_gus_card_t * gus, snd_gus_voice_t *
 {
 	unsigned short vol;
 	int cvoice;
-	gus_pcm_private_t *pcmp = snd_magic_cast(gus_pcm_private_t, pvoice->private_data, return);
+	gus_pcm_private_t *pcmp = pvoice->private_data;
 
 	/* stop ramp, but leave rollover bit untouched */
 	spin_lock(&gus->reg_lock);
@@ -335,6 +333,7 @@ static int snd_gf1_pcm_poke_block(snd_gus_card_t *gus, unsigned char *buf,
 			}
 		}
 		if (count > 0 && !in_interrupt()) {
+			set_current_state(TASK_INTERRUPTIBLE);
 			schedule_timeout(1);
 			if (signal_pending(current))
 				return -EAGAIN;
@@ -350,7 +349,7 @@ static int snd_gf1_pcm_playback_copy(snd_pcm_substream_t *substream,
 				     snd_pcm_uframes_t count)
 {
 	snd_pcm_runtime_t *runtime = substream->runtime;
-	gus_pcm_private_t *pcmp = snd_magic_cast(gus_pcm_private_t, runtime->private_data, return -ENXIO);
+	gus_pcm_private_t *pcmp = runtime->private_data;
 	unsigned int bpos, len;
 	
 	bpos = samples_to_bytes(runtime, pos) + (voice * (pcmp->dma_size / 2));
@@ -379,7 +378,7 @@ static int snd_gf1_pcm_playback_silence(snd_pcm_substream_t *substream,
 					snd_pcm_uframes_t count)
 {
 	snd_pcm_runtime_t *runtime = substream->runtime;
-	gus_pcm_private_t *pcmp = snd_magic_cast(gus_pcm_private_t, runtime->private_data, return -ENXIO);
+	gus_pcm_private_t *pcmp = runtime->private_data;
 	unsigned int bpos, len;
 	
 	bpos = samples_to_bytes(runtime, pos) + (voice * (pcmp->dma_size / 2));
@@ -406,7 +405,7 @@ static int snd_gf1_pcm_playback_hw_params(snd_pcm_substream_t * substream,
 {
 	snd_gus_card_t *gus = snd_pcm_substream_chip(substream);
 	snd_pcm_runtime_t *runtime = substream->runtime;
-	gus_pcm_private_t *pcmp = snd_magic_cast(gus_pcm_private_t, runtime->private_data, return -ENXIO);
+	gus_pcm_private_t *pcmp = runtime->private_data;
 	int err;
 	
 	if ((err = snd_pcm_lib_malloc_pages(substream, params_buffer_bytes(hw_params))) < 0)
@@ -453,7 +452,7 @@ static int snd_gf1_pcm_playback_hw_params(snd_pcm_substream_t * substream,
 static int snd_gf1_pcm_playback_hw_free(snd_pcm_substream_t * substream)
 {
 	snd_pcm_runtime_t *runtime = substream->runtime;
-	gus_pcm_private_t *pcmp = snd_magic_cast(gus_pcm_private_t, runtime->private_data, return -ENXIO);
+	gus_pcm_private_t *pcmp = runtime->private_data;
 
 	snd_pcm_lib_free_pages(substream);
 	if (pcmp->pvoices[0]) {
@@ -474,7 +473,7 @@ static int snd_gf1_pcm_playback_hw_free(snd_pcm_substream_t * substream)
 static int snd_gf1_pcm_playback_prepare(snd_pcm_substream_t * substream)
 {
 	snd_pcm_runtime_t *runtime = substream->runtime;
-	gus_pcm_private_t *pcmp = snd_magic_cast(gus_pcm_private_t, runtime->private_data, return -ENXIO);
+	gus_pcm_private_t *pcmp = runtime->private_data;
 
 	pcmp->bpos = 0;
 	pcmp->dma_size = snd_pcm_lib_buffer_bytes(substream);
@@ -488,7 +487,7 @@ static int snd_gf1_pcm_playback_trigger(snd_pcm_substream_t * substream,
 {
 	snd_gus_card_t *gus = snd_pcm_substream_chip(substream);
 	snd_pcm_runtime_t *runtime = substream->runtime;
-	gus_pcm_private_t *pcmp = snd_magic_cast(gus_pcm_private_t, runtime->private_data, return -ENXIO);
+	gus_pcm_private_t *pcmp = runtime->private_data;
 	int voice;
 
 	if (cmd == SNDRV_PCM_TRIGGER_START) {
@@ -513,7 +512,7 @@ static snd_pcm_uframes_t snd_gf1_pcm_playback_pointer(snd_pcm_substream_t * subs
 {
 	snd_gus_card_t *gus = snd_pcm_substream_chip(substream);
 	snd_pcm_runtime_t *runtime = substream->runtime;
-	gus_pcm_private_t *pcmp = snd_magic_cast(gus_pcm_private_t, runtime->private_data, return -ENXIO);
+	gus_pcm_private_t *pcmp = runtime->private_data;
 	unsigned int pos;
 	unsigned char voice_ctrl;
 
@@ -657,8 +656,8 @@ static snd_pcm_hardware_t snd_gf1_pcm_capture =
 
 static void snd_gf1_pcm_playback_free(snd_pcm_runtime_t *runtime)
 {
-	gus_pcm_private_t * pcmp = snd_magic_cast(gus_pcm_private_t, runtime->private_data, return);
-	snd_magic_kfree(pcmp);
+	gus_pcm_private_t * pcmp = runtime->private_data;
+	kfree(pcmp);
 }
 
 static int snd_gf1_pcm_playback_open(snd_pcm_substream_t *substream)
@@ -668,7 +667,7 @@ static int snd_gf1_pcm_playback_open(snd_pcm_substream_t *substream)
 	snd_pcm_runtime_t *runtime = substream->runtime;
 	int err;
 
-	pcmp = snd_magic_kcalloc(gus_pcm_private_t, 0, GFP_KERNEL);
+	pcmp = kcalloc(1, sizeof(*pcmp), GFP_KERNEL);
 	if (pcmp == NULL)
 		return -ENOMEM;
 	pcmp->gus = gus;
@@ -697,17 +696,11 @@ static int snd_gf1_pcm_playback_close(snd_pcm_substream_t * substream)
 {
 	snd_gus_card_t *gus = snd_pcm_substream_chip(substream);
 	snd_pcm_runtime_t *runtime = substream->runtime;
-	gus_pcm_private_t *pcmp = snd_magic_cast(gus_pcm_private_t, runtime->private_data, return -ENXIO);
-	unsigned long jiffies_old;
+	gus_pcm_private_t *pcmp = runtime->private_data;
+	
+	if (!wait_event_timeout(pcmp->sleep, (atomic_read(&pcmp->dma_count) <= 0), 2*HZ))
+		snd_printk("gf1 pcm - serious DMA problem\n");
 
-	jiffies_old = jiffies;
-	while (atomic_read(&pcmp->dma_count) > 0) {
-		interruptible_sleep_on_timeout(&pcmp->sleep, 1);
-		if ((signed long)(jiffies - jiffies_old) > 2*HZ) {
-			snd_printk("gf1 pcm - serious DMA problem\n");
-			break;
-		}
-	}
 	snd_gf1_dma_done(gus);	
 	return 0;
 }
@@ -738,7 +731,7 @@ static int snd_gf1_pcm_capture_close(snd_pcm_substream_t * substream)
 
 static void snd_gf1_pcm_free(snd_pcm_t *pcm)
 {
-	snd_gus_card_t *gus = snd_magic_cast(snd_gus_card_t, pcm->private_data, return);
+	snd_gus_card_t *gus = pcm->private_data;
 	gus->pcm = NULL;
 	snd_pcm_lib_preallocate_free_for_all(pcm);
 }
@@ -790,7 +783,7 @@ static int snd_gf1_pcm_volume_put(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_
 		pvoice = &gus->gf1.voices[idx];
 		if (!pvoice->pcm)
 			continue;
-		pcmp = snd_magic_cast(gus_pcm_private_t, pvoice->private_data, return -ENXIO);
+		pcmp = pvoice->private_data;
 		if (!(pcmp->flags & SNDRV_GF1_PCM_PFLG_ACTIVE))
 			continue;
 		/* load real volume - better precision */

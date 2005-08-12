@@ -49,13 +49,11 @@ MODULE_AUTHOR("Jaroslav Kysela <perex@suse.cz>");
 MODULE_DESCRIPTION("Routines for control of 16-bit SoundBlaster cards and clones");
 MODULE_LICENSE("GPL");
 
-#define chip_t sb_t
-
 #ifdef CONFIG_SND_SB16_CSP
 static void snd_sb16_csp_playback_prepare(sb_t *chip, snd_pcm_runtime_t *runtime)
 {
 	if (chip->hardware == SB_HW_16CSP) {
-		snd_sb_csp_t *csp = snd_magic_cast(snd_sb_csp_t, chip->csp, return);
+		snd_sb_csp_t *csp = chip->csp;
 
 		if (csp->running & SNDRV_SB_CSP_ST_LOADED) {
 			/* manually loaded codec */
@@ -103,7 +101,7 @@ static void snd_sb16_csp_playback_prepare(sb_t *chip, snd_pcm_runtime_t *runtime
 static void snd_sb16_csp_capture_prepare(sb_t *chip, snd_pcm_runtime_t *runtime)
 {
 	if (chip->hardware == SB_HW_16CSP) {
-		snd_sb_csp_t *csp = snd_magic_cast(snd_sb_csp_t, chip->csp, return);
+		snd_sb_csp_t *csp = chip->csp;
 
 		if (csp->running & SNDRV_SB_CSP_ST_LOADED) {
 			/* manually loaded codec */
@@ -141,7 +139,7 @@ static void snd_sb16_csp_capture_prepare(sb_t *chip, snd_pcm_runtime_t *runtime)
 static void snd_sb16_csp_update(sb_t *chip)
 {
 	if (chip->hardware == SB_HW_16CSP) {
-		snd_sb_csp_t *csp = snd_magic_cast(snd_sb_csp_t, chip->csp, return);
+		snd_sb_csp_t *csp = chip->csp;
 
 		if (csp->qpos_changed) {
 			spin_lock(&chip->reg_lock);
@@ -155,7 +153,7 @@ static void snd_sb16_csp_playback_open(sb_t *chip, snd_pcm_runtime_t *runtime)
 {
 	/* CSP decoders (QSound excluded) support only 16bit transfers */
 	if (chip->hardware == SB_HW_16CSP) {
-		snd_sb_csp_t *csp = snd_magic_cast(snd_sb_csp_t, chip->csp, return);
+		snd_sb_csp_t *csp = chip->csp;
 
 		if (csp->running & SNDRV_SB_CSP_ST_LOADED) {
 			/* manually loaded codec */
@@ -173,7 +171,7 @@ static void snd_sb16_csp_playback_open(sb_t *chip, snd_pcm_runtime_t *runtime)
 static void snd_sb16_csp_playback_close(sb_t *chip)
 {
 	if ((chip->hardware == SB_HW_16CSP) && (chip->open == SNDRV_SB_CSP_MODE_DSP_WRITE)) {
-		snd_sb_csp_t *csp = snd_magic_cast(snd_sb_csp_t, chip->csp, return);
+		snd_sb_csp_t *csp = chip->csp;
 
 		if (csp->ops.csp_stop(csp) == 0) {
 			csp->ops.csp_unuse(csp);
@@ -186,7 +184,7 @@ static void snd_sb16_csp_capture_open(sb_t *chip, snd_pcm_runtime_t *runtime)
 {
 	/* CSP coders support only 16bit transfers */
 	if (chip->hardware == SB_HW_16CSP) {
-		snd_sb_csp_t *csp = snd_magic_cast(snd_sb_csp_t, chip->csp, return);
+		snd_sb_csp_t *csp = chip->csp;
 
 		if (csp->running & SNDRV_SB_CSP_ST_LOADED) {
 			/* manually loaded codec */
@@ -204,7 +202,7 @@ static void snd_sb16_csp_capture_open(sb_t *chip, snd_pcm_runtime_t *runtime)
 static void snd_sb16_csp_capture_close(sb_t *chip)
 {
 	if ((chip->hardware == SB_HW_16CSP) && (chip->open == SNDRV_SB_CSP_MODE_DSP_READ)) {
-		snd_sb_csp_t *csp = snd_magic_cast(snd_sb_csp_t, chip->csp, return);
+		snd_sb_csp_t *csp = chip->csp;
 
 		if (csp->ops.csp_stop(csp) == 0) {
 			csp->ops.csp_unuse(csp);
@@ -395,7 +393,7 @@ static int snd_sb16_capture_trigger(snd_pcm_substream_t * substream,
 
 irqreturn_t snd_sb16dsp_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 {
-	sb_t *chip = snd_magic_cast(sb_t, dev_id, return IRQ_NONE);
+	sb_t *chip = dev_id;
 	unsigned char status;
 	int ok;
 
@@ -511,7 +509,7 @@ static snd_pcm_hardware_t snd_sb16_capture =
  *  open/close
  */
 
-int snd_sb16_playback_open(snd_pcm_substream_t * substream)
+static int snd_sb16_playback_open(snd_pcm_substream_t * substream)
 {
 	unsigned long flags;
 	sb_t *chip = snd_pcm_substream_chip(substream);
@@ -568,7 +566,7 @@ int snd_sb16_playback_open(snd_pcm_substream_t * substream)
 	return 0;
 }
 
-int snd_sb16_playback_close(snd_pcm_substream_t * substream)
+static int snd_sb16_playback_close(snd_pcm_substream_t * substream)
 {
 	unsigned long flags;
 	sb_t *chip = snd_pcm_substream_chip(substream);
@@ -581,7 +579,7 @@ int snd_sb16_playback_close(snd_pcm_substream_t * substream)
 	return 0;
 }
 
-int snd_sb16_capture_open(snd_pcm_substream_t * substream)
+static int snd_sb16_capture_open(snd_pcm_substream_t * substream)
 {
 	unsigned long flags;
 	sb_t *chip = snd_pcm_substream_chip(substream);
@@ -638,7 +636,7 @@ int snd_sb16_capture_open(snd_pcm_substream_t * substream)
 	return 0;
 }
 
-int snd_sb16_capture_close(snd_pcm_substream_t * substream)
+static int snd_sb16_capture_close(snd_pcm_substream_t * substream)
 {
 	unsigned long flags;
 	sb_t *chip = snd_pcm_substream_chip(substream);
@@ -730,7 +728,7 @@ static int snd_sb16_dma_control_put(snd_kcontrol_t * kcontrol, snd_ctl_elem_valu
 	return change;
 }
 
-snd_kcontrol_new_t snd_sb16_dma_control = {
+static snd_kcontrol_new_t snd_sb16_dma_control = {
 	.iface = SNDRV_CTL_ELEM_IFACE_PCM,
 	.name = "16-bit DMA Allocation",
 	.info = snd_sb16_dma_control_info,

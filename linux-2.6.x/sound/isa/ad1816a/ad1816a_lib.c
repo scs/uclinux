@@ -34,8 +34,6 @@ MODULE_AUTHOR("Massimo Piccioni <dafastidio@libero.it>");
 MODULE_DESCRIPTION("lowlevel code for Analog Devices AD1816A chip");
 MODULE_LICENSE("GPL");
 
-#define chip_t ad1816a_t
-
 static inline int snd_ad1816a_busy_wait(ad1816a_t *chip)
 {
 	int timeout;
@@ -48,20 +46,20 @@ static inline int snd_ad1816a_busy_wait(ad1816a_t *chip)
 	return -EBUSY;
 }
 
-inline unsigned char snd_ad1816a_in(ad1816a_t *chip, unsigned char reg)
+static inline unsigned char snd_ad1816a_in(ad1816a_t *chip, unsigned char reg)
 {
 	snd_ad1816a_busy_wait(chip);
 	return inb(AD1816A_REG(reg));
 }
 
-inline void snd_ad1816a_out(ad1816a_t *chip, unsigned char reg,
+static inline void snd_ad1816a_out(ad1816a_t *chip, unsigned char reg,
 			    unsigned char value)
 {
 	snd_ad1816a_busy_wait(chip);
 	outb(value, AD1816A_REG(reg));
 }
 
-inline void snd_ad1816a_out_mask(ad1816a_t *chip, unsigned char reg,
+static inline void snd_ad1816a_out_mask(ad1816a_t *chip, unsigned char reg,
 				 unsigned char mask, unsigned char value)
 {
 	snd_ad1816a_out(chip, reg,
@@ -313,7 +311,7 @@ static snd_pcm_uframes_t snd_ad1816a_capture_pointer(snd_pcm_substream_t *substr
 
 static irqreturn_t snd_ad1816a_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 {
-	ad1816a_t *chip = snd_magic_cast(ad1816a_t, dev_id, return IRQ_NONE);
+	ad1816a_t *chip = dev_id;
 	unsigned char status;
 
 	spin_lock(&chip->lock);
@@ -374,6 +372,7 @@ static snd_pcm_hardware_t snd_ad1816a_capture = {
 	.fifo_size =		0,
 };
 
+#if 0 /* not used now */
 static int snd_ad1816a_timer_close(snd_timer_t *timer)
 {
 	ad1816a_t *chip = snd_timer_chip(timer);
@@ -437,6 +436,7 @@ static struct _snd_timer_hardware snd_ad1816a_timer_table = {
 	.start =	snd_ad1816a_timer_start,
 	.stop =		snd_ad1816a_timer_stop,
 };
+#endif /* not used now */
 
 
 static int snd_ad1816a_playback_open(snd_pcm_substream_t *substream)
@@ -550,13 +550,13 @@ static int snd_ad1816a_free(ad1816a_t *chip)
 		snd_dma_disable(chip->dma2);
 		free_dma(chip->dma2);
 	}
-	snd_magic_kfree(chip);
+	kfree(chip);
 	return 0;
 }
 
 static int snd_ad1816a_dev_free(snd_device_t *device)
 {
-	ad1816a_t *chip = snd_magic_cast(ad1816a_t, device->device_data, return -ENXIO);
+	ad1816a_t *chip = device->device_data;
 	return snd_ad1816a_free(chip);
 }
 
@@ -585,7 +585,7 @@ int snd_ad1816a_create(snd_card_t *card,
 
 	*rchip = NULL;
 
-	chip = snd_magic_kcalloc(ad1816a_t, 0, GFP_KERNEL);
+	chip = kcalloc(1, sizeof(*chip), GFP_KERNEL);
 	if (chip == NULL)
 		return -ENOMEM;
 	chip->irq = -1;
@@ -661,7 +661,7 @@ static snd_pcm_ops_t snd_ad1816a_capture_ops = {
 
 static void snd_ad1816a_pcm_free(snd_pcm_t *pcm)
 {
-	ad1816a_t *chip = snd_magic_cast(ad1816a_t, pcm->private_data, return);
+	ad1816a_t *chip = pcm->private_data;
 	chip->pcm = NULL;
 	snd_pcm_lib_preallocate_free_for_all(pcm);
 }
@@ -694,9 +694,10 @@ int snd_ad1816a_pcm(ad1816a_t *chip, int device, snd_pcm_t **rpcm)
 	return 0;
 }
 
+#if 0 /* not used now */
 static void snd_ad1816a_timer_free(snd_timer_t *timer)
 {
-	ad1816a_t *chip = snd_magic_cast(ad1816a_t, timer->private_data, return);
+	ad1816a_t *chip = timer->private_data;
 	chip->timer = NULL;
 }
 
@@ -722,6 +723,7 @@ int snd_ad1816a_timer(ad1816a_t *chip, int device, snd_timer_t **rtimer)
 		*rtimer = timer;
 	return 0;
 }
+#endif /* not used now */
 
 /*
  *
@@ -901,8 +903,6 @@ static int snd_ad1816a_put_double(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_
 	return change;
 }
 
-#define AD1816A_CONTROLS (sizeof(snd_ad1816a_controls)/sizeof(snd_kcontrol_new_t))
-
 static snd_kcontrol_new_t snd_ad1816a_controls[] = {
 AD1816A_DOUBLE("Master Playback Switch", AD1816A_MASTER_ATT, 15, 7, 1, 1),
 AD1816A_DOUBLE("Master Playback Volume", AD1816A_MASTER_ATT, 8, 0, 31, 1),
@@ -950,7 +950,7 @@ int snd_ad1816a_mixer(ad1816a_t *chip)
 
 	strcpy(card->mixername, snd_ad1816a_chip_id(chip));
 
-	for (idx = 0; idx < AD1816A_CONTROLS; idx++) {
+	for (idx = 0; idx < ARRAY_SIZE(snd_ad1816a_controls); idx++) {
 		if ((err = snd_ctl_add(card, snd_ctl_new1(&snd_ad1816a_controls[idx], chip))) < 0)
 			return err;
 	}

@@ -50,8 +50,8 @@ static long snd_alloc_kmalloc;
 static long snd_alloc_vmalloc;
 static LIST_HEAD(snd_alloc_kmalloc_list);
 static LIST_HEAD(snd_alloc_vmalloc_list);
-static spinlock_t snd_alloc_kmalloc_lock = SPIN_LOCK_UNLOCKED;
-static spinlock_t snd_alloc_vmalloc_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(snd_alloc_kmalloc_lock);
+static DEFINE_SPINLOCK(snd_alloc_vmalloc_lock);
 #define KMALLOC_MAGIC 0x87654321
 #define VMALLOC_MAGIC 0x87654320
 static snd_info_entry_t *snd_memory_info_entry;
@@ -71,8 +71,7 @@ void snd_memory_done(void)
 		snd_printk(KERN_ERR "Not freed snd_alloc_kmalloc = %li\n", snd_alloc_kmalloc);
 	if (snd_alloc_vmalloc > 0)
 		snd_printk(KERN_ERR "Not freed snd_alloc_vmalloc = %li\n", snd_alloc_vmalloc);
-	for (head = snd_alloc_kmalloc_list.prev;
-	     head != &snd_alloc_kmalloc_list; head = head->prev) {
+	list_for_each_prev(head, &snd_alloc_kmalloc_list) {
 		t = list_entry(head, struct snd_alloc_track, list);
 		if (t->magic != KMALLOC_MAGIC) {
 			snd_printk(KERN_ERR "Corrupted kmalloc\n");
@@ -80,8 +79,7 @@ void snd_memory_done(void)
 		}
 		snd_printk(KERN_ERR "kmalloc(%ld) from %p not freed\n", (long) t->size, t->caller);
 	}
-	for (head = snd_alloc_vmalloc_list.prev;
-	     head != &snd_alloc_vmalloc_list; head = head->prev) {
+	list_for_each_prev(head, &snd_alloc_vmalloc_list) {
 		t = list_entry(head, struct snd_alloc_track, list);
 		if (t->magic != VMALLOC_MAGIC) {
 			snd_printk(KERN_ERR "Corrupted vmalloc\n");
@@ -91,7 +89,7 @@ void snd_memory_done(void)
 	}
 }
 
-void *__snd_kmalloc(size_t size, int flags, void *caller)
+static void *__snd_kmalloc(size_t size, int flags, void *caller)
 {
 	unsigned long cpu_flags;
 	struct snd_alloc_track *t;
@@ -118,14 +116,23 @@ void *snd_hidden_kmalloc(size_t size, int flags)
 	return _snd_kmalloc(size, flags);
 }
 
+void *snd_hidden_kcalloc(size_t n, size_t size, int flags)
+{
+	void *ret = NULL;
+	if (n != 0 && size > INT_MAX / n)
+		return ret;
+	ret = _snd_kmalloc(n * size, flags);
+	if (ret)
+		memset(ret, 0, n * size);
+	return ret;
+}
+
 void snd_hidden_kfree(const void *obj)
 {
 	unsigned long flags;
 	struct snd_alloc_track *t;
-	if (obj == NULL) {
-		snd_printk(KERN_WARNING "null kfree (called from %p)\n", __builtin_return_address(0));
+	if (obj == NULL)
 		return;
-	}
 	t = snd_alloc_track_entry(obj);
 	if (t->magic != KMALLOC_MAGIC) {
 		snd_printk(KERN_WARNING "bad kfree (called from %p)\n", __builtin_return_address(0));
@@ -138,46 +145,6 @@ void snd_hidden_kfree(const void *obj)
 	snd_alloc_kmalloc -= t->size;
 	obj = t;
 	snd_wrapper_kfree(obj);
-}
-
-void *_snd_magic_kcalloc(unsigned long magic, size_t size, int flags)
-{
-	unsigned long *ptr;
-	ptr = _snd_kmalloc(size + sizeof(unsigned long), flags);
-	if (ptr) {
-		*ptr++ = magic;
-		memset(ptr, 0, size);
-	}
-	return ptr;
-}
-
-void *_snd_magic_kmalloc(unsigned long magic, size_t size, int flags)
-{
-	unsigned long *ptr;
-	ptr = _snd_kmalloc(size + sizeof(unsigned long), flags);
-	if (ptr)
-		*ptr++ = magic;
-	return ptr;
-}
-
-void snd_magic_kfree(void *_ptr)
-{
-	unsigned long *ptr = _ptr;
-	if (ptr == NULL) {
-		snd_printk(KERN_WARNING "null snd_magic_kfree (called from %p)\n", __builtin_return_address(0));
-		return;
-	}
-	*--ptr = 0;
-	{
-		struct snd_alloc_track *t;
-		t = snd_alloc_track_entry(ptr);
-		if (t->magic != KMALLOC_MAGIC) {
-			snd_printk(KERN_ERR "bad snd_magic_kfree (called from %p)\n", __builtin_return_address(0));
-			return;
-		}
-	}
-	snd_hidden_kfree(ptr);
-	return;
 }
 
 void *snd_hidden_vmalloc(unsigned long size)
@@ -201,10 +168,8 @@ void *snd_hidden_vmalloc(unsigned long size)
 void snd_hidden_vfree(void *obj)
 {
 	struct snd_alloc_track *t;
-	if (obj == NULL) {
-		snd_printk(KERN_WARNING "null vfree (called from %p)\n", __builtin_return_address(0));
+	if (obj == NULL)
 		return;
-	}
 	t = snd_alloc_track_entry(obj);
 	if (t->magic != VMALLOC_MAGIC) {
 		snd_printk(KERN_ERR "bad vfree (called from %p)\n", __builtin_return_address(0));
@@ -256,25 +221,6 @@ int __exit snd_memory_info_done(void)
 #endif /* CONFIG_SND_DEBUG_MEMORY */
 
 /**
- * snd_kcalloc - memory allocation and zero-clear
- * @size: the size to allocate in bytes
- * @flags: allocation conditions, GFP_XXX
- *
- * Allocates a memory chunk via kmalloc() and initializes it to zero.
- *
- * Returns the pointer, or NULL if no enoguh memory.
- */
-void *snd_kcalloc(size_t size, int flags)
-{
-	void *ptr;
-	
-	ptr = _snd_kmalloc(size, flags);
-	if (ptr)
-		memset(ptr, 0, size);
-	return ptr;
-}
-
-/**
  * snd_kmalloc_strdup - copy the string
  * @string: the original string
  * @flags: allocation conditions, GFP_XXX
@@ -307,7 +253,7 @@ char *snd_kmalloc_strdup(const char *string, int flags)
  *
  * Returns zero if successful, or non-zero on failure.
  */
-int copy_to_user_fromio(void __user *dst, unsigned long src, size_t count)
+int copy_to_user_fromio(void __user *dst, const volatile void __iomem *src, size_t count)
 {
 #if defined(__i386__) || defined(CONFIG_SPARC32)
 	return copy_to_user(dst, (const void*)src, count) ? -EFAULT : 0;
@@ -317,7 +263,7 @@ int copy_to_user_fromio(void __user *dst, unsigned long src, size_t count)
 		size_t c = count;
 		if (c > sizeof(buf))
 			c = sizeof(buf);
-		memcpy_fromio(buf, (void*)src, c);
+		memcpy_fromio(buf, (void __iomem *)src, c);
 		if (copy_to_user(dst, buf, c))
 			return -EFAULT;
 		count -= c;
@@ -338,7 +284,7 @@ int copy_to_user_fromio(void __user *dst, unsigned long src, size_t count)
  *
  * Returns zero if successful, or non-zero on failure.
  */
-int copy_from_user_toio(unsigned long dst, const void __user *src, size_t count)
+int copy_from_user_toio(volatile void __iomem *dst, const void __user *src, size_t count)
 {
 #if defined(__i386__) || defined(CONFIG_SPARC32)
 	return copy_from_user((void*)dst, src, count) ? -EFAULT : 0;
@@ -350,7 +296,7 @@ int copy_from_user_toio(unsigned long dst, const void __user *src, size_t count)
 			c = sizeof(buf);
 		if (copy_from_user(buf, src, c))
 			return -EFAULT;
-		memcpy_toio((void*)dst, buf, c);
+		memcpy_toio(dst, buf, c);
 		count -= c;
 		dst += c;
 		src += c;

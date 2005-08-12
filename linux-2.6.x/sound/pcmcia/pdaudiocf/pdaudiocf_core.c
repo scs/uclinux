@@ -28,9 +28,9 @@
 /*
  *
  */
-unsigned char pdacf_ak4117_read(void *private_data, unsigned char reg)
+static unsigned char pdacf_ak4117_read(void *private_data, unsigned char reg)
 {
-	pdacf_t *chip = snd_magic_cast(pdacf_t, private_data, return 0);
+	pdacf_t *chip = private_data;
 	unsigned long timeout;
 	unsigned long flags;
 	unsigned char res;
@@ -60,9 +60,9 @@ unsigned char pdacf_ak4117_read(void *private_data, unsigned char reg)
 	return res;
 }
 
-void pdacf_ak4117_write(void *private_data, unsigned char reg, unsigned char val)
+static void pdacf_ak4117_write(void *private_data, unsigned char reg, unsigned char val)
 {
-	pdacf_t *chip = snd_magic_cast(pdacf_t, private_data, return);
+	pdacf_t *chip = private_data;
 	unsigned long timeout;
 	unsigned long flags;
 
@@ -130,7 +130,7 @@ void pdacf_reinit(pdacf_t *chip, int resume)
 static void pdacf_proc_read(snd_info_entry_t * entry,
                             snd_info_buffer_t * buffer)
 {
-	pdacf_t *chip = snd_magic_cast(pdacf_t, entry->private_data, return);
+	pdacf_t *chip = entry->private_data;
 	u16 tmp;
 
 	snd_iprintf(buffer, "PDAudioCF\n\n");
@@ -151,7 +151,7 @@ pdacf_t *snd_pdacf_create(snd_card_t *card)
 {
 	pdacf_t *chip;
 
-	chip = snd_magic_kcalloc(pdacf_t, 0, GFP_KERNEL);
+	chip = kcalloc(1, sizeof(*chip), GFP_KERNEL);
 	if (chip == NULL)
 		return NULL;
 	chip->card = card;
@@ -255,9 +255,9 @@ void snd_pdacf_powerdown(pdacf_t *chip)
 
 #ifdef CONFIG_PM
 
-int snd_pdacf_suspend(snd_card_t *card, unsigned int state)
+int snd_pdacf_suspend(snd_card_t *card, pm_message_t state)
 {
-	pdacf_t *chip = snd_magic_cast(pdacf_t, card->pm_private_data, return -EINVAL);
+	pdacf_t *chip = card->pm_private_data;
 	u16 val;
 	
 	snd_pcm_suspend_all(chip->pcm);
@@ -267,7 +267,6 @@ int snd_pdacf_suspend(snd_card_t *card, unsigned int state)
 	outw(val, chip->port + PDAUDIOCF_REG_IER);
 	chip->chip_status |= PDAUDIOCF_STAT_IS_SUSPENDED;	/* ignore interrupts from now */
 	snd_pdacf_powerdown(chip);
-	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
 	return 0;
 }
 
@@ -276,9 +275,9 @@ static inline int check_signal(pdacf_t *chip)
 	return (chip->ak4117->rcs0 & AK4117_UNLCK) == 0;
 }
 
-int snd_pdacf_resume(snd_card_t *card, unsigned int state)
+int snd_pdacf_resume(snd_card_t *card)
 {
-	pdacf_t *chip = snd_magic_cast(pdacf_t, card->pm_private_data, return -EINVAL);
+	pdacf_t *chip = card->pm_private_data;
 	int timeout = 40;
 
 	pdacf_reinit(chip, 1);
@@ -287,7 +286,6 @@ int snd_pdacf_resume(snd_card_t *card, unsigned int state)
 	       (snd_ak4117_external_rate(chip->ak4117) <= 0 || !check_signal(chip)))
 		mdelay(1);
 	chip->chip_status &= ~PDAUDIOCF_STAT_IS_SUSPENDED;
-	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
 	return 0;
 }
 #endif

@@ -53,7 +53,7 @@ struct mixart_uid
 
 struct mem_area {
 	unsigned long phys;
-	unsigned long virt;
+	void __iomem *virt;
 	struct resource *res;
 };
 
@@ -112,10 +112,9 @@ struct snd_mixart_mgr {
 	struct semaphore setup_mutex; /* mutex used in hw_params, open and close */
 
 	/* hardware interface */
-	snd_hwdep_t *hwdep;
+	unsigned int dsp_loaded;      /* bit flags of loaded dsp indices */
 	unsigned int board_type;      /* read from embedded once elf file is loaded, 250 = miXart8, 251 = with AES, 252 = with Cobranet */
 
-	struct snd_dma_device dma_dev;
 	struct snd_dma_buffer flowinfo;
 	struct snd_dma_buffer bufferinfo;
 

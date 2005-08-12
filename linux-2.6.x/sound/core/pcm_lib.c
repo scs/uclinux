@@ -128,12 +128,29 @@ void snd_pcm_playback_silence(snd_pcm_substream_t *substream, snd_pcm_uframes_t 
 	}
 }
 
+static void xrun(snd_pcm_substream_t *substream)
+{
+	snd_pcm_stop(substream, SNDRV_PCM_STATE_XRUN);
+#ifdef CONFIG_SND_DEBUG
+	if (substream->pstr->xrun_debug) {
+		snd_printd(KERN_DEBUG "XRUN: pcmC%dD%d%c\n",
+			   substream->pcm->card->number,
+			   substream->pcm->device,
+			   substream->stream ? 'c' : 'p');
+		if (substream->pstr->xrun_debug > 1)
+			dump_stack();
+	}
+#endif
+}
+
 static inline snd_pcm_uframes_t snd_pcm_update_hw_ptr_pos(snd_pcm_substream_t *substream,
 							  snd_pcm_runtime_t *runtime)
 {
 	snd_pcm_uframes_t pos;
 
 	pos = substream->ops->pointer(substream);
+	if (pos == SNDRV_PCM_POS_XRUN)
+		return pos; /* XRUN */
 	if (runtime->tstamp_mode & SNDRV_PCM_TSTAMP_MMAP)
 		snd_timestamp_now((snd_timestamp_t*)&runtime->status->tstamp, runtime->tstamp_timespec);
 #ifdef CONFIG_SND_DEBUG
@@ -158,19 +175,10 @@ static inline int snd_pcm_update_hw_ptr_post(snd_pcm_substream_t *substream,
 	if (avail > runtime->avail_max)
 		runtime->avail_max = avail;
 	if (avail >= runtime->stop_threshold) {
-		snd_pcm_stop(substream,
-			     runtime->status->state == SNDRV_PCM_STATE_DRAINING ?
-			     SNDRV_PCM_STATE_SETUP : SNDRV_PCM_STATE_XRUN);
-#ifdef CONFIG_SND_DEBUG
-		if (substream->pstr->xrun_debug) {
-			snd_printd(KERN_DEBUG "XRUN: pcmC%dD%d%c\n",
-				   substream->pcm->card->number,
-				   substream->pcm->device,
-				   substream->stream ? 'c' : 'p');
-			if (substream->pstr->xrun_debug > 1)
-				dump_stack();
-		}
-#endif
+		if (substream->runtime->status->state == SNDRV_PCM_STATE_DRAINING)
+			snd_pcm_drain_done(substream);
+		else
+			xrun(substream);
 		return -EPIPE;
 	}
 	if (avail >= runtime->control->avail_min)
@@ -186,6 +194,10 @@ static inline int snd_pcm_update_hw_ptr_interrupt(snd_pcm_substream_t *substream
 	snd_pcm_sframes_t delta;
 
 	pos = snd_pcm_update_hw_ptr_pos(substream, runtime);
+	if (pos == SNDRV_PCM_POS_XRUN) {
+		xrun(substream);
+		return -EPIPE;
+	}
 	if (runtime->period_size == runtime->buffer_size)
 		goto __next_buf;
 	new_hw_ptr = runtime->hw_ptr_base + pos;
@@ -230,6 +242,10 @@ int snd_pcm_update_hw_ptr(snd_pcm_substream_t *substream)
 
 	old_hw_ptr = runtime->status->hw_ptr;
 	pos = snd_pcm_update_hw_ptr_pos(substream, runtime);
+	if (pos == SNDRV_PCM_POS_XRUN) {
+		xrun(substream);
+		return -EPIPE;
+	}
 	new_hw_ptr = runtime->hw_ptr_base + pos;
 
 	delta = old_hw_ptr - new_hw_ptr;
@@ -355,7 +371,7 @@ static inline unsigned int muldiv32(unsigned int a, unsigned int b,
 	return n;
 }
 
-int snd_interval_refine_min(snd_interval_t *i, unsigned int min, int openmin)
+static int snd_interval_refine_min(snd_interval_t *i, unsigned int min, int openmin)
 {
 	int changed = 0;
 	assert(!snd_interval_empty(i));
@@ -380,7 +396,7 @@ int snd_interval_refine_min(snd_interval_t *i, unsigned int min, int openmin)
 	return changed;
 }
 
-int snd_interval_refine_max(snd_interval_t *i, unsigned int max, int openmax)
+static int snd_interval_refine_max(snd_interval_t *i, unsigned int max, int openmax)
 {
 	int changed = 0;
 	assert(!snd_interval_empty(i));
@@ -458,7 +474,7 @@ int snd_interval_refine(snd_interval_t *i, const snd_interval_t *v)
 	return changed;
 }
 
-int snd_interval_refine_first(snd_interval_t *i)
+static int snd_interval_refine_first(snd_interval_t *i)
 {
 	assert(!snd_interval_empty(i));
 	if (snd_interval_single(i))
@@ -470,7 +486,7 @@ int snd_interval_refine_first(snd_interval_t *i)
 	return 1;
 }
 
-int snd_interval_refine_last(snd_interval_t *i)
+static int snd_interval_refine_last(snd_interval_t *i)
 {
 	assert(!snd_interval_empty(i));
 	if (snd_interval_single(i))
@@ -482,7 +498,7 @@ int snd_interval_refine_last(snd_interval_t *i)
 	return 1;
 }
 
-int snd_interval_refine_set(snd_interval_t *i, unsigned int val)
+static int snd_interval_refine_set(snd_interval_t *i, unsigned int val)
 {
 	snd_interval_t t;
 	t.empty = 0;
@@ -702,9 +718,9 @@ int snd_interval_ratnum(snd_interval_t *i,
  *
  * Returns non-zero if the value is changed, zero if not changed.
  */
-int snd_interval_ratden(snd_interval_t *i,
-		    unsigned int rats_count, ratden_t *rats,
-		    unsigned int *nump, unsigned int *denp)
+static int snd_interval_ratden(snd_interval_t *i,
+			       unsigned int rats_count, ratden_t *rats,
+			       unsigned int *nump, unsigned int *denp)
 {
 	unsigned int best_num, best_diff, best_den;
 	unsigned int k;
@@ -842,7 +858,7 @@ int snd_interval_list(snd_interval_t *i, unsigned int count, unsigned int *list,
         return changed;
 }
 
-int snd_interval_step(snd_interval_t *i, unsigned int min, unsigned int step)
+static int snd_interval_step(snd_interval_t *i, unsigned int min, unsigned int step)
 {
 	unsigned int n;
 	int changed = 0;
@@ -887,22 +903,18 @@ int snd_pcm_hw_rule_add(snd_pcm_runtime_t *runtime, unsigned int cond,
 	va_list args;
 	va_start(args, dep);
 	if (constrs->rules_num >= constrs->rules_all) {
-		snd_pcm_hw_rule_t *old = constrs->rules;
-		if (constrs->rules_all == 0)
-			constrs->rules_all = 32;
-		else {
-			old = constrs->rules;
-			constrs->rules_all += 10;
-		}
-		constrs->rules = snd_kcalloc(constrs->rules_all * sizeof(*c),
-					     GFP_KERNEL);
-		if (!constrs->rules)
+		snd_pcm_hw_rule_t *new;
+		unsigned int new_rules = constrs->rules_all + 16;
+		new = kcalloc(new_rules, sizeof(*c), GFP_KERNEL);
+		if (!new)
 			return -ENOMEM;
-		if (old) {
-			memcpy(constrs->rules, old,
+		if (constrs->rules) {
+			memcpy(new, constrs->rules,
 			       constrs->rules_num * sizeof(*c));
-			kfree(old);
+			kfree(constrs->rules);
 		}
+		constrs->rules = new;
+		constrs->rules_all = new_rules;
 	}
 	c = &constrs->rules[constrs->rules_num];
 	c->cond = cond;
@@ -911,7 +923,7 @@ int snd_pcm_hw_rule_add(snd_pcm_runtime_t *runtime, unsigned int cond,
 	c->private = private;
 	k = 0;
 	while (1) {
-		snd_assert(k < sizeof(c->deps) / sizeof(c->deps[0]), return -EINVAL);
+		snd_assert(k < ARRAY_SIZE(c->deps), return -EINVAL);
 		c->deps[k++] = dep;
 		if (dep < 0)
 			break;
@@ -1109,7 +1121,7 @@ static int snd_pcm_hw_rule_pow2(snd_pcm_hw_params_t *params, snd_pcm_hw_rule_t *
 		1<<24, 1<<25, 1<<26, 1<<27, 1<<28, 1<<29, 1<<30
 	};
 	return snd_interval_list(hw_param_interval(params, rule->var),
-				 sizeof(pow2_sizes)/sizeof(int), pow2_sizes, 0);
+				 ARRAY_SIZE(pow2_sizes), pow2_sizes, 0);
 }		
 
 /**
@@ -1769,12 +1781,14 @@ static int snd_pcm_lib_ioctl_reset(snd_pcm_substream_t *substream,
 				   void *arg)
 {
 	snd_pcm_runtime_t *runtime = substream->runtime;
+	unsigned long flags;
+	snd_pcm_stream_lock_irqsave(substream, flags);
 	if (snd_pcm_running(substream) &&
-	    snd_pcm_update_hw_ptr(substream) >= 0) {
+	    snd_pcm_update_hw_ptr(substream) >= 0)
 		runtime->status->hw_ptr %= runtime->buffer_size;
-		return 0;
-	}
-	runtime->status->hw_ptr = 0;
+	else
+		runtime->status->hw_ptr = 0;
+	snd_pcm_stream_unlock_irqrestore(substream, flags);
 	return 0;
 }
 
@@ -1842,80 +1856,6 @@ int snd_pcm_lib_ioctl(snd_pcm_substream_t *substream,
  *  Conditions
  */
 
-/**
- * snd_pcm_playback_ready - check whether the playback buffer is available
- * @substream: the pcm substream instance
- *
- * Checks whether enough free space is available on the playback buffer.
- *
- * Returns non-zero if available, or zero if not.
- */
-int snd_pcm_playback_ready(snd_pcm_substream_t *substream)
-{
-	snd_pcm_runtime_t *runtime = substream->runtime;
-	return snd_pcm_playback_avail(runtime) >= runtime->control->avail_min;
-}
-
-/**
- * snd_pcm_capture_ready - check whether the capture buffer is available
- * @substream: the pcm substream instance
- *
- * Checks whether enough capture data is available on the capture buffer.
- *
- * Returns non-zero if available, or zero if not.
- */
-int snd_pcm_capture_ready(snd_pcm_substream_t *substream)
-{
-	snd_pcm_runtime_t *runtime = substream->runtime;
-	return snd_pcm_capture_avail(runtime) >= runtime->control->avail_min;
-}
-
-/**
- * snd_pcm_playback_data - check whether any data exists on the playback buffer
- * @substream: the pcm substream instance
- *
- * Checks whether any data exists on the playback buffer. If stop_threshold
- * is bigger or equal to boundary, then this function returns always non-zero.
- *
- * Returns non-zero if exists, or zero if not.
- */
-int snd_pcm_playback_data(snd_pcm_substream_t *substream)
-{
-	snd_pcm_runtime_t *runtime = substream->runtime;
-	
-	if (runtime->stop_threshold >= runtime->boundary)
-		return 1;
-	return snd_pcm_playback_avail(runtime) < runtime->buffer_size;
-}
-
-/**
- * snd_pcm_playback_empty - check whether the playback buffer is empty
- * @substream: the pcm substream instance
- *
- * Checks whether the playback buffer is empty.
- *
- * Returns non-zero if empty, or zero if not.
- */
-int snd_pcm_playback_empty(snd_pcm_substream_t *substream)
-{
-	snd_pcm_runtime_t *runtime = substream->runtime;
-	return snd_pcm_playback_avail(runtime) >= runtime->buffer_size;
-}
-
-/**
- * snd_pcm_capture_empty - check whether the capture buffer is empty
- * @substream: the pcm substream instance
- *
- * Checks whether the capture buffer is empty.
- *
- * Returns non-zero if empty, or zero if not.
- */
-int snd_pcm_capture_empty(snd_pcm_substream_t *substream)
-{
-	snd_pcm_runtime_t *runtime = substream->runtime;
-	return snd_pcm_capture_avail(runtime) == 0;
-}
-
 static void snd_pcm_system_tick_set(snd_pcm_substream_t *substream, 
 				    unsigned long ticks)
 {
@@ -1923,9 +1863,8 @@ static void snd_pcm_system_tick_set(snd_pcm_substream_t *substream,
 	if (ticks == 0)
 		del_timer(&runtime->tick_timer);
 	else {
+		ticks += (1000000 / HZ) - 1;
 		ticks /= (1000000 / HZ);
-		if (ticks % (1000000 / HZ))
-			ticks++;
 		mod_timer(&runtime->tick_timer, jiffies + ticks);
 	}
 }
@@ -2202,11 +2141,9 @@ static snd_pcm_sframes_t snd_pcm_lib_write1(snd_pcm_substream_t *substream,
 			break;
 		}
 		appl_ptr += frames;
-		if (appl_ptr >= runtime->boundary) {
-			runtime->control->appl_ptr = 0;
-		} else {
-			runtime->control->appl_ptr = appl_ptr;
-		}
+		if (appl_ptr >= runtime->boundary)
+			appl_ptr -= runtime->boundary;
+		runtime->control->appl_ptr = appl_ptr;
 		if (substream->ops->ack)
 			substream->ops->ack(substream);
 
@@ -2501,11 +2438,9 @@ static snd_pcm_sframes_t snd_pcm_lib_read1(snd_pcm_substream_t *substream,
 			break;
 		}
 		appl_ptr += frames;
-		if (appl_ptr >= runtime->boundary) {
-			runtime->control->appl_ptr = 0;
-		} else {
-			runtime->control->appl_ptr = appl_ptr;
-		}
+		if (appl_ptr >= runtime->boundary)
+			appl_ptr -= runtime->boundary;
+		runtime->control->appl_ptr = appl_ptr;
 		if (substream->ops->ack)
 			substream->ops->ack(substream);
 
@@ -2629,7 +2564,6 @@ snd_pcm_sframes_t snd_pcm_lib_readv(snd_pcm_substream_t *substream,
 EXPORT_SYMBOL(snd_interval_refine);
 EXPORT_SYMBOL(snd_interval_list);
 EXPORT_SYMBOL(snd_interval_ratnum);
-EXPORT_SYMBOL(snd_interval_ratden);
 EXPORT_SYMBOL(snd_interval_muldivk);
 EXPORT_SYMBOL(snd_interval_mulkdiv);
 EXPORT_SYMBOL(snd_interval_div);
@@ -2646,6 +2580,7 @@ EXPORT_SYMBOL(snd_pcm_hw_param_last);
 EXPORT_SYMBOL(snd_pcm_hw_param_near);
 EXPORT_SYMBOL(snd_pcm_hw_param_set);
 EXPORT_SYMBOL(snd_pcm_hw_refine);
+EXPORT_SYMBOL(snd_pcm_hw_params);
 EXPORT_SYMBOL(snd_pcm_hw_constraints_init);
 EXPORT_SYMBOL(snd_pcm_hw_constraints_complete);
 EXPORT_SYMBOL(snd_pcm_hw_constraint_list);
@@ -2660,10 +2595,6 @@ EXPORT_SYMBOL(snd_pcm_hw_rule_add);
 EXPORT_SYMBOL(snd_pcm_set_ops);
 EXPORT_SYMBOL(snd_pcm_set_sync);
 EXPORT_SYMBOL(snd_pcm_lib_ioctl);
-EXPORT_SYMBOL(snd_pcm_playback_ready);
-EXPORT_SYMBOL(snd_pcm_capture_ready);
-EXPORT_SYMBOL(snd_pcm_playback_data);
-EXPORT_SYMBOL(snd_pcm_capture_empty);
 EXPORT_SYMBOL(snd_pcm_stop);
 EXPORT_SYMBOL(snd_pcm_period_elapsed);
 EXPORT_SYMBOL(snd_pcm_lib_write);
@@ -2673,7 +2604,6 @@ EXPORT_SYMBOL(snd_pcm_lib_readv);
 EXPORT_SYMBOL(snd_pcm_lib_buffer_bytes);
 EXPORT_SYMBOL(snd_pcm_lib_period_bytes);
 /* pcm_memory.c */
-EXPORT_SYMBOL(snd_pcm_lib_preallocate_free);
 EXPORT_SYMBOL(snd_pcm_lib_preallocate_free_for_all);
 EXPORT_SYMBOL(snd_pcm_lib_preallocate_pages);
 EXPORT_SYMBOL(snd_pcm_lib_preallocate_pages_for_all);

@@ -23,6 +23,7 @@
 #include <asm/io.h>
 #include <linux/init.h>
 #include <linux/slab.h>
+#include <linux/pci.h>
 #include <sound/core.h>
 #include <sound/trident.h>
 #include <sound/seq_device.h>
@@ -506,7 +507,7 @@ static void sample_private1(trident_t * trident, snd_trident_voice_t * voice, un
 static int snd_trident_simple_put_sample(void *private_data, simple_instrument_t * instr,
 					 char __user *data, long len, int atomic)
 {
-	trident_t *trident = snd_magic_cast(trident_t, private_data, return -ENXIO);
+	trident_t *trident = private_data;
 	int size = instr->size;
 	int shift = 0;
 
@@ -524,7 +525,7 @@ static int snd_trident_simple_put_sample(void *private_data, simple_instrument_t
 	if (trident->synth.current_size + size > trident->synth.max_size)
 		return -ENOMEM;
 
-	if (verify_area(VERIFY_READ, data, size))
+	if (!access_ok(VERIFY_READ, data, size))
 		return -EFAULT;
 
 	if (trident->tlb.entries) {
@@ -540,12 +541,12 @@ static int snd_trident_simple_put_sample(void *private_data, simple_instrument_t
 		instr->address.memory = memblk->offset;
 	} else {
 		struct snd_dma_buffer dmab;
-
-		if (snd_dma_alloc_pages(&trident->dma_dev, size, &dmab) < 0)
+		if (snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, snd_dma_pci_data(trident->pci),
+					size, &dmab) < 0)
 			return -ENOMEM;
 
 		if (copy_from_user(dmab.area, data, size)) {
-			snd_dma_free_pages(&trident->dma_dev, &dmab);
+			snd_dma_free_pages(&dmab);
 			return -EFAULT;
 		}
 		instr->address.ptr = dmab.area;
@@ -559,7 +560,7 @@ static int snd_trident_simple_put_sample(void *private_data, simple_instrument_t
 static int snd_trident_simple_get_sample(void *private_data, simple_instrument_t * instr,
 					 char __user *data, long len, int atomic)
 {
-	//trident_t *trident = snd_magic_cast(trident_t, private_data, return -ENXIO);
+	//trident_t *trident = private_data;
 	int size = instr->size;
 	int shift = 0;
 
@@ -569,7 +570,7 @@ static int snd_trident_simple_get_sample(void *private_data, simple_instrument_t
 		shift++;
 	size <<= shift;
 
-	if (verify_area(VERIFY_WRITE, data, size))
+	if (!access_ok(VERIFY_WRITE, data, size))
 		return -EFAULT;
 
 	/* FIXME: not implemented yet */
@@ -580,8 +581,13 @@ static int snd_trident_simple_get_sample(void *private_data, simple_instrument_t
 static int snd_trident_simple_remove_sample(void *private_data, simple_instrument_t * instr,
 					    int atomic)
 {
-	trident_t *trident = snd_magic_cast(trident_t, private_data, return -ENXIO);
+	trident_t *trident = private_data;
 	int size = instr->size;
+
+	if (instr->format & SIMPLE_WAVE_16BIT)
+		size <<= 1;
+	if (instr->format & SIMPLE_WAVE_STEREO)
+		size <<= 1;
 
 	if (trident->tlb.entries) {
 		snd_util_memblk_t *memblk = (snd_util_memblk_t*)instr->address.ptr;
@@ -590,13 +596,14 @@ static int snd_trident_simple_remove_sample(void *private_data, simple_instrumen
 		else
 			return -EFAULT;
 	} else {
-		kfree(instr->address.ptr);
+		struct snd_dma_buffer dmab;
+		dmab.dev.type = SNDRV_DMA_TYPE_DEV;
+		dmab.dev.dev = snd_dma_pci_data(trident->pci);
+		dmab.area = instr->address.ptr;
+		dmab.addr = instr->address.memory;
+		dmab.bytes = size;
+		snd_dma_free_pages(&dmab);
 	}
-
-	if (instr->format & SIMPLE_WAVE_16BIT)
-		size <<= 1;
-	if (instr->format & SIMPLE_WAVE_STEREO)
-		size <<= 1;
 
 	trident->synth.current_size -= size;
 	if (trident->synth.current_size < 0)	/* shouldn't need this check... */
@@ -611,7 +618,7 @@ static void select_instrument(trident_t * trident, snd_trident_voice_t * v)
 	instr = snd_seq_instr_find(trident->synth.ilist, &v->instr, 0, 1);
 	if (instr != NULL) {
 		if (instr->ops) {
-			if (instr->ops->instr_type == snd_seq_simple_id)
+			if (!strcmp(instr->ops->instr_type, SNDRV_SEQ_INSTR_ID_SIMPLE))
 				snd_trident_simple_init(v);
 		}
 		snd_seq_instr_free_use(trident->synth.ilist, instr);
@@ -804,7 +811,7 @@ static void snd_trident_synth_free_private_instruments(snd_trident_port_t * p, i
 	snd_seq_instr_list_free_cond(p->trident->synth.ilist, &ifree, client, 0);
 }
 
-int snd_trident_synth_event_input(snd_seq_event_t * ev, int direct, void *private_data, int atomic, int hop)
+static int snd_trident_synth_event_input(snd_seq_event_t * ev, int direct, void *private_data, int atomic, int hop)
 {
 	snd_trident_port_t *p = (snd_trident_port_t *) private_data;
 
@@ -838,7 +845,7 @@ static void snd_trident_synth_instr_notify(void *private_data,
 					   int what)
 {
 	int idx;
-	trident_t *trident = snd_magic_cast(trident_t, private_data, return);
+	trident_t *trident = private_data;
 	snd_trident_voice_t *pvoice;
 	unsigned long flags;
 

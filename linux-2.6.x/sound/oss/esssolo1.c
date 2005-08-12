@@ -226,7 +226,7 @@ struct solo1_state {
 		unsigned char obuf[MIDIOUTBUF];
 	} midi;
 
-	struct gameport gameport;
+	struct gameport *gameport;
 };
 
 /* --------------------------------------------------------------------- */
@@ -445,7 +445,7 @@ static int prog_dmabuf(struct solo1_state *s, struct dmabuf *db)
 		if (!db->rawbuf)
 			return -ENOMEM;
 		db->buforder = order;
-		/* now mark the pages as reserved; otherwise remap_page_range doesn't do what we want */
+		/* now mark the pages as reserved; otherwise remap_pfn_range doesn't do what we want */
 		pend = virt_to_page(db->rawbuf + (PAGE_SIZE << db->buforder) - 1);
 		for (page = virt_to_page(db->rawbuf); page <= pend; page++)
 			SetPageReserved(page);
@@ -1242,7 +1242,9 @@ static int solo1_mmap(struct file *file, struct vm_area_struct *vma)
 	if (size > (PAGE_SIZE << db->buforder))
 		goto out;
 	ret = -EAGAIN;
-	if (remap_page_range(vma, vma->vm_start, virt_to_phys(db->rawbuf), size, vma->vm_page_prot))
+	if (remap_pfn_range(vma, vma->vm_start,
+				virt_to_phys(db->rawbuf) >> PAGE_SHIFT,
+				size, vma->vm_page_prot))
 		goto out;
 	db->mapped = 1;
 	ret = 0;
@@ -2191,7 +2193,7 @@ static /*const*/ struct file_operations solo1_dmfm_fops = {
 static struct initvol {
 	int mixch;
 	int vol;
-} initvol[] __initdata = {
+} initvol[] __devinitdata = {
 	{ SOUND_MIXER_WRITE_VOLUME, 0x4040 },
 	{ SOUND_MIXER_WRITE_PCM, 0x4040 },
 	{ SOUND_MIXER_WRITE_SYNTH, 0x4040 },
@@ -2255,7 +2257,7 @@ static int setup_solo1(struct solo1_state *s)
 }
 
 static int
-solo1_suspend(struct pci_dev *pci_dev, u32 state) {
+solo1_suspend(struct pci_dev *pci_dev, pm_message_t state) {
 	struct solo1_state *s = (struct solo1_state*)pci_get_drvdata(pci_dev);
 	if (!s)
 		return 1;
@@ -2278,9 +2280,36 @@ solo1_resume(struct pci_dev *pci_dev) {
 	return 0;
 }
 
+static int __devinit solo1_register_gameport(struct solo1_state *s, int io_port)
+{
+	struct gameport *gp;
+
+	if (!request_region(io_port, GAMEPORT_EXTENT, "ESS Solo1")) {
+		printk(KERN_ERR "solo1: gameport io ports are in use\n");
+		return -EBUSY;
+	}
+
+	s->gameport = gp = gameport_allocate_port();
+	if (!gp) {
+		printk(KERN_ERR "solo1: can not allocate memory for gameport\n");
+		release_region(io_port, GAMEPORT_EXTENT);
+		return -ENOMEM;
+	}
+
+	gameport_set_name(gp, "ESS Solo1 Gameport");
+	gameport_set_phys(gp, "isa%04x/gameport0", io_port);
+	gp->dev.parent = &s->dev->dev;
+	gp->io = io_port;
+
+	gameport_register_port(gp);
+
+	return 0;
+}
+
 static int __devinit solo1_probe(struct pci_dev *pcidev, const struct pci_device_id *pciid)
 {
 	struct solo1_state *s;
+	int gpio;
 	int ret;
 
  	if ((ret=pci_enable_device(pcidev)))
@@ -2321,7 +2350,7 @@ static int __devinit solo1_probe(struct pci_dev *pcidev, const struct pci_device
 	s->vcbase = pci_resource_start(pcidev, 2);
 	s->ddmabase = s->vcbase + DDMABASE_OFFSET;
 	s->mpubase = pci_resource_start(pcidev, 3);
-	s->gameport.io = pci_resource_start(pcidev, 4);
+	gpio = pci_resource_start(pcidev, 4);
 	s->irq = pcidev->irq;
 	ret = -EBUSY;
 	if (!request_region(s->iobase, IOBASE_EXTENT, "ESS Solo1")) {
@@ -2340,15 +2369,10 @@ static int __devinit solo1_probe(struct pci_dev *pcidev, const struct pci_device
 		printk(KERN_ERR "solo1: io ports in use\n");
 		goto err_region4;
 	}
-	if (s->gameport.io && !request_region(s->gameport.io, GAMEPORT_EXTENT, "ESS Solo1")) {
-		printk(KERN_ERR "solo1: gameport io ports in use\n");
-		s->gameport.io = 0;
-	}
 	if ((ret=request_irq(s->irq,solo1_interrupt,SA_SHIRQ,"ESS Solo1",s))) {
 		printk(KERN_ERR "solo1: irq %u in use\n", s->irq);
 		goto err_irq;
 	}
-	printk(KERN_INFO "solo1: joystick port at %#x\n", s->gameport.io+1);
 	/* register devices */
 	if ((s->dev_audio = register_sound_dsp(&solo1_audio_fops, -1)) < 0) {
 		ret = s->dev_audio;
@@ -2371,7 +2395,7 @@ static int __devinit solo1_probe(struct pci_dev *pcidev, const struct pci_device
 		goto err;
 	}
 	/* register gameport */
-	gameport_register_port(&s->gameport);
+	solo1_register_gameport(s, gpio);
 	/* store it in the driver field */
 	pci_set_drvdata(pcidev, s);
 	return 0;
@@ -2388,8 +2412,6 @@ static int __devinit solo1_probe(struct pci_dev *pcidev, const struct pci_device
 	printk(KERN_ERR "solo1: initialisation error\n");
 	free_irq(s->irq, s);
  err_irq:
-	if (s->gameport.io)
-		release_region(s->gameport.io, GAMEPORT_EXTENT);
 	release_region(s->mpubase, MPUBASE_EXTENT);
  err_region4:
 	release_region(s->ddmabase, DDMABASE_EXTENT);
@@ -2415,9 +2437,10 @@ static void __devexit solo1_remove(struct pci_dev *dev)
 	synchronize_irq(s->irq);
 	pci_write_config_word(s->dev, 0x60, 0); /* turn off DDMA controller address space */
 	free_irq(s->irq, s);
-	if (s->gameport.io) {
-		gameport_unregister_port(&s->gameport);
-		release_region(s->gameport.io, GAMEPORT_EXTENT);
+	if (s->gameport) {
+		int gpio = s->gameport->io;
+		gameport_unregister_port(s->gameport);
+		release_region(gpio, GAMEPORT_EXTENT);
 	}
 	release_region(s->iobase, IOBASE_EXTENT);
 	release_region(s->sbbase+FMSYNTH_EXTENT, SBBASE_EXTENT-FMSYNTH_EXTENT);
@@ -2451,11 +2474,7 @@ static struct pci_driver solo1_driver = {
 static int __init init_solo1(void)
 {
 	printk(KERN_INFO "solo1: version v0.20 time " __TIME__ " " __DATE__ "\n");
-	if (!pci_register_driver(&solo1_driver)) {
-		pci_unregister_driver(&solo1_driver);
-                return -ENODEV;
-	}
-	return 0;
+	return pci_register_driver(&solo1_driver);
 }
 
 /* --------------------------------------------------------------------- */

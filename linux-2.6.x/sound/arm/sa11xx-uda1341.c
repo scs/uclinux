@@ -108,15 +108,12 @@
 MODULE_AUTHOR("Tomas Kasparek <tomas.kasparek@seznam.cz>");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("SA1100/SA1111 + UDA1341TS driver for ALSA");
-MODULE_CLASSES("{sound}");
-MODULE_DEVICES("{{UDA1341,iPAQ H3600 UDA1341TS}}");
+MODULE_SUPPORTED_DEVICE("{{UDA1341,iPAQ H3600 UDA1341TS}}");
 
 static char *id = NULL;	/* ID for this card */
 
 module_param(id, charp, 0444);
 MODULE_PARM_DESC(id, "ID string for SA1100/SA1111 + UDA1341TS soundcard.");
-
-#define chip_t sa11xx_uda1341_t
 
 typedef struct audio_stream {
 	char *id;		/* identification string */
@@ -152,10 +149,8 @@ static unsigned int rates[] = {
 	29400, 32000, 44100, 48000,
 };
 
-#define RATES sizeof(rates) / sizeof(rates[0])
-
 static snd_pcm_hw_constraint_list_t hw_constraints_rates = {
-	.count	= RATES,
+	.count	= ARRAY_SIZE(rates),
 	.list	= rates,
 	.mask	= 0,
 };
@@ -867,9 +862,9 @@ static int __init snd_card_sa11xx_uda1341_pcm(sa11xx_uda1341_t *sa11xx_uda1341, 
 
 #ifdef CONFIG_PM
 
-static int snd_sa11xx_uda1341_suspend(snd_card_t *card, unsigned int state)
+static int snd_sa11xx_uda1341_suspend(snd_card_t *card, pm_message_t state)
 {
-	sa11xx_uda1341_t *chip = snd_magic_cast(sa11x_uda1341_t, card->pm_private_data, return -EINVAL);
+	sa11xx_uda1341_t *chip = card->pm_private_data;
 
 	snd_pcm_suspend_all(chip->pcm);
 #ifdef HH_VERSION	
@@ -880,13 +875,12 @@ static int snd_sa11xx_uda1341_suspend(snd_card_t *card, unsigned int state)
 #endif
 	l3_command(chip->uda1341, CMD_SUSPEND, NULL);
 	sa11xx_uda1341_audio_shutdown(chip);
-	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
 	return 0;
 }
 
-static int snd_sa11xx_uda1341_resume(snd_card_t *card, unsigned int state)
+static int snd_sa11xx_uda1341_resume(snd_card_t *card)
 {
-	sa11xx_uda1341_t *chip = snd_magic_cast(sa11x_uda1341_t, card->pm_private_data, return -EINVAL);
+	sa11xx_uda1341_t *chip = card->pm_private_data;
 
 	sa11xx_uda1341_audio_init(chip);
 	l3_command(chip->uda1341, CMD_RESUME, NULL);
@@ -896,14 +890,13 @@ static int snd_sa11xx_uda1341_resume(snd_card_t *card, unsigned int state)
 #else
 	//FIXME
 #endif
-	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
 	return 0;
 }
 #endif /* COMFIG_PM */
 
 void snd_sa11xx_uda1341_free(snd_card_t *card)
 {
-	sa11xx_uda1341_t *chip = snd_magic_cast(sa11xx_uda1341_t, card->private_data, return);
+	sa11xx_uda1341_t *chip = card->private_data;
 
 	audio_dma_free(&chip->s[SNDRV_PCM_STREAM_PLAYBACK]);
 	audio_dma_free(&chip->s[SNDRV_PCM_STREAM_CAPTURE]);
@@ -925,7 +918,7 @@ static int __init sa11xx_uda1341_init(void)
 	if (card == NULL)
 		return -ENOMEM;
 
-	sa11xx_uda1341 = snd_magic_kcalloc(sa11xx_uda1341_t, 0, GFP_KERNEL);
+	sa11xx_uda1341 = kcalloc(1, sizeof(*sa11xx_uda1341), GFP_KERNEL);
 	if (sa11xx_uda1341 == NULL)
 		return -ENOMEM;	
 	spin_lock_init(&chip->s[0].dma_lock);
@@ -945,7 +938,7 @@ static int __init sa11xx_uda1341_init(void)
 	if ((err = snd_card_sa11xx_uda1341_pcm(sa11xx_uda1341, 0)) < 0)
 		goto nodev;
         
-	snd_card_set_dev_pm_callback(card, PM_SYS_DEV,
+	snd_card_set_generic_pm_callback(card,
 				     snd_sa11xx_uda1341_suspend, snd_sa11_uda1341_resume,
 				     sa11xx_uda1341);
 

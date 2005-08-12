@@ -29,8 +29,6 @@
 MODULE_AUTHOR("Jaroslav Kysela <perex@suse.cz>");
 MODULE_DESCRIPTION("Advanced Linux Sound Architecture sequencer instrument library.");
 MODULE_LICENSE("GPL");
-MODULE_CLASSES("{sound}");
-MODULE_SUPPORTED_DEVICE("sound");
 
 
 static void snd_instr_lock_ops(snd_seq_kinstr_list_t *list)
@@ -51,33 +49,18 @@ static void snd_instr_unlock_ops(snd_seq_kinstr_list_t *list)
 	}
 }
 
-snd_seq_kcluster_t *snd_seq_cluster_new(int atomic)
-{
-	snd_seq_kcluster_t *cluster;
-	
-	cluster = (snd_seq_kcluster_t *) snd_kcalloc(sizeof(snd_seq_kcluster_t), atomic ? GFP_ATOMIC : GFP_KERNEL);
-	return cluster;
-}
-
-void snd_seq_cluster_free(snd_seq_kcluster_t *cluster, int atomic)
-{
-	if (cluster == NULL)
-		return;
-	kfree(cluster);
-}
-
-snd_seq_kinstr_t *snd_seq_instr_new(int add_len, int atomic)
+static snd_seq_kinstr_t *snd_seq_instr_new(int add_len, int atomic)
 {
 	snd_seq_kinstr_t *instr;
 	
-	instr = (snd_seq_kinstr_t *) snd_kcalloc(sizeof(snd_seq_kinstr_t) + add_len, atomic ? GFP_ATOMIC : GFP_KERNEL);
+	instr = kcalloc(1, sizeof(snd_seq_kinstr_t) + add_len, atomic ? GFP_ATOMIC : GFP_KERNEL);
 	if (instr == NULL)
 		return NULL;
 	instr->add_len = add_len;
 	return instr;
 }
 
-int snd_seq_instr_free(snd_seq_kinstr_t *instr, int atomic)
+static int snd_seq_instr_free(snd_seq_kinstr_t *instr, int atomic)
 {
 	int result = 0;
 
@@ -94,7 +77,7 @@ snd_seq_kinstr_list_t *snd_seq_instr_list_new(void)
 {
 	snd_seq_kinstr_list_t *list;
 
-	list = (snd_seq_kinstr_list_t *) snd_kcalloc(sizeof(snd_seq_kinstr_list_t), GFP_KERNEL);
+	list = kcalloc(1, sizeof(snd_seq_kinstr_list_t), GFP_KERNEL);
 	if (list == NULL)
 		return NULL;
 	spin_lock_init(&list->lock);
@@ -137,7 +120,7 @@ void snd_seq_instr_list_free(snd_seq_kinstr_list_t **list_ptr)
 		while ((cluster = list->chash[idx]) != NULL) {
 			list->chash[idx] = cluster->next;
 			list->ccount--;
-			snd_seq_cluster_free(cluster, 0);
+			kfree(cluster);
 		}
 	}
 	kfree(list);
@@ -447,7 +430,7 @@ static int instr_put(snd_seq_kinstr_ops_t *ops,
 
 	if (ev->data.ext.len < sizeof(snd_seq_instr_header_t))
 		goto __return;
-	if (copy_from_user(&put, ev->data.ext.ptr, sizeof(snd_seq_instr_header_t))) {
+	if (copy_from_user(&put, (void __user *)ev->data.ext.ptr, sizeof(snd_seq_instr_header_t))) {
 		result = -EFAULT;
 		goto __return;
 	}
@@ -483,7 +466,7 @@ static int instr_put(snd_seq_kinstr_ops_t *ops,
 	if (instr->type == SNDRV_SEQ_INSTR_ATYPE_DATA) {
 		result = ops->put(ops->private_data,
 				  instr,
-				  ev->data.ext.ptr + sizeof(snd_seq_instr_header_t),
+				  (void __user *)ev->data.ext.ptr + sizeof(snd_seq_instr_header_t),
 				  ev->data.ext.len - sizeof(snd_seq_instr_header_t),
 				  atomic,
 				  put.cmd);
@@ -530,7 +513,7 @@ static int instr_free(snd_seq_kinstr_ops_t *ops,
 
 	if (ev->data.ext.len < sizeof(snd_seq_instr_header_t))
 		goto __return;
-	if (copy_from_user(&ifree, ev->data.ext.ptr, sizeof(snd_seq_instr_header_t))) {
+	if (copy_from_user(&ifree, (void __user *)ev->data.ext.ptr, sizeof(snd_seq_instr_header_t))) {
 		result = -EFAULT;
 		goto __return;
 	}

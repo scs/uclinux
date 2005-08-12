@@ -157,14 +157,14 @@ int wf_raw;     /* we normally check for "raw state" to firmware
 		   board and load the firmware anyway.
 		*/
 		   
-int fx_raw = 1; /* if this is zero, we'll leave the FX processor in
-		   whatever state it is when the driver is loaded.
-		   The default is to download the microprogram and
-		   associated coefficients to set it up for "default"
-		   operation, whatever that means.
-		*/
+static int fx_raw = 1; /* if this is zero, we'll leave the FX processor in
+		          whatever state it is when the driver is loaded.
+		          The default is to download the microprogram and
+		          associated coefficients to set it up for "default"
+		          operation, whatever that means.
+		       */
 
-int debug_default;      /* you can set this to control debugging
+static int debug_default;  /* you can set this to control debugging
 			      during driver loading. it takes any combination
 			      of the WF_DEBUG_* flags defined in
 			      wavefront.h
@@ -172,44 +172,46 @@ int debug_default;      /* you can set this to control debugging
 
 /* XXX this needs to be made firmware and hardware version dependent */
 
-char *ospath = "/etc/sound/wavefront.os"; /* where to find a processed
-					     version of the WaveFront OS
-					  */
+static char *ospath = "/etc/sound/wavefront.os"; /* where to find a processed
+					            version of the WaveFront OS
+					          */
 
-int wait_polls = 2000;	/* This is a number of tries we poll the status register
-			   before resorting to sleeping. WaveFront being an ISA
-			   card each poll takes about 1.2us. So before going to
-			   sleep we wait up to 2.4ms in a loop.
-			*/
+static int wait_polls = 2000; /* This is a number of tries we poll the
+				 status register before resorting to sleeping.
+				 WaveFront being an ISA card each poll takes
+				 about 1.2us. So before going to
+			         sleep we wait up to 2.4ms in a loop.
+			     */
 
-int sleep_length = HZ/100; /* This says how long we're going to sleep between polls.
-			      10ms sounds reasonable for fast response.
-			   */
+static int sleep_length = HZ/100; /* This says how long we're going to
+				     sleep between polls.
+			             10ms sounds reasonable for fast response.
+			          */
 
-int sleep_tries = 50;       /* Wait for status 0.5 seconds total. */
+static int sleep_tries = 50;       /* Wait for status 0.5 seconds total. */
 
-int reset_time = 2;        /* hundreths of a second we wait after a HW reset for
+static int reset_time = 2; /* hundreths of a second we wait after a HW reset for
 			      the expected interrupt.
 			   */
 
-int ramcheck_time = 20;    /* time in seconds to wait while ROM code
-			      checks on-board RAM.
-			   */
+static int ramcheck_time = 20;    /* time in seconds to wait while ROM code
+			             checks on-board RAM.
+			          */
 
-int osrun_time = 10;       /* time in seconds we wait for the OS to
-			      start running.
-			   */
+static int osrun_time = 10;  /* time in seconds we wait for the OS to
+			        start running.
+			     */
 
-MODULE_PARM(wf_raw,"i");
-MODULE_PARM(fx_raw,"i");
-MODULE_PARM(debug_default,"i");
-MODULE_PARM(wait_polls,"i");
-MODULE_PARM(sleep_length,"i");
-MODULE_PARM(sleep_tries,"i");
-MODULE_PARM(ospath,"s");
-MODULE_PARM(reset_time,"i");
-MODULE_PARM(ramcheck_time,"i");
-MODULE_PARM(osrun_time,"i");
+module_param(wf_raw, int, 0);
+module_param(fx_raw, int, 0);
+module_param(debug_default, int, 0);
+module_param(wait_polls, int, 0);
+module_param(sleep_length, int, 0);
+module_param(sleep_tries, int, 0);
+module_param(ospath, charp, 0);
+module_param(reset_time, int, 0);
+module_param(ramcheck_time, int, 0);
+module_param(osrun_time, int, 0);
 
 /***************************************************************************/
 
@@ -275,7 +277,7 @@ struct wf_config {
 	wait_queue_head_t interrupt_sleeper; 
 } dev;
 
-static spinlock_t lock=SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(lock);
 static int  detect_wffx(void);
 static int  wffx_ioctl (wavefront_fx_info *);
 static int  wffx_init (void);
@@ -1402,7 +1404,7 @@ wavefront_fetch_multisample (wavefront_patch_info *header)
 	num_samples = (1 << log_ns[0]);
     
 	for (i = 0; i < num_samples; i++) {
-		char d[2];
+		s8 d[2];
 	
 		if ((d[0] = wavefront_read ()) == -1) {
 			printk (KERN_ERR LOGNAME "upload multisample failed "
@@ -1516,45 +1518,56 @@ wavefront_load_gus_patch (int devno, int format, const char __user *addr,
 			  int offs, int count, int pmgr_flag)
 {
 	struct patch_info guspatch;
-	wavefront_patch_info samp, pat, prog;
+	wavefront_patch_info *samp, *pat, *prog;
 	wavefront_patch *patp;
 	wavefront_sample *sampp;
 	wavefront_program *progp;
 
 	int i,base_note;
 	long sizeof_patch;
+	int rc = -ENOMEM;
+
+	samp = kmalloc(3 * sizeof(wavefront_patch_info), GFP_KERNEL);
+	if (!samp)
+		goto free_fail;
+	pat = samp + 1;
+	prog = pat + 1;
 
 	/* Copy in the header of the GUS patch */
 
 	sizeof_patch = (long) &guspatch.data[0] - (long) &guspatch; 
 	if (copy_from_user(&((char *) &guspatch)[offs],
-			   &(addr)[offs], sizeof_patch - offs))
-		return -EFAULT;
+			   &(addr)[offs], sizeof_patch - offs)) {
+		rc = -EFAULT;
+		goto free_fail;
+	}
 
 	if ((i = wavefront_find_free_patch ()) == -1) {
-		return -EBUSY;
+		rc = -EBUSY;
+		goto free_fail;
 	}
-	pat.number = i;
-	pat.subkey = WF_ST_PATCH;
-	patp = &pat.hdr.p;
+	pat->number = i;
+	pat->subkey = WF_ST_PATCH;
+	patp = &pat->hdr.p;
 
 	if ((i = wavefront_find_free_sample ()) == -1) {
-		return -EBUSY;
+		rc = -EBUSY;
+		goto free_fail;
 	}
-	samp.number = i;
-	samp.subkey = WF_ST_SAMPLE;
-	samp.size = guspatch.len;
-	sampp = &samp.hdr.s;
+	samp->number = i;
+	samp->subkey = WF_ST_SAMPLE;
+	samp->size = guspatch.len;
+	sampp = &samp->hdr.s;
 
-	prog.number = guspatch.instr_no;
-	progp = &prog.hdr.pr;
+	prog->number = guspatch.instr_no;
+	progp = &prog->hdr.pr;
 
 	/* Setup the patch structure */
 
 	patp->amplitude_bias=guspatch.volume;
 	patp->portamento=0;
-	patp->sample_number= samp.number & 0xff;
-	patp->sample_msb= samp.number>>8;
+	patp->sample_number= samp->number & 0xff;
+	patp->sample_msb= samp->number >> 8;
 	patp->pitch_bend= /*12*/ 0;
 	patp->mono=1;
 	patp->retrigger=1;
@@ -1587,7 +1600,7 @@ wavefront_load_gus_patch (int devno, int format, const char __user *addr,
 
 	/* Program for this patch */
 
-	progp->layer[0].patch_number= pat.number; /* XXX is this right ? */
+	progp->layer[0].patch_number= pat->number; /* XXX is this right ? */
 	progp->layer[0].mute=1;
 	progp->layer[0].pan_or_mod=1;
 	progp->layer[0].pan=7;
@@ -1635,11 +1648,11 @@ wavefront_load_gus_patch (int devno, int format, const char __user *addr,
 
 	/* Now ship it down */
 
-	wavefront_send_sample (&samp, 
+	wavefront_send_sample (samp,
 			       (unsigned short __user *) &(addr)[sizeof_patch],
 			       (guspatch.mode & WAVE_UNSIGNED) ? 1:0);
-	wavefront_send_patch (&pat);
-	wavefront_send_program (&prog);
+	wavefront_send_patch (pat);
+	wavefront_send_program (prog);
 
 	/* Now pan as best we can ... use the slave/internal MIDI device
 	   number if it exists (since it talks to the WaveFront), or the
@@ -1651,8 +1664,11 @@ wavefront_load_gus_patch (int devno, int format, const char __user *addr,
 				       ((guspatch.panning << 4) > 127) ?
 				       127 : (guspatch.panning << 4));
 	}
+	rc = 0;
 
-	return(0);
+free_fail:
+	kfree(samp);
+	return rc;
 }
 
 static int
@@ -2036,7 +2052,7 @@ wavefront_oss_ioctl (int devno, unsigned int cmd, void __user * arg)
 	}
 }
 
-int
+static int
 wavefront_oss_load_patch (int devno, int format, const char __user *addr,
 			  int offs, int count, int pmgr_flag)
 {
@@ -2165,7 +2181,7 @@ wavefrontintr(int irq, void *dev_id, struct pt_regs *dummy)
 7 Unused
 */
 
-int
+static int
 wavefront_interrupt_bits (int irq)
 
 {
@@ -2193,7 +2209,7 @@ wavefront_interrupt_bits (int irq)
 	return bits;
 }
 
-void
+static void
 wavefront_should_cause_interrupt (int val, int port, int timeout)
 
 {
@@ -2895,16 +2911,6 @@ int __init detect_wffx (void)
 	return 0;
 }	
 
-int __init attach_wffx (void)
-{
-	if ((dev.fx_mididev = sound_alloc_mididev ()) < 0) {
-		printk (KERN_WARNING LOGNAME "cannot install FX Midi driver\n");
-		return -1;
-	}
-
-	return 0;
-}
-
 void
 wffx_mute (int onoff)
     
@@ -2961,8 +2967,8 @@ wffx_memset (int page,
 		if (i != cnt) {
 			printk (KERN_WARNING LOGNAME
 				"FX memset "
-				"(0x%x, 0x%x, 0x%x, %d) incomplete\n",
-				page, addr, (int) data, cnt);
+				"(0x%x, 0x%x, %p, %d) incomplete\n",
+				page, addr, data, cnt);
 			return -(EIO);
 		}
 	}
@@ -3490,8 +3496,8 @@ static int irq = -1;
 MODULE_AUTHOR      ("Paul Barton-Davis <pbd@op.net>");
 MODULE_DESCRIPTION ("Turtle Beach WaveFront Linux Driver");
 MODULE_LICENSE("GPL");
-MODULE_PARM        (io,"i");
-MODULE_PARM        (irq,"i");
+module_param       (io, int, 0);
+module_param       (irq, int, 0);
 
 static int __init init_wavfront (void)
 {

@@ -45,7 +45,6 @@
 #include <linux/proc_fs.h>
 
 #include <asm/uaccess.h>
-#include <asm/hardirq.h>
 #include <asm/io.h>
 
 #define DRIVER_NAME	"forte"
@@ -239,7 +238,7 @@ forte_ac97_wait (struct forte_chip *chip)
  * @reg:	register to read
  */
 
-u16
+static u16
 forte_ac97_read (struct ac97_codec *codec, u8 reg)
 {
 	u16 ret = 0;
@@ -284,7 +283,7 @@ forte_ac97_read (struct ac97_codec *codec, u8 reg)
  * @val:	value to write
  */
 
-void
+static void
 forte_ac97_write (struct ac97_codec *codec, u8 reg, u16 val)
 {
 	struct forte_chip *chip = codec->private_data;
@@ -1410,7 +1409,8 @@ forte_dsp_mmap (struct file *file, struct vm_area_struct *vma)
                 goto out;
 	}
 
-        if (remap_page_range (vma, vma->vm_start, virt_to_phys (channel->buf),
+        if (remap_pfn_range(vma, vma->vm_start,
+			      virt_to_phys(channel->buf) >> PAGE_SHIFT,
 			      size, vma->vm_page_prot)) {
 		DPRINTK ("%s: remap el a no worko\n", __FUNCTION__);
 		ret = -EAGAIN;
@@ -2112,12 +2112,7 @@ forte_init_module (void)
 {
 	printk (KERN_INFO PFX DRIVER_VERSION "\n");
 
-	if (!pci_register_driver (&forte_pci_driver)) {
-		pci_unregister_driver (&forte_pci_driver);
-		return -ENODEV;
-	}
-
-	return 0;
+	return pci_register_driver (&forte_pci_driver);
 }
 
 

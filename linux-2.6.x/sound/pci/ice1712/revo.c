@@ -33,6 +33,15 @@
 #include "envy24ht.h"
 #include "revo.h"
 
+static void revo_i2s_mclk_changed(ice1712_t *ice)
+{
+	/* assert PRST# to converters; MT05 bit 7 */
+	outb(inb(ICEMT1724(ice, AC97_CMD)) | 0x80, ICEMT1724(ice, AC97_CMD));
+	mdelay(5);
+	/* deassert PRST# */
+	outb(inb(ICEMT1724(ice, AC97_CMD)) & ~0x80, ICEMT1724(ice, AC97_CMD));
+}
+
 /*
  * change the rate of envy24HT, AK4355 and AK4381
  */
@@ -119,6 +128,17 @@ static struct snd_ak4xxx_private akm_revo_surround_priv __devinitdata = {
 	.mask_flags = 0,
 };
 
+static unsigned int rates[] = {
+	32000, 44100, 48000, 64000, 88200, 96000,
+	176400, 192000,
+};
+
+static snd_pcm_hw_constraint_list_t revo_rates = {
+	.count = ARRAY_SIZE(rates),
+	.list = rates,
+	.mask = 0,
+};
+
 static int __devinit revo_init(ice1712_t *ice)
 {
 	akm4xxx_t *ak;
@@ -128,15 +148,17 @@ static int __devinit revo_init(ice1712_t *ice)
 	switch (ice->eeprom.subvendor) {
 	case VT1724_SUBDEVICE_REVOLUTION71:
 		ice->num_total_dacs = 8;
-		ice->num_total_adcs = 4;
+		ice->num_total_adcs = 2;
 		break;
 	default:
 		snd_BUG();
 		return -EINVAL;
 	}
 
+	ice->gpio.i2s_mclk_changed = revo_i2s_mclk_changed;
+
 	/* second stage of initialization, analog parts and others */
-	ak = ice->akm = snd_kcalloc(sizeof(akm4xxx_t) * 2, GFP_KERNEL);
+	ak = ice->akm = kcalloc(2, sizeof(akm4xxx_t), GFP_KERNEL);
 	if (! ak)
 		return -ENOMEM;
 	ice->akm_codecs = 2;
@@ -150,6 +172,8 @@ static int __devinit revo_init(ice1712_t *ice)
 		snd_ice1712_gpio_write_bits(ice, VT1724_REVO_MUTE, VT1724_REVO_MUTE);
 		break;
 	}
+
+	ice->hw_rates = &revo_rates; /* AK codecs don't support lower than 32k */
 
 	return 0;
 }

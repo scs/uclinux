@@ -1,8 +1,8 @@
 /*
- *   ALSA driver for AK4524 / AK4528 / AK4529 / AK4355 / AK4381
+ *   ALSA driver for AK4524 / AK4528 / AK4529 / AK4355 / AK4358 / AK4381
  *   AD and DA converters
  *
- *	Copyright (c) 2000-2003 Jaroslav Kysela <perex@suse.cz>,
+ *	Copyright (c) 2000-2004 Jaroslav Kysela <perex@suse.cz>,
  *				Takashi Iwai <tiwai@suse.de>
  *
  *   This program is free software; you can redistribute it and/or modify
@@ -84,6 +84,7 @@ void snd_akm4xxx_reset(akm4xxx_t *ak, int state)
 		/* FIXME: needed for ak4529? */
 		break;
 	case SND_AK4355:
+	case SND_AK4358:
 		if (state) {
 			snd_akm4xxx_write(ak, 0, 0x01, 0x02); /* reset and soft-mute */
 			return;
@@ -166,6 +167,24 @@ void snd_akm4xxx_init(akm4xxx_t *ak)
 		0x01, 0x01, /* 1: un-reset, unmute */
 		0xff, 0xff
 	};
+	static unsigned char inits_ak4358[] = {
+		0x01, 0x02, /* 1: reset and soft-mute */
+		0x00, 0x06, /* 0: mode3(i2s), disable auto-clock detect, disable DZF, sharp roll-off, RSTN#=0 */
+		0x02, 0x0e, /* 2: DA's power up, normal speed, RSTN#=0 */
+		// 0x02, 0x2e, /* quad speed */
+		0x03, 0x01, /* 3: de-emphasis off */
+		0x04, 0x00, /* 4: LOUT1 volume muted */
+		0x05, 0x00, /* 5: ROUT1 volume muted */
+		0x06, 0x00, /* 6: LOUT2 volume muted */
+		0x07, 0x00, /* 7: ROUT2 volume muted */
+		0x08, 0x00, /* 8: LOUT3 volume muted */
+		0x09, 0x00, /* 9: ROUT3 volume muted */
+		0x0b, 0x00, /* b: LOUT4 volume muted */
+		0x0c, 0x00, /* c: ROUT4 volume muted */
+		0x0a, 0x00, /* a: DATT speed=0, ignore DZF */
+		0x01, 0x01, /* 1: un-reset, unmute */
+		0xff, 0xff
+	};
 	static unsigned char inits_ak4381[] = {
 		0x00, 0x0c, /* 0: mode3(i2s), disable auto-clock detect */
 		0x01, 0x02, /* 1: de-emphasis off, normal speed, sharp roll-off, DZF off */
@@ -195,6 +214,10 @@ void snd_akm4xxx_init(akm4xxx_t *ak)
 		break;
 	case SND_AK4355:
 		inits = inits_ak4355;
+		num_chips = 1;
+		break;
+	case SND_AK4358:
+		inits = inits_ak4358;
 		num_chips = 1;
 		break;
 	case SND_AK4381:
@@ -237,7 +260,7 @@ static int snd_akm4xxx_volume_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t
 
 static int snd_akm4xxx_volume_get(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
 {
-	akm4xxx_t *ak = _snd_kcontrol_chip(kcontrol);
+	akm4xxx_t *ak = snd_kcontrol_chip(kcontrol);
 	int chip = AK_GET_CHIP(kcontrol->private_value);
 	int addr = AK_GET_ADDR(kcontrol->private_value);
 	int invert = AK_GET_INVERT(kcontrol->private_value);
@@ -250,7 +273,7 @@ static int snd_akm4xxx_volume_get(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t
 
 static int snd_akm4xxx_volume_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
 {
-	akm4xxx_t *ak = _snd_kcontrol_chip(kcontrol);
+	akm4xxx_t *ak = snd_kcontrol_chip(kcontrol);
 	int chip = AK_GET_CHIP(kcontrol->private_value);
 	int addr = AK_GET_ADDR(kcontrol->private_value);
 	int invert = AK_GET_INVERT(kcontrol->private_value);
@@ -277,7 +300,7 @@ static int snd_akm4xxx_ipga_gain_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_inf
 
 static int snd_akm4xxx_ipga_gain_get(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
 {
-	akm4xxx_t *ak = _snd_kcontrol_chip(kcontrol);
+	akm4xxx_t *ak = snd_kcontrol_chip(kcontrol);
 	int chip = AK_GET_CHIP(kcontrol->private_value);
 	int addr = AK_GET_ADDR(kcontrol->private_value);
 	ucontrol->value.integer.value[0] = snd_akm4xxx_get_ipga(ak, chip, addr) & 0x7f;
@@ -286,7 +309,7 @@ static int snd_akm4xxx_ipga_gain_get(snd_kcontrol_t *kcontrol, snd_ctl_elem_valu
 
 static int snd_akm4xxx_ipga_gain_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
 {
-	akm4xxx_t *ak = _snd_kcontrol_chip(kcontrol);
+	akm4xxx_t *ak = snd_kcontrol_chip(kcontrol);
 	int chip = AK_GET_CHIP(kcontrol->private_value);
 	int addr = AK_GET_ADDR(kcontrol->private_value);
 	unsigned char nval = (ucontrol->value.integer.value[0] % 37) | 0x80;
@@ -312,7 +335,7 @@ static int snd_akm4xxx_deemphasis_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_in
 
 static int snd_akm4xxx_deemphasis_get(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t *ucontrol)
 {
-	akm4xxx_t *ak = _snd_kcontrol_chip(kcontrol);
+	akm4xxx_t *ak = snd_kcontrol_chip(kcontrol);
 	int chip = AK_GET_CHIP(kcontrol->private_value);
 	int addr = AK_GET_ADDR(kcontrol->private_value);
 	int shift = AK_GET_SHIFT(kcontrol->private_value);
@@ -322,7 +345,7 @@ static int snd_akm4xxx_deemphasis_get(snd_kcontrol_t * kcontrol, snd_ctl_elem_va
 
 static int snd_akm4xxx_deemphasis_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
 {
-	akm4xxx_t *ak = _snd_kcontrol_chip(kcontrol);
+	akm4xxx_t *ak = snd_kcontrol_chip(kcontrol);
 	int chip = AK_GET_CHIP(kcontrol->private_value);
 	int addr = AK_GET_ADDR(kcontrol->private_value);
 	int shift = AK_GET_SHIFT(kcontrol->private_value);
@@ -343,106 +366,121 @@ static int snd_akm4xxx_deemphasis_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_val
 int snd_akm4xxx_build_controls(akm4xxx_t *ak)
 {
 	unsigned int idx, num_emphs;
+	snd_kcontrol_t *ctl;
 	int err;
 
+	ctl = kmalloc(sizeof(*ctl), GFP_KERNEL);
+	if (! ctl)
+		return -ENOMEM;
+
 	for (idx = 0; idx < ak->num_dacs; ++idx) {
-		snd_kcontrol_t ctl;
-		memset(&ctl, 0, sizeof(ctl));
-		strcpy(ctl.id.name, "DAC Volume");
-		ctl.id.index = idx + ak->idx_offset * 2;
-		ctl.id.iface = SNDRV_CTL_ELEM_IFACE_MIXER;
-		ctl.count = 1;
-		ctl.info = snd_akm4xxx_volume_info;
-		ctl.get = snd_akm4xxx_volume_get;
-		ctl.put = snd_akm4xxx_volume_put;
+		memset(ctl, 0, sizeof(*ctl));
+		strcpy(ctl->id.name, "DAC Volume");
+		ctl->id.index = idx + ak->idx_offset * 2;
+		ctl->id.iface = SNDRV_CTL_ELEM_IFACE_MIXER;
+		ctl->count = 1;
+		ctl->info = snd_akm4xxx_volume_info;
+		ctl->get = snd_akm4xxx_volume_get;
+		ctl->put = snd_akm4xxx_volume_put;
 		switch (ak->type) {
 		case SND_AK4524:
-			ctl.private_value = AK_COMPOSE(idx/2, (idx%2) + 6, 0, 127); /* register 6 & 7 */
+			ctl->private_value = AK_COMPOSE(idx/2, (idx%2) + 6, 0, 127); /* register 6 & 7 */
 			break;
 		case SND_AK4528:
-			ctl.private_value = AK_COMPOSE(idx/2, (idx%2) + 4, 0, 127); /* register 4 & 5 */
+			ctl->private_value = AK_COMPOSE(idx/2, (idx%2) + 4, 0, 127); /* register 4 & 5 */
 			break;
 		case SND_AK4529: {
 			int val = idx < 6 ? idx + 2 : (idx - 6) + 0xb; /* registers 2-7 and b,c */
-			ctl.private_value = AK_COMPOSE(0, val, 0, 255) | AK_INVERT;
+			ctl->private_value = AK_COMPOSE(0, val, 0, 255) | AK_INVERT;
 			break;
 		}
 		case SND_AK4355:
-			ctl.private_value = AK_COMPOSE(0, idx + 4, 0, 255); /* register 4-9, chip #0 only */
+			ctl->private_value = AK_COMPOSE(0, idx + 4, 0, 255); /* register 4-9, chip #0 only */
+			break;
+		case SND_AK4358:
+			if (idx >= 6)
+				ctl->private_value = AK_COMPOSE(0, idx + 5, 0, 255); /* register 4-9, chip #0 only */
+			else
+				ctl->private_value = AK_COMPOSE(0, idx + 4, 0, 255); /* register 4-9, chip #0 only */
 			break;
 		case SND_AK4381:
-			ctl.private_value = AK_COMPOSE(idx/2, (idx%2) + 3, 0, 255); /* register 3 & 4 */
+			ctl->private_value = AK_COMPOSE(idx/2, (idx%2) + 3, 0, 255); /* register 3 & 4 */
 			break;
 		default:
-			return -EINVAL;
-			}
-		ctl.private_data = ak;
-		if ((err = snd_ctl_add(ak->card, snd_ctl_new(&ctl, SNDRV_CTL_ELEM_ACCESS_READ|SNDRV_CTL_ELEM_ACCESS_WRITE))) < 0)
-			return err;
+			err = -EINVAL;
+			goto __error;
+		}
+		ctl->private_data = ak;
+		if ((err = snd_ctl_add(ak->card, snd_ctl_new(ctl, SNDRV_CTL_ELEM_ACCESS_READ|SNDRV_CTL_ELEM_ACCESS_WRITE))) < 0)
+			goto __error;
 	}
 	for (idx = 0; idx < ak->num_adcs && ak->type == SND_AK4524; ++idx) {
-		snd_kcontrol_t ctl;
-		memset(&ctl, 0, sizeof(ctl));
-		strcpy(ctl.id.name, "ADC Volume");
-		ctl.id.index = idx + ak->idx_offset * 2;
-		ctl.id.iface = SNDRV_CTL_ELEM_IFACE_MIXER;
-		ctl.count = 1;
-		ctl.info = snd_akm4xxx_volume_info;
-		ctl.get = snd_akm4xxx_volume_get;
-		ctl.put = snd_akm4xxx_volume_put;
-		ctl.private_value = AK_COMPOSE(idx/2, (idx%2) + 4, 0, 127); /* register 4 & 5 */
-		ctl.private_data = ak;
-		if ((err = snd_ctl_add(ak->card, snd_ctl_new(&ctl, SNDRV_CTL_ELEM_ACCESS_READ|SNDRV_CTL_ELEM_ACCESS_WRITE))) < 0)
-			return err;
-		memset(&ctl, 0, sizeof(ctl));
-		strcpy(ctl.id.name, "IPGA Analog Capture Volume");
-		ctl.id.index = idx + ak->idx_offset * 2;
-		ctl.id.iface = SNDRV_CTL_ELEM_IFACE_MIXER;
-		ctl.count = 1;
-		ctl.info = snd_akm4xxx_ipga_gain_info;
-		ctl.get = snd_akm4xxx_ipga_gain_get;
-		ctl.put = snd_akm4xxx_ipga_gain_put;
-		ctl.private_value = AK_COMPOSE(idx/2, (idx%2) + 4, 0, 0); /* register 4 & 5 */
-		ctl.private_data = ak;
-		if ((err = snd_ctl_add(ak->card, snd_ctl_new(&ctl, SNDRV_CTL_ELEM_ACCESS_READ|SNDRV_CTL_ELEM_ACCESS_WRITE))) < 0)
-			return err;
+		memset(ctl, 0, sizeof(*ctl));
+		strcpy(ctl->id.name, "ADC Volume");
+		ctl->id.index = idx + ak->idx_offset * 2;
+		ctl->id.iface = SNDRV_CTL_ELEM_IFACE_MIXER;
+		ctl->count = 1;
+		ctl->info = snd_akm4xxx_volume_info;
+		ctl->get = snd_akm4xxx_volume_get;
+		ctl->put = snd_akm4xxx_volume_put;
+		ctl->private_value = AK_COMPOSE(idx/2, (idx%2) + 4, 0, 127); /* register 4 & 5 */
+		ctl->private_data = ak;
+		if ((err = snd_ctl_add(ak->card, snd_ctl_new(ctl, SNDRV_CTL_ELEM_ACCESS_READ|SNDRV_CTL_ELEM_ACCESS_WRITE))) < 0)
+			goto __error;
+
+		memset(ctl, 0, sizeof(*ctl));
+		strcpy(ctl->id.name, "IPGA Analog Capture Volume");
+		ctl->id.index = idx + ak->idx_offset * 2;
+		ctl->id.iface = SNDRV_CTL_ELEM_IFACE_MIXER;
+		ctl->count = 1;
+		ctl->info = snd_akm4xxx_ipga_gain_info;
+		ctl->get = snd_akm4xxx_ipga_gain_get;
+		ctl->put = snd_akm4xxx_ipga_gain_put;
+		ctl->private_value = AK_COMPOSE(idx/2, (idx%2) + 4, 0, 0); /* register 4 & 5 */
+		ctl->private_data = ak;
+		if ((err = snd_ctl_add(ak->card, snd_ctl_new(ctl, SNDRV_CTL_ELEM_ACCESS_READ|SNDRV_CTL_ELEM_ACCESS_WRITE))) < 0)
+			goto __error;
 	}
-	if (ak->type == SND_AK4355)
+	if (ak->type == SND_AK4355 || ak->type == SND_AK4358)
 		num_emphs = 1;
 	else
 		num_emphs = ak->num_dacs / 2;
 	for (idx = 0; idx < num_emphs; idx++) {
-		snd_kcontrol_t ctl;
-		memset(&ctl, 0, sizeof(ctl));
-		strcpy(ctl.id.name, "Deemphasis");
-		ctl.id.index = idx + ak->idx_offset;
-		ctl.id.iface = SNDRV_CTL_ELEM_IFACE_MIXER;
-		ctl.count = 1;
-		ctl.info = snd_akm4xxx_deemphasis_info;
-		ctl.get = snd_akm4xxx_deemphasis_get;
-		ctl.put = snd_akm4xxx_deemphasis_put;
+		memset(ctl, 0, sizeof(*ctl));
+		strcpy(ctl->id.name, "Deemphasis");
+		ctl->id.index = idx + ak->idx_offset;
+		ctl->id.iface = SNDRV_CTL_ELEM_IFACE_MIXER;
+		ctl->count = 1;
+		ctl->info = snd_akm4xxx_deemphasis_info;
+		ctl->get = snd_akm4xxx_deemphasis_get;
+		ctl->put = snd_akm4xxx_deemphasis_put;
 		switch (ak->type) {
 		case SND_AK4524:
 		case SND_AK4528:
-			ctl.private_value = AK_COMPOSE(idx, 3, 0, 0); /* register 3 */
+			ctl->private_value = AK_COMPOSE(idx, 3, 0, 0); /* register 3 */
 			break;
 		case SND_AK4529: {
 			int shift = idx == 3 ? 6 : (2 - idx) * 2;
-			ctl.private_value = AK_COMPOSE(0, 8, shift, 0); /* register 8 with shift */
+			ctl->private_value = AK_COMPOSE(0, 8, shift, 0); /* register 8 with shift */
 			break;
 		}
 		case SND_AK4355:
-			ctl.private_value = AK_COMPOSE(idx, 3, 0, 0);
+		case SND_AK4358:
+			ctl->private_value = AK_COMPOSE(idx, 3, 0, 0);
 			break;
 		case SND_AK4381:
-			ctl.private_value = AK_COMPOSE(idx, 1, 1, 0);
+			ctl->private_value = AK_COMPOSE(idx, 1, 1, 0);
 			break;
 		}
-		ctl.private_data = ak;
-		if ((err = snd_ctl_add(ak->card, snd_ctl_new(&ctl, SNDRV_CTL_ELEM_ACCESS_READ|SNDRV_CTL_ELEM_ACCESS_WRITE))) < 0)
-			return err;
+		ctl->private_data = ak;
+		if ((err = snd_ctl_add(ak->card, snd_ctl_new(ctl, SNDRV_CTL_ELEM_ACCESS_READ|SNDRV_CTL_ELEM_ACCESS_WRITE))) < 0)
+			goto __error;
 	}
-	return 0;
+	err = 0;
+
+ __error:
+	kfree(ctl);
+	return err;
 }
 
 static int __init alsa_akm4xxx_module_init(void)

@@ -30,11 +30,11 @@
 #include <sound/cs8427.h>
 #include <sound/asoundef.h>
 
+static void snd_cs8427_reset(snd_i2c_device_t *cs8427);
+
 MODULE_AUTHOR("Jaroslav Kysela <perex@suse.cz>");
 MODULE_DESCRIPTION("IEC958 (S/PDIF) receiver & transmitter by Cirrus Logic");
 MODULE_LICENSE("GPL");
-
-#define chip_t snd_i2c_device_t
 
 #define CS8427_ADDR			(0x20>>1) /* fixed address */
 
@@ -67,16 +67,6 @@ static unsigned char swapbits(unsigned char val)
 	return res;
 }
 
-int snd_cs8427_detect(snd_i2c_bus_t *bus, unsigned char addr)
-{
-	int res;
-
-	snd_i2c_lock(bus);
-	res = snd_i2c_probeaddr(bus, CS8427_ADDR | (addr & 7));
-	snd_i2c_unlock(bus);
-	return res;
-}
-
 int snd_cs8427_reg_write(snd_i2c_device_t *device, unsigned char reg, unsigned char val)
 {
 	int err;
@@ -91,7 +81,7 @@ int snd_cs8427_reg_write(snd_i2c_device_t *device, unsigned char reg, unsigned c
 	return 0;
 }
 
-int snd_cs8427_reg_read(snd_i2c_device_t *device, unsigned char reg)
+static int snd_cs8427_reg_read(snd_i2c_device_t *device, unsigned char reg)
 {
 	int err;
 	unsigned char buf;
@@ -109,7 +99,7 @@ int snd_cs8427_reg_read(snd_i2c_device_t *device, unsigned char reg)
 
 static int snd_cs8427_select_corudata(snd_i2c_device_t *device, int udata)
 {
-	cs8427_t *chip = snd_magic_cast(cs8427_t, device->private_data, return -ENXIO);
+	cs8427_t *chip = device->private_data;
 	int err;
 
 	udata = udata ? CS8427_BSEL : 0;
@@ -128,7 +118,7 @@ static int snd_cs8427_send_corudata(snd_i2c_device_t *device,
 				    unsigned char *ndata,
 				    int count)
 {
-	cs8427_t *chip = snd_magic_cast(cs8427_t, device->private_data, return -ENXIO);
+	cs8427_t *chip = device->private_data;
 	char *hw_data = udata ? chip->playback.hw_udata : chip->playback.hw_status;
 	char data[32];
 	int err, idx;
@@ -158,8 +148,7 @@ static int snd_cs8427_send_corudata(snd_i2c_device_t *device,
 
 static void snd_cs8427_free(snd_i2c_device_t *device)
 {
-	if (device->private_data)
-		snd_magic_kfree(device->private_data);
+	kfree(device->private_data);
 }
 
 int snd_cs8427_create(snd_i2c_bus_t *bus,
@@ -211,7 +200,7 @@ int snd_cs8427_create(snd_i2c_bus_t *bus,
 
 	if ((err = snd_i2c_device_create(bus, "CS8427", CS8427_ADDR | (addr & 7), &device)) < 0)
 		return err;
-	chip = device->private_data = snd_magic_kcalloc(cs8427_t, 0, GFP_KERNEL);
+	chip = device->private_data = kcalloc(1, sizeof(*chip), GFP_KERNEL);
 	if (chip == NULL) {
 	      	snd_i2c_device_free(device);
 		return -ENOMEM;
@@ -290,14 +279,14 @@ int snd_cs8427_create(snd_i2c_bus_t *bus,
  * put back AES3INPUT. This workaround is described in latest
  * CS8427 datasheet, otherwise TXDSERIAL will not work.
  */
-void snd_cs8427_reset(snd_i2c_device_t *cs8427)
+static void snd_cs8427_reset(snd_i2c_device_t *cs8427)
 {
 	cs8427_t *chip;
 	unsigned long end_time;
 	int data;
 
 	snd_assert(cs8427, return);
-	chip = snd_magic_cast(cs8427_t, cs8427->private_data, return);
+	chip = cs8427->private_data;
 	snd_i2c_lock(cs8427->bus);
 	chip->regmap[CS8427_REG_CLOCKSOURCE] &= ~(CS8427_RUN | CS8427_RXDMASK);
 	snd_cs8427_reg_write(cs8427, CS8427_REG_CLOCKSOURCE, chip->regmap[CS8427_REG_CLOCKSOURCE]);
@@ -389,7 +378,7 @@ static int snd_cs8427_spdif_get(snd_kcontrol_t * kcontrol,
 				snd_ctl_elem_value_t * ucontrol)
 {
 	snd_i2c_device_t *device = snd_kcontrol_chip(kcontrol);
-	cs8427_t *chip = snd_magic_cast(cs8427_t, device->private_data, return -ENXIO);
+	cs8427_t *chip = device->private_data;
 	
 	snd_i2c_lock(device->bus);
 	memcpy(ucontrol->value.iec958.status, chip->playback.def_status, 24);
@@ -401,7 +390,7 @@ static int snd_cs8427_spdif_put(snd_kcontrol_t * kcontrol,
 				snd_ctl_elem_value_t * ucontrol)
 {
 	snd_i2c_device_t *device = snd_kcontrol_chip(kcontrol);
-	cs8427_t *chip = snd_magic_cast(cs8427_t, device->private_data, return -ENXIO);
+	cs8427_t *chip = device->private_data;
 	unsigned char *status = kcontrol->private_value ? chip->playback.pcm_status : chip->playback.def_status;
 	snd_pcm_runtime_t *runtime = chip->playback.substream ? chip->playback.substream->runtime : NULL;
 	int err, change;
@@ -431,8 +420,6 @@ static int snd_cs8427_spdif_mask_get(snd_kcontrol_t * kcontrol,
 	memset(ucontrol->value.iec958.status, 0xff, 24);
 	return 0;
 }
-
-#define CONTROLS (sizeof(snd_cs8427_iec958_controls)/sizeof(snd_kcontrol_new_t))
 
 static snd_kcontrol_new_t snd_cs8427_iec958_controls[] = {
 {
@@ -487,13 +474,13 @@ int snd_cs8427_iec958_build(snd_i2c_device_t *cs8427,
 			    snd_pcm_substream_t *play_substream,
 			    snd_pcm_substream_t *cap_substream)
 {
-	cs8427_t *chip = snd_magic_cast(cs8427_t, cs8427->private_data, return -ENXIO);
+	cs8427_t *chip = cs8427->private_data;
 	snd_kcontrol_t *kctl;
 	unsigned int idx;
 	int err;
 
 	snd_assert(play_substream && cap_substream, return -EINVAL);
-	for (idx = 0; idx < CONTROLS; idx++) {
+	for (idx = 0; idx < ARRAY_SIZE(snd_cs8427_iec958_controls); idx++) {
 		kctl = snd_ctl_new1(&snd_cs8427_iec958_controls[idx], cs8427);
 		if (kctl == NULL)
 			return -ENOMEM;
@@ -517,7 +504,7 @@ int snd_cs8427_iec958_active(snd_i2c_device_t *cs8427, int active)
 	cs8427_t *chip;
 
 	snd_assert(cs8427, return -ENXIO);
-	chip = snd_magic_cast(cs8427_t, cs8427->private_data, return -ENXIO);
+	chip = cs8427->private_data;
 	if (active)
 		memcpy(chip->playback.pcm_status, chip->playback.def_status, 24);
 	chip->playback.pcm_ctl->vd[0].access &= ~SNDRV_CTL_ELEM_ACCESS_INACTIVE;
@@ -533,7 +520,7 @@ int snd_cs8427_iec958_pcm(snd_i2c_device_t *cs8427, unsigned int rate)
 	int err, reset;
 
 	snd_assert(cs8427, return -ENXIO);
-	chip = snd_magic_cast(cs8427_t, cs8427->private_data, return -ENXIO);
+	chip = cs8427->private_data;
 	status = chip->playback.pcm_status;
 	snd_i2c_lock(cs8427->bus);
 	if (status[0] & IEC958_AES0_PROFESSIONAL) {
@@ -577,11 +564,9 @@ static void __exit alsa_cs8427_module_exit(void)
 module_init(alsa_cs8427_module_init)
 module_exit(alsa_cs8427_module_exit)
 
-EXPORT_SYMBOL(snd_cs8427_detect);
 EXPORT_SYMBOL(snd_cs8427_create);
 EXPORT_SYMBOL(snd_cs8427_reset);
 EXPORT_SYMBOL(snd_cs8427_reg_write);
-EXPORT_SYMBOL(snd_cs8427_reg_read);
 EXPORT_SYMBOL(snd_cs8427_iec958_build);
 EXPORT_SYMBOL(snd_cs8427_iec958_active);
 EXPORT_SYMBOL(snd_cs8427_iec958_pcm);

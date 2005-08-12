@@ -99,7 +99,7 @@ static void ymfpci_disable_dsp(ymfpci_t *unit);
 static void ymfpci_download_image(ymfpci_t *codec);
 static void ymf_memload(ymfpci_t *unit);
 
-static spinlock_t ymf_devs_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(ymf_devs_lock);
 static LIST_HEAD(ymf_devs);
 
 /*
@@ -123,11 +123,6 @@ MODULE_DEVICE_TABLE(pci, ymf_id_tbl);
 /*
  *  common I/O routines
  */
-
-static inline u8 ymfpci_readb(ymfpci_t *codec, u32 offset)
-{
-	return readb(codec->reg_area_virt + offset);
-}
 
 static inline void ymfpci_writeb(ymfpci_t *codec, u32 offset, u8 val)
 {
@@ -334,7 +329,7 @@ static int alloc_dmabuf(ymfpci_t *unit, struct ymf_dmabuf *dmabuf)
 	dmabuf->dma_addr = dma_addr;
 	dmabuf->buforder = order;
 
-	/* now mark the pages as reserved; otherwise remap_page_range doesn't do what we want */
+	/* now mark the pages as reserved; otherwise remap_pfn_range doesn't do what we want */
 	mapend = virt_to_page(rawbuf + (PAGE_SIZE << order) - 1);
 	for (map = virt_to_page(rawbuf); map <= mapend; map++)
 		set_bit(PG_reserved, &map->flags);
@@ -1545,7 +1540,8 @@ static int ymf_mmap(struct file *file, struct vm_area_struct *vma)
 	size = vma->vm_end - vma->vm_start;
 	if (size > (PAGE_SIZE << dmabuf->buforder))
 		return -EINVAL;
-	if (remap_page_range(vma, vma->vm_start, virt_to_phys(dmabuf->rawbuf),
+	if (remap_pfn_range(vma, vma->vm_start,
+			     virt_to_phys(dmabuf->rawbuf) >> PAGE_SHIFT,
 			     size, vma->vm_page_prot))
 		return -EAGAIN;
 	dmabuf->mapped = 1;
@@ -2078,7 +2074,7 @@ static /*const*/ struct file_operations ymf_mixer_fops = {
 /*
  */
 
-static int ymf_suspend(struct pci_dev *pcidev, u32 unused)
+static int ymf_suspend(struct pci_dev *pcidev, pm_message_t unused)
 {
 	struct ymf_unit *unit = pci_get_drvdata(pcidev);
 	unsigned long flags;
@@ -2503,8 +2499,8 @@ static int ymf_ac97_init(ymfpci_t *unit, int num_ac97)
 # ifdef MODULE
 static int mpu_io;
 static int synth_io;
-MODULE_PARM(mpu_io, "i");
-MODULE_PARM(synth_io, "i");
+module_param(mpu_io, int, 0);
+module_param(synth_io, int, 0);
 # else
 static int mpu_io     = 0x330;
 static int synth_io   = 0x388;

@@ -41,6 +41,7 @@
 #include <sound/core.h>
 #include <sound/info.h>
 #include <sound/seq_device.h>
+#include <sound/seq_kernel.h>
 #include <sound/initval.h>
 #include <linux/kmod.h>
 #include <linux/slab.h>
@@ -48,8 +49,6 @@
 MODULE_AUTHOR("Takashi Iwai <tiwai@suse.de>");
 MODULE_DESCRIPTION("ALSA sequencer device management");
 MODULE_LICENSE("GPL");
-MODULE_CLASSES("{sound}");
-MODULE_SUPPORTED_DEVICE("sound");
 
 /*
  * driver list
@@ -127,10 +126,30 @@ static void snd_seq_device_info(snd_info_entry_t *entry, snd_info_buffer_t * buf
  * load all registered drivers (called from seq_clientmgr.c)
  */
 
+#ifdef CONFIG_KMOD
+/* avoid auto-loading during module_init() */
+static int snd_seq_in_init;
+void snd_seq_autoload_lock(void)
+{
+	snd_seq_in_init++;
+}
+
+void snd_seq_autoload_unlock(void)
+{
+	snd_seq_in_init--;
+}
+#endif
+
 void snd_seq_device_load_drivers(void)
 {
 #ifdef CONFIG_KMOD
 	struct list_head *head;
+
+	/* Calling request_module during module_init()
+	 * may cause blocking.
+	 */
+	if (snd_seq_in_init)
+		return;
 
 	if (! current->fs->root)
 		return;
@@ -181,7 +200,7 @@ int snd_seq_device_new(snd_card_t *card, int device, char *id, int argsize,
 	if (ops == NULL)
 		return -ENOMEM;
 
-	dev = snd_magic_kcalloc(snd_seq_device_t, sizeof(*dev) + argsize, GFP_KERNEL);
+	dev = kcalloc(1, sizeof(*dev)*2 + argsize, GFP_KERNEL);
 	if (dev == NULL) {
 		unlock_driver(ops);
 		return -ENOMEM;
@@ -235,7 +254,7 @@ static int snd_seq_device_free(snd_seq_device_t *dev)
 	free_device(dev, ops);
 	if (dev->private_free)
 		dev->private_free(dev);
-	snd_magic_kfree(dev);
+	kfree(dev);
 
 	unlock_driver(ops);
 
@@ -244,7 +263,7 @@ static int snd_seq_device_free(snd_seq_device_t *dev)
 
 static int snd_seq_device_dev_free(snd_device_t *device)
 {
-	snd_seq_device_t *dev = snd_magic_cast(snd_seq_device_t, device->device_data, return -ENXIO);
+	snd_seq_device_t *dev = device->device_data;
 	return snd_seq_device_free(dev);
 }
 
@@ -253,7 +272,7 @@ static int snd_seq_device_dev_free(snd_device_t *device)
  */
 static int snd_seq_device_dev_register(snd_device_t *device)
 {
-	snd_seq_device_t *dev = snd_magic_cast(snd_seq_device_t, device->device_data, return -ENXIO);
+	snd_seq_device_t *dev = device->device_data;
 	ops_list_t *ops;
 
 	ops = find_driver(dev->id, 0);
@@ -275,7 +294,7 @@ static int snd_seq_device_dev_register(snd_device_t *device)
  */
 static int snd_seq_device_dev_disconnect(snd_device_t *device)
 {
-	snd_seq_device_t *dev = snd_magic_cast(snd_seq_device_t, device->device_data, return -ENXIO);
+	snd_seq_device_t *dev = device->device_data;
 	ops_list_t *ops;
 
 	ops = find_driver(dev->id, 0);
@@ -293,7 +312,7 @@ static int snd_seq_device_dev_disconnect(snd_device_t *device)
  */
 static int snd_seq_device_dev_unregister(snd_device_t *device)
 {
-	snd_seq_device_t *dev = snd_magic_cast(snd_seq_device_t, device->device_data, return -ENXIO);
+	snd_seq_device_t *dev = device->device_data;
 	return snd_seq_device_free(dev);
 }
 
@@ -311,12 +330,16 @@ int snd_seq_device_register_driver(char *id, snd_seq_dev_ops_t *entry, int argsi
 	    entry->init_device == NULL || entry->free_device == NULL)
 		return -EINVAL;
 
+	snd_seq_autoload_lock();
 	ops = find_driver(id, 1);
-	if (ops == NULL)
+	if (ops == NULL) {
+		snd_seq_autoload_unlock();
 		return -ENOMEM;
+	}
 	if (ops->driver & DRIVER_LOADED) {
 		snd_printk(KERN_WARNING "driver_register: driver '%s' already exists\n", id);
 		unlock_driver(ops);
+		snd_seq_autoload_unlock();
 		return -EBUSY;
 	}
 
@@ -334,6 +357,7 @@ int snd_seq_device_register_driver(char *id, snd_seq_dev_ops_t *entry, int argsi
 	up(&ops->reg_mutex);
 
 	unlock_driver(ops);
+	snd_seq_autoload_unlock();
 
 	return 0;
 }
@@ -545,3 +569,7 @@ EXPORT_SYMBOL(snd_seq_device_load_drivers);
 EXPORT_SYMBOL(snd_seq_device_new);
 EXPORT_SYMBOL(snd_seq_device_register_driver);
 EXPORT_SYMBOL(snd_seq_device_unregister_driver);
+#ifdef CONFIG_KMOD
+EXPORT_SYMBOL(snd_seq_autoload_lock);
+EXPORT_SYMBOL(snd_seq_autoload_unlock);
+#endif

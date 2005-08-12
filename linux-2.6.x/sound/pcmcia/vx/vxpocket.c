@@ -50,33 +50,21 @@
 MODULE_AUTHOR("Takashi Iwai <tiwai@suse.de>");
 MODULE_DESCRIPTION("Digigram " CARD_NAME);
 MODULE_LICENSE("GPL");
-MODULE_CLASSES("{sound}");
-MODULE_DEVICES("{{Digigram," CARD_NAME "}}");
+MODULE_SUPPORTED_DEVICE("{{Digigram," CARD_NAME "}}");
 
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;	/* Index 0-MAX */
 static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;	/* ID for this card */
 static int enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE_PNP;	/* Enable switches */
-static unsigned int irq_mask = 0xffff;
-static int irq_list[4] = { -1 };
 static int ibl[SNDRV_CARDS];
-static int boot_devs;
 
-module_param_array(index, int, boot_devs, 0444);
+module_param_array(index, int, NULL, 0444);
 MODULE_PARM_DESC(index, "Index value for " CARD_NAME " soundcard.");
-MODULE_PARM_SYNTAX(index, SNDRV_INDEX_DESC);
-module_param_array(id, charp, boot_devs, 0444);
+module_param_array(id, charp, NULL, 0444);
 MODULE_PARM_DESC(id, "ID string for " CARD_NAME " soundcard.");
-MODULE_PARM_SYNTAX(id, SNDRV_ID_DESC);
-module_param_array(enable, bool, boot_devs, 0444);
+module_param_array(enable, bool, NULL, 0444);
 MODULE_PARM_DESC(enable, "Enable " CARD_NAME " soundcard.");
-MODULE_PARM_SYNTAX(enable, SNDRV_ENABLE_DESC);
-module_param(irq_mask, int, 0444);
-MODULE_PARM_DESC(irq_mask, "IRQ bitmask for " CARD_NAME " soundcard.");
-module_param_array(irq_list, int, boot_devs, 0444);
-MODULE_PARM_DESC(irq_list, "List of Available interrupts for " CARD_NAME " soundcard.");
-module_param_array(ibl, int, boot_devs, 0444);
+module_param_array(ibl, int, NULL, 0444);
 MODULE_PARM_DESC(ibl, "Capture IBL size for " CARD_NAME " soundcard.");
-MODULE_PARM_SYNTAX(ibl, SNDRV_ENABLED);
  
 
 /*
@@ -129,8 +117,6 @@ static struct snd_vxp_entry hw_entry = {
 	.index_table = index,
 	.id_table = id,
 	.enable_table = enable,
-	.irq_mask_p = &irq_mask,
-	.irq_list = irq_list,
 	.ibl = ibl,
 
 	/* h/w config */
@@ -171,7 +157,7 @@ static int __init init_vxpocket(void)
 static void __exit exit_vxpocket(void)
 {
 	pcmcia_unregister_driver(&vxp_cs_driver);
-	snd_vxpocket_detach_all(&hw_entry);
+	BUG_ON(hw_entry.dev_list != NULL);
 }
 
 module_init(init_vxpocket);

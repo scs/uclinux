@@ -109,15 +109,12 @@
 #include <sound/ac97_codec.h>
 #include <sound/initval.h>
 
-#define chip_t es1968_t
-
 #define CARD_NAME "ESS Maestro1/2"
 #define DRIVER_NAME "ES1968"
 
 MODULE_DESCRIPTION("ESS Maestro");
-MODULE_CLASSES("{sound}");
 MODULE_LICENSE("GPL");
-MODULE_DEVICES("{{ESS,Maestro 2e},"
+MODULE_SUPPORTED_DEVICE("{{ESS,Maestro 2e},"
 		"{ESS,Maestro 2},"
 		"{ESS,Maestro 1},"
 		"{TerraTec,DMX}}");
@@ -138,39 +135,28 @@ static int enable_mpu[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS - 1)] = 2};
 #ifdef SUPPORT_JOYSTICK
 static int joystick[SNDRV_CARDS];
 #endif
-static int boot_devs;
 
-module_param_array(index, int, boot_devs, 0444);
+module_param_array(index, int, NULL, 0444);
 MODULE_PARM_DESC(index, "Index value for " CARD_NAME " soundcard.");
-MODULE_PARM_SYNTAX(index, SNDRV_INDEX_DESC);
-module_param_array(id, charp, boot_devs, 0444);
+module_param_array(id, charp, NULL, 0444);
 MODULE_PARM_DESC(id, "ID string for " CARD_NAME " soundcard.");
-MODULE_PARM_SYNTAX(id, SNDRV_ID_DESC);
-module_param_array(enable, bool, boot_devs, 0444);
+module_param_array(enable, bool, NULL, 0444);
 MODULE_PARM_DESC(enable, "Enable " CARD_NAME " soundcard.");
-MODULE_PARM_SYNTAX(enable, SNDRV_ENABLE_DESC);
-module_param_array(total_bufsize, int, boot_devs, 0444);
+module_param_array(total_bufsize, int, NULL, 0444);
 MODULE_PARM_DESC(total_bufsize, "Total buffer size in kB.");
-MODULE_PARM_SYNTAX(total_bufsize, SNDRV_ENABLED ",allows:{{1,4096}},skill:advanced");
-module_param_array(pcm_substreams_p, int, boot_devs, 0444);
+module_param_array(pcm_substreams_p, int, NULL, 0444);
 MODULE_PARM_DESC(pcm_substreams_p, "PCM Playback substreams for " CARD_NAME " soundcard.");
-MODULE_PARM_SYNTAX(pcm_substreams_p, SNDRV_ENABLED ",allows:{{1,8}}");
-module_param_array(pcm_substreams_c, int, boot_devs, 0444);
+module_param_array(pcm_substreams_c, int, NULL, 0444);
 MODULE_PARM_DESC(pcm_substreams_c, "PCM Capture substreams for " CARD_NAME " soundcard.");
-MODULE_PARM_SYNTAX(pcm_substreams_c, SNDRV_ENABLED ",allows:{{0,8}}");
-module_param_array(clock, int, boot_devs, 0444);
+module_param_array(clock, int, NULL, 0444);
 MODULE_PARM_DESC(clock, "Clock on " CARD_NAME " soundcard.  (0 = auto-detect)");
-MODULE_PARM_SYNTAX(clock, SNDRV_ENABLED);
-module_param_array(use_pm, int, boot_devs, 0444);
+module_param_array(use_pm, int, NULL, 0444);
 MODULE_PARM_DESC(use_pm, "Toggle power-management.  (0 = off, 1 = on, 2 = auto)");
-MODULE_PARM_SYNTAX(use_pm, SNDRV_ENABLED ",allows:{{0,1,2}},default:2,skill:advanced");
-module_param_array(enable_mpu, int, boot_devs, 0444);
+module_param_array(enable_mpu, int, NULL, 0444);
 MODULE_PARM_DESC(enable_mpu, "Enable MPU401.  (0 = off, 1 = on, 2 = auto)");
-MODULE_PARM_SYNTAX(enable_mpu, SNDRV_ENABLED ",allows:{{0,2}},default:2");
 #ifdef SUPPORT_JOYSTICK
-module_param_array(joystick, bool, boot_devs, 0444);
+module_param_array(joystick, bool, NULL, 0444);
 MODULE_PARM_DESC(joystick, "Enable joystick.");
-MODULE_PARM_SYNTAX(joystick, SNDRV_ENABLED "," SNDRV_BOOLEAN_FALSE_DESC);
 #endif
 
 
@@ -522,9 +508,7 @@ enum {
 
 /* DMA Hack! */
 struct snd_esm_memory {
-	char *buf;
-	unsigned long addr;
-	int size;
+	struct snd_dma_buffer buf;
 	int empty;	/* status */
 	struct list_head list;
 };
@@ -571,15 +555,18 @@ struct snd_es1968 {
 	int playback_streams, capture_streams;
 
 	unsigned int clock;		/* clock */
+	/* for clock measurement */
+	unsigned int in_measurement: 1;
+	unsigned int measure_apu;
+	unsigned int measure_lastpos;
+	unsigned int measure_count;
 
 	/* buffer */
-	struct snd_dma_device dma_dev;
 	struct snd_dma_buffer dma;
 
 	/* Resources... */
 	int irq;
 	unsigned long io_port;
-	struct resource *res_io_port;
 	int type;
 	struct pci_dev *pci;
 	snd_card_t *card;
@@ -597,7 +584,9 @@ struct snd_es1968 {
 	snd_rawmidi_t *rmidi;
 
 	spinlock_t reg_lock;
+	spinlock_t ac97_lock;
 	struct tasklet_struct hwvol_tq;
+	unsigned int in_suspend;
 
 	/* Maestro Stuff */
 	u16 maestro_map[32];
@@ -617,8 +606,7 @@ struct snd_es1968 {
 #endif
 
 #ifdef SUPPORT_JOYSTICK
-	struct gameport gameport;
-	struct resource *res_joystick;
+	struct gameport *gameport;
 #endif
 };
 
@@ -689,6 +677,7 @@ static int snd_es1968_ac97_wait(es1968_t *chip)
 	while (timeout-- > 0) {
 		if (!(inb(chip->io_port + ESM_AC97_INDEX) & 1))
 			return 0;
+		cond_resched();
 	}
 	snd_printd("es1968: ac97 timeout\n");
 	return 1; /* timeout */
@@ -696,40 +685,37 @@ static int snd_es1968_ac97_wait(es1968_t *chip)
 
 static void snd_es1968_ac97_write(ac97_t *ac97, unsigned short reg, unsigned short val)
 {
-	es1968_t *chip = snd_magic_cast(es1968_t, ac97->private_data, return);
+	es1968_t *chip = ac97->private_data;
 	unsigned long flags;
-
-	spin_lock_irqsave(&chip->reg_lock, flags);
 
 	snd_es1968_ac97_wait(chip);
 
 	/* Write the bus */
+	spin_lock_irqsave(&chip->ac97_lock, flags);
 	outw(val, chip->io_port + ESM_AC97_DATA);
-	mdelay(1);
+	/*msleep(1);*/
 	outb(reg, chip->io_port + ESM_AC97_INDEX);
-	mdelay(1);
-
-	spin_unlock_irqrestore(&chip->reg_lock, flags);
+	/*msleep(1);*/
+	spin_unlock_irqrestore(&chip->ac97_lock, flags);
 }
 
 static unsigned short snd_es1968_ac97_read(ac97_t *ac97, unsigned short reg)
 {
 	u16 data = 0;
-	es1968_t *chip = snd_magic_cast(es1968_t, ac97->private_data, return 0);
+	es1968_t *chip = ac97->private_data;
 	unsigned long flags;
-
-	spin_lock_irqsave(&chip->reg_lock, flags);
 
 	snd_es1968_ac97_wait(chip);
 
+	spin_lock_irqsave(&chip->ac97_lock, flags);
 	outb(reg | 0x80, chip->io_port + ESM_AC97_INDEX);
-	mdelay(1);
+	/*msleep(1);*/
 
 	if (! snd_es1968_ac97_wait(chip)) {
 		data = inw(chip->io_port + ESM_AC97_DATA);
-		mdelay(1);
+		/*msleep(1);*/
 	}
-	spin_unlock_irqrestore(&chip->reg_lock, flags);
+	spin_unlock_irqrestore(&chip->ac97_lock, flags);
 
 	return data;
 }
@@ -852,23 +838,19 @@ static u16 wave_get_register(es1968_t *chip, u16 reg)
 static void snd_es1968_bob_stop(es1968_t *chip)
 {
 	u16 reg;
-	unsigned long flags;
 
-	spin_lock_irqsave(&chip->reg_lock, flags);
 	reg = __maestro_read(chip, 0x11);
 	reg &= ~ESM_BOB_ENABLE;
 	__maestro_write(chip, 0x11, reg);
 	reg = __maestro_read(chip, 0x17);
 	reg &= ~ESM_BOB_START;
 	__maestro_write(chip, 0x17, reg);
-	spin_unlock_irqrestore(&chip->reg_lock, flags);
 }
 
 static void snd_es1968_bob_start(es1968_t *chip)
 {
 	int prescale;
 	int divide;
-	unsigned long flags;
 
 	/* compute ideal interrupt frequency for buffer size & play rate */
 	/* first, find best prescaler value to match freq */
@@ -897,13 +879,11 @@ static void snd_es1968_bob_start(es1968_t *chip)
 	} else if (divide > 1)
 		divide--;
 
-	spin_lock_irqsave(&chip->reg_lock, flags);
 	__maestro_write(chip, 6, 0x9000 | (prescale << 5) | divide);	/* set reg */
 
 	/* Now set IDR 11/17 */
 	__maestro_write(chip, 0x11, __maestro_read(chip, 0x11) | 1);
 	__maestro_write(chip, 0x17, __maestro_read(chip, 0x17) | 1);
-	spin_unlock_irqrestore(&chip->reg_lock, flags);
 }
 
 /* call with substream spinlock */
@@ -1078,10 +1058,10 @@ static void snd_es1968_playback_setup(es1968_t *chip, esschan_t *es,
 	for (channel = 0; channel <= high_apu; channel++) {
 		apu = es->apu[channel];
 
-		snd_es1968_program_wavecache(chip, es, channel, es->memory->addr, 0);
+		snd_es1968_program_wavecache(chip, es, channel, es->memory->buf.addr, 0);
 
 		/* Offset to PCMBAR */
-		pa = es->memory->addr;
+		pa = es->memory->buf.addr;
 		pa -= chip->dma.addr;
 		pa >>= 1;	/* words */
 
@@ -1230,20 +1210,20 @@ static void snd_es1968_capture_setup(es1968_t *chip, esschan_t *es,
 	/* input mixer (left/mono) */
 	/* parallel in crap, see maestro reg 0xC [8-11] */
 	init_capture_apu(chip, es, 2,
-			 es->mixbuf->addr, ESM_MIXBUF_SIZE/4, /* in words */
+			 es->mixbuf->buf.addr, ESM_MIXBUF_SIZE/4, /* in words */
 			 ESM_APU_INPUTMIXER, 0x14);
 	/* SRC (left/mono); get input from inputing apu */
-	init_capture_apu(chip, es, 0, es->memory->addr, size,
+	init_capture_apu(chip, es, 0, es->memory->buf.addr, size,
 			 ESM_APU_SRCONVERTOR, es->apu[2]);
 	if (es->fmt & ESS_FMT_STEREO) {
 		/* input mixer (right) */
 		init_capture_apu(chip, es, 3,
-				 es->mixbuf->addr + ESM_MIXBUF_SIZE/2,
+				 es->mixbuf->buf.addr + ESM_MIXBUF_SIZE/2,
 				 ESM_MIXBUF_SIZE/4, /* in words */
 				 ESM_APU_INPUTMIXER, 0x15);
 		/* SRC (right) */
 		init_capture_apu(chip, es, 1,
-				 es->memory->addr + size*2, size,
+				 es->memory->buf.addr + size*2, size,
 				 ESM_APU_SRCONVERTOR, es->apu[3]);
 	}
 
@@ -1281,7 +1261,7 @@ static int snd_es1968_pcm_prepare(snd_pcm_substream_t *substream)
 {
 	es1968_t *chip = snd_pcm_substream_chip(substream);
 	snd_pcm_runtime_t *runtime = substream->runtime;
-	esschan_t *es = snd_magic_cast(esschan_t, runtime->private_data, return -ENXIO);
+	esschan_t *es = runtime->private_data;
 
 	es->dma_size = snd_pcm_lib_buffer_bytes(substream);
 	es->frag_size = snd_pcm_lib_period_bytes(substream);
@@ -1312,10 +1292,9 @@ static int snd_es1968_pcm_prepare(snd_pcm_substream_t *substream)
 static int snd_es1968_pcm_trigger(snd_pcm_substream_t *substream, int cmd)
 {
 	es1968_t *chip = snd_pcm_substream_chip(substream);
-	esschan_t *es = snd_magic_cast(esschan_t, substream->runtime->private_data, return -ENXIO);
-	unsigned long flags;
+	esschan_t *es = substream->runtime->private_data;
 
-	spin_lock_irqsave(&chip->substream_lock, flags);
+	spin_lock(&chip->substream_lock);
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_RESUME:
@@ -1336,14 +1315,14 @@ static int snd_es1968_pcm_trigger(snd_pcm_substream_t *substream, int cmd)
 		snd_es1968_bob_dec(chip);
 		break;
 	}
-	spin_unlock_irqrestore(&chip->substream_lock, flags);
+	spin_unlock(&chip->substream_lock);
 	return 0;
 }
 
 static snd_pcm_uframes_t snd_es1968_pcm_pointer(snd_pcm_substream_t *substream)
 {
 	es1968_t *chip = snd_pcm_substream_chip(substream);
-	esschan_t *es = snd_magic_cast(esschan_t, substream->runtime->private_data, return -ENXIO);
+	esschan_t *es = substream->runtime->private_data;
 	unsigned int ptr;
 
 	ptr = snd_es1968_get_dma_ptr(chip, es) << es->wav_shift;
@@ -1408,8 +1387,8 @@ static int calc_available_memory_size(es1968_t *chip)
 	down(&chip->memory_mutex);
 	list_for_each(p, &chip->buf_list) {
 		esm_memory_t *buf = list_entry(p, esm_memory_t, list);
-		if (buf->empty && buf->size > max_size)
-			max_size = buf->size;
+		if (buf->empty && buf->buf.bytes > max_size)
+			max_size = buf->buf.bytes;
 	}
 	up(&chip->memory_mutex);
 	if (max_size >= 128*1024)
@@ -1427,24 +1406,25 @@ static esm_memory_t *snd_es1968_new_memory(es1968_t *chip, int size)
 	down(&chip->memory_mutex);
 	list_for_each(p, &chip->buf_list) {
 		buf = list_entry(p, esm_memory_t, list);
-		if (buf->empty && buf->size >= size)
+		if (buf->empty && buf->buf.bytes >= size)
 			goto __found;
 	}
 	up(&chip->memory_mutex);
 	return NULL;
 
 __found:
-	if (buf->size > size) {
+	if (buf->buf.bytes > size) {
 		esm_memory_t *chunk = kmalloc(sizeof(*chunk), GFP_KERNEL);
 		if (chunk == NULL) {
 			up(&chip->memory_mutex);
 			return NULL;
 		}
-		chunk->size = buf->size - size;
-		chunk->buf = buf->buf + size;
-		chunk->addr = buf->addr + size;
+		chunk->buf = buf->buf;
+		chunk->buf.bytes -= size;
+		chunk->buf.area += size;
+		chunk->buf.addr += size;
 		chunk->empty = 1;
-		buf->size = size;
+		buf->buf.bytes = size;
 		list_add(&chunk->list, &buf->list);
 	}
 	buf->empty = 0;
@@ -1462,7 +1442,7 @@ static void snd_es1968_free_memory(es1968_t *chip, esm_memory_t *buf)
 	if (buf->list.prev != &chip->buf_list) {
 		chunk = list_entry(buf->list.prev, esm_memory_t, list);
 		if (chunk->empty) {
-			chunk->size += buf->size;
+			chunk->buf.bytes += buf->buf.bytes;
 			list_del(&buf->list);
 			kfree(buf);
 			buf = chunk;
@@ -1471,7 +1451,7 @@ static void snd_es1968_free_memory(es1968_t *chip, esm_memory_t *buf)
 	if (buf->list.next != &chip->buf_list) {
 		chunk = list_entry(buf->list.next, esm_memory_t, list);
 		if (chunk->empty) {
-			buf->size += chunk->size;
+			buf->buf.bytes += chunk->buf.bytes;
 			list_del(&chunk->list);
 			kfree(chunk);
 		}
@@ -1485,7 +1465,7 @@ static void snd_es1968_free_dmabuf(es1968_t *chip)
 
 	if (! chip->dma.area)
 		return;
-	snd_dma_free_reserved(&chip->dma_dev);
+	snd_dma_reserve_buf(&chip->dma, snd_dma_pci_buf_id(chip->pci));
 	while ((p = chip->buf_list.next) != &chip->buf_list) {
 		esm_memory_t *chunk = list_entry(p, esm_memory_t, list);
 		list_del(p);
@@ -1499,22 +1479,22 @@ snd_es1968_init_dmabuf(es1968_t *chip)
 	int err;
 	esm_memory_t *chunk;
 
-	chip->dma_dev.type = SNDRV_DMA_TYPE_DEV;
-	chip->dma_dev.dev = snd_dma_pci_data(chip->pci);
-	chip->dma_dev.id = 0;
-	if (! snd_dma_get_reserved(&chip->dma_dev, &chip->dma)) {
-		err = snd_dma_alloc_pages_fallback(&chip->dma_dev, chip->total_bufsize, &chip->dma);
+	chip->dma.dev.type = SNDRV_DMA_TYPE_DEV;
+	chip->dma.dev.dev = snd_dma_pci_data(chip->pci);
+	if (! snd_dma_get_reserved_buf(&chip->dma, snd_dma_pci_buf_id(chip->pci))) {
+		err = snd_dma_alloc_pages_fallback(SNDRV_DMA_TYPE_DEV,
+						   snd_dma_pci_data(chip->pci),
+						   chip->total_bufsize, &chip->dma);
 		if (err < 0 || ! chip->dma.area) {
 			snd_printk("es1968: can't allocate dma pages for size %d\n",
 				   chip->total_bufsize);
 			return -ENOMEM;
 		}
 		if ((chip->dma.addr + chip->dma.bytes - 1) & ~((1 << 28) - 1)) {
-			snd_dma_free_pages(&chip->dma_dev, &chip->dma);
+			snd_dma_free_pages(&chip->dma);
 			snd_printk("es1968: DMA buffer beyond 256MB.\n");
 			return -ENOMEM;
 		}
-		snd_dma_set_reserved(&chip->dma_dev, &chip->dma);
 	}
 
 	INIT_LIST_HEAD(&chip->buf_list);
@@ -1525,9 +1505,10 @@ snd_es1968_init_dmabuf(es1968_t *chip)
 		return -ENOMEM;
 	}
 	memset(chip->dma.area, 0, ESM_MEM_ALIGN);
-	chunk->buf = chip->dma.area + ESM_MEM_ALIGN;
-	chunk->addr = chip->dma.addr + ESM_MEM_ALIGN;
-	chunk->size = chip->dma.bytes - ESM_MEM_ALIGN;
+	chunk->buf = chip->dma;
+	chunk->buf.area += ESM_MEM_ALIGN;
+	chunk->buf.addr += ESM_MEM_ALIGN;
+	chunk->buf.bytes -= ESM_MEM_ALIGN;
 	chunk->empty = 1;
 	list_add(&chunk->list, &chip->buf_list);
 
@@ -1541,11 +1522,11 @@ static int snd_es1968_hw_params(snd_pcm_substream_t *substream,
 {
 	es1968_t *chip = snd_pcm_substream_chip(substream);
 	snd_pcm_runtime_t *runtime = substream->runtime;
-	esschan_t *chan = snd_magic_cast(esschan_t, runtime->private_data, return -ENXIO);
+	esschan_t *chan = runtime->private_data;
 	int size = params_buffer_bytes(hw_params);
 
 	if (chan->memory) {
-		if (chan->memory->size >= size) {
+		if (chan->memory->buf.bytes >= size) {
 			runtime->dma_bytes = size;
 			return 0;
 		}
@@ -1556,9 +1537,7 @@ static int snd_es1968_hw_params(snd_pcm_substream_t *substream,
 		// snd_printd("cannot allocate dma buffer: size = %d\n", size);
 		return -ENOMEM;
 	}
-	runtime->dma_bytes = size;
-	runtime->dma_area = chan->memory->buf;
-	runtime->dma_addr = chan->memory->addr;
+	snd_pcm_set_runtime_buffer(substream, &chan->memory->buf);
 	return 1; /* area was changed */
 }
 
@@ -1571,7 +1550,7 @@ static int snd_es1968_hw_free(snd_pcm_substream_t * substream)
 	
 	if (runtime->private_data == NULL)
 		return 0;
-	chan = snd_magic_cast(esschan_t, runtime->private_data, return -ENXIO);
+	chan = runtime->private_data;
 	if (chan->memory) {
 		snd_es1968_free_memory(chip, chan->memory);
 		chan->memory = NULL;
@@ -1616,14 +1595,13 @@ static int snd_es1968_playback_open(snd_pcm_substream_t *substream)
 	snd_pcm_runtime_t *runtime = substream->runtime;
 	esschan_t *es;
 	int apu1;
-	unsigned long flags;
 
 	/* search 2 APUs */
 	apu1 = snd_es1968_alloc_apu_pair(chip, ESM_APU_PCM_PLAY);
 	if (apu1 < 0)
 		return apu1;
 
-	es = snd_magic_kcalloc(esschan_t, 0, GFP_KERNEL);
+	es = kcalloc(1, sizeof(*es), GFP_KERNEL);
 	if (!es) {
 		snd_es1968_free_apu_pair(chip, apu1);
 		return -ENOMEM;
@@ -1645,9 +1623,9 @@ static int snd_es1968_playback_open(snd_pcm_substream_t *substream)
 	snd_pcm_hw_constraint_step(runtime, 0, SNDRV_PCM_HW_PARAM_BUFFER_BYTES,
 				   1024);
 #endif
-	spin_lock_irqsave(&chip->substream_lock, flags);
+	spin_lock_irq(&chip->substream_lock);
 	list_add(&es->list, &chip->substream_list);
-	spin_unlock_irqrestore(&chip->substream_lock, flags);
+	spin_unlock_irq(&chip->substream_lock);
 
 	return 0;
 }
@@ -1658,7 +1636,6 @@ static int snd_es1968_capture_open(snd_pcm_substream_t *substream)
 	es1968_t *chip = snd_pcm_substream_chip(substream);
 	esschan_t *es;
 	int apu1, apu2;
-	unsigned long flags;
 
 	apu1 = snd_es1968_alloc_apu_pair(chip, ESM_APU_PCM_CAPTURE);
 	if (apu1 < 0)
@@ -1669,7 +1646,7 @@ static int snd_es1968_capture_open(snd_pcm_substream_t *substream)
 		return apu2;
 	}
 	
-	es = snd_magic_kcalloc(esschan_t, 0, GFP_KERNEL);
+	es = kcalloc(1, sizeof(*es), GFP_KERNEL);
 	if (!es) {
 		snd_es1968_free_apu_pair(chip, apu1);
 		snd_es1968_free_apu_pair(chip, apu2);
@@ -1692,10 +1669,10 @@ static int snd_es1968_capture_open(snd_pcm_substream_t *substream)
 	if ((es->mixbuf = snd_es1968_new_memory(chip, ESM_MIXBUF_SIZE)) == NULL) {
 		snd_es1968_free_apu_pair(chip, apu1);
 		snd_es1968_free_apu_pair(chip, apu2);
-		snd_magic_kfree(es);
+		kfree(es);
                 return -ENOMEM;
         }
-	memset(es->mixbuf->buf, 0, ESM_MIXBUF_SIZE);
+	memset(es->mixbuf->buf.area, 0, ESM_MIXBUF_SIZE);
 
 	runtime->private_data = es;
 	runtime->hw = snd_es1968_capture;
@@ -1705,9 +1682,9 @@ static int snd_es1968_capture_open(snd_pcm_substream_t *substream)
 	snd_pcm_hw_constraint_step(runtime, 0, SNDRV_PCM_HW_PARAM_BUFFER_BYTES,
 				   1024);
 #endif
-	spin_lock_irqsave(&chip->substream_lock, flags);
+	spin_lock_irq(&chip->substream_lock);
 	list_add(&es->list, &chip->substream_list);
-	spin_unlock_irqrestore(&chip->substream_lock, flags);
+	spin_unlock_irq(&chip->substream_lock);
 
 	return 0;
 }
@@ -1716,16 +1693,15 @@ static int snd_es1968_playback_close(snd_pcm_substream_t * substream)
 {
 	es1968_t *chip = snd_pcm_substream_chip(substream);
 	esschan_t *es;
-	unsigned long flags;
 
 	if (substream->runtime->private_data == NULL)
 		return 0;
-	es = snd_magic_cast(esschan_t, substream->runtime->private_data, return -ENXIO);
-	spin_lock_irqsave(&chip->substream_lock, flags);
+	es = substream->runtime->private_data;
+	spin_lock_irq(&chip->substream_lock);
 	list_del(&es->list);
-	spin_unlock_irqrestore(&chip->substream_lock, flags);
+	spin_unlock_irq(&chip->substream_lock);
 	snd_es1968_free_apu_pair(chip, es->apu[0]);
-	snd_magic_kfree(es);
+	kfree(es);
 
 	return 0;
 }
@@ -1734,18 +1710,17 @@ static int snd_es1968_capture_close(snd_pcm_substream_t * substream)
 {
 	es1968_t *chip = snd_pcm_substream_chip(substream);
 	esschan_t *es;
-	unsigned long flags;
 
 	if (substream->runtime->private_data == NULL)
 		return 0;
-	es = snd_magic_cast(esschan_t, substream->runtime->private_data, return -ENXIO);
-	spin_lock_irqsave(&chip->substream_lock, flags);
+	es = substream->runtime->private_data;
+	spin_lock_irq(&chip->substream_lock);
 	list_del(&es->list);
-	spin_unlock_irqrestore(&chip->substream_lock, flags);
+	spin_unlock_irq(&chip->substream_lock);
 	snd_es1968_free_memory(chip, es->mixbuf);
 	snd_es1968_free_apu_pair(chip, es->apu[0]);
 	snd_es1968_free_apu_pair(chip, es->apu[2]);
-	snd_magic_kfree(es);
+	kfree(es);
 
 	return 0;
 }
@@ -1783,7 +1758,6 @@ static void __devinit es1968_measure_clock(es1968_t *chip)
 	int i, apu;
 	unsigned int pa, offset, t;
 	esm_memory_t *memory;
-	unsigned long flags;
 	struct timeval start_time, stop_time;
 
 	if (chip->clock == 0)
@@ -1800,11 +1774,11 @@ static void __devinit es1968_measure_clock(es1968_t *chip)
 		return;
 	}
 
-	memset(memory->buf, 0, CLOCK_MEASURE_BUFSIZE);
+	memset(memory->buf.area, 0, CLOCK_MEASURE_BUFSIZE);
 
-	wave_set_register(chip, apu << 3, (memory->addr - 0x10) & 0xfff8);
+	wave_set_register(chip, apu << 3, (memory->buf.addr - 0x10) & 0xfff8);
 
-	pa = (unsigned int)((memory->addr - chip->dma.addr) >> 1);
+	pa = (unsigned int)((memory->buf.addr - chip->dma.addr) >> 1);
 	pa |= 0x00400000;	/* System RAM (Bit 22) */
 
 	/* initialize apu */
@@ -1820,37 +1794,35 @@ static void __devinit es1968_measure_clock(es1968_t *chip)
 	apu_set_register(chip, apu, 9, 0xD000);
 	apu_set_register(chip, apu, 10, 0x8F08);
 	apu_set_register(chip, apu, 11, 0x0000);
-	spin_lock_irqsave(&chip->reg_lock, flags);
+	spin_lock_irq(&chip->reg_lock);
 	outw(1, chip->io_port + 0x04); /* clear WP interrupts */
 	outw(inw(chip->io_port + ESM_PORT_HOST_IRQ) | ESM_HIRQ_DSIE, chip->io_port + ESM_PORT_HOST_IRQ); /* enable WP ints */
-	spin_unlock_irqrestore(&chip->reg_lock, flags);
+	spin_unlock_irq(&chip->reg_lock);
 
 	snd_es1968_apu_set_freq(chip, apu, ((unsigned int)48000 << 16) / chip->clock); /* 48000 Hz */
 
-	spin_lock_irqsave(&chip->reg_lock, flags);
+	chip->in_measurement = 1;
+	chip->measure_apu = apu;
+	spin_lock_irq(&chip->reg_lock);
+	snd_es1968_bob_inc(chip, ESM_BOB_FREQ);
 	__apu_set_register(chip, apu, 5, pa & 0xffff);
 	snd_es1968_trigger_apu(chip, apu, ESM_APU_16BITLINEAR);
 	do_gettimeofday(&start_time);
-	spin_unlock_irqrestore(&chip->reg_lock, flags);
-#if 0
+	spin_unlock_irq(&chip->reg_lock);
 	set_current_state(TASK_UNINTERRUPTIBLE);
 	schedule_timeout(HZ / 20); /* 50 msec */
-#else
-	/* FIXME:
-	 * schedule() above may be too inaccurate and the pointer can
-	 * overlap the boundary..
-	 */
-	mdelay(50);
-#endif
-	spin_lock_irqsave(&chip->reg_lock, flags);
+	spin_lock_irq(&chip->reg_lock);
 	offset = __apu_get_register(chip, apu, 5);
 	do_gettimeofday(&stop_time);
 	snd_es1968_trigger_apu(chip, apu, 0); /* stop */
-	spin_unlock_irqrestore(&chip->reg_lock, flags);
+	snd_es1968_bob_dec(chip);
+	chip->in_measurement = 0;
+	spin_unlock_irq(&chip->reg_lock);
 
 	/* check the current position */
 	offset -= (pa & 0xffff);
 	offset &= 0xfffe;
+	offset += chip->measure_count * (CLOCK_MEASURE_BUFSIZE/2);
 
 	t = stop_time.tv_sec - start_time.tv_sec;
 	t *= 1000000;
@@ -1879,7 +1851,7 @@ static void __devinit es1968_measure_clock(es1968_t *chip)
 
 static void snd_es1968_pcm_free(snd_pcm_t *pcm)
 {
-	es1968_t *esm = snd_magic_cast(es1968_t, pcm->private_data, return);
+	es1968_t *esm = pcm->private_data;
 	snd_es1968_free_dmabuf(esm);
 	esm->pcm = NULL;
 }
@@ -1952,8 +1924,9 @@ static void snd_es1968_update_pcm(es1968_t *chip, esschan_t *es)
  */
 static void es1968_update_hw_volume(unsigned long private_data)
 {
-	es1968_t *chip = snd_magic_cast(es1968_t, (void*)private_data, return);
+	es1968_t *chip = (es1968_t *) private_data;
 	int x, val;
+	unsigned long flags;
 
 	/* Figure out which volume control button was pushed,
 	   based on differences from the default register
@@ -1965,14 +1938,21 @@ static void es1968_update_hw_volume(unsigned long private_data)
 	outb(0x88, chip->io_port + 0x1e);
 	outb(0x88, chip->io_port + 0x1f);
 
+	if (chip->in_suspend)
+		return;
+
 	if (! chip->master_switch || ! chip->master_volume)
 		return;
 
-	/* FIXME: more clean up is needed.. */
+	/* FIXME: we can't call snd_ac97_* functions since here is in tasklet. */
+	spin_lock_irqsave(&chip->ac97_lock, flags);
 	val = chip->ac97->regs[AC97_MASTER];
 	if (x & 1) {
 		/* mute */
-		snd_ac97_write_cache(chip->ac97, AC97_MASTER, val ^ 0x8000);
+		val ^= 0x8000;
+		chip->ac97->regs[AC97_MASTER] = val;
+		outw(val, chip->io_port + ESM_AC97_DATA);
+		outb(AC97_MASTER, chip->io_port + ESM_AC97_INDEX);
 		snd_ctl_notify(chip->card, SNDRV_CTL_EVENT_MASK_VALUE,
 			       &chip->master_switch->id);
 	} else {
@@ -1990,12 +1970,13 @@ static void es1968_update_hw_volume(unsigned long private_data)
 			if ((val & 0xff00) < 0x1f00)
 				val += 0x0100;
 		}
-		if (val == 0x1f1f)
-			val |= 0x8000;
-		snd_ac97_write_cache(chip->ac97, AC97_MASTER, val);
+		chip->ac97->regs[AC97_MASTER] = val;
+		outw(val, chip->io_port + ESM_AC97_DATA);
+		outb(AC97_MASTER, chip->io_port + ESM_AC97_INDEX);
 		snd_ctl_notify(chip->card, SNDRV_CTL_EVENT_MASK_VALUE,
 			       &chip->master_volume->id);
 	}
+	spin_unlock_irqrestore(&chip->ac97_lock, flags);
 }
 
 /*
@@ -2003,7 +1984,7 @@ static void es1968_update_hw_volume(unsigned long private_data)
  */
 static irqreturn_t snd_es1968_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 {
-	es1968_t *chip = snd_magic_cast(es1968_t, dev_id, return IRQ_NONE);
+	es1968_t *chip = dev_id;
 	u32 event;
 
 	if (!(event = inb(chip->io_port + 0x1A)))
@@ -2030,6 +2011,12 @@ static irqreturn_t snd_es1968_interrupt(int irq, void *dev_id, struct pt_regs *r
 				snd_es1968_update_pcm(chip, es);
 		}
 		spin_unlock(&chip->substream_lock);
+		if (chip->in_measurement) {
+			unsigned int curp = __apu_get_register(chip, chip->measure_apu, 5);
+			if (curp < chip->measure_lastpos)
+				chip->measure_count++;
+			chip->measure_lastpos = curp;
+		}
 	}
 
 	return IRQ_HANDLED;
@@ -2042,16 +2029,18 @@ static irqreturn_t snd_es1968_interrupt(int irq, void *dev_id, struct pt_regs *r
 static int __devinit
 snd_es1968_mixer(es1968_t *chip)
 {
-	ac97_bus_t bus, *pbus;
-	ac97_t ac97;
+	ac97_bus_t *pbus;
+	ac97_template_t ac97;
 	snd_ctl_elem_id_t id;
 	int err;
+	static ac97_bus_ops_t ops = {
+		.write = snd_es1968_ac97_write,
+		.read = snd_es1968_ac97_read,
+	};
 
-	memset(&bus, 0, sizeof(bus));
-	bus.write = snd_es1968_ac97_write;
-	bus.read = snd_es1968_ac97_read;
-	if ((err = snd_ac97_bus(chip->card, &bus, &pbus)) < 0)
+	if ((err = snd_ac97_bus(chip->card, 0, &ops, NULL, &pbus)) < 0)
 		return err;
+	pbus->no_vra = 1; /* ES1968 doesn't need VRA */
 
 	memset(&ac97, 0, sizeof(ac97));
 	ac97.private_data = chip;
@@ -2418,30 +2407,33 @@ static void snd_es1968_start_irq(es1968_t *chip)
 /*
  * PM support
  */
-static int es1968_suspend(snd_card_t *card, unsigned int state)
+static int es1968_suspend(snd_card_t *card, pm_message_t state)
 {
-	es1968_t *chip = snd_magic_cast(es1968_t, card->pm_private_data, return -EINVAL);
+	es1968_t *chip = card->pm_private_data;
 
 	if (! chip->do_pm)
 		return 0;
 
+	chip->in_suspend = 1;
 	snd_pcm_suspend_all(chip->pcm);
 	snd_ac97_suspend(chip->ac97);
 	snd_es1968_bob_stop(chip);
 	snd_es1968_set_acpi(chip, ACPI_D3);
-	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
+	pci_disable_device(chip->pci);
 	return 0;
 }
 
-static int es1968_resume(snd_card_t *card, unsigned int state)
+static int es1968_resume(snd_card_t *card)
 {
-	es1968_t *chip = snd_magic_cast(es1968_t, card->pm_private_data, return -EINVAL);
+	es1968_t *chip = card->pm_private_data;
+	struct list_head *p;
 
 	if (! chip->do_pm)
 		return 0;
 
 	/* restore all our config */
 	pci_enable_device(chip->pci);
+	pci_set_master(chip->pci);
 	snd_es1968_chip_init(chip);
 
 	/* need to restore the base pointers.. */ 
@@ -2455,46 +2447,104 @@ static int es1968_resume(snd_card_t *card, unsigned int state)
 	/* restore ac97 state */
 	snd_ac97_resume(chip->ac97);
 
+	list_for_each(p, &chip->substream_list) {
+		esschan_t *es = list_entry(p, esschan_t, list);
+		switch (es->mode) {
+		case ESM_MODE_PLAY:
+			snd_es1968_playback_setup(chip, es, es->substream->runtime);
+			break;
+		case ESM_MODE_CAPTURE:
+			snd_es1968_capture_setup(chip, es, es->substream->runtime);
+			break;
+		}
+	}
+
 	/* start timer again */
 	if (chip->bobclient)
 		snd_es1968_bob_start(chip);
 
-	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
+	chip->in_suspend = 0;
 	return 0;
 }
 #endif /* CONFIG_PM */
 
+#ifdef SUPPORT_JOYSTICK
+#define JOYSTICK_ADDR	0x200
+static int __devinit snd_es1968_create_gameport(es1968_t *chip, int dev)
+{
+	struct gameport *gp;
+	struct resource *r;
+	u16 val;
+
+	if (!joystick[dev])
+		return -ENODEV;
+
+	r = request_region(JOYSTICK_ADDR, 8, "ES1968 gameport");
+	if (!r)
+		return -EBUSY;
+
+	chip->gameport = gp = gameport_allocate_port();
+	if (!gp) {
+		printk(KERN_ERR "es1968: cannot allocate memory for gameport\n");
+		release_resource(r);
+		kfree_nocheck(r);
+		return -ENOMEM;
+	}
+
+	pci_read_config_word(chip->pci, ESM_LEGACY_AUDIO_CONTROL, &val);
+	pci_write_config_word(chip->pci, ESM_LEGACY_AUDIO_CONTROL, val | 0x04);
+
+	gameport_set_name(gp, "ES1968 Gameport");
+	gameport_set_phys(gp, "pci%s/gameport0", pci_name(chip->pci));
+	gameport_set_dev_parent(gp, &chip->pci->dev);
+	gp->io = JOYSTICK_ADDR;
+	gameport_set_port_data(gp, r);
+
+	gameport_register_port(gp);
+
+	return 0;
+}
+
+static void snd_es1968_free_gameport(es1968_t *chip)
+{
+	if (chip->gameport) {
+		struct resource *r = gameport_get_port_data(chip->gameport);
+
+		gameport_unregister_port(chip->gameport);
+		chip->gameport = NULL;
+
+		release_resource(r);
+		kfree_nocheck(r);
+	}
+}
+#else
+static inline int snd_es1968_create_gameport(es1968_t *chip, int dev) { return -ENOSYS; }
+static inline void snd_es1968_free_gameport(es1968_t *chip) { }
+#endif
+
 static int snd_es1968_free(es1968_t *chip)
 {
-	if (chip->res_io_port) {
+	if (chip->io_port) {
 		synchronize_irq(chip->irq);
 		outw(1, chip->io_port + 0x04); /* clear WP interrupts */
 		outw(0, chip->io_port + ESM_PORT_HOST_IRQ); /* disable IRQ */
 	}
 
-#ifdef SUPPORT_JOYSTICK
-	if (chip->res_joystick) {
-		gameport_unregister_port(&chip->gameport);
-		release_resource(chip->res_joystick);
-		kfree_nocheck(chip->res_joystick);
-	}
-#endif
+	if (chip->irq >= 0)
+		free_irq(chip->irq, (void *)chip);
+	snd_es1968_free_gameport(chip);
 	snd_es1968_set_acpi(chip, ACPI_D3);
 	chip->master_switch = NULL;
 	chip->master_volume = NULL;
-	if (chip->res_io_port) {
-		release_resource(chip->res_io_port);
-		kfree_nocheck(chip->res_io_port);
-	}
-	if (chip->irq >= 0)
-		free_irq(chip->irq, (void *)chip);
-	snd_magic_kfree(chip);
+	pci_release_regions(chip->pci);
+	pci_disable_device(chip->pci);
+	kfree(chip);
 	return 0;
 }
 
 static int snd_es1968_dev_free(snd_device_t *device)
 {
-	es1968_t *chip = snd_magic_cast(es1968_t, device->device_data, return -ENXIO);
+	es1968_t *chip = device->device_data;
 	return snd_es1968_free(chip);
 }
 
@@ -2539,12 +2589,15 @@ static int __devinit snd_es1968_create(snd_card_t * card,
 	if (pci_set_dma_mask(pci, 0x0fffffff) < 0 ||
 	    pci_set_consistent_dma_mask(pci, 0x0fffffff) < 0) {
 		snd_printk("architecture does not support 28bit PCI busmaster DMA\n");
+		pci_disable_device(pci);
 		return -ENXIO;
 	}
 
-	chip = (es1968_t *) snd_magic_kcalloc(es1968_t, 0, GFP_KERNEL);
-	if (! chip)
+	chip = kcalloc(1, sizeof(*chip), GFP_KERNEL);
+	if (! chip) {
+		pci_disable_device(pci);
 		return -ENOMEM;
+	}
 
 	/* Set Vars */
 	chip->type = chip_type;
@@ -2552,6 +2605,7 @@ static int __devinit snd_es1968_create(snd_card_t * card,
 	spin_lock_init(&chip->substream_lock);
 	INIT_LIST_HEAD(&chip->buf_list);
 	INIT_LIST_HEAD(&chip->substream_list);
+	spin_lock_init(&chip->ac97_lock);
 	init_MUTEX(&chip->memory_mutex);
 	tasklet_init(&chip->hwvol_tq, es1968_update_hw_volume, (unsigned long)chip);
 	chip->card = card;
@@ -2561,12 +2615,12 @@ static int __devinit snd_es1968_create(snd_card_t * card,
 	chip->playback_streams = play_streams;
 	chip->capture_streams = capt_streams;
 
-	chip->io_port = pci_resource_start(pci, 0);
-	if ((chip->res_io_port = request_region(chip->io_port, 0x100, "ESS Maestro")) == NULL) {
-		snd_printk("unable to grab region 0x%lx-0x%lx\n", chip->io_port, chip->io_port + 0x100 - 1);
-		snd_es1968_free(chip);
-		return -EBUSY;
+	if ((err = pci_request_regions(pci, "ESS Maestro")) < 0) {
+		kfree(chip);
+		pci_disable_device(pci);
+		return err;
 	}
+	chip->io_port = pci_resource_start(pci, 0);
 	if (request_irq(pci->irq, snd_es1968_interrupt, SA_INTERRUPT|SA_SHIRQ,
 			"ESS Maestro", (void*)chip)) {
 		snd_printk("unable to grab IRQ %d\n", pci->irq);
@@ -2705,17 +2759,7 @@ static int __devinit snd_es1968_probe(struct pci_dev *pci,
 		}
 	}
 
-#ifdef SUPPORT_JOYSTICK
-#define JOYSTICK_ADDR	0x200
-	if (joystick[dev] &&
-	    (chip->res_joystick = request_region(JOYSTICK_ADDR, 8, "ES1968 gameport")) != NULL) {
-		u16 val;
-		pci_read_config_word(pci, ESM_LEGACY_AUDIO_CONTROL, &val);
-		pci_write_config_word(pci, ESM_LEGACY_AUDIO_CONTROL, val | 0x04);
-		chip->gameport.io = JOYSTICK_ADDR;
-		gameport_register_port(&chip->gameport);
-	}
-#endif
+	snd_es1968_create_gameport(chip, dev);
 
 	snd_es1968_start_irq(chip);
 

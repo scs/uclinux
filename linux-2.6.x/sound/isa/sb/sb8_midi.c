@@ -46,20 +46,16 @@ irqreturn_t snd_sb8dsp_midi_interrupt(sb_t * chip)
 		inb(SBP(chip, DATA_AVAIL));	/* ack interrupt */
 		return IRQ_NONE;
 	}
+	spin_lock(&chip->midi_input_lock);
 	while (max-- > 0) {
-		spin_lock(&chip->midi_input_lock);
 		if (inb(SBP(chip, DATA_AVAIL)) & 0x80) {
 			byte = inb(SBP(chip, READ));
 			if (chip->open & SB_OPEN_MIDI_INPUT_TRIGGER) {
-				spin_unlock(&chip->midi_input_lock);
 				snd_rawmidi_receive(chip->midi_substream_input, &byte, 1);
-			} else {
-				spin_unlock(&chip->midi_input_lock);
 			}
-		} else {
-			spin_unlock(&chip->midi_input_lock);
 		}
 	}
+	spin_unlock(&chip->midi_input_lock);
 	return IRQ_HANDLED;
 }
 
@@ -73,7 +69,7 @@ static int snd_sb8dsp_midi_input_open(snd_rawmidi_substream_t * substream)
 	sb_t *chip;
 	unsigned int valid_open_flags;
 
-	chip = snd_magic_cast(sb_t, substream->rmidi->private_data, return -ENXIO);
+	chip = substream->rmidi->private_data;
 	valid_open_flags = chip->hardware >= SB_HW_20
 		? SB_OPEN_MIDI_OUTPUT | SB_OPEN_MIDI_OUTPUT_TRIGGER : 0;
 	spin_lock_irqsave(&chip->open_lock, flags);
@@ -100,7 +96,7 @@ static int snd_sb8dsp_midi_output_open(snd_rawmidi_substream_t * substream)
 	sb_t *chip;
 	unsigned int valid_open_flags;
 
-	chip = snd_magic_cast(sb_t, substream->rmidi->private_data, return -ENXIO);
+	chip = substream->rmidi->private_data;
 	valid_open_flags = chip->hardware >= SB_HW_20
 		? SB_OPEN_MIDI_INPUT | SB_OPEN_MIDI_INPUT_TRIGGER : 0;
 	spin_lock_irqsave(&chip->open_lock, flags);
@@ -126,7 +122,7 @@ static int snd_sb8dsp_midi_input_close(snd_rawmidi_substream_t * substream)
 	unsigned long flags;
 	sb_t *chip;
 
-	chip = snd_magic_cast(sb_t, substream->rmidi->private_data, return -ENXIO);
+	chip = substream->rmidi->private_data;
 	spin_lock_irqsave(&chip->open_lock, flags);
 	chip->open &= ~(SB_OPEN_MIDI_INPUT | SB_OPEN_MIDI_INPUT_TRIGGER);
 	chip->midi_substream_input = NULL;
@@ -144,7 +140,7 @@ static int snd_sb8dsp_midi_output_close(snd_rawmidi_substream_t * substream)
 	unsigned long flags;
 	sb_t *chip;
 
-	chip = snd_magic_cast(sb_t, substream->rmidi->private_data, return -ENXIO);
+	chip = substream->rmidi->private_data;
 	spin_lock_irqsave(&chip->open_lock, flags);
 	chip->open &= ~(SB_OPEN_MIDI_OUTPUT | SB_OPEN_MIDI_OUTPUT_TRIGGER);
 	chip->midi_substream_output = NULL;
@@ -162,7 +158,7 @@ static void snd_sb8dsp_midi_input_trigger(snd_rawmidi_substream_t * substream, i
 	unsigned long flags;
 	sb_t *chip;
 
-	chip = snd_magic_cast(sb_t, substream->rmidi->private_data, return);
+	chip = substream->rmidi->private_data;
 	spin_lock_irqsave(&chip->open_lock, flags);
 	if (up) {
 		if (!(chip->open & SB_OPEN_MIDI_INPUT_TRIGGER)) {
@@ -188,7 +184,7 @@ static void snd_sb8dsp_midi_output_write(snd_rawmidi_substream_t * substream)
 	int max = 32;
 
 	/* how big is Tx FIFO? */
-	chip = snd_magic_cast(sb_t, substream->rmidi->private_data, return);
+	chip = substream->rmidi->private_data;
 	while (max-- > 0) {
 		spin_lock_irqsave(&chip->open_lock, flags);
 		if (snd_rawmidi_transmit_peek(substream, &byte, 1) != 1) {
@@ -219,7 +215,7 @@ static void snd_sb8dsp_midi_output_write(snd_rawmidi_substream_t * substream)
 static void snd_sb8dsp_midi_output_timer(unsigned long data)
 {
 	snd_rawmidi_substream_t * substream = (snd_rawmidi_substream_t *) data;
-	sb_t * chip = snd_magic_cast(sb_t, substream->rmidi->private_data, return);
+	sb_t * chip = substream->rmidi->private_data;
 	unsigned long flags;
 
 	spin_lock_irqsave(&chip->open_lock, flags);
@@ -234,7 +230,7 @@ static void snd_sb8dsp_midi_output_trigger(snd_rawmidi_substream_t * substream, 
 	unsigned long flags;
 	sb_t *chip;
 
-	chip = snd_magic_cast(sb_t, substream->rmidi->private_data, return);
+	chip = substream->rmidi->private_data;
 	spin_lock_irqsave(&chip->open_lock, flags);
 	if (up) {
 		if (!(chip->open & SB_OPEN_MIDI_OUTPUT_TRIGGER)) {

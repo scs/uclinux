@@ -94,7 +94,7 @@ static int      recording_active;
 static int      only_read_access;
 static int      only_8_bits;
 
-int             iw_mode = 0;
+static int      iw_mode = 0;
 int             gus_wave_volume = 60;
 int             gus_pcm_volume = 80;
 int             have_gus_max = 0;
@@ -139,7 +139,7 @@ static int      pcm_current_block;
 static unsigned long pcm_current_buf;
 static int      pcm_current_count;
 static int      pcm_current_intrflag;
-spinlock_t gus_lock=SPIN_LOCK_UNLOCKED;
+DEFINE_SPINLOCK(gus_lock);
 
 extern int     *gus_osp;
 
@@ -2942,6 +2942,8 @@ void __init gus_wave_init(struct address_info *hw_config)
 		}
 		else
 		{
+			struct resource *ports;
+			ports = request_region(gus_base + 0x10c, 4, "ad1848");
 			model_num = "MAX";
 			gus_type = 0x40;
 			mixer_type = CS4231;
@@ -2963,7 +2965,10 @@ void __init gus_wave_init(struct address_info *hw_config)
 				outb((max_config), gus_base + 0x106);	/* UltraMax control */
 			}
 
-			if (ad1848_detect(gus_base + 0x10c, &ad_flags, hw_config->osp))
+			if (!ports)
+				goto no_cs4231;
+
+			if (ad1848_detect(ports, &ad_flags, hw_config->osp))
 			{
 				char           *name = "GUS MAX";
 				int             old_num_mixers = num_mixers;
@@ -2977,7 +2982,7 @@ void __init gus_wave_init(struct address_info *hw_config)
 				if (hw_config->name)
 					name = hw_config->name;
 
-				hw_config->slots[1] = ad1848_init(name, gus_base + 0x10c,
+				hw_config->slots[1] = ad1848_init(name, ports,
 							-irq, gus_dma2,	/* Playback DMA */
 							gus_dma,	/* Capture DMA */
 							1,		/* Share DMA channels with GF1 */
@@ -2992,8 +2997,11 @@ void __init gus_wave_init(struct address_info *hw_config)
 					AD1848_REROUTE(SOUND_MIXER_LINE3, SOUND_MIXER_LINE);
 				}
 			}
-			else
+			else {
+				release_region(gus_base + 0x10c, 4);
+			no_cs4231:
 				printk(KERN_WARNING "GUS: No CS4231 ??");
+			}
 #else
 			printk(KERN_ERR "GUS MAX found, but not compiled in\n");
 #endif
@@ -3118,8 +3126,7 @@ void __exit gus_wave_unload(struct address_info *hw_config)
 	if (hw_config->slots[5] != -1)
 		sound_unload_mixerdev(hw_config->slots[5]);
 	
-	if(samples)
-		vfree(samples);
+	vfree(samples);
 	samples=NULL;
 }
 /* called in interrupt context */

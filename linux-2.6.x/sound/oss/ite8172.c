@@ -70,10 +70,10 @@
 #include <linux/spinlock.h>
 #include <linux/smp_lock.h>
 #include <linux/ac97_codec.h>
+#include <linux/interrupt.h>
 #include <asm/io.h>
 #include <asm/dma.h>
 #include <asm/uaccess.h>
-#include <asm/hardirq.h>
 #include <asm/it8172/it8172.h>
 
 /* --------------------------------------------------------------------- */
@@ -82,6 +82,19 @@
 #define IT8172_DEBUG
 #undef IT8172_VERBOSE_DEBUG
 #define DBG(x) {}
+
+#define IT8172_MODULE_NAME "IT8172 audio"
+#define PFX IT8172_MODULE_NAME
+
+#ifdef IT8172_DEBUG
+#define dbg(format, arg...) printk(KERN_DEBUG PFX ": " format "\n" , ## arg)
+#else
+#define dbg(format, arg...) do {} while (0)
+#endif
+#define err(format, arg...) printk(KERN_ERR PFX ": " format "\n" , ## arg)
+#define info(format, arg...) printk(KERN_INFO PFX ": " format "\n" , ## arg)
+#define warn(format, arg...) printk(KERN_WARNING PFX ": " format "\n" , ## arg)
+
 
 #define IT8172_MODULE_NAME "IT8172 audio"
 #define PFX IT8172_MODULE_NAME
@@ -285,7 +298,7 @@ struct it8172_state {
 	struct proc_dir_entry *ac97_ps;
 #endif /* IT8172_DEBUG */
 
-	struct ac97_codec *codec;
+	struct ac97_codec codec;
 
 	unsigned short pcc, capcc;
 	unsigned dacrate, adcrate;
@@ -664,7 +677,7 @@ static inline void dealloc_dmabuf(struct it8172_state *s, struct dmabuf *db)
 		pend = virt_to_page(db->rawbuf +
 				    (PAGE_SIZE << db->buforder) - 1);
 		for (page = virt_to_page(db->rawbuf); page <= pend; page++)
-			mem_map_unreserve(page);
+			ClearPageReserved(page);
 		pci_free_consistent(s->dev, PAGE_SIZE << db->buforder,
 				    db->rawbuf, db->dmaaddr);
 	}
@@ -693,11 +706,11 @@ static int prog_dmabuf(struct it8172_state *s, struct dmabuf *db,
 			return -ENOMEM;
 		db->buforder = order;
 		/* now mark the pages as reserved;
-		   otherwise remap_page_range doesn't do what we want */
+		   otherwise remap_pfn_range doesn't do what we want */
 		pend = virt_to_page(db->rawbuf +
 				    (PAGE_SIZE << db->buforder) - 1);
 		for (page = virt_to_page(db->rawbuf); page <= pend; page++)
-			mem_map_reserve(page);
+			SetPageReserved(page);
 	}
 
 	db->count = 0;
@@ -858,12 +871,6 @@ static irqreturn_t it8172_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 
 /* --------------------------------------------------------------------- */
 
-static loff_t it8172_llseek(struct file *file, loff_t offset, int origin)
-{
-	return -ESPIPE;
-}
-
-
 static int it8172_open_mixdev(struct inode *inode, struct file *file)
 {
 	int minor = iminor(inode);
@@ -874,7 +881,7 @@ static int it8172_open_mixdev(struct inode *inode, struct file *file)
 		if (list == &devs)
 			return -ENODEV;
 		s = list_entry(list, struct it8172_state, devs);
-		if (s->codec->dev_mixer == minor)
+		if (s->codec.dev_mixer == minor)
 			break;
 	}
 	file->private_data = s;
@@ -998,14 +1005,14 @@ static int it8172_ioctl_mixdev(struct inode *inode, struct file *file,
 			       unsigned int cmd, unsigned long arg)
 {
 	struct it8172_state *s = (struct it8172_state *)file->private_data;
-	struct ac97_codec *codec = s->codec;
+	struct ac97_codec *codec = &s->codec;
 
 	return mixdev_ioctl(codec, cmd, arg);
 }
 
 static /*const*/ struct file_operations it8172_mixer_fops = {
 	.owner		= THIS_MODULE,
-	.llseek		= it8172_llseek,
+	.llseek		= no_llseek,
 	.ioctl		= it8172_ioctl_mixdev,
 	.open		= it8172_open_mixdev,
 	.release	= it8172_release_mixdev,
@@ -1311,7 +1318,8 @@ static int it8172_mmap(struct file *file, struct vm_area_struct *vma)
 		unlock_kernel();
 		return -EINVAL;
 	}
-	if (remap_page_range(vma, vma->vm_start, virt_to_phys(db->rawbuf),
+	if (remap_pfn_range(vma, vma->vm_start,
+			     virt_to_phys(db->rawbuf) >> PAGE_SHIFT,
 			     size, vma->vm_page_prot)) {
 		unlock_kernel();
 		return -EAGAIN;
@@ -1408,14 +1416,14 @@ static int it8172_ioctl(struct inode *inode, struct file *file,
 	case SNDCTL_DSP_RESET:
 		if (file->f_mode & FMODE_WRITE) {
 			stop_dac(s);
-			synchronize_irq();
+			synchronize_irq(s->irq);
 			s->dma_dac.count = s->dma_dac.total_bytes = 0;
 			s->dma_dac.nextIn = s->dma_dac.nextOut =
 				s->dma_dac.rawbuf;
 		}
 		if (file->f_mode & FMODE_READ) {
 			stop_adc(s);
-			synchronize_irq();
+			synchronize_irq(s->irq);
 			s->dma_adc.count = s->dma_adc.total_bytes = 0;
 			s->dma_adc.nextIn = s->dma_adc.nextOut =
 				s->dma_adc.rawbuf;
@@ -1650,7 +1658,9 @@ static int it8172_ioctl(struct inode *inode, struct file *file,
 		if (count < 0)
 			count = 0;
 		cinfo.blocks = count >> s->dma_adc.fragshift;
-		return copy_to_user((void *)arg, &cinfo, sizeof(cinfo)) ? -EFAULT : 0;
+		if (copy_to_user((void *)arg, &cinfo, sizeof(cinfo)))
+			return -EFAULT;
+		return 0;
 
 	case SNDCTL_DSP_GETOPTR:
 		if (!(file->f_mode & FMODE_READ))
@@ -1673,7 +1683,9 @@ static int it8172_ioctl(struct inode *inode, struct file *file,
 		if (count < 0)
 			count = 0;
 		cinfo.blocks = count >> s->dma_dac.fragshift;
-		return copy_to_user((void *)arg, &cinfo, sizeof(cinfo)) ? -EFAULT : 0;
+		if (copy_to_user((void *)arg, &cinfo, sizeof(cinfo)))
+			return -EFAULT;
+		return 0;
 
 	case SNDCTL_DSP_GETBLKSIZE:
 		if (file->f_mode & FMODE_WRITE)
@@ -1760,7 +1772,7 @@ static int it8172_ioctl(struct inode *inode, struct file *file,
 		return -EINVAL;
 	}
 
-	return mixdev_ioctl(s->codec, cmd, arg);
+	return mixdev_ioctl(&s->codec, cmd, arg);
 }
 
 
@@ -1870,7 +1882,7 @@ static int it8172_release(struct inode *inode, struct file *file)
 
 static /*const*/ struct file_operations it8172_audio_fops = {
 	.owner		= THIS_MODULE,
-	.llseek		= it8172_llseek,
+	.llseek		= no_llseek,
 	.read		= it8172_read,
 	.write		= it8172_write,
 	.poll		= it8172_poll,
@@ -1928,7 +1940,7 @@ static int proc_it8172_dump (char *buf, char **start, off_t fpos,
 	len += sprintf (buf + len, "----------------------\n");
 	for (cnt=0; cnt <= 0x7e; cnt = cnt +2)
 		len+= sprintf (buf + len, "reg %02x = %04x\n",
-			       cnt, rdcodec(s->codec, cnt));
+			       cnt, rdcodec(&s->codec, cnt));
 
 	if (fpos >=len){
 		*start = buf;
@@ -1993,16 +2005,11 @@ static int __devinit it8172_probe(struct pci_dev *pcidev,
 	s->vendor = pcidev->vendor;
 	s->device = pcidev->device;
 	pci_read_config_byte(pcidev, PCI_REVISION_ID, &s->rev);
-	
-	s->codec = ac97_alloc_codec();
-	if(s->codec == NULL)
-		goto err_codec;
-		
-	s->codec->private_data = s;
-	s->codec->id = 0;
-	s->codec->codec_read = rdcodec;
-	s->codec->codec_write = wrcodec;
-	s->codec->codec_wait = waitcodec;
+	s->codec.private_data = s;
+	s->codec.id = 0;
+	s->codec.codec_read = rdcodec;
+	s->codec.codec_write = wrcodec;
+	s->codec.codec_wait = waitcodec;
 
 	if (!request_region(s->io, pci_resource_len(pcidev,0),
 			    IT8172_MODULE_NAME)) {
@@ -2021,12 +2028,12 @@ static int __devinit it8172_probe(struct pci_dev *pcidev,
 	/* register devices */
 	if ((s->dev_audio = register_sound_dsp(&it8172_audio_fops, -1)) < 0)
 		goto err_dev1;
-	if ((s->codec->dev_mixer =
+	if ((s->codec.dev_mixer =
 	     register_sound_mixer(&it8172_mixer_fops, -1)) < 0)
 		goto err_dev2;
 
 #ifdef IT8172_DEBUG
-	/* intialize the debug proc device */
+	/* initialize the debug proc device */
 	s->ps = create_proc_read_entry(IT8172_MODULE_NAME, 0, NULL,
 				       proc_it8172_dump, NULL);
 #endif /* IT8172_DEBUG */
@@ -2092,11 +2099,11 @@ static int __devinit it8172_probe(struct pci_dev *pcidev,
 	outw(0, s->io+IT_AC_CODECC);
     
 	/* codec init */
-	if (!ac97_probe_codec(s->codec))
+	if (!ac97_probe_codec(&s->codec))
 		goto err_dev3;
 
 	/* add I2S as allowable recording source */
-	s->codec->record_sources |= SOUND_MASK_I2S;
+	s->codec.record_sources |= SOUND_MASK_I2S;
 	
 	/* Enable Volume button interrupts */
 	imc = inb(s->io+IT_AC_IMC);
@@ -2116,23 +2123,23 @@ static int __devinit it8172_probe(struct pci_dev *pcidev,
 
 	/* set mic to be the recording source */
 	val = SOUND_MASK_MIC;
-	mixdev_ioctl(s->codec, SOUND_MIXER_WRITE_RECSRC,
+	mixdev_ioctl(&s->codec, SOUND_MIXER_WRITE_RECSRC,
 		     (unsigned long)&val);
 
 	/* mute AC'97 master and PCM when in S/PDIF mode */
 	if (s->spdif_volume != -1) {
 		val = 0x0000;
-		s->codec->mixer_ioctl(s->codec, SOUND_MIXER_WRITE_VOLUME,
+		s->codec.mixer_ioctl(&s->codec, SOUND_MIXER_WRITE_VOLUME,
 				     (unsigned long)&val);
-		s->codec->mixer_ioctl(s->codec, SOUND_MIXER_WRITE_PCM,
+		s->codec.mixer_ioctl(&s->codec, SOUND_MIXER_WRITE_PCM,
 				     (unsigned long)&val);
 	}
     
 #ifdef IT8172_DEBUG
 	sprintf(proc_str, "driver/%s/%d/ac97", IT8172_MODULE_NAME,
-		s->codec->id);
+		s->codec.id);
 	s->ac97_ps = create_proc_read_entry (proc_str, 0, NULL,
-					     ac97_read_proc, s->codec);
+					     ac97_read_proc, &s->codec);
 #endif
     
 	/* store it in the driver field */
@@ -2146,7 +2153,7 @@ static int __devinit it8172_probe(struct pci_dev *pcidev,
 	return 0;
 
  err_dev3:
-	unregister_sound_mixer(s->codec->dev_mixer);
+	unregister_sound_mixer(s->codec.dev_mixer);
  err_dev2:
 	unregister_sound_dsp(s->dev_audio);
  err_dev1:
@@ -2155,8 +2162,6 @@ static int __devinit it8172_probe(struct pci_dev *pcidev,
  err_irq:
 	release_region(s->io, pci_resource_len(pcidev,0));
  err_region:
- 	ac97_release_codec(s->codec);
- err_codec:
 	kfree(s);
 	return -1;
 }
@@ -2172,12 +2177,11 @@ static void __devexit it8172_remove(struct pci_dev *dev)
 	if (s->ps)
 		remove_proc_entry(IT8172_MODULE_NAME, NULL);
 #endif /* IT8172_DEBUG */
-	synchronize_irq();
+	synchronize_irq(s->irq);
 	free_irq(s->irq, s);
 	release_region(s->io, pci_resource_len(dev,0));
 	unregister_sound_dsp(s->dev_audio);
-	unregister_sound_mixer(s->codec->dev_mixer);
-	ac97_codec_release(s->codec);
+	unregister_sound_mixer(s->codec.dev_mixer);
 	kfree(s);
 	pci_set_drvdata(dev, NULL);
 }
@@ -2201,8 +2205,6 @@ static struct pci_driver it8172_driver = {
 
 static int __init init_it8172(void)
 {
-	if (!pci_present())   /* No PCI bus in this machine! */
-		return -ENODEV;
 	info("version v0.5 time " __TIME__ " " __DATE__);
 	return pci_module_init(&it8172_driver);
 }

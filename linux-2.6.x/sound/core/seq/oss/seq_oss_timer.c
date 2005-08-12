@@ -46,7 +46,7 @@ snd_seq_oss_timer_new(seq_oss_devinfo_t *dp)
 {
 	seq_oss_timer_t *rec;
 
-	rec = snd_kcalloc(sizeof(*rec), GFP_KERNEL);
+	rec = kcalloc(1, sizeof(*rec), GFP_KERNEL);
 	if (rec == NULL)
 		return NULL;
 
@@ -149,7 +149,7 @@ send_timer_event(seq_oss_devinfo_t *dp, int type, int value)
 	ev.queue = dp->queue;
 	ev.data.queue.queue = dp->queue;
 	ev.data.queue.param.value = value;
-	return snd_seq_kernel_client_dispatch(dp->cseq, &ev, 0, 0);
+	return snd_seq_kernel_client_dispatch(dp->cseq, &ev, 1, 0);
 }
 
 /*
@@ -168,7 +168,7 @@ snd_seq_oss_timer_start(seq_oss_timer_t *timer)
 	tmprec.queue = dp->queue;
 	tmprec.ppq = timer->ppq;
 	tmprec.tempo = timer->tempo;
-	snd_seq_kernel_client_ctl(dp->cseq, SNDRV_SEQ_IOCTL_SET_QUEUE_TEMPO, &tmprec);
+	snd_seq_set_queue_tempo(dp->cseq, &tmprec);
 
 	send_timer_event(dp, SNDRV_SEQ_EVENT_START, 0);
 	timer->running = 1;

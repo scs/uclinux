@@ -66,9 +66,16 @@ snd_seq_oss_create_client(void)
 {
 	int rc;
 	snd_seq_client_callback_t callback;
-	snd_seq_client_info_t info;
-	snd_seq_port_info_t port;
+	snd_seq_client_info_t *info;
+	snd_seq_port_info_t *port;
 	snd_seq_port_callback_t port_callback;
+
+	info = kmalloc(sizeof(*info), GFP_KERNEL);
+	port = kmalloc(sizeof(*port), GFP_KERNEL);
+	if (!info || !port) {
+		rc = -ENOMEM;
+		goto __error;
+	}
 
 	/* create ALSA client */
 	memset(&callback, 0, sizeof(callback));
@@ -79,38 +86,38 @@ snd_seq_oss_create_client(void)
 
 	rc = snd_seq_create_kernel_client(NULL, SNDRV_SEQ_CLIENT_OSS, &callback);
 	if (rc < 0)
-		return rc;
+		goto __error;
 
 	system_client = rc;
 	debug_printk(("new client = %d\n", rc));
 
 	/* set client information */
-	memset(&info, 0, sizeof(info));
-	info.client = system_client;
-	info.type = KERNEL_CLIENT;
-	strcpy(info.name, "OSS sequencer");
+	memset(info, 0, sizeof(*info));
+	info->client = system_client;
+	info->type = KERNEL_CLIENT;
+	strcpy(info->name, "OSS sequencer");
 
-	rc = call_ctl(SNDRV_SEQ_IOCTL_SET_CLIENT_INFO, &info);
+	rc = call_ctl(SNDRV_SEQ_IOCTL_SET_CLIENT_INFO, info);
 
 	/* look up midi devices */
 	snd_seq_oss_midi_lookup_ports(system_client);
 
 	/* create annoucement receiver port */
-	memset(&port, 0, sizeof(port));
-	strcpy(port.name, "Receiver");
-	port.addr.client = system_client;
-	port.capability = SNDRV_SEQ_PORT_CAP_WRITE; /* receive only */
-	port.type = 0;
+	memset(port, 0, sizeof(*port));
+	strcpy(port->name, "Receiver");
+	port->addr.client = system_client;
+	port->capability = SNDRV_SEQ_PORT_CAP_WRITE; /* receive only */
+	port->type = 0;
 
 	memset(&port_callback, 0, sizeof(port_callback));
 	/* don't set port_callback.owner here. otherwise the module counter
 	 * is incremented and we can no longer release the module..
 	 */
 	port_callback.event_input = receive_announce;
-	port.kernel = &port_callback;
+	port->kernel = &port_callback;
 	
-	call_ctl(SNDRV_SEQ_IOCTL_CREATE_PORT, &port);
-	if ((system_port = port.addr.port) >= 0) {
+	call_ctl(SNDRV_SEQ_IOCTL_CREATE_PORT, port);
+	if ((system_port = port->addr.port) >= 0) {
 		snd_seq_port_subscribe_t subs;
 
 		memset(&subs, 0, sizeof(subs));
@@ -120,9 +127,12 @@ snd_seq_oss_create_client(void)
 		subs.dest.port = system_port;
 		call_ctl(SNDRV_SEQ_IOCTL_SUBSCRIBE_PORT, &subs);
 	}
+	rc = 0;
 
-
-	return 0;
+ __error:
+	kfree(port);
+	kfree(info);
+	return rc;
 }
 
 
@@ -183,7 +193,7 @@ snd_seq_oss_open(struct file *file, int level)
 	int i, rc;
 	seq_oss_devinfo_t *dp;
 
-	if ((dp = snd_kcalloc(sizeof(*dp), GFP_KERNEL)) == NULL) {
+	if ((dp = kcalloc(1, sizeof(*dp), GFP_KERNEL)) == NULL) {
 		snd_printk(KERN_ERR "can't malloc device info\n");
 		return -ENOMEM;
 	}
@@ -211,7 +221,7 @@ snd_seq_oss_open(struct file *file, int level)
 	snd_seq_oss_midi_setup(dp);
 
 	if (dp->synth_opened == 0 && dp->max_mididev == 0) {
-		snd_printk(KERN_ERR "no device found\n");
+		/* snd_printk(KERN_ERR "no device found\n"); */
 		rc = -ENODEV;
 		goto _error;
 	}
@@ -491,6 +501,26 @@ snd_seq_oss_reset(seq_oss_devinfo_t *dp)
 	snd_seq_oss_timer_stop(dp->timer);
 }
 
+
+/*
+ * misc. functions for proc interface
+ */
+char *
+enabled_str(int bool)
+{
+	return bool ? "enabled" : "disabled";
+}
+
+static char *
+filemode_str(int val)
+{
+	static char *str[] = {
+		"none", "read", "write", "read/write",
+	};
+	return str[val & SNDRV_SEQ_OSS_FILE_ACMODE];
+}
+
+
 /*
  * proc interface
  */
@@ -522,23 +552,4 @@ snd_seq_oss_system_info_read(snd_info_buffer_t *buf)
 			snd_seq_oss_readq_info_read(dp->readq, buf);
 	}
 }
-
-/*
- * misc. functions for proc interface
- */
-char *
-enabled_str(int bool)
-{
-	return bool ? "enabled" : "disabled";
-}
-
-char *
-filemode_str(int val)
-{
-	static char *str[] = {
-		"none", "read", "write", "read/write",
-	};
-	return str[val & SNDRV_SEQ_OSS_FILE_ACMODE];
-}
-
 

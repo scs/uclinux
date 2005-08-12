@@ -81,7 +81,7 @@ static struct wf_mpu_config *phys_dev = &devs[0];
 static struct wf_mpu_config *virt_dev = &devs[1];
 
 static void start_uart_mode (void);
-static spinlock_t lock=SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(lock);
 
 #define	OUTPUT_READY	0x40
 #define	INPUT_AVAIL	0x80
@@ -784,7 +784,7 @@ virtual_midi_disable (void)
 
 int __init detect_wf_mpu (int irq, int io_base)
 {
-	if (check_region (io_base, 2)) {
+	if (!request_region(io_base, 2, "wavefront midi")) {
 		printk (KERN_WARNING "WF-MPU: I/O port %x already in use.\n",
 			io_base);
 		return -1;
@@ -803,11 +803,10 @@ int __init install_wf_mpu (void)
 	if ((phys_dev->devno = sound_alloc_mididev()) < 0){
 
 		printk (KERN_ERR "WF-MPU: Too many MIDI devices detected.\n");
+		release_region(phys_dev->base, 2);
 		return -1;
-
 	}
 
-	request_region (phys_dev->base, 2, "wavefront midi");
 	phys_dev->isvirtual = 0;
 
 	if (config_wf_mpu (phys_dev)) {

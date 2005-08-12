@@ -28,8 +28,6 @@
 #include <sound/core.h>
 #include "pmac.h"
 
-#define chip_t pmac_t
-
 /* i2c address */
 #define DACA_I2C_ADDR	0x4d
 
@@ -58,10 +56,11 @@ static int daca_init_client(pmac_keywest_t *i2c)
 	unsigned short wdata = 0x00;
 	/* SR: no swap, 1bit delay, 32-48kHz */
 	/* GCFG: power amp inverted, DAC on */
-	if (snd_pmac_keywest_write_byte(i2c, DACA_REG_SR, 0x08) < 0 ||
-	    snd_pmac_keywest_write_byte(i2c, DACA_REG_GCFG, 0x05) < 0)
+	if (i2c_smbus_write_byte_data(i2c->client, DACA_REG_SR, 0x08) < 0 ||
+	    i2c_smbus_write_byte_data(i2c->client, DACA_REG_GCFG, 0x05) < 0)
 		return -EINVAL;
-	return snd_pmac_keywest_write(i2c, DACA_REG_AVOL, 2, (unsigned char*)&wdata);
+	return i2c_smbus_write_block_data(i2c->client, DACA_REG_AVOL,
+					  2, (unsigned char*)&wdata);
 }
 
 /*
@@ -83,9 +82,10 @@ static int daca_set_volume(pmac_daca_t *mix)
 	else
 		data[1] = mix->right_vol;
 	data[1] |= mix->deemphasis ? 0x40 : 0;
-	if (snd_pmac_keywest_write(&mix->i2c, DACA_REG_AVOL, 2, data) < 0) {
-		snd_printk("failed to set volume \n");  
-		return -EINVAL; 
+	if (i2c_smbus_write_block_data(mix->i2c.client, DACA_REG_AVOL,
+				       2, data) < 0) {
+		snd_printk("failed to set volume \n");
+		return -EINVAL;
 	}
 	return 0;
 }
@@ -190,8 +190,8 @@ static int daca_put_amp(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol
 	change = mix->amp_on != ucontrol->value.integer.value[0];
 	if (change) {
 		mix->amp_on = ucontrol->value.integer.value[0];
-		snd_pmac_keywest_write_byte(&mix->i2c, DACA_REG_GCFG,
-					    mix->amp_on ? 0x05 : 0x04);
+		i2c_smbus_write_byte_data(mix->i2c.client, DACA_REG_GCFG,
+					  mix->amp_on ? 0x05 : 0x04);
 	}
 	return change;
 }
@@ -217,16 +217,14 @@ static snd_kcontrol_new_t daca_mixers[] = {
 	},
 };
 
-#define num_controls(ary) (sizeof(ary) / sizeof(snd_kcontrol_new_t))
-
 
 #ifdef CONFIG_PMAC_PBOOK
 static void daca_resume(pmac_t *chip)
 {
 	pmac_daca_t *mix = chip->mixer_data;
-	snd_pmac_keywest_write_byte(&mix->i2c, DACA_REG_SR, 0x08);
-	snd_pmac_keywest_write_byte(&mix->i2c, DACA_REG_GCFG,
-				    mix->amp_on ? 0x05 : 0x04);
+	i2c_smbus_write_byte_data(mix->i2c.client, DACA_REG_SR, 0x08);
+	i2c_smbus_write_byte_data(mix->i2c.client, DACA_REG_GCFG,
+				  mix->amp_on ? 0x05 : 0x04);
 	daca_set_volume(mix);
 }
 #endif /* CONFIG_PMAC_PBOOK */
@@ -272,7 +270,7 @@ int __init snd_pmac_daca_init(pmac_t *chip)
 	 */
 	strcpy(chip->card->mixername, "PowerMac DACA");
 
-	for (i = 0; i < num_controls(daca_mixers); i++) {
+	for (i = 0; i < ARRAY_SIZE(daca_mixers); i++) {
 		if ((err = snd_ctl_add(chip->card, snd_ctl_new1(&daca_mixers[i], chip))) < 0)
 			return err;
 	}

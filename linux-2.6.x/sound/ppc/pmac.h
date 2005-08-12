@@ -60,8 +60,9 @@ typedef struct snd_pmac_dbdma pmac_dbdma_t;
  * DBDMA space
  */
 struct snd_pmac_dbdma {
-	unsigned long addr;
-	struct dbdma_cmd *cmds;
+	dma_addr_t dma_base;
+	dma_addr_t addr;
+	struct dbdma_cmd __iomem *cmds;
 	void *space;
 	int size;
 };
@@ -80,11 +81,11 @@ struct snd_pmac_stream {
 	int nperiods, cur_period;
 
 	pmac_dbdma_t cmd;
-	volatile struct dbdma_regs *dma;
+	volatile struct dbdma_regs __iomem *dma;
 
 	snd_pcm_substream_t *substream;
 
-	unsigned int cur_freqs;		/* currently available frequences */
+	unsigned int cur_freqs;		/* currently available frequencies */
 	unsigned int cur_formats;	/* currently available formats */
 };
 
@@ -93,7 +94,8 @@ struct snd_pmac_stream {
  */
 
 enum snd_pmac_model {
-	PMAC_AWACS, PMAC_SCREAMER, PMAC_BURGUNDY, PMAC_DACA, PMAC_TUMBLER, PMAC_SNAPPER
+	PMAC_AWACS, PMAC_SCREAMER, PMAC_BURGUNDY, PMAC_DACA, PMAC_TUMBLER,
+	PMAC_SNAPPER, PMAC_TOONIE
 };
 
 struct snd_pmac {
@@ -101,6 +103,7 @@ struct snd_pmac {
 
 	/* h/w info */
 	struct device_node *node;
+	struct pci_dev *pdev;
 	unsigned int revision;
 	unsigned int manufacturer;
 	unsigned int subframe;
@@ -110,6 +113,7 @@ struct snd_pmac {
 	unsigned int has_iic : 1;
 	unsigned int is_pbook_3400 : 1;
 	unsigned int is_pbook_G3 : 1;
+	unsigned int is_k2 : 1;
 
 	unsigned int can_byte_swap : 1;
 	unsigned int can_duplex : 1;
@@ -130,12 +134,12 @@ struct snd_pmac {
 	int format;			/* current format */
 
 	spinlock_t reg_lock;
-	volatile struct awacs_regs *awacs;
+	volatile struct awacs_regs __iomem *awacs;
 	int awacs_reg[8]; /* register cache */
 	unsigned int hp_stat_mask;
 
-	unsigned char *latch_base;
-	unsigned char *macio_base;
+	unsigned char __iomem *latch_base;
+	unsigned char __iomem *macio_base;
 
 	pmac_stream_t playback;
 	pmac_stream_t capture;
@@ -155,7 +159,9 @@ struct snd_pmac {
 	void (*mixer_free)(pmac_t *);
 	snd_kcontrol_t *master_sw_ctl;
 	snd_kcontrol_t *speaker_sw_ctl;
+	snd_kcontrol_t *drc_sw_ctl;	/* only used for tumbler -ReneR */
 	snd_kcontrol_t *hp_detect_ctl;
+	snd_kcontrol_t *lineout_sw_ctl;
 
 	/* lowlevel callbacks */
 	void (*set_format)(pmac_t *chip);
@@ -173,6 +179,12 @@ struct snd_pmac {
 int snd_pmac_new(snd_card_t *card, pmac_t **chip_return);
 int snd_pmac_pcm_new(pmac_t *chip);
 int snd_pmac_attach_beep(pmac_t *chip);
+void snd_pmac_detach_beep(pmac_t *chip);
+void snd_pmac_beep_stop(pmac_t *chip);
+unsigned int snd_pmac_rate_index(pmac_t *chip, pmac_stream_t *rec, unsigned int rate);
+
+void snd_pmac_beep_dma_start(pmac_t *chip, int bytes, unsigned long addr, int speed);
+void snd_pmac_beep_dma_stop(pmac_t *chip);
 
 /* initialize mixer */
 int snd_pmac_awacs_init(pmac_t *chip);
@@ -180,6 +192,7 @@ int snd_pmac_burgundy_init(pmac_t *chip);
 int snd_pmac_daca_init(pmac_t *chip);
 int snd_pmac_tumbler_init(pmac_t *chip);
 int snd_pmac_tumbler_post_init(void);
+int snd_pmac_toonie_init(pmac_t *chip);
 
 /* i2c functions */
 typedef struct snd_pmac_keywest {
@@ -192,8 +205,6 @@ typedef struct snd_pmac_keywest {
 
 int snd_pmac_keywest_init(pmac_keywest_t *i2c);
 void snd_pmac_keywest_cleanup(pmac_keywest_t *i2c);
-#define snd_pmac_keywest_write(i2c,cmd,len,data) i2c_smbus_write_block_data((i2c)->client, cmd, len, data)
-#define snd_pmac_keywest_write_byte(i2c,cmd,data) i2c_smbus_write_byte_data((i2c)->client, cmd, data)
 
 /* misc */
 int snd_pmac_boolean_stereo_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t *uinfo);
@@ -205,10 +216,5 @@ int snd_pmac_add_automute(pmac_t *chip);
 	set_current_state(TASK_UNINTERRUPTIBLE);\
 	schedule_timeout(((msec) * HZ + 999) / 1000);\
 } while (0)
-
-#ifndef PMAC_SUPPORT_PCM_BEEP
-#define snd_pmac_attach_beep(chip) 0
-#define snd_pmac_beep_stop(chip)  /**/
-#endif
 
 #endif /* __PMAC_H */

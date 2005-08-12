@@ -91,6 +91,38 @@ void snd_emu10k1_ptr_write(emu10k1_t *emu, unsigned int reg, unsigned int chn, u
 	}
 }
 
+unsigned int snd_emu10k1_ptr20_read(emu10k1_t * emu, 
+					  unsigned int reg, 
+					  unsigned int chn)
+{
+	unsigned long flags;
+	unsigned int regptr, val;
+  
+	regptr = (reg << 16) | chn;
+
+	spin_lock_irqsave(&emu->emu_lock, flags);
+	outl(regptr, emu->port + 0x20 + PTR);
+	val = inl(emu->port + 0x20 + DATA);
+	spin_unlock_irqrestore(&emu->emu_lock, flags);
+	return val;
+}
+
+void snd_emu10k1_ptr20_write(emu10k1_t *emu, 
+				   unsigned int reg, 
+				   unsigned int chn, 
+				   unsigned int data)
+{
+	unsigned int regptr;
+	unsigned long flags;
+
+	regptr = (reg << 16) | chn;
+
+	spin_lock_irqsave(&emu->emu_lock, flags);
+	outl(regptr, emu->port + 0x20 + PTR);
+	outl(data, emu->port + 0x20 + DATA);
+	spin_unlock_irqrestore(&emu->emu_lock, flags);
+}
+
 void snd_emu10k1_intr_enable(emu10k1_t *emu, unsigned int intrenb)
 {
 	unsigned long flags;
@@ -170,6 +202,63 @@ void snd_emu10k1_voice_intr_ack(emu10k1_t *emu, unsigned int voicenum)
 	spin_unlock_irqrestore(&emu->emu_lock, flags);
 }
 
+void snd_emu10k1_voice_half_loop_intr_enable(emu10k1_t *emu, unsigned int voicenum)
+{
+	unsigned long flags;
+	unsigned int val;
+
+	spin_lock_irqsave(&emu->emu_lock, flags);
+	/* voice interrupt */
+	if (voicenum >= 32) {
+		outl(HLIEH << 16, emu->port + PTR);
+		val = inl(emu->port + DATA);
+		val |= 1 << (voicenum - 32);
+	} else {
+		outl(HLIEL << 16, emu->port + PTR);
+		val = inl(emu->port + DATA);
+		val |= 1 << voicenum;
+	}
+	outl(val, emu->port + DATA);
+	spin_unlock_irqrestore(&emu->emu_lock, flags);
+}
+
+void snd_emu10k1_voice_half_loop_intr_disable(emu10k1_t *emu, unsigned int voicenum)
+{
+	unsigned long flags;
+	unsigned int val;
+
+	spin_lock_irqsave(&emu->emu_lock, flags);
+	/* voice interrupt */
+	if (voicenum >= 32) {
+		outl(HLIEH << 16, emu->port + PTR);
+		val = inl(emu->port + DATA);
+		val &= ~(1 << (voicenum - 32));
+	} else {
+		outl(HLIEL << 16, emu->port + PTR);
+		val = inl(emu->port + DATA);
+		val &= ~(1 << voicenum);
+	}
+	outl(val, emu->port + DATA);
+	spin_unlock_irqrestore(&emu->emu_lock, flags);
+}
+
+void snd_emu10k1_voice_half_loop_intr_ack(emu10k1_t *emu, unsigned int voicenum)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&emu->emu_lock, flags);
+	/* voice interrupt */
+	if (voicenum >= 32) {
+		outl(HLIPH << 16, emu->port + PTR);
+		voicenum = 1 << (voicenum - 32);
+	} else {
+		outl(HLIPL << 16, emu->port + PTR);
+		voicenum = 1 << voicenum;
+	}
+	outl(voicenum, emu->port + DATA);
+	spin_unlock_irqrestore(&emu->emu_lock, flags);
+}
+
 void snd_emu10k1_voice_set_loop_stop(emu10k1_t *emu, unsigned int voicenum)
 {
 	unsigned long flags;
@@ -231,7 +320,7 @@ void snd_emu10k1_wait(emu10k1_t *emu, unsigned int wait)
 
 unsigned short snd_emu10k1_ac97_read(ac97_t *ac97, unsigned short reg)
 {
-	emu10k1_t *emu = snd_magic_cast(emu10k1_t, ac97->private_data, return -ENXIO);
+	emu10k1_t *emu = ac97->private_data;
 	unsigned long flags;
 	unsigned short val;
 
@@ -244,7 +333,7 @@ unsigned short snd_emu10k1_ac97_read(ac97_t *ac97, unsigned short reg)
 
 void snd_emu10k1_ac97_write(ac97_t *ac97, unsigned short reg, unsigned short data)
 {
-	emu10k1_t *emu = snd_magic_cast(emu10k1_t, ac97->private_data, return);
+	emu10k1_t *emu = ac97->private_data;
 	unsigned long flags;
 
 	spin_lock_irqsave(&emu->emu_lock, flags);
@@ -313,28 +402,3 @@ unsigned int snd_emu10k1_rate_to_pitch(unsigned int rate)
 	return 0;		/* Should never reach this point */
 }
 
-/*
- *  Returns an attenuation based upon a cumulative volume value
- *  Algorithm calculates 0x200 - 0x10 log2 (input)
- */
- 
-unsigned char snd_emu10k1_sum_vol_attn(unsigned int value)
-{
-	unsigned short count = 16, ans;
-
-	if (value == 0)
-		return 0xFF;
-
-	/* Find first SET bit. This is the integer part of the value */
-	while ((value & 0x10000) == 0) {
-		value <<= 1;
-		count--;
-	}
-
-	/* The REST of the data is the fractional part. */
-	ans = (unsigned short) (0x110 - ((count << 4) + ((value & 0x0FFFFL) >> 12)));
-	if (ans > 0xFF)
-		ans = 0xFF;
-
-	return (unsigned char) ans;
-}

@@ -33,7 +33,6 @@
 MODULE_AUTHOR("Jaroslav Kysela <perex@suse.cz>");
 MODULE_DESCRIPTION("ICEnsemble ICE17xx <-> AK4xxx AD/DA chip interface");
 MODULE_LICENSE("GPL");
-MODULE_CLASSES("{sound}");
 
 static void snd_ice1712_akm4xxx_lock(akm4xxx_t *ak, int chip)
 {
@@ -127,12 +126,16 @@ int snd_ice1712_akm4xxx_init(akm4xxx_t *ak, const akm4xxx_t *temp,
 {
 	struct snd_ak4xxx_private *priv;
 
-	priv = kmalloc(sizeof(*priv), GFP_KERNEL);
-	if (priv == NULL)
-		return -ENOMEM;
+	if (_priv != NULL) {
+		priv = kmalloc(sizeof(*priv), GFP_KERNEL);
+		if (priv == NULL)
+			return -ENOMEM;
+		*priv = *_priv;
+	} else {
+		priv = NULL;
+	}
 	*ak = *temp;
 	ak->card = ice->card;
-	*priv = *_priv;
         ak->private_value[0] = (unsigned long)priv;
 	ak->private_data[0] = ice;
 	if (ak->ops.lock == NULL)
@@ -152,8 +155,7 @@ void snd_ice1712_akm4xxx_free(ice1712_t *ice)
 		return;
 	for (akidx = 0; akidx < ice->akm_codecs; akidx++) {
 		akm4xxx_t *ak = &ice->akm[akidx];
-		if (ak->private_value[0])
-			kfree((void *)ak->private_value[0]);
+		kfree((void*)ak->private_value[0]);
 	}
 	kfree(ice->akm);
 }

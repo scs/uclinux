@@ -23,6 +23,7 @@
 
 #include <sound/driver.h>
 #include <linux/init.h>
+#include <linux/smp_lock.h>
 #include <linux/slab.h>
 #include <sound/core.h>
 #include <sound/minors.h>
@@ -36,8 +37,8 @@
 #include "seq_info.h"
 #include "seq_system.h"
 #include <sound/seq_device.h>
-#if defined(CONFIG_SND_BIT32_EMUL) || defined(CONFIG_SND_BIT32_EMUL_MODULE)
-#include "../ioctl32/ioctl32.h"
+#ifdef CONFIG_COMPAT
+#include <linux/compat.h>
 #endif
 
 /* Client Manager
@@ -50,7 +51,7 @@
 #define SNDRV_SEQ_LFLG_OUTPUT	0x0002
 #define SNDRV_SEQ_LFLG_OPEN	(SNDRV_SEQ_LFLG_INPUT|SNDRV_SEQ_LFLG_OUTPUT)
 
-static spinlock_t clients_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(clients_lock);
 static DECLARE_MUTEX(register_mutex);
 
 /*
@@ -202,7 +203,7 @@ static client_t *seq_create_client1(int client_index, int poolsize)
 	client_t *client;
 
 	/* init client data */
-	client = snd_kcalloc(sizeof(client_t), GFP_KERNEL);
+	client = kcalloc(1, sizeof(*client), GFP_KERNEL);
 	if (client == NULL)
 		return NULL;
 	client->pool = snd_seq_pool_new(poolsize);
@@ -374,7 +375,7 @@ static ssize_t snd_seq_read(struct file *file, char __user *buf, size_t count, l
 	if (!(snd_seq_file_flags(file) & SNDRV_SEQ_LFLG_INPUT))
 		return -ENXIO;
 
-	if (verify_area(VERIFY_WRITE, buf, count))
+	if (!access_ok(VERIFY_WRITE, buf, count))
 		return -EFAULT;
 
 	/* check client structures are in place */
@@ -412,14 +413,17 @@ static ssize_t snd_seq_read(struct file *file, char __user *buf, size_t count, l
 			}
 			count -= sizeof(snd_seq_event_t);
 			buf += sizeof(snd_seq_event_t);
-			err = snd_seq_expand_var_event(&cell->event, count, buf, 0, sizeof(snd_seq_event_t));
+			err = snd_seq_expand_var_event(&cell->event, count, (char *)buf, 0, sizeof(snd_seq_event_t));
 			if (err < 0)
 				break;
 			result += err;
 			count -= err;
 			buf += err;
 		} else {
-			copy_to_user(buf, &cell->event, sizeof(snd_seq_event_t));
+			if (copy_to_user(buf, &cell->event, sizeof(snd_seq_event_t))) {
+				err = -EFAULT;
+				break;
+			}
 			count -= sizeof(snd_seq_event_t);
 			buf += sizeof(snd_seq_event_t);
 		}
@@ -547,36 +551,6 @@ static int update_timestamp_of_queue(snd_seq_event_t *event, int queue, int real
 
 
 /*
- * expand a quoted event.
- */
-static int expand_quoted_event(snd_seq_event_t *event)
-{
-	snd_seq_event_t *quoted;
-
-	quoted = event->data.quote.event;
-	if (quoted == NULL) {
-		snd_printd("seq: quoted event is NULL\n");
-		return -EINVAL;
-	}
-
-	event->type = quoted->type;
-	event->tag = quoted->tag;
-	event->source = quoted->source;
-	/* don't use quoted destination */
-	event->data = quoted->data;
-	/* use quoted timestamp only if subscription/port didn't update it */
-	if (event->queue == SNDRV_SEQ_QUEUE_DIRECT) {
-		event->flags = quoted->flags;
-		event->queue = quoted->queue;
-		event->time = quoted->time;
-	} else {
-		event->flags = (event->flags & SNDRV_SEQ_TIME_STAMP_MASK)
-			| (quoted->flags & ~SNDRV_SEQ_TIME_STAMP_MASK);
-	}
-	return 0;
-}
-
-/*
  * deliver an event to the specified destination.
  * if filter is non-zero, client filter bitmap is tested.
  *
@@ -590,7 +564,7 @@ static int snd_seq_deliver_single_event(client_t *client,
 	client_t *dest = NULL;
 	client_port_t *dest_port = NULL;
 	int result = -ENOENT;
-	int direct, quoted = 0;
+	int direct;
 
 	direct = snd_seq_ev_is_direct(event);
 
@@ -610,14 +584,6 @@ static int snd_seq_deliver_single_event(client_t *client,
 	if (dest_port->timestamping)
 		update_timestamp_of_queue(event, dest_port->time_queue,
 					  dest_port->time_real);
-
-	if (event->type == SNDRV_SEQ_EVENT_KERNEL_QUOTE) {
-		quoted = 1;
-		if (expand_quoted_event(event) < 0) {
-			result = 0; /* do not send bounce error */
-			goto __skip;
-		}
-	}
 
 	switch (dest->type) {
 	case USER_CLIENT:
@@ -641,14 +607,7 @@ static int snd_seq_deliver_single_event(client_t *client,
 		snd_seq_client_unlock(dest);
 
 	if (result < 0 && !direct) {
-		if (quoted) {
-			/* return directly to the original source */
-			dest = snd_seq_client_use_ptr(event->source.client);
-			result = bounce_error_event(dest, event, result, atomic, hop);
-			snd_seq_client_unlock(dest);
-		} else {
-			result = bounce_error_event(client, event, result, atomic, hop);
-		}
+		result = bounce_error_event(client, event, result, atomic, hop);
 	}
 	return result;
 }
@@ -792,8 +751,8 @@ static int multicast_event(client_t *client, snd_seq_event_t *event,
  *               n == 0 : the event was not passed to any client.
  *               n < 0  : error - event was not processed.
  */
-int snd_seq_deliver_event(client_t *client, snd_seq_event_t *event,
-			  int atomic, int hop)
+static int snd_seq_deliver_event(client_t *client, snd_seq_event_t *event,
+				 int atomic, int hop)
 {
 	int result;
 
@@ -945,7 +904,7 @@ static int snd_seq_client_enqueue_event(client_t *client,
 		return -ENXIO; /* queue is not allocated */
 
 	/* allocate an event cell */
-	err = snd_seq_event_dup(client->pool, event, &cell, !blocking && !atomic, file);
+	err = snd_seq_event_dup(client->pool, event, &cell, !blocking || atomic, file);
 	if (err < 0)
 		return err;
 
@@ -1053,7 +1012,7 @@ static ssize_t snd_seq_write(struct file *file, const char __user *buf, size_t c
 			event.data.ext.ptr = (char*)buf + sizeof(snd_seq_event_t);
 			len += extlen; /* increment data length */
 		} else {
-#if defined(CONFIG_SND_BIT32_EMUL) || defined(CONFIG_SND_BIT32_EMUL_MODULE)
+#ifdef CONFIG_COMPAT
 			if (client->convert32 && snd_seq_ev_is_varusr(&event)) {
 				void *ptr = compat_ptr(event.data.raw32.d[1]);
 				event.data.ext.ptr = ptr;
@@ -1694,6 +1653,13 @@ static int snd_seq_ioctl_get_queue_tempo(client_t * client, void __user *arg)
 
 
 /* SET_QUEUE_TEMPO ioctl() */
+int snd_seq_set_queue_tempo(int client, snd_seq_queue_tempo_t *tempo)
+{
+	if (!snd_seq_queue_check_access(tempo->queue, client))
+		return -EPERM;
+	return snd_seq_queue_timer_set_tempo(tempo->queue, client, tempo);
+}
+
 static int snd_seq_ioctl_set_queue_tempo(client_t * client, void __user *arg)
 {
 	int result;
@@ -1702,15 +1668,8 @@ static int snd_seq_ioctl_set_queue_tempo(client_t * client, void __user *arg)
 	if (copy_from_user(&tempo, arg, sizeof(tempo)))
 		return -EFAULT;
 
-	if (snd_seq_queue_check_access(tempo.queue, client->number)) {
-		result = snd_seq_queue_timer_set_tempo(tempo.queue, client->number, &tempo);
-		if (result < 0)
-			return result;
-	} else {
-		return -EPERM;
-	}	
-
-	return 0;
+	result = snd_seq_set_queue_tempo(client->number, &tempo);
+	return result < 0 ? result : 0;
 }
 
 
@@ -2172,8 +2131,7 @@ static int snd_seq_do_ioctl(client_t *client, unsigned int cmd, void __user *arg
 }
 
 
-static int snd_seq_ioctl(struct inode *inode, struct file *file,
-			 unsigned int cmd, unsigned long arg)
+static long snd_seq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	client_t *client = (client_t *) file->private_data;
 
@@ -2182,6 +2140,11 @@ static int snd_seq_ioctl(struct inode *inode, struct file *file,
 	return snd_seq_do_ioctl(client, cmd, (void __user *) arg);
 }
 
+#ifdef CONFIG_COMPAT
+#include "seq_compat.c"
+#else
+#define snd_seq_ioctl_compat	NULL
+#endif
 
 /* -------------------------------------------------------- */
 
@@ -2261,8 +2224,7 @@ static int kernel_client_enqueue(int client, snd_seq_event_t *ev,
 
 	if (ev->type == SNDRV_SEQ_EVENT_NONE)
 		return 0; /* ignore this */
-	if (ev->type == SNDRV_SEQ_EVENT_KERNEL_ERROR ||
-	    ev->type == SNDRV_SEQ_EVENT_KERNEL_QUOTE)
+	if (ev->type == SNDRV_SEQ_EVENT_KERNEL_ERROR)
 		return -EINVAL; /* quoted events can't be enqueued */
 
 	/* fill in client number */
@@ -2358,7 +2320,7 @@ int snd_seq_kernel_client_ctl(int clientid, unsigned int cmd, void *arg)
 	if (client == NULL)
 		return -ENXIO;
 	fs = snd_enter_user();
-	result = snd_seq_do_ioctl(client, cmd, arg);
+	result = snd_seq_do_ioctl(client, cmd, (void __user *)arg);
 	snd_leave_user(fs);
 	return result;
 }
@@ -2499,7 +2461,8 @@ static struct file_operations snd_seq_f_ops =
 	.open =		snd_seq_open,
 	.release =	snd_seq_release,
 	.poll =		snd_seq_poll,
-	.ioctl =	snd_seq_ioctl,
+	.unlocked_ioctl =	snd_seq_ioctl,
+	.compat_ioctl =	snd_seq_ioctl_compat,
 };
 
 static snd_minor_t snd_seq_reg =

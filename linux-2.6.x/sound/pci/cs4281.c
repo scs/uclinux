@@ -40,27 +40,21 @@
 MODULE_AUTHOR("Jaroslav Kysela <perex@suse.cz>");
 MODULE_DESCRIPTION("Cirrus Logic CS4281");
 MODULE_LICENSE("GPL");
-MODULE_CLASSES("{sound}");
-MODULE_DEVICES("{{Cirrus Logic,CS4281}}");
+MODULE_SUPPORTED_DEVICE("{{Cirrus Logic,CS4281}}");
 
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;	/* Index 0-MAX */
 static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;	/* ID for this card */
 static int enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE_PNP;	/* Enable switches */
 static int dual_codec[SNDRV_CARDS];	/* dual codec */
-static int boot_devs;
 
-module_param_array(index, int, boot_devs, 0444);
+module_param_array(index, int, NULL, 0444);
 MODULE_PARM_DESC(index, "Index value for CS4281 soundcard.");
-MODULE_PARM_SYNTAX(index, SNDRV_INDEX_DESC);
-module_param_array(id, charp, boot_devs, 0444);
+module_param_array(id, charp, NULL, 0444);
 MODULE_PARM_DESC(id, "ID string for CS4281 soundcard.");
-MODULE_PARM_SYNTAX(id, SNDRV_ID_DESC);
-module_param_array(enable, bool, boot_devs, 0444);
+module_param_array(enable, bool, NULL, 0444);
 MODULE_PARM_DESC(enable, "Enable CS4281 soundcard.");
-MODULE_PARM_SYNTAX(enable, SNDRV_ENABLE_DESC);
-module_param_array(dual_codec, bool, boot_devs, 0444);
+module_param_array(dual_codec, bool, NULL, 0444);
 MODULE_PARM_DESC(dual_codec, "Secondary Codec ID (0 = disabled).");
-MODULE_PARM_SYNTAX(dual_codec, SNDRV_ENABLED ",allows:{{0,3}}");
 
 /*
  *
@@ -441,8 +435,6 @@ MODULE_PARM_SYNTAX(dual_codec, SNDRV_ENABLED ",allows:{{0,3}}");
  *
  */
 
-#define chip_t cs4281_t
-
 typedef struct snd_cs4281 cs4281_t;
 typedef struct snd_cs4281_dma cs4281_dma_t;
 
@@ -471,12 +463,10 @@ struct snd_cs4281_dma {
 struct snd_cs4281 {
 	int irq;
 
-	unsigned long ba0;		/* virtual (accessible) address */
-	unsigned long ba1;		/* virtual (accessible) address */
+	void __iomem *ba0;		/* virtual (accessible) address */
+	void __iomem *ba1;		/* virtual (accessible) address */
 	unsigned long ba0_addr;
 	unsigned long ba1_addr;
-	struct resource *ba0_res;
-	struct resource *ba1_res;
 
 	int dual_codec;
 
@@ -505,7 +495,7 @@ struct snd_cs4281 {
 	unsigned int midcr;
 	unsigned int uartm;
 
-	struct snd_cs4281_gameport *gameport;
+	struct gameport *gameport;
 
 #ifdef CONFIG_PM
 	u32 suspend_regs[SUSPEND_REGISTERS];
@@ -575,7 +565,7 @@ static void snd_cs4281_ac97_write(ac97_t *ac97,
 	 *  4. Read ACCTL = 460h, DCV should be reset by now and 460h = 07h
 	 *  5. if DCV not cleared, break and return error
 	 */
-	cs4281_t *chip = snd_magic_cast(cs4281_t, ac97->private_data, return);
+	cs4281_t *chip = ac97->private_data;
 	int count;
 
 	/*
@@ -613,7 +603,7 @@ static void snd_cs4281_ac97_write(ac97_t *ac97,
 static unsigned short snd_cs4281_ac97_read(ac97_t *ac97,
 					   unsigned short reg)
 {
-	cs4281_t *chip = snd_magic_cast(cs4281_t, ac97->private_data, return -ENXIO);
+	cs4281_t *chip = ac97->private_data;
 	int count;
 	unsigned short result;
 	// FIXME: volatile is necessary in the following due to a bug of
@@ -709,9 +699,8 @@ static int snd_cs4281_trigger(snd_pcm_substream_t *substream, int cmd)
 {
 	cs4281_dma_t *dma = (cs4281_dma_t *)substream->runtime->private_data;
 	cs4281_t *chip = snd_pcm_substream_chip(substream);
-	unsigned long flags;
 
-	spin_lock_irqsave(&chip->reg_lock, flags);
+	spin_lock(&chip->reg_lock);
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
 		dma->valDCR |= BA0_DCR_MSK;
@@ -738,13 +727,13 @@ static int snd_cs4281_trigger(snd_pcm_substream_t *substream, int cmd)
 			dma->valFCR &= ~BA0_FCR_FEN;
 		break;
 	default:
-		spin_unlock_irqrestore(&chip->reg_lock, flags);
+		spin_unlock(&chip->reg_lock);
 		return -EINVAL;
 	}
 	snd_cs4281_pokeBA0(chip, dma->regDMR, dma->valDMR);
 	snd_cs4281_pokeBA0(chip, dma->regFCR, dma->valFCR);
 	snd_cs4281_pokeBA0(chip, dma->regDCR, dma->valDCR);
-	spin_unlock_irqrestore(&chip->reg_lock, flags);
+	spin_unlock(&chip->reg_lock);
 	return 0;
 }
 
@@ -851,11 +840,10 @@ static int snd_cs4281_playback_prepare(snd_pcm_substream_t * substream)
 	snd_pcm_runtime_t *runtime = substream->runtime;
 	cs4281_dma_t *dma = (cs4281_dma_t *)runtime->private_data;
 	cs4281_t *chip = snd_pcm_substream_chip(substream);
-	unsigned long flags;
 
-	spin_lock_irqsave(&chip->reg_lock, flags);
+	spin_lock_irq(&chip->reg_lock);
 	snd_cs4281_mode(chip, dma, runtime, 0, 1);
-	spin_unlock_irqrestore(&chip->reg_lock, flags);
+	spin_unlock_irq(&chip->reg_lock);
 	return 0;
 }
 
@@ -864,11 +852,10 @@ static int snd_cs4281_capture_prepare(snd_pcm_substream_t * substream)
 	snd_pcm_runtime_t *runtime = substream->runtime;
 	cs4281_dma_t *dma = (cs4281_dma_t *)runtime->private_data;
 	cs4281_t *chip = snd_pcm_substream_chip(substream);
-	unsigned long flags;
 
-	spin_lock_irqsave(&chip->reg_lock, flags);
+	spin_lock_irq(&chip->reg_lock);
 	snd_cs4281_mode(chip, dma, runtime, 1, 1);
-	spin_unlock_irqrestore(&chip->reg_lock, flags);
+	spin_unlock_irq(&chip->reg_lock);
 	return 0;
 }
 
@@ -1015,7 +1002,7 @@ static snd_pcm_ops_t snd_cs4281_capture_ops = {
 
 static void snd_cs4281_pcm_free(snd_pcm_t *pcm)
 {
-	cs4281_t *chip = snd_magic_cast(cs4281_t, pcm->private_data, return);
+	cs4281_t *chip = pcm->private_data;
 	chip->pcm = NULL;
 	snd_pcm_lib_preallocate_free_for_all(pcm);
 }
@@ -1124,13 +1111,13 @@ static snd_kcontrol_new_t snd_cs4281_pcm_vol =
 
 static void snd_cs4281_mixer_free_ac97_bus(ac97_bus_t *bus)
 {
-	cs4281_t *chip = snd_magic_cast(cs4281_t, bus->private_data, return);
+	cs4281_t *chip = bus->private_data;
 	chip->ac97_bus = NULL;
 }
 
 static void snd_cs4281_mixer_free_ac97(ac97_t *ac97)
 {
-	cs4281_t *chip = snd_magic_cast(cs4281_t, ac97->private_data, return);
+	cs4281_t *chip = ac97->private_data;
 	if (ac97->num)
 		chip->ac97_secondary = NULL;
 	else
@@ -1140,17 +1127,16 @@ static void snd_cs4281_mixer_free_ac97(ac97_t *ac97)
 static int __devinit snd_cs4281_mixer(cs4281_t * chip)
 {
 	snd_card_t *card = chip->card;
-	ac97_bus_t bus;
-	ac97_t ac97;
+	ac97_template_t ac97;
 	int err;
+	static ac97_bus_ops_t ops = {
+		.write = snd_cs4281_ac97_write,
+		.read = snd_cs4281_ac97_read,
+	};
 
-	memset(&bus, 0, sizeof(bus));
-	bus.write = snd_cs4281_ac97_write;
-	bus.read = snd_cs4281_ac97_read;
-	bus.private_data = chip;
-	bus.private_free = snd_cs4281_mixer_free_ac97_bus;
-	if ((err = snd_ac97_bus(card, &bus, &chip->ac97_bus)) < 0)
+	if ((err = snd_ac97_bus(card, 0, &ops, chip, &chip->ac97_bus)) < 0)
 		return err;
+	chip->ac97_bus->private_free = snd_cs4281_mixer_free_ac97_bus;
 
 	memset(&ac97, 0, sizeof(ac97));
 	ac97.private_data = chip;
@@ -1177,7 +1163,7 @@ static int __devinit snd_cs4281_mixer(cs4281_t * chip)
 static void snd_cs4281_proc_read(snd_info_entry_t *entry, 
 				  snd_info_buffer_t * buffer)
 {
-	cs4281_t *chip = snd_magic_cast(cs4281_t, entry->private_data, return);
+	cs4281_t *chip = entry->private_data;
 
 	snd_iprintf(buffer, "Cirrus Logic CS4281\n\n");
 	snd_iprintf(buffer, "Spurious half IRQs   : %u\n", chip->spurious_dhtc_irq);
@@ -1189,7 +1175,7 @@ static long snd_cs4281_BA0_read(snd_info_entry_t *entry, void *file_private_data
 				unsigned long count, unsigned long pos)
 {
 	long size;
-	cs4281_t *chip = snd_magic_cast(cs4281_t, entry->private_data, return -ENXIO);
+	cs4281_t *chip = entry->private_data;
 	
 	size = count;
 	if (pos + size > CS4281_BA0_SIZE)
@@ -1206,7 +1192,7 @@ static long snd_cs4281_BA1_read(snd_info_entry_t *entry, void *file_private_data
 				unsigned long count, unsigned long pos)
 {
 	long size;
-	cs4281_t *chip = snd_magic_cast(cs4281_t, entry->private_data, return -ENXIO);
+	cs4281_t *chip = entry->private_data;
 	
 	size = count;
 	if (pos + size > CS4281_BA1_SIZE)
@@ -1252,38 +1238,29 @@ static void __devinit snd_cs4281_proc_init(cs4281_t * chip)
 
 #if defined(CONFIG_GAMEPORT) || (defined(MODULE) && defined(CONFIG_GAMEPORT_MODULE))
 
-typedef struct snd_cs4281_gameport {
-	struct gameport info;
-	cs4281_t *chip;
-} cs4281_gameport_t;
-
 static void snd_cs4281_gameport_trigger(struct gameport *gameport)
 {
-	cs4281_gameport_t *gp = (cs4281_gameport_t *)gameport;
-	cs4281_t *chip;
-	snd_assert(gp, return);
-	chip = snd_magic_cast(cs4281_t, gp->chip, return);
+	cs4281_t *chip = gameport_get_port_data(gameport);
+
+	snd_assert(chip, return);
 	snd_cs4281_pokeBA0(chip, BA0_JSPT, 0xff);
 }
 
 static unsigned char snd_cs4281_gameport_read(struct gameport *gameport)
 {
-	cs4281_gameport_t *gp = (cs4281_gameport_t *)gameport;
-	cs4281_t *chip;
-	snd_assert(gp, return 0);
-	chip = snd_magic_cast(cs4281_t, gp->chip, return 0);
+	cs4281_t *chip = gameport_get_port_data(gameport);
+
+	snd_assert(chip, return 0);
 	return snd_cs4281_peekBA0(chip, BA0_JSPT);
 }
 
 #ifdef COOKED_MODE
 static int snd_cs4281_gameport_cooked_read(struct gameport *gameport, int *axes, int *buttons)
 {
-	cs4281_gameport_t *gp = (cs4281_gameport_t *)gameport;
-	cs4281_t *chip;
+	cs4281_t *chip = gameport_get_port_data(gameport);
 	unsigned js1, js2, jst;
 	
-	snd_assert(gp, return 0);
-	chip = snd_magic_cast(cs4281_t, gp->chip, return 0);
+	snd_assert(chip, return 0);
 
 	js1 = snd_cs4281_peekBA0(chip, BA0_JSC1);
 	js2 = snd_cs4281_peekBA0(chip, BA0_JSC2);
@@ -1296,10 +1273,12 @@ static int snd_cs4281_gameport_cooked_read(struct gameport *gameport, int *axes,
 	axes[2] = ((js2 & JSC2_Y2V_MASK) >> JSC2_Y2V_SHIFT) & 0xFFFF;
 	axes[3] = ((js2 & JSC2_X2V_MASK) >> JSC2_X2V_SHIFT) & 0xFFFF;
 
-	for(jst=0;jst<4;++jst)
-		if(axes[jst]==0xFFFF) axes[jst] = -1;
+	for (jst = 0; jst < 4; ++jst)
+		if (axes[jst] == 0xFFFF) axes[jst] = -1;
 	return 0;
 }
+#else
+#define snd_cs4281_gameport_cooked_read	NULL
 #endif
 
 static int snd_cs4281_gameport_open(struct gameport *gameport, int mode)
@@ -1317,31 +1296,43 @@ static int snd_cs4281_gameport_open(struct gameport *gameport, int mode)
 	return 0;
 }
 
-static void __devinit snd_cs4281_gameport(cs4281_t *chip)
+static int __devinit snd_cs4281_create_gameport(cs4281_t *chip)
 {
-	cs4281_gameport_t *gp;
-	gp = kmalloc(sizeof(*gp), GFP_KERNEL);
-	if (! gp) {
-		snd_printk(KERN_ERR "cannot allocate gameport area\n");
-		return;
+	struct gameport *gp;
+
+	chip->gameport = gp = gameport_allocate_port();
+	if (!gp) {
+		printk(KERN_ERR "cs4281: cannot allocate memory for gameport\n");
+		return -ENOMEM;
 	}
-	memset(gp, 0, sizeof(*gp));
-	gp->info.open = snd_cs4281_gameport_open;
-	gp->info.read = snd_cs4281_gameport_read;
-	gp->info.trigger = snd_cs4281_gameport_trigger;
-#ifdef COOKED_MODE
-	gp->info.cooked_read = snd_cs4281_gameport_cooked_read;
-#endif
-	gp->chip = chip;
-	chip->gameport = gp;
+
+	gameport_set_name(gp, "CS4281 Gameport");
+	gameport_set_phys(gp, "pci%s/gameport0", pci_name(chip->pci));
+	gameport_set_dev_parent(gp, &chip->pci->dev);
+	gp->open = snd_cs4281_gameport_open;
+	gp->read = snd_cs4281_gameport_read;
+	gp->trigger = snd_cs4281_gameport_trigger;
+	gp->cooked_read = snd_cs4281_gameport_cooked_read;
+	gameport_set_port_data(gp, chip);
 
 	snd_cs4281_pokeBA0(chip, BA0_JSIO, 0xFF); // ?
 	snd_cs4281_pokeBA0(chip, BA0_JSCTL, JSCTL_SP_MEDIUM_SLOW);
-	gameport_register_port(&gp->info);
+
+	gameport_register_port(gp);
+
+	return 0;
 }
 
+static void snd_cs4281_free_gameport(cs4281_t *chip)
+{
+	if (chip->gameport) {
+		gameport_unregister_port(chip->gameport);
+		chip->gameport = NULL;
+	}
+}
 #else
-#define snd_cs4281_gameport(chip) /*NOP*/
+static inline int snd_cs4281_create_gameport(cs4281_t *chip) { return -ENOSYS; }
+static inline void snd_cs4281_free_gameport(cs4281_t *chip) { }
 #endif /* CONFIG_GAMEPORT || (MODULE && CONFIG_GAMEPORT_MODULE) */
 
 
@@ -1351,12 +1342,8 @@ static void __devinit snd_cs4281_gameport(cs4281_t *chip)
 
 static int snd_cs4281_free(cs4281_t *chip)
 {
-#if defined(CONFIG_GAMEPORT) || (defined(MODULE) && defined(CONFIG_GAMEPORT_MODULE))
-	if (chip->gameport) {
-		gameport_unregister_port(&chip->gameport->info);
-		kfree(chip->gameport);
-	}
-#endif
+	snd_cs4281_free_gameport(chip);
+
 	if (chip->irq >= 0)
 		synchronize_irq(chip->irq);
 
@@ -1369,35 +1356,29 @@ static int snd_cs4281_free(cs4281_t *chip)
 	/* PCI interface - D3 state */
 	pci_set_power_state(chip->pci, 3);
 
-	if (chip->ba0)
-		iounmap((void *) chip->ba0);
-	if (chip->ba1)
-		iounmap((void *) chip->ba1);
-	if (chip->ba0_res) {
-		release_resource(chip->ba0_res);
-		kfree_nocheck(chip->ba0_res);
-	}
-	if (chip->ba1_res) {
-		release_resource(chip->ba1_res);
-		kfree_nocheck(chip->ba1_res);
-	}
 	if (chip->irq >= 0)
 		free_irq(chip->irq, (void *)chip);
+	if (chip->ba0)
+		iounmap(chip->ba0);
+	if (chip->ba1)
+		iounmap(chip->ba1);
+	pci_release_regions(chip->pci);
+	pci_disable_device(chip->pci);
 
-	snd_magic_kfree(chip);
+	kfree(chip);
 	return 0;
 }
 
 static int snd_cs4281_dev_free(snd_device_t *device)
 {
-	cs4281_t *chip = snd_magic_cast(cs4281_t, device->device_data, return -ENXIO);
+	cs4281_t *chip = device->device_data;
 	return snd_cs4281_free(chip);
 }
 
 static int snd_cs4281_chip_init(cs4281_t *chip); /* defined below */
 #ifdef CONFIG_PM
-static int cs4281_suspend(snd_card_t *card, unsigned int state);
-static int cs4281_resume(snd_card_t *card, unsigned int state);
+static int cs4281_suspend(snd_card_t *card, pm_message_t state);
+static int cs4281_resume(snd_card_t *card);
 #endif
 
 static int __devinit snd_cs4281_create(snd_card_t * card,
@@ -1415,15 +1396,15 @@ static int __devinit snd_cs4281_create(snd_card_t * card,
 	*rchip = NULL;
 	if ((err = pci_enable_device(pci)) < 0)
 		return err;
-	chip = snd_magic_kcalloc(cs4281_t, 0, GFP_KERNEL);
-	if (chip == NULL)
+	chip = kcalloc(1, sizeof(*chip), GFP_KERNEL);
+	if (chip == NULL) {
+		pci_disable_device(pci);
 		return -ENOMEM;
+	}
 	spin_lock_init(&chip->reg_lock);
 	chip->card = card;
 	chip->pci = pci;
 	chip->irq = -1;
-	chip->ba0_addr = pci_resource_start(pci, 0);
-	chip->ba1_addr = pci_resource_start(pci, 1);
 	pci_set_master(pci);
 	if (dual_codec < 0 || dual_codec > 3) {
 		snd_printk(KERN_ERR "invalid dual_codec option %d\n", dual_codec);
@@ -1431,16 +1412,14 @@ static int __devinit snd_cs4281_create(snd_card_t * card,
 	}
 	chip->dual_codec = dual_codec;
 
-	if ((chip->ba0_res = request_mem_region(chip->ba0_addr, CS4281_BA0_SIZE, "CS4281 BA0")) == NULL) {
-		snd_printk(KERN_ERR "unable to grab memory region 0x%lx-0x%lx\n", chip->ba0_addr, chip->ba0_addr + CS4281_BA0_SIZE - 1);
-		snd_cs4281_free(chip);
-		return -ENOMEM;
+	if ((err = pci_request_regions(pci, "CS4281")) < 0) {
+		kfree(chip);
+		pci_disable_device(pci);
+		return err;
 	}
-	if ((chip->ba1_res = request_mem_region(chip->ba1_addr, CS4281_BA1_SIZE, "CS4281 BA1")) == NULL) {
-		snd_printk(KERN_ERR "unable to grab memory region 0x%lx-0x%lx\n", chip->ba1_addr, chip->ba1_addr + CS4281_BA1_SIZE - 1);
-		snd_cs4281_free(chip);
-		return -ENOMEM;
-	}
+	chip->ba0_addr = pci_resource_start(pci, 0);
+	chip->ba1_addr = pci_resource_start(pci, 1);
+
 	if (request_irq(pci->irq, snd_cs4281_interrupt, SA_INTERRUPT|SA_SHIRQ, "CS4281", (void *)chip)) {
 		snd_printk(KERN_ERR "unable to grab IRQ %d\n", pci->irq);
 		snd_cs4281_free(chip);
@@ -1448,8 +1427,8 @@ static int __devinit snd_cs4281_create(snd_card_t * card,
 	}
 	chip->irq = pci->irq;
 
-	chip->ba0 = (unsigned long) ioremap_nocache(chip->ba0_addr, CS4281_BA0_SIZE);
-	chip->ba1 = (unsigned long) ioremap_nocache(chip->ba1_addr, CS4281_BA1_SIZE);
+	chip->ba0 = ioremap_nocache(chip->ba0_addr, pci_resource_len(pci, 0));
+	chip->ba1 = ioremap_nocache(chip->ba1_addr, pci_resource_len(pci, 1));
 	if (!chip->ba0 || !chip->ba1) {
 		snd_cs4281_free(chip);
 		return -ENOMEM;
@@ -1461,14 +1440,14 @@ static int __devinit snd_cs4281_create(snd_card_t * card,
 		return tmp;
 	}
 
-	snd_cs4281_proc_init(chip);
-
-	snd_card_set_pm_callback(card, cs4281_suspend, cs4281_resume, chip);
-
 	if ((err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, chip, &ops)) < 0) {
 		snd_cs4281_free(chip);
 		return err;
 	}
+
+	snd_cs4281_proc_init(chip);
+
+	snd_card_set_pm_callback(card, cs4281_suspend, cs4281_resume, chip);
 
 	snd_card_set_dev(card, &pci->dev);
 
@@ -1713,10 +1692,9 @@ static void snd_cs4281_midi_reset(cs4281_t *chip)
 
 static int snd_cs4281_midi_input_open(snd_rawmidi_substream_t * substream)
 {
-	unsigned long flags;
-	cs4281_t *chip = snd_magic_cast(cs4281_t, substream->rmidi->private_data, return -ENXIO);
+	cs4281_t *chip = substream->rmidi->private_data;
 
-	spin_lock_irqsave(&chip->reg_lock, flags);
+	spin_lock_irq(&chip->reg_lock);
  	chip->midcr |= BA0_MIDCR_RXE;
 	chip->midi_input = substream;
 	if (!(chip->uartm & CS4281_MODE_OUTPUT)) {
@@ -1724,16 +1702,15 @@ static int snd_cs4281_midi_input_open(snd_rawmidi_substream_t * substream)
 	} else {
 		snd_cs4281_pokeBA0(chip, BA0_MIDCR, chip->midcr);
 	}
-	spin_unlock_irqrestore(&chip->reg_lock, flags);
+	spin_unlock_irq(&chip->reg_lock);
 	return 0;
 }
 
 static int snd_cs4281_midi_input_close(snd_rawmidi_substream_t * substream)
 {
-	unsigned long flags;
-	cs4281_t *chip = snd_magic_cast(cs4281_t, substream->rmidi->private_data, return -ENXIO);
+	cs4281_t *chip = substream->rmidi->private_data;
 
-	spin_lock_irqsave(&chip->reg_lock, flags);
+	spin_lock_irq(&chip->reg_lock);
 	chip->midcr &= ~(BA0_MIDCR_RXE | BA0_MIDCR_RIE);
 	chip->midi_input = NULL;
 	if (!(chip->uartm & CS4281_MODE_OUTPUT)) {
@@ -1742,16 +1719,15 @@ static int snd_cs4281_midi_input_close(snd_rawmidi_substream_t * substream)
 		snd_cs4281_pokeBA0(chip, BA0_MIDCR, chip->midcr);
 	}
 	chip->uartm &= ~CS4281_MODE_INPUT;
-	spin_unlock_irqrestore(&chip->reg_lock, flags);
+	spin_unlock_irq(&chip->reg_lock);
 	return 0;
 }
 
 static int snd_cs4281_midi_output_open(snd_rawmidi_substream_t * substream)
 {
-	unsigned long flags;
-	cs4281_t *chip = snd_magic_cast(cs4281_t, substream->rmidi->private_data, return -ENXIO);
+	cs4281_t *chip = substream->rmidi->private_data;
 
-	spin_lock_irqsave(&chip->reg_lock, flags);
+	spin_lock_irq(&chip->reg_lock);
 	chip->uartm |= CS4281_MODE_OUTPUT;
 	chip->midcr |= BA0_MIDCR_TXE;
 	chip->midi_output = substream;
@@ -1760,16 +1736,15 @@ static int snd_cs4281_midi_output_open(snd_rawmidi_substream_t * substream)
 	} else {
 		snd_cs4281_pokeBA0(chip, BA0_MIDCR, chip->midcr);
 	}
-	spin_unlock_irqrestore(&chip->reg_lock, flags);
+	spin_unlock_irq(&chip->reg_lock);
 	return 0;
 }
 
 static int snd_cs4281_midi_output_close(snd_rawmidi_substream_t * substream)
 {
-	unsigned long flags;
-	cs4281_t *chip = snd_magic_cast(cs4281_t, substream->rmidi->private_data, return -ENXIO);
+	cs4281_t *chip = substream->rmidi->private_data;
 
-	spin_lock_irqsave(&chip->reg_lock, flags);
+	spin_lock_irq(&chip->reg_lock);
 	chip->midcr &= ~(BA0_MIDCR_TXE | BA0_MIDCR_TIE);
 	chip->midi_output = NULL;
 	if (!(chip->uartm & CS4281_MODE_INPUT)) {
@@ -1778,14 +1753,14 @@ static int snd_cs4281_midi_output_close(snd_rawmidi_substream_t * substream)
 		snd_cs4281_pokeBA0(chip, BA0_MIDCR, chip->midcr);
 	}
 	chip->uartm &= ~CS4281_MODE_OUTPUT;
-	spin_unlock_irqrestore(&chip->reg_lock, flags);
+	spin_unlock_irq(&chip->reg_lock);
 	return 0;
 }
 
 static void snd_cs4281_midi_input_trigger(snd_rawmidi_substream_t * substream, int up)
 {
 	unsigned long flags;
-	cs4281_t *chip = snd_magic_cast(cs4281_t, substream->rmidi->private_data, return);
+	cs4281_t *chip = substream->rmidi->private_data;
 
 	spin_lock_irqsave(&chip->reg_lock, flags);
 	if (up) {
@@ -1805,7 +1780,7 @@ static void snd_cs4281_midi_input_trigger(snd_rawmidi_substream_t * substream, i
 static void snd_cs4281_midi_output_trigger(snd_rawmidi_substream_t * substream, int up)
 {
 	unsigned long flags;
-	cs4281_t *chip = snd_magic_cast(cs4281_t, substream->rmidi->private_data, return);
+	cs4281_t *chip = substream->rmidi->private_data;
 	unsigned char byte;
 
 	spin_lock_irqsave(&chip->reg_lock, flags);
@@ -1872,7 +1847,7 @@ static int __devinit snd_cs4281_midi(cs4281_t * chip, int device, snd_rawmidi_t 
 
 static irqreturn_t snd_cs4281_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 {
-	cs4281_t *chip = snd_magic_cast(cs4281_t, dev_id, return IRQ_NONE);
+	cs4281_t *chip = dev_id;
 	unsigned int status, dma, val;
 	cs4281_dma_t *cdma;
 
@@ -1941,6 +1916,31 @@ static irqreturn_t snd_cs4281_interrupt(int irq, void *dev_id, struct pt_regs *r
 }
 
 
+/*
+ * OPL3 command
+ */
+static void snd_cs4281_opl3_command(opl3_t * opl3, unsigned short cmd, unsigned char val)
+{
+	unsigned long flags;
+	cs4281_t *chip = opl3->private_data;
+	void __iomem *port;
+
+	if (cmd & OPL3_RIGHT)
+		port = chip->ba0 + BA0_B1AP; /* right port */
+	else
+		port = chip->ba0 + BA0_B0AP; /* left port */
+
+	spin_lock_irqsave(&opl3->reg_lock, flags);
+
+	writel((unsigned int)cmd, port);
+	udelay(10);
+
+	writel((unsigned int)val, port + 4);
+	udelay(30);
+
+	spin_unlock_irqrestore(&opl3->reg_lock, flags);
+}
+
 static int __devinit snd_cs4281_probe(struct pci_dev *pci,
 				      const struct pci_device_id *pci_id)
 {
@@ -1978,18 +1978,18 @@ static int __devinit snd_cs4281_probe(struct pci_dev *pci,
 		snd_card_free(card);
 		return err;
 	}
-	if ((err = snd_opl3_create(card,
-				   (chip->ba0 + BA0_B0AP) >> 2,
-				   (chip->ba0 + BA0_B1AP) >> 2,
-				   OPL3_HW_OPL3_CS4281, 1, &opl3)) < 0) {
+	if ((err = snd_opl3_new(card, OPL3_HW_OPL3_CS4281, &opl3)) < 0) {
 		snd_card_free(card);
 		return err;
 	}
+	opl3->private_data = chip;
+	opl3->command = snd_cs4281_opl3_command;
+	snd_opl3_init(opl3);
 	if ((err = snd_opl3_hwdep_new(opl3, 0, 1, NULL)) < 0) {
 		snd_card_free(card);
 		return err;
 	}
-	snd_cs4281_gameport(chip);
+	snd_cs4281_create_gameport(chip);
 	strcpy(card->driver, "CS4281");
 	strcpy(card->shortname, "Cirrus Logic CS4281");
 	sprintf(card->longname, "%s at 0x%lx, irq %d",
@@ -2034,13 +2034,11 @@ static int saved_regs[SUSPEND_REGISTERS] = {
 	BA0_PPRVC,
 };
 
-#define number_of(array)	(sizeof(array) / sizeof(array[0]))
-
 #define CLKCR1_CKRA                             0x00010000L
 
-static int cs4281_suspend(snd_card_t *card, unsigned int state)
+static int cs4281_suspend(snd_card_t *card, pm_message_t state)
 {
-	cs4281_t *chip = snd_magic_cast(cs4281_t, card->pm_private_data, return -EINVAL);
+	cs4281_t *chip = card->pm_private_data;
 	u32 ulCLK;
 	unsigned int i;
 
@@ -2059,7 +2057,7 @@ static int cs4281_suspend(snd_card_t *card, unsigned int state)
 	snd_cs4281_pokeBA0(chip, BA0_HICR, BA0_HICR_CHGM);
 
 	/* remember the status registers */
-	for (i = 0; i < number_of(saved_regs); i++)
+	for (i = 0; i < ARRAY_SIZE(saved_regs); i++)
 		if (saved_regs[i])
 			chip->suspend_regs[i] = snd_cs4281_peekBA0(chip, saved_regs[i]);
 
@@ -2079,17 +2077,18 @@ static int cs4281_suspend(snd_card_t *card, unsigned int state)
 	ulCLK &= ~CLKCR1_CKRA;
 	snd_cs4281_pokeBA0(chip, BA0_CLKCR1, ulCLK);
 
-	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
+	pci_disable_device(chip->pci);
 	return 0;
 }
 
-static int cs4281_resume(snd_card_t *card, unsigned int state)
+static int cs4281_resume(snd_card_t *card)
 {
-	cs4281_t *chip = snd_magic_cast(cs4281_t, card->pm_private_data, return -EINVAL);
+	cs4281_t *chip = card->pm_private_data;
 	unsigned int i;
 	u32 ulCLK;
 
 	pci_enable_device(chip->pci);
+	pci_set_master(chip->pci);
 
 	ulCLK = snd_cs4281_peekBA0(chip, BA0_CLKCR1);
 	ulCLK |= CLKCR1_CKRA;
@@ -2098,7 +2097,7 @@ static int cs4281_resume(snd_card_t *card, unsigned int state)
 	snd_cs4281_chip_init(chip);
 
 	/* restore the status registers */
-	for (i = 0; i < number_of(saved_regs); i++)
+	for (i = 0; i < ARRAY_SIZE(saved_regs); i++)
 		if (saved_regs[i])
 			snd_cs4281_pokeBA0(chip, saved_regs[i], chip->suspend_regs[i]);
 
@@ -2111,7 +2110,6 @@ static int cs4281_resume(snd_card_t *card, unsigned int state)
 	ulCLK &= ~CLKCR1_CKRA;
 	snd_cs4281_pokeBA0(chip, BA0_CLKCR1, ulCLK);
 
-	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
 	return 0;
 }
 #endif /* CONFIG_PM */

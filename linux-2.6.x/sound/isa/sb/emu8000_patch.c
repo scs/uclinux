@@ -155,7 +155,7 @@ snd_emu8000_sample_new(snd_emux_t *rec, snd_sf_sample_t *sp,
 	int  dram_offset, dram_start;
 	emu8000_t *emu;
 
-	emu = snd_magic_cast(emu8000_t, rec->hw, return -EINVAL);
+	emu = rec->hw;
 	snd_assert(sp != NULL, return -EINVAL);
 
 	if (sp->v.size == 0)
@@ -183,10 +183,10 @@ snd_emu8000_sample_new(snd_emux_t *rec, snd_sf_sample_t *sp,
 	}
 
 	if (sp->v.mode_flags & SNDRV_SFNT_SAMPLE_8BITS) {
-		if (verify_area(VERIFY_READ, data, sp->v.size))
+		if (!access_ok(VERIFY_READ, data, sp->v.size))
 			return -EFAULT;
 	} else {
-		if (verify_area(VERIFY_READ, data, sp->v.size * 2))
+		if (!access_ok(VERIFY_READ, data, sp->v.size * 2))
 			return -EFAULT;
 	}
 

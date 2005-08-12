@@ -160,22 +160,29 @@ irqreturn_t gusintr(int irq, void *dev_id, struct pt_regs *dummy)
 
 #ifdef CONFIG_SOUND_GUS16
 
-static int __init probe_gus_db16(struct address_info *hw_config)
+static int __init init_gus_db16(struct address_info *hw_config)
 {
-	return ad1848_detect(hw_config->io_base, NULL, hw_config->osp);
-}
+	struct resource *ports;
 
-static void __init attach_gus_db16(struct address_info *hw_config)
-{
+	ports = request_region(hw_config->io_base, 4, "ad1848");
+	if (!ports)
+		return 0;
+
+	if (!ad1848_detect(ports, NULL, hw_config->osp)) {
+		release_region(hw_config->io_base, 4);
+		return 0;
+	}
+
 	gus_pcm_volume = 100;
 	gus_wave_volume = 90;
 
-	hw_config->slots[3] = ad1848_init("GUS 16 bit sampling", hw_config->io_base,
+	hw_config->slots[3] = ad1848_init("GUS 16 bit sampling", ports,
 					  hw_config->irq,
 					  hw_config->dma,
 					  hw_config->dma, 0,
 					  hw_config->osp,
 					  THIS_MODULE);
+	return 1;
 }
 
 static void __exit unload_gus_db16(struct address_info *hw_config)
@@ -211,17 +218,17 @@ static int __initdata dma = -1;
 static int __initdata dma16 = -1;	/* Set this for modules that need it */
 static int __initdata type = 0;		/* 1 for PnP */
 
-MODULE_PARM(io, "i");
-MODULE_PARM(irq, "i");
-MODULE_PARM(dma, "i");
-MODULE_PARM(dma16, "i");
-MODULE_PARM(type, "i");
+module_param(io, int, 0);
+module_param(irq, int, 0);
+module_param(dma, int, 0);
+module_param(dma16, int, 0);
+module_param(type, int, 0);
 #ifdef CONFIG_SOUND_GUSMAX
-MODULE_PARM(no_wave_dma, "i");
+module_param(no_wave_dma, int, 0);
 #endif
 #ifdef CONFIG_SOUND_GUS16
-MODULE_PARM(db16, "i");
-MODULE_PARM(gus16, "i");
+module_param(db16, int, 0);
+module_param(gus16, int, 0);
 #endif
 MODULE_LICENSE("GPL");
 
@@ -244,11 +251,8 @@ static int __init init_gus(void)
 	}
 
 #ifdef CONFIG_SOUND_GUS16
-	if (probe_gus_db16(&cfg) && gus16) {
-		/* FIXME: This can't work, can it ? -- Christoph */
-		attach_gus_db16(&cfg);
+	if (gus16 && init_gus_db16(&cfg))
 		db16 = 1;
-	}	
 #endif
 	if (!probe_gus(&cfg))
 		return -ENODEV;

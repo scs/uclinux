@@ -123,9 +123,9 @@ ad1848_port_info;
 static struct address_info cfg;
 static int nr_ad1848_devs;
 
-int deskpro_xl;
-int deskpro_m;
-int soundpro;
+static int deskpro_xl;
+static int deskpro_m;
+static int soundpro;
 
 static volatile signed char irq2dev[17] = {
 	-1, -1, -1, -1, -1, -1, -1, -1,
@@ -1538,7 +1538,7 @@ static void ad1848_init_hw(ad1848_info * devc)
 	ad1848_mixer_reset(devc);
 }
 
-int ad1848_detect(int io_base, int *ad_flags, int *osp)
+int ad1848_detect(struct resource *ports, int *ad_flags, int *osp)
 {
 	unsigned char tmp;
 	ad1848_info *devc = &adev_info[nr_ad1848_devs];
@@ -1548,6 +1548,7 @@ int ad1848_detect(int io_base, int *ad_flags, int *osp)
 	int ad1847_flag = 0;
 	int cs4248_flag = 0;
 	int sscape_flag = 0;
+	int io_base = ports->start;
 
 	int i;
 
@@ -1576,11 +1577,6 @@ int ad1848_detect(int io_base, int *ad_flags, int *osp)
 	if (nr_ad1848_devs >= MAX_AUDIO_DEV)
 	{
 		printk(KERN_ERR "ad1848 - Too many audio devices\n");
-		return 0;
-	}
-	if (check_region(io_base, 4))
-	{
-		printk(KERN_ERR "ad1848.c: Port %x not free.\n", io_base);
 		return 0;
 	}
 	spin_lock_init(&devc->lock);
@@ -1951,7 +1947,7 @@ int ad1848_detect(int io_base, int *ad_flags, int *osp)
 	return 1;
 }
 
-int ad1848_init (char *name, int io_base, int irq, int dma_playback,
+int ad1848_init (char *name, struct resource *ports, int irq, int dma_playback,
 		int dma_capture, int share_dma, int *osp, struct module *owner)
 {
 	/*
@@ -1986,8 +1982,7 @@ int ad1848_init (char *name, int io_base, int irq, int dma_playback,
 		sprintf(dev_name,
 			"Generic audio codec (%s)", devc->chip_name);
 
-	if (!request_region(devc->base, 4, devc->name))
-		return -1;
+	rename_region(ports, devc->name);
 
 	conf_printf2(dev_name, devc->base, devc->irq, dma_playback, dma_capture);
 
@@ -2522,21 +2517,16 @@ static int init_deskpro(struct address_info *hw_config)
 	return 1;
 }
 
-int probe_ms_sound(struct address_info *hw_config)
+int probe_ms_sound(struct address_info *hw_config, struct resource *ports)
 {
 	unsigned char   tmp;
 
 	DDB(printk("Entered probe_ms_sound(%x, %d)\n", hw_config->io_base, hw_config->card_subtype));
 
-	if (check_region(hw_config->io_base, 8))
-	{
-		printk(KERN_ERR "MSS: I/O port conflict\n");
-		return 0;
-	}
 	if (hw_config->card_subtype == 1)	/* Has no IRQ/DMA registers */
 	{
 		/* check_opl3(0x388, hw_config); */
-		return ad1848_detect(hw_config->io_base + 4, NULL, hw_config->osp);
+		return ad1848_detect(ports, NULL, hw_config->osp);
 	}
 
 	if (deskpro_xl && hw_config->card_subtype == 2)	/* Compaq Deskpro XL */
@@ -2562,7 +2552,7 @@ int probe_ms_sound(struct address_info *hw_config)
 		  int             ret;
 
 		  DDB(printk("I/O address is inactive (%x)\n", tmp));
-		  if (!(ret = ad1848_detect(hw_config->io_base + 4, NULL, hw_config->osp)))
+		  if (!(ret = ad1848_detect(ports, NULL, hw_config->osp)))
 			  return 0;
 		  return 1;
 	}
@@ -2575,7 +2565,7 @@ int probe_ms_sound(struct address_info *hw_config)
 
 		MDB(printk(KERN_ERR "No MSS signature detected on port 0x%x (0x%x)\n", hw_config->io_base, (int) inb(hw_config->io_base + 3)));
 		DDB(printk("Trying to detect codec anyway but IRQ/DMA may not work\n"));
-		if (!(ret = ad1848_detect(hw_config->io_base + 4, NULL, hw_config->osp)))
+		if (!(ret = ad1848_detect(ports, NULL, hw_config->osp)))
 			return 0;
 
 		hw_config->card_subtype = 1;
@@ -2610,10 +2600,10 @@ int probe_ms_sound(struct address_info *hw_config)
 		printk(KERN_ERR "MSS: Can't use IRQ%d with a 8 bit card/slot\n", hw_config->irq);
 		return 0;
 	}
-	return ad1848_detect(hw_config->io_base + 4, NULL, hw_config->osp);
+	return ad1848_detect(ports, NULL, hw_config->osp);
 }
 
-void attach_ms_sound(struct address_info *hw_config, struct module *owner)
+void attach_ms_sound(struct address_info *hw_config, struct resource *ports, struct module *owner)
 {
 	static signed char interrupt_bits[12] =
 	{
@@ -2634,13 +2624,12 @@ void attach_ms_sound(struct address_info *hw_config, struct module *owner)
 
 	if (hw_config->card_subtype == 1)	/* Has no IRQ/DMA registers */
 	{
-		hw_config->slots[0] = ad1848_init("MS Sound System", hw_config->io_base + 4,
+		hw_config->slots[0] = ad1848_init("MS Sound System", ports,
 						    hw_config->irq,
 						    hw_config->dma,
 						    hw_config->dma2, 0, 
 						    hw_config->osp,
 						    owner);
-		request_region(hw_config->io_base, 4, "WSS config");
 		return;
 	}
 	/*
@@ -2651,6 +2640,8 @@ void attach_ms_sound(struct address_info *hw_config, struct module *owner)
 	if (bits == -1)
 	{
 		printk(KERN_ERR "MSS: Bad IRQ %d\n", hw_config->irq);
+		release_region(ports->start, 4);
+		release_region(ports->start - 4, 4);
 		return;
 	}
 	outb((bits | 0x40), config_port);
@@ -2694,12 +2685,11 @@ void attach_ms_sound(struct address_info *hw_config, struct module *owner)
 
 	outb((bits | dma_bits[dma] | dma2_bit), config_port);	/* Write IRQ+DMA setup */
 
-	hw_config->slots[0] = ad1848_init("MS Sound System", hw_config->io_base + 4,
+	hw_config->slots[0] = ad1848_init("MS Sound System", ports,
 					  hw_config->irq,
 					  dma, dma2, 0,
 					  hw_config->osp,
 					  THIS_MODULE);
-	request_region(hw_config->io_base, 4, "WSS config");
 }
 
 void unload_ms_sound(struct address_info *hw_config)
@@ -2915,24 +2905,24 @@ static int __initdata dma = -1;
 static int __initdata dma2 = -1;
 static int __initdata type = 0;
 
-MODULE_PARM(io, "i");                   /* I/O for a raw AD1848 card */
-MODULE_PARM(irq, "i");                  /* IRQ to use */
-MODULE_PARM(dma, "i");                  /* First DMA channel */
-MODULE_PARM(dma2, "i");                 /* Second DMA channel */
-MODULE_PARM(type, "i");                 /* Card type */
-MODULE_PARM(deskpro_xl, "i");           /* Special magic for Deskpro XL boxen */
-MODULE_PARM(deskpro_m, "i");            /* Special magic for Deskpro M box */
-MODULE_PARM(soundpro, "i");             /* More special magic for SoundPro chips */
+module_param(io, int, 0);		/* I/O for a raw AD1848 card */
+module_param(irq, int, 0);		/* IRQ to use */
+module_param(dma, int, 0);		/* First DMA channel */
+module_param(dma2, int, 0);		/* Second DMA channel */
+module_param(type, int, 0);		/* Card type */
+module_param(deskpro_xl, bool, 0);	/* Special magic for Deskpro XL boxen */
+module_param(deskpro_m, bool, 0);	/* Special magic for Deskpro M box */
+module_param(soundpro, bool, 0);	/* More special magic for SoundPro chips */
 
 #ifdef CONFIG_PNP
-MODULE_PARM(isapnp,	"i");
-MODULE_PARM(isapnpjump,	"i");
-MODULE_PARM(reverse,	"i");
+module_param(isapnp, int, 0);
+module_param(isapnpjump, int, 0);
+module_param(reverse, bool, 0);
 MODULE_PARM_DESC(isapnp,	"When set to 0, Plug & Play support will be disabled");
 MODULE_PARM_DESC(isapnpjump,	"Jumps to a specific slot in the driver's PnP table. Use the source, Luke.");
 MODULE_PARM_DESC(reverse,	"When set to 1, will reverse ISAPnP search order");
 
-struct pnp_dev	*ad1848_dev  = NULL;
+static struct pnp_dev	*ad1848_dev  = NULL;
 
 /* Please add new entries at the end of the table */
 static struct {
@@ -3095,6 +3085,7 @@ static int __init init_ad1848(void)
 #endif
 
 	if(io != -1) {
+		struct resource *ports;
 	        if( isapnp == 0 )
 	        {
 			if(irq == -1 || dma == -1) {
@@ -3109,9 +3100,22 @@ static int __init init_ad1848(void)
 			cfg.card_subtype = type;
 	        }
 
-		if(!probe_ms_sound(&cfg))
+		ports = request_region(io + 4, 4, "ad1848");
+
+		if (!ports)
+			return -EBUSY;
+
+		if (!request_region(io, 4, "WSS config")) {
+			release_region(io + 4, 4);
+			return -EBUSY;
+		}
+
+		if (!probe_ms_sound(&cfg, ports)) {
+			release_region(io + 4, 4);
+			release_region(io, 4);
 			return -ENODEV;
-		attach_ms_sound(&cfg, THIS_MODULE);
+		}
+		attach_ms_sound(&cfg, ports, THIS_MODULE);
 		loaded = 1;
 	}
 	return 0;

@@ -217,7 +217,6 @@
 #include <linux/gameport.h>
 #include <linux/kernel.h>
 #include <asm/uaccess.h>
-#include <asm/hardirq.h>
 #include <asm/io.h>
 #include <asm/dma.h>
 
@@ -442,7 +441,7 @@ struct trident_card {
 	struct timer_list timer;
 
 	/* Game port support */
-	struct gameport gameport;
+	struct gameport *gameport;
 };
 
 enum dmabuf_mode {
@@ -488,7 +487,7 @@ static struct trident_channel *ali_alloc_rec_pcm_channel(struct trident_card *ca
 static struct trident_channel *ali_alloc_pcm_channel(struct trident_card *card);
 static void ali_restore_regs(struct trident_card *card);
 static void ali_save_regs(struct trident_card *card);
-static int trident_suspend(struct pci_dev *dev, u32 unused);
+static int trident_suspend(struct pci_dev *dev, pm_message_t unused);
 static int trident_resume(struct pci_dev *dev);
 static void ali_free_pcm_channel(struct trident_card *card, unsigned int channel);
 static int ali_setup_multi_channels(struct trident_card *card, int chan_nums);
@@ -1282,7 +1281,7 @@ alloc_dmabuf(struct dmabuf *dmabuf, struct pci_dev *pci_dev, int order)
 	dmabuf->buforder = order;
 
 	/* now mark the pages as reserved; otherwise */ 
-	/* remap_page_range doesn't do what we want */
+	/* remap_pfn_range doesn't do what we want */
 	pend = virt_to_page(rawbuf + (PAGE_SIZE << order) - 1);
 	for (page = virt_to_page(rawbuf); page <= pend; page++)
 		SetPageReserved(page);
@@ -2224,7 +2223,8 @@ trident_mmap(struct file *file, struct vm_area_struct *vma)
 	if (size > (PAGE_SIZE << dmabuf->buforder))
 		goto out;
 	ret = -EAGAIN;
-	if (remap_page_range(vma, vma->vm_start, virt_to_phys(dmabuf->rawbuf), 
+	if (remap_pfn_range(vma, vma->vm_start,
+			     virt_to_phys(dmabuf->rawbuf) >> PAGE_SHIFT,
 			     size, vma->vm_page_prot))
 		goto out;
 	dmabuf->mapped = 1;
@@ -3723,7 +3723,7 @@ ali_restore_regs(struct trident_card *card)
 }
 
 static int
-trident_suspend(struct pci_dev *dev, u32 unused)
+trident_suspend(struct pci_dev *dev, pm_message_t unused)
 {
 	struct trident_card *card = pci_get_drvdata(dev);
 
@@ -4014,7 +4014,8 @@ ali_free_other_states_resources(struct trident_state *state)
 	}
 }
 
-struct proc_dir_entry *res;
+static struct proc_dir_entry *res;
+
 static int
 ali_write_proc(struct file *file, const char __user *buffer, unsigned long count, void *data)
 {
@@ -4256,21 +4257,21 @@ trident_ac97_init(struct trident_card *card)
 static unsigned char
 trident_game_read(struct gameport *gameport)
 {
-	struct trident_card *card = gameport->driver;
+	struct trident_card *card = gameport->port_data;
 	return inb(TRID_REG(card, T4D_GAME_LEG));
 }
 
 static void
 trident_game_trigger(struct gameport *gameport)
 {
-	struct trident_card *card = gameport->driver;
+	struct trident_card *card = gameport->port_data;
 	outb(0xff, TRID_REG(card, T4D_GAME_LEG));
 }
 
 static int
 trident_game_cooked_read(struct gameport *gameport, int *axes, int *buttons)
 {
-	struct trident_card *card = gameport->driver;
+	struct trident_card *card = gameport->port_data;
 	int i;
 
 	*buttons = (~inb(TRID_REG(card, T4D_GAME_LEG)) >> 4) & 0xf;
@@ -4287,7 +4288,7 @@ trident_game_cooked_read(struct gameport *gameport, int *axes, int *buttons)
 static int
 trident_game_open(struct gameport *gameport, int mode)
 {
-	struct trident_card *card = gameport->driver;
+	struct trident_card *card = gameport->port_data;
 
 	switch (mode) {
 	case GAMEPORT_MODE_COOKED:
@@ -4300,6 +4301,31 @@ trident_game_open(struct gameport *gameport, int mode)
 	default:
 		return -1;
 	}
+
+	return 0;
+}
+
+static int __devinit
+trident_register_gameport(struct trident_card *card)
+{
+	struct gameport *gp;
+
+	card->gameport = gp = gameport_allocate_port();
+	if (!gp) {
+		printk(KERN_ERR "trident: can not allocate memory for gameport\n");
+		return -ENOMEM;
+	}
+
+	gameport_set_name(gp, "Trident 4DWave");
+	gameport_set_phys(gp, "pci%s/gameport0", pci_name(card->pci_dev));
+	gp->read = trident_game_read;
+	gp->trigger = trident_game_trigger;
+	gp->cooked_read = trident_game_cooked_read;
+	gp->open = trident_game_open;
+	gp->fuzz = 64;
+	gp->port_data = card;
+
+	gameport_register_port(gp);
 
 	return 0;
 }
@@ -4366,13 +4392,6 @@ trident_probe(struct pci_dev *pci_dev, const struct pci_device_id *pci_id)
 	card->banks[BANK_A].bitmap = 0UL;
 	card->banks[BANK_B].addresses = &bank_b_addrs;
 	card->banks[BANK_B].bitmap = 0UL;
-
-	card->gameport.driver = card;
-	card->gameport.fuzz = 64;
-	card->gameport.read = trident_game_read;
-	card->gameport.trigger = trident_game_trigger;
-	card->gameport.cooked_read = trident_game_cooked_read;
-	card->gameport.open = trident_game_open;
 
 	init_MUTEX(&card->open_sem);
 	spin_lock_init(&card->lock);
@@ -4507,7 +4526,7 @@ trident_probe(struct pci_dev *pci_dev, const struct pci_device_id *pci_id)
 	trident_enable_loop_interrupts(card);
 
 	/* Register gameport */
-	gameport_register_port(&card->gameport);
+	trident_register_gameport(card);
 
 out:
 	return rc;
@@ -4550,7 +4569,8 @@ trident_remove(struct pci_dev *pci_dev)
 	}
 
 	/* Unregister gameport */
-	gameport_unregister_port(&card->gameport);
+	if (card->gameport)
+		gameport_unregister_port(card->gameport);
 
 	/* Kill interrupts, and SP/DIF */
 	trident_disable_loop_interrupts(card);
@@ -4595,11 +4615,7 @@ trident_init_module(void)
 	       "5050 PCI Audio, version " DRIVER_VERSION ", " __TIME__ " " 
 	       __DATE__ "\n");
 
-	if (!pci_register_driver(&trident_pci_driver)) {
-		pci_unregister_driver(&trident_pci_driver);
-		return -ENODEV;
-	}
-	return 0;
+	return pci_register_driver(&trident_pci_driver);
 }
 
 static void __exit

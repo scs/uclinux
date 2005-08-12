@@ -3,6 +3,10 @@
  *                   Creative Labs, Inc.
  *  Routines for control of EMU10K1 chips
  *
+ *  Copyright (c) by James Courtier-Dutton <James@superbug.demon.co.uk>
+ *      Added support for Audigy 2 Value.
+ *
+ *
  *  BUGS:
  *    --
  *
@@ -35,6 +39,7 @@
 
 #include <sound/core.h>
 #include <sound/emu10k1.h>
+#include "p16v.h"
 
 #if 0
 MODULE_AUTHOR("Jaroslav Kysela <perex@suse.cz>, Creative Labs, Inc.");
@@ -119,8 +124,10 @@ static int __devinit snd_emu10k1_init(emu10k1_t * emu, int enable_ir)
 	snd_emu10k1_ptr_write(emu, SOLEH, 0, 0);
 
 	if (emu->audigy){
-		snd_emu10k1_ptr_write(emu, 0x5e, 0, 0xf00); /* ?? */
-		snd_emu10k1_ptr_write(emu, 0x5f, 0, 0x3); /* ?? */
+		/* set SPDIF bypass mode */
+		snd_emu10k1_ptr_write(emu, SPBYPASS, 0, SPBYPASS_FORMAT);
+		/* enable rear left + rear right AC97 slots */
+		snd_emu10k1_ptr_write(emu, AC97SLOT, 0, AC97SLOT_REAR_RIGHT | AC97SLOT_REAR_LEFT);
 	}
 
 	/* init envelope engine */
@@ -172,15 +179,47 @@ static int __devinit snd_emu10k1_init(emu10k1_t * emu, int enable_ir)
 		tmp &= 0xfffff1ff;
 		tmp |= (0x2<<9);
 		snd_emu10k1_ptr_write(emu, A_SPDIF_SAMPLERATE, 0, tmp);
+		
+		/* Setup SRCSel (Enable Spdif,I2S SRCMulti) */
+		snd_emu10k1_ptr20_write(emu, SRCSel, 0, 0x14);
+		/* Setup SRCMulti Input Audio Enable */
+		/* Use 0xFFFFFFFF to enable P16V sounds. */
+		snd_emu10k1_ptr20_write(emu, SRCMULTI_ENABLE, 0, 0xFFFFFFFF);
+
+		/* Enabled Phased (8-channel) P16V playback */
+		outl(0x0201, emu->port + HCFG2);
+		/* Set playback routing. */
+		snd_emu10k1_ptr_write(emu, CAPTURE_P16V_SOURCE, 0, 78e4);
+	}
+	if (emu->audigy && (emu->serial == 0x10011102) ) { /* audigy2 Value */
+		/* Hacks for Alice3 to work independent of haP16V driver */
+		u32 tmp;
+
+		snd_printk(KERN_ERR "Audigy2 value:Special config.\n");
+		//Setup SRCMulti_I2S SamplingRate
+		tmp = snd_emu10k1_ptr_read(emu, A_SPDIF_SAMPLERATE, 0);
+		tmp &= 0xfffff1ff;
+		tmp |= (0x2<<9);
+		snd_emu10k1_ptr_write(emu, A_SPDIF_SAMPLERATE, 0, tmp);
 
 		/* Setup SRCSel (Enable Spdif,I2S SRCMulti) */
 		outl(0x600000, emu->port + 0x20);
 		outl(0x14, emu->port + 0x24);
 
 		/* Setup SRCMulti Input Audio Enable */
-		outl(0x6E0000, emu->port + 0x20);
-		outl(0xFF00FF00, emu->port + 0x24);
+		outl(0x7b0000, emu->port + 0x20);
+		outl(0xFF000000, emu->port + 0x24);
+
+		/* Setup SPDIF Out Audio Enable */
+		/* The Audigy 2 Value has a separate SPDIF out,
+		 * so no need for a mixer switch
+		 */
+		outl(0x7a0000, emu->port + 0x20);
+		outl(0xFF000000, emu->port + 0x24);
+		tmp = inl(emu->port + A_IOCFG) & ~0x8; /* Clear bit 3 */
+		outl(tmp, emu->port + A_IOCFG);
 	}
+
 
 	/*
 	 *  Clear page with silence & setup all pointers to this page
@@ -265,6 +304,9 @@ static int __devinit snd_emu10k1_init(emu10k1_t * emu, int enable_ir)
 			 * This has to be done after init ALice3 I2SOut beyond 48KHz.
 			 * So, sequence is important. */
 			outl(inl(emu->port + A_IOCFG) | 0x0040, emu->port + A_IOCFG);
+		} else if (emu->serial == 0x10011102) { /* audigy2 value */
+			/* Unmute Analog now. */
+			outl(inl(emu->port + A_IOCFG) | 0x0060, emu->port + A_IOCFG);
 		} else {
 			/* Disable routing from AC97 line out to Front speakers */
 			outl(inl(emu->port + A_IOCFG) | 0x0080, emu->port + A_IOCFG);
@@ -329,7 +371,7 @@ static int snd_emu10k1_done(emu10k1_t * emu)
 	if (emu->audigy)
 		snd_emu10k1_ptr_write(emu, A_DBG, 0, A_DBG_SINGLE_STEP);
 	else
-		snd_emu10k1_ptr_write(emu, DBG, 0, 0x8000);
+		snd_emu10k1_ptr_write(emu, DBG, 0, EMU10K1_DBG_SINGLE_STEP);
 
 	/* disable channel interrupt */
 	snd_emu10k1_ptr_write(emu, CLIEL, 0, 0);
@@ -541,35 +583,113 @@ static int __devinit snd_emu10k1_ecard_init(emu10k1_t * emu)
 
 static int snd_emu10k1_free(emu10k1_t *emu)
 {
-	if (emu->res_port != NULL) {	/* avoid access to already used hardware */
+	if (emu->port) {	/* avoid access to already used hardware */
 	       	snd_emu10k1_fx8010_tram_setup(emu, 0);
 		snd_emu10k1_done(emu);
        	}
 	if (emu->memhdr)
 		snd_util_memhdr_free(emu->memhdr);
 	if (emu->silent_page.area)
-		snd_dma_free_pages(&emu->dma_dev, &emu->silent_page);
+		snd_dma_free_pages(&emu->silent_page);
 	if (emu->ptb_pages.area)
-		snd_dma_free_pages(&emu->dma_dev, &emu->ptb_pages);
-	if (emu->page_ptr_table)
-		vfree(emu->page_ptr_table);
-	if (emu->page_addr_table)
-		vfree(emu->page_addr_table);
-	if (emu->res_port) {
-		release_resource(emu->res_port);
-		kfree_nocheck(emu->res_port);
-	}
+		snd_dma_free_pages(&emu->ptb_pages);
+	vfree(emu->page_ptr_table);
+	vfree(emu->page_addr_table);
 	if (emu->irq >= 0)
 		free_irq(emu->irq, (void *)emu);
-	snd_magic_kfree(emu);
+	if (emu->port)
+		pci_release_regions(emu->pci);
+	pci_disable_device(emu->pci);
+	if (emu->audigy && emu->revision == 4) /* P16V */	
+		snd_p16v_free(emu);
+	kfree(emu);
 	return 0;
 }
 
 static int snd_emu10k1_dev_free(snd_device_t *device)
 {
-	emu10k1_t *emu = snd_magic_cast(emu10k1_t, device->device_data, return -ENXIO);
+	emu10k1_t *emu = device->device_data;
 	return snd_emu10k1_free(emu);
 }
+
+/* vendor, device, subsystem, emu10k1_chip, emu10k2_chip, ca0102_chip, ca0108_chip, ca0151_chip, spk71, spdif_bug, ac97_chip, ecard, driver, name */
+
+static emu_chip_details_t emu_chip_details[] = {
+	/* Audigy 2 Value AC3 out does not work yet. Need to find out how to turn off interpolators.*/
+	{.vendor = 0x1102, .device = 0x0008, .subsystem = 0x10011102,
+	 .driver = "Audigy2", .name = "Audigy 2 Value [SB0400]", 
+	 .emu10k2_chip = 1,
+	 .ca0108_chip = 1,
+	 .spk71 = 1} ,
+	{.vendor = 0x1102, .device = 0x0008, 
+	 .driver = "Audigy2", .name = "Audigy 2 Value [Unknown]", 
+	 .emu10k2_chip = 1,
+	 .ca0108_chip = 1} ,
+	{.vendor = 0x1102, .device = 0x0004, .subsystem = 0x20071102,
+	 .driver = "Audigy2", .name = "Audigy 4 PRO [SB0380]", 
+	 .emu10k2_chip = 1,
+	 .ca0102_chip = 1,
+	 .ca0151_chip = 1,
+	 .spk71 = 1,
+	 .spdif_bug = 1,
+	 .ac97_chip = 1} ,
+	{.vendor = 0x1102, .device = 0x0004, .subsystem = 0x20021102,
+	 .driver = "Audigy2", .name = "Audigy 2 ZS [SB0350]", 
+	 .emu10k2_chip = 1,
+	 .ca0102_chip = 1,
+	 .ca0151_chip = 1,
+	 .spk71 = 1,
+	 .spdif_bug = 1,
+	 .ac97_chip = 1} ,
+	{.vendor = 0x1102, .device = 0x0004, .subsystem = 0x20011102,
+	 .driver = "Audigy2", .name = "Audigy 2 ZS [2001]", 
+	 .emu10k2_chip = 1,
+	 .ca0102_chip = 1,
+	 .ca0151_chip = 1,
+	 .spk71 = 1,
+	 .spdif_bug = 1,
+	 .ac97_chip = 1} ,
+	{.vendor = 0x1102, .device = 0x0004, .subsystem = 0x10071102,
+	 .driver = "Audigy2", .name = "Audigy 2 [SB0240]", 
+	 .emu10k2_chip = 1,
+	 .ca0102_chip = 1,
+	 .ca0151_chip = 1,
+	 .spk71 = 1,
+	 .spdif_bug = 1,
+	 .ac97_chip = 1} ,
+	{.vendor = 0x1102, .device = 0x0004, .subsystem = 0x10051102,
+	 .driver = "Audigy2", .name = "Audigy 2 EX [1005]", 
+	 .emu10k2_chip = 1,
+	 .ca0102_chip = 1,
+	 .ca0151_chip = 1,
+	 .spdif_bug = 1} ,
+	{.vendor = 0x1102, .device = 0x0004, .subsystem = 0x10021102,
+	 .driver = "Audigy2", .name = "Audigy 2 Platinum [SB0240P]", 
+	 .emu10k2_chip = 1,
+	 .ca0102_chip = 1,
+	 .ca0151_chip = 1,
+	 .spk71 = 1,
+	 .spdif_bug = 1,
+	 .ac97_chip = 1} ,
+	{.vendor = 0x1102, .device = 0x0004,
+	 .driver = "Audigy", .name = "Audigy 1 or 2 [Unknown]", 
+	 .emu10k2_chip = 1,
+	 .ca0102_chip = 1,
+	 .spdif_bug = 1} ,
+	{.vendor = 0x1102, .device = 0x0002, .subsystem = 0x40011102,
+	 .driver = "EMU10K1", .name = "E-mu APS [4001]", 
+	 .emu10k1_chip = 1,
+	 .ecard = 1} ,
+	{.vendor = 0x1102, .device = 0x0002, .subsystem = 0x80641102,
+	 .driver = "EMU10K1", .name = "SB Live 5.1", 
+	 .emu10k1_chip = 1,
+	 .ac97_chip = 1} ,
+	{.vendor = 0x1102, .device = 0x0002,
+	 .driver = "EMU10K1", .name = "SB Live [Unknown]", 
+	 .emu10k1_chip = 1,
+	 .ac97_chip = 1} ,
+	{ } /* terminator */
+};
 
 int __devinit snd_emu10k1_create(snd_card_t * card,
 		       struct pci_dev * pci,
@@ -582,29 +702,22 @@ int __devinit snd_emu10k1_create(snd_card_t * card,
 	emu10k1_t *emu;
 	int err;
 	int is_audigy;
+	unsigned char revision;
+	const emu_chip_details_t *c;
 	static snd_device_ops_t ops = {
 		.dev_free =	snd_emu10k1_dev_free,
 	};
 	
 	*remu = NULL;
 
-	// is_audigy = (int)pci->driver_data;
-	is_audigy = (pci->device == 0x0004);
-
 	/* enable PCI device */
 	if ((err = pci_enable_device(pci)) < 0)
 		return err;
 
-	emu = snd_magic_kcalloc(emu10k1_t, 0, GFP_KERNEL);
-	if (emu == NULL)
+	emu = kcalloc(1, sizeof(*emu), GFP_KERNEL);
+	if (emu == NULL) {
+		pci_disable_device(pci);
 		return -ENOMEM;
-	/* set the DMA transfer mask */
-	emu->dma_mask = is_audigy ? AUDIGY_DMA_MASK : EMU10K1_DMA_MASK;
-	if (pci_set_dma_mask(pci, emu->dma_mask) < 0 ||
-	    pci_set_consistent_dma_mask(pci, emu->dma_mask) < 0) {
-		snd_printk(KERN_ERR "architecture does not support PCI busmaster DMA with mask 0x%lx\n", emu->dma_mask);
-		snd_magic_kfree(emu);
-		return -ENXIO;
 	}
 	emu->card = card;
 	spin_lock_init(&emu->reg_lock);
@@ -620,18 +733,54 @@ int __devinit snd_emu10k1_create(snd_card_t * card,
 	emu->irq = -1;
 	emu->synth = NULL;
 	emu->get_synth_voice = NULL;
-	emu->port = pci_resource_start(pci, 0);
+	/* read revision & serial */
+	pci_read_config_byte(pci, PCI_REVISION_ID, &revision);
+	emu->revision = revision;
+	pci_read_config_dword(pci, PCI_SUBSYSTEM_VENDOR_ID, &emu->serial);
+	pci_read_config_word(pci, PCI_SUBSYSTEM_ID, &emu->model);
+	emu->card_type = EMU10K1_CARD_CREATIVE;
+	snd_printdd("vendor=0x%x, device=0x%x, subsystem_vendor_id=0x%x, subsystem_id=0x%x\n",pci->vendor, pci->device, emu->serial, emu->model);
 
-	emu->audigy = is_audigy;
+	for (c = emu_chip_details; c->vendor; c++) {
+		if (c->vendor == pci->vendor && c->device == pci->device) {
+			if (c->subsystem == emu->serial) break;
+			if (c->subsystem == 0) break;
+		}
+	}
+	if (c->vendor == 0) {
+		snd_printk(KERN_ERR "emu10k1: Card not recognised\n");
+		kfree(emu);
+		pci_disable_device(pci);
+		return -ENOENT;
+	}
+	emu->card_capabilities = c;
+	if (c->subsystem != 0)
+		snd_printdd("Sound card name=%s\n", c->name);
+	else
+		snd_printdd("Sound card name=%s, vendor=0x%x, device=0x%x, subsystem=0x%x\n", c->name, pci->vendor, pci->device, emu->serial);
+	
+	is_audigy = emu->audigy = c->emu10k2_chip;
+
+	/* set the DMA transfer mask */
+	emu->dma_mask = is_audigy ? AUDIGY_DMA_MASK : EMU10K1_DMA_MASK;
+	if (pci_set_dma_mask(pci, emu->dma_mask) < 0 ||
+	    pci_set_consistent_dma_mask(pci, emu->dma_mask) < 0) {
+		snd_printk(KERN_ERR "architecture does not support PCI busmaster DMA with mask 0x%lx\n", emu->dma_mask);
+		kfree(emu);
+		pci_disable_device(pci);
+		return -ENXIO;
+	}
 	if (is_audigy)
 		emu->gpr_base = A_FXGPREGBASE;
 	else
 		emu->gpr_base = FXGPREGBASE;
 
-	if ((emu->res_port = request_region(emu->port, 0x20, "EMU10K1")) == NULL) {
-		snd_emu10k1_free(emu);
-		return -EBUSY;
+	if ((err = pci_request_regions(pci, "EMU10K1")) < 0) {
+		kfree(emu);
+		pci_disable_device(pci);
+		return err;
 	}
+	emu->port = pci_resource_start(pci, 0);
 
 	if (request_irq(pci->irq, snd_emu10k1_interrupt, SA_INTERRUPT|SA_SHIRQ, "EMU10K1", (void *)emu)) {
 		snd_emu10k1_free(emu);
@@ -639,12 +788,9 @@ int __devinit snd_emu10k1_create(snd_card_t * card,
 	}
 	emu->irq = pci->irq;
 
-	memset(&emu->dma_dev, 0, sizeof(emu->dma_dev));
-	emu->dma_dev.type = SNDRV_DMA_TYPE_DEV;
-	emu->dma_dev.dev = snd_dma_pci_data(pci);
-
 	emu->max_cache_pages = max_cache_bytes >> PAGE_SHIFT;
-	if (snd_dma_alloc_pages(&emu->dma_dev, 32 * 1024, &emu->ptb_pages) < 0) {
+	if (snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, snd_dma_pci_data(pci),
+				32 * 1024, &emu->ptb_pages) < 0) {
 		snd_emu10k1_free(emu);
 		return -ENOMEM;
 	}
@@ -656,7 +802,8 @@ int __devinit snd_emu10k1_create(snd_card_t * card,
 		return -ENOMEM;
 	}
 
-	if (snd_dma_alloc_pages(&emu->dma_dev, EMUPAGESIZE, &emu->silent_page) < 0) {
+	if (snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, snd_dma_pci_data(pci),
+				EMUPAGESIZE, &emu->silent_page) < 0) {
 		snd_emu10k1_free(emu);
 		return -ENOMEM;
 	}
@@ -668,23 +815,15 @@ int __devinit snd_emu10k1_create(snd_card_t * card,
 	emu->memhdr->block_extra_size = sizeof(emu10k1_memblk_t) - sizeof(snd_util_memblk_t);
 
 	pci_set_master(pci);
-	/* read revision & serial */
-	pci_read_config_byte(pci, PCI_REVISION_ID, (char *)&emu->revision);
-	pci_read_config_dword(pci, PCI_SUBSYSTEM_VENDOR_ID, &emu->serial);
-	pci_read_config_word(pci, PCI_SUBSYSTEM_ID, &emu->model);
-	emu->card_type = EMU10K1_CARD_CREATIVE;
-	if (emu->serial == 0x40011102) {
+
+	if (c->ecard) {
 		emu->card_type = EMU10K1_CARD_EMUAPS;
 		emu->APS = 1;
-		emu->no_ac97 = 1; /* APS has no AC97 chip */
 	}
-	else if (emu->revision == 4 && emu->serial == 0x10051102) {
-		/* Audigy 2 EX has apparently no effective AC97 controls
-		 * (for both input and output), so we skip the AC97 detections
-		 */
-		snd_printdd(KERN_INFO "Audigy2 EX is detected. skpping ac97.\n");
+	if (! c->ac97_chip)
 		emu->no_ac97 = 1;
-	}
+	
+	emu->spk71 = c->spk71;
 	
 	emu->fx8010.fxbus_mask = 0x303f;
 	if (extin_mask == 0)

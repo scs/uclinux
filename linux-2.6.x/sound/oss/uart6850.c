@@ -72,7 +72,7 @@ static int uart6850_opened;
 static int uart6850_irq;
 static int uart6850_detected;
 static int my_dev;
-static spinlock_t lock=SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(lock);
 
 static void (*midi_input_intr) (int dev, unsigned char data);
 static void poll_uart6850(unsigned long dummy);
@@ -316,8 +316,8 @@ static struct address_info cfg_mpu;
 static int __initdata io = -1;
 static int __initdata irq = -1;
 
-MODULE_PARM(io,"i");
-MODULE_PARM(irq,"i");
+module_param(io, int, 0);
+module_param(irq, int, 0);
 
 static int __init init_uart6850(void)
 {

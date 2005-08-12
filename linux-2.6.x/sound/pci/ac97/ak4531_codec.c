@@ -30,8 +30,6 @@ MODULE_AUTHOR("Jaroslav Kysela <perex@suse.cz>");
 MODULE_DESCRIPTION("Universal routines for AK4531 codec");
 MODULE_LICENSE("GPL");
 
-#define chip_t ak4531_t
-
 static void snd_ak4531_proc_init(snd_card_t * card, ak4531_t * ak4531);
 
 /*
@@ -74,27 +72,25 @@ static int snd_ak4531_info_single(snd_kcontrol_t * kcontrol, snd_ctl_elem_info_t
 static int snd_ak4531_get_single(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * ucontrol)
 {
 	ak4531_t *ak4531 = snd_kcontrol_chip(kcontrol);
-	unsigned long flags;
 	int reg = kcontrol->private_value & 0xff;
 	int shift = (kcontrol->private_value >> 16) & 0x07;
 	int mask = (kcontrol->private_value >> 24) & 0xff;
 	int invert = (kcontrol->private_value >> 22) & 1;
 	int val;
 
-	spin_lock_irqsave(&ak4531->reg_lock, flags);
+	down(&ak4531->reg_mutex);
 	val = (ak4531->regs[reg] >> shift) & mask;
-	spin_unlock_irqrestore(&ak4531->reg_lock, flags);
+	up(&ak4531->reg_mutex);
 	if (invert) {
 		val = mask - val;
 	}
 	ucontrol->value.integer.value[0] = val;
 	return 0;
-}                                                                                                                                                                                                                                                                                                            
+}
 
 static int snd_ak4531_put_single(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * ucontrol)
 {
 	ak4531_t *ak4531 = snd_kcontrol_chip(kcontrol);
-	unsigned long flags;
 	int reg = kcontrol->private_value & 0xff;
 	int shift = (kcontrol->private_value >> 16) & 0x07;
 	int mask = (kcontrol->private_value >> 24) & 0xff;
@@ -107,13 +103,13 @@ static int snd_ak4531_put_single(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t
 		val = mask - val;
 	}
 	val <<= shift;
-	spin_lock_irqsave(&ak4531->reg_lock, flags);
+	down(&ak4531->reg_mutex);
 	val = (ak4531->regs[reg] & ~(mask << shift)) | val;
 	change = val != ak4531->regs[reg];
 	ak4531->write(ak4531, reg, ak4531->regs[reg] = val);
-	spin_unlock_irqrestore(&ak4531->reg_lock, flags);
+	up(&ak4531->reg_mutex);
 	return change;
-}                                                                                                                                                                                                                                                                                                            
+}
 
 #define AK4531_DOUBLE(xname, xindex, left_reg, right_reg, left_shift, right_shift, mask, invert) \
 { .iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, .index = xindex, \
@@ -135,7 +131,6 @@ static int snd_ak4531_info_double(snd_kcontrol_t * kcontrol, snd_ctl_elem_info_t
 static int snd_ak4531_get_double(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * ucontrol)
 {
 	ak4531_t *ak4531 = snd_kcontrol_chip(kcontrol);
-	unsigned long flags;
 	int left_reg = kcontrol->private_value & 0xff;
 	int right_reg = (kcontrol->private_value >> 8) & 0xff;
 	int left_shift = (kcontrol->private_value >> 16) & 0x07;
@@ -144,10 +139,10 @@ static int snd_ak4531_get_double(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t
 	int invert = (kcontrol->private_value >> 22) & 1;
 	int left, right;
 
-	spin_lock_irqsave(&ak4531->reg_lock, flags);
+	down(&ak4531->reg_mutex);
 	left = (ak4531->regs[left_reg] >> left_shift) & mask;
 	right = (ak4531->regs[right_reg] >> right_shift) & mask;
-	spin_unlock_irqrestore(&ak4531->reg_lock, flags);
+	up(&ak4531->reg_mutex);
 	if (invert) {
 		left = mask - left;
 		right = mask - right;
@@ -155,12 +150,11 @@ static int snd_ak4531_get_double(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t
 	ucontrol->value.integer.value[0] = left;
 	ucontrol->value.integer.value[1] = right;
 	return 0;
-}                                                                                                                                                                                                                                                                                                            
+}
 
 static int snd_ak4531_put_double(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * ucontrol)
 {
 	ak4531_t *ak4531 = snd_kcontrol_chip(kcontrol);
-	unsigned long flags;
 	int left_reg = kcontrol->private_value & 0xff;
 	int right_reg = (kcontrol->private_value >> 8) & 0xff;
 	int left_shift = (kcontrol->private_value >> 16) & 0x07;
@@ -178,7 +172,7 @@ static int snd_ak4531_put_double(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t
 	}
 	left <<= left_shift;
 	right <<= right_shift;
-	spin_lock_irqsave(&ak4531->reg_lock, flags);
+	down(&ak4531->reg_mutex);
 	if (left_reg == right_reg) {
 		left = (ak4531->regs[left_reg] & ~((mask << left_shift) | (mask << right_shift))) | left | right;
 		change = left != ak4531->regs[left_reg];
@@ -190,9 +184,9 @@ static int snd_ak4531_put_double(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t
 		ak4531->write(ak4531, left_reg, ak4531->regs[left_reg] = left);
 		ak4531->write(ak4531, right_reg, ak4531->regs[right_reg] = right);
 	}
-	spin_unlock_irqrestore(&ak4531->reg_lock, flags);
+	up(&ak4531->reg_mutex);
 	return change;
-}                                                                                                                                                                                                                                                                                                            
+}
 
 #define AK4531_INPUT_SW(xname, xindex, reg1, reg2, left_shift, right_shift) \
 { .iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, .index = xindex, \
@@ -212,25 +206,23 @@ static int snd_ak4531_info_input_sw(snd_kcontrol_t * kcontrol, snd_ctl_elem_info
 static int snd_ak4531_get_input_sw(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * ucontrol)
 {
 	ak4531_t *ak4531 = snd_kcontrol_chip(kcontrol);
-	unsigned long flags;
 	int reg1 = kcontrol->private_value & 0xff;
 	int reg2 = (kcontrol->private_value >> 8) & 0xff;
 	int left_shift = (kcontrol->private_value >> 16) & 0x0f;
 	int right_shift = (kcontrol->private_value >> 24) & 0x0f;
 
-	spin_lock_irqsave(&ak4531->reg_lock, flags);
+	down(&ak4531->reg_mutex);
 	ucontrol->value.integer.value[0] = (ak4531->regs[reg1] >> left_shift) & 1;
 	ucontrol->value.integer.value[1] = (ak4531->regs[reg2] >> left_shift) & 1;
 	ucontrol->value.integer.value[2] = (ak4531->regs[reg1] >> right_shift) & 1;
 	ucontrol->value.integer.value[3] = (ak4531->regs[reg2] >> right_shift) & 1;
-	spin_unlock_irqrestore(&ak4531->reg_lock, flags);
+	up(&ak4531->reg_mutex);
 	return 0;
-}                                                                                                                                                                                                                                                                                                            
+}
 
 static int snd_ak4531_put_input_sw(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * ucontrol)
 {
 	ak4531_t *ak4531 = snd_kcontrol_chip(kcontrol);
-	unsigned long flags;
 	int reg1 = kcontrol->private_value & 0xff;
 	int reg2 = (kcontrol->private_value >> 8) & 0xff;
 	int left_shift = (kcontrol->private_value >> 16) & 0x0f;
@@ -238,7 +230,7 @@ static int snd_ak4531_put_input_sw(snd_kcontrol_t * kcontrol, snd_ctl_elem_value
 	int change;
 	int val1, val2;
 
-	spin_lock_irqsave(&ak4531->reg_lock, flags);
+	down(&ak4531->reg_mutex);
 	val1 = ak4531->regs[reg1] & ~((1 << left_shift) | (1 << right_shift));
 	val2 = ak4531->regs[reg2] & ~((1 << left_shift) | (1 << right_shift));
 	val1 |= (ucontrol->value.integer.value[0] & 1) << left_shift;
@@ -248,11 +240,9 @@ static int snd_ak4531_put_input_sw(snd_kcontrol_t * kcontrol, snd_ctl_elem_value
 	change = val1 != ak4531->regs[reg1] || val2 != ak4531->regs[reg2];
 	ak4531->write(ak4531, reg1, ak4531->regs[reg1] = val1);
 	ak4531->write(ak4531, reg2, ak4531->regs[reg2] = val2);
-	spin_unlock_irqrestore(&ak4531->reg_lock, flags);
+	up(&ak4531->reg_mutex);
 	return change;
-}                                                                                                                                                                                                                                                                                                            
-
-#define AK4531_CONTROLS (sizeof(snd_ak4531_controls)/sizeof(snd_kcontrol_new_t))
+}
 
 static snd_kcontrol_new_t snd_ak4531_controls[] = {
 
@@ -315,14 +305,14 @@ static int snd_ak4531_free(ak4531_t *ak4531)
 	if (ak4531) {
 		if (ak4531->private_free)
 			ak4531->private_free(ak4531);
-		snd_magic_kfree(ak4531);
+		kfree(ak4531);
 	}
 	return 0;
 }
 
 static int snd_ak4531_dev_free(snd_device_t *device)
 {
-	ak4531_t *ak4531 = snd_magic_cast(ak4531_t, device->device_data, return -ENXIO);
+	ak4531_t *ak4531 = device->device_data;
 	return snd_ak4531_free(ak4531);
 }
 
@@ -367,11 +357,11 @@ int snd_ak4531_mixer(snd_card_t * card, ak4531_t * _ak4531, ak4531_t ** rak4531)
 	snd_assert(rak4531 != NULL, return -EINVAL);
 	*rak4531 = NULL;
 	snd_assert(card != NULL && _ak4531 != NULL, return -EINVAL);
-	ak4531 = snd_magic_kcalloc(ak4531_t, 0, GFP_KERNEL);
+	ak4531 = kcalloc(1, sizeof(*ak4531), GFP_KERNEL);
 	if (ak4531 == NULL)
 		return -ENOMEM;
 	*ak4531 = *_ak4531;
-	spin_lock_init(&ak4531->reg_lock);
+	init_MUTEX(&ak4531->reg_mutex);
 	if ((err = snd_component_add(card, "AK4531")) < 0) {
 		snd_ak4531_free(ak4531);
 		return err;
@@ -385,14 +375,14 @@ int snd_ak4531_mixer(snd_card_t * card, ak4531_t * _ak4531, ak4531_t ** rak4531)
 			continue;
 		ak4531->write(ak4531, idx, ak4531->regs[idx] = snd_ak4531_initial_map[idx]);	/* recording source is mixer */
 	}
-	for (idx = 0; idx < AK4531_CONTROLS; idx++) {
+	for (idx = 0; idx < ARRAY_SIZE(snd_ak4531_controls); idx++) {
 		if ((err = snd_ctl_add(card, snd_ctl_new1(&snd_ak4531_controls[idx], ak4531))) < 0) {
 			snd_ak4531_free(ak4531);
 			return err;
 		}
 	}
 	snd_ak4531_proc_init(card, ak4531);
-	if ((err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, ak4531, &ops)) < 0) {
+	if ((err = snd_device_new(card, SNDRV_DEV_CODEC, ak4531, &ops)) < 0) {
 		snd_ak4531_free(ak4531);
 		return err;
 	}
@@ -411,7 +401,7 @@ int snd_ak4531_mixer(snd_card_t * card, ak4531_t * _ak4531, ak4531_t ** rak4531)
 static void snd_ak4531_proc_read(snd_info_entry_t *entry, 
 				 snd_info_buffer_t * buffer)
 {
-	ak4531_t *ak4531 = snd_magic_cast(ak4531_t, entry->private_data, return);
+	ak4531_t *ak4531 = entry->private_data;
 
 	snd_iprintf(buffer, "Asahi Kasei AK4531\n\n");
 	snd_iprintf(buffer, "Recording source   : %s\n"

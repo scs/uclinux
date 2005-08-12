@@ -28,7 +28,7 @@ MODULE_LICENSE("GPL");
 /*
  * create a new hardware dependent device for Emu10k1
  */
-int snd_emu10k1_synth_new_device(snd_seq_device_t *dev)
+static int snd_emu10k1_synth_new_device(snd_seq_device_t *dev)
 {
 	snd_emux_t *emu;
 	emu10k1_t *hw;
@@ -76,7 +76,7 @@ int snd_emu10k1_synth_new_device(snd_seq_device_t *dev)
 	return 0;
 }
 
-int snd_emu10k1_synth_delete_device(snd_seq_device_t *dev)
+static int snd_emu10k1_synth_delete_device(snd_seq_device_t *dev)
 {
 	snd_emux_t *emu;
 	emu10k1_t *hw;
@@ -85,9 +85,9 @@ int snd_emu10k1_synth_delete_device(snd_seq_device_t *dev)
 	if (dev->driver_data == NULL)
 		return 0; /* not registered actually */
 
-	emu = snd_magic_cast(snd_emux_t, dev->driver_data, return -EINVAL);
+	emu = dev->driver_data;
 
-	hw = snd_magic_cast(emu10k1_t, emu->hw, return -EINVAL);
+	hw = emu->hw;
 	spin_lock_irqsave(&hw->voice_lock, flags);
 	hw->synth = NULL;
 	hw->get_synth_voice = NULL;

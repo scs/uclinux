@@ -35,7 +35,7 @@ static inline size_t bitset_size(int nbits)
 
 static inline bitset_t *bitset_alloc(int nbits)
 {
-	return snd_kcalloc(bitset_size(nbits) * sizeof(bitset_t), GFP_KERNEL);
+	return kcalloc(bitset_size(nbits), sizeof(bitset_t), GFP_KERNEL);
 }
 	
 static inline void bitset_set(bitset_t *bitmap, unsigned int pos)
@@ -168,7 +168,6 @@ int snd_pcm_plug_alloc(snd_pcm_plug_t *plug, snd_pcm_uframes_t frames);
 snd_pcm_sframes_t snd_pcm_plug_client_size(snd_pcm_plug_t *handle, snd_pcm_uframes_t drv_size);
 snd_pcm_sframes_t snd_pcm_plug_slave_size(snd_pcm_plug_t *handle, snd_pcm_uframes_t clt_size);
 
-#define ROUTE_PLUGIN_USE_FLOAT 0
 #define FULL ROUTE_PLUGIN_RESOLUTION
 #define HALF ROUTE_PLUGIN_RESOLUTION / 2
 typedef int route_ttable_entry_t;

@@ -72,9 +72,12 @@ static int retrieve_msg_frame(mixart_mgr_t *mgr, u32 *msg_frame)
 static int get_msg(mixart_mgr_t *mgr, mixart_msg_t *resp, u32 msg_frame_address )
 {
 	unsigned long flags;
-	u32  headptr, i;
+	u32  headptr;
 	u32  size;
 	int  err;
+#ifndef __BIG_ENDIAN
+	unsigned int i;
+#endif
 
 	spin_lock_irqsave(&mgr->msg_lock, flags);
 	err = 0;
@@ -92,7 +95,7 @@ static int get_msg(mixart_mgr_t *mgr, mixart_msg_t *resp, u32 msg_frame_address 
 	}
 	size -= MSG_DESCRIPTOR_SIZE;
 
-	memcpy_fromio(resp->data, (void *)MIXART_MEM(mgr, msg_frame_address + MSG_HEADER_SIZE ), size);
+	memcpy_fromio(resp->data, MIXART_MEM(mgr, msg_frame_address + MSG_HEADER_SIZE ), size);
 	resp->size = size;
 
 	/* swap if necessary */
@@ -379,7 +382,7 @@ void snd_mixart_msg_tasklet( unsigned long arg)
 					snd_printk(KERN_ERR "tasklet : error MSG_STREAM_ST***_***PUT_STAGE_PACKET status=%x\n", mixart_msg_data[0]);
 				break;
 			default:
-				snd_printdd("tasklet received mf(%x) : msg_id(%x) uid(%x, %x) size(%d)\n",
+				snd_printdd("tasklet received mf(%x) : msg_id(%x) uid(%x, %x) size(%zd)\n",
 					   msg, resp.message_id, resp.uid.object_id, resp.uid.desc, resp.size);
 				break;
 			}
@@ -403,7 +406,7 @@ void snd_mixart_msg_tasklet( unsigned long arg)
 
 irqreturn_t snd_mixart_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 {
-	mixart_mgr_t *mgr = snd_magic_cast(mixart_mgr_t, dev_id, return IRQ_NONE);
+	mixart_mgr_t *mgr = dev_id;
 	int err;
 	mixart_msg_t resp;
 

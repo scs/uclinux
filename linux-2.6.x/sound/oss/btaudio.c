@@ -104,7 +104,7 @@ struct btaudio {
 	struct pci_dev *pci;
 	unsigned int   irq;
 	unsigned long  mem;
-	unsigned long  *mmio;
+	unsigned long  __iomem *mmio;
 
 	/* locking */
 	int            users;
@@ -558,7 +558,7 @@ static ssize_t btaudio_dsp_read(struct file *file, char __user *buffer,
 			__s16 __user *dst = (__s16 __user *)(buffer + ret);
 			__s16 avg;
 			int n = ndst>>1;
-			if (0 != verify_area(VERIFY_WRITE,dst,ndst)) {
+			if (!access_ok(VERIFY_WRITE, dst, ndst)) {
 				if (0 == ret)
 					ret = -EFAULT;
 				break;
@@ -574,7 +574,7 @@ static ssize_t btaudio_dsp_read(struct file *file, char __user *buffer,
 			__u8 *src = bta->buf_cpu + bta->read_offset;
 			__u8 __user *dst = buffer + ret;
 			int n = ndst;
-			if (0 != verify_area(VERIFY_WRITE,dst,ndst)) {
+			if (!access_ok(VERIFY_WRITE, dst, ndst)) {
 				if (0 == ret)
 					ret = -EFAULT;
 				break;
@@ -587,7 +587,7 @@ static ssize_t btaudio_dsp_read(struct file *file, char __user *buffer,
 			__u16 *src = (__u16*)(bta->buf_cpu + bta->read_offset);
 			__u16 __user *dst = (__u16 __user *)(buffer + ret);
 			int n = ndst>>1;
-			if (0 != verify_area(VERIFY_WRITE,dst,ndst)) {
+			if (!access_ok(VERIFY_WRITE,dst,ndst)) {
 				if (0 == ret)
 					ret = -EFAULT;
 				break;
@@ -961,7 +961,7 @@ static int __devinit btaudio_probe(struct pci_dev *pci_dev,
 	/* init hw */
         btwrite(0, REG_GPIO_DMA_CTL);
         btwrite(0, REG_INT_MASK);
-        btwrite(~0x0UL, REG_INT_STAT);
+        btwrite(~0U, REG_INT_STAT);
 	pci_set_master(pci_dev);
 
 	if ((rc = request_irq(bta->irq, btaudio_irq, SA_SHIRQ|SA_INTERRUPT,
@@ -1033,7 +1033,7 @@ static void __devexit btaudio_remove(struct pci_dev *pci_dev)
 	/* turn off all DMA / IRQs */
         btand(~15, REG_GPIO_DMA_CTL);
         btwrite(0, REG_INT_MASK);
-        btwrite(~0x0UL, REG_INT_STAT);
+        btwrite(~0U, REG_INT_STAT);
 
 	/* unregister devices */
 	if (digital) {
@@ -1113,15 +1113,15 @@ static void btaudio_cleanup_module(void)
 module_init(btaudio_init_module);
 module_exit(btaudio_cleanup_module);
 
-MODULE_PARM(dsp1,"i");
-MODULE_PARM(dsp2,"i");
-MODULE_PARM(mixer,"i");
-MODULE_PARM(debug,"i");
-MODULE_PARM(irq_debug,"i");
-MODULE_PARM(digital,"i");
-MODULE_PARM(analog,"i");
-MODULE_PARM(rate,"i");
-MODULE_PARM(latency,"i");
+module_param(dsp1, int, S_IRUGO);
+module_param(dsp2, int, S_IRUGO);
+module_param(mixer, int, S_IRUGO);
+module_param(debug, int, S_IRUGO | S_IWUSR);
+module_param(irq_debug, int, S_IRUGO | S_IWUSR);
+module_param(digital, int, S_IRUGO);
+module_param(analog, int, S_IRUGO);
+module_param(rate, int, S_IRUGO);
+module_param(latency, int, S_IRUGO);
 MODULE_PARM_DESC(latency,"pci latency timer");
 
 MODULE_DEVICE_TABLE(pci, btaudio_pci_tbl);

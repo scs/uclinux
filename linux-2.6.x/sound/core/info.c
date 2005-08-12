@@ -20,7 +20,6 @@
  */
 
 #include <sound/driver.h>
-#include <linux/version.h>
 #include <linux/init.h>
 #include <linux/vmalloc.h>
 #include <linux/time.h>
@@ -93,19 +92,18 @@ static int snd_info_version_done(void);
 int snd_iprintf(snd_info_buffer_t * buffer, char *fmt,...)
 {
 	va_list args;
-	int res;
-	char sbuffer[512];
+	int len, res;
 
 	if (buffer->stop || buffer->error)
 		return 0;
+	len = buffer->len - buffer->size;
 	va_start(args, fmt);
-	res = vscnprintf(sbuffer, sizeof(sbuffer), fmt, args);
+	res = vsnprintf(buffer->curr, len, fmt, args);
 	va_end(args);
-	if (buffer->size + res >= buffer->len) {
+	if (res >= len) {
 		buffer->stop = 1;
 		return 0;
 	}
-	strcpy(buffer->curr, sbuffer);
 	buffer->curr += res;
 	buffer->size += res;
 	return res;
@@ -126,8 +124,8 @@ static inline void snd_info_entry_prepare(struct proc_dir_entry *de)
 	de->owner = THIS_MODULE;
 }
 
-void snd_remove_proc_entry(struct proc_dir_entry *parent,
-			   struct proc_dir_entry *de)
+static void snd_remove_proc_entry(struct proc_dir_entry *parent,
+				  struct proc_dir_entry *de)
 {
 	if (de)
 		remove_proc_entry(de->name, parent);
@@ -139,7 +137,7 @@ static loff_t snd_info_entry_llseek(struct file *file, loff_t offset, int orig)
 	struct snd_info_entry *entry;
 	loff_t ret;
 
-	data = snd_magic_cast(snd_info_private_data_t, file->private_data, return -ENXIO);
+	data = file->private_data;
 	entry = data->entry;
 	lock_kernel();
 	switch (entry->content) {
@@ -183,7 +181,7 @@ static ssize_t snd_info_entry_read(struct file *file, char __user *buffer,
 	size_t size = 0;
 	loff_t pos;
 
-	data = snd_magic_cast(snd_info_private_data_t, file->private_data, return -ENXIO);
+	data = file->private_data;
 	snd_assert(data != NULL, return -ENXIO);
 	pos = *offset;
 	if (pos < 0 || (long) pos != pos || (ssize_t) count < 0)
@@ -224,7 +222,7 @@ static ssize_t snd_info_entry_write(struct file *file, const char __user *buffer
 	size_t size = 0;
 	loff_t pos;
 
-	data = snd_magic_cast(snd_info_private_data_t, file->private_data, return -ENXIO);
+	data = file->private_data;
 	snd_assert(data != NULL, return -ENXIO);
 	entry = data->entry;
 	pos = *offset;
@@ -296,7 +294,7 @@ static int snd_info_entry_open(struct inode *inode, struct file *file)
 		    	goto __error;
 		}
 	}
-	data = snd_magic_kcalloc(snd_info_private_data_t, 0, GFP_KERNEL);
+	data = kcalloc(1, sizeof(*data), GFP_KERNEL);
 	if (data == NULL) {
 		err = -ENOMEM;
 		goto __error;
@@ -305,10 +303,9 @@ static int snd_info_entry_open(struct inode *inode, struct file *file)
 	switch (entry->content) {
 	case SNDRV_INFO_CONTENT_TEXT:
 		if (mode == O_RDONLY || mode == O_RDWR) {
-			buffer = (snd_info_buffer_t *)
-				 	snd_kcalloc(sizeof(snd_info_buffer_t), GFP_KERNEL);
+			buffer = kcalloc(1, sizeof(*buffer), GFP_KERNEL);
 			if (buffer == NULL) {
-				snd_magic_kfree(data);
+				kfree(data);
 				err = -ENOMEM;
 				goto __error;
 			}
@@ -317,7 +314,7 @@ static int snd_info_entry_open(struct inode *inode, struct file *file)
 			buffer->buffer = vmalloc(buffer->len);
 			if (buffer->buffer == NULL) {
 				kfree(buffer);
-				snd_magic_kfree(data);
+				kfree(data);
 				err = -ENOMEM;
 				goto __error;
 			}
@@ -325,14 +322,13 @@ static int snd_info_entry_open(struct inode *inode, struct file *file)
 			data->rbuffer = buffer;
 		}
 		if (mode == O_WRONLY || mode == O_RDWR) {
-			buffer = (snd_info_buffer_t *)
-					snd_kcalloc(sizeof(snd_info_buffer_t), GFP_KERNEL);
+			buffer = kcalloc(1, sizeof(*buffer), GFP_KERNEL);
 			if (buffer == NULL) {
 				if (mode == O_RDWR) {
 					vfree(data->rbuffer->buffer);
 					kfree(data->rbuffer);
 				}
-				snd_magic_kfree(data);
+				kfree(data);
 				err = -ENOMEM;
 				goto __error;
 			}
@@ -345,7 +341,7 @@ static int snd_info_entry_open(struct inode *inode, struct file *file)
 					kfree(data->rbuffer);
 				}
 				kfree(buffer);
-				snd_magic_kfree(data);
+				kfree(data);
 				err = -ENOMEM;
 				goto __error;
 			}
@@ -357,7 +353,7 @@ static int snd_info_entry_open(struct inode *inode, struct file *file)
 		if (entry->c.ops->open) {
 			if ((err = entry->c.ops->open(entry, mode,
 						      &data->file_private_data)) < 0) {
-				snd_magic_kfree(data);
+				kfree(data);
 				goto __error;
 			}
 		}
@@ -389,7 +385,7 @@ static int snd_info_entry_release(struct inode *inode, struct file *file)
 	int mode;
 
 	mode = file->f_flags & O_ACCMODE;
-	data = snd_magic_cast(snd_info_private_data_t, file->private_data, return -ENXIO);
+	data = file->private_data;
 	entry = data->entry;
 	switch (entry->content) {
 	case SNDRV_INFO_CONTENT_TEXT:
@@ -417,7 +413,7 @@ static int snd_info_entry_release(struct inode *inode, struct file *file)
 		break;
 	}
 	module_put(entry->module);
-	snd_magic_kfree(data);
+	kfree(data);
 	return 0;
 }
 
@@ -427,7 +423,7 @@ static unsigned int snd_info_entry_poll(struct file *file, poll_table * wait)
 	struct snd_info_entry *entry;
 	unsigned int mask;
 
-	data = snd_magic_cast(snd_info_private_data_t, file->private_data, return -ENXIO);
+	data = file->private_data;
 	if (data == NULL)
 		return 0;
 	entry = data->entry;
@@ -447,13 +443,13 @@ static unsigned int snd_info_entry_poll(struct file *file, poll_table * wait)
 	return mask;
 }
 
-static int snd_info_entry_ioctl(struct inode *inode, struct file *file,
-				unsigned int cmd, unsigned long arg)
+static inline int _snd_info_entry_ioctl(struct inode *inode, struct file *file,
+					unsigned int cmd, unsigned long arg)
 {
 	snd_info_private_data_t *data;
 	struct snd_info_entry *entry;
 
-	data = snd_magic_cast(snd_info_private_data_t, file->private_data, return -ENXIO);
+	data = file->private_data;
 	if (data == NULL)
 		return 0;
 	entry = data->entry;
@@ -468,13 +464,24 @@ static int snd_info_entry_ioctl(struct inode *inode, struct file *file,
 	return -ENOTTY;
 }
 
+/* FIXME: need to unlock BKL to allow preemption */
+static int snd_info_entry_ioctl(struct inode *inode, struct file *file,
+				unsigned int cmd, unsigned long arg)
+{
+	int err;
+	unlock_kernel();
+	err = _snd_info_entry_ioctl(inode, file, cmd, arg);
+	lock_kernel();
+	return err;
+}
+
 static int snd_info_entry_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	struct inode *inode = file->f_dentry->d_inode;
 	snd_info_private_data_t *data;
 	struct snd_info_entry *entry;
 
-	data = snd_magic_cast(snd_info_private_data_t, file->private_data, return -ENXIO);
+	data = file->private_data;
 	if (data == NULL)
 		return 0;
 	entry = data->entry;
@@ -513,8 +520,8 @@ static struct file_operations snd_info_entry_operations =
  *
  * Returns the pointer of new instance or NULL on failure.
  */
-struct proc_dir_entry *snd_create_proc_entry(const char *name, mode_t mode,
-					     struct proc_dir_entry *parent)
+static struct proc_dir_entry *snd_create_proc_entry(const char *name, mode_t mode,
+						    struct proc_dir_entry *parent)
 {
 	struct proc_dir_entry *p;
 	p = create_proc_entry(name, mode, parent);
@@ -744,12 +751,12 @@ char *snd_info_get_str(char *dest, char *src, int len)
 static snd_info_entry_t *snd_info_create_entry(const char *name)
 {
 	snd_info_entry_t *entry;
-	entry = snd_magic_kcalloc(snd_info_entry_t, 0, GFP_KERNEL);
+	entry = kcalloc(1, sizeof(*entry), GFP_KERNEL);
 	if (entry == NULL)
 		return NULL;
 	entry->name = snd_kmalloc_strdup(name, GFP_KERNEL);
 	if (entry->name == NULL) {
-		snd_magic_kfree(entry);
+		kfree(entry);
 		return NULL;
 	}
 	entry->mode = S_IFREG | S_IRUGO;
@@ -805,27 +812,27 @@ snd_info_entry_t *snd_info_create_card_entry(snd_card_t * card,
 
 static int snd_info_dev_free_entry(snd_device_t *device)
 {
-	snd_info_entry_t *entry = snd_magic_cast(snd_info_entry_t, device->device_data, return -ENXIO);
+	snd_info_entry_t *entry = device->device_data;
 	snd_info_free_entry(entry);
 	return 0;
 }
 
 static int snd_info_dev_register_entry(snd_device_t *device)
 {
-	snd_info_entry_t *entry = snd_magic_cast(snd_info_entry_t, device->device_data, return -ENXIO);
+	snd_info_entry_t *entry = device->device_data;
 	return snd_info_register(entry);
 }
 
 static int snd_info_dev_disconnect_entry(snd_device_t *device)
 {
-	snd_info_entry_t *entry = snd_magic_cast(snd_info_entry_t, device->device_data, return -ENXIO);
+	snd_info_entry_t *entry = device->device_data;
 	entry->disconnected = 1;
 	return 0;
 }
 
 static int snd_info_dev_unregister_entry(snd_device_t *device)
 {
-	snd_info_entry_t *entry = snd_magic_cast(snd_info_entry_t, device->device_data, return -ENXIO);
+	snd_info_entry_t *entry = device->device_data;
 	return snd_info_unregister(entry);
 }
 
@@ -883,11 +890,10 @@ void snd_info_free_entry(snd_info_entry_t * entry)
 {
 	if (entry == NULL)
 		return;
-	if (entry->name)
-		kfree((char *)entry->name);
+	kfree(entry->name);
 	if (entry->private_free)
 		entry->private_free(entry);
-	snd_magic_kfree(entry);
+	kfree(entry);
 }
 
 /**
@@ -950,18 +956,10 @@ static snd_info_entry_t *snd_info_version_entry = NULL;
 
 static void snd_info_version_read(snd_info_entry_t *entry, snd_info_buffer_t * buffer)
 {
-	static char *kernel_version = UTS_RELEASE;
-
 	snd_iprintf(buffer,
-		    "Advanced Linux Sound Architecture Driver Version " CONFIG_SND_VERSION CONFIG_SND_DATE ".\n"
-		    "Compiled on " __DATE__ " for kernel %s"
-#ifdef CONFIG_SMP
-		    " (SMP)"
-#endif
-#ifdef MODVERSIONS
-		    " with versioned symbols"
-#endif
-		    ".\n", kernel_version);
+		    "Advanced Linux Sound Architecture Driver Version "
+		    CONFIG_SND_VERSION CONFIG_SND_DATE ".\n"
+		   );
 }
 
 static int __init snd_info_version_init(void)

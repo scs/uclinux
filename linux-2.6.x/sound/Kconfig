@@ -55,6 +55,8 @@ source "sound/ppc/Kconfig"
 
 source "sound/arm/Kconfig"
 
+source "sound/mips/Kconfig"
+
 source "sound/blackfin/Kconfig"
 
 # the following will depenend on the order of config.
@@ -72,7 +74,7 @@ source "sound/parisc/Kconfig"
 endmenu
 
 menu "Open Sound System"
-	depends on SOUND!=n && (BROKEN || !SPARC64)
+	depends on SOUND!=n && (BROKEN || (!SPARC32 && !SPARC64))
 
 config SOUND_PRIME
 	tristate "Open Sound System (DEPRECATED)"
