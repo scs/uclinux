@@ -255,32 +255,26 @@ static void
 sclp_ttybuf_callback(struct sclp_buffer *buffer, int rc)
 {
 	unsigned long flags;
-	struct sclp_buffer *next;
 	void *page;
 
-	/* Ignore return code - because tty-writes aren't critical,
-	   we do without a sophisticated error recovery mechanism.  */
-	page = sclp_unmake_buffer(buffer);
-	spin_lock_irqsave(&sclp_tty_lock, flags);
-	/* Remove buffer from outqueue */
-	list_del(&buffer->list);
-	sclp_tty_buffer_count--;
-	list_add_tail((struct list_head *) page, &sclp_tty_pages);
-	/* Check if there is a pending buffer on the out queue. */
-	next = NULL;
-	if (!list_empty(&sclp_tty_outqueue))
-		next = list_entry(sclp_tty_outqueue.next,
-				  struct sclp_buffer, list);
-	spin_unlock_irqrestore(&sclp_tty_lock, flags);
-	if (next != NULL)
-		sclp_emit_buffer(next, sclp_ttybuf_callback);
+	do {
+		page = sclp_unmake_buffer(buffer);
+		spin_lock_irqsave(&sclp_tty_lock, flags);
+		/* Remove buffer from outqueue */
+		list_del(&buffer->list);
+		sclp_tty_buffer_count--;
+		list_add_tail((struct list_head *) page, &sclp_tty_pages);
+		/* Check if there is a pending buffer on the out queue. */
+		buffer = NULL;
+		if (!list_empty(&sclp_tty_outqueue))
+			buffer = list_entry(sclp_tty_outqueue.next,
+					    struct sclp_buffer, list);
+		spin_unlock_irqrestore(&sclp_tty_lock, flags);
+	} while (buffer && sclp_emit_buffer(buffer, sclp_ttybuf_callback));
 	wake_up(&sclp_tty_waitq);
 	/* check if the tty needs a wake up call */
 	if (sclp_tty != NULL) {
-		if ((sclp_tty->flags & (1 << TTY_DO_WRITE_WAKEUP)) &&
-		    sclp_tty->ldisc.write_wakeup)
-			(sclp_tty->ldisc.write_wakeup)(sclp_tty);
-		wake_up_interruptible(&sclp_tty->write_wait);
+		tty_wakeup(sclp_tty);
 	}
 }
 
@@ -289,14 +283,17 @@ __sclp_ttybuf_emit(struct sclp_buffer *buffer)
 {
 	unsigned long flags;
 	int count;
+	int rc;
 
 	spin_lock_irqsave(&sclp_tty_lock, flags);
 	list_add_tail(&buffer->list, &sclp_tty_outqueue);
 	count = sclp_tty_buffer_count++;
 	spin_unlock_irqrestore(&sclp_tty_lock, flags);
-
-	if (count == 0)
-		sclp_emit_buffer(buffer, sclp_ttybuf_callback);
+	if (count)
+		return;
+	rc = sclp_emit_buffer(buffer, sclp_ttybuf_callback);
+	if (rc)
+		sclp_ttybuf_callback(buffer, rc);
 }
 
 /*
@@ -398,36 +395,14 @@ sclp_tty_write_string(const unsigned char *str, int count)
  * routine will return the number of characters actually accepted for writing.
  */
 static int
-sclp_tty_write(struct tty_struct *tty, int from_user,
-	       const unsigned char *buf, int count)
+sclp_tty_write(struct tty_struct *tty, const unsigned char *buf, int count)
 {
-	int length, ret;
-
 	if (sclp_tty_chars_count > 0) {
 		sclp_tty_write_string(sclp_tty_chars, sclp_tty_chars_count);
 		sclp_tty_chars_count = 0;
 	}
-	if (!from_user) {
-		sclp_tty_write_string(buf, count);
-		return count;
-	}
-	ret = 0;
-	while (count > 0) {
-		length = count < SCLP_TTY_BUF_SIZE ?
-			count : SCLP_TTY_BUF_SIZE;
-		length -= copy_from_user(sclp_tty_chars,
-				(const unsigned char __user *)buf, length);
-		if (length == 0) {
-			if (!ret)
-				ret = -EFAULT;
-			break;
-		}
-		sclp_tty_write_string(sclp_tty_chars, length);
-		buf += length;
-		count -= length;
-		ret += length;
-	}
-	return ret;
+	sclp_tty_write_string(buf, count);
+	return count;
 }
 
 /*
@@ -626,7 +601,7 @@ sclp_get_input(unsigned char *start, unsigned char *end)
 
 	/* if set in ioctl write operators input to console  */
 	if (sclp_ioctls.echo)
-		sclp_tty_write(sclp_tty, 0, start, count);
+		sclp_tty_write(sclp_tty, start, count);
 
 	/* transfer input to high level driver */
 	sclp_tty_input(start, count);

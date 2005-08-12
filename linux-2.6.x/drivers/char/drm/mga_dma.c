@@ -33,7 +33,6 @@
  *    Gareth Hughes <gareth@valinux.com>
  */
 
-#include "mga.h"
 #include "drmP.h"
 #include "drm.h"
 #include "mga_drm.h"
@@ -42,6 +41,7 @@
 #define MGA_DEFAULT_USEC_TIMEOUT	10000
 #define MGA_FREELIST_DEBUG		0
 
+static int mga_do_cleanup_dma( drm_device_t *dev );
 
 /* ================================================================
  * Engine control
@@ -69,25 +69,7 @@ int mga_do_wait_for_idle( drm_mga_private_t *dev_priv )
 	return DRM_ERR(EBUSY);
 }
 
-int mga_do_dma_idle( drm_mga_private_t *dev_priv )
-{
-	u32 status = 0;
-	int i;
-	DRM_DEBUG( "\n" );
-
-	for ( i = 0 ; i < dev_priv->usec_timeout ; i++ ) {
-		status = MGA_READ( MGA_STATUS ) & MGA_DMA_IDLE_MASK;
-		if ( status == MGA_ENDPRDMASTS ) return 0;
-		DRM_UDELAY( 1 );
-	}
-
-#if MGA_DMA_DEBUG
-	DRM_ERROR( "failed! status=0x%08x\n", status );
-#endif
-	return DRM_ERR(EBUSY);
-}
-
-int mga_do_dma_reset( drm_mga_private_t *dev_priv )
+static int mga_do_dma_reset( drm_mga_private_t *dev_priv )
 {
 	drm_mga_sarea_t *sarea_priv = dev_priv->sarea_priv;
 	drm_mga_primary_buffer_t *primary = &dev_priv->prim;
@@ -110,44 +92,6 @@ int mga_do_dma_reset( drm_mga_private_t *dev_priv )
 
 	return 0;
 }
-
-int mga_do_engine_reset( drm_mga_private_t *dev_priv )
-{
-	DRM_DEBUG( "\n" );
-
-	/* Okay, so we've completely screwed up and locked the engine.
-	 * How about we clean up after ourselves?
-	 */
-	MGA_WRITE( MGA_RST, MGA_SOFTRESET );
-	DRM_UDELAY( 15 );				/* Wait at least 10 usecs */
-	MGA_WRITE( MGA_RST, 0 );
-
-	/* Initialize the registers that get clobbered by the soft
-	 * reset.  Many of the core register values survive a reset,
-	 * but the drawing registers are basically all gone.
-	 *
-	 * 3D clients should probably die after calling this.  The X
-	 * server should reset the engine state to known values.
-	 */
-#if 0
-	MGA_WRITE( MGA_PRIMPTR,
-		   virt_to_bus((void *)dev_priv->prim.status_page) |
-		   MGA_PRIMPTREN0 |
-		   MGA_PRIMPTREN1 );
-#endif
-
-	MGA_WRITE( MGA_ICLEAR, MGA_SOFTRAPICLR );
-	MGA_WRITE( MGA_IEN,    MGA_SOFTRAPIEN );
-
-	/* The primary DMA stream should look like new right about now.
-	 */
-	mga_do_dma_reset( dev_priv );
-
-	/* This bad boy will never fail.
-	 */
-	return 0;
-}
-
 
 /* ================================================================
  * Primary DMA stream
@@ -308,7 +252,7 @@ static int mga_freelist_init( drm_device_t *dev, drm_mga_private_t *dev_priv )
 	int i;
 	DRM_DEBUG( "count=%d\n", dma->buf_count );
 
-	dev_priv->head = DRM(alloc)( sizeof(drm_mga_freelist_t),
+	dev_priv->head = drm_alloc( sizeof(drm_mga_freelist_t),
 				     DRM_MEM_DRIVER );
 	if ( dev_priv->head == NULL )
 		return DRM_ERR(ENOMEM);
@@ -320,7 +264,7 @@ static int mga_freelist_init( drm_device_t *dev, drm_mga_private_t *dev_priv )
 		buf = dma->buflist[i];
 	        buf_priv = buf->dev_private;
 
-		entry = DRM(alloc)( sizeof(drm_mga_freelist_t),
+		entry = drm_alloc( sizeof(drm_mga_freelist_t),
 				    DRM_MEM_DRIVER );
 		if ( entry == NULL )
 			return DRM_ERR(ENOMEM);
@@ -357,7 +301,7 @@ static void mga_freelist_cleanup( drm_device_t *dev )
 	entry = dev_priv->head;
 	while ( entry ) {
 		next = entry->next;
-		DRM(free)( entry, sizeof(drm_mga_freelist_t), DRM_MEM_DRIVER );
+		drm_free( entry, sizeof(drm_mga_freelist_t), DRM_MEM_DRIVER );
 		entry = next;
 	}
 
@@ -458,7 +402,7 @@ static int mga_do_init_dma( drm_device_t *dev, drm_mga_init_t *init )
 	int ret;
 	DRM_DEBUG( "\n" );
 
-	dev_priv = DRM(alloc)( sizeof(drm_mga_private_t), DRM_MEM_DRIVER );
+	dev_priv = drm_alloc( sizeof(drm_mga_private_t), DRM_MEM_DRIVER );
 	if ( !dev_priv )
 		return DRM_ERR(ENOMEM);
 
@@ -500,7 +444,7 @@ static int mga_do_init_dma( drm_device_t *dev, drm_mga_init_t *init )
 		return DRM_ERR(EINVAL);
 	}
 
-	DRM_FIND_MAP( dev_priv->mmio, init->mmio_offset );
+	dev_priv->mmio = drm_core_findmap(dev, init->mmio_offset);
 	if(!dev_priv->mmio) {
 		DRM_ERROR( "failed to find mmio region!\n" );
 		/* Assign dev_private so we can do cleanup. */
@@ -508,7 +452,7 @@ static int mga_do_init_dma( drm_device_t *dev, drm_mga_init_t *init )
 		mga_do_cleanup_dma( dev );
 		return DRM_ERR(EINVAL);
 	}
-	DRM_FIND_MAP( dev_priv->status, init->status_offset );
+	dev_priv->status = drm_core_findmap(dev, init->status_offset);
 	if(!dev_priv->status) {
 		DRM_ERROR( "failed to find status page!\n" );
 		/* Assign dev_private so we can do cleanup. */
@@ -516,8 +460,7 @@ static int mga_do_init_dma( drm_device_t *dev, drm_mga_init_t *init )
 		mga_do_cleanup_dma( dev );
 		return DRM_ERR(EINVAL);
 	}
-
-	DRM_FIND_MAP( dev_priv->warp, init->warp_offset );
+	dev_priv->warp = drm_core_findmap(dev, init->warp_offset);
 	if(!dev_priv->warp) {
 		DRM_ERROR( "failed to find warp microcode region!\n" );
 		/* Assign dev_private so we can do cleanup. */
@@ -525,7 +468,7 @@ static int mga_do_init_dma( drm_device_t *dev, drm_mga_init_t *init )
 		mga_do_cleanup_dma( dev );
 		return DRM_ERR(EINVAL);
 	}
-	DRM_FIND_MAP( dev_priv->primary, init->primary_offset );
+	dev_priv->primary = drm_core_findmap(dev, init->primary_offset);
 	if(!dev_priv->primary) {
 		DRM_ERROR( "failed to find primary dma region!\n" );
 		/* Assign dev_private so we can do cleanup. */
@@ -533,8 +476,8 @@ static int mga_do_init_dma( drm_device_t *dev, drm_mga_init_t *init )
 		mga_do_cleanup_dma( dev );
 		return DRM_ERR(EINVAL);
 	}
-	DRM_FIND_MAP( dev_priv->buffers, init->buffers_offset );
-	if(!dev_priv->buffers) {
+	dev->agp_buffer_map = drm_core_findmap(dev, init->buffers_offset);
+	if(!dev->agp_buffer_map) {
 		DRM_ERROR( "failed to find dma buffer region!\n" );
 		/* Assign dev_private so we can do cleanup. */
 		dev->dev_private = (void *)dev_priv;
@@ -546,13 +489,13 @@ static int mga_do_init_dma( drm_device_t *dev, drm_mga_init_t *init )
 		(drm_mga_sarea_t *)((u8 *)dev_priv->sarea->handle +
 				    init->sarea_priv_offset);
 
-	DRM_IOREMAP( dev_priv->warp, dev );
-	DRM_IOREMAP( dev_priv->primary, dev );
-	DRM_IOREMAP( dev_priv->buffers, dev );
+	drm_core_ioremap( dev_priv->warp, dev );
+	drm_core_ioremap( dev_priv->primary, dev );
+	drm_core_ioremap( dev->agp_buffer_map, dev );
 
 	if(!dev_priv->warp->handle ||
 	   !dev_priv->primary->handle ||
-	   !dev_priv->buffers->handle ) {
+	   !dev->agp_buffer_map->handle ) {
 		DRM_ERROR( "failed to ioremap agp regions!\n" );
 		/* Assign dev_private so we can do cleanup. */
 		dev->dev_private = (void *)dev_priv;
@@ -627,33 +570,31 @@ static int mga_do_init_dma( drm_device_t *dev, drm_mga_init_t *init )
 	return 0;
 }
 
-int mga_do_cleanup_dma( drm_device_t *dev )
+static int mga_do_cleanup_dma( drm_device_t *dev )
 {
 	DRM_DEBUG( "\n" );
 
-#if __HAVE_IRQ
 	/* Make sure interrupts are disabled here because the uninstall ioctl
 	 * may not have been called from userspace and after dev_private
 	 * is freed, it's too late.
 	 */
-	if ( dev->irq_enabled ) DRM(irq_uninstall)(dev);
-#endif
+	if ( dev->irq_enabled ) drm_irq_uninstall(dev);
 
 	if ( dev->dev_private ) {
 		drm_mga_private_t *dev_priv = dev->dev_private;
 
 		if ( dev_priv->warp != NULL )
-			DRM_IOREMAPFREE( dev_priv->warp, dev );
+			drm_core_ioremapfree( dev_priv->warp, dev );
 		if ( dev_priv->primary != NULL )
-			DRM_IOREMAPFREE( dev_priv->primary, dev );
-		if ( dev_priv->buffers != NULL )
-			DRM_IOREMAPFREE( dev_priv->buffers, dev );
+			drm_core_ioremapfree( dev_priv->primary, dev );
+		if ( dev->agp_buffer_map != NULL )
+			drm_core_ioremapfree( dev->agp_buffer_map, dev );
 
 		if ( dev_priv->head != NULL ) {
 			mga_freelist_cleanup( dev );
 		}
 
-		DRM(free)( dev->dev_private, sizeof(drm_mga_private_t),
+		drm_free( dev->dev_private, sizeof(drm_mga_private_t),
 			   DRM_MEM_DRIVER );
 		dev->dev_private = NULL;
 	}
@@ -799,4 +740,15 @@ int mga_dma_buffers( DRM_IOCTL_ARGS )
 	DRM_COPY_TO_USER_IOCTL( argp, d, sizeof(d) );
 
 	return ret;
+}
+
+void mga_driver_pretakedown(drm_device_t *dev)
+{
+	mga_do_cleanup_dma( dev );
+}
+
+int mga_driver_dma_quiescent(drm_device_t *dev)
+{
+	drm_mga_private_t *dev_priv = dev->dev_private;
+	return mga_do_wait_for_idle( dev_priv );
 }

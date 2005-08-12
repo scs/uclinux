@@ -47,8 +47,6 @@
 /* Local Prototypes. */
 static inline uint32_t qla2x00_to_handle(uint16_t, uint16_t, uint16_t);
 static inline uint16_t qla2x00_handle_to_idx(uint32_t);
-static inline uint16_t qla2x00_handle_to_iter(uint32_t);
-static inline uint16_t qla2x00_handle_to_type(uint32_t);
 static inline uint32_t qla2x00_iodesc_to_handle(struct io_descriptor *);
 static inline struct io_descriptor *qla2x00_handle_to_iodesc(scsi_qla_host_t *,
     uint32_t);
@@ -87,7 +85,7 @@ static int qla2x00_send_login_iocb_cb(scsi_qla_host_t *, struct io_descriptor *,
 /** 
  * Mailbox IOCB callback array.
  **/
-int (*iocb_function_cb_list[LAST_IOCB_CB])
+static int (*iocb_function_cb_list[LAST_IOCB_CB])
 	(scsi_qla_host_t *, struct io_descriptor *, struct mbx_entry *) = {
 
 	qla2x00_send_abort_iocb_cb,
@@ -127,30 +125,6 @@ static inline uint16_t
 qla2x00_handle_to_idx(uint32_t handle)
 {
 	return ((uint16_t)(((handle) >> HDL_INDEX_SHIFT) & HDL_INDEX_MASK));
-}
-
-/**
- * qla2x00_handle_to_type() - Retrive the descriptor type for a given handle.
- * @handle: descriptor handle
- *
- * Returns the descriptor type specified by the @handle.
- */
-static inline uint16_t
-qla2x00_handle_to_type(uint32_t handle)
-{
-	return ((uint16_t)(((handle) >> HDL_TYPE_SHIFT) & HDL_TYPE_MASK));
-}
-
-/**
- * qla2x00_handle_to_iter() - Retrive the rolling signature for a given handle.
- * @handle: descriptor handle
- *
- * Returns the signature specified by the @handle.
- */
-static inline uint16_t
-qla2x00_handle_to_iter(uint32_t handle)
-{
-	return ((uint16_t)(((handle) >> HDL_ITER_SHIFT) & HDL_ITER_MASK));
 }
 
 /**
@@ -242,6 +216,20 @@ qla2x00_free_iodesc(struct io_descriptor *iodesc)
 }
 
 /**
+ * qla2x00_remove_iodesc_timer() - Remove an active timer from an IO descriptor.
+ * @iodesc: io descriptor
+ */
+static inline void
+qla2x00_remove_iodesc_timer(struct io_descriptor *iodesc)
+{
+	if (iodesc->timer.function != NULL) {
+		del_timer_sync(&iodesc->timer);
+		iodesc->timer.data = (unsigned long) NULL;
+		iodesc->timer.function = NULL;
+	}
+}
+
+/**
  * qla2x00_init_io_descriptors() - Initialize the pool of IO descriptors.
  * @ha: HA context
  */
@@ -311,20 +299,6 @@ qla2x00_add_iodesc_timer(struct io_descriptor *iodesc)
 	add_timer(&iodesc->timer);
 }
 
-/**
- * qla2x00_remove_iodesc_timer() - Remove an active timer from an IO descriptor.
- * @iodesc: io descriptor
- */
-static inline void
-qla2x00_remove_iodesc_timer(struct io_descriptor *iodesc)
-{
-	if (iodesc->timer.function != NULL) {
-		del_timer_sync(&iodesc->timer);
-		iodesc->timer.data = (unsigned long) NULL;
-		iodesc->timer.function = NULL;
-	}
-}
-
 /** 
  * IO descriptor support routines.
  **/
@@ -374,10 +348,9 @@ static inline struct mbx_entry *
 qla2x00_get_mbx_iocb_entry(scsi_qla_host_t *ha, uint32_t handle)
 {
 	uint16_t cnt;
-	device_reg_t *reg;
+	device_reg_t __iomem *reg = ha->iobase;
 	struct mbx_entry *mbxentry;
 
-	reg = ha->iobase;
 	mbxentry = NULL;
 
 	if (ha->req_q_cnt < 3) {

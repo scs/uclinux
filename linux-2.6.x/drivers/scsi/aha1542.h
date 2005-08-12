@@ -5,8 +5,8 @@
  * Header file for the adaptec 1542 driver for Linux
  *
  * $Log$
- * Revision 1.3  2004/09/08 15:40:06  lgsoft
- * Import of 2.6.8
+ * Revision 1.4  2005/08/12 06:42:45  magicyang
+ *  Update kernel 2.6.8 to 2.6.12
  *
  * Revision 1.1  1992/07/24  06:27:38  root
  * Initial revision
@@ -94,10 +94,12 @@ struct chain {
 };
 
 /* These belong in scsi.h also */
-#define any2scsi(up, p)				\
-(up)[0] = (((unsigned long)(p)) >> 16)  ;	\
-(up)[1] = (((unsigned long)(p)) >> 8);		\
-(up)[2] = ((unsigned long)(p));
+static inline void any2scsi(u8 *p, u32 v)
+{
+	p[0] = v >> 16;
+	p[1] = v >> 8;
+	p[2] = v;
+}
 
 #define scsi2int(up) ( (((long)*(up)) << 16) + (((long)(up)[1]) << 8) + ((long)(up)[2]) )
 

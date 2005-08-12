@@ -28,7 +28,12 @@
 #include <linux/ioport.h>
 #include <asm/io.h>
 #include <asm/prom.h>
-#ifdef CONFIG_BOOTX_TEXT
+
+#ifdef CONFIG_PPC64
+#include <asm/pci-bridge.h>
+#endif
+
+#ifdef CONFIG_PPC32
 #include <asm/bootx.h>
 #endif
 
@@ -46,19 +51,13 @@ enum {
 };
 
 struct offb_par {
-	volatile unsigned char *cmap_adr;
-	volatile unsigned char *cmap_data;
+	volatile void __iomem *cmap_adr;
+	volatile void __iomem *cmap_data;
 	int cmap_type;
 	int blanked;
 };
 
 struct offb_par default_par;
-
-#ifdef __powerpc__
-#define mach_eieio()	eieio()
-#else
-#define mach_eieio()	do {} while (0)
-#endif
 
     /*
      *  Interface used by the world
@@ -70,7 +69,7 @@ static int offb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
 			  u_int transp, struct fb_info *info);
 static int offb_blank(int blank, struct fb_info *info);
 
-#ifdef CONFIG_BOOTX_TEXT
+#ifdef CONFIG_PPC32
 extern boot_infos_t *boot_infos;
 #endif
 
@@ -109,44 +108,36 @@ static int offb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
 
 	switch (par->cmap_type) {
 	case cmap_m64:
-		*par->cmap_adr = regno;
-		mach_eieio();
-		*par->cmap_data = red;
-		mach_eieio();
-		*par->cmap_data = green;
-		mach_eieio();
-		*par->cmap_data = blue;
-		mach_eieio();
+		writeb(regno, par->cmap_adr);
+		writeb(red, par->cmap_data);
+		writeb(green, par->cmap_data);
+		writeb(blue, par->cmap_data);
 		break;
 	case cmap_M3A:
 		/* Clear PALETTE_ACCESS_CNTL in DAC_CNTL */
-		out_le32((unsigned *) (par->cmap_adr + 0x58),
-			 in_le32((unsigned *) (par->cmap_adr +
-					       0x58)) & ~0x20);
+		out_le32(par->cmap_adr + 0x58,
+			 in_le32(par->cmap_adr + 0x58) & ~0x20);
 	case cmap_r128:
 		/* Set palette index & data */
 		out_8(par->cmap_adr + 0xb0, regno);
-		out_le32((unsigned *) (par->cmap_adr + 0xb4),
+		out_le32(par->cmap_adr + 0xb4,
 			 (red << 16 | green << 8 | blue));
 		break;
 	case cmap_M3B:
 		/* Set PALETTE_ACCESS_CNTL in DAC_CNTL */
-		out_le32((unsigned *) (par->cmap_adr + 0x58),
-			 in_le32((unsigned *) (par->cmap_adr +
-					       0x58)) | 0x20);
+		out_le32(par->cmap_adr + 0x58,
+			 in_le32(par->cmap_adr + 0x58) | 0x20);
 		/* Set palette index & data */
 		out_8(par->cmap_adr + 0xb0, regno);
-		out_le32((unsigned *) (par->cmap_adr + 0xb4),
-			 (red << 16 | green << 8 | blue));
+		out_le32(par->cmap_adr + 0xb4, (red << 16 | green << 8 | blue));
 		break;
 	case cmap_radeon:
 		/* Set palette index & data (could be smarter) */
 		out_8(par->cmap_adr + 0xb0, regno);
-		out_le32((unsigned *) (par->cmap_adr + 0xb4),
-			 (red << 16 | green << 8 | blue));
+		out_le32(par->cmap_adr + 0xb4, (red << 16 | green << 8 | blue));
 		break;
 	case cmap_gxt2000:
-		out_le32((unsigned *) par->cmap_adr + regno,
+		out_le32((unsigned __iomem *) par->cmap_adr + regno,
 			 (red << 16 | green << 8 | blue));
 		break;
 	}
@@ -190,47 +181,33 @@ static int offb_blank(int blank, struct fb_info *info)
 		for (i = 0; i < 256; i++) {
 			switch (par->cmap_type) {
 			case cmap_m64:
-				*par->cmap_adr = i;
-				mach_eieio();
-				for (j = 0; j < 3; j++) {
-					*par->cmap_data = 0;
-					mach_eieio();
-				}
+				writeb(i, par->cmap_adr);
+				for (j = 0; j < 3; j++)
+					writeb(0, par->cmap_data);
 				break;
 			case cmap_M3A:
 				/* Clear PALETTE_ACCESS_CNTL in DAC_CNTL */
-				out_le32((unsigned *) (par->cmap_adr +
-						       0x58),
-					 in_le32((unsigned *) (par->
-							       cmap_adr +
-							       0x58)) &
-					 ~0x20);
+				out_le32(par->cmap_adr + 0x58,
+					 in_le32(par->cmap_adr + 0x58) & ~0x20);
 			case cmap_r128:
 				/* Set palette index & data */
 				out_8(par->cmap_adr + 0xb0, i);
-				out_le32((unsigned *) (par->cmap_adr +
-						       0xb4), 0);
+				out_le32(par->cmap_adr + 0xb4, 0);
 				break;
 			case cmap_M3B:
 				/* Set PALETTE_ACCESS_CNTL in DAC_CNTL */
-				out_le32((unsigned *) (par->cmap_adr +
-						       0x58),
-					 in_le32((unsigned *) (par->
-							       cmap_adr +
-							       0x58)) |
-					 0x20);
+				out_le32(par->cmap_adr + 0x58,
+					 in_le32(par->cmap_adr + 0x58) | 0x20);
 				/* Set palette index & data */
 				out_8(par->cmap_adr + 0xb0, i);
-				out_le32((unsigned *) (par->cmap_adr +
-						       0xb4), 0);
+				out_le32(par->cmap_adr + 0xb4, 0);
 				break;
 			case cmap_radeon:
 				out_8(par->cmap_adr + 0xb0, i);
-				out_le32((unsigned *) (par->cmap_adr +
-						       0xb4), 0);
+				out_le32(par->cmap_adr + 0xb4, 0);
 				break;
 			case cmap_gxt2000:
-				out_le32((unsigned *) par->cmap_adr + i,
+				out_le32((unsigned __iomem *) par->cmap_adr + i,
 					 0);
 				break;
 			}
@@ -245,18 +222,20 @@ static int offb_blank(int blank, struct fb_info *info)
 
 int __init offb_init(void)
 {
-	struct device_node *dp;
-	unsigned int dpy;
+	struct device_node *dp = NULL, *boot_disp = NULL;
 #if defined(CONFIG_BOOTX_TEXT) && defined(CONFIG_PPC32)
-	struct device_node *displays = find_type_devices("display");
 	struct device_node *macos_display = NULL;
+#endif
+	if (fb_get_options("offb", NULL))
+		return -ENODEV;
 
+#if defined(CONFIG_BOOTX_TEXT) && defined(CONFIG_PPC32)
 	/* If we're booted from BootX... */
-	if (prom_num_displays == 0 && boot_infos != 0) {
+	if (boot_infos != 0) {
 		unsigned long addr =
 		    (unsigned long) boot_infos->dispDeviceBase;
 		/* find the device node corresponding to the macos display */
-		for (dp = displays; dp != NULL; dp = dp->next) {
+		while ((dp = of_find_node_by_type(dp, "display"))) {
 			int i;
 			/*
 			 * Grrr...  It looks like the MacOS ATI driver
@@ -325,10 +304,19 @@ int __init offb_init(void)
 	}
 #endif /* defined(CONFIG_BOOTX_TEXT) && defined(CONFIG_PPC32) */
 
-	for (dpy = 0; dpy < prom_num_displays; dpy++) {
-		if ((dp = find_path_device(prom_display_paths[dpy])))
+	for (dp = NULL; (dp = of_find_node_by_type(dp, "display"));) {
+		if (get_property(dp, "linux,opened", NULL) &&
+		    get_property(dp, "linux,boot-display", NULL)) {
+			boot_disp = dp;
+			offb_init_nodriver(dp);
+		}
+	}
+	for (dp = NULL; (dp = of_find_node_by_type(dp, "display"));) {
+		if (get_property(dp, "linux,opened", NULL) &&
+		    dp != boot_disp)
 			offb_init_nodriver(dp);
 	}
+
 	return 0;
 }
 
@@ -338,7 +326,8 @@ static void __init offb_init_nodriver(struct device_node *dp)
 	int *pp, i;
 	unsigned int len;
 	int width = 640, height = 480, depth = 8, pitch;
-	unsigned *up, address;
+	unsigned *up;
+	unsigned long address;
 
 	if ((pp = (int *) get_property(dp, "depth", &len)) != NULL
 	    && len == sizeof(int))
@@ -372,6 +361,10 @@ static void __init offb_init_nodriver(struct device_node *dp)
 		}
 
 		address = (u_long) dp->addrs[i].address;
+
+#ifdef CONFIG_PPC64
+		address += dp->phb->pci_mem_offset;
+#endif
 
 		/* kludge for valkyrie */
 		if (strcmp(dp->name, "valkyrie") == 0)
@@ -527,7 +520,7 @@ static void __init offb_init_fb(const char *name, const char *full_name,
 	info->screen_base = ioremap(address, fix->smem_len);
 	info->par = par;
 	info->pseudo_palette = (void *) (info + 1);
-	info->flags = FBINFO_FLAG_DEFAULT;
+	info->flags = FBINFO_DEFAULT;
 
 	fb_alloc_cmap(&info->cmap, 256, 0);
 
@@ -541,4 +534,5 @@ static void __init offb_init_fb(const char *name, const char *full_name,
 	       info->node, full_name);
 }
 
+module_init(offb_init);
 MODULE_LICENSE("GPL");

@@ -274,3 +274,13 @@ typedef struct ffb_dev_priv {
 	/* Context table. */
 	struct ffb_hw_context	*hw_state[FFB_MAX_CTXS];
 } ffb_dev_priv_t;
+
+extern unsigned long ffb_get_unmapped_area(struct file *filp,
+					   unsigned long hint,
+					   unsigned long len,
+					   unsigned long pgoff,
+					   unsigned long flags);
+extern void ffb_set_context_ioctls(void);
+extern drm_ioctl_desc_t DRM(ioctls)[];
+
+extern int ffb_driver_context_switch(drm_device_t *dev, int old, int new);

@@ -32,6 +32,8 @@
 #include <linux/input.h>
 #include <linux/usb.h>
 
+#undef DEBUG
+
 #include "hid.h"
 
 #define unk	KEY_UNKNOWN
@@ -60,114 +62,132 @@ static struct {
 	__s32 y;
 }  hid_hat_to_axis[] = {{ 0, 0}, { 0,-1}, { 1,-1}, { 1, 0}, { 1, 1}, { 0, 1}, {-1, 1}, {-1, 0}, {-1,-1}};
 
-static struct input_dev *find_input(struct hid_device *hid, struct hid_field *field)
-{
-	struct list_head *lh;
-	struct hid_input *hidinput;
+#define map_abs(c)	do { usage->code = c; usage->type = EV_ABS; bit = input->absbit; max = ABS_MAX; } while (0)
+#define map_rel(c)	do { usage->code = c; usage->type = EV_REL; bit = input->relbit; max = REL_MAX; } while (0)
+#define map_key(c)	do { usage->code = c; usage->type = EV_KEY; bit = input->keybit; max = KEY_MAX; } while (0)
+#define map_led(c)	do { usage->code = c; usage->type = EV_LED; bit = input->ledbit; max = LED_MAX; } while (0)
+#define map_ff(c)	do { usage->code = c; usage->type = EV_FF;  bit = input->ffbit;  max =  FF_MAX; } while (0)
 
-	list_for_each (lh, &hid->inputs) {
-		int i;
-
-		hidinput = list_entry(lh, struct hid_input, list);
-
-		if (! hidinput->report)
-			continue;
-
-		for (i = 0; i < hidinput->report->maxfield; i++)
-			if (hidinput->report->field[i] == field)
-				return &hidinput->input;
-	}
-
-	/* Assume we only have one input and use it */
-	if (!list_empty(&hid->inputs)) {
-		hidinput = list_entry(hid->inputs.next, struct hid_input, list);
-		return &hidinput->input;
-	}
-
-	/* This is really a bug */
-	return NULL;
-}
+#define map_abs_clear(c)	do { map_abs(c); clear_bit(c, bit); } while (0)
+#define map_key_clear(c)	do { map_key(c); clear_bit(c, bit); } while (0)
+#define map_ff_effect(c)	do { set_bit(c, input->ffbit); } while (0)
 
 static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_field *field,
 				     struct hid_usage *usage)
 {
 	struct input_dev *input = &hidinput->input;
 	struct hid_device *device = hidinput->input.private;
-	int max;
-	int is_abs = 0;
+	int max, code;
 	unsigned long *bit;
 
+	field->hidinput = hidinput;
+
+#ifdef DEBUG
+	printk(KERN_DEBUG "Mapping: ");
+	resolv_usage(usage->hid);
+	printk(" ---> ");
+#endif
+
+	if (field->flags & HID_MAIN_ITEM_CONSTANT)
+		goto ignore;
+
 	switch (usage->hid & HID_USAGE_PAGE) {
+
+		case HID_UP_UNDEFINED:
+			goto ignore;
 
 		case HID_UP_KEYBOARD:
 
 			set_bit(EV_REP, input->evbit);
-			usage->type = EV_KEY; bit = input->keybit; max = KEY_MAX;
 
 			if ((usage->hid & HID_USAGE) < 256) {
-				if (!(usage->code = hid_keyboard[usage->hid & HID_USAGE]))
-					return;
-				clear_bit(usage->code, bit);
+				if (!hid_keyboard[usage->hid & HID_USAGE]) goto ignore;
+				map_key_clear(hid_keyboard[usage->hid & HID_USAGE]);
 			} else
-				usage->code = KEY_UNKNOWN;
+				map_key(KEY_UNKNOWN);
 
 			break;
 
 		case HID_UP_BUTTON:
 
-			usage->code = ((usage->hid - 1) & 0xf) + 0x100;
-			usage->type = EV_KEY; bit = input->keybit; max = KEY_MAX;
+			code = ((usage->hid - 1) & 0xf);
 
 			switch (field->application) {
-				case HID_GD_GAMEPAD:  usage->code += 0x10;
-				case HID_GD_JOYSTICK: usage->code += 0x10;
-				case HID_GD_MOUSE:    usage->code += 0x10; break;
+				case HID_GD_MOUSE:
+				case HID_GD_POINTER:  code += 0x110; break;
+				case HID_GD_JOYSTICK: code += 0x120; break;
+				case HID_GD_GAMEPAD:  code += 0x130; break;
 				default:
-					if (field->physical == HID_GD_POINTER)
-						usage->code += 0x10;
-					break;
+					switch (field->physical) {
+						case HID_GD_MOUSE:
+						case HID_GD_POINTER:  code += 0x110; break;
+						case HID_GD_JOYSTICK: code += 0x120; break;
+						case HID_GD_GAMEPAD:  code += 0x130; break;
+						default:              code += 0x100;
+					}
 			}
+
+			map_key(code);
 			break;
 
 		case HID_UP_GENDESK:
 
 			if ((usage->hid & 0xf0) == 0x80) {	/* SystemControl */
 				switch (usage->hid & 0xf) {
-					case 0x1: usage->code = KEY_POWER;  break;
-					case 0x2: usage->code = KEY_SLEEP;  break;
-					case 0x3: usage->code = KEY_WAKEUP; break;
-					default: usage->code = KEY_UNKNOWN; break;
+					case 0x1: map_key_clear(KEY_POWER);  break;
+					case 0x2: map_key_clear(KEY_SLEEP);  break;
+					case 0x3: map_key_clear(KEY_WAKEUP); break;
+					default: goto unknown;
 				}
-				usage->type = EV_KEY; bit = input->keybit; max = KEY_MAX;
 				break;
 			}
 
-			usage->code = usage->hid & 0xf;
-
-			if (field->report_size == 1) {
-				usage->code = BTN_MISC;
-				usage->type = EV_KEY; bit = input->keybit; max = KEY_MAX;
+			if ((usage->hid & 0xf0) == 0x90) {	/* D-pad */
+				switch (usage->hid) {
+					case HID_GD_UP:	   usage->hat_dir = 1; break;
+					case HID_GD_DOWN:  usage->hat_dir = 5; break;
+					case HID_GD_RIGHT: usage->hat_dir = 3; break;
+					case HID_GD_LEFT:  usage->hat_dir = 7; break;
+					default: goto unknown;
+				}
+				if (field->dpad) {
+					map_abs(field->dpad);
+					goto ignore;
+				}
+				map_abs(ABS_HAT0X);
 				break;
 			}
 
-			if (field->flags & HID_MAIN_ITEM_RELATIVE) {
-				usage->type = EV_REL; bit = input->relbit; max = REL_MAX;
-				break;
+			switch (usage->hid) {
+
+				/* These usage IDs map directly to the usage codes. */
+				case HID_GD_X: case HID_GD_Y: case HID_GD_Z:
+				case HID_GD_RX: case HID_GD_RY: case HID_GD_RZ:
+				case HID_GD_SLIDER: case HID_GD_DIAL: case HID_GD_WHEEL:
+					if (field->flags & HID_MAIN_ITEM_RELATIVE) 
+						map_rel(usage->hid & 0xf);
+					else
+						map_abs(usage->hid & 0xf);
+					break;
+
+				case HID_GD_HATSWITCH:
+					usage->hat_min = field->logical_minimum;
+					usage->hat_max = field->logical_maximum;
+					map_abs(ABS_HAT0X);
+					break;
+
+				case HID_GD_START:	map_key_clear(BTN_START);	break;
+				case HID_GD_SELECT:	map_key_clear(BTN_SELECT);	break;
+
+				default: goto unknown;
 			}
 
-			usage->type = EV_ABS; bit = input->absbit; max = ABS_MAX;
-
-			if (usage->hid == HID_GD_HATSWITCH) {
-				usage->code = ABS_HAT0X;
-				usage->hat_min = field->logical_minimum;
-				usage->hat_max = field->logical_maximum;
-			}
 			break;
 
 		case HID_UP_LED:
-
-			usage->code = (usage->hid - 1) & 0xf;
-			usage->type = EV_LED; bit = input->ledbit; max = LED_MAX;
+			if (((usage->hid - 1) & 0xffff) >= LED_MAX)
+				goto ignore;
+			map_led((usage->hid - 1) & 0xffff);
 			break;
 
 		case HID_UP_DIGITIZER:
@@ -175,49 +195,36 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 			switch (usage->hid & 0xff) {
 
 				case 0x30: /* TipPressure */
-
 					if (!test_bit(BTN_TOUCH, input->keybit)) {
 						device->quirks |= HID_QUIRK_NOTOUCH;
 						set_bit(EV_KEY, input->evbit);
 						set_bit(BTN_TOUCH, input->keybit);
 					}
-					usage->type = EV_ABS; bit = input->absbit; max = ABS_MAX;
-					usage->code = ABS_PRESSURE;
-					clear_bit(usage->code, bit);
+
+					map_abs_clear(ABS_PRESSURE);
 					break;
 
 				case 0x32: /* InRange */
-
-					usage->type = EV_KEY; bit = input->keybit; max = KEY_MAX;
 					switch (field->physical & 0xff) {
-						case 0x21: usage->code = BTN_TOOL_MOUSE; break;
-						case 0x22: usage->code = BTN_TOOL_FINGER; break;
-						default: usage->code = BTN_TOOL_PEN; break;
+						case 0x21: map_key(BTN_TOOL_MOUSE); break;
+						case 0x22: map_key(BTN_TOOL_FINGER); break;
+						default: map_key(BTN_TOOL_PEN); break;
 					}
 					break;
 
 				case 0x3c: /* Invert */
-
-					usage->type = EV_KEY; bit = input->keybit; max = KEY_MAX;
-					usage->code = BTN_TOOL_RUBBER;
-					clear_bit(usage->code, bit);
+					map_key_clear(BTN_TOOL_RUBBER);
 					break;
 
 				case 0x33: /* Touch */
 				case 0x42: /* TipSwitch */
 				case 0x43: /* TipSwitch2 */
-
 					device->quirks &= ~HID_QUIRK_NOTOUCH;
-					usage->type = EV_KEY; bit = input->keybit; max = KEY_MAX;
-					usage->code = BTN_TOUCH;
-					clear_bit(usage->code, bit);
+					map_key_clear(BTN_TOUCH);
 					break;
 
 				case 0x44: /* BarrelSwitch */
-
-					usage->type = EV_KEY; bit = input->keybit; max = KEY_MAX;
-					usage->code = BTN_STYLUS;
-					clear_bit(usage->code, bit);
+					map_key_clear(BTN_STYLUS);
 					break;
 
 				default:  goto unknown;
@@ -226,56 +233,44 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 
 		case HID_UP_CONSUMER:	/* USB HUT v1.1, pages 56-62 */
 
-			set_bit(EV_REP, input->evbit);
 			switch (usage->hid & HID_USAGE) {
-				case 0x000: usage->code = 0; break;
-				case 0x034: usage->code = KEY_SLEEP;		break;
-				case 0x036: usage->code = BTN_MISC;		break;
-				case 0x08a: usage->code = KEY_WWW;		break;
-				case 0x095: usage->code = KEY_HELP;		break;
-
-				case 0x0b0: usage->code = KEY_PLAY;		break;
-				case 0x0b1: usage->code = KEY_PAUSE;		break;
-				case 0x0b2: usage->code = KEY_RECORD;		break;
-				case 0x0b3: usage->code = KEY_FASTFORWARD;	break;
-				case 0x0b4: usage->code = KEY_REWIND;		break;
-				case 0x0b5: usage->code = KEY_NEXTSONG;		break;
-				case 0x0b6: usage->code = KEY_PREVIOUSSONG;	break;
-				case 0x0b7: usage->code = KEY_STOPCD;		break;
-				case 0x0b8: usage->code = KEY_EJECTCD;		break;
-				case 0x0cd: usage->code = KEY_PLAYPAUSE;	break;
-			        case 0x0e0: is_abs = 1;
-					    usage->code = ABS_VOLUME;
-					    break;
-				case 0x0e2: usage->code = KEY_MUTE;		break;
-				case 0x0e5: usage->code = KEY_BASSBOOST;	break;
-				case 0x0e9: usage->code = KEY_VOLUMEUP;		break;
-				case 0x0ea: usage->code = KEY_VOLUMEDOWN;	break;
-
-				case 0x183: usage->code = KEY_CONFIG;		break;
-				case 0x18a: usage->code = KEY_MAIL;		break;
-				case 0x192: usage->code = KEY_CALC;		break;
-				case 0x194: usage->code = KEY_FILE;		break;
-				case 0x21a: usage->code = KEY_UNDO;		break;
-				case 0x21b: usage->code = KEY_COPY;		break;
-				case 0x21c: usage->code = KEY_CUT;		break;
-				case 0x21d: usage->code = KEY_PASTE;		break;
-
-				case 0x221: usage->code = KEY_FIND;		break;
-				case 0x223: usage->code = KEY_HOMEPAGE;		break;
-				case 0x224: usage->code = KEY_BACK;		break;
-				case 0x225: usage->code = KEY_FORWARD;		break;
-				case 0x226: usage->code = KEY_STOP;		break;
-				case 0x227: usage->code = KEY_REFRESH;		break;
-				case 0x22a: usage->code = KEY_BOOKMARKS;	break;
-
-				default:    usage->code = KEY_UNKNOWN;		break;
-			}
-
-			if (is_abs) {
-			        usage->type = EV_ABS; bit = input->absbit; max = ABS_MAX;
-			} else  {
-				usage->type = EV_KEY; bit = input->keybit; max = KEY_MAX;
+				case 0x000: goto ignore;
+				case 0x034: map_key_clear(KEY_SLEEP);		break;
+				case 0x036: map_key_clear(BTN_MISC);		break;
+				case 0x08a: map_key_clear(KEY_WWW);		break;
+				case 0x095: map_key_clear(KEY_HELP);		break;
+				case 0x0b0: map_key_clear(KEY_PLAY);		break;
+				case 0x0b1: map_key_clear(KEY_PAUSE);		break;
+				case 0x0b2: map_key_clear(KEY_RECORD);		break;
+				case 0x0b3: map_key_clear(KEY_FASTFORWARD);	break;
+				case 0x0b4: map_key_clear(KEY_REWIND);		break;
+				case 0x0b5: map_key_clear(KEY_NEXTSONG);	break;
+				case 0x0b6: map_key_clear(KEY_PREVIOUSSONG);	break;
+				case 0x0b7: map_key_clear(KEY_STOPCD);		break;
+				case 0x0b8: map_key_clear(KEY_EJECTCD);		break;
+				case 0x0cd: map_key_clear(KEY_PLAYPAUSE);	break;
+			        case 0x0e0: map_abs_clear(ABS_VOLUME);		break;
+				case 0x0e2: map_key_clear(KEY_MUTE);		break;
+				case 0x0e5: map_key_clear(KEY_BASSBOOST);	break;
+				case 0x0e9: map_key_clear(KEY_VOLUMEUP);	break;
+				case 0x0ea: map_key_clear(KEY_VOLUMEDOWN);	break;
+				case 0x183: map_key_clear(KEY_CONFIG);		break;
+				case 0x18a: map_key_clear(KEY_MAIL);		break;
+				case 0x192: map_key_clear(KEY_CALC);		break;
+				case 0x194: map_key_clear(KEY_FILE);		break;
+				case 0x21a: map_key_clear(KEY_UNDO);		break;
+				case 0x21b: map_key_clear(KEY_COPY);		break;
+				case 0x21c: map_key_clear(KEY_CUT);		break;
+				case 0x21d: map_key_clear(KEY_PASTE);		break;
+				case 0x221: map_key_clear(KEY_FIND);		break;
+				case 0x223: map_key_clear(KEY_HOMEPAGE);	break;
+				case 0x224: map_key_clear(KEY_BACK);		break;
+				case 0x225: map_key_clear(KEY_FORWARD);		break;
+				case 0x226: map_key_clear(KEY_STOP);		break;
+				case 0x227: map_key_clear(KEY_REFRESH);		break;
+				case 0x22a: map_key_clear(KEY_BOOKMARKS);	break;
+				case 0x238: map_rel(REL_HWHEEL);		break;
+				default:    goto unknown;
 			}
 			break;
 
@@ -283,114 +278,86 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 
 			set_bit(EV_REP, input->evbit);
 			switch (usage->hid & HID_USAGE) {
-			        case 0x021: usage->code = KEY_PRINT;            break;
-				case 0x070: usage->code = KEY_HP;		break;
-				case 0x071: usage->code = KEY_CAMERA;		break;
-				case 0x072: usage->code = KEY_SOUND;		break;
-				case 0x073: usage->code = KEY_QUESTION;		break;
-
-				case 0x080: usage->code = KEY_EMAIL;		break;
-				case 0x081: usage->code = KEY_CHAT;		break;
-				case 0x082: usage->code = KEY_SEARCH;		break;
-				case 0x083: usage->code = KEY_CONNECT;	        break;
-				case 0x084: usage->code = KEY_FINANCE;		break;
-				case 0x085: usage->code = KEY_SPORT;		break;
-				case 0x086: usage->code = KEY_SHOP;	        break;
-
-				default:    usage->code = KEY_UNKNOWN;		break;
-
+			        case 0x021: map_key_clear(KEY_PRINT);           break;
+				case 0x070: map_key_clear(KEY_HP);		break;
+				case 0x071: map_key_clear(KEY_CAMERA);		break;
+				case 0x072: map_key_clear(KEY_SOUND);		break;
+				case 0x073: map_key_clear(KEY_QUESTION);	break;
+				case 0x080: map_key_clear(KEY_EMAIL);		break;
+				case 0x081: map_key_clear(KEY_CHAT);		break;
+				case 0x082: map_key_clear(KEY_SEARCH);		break;
+				case 0x083: map_key_clear(KEY_CONNECT);	        break;
+				case 0x084: map_key_clear(KEY_FINANCE);		break;
+				case 0x085: map_key_clear(KEY_SPORT);		break;
+				case 0x086: map_key_clear(KEY_SHOP);	        break;
+				default:    goto ignore;
 			}
-
-			usage->type = EV_KEY; bit = input->keybit; max = KEY_MAX;
 			break;
+
+		case HID_UP_MSVENDOR:
+
+			goto ignore;
 			
 		case HID_UP_PID:
 
-			usage->type = EV_FF; bit = input->ffbit; max = FF_MAX;
-			
+			set_bit(EV_FF, input->evbit);
 			switch(usage->hid & HID_USAGE) {
-				case 0x26: set_bit(FF_CONSTANT, input->ffbit); break;
-				case 0x27: set_bit(FF_RAMP,     input->ffbit); break;
-				case 0x28: set_bit(FF_CUSTOM,   input->ffbit); break;
-				case 0x30: set_bit(FF_SQUARE,   input->ffbit);
-				           set_bit(FF_PERIODIC, input->ffbit); break;
-				case 0x31: set_bit(FF_SINE,     input->ffbit);
-				           set_bit(FF_PERIODIC, input->ffbit); break;
-				case 0x32: set_bit(FF_TRIANGLE, input->ffbit);
-				           set_bit(FF_PERIODIC, input->ffbit); break;
-				case 0x33: set_bit(FF_SAW_UP,   input->ffbit);
-				           set_bit(FF_PERIODIC, input->ffbit); break;
-				case 0x34: set_bit(FF_SAW_DOWN, input->ffbit);
-				           set_bit(FF_PERIODIC, input->ffbit); break;
-				case 0x40: set_bit(FF_SPRING,   input->ffbit); break;
-				case 0x41: set_bit(FF_DAMPER,   input->ffbit); break;
-				case 0x42: set_bit(FF_INERTIA , input->ffbit); break;
-				case 0x43: set_bit(FF_FRICTION, input->ffbit); break;
-				case 0x7e: usage->code = FF_GAIN;       break;
-				case 0x83:  /* Simultaneous Effects Max */
-					input->ff_effects_max = (field->value[0]);
-					dbg("Maximum Effects - %d",input->ff_effects_max);
-					break;
-				case 0x98:  /* Device Control */
-					usage->code = FF_AUTOCENTER;    break;
-				case 0xa4:  /* Safety Switch */
-					usage->code = BTN_DEAD;
-					bit = input->keybit;
-					usage->type = EV_KEY;
-					max = KEY_MAX;
-					dbg("Safety Switch Report\n");
-					break;
-				case 0x9f: /* Device Paused */
-				case 0xa0: /* Actuators Enabled */
-					dbg("Not telling the input API about ");
-					resolv_usage(usage->hid);
-					return;
+				case 0x26: map_ff_effect(FF_CONSTANT);	goto ignore;
+				case 0x27: map_ff_effect(FF_RAMP);	goto ignore;
+				case 0x28: map_ff_effect(FF_CUSTOM);	goto ignore;
+				case 0x30: map_ff_effect(FF_SQUARE);	map_ff_effect(FF_PERIODIC); goto ignore;
+				case 0x31: map_ff_effect(FF_SINE);	map_ff_effect(FF_PERIODIC); goto ignore;
+				case 0x32: map_ff_effect(FF_TRIANGLE);	map_ff_effect(FF_PERIODIC); goto ignore;
+				case 0x33: map_ff_effect(FF_SAW_UP);	map_ff_effect(FF_PERIODIC); goto ignore;
+				case 0x34: map_ff_effect(FF_SAW_DOWN);	map_ff_effect(FF_PERIODIC); goto ignore;
+				case 0x40: map_ff_effect(FF_SPRING);	goto ignore;
+				case 0x41: map_ff_effect(FF_DAMPER);	goto ignore;
+				case 0x42: map_ff_effect(FF_INERTIA);	goto ignore;
+				case 0x43: map_ff_effect(FF_FRICTION);	goto ignore;
+				case 0x7e: map_ff(FF_GAIN);		break;
+				case 0x83: input->ff_effects_max = field->value[0]; goto ignore;
+				case 0x98: map_ff(FF_AUTOCENTER);	break;
+				case 0xa4: map_key_clear(BTN_DEAD);	break;
+				default: goto ignore;
 			}
 			break;
+
 		default:
 		unknown:
-			resolv_usage(usage->hid);
-
 			if (field->report_size == 1) {
-
 				if (field->report->type == HID_OUTPUT_REPORT) {
-					usage->code = LED_MISC;
-					usage->type = EV_LED; bit = input->ledbit; max = LED_MAX;
+					map_led(LED_MISC);
 					break;
 				}
-
-				usage->code = BTN_MISC;
-				usage->type = EV_KEY; bit = input->keybit; max = KEY_MAX;
+				map_key(BTN_MISC);
 				break;
 			}
-
 			if (field->flags & HID_MAIN_ITEM_RELATIVE) {
-				usage->code = REL_MISC;
-				usage->type = EV_REL; bit = input->relbit; max = REL_MAX;
+				map_rel(REL_MISC);
 				break;
 			}
-
-			usage->code = ABS_MISC;
-			usage->type = EV_ABS; bit = input->absbit; max = ABS_MAX;
+			map_abs(ABS_MISC);
 			break;
 	}
 
 	set_bit(usage->type, input->evbit);
-	if ((usage->type == EV_REL)
-			&& (device->quirks & (HID_QUIRK_2WHEEL_MOUSE_HACK_BACK
-				| HID_QUIRK_2WHEEL_MOUSE_HACK_EXTRA))
-			&& (usage->code == REL_WHEEL)) {
-		set_bit(REL_HWHEEL, bit);
-	}
 
-	while (usage->code <= max && test_and_set_bit(usage->code, bit)) {
+	while (usage->code <= max && test_and_set_bit(usage->code, bit))
 		usage->code = find_next_zero_bit(bit, max + 1, usage->code);
-	}
 
 	if (usage->code > max)
-		return;
+		goto ignore;
+
+	if ((device->quirks & (HID_QUIRK_2WHEEL_MOUSE_HACK_7 | HID_QUIRK_2WHEEL_MOUSE_HACK_5)) &&
+		 (usage->type == EV_REL) && (usage->code == REL_WHEEL)) 
+			set_bit(REL_HWHEEL, bit);
+
+	if (((device->quirks & HID_QUIRK_2WHEEL_MOUSE_HACK_5) && (usage->hid == 0x00090005))
+		|| ((device->quirks & HID_QUIRK_2WHEEL_MOUSE_HACK_7) && (usage->hid == 0x00090007)))
+		goto ignore;
 
 	if (usage->type == EV_ABS) {
+
 		int a = field->logical_minimum;
 		int b = field->logical_maximum;
 
@@ -399,32 +366,38 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 			b = field->logical_maximum = 255;
 		}
 		
-		input->absmin[usage->code] = a;
-		input->absmax[usage->code] = b;
-		input->absfuzz[usage->code] = 0;
-		input->absflat[usage->code] = 0;
-
-		if (field->application == HID_GD_GAMEPAD || field->application == HID_GD_JOYSTICK) {
-			input->absfuzz[usage->code] = (b - a) >> 8;
-			input->absflat[usage->code] = (b - a) >> 4;
-		}
+		if (field->application == HID_GD_GAMEPAD || field->application == HID_GD_JOYSTICK)
+			input_set_abs_params(input, usage->code, a, b, (b - a) >> 8, (b - a) >> 4);
+		else	input_set_abs_params(input, usage->code, a, b, 0, 0);
+		
 	}
 
-	if (usage->hat_min != usage->hat_max) {
+	if (usage->hat_min < usage->hat_max || usage->hat_dir) {
 		int i;
 		for (i = usage->code; i < usage->code + 2 && i <= max; i++) {
-			input->absmax[i] = 1;
-			input->absmin[i] = -1;
-			input->absfuzz[i] = 0;
-			input->absflat[i] = 0;
+			input_set_abs_params(input, i, -1, 1, 0, 0);
+			set_bit(i, input->absbit);
 		}
-		set_bit(usage->code + 1, input->absbit);
+		if (usage->hat_dir && !field->dpad)
+			field->dpad = usage->code;
 	}
+
+#ifdef DEBUG
+	resolv_event(usage->type, usage->code);
+	printk("\n");
+#endif
+	return;
+
+ignore:
+#ifdef DEBUG
+	printk("IGNORED\n");
+#endif
+	return;
 }
 
 void hidinput_hid_event(struct hid_device *hid, struct hid_field *field, struct hid_usage *usage, __s32 value, struct pt_regs *regs)
 {
-	struct input_dev *input = find_input(hid, field);
+	struct input_dev *input = &field->hidinput->input;
 	int *quirks = &hid->quirks;
 
 	if (!input)
@@ -432,28 +405,30 @@ void hidinput_hid_event(struct hid_device *hid, struct hid_field *field, struct 
 
 	input_regs(input, regs);
 
-	if (((hid->quirks & HID_QUIRK_2WHEEL_MOUSE_HACK_EXTRA) && (usage->code == BTN_EXTRA))
-		|| ((hid->quirks & HID_QUIRK_2WHEEL_MOUSE_HACK_BACK) && (usage->code == BTN_BACK))) {
-		if (value)
-			hid->quirks |= HID_QUIRK_2WHEEL_MOUSE_HACK_ON;
-		else
-			hid->quirks &= ~HID_QUIRK_2WHEEL_MOUSE_HACK_ON;
+	if (!usage->type)
+		return;
+
+	if (((hid->quirks & HID_QUIRK_2WHEEL_MOUSE_HACK_5) && (usage->hid == 0x00090005))
+		|| ((hid->quirks & HID_QUIRK_2WHEEL_MOUSE_HACK_7) && (usage->hid == 0x00090007))) {
+		if (value) hid->quirks |=  HID_QUIRK_2WHEEL_MOUSE_HACK_ON;
+		else       hid->quirks &= ~HID_QUIRK_2WHEEL_MOUSE_HACK_ON;
 		return;
 	}
 
-	if ((hid->quirks & HID_QUIRK_2WHEEL_MOUSE_HACK_ON)
-			&& (usage->code == REL_WHEEL)) {
+	if ((hid->quirks & HID_QUIRK_2WHEEL_MOUSE_HACK_ON) && (usage->code == REL_WHEEL)) {
 		input_event(input, usage->type, REL_HWHEEL, value);
 		return;
 	}
 
-	if (usage->hat_min != usage->hat_max ) { /* FIXME: hat_max can be 0 and hat_min 1 */
-		value = (value - usage->hat_min) * 8 / (usage->hat_max - usage->hat_min + 1) + 1;
-		if (value < 0 || value > 8) value = 0;
-		input_event(input, usage->type, usage->code    , hid_hat_to_axis[value].x);
-		input_event(input, usage->type, usage->code + 1, hid_hat_to_axis[value].y);
-		return;
-	}
+	if (usage->hat_min < usage->hat_max || usage->hat_dir) { 
+		int hat_dir = usage->hat_dir;
+		if (!hat_dir)
+			hat_dir = (value - usage->hat_min) * 8 / (usage->hat_max - usage->hat_min + 1) + 1;
+		if (hat_dir < 0 || hat_dir > 8) hat_dir = 0;
+		input_event(input, usage->type, usage->code    , hid_hat_to_axis[hat_dir].x);
+                input_event(input, usage->type, usage->code + 1, hid_hat_to_axis[hat_dir].y);
+                return;
+        }
 
 	if (usage->hid == (HID_UP_DIGITIZER | 0x003c)) { /* Invert */
 		*quirks = value ? (*quirks | HID_QUIRK_INVERT) : (*quirks & ~HID_QUIRK_INVERT);
@@ -481,6 +456,7 @@ void hidinput_hid_event(struct hid_device *hid, struct hid_field *field, struct 
 		dbg("Maximum Effects - %d",input->ff_effects_max);
 		return;
 	}
+
 	if (usage->hid == (HID_UP_PID | 0x7fUL)) {
 		dbg("PID Pool Report\n");
 		return;
@@ -506,16 +482,35 @@ void hidinput_report_event(struct hid_device *hid, struct hid_report *report)
 	}
 }
 
+static int hidinput_find_field(struct hid_device *hid, unsigned int type, unsigned int code, struct hid_field **field)
+{
+	struct hid_report *report;
+	int i, j;
+
+	list_for_each_entry(report, &hid->report_enum[HID_OUTPUT_REPORT].report_list, list) {
+		for (i = 0; i < report->maxfield; i++) {
+			*field = report->field[i];
+			for (j = 0; j < (*field)->maxusage; j++)
+				if ((*field)->usage[j].type == type && (*field)->usage[j].code == code)
+					return j;
+		}
+	}
+	return -1;
+}
+
 static int hidinput_input_event(struct input_dev *dev, unsigned int type, unsigned int code, int value)
 {
 	struct hid_device *hid = dev->private;
-	struct hid_field *field = NULL;
+	struct hid_field *field;
 	int offset;
 
 	if (type == EV_FF)
 		return hid_ff_event(hid, dev, type, code, value);
 
-	if ((offset = hid_find_field(hid, type, code, &field)) == -1) {
+	if (type != EV_LED)
+		return -1;
+
+	if ((offset = hidinput_find_field(hid, type, code, &field)) == -1) {
 		warn("event field not found");
 		return -1;
 	}
@@ -547,32 +542,26 @@ static void hidinput_close(struct input_dev *dev)
 int hidinput_connect(struct hid_device *hid)
 {
 	struct usb_device *dev = hid->dev;
-	struct hid_report_enum *report_enum;
 	struct hid_report *report;
-	struct list_head *list;
 	struct hid_input *hidinput = NULL;
 	int i, j, k;
 
 	INIT_LIST_HEAD(&hid->inputs);
 
 	for (i = 0; i < hid->maxcollection; i++)
-		if (hid->collection[i].type == HID_COLLECTION_APPLICATION &&
-		    IS_INPUT_APPLICATION(hid->collection[i].usage))
-			break;
+		if (hid->collection[i].type == HID_COLLECTION_APPLICATION ||
+		    hid->collection[i].type == HID_COLLECTION_PHYSICAL)
+		    	if (IS_INPUT_APPLICATION(hid->collection[i].usage))
+				break;
 
 	if (i == hid->maxcollection)
 		return -1;
 
-	for (k = HID_INPUT_REPORT; k <= HID_OUTPUT_REPORT; k++) {
-		report_enum = hid->report_enum + k;
-		list = report_enum->report_list.next;
-		while (list != &report_enum->report_list) {
-			report = (struct hid_report *) list;
+	for (k = HID_INPUT_REPORT; k <= HID_OUTPUT_REPORT; k++)
+		list_for_each_entry(report, &hid->report_enum[k].report_list, list) {
 
-			if (!report->maxfield) {
-				list = list->next;
+			if (!report->maxfield)
 				continue;
-			}
 
 			if (!hidinput) {
 				hidinput = kmalloc(sizeof(*hidinput), GFP_KERNEL);
@@ -593,9 +582,9 @@ int hidinput_connect(struct hid_device *hid)
 				hidinput->input.phys = hid->phys;
 				hidinput->input.uniq = hid->uniq;
 				hidinput->input.id.bustype = BUS_USB;
-				hidinput->input.id.vendor = dev->descriptor.idVendor;
-				hidinput->input.id.product = dev->descriptor.idProduct;
-				hidinput->input.id.version = dev->descriptor.bcdDevice;
+				hidinput->input.id.vendor = le16_to_cpu(dev->descriptor.idVendor);
+				hidinput->input.id.product = le16_to_cpu(dev->descriptor.idProduct);
+				hidinput->input.id.version = le16_to_cpu(dev->descriptor.bcdDevice);
 				hidinput->input.dev = &hid->intf->dev;
 			}
 
@@ -603,7 +592,7 @@ int hidinput_connect(struct hid_device *hid)
 				for (j = 0; j < report->field[i]->maxusage; j++)
 					hidinput_configure_usage(hidinput, report->field[i],
 								 report->field[i]->usage + j);
-
+			
 			if (hid->quirks & HID_QUIRK_MULTI_INPUT) {
 				/* This will leave hidinput NULL, so that it
 				 * allocates another one if we have more inputs on
@@ -614,10 +603,7 @@ int hidinput_connect(struct hid_device *hid)
 				input_register_device(&hidinput->input);
 				hidinput = NULL;
 			}
-
-			list = list->next;
 		}
-	}
 
 	/* This only gets called when we are a single-input (most of the
 	 * time). IOW, not a HID_QUIRK_MULTI_INPUT. The hid_ff_init() is
@@ -635,7 +621,7 @@ void hidinput_disconnect(struct hid_device *hid)
 	struct list_head *lh, *next;
 	struct hid_input *hidinput;
 
-	list_for_each_safe (lh, next, &hid->inputs) {
+	list_for_each_safe(lh, next, &hid->inputs) {
 		hidinput = list_entry(lh, struct hid_input, list);
 		input_unregister_device(&hidinput->input);
 		list_del(&hidinput->list);

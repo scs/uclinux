@@ -36,7 +36,7 @@ static void __tape_remove_request(struct tape_device *, struct tape_request *);
  * The list is protected by the rwlock
  */
 static struct list_head tape_device_list = LIST_HEAD_INIT(tape_device_list);
-static rwlock_t tape_device_lock = RW_LOCK_UNLOCKED;
+static DEFINE_RWLOCK(tape_device_lock);
 
 /*
  * Pointer to debug area.
@@ -349,6 +349,11 @@ tape_generic_online(struct tape_device *device,
 
 	/* Let the discipline have a go at the device. */
 	device->discipline = discipline;
+	if (!try_module_get(discipline->owner)) {
+		PRINT_ERR("Cannot get module. Module gone.\n");
+		return -EINVAL;
+	}
+
 	rc = discipline->setup_device(device);
 	if (rc)
 		goto out;
@@ -377,6 +382,7 @@ out_discipline:
 out_minor:
 	tape_remove_minor(device);
 out:
+	module_put(discipline->owner);
 	return rc;
 }
 
@@ -386,6 +392,7 @@ tape_cleanup_device(struct tape_device *device)
 	tapeblock_cleanup_device(device);
 	tapechar_cleanup_device(device);
 	device->discipline->cleanup_device(device);
+	module_put(device->discipline->owner);
 	tape_remove_minor(device);
 	tape_med_state_set(device, MS_UNKNOWN);
 }

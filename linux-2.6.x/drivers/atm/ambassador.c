@@ -296,25 +296,22 @@ static inline void __init show_version (void) {
 #endif
 #define UCODE2(x) #x
 
-static u32 __initdata ucode_start = 
+static u32 __devinitdata ucode_start =
 #include UCODE(start)
 ;
 
-static region __initdata ucode_regions[] = {
+static region __devinitdata ucode_regions[] = {
 #include UCODE(regions)
   { 0, 0 }
 };
 
-static u32 __initdata ucode_data[] = {
+static u32 __devinitdata ucode_data[] = {
 #include UCODE(data)
   0xdeadbeef
 };
 
 static void do_housekeeping (unsigned long arg);
 /********** globals **********/
-
-static amb_dev * amb_devs = NULL;
-static struct timer_list housekeeping = TIMER_INITIALIZER(do_housekeeping, 0, 1);
 
 static unsigned short debug = 0;
 static unsigned int cmds = 8;
@@ -348,7 +345,7 @@ static inline u32 rd_plain (const amb_dev * dev, size_t addr) {
 }
 
 static inline void wr_mem (const amb_dev * dev, size_t addr, u32 data) {
-  u32 be = cpu_to_be32 (data);
+  __be32 be = cpu_to_be32 (data);
   PRINTD (DBG_FLOW|DBG_REGS, "wr: %08zx <- %08x b[%08x]", addr, data, be);
 #ifdef AMB_MMIO
   dev->membase[addr / sizeof(u32)] = be;
@@ -359,9 +356,9 @@ static inline void wr_mem (const amb_dev * dev, size_t addr, u32 data) {
 
 static inline u32 rd_mem (const amb_dev * dev, size_t addr) {
 #ifdef AMB_MMIO
-  u32 be = dev->membase[addr / sizeof(u32)];
+  __be32 be = dev->membase[addr / sizeof(u32)];
 #else
-  u32 be = inl (dev->iobase + addr);
+  __be32 be = inl (dev->iobase + addr);
 #endif
   u32 data = be32_to_cpu (be);
   PRINTD (DBG_FLOW|DBG_REGS, "rd: %08zx -> %08x b[%08x]", addr, data, be);
@@ -577,7 +574,6 @@ static int command_do (amb_dev * dev, command * cmd) {
   amb_cq * cq = &dev->cq;
   volatile amb_cq_ptrs * ptrs = &cq->ptrs;
   command * my_slot;
-  unsigned long timeout;
   
   PRINTD (DBG_FLOW|DBG_CMD, "command_do %p", dev);
   
@@ -602,20 +598,14 @@ static int command_do (amb_dev * dev, command * cmd) {
     // mail the command
     wr_mem (dev, offsetof(amb_mem, mb.adapter.cmd_address), virt_to_bus (ptrs->in));
     
-    // prepare to wait for cq->pending milliseconds
-    // effectively one centisecond on i386
-    timeout = (cq->pending*HZ+999)/1000;
-    
     if (cq->pending > cq->high)
       cq->high = cq->pending;
     spin_unlock (&cq->lock);
     
-    while (timeout) {
-      // go to sleep
-      // PRINTD (DBG_CMD, "wait: sleeping %lu for command", timeout);
-      set_current_state(TASK_UNINTERRUPTIBLE);
-      timeout = schedule_timeout (timeout);
-    }
+    // these comments were in a while-loop before, msleep removes the loop
+    // go to sleep
+    // PRINTD (DBG_CMD, "wait: sleeping %lu for command", timeout);
+    msleep(cq->pending);
     
     // wait for my slot to be reached (all waiters are here or above, until...)
     while (ptrs->out != my_slot) {
@@ -870,31 +860,13 @@ static inline void interrupts_off (amb_dev * dev) {
 
 static irqreturn_t interrupt_handler(int irq, void *dev_id,
 					struct pt_regs *pt_regs) {
-  amb_dev * dev = amb_devs;
+  amb_dev * dev = (amb_dev *) dev_id;
   (void) pt_regs;
   
   PRINTD (DBG_IRQ|DBG_FLOW, "interrupt_handler: %p", dev_id);
   
   if (!dev_id) {
     PRINTD (DBG_IRQ|DBG_ERR, "irq with NULL dev_id: %d", irq);
-    return IRQ_NONE;
-  }
-  // Did one of our cards generate the interrupt?
-  while (dev) {
-    if (dev == dev_id)
-      break;
-    dev = dev->prev;
-  }
-  // impossible - unless we add the device to our list after both
-  // registering the IRQ handler for it and enabling interrupts, AND
-  // the card generates an IRQ at startup - should not happen again
-  if (!dev) {
-    PRINTD (DBG_IRQ, "irq for unknown device: %d", irq);
-    return IRQ_NONE;
-  }
-  // impossible - unless we have memory corruption of dev or kernel
-  if (irq != dev->irq) {
-    PRINTD (DBG_IRQ|DBG_ERR, "irq mismatch: %d", irq);
     return IRQ_NONE;
   }
   
@@ -1554,29 +1526,20 @@ static const struct atmdev_ops amb_ops = {
 
 /********** housekeeping **********/
 static void do_housekeeping (unsigned long arg) {
-  amb_dev * dev = amb_devs;
-  // data is set to zero at module unload
-  (void) arg;
+  amb_dev * dev = (amb_dev *) arg;
   
-  if (housekeeping.data) {
-    while (dev) {
+  // could collect device-specific (not driver/atm-linux) stats here
       
-      // could collect device-specific (not driver/atm-linux) stats here
-      
-      // last resort refill once every ten seconds
-      fill_rx_pools (dev);
-      
-      dev = dev->prev;
-    }
-    mod_timer(&housekeeping, jiffies + 10*HZ);
-  }
+  // last resort refill once every ten seconds
+  fill_rx_pools (dev);
+  mod_timer(&dev->housekeeping, jiffies + 10*HZ);
   
   return;
 }
 
 /********** creation of communication queues **********/
 
-static int __init create_queues (amb_dev * dev, unsigned int cmds,
+static int __devinit create_queues (amb_dev * dev, unsigned int cmds,
 				 unsigned int txs, unsigned int * rxs,
 				 unsigned int * rx_buffer_sizes) {
   unsigned char pool;
@@ -1722,7 +1685,7 @@ static unsigned int command_timeouts [] = {
 };
 
 
-unsigned int command_successes [] = {
+static unsigned int command_successes [] = {
 	[host_memory_test]     = COMMAND_PASSED_TEST,
 	[read_adapter_memory]  = COMMAND_READ_DATA_OK,
 	[write_adapter_memory] = COMMAND_WRITE_DATA_OK,
@@ -1806,7 +1769,7 @@ static  int decode_loader_result (loader_command cmd, u32 result)
 	return res;
 }
 
-static int __init do_loader_command (volatile loader_block * lb,
+static int __devinit do_loader_command (volatile loader_block * lb,
 				     const amb_dev * dev, loader_command cmd) {
   
   unsigned long timeout;
@@ -1829,12 +1792,11 @@ static int __init do_loader_command (volatile loader_block * lb,
   // dump_loader_block (lb);
   wr_mem (dev, offsetof(amb_mem, doorbell), virt_to_bus (lb) & ~onegigmask);
   
-  timeout = command_timeouts[cmd] * HZ/100;
+  timeout = command_timeouts[cmd] * 10;
   
   while (!lb->result || lb->result == cpu_to_be32 (COMMAND_IN_PROGRESS))
     if (timeout) {
-      set_current_state(TASK_UNINTERRUPTIBLE);
-      timeout = schedule_timeout (timeout);
+      timeout = msleep_interruptible(timeout);
     } else {
       PRINTD (DBG_LOAD|DBG_ERR, "command %d timed out", cmd);
       dump_registers (dev);
@@ -1844,10 +1806,10 @@ static int __init do_loader_command (volatile loader_block * lb,
   
   if (cmd == adapter_start) {
     // wait for start command to acknowledge...
-    timeout = HZ/10;
+    timeout = 100;
     while (rd_plain (dev, offsetof(amb_mem, doorbell)))
       if (timeout) {
-	timeout = schedule_timeout (timeout);
+	timeout = msleep_interruptible(timeout);
       } else {
 	PRINTD (DBG_LOAD|DBG_ERR, "start command did not clear doorbell, res=%08x",
 		be32_to_cpu (lb->result));
@@ -1863,7 +1825,7 @@ static int __init do_loader_command (volatile loader_block * lb,
 
 /* loader: determine loader version */
 
-static int __init get_loader_version (loader_block * lb,
+static int __devinit get_loader_version (loader_block * lb,
 				      const amb_dev * dev, u32 * version) {
   int res;
   
@@ -1879,7 +1841,7 @@ static int __init get_loader_version (loader_block * lb,
 
 /* loader: write memory data blocks */
 
-static int __init loader_write (loader_block * lb,
+static int __devinit loader_write (loader_block * lb,
 				const amb_dev * dev, const u32 * data,
 				u32 address, unsigned int count) {
   unsigned int i;
@@ -1898,7 +1860,7 @@ static int __init loader_write (loader_block * lb,
 
 /* loader: verify memory data blocks */
 
-static int __init loader_verify (loader_block * lb,
+static int __devinit loader_verify (loader_block * lb,
 				 const amb_dev * dev, const u32 * data,
 				 u32 address, unsigned int count) {
   unsigned int i;
@@ -1923,7 +1885,7 @@ static int __init loader_verify (loader_block * lb,
 
 /* loader: start microcode */
 
-static int __init loader_start (loader_block * lb,
+static int __devinit loader_start (loader_block * lb,
 				const amb_dev * dev, u32 address) {
   PRINTD (DBG_FLOW|DBG_LOAD, "loader_start");
   
@@ -1962,17 +1924,12 @@ static int amb_reset (amb_dev * dev, int diags) {
   if (diags) { 
     unsigned long timeout;
     // 4.2 second wait
-    timeout = HZ*42/10;
-    while (timeout) {
-      set_current_state(TASK_UNINTERRUPTIBLE);
-      timeout = schedule_timeout (timeout);
-    }
+    msleep(4200);
     // half second time-out
-    timeout = HZ/2;
+    timeout = 500;
     while (!rd_plain (dev, offsetof(amb_mem, mb.loader.ready)))
       if (timeout) {
-        set_current_state(TASK_UNINTERRUPTIBLE);
-	timeout = schedule_timeout (timeout);
+	timeout = msleep_interruptible(timeout);
       } else {
 	PRINTD (DBG_LOAD|DBG_ERR, "reset timed out");
 	return -ETIMEDOUT;
@@ -2004,7 +1961,7 @@ static int amb_reset (amb_dev * dev, int diags) {
 
 /********** transfer and start the microcode **********/
 
-static int __init ucode_init (loader_block * lb, amb_dev * dev) {
+static int __devinit ucode_init (loader_block * lb, amb_dev * dev) {
   unsigned int i = 0;
   unsigned int total = 0;
   const u32 * pointer = ucode_data;
@@ -2050,11 +2007,11 @@ static int __init ucode_init (loader_block * lb, amb_dev * dev) {
 
 /********** give adapter parameters **********/
   
-static inline u32 bus_addr(void * addr) {
+static inline __be32 bus_addr(void * addr) {
     return cpu_to_be32 (virt_to_bus (addr));
 }
 
-static int __init amb_talk (amb_dev * dev) {
+static int __devinit amb_talk (amb_dev * dev) {
   adap_talk_block a;
   unsigned char pool;
   unsigned long timeout;
@@ -2086,14 +2043,12 @@ static int __init amb_talk (amb_dev * dev) {
   wr_mem (dev, offsetof(amb_mem, doorbell), virt_to_bus (&a));
   
   // 2.2 second wait (must not touch doorbell during 2 second DMA test)
-  timeout = HZ*22/10;
-  while (timeout)
-    timeout = schedule_timeout (timeout);
+  msleep(2200);
   // give the adapter another half second?
-  timeout = HZ/2;
+  timeout = 500;
   while (rd_plain (dev, offsetof(amb_mem, doorbell)))
     if (timeout) {
-      timeout = schedule_timeout (timeout);
+      timeout = msleep_interruptible(timeout);
     } else {
       PRINTD (DBG_INIT|DBG_ERR, "adapter init timed out");
       return -ETIMEDOUT;
@@ -2103,7 +2058,7 @@ static int __init amb_talk (amb_dev * dev) {
 }
 
 // get microcode version
-static void __init amb_ucode_version (amb_dev * dev) {
+static void __devinit amb_ucode_version (amb_dev * dev) {
   u32 major;
   u32 minor;
   command cmd;
@@ -2118,7 +2073,7 @@ static void __init amb_ucode_version (amb_dev * dev) {
 }
   
 // swap bits within byte to get Ethernet ordering
-u8 bit_swap (u8 byte)
+static u8 bit_swap (u8 byte)
 {
     const u8 swap[] = {
       0x0, 0x8, 0x4, 0xc,
@@ -2130,7 +2085,7 @@ u8 bit_swap (u8 byte)
 }
 
 // get end station address
-static void __init amb_esi (amb_dev * dev, u8 * esi) {
+static void __devinit amb_esi (amb_dev * dev, u8 * esi) {
   u32 lower4;
   u16 upper2;
   command cmd;
@@ -2176,7 +2131,7 @@ static void fixup_plx_window (amb_dev *dev, loader_block *lb)
 	return;
 }
 
-static int __init amb_init (amb_dev * dev)
+static int __devinit amb_init (amb_dev * dev)
 {
   loader_block lb;
   
@@ -2225,6 +2180,7 @@ static void setup_dev(amb_dev *dev, struct pci_dev *pci_dev)
       
       // set up known dev items straight away
       dev->pci_dev = pci_dev; 
+      pci_set_drvdata(pci_dev, dev);
       
       dev->iobase = pci_resource_start (pci_dev, 1);
       dev->irq = pci_dev->irq; 
@@ -2257,17 +2213,12 @@ static void setup_dev(amb_dev *dev, struct pci_dev *pci_dev)
 	spin_lock_init (&dev->rxq[pool].lock);
 }
 
-static int setup_pci_dev(struct pci_dev *pci_dev)
+static void setup_pci_dev(struct pci_dev *pci_dev)
 {
 	unsigned char lat;
-	int ret;
       
 	// enable bus master accesses
 	pci_set_master(pci_dev);
-      
-	ret = pci_enable_device(pci_dev);
-	if (ret < 0)
-		goto out;
 
 	// frobnicate latency (upwards, usually)
 	pci_read_config_byte (pci_dev, PCI_LATENCY_TIMER, &lat);
@@ -2280,28 +2231,38 @@ static int setup_pci_dev(struct pci_dev *pci_dev)
 			lat, pci_lat);
 		pci_write_config_byte(pci_dev, PCI_LATENCY_TIMER, pci_lat);
 	}
-out:
-	return ret;
 }
 
-static int __init do_pci_device(struct pci_dev *pci_dev)
+static int __devinit amb_probe(struct pci_dev *pci_dev, const struct pci_device_id *pci_ent)
 {
 	amb_dev * dev;
 	int err;
+	unsigned int irq;
+      
+	err = pci_enable_device(pci_dev);
+	if (err < 0) {
+		PRINTK (KERN_ERR, "skipped broken (PLX rev 2) card");
+		goto out;
+	}
 
 	// read resources from PCI configuration space
-	u8 irq = pci_dev->irq;
-	u32 * membase = bus_to_virt (pci_resource_start (pci_dev, 0));
-	u32 iobase = pci_resource_start (pci_dev, 1);
+	irq = pci_dev->irq;
+
+	if (pci_dev->device == PCI_DEVICE_ID_MADGE_AMBASSADOR_BAD) {
+		PRINTK (KERN_ERR, "skipped broken (PLX rev 2) card");
+		err = -EINVAL;
+		goto out_disable;
+	}
 
 	PRINTD (DBG_INFO, "found Madge ATM adapter (amb) at"
-		" IO %x, IRQ %u, MEM %p", iobase, irq, membase);
+		" IO %lx, IRQ %u, MEM %p", pci_resource_start(pci_dev, 1),
+		irq, bus_to_virt(pci_resource_start(pci_dev, 0)));
 
 	// check IO region
 	err = pci_request_region(pci_dev, 1, DEV_LABEL);
 	if (err < 0) {
 		PRINTK (KERN_ERR, "IO range already in use!");
-		goto out;
+		goto out_disable;
 	}
 
 	dev = kmalloc (sizeof(amb_dev), GFP_KERNEL);
@@ -2319,15 +2280,13 @@ static int __init do_pci_device(struct pci_dev *pci_dev)
 		goto out_free;
 	}
 
-	err = setup_pci_dev(pci_dev);
-	if (err < 0)
-		goto out_reset;
+	setup_pci_dev(pci_dev);
 
 	// grab (but share) IRQ and install handler
 	err = request_irq(irq, interrupt_handler, SA_SHIRQ, DEV_LABEL, dev);
 	if (err < 0) {
 		PRINTK (KERN_ERR, "request IRQ failed!");
-		goto out_disable;
+		goto out_reset;
 	}
 
 	dev->atm_dev = atm_dev_register (DEV_LABEL, &amb_ops, -1, NULL);
@@ -2348,9 +2307,10 @@ static int __init do_pci_device(struct pci_dev *pci_dev)
 	dev->atm_dev->ci_range.vpi_bits = NUM_VPI_BITS;
 	dev->atm_dev->ci_range.vci_bits = NUM_VCI_BITS;
 
-	// update linked list
-	dev->prev = amb_devs;
-	amb_devs = dev;
+	init_timer(&dev->housekeeping);
+	dev->housekeeping.function = do_housekeeping;
+	dev->housekeeping.data = (unsigned long) dev;
+	mod_timer(&dev->housekeeping, jiffies);
 
 	// enable host interrupts
 	interrupts_on (dev);
@@ -2360,40 +2320,36 @@ out:
 
 out_free_irq:
 	free_irq(irq, dev);
-out_disable:
-	pci_disable_device(pci_dev);
 out_reset:
 	amb_reset(dev, 0);
 out_free:
 	kfree(dev);
 out_release:
 	pci_release_region(pci_dev, 1);
+out_disable:
+	pci_disable_device(pci_dev);
 	goto out;
 }
 
-static int __init amb_probe (void) {
-  struct pci_dev * pci_dev;
-  int devs;
-  
-  PRINTD (DBG_FLOW, "amb_probe");
-  
-  devs = 0;
-  pci_dev = NULL;
-  while ((pci_dev = pci_find_device
-          (PCI_VENDOR_ID_MADGE, PCI_DEVICE_ID_MADGE_AMBASSADOR, pci_dev)
-          )) {
-	if (do_pci_device(pci_dev) == 0)
-		devs++;
-  }
 
-  
-  pci_dev = NULL;
-  while ((pci_dev = pci_find_device
-          (PCI_VENDOR_ID_MADGE, PCI_DEVICE_ID_MADGE_AMBASSADOR_BAD, pci_dev)
-          ))
-    PRINTK (KERN_ERR, "skipped broken (PLX rev 2) card");
-  
-  return devs;
+static void __devexit amb_remove_one(struct pci_dev *pci_dev)
+{
+	struct amb_dev *dev;
+
+	dev = pci_get_drvdata(pci_dev);
+
+	PRINTD(DBG_INFO|DBG_INIT, "closing %p (atm_dev = %p)", dev, dev->atm_dev);
+	del_timer_sync(&dev->housekeeping);
+	// the drain should not be necessary
+	drain_rx_pools(dev);
+	interrupts_off(dev);
+	amb_reset(dev, 0);
+	free_irq(dev->irq, dev);
+	pci_disable_device(pci_dev);
+	destroy_queues(dev);
+	atm_dev_deregister(dev->atm_dev);
+	kfree(dev);
+	pci_release_region(pci_dev, 1);
 }
 
 static void __init amb_check_args (void) {
@@ -2441,13 +2397,13 @@ static void __init amb_check_args (void) {
 MODULE_AUTHOR(maintainer_string);
 MODULE_DESCRIPTION(description_string);
 MODULE_LICENSE("GPL");
-MODULE_PARM(debug,   "h");
-MODULE_PARM(cmds,    "i");
-MODULE_PARM(txs,     "i");
-MODULE_PARM(rxs,     __MODULE_STRING(NUM_RX_POOLS) "i");
-MODULE_PARM(rxs_bs,  __MODULE_STRING(NUM_RX_POOLS) "i");
-MODULE_PARM(rx_lats, "i");
-MODULE_PARM(pci_lat, "b");
+module_param(debug,   ushort, 0644);
+module_param(cmds,    uint, 0);
+module_param(txs,     uint, 0);
+module_param_array(rxs,     uint, NULL, 0);
+module_param_array(rxs_bs,  uint, NULL, 0);
+module_param(rx_lats, uint, 0);
+module_param(pci_lat, byte, 0);
 MODULE_PARM_DESC(debug,   "debug bitmap, see .h file");
 MODULE_PARM_DESC(cmds,    "number of command queue entries");
 MODULE_PARM_DESC(txs,     "number of TX queue entries");
@@ -2458,9 +2414,25 @@ MODULE_PARM_DESC(pci_lat, "PCI latency in bus cycles");
 
 /********** module entry **********/
 
-static int __init amb_module_init (void) {
-  int devs;
-  
+static struct pci_device_id amb_pci_tbl[] = {
+	{ PCI_VENDOR_ID_MADGE, PCI_DEVICE_ID_MADGE_AMBASSADOR, PCI_ANY_ID, PCI_ANY_ID,
+	  0, 0, 0 },
+	{ PCI_VENDOR_ID_MADGE, PCI_DEVICE_ID_MADGE_AMBASSADOR_BAD, PCI_ANY_ID, PCI_ANY_ID,
+	  0, 0, 0 },
+	{ 0, }
+};
+
+MODULE_DEVICE_TABLE(pci, amb_pci_tbl);
+
+static struct pci_driver amb_driver = {
+	.name =		"amb",
+	.probe =	amb_probe,
+	.remove =	__devexit_p(amb_remove_one),
+	.id_table =	amb_pci_tbl,
+};
+
+static int __init amb_module_init (void)
+{
   PRINTD (DBG_FLOW|DBG_INIT, "init_module");
   
   // sanity check - cast needed as printk does not support %Zu
@@ -2475,49 +2447,16 @@ static int __init amb_module_init (void) {
   amb_check_args();
   
   // get the juice
-  devs = amb_probe();
-  
-  if (devs) {
-    mod_timer (&housekeeping, jiffies);
-  } else {
-    PRINTK (KERN_INFO, "no (usable) adapters found");
-  }
-  
-  return devs ? 0 : -ENODEV;
+  return pci_register_driver(&amb_driver);
 }
 
 /********** module exit **********/
 
-static void __exit amb_module_exit (void) {
-  amb_dev * dev;
-  
+static void __exit amb_module_exit (void)
+{
   PRINTD (DBG_FLOW|DBG_INIT, "cleanup_module");
   
-  // paranoia
-  housekeeping.data = 0;
-  del_timer_sync(&housekeeping);
-  
-  while (amb_devs) {
-    struct pci_dev *pdev;
-
-    dev = amb_devs;
-    pdev = dev->pci_dev;
-    amb_devs = dev->prev;
-    
-    PRINTD (DBG_INFO|DBG_INIT, "closing %p (atm_dev = %p)", dev, dev->atm_dev);
-    // the drain should not be necessary
-    drain_rx_pools (dev);
-    interrupts_off (dev);
-    amb_reset (dev, 0);
-    free_irq (dev->irq, dev);
-    pci_disable_device (pdev);
-    destroy_queues (dev);
-    atm_dev_deregister (dev->atm_dev);
-    kfree (dev);
-    pci_release_region (pdev, 1);
-  }
-  
-  return;
+  return pci_unregister_driver(&amb_driver);
 }
 
 module_init(amb_module_init);

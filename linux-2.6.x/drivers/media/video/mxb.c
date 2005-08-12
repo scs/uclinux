@@ -1,5 +1,5 @@
 /*
-    mxb.c - v4l2 driver for the Multimedia eXtension Board
+    mxb - v4l2 driver for the Multimedia eXtension Board
     
     Copyright (C) 1998-2003 Michael Hunold <michael@mihu.de>
 
@@ -43,12 +43,12 @@ static int mxb_num = 0;
    in verden (lower saxony, germany) 4148 is a
    channel called "phoenix" */
 static int freq = 4148;
-MODULE_PARM(freq,"i");
+module_param(freq, int, 0644);
 MODULE_PARM_DESC(freq, "initial frequency the tuner will be tuned to while setup");
 
 static int debug = 0;
-MODULE_PARM(debug,"i");
-MODULE_PARM_DESC(debug, "debug verbosity");
+module_param(debug, int, 0644);
+MODULE_PARM_DESC(debug, "Turn on/off device debugging (default:off).");
 
 #define MXB_INPUTS 4
 enum { TUNER, AUX1, AUX3, AUX3_YC };
@@ -128,8 +128,8 @@ static struct saa7146_extension_ioctls ioctls[] = {
 
 struct mxb
 {
-	struct video_device	video_dev;
-	struct video_device	vbi_dev;
+	struct video_device	*video_dev;
+	struct video_device	*vbi_dev;
 
 	struct i2c_adapter	i2c_adapter;	
 
@@ -183,7 +183,12 @@ static int mxb_probe(struct saa7146_dev* dev)
 	}
 	memset(mxb, 0x0, sizeof(struct mxb));	
 
-	saa7146_i2c_adapter_prepare(dev, &mxb->i2c_adapter, I2C_CLASS_TV_ANALOG, SAA7146_I2C_BUS_BIT_RATE_480);
+	mxb->i2c_adapter = (struct i2c_adapter) {
+		.class = I2C_CLASS_TV_ANALOG,
+		.name = "mxb",
+	};
+
+	saa7146_i2c_adapter_prepare(dev, &mxb->i2c_adapter, SAA7146_I2C_BUS_BIT_RATE_480);
 	if(i2c_add_adapter(&mxb->i2c_adapter) < 0) {
 		DEB_S(("cannot register i2c-device. skipping.\n"));
 		kfree(mxb);
@@ -726,7 +731,7 @@ static int mxb_ioctl(struct saa7146_fh *fh, unsigned int cmd, void *arg)
 		t->signal = 0xffff;
 		t->afc = 0;		
 
-		byte = mxb->tda9840->driver->command(mxb->tda9840,TDA9840_DETECT, NULL);
+		mxb->tda9840->driver->command(mxb->tda9840,TDA9840_DETECT, &byte);
 		t->audmode = mxb->cur_mode;
 		
 		if( byte < 0 ) {
@@ -1007,7 +1012,7 @@ static struct saa7146_extension extension = {
 	.irq_func	= NULL,
 };	
 
-int __init mxb_init_module(void) 
+static int __init mxb_init_module(void)
 {
 	if( 0 != saa7146_register_extension(&extension)) {
 		DEB_S(("failed to register extension.\n"));
@@ -1017,7 +1022,7 @@ int __init mxb_init_module(void)
 	return 0;
 }
 
-void __exit mxb_cleanup_module(void) 
+static void __exit mxb_cleanup_module(void)
 {
 	saa7146_unregister_extension(&extension);
 }

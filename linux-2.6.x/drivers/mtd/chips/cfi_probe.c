@@ -15,6 +15,7 @@
 #include <linux/slab.h>
 #include <linux/interrupt.h>
 
+#include <linux/mtd/xip.h>
 #include <linux/mtd/map.h>
 #include <linux/mtd/cfi.h>
 #include <linux/mtd/gen_probe.h>
@@ -31,40 +32,75 @@ static int cfi_chip_setup(struct map_info *map, struct cfi_private *cfi);
 
 struct mtd_info *cfi_probe(struct map_info *map);
 
+#ifdef CONFIG_MTD_XIP
+
+/* only needed for short periods, so this is rather simple */
+#define xip_disable()	local_irq_disable()
+
+#define xip_allowed(base, map) \
+do { \
+	(void) map_read(map, base); \
+	asm volatile (".rep 8; nop; .endr"); \
+	local_irq_enable(); \
+} while (0)
+
+#define xip_enable(base, map, cfi) \
+do { \
+	cfi_send_gen_cmd(0xF0, 0, base, map, cfi, cfi->device_type, NULL); \
+	cfi_send_gen_cmd(0xFF, 0, base, map, cfi, cfi->device_type, NULL); \
+	xip_allowed(base, map); \
+} while (0)
+
+#define xip_disable_qry(base, map, cfi) \
+do { \
+	xip_disable(); \
+	cfi_send_gen_cmd(0xF0, 0, base, map, cfi, cfi->device_type, NULL); \
+	cfi_send_gen_cmd(0xFF, 0, base, map, cfi, cfi->device_type, NULL); \
+	cfi_send_gen_cmd(0x98, 0x55, base, map, cfi, cfi->device_type, NULL); \
+} while (0)
+
+#else
+
+#define xip_disable()			do { } while (0)
+#define xip_allowed(base, map)		do { } while (0)
+#define xip_enable(base, map, cfi)	do { } while (0)
+#define xip_disable_qry(base, map, cfi) do { } while (0)
+
+#endif
+
 /* check for QRY.
    in: interleave,type,mode
    ret: table index, <0 for error
  */
-static int qry_present(struct map_info *map, __u32 base,
+static int __xipram qry_present(struct map_info *map, __u32 base,
 				struct cfi_private *cfi)
 {
 	int osf = cfi->interleave * cfi->device_type;	// scale factor
-	map_word val;
-	map_word qry;
+	map_word val[3];
+	map_word qry[3];
 
-	qry =  cfi_build_cmd('Q', map, cfi);
-	val = map_read(map, base + osf*0x10);
+	qry[0] = cfi_build_cmd('Q', map, cfi);
+	qry[1] = cfi_build_cmd('R', map, cfi);
+	qry[2] = cfi_build_cmd('Y', map, cfi);
 
-	if (!map_word_equal(map, qry, val))
+	val[0] = map_read(map, base + osf*0x10);
+	val[1] = map_read(map, base + osf*0x11);
+	val[2] = map_read(map, base + osf*0x12);
+
+	if (!map_word_equal(map, qry[0], val[0]))
 		return 0;
 
-	qry =  cfi_build_cmd('R', map, cfi);
-	val = map_read(map, base + osf*0x11);
-
-	if (!map_word_equal(map, qry, val))
+	if (!map_word_equal(map, qry[1], val[1]))
 		return 0;
 
-	qry =  cfi_build_cmd('Y', map, cfi);
-	val = map_read(map, base + osf*0x12);
-
-	if (!map_word_equal(map, qry, val))
+	if (!map_word_equal(map, qry[2], val[2]))
 		return 0;
 
-	return 1; 	// nothing found
+	return 1; 	// "QRY" found
 }
 
-static int cfi_probe_chip(struct map_info *map, __u32 base,
-			  unsigned long *chip_map, struct cfi_private *cfi)
+static int __xipram cfi_probe_chip(struct map_info *map, __u32 base,
+				   unsigned long *chip_map, struct cfi_private *cfi)
 {
 	int i;
 	
@@ -80,12 +116,16 @@ static int cfi_probe_chip(struct map_info *map, __u32 base,
 			(unsigned long)base + 0x55, map->size -1);
 		return 0;
 	}
+
+	xip_disable();
 	cfi_send_gen_cmd(0xF0, 0, base, map, cfi, cfi->device_type, NULL);
 	cfi_send_gen_cmd(0xFF, 0, base, map, cfi, cfi->device_type, NULL);
 	cfi_send_gen_cmd(0x98, 0x55, base, map, cfi, cfi->device_type, NULL);
 
-	if (!qry_present(map,base,cfi))
+	if (!qry_present(map,base,cfi)) {
+		xip_enable(base, map, cfi);
 		return 0;
+	}
 
 	if (!cfi->numchips) {
 		/* This is the first time we're called. Set up the CFI 
@@ -111,6 +151,7 @@ static int cfi_probe_chip(struct map_info *map, __u32 base,
 
 			/* If the QRY marker goes away, it's an alias */
 			if (!qry_present(map, start, cfi)) {
+				xip_allowed(base, map);
 				printk(KERN_DEBUG "%s: Found an alias at 0x%x for the chip at 0x%lx\n",
 				       map->name, base, start);
 				return 0;
@@ -123,6 +164,7 @@ static int cfi_probe_chip(struct map_info *map, __u32 base,
 			cfi_send_gen_cmd(0xFF, 0, start, map, cfi, cfi->device_type, NULL);
 			
 			if (qry_present(map, base, cfi)) {
+				xip_allowed(base, map);
 				printk(KERN_DEBUG "%s: Found an alias at 0x%x for the chip at 0x%lx\n",
 				       map->name, base, start);
 				return 0;
@@ -138,6 +180,7 @@ static int cfi_probe_chip(struct map_info *map, __u32 base,
 	/* Put it back into Read Mode */
 	cfi_send_gen_cmd(0xF0, 0, base, map, cfi, cfi->device_type, NULL);
 	cfi_send_gen_cmd(0xFF, 0, base, map, cfi, cfi->device_type, NULL);
+	xip_allowed(base, map);
 
 	printk(KERN_INFO "%s: Found %d x%d devices at 0x%x in %d-bit bank\n",
 	       map->name, cfi->interleave, cfi->device_type*8, base,
@@ -146,14 +189,15 @@ static int cfi_probe_chip(struct map_info *map, __u32 base,
 	return 1;
 }
 
-static int cfi_chip_setup(struct map_info *map, 
-		   struct cfi_private *cfi)
+static int __xipram cfi_chip_setup(struct map_info *map, 
+				   struct cfi_private *cfi)
 {
 	int ofs_factor = cfi->interleave*cfi->device_type;
 	__u32 base = 0;
 	int num_erase_regions = cfi_read_query(map, base + (0x10 + 28)*ofs_factor);
 	int i;
 
+	xip_enable(base, map, cfi);
 #ifdef DEBUG_CFI
 	printk("Number of erase regions: %d\n", num_erase_regions);
 #endif
@@ -171,13 +215,33 @@ static int cfi_chip_setup(struct map_info *map,
 	cfi->cfi_mode = CFI_MODE_CFI;
 	
 	/* Read the CFI info structure */
-	for (i=0; i<(sizeof(struct cfi_ident) + num_erase_regions * 4); i++) {
+	xip_disable_qry(base, map, cfi);
+	for (i=0; i<(sizeof(struct cfi_ident) + num_erase_regions * 4); i++)
 		((unsigned char *)cfi->cfiq)[i] = cfi_read_query(map,base + (0x10 + i)*ofs_factor);
-	}
-	
+
+	/* Note we put the device back into Read Mode BEFORE going into Auto
+	 * Select Mode, as some devices support nesting of modes, others
+	 * don't. This way should always work.
+	 * On cmdset 0001 the writes of 0xaa and 0x55 are not needed, and
+	 * so should be treated as nops or illegal (and so put the device
+	 * back into Read Mode, which is a nop in this case).
+	 */
+	cfi_send_gen_cmd(0xf0,     0, base, map, cfi, cfi->device_type, NULL);
+	cfi_send_gen_cmd(0xaa, 0x555, base, map, cfi, cfi->device_type, NULL);
+	cfi_send_gen_cmd(0x55, 0x2aa, base, map, cfi, cfi->device_type, NULL);
+	cfi_send_gen_cmd(0x90, 0x555, base, map, cfi, cfi->device_type, NULL);
+	cfi->mfr = cfi_read_query(map, base);
+	cfi->id = cfi_read_query(map, base + ofs_factor);    
+
+	/* Put it back into Read Mode */
+	cfi_send_gen_cmd(0xF0, 0, base, map, cfi, cfi->device_type, NULL);
+	/* ... even if it's an Intel chip */
+	cfi_send_gen_cmd(0xFF, 0, base, map, cfi, cfi->device_type, NULL);
+	xip_allowed(base, map);
+
 	/* Do any necessary byteswapping */
 	cfi->cfiq->P_ID = le16_to_cpu(cfi->cfiq->P_ID);
-	
+
 	cfi->cfiq->P_ADR = le16_to_cpu(cfi->cfiq->P_ADR);
 	cfi->cfiq->A_ID = le16_to_cpu(cfi->cfiq->A_ID);
 	cfi->cfiq->A_ADR = le16_to_cpu(cfi->cfiq->A_ADR);
@@ -198,25 +262,6 @@ static int cfi_chip_setup(struct map_info *map,
 		       (cfi->cfiq->EraseRegionInfo[i] & 0xffff) + 1);
 #endif
 	}
-
-	/* Note we put the device back into Read Mode BEFORE going into Auto
-	 * Select Mode, as some devices support nesting of modes, others
-	 * don't. This way should always work.
-	 * On cmdset 0001 the writes of 0xaa and 0x55 are not needed, and
-	 * so should be treated as nops or illegal (and so put the device
-	 * back into Read Mode, which is a nop in this case).
-	 */
-	cfi_send_gen_cmd(0xf0,     0, base, map, cfi, cfi->device_type, NULL);
-	cfi_send_gen_cmd(0xaa, 0x555, base, map, cfi, cfi->device_type, NULL);
-	cfi_send_gen_cmd(0x55, 0x2aa, base, map, cfi, cfi->device_type, NULL);
-	cfi_send_gen_cmd(0x90, 0x555, base, map, cfi, cfi->device_type, NULL);
-	cfi->mfr = cfi_read_query(map, base);
-	cfi->id = cfi_read_query(map, base + ofs_factor);    
-
-	/* Put it back into Read Mode */
-	cfi_send_gen_cmd(0xF0, 0, base, map, cfi, cfi->device_type, NULL);
-	/* ... even if it's an Intel chip */
-	cfi_send_gen_cmd(0xFF, 0, base, map, cfi, cfi->device_type, NULL);
 
 	printk(KERN_INFO "%s: Found %d x%d devices at 0x%x in %d-bit bank\n",
 	       map->name, cfi->interleave, cfi->device_type*8, base,
@@ -243,12 +288,27 @@ static char *vendorname(__u16 vendor)
 		
 	case P_ID_AMD_EXT:
 		return "AMD/Fujitsu Extended";
+
+	case P_ID_WINBOND:
+		return "Winbond Standard";
 		
+	case P_ID_ST_ADV:
+		return "ST Advanced";
+
 	case P_ID_MITSUBISHI_STD:
 		return "Mitsubishi Standard";
 		
 	case P_ID_MITSUBISHI_EXT:
 		return "Mitsubishi Extended";
+
+	case P_ID_SST_PAGE:
+		return "SST Page Write";
+
+	case P_ID_INTEL_PERFORMANCE:
+		return "Intel Performance Code";
+		
+	case P_ID_INTEL_DATA:
+		return "Intel Data";
 		
 	case P_ID_RESERVED:
 		return "Not Allowed / Reserved for Future Use";
@@ -325,6 +385,10 @@ static void print_cfi_ident(struct cfi_ident *cfip)
 		
 	case 3:
 		printk("  - x32-only asynchronous interface\n");
+		break;
+		
+	case 4:
+		printk("  - supports x16 and x32 via Word# with asynchronous interface\n");
 		break;
 		
 	case 65535:

@@ -8,7 +8,7 @@
  *	(C) Copyright 2000 Linuxcare, Inc.
  * 	(C) Copyright 2000 Linuxcare Canada, Inc.
  *	(C) Copyright 2000 Martin K. Petersen <mkp@linuxcare.com>
- * 	(C) Copyright 2000 Alex deVries <alex@linuxcare.com>
+ * 	(C) Copyright 2000 Alex deVries <alex@onefishtwo.ca>
  *      (C) Copyright 2001 John Marvin <jsm fc hp com>
  *      (C) Copyright 2003 Grant Grundler <grundler parisc-linux org>
  *
@@ -69,14 +69,10 @@
 #include <linux/tty.h>
 #include <linux/serial_core.h>
 #include <linux/delay.h>
-#include <linux/ide.h>
 
 #include <asm/io.h>
 #include <asm/hardware.h>
-#include <asm/irq.h>
 #include <asm/superio.h>
-
-#define SUPERIO_IDE_MAX_RETRIES 25
 
 static struct superio_device sio_dev;
 
@@ -90,9 +86,8 @@ static struct superio_device sio_dev;
 #endif
 
 static irqreturn_t
-superio_interrupt(int irq, void *devp, struct pt_regs *regs)
+superio_interrupt(int parent_irq, void *devp, struct pt_regs *regs)
 {
-	struct superio_device *sio = (struct superio_device *)devp;
 	u8 results;
 	u8 local_irq;
 
@@ -101,21 +96,24 @@ superio_interrupt(int irq, void *devp, struct pt_regs *regs)
 
 	results = inb(IC_PIC1+0);
 
+	/*
+	 * Bit    7:	1 = active Interrupt; 0 = no Interrupt pending
+	 * Bits 6-3:	zero
+	 * Bits 2-0:	highest priority, active requesting interrupt ID (0-7)
+	 */
 	if ((results & 0x80) == 0) {
-#ifndef CONFIG_SMP
-		/* HACK: need to investigate why this happens if SMP enabled */
-		BUG(); /* This shouldn't happen */
-#endif
-		return IRQ_HANDLED;
+		/* I suspect "spurious" interrupts are from unmasking an IRQ.
+		 * We don't know if an interrupt was/is pending and thus
+		 * just call the handler for that IRQ as if it were pending.
+		 */
+		return IRQ_NONE;
 	}
 
 	/* Check to see which device is interrupting */
-
 	local_irq = results & 0x0f;
 
 	if (local_irq == 2 || local_irq > 7) {
 		printk(KERN_ERR "SuperIO: slave interrupted!\n");
-		BUG();
 		return IRQ_HANDLED;
 	}
 
@@ -132,12 +130,11 @@ superio_interrupt(int irq, void *devp, struct pt_regs *regs)
 	}
 
 	/* Call the appropriate device's interrupt */
-	do_irq(&sio->irq_region->action[local_irq],
-		sio->irq_region->data.irqbase + local_irq,
-		regs);
+	__do_IRQ(local_irq, regs);
 
-	/* set EOI */
-
+	/* set EOI - forces a new interrupt if a lower priority device
+	 * still needs service.
+	 */
 	outb((OCW2_SEOI|local_irq),IC_PIC1 + 0);
 	return IRQ_HANDLED;
 }
@@ -278,59 +275,53 @@ superio_init(struct superio_device *sio)
 }
 
 
-static void
-superio_disable_irq(void *dev, int local_irq)
+static void superio_disable_irq(unsigned int irq)
 {
 	u8 r8;
 
-	if ((local_irq < 1) || (local_irq == 2) || (local_irq > 7)) {
-	    printk(KERN_ERR "SuperIO: Illegal irq number.\n");
-	    BUG();
-	    return;
+	if ((irq < 1) || (irq == 2) || (irq > 7)) {
+		printk(KERN_ERR "SuperIO: Illegal irq number.\n");
+		BUG();
+		return;
 	}
 
 	/* Mask interrupt */
 
 	r8 = inb(IC_PIC1+1);
-	r8 |= (1 << local_irq);
+	r8 |= (1 << irq);
 	outb (r8,IC_PIC1+1);
 }
 
-static void
-superio_enable_irq(void *dev, int local_irq)
+static void superio_enable_irq(unsigned int irq)
 {
 	u8 r8;
 
-	if ((local_irq < 1) || (local_irq == 2) || (local_irq > 7)) {
-	    printk(KERN_ERR "SuperIO: Illegal irq number (%d).\n", local_irq);
-	    BUG();
-	    return;
+	if ((irq < 1) || (irq == 2) || (irq > 7)) {
+		printk(KERN_ERR "SuperIO: Illegal irq number (%d).\n", irq);
+		BUG();
+		return;
 	}
 
 	/* Unmask interrupt */
 	r8 = inb(IC_PIC1+1);
-	r8 &= ~(1 << local_irq);
+	r8 &= ~(1 << irq);
 	outb (r8,IC_PIC1+1);
 }
 
-
-static void
-superio_mask_irq(void *dev, int local_irq)
+static unsigned int superio_startup_irq(unsigned int irq)
 {
-	BUG();
+	superio_enable_irq(irq);
+	return 0;
 }
 
-static void
-superio_unmask_irq(void *dev, int local_irq)
-{
-	BUG();
-}
-
-static struct irq_region_ops superio_irq_ops = {
-	.disable_irq =	superio_disable_irq,
-	.enable_irq =	superio_enable_irq,
-	.mask_irq =	superio_mask_irq,
-	.unmask_irq =	superio_unmask_irq
+static struct hw_interrupt_type superio_interrupt_type = {
+	.typename =	"SuperIO",
+	.startup =	superio_startup_irq,
+	.shutdown =	superio_disable_irq,
+	.enable =	superio_enable_irq,
+	.disable =	superio_disable_irq,
+	.ack =		no_ack_irq,
+	.end =		no_end_irq,
 };
 
 #ifdef DEBUG_SUPERIO_INIT
@@ -343,7 +334,7 @@ static unsigned short expected_device[3] = {
 
 int superio_fixup_irq(struct pci_dev *pcidev)
 {
-	int local_irq;
+	int local_irq, i;
 
 #ifdef DEBUG_SUPERIO_INIT
 	int fn;
@@ -360,15 +351,8 @@ int superio_fixup_irq(struct pci_dev *pcidev)
 		__builtin_return_address(0));
 #endif
 
-	if (!sio_dev.irq_region) {
-		/* Allocate an irq region for SuperIO devices */
-		sio_dev.irq_region = alloc_irq_region(SUPERIO_NIRQS,
-						&superio_irq_ops,
-						"SuperIO", (void *) &sio_dev);
-		if (!sio_dev.irq_region) {
-			printk(KERN_WARNING "SuperIO: alloc_irq_region failed\n");
-			return -1;
-		}
+	for (i = 0; i < 16; i++) {
+		irq_desc[i].handler = &superio_interrupt_type;
 	}
 
 	/*
@@ -394,7 +378,7 @@ int superio_fixup_irq(struct pci_dev *pcidev)
 		break;
 	}
 
-	return(sio_dev.irq_region->data.irqbase + local_irq);
+	return local_irq;
 }
 
 static struct uart_port serial[] = {
@@ -414,25 +398,13 @@ static struct uart_port serial[] = {
 	}
 };
 
-void __devinit
-superio_serial_init(void)
+static void __devinit superio_serial_init(void)
 {
 #ifdef CONFIG_SERIAL_8250
 	int retval;
-#ifdef CONFIG_SERIAL_8250_CONSOLE
-	extern void serial8250_console_init(void); /* drivers/serial/8250.c */
-#endif        
         
-	if (!sio_dev.irq_region)
-		return; /* superio not present */
-
-	if (!serial) {
-		printk(KERN_WARNING "SuperIO: Could not get memory for serial struct.\n");
-		return;
-	}
-
 	serial[0].iobase = sio_dev.sp1_base;
-	serial[0].irq = sio_dev.irq_region->data.irqbase + SP1_IRQ;
+	serial[0].irq = SP1_IRQ;
 
 	retval = early_serial_setup(&serial[0]);
 	if (retval < 0) {
@@ -440,12 +412,8 @@ superio_serial_init(void)
 		return;
 	}
 
-#ifdef CONFIG_SERIAL_8250_CONSOLE
-	serial8250_console_init();
-#endif
-        
 	serial[1].iobase = sio_dev.sp2_base;
-	serial[1].irq = sio_dev.irq_region->data.irqbase + SP2_IRQ;
+	serial[1].irq = SP2_IRQ;
 	retval = early_serial_setup(&serial[1]);
 
 	if (retval < 0)
@@ -454,13 +422,12 @@ superio_serial_init(void)
 }
 
 
-static void __devinit
-superio_parport_init(void)
+static void __devinit superio_parport_init(void)
 {
 #ifdef CONFIG_PARPORT_PC
 	if (!parport_pc_probe_port(sio_dev.pp_base,
 			0 /*base_hi*/,
-			sio_dev.irq_region->data.irqbase + PAR_IRQ, 
+			PAR_IRQ, 
 			PARPORT_DMA_NONE /* dma */,
 			NULL /*struct pci_dev* */) )
 
@@ -469,12 +436,7 @@ superio_parport_init(void)
 }
 
 
-static u8 superio_ide_inb (unsigned long port);
-static unsigned long superio_ide_status[2];
-static unsigned long superio_ide_select[2];
-static unsigned long superio_ide_dma_status[2];
-
-void superio_fixup_pci(struct pci_dev *pdev)
+static void superio_fixup_pci(struct pci_dev *pdev)
 {
 	u8 prog;
 
@@ -484,57 +446,8 @@ void superio_fixup_pci(struct pci_dev *pdev)
 	pci_read_config_byte(pdev, PCI_CLASS_PROG, &prog);
 	printk("PCI: Enabled native mode for NS87415 (pif=0x%x)\n", prog);
 }
+DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_NS, PCI_DEVICE_ID_NS_87415, superio_fixup_pci);
 
-/* Because of a defect in Super I/O, all reads of the PCI DMA status 
- * registers, IDE status register and the IDE select register need to be 
- * retried
- */
-static u8 superio_ide_inb (unsigned long port)
-{
-	if (port == superio_ide_status[0] ||
-	    port == superio_ide_status[1] ||
-	    port == superio_ide_select[0] ||
-	    port == superio_ide_select[1] ||
-	    port == superio_ide_dma_status[0] ||
-	    port == superio_ide_dma_status[1]) {
-		u8 tmp;
-		int retries = SUPERIO_IDE_MAX_RETRIES;
-
-		/* printk(" [ reading port 0x%x with retry ] ", port); */
-
-		do {
-			tmp = inb(port);
-			if (tmp == 0)
-				udelay(50);
-		} while (tmp == 0 && retries-- > 0);
-
-		return tmp;
-	}
-
-	return inb(port);
-}
-
-void __init superio_ide_init_iops (struct hwif_s *hwif)
-{
-	u32 base, dmabase;
-	u8 tmp;
-	struct pci_dev *pdev = hwif->pci_dev;
-	u8 port = hwif->channel;
-
-	base = pci_resource_start(pdev, port * 2) & ~3;
-	dmabase = pci_resource_start(pdev, 4) & ~3;
-
-	superio_ide_status[port] = base + IDE_STATUS_OFFSET;
-	superio_ide_select[port] = base + IDE_SELECT_OFFSET;
-	superio_ide_dma_status[port] = dmabase + (!port ? 2 : 0xa);
-	
-	/* Clear error/interrupt, enable dma */
-	tmp = superio_ide_inb(superio_ide_dma_status[port]);
-	outb(tmp | 0x66, superio_ide_dma_status[port]);
-
-	/* We need to override inb to workaround a SuperIO errata */
-	hwif->INB = superio_ide_inb;
-}
 
 static int __devinit superio_probe(struct pci_dev *dev, const struct pci_device_id *id)
 {
@@ -582,7 +495,7 @@ static struct pci_driver superio_driver = {
 
 static int __init superio_modinit(void)
 {
-	return pci_module_init(&superio_driver);
+	return pci_register_driver(&superio_driver);
 }
 
 static void __exit superio_exit(void)

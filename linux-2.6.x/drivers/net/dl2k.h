@@ -28,8 +28,8 @@
 #include <linux/init.h>
 #include <linux/crc32.h>
 #include <linux/ethtool.h>
+#include <linux/bitops.h>
 #include <asm/processor.h>	/* Processor type for cache alignment. */
-#include <asm/bitops.h>
 #include <asm/io.h>
 #include <asm/uaccess.h>
 #include <linux/delay.h>
@@ -92,7 +92,7 @@ enum dl2x_offsets {
 	EepromCtrl = 0x4a,
 	ExpromAddr = 0x4c,
 	Exprodata = 0x50,
-	WakeEvent0x51,
+	WakeEvent = 0x51,
 	CountDown = 0x54,
 	IntStatusAck = 0x5a,
 	IntEnable = 0x5c,

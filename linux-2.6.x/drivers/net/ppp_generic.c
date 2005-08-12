@@ -19,7 +19,7 @@
  * PPP driver, written by Michael Callahan and Al Longyear, and
  * subsequently hacked by Paul Mackerras.
  *
- * ==FILEVERSION 20020217==
+ * ==FILEVERSION 20041108==
  */
 
 #include <linux/config.h>
@@ -210,7 +210,7 @@ static atomic_t ppp_unit_count = ATOMIC_INIT(0);
  * and the atomicity of find a channel and updating its file.refcnt
  * field.
  */
-static spinlock_t all_channels_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(all_channels_lock);
 static LIST_HEAD(all_channels);
 static LIST_HEAD(new_channels);
 static int last_channel_index;
@@ -412,6 +412,17 @@ static ssize_t ppp_read(struct file *file, char __user *buf,
 		ret = 0;
 		if (pf->dead)
 			break;
+		if (pf->kind == INTERFACE) {
+			/*
+			 * Return 0 (EOF) on an interface that has no
+			 * channels connected, unless it is looping
+			 * network traffic (demand mode).
+			 */
+			struct ppp *ppp = PF_TO_PPP(pf);
+			if (ppp->n_channels == 0
+			    && (ppp->flags & SC_LOOP_TRAFFIC) == 0)
+				break;
+		}
 		ret = -EAGAIN;
 		if (file->f_flags & O_NONBLOCK)
 			break;
@@ -491,6 +502,14 @@ static unsigned int ppp_poll(struct file *file, poll_table *wait)
 		mask |= POLLIN | POLLRDNORM;
 	if (pf->dead)
 		mask |= POLLHUP;
+	else if (pf->kind == INTERFACE) {
+		/* see comment in ppp_read */
+		struct ppp *ppp = PF_TO_PPP(pf);
+		if (ppp->n_channels == 0
+		    && (ppp->flags & SC_LOOP_TRAFFIC) == 0)
+			mask |= POLLIN | POLLRDNORM;
+	}
+
 	return mask;
 }
 
@@ -1595,6 +1614,7 @@ ppp_receive_nonmp_frame(struct ppp *ppp, struct sk_buff *skb)
 			skb->dev = ppp->dev;
 			skb->protocol = htons(npindex_to_ethertype[npi]);
 			skb->mac.raw = skb->data;
+			skb->input_dev = ppp->dev;
 			netif_rx(skb);
 			ppp->dev->last_rx = jiffies;
 		}
@@ -1919,7 +1939,7 @@ ppp_register_channel(struct ppp_channel *chan)
 #endif /* CONFIG_PPP_MULTILINK */
 	init_rwsem(&pch->chan_sem);
 	spin_lock_init(&pch->downl);
-	pch->upl = RW_LOCK_UNLOCKED;
+	rwlock_init(&pch->upl);
 	spin_lock_bh(&all_channels_lock);
 	pch->file.index = ++last_channel_index;
 	list_add(&pch->list, &new_channels);
@@ -2198,7 +2218,7 @@ ppp_ccp_closed(struct ppp *ppp)
 
 /* List of compressors. */
 static LIST_HEAD(compressor_list);
-static spinlock_t compressor_list_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(compressor_list_lock);
 
 struct compressor_entry {
 	struct list_head list;
@@ -2447,14 +2467,10 @@ static void ppp_destroy_interface(struct ppp *ppp)
 	skb_queue_purge(&ppp->mrq);
 #endif /* CONFIG_PPP_MULTILINK */
 #ifdef CONFIG_PPP_FILTER
-	if (ppp->pass_filter) {
-		kfree(ppp->pass_filter);
-		ppp->pass_filter = NULL;
-	}
-	if (ppp->active_filter) {
-		kfree(ppp->active_filter);
-		ppp->active_filter = NULL;
-	}
+	kfree(ppp->pass_filter);
+	ppp->pass_filter = NULL;
+	kfree(ppp->active_filter);
+	ppp->active_filter = NULL;
 #endif /* CONFIG_PPP_FILTER */
 
 	kfree(ppp);
@@ -2558,7 +2574,8 @@ ppp_disconnect_channel(struct channel *pch)
 		/* remove it from the ppp unit's list */
 		ppp_lock(ppp);
 		list_del(&pch->clist);
-		--ppp->n_channels;
+		if (--ppp->n_channels == 0)
+			wake_up_interruptible(&ppp->file.rwait);
 		ppp_unlock(ppp);
 		if (atomic_dec_and_test(&ppp->file.refcnt))
 			ppp_destroy_interface(ppp);
@@ -2720,8 +2737,6 @@ EXPORT_SYMBOL(ppp_input_error);
 EXPORT_SYMBOL(ppp_output_wakeup);
 EXPORT_SYMBOL(ppp_register_compressor);
 EXPORT_SYMBOL(ppp_unregister_compressor);
-EXPORT_SYMBOL(all_ppp_units); /* for debugging */
-EXPORT_SYMBOL(all_channels); /* for debugging */
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_CHARDEV_MAJOR(PPP_MAJOR);
 MODULE_ALIAS("/dev/ppp");

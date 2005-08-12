@@ -414,50 +414,22 @@ static struct i2c_adapter piix4_adapter = {
 };
 
 static struct pci_device_id piix4_ids[] = {
-	{
-		.vendor =	PCI_VENDOR_ID_INTEL,
-		.device =	PCI_DEVICE_ID_INTEL_82371AB_3,
-		.subvendor =	PCI_ANY_ID,
-		.subdevice =	PCI_ANY_ID,
-		.driver_data =	3
-	},
-	{
-		.vendor =	PCI_VENDOR_ID_SERVERWORKS,
-		.device =	PCI_DEVICE_ID_SERVERWORKS_OSB4,
-		.subvendor =	PCI_ANY_ID,
-		.subdevice =	PCI_ANY_ID,
-		.driver_data =	0,
-	},
-	{
-		.vendor =	PCI_VENDOR_ID_SERVERWORKS,
-		.device =	PCI_DEVICE_ID_SERVERWORKS_CSB5,
-		.subvendor =	PCI_ANY_ID,
-		.subdevice =	PCI_ANY_ID,
-		.driver_data =	0,
-	},
-	{
-		.vendor =	PCI_VENDOR_ID_SERVERWORKS,
-		.device =	PCI_DEVICE_ID_SERVERWORKS_CSB6,
-		.subvendor =	PCI_ANY_ID,
-		.subdevice =	PCI_ANY_ID,
-		.driver_data =	0,
-	},
-	{
-		.vendor =	PCI_VENDOR_ID_INTEL,
-		.device =	PCI_DEVICE_ID_INTEL_82443MX_3,
-		.subvendor =	PCI_ANY_ID,
-		.subdevice =	PCI_ANY_ID,
-		.driver_data =	3,
-	},
-	{
-		.vendor =	PCI_VENDOR_ID_EFAR,
-		.device =	PCI_DEVICE_ID_EFAR_SLC90E66_3,
-		.subvendor =	PCI_ANY_ID,
-		.subdevice =	PCI_ANY_ID,
-		.driver_data =	0,
-	},
+	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82371AB_3),
+	  .driver_data = 3 },
+	{ PCI_DEVICE(PCI_VENDOR_ID_SERVERWORKS, PCI_DEVICE_ID_SERVERWORKS_OSB4),
+	  .driver_data = 0 },
+	{ PCI_DEVICE(PCI_VENDOR_ID_SERVERWORKS, PCI_DEVICE_ID_SERVERWORKS_CSB5),
+	  .driver_data = 0 },
+	{ PCI_DEVICE(PCI_VENDOR_ID_SERVERWORKS, PCI_DEVICE_ID_SERVERWORKS_CSB6),
+	  .driver_data = 0 },
+	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82443MX_3),
+	  .driver_data = 3 },
+	{ PCI_DEVICE(PCI_VENDOR_ID_EFAR, PCI_DEVICE_ID_EFAR_SLC90E66_3),
+	  .driver_data = 0 },
 	{ 0, }
 };
+
+MODULE_DEVICE_TABLE (pci, piix4_ids);
 
 static int __devinit piix4_probe(struct pci_dev *dev,
 				const struct pci_device_id *id)
@@ -493,7 +465,7 @@ static void __devexit piix4_remove(struct pci_dev *dev)
 }
 
 static struct pci_driver piix4_driver = {
-	.name		= "piix4-smbus",
+	.name		= "piix4_smbus",
 	.id_table	= piix4_ids,
 	.probe		= piix4_probe,
 	.remove		= __devexit_p(piix4_remove),
@@ -501,7 +473,7 @@ static struct pci_driver piix4_driver = {
 
 static int __init i2c_piix4_init(void)
 {
-	return pci_module_init(&piix4_driver);
+	return pci_register_driver(&piix4_driver);
 }
 
 static void __exit i2c_piix4_exit(void)

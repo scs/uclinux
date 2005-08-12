@@ -1,4 +1,6 @@
 /*
+    $Id$
+
     btcx-risc.c
 
     bt848/bt878/cx2388x risc code generator.
@@ -22,6 +24,7 @@
 */
 
 #include <linux/module.h>
+#include <linux/moduleparam.h>
 #include <linux/init.h>
 #include <linux/pci.h>
 #include <linux/interrupt.h>
@@ -36,7 +39,7 @@ MODULE_AUTHOR("Gerd Knorr");
 MODULE_LICENSE("GPL");
 
 static unsigned int debug = 0;
-MODULE_PARM(debug,"i");
+module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug,"debug messages, default is 0 (no)");
 
 /* ---------------------------------------------------------- */
@@ -49,12 +52,13 @@ void btcx_riscmem_free(struct pci_dev *pci,
 {
 	if (NULL == risc->cpu)
 		return;
-	pci_free_consistent(pci, risc->size, risc->cpu, risc->dma);
-	memset(risc,0,sizeof(*risc));
 	if (debug) {
 		memcnt--;
-		printk("btcx: riscmem free [%d]\n",memcnt);
+		printk("btcx: riscmem free [%d] dma=%lx\n",
+		       memcnt, (unsigned long)risc->dma);
 	}
+	pci_free_consistent(pci, risc->size, risc->cpu, risc->dma);
+	memset(risc,0,sizeof(*risc));
 }
 
 int btcx_riscmem_alloc(struct pci_dev *pci,
@@ -75,7 +79,8 @@ int btcx_riscmem_alloc(struct pci_dev *pci,
 		risc->size = size;
 		if (debug) {
 			memcnt++;
-			printk("btcx: riscmem alloc size=%d [%d]\n",size,memcnt);
+			printk("btcx: riscmem alloc [%d] dma=%lx cpu=%p size=%d\n",
+			       memcnt, (unsigned long)dma, cpu, size);
 		}
 	}
 	memset(risc->cpu,0,risc->size);
@@ -187,7 +192,7 @@ btcx_calc_skips(int line, int width, unsigned int *maxy,
 {
 	unsigned int clip,skip;
 	int end,maxline;
-	
+
 	skip=0;
 	maxline = 9999;
 	for (clip = 0; clip < nclips; clip++) {
@@ -197,7 +202,7 @@ btcx_calc_skips(int line, int width, unsigned int *maxy,
 			continue;
 		if (clips[clip].c.left > (signed)width)
 			break;
-		
+
 		/* vertical range */
 		if (line > clips[clip].c.top+clips[clip].c.height-1)
 			continue;

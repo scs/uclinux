@@ -7,6 +7,8 @@
  * Read this ForeRunner's MAC address from eprom/eeprom
  */
 
+typedef void __iomem *virt_addr_t;
+
 #define CYCLE_DELAY 5
 
 /* This was the original definition
@@ -35,6 +37,7 @@
 #define SI_LOW		0x0000		/* Serial input data low */
 
 /* Read Status Register = 0000 0101b */
+#if 0
 static u_int32_t rdsrtab[] =
 {
     CS_HIGH | CLK_HIGH, 
@@ -55,6 +58,7 @@ static u_int32_t rdsrtab[] =
     CLK_LOW | SI_HIGH, 
     CLK_HIGH | SI_HIGH   /* 1 */
 };
+#endif  /*  0  */
 
 
 /* Read from EEPROM = 0000 0011b */
@@ -117,7 +121,7 @@ static u_int32_t clocktab[] =
  * eeprom, then pull the result from bit 16 of the NicSTaR's General Purpose 
  * register.  
  */
-
+#if 0
 u_int32_t
 nicstar_read_eprom_status( virt_addr_t base )
 {
@@ -153,6 +157,7 @@ nicstar_read_eprom_status( virt_addr_t base )
    osp_MicroDelay( CYCLE_DELAY );
    return rbyte;
 }
+#endif  /*  0  */
 
 
 /*
@@ -162,7 +167,7 @@ nicstar_read_eprom_status( virt_addr_t base )
  */
  
 static u_int8_t 
-read_eprom_byte(u_int32_t base, u_int8_t offset)
+read_eprom_byte(virt_addr_t base, u_int8_t offset)
 {
    u_int32_t val = 0;
    int i,j=0;
@@ -210,7 +215,7 @@ read_eprom_byte(u_int32_t base, u_int8_t offset)
 }
 
 
-void
+static void
 nicstar_init_eprom( virt_addr_t base )
 {
     u_int32_t val;
@@ -243,7 +248,7 @@ nicstar_init_eprom( virt_addr_t base )
  * above.
  */ 
 
-void
+static void
 nicstar_read_eprom(
     virt_addr_t	base,
     u_int8_t	prom_offset,

@@ -49,10 +49,13 @@
 #include <linux/spinlock.h>
 #include <linux/ioport.h>
 #include <linux/init.h>
+#include <linux/smp_lock.h>
 #include <video/vga.h>
 #include <asm/io.h>
 
-static spinlock_t vga_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(vga_lock);
+static int cursor_size_lastfrom;
+static int cursor_size_lastto;
 static struct vgastate state;
 
 #define BLANK 0x0020
@@ -334,14 +337,16 @@ static void vgacon_init(struct vc_data *c, int init)
 	c->vc_scan_lines = vga_scan_lines;
 	c->vc_font.height = vga_video_font_height;
 	c->vc_complement_mask = 0x7700;
+	if (vga_512_chars)
+		c->vc_hi_font_mask = 0x0800;
 	p = *c->vc_uni_pagedir_loc;
 	if (c->vc_uni_pagedir_loc == &c->vc_uni_pagedir ||
 	    !--c->vc_uni_pagedir_loc[1])
-		con_free_unimap(c->vc_num);
+		con_free_unimap(c);
 	c->vc_uni_pagedir_loc = vgacon_uni_pagedir;
 	vgacon_uni_pagedir[1]++;
 	if (!vgacon_uni_pagedir[0] && p)
-		con_set_default_unimap(c->vc_num);
+		con_set_default_unimap(c);
 }
 
 static inline void vga_set_mem_top(struct vc_data *c)
@@ -355,10 +360,10 @@ static void vgacon_deinit(struct vc_data *c)
 	if (!--vgacon_uni_pagedir[1]) {
 		c->vc_visible_origin = vga_vram_base;
 		vga_set_mem_top(c);
-		con_free_unimap(c->vc_num);
+		con_free_unimap(c);
 	}
 	c->vc_uni_pagedir_loc = &c->vc_uni_pagedir;
-	con_set_default_unimap(c->vc_num);
+	con_set_default_unimap(c);
 }
 
 static u8 vgacon_build_attr(struct vc_data *c, u8 color, u8 intensity,
@@ -408,17 +413,16 @@ static void vgacon_set_cursor_size(int xpos, int from, int to)
 {
 	unsigned long flags;
 	int curs, cure;
-	static int lastfrom, lastto;
 
 #ifdef TRIDENT_GLITCH
 	if (xpos < 16)
 		from--, to--;
 #endif
 
-	if ((from == lastfrom) && (to == lastto))
+	if ((from == cursor_size_lastfrom) && (to == cursor_size_lastto))
 		return;
-	lastfrom = from;
-	lastto = to;
+	cursor_size_lastfrom = from;
+	cursor_size_lastto = to;
 
 	spin_lock_irqsave(&vga_lock, flags);
 	outb_p(0x0a, vga_video_port_reg);	/* Cursor start */
@@ -763,6 +767,7 @@ static int vgacon_do_font_op(struct vgastate *state,char *arg,int set,int ch512)
 		charmap += 4 * cmapsz;
 #endif
 
+	unlock_kernel();
 	spin_lock_irq(&vga_lock);
 	/* First, the Sequencer */
 	vga_wseq(state->vgabase, VGA_SEQ_RESET, 0x1);
@@ -848,6 +853,7 @@ static int vgacon_do_font_op(struct vgastate *state,char *arg,int set,int ch512)
 		vga_wattr(state->vgabase, VGA_AR_ENABLE_DISPLAY, 0);	
 	}
 	spin_unlock_irq(&vga_lock);
+	lock_kernel();
 	return 0;
 }
 
@@ -858,11 +864,6 @@ static int vgacon_adjust_height(struct vc_data *vc, unsigned fontheight)
 {
 	unsigned char ovr, vde, fsr;
 	int rows, maxscan, i;
-
-	if (fontheight == vc->vc_font.height)
-		return 0;
-
-	vc->vc_font.height = fontheight;
 
 	rows = vc->vc_scan_lines / fontheight;	/* Number of video rows we end up with */
 	maxscan = rows * fontheight - 1;	/* Scan lines to actually display-1 */
@@ -901,8 +902,16 @@ static int vgacon_adjust_height(struct vc_data *vc, unsigned fontheight)
 	for (i = 0; i < MAX_NR_CONSOLES; i++) {
 		struct vc_data *c = vc_cons[i].d;
 
-		if (c && c->vc_sw == &vga_con)
-			vc_resize(c->vc_num, 0, rows);	/* Adjust console size */
+		if (c && c->vc_sw == &vga_con) {
+			if (CON_IS_VISIBLE(c)) {
+			        /* void size to cause regs to be rewritten */
+				cursor_size_lastfrom = 0;
+				cursor_size_lastto = 0;
+				c->vc_sw->con_cursor(c, CM_DRAW);
+			}
+			c->vc_font.height = fontheight;
+			vc_resize(c, 0, rows);	/* Adjust console size */
+		}
 	}
 	return 0;
 }

@@ -382,7 +382,7 @@ done:
 /*====================================================================*/
 /* Init code */
 
-int __init init_mtd(void)
+static int __init init_mtd(void)
 {
 #ifdef CONFIG_PROC_FS
 	if ((proc_mtd = create_proc_entry( "mtd", 0, NULL )))

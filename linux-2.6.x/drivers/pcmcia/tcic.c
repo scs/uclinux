@@ -45,9 +45,9 @@
 #include <linux/delay.h>
 #include <linux/workqueue.h>
 #include <linux/device.h>
+#include <linux/bitops.h>
 
 #include <asm/io.h>
-#include <asm/bitops.h>
 #include <asm/system.h>
 
 #include <pcmcia/version.h>
@@ -80,7 +80,7 @@ MODULE_LICENSE("Dual MPL/GPL");
 /* Parameters that can be set with 'insmod' */
 
 /* The base port address of the TCIC-2 chip */
-static int tcic_base = TCIC_BASE;
+static unsigned long tcic_base = TCIC_BASE;
 
 /* Specify a socket number to ignore */
 static int ignore = -1;
@@ -105,11 +105,11 @@ static int poll_quick = HZ/20;
 /* CCLK external clock time, in nanoseconds.  70 ns = 14.31818 MHz */
 static int cycle_time = 70;
 
-module_param(tcic_base, int, 0444);
+module_param(tcic_base, ulong, 0444);
 module_param(ignore, int, 0444);
 module_param(do_scan, int, 0444);
 module_param(irq_mask, int, 0444);
-module_param_array(irq_list, int, irq_list_count, 0444);
+module_param_array(irq_list, int, &irq_list_count, 0444);
 module_param(cs_irq, int, 0444);
 module_param(poll_interval, int, 0444);
 module_param(poll_quick, int, 0444);
@@ -144,26 +144,26 @@ static struct tcic_socket socket_table[2];
 static u_char tcic_getb(u_char reg)
 {
     u_char val = inb(tcic_base+reg);
-    printk(KERN_DEBUG "tcic_getb(%#x) = %#x\n", tcic_base+reg, val);
+    printk(KERN_DEBUG "tcic_getb(%#lx) = %#x\n", tcic_base+reg, val);
     return val;
 }
 
 static u_short tcic_getw(u_char reg)
 {
     u_short val = inw(tcic_base+reg);
-    printk(KERN_DEBUG "tcic_getw(%#x) = %#x\n", tcic_base+reg, val);
+    printk(KERN_DEBUG "tcic_getw(%#lx) = %#x\n", tcic_base+reg, val);
     return val;
 }
 
 static void tcic_setb(u_char reg, u_char data)
 {
-    printk(KERN_DEBUG "tcic_setb(%#x, %#x)\n", tcic_base+reg, data);
+    printk(KERN_DEBUG "tcic_setb(%#lx, %#x)\n", tcic_base+reg, data);
     outb(data, tcic_base+reg);
 }
 
 static void tcic_setw(u_char reg, u_short data)
 {
-    printk(KERN_DEBUG "tcic_setw(%#x, %#x)\n", tcic_base+reg, data);
+    printk(KERN_DEBUG "tcic_setw(%#lx, %#x)\n", tcic_base+reg, data);
     outw(data, tcic_base+reg);
 }
 #else
@@ -344,10 +344,14 @@ static int __init is_active(int s)
 
     if ((sstat & TCIC_SSTAT_CD) && (pwr & TCIC_PWR_VCC(s)) &&
 	(scf1 & TCIC_SCF1_IOSTS) && (ioctl & TCIC_ICTL_ENA) &&
-	(check_region(base, num) != 0) && ((base & 0xfeef) != 0x02e8))
-	return 1;
-    else
-	return 0;
+	((base & 0xfeef) != 0x02e8)) {
+	struct resource *res = request_region(base, num, "tcic-2");
+	if (!res) /* region is busy */
+	    return 1;
+	release_region(base, num);
+    }
+
+    return 0;
 }
 
 /*======================================================================
@@ -369,7 +373,7 @@ static int __init get_tcic_id(void)
 
 /*====================================================================*/
 
-static int tcic_drv_suspend(struct device *dev, u32 state, u32 level)
+static int tcic_drv_suspend(struct device *dev, pm_message_t state, u32 level)
 {
 	int ret = 0;
 	if (level == SUSPEND_SAVE_STATE)
@@ -531,8 +535,9 @@ static int __init init_tcic(void)
 
     for (i = 0; i < sockets; i++) {
 	    socket_table[i].socket.ops = &tcic_operations;
+	    socket_table[i].socket.resource_ops = &pccard_nonstatic_ops;
 	    socket_table[i].socket.dev.dev = &tcic_device.dev;
-	    ret = pcmcia_register_socket(&socket_table[i].socket);	    
+	    ret = pcmcia_register_socket(&socket_table[i].socket);
 	    if (ret && i)
 		    pcmcia_unregister_socket(&socket_table[0].socket);
     }
@@ -791,7 +796,7 @@ static int tcic_set_io_map(struct pcmcia_socket *sock, struct pccard_io_map *io)
     u_short base, len, ioctl;
     
     debug(1, "SetIOMap(%d, %d, %#2.2x, %d ns, "
-	  "%#4.4x-%#4.4x)\n", psock, io->map, io->flags,
+	  "%#lx-%#lx)\n", psock, io->map, io->flags,
 	  io->speed, io->start, io->stop);
     if ((io->map > 1) || (io->start > 0xffff) || (io->stop > 0xffff) ||
 	(io->stop < io->start)) return -EINVAL;
@@ -828,16 +833,16 @@ static int tcic_set_mem_map(struct pcmcia_socket *sock, struct pccard_mem_map *m
     u_long base, len, mmap;
 
     debug(1, "SetMemMap(%d, %d, %#2.2x, %d ns, "
-	  "%#5.5lx-%#5.5lx, %#5.5x)\n", psock, mem->map, mem->flags,
-	  mem->speed, mem->sys_start, mem->sys_stop, mem->card_start);
+	  "%#lx-%#lx, %#x)\n", psock, mem->map, mem->flags,
+	  mem->speed, mem->res->start, mem->res->end, mem->card_start);
     if ((mem->map > 3) || (mem->card_start > 0x3ffffff) ||
-	(mem->sys_start > 0xffffff) || (mem->sys_stop > 0xffffff) ||
-	(mem->sys_start > mem->sys_stop) || (mem->speed > 1000))
+	(mem->res->start > 0xffffff) || (mem->res->end > 0xffffff) ||
+	(mem->res->start > mem->res->end) || (mem->speed > 1000))
 	return -EINVAL;
     tcic_setw(TCIC_ADDR+2, TCIC_ADR2_INDREG | (psock << TCIC_SS_SHFT));
     addr = TCIC_MWIN(psock, mem->map);
 
-    base = mem->sys_start; len = mem->sys_stop - mem->sys_start;
+    base = mem->res->start; len = mem->res->end - mem->res->start;
     if ((len & (len+1)) || (base & len)) return -EINVAL;
     if (len == 0x0fff)
 	base = (base >> TCIC_MBASE_HA_SHFT) | TCIC_MBASE_4K_BIT;
@@ -846,7 +851,7 @@ static int tcic_set_mem_map(struct pcmcia_socket *sock, struct pccard_mem_map *m
     tcic_setw(TCIC_ADDR, addr + TCIC_MBASE_X);
     tcic_setw(TCIC_DATA, base);
     
-    mmap = mem->card_start - mem->sys_start;
+    mmap = mem->card_start - mem->res->start;
     mmap = (mmap >> TCIC_MMAP_CA_SHFT) & TCIC_MMAP_CA_MASK;
     if (mem->flags & MAP_ATTRIB) mmap |= TCIC_MMAP_REG;
     tcic_setw(TCIC_ADDR, addr + TCIC_MMAP_X);
@@ -870,7 +875,7 @@ static int tcic_init(struct pcmcia_socket *s)
 	int i;
 	struct resource res = { .start = 0, .end = 0x1000 };
 	pccard_io_map io = { 0, 0, 0, 0, 1 };
-	pccard_mem_map mem = { .res = &res, .sys_stop = 0x1000, };
+	pccard_mem_map mem = { .res = &res, };
 
 	for (i = 0; i < 2; i++) {
 		io.map = i;
@@ -883,14 +888,8 @@ static int tcic_init(struct pcmcia_socket *s)
 	return 0;
 }
 
-static int tcic_suspend(struct pcmcia_socket *sock)
-{
-	return tcic_set_socket(sock, &dead_socket);
-}
-
 static struct pccard_operations tcic_operations = {
 	.init		   = tcic_init,
-	.suspend	   = tcic_suspend,
 	.get_status	   = tcic_get_status,
 	.get_socket	   = tcic_get_socket,
 	.set_socket	   = tcic_set_socket,

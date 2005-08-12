@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   
-  Copyright(c) 1999 - 2004 Intel Corporation. All rights reserved.
+  Copyright(c) 1999 - 2005 Intel Corporation. All rights reserved.
   
   This program is free software; you can redistribute it and/or modify it 
   under the terms of the GNU General Public License as published by the Free 
@@ -46,11 +46,12 @@
 #include <linux/delay.h>
 #include <linux/timer.h>
 #include <linux/slab.h>
+#include <linux/vmalloc.h>
 #include <linux/interrupt.h>
 #include <linux/string.h>
 #include <linux/pagemap.h>
 #include <linux/dma-mapping.h>
-#include <asm/bitops.h>
+#include <linux/bitops.h>
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <linux/capability.h>
@@ -85,6 +86,20 @@ struct ixgb_adapter;
 
 #define IXGB_ERR(args...) printk(KERN_ERR "ixgb: " args)
 
+/* TX/RX descriptor defines */
+#define DEFAULT_TXD	 256
+#define MAX_TXD   	4096
+#define MIN_TXD	  64
+
+/* hardware cannot reliably support more than 512 descriptors owned by
+ * hardware descrioptor cache otherwise an unreliable ring under heavy 
+ * recieve load may result */
+/* #define DEFAULT_RXD	   1024 */
+/* #define MAX_RXD	   4096 */
+#define DEFAULT_RXD	512
+#define MAX_RXD	512
+#define MIN_RXD	 64
+
 /* Supported Rx Buffer Sizes */
 #define IXGB_RXBUFFER_2048  2048
 #define IXGB_RXBUFFER_4096  4096
@@ -95,7 +110,7 @@ struct ixgb_adapter;
 #define IXGB_TX_QUEUE_WAKE 16
 
 /* How many Rx Buffers do we bundle into one write to the hardware ? */
-#define IXGB_RX_BUFFER_WRITE	16	/* Must be power of 2 */
+#define IXGB_RX_BUFFER_WRITE	4	/* Must be power of 2 */
 
 /* only works for sizes that are powers of 2 */
 #define IXGB_ROUNDUP(i, size) ((i) = (((i) + (size) - 1) & ~((size) - 1)))
@@ -105,9 +120,9 @@ struct ixgb_adapter;
 struct ixgb_buffer {
 	struct sk_buff *skb;
 	uint64_t dma;
-	unsigned long length;
 	unsigned long time_stamp;
-	unsigned int next_to_watch;
+	uint16_t length;
+	uint16_t next_to_watch;
 };
 
 struct ixgb_desc_ring {
@@ -161,13 +176,13 @@ struct ixgb_adapter {
 	uint64_t hw_csum_tx_error;
 	uint32_t tx_int_delay;
 	boolean_t tx_int_delay_enable;
+	boolean_t detect_tx_hung;
 
 	/* RX */
 	struct ixgb_desc_ring rx_ring;
 	uint64_t hw_csum_rx_error;
 	uint64_t hw_csum_rx_good;
 	uint32_t rx_int_delay;
-	boolean_t raidc;
 	boolean_t rx_csum;
 
 	/* OS defined structs */
@@ -178,6 +193,8 @@ struct ixgb_adapter {
 	/* structs defined in ixgb_hw.h */
 	struct ixgb_hw hw;
 	struct ixgb_hw_stats stats;
-	uint32_t pci_state[16];
+#ifdef CONFIG_PCI_MSI
+	boolean_t have_msi;
+#endif
 };
-#endif				/* _IXGB_H_ */
+#endif /* _IXGB_H_ */

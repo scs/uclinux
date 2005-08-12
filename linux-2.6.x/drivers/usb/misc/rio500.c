@@ -40,6 +40,7 @@
 #include <linux/spinlock.h>
 #include <linux/usb.h>
 #include <linux/smp_lock.h>
+#include <linux/wait.h>
 
 #include "rio500_usb.h"
 
@@ -166,17 +167,15 @@ ioctl_rio(struct inode *inode, struct file *file, unsigned int cmd,
 						 rio_cmd.value,
 						 rio_cmd.index, buffer,
 						 rio_cmd.length,
-						 rio_cmd.timeout);
+						 jiffies_to_msecs(rio_cmd.timeout));
 			if (result == -ETIMEDOUT)
 				retries--;
 			else if (result < 0) {
-				err("Error executing ioctrl. code = %d",
-				     le32_to_cpu(result));
+				err("Error executing ioctrl. code = %d", result);
 				retries = 0;
 			} else {
-				dbg("Executed ioctl. Result = %d (data=%04x)",
-				     le32_to_cpu(result),
-				     le32_to_cpu(*((long *) buffer)));
+				dbg("Executed ioctl. Result = %d (data=%02x)",
+				     result, buffer[0]);
 				if (copy_to_user(rio_cmd.buffer, buffer,
 						 rio_cmd.length)) {
 					free_page((unsigned long) buffer);
@@ -235,16 +234,14 @@ ioctl_rio(struct inode *inode, struct file *file, unsigned int cmd,
 						 rio_cmd.value,
 						 rio_cmd.index, buffer,
 						 rio_cmd.length,
-						 rio_cmd.timeout);
+						 jiffies_to_msecs(rio_cmd.timeout));
 			if (result == -ETIMEDOUT)
 				retries--;
 			else if (result < 0) {
-				err("Error executing ioctrl. code = %d",
-				     le32_to_cpu(result));
+				err("Error executing ioctrl. code = %d", result);
 				retries = 0;
 			} else {
-				dbg("Executed ioctl. Result = %d",
-				       le32_to_cpu(result));
+				dbg("Executed ioctl. Result = %d", result);
 				retries = 0;
 
 			}
@@ -268,6 +265,7 @@ static ssize_t
 write_rio(struct file *file, const char __user *buffer,
 	  size_t count, loff_t * ppos)
 {
+	DEFINE_WAIT(wait);
 	struct rio_usb_data *rio = &rio_instance;
 
 	unsigned long copy_size;
@@ -313,7 +311,7 @@ write_rio(struct file *file, const char __user *buffer,
 
 			result = usb_bulk_msg(rio->rio_dev,
 					 usb_sndbulkpipe(rio->rio_dev, 2),
-					 obuf, thistime, &partial, 5 * HZ);
+					 obuf, thistime, &partial, 5000);
 
 			dbg("write stats: result:%d thistime:%lu partial:%u",
 			     result, thistime, partial);
@@ -323,7 +321,9 @@ write_rio(struct file *file, const char __user *buffer,
 					errn = -ETIME;
 					goto error;
 				}
-				interruptible_sleep_on_timeout(&rio-> wait_q, NAK_TIMEOUT);
+				prepare_to_wait(&rio->wait_q, &wait, TASK_INTERRUPTIBLE);
+				schedule_timeout(NAK_TIMEOUT);
+				finish_wait(&rio->wait_q, &wait);
 				continue;
 			} else if (!result && partial) {
 				obuf += partial;
@@ -353,6 +353,7 @@ error:
 static ssize_t
 read_rio(struct file *file, char __user *buffer, size_t count, loff_t * ppos)
 {
+	DEFINE_WAIT(wait);
 	struct rio_usb_data *rio = &rio_instance;
 	ssize_t read_count;
 	unsigned int partial;
@@ -390,7 +391,7 @@ read_rio(struct file *file, char __user *buffer, size_t count, loff_t * ppos)
 		result = usb_bulk_msg(rio->rio_dev,
 				      usb_rcvbulkpipe(rio->rio_dev, 1),
 				      ibuf, this_read, &partial,
-				      (int) (HZ * 8));
+				      8000);
 
 		dbg(KERN_DEBUG "read stats: result:%d this_read:%u partial:%u",
 		       result, this_read, partial);
@@ -403,8 +404,9 @@ read_rio(struct file *file, char __user *buffer, size_t count, loff_t * ppos)
 				err("read_rio: maxretry timeout");
 				return -ETIME;
 			}
-			interruptible_sleep_on_timeout(&rio->wait_q,
-						       NAK_TIMEOUT);
+			prepare_to_wait(&rio->wait_q, &wait, TASK_INTERRUPTIBLE);
+			schedule_timeout(NAK_TIMEOUT);
+			finish_wait(&rio->wait_q, &wait);
 			continue;
 		} else if (result != -EREMOTEIO) {
 			up(&(rio->lock));

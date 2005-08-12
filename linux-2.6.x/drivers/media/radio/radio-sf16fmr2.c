@@ -55,19 +55,6 @@ static int radio_nr = -1;
 #define RSF16_MINFREQ 87*16000
 #define RSF16_MAXFREQ 108*16000
 
-/* from radio-aimslab */
-static void sleep_delay(unsigned long n)
-{
-	unsigned d=n/(1000000U/HZ);
-	if (!d)
-		udelay(n);
-	else
-	{
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		schedule_timeout(d);
-	}
-}
-
 static inline void wait(int n,int port)
 {
 	for (;n;--n) inb(port);
@@ -153,7 +140,7 @@ static int fmr2_setfreq(struct fmr2_device *dev)
 	fmr2_unmute(port);
 
 	/* wait 0.11 sec */
-	sleep_delay(110000LU);
+	msleep(110);
 
 	/* NOTE if mute this stop radio
 	   you must set freq on unmute */
@@ -421,9 +408,9 @@ MODULE_AUTHOR("Ziglio Frediano, freddy77@angelfire.com");
 MODULE_DESCRIPTION("A driver for the SF16FMR2 radio.");
 MODULE_LICENSE("GPL");
 
-MODULE_PARM(io, "i");
+module_param(io, int, 0);
 MODULE_PARM_DESC(io, "I/O address of the SF16FMR2 card (should be 0x384, if do not work try 0x284)");
-MODULE_PARM(radio_nr, "i");
+module_param(radio_nr, int, 0);
 
 static void __exit fmr2_cleanup_module(void)
 {

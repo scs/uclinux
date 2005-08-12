@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2004, R. Byron Moore
+ * Copyright (C) 2000 - 2005, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -73,9 +73,12 @@ acpi_ut_release_to_cache (
 	ACPI_FUNCTION_ENTRY ();
 
 
+	cache_info = &acpi_gbl_memory_lists[list_id];
+
+#ifdef ACPI_ENABLE_OBJECT_CACHE
+
 	/* If walk cache is full, just free this wallkstate object */
 
-	cache_info = &acpi_gbl_memory_lists[list_id];
 	if (cache_info->cache_depth >= cache_info->max_cache_depth) {
 		ACPI_MEM_FREE (object);
 		ACPI_MEM_TRACKING (cache_info->total_freed++);
@@ -101,6 +104,14 @@ acpi_ut_release_to_cache (
 
 		(void) acpi_ut_release_mutex (ACPI_MTX_CACHES);
 	}
+
+#else
+
+	/* Object cache is disabled; just free the object */
+
+	ACPI_MEM_FREE (object);
+	ACPI_MEM_TRACKING (cache_info->total_freed++);
+#endif
 }
 
 
@@ -130,6 +141,9 @@ acpi_ut_acquire_from_cache (
 
 
 	cache_info = &acpi_gbl_memory_lists[list_id];
+
+#ifdef ACPI_ENABLE_OBJECT_CACHE
+
 	if (ACPI_FAILURE (acpi_ut_acquire_mutex (ACPI_MTX_CACHES))) {
 		return (NULL);
 	}
@@ -174,10 +188,19 @@ acpi_ut_acquire_from_cache (
 		ACPI_MEM_TRACKING (cache_info->total_allocated++);
 	}
 
+#else
+
+	/* Object cache is disabled; just allocate the object */
+
+	object = ACPI_MEM_CALLOCATE (cache_info->object_size);
+	ACPI_MEM_TRACKING (cache_info->total_allocated++);
+#endif
+
 	return (object);
 }
 
 
+#ifdef ACPI_ENABLE_OBJECT_CACHE
 /******************************************************************************
  *
  * FUNCTION:    acpi_ut_delete_generic_cache
@@ -212,6 +235,7 @@ acpi_ut_delete_generic_cache (
 		cache_info->cache_depth--;
 	}
 }
+#endif
 
 
 /*******************************************************************************
@@ -259,13 +283,13 @@ acpi_ut_validate_buffer (
  *
  * FUNCTION:    acpi_ut_initialize_buffer
  *
- * PARAMETERS:  required_length     - Length needed
- *              Buffer              - Buffer to be validated
+ * PARAMETERS:  Buffer              - Buffer to be validated
+ *              required_length     - Length needed
  *
  * RETURN:      Status
  *
  * DESCRIPTION: Validate that the buffer is of the required length or
- *              allocate a new buffer.
+ *              allocate a new buffer.  Returned buffer is always zeroed.
  *
  ******************************************************************************/
 
@@ -305,24 +329,25 @@ acpi_ut_initialize_buffer (
 
 		/* Allocate a new buffer with local interface to allow tracking */
 
-		buffer->pointer = ACPI_MEM_ALLOCATE (required_length);
+		buffer->pointer = ACPI_MEM_CALLOCATE (required_length);
 		if (!buffer->pointer) {
 			return (AE_NO_MEMORY);
 		}
-
-		/* Clear the buffer */
-
-		ACPI_MEMSET (buffer->pointer, 0, required_length);
 		break;
 
 
 	default:
 
-		/* Validate the size of the buffer */
+		/* Existing buffer: Validate the size of the buffer */
 
 		if (buffer->length < required_length) {
 			status = AE_BUFFER_OVERFLOW;
+			break;
 		}
+
+		/* Clear the buffer */
+
+		ACPI_MEMSET (buffer->pointer, 0, required_length);
 		break;
 	}
 
@@ -472,7 +497,7 @@ acpi_ut_allocate_and_track (
 	acpi_status                     status;
 
 
-	allocation = acpi_ut_allocate (size + sizeof (struct acpi_debug_mem_block), component,
+	allocation = acpi_ut_allocate (size + sizeof (struct acpi_debug_mem_header), component,
 			  module, line);
 	if (!allocation) {
 		return (NULL);
@@ -518,7 +543,7 @@ acpi_ut_callocate_and_track (
 	acpi_status                     status;
 
 
-	allocation = acpi_ut_callocate (size + sizeof (struct acpi_debug_mem_block), component,
+	allocation = acpi_ut_callocate (size + sizeof (struct acpi_debug_mem_header), component,
 			  module, line);
 	if (!allocation) {
 		/* Report allocation error */
@@ -603,7 +628,8 @@ acpi_ut_free_and_track (
  *
  * FUNCTION:    acpi_ut_find_allocation
  *
- * PARAMETERS:  Allocation             - Address of allocated memory
+ * PARAMETERS:  list_id                 - Memory list to search
+ *              Allocation              - Address of allocated memory
  *
  * RETURN:      A list element if found; NULL otherwise.
  *
@@ -646,7 +672,8 @@ acpi_ut_find_allocation (
  *
  * FUNCTION:    acpi_ut_track_allocation
  *
- * PARAMETERS:  Allocation          - Address of allocated memory
+ * PARAMETERS:  list_id             - Memory list to search
+ *              Allocation          - Address of allocated memory
  *              Size                - Size of the allocation
  *              alloc_type          - MEM_MALLOC or MEM_CALLOC
  *              Component           - Component type of caller
@@ -710,6 +737,7 @@ acpi_ut_track_allocation (
 	allocation->line      = line;
 
 	ACPI_STRNCPY (allocation->module, module, ACPI_MAX_MODULE_NAME);
+	allocation->module[ACPI_MAX_MODULE_NAME-1] = 0;
 
 	/* Insert at list head */
 
@@ -733,7 +761,8 @@ unlock_and_exit:
  *
  * FUNCTION:    acpi_ut_remove_allocation
  *
- * PARAMETERS:  Allocation          - Address of allocated memory
+ * PARAMETERS:  list_id             - Memory list to search
+ *              Allocation          - Address of allocated memory
  *              Component           - Component type of caller
  *              Module              - Source file name of caller
  *              Line                - Line number of caller
@@ -813,7 +842,7 @@ acpi_ut_remove_allocation (
  * DESCRIPTION: Print some info about the outstanding allocations.
  *
  ******************************************************************************/
-
+#ifdef ACPI_FUTURE_USAGE
 void
 acpi_ut_dump_allocation_info (
 	void)
@@ -859,6 +888,7 @@ acpi_ut_dump_allocation_info (
 */
 	return_VOID;
 }
+#endif  /*  ACPI_FUTURE_USAGE  */
 
 
 /*******************************************************************************

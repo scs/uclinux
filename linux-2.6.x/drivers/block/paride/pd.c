@@ -155,38 +155,17 @@ enum {D_PRT, D_PRO, D_UNI, D_MOD, D_GEO, D_SBY, D_DLY, D_SLV};
 #include <linux/sched.h>
 #include <linux/workqueue.h>
 
-static spinlock_t pd_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(pd_lock);
 
-#ifndef MODULE
-
-#include "setup.h"
-
-static STT pd_stt[7] = {
-	{"drive0", 8, drive0},
-	{"drive1", 8, drive1},
-	{"drive2", 8, drive2},
-	{"drive3", 8, drive3},
-	{"disable", 1, &disable},
-	{"cluster", 1, &cluster},
-	{"nice", 1, &nice}
-};
-
-void pd_setup(char *str, int *ints)
-{
-	generic_setup(pd_stt, 7, str);
-}
-
-#endif
-
-MODULE_PARM(verbose, "i");
-MODULE_PARM(major, "i");
-MODULE_PARM(name, "s");
-MODULE_PARM(cluster, "i");
-MODULE_PARM(nice, "i");
-MODULE_PARM(drive0, "1-8i");
-MODULE_PARM(drive1, "1-8i");
-MODULE_PARM(drive2, "1-8i");
-MODULE_PARM(drive3, "1-8i");
+module_param(verbose, bool, 0);
+module_param(major, int, 0);
+module_param(name, charp, 0);
+module_param(cluster, int, 0);
+module_param(nice, int, 0);
+module_param_array(drive0, int, NULL, 0);
+module_param_array(drive1, int, NULL, 0);
+module_param_array(drive2, int, NULL, 0);
+module_param_array(drive3, int, NULL, 0);
 
 #include "paride.h"
 
@@ -255,7 +234,7 @@ struct pd_unit {
 	struct gendisk *gd;
 };
 
-struct pd_unit pd[PD_UNITS];
+static struct pd_unit pd[PD_UNITS];
 
 static char pd_scratch[512];	/* scratch block buffer */
 
@@ -743,6 +722,7 @@ static int pd_special_command(struct pd_unit *disk,
 	rq.rq_disk = disk->gd;
 	rq.ref_count = 1;
 	rq.waiting = &wait;
+	rq.end_io = blk_end_sync_rq;
 	blk_insert_request(disk->gd->queue, &rq, 0, func, 0);
 	wait_for_completion(&wait);
 	rq.waiting = NULL;

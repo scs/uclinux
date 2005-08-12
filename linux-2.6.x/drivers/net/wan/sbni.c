@@ -176,7 +176,7 @@ static u32	mac[  SBNI_MAX_NUM_CARDS ] __initdata;
 
 #ifndef MODULE
 typedef u32  iarr[];
-static iarr  *dest[5] = { &io, &irq, &baud, &rxl, &mac };
+static iarr __initdata *dest[5] = { &io, &irq, &baud, &rxl, &mac };
 #endif
 
 /* A zero-terminated list of I/O addresses to be probed on ISA bus */
@@ -294,7 +294,7 @@ sbni_pci_probe( struct net_device  *dev )
 {
 	struct pci_dev  *pdev = NULL;
 
-	while( (pdev = pci_find_class( PCI_CLASS_NETWORK_OTHER << 8, pdev ))
+	while( (pdev = pci_get_class( PCI_CLASS_NETWORK_OTHER << 8, pdev ))
 	       != NULL ) {
 		int  pci_irq_line;
 		unsigned long  pci_ioaddr;
@@ -331,10 +331,14 @@ sbni_pci_probe( struct net_device  *dev )
 		/* avoiding re-enable dual adapters */
 		if( (pci_ioaddr & 7) == 0  &&  pci_enable_device( pdev ) ) {
 			release_region( pci_ioaddr, SBNI_IO_EXTENT );
+			pci_dev_put( pdev );
 			return  -EIO;
 		}
 		if( sbni_probe1( dev, pci_ioaddr, pci_irq_line ) ) {
 			SET_NETDEV_DEV(dev, &pdev->dev);
+			/* not the best thing to do, but this is all messed up 
+			   for hotplug systems anyway... */
+			pci_dev_put( pdev );
 			return  0;
 		}
 	}
@@ -1481,14 +1485,12 @@ set_multicast_list( struct net_device  *dev )
 
 
 #ifdef MODULE
-
-MODULE_PARM(	io,	"1-" __MODULE_STRING( SBNI_MAX_NUM_CARDS ) "i" );
-MODULE_PARM(	irq,	"1-" __MODULE_STRING( SBNI_MAX_NUM_CARDS ) "i" );
-MODULE_PARM(	baud,	"1-" __MODULE_STRING( SBNI_MAX_NUM_CARDS ) "i" );
-MODULE_PARM(	rxl,	"1-" __MODULE_STRING( SBNI_MAX_NUM_CARDS ) "i" );
-MODULE_PARM(	mac,	"1-" __MODULE_STRING( SBNI_MAX_NUM_CARDS ) "i" );
-
-MODULE_PARM(	skip_pci_probe,	"i" );
+module_param_array(io, int, NULL, 0);
+module_param_array(irq, int, NULL, 0);
+module_param_array(baud, int, NULL, 0);
+module_param_array(rxl, int, NULL, 0);
+module_param_array(mac, int, NULL, 0);
+module_param(skip_pci_probe, bool, 0);
 
 MODULE_LICENSE("GPL");
 

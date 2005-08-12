@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2004, R. Byron Moore
+ * Copyright (C) 2000 - 2005, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -41,6 +41,7 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
+#include <linux/module.h>
 
 #include <acpi/acpi.h>
 #include <acpi/acresrc.h>
@@ -156,6 +157,7 @@ acpi_get_current_resources (
 	status = acpi_rs_get_crs_method_data (device_handle, ret_buffer);
 	return_ACPI_STATUS (status);
 }
+EXPORT_SYMBOL(acpi_get_current_resources);
 
 
 /*******************************************************************************
@@ -178,7 +180,7 @@ acpi_get_current_resources (
  *              and the value of ret_buffer is undefined.
  *
  ******************************************************************************/
-
+#ifdef ACPI_FUTURE_USAGE
 acpi_status
 acpi_get_possible_resources (
 	acpi_handle                     device_handle,
@@ -208,6 +210,8 @@ acpi_get_possible_resources (
 	status = acpi_rs_get_prs_method_data (device_handle, ret_buffer);
 	return_ACPI_STATUS (status);
 }
+EXPORT_SYMBOL(acpi_get_possible_resources);
+#endif  /*  ACPI_FUTURE_USAGE  */
 
 
 /*******************************************************************************
@@ -259,7 +263,8 @@ acpi_walk_resources (
 	/* Setup pointers */
 
 	resource  = (struct acpi_resource *) buffer.pointer;
-	buffer_end = (struct acpi_resource *) ((u8 *) buffer.pointer + buffer.length);
+	buffer_end = ACPI_CAST_PTR (struct acpi_resource,
+			  ((u8 *) buffer.pointer + buffer.length));
 
 	/* Walk the resource list */
 
@@ -309,6 +314,7 @@ cleanup:
 	acpi_os_free (buffer.pointer);
 	return_ACPI_STATUS (status);
 }
+EXPORT_SYMBOL(acpi_walk_resources);
 
 
 /*******************************************************************************
@@ -353,6 +359,7 @@ acpi_set_current_resources (
 	status = acpi_rs_set_srs_method_data (device_handle, in_buffer);
 	return_ACPI_STATUS (status);
 }
+EXPORT_SYMBOL(acpi_set_current_resources);
 
 
 #define ACPI_COPY_FIELD(out, in, field)  ((out)->field = (in)->field)
@@ -426,3 +433,5 @@ acpi_resource_to_address64 (
 
 	return (AE_OK);
 }
+EXPORT_SYMBOL(acpi_resource_to_address64);
+

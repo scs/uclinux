@@ -33,8 +33,8 @@
 *   - 05 Jan 96: Geert: integration into the current source tree
 *   - 01 Aug 98: Alan: Merge in code from cvision.c and cvision_core.c
 * $Log$
-* Revision 1.3  2004/09/08 15:45:58  lgsoft
-* Import of 2.6.8
+* Revision 1.4  2005/08/12 06:43:04  magicyang
+*  Update kernel 2.6.8 to 2.6.12
 *
 * Revision 1.6  1998/09/11 04:54:58  abair
 * Update for 2.1.120 change in include file location.

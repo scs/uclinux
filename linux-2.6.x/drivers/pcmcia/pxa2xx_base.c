@@ -28,6 +28,7 @@
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/system.h>
+#include <asm/arch/pxa-regs.h>
 
 #include <pcmcia/cs_types.h>
 #include <pcmcia/ss.h>
@@ -178,39 +179,6 @@ int pxa2xx_drv_pcmcia_probe(struct device *dev)
 	first = ops->first;
 	nr = ops->nr;
 
-	/* Setup GPIOs for PCMCIA/CF alternate function mode.
-	 *
-	 * It would be nice if set_GPIO_mode included support
-	 * for driving GPIO outputs to default high/low state
-	 * before programming GPIOs as outputs. Setting GPIO
-	 * outputs to default high/low state via GPSR/GPCR
-	 * before defining them as outputs should reduce
-	 * the possibility of glitching outputs during GPIO
-	 * setup. This of course assumes external terminators
-	 * are present to hold GPIOs in a defined state.
-	 *
-	 * In the meantime, setup default state of GPIO
-	 * outputs before we enable them as outputs.
-	 */
-
-	GPSR(GPIO48_nPOE) = GPIO_bit(GPIO48_nPOE) |
-		GPIO_bit(GPIO49_nPWE) |
-		GPIO_bit(GPIO50_nPIOR) |
-		GPIO_bit(GPIO51_nPIOW) |
-		GPIO_bit(GPIO52_nPCE_1) |
-		GPIO_bit(GPIO53_nPCE_2);
-
-	pxa_gpio_mode(GPIO48_nPOE_MD);
-	pxa_gpio_mode(GPIO49_nPWE_MD);
-	pxa_gpio_mode(GPIO50_nPIOR_MD);
-	pxa_gpio_mode(GPIO51_nPIOW_MD);
-	pxa_gpio_mode(GPIO52_nPCE_1_MD);
-	pxa_gpio_mode(GPIO53_nPCE_2_MD);
-	pxa_gpio_mode(GPIO54_pSKTSEL_MD); /* REVISIT: s/b dependent on num sockets */
-	pxa_gpio_mode(GPIO55_nPREG_MD);
-	pxa_gpio_mode(GPIO56_nPWAIT_MD);
-	pxa_gpio_mode(GPIO57_nIOIS16_MD);
-
 	/* Provide our PXA2xx specific timing routines. */
 	ops->set_timing  = pxa2xx_pcmcia_set_timing;
 #ifdef CONFIG_CPU_FREQ
@@ -237,7 +205,7 @@ int pxa2xx_drv_pcmcia_probe(struct device *dev)
 }
 EXPORT_SYMBOL(pxa2xx_drv_pcmcia_probe);
 
-static int pxa2xx_drv_pcmcia_suspend(struct device *dev, u32 state, u32 level)
+static int pxa2xx_drv_pcmcia_suspend(struct device *dev, pm_message_t state, u32 level)
 {
 	int ret = 0;
 	if (level == SUSPEND_SAVE_STATE)
@@ -249,7 +217,13 @@ static int pxa2xx_drv_pcmcia_resume(struct device *dev, u32 level)
 {
 	int ret = 0;
 	if (level == RESUME_RESTORE_STATE)
+	{
+		struct pcmcia_low_level *ops = dev->platform_data;
+		int nr = ops ? ops->nr : 0;
+
+		MECR = nr > 1 ? MECR_CIT | MECR_NOS : (nr > 0 ? MECR_CIT : 0);
 		ret = pcmcia_socket_dev_resume(dev);
+	}
 	return ret;
 }
 

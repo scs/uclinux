@@ -14,27 +14,6 @@
  *  Registration of PCI drivers and handling of hot-pluggable devices.
  */
 
-/**
- * pci_match_one_device - Tell if a PCI device structure has a matching
- *                        PCI device id structure
- * @id: single PCI device id structure to match
- * @dev: the PCI device structure to match against
- * 
- * Returns the matching pci_device_id structure or %NULL if there is no match.
- */
-
-static inline const struct pci_device_id *
-pci_match_one_device(const struct pci_device_id *id, const struct pci_dev *dev)
-{
-	if ((id->vendor == PCI_ANY_ID || id->vendor == dev->vendor) &&
-	    (id->device == PCI_ANY_ID || id->device == dev->device) &&
-	    (id->subvendor == PCI_ANY_ID || id->subvendor == dev->subsystem_vendor) &&
-	    (id->subdevice == PCI_ANY_ID || id->subdevice == dev->subsystem_device) &&
-	    !((id->class ^ dev->class) & id->class_mask))
-		return id;
-	return NULL;
-}
-
 /*
  * Dynamic device IDs are disabled for !CONFIG_HOTPLUG
  */
@@ -70,13 +49,6 @@ pci_device_probe_dynamic(struct pci_driver *drv, struct pci_dev *pci_dev)
 	return error;
 }
 
-static inline void
-dynid_init(struct dynid *dynid)
-{
-	memset(dynid, 0, sizeof(*dynid));
-	INIT_LIST_HEAD(&dynid->node);
-}
-
 /**
  * store_new_id
  *
@@ -103,8 +75,9 @@ store_new_id(struct device_driver *driver, const char *buf, size_t count)
 	dynid = kmalloc(sizeof(*dynid), GFP_KERNEL);
 	if (!dynid)
 		return -ENOMEM;
-	dynid_init(dynid);
 
+	memset(dynid, 0, sizeof(*dynid));
+	INIT_LIST_HEAD(&dynid->node);
 	dynid->id.vendor = vendor;
 	dynid->id.device = device;
 	dynid->id.subvendor = subvendor;
@@ -136,7 +109,6 @@ static DRIVER_ATTR(new_id, S_IWUSR, NULL, store_new_id);
 static inline void
 pci_init_dynids(struct pci_dynids *dynids)
 {
-	memset(dynids, 0, sizeof(*dynids));
 	spin_lock_init(&dynids->lock);
 	INIT_LIST_HEAD(&dynids->list);
 }
@@ -189,7 +161,6 @@ static inline int pci_device_probe_dynamic(struct pci_driver *drv, struct pci_de
 {
 	return -ENODEV;
 }
-static inline void dynid_init(struct dynid *dynid) {}
 static inline void pci_init_dynids(struct pci_dynids *dynids) {}
 static inline void pci_free_dynids(struct pci_driver *drv) {}
 static inline int pci_create_newid_file(struct pci_driver *drv)
@@ -291,20 +262,30 @@ static int pci_device_remove(struct device * dev)
 			drv->remove(pci_dev);
 		pci_dev->driver = NULL;
 	}
+
+	/*
+	 * We would love to complain here if pci_dev->is_enabled is set, that
+	 * the driver should have called pci_disable_device(), but the
+	 * unfortunate fact is there are too many odd BIOS and bridge setups
+	 * that don't like drivers doing that all of the time.  
+	 * Oh well, we can dream of sane hardware when we sleep, no matter how
+	 * horrible the crap we have to deal with is when we are awake...
+	 */
+
 	pci_dev_put(pci_dev);
 	return 0;
 }
 
-static int pci_device_suspend(struct device * dev, u32 state)
+static int pci_device_suspend(struct device * dev, pm_message_t state)
 {
 	struct pci_dev * pci_dev = to_pci_dev(dev);
 	struct pci_driver * drv = pci_dev->driver;
 	int i = 0;
 
 	if (drv && drv->suspend)
-		i = drv->suspend(pci_dev,state);
-		
-	pci_save_state(pci_dev, pci_dev->saved_config_space);
+		i = drv->suspend(pci_dev, state);
+	else
+		pci_save_state(pci_dev);
 	return i;
 }
 
@@ -316,7 +297,7 @@ static int pci_device_suspend(struct device * dev, u32 state)
 static void pci_default_resume(struct pci_dev *pci_dev)
 {
 	/* restore the PCI config space */
-	pci_restore_state(pci_dev, pci_dev->saved_config_space);
+	pci_restore_state(pci_dev);
 	/* if the device was enabled before suspend, reenable */
 	if (pci_dev->is_enabled)
 		pci_enable_device(pci_dev);
@@ -337,6 +318,14 @@ static int pci_device_resume(struct device * dev)
 	return 0;
 }
 
+static void pci_device_shutdown(struct device *dev)
+{
+	struct pci_dev *pci_dev = to_pci_dev(dev);
+	struct pci_driver *drv = pci_dev->driver;
+
+	if (drv && drv->shutdown)
+		drv->shutdown(pci_dev);
+}
 
 #define kobj_to_pci_driver(obj) container_of(obj, struct device_driver, kobj)
 #define attr_to_driver_attribute(obj) container_of(obj, struct driver_attribute, attr)
@@ -390,32 +379,35 @@ pci_populate_driver_dir(struct pci_driver *drv)
  * pci_register_driver - register a new pci driver
  * @drv: the driver structure to register
  * 
- * Adds the driver structure to the list of registered drivers
- * Returns the number of pci devices which were claimed by the driver
- * during registration.  The driver remains registered even if the
- * return value is zero.
+ * Adds the driver structure to the list of registered drivers.
+ * Returns a negative value on error, otherwise 0. 
+ * If no error occurred, the driver remains registered even if 
+ * no device was claimed during registration.
  */
-int
-pci_register_driver(struct pci_driver *drv)
+int pci_register_driver(struct pci_driver *drv)
 {
-	int count = 0;
+	int error;
 
 	/* initialize common driver fields */
 	drv->driver.name = drv->name;
 	drv->driver.bus = &pci_bus_type;
 	drv->driver.probe = pci_device_probe;
 	drv->driver.remove = pci_device_remove;
+	/* FIXME, once all of the existing PCI drivers have been fixed to set
+	 * the pci shutdown function, this test can go away. */
+	if (!drv->driver.shutdown)
+		drv->driver.shutdown = pci_device_shutdown,
+	drv->driver.owner = drv->owner;
 	drv->driver.kobj.ktype = &pci_driver_kobj_type;
 	pci_init_dynids(&drv->dynids);
 
 	/* register with core */
-	count = driver_register(&drv->driver);
+	error = driver_register(&drv->driver);
 
-	if (count >= 0) {
+	if (!error)
 		pci_populate_driver_dir(drv);
-	}
 
-	return count ? count : 1;
+	return error;
 }
 
 /**
@@ -500,16 +492,9 @@ static int pci_bus_match(struct device * dev, struct device_driver * drv)
  */
 struct pci_dev *pci_dev_get(struct pci_dev *dev)
 {
-	struct device *tmp;
-
-	if (!dev)
-		return NULL;
-
-	tmp = get_device(&dev->dev);
-	if (tmp)        
-		return to_pci_dev(tmp);
-	else
-		return NULL;
+	if (dev)
+		get_device(&dev->dev);
+	return dev;
 }
 
 /**

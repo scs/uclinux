@@ -105,7 +105,7 @@ static int xbof = -1;
 static int  ir_startup (struct usb_serial *serial);
 static int  ir_open (struct usb_serial_port *port, struct file *filep);
 static void ir_close (struct usb_serial_port *port, struct file *filep);
-static int  ir_write (struct usb_serial_port *port, int from_user, const unsigned char *buf, int count);
+static int  ir_write (struct usb_serial_port *port, const unsigned char *buf, int count);
 static void ir_write_bulk_callback (struct urb *urb, struct pt_regs *regs);
 static void ir_read_bulk_callback (struct urb *urb, struct pt_regs *regs);
 static void ir_set_termios (struct usb_serial_port *port, struct termios *old_termios);
@@ -189,7 +189,7 @@ static struct irda_class_desc *irda_usb_find_class_desc(struct usb_device *dev, 
 	ret = usb_control_msg(dev, usb_rcvctrlpipe(dev,0),
 			IU_REQ_GET_CLASS_DESC,
 			USB_DIR_IN | USB_TYPE_CLASS | USB_RECIP_INTERFACE,
-			0, ifnum, desc, sizeof(*desc), HZ);
+			0, ifnum, desc, sizeof(*desc), 1000);
 	
 	dbg("%s -  ret=%d", __FUNCTION__, ret);
 	if (ret < sizeof(*desc)) {
@@ -322,10 +322,10 @@ static void ir_close (struct usb_serial_port *port, struct file * filp)
 	dbg("%s - port %d", __FUNCTION__, port->number);
 			 
 	/* shutdown our bulk read */
-	usb_unlink_urb (port->read_urb);
+	usb_kill_urb(port->read_urb);
 }
 
-static int ir_write (struct usb_serial_port *port, int from_user, const unsigned char *buf, int count)
+static int ir_write (struct usb_serial_port *port, const unsigned char *buf, int count)
 {
 	unsigned char *transfer_buffer;
 	int result;
@@ -359,12 +359,7 @@ static int ir_write (struct usb_serial_port *port, int from_user, const unsigned
 	*transfer_buffer = ir_xbof | ir_baud;
 	++transfer_buffer;
 
-	if (from_user) {
-		if (copy_from_user (transfer_buffer, buf, transfer_size))
-			return -EFAULT;
-	} else {
-		memcpy (transfer_buffer, buf, transfer_size);
-	}
+	memcpy (transfer_buffer, buf, transfer_size);
 
 	usb_fill_bulk_urb (
 		port->write_urb,
@@ -449,6 +444,10 @@ static void ir_read_bulk_callback (struct urb *urb, struct pt_regs *regs)
 			 */
 			tty = port->tty;
 
+			/*
+			 *	FIXME: must not do this in IRQ context,
+			 *	must honour TTY_DONT_FLIP
+			 */
 			tty->ldisc.receive_buf(
 				tty,
 				data+1,

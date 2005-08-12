@@ -1,5 +1,5 @@
 /*
- * Bt8xx based DVB adapter driver 
+ * Bt8xx based DVB adapter driver
  *
  * Copyright (C) 2002,2003 Florian Schirmer <jolt@tuxbox.org>
  * Copyright (C) 2002 Peter Hettkamp <peter.hettkamp@t-online.de>
@@ -22,16 +22,25 @@
  *
  */
 
+#ifndef DVB_BT8XX_H
+#define DVB_BT8XX_H
+
 #include <linux/i2c.h>
 #include "dvbdev.h"
 #include "dvb_net.h"
+#include "bttv.h"
+#include "mt352.h"
+#include "sp887x.h"
+#include "dst_common.h"
+#include "nxt6000.h"
+#include "cx24110.h"
+#include "or51211.h"
 
 struct dvb_bt8xx_card {
-
-	struct list_head list;
-	u8 active;
+	struct semaphore lock;
+	int nfeeds;
 	char card_name[32];
-	struct dvb_adapter *dvb_adapter;
+	struct dvb_adapter dvb_adapter;
 	struct bt878 *bt;
 	unsigned int bttv_nr;
 	struct dvb_demux demux;
@@ -43,5 +52,8 @@ struct dvb_bt8xx_card {
 	u32 irq_err_ignore;
 	struct i2c_adapter *i2c_adapter;
 	struct dvb_net dvbnet;
-				
+
+	struct dvb_frontend* fe;
 };
+
+#endif /* DVB_BT8XX_H */

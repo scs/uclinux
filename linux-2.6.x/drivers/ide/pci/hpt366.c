@@ -70,51 +70,383 @@
 #include <asm/io.h>
 #include <asm/irq.h>
 
-#include "hpt366.h"
+/* various tuning parameters */
+#define HPT_RESET_STATE_ENGINE
+#undef HPT_DELAY_INTERRUPT
+#undef HPT_SERIALIZE_IO
 
-#if defined(DISPLAY_HPT366_TIMINGS) && defined(CONFIG_PROC_FS)
-#include <linux/stat.h>
-#include <linux/proc_fs.h>
-#endif  /* defined(DISPLAY_HPT366_TIMINGS) && defined(CONFIG_PROC_FS) */
+static const char *quirk_drives[] = {
+	"QUANTUM FIREBALLlct08 08",
+	"QUANTUM FIREBALLP KA6.4",
+	"QUANTUM FIREBALLP LM20.4",
+	"QUANTUM FIREBALLP LM20.5",
+	NULL
+};
 
-static unsigned int hpt_revision(struct pci_dev *dev);
-static unsigned int hpt_minimum_revision(struct pci_dev *dev, int revision);
+static const char *bad_ata100_5[] = {
+	"IBM-DTLA-307075",
+	"IBM-DTLA-307060",
+	"IBM-DTLA-307045",
+	"IBM-DTLA-307030",
+	"IBM-DTLA-307020",
+	"IBM-DTLA-307015",
+	"IBM-DTLA-305040",
+	"IBM-DTLA-305030",
+	"IBM-DTLA-305020",
+	"IC35L010AVER07-0",
+	"IC35L020AVER07-0",
+	"IC35L030AVER07-0",
+	"IC35L040AVER07-0",
+	"IC35L060AVER07-0",
+	"WDC AC310200R",
+	NULL
+};
 
-#if defined(DISPLAY_HPT366_TIMINGS) && defined(CONFIG_PROC_FS)
+static const char *bad_ata66_4[] = {
+	"IBM-DTLA-307075",
+	"IBM-DTLA-307060",
+	"IBM-DTLA-307045",
+	"IBM-DTLA-307030",
+	"IBM-DTLA-307020",
+	"IBM-DTLA-307015",
+	"IBM-DTLA-305040",
+	"IBM-DTLA-305030",
+	"IBM-DTLA-305020",
+	"IC35L010AVER07-0",
+	"IC35L020AVER07-0",
+	"IC35L030AVER07-0",
+	"IC35L040AVER07-0",
+	"IC35L060AVER07-0",
+	"WDC AC310200R",
+	NULL
+};
 
-static u8 hpt366_proc = 0;
-static struct pci_dev *hpt_devs[HPT366_MAX_DEVS];
-static int n_hpt_devs;
+static const char *bad_ata66_3[] = {
+	"WDC AC310200R",
+	NULL
+};
 
-static int hpt366_get_info (char *buffer, char **addr, off_t offset, int count)
-{
-	char *p	= buffer;
-	char *chipset_nums[] = {"366", "366",  "368",
-				"370", "370A", "372",
-				"302", "371",  "374" };
-	int i, len;
+static const char *bad_ata33[] = {
+	"Maxtor 92720U8", "Maxtor 92040U6", "Maxtor 91360U4", "Maxtor 91020U3", "Maxtor 90845U3", "Maxtor 90650U2",
+	"Maxtor 91360D8", "Maxtor 91190D7", "Maxtor 91020D6", "Maxtor 90845D5", "Maxtor 90680D4", "Maxtor 90510D3", "Maxtor 90340D2",
+	"Maxtor 91152D8", "Maxtor 91008D7", "Maxtor 90845D6", "Maxtor 90840D6", "Maxtor 90720D5", "Maxtor 90648D5", "Maxtor 90576D4",
+	"Maxtor 90510D4",
+	"Maxtor 90432D3", "Maxtor 90288D2", "Maxtor 90256D2",
+	"Maxtor 91000D8", "Maxtor 90910D8", "Maxtor 90875D7", "Maxtor 90840D7", "Maxtor 90750D6", "Maxtor 90625D5", "Maxtor 90500D4",
+	"Maxtor 91728D8", "Maxtor 91512D7", "Maxtor 91303D6", "Maxtor 91080D5", "Maxtor 90845D4", "Maxtor 90680D4", "Maxtor 90648D3", "Maxtor 90432D2",
+	NULL
+};
 
-	p += sprintf(p, "\n                             "
-		"HighPoint HPT366/368/370/372/374\n");
-	for (i = 0; i < n_hpt_devs; i++) {
-		struct pci_dev *dev = hpt_devs[i];
-		unsigned long iobase = dev->resource[4].start;
-		u32 class_rev = hpt_revision(dev);
-		u8 c0, c1;
+struct chipset_bus_clock_list_entry {
+	u8		xfer_speed;
+	unsigned int	chipset_settings;
+};
 
-		p += sprintf(p, "\nController: %d\n", i);
-		p += sprintf(p, "Chipset: HPT%s\n", chipset_nums[class_rev]);
-		p += sprintf(p, "--------------- Primary Channel "
-				"--------------- Secondary Channel "
-				"--------------\n");
+/* key for bus clock timings
+ * bit
+ * 0:3    data_high_time. inactive time of DIOW_/DIOR_ for PIO and MW
+ *        DMA. cycles = value + 1
+ * 4:8    data_low_time. active time of DIOW_/DIOR_ for PIO and MW
+ *        DMA. cycles = value + 1
+ * 9:12   cmd_high_time. inactive time of DIOW_/DIOR_ during task file
+ *        register access.
+ * 13:17  cmd_low_time. active time of DIOW_/DIOR_ during task file
+ *        register access.
+ * 18:21  udma_cycle_time. clock freq and clock cycles for UDMA xfer.
+ *        during task file register access.
+ * 22:24  pre_high_time. time to initialize 1st cycle for PIO and MW DMA
+ *        xfer.
+ * 25:27  cmd_pre_high_time. time to initialize 1st PIO cycle for task
+ *        register access.
+ * 28     UDMA enable
+ * 29     DMA enable
+ * 30     PIO_MST enable. if set, the chip is in bus master mode during
+ *        PIO.
+ * 31     FIFO enable.
+ */
+static struct chipset_bus_clock_list_entry forty_base_hpt366[] = {
+	{	XFER_UDMA_4,	0x900fd943	},
+	{	XFER_UDMA_3,	0x900ad943	},
+	{	XFER_UDMA_2,	0x900bd943	},
+	{	XFER_UDMA_1,	0x9008d943	},
+	{	XFER_UDMA_0,	0x9008d943	},
 
-		/* get the bus master status registers */
-		c0 = inb(iobase + 0x2);
-		c1 = inb(iobase + 0xa);
-		p += sprintf(p, "Enabled:        %s"
-				"                             %s\n",
-			(c0 & 0x80) ? "no" : "yes",
-			(c1 & 0x80) ? "no" : "yes");
+	{	XFER_MW_DMA_2,	0xa008d943	},
+	{	XFER_MW_DMA_1,	0xa010d955	},
+	{	XFER_MW_DMA_0,	0xa010d9fc	},
+
+	{	XFER_PIO_4,	0xc008d963	},
+	{	XFER_PIO_3,	0xc010d974	},
+	{	XFER_PIO_2,	0xc010d997	},
+	{	XFER_PIO_1,	0xc010d9c7	},
+	{	XFER_PIO_0,	0xc018d9d9	},
+	{	0,		0x0120d9d9	}
+};
+
+static struct chipset_bus_clock_list_entry thirty_three_base_hpt366[] = {
+	{	XFER_UDMA_4,	0x90c9a731	},
+	{	XFER_UDMA_3,	0x90cfa731	},
+	{	XFER_UDMA_2,	0x90caa731	},
+	{	XFER_UDMA_1,	0x90cba731	},
+	{	XFER_UDMA_0,	0x90c8a731	},
+
+	{	XFER_MW_DMA_2,	0xa0c8a731	},
+	{	XFER_MW_DMA_1,	0xa0c8a732	},	/* 0xa0c8a733 */
+	{	XFER_MW_DMA_0,	0xa0c8a797	},
+
+	{	XFER_PIO_4,	0xc0c8a731	},
+	{	XFER_PIO_3,	0xc0c8a742	},
+	{	XFER_PIO_2,	0xc0d0a753	},
+	{	XFER_PIO_1,	0xc0d0a7a3	},	/* 0xc0d0a793 */
+	{	XFER_PIO_0,	0xc0d0a7aa	},	/* 0xc0d0a7a7 */
+	{	0,		0x0120a7a7	}
+};
+
+static struct chipset_bus_clock_list_entry twenty_five_base_hpt366[] = {
+	{	XFER_UDMA_4,	0x90c98521	},
+	{	XFER_UDMA_3,	0x90cf8521	},
+	{	XFER_UDMA_2,	0x90cf8521	},
+	{	XFER_UDMA_1,	0x90cb8521	},
+	{	XFER_UDMA_0,	0x90cb8521	},
+
+	{	XFER_MW_DMA_2,	0xa0ca8521	},
+	{	XFER_MW_DMA_1,	0xa0ca8532	},
+	{	XFER_MW_DMA_0,	0xa0ca8575	},
+
+	{	XFER_PIO_4,	0xc0ca8521	},
+	{	XFER_PIO_3,	0xc0ca8532	},
+	{	XFER_PIO_2,	0xc0ca8542	},
+	{	XFER_PIO_1,	0xc0d08572	},
+	{	XFER_PIO_0,	0xc0d08585	},
+	{	0,		0x01208585	}
+};
+
+/* from highpoint documentation. these are old values */
+static struct chipset_bus_clock_list_entry thirty_three_base_hpt370[] = {
+/*	{	XFER_UDMA_5,	0x1A85F442,	0x16454e31	}, */
+	{	XFER_UDMA_5,	0x16454e31	},
+	{	XFER_UDMA_4,	0x16454e31	},
+	{	XFER_UDMA_3,	0x166d4e31	},
+	{	XFER_UDMA_2,	0x16494e31	},
+	{	XFER_UDMA_1,	0x164d4e31	},
+	{	XFER_UDMA_0,	0x16514e31	},
+
+	{	XFER_MW_DMA_2,	0x26514e21	},
+	{	XFER_MW_DMA_1,	0x26514e33	},
+	{	XFER_MW_DMA_0,	0x26514e97	},
+
+	{	XFER_PIO_4,	0x06514e21	},
+	{	XFER_PIO_3,	0x06514e22	},
+	{	XFER_PIO_2,	0x06514e33	},
+	{	XFER_PIO_1,	0x06914e43	},
+	{	XFER_PIO_0,	0x06914e57	},
+	{	0,		0x06514e57	}
+};
+
+static struct chipset_bus_clock_list_entry sixty_six_base_hpt370[] = {
+	{	XFER_UDMA_5,	0x14846231	},
+	{	XFER_UDMA_4,	0x14886231	},
+	{	XFER_UDMA_3,	0x148c6231	},
+	{	XFER_UDMA_2,	0x148c6231	},
+	{	XFER_UDMA_1,	0x14906231	},
+	{	XFER_UDMA_0,	0x14986231	},
+
+	{	XFER_MW_DMA_2,	0x26514e21	},
+	{	XFER_MW_DMA_1,	0x26514e33	},
+	{	XFER_MW_DMA_0,	0x26514e97	},
+
+	{	XFER_PIO_4,	0x06514e21	},
+	{	XFER_PIO_3,	0x06514e22	},
+	{	XFER_PIO_2,	0x06514e33	},
+	{	XFER_PIO_1,	0x06914e43	},
+	{	XFER_PIO_0,	0x06914e57	},
+	{	0,		0x06514e57	}
+};
+
+/* these are the current (4 sep 2001) timings from highpoint */
+static struct chipset_bus_clock_list_entry thirty_three_base_hpt370a[] = {
+	{	XFER_UDMA_5,	0x12446231	},
+	{	XFER_UDMA_4,	0x12446231	},
+	{	XFER_UDMA_3,	0x126c6231	},
+	{	XFER_UDMA_2,	0x12486231	},
+	{	XFER_UDMA_1,	0x124c6233	},
+	{	XFER_UDMA_0,	0x12506297	},
+
+	{	XFER_MW_DMA_2,	0x22406c31	},
+	{	XFER_MW_DMA_1,	0x22406c33	},
+	{	XFER_MW_DMA_0,	0x22406c97	},
+
+	{	XFER_PIO_4,	0x06414e31	},
+	{	XFER_PIO_3,	0x06414e42	},
+	{	XFER_PIO_2,	0x06414e53	},
+	{	XFER_PIO_1,	0x06814e93	},
+	{	XFER_PIO_0,	0x06814ea7	},
+	{	0,		0x06814ea7	}
+};
+
+/* 2x 33MHz timings */
+static struct chipset_bus_clock_list_entry sixty_six_base_hpt370a[] = {
+	{	XFER_UDMA_5,	0x1488e673	},
+	{	XFER_UDMA_4,	0x1488e673	},
+	{	XFER_UDMA_3,	0x1498e673	},
+	{	XFER_UDMA_2,	0x1490e673	},
+	{	XFER_UDMA_1,	0x1498e677	},
+	{	XFER_UDMA_0,	0x14a0e73f	},
+
+	{	XFER_MW_DMA_2,	0x2480fa73	},
+	{	XFER_MW_DMA_1,	0x2480fa77	}, 
+	{	XFER_MW_DMA_0,	0x2480fb3f	},
+
+	{	XFER_PIO_4,	0x0c82be73	},
+	{	XFER_PIO_3,	0x0c82be95	},
+	{	XFER_PIO_2,	0x0c82beb7	},
+	{	XFER_PIO_1,	0x0d02bf37	},
+	{	XFER_PIO_0,	0x0d02bf5f	},
+	{	0,		0x0d02bf5f	}
+};
+
+static struct chipset_bus_clock_list_entry fifty_base_hpt370a[] = {
+	{	XFER_UDMA_5,	0x12848242	},
+	{	XFER_UDMA_4,	0x12ac8242	},
+	{	XFER_UDMA_3,	0x128c8242	},
+	{	XFER_UDMA_2,	0x120c8242	},
+	{	XFER_UDMA_1,	0x12148254	},
+	{	XFER_UDMA_0,	0x121882ea	},
+
+	{	XFER_MW_DMA_2,	0x22808242	},
+	{	XFER_MW_DMA_1,	0x22808254	},
+	{	XFER_MW_DMA_0,	0x228082ea	},
+
+	{	XFER_PIO_4,	0x0a81f442	},
+	{	XFER_PIO_3,	0x0a81f443	},
+	{	XFER_PIO_2,	0x0a81f454	},
+	{	XFER_PIO_1,	0x0ac1f465	},
+	{	XFER_PIO_0,	0x0ac1f48a	},
+	{	0,		0x0ac1f48a	}
+};
+
+static struct chipset_bus_clock_list_entry thirty_three_base_hpt372[] = {
+	{	XFER_UDMA_6,	0x1c81dc62	},
+	{	XFER_UDMA_5,	0x1c6ddc62	},
+	{	XFER_UDMA_4,	0x1c8ddc62	},
+	{	XFER_UDMA_3,	0x1c8edc62	},	/* checkme */
+	{	XFER_UDMA_2,	0x1c91dc62	},
+	{	XFER_UDMA_1,	0x1c9adc62	},	/* checkme */
+	{	XFER_UDMA_0,	0x1c82dc62	},	/* checkme */
+
+	{	XFER_MW_DMA_2,	0x2c829262	},
+	{	XFER_MW_DMA_1,	0x2c829266	},	/* checkme */
+	{	XFER_MW_DMA_0,	0x2c82922e	},	/* checkme */
+
+	{	XFER_PIO_4,	0x0c829c62	},
+	{	XFER_PIO_3,	0x0c829c84	},
+	{	XFER_PIO_2,	0x0c829ca6	},
+	{	XFER_PIO_1,	0x0d029d26	},
+	{	XFER_PIO_0,	0x0d029d5e	},
+	{	0,		0x0d029d5e	}
+};
+
+static struct chipset_bus_clock_list_entry fifty_base_hpt372[] = {
+	{	XFER_UDMA_5,	0x12848242	},
+	{	XFER_UDMA_4,	0x12ac8242	},
+	{	XFER_UDMA_3,	0x128c8242	},
+	{	XFER_UDMA_2,	0x120c8242	},
+	{	XFER_UDMA_1,	0x12148254	},
+	{	XFER_UDMA_0,	0x121882ea	},
+
+	{	XFER_MW_DMA_2,	0x22808242	},
+	{	XFER_MW_DMA_1,	0x22808254	},
+	{	XFER_MW_DMA_0,	0x228082ea	},
+
+	{	XFER_PIO_4,	0x0a81f442	},
+	{	XFER_PIO_3,	0x0a81f443	},
+	{	XFER_PIO_2,	0x0a81f454	},
+	{	XFER_PIO_1,	0x0ac1f465	},
+	{	XFER_PIO_0,	0x0ac1f48a	},
+	{	0,		0x0a81f443	}
+};
+
+static struct chipset_bus_clock_list_entry sixty_six_base_hpt372[] = {
+	{	XFER_UDMA_6,	0x1c869c62	},
+	{	XFER_UDMA_5,	0x1cae9c62	},
+	{	XFER_UDMA_4,	0x1c8a9c62	},
+	{	XFER_UDMA_3,	0x1c8e9c62	},
+	{	XFER_UDMA_2,	0x1c929c62	},
+	{	XFER_UDMA_1,	0x1c9a9c62	},
+	{	XFER_UDMA_0,	0x1c829c62	},
+
+	{	XFER_MW_DMA_2,	0x2c829c62	},
+	{	XFER_MW_DMA_1,	0x2c829c66	},
+	{	XFER_MW_DMA_0,	0x2c829d2e	},
+
+	{	XFER_PIO_4,	0x0c829c62	},
+	{	XFER_PIO_3,	0x0c829c84	},
+	{	XFER_PIO_2,	0x0c829ca6	},
+	{	XFER_PIO_1,	0x0d029d26	},
+	{	XFER_PIO_0,	0x0d029d5e	},
+	{	0,		0x0d029d26	}
+};
+
+static struct chipset_bus_clock_list_entry thirty_three_base_hpt374[] = {
+	{	XFER_UDMA_6,	0x12808242	},
+	{	XFER_UDMA_5,	0x12848242	},
+	{	XFER_UDMA_4,	0x12ac8242	},
+	{	XFER_UDMA_3,	0x128c8242	},
+	{	XFER_UDMA_2,	0x120c8242	},
+	{	XFER_UDMA_1,	0x12148254	},
+	{	XFER_UDMA_0,	0x121882ea	},
+
+	{	XFER_MW_DMA_2,	0x22808242	},
+	{	XFER_MW_DMA_1,	0x22808254	},
+	{	XFER_MW_DMA_0,	0x228082ea	},
+
+	{	XFER_PIO_4,	0x0a81f442	},
+	{	XFER_PIO_3,	0x0a81f443	},
+	{	XFER_PIO_2,	0x0a81f454	},
+	{	XFER_PIO_1,	0x0ac1f465	},
+	{	XFER_PIO_0,	0x0ac1f48a	},
+	{	0,		0x06814e93	}
+};
+
+/* FIXME: 50MHz timings for HPT374 */
+
+#if 0
+static struct chipset_bus_clock_list_entry sixty_six_base_hpt374[] = {
+	{	XFER_UDMA_6,	0x12406231	},	/* checkme */
+	{	XFER_UDMA_5,	0x12446231	},	/* 0x14846231 */
+	{	XFER_UDMA_4,	0x16814ea7	},	/* 0x14886231 */
+	{	XFER_UDMA_3,	0x16814ea7	},	/* 0x148c6231 */
+	{	XFER_UDMA_2,	0x16814ea7	},	/* 0x148c6231 */
+	{	XFER_UDMA_1,	0x16814ea7	},	/* 0x14906231 */
+	{	XFER_UDMA_0,	0x16814ea7	},	/* 0x14986231 */
+	{	XFER_MW_DMA_2,	0x16814ea7	},	/* 0x26514e21 */
+	{	XFER_MW_DMA_1,	0x16814ea7	},	/* 0x26514e97 */
+	{	XFER_MW_DMA_0,	0x16814ea7	},	/* 0x26514e97 */
+	{	XFER_PIO_4,	0x06814ea7	},	/* 0x06514e21 */
+	{	XFER_PIO_3,	0x06814ea7	},	/* 0x06514e22 */
+	{	XFER_PIO_2,	0x06814ea7	},	/* 0x06514e33 */
+	{	XFER_PIO_1,	0x06814ea7	},	/* 0x06914e43 */
+	{	XFER_PIO_0,	0x06814ea7	},	/* 0x06914e57 */
+	{	0,		0x06814ea7	}
+};
+#endif
+
+#define HPT366_DEBUG_DRIVE_INFO		0
+#define HPT374_ALLOW_ATA133_6		0
+#define HPT371_ALLOW_ATA133_6		0
+#define HPT302_ALLOW_ATA133_6		0
+#define HPT372_ALLOW_ATA133_6		1
+#define HPT370_ALLOW_ATA100_5		1
+#define HPT366_ALLOW_ATA66_4		1
+#define HPT366_ALLOW_ATA66_3		1
+#define HPT366_MAX_DEVS			8
+
+#define F_LOW_PCI_33	0x23
+#define F_LOW_PCI_40	0x29
+#define F_LOW_PCI_50	0x2d
+#define F_LOW_PCI_66	0x42
+
+/* FIXME: compare with driver's code before removing */
 #if 0
 		if (hpt_minimum_revision(dev, 3)) {
 			u8 cbl;
@@ -128,16 +460,6 @@ static int hpt366_get_info (char *buffer, char **addr, off_t offset, int count)
 				(cbl & 0x01) ? 33 : 66);
 			p += sprintf(p, "\n");
 		}
-#endif
-		p += sprintf(p, "--------------- drive0 --------- drive1 "
-				"------- drive0 ---------- drive1 -------\n");
-		p += sprintf(p, "DMA capable:    %s              %s" 
-				"            %s               %s\n",
-			(c0 & 0x20) ? "yes" : "no ", 
-			(c0 & 0x40) ? "yes" : "no ",
-			(c1 & 0x20) ? "yes" : "no ", 
-			(c1 & 0x40) ? "yes" : "no ");
-
 		{
 			u8 c2, c3;
 			/* older revs don't have these registers mapped 
@@ -159,15 +481,7 @@ static int hpt366_get_info (char *buffer, char **addr, off_t offset, int count)
 					(c3 & 0x80) ? "PIO " : "off ");
 		}
 	}
-	p += sprintf(p, "\n");
-
-	/* p - buffer must be less than 4k! */
-	len = (p - buffer) - offset;
-	*addr = buffer + offset;
-	
-	return len > count ? count : len;
-}
-#endif  /* defined(DISPLAY_HPT366_TIMINGS) && defined(CONFIG_PROC_FS) */
+#endif
 
 static u32 hpt_revision (struct pci_dev *dev)
 {
@@ -521,35 +835,16 @@ static int hpt366_config_drive_xfer_rate (ide_drive_t *drive)
 	drive->init_speed = 0;
 
 	if (id && (id->capability & 1) && drive->autodma) {
-		/* Consult the list of known "bad" drives */
-		if (__ide_dma_bad_drive(drive))
-			goto fast_ata_pio;
-		if (id->field_valid & 4) {
-			if (id->dma_ultra & hwif->ultra_mask) {
-				/* Force if Capable UltraDMA */
-				int dma = config_chipset_for_dma(drive);
-				if ((id->field_valid & 2) && !dma)
-					goto try_dma_modes;
-			}
-		} else if (id->field_valid & 2) {
-try_dma_modes:
-			if (id->dma_mword & hwif->mwdma_mask) {
-				/* Force if Capable regular DMA modes */
-				if (!config_chipset_for_dma(drive))
-					goto no_dma_set;
-			}
-		} else if (__ide_dma_good_drive(drive) &&
-			   (id->eide_dma_time < 150)) {
-			/* Consult the list of known "good" drives */
-			if (!config_chipset_for_dma(drive))
-				goto no_dma_set;
-		} else {
-			goto fast_ata_pio;
+
+		if (ide_use_dma(drive)) {
+			if (config_chipset_for_dma(drive))
+				return hwif->ide_dma_on(drive);
 		}
-		return hwif->ide_dma_on(drive);
+
+		goto fast_ata_pio;
+
 	} else if ((id->capability & 8) || (id->field_valid & 2)) {
 fast_ata_pio:
-no_dma_set:
 		hpt3xx_tune_drive(drive, 5);
 		return hwif->ide_dma_off_quietly(drive);
 	}
@@ -577,7 +872,7 @@ static int hpt366_ide_dma_lostirq (ide_drive_t *drive)
 	/* how about we flush and reset, mmmkay? */
 	pci_write_config_byte(dev, 0x51, 0x1F);
 	/* fall through to a reset */
-	case ide_dma_begin:
+	case dma_start:
 	case ide_dma_end:
 	/* reset the chips state over and over.. */
 	pci_write_config_byte(dev, 0x51, 0x13);
@@ -592,12 +887,12 @@ static void hpt370_clear_engine (ide_drive_t *drive)
 	udelay(10);
 }
 
-static int hpt370_ide_dma_begin (ide_drive_t *drive)
+static void hpt370_ide_dma_start(ide_drive_t *drive)
 {
 #ifdef HPT_RESET_STATE_ENGINE
 	hpt370_clear_engine(drive);
 #endif
-	return __ide_dma_begin(drive);
+	ide_dma_start(drive);
 }
 
 static int hpt370_ide_dma_end (ide_drive_t *drive)
@@ -723,32 +1018,25 @@ static void hpt372n_set_clock(ide_drive_t *drive, int mode)
 }
 
 /**
- *	hpt372n_rw_disk		-	wrapper for I/O
+ *	hpt372n_rw_disk		-	prepare for I/O
  *	@drive: drive for command
  *	@rq: block request structure
- *	@block: block number
  *
- *	This is called when a disk I/O is issued to the 372N instead
- *	of the default functionality. We need it because of the clock
- *	switching
- *
+ *	This is called when a disk I/O is issued to the 372N.
+ *	We need it because of the clock switching.
  */
- 
-static ide_startstop_t hpt372n_rw_disk(ide_drive_t *drive, struct request *rq, sector_t block)
+
+static void hpt372n_rw_disk(ide_drive_t *drive, struct request *rq)
 {
+	ide_hwif_t *hwif = drive->hwif;
 	int wantclock;
-	
-	if(rq_data_dir(rq) == READ)
-		wantclock = 0x21;
-	else
-		wantclock = 0x23;
-		
-	if(HWIF(drive)->config_data != wantclock)
-	{
+
+	wantclock = rq_data_dir(rq) ? 0x23 : 0x21;
+
+	if (hwif->config_data != wantclock) {
 		hpt372n_set_clock(drive, wantclock);
-		HWIF(drive)->config_data = wantclock;
+		hwif->config_data = wantclock;
 	}
-	return __ide_do_rw_disk(drive, rq, block);
 }
 
 /*
@@ -776,9 +1064,6 @@ static int hpt3xx_tristate (ide_drive_t * drive, int state)
 	struct pci_dev *dev	= hwif->pci_dev;
 	u8 reg59h = 0, reset	= (hwif->channel) ? 0x80 : 0x40;
 	u8 regXXh = 0, state_reg= (hwif->channel) ? 0x57 : 0x53;
-
-	if (!hwif)
-		return -EINVAL;
 
 //	hwif->bus_state = state;
 
@@ -812,9 +1097,6 @@ static int hpt370_busproc(ide_drive_t * drive, int state)
 	struct pci_dev *dev	= hwif->pci_dev;
 	u8 tristate = 0, resetmask = 0, bus_reg = 0;
 	u16 tri_reg;
-
-	if (!hwif)
-		return -EINVAL;
 
 	hwif->bus_state = state;
 
@@ -958,7 +1240,7 @@ static int __devinit init_hpt37x(struct pci_dev *dev)
 			/* Unsupported */
 		} else if (pll == F_LOW_PCI_50) {
 			if (hpt_minimum_revision(dev,8))
-				pci_set_drvdata(dev, NULL);
+				pci_set_drvdata(dev, (void *) fifty_base_hpt370a);
 			else if (hpt_minimum_revision(dev,5))
 				pci_set_drvdata(dev, (void *) fifty_base_hpt372);
 			else if (hpt_minimum_revision(dev,4))
@@ -991,11 +1273,6 @@ static int __devinit init_hpt37x(struct pci_dev *dev)
 	if (pci_get_drvdata(dev)) 
 		goto init_hpt37X_done;
 	
-	if (hpt_minimum_revision(dev,8))
-	{
-		printk(KERN_ERR "HPT374: Only 33MHz PCI timings are supported.\n");
-		return -EOPNOTSUPP;
-	}
 	/*
 	 * adjust PLL based upon PCI clock, enable it, and wait for
 	 * stabilization.
@@ -1116,15 +1393,6 @@ static unsigned int __devinit init_chipset_hpt366(struct pci_dev *dev, const cha
 	}
 	if (ret)
 		return ret;
-	
-#if defined(DISPLAY_HPT366_TIMINGS) && defined(CONFIG_PROC_FS)
-	hpt_devs[n_hpt_devs++] = dev;
-
-	if (!hpt366_proc) {
-		hpt366_proc = 1;
-		ide_pci_create_host_proc("hpt366", hpt366_get_info);
-	}
-#endif /* DISPLAY_HPT366_TIMINGS && CONFIG_PROC_FS */
 
 	return dev->irq;
 }
@@ -1241,7 +1509,7 @@ static void __devinit init_hwif_hpt366(ide_hwif_t *hwif)
 		hwif->ide_dma_test_irq = &hpt374_ide_dma_test_irq;
 		hwif->ide_dma_end = &hpt374_ide_dma_end;
 	} else if (hpt_minimum_revision(dev,3)) {
-		hwif->ide_dma_begin = &hpt370_ide_dma_begin;
+		hwif->dma_start = &hpt370_ide_dma_start;
 		hwif->ide_dma_end = &hpt370_ide_dma_end;
 		hwif->ide_dma_timeout = &hpt370_ide_dma_timeout;
 		hwif->ide_dma_lostirq = &hpt370_ide_dma_lostirq;
@@ -1291,12 +1559,12 @@ static void __devinit init_dma_hpt366(ide_hwif_t *hwif, unsigned long dmabase)
 	ide_setup_dma(hwif, dmabase, 8);
 }
 
-static void __devinit init_setup_hpt374(struct pci_dev *dev, ide_pci_device_t *d)
+static int __devinit init_setup_hpt374(struct pci_dev *dev, ide_pci_device_t *d)
 {
 	struct pci_dev *findev = NULL;
 
 	if (PCI_FUNC(dev->devfn) & 1)
-		return;
+		return -ENODEV;
 
 	while ((findev = pci_find_device(PCI_ANY_ID, PCI_ANY_ID, findev)) != NULL) {
 		if ((findev->vendor == dev->vendor) &&
@@ -1309,19 +1577,18 @@ static void __devinit init_setup_hpt374(struct pci_dev *dev, ide_pci_device_t *d
 				printk(KERN_WARNING "%s: pci-config space interrupt "
 					"fixed.\n", d->name);
 			}
-			ide_setup_pci_devices(dev, findev, d);
-			return;
+			return ide_setup_pci_devices(dev, findev, d);
 		}
 	}
-	ide_setup_pci_device(dev, d);
+	return ide_setup_pci_device(dev, d);
 }
 
-static void __devinit init_setup_hpt37x(struct pci_dev *dev, ide_pci_device_t *d)
+static int __devinit init_setup_hpt37x(struct pci_dev *dev, ide_pci_device_t *d)
 {
-	ide_setup_pci_device(dev, d);
+	return ide_setup_pci_device(dev, d);
 }
 
-static void __devinit init_setup_hpt366(struct pci_dev *dev, ide_pci_device_t *d)
+static int __devinit init_setup_hpt366(struct pci_dev *dev, ide_pci_device_t *d)
 {
 	struct pci_dev *findev = NULL;
 	u8 pin1 = 0, pin2 = 0;
@@ -1331,7 +1598,7 @@ static void __devinit init_setup_hpt366(struct pci_dev *dev, ide_pci_device_t *d
 				 "HPT372N" };
 
 	if (PCI_FUNC(dev->devfn) & 1)
-		return;
+		return -ENODEV;
 
 	pci_read_config_dword(dev, PCI_CLASS_REVISION, &class_rev);
 	class_rev &= 0xff;
@@ -1346,9 +1613,10 @@ static void __devinit init_setup_hpt366(struct pci_dev *dev, ide_pci_device_t *d
 		case 6:
 		case 5:
 		case 4:
-		case 3: ide_setup_pci_device(dev, d);
-			return;
-		default:	break;
+		case 3:
+			goto init_single;
+		default:
+			break;
 	}
 
 	d->channels = 1;
@@ -1366,13 +1634,71 @@ static void __devinit init_setup_hpt366(struct pci_dev *dev, ide_pci_device_t *d
 					"pin1=%d pin2=%d\n", d->name,
 					pin1, pin2);
 			}
-			ide_setup_pci_devices(dev, findev, d);
-			return;
+			return ide_setup_pci_devices(dev, findev, d);
 		}
 	}
-	ide_setup_pci_device(dev, d);
+init_single:
+	return ide_setup_pci_device(dev, d);
 }
 
+static ide_pci_device_t hpt366_chipsets[] __devinitdata = {
+	{	/* 0 */
+		.name		= "HPT366",
+		.init_setup	= init_setup_hpt366,
+		.init_chipset	= init_chipset_hpt366,
+		.init_hwif	= init_hwif_hpt366,
+		.init_dma	= init_dma_hpt366,
+		.channels	= 2,
+		.autodma	= AUTODMA,
+		.bootable	= OFF_BOARD,
+		.extra		= 240
+	},{	/* 1 */
+		.name		= "HPT372A",
+		.init_setup	= init_setup_hpt37x,
+		.init_chipset	= init_chipset_hpt366,
+		.init_hwif	= init_hwif_hpt366,
+		.init_dma	= init_dma_hpt366,
+		.channels	= 2,
+		.autodma	= AUTODMA,
+		.bootable	= OFF_BOARD,
+	},{	/* 2 */
+		.name		= "HPT302",
+		.init_setup	= init_setup_hpt37x,
+		.init_chipset	= init_chipset_hpt366,
+		.init_hwif	= init_hwif_hpt366,
+		.init_dma	= init_dma_hpt366,
+		.channels	= 2,
+		.autodma	= AUTODMA,
+		.bootable	= OFF_BOARD,
+	},{	/* 3 */
+		.name		= "HPT371",
+		.init_setup	= init_setup_hpt37x,
+		.init_chipset	= init_chipset_hpt366,
+		.init_hwif	= init_hwif_hpt366,
+		.init_dma	= init_dma_hpt366,
+		.channels	= 2,
+		.autodma	= AUTODMA,
+		.bootable	= OFF_BOARD,
+	},{	/* 4 */
+		.name		= "HPT374",
+		.init_setup	= init_setup_hpt374,
+		.init_chipset	= init_chipset_hpt366,
+		.init_hwif	= init_hwif_hpt366,
+		.init_dma	= init_dma_hpt366,
+		.channels	= 2,	/* 4 */
+		.autodma	= AUTODMA,
+		.bootable	= OFF_BOARD,
+	},{	/* 5 */
+		.name		= "HPT372N",
+		.init_setup	= init_setup_hpt37x,
+		.init_chipset	= init_chipset_hpt366,
+		.init_hwif	= init_hwif_hpt366,
+		.init_dma	= init_dma_hpt366,
+		.channels	= 2,	/* 4 */
+		.autodma	= AUTODMA,
+		.bootable	= OFF_BOARD,
+	}
+};
 
 /**
  *	hpt366_init_one	-	called when an HPT366 is found
@@ -1387,8 +1713,7 @@ static int __devinit hpt366_init_one(struct pci_dev *dev, const struct pci_devic
 {
 	ide_pci_device_t *d = &hpt366_chipsets[id->driver_data];
 
-	d->init_setup(dev, d);
-	return 0;
+	return d->init_setup(dev, d);
 }
 
 static struct pci_device_id hpt366_pci_tbl[] = {
@@ -1403,7 +1728,7 @@ static struct pci_device_id hpt366_pci_tbl[] = {
 MODULE_DEVICE_TABLE(pci, hpt366_pci_tbl);
 
 static struct pci_driver driver = {
-	.name		= "HPT366 IDE",
+	.name		= "HPT366_IDE",
 	.id_table	= hpt366_pci_tbl,
 	.probe		= hpt366_init_one,
 };

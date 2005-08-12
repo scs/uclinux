@@ -43,6 +43,7 @@
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/uaccess.h>
+#include <asm/arch/pxa-regs.h>
 #include <asm/arch/bitfield.h>
 #include <asm/arch/pxafb.h>
 
@@ -370,9 +371,10 @@ static int pxafb_blank(int blank, struct fb_info *info)
 	DPRINTK("pxafb_blank: blank=%d\n", blank);
 
 	switch (blank) {
-	case VESA_POWERDOWN:
-	case VESA_VSYNC_SUSPEND:
-	case VESA_HSYNC_SUSPEND:
+	case FB_BLANK_POWERDOWN:
+	case FB_BLANK_VSYNC_SUSPEND:
+	case FB_BLANK_HSYNC_SUSPEND:
+	case FB_BLANK_NORMAL:
 		if (fbi->fb.fix.visual == FB_VISUAL_PSEUDOCOLOR ||
 		    fbi->fb.fix.visual == FB_VISUAL_STATIC_PSEUDOCOLOR)
 			for (i = 0; i < fbi->palette_size; i++)
@@ -382,7 +384,7 @@ static int pxafb_blank(int blank, struct fb_info *info)
 		//TODO if (pxafb_blank_helper) pxafb_blank_helper(blank);
 		break;
 
-	case VESA_NO_BLANKING:
+	case FB_BLANK_UNBLANK:
 		//TODO if (pxafb_blank_helper) pxafb_blank_helper(blank);
 		if (fbi->fb.fix.visual == FB_VISUAL_PSEUDOCOLOR ||
 		    fbi->fb.fix.visual == FB_VISUAL_STATIC_PSEUDOCOLOR)
@@ -390,6 +392,20 @@ static int pxafb_blank(int blank, struct fb_info *info)
 		pxafb_schedule_work(fbi, C_ENABLE);
 	}
 	return 0;
+}
+
+static int pxafb_mmap(struct fb_info *info, struct file *file,
+		      struct vm_area_struct *vma)
+{
+	struct pxafb_info *fbi = (struct pxafb_info *)info;
+	unsigned long off = vma->vm_pgoff << PAGE_SHIFT;
+
+	if (off < info->fix.smem_len) {
+		vma->vm_pgoff += 1;
+		return dma_mmap_writecombine(fbi->dev, vma, fbi->map_cpu,
+					     fbi->map_dma, fbi->map_size);
+	}
+	return -EINVAL;
 }
 
 static struct fb_ops pxafb_ops = {
@@ -402,6 +418,7 @@ static struct fb_ops pxafb_ops = {
 	.fb_imageblit	= cfb_imageblit,
 	.fb_blank	= pxafb_blank,
 	.fb_cursor	= soft_cursor,
+	.fb_mmap	= pxafb_mmap,
 };
 
 /*
@@ -651,6 +668,7 @@ static inline void __pxafb_lcd_power(struct pxafb_info *fbi, int on)
 
 static void pxafb_setup_gpio(struct pxafb_info *fbi)
 {
+	int gpio, ldd_bits;
         unsigned int lccr0 = fbi->lccr0;
 
 	/*
@@ -661,49 +679,31 @@ static void pxafb_setup_gpio(struct pxafb_info *fbi)
 	if ((lccr0 & LCCR0_CMS) == LCCR0_Mono &&
 	    (lccr0 & LCCR0_SDS) == LCCR0_Sngl &&
 	    (lccr0 & LCCR0_DPD) == LCCR0_4PixMono)
-	{
-		// bits 58-61
-		GPDR1 |= (0xf << 26);
-		GAFR1_U = (GAFR1_U & ~(0xff << 20)) | (0xaa << 20);
-
-		// bits 74-77
-		GPDR2 |= (0xf << 10);
-		GAFR2_L = (GAFR2_L & ~(0xff << 20)) | (0xaa << 20);
-	}
+		ldd_bits = 4;
 
 	/* 8 bit interface */
         else if (((lccr0 & LCCR0_CMS) == LCCR0_Mono &&
 		  ((lccr0 & LCCR0_SDS) == LCCR0_Dual || (lccr0 & LCCR0_DPD) == LCCR0_8PixMono)) ||
                  ((lccr0 & LCCR0_CMS) == LCCR0_Color &&
 		  (lccr0 & LCCR0_PAS) == LCCR0_Pas && (lccr0 & LCCR0_SDS) == LCCR0_Sngl))
-	{
-		// bits 58-65
-		GPDR1 |= (0x3f << 26);
-		GPDR2 |= (0x3);
-
-		GAFR1_U = (GAFR1_U & ~(0xfff << 20)) | (0xaaa << 20);
-		GAFR2_L = (GAFR2_L & ~0xf) | (0xa);
-
-		// bits 74-77
-		GPDR2 |= (0xf << 10);
-		GAFR2_L = (GAFR2_L & ~(0xff << 20)) | (0xaa << 20);
-	}
+		ldd_bits = 8;
 
 	/* 16 bit interface */
 	else if ((lccr0 & LCCR0_CMS) == LCCR0_Color &&
 		 ((lccr0 & LCCR0_SDS) == LCCR0_Dual || (lccr0 & LCCR0_PAS) == LCCR0_Act))
-	{
-		// bits 58-77
-		GPDR1 |= (0x3f << 26);
-		GPDR2 |= 0x00003fff;
-
-		GAFR1_U = (GAFR1_U & ~(0xfff << 20)) | (0xaaa << 20);
-		GAFR2_L = (GAFR2_L & 0xf0000000) | 0x0aaaaaaa;
-	}
+		ldd_bits = 16;
 
 	else {
 	        printk(KERN_ERR "pxafb_setup_gpio: unable to determine bits per pixel\n");
+		return;
         }
+
+	for (gpio = 58; ldd_bits; gpio++, ldd_bits--)
+		pxa_gpio_mode(gpio | GPIO_ALT_FN_2_OUT);
+	pxa_gpio_mode(GPIO74_LCD_FCLK_MD);
+	pxa_gpio_mode(GPIO75_LCD_LCLK_MD);
+	pxa_gpio_mode(GPIO76_LCD_PCLK_MD);
+	pxa_gpio_mode(GPIO77_LCD_ACBIAS_MD);
 }
 
 static void pxafb_enable_controller(struct pxafb_info *fbi)
@@ -740,8 +740,8 @@ static void pxafb_disable_controller(struct pxafb_info *fbi)
 
 	DPRINTK("Disabling LCD controller\n");
 
-	add_wait_queue(&fbi->ctrlr_wait, &wait);
 	set_current_state(TASK_UNINTERRUPTIBLE);
+	add_wait_queue(&fbi->ctrlr_wait, &wait);
 
 	LCSR = 0xffffffff;	/* Clear LCD Status Register */
 	LCCR0 &= ~LCCR0_LDM;	/* Enable LCD Disable Done Interrupt */
@@ -942,7 +942,7 @@ pxafb_freq_policy(struct notifier_block *nb, unsigned long val, void *data)
  * Power management hooks.  Note that we won't be called from IRQ context,
  * unlike the blank functions above, so we may sleep.
  */
-static int pxafb_suspend(struct device *dev, u32 state, u32 level)
+static int pxafb_suspend(struct device *dev, pm_message_t state, u32 level)
 {
 	struct pxafb_info *fbi = dev_get_drvdata(dev);
 
@@ -1040,9 +1040,8 @@ static struct pxafb_info * __init pxafb_init_fbinfo(struct device *dev)
 	fbi->fb.var.vmode	= FB_VMODE_NONINTERLACED;
 
 	fbi->fb.fbops		= &pxafb_ops;
-	fbi->fb.flags		= FBINFO_FLAG_DEFAULT;
+	fbi->fb.flags		= FBINFO_DEFAULT;
 	fbi->fb.node		= -1;
-	fbi->fb.currcon		= -1;
 
 	addr = fbi;
 	addr = addr + sizeof(struct pxafb_info);
@@ -1344,8 +1343,7 @@ int __init pxafb_probe(struct device *dev)
 
 failed:
 	dev_set_drvdata(dev, NULL);
-	if (fbi)
-		kfree(fbi);
+	kfree(fbi);
 	return ret;
 }
 
@@ -1359,11 +1357,6 @@ static struct device_driver pxafb_driver = {
 #endif
 };
 
-int __devinit pxafb_init(void)
-{
-	return driver_register(&pxafb_driver);
-}
-
 #ifndef MODULE
 int __devinit pxafb_setup(char *options)
 {
@@ -1373,12 +1366,25 @@ int __devinit pxafb_setup(char *options)
 	return 0;
 }
 #else
-module_init(pxafb_init);
 # ifdef CONFIG_FB_PXA_PARAMETERS
 module_param_string(options, g_options, sizeof(g_options), 0);
 MODULE_PARM_DESC(options, "LCD parameters (see Documentation/fb/pxafb.txt)");
 # endif
 #endif
+
+int __devinit pxafb_init(void)
+{
+#ifndef MODULE
+	char *option = NULL;
+
+	if (fb_get_options("pxafb", &option))
+		return -ENODEV;
+	pxafb_setup(option);
+#endif
+	return driver_register(&pxafb_driver);
+}
+
+module_init(pxafb_init);
 
 MODULE_DESCRIPTION("loadable framebuffer driver for PXA");
 MODULE_LICENSE("GPL");

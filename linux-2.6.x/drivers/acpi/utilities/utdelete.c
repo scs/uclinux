@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2004, R. Byron Moore
+ * Copyright (C) 2000 - 2005, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -46,6 +46,7 @@
 #include <acpi/acinterp.h>
 #include <acpi/acnamesp.h>
 #include <acpi/acevents.h>
+#include <acpi/amlcode.h>
 
 #define _COMPONENT          ACPI_UTILITIES
 	 ACPI_MODULE_NAME    ("utdelete")
@@ -562,8 +563,23 @@ acpi_ut_update_object_reference (
 			break;
 
 
-		case ACPI_TYPE_REGION:
 		case ACPI_TYPE_LOCAL_REFERENCE:
+
+			/*
+			 * The target of an Index (a package, string, or buffer) must track
+			 * changes to the ref count of the index.
+			 */
+			if (object->reference.opcode == AML_INDEX_OP) {
+				status = acpi_ut_create_update_state_and_push (
+						 object->reference.object, action, &state_list);
+				if (ACPI_FAILURE (status)) {
+					goto error_exit;
+				}
+			}
+			break;
+
+
+		case ACPI_TYPE_REGION:
 		default:
 
 			/* No subobjects */
@@ -621,6 +637,10 @@ acpi_ut_add_reference (
 		return_VOID;
 	}
 
+	ACPI_DEBUG_PRINT ((ACPI_DB_ALLOCATIONS,
+		"Obj %p Current Refs=%X [To Be Incremented]\n",
+		object, object->common.reference_count));
+
 	/* Increment the reference count */
 
 	(void) acpi_ut_update_object_reference (object, REF_INCREMENT);
@@ -664,8 +684,9 @@ acpi_ut_remove_reference (
 		return_VOID;
 	}
 
-	ACPI_DEBUG_PRINT ((ACPI_DB_ALLOCATIONS, "Obj %p Refs=%X\n",
-			object, object->common.reference_count));
+	ACPI_DEBUG_PRINT ((ACPI_DB_ALLOCATIONS,
+		"Obj %p Current Refs=%X [To Be Decremented]\n",
+		object, object->common.reference_count));
 
 	/*
 	 * Decrement the reference count, and only actually delete the object

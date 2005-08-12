@@ -21,7 +21,7 @@ struct stripe_c {
 	uint32_t stripes;
 
 	/* The size of this target / num. stripes */
-	uint32_t stripe_width;
+	sector_t stripe_width;
 
 	/* stripe chunk size */
 	uint32_t chunk_shift;
@@ -173,9 +173,8 @@ static int stripe_map(struct dm_target *ti, struct bio *bio,
 	struct stripe_c *sc = (struct stripe_c *) ti->private;
 
 	sector_t offset = bio->bi_sector - ti->begin;
-	uint32_t chunk = (uint32_t) (offset >> sc->chunk_shift);
-	uint32_t stripe = chunk % sc->stripes;	/* 32bit modulus */
-	chunk = chunk / sc->stripes;
+	sector_t chunk = offset >> sc->chunk_shift;
+	uint32_t stripe = sector_div(chunk, sc->stripes);
 
 	bio->bi_bdev = sc->stripe[stripe].dev->bdev;
 	bio->bi_sector = sc->stripe[stripe].physical_start +
@@ -189,10 +188,6 @@ static int stripe_status(struct dm_target *ti,
 	struct stripe_c *sc = (struct stripe_c *) ti->private;
 	unsigned int sz = 0;
 	unsigned int i;
-	char buffer[32];
-
-#define EMIT(x...) sz += ((sz >= maxlen) ? \
-			  0 : scnprintf(result + sz, maxlen - sz, x))
 
 	switch (type) {
 	case STATUSTYPE_INFO:
@@ -200,12 +195,10 @@ static int stripe_status(struct dm_target *ti,
 		break;
 
 	case STATUSTYPE_TABLE:
-		EMIT("%d " SECTOR_FORMAT, sc->stripes, sc->chunk_mask + 1);
-		for (i = 0; i < sc->stripes; i++) {
-			format_dev_t(buffer, sc->stripe[i].dev->bdev->bd_dev);
-			EMIT(" %s " SECTOR_FORMAT, buffer,
-			     sc->stripe[i].physical_start);
-		}
+		DMEMIT("%d " SECTOR_FORMAT, sc->stripes, sc->chunk_mask + 1);
+		for (i = 0; i < sc->stripes; i++)
+			DMEMIT(" %s " SECTOR_FORMAT, sc->stripe[i].dev->name,
+			       sc->stripe[i].physical_start);
 		break;
 	}
 	return 0;
@@ -213,7 +206,7 @@ static int stripe_status(struct dm_target *ti,
 
 static struct target_type stripe_target = {
 	.name   = "striped",
-	.version= {1, 0, 1},
+	.version= {1, 0, 2},
 	.module = THIS_MODULE,
 	.ctr    = stripe_ctr,
 	.dtr    = stripe_dtr,

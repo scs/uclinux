@@ -41,9 +41,6 @@ void prism54_process_trap(void *);
 
 void prism54_wpa_ie_init(islpci_private *priv);
 void prism54_wpa_ie_clean(islpci_private *priv);
-void prism54_wpa_ie_add(islpci_private *priv, u8 *bssid,
-			u8 *wpa_ie, size_t wpa_ie_len);
-size_t prism54_wpa_ie_get(islpci_private *priv, u8 *bssid, u8 *wpa_ie);
 
 int prism54_set_mac_address(struct net_device *, void *);
 

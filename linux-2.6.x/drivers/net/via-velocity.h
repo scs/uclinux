@@ -37,7 +37,6 @@
 #define OPTION_DEFAULT      { [0 ... MAX_UNITS-1] = -1}
 
 #define REV_ID_VT6110       (0)
-#define DEVICE_ID           (0x3119)
 
 #define BYTE_REG_BITS_ON(x,p)       do { writeb(readb((p))|(x),(p));} while (0)
 #define WORD_REG_BITS_ON(x,p)       do { writew(readw((p))|(x),(p));} while (0)
@@ -292,10 +291,10 @@ struct velocity_td_info {
 	dma_addr_t buf_dma;
 };
 
-enum {
+enum  velocity_owner {
 	OWNED_BY_HOST = 0,
 	OWNED_BY_NIC = 1
-} velocity_owner;
+};
 
 
 /*
@@ -1271,7 +1270,7 @@ enum velocity_cam_type {
  *	provided mask buffer.
  */
 
-static inline void mac_get_cam_mask(struct mac_regs * regs, u8 * mask, enum velocity_cam_type cam_type)
+static inline void mac_get_cam_mask(struct mac_regs __iomem * regs, u8 * mask, enum velocity_cam_type cam_type)
 {
 	int i;
 	/* Select CAM mask */
@@ -1303,7 +1302,7 @@ static inline void mac_get_cam_mask(struct mac_regs * regs, u8 * mask, enum velo
  *	Store a new mask into a CAM
  */
 
-static inline void mac_set_cam_mask(struct mac_regs * regs, u8 * mask, enum velocity_cam_type cam_type)
+static inline void mac_set_cam_mask(struct mac_regs __iomem * regs, u8 * mask, enum velocity_cam_type cam_type)
 {
 	int i;
 	/* Select CAM mask */
@@ -1320,7 +1319,7 @@ static inline void mac_set_cam_mask(struct mac_regs * regs, u8 * mask, enum velo
 	/* disable CAMEN */
 	writeb(0, &regs->CAMADDR);
 
-	/* Select CAM mask */
+	/* Select mar */
 	BYTE_REG_BITS_SET(CAMCR_PS_MAR, CAMCR_PS1 | CAMCR_PS0, &regs->CAMCR);
 }
 
@@ -1334,7 +1333,7 @@ static inline void mac_set_cam_mask(struct mac_regs * regs, u8 * mask, enum velo
  *	Load an address or vlan tag into a CAM
  */
 
-static inline void mac_set_cam(struct mac_regs * regs, int idx, u8 *addr, enum velocity_cam_type cam_type)
+static inline void mac_set_cam(struct mac_regs __iomem * regs, int idx, u8 *addr, enum velocity_cam_type cam_type)
 {
 	int i;
 
@@ -1361,7 +1360,7 @@ static inline void mac_set_cam(struct mac_regs * regs, int idx, u8 *addr, enum v
 
 	writeb(0, &regs->CAMADDR);
 
-	/* Select CAM mask */
+	/* Select mar */
 	BYTE_REG_BITS_SET(CAMCR_PS_MAR, CAMCR_PS1 | CAMCR_PS0, &regs->CAMCR);
 }
 
@@ -1376,7 +1375,7 @@ static inline void mac_set_cam(struct mac_regs * regs, int idx, u8 *addr, enum v
  *	the caller. VLAN tags are 2 bytes the address cam entries are 6.
  */
 
-static inline void mac_get_cam(struct mac_regs * regs, int idx, u8 *addr, enum velocity_cam_type cam_type)
+static inline void mac_get_cam(struct mac_regs __iomem * regs, int idx, u8 *addr, enum velocity_cam_type cam_type)
 {
 	int i;
 
@@ -1402,7 +1401,7 @@ static inline void mac_get_cam(struct mac_regs * regs, int idx, u8 *addr, enum v
 
 	writeb(0, &regs->CAMADDR);
 
-	/* Select CAM mask */
+	/* Select mar */
 	BYTE_REG_BITS_SET(CAMCR_PS_MAR, CAMCR_PS1 | CAMCR_PS0, &regs->CAMCR);
 }
 
@@ -1415,7 +1414,7 @@ static inline void mac_get_cam(struct mac_regs * regs, int idx, u8 *addr, enum v
  *	the rest of the logic from the result of sleep/wakeup
  */
 
-inline static void mac_wol_reset(struct mac_regs * regs)
+inline static void mac_wol_reset(struct mac_regs __iomem * regs)
 {
 
 	/* Turn off SWPTAG right after leaving power mode */
@@ -1734,16 +1733,11 @@ struct velocity_opt {
 };
 
 struct velocity_info {
-	struct velocity_info *next;
-	struct velocity_info *prev;
+	struct list_head list;
 
 	struct pci_dev *pdev;
 	struct net_device *dev;
 	struct net_device_stats stats;
-
-#if CONFIG_PM
-	u32 pci_state[16];
-#endif
 
 	dma_addr_t rd_pool_dma;
 	dma_addr_t td_pool_dma[TX_QUEUE_NO];
@@ -1754,7 +1748,7 @@ struct velocity_info {
 	u8 ip_addr[4];
 	enum chip_type chip_id;
 
-	struct mac_regs * mac_regs;
+	struct mac_regs __iomem * mac_regs;
 	unsigned long memaddr;
 	unsigned long ioaddr;
 	u32 io_size;
@@ -1772,7 +1766,8 @@ struct velocity_info {
 	struct velocity_td_info *td_infos[TX_QUEUE_NO];
 
 	int rd_curr;
-	int rd_used;
+	int rd_dirty;
+	u32 rd_filled;
 	struct rx_desc *rd_ring;
 	struct velocity_rd_info *rd_info;	/* It's an array */
 
@@ -1793,7 +1788,6 @@ struct velocity_info {
 	u8 mCAMmask[(MCAM_SIZE / 8)];
 
 	spinlock_t lock;
-	spinlock_t xmit_lock;
 
 	int wol_opts;
 	u8 wol_passwd[6];
@@ -1867,7 +1861,7 @@ static inline void velocity_update_hw_mibs(struct velocity_info *vptr)
 
 static inline void init_flow_control_register(struct velocity_info *vptr)
 {
-	struct mac_regs * regs = vptr->mac_regs;
+	struct mac_regs __iomem * regs = vptr->mac_regs;
 
 	/* Set {XHITH1, XHITH0, XLTH1, XLTH0} in FlowCR1 to {1, 0, 1, 1}
 	   depend on RD=64, and Turn on XNOEN in FlowCR1 */

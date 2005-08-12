@@ -42,8 +42,8 @@
 #define STG4000_OVRL_MAX_HEIGHT 576
 
 /* Decimation and Scaling */
-u32 adwDecim8[33] = {
-	0xffffffff, 0xfffeffff, 0xffdffbff, 0xfefefeff, 0xfdf7efbf,
+static u32 adwDecim8[33] = {
+	    0xffffffff, 0xfffeffff, 0xffdffbff, 0xfefefeff, 0xfdf7efbf,
 	    0xfbdf7bdf, 0xf7bbddef, 0xeeeeeeef, 0xeeddbb77, 0xedb76db7,
 	    0xdb6db6db, 0xdb5b5b5b, 0xdab5ad6b, 0xd5ab55ab, 0xd555aaab,
 	    0xaaaaaaab, 0xaaaa5555, 0xaa952a55, 0xa94a5295, 0xa5252525,
@@ -75,7 +75,7 @@ typedef struct _OVRL_SRC_DEST {
 static u32 ovlWidth, ovlHeight, ovlStride;
 static int ovlLinear;
 
-void ResetOverlayRegisters(volatile STG4000REG * pSTGReg)
+void ResetOverlayRegisters(volatile STG4000REG __iomem *pSTGReg)
 {
 	u32 tmp;
 
@@ -136,7 +136,7 @@ void ResetOverlayRegisters(volatile STG4000REG * pSTGReg)
 
 }
 
-int CreateOverlaySurface(volatile STG4000REG * pSTGReg,
+int CreateOverlaySurface(volatile STG4000REG __iomem *pSTGReg,
 			 u32 inWidth,
 			 u32 inHeight,
 			 int bLinear,
@@ -238,7 +238,7 @@ int CreateOverlaySurface(volatile STG4000REG * pSTGReg,
 	return 0;
 }
 
-int SetOverlayBlendMode(volatile STG4000REG * pSTGReg,
+int SetOverlayBlendMode(volatile STG4000REG __iomem *pSTGReg,
 			OVRL_BLEND_MODE mode,
 			u32 ulAlpha, u32 ulColorKey)
 {
@@ -284,7 +284,7 @@ int SetOverlayBlendMode(volatile STG4000REG * pSTGReg,
 	return 0;
 }
 
-void EnableOverlayPlane(volatile STG4000REG * pSTGReg)
+void EnableOverlayPlane(volatile STG4000REG __iomem *pSTGReg)
 {
 	u32 tmp;
 	/* Enable Overlay */
@@ -313,7 +313,7 @@ static u32 Overlap(u32 ulBits, u32 ulPattern)
 
 }
 
-int SetOverlayViewPort(volatile STG4000REG * pSTGReg,
+int SetOverlayViewPort(volatile STG4000REG __iomem *pSTGReg,
 		       u32 left, u32 top,
 		       u32 right, u32 bottom)
 {

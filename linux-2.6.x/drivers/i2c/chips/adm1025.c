@@ -49,6 +49,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/slab.h>
+#include <linux/jiffies.h>
 #include <linux/i2c.h>
 #include <linux/i2c-sensor.h>
 #include <linux/i2c-vid.h>
@@ -59,10 +60,8 @@
  * NE1619 has two possible addresses: 0x2c and 0x2d.
  */
 
-static unsigned short normal_i2c[] = { I2C_CLIENT_END };
-static unsigned short normal_i2c_range[] = { 0x2c, 0x2e, I2C_CLIENT_END };
+static unsigned short normal_i2c[] = { 0x2c, 0x2d, 0x2e, I2C_CLIENT_END };
 static unsigned int normal_isa[] = { I2C_CLIENT_ISA_END };
-static unsigned int normal_isa_range[] = { I2C_CLIENT_ISA_END };
 
 /*
  * Insmod parameters
@@ -150,12 +149,6 @@ struct adm1025_data {
 };
 
 /*
- * Internal variables
- */
-
-static int adm1025_id = 0;
-
-/*
  * Sysfs stuff
  */
 
@@ -212,10 +205,13 @@ static ssize_t set_in##offset##_min(struct device *dev, const char *buf, \
 { \
 	struct i2c_client *client = to_i2c_client(dev); \
 	struct adm1025_data *data = i2c_get_clientdata(client); \
-	data->in_min[offset] = IN_TO_REG(simple_strtol(buf, NULL, 10), \
-			       in_scale[offset]); \
+	long val = simple_strtol(buf, NULL, 10); \
+ \
+	down(&data->update_lock); \
+	data->in_min[offset] = IN_TO_REG(val, in_scale[offset]); \
 	i2c_smbus_write_byte_data(client, ADM1025_REG_IN_MIN(offset), \
 				  data->in_min[offset]); \
+	up(&data->update_lock); \
 	return count; \
 } \
 static ssize_t set_in##offset##_max(struct device *dev, const char *buf, \
@@ -223,10 +219,13 @@ static ssize_t set_in##offset##_max(struct device *dev, const char *buf, \
 { \
 	struct i2c_client *client = to_i2c_client(dev); \
 	struct adm1025_data *data = i2c_get_clientdata(client); \
-	data->in_max[offset] = IN_TO_REG(simple_strtol(buf, NULL, 10), \
-			       in_scale[offset]); \
+	long val = simple_strtol(buf, NULL, 10); \
+ \
+	down(&data->update_lock); \
+	data->in_max[offset] = IN_TO_REG(val, in_scale[offset]); \
 	i2c_smbus_write_byte_data(client, ADM1025_REG_IN_MAX(offset), \
 				  data->in_max[offset]); \
+	up(&data->update_lock); \
 	return count; \
 } \
 static DEVICE_ATTR(in##offset##_min, S_IWUSR | S_IRUGO, \
@@ -246,9 +245,13 @@ static ssize_t set_temp##offset##_min(struct device *dev, const char *buf, \
 { \
 	struct i2c_client *client = to_i2c_client(dev); \
 	struct adm1025_data *data = i2c_get_clientdata(client); \
-	data->temp_min[offset-1] = TEMP_TO_REG(simple_strtol(buf, NULL, 10)); \
+	long val = simple_strtol(buf, NULL, 10); \
+ \
+	down(&data->update_lock); \
+	data->temp_min[offset-1] = TEMP_TO_REG(val); \
 	i2c_smbus_write_byte_data(client, ADM1025_REG_TEMP_LOW(offset-1), \
 				  data->temp_min[offset-1]); \
+	up(&data->update_lock); \
 	return count; \
 } \
 static ssize_t set_temp##offset##_max(struct device *dev, const char *buf, \
@@ -256,9 +259,13 @@ static ssize_t set_temp##offset##_max(struct device *dev, const char *buf, \
 { \
 	struct i2c_client *client = to_i2c_client(dev); \
 	struct adm1025_data *data = i2c_get_clientdata(client); \
-	data->temp_max[offset-1] = TEMP_TO_REG(simple_strtol(buf, NULL, 10)); \
+	long val = simple_strtol(buf, NULL, 10); \
+ \
+	down(&data->update_lock); \
+	data->temp_max[offset-1] = TEMP_TO_REG(val); \
 	i2c_smbus_write_byte_data(client, ADM1025_REG_TEMP_HIGH(offset-1), \
 				  data->temp_max[offset-1]); \
+	up(&data->update_lock); \
 	return count; \
 } \
 static DEVICE_ATTR(temp##offset##_min, S_IWUSR | S_IRUGO, \
@@ -397,7 +404,6 @@ static int adm1025_detect(struct i2c_adapter *adapter, int address, int kind)
 
 	/* We can fill in the remaining client fields */
 	strlcpy(new_client->name, name, I2C_NAME_SIZE);
-	new_client->id = adm1025_id++;
 	data->valid = 0;
 	init_MUTEX(&data->update_lock);
 
@@ -455,7 +461,7 @@ static void adm1025_init_client(struct i2c_client *client)
 	struct adm1025_data *data = i2c_get_clientdata(client);
 	int i;
 
-	data->vrm = 82;
+	data->vrm = i2c_which_vrm();
 
 	/*
 	 * Set high limits
@@ -512,9 +518,7 @@ static struct adm1025_data *adm1025_update_device(struct device *dev)
 
 	down(&data->update_lock);
 
-	if ((jiffies - data->last_updated > HZ * 2) ||
-	    (jiffies < data->last_updated) ||
-	    !data->valid) {
+	if (time_after(jiffies, data->last_updated + HZ * 2) || !data->valid) {
 		int i;
 
 		dev_dbg(&client->dev, "Updating data.\n");

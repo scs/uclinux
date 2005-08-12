@@ -12,8 +12,8 @@
  *	2 of the License, or (at your option) any later version.
  *
  * $Log$
- * Revision 1.3  2004/09/08 15:34:58  lgsoft
- * Import of 2.6.8
+ * Revision 1.4  2005/08/12 06:42:43  magicyang
+ *  Update kernel 2.6.8 to 2.6.12
  *
  * Revision 3.1  2001/06/15 12:41:10  regina
  * upping major version number

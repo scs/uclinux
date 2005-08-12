@@ -50,13 +50,36 @@
 #include <asm/delay.h>
 
 #include <scsi/scsi_host.h>
+#include <scsi/scsi_device.h>
+#include <scsi/scsi_transport.h>
+#include <scsi/scsi_transport_spi.h>
 
-#include "lasi700.h"
 #include "53c700.h"
 
 MODULE_AUTHOR("James Bottomley");
 MODULE_DESCRIPTION("lasi700 SCSI Driver");
 MODULE_LICENSE("GPL");
+
+#define LASI_700_SVERSION 0x00071
+#define LASI_710_SVERSION 0x00082
+
+#define LASI700_ID_TABLE {			\
+	.hw_type	= HPHW_FIO,		\
+	.sversion	= LASI_700_SVERSION,	\
+	.hversion	= HVERSION_ANY_ID,	\
+	.hversion_rev	= HVERSION_REV_ANY_ID,	\
+}
+
+#define LASI710_ID_TABLE {			\
+	.hw_type	= HPHW_FIO,		\
+	.sversion	= LASI_710_SVERSION,	\
+	.hversion	= HVERSION_ANY_ID,	\
+	.hversion_rev	= HVERSION_REV_ANY_ID,	\
+}
+
+#define LASI700_CLOCK	25
+#define LASI710_CLOCK	40
+#define LASI_SCSI_CORE_OFFSET 0x100
 
 static struct parisc_device_id lasi700_ids[] = {
 	LASI700_ID_TABLE,
@@ -88,8 +111,8 @@ lasi700_probe(struct parisc_device *dev)
 	memset(hostdata, 0, sizeof(struct NCR_700_Host_Parameters));
 
 	hostdata->dev = &dev->dev;
-	dma_set_mask(&dev->dev, 0xffffffffUL);
-	hostdata->base = base;
+	dma_set_mask(&dev->dev, DMA_32BIT_MASK);
+	hostdata->base = ioremap(base, 0x100);
 	hostdata->differential = 0;
 
 	if (dev->id.sversion == LASI_700_SVERSION) {
@@ -104,30 +127,26 @@ lasi700_probe(struct parisc_device *dev)
 
 	NCR_700_set_mem_mapped(hostdata);
 
-	host = NCR_700_detect(&lasi700_template, hostdata);
+	host = NCR_700_detect(&lasi700_template, hostdata, &dev->dev);
 	if (!host)
 		goto out_kfree;
-
+	host->this_id = 7;
+	host->base = base;
 	host->irq = dev->irq;
-	if (request_irq(dev->irq, NCR_700_intr, SA_SHIRQ,
-				dev->dev.bus_id, host)) {
-		printk(KERN_ERR "%s: irq problem, detaching\n",
-		       dev->dev.bus_id);
+	if(request_irq(dev->irq, NCR_700_intr, SA_SHIRQ, "lasi700", host)) {
+		printk(KERN_ERR "lasi700: request_irq failed!\n");
 		goto out_put_host;
 	}
 
-	if (scsi_add_host(host, &dev->dev))
-		goto out_free_irq;
 	dev_set_drvdata(&dev->dev, host);
 	scsi_scan_host(host);
 
 	return 0;
 
- out_free_irq:
-	free_irq(host->irq, host);
  out_put_host:
 	scsi_host_put(host);
  out_kfree:
+	iounmap(hostdata->base);
 	kfree(hostdata);
 	return -ENODEV;
 }
@@ -142,6 +161,7 @@ lasi700_driver_remove(struct parisc_device *dev)
 	scsi_remove_host(host);
 	NCR_700_release(host);
 	free_irq(host->irq, host);
+	iounmap(hostdata->base);
 	kfree(hostdata);
 
 	return 0;

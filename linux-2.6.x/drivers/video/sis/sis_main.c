@@ -39,6 +39,7 @@
 #include <linux/moduleparam.h>
 #endif
 #include <linux/kernel.h>
+#include <linux/smp_lock.h>
 #include <linux/spinlock.h>
 #include <linux/errno.h>
 #include <linux/string.h>
@@ -49,6 +50,7 @@
 #include <linux/fb.h>
 #include <linux/console.h>
 #include <linux/selection.h>
+#include <linux/smp_lock.h>
 #include <linux/ioport.h>
 #include <linux/init.h>
 #include <linux/pci.h>
@@ -143,7 +145,7 @@ sisfb_setdefaultparms(void)
 #endif
 }
 
-static void __init
+static void __devinit
 sisfb_search_vesamode(unsigned int vesamode, BOOLEAN quiet)
 {
 	int i = 0, j = 0;
@@ -754,8 +756,8 @@ sisfbcheckvretracecrt2(struct sis_video_info *ivideo)
    }
 
    inSISIDXREG(SISPART1, reg, temp);
-   if(temp & 0x02) return FALSE;
-   else 	   return TRUE;
+   if(temp & 0x02) return TRUE;
+   else 	   return FALSE;
 }
 
 static BOOLEAN
@@ -794,9 +796,9 @@ sisfb_setupvbblankflags(struct sis_video_info *ivideo, u32 *vcount, u32 *hcount)
       inSISIDXREG(SISPART1,(idx+1),reg2); /* 31 */
       inSISIDXREG(SISPART1,(idx+2),reg3); /* 32 */
       inSISIDXREG(SISPART1,(idx+3),reg4); /* 33 */
-      if(!(reg1 & 0x01)) ret |= FB_VBLANK_VBLANKING;
-      if(!(reg1 & 0x02)) ret |= FB_VBLANK_VSYNCING;
-      if(!(reg4 & 0x80)) ret |= FB_VBLANK_HBLANKING;
+      if(reg1 & 0x01) ret |= FB_VBLANK_VBLANKING;
+      if(reg1 & 0x02) ret |= FB_VBLANK_VSYNCING;
+      if(reg4 & 0x80) ret |= FB_VBLANK_HBLANKING;
       (*vcount) = reg3 | ((reg4 & 0x70) << 4);
       (*hcount) = reg2 | ((reg4 & 0x0f) << 8);
    } else if(sisfballowretracecrt1(ivideo)) {
@@ -824,7 +826,7 @@ sisfb_myblank(struct sis_video_info *ivideo, int blank)
    BOOLEAN backlight = TRUE;
 
    switch(blank) {
-   case 0:	/* on */
+   case FB_BLANK_UNBLANK:	/* on */
       sr01  = 0x00;
       sr11  = 0x00;
       sr1f  = 0x00;
@@ -833,7 +835,7 @@ sisfb_myblank(struct sis_video_info *ivideo, int blank)
       p1_13 = 0x00;
       backlight = TRUE;
       break;
-   case 1:	/* blank */
+   case FB_BLANK_NORMAL:	/* blank */
       sr01  = 0x20;
       sr11  = 0x00;
       sr1f  = 0x00;
@@ -842,7 +844,7 @@ sisfb_myblank(struct sis_video_info *ivideo, int blank)
       p1_13 = 0x00;
       backlight = TRUE;
       break;
-   case 2:	/* no vsync */
+   case FB_BLANK_VSYNC_SUSPEND:	/* no vsync */
       sr01  = 0x20;
       sr11  = 0x08;
       sr1f  = 0x80;
@@ -851,7 +853,7 @@ sisfb_myblank(struct sis_video_info *ivideo, int blank)
       p1_13 = 0x80;
       backlight = FALSE;
       break;
-   case 3:	/* no hsync */
+   case FB_BLANK_HSYNC_SUSPEND:	/* no hsync */
       sr01  = 0x20;
       sr11  = 0x08;
       sr1f  = 0x40;
@@ -860,7 +862,7 @@ sisfb_myblank(struct sis_video_info *ivideo, int blank)
       p1_13 = 0x40;
       backlight = FALSE;
       break;
-   case 4:	/* off */
+   case FB_BLANK_POWERDOWN:	/* off */
       sr01  = 0x20;
       sr11  = 0x08;
       sr1f  = 0xc0;
@@ -1566,10 +1568,10 @@ sisfb_do_install_cmap(int con, struct fb_info *info)
         if(con != ivideo->currcon) return;
 
         if(fb_display[con].cmap.len) {
-		fb_set_cmap(&fb_display[con].cmap, sisfb_setcolreg, info);
+		fb_set_cmap(&fb_display[con].cmap, 1, sisfb_setcolreg, info);
         } else {
 		int size = sisfb_get_cmap_len(&fb_display[con].var);
-		fb_set_cmap(fb_default_cmap(size), sisfb_setcolreg, info);
+		fb_set_cmap(fb_default_cmap(size), 1, sisfb_setcolreg, info);
 	}
 }
 
@@ -1812,9 +1814,11 @@ sisfb_set_par(struct fb_info *info)
         if((err = sisfb_do_set_var(&info->var, 1, info))) {
 		return err;
 	}
-
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,10)
 	sisfb_get_fix(&info->fix, info->currcon, info);
-
+#else
+      	sisfb_get_fix(&info->fix, -1, info);
+#endif
 	return 0;
 }
 
@@ -2051,24 +2055,26 @@ sisfb_ioctl(struct inode *inode, struct file *file,
 #endif
 	    struct fb_info *info)
 {
-	struct sis_video_info 	*ivideo = (struct sis_video_info *)info->par;
+	struct sis_video_info	*ivideo = (struct sis_video_info *)info->par;
 	struct sis_memreq 	sismemreq;
 	struct fb_vblank  	sisvbblank;
 	sisfb_info        	x;
 	u32			gpu32 = 0;
-	static int 		count = 0;
-	u32 __user		*argp = (u32 __user *) arg;
+#ifndef __user
+#define __user
+#endif
+	u32 __user 		*argp = (u32 __user *)arg;
 
 	switch (cmd) {
 	   case FBIO_ALLOC:
 		if(!capable(CAP_SYS_RAWIO)) {
 			return -EPERM;
 		}
-		if(copy_from_user(&sismemreq, argp, sizeof(sismemreq))) {
+		if(copy_from_user(&sismemreq, (void __user *)arg, sizeof(sismemreq))) {
 		   	return -EFAULT;
 		}
-        	sis_malloc(&sismemreq);
-		if(copy_to_user(argp, &sismemreq, sizeof(sismemreq))) {
+		sis_malloc(&sismemreq);
+		if(copy_to_user((void __user *)arg, &sismemreq, sizeof(sismemreq))) {
 			sis_free((u32)sismemreq.offset);
 		    	return -EFAULT;
 		}
@@ -2087,7 +2093,7 @@ sisfb_ioctl(struct inode *inode, struct file *file,
 	   case FBIOGET_VBLANK:
 		sisvbblank.count = 0;
 		sisvbblank.flags = sisfb_setupvbblankflags(ivideo, &sisvbblank.vcount, &sisvbblank.hcount);
-		if(copy_to_user(argp, &sisvbblank, sizeof(sisvbblank))) {
+		if(copy_to_user((void __user *)arg, &sisvbblank, sizeof(sisvbblank))) {
 			return -EFAULT;
 		}
 		break;
@@ -2096,7 +2102,7 @@ sisfb_ioctl(struct inode *inode, struct file *file,
 	        return put_user(sizeof(sisfb_info), argp);
 
 	   case SISFB_GET_INFO_OLD:
-	        if(++count < 50) {
+	        if(ivideo->warncount++ < 50) {
 	           printk(KERN_INFO "sisfb: Deprecated ioctl call received - update your application!\n");
 		}
 	   case SISFB_GET_INFO:  /* For communication with X driver */
@@ -2133,13 +2139,13 @@ sisfb_ioctl(struct inode *inode, struct file *file,
 		x.sisfb_tvxpos = (u16)(ivideo->tvxpos + 32);
 		x.sisfb_tvypos = (u16)(ivideo->tvypos + 32);
 
-		if(copy_to_user(argp, &x, sizeof(x))) {
+		if(copy_to_user((void __user *)arg, &x, sizeof(x))) {
 			return -EFAULT;
 		}
 	        break;
 
 	   case SISFB_GET_VBRSTATUS_OLD:
-	   	if(++count < 50) {
+	   	if(ivideo->warncount++ < 50) {
 	           printk(KERN_INFO "sisfb: Deprecated ioctl call received - update your application!\n");
 		}
 	   case SISFB_GET_VBRSTATUS:
@@ -2150,15 +2156,15 @@ sisfb_ioctl(struct inode *inode, struct file *file,
 		}
 
 	   case SISFB_GET_AUTOMAXIMIZE_OLD:
-	   	if(++count < 50) {
+	   	if(ivideo->warncount++ < 50) {
 	           printk(KERN_INFO "sisfb: Deprecated ioctl call received - update your application!\n");
 		}
 	   case SISFB_GET_AUTOMAXIMIZE:
-	        if(ivideo->sisfb_max) return put_user((u32)1, argp);
-		else 	              return put_user((u32)0, argp);
+	        if(ivideo->sisfb_max)	return put_user((u32)1, argp);
+		else			return put_user((u32)0, argp);
 
 	   case SISFB_SET_AUTOMAXIMIZE_OLD:
-	   	if(++count < 50) {
+	   	if(ivideo->warncount++ < 50) {
 		   printk(KERN_INFO "sisfb: Deprecated ioctl call received - update your application!\n");
 		}
 	   case SISFB_SET_AUTOMAXIMIZE:
@@ -2177,7 +2183,8 @@ sisfb_ioctl(struct inode *inode, struct file *file,
 		break;
 
 	   case SISFB_GET_TVPOSOFFSET:
-	        return put_user((u32)(((ivideo->tvxpos+32)<<16)|((ivideo->tvypos+32)&0xffff)), argp);
+	        return put_user((u32)(((ivideo->tvxpos+32)<<16)|((ivideo->tvypos+32)&0xffff)),
+				argp);
 
 	   case SISFB_SET_LOCK:
 		if(copy_from_user(&gpu32, argp, sizeof(gpu32))) {
@@ -2187,10 +2194,21 @@ sisfb_ioctl(struct inode *inode, struct file *file,
 		break;
 
 	   default:
-		return -EINVAL;
+		return -ENOIOCTLCMD;
 	}
 	return 0;
 }
+
+#ifdef CONFIG_COMPAT
+static long sisfb_compat_ioctl(struct file *f, unsigned cmd, unsigned long arg, struct fb_info *info)
+{
+	int ret;
+	lock_kernel();
+	ret = sisfb_ioctl(NULL, f, cmd, arg, info);
+	unlock_kernel();
+	return ret;
+}
+#endif
 
 static int
 sisfb_get_fix(struct fb_fix_screeninfo *fix, int con, struct fb_info *info)
@@ -2253,7 +2271,10 @@ static struct fb_ops sisfb_ops = {
 	.fb_imageblit   = cfb_imageblit,
 	.fb_cursor      = soft_cursor,
 	.fb_sync        = fbcon_sis_sync,
-	.fb_ioctl       = sisfb_ioctl
+	.fb_ioctl       = sisfb_ioctl,
+#ifdef CONFIG_COMPAT
+	.fb_compat_ioctl = sisfb_compat_ioctl,
+#endif
 };
 #endif
 
@@ -2625,29 +2646,29 @@ static BOOLEAN __devinit sisfb_test_DDC1(struct sis_video_info *ivideo)
 static void __devinit sisfb_sense_crt1(struct sis_video_info *ivideo)
 {
     BOOLEAN mustwait = FALSE;
-    u8  SR1F, CR17;
+    u8  sr1F, cr17;
 #ifdef CONFIG_FB_SIS_315
-    u8  CR63=0;
+    u8  cr63=0;
 #endif
     u16 temp = 0xffff;
     int i;
 
-    inSISIDXREG(SISSR,0x1F,SR1F);
+    inSISIDXREG(SISSR,0x1F,sr1F);
     orSISIDXREG(SISSR,0x1F,0x04);
     andSISIDXREG(SISSR,0x1F,0x3F);
-    if(SR1F & 0xc0) mustwait = TRUE;
+    if(sr1F & 0xc0) mustwait = TRUE;
 
 #ifdef CONFIG_FB_SIS_315
     if(ivideo->sisvga_engine == SIS_315_VGA) {
-       inSISIDXREG(SISCR,ivideo->SiS_Pr.SiS_MyCR63,CR63);
-       CR63 &= 0x40;
+       inSISIDXREG(SISCR,ivideo->SiS_Pr.SiS_MyCR63,cr63);
+       cr63 &= 0x40;
        andSISIDXREG(SISCR,ivideo->SiS_Pr.SiS_MyCR63,0xBF);
     }
 #endif
 
-    inSISIDXREG(SISCR,0x17,CR17);
-    CR17 &= 0x80;
-    if(!CR17) {
+    inSISIDXREG(SISCR,0x17,cr17);
+    cr17 &= 0x80;
+    if(!cr17) {
        orSISIDXREG(SISCR,0x17,0x80);
        mustwait = TRUE;
        outSISIDXREG(SISSR, 0x00, 0x01);
@@ -2692,13 +2713,13 @@ static void __devinit sisfb_sense_crt1(struct sis_video_info *ivideo)
 
 #ifdef CONFIG_FB_SIS_315
     if(ivideo->sisvga_engine == SIS_315_VGA) {
-       setSISIDXREG(SISCR,ivideo->SiS_Pr.SiS_MyCR63,0xBF,CR63);
+       setSISIDXREG(SISCR,ivideo->SiS_Pr.SiS_MyCR63,0xBF,cr63);
     }
 #endif
 
-    setSISIDXREG(SISCR,0x17,0x7F,CR17);
+    setSISIDXREG(SISCR,0x17,0x7F,cr17);
 
-    outSISIDXREG(SISSR,0x1F,SR1F);
+    outSISIDXREG(SISSR,0x1F,sr1F);
 }
 
 /* Determine and detect attached devices on SiS30x */
@@ -3837,7 +3858,7 @@ sisfb_post_setmode(struct sis_video_info *ivideo)
 }
 
 #ifndef MODULE
-int __init sisfb_setup(char *options)
+SISINITSTATIC int __init sisfb_setup(char *options)
 {
 	char *this_opt;
 	
@@ -3952,19 +3973,22 @@ int __init sisfb_setup(char *options)
 }
 #endif
 
-static char * __devinit sis_find_rom(struct pci_dev *pdev)
+static UCHAR * __devinit sis_find_rom(struct pci_dev *pdev)
 {
 	struct sis_video_info *ivideo = pci_get_drvdata(pdev);
+	USHORT pciid;
+	int    romptr;
+	UCHAR  *myrombase;
+	u32    temp;
+	SIS_IOTYPE1 *rom_base, *rom;
+
+	if(!(myrombase = vmalloc(65536))) return NULL;
 
 #if defined(__i386__) || defined(__x86_64__)
-        u32  segstart;
-        unsigned char *rom_base, *rom;
-        int  romptr;
-	unsigned short pciid;
 
-        for(segstart=0x000c0000; segstart<0x000f0000; segstart+=0x00001000) {
+        for(temp = 0x000c0000; temp < 0x000f0000; temp += 0x00001000) {
 
-            rom_base = (unsigned char *)ioremap(segstart, 0x10000);
+            rom_base = ioremap(temp, 0x10000);
 	    if(!rom_base) continue;
 
 	    if((readb(rom_base) != 0x55) || (readb(rom_base + 1) != 0xaa)) {
@@ -3993,17 +4017,18 @@ static char * __devinit sis_find_rom(struct pci_dev *pdev)
 	    }
 
 	    pciid = readb(rom + 6) | (readb(rom + 7) << 8);
-	    if(pciid == ivideo->chip_id) return rom_base;
+	    if(pciid == ivideo->chip_id) {
+	       memcpy_fromio(myrombase, rom_base, 65536);
+	       iounmap(rom_base);
+	       return myrombase;
+	    }
 
 	    iounmap(rom_base);
         }
-#else
-	unsigned char *rom_base, *rom, *myrombase = NULL;
-        int  romptr;
-	unsigned short pciid;
-	u32 backup;
 
-	pci_read_config_dword(pdev, PCI_ROM_ADDRESS, &backup);
+#else
+
+	pci_read_config_dword(pdev, PCI_ROM_ADDRESS, &temp);
 	pci_write_config_dword(pdev, PCI_ROM_ADDRESS,
 			(ivideo->video_base & PCI_ROM_ADDRESS_MASK) | PCI_ROM_ADDRESS_ENABLE);
 
@@ -4019,9 +4044,10 @@ static char * __devinit sis_find_rom(struct pci_dev *pdev)
 		    if(pciid == 0x1039) {
 		       pciid = readb(rom + 6) | (readb(rom + 7) << 8);
 		       if(pciid == ivideo->chip_id) {
-		          if((myrombase = vmalloc(65536))) {
-			     memcpy_fromio(myrombase, rom_base, 65536);
-			  }
+			  memcpy_fromio(myrombase, rom_base, 65536);
+			  iounmap(rom_base);
+			  pci_write_config_dword(pdev, PCI_ROM_ADDRESS, temp);
+			  return myrombase;
 		       }
 		    }
 		 }
@@ -4029,15 +4055,17 @@ static char * __devinit sis_find_rom(struct pci_dev *pdev)
 	   }
 	   iounmap(rom_base);
 	}
-        pci_write_config_dword(pdev, PCI_ROM_ADDRESS, backup);
-	if(myrombase) return myrombase;
+        pci_write_config_dword(pdev, PCI_ROM_ADDRESS, temp);
+
 #endif
+
+       	vfree(myrombase);
         return NULL;
 }
 
 #ifdef CONFIG_FB_SIS_300
 static int __devinit
-sisfb_chkbuswidth300(struct pci_dev *pdev, ULONG FBAddress)
+sisfb_chkbuswidth300(struct pci_dev *pdev, SIS_IOTYPE1 *FBAddress)
 {
 	struct sis_video_info *ivideo = pci_get_drvdata(pdev);
 	int i, j;
@@ -4080,8 +4108,9 @@ static void __devinit
 sisfb_setramsize300(struct pci_dev *pdev)
 {
 	struct  sis_video_info *ivideo = pci_get_drvdata(pdev);
-  	ULONG 	FBAddr = (ULONG)ivideo->sishw_ext.pjVideoMemoryAddress, Addr;
-	USHORT 	SR13, SR14=0, buswidth, Done, data, TotalCapacity, PhysicalAdrOtherPage=0;
+  	SIS_IOTYPE1 *FBAddr = ivideo->video_vbase;
+	SIS_IOTYPE1 *Addr;
+	USHORT 	sr13, sr14=0, buswidth, Done, data, TotalCapacity, PhysicalAdrOtherPage=0;
 	int     PseudoRankCapacity, PseudoTotalCapacity, PseudoAdrPinCount;
    	int     RankCapacity, AdrPinCount, BankNumHigh, BankNumMid, MB2Bank;
    	int     PageCapacity, PhysicalAdrHigh, PhysicalAdrHalfPage, i, j, k;
@@ -4138,12 +4167,12 @@ sisfb_setramsize300(struct pci_dev *pdev)
                           andSISIDXREG(SISSR,0x15,0xFB); /* Test */
                           orSISIDXREG(SISSR,0x15,0x04);  /* Test */
                           TotalCapacity = SiS_DRAMType[k][3] * buswidth;
-                          SR13 = SiS_DRAMType[k][4];
-                          if(buswidth == 4) SR14 = (TotalCapacity - 1) | 0x80;
-                          if(buswidth == 2) SR14 = (TotalCapacity - 1) | 0x40;
-                          if(buswidth == 1) SR14 = (TotalCapacity - 1) | 0x00;
-                          outSISIDXREG(SISSR,0x13,SR13);
-                          outSISIDXREG(SISSR,0x14,SR14);
+                          sr13 = SiS_DRAMType[k][4];
+                          if(buswidth == 4) sr14 = (TotalCapacity - 1) | 0x80;
+                          if(buswidth == 2) sr14 = (TotalCapacity - 1) | 0x40;
+                          if(buswidth == 1) sr14 = (TotalCapacity - 1) | 0x00;
+                          outSISIDXREG(SISSR,0x13,sr13);
+                          outSISIDXREG(SISSR,0x14,sr14);
                           Addr = FBAddr + BankNumHigh * 64 * 1024 + PhysicalAdrHigh;
                           /* *((USHORT *)(Addr)) = (USHORT)PhysicalAdrHigh; */
 			  writew(((USHORT)PhysicalAdrHigh), Addr);
@@ -4304,10 +4333,10 @@ static void __devinit sisfb_post_sis300(struct pci_dev *pdev)
 	} else {
 #endif
 	   /* Need to map max FB size for finding out about RAM size */
-	   ivideo->sishw_ext.pjVideoMemoryAddress = ioremap(ivideo->video_base, 0x4000000);
-	   if(ivideo->sishw_ext.pjVideoMemoryAddress) {
+	   ivideo->video_vbase = ioremap(ivideo->video_base, 0x4000000);
+	   if(ivideo->video_vbase) {
 	      sisfb_setramsize300(pdev);
-	      iounmap(ivideo->sishw_ext.pjVideoMemoryAddress);
+	      iounmap(ivideo->video_vbase);
 	   } else {
 	      printk(KERN_DEBUG "sisfb: Failed to map memory for size detection, assuming 8MB\n");
 	      outSISIDXREG(SISSR,0x13,0x28);  /* ? */
@@ -4693,8 +4722,8 @@ static void __devinit sisfb_post_sis315330(struct pci_dev *pdev)
 	andSIDIDXREG(SISSR,0x13,0x00);
 
 	/* Need to map max FB size for finding out about RAM size */
-	ivideo->sishw_ext.pjVideoMemoryAddress = ioremap(ivideo->video_base, 0x4000000);
-	if(ivideo->sishw_ext.pjVideoMemoryAddress) {
+	ivideo->video_vbase = ioremap(ivideo->video_base, 0x4000000);
+	if(ivideo->video_vbase) {
 	   /* Find out about bus width */
 	   if(memtype <= 1) {
 	      outSISIDXREG(SISSR,0x14,0x02);
@@ -4712,7 +4741,7 @@ static void __devinit sisfb_post_sis315330(struct pci_dev *pdev)
 	   /* Find out about size */
 
 
-	   iounmap(ivideo->sishw_ext.pjVideoMemoryAddress);
+	   iounmap(ivideo->video_vbase);
 	} else {
 	   printk(KERN_DEBUG "sisfb: Failed to map memory for size detection, assuming 8MB\n");
 	   outSISIDXREG(SISSR,0x14,0x??);  /* 8MB, 64bit default */
@@ -4733,7 +4762,8 @@ static void __devinit sisfb_post_sis315330(struct pci_dev *pdev)
 #endif
 
 
-int __devinit sisfb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
+static int __devinit sisfb_probe(struct pci_dev *pdev,
+				 const struct pci_device_id *ent)
 {
 	struct sisfb_chip_info 	*chipinfo = &sisfb_chip_info[ent->driver_data];
 	struct sis_video_info 	*ivideo = NULL;
@@ -4762,11 +4792,12 @@ int __devinit sisfb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	} else {
 	   struct sis_video_info *countvideo = card_list;
 	   ivideo->cardnumber = 1;
-	   while ((countvideo = countvideo->next) != NULL) ivideo->cardnumber++;
+	   while((countvideo = countvideo->next) != NULL) ivideo->cardnumber++;
 	}
 
 	strncpy(ivideo->myid, chipinfo->chip_name, 30);
 
+	ivideo->warncount = 0;
 	ivideo->chip_id = pdev->device;
 	pci_read_config_byte(pdev, PCI_REVISION_ID, &ivideo->revision_id);
 	ivideo->sishw_ext.jChipRevision = ivideo->revision_id;
@@ -4777,10 +4808,6 @@ int __devinit sisfb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	ivideo->pcifunc = PCI_FUNC(pdev->devfn);
 	ivideo->subsysvendor = pdev->subsystem_vendor;
 	ivideo->subsysdevice = pdev->subsystem_device;
-#ifdef SIS_CONFIG_COMPAT
-	ivideo->ioctl32registered = 0;
-	ivideo->ioctl32vblankregistered = 0;
-#endif
 
 #ifndef MODULE
 	if(sisfb_mode_idx == -1) {
@@ -4952,18 +4979,16 @@ int __devinit sisfb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 
 	/* Find out about current video mode */
+	ivideo->modeprechange = 0x03;
 	inSISIDXREG(SISCR,0x34,reg);
 	if(reg & 0x7f) {
 		ivideo->modeprechange = reg & 0x7f;
-	} else {
-		ivideo->modeprechange = 0x03;
+	} else if(sisvga_enabled) {
 #if defined(__i386__) || defined(__x86_64__)
-		{
-			unsigned char *tt = ioremap(0, 0x1000);
-			if(tt) {
-			   	ivideo->modeprechange = tt[0x449];
-			   	iounmap(tt);
-			}
+		unsigned char SIS_IOTYPE2 *tt = ioremap(0, 0x1000);
+		if(tt) {
+		   	ivideo->modeprechange = readb(tt + 0x449);
+		   	iounmap(tt);
 		}
 #endif
 	}
@@ -4993,18 +5018,12 @@ int __devinit sisfb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 #endif
 
-	ivideo->bios_vbase = ivideo->bios_abase = NULL;
+	ivideo->bios_abase = NULL;
 	if(ivideo->sisfb_userom) {
 	    ivideo->sishw_ext.pjVirtualRomBase = sis_find_rom(pdev);
-#if defined(__i386__) || defined(__x86_64__)
-	    ivideo->bios_vbase = ivideo->sishw_ext.pjVirtualRomBase;	/* mapped */
-#else
-	    ivideo->bios_abase = ivideo->sishw_ext.pjVirtualRomBase;	/* allocated */
-#endif
+	    ivideo->bios_abase = ivideo->sishw_ext.pjVirtualRomBase;
 	    if(ivideo->sishw_ext.pjVirtualRomBase) {
-		printk(KERN_INFO "sisfb: Video ROM found and %s to 0x%p\n",
-			ivideo->bios_vbase ? "mapped" : "copied",
-		        ivideo->sishw_ext.pjVirtualRomBase);
+		printk(KERN_INFO "sisfb: Video ROM found and copied\n");
 		ivideo->sishw_ext.UseROM = TRUE;
 	    } else {
 	        ivideo->sishw_ext.UseROM = FALSE;
@@ -5131,7 +5150,6 @@ int __devinit sisfb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		printk(KERN_ERR "sisfb: Fatal error: Unable to reserve frame buffer memory\n");
 		printk(KERN_ERR "sisfb: Is there another framebuffer driver active?\n");
 		if(ivideo->bios_abase) vfree(ivideo->bios_abase);
-		if(ivideo->bios_vbase) iounmap(ivideo->bios_vbase);
 		pci_set_drvdata(pdev, NULL);
 		kfree(sis_fb_info);
 		return -ENODEV;
@@ -5141,43 +5159,40 @@ int __devinit sisfb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		printk(KERN_ERR "sisfb: Fatal error: Unable to reserve MMIO region\n");
 		release_mem_region(ivideo->video_base, ivideo->video_size);
 		if(ivideo->bios_abase) vfree(ivideo->bios_abase);
-		if(ivideo->bios_vbase) iounmap(ivideo->bios_vbase);
 		pci_set_drvdata(pdev, NULL);
 		kfree(sis_fb_info);
 		return -ENODEV;
 	}
 
-	ivideo->video_vbase = (unsigned long)ioremap(ivideo->video_base, ivideo->video_size);
-	ivideo->sishw_ext.pjVideoMemoryAddress = (unsigned char *)ivideo->video_vbase;
+	ivideo->video_vbase = ioremap(ivideo->video_base, ivideo->video_size);
+	ivideo->sishw_ext.pjVideoMemoryAddress = ivideo->video_vbase;
 	if(!ivideo->video_vbase) {
 	   	printk(KERN_ERR "sisfb: Fatal error: Unable to map frame buffer memory\n");
 	   	release_mem_region(ivideo->video_base, ivideo->video_size);
 	   	release_mem_region(ivideo->mmio_base, ivideo->mmio_size);
 		if(ivideo->bios_abase) vfree(ivideo->bios_abase);
-		if(ivideo->bios_vbase) iounmap(ivideo->bios_vbase);
 		pci_set_drvdata(pdev, NULL);
 	   	kfree(sis_fb_info);
 	   	return -ENODEV;
 	}
 
-	ivideo->mmio_vbase = (unsigned long)ioremap(ivideo->mmio_base, ivideo->mmio_size);
+	ivideo->mmio_vbase = ioremap(ivideo->mmio_base, ivideo->mmio_size);
 	if(!ivideo->mmio_vbase) {
 	   	printk(KERN_ERR "sisfb: Fatal error: Unable to map MMIO region\n");
-	   	iounmap((void *)ivideo->video_vbase);
+	   	iounmap(ivideo->video_vbase);
 	   	release_mem_region(ivideo->video_base, ivideo->video_size);
 	   	release_mem_region(ivideo->mmio_base, ivideo->mmio_size);
 		if(ivideo->bios_abase) vfree(ivideo->bios_abase);
-		if(ivideo->bios_vbase) iounmap(ivideo->bios_vbase);
 		pci_set_drvdata(pdev, NULL);
 	   	kfree(sis_fb_info);
 	   	return -ENODEV;
 	}
 
 	printk(KERN_INFO "sisfb: Framebuffer at 0x%lx, mapped to 0x%lx, size %ldk\n",
-	       	ivideo->video_base, ivideo->video_vbase, ivideo->video_size / 1024);
+	       	ivideo->video_base, (ULONG)ivideo->video_vbase, ivideo->video_size / 1024);
 
 	printk(KERN_INFO "sisfb: MMIO at 0x%lx, mapped to 0x%lx, size %ldk\n",
-	       	ivideo->mmio_base, ivideo->mmio_vbase, ivideo->mmio_size / 1024);
+	       	ivideo->mmio_base, (ULONG)ivideo->mmio_vbase, ivideo->mmio_size / 1024);
 
 	if((ivideo->havenoheap = sisfb_heap_init(ivideo))) {
 		printk(KERN_WARNING "sisfb: Failed to initialize offscreen memory heap\n");
@@ -5235,24 +5250,27 @@ int __devinit sisfb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		   inSISIDXREG(SISCR, 0x36, reg);
 		   reg &= 0x0f;
 		   if(ivideo->sisvga_engine == SIS_300_VGA) {
-		      ivideo->sishw_ext.ulCRT2LCDType = sis300paneltype[reg];
+		      ivideo->CRT2LCDType = sis300paneltype[reg];
 		   } else if(ivideo->chip >= SIS_661) {
-		      ivideo->sishw_ext.ulCRT2LCDType = sis661paneltype[reg];
+		      ivideo->CRT2LCDType = sis661paneltype[reg];
 		   } else {
-		      ivideo->sishw_ext.ulCRT2LCDType = sis310paneltype[reg];
+		      ivideo->CRT2LCDType = sis310paneltype[reg];
 		      if((ivideo->chip == SIS_550) && (sisfb_fstn)) {
-		         if((ivideo->sishw_ext.ulCRT2LCDType != LCD_640x480_2) &&
-			    (ivideo->sishw_ext.ulCRT2LCDType != LCD_640x480_3)) {
-		      	    ivideo->sishw_ext.ulCRT2LCDType = LCD_320x480;
+		         if((ivideo->CRT2LCDType != LCD_640x480_2) &&
+			    (ivideo->CRT2LCDType != LCD_640x480_3)) {
+		      	    ivideo->CRT2LCDType = LCD_320x480;
 			 }
 		      }
 		   }
-		   if(ivideo->sishw_ext.ulCRT2LCDType == LCD_UNKNOWN) {
-		      ivideo->sishw_ext.ulCRT2LCDType = LCD_1024x768;
-		      printk(KERN_DEBUG "sisfb: Illegal panel ID (%02x), assuming 1024x768\n", reg);
+		   if(ivideo->CRT2LCDType == LCD_UNKNOWN) {
+		      /* For broken BIOSes: Assume 1024x768, RGB18 */
+		      ivideo->CRT2LCDType = LCD_1024x768;
+		      setSISIDXREG(SISCR,0x36,0xf0,0x02);
+		      setSISIDXREG(SISCR,0x37,0xee,0x01);
+		      printk(KERN_DEBUG "sisfb: Invalid panel ID (%02x), assuming 1024x768, RGB18\n", reg);
 		   }
 		   for(i = 0; i < SIS_LCD_NUMBER; i++) {
-		      if(ivideo->sishw_ext.ulCRT2LCDType == sis_lcd_data[i].lcdtype) {
+		      if(ivideo->CRT2LCDType == sis_lcd_data[i].lcdtype) {
 		         ivideo->lcdxres = sis_lcd_data[i].xres;
 			 ivideo->lcdyres = sis_lcd_data[i].yres;
 			 ivideo->lcddefmodeidx = sis_lcd_data[i].default_mode_idx;
@@ -5450,12 +5468,11 @@ int __devinit sisfb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		if(SiSSetMode(&ivideo->SiS_Pr, &ivideo->sishw_ext, ivideo->mode_no) == 0) {
 			printk(KERN_ERR "sisfb: Fatal error: Setting mode[0x%x] failed\n",
 									ivideo->mode_no);
-			iounmap((void *)ivideo->video_vbase);
-			iounmap((void *)ivideo->mmio_vbase);
+			iounmap(ivideo->video_vbase);
+			iounmap(ivideo->mmio_vbase);
 			release_mem_region(ivideo->video_base, ivideo->video_size);
 			release_mem_region(ivideo->mmio_base, ivideo->mmio_size);
 			if(ivideo->bios_abase) vfree(ivideo->bios_abase);
-			if(ivideo->bios_vbase) iounmap(ivideo->bios_vbase);
 			pci_set_drvdata(pdev, NULL);
 			kfree(sis_fb_info);
 			return -EINVAL;
@@ -5549,7 +5566,7 @@ int __devinit sisfb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 #endif
 		sis_fb_info->var = ivideo->default_var;
 		sis_fb_info->fix = ivideo->sisfb_fix;
-		sis_fb_info->screen_base = (char *)ivideo->video_vbase;
+		sis_fb_info->screen_base = ivideo->video_vbase;
 		sis_fb_info->fbops = &sisfb_ops;
 
 		sisfb_get_fix(&sis_fb_info->fix, -1, sis_fb_info);
@@ -5574,12 +5591,11 @@ int __devinit sisfb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 		if(register_framebuffer(sis_fb_info) < 0) {
 			printk(KERN_ERR "sisfb: Fatal error: Failed to register framebuffer\n");
-			iounmap((void *)ivideo->video_vbase);
-			iounmap((void *)ivideo->mmio_vbase);
+			iounmap(ivideo->video_vbase);
+			iounmap(ivideo->mmio_vbase);
 			release_mem_region(ivideo->video_base, ivideo->video_size);
 			release_mem_region(ivideo->mmio_base, ivideo->mmio_size);
 			if(ivideo->bios_abase) vfree(ivideo->bios_abase);
-			if(ivideo->bios_vbase) iounmap(ivideo->bios_vbase);
 			pci_set_drvdata(pdev, NULL);
 			kfree(sis_fb_info);
 			return -EINVAL;
@@ -5590,30 +5606,6 @@ int __devinit sisfb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		/* Enlist us */
 		ivideo->next = card_list;
 		card_list = ivideo;
-
-#ifdef SIS_CONFIG_COMPAT
-		{
-		int ret;
-		/* Our ioctls are all "32/64bit compatible" */
-		if(register_ioctl32_conversion(FBIOGET_VBLANK, NULL)) {
-		   printk(KERN_ERR "sisfb: Error registering FBIOGET_VBLANK ioctl32 translation\n");
-		} else {
-		   ivideo->ioctl32vblankregistered = 1;
-		}
-		ret =  register_ioctl32_conversion(FBIO_ALLOC,             NULL);
-		ret |= register_ioctl32_conversion(FBIO_FREE,              NULL);
-		ret |= register_ioctl32_conversion(SISFB_GET_INFO_SIZE,    NULL);
-		ret |= register_ioctl32_conversion(SISFB_GET_INFO,         NULL);
-		ret |= register_ioctl32_conversion(SISFB_GET_TVPOSOFFSET,  NULL);
-		ret |= register_ioctl32_conversion(SISFB_SET_TVPOSOFFSET,  NULL);
-		ret |= register_ioctl32_conversion(SISFB_SET_LOCK,         NULL);
-		ret |= register_ioctl32_conversion(SISFB_GET_VBRSTATUS,    NULL);
-		ret |= register_ioctl32_conversion(SISFB_GET_AUTOMAXIMIZE, NULL);
-		ret |= register_ioctl32_conversion(SISFB_SET_AUTOMAXIMIZE, NULL);
-		if(ret)	printk(KERN_ERR "sisfb: Error registering ioctl32 translations\n");
-		else    ivideo->ioctl32registered = 1;
-		}
-#endif
 
 		printk(KERN_INFO "sisfb: 2D acceleration is %s, y-panning %s\n",
 		     ivideo->sisfb_accel ? "enabled" : "disabled",
@@ -5646,33 +5638,10 @@ static void __devexit sisfb_remove(struct pci_dev *pdev)
 	struct fb_info        *sis_fb_info = ivideo->memyselfandi;
 	int                   registered = ivideo->registered;
 
-#ifdef SIS_CONFIG_COMPAT
-	if(ivideo->ioctl32vblankregistered) {
-		if(unregister_ioctl32_conversion(FBIOGET_VBLANK)) {
-			printk(KERN_ERR "sisfb: Error unregistering FBIOGET_VBLANK ioctl32 translation\n");
-		}
-	}
-	if(ivideo->ioctl32registered) {
-		int ret;
-		ret =  unregister_ioctl32_conversion(FBIO_ALLOC);
-		ret |= unregister_ioctl32_conversion(FBIO_FREE);
-		ret |= unregister_ioctl32_conversion(SISFB_GET_INFO_SIZE);
-		ret |= unregister_ioctl32_conversion(SISFB_GET_INFO);
-		ret |= unregister_ioctl32_conversion(SISFB_GET_TVPOSOFFSET);
-		ret |= unregister_ioctl32_conversion(SISFB_SET_TVPOSOFFSET);
-		ret |= unregister_ioctl32_conversion(SISFB_SET_LOCK);
-		ret |= unregister_ioctl32_conversion(SISFB_GET_VBRSTATUS);
-		ret |= unregister_ioctl32_conversion(SISFB_GET_AUTOMAXIMIZE);
-		ret |= unregister_ioctl32_conversion(SISFB_SET_AUTOMAXIMIZE);
-		if(ret)	printk(KERN_ERR "sisfb: Error unregistering ioctl32 translations\n");
-	}
-#endif
-
 	/* Unmap */
-	iounmap((void *)ivideo->video_vbase);
-	iounmap((void *)ivideo->mmio_vbase);
-	if(ivideo->bios_vbase) iounmap(ivideo->bios_vbase);
-	if(ivideo->bios_abase)    vfree(ivideo->bios_abase);
+	iounmap(ivideo->video_vbase);
+	iounmap(ivideo->mmio_vbase);
+	vfree(ivideo->bios_abase);
 
 	/* Release mem regions */
 	release_mem_region(ivideo->video_base, ivideo->video_size);
@@ -5716,10 +5685,25 @@ static struct pci_driver sisfb_driver = {
 	.remove 	= __devexit_p(sisfb_remove)
 };
 
-int __init sisfb_init(void)
+SISINITSTATIC int __init sisfb_init(void)
 {
-	return(pci_module_init(&sisfb_driver));
+#if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,8)
+#ifndef MODULE
+	char *options = NULL;
+
+	if(fb_get_options("sisfb", &options))
+		return -ENODEV;
+	sisfb_setup(options);
+#endif
+#endif
+	return(pci_register_driver(&sisfb_driver));
 }
+
+#if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,8)
+#ifndef MODULE
+module_init(sisfb_init);
+#endif
+#endif
 
 /*****************************************************/
 /*                      MODULE                       */
@@ -5957,7 +5941,7 @@ MODULE_PARM_DESC(videoram,
 #endif
 #endif
 
-int __init sisfb_init_module(void)
+static int __devinit sisfb_init_module(void)
 {
 	sisfb_setdefaultparms();
 

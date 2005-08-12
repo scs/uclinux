@@ -4,7 +4,7 @@
  *		kernel's AX.25 protocol layers.
  *
  * Authors:	Andreas Könsgen <ajk@iehk.rwth-aachen.de>
- *              Ralf Baechle DO1GRB <ralf@linux-mips.org>
+ *              Ralf Baechle DL5RB <ralf@linux-mips.org>
  *
  * Quite a lot of stuff "stolen" by Joerg Reuter from slip.c, written by
  *
@@ -16,7 +16,7 @@
 #include <linux/module.h>
 #include <asm/system.h>
 #include <asm/uaccess.h>
-#include <asm/bitops.h>
+#include <linux/bitops.h>
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/interrupt.h>
@@ -119,11 +119,10 @@ struct sixpack {
 	unsigned char		status1;
 	unsigned char		status2;
 	unsigned char		tx_enable;
-	unsigned char		tnc_ok;
+	unsigned char		tnc_state;
 
 	struct timer_list	tx_t;
 	struct timer_list	resync_t;
-
 	atomic_t		refcnt;
 	struct semaphore	dead_sem;
 	spinlock_t		lock;
@@ -134,7 +133,6 @@ struct sixpack {
 static void sp_start_tx_timer(struct sixpack *);
 static void sixpack_decode(struct sixpack *, unsigned char[], int);
 static int encode_sixpack(unsigned char *, unsigned char *, int, unsigned char);
-static int sixpack_init(struct net_device *dev);
 
 /*
  * perform the persistence/slottime algorithm for CSMA access. If the
@@ -152,13 +150,13 @@ static void sp_xmit_on_air(unsigned long channel)
 
 	if (((sp->status1 & SIXP_DCD_MASK) == 0) && (random < sp->persistence)) {
 		sp->led_state = 0x70;
-		sp->tty->driver->write(sp->tty, 0, &sp->led_state, 1);
+		sp->tty->driver->write(sp->tty, &sp->led_state, 1);
 		sp->tx_enable = 1;
-		actual = sp->tty->driver->write(sp->tty, 0, sp->xbuff, sp->status2);
+		actual = sp->tty->driver->write(sp->tty, sp->xbuff, sp->status2);
 		sp->xleft -= actual;
 		sp->xhead += actual;
 		sp->led_state = 0x60;
-		sp->tty->driver->write(sp->tty, 0, &sp->led_state, 1);
+		sp->tty->driver->write(sp->tty, &sp->led_state, 1);
 		sp->status2 = 0;
 	} else
 		sp_start_tx_timer(sp);
@@ -181,6 +179,11 @@ static void sp_encaps(struct sixpack *sp, unsigned char *icp, int len)
 {
 	unsigned char *msg, *p = icp;
 	int actual, count;
+
+	if (len > sp->mtu) {	/* sp->mtu = AX25_MTU = max. PACLEN = 256 */
+		msg = "oversized transmit packet!";
+		goto out_drop;
+	}
 
 	if (len > sp->mtu) {	/* sp->mtu = AX25_MTU = max. PACLEN = 256 */
 		msg = "oversized transmit packet!";
@@ -229,13 +232,13 @@ static void sp_encaps(struct sixpack *sp, unsigned char *icp, int len)
 	 */
 	if (sp->duplex == 1) {
 		sp->led_state = 0x70;
-		sp->tty->driver->write(sp->tty, 0, &sp->led_state, 1);
+		sp->tty->driver->write(sp->tty, &sp->led_state, 1);
 		sp->tx_enable = 1;
-		actual = sp->tty->driver->write(sp->tty, 0, sp->xbuff, count);
+		actual = sp->tty->driver->write(sp->tty, sp->xbuff, count);
 		sp->xleft = count - actual;
 		sp->xhead = sp->xbuff + actual;
 		sp->led_state = 0x60;
-		sp->tty->driver->write(sp->tty, 0, &sp->led_state, 1);
+		sp->tty->driver->write(sp->tty, &sp->led_state, 1);
 	} else {
 		sp->xleft = count;
 		sp->xhead = sp->xbuff;
@@ -249,8 +252,8 @@ static void sp_encaps(struct sixpack *sp, unsigned char *icp, int len)
 out_drop:
 	sp->stats.tx_dropped++;
 	netif_start_queue(sp->dev);
-	printk(KERN_DEBUG "%s: %s - dropped.\n", sp->dev->name, msg);
-	return;
+	if (net_ratelimit())
+		printk(KERN_DEBUG "%s: %s - dropped.\n", sp->dev->name, msg);
 }
 
 /* Encapsulate an IP datagram and kick it into a TTY queue. */
@@ -313,10 +316,20 @@ static struct net_device_stats *sp_get_stats(struct net_device *dev)
 	return &sp->stats;
 }
 
-static int sp_set_dev_mac_address(struct net_device *dev, void *addr)
+static int sp_set_mac_address(struct net_device *dev, void *addr)
 {
-	struct sockaddr *sa = addr;
-	memcpy(dev->dev_addr, sa->sa_data, AX25_ADDR_LEN);
+	struct sockaddr_ax25 *sa = addr;
+
+	if (sa->sax25_family != AF_AX25)
+		return -EINVAL;
+
+	if (!sa->sax25_ndigis)
+		return -EINVAL;
+
+	spin_lock_irq(&dev->xmit_lock);
+	memcpy(dev->dev_addr, &sa->sax25_call, AX25_ADDR_LEN);
+	spin_unlock_irq(&dev->xmit_lock);
+
 	return 0;
 }
 
@@ -337,7 +350,6 @@ static void sp_setup(struct net_device *dev)
 		{'L'<<1,'I'<<1,'N'<<1,'U'<<1,'X'<<1,' '<<1,'1'<<1};
 
 	/* Finish setting up the DEVICE info. */
-	dev->init		= sixpack_init;
 	dev->mtu		= SIXP_MTU;
 	dev->hard_start_xmit	= sp_xmit;
 	dev->open		= sp_open_dev;
@@ -345,7 +357,7 @@ static void sp_setup(struct net_device *dev)
 	dev->stop		= sp_close;
 	dev->hard_header	= sp_header;
 	dev->get_stats	        = sp_get_stats;
-	dev->set_mac_address    = sp_set_dev_mac_address;
+	dev->set_mac_address    = sp_set_mac_address;
 	dev->hard_header_len	= AX25_MAX_HEADER_LEN;
 	dev->addr_len		= AX25_ADDR_LEN;
 	dev->type		= ARPHRD_AX25;
@@ -359,50 +371,8 @@ static void sp_setup(struct net_device *dev)
 
 	SET_MODULE_OWNER(dev);
 
-	/* New-style flags. */
 	dev->flags		= 0;
 }
-
-/* Find a free 6pack channel, and link in this `tty' line. */
-static inline struct sixpack *sp_alloc(void)
-{
-	struct sixpack *sp = NULL;
-	struct net_device *dev = NULL;
-
-	dev = alloc_netdev(sizeof(struct sixpack), "sp%d", sp_setup);
-	if (!dev)
-		return NULL;
-
-	sp = netdev_priv(dev);
-	sp->dev = dev;
-
-	spin_lock_init(&sp->lock);
-
-	if (register_netdev(dev))
-		goto out_free;
-
-	return sp;
-
-out_free:
-	printk(KERN_WARNING "sp_alloc() - register_netdev() failure.\n");
-
-	free_netdev(dev);
-
-	return NULL;
-}
-
-/* Free a 6pack channel. */
-static inline void sp_free(struct sixpack *sp)
-{
-	void * tmp;
-
-	/* Free all 6pack frame buffers. */
-	if ((tmp = xchg(&sp->rbuff, NULL)) != NULL)
-		kfree(tmp);
-	if ((tmp = xchg(&sp->xbuff, NULL)) != NULL)
-		kfree(tmp);
-}
-
 
 /* Send one completely decapsulated IP datagram to the IP layer. */
 
@@ -424,13 +394,11 @@ static void sp_bump(struct sixpack *sp, char cmd)
 	if ((skb = dev_alloc_skb(count)) == NULL)
 		goto out_mem;
 
-	skb->dev = sp->dev;
 	ptr = skb_put(skb, count);
 	*ptr++ = cmd;	/* KISS command */
 
 	memcpy(ptr, sp->cooked_buf + 1, count);
-	skb->mac.raw = skb->data;
-	skb->protocol = htons(ETH_P_AX25);
+	skb->protocol = ax25_type_trans(skb, sp->dev);
 	netif_rx(skb);
 	sp->dev->last_rx = jiffies;
 	sp->stats.rx_packets++;
@@ -452,7 +420,7 @@ out_mem:
  * best way to fix this is to use a rwlock in the tty struct, but for now we
  * use a single global rwlock for all ttys in ppp line discipline.
  */
-static rwlock_t disc_data_lock = RW_LOCK_UNLOCKED;
+static DEFINE_RWLOCK(disc_data_lock);
                                                                                 
 static struct sixpack *sp_get(struct tty_struct *tty)
 {
@@ -482,6 +450,8 @@ static void sixpack_write_wakeup(struct tty_struct *tty)
 	struct sixpack *sp = sp_get(tty);
 	int actual;
 
+	if (!sp)
+		return;
 	if (sp->xleft <= 0)  {
 		/* Now serial buffer is almost free & we can start
 		 * transmission of another packet */
@@ -492,8 +462,8 @@ static void sixpack_write_wakeup(struct tty_struct *tty)
 		goto out;
 	}
 
-	if (sp->tx_enable == 1) {
-		actual = tty->driver->write(tty, 0, sp->xhead, sp->xleft);
+	if (sp->tx_enable) {
+		actual = tty->driver->write(tty, sp->xhead, sp->xleft);
 		sp->xleft -= actual;
 		sp->xhead += actual;
 	}
@@ -503,80 +473,6 @@ out:
 }
 
 /* ----------------------------------------------------------------------- */
-
-/* Open the low-level part of the 6pack channel. */
-static int sp_open(struct net_device *dev)
-{
-	struct sixpack *sp = netdev_priv(dev);
-	char *rbuff, *xbuff = NULL;
-	int err = -ENOBUFS;
-	unsigned long len;
-
-	/* !!! length of the buffers. MTU is IP MTU, not PACLEN!  */
-
-	len = dev->mtu * 2;
-
-	rbuff = kmalloc(len + 4, GFP_KERNEL);
-	if (rbuff == NULL)
-		goto err_exit;
-
-	xbuff = kmalloc(len + 4, GFP_KERNEL);
-	if (xbuff == NULL)
-		goto err_exit;
-
-	spin_lock_bh(&sp->lock);
-
-	if (sp->tty == NULL)
-		return -ENODEV;
-
-	/*
-	 * Allocate the 6pack frame buffers:
-	 *
-	 * rbuff	Receive buffer.
-	 * xbuff	Transmit buffer.
-	 */
-
-	rbuff = xchg(&sp->rbuff, rbuff);
-	xbuff = xchg(&sp->xbuff, xbuff);
-
-	sp->mtu	     = AX25_MTU + 73;
-	sp->buffsize = len;
-	sp->rcount   = 0;
-	sp->rx_count = 0;
-	sp->rx_count_cooked = 0;
-	sp->xleft    = 0;
-
-	sp->flags	= 0;		/* Clear ESCAPE & ERROR flags */
-
-	sp->duplex = 0;
-	sp->tx_delay    = SIXP_TXDELAY;
-	sp->persistence = SIXP_PERSIST;
-	sp->slottime    = SIXP_SLOTTIME;
-	sp->led_state   = 0x60;
-	sp->status      = 1;
-	sp->status1     = 1;
-	sp->status2     = 0;
-	sp->tnc_ok      = 0;
-	sp->tx_enable   = 0;
-
-	netif_start_queue(dev);
-
-	init_timer(&sp->tx_t);
-	init_timer(&sp->resync_t);
-
-	spin_unlock_bh(&sp->lock);
-
-	err = 0;
-
-err_exit:
-	if (xbuff)
-		kfree(xbuff);
-	if (rbuff)
-		kfree(rbuff);
-
-	return err;
-}
-
 
 static int sixpack_receive_room(struct tty_struct *tty)
 {
@@ -629,13 +525,44 @@ static void sixpack_receive_buf(struct tty_struct *tty,
  * decode_prio_command
  */
 
+#define TNC_UNINITIALIZED	0
+#define TNC_UNSYNC_STARTUP	1
+#define TNC_UNSYNCED		2
+#define TNC_IN_SYNC		3
+
+static void __tnc_set_sync_state(struct sixpack *sp, int new_tnc_state)
+{
+	char *msg;
+
+	switch (new_tnc_state) {
+	default:			/* gcc oh piece-o-crap ... */
+	case TNC_UNSYNC_STARTUP:
+		msg = "Synchronizing with TNC";
+		break;
+	case TNC_UNSYNCED:
+		msg = "Lost synchronization with TNC\n";
+		break;
+	case TNC_IN_SYNC:
+		msg = "Found TNC";
+		break;
+	}
+
+	sp->tnc_state = new_tnc_state;
+	printk(KERN_INFO "%s: %s\n", sp->dev->name, msg);
+}
+
+static inline void tnc_set_sync_state(struct sixpack *sp, int new_tnc_state)
+{
+	int old_tnc_state = sp->tnc_state;
+
+	if (old_tnc_state != new_tnc_state)
+		__tnc_set_sync_state(sp, new_tnc_state);
+}
+
 static void resync_tnc(unsigned long channel)
 {
 	struct sixpack *sp = (struct sixpack *) channel;
-	struct net_device *dev = sp->dev;
 	static char resync_cmd = 0xe8;
-
-	printk(KERN_INFO "%s: resyncing TNC\n", dev->name);
 
 	/* clear any data that might have been received */
 
@@ -647,21 +574,20 @@ static void resync_tnc(unsigned long channel)
 	sp->status = 1;
 	sp->status1 = 1;
 	sp->status2 = 0;
-	sp->tnc_ok = 0;
 
 	/* resync the TNC */
 
 	sp->led_state = 0x60;
-	sp->tty->driver->write(sp->tty, 0, &sp->led_state, 1);
-	sp->tty->driver->write(sp->tty, 0, &resync_cmd, 1);
+	sp->tty->driver->write(sp->tty, &sp->led_state, 1);
+	sp->tty->driver->write(sp->tty, &resync_cmd, 1);
 
 
 	/* Start resync timer again -- the TNC might be still absent */
 
 	del_timer(&sp->resync_t);
-	sp->resync_t.data = (unsigned long) sp;
-	sp->resync_t.function = resync_tnc;
-	sp->resync_t.expires = jiffies + SIXP_RESYNC_TIMEOUT;
+	sp->resync_t.data	= (unsigned long) sp;
+	sp->resync_t.function	= resync_tnc;
+	sp->resync_t.expires	= jiffies + SIXP_RESYNC_TIMEOUT;
 	add_timer(&sp->resync_t);
 }
 
@@ -669,7 +595,9 @@ static inline int tnc_init(struct sixpack *sp)
 {
 	unsigned char inbyte = 0xe8;
 
-	sp->tty->driver->write(sp->tty, 0, &inbyte, 1);
+	tnc_set_sync_state(sp, TNC_UNSYNC_STARTUP);
+
+	sp->tty->driver->write(sp->tty, &inbyte, 1);
 
 	del_timer(&sp->resync_t);
 	sp->resync_t.data = (unsigned long) sp;
@@ -689,30 +617,90 @@ static inline int tnc_init(struct sixpack *sp)
  */
 static int sixpack_open(struct tty_struct *tty)
 {
+	char *rbuff = NULL, *xbuff = NULL;
+	struct net_device *dev;
 	struct sixpack *sp;
+	unsigned long len;
 	int err = 0;
 
 	if (!capable(CAP_NET_ADMIN))
 		return -EPERM;
 
-	sp = sp_alloc();
-	if (!sp) {
+	dev = alloc_netdev(sizeof(struct sixpack), "sp%d", sp_setup);
+	if (!dev) {
 		err = -ENOMEM;
 		goto out;
 	}
 
-	sp->tty = tty;
+	sp = netdev_priv(dev);
+	sp->dev = dev;
+
+	spin_lock_init(&sp->lock);
 	atomic_set(&sp->refcnt, 1);
 	init_MUTEX_LOCKED(&sp->dead_sem);
 
-	/* Perform the low-level 6pack initialization. */
-	if ((err = sp_open(sp->dev)))
-		goto out;
+	/* !!! length of the buffers. MTU is IP MTU, not PACLEN!  */
+
+	len = dev->mtu * 2;
+
+	rbuff = kmalloc(len + 4, GFP_KERNEL);
+	xbuff = kmalloc(len + 4, GFP_KERNEL);
+
+	if (rbuff == NULL || xbuff == NULL) {
+		err = -ENOBUFS;
+		goto out_free;
+	}
+
+	spin_lock_bh(&sp->lock);
+
+	sp->tty = tty;
+
+	sp->rbuff	= rbuff;
+	sp->xbuff	= xbuff;
+
+	sp->mtu		= AX25_MTU + 73;
+	sp->buffsize	= len;
+	sp->rcount	= 0;
+	sp->rx_count	= 0;
+	sp->rx_count_cooked = 0;
+	sp->xleft	= 0;
+
+	sp->flags	= 0;		/* Clear ESCAPE & ERROR flags */
+
+	sp->duplex	= 0;
+	sp->tx_delay    = SIXP_TXDELAY;
+	sp->persistence = SIXP_PERSIST;
+	sp->slottime    = SIXP_SLOTTIME;
+	sp->led_state   = 0x60;
+	sp->status      = 1;
+	sp->status1     = 1;
+	sp->status2     = 0;
+	sp->tx_enable   = 0;
+
+	netif_start_queue(dev);
+
+	init_timer(&sp->tx_t);
+	init_timer(&sp->resync_t);
+
+	spin_unlock_bh(&sp->lock);
 
 	/* Done.  We have linked the TTY line to a channel. */
 	tty->disc_data = sp;
 
+	/* Now we're ready to register. */
+	if (register_netdev(dev))
+		goto out_free;
+
 	tnc_init(sp);
+
+	return 0;
+
+out_free:
+	kfree(xbuff);
+	kfree(rbuff);
+
+	if (dev)
+		free_netdev(dev);
 
 out:
 	return err;
@@ -727,7 +715,7 @@ out:
  */
 static void sixpack_close(struct tty_struct *tty)
 {
-	struct sixpack *sp = (struct sixpack *) tty->disc_data;
+	struct sixpack *sp;
 
 	write_lock(&disc_data_lock);
 	sp = tty->disc_data;
@@ -743,16 +731,14 @@ static void sixpack_close(struct tty_struct *tty)
 	if (!atomic_dec_and_test(&sp->refcnt))
 		down(&sp->dead_sem);
 
+	unregister_netdev(sp->dev);
+
 	del_timer(&sp->tx_t);
 	del_timer(&sp->resync_t);
 
-	sp_free(sp);
-	unregister_netdev(sp->dev);
-}
-
-static int sp_set_mac_address(struct net_device *dev, void __user *addr)
-{
-	return copy_from_user(dev->dev_addr, addr, AX25_ADDR_LEN) ? -EFAULT : 0;
+	/* Free all 6pack frame buffers. */
+	kfree(sp->rbuff);
+	kfree(sp->xbuff);
 }
 
 /* Perform I/O control on an active 6pack channel. */
@@ -760,6 +746,7 @@ static int sixpack_ioctl(struct tty_struct *tty, struct file *file,
 	unsigned int cmd, unsigned long arg)
 {
 	struct sixpack *sp = sp_get(tty);
+	struct net_device *dev = sp->dev;
 	unsigned int tmp, err;
 
 	if (!sp)
@@ -767,12 +754,12 @@ static int sixpack_ioctl(struct tty_struct *tty, struct file *file,
 
 	switch(cmd) {
 	case SIOCGIFNAME:
-		err = copy_to_user((void __user *) arg, sp->dev->name,
-		                   strlen(sp->dev->name) + 1) ? -EFAULT : 0;
+		err = copy_to_user((void __user *) arg, dev->name,
+		                   strlen(dev->name) + 1) ? -EFAULT : 0;
 		break;
 
 	case SIOCGIFENCAP:
-		err = put_user(0, (int __user *)arg);
+		err = put_user(0, (int __user *) arg);
 		break;
 
 	case SIOCSIFENCAP:
@@ -782,16 +769,30 @@ static int sixpack_ioctl(struct tty_struct *tty, struct file *file,
 		}
 
 		sp->mode = tmp;
-		sp->dev->addr_len        = AX25_ADDR_LEN;	  /* sizeof an AX.25 addr */
-		sp->dev->hard_header_len = AX25_KISS_HEADER_LEN + AX25_MAX_HEADER_LEN + 3;
-		sp->dev->type            = ARPHRD_AX25;
+		dev->addr_len        = AX25_ADDR_LEN;
+		dev->hard_header_len = AX25_KISS_HEADER_LEN +
+		                       AX25_MAX_HEADER_LEN + 3;
+		dev->type            = ARPHRD_AX25;
 
 		err = 0;
 		break;
 
-	 case SIOCSIFHWADDR:
-		err = sp_set_mac_address(sp->dev, (void __user *) arg);
+	 case SIOCSIFHWADDR: {
+		char addr[AX25_ADDR_LEN];
+
+		if (copy_from_user(&addr,
+		                   (void __user *) arg, AX25_ADDR_LEN)) {
+			err = -EFAULT;
+			break;
+		}
+
+		spin_lock_irq(&dev->xmit_lock);
+		memcpy(dev->dev_addr, &addr, AX25_ADDR_LEN);
+		spin_unlock_irq(&dev->xmit_lock);
+
+		err = 0;
 		break;
+	}
 
 	/* Allow stty to read, but not set, the serial port */
 	case TCGETS:
@@ -800,7 +801,7 @@ static int sixpack_ioctl(struct tty_struct *tty, struct file *file,
 		break;
 
 	default:
-		return -ENOIOCTLCMD;
+		err = -ENOIOCTLCMD;
 	}
 
 	sp_put(sp);
@@ -808,7 +809,6 @@ static int sixpack_ioctl(struct tty_struct *tty, struct file *file,
 	return err;
 }
 
-/* Fill in our line protocol discipline */
 static struct tty_ldisc sp_ldisc = {
 	.owner		= THIS_MODULE,
 	.magic		= TTY_LDISC_MAGIC,
@@ -823,8 +823,10 @@ static struct tty_ldisc sp_ldisc = {
 
 /* Initialize 6pack control device -- register 6pack line discipline */
 
-static char msg_banner[]  __initdata = KERN_INFO "AX.25: 6pack driver, " SIXPACK_VERSION "\n";
-static char msg_regfail[] __initdata = KERN_ERR  "6pack: can't register line discipline (err = %d)\n";
+static char msg_banner[]  __initdata = KERN_INFO \
+	"AX.25: 6pack driver, " SIXPACK_VERSION "\n";
+static char msg_regfail[] __initdata = KERN_ERR  \
+	"6pack: can't register line discipline (err = %d)\n";
 
 static int __init sixpack_init_driver(void)
 {
@@ -839,7 +841,8 @@ static int __init sixpack_init_driver(void)
 	return status;
 }
 
-static const char msg_unregfail[] __exitdata = KERN_ERR "6pack: can't unregister line discipline (err = %d)\n";
+static const char msg_unregfail[] __exitdata = KERN_ERR \
+	"6pack: can't unregister line discipline (err = %d)\n";
 
 static void __exit sixpack_exit_driver(void)
 {
@@ -847,22 +850,6 @@ static void __exit sixpack_exit_driver(void)
 
 	if ((ret = tty_register_ldisc(N_6PACK, NULL)))
 		printk(msg_unregfail, ret);
-}
-
-/* Initialize the 6pack driver.  Called by DDI. */
-static int sixpack_init(struct net_device *dev)
-{
-	struct sixpack *sp = netdev_priv(dev);
-
-	if (sp == NULL)		/* Allocation failed ?? */
-		return -ENODEV;
-
-	/* Set up the "6pack Control Block". (And clear statistics) */
-
-	memset(sp, 0, sizeof (struct sixpack));
-	sp->dev	   = dev;
-
-	return 0;
 }
 
 /* encode an AX.25 packet into 6pack */
@@ -905,7 +892,7 @@ static int encode_sixpack(unsigned char *tx_buf, unsigned char *tx_buf_raw,
 
 /* decode 4 sixpack-encoded bytes into 3 data bytes */
 
-static void decode_data(unsigned char inbyte, struct sixpack *sp)
+static void decode_data(struct sixpack *sp, unsigned char inbyte)
 {
 	unsigned char *buf;
 
@@ -927,7 +914,7 @@ static void decode_data(unsigned char inbyte, struct sixpack *sp)
 
 /* identify and execute a 6pack priority command byte */
 
-static void decode_prio_command(unsigned char cmd, struct sixpack *sp)
+static void decode_prio_command(struct sixpack *sp, unsigned char cmd)
 {
 	unsigned char channel;
 	int actual;
@@ -954,9 +941,9 @@ static void decode_prio_command(unsigned char cmd, struct sixpack *sp)
 	} else { /* output watchdog char if idle */
 		if ((sp->status2 != 0) && (sp->duplex == 1)) {
 			sp->led_state = 0x70;
-			sp->tty->driver->write(sp->tty, 0, &sp->led_state, 1);
+			sp->tty->driver->write(sp->tty, &sp->led_state, 1);
 			sp->tx_enable = 1;
-			actual = sp->tty->driver->write(sp->tty, 0, sp->xbuff, sp->status2);
+			actual = sp->tty->driver->write(sp->tty, sp->xbuff, sp->status2);
 			sp->xleft -= actual;
 			sp->xhead += actual;
 			sp->led_state = 0x60;
@@ -966,16 +953,16 @@ static void decode_prio_command(unsigned char cmd, struct sixpack *sp)
 	}
 
 	/* needed to trigger the TNC watchdog */
-	sp->tty->driver->write(sp->tty, 0, &sp->led_state, 1);
+	sp->tty->driver->write(sp->tty, &sp->led_state, 1);
 
         /* if the state byte has been received, the TNC is present,
            so the resync timer can be reset. */
 
-	if (sp->tnc_ok == 1) {
+	if (sp->tnc_state == TNC_IN_SYNC) {
 		del_timer(&sp->resync_t);
-		sp->resync_t.data = (unsigned long) sp;
-		sp->resync_t.function = resync_tnc;
-		sp->resync_t.expires = jiffies + SIXP_INIT_RESYNC_TIMEOUT;
+		sp->resync_t.data	= (unsigned long) sp;
+		sp->resync_t.function	= resync_tnc;
+		sp->resync_t.expires	= jiffies + SIXP_INIT_RESYNC_TIMEOUT;
 		add_timer(&sp->resync_t);
 	}
 
@@ -984,7 +971,7 @@ static void decode_prio_command(unsigned char cmd, struct sixpack *sp)
 
 /* identify and execute a standard 6pack command byte */
 
-static void decode_std_command(unsigned char cmd, struct sixpack *sp)
+static void decode_std_command(struct sixpack *sp, unsigned char cmd)
 {
 	unsigned char checksum = 0, rest = 0, channel;
 	short i;
@@ -996,16 +983,16 @@ static void decode_std_command(unsigned char cmd, struct sixpack *sp)
 			if ((sp->status & SIXP_RX_DCD_MASK) ==
 				SIXP_RX_DCD_MASK) {
 				sp->led_state = 0x68;
-				sp->tty->driver->write(sp->tty, 0, &sp->led_state, 1);
+				sp->tty->driver->write(sp->tty, &sp->led_state, 1);
 			}
 		} else {
 			sp->led_state = 0x60;
 			/* fill trailing bytes with zeroes */
-			sp->tty->driver->write(sp->tty, 0, &sp->led_state, 1);
+			sp->tty->driver->write(sp->tty, &sp->led_state, 1);
 			rest = sp->rx_count;
 			if (rest != 0)
 				 for (i = rest; i <= 3; i++)
-					decode_data(0, sp);
+					decode_data(sp, 0);
 			if (rest == 2)
 				sp->rx_count_cooked -= 2;
 			else if (rest == 3)
@@ -1033,7 +1020,7 @@ static void decode_std_command(unsigned char cmd, struct sixpack *sp)
 /* decode a 6pack packet */
 
 static void
-sixpack_decode(struct sixpack *sp, unsigned char pre_rbuff[], int count)
+sixpack_decode(struct sixpack *sp, unsigned char *pre_rbuff, int count)
 {
 	unsigned char inbyte;
 	int count1;
@@ -1041,16 +1028,15 @@ sixpack_decode(struct sixpack *sp, unsigned char pre_rbuff[], int count)
 	for (count1 = 0; count1 < count; count1++) {
 		inbyte = pre_rbuff[count1];
 		if (inbyte == SIXP_FOUND_TNC) {
-			printk(KERN_INFO "6pack: TNC found.\n");
-			sp->tnc_ok = 1;
+			tnc_set_sync_state(sp, TNC_IN_SYNC);
 			del_timer(&sp->resync_t);
 		}
 		if ((inbyte & SIXP_PRIO_CMD_MASK) != 0)
-			decode_prio_command(inbyte, sp);
+			decode_prio_command(sp, inbyte);
 		else if ((inbyte & SIXP_STD_CMD_MASK) != 0)
-			decode_std_command(inbyte, sp);
+			decode_std_command(sp, inbyte);
 		else if ((sp->status & SIXP_RX_DCD_MASK) == SIXP_RX_DCD_MASK)
-			decode_data(inbyte, sp);
+			decode_data(sp, inbyte);
 	}
 }
 

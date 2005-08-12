@@ -43,7 +43,7 @@ typedef struct drm_mem_stats {
 	unsigned long	  bytes_freed;
 } drm_mem_stats_t;
 
-static spinlock_t	  DRM(mem_lock)	     = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(DRM(mem_lock));
 static unsigned long	  DRM(ram_available) = 0; /* In pages */
 static unsigned long	  DRM(ram_used)      = 0;
 static drm_mem_stats_t	  DRM(mem_stats)[]   = {
@@ -167,7 +167,7 @@ void *DRM(alloc)(size_t size, int area)
 	return pt;
 }
 
-void *DRM(calloc)(size_t size, size_t nmemb, int area)
+void *DRM(calloc)(size_t nmemb, size_t size, int area)
 {
 	void *addr;
 
@@ -352,7 +352,7 @@ void DRM(ioremapfree)(void *pt, unsigned long size, drm_device_t *dev)
 	}
 }
 
-#if __REALLY_HAVE_AGP
+#if __OS_HAS_AGP
 
 DRM_AGP_MEM *DRM(alloc_agp)(int pages, u32 type)
 {

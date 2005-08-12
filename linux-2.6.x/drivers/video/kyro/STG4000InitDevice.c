@@ -79,8 +79,8 @@ volatile u32 i,count=0; \
     for(i=0;i<X;i++) count++; \
 }
 
-u32 InitSDRAMRegisters(volatile STG4000REG * pSTGReg, u32 dwSubSysID,
-			 u32 dwRevID)
+static u32 InitSDRAMRegisters(volatile STG4000REG __iomem *pSTGReg,
+			      u32 dwSubSysID, u32 dwRevID)
 {
 	u32 adwSDRAMArgCfg0[] = { 0xa0, 0x80, 0xa0, 0xa0, 0xa0 };
 	u32 adwSDRAMCfg1[] = { 0x8732, 0x8732, 0xa732, 0xa732, 0x8732 };
@@ -239,7 +239,7 @@ u32 ProgramClock(u32 refClock,
 	return (ulBestClk);
 }
 
-int SetCoreClockPLL(volatile STG4000REG * pSTGReg, struct pci_dev *pDev)
+int SetCoreClockPLL(volatile STG4000REG __iomem *pSTGReg, struct pci_dev *pDev)
 {
 	u32 F, R, P;
 	u16 core_pll = 0, sub;

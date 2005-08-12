@@ -109,11 +109,11 @@ static const char version[] = "NET3 PLIP version 2.4-parport gniibe@mri.co.jp\n"
 #include <linux/ioport.h>
 #include <linux/spinlock.h>
 #include <linux/parport.h>
+#include <linux/bitops.h>
 
 #include <net/neighbour.h>
 
 #include <asm/system.h>
-#include <asm/bitops.h>
 #include <asm/irq.h>
 #include <asm/byteorder.h>
 #include <asm/semaphore.h>
@@ -547,7 +547,7 @@ static unsigned short plip_type_trans(struct sk_buff *skb, struct net_device *de
 	
 	skb->mac.raw=skb->data;
 	skb_pull(skb,dev->hard_header_len);
-	eth= skb->mac.ethernet;
+	eth = eth_hdr(skb);
 	
 	if(*eth->h_dest&1)
 	{
@@ -1242,8 +1242,8 @@ plip_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 static int parport[PLIP_MAX] = { [0 ... PLIP_MAX-1] = -1 };
 static int timid;
 
-MODULE_PARM(parport, "1-" __MODULE_STRING(PLIP_MAX) "i");
-MODULE_PARM(timid, "1i");
+module_param_array(parport, int, NULL, 0);
+module_param(timid, int, 0);
 MODULE_PARM_DESC(parport, "List of parport device numbers to use by plip");
 
 static struct net_device *dev_plip[PLIP_MAX] = { NULL, };

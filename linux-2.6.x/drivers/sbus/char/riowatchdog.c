@@ -52,14 +52,14 @@ MODULE_LICENSE("GPL");
 #define RIOWD_NAME	"pmc"
 #define RIOWD_MINOR	215
 
-static spinlock_t riowd_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(riowd_lock);
 
-static void *bbc_regs;
-static void *riowd_regs;
+static void __iomem *bbc_regs;
+static void __iomem *riowd_regs;
 #define WDTO_INDEX	0x05
 
 static int riowd_timeout = 1;		/* in minutes */
-MODULE_PARM(riowd_timeout,"i");
+module_param(riowd_timeout, int, 0);
 MODULE_PARM_DESC(riowd_timeout, "Watchdog timeout in minutes");
 
 #if 0 /* Currently unused. */

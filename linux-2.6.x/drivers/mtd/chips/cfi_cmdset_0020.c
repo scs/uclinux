@@ -788,7 +788,7 @@ retry:
 	chip->state = FL_ERASING;
 	
 	spin_unlock_bh(chip->mutex);
-	schedule_timeout(HZ);
+	msleep(1000);
 	spin_lock_bh(chip->mutex);
 
 	/* FIXME. Use a timer to check this, and return immediately. */
@@ -1087,7 +1087,7 @@ retry:
 	chip->state = FL_LOCKING;
 	
 	spin_unlock_bh(chip->mutex);
-	schedule_timeout(HZ);
+	msleep(1000);
 	spin_lock_bh(chip->mutex);
 
 	/* FIXME. Use a timer to check this, and return immediately. */
@@ -1236,7 +1236,7 @@ retry:
 	chip->state = FL_UNLOCKING;
 	
 	spin_unlock_bh(chip->mutex);
-	schedule_timeout(HZ);
+	msleep(1000);
 	spin_lock_bh(chip->mutex);
 
 	/* FIXME. Use a timer to check this, and return immediately. */
@@ -1401,7 +1401,7 @@ static void cfi_staa_destroy(struct mtd_info *mtd)
 
 static char im_name[]="cfi_cmdset_0020";
 
-int __init cfi_staa_init(void)
+static int __init cfi_staa_init(void)
 {
 	inter_module_register(im_name, THIS_MODULE, &cfi_cmdset_0020);
 	return 0;

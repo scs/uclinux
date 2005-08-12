@@ -1,6 +1,7 @@
 /*
     SMBus driver for nVidia nForce2 MCP
 
+    Added nForce3 Pro 150  Thomas Leibold <thomas@plx.com>,
 	Ported to 2.5 Patrick Dreker <patrick@dreker.de>,
     Copyright (c) 2003  Hans-Frieder Vogt <hfvogt@arcor.de>,
     Based on
@@ -23,11 +24,15 @@
 */
 
 /*
-    SUPPORTED DEVICES	PCI ID
-    nForce2 MCP		0064
+    SUPPORTED DEVICES		PCI ID
+    nForce2 MCP			0064
+    nForce2 Ultra 400 MCP	0084
+    nForce3 Pro150 MCP		00D4
+    nForce3 250Gb MCP		00E4
+    nForce4 MCP			0052
 
-    This driver supports the 2 SMBuses that are included in the MCP2 of the
-    nForce2 chipset.
+    This driver supports the 2 SMBuses that are included in the MCP of the
+    nForce2/3/4 chipsets.
 */
 
 /* Note: we assume there can only be one nForce2, with two SMBus interfaces */
@@ -47,11 +52,6 @@
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR ("Hans-Frieder Vogt <hfvogt@arcor.de>");
 MODULE_DESCRIPTION("nForce2 SMBus driver");
-
-
-#ifndef PCI_DEVICE_ID_NVIDIA_NFORCE2_SMBUS
-#define PCI_DEVICE_ID_NVIDIA_NFORCE2_SMBUS   0x0064
-#endif
 
 
 struct nforce2_smbus {
@@ -244,8 +244,7 @@ static s32 nforce2_access(struct i2c_adapter * adap, u16 addr,
 		temp = inb_p(NVIDIA_SMB_STS);
 	}
 	if (~temp & NVIDIA_SMB_STS_DONE) {
-		current->state = TASK_INTERRUPTIBLE;
-		schedule_timeout(HZ/100);
+		msleep(10);
 		temp = inb_p(NVIDIA_SMB_STS);
 	}
 
@@ -293,10 +292,16 @@ static u32 nforce2_func(struct i2c_adapter *adapter)
 
 
 static struct pci_device_id nforce2_ids[] = {
-	{ PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NFORCE2_SMBUS,
-	       	PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_DEVICE(PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NFORCE2_SMBUS) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NFORCE2S_SMBUS) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NFORCE3_SMBUS) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NFORCE3S_SMBUS) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NFORCE4_SMBUS) },
 	{ 0 }
 };
+
+
+MODULE_DEVICE_TABLE (pci, nforce2_ids);
 
 
 static int __devinit nforce2_probe_smb (struct pci_dev *dev, int reg,
@@ -384,7 +389,7 @@ static void __devexit nforce2_remove(struct pci_dev *dev)
 }
 
 static struct pci_driver nforce2_driver = {
-	.name		= "nForce2 SMBus",
+	.name		= "nForce2_smbus",
 	.id_table	= nforce2_ids,
 	.probe		= nforce2_probe,
 	.remove		= __devexit_p(nforce2_remove),
@@ -392,7 +397,7 @@ static struct pci_driver nforce2_driver = {
 
 static int __init nforce2_init(void)
 {
-	return pci_module_init(&nforce2_driver);
+	return pci_register_driver(&nforce2_driver);
 }
 
 static void __exit nforce2_exit(void)

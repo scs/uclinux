@@ -100,16 +100,19 @@ typedef struct {
 
 	struct iw_spy_data spy_data; /* iwspy support */
 
+#if WIRELESS_EXT > 16
+	struct iw_public_data wireless_data;
+#endif /* WIRELESS_EXT > 16 */
+
 	int monitor_type; /* ARPHRD_IEEE80211 or ARPHRD_IEEE80211_PRISM */
 
 	struct islpci_acl acl;
 
 	/* PCI bus allocation & configuration members */
 	struct pci_dev *pdev;	/* PCI structure information */
-	u32 pci_state[16];	/* used for suspend/resume */
 	char firmware[33];
 
-	void *device_base;	/* ioremapped device base address */
+	void __iomem *device_base;	/* ioremapped device base address */
 
 	/* consistent DMA region */
 	void *driver_mem_address;	/* base DMA address */
@@ -207,8 +210,6 @@ islpci_trigger(islpci_private *priv)
 	isl38xx_trigger_device(islpci_get_state(priv) == PRV_STATE_SLEEP,
 			       priv->device_base);
 }
-
-struct net_device_stats *islpci_statistics(struct net_device *);
 
 int islpci_free_memory(islpci_private *);
 struct net_device *islpci_setup(struct pci_dev *);

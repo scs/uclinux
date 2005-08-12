@@ -47,7 +47,7 @@ static int __init init_autcpu12_sram (void)
 {
 	int err, save0, save1;
 
-	autcpu12_sram_map.virt = (unsigned long)ioremap(0x12000000, SZ_128K);
+	autcpu12_sram_map.virt = ioremap(0x12000000, SZ_128K);
 	if (!autcpu12_sram_map.virt) {
 		printk("Failed to ioremap autcpu12 NV-RAM space\n");
 		err = -EIO;
@@ -76,7 +76,7 @@ static int __init init_autcpu12_sram (void)
 	/* We have a 128K found, restore 0x10000 and set size
 	 * to 128K
 	 */
-	ma[_write32(&autcpu12_sram_map,save1,0x10000);
+	map_write32(&autcpu12_sram_map,save1,0x10000);
 	autcpu12_sram_map.size = SZ_128K;
 
 map:

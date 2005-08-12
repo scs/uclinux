@@ -28,11 +28,30 @@
  *    Rickard E. (Rik) Faith <faith@valinux.com>
  *    Kevin E. Martin <martin@valinux.com>
  *    Gareth Hughes <gareth@valinux.com>
- *    Michel Dänzer <daenzerm@student.ethz.ch>
+ *    Michel Dï¿½zer <daenzerm@student.ethz.ch>
  */
 
 #ifndef __R128_DRV_H__
 #define __R128_DRV_H__
+
+/* General customization:
+ */
+#define DRIVER_AUTHOR		"Gareth Hughes, VA Linux Systems Inc."
+
+#define DRIVER_NAME		"r128"
+#define DRIVER_DESC		"ATI Rage 128"
+#define DRIVER_DATE		"20030725"
+
+/* Interface history:
+ *
+ * ??  - ??
+ * 2.4 - Add support for ycbcr textures (no new ioctls)
+ * 2.5 - Add FLIP ioctl, disable FULLSCREEN.
+ */
+#define DRIVER_MAJOR		2
+#define DRIVER_MINOR		5
+#define DRIVER_PATCHLEVEL	0
+
 
 #define GET_RING_HEAD(dev_priv)		R128_READ( R128_PM4_BUFFER_DL_RPTR )
 
@@ -100,7 +119,6 @@ typedef struct drm_r128_private {
 	drm_local_map_t *mmio;
 	drm_local_map_t *cce_ring;
 	drm_local_map_t *ring_rptr;
-	drm_local_map_t *buffers;
 	drm_local_map_t *agp_textures;
 } drm_r128_private_t;
 
@@ -121,28 +139,22 @@ extern int r128_cce_idle( DRM_IOCTL_ARGS );
 extern int r128_engine_reset( DRM_IOCTL_ARGS );
 extern int r128_fullscreen( DRM_IOCTL_ARGS );
 extern int r128_cce_buffers( DRM_IOCTL_ARGS );
-extern int r128_getparam( DRM_IOCTL_ARGS );
 
 extern void r128_freelist_reset( drm_device_t *dev );
-extern drm_buf_t *r128_freelist_get( drm_device_t *dev );
 
 extern int r128_wait_ring( drm_r128_private_t *dev_priv, int n );
 
 extern int r128_do_cce_idle( drm_r128_private_t *dev_priv );
 extern int r128_do_cleanup_cce( drm_device_t *dev );
-extern int r128_do_cleanup_pageflip( drm_device_t *dev );
 
-				/* r128_state.c */
-extern int r128_cce_clear( DRM_IOCTL_ARGS );
-extern int r128_cce_swap( DRM_IOCTL_ARGS );
-extern int r128_cce_flip( DRM_IOCTL_ARGS );
-extern int r128_cce_vertex( DRM_IOCTL_ARGS );
-extern int r128_cce_indices( DRM_IOCTL_ARGS );
-extern int r128_cce_blit( DRM_IOCTL_ARGS );
-extern int r128_cce_depth( DRM_IOCTL_ARGS );
-extern int r128_cce_stipple( DRM_IOCTL_ARGS );
-extern int r128_cce_indirect( DRM_IOCTL_ARGS );
+extern int r128_driver_vblank_wait(drm_device_t *dev, unsigned int *sequence);
 
+extern irqreturn_t r128_driver_irq_handler( DRM_IRQ_ARGS );
+extern void r128_driver_irq_preinstall( drm_device_t *dev );
+extern void r128_driver_irq_postinstall( drm_device_t *dev );
+extern void r128_driver_irq_uninstall( drm_device_t *dev );
+extern void r128_driver_pretakedown(drm_device_t *dev);
+extern void r128_driver_prerelease(drm_device_t *dev, DRMFILE filp);
 
 /* Register definitions, register access macros and drmAddMap constants
  * for Rage 128 kernel driver.
@@ -379,8 +391,6 @@ do {									\
 		    ((addr) & 0x1f) | R128_PLL_WR_EN);			\
 	R128_WRITE(R128_CLOCK_CNTL_DATA, (val));			\
 } while (0)
-
-extern int R128_READ_PLL(drm_device_t *dev, int addr);
 
 
 #define CCE_PACKET0( reg, n )		(R128_CCE_PACKET0 |		\

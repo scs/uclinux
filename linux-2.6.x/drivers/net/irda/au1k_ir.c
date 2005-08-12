@@ -28,9 +28,9 @@
 #include <linux/rtnetlink.h>
 #include <linux/interrupt.h>
 #include <linux/pm.h>
+#include <linux/bitops.h>
 
 #include <asm/irq.h>
-#include <asm/bitops.h>
 #include <asm/io.h>
 #include <asm/au1000.h>
 #if defined(CONFIG_MIPS_PB1000) || defined(CONFIG_MIPS_PB1100)
@@ -72,7 +72,7 @@ static char version[] __devinitdata =
 static BCSR * const bcsr = (BCSR *)0xAE000000;
 #endif
 
-static spinlock_t ir_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(ir_lock);
 
 /*
  * IrDA peripheral bug. You have to read the register

@@ -53,8 +53,8 @@ always fail.  So we don't do it.  I just hope it doesn't break anything.
 #define PAGE_IO_SIZE 2
 
 static volatile int page_in_window = -1; // Current page in window.
-static unsigned long iomapadr;
-static spinlock_t elan_104nc_spin = SPIN_LOCK_UNLOCKED;
+static void __iomem *iomapadr;
+static DEFINE_SPINLOCK(elan_104nc_spin);
 
 /* partition_info gives details on the logical partitions that the split the 
  * single flash device into. If the size if zero we use up to the end of the
@@ -182,15 +182,15 @@ static void cleanup_elan_104nc(void)
 		map_destroy( all_mtd );
 	}
 
-	iounmap((void *)iomapadr);
+	iounmap(iomapadr);
 }
 
-int __init init_elan_104nc(void)
+static int __init init_elan_104nc(void)
 {
 	/* Urg! We use I/O port 0x22 without request_region()ing it,
 	   because it's already allocated to the PIC. */
 
-  	iomapadr = (unsigned long)ioremap(WINDOW_START, WINDOW_LENGTH);
+  	iomapadr = ioremap(WINDOW_START, WINDOW_LENGTH);
 	if (!iomapadr) {
 		printk( KERN_ERR"%s: failed to ioremap memory region\n",
 			elan_104nc_map.name );

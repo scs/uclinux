@@ -1,4 +1,6 @@
-/* 
+/*
+    $Id$
+
     cx88x-hw.h - CX2388x register offsets
 
     Copyright (C) 1996,97,98 Ralph Metzler (rjkm@thp.uni-koeln.de)
@@ -502,12 +504,6 @@
 
 #define MO_GPHSTD_DMA       0x350000 // {64}RWp Host downstream
 #define MO_GPHSTU_DMA       0x350008 // {64}RWp Host upstream
-#define MO_GPHSTD_GPCNT     0x35C020 // Host down general purpose counter
-#define MO_GPHSTU_GPCNT     0x35C024 // Host up general purpose counter
-#define MO_GPHSTD_GPCNTRL   0x38C030 // Host down general purpose control
-#define MO_GPHSTU_GPCNTRL   0x38C034 // Host up general purpose control
-#define MO_GPHST_DMACNTRL   0x38C040 // Host DMA control
-#define MO_GPHST_XFR_STAT   0x38C044 // Host transfer status
 #define MO_GPHSTU_CNTRL     0x380048 // Host upstream control #1
 #define MO_GPHSTD_CNTRL     0x38004C // Host downstream control #2
 #define MO_GPHSTD_LNGTH     0x380050 // Host downstream line length
@@ -517,6 +513,14 @@
 #define MO_GPHST_HDSHK      0x380060 // Host peripheral handshake
 #define MO_GPHST_MUX16      0x380064 // Host muxed 16-bit transfer parameters
 #define MO_GPHST_MODE       0x380068 // Host mode select
+
+#define MO_GPHSTD_GPCNT     0x35C020 // Host down general purpose counter
+#define MO_GPHSTU_GPCNT     0x35C024 // Host up general purpose counter
+#define MO_GPHSTD_GPCNTRL   0x38C030 // Host down general purpose control
+#define MO_GPHSTU_GPCNTRL   0x38C034 // Host up general purpose control
+#define MO_GPHST_DMACNTRL   0x38C040 // Host DMA control
+#define MO_GPHST_XFR_STAT   0x38C044 // Host transfer status
+#define MO_GPHST_SOFT_RST   0x38C06C // Host software reset
 
 
 /* ---------------------------------------------------------------------- */
@@ -555,11 +559,11 @@
 /* ---------------------------------------------------------------------- */
 /* various constants                                                      */
 
-#define SEL_BTSC     0x01 
-#define SEL_EIAJ     0x02 
-#define SEL_A2       0x04 
+#define SEL_BTSC     0x01
+#define SEL_EIAJ     0x02
+#define SEL_A2       0x04
 #define SEL_SAP      0x08
-#define SEL_NICAM    0x10 
+#define SEL_NICAM    0x10
 #define SEL_FMRADIO  0x20
 
 // AUD_CTL
@@ -614,7 +618,7 @@
 #define EN_DMTRX_BYPASS         (1 << 11)
 #endif
 
-// Video 
+// Video
 #define VID_CAPTURE_CONTROL		0x310180
 
 #define CX23880_CAP_CTL_CAPTURE_VBI_ODD  (1<<3)
@@ -626,10 +630,10 @@
 #define VideoInputMux1		 0x1
 #define VideoInputMux2		 0x2
 #define VideoInputMux3		 0x3
-#define VideoInputTuner		 0x0 
-#define VideoInputComposite	 0x1 
+#define VideoInputTuner		 0x0
+#define VideoInputComposite	 0x1
 #define VideoInputSVideo	 0x2
-#define VideoInputOther		 0x3 
+#define VideoInputOther		 0x3
 
 #define Xtal0		 0x1
 #define Xtal1		 0x2
@@ -640,12 +644,12 @@
 #define VideoFormatNTSCJapan	 0x2
 #define VideoFormatNTSC443	 0x3
 #define VideoFormatPAL		 0x4
-#define VideoFormatPALB		 0x4 
-#define VideoFormatPALD		 0x4 
-#define VideoFormatPALG		 0x4 
-#define VideoFormatPALH		 0x4 
-#define VideoFormatPALI		 0x4 
-#define VideoFormatPALBDGHI	 0x4 
+#define VideoFormatPALB		 0x4
+#define VideoFormatPALD		 0x4
+#define VideoFormatPALG		 0x4
+#define VideoFormatPALH		 0x4
+#define VideoFormatPALI		 0x4
+#define VideoFormatPALBDGHI	 0x4
 #define VideoFormatPALM		 0x5
 #define VideoFormatPALN		 0x6
 #define VideoFormatPALNC	 0x7
@@ -657,12 +661,12 @@
 #define VideoFormatNTSCJapan27MHz	 0x12
 #define VideoFormatNTSC44327MHz		 0x13
 #define VideoFormatPAL27MHz		 0x14
-#define VideoFormatPALB27MHz		 0x14 
-#define VideoFormatPALD27MHz		 0x14 
-#define VideoFormatPALG27MHz		 0x14 
-#define VideoFormatPALH27MHz		 0x14 
-#define VideoFormatPALI27MHz		 0x14 
-#define VideoFormatPALBDGHI27MHz	 0x14 
+#define VideoFormatPALB27MHz		 0x14
+#define VideoFormatPALD27MHz		 0x14
+#define VideoFormatPALG27MHz		 0x14
+#define VideoFormatPALH27MHz		 0x14
+#define VideoFormatPALI27MHz		 0x14
+#define VideoFormatPALBDGHI27MHz	 0x14
 #define VideoFormatPALM27MHz		 0x15
 #define VideoFormatPALN27MHz		 0x16
 #define VideoFormatPALNC27MHz		 0x17
@@ -741,8 +745,8 @@
 #define CHANNEL_VIP_UP		 0xA
 #define CHANNEL_HOST_DN		 0xB
 #define CHANNEL_HOST_UP		 0xC
-#define CHANNEL_FIRST		 0x1 
-#define CHANNEL_LAST		 0xC 
+#define CHANNEL_FIRST		 0x1
+#define CHANNEL_LAST		 0xC
 
 #define GP_COUNT_CONTROL_NONE		 0x0
 #define GP_COUNT_CONTROL_INC		 0x1
@@ -769,15 +773,15 @@
 #define DEFAULT_SAT_U_NTSC			0x7F
 #define DEFAULT_SAT_V_NTSC			0x5A
 
-typedef enum                                                                          
-{                                                                                     
-	SOURCE_TUNER = 0,                                                             
-	SOURCE_COMPOSITE,                                                             
-	SOURCE_SVIDEO,                                                                
-	SOURCE_OTHER1,                                                                
-	SOURCE_OTHER2,                                                                
-	SOURCE_COMPVIASVIDEO,                                                         
-	SOURCE_CCIR656                                                                    
+typedef enum
+{
+	SOURCE_TUNER = 0,
+	SOURCE_COMPOSITE,
+	SOURCE_SVIDEO,
+	SOURCE_OTHER1,
+	SOURCE_OTHER2,
+	SOURCE_COMPVIASVIDEO,
+	SOURCE_CCIR656
 } VIDEOSOURCETYPE;
 
 #endif /* _CX88_REG_H_ */

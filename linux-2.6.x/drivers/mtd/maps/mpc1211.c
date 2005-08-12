@@ -44,7 +44,7 @@ static int __init init_mpc1211_maps(void)
 	int nr_parts;
 
 	mpc1211_flash_map.phys = 0;
-	mpc1211_flash_map.virt = P2SEGADDR(0);
+	mpc1211_flash_map.virt = (void __iomem *)P2SEGADDR(0);
 
 	simple_map_init(&mpc1211_flash_map);
 

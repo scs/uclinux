@@ -133,6 +133,10 @@
 /* 6.10.00  - Remove 1G Addressing Limitations                               */
 /* 6.11.xx  - Get VersionInfo buffer off the stack !              DDTS 60401 */
 /* 6.11.xx  - Make Logical Drive Info structure safe for DMA      DDTS 60639 */
+/* 7.10.xx  - Add highmem_io flag in SCSI Templete for 2.4 kernels           */
+/*          - Fix path/name for scsi_hosts.h include for 2.6 kernels         */
+/*          - Fix sort order of 7k                                           */
+/*          - Remove 3 unused "inline" functions                             */
 /*****************************************************************************/
 
 /*
@@ -176,7 +180,13 @@
 #include <scsi/sg.h>
 
 #include "scsi.h"
+
+#if LINUX_VERSION_CODE <= KERNEL_VERSION(2,5,0)
+#include "hosts.h"
+#else
 #include <scsi/scsi_host.h>
+#endif
+
 #include "ips.h"
 
 #include <linux/module.h>
@@ -191,14 +201,14 @@
 
 #ifdef MODULE
 static char *ips = NULL;
-MODULE_PARM(ips, "s");
+module_param(ips, charp, 0);
 #endif
 
 /*
  * DRIVER_VER
  */
-#define IPS_VERSION_HIGH        "7.00"
-#define IPS_VERSION_LOW         ".15 "
+#define IPS_VERSION_HIGH        "7.10"
+#define IPS_VERSION_LOW         ".18 "
 
 #if !defined(__i386__) && !defined(__ia64__) && !defined(__x86_64__)
 #warning "This driver has only been tested on the x86/ia64/x86_64 platforms"
@@ -215,15 +225,15 @@ MODULE_PARM(ips, "s");
 #endif
 #else
 #define IPS_SG_ADDRESS(sg)      (page_address((sg)->page) ? \
-                                     page_address((sg)->page)+(sg)->offset : 0)
+                                   page_address((sg)->page)+(sg)->offset : NULL)
 #define IPS_LOCK_SAVE(lock,flags) do{spin_lock(lock);(void)flags;}while(0)
 #define IPS_UNLOCK_RESTORE(lock,flags) do{spin_unlock(lock);(void)flags;}while(0)
 #endif
 
 #define IPS_DMA_DIR(scb) ((!scb->scsi_cmd || ips_is_passthru(scb->scsi_cmd) || \
-                         SCSI_DATA_NONE == scb->scsi_cmd->sc_data_direction) ? \
+                         DMA_NONE == scb->scsi_cmd->sc_data_direction) ? \
                          PCI_DMA_BIDIRECTIONAL : \
-                         scsi_to_pci_dma_dir(scb->scsi_cmd->sc_data_direction))
+                         scb->scsi_cmd->sc_data_direction)
 
 #ifdef IPS_DEBUG
 #define METHOD_TRACE(s, i)    if (ips_debug >= (i+10)) printk(KERN_NOTICE s "\n");
@@ -234,6 +244,117 @@ MODULE_PARM(ips, "s");
 #define DEBUG(i, s)
 #define DEBUG_VAR(i, s, v...)
 #endif
+
+/*
+ * Function prototypes
+ */
+static int ips_detect(Scsi_Host_Template *);
+static int ips_release(struct Scsi_Host *);
+static int ips_eh_abort(Scsi_Cmnd *);
+static int ips_eh_reset(Scsi_Cmnd *);
+static int ips_queue(Scsi_Cmnd *, void (*)(Scsi_Cmnd *));
+static const char *ips_info(struct Scsi_Host *);
+static irqreturn_t do_ipsintr(int, void *, struct pt_regs *);
+static int ips_hainit(ips_ha_t *);
+static int ips_map_status(ips_ha_t *, ips_scb_t *, ips_stat_t *);
+static int ips_send_wait(ips_ha_t *, ips_scb_t *, int, int);
+static int ips_send_cmd(ips_ha_t *, ips_scb_t *);
+static int ips_online(ips_ha_t *, ips_scb_t *);
+static int ips_inquiry(ips_ha_t *, ips_scb_t *);
+static int ips_rdcap(ips_ha_t *, ips_scb_t *);
+static int ips_msense(ips_ha_t *, ips_scb_t *);
+static int ips_reqsen(ips_ha_t *, ips_scb_t *);
+static int ips_deallocatescbs(ips_ha_t *, int);
+static int ips_allocatescbs(ips_ha_t *);
+static int ips_reset_copperhead(ips_ha_t *);
+static int ips_reset_copperhead_memio(ips_ha_t *);
+static int ips_reset_morpheus(ips_ha_t *);
+static int ips_issue_copperhead(ips_ha_t *, ips_scb_t *);
+static int ips_issue_copperhead_memio(ips_ha_t *, ips_scb_t *);
+static int ips_issue_i2o(ips_ha_t *, ips_scb_t *);
+static int ips_issue_i2o_memio(ips_ha_t *, ips_scb_t *);
+static int ips_isintr_copperhead(ips_ha_t *);
+static int ips_isintr_copperhead_memio(ips_ha_t *);
+static int ips_isintr_morpheus(ips_ha_t *);
+static int ips_wait(ips_ha_t *, int, int);
+static int ips_write_driver_status(ips_ha_t *, int);
+static int ips_read_adapter_status(ips_ha_t *, int);
+static int ips_read_subsystem_parameters(ips_ha_t *, int);
+static int ips_read_config(ips_ha_t *, int);
+static int ips_clear_adapter(ips_ha_t *, int);
+static int ips_readwrite_page5(ips_ha_t *, int, int);
+static int ips_init_copperhead(ips_ha_t *);
+static int ips_init_copperhead_memio(ips_ha_t *);
+static int ips_init_morpheus(ips_ha_t *);
+static int ips_isinit_copperhead(ips_ha_t *);
+static int ips_isinit_copperhead_memio(ips_ha_t *);
+static int ips_isinit_morpheus(ips_ha_t *);
+static int ips_erase_bios(ips_ha_t *);
+static int ips_program_bios(ips_ha_t *, char *, uint32_t, uint32_t);
+static int ips_verify_bios(ips_ha_t *, char *, uint32_t, uint32_t);
+static int ips_erase_bios_memio(ips_ha_t *);
+static int ips_program_bios_memio(ips_ha_t *, char *, uint32_t, uint32_t);
+static int ips_verify_bios_memio(ips_ha_t *, char *, uint32_t, uint32_t);
+static int ips_flash_copperhead(ips_ha_t *, ips_passthru_t *, ips_scb_t *);
+static int ips_flash_bios(ips_ha_t *, ips_passthru_t *, ips_scb_t *);
+static int ips_flash_firmware(ips_ha_t *, ips_passthru_t *, ips_scb_t *);
+static void ips_free_flash_copperhead(ips_ha_t * ha);
+static void ips_get_bios_version(ips_ha_t *, int);
+static void ips_identify_controller(ips_ha_t *);
+static void ips_chkstatus(ips_ha_t *, IPS_STATUS *);
+static void ips_enable_int_copperhead(ips_ha_t *);
+static void ips_enable_int_copperhead_memio(ips_ha_t *);
+static void ips_enable_int_morpheus(ips_ha_t *);
+static int ips_intr_copperhead(ips_ha_t *);
+static int ips_intr_morpheus(ips_ha_t *);
+static void ips_next(ips_ha_t *, int);
+static void ipsintr_blocking(ips_ha_t *, struct ips_scb *);
+static void ipsintr_done(ips_ha_t *, struct ips_scb *);
+static void ips_done(ips_ha_t *, ips_scb_t *);
+static void ips_free(ips_ha_t *);
+static void ips_init_scb(ips_ha_t *, ips_scb_t *);
+static void ips_freescb(ips_ha_t *, ips_scb_t *);
+static void ips_setup_funclist(ips_ha_t *);
+static void ips_statinit(ips_ha_t *);
+static void ips_statinit_memio(ips_ha_t *);
+static void ips_fix_ffdc_time(ips_ha_t *, ips_scb_t *, time_t);
+static void ips_ffdc_reset(ips_ha_t *, int);
+static void ips_ffdc_time(ips_ha_t *);
+static uint32_t ips_statupd_copperhead(ips_ha_t *);
+static uint32_t ips_statupd_copperhead_memio(ips_ha_t *);
+static uint32_t ips_statupd_morpheus(ips_ha_t *);
+static ips_scb_t *ips_getscb(ips_ha_t *);
+static void ips_putq_scb_head(ips_scb_queue_t *, ips_scb_t *);
+static void ips_putq_wait_tail(ips_wait_queue_t *, Scsi_Cmnd *);
+static void ips_putq_copp_tail(ips_copp_queue_t *,
+				      ips_copp_wait_item_t *);
+static ips_scb_t *ips_removeq_scb_head(ips_scb_queue_t *);
+static ips_scb_t *ips_removeq_scb(ips_scb_queue_t *, ips_scb_t *);
+static Scsi_Cmnd *ips_removeq_wait_head(ips_wait_queue_t *);
+static Scsi_Cmnd *ips_removeq_wait(ips_wait_queue_t *, Scsi_Cmnd *);
+static ips_copp_wait_item_t *ips_removeq_copp(ips_copp_queue_t *,
+						     ips_copp_wait_item_t *);
+static ips_copp_wait_item_t *ips_removeq_copp_head(ips_copp_queue_t *);
+
+static int ips_is_passthru(Scsi_Cmnd *);
+static int ips_make_passthru(ips_ha_t *, Scsi_Cmnd *, ips_scb_t *, int);
+static int ips_usrcmd(ips_ha_t *, ips_passthru_t *, ips_scb_t *);
+static void ips_cleanup_passthru(ips_ha_t *, ips_scb_t *);
+static void ips_scmd_buf_write(Scsi_Cmnd * scmd, void *data,
+			       unsigned int count);
+static void ips_scmd_buf_read(Scsi_Cmnd * scmd, void *data, unsigned int count);
+
+static int ips_proc_info(struct Scsi_Host *, char *, char **, off_t, int, int);
+static int ips_host_info(ips_ha_t *, char *, off_t, int);
+static void copy_mem_info(IPS_INFOSTR *, char *, int);
+static int copy_info(IPS_INFOSTR *, char *, ...);
+static int ips_get_version_info(ips_ha_t * ha, dma_addr_t, int intr);
+static void ips_version_check(ips_ha_t * ha, int intr);
+static int ips_abort_init(ips_ha_t * ha, int index);
+static int ips_init_phase2(int index);
+
+static int ips_init_phase1(struct pci_dev *pci_dev, int *indexPtr);
+static int ips_register_scsi(int index);
 
 /*
  * global variables
@@ -278,9 +399,12 @@ static Scsi_Host_Template ips_driver_template = {
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
 	.use_new_eh_code	= 1,
 #endif
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,4,20)  &&  LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
+    .highmem_io          = 1,   
+#endif
 };
 
-IPS_DEFINE_COMPAT_TABLE( Compatable );	/* Version Compatability Table      */
+static IPS_DEFINE_COMPAT_TABLE( Compatable );	/* Version Compatability Table      */
 
 
 /* This table describes all ServeRAID Adapters */
@@ -298,7 +422,7 @@ static char ips_hot_plug_name[] = "ips";
 static int __devinit  ips_insert_device(struct pci_dev *pci_dev, const struct pci_device_id *ent);
 static void __devexit ips_remove_device(struct pci_dev *pci_dev);
    
-struct pci_driver ips_pci_driver = {
+static struct pci_driver ips_pci_driver = {
 	.name		= ips_hot_plug_name,
 	.id_table	= ips_pci_table,
 	.probe		= ips_insert_device,
@@ -395,123 +519,6 @@ static char ips_command_direction[] = {
 	IPS_DATA_UNK, IPS_DATA_UNK, IPS_DATA_UNK, IPS_DATA_UNK, IPS_DATA_UNK
 };
 
-/*
- * Function prototypes
- */
-int ips_detect(Scsi_Host_Template *);
-int ips_release(struct Scsi_Host *);
-int ips_eh_abort(Scsi_Cmnd *);
-int ips_eh_reset(Scsi_Cmnd *);
-int ips_queue(Scsi_Cmnd *, void (*)(Scsi_Cmnd *));
-const char *ips_info(struct Scsi_Host *);
-irqreturn_t do_ipsintr(int, void *, struct pt_regs *);
-static int ips_hainit(ips_ha_t *);
-static int ips_map_status(ips_ha_t *, ips_scb_t *, ips_stat_t *);
-static int ips_send_wait(ips_ha_t *, ips_scb_t *, int, int);
-static int ips_send_cmd(ips_ha_t *, ips_scb_t *);
-static int ips_online(ips_ha_t *, ips_scb_t *);
-static int ips_inquiry(ips_ha_t *, ips_scb_t *);
-static int ips_rdcap(ips_ha_t *, ips_scb_t *);
-static int ips_msense(ips_ha_t *, ips_scb_t *);
-static int ips_reqsen(ips_ha_t *, ips_scb_t *);
-static int ips_deallocatescbs(ips_ha_t *, int);
-static int ips_allocatescbs(ips_ha_t *);
-static int ips_reset_copperhead(ips_ha_t *);
-static int ips_reset_copperhead_memio(ips_ha_t *);
-static int ips_reset_morpheus(ips_ha_t *);
-static int ips_issue_copperhead(ips_ha_t *, ips_scb_t *);
-static int ips_issue_copperhead_memio(ips_ha_t *, ips_scb_t *);
-static int ips_issue_i2o(ips_ha_t *, ips_scb_t *);
-static int ips_issue_i2o_memio(ips_ha_t *, ips_scb_t *);
-static int ips_isintr_copperhead(ips_ha_t *);
-static int ips_isintr_copperhead_memio(ips_ha_t *);
-static int ips_isintr_morpheus(ips_ha_t *);
-static int ips_wait(ips_ha_t *, int, int);
-static int ips_write_driver_status(ips_ha_t *, int);
-static int ips_read_adapter_status(ips_ha_t *, int);
-static int ips_read_subsystem_parameters(ips_ha_t *, int);
-static int ips_read_config(ips_ha_t *, int);
-static int ips_clear_adapter(ips_ha_t *, int);
-static int ips_readwrite_page5(ips_ha_t *, int, int);
-static int ips_init_copperhead(ips_ha_t *);
-static int ips_init_copperhead_memio(ips_ha_t *);
-static int ips_init_morpheus(ips_ha_t *);
-static int ips_isinit_copperhead(ips_ha_t *);
-static int ips_isinit_copperhead_memio(ips_ha_t *);
-static int ips_isinit_morpheus(ips_ha_t *);
-static int ips_erase_bios(ips_ha_t *);
-static int ips_program_bios(ips_ha_t *, char *, uint32_t, uint32_t);
-static int ips_verify_bios(ips_ha_t *, char *, uint32_t, uint32_t);
-static int ips_erase_bios_memio(ips_ha_t *);
-static int ips_program_bios_memio(ips_ha_t *, char *, uint32_t, uint32_t);
-static int ips_verify_bios_memio(ips_ha_t *, char *, uint32_t, uint32_t);
-static int ips_flash_copperhead(ips_ha_t *, ips_passthru_t *, ips_scb_t *);
-static int ips_flash_bios(ips_ha_t *, ips_passthru_t *, ips_scb_t *);
-static int ips_flash_firmware(ips_ha_t *, ips_passthru_t *, ips_scb_t *);
-static void ips_free_flash_copperhead(ips_ha_t * ha);
-static void ips_get_bios_version(ips_ha_t *, int);
-static void ips_identify_controller(ips_ha_t *);
-static void ips_chkstatus(ips_ha_t *, IPS_STATUS *);
-static void ips_enable_int_copperhead(ips_ha_t *);
-static void ips_enable_int_copperhead_memio(ips_ha_t *);
-static void ips_enable_int_morpheus(ips_ha_t *);
-static int ips_intr_copperhead(ips_ha_t *);
-static int ips_intr_morpheus(ips_ha_t *);
-static void ips_next(ips_ha_t *, int);
-static void ipsintr_blocking(ips_ha_t *, struct ips_scb *);
-static void ipsintr_done(ips_ha_t *, struct ips_scb *);
-static void ips_done(ips_ha_t *, ips_scb_t *);
-static void ips_free(ips_ha_t *);
-static void ips_init_scb(ips_ha_t *, ips_scb_t *);
-static void ips_freescb(ips_ha_t *, ips_scb_t *);
-static void ips_setup_funclist(ips_ha_t *);
-static void ips_statinit(ips_ha_t *);
-static void ips_statinit_memio(ips_ha_t *);
-static void ips_fix_ffdc_time(ips_ha_t *, ips_scb_t *, time_t);
-static void ips_ffdc_reset(ips_ha_t *, int);
-static void ips_ffdc_time(ips_ha_t *);
-static uint32_t ips_statupd_copperhead(ips_ha_t *);
-static uint32_t ips_statupd_copperhead_memio(ips_ha_t *);
-static uint32_t ips_statupd_morpheus(ips_ha_t *);
-static ips_scb_t *ips_getscb(ips_ha_t *);
-static inline void ips_putq_scb_head(ips_scb_queue_t *, ips_scb_t *);
-static inline void ips_putq_scb_tail(ips_scb_queue_t *, ips_scb_t *);
-static inline void ips_putq_wait_head(ips_wait_queue_t *, Scsi_Cmnd *);
-static inline void ips_putq_wait_tail(ips_wait_queue_t *, Scsi_Cmnd *);
-static inline void ips_putq_copp_head(ips_copp_queue_t *,
-				      ips_copp_wait_item_t *);
-static inline void ips_putq_copp_tail(ips_copp_queue_t *,
-				      ips_copp_wait_item_t *);
-static inline ips_scb_t *ips_removeq_scb_head(ips_scb_queue_t *);
-static inline ips_scb_t *ips_removeq_scb(ips_scb_queue_t *, ips_scb_t *);
-static inline Scsi_Cmnd *ips_removeq_wait_head(ips_wait_queue_t *);
-static inline Scsi_Cmnd *ips_removeq_wait(ips_wait_queue_t *, Scsi_Cmnd *);
-static inline ips_copp_wait_item_t *ips_removeq_copp(ips_copp_queue_t *,
-						     ips_copp_wait_item_t *);
-static inline ips_copp_wait_item_t *ips_removeq_copp_head(ips_copp_queue_t *);
-
-static int ips_is_passthru(Scsi_Cmnd *);
-static int ips_make_passthru(ips_ha_t *, Scsi_Cmnd *, ips_scb_t *, int);
-static int ips_usrcmd(ips_ha_t *, ips_passthru_t *, ips_scb_t *);
-static void ips_cleanup_passthru(ips_ha_t *, ips_scb_t *);
-static void ips_scmd_buf_write(Scsi_Cmnd * scmd, void *data,
-			       unsigned int count);
-static void ips_scmd_buf_read(Scsi_Cmnd * scmd, void *data, unsigned int count);
-
-int ips_proc_info(struct Scsi_Host *, char *, char **, off_t, int, int);
-static int ips_host_info(ips_ha_t *, char *, off_t, int);
-static void copy_mem_info(IPS_INFOSTR *, char *, int);
-static int copy_info(IPS_INFOSTR *, char *, ...);
-static int ips_get_version_info(ips_ha_t * ha, dma_addr_t, int intr);
-static void ips_version_check(ips_ha_t * ha, int intr);
-static int ips_abort_init(ips_ha_t * ha, int index);
-static int ips_init_phase2(int index);
-
-static int ips_init_phase1(struct pci_dev *pci_dev, int *indexPtr);
-static int ips_register_scsi(int index);
-/*--------------------------------------------------------------------------*/
-/* Exported Functions                                                       */
-/*--------------------------------------------------------------------------*/
 
 /****************************************************************************/
 /*                                                                          */
@@ -580,7 +587,7 @@ __setup("ips=", ips_setup);
 /* NOTE: this routine is called under the io_request_lock spinlock          */
 /*                                                                          */
 /****************************************************************************/
-int
+static int
 ips_detect(Scsi_Host_Template * SHT)
 {
 	int i;
@@ -669,7 +676,7 @@ ips_setup_funclist(ips_ha_t * ha)
 /*   Remove a driver                                                        */
 /*                                                                          */
 /****************************************************************************/
-int
+static int
 ips_release(struct Scsi_Host *sh)
 {
 	ips_scb_t *scb;
@@ -826,13 +833,6 @@ ips_eh_abort(Scsi_Cmnd * SC)
 	if (!ha->active)
 		return (FAILED);
 
-	if (SC->serial_number != SC->serial_number_at_timeout) {
-		/* HMM, looks like a bogus command */
-		DEBUG(1, "Abort called with bogus scsi command");
-
-		return (FAILED);
-	}
-
 	/* See if the command is on the copp queue */
 	item = ha->copp_waitlist.head;
 	while ((item) && (item->scsi_cmd != SC))
@@ -865,7 +865,7 @@ ips_eh_abort(Scsi_Cmnd * SC)
 /* NOTE: this routine is called under the io_request_lock spinlock          */
 /*                                                                          */
 /****************************************************************************/
-int
+static int
 ips_eh_reset(Scsi_Cmnd * SC)
 {
 	int ret;
@@ -1065,7 +1065,7 @@ ips_eh_reset(Scsi_Cmnd * SC)
 /*    Linux obtains io_request_lock before calling this function            */
 /*                                                                          */
 /****************************************************************************/
-int
+static int
 ips_queue(Scsi_Cmnd * SC, void (*done) (Scsi_Cmnd *))
 {
 	ips_ha_t *ha;
@@ -1288,7 +1288,7 @@ ips_select_queue_depth(struct Scsi_Host *host, Scsi_Device * scsi_devs)
 /*   Set queue depths on devices once scan is complete                      */
 /*                                                                          */
 /****************************************************************************/
-int
+static int
 ips_slave_configure(Scsi_Device * SDptr)
 {
 	ips_ha_t *ha;
@@ -1314,7 +1314,7 @@ ips_slave_configure(Scsi_Device * SDptr)
 /*   Wrapper for the interrupt handler                                      */
 /*                                                                          */
 /****************************************************************************/
-irqreturn_t
+static irqreturn_t
 do_ipsintr(int irq, void *dev_id, struct pt_regs * regs)
 {
 	ips_ha_t *ha;
@@ -1493,7 +1493,7 @@ ips_intr_morpheus(ips_ha_t * ha)
 /*   Return info about the driver                                           */
 /*                                                                          */
 /****************************************************************************/
-const char *
+static const char *
 ips_info(struct Scsi_Host *SH)
 {
 	static char buffer[256];
@@ -1531,7 +1531,7 @@ ips_info(struct Scsi_Host *SH)
 /*   The passthru interface for the driver                                  */
 /*                                                                          */
 /****************************************************************************/
-int
+static int
 ips_proc_info(struct Scsi_Host *host, char *buffer, char **start, off_t offset,
 	      int length, int func)
 {
@@ -1885,7 +1885,7 @@ ips_flash_bios(ips_ha_t * ha, ips_passthru_t * pt, ips_scb_t * scb)
 /*   Fill in a single scb sg_list element from an address                   */
 /*   return a -1 if a breakup occurred                                      */
 /****************************************************************************/
-static inline int
+static int
 ips_fill_scb_sg_single(ips_ha_t * ha, dma_addr_t busaddr,
 		       ips_scb_t * scb, int indx, unsigned int e_len)
 {
@@ -2849,8 +2849,7 @@ ips_next(ips_ha_t * ha, int intr)
 
 			sg = SC->request_buffer;
 			scb->sg_count = pci_map_sg(ha->pcidev, sg, SC->use_sg,
-						   scsi_to_pci_dma_dir(SC->
-								       sc_data_direction));
+						   SC->sc_data_direction);
 			scb->flags |= IPS_SCB_MAP_SG;
 			for (i = 0; i < scb->sg_count; i++) {
 				if (ips_fill_scb_sg_single
@@ -2865,8 +2864,7 @@ ips_next(ips_ha_t * ha, int intr)
 				    pci_map_single(ha->pcidev,
 						   SC->request_buffer,
 						   SC->request_bufflen,
-						   scsi_to_pci_dma_dir(SC->
-								       sc_data_direction));
+						   SC->sc_data_direction);
 				scb->flags |= IPS_SCB_MAP_SINGLE;
 				ips_fill_scb_sg_single(ha, scb->data_busaddr,
 						       scb, 0,
@@ -2950,7 +2948,7 @@ ips_next(ips_ha_t * ha, int intr)
 /* ASSUMED to be called from within the HA lock                             */
 /*                                                                          */
 /****************************************************************************/
-static inline void
+static void
 ips_putq_scb_head(ips_scb_queue_t * queue, ips_scb_t * item)
 {
 	METHOD_TRACE("ips_putq_scb_head", 1);
@@ -2969,38 +2967,6 @@ ips_putq_scb_head(ips_scb_queue_t * queue, ips_scb_t * item)
 
 /****************************************************************************/
 /*                                                                          */
-/* Routine Name: ips_putq_scb_tail                                          */
-/*                                                                          */
-/* Routine Description:                                                     */
-/*                                                                          */
-/*   Add an item to the tail of the queue                                   */
-/*                                                                          */
-/* ASSUMED to be called from within the HA lock                             */
-/*                                                                          */
-/****************************************************************************/
-static inline void
-ips_putq_scb_tail(ips_scb_queue_t * queue, ips_scb_t * item)
-{
-	METHOD_TRACE("ips_putq_scb_tail", 1);
-
-	if (!item)
-		return;
-
-	item->q_next = NULL;
-
-	if (queue->tail)
-		queue->tail->q_next = item;
-
-	queue->tail = item;
-
-	if (!queue->head)
-		queue->head = item;
-
-	queue->count++;
-}
-
-/****************************************************************************/
-/*                                                                          */
 /* Routine Name: ips_removeq_scb_head                                       */
 /*                                                                          */
 /* Routine Description:                                                     */
@@ -3010,7 +2976,7 @@ ips_putq_scb_tail(ips_scb_queue_t * queue, ips_scb_t * item)
 /* ASSUMED to be called from within the HA lock                             */
 /*                                                                          */
 /****************************************************************************/
-static inline ips_scb_t *
+static ips_scb_t *
 ips_removeq_scb_head(ips_scb_queue_t * queue)
 {
 	ips_scb_t *item;
@@ -3045,7 +3011,7 @@ ips_removeq_scb_head(ips_scb_queue_t * queue)
 /* ASSUMED to be called from within the HA lock                             */
 /*                                                                          */
 /****************************************************************************/
-static inline ips_scb_t *
+static ips_scb_t *
 ips_removeq_scb(ips_scb_queue_t * queue, ips_scb_t * item)
 {
 	ips_scb_t *p;
@@ -3082,34 +3048,6 @@ ips_removeq_scb(ips_scb_queue_t * queue, ips_scb_t * item)
 
 /****************************************************************************/
 /*                                                                          */
-/* Routine Name: ips_putq_wait_head                                         */
-/*                                                                          */
-/* Routine Description:                                                     */
-/*                                                                          */
-/*   Add an item to the head of the queue                                   */
-/*                                                                          */
-/* ASSUMED to be called from within the HA lock                             */
-/*                                                                          */
-/****************************************************************************/
-static inline void
-ips_putq_wait_head(ips_wait_queue_t * queue, Scsi_Cmnd * item)
-{
-	METHOD_TRACE("ips_putq_wait_head", 1);
-
-	if (!item)
-		return;
-
-	item->host_scribble = (char *) queue->head;
-	queue->head = item;
-
-	if (!queue->tail)
-		queue->tail = item;
-
-	queue->count++;
-}
-
-/****************************************************************************/
-/*                                                                          */
 /* Routine Name: ips_putq_wait_tail                                         */
 /*                                                                          */
 /* Routine Description:                                                     */
@@ -3119,7 +3057,7 @@ ips_putq_wait_head(ips_wait_queue_t * queue, Scsi_Cmnd * item)
 /* ASSUMED to be called from within the HA lock                             */
 /*                                                                          */
 /****************************************************************************/
-static inline void
+static void
 ips_putq_wait_tail(ips_wait_queue_t * queue, Scsi_Cmnd * item)
 {
 	METHOD_TRACE("ips_putq_wait_tail", 1);
@@ -3151,7 +3089,7 @@ ips_putq_wait_tail(ips_wait_queue_t * queue, Scsi_Cmnd * item)
 /* ASSUMED to be called from within the HA lock                             */
 /*                                                                          */
 /****************************************************************************/
-static inline Scsi_Cmnd *
+static Scsi_Cmnd *
 ips_removeq_wait_head(ips_wait_queue_t * queue)
 {
 	Scsi_Cmnd *item;
@@ -3186,7 +3124,7 @@ ips_removeq_wait_head(ips_wait_queue_t * queue)
 /* ASSUMED to be called from within the HA lock                             */
 /*                                                                          */
 /****************************************************************************/
-static inline Scsi_Cmnd *
+static Scsi_Cmnd *
 ips_removeq_wait(ips_wait_queue_t * queue, Scsi_Cmnd * item)
 {
 	Scsi_Cmnd *p;
@@ -3223,34 +3161,6 @@ ips_removeq_wait(ips_wait_queue_t * queue, Scsi_Cmnd * item)
 
 /****************************************************************************/
 /*                                                                          */
-/* Routine Name: ips_putq_copp_head                                         */
-/*                                                                          */
-/* Routine Description:                                                     */
-/*                                                                          */
-/*   Add an item to the head of the queue                                   */
-/*                                                                          */
-/* ASSUMED to be called from within the HA lock                             */
-/*                                                                          */
-/****************************************************************************/
-static inline void
-ips_putq_copp_head(ips_copp_queue_t * queue, ips_copp_wait_item_t * item)
-{
-	METHOD_TRACE("ips_putq_copp_head", 1);
-
-	if (!item)
-		return;
-
-	item->next = queue->head;
-	queue->head = item;
-
-	if (!queue->tail)
-		queue->tail = item;
-
-	queue->count++;
-}
-
-/****************************************************************************/
-/*                                                                          */
 /* Routine Name: ips_putq_copp_tail                                         */
 /*                                                                          */
 /* Routine Description:                                                     */
@@ -3260,7 +3170,7 @@ ips_putq_copp_head(ips_copp_queue_t * queue, ips_copp_wait_item_t * item)
 /* ASSUMED to be called from within the HA lock                             */
 /*                                                                          */
 /****************************************************************************/
-static inline void
+static void
 ips_putq_copp_tail(ips_copp_queue_t * queue, ips_copp_wait_item_t * item)
 {
 	METHOD_TRACE("ips_putq_copp_tail", 1);
@@ -3292,7 +3202,7 @@ ips_putq_copp_tail(ips_copp_queue_t * queue, ips_copp_wait_item_t * item)
 /* ASSUMED to be called from within the HA lock                             */
 /*                                                                          */
 /****************************************************************************/
-static inline ips_copp_wait_item_t *
+static ips_copp_wait_item_t *
 ips_removeq_copp_head(ips_copp_queue_t * queue)
 {
 	ips_copp_wait_item_t *item;
@@ -3327,7 +3237,7 @@ ips_removeq_copp_head(ips_copp_queue_t * queue)
 /* ASSUMED to be called from within the HA lock                             */
 /*                                                                          */
 /****************************************************************************/
-static inline ips_copp_wait_item_t *
+static ips_copp_wait_item_t *
 ips_removeq_copp(ips_copp_queue_t * queue, ips_copp_wait_item_t * item)
 {
 	ips_copp_wait_item_t *p;
@@ -6946,8 +6856,8 @@ ips_abort_init(ips_ha_t * ha, int index)
 {
 	ha->active = 0;
 	ips_free(ha);
-	ips_ha[index] = 0;
-	ips_sh[index] = 0;
+	ips_ha[index] = NULL;
+	ips_sh[index] = NULL;
 	return -1;
 }
 
@@ -6996,7 +6906,6 @@ ips_order_controllers(void)
 			for (j = position; j < ips_num_controllers; j++) {
 				switch (ips_ha[j]->ad_type) {
 				case IPS_ADTYPE_SERVERAID6M:
-				case IPS_ADTYPE_SERVERAID7k:
 				case IPS_ADTYPE_SERVERAID7M:
 					if (nvram->adapter_order[i] == 'M') {
 						ips_shift_controllers(position,
@@ -7017,6 +6926,7 @@ ips_order_controllers(void)
 				case IPS_ADTYPE_SERVERAID6I:
 				case IPS_ADTYPE_SERVERAID5I2:
 				case IPS_ADTYPE_SERVERAID5I1:
+				case IPS_ADTYPE_SERVERAID7k:
 					if (nvram->adapter_order[i] == 'S') {
 						ips_shift_controllers(position,
 								      j);
@@ -7254,8 +7164,8 @@ ips_init_phase1(struct pci_dev *pci_dev, int *indexPtr)
 	int j;
 	int index;
 	dma_addr_t dma_address;
-	char *ioremap_ptr;
-	char *mem_ptr;
+	char __iomem *ioremap_ptr;
+	char __iomem *mem_ptr;
 	uint32_t IsDead;
 
 	METHOD_TRACE("ips_init_phase1", 1);
@@ -7544,6 +7454,13 @@ ips_init_phase2(int index)
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,4,9)
 MODULE_LICENSE("GPL");
 #endif
+
+MODULE_DESCRIPTION("IBM ServeRAID Adapter Driver " IPS_VER_STRING);
+
+#ifdef MODULE_VERSION
+MODULE_VERSION(IPS_VER_STRING);
+#endif
+
 
 /*
  * Overrides for Emacs so that we almost follow Linus's tabbing style.

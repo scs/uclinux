@@ -1,4 +1,5 @@
 #include <linux/module.h>
+#include <linux/moduleparam.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/string.h>
@@ -20,7 +21,7 @@
 #define DEV_MAX  4
 
 static int devnr = -1;
-MODULE_PARM(devnr,"i");
+module_param(devnr, int, 0644);
 
 MODULE_AUTHOR("Gerd Knorr");
 MODULE_LICENSE("GPL");
@@ -82,7 +83,7 @@ static int tvmixer_ioctl(struct inode *inode, struct file *file, unsigned int cm
 
 	if (NULL == client)
 		return -ENODEV;
-	
+
         if (cmd == SOUND_MIXER_INFO) {
                 mixer_info info;
                 strlcpy(info.id, "tv card", sizeof(info.id));
@@ -148,7 +149,7 @@ static int tvmixer_ioctl(struct inode *inode, struct file *file, unsigned int cm
 			 va.volume) / 32768;
 		ret = v4l_to_mix2(left,right);
 		break;
-		
+
 	case MIXER_WRITE(SOUND_MIXER_BASS):
 		va.bass = mix_to_v4l(val);
 		client->driver->command(client,VIDIOCSAUDIO,&va);
@@ -324,26 +325,26 @@ static int tvmixer_clients(struct i2c_client *client)
 	devices[i].dev   = client;
 	printk("tvmixer: %s (%s) registered with minor %d\n",
 	       client->name,client->adapter->name,minor);
-	
+
 	return 0;
 }
 
 /* ----------------------------------------------------------------------- */
 
-static int tvmixer_init_module(void)
+static int __init tvmixer_init_module(void)
 {
 	int i;
-	
+
 	for (i = 0; i < DEV_MAX; i++)
 		devices[i].minor = -1;
-	i2c_add_driver(&driver);
-	return 0;
+
+	return i2c_add_driver(&driver);
 }
 
-static void tvmixer_cleanup_module(void)
+static void __exit tvmixer_cleanup_module(void)
 {
 	int i;
-	
+
 	i2c_del_driver(&driver);
 	for (i = 0; i < DEV_MAX; i++) {
 		if (devices[i].minor != -1) {

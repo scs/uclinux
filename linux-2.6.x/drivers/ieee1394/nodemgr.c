@@ -19,11 +19,11 @@
 #include <linux/delay.h>
 #include <linux/pci.h>
 #include <linux/moduleparam.h>
-#include <linux/suspend.h>
 #include <asm/atomic.h>
 
 #include "ieee1394_types.h"
 #include "ieee1394.h"
+#include "ieee1394_core.h"
 #include "hosts.h"
 #include "ieee1394_transactions.h"
 #include "highlevel.h"
@@ -70,8 +70,7 @@ static int nodemgr_bus_read(struct csr1212_csr *csr, u64 addr, u16 length,
 		if (!ret)
 			break;
 
-		set_current_state(TASK_INTERRUPTIBLE);
-		if (schedule_timeout (HZ/3))
+		if (msleep_interruptible(334))
 			return -EINTR;
 	}
 
@@ -148,7 +147,7 @@ static void ne_cls_release(struct class_device *class_dev)
 	put_device(&container_of((class_dev), struct node_entry, class_dev)->device);
 }
 
-struct class nodemgr_ne_class = {
+static struct class nodemgr_ne_class = {
 	.name		= "ieee1394_node",
 	.release	= ne_cls_release,
 };
@@ -160,7 +159,7 @@ static void ud_cls_release(struct class_device *class_dev)
 
 /* The name here is only so that unit directory hotplug works with old
  * style hotplug, which only ever did unit directories anyway. */
-struct class nodemgr_ud_class = {
+static struct class nodemgr_ud_class = {
 	.name		= "ieee1394",
 	.release	= ud_cls_release,
 	.hotplug	= nodemgr_hotplug,
@@ -833,6 +832,31 @@ static struct node_entry *find_entry_by_nodeid(struct hpsb_host *host, nodeid_t 
 }
 
 
+static void nodemgr_register_device(struct node_entry *ne, 
+	struct unit_directory *ud, struct device *parent)
+{
+	memcpy(&ud->device, &nodemgr_dev_template_ud,
+	       sizeof(ud->device));
+
+	ud->device.parent = parent;
+
+	snprintf(ud->device.bus_id, BUS_ID_SIZE, "%s-%u",
+		 ne->device.bus_id, ud->id);
+
+	ud->class_dev.dev = &ud->device;
+	ud->class_dev.class = &nodemgr_ud_class;
+	snprintf(ud->class_dev.class_id, BUS_ID_SIZE, "%s-%u",
+		 ne->device.bus_id, ud->id);
+
+	device_register(&ud->device);
+	class_device_register(&ud->class_dev);
+	get_device(&ud->device);
+
+	if (ud->vendor_oui)
+		device_create_file(&ud->device, &dev_attr_ud_vendor_oui);
+	nodemgr_create_ud_dev_files(ud);
+}	
+
 
 /* This implementation currently only scans the config rom and its
  * immediate unit directories looking for software_id and
@@ -842,7 +866,7 @@ static struct unit_directory *nodemgr_process_unit_directory
 	 unsigned int *id, struct unit_directory *parent)
 {
 	struct unit_directory *ud;
-	struct unit_directory *ud_temp = NULL;
+	struct unit_directory *ud_child = NULL;
 	struct csr1212_dentry *dentry;
 	struct csr1212_keyval *kv;
 	u8 last_key_id = 0;
@@ -909,42 +933,61 @@ static struct unit_directory *nodemgr_process_unit_directory
 			break;
 
 		case CSR1212_KV_ID_DEPENDENT_INFO:
-			if (kv->key.type == CSR1212_KV_TYPE_DIRECTORY) {
-				/* This should really be done in SBP2 as this is
-				 * doing SBP2 specific parsing. */
-				ud->flags |= UNIT_DIRECTORY_HAS_LUN_DIRECTORY;
-				ud_temp = nodemgr_process_unit_directory(hi, ne, kv, id,
-									 parent);
-
-				if (ud_temp == NULL)
-					break;
-
-				/* inherit unspecified values */
-				if ((ud->flags & UNIT_DIRECTORY_VENDOR_ID) &&
-				    !(ud_temp->flags & UNIT_DIRECTORY_VENDOR_ID))
-				{
-					ud_temp->flags |=  UNIT_DIRECTORY_VENDOR_ID;
-					ud_temp->vendor_id = ud->vendor_id;
-					ud_temp->vendor_oui = ud->vendor_oui;
+			/* Logical Unit Number */
+			if (kv->key.type == CSR1212_KV_TYPE_IMMEDIATE) {
+				if (ud->flags & UNIT_DIRECTORY_HAS_LUN) {
+					ud_child = kmalloc(sizeof(struct unit_directory), GFP_KERNEL);
+					if (!ud_child)
+						goto unit_directory_error;
+					memcpy(ud_child, ud, sizeof(struct unit_directory));
+					nodemgr_register_device(ne, ud_child, &ne->device);
+					ud_child = NULL;
+					
+					ud->id = (*id)++;
 				}
+				ud->lun = kv->value.immediate;
+				ud->flags |= UNIT_DIRECTORY_HAS_LUN;
+
+			/* Logical Unit Directory */
+			} else if (kv->key.type == CSR1212_KV_TYPE_DIRECTORY) {
+				/* This should really be done in SBP2 as this is
+				 * doing SBP2 specific parsing.
+				 */
+				
+				/* first register the parent unit */
+				ud->flags |= UNIT_DIRECTORY_HAS_LUN_DIRECTORY;
+				if (ud->device.bus != &ieee1394_bus_type)
+					nodemgr_register_device(ne, ud, &ne->device);
+				
+				/* process the child unit */
+				ud_child = nodemgr_process_unit_directory(hi, ne, kv, id, ud);
+
+				if (ud_child == NULL)
+					break;
+				
+				/* inherit unspecified values so hotplug picks it up */
 				if ((ud->flags & UNIT_DIRECTORY_MODEL_ID) &&
-				    !(ud_temp->flags & UNIT_DIRECTORY_MODEL_ID))
+				    !(ud_child->flags & UNIT_DIRECTORY_MODEL_ID))
 				{
-					ud_temp->flags |=  UNIT_DIRECTORY_MODEL_ID;
-					ud_temp->model_id = ud->model_id;
+					ud_child->flags |=  UNIT_DIRECTORY_MODEL_ID;
+					ud_child->model_id = ud->model_id;
 				}
 				if ((ud->flags & UNIT_DIRECTORY_SPECIFIER_ID) &&
-				    !(ud_temp->flags & UNIT_DIRECTORY_SPECIFIER_ID))
+				    !(ud_child->flags & UNIT_DIRECTORY_SPECIFIER_ID))
 				{
-					ud_temp->flags |=  UNIT_DIRECTORY_SPECIFIER_ID;
-					ud_temp->specifier_id = ud->specifier_id;
+					ud_child->flags |=  UNIT_DIRECTORY_SPECIFIER_ID;
+					ud_child->specifier_id = ud->specifier_id;
 				}
 				if ((ud->flags & UNIT_DIRECTORY_VERSION) &&
-				    !(ud_temp->flags & UNIT_DIRECTORY_VERSION))
+				    !(ud_child->flags & UNIT_DIRECTORY_VERSION))
 				{
-					ud_temp->flags |=  UNIT_DIRECTORY_VERSION;
-					ud_temp->version = ud->version;
+					ud_child->flags |=  UNIT_DIRECTORY_VERSION;
+					ud_child->version = ud->version;
 				}
+				
+				/* register the child unit */
+				ud_child->flags |= UNIT_DIRECTORY_LUN_DIRECTORY;
+				nodemgr_register_device(ne, ud_child, &ud->device);
 			}
 
 			break;
@@ -954,37 +997,15 @@ static struct unit_directory *nodemgr_process_unit_directory
 		}
 		last_key_id = kv->key.id;
 	}
-
-	memcpy(&ud->device, &nodemgr_dev_template_ud,
-	       sizeof(ud->device));
-
-	if (parent) {
-		ud->flags |= UNIT_DIRECTORY_LUN_DIRECTORY;
-		ud->device.parent = &parent->device;
-	} else
-		ud->device.parent = &ne->device;
-
-	snprintf(ud->device.bus_id, BUS_ID_SIZE, "%s-%u",
-		 ne->device.bus_id, ud->id);
-
-	ud->class_dev.dev = &ud->device;
-	ud->class_dev.class = &nodemgr_ud_class;
-	snprintf(ud->class_dev.class_id, BUS_ID_SIZE, "%s-%u",
-		 ne->device.bus_id, ud->id);
-
-	device_register(&ud->device);
-	class_device_register(&ud->class_dev);
-	get_device(&ud->device);
-
-	if (ud->vendor_oui)
-		device_create_file(&ud->device, &dev_attr_ud_vendor_oui);
-	nodemgr_create_ud_dev_files(ud);
+	
+	/* do not process child units here and only if not already registered */
+	if (!parent && ud->device.bus != &ieee1394_bus_type)
+		nodemgr_register_device(ne, ud, &ne->device);
 
 	return ud;
 
 unit_directory_error:
-	if (ud != NULL)
-		kfree(ud);
+	kfree(ud);
 	return NULL;
 }
 
@@ -1143,6 +1164,13 @@ static void nodemgr_update_node(struct node_entry *ne, struct csr1212_csr *csr,
 
 		/* Mark the node as new, so it gets re-probed */
 		ne->needs_probe = 1;
+	} else {
+		/* old cache is valid, so update its generation */
+		struct nodemgr_csr_info *ci = ne->csr->private;
+		ci->generation = generation;
+		/* free the partially filled now unneeded new cache */
+		kfree(csr->private);
+		csr1212_destroy_csr(csr);
 	}
 
 	if (ne->in_limbo)
@@ -1255,7 +1283,7 @@ static void nodemgr_suspend_ne(struct node_entry *ne)
 
 		if (ud->device.driver &&
 		    (!ud->device.driver->suspend ||
-		      ud->device.driver->suspend(&ud->device, 0, 0)))
+		      ud->device.driver->suspend(&ud->device, PMSG_SUSPEND, 0)))
 			device_release_driver(&ud->device);
 	}
 	up_write(&ne->device.bus->subsys.rwsem);
@@ -1433,7 +1461,7 @@ static int nodemgr_check_irm_capability(struct hpsb_host *host, int cycles)
 	quadlet_t bc;
 	int status;
 
-	if (host->is_irm)
+	if (hpsb_disable_irm || host->is_irm)
 		return 1;
 
 	status = hpsb_read(host, LOCAL_BUS | (host->irm_id),
@@ -1481,22 +1509,22 @@ static int nodemgr_host_thread(void *__hi)
 
 		if (down_interruptible(&hi->reset_sem) ||
 		    down_interruptible(&nodemgr_serialize)) {
-			if (current->flags & PF_FREEZE) {
-				refrigerator(0);
+			if (try_to_freeze(PF_FREEZE))
 				continue;
-			}
 			printk("NodeMgr: received unexpected signal?!\n" );
 			break;
 		}
 
-		if (hi->kill_me)
+		if (hi->kill_me) {
+			up(&nodemgr_serialize);
 			break;
+		}
 
 		/* Pause for 1/4 second in 1/16 second intervals,
 		 * to make sure things settle down. */
 		for (i = 0; i < 4 ; i++) {
 			set_current_state(TASK_INTERRUPTIBLE);
-			if (schedule_timeout(HZ/16)) {
+			if (msleep_interruptible(63)) {
 				up(&nodemgr_serialize);
 				goto caught_signal;
 			}
@@ -1514,8 +1542,10 @@ static int nodemgr_host_thread(void *__hi)
 				i = 0;
 
 			/* Check the kill_me again */
-			if (hi->kill_me)
+			if (hi->kill_me) {
+				up(&nodemgr_serialize);
 				goto caught_signal;
+			}
 		}
 
 		if (!nodemgr_check_irm_capability(host, reset_cycles)) {
@@ -1552,29 +1582,6 @@ caught_signal:
 
 	complete_and_exit(&hi->exited, 0);
 }
-
-struct node_entry *hpsb_guid_get_entry(u64 guid)
-{
-        struct node_entry *ne;
-
-	down(&nodemgr_serialize);
-        ne = find_entry_by_guid(guid);
-	up(&nodemgr_serialize);
-
-        return ne;
-}
-
-struct node_entry *hpsb_nodeid_get_entry(struct hpsb_host *host, nodeid_t nodeid)
-{
-	struct node_entry *ne;
-
-	down(&nodemgr_serialize);
-	ne = find_entry_by_nodeid(host, nodeid);
-	up(&nodemgr_serialize);
-
-	return ne;
-}
-
 
 int nodemgr_for_each_host(void *__data, int (*cb)(struct hpsb_host *, void *))
 {
@@ -1618,16 +1625,6 @@ void hpsb_node_fill_packet(struct node_entry *ne, struct hpsb_packet *pkt)
         pkt->node_id = ne->nodeid;
 }
 
-int hpsb_node_read(struct node_entry *ne, u64 addr,
-		   quadlet_t *buffer, size_t length)
-{
-	unsigned int generation = ne->generation;
-
-	barrier();
-	return hpsb_read(ne->host, ne->nodeid, generation,
-			 addr, buffer, length);
-}
-
 int hpsb_node_write(struct node_entry *ne, u64 addr,
 		    quadlet_t *buffer, size_t length)
 {
@@ -1636,16 +1633,6 @@ int hpsb_node_write(struct node_entry *ne, u64 addr,
 	barrier();
 	return hpsb_write(ne->host, ne->nodeid, generation,
 			  addr, buffer, length);
-}
-
-int hpsb_node_lock(struct node_entry *ne, u64 addr,
-		   int extcode, quadlet_t *data, quadlet_t arg)
-{
-	unsigned int generation = ne->generation;
-
-	barrier();
-	return hpsb_lock(ne->host, ne->nodeid, generation,
-			 addr, extcode, data, arg);
 }
 
 static void nodemgr_add_host(struct hpsb_host *host)

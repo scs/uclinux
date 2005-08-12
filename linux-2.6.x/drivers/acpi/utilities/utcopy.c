@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2004, R. Byron Moore
+ * Copyright (C) 2000 - 2005, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -424,23 +424,21 @@ acpi_ut_copy_esimple_to_isimple (
 		break;
 
 	default:
-		/*
-		 * Whatever other type -- it is not supported
-		 */
+		/* All other types are not supported */
+
 		return_ACPI_STATUS (AE_SUPPORT);
 	}
 
 
-	switch (external_object->type) {
-
 	/* Must COPY string and buffer contents */
 
+	switch (external_object->type) {
 	case ACPI_TYPE_STRING:
 
 		internal_object->string.pointer =
 			ACPI_MEM_CALLOCATE ((acpi_size) external_object->string.length + 1);
 		if (!internal_object->string.pointer) {
-			return_ACPI_STATUS (AE_NO_MEMORY);
+			goto error_exit;
 		}
 
 		ACPI_MEMCPY (internal_object->string.pointer,
@@ -456,7 +454,7 @@ acpi_ut_copy_esimple_to_isimple (
 		internal_object->buffer.pointer =
 			ACPI_MEM_CALLOCATE (external_object->buffer.length);
 		if (!internal_object->buffer.pointer) {
-			return_ACPI_STATUS (AE_NO_MEMORY);
+			goto error_exit;
 		}
 
 		ACPI_MEMCPY (internal_object->buffer.pointer,
@@ -479,6 +477,11 @@ acpi_ut_copy_esimple_to_isimple (
 
 	*ret_internal_object = internal_object;
 	return_ACPI_STATUS (AE_OK);
+
+
+error_exit:
+	acpi_ut_remove_reference (internal_object);
+	return_ACPI_STATUS (AE_NO_MEMORY);
 }
 
 
@@ -656,15 +659,17 @@ acpi_ut_copy_simple_object (
 			/* Create an actual buffer only if length > 0 */
 
 			if (source_desc->buffer.length) {
-				dest_desc->buffer.pointer = ACPI_MEM_ALLOCATE (source_desc->buffer.length);
+				dest_desc->buffer.pointer =
+					ACPI_MEM_ALLOCATE (source_desc->buffer.length);
 				if (!dest_desc->buffer.pointer) {
 					return (AE_NO_MEMORY);
 				}
 
 				/* Copy the actual buffer data */
 
-				ACPI_MEMCPY (dest_desc->buffer.pointer, source_desc->buffer.pointer,
-						  source_desc->buffer.length);
+				ACPI_MEMCPY (dest_desc->buffer.pointer,
+						source_desc->buffer.pointer,
+						source_desc->buffer.length);
 			}
 		}
 		break;
@@ -679,7 +684,8 @@ acpi_ut_copy_simple_object (
 		 */
 		if ((source_desc->string.pointer) &&
 			(!(source_desc->common.flags & AOPOBJ_STATIC_POINTER))) {
-			dest_desc->string.pointer = ACPI_MEM_ALLOCATE ((acpi_size) source_desc->string.length + 1);
+			dest_desc->string.pointer =
+				ACPI_MEM_ALLOCATE ((acpi_size) source_desc->string.length + 1);
 			if (!dest_desc->string.pointer) {
 				return (AE_NO_MEMORY);
 			}
@@ -687,6 +693,14 @@ acpi_ut_copy_simple_object (
 			ACPI_MEMCPY (dest_desc->string.pointer, source_desc->string.pointer,
 					  (acpi_size) source_desc->string.length + 1);
 		}
+		break;
+
+	case ACPI_TYPE_LOCAL_REFERENCE:
+		/*
+		 * We copied the reference object, so we now must add a reference
+		 * to the object pointed to by the reference
+		 */
+		acpi_ut_add_reference (source_desc->reference.object);
 		break;
 
 	default:
@@ -747,7 +761,7 @@ acpi_ut_copy_ielement_to_ielement (
 
 			status = acpi_ut_copy_simple_object (source_object, target_object);
 			if (ACPI_FAILURE (status)) {
-				return (status);
+				goto error_exit;
 			}
 
 			*this_target_ptr = target_object;
@@ -781,8 +795,8 @@ acpi_ut_copy_ielement_to_ielement (
 			ACPI_MEM_CALLOCATE (((acpi_size) source_object->package.count + 1) *
 					 sizeof (void *));
 		if (!target_object->package.elements) {
-			ACPI_MEM_FREE (target_object);
-			return (AE_NO_MEMORY);
+			status = AE_NO_MEMORY;
+			goto error_exit;
 		}
 
 		/*
@@ -801,6 +815,10 @@ acpi_ut_copy_ielement_to_ielement (
 		return (AE_BAD_PARAMETER);
 	}
 
+	return (status);
+
+error_exit:
+	acpi_ut_remove_reference (target_object);
 	return (status);
 }
 

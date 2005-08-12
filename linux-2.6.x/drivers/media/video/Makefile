@@ -7,6 +7,7 @@ bttv-objs	:=	bttv-driver.o bttv-cards.o bttv-if.o \
 zoran-objs      :=	zr36120.o zr36120_i2c.o zr36120_mem.o
 zr36067-objs	:=	zoran_procfs.o zoran_device.o \
 			zoran_driver.o zoran_card.o
+tuner-objs	:=	tuner-core.o tuner-simple.o mt20xx.o tda8290.o
 
 obj-$(CONFIG_VIDEO_DEV) += videodev.o v4l2-common.o v4l1-compat.o
 
@@ -48,4 +49,10 @@ obj-$(CONFIG_TUNER_3036) += tuner-3036.o
 
 obj-$(CONFIG_VIDEO_TUNER) += tuner.o tda9887.o
 obj-$(CONFIG_VIDEO_BUF)   += video-buf.o
+obj-$(CONFIG_VIDEO_BUF_DVB) += video-buf-dvb.o
 obj-$(CONFIG_VIDEO_BTCX)  += btcx-risc.o
+obj-$(CONFIG_VIDEO_TVEEPROM) += tveeprom.o
+
+obj-$(CONFIG_VIDEO_M32R_AR_M64278) += arv.o
+
+EXTRA_CFLAGS += -I$(srctree)/drivers/media/dvb/dvb-core

@@ -199,6 +199,15 @@ static int mc68x328fb_check_var(struct fb_var_screeninfo *var,
 	 */
 	switch (var->bits_per_pixel) {
 	case 1:
+		var->red.offset = 0;
+		var->red.length = 1;
+		var->green.offset = 0;
+		var->green.length = 1;
+		var->blue.offset = 0;
+		var->blue.length = 1;
+		var->transp.offset = 0;
+		var->transp.length = 0;
+		break;
 	case 8:
 		var->red.offset = 0;
 		var->red.length = 8;
@@ -430,6 +439,13 @@ int __init mc68x328fb_setup(char *options)
 
 int __init mc68x328fb_init(void)
 {
+#ifndef MODULE
+	char *option = NULL;
+
+	if (fb_get_options("68328fb", &option))
+		return -ENODEV;
+	mc68x328fb_setup(option);
+#endif
 	/*
 	 *  initialize the default mode from the LCD controller registers
 	 */
@@ -452,8 +468,12 @@ int __init mc68x328fb_init(void)
 		get_line_length(mc68x328fb_default.xres_virtual, mc68x328fb_default.bits_per_pixel);
 	fb_info.fix.visual = (mc68x328fb_default.bits_per_pixel) == 1 ?
 		MC68X328FB_MONO_VISUAL : FB_VISUAL_PSEUDOCOLOR;
+	if (fb_info.var.bits_per_pixel == 1) {
+		fb_info.var.red.length = fb_info.var.green.length = fb_info.var.blue.length = 1;
+		fb_info.var.red.offset = fb_info.var.green.offset = fb_info.var.blue.offset = 0;
+	}
 	fb_info.pseudo_palette = &mc68x328fb_pseudo_palette;
-	fb_info.flags = FBINFO_FLAG_DEFAULT;
+	fb_info.flags = FBINFO_DEFAULT | FBINFO_HWACCEL_YPAN;
 
 	fb_alloc_cmap(&fb_info.cmap, 256, 0);
 
@@ -471,6 +491,8 @@ int __init mc68x328fb_init(void)
 	return 0;
 }
 
+module_init(mc68x328fb_init);
+
 #ifdef MODULE
 
 static void __exit mc68x328fb_cleanup(void)
@@ -478,7 +500,6 @@ static void __exit mc68x328fb_cleanup(void)
 	unregister_framebuffer(&fb_info);
 }
 
-module_init(mc68x328fb_init);
 module_exit(mc68x328fb_cleanup);
 
 MODULE_LICENSE("GPL");

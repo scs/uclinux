@@ -727,10 +727,11 @@ push_on_scq(struct idt77252_dev *card, struct vc_map *vc, struct sk_buff *skb)
 	spin_lock_irqsave(&vc->lock, flags);
 	if (vc->estimator) {
 		struct atm_vcc *vcc = vc->tx_vcc;
+		struct sock *sk = sk_atm(vcc);
 
 		vc->estimator->cells += (skb->len + 47) / 48;
-		if (atomic_read(&vcc->sk->sk_wmem_alloc) >
-		    (vcc->sk->sk_sndbuf >> 1)) {
+		if (atomic_read(&sk->sk_wmem_alloc) >
+		    (sk->sk_sndbuf >> 1)) {
 			u32 cps = vc->estimator->maxcps;
 
 			vc->estimator->cps = cps;
@@ -1266,8 +1267,9 @@ idt77252_rx_raw(struct idt77252_dev *card)
 	head = IDT77252_PRV_PADDR(queue) + (queue->data - queue->head - 16);
 	tail = readl(SAR_REG_RAWCT);
 
-	pci_dma_sync_single(card->pcidev, IDT77252_PRV_PADDR(queue),
-			    queue->end - queue->head - 16, PCI_DMA_FROMDEVICE);
+	pci_dma_sync_single_for_cpu(card->pcidev, IDT77252_PRV_PADDR(queue),
+				    queue->end - queue->head - 16,
+				    PCI_DMA_FROMDEVICE);
 
 	while (head != tail) {
 		unsigned int vpi, vci, pti;
@@ -1324,7 +1326,7 @@ idt77252_rx_raw(struct idt77252_dev *card)
 			goto drop;
 		}
 
-		if ((vcc->sk != NULL) && !atm_charge(vcc, sb->truesize)) {
+		if (!atm_charge(vcc, sb->truesize)) {
 			RXPRINTK("%s: atm_charge() dropped AAL0 packets.\n",
 				 card->name);
 			dev_kfree_skb(sb);
@@ -1360,10 +1362,10 @@ drop:
 			if (next) {
 				card->raw_cell_head = next;
 				queue = card->raw_cell_head;
-				pci_dma_sync_single(card->pcidev,
-						    IDT77252_PRV_PADDR(queue),
-						    queue->end - queue->data,
-						    PCI_DMA_FROMDEVICE);
+				pci_dma_sync_single_for_cpu(card->pcidev,
+							    IDT77252_PRV_PADDR(queue),
+							    queue->end - queue->data,
+							    PCI_DMA_FROMDEVICE);
 			} else {
 				card->raw_cell_head = NULL;
 				printk("%s: raw cell queue overrun\n",
@@ -2028,7 +2030,7 @@ idt77252_send_oam(struct atm_vcc *vcc, void *cell, int flags)
 		atomic_inc(&vcc->stats->tx_err);
 		return -ENOMEM;
 	}
-	atomic_add(skb->truesize, &vcc->sk->sk_wmem_alloc);
+	atomic_add(skb->truesize, &sk_atm(vcc)->sk_wmem_alloc);
 
 	memcpy(skb_put(skb, 52), cell, 52);
 
@@ -2516,7 +2518,7 @@ idt77252_close(struct atm_vcc *vcc)
 	struct vc_map *vc = vcc->dev_data;
 	unsigned long flags;
 	unsigned long addr;
-	int timeout;
+	unsigned long timeout;
 
 	down(&card->mutex);
 
@@ -2566,9 +2568,9 @@ done:
 		}
 		spin_unlock_irqrestore(&vc->lock, flags);
 
-		timeout = 5 * HZ;
+		timeout = 5 * 1000;
 		while (atomic_read(&vc->scq->used) > 0) {
-			timeout = schedule_timeout(timeout);
+			timeout = msleep_interruptible(timeout);
 			if (!timeout)
 				break;
 		}
@@ -3135,14 +3137,11 @@ deinit_card(struct idt77252_dev *card)
 		}
 	}
 
-	if (card->soft_tst)
-		vfree(card->soft_tst);
+	vfree(card->soft_tst);
 
-	if (card->scd2vc)
-		vfree(card->scd2vc);
+	vfree(card->scd2vc);
 
-	if (card->vcs)
-		vfree(card->vcs);
+	vfree(card->vcs);
 
 	if (card->raw_cell_hnd) {
 		pci_free_consistent(card->pcidev, 2 * sizeof(u32),
@@ -3164,11 +3163,11 @@ deinit_card(struct idt77252_dev *card)
 
 	for (i = 0; i < 4; i++) {
 		if (card->fbq[i])
-			iounmap((void *) card->fbq[i]);
+			iounmap(card->fbq[i]);
 	}
 
 	if (card->membase)
-		iounmap((void *) card->membase);
+		iounmap(card->membase);
 
 	clear_bit(IDT77252_BIT_INIT, &card->flags);
 	DIPRINTK("%s: Card deinitialized.\n", card->name);
@@ -3681,18 +3680,25 @@ idt77252_init_one(struct pci_dev *pcidev, const struct pci_device_id *id)
 	struct idt77252_dev *card;
 	struct atm_dev *dev;
 	ushort revision = 0;
-	int i;
+	int i, err;
 
+
+	if ((err = pci_enable_device(pcidev))) {
+		printk("idt77252: can't enable PCI device at %s\n", pci_name(pcidev));
+		return err;
+	}
 
 	if (pci_read_config_word(pcidev, PCI_REVISION_ID, &revision)) {
 		printk("idt77252-%d: can't read PCI_REVISION_ID\n", index);
-		return -ENODEV;
+		err = -ENODEV;
+		goto err_out_disable_pdev;
 	}
 
 	card = kmalloc(sizeof(struct idt77252_dev), GFP_KERNEL);
 	if (!card) {
 		printk("idt77252-%d: can't allocate private data\n", index);
-		return -ENOMEM;
+		err = -ENOMEM;
+		goto err_out_disable_pdev;
 	}
 	memset(card, 0, sizeof(struct idt77252_dev));
 
@@ -3715,26 +3721,24 @@ idt77252_init_one(struct pci_dev *pcidev, const struct pci_device_id *id)
 	card->tst_timer.function = tst_timer;
 
 	/* Do the I/O remapping... */
-	card->membase = (unsigned long) ioremap(membase, 1024);
+	card->membase = ioremap(membase, 1024);
 	if (!card->membase) {
 		printk("%s: can't ioremap() membase\n", card->name);
-		kfree(card);
-		return -EIO;
+		err = -EIO;
+		goto err_out_free_card;
 	}
 
 	if (idt77252_preset(card)) {
 		printk("%s: preset failed\n", card->name);
-		iounmap((void *) card->membase);
-		kfree(card);
-		return -EIO;
+		err = -EIO;
+		goto err_out_iounmap;
 	}
 
 	dev = atm_dev_register("idt77252", &idt77252_ops, -1, NULL);
 	if (!dev) {
 		printk("%s: can't register atm device\n", card->name);
-		iounmap((void *) card->membase);
-		kfree(card);
-		return -EIO;
+		err = -EIO;
+		goto err_out_iounmap;
 	}
 	dev->dev_data = card;
 	card->atmdev = dev;
@@ -3743,22 +3747,19 @@ idt77252_init_one(struct pci_dev *pcidev, const struct pci_device_id *id)
 	suni_init(dev);
 	if (!dev->phy) {
 		printk("%s: can't init SUNI\n", card->name);
-		deinit_card(card);
-		kfree(card);
-		return -EIO;
+		err = -EIO;
+		goto err_out_deinit_card;
 	}
 #endif	/* CONFIG_ATM_IDT77252_USE_SUNI */
 
 	card->sramsize = probe_sram(card);
 
 	for (i = 0; i < 4; i++) {
-		card->fbq[i] = (unsigned long)
-			    ioremap(srambase | 0x200000 | (i << 18), 4);
+		card->fbq[i] = ioremap(srambase | 0x200000 | (i << 18), 4);
 		if (!card->fbq[i]) {
 			printk("%s: can't ioremap() FBQ%d\n", card->name, i);
-			deinit_card(card);
-			kfree(card);
-			return -EIO;
+			err = -EIO;
+			goto err_out_deinit_card;
 		}
 	}
 
@@ -3769,9 +3770,8 @@ idt77252_init_one(struct pci_dev *pcidev, const struct pci_device_id *id)
 
 	if (init_card(dev)) {
 		printk("%s: init_card failed\n", card->name);
-		deinit_card(card);
-		kfree(card);
-		return -EIO;
+		err = -EIO;
+		goto err_out_deinit_card;
 	}
 
 	dev->ci_range.vpi_bits = card->vpibits;
@@ -3783,12 +3783,8 @@ idt77252_init_one(struct pci_dev *pcidev, const struct pci_device_id *id)
 
 	if (idt77252_dev_open(card)) {
 		printk("%s: dev_open failed\n", card->name);
-
-		if (dev->phy->stop)
-			dev->phy->stop(dev);
-		deinit_card(card);
-		kfree(card);
-		return -EIO;
+		err = -EIO;
+		goto err_out_stop;
 	}
 
 	*last = card;
@@ -3796,6 +3792,23 @@ idt77252_init_one(struct pci_dev *pcidev, const struct pci_device_id *id)
 	index++;
 
 	return 0;
+
+err_out_stop:
+	if (dev->phy->stop)
+		dev->phy->stop(dev);
+
+err_out_deinit_card:
+	deinit_card(card);
+
+err_out_iounmap:
+	iounmap(card->membase);
+
+err_out_free_card:
+	kfree(card);
+
+err_out_disable_pdev:
+	pci_disable_device(pcidev);
+	return err;
 }
 
 static struct pci_device_id idt77252_pci_tbl[] =
@@ -3804,6 +3817,8 @@ static struct pci_device_id idt77252_pci_tbl[] =
 	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
 	{ 0, }
 };
+
+MODULE_DEVICE_TABLE(pci, idt77252_pci_tbl);
 
 static struct pci_driver idt77252_driver = {
 	.name		= "idt77252",
@@ -3826,11 +3841,7 @@ static int __init idt77252_init(void)
 		return -EIO;
 	}
 
-	if (pci_register_driver(&idt77252_driver) > 0)
-		return 0;
-
-	pci_unregister_driver(&idt77252_driver);
-	return -ENODEV;
+	return pci_register_driver(&idt77252_driver);
 }
 
 static void __exit idt77252_exit(void)
@@ -3848,6 +3859,7 @@ static void __exit idt77252_exit(void)
 		if (dev->phy->stop)
 			dev->phy->stop(dev);
 		deinit_card(card);
+		pci_disable_device(card->pcidev);
 		kfree(card);
 	}
 
@@ -3859,10 +3871,10 @@ module_exit(idt77252_exit);
 
 MODULE_LICENSE("GPL");
 
-MODULE_PARM(vpibits, "i");
+module_param(vpibits, uint, 0);
 MODULE_PARM_DESC(vpibits, "number of VPI bits supported (0, 1, or 2)");
 #ifdef CONFIG_ATM_IDT77252_DEBUG
-MODULE_PARM(debug, "i");
+module_param(debug, ulong, 0644);
 MODULE_PARM_DESC(debug,   "debug bitmap, see drivers/atm/idt77252.h");
 #endif
 

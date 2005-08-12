@@ -1,11 +1,12 @@
 /*
- * SiS AGPGART routines. 
+ * SiS AGPGART routines.
  */
 
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/init.h>
 #include <linux/agp_backend.h>
+#include <linux/delay.h>
 #include "agp.h"
 
 #define SIS_ATTBASE	0x90
@@ -69,7 +70,7 @@ static void sis_cleanup(void)
 			      (previous_size->size_value & ~(0x03)));
 }
 
-static void sis_delayed_enable(u32 mode)
+static void sis_delayed_enable(struct agp_bridge_data *bridge, u32 mode)
 {
 	struct pci_dev *device = NULL;
 	u32 command;
@@ -78,14 +79,14 @@ static void sis_delayed_enable(u32 mode)
 	printk(KERN_INFO PFX "Found an AGP %d.%d compliant device at %s.\n",
 		agp_bridge->major_version,
 		agp_bridge->minor_version,
-		agp_bridge->dev->slot_name);
+		pci_name(agp_bridge->dev));
 
 	pci_read_config_dword(agp_bridge->dev, agp_bridge->capndx + PCI_AGP_STATUS, &command);
-	command = agp_collect_device_status(mode, command);
+	command = agp_collect_device_status(bridge, mode, command);
 	command |= AGPSTAT_AGP_ENABLE;
 	rate = (command & 0x7) << 2;
 
-	while ((device = pci_find_device(PCI_ANY_ID, PCI_ANY_ID, device)) != NULL) {
+	for_each_pci_dev(device) {
 		u8 agp = pci_find_capability(device, PCI_CAP_ID_AGP);
 		if (!agp)
 			continue;
@@ -98,12 +99,11 @@ static void sis_delayed_enable(u32 mode)
 		/*
 		 * Weird: on some sis chipsets any rate change in the target
 		 * command register triggers a 5ms screwup during which the master
-		 * cannot be configured		 
+		 * cannot be configured
 		 */
-		if (device->device == agp_bridge->dev->device) {
+		if (device->device == bridge->dev->device) {
 			printk(KERN_INFO PFX "SiS delay workaround: giving bridge time to recover.\n");
-			set_current_state(TASK_UNINTERRUPTIBLE);
-			schedule_timeout (1+(HZ*10)/1000);
+			msleep(10);
 		}
 	}
 }
@@ -119,7 +119,7 @@ static struct aper_size_info_8 sis_generic_sizes[7] =
 	{4, 1024, 0, 3}
 };
 
-struct agp_bridge_driver sis_driver = {
+static struct agp_bridge_driver sis_driver = {
 	.owner			= THIS_MODULE,
 	.aperture_sizes 	= sis_generic_sizes,
 	.size_type		= U8_APER_SIZE,
@@ -167,6 +167,10 @@ static struct agp_device_ids sis_agp_device_ids[] __devinitdata =
 	{
 		.device_id	= PCI_DEVICE_ID_SI_630,
 		.chipset_name	= "630",
+	},
+	{
+		.device_id	= PCI_DEVICE_ID_SI_635,
+		.chipset_name	= "635",
 	},
 	{
 		.device_id	= PCI_DEVICE_ID_SI_645,
@@ -336,7 +340,9 @@ static struct pci_driver agp_sis_pci_driver = {
 
 static int __init agp_sis_init(void)
 {
-	return pci_module_init(&agp_sis_pci_driver);
+	if (agp_off)
+		return -EINVAL;
+	return pci_register_driver(&agp_sis_pci_driver);
 }
 
 static void __exit agp_sis_cleanup(void)
@@ -347,8 +353,8 @@ static void __exit agp_sis_cleanup(void)
 module_init(agp_sis_init);
 module_exit(agp_sis_cleanup);
 
-MODULE_PARM(agp_sis_force_delay,"i");
+module_param(agp_sis_force_delay, bool, 0);
 MODULE_PARM_DESC(agp_sis_force_delay,"forces sis delay hack");
-MODULE_PARM(agp_sis_agp_spec,"i");
+module_param(agp_sis_agp_spec, int, 0);
 MODULE_PARM_DESC(agp_sis_agp_spec,"0=force sis init, 1=force generic agp3 init, default: autodetect");
 MODULE_LICENSE("GPL and additional rights");

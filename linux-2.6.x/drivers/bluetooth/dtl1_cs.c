@@ -33,13 +33,14 @@
 #include <linux/ptrace.h>
 #include <linux/ioport.h>
 #include <linux/spinlock.h>
+#include <linux/moduleparam.h>
 
 #include <linux/skbuff.h>
 #include <linux/string.h>
 #include <linux/serial.h>
 #include <linux/serial_reg.h>
+#include <linux/bitops.h>
 #include <asm/system.h>
-#include <asm/bitops.h>
 #include <asm/io.h>
 
 #include <pcmcia/version.h>
@@ -57,13 +58,6 @@
 
 /* ======================== Module parameters ======================== */
 
-
-/* Bit map of interrupts to choose from */
-static u_int irq_mask = 0xffff;
-static int irq_list[4] = { -1 };
-
-MODULE_PARM(irq_mask, "i");
-MODULE_PARM(irq_list, "1-4i");
 
 MODULE_AUTHOR("Marcel Holtmann <marcel@holtmann.org>");
 MODULE_DESCRIPTION("Bluetooth driver for Nokia Connectivity Card DTL-1");
@@ -94,14 +88,14 @@ typedef struct dtl1_info_t {
 } dtl1_info_t;
 
 
-void dtl1_config(dev_link_t *link);
-void dtl1_release(dev_link_t *link);
-int dtl1_event(event_t event, int priority, event_callback_args_t *args);
+static void dtl1_config(dev_link_t *link);
+static void dtl1_release(dev_link_t *link);
+static int dtl1_event(event_t event, int priority, event_callback_args_t *args);
 
 static dev_info_t dev_info = "dtl1_cs";
 
-dev_link_t *dtl1_attach(void);
-void dtl1_detach(dev_link_t *);
+static dev_link_t *dtl1_attach(void);
+static void dtl1_detach(dev_link_t *);
 
 static dev_link_t *dev_list = NULL;
 
@@ -468,7 +462,7 @@ static int dtl1_hci_ioctl(struct hci_dev *hdev, unsigned int cmd,  unsigned long
 /* ======================== Card services HCI interaction ======================== */
 
 
-int dtl1_open(dtl1_info_t *info)
+static int dtl1_open(dtl1_info_t *info)
 {
 	unsigned long flags;
 	unsigned int iobase = info->link.io.BasePort1;
@@ -539,7 +533,7 @@ int dtl1_open(dtl1_info_t *info)
 }
 
 
-int dtl1_close(dtl1_info_t *info)
+static int dtl1_close(dtl1_info_t *info)
 {
 	unsigned long flags;
 	unsigned int iobase = info->link.io.BasePort1;
@@ -568,12 +562,12 @@ int dtl1_close(dtl1_info_t *info)
 	return 0;
 }
 
-dev_link_t *dtl1_attach(void)
+static dev_link_t *dtl1_attach(void)
 {
 	dtl1_info_t *info;
 	client_reg_t client_reg;
 	dev_link_t *link;
-	int i, ret;
+	int ret;
 
 	/* Create new info device */
 	info = kmalloc(sizeof(*info), GFP_KERNEL);
@@ -587,13 +581,7 @@ dev_link_t *dtl1_attach(void)
 	link->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
 	link->io.NumPorts1 = 8;
 	link->irq.Attributes = IRQ_TYPE_EXCLUSIVE | IRQ_HANDLE_PRESENT;
-	link->irq.IRQInfo1 = IRQ_INFO2_VALID | IRQ_LEVEL_ID;
-
-	if (irq_list[0] == -1)
-		link->irq.IRQInfo2 = irq_mask;
-	else
-		for (i = 0; i < 4; i++)
-			link->irq.IRQInfo2 |= 1 << irq_list[i];
+	link->irq.IRQInfo1 = IRQ_LEVEL_ID;
 
 	link->irq.Handler = dtl1_interrupt;
 	link->irq.Instance = info;
@@ -606,7 +594,6 @@ dev_link_t *dtl1_attach(void)
 	link->next = dev_list;
 	dev_list = link;
 	client_reg.dev_info = &dev_info;
-	client_reg.Attributes = INFO_IO_CLIENT | INFO_CARD_SHARE;
 	client_reg.EventMask =
 		CS_EVENT_CARD_INSERTION | CS_EVENT_CARD_REMOVAL |
 		CS_EVENT_RESET_PHYSICAL | CS_EVENT_CARD_RESET |
@@ -626,7 +613,7 @@ dev_link_t *dtl1_attach(void)
 }
 
 
-void dtl1_detach(dev_link_t *link)
+static void dtl1_detach(dev_link_t *link)
 {
 	dtl1_info_t *info = link->priv;
 	dev_link_t **linkp;
@@ -680,7 +667,7 @@ static int next_tuple(client_handle_t handle, tuple_t *tuple, cisparse_t *parse)
 	return get_tuple(handle, tuple, parse);
 }
 
-void dtl1_config(dev_link_t *link)
+static void dtl1_config(dev_link_t *link)
 {
 	client_handle_t handle = link->handle;
 	dtl1_info_t *info = link->priv;
@@ -767,7 +754,7 @@ failed:
 }
 
 
-void dtl1_release(dev_link_t *link)
+static void dtl1_release(dev_link_t *link)
 {
 	dtl1_info_t *info = link->priv;
 
@@ -784,7 +771,7 @@ void dtl1_release(dev_link_t *link)
 }
 
 
-int dtl1_event(event_t event, int priority, event_callback_args_t *args)
+static int dtl1_event(event_t event, int priority, event_callback_args_t *args)
 {
 	dev_link_t *link = args->client_data;
 	dtl1_info_t *info = link->priv;
@@ -838,10 +825,7 @@ static int __init init_dtl1_cs(void)
 static void __exit exit_dtl1_cs(void)
 {
 	pcmcia_unregister_driver(&dtl1_driver);
-
-	/* XXX: this really needs to move into generic code.. */
-	while (dev_list != NULL)
-		dtl1_detach(dev_list);
+	BUG_ON(dev_list != NULL);
 }
 
 module_init(init_dtl1_cs);

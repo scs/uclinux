@@ -11,7 +11,9 @@
  *            Aron Zeh
  *            Wolfgang Taphorn
  *            Stefan Bader <stefan.bader@de.ibm.com> 
- *            Heiko Carstens <heiko.carstens@de.ibm.com> 
+ *            Heiko Carstens <heiko.carstens@de.ibm.com>
+ *            Andreas Herrmann <aherrman@de.ibm.com>
+ *            Volker Sameske <sameske@de.ibm.com>
  * 
  * This program is free software; you can redistribute it and/or modify 
  * it under the terms of the GNU General Public License as published by 
@@ -84,19 +86,12 @@
 #define FSF_SERVICE_CLASS_NOT_SUPPORTED		0x00000006
 #define FSF_FCPLUN_NOT_VALID			0x00000009
 #define FSF_ACCESS_DENIED			0x00000010
-#define FSF_ACCESS_TYPE_NOT_VALID		0x00000011
 #define FSF_LUN_SHARING_VIOLATION               0x00000012
-#define FSF_COMMAND_ABORTED_ULP			0x00000020
-#define FSF_COMMAND_ABORTED_ADAPTER		0x00000021
 #define FSF_FCP_COMMAND_DOES_NOT_EXIST		0x00000022
 #define FSF_DIRECTION_INDICATOR_NOT_VALID	0x00000030
-#define FSF_INBOUND_DATA_LENGTH_NOT_VALID	0x00000031 /* FIX: obsolete? */
-#define FSF_OUTBOUND_DATA_LENGTH_NOT_VALID	0x00000032 /* FIX: obsolete? */
 #define FSF_CMND_LENGTH_NOT_VALID		0x00000033
 #define FSF_MAXIMUM_NUMBER_OF_PORTS_EXCEEDED	0x00000040
 #define FSF_MAXIMUM_NUMBER_OF_LUNS_EXCEEDED	0x00000041
-#define FSF_REQUEST_BUF_NOT_VALID		0x00000042
-#define FSF_RESPONSE_BUF_NOT_VALID		0x00000043
 #define FSF_ELS_COMMAND_REJECTED		0x00000050
 #define FSF_GENERIC_COMMAND_REJECTED		0x00000051
 #define FSF_OPERATION_PARTIALLY_SUCCESSFUL	0x00000052
@@ -112,6 +107,8 @@
 #define FSF_PAYLOAD_SIZE_MISMATCH		0x00000060
 #define FSF_REQUEST_SIZE_TOO_LARGE		0x00000061
 #define FSF_RESPONSE_SIZE_TOO_LARGE		0x00000062
+#define FSF_SBAL_MISMATCH			0x00000063
+#define FSF_OPEN_PORT_WITHOUT_PRLI		0x00000064
 #define FSF_ADAPTER_STATUS_AVAILABLE		0x000000AD
 #define FSF_FCP_RSP_AVAILABLE			0x000000AF
 #define FSF_UNKNOWN_COMMAND			0x000000E2
@@ -132,6 +129,7 @@
 #define FSF_SQ_NO_RETRY_POSSIBLE		0x07
 
 /* FSF status qualifier for CFDC commands */
+#define FSF_SQ_CFDC_HARDENED_ON_SE		0x00000000
 #define FSF_SQ_CFDC_COULD_NOT_HARDEN_ON_SE	0x00000001
 #define FSF_SQ_CFDC_COULD_NOT_HARDEN_ON_SE2	0x00000002
 /* CFDC subtable codes */
@@ -154,6 +152,7 @@
 /* status types in status read buffer */
 #define FSF_STATUS_READ_PORT_CLOSED		0x00000001
 #define FSF_STATUS_READ_INCOMING_ELS		0x00000002
+#define FSF_STATUS_READ_SENSE_DATA_AVAIL        0x00000003
 #define FSF_STATUS_READ_BIT_ERROR_THRESHOLD	0x00000004
 #define FSF_STATUS_READ_LINK_DOWN		0x00000005 /* FIXME: really? */
 #define FSF_STATUS_READ_LINK_UP          	0x00000006
@@ -196,11 +195,13 @@
 /* channel features */
 #define FSF_FEATURE_QTCB_SUPPRESSION            0x00000001
 #define FSF_FEATURE_CFDC			0x00000002
+#define FSF_FEATURE_LUN_SHARING			0x00000004
 #define FSF_FEATURE_HBAAPI_MANAGEMENT           0x00000010
 #define FSF_FEATURE_ELS_CT_CHAINED_SBALS        0x00000020
 
 /* option */
 #define FSF_OPEN_LUN_SUPPRESS_BOXING		0x00000001
+#define FSF_OPEN_LUN_REPLICATE_SENSE		0x00000002
 
 /* adapter types */
 #define FSF_ADAPTER_TYPE_FICON                  0x00000001
@@ -227,6 +228,15 @@
 #define FSF_HBA_PORTSTATE_LINKDOWN		0x00000006
 #define FSF_HBA_PORTSTATE_ERROR			0x00000007
 
+/* IO states of adapter */
+#define FSF_IOSTAT_NPORT_RJT			0x00000004
+#define FSF_IOSTAT_FABRIC_RJT			0x00000005
+#define FSF_IOSTAT_LS_RJT			0x00000009
+
+/* open LUN access flags*/
+#define FSF_UNIT_ACCESS_OPEN_LUN_ALLOWED	0x01000000
+#define FSF_UNIT_ACCESS_EXCLUSIVE		0x02000000
+#define FSF_UNIT_ACCESS_OUTBOUND_TRANSFER	0x10000000
 
 struct fsf_queue_designator;
 struct fsf_status_read_buffer;
@@ -348,7 +358,6 @@ struct fsf_nport_serv_param {
 	u8  class3_serv_param[16];
 	u8  class4_serv_param[16];
 	u8  vendor_version_level[16];
-	u8  res1[16];
 } __attribute__ ((packed));
 
 struct fsf_plogi {
@@ -381,7 +390,8 @@ struct fsf_qtcb_bottom_support {
 	u32 service_class;
 	u8  res3[3];
 	u8  timeout;
-	u8  res4[184];
+        u32 lun_access_info;
+        u8  res4[180];
 	u32 els1_length;
 	u32 els2_length;
 	u32 req_buf_length;
@@ -405,11 +415,13 @@ struct fsf_qtcb_bottom_config {
 	u8 res2[12];
 	u32 s_id;
 	struct fsf_nport_serv_param nport_serv_param;
+	u8 reserved_nport_serv_param[16];
 	u8 res3[8];
 	u32 adapter_ports;
 	u32 hardware_version;
 	u8 serial_number[32];
-	u8 res4[272];
+	struct fsf_nport_serv_param plogi_payload;
+	u8 res4[160];
 } __attribute__ ((packed));
 
 struct fsf_qtcb_bottom_port {

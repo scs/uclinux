@@ -55,27 +55,27 @@ struct pmagb_b_ramdac_regs {
 static struct fb_info pmagbb_fb_info[3];
 
 static struct fb_var_screeninfo pmagbbfb_defined = {
-	.xres 		= 1280,
-	.yres 		= 1024,
-	.xres_virtual 	= 1280,
-	.yres_virtual 	= 1024,
-	.bits_per_pixel = 8,
+	.xres		= 1280,
+	.yres		= 1024,
+	.xres_virtual	= 1280,
+	.yres_virtual	= 1024,
+	.bits_per_pixel	= 8,
 	.red.length	= 8,
 	.green.length	= 8,
 	.blue.length	= 8,
-	.activate 	= FB_ACTIVATE_NOW,
-	.height 	= 274,
-	.width 		= 195,
-	.accel_flags 	= FB_ACCEL_NONE,
-	.vmode 		= FB_VMODE_NONINTERLACED,
+	.activate	= FB_ACTIVATE_NOW,
+	.height		= 274,
+	.width		= 195,
+	.accel_flags	= FB_ACCEL_NONE,
+	.vmode		= FB_VMODE_NONINTERLACED,
 };
 
 static struct fb_fix_screeninfo pmagbafb_fix = {
-	.id 		= "PMAGB-BA",
-	.smem_len 	= (1280 * 1024),
-	.type 		= FB_TYPE_PACKED_PIXELS,
-	.visual 	= FB_VISUAL_PSEUDOCOLOR,
-	.line_length 	= 1280,
+	.id		= "PMAGB-BA",
+	.smem_len	= (1280 * 1024),
+	.type		= FB_TYPE_PACKED_PIXELS,
+	.visual		= FB_VISUAL_PSEUDOCOLOR,
+	.line_length	= 1280,
 }
 
 /*
@@ -145,7 +145,7 @@ int __init pmagbbfb_init_one(int slot)
 	info->var = pmagbbfb_defined;
 	info->fix = pmagbbfb_fix;
 	info->screen_base = pmagbbfb_fix.smem_start; 
-	info->flags = FBINFO_FLAG_DEFAULT;
+	info->flags = FBINFO_DEFAULT;
 
 	fb_alloc_cmap(&fb_info.cmap, 256, 0);
 
@@ -163,6 +163,9 @@ int __init pmagbbfb_init(void)
 	int sid;
 	int found = 0;
 
+	if (fb_get_options("pmagbbfb", NULL))
+		return -ENODEV;
+
 	if (TURBOCHANNEL) {
 		while ((sid = search_tc_card("PMAGB-BA")) >= 0) {
 			found = 1;
@@ -175,4 +178,5 @@ int __init pmagbbfb_init(void)
 	}
 }
 
+module_init(pmagbbfb_init);
 MODULE_LICENSE("GPL");

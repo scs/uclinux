@@ -66,9 +66,10 @@ typedef struct s_AC	SK_AC;
 #include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/pci.h>
+#include <linux/bitops.h>
 #include <asm/byteorder.h>
-#include <asm/bitops.h>
 #include <asm/io.h>
+#include <asm/irq.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
@@ -109,7 +110,7 @@ typedef struct s_AC	SK_AC;
 #define SK_MAX_MACS		2
 #define SK_MAX_NETS		2
 
-#define SK_IOC			char*
+#define SK_IOC			char __iomem *
 
 typedef struct s_DrvRlmtMbuf SK_MBUF;
 

@@ -255,9 +255,9 @@
 #include <linux/ctype.h>
 #include <linux/moduleparam.h>
 #include <linux/device.h>
+#include <linux/bitops.h>
 
 #include <asm/uaccess.h>
-#include <asm/bitops.h>
 #include <asm/io.h>
 #include <asm/dma.h>
 
@@ -342,14 +342,15 @@ static char depca_string[] = "depca";
 static int depca_device_remove (struct device *device);
 
 #ifdef CONFIG_EISA
-struct eisa_device_id depca_eisa_ids[] = {
+static struct eisa_device_id depca_eisa_ids[] = {
 	{ "DEC4220", de422 },
 	{ "" }
 };
+MODULE_DEVICE_TABLE(eisa, depca_eisa_ids);
 
 static int depca_eisa_probe  (struct device *device);
 
-struct eisa_driver depca_eisa_driver = {
+static struct eisa_driver depca_eisa_driver = {
 	.id_table = depca_eisa_ids,
 	.driver   = {
 		.name    = depca_string,
@@ -463,11 +464,11 @@ struct depca_private {
         } depca_bus;	        /* type of bus */
 	struct depca_init init_block;	/* Shadow Initialization block            */
 /* CPU address space fields */
-	struct depca_rx_desc *rx_ring;	/* Pointer to start of RX descriptor ring */
-	struct depca_tx_desc *tx_ring;	/* Pointer to start of TX descriptor ring */
-	void *rx_buff[NUM_RX_DESC];	/* CPU virt address of sh'd memory buffs  */
-	void *tx_buff[NUM_TX_DESC];	/* CPU virt address of sh'd memory buffs  */
-	void *sh_mem;		/* CPU mapped virt address of device RAM  */
+	struct depca_rx_desc __iomem *rx_ring;	/* Pointer to start of RX descriptor ring */
+	struct depca_tx_desc __iomem *tx_ring;	/* Pointer to start of TX descriptor ring */
+	void __iomem *rx_buff[NUM_RX_DESC];	/* CPU virt address of sh'd memory buffs  */
+	void __iomem *tx_buff[NUM_TX_DESC];	/* CPU virt address of sh'd memory buffs  */
+	void __iomem *sh_mem;	/* CPU mapped virt address of device RAM  */
 	u_long mem_start;	/* Bus address of device RAM (before remap) */
 	u_long mem_len;		/* device memory size */
 /* Device address space fields */
@@ -666,7 +667,7 @@ static int __init depca_hw_init (struct net_device *dev, struct device *device)
 		outb(nicsr, DEPCA_NICSR);
 	}
 
-	lp->lock = SPIN_LOCK_UNLOCKED;
+	spin_lock_init(&lp->lock);
 	sprintf(lp->adapter_name, "%s (%s)",
 		depca_signature[lp->adapter], device->bus_id);
 	status = -EBUSY;
@@ -693,11 +694,11 @@ static int __init depca_hw_init (struct net_device *dev, struct device *device)
 
 	/* Tx & Rx descriptors (aligned to a quadword boundary) */
 	offset = (offset + DEPCA_ALIGN) & ~DEPCA_ALIGN;
-	lp->rx_ring = (struct depca_rx_desc *) (lp->sh_mem + offset);
+	lp->rx_ring = (struct depca_rx_desc __iomem *) (lp->sh_mem + offset);
 	lp->rx_ring_offset = offset;
 
 	offset += (sizeof(struct depca_rx_desc) * NUM_RX_DESC);
-	lp->tx_ring = (struct depca_tx_desc *) (lp->sh_mem + offset);
+	lp->tx_ring = (struct depca_tx_desc __iomem *) (lp->sh_mem + offset);
 	lp->tx_ring_offset = offset;
 
 	offset += (sizeof(struct depca_tx_desc) * NUM_TX_DESC);
@@ -1222,10 +1223,10 @@ static int InitRestartDepca(struct net_device *dev)
 		/* clear IDON by writing a "1", enable interrupts and start lance */
 		outw(IDON | INEA | STRT, DEPCA_DATA);
 		if (depca_debug > 2) {
-			printk("%s: DEPCA open after %d ticks, init block 0x%08lx csr0 %4.4x.\n", dev->name, i, virt_to_phys(lp->sh_mem), inw(DEPCA_DATA));
+			printk("%s: DEPCA open after %d ticks, init block 0x%08lx csr0 %4.4x.\n", dev->name, i, lp->mem_start, inw(DEPCA_DATA));
 		}
 	} else {
-		printk("%s: DEPCA unopen after %d ticks, init block 0x%08lx csr0 %4.4x.\n", dev->name, i, virt_to_phys(lp->sh_mem), inw(DEPCA_DATA));
+		printk("%s: DEPCA unopen after %d ticks, init block 0x%08lx csr0 %4.4x.\n", dev->name, i, lp->mem_start, inw(DEPCA_DATA));
 		status = -1;
 	}
 
@@ -1649,7 +1650,7 @@ static int __devexit depca_device_remove (struct device *device)
 static int __init DepcaSignature(char *name, u_long base_addr)
 {
 	u_int i, j, k;
-	void *ptr;
+	void __iomem *ptr;
 	char tmpstr[16];
 	u_long prom_addr = base_addr + 0xc000;
 	u_long mem_addr = base_addr + 0x8000; /* 32KB */
@@ -1826,7 +1827,7 @@ static int load_packet(struct net_device *dev, struct sk_buff *skb)
 
 		/* set up the buffer descriptors */
 		len = (skb->len < ETH_ZLEN) ? ETH_ZLEN : skb->len;
-		for (i = entry; i != end; i = (++i) & lp->txRingMask) {
+		for (i = entry; i != end; i = (i+1) & lp->txRingMask) {
 			/* clean out flags */
 			writel(readl(&lp->tx_ring[i].base) & ~T_FLAGS, &lp->tx_ring[i].base);
 			writew(0x0000, &lp->tx_ring[i].misc);	/* clears other error flags */
@@ -1876,17 +1877,17 @@ static void depca_dbg_open(struct net_device *dev)
 		printk("Descriptor addresses (CPU):\nRX: ");
 		for (i = 0; i < lp->rxRingMask; i++) {
 			if (i < 3) {
-				printk("0x%8.8lx ", (long) &lp->rx_ring[i].base);
+				printk("%p ", &lp->rx_ring[i].base);
 			}
 		}
-		printk("...0x%8.8lx\n", (long) &lp->rx_ring[i].base);
+		printk("...%p\n", &lp->rx_ring[i].base);
 		printk("TX: ");
 		for (i = 0; i < lp->txRingMask; i++) {
 			if (i < 3) {
-				printk("0x%8.8lx ", (long) &lp->tx_ring[i].base);
+				printk("%p ", &lp->tx_ring[i].base);
 			}
 		}
-		printk("...0x%8.8lx\n", (long) &lp->tx_ring[i].base);
+		printk("...%p\n", &lp->tx_ring[i].base);
 		printk("\nDescriptor buffers (Device):\nRX: ");
 		for (i = 0; i < lp->rxRingMask; i++) {
 			if (i < 3) {
@@ -1901,7 +1902,7 @@ static void depca_dbg_open(struct net_device *dev)
 			}
 		}
 		printk("...0x%8.8x\n", readl(&lp->tx_ring[i].base));
-		printk("Initialisation block at 0x%8.8lx(Phys)\n", virt_to_phys(lp->sh_mem));
+		printk("Initialisation block at 0x%8.8lx(Phys)\n", lp->mem_start);
 		printk("        mode: 0x%4.4x\n", p->mode);
 		printk("        physical address: ");
 		for (i = 0; i < ETH_ALEN - 1; i++) {
@@ -1915,7 +1916,7 @@ static void depca_dbg_open(struct net_device *dev)
 		printk("%2.2x\n", p->mcast_table[i]);
 		printk("        rx_ring at: 0x%8.8x\n", p->rx_ring);
 		printk("        tx_ring at: 0x%8.8x\n", p->tx_ring);
-		printk("buffers (Phys): 0x%8.8lx\n", virt_to_phys(lp->sh_mem) + lp->buffs_offset);
+		printk("buffers (Phys): 0x%8.8lx\n", lp->mem_start + lp->buffs_offset);
 		printk("Ring size:\nRX: %d  Log2(rxRingMask): 0x%8.8x\n", (int) lp->rxRingMask + 1, lp->rx_rlen);
 		printk("TX: %d  Log2(txRingMask): 0x%8.8x\n", (int) lp->txRingMask + 1, lp->tx_rlen);
 		outw(CSR2, DEPCA_ADDR);

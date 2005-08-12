@@ -103,8 +103,7 @@ static int __init init_svme182(void)
 
 	partitions = svme182_partitions;
 
-	svme182_map.virt = 
-		(unsigned long)ioremap(FLASH_BASE_ADDR, svme182_map.size);
+	svme182_map.virt = ioremap(FLASH_BASE_ADDR, svme182_map.size);
 		
 	if (svme182_map.virt == 0) {
 		printk("Failed to ioremap FLASH memory area.\n");

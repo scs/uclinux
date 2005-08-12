@@ -56,7 +56,7 @@
 #include "qlogicpti_asm.c"
 
 static struct qlogicpti *qptichain = NULL;
-static spinlock_t qptichain_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(qptichain_lock);
 static int qptis_running = 0;
 
 #define PACKB(a, b)			(((a)<<4)|(b))
@@ -987,7 +987,7 @@ const char *qlogicpti_info(struct Scsi_Host *host)
 	static char buf[80];
 	struct qlogicpti *qpti = (struct qlogicpti *) host->hostdata;
 
-	sprintf(buf, "PTI Qlogic,ISP SBUS SCSI irq %s regs at %lx",
+	sprintf(buf, "PTI Qlogic,ISP SBUS SCSI irq %s regs at %p",
 		__irq_itoa(qpti->qhost->irq), qpti->qregs);
 	return buf;
 }

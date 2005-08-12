@@ -30,9 +30,13 @@
  */
 
 #include <linux/config.h>
+#include <scsi/scsi.h>
+#include <scsi/scsi_cmnd.h>
+#include <scsi/scsi_device.h>
+
+#include "usb.h"
 #include "transport.h"
 #include "protocol.h"
-#include "usb.h"
 #include "debug.h"
 #include "dpcm.h"
 #include "sddr09.h"
@@ -41,7 +45,7 @@
  * Transport for the Microtech DPCM-USB
  *
  */
-int dpcm_transport(Scsi_Cmnd *srb, struct us_data *us)
+int dpcm_transport(struct scsi_cmnd *srb, struct us_data *us)
 {
   int ret;
 

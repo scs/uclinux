@@ -214,7 +214,7 @@ static void xpad_close (struct input_dev *dev)
 	struct usb_xpad *xpad = dev->private;
 	
 	if (!--xpad->open_count)
-		usb_unlink_urb(xpad->irq_in);
+		usb_kill_urb(xpad->irq_in);
 }
 
 static int xpad_probe(struct usb_interface *intf, const struct usb_device_id *id)
@@ -226,8 +226,8 @@ static int xpad_probe(struct usb_interface *intf, const struct usb_device_id *id
 	int i;
 	
 	for (i = 0; xpad_device[i].idVendor; i++) {
-		if ((udev->descriptor.idVendor == xpad_device[i].idVendor) &&
-		    (udev->descriptor.idProduct == xpad_device[i].idProduct))
+		if ((le16_to_cpu(udev->descriptor.idVendor) == xpad_device[i].idVendor) &&
+		    (le16_to_cpu(udev->descriptor.idProduct) == xpad_device[i].idProduct))
 			break;
 	}
 	
@@ -264,9 +264,9 @@ static int xpad_probe(struct usb_interface *intf, const struct usb_device_id *id
 	xpad->udev = udev;
 	
 	xpad->dev.id.bustype = BUS_USB;
-	xpad->dev.id.vendor = udev->descriptor.idVendor;
-	xpad->dev.id.product = udev->descriptor.idProduct;
-	xpad->dev.id.version = udev->descriptor.bcdDevice;
+	xpad->dev.id.vendor = le16_to_cpu(udev->descriptor.idVendor);
+	xpad->dev.id.product = le16_to_cpu(udev->descriptor.idProduct);
+	xpad->dev.id.version = le16_to_cpu(udev->descriptor.bcdDevice);
 	xpad->dev.dev = &intf->dev;
 	xpad->dev.private = xpad;
 	xpad->dev.name = xpad_device[i].name;
@@ -325,7 +325,7 @@ static void xpad_disconnect(struct usb_interface *intf)
 	
 	usb_set_intfdata(intf, NULL);
 	if (xpad) {
-		usb_unlink_urb(xpad->irq_in);
+		usb_kill_urb(xpad->irq_in);
 		input_unregister_device(&xpad->dev);
 		usb_free_urb(xpad->irq_in);
 		usb_buffer_free(interface_to_usbdev(intf), XPAD_PKT_LEN, xpad->idata, xpad->idata_dma);

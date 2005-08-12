@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2004, R. Byron Moore
+ * Copyright (C) 2000 - 2005, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -312,7 +312,7 @@ acpi_ds_method_data_set_value (
 
 
 	ACPI_DEBUG_PRINT ((ACPI_DB_EXEC,
-		"obj %p op %X, ref count = %d [%s]\n", object,
+		"new_obj %p Opcode %X, Refs=%d [%s]\n", object,
 		opcode, object->common.reference_count,
 		acpi_ut_get_type_name (object->common.type)));
 
@@ -350,7 +350,7 @@ acpi_ds_method_data_set_value (
  * RETURN:      Data type of current value of the selected Arg or Local
  *
  ******************************************************************************/
-
+#ifdef ACPI_FUTURE_USAGE
 acpi_object_type
 acpi_ds_method_data_get_type (
 	u16                             opcode,
@@ -385,6 +385,7 @@ acpi_ds_method_data_get_type (
 
 	return_VALUE (ACPI_GET_OBJECT_TYPE (object));
 }
+#endif  /*  ACPI_FUTURE_USAGE  */
 
 
 /*******************************************************************************
@@ -448,7 +449,22 @@ acpi_ds_method_data_get_value (
 		 * was referenced by the method (via the ASL)
 		 * before it was initialized.  Either case is an error.
 		 */
-		switch (opcode) {
+
+		/* If slack enabled, init the local_x/arg_x to an Integer of value zero */
+
+		if (acpi_gbl_enable_interpreter_slack) {
+			object = acpi_ut_create_internal_object (ACPI_TYPE_INTEGER);
+			if (!object) {
+				return_ACPI_STATUS (AE_NO_MEMORY);
+			}
+
+			object->integer.value = 0;
+			node->object = object;
+		}
+
+		/* Otherwise, return the error */
+
+		else switch (opcode) {
 		case AML_ARG_OP:
 
 			ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Uninitialized Arg[%d] at node %p\n",
@@ -572,7 +588,7 @@ acpi_ds_store_object_to_local (
 
 
 	ACPI_FUNCTION_TRACE ("ds_store_object_to_local");
-	ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "Opcode=%d Idx=%d Obj=%p\n",
+	ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "Opcode=%X Index=%d Obj=%p\n",
 		opcode, index, obj_desc));
 
 	/* Parameter validation */
@@ -656,11 +672,13 @@ acpi_ds_store_object_to_local (
 						new_obj_desc, current_obj_desc));
 
 				/*
-				 * Store this object to the Node
-				 * (perform the indirect store)
+				 * Store this object to the Node (perform the indirect store)
+				 * NOTE: No implicit conversion is performed, as per the ACPI
+				 * specification rules on storing to Locals/Args.
 				 */
 				status = acpi_ex_store_object_to_node (new_obj_desc,
-						 current_obj_desc->reference.object, walk_state);
+						 current_obj_desc->reference.object, walk_state,
+						 ACPI_NO_IMPLICIT_CONVERSION);
 
 				/* Remove local reference if we copied the object above */
 

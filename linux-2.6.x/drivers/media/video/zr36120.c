@@ -30,6 +30,7 @@
 #include <linux/mm.h>
 #include <linux/pci.h>
 #include <linux/signal.h>
+#include <linux/wait.h>
 #include <asm/io.h>
 #include <asm/pgtable.h>
 #include <asm/page.h>
@@ -145,14 +146,11 @@ static struct { const char name[8]; uint mode; uint bpp; } palette2fmt[] = {
 static
 void __init handle_chipset(void)
 {
-	struct pci_dev *dev = NULL;
-
 	/* Just in case some nut set this to something dangerous */
 	if (triton1)
 		triton1 = ZORAN_VDC_TRICOM;
 
-	while ((dev = pci_find_device(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82437, dev)))
-	{
+	if (pci_pci_problems & PCIPCI_TRITON) {
 		printk(KERN_INFO "zoran: Host bridge 82437FX Triton PIIX\n");
 		triton1 = ZORAN_VDC_TRICOM;
 	}
@@ -341,7 +339,7 @@ void zoran_irq(int irq, void *dev_id, struct pt_regs * regs)
 {
 	u32 stat,estat;
 	int count = 0;
-	struct zoran *ztv = (struct zoran *)dev_id;
+	struct zoran *ztv = dev_id;
 
 	UNUSED(irq); UNUSED(regs);
 	for (;;) {
@@ -778,7 +776,7 @@ static int zoran_open(struct video_device *dev, int flags)
 	memset(ztv->fbuffer,0,ZORAN_MAX_FBUFSIZE);
 
 	if (!ztv->overinfo.overlay)
-		ztv->overinfo.overlay = (void*)kmalloc(1024*1024/8, GFP_KERNEL);
+		ztv->overinfo.overlay = kmalloc(1024*1024/8, GFP_KERNEL);
 	if (!ztv->overinfo.overlay) {
 		/* could not get an overlay buffer, bail out */
 		bfree(ztv->fbuffer, ZORAN_MAX_FBUFSIZE);
@@ -819,8 +817,7 @@ void zoran_close(struct video_device* dev)
          *      be sure its safe to free the buffer. We wait 5-6 fields
          *      which is more than sufficient to be sure.
          */
-        current->state = TASK_UNINTERRUPTIBLE;
-        schedule_timeout(HZ/10);        /* Wait 1/10th of a second */
+        msleep(100);			/* Wait 1/10th of a second */
 
 	/* free the allocated framebuffer */
 	if (ztv->fbuffer)
@@ -903,12 +900,11 @@ long zoran_read(struct video_device* dev, char* buf, unsigned long count, int no
 		zoran_cap(ztv, 1);
 
 		/* wait till this buffer gets grabbed */
-		while (unused->status == FBUFFER_BUSY) {
-			interruptible_sleep_on(&ztv->grabq);
-			/* see if a signal did it */
-			if (signal_pending(current))
-				return -EINTR;
-		}
+		wait_event_interruptible(ztv->grabq,
+				(unused->status != FBUFFER_BUSY));
+		/* see if a signal did it */
+		if (signal_pending(current))
+			return -EINTR;
 		done = unused;
 	}
 	else
@@ -1330,12 +1326,11 @@ int zoran_ioctl(struct video_device* dev, unsigned int cmd, void *arg)
 			return -EINVAL;
 		 case FBUFFER_BUSY:
 			/* wait till this buffer gets grabbed */
-			while (ztv->grabinfo[i].status == FBUFFER_BUSY) {
-				interruptible_sleep_on(&ztv->grabq);
-				/* see if a signal did it */
-				if (signal_pending(current))
-					return -EINTR;
-			}
+			wait_event_interruptible(ztv->grabq,
+					(ztv->grabinfo[i].status != FBUFFER_BUSY));
+			/* see if a signal did it */
+			if (signal_pending(current))
+				return -EINTR;
 			/* don't fall through; a DONE buffer is not UNUSED */
 			break;
 		 case FBUFFER_DONE:
@@ -1475,8 +1470,8 @@ int zoran_mmap(struct vm_area_struct *vma, struct video_device* dev, const char*
 	/* start mapping the whole shabang to user memory */
 	pos = (unsigned long)ztv->fbuffer;
 	while (size>0) {
-		unsigned long page = virt_to_phys((void*)pos);
-		if (remap_page_range(vma, start, page, PAGE_SIZE, PAGE_SHARED))
+		unsigned long pfn = virt_to_phys((void*)pos) >> PAGE_SHIFT;
+		if (remap_pfn_range(vma, start, pfn, PAGE_SIZE, PAGE_SHARED))
 			return -EAGAIN;
 		start += PAGE_SIZE;
 		pos += PAGE_SIZE;
@@ -1504,7 +1499,7 @@ static struct video_device zr36120_template=
 static
 int vbi_open(struct video_device *dev, int flags)
 {
-	struct zoran *ztv = (struct zoran*)dev->priv;
+	struct zoran *ztv = dev->priv;
 	struct vidinfo* item;
 
 	DEBUG(printk(CARD_DEBUG "vbi_open(dev,%d)\n",CARD,flags));
@@ -1553,7 +1548,7 @@ int vbi_open(struct video_device *dev, int flags)
 static
 void vbi_close(struct video_device *dev)
 {
-	struct zoran *ztv = (struct zoran*)dev->priv;
+	struct zoran *ztv = dev->priv;
 	struct vidinfo* item;
 
 	DEBUG(printk(CARD_DEBUG "vbi_close(dev)\n",CARD));
@@ -1568,8 +1563,7 @@ void vbi_close(struct video_device *dev)
          *      be sure its safe to free the buffer. We wait 5-6 fields
          *      which is more than sufficient to be sure.
          */
-        current->state = TASK_UNINTERRUPTIBLE;
-        schedule_timeout(HZ/10);        /* Wait 1/10th of a second */
+        msleep(100);			/* Wait 1/10th of a second */
 
 	for (item=ztv->readinfo; item!=ztv->readinfo+ZORAN_VBI_BUFFERS; item++)
 	{
@@ -1590,7 +1584,7 @@ void vbi_close(struct video_device *dev)
 static
 long vbi_read(struct video_device* dev, char* buf, unsigned long count, int nonblock)
 {
-	struct zoran *ztv = (struct zoran*)dev->priv;
+	struct zoran *ztv = dev->priv;
 	unsigned long max;
 	struct vidinfo* unused = 0;
 	struct vidinfo* done = 0;
@@ -1645,12 +1639,11 @@ long vbi_read(struct video_device* dev, char* buf, unsigned long count, int nonb
 		zoran_cap(ztv, 1);
 
 		/* wait till this buffer gets grabbed */
-		while (unused->status == FBUFFER_BUSY) {
-			interruptible_sleep_on(&ztv->vbiq);
-			/* see if a signal did it */
-			if (signal_pending(current))
-				return -EINTR;
-		}
+		wait_event_interruptible(ztv->vbiq,
+				(unused->status != FBUFFER_BUSY));
+		/* see if a signal did it */
+		if (signal_pending(current))
+			return -EINTR;
 		done = unused;
 	}
 	else
@@ -1745,7 +1738,7 @@ out:
 static
 unsigned int vbi_poll(struct video_device *dev, struct file *file, poll_table *wait)
 {
-	struct zoran *ztv = (struct zoran*)dev->priv;
+	struct zoran *ztv = dev->priv;
 	struct vidinfo* item;
 	unsigned int mask = 0;
 
@@ -1766,7 +1759,7 @@ unsigned int vbi_poll(struct video_device *dev, struct file *file, poll_table *w
 static
 int vbi_ioctl(struct video_device *dev, unsigned int cmd, void *arg)
 {
-	struct zoran* ztv = (struct zoran*)dev->priv;
+	struct zoran* ztv = dev->priv;
 
 	switch (cmd) {
 	 case VIDIOCGVBIFMT:
@@ -1866,7 +1859,7 @@ int __init find_zoran(void)
 		DEBUG(printk(KERN_DEBUG "zoran: mapped-memory at 0x%p\n",ztv->zoran_mem));
 
 		result = request_irq(dev->irq, zoran_irq,
-			SA_SHIRQ|SA_INTERRUPT,"zoran",(void *)ztv);
+			SA_SHIRQ|SA_INTERRUPT,"zoran", ztv);
 		if (result==-EINVAL)
 		{
 			iounmap(ztv->zoran_mem);
@@ -1955,7 +1948,7 @@ int __init init_zoran(int card)
 	ztv->tuner_type = 0;
 	ztv->running = 0;
 	ztv->users = 0;
-	ztv->lock = RW_LOCK_UNLOCKED;
+	rwlock_init(&ztv->lock);
 	ztv->workqueue = 0;
 	ztv->fieldnr = 0;
 	ztv->lastfieldnr = 0;

@@ -23,7 +23,6 @@
 #include <linux/config.h>
 #include <linux/module.h>
 #include <linux/errno.h>
-#include <linux/version.h>
 #include <linux/fs.h>
 #include <linux/kernel.h>
 #include <linux/signal.h>
@@ -45,10 +44,6 @@
 #include "../zftape/zftape-write.h"
 #include "../zftape/zftape-ctl.h"
 #include "../zftape/zftape-buffers.h"
-
-char zft_src[] __initdata = "$Source$";
-char zft_rev[] __initdata = "$Revision$";
-char zft_dat[] __initdata = "$Date$";
 
 MODULE_AUTHOR("(c) 1996, 1997 Claus-Justus Heine "
 	      "(claus@momo.math.rwth-aachen.de)");
@@ -278,15 +273,6 @@ int zft_cmpr_register(struct zft_cmpr_ops *new_ops)
 	}
 }
 
-struct zft_cmpr_ops *zft_cmpr_unregister(void)
-{
-	struct zft_cmpr_ops *old_ops = zft_cmpr_ops;
-	TRACE_FUN(ft_t_flow);
-
-	zft_cmpr_ops = NULL;
-	TRACE_EXIT old_ops;
-}
-
 /*  lock the zft-compressor() module.
  */
 int zft_cmpr_lock(int try_to_load)
@@ -332,13 +318,11 @@ KERN_INFO
 KERN_INFO
 "Support for QIC-113 compatible volume table, dynamic memory allocation\n"
 KERN_INFO
-"and builtin compression (lzrw3 algorithm).\n"
-KERN_INFO
-"Compiled for Linux version %s\n", UTS_RELEASE);
+"and builtin compression (lzrw3 algorithm).\n");
         }
 #else /* !MODULE */
 	/* print a short no-nonsense boot message */
-	printk(KERN_INFO ZFTAPE_VERSION " for Linux " UTS_RELEASE "\n");
+	printk(KERN_INFO ZFTAPE_VERSION "\n");
 #endif /* MODULE */
 	TRACE(ft_t_info, "zft_init @ 0x%p", zft_init);
 	TRACE(ft_t_info,

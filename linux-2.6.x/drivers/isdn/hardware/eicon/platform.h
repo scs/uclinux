@@ -195,9 +195,7 @@ static __inline__ void* diva_os_malloc (unsigned long flags, unsigned long size)
 }
 static __inline__ void  diva_os_free   (unsigned long flags, void* ptr)
 {
-	if (ptr) {
-		vfree(ptr);
-	}
+	vfree(ptr);
 }
 
 /*
@@ -235,12 +233,12 @@ int diva_os_register_io_port (void *adapter, int register, unsigned long port,
 /*
 **  I/O port access abstraction
 */
-byte inpp (void*);
-word inppw (void*);
-void inppw_buffer (void*, void*, int);
-void outppw (void*, word);
-void outppw_buffer (void* , void*, int);
-void outpp (void*, word);
+byte inpp (void __iomem *);
+word inppw (void __iomem *);
+void inppw_buffer (void __iomem *, void*, int);
+void outppw (void __iomem *, word);
+void outppw_buffer (void __iomem * , void*, int);
+void outpp (void __iomem *, word);
 
 /*
 **  IRQ 
@@ -268,20 +266,6 @@ static __inline__ void diva_os_enter_spin_lock (diva_os_spin_lock_t* a, \
 static __inline__ void diva_os_leave_spin_lock (diva_os_spin_lock_t* a, \
                               diva_os_spin_lock_magic_t* old_irql, \
                               void* dbg) { spin_unlock_bh(a); }
-
-static __inline__ void diva_os_enter_spin_lock_hard (diva_os_spin_lock_t* a, \
-                                   diva_os_spin_lock_magic_t* old_irql, \
-                                   void* dbg) { \
-  unsigned long flags; \
-  spin_lock_irqsave (a, flags); \
-  *old_irql = (diva_os_spin_lock_magic_t)flags; \
-}
-static __inline__ void diva_os_leave_spin_lock_hard (diva_os_spin_lock_t* a, \
-                                   diva_os_spin_lock_magic_t* old_irql, \
-                                   void* dbg) { \
-  unsigned long flags = (unsigned long)*old_irql; \
-	spin_unlock_irqrestore (a, flags); \
-}
 
 #define diva_os_destroy_spin_lock(a,b) do { } while(0)
 
@@ -347,12 +331,40 @@ diva_os_atomic_decrement(diva_os_atomic_t* pv)
 
 #define DIVA_IDI_RX_DMA 1
 
+/*
+** endian macros
+**
+** If only...  In some cases we did use them for endianness conversion;
+** unfortunately, other uses were real iomem accesses.
+*/
+#define READ_BYTE(addr)   readb(addr)
 #define READ_WORD(addr)   readw(addr)
 #define READ_DWORD(addr)  readl(addr)
 
+#define WRITE_BYTE(addr,v)  writeb(v,addr)
 #define WRITE_WORD(addr,v)  writew(v,addr)
 #define WRITE_DWORD(addr,v) writel(v,addr)
 
+static inline __u16 GET_WORD(void *addr)
+{
+	return le16_to_cpu(*(__le16 *)addr);
+}
+static inline __u32 GET_DWORD(void *addr)
+{
+	return le32_to_cpu(*(__le32 *)addr);
+}
+static inline void PUT_WORD(void *addr, __u16 v)
+{
+	*(__le16 *)addr = cpu_to_le16(v);
+}
+static inline void PUT_DWORD(void *addr, __u32 v)
+{
+	*(__le32 *)addr = cpu_to_le32(v);
+}
+
+/*
+** 32/64 bit macors
+*/
 #ifdef BITS_PER_LONG
  #if BITS_PER_LONG > 32 
   #define PLATFORM_GT_32BIT
@@ -360,8 +372,23 @@ diva_os_atomic_decrement(diva_os_atomic_t* pv)
  #endif
 #endif
 
+/*
+** undef os definitions of macros we use
+*/
 #undef ID_MASK
 #undef N_DATA
 #undef ADDR
+
+/*
+** dump file
+*/
+#define diva_os_dump_file_t char
+#define diva_os_board_trace_t char
+#define diva_os_dump_file(__x__) do { } while(0)
+
+/*
+** size of internal arrays
+*/
+#define MAX_DESCRIPTORS 64
 
 #endif	/* __PLATFORM_H__ */

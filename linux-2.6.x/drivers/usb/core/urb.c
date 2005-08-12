@@ -39,7 +39,7 @@ void usb_init_urb(struct urb *urb)
 {
 	if (urb) {
 		memset(urb, 0, sizeof(*urb));
-		kref_init(&urb->kref, urb_destroy);
+		kref_init(&urb->kref);
 		spin_lock_init(&urb->lock);
 	}
 }
@@ -88,7 +88,7 @@ struct urb *usb_alloc_urb(int iso_packets, int mem_flags)
 void usb_free_urb(struct urb *urb)
 {
 	if (urb)
-		kref_put(&urb->kref);
+		kref_put(&urb->kref, urb_destroy);
 }
 
 /**
@@ -121,7 +121,7 @@ struct urb * usb_get_urb(struct urb *urb)
  * describing that request to the USB subsystem.  Request completion will
  * be indicated later, asynchronously, by calling the completion handler.
  * The three types of completion are success, error, and unlink
- * (a software-induced fault, also called "request cancelation").  
+ * (a software-induced fault, also called "request cancellation").  
  *
  * URBs may be submitted in interrupt context.
  *
@@ -170,7 +170,7 @@ struct urb * usb_get_urb(struct urb *urb)
  * As of Linux 2.6, all USB endpoint transfer queues support depths greater
  * than one.  This was previously a HCD-specific behavior, except for ISO
  * transfers.  Non-isochronous endpoint queues are inactive during cleanup
- * after faults (transfer errors or cancelation).
+ * after faults (transfer errors or cancellation).
  *
  * Reserved Bandwidth Transfers:
  *
@@ -256,13 +256,6 @@ int usb_submit_urb(struct urb *urb, int mem_flags)
 	if (!usb_pipecontrol (pipe) && dev->state < USB_STATE_CONFIGURED)
 		return -ENODEV;
 
-	/* (actually HCDs may need to duplicate this, endpoint might yet
-	 * stall due to queued bulk/intr transactions that complete after
-	 * we check)
-	 */
-	if (usb_endpoint_halted (dev, usb_pipeendpoint (pipe), is_out))
-		return -EPIPE;
-
 	/* FIXME there should be a sharable lock protecting us against
 	 * config/altsetting changes and disconnects, kicking in here.
 	 * (here == before maxpacket, and eventually endpoint type,
@@ -271,11 +264,10 @@ int usb_submit_urb(struct urb *urb, int mem_flags)
 
 	max = usb_maxpacket (dev, pipe, is_out);
 	if (max <= 0) {
-		dbg ("%s: bogus endpoint %d-%s on usb-%s-%s (bad maxpacket %d)",
-			__FUNCTION__,
-			usb_pipeendpoint (pipe), is_out ? "OUT" : "IN",
-			dev->bus->bus_name, dev->devpath,
-			max);
+		dev_dbg(&dev->dev,
+			"bogus endpoint ep%d%s in %s (bad maxpacket %d)\n",
+			usb_pipeendpoint (pipe), is_out ? "out" : "in",
+			__FUNCTION__, max);
 		return -EMSGSIZE;
 	}
 
@@ -403,7 +395,7 @@ int usb_submit_urb(struct urb *urb, int mem_flags)
  *
  * This routine cancels an in-progress request.  URBs complete only
  * once per submission, and may be canceled only once per submission.
- * Successful cancelation means the requests's completion handler will
+ * Successful cancellation means the requests's completion handler will
  * be called with a status code indicating that the request has been
  * canceled (rather than any other code) and will quickly be removed
  * from host controller data structures.
@@ -428,12 +420,16 @@ int usb_submit_urb(struct urb *urb, int mem_flags)
  *
  * Host Controller Drivers (HCDs) place all the URBs for a particular
  * endpoint in a queue.  Normally the queue advances as the controller
- * hardware processes each request.  But when an URB terminates with any
- * fault (such as an error, or being unlinked) its queue stops, at least
- * until that URB's completion routine returns.  It is guaranteed that
- * the queue will not restart until all its unlinked URBs have been fully
- * retired, with their completion routines run, even if that's not until
- * some time after the original completion handler returns.
+ * hardware processes each request.  But when an URB terminates with an
+ * error its queue stops, at least until that URB's completion routine
+ * returns.  It is guaranteed that the queue will not restart until all
+ * its unlinked URBs have been fully retired, with their completion
+ * routines run, even if that's not until some time after the original
+ * completion handler returns.  Normally the same behavior and guarantees
+ * apply when an URB terminates because it was unlinked; however if an
+ * URB is unlinked before the hardware has started to execute it, then
+ * its queue is not guaranteed to stop until all the preceding URBs have
+ * completed.
  *
  * This means that USB device drivers can safely build deep queues for
  * large or complex transfers, and clean them up reliably after any sort
@@ -458,6 +454,13 @@ int usb_unlink_urb(struct urb *urb)
 	if (!urb)
 		return -EINVAL;
 	if (!(urb->transfer_flags & URB_ASYNC_UNLINK)) {
+#ifdef CONFIG_DEBUG_KERNEL
+		if (printk_ratelimit()) {
+			printk(KERN_NOTICE "usb_unlink_urb() is deprecated for "
+				"synchronous unlinks.  Use usb_kill_urb() instead.\n");
+			WARN_ON(1);
+		}
+#endif
 		usb_kill_urb(urb);
 		return 0;
 	}

@@ -31,7 +31,7 @@
  */
 static inline dev_info_t *which_dev(mddev_t *mddev, sector_t sector)
 {
-	struct linear_hash *hash;
+	dev_info_t *hash;
 	linear_conf_t *conf = mddev_to_conf(mddev);
 	sector_t block = sector >> 1;
 
@@ -39,14 +39,12 @@ static inline dev_info_t *which_dev(mddev_t *mddev, sector_t sector)
 	 * sector_div(a,b) returns the remainer and sets a to a/b
 	 */
 	(void)sector_div(block, conf->smallest->size);
-	hash = conf->hash_table + block;
+	hash = conf->hash_table[block];
 
-	if ((sector>>1) >= (hash->dev0->size + hash->dev0->offset))
-		return hash->dev1;
-	else
-		return hash->dev0;
+	while ((sector>>1) >= (hash->size + hash->offset))
+		hash++;
+	return hash;
 }
-
 
 /**
  *	linear_mergeable_bvec -- tell bio layer if a two requests can be merged
@@ -93,14 +91,33 @@ static void linear_unplug(request_queue_t *q)
 	}
 }
 
+static int linear_issue_flush(request_queue_t *q, struct gendisk *disk,
+			      sector_t *error_sector)
+{
+	mddev_t *mddev = q->queuedata;
+	linear_conf_t *conf = mddev_to_conf(mddev);
+	int i, ret = 0;
+
+	for (i=0; i < mddev->raid_disks && ret == 0; i++) {
+		struct block_device *bdev = conf->disks[i].rdev->bdev;
+		request_queue_t *r_queue = bdev_get_queue(bdev);
+
+		if (!r_queue->issue_flush_fn)
+			ret = -EOPNOTSUPP;
+		else
+			ret = r_queue->issue_flush_fn(r_queue, bdev->bd_disk, error_sector);
+	}
+	return ret;
+}
 
 static int linear_run (mddev_t *mddev)
 {
 	linear_conf_t *conf;
-	struct linear_hash *table;
+	dev_info_t **table;
 	mdk_rdev_t *rdev;
-	int size, i, nb_zone, cnt;
-	unsigned int curr_offset;
+	int i, nb_zone, cnt;
+	sector_t start;
+	sector_t curr_offset;
 	struct list_head *tmp;
 
 	conf = kmalloc (sizeof (*conf) + mddev->raid_disks*sizeof(dev_info_t),
@@ -137,7 +154,7 @@ static int linear_run (mddev_t *mddev)
 		 */
 		if (rdev->bdev->bd_disk->queue->merge_bvec_fn &&
 		    mddev->queue->max_sectors > (PAGE_SIZE>>9))
-			mddev->queue->max_sectors = (PAGE_SIZE>>9);
+			blk_queue_max_sectors(mddev->queue, PAGE_SIZE>>9);
 
 		disk->size = rdev->size;
 		mddev->array_size += rdev->size;
@@ -166,7 +183,7 @@ static int linear_run (mddev_t *mddev)
 		nb_zone = conf->nr_zones = sz + (round ? 1 : 0);
 	}
 			
-	conf->hash_table = kmalloc (sizeof (struct linear_hash) * nb_zone,
+	conf->hash_table = kmalloc (sizeof (dev_info_t*) * nb_zone,
 					GFP_KERNEL);
 	if (!conf->hash_table)
 		goto out;
@@ -175,7 +192,7 @@ static int linear_run (mddev_t *mddev)
 	 * Here we generate the linear hash table
 	 */
 	table = conf->hash_table;
-	size = 0;
+	start = 0;
 	curr_offset = 0;
 	for (i = 0; i < cnt; i++) {
 		dev_info_t *disk = conf->disks + i;
@@ -183,16 +200,12 @@ static int linear_run (mddev_t *mddev)
 		disk->offset = curr_offset;
 		curr_offset += disk->size;
 
-		if (size < 0) {
-			table[-1].dev1 = disk;
-		}
-		size += disk->size;
-
-		while (size>0) {
-			table->dev0 = disk;
-			table->dev1 = NULL;
-			size -= conf->smallest->size;
-			table++;
+		/* 'curr_offset' is the end of this disk
+		 * 'start' is the start of table
+		 */
+		while (start < curr_offset) {
+			*table++ = disk;
+			start += conf->smallest->size;
 		}
 	}
 	if (table-conf->hash_table != nb_zone)
@@ -200,6 +213,7 @@ static int linear_run (mddev_t *mddev)
 
 	blk_queue_merge_bvec(mddev->queue, linear_mergeable_bvec);
 	mddev->queue->unplug_fn = linear_unplug;
+	mddev->queue->issue_flush_fn = linear_issue_flush;
 	return 0;
 
 out:
@@ -212,6 +226,7 @@ static int linear_stop (mddev_t *mddev)
 {
 	linear_conf_t *conf = mddev_to_conf(mddev);
   
+	blk_sync_queue(mddev->queue); /* the unplug fn references 'conf'*/
 	kfree(conf->hash_table);
 	kfree(conf);
 
@@ -234,23 +249,17 @@ static int linear_make_request (request_queue_t *q, struct bio *bio)
 
 	tmp_dev = which_dev(mddev, bio->bi_sector);
 	block = bio->bi_sector >> 1;
-  
-	if (unlikely(!tmp_dev)) {
-		printk("linear_make_request: hash->dev1==NULL for block %llu\n",
-			(unsigned long long)block);
-		bio_io_error(bio, bio->bi_size);
-		return 0;
-	}
     
 	if (unlikely(block >= (tmp_dev->size + tmp_dev->offset)
 		     || block < tmp_dev->offset)) {
 		char b[BDEVNAME_SIZE];
 
 		printk("linear_make_request: Block %llu out of bounds on "
-			"dev %s size %ld offset %ld\n",
+			"dev %s size %llu offset %llu\n",
 			(unsigned long long)block,
 			bdevname(tmp_dev->rdev->bdev, b),
-			tmp_dev->size, tmp_dev->offset);
+			(unsigned long long)tmp_dev->size,
+		        (unsigned long long)tmp_dev->offset);
 		bio_io_error(bio, bio->bi_size);
 		return 0;
 	}
@@ -260,9 +269,8 @@ static int linear_make_request (request_queue_t *q, struct bio *bio)
 		 * split it.
 		 */
 		struct bio_pair *bp;
-		bp = bio_split(bio, bio_split_pool, 
-			       (bio->bi_sector + (bio->bi_size >> 9) -
-				(tmp_dev->offset + tmp_dev->size))<<1);
+		bp = bio_split(bio, bio_split_pool,
+			       ((tmp_dev->offset + tmp_dev->size)<<1) - bio->bi_sector);
 		if (linear_make_request(q, &bp->bio1))
 			generic_make_request(&bp->bio1);
 		if (linear_make_request(q, &bp->bio2))
@@ -284,17 +292,20 @@ static void linear_status (struct seq_file *seq, mddev_t *mddev)
 #ifdef MD_DEBUG
 	int j;
 	linear_conf_t *conf = mddev_to_conf(mddev);
+	sector_t s = 0;
   
 	seq_printf(seq, "      ");
 	for (j = 0; j < conf->nr_zones; j++)
 	{
 		char b[BDEVNAME_SIZE];
+		s += conf->smallest_size;
 		seq_printf(seq, "[%s",
-			   bdevname(conf->hash_table[j].dev0->rdev->bdev,b));
+			   bdevname(conf->hash_table[j][0].rdev->bdev,b));
 
-		if (conf->hash_table[j].dev1)
+		while (s > conf->hash_table[j][0].offset +
+		           conf->hash_table[j][0].size)
 			seq_printf(seq, "/%s] ",
-				   bdevname(conf->hash_table[j].dev1->rdev->bdev,b));
+				   bdevname(conf->hash_table[j][1].rdev->bdev,b));
 		else
 			seq_printf(seq, "] ");
 	}

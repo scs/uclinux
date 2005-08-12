@@ -364,6 +364,9 @@ int __init clps711xfb_init(void)
 {
 	int err = -ENOMEM;
 
+	if (fb_get_options("clps711xfb", NULL))
+		return -ENODEV;
+
 	cfb = kmalloc(sizeof(*cfb), GFP_KERNEL);
 	if (!cfb)
 		goto out;
@@ -372,7 +375,7 @@ int __init clps711xfb_init(void)
 	strcpy(cfb->fix.id, "clps711x");
 
 	cfb->fbops		= &clps7111fb_ops;
-	cfb->flags		= FBINFO_FLAG_DEFAULT;
+	cfb->flags		= FBINFO_DEFAULT;
 
 	clps711x_guess_lcd_params(cfb);
 
@@ -432,9 +435,7 @@ static void __exit clps711xfb_exit(void)
 	}
 }
 
-#ifdef MODULE
 module_init(clps711xfb_init);
-#endif
 module_exit(clps711xfb_exit);
 
 MODULE_AUTHOR("Russell King <rmk@arm.linux.org.uk>");

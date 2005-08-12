@@ -11,11 +11,11 @@
  * and additional input from James Simmon's port of Hannu Mallat's tdfx
  * driver.
  *
- * $Id$
- *
- * I have a Creative Graphics Blaster Exxtreme card - pm2fb on x86.
- * I have no access to other pm2fb implementations, and cannot test
- * on them. Therefore for now I am omitting Sparc and CVision code.
+ * I have a Creative Graphics Blaster Exxtreme card - pm2fb on x86.  I
+ * have no access to other pm2fb implementations. Sparc (and thus
+ * hopefully other big-endian) devices now work, thanks to a lot of
+ * testing work by Ron Murray. I have no access to CVision hardware,
+ * and therefore for now I am omitting the CVision code.
  *
  * Multiple boards support has been on the TODO list for ages.
  * Don't expect this to change.
@@ -29,6 +29,7 @@
 
 #include <linux/config.h>
 #include <linux/module.h>
+#include <linux/moduleparam.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/string.h>
@@ -47,10 +48,6 @@
 #error	"The endianness of the target host has not been defined."
 #endif
 
-#if defined(__BIG_ENDIAN) && !defined(__sparc__)
-#define PM2FB_BE_APERTURE
-#endif
-
 #if !defined(CONFIG_PCI)
 #error "Only generic PCI cards supported."
 #endif
@@ -63,19 +60,9 @@
 #endif
 
 /*
- * The 2.4 driver calls reset_card() at init time, where it also sets the
- * initial mode. I don't think the driver should touch the chip until
- * the console sets a video mode. So I was calling this at the start
- * of setting a mode. However, certainly on 1280x1024 depth 16 on my
- * PCI Graphics Blaster Exxtreme this causes the display to smear
- * slightly.  I don't know why. Guesses to jim.hague@acm.org.
- */
-#undef RESET_CARD_ON_MODE_SET
-
-/*
  * Driver data 
  */
-static char *mode __initdata = NULL;
+static char *mode __devinitdata = NULL;
 
 /*
  * The XFree GLINT driver will (I think to implement hardware cursor
@@ -86,8 +73,8 @@ static char *mode __initdata = NULL;
  * these flags allow the user to specify that requests for +ve sync
  * should be silently turned in -ve sync.
  */
-static int lowhsync __initdata = 0;
-static int lowvsync __initdata = 0;	
+static int lowhsync __devinitdata = 0;
+static int lowvsync __devinitdata = 0;
 
 /*
  * The hardware state of the graphics card that isn't part of the
@@ -97,17 +84,20 @@ struct pm2fb_par
 {
 	pm2type_t	type;		/* Board type */
 	u32		fb_size;	/* framebuffer memory size */
-	unsigned char*	v_fb;		/* virtual address of frame buffer */
-	unsigned char*	v_regs;		/* virtual address of p_regs */
+	unsigned char	__iomem *v_fb;  /* virtual address of frame buffer */
+	unsigned char	__iomem *v_regs;/* virtual address of p_regs */
 	u32 	   	memclock;	/* memclock */
 	u32		video;		/* video flags before blanking */
+	u32		mem_config;	/* MemConfig reg at probe */
+	u32		mem_control;	/* MemControl reg at probe */
+	u32		boot_address;	/* BootAddress reg at probe */
 };
 
 /*
  * Here we define the default structs fb_fix_screeninfo and fb_var_screeninfo
  * if we don't use modedb.
  */
-static struct fb_fix_screeninfo pm2fb_fix __initdata = {
+static struct fb_fix_screeninfo pm2fb_fix __devinitdata = {
 	.id =		"", 
 	.type =		FB_TYPE_PACKED_PIXELS,
 	.visual =	FB_VISUAL_PSEUDOCOLOR,
@@ -118,10 +108,9 @@ static struct fb_fix_screeninfo pm2fb_fix __initdata = {
 };
 
 /*
- * Default video mode. In case the modedb doesn't work, or we're
- * a module (in which case modedb doesn't really work).
+ * Default video mode. In case the modedb doesn't work.
  */
-static struct fb_var_screeninfo pm2fb_var __initdata = {
+static struct fb_var_screeninfo pm2fb_var __devinitdata = {
 	/* "640x480, 8 bpp @ 60 Hz */
 	.xres =		640,
 	.yres =		480,
@@ -149,12 +138,12 @@ static struct fb_var_screeninfo pm2fb_var __initdata = {
  * Utility functions
  */
 
-inline static u32 RD32(unsigned char* base, s32 off)
+inline static u32 RD32(unsigned char __iomem *base, s32 off)
 {
 	return fb_readl(base + off);
 }
 
-inline static void WR32(unsigned char* base, s32 off, u32 v)
+inline static void WR32(unsigned char __iomem *base, s32 off, u32 v)
 {
 	fb_writel(v, base + off);
 }
@@ -199,13 +188,6 @@ inline static void pm2_RDAC_WR(struct pm2fb_par* p, s32 idx, u32 v)
 	}	
 	mb();
 	pm2_WR(p, index, v);
-}
-
-inline static u32 pm2v_RDAC_RD(struct pm2fb_par* p, s32 idx)
-{
-	pm2_WR(p, PM2VR_RD_INDEX_LOW, idx & 0xff);
-	mb();
-	return pm2_RD(p, PM2VR_RD_INDEXED_DATA);
 }
 
 inline static void pm2v_RDAC_WR(struct pm2fb_par* p, s32 idx, u32 v)
@@ -350,7 +332,6 @@ static void clear_palette(struct pm2fb_par* p) {
 	}
 }
 
-#ifdef RESET_CARD_ON_MODE_SET
 static void reset_card(struct pm2fb_par* p)
 {
 	if (p->type == PM2_TYPE_PERMEDIA2V)
@@ -365,8 +346,14 @@ static void reset_card(struct pm2fb_par* p)
 	pm2_WR(p, PM2R_FIFO_DISCON, 1);
 	mb();
 #endif
+
+	/* Restore stashed memory config information from probe */
+	WAIT_FIFO(p, 3);
+	pm2_WR(p, PM2R_MEM_CONTROL, p->mem_control);
+	pm2_WR(p, PM2R_BOOT_ADDRESS, p->boot_address);
+	wmb();
+	pm2_WR(p, PM2R_MEM_CONFIG, p->mem_config);
 }
-#endif
 
 static void reset_config(struct pm2fb_par* p)
 {
@@ -426,27 +413,36 @@ static void reset_config(struct pm2fb_par* p)
 
 static void set_aperture(struct pm2fb_par* p, u32 depth)
 {
+	/*
+	 * The hardware is little-endian. When used in big-endian
+	 * hosts, the on-chip aperture settings are used where
+	 * possible to translate from host to card byte order.
+	 */
 	WAIT_FIFO(p, 4);
 #ifdef __LITTLE_ENDIAN
-	pm2_WR(p, PM2R_APERTURE_ONE, 0);
-	pm2_WR(p, PM2R_APERTURE_TWO, 0);
+	pm2_WR(p, PM2R_APERTURE_ONE, PM2F_APERTURE_STANDARD);
 #else
 	switch (depth) {
-	case 8:
-	case 24:
-		pm2_WR(p, PM2R_APERTURE_ONE, 0);
-		pm2_WR(p, PM2R_APERTURE_TWO, 1);
+	case 24:	/* RGB->BGR */
+		/*
+		 * We can't use the aperture to translate host to
+		 * card byte order here, so we switch to BGR mode
+		 * in pm2fb_set_par().
+		 */
+	case 8:		/* B->B */
+		pm2_WR(p, PM2R_APERTURE_ONE, PM2F_APERTURE_STANDARD);
 		break;
-	case 16:
-		pm2_WR(p, PM2R_APERTURE_ONE, 2);
-		pm2_WR(p, PM2R_APERTURE_TWO, 1);
+	case 16:	/* HL->LH */
+		pm2_WR(p, PM2R_APERTURE_ONE, PM2F_APERTURE_HALFWORDSWAP);
 		break;
-	case 32:
-		pm2_WR(p, PM2R_APERTURE_ONE, 1);
-		pm2_WR(p, PM2R_APERTURE_TWO, 1);
+	case 32:	/* RGBA->ABGR */
+		pm2_WR(p, PM2R_APERTURE_ONE, PM2F_APERTURE_BYTESWAP);
 		break;
 	}
 #endif
+
+	// We don't use aperture two, so this may be superflous
+	pm2_WR(p, PM2R_APERTURE_TWO, PM2F_APERTURE_STANDARD);
 }
 
 static void set_color(struct pm2fb_par* p, unsigned char regno,
@@ -460,6 +456,28 @@ static void set_color(struct pm2fb_par* p, unsigned char regno,
 	pm2_WR(p, PM2R_RD_PALETTE_DATA, g);
 	wmb();
 	pm2_WR(p, PM2R_RD_PALETTE_DATA, b);
+}
+
+static void set_memclock(struct pm2fb_par* par, u32 clk)
+{
+	int i;
+	unsigned char m, n, p;
+
+	pm2_mnp(clk, &m, &n, &p);
+	WAIT_FIFO(par, 10);
+	pm2_RDAC_WR(par, PM2I_RD_MEMORY_CLOCK_3, 6);
+	wmb();
+	pm2_RDAC_WR(par, PM2I_RD_MEMORY_CLOCK_1, m);
+	pm2_RDAC_WR(par, PM2I_RD_MEMORY_CLOCK_2, n);
+	wmb();
+	pm2_RDAC_WR(par, PM2I_RD_MEMORY_CLOCK_3, 8|p);
+	wmb();
+	pm2_RDAC_RD(par, PM2I_RD_MEMORY_CLOCK_STATUS);
+	rmb();
+	for (i = 256;
+	     i && !(pm2_RD(par, PM2R_RD_INDEXED_DATA) & PM2F_PLL_LOCKED);
+	     i--)
+		;
 }
 
 static void set_pixclock(struct pm2fb_par* par, u32 clk)
@@ -618,15 +636,23 @@ static int pm2fb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 		var->blue.offset  = 0;
 		var->blue.length  = 5;
 		break;
-	case 24:
+	case 32:
+		var->transp.offset = 24;
+		var->transp.length = 8;
 		var->red.offset	  = 16;
 		var->green.offset = 8;
 		var->blue.offset  = 0;
 		var->red.length = var->green.length = var->blue.length = 8;
-	case 32:
+		break;
+	case 24:
+#ifdef __BIG_ENDIAN
+		var->red.offset   = 0;
+		var->blue.offset  = 16;
+#else
 		var->red.offset   = 16;
-		var->green.offset = 8;
 		var->blue.offset  = 0;
+#endif
+		var->green.offset = 8;
 		var->red.length = var->green.length = var->blue.length = 8;
 		break;
 	}
@@ -656,18 +682,18 @@ static int pm2fb_set_par(struct fb_info *info)
 	u32 stride;
 	u32 base;
 	u32 video = 0;
-	u32 clrmode = PM2F_RD_COLOR_MODE_RGB;
+	u32 clrmode = PM2F_RD_COLOR_MODE_RGB | PM2F_RD_GUI_ACTIVE;
 	u32 txtmap = 0;
 	u32 pixsize = 0;
 	u32 clrformat = 0;
 	u32 xres;
 	int data64;
 
-#ifdef RESET_CARD_ON_MODE_SET
 	reset_card(par);
-#endif
 	reset_config(par);
 	clear_palette(par);
+	if ( par->memclock )
+		set_memclock(par, par->memclock);
     
 	width = (info->var.xres_virtual + 7) & ~7;
 	height = info->var.yres_virtual;
@@ -721,7 +747,7 @@ static int pm2fb_set_par(struct fb_info *info)
 	}
 	if ((info->var.vmode & FB_VMODE_MASK)==FB_VMODE_DOUBLE)
 		video |= PM2F_LINE_DOUBLE;
-	if (info->var.activate==FB_ACTIVATE_NOW)
+	if ((info->var.activate & FB_ACTIVATE_MASK)==FB_ACTIVATE_NOW)
 		video |= PM2F_VIDEO_ENABLE;
 	par->video = video;
 
@@ -751,24 +777,21 @@ static int pm2fb_set_par(struct fb_info *info)
 		break;
 	case 16:
 		pm2_WR(par, PM2R_FB_READ_PIXEL, 1);
-		clrmode |= PM2F_RD_TRUECOLOR | 0x06;
+		clrmode |= PM2F_RD_TRUECOLOR | PM2F_RD_PIXELFORMAT_RGB565;
 		txtmap = PM2F_TEXTEL_SIZE_16;
 		pixsize = 1;
 		clrformat = 0x70;
 		break;
 	case 32:
 		pm2_WR(par, PM2R_FB_READ_PIXEL, 2);
-		clrmode |= PM2F_RD_TRUECOLOR | 0x08;
+		clrmode |= PM2F_RD_TRUECOLOR | PM2F_RD_PIXELFORMAT_RGBA8888;
 		txtmap = PM2F_TEXTEL_SIZE_32;
 		pixsize = 2;
 		clrformat = 0x20;
 		break;
 	case 24:
 		pm2_WR(par, PM2R_FB_READ_PIXEL, 4);
-		clrmode |= PM2F_RD_TRUECOLOR | 0x09;
-#ifndef PM2FB_BE_APERTURE
-		clrmode &= ~PM2F_RD_COLOR_MODE_RGB;
-#endif
+		clrmode |= PM2F_RD_TRUECOLOR | PM2F_RD_PIXELFORMAT_RGB888;
 		txtmap = PM2F_TEXTEL_SIZE_24;
 		pixsize = 4;
 		clrformat = 0x20;
@@ -799,8 +822,7 @@ static int pm2fb_set_par(struct fb_info *info)
 	WAIT_FIFO(par, 4);
 	switch (par->type) {
 	case PM2_TYPE_PERMEDIA2:
-		pm2_RDAC_WR(par, PM2I_RD_COLOR_MODE,
-			    PM2F_RD_COLOR_MODE_RGB | PM2F_RD_GUI_ACTIVE | clrmode);
+		pm2_RDAC_WR(par, PM2I_RD_COLOR_MODE, clrmode);
 		break;
 	case PM2_TYPE_PERMEDIA2V:
 		pm2v_RDAC_WR(par, PM2VI_RD_PIXEL_SIZE, pixsize);
@@ -877,7 +899,6 @@ static int pm2fb_setcolreg(unsigned regno, unsigned red, unsigned green,
 		green = CNVT_TOHW(green, info->var.green.length);
 		blue = CNVT_TOHW(blue, info->var.blue.length);
 		transp = CNVT_TOHW(transp, info->var.transp.length);
-		set_color(par, regno, red, green, blue);
 		break;
 	case FB_VISUAL_DIRECTCOLOR:
 		/* example here assumes 8 bit DAC. Might be different 
@@ -904,12 +925,8 @@ static int pm2fb_setcolreg(unsigned regno, unsigned red, unsigned green,
 
 		switch (info->var.bits_per_pixel) {
 		case 8:
-			/* Yes some hand held devices have this. */ 
-           		((u8*)(info->pseudo_palette))[regno] = v;
 			break;	
    		case 16:
-           		((u16*)(info->pseudo_palette))[regno] = v;
-			break;
 		case 24:
 		case 32:	
            		((u32*)(info->pseudo_palette))[regno] = v;
@@ -917,7 +934,9 @@ static int pm2fb_setcolreg(unsigned regno, unsigned red, unsigned green,
 		}
 		return 0;
 	}
-	/* ... */
+	else if (info->fix.visual == FB_VISUAL_PSEUDOCOLOR)
+		set_color(par, regno, red, green, blue);
+
 	return 0;
 }
 
@@ -973,24 +992,26 @@ static int pm2fb_blank(int blank_mode, struct fb_info *info)
 
 	DPRINTK("blank_mode %d\n", blank_mode);
 
-	/* Turn everything on, then disable as requested. */
-	video |= (PM2F_VIDEO_ENABLE | PM2F_HSYNC_MASK | PM2F_VSYNC_MASK);
-
 	switch (blank_mode) {
-	case 0: 	/* Screen: On; HSync: On, VSync: On */
+	case FB_BLANK_UNBLANK:
+		/* Screen: On */
+		video |= PM2F_VIDEO_ENABLE;
 		break;
-	case 1: 	/* Screen: Off; HSync: On, VSync: On */
+	case FB_BLANK_NORMAL:
+		/* Screen: Off */
 		video &= ~PM2F_VIDEO_ENABLE;
 		break;
-	case 2: /* Screen: Off; HSync: On, VSync: Off */
-		video &= ~(PM2F_VIDEO_ENABLE | PM2F_VSYNC_MASK | PM2F_BLANK_LOW );
+	case FB_BLANK_VSYNC_SUSPEND:
+		/* VSync: Off */
+		video &= ~(PM2F_VSYNC_MASK | PM2F_BLANK_LOW );
 		break;
-	case 3: /* Screen: Off; HSync: Off, VSync: On */
-		video &= ~(PM2F_VIDEO_ENABLE | PM2F_HSYNC_MASK | PM2F_BLANK_LOW );
+	case FB_BLANK_HSYNC_SUSPEND:
+		/* HSync: Off */
+		video &= ~(PM2F_HSYNC_MASK | PM2F_BLANK_LOW );
 		break;
-	case 4: /* Screen: Off; HSync: Off, VSync: Off */
-		video &= ~(PM2F_VIDEO_ENABLE | PM2F_VSYNC_MASK | PM2F_HSYNC_MASK|
-			   PM2F_BLANK_LOW);
+	case FB_BLANK_POWERDOWN:
+		/* HSync: Off, VSync: Off */
+		video &= ~(PM2F_VSYNC_MASK | PM2F_HSYNC_MASK| PM2F_BLANK_LOW);
 		break;
 	}
 	set_video(par, video);
@@ -1035,7 +1056,6 @@ static int __devinit pm2fb_probe(struct pci_dev *pdev,
 	struct pm2fb_par *default_par;
 	struct fb_info *info;
 	int size, err;
-	u32 pci_mem_config;
 	int err_retval = -ENXIO;
 
 	err = pci_enable_device(pdev);
@@ -1068,9 +1088,15 @@ static int __devinit pm2fb_probe(struct pci_dev *pdev,
 	pm2fb_fix.mmio_start = pci_resource_start(pdev, 0);
 	pm2fb_fix.mmio_len = PM2_REGS_SIZE;
 
-#ifdef PM2FB_BE_APERTURE
+#if defined(__BIG_ENDIAN)
+	/*
+	 * PM2 has a 64k register file, mapped twice in 128k. Lower
+	 * map is little-endian, upper map is big-endian.
+	 */
 	pm2fb_fix.mmio_start += PM2_REGS_SIZE;
+	DPRINTK("Adjusting register base for big-endian.\n");
 #endif
+	DPRINTK("Register base at 0x%lx\n", pm2fb_fix.mmio_start);
     
 	/* Registers - request region and map it. */
 	if ( !request_mem_region(pm2fb_fix.mmio_start, pm2fb_fix.mmio_len,
@@ -1087,9 +1113,16 @@ static int __devinit pm2fb_probe(struct pci_dev *pdev,
 		goto err_exit_neither;
 	}
 
+	/* Stash away memory register info for use when we reset the board */
+	default_par->mem_control = pm2_RD(default_par, PM2R_MEM_CONTROL);
+	default_par->boot_address = pm2_RD(default_par, PM2R_BOOT_ADDRESS);
+	default_par->mem_config = pm2_RD(default_par, PM2R_MEM_CONFIG);
+	DPRINTK("MemControl 0x%x BootAddress 0x%x MemConfig 0x%x\n",
+		default_par->mem_control, default_par->boot_address,
+		default_par->mem_config);
+
 	/* Now work out how big lfb is going to be. */
-	pci_mem_config = RD32(default_par->v_regs, PM2R_MEM_CONFIG);
-	switch(pci_mem_config & PM2F_MEM_CONFIG_RAM_MASK) {
+	switch(default_par->mem_config & PM2F_MEM_CONFIG_RAM_MASK) {
 	case PM2F_MEM_BANKS_1:
 		default_par->fb_size=0x200000;
 		break;
@@ -1124,15 +1157,14 @@ static int __devinit pm2fb_probe(struct pci_dev *pdev,
 	info->fbops		= &pm2fb_ops;
 	info->fix		= pm2fb_fix; 	
 	info->pseudo_palette	= (void *)(default_par + 1); 
-	info->flags		= FBINFO_FLAG_DEFAULT;
+	info->flags		= FBINFO_DEFAULT |
+                                  FBINFO_HWACCEL_YPAN;
 
-#ifndef MODULE
 	if (!mode)
 		mode = "640x480@60";
 	 
 	err = fb_find_mode(&info->var, info, mode, NULL, 0, NULL, 8); 
 	if (!err || err == 4)
-#endif
 		info->var = pm2fb_var;
 
 	if (fb_alloc_cmap(&info->cmap, 256, 0) < 0)
@@ -1154,10 +1186,10 @@ static int __devinit pm2fb_probe(struct pci_dev *pdev,
  err_exit_all:
 	fb_dealloc_cmap(&info->cmap);	
  err_exit_both:    
-	iounmap((void*) pm2fb_fix.smem_start);
+	iounmap(info->screen_base);
 	release_mem_region(pm2fb_fix.smem_start, pm2fb_fix.smem_len);
  err_exit_mmio:
-	iounmap((void*) pm2fb_fix.mmio_start);
+	iounmap(default_par->v_regs);
 	release_mem_region(pm2fb_fix.mmio_start, pm2fb_fix.mmio_len);
  err_exit_neither:
 	framebuffer_release(info);
@@ -1175,12 +1207,13 @@ static void __devexit pm2fb_remove(struct pci_dev *pdev)
 {
 	struct fb_info* info = pci_get_drvdata(pdev);
 	struct fb_fix_screeninfo* fix = &info->fix;
-    
+	struct pm2fb_par *par = info->par;
+
 	unregister_framebuffer(info);
     
-	iounmap((void*) fix->smem_start);
+	iounmap(info->screen_base);
 	release_mem_region(fix->smem_start, fix->smem_len);
-	iounmap((void*) fix->mmio_start);
+	iounmap(par->v_regs);
 	release_mem_region(fix->mmio_start, fix->mmio_len);
 
 	pci_set_drvdata(pdev, NULL);
@@ -1210,34 +1243,13 @@ static struct pci_driver pm2fb_driver = {
 MODULE_DEVICE_TABLE(pci, pm2fb_id_table);
 
 
-/*
- *  Initialization
- */
-
-int __init pm2fb_init(void)
-{
-	return pci_module_init(&pm2fb_driver);
-}
-
-/*
- *  Cleanup
- */
-
-static void __exit pm2fb_exit(void)
-{
-	pci_unregister_driver(&pm2fb_driver);
-}
-
-/*
- *  Setup
- */
-
+#ifndef MODULE
 /**
  * Parse user speficied options.
  *
  * This is, comma-separated options following `video=pm2fb:'.
  */
-int __init pm2fb_setup(char *options)
+static int __init pm2fb_setup(char *options)
 {
 	char* this_opt;
 
@@ -1257,23 +1269,46 @@ int __init pm2fb_setup(char *options)
 	}
 	return 0;
 }
+#endif
 
 
-/* ------------------------------------------------------------------------- */
+static int __init pm2fb_init(void)
+{
+#ifndef MODULE
+	char *option = NULL;
 
-/* ------------------------------------------------------------------------- */
+	if (fb_get_options("pm2fb", &option))
+		return -ENODEV;
+	pm2fb_setup(option);
+#endif
 
+	return pci_register_driver(&pm2fb_driver);
+}
 
+module_init(pm2fb_init);
 
 #ifdef MODULE
-module_init(pm2fb_init);
-#endif 
+/*
+ *  Cleanup
+ */
+
+static void __exit pm2fb_exit(void)
+{
+	pci_unregister_driver(&pm2fb_driver);
+}
+#endif
+
+#ifdef MODULE
 module_exit(pm2fb_exit);
 
-MODULE_PARM(mode,"s");
-MODULE_PARM(lowhsync,"i");
-MODULE_PARM(lowvsync,"i");
+module_param(mode, charp, 0);
+MODULE_PARM_DESC(mode, "Preferred video mode e.g. '648x480-8@60'");
+module_param(lowhsync, bool, 0);
+MODULE_PARM_DESC(lowhsync, "Force horizontal sync low regardless of mode");
+module_param(lowvsync, bool, 0);
+MODULE_PARM_DESC(lowvsync, "Force vertical sync low regardless of mode");
 
 MODULE_AUTHOR("Jim Hague <jim.hague@acm.org>");
 MODULE_DESCRIPTION("Permedia2 framebuffer device driver");
 MODULE_LICENSE("GPL");
+#endif

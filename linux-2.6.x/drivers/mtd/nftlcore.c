@@ -421,7 +421,7 @@ static u16 NFTL_foldchain (struct NFTLrecord *nftl, unsigned thisVUC, unsigned p
 	return targetEUN;
 }
 
-u16 NFTL_makefreeblock( struct NFTLrecord *nftl , unsigned pendingblock)
+static u16 NFTL_makefreeblock( struct NFTLrecord *nftl , unsigned pendingblock)
 {
 	/* This is the part that needs some cleverness applied. 
 	   For now, I'm doing the minimum applicable to actually
@@ -731,7 +731,7 @@ static int nftl_getgeo(struct mtd_blktrans_dev *dev,  struct hd_geometry *geo)
  ****************************************************************************/
 
 
-struct mtd_blktrans_ops nftl_tr = {
+static struct mtd_blktrans_ops nftl_tr = {
 	.name		= "nftl",
 	.major		= NFTL_MAJOR,
 	.part_bits	= NFTL_PARTN_BITS,
@@ -747,7 +747,7 @@ struct mtd_blktrans_ops nftl_tr = {
 
 extern char nftlmountrev[];
 
-int __init init_nftl(void)
+static int __init init_nftl(void)
 {
 	printk(KERN_INFO "NFTL driver: nftlcore.c $Revision$, nftlmount.c %s\n", nftlmountrev);
 

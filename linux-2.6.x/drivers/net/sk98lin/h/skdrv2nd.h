@@ -53,60 +53,6 @@
 #include "h/skrlmt.h"
 #include "h/skgedrv.h"
 
-#define SK_PCI_ISCOMPLIANT(result, pdev) {     \
-    result = SK_FALSE; /* default */     \
-    /* 3Com (0x10b7) */     \
-    if (pdev->vendor == 0x10b7) {     \
-        /* Gigabit Ethernet Adapter (0x1700) */     \
-        if ((pdev->device == 0x1700) || \
-            (pdev->device == 0x80eb)) { \
-            result = SK_TRUE;     \
-        }     \
-    /* SysKonnect (0x1148) */     \
-    } else if (pdev->vendor == 0x1148) {     \
-        /* SK-98xx Gigabit Ethernet Server Adapter (0x4300) */     \
-        /* SK-98xx V2.0 Gigabit Ethernet Adapter (0x4320) */     \
-        if ((pdev->device == 0x4300) || \
-            (pdev->device == 0x4320)) { \
-            result = SK_TRUE;     \
-        }     \
-    /* D-Link (0x1186) */     \
-    } else if (pdev->vendor == 0x1186) {     \
-        /* Gigabit Ethernet Adapter (0x4c00) */     \
-        if ((pdev->device == 0x4c00)) { \
-            result = SK_TRUE;     \
-        }     \
-    /* Marvell (0x11ab) */     \
-    } else if (pdev->vendor == 0x11ab) {     \
-        /* Gigabit Ethernet Adapter (0x4320) */     \
-        /* Gigabit Ethernet Adapter (0x4360) */     \
-        /* Gigabit Ethernet Adapter (0x4361) */     \
-        /* Belkin (0x5005) */     \
-        if ((pdev->device == 0x4320) || \
-            (pdev->device == 0x4360) || \
-            (pdev->device == 0x4361) || \
-            (pdev->device == 0x5005)) { \
-            result = SK_TRUE;     \
-        }     \
-    /* CNet (0x1371) */     \
-    } else if (pdev->vendor == 0x1371) {     \
-        /* GigaCard Network Adapter (0x434e) */     \
-        if ((pdev->device == 0x434e)) { \
-            result = SK_TRUE;     \
-        }     \
-    /* Linksys (0x1737) */     \
-    } else if (pdev->vendor == 0x1737) {     \
-        /* Gigabit Network Adapter (0x1032) */     \
-        /* Gigabit Network Adapter (0x1064) */     \
-        if ((pdev->device == 0x1032) || \
-            (pdev->device == 0x1064)) { \
-            result = SK_TRUE;     \
-        }     \
-    } else {     \
-        result = SK_FALSE;     \
-    }     \
-}
-
 
 extern SK_MBUF		*SkDrvAllocRlmtMbuf(SK_AC*, SK_IOC, unsigned);
 extern void		SkDrvFreeRlmtMbuf(SK_AC*, SK_IOC, SK_MBUF*);
@@ -320,7 +266,6 @@ struct s_TxD {
 typedef struct s_DevNet DEV_NET;
 
 struct s_DevNet {
-	struct			proc_dir_entry *proc;
 	int             PortNr;
 	int             NetNr;
 	int             Mtu;
@@ -339,7 +284,7 @@ struct s_TxPort {
 	TXD		*pTxdRingPrev;	/* descriptor sent previously */
 	int		TxdRingFree;	/* # of free entrys */
 	spinlock_t	TxDesRingLock;	/* serialize descriptor accesses */
-	caddr_t		HwAddr;		/* bmu registers address */
+	SK_IOC		HwAddr;		/* bmu registers address */
 	int		PortIndex;	/* index number of port (0 or 1) */
 };
 
@@ -355,7 +300,7 @@ struct s_RxPort {
 	int		RxdRingFree;	/* # of free entrys */
 	spinlock_t	RxDesRingLock;	/* serialize descriptor accesses */
 	int		RxFillLimit;	/* limit for buffers in ring */
-	caddr_t		HwAddr;		/* bmu registers address */
+	SK_IOC		HwAddr;		/* bmu registers address */
 	int		PortIndex;	/* index number of port (0 or 1) */
 };
 
@@ -437,6 +382,8 @@ struct s_AC  {
 	SK_CSUM		Csum;		/* for checksum module */
 	SK_RLMT		Rlmt;		/* for rlmt module */
 	spinlock_t	SlowPathLock;	/* Normal IRQ lock */
+	struct timer_list BlinkTimer;	/* for LED blinking */
+	int		LedsOn;
 	SK_PNMI_STRUCT_DATA PnmiStruct;	/* structure to get all Pnmi-Data */
 	int			RlmtMode;	/* link check mode to set */
 	int			RlmtNets;	/* Number of nets */
@@ -449,7 +396,7 @@ struct s_AC  {
 	SK_U32		PciDevId;	/* pci device id */
 	struct SK_NET_DEVICE	*dev[2];	/* pointer to device struct */
 	char		Name[30];	/* driver name */
-	struct SK_NET_DEVICE	*Next;		/* link all devices (for clearing) */
+
 	int		RxBufSize;	/* length of receive buffers */
         struct net_device_stats stats;	/* linux 'netstat -i' statistics */
 	int		Index;		/* internal board index number */

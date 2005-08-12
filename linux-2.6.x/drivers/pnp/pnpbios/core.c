@@ -12,7 +12,7 @@
  * Minor reorganizations by David Hinds <dahinds@users.sourceforge.net>
  * Further modifications (C) 2001, 2002 by:
  *   Alan Cox <alan@redhat.com>
- *   Thomas Hood <jdthood@mail.com>
+ *   Thomas Hood
  *   Brian Gerst <bgerst@didntduck.org>
  *
  * Ported to the PnP Layer and several additional improvements (C) 2002
@@ -56,10 +56,12 @@
 #include <linux/mm.h>
 #include <linux/smp.h>
 #include <linux/slab.h>
-#include <linux/kmod.h>
+#include <linux/kobject_uevent.h>
 #include <linux/completion.h>
 #include <linux/spinlock.h>
 #include <linux/dmi.h>
+#include <linux/delay.h>
+#include <linux/acpi.h>
 
 #include <asm/page.h>
 #include <asm/desc.h>
@@ -177,10 +179,13 @@ static int pnp_dock_thread(void * unused)
 		/*
 		 * Poll every 2 seconds
 		 */
-		set_current_state(TASK_INTERRUPTIBLE);
-		schedule_timeout(HZ*2);
-		if(signal_pending(current))
+		msleep_interruptible(2000);
+
+		if(signal_pending(current)) {
+			if (try_to_freeze(PF_FREEZE))
+				continue;
 			break;
+		}
 
 		status = pnp_bios_dock_station_info(&now);
 
@@ -252,8 +257,10 @@ static int pnpbios_set_resources(struct pnp_dev * dev, struct pnp_resource_table
 	node = pnpbios_kmalloc(node_info.max_node_size, GFP_KERNEL);
 	if (!node)
 		return -1;
-	if (pnp_bios_get_dev_node(&nodenum, (char )PNPMODE_DYNAMIC, node))
+	if (pnp_bios_get_dev_node(&nodenum, (char )PNPMODE_DYNAMIC, node)) {
+		kfree(node);
 		return -ENODEV;
+	}
 	if(pnpbios_write_resources_to_node(res, node)<0) {
 		kfree(node);
 		return -1;
@@ -451,7 +458,7 @@ __setup("pnpbios=", pnpbios_setup);
 /* PnP BIOS signature: "$PnP" */
 #define PNP_SIGNATURE   (('$' << 0) + ('P' << 8) + ('n' << 16) + ('P' << 24))
 
-int __init pnpbios_probe_system(void)
+static int __init pnpbios_probe_system(void)
 {
 	union pnp_bios_install_struct *check;
 	u8 sum;
@@ -505,7 +512,7 @@ static int __init exploding_pnp_bios(struct dmi_system_id *d)
 	return 0;
 }
 
-static struct dmi_system_id pnpbios_dmi_table[] = {
+static struct dmi_system_id pnpbios_dmi_table[] __initdata = {
 	{	/* PnPBIOS GPF on boot */
 		.callback = exploding_pnp_bios,
 		.ident = "Higraded P14H",
@@ -527,7 +534,7 @@ static struct dmi_system_id pnpbios_dmi_table[] = {
 	{ }
 };
 
-int __init pnpbios_init(void)
+static int __init pnpbios_init(void)
 {
 	int ret;
 
@@ -535,6 +542,14 @@ int __init pnpbios_init(void)
 		printk(KERN_INFO "PnPBIOS: Disabled\n");
 		return -ENODEV;
 	}
+
+#ifdef CONFIG_PNPACPI
+	if (!acpi_disabled && !pnpacpi_disabled) {
+		pnpbios_disabled = 1;
+		printk(KERN_INFO "PnPBIOS: Disabled by ACPI PNP\n");
+		return -ENODEV;
+	}
+#endif /* CONFIG_ACPI */
 
 	/* scan the system for pnpbios support */
 	if (!pnpbios_probe_system())
@@ -572,6 +587,8 @@ subsys_initcall(pnpbios_init);
 
 static int __init pnpbios_thread_init(void)
 {
+	if (pnpbios_disabled)
+		return 0;
 #ifdef CONFIG_HOTPLUG
 	init_completion(&unload_sem);
 	if (kernel_thread(pnp_dock_thread, NULL, CLONE_KERNEL) > 0)

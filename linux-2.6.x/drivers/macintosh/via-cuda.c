@@ -32,8 +32,8 @@
 #include <asm/system.h>
 #include <linux/init.h>
 
-static volatile unsigned char *via;
-static spinlock_t cuda_lock = SPIN_LOCK_UNLOCKED;
+static volatile unsigned char __iomem *via;
+static DEFINE_SPINLOCK(cuda_lock);
 
 #ifdef CONFIG_MAC
 #define CUDA_IRQ IRQ_MAC_ADB
@@ -160,7 +160,7 @@ find_via_cuda(void)
 	if (vias->n_addrs < 1 || vias->n_intrs < 1)
 	    return 0;
     }
-    via = (volatile unsigned char *) ioremap(vias->addrs->address, 0x2000);
+    via = ioremap(vias->addrs->address, 0x2000);
 
     cuda_state = idle;
     sys_ctrler = SYS_CTRLER_CUDA;

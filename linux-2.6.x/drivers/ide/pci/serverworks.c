@@ -39,168 +39,21 @@
 
 #include <asm/io.h>
 
-#include "serverworks.h"
+#define SVWKS_CSB5_REVISION_NEW	0x92 /* min PCI_REVISION_ID for UDMA5 (A2.0) */
+#define SVWKS_CSB6_REVISION	0xa0 /* min PCI_REVISION_ID for UDMA4 (A1.0) */
+
+/* Seagate Barracuda ATA IV Family drives in UDMA mode 5
+ * can overrun their FIFOs when used with the CSB5 */
+static const char *svwks_bad_ata100[] = {
+	"ST320011A",
+	"ST340016A",
+	"ST360021A",
+	"ST380021A",
+	NULL
+};
 
 static u8 svwks_revision = 0;
 static struct pci_dev *isa_dev;
-
-#if defined(DISPLAY_SVWKS_TIMINGS) && defined(CONFIG_PROC_FS)
-#include <linux/stat.h>
-#include <linux/proc_fs.h>
-
-static u8 svwks_proc = 0;
-#define SVWKS_MAX_DEVS		2
-static struct pci_dev *svwks_devs[SVWKS_MAX_DEVS];
-static int n_svwks_devs;
-
-static int svwks_get_info (char *buffer, char **addr, off_t offset, int count)
-{
-	char *p = buffer;
-	int i, len;
-
-	p += sprintf(p, "\n                             "
-			"ServerWorks OSB4/CSB5/CSB6\n");
-
-	for (i = 0; i < n_svwks_devs; i++) {
-		struct pci_dev *dev = svwks_devs[i];
-		unsigned long bibma = pci_resource_start(dev, 4);
-		u32 reg40, reg44;
-		u16 reg48, reg56;
-		u8  reg54, c0=0, c1=0;
-
-		pci_read_config_dword(dev, 0x40, &reg40);
-		pci_read_config_dword(dev, 0x44, &reg44);
-		pci_read_config_word(dev, 0x48, &reg48);
-		pci_read_config_byte(dev, 0x54, &reg54);
-		pci_read_config_word(dev, 0x56, &reg56);
-
-		/*
-		 * at that point bibma+0x2 et bibma+0xa are byte registers
-		 * to investigate:
-		 */
-		c0 = inb_p(bibma + 0x02);
-		c1 = inb_p(bibma + 0x0a);
-
-		p += sprintf(p, "\n                            ServerWorks ");
-		switch(dev->device) {
-			case PCI_DEVICE_ID_SERVERWORKS_CSB6IDE2:
-			case PCI_DEVICE_ID_SERVERWORKS_CSB6IDE:
-				p += sprintf(p, "CSB6 ");
-				break;
-			case PCI_DEVICE_ID_SERVERWORKS_CSB5IDE:
-				p += sprintf(p, "CSB5 ");
-				break;
-			case PCI_DEVICE_ID_SERVERWORKS_OSB4IDE:
-				p += sprintf(p, "OSB4 ");
-				break;
-			default:
-				p += sprintf(p, "%04x ", dev->device);
-				break;
-		}
-		p += sprintf(p, "Chipset (rev %02x)\n", svwks_revision);
-
-		p += sprintf(p, "------------------------------- "
-				"General Status "
-				"---------------------------------\n");
-		p += sprintf(p, "--------------- Primary Channel "
-				"---------------- Secondary Channel "
-				"-------------\n");
-		p += sprintf(p, "                %sabled"
-				"                         %sabled\n",
-				(c0&0x80) ? "dis" : " en",
-				(c1&0x80) ? "dis" : " en");
-		p += sprintf(p, "--------------- drive0 --------- drive1 "
-				"-------- drive0 ---------- drive1 ------\n");
-		p += sprintf(p, "DMA enabled:    %s              %s"
-				"             %s               %s\n",
-			(c0&0x20) ? "yes" : "no ",
-			(c0&0x40) ? "yes" : "no ",
-			(c1&0x20) ? "yes" : "no ",
-			(c1&0x40) ? "yes" : "no " );
-		p += sprintf(p, "UDMA enabled:   %s              %s"
-				"             %s               %s\n",
-			(reg54 & 0x01) ? "yes" : "no ",
-			(reg54 & 0x02) ? "yes" : "no ",
-			(reg54 & 0x04) ? "yes" : "no ",
-			(reg54 & 0x08) ? "yes" : "no " );
-		p += sprintf(p, "UDMA enabled:   %s                %s"
-				"               %s                 %s\n",
-			((reg56&0x0005)==0x0005)?"5":
-				((reg56&0x0004)==0x0004)?"4":
-				((reg56&0x0003)==0x0003)?"3":
-				((reg56&0x0002)==0x0002)?"2":
-				((reg56&0x0001)==0x0001)?"1":
-				((reg56&0x000F))?"?":"0",
-			((reg56&0x0050)==0x0050)?"5":
-				((reg56&0x0040)==0x0040)?"4":
-				((reg56&0x0030)==0x0030)?"3":
-				((reg56&0x0020)==0x0020)?"2":
-				((reg56&0x0010)==0x0010)?"1":
-				((reg56&0x00F0))?"?":"0",
-			((reg56&0x0500)==0x0500)?"5":
-				((reg56&0x0400)==0x0400)?"4":
-				((reg56&0x0300)==0x0300)?"3":
-				((reg56&0x0200)==0x0200)?"2":
-				((reg56&0x0100)==0x0100)?"1":
-				((reg56&0x0F00))?"?":"0",
-			((reg56&0x5000)==0x5000)?"5":
-				((reg56&0x4000)==0x4000)?"4":
-				((reg56&0x3000)==0x3000)?"3":
-				((reg56&0x2000)==0x2000)?"2":
-				((reg56&0x1000)==0x1000)?"1":
-				((reg56&0xF000))?"?":"0");
-		p += sprintf(p, "DMA enabled:    %s                %s"
-				"               %s                 %s\n",
-			((reg44&0x00002000)==0x00002000)?"2":
-				((reg44&0x00002100)==0x00002100)?"1":
-				((reg44&0x00007700)==0x00007700)?"0":
-				((reg44&0x0000FF00)==0x0000FF00)?"X":"?",
-			((reg44&0x00000020)==0x00000020)?"2":
-				((reg44&0x00000021)==0x00000021)?"1":
-				((reg44&0x00000077)==0x00000077)?"0":
-				((reg44&0x000000FF)==0x000000FF)?"X":"?",
-			((reg44&0x20000000)==0x20000000)?"2":
-				((reg44&0x21000000)==0x21000000)?"1":
-				((reg44&0x77000000)==0x77000000)?"0":
-				((reg44&0xFF000000)==0xFF000000)?"X":"?",
-			((reg44&0x00200000)==0x00200000)?"2":
-				((reg44&0x00210000)==0x00210000)?"1":
-				((reg44&0x00770000)==0x00770000)?"0":
-				((reg44&0x00FF0000)==0x00FF0000)?"X":"?");
-
-		p += sprintf(p, "PIO  enabled:   %s                %s"
-				"               %s                 %s\n",
-			((reg40&0x00002000)==0x00002000)?"4":
-				((reg40&0x00002200)==0x00002200)?"3":
-				((reg40&0x00003400)==0x00003400)?"2":
-				((reg40&0x00004700)==0x00004700)?"1":
-				((reg40&0x00005D00)==0x00005D00)?"0":"?",
-			((reg40&0x00000020)==0x00000020)?"4":
-				((reg40&0x00000022)==0x00000022)?"3":
-				((reg40&0x00000034)==0x00000034)?"2":
-				((reg40&0x00000047)==0x00000047)?"1":
-				((reg40&0x0000005D)==0x0000005D)?"0":"?",
-			((reg40&0x20000000)==0x20000000)?"4":
-				((reg40&0x22000000)==0x22000000)?"3":
-				((reg40&0x34000000)==0x34000000)?"2":
-				((reg40&0x47000000)==0x47000000)?"1":
-				((reg40&0x5D000000)==0x5D000000)?"0":"?",
-			((reg40&0x00200000)==0x00200000)?"4":
-				((reg40&0x00220000)==0x00220000)?"3":
-				((reg40&0x00340000)==0x00340000)?"2":
-				((reg40&0x00470000)==0x00470000)?"1":
-				((reg40&0x005D0000)==0x005D0000)?"0":"?");
-
-	}
-	p += sprintf(p, "\n");
-
-	/* p - buffer must be less than 4k! */
-	len = (p - buffer) - offset;
-	*addr = buffer + offset;
-	
-	return len > count ? count : len;
-}
-#endif  /* defined(DISPLAY_SVWKS_TIMINGS) && defined(CONFIG_PROC_FS) */
 
 static int check_in_drive_lists (ide_drive_t *drive, const char **list)
 {
@@ -463,38 +316,16 @@ static int svwks_config_drive_xfer_rate (ide_drive_t *drive)
 	drive->init_speed = 0;
 
 	if ((id->capability & 1) && drive->autodma) {
-		/* Consult the list of known "bad" drives */
-		if (__ide_dma_bad_drive(drive))
-			goto fast_ata_pio;
-		if (id->field_valid & 4) {
-			if (id->dma_ultra & hwif->ultra_mask) {
-				/* Force if Capable UltraDMA */
-				int dma = config_chipset_for_dma(drive);
-				if ((id->field_valid & 2) && !dma)
-					goto try_dma_modes;
-			} else
-				/* UDMA disabled by mask, try other DMA modes */
-				goto try_dma_modes;
-		} else if (id->field_valid & 2) {
-try_dma_modes:
-			if ((id->dma_mword & hwif->mwdma_mask) ||
-			    (id->dma_1word & hwif->swdma_mask)) {
-				/* Force if Capable regular DMA modes */
-				if (!config_chipset_for_dma(drive))
-					goto no_dma_set;
-			}
-		} else if (__ide_dma_good_drive(drive) &&
-			   (id->eide_dma_time < 150)) {
-			/* Consult the list of known "good" drives */
-			if (!config_chipset_for_dma(drive))
-				goto no_dma_set;
-		} else {
-			goto no_dma_set;
+
+		if (ide_use_dma(drive)) {
+			if (config_chipset_for_dma(drive))
+				return hwif->ide_dma_on(drive);
 		}
-		return hwif->ide_dma_on(drive);
+
+		goto fast_ata_pio;
+
 	} else if ((id->capability & 8) || (id->field_valid & 2)) {
 fast_ata_pio:
-no_dma_set:
 		config_chipset_for_pio(drive);
 		//	hwif->tuneproc(drive, 5);
 		return hwif->ide_dma_off_quietly(drive);
@@ -510,7 +341,7 @@ static int svwks_ide_dma_end (ide_drive_t *drive)
 	return __ide_dma_end(drive);
 }
 
-static unsigned int __init init_chipset_svwks (struct pci_dev *dev, const char *name)
+static unsigned int __devinit init_chipset_svwks (struct pci_dev *dev, const char *name)
 {
 	unsigned int reg;
 	u8 btr;
@@ -539,11 +370,9 @@ static unsigned int __init init_chipset_svwks (struct pci_dev *dev, const char *
 	else if ((dev->device == PCI_DEVICE_ID_SERVERWORKS_CSB5IDE) ||
 		 (dev->device == PCI_DEVICE_ID_SERVERWORKS_CSB6IDE) ||
 		 (dev->device == PCI_DEVICE_ID_SERVERWORKS_CSB6IDE2)) {
-//		u32 pioreg = 0, dmareg = 0;
 
 		/* Third Channel Test */
 		if (!(PCI_FUNC(dev->devfn) & 1)) {
-#if 1
 			struct pci_dev * findev = NULL;
 			u32 reg4c = 0;
 			findev = pci_find_device(PCI_VENDOR_ID_SERVERWORKS,
@@ -555,19 +384,11 @@ static unsigned int __init init_chipset_svwks (struct pci_dev *dev, const char *
 				reg4c |=  0x00000020;
 				pci_write_config_dword(findev, 0x4C, reg4c);
 			}
-#endif
 			outb_p(0x06, 0x0c00);
 			dev->irq = inb_p(0x0c01);
 #if 0
-			/* WE need to figure out how to get the correct one */
-			printk("%s: interrupt %d\n", name, dev->irq);
-			if (dev->irq != 0x0B)
-				dev->irq = 0x0B;
-#endif
-#if 0
 			printk("%s: device class (0x%04x)\n",
 				name, dev->class);
-#else
 			if ((dev->class >> 8) != PCI_CLASS_STORAGE_IDE) {
 				dev->class &= ~0x000F0F00;
 		//		dev->class |= ~0x00000400;
@@ -593,7 +414,8 @@ static unsigned int __init init_chipset_svwks (struct pci_dev *dev, const char *
 			 * interrupt pin to be set, and it is a compatibility
 			 * mode issue.
 			 */
-			dev->irq = 0;
+			if ((dev->class >> 8) == PCI_CLASS_STORAGE_IDE)
+				dev->irq = 0;
 		}
 //		pci_read_config_dword(dev, 0x40, &pioreg)
 //		pci_write_config_dword(dev, 0x40, 0x99999999);
@@ -616,16 +438,6 @@ static unsigned int __init init_chipset_svwks (struct pci_dev *dev, const char *
 			btr |= (svwks_revision >= SVWKS_CSB5_REVISION_NEW) ? 0x3 : 0x2;
 		pci_write_config_byte(dev, 0x5A, btr);
 	}
-
-
-#if defined(DISPLAY_SVWKS_TIMINGS) && defined(CONFIG_PROC_FS)
-	svwks_devs[n_svwks_devs++] = dev;
-
-	if (!svwks_proc) {
-		svwks_proc = 1;
-		ide_pci_create_host_proc("svwks", svwks_get_info);
-	}
-#endif /* DISPLAY_SVWKS_TIMINGS && CONFIG_PROC_FS */
 
 	return (dev->irq) ? dev->irq : 0;
 }
@@ -696,7 +508,7 @@ static unsigned int __init ata66_svwks (ide_hwif_t *hwif)
 }
 
 #undef CAN_SW_DMA
-static void __init init_hwif_svwks (ide_hwif_t *hwif)
+static void __devinit init_hwif_svwks (ide_hwif_t *hwif)
 {
 	u8 dma_stat = 0;
 
@@ -744,7 +556,7 @@ static void __init init_hwif_svwks (ide_hwif_t *hwif)
 /*
  * We allow the BM-DMA driver to only work on enabled interfaces.
  */
-static void __init init_dma_svwks (ide_hwif_t *hwif, unsigned long dmabase)
+static void __devinit init_dma_svwks (ide_hwif_t *hwif, unsigned long dmabase)
 {
 	struct pci_dev *dev = hwif->pci_dev;
 
@@ -756,20 +568,17 @@ static void __init init_dma_svwks (ide_hwif_t *hwif, unsigned long dmabase)
 	ide_setup_dma(hwif, dmabase, 8);
 }
 
-static void __init init_setup_svwks (struct pci_dev *dev, ide_pci_device_t *d)
+static int __devinit init_setup_svwks (struct pci_dev *dev, ide_pci_device_t *d)
 {
-	ide_setup_pci_device(dev, d);
+	return ide_setup_pci_device(dev, d);
 }
 
-static void __init init_setup_csb6 (struct pci_dev *dev, ide_pci_device_t *d)
+static int __init init_setup_csb6 (struct pci_dev *dev, ide_pci_device_t *d)
 {
 	if (!(PCI_FUNC(dev->devfn) & 1)) {
 		d->bootable = NEVER_BOARD;
 		if (dev->resource[0].start == 0x01f1)
 			d->bootable = ON_BOARD;
-	} else {
-		if ((dev->class >> 8) != PCI_CLASS_STORAGE_IDE)
-			return;
 	}
 #if 0
 	if ((IDE_PCI_DEVID_EQ(d->devid, DEVID_CSB6) &&
@@ -781,9 +590,47 @@ static void __init init_setup_csb6 (struct pci_dev *dev, ide_pci_device_t *d)
 			dev->device == PCI_DEVICE_ID_SERVERWORKS_CSB6IDE2) &&
 		       (!(PCI_FUNC(dev->devfn) & 1))) ? 1 : 2;
 
-	ide_setup_pci_device(dev, d);
+	return ide_setup_pci_device(dev, d);
 }
 
+static ide_pci_device_t serverworks_chipsets[] __devinitdata = {
+	{	/* 0 */
+		.name		= "SvrWks OSB4",
+		.init_setup	= init_setup_svwks,
+		.init_chipset	= init_chipset_svwks,
+		.init_hwif	= init_hwif_svwks,
+		.channels	= 2,
+		.autodma	= AUTODMA,
+		.bootable	= ON_BOARD,
+	},{	/* 1 */
+		.name		= "SvrWks CSB5",
+		.init_setup	= init_setup_svwks,
+		.init_chipset	= init_chipset_svwks,
+		.init_hwif	= init_hwif_svwks,
+		.init_dma	= init_dma_svwks,
+		.channels	= 2,
+		.autodma	= AUTODMA,
+		.bootable	= ON_BOARD,
+	},{	/* 2 */
+		.name		= "SvrWks CSB6",
+		.init_setup	= init_setup_csb6,
+		.init_chipset	= init_chipset_svwks,
+		.init_hwif	= init_hwif_svwks,
+		.init_dma	= init_dma_svwks,
+		.channels	= 2,
+		.autodma	= AUTODMA,
+		.bootable	= ON_BOARD,
+	},{	/* 3 */
+		.name		= "SvrWks CSB6",
+		.init_setup	= init_setup_csb6,
+		.init_chipset	= init_chipset_svwks,
+		.init_hwif	= init_hwif_svwks,
+		.init_dma	= init_dma_svwks,
+		.channels	= 1,	/* 2 */
+		.autodma	= AUTODMA,
+		.bootable	= ON_BOARD,
+	}
+};
 
 /**
  *	svwks_init_one	-	called when a OSB/CSB is found
@@ -798,8 +645,7 @@ static int __devinit svwks_init_one(struct pci_dev *dev, const struct pci_device
 {
 	ide_pci_device_t *d = &serverworks_chipsets[id->driver_data];
 
-	d->init_setup(dev, d);
-	return 0;
+	return d->init_setup(dev, d);
 }
 
 static struct pci_device_id svwks_pci_tbl[] = {
@@ -812,13 +658,9 @@ static struct pci_device_id svwks_pci_tbl[] = {
 MODULE_DEVICE_TABLE(pci, svwks_pci_tbl);
 
 static struct pci_driver driver = {
-	.name		= "Serverworks IDE",
+	.name		= "Serverworks_IDE",
 	.id_table	= svwks_pci_tbl,
 	.probe		= svwks_init_one,
-#if 0	/* FIXME: implement */
-	.suspend	= ,
-	.resume		= ,
-#endif
 };
 
 static int svwks_ide_init(void)

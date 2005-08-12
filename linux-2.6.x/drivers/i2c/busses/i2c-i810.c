@@ -70,7 +70,7 @@
 #define CYCLE_DELAY		10
 #define TIMEOUT			(HZ / 2)
 
-static void *ioaddr;
+static void __iomem *ioaddr;
 
 /* The i810 GPIO registers have individual masks for each bit
    so we never have to read before writing. Nice. */
@@ -201,6 +201,8 @@ static struct pci_device_id i810_ids[] __devinitdata = {
 	{ 0, },
 };
 
+MODULE_DEVICE_TABLE (pci, i810_ids);
+
 static int __devinit i810_probe(struct pci_dev *dev, const struct pci_device_id *id)
 {
 	int retval;
@@ -231,7 +233,7 @@ static void __devexit i810_remove(struct pci_dev *dev)
 }
 
 static struct pci_driver i810_driver = {
-	.name		= "i810 smbus",
+	.name		= "i810_smbus",
 	.id_table	= i810_ids,
 	.probe		= i810_probe,
 	.remove		= __devexit_p(i810_remove),
@@ -239,7 +241,7 @@ static struct pci_driver i810_driver = {
 
 static int __init i2c_i810_init(void)
 {
-	return pci_module_init(&i810_driver);
+	return pci_register_driver(&i810_driver);
 }
 
 static void __exit i2c_i810_exit(void)

@@ -88,73 +88,13 @@ static irqreturn_t aac_rx_intr(int irq, void *dev_id, struct pt_regs *regs)
 }
 
 /**
- *	aac_rx_enable_interrupt	-	Enable event reporting
- *	@dev: Adapter
- *	@event: Event to enable
- *
- *	Enable event reporting from the i960 for a given event.
- */
- 
-static void aac_rx_enable_interrupt(struct aac_dev * dev, u32 event)
-{
-	switch (event) {
-
-	case HostNormCmdQue:
-		dev->irq_mask &= ~(OUTBOUNDDOORBELL_1);
-		break;
-
-	case HostNormRespQue:
-		dev->irq_mask &= ~(OUTBOUNDDOORBELL_2);
-		break;
-
-	case AdapNormCmdNotFull:
-		dev->irq_mask &= ~(OUTBOUNDDOORBELL_3);
-		break;
-
-	case AdapNormRespNotFull:
-		dev->irq_mask &= ~(OUTBOUNDDOORBELL_4);
-		break;
-	}
-}
-
-/**
- *	aac_rx_disable_interrupt	-	Disable event reporting
- *	@dev: Adapter
- *	@event: Event to enable
- *
- *	Disable event reporting from the i960 for a given event.
- */
-
-static void aac_rx_disable_interrupt(struct aac_dev *dev, u32 event)
-{
-	switch (event) {
-
-	case HostNormCmdQue:
-		dev->irq_mask |= (OUTBOUNDDOORBELL_1);
-		break;
-
-	case HostNormRespQue:
-		dev->irq_mask |= (OUTBOUNDDOORBELL_2);
-		break;
-
-	case AdapNormCmdNotFull:
-		dev->irq_mask |= (OUTBOUNDDOORBELL_3);
-		break;
-
-	case AdapNormRespNotFull:
-		dev->irq_mask |= (OUTBOUNDDOORBELL_4);
-		break;
-	}
-}
-
-/**
  *	rx_sync_cmd	-	send a command and wait
  *	@dev: Adapter
  *	@command: Command to execute
  *	@p1: first parameter
  *	@ret: adapter status
  *
- *	This routine will send a synchronous comamnd to the adapter and wait 
+ *	This routine will send a synchronous command to the adapter and wait 
  *	for its	completion.
  */
 
@@ -165,11 +105,11 @@ static int rx_sync_cmd(struct aac_dev *dev, u32 command, u32 p1, u32 *status)
 	/*
 	 *	Write the command into Mailbox 0
 	 */
-	rx_writel(dev, InboundMailbox0, cpu_to_le32(command));
+	rx_writel(dev, InboundMailbox0, command);
 	/*
 	 *	Write the parameters into Mailboxes 1 - 4
 	 */
-	rx_writel(dev, InboundMailbox1, cpu_to_le32(p1));
+	rx_writel(dev, InboundMailbox1, p1);
 	rx_writel(dev, InboundMailbox2, 0);
 	rx_writel(dev, InboundMailbox3, 0);
 	rx_writel(dev, InboundMailbox4, 0);
@@ -227,7 +167,8 @@ static int rx_sync_cmd(struct aac_dev *dev, u32 command, u32 p1, u32 *status)
 	/*
 	 *	Pull the synch status from Mailbox 0.
 	 */
-	*status = le32_to_cpu(rx_readl(dev, IndexRegs.Mailbox[0]));
+	if (status)
+		*status = rx_readl(dev, IndexRegs.Mailbox[0]);
 	/*
 	 *	Clear the synch command doorbell.
 	 */
@@ -334,7 +275,7 @@ static void aac_rx_start_adapter(struct aac_dev *dev)
  */
 static int aac_rx_check_health(struct aac_dev *dev)
 {
-	long status = rx_readl(dev, IndexRegs.Mailbox[7]);
+	u32 status = rx_readl(dev, MUnit.OMRx[0]);
 
 	/*
 	 *	Check to see if the board failed any self tests.
@@ -345,29 +286,39 @@ static int aac_rx_check_health(struct aac_dev *dev)
 	 *	Check to see if the board panic'd.
 	 */
 	if (status & KERNEL_PANIC) {
-		char * buffer = kmalloc(512, GFP_KERNEL);
+		char * buffer;
 		struct POSTSTATUS {
 			u32 Post_Command;
 			u32 Post_Address;
-		} * post = kmalloc(sizeof(struct POSTSTATUS), GFP_KERNEL);
-		dma_addr_t paddr = pci_map_single(dev->pdev, post, sizeof(struct POSTSTATUS), 2);
-		dma_addr_t baddr = pci_map_single(dev->pdev, buffer, 512, 1);
-		u32 status = -1;
-		int ret = -2;
+		} * post;
+		dma_addr_t paddr, baddr;
+		int ret;
+
+		if ((status & 0xFF000000L) == 0xBC000000L)
+			return (status >> 16) & 0xFF;
+		buffer = pci_alloc_consistent(dev->pdev, 512, &baddr);
+		ret = -2;
+		if (buffer == NULL)
+			return ret;
+		post = pci_alloc_consistent(dev->pdev,
+		  sizeof(struct POSTSTATUS), &paddr);
+		if (post == NULL) {
+			pci_free_consistent(dev->pdev, 512, buffer, baddr);
+			return ret;
+		}
 		memset(buffer, 0, 512);
 		post->Post_Command = cpu_to_le32(COMMAND_POST_RESULTS);
 		post->Post_Address = cpu_to_le32(baddr);
-		rx_writel(dev, MUnit.IMRx[0], cpu_to_le32(paddr));
+		rx_writel(dev, MUnit.IMRx[0], paddr);
 		rx_sync_cmd(dev, COMMAND_POST_RESULTS, baddr, &status);
-		pci_unmap_single(dev->pdev, paddr, sizeof(struct POSTSTATUS), 2);
-		kfree(post);
+		pci_free_consistent(dev->pdev, sizeof(struct POSTSTATUS),
+		  post, paddr);
 		if ((buffer[0] == '0') && (buffer[1] == 'x')) {
 			ret = (buffer[2] <= '9') ? (buffer[2] - '0') : (buffer[2] - 'A' + 10);
 			ret <<= 4;
 			ret += (buffer[3] <= '9') ? (buffer[3] - '0') : (buffer[3] - 'A' + 10);
 		}
-		pci_unmap_single(dev->pdev, baddr, 512, 1);
-		kfree(buffer);
+		pci_free_consistent(dev->pdev, 512, buffer, baddr);
 		return ret;
 	}
 	/*
@@ -379,7 +330,7 @@ static int aac_rx_check_health(struct aac_dev *dev)
 	 *	Everything is OK
 	 */
 	return 0;
-} /* aac_rx_check_health */
+}
 
 /**
  *	aac_rx_init	-	initialize an i960 based AAC card
@@ -403,7 +354,7 @@ int aac_rx_init(struct aac_dev *dev)
 	/*
 	 *	Map in the registers from the adapter.
 	 */
-	if((dev->regs.rx = (struct rx_registers *)ioremap((unsigned long)dev->scsi_host_ptr->base, 8192))==NULL)
+	if((dev->regs.rx = ioremap((unsigned long)dev->scsi_host_ptr->base, 8192))==NULL)
 	{	
 		printk(KERN_WARNING "aacraid: unable to map i960.\n" );
 		return -1;
@@ -438,8 +389,9 @@ int aac_rx_init(struct aac_dev *dev)
 	{
 		if(time_after(jiffies, start+180*HZ))
 		{
-			status = rx_readl(dev, IndexRegs.Mailbox[7]) >> 16;
-			printk(KERN_ERR "%s%d: adapter kernel failed to start, init status = %ld.\n", dev->name, instance, status);
+			status = rx_readl(dev, IndexRegs.Mailbox[7]);
+			printk(KERN_ERR "%s%d: adapter kernel failed to start, init status = %lx.\n", 
+					dev->name, instance, status);
 			goto error_iounmap;
 		}
 		set_current_state(TASK_UNINTERRUPTIBLE);
@@ -454,8 +406,6 @@ int aac_rx_init(struct aac_dev *dev)
 	 *	Fill in the function dispatch table.
 	 */
 	dev->a_ops.adapter_interrupt = aac_rx_interrupt_adapter;
-	dev->a_ops.adapter_enable_int = aac_rx_enable_interrupt;
-	dev->a_ops.adapter_disable_int = aac_rx_disable_interrupt;
 	dev->a_ops.adapter_notify = aac_rx_notify_adapter;
 	dev->a_ops.adapter_sync_cmd = rx_sync_cmd;
 	dev->a_ops.adapter_check_health = aac_rx_check_health;

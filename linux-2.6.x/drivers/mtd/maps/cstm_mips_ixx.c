@@ -58,7 +58,7 @@
 #if defined(CONFIG_MIPS_ITE8172) || defined(CONFIG_MIPS_IVR)
 void cstm_mips_ixx_set_vpp(struct map_info *map,int vpp)
 {
-	static spinlock_t vpp_lock = SPIN_LOCK_UNLOCKED;
+	static DEFINE_SPINLOCK(vpp_lock);
 	static int vpp_count = 0;
 	unsigned long flags;
 
@@ -170,7 +170,7 @@ int __init init_cstm_mips_ixx(void)
 
 
 		cstm_mips_ixx_map[i].phys = cstm_mips_ixx_board_desc[i].window_addr;
-		cstm_mips_ixx_map[i].virt = (unsigned long)ioremap(cstm_mips_ixx_board_desc[i].window_addr, cstm_mips_ixx_board_desc[i].window_size);
+		cstm_mips_ixx_map[i].virt = ioremap(cstm_mips_ixx_board_desc[i].window_addr, cstm_mips_ixx_board_desc[i].window_size);
 		if (!cstm_mips_ixx_map[i].virt) {
 			printk(KERN_WARNING "Failed to ioremap\n");
 			return -EIO;

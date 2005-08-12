@@ -10,7 +10,6 @@
  *
  *  Framebuffer for LCD controller in TMPR3912/05 and PR31700 processors
  */
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
@@ -35,11 +34,7 @@ static u32 cfb8[16];
 
 static struct fb_fix_screeninfo tx3912fb_fix __initdata = {
 	.id =		"tx3912fb",
-#ifdef CONFIG_NINO_16MB
-	.smem_len =	(240 * 320),
-#else
 	.smem_len =	((240 * 320)/2),
-#endif
 	.type =		FB_TYPE_PACKED_PIXELS,
 	.visual =	FB_VISUAL_TRUECOLOR, 
 	.xpanstep =	1,
@@ -53,14 +48,10 @@ static struct fb_var_screeninfo tx3912fb_var = {
 	.yres =		320,
 	.xres_virtual =	240,
 	.yres_virtual =	320,
-#ifdef CONFIG_NINO_16MB
-	.bits_per_pixel =8,
-	.red =		{ 5, 3, 0 },	/* RGB 332 */
-	.green =	{ 2, 3, 0 },
-	.blue =		{ 0, 2, 0 },
-#else
 	.bits_per_pixel =4,
-#endif
+	.red =		{ 0, 4, 0 },	/* ??? */
+	.green =	{ 0, 4, 0 },
+	.blue =		{ 0, 4, 0 },
 	.activate =	FB_ACTIVATE_NOW,
 	.width =	-1,
 	.height =	-1,
@@ -205,6 +196,8 @@ static int tx3912fb_setcolreg(u_int regno, u_int red, u_int green,
 	return 0;
 }
 
+int __init tx3912fb_setup(char *options);
+
 /*
  * Initialization of the framebuffer
  */
@@ -212,6 +205,11 @@ int __init tx3912fb_init(void)
 {
 	u_long tx3912fb_paddr = 0;
 	int size = (info->var.bits_per_pixel == 8) ? 256 : 16;
+	char *option = NULL;
+
+	if (fb_get_options("tx3912fb", &option))
+		return -ENODEV;
+	tx3912fb_setup(option);
 
 	/* Disable the video logic */
 	outl(inl(TX3912_VIDEO_CTRL1) &
@@ -296,7 +294,7 @@ int __init tx3912fb_init(void)
 	fb_info.var = tx3912fb_var;
 	fb_info.fix = tx3912fb_fix;
 	fb_info.pseudo_palette = pseudo_palette;
-	fb_info.flags = FBINFO_FLAG_DEFAULT;
+	fb_info.flags = FBINFO_DEFAULT;
 
 	/* Clear the framebuffer */
 	memset((void *) fb_info.fix.smem_start, 0xff, fb_info.fix.smem_len);
@@ -326,4 +324,5 @@ int __init tx3912fb_setup(char *options)
 	return 0;
 }
 
+module_init(tx3912fb_init);
 MODULE_LICENSE("GPL");

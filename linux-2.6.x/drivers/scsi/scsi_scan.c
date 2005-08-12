@@ -39,6 +39,7 @@
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_request.h>
 #include <scsi/scsi_transport.h>
+#include <scsi/scsi_eh.h>
 
 #include "scsi_priv.h"
 #include "scsi_logging.h"
@@ -199,13 +200,15 @@ static void print_inquiry(unsigned char *inq_result)
  * Return value:
  *     scsi_Device pointer, or NULL on failure.
  **/
-static struct scsi_device *scsi_alloc_sdev(struct Scsi_Host *shost,
-	       	uint channel, uint id, uint lun)
+static struct scsi_device *scsi_alloc_sdev(struct scsi_target *starget,
+					   unsigned int lun, void *hostdata)
 {
-	struct scsi_device *sdev, *device;
-	unsigned long flags;
+	struct scsi_device *sdev;
+	int display_failure_msg = 1, ret;
+	struct Scsi_Host *shost = dev_to_shost(starget->dev.parent);
 
-	sdev = kmalloc(sizeof(*sdev) + shost->transportt->size, GFP_ATOMIC);
+	sdev = kmalloc(sizeof(*sdev) + shost->transportt->device_size,
+		       GFP_ATOMIC);
 	if (!sdev)
 		goto out;
 
@@ -214,9 +217,9 @@ static struct scsi_device *scsi_alloc_sdev(struct Scsi_Host *shost,
 	sdev->model = scsi_null_device_strs;
 	sdev->rev = scsi_null_device_strs;
 	sdev->host = shost;
-	sdev->id = id;
+	sdev->id = starget->id;
 	sdev->lun = lun;
-	sdev->channel = channel;
+	sdev->channel = starget->channel;
 	sdev->sdev_state = SDEV_CREATED;
 	INIT_LIST_HEAD(&sdev->siblings);
 	INIT_LIST_HEAD(&sdev->same_target_siblings);
@@ -224,6 +227,11 @@ static struct scsi_device *scsi_alloc_sdev(struct Scsi_Host *shost,
 	INIT_LIST_HEAD(&sdev->starved_entry);
 	spin_lock_init(&sdev->list_lock);
 
+	sdev->sdev_gendev.parent = get_device(&starget->dev);
+	sdev->sdev_target = starget;
+
+	/* usually NULL and set by ->slave_alloc instead */
+	sdev->hostdata = hostdata;
 
 	/* if the device needs this changing, it may do so in the
 	 * slave_configure function */
@@ -241,90 +249,154 @@ static struct scsi_device *scsi_alloc_sdev(struct Scsi_Host *shost,
 	 */
 	sdev->borken = 1;
 
-	spin_lock_init(&sdev->sdev_lock);
 	sdev->request_queue = scsi_alloc_queue(sdev);
-	if (!sdev->request_queue)
-		goto out_free_dev;
+	if (!sdev->request_queue) {
+		/* release fn is set up in scsi_sysfs_device_initialise, so
+		 * have to free and put manually here */
+		put_device(&starget->dev);
+		goto out;
+	}
 
 	sdev->request_queue->queuedata = sdev;
 	scsi_adjust_queue_depth(sdev, 0, sdev->host->cmd_per_lun);
 
+	scsi_sysfs_device_initialize(sdev);
+
 	if (shost->hostt->slave_alloc) {
-		if (shost->hostt->slave_alloc(sdev))
-			goto out_free_queue;
-	}
+		ret = shost->hostt->slave_alloc(sdev);
+		if (ret) {
+			/*
+			 * if LLDD reports slave not present, don't clutter
+			 * console with alloc failure messages
 
-	if (shost->transportt->setup) {
-		if (shost->transportt->setup(sdev))
-			goto out_cleanup_slave;
-	}
 
-	if (get_device(&sdev->host->shost_gendev)) {
-
-		device_initialize(&sdev->sdev_gendev);
-		sdev->sdev_gendev.parent = &sdev->host->shost_gendev;
-		sdev->sdev_gendev.bus = &scsi_bus_type;
-		sdev->sdev_gendev.release = scsi_device_dev_release;
-		sprintf(sdev->sdev_gendev.bus_id,"%d:%d:%d:%d",
-			sdev->host->host_no, sdev->channel, sdev->id,
-			sdev->lun);
-
-		class_device_initialize(&sdev->sdev_classdev);
-		sdev->sdev_classdev.dev = &sdev->sdev_gendev;
-		sdev->sdev_classdev.class = &sdev_class;
-		snprintf(sdev->sdev_classdev.class_id, BUS_ID_SIZE,
-			 "%d:%d:%d:%d", sdev->host->host_no,
-			 sdev->channel, sdev->id, sdev->lun);
-
-		class_device_initialize(&sdev->transport_classdev);
-		sdev->transport_classdev.dev = &sdev->sdev_gendev;
-		sdev->transport_classdev.class = sdev->host->transportt->class;
-		snprintf(sdev->transport_classdev.class_id, BUS_ID_SIZE,
-			 "%d:%d:%d:%d", sdev->host->host_no,
-			 sdev->channel, sdev->id, sdev->lun);
-	} else
-		goto out_cleanup_transport;
-
-	/*
-	 * If there are any same target siblings, add this to the
-	 * sibling list
-	 */
-	spin_lock_irqsave(shost->host_lock, flags);
-	list_for_each_entry(device, &shost->__devices, siblings) {
-		if (device->id == sdev->id &&
-		    device->channel == sdev->channel) {
-			list_add_tail(&sdev->same_target_siblings,
-				      &device->same_target_siblings);
-			sdev->scsi_level = device->scsi_level;
-			break;
+			 */
+			if (ret == -ENXIO)
+				display_failure_msg = 0;
+			goto out_device_destroy;
 		}
 	}
 
-	/*
-	 * If there wasn't another lun already configured at this
-	 * target, then default this device to SCSI_2 until we
-	 * know better
-	 */
-	if (!sdev->scsi_level)
-		sdev->scsi_level = SCSI_2;
-
-	list_add_tail(&sdev->siblings, &shost->__devices);
-	spin_unlock_irqrestore(shost->host_lock, flags);
 	return sdev;
 
-out_cleanup_transport:
-	if (shost->transportt->cleanup)
-		shost->transportt->cleanup(sdev);
-out_cleanup_slave:
-	if (shost->hostt->slave_destroy)
-		shost->hostt->slave_destroy(sdev);
-out_free_queue:
+out_device_destroy:
+	transport_destroy_device(&sdev->sdev_gendev);
 	scsi_free_queue(sdev->request_queue);
-out_free_dev:
-	kfree(sdev);
+	put_device(&sdev->sdev_gendev);
 out:
-	printk(ALLOC_FAILURE_MSG, __FUNCTION__);
+	if (display_failure_msg)
+		printk(ALLOC_FAILURE_MSG, __FUNCTION__);
 	return NULL;
+}
+
+static void scsi_target_dev_release(struct device *dev)
+{
+	struct device *parent = dev->parent;
+	struct scsi_target *starget = to_scsi_target(dev);
+	kfree(starget);
+	put_device(parent);
+}
+
+int scsi_is_target_device(const struct device *dev)
+{
+	return dev->release == scsi_target_dev_release;
+}
+EXPORT_SYMBOL(scsi_is_target_device);
+
+static struct scsi_target *__scsi_find_target(struct device *parent,
+					      int channel, uint id)
+{
+	struct scsi_target *starget, *found_starget = NULL;
+	struct Scsi_Host *shost = dev_to_shost(parent);
+	/*
+	 * Search for an existing target for this sdev.
+	 */
+	list_for_each_entry(starget, &shost->__targets, siblings) {
+		if (starget->id == id &&
+		    starget->channel == channel) {
+			found_starget = starget;
+			break;
+		}
+	}
+	if (found_starget)
+		get_device(&found_starget->dev);
+
+	return found_starget;
+}
+
+static struct scsi_target *scsi_alloc_target(struct device *parent,
+					     int channel, uint id)
+{
+	struct Scsi_Host *shost = dev_to_shost(parent);
+	struct device *dev = NULL;
+	unsigned long flags;
+	const int size = sizeof(struct scsi_target)
+		+ shost->transportt->target_size;
+	struct scsi_target *starget = kmalloc(size, GFP_ATOMIC);
+	struct scsi_target *found_target;
+
+	if (!starget) {
+		printk(KERN_ERR "%s: allocation failure\n", __FUNCTION__);
+		return NULL;
+	}
+	memset(starget, 0, size);
+	dev = &starget->dev;
+	device_initialize(dev);
+	starget->reap_ref = 1;
+	dev->parent = get_device(parent);
+	dev->release = scsi_target_dev_release;
+	sprintf(dev->bus_id, "target%d:%d:%d",
+		shost->host_no, channel, id);
+	starget->id = id;
+	starget->channel = channel;
+	INIT_LIST_HEAD(&starget->siblings);
+	INIT_LIST_HEAD(&starget->devices);
+	spin_lock_irqsave(shost->host_lock, flags);
+
+	found_target = __scsi_find_target(parent, channel, id);
+	if (found_target)
+		goto found;
+
+	list_add_tail(&starget->siblings, &shost->__targets);
+	spin_unlock_irqrestore(shost->host_lock, flags);
+	/* allocate and add */
+	transport_setup_device(&starget->dev);
+	device_add(&starget->dev);
+	transport_add_device(&starget->dev);
+	return starget;
+
+ found:
+	found_target->reap_ref++;
+	spin_unlock_irqrestore(shost->host_lock, flags);
+	put_device(parent);
+	kfree(starget);
+	return found_target;
+}
+
+/**
+ * scsi_target_reap - check to see if target is in use and destroy if not
+ *
+ * @starget: target to be checked
+ *
+ * This is used after removing a LUN or doing a last put of the target
+ * it checks atomically that nothing is using the target and removes
+ * it if so.
+ */
+void scsi_target_reap(struct scsi_target *starget)
+{
+	struct Scsi_Host *shost = dev_to_shost(starget->dev.parent);
+	unsigned long flags;
+	spin_lock_irqsave(shost->host_lock, flags);
+
+	if (--starget->reap_ref == 0 && list_empty(&starget->devices)) {
+		list_del_init(&starget->siblings);
+		spin_unlock_irqrestore(shost->host_lock, flags);
+		device_del(&starget->dev);
+		transport_unregister_device(&starget->dev);
+		put_device(&starget->dev);
+		return;
+	}
+	spin_unlock_irqrestore(shost->host_lock, flags);
 }
 
 /**
@@ -346,104 +418,117 @@ static void scsi_probe_lun(struct scsi_request *sreq, char *inq_result,
 {
 	struct scsi_device *sdev = sreq->sr_device;	/* a bit ugly */
 	unsigned char scsi_cmd[MAX_COMMAND_SIZE];
-	int possible_inq_resp_len;
-	int count = 0;
+	int first_inquiry_len, try_inquiry_len, next_inquiry_len;
+	int response_len = 0;
+	int pass, count;
+	struct scsi_sense_hdr sshdr;
 
 	*bflags = 0;
- repeat_inquiry:
-	SCSI_LOG_SCAN_BUS(3, printk(KERN_INFO "scsi scan: INQUIRY to host %d"
-			" channel %d id %d lun %d\n", sdev->host->host_no,
-			sdev->channel, sdev->id, sdev->lun));
 
-	memset(scsi_cmd, 0, 6);
-	scsi_cmd[0] = INQUIRY;
-	scsi_cmd[4] = 36;	/* issue conservative alloc_length */
-	sreq->sr_cmd_len = 0;
-	sreq->sr_data_direction = DMA_FROM_DEVICE;
+	/* Perform up to 3 passes.  The first pass uses a conservative
+	 * transfer length of 36 unless sdev->inquiry_len specifies a
+	 * different value. */
+	first_inquiry_len = sdev->inquiry_len ? sdev->inquiry_len : 36;
+	try_inquiry_len = first_inquiry_len;
+	pass = 1;
 
-	memset(inq_result, 0, 36);
-	scsi_wait_req(sreq, (void *) scsi_cmd, (void *) inq_result, 36,
-		      HZ/2 + HZ*scsi_inq_timeout, 3);
+ next_pass:
+	SCSI_LOG_SCAN_BUS(3, printk(KERN_INFO "scsi scan: INQUIRY pass %d "
+			"to host %d channel %d id %d lun %d, length %d\n",
+			pass, sdev->host->host_no, sdev->channel,
+			sdev->id, sdev->lun, try_inquiry_len));
 
-	SCSI_LOG_SCAN_BUS(3, printk(KERN_INFO "scsi scan: 1st INQUIRY %s with"
-			" code 0x%x\n", sreq->sr_result ?
-			"failed" : "successful", sreq->sr_result));
-	++count;
-
-	if (sreq->sr_result) {
-		if ((driver_byte(sreq->sr_result) & DRIVER_SENSE) != 0 &&
-		    (sreq->sr_sense_buffer[2] & 0xf) == UNIT_ATTENTION &&
-		    (sreq->sr_sense_buffer[12] == 0x28 ||
-		     sreq->sr_sense_buffer[12] == 0x29) &&
-		    sreq->sr_sense_buffer[13] == 0) {
-			/* not-ready to ready transition or power-on - good */
-			/* dpg: bogus? INQUIRY never returns UNIT_ATTENTION */
-			/* Supposedly, but many buggy devices do so anyway */
-			if (count < 3)
-				goto repeat_inquiry;
-		}
-		/*
-		 * assume no peripheral if any other sort of error
-		 */
-		return;
-	}
-
-	/*
-	 * Get any flags for this device.
-	 *
-	 * XXX add a bflags to Scsi_Device, and replace the corresponding
-	 * bit fields in Scsi_Device, so bflags need not be passed as an
-	 * argument.
-	 */
-	*bflags |= scsi_get_device_flags(sdev, &inq_result[8], &inq_result[16]);
-
-	possible_inq_resp_len = (unsigned char) inq_result[4] + 5;
-	if (BLIST_INQUIRY_36 & *bflags)
-		possible_inq_resp_len = 36;
-	else if (BLIST_INQUIRY_58 & *bflags)
-		possible_inq_resp_len = 58;
-	else if (possible_inq_resp_len > 255)
-		possible_inq_resp_len = 36;	/* sanity */
-
-	if (possible_inq_resp_len > 36) {	/* do additional INQUIRY */
+	/* Each pass gets up to three chances to ignore Unit Attention */
+	for (count = 0; count < 3; ++count) {
 		memset(scsi_cmd, 0, 6);
 		scsi_cmd[0] = INQUIRY;
-		scsi_cmd[4] = (unsigned char) possible_inq_resp_len;
+		scsi_cmd[4] = (unsigned char) try_inquiry_len;
 		sreq->sr_cmd_len = 0;
 		sreq->sr_data_direction = DMA_FROM_DEVICE;
-		/*
-		 * re-zero inq_result just to be safe.
-		 */
-		memset(inq_result, 0, possible_inq_resp_len);
-		scsi_wait_req(sreq, (void *) scsi_cmd,
-			      (void *) inq_result,
-			      possible_inq_resp_len, (1+scsi_inq_timeout)*(HZ/2), 3);
-		SCSI_LOG_SCAN_BUS(3, printk(KERN_INFO "scsi scan: 2nd INQUIRY"
-				" %s with code 0x%x\n", sreq->sr_result ?
-				"failed" : "successful", sreq->sr_result));
-		if (sreq->sr_result) {
-			/* if the longer inquiry has failed, flag the device
-			 * as only accepting 36 byte inquiries and retry the
-			 * 36 byte inquiry */
-			printk(KERN_INFO "scsi scan: %d byte inquiry failed"
-			       " with code %d.  Consider BLIST_INQUIRY_36 for"
-			       " this device\n", possible_inq_resp_len,
-			       sreq->sr_result);
-			*bflags = BLIST_INQUIRY_36;
-			goto repeat_inquiry;
-		}
 
-		/*
-		 * The INQUIRY can change, this means the length can change.
-		 */
-		possible_inq_resp_len = (unsigned char) inq_result[4] + 5;
-		if (BLIST_INQUIRY_58 & *bflags)
-			possible_inq_resp_len = 58;
-		else if (possible_inq_resp_len > 255)
-			possible_inq_resp_len = 36;	/* sanity */
+		memset(inq_result, 0, try_inquiry_len);
+		scsi_wait_req(sreq, (void *) scsi_cmd, (void *) inq_result,
+				try_inquiry_len,
+				HZ/2 + HZ*scsi_inq_timeout, 3);
+
+		SCSI_LOG_SCAN_BUS(3, printk(KERN_INFO "scsi scan: INQUIRY %s "
+				"with code 0x%x\n",
+				sreq->sr_result ? "failed" : "successful",
+				sreq->sr_result));
+
+		if (sreq->sr_result) {
+			/*
+			 * not-ready to ready transition [asc/ascq=0x28/0x0]
+			 * or power-on, reset [asc/ascq=0x29/0x0], continue.
+			 * INQUIRY should not yield UNIT_ATTENTION
+			 * but many buggy devices do so anyway. 
+			 */
+			if ((driver_byte(sreq->sr_result) & DRIVER_SENSE) &&
+			    scsi_request_normalize_sense(sreq, &sshdr)) {
+				if ((sshdr.sense_key == UNIT_ATTENTION) &&
+				    ((sshdr.asc == 0x28) ||
+				     (sshdr.asc == 0x29)) &&
+				    (sshdr.ascq == 0))
+					continue;
+			}
+		}
+		break;
 	}
 
-	sdev->inquiry_len = possible_inq_resp_len;
+	if (sreq->sr_result == 0) {
+		response_len = (unsigned char) inq_result[4] + 5;
+		if (response_len > 255)
+			response_len = first_inquiry_len;	/* sanity */
+
+		/*
+		 * Get any flags for this device.
+		 *
+		 * XXX add a bflags to Scsi_Device, and replace the
+		 * corresponding bit fields in Scsi_Device, so bflags
+		 * need not be passed as an argument.
+		 */
+		*bflags = scsi_get_device_flags(sdev, &inq_result[8],
+				&inq_result[16]);
+
+		/* When the first pass succeeds we gain information about
+		 * what larger transfer lengths might work. */
+		if (pass == 1) {
+			if (BLIST_INQUIRY_36 & *bflags)
+				next_inquiry_len = 36;
+			else if (BLIST_INQUIRY_58 & *bflags)
+				next_inquiry_len = 58;
+			else if (sdev->inquiry_len)
+				next_inquiry_len = sdev->inquiry_len;
+			else
+				next_inquiry_len = response_len;
+
+			/* If more data is available perform the second pass */
+			if (next_inquiry_len > try_inquiry_len) {
+				try_inquiry_len = next_inquiry_len;
+				pass = 2;
+				goto next_pass;
+			}
+		}
+
+	} else if (pass == 2) {
+		printk(KERN_INFO "scsi scan: %d byte inquiry failed.  "
+				"Consider BLIST_INQUIRY_36 for this device\n",
+				try_inquiry_len);
+
+		/* If this pass failed, the third pass goes back and transfers
+		 * the same amount as we successfully got in the first pass. */
+		try_inquiry_len = first_inquiry_len;
+		pass = 3;
+		goto next_pass;
+	}
+
+	/* If the last transfer attempt got an error, assume the
+	 * peripheral doesn't exist or is dead. */
+	if (sreq->sr_result)
+		return;
+
+	/* Don't report any more data than the device says is valid */
+	sdev->inquiry_len = min(try_inquiry_len, response_len);
 
 	/*
 	 * XXX Abort if the response length is less than 36? If less than
@@ -498,10 +583,6 @@ static void scsi_probe_lun(struct scsi_request *sreq, char *inq_result,
  **/
 static int scsi_add_lun(struct scsi_device *sdev, char *inq_result, int *bflags)
 {
-	struct scsi_device *sdev_sibling;
-	struct scsi_target *starget;
-	unsigned long flags;
-
 	/*
 	 * XXX do not save the inquiry, since it can change underneath us,
 	 * save just vendor/model/rev.
@@ -531,7 +612,8 @@ static int scsi_add_lun(struct scsi_device *sdev, char *inq_result, int *bflags)
 		 */
 		inq_result[0] = TYPE_ROM;
 		inq_result[1] |= 0x80;	/* removable */
-	}
+	} else if (*bflags & BLIST_NO_ULD_ATTACH)
+		sdev->no_uld_attach = 1;
 
 	switch (sdev->type = (inq_result[0] & 0x1f)) {
 	case TYPE_TAPE:
@@ -604,46 +686,22 @@ static int scsi_add_lun(struct scsi_device *sdev, char *inq_result, int *bflags)
 		sdev->borken = 0;
 
 	/*
+	 * Apparently some really broken devices (contrary to the SCSI
+	 * standards) need to be selected without asserting ATN
+	 */
+	if (*bflags & BLIST_SELECT_NO_ATN)
+		sdev->select_no_atn = 1;
+
+	/*
 	 * Some devices may not want to have a start command automatically
 	 * issued when a device is added.
 	 */
 	if (*bflags & BLIST_NOSTARTONADD)
 		sdev->no_start_on_add = 1;
 
-	/*
-	 * If we need to allow I/O to only one of the luns attached to
-	 * this target id at a time set single_lun, and allocate or modify
-	 * sdev_target.
-	 */
-	if (*bflags & BLIST_SINGLELUN) {
+	if (*bflags & BLIST_SINGLELUN)
 		sdev->single_lun = 1;
-		spin_lock_irqsave(sdev->host->host_lock, flags);
-		starget = NULL;
-		/*
-		 * Search for an existing target for this sdev.
-		 */
-		list_for_each_entry(sdev_sibling, &sdev->same_target_siblings,
-				    same_target_siblings) {
-			if (sdev_sibling->sdev_target != NULL) {
-				starget = sdev_sibling->sdev_target;
-				break;
-			}
-		}
-		if (!starget) {
-			starget = kmalloc(sizeof(*starget), GFP_ATOMIC);
-			if (!starget) {
-				printk(ALLOC_FAILURE_MSG, __FUNCTION__);
-				spin_unlock_irqrestore(sdev->host->host_lock,
-						       flags);
-				return SCSI_SCAN_NO_RESPONSE;
-			}
-			starget->starget_refcnt = 0;
-			starget->starget_sdev_user = NULL;
-		}
-		starget->starget_refcnt++;
-		sdev->sdev_target = starget;
-		spin_unlock_irqrestore(sdev->host->host_lock, flags);
-	}
+
 
 	sdev->use_10_for_rw = 1;
 
@@ -666,7 +724,12 @@ static int scsi_add_lun(struct scsi_device *sdev, char *inq_result, int *bflags)
 	if (*bflags & BLIST_NOT_LOCKABLE)
 		sdev->lockable = 0;
 
-	if(sdev->host->hostt->slave_configure)
+	if (*bflags & BLIST_RETRY_HWERROR)
+		sdev->retry_hwerror = 1;
+
+	transport_configure_device(&sdev->sdev_gendev);
+
+	if (sdev->host->hostt->slave_configure)
 		sdev->host->hostt->slave_configure(sdev);
 
 	/*
@@ -681,6 +744,8 @@ static int scsi_add_lun(struct scsi_device *sdev, char *inq_result, int *bflags)
 
 /**
  * scsi_probe_and_add_lun - probe a LUN, if a LUN is found add it
+ * @starget:	pointer to target device structure
+ * @lun:	LUN of target device
  * @sdevscan:	probe the LUN corresponding to this Scsi_Device
  * @sdevnew:	store the value of any new Scsi_Device allocated
  * @bflagsp:	store bflags here if not NULL
@@ -695,45 +760,48 @@ static int scsi_add_lun(struct scsi_device *sdev, char *inq_result, int *bflags)
  *         attached at the LUN
  *     SCSI_SCAN_LUN_PRESENT: a new Scsi_Device was allocated and initialized
  **/
-static int scsi_probe_and_add_lun(struct Scsi_Host *host,
-		uint channel, uint id, uint lun, int *bflagsp,
-		struct scsi_device **sdevp, int rescan)
+static int scsi_probe_and_add_lun(struct scsi_target *starget,
+				  uint lun, int *bflagsp,
+				  struct scsi_device **sdevp, int rescan,
+				  void *hostdata)
 {
 	struct scsi_device *sdev;
 	struct scsi_request *sreq;
 	unsigned char *result;
 	int bflags, res = SCSI_SCAN_NO_RESPONSE;
+	struct Scsi_Host *shost = dev_to_shost(starget->dev.parent);
 
 	/*
 	 * The rescan flag is used as an optimization, the first scan of a
 	 * host adapter calls into here with rescan == 0.
 	 */
 	if (rescan) {
-		sdev = scsi_device_lookup(host, channel, id, lun);
+		sdev = scsi_device_lookup_by_target(starget, lun);
 		if (sdev) {
 			SCSI_LOG_SCAN_BUS(3, printk(KERN_INFO
-				"scsi scan: device exists on <%d:%d:%d:%d>\n",
-				host->host_no, channel, id, lun));
+				"scsi scan: device exists on %s\n",
+				sdev->sdev_gendev.bus_id));
 			if (sdevp)
 				*sdevp = sdev;
+			else
+				scsi_device_put(sdev);
+
 			if (bflagsp)
 				*bflagsp = scsi_get_device_flags(sdev,
 								 sdev->vendor,
 								 sdev->model);
-			/* XXX: bandaid until callers do refcounting */
-			scsi_device_put(sdev);
 			return SCSI_SCAN_LUN_PRESENT;
 		}
 	}
 
-	sdev = scsi_alloc_sdev(host, channel, id, lun);
+	sdev = scsi_alloc_sdev(starget, lun, hostdata);
 	if (!sdev)
 		goto out;
 	sreq = scsi_allocate_request(sdev, GFP_ATOMIC);
 	if (!sreq)
 		goto out_free_sdev;
 	result = kmalloc(256, GFP_ATOMIC |
-			(host->unchecked_isa_dma) ? __GFP_DMA : 0);
+			((shost->unchecked_isa_dma) ? __GFP_DMA : 0));
 	if (!result)
 		goto out_free_sreq;
 
@@ -778,13 +846,14 @@ static int scsi_probe_and_add_lun(struct Scsi_Host *host,
 	scsi_release_request(sreq);
  out_free_sdev:
 	if (res == SCSI_SCAN_LUN_PRESENT) {
-		if (sdevp)
+		if (sdevp) {
+			scsi_device_get(sdev);
 			*sdevp = sdev;
+		}
 	} else {
 		if (sdev->host->hostt->slave_destroy)
 			sdev->host->hostt->slave_destroy(sdev);
-		if (sdev->host->transportt->cleanup)
-			sdev->host->transportt->cleanup(sdev);
+		transport_destroy_device(&sdev->sdev_gendev);
 		put_device(&sdev->sdev_gendev);
 	}
  out:
@@ -793,7 +862,7 @@ static int scsi_probe_and_add_lun(struct Scsi_Host *host,
 
 /**
  * scsi_sequential_lun_scan - sequentially scan a SCSI target
- * @sdevscan:	scan the host, channel, and id of this Scsi_Device
+ * @starget:	pointer to target structure to scan
  * @bflags:	black/white list flag for LUN 0
  * @lun0_res:	result of scanning LUN 0
  *
@@ -804,14 +873,15 @@ static int scsi_probe_and_add_lun(struct Scsi_Host *host,
  *
  *     Modifies sdevscan->lun.
  **/
-static void scsi_sequential_lun_scan(struct Scsi_Host *shost, uint channel,
-		uint id, int bflags, int lun0_res, int scsi_level, int rescan)
+static void scsi_sequential_lun_scan(struct scsi_target *starget,
+				     int bflags, int lun0_res, int scsi_level,
+				     int rescan)
 {
 	unsigned int sparse_lun, lun, max_dev_lun;
+	struct Scsi_Host *shost = dev_to_shost(starget->dev.parent);
 
 	SCSI_LOG_SCAN_BUS(3, printk(KERN_INFO "scsi scan: Sequential scan of"
-			" host %d channel %d id %d\n", shost->host_no,
-			channel, id));
+				    "%s\n", starget->dev.bus_id));
 
 	max_dev_lun = min(max_scsi_luns, shost->max_lun);
 	/*
@@ -873,8 +943,8 @@ static void scsi_sequential_lun_scan(struct Scsi_Host *shost, uint channel,
 	 * sparse_lun.
 	 */
 	for (lun = 1; lun < max_dev_lun; ++lun)
-		if ((scsi_probe_and_add_lun(shost, channel, id, lun,
-		      NULL, NULL, rescan) != SCSI_SCAN_LUN_PRESENT) &&
+		if ((scsi_probe_and_add_lun(starget, lun, NULL, NULL, rescan,
+					    NULL) != SCSI_SCAN_LUN_PRESENT) &&
 		    !sparse_lun)
 			return;
 }
@@ -937,6 +1007,8 @@ static int scsi_report_lun_scan(struct scsi_device *sdev, int bflags,
 	struct scsi_lun *lunp, *lun_data;
 	struct scsi_request *sreq;
 	u8 *data;
+	struct scsi_sense_hdr sshdr;
+	struct scsi_target *starget = scsi_target(sdev);
 
 	/*
 	 * Only support SCSI-3 and up devices if BLIST_NOREPORTLUN is not set.
@@ -1014,9 +1086,12 @@ static int scsi_report_lun_scan(struct scsi_device *sdev, int bflags,
 				" %s (try %d) result 0x%x\n", sreq->sr_result
 				?  "failed" : "successful", retries,
 				sreq->sr_result));
-		if (sreq->sr_result == 0 ||
-		    sreq->sr_sense_buffer[2] != UNIT_ATTENTION)
+		if (sreq->sr_result == 0)
 			break;
+		else if (scsi_request_normalize_sense(sreq, &sshdr)) {
+			if (sshdr.sense_key != UNIT_ATTENTION)
+				break;
+		}
 	}
 
 	if (sreq->sr_result) {
@@ -1084,8 +1159,8 @@ static int scsi_report_lun_scan(struct scsi_device *sdev, int bflags,
 		} else {
 			int res;
 
-			res = scsi_probe_and_add_lun(sdev->host, sdev->channel,
-				sdev->id, lun, NULL, NULL, rescan);
+			res = scsi_probe_and_add_lun(starget,
+				lun, NULL, NULL, rescan, NULL);
 			if (res == SCSI_SCAN_NO_RESPONSE) {
 				/*
 				 * Got some results, but now none, abort.
@@ -1111,20 +1186,29 @@ static int scsi_report_lun_scan(struct scsi_device *sdev, int bflags,
 	return 0;
 }
 
-struct scsi_device *scsi_add_device(struct Scsi_Host *shost,
-				    uint channel, uint id, uint lun)
+struct scsi_device *__scsi_add_device(struct Scsi_Host *shost, uint channel,
+				      uint id, uint lun, void *hostdata)
 {
 	struct scsi_device *sdev;
+	struct device *parent = &shost->shost_gendev;
 	int res;
+	struct scsi_target *starget = scsi_alloc_target(parent, channel, id);
 
+	if (!starget)
+		return ERR_PTR(-ENOMEM);
+
+	get_device(&starget->dev);
 	down(&shost->scan_mutex);
-	res = scsi_probe_and_add_lun(shost, channel, id, lun, NULL, &sdev, 1);
+	res = scsi_probe_and_add_lun(starget, lun, NULL, &sdev, 1, hostdata);
 	if (res != SCSI_SCAN_LUN_PRESENT)
 		sdev = ERR_PTR(-ENODEV);
 	up(&shost->scan_mutex);
+	scsi_target_reap(starget);
+	put_device(&starget->dev);
 
 	return sdev;
 }
+EXPORT_SYMBOL(__scsi_add_device);
 
 void scsi_rescan_device(struct device *dev)
 {
@@ -1140,6 +1224,7 @@ void scsi_rescan_device(struct device *dev)
 		module_put(drv->owner);
 	}
 }
+EXPORT_SYMBOL(scsi_rescan_device);
 
 /**
  * scsi_scan_target - scan a target id, possibly including all LUNs on the
@@ -1160,12 +1245,14 @@ void scsi_rescan_device(struct device *dev)
  *     First try a REPORT LUN scan, if that does not scan the target, do a
  *     sequential scan of LUNs on the target id.
  **/
-static void scsi_scan_target(struct Scsi_Host *shost, unsigned int channel,
-			     unsigned int id, unsigned int lun, int rescan)
+void scsi_scan_target(struct device *parent, unsigned int channel,
+		      unsigned int id, unsigned int lun, int rescan)
 {
+	struct Scsi_Host *shost = dev_to_shost(parent);
 	int bflags = 0;
 	int res;
-	struct scsi_device *sdev;
+	struct scsi_device *sdev = NULL;
+	struct scsi_target *starget;
 
 	if (shost->this_id == id)
 		/*
@@ -1173,28 +1260,33 @@ static void scsi_scan_target(struct Scsi_Host *shost, unsigned int channel,
 		 */
 		return;
 
+
+	starget = scsi_alloc_target(parent, channel, id);
+
+	if (!starget)
+		return;
+
+	get_device(&starget->dev);
 	if (lun != SCAN_WILD_CARD) {
 		/*
 		 * Scan for a specific host/chan/id/lun.
 		 */
-		scsi_probe_and_add_lun(shost, channel, id, lun, NULL, NULL,
-				       rescan);
-		return;
+		scsi_probe_and_add_lun(starget, lun, NULL, NULL, rescan, NULL);
+		goto out_reap;
 	}
 
 	/*
 	 * Scan LUN 0, if there is some response, scan further. Ideally, we
 	 * would not configure LUN 0 until all LUNs are scanned.
 	 */
-	res = scsi_probe_and_add_lun(shost, channel, id, 0, &bflags, &sdev,
-				     rescan);
+	res = scsi_probe_and_add_lun(starget, 0, &bflags, &sdev, rescan, NULL);
 	if (res == SCSI_SCAN_LUN_PRESENT) {
 		if (scsi_report_lun_scan(sdev, bflags, rescan) != 0)
 			/*
 			 * The REPORT LUN did not scan the target,
 			 * do a sequential scan.
 			 */
-			scsi_sequential_lun_scan(shost, channel, id, bflags,
+			scsi_sequential_lun_scan(starget, bflags,
 				       	res, sdev->scsi_level, rescan);
 	} else if (res == SCSI_SCAN_TARGET_PRESENT) {
 		/*
@@ -1203,10 +1295,20 @@ static void scsi_scan_target(struct Scsi_Host *shost, unsigned int channel,
 		 * sequential lun scan with a bflags of SPARSELUN and
 		 * a default scsi level of SCSI_2
 		 */
-		scsi_sequential_lun_scan(shost, channel, id, BLIST_SPARSELUN,
+		scsi_sequential_lun_scan(starget, BLIST_SPARSELUN,
 				SCSI_SCAN_TARGET_PRESENT, SCSI_2, rescan);
 	}
+	if (sdev)
+		scsi_device_put(sdev);
+
+ out_reap:
+	/* now determine if the target has any children at all
+	 * and if not, nuke it */
+	scsi_target_reap(starget);
+
+	put_device(&starget->dev);
 }
+EXPORT_SYMBOL(scsi_scan_target);
 
 static void scsi_scan_channel(struct Scsi_Host *shost, unsigned int channel,
 			      unsigned int id, unsigned int lun, int rescan)
@@ -1231,10 +1333,10 @@ static void scsi_scan_channel(struct Scsi_Host *shost, unsigned int channel,
 				order_id = shost->max_id - id - 1;
 			else
 				order_id = id;
-			scsi_scan_target(shost, channel, order_id, lun, rescan);
+			scsi_scan_target(&shost->shost_gendev, channel, order_id, lun, rescan);
 		}
 	else
-		scsi_scan_target(shost, channel, id, lun, rescan);
+		scsi_scan_target(&shost->shost_gendev, channel, id, lun, rescan);
 }
 
 int scsi_scan_host_selected(struct Scsi_Host *shost, unsigned int channel,
@@ -1268,10 +1370,24 @@ void scsi_scan_host(struct Scsi_Host *shost)
 	scsi_scan_host_selected(shost, SCAN_WILD_CARD, SCAN_WILD_CARD,
 				SCAN_WILD_CARD, 0);
 }
+EXPORT_SYMBOL(scsi_scan_host);
+
+/**
+ * scsi_scan_single_target - scan the given SCSI target
+ * @shost:         adapter to scan
+ * @chan:          channel to scan
+ * @id:            target id to scan
+ **/
+void scsi_scan_single_target(struct Scsi_Host *shost, 
+	unsigned int chan, unsigned int id)
+{
+	scsi_scan_host_selected(shost, chan, id, SCAN_WILD_CARD, 1);
+}
+EXPORT_SYMBOL(scsi_scan_single_target);
 
 void scsi_forget_host(struct Scsi_Host *shost)
 {
-	struct scsi_device *sdev, *tmp;
+	struct scsi_target *starget, *tmp;
 	unsigned long flags;
 
 	/*
@@ -1284,9 +1400,9 @@ void scsi_forget_host(struct Scsi_Host *shost)
 	 * after that we don't look at sdev anymore.
 	 */
 	spin_lock_irqsave(shost->host_lock, flags);
-	list_for_each_entry_safe(sdev, tmp, &shost->__devices, siblings) {
+	list_for_each_entry_safe(starget, tmp, &shost->__targets, siblings) {
 		spin_unlock_irqrestore(shost->host_lock, flags);
-		scsi_remove_device(sdev);
+		scsi_remove_target(&starget->dev);
 		spin_lock_irqsave(shost->host_lock, flags);
 	}
 	spin_unlock_irqrestore(shost->host_lock, flags);
@@ -1315,13 +1431,21 @@ void scsi_forget_host(struct Scsi_Host *shost)
 struct scsi_device *scsi_get_host_dev(struct Scsi_Host *shost)
 {
 	struct scsi_device *sdev;
+	struct scsi_target *starget;
 
-	sdev = scsi_alloc_sdev(shost, 0, shost->this_id, 0);
+	starget = scsi_alloc_target(&shost->shost_gendev, 0, shost->this_id);
+	if (!starget)
+		return NULL;
+
+	sdev = scsi_alloc_sdev(starget, 0, NULL);
 	if (sdev) {
+		sdev->sdev_gendev.parent = get_device(&starget->dev);
 		sdev->borken = 0;
 	}
+	put_device(&starget->dev);
 	return sdev;
 }
+EXPORT_SYMBOL(scsi_get_host_dev);
 
 /*
  * Function:    scsi_free_host_dev()
@@ -1342,7 +1466,8 @@ void scsi_free_host_dev(struct scsi_device *sdev)
 
 	if (sdev->host->hostt->slave_destroy)
 		sdev->host->hostt->slave_destroy(sdev);
-	if (sdev->host->transportt->cleanup)
-		sdev->host->transportt->cleanup(sdev);
+	transport_destroy_device(&sdev->sdev_gendev);
 	put_device(&sdev->sdev_gendev);
 }
+EXPORT_SYMBOL(scsi_free_host_dev);
+

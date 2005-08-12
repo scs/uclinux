@@ -39,7 +39,7 @@ struct idt77105_priv {
         unsigned char old_mcr;          /* storage of MCR reg while signal lost */
 };
 
-static spinlock_t idt77105_priv_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(idt77105_priv_lock);
 
 #define PRIV(dev) ((struct idt77105_priv *) dev->phy_data)
 
@@ -323,7 +323,7 @@ static int idt77105_start(struct atm_dev *dev)
 }
 
 
-int idt77105_stop(struct atm_dev *dev)
+static int idt77105_stop(struct atm_dev *dev)
 {
 	struct idt77105_priv *walk, *prev;
 

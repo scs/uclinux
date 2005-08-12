@@ -26,10 +26,9 @@ MODULE_LICENSE(DRIVER_LICENSE);
 
 #define USB_VENDOR_ID_KBGEAR	0x084e
 
-static int       kb_pressure_click = 0x10;
-MODULE_PARM     (kb_pressure_click,"i");
-MODULE_PARM_DESC(kb_pressure_click,
-		 "pressure threshold for clicks");
+static int kb_pressure_click = 0x10;
+module_param(kb_pressure_click, int, 0);
+MODULE_PARM_DESC(kb_pressure_click, "pressure threshold for clicks");
 
 struct kbtab {
 	signed char *data;
@@ -67,8 +66,8 @@ static void kbtab_irq(struct urb *urb, struct pt_regs *regs)
 		goto exit;
 	}
 
-	kbtab->x = le16_to_cpu(get_unaligned((u16 *) &data[1]));
-	kbtab->y = le16_to_cpu(get_unaligned((u16 *) &data[3]));
+	kbtab->x = le16_to_cpu(get_unaligned((__le16 *) &data[1]));
+	kbtab->y = le16_to_cpu(get_unaligned((__le16 *) &data[3]));
 
 	kbtab->pressure = (data[5]);
 
@@ -123,7 +122,7 @@ static void kbtab_close(struct input_dev *dev)
 	struct kbtab *kbtab = dev->private;
 
 	if (!--kbtab->open)
-		usb_unlink_urb(kbtab->irq);
+		usb_kill_urb(kbtab->irq);
 }
 
 static int kbtab_probe(struct usb_interface *intf, const struct usb_device_id *id)
@@ -176,9 +175,9 @@ static int kbtab_probe(struct usb_interface *intf, const struct usb_device_id *i
 	kbtab->dev.name = "KB Gear Tablet";
 	kbtab->dev.phys = kbtab->phys;
 	kbtab->dev.id.bustype = BUS_USB;
-	kbtab->dev.id.vendor = dev->descriptor.idVendor;
-	kbtab->dev.id.product = dev->descriptor.idProduct;
-	kbtab->dev.id.version = dev->descriptor.bcdDevice;
+	kbtab->dev.id.vendor = le16_to_cpu(dev->descriptor.idVendor);
+	kbtab->dev.id.product = le16_to_cpu(dev->descriptor.idProduct);
+	kbtab->dev.id.version = le16_to_cpu(dev->descriptor.bcdDevice);
 	kbtab->dev.dev = &intf->dev;
 	kbtab->usbdev = dev;
 
@@ -206,7 +205,7 @@ static void kbtab_disconnect(struct usb_interface *intf)
 
 	usb_set_intfdata(intf, NULL);
 	if (kbtab) {
-		usb_unlink_urb(kbtab->irq);
+		usb_kill_urb(kbtab->irq);
 		input_unregister_device(&kbtab->dev);
 		usb_free_urb(kbtab->irq);
 		usb_buffer_free(interface_to_usbdev(intf), 10, kbtab->data, kbtab->data_dma);

@@ -91,8 +91,7 @@ int __init init_impa7(void)
 		       pt[i].size, pt[i].addr);
 
 		impa7_map[i].phys = pt[i].addr;
-		impa7_map[i].virt = (unsigned long)
-		  ioremap(pt[i].addr, pt[i].size);
+		impa7_map[i].virt = ioremap(pt[i].addr, pt[i].size);
 		if (!impa7_map[i].virt) {
 			printk(MSG_PREFIX "failed to ioremap\n");
 			return -EIO;

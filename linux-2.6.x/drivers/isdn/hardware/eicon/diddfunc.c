@@ -16,8 +16,6 @@
 #include "dadapter.h"
 #include "divasync.h"
 
-#define MAX_DESCRIPTORS  32
-
 #define DBG_MINIMUM  (DL_LOG + DL_FTL + DL_ERR)
 #define DBG_DEFAULT  (DBG_MINIMUM + DL_XLOG + DL_REG)
 

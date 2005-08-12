@@ -354,20 +354,18 @@ static int irq[HISAX_MAX_CARDS] __devinitdata = { 0, };
 static int mem[HISAX_MAX_CARDS] __devinitdata = { 0, };
 static char *id = HiSaxID;
 
-#define PARM_PARA "1-" __MODULE_STRING(HISAX_MAX_CARDS) "i"
-
 MODULE_DESCRIPTION("ISDN4Linux: Driver for passive ISDN cards");
 MODULE_AUTHOR("Karsten Keil");
 MODULE_LICENSE("GPL");
-MODULE_PARM(type, PARM_PARA);
-MODULE_PARM(protocol, PARM_PARA);
-MODULE_PARM(io, PARM_PARA);
-MODULE_PARM(irq, PARM_PARA);
-MODULE_PARM(mem, PARM_PARA);
-MODULE_PARM(id, "s");
+module_param_array(type, int, NULL, 0);
+module_param_array(protocol, int, NULL, 0);
+module_param_array(io, int, NULL, 0);
+module_param_array(irq, int, NULL, 0);
+module_param_array(mem, int, NULL, 0);
+module_param(id, charp, 0);
 #ifdef IO0_IO1
-MODULE_PARM(io0, PARM_PARA);
-MODULE_PARM(io1, PARM_PARA);
+module_param_array(io0, int, NULL, 0);
+module_param_array(io1, int, NULL, 0);
 #endif
 #endif /* MODULE */
 
@@ -843,9 +841,8 @@ static int init_card(struct IsdnCardState *cs)
 	}
 	while (cnt) {
 		cs->cardmsg(cs, CARD_INIT, NULL);
-		set_current_state(TASK_UNINTERRUPTIBLE);
 		/* Timeout 10ms */
-		schedule_timeout((10 * HZ) / 1000);
+		msleep(10);
 		printk(KERN_INFO "%s: IRQ %d count %d\n",
 		       CardType[cs->typ], cs->irq, kstat_irqs(cs->irq));
 		if (kstat_irqs(cs->irq) == irq_cnt) {

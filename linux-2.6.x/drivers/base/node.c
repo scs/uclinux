@@ -10,6 +10,7 @@
 #include <linux/hugetlb.h>
 #include <linux/cpumask.h>
 #include <linux/topology.h>
+#include <linux/nodemask.h>
 
 static struct sysdev_class node_class = {
 	set_kset_name("node"),
@@ -19,11 +20,11 @@ static struct sysdev_class node_class = {
 static ssize_t node_read_cpumap(struct sys_device * dev, char * buf)
 {
 	struct node *node_dev = to_node(dev);
-	cpumask_t mask = node_dev->cpumap;
+	cpumask_t mask = node_to_cpumask(node_dev->sysdev.id);
 	int len;
 
 	/* 2004/06/03: buf currently PAGE_SIZE, need > 1 char per 4 bits. */
-	BUILD_BUG_ON(NR_CPUS/4 > PAGE_SIZE/2);
+	BUILD_BUG_ON(MAX_NUMNODES/4 > PAGE_SIZE/2);
 
 	len = cpumask_scnprintf(buf, PAGE_SIZE-1, mask);
 	len += sprintf(buf + len, "\n");
@@ -38,11 +39,19 @@ static ssize_t node_read_meminfo(struct sys_device * dev, char * buf)
 	int n;
 	int nid = dev->id;
 	struct sysinfo i;
+	unsigned long inactive;
+	unsigned long active;
+	unsigned long free;
+
 	si_meminfo_node(&i, nid);
+	__get_zone_counts(&active, &inactive, &free, NODE_DATA(nid));
+
 	n = sprintf(buf, "\n"
 		       "Node %d MemTotal:     %8lu kB\n"
 		       "Node %d MemFree:      %8lu kB\n"
 		       "Node %d MemUsed:      %8lu kB\n"
+		       "Node %d Active:       %8lu kB\n"
+		       "Node %d Inactive:     %8lu kB\n"
 		       "Node %d HighTotal:    %8lu kB\n"
 		       "Node %d HighFree:     %8lu kB\n"
 		       "Node %d LowTotal:     %8lu kB\n"
@@ -50,6 +59,8 @@ static ssize_t node_read_meminfo(struct sys_device * dev, char * buf)
 		       nid, K(i.totalram),
 		       nid, K(i.freeram),
 		       nid, K(i.totalram - i.freeram),
+		       nid, K(active),
+		       nid, K(inactive),
 		       nid, K(i.totalhigh),
 		       nid, K(i.freehigh),
 		       nid, K(i.totalram - i.totalhigh),
@@ -101,6 +112,24 @@ static ssize_t node_read_numastat(struct sys_device * dev, char * buf)
 }
 static SYSDEV_ATTR(numastat, S_IRUGO, node_read_numastat, NULL);
 
+static ssize_t node_read_distance(struct sys_device * dev, char * buf)
+{
+	int nid = dev->id;
+	int len = 0;
+	int i;
+
+	/* buf currently PAGE_SIZE, need ~4 chars per node */
+	BUILD_BUG_ON(MAX_NUMNODES*4 > PAGE_SIZE/2);
+
+	for_each_online_node(i)
+		len += sprintf(buf + len, "%s%d", i ? " " : "", node_distance(nid, i));
+
+	len += sprintf(buf + len, "\n");
+	return len;
+}
+static SYSDEV_ATTR(distance, S_IRUGO, node_read_distance, NULL);
+
+
 /*
  * register_node - Setup a driverfs device for a node.
  * @num - Node number to use when creating the device.
@@ -111,7 +140,6 @@ int __init register_node(struct node *node, int num, struct node *parent)
 {
 	int error;
 
-	node->cpumap = node_to_cpumask(num);
 	node->sysdev.id = num;
 	node->sysdev.cls = &node_class;
 	error = sysdev_register(&node->sysdev);
@@ -120,6 +148,7 @@ int __init register_node(struct node *node, int num, struct node *parent)
 		sysdev_create_file(&node->sysdev, &attr_cpumap);
 		sysdev_create_file(&node->sysdev, &attr_meminfo);
 		sysdev_create_file(&node->sysdev, &attr_numastat);
+		sysdev_create_file(&node->sysdev, &attr_distance);
 	}
 	return error;
 }

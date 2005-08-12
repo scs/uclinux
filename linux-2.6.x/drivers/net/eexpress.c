@@ -7,7 +7,7 @@
  * Support for 8-bit mode by Zoltan Szilagyi <zoltans@cs.arizona.edu>
  *
  * Many modifications, and currently maintained, by
- *  Philip Blundell <Philip.Blundell@pobox.com>
+ *  Philip Blundell <philb@gnu.org>
  * Added the Compaq LTE  Alan Cox <alan@redhat.com>
  * Added MCA support Adam Fritzler <mid@auk.cx>
  *
@@ -115,9 +115,9 @@
 #include <linux/slab.h>
 #include <linux/mca-legacy.h>
 #include <linux/spinlock.h>
+#include <linux/bitops.h>
 
 #include <asm/system.h>
-#include <asm/bitops.h>
 #include <asm/io.h>
 #include <asm/irq.h>
 
@@ -1691,8 +1691,8 @@ static struct net_device *dev_eexp[EEXP_MAX_CARDS];
 static int irq[EEXP_MAX_CARDS];
 static int io[EEXP_MAX_CARDS];
 
-MODULE_PARM(io, "1-" __MODULE_STRING(EEXP_MAX_CARDS) "i");
-MODULE_PARM(irq, "1-" __MODULE_STRING(EEXP_MAX_CARDS) "i");
+module_param_array(io, int, NULL, 0);
+module_param_array(irq, int, NULL, 0);
 MODULE_PARM_DESC(io, "EtherExpress 16 I/O base address(es)");
 MODULE_PARM_DESC(irq, "EtherExpress 16 IRQ number(s)");
 MODULE_LICENSE("GPL");

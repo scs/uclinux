@@ -14,14 +14,14 @@
  * DISCLAIMER: This works for _me_. If you break anything by using the
  * information given below, I will _not_ be liable!
  *
- * RJ11 pinout:		To DB9:		Or DB25:
+ * RJ10 pinout:		To DE9:		Or DB25:
  * 	1 - RxD <---->	Pin 3 (TxD) <->	Pin 2 (TxD)
  * 	2 - GND <---->	Pin 5 (GND) <->	Pin 7 (GND)
  * 	4 - TxD <---->	Pin 2 (RxD) <->	Pin 3 (RxD)
- * 	3 - +12V (from HDD drive connector), DON'T connect to DB9 or DB25!!!
+ * 	3 - +12V (from HDD drive connector), DON'T connect to DE9 or DB25!!!
  *
- * Pin numbers for DB9 and DB25 are noted on the plug (quite small:). For
- * RJ11, it's like this:
+ * Pin numbers for DE9 and DB25 are noted on the plug (quite small:). For
+ * RJ10, it's like this:
  *
  *      __=__	Hold the plug in front of you, cable downwards,
  *     /___/|	nose is hidden behind the plug. Now, pin 1 is at
@@ -76,8 +76,10 @@
 #include <linux/serio.h>
 #include <linux/workqueue.h>
 
+#define DRIVER_DESC	"LK keyboard driver"
+
 MODULE_AUTHOR ("Jan-Benedict Glaw <jbglaw@lug-owl.de>");
-MODULE_DESCRIPTION ("LK keyboard driver");
+MODULE_DESCRIPTION (DRIVER_DESC);
 MODULE_LICENSE ("GPL");
 
 /*
@@ -415,7 +417,7 @@ static irqreturn_t
 lkkbd_interrupt (struct serio *serio, unsigned char data, unsigned int flags,
 		struct pt_regs *regs)
 {
-	struct lkkbd *lk = serio->private;
+	struct lkkbd *lk = serio_get_drvdata (serio);
 	int i;
 
 	DBG (KERN_INFO "Got byte 0x%02x\n", data);
@@ -621,19 +623,16 @@ lkkbd_reinit (void *data)
 /*
  * lkkbd_connect() probes for a LK keyboard and fills the necessary structures.
  */
-static void
-lkkbd_connect (struct serio *serio, struct serio_dev *dev)
+static int
+lkkbd_connect (struct serio *serio, struct serio_driver *drv)
 {
 	struct lkkbd *lk;
 	int i;
-
-	if ((serio->type & SERIO_TYPE) != SERIO_RS232)
-		return;
-	if ((serio->type & SERIO_PROTO) != SERIO_LKKBD)
-		return;
+	int err;
 
 	if (!(lk = kmalloc (sizeof (struct lkkbd), GFP_KERNEL)))
-		return;
+		return -ENOMEM;
+
 	memset (lk, 0, sizeof (struct lkkbd));
 
 	init_input_dev (&lk->dev);
@@ -663,11 +662,13 @@ lkkbd_connect (struct serio *serio, struct serio_dev *dev)
 	lk->dev.event = lkkbd_event;
 	lk->dev.private = lk;
 
-	serio->private = lk;
+	serio_set_drvdata (serio, lk);
 
-	if (serio_open (serio, dev)) {
+	err = serio_open (serio, drv);
+	if (err) {
+		serio_set_drvdata (serio, NULL);
 		kfree (lk);
-		return;
+		return err;
 	}
 
 	sprintf (lk->name, "DEC LK keyboard");
@@ -683,11 +684,14 @@ lkkbd_connect (struct serio *serio, struct serio_dev *dev)
 	lk->dev.id.vendor = SERIO_LKKBD;
 	lk->dev.id.product = 0;
 	lk->dev.id.version = 0x0100;
+	lk->dev.dev = &serio->dev;
 
 	input_register_device (&lk->dev);
 
 	printk (KERN_INFO "input: %s on %s, initiating reset\n", lk->name, serio->phys);
 	lk->serio->write (lk->serio, LK_CMD_POWERCYCLE_RESET);
+
+	return 0;
 }
 
 /*
@@ -696,33 +700,51 @@ lkkbd_connect (struct serio *serio, struct serio_dev *dev)
 static void
 lkkbd_disconnect (struct serio *serio)
 {
-	struct lkkbd *lk = serio->private;
+	struct lkkbd *lk = serio_get_drvdata (serio);
 
 	input_unregister_device (&lk->dev);
 	serio_close (serio);
+	serio_set_drvdata (serio, NULL);
 	kfree (lk);
 }
 
-static struct serio_dev lkkbd_dev = {
-	.connect = lkkbd_connect,
-	.disconnect = lkkbd_disconnect,
-	.interrupt = lkkbd_interrupt,
+static struct serio_device_id lkkbd_serio_ids[] = {
+	{
+		.type	= SERIO_RS232,
+		.proto	= SERIO_LKKBD,
+		.id	= SERIO_ANY,
+		.extra	= SERIO_ANY,
+	},
+	{ 0 }
+};
+
+MODULE_DEVICE_TABLE(serio, lkkbd_serio_ids);
+
+static struct serio_driver lkkbd_drv = {
+	.driver		= {
+		.name	= "lkkbd",
+	},
+	.description	= DRIVER_DESC,
+	.id_table	= lkkbd_serio_ids,
+	.connect	= lkkbd_connect,
+	.disconnect	= lkkbd_disconnect,
+	.interrupt	= lkkbd_interrupt,
 };
 
 /*
  * The functions for insering/removing us as a module.
  */
-int __init
+static int __init
 lkkbd_init (void)
 {
-	serio_register_device (&lkkbd_dev);
+	serio_register_driver(&lkkbd_drv);
 	return 0;
 }
 
-void __exit
+static void __exit
 lkkbd_exit (void)
 {
-	serio_unregister_device (&lkkbd_dev);
+	serio_unregister_driver(&lkkbd_drv);
 }
 
 module_init (lkkbd_init);

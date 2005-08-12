@@ -31,8 +31,10 @@
 
 #include <linux/types.h>
 #include <linux/pci.h>
+#include <linux/delay.h>
 #include <asm/semaphore.h>
 #include <asm/io.h>		
+#include <linux/pcieport_if.h>
 #include "pci_hotplug.h"
 
 #define MY_NAME	"pciehp"
@@ -126,9 +128,9 @@ struct controller {
 	enum pci_bus_speed speed;
 	u32 first_slot;		/* First physical slot number */  /* PCIE only has 1 slot */
 	u8 slot_bus;		/* Bus where the slots handled by this controller sit */
-	u8 push_flag;
-	u16 ctlrcap;
+	u8 ctrlcap;
 	u16 vendor_id;
+	u8 cap_base;
 };
 
 struct irq_mapping {
@@ -179,6 +181,21 @@ struct resource_lists {
 
 #define DISABLE_CARD			1
 
+/* Field definitions in Slot Capabilities Register */
+#define ATTN_BUTTN_PRSN	0x00000001
+#define	PWR_CTRL_PRSN	0x00000002
+#define MRL_SENS_PRSN	0x00000004
+#define ATTN_LED_PRSN	0x00000008
+#define PWR_LED_PRSN	0x00000010
+#define HP_SUPR_RM_SUP	0x00000020
+
+#define ATTN_BUTTN(cap)		(cap & ATTN_BUTTN_PRSN)
+#define POWER_CTRL(cap)		(cap & PWR_CTRL_PRSN)
+#define MRL_SENS(cap)		(cap & MRL_SENS_PRSN)
+#define ATTN_LED(cap)		(cap & ATTN_LED_PRSN)
+#define PWR_LED(cap)		(cap & PWR_LED_PRSN) 
+#define HP_SUPR_RM(cap)		(cap & HP_SUPR_RM_SUP)
+
 /*
  * error Messages
  */
@@ -191,9 +208,6 @@ struct resource_lists {
 #define msg_button_off		"PCI slot #%d - powering off due to button press.\n"
 #define msg_button_cancel	"PCI slot #%d - action canceled due to button press.\n"
 #define msg_button_ignore	"PCI slot #%d - button press ignored.  (action in progress...)\n"
-
-/* sysfs function for the hotplug controller info */
-extern void pciehp_create_ctrl_files	(struct controller *ctrl);
 
 /* controller functions */
 extern int	pciehprm_find_available_resources	(struct controller *ctrl);
@@ -261,14 +275,12 @@ static inline int wait_for_ctrl_irq(struct controller *ctrl)
 
 	dbg("%s : start\n", __FUNCTION__);
 	add_wait_queue(&ctrl->queue, &wait);
-	set_current_state(TASK_INTERRUPTIBLE);
-	if (!pciehp_poll_mode) {
+	if (!pciehp_poll_mode)
 		/* Sleep for up to 1 second */
-		schedule_timeout(1*HZ);
-	} else
-		schedule_timeout(2.5*HZ);
+		msleep_interruptible(1000);
+	else
+		msleep_interruptible(2500);
 	
-	set_current_state(TASK_RUNNING);
 	remove_wait_queue(&ctrl->queue, &wait);
 	if (signal_pending(current))
 		retval =  -EINTR;
@@ -301,7 +313,7 @@ enum php_ctlr_type {
 
 typedef u8(*php_intr_callback_t) (unsigned int change_id, void *instance_id);
 
-int pcie_init(struct controller *ctrl, struct pci_dev *pdev,
+int pcie_init(struct controller *ctrl, struct pcie_device *dev,
 		php_intr_callback_t attention_button_callback,
 		php_intr_callback_t switch_change_callback,
 		php_intr_callback_t presence_change_callback,
@@ -313,8 +325,7 @@ int pcie_get_ctlr_slot_config(struct controller *ctrl,
 		int *num_ctlr_slots,
 		int *first_device_num,
 		int *physical_slot_num,
-		int *updown,
-		int *flags);
+		u8 *ctrlcap);
 
 struct hpc_ops {
 	int	(*power_on_slot)	(struct slot *slot);

@@ -54,6 +54,7 @@ dasd_devices_show(struct seq_file *m, void *v)
 {
 	struct dasd_device *device;
 	char *substr;
+	int feature;
 
 	device = dasd_device_from_devindex((unsigned long) v - 1);
 	if (IS_ERR(device))
@@ -77,7 +78,10 @@ dasd_devices_show(struct seq_file *m, void *v)
 	else
 		seq_printf(m, " is ????????");
 	/* Print devices features. */
-	substr = test_bit(DASD_FLAG_RO, &device->flags) ? "(ro)" : " ";
+	feature = dasd_get_feature(device->cdev, DASD_FEATURE_READONLY);
+	if (feature < 0)
+		return 0;
+	substr = feature ? "(ro)" : " ";
 	seq_printf(m, "%4s: ", substr);
 	/* Print device status information. */
 	switch ((device != NULL) ? device->state : -1) {
@@ -248,7 +252,9 @@ dasd_statistics_write(struct file *file, const char __user *user_buf,
 	if (user_len > 65536)
 		user_len = 65536;
 	buffer = dasd_get_user_string(user_buf, user_len);
-	MESSAGE(KERN_INFO, "/proc/dasd/statictics: '%s'", buffer);
+	if (IS_ERR(buffer))
+		return PTR_ERR(buffer);
+	MESSAGE_LOG(KERN_INFO, "/proc/dasd/statictics: '%s'", buffer);
 
 	/* check for valid verbs */
 	for (str = buffer; isspace(*str); str++);
@@ -258,20 +264,20 @@ dasd_statistics_write(struct file *file, const char __user *user_buf,
 		if (strcmp(str, "on") == 0) {
 			/* switch on statistics profiling */
 			dasd_profile_level = DASD_PROFILE_ON;
-			MESSAGE(KERN_INFO, "%s", "Statictics switched on");
+			MESSAGE(KERN_INFO, "%s", "Statistics switched on");
 		} else if (strcmp(str, "off") == 0) {
 			/* switch off and reset statistics profiling */
 			memset(&dasd_global_profile,
 			       0, sizeof (struct dasd_profile_info_t));
 			dasd_profile_level = DASD_PROFILE_OFF;
-			MESSAGE(KERN_INFO, "%s", "Statictics switched off");
+			MESSAGE(KERN_INFO, "%s", "Statistics switched off");
 		} else
 			goto out_error;
 	} else if (strncmp(str, "reset", 5) == 0) {
 		/* reset the statistics */
 		memset(&dasd_global_profile, 0,
 		       sizeof (struct dasd_profile_info_t));
-		MESSAGE(KERN_INFO, "%s", "Statictics reset");
+		MESSAGE(KERN_INFO, "%s", "Statistics reset");
 	} else
 		goto out_error;
 	kfree(buffer);

@@ -67,7 +67,7 @@ static inline void wake(void)
 struct mirror_set;
 struct region_hash {
 	struct mirror_set *ms;
-	sector_t region_size;
+	uint32_t region_size;
 	unsigned region_shift;
 
 	/* holds persistent region state */
@@ -122,7 +122,7 @@ static inline sector_t region_to_sector(struct region_hash *rh, region_t region)
 /* FIXME move this */
 static void queue_bio(struct mirror_set *ms, struct bio *bio, int rw);
 
-static void *region_alloc(int gfp_mask, void *pool_data)
+static void *region_alloc(unsigned int __nocast gfp_mask, void *pool_data)
 {
 	return kmalloc(sizeof(struct region), gfp_mask);
 }
@@ -135,7 +135,7 @@ static void region_free(void *element, void *pool_data)
 #define MIN_REGIONS 64
 #define MAX_RECOVERY 1
 static int rh_init(struct region_hash *rh, struct mirror_set *ms,
-		   struct dirty_log *log, sector_t region_size,
+		   struct dirty_log *log, uint32_t region_size,
 		   region_t nr_regions)
 {
 	unsigned int nr_buckets, max_buckets;
@@ -253,9 +253,9 @@ static struct region *__rh_alloc(struct region_hash *rh, region_t region)
 	else {
 		__rh_insert(rh, nreg);
 		if (nreg->state == RH_CLEAN) {
-			spin_lock_irq(&rh->region_lock);
+			spin_lock(&rh->region_lock);
 			list_add(&nreg->list, &rh->clean_regions);
-			spin_unlock_irq(&rh->region_lock);
+			spin_unlock(&rh->region_lock);
 		}
 		reg = nreg;
 	}
@@ -871,7 +871,7 @@ static void do_work(void *ignored)
  * Target functions
  *---------------------------------------------------------------*/
 static struct mirror_set *alloc_context(unsigned int nr_mirrors,
-					sector_t region_size,
+					uint32_t region_size,
 					struct dm_target *ti,
 					struct dirty_log *dl)
 {
@@ -894,7 +894,7 @@ static struct mirror_set *alloc_context(unsigned int nr_mirrors,
 
 	ms->ti = ti;
 	ms->nr_mirrors = nr_mirrors;
-	ms->nr_regions = dm_div_up(ti->len, region_size);
+	ms->nr_regions = dm_sector_div_up(ti->len, region_size);
 	ms->in_sync = 0;
 
 	if (rh_init(&ms->rh, ms, dl, region_size, ms->nr_regions)) {
@@ -916,7 +916,7 @@ static void free_context(struct mirror_set *ms, struct dm_target *ti,
 	kfree(ms);
 }
 
-static inline int _check_region_size(struct dm_target *ti, sector_t size)
+static inline int _check_region_size(struct dm_target *ti, uint32_t size)
 {
 	return !(size % (PAGE_SIZE >> 9) || (size & (size - 1)) ||
 		 size > ti->len);
@@ -1009,8 +1009,8 @@ static struct dirty_log *create_dirty_log(struct dm_target *ti,
  * log_type #log_params <log_params>
  * #mirrors [mirror_path offset]{2,}
  *
- * For now, #log_params = 1, log_type = "core"
- *
+ * log_type is "core" or "disk"
+ * #log_params is between 1 and 3
  */
 #define DM_IO_PAGES 64
 static int mirror_ctr(struct dm_target *ti, unsigned int argc, char **argv)
@@ -1158,10 +1158,11 @@ static int mirror_end_io(struct dm_target *ti, struct bio *bio,
 	return 0;
 }
 
-static void mirror_suspend(struct dm_target *ti)
+static void mirror_postsuspend(struct dm_target *ti)
 {
 	struct mirror_set *ms = (struct mirror_set *) ti->private;
 	struct dirty_log *log = ms->rh.log;
+
 	rh_stop_recovery(&ms->rh);
 	if (log->type->suspend && log->type->suspend(log))
 		/* FIXME: need better error handling */
@@ -1181,37 +1182,27 @@ static void mirror_resume(struct dm_target *ti)
 static int mirror_status(struct dm_target *ti, status_type_t type,
 			 char *result, unsigned int maxlen)
 {
-	char buffer[32];
-	unsigned int m, sz = 0;
+	unsigned int m, sz;
 	struct mirror_set *ms = (struct mirror_set *) ti->private;
 
-#define EMIT(x...) sz += ((sz >= maxlen) ? \
-			  0 : scnprintf(result + sz, maxlen - sz, x))
+	sz = ms->rh.log->type->status(ms->rh.log, type, result, maxlen);
 
 	switch (type) {
 	case STATUSTYPE_INFO:
-		EMIT("%d ", ms->nr_mirrors);
+		DMEMIT("%d ", ms->nr_mirrors);
+		for (m = 0; m < ms->nr_mirrors; m++)
+			DMEMIT("%s ", ms->mirror[m].dev->name);
 
-		for (m = 0; m < ms->nr_mirrors; m++) {
-			format_dev_t(buffer, ms->mirror[m].dev->bdev->bd_dev);
-			EMIT("%s ", buffer);
-		}
-
-		EMIT(SECTOR_FORMAT "/" SECTOR_FORMAT,
-		     ms->rh.log->type->get_sync_count(ms->rh.log),
-		     ms->nr_regions);
+		DMEMIT(SECTOR_FORMAT "/" SECTOR_FORMAT,
+		       ms->rh.log->type->get_sync_count(ms->rh.log),
+		       ms->nr_regions);
 		break;
 
 	case STATUSTYPE_TABLE:
-		EMIT("%s 1 " SECTOR_FORMAT " %d ",
-		     ms->rh.log->type->name, ms->rh.region_size,
-		     ms->nr_mirrors);
-
-		for (m = 0; m < ms->nr_mirrors; m++) {
-			format_dev_t(buffer, ms->mirror[m].dev->bdev->bd_dev);
-			EMIT("%s " SECTOR_FORMAT " ",
-			     buffer, ms->mirror[m].offset);
-		}
+		DMEMIT("%d ", ms->nr_mirrors);
+		for (m = 0; m < ms->nr_mirrors; m++)
+			DMEMIT("%s " SECTOR_FORMAT " ",
+			       ms->mirror[m].dev->name, ms->mirror[m].offset);
 	}
 
 	return 0;
@@ -1225,7 +1216,7 @@ static struct target_type mirror_target = {
 	.dtr	 = mirror_dtr,
 	.map	 = mirror_map,
 	.end_io	 = mirror_end_io,
-	.suspend = mirror_suspend,
+	.postsuspend = mirror_postsuspend,
 	.resume	 = mirror_resume,
 	.status	 = mirror_status,
 };

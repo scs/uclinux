@@ -17,7 +17,6 @@
 #include <linux/mtd/partitions.h>
 
 #include <asm/io.h>
-#include <asm/au1000.h>
 
 #ifdef 	DEBUG_RW
 #define	DBG(x...)	printk(x)
@@ -150,7 +149,7 @@ int __init pb1xxx_mtd_init(void)
 	 */
 	printk(KERN_NOTICE "Pb1xxx flash: probing %d-bit flash bus\n", 
 			BUSWIDTH*8);
-	pb1xxx_mtd_map.virt = (unsigned long)ioremap(WINDOW_ADDR, WINDOW_SIZE);
+	pb1xxx_mtd_map.virt = ioremap(WINDOW_ADDR, WINDOW_SIZE);
 
 	simple_map_init(&pb1xxx_mtd_map);
 

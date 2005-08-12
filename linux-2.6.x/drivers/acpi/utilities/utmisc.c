@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2004, R. Byron Moore
+ * Copyright (C) 2000 - 2005, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -356,16 +356,15 @@ acpi_ut_valid_acpi_character (
  * FUNCTION:    acpi_ut_strtoul64
  *
  * PARAMETERS:  String          - Null terminated string
- *              Terminater      - Where a pointer to the terminating byte is returned
- *              Base            - Radix of the string
+ *              Base            - Radix of the string: 10, 16, or ACPI_ANY_BASE
+ *              ret_integer     - Where the converted integer is returned
  *
- * RETURN:      Converted value
+ * RETURN:      Status and Converted value
  *
  * DESCRIPTION: Convert a string into an unsigned value.
+ *              NOTE: Does not support Octal strings, not needed.
  *
  ******************************************************************************/
-#define NEGATIVE    1
-#define POSITIVE    0
 
 acpi_status
 acpi_ut_strtoul64 (
@@ -373,50 +372,44 @@ acpi_ut_strtoul64 (
 	u32                             base,
 	acpi_integer                    *ret_integer)
 {
-	u32                             index;
+	u32                             this_digit = 0;
 	acpi_integer                    return_value = 0;
-	acpi_status                     status = AE_OK;
-	acpi_integer                    dividend;
 	acpi_integer                    quotient;
 
 
-	*ret_integer = 0;
+	ACPI_FUNCTION_TRACE ("ut_stroul64");
+
+
+	if ((!string) || !(*string)) {
+		goto error_exit;
+	}
 
 	switch (base) {
-	case 0:
-	case 8:
+	case ACPI_ANY_BASE:
 	case 10:
 	case 16:
 		break;
 
 	default:
-		/*
-		 * The specified Base parameter is not in the domain of
-		 * this function:
-		 */
-		return (AE_BAD_PARAMETER);
+		/* Invalid Base */
+		return_ACPI_STATUS (AE_BAD_PARAMETER);
 	}
 
-	/*
-	 * skip over any white space in the buffer:
-	 */
+	/* Skip over any white space in the buffer */
+
 	while (ACPI_IS_SPACE (*string) || *string == '\t') {
-		++string;
+		string++;
 	}
 
 	/*
 	 * If the input parameter Base is zero, then we need to
-	 * determine if it is octal, decimal, or hexadecimal:
+	 * determine if it is decimal or hexadecimal:
 	 */
 	if (base == 0) {
-		if (*string == '0') {
-			if (ACPI_TOLOWER (*(++string)) == 'x') {
-				base = 16;
-				++string;
-			}
-			else {
-				base = 8;
-			}
+		if ((*string == '0') &&
+			(ACPI_TOLOWER (*(string + 1)) == 'x')) {
+			base = 16;
+			string += 2;
 		}
 		else {
 			base = 10;
@@ -424,76 +417,79 @@ acpi_ut_strtoul64 (
 	}
 
 	/*
-	 * For octal and hexadecimal bases, skip over the leading
+	 * For hexadecimal base, skip over the leading
 	 * 0 or 0x, if they are present.
 	 */
-	if (base == 8 && *string == '0') {
-		string++;
+	if ((base == 16) &&
+		(*string == '0') &&
+		(ACPI_TOLOWER (*(string + 1)) == 'x')) {
+		string += 2;
 	}
 
-	if (base == 16 &&
-		*string == '0' &&
-		ACPI_TOLOWER (*(++string)) == 'x') {
-		string++;
+	/* Any string left? */
+
+	if (!(*string)) {
+		goto error_exit;
 	}
 
-	/* Main loop: convert the string to an unsigned long */
+	/* Main loop: convert the string to a 64-bit integer */
 
 	while (*string) {
 		if (ACPI_IS_DIGIT (*string)) {
-			index = ((u8) *string) - '0';
+			/* Convert ASCII 0-9 to Decimal value */
+
+			this_digit = ((u8) *string) - '0';
 		}
 		else {
-			index = (u8) ACPI_TOUPPER (*string);
-			if (ACPI_IS_UPPER ((char) index)) {
-				index = index - 'A' + 10;
-			}
-			else {
+			if (base == 10) {
+				/* Digit is out of range */
+
 				goto error_exit;
 			}
+
+			this_digit = (u8) ACPI_TOUPPER (*string);
+			if (ACPI_IS_XDIGIT ((char) this_digit)) {
+				/* Convert ASCII Hex char to value */
+
+				this_digit = this_digit - 'A' + 10;
+			}
+			else {
+				/*
+				 * We allow non-hex chars, just stop now, same as end-of-string.
+				 * See ACPI spec, string-to-integer conversion.
+				 */
+				break;
+			}
 		}
 
-		if (index >= base) {
-			goto error_exit;
-		}
+		/* Divide the digit into the correct position */
 
-		/* Check to see if value is out of range: */
-
-		dividend = ACPI_INTEGER_MAX - (acpi_integer) index;
-		(void) acpi_ut_short_divide (&dividend, base, &quotient, NULL);
+		(void) acpi_ut_short_divide ((ACPI_INTEGER_MAX - (acpi_integer) this_digit),
+				 base, &quotient, NULL);
 		if (return_value > quotient) {
 			goto error_exit;
 		}
 
 		return_value *= base;
-		return_value += index;
-		++string;
+		return_value += this_digit;
+		string++;
 	}
 
+	/* All done, normal exit */
+
 	*ret_integer = return_value;
-	return (status);
+	return_ACPI_STATUS (AE_OK);
 
 
 error_exit:
-	switch (base) {
-	case 8:
-		status = AE_BAD_OCTAL_CONSTANT;
-		break;
+	/* Base was set/validated above */
 
-	case 10:
-		status = AE_BAD_DECIMAL_CONSTANT;
-		break;
-
-	case 16:
-		status = AE_BAD_HEX_CONSTANT;
-		break;
-
-	default:
-		/* Base validated above */
-		break;
+	if (base == 10) {
+		return_ACPI_STATUS (AE_BAD_DECIMAL_CONSTANT);
 	}
-
-	return (status);
+	else {
+		return_ACPI_STATUS (AE_BAD_HEX_CONSTANT);
+	}
 }
 
 
@@ -508,7 +504,7 @@ error_exit:
  * DESCRIPTION: Convert string to uppercase
  *
  ******************************************************************************/
-
+#ifdef ACPI_FUTURE_USAGE
 char *
 acpi_ut_strupr (
 	char                            *src_string)
@@ -528,6 +524,7 @@ acpi_ut_strupr (
 
 	return (src_string);
 }
+#endif  /*  ACPI_FUTURE_USAGE  */
 
 
 /*******************************************************************************
@@ -691,7 +688,6 @@ acpi_ut_acquire_mutex (
 	acpi_mutex_handle               mutex_id)
 {
 	acpi_status                     status;
-	u32                             i;
 	u32                             this_thread_id;
 
 
@@ -704,30 +700,37 @@ acpi_ut_acquire_mutex (
 
 	this_thread_id = acpi_os_get_thread_id ();
 
-	/*
-	 * Deadlock prevention.  Check if this thread owns any mutexes of value
-	 * greater than or equal to this one.  If so, the thread has violated
-	 * the mutex ordering rule.  This indicates a coding error somewhere in
-	 * the ACPI subsystem code.
-	 */
-	for (i = mutex_id; i < MAX_MUTEX; i++) {
-		if (acpi_gbl_mutex_info[i].owner_id == this_thread_id) {
-			if (i == mutex_id) {
+#ifdef ACPI_MUTEX_DEBUG
+	{
+		u32                             i;
+		/*
+		 * Mutex debug code, for internal debugging only.
+		 *
+		 * Deadlock prevention.  Check if this thread owns any mutexes of value
+		 * greater than or equal to this one.  If so, the thread has violated
+		 * the mutex ordering rule.  This indicates a coding error somewhere in
+		 * the ACPI subsystem code.
+		 */
+		for (i = mutex_id; i < MAX_MUTEX; i++) {
+			if (acpi_gbl_mutex_info[i].owner_id == this_thread_id) {
+				if (i == mutex_id) {
+					ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
+							"Mutex [%s] already acquired by this thread [%X]\n",
+							acpi_ut_get_mutex_name (mutex_id), this_thread_id));
+
+					return (AE_ALREADY_ACQUIRED);
+				}
+
 				ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
-						"Mutex [%s] already acquired by this thread [%X]\n",
-						acpi_ut_get_mutex_name (mutex_id), this_thread_id));
+						"Invalid acquire order: Thread %X owns [%s], wants [%s]\n",
+						this_thread_id, acpi_ut_get_mutex_name (i),
+						acpi_ut_get_mutex_name (mutex_id)));
 
-				return (AE_ALREADY_ACQUIRED);
+				return (AE_ACQUIRE_DEADLOCK);
 			}
-
-			ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
-					"Invalid acquire order: Thread %X owns [%s], wants [%s]\n",
-					this_thread_id, acpi_ut_get_mutex_name (i),
-					acpi_ut_get_mutex_name (mutex_id)));
-
-			return (AE_ACQUIRE_DEADLOCK);
 		}
 	}
+#endif
 
 	ACPI_DEBUG_PRINT ((ACPI_DB_MUTEX,
 			 "Thread %X attempting to acquire Mutex [%s]\n",
@@ -891,7 +894,7 @@ acpi_ut_create_update_state_and_push (
  * DESCRIPTION: Create a new state and push it
  *
  ******************************************************************************/
-
+#ifdef ACPI_FUTURE_USAGE
 acpi_status
 acpi_ut_create_pkg_state_and_push (
 	void                            *internal_object,
@@ -913,7 +916,7 @@ acpi_ut_create_pkg_state_and_push (
 	acpi_ut_push_generic_state (state_list, state);
 	return (AE_OK);
 }
-
+#endif  /*  ACPI_FUTURE_USAGE  */
 
 /*******************************************************************************
  *
@@ -1206,6 +1209,7 @@ acpi_ut_delete_generic_state (
 }
 
 
+#ifdef ACPI_ENABLE_OBJECT_CACHE
 /*******************************************************************************
  *
  * FUNCTION:    acpi_ut_delete_generic_state_cache
@@ -1229,6 +1233,7 @@ acpi_ut_delete_generic_state_cache (
 	acpi_ut_delete_generic_cache (ACPI_MEM_LIST_STATE);
 	return_VOID;
 }
+#endif
 
 
 /*******************************************************************************

@@ -58,7 +58,7 @@ config ISDN_AUDIO
 	help
 	  If you say Y here, the modem-emulator will support a subset of the
 	  EIA Class 8 Voice commands. Using a getty with voice-support
-	  (mgetty+sendfax by gert@greenie.muc.de with an extension, available
+	  (mgetty+sendfax by <gert@greenie.muc.de> with an extension, available
 	  with the ISDN utility package for example), you will be able to use
 	  your Linux box as an ISDN-answering machine. Of course, this must be
 	  supported by the lowlevel driver also. Currently, the HiSax driver
@@ -99,7 +99,7 @@ config ISDN_DRV_LOOP
 
 config ISDN_DIVERSION
 	tristate "Support isdn diversion services"
-	depends on BROKEN && BROKEN_ON_SMP
+	depends on ISDN && ISDN_I4L
 	help
 	  This option allows you to use some supplementary diversion
 	  services in conjunction with the HiSax driver on an EURO/DSS1
@@ -134,8 +134,6 @@ source "drivers/isdn/pcbit/Kconfig"
 source "drivers/isdn/sc/Kconfig"
 
 source "drivers/isdn/act2000/Kconfig"
-
-source "drivers/isdn/tpam/Kconfig"
 
 source "drivers/isdn/hysdn/Kconfig"
 

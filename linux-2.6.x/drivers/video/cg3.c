@@ -111,7 +111,7 @@ struct cg3_regs {
 
 struct cg3_par {
 	spinlock_t		lock;
-	struct cg3_regs		*regs;
+	struct cg3_regs		__iomem *regs;
 	u32			sw_cmap[((256 * 3) + 3) / 4];
 
 	u32			flags;
@@ -144,7 +144,7 @@ static int cg3_setcolreg(unsigned regno,
 			 unsigned transp, struct fb_info *info)
 {
 	struct cg3_par *par = (struct cg3_par *) info->par;
-	struct bt_regs *bt = &par->regs->cmap;
+	struct bt_regs __iomem *bt = &par->regs->cmap;
 	unsigned long flags;
 	u32 *p32;
 	u8 *p8;
@@ -190,27 +190,27 @@ static int
 cg3_blank(int blank, struct fb_info *info)
 {
 	struct cg3_par *par = (struct cg3_par *) info->par;
-	struct cg3_regs *regs = par->regs;
+	struct cg3_regs __iomem *regs = par->regs;
 	unsigned long flags;
 	u8 val;
 
 	spin_lock_irqsave(&par->lock, flags);
 
 	switch (blank) {
-	case 0: /* Unblanking */
-		val = sbus_readl(&regs->control);
+	case FB_BLANK_UNBLANK: /* Unblanking */
+		val = sbus_readb(&regs->control);
 		val |= CG3_CR_ENABLE_VIDEO;
-		sbus_writel(val, &regs->control);
+		sbus_writeb(val, &regs->control);
 		par->flags &= ~CG3_FLAG_BLANKED;
 		break;
 
-	case 1: /* Normal blanking */
-	case 2: /* VESA blank (vsync off) */
-	case 3: /* VESA blank (hsync off) */
-	case 4: /* Poweroff */
-		val = sbus_readl(&regs->control);
-		val |= CG3_CR_ENABLE_VIDEO;
-		sbus_writel(val, &regs->control);
+	case FB_BLANK_NORMAL: /* Normal blanking */
+	case FB_BLANK_VSYNC_SUSPEND: /* VESA blank (vsync off) */
+	case FB_BLANK_HSYNC_SUSPEND: /* VESA blank (hsync off) */
+	case FB_BLANK_POWERDOWN: /* Poweroff */
+		val = sbus_readb(&regs->control);
+		val &= ~CG3_CR_ENABLE_VIDEO;
+		sbus_writeb(val, &regs->control);
 		par->flags |= CG3_FLAG_BLANKED;
 		break;
 	}
@@ -222,8 +222,8 @@ cg3_blank(int blank, struct fb_info *info)
 
 static struct sbus_mmap_map cg3_mmap_map[] = {
 	{
-		.poff	= CG3_MMAP_OFFSET,
-		.voff	= CG3_RAM_OFFSET,
+		.voff	= CG3_MMAP_OFFSET,
+		.poff	= CG3_RAM_OFFSET,
 		.size	= SBUS_MMAP_FBSIZE(1)
 	},
 	{ .size = 0 }
@@ -345,15 +345,15 @@ static void cg3_do_default_mode(struct cg3_par *par)
 	}
 
 	for (p = cg3_regvals[type]; *p; p += 2) {
-		u8 *regp = &((u8 *)par->regs)[p[0]];
+		u8 __iomem *regp = &((u8 __iomem *)par->regs)[p[0]];
 		sbus_writeb(p[1], regp);
 	}
 	for (p = cg3_dacvals; *p; p += 2) {
-		volatile u8 *regp;
+		volatile u8 __iomem *regp;
 
-		regp = (volatile u8 *)&par->regs->cmap.addr;
+		regp = (volatile u8 __iomem *)&par->regs->cmap.addr;
 		sbus_writeb(p[0], regp);
-		regp = (volatile u8 *)&par->regs->cmap.control;
+		regp = (volatile u8 __iomem *)&par->regs->cmap.control;
 		sbus_writeb(p[1], regp);
 	}
 }
@@ -385,6 +385,9 @@ static void cg3_init_one(struct sbus_dev *sdev)
 	all->par.physbase = sdev->reg_addrs[0].phys_addr;
 
 	sbusfb_fill_var(&all->info.var, sdev->prom_node, 8);
+	all->info.var.red.length = 8;
+	all->info.var.green.length = 8;
+	all->info.var.blue.length = 8;
 	if (!strcmp(sdev->prom_name, "cgRDI"))
 		all->par.flags |= CG3_FLAG_RDI;
 	if (all->par.flags & CG3_FLAG_RDI)
@@ -394,21 +397,19 @@ static void cg3_init_one(struct sbus_dev *sdev)
 				       all->info.var.xres);
 	all->par.fbsize = PAGE_ALIGN(linebytes * all->info.var.yres);
 
-	all->par.regs = (struct cg3_regs *)
-		sbus_ioremap(&sdev->resource[0], CG3_REGS_OFFSET,
+	all->par.regs = sbus_ioremap(&sdev->resource[0], CG3_REGS_OFFSET,
 			     sizeof(struct cg3_regs), "cg3 regs");
 
-	all->info.flags = FBINFO_FLAG_DEFAULT;
+	all->info.flags = FBINFO_DEFAULT;
 	all->info.fbops = &cg3_ops;
 #ifdef CONFIG_SPARC32
-	all->info.screen_base = (char *)
+	all->info.screen_base = (char __iomem *)
 		prom_getintdefault(sdev->prom_node, "address", 0);
 #endif
 	if (!all->info.screen_base)
-		all->info.screen_base = (char *)
+		all->info.screen_base =
 			sbus_ioremap(&sdev->resource[0], CG3_RAM_OFFSET,
 				     all->par.fbsize, "cg3 ram");
-	all->info.currcon = -1;
 	all->info.par = &all->par;
 
 	cg3_blank(0, &all->info);
@@ -421,6 +422,7 @@ static void cg3_init_one(struct sbus_dev *sdev)
 		kfree(all);
 		return;
 	}
+	fb_set_cmap(&all->info.cmap, &all->info);
 
 	cg3_init_fix(&all->info, linebytes);
 
@@ -443,6 +445,9 @@ int __init cg3_init(void)
 {
 	struct sbus_bus *sbus;
 	struct sbus_dev *sdev;
+
+	if (fb_get_options("cg3fb", NULL))
+		return -ENODEV;
 
 	for_all_sbusdev(sdev, sbus) {
 		if (!strcmp(sdev->prom_name, "cgthree") ||
@@ -473,8 +478,9 @@ cg3_setup(char *arg)
 	return 0;
 }
 
-#ifdef MODULE
 module_init(cg3_init);
+
+#ifdef MODULE
 module_exit(cg3_exit);
 #endif
 

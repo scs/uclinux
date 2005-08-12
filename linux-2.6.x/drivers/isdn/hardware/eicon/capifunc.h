@@ -13,8 +13,6 @@
 #ifndef __CAPIFUNC_H__
 #define __CAPIFUNC_H__
 
-#define MAX_DESCRIPTORS  32
-
 #define DRRELMAJOR  2
 #define DRRELMINOR  0
 #define DRRELEXTRA  ""

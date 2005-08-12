@@ -35,7 +35,7 @@
 static struct map_info omap_toto_map_flash = {
 	.name =		"OMAP Toto flash",
 	.bankwidth =	2,
-	.virt =		OMAP_TOTO_FLASH_BASE,
+	.virt =		(void __iomem *)OMAP_TOTO_FLASH_BASE,
 };
 
  

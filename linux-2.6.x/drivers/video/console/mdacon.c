@@ -47,7 +47,7 @@
 #include <asm/io.h>
 #include <asm/vga.h>
 
-static spinlock_t mda_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(mda_lock);
 
 /* description of the hardware layout */
 
@@ -64,7 +64,6 @@ static unsigned int	mda_gfx_port;		/* Graphics control port */
 
 /* current hardware state */
 
-static int	mda_origin_loc=-1;
 static int	mda_cursor_loc=-1;
 static int	mda_cursor_size_from=-1;
 static int	mda_cursor_size_to=-1;
@@ -79,8 +78,8 @@ static int	mda_last_vc  = 16;
 
 static struct vc_data	*mda_display_fg = NULL;
 
-MODULE_PARM(mda_first_vc, "1-255i");
-MODULE_PARM(mda_last_vc,  "1-255i");
+module_param(mda_first_vc, int, 0);
+module_param(mda_last_vc, int, 0);
 
 /* MDA register values
  */
@@ -147,16 +146,6 @@ static int test_mda_b(unsigned char val, unsigned char reg)
 	return val;
 }
 #endif
-
-static inline void mda_set_origin(unsigned int location)
-{
-	if (mda_origin_loc == location)
-		return;
-
-	write_mda_w(location >> 1, 0x0c);
-
-	mda_origin_loc = location;
-}
 
 static inline void mda_set_cursor(unsigned int location) 
 {
@@ -362,10 +351,9 @@ static void mdacon_init(struct vc_data *c, int init)
 	if (init) {
 		c->vc_cols = mda_num_columns;
 		c->vc_rows = mda_num_lines;
-	} else {
-		vc_resize(c->vc_num, mda_num_columns, mda_num_lines);
-        }
-	
+	} else
+		vc_resize(c, mda_num_columns, mda_num_lines);
+
 	/* make the first MDA console visible */
 
 	if (mda_display_fg == NULL)
@@ -576,7 +564,7 @@ static int mdacon_scroll(struct vc_data *c, int t, int b, int dir, int lines)
  *  The console `switch' structure for the MDA based console
  */
 
-const struct consw mda_con = {
+static const struct consw mda_con = {
 	.owner =		THIS_MODULE,
 	.con_startup =		mdacon_startup,
 	.con_init =		mdacon_init,
@@ -603,7 +591,7 @@ int __init mda_console_init(void)
 	return take_over_console(&mda_con, mda_first_vc-1, mda_last_vc-1, 0);
 }
 
-void __exit mda_console_exit(void)
+static void __exit mda_console_exit(void)
 {
 	give_up_console(&mda_con);
 }

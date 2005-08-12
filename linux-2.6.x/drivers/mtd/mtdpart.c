@@ -523,10 +523,10 @@ int add_mtd_partitions(struct mtd_info *master,
 EXPORT_SYMBOL(add_mtd_partitions);
 EXPORT_SYMBOL(del_mtd_partitions);
 
-static spinlock_t part_parser_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(part_parser_lock);
 static LIST_HEAD(part_parsers);
 
-struct mtd_part_parser *get_partition_parser(const char *name)
+static struct mtd_part_parser *get_partition_parser(const char *name)
 {
 	struct list_head *this;
 	void *ret = NULL;

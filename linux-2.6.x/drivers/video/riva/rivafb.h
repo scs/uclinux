@@ -44,16 +44,17 @@ struct riva_i2c_chan {
 
 struct riva_par {
 	RIVA_HW_INST riva;	/* interface to riva_hw.c */
-
-	caddr_t ctrl_base;	/* virtual control register base addr */
+	u32 pseudo_palette[16]; /* default palette */
+	u32 palette[16];        /* for Riva128 */
+	u8 __iomem *ctrl_base;	/* virtual control register base addr */
 	unsigned dclk_max;	/* max DCLK */
 
 	struct riva_regs initial_state;	/* initial startup video mode */
 	struct riva_regs current_state;
+#ifdef CONFIG_X86
 	struct vgastate state;
+#endif
 	atomic_t ref_count;
-	u32 cursor_data[32 * 32/4];
-	int cursor_reset;
 	unsigned char *EDID;
 	unsigned int Chipset;
 	int forceCRTC;
@@ -61,6 +62,7 @@ struct riva_par {
 	int FlatPanel;
 	struct pci_dev *pdev;
 	int bus;
+	int cursor_reset;
 #ifdef CONFIG_MTRR
 	struct { int vram; int vram_valid; } mtrr;
 #endif

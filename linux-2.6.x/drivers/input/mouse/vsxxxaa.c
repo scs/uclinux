@@ -1,11 +1,14 @@
 /*
- * DEC VSXXX-AA and VSXXX-GA mouse driver.
+ * Driver for	DEC VSXXX-AA mouse (hockey-puck mouse, ball or two rollers)
+ * 		DEC VSXXX-GA mouse (rectangular mouse, with ball)
+ * 		DEC VSXXX-AB tablet (digitizer with hair cross or stylus)
  *
  * Copyright (C) 2003-2004 by Jan-Benedict Glaw <jbglaw@lug-owl.de>
  *
- * The packet format was taken from a patch to GPM which is (C) 2001
+ * The packet format was initially taken from a patch to GPM which is (C) 2001
  * by	Karsten Merker <merker@linuxtag.org>
  * and	Maciej W. Rozycki <macro@ds2.pg.gda.pl>
+ * Later on, I had access to the device's documentation (referenced below).
  */
 
 /*
@@ -25,7 +28,7 @@
  */
 
 /*
- * Building an adaptor to DB9 / DB25 RS232
+ * Building an adaptor to DE9 / DB25 RS232
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  *
  * DISCLAIMER: Use this description AT YOUR OWN RISK! I'll not pay for
@@ -42,8 +45,8 @@
  *  | 4 --- 3 |
  *   \  2 1  /
  *    -------
- * 
- *	DEC socket	DB9	DB25	Note
+ *
+ *	DEC socket	DE9	DB25	Note
  *	1 (GND)		5	7	-
  *	2 (RxD)		2	3	-
  *	3 (TxD)		3	2	-
@@ -82,8 +85,10 @@
 #include <linux/serio.h>
 #include <linux/init.h>
 
+#define DRIVER_DESC "Driver for DEC VSXXX-AA and -GA mice and VSXXX-AB tablet"
+
 MODULE_AUTHOR ("Jan-Benedict Glaw <jbglaw@lug-owl.de>");
-MODULE_DESCRIPTION ("Serial DEC VSXXX-AA/GA mouse / DEC tablet driver");
+MODULE_DESCRIPTION (DRIVER_DESC);
 MODULE_LICENSE ("GPL");
 
 #undef VSXXXAA_DEBUG
@@ -102,7 +107,7 @@ MODULE_LICENSE ("GPL");
 #define VSXXXAA_PACKET_REL	0x80
 #define VSXXXAA_PACKET_ABS	0xc0
 #define VSXXXAA_PACKET_POR	0xa0
-#define MATCH_PACKET_TYPE(data, type)	(((data) & VSXXXAA_PACKET_MASK) == type)
+#define MATCH_PACKET_TYPE(data, type)	(((data) & VSXXXAA_PACKET_MASK) == (type))
 
 
 
@@ -148,7 +153,7 @@ vsxxxaa_detection_done (struct vsxxxaa *mouse)
 {
 	switch (mouse->type) {
 		case 0x02:
-			sprintf (mouse->name, "DEC VSXXX-AA/GA mouse");
+			sprintf (mouse->name, "DEC VSXXX-AA/-GA mouse");
 			break;
 
 		case 0x04:
@@ -156,7 +161,8 @@ vsxxxaa_detection_done (struct vsxxxaa *mouse)
 			break;
 
 		default:
-			sprintf (mouse->name, "unknown DEC pointer device");
+			sprintf (mouse->name, "unknown DEC pointer device "
+					"(type = 0x%02x)", mouse->type);
 			break;
 	}
 
@@ -334,13 +340,10 @@ vsxxxaa_handle_POR_packet (struct vsxxxaa *mouse, struct pt_regs *regs)
 	 *
 	 * M: manufacturer location code
 	 * R: revision code
-	 * E: Error code. I'm not sure about these, but gpm's sources,
-	 *    which support this mouse, too, tell about them:
-	 *	E = [0x00 .. 0x1f]: no error, byte #3 is button state
-	 *	E = 0x3d: button error, byte #3 tells which one.
-	 *	E = <else>: other error
+	 * E: Error code. If it's in the range of 0x00..0x1f, only some
+	 *    minor problem occured. Errors >= 0x20 are considered bad
+	 *    and the device may not work properly...
 	 * D: <0010> == mouse, <0100> == tablet
-	 *
 	 */
 
 	mouse->version = buf[0] & 0x0f;
@@ -361,28 +364,32 @@ vsxxxaa_handle_POR_packet (struct vsxxxaa *mouse, struct pt_regs *regs)
 	vsxxxaa_detection_done (mouse);
 
 	if (error <= 0x1f) {
-		/* No error. Report buttons */
+		/* No (serious) error. Report buttons */
 		input_regs (dev, regs);
 		input_report_key (dev, BTN_LEFT, left);
 		input_report_key (dev, BTN_MIDDLE, middle);
 		input_report_key (dev, BTN_RIGHT, right);
 		input_report_key (dev, BTN_TOUCH, 0);
 		input_sync (dev);
-	} else {
-		printk (KERN_ERR "Your %s on %s reports an undefined error, "
-				"please check it...\n", mouse->name,
-				mouse->phys);
+
+		if (error != 0)
+			printk (KERN_INFO "Your %s on %s reports error=0x%02x\n",
+					mouse->name, mouse->phys, error);
+
 	}
 
 	/*
 	 * If the mouse was hot-plugged, we need to force differential mode
 	 * now... However, give it a second to recover from it's reset.
 	 */
-	printk (KERN_NOTICE "%s on %s: Forceing standard packet format and "
-			"streaming mode\n", mouse->name, mouse->phys);
-	mouse->serio->write (mouse->serio, 'S');
+	printk (KERN_NOTICE "%s on %s: Forceing standard packet format, "
+			"incremental streaming mode and 72 samples/sec\n",
+			mouse->name, mouse->phys);
+	mouse->serio->write (mouse->serio, 'S');	/* Standard format */
 	mdelay (50);
-	mouse->serio->write (mouse->serio, 'R');
+	mouse->serio->write (mouse->serio, 'R');	/* Incremental */
+	mdelay (50);
+	mouse->serio->write (mouse->serio, 'L');	/* 72 samples/sec */
 }
 
 static void
@@ -463,7 +470,7 @@ static irqreturn_t
 vsxxxaa_interrupt (struct serio *serio, unsigned char data, unsigned int flags,
 		struct pt_regs *regs)
 {
-	struct vsxxxaa *mouse = serio->private;
+	struct vsxxxaa *mouse = serio_get_drvdata (serio);
 
 	vsxxxaa_queue_byte (mouse, data);
 	vsxxxaa_parse_buffer (mouse, regs);
@@ -474,25 +481,22 @@ vsxxxaa_interrupt (struct serio *serio, unsigned char data, unsigned int flags,
 static void
 vsxxxaa_disconnect (struct serio *serio)
 {
-	struct vsxxxaa *mouse = serio->private;
+	struct vsxxxaa *mouse = serio_get_drvdata (serio);
 
 	input_unregister_device (&mouse->dev);
 	serio_close (serio);
+	serio_set_drvdata (serio, NULL);
 	kfree (mouse);
 }
 
-static void
-vsxxxaa_connect (struct serio *serio, struct serio_dev *dev)
+static int
+vsxxxaa_connect (struct serio *serio, struct serio_driver *drv)
 {
 	struct vsxxxaa *mouse;
-
-	if ((serio->type & SERIO_TYPE) != SERIO_RS232)
-		return;
-	if ((serio->type & SERIO_PROTO) != SERIO_VSXXXAA)
-		return;
+	int err;
 
 	if (!(mouse = kmalloc (sizeof (struct vsxxxaa), GFP_KERNEL)))
-		return;
+		return -ENOMEM;
 
 	memset (mouse, 0, sizeof (struct vsxxxaa));
 
@@ -515,18 +519,22 @@ vsxxxaa_connect (struct serio *serio, struct serio_dev *dev)
 	mouse->dev.absmax[ABS_Y] = 1023;
 
 	mouse->dev.private = mouse;
-	serio->private = mouse;
 
-	sprintf (mouse->name, "DEC VSXXX-AA/GA mouse or VSXXX-AB digitizer");
+	sprintf (mouse->name, "DEC VSXXX-AA/-GA mouse or VSXXX-AB digitizer");
 	sprintf (mouse->phys, "%s/input0", serio->phys);
 	mouse->dev.name = mouse->name;
 	mouse->dev.phys = mouse->phys;
 	mouse->dev.id.bustype = BUS_RS232;
+	mouse->dev.dev = &serio->dev;
 	mouse->serio = serio;
 
-	if (serio_open (serio, dev)) {
+	serio_set_drvdata (serio, mouse);
+
+	err = serio_open (serio, drv);
+	if (err) {
+		serio_set_drvdata (serio, NULL);
 		kfree (mouse);
-		return;
+		return err;
 	}
 
 	/*
@@ -538,25 +546,44 @@ vsxxxaa_connect (struct serio *serio, struct serio_dev *dev)
 	input_register_device (&mouse->dev);
 
 	printk (KERN_INFO "input: %s on %s\n", mouse->name, mouse->phys);
-}
 
-static struct serio_dev vsxxxaa_dev = {
-	.connect = vsxxxaa_connect,
-	.interrupt = vsxxxaa_interrupt,
-	.disconnect = vsxxxaa_disconnect,
-};
-
-int __init
-vsxxxaa_init (void)
-{
-	serio_register_device (&vsxxxaa_dev);
 	return 0;
 }
 
-void __exit
+static struct serio_device_id vsxxaa_serio_ids[] = {
+	{
+		.type	= SERIO_RS232,
+		.proto	= SERIO_VSXXXAA,
+		.id	= SERIO_ANY,
+		.extra	= SERIO_ANY,
+	},
+	{ 0 }
+};
+
+MODULE_DEVICE_TABLE(serio, vsxxaa_serio_ids);
+
+static struct serio_driver vsxxxaa_drv = {
+	.driver		= {
+		.name	= "vsxxxaa",
+	},
+	.description	= DRIVER_DESC,
+	.id_table	= vsxxaa_serio_ids,
+	.connect	= vsxxxaa_connect,
+	.interrupt	= vsxxxaa_interrupt,
+	.disconnect	= vsxxxaa_disconnect,
+};
+
+static int __init
+vsxxxaa_init (void)
+{
+	serio_register_driver(&vsxxxaa_drv);
+	return 0;
+}
+
+static void __exit
 vsxxxaa_exit (void)
 {
-	serio_unregister_device (&vsxxxaa_dev);
+	serio_unregister_driver(&vsxxxaa_drv);
 }
 
 module_init (vsxxxaa_init);

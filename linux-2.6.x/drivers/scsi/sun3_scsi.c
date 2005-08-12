@@ -47,8 +47,8 @@
 
 /*
  * $Log$
- * Revision 1.3  2004/09/08 15:40:08  lgsoft
- * Import of 2.6.8
+ * Revision 1.4  2005/08/12 06:42:46  magicyang
+ *  Update kernel 2.6.8 to 2.6.12
  *
  */
 
@@ -110,17 +110,17 @@ static inline unsigned char sun3scsi_read(int reg);
 static inline void sun3scsi_write(int reg, int value);
 
 static int setup_can_queue = -1;
-MODULE_PARM(setup_can_queue, "i");
+module_param(setup_can_queue, int, 0);
 static int setup_cmd_per_lun = -1;
-MODULE_PARM(setup_cmd_per_lun, "i");
+module_param(setup_cmd_per_lun, int, 0);
 static int setup_sg_tablesize = -1;
-MODULE_PARM(setup_sg_tablesize, "i");
+module_param(setup_sg_tablesize, int, 0);
 #ifdef SUPPORT_TAGS
 static int setup_use_tagged_queuing = -1;
-MODULE_PARM(setup_use_tagged_queuing, "i");
+module_param(setup_use_tagged_queuing, int, 0);
 #endif
 static int setup_hostid = -1;
-MODULE_PARM(setup_hostid, "i");
+module_param(setup_hostid, int, 0);
 
 static Scsi_Cmnd *sun3_dma_setup_done = NULL;
 

@@ -29,12 +29,16 @@
  */
 
 #include <linux/config.h>
+#include <linux/hdreg.h>
+
+#include <scsi/scsi.h>
+#include <scsi/scsi_cmnd.h>
+
+#include "usb.h"
 #include "transport.h"
 #include "protocol.h"
-#include "usb.h"
 #include "debug.h"
 #include "freecom.h"
-#include "linux/hdreg.h"
 
 #ifdef CONFIG_USB_STORAGE_DEBUG
 static void pdump (void *, int);
@@ -55,14 +59,14 @@ struct freecom_cb_wrap {
 struct freecom_xfer_wrap {
 	u8    Type;		/* Command type. */
 	u8    Timeout;		/* Timeout in seconds. */
-	u32   Count;		/* Number of bytes to transfer. */
+	__le32   Count;		/* Number of bytes to transfer. */
 	u8    Pad[58];
 } __attribute__ ((packed));
 
 struct freecom_ide_out {
 	u8    Type;		/* Type + IDE register. */
 	u8    Pad;
-	u16   Value;		/* Value to write. */
+	__le16   Value;		/* Value to write. */
 	u8    Pad2[60];
 };
 
@@ -74,7 +78,7 @@ struct freecom_ide_in {
 struct freecom_status {
 	u8    Status;
 	u8    Reason;
-	u16   Count;
+	__le16   Count;
 	u8    Pad[60];
 };
 
@@ -105,7 +109,7 @@ struct freecom_status {
 #define FCM_STATUS_PACKET_LENGTH	4
 
 static int
-freecom_readdata (Scsi_Cmnd *srb, struct us_data *us,
+freecom_readdata (struct scsi_cmnd *srb, struct us_data *us,
 		unsigned int ipipe, unsigned int opipe, int count)
 {
 	struct freecom_xfer_wrap *fxfr =
@@ -139,7 +143,7 @@ freecom_readdata (Scsi_Cmnd *srb, struct us_data *us,
 }
 
 static int
-freecom_writedata (Scsi_Cmnd *srb, struct us_data *us,
+freecom_writedata (struct scsi_cmnd *srb, struct us_data *us,
 		int unsigned ipipe, unsigned int opipe, int count)
 {
 	struct freecom_xfer_wrap *fxfr =
@@ -176,7 +180,7 @@ freecom_writedata (Scsi_Cmnd *srb, struct us_data *us,
  * Transport for the Freecom USB/IDE adaptor.
  *
  */
-int freecom_transport(Scsi_Cmnd *srb, struct us_data *us)
+int freecom_transport(struct scsi_cmnd *srb, struct us_data *us)
 {
 	struct freecom_cb_wrap *fcb;
 	struct freecom_status  *fst;
@@ -286,7 +290,7 @@ int freecom_transport(Scsi_Cmnd *srb, struct us_data *us)
 		case REQUEST_SENSE:		/* 16 or 18 bytes? spec says 18, lots of devices only have 16 */
 		case MODE_SENSE:
 		case MODE_SENSE_10:
-			length = fst->Count;
+			length = le16_to_cpu(fst->Count);
 			break;
 		default:
  			length = srb->request_bufflen;
@@ -302,7 +306,7 @@ int freecom_transport(Scsi_Cmnd *srb, struct us_data *us)
 	 * move in. */
 
 	switch (us->srb->sc_data_direction) {
-	case SCSI_DATA_READ:
+	case DMA_FROM_DEVICE:
 		/* catch bogus "read 0 length" case */
 		if (!length)
 			break;
@@ -334,7 +338,7 @@ int freecom_transport(Scsi_Cmnd *srb, struct us_data *us)
 		US_DEBUGP("Transfer happy\n");
 		break;
 
-	case SCSI_DATA_WRITE:
+	case DMA_TO_DEVICE:
 		/* catch bogus "write 0 length" case */
 		if (!length)
 			break;
@@ -364,7 +368,7 @@ int freecom_transport(Scsi_Cmnd *srb, struct us_data *us)
 		break;
 
 
-	case SCSI_DATA_NONE:
+	case DMA_NONE:
 		/* Easy, do nothing. */
 		break;
 

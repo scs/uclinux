@@ -42,8 +42,6 @@
 #include <asm/io.h>
 #include <asm/it8172/it8172_int.h>
 
-#include "it8172.h"
-
 /*
  * Prototypes
  */
@@ -56,7 +54,7 @@ static void it8172_tune_drive (ide_drive_t *drive, u8 pio)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
 	struct pci_dev *dev	= hwif->pci_dev;
-	int is_slave		= (hwif->drives[1] == drive);
+	int is_slave		= (&hwif->drives[1] == drive);
 	unsigned long flags;
 	u16 drive_enables;
 	u32 drive_timing;
@@ -94,7 +92,7 @@ static void it8172_tune_drive (ide_drive_t *drive, u8 pio)
 	}
 
 	pci_write_config_word(dev, 0x40, drive_enables);
-	spin_unlock_irqrestore(&ide_lock, flags)
+	spin_unlock_irqrestore(&ide_lock, flags);
 }
 
 static u8 it8172_dma_2_pio (u8 xfer_rate)
@@ -201,36 +199,16 @@ static int it8172_config_drive_xfer_rate (ide_drive_t *drive)
 	drive->init_speed = 0;
 
 	if (id && (id->capability & 1) && drive->autodma) {
-		/* Consult the list of known "bad" drives */
-		if (__ide_dma_bad_drive(drive))
-			goto fast_ata_pio;
-		if (id->field_valid & 4) {
-			if (id->dma_ultra & hwif->ultra_mask) {
-				/* Force if Capable UltraDMA */
-				int dma = it8172_config_chipset_for_dma(drive);
-				if ((id->field_valid & 2) && !dma)
-					goto try_dma_modes;
-			}
-		} else if (id->field_valid & 2) {
-try_dma_modes:
-			if ((id->dma_mword & hwif->mwdma_mask) ||
-			    (id->dma_1word & hwif->swdma_mask)) {
-				/* Force if Capable regular DMA modes */
-				if (!it8172_config_chipset_for_dma(drive))
-					goto no_dma_set;
-			}
-		} else if (__ide_dma_good_drive(drive) &&
-			   (id->eide_dma_time < 150)) {
-			/* Consult the list of known "good" drives */
-			if (!it8172_config_chipset_for_dma(drive))
-				goto no_dma_set;
-		} else {
-			goto fast_ata_pio;
+
+		if (ide_use_dma(drive)) {
+			if (it8172_config_chipset_for_dma(drive))
+				return hwif->ide_dma_on(drive);
 		}
-		return hwif->ide_dma_on(drive);
+
+		goto fast_ata_pio;
+
 	} else if ((id->capability & 8) || (id->field_valid & 2)) {
 fast_ata_pio:
-no_dma_set:
 		it8172_tune_drive(drive, 5);
 		return hwif->ide_dma_off_quietly(drive);
 	}
@@ -286,13 +264,24 @@ static void __init init_hwif_it8172 (ide_hwif_t *hwif)
 	hwif->drives[1].autodma = hwif->autodma;
 }
 
+static ide_pci_device_t it8172_chipsets[] __devinitdata = {
+	{	/* 0 */
+		.name		= "IT8172G",
+		.init_chipset	= init_chipset_it8172,
+		.init_hwif	= init_hwif_it8172,
+		.channels	= 2,
+		.autodma	= AUTODMA,
+		.enablebits	= {{0x00,0x00,0x00}, {0x40,0x00,0x01}},
+		.bootable	= ON_BOARD,
+	}
+};
+
 static int __devinit it8172_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 {
         if ((!(PCI_FUNC(dev->devfn) & 1) ||
             (!((dev->class >> 8) == PCI_CLASS_STORAGE_IDE))))
-                return 1; /* IT8172 is more than only a IDE controller */
-	ide_setup_pci_device(dev, &it8172_chipsets[id->driver_data]);
-	return 0;
+		return -ENODEV; /* IT8172 is more than an IDE controller */
+	return ide_setup_pci_device(dev, &it8172_chipsets[id->driver_data]);
 }
 
 static struct pci_device_id it8172_pci_tbl[] = {
@@ -302,7 +291,7 @@ static struct pci_device_id it8172_pci_tbl[] = {
 MODULE_DEVICE_TABLE(pci, it8172_pci_tbl);
 
 static struct pci_driver driver = {
-	.name		= "IT8172IDE",
+	.name		= "IT8172_IDE",
 	.id_table	= it8172_pci_tbl,
 	.probe		= it8172_init_one,
 };

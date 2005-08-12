@@ -4,7 +4,7 @@
  * Dreamcast.
  *
  * Copyright (c) 2001 M. R. Brown <mrbrown@0xd6.org>
- * Copyright (c) 2001, 2002, 2003, 2004 Paul Mundt <lethal@linux-sh.org>
+ * Copyright (c) 2001, 2002, 2003, 2004, 2005 Paul Mundt <lethal@linux-sh.org>
  *
  * This file is part of the LinuxDC project (linuxdc.sourceforge.net).
  *
@@ -33,7 +33,7 @@
  *  Then, when it's time to convert back to hardware settings, the only
  *  constants are the borderstart_* offsets, all other values are derived from
  *  the fb video mode:
- *  
+ *
  *      // PAL
  *      borderstart_h = 116;
  *      borderstart_v = 44;
@@ -795,7 +795,7 @@ static int __init pvr2fb_common_init(void)
 	fb_info->fix		= pvr2_fix;
 	fb_info->par		= currentpar;
 	fb_info->pseudo_palette	= (void *)(fb_info->par + 1);
-	fb_info->flags		= FBINFO_FLAG_DEFAULT;
+	fb_info->flags		= FBINFO_DEFAULT | FBINFO_HWACCEL_YPAN;
 
 	if (video_output == VO_VGA)
 		defmode = DEFMODE_VGA;
@@ -940,6 +940,8 @@ static int __devinit pvr2fb_pci_probe(struct pci_dev *pdev,
 	pvr2_fix.mmio_start	= pci_resource_start(pdev, 1);
 	pvr2_fix.mmio_len	= pci_resource_len(pdev, 1);
 
+	fb_info->device		= &pdev->dev;
+
 	return pvr2fb_common_init();
 }
 
@@ -965,7 +967,7 @@ static struct pci_driver pvr2fb_pci_driver = {
 
 static int __init pvr2fb_pci_init(void)
 {
-	return pci_module_init(&pvr2fb_pci_driver);
+	return pci_register_driver(&pvr2fb_pci_driver);
 }
 
 static void pvr2fb_pci_exit(void)
@@ -1057,10 +1059,16 @@ int __init pvr2fb_init(void)
 	int i, ret = -ENODEV;
 	int size;
 
+#ifndef MODULE
+	char *option = NULL;
+
+	if (fb_get_options("pvr2fb", &option))
+		return -ENODEV;
+	pvr2fb_setup(option);
+#endif
 	size = sizeof(struct fb_info) + sizeof(struct pvr2fb_par) + 16 * sizeof(u32);
 
 	fb_info = kmalloc(size, GFP_KERNEL);
-	
 	if (!fb_info) {
 		printk(KERN_ERR "Failed to allocate memory for fb_info\n");
 		return -ENOMEM;
@@ -1108,9 +1116,7 @@ static void __exit pvr2fb_exit(void)
 	kfree(fb_info);
 }
 
-#ifdef MODULE
 module_init(pvr2fb_init);
-#endif
 module_exit(pvr2fb_exit);
 
 MODULE_AUTHOR("Paul Mundt <lethal@linux-sh.org>, M. R. Brown <mrbrown@0xd6.org>");

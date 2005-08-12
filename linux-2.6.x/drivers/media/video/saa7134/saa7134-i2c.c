@@ -1,4 +1,6 @@
 /*
+ * $Id$
+ *
  * device driver for philips saa7134 based TV cards
  * i2c interface support
  *
@@ -22,6 +24,7 @@
 #include <linux/init.h>
 #include <linux/list.h>
 #include <linux/module.h>
+#include <linux/moduleparam.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
@@ -32,11 +35,11 @@
 /* ----------------------------------------------------------- */
 
 static unsigned int i2c_debug = 0;
-MODULE_PARM(i2c_debug,"i");
+module_param(i2c_debug, int, 0644);
 MODULE_PARM_DESC(i2c_debug,"enable debug messages [i2c]");
 
 static unsigned int i2c_scan = 0;
-MODULE_PARM(i2c_scan,"i");
+module_param(i2c_scan, int, 0444);
 MODULE_PARM_DESC(i2c_scan,"scan i2c bus at insmod time");
 
 #define d1printk if (1 == i2c_debug) printk
@@ -86,7 +89,7 @@ enum i2c_attr {
 static inline enum i2c_status i2c_get_status(struct saa7134_dev *dev)
 {
 	enum i2c_status status;
-	
+
 	status = saa_readb(SAA7134_I2C_ATTR_STATUS) & 0x0f;
 	d2printk(KERN_DEBUG "%s: i2c stat <= %s\n",dev->name,
 		 str_i2c_status[status]);
@@ -182,7 +185,7 @@ static int i2c_reset(struct saa7134_dev *dev)
 
 	if (!i2c_is_idle(status))
 		return FALSE;
-	
+
 	i2c_set_attr(dev,NOP);
 	return TRUE;
 }
@@ -203,12 +206,13 @@ static inline int i2c_send_byte(struct saa7134_dev *dev,
 	dword &= 0x0f;
 	dword |= (attr << 6);
 	dword |= ((__u32)data << 8);
-	dword |= 0x00 << 16;
+	dword |= 0x00 << 16;  /* 100 kHz */
+//	dword |= 0x40 << 16;  /* 400 kHz */
 	dword |= 0xf0 << 24;
 	saa_writel(SAA7134_I2C_ATTR_STATUS >> 2, dword);
 #endif
 	d2printk(KERN_DEBUG "%s: i2c data => 0x%x\n",dev->name,data);
-	
+
 	if (!i2c_is_busy_wait(dev))
 		return -EIO;
 	status = i2c_get_status(dev);
@@ -221,7 +225,7 @@ static inline int i2c_recv_byte(struct saa7134_dev *dev)
 {
 	enum i2c_status status;
 	unsigned char data;
-	
+
 	i2c_set_attr(dev,CONTINUE);
 	if (!i2c_is_busy_wait(dev))
 		return -EIO;
@@ -234,7 +238,7 @@ static inline int i2c_recv_byte(struct saa7134_dev *dev)
 }
 
 static int saa7134_i2c_xfer(struct i2c_adapter *i2c_adap,
-			    struct i2c_msg msgs[], int num)
+			    struct i2c_msg *msgs, int num)
 {
 	struct saa7134_dev *dev = i2c_adap->algo_data;
 	enum i2c_status status;
@@ -246,13 +250,24 @@ static int saa7134_i2c_xfer(struct i2c_adapter *i2c_adap,
 		if (!i2c_reset(dev))
 			return -EIO;
 
+	d2printk("start xfer\n");
 	d1printk(KERN_DEBUG "%s: i2c xfer:",dev->name);
 	for (i = 0; i < num; i++) {
 		if (!(msgs[i].flags & I2C_M_NOSTART) || 0 == i) {
 			/* send address */
+			d2printk("send address\n");
 			addr  = msgs[i].addr << 1;
 			if (msgs[i].flags & I2C_M_RD)
 				addr |= 1;
+			if (i > 0 && msgs[i].flags & I2C_M_RD) {
+				/* workaround for a saa7134 i2c bug
+				 * needed to talk to the mt352 demux
+				 * thanks to pinnacle for the hint */
+				int quirk = 0xfd;
+				d1printk(" [%02x quirk]",quirk);
+				i2c_send_byte(dev,START,quirk);
+				i2c_recv_byte(dev);
+			}
 			d1printk(" < %02x", addr);
 			rc = i2c_send_byte(dev,START,addr);
 			if (rc < 0)
@@ -260,6 +275,7 @@ static int saa7134_i2c_xfer(struct i2c_adapter *i2c_adap,
 		}
 		if (msgs[i].flags & I2C_M_RD) {
 			/* read bytes */
+			d2printk("read bytes\n");
 			for (byte = 0; byte < msgs[i].len; byte++) {
 				d1printk(" =");
 				rc = i2c_recv_byte(dev);
@@ -270,6 +286,7 @@ static int saa7134_i2c_xfer(struct i2c_adapter *i2c_adap,
 			}
 		} else {
 			/* write bytes */
+			d2printk("write bytes\n");
 			for (byte = 0; byte < msgs[i].len; byte++) {
 				data = msgs[i].buf[byte];
 				d1printk(" %02x", data);
@@ -279,6 +296,7 @@ static int saa7134_i2c_xfer(struct i2c_adapter *i2c_adap,
 			}
 		}
 	}
+	d2printk("xfer done\n");
 	d1printk(" >");
 	i2c_set_attr(dev,STOP);
 	rc = -EIO;
@@ -300,7 +318,7 @@ static int saa7134_i2c_xfer(struct i2c_adapter *i2c_adap,
 
 /* ----------------------------------------------------------- */
 
-static int algo_control(struct i2c_adapter *adapter, 
+static int algo_control(struct i2c_adapter *adapter,
 			unsigned int cmd, unsigned long arg)
 {
 	return 0;
@@ -311,24 +329,14 @@ static u32 functionality(struct i2c_adapter *adap)
 	return I2C_FUNC_SMBUS_EMUL;
 }
 
-#ifndef I2C_PEC
-static void inc_use(struct i2c_adapter *adap)
-{
-	MOD_INC_USE_COUNT;
-}
-
-static void dec_use(struct i2c_adapter *adap)
-{
-	MOD_DEC_USE_COUNT;
-}
-#endif
-
 static int attach_inform(struct i2c_client *client)
 {
         struct saa7134_dev *dev = client->adapter->algo_data;
 	int tuner = dev->tuner_type;
+	int conf  = dev->tda9887_conf;
 
 	saa7134_i2c_call_clients(dev,TUNER_SET_TYPE,&tuner);
+	saa7134_i2c_call_clients(dev,TDA9887_SET_CONFIG,&conf);
         return 0;
 }
 
@@ -341,12 +349,7 @@ static struct i2c_algorithm saa7134_algo = {
 };
 
 static struct i2c_adapter saa7134_adap_template = {
-#ifdef I2C_PEC
 	.owner         = THIS_MODULE,
-#else
-	.inc_use       = inc_use,
-	.dec_use       = dec_use,
-#endif
 #ifdef I2C_CLASS_TV_ANALOG
 	.class         = I2C_CLASS_TV_ANALOG,
 #endif
@@ -358,7 +361,6 @@ static struct i2c_adapter saa7134_adap_template = {
 
 static struct i2c_client saa7134_client_template = {
 	I2C_DEVNAME("saa7134 internal"),
-        .id        = -1,
 };
 
 /* ----------------------------------------------------------- */
@@ -391,21 +393,26 @@ saa7134_i2c_eeprom(struct saa7134_dev *dev, unsigned char *eedata, int len)
 	return 0;
 }
 
-static int
-saa7134_i2c_scan(struct saa7134_dev *dev)
+static char *i2c_devs[128] = {
+	[ 0x20      ] = "mpeg encoder (saa6752hs)",
+	[ 0xa0 >> 1 ] = "eeprom",
+	[ 0xc0 >> 1 ] = "tuner (analog)",
+	[ 0x86 >> 1 ] = "tda9887",
+};
+
+static void do_i2c_scan(char *name, struct i2c_client *c)
 {
 	unsigned char buf;
 	int i,rc;
 
-	for (i = 0; i < 256; i+= 2) {
-		dev->i2c_client.addr = i >> 1;
-		rc = i2c_master_recv(&dev->i2c_client,&buf,0);
+	for (i = 0; i < 128; i++) {
+		c->addr = i;
+		rc = i2c_master_recv(c,&buf,0);
 		if (rc < 0)
 			continue;
-		printk("%s: i2c scan: found device @ %x%s\n",
-		       dev->name, i, (i == 0xa0) ? " [eeprom]" : "");
+		printk("%s: i2c scan: found device @ 0x%x  [%s]\n",
+		       name, i << 1, i2c_devs[i] ? i2c_devs[i] : "???");
 	}
-	return 0;
 }
 
 void saa7134_i2c_call_clients(struct saa7134_dev *dev,
@@ -422,13 +429,13 @@ int saa7134_i2c_register(struct saa7134_dev *dev)
 	strcpy(dev->i2c_adap.name,dev->name);
 	dev->i2c_adap.algo_data = dev;
 	i2c_add_adapter(&dev->i2c_adap);
-	
+
 	dev->i2c_client = saa7134_client_template;
 	dev->i2c_client.adapter = &dev->i2c_adap;
-	
+
 	saa7134_i2c_eeprom(dev,dev->eedata,sizeof(dev->eedata));
 	if (i2c_scan)
-		saa7134_i2c_scan(dev);
+		do_i2c_scan(dev->name,&dev->i2c_client);
 	return 0;
 }
 

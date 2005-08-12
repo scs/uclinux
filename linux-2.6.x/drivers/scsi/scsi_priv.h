@@ -30,11 +30,6 @@ struct Scsi_Host;
 #define SCSI_REQ_MAGIC		0x75F6D354
 
 /*
- *  Flag bit for the internal_timeout array
- */
-#define NORMAL_TIMEOUT		0
-
-/*
  * Scsi Error Handler Flags
  */
 #define scsi_eh_eflags_chk(scp, flags) \
@@ -57,16 +52,6 @@ struct Scsi_Host;
  * possible channels, (target) ids, or luns on a given shost.
  */
 #define SCAN_WILD_CARD	~0
-
-/*
- * scsi_target: representation of a scsi target, for now, this is only
- * used for single_lun devices. If no one has active IO to the target,
- * starget_sdev_user is NULL, else it points to the active sdev.
- */
-struct scsi_target {
-	struct scsi_device	*starget_sdev_user;
-	unsigned int		starget_refcnt;
-};
 
 /* hosts.c */
 extern int scsi_init_hosts(void);
@@ -96,7 +81,7 @@ static inline void scsi_log_completion(struct scsi_cmnd *cmd, int disposition)
 /* scsi_devinfo.c */
 extern int scsi_get_device_flags(struct scsi_device *sdev,
 				 unsigned char *vendor, unsigned char *model);
-extern int scsi_init_devinfo(void);
+extern int __init scsi_init_devinfo(void);
 extern void scsi_exit_devinfo(void);
 
 /* scsi_error.c */
@@ -156,9 +141,20 @@ extern int scsi_sysfs_add_sdev(struct scsi_device *);
 extern int scsi_sysfs_add_host(struct Scsi_Host *);
 extern int scsi_sysfs_register(void);
 extern void scsi_sysfs_unregister(void);
+extern void scsi_sysfs_device_initialize(struct scsi_device *);
+extern int scsi_sysfs_target_initialize(struct scsi_device *);
 extern struct scsi_transport_template blank_transport_template;
 
 extern struct class sdev_class;
 extern struct bus_type scsi_bus_type;
+
+/* 
+ * internal scsi timeout functions: for use by mid-layer and transport
+ * classes.
+ */
+
+#define SCSI_DEVICE_BLOCK_MAX_TIMEOUT	(HZ*60)
+extern int scsi_internal_device_block(struct scsi_device *sdev);
+extern int scsi_internal_device_unblock(struct scsi_device *sdev);
 
 #endif /* _SCSI_PRIV_H */

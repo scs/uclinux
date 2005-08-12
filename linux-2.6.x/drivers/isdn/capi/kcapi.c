@@ -24,6 +24,8 @@
 #include <linux/capi.h>
 #include <linux/kernelcapi.h>
 #include <linux/init.h>
+#include <linux/moduleparam.h>
+#include <linux/delay.h>
 #include <asm/uaccess.h>
 #include <linux/isdn/capicmd.h>
 #include <linux/isdn/capiutil.h>
@@ -40,7 +42,7 @@ static int showcapimsgs = 0;
 MODULE_DESCRIPTION("CAPI4Linux: kernel CAPI layer");
 MODULE_AUTHOR("Carsten Paeth");
 MODULE_LICENSE("GPL");
-MODULE_PARM(showcapimsgs, "i");
+module_param(showcapimsgs, uint, 0);
 
 /* ------------------------------------------------------------- */
 
@@ -61,9 +63,9 @@ static char capi_manufakturer[64] = "AVM Berlin";
 #define NCCI2CTRL(ncci)    (((ncci) >> 24) & 0x7f)
 
 LIST_HEAD(capi_drivers);
-rwlock_t capi_drivers_list_lock = RW_LOCK_UNLOCKED;
+DEFINE_RWLOCK(capi_drivers_list_lock);
 
-static rwlock_t application_lock = RW_LOCK_UNLOCKED;
+static DEFINE_RWLOCK(application_lock);
 static DECLARE_MUTEX(controller_sem);
 
 struct capi20_appl *capi_applications[CAPI_MAXAPPL];
@@ -148,7 +150,10 @@ static void register_appl(struct capi_ctr *card, u16 applid, capi_register_param
 {
 	card = capi_ctr_get(card);
 
-	card->register_appl(card, applid, rparam);
+	if (card)
+		card->register_appl(card, applid, rparam);
+	else
+		printk(KERN_WARNING "%s: cannot get card resources\n", __FUNCTION__);
 }
 
 
@@ -171,10 +176,15 @@ static void notify_up(u32 contr)
 	if (showcapimsgs & 1) {
 	        printk(KERN_DEBUG "kcapi: notify up contr %d\n", contr);
 	}
-
+	if (!card) {
+		printk(KERN_WARNING "%s: invalid contr %d\n", __FUNCTION__, contr);
+		return;
+	}
 	for (applid = 1; applid <= CAPI_MAXAPPL; applid++) {
 		ap = get_capi_appl_by_nr(applid);
-		if (ap && ap->callback && !ap->release_in_progress)
+		if (!ap || ap->release_in_progress) continue;
+		register_appl(card, applid, &ap->rparam);
+		if (ap->callback && !ap->release_in_progress)
 			ap->callback(KCI_CONTRUP, contr, &card->profile);
 	}
 }
@@ -317,18 +327,7 @@ EXPORT_SYMBOL(capi_ctr_handle_message);
 
 void capi_ctr_ready(struct capi_ctr * card)
 {
-	u16 appl;
-	struct capi20_appl *ap;
-
 	card->cardstate = CARD_RUNNING;
-
-	down(&controller_sem);
-	for (appl = 1; appl <= CAPI_MAXAPPL; appl++) {
-		ap = get_capi_appl_by_nr(appl);
-		if (!ap || ap->release_in_progress) continue;
-		register_appl(card, appl, &ap->rparam);
-	}
-	up(&controller_sem);
 
         printk(KERN_NOTICE "kcapi: card %d \"%s\" ready.\n",
 	       card->cnr, card->name);
@@ -831,8 +830,7 @@ static int old_capi_manufacturer(unsigned int cmd, void __user *data)
 
 		while (card->cardstate != CARD_RUNNING) {
 
-			set_current_state(TASK_INTERRUPTIBLE);
-			schedule_timeout(HZ/10);	/* 0.1 sec */
+			msleep_interruptible(100);	/* 0.1 sec */
 
 			if (signal_pending(current)) {
 				capi_ctr_put(card);
@@ -856,8 +854,7 @@ static int old_capi_manufacturer(unsigned int cmd, void __user *data)
 
 		while (card->cardstate > CARD_DETECTED) {
 
-			set_current_state(TASK_INTERRUPTIBLE);
-			schedule_timeout(HZ/10);	/* 0.1 sec */
+			msleep_interruptible(100);	/* 0.1 sec */
 
 			if (signal_pending(current))
 				return -EINTR;

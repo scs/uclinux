@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2001, 2002 Sistina Software (UK) Limited.
+ * Copyright (C) 2004 Red Hat, Inc. All rights reserved.
  *
  * This file is released under the GPL.
  */
@@ -15,14 +16,12 @@
 #include <linux/buffer_head.h>
 #include <linux/mempool.h>
 #include <linux/slab.h>
+#include <linux/idr.h>
 
 static const char *_name = DM_NAME;
 
 static unsigned int major = 0;
 static unsigned int _major = 0;
-
-static int realloc_minor_bits(unsigned long requested_minor);
-static void free_minor_bits(void);
 
 /*
  * One of these is allocated per bio.
@@ -44,6 +43,13 @@ struct target_io {
 	union map_info info;
 };
 
+union map_info *dm_get_mapinfo(struct bio *bio)
+{
+        if (bio && bio->bi_private)
+                return &((struct target_io *)bio->bi_private)->info;
+        return NULL;
+}
+
 /*
  * Bits for the md->flags field.
  */
@@ -60,6 +66,8 @@ struct mapped_device {
 
 	request_queue_t *queue;
 	struct gendisk *disk;
+
+	void *interface_ptr;
 
 	/*
 	 * A list of ios that arrived while we were suspended.
@@ -89,15 +97,22 @@ struct mapped_device {
 	 * freeze/thaw support require holding onto a super block
 	 */
 	struct super_block *frozen_sb;
+	struct block_device *frozen_bdev;
 };
 
 #define MIN_IOS 256
 static kmem_cache_t *_io_cache;
 static kmem_cache_t *_tio_cache;
 
+static struct bio_set *dm_set;
+
 static int __init local_init(void)
 {
 	int r;
+
+	dm_set = bioset_create(16, 16, 4);
+	if (!dm_set)
+		return -ENOMEM;
 
 	/* allocate a slab for the dm_ios */
 	_io_cache = kmem_cache_create("dm_io",
@@ -113,19 +128,11 @@ static int __init local_init(void)
 		return -ENOMEM;
 	}
 
-	r = realloc_minor_bits(1024);
-	if (r < 0) {
-		kmem_cache_destroy(_tio_cache);
-		kmem_cache_destroy(_io_cache);
-		return r;
-	}
-
 	_major = major;
 	r = register_blkdev(_major, _name);
 	if (r < 0) {
 		kmem_cache_destroy(_tio_cache);
 		kmem_cache_destroy(_io_cache);
-		free_minor_bits();
 		return r;
 	}
 
@@ -139,7 +146,8 @@ static void local_exit(void)
 {
 	kmem_cache_destroy(_tio_cache);
 	kmem_cache_destroy(_io_cache);
-	free_minor_bits();
+
+	bioset_free(dm_set);
 
 	if (unregister_blkdev(_major, _name) < 0)
 		DMERR("devfs_unregister_blkdev failed");
@@ -149,23 +157,20 @@ static void local_exit(void)
 	DMINFO("cleaned up");
 }
 
-/*
- * We have a lot of init/exit functions, so it seems easier to
- * store them in an array.  The disposable macro 'xx'
- * expands a prefix into a pair of function names.
- */
-static struct {
-	int (*init) (void);
-	void (*exit) (void);
+int (*_inits[])(void) __initdata = {
+	local_init,
+	dm_target_init,
+	dm_linear_init,
+	dm_stripe_init,
+	dm_interface_init,
+};
 
-} _inits[] = {
-#define xx(n) {n ## _init, n ## _exit},
-	xx(local)
-	xx(dm_target)
-	xx(dm_linear)
-	xx(dm_stripe)
-	xx(dm_interface)
-#undef xx
+void (*_exits[])(void) = {
+	local_exit,
+	dm_target_exit,
+	dm_linear_exit,
+	dm_stripe_exit,
+	dm_interface_exit,
 };
 
 static int __init dm_init(void)
@@ -175,7 +180,7 @@ static int __init dm_init(void)
 	int r, i;
 
 	for (i = 0; i < count; i++) {
-		r = _inits[i].init();
+		r = _inits[i]();
 		if (r)
 			goto bad;
 	}
@@ -184,17 +189,17 @@ static int __init dm_init(void)
 
       bad:
 	while (i--)
-		_inits[i].exit();
+		_exits[i]();
 
 	return r;
 }
 
 static void __exit dm_exit(void)
 {
-	int i = ARRAY_SIZE(_inits);
+	int i = ARRAY_SIZE(_exits);
 
 	while (i--)
-		_inits[i].exit();
+		_exits[i]();
 }
 
 /*
@@ -342,8 +347,8 @@ static sector_t max_io_len(struct mapped_device *md,
 	 */
 	if (ti->split_io) {
 		sector_t boundary;
-		boundary = dm_round_up(offset + 1, ti->split_io) - offset;
-
+		boundary = ((offset + ti->split_io) & ~(ti->split_io - 1))
+			   - offset;
 		if (len > boundary)
 			len = boundary;
 	}
@@ -404,7 +409,7 @@ static struct bio *split_bvec(struct bio *bio, sector_t sector,
 	struct bio *clone;
 	struct bio_vec *bv = bio->bi_io_vec + idx;
 
-	clone = bio_alloc(GFP_NOIO, 1);
+	clone = bio_alloc_bioset(GFP_NOIO, 1, dm_set);
 	*clone->bi_io_vec = *bv;
 
 	clone->bi_sector = sector;
@@ -597,6 +602,21 @@ static int dm_request(request_queue_t *q, struct bio *bio)
 	return 0;
 }
 
+static int dm_flush_all(request_queue_t *q, struct gendisk *disk,
+			sector_t *error_sector)
+{
+	struct mapped_device *md = q->queuedata;
+	struct dm_table *map = dm_get_table(md);
+	int ret = -ENXIO;
+
+	if (map) {
+		ret = dm_table_flush_all(md->map);
+		dm_table_put(map);
+	}
+
+	return ret;
+}
+
 static void dm_unplug_all(request_queue_t *q)
 {
 	struct mapped_device *md = q->queuedata;
@@ -624,109 +644,86 @@ static int dm_any_congested(void *congested_data, int bdi_bits)
 }
 
 /*-----------------------------------------------------------------
- * A bitset is used to keep track of allocated minor numbers.
+ * An IDR is used to keep track of allocated minor numbers.
  *---------------------------------------------------------------*/
 static DECLARE_MUTEX(_minor_lock);
-static unsigned long *_minor_bits = NULL;
-static unsigned long _max_minors = 0;
-
-#define MINORS_SIZE(minors) ((minors / BITS_PER_LONG) * sizeof(unsigned long))
-
-static int realloc_minor_bits(unsigned long requested_minor)
-{
-	unsigned long max_minors;
-	unsigned long *minor_bits, *tmp;
-
-	if (requested_minor < _max_minors)
-		return -EINVAL;
-
-	/* Round up the requested minor to the next power-of-2. */
-	max_minors = 1 << fls(requested_minor - 1);
-	if (max_minors > (1 << MINORBITS))
-		return -EINVAL;
-
-	minor_bits = kmalloc(MINORS_SIZE(max_minors), GFP_KERNEL);
-	if (!minor_bits)
-		return -ENOMEM;
-	memset(minor_bits, 0, MINORS_SIZE(max_minors));
-
-	/* Copy the existing bit-set to the new one. */
-	if (_minor_bits)
-		memcpy(minor_bits, _minor_bits, MINORS_SIZE(_max_minors));
-
-	tmp = _minor_bits;
-	_minor_bits = minor_bits;
-	_max_minors = max_minors;
-	if (tmp)
-		kfree(tmp);
-
-	return 0;
-}
-
-static void free_minor_bits(void)
-{
-	down(&_minor_lock);
-	kfree(_minor_bits);
-	_minor_bits = NULL;
-	_max_minors = 0;
-	up(&_minor_lock);
-}
+static DEFINE_IDR(_minor_idr);
 
 static void free_minor(unsigned int minor)
 {
 	down(&_minor_lock);
-	if (minor < _max_minors)
-		clear_bit(minor, _minor_bits);
+	idr_remove(&_minor_idr, minor);
 	up(&_minor_lock);
 }
 
 /*
  * See if the device with a specific minor # is free.
  */
-static int specific_minor(unsigned int minor)
+static int specific_minor(struct mapped_device *md, unsigned int minor)
 {
-	int r = 0;
+	int r, m;
 
-	if (minor > (1 << MINORBITS))
+	if (minor >= (1 << MINORBITS))
 		return -EINVAL;
 
 	down(&_minor_lock);
-	if (minor >= _max_minors) {
-		r = realloc_minor_bits(minor);
-		if (r) {
-			up(&_minor_lock);
-			return r;
-		}
+
+	if (idr_find(&_minor_idr, minor)) {
+		r = -EBUSY;
+		goto out;
 	}
 
-	if (test_and_set_bit(minor, _minor_bits))
-		r = -EBUSY;
-	up(&_minor_lock);
+	r = idr_pre_get(&_minor_idr, GFP_KERNEL);
+	if (!r) {
+		r = -ENOMEM;
+		goto out;
+	}
 
+	r = idr_get_new_above(&_minor_idr, md, minor, &m);
+	if (r) {
+		goto out;
+	}
+
+	if (m != minor) {
+		idr_remove(&_minor_idr, m);
+		r = -EBUSY;
+		goto out;
+	}
+
+out:
+	up(&_minor_lock);
 	return r;
 }
 
-static int next_free_minor(unsigned int *minor)
+static int next_free_minor(struct mapped_device *md, unsigned int *minor)
 {
 	int r;
 	unsigned int m;
 
 	down(&_minor_lock);
-	m = find_first_zero_bit(_minor_bits, _max_minors);
-	if (m >= _max_minors) {
-		r = realloc_minor_bits(_max_minors * 2);
-		if (r) {
-			up(&_minor_lock);
-			return r;
-		}
-		m = find_first_zero_bit(_minor_bits, _max_minors);
+
+	r = idr_pre_get(&_minor_idr, GFP_KERNEL);
+	if (!r) {
+		r = -ENOMEM;
+		goto out;
 	}
 
-	set_bit(m, _minor_bits);
-	*minor = m;
-	up(&_minor_lock);
+	r = idr_get_new(&_minor_idr, md, &m);
+	if (r) {
+		goto out;
+	}
 
-	return 0;
+	if (m >= (1 << MINORBITS)) {
+		idr_remove(&_minor_idr, m);
+		r = -ENOSPC;
+		goto out;
+	}
+
+	*minor = m;
+
+out:
+	up(&_minor_lock);
+	return r;
 }
 
 static struct block_device_operations dm_blk_dops;
@@ -745,7 +742,7 @@ static struct mapped_device *alloc_dev(unsigned int minor, int persistent)
 	}
 
 	/* get a minor number for the dev */
-	r = persistent ? specific_minor(minor) : next_free_minor(&minor);
+	r = persistent ? specific_minor(md, minor) : next_free_minor(md, &minor);
 	if (r < 0)
 		goto bad1;
 
@@ -764,6 +761,7 @@ static struct mapped_device *alloc_dev(unsigned int minor, int persistent)
 	md->queue->backing_dev_info.congested_data = md;
 	blk_queue_make_request(md->queue, dm_request);
 	md->queue->unplug_fn = dm_unplug_all;
+	md->queue->issue_flush_fn = dm_flush_all;
 
 	md->io_pool = mempool_create(MIN_IOS, mempool_alloc_slab,
 				     mempool_free_slab, _io_cache);
@@ -823,7 +821,7 @@ static void event_callback(void *context)
 {
 	struct mapped_device *md = (struct mapped_device *) context;
 
-	atomic_inc(&md->event_nr);;
+	atomic_inc(&md->event_nr);
 	wake_up(&md->eventq);
 }
 
@@ -901,6 +899,32 @@ int dm_create_with_minor(unsigned int minor, struct mapped_device **result)
 	return create_aux(minor, 1, result);
 }
 
+void *dm_get_mdptr(dev_t dev)
+{
+	struct mapped_device *md;
+	void *mdptr = NULL;
+	unsigned minor = MINOR(dev);
+
+	if (MAJOR(dev) != _major || minor >= (1 << MINORBITS))
+		return NULL;
+
+	down(&_minor_lock);
+
+	md = idr_find(&_minor_idr, minor);
+
+	if (md && (dm_disk(md)->first_minor == minor))
+		mdptr = md->interface_ptr;
+
+	up(&_minor_lock);
+
+	return mdptr;
+}
+
+void dm_set_mdptr(struct mapped_device *md, void *ptr)
+{
+	md->interface_ptr = ptr;
+}
+
 void dm_get(struct mapped_device *md)
 {
 	atomic_inc(&md->holders);
@@ -911,8 +935,10 @@ void dm_put(struct mapped_device *md)
 	struct dm_table *map = dm_get_table(md);
 
 	if (atomic_dec_and_test(&md->holders)) {
-		if (!test_bit(DMF_SUSPENDED, &md->flags) && map)
-			dm_table_suspend_targets(map);
+		if (!test_bit(DMF_SUSPENDED, &md->flags) && map) {
+			dm_table_presuspend_targets(map);
+			dm_table_postsuspend_targets(map);
+		}
 		__unbind(md);
 		free_dev(md);
 	}
@@ -965,44 +991,50 @@ int dm_swap_table(struct mapped_device *md, struct dm_table *table)
  */
 static int __lock_fs(struct mapped_device *md)
 {
-	struct block_device *bdev;
+	int error = -ENOMEM;
 
 	if (test_and_set_bit(DMF_FS_LOCKED, &md->flags))
 		return 0;
 
-	bdev = bdget_disk(md->disk, 0);
-	if (!bdev) {
+	md->frozen_bdev = bdget_disk(md->disk, 0);
+	if (!md->frozen_bdev) {
 		DMWARN("bdget failed in __lock_fs");
-		return -ENOMEM;
+		goto out;
 	}
 
 	WARN_ON(md->frozen_sb);
-	md->frozen_sb = freeze_bdev(bdev);
+
+	md->frozen_sb = freeze_bdev(md->frozen_bdev);
+	if (IS_ERR(md->frozen_sb)) {
+		error = PTR_ERR(md->frozen_sb);
+		goto out_bdput;
+	}
+
 	/* don't bdput right now, we don't want the bdev
 	 * to go away while it is locked.  We'll bdput
 	 * in __unlock_fs
 	 */
 	return 0;
+
+out_bdput:
+	bdput(md->frozen_bdev);
+	md->frozen_sb = NULL;
+	md->frozen_bdev = NULL;
+out:
+	clear_bit(DMF_FS_LOCKED, &md->flags);
+	return error;
 }
 
-static int __unlock_fs(struct mapped_device *md)
+static void __unlock_fs(struct mapped_device *md)
 {
-	struct block_device *bdev;
-
 	if (!test_and_clear_bit(DMF_FS_LOCKED, &md->flags))
-		return 0;
+		return;
 
-	bdev = bdget_disk(md->disk, 0);
-	if (!bdev) {
-		DMWARN("bdget failed in __unlock_fs");
-		return -ENOMEM;
-	}
+	thaw_bdev(md->frozen_bdev, md->frozen_sb);
+	bdput(md->frozen_bdev);
 
-	thaw_bdev(bdev, md->frozen_sb);
 	md->frozen_sb = NULL;
-	bdput(bdev);
-	bdput(bdev);
-	return 0;
+	md->frozen_bdev = NULL;
 }
 
 /*
@@ -1016,38 +1048,41 @@ int dm_suspend(struct mapped_device *md)
 {
 	struct dm_table *map;
 	DECLARE_WAITQUEUE(wait, current);
+	int error = -EINVAL;
 
 	/* Flush I/O to the device. */
 	down_read(&md->lock);
-	if (test_bit(DMF_BLOCK_IO, &md->flags)) {
-		up_read(&md->lock);
-		return -EINVAL;
-	}
+	if (test_bit(DMF_BLOCK_IO, &md->flags))
+		goto out_read_unlock;
 
-	__lock_fs(md);
+	error = __lock_fs(md);
+	if (error)
+		goto out_read_unlock;
+
+	map = dm_get_table(md);
+	if (map)
+		dm_table_presuspend_targets(map);
+
 	up_read(&md->lock);
 
 	/*
-	 * First we set the BLOCK_IO flag so no more ios will be
-	 * mapped.
+	 * First we set the BLOCK_IO flag so no more ios will be mapped.
+	 *
+	 * If the flag is already set we know another thread is trying to
+	 * suspend as well, so we leave the fs locked for this thread.
 	 */
+	error = -EINVAL;
 	down_write(&md->lock);
-	if (test_bit(DMF_BLOCK_IO, &md->flags)) {
-		/*
-		 * If we get here we know another thread is
-		 * trying to suspend as well, so we leave the fs
-		 * locked for this thread.
-		 */
-		up_write(&md->lock);
-		return -EINVAL;
+	if (test_and_set_bit(DMF_BLOCK_IO, &md->flags)) {
+		if (map)
+			dm_table_put(map);
+		goto out_write_unlock;
 	}
 
-	set_bit(DMF_BLOCK_IO, &md->flags);
 	add_wait_queue(&md->wait, &wait);
 	up_write(&md->lock);
 
 	/* unplug */
-	map = dm_get_table(md);
 	if (map) {
 		dm_table_unplug_all(map);
 		dm_table_put(map);
@@ -1071,22 +1106,31 @@ int dm_suspend(struct mapped_device *md)
 	remove_wait_queue(&md->wait, &wait);
 
 	/* were we interrupted ? */
-	if (atomic_read(&md->pending)) {
-		__unlock_fs(md);
-		clear_bit(DMF_BLOCK_IO, &md->flags);
-		up_write(&md->lock);
-		return -EINTR;
-	}
+	error = -EINTR;
+	if (atomic_read(&md->pending))
+		goto out_unfreeze;
 
 	set_bit(DMF_SUSPENDED, &md->flags);
 
 	map = dm_get_table(md);
 	if (map)
-		dm_table_suspend_targets(map);
+		dm_table_postsuspend_targets(map);
 	dm_table_put(map);
 	up_write(&md->lock);
 
 	return 0;
+
+out_unfreeze:
+	/* FIXME Undo dm_table_presuspend_targets */
+	__unlock_fs(md);
+	clear_bit(DMF_BLOCK_IO, &md->flags);
+out_write_unlock:
+	up_write(&md->lock);
+	return error;
+
+out_read_unlock:
+	up_read(&md->lock);
+	return error;
 }
 
 int dm_resume(struct mapped_device *md)
@@ -1151,6 +1195,8 @@ static struct block_device_operations dm_blk_dops = {
 	.owner = THIS_MODULE
 };
 
+EXPORT_SYMBOL(dm_get_mapinfo);
+
 /*
  * module hooks
  */
@@ -1160,5 +1206,5 @@ module_exit(dm_exit);
 module_param(major, uint, 0);
 MODULE_PARM_DESC(major, "The major number of the device mapper");
 MODULE_DESCRIPTION(DM_NAME " driver");
-MODULE_AUTHOR("Joe Thornber <thornber@sistina.com>");
+MODULE_AUTHOR("Joe Thornber <dm-devel@redhat.com>");
 MODULE_LICENSE("GPL");

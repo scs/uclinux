@@ -41,6 +41,9 @@
 			  module by all drivers that require it.
   Alan Cox		: Spinlocking work, added 'BUG_83C690'
   Paul Gortmaker	: Separate out Tx timeout code from Tx path.
+  Paul Gortmaker	: Remove old unused single Tx buffer code.
+  Hayato Fujiwara	: Add m32r support.
+  Paul Gortmaker	: use skb_padto() instead of stack scratch area
 
   Sources:
   The National Semiconductor LAN Databook, and the 3Com 3c503 databook.
@@ -56,9 +59,9 @@ static const char version[] =
 #include <linux/fs.h>
 #include <linux/types.h>
 #include <linux/string.h>
+#include <linux/bitops.h>
 #include <asm/system.h>
 #include <asm/uaccess.h>
-#include <asm/bitops.h>
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <linux/delay.h>
@@ -218,6 +221,15 @@ void ei_tx_timeout(struct net_device *dev)
 	int txsr, isr, tickssofar = jiffies - dev->trans_start;
 	unsigned long flags;
 
+#if defined(CONFIG_M32R) && defined(CONFIG_SMP)
+	unsigned long icucr;
+
+	local_irq_save(flags);
+	icucr = inl(ICUCR1);
+	icucr |= M32R_ICUCR_ISMOD11;
+	outl(icucr, ICUCR1);
+	local_irq_restore(flags);
+#endif
 	ei_local->stat.tx_errors++;
 
 	spin_lock_irqsave(&ei_local->page_lock, flags);
@@ -261,11 +273,15 @@ static int ei_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	long e8390_base = dev->base_addr;
 	struct ei_device *ei_local = (struct ei_device *) netdev_priv(dev);
-	int length, send_length, output_page;
+	int send_length = skb->len, output_page;
 	unsigned long flags;
-	char scratch[ETH_ZLEN];
 
-	length = skb->len;
+	if (skb->len < ETH_ZLEN) {
+		skb = skb_padto(skb, ETH_ZLEN);
+		if (skb == NULL)
+			return 0;
+		send_length = ETH_ZLEN;
+	}
 
 	/* Mask interrupts from the ethercard. 
 	   SMP: We have to grab the lock here otherwise the IRQ handler
@@ -287,10 +303,6 @@ static int ei_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	
 	ei_local->irqlock = 1;
 
-	send_length = ETH_ZLEN < length ? length : ETH_ZLEN;
-    
-#ifdef EI_PINGPONG
-
 	/*
 	 * We have two Tx slots available for use. Find the first free
 	 * slot, and then perform some sanity checks. With two Tx bufs,
@@ -309,7 +321,7 @@ static int ei_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 	else if (ei_local->tx2 == 0) 
 	{
-		output_page = ei_local->tx_start_page + TX_1X_PAGES;
+		output_page = ei_local->tx_start_page + TX_PAGES/2;
 		ei_local->tx2 = send_length;
 		if (ei_debug  &&  ei_local->tx1 > 0)
 			printk(KERN_DEBUG "%s: idle transmitter, tx1=%d, lasttx=%d, txing=%d.\n",
@@ -335,13 +347,7 @@ static int ei_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	 * trigger the send later, upon receiving a Tx done interrupt.
 	 */
 	 
-	if (length == send_length)
-		ei_block_output(dev, length, skb->data, output_page);
-	else {
-		memset(scratch, 0, ETH_ZLEN);
-		memcpy(scratch, skb->data, skb->len);
-		ei_block_output(dev, ETH_ZLEN, scratch, output_page);
-	}
+	ei_block_output(dev, send_length, skb->data, output_page);
 		
 	if (! ei_local->txing) 
 	{
@@ -365,28 +371,6 @@ static int ei_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		netif_stop_queue(dev);
 	else
 		netif_start_queue(dev);
-
-#else	/* EI_PINGPONG */
-
-	/*
-	 * Only one Tx buffer in use. You need two Tx bufs to come close to
-	 * back-to-back transmits. Expect a 20 -> 25% performance hit on
-	 * reasonable hardware if you only use one Tx buffer.
-	 */
-
-	if (length == send_length)
-		ei_block_output(dev, length, skb->data, ei_local->tx_start_page);
-	else {
-		memset(scratch, 0, ETH_ZLEN);
-		memcpy(scratch, skb->data, skb->len);
-		ei_block_output(dev, ETH_ZLEN, scratch, ei_local->tx_start_page);
-	}
-	ei_local->txing = 1;
-	NS8390_trigger_send(dev, send_length, ei_local->tx_start_page);
-	dev->trans_start = jiffies;
-	netif_stop_queue(dev);
-
-#endif	/* EI_PINGPONG */
 
 	/* Turn 8390 interrupts back on. */
 	ei_local->irqlock = 0;
@@ -590,8 +574,6 @@ static void ei_tx_intr(struct net_device *dev)
     
 	outb_p(ENISR_TX, e8390_base + EN0_ISR); /* Ack intr. */
 
-#ifdef EI_PINGPONG
-
 	/*
 	 * There are two Tx buffers, see which one finished, and trigger
 	 * the send of another one if it exists.
@@ -633,13 +615,6 @@ static void ei_tx_intr(struct net_device *dev)
 	}
 //	else printk(KERN_WARNING "%s: unexpected TX-done interrupt, lasttx=%d.\n",
 //			dev->name, ei_local->lasttx);
-
-#else	/* EI_PINGPONG */
-	/*
-	 *  Single Tx buffer: mark it free so another packet can be loaded.
-	 */
-	ei_local->txing = 0;
-#endif
 
 	/* Minimize Tx latency: update the statistics after we restart TXing. */
 	if (status & ENTSR_COL)
@@ -835,7 +810,7 @@ static void ei_rx_overrun(struct net_device *dev)
 	 * We wait at least 10ms.
 	 */
 
-	udelay(10*1000);
+	mdelay(10);
 
 	/*
 	 * Reset RBCR[01] back to zero as per magic incantation.
@@ -1024,6 +999,7 @@ static void ethdev_setup(struct net_device *dev)
 
 /**
  * alloc_ei_netdev - alloc_etherdev counterpart for 8390
+ * @size: extra bytes to allocate
  *
  * Allocate 8390-specific net_device.
  */
@@ -1136,7 +1112,6 @@ EXPORT_SYMBOL(ei_interrupt);
 #ifdef CONFIG_NET_POLL_CONTROLLER
 EXPORT_SYMBOL(ei_poll);
 #endif
-EXPORT_SYMBOL(ei_tx_timeout);
 EXPORT_SYMBOL(NS8390_init);
 EXPORT_SYMBOL(__alloc_ei_netdev);
 

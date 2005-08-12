@@ -4,10 +4,35 @@
 
 menu "USB support"
 
+# Host-side USB depends on having a host controller
+# NOTE:  dummy_hcd is always an option, but it's ignored here ...
+# NOTE:  SL-811 option should be board-specific ...
+config USB_ARCH_HAS_HCD
+	boolean
+	default y if USB_ARCH_HAS_OHCI
+	default y if ARM				# SL-811
+	default PCI
+
+# many non-PCI SOC chips embed OHCI
+config USB_ARCH_HAS_OHCI
+	boolean
+	# ARM:
+	default y if SA1111
+	default y if ARCH_OMAP
+	default y if ARCH_LH7A404
+	default y if PXA27x
+	# PPC:
+	default y if STB03xxx
+	default y if PPC_MPC52xx
+	# MIPS:
+	default y if SOC_AU1X00
+	# more:
+	default PCI
+
 # ARM SA1111 chips have a non-PCI based "OHCI-compatible" USB host interface.
 config USB
 	tristate "Support for Host-side USB"
-	depends on PCI || SA1111 || ARCH_OMAP1510 || ARCH_OMAP1610 || ARCH_LH7A404
+	depends on USB_ARCH_HAS_HCD
 	---help---
 	  Universal Serial Bus (USB) is a specification for a serial bus
 	  subsystem which offers higher speeds and more features than the
@@ -56,12 +81,15 @@ source "drivers/usb/media/Kconfig"
 
 source "drivers/usb/net/Kconfig"
 
+source "drivers/usb/mon/Kconfig"
+
 comment "USB port drivers"
 	depends on USB
 
 config USB_USS720
 	tristate "USS720 parport driver"
 	depends on USB && PARPORT
+	select PARPORT_NOT_PC
 	---help---
 	  This driver is for USB parallel port adapters that use the Lucent
 	  Technologies USS-720 chip. These cables are plugged into your USB
@@ -90,6 +118,8 @@ config USB_USS720
 source "drivers/usb/serial/Kconfig"
 
 source "drivers/usb/misc/Kconfig"
+
+source "drivers/usb/atm/Kconfig"
 
 source "drivers/usb/gadget/Kconfig"
 

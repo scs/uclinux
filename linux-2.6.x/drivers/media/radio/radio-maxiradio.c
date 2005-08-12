@@ -57,7 +57,7 @@
 static const int clk = 1, data = 2, wren = 4, mo_st = 8, power = 16 ;
 
 static int radio_nr = -1;
-MODULE_PARM(radio_nr, "i");
+module_param(radio_nr, int, 0);
 
 
 #define FREQ_LO		 50*16000
@@ -102,13 +102,6 @@ static struct radio_device
 	
 	struct  semaphore lock;
 } radio_unit = {0, 0, 0, 0, };
-
-
-static void sleep_125ms(void)
-{
-	current->state = TASK_INTERRUPTIBLE;
-	schedule_timeout(HZ >> 3);
-}
 
 
 static void outbit(unsigned long bit, __u16 io)
@@ -228,7 +221,7 @@ inline static int radio_function(struct inode *inode, struct file *file,
 				return -EINVAL;
 			card->freq = *freq;
 			set_freq(card->io, FREQ2BITS(card->freq));
-			sleep_125ms();
+			msleep(125);
 			return 0;
 		}
 		case VIDIOCGAUDIO: {	
@@ -342,12 +335,12 @@ static struct pci_driver maxiradio_driver = {
 	.remove		= __devexit_p(maxiradio_remove_one),
 };
 
-int __init maxiradio_radio_init(void)
+static int __init maxiradio_radio_init(void)
 {
 	return pci_module_init(&maxiradio_driver);
 }
 
-void __exit maxiradio_radio_exit(void)
+static void __exit maxiradio_radio_exit(void)
 {
 	pci_unregister_driver(&maxiradio_driver);
 }

@@ -44,7 +44,7 @@ static int __init init_cdb89712_flash (void)
 		goto out;
 	}
 	
-	cdb89712_flash_map.virt = (unsigned long)ioremap(FLASH_START, FLASH_SIZE);
+	cdb89712_flash_map.virt = ioremap(FLASH_START, FLASH_SIZE);
 	if (!cdb89712_flash_map.virt) {
 		printk(KERN_NOTICE "Failed to ioremap Cdb89712 FLASH space\n");
 		err = -EIO;
@@ -114,7 +114,7 @@ static int __init init_cdb89712_sram (void)
 		goto out;
 	}
 	
-	cdb89712_sram_map.virt = (unsigned long)ioremap(SRAM_START, SRAM_SIZE);
+	cdb89712_sram_map.virt = ioremap(SRAM_START, SRAM_SIZE);
 	if (!cdb89712_sram_map.virt) {
 		printk(KERN_NOTICE "Failed to ioremap Cdb89712 SRAM space\n");
 		err = -EIO;
@@ -182,7 +182,7 @@ static int __init init_cdb89712_bootrom (void)
 		goto out;
 	}
 	
-	cdb89712_bootrom_map.virt = (unsigned long)ioremap(BOOTROM_START, BOOTROM_SIZE);
+	cdb89712_bootrom_map.virt = ioremap(BOOTROM_START, BOOTROM_SIZE);
 	if (!cdb89712_bootrom_map.virt) {
 		printk(KERN_NOTICE "Failed to ioremap Cdb89712 BootROM space\n");
 		err = -EIO;

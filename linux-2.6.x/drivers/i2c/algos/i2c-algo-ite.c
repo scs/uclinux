@@ -52,21 +52,15 @@
 #define	PM_IBSR		IT8172_PCI_IO_BASE + IT_PM_DSR + 0x04 
 #define GPIO_CCR	IT8172_PCI_IO_BASE + IT_GPCCR
 
-/* ----- global defines ----------------------------------------------- */
-#define DEB(x) if (i2c_debug>=1) x
 #define DEB2(x) if (i2c_debug>=2) x
 #define DEB3(x) if (i2c_debug>=3) x /* print several statistical values*/
-#define DEBPROTO(x) if (i2c_debug>=9) x;
- 	/* debug the protocol by showing transferred bits */
 #define DEF_TIMEOUT 16
 
 
-/* ----- global variables ---------------------------------------------	*/
-
 /* module parameters:
  */
-static int i2c_debug=1;
-static int iic_test=0;	/* see if the line-setting functions work	*/
+static int i2c_debug;
+static int iic_test;	/* see if the line-setting functions work	*/
 
 /* --- setting states on the bus with the right timing: ---------------	*/
 
@@ -111,14 +105,6 @@ static int wait_for_bb(struct i2c_algo_iic_data *adap)
 		iic_reset(adap);
 	}
 	return(timeout<=0);
-}
-
-/*
- * Puts this process to sleep for a period equal to timeout 
- */
-static inline void iic_sleep(unsigned long timeout)
-{
-	schedule_timeout( timeout * HZ);
 }
 
 /* After we issue a transaction on the IIC bus, this function
@@ -504,7 +490,7 @@ static int iic_readbytes(struct i2c_adapter *i2c_adap, char *buf, int count,
  * condition.
  */
 #if 0
-static int iic_combined_transaction(struct i2c_adapter *i2c_adap, struct i2c_msg msgs[], int num) 
+static int iic_combined_transaction(struct i2c_adapter *i2c_adap, struct i2c_msg *msgs, int num) 
 {
    int i;
    struct i2c_msg *pmsg;
@@ -614,7 +600,7 @@ static inline int iic_doAddress(struct i2c_algo_iic_data *adap,
  * verify that the bus is not busy or in some unknown state.
  */
 static int iic_xfer(struct i2c_adapter *i2c_adap,
-		    struct i2c_msg msgs[], 
+		    struct i2c_msg *msgs, 
 		    int num)
 {
 	struct i2c_algo_iic_data *adap = i2c_adap->algo_data;
@@ -727,14 +713,11 @@ static u32 iic_func(struct i2c_adapter *adap)
 /* -----exported algorithm data: -------------------------------------	*/
 
 static struct i2c_algorithm iic_algo = {
-	"ITE IIC algorithm",
-	I2C_ALGO_IIC,
-	iic_xfer,		/* master_xfer	*/
-	NULL,				/* smbus_xfer	*/
-	NULL,				/* slave_xmit		*/
-	NULL,				/* slave_recv		*/
-	algo_control,			/* ioctl		*/
-	iic_func,			/* functionality	*/
+	.name		= "ITE IIC algorithm",
+	.id		= I2C_ALGO_IIC,
+	.master_xfer	= iic_xfer,
+	.algo_control	= algo_control, /* ioctl */
+	.functionality	= iic_func,
 };
 
 
@@ -804,8 +787,8 @@ MODULE_AUTHOR("MontaVista Software <www.mvista.com>");
 MODULE_DESCRIPTION("ITE iic algorithm");
 MODULE_LICENSE("GPL");
 
-MODULE_PARM(iic_test, "i");
-MODULE_PARM(i2c_debug,"i");
+module_param(iic_test, bool, 0);
+module_param(i2c_debug, int, S_IRUGO | S_IWUSR);
 
 MODULE_PARM_DESC(iic_test, "Test if the I2C bus is available");
 MODULE_PARM_DESC(i2c_debug,

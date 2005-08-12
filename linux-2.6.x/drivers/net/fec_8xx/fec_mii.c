@@ -30,12 +30,12 @@
 #include <linux/spinlock.h>
 #include <linux/mii.h>
 #include <linux/ethtool.h>
+#include <linux/bitops.h>
 
 #include <asm/8xx_immap.h>
 #include <asm/pgtable.h>
 #include <asm/mpc8xx.h>
 #include <asm/irq.h>
-#include <asm/bitops.h>
 #include <asm/uaccess.h>
 #include <asm/commproc.h>
 
@@ -54,7 +54,7 @@
 /*************************************************/
 
 /* XXX both FECs use the MII interface of FEC1 */
-static spinlock_t fec_mii_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(fec_mii_lock);
 
 #define FEC_MII_LOOPS	10000
 

@@ -1,4 +1,6 @@
 /*
+    $Id$
+
     bttv-risc.c  --  interfaces to other kernel modules
 
     bttv risc code handling
@@ -100,14 +102,14 @@ bttv_risc_packed(struct bttv *btv, struct btcx_riscmem *risc,
 		}
 		offset += padding;
 	}
-	dprintk("bttv%d: risc planar: %d sglist elems\n", btv->c.nr, (int)(sg-sglist));
 
 	/* save pointer to jmp instruction address */
 	risc->jmp = rp;
+	BUG_ON((risc->jmp - risc->cpu + 2) / 4 > risc->size);
 	return 0;
 }
 
-int
+static int
 bttv_risc_planar(struct bttv *btv, struct btcx_riscmem *risc,
 		 struct scatterlist *sglist,
 		 unsigned int yoffset,  unsigned int ybpl,
@@ -121,6 +123,7 @@ bttv_risc_planar(struct bttv *btv, struct btcx_riscmem *risc,
 	struct scatterlist *ysg;
 	struct scatterlist *usg;
 	struct scatterlist *vsg;
+	int topfield = (0 == yoffset);
 	int rc;
 
 	/* estimate risc mem: worst case is one write per page border +
@@ -145,11 +148,26 @@ bttv_risc_planar(struct bttv *btv, struct btcx_riscmem *risc,
 		    (line >= (ylines - VCR_HACK_LINES)))
 			continue;
 		switch (vshift) {
-		case 0:  chroma = 1;           break;
-		case 1:  chroma = !(line & 1); break;
-		case 2:  chroma = !(line & 3); break;
-		default: chroma = 0;
+		case 0:
+			chroma = 1;
+			break;
+		case 1:
+			if (topfield)
+				chroma = ((line & 1) == 0);
+			else
+				chroma = ((line & 1) == 1);
+			break;
+		case 2:
+			if (topfield)
+				chroma = ((line & 3) == 0);
+			else
+				chroma = ((line & 3) == 2);
+			break;
+		default:
+			chroma = 0;
+			break;
 		}
+
 		for (todo = ybpl; todo > 0; todo -= ylen) {
 			/* go to next sg entry if needed */
 			while (yoffset && yoffset >= sg_dma_len(ysg)) {
@@ -205,10 +223,11 @@ bttv_risc_planar(struct bttv *btv, struct btcx_riscmem *risc,
 
 	/* save pointer to jmp instruction address */
 	risc->jmp = rp;
+	BUG_ON((risc->jmp - risc->cpu + 2) / 4 > risc->size);
 	return 0;
 }
 
-int
+static int
 bttv_risc_overlay(struct bttv *btv, struct btcx_riscmem *risc,
 		  const struct bttv_format *fmt, struct bttv_overlay *ov,
 		  int skip_even, int skip_odd)
@@ -221,7 +240,7 @@ bttv_risc_overlay(struct bttv *btv, struct btcx_riscmem *risc,
 	/* skip list for window clipping */
 	if (NULL == (skips = kmalloc(sizeof(*skips) * ov->nclips,GFP_KERNEL)))
 		return -ENOMEM;
-	
+
 	/* estimate risc mem: worst case is (clip+1) * lines instructions
 	   + sync + jump (all 2 dwords) */
 	instructions  = (ov->nclips + 1) *
@@ -274,7 +293,7 @@ bttv_risc_overlay(struct bttv *btv, struct btcx_riscmem *risc,
 				ra = addr + (fmt->depth>>3)*start;
 			else
 				ra = 0;
-				
+
 			if (0 == start)
 				ri |= BT848_RISC_SOL;
 			if (ov->w.width == end)
@@ -289,13 +308,14 @@ bttv_risc_overlay(struct bttv *btv, struct btcx_riscmem *risc,
 
 	/* save pointer to jmp instruction address */
 	risc->jmp = rp;
+	BUG_ON((risc->jmp - risc->cpu + 2) / 4 > risc->size);
 	kfree(skips);
 	return 0;
 }
 
 /* ---------------------------------------------------------- */
 
-void
+static void
 bttv_calc_geo(struct bttv *btv, struct bttv_geometry *geo,
 	      int width, int height, int interleaved, int norm)
 {
@@ -343,7 +363,7 @@ bttv_calc_geo(struct bttv *btv, struct bttv_geometry *geo,
         }
 }
 
-void
+static void
 bttv_apply_geo(struct bttv *btv, struct bttv_geometry *geo, int odd)
 {
         int off = odd ? 0x80 : 0x00;
@@ -371,7 +391,7 @@ bttv_apply_geo(struct bttv *btv, struct bttv_geometry *geo, int odd)
 /* risc group / risc main loop / dma management               */
 
 void
-bttv_set_dma(struct bttv *btv, int override, int irqflags)
+bttv_set_dma(struct bttv *btv, int override)
 {
 	unsigned long cmd;
 	int capctl;
@@ -387,26 +407,26 @@ bttv_set_dma(struct bttv *btv, int override, int irqflags)
 	capctl |= override;
 
 	d2printk(KERN_DEBUG
-		 "bttv%d: capctl=%x irq=%d top=%08Lx/%08Lx even=%08Lx/%08Lx\n",
-		 btv->c.nr,capctl,irqflags,
+		 "bttv%d: capctl=%x lirq=%d top=%08Lx/%08Lx even=%08Lx/%08Lx\n",
+		 btv->c.nr,capctl,btv->loop_irq,
 		 btv->cvbi         ? (unsigned long long)btv->cvbi->top.dma            : 0,
 		 btv->curr.top     ? (unsigned long long)btv->curr.top->top.dma        : 0,
 		 btv->cvbi         ? (unsigned long long)btv->cvbi->bottom.dma         : 0,
 		 btv->curr.bottom  ? (unsigned long long)btv->curr.bottom->bottom.dma  : 0);
-	
+
 	cmd = BT848_RISC_JUMP;
-	if (irqflags) {
+	if (btv->loop_irq) {
 		cmd |= BT848_RISC_IRQ;
-		cmd |= (irqflags  & 0x0f) << 16;
-		cmd |= (~irqflags & 0x0f) << 20;
+		cmd |= (btv->loop_irq  & 0x0f) << 16;
+		cmd |= (~btv->loop_irq & 0x0f) << 20;
 	}
-	if (irqflags || btv->cvbi) {
+	if (btv->curr.frame_irq || btv->loop_irq || btv->cvbi) {
 		mod_timer(&btv->timeout, jiffies+BTTV_TIMEOUT);
 	} else {
 		del_timer(&btv->timeout);
 	}
         btv->main.cpu[RISC_SLOT_LOOP] = cpu_to_le32(cmd);
-	
+
 	btaor(capctl, ~0x0f, BT848_CAP_CTL);
 	if (capctl) {
 		if (btv->dma_on)
@@ -427,7 +447,7 @@ int
 bttv_risc_init_main(struct bttv *btv)
 {
 	int rc;
-	
+
 	if ((rc = btcx_riscmem_alloc(btv->c.pci,&btv->main,PAGE_SIZE)) < 0)
 		return rc;
 	dprintk(KERN_DEBUG "bttv%d: risc main @ %08Lx\n",
@@ -539,8 +559,10 @@ bttv_buffer_activate_video(struct bttv *btv,
 		}
 		bttv_apply_geo(btv, &set->top->geo, 1);
 		bttv_apply_geo(btv, &set->bottom->geo,0);
-		bttv_risc_hook(btv, RISC_SLOT_O_FIELD, &set->top->top, set->topirq);
-		bttv_risc_hook(btv, RISC_SLOT_E_FIELD, &set->bottom->bottom, 0);
+		bttv_risc_hook(btv, RISC_SLOT_O_FIELD, &set->top->top,
+			       set->top_irq);
+		bttv_risc_hook(btv, RISC_SLOT_E_FIELD, &set->bottom->bottom,
+			       set->frame_irq);
 		btaor((set->top->btformat & 0xf0) | (set->bottom->btformat & 0x0f),
 		      ~0xff, BT848_COLOR_FMT);
 		btaor((set->top->btswap & 0x0a) | (set->bottom->btswap & 0x05),
@@ -551,7 +573,8 @@ bttv_buffer_activate_video(struct bttv *btv,
 			list_del(&set->top->vb.queue);
 		bttv_apply_geo(btv, &set->top->geo,1);
 		bttv_apply_geo(btv, &set->top->geo,0);
-		bttv_risc_hook(btv, RISC_SLOT_O_FIELD, &set->top->top, 0);
+		bttv_risc_hook(btv, RISC_SLOT_O_FIELD, &set->top->top,
+			       set->frame_irq);
 		bttv_risc_hook(btv, RISC_SLOT_E_FIELD, NULL,           0);
 		btaor(set->top->btformat & 0xff, ~0xff, BT848_COLOR_FMT);
 		btaor(set->top->btswap & 0x0f,   ~0x0f, BT848_COLOR_CTL);
@@ -561,8 +584,9 @@ bttv_buffer_activate_video(struct bttv *btv,
 			list_del(&set->bottom->vb.queue);
 		bttv_apply_geo(btv, &set->bottom->geo,1);
 		bttv_apply_geo(btv, &set->bottom->geo,0);
-		bttv_risc_hook(btv, RISC_SLOT_O_FIELD, NULL,                 0);
-		bttv_risc_hook(btv, RISC_SLOT_E_FIELD, &set->bottom->bottom, 0);
+		bttv_risc_hook(btv, RISC_SLOT_O_FIELD, NULL, 0);
+		bttv_risc_hook(btv, RISC_SLOT_E_FIELD, &set->bottom->bottom,
+			       set->frame_irq);
 		btaor(set->bottom->btformat & 0xff, ~0xff, BT848_COLOR_FMT);
 		btaor(set->bottom->btswap & 0x0f,   ~0x0f, BT848_COLOR_CTL);
 	} else {
@@ -592,7 +616,7 @@ bttv_buffer_risc(struct bttv *btv, struct bttv_buffer *buf)
 
 		bttv_calc_geo(btv,&buf->geo,buf->vb.width,buf->vb.height,
 			      V4L2_FIELD_HAS_BOTH(buf->vb.field),buf->tvnorm);
-		
+
 		switch (buf->vb.field) {
 		case V4L2_FIELD_TOP:
 			bttv_risc_packed(btv,&buf->top,buf->vb.dma.sglist,

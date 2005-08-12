@@ -25,9 +25,11 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
-
+#ifndef _CTCDBUG_H_
+#define _CTCDBUG_H_
 
 #include <asm/debug.h>
+#include "ctcmain.h"
 /**
  * Debug Facility stuff
  */
@@ -41,7 +43,7 @@
 #define CTC_DBF_DATA_LEN 128
 #define CTC_DBF_DATA_INDEX 3
 #define CTC_DBF_DATA_NR_AREAS 1
-#define CTC_DBF_DATA_LEVEL 2
+#define CTC_DBF_DATA_LEVEL 3
 
 #define CTC_DBF_TRACE_NAME "ctc_trace"
 #define CTC_DBF_TRACE_LEN 16
@@ -59,7 +61,7 @@
 		debug_event(ctc_dbf_##name,level,(void*)(addr),len); \
 	} while (0)
 
-extern DEFINE_PER_CPU(char[256], ctc_dbf_txt_buf);
+DECLARE_PER_CPU(char[256], ctc_dbf_txt_buf);
 extern debug_info_t *ctc_dbf_setup;
 extern debug_info_t *ctc_dbf_data;
 extern debug_info_t *ctc_dbf_trace;
@@ -121,3 +123,5 @@ hex_dump(unsigned char *buf, size_t len)
 	printk("\n");
 }
 
+
+#endif

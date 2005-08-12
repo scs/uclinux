@@ -13,6 +13,7 @@
 #include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/init.h>
+#include <linux/sched.h>
 #include "isdnloop.h"
 
 static char *revision = "$Revision$";
@@ -1145,8 +1146,8 @@ isdnloop_command(isdn_ctrl * c, isdnloop_card * card)
 				case ISDNLOOP_IOCTL_DEBUGVAR:
 					return (ulong) card;
 				case ISDNLOOP_IOCTL_STARTUP:
-					if ((i = verify_area(VERIFY_READ, (void *) a, sizeof(isdnloop_sdef))))
-						return i;
+					if (!access_ok(VERIFY_READ, (void *) a, sizeof(isdnloop_sdef)))
+						return -EFAULT;
 					return (isdnloop_start(card, (isdnloop_sdef *) a));
 					break;
 				case ISDNLOOP_IOCTL_ADDCARD:
@@ -1161,8 +1162,10 @@ isdnloop_command(isdn_ctrl * c, isdnloop_card * card)
 						if (!card->leased) {
 							card->leased = 1;
 							while (card->ptype == ISDN_PTYPE_UNKNOWN) {
+								set_current_state(TASK_INTERRUPTIBLE);
 								schedule_timeout(10);
 							}
+							set_current_state(TASK_INTERRUPTIBLE);
 							schedule_timeout(10);
 							sprintf(cbuf, "00;FV2ON\n01;EAZ1\n02;EAZ2\n");
 							i = isdnloop_writecmd(cbuf, strlen(cbuf), 0, card);

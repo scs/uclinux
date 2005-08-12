@@ -47,6 +47,7 @@ static const char version[] = "lance.c:v1.15ac 1999/11/13 dplatt@3do.com, becker
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
+#include <linux/delay.h>
 #include <linux/errno.h>
 #include <linux/ioport.h>
 #include <linux/slab.h>
@@ -56,8 +57,8 @@ static const char version[] = "lance.c:v1.15ac 1999/11/13 dplatt@3do.com, becker
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
+#include <linux/bitops.h>
 
-#include <asm/bitops.h>
 #include <asm/io.h>
 #include <asm/dma.h>
 
@@ -327,10 +328,10 @@ static int io[MAX_CARDS];
 static int dma[MAX_CARDS];
 static int irq[MAX_CARDS];
 
-MODULE_PARM(io, "1-" __MODULE_STRING(MAX_CARDS) "i");
-MODULE_PARM(dma, "1-" __MODULE_STRING(MAX_CARDS) "i");
-MODULE_PARM(irq, "1-" __MODULE_STRING(MAX_CARDS) "i");
-MODULE_PARM(lance_debug, "i");
+module_param_array(io, int, NULL, 0);
+module_param_array(dma, int, NULL, 0);
+module_param_array(irq, int, NULL, 0);
+module_param(lance_debug, int, 0);
 MODULE_PARM_DESC(io, "LANCE/PCnet I/O base address(es),required");
 MODULE_PARM_DESC(dma, "LANCE/PCnet ISA DMA channel (ignored for some devices)");
 MODULE_PARM_DESC(irq, "LANCE/PCnet IRQ number (ignored for some devices)");

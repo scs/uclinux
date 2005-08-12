@@ -30,7 +30,7 @@
 #include <linux/config.h>
 #include <linux/module.h>
 #include <asm/system.h>
-#include <asm/bitops.h>
+#include <linux/bitops.h>
 #include <asm/uaccess.h>
 #include <linux/string.h>
 #include <linux/mm.h>
@@ -332,12 +332,10 @@ static void ax_bump(struct ax_disp *ax)
 		return;
 	}
 
-	skb->dev      = ax->dev;
 	spin_lock_bh(&ax->buflock);
 	memcpy(skb_put(skb,count), ax->rbuff, count);
 	spin_unlock_bh(&ax->buflock);
-	skb->mac.raw  = skb->data;
-	skb->protocol = htons(ETH_P_AX25);
+	skb->protocol = ax25_type_trans(skb, ax->dev);
 	netif_rx(skb);
 	ax->dev->last_rx = jiffies;
 	ax->rx_packets++;
@@ -379,7 +377,7 @@ static void ax_encaps(struct ax_disp *ax, unsigned char *icp, int len)
 	}
 	
 	ax->tty->flags |= (1 << TTY_DO_WRITE_WAKEUP);
-	actual = ax->tty->driver->write(ax->tty, 0, ax->xbuff, count);
+	actual = ax->tty->driver->write(ax->tty, ax->xbuff, count);
 	ax->tx_packets++;
 	ax->tx_bytes+=actual;
 	ax->dev->trans_start = jiffies;
@@ -411,7 +409,7 @@ static void ax25_write_wakeup(struct tty_struct *tty)
 		return;
 	}
 
-	actual = tty->driver->write(tty, 0, ax->xhead, ax->xleft);
+	actual = tty->driver->write(tty, ax->xhead, ax->xleft);
 	ax->xleft -= actual;
 	ax->xhead += actual;
 }
@@ -419,7 +417,7 @@ static void ax25_write_wakeup(struct tty_struct *tty)
 /* Encapsulate an AX.25 packet and kick it into a TTY queue. */
 static int ax_xmit(struct sk_buff *skb, struct net_device *dev)
 {
-	struct ax_disp *ax = (struct ax_disp *) dev->priv;
+	struct ax_disp *ax = netdev_priv(dev);
 
 	if (!netif_running(dev))  {
 		printk(KERN_ERR "mkiss: %s: xmit call when iface is down\n", dev->name);
@@ -483,7 +481,7 @@ static int ax_rebuild_header(struct sk_buff *skb)
 /* Open the low-level part of the AX25 channel. Easy! */
 static int ax_open(struct net_device *dev)
 {
-	struct ax_disp *ax = (struct ax_disp *) dev->priv;
+	struct ax_disp *ax = netdev_priv(dev);
 	unsigned long len;
 
 	if (ax->tty == NULL)
@@ -518,7 +516,7 @@ static int ax_open(struct net_device *dev)
 
 	ax->flags   &= (1 << AXF_INUSE);      /* Clear ESCAPE & ERROR flags */
 
-	ax->buflock = SPIN_LOCK_UNLOCKED;
+	spin_lock_init(&ax->buflock);
 
 	netif_start_queue(dev);
 	return 0;
@@ -534,7 +532,7 @@ norbuff:
 /* Close the low-level part of the AX25 channel. Easy! */
 static int ax_close(struct net_device *dev)
 {
-	struct ax_disp *ax = (struct ax_disp *) dev->priv;
+	struct ax_disp *ax = netdev_priv(dev);
 
 	if (ax->tty == NULL)
 		return -EBUSY;
@@ -602,8 +600,6 @@ static int ax25_open(struct tty_struct *tty)
 
 	if (tty->driver->flush_buffer)
 		tty->driver->flush_buffer(tty);
-	if (tty->ldisc.flush_buffer)
-		tty->ldisc.flush_buffer(tty);
 
 	/* Restore default settings */
 	ax->dev->type = ARPHRD_AX25;
@@ -636,7 +632,7 @@ static void ax25_close(struct tty_struct *tty)
 static struct net_device_stats *ax_get_stats(struct net_device *dev)
 {
 	static struct net_device_stats stats;
-	struct ax_disp *ax = (struct ax_disp *) dev->priv;
+	struct ax_disp *ax = netdev_priv(dev);
 
 	memset(&stats, 0, sizeof(struct net_device_stats));
 
@@ -829,7 +825,7 @@ static int ax25_disp_ioctl(struct tty_struct *tty, void *file, int cmd, void __u
 
 static int ax_open_dev(struct net_device *dev)
 {
-	struct ax_disp *ax = (struct ax_disp *) dev->priv;
+	struct ax_disp *ax = netdev_priv(dev);
 
 	if (ax->tty == NULL)
 		return -ENODEV;
@@ -841,7 +837,7 @@ static int ax_open_dev(struct net_device *dev)
 /* Initialize the driver.  Called by network startup. */
 static int ax25_init(struct net_device *dev)
 {
-	struct ax_disp *ax = (struct ax_disp *) dev->priv;
+	struct ax_disp *ax = netdev_priv(dev);
 
 	static char ax25_bcast[AX25_ADDR_LEN] =
 		{'Q'<<1,'S'<<1,'T'<<1,' '<<1,' '<<1,' '<<1,'0'<<1};

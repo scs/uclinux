@@ -32,9 +32,9 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/blkdev.h>
+#include <linux/bitops.h>
 
 #include <asm/setup.h>
-#include <asm/bitops.h>
 #include <asm/amigahw.h>
 #include <asm/pgtable.h>
 
@@ -65,7 +65,7 @@ static int chip_count       = 0;
 static int list_count       = 0;
 static int current_device   = -1;
 
-static spinlock_t z2ram_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(z2ram_lock);
 
 static struct block_device_operations z2_fops;
 static struct gendisk *z2ram_gendisk;

@@ -93,11 +93,11 @@ static unsigned int debug = 0;
 MODULE_AUTHOR (DRIVER_AUTHOR);
 MODULE_DESCRIPTION (DRIVER_DESC);
 MODULE_LICENSE ("GPL");
-MODULE_PARM (debug, "i");
+module_param(debug, int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC (debug, "Debug enabled or not");
-MODULE_PARM (swapRGB_on, "i");
+module_param(swapRGB_on, int, 0);
 MODULE_PARM_DESC (swapRGB_on, "Red/blue swap: 1=always, 0=auto, -1=never");
-MODULE_PARM (video_nr, "i");
+module_param(video_nr, int, 0);
 
 /********************************************************************
  *
@@ -118,20 +118,6 @@ MODULE_PARM (video_nr, "i");
  *
  * And the STV0680 driver - Kevin
  ********************************************************************/
-
-/* Here we want the physical address of the memory.
- * This is used when initializing the contents of the area.
- */
-static inline unsigned long kvirt_to_pa (unsigned long adr)
-{
-	unsigned long kva, ret;
-
-	kva = (unsigned long) page_address(vmalloc_to_page((void *)adr));
-	kva |= adr & (PAGE_SIZE-1); /* restore the offset */
-	ret = __pa(kva);
-	return ret;
-}
-
 static void *rvmalloc (unsigned long size)
 {
 	void *mem;
@@ -512,12 +498,6 @@ exit:
 /****************************************************************************
  *  sysfs
  ***************************************************************************/
-static inline struct usb_stv *cd_to_stv(struct class_device *cd)
-{
-	struct video_device *vdev = to_video_device(cd);
-	return video_get_drvdata(vdev);
-}
-
 #define stv680_file(name, variable, field)				\
 static ssize_t show_##name(struct class_device *class_dev, char *buf)	\
 {									\
@@ -704,7 +684,6 @@ static int stv680_start_stream (struct usb_stv *stv680)
 				   usb_rcvbulkpipe (stv680->udev, stv680->bulk_in_endpointAddr),
 				   stv680->sbuf[i].data, stv680->rawbufsize,
 				   stv680_video_irq, stv680);
-		urb->timeout = PENCAM_TIMEOUT * 2;
 		stv680->urb[i] = urb;
 		err = usb_submit_urb (stv680->urb[i], GFP_KERNEL);
 		if (err)
@@ -726,7 +705,7 @@ static int stv680_stop_stream (struct usb_stv *stv680)
 
 	for (i = 0; i < STV680_NUMSBUF; i++)
 		if (stv680->urb[i]) {
-			usb_unlink_urb (stv680->urb[i]);
+			usb_kill_urb (stv680->urb[i]);
 			usb_free_urb (stv680->urb[i]);
 			stv680->urb[i] = NULL;
 			kfree (stv680->sbuf[i].data);
@@ -1292,8 +1271,8 @@ static int stv680_mmap (struct file *file, struct vm_area_struct *vma)
 	}
 	pos = (unsigned long) stv680->fbuf;
 	while (size > 0) {
-		page = kvirt_to_pa (pos);
-		if (remap_page_range (vma, start, page, PAGE_SIZE, PAGE_SHARED)) {
+		page = vmalloc_to_pfn((void *)pos);
+		if (remap_pfn_range(vma, start, page, PAGE_SIZE, PAGE_SHARED)) {
 			up (&stv680->lock);
 			return -EAGAIN;
 		}
@@ -1392,7 +1371,8 @@ static int stv680_probe (struct usb_interface *intf, const struct usb_device_id 
 
 	interface = &intf->altsetting[0];
 	/* Is it a STV680? */
-	if ((dev->descriptor.idVendor == USB_PENCAM_VENDOR_ID) && (dev->descriptor.idProduct == USB_PENCAM_PRODUCT_ID)) {
+	if ((le16_to_cpu(dev->descriptor.idVendor) == USB_PENCAM_VENDOR_ID) &&
+	    (le16_to_cpu(dev->descriptor.idProduct) == USB_PENCAM_PRODUCT_ID)) {
 		camera_name = "STV0680";
 		PDEBUG (0, "STV(i): STV0680 camera found.");
 	} else {
@@ -1458,7 +1438,7 @@ static inline void usb_stv680_remove_disconnected (struct usb_stv *stv680)
 
 	for (i = 0; i < STV680_NUMSBUF; i++)
 		if (stv680->urb[i]) {
-			usb_unlink_urb (stv680->urb[i]);
+			usb_kill_urb (stv680->urb[i]);
 			usb_free_urb (stv680->urb[i]);
 			stv680->urb[i] = NULL;
 			kfree (stv680->sbuf[i].data);

@@ -88,12 +88,6 @@ static unsigned short zf_readw(unsigned char port)
 	return inw(DATA_W);
 }
 
-static unsigned short zf_readb(unsigned char port)
-{
-	outb(port, INDEX);
-	return inb(DATA_B);
-}
-
 
 MODULE_AUTHOR("Fernando Fuganti <fuganti@conectiva.com.br>");
 MODULE_DESCRIPTION("MachZ ZF-Logic Watchdog driver");
@@ -155,13 +149,6 @@ static unsigned long next_heartbeat = 0;
 #endif
 
 
-/* STATUS register functions */
-
-static inline unsigned char zf_get_status(void)
-{
-	return zf_readb(STATUS);
-}
-
 static inline void zf_set_status(unsigned char new)
 {
 	zf_writeb(STATUS, new);
@@ -182,22 +169,6 @@ static inline void zf_set_control(unsigned short new)
 
 
 /* WD#? counter functions */
-/*
- *	Just get current counter value
- */
-
-static inline unsigned short zf_get_timer(unsigned char n)
-{
-	switch(n){
-		case WD1:
-			return zf_readw(COUNTER_1);
-		case WD2:
-			return zf_readb(COUNTER_2);
-		default:
-			return 0;
-	}
-}
-
 /*
  *	Just set counter value
  */
@@ -425,6 +396,7 @@ static int zf_notify_sys(struct notifier_block *this, unsigned long code,
 
 static struct file_operations zf_fops = {
 	.owner          = THIS_MODULE,
+	.llseek         = no_llseek,
 	.write          = zf_write,
 	.ioctl          = zf_ioctl,
 	.open           = zf_open,
@@ -516,7 +488,7 @@ out:
 }
 
 
-void __exit zf_exit(void)
+static void __exit zf_exit(void)
 {
 	zf_timer_off();
 

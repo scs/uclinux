@@ -28,7 +28,6 @@
  * 
  */
 
-#include "sis.h"
 #include "drmP.h"
 #include "sis_drm.h"
 #include "sis_drv.h"
@@ -81,18 +80,19 @@ static int del_alloc_set(int context, int type, unsigned int val)
 /* fb management via fb device */ 
 #if defined(__linux__) && defined(CONFIG_FB_SIS)
 
-int sis_fb_init( DRM_IOCTL_ARGS )
+static int sis_fb_init( DRM_IOCTL_ARGS )
 {
 	return 0;
 }
 
-int sis_fb_alloc( DRM_IOCTL_ARGS )
+static int sis_fb_alloc( DRM_IOCTL_ARGS )
 {
 	drm_sis_mem_t fb;
 	struct sis_memreq req;
+	drm_sis_mem_t __user *argp = (void __user *)data;
 	int retval = 0;
 
-	DRM_COPY_FROM_USER_IOCTL(fb, (drm_sis_mem_t *)data, sizeof(fb));
+	DRM_COPY_FROM_USER_IOCTL(fb, argp, sizeof(fb));
 
 	req.size = fb.size;
 	sis_malloc(&req);
@@ -111,19 +111,19 @@ int sis_fb_alloc( DRM_IOCTL_ARGS )
 		fb.free = 0;
 	}
 
-	DRM_COPY_TO_USER_IOCTL((drm_sis_mem_t *)data, fb, sizeof(fb));
+	DRM_COPY_TO_USER_IOCTL(argp, fb, sizeof(fb));
 
 	DRM_DEBUG("alloc fb, size = %d, offset = %d\n", fb.size, req.offset);
 
 	return retval;
 }
 
-int sis_fb_free( DRM_IOCTL_ARGS )
+static int sis_fb_free( DRM_IOCTL_ARGS )
 {
 	drm_sis_mem_t fb;
 	int retval = 0;
 
-	DRM_COPY_FROM_USER_IOCTL(fb, (drm_sis_mem_t *)data, sizeof(fb));
+	DRM_COPY_FROM_USER_IOCTL(fb, (drm_sis_mem_t __user *)data, sizeof(fb));
 
 	if (!fb.free)
 		return DRM_ERR(EINVAL);
@@ -149,7 +149,7 @@ int sis_fb_free( DRM_IOCTL_ARGS )
  *    X driver/sisfb                                  HW-   Command-
  *  framebuffer memory           DRI heap           Cursor   queue
  */
-int sis_fb_init( DRM_IOCTL_ARGS )
+static int sis_fb_init( DRM_IOCTL_ARGS )
 {
 	DRM_DEVICE;
 	drm_sis_private_t *dev_priv = dev->dev_private;
@@ -158,7 +158,7 @@ int sis_fb_init( DRM_IOCTL_ARGS )
 	DRM_COPY_FROM_USER_IOCTL(fb, (drm_sis_fb_t __user *)data, sizeof(fb));
 
 	if (dev_priv == NULL) {
-		dev->dev_private = DRM(calloc)(1, sizeof(drm_sis_private_t),
+		dev->dev_private = drm_calloc(1, sizeof(drm_sis_private_t),
 		    DRM_MEM_DRIVER);
 		dev_priv = dev->dev_private;
 		if (dev_priv == NULL)
@@ -175,7 +175,7 @@ int sis_fb_init( DRM_IOCTL_ARGS )
 	return 0;
 }
 
-int sis_fb_alloc( DRM_IOCTL_ARGS )
+static int sis_fb_alloc( DRM_IOCTL_ARGS )
 {
 	DRM_DEVICE;
 	drm_sis_private_t *dev_priv = dev->dev_private;
@@ -212,7 +212,7 @@ int sis_fb_alloc( DRM_IOCTL_ARGS )
 	return retval;
 }
 
-int sis_fb_free( DRM_IOCTL_ARGS )
+static int sis_fb_free( DRM_IOCTL_ARGS )
 {
 	DRM_DEVICE;
 	drm_sis_private_t *dev_priv = dev->dev_private;
@@ -239,14 +239,14 @@ int sis_fb_free( DRM_IOCTL_ARGS )
 
 /* agp memory management */ 
 
-int sis_ioctl_agp_init( DRM_IOCTL_ARGS )
+static int sis_ioctl_agp_init( DRM_IOCTL_ARGS )
 {
 	DRM_DEVICE;
 	drm_sis_private_t *dev_priv = dev->dev_private;
 	drm_sis_agp_t agp;
 
 	if (dev_priv == NULL) {
-		dev->dev_private = DRM(calloc)(1, sizeof(drm_sis_private_t),
+		dev->dev_private = drm_calloc(1, sizeof(drm_sis_private_t),
 		    DRM_MEM_DRIVER);
 		dev_priv = dev->dev_private;
 		if (dev_priv == NULL)
@@ -265,7 +265,7 @@ int sis_ioctl_agp_init( DRM_IOCTL_ARGS )
 	return 0;
 }
 
-int sis_ioctl_agp_alloc( DRM_IOCTL_ARGS )
+static int sis_ioctl_agp_alloc( DRM_IOCTL_ARGS )
 {
 	DRM_DEVICE;
 	drm_sis_private_t *dev_priv = dev->dev_private;
@@ -302,7 +302,7 @@ int sis_ioctl_agp_alloc( DRM_IOCTL_ARGS )
 	return retval;
 }
 
-int sis_ioctl_agp_free( DRM_IOCTL_ARGS )
+static int sis_ioctl_agp_free( DRM_IOCTL_ARGS )
 {
 	DRM_DEVICE;
 	drm_sis_private_t *dev_priv = dev->dev_private;
@@ -325,7 +325,7 @@ int sis_ioctl_agp_free( DRM_IOCTL_ARGS )
 	return 0;
 }
 
-int sis_init_context(int context)
+int sis_init_context(struct drm_device *dev, int context)
 {
 	int i;
 
@@ -357,7 +357,7 @@ int sis_init_context(int context)
 	return 1;
 }
 
-int sis_final_context(int context)
+int sis_final_context(struct drm_device *dev, int context)
 {
 	int i;
 
@@ -403,3 +403,15 @@ int sis_final_context(int context)
 	
 	return 1;
 }
+
+drm_ioctl_desc_t sis_ioctls[] = {
+	[DRM_IOCTL_NR(DRM_SIS_FB_ALLOC)]  = { sis_fb_alloc,        1, 0 },
+	[DRM_IOCTL_NR(DRM_SIS_FB_FREE)]   = { sis_fb_free,         1, 0 },
+	[DRM_IOCTL_NR(DRM_SIS_AGP_INIT)]  = { sis_ioctl_agp_init,  1, 1 },
+	[DRM_IOCTL_NR(DRM_SIS_AGP_ALLOC)] = { sis_ioctl_agp_alloc, 1, 0 },
+	[DRM_IOCTL_NR(DRM_SIS_AGP_FREE)]  = { sis_ioctl_agp_free,  1, 0 },
+	[DRM_IOCTL_NR(DRM_SIS_FB_INIT)]   = { sis_fb_init,         1, 1 }
+};
+
+int sis_max_ioctl = DRM_ARRAY_SIZE(sis_ioctls);
+

@@ -103,8 +103,7 @@ static unsigned int qcam_await_ready1(struct qcam_device *qcam,
 	{
 		if (qcam_ready1(qcam) == value)
 			return 0;
-		current->state=TASK_INTERRUPTIBLE;
-		schedule_timeout(HZ/10);
+		msleep_interruptible(100);
 	}
 
 	/* Probably somebody pulled the plug out.  Not much we can do. */
@@ -129,8 +128,7 @@ static unsigned int qcam_await_ready2(struct qcam_device *qcam, int value)
 	{
 		if (qcam_ready2(qcam) == value)
 			return 0;
-		current->state=TASK_INTERRUPTIBLE;
-		schedule_timeout(HZ/10);
+		msleep_interruptible(100);
 	}
 
 	/* Probably somebody pulled the plug out.  Not much we can do. */
@@ -365,7 +363,7 @@ static long qc_capture(struct qcam_device *q, char __user *buf, unsigned long le
 	size_t wantlen, outptr = 0;
 	char tmpbuf[BUFSZ];
 
-	if (verify_area(VERIFY_WRITE, buf, len))
+	if (!access_ok(VERIFY_WRITE, buf, len))
 		return -EFAULT;
 
 	/* Wait for camera to become ready */
@@ -743,7 +741,7 @@ static struct qcam_device *qcam_init(struct parport *port)
 static struct qcam_device *qcams[MAX_CAMS];
 static unsigned int num_cams = 0;
 
-int init_cqcam(struct parport *port)
+static int init_cqcam(struct parport *port)
 {
 	struct qcam_device *qcam;
 
@@ -800,7 +798,7 @@ int init_cqcam(struct parport *port)
 	return 0;
 }
 
-void close_cqcam(struct qcam_device *qcam)
+static void close_cqcam(struct qcam_device *qcam)
 {
 	video_unregister_device(&qcam->vdev);
 	parport_unregister_device(qcam->pdev);
@@ -844,13 +842,14 @@ MODULE_AUTHOR("Philip Blundell <philb@gnu.org>");
 MODULE_DESCRIPTION(BANNER);
 MODULE_LICENSE("GPL");
 
+/* FIXME: parport=auto would never have worked, surely? --RR */
 MODULE_PARM_DESC(parport ,"parport=<auto|n[,n]...> for port detection method\n\
 probe=<0|1|2> for camera detection method\n\
 force_rgb=<0|1> for RGB data format (default BGR)");
-MODULE_PARM(parport, "1-" __MODULE_STRING(MAX_CAMS) "i");
-MODULE_PARM(probe, "i");
-MODULE_PARM(force_rgb, "i");
-MODULE_PARM(video_nr,"i");
+module_param_array(parport, int, NULL, 0);
+module_param(probe, int, 0);
+module_param(force_rgb, bool, 0);
+module_param(video_nr, int, 0);
 
 module_init(cqcam_init);
 module_exit(cqcam_cleanup);

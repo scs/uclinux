@@ -98,21 +98,21 @@
 #define CFG_SPI_MISOENABLE   1
 #define CFG_SPI_MISODISABLE  0
 
-#define CFG_SPI_CSCLEARALL  0
-#define CFG_SPI_CHIPSEL1    1
-#define CFG_SPI_CHIPSEL2    2
-#define CFG_SPI_CHIPSEL3    3
-#define CFG_SPI_CHIPSEL4    4
-#define CFG_SPI_CHIPSEL5    5
-#define CFG_SPI_CHIPSEL6    6
-#define CFG_SPI_CHIPSEL7    7
-                             
-#define CFG_SPI_CS1VALUE    1
-#define CFG_SPI_CS2VALUE    2
-#define CFG_SPI_CS3VALUE    3
-#define CFG_SPI_CS4VALUE    4
-#define CFG_SPI_CS5VALUE    5
-#define CFG_SPI_CS6VALUE    6
-#define CFG_SPI_CS7VALUE    7
+#define CFG_SPI_CSCLEARALL  0x0000
+#define CFG_SPI_CHIPSEL1    0x0002
+#define CFG_SPI_CHIPSEL2    0x0004
+#define CFG_SPI_CHIPSEL3    0x0008
+#define CFG_SPI_CHIPSEL4    0x0010
+#define CFG_SPI_CHIPSEL5    0x0020
+#define CFG_SPI_CHIPSEL6    0x0040
+#define CFG_SPI_CHIPSEL7    0x0080
+
+#define CFG_SPI_CS1VALUE    0x0200
+#define CFG_SPI_CS2VALUE    0x0400
+#define CFG_SPI_CS3VALUE    0x0800
+#define CFG_SPI_CS4VALUE    0x1000
+#define CFG_SPI_CS5VALUE    0x2000
+#define CFG_SPI_CS6VALUE    0x4000
+#define CFG_SPI_CS7VALUE    0x8000
 
 #endif /* _SPI_H_ */

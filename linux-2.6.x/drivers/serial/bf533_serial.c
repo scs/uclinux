@@ -139,8 +139,7 @@ static struct bfin_serial bfin_uart[NR_PORTS];
 
 #endif
 
-static int rs_write(struct tty_struct * tty, int from_user,
-		    const unsigned char *buf, int count);
+static int rs_write(struct tty_struct * tty, const unsigned char *buf, int count);
 /*
  * This is used to figure out the divisor speeds and the timeouts
  */
@@ -158,17 +157,6 @@ struct {
         unsigned char dl_low;
 } hw_baud_table[BAUD_TABLE_SIZE];
 
-/*
- * tmp_buf is used as a temporary buffer by serial_write.  We need to
- * lock it in case the memcpy_fromfs blocks while swapping in a page,
- * and some other program tries to do a serial write at the same time.
- * Since the lock will only come under contention when the system is
- * swapping and available memory is low, it makes sense to share one
- * buffer across all the serial ports, since it significantly saves
- * memory if large numbers of serial ports are open.
- */
-static unsigned char tmp_buf[SERIAL_XMIT_SIZE]; /* This is cheating */
-DECLARE_MUTEX(tmp_buf_sem);
 
 /* Forward declarations.... */
 static void bfin_change_speed(struct bfin_serial *info);
@@ -989,8 +977,7 @@ static void rs_flush_chars(struct tty_struct *tty)
 #endif
 }
 
-static int rs_write(struct tty_struct * tty, int from_user,
-		    const unsigned char *buf, int count)
+static int rs_write(struct tty_struct * tty, const unsigned char *buf, int count)
 {
 	int	c, total = 0;
 	struct bfin_serial *info = (struct bfin_serial *)tty->driver_data;
@@ -1013,15 +1000,7 @@ static int rs_write(struct tty_struct * tty, int from_user,
 
 		local_irq_save(flags);
 
-		if (from_user) {
-			down(&tmp_buf_sem);
-			copy_from_user(tmp_buf, buf, c);
-			c = MIN(c, MIN(SERIAL_XMIT_SIZE - info->xmit_cnt - 1,
-				       SERIAL_XMIT_SIZE - info->xmit_head));
-			memcpy(info->xmit_buf + info->xmit_head, tmp_buf, c);
-			up(&tmp_buf_sem);
-		} else
-			memcpy(info->xmit_buf + info->xmit_head, buf, c);
+		memcpy(info->xmit_buf + info->xmit_head, buf, c);
 		info->xmit_head = (info->xmit_head + c) % SERIAL_XMIT_SIZE;
 		info->xmit_cnt += c;
 		local_irq_restore(flags);
@@ -1410,10 +1389,10 @@ static void rs_close(struct tty_struct *tty, struct file * filp)
 	tty->closing = 0;
 	info->event = 0;
 	info->tty = 0;
-	if (tty->ldisc.num != ldiscs[N_TTY].num) {
+	if (tty->ldisc.num != tty_ldisc_get(N_TTY)->num) {
 		if (tty->ldisc.close)
 			(tty->ldisc.close)(tty);
-		tty->ldisc = ldiscs[N_TTY];
+		tty->ldisc = *tty_ldisc_get(N_TTY);
 		tty->termios->c_line = N_TTY;
 		if (tty->ldisc.open)
 			(tty->ldisc.open)(tty);

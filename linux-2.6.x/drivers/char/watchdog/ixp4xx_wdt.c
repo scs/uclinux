@@ -22,9 +22,9 @@
 #include <linux/miscdevice.h>
 #include <linux/watchdog.h>
 #include <linux/init.h>
+#include <linux/bitops.h>
 
 #include <asm/hardware.h>
-#include <asm/bitops.h>
 #include <asm/uaccess.h>
 
 #ifdef CONFIG_WATCHDOG_NOWAYOUT
@@ -170,6 +170,7 @@ ixp4xx_wdt_release(struct inode *inode, struct file *file)
 static struct file_operations ixp4xx_wdt_fops =
 {
 	.owner		= THIS_MODULE,
+	.llseek		= no_llseek,
 	.write		= ixp4xx_wdt_write,
 	.ioctl		= ixp4xx_wdt_ioctl,
 	.open		= ixp4xx_wdt_open,
@@ -215,7 +216,7 @@ static void __exit ixp4xx_wdt_exit(void)
 module_init(ixp4xx_wdt_init);
 module_exit(ixp4xx_wdt_exit);
 
-MODULE_AUTHOR("Deepak Saxena <dsaxena@plexity.net">);
+MODULE_AUTHOR("Deepak Saxena <dsaxena@plexity.net>");
 MODULE_DESCRIPTION("IXP4xx Network Processor Watchdog");
 
 module_param(heartbeat, int, 0);

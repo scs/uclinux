@@ -30,15 +30,16 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/slab.h>
+#include <linux/jiffies.h>
 #include <linux/i2c.h>
 #include <linux/i2c-sensor.h>
 
 
-static unsigned short normal_i2c[] = { I2C_CLIENT_END };
-static unsigned short normal_i2c_range[] = { 0x18, 0x1a, 0x29, 0x2b,
-						0x4c, 0x4e, I2C_CLIENT_END };
+static unsigned short normal_i2c[] = { 0x18, 0x19, 0x1a,
+					0x29, 0x2a, 0x2b,
+					0x4c, 0x4d, 0x4e,
+					I2C_CLIENT_END };
 static unsigned int normal_isa[] = { I2C_CLIENT_ISA_END };
-static unsigned int normal_isa_range[] = { I2C_CLIENT_ISA_END };
 
 /*
  * Insmod parameters
@@ -117,12 +118,6 @@ struct max1619_data {
 };
 
 /*
- * Internal variables
- */
-
-static int max1619_id = 0;
-
-/*
  * Sysfs stuff
  */
 
@@ -145,8 +140,12 @@ static ssize_t set_##value(struct device *dev, const char *buf, \
 { \
 	struct i2c_client *client = to_i2c_client(dev); \
 	struct max1619_data *data = i2c_get_clientdata(client); \
-	data->value = TEMP_TO_REG(simple_strtol(buf, NULL, 10)); \
+	long val = simple_strtol(buf, NULL, 10); \
+ \
+	down(&data->update_lock); \
+	data->value = TEMP_TO_REG(val); \
 	i2c_smbus_write_byte_data(client, reg, data->value); \
+	up(&data->update_lock); \
 	return count; \
 }
 
@@ -266,7 +265,6 @@ static int max1619_detect(struct i2c_adapter *adapter, int address, int kind)
 
 	/* We can fill in the remaining client fields */
 	strlcpy(new_client->name, name, I2C_NAME_SIZE);
-	new_client->id = max1619_id++;
 	data->valid = 0;
 	init_MUTEX(&data->update_lock);
 
@@ -330,10 +328,7 @@ static struct max1619_data *max1619_update_device(struct device *dev)
 
 	down(&data->update_lock);
 
-	if ((jiffies - data->last_updated > HZ * 2) ||
-	    (jiffies < data->last_updated) ||
-	    !data->valid) {
-		
+	if (time_after(jiffies, data->last_updated + HZ * 2) || !data->valid) {
 		dev_dbg(&client->dev, "Updating max1619 data.\n");
 		data->temp_input1 = i2c_smbus_read_byte_data(client,
 					MAX1619_REG_R_LOCAL_TEMP);

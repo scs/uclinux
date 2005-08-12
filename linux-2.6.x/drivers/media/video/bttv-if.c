@@ -1,4 +1,6 @@
 /*
+    $Id$
+
     bttv-if.c  --  old gpio interface to other kernel modules
                    don't use in new code, will go away in 2.7
 		   have a look at bttv-gpio.c instead.
@@ -22,7 +24,7 @@
     You should have received a copy of the GNU General Public License
     along with this program; if not, write to the Free Software
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-    
+
 */
 
 #include <linux/module.h>
@@ -48,6 +50,8 @@ EXPORT_SYMBOL(bttv_i2c_call);
 
 int bttv_get_cardinfo(unsigned int card, int *type, unsigned *cardid)
 {
+	printk("The bttv_* interface is obsolete and will go away,\n"
+	       "please use the new, sysfs based interface instead.\n");
 	if (card >= bttv_num) {
 		return -1;
 	}
@@ -65,7 +69,8 @@ struct pci_dev* bttv_get_pcidev(unsigned int card)
 
 int bttv_get_id(unsigned int card)
 {
-	printk("bttv_get_id is obsolete, use bttv_get_cardinfo instead\n");
+	printk("The bttv_* interface is obsolete and will go away,\n"
+	       "please use the new, sysfs based interface instead.\n");
 	if (card >= bttv_num) {
 		return -1;
 	}
@@ -80,7 +85,7 @@ int bttv_gpio_enable(unsigned int card, unsigned long mask, unsigned long data)
 	if (card >= bttv_num) {
 		return -EINVAL;
 	}
-	
+
 	btv = &bttvs[card];
 	gpio_inout(mask,data);
 	if (bttv_gpio)
@@ -91,7 +96,7 @@ int bttv_gpio_enable(unsigned int card, unsigned long mask, unsigned long data)
 int bttv_read_gpio(unsigned int card, unsigned long *data)
 {
 	struct bttv *btv;
-	
+
 	if (card >= bttv_num) {
 		return -EINVAL;
 	}
@@ -102,7 +107,7 @@ int bttv_read_gpio(unsigned int card, unsigned long *data)
 		return -ENODEV;
 	}
 
-/* prior setting BT848_GPIO_REG_INP is (probably) not needed 
+/* prior setting BT848_GPIO_REG_INP is (probably) not needed
    because we set direct input on init */
 	*data = gpio_read();
 	return 0;
@@ -111,14 +116,14 @@ int bttv_read_gpio(unsigned int card, unsigned long *data)
 int bttv_write_gpio(unsigned int card, unsigned long mask, unsigned long data)
 {
 	struct bttv *btv;
-	
+
 	if (card >= bttv_num) {
 		return -EINVAL;
 	}
 
 	btv = &bttvs[card];
 
-/* prior setting BT848_GPIO_REG_INP is (probably) not needed 
+/* prior setting BT848_GPIO_REG_INP is (probably) not needed
    because direct input is set on init */
 	gpio_bits(mask,data);
 	if (bttv_gpio)
@@ -139,6 +144,13 @@ wait_queue_head_t* bttv_get_gpio_queue(unsigned int card)
 		return NULL;
 	}
 	return &btv->gpioq;
+}
+
+void bttv_i2c_call(unsigned int card, unsigned int cmd, void *arg)
+{
+	if (card >= bttv_num)
+		return;
+	bttv_call_i2c_clients(&bttvs[card], cmd, arg);
 }
 
 /*

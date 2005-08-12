@@ -1,6 +1,8 @@
 #ifndef _CIO_QDIO_H
 #define _CIO_QDIO_H
 
+#include <asm/page.h>
+
 #define VERSION_CIO_QDIO_H "$Revision$"
 
 #ifdef CONFIG_QDIO_DEBUG
@@ -42,7 +44,7 @@
 
 #define QDIO_Q_LAPS 5
 
-#define QDIO_STORAGE_KEY 0
+#define QDIO_STORAGE_KEY PAGE_DEFAULT_KEY
 
 #define L2_CACHELINE_SIZE 256
 #define INDICATORS_PER_CACHELINE (L2_CACHELINE_SIZE/sizeof(__u32))

@@ -69,8 +69,8 @@ show_pools (struct device *dev, char *buf)
 		/* per-pool info, no real statistics yet */
 		temp = scnprintf(next, size, "%-16s %4u %4Zu %4Zu %2u\n",
 				pool->name,
-				blocks, pages * pool->blocks_per_page,
-				pool->size, pages);
+				blocks, (unsigned long) (pages * pool->blocks_per_page),
+				(unsigned long)pool->size, pages);
 		size -= temp;
 		next += temp;
 	}
@@ -156,7 +156,7 @@ dma_pool_create (const char *name, struct device *dev,
 
 
 static struct dma_page *
-pool_alloc_page (struct dma_pool *pool, int mem_flags)
+pool_alloc_page (struct dma_pool *pool, unsigned int __nocast mem_flags)
 {
 	struct dma_page	*page;
 	int		mapsize;

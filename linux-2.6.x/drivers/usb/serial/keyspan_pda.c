@@ -186,13 +186,7 @@ static void keyspan_pda_wakeup_write( struct usb_serial_port *port )
 	wake_up_interruptible( &port->write_wait );
 
 	/* wake up line discipline */
-	if( (tty->flags & (1 << TTY_DO_WRITE_WAKEUP))
-	&& tty->ldisc.write_wakeup )
-		(tty->ldisc.write_wakeup)(tty);
-
-	/* wake up other tty processes */
-	wake_up_interruptible( &tty->write_wait );
-	/* For 2.2.16 backport -- wake_up_interruptible( &tty->poll_wait ); */
+	tty_wakeup(tty);
 }
 
 static void keyspan_pda_request_unthrottle( struct usb_serial *serial )
@@ -211,7 +205,7 @@ static void keyspan_pda_request_unthrottle( struct usb_serial *serial )
 				 0, /* index */
 				 NULL,
 				 0,
-				 2*HZ);
+				 2000);
 	if (result < 0)
 		dbg("%s - error %d from usb_control_msg", 
 		    __FUNCTION__, result);
@@ -291,7 +285,7 @@ static void keyspan_pda_rx_throttle (struct usb_serial_port *port)
 	   upon the device too. */
 
 	dbg("keyspan_pda_rx_throttle port %d", port->number);
-	usb_unlink_urb(port->interrupt_in_urb);
+	usb_kill_urb(port->interrupt_in_urb);
 }
 
 
@@ -336,7 +330,7 @@ static int keyspan_pda_setbaud (struct usb_serial *serial, int baud)
 			     0, /* index */
 			     NULL, /* &data */
 			     0, /* size */
-			     2*HZ); /* timeout */
+			     2000); /* timeout */
 	return(rc);
 }
 
@@ -354,7 +348,7 @@ static void keyspan_pda_break_ctl (struct usb_serial_port *port, int break_state
 	result = usb_control_msg(serial->dev, usb_sndctrlpipe(serial->dev, 0),
 				4, /* set break */
 				USB_TYPE_VENDOR | USB_RECIP_INTERFACE | USB_DIR_OUT,
-				value, 0, NULL, 0, 2*HZ);
+				value, 0, NULL, 0, 2000);
 	if (result < 0)
 		dbg("%s - error %d from usb_control_msg", 
 		    __FUNCTION__, result);
@@ -422,7 +416,7 @@ static int keyspan_pda_get_modem_info(struct usb_serial *serial,
 	rc = usb_control_msg(serial->dev, usb_rcvctrlpipe(serial->dev, 0),
 			     3, /* get pins */
 			     USB_TYPE_VENDOR|USB_RECIP_INTERFACE|USB_DIR_IN,
-			     0, 0, &data, 1, 2*HZ);
+			     0, 0, &data, 1, 2000);
 	if (rc > 0)
 		*value = data;
 	return rc;
@@ -436,7 +430,7 @@ static int keyspan_pda_set_modem_info(struct usb_serial *serial,
 	rc = usb_control_msg(serial->dev, usb_sndctrlpipe(serial->dev, 0),
 			     3, /* set pins */
 			     USB_TYPE_VENDOR|USB_RECIP_INTERFACE|USB_DIR_OUT,
-			     value, 0, NULL, 0, 2*HZ);
+			     value, 0, NULL, 0, 2000);
 	return rc;
 }
 
@@ -499,7 +493,7 @@ static int keyspan_pda_ioctl(struct usb_serial_port *port, struct file *file,
 	return -ENOIOCTLCMD;
 }
 
-static int keyspan_pda_write(struct usb_serial_port *port, int from_user, 
+static int keyspan_pda_write(struct usb_serial_port *port, 
 			     const unsigned char *buf, int count)
 {
 	struct usb_serial *serial = port->serial;
@@ -551,7 +545,7 @@ static int keyspan_pda_write(struct usb_serial_port *port, int from_user,
 				     0, /* index */
 				     &room,
 				     1,
-				     2*HZ);
+				     2000);
 		if (rc < 0) {
 			dbg(" roomquery failed");
 			goto exit;
@@ -573,16 +567,7 @@ static int keyspan_pda_write(struct usb_serial_port *port, int from_user,
 
 	if (count) {
 		/* now transfer data */
-		if (from_user) {
-			if( copy_from_user(port->write_urb->transfer_buffer,
-			buf, count) ) {
-				rc = -EFAULT;
-				goto exit;
-			}
-		}
-		else {
-			memcpy (port->write_urb->transfer_buffer, buf, count);
-		}  
+		memcpy (port->write_urb->transfer_buffer, buf, count);
 		/* send the data out the bulk port */
 		port->write_urb->transfer_buffer_length = count;
 		
@@ -668,7 +653,7 @@ static int keyspan_pda_open (struct usb_serial_port *port, struct file *filp)
 			     0, /* index */
 			     &room,
 			     1,
-			     2*HZ);
+			     2000);
 	if (rc < 0) {
 		dbg("%s - roomquery failed", __FUNCTION__);
 		goto error;
@@ -712,8 +697,8 @@ static void keyspan_pda_close(struct usb_serial_port *port, struct file *filp)
 			keyspan_pda_set_modem_info(serial, 0);
 
 		/* shutdown our bulk reads and writes */
-		usb_unlink_urb (port->write_urb);
-		usb_unlink_urb (port->interrupt_in_urb);
+		usb_kill_urb(port->write_urb);
+		usb_kill_urb(port->interrupt_in_urb);
 	}
 }
 
@@ -728,12 +713,12 @@ static int keyspan_pda_fake_startup (struct usb_serial *serial)
 	response = ezusb_set_reset(serial, 1);
 
 #ifdef KEYSPAN
-	if (serial->dev->descriptor.idVendor == KEYSPAN_VENDOR_ID)
+	if (le16_to_cpu(serial->dev->descriptor.idVendor) == KEYSPAN_VENDOR_ID)
 		record = &keyspan_pda_firmware[0];
 #endif
 #ifdef XIRCOM
-	if ((serial->dev->descriptor.idVendor == XIRCOM_VENDOR_ID) ||
-	    (serial->dev->descriptor.idVendor == ENTREGRA_VENDOR_ID))
+	if ((le16_to_cpu(serial->dev->descriptor.idVendor) == XIRCOM_VENDOR_ID) ||
+	    (le16_to_cpu(serial->dev->descriptor.idVendor) == ENTREGRA_VENDOR_ID))
 		record = &xircom_pgs_firmware[0];
 #endif
 	if (record == NULL) {

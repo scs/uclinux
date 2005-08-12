@@ -7,9 +7,6 @@
  * Copyright (C) 1996, 1999, 2003 David S. Miller (davem@redhat.com)
  */
 
-static char version[] =
-        "sunqe.c:v3.0 8/24/03 David S. Miller (davem@redhat.com)\n";
-
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
@@ -27,9 +24,9 @@ static char version[] =
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
 #include <linux/ethtool.h>
+#include <linux/bitops.h>
 
 #include <asm/system.h>
-#include <asm/bitops.h>
 #include <asm/io.h>
 #include <asm/dma.h>
 #include <asm/byteorder.h>
@@ -43,13 +40,26 @@ static char version[] =
 
 #include "sunqe.h"
 
+#define DRV_NAME	"sunqe"
+#define DRV_VERSION	"3.0"
+#define DRV_RELDATE	"8/24/03"
+#define DRV_AUTHOR	"David S. Miller (davem@redhat.com)"
+
+static char version[] =
+	DRV_NAME ".c:v" DRV_VERSION " " DRV_RELDATE " " DRV_AUTHOR "\n";
+
+MODULE_VERSION(DRV_VERSION);
+MODULE_AUTHOR(DRV_AUTHOR);
+MODULE_DESCRIPTION("Sun QuadEthernet 10baseT SBUS card driver");
+MODULE_LICENSE("GPL");
+
 static struct sunqec *root_qec_dev;
 
 static void qe_set_multicast(struct net_device *dev);
 
 #define QEC_RESET_TRIES 200
 
-static inline int qec_global_reset(unsigned long gregs)
+static inline int qec_global_reset(void __iomem *gregs)
 {
 	int tries = QEC_RESET_TRIES;
 
@@ -73,8 +83,8 @@ static inline int qec_global_reset(unsigned long gregs)
 
 static inline int qe_stop(struct sunqe *qep)
 {
-	unsigned long cregs = qep->qcregs;
-	unsigned long mregs = qep->mregs;
+	void __iomem *cregs = qep->qcregs;
+	void __iomem *mregs = qep->mregs;
 	int tries;
 
 	/* Reset the MACE, then the QEC channel. */
@@ -130,9 +140,9 @@ static void qe_init_rings(struct sunqe *qep)
 static int qe_init(struct sunqe *qep, int from_irq)
 {
 	struct sunqec *qecp = qep->parent;
-	unsigned long cregs = qep->qcregs;
-	unsigned long mregs = qep->mregs;
-	unsigned long gregs = qecp->gregs;
+	void __iomem *cregs = qep->qcregs;
+	void __iomem *mregs = qep->mregs;
+	void __iomem *gregs = qecp->gregs;
 	unsigned char *e = &qep->dev->dev_addr[0];
 	u32 tmp;
 	int i;
@@ -699,7 +709,7 @@ static void qe_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 static u32 qe_get_link(struct net_device *dev)
 {
 	struct sunqe *qep = dev->priv;
-	unsigned long mregs = qep->mregs;
+	void __iomem *mregs = qep->mregs;
 	u8 phyconfig;
 
 	spin_lock_irq(&qep->lock);
@@ -1040,4 +1050,3 @@ static void __exit qec_cleanup(void)
 
 module_init(qec_probe);
 module_exit(qec_cleanup);
-MODULE_LICENSE("GPL");

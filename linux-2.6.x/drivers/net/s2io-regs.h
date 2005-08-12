@@ -1,6 +1,6 @@
 /************************************************************************
  * regs.h: A Linux PCI-X Ethernet driver for S2IO 10GbE Server NIC
- * Copyright 2002 Raghavendra Koushik (raghavendra.koushik@s2io.com)
+ * Copyright(c) 2002-2005 Neterion Inc.
 
  * This software may be used and distributed according to the terms of
  * the GNU General Public License (GPL), incorporated herein by reference.
@@ -289,6 +289,8 @@ typedef struct _XENA_dev_config {
 	u64 tda_err_alarm;
 
 	u64 pcc_err_reg;
+#define PCC_FB_ECC_DB_ERR		vBIT(0xFF, 16, 8)
+
 	u64 pcc_err_mask;
 	u64 pcc_err_alarm;
 
@@ -512,6 +514,7 @@ typedef struct _XENA_dev_config {
 #define RX_PA_CFG_IGNORE_FRM_ERR           BIT(1)
 #define RX_PA_CFG_IGNORE_SNAP_OUI          BIT(2)
 #define RX_PA_CFG_IGNORE_LLC_CTRL          BIT(3)
+#define RX_PA_CFG_IGNORE_L2_ERR            BIT(6)
 
 	u8 unused12[0x700 - 0x1D8];
 

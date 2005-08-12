@@ -62,7 +62,7 @@ static int __init epxa_mtd_init(void)
 	
 	printk(KERN_NOTICE "%s flash device: 0x%x at 0x%x\n", BOARD_NAME, FLASH_SIZE, FLASH_START);
 
-	epxa_map.virt = (unsigned long)ioremap(FLASH_START, FLASH_SIZE);
+	epxa_map.virt = ioremap(FLASH_START, FLASH_SIZE);
 	if (!epxa_map.virt) {
 		printk("Failed to ioremap %s flash\n",BOARD_NAME);
 		return -EIO;

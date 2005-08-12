@@ -102,7 +102,7 @@ int fib_setup(struct aac_dev * dev)
 		fibptr->next = fibptr+1;	/* Forward chain the fibs */
 		init_MUTEX_LOCKED(&fibptr->event_wait);
 		spin_lock_init(&fibptr->event_lock);
-		hw_fib_va->header.XferState = cpu_to_le32(0xffffffff);
+		hw_fib_va->header.XferState = 0xffffffff;
 		hw_fib_va->header.SenderSize = cpu_to_le16(sizeof(struct hw_fib));
 		fibptr->hw_fib_pa = hw_fib_pa;
 		hw_fib_va = (struct hw_fib *)((unsigned char *)hw_fib_va + sizeof(struct hw_fib));
@@ -148,7 +148,7 @@ struct fib * fib_alloc(struct aac_dev *dev)
 	 *	Null out fields that depend on being zero at the start of
 	 *	each I/O
 	 */
-	fibptr->hw_fib->header.XferState = cpu_to_le32(0);
+	fibptr->hw_fib->header.XferState = 0;
 	fibptr->callback = NULL;
 	fibptr->callback_data = NULL;
 
@@ -175,7 +175,8 @@ void fib_free(struct fib * fibptr)
 	} else {
 		if (fibptr->hw_fib->header.XferState != 0) {
 			printk(KERN_WARNING "fib_free, XferState != 0, fibptr = 0x%p, XferState = 0x%x\n", 
-				 (void*)fibptr, fibptr->hw_fib->header.XferState);
+				 (void*)fibptr, 
+				 le32_to_cpu(fibptr->hw_fib->header.XferState));
 		}
 		fibptr->next = fibptr->dev->free_fib;
 		fibptr->dev->free_fib = fibptr;
@@ -215,7 +216,7 @@ void fib_dealloc(struct fib * fibptr)
 	struct hw_fib *hw_fib = fibptr->hw_fib;
 	if(hw_fib->header.StructType != FIB_MAGIC) 
 		BUG();
-	hw_fib->header.XferState = cpu_to_le32(0);        
+	hw_fib->header.XferState = 0;        
 }
 
 /*
@@ -344,7 +345,7 @@ static int aac_queue_get(struct aac_dev * dev, u32 * index, u32 qid, struct hw_f
 	 *	in the queue entry.
 	 */
 	if (map)
-		entry->addr = fibptr->hw_fib_pa;
+		entry->addr = cpu_to_le32(fibptr->hw_fib_pa);
 	return 0;
 }
 
@@ -418,13 +419,13 @@ int fib_send(u16 command, struct fib * fibptr, unsigned long size,  int priority
 	struct hw_fib * hw_fib = fibptr->hw_fib;
 	struct aac_queue * q;
 	unsigned long flags = 0;
-	if (!(le32_to_cpu(hw_fib->header.XferState) & HostOwned))
+	if (!(hw_fib->header.XferState & cpu_to_le32(HostOwned)))
 		return -EBUSY;
 	/*
 	 *	There are 5 cases with the wait and reponse requested flags. 
 	 *	The only invalid cases are if the caller requests to wait and
 	 *	does not request a response and if the caller does not want a
-	 *	response and the Fibis not allocated from pool. If a response
+	 *	response and the Fib is not allocated from pool. If a response
 	 *	is not requesed the Fib will just be deallocaed by the DPC
 	 *	routine when the response comes back from the adapter. No
 	 *	further processing will be done besides deleting the Fib. We 
@@ -566,12 +567,6 @@ int aac_consumer_get(struct aac_dev * dev, struct aac_queue * q, struct aac_entr
 	return(status);
 }
 
-int aac_consumer_avail(struct aac_dev *dev, struct aac_queue * q)
-{
-	return (le32_to_cpu(*q->headers.producer) != le32_to_cpu(*q->headers.consumer));
-}
-
-
 /**
  *	aac_consumer_free	-	free consumer entry
  *	@dev: Adapter
@@ -632,7 +627,7 @@ int fib_adapter_complete(struct fib * fibptr, unsigned short size)
 	struct hw_fib * hw_fib = fibptr->hw_fib;
 	struct aac_dev * dev = fibptr->dev;
 	unsigned long nointr = 0;
-	if (le32_to_cpu(hw_fib->header.XferState) == 0)
+	if (hw_fib->header.XferState == 0)
         	return 0;
 	/*
 	 *	If we plan to do anything check the structure type first.
@@ -704,7 +699,7 @@ int fib_complete(struct fib * fibptr)
 	 *	Check for a fib which has already been completed
 	 */
 
-	if (hw_fib->header.XferState == cpu_to_le32(0))
+	if (hw_fib->header.XferState == 0)
         	return 0;
 	/*
 	 *	If we plan to do anything check the structure type first.
@@ -761,33 +756,11 @@ void aac_printf(struct aac_dev *dev, u32 val)
 		length = 255;
 	if (cp[length] != 0)
 		cp[length] = 0;
-	if (level == LOG_HIGH_ERROR)
+	if (level == LOG_AAC_HIGH_ERROR)
 		printk(KERN_WARNING "aacraid:%s", cp);
 	else
 		printk(KERN_INFO "aacraid:%s", cp);
 	memset(cp, 0,  256);
-}
-
-
-/**
- *	aac_handle_aif		-	Handle a message from the firmware
- *	@dev: Which adapter this fib is from
- *	@fibptr: Pointer to fibptr from adapter
- *
- *	This routine handles a driver notify fib from the adapter and
- *	dispatches it to the appropriate routine for handling.
- */
-
-static void aac_handle_aif(struct aac_dev * dev, struct fib * fibptr)
-{
-	struct hw_fib * hw_fib = fibptr->hw_fib;
-	/*
-	 * Set the status of this FIB to be Invalid parameter.
-	 *
-	 *	*(u32 *)fib->data = ST_INVAL;
-	 */
-	*(u32 *)hw_fib->data = cpu_to_le32(ST_OK);
-	fib_adapter_complete(fibptr, sizeof(u32));
 }
 
 /**
@@ -859,7 +832,6 @@ int aac_command_thread(struct aac_dev * dev)
 			aifcmd = (struct aac_aifcmd *) hw_fib->data;
 			if (aifcmd->command == cpu_to_le32(AifCmdDriverNotify)) {
 				/* Handle Driver Notify Events */
-				aac_handle_aif(dev, fib);
 				*(u32 *)hw_fib->data = cpu_to_le32(ST_OK);
 				fib_adapter_complete(fib, sizeof(u32));
 			} else {
@@ -869,10 +841,6 @@ int aac_command_thread(struct aac_dev * dev)
 				   
 				u32 time_now, time_last;
 				unsigned long flagv;
-				
-				/* Sniff events */
-				if (aifcmd->command == cpu_to_le32(AifCmdEventNotify))
-					aac_handle_aif(dev, fib);
 				
 				time_now = jiffies/HZ;
 

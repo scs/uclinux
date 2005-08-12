@@ -52,7 +52,7 @@ struct mpu_data
 	u16	rmaxn_intake_fan;	/* 0x4e - Intake fan max RPM */
 	u16	rminn_exhaust_fan;	/* 0x50 - Exhaust fan min RPM */
 	u16	rmaxn_exhaust_fan;	/* 0x52 - Exhaust fan max RPM */
-	u8	processor_part_num[8];	/* 0x54 - Processor part number */
+	u8	processor_part_num[8];	/* 0x54 - Processor part number XX pumps min/max */
 	u32	processor_lot_num;	/* 0x5c - Processor lot number */
 	u8	orig_card_sernum[0x10];	/* 0x60 - Card original serial number */
 	u8	curr_card_sernum[0x10];	/* 0x70 - Card current serial number */
@@ -94,19 +94,25 @@ static char * critical_overtemp_path = "/sbin/critical_overtemp";
  * of the driver, though I would accept any clean patch
  * doing a better use of the device-tree without turning the
  * while i2c registration mecanism into a racy mess
+ *
+ * Note: Xserve changed this. We have some bits on the K2 bus,
+ * which I arbitrarily set to 0x200. Ultimately, we really want
+ * too lookup these in the device-tree though
  */
 #define FAN_CTRLER_ID		0x15e
 #define SUPPLY_MONITOR_ID      	0x58
 #define SUPPLY_MONITORB_ID     	0x5a
 #define DRIVES_DALLAS_ID	0x94
 #define BACKSIDE_MAX_ID		0x98
+#define XSERVE_DIMMS_LM87	0x25a
 
 /*
- * Some MAX6690 & DS1775 register definitions
+ * Some MAX6690, DS1775, LM87 register definitions
  */
 #define MAX6690_INT_TEMP	0
 #define MAX6690_EXT_TEMP	1
 #define DS1775_TEMP		0
+#define LM87_INT_TEMP		0x27
 
 /*
  * Scaling factors for the AD7417 ADC converters (except
@@ -119,17 +125,38 @@ static char * critical_overtemp_path = "/sbin/critical_overtemp";
 #define ADC_CPU_CURRENT_SCALE	0x1f40	/* _AD4 */
 
 /*
- * PID factors for the U3/Backside fan control loop
+ * PID factors for the U3/Backside fan control loop. We have 2 sets
+ * of values here, one set for U3 and one set for U3H
  */
-#define BACKSIDE_FAN_PWM_ID		1
-#define BACKSIDE_PID_G_d		0x02800000
+#define BACKSIDE_FAN_PWM_DEFAULT_ID	1
+#define BACKSIDE_FAN_PWM_INDEX		0
+#define BACKSIDE_PID_U3_G_d		0x02800000
+#define BACKSIDE_PID_U3H_G_d		0x01400000
+#define BACKSIDE_PID_RACK_G_d		0x00500000
 #define BACKSIDE_PID_G_p		0x00500000
+#define BACKSIDE_PID_RACK_G_p		0x0004cccc
 #define BACKSIDE_PID_G_r		0x00000000
-#define BACKSIDE_PID_INPUT_TARGET	0x00410000
+#define BACKSIDE_PID_U3_INPUT_TARGET	0x00410000
+#define BACKSIDE_PID_U3H_INPUT_TARGET	0x004b0000
+#define BACKSIDE_PID_RACK_INPUT_TARGET	0x00460000
 #define BACKSIDE_PID_INTERVAL		5
+#define BACKSIDE_PID_RACK_INTERVAL	1
 #define BACKSIDE_PID_OUTPUT_MAX		100
-#define BACKSIDE_PID_OUTPUT_MIN		20
+#define BACKSIDE_PID_U3_OUTPUT_MIN	20
+#define BACKSIDE_PID_U3H_OUTPUT_MIN	20
 #define BACKSIDE_PID_HISTORY_SIZE	2
+
+struct basckside_pid_params
+{
+	s32			G_d;
+	s32			G_p;
+	s32			G_r;
+	s32			input_target;
+	s32			output_min;
+	s32			output_max;
+	s32			interval;
+	int			additive;
+};
 
 struct backside_pid_state
 {
@@ -146,7 +173,8 @@ struct backside_pid_state
 /*
  * PID factors for the Drive Bay fan control loop
  */
-#define DRIVES_FAN_RPM_ID      		2
+#define DRIVES_FAN_RPM_DEFAULT_ID	2
+#define DRIVES_FAN_RPM_INDEX		1
 #define DRIVES_PID_G_d			0x01e00000
 #define DRIVES_PID_G_p			0x00500000
 #define DRIVES_PID_G_r			0x00000000
@@ -168,39 +196,68 @@ struct drives_pid_state
 	int			first;
 };
 
-#define SLOTS_FAN_PWM_ID       		2
+#define SLOTS_FAN_PWM_DEFAULT_ID	2
+#define SLOTS_FAN_PWM_INDEX		2
 #define	SLOTS_FAN_DEFAULT_PWM		50 /* Do better here ! */
 
-/*
- * IDs in Darwin for the sensors & fans
- *
- * CPU A AD7417_TEMP	10	(CPU A ambient temperature)
- * CPU A AD7417_AD1	11	(CPU A diode temperature)
- * CPU A AD7417_AD2	12	(CPU A 12V current)
- * CPU A AD7417_AD3	13	(CPU A voltage)
- * CPU A AD7417_AD4	14	(CPU A current)
- *
- * CPU A FAKE POWER	48	(I_V_inputs: 13, 14)
- *
- * CPU B AD7417_TEMP	15	(CPU B ambient temperature)
- * CPU B AD7417_AD1	16	(CPU B diode temperature)
- * CPU B AD7417_AD2	17	(CPU B 12V current)
- * CPU B AD7417_AD3	18	(CPU B voltage)
- * CPU B AD7417_AD4	19	(CPU B current)
- *
- * CPU B FAKE POWER	49	(I_V_inputs: 18, 19)
- */
 
-#define CPUA_INTAKE_FAN_RPM_ID		3
-#define CPUA_EXHAUST_FAN_RPM_ID		4
-#define CPUB_INTAKE_FAN_RPM_ID		5
-#define CPUB_EXHAUST_FAN_RPM_ID		6
+/*
+ * PID factors for the Xserve DIMM control loop
+ */
+#define DIMM_PID_G_d			0
+#define DIMM_PID_G_p			0
+#define DIMM_PID_G_r			0x6553600
+#define DIMM_PID_INPUT_TARGET		3276800
+#define DIMM_PID_INTERVAL    		1
+#define DIMM_PID_OUTPUT_MAX		14000
+#define DIMM_PID_OUTPUT_MIN		4000
+#define DIMM_PID_HISTORY_SIZE		20
+
+struct dimm_pid_state
+{
+	int			ticks;
+	struct i2c_client *	monitor;
+	s32	       		sample_history[DIMM_PID_HISTORY_SIZE];
+	s32			error_history[DIMM_PID_HISTORY_SIZE];
+	int			cur_sample;
+	s32			last_temp;
+	int			first;
+	int			output;
+};
+
+
+
+/* Desktops */
+
+#define CPUA_INTAKE_FAN_RPM_DEFAULT_ID	3
+#define CPUA_EXHAUST_FAN_RPM_DEFAULT_ID	4
+#define CPUB_INTAKE_FAN_RPM_DEFAULT_ID	5
+#define CPUB_EXHAUST_FAN_RPM_DEFAULT_ID	6
+
+#define CPUA_INTAKE_FAN_RPM_INDEX	3
+#define CPUA_EXHAUST_FAN_RPM_INDEX	4
+#define CPUB_INTAKE_FAN_RPM_INDEX	5
+#define CPUB_EXHAUST_FAN_RPM_INDEX	6
 
 #define CPU_INTAKE_SCALE		0x0000f852
 #define CPU_TEMP_HISTORY_SIZE		2
 #define CPU_POWER_HISTORY_SIZE		10
 #define CPU_PID_INTERVAL		1
 #define CPU_MAX_OVERTEMP		30
+
+#define CPUA_PUMP_RPM_INDEX		7
+#define CPUB_PUMP_RPM_INDEX		8
+#define CPU_PUMP_OUTPUT_MAX		3200
+#define CPU_PUMP_OUTPUT_MIN		1250
+
+/* Xserve */
+#define CPU_A1_FAN_RPM_INDEX		9
+#define CPU_A2_FAN_RPM_INDEX		10
+#define CPU_A3_FAN_RPM_INDEX		11
+#define CPU_B1_FAN_RPM_INDEX		12
+#define CPU_B2_FAN_RPM_INDEX		13
+#define CPU_B3_FAN_RPM_INDEX		14
+
 
 struct cpu_pid_state
 {
@@ -219,8 +276,11 @@ struct cpu_pid_state
 	s32			voltage;
 	s32			current_a;
 	s32			last_temp;
+	s32			last_power;
 	int			first;
 	u8			adc_config;
+	s32			pump_min;
+	s32			pump_max;
 };
 
 /*

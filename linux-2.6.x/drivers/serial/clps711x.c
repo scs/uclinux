@@ -26,26 +26,26 @@
  *
  */
 #include <linux/config.h>
-#include <linux/module.h>
-#include <linux/tty.h>
-#include <linux/ioport.h>
-#include <linux/init.h>
-#include <linux/serial.h>
-#include <linux/console.h>
-#include <linux/sysrq.h>
-#include <linux/spinlock.h>
-#include <linux/device.h>
-
-#include <asm/hardware.h>
-#include <asm/io.h>
-#include <asm/irq.h>
 
 #if defined(CONFIG_SERIAL_CLPS711X_CONSOLE) && defined(CONFIG_MAGIC_SYSRQ)
 #define SUPPORT_SYSRQ
 #endif
 
+#include <linux/module.h>
+#include <linux/ioport.h>
+#include <linux/init.h>
+#include <linux/console.h>
+#include <linux/sysrq.h>
+#include <linux/spinlock.h>
+#include <linux/device.h>
+#include <linux/tty.h>
+#include <linux/tty_flip.h>
 #include <linux/serial_core.h>
+#include <linux/serial.h>
 
+#include <asm/hardware.h>
+#include <asm/io.h>
+#include <asm/irq.h>
 #include <asm/hardware/clps7111.h>
 
 #define UART_NR		2
@@ -116,60 +116,40 @@ static irqreturn_t clps711xuart_int_rx(int irq, void *dev_id, struct pt_regs *re
 		 * Note that the error handling code is
 		 * out of the main execution path
 		 */
-		if (ch & UART_ANY_ERR)
-			goto handle_error;
+		if (unlikely(ch & UART_ANY_ERR)) {
+			if (ch & UARTDR_PARERR)
+				port->icount.parity++;
+			else if (ch & UARTDR_FRMERR)
+				port->icount.frame++;
+			if (ch & UARTDR_OVERR)
+				port->icount.overrun++;
+
+			ch &= port->read_status_mask;
+
+			if (ch & UARTDR_PARERR)
+				flg = TTY_PARITY;
+			else if (ch & UARTDR_FRMERR)
+				flg = TTY_FRAME;
+
+#ifdef SUPPORT_SYSRQ
+			port->sysrq = 0;
+#endif
+		}
 
 		if (uart_handle_sysrq_char(port, ch, regs))
 			goto ignore_char;
 
-	error_return:
-		*tty->flip.flag_buf_ptr++ = flg;
-		*tty->flip.char_buf_ptr++ = ch;
-		tty->flip.count++;
-	ignore_char:
-		status = clps_readl(SYSFLG(port));
-	}
- out:
-	tty_flip_buffer_push(tty);
-	return IRQ_HANDLED;
-
- handle_error:
-	if (ch & UARTDR_PARERR)
-		port->icount.parity++;
-	else if (ch & UARTDR_FRMERR)
-		port->icount.frame++;
-	if (ch & UARTDR_OVERR)
-		port->icount.overrun++;
-
-	if (ch & port->ignore_status_mask) {
-		if (++ignored > 100)
-			goto out;
-		goto ignore_char;
-	}
-	ch &= port->read_status_mask;
-
-	if (ch & UARTDR_PARERR)
-		flg = TTY_PARITY;
-	else if (ch & UARTDR_FRMERR)
-		flg = TTY_FRAME;
-
-	if (ch & UARTDR_OVERR) {
 		/*
 		 * CHECK: does overrun affect the current character?
 		 * ASSUMPTION: it does not.
 		 */
-		*tty->flip.flag_buf_ptr++ = flg;
-		*tty->flip.char_buf_ptr++ = ch;
-		tty->flip.count++;
-		if (tty->flip.count >= TTY_FLIPBUF_SIZE)
-			goto ignore_char;
-		ch = 0;
-		flg = TTY_OVERRUN;
+		uart_insert_char(port, ch, UARTDR_OVERR, ch, flg);
+
+	ignore_char:
+		status = clps_readl(SYSFLG(port));
 	}
-#ifdef SUPPORT_SYSRQ
-	port->sysrq = 0;
-#endif
-	goto error_return;
+	tty_flip_buffer_push(tty);
+	return IRQ_HANDLED;
 }
 
 static irqreturn_t clps711xuart_int_tx(int irq, void *dev_id, struct pt_regs *regs)

@@ -98,17 +98,6 @@ static void rpaphp_release_slot(struct hotplug_slot *hotplug_slot)
 
 void dealloc_slot_struct(struct slot *slot)
 {
-	struct list_head *ln, *n;
-
-	if (slot->dev_type == PCI_DEV) {
-		list_for_each_safe (ln, n, &slot->dev.pci_funcs) {
-			struct rpaphp_pci_func *func;
-
-			func = list_entry(ln, struct rpaphp_pci_func, sibling);
-			kfree(func);
-		}
-	}
-
 	kfree(slot->hotplug_slot->info);
 	kfree(slot->hotplug_slot->name);
 	kfree(slot->hotplug_slot);
@@ -211,7 +200,7 @@ int register_slot(struct slot *slot)
 	if (is_registered(slot)) { /* should't be here */
 		err("register_slot: slot[%s] is already registered\n", slot->name);
 		rpaphp_release_slot(slot->hotplug_slot);
-		return 1;
+		return -EAGAIN;
 	}	
 	retval = pci_hp_register(slot->hotplug_slot);
 	if (retval) {
@@ -244,18 +233,21 @@ int register_slot(struct slot *slot)
 
 int rpaphp_get_power_status(struct slot *slot, u8 * value)
 {
-	int rc = 0;
+	int rc = 0, level;
 	
-	if (slot->type == EMBEDDED) {
-		dbg("%s set to POWER_ON for EMBEDDED slot %s\n",
-			__FUNCTION__, slot->location);
-		*value = POWER_ON;
-	}
-	else {
-		rc = rtas_get_power_level(slot->power_domain, (int *) value);
-		if (rc)
+	if (slot->type == HOTPLUG) {
+		rc = rtas_get_power_level(slot->power_domain, &level);
+		if (!rc) {
+			dbg("%s the power level of slot %s(pwd-domain:0x%x) is %d\n",
+				__FUNCTION__, slot->name, slot->power_domain, level);
+			*value = level;
+		} else
 			err("failed to get power-level for slot(%s), rc=0x%x\n",
-		    		slot->location, rc);
+				slot->location, rc);
+	} else {
+		dbg("%s report POWER_ON for EMBEDDED or PHB slot %s\n",
+			__FUNCTION__, slot->location);
+		*value = (u8) POWER_ON;
 	}
 
 	return rc;
@@ -267,7 +259,7 @@ int rpaphp_set_attention_status(struct slot *slot, u8 status)
 
 	/* status: LED_OFF or LED_ON */
 	rc = rtas_set_indicator(DR_INDICATOR, slot->index, status);
-	if (rc)
+	if (rc < 0)
 		err("slot(name=%s location=%s index=0x%x) set attention-status(%d) failed! rc=0x%x\n",
 		    slot->name, slot->location, slot->index, status, rc);
 

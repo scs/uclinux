@@ -60,3 +60,40 @@ config USB_DYNAMIC_MINORS
 
 	  If you are unsure about this, say N here.
 
+config USB_SUSPEND
+	bool "USB suspend/resume (EXPERIMENTAL)"
+	depends on USB && PM && EXPERIMENTAL
+	help
+	  If you say Y here, you can use driver calls or the sysfs
+	  "power/state" file to suspend or resume individual USB
+	  peripherals.  There are many related features, such as
+	  remote wakeup and driver-specific suspend processing, that
+	  may not yet work as expected.
+
+	  If you are unsure about this, say N here.
+
+
+config USB_OTG
+	bool
+	depends on USB && EXPERIMENTAL
+	select USB_SUSPEND
+	default n
+
+
+config USB_OTG_WHITELIST
+	bool "Rely on OTG Targeted Peripherals List"
+	depends on USB_OTG
+	default y
+	help
+	  If you say Y here, the "otg_whitelist.h" file will be used as a
+	  product whitelist, so USB peripherals not listed there will be
+	  rejected during enumeration.  This behavior is required by the
+	  USB OTG specification for all devices not on your product's
+	  "Targeted Peripherals List".
+
+	  Otherwise, peripherals not listed there will only generate a
+	  warning and enumeration will continue.  That's more like what
+	  normal Linux-USB hosts do (other than the warning), and is
+	  convenient for many stages of product development.
+
+

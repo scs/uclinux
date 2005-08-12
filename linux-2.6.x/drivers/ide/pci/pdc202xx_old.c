@@ -46,72 +46,69 @@
 #include <asm/io.h>
 #include <asm/irq.h>
 
-#include "pdc202xx_old.h"
+#define PDC202_DEBUG_CABLE		0
+#define PDC202XX_DEBUG_DRIVE_INFO	0
 
-#define PDC202_DEBUG_CABLE	0
+static const char *pdc_quirk_drives[] = {
+	"QUANTUM FIREBALLlct08 08",
+	"QUANTUM FIREBALLP KA6.4",
+	"QUANTUM FIREBALLP KA9.1",
+	"QUANTUM FIREBALLP LM20.4",
+	"QUANTUM FIREBALLP KX13.6",
+	"QUANTUM FIREBALLP KX20.5",
+	"QUANTUM FIREBALLP KX27.3",
+	"QUANTUM FIREBALLP LM20.5",
+	NULL
+};
 
-#if defined(DISPLAY_PDC202XX_TIMINGS) && defined(CONFIG_PROC_FS)
-#include <linux/stat.h>
-#include <linux/proc_fs.h>
+/* A Register */
+#define	SYNC_ERRDY_EN	0xC0
 
-static u8 pdc202xx_proc = 0;
-#define PDC202_MAX_DEVS		5
-static struct pci_dev *pdc202_devs[PDC202_MAX_DEVS];
-static int n_pdc202_devs;
+#define	SYNC_IN		0x80	/* control bit, different for master vs. slave drives */
+#define	ERRDY_EN	0x40	/* control bit, different for master vs. slave drives */
+#define	IORDY_EN	0x20	/* PIO: IOREADY */
+#define	PREFETCH_EN	0x10	/* PIO: PREFETCH */
 
-static char * pdc202xx_info (char *buf, struct pci_dev *dev)
-{
-	char *p = buf;
+#define	PA3		0x08	/* PIO"A" timing */
+#define	PA2		0x04	/* PIO"A" timing */
+#define	PA1		0x02	/* PIO"A" timing */
+#define	PA0		0x01	/* PIO"A" timing */
 
+/* B Register */
+
+#define	MB2		0x80	/* DMA"B" timing */
+#define	MB1		0x40	/* DMA"B" timing */
+#define	MB0		0x20	/* DMA"B" timing */
+
+#define	PB4		0x10	/* PIO_FORCE 1:0 */
+
+#define	PB3		0x08	/* PIO"B" timing */	/* PIO flow Control mode */
+#define	PB2		0x04	/* PIO"B" timing */	/* PIO 4 */
+#define	PB1		0x02	/* PIO"B" timing */	/* PIO 3 half */
+#define	PB0		0x01	/* PIO"B" timing */	/* PIO 3 other half */
+
+/* C Register */
+#define	IORDYp_NO_SPEED	0x4F
+#define	SPEED_DIS	0x0F
+
+#define	DMARQp		0x80
+#define	IORDYp		0x40
+#define	DMAR_EN		0x20
+#define	DMAW_EN		0x10
+
+#define	MC3		0x08	/* DMA"C" timing */
+#define	MC2		0x04	/* DMA"C" timing */
+#define	MC1		0x02	/* DMA"C" timing */
+#define	MC0		0x01	/* DMA"C" timing */
+
+#if 0
 	unsigned long bibma  = pci_resource_start(dev, 4);
-	u32 reg60h = 0, reg64h = 0, reg68h = 0, reg6ch = 0;
-	u16 reg50h = 0, pmask = (1<<10), smask = (1<<11);
 	u8 hi = 0, lo = 0;
 
-        /*
-         * at that point bibma+0x2 et bibma+0xa are byte registers
-         * to investigate:
-         */
-	u8 c0	= inb_p((u16)bibma + 0x02);
-	u8 c1	= inb_p((u16)bibma + 0x0a);
-
-	u8 sc11	= inb_p((u16)bibma + 0x11);
-	u8 sc1a	= inb_p((u16)bibma + 0x1a);
-	u8 sc1b	= inb_p((u16)bibma + 0x1b);
 	u8 sc1c	= inb_p((u16)bibma + 0x1c); 
-	u8 sc1d	= inb_p((u16)bibma + 0x1d);
 	u8 sc1e	= inb_p((u16)bibma + 0x1e);
 	u8 sc1f	= inb_p((u16)bibma + 0x1f);
 
-	pci_read_config_word(dev, 0x50, &reg50h);
-	pci_read_config_dword(dev, 0x60, &reg60h);
-	pci_read_config_dword(dev, 0x64, &reg64h);
-	pci_read_config_dword(dev, 0x68, &reg68h);
-	pci_read_config_dword(dev, 0x6c, &reg6ch);
-
-	p += sprintf(p, "\n                                ");
-	switch(dev->device) {
-		case PCI_DEVICE_ID_PROMISE_20267:
-			p += sprintf(p, "Ultra100"); break;
-		case PCI_DEVICE_ID_PROMISE_20265:
-			p += sprintf(p, "Ultra100 on M/B"); break;
-		case PCI_DEVICE_ID_PROMISE_20263:
-			p += sprintf(p, "FastTrak 66"); break;
-		case PCI_DEVICE_ID_PROMISE_20262:
-			p += sprintf(p, "Ultra66"); break;
-		case PCI_DEVICE_ID_PROMISE_20246:
-			p += sprintf(p, "Ultra33");
-			reg50h |= 0x0c00;
-			break;
-		default:
-			p += sprintf(p, "Ultra Series"); break;
-	}
-	p += sprintf(p, " Chipset.\n");
-
-	p += sprintf(p, "------------------------------- General Status "
-			"---------------------------------\n");
-	p += sprintf(p, "Burst Mode                           : %sabled\n",
-		(sc1f & 0x01) ? "en" : "dis");
 	p += sprintf(p, "Host Mode                            : %s\n",
 		(sc1f & 0x08) ? "Tri-Stated" : "Normal");
 	p += sprintf(p, "Bus Clocking                         : %s\n",
@@ -123,73 +120,11 @@ static char * pdc202xx_info (char *buf, struct pci_dev *dev)
 		((sc1c & 0x02) == 0x02) ? "8" :
 		((sc1c & 0x01) == 0x01) ? "6" :
 		((sc1c & 0x00) == 0x00) ? "4" : "??");
-	SPLIT_BYTE(sc1e, hi, lo);
+	hi = sc1e >> 4;
+	lo = sc1e & 0xf;
 	p += sprintf(p, "Status Polling Period                : %d\n", hi);
 	p += sprintf(p, "Interrupt Check Status Polling Delay : %d\n", lo);
-	p += sprintf(p, "--------------- Primary Channel "
-			"---------------- Secondary Channel "
-			"-------------\n");
-	p += sprintf(p, "                %s                         %s\n",
-		(c0&0x80)?"disabled":"enabled ",
-		(c1&0x80)?"disabled":"enabled ");
-	p += sprintf(p, "66 Clocking     %s                         %s\n",
-		(sc11&0x02)?"enabled ":"disabled",
-		(sc11&0x08)?"enabled ":"disabled");
-	p += sprintf(p, "           Mode %s                      Mode %s\n",
-		(sc1a & 0x01) ? "MASTER" : "PCI   ",
-		(sc1b & 0x01) ? "MASTER" : "PCI   ");
-	p += sprintf(p, "                %s                     %s\n",
-		(sc1d & 0x08) ? "Error       " :
-		((sc1d & 0x05) == 0x05) ? "Not My INTR " :
-		(sc1d & 0x04) ? "Interrupting" :
-		(sc1d & 0x02) ? "FIFO Full   " :
-		(sc1d & 0x01) ? "FIFO Empty  " : "????????????",
-		(sc1d & 0x80) ? "Error       " :
-		((sc1d & 0x50) == 0x50) ? "Not My INTR " :
-		(sc1d & 0x40) ? "Interrupting" :
-		(sc1d & 0x20) ? "FIFO Full   " :
-		(sc1d & 0x10) ? "FIFO Empty  " : "????????????");
-	p += sprintf(p, "--------------- drive0 --------- drive1 "
-			"-------- drive0 ---------- drive1 ------\n");
-	p += sprintf(p, "DMA enabled:    %s              %s "
-			"            %s               %s\n",
-		(c0&0x20)?"yes":"no ", (c0&0x40)?"yes":"no ",
-		(c1&0x20)?"yes":"no ", (c1&0x40)?"yes":"no ");
-	p += sprintf(p, "DMA Mode:       %s           %s "
-			"         %s            %s\n",
-		pdc202xx_ultra_verbose(reg60h, (reg50h & pmask)),
-		pdc202xx_ultra_verbose(reg64h, (reg50h & pmask)),
-		pdc202xx_ultra_verbose(reg68h, (reg50h & smask)),
-		pdc202xx_ultra_verbose(reg6ch, (reg50h & smask)));
-	p += sprintf(p, "PIO Mode:       %s            %s "
-			"          %s            %s\n",
-		pdc202xx_pio_verbose(reg60h),
-		pdc202xx_pio_verbose(reg64h),
-		pdc202xx_pio_verbose(reg68h),
-		pdc202xx_pio_verbose(reg6ch));
-#if 0
-	p += sprintf(p, "--------------- Can ATAPI DMA ---------------\n");
 #endif
-	return (char *)p;
-}
-
-static int pdc202xx_get_info (char *buffer, char **addr, off_t offset, int count)
-{
-	char *p = buffer;
-	int i, len;
-
-	for (i = 0; i < n_pdc202_devs; i++) {
-		struct pci_dev *dev	= pdc202_devs[i];
-		p = pdc202xx_info(buffer, dev);
-	}
-	/* p - buffer must be less than 4k! */
-	len = (p - buffer) - offset;
-	*addr = buffer + offset;
-	
-	return len > count ? count : len;
-}
-#endif  /* defined(DISPLAY_PDC202XX_TIMINGS) && defined(CONFIG_PROC_FS) */
-
 
 static u8 pdc202xx_ratemask (ide_drive_t *drive)
 {
@@ -314,17 +249,6 @@ static int pdc202xx_tune_chipset (ide_drive_t *drive, u8 xferspeed)
 		pci_write_config_byte(dev, (drive_pci)|0x02, CP|TC);
 	}
 
-#if PDC202XX_DECODE_REGISTER_INFO
-	pci_read_config_byte(dev, (drive_pci), &AP);
-	pci_read_config_byte(dev, (drive_pci)|0x01, &BP);
-	pci_read_config_byte(dev, (drive_pci)|0x02, &CP);
-	pci_read_config_byte(dev, (drive_pci)|0x03, &DP);
-
-	decode_registers(REG_A, AP);
-	decode_registers(REG_B, BP);
-	decode_registers(REG_C, CP);
-	decode_registers(REG_D, DP);
-#endif /* PDC202XX_DECODE_REGISTER_INFO */
 #if PDC202XX_DEBUG_DRIVE_INFO
 	printk(KERN_DEBUG "%s: %s drive%d 0x%08x ",
 		drive->name, ide_xfer_verbose(speed),
@@ -358,7 +282,7 @@ static u8 pdc202xx_old_cable_detect (ide_hwif_t *hwif)
 {
 	u16 CIS = 0, mask = (hwif->channel) ? (1<<11) : (1<<10);
 	pci_read_config_word(hwif->pci_dev, 0x50, &CIS);
-	return ((u8)(CIS & mask));
+	return (CIS & mask) ? 1 : 0;
 }
 
 /*
@@ -462,37 +386,16 @@ static int pdc202xx_config_drive_xfer_rate (ide_drive_t *drive)
 	drive->init_speed = 0;
 
 	if (id && (id->capability & 1) && drive->autodma) {
-		/* Consult the list of known "bad" drives */
-		if (__ide_dma_bad_drive(drive))
-			goto fast_ata_pio;
-		if (id->field_valid & 4) {
-			if (id->dma_ultra & hwif->ultra_mask) {
-				/* Force if Capable UltraDMA */
-				int dma = config_chipset_for_dma(drive);
-				if ((id->field_valid & 2) && !dma)
-					goto try_dma_modes;
-			}
-		} else if (id->field_valid & 2) {
-try_dma_modes:
-			if ((id->dma_mword & hwif->mwdma_mask) ||
-			    (id->dma_1word & hwif->swdma_mask)) {
-				/* Force if Capable regular DMA modes */
-				if (!config_chipset_for_dma(drive))
-					goto no_dma_set;
-			}
-		} else if (__ide_dma_good_drive(drive) &&
-			    (id->eide_dma_time < 150)) {
-				goto no_dma_set;
-			/* Consult the list of known "good" drives */
-			if (!config_chipset_for_dma(drive))
-				goto no_dma_set;
-		} else {
-			goto fast_ata_pio;
+
+		if (ide_use_dma(drive)) {
+			if (config_chipset_for_dma(drive))
+				return hwif->ide_dma_on(drive);
 		}
-		return hwif->ide_dma_on(drive);
+
+		goto fast_ata_pio;
+
 	} else if ((id->capability & 8) || (id->field_valid & 2)) {
 fast_ata_pio:
-no_dma_set:
 		hwif->tuneproc(drive, 5);
 		return hwif->ide_dma_off_quietly(drive);
 	}
@@ -505,7 +408,7 @@ static int pdc202xx_quirkproc (ide_drive_t *drive)
 	return ((int) check_in_drive_lists(drive, pdc_quirk_drives));
 }
 
-static int pdc202xx_old_ide_dma_begin(ide_drive_t *drive)
+static void pdc202xx_old_ide_dma_start(ide_drive_t *drive)
 {
 	if (drive->current_speed > XFER_UDMA_2)
 		pdc_old_enable_66MHz_clock(drive->hwif);
@@ -526,7 +429,7 @@ static int pdc202xx_old_ide_dma_begin(ide_drive_t *drive)
 					word_count | 0x06000000;
 		hwif->OUTL(word_count, atapi_reg);
 	}
-	return __ide_dma_begin(drive);
+	ide_dma_start(drive);
 }
 
 static int pdc202xx_old_ide_dma_end(ide_drive_t *drive)
@@ -557,11 +460,13 @@ static int pdc202xx_old_ide_dma_test_irq(ide_drive_t *drive)
 	u8 sc1d			= hwif->INB((high_16 + 0x001d));
 
 	if (hwif->channel) {
+		/* bit7: Error, bit6: Interrupting, bit5: FIFO Full, bit4: FIFO Empty */
 		if ((sc1d & 0x50) == 0x50)
 			goto somebody_else;
 		else if ((sc1d & 0x40) == 0x40)
 			return (dma_stat & 4) == 4;
 	} else {
+		/* bit3: Error, bit2: Interrupting, bit1: FIFO Full, bit0: FIFO Empty */
 		if ((sc1d & 0x05) == 0x05)
 			goto somebody_else;
 		else if ((sc1d & 0x04) == 0x04)
@@ -604,7 +509,7 @@ static void pdc202xx_reset_host (ide_hwif_t *hwif)
 		hwif->channel ? "Secondary" : "Primary");
 }
 
-void pdc202xx_reset (ide_drive_t *drive)
+static void pdc202xx_reset (ide_drive_t *drive)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
 	ide_hwif_t *mate	= hwif->mate;
@@ -679,15 +584,6 @@ static unsigned int __devinit init_chipset_pdc202xx(struct pci_dev *dev, const c
 			name, dev->resource[PCI_ROM_RESOURCE].start);
 	}
 
-#if defined(DISPLAY_PDC202XX_TIMINGS) && defined(CONFIG_PROC_FS)
-	pdc202_devs[n_pdc202_devs++] = dev;
-
-	if (!pdc202xx_proc) {
-		pdc202xx_proc = 1;
-		ide_pci_create_host_proc("pdc202xx", pdc202xx_get_info);
-	}
-#endif /* DISPLAY_PDC202XX_TIMINGS && CONFIG_PROC_FS */
-
 	/*
 	 * software reset -  this is required because the bios
 	 * will set UDMA timing on if the hdd supports it. The
@@ -720,7 +616,8 @@ static void __devinit init_hwif_pdc202xx(ide_hwif_t *hwif)
 	struct pci_dev *dev = hwif->pci_dev;
 
 	/* PDC20265 has problems with large LBA48 requests */
-	if (dev->device == PCI_DEVICE_ID_PROMISE_20265)
+	if ((dev->device == PCI_DEVICE_ID_PROMISE_20267) ||
+	    (dev->device == PCI_DEVICE_ID_PROMISE_20265))
 		hwif->rqsize = 256;
 
 	hwif->autodma = 0;
@@ -747,7 +644,7 @@ static void __devinit init_hwif_pdc202xx(ide_hwif_t *hwif)
 	if (hwif->pci_dev->device != PCI_DEVICE_ID_PROMISE_20246) {
 		if (!(hwif->udma_four))
 			hwif->udma_four = (pdc202xx_old_cable_detect(hwif)) ? 0 : 1;
-		hwif->ide_dma_begin = &pdc202xx_old_ide_dma_begin;
+		hwif->dma_start = &pdc202xx_old_ide_dma_start;
 		hwif->ide_dma_end = &pdc202xx_old_ide_dma_end;
 	} 
 	hwif->ide_dma_test_irq = &pdc202xx_old_ide_dma_test_irq;
@@ -813,7 +710,8 @@ static void __devinit init_dma_pdc202xx(ide_hwif_t *hwif, unsigned long dmabase)
 	ide_setup_dma(hwif, dmabase, 8);
 }
 
-static void __devinit init_setup_pdc202ata4(struct pci_dev *dev, ide_pci_device_t *d)
+static int __devinit init_setup_pdc202ata4(struct pci_dev *dev,
+					   ide_pci_device_t *d)
 {
 	if ((dev->class >> 8) != PCI_CLASS_STORAGE_IDE) {
 		u8 irq = 0, irq2 = 0;
@@ -840,10 +738,11 @@ static void __devinit init_setup_pdc202ata4(struct pci_dev *dev, ide_pci_device_
         }
 #endif
 
-	ide_setup_pci_device(dev, d);
+	return ide_setup_pci_device(dev, d);
 }
 
-static void __devinit init_setup_pdc20265(struct pci_dev *dev, ide_pci_device_t *d)
+static int __devinit init_setup_pdc20265(struct pci_dev *dev,
+					 ide_pci_device_t *d)
 {
 	if ((dev->bus->self) &&
 	    (dev->bus->self->vendor == PCI_VENDOR_ID_INTEL) &&
@@ -851,7 +750,7 @@ static void __devinit init_setup_pdc20265(struct pci_dev *dev, ide_pci_device_t 
 	     (dev->bus->self->device == PCI_DEVICE_ID_INTEL_I960RM))) {
 		printk(KERN_INFO "ide: Skipping Promise PDC20265 "
 			"attached to I2O RAID controller.\n");
-		return;
+		return -ENODEV;
 	}
 
 #if 0
@@ -869,13 +768,85 @@ static void __devinit init_setup_pdc20265(struct pci_dev *dev, ide_pci_device_t 
         }
 #endif
 
-	ide_setup_pci_device(dev, d);
+	return ide_setup_pci_device(dev, d);
 }
 
-static void __devinit init_setup_pdc202xx(struct pci_dev *dev, ide_pci_device_t *d)
+static int __devinit init_setup_pdc202xx(struct pci_dev *dev,
+					 ide_pci_device_t *d)
 {
-	ide_setup_pci_device(dev, d);
+	return ide_setup_pci_device(dev, d);
 }
+
+static ide_pci_device_t pdc202xx_chipsets[] __devinitdata = {
+	{	/* 0 */
+		.name		= "PDC20246",
+		.init_setup	= init_setup_pdc202ata4,
+		.init_chipset	= init_chipset_pdc202xx,
+		.init_hwif	= init_hwif_pdc202xx,
+		.init_dma	= init_dma_pdc202xx,
+		.channels	= 2,
+		.autodma	= AUTODMA,
+#ifndef CONFIG_PDC202XX_FORCE
+		.enablebits	= {{0x50,0x02,0x02}, {0x50,0x04,0x04}},
+#endif
+		.bootable	= OFF_BOARD,
+		.extra		= 16,
+	},{	/* 1 */
+		.name		= "PDC20262",
+		.init_setup	= init_setup_pdc202ata4,
+		.init_chipset	= init_chipset_pdc202xx,
+		.init_hwif	= init_hwif_pdc202xx,
+		.init_dma	= init_dma_pdc202xx,
+		.channels	= 2,
+		.autodma	= AUTODMA,
+#ifndef CONFIG_PDC202XX_FORCE
+		.enablebits	= {{0x50,0x02,0x02}, {0x50,0x04,0x04}},
+#endif
+		.bootable	= OFF_BOARD,
+		.extra		= 48,
+		.flags		= IDEPCI_FLAG_FORCE_PDC,
+	},{	/* 2 */
+		.name		= "PDC20263",
+		.init_setup	= init_setup_pdc202ata4,
+		.init_chipset	= init_chipset_pdc202xx,
+		.init_hwif	= init_hwif_pdc202xx,
+		.init_dma	= init_dma_pdc202xx,
+		.channels	= 2,
+		.autodma	= AUTODMA,
+#ifndef CONFIG_PDC202XX_FORCE
+		.enablebits	= {{0x50,0x02,0x02}, {0x50,0x04,0x04}},
+#endif
+		.bootable	= OFF_BOARD,
+		.extra		= 48,
+	},{	/* 3 */
+		.name		= "PDC20265",
+		.init_setup	= init_setup_pdc20265,
+		.init_chipset	= init_chipset_pdc202xx,
+		.init_hwif	= init_hwif_pdc202xx,
+		.init_dma	= init_dma_pdc202xx,
+		.channels	= 2,
+		.autodma	= AUTODMA,
+#ifndef CONFIG_PDC202XX_FORCE
+		.enablebits	= {{0x50,0x02,0x02}, {0x50,0x04,0x04}},
+#endif
+		.bootable	= OFF_BOARD,
+		.extra		= 48,
+		.flags		= IDEPCI_FLAG_FORCE_PDC,
+	},{	/* 4 */
+		.name		= "PDC20267",
+		.init_setup	= init_setup_pdc202xx,
+		.init_chipset	= init_chipset_pdc202xx,
+		.init_hwif	= init_hwif_pdc202xx,
+		.init_dma	= init_dma_pdc202xx,
+		.channels	= 2,
+		.autodma	= AUTODMA,
+#ifndef CONFIG_PDC202XX_FORCE
+		.enablebits	= {{0x50,0x02,0x02}, {0x50,0x04,0x04}},
+#endif
+		.bootable	= OFF_BOARD,
+		.extra		= 48,
+	}
+};
 
 /**
  *	pdc202xx_init_one	-	called when a PDC202xx is found
@@ -890,8 +861,7 @@ static int __devinit pdc202xx_init_one(struct pci_dev *dev, const struct pci_dev
 {
 	ide_pci_device_t *d = &pdc202xx_chipsets[id->driver_data];
 
-	d->init_setup(dev, d);
-	return 0;
+	return d->init_setup(dev, d);
 }
 
 static struct pci_device_id pdc202xx_pci_tbl[] = {
@@ -905,7 +875,7 @@ static struct pci_device_id pdc202xx_pci_tbl[] = {
 MODULE_DEVICE_TABLE(pci, pdc202xx_pci_tbl);
 
 static struct pci_driver driver = {
-	.name		= "Promise Old IDE",
+	.name		= "Promise_Old_IDE",
 	.id_table	= pdc202xx_pci_tbl,
 	.probe		= pdc202xx_init_one,
 };

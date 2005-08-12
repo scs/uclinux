@@ -32,9 +32,9 @@
 
 #include "sir-dev.h"
 
-MODULE_PARM(tekram_delay, "i");
-MODULE_PARM_DESC(tekram_delay, "tekram dongle write complete delay");
 static int tekram_delay = 150;		/* default is 150 ms */
+module_param(tekram_delay, int, 0);
+MODULE_PARM_DESC(tekram_delay, "tekram dongle write complete delay");
 
 static int tekram_open(struct sir_dev *);
 static int tekram_close(struct sir_dev *);
@@ -179,7 +179,7 @@ static int tekram_change_speed(struct sir_dev *dev, unsigned speed)
 		break;
 
 	default:
-		ERROR("%s - undefined state %d\n", __FUNCTION__, state);
+		IRDA_ERROR("%s - undefined state %d\n", __FUNCTION__, state);
 		ret = -EINVAL;
 		break;
 	}
@@ -210,8 +210,7 @@ static int tekram_reset(struct sir_dev *dev)
 	sirdev_set_dtr_rts(dev, FALSE, TRUE); 
 
 	/* Should sleep 1 ms */
-	set_current_state(TASK_UNINTERRUPTIBLE);
-	schedule_timeout(msecs_to_jiffies(1));
+	msleep(1);
 
 	/* Set DTR, Set RTS */
 	sirdev_set_dtr_rts(dev, TRUE, TRUE);

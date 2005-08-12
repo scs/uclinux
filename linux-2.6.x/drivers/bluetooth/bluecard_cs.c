@@ -34,6 +34,9 @@
 #include <linux/ptrace.h>
 #include <linux/ioport.h>
 #include <linux/spinlock.h>
+#include <linux/moduleparam.h>
+#include <linux/wait.h>
+
 #include <linux/skbuff.h>
 #include <asm/io.h>
 
@@ -52,13 +55,6 @@
 
 /* ======================== Module parameters ======================== */
 
-
-/* Bit map of interrupts to choose from */
-static u_int irq_mask = 0x86bc;
-static int irq_list[4] = { -1 };
-
-MODULE_PARM(irq_mask, "i");
-MODULE_PARM(irq_list, "1-4i");
 
 MODULE_AUTHOR("Marcel Holtmann <marcel@holtmann.org>");
 MODULE_DESCRIPTION("Bluetooth driver for the Anycom BlueCard (LSE039/LSE041)");
@@ -90,14 +86,14 @@ typedef struct bluecard_info_t {
 } bluecard_info_t;
 
 
-void bluecard_config(dev_link_t *link);
-void bluecard_release(dev_link_t *link);
-int bluecard_event(event_t event, int priority, event_callback_args_t *args);
+static void bluecard_config(dev_link_t *link);
+static void bluecard_release(dev_link_t *link);
+static int bluecard_event(event_t event, int priority, event_callback_args_t *args);
 
 static dev_info_t dev_info = "bluecard_cs";
 
-dev_link_t *bluecard_attach(void);
-void bluecard_detach(dev_link_t *);
+static dev_link_t *bluecard_attach(void);
+static void bluecard_detach(dev_link_t *);
 
 static dev_link_t *dev_list = NULL;
 
@@ -170,7 +166,7 @@ static dev_link_t *dev_list = NULL;
 /* ======================== LED handling routines ======================== */
 
 
-void bluecard_activity_led_timeout(u_long arg)
+static void bluecard_activity_led_timeout(u_long arg)
 {
 	bluecard_info_t *info = (bluecard_info_t *)arg;
 	unsigned int iobase = info->link.io.BasePort1;
@@ -294,8 +290,9 @@ static void bluecard_write_wakeup(bluecard_info_t *info)
 		clear_bit(ready_bit, &(info->tx_state));
 
 		if (skb->pkt_type & 0x80) {
+			DECLARE_WAIT_QUEUE_HEAD(wq);
+			DEFINE_WAIT(wait);
 
-			wait_queue_head_t wait;
 			unsigned char baud_reg;
 
 			switch (skb->pkt_type) {
@@ -316,8 +313,9 @@ static void bluecard_write_wakeup(bluecard_info_t *info)
 			}
 
 			/* Wait until the command reaches the baseband */
-			init_waitqueue_head(&wait);
-			interruptible_sleep_on_timeout(&wait, HZ / 10);
+			prepare_to_wait(&wq, &wait, TASK_INTERRUPTIBLE);
+			schedule_timeout(HZ/10);
+			finish_wait(&wq, &wait);
 
 			/* Set baud on baseband */
 			info->ctrl_reg &= ~0x03;
@@ -329,8 +327,9 @@ static void bluecard_write_wakeup(bluecard_info_t *info)
 			outb(info->ctrl_reg, iobase + REG_CONTROL);
 
 			/* Wait before the next HCI packet can be send */
-			interruptible_sleep_on_timeout(&wait, HZ);
-
+			prepare_to_wait(&wq, &wait, TASK_INTERRUPTIBLE);
+			schedule_timeout(HZ);
+			finish_wait(&wq, &wait);
 		}
 
 		if (len == skb->len) {
@@ -719,7 +718,7 @@ static int bluecard_hci_ioctl(struct hci_dev *hdev, unsigned int cmd, unsigned l
 /* ======================== Card services HCI interaction ======================== */
 
 
-int bluecard_open(bluecard_info_t *info)
+static int bluecard_open(bluecard_info_t *info)
 {
 	unsigned int iobase = info->link.io.BasePort1;
 	struct hci_dev *hdev;
@@ -837,7 +836,7 @@ int bluecard_open(bluecard_info_t *info)
 }
 
 
-int bluecard_close(bluecard_info_t *info)
+static int bluecard_close(bluecard_info_t *info)
 {
 	unsigned int iobase = info->link.io.BasePort1;
 	struct hci_dev *hdev = info->hdev;
@@ -864,12 +863,12 @@ int bluecard_close(bluecard_info_t *info)
 	return 0;
 }
 
-dev_link_t *bluecard_attach(void)
+static dev_link_t *bluecard_attach(void)
 {
 	bluecard_info_t *info;
 	client_reg_t client_reg;
 	dev_link_t *link;
-	int i, ret;
+	int ret;
 
 	/* Create new info device */
 	info = kmalloc(sizeof(*info), GFP_KERNEL);
@@ -883,13 +882,7 @@ dev_link_t *bluecard_attach(void)
 	link->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
 	link->io.NumPorts1 = 8;
 	link->irq.Attributes = IRQ_TYPE_EXCLUSIVE | IRQ_HANDLE_PRESENT;
-	link->irq.IRQInfo1 = IRQ_INFO2_VALID | IRQ_LEVEL_ID;
-
-	if (irq_list[0] == -1)
-		link->irq.IRQInfo2 = irq_mask;
-	else
-		for (i = 0; i < 4; i++)
-			link->irq.IRQInfo2 |= 1 << irq_list[i];
+	link->irq.IRQInfo1 = IRQ_LEVEL_ID;
 
 	link->irq.Handler = bluecard_interrupt;
 	link->irq.Instance = info;
@@ -902,7 +895,6 @@ dev_link_t *bluecard_attach(void)
 	link->next = dev_list;
 	dev_list = link;
 	client_reg.dev_info = &dev_info;
-	client_reg.Attributes = INFO_IO_CLIENT | INFO_CARD_SHARE;
 	client_reg.EventMask =
 		CS_EVENT_CARD_INSERTION | CS_EVENT_CARD_REMOVAL |
 		CS_EVENT_RESET_PHYSICAL | CS_EVENT_CARD_RESET |
@@ -922,7 +914,7 @@ dev_link_t *bluecard_attach(void)
 }
 
 
-void bluecard_detach(dev_link_t *link)
+static void bluecard_detach(dev_link_t *link)
 {
 	bluecard_info_t *info = link->priv;
 	dev_link_t **linkp;
@@ -967,7 +959,7 @@ static int first_tuple(client_handle_t handle, tuple_t *tuple, cisparse_t *parse
 	return pcmcia_parse_tuple(handle, tuple, parse);
 }
 
-void bluecard_config(dev_link_t *link)
+static void bluecard_config(dev_link_t *link)
 {
 	client_handle_t handle = link->handle;
 	bluecard_info_t *info = link->priv;
@@ -1042,7 +1034,7 @@ failed:
 }
 
 
-void bluecard_release(dev_link_t *link)
+static void bluecard_release(dev_link_t *link)
 {
 	bluecard_info_t *info = link->priv;
 
@@ -1061,7 +1053,7 @@ void bluecard_release(dev_link_t *link)
 }
 
 
-int bluecard_event(event_t event, int priority, event_callback_args_t *args)
+static int bluecard_event(event_t event, int priority, event_callback_args_t *args)
 {
 	dev_link_t *link = args->client_data;
 	bluecard_info_t *info = link->priv;
@@ -1115,10 +1107,7 @@ static int __init init_bluecard_cs(void)
 static void __exit exit_bluecard_cs(void)
 {
 	pcmcia_unregister_driver(&bluecard_driver);
-
-	/* XXX: this really needs to move into generic code.. */
-	while (dev_list != NULL)
-		bluecard_detach(dev_list);
+	BUG_ON(dev_list != NULL);
 }
 
 module_init(init_bluecard_cs);

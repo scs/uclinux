@@ -1,9 +1,12 @@
-/* 
+/*
  * dvb_frontend.h
  *
- * Copyright (C) 2001 Ralph Metzler for convergence integrated media GmbH
- *                    overhauled by Holger Waechtler for Convergence GmbH
+ * Copyright (C) 2001 convergence integrated media GmbH
+ * Copyright (C) 2004 convergence GmbH
  *
+ * Written by Ralph Metzler
+ * Overhauled by Holger Waechtler
+ * Kernel I2C stuff by Michael Hunold <hunold@convergence.de>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public License
@@ -31,30 +34,33 @@
 #include <linux/i2c.h>
 #include <linux/module.h>
 #include <linux/errno.h>
+#include <linux/delay.h>
 
 #include <linux/dvb/frontend.h>
 
-#include "dvb_i2c.h"
 #include "dvbdev.h"
 
+/* FIXME: Move to i2c-id.h */
+#define I2C_DRIVERID_DVBFE_SP8870	I2C_DRIVERID_EXP2
+#define I2C_DRIVERID_DVBFE_CX22700	I2C_DRIVERID_EXP2
+#define I2C_DRIVERID_DVBFE_AT76C651	I2C_DRIVERID_EXP2
+#define I2C_DRIVERID_DVBFE_CX24110	I2C_DRIVERID_EXP2
+#define I2C_DRIVERID_DVBFE_CX22702	I2C_DRIVERID_EXP2
+#define I2C_DRIVERID_DVBFE_DIB3000MB	I2C_DRIVERID_EXP2
+#define I2C_DRIVERID_DVBFE_DST		I2C_DRIVERID_EXP2
+#define I2C_DRIVERID_DVBFE_DUMMY	I2C_DRIVERID_EXP2
+#define I2C_DRIVERID_DVBFE_L64781	I2C_DRIVERID_EXP2
+#define I2C_DRIVERID_DVBFE_MT312	I2C_DRIVERID_EXP2
+#define I2C_DRIVERID_DVBFE_MT352	I2C_DRIVERID_EXP2
+#define I2C_DRIVERID_DVBFE_NXT6000	I2C_DRIVERID_EXP2
+#define I2C_DRIVERID_DVBFE_SP887X	I2C_DRIVERID_EXP2
+#define I2C_DRIVERID_DVBFE_STV0299	I2C_DRIVERID_EXP2
+#define I2C_DRIVERID_DVBFE_TDA1004X	I2C_DRIVERID_EXP2
+#define I2C_DRIVERID_DVBFE_TDA8083	I2C_DRIVERID_EXP2
+#define I2C_DRIVERID_DVBFE_VES1820	I2C_DRIVERID_EXP2
+#define I2C_DRIVERID_DVBFE_VES1X93	I2C_DRIVERID_EXP2
+#define I2C_DRIVERID_DVBFE_TDA80XX	I2C_DRIVERID_EXP2
 
-
-
-/**
- *   when before_ioctl is registered and returns value 0, ioctl and after_ioctl
- *   are not executed.
- */
-
-struct dvb_frontend {
-	int (*before_ioctl) (struct dvb_frontend *frontend, unsigned int cmd, void *arg);
-	int (*ioctl) (struct dvb_frontend *frontend, unsigned int cmd, void *arg);
-	int (*after_ioctl) (struct dvb_frontend *frontend, unsigned int cmd, void *arg);
-	void (*notifier_callback) (fe_status_t s, void *data);
-	struct dvb_i2c_bus *i2c;
-	void *before_after_data;   /*  can be used by hardware module... */
-	void *notifier_data;       /*  can be used by hardware module... */
-	void *data;                /*  can be used by hardware module... */
-};
 
 struct dvb_frontend_tune_settings {
         int min_delay_ms;
@@ -63,65 +69,58 @@ struct dvb_frontend_tune_settings {
         struct dvb_frontend_parameters parameters;
 };
 
+struct dvb_frontend;
 
-/**
- *   private frontend command ioctl's.
- *   keep them in sync with the public ones defined in linux/dvb/frontend.h
- * 
- *   FE_SLEEP. Ioctl used to put frontend into a low power mode.
- *   FE_INIT. Ioctl used to initialise the frontend.
- *   FE_GET_TUNE_SETTINGS. Get the frontend-specific tuning loop settings for the supplied set of parameters.
- */
-#define FE_SLEEP              _IO('v', 80)
-#define FE_INIT               _IO('v', 81)
-#define FE_GET_TUNE_SETTINGS  _IOWR('v', 83, struct dvb_frontend_tune_settings)
+struct dvb_frontend_ops {
 
+	struct dvb_frontend_info info;
 
-extern int
-dvb_register_frontend (int (*ioctl) (struct dvb_frontend *frontend,
-				     unsigned int cmd, void *arg),
-		       struct dvb_i2c_bus *i2c,
-		       void *data,
-		       struct dvb_frontend_info *info);
+	void (*release)(struct dvb_frontend* fe);
 
-extern int
-dvb_unregister_frontend (int (*ioctl) (struct dvb_frontend *frontend,
-				       unsigned int cmd, void *arg),
-			 struct dvb_i2c_bus *i2c);
+	int (*init)(struct dvb_frontend* fe);
+	int (*sleep)(struct dvb_frontend* fe);
 
+	int (*set_frontend)(struct dvb_frontend* fe, struct dvb_frontend_parameters* params);
+	int (*get_frontend)(struct dvb_frontend* fe, struct dvb_frontend_parameters* params);
+	int (*get_tune_settings)(struct dvb_frontend* fe, struct dvb_frontend_tune_settings* settings);
 
-/**
- *  Add special ioctl code performed before and after the main ioctl
- *  to all frontend devices on the specified DVB adapter.
- *  This is necessairy because the 22kHz/13V-18V/DiSEqC stuff depends
- *  heavily on the hardware around the frontend, the same tuner can create 
- *  these signals on about a million different ways...
- *
- *  Return value: number of frontends where the ioctl's were applied.
- */
-extern int
-dvb_add_frontend_ioctls (struct dvb_adapter *adapter,
-			 int (*before_ioctl) (struct dvb_frontend *frontend,
-					      unsigned int cmd, void *arg),
-			 int (*after_ioctl)  (struct dvb_frontend *frontend,
-					      unsigned int cmd, void *arg),
-			 void *before_after_data);
+	int (*read_status)(struct dvb_frontend* fe, fe_status_t* status);
+	int (*read_ber)(struct dvb_frontend* fe, u32* ber);
+	int (*read_signal_strength)(struct dvb_frontend* fe, u16* strength);
+	int (*read_snr)(struct dvb_frontend* fe, u16* snr);
+	int (*read_ucblocks)(struct dvb_frontend* fe, u32* ucblocks);
 
+	int (*diseqc_reset_overload)(struct dvb_frontend* fe);
+	int (*diseqc_send_master_cmd)(struct dvb_frontend* fe, struct dvb_diseqc_master_cmd* cmd);
+	int (*diseqc_recv_slave_reply)(struct dvb_frontend* fe, struct dvb_diseqc_slave_reply* reply);
+	int (*diseqc_send_burst)(struct dvb_frontend* fe, fe_sec_mini_cmd_t minicmd);
+	int (*set_tone)(struct dvb_frontend* fe, fe_sec_tone_mode_t tone);
+	int (*set_voltage)(struct dvb_frontend* fe, fe_sec_voltage_t voltage);
+	int (*enable_high_lnb_voltage)(struct dvb_frontend* fe, int arg);
+	int (*dishnetwork_send_legacy_command)(struct dvb_frontend* fe, unsigned int cmd);
+};
 
-extern void
-dvb_remove_frontend_ioctls (struct dvb_adapter *adapter,
-			    int (*before_ioctl) (struct dvb_frontend *frontend,
-					         unsigned int cmd, void *arg),
-			    int (*after_ioctl)  (struct dvb_frontend *frontend,
-					         unsigned int cmd, void *arg));
+#define MAX_EVENT 8
 
-extern int
-dvb_add_frontend_notifier (struct dvb_adapter *adapter,
-			   void (*callback) (fe_status_t s, void *data),
-			   void *data);
-extern void
-dvb_remove_frontend_notifier (struct dvb_adapter *adapter,
-			      void (*callback) (fe_status_t s, void *data));
+struct dvb_fe_events {
+	struct dvb_frontend_event events[MAX_EVENT];
+	int			  eventw;
+	int			  eventr;
+	int			  overflow;
+	wait_queue_head_t	  wait_queue;
+	struct semaphore	  sem;
+};
+
+struct dvb_frontend {
+	struct dvb_frontend_ops* ops;
+	struct dvb_adapter *dvb;
+	void* demodulator_priv;
+	void* frontend_priv;
+};
+
+extern int dvb_register_frontend(struct dvb_adapter* dvb,
+				 struct dvb_frontend* fe);
+
+extern int dvb_unregister_frontend(struct dvb_frontend* fe);
 
 #endif
-

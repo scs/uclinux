@@ -28,7 +28,6 @@
  * 
  */
 
-#include "sis.h"
 #include "drmP.h"
 #include "drm.h"
 #include "sis_ds.h"
@@ -42,7 +41,7 @@ set_t *setInit(void)
 	int i;
 	set_t *set;
 
-	set = (set_t *)DRM(alloc)(sizeof(set_t), DRM_MEM_DRIVER);
+	set = (set_t *)drm_alloc(sizeof(set_t), DRM_MEM_DRIVER);
 	if (set != NULL) {
 		for (i = 0; i < SET_SIZE; i++) {
 			set->list[i].free_next = i + 1;    
@@ -128,14 +127,14 @@ int setNext(set_t *set, ITEM_TYPE *item)
 
 int setDestroy(set_t *set)
 {
-	DRM(free)(set, sizeof(set_t), DRM_MEM_DRIVER);
+	drm_free(set, sizeof(set_t), DRM_MEM_DRIVER);
 
 	return 1;
 }
 
 /*
  * GLX Hardware Device Driver common code
- * Copyright (C) 1999 Keith Whitwell
+ * Copyright (C) 1999 Wittawat Yamwong
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -150,7 +149,7 @@ int setDestroy(set_t *set)
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
- * KEITH WHITWELL, OR ANY OTHER CONTRIBUTORS BE LIABLE FOR ANY CLAIM, 
+ * WITTAWAT YAMWONG, OR ANY OTHER CONTRIBUTORS BE LIABLE FOR ANY CLAIM, 
  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR 
  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE 
  * OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
@@ -167,7 +166,7 @@ memHeap_t *mmInit(int ofs,
 	if (size <= 0)
 		return NULL;
 
-	blocks = (TMemBlock *)DRM(calloc)(1, sizeof(TMemBlock), DRM_MEM_DRIVER);
+	blocks = (TMemBlock *)drm_calloc(1, sizeof(TMemBlock), DRM_MEM_DRIVER);
 	if (blocks != NULL) {
 		blocks->ofs = ofs;
 		blocks->size = size;
@@ -195,32 +194,6 @@ int mmBlockInHeap(memHeap_t *heap, PMemBlock b)
 		return 0;
 }
 
-/* Kludgey workaround for existing i810 server.  Remove soon.
- */
-memHeap_t *mmAddRange( memHeap_t *heap,
-		       int ofs,
-		       int size )
-{
-	PMemBlock blocks;
-	blocks = (TMemBlock *)DRM(calloc)(2, sizeof(TMemBlock), DRM_MEM_DRIVER);
-	if (blocks != NULL) {
-		blocks[0].size = size;
-		blocks[0].free = 1;
-		blocks[0].ofs = ofs;
-		blocks[0].next = &blocks[1];
-
-		/* Discontinuity - stops JoinBlock from trying to join
-		 * non-adjacent ranges.
-		 */
-		blocks[1].size = 0;
-		blocks[1].free = 0;
-		blocks[1].ofs = ofs+size;
-		blocks[1].next = (PMemBlock)heap;
-		return (memHeap_t *)blocks;
-	} else
-		return heap;
-}
-
 static TMemBlock* SliceBlock(TMemBlock *p, 
 			     int startofs, int size, 
 			     int reserved, int alignment)
@@ -229,7 +202,7 @@ static TMemBlock* SliceBlock(TMemBlock *p,
 
 	/* break left */
 	if (startofs > p->ofs) {
-		newblock = (TMemBlock*) DRM(calloc)(1, sizeof(TMemBlock),
+		newblock = (TMemBlock*) drm_calloc(1, sizeof(TMemBlock),
 		    DRM_MEM_DRIVER);
 		newblock->ofs = startofs;
 		newblock->size = p->size - (startofs - p->ofs);
@@ -242,7 +215,7 @@ static TMemBlock* SliceBlock(TMemBlock *p,
 
 	/* break right */
 	if (size < p->size) {
-		newblock = (TMemBlock*) DRM(calloc)(1, sizeof(TMemBlock),
+		newblock = (TMemBlock*) drm_calloc(1, sizeof(TMemBlock),
 		    DRM_MEM_DRIVER);
 		newblock->ofs = startofs + size;
 		newblock->size = p->size - size;
@@ -295,7 +268,7 @@ static __inline__ int Join2Blocks(TMemBlock *p)
 		TMemBlock *q = p->next;
 		p->size += q->size;
 		p->next = q->next;
-		DRM(free)(q, sizeof(TMemBlock), DRM_MEM_DRIVER);
+		drm_free(q, sizeof(TMemBlock), DRM_MEM_DRIVER);
 		return 1;
 	}
 	return 0;
@@ -326,61 +299,3 @@ int mmFreeMem(PMemBlock b)
 	return 0;
 }
 
-int mmReserveMem(memHeap_t *heap, int offset,int size)
-{
-	int endofs;
-	TMemBlock *p;
-
-	if (heap == NULL || size <= 0)
-		return -1;
-
-	endofs = offset + size;
-	p = (TMemBlock *)heap;
-	while (p && p->ofs <= offset) {
-		if (ISFREE(p) && endofs <= (p->ofs+p->size)) {
-			SliceBlock(p,offset,size,1,1);
-			return 0;
-		}
-		p = p->next;
-	}
-	return -1;
-}
-
-int mmFreeReserved(memHeap_t *heap, int offset)
-{
-	TMemBlock *p,*prev;
-
-	if (heap == NULL)
-		return -1;
-
-	p = (TMemBlock *)heap;
-	prev = NULL;
-	while (p != NULL && p->ofs != offset) {
-		prev = p;
-		p = p->next;
-	}
-	if (p == NULL || !p->reserved)
-		return -1;
-
-	p->free = 1;
-	p->reserved = 0;
-	Join2Blocks(p);
-	if (prev != NULL)
-		Join2Blocks(prev);
-	return 0;
-}
-
-void mmDestroy(memHeap_t *heap)
-{
-	TMemBlock *p,*q;
-
-	if (heap == NULL)
-		return;
-
-	p = (TMemBlock *)heap;
-	while (p != NULL) {
-		q = p->next;
-		DRM(free)(p, sizeof(TMemBlock), DRM_MEM_DRIVER);
-		p = q;
-	}
-}

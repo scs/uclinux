@@ -3,7 +3,8 @@
 #
 config PNPBIOS
 	bool "Plug and Play BIOS support (EXPERIMENTAL)"
-	depends on PNP && X86 && EXPERIMENTAL
+	depends on PNP && ISA && X86 && EXPERIMENTAL
+	default n
 	---help---
 	  Linux uses the PNPBIOS as defined in "Plug and Play BIOS
 	  Specification Version 1.0A May 5, 1994" to autodetect built-in
@@ -29,7 +30,7 @@ config PNPBIOS_PROC_FS
 	  able to directly access the PNPBIOS.  This includes resource
 	  allocation, ESCD, and other PNPBIOS services.  Using this
 	  interface is potentially dangerous because the PNPBIOS driver will
-	  not be notified of any resource changes made by writting directly.
+	  not be notified of any resource changes made by writing directly.
 	  Also some buggy systems will fault when accessing certain features
 	  in the PNPBIOS /proc interface (e.g. "boot" configs).
 

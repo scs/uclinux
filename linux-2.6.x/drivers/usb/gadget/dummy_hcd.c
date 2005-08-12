@@ -4,7 +4,7 @@
  * Maintainer: Alan Stern <stern@rowland.harvard.edu>
  *
  * Copyright (C) 2003 David Brownell
- * Copyright (C) 2003, 2004 Alan Stern
+ * Copyright (C) 2003-2005 Alan Stern
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -65,7 +65,7 @@
 
 
 #define DRIVER_DESC	"USB Host+Gadget Emulator"
-#define DRIVER_VERSION	"14 Mar 2004"
+#define DRIVER_VERSION	"17 Dec 2004"
 
 static const char	driver_name [] = "dummy_hcd";
 static const char	driver_desc [] = "USB Host+Gadget Emulator";
@@ -94,6 +94,17 @@ struct dummy_request {
 	struct list_head		queue;		/* ep's requests */
 	struct usb_request		req;
 };
+
+static inline struct dummy_ep *usb_ep_to_dummy_ep (struct usb_ep *_ep)
+{
+	return container_of (_ep, struct dummy_ep, ep);
+}
+
+static inline struct dummy_request *usb_request_to_dummy_request
+		(struct usb_request *_req)
+{
+	return container_of (_req, struct dummy_request, req);
+}
 
 /*-------------------------------------------------------------------------*/
 
@@ -132,6 +143,11 @@ static const char *const ep_name [] = {
 
 #define FIFO_SIZE		64
 
+struct urbp {
+	struct urb		*urb;
+	struct list_head	urbp_list;
+};
+
 struct dummy {
 	spinlock_t			lock;
 
@@ -149,23 +165,38 @@ struct dummy {
 	/*
 	 * MASTER/HOST side support
 	 */
-	struct usb_hcd			hcd;
-	struct platform_device		pdev;
 	struct timer_list		timer;
 	u32				port_status;
-	int				started;
-	struct completion		released;
 	unsigned			resuming:1;
 	unsigned long			re_timeout;
 
 	struct usb_device		*udev;
+	struct list_head		urbp_list;
 };
 
-static struct dummy	*the_controller;
+static inline struct dummy *hcd_to_dummy (struct usb_hcd *hcd)
+{
+	return (struct dummy *) (hcd->hcd_priv);
+}
+
+static inline struct usb_hcd *dummy_to_hcd (struct dummy *dum)
+{
+	return container_of((void *) dum, struct usb_hcd, hcd_priv);
+}
+
+static inline struct device *dummy_dev (struct dummy *dum)
+{
+	return dummy_to_hcd(dum)->self.controller;
+}
 
 static inline struct dummy *ep_to_dummy (struct dummy_ep *ep)
 {
 	return container_of (ep->gadget, struct dummy, gadget);
+}
+
+static inline struct dummy *gadget_to_dummy (struct usb_gadget *gadget)
+{
+	return container_of (gadget, struct dummy, gadget);
 }
 
 static inline struct dummy *gadget_dev_to_dummy (struct device *dev)
@@ -173,13 +204,15 @@ static inline struct dummy *gadget_dev_to_dummy (struct device *dev)
 	return container_of (dev, struct dummy, gadget.dev);
 }
 
+static struct dummy			*the_controller;
+
+/*-------------------------------------------------------------------------*/
+
 /*
  * This "hardware" may look a bit odd in diagnostics since it's got both
  * host and device sides; and it binds different drivers to each side.
  */
-#define hardware	(&the_controller->pdev.dev)
-
-/*-------------------------------------------------------------------------*/
+static struct platform_device		the_pdev;
 
 static struct device_driver dummy_driver = {
 	.name		= (char *) driver_name,
@@ -195,8 +228,8 @@ static struct device_driver dummy_driver = {
  * drivers would do real i/o using dma, fifos, irqs, timers, etc.
  */
 
-#define is_enabled() \
-	(the_controller->port_status & USB_PORT_STAT_ENABLE)
+#define is_enabled(dum) \
+	(dum->port_status & USB_PORT_STAT_ENABLE)
 
 static int
 dummy_enable (struct usb_ep *_ep, const struct usb_endpoint_descriptor *desc)
@@ -206,12 +239,14 @@ dummy_enable (struct usb_ep *_ep, const struct usb_endpoint_descriptor *desc)
 	unsigned		max;
 	int			retval;
 
-	ep = container_of (_ep, struct dummy_ep, ep);
+	ep = usb_ep_to_dummy_ep (_ep);
 	if (!_ep || !desc || ep->desc || _ep->name == ep0name
 			|| desc->bDescriptorType != USB_DT_ENDPOINT)
-	if (!the_controller->driver || !is_enabled ())
+		return -EINVAL;
+	dum = ep_to_dummy (ep);
+	if (!dum->driver || !is_enabled (dum))
 		return -ESHUTDOWN;
-	max = desc->wMaxPacketSize & 0x3ff;
+	max = le16_to_cpu(desc->wMaxPacketSize) & 0x3ff;
 
 	/* drivers must not request bad settings, since lower levels
 	 * (hardware or its drivers) may not check.  some endpoints
@@ -221,7 +256,6 @@ dummy_enable (struct usb_ep *_ep, const struct usb_endpoint_descriptor *desc)
 	 * have some extra sanity checks.  (there could be more though,
 	 * especially for "ep9out" style fixed function ones.)
 	 */
-	dum = container_of (ep->gadget, struct dummy, gadget);
 	retval = -EINVAL;
 	switch (desc->bmAttributes & 0x03) {
 	case USB_ENDPOINT_XFER_BULK:
@@ -290,7 +324,7 @@ dummy_enable (struct usb_ep *_ep, const struct usb_endpoint_descriptor *desc)
 	_ep->maxpacket = max;
 	ep->desc = desc;
 
-	dev_dbg (hardware, "enabled %s (ep%d%s-%s) maxpacket %d\n",
+	dev_dbg (dummy_dev(dum), "enabled %s (ep%d%s-%s) maxpacket %d\n",
 		_ep->name,
 		desc->bEndpointAddress & 0x0f,
 		(desc->bEndpointAddress & USB_DIR_IN) ? "in" : "out",
@@ -334,18 +368,18 @@ static int dummy_disable (struct usb_ep *_ep)
 	unsigned long		flags;
 	int			retval;
 
-	ep = container_of (_ep, struct dummy_ep, ep);
+	ep = usb_ep_to_dummy_ep (_ep);
 	if (!_ep || !ep->desc || _ep->name == ep0name)
 		return -EINVAL;
 	dum = ep_to_dummy (ep);
 
 	spin_lock_irqsave (&dum->lock, flags);
-	ep->desc = 0;
+	ep->desc = NULL;
 	retval = 0;
 	nuke (dum, ep);
 	spin_unlock_irqrestore (&dum->lock, flags);
 
-	dev_dbg (hardware, "disabled %s\n", _ep->name);
+	dev_dbg (dummy_dev(dum), "disabled %s\n", _ep->name);
 	return retval;
 }
 
@@ -355,13 +389,13 @@ dummy_alloc_request (struct usb_ep *_ep, int mem_flags)
 	struct dummy_ep		*ep;
 	struct dummy_request	*req;
 
-	ep = container_of (_ep, struct dummy_ep, ep);
 	if (!_ep)
-		return 0;
+		return NULL;
+	ep = usb_ep_to_dummy_ep (_ep);
 
 	req = kmalloc (sizeof *req, mem_flags);
 	if (!req)
-		return 0;
+		return NULL;
 	memset (req, 0, sizeof *req);
 	INIT_LIST_HEAD (&req->queue);
 	return &req->req;
@@ -373,11 +407,11 @@ dummy_free_request (struct usb_ep *_ep, struct usb_request *_req)
 	struct dummy_ep		*ep;
 	struct dummy_request	*req;
 
-	ep = container_of (_ep, struct dummy_ep, ep);
+	ep = usb_ep_to_dummy_ep (_ep);
 	if (!ep || !_req || (!ep->desc && _ep->name != ep0name))
 		return;
 
-	req = container_of (_req, struct dummy_request, req);
+	req = usb_request_to_dummy_request (_req);
 	WARN_ON (!list_empty (&req->queue));
 	kfree (req);
 }
@@ -389,10 +423,15 @@ dummy_alloc_buffer (
 	dma_addr_t *dma,
 	int mem_flags
 ) {
-	char *retval;
+	char			*retval;
+	struct dummy_ep		*ep;
+	struct dummy		*dum;
 
-	if (!the_controller->driver)
-		return 0;
+	ep = usb_ep_to_dummy_ep (_ep);
+	dum = ep_to_dummy (ep);
+
+	if (!dum->driver)
+		return NULL;
 	retval = kmalloc (bytes, mem_flags);
 	*dma = (dma_addr_t) retval;
 	return retval;
@@ -412,9 +451,6 @@ dummy_free_buffer (
 static void
 fifo_complete (struct usb_ep *ep, struct usb_request *req)
 {
-#if 0
-	dev_dbg (hardware, "fifo_complete: %d\n", req->status);
-#endif
 }
 
 static int
@@ -425,21 +461,20 @@ dummy_queue (struct usb_ep *_ep, struct usb_request *_req, int mem_flags)
 	struct dummy		*dum;
 	unsigned long		flags;
 
-	req = container_of (_req, struct dummy_request, req);
+	req = usb_request_to_dummy_request (_req);
 	if (!_req || !list_empty (&req->queue) || !_req->complete)
 		return -EINVAL;
 
-	ep = container_of (_ep, struct dummy_ep, ep);
+	ep = usb_ep_to_dummy_ep (_ep);
 	if (!_ep || (!ep->desc && _ep->name != ep0name))
 		return -EINVAL;
 
-	if (!the_controller->driver || !is_enabled ())
+	dum = ep_to_dummy (ep);
+	if (!dum->driver || !is_enabled (dum))
 		return -ESHUTDOWN;
 
-	dum = container_of (ep->gadget, struct dummy, gadget);
-
 #if 0
-	dev_dbg (hardware, "ep %p queue req %p to %s, len %d buf %p\n",
+	dev_dbg (dummy_dev(dum), "ep %p queue req %p to %s, len %d buf %p\n",
 			ep, _req, _ep->name, _req->length, _req->buf);
 #endif
 
@@ -480,15 +515,15 @@ static int dummy_dequeue (struct usb_ep *_ep, struct usb_request *_req)
 	struct dummy		*dum;
 	int			retval = -EINVAL;
 	unsigned long		flags;
-	struct dummy_request	*req = 0;
-
-	if (!the_controller->driver)
-		return -ESHUTDOWN;
+	struct dummy_request	*req = NULL;
 
 	if (!_ep || !_req)
 		return retval;
-	ep = container_of (_ep, struct dummy_ep, ep);
-	dum = container_of (ep->gadget, struct dummy, gadget);
+	ep = usb_ep_to_dummy_ep (_ep);
+	dum = ep_to_dummy (ep);
+
+	if (!dum->driver)
+		return -ESHUTDOWN;
 
 	spin_lock_irqsave (&dum->lock, flags);
 	list_for_each_entry (req, &ep->queue, queue) {
@@ -502,9 +537,9 @@ static int dummy_dequeue (struct usb_ep *_ep, struct usb_request *_req)
 	spin_unlock_irqrestore (&dum->lock, flags);
 
 	if (retval == 0) {
-		dev_dbg (hardware, "dequeued req %p from %s, len %d buf %p\n",
+		dev_dbg (dummy_dev(dum),
+				"dequeued req %p from %s, len %d buf %p\n",
 				req, _ep->name, _req->length, _req->buf);
-
 		_req->complete (_ep, _req);
 	}
 	return retval;
@@ -514,12 +549,14 @@ static int
 dummy_set_halt (struct usb_ep *_ep, int value)
 {
 	struct dummy_ep		*ep;
+	struct dummy		*dum;
 
 	if (!_ep)
 		return -EINVAL;
-	if (!the_controller->driver)
+	ep = usb_ep_to_dummy_ep (_ep);
+	dum = ep_to_dummy (ep);
+	if (!dum->driver)
 		return -ESHUTDOWN;
-	ep = container_of (_ep, struct dummy_ep, ep);
 	if (!value)
 		ep->halted = 0;
 	else if (ep->desc && (ep->desc->bEndpointAddress & USB_DIR_IN) &&
@@ -563,7 +600,7 @@ static int dummy_wakeup (struct usb_gadget *_gadget)
 {
 	struct dummy	*dum;
 
-	dum = container_of (_gadget, struct dummy, gadget);
+	dum = gadget_to_dummy (_gadget);
 	if ((dum->devstatus & (1 << USB_DEVICE_REMOTE_WAKEUP)) == 0
 			|| !(dum->port_status & (1 << USB_PORT_FEAT_SUSPEND)))
 		return -EINVAL;
@@ -578,7 +615,7 @@ static int dummy_set_selfpowered (struct usb_gadget *_gadget, int value)
 {
 	struct dummy	*dum;
 
-	dum = container_of (_gadget, struct dummy, gadget);
+	dum = gadget_to_dummy (_gadget);
 	if (value)
 		dum->devstatus |= (1 << USB_DEVICE_SELF_POWERED);
 	else
@@ -596,14 +633,13 @@ static const struct usb_gadget_ops dummy_ops = {
 
 /* "function" sysfs attribute */
 static ssize_t
-show_function (struct device *_dev, char *buf)
+show_function (struct device *dev, char *buf)
 {
-	struct dummy	*dum = the_controller;
+	struct dummy	*dum = gadget_dev_to_dummy (dev);
 
-	if (!dum->driver->function
-			|| strlen (dum->driver->function) > PAGE_SIZE)
+	if (!dum->driver || !dum->driver->function)
 		return 0;
-	return snprintf (buf, PAGE_SIZE, "%s\n", dum->driver->function);
+	return scnprintf (buf, PAGE_SIZE, "%s\n", dum->driver->function);
 }
 DEVICE_ATTR (function, S_IRUGO, show_function, NULL);
 
@@ -626,17 +662,11 @@ DEVICE_ATTR (function, S_IRUGO, show_function, NULL);
 static void
 dummy_udc_release (struct device *dev)
 {
-	struct dummy	*dum = gadget_dev_to_dummy (dev);
-
-	complete (&dum->released);
 }
 
 static void
-dummy_hc_release (struct device *dev)
+dummy_pdev_release (struct device *dev)
 {
-	struct dummy	*dum = dev_get_drvdata (dev);
-
-	complete (&dum->released);
 }
 
 static int
@@ -645,7 +675,7 @@ dummy_register_udc (struct dummy *dum)
 	int		rc;
 
 	strcpy (dum->gadget.dev.bus_id, "udc");
-	dum->gadget.dev.parent = &dum->pdev.dev;
+	dum->gadget.dev.parent = dummy_dev(dum);
 	dum->gadget.dev.release = dummy_udc_release;
 
 	rc = device_register (&dum->gadget.dev);
@@ -658,9 +688,7 @@ static void
 dummy_unregister_udc (struct dummy *dum)
 {
 	device_remove_file (&dum->gadget.dev, &dev_attr_function);
-	init_completion (&dum->released);
 	device_unregister (&dum->gadget.dev);
-	wait_for_completion (&dum->released);
 }
 
 int
@@ -701,7 +729,7 @@ usb_gadget_register_driver (struct usb_gadget_driver *driver)
 		ep->ep.maxpacket = ~0;
 		ep->last_io = jiffies;
 		ep->gadget = &dum->gadget;
-		ep->desc = 0;
+		ep->desc = NULL;
 		INIT_LIST_HEAD (&ep->queue);
 	}
 
@@ -712,15 +740,16 @@ usb_gadget_register_driver (struct usb_gadget_driver *driver)
 
 	dum->driver = driver;
 	dum->gadget.dev.driver = &driver->driver;
-	dev_dbg (hardware, "binding gadget driver '%s'\n", driver->driver.name);
+	dev_dbg (dummy_dev(dum), "binding gadget driver '%s'\n",
+			driver->driver.name);
 	if ((retval = driver->bind (&dum->gadget)) != 0) {
-		dum->driver = 0;
-		dum->gadget.dev.driver = 0;
+		dum->driver = NULL;
+		dum->gadget.dev.driver = NULL;
 		return retval;
 	}
 
 	// FIXME: Check these calls for errors and re-order
-	driver->driver.bus = dum->pdev.dev.bus;
+	driver->driver.bus = dum->gadget.dev.parent->bus;
 	driver_register (&driver->driver);
 
 	device_bind_driver (&dum->gadget.dev);
@@ -766,17 +795,18 @@ usb_gadget_unregister_driver (struct usb_gadget_driver *driver)
 	if (!driver || driver != dum->driver)
 		return -EINVAL;
 
-	dev_dbg (hardware, "unregister gadget driver '%s'\n",
+	dev_dbg (dummy_dev(dum), "unregister gadget driver '%s'\n",
 			driver->driver.name);
 
 	spin_lock_irqsave (&dum->lock, flags);
 	stop_activity (dum, driver);
-	dum->port_status &= ~USB_PORT_STAT_CONNECTION;
+	dum->port_status &= ~(USB_PORT_STAT_CONNECTION | USB_PORT_STAT_ENABLE |
+			USB_PORT_STAT_LOW_SPEED | USB_PORT_STAT_HIGH_SPEED);
 	dum->port_status |= (1 << USB_PORT_FEAT_C_CONNECTION);
 	spin_unlock_irqrestore (&dum->lock, flags);
 
 	driver->unbind (&dum->gadget);
-	dum->driver = 0;
+	dum->driver = NULL;
 
 	device_release_driver (&dum->gadget.dev);
 
@@ -809,26 +839,34 @@ EXPORT_SYMBOL (net2280_set_fifo_mode);
  */
 
 static int dummy_urb_enqueue (
-	struct usb_hcd	*hcd,
-	struct urb	*urb,
-	int		mem_flags
+	struct usb_hcd			*hcd,
+	struct usb_host_endpoint	*ep,
+	struct urb			*urb,
+	int				mem_flags
 ) {
 	struct dummy	*dum;
+	struct urbp	*urbp;
 	unsigned long	flags;
 
-	/* patch to usb_sg_init() is in 2.5.60 */
-	BUG_ON (!urb->transfer_buffer && urb->transfer_buffer_length);
+	if (!urb->transfer_buffer && urb->transfer_buffer_length)
+		return -EINVAL;
 
-	dum = container_of (hcd, struct dummy, hcd);
+	urbp = kmalloc (sizeof *urbp, mem_flags);
+	if (!urbp)
+		return -ENOMEM;
+	urbp->urb = urb;
+
+	dum = hcd_to_dummy (hcd);
 	spin_lock_irqsave (&dum->lock, flags);
 
 	if (!dum->udev) {
 		dum->udev = urb->dev;
 		usb_get_dev (dum->udev);
 	} else if (unlikely (dum->udev != urb->dev))
-		dev_err (hardware, "usb_device address has changed!\n");
+		dev_err (dummy_dev(dum), "usb_device address has changed!\n");
 
-	urb->hcpriv = dum;
+	list_add_tail (&urbp->urbp_list, &dum->urbp_list);
+	urb->hcpriv = urbp;
 	if (usb_pipetype (urb->pipe) == PIPE_CONTROL)
 		urb->error_count = 1;		/* mark as a new urb */
 
@@ -986,7 +1024,7 @@ static int periodic_bytes (struct dummy *dum, struct dummy_ep *ep)
 		int	tmp;
 
 		/* high bandwidth mode */
-		tmp = ep->desc->wMaxPacketSize;
+		tmp = le16_to_cpu(ep->desc->wMaxPacketSize);
 		tmp = le16_to_cpu (tmp);
 		tmp = (tmp >> 11) & 0x03;
 		tmp *= 8 /* applies to entire frame */;
@@ -1034,8 +1072,7 @@ static struct dummy_ep *find_endpoint (struct dummy *dum, u8 address)
 static void dummy_timer (unsigned long _dum)
 {
 	struct dummy		*dum = (struct dummy *) _dum;
-	struct hcd_dev		*hdev;
-	struct list_head	*entry, *tmp;
+	struct urbp		*urbp, *tmp;
 	unsigned long		flags;
 	int			limit, total;
 	int			i;
@@ -1052,7 +1089,7 @@ static void dummy_timer (unsigned long _dum)
 		total = 512/*bytes*/ * 13/*packets*/ * 8/*uframes*/;
 		break;
 	default:
-		dev_err (hardware, "bogus device speed\n");
+		dev_err (dummy_dev(dum), "bogus device speed\n");
 		return;
 	}
 
@@ -1062,11 +1099,11 @@ static void dummy_timer (unsigned long _dum)
 	spin_lock_irqsave (&dum->lock, flags);
 
 	if (!dum->udev) {
-		dev_err (hardware, "timer fired with no URBs pending?\n");
+		dev_err (dummy_dev(dum),
+				"timer fired with no URBs pending?\n");
 		spin_unlock_irqrestore (&dum->lock, flags);
 		return;
 	}
-	hdev = dum->udev->hcpriv;
 
 	for (i = 0; i < DUMMY_ENDPOINTS; i++) {
 		if (!ep_name [i])
@@ -1075,14 +1112,14 @@ static void dummy_timer (unsigned long _dum)
 	}
 
 restart:
-	list_for_each_safe (entry, tmp, &hdev->urb_list) {
+	list_for_each_entry_safe (urbp, tmp, &dum->urbp_list, urbp_list) {
 		struct urb		*urb;
 		struct dummy_request	*req;
 		u8			address;
-		struct dummy_ep		*ep = 0;
+		struct dummy_ep		*ep = NULL;
 		int			type;
 
-		urb = list_entry (entry, struct urb, urb_list);
+		urb = urbp->urb;
 		if (urb->status != -EINPROGRESS) {
 			/* likely it was just unlinked */
 			goto return_urb;
@@ -1103,10 +1140,10 @@ restart:
 		ep = find_endpoint(dum, address);
 		if (!ep) {
 			/* set_configuration() disagreement */
-			dev_err (hardware,
+			dev_dbg (dummy_dev(dum),
 				"no ep configured for urb %p\n",
 				urb);
-			maybe_set_status (urb, -ETIMEDOUT);
+			maybe_set_status (urb, -EPROTO);
 			goto return_urb;
 		}
 
@@ -1119,7 +1156,7 @@ restart:
 		}
 		if (ep->halted && !ep->setup_stage) {
 			/* NOTE: must not be iso! */
-			dev_dbg (hardware, "ep %s halted, urb %p\n",
+			dev_dbg (dummy_dev(dum), "ep %s halted, urb %p\n",
 					ep->ep.name, urb);
 			maybe_set_status (urb, -EPIPE);
 			goto return_urb;
@@ -1145,7 +1182,8 @@ restart:
 			list_for_each_entry (req, &ep->queue, queue) {
 				list_del_init (&req->queue);
 				req->req.status = -EOVERFLOW;
-				dev_dbg (hardware, "stale req = %p\n", req);
+				dev_dbg (dummy_dev(dum), "stale req = %p\n",
+						req);
 
 				spin_unlock (&dum->lock);
 				req->req.complete (&ep->ep, &req->req);
@@ -1167,7 +1205,7 @@ restart:
 					break;
 				dum->address = setup.wValue;
 				maybe_set_status (urb, 0);
-				dev_dbg (hardware, "set_address = %d\n",
+				dev_dbg (dummy_dev(dum), "set_address = %d\n",
 						setup.wValue);
 				value = 0;
 				break;
@@ -1283,7 +1321,7 @@ restart:
 
 			if (value < 0) {
 				if (value != -EOPNOTSUPP)
-					dev_dbg (hardware,
+					dev_dbg (dummy_dev(dum),
 						"setup --> %d\n",
 						value);
 				maybe_set_status (urb, -EPIPE);
@@ -1326,19 +1364,21 @@ restart:
 			continue;
 
 return_urb:
-		urb->hcpriv = 0;
+		urb->hcpriv = NULL;
+		list_del (&urbp->urbp_list);
+		kfree (urbp);
 		if (ep)
 			ep->already_seen = ep->setup_stage = 0;
 
 		spin_unlock (&dum->lock);
-		usb_hcd_giveback_urb (&dum->hcd, urb, 0);
+		usb_hcd_giveback_urb (dummy_to_hcd(dum), urb, NULL);
 		spin_lock (&dum->lock);
 
 		goto restart;
 	}
 
 	/* want a 1 msec delay here */
-	if (!list_empty (&hdev->urb_list))
+	if (!list_empty (&dum->urbp_list))
 		mod_timer (&dum->timer, jiffies + msecs_to_jiffies(1));
 	else {
 		usb_put_dev (dum->udev);
@@ -1363,14 +1403,14 @@ static int dummy_hub_status (struct usb_hcd *hcd, char *buf)
 	unsigned long		flags;
 	int			retval;
 
-	dum = container_of (hcd, struct dummy, hcd);
+	dum = hcd_to_dummy (hcd);
 
 	spin_lock_irqsave (&dum->lock, flags);
 	if (!(dum->port_status & PORT_C_MASK))
 		retval = 0;
 	else {
 		*buf = (1 << 1);
-		dev_dbg (hardware, "port status 0x%08x has changes\n",
+		dev_dbg (dummy_dev(dum), "port status 0x%08x has changes\n",
 			dum->port_status);
 		retval = 1;
 	}
@@ -1402,7 +1442,7 @@ static int dummy_hub_control (
 	int		retval = 0;
 	unsigned long	flags;
 
-	dum = container_of (hcd, struct dummy, hcd);
+	dum = hcd_to_dummy (hcd);
 	spin_lock_irqsave (&dum->lock, flags);
 	switch (typeReq) {
 	case ClearHubFeature:
@@ -1410,9 +1450,12 @@ static int dummy_hub_control (
 	case ClearPortFeature:
 		switch (wValue) {
 		case USB_PORT_FEAT_SUSPEND:
-			/* 20msec resume signaling */
-			dum->resuming = 1;
-			dum->re_timeout = jiffies + ((HZ * 20)/1000);
+			if (dum->port_status & (1 << USB_PORT_FEAT_SUSPEND)) {
+				/* 20msec resume signaling */
+				dum->resuming = 1;
+				dum->re_timeout = jiffies +
+							msecs_to_jiffies(20);
+			}
 			break;
 		case USB_PORT_FEAT_POWER:
 			dum->port_status = 0;
@@ -1441,7 +1484,7 @@ static int dummy_hub_control (
 			dum->port_status &= ~(1 << USB_PORT_FEAT_SUSPEND);
 			dum->resuming = 0;
 			dum->re_timeout = 0;
-			if (dum->driver->resume) {
+			if (dum->driver && dum->driver->resume) {
 				spin_unlock (&dum->lock);
 				dum->driver->resume (&dum->gadget);
 				spin_lock (&dum->lock);
@@ -1482,11 +1525,15 @@ static int dummy_hub_control (
 	case SetPortFeature:
 		switch (wValue) {
 		case USB_PORT_FEAT_SUSPEND:
-			dum->port_status |= (1 << USB_PORT_FEAT_SUSPEND);
-			if (dum->driver->suspend) {
-				spin_unlock (&dum->lock);
-				dum->driver->suspend (&dum->gadget);
-				spin_lock (&dum->lock);
+			if ((dum->port_status & (1 << USB_PORT_FEAT_SUSPEND))
+					== 0) {
+				dum->port_status |=
+						(1 << USB_PORT_FEAT_SUSPEND);
+				if (dum->driver && dum->driver->suspend) {
+					spin_unlock (&dum->lock);
+					dum->driver->suspend (&dum->gadget);
+					spin_lock (&dum->lock);
+				}
 			}
 			break;
 		case USB_PORT_FEAT_RESET:
@@ -1496,14 +1543,15 @@ static int dummy_hub_control (
 						| USB_PORT_STAT_LOW_SPEED
 						| USB_PORT_STAT_HIGH_SPEED);
 				if (dum->driver) {
-					dev_dbg (hardware, "disconnect\n");
+					dev_dbg (dummy_dev(dum),
+							"disconnect\n");
 					stop_activity (dum, dum->driver);
 				}
 
 				/* FIXME test that code path! */
 			}
 			/* 50msec reset signaling */
-			dum->re_timeout = jiffies + ((HZ * 50)/1000);
+			dum->re_timeout = jiffies + msecs_to_jiffies(50);
 			/* FALLTHROUGH */
 		default:
 			dum->port_status |= (1 << wValue);
@@ -1511,7 +1559,7 @@ static int dummy_hub_control (
 		break;
 
 	default:
-		dev_dbg (hardware,
+		dev_dbg (dummy_dev(dum),
 			"hub control req%04x v%04x i%04x l%d\n",
 			typeReq, wValue, wIndex, wLength);
 
@@ -1522,28 +1570,6 @@ static int dummy_hub_control (
 	return retval;
 }
 
-
-/*-------------------------------------------------------------------------*/
-
-static struct usb_hcd *dummy_alloc (void)
-{
-	struct dummy		*dum;
-
-	dum = kmalloc (sizeof *dum, SLAB_KERNEL);
-	if (dum == NULL)
-		return 0;
-	memset (dum, 0, sizeof *dum);
-	return &dum->hcd;
-}
-
-static void dummy_free (struct usb_hcd *hcd)
-{
-	struct dummy		*dum;
-
-	dum = container_of (hcd, struct dummy, hcd);
-	WARN_ON (dum->driver != 0);
-	kfree (dum);
-}
 
 /*-------------------------------------------------------------------------*/
 
@@ -1576,22 +1602,19 @@ show_urb (char *buf, size_t size, struct urb *urb)
 static ssize_t
 show_urbs (struct device *dev, char *buf)
 {
-	struct dummy		*dum = dev_get_drvdata(dev);
-	struct urb		*urb;
+	struct usb_hcd		*hcd = dev_get_drvdata (dev);
+	struct dummy		*dum = hcd_to_dummy (hcd);
+	struct urbp		*urbp;
 	size_t			size = 0;
 	unsigned long		flags;
-	struct hcd_dev		*hdev;
 
 	spin_lock_irqsave (&dum->lock, flags);
-	if (dum->udev) {
-		hdev = dum->udev->hcpriv;
-		list_for_each_entry (urb, &hdev->urb_list, urb_list) {
-			size_t		temp;
+	list_for_each_entry (urbp, &dum->urbp_list, urbp_list) {
+		size_t		temp;
 
-			temp = show_urb (buf, PAGE_SIZE - size, urb);
-			buf += temp;
-			size += temp;
-		}
+		temp = show_urb (buf, PAGE_SIZE - size, urbp->urb);
+		buf += temp;
+		size += temp;
 	}
 	spin_unlock_irqrestore (&dum->lock, flags);
 
@@ -1599,17 +1622,13 @@ show_urbs (struct device *dev, char *buf)
 }
 static DEVICE_ATTR (urbs, S_IRUGO, show_urbs, NULL);
 
-
-static const struct hc_driver dummy_hcd;
-
 static int dummy_start (struct usb_hcd *hcd)
 {
 	struct dummy		*dum;
-	struct usb_bus		*bus;
 	struct usb_device	*root;
 	int			retval;
 
-	dum = container_of (hcd, struct dummy, hcd);
+	dum = hcd_to_dummy (hcd);
 
 	/*
 	 * MASTER side init ... we emulate a root hub that'll only ever
@@ -1617,140 +1636,73 @@ static int dummy_start (struct usb_hcd *hcd)
 	 * just like more familiar pci-based HCDs.
 	 */
 	spin_lock_init (&dum->lock);
-
-	retval = driver_register (&dummy_driver);
-	if (retval < 0)
-		return retval;
-
-	dum->pdev.name = "hc";
-	dum->pdev.dev.driver = &dummy_driver;
-	dev_set_drvdata(&dum->pdev.dev, dum);
-	dum->pdev.dev.release = dummy_hc_release;
-	retval = platform_device_register (&dum->pdev);
-	if (retval < 0) {
-		driver_unregister (&dummy_driver);
-		return retval;
-	}
-	dev_info (&dum->pdev.dev, "%s, driver " DRIVER_VERSION "\n",
-			driver_desc);
-
-	hcd->self.controller = &dum->pdev.dev;
-
-	/* FIXME 'urbs' should be a per-device thing, maybe in usbcore */
-	device_create_file (hcd->self.controller, &dev_attr_urbs);
-
 	init_timer (&dum->timer);
 	dum->timer.function = dummy_timer;
 	dum->timer.data = (unsigned long) dum;
 
-	/* root hub will appear as another device */
-	dum->hcd.driver = (struct hc_driver *) &dummy_hcd;
-	dum->hcd.description = dummy_hcd.description;
-	dum->hcd.product_desc = "Dummy host controller";
+	INIT_LIST_HEAD (&dum->urbp_list);
 
-	bus = hcd_to_bus (&dum->hcd);
-	bus->bus_name = dum->pdev.dev.bus_id;
-	usb_bus_init (bus);
-	bus->op = &usb_hcd_operations;
-	bus->hcpriv = &dum->hcd;
-
-	/* FIXME don't require the pci-based buffer/alloc impls;
-	 * the "generic dma" implementation still requires them,
-	 * it's not very generic yet.
-	 */
-	if ((retval = hcd_buffer_create (&dum->hcd)) != 0) {
-clean0:
-		init_completion (&dum->released);
-		platform_device_unregister (&dum->pdev);
-		wait_for_completion (&dum->released);
-		driver_unregister (&dummy_driver);
-		return retval;
-	}
-
-	INIT_LIST_HEAD (&hcd->dev_list);
-	usb_register_bus (bus);
-
-	root = usb_alloc_dev (0, bus, 0);
-	if (!root) {
-		retval = -ENOMEM;
-clean1:
-		hcd_buffer_destroy (&dum->hcd);
-		usb_deregister_bus (bus);
-		goto clean0;
-	}
+	root = usb_alloc_dev (NULL, &hcd->self, 0);
+	if (!root)
+		return -ENOMEM;
 
 	/* root hub enters addressed state... */
-	dum->hcd.state = USB_STATE_RUNNING;
+	hcd->state = HC_STATE_RUNNING;
 	root->speed = USB_SPEED_HIGH;
 
 	/* ...then configured, so khubd sees us. */
-	if ((retval = hcd_register_root (root, &dum->hcd)) != 0) {
-		usb_put_dev (root);
-clean2:
-		dum->hcd.state = USB_STATE_QUIESCING;
-		goto clean1;
+	if ((retval = usb_hcd_register_root_hub (root, hcd)) != 0) {
+		goto err1;
 	}
 
 	/* only show a low-power port: just 8mA */
 	hub_set_power_budget (root, 8);
 
-	dum->started = 1;
+	if ((retval = dummy_register_udc (dum)) != 0)
+		goto err2;
 
-	if ((retval = dummy_register_udc (dum)) != 0) {
-		dum->started = 0;
-		usb_disconnect (&bus->root_hub);
-		goto clean2;
-	}
+	/* FIXME 'urbs' should be a per-device thing, maybe in usbcore */
+	device_create_file (dummy_dev(dum), &dev_attr_urbs);
 	return 0;
+
+ err2:
+	usb_disconnect (&hcd->self.root_hub);
+ err1:
+	usb_put_dev (root);
+	hcd->state = HC_STATE_QUIESCING;
+	return retval;
 }
 
 static void dummy_stop (struct usb_hcd *hcd)
 {
 	struct dummy		*dum;
-	struct usb_bus		*bus;
 
-	dum = container_of (hcd, struct dummy, hcd);
-	if (!dum->started)
-		return;
-	dum->started = 0;
+	dum = hcd_to_dummy (hcd);
+
+	device_remove_file (dummy_dev(dum), &dev_attr_urbs);
 
 	usb_gadget_unregister_driver (dum->driver);
 	dummy_unregister_udc (dum);
 
-	bus = hcd_to_bus (&dum->hcd);
-	hcd->state = USB_STATE_QUIESCING;
-	dev_dbg (hardware, "remove root hub\n");
-	usb_disconnect (&bus->root_hub);
-
-	hcd_buffer_destroy (&dum->hcd);
-	usb_deregister_bus (bus);
-
-	dev_info (hardware, "stopped\n");
-
-	device_remove_file (hcd->self.controller, &dev_attr_urbs);
-	init_completion (&dum->released);
-	platform_device_unregister (&dum->pdev);
-	wait_for_completion (&dum->released);
-
-	driver_unregister (&dummy_driver);
+	dev_info (dummy_dev(dum), "stopped\n");
 }
 
 /*-------------------------------------------------------------------------*/
 
 static int dummy_h_get_frame (struct usb_hcd *hcd)
 {
-	return dummy_g_get_frame (0);
+	return dummy_g_get_frame (NULL);
 }
 
 static const struct hc_driver dummy_hcd = {
 	.description =		(char *) driver_name,
+	.product_desc =		"Dummy host controller",
+	.hcd_priv_size =	sizeof(struct dummy),
+
 	.flags =		HCD_USB2,
 
 	.start =		dummy_start,
 	.stop =			dummy_stop,
-
-	.hcd_alloc = 		dummy_alloc,
-	.hcd_free = 		dummy_free,
 
 	.urb_enqueue = 		dummy_urb_enqueue,
 	.urb_dequeue = 		dummy_urb_dequeue,
@@ -1761,34 +1713,81 @@ static const struct hc_driver dummy_hcd = {
 	.hub_control = 		dummy_hub_control,
 };
 
+static int dummy_probe (struct device *dev)
+{
+	struct usb_hcd		*hcd;
+	int			retval;
+
+	dev_info (dev, "%s, driver " DRIVER_VERSION "\n", driver_desc);
+
+	hcd = usb_create_hcd (&dummy_hcd, dev, dev->bus_id);
+	if (!hcd)
+		return -ENOMEM;
+	the_controller = hcd_to_dummy (hcd);
+
+	retval = usb_add_hcd(hcd, 0, 0);
+	if (retval != 0) {
+		usb_put_hcd (hcd);
+		the_controller = NULL;
+	}
+	return retval;
+}
+
+static void dummy_remove (struct device *dev)
+{
+	struct usb_hcd		*hcd;
+
+	hcd = dev_get_drvdata (dev);
+	usb_remove_hcd (hcd);
+	usb_put_hcd (hcd);
+	the_controller = NULL;
+}
+
+/*-------------------------------------------------------------------------*/
+
+static int dummy_pdev_detect (void)
+{
+	int			retval;
+
+	retval = driver_register (&dummy_driver);
+	if (retval < 0)
+		return retval;
+
+	the_pdev.name = "hc";
+	the_pdev.dev.driver = &dummy_driver;
+	the_pdev.dev.release = dummy_pdev_release;
+
+	retval = platform_device_register (&the_pdev);
+	if (retval < 0)
+		driver_unregister (&dummy_driver);
+	return retval;
+}
+
+static void dummy_pdev_remove (void)
+{
+	platform_device_unregister (&the_pdev);
+	driver_unregister (&dummy_driver);
+}
+
 /*-------------------------------------------------------------------------*/
 
 static int __init init (void)
 {
-	struct usb_hcd		*hcd;
-	int			value;
+	int	retval;
 
 	if (usb_disabled ())
 		return -ENODEV;
-	if ((hcd = dummy_alloc ()) == 0)
-		return -ENOMEM;
-
-	the_controller = container_of (hcd, struct dummy, hcd);
-	value = dummy_start (hcd);
-
-	if (value != 0) {
-		dummy_free (hcd);
-		the_controller = 0;
-	}
-	return value;
+	if ((retval = dummy_pdev_detect ()) != 0)
+		return retval;
+	if ((retval = dummy_probe (&the_pdev.dev)) != 0)
+		dummy_pdev_remove ();
+	return retval;
 }
 module_init (init);
 
 static void __exit cleanup (void)
 {
-	dummy_stop (&the_controller->hcd);
-	dummy_free (&the_controller->hcd);
-	the_controller = 0;
+	dummy_remove (&the_pdev.dev);
+	dummy_pdev_remove ();
 }
 module_exit (cleanup);
-

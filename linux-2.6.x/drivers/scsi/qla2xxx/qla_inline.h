@@ -18,7 +18,7 @@
  */
 
 
-static __inline__ uint16_t qla2x00_debounce_register(volatile uint16_t *);
+static __inline__ uint16_t qla2x00_debounce_register(volatile uint16_t __iomem *);
 /*
  * qla2x00_debounce_register
  *      Debounce register.
@@ -30,7 +30,7 @@ static __inline__ uint16_t qla2x00_debounce_register(volatile uint16_t *);
  *      register value.
  */
 static __inline__ uint16_t
-qla2x00_debounce_register(volatile uint16_t *addr) 
+qla2x00_debounce_register(volatile uint16_t __iomem *addr) 
 {
 	volatile uint16_t first;
 	volatile uint16_t second;
@@ -117,7 +117,10 @@ static __inline__ void qla2x00_poll(scsi_qla_host_t *);
 static inline void 
 qla2x00_poll(scsi_qla_host_t *ha)
 {
-	qla2x00_intr_handler(0, ha, NULL);
+	if (IS_QLA2100(ha) || IS_QLA2200(ha))
+		qla2100_intr_handler(0, ha, NULL);
+	else
+		qla2300_intr_handler(0, ha, NULL);
 }
 
 
@@ -128,10 +131,9 @@ static inline void
 qla2x00_enable_intrs(scsi_qla_host_t *ha)
 {
 	unsigned long flags = 0;
-	device_reg_t *reg;
+	device_reg_t __iomem *reg = ha->iobase;
 
 	spin_lock_irqsave(&ha->hardware_lock, flags);
-	reg = ha->iobase;
 	ha->interrupts_on = 1;
 	/* enable risc and host interrupts */
 	WRT_REG_WORD(&reg->ictrl, ICR_EN_INT | ICR_EN_RISC);
@@ -144,10 +146,9 @@ static inline void
 qla2x00_disable_intrs(scsi_qla_host_t *ha)
 {
 	unsigned long flags = 0;
-	device_reg_t *reg;
+	device_reg_t __iomem *reg = ha->iobase;
 
 	spin_lock_irqsave(&ha->hardware_lock, flags);
-	reg = ha->iobase;
 	ha->interrupts_on = 0;
 	/* disable risc and host interrupts */
 	WRT_REG_WORD(&reg->ictrl, 0);
@@ -184,23 +185,6 @@ qla2x00_is_wwn_zero(uint8_t *wwn)
 		return (1);
 	else
 		return (0);
-}
-
-static __inline__ uint8_t
-qla2x00_suspend_lun(scsi_qla_host_t *, os_lun_t *, int, int);
-static __inline__ uint8_t
-qla2x00_delay_lun(scsi_qla_host_t *, os_lun_t *, int);
-
-static __inline__ uint8_t
-qla2x00_suspend_lun(scsi_qla_host_t *ha, os_lun_t *lq, int time, int count)
-{
-	return (__qla2x00_suspend_lun(ha, lq, time, count, 0));
-}
-
-static __inline__ uint8_t
-qla2x00_delay_lun(scsi_qla_host_t *ha, os_lun_t *lq, int time)
-{
-	return (__qla2x00_suspend_lun(ha, lq, time, 1, 1));
 }
 
 static __inline__ void qla2x00_check_fabric_devices(scsi_qla_host_t *);

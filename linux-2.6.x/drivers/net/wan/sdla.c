@@ -51,9 +51,9 @@
 #include <linux/if_arp.h>
 #include <linux/if_frad.h>
 #include <linux/sdla.h>
+#include <linux/bitops.h>
 
 #include <asm/system.h>
-#include <asm/bitops.h>
 #include <asm/io.h>
 #include <asm/dma.h>
 #include <asm/uaccess.h>
@@ -69,7 +69,7 @@ static unsigned int valid_mem[]  __initdata = {
                                     0xD0000, 0xD2000, 0xD4000, 0xD6000, 0xD8000, 0xDA000, 0xDC000, 0xDE000,
                                     0xE0000, 0xE2000, 0xE4000, 0xE6000, 0xE8000, 0xEA000, 0xEC000, 0xEE000}; 
 
-static spinlock_t sdla_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(sdla_lock);
 
 /*********************************************************
  *
@@ -1306,6 +1306,8 @@ NOTE:  This is rather a useless action right now, as the
 
 		case SDLA_WRITEMEM:
 		case SDLA_READMEM:
+			if(!capable(CAP_SYS_RAWIO))
+				return -EPERM;
 			return(sdla_xfer(dev, ifr->ifr_data, cmd == SDLA_READMEM));
 
 		case SDLA_START:

@@ -148,7 +148,7 @@ static int efficeon_configure(void)
 	return 0;
 }
 
-static int efficeon_free_gatt_table(void)
+static int efficeon_free_gatt_table(struct agp_bridge_data *bridge)
 {
 	int index, freed = 0;
 
@@ -183,7 +183,7 @@ static int efficeon_free_gatt_table(void)
 #define GET_GATT(addr) (efficeon_private.gatt_pages[\
 	GET_PAGE_DIR_IDX(addr)]->remapped)
 
-static int efficeon_create_gatt_table(void)
+static int efficeon_create_gatt_table(struct agp_bridge_data *bridge)
 {
 	int index;
 	const int pati    = EFFICEON_PATI;
@@ -209,7 +209,7 @@ static int efficeon_create_gatt_table(void)
 
 		page = get_zeroed_page(GFP_KERNEL);
 		if (!page) {
-			efficeon_free_gatt_table();
+			efficeon_free_gatt_table(agp_bridge);
 			return -ENOMEM;
 		}
 		SetPageReserved(virt_to_page((char *)page));
@@ -219,7 +219,7 @@ static int efficeon_create_gatt_table(void)
 
 		efficeon_private.l1_table[index] = page;
 
-		value = __pa(page) | pati | present | index;
+		value = virt_to_gart(page) | pati | present | index;
 
 		pci_write_config_dword(agp_bridge->dev,
 			EFFICEON_ATTPAGE, value);
@@ -303,7 +303,7 @@ static int efficeon_remove_memory(struct agp_memory * mem, off_t pg_start, int t
 }
 
 
-struct agp_bridge_driver efficeon_driver = {
+static struct agp_bridge_driver efficeon_driver = {
 	.owner			= THIS_MODULE,
 	.aperture_sizes		= efficeon_generic_sizes,
 	.size_type		= LVL2_APER_SIZE,
@@ -375,7 +375,7 @@ static int __devinit agp_efficeon_probe(struct pci_dev *pdev,
 	if (!r->start && r->end) {
 		if(pci_assign_resource(pdev, 0)) {
 			printk(KERN_ERR PFX "could not assign resource 0\n");
-			return (-ENODEV);
+			return -ENODEV;
 		}
 	}
 
@@ -386,7 +386,7 @@ static int __devinit agp_efficeon_probe(struct pci_dev *pdev,
 	*/
 	if (pci_enable_device(pdev)) {
 		printk(KERN_ERR PFX "Unable to Enable PCI device\n");
-		return (-ENODEV);
+		return -ENODEV;
 	}
 
 	/* Fill in the mode register */
@@ -408,7 +408,7 @@ static void __devexit agp_efficeon_remove(struct pci_dev *pdev)
 	agp_put_bridge(bridge);
 }
 
-static int agp_efficeon_suspend(struct pci_dev *dev, u32 state)
+static int agp_efficeon_suspend(struct pci_dev *dev, pm_message_t state)
 {
 	return 0;
 }
@@ -441,11 +441,14 @@ static int __init agp_efficeon_init(void)
 {
 	static int agp_initialised=0;
 
+	if (agp_off)
+		return -EINVAL;
+
 	if (agp_initialised == 1)
 		return 0;
 	agp_initialised=1;
 
-	return pci_module_init(&agp_efficeon_pci_driver);
+	return pci_register_driver(&agp_efficeon_pci_driver);
 }
 
 static void __exit agp_efficeon_cleanup(void)

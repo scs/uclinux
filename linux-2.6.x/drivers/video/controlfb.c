@@ -98,14 +98,14 @@ struct fb_info_control {
 	struct fb_par_control	par;
 	u32			pseudo_palette[17];
 		
-	struct cmap_regs	*cmap_regs;
+	struct cmap_regs	__iomem *cmap_regs;
 	unsigned long		cmap_regs_phys;
 	
-	struct control_regs	*control_regs;
+	struct control_regs	__iomem *control_regs;
 	unsigned long		control_regs_phys;
 	unsigned long		control_regs_size;
 	
-	__u8			*frame_buffer;
+	__u8			__iomem *frame_buffer;
 	unsigned long		frame_buffer_phys;
 	unsigned long		fb_orig_base;
 	unsigned long		fb_orig_size;
@@ -315,7 +315,7 @@ static int controlfb_mmap(struct fb_info *info, struct file *file,
        		return -EINVAL;
        off += start;
        vma->vm_pgoff = off >> PAGE_SHIFT;
-       if (io_remap_page_range(vma, vma->vm_start, off,
+       if (io_remap_pfn_range(vma, vma->vm_start, off >> PAGE_SHIFT,
            vma->vm_end - vma->vm_start, vma->vm_page_prot))
                return -EAGAIN;
 
@@ -329,17 +329,17 @@ static int controlfb_blank(int blank_mode, struct fb_info *info)
 
 	ctrl = ld_le32(CNTRL_REG(p,ctrl));
 	if (blank_mode > 0)
-		switch (blank_mode - 1) {
-		case VESA_VSYNC_SUSPEND:
+		switch (blank_mode) {
+		case FB_BLANK_VSYNC_SUSPEND:
 			ctrl &= ~3;
 			break;
-		case VESA_HSYNC_SUSPEND:
+		case FB_BLANK_HSYNC_SUSPEND:
 			ctrl &= ~0x30;
 			break;
-		case VESA_POWERDOWN:
+		case FB_BLANK_POWERDOWN:
 			ctrl &= ~0x33;
 			/* fall through */
-		case VESA_NO_BLANKING:
+		case FB_BLANK_NORMAL:
 			ctrl |= 0x400;
 			break;
 		default:
@@ -497,7 +497,7 @@ try_again:
 static void control_set_hardware(struct fb_info_control *p, struct fb_par_control *par)
 {
 	struct control_regvals	*r;
-	volatile struct preg	*rp;
+	volatile struct preg	__iomem *rp;
 	int			i, cmode;
 
 	if (PAR_EQUAL(&p->par, par)) {
@@ -556,6 +556,11 @@ static void control_set_hardware(struct fb_info_control *p, struct fb_par_contro
 int __init control_init(void)
 {
 	struct device_node *dp;
+	char *option = NULL;
+
+	if (fb_get_options("controlfb", &option))
+		return -ENODEV;
+	control_setup(option);
 
 	dp = find_devices("control");
 	if (dp != 0 && !control_of_init(dp))
@@ -564,6 +569,7 @@ int __init control_init(void)
 	return -ENXIO;
 }
 
+module_init(control_init);
 
 /* Work out which banks of VRAM we have installed. */
 /* danj: I guess the card just ignores writes to nonexistant VRAM... */
@@ -1010,8 +1016,8 @@ static void __init control_init_info(struct fb_info *info, struct fb_info_contro
 	info->par = &p->par;
 	info->fbops = &controlfb_ops;
 	info->pseudo_palette = p->pseudo_palette;
-        info->flags = FBINFO_FLAG_DEFAULT;
-	info->screen_base = (char *) p->frame_buffer + CTRLFB_OFF;
+        info->flags = FBINFO_DEFAULT | FBINFO_HWACCEL_YPAN;
+	info->screen_base = p->frame_buffer + CTRLFB_OFF;
 
 	fb_alloc_cmap(&info->cmap, 256, 0);
 

@@ -15,6 +15,7 @@
 
 #define ACPI_SYSTEM_FILE_SLEEP		"sleep"
 #define ACPI_SYSTEM_FILE_ALARM		"alarm"
+#define ACPI_SYSTEM_FILE_WAKEUP_DEVICE   "wakeup"
 
 #define _COMPONENT		ACPI_SYSTEM_COMPONENT
 ACPI_MODULE_NAME		("sleep")
@@ -69,7 +70,7 @@ acpi_system_write_sleep (
 	state = simple_strtoul(str, NULL, 0);
 #ifdef CONFIG_SOFTWARE_SUSPEND
 	if (state == 4) {
-		software_suspend();
+		error = software_suspend();
 		goto Done;
 	}
 #endif
@@ -82,18 +83,22 @@ static int acpi_system_alarm_seq_show(struct seq_file *seq, void *offset)
 {
 	u32			sec, min, hr;
 	u32			day, mo, yr;
+	unsigned char		rtc_control = 0;
+	unsigned long 		flags;
 
 	ACPI_FUNCTION_TRACE("acpi_system_alarm_seq_show");
 
-	spin_lock(&rtc_lock);
+	spin_lock_irqsave(&rtc_lock, flags);
 
 	sec = CMOS_READ(RTC_SECONDS_ALARM);
 	min = CMOS_READ(RTC_MINUTES_ALARM);
 	hr = CMOS_READ(RTC_HOURS_ALARM);
+	rtc_control = CMOS_READ(RTC_CONTROL);
 
-#if 0	/* If we ever get an FACP with proper values... */
+	/* If we ever get an FACP with proper values... */
 	if (acpi_gbl_FADT->day_alrm)
-		day = CMOS_READ(acpi_gbl_FADT->day_alrm);
+		/* ACPI spec: only low 6 its should be cared */
+		day = CMOS_READ(acpi_gbl_FADT->day_alrm) & 0x3F;
 	else
 		day =  CMOS_READ(RTC_DAY_OF_MONTH);
 	if (acpi_gbl_FADT->mon_alrm)
@@ -104,24 +109,20 @@ static int acpi_system_alarm_seq_show(struct seq_file *seq, void *offset)
 		yr = CMOS_READ(acpi_gbl_FADT->century) * 100 + CMOS_READ(RTC_YEAR);
 	else
 		yr = CMOS_READ(RTC_YEAR);
-#else
-	day = CMOS_READ(RTC_DAY_OF_MONTH);
-	mo = CMOS_READ(RTC_MONTH);
-	yr = CMOS_READ(RTC_YEAR);
-#endif
 
-	spin_unlock(&rtc_lock);
+	spin_unlock_irqrestore(&rtc_lock, flags);
 
-	BCD_TO_BIN(sec);
-	BCD_TO_BIN(min);
-	BCD_TO_BIN(hr);
-	BCD_TO_BIN(day);
-	BCD_TO_BIN(mo);
-	BCD_TO_BIN(yr);
+	if (!(rtc_control & RTC_DM_BINARY) || RTC_ALWAYS_BCD) {
+		BCD_TO_BIN(sec);
+		BCD_TO_BIN(min);
+		BCD_TO_BIN(hr);
+		BCD_TO_BIN(day);
+		BCD_TO_BIN(mo);
+		BCD_TO_BIN(yr);
+	}
 
-#if 0
 	/* we're trusting the FADT (see above)*/
-#else
+	if (!acpi_gbl_FADT->century)
 	/* If we're not trusting the FADT, we should at least make it
 	 * right for _this_ century... ehm, what is _this_ century?
 	 *
@@ -140,8 +141,7 @@ static int acpi_system_alarm_seq_show(struct seq_file *seq, void *offset)
 	 *        s/2000/2100
 	 *
 	 */
-	yr += 2000;
-#endif
+		yr += 2000;
 
 	seq_printf(seq,"%4.4u-", yr);
 	(mo > 12)  ? seq_puts(seq, "**-")  : seq_printf(seq, "%2.2u-", mo);
@@ -315,6 +315,13 @@ acpi_system_write_alarm (
 	}
 
 	spin_lock_irq(&rtc_lock);
+	/*
+	 * Disable alarm interrupt before setting alarm timer or else
+	 * when ACPI_EVENT_RTC is enabled, a spurious ACPI interrupt occurs
+	 */
+	rtc_control &= ~RTC_AIE;
+	CMOS_WRITE(rtc_control, RTC_CONTROL);
+	CMOS_READ(RTC_INTR_FLAGS);
 
 	/* write the fields the rtc knows about */
 	CMOS_WRITE(hr, RTC_HOURS_ALARM);
@@ -326,24 +333,21 @@ acpi_system_write_alarm (
 	 * offsets into the CMOS RAM here -- which for some reason are pointing
 	 * to the RTC area of memory.
 	 */
-#if 0
 	if (acpi_gbl_FADT->day_alrm)
 		CMOS_WRITE(day, acpi_gbl_FADT->day_alrm);
 	if (acpi_gbl_FADT->mon_alrm)
 		CMOS_WRITE(mo, acpi_gbl_FADT->mon_alrm);
 	if (acpi_gbl_FADT->century)
 		CMOS_WRITE(yr/100, acpi_gbl_FADT->century);
-#endif
 	/* enable the rtc alarm interrupt */
-	if (!(rtc_control & RTC_AIE)) {
-		rtc_control |= RTC_AIE;
-		CMOS_WRITE(rtc_control,RTC_CONTROL);
-		CMOS_READ(RTC_INTR_FLAGS);
-	}
+	rtc_control |= RTC_AIE;
+	CMOS_WRITE(rtc_control, RTC_CONTROL);
+	CMOS_READ(RTC_INTR_FLAGS);
 
 	spin_unlock_irq(&rtc_lock);
 
-	acpi_set_register(ACPI_BITREG_RT_CLOCK_ENABLE, 1, ACPI_MTX_LOCK);
+	acpi_clear_event(ACPI_EVENT_RTC);
+	acpi_enable_event(ACPI_EVENT_RTC, 0);
 
 	*ppos += count;
 
@@ -352,6 +356,101 @@ end:
 	return_VALUE(result ? result : count);
 }
 
+extern struct list_head	acpi_wakeup_device_list;
+extern spinlock_t acpi_device_lock;
+
+static int
+acpi_system_wakeup_device_seq_show(struct seq_file *seq, void *offset)
+{
+	struct list_head * node, * next;
+
+	seq_printf(seq, "Device	Sleep state	Status\n");
+
+	spin_lock(&acpi_device_lock);
+	list_for_each_safe(node, next, &acpi_wakeup_device_list) {
+		struct acpi_device * dev = container_of(node, struct acpi_device, wakeup_list);
+
+		if (!dev->wakeup.flags.valid)
+			continue;
+		spin_unlock(&acpi_device_lock);
+		if (dev->wakeup.flags.run_wake)
+			seq_printf(seq, "%4s	%4d		%8s\n",
+				dev->pnp.bus_id, (u32) dev->wakeup.sleep_state,
+				dev->wakeup.state.enabled ? "*enabled" : "*disabled");
+		else
+			seq_printf(seq, "%4s	%4d		%8s\n",
+				dev->pnp.bus_id, (u32) dev->wakeup.sleep_state,
+				dev->wakeup.state.enabled ? "enabled" : "disabled");
+		spin_lock(&acpi_device_lock);
+	}
+	spin_unlock(&acpi_device_lock);
+	return 0;
+}
+
+static ssize_t
+acpi_system_write_wakeup_device (
+	struct file		*file,
+	const char __user	*buffer,
+	size_t			count,
+	loff_t			*ppos)
+{
+	struct list_head * node, * next;
+	char		strbuf[5];
+	char		str[5] = "";
+	int 		len = count;
+	struct acpi_device *found_dev = NULL;
+
+	if (len > 4) len = 4;
+
+	if (copy_from_user(strbuf, buffer, len))
+		return -EFAULT;
+	strbuf[len] = '\0';
+	sscanf(strbuf, "%s", str);
+
+	spin_lock(&acpi_device_lock);
+	list_for_each_safe(node, next, &acpi_wakeup_device_list) {
+		struct acpi_device * dev = container_of(node, struct acpi_device, wakeup_list);
+		if (!dev->wakeup.flags.valid)
+			continue;
+
+		if (!strncmp(dev->pnp.bus_id, str, 4)) {
+			dev->wakeup.state.enabled = dev->wakeup.state.enabled ? 0:1;
+			found_dev = dev;
+			break;
+		}
+	}
+	if (found_dev) {
+		list_for_each_safe(node, next, &acpi_wakeup_device_list) {
+			struct acpi_device * dev = container_of(node,
+				struct acpi_device, wakeup_list);
+
+			if ((dev != found_dev) &&
+				(dev->wakeup.gpe_number == found_dev->wakeup.gpe_number) &&
+				(dev->wakeup.gpe_device == found_dev->wakeup.gpe_device)) {
+				printk(KERN_WARNING "ACPI: '%s' and '%s' have the same GPE, "
+					"can't disable/enable one seperately\n",
+					dev->pnp.bus_id, found_dev->pnp.bus_id);
+				dev->wakeup.state.enabled = found_dev->wakeup.state.enabled;
+			}
+		}
+	}
+	spin_unlock(&acpi_device_lock);
+	return count;
+}
+
+static int
+acpi_system_wakeup_device_open_fs(struct inode *inode, struct file *file)
+{
+	return single_open(file, acpi_system_wakeup_device_seq_show, PDE(inode)->data);
+}
+
+static struct file_operations acpi_system_wakeup_device_fops = {
+	.open		= acpi_system_wakeup_device_open_fs,
+	.read		= seq_read,
+	.write		= acpi_system_write_wakeup_device,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
 
 static struct file_operations acpi_system_sleep_fops = {
 	.open		= acpi_system_sleep_open_fs,
@@ -369,6 +468,14 @@ static struct file_operations acpi_system_alarm_fops = {
 	.release	= single_release,
 };
 
+
+static u32 rtc_handler(void * context)
+{
+	acpi_clear_event(ACPI_EVENT_RTC);
+	acpi_disable_event(ACPI_EVENT_RTC, 0);
+
+	return ACPI_INTERRUPT_HANDLED;
+}
 
 static int acpi_sleep_proc_init(void)
 {
@@ -388,6 +495,14 @@ static int acpi_sleep_proc_init(void)
 		S_IFREG|S_IRUGO|S_IWUSR, acpi_root_dir);
 	if (entry)
 		entry->proc_fops = &acpi_system_alarm_fops;
+
+	/* 'wakeup device' [R/W]*/
+	entry = create_proc_entry(ACPI_SYSTEM_FILE_WAKEUP_DEVICE,
+				  S_IFREG|S_IRUGO|S_IWUSR, acpi_root_dir);
+	if (entry)
+		entry->proc_fops = &acpi_system_wakeup_device_fops;
+
+	acpi_install_fixed_event_handler(ACPI_EVENT_RTC, rtc_handler, NULL);
 	return 0;
 }
 

@@ -32,7 +32,7 @@
  *              Linux 1.3.0 changes by
  *                      Alan Cox <Alan.Cox@linux.org>
  *              More debugging, DMA support, currently maintained by
- *                      Philip Blundell <Philip.Blundell@pobox.com>
+ *                      Philip Blundell <philb@gnu.org>
  *              Multicard/soft configurable dma channel/rev 2 hardware support
  *                      by Christopher Collins <ccollins@pcug.org.au>
  *		Ethtool support (jgarzik), 11/17/2001
@@ -107,9 +107,9 @@
 #include <linux/spinlock.h>
 #include <linux/ethtool.h>
 #include <linux/delay.h>
+#include <linux/bitops.h>
 
 #include <asm/uaccess.h>
-#include <asm/bitops.h>
 #include <asm/io.h>
 #include <asm/dma.h>
 
@@ -226,16 +226,6 @@ static inline void outb_control(unsigned char val, struct net_device *dev)
 static inline void outb_command(unsigned char val, unsigned int base_addr)
 {
 	outb(val, base_addr + PORT_COMMAND);
-}
-
-static inline unsigned int inw_data(unsigned int base_addr)
-{
-	return inw(base_addr + PORT_DATA);
-}
-
-static inline void outw_data(unsigned int val, unsigned int base_addr)
-{
-	outw(val, base_addr + PORT_DATA);
 }
 
 static inline unsigned int backlog_next(unsigned int n)
@@ -1638,9 +1628,9 @@ static struct net_device *dev_3c505[ELP_MAX_CARDS];
 static int io[ELP_MAX_CARDS];
 static int irq[ELP_MAX_CARDS];
 static int dma[ELP_MAX_CARDS];
-MODULE_PARM(io, "1-" __MODULE_STRING(ELP_MAX_CARDS) "i");
-MODULE_PARM(irq, "1-" __MODULE_STRING(ELP_MAX_CARDS) "i");
-MODULE_PARM(dma, "1-" __MODULE_STRING(ELP_MAX_CARDS) "i");
+module_param_array(io, int, NULL, 0);
+module_param_array(irq, int, NULL, 0);
+module_param_array(dma, int, NULL, 0);
 MODULE_PARM_DESC(io, "EtherLink Plus I/O base address(es)");
 MODULE_PARM_DESC(irq, "EtherLink Plus IRQ number(s) (assigned)");
 MODULE_PARM_DESC(dma, "EtherLink Plus DMA channel(s)");

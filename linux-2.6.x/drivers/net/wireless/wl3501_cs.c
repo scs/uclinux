@@ -79,7 +79,7 @@
 #define PCMCIA_DEBUG 0
 #ifdef PCMCIA_DEBUG
 static int pc_debug = PCMCIA_DEBUG;
-MODULE_PARM(pc_debug, "i");
+module_param(pc_debug, int, 0);
 #define dprintk(n, format, args...) \
 	{ if (pc_debug > (n)) \
 		printk(KERN_INFO "%s: " format "\n", __FUNCTION__ , ##args); }
@@ -96,12 +96,6 @@ MODULE_PARM(pc_debug, "i");
 
 #define WL3501_RESUME	0
 #define WL3501_SUSPEND	1
-
-/* Parameters that can be set with 'insmod' */
-/* Bit map of interrupts to choose from */
-/* This means pick from 15, 14, 12, 11, 10, 9, 7, 5, 4, and 3 */
-static unsigned long wl3501_irq_mask = 0xdeb8;
-static int wl3501_irq_list[4] = { -1 };
 
 /*
  * The event() function is this driver's Card Services event handler.  It will
@@ -1487,55 +1481,14 @@ struct iw_statistics *wl3501_get_wireless_stats(struct net_device *dev)
 	return wstats;
 }
 
-static inline int wl3501_ethtool_ioctl(struct net_device *dev, void __user *uaddr)
+static void wl3501_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 {
-	u32 ethcmd;
-	int rc = -EFAULT;
-
-	if (copy_from_user(&ethcmd, uaddr, sizeof(ethcmd)))
-		goto out;
-
-	switch (ethcmd) {
-	case ETHTOOL_GDRVINFO: {
-		struct ethtool_drvinfo info = { .cmd = ETHTOOL_GDRVINFO, };
-
-		strlcpy(info.driver, wl3501_dev_info, sizeof(info.driver));
-		rc = copy_to_user(uaddr, &info, sizeof(info)) ? -EFAULT : 1;
-	}
-	default:
-		rc = -EOPNOTSUPP;
-		break;
-	}
-out:
-	return rc;
+	strlcpy(info->driver, wl3501_dev_info, sizeof(info->driver));
 }
 
-/**
- * wl3501_ioctl - Perform IOCTL call functions
- * @dev - network device
- * @ifreq - request
- * @cmd - command
- *
- * Perform IOCTL call functions here. Some are privileged operations and the
- * effective uid is checked in those cases.
- *
- * This part is optional. Needed only if you want to run wlu (unix version).
- *
- * CAUTION: To prevent interrupted by wl3501_interrupt() and timer-based
- * wl3501_hard_start_xmit() from other interrupts, this should be run
- * single-threaded.
- */
-static int wl3501_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
-{
-	int rc = -ENODEV;
-
-	if (netif_device_present(dev)) {
-		rc = -EOPNOTSUPP;
-		if (cmd == SIOCETHTOOL)
-			rc = wl3501_ethtool_ioctl(dev, rq->ifr_data);
-	}
-	return rc;
-}
+static struct ethtool_ops ops = {
+	.get_drvinfo = wl3501_get_drvinfo
+};
 
 /**
  * wl3501_detach - deletes a driver "instance"
@@ -2008,7 +1961,7 @@ static dev_link_t *wl3501_attach(void)
 	client_reg_t client_reg;
 	dev_link_t *link;
 	struct net_device *dev;
-	int ret, i;
+	int ret;
 
 	/* Initialize the dev_link_t structure */
 	link = kmalloc(sizeof(*link), GFP_KERNEL);
@@ -2023,11 +1976,7 @@ static dev_link_t *wl3501_attach(void)
 
 	/* Interrupt setup */
 	link->irq.Attributes	= IRQ_TYPE_EXCLUSIVE | IRQ_HANDLE_PRESENT;
-	link->irq.IRQInfo1	= IRQ_INFO2_VALID | IRQ_LEVEL_ID;
-	link->irq.IRQInfo2	= wl3501_irq_mask;
-	if (wl3501_irq_list[0] != -1)
-		for (i = 0; i < 4; i++)
-			link->irq.IRQInfo2 |= 1 << wl3501_irq_list[i];
+	link->irq.IRQInfo1	= IRQ_LEVEL_ID;
 	link->irq.Handler = wl3501_interrupt;
 
 	/* General socket configuration */
@@ -2047,8 +1996,8 @@ static dev_link_t *wl3501_attach(void)
 	dev->watchdog_timeo	= 5 * HZ;
 	dev->get_stats		= wl3501_get_stats;
 	dev->get_wireless_stats = wl3501_get_wireless_stats;
-	dev->do_ioctl		= wl3501_ioctl;
 	dev->wireless_handlers	= (struct iw_handler_def *)&wl3501_handler_def;
+	SET_ETHTOOL_OPS(dev, &ops);
 	netif_stop_queue(dev);
 	link->priv = link->irq.Instance = dev;
 
@@ -2056,7 +2005,6 @@ static dev_link_t *wl3501_attach(void)
 	link->next		 = wl3501_dev_list;
 	wl3501_dev_list		 = link;
 	client_reg.dev_info	 = &wl3501_dev_info;
-	client_reg.Attributes	 = INFO_IO_CLIENT | INFO_CARD_SHARE;
 	client_reg.EventMask	 = CS_EVENT_CARD_INSERTION |
 				   CS_EVENT_RESET_PHYSICAL |
 				   CS_EVENT_CARD_RESET |
@@ -2146,6 +2094,7 @@ static void wl3501_config(dev_link_t *link)
 
 	dev->irq = link->irq.AssignedIRQ;
 	dev->base_addr = link->io.BasePort1;
+	SET_NETDEV_DEV(dev, &handle_to_dev(handle));
 	if (register_netdev(dev)) {
 		printk(KERN_NOTICE "wl3501_cs: register_netdev() failed\n");
 		goto failed;
@@ -2308,20 +2257,12 @@ static void __exit wl3501_exit_module(void)
 {
 	dprintk(0, ": unloading");
 	pcmcia_unregister_driver(&wl3501_driver);
-	while (wl3501_dev_list) {
-		/* Mark the device as non-existing to minimize calls to card */
-		wl3501_dev_list->state &= ~DEV_PRESENT;
-		if (wl3501_dev_list->state & DEV_CONFIG)
-			wl3501_release(wl3501_dev_list);
-		wl3501_detach(wl3501_dev_list);
-	}
+	BUG_ON(wl3501_dev_list != NULL);
 }
 
 module_init(wl3501_init_module);
 module_exit(wl3501_exit_module);
 
-MODULE_PARM(wl3501_irq_mask, "i");
-MODULE_PARM(wl3501_irq_list, "1-4i");
 MODULE_AUTHOR("Fox Chen <mhchen@golf.ccl.itri.org.tw>, "
 	      "Arnaldo Carvalho de Melo <acme@conectiva.com.br>,"
 	      "Gustavo Niemeyer <niemeyer@conectiva.com>");

@@ -52,28 +52,19 @@
  */
 #include "aiclib.c"
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,3,0)
 #include <linux/init.h>		/* __setup */
-#endif
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
 #include "sd.h"			/* For geometry detection */
 #endif
 
 #include <linux/mm.h>		/* For fetching system memory size */
+#include <linux/delay.h>	/* For ssleep/msleep */
 
 /*
  * Lock protecting manipulation of the ahd softc list.
  */
 spinlock_t ahd_list_spinlock;
-
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,3,0)
-struct proc_dir_entry proc_scsi_aic79xx = {
-	PROC_SCSI_AIC79XX, 7, "aic79xx",
-	S_IFDIR | S_IRUGO | S_IXUGO, 2,
-	0, 0, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL
-};
-#endif
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
 /* For dynamic sglist size calculation. */
@@ -415,21 +406,13 @@ uint32_t aic79xx_periodic_otag;
 /*
  * Module information and settable options.
  */
-#ifdef MODULE
 static char *aic79xx = NULL;
-/*
- * Just in case someone uses commas to separate items on the insmod
- * command line, we define a dummy buffer here to avoid having insmod
- * write wild stuff into our code segment
- */
-static char dummy_buffer[60] = "Please don't trounce on me insmod!!\n";
 
 MODULE_AUTHOR("Maintainer: Justin T. Gibbs <gibbs@scsiguy.com>");
 MODULE_DESCRIPTION("Adaptec Aic790X U320 SCSI Host Bus Adapter driver");
-#ifdef MODULE_LICENSE
 MODULE_LICENSE("Dual BSD/GPL");
-#endif
-MODULE_PARM(aic79xx, "s");
+MODULE_VERSION(AIC79XX_DRIVER_VERSION);
+module_param(aic79xx, charp, 0);
 MODULE_PARM_DESC(aic79xx,
 "period delimited, options string.\n"
 "	verbose			Enable verbose/diagnostic logging\n"
@@ -463,7 +446,6 @@ MODULE_PARM_DESC(aic79xx,
 "		Change Read Streaming for Controller's 2 and 3\n"
 "\n"
 "	options aic79xx 'aic79xx=rd_strm:{..0xFFF0.0xC0F0}'");
-#endif
 
 static void ahd_linux_handle_scsi_status(struct ahd_softc *,
 					 struct ahd_linux_device *,
@@ -513,9 +495,6 @@ static void ahd_linux_dv_su(struct ahd_softc *ahd,
 			    struct scsi_cmnd *cmd,
 			    struct ahd_devinfo *devinfo,
 			    struct ahd_linux_target *targ);
-static __inline int
-	   ahd_linux_dv_fallback(struct ahd_softc *ahd,
-				 struct ahd_devinfo *devinfo);
 static int ahd_linux_fallback(struct ahd_softc *ahd,
 			      struct ahd_devinfo *devinfo);
 static __inline int ahd_linux_dv_fallback(struct ahd_softc *ahd,
@@ -564,10 +543,6 @@ static __inline struct ahd_linux_device *
 static __inline void ahd_linux_run_device_queues(struct ahd_softc *ahd);
 static __inline void ahd_linux_unmap_scb(struct ahd_softc*, struct scb*);
 
-static __inline int ahd_linux_map_seg(struct ahd_softc *ahd, struct scb *scb,
-		 		      struct ahd_dma_seg *sg,
-				      bus_addr_t addr, bus_size_t len);
-
 static __inline void
 ahd_schedule_completeq(struct ahd_softc *ahd)
 {
@@ -584,31 +559,20 @@ ahd_schedule_completeq(struct ahd_softc *ahd)
 static __inline void
 ahd_schedule_runq(struct ahd_softc *ahd)
 {
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,4,0)
 	tasklet_schedule(&ahd->platform_data->runq_tasklet);
-#else
-	/*
-	 * Tasklets are not available, so run inline.
-	 */
-	ahd_runq_tasklet((unsigned long)ahd);
-#endif
 }
 
 static __inline
 void ahd_setup_runq_tasklet(struct ahd_softc *ahd)
 {
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,4,0)
 	tasklet_init(&ahd->platform_data->runq_tasklet, ahd_runq_tasklet,
 		     (unsigned long)ahd);
-#endif
 }
 
 static __inline void
 ahd_teardown_runq_tasklet(struct ahd_softc *ahd)
 {
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,4,0)
 	tasklet_kill(&ahd->platform_data->runq_tasklet);
-#endif
 }
 
 static __inline struct ahd_linux_device*
@@ -723,7 +687,7 @@ ahd_linux_unmap_scb(struct ahd_softc *ahd, struct scb *scb)
 	int direction;
 
 	cmd = scb->io_ctx;
-	direction = scsi_to_pci_dma_dir(cmd->sc_data_direction);
+	direction = cmd->sc_data_direction;
 	ahd_sync_sglist(ahd, scb, BUS_DMASYNC_POSTWRITE);
 	if (cmd->use_sg != 0) {
 		struct scatterlist *sg;
@@ -735,28 +699,6 @@ ahd_linux_unmap_scb(struct ahd_softc *ahd, struct scb *scb)
 				 scb->platform_data->buf_busaddr,
 				 cmd->request_bufflen, direction);
 	}
-}
-
-static __inline int
-ahd_linux_map_seg(struct ahd_softc *ahd, struct scb *scb,
-		  struct ahd_dma_seg *sg, bus_addr_t addr, bus_size_t len)
-{
-	int	 consumed;
-
-	if ((scb->sg_count + 1) > AHD_NSEG)
-		panic("Too few segs for dma mapping.  "
-		      "Increase AHD_NSEG\n");
-
-	consumed = 1;
-	sg->addr = ahd_htole32(addr & 0xFFFFFFFF);
-	scb->platform_data->xfer_len += len;
-
-	if (sizeof(bus_addr_t) > 4
-	 && (ahd->flags & AHD_39BIT_ADDRESSING) != 0)
-		len |= (addr >> 8) & AHD_SG_HIGH_ADDR_MASK;
-
-	sg->len = ahd_htole32(len);
-	return (consumed);
 }
 
 /******************************** Macros **************************************/
@@ -856,6 +798,7 @@ ahd_linux_detect(Scsi_Host_Template *template)
 {
 	struct	ahd_softc *ahd;
 	int     found;
+	int	error = 0;
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
 	/*
@@ -886,19 +829,9 @@ ahd_linux_detect(Scsi_Host_Template *template)
 	 */
 	if (aic79xx)
 		aic79xx_setup(aic79xx);
-	if (dummy_buffer[0] != 'P')
-		printk(KERN_WARNING
-"aic79xx: Please read the file /usr/src/linux/drivers/scsi/README.aic79xx\n"
-"aic79xx: to see the proper way to specify options to the aic79xx module\n"
-"aic79xx: Specifically, don't use any commas when passing arguments to\n"
-"aic79xx: insmod or else it might trash certain memory areas.\n");
 #endif
 
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,3,0)
 	template->proc_name = "aic79xx";
-#else
-	template->proc_dir = &proc_scsi_aic79xx;
-#endif
 
 	/*
 	 * Initialize our softc list lock prior to
@@ -907,7 +840,9 @@ ahd_linux_detect(Scsi_Host_Template *template)
 	ahd_list_lockinit();
 
 #ifdef CONFIG_PCI
-	ahd_linux_pci_init();
+	error = ahd_linux_pci_init();
+	if (error)
+		return error;
 #endif
 
 	/*
@@ -924,7 +859,7 @@ ahd_linux_detect(Scsi_Host_Template *template)
 	spin_lock_irq(&io_request_lock);
 #endif
 	aic79xx_detect_complete++;
-	return (found);
+	return 0;
 }
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
@@ -1565,6 +1500,8 @@ ahd_linux_dev_reset(Scsi_Cmnd *cmd)
 
 	ahd = *(struct ahd_softc **)cmd->device->host->hostdata;
 	recovery_cmd = malloc(sizeof(struct scsi_cmnd), M_DEVBUF, M_WAITOK);
+	if (!recovery_cmd)
+		return (FAILED);
 	memset(recovery_cmd, 0, sizeof(struct scsi_cmnd));
 	recovery_cmd->device = cmd->device;
 	recovery_cmd->scsi_done = ahd_linux_dev_reset_complete;
@@ -1580,10 +1517,12 @@ ahd_linux_dev_reset(Scsi_Cmnd *cmd)
 				   cmd->device->lun, /*alloc*/FALSE);
 	if (dev == NULL) {
 		ahd_midlayer_entrypoint_unlock(ahd, &s);
+		kfree(recovery_cmd);
 		return (FAILED);
 	}
 	if ((scb = ahd_get_scb(ahd, AHD_NEVER_COL_IDX)) == NULL) {
 		ahd_midlayer_entrypoint_unlock(ahd, &s);
+		kfree(recovery_cmd);
 		return (FAILED);
 	}
 	tinfo = ahd_fetch_transinfo(ahd, 'A', ahd->our_id,
@@ -1699,35 +1638,27 @@ ahd_runq_tasklet(unsigned long data)
 {
 	struct ahd_softc* ahd;
 	struct ahd_linux_device *dev;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,4,0)
 	u_long flags;
-#endif
 
 	ahd = (struct ahd_softc *)data;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,4,0)
 	ahd_lock(ahd, &flags);
-#endif
 	while ((dev = ahd_linux_next_device_to_run(ahd)) != NULL) {
 	
 		TAILQ_REMOVE(&ahd->platform_data->device_runq, dev, links);
 		dev->flags &= ~AHD_DEV_ON_RUN_LIST;
 		ahd_linux_check_device_queue(ahd, dev);
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,4,0)
 		/* Yeild to our interrupt handler */
 		ahd_unlock(ahd, &flags);
 		ahd_lock(ahd, &flags);
-#endif
 	}
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,4,0)
 	ahd_unlock(ahd, &flags);
-#endif
 }
 
 /******************************** Bus DMA *************************************/
 int
 ahd_dma_tag_create(struct ahd_softc *ahd, bus_dma_tag_t parent,
 		   bus_size_t alignment, bus_size_t boundary,
-		   bus_addr_t lowaddr, bus_addr_t highaddr,
+		   dma_addr_t lowaddr, dma_addr_t highaddr,
 		   bus_dma_filter_t *filter, void *filterarg,
 		   bus_size_t maxsize, int nsegments,
 		   bus_size_t maxsegsz, int flags, bus_dma_tag_t *ret_tag)
@@ -1764,7 +1695,6 @@ ahd_dmamem_alloc(struct ahd_softc *ahd, bus_dma_tag_t dmat, void** vaddr,
 {
 	bus_dmamap_t map;
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,3,0)
 	map = malloc(sizeof(*map), M_DEVBUF, M_NOWAIT);
 	if (map == NULL)
 		return (ENOMEM);
@@ -1776,28 +1706,20 @@ ahd_dmamem_alloc(struct ahd_softc *ahd, bus_dma_tag_t dmat, void** vaddr,
 	 * our dma mask when doing allocations.
 	 */
 	if (ahd->dev_softc != NULL)
-		if (ahd_pci_set_dma_mask(ahd->dev_softc, 0xFFFFFFFF)) {
+		if (pci_set_dma_mask(ahd->dev_softc, 0xFFFFFFFF)) {
 			printk(KERN_WARNING "aic79xx: No suitable DMA available.\n");
+			kfree(map);
 			return (ENODEV);
 		}
 	*vaddr = pci_alloc_consistent(ahd->dev_softc,
 				      dmat->maxsize, &map->bus_addr);
 	if (ahd->dev_softc != NULL)
-		if (ahd_pci_set_dma_mask(ahd->dev_softc,
+		if (pci_set_dma_mask(ahd->dev_softc,
 				     ahd->platform_data->hw_dma_mask)) {
 			printk(KERN_WARNING "aic79xx: No suitable DMA available.\n");
+			kfree(map);
 			return (ENODEV);
 		}
-#else /* LINUX_VERSION_CODE < KERNEL_VERSION(2,3,0) */
-	/*
-	 * At least in 2.2.14, malloc is a slab allocator so all
-	 * allocations are aligned.  We assume for these kernel versions
-	 * that all allocations will be bellow 4Gig, physically contiguous,
-	 * and accessible via DMA by the controller.
-	 */
-	map = NULL; /* No additional information to store */
-	*vaddr = malloc(dmat->maxsize, M_DEVBUF, M_NOWAIT);
-#endif
 	if (*vaddr == NULL)
 		return (ENOMEM);
 	*mapp = map;
@@ -1808,12 +1730,8 @@ void
 ahd_dmamem_free(struct ahd_softc *ahd, bus_dma_tag_t dmat,
 		void* vaddr, bus_dmamap_t map)
 {
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,3,0)
 	pci_free_consistent(ahd->dev_softc, dmat->maxsize,
 			    vaddr, map->bus_addr);
-#else
-	free(vaddr, M_DEVBUF);
-#endif
 }
 
 int
@@ -1827,12 +1745,7 @@ ahd_dmamap_load(struct ahd_softc *ahd, bus_dma_tag_t dmat, bus_dmamap_t map,
 	 */
 	bus_dma_segment_t stack_sg;
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,3,0)
 	stack_sg.ds_addr = map->bus_addr;
-#else
-#define VIRT_TO_BUS(a) (uint32_t)virt_to_bus((void *)(a))
-	stack_sg.ds_addr = VIRT_TO_BUS(buf);
-#endif
 	stack_sg.ds_len = dmat->maxsize;
 	cb(cb_arg, &stack_sg, /*nseg*/1, /*error*/0);
 	return (0);
@@ -2064,9 +1977,7 @@ aic79xx_setup(char *s)
 	return 1;
 }
 
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,3,0)
 __setup("aic79xx=", aic79xx_setup);
-#endif
 
 uint32_t aic79xx_verbose;
 
@@ -2109,8 +2020,7 @@ ahd_linux_register_host(struct ahd_softc *ahd, Scsi_Host_Template *template)
 		ahd_set_name(ahd, new_name);
 	}
 	host->unique_id = ahd->unit;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,4,4) && \
-    LINUX_VERSION_CODE  < KERNEL_VERSION(2,5,0)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
 	scsi_set_pci_device(host, ahd->dev_softc);
 #endif
 	ahd_linux_setup_user_rd_strm_settings(ahd);
@@ -2262,15 +2172,9 @@ ahd_platform_alloc(struct ahd_softc *ahd, void *platform_arg)
 	ahd->platform_data->completeq_timer.data = (u_long)ahd;
 	ahd->platform_data->completeq_timer.function =
 	    (ahd_linux_callback_t *)ahd_linux_thread_run_complete_queue;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,3,0)
 	init_MUTEX_LOCKED(&ahd->platform_data->eh_sem);
 	init_MUTEX_LOCKED(&ahd->platform_data->dv_sem);
 	init_MUTEX_LOCKED(&ahd->platform_data->dv_cmd_sem);
-#else
-	ahd->platform_data->eh_sem = MUTEX_LOCKED;
-	ahd->platform_data->dv_sem = MUTEX_LOCKED;
-	ahd->platform_data->dv_cmd_sem = MUTEX_LOCKED;
-#endif
 	ahd_setup_runq_tasklet(ahd);
 	ahd->seltime = (aic79xx_seltime & 0x3) << 4;
 	return (0);
@@ -2325,18 +2229,11 @@ ahd_platform_free(struct ahd_softc *ahd)
 			release_region(ahd->bshs[1].ioport, 256);
 		if (ahd->tags[0] == BUS_SPACE_MEMIO
 		 && ahd->bshs[0].maddr != NULL) {
-			u_long base_addr;
-
-			base_addr = (u_long)ahd->bshs[0].maddr;
-			base_addr &= PAGE_MASK;
-			iounmap((void *)base_addr);
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,4,0)
+			iounmap(ahd->bshs[0].maddr);
 			release_mem_region(ahd->platform_data->mem_busaddr,
 					   0x1000);
-#endif
 		}
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,4,0) && \
-    LINUX_VERSION_CODE  < KERNEL_VERSION(2,5,0)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
     		/*
 		 * In 2.4 we detach from the scsi midlayer before the PCI
 		 * layer invokes our remove callback.  No per-instance
@@ -2591,7 +2488,7 @@ ahd_linux_dv_thread(void *data)
 	sprintf(current->comm, "ahd_dv_%d", ahd->unit);
 #else
 	daemonize("ahd_dv_%d", ahd->unit);
-	current->flags |= PF_FREEZE;
+	current->flags |= PF_NOFREEZE;
 #endif
 	unlock_kernel();
 
@@ -2915,6 +2812,19 @@ out:
 	ahd_unlock(ahd, &s);
 }
 
+static __inline int
+ahd_linux_dv_fallback(struct ahd_softc *ahd, struct ahd_devinfo *devinfo)
+{
+	u_long s;
+	int retval;
+
+	ahd_lock(ahd, &s);
+	retval = ahd_linux_fallback(ahd, devinfo);
+	ahd_unlock(ahd, &s);
+
+	return (retval);
+}
+
 static void
 ahd_linux_dv_transition(struct ahd_softc *ahd, struct scsi_cmnd *cmd,
 			struct ahd_devinfo *devinfo,
@@ -3163,7 +3073,7 @@ ahd_linux_dv_transition(struct ahd_softc *ahd, struct scsi_cmnd *cmd,
 				break;
 			}
 			if (status & SSQ_DELAY)
-				scsi_sleep(1 * HZ);
+				ssleep(1);
 
 			break;
 		case SS_START:
@@ -3323,7 +3233,7 @@ ahd_linux_dv_transition(struct ahd_softc *ahd, struct scsi_cmnd *cmd,
 			}
 			if (targ->dv_state_retry <= 10) {
 				if ((status & (SSQ_DELAY_RANDOM|SSQ_DELAY))!= 0)
-					scsi_sleep(ahd->our_id*HZ/10);
+					msleep(ahd->our_id*1000/10);
 				break;
 			}
 #ifdef AHD_DEBUG
@@ -3367,7 +3277,7 @@ ahd_linux_dv_transition(struct ahd_softc *ahd, struct scsi_cmnd *cmd,
 				targ->dv_state_retry--;
 			} else if (targ->dv_state_retry < 60) {
 				if ((status & SSQ_DELAY) != 0)
-					scsi_sleep(1 * HZ);
+					ssleep(1);
 			} else {
 #ifdef AHD_DEBUG
 				if (ahd_debug & AHD_SHOW_DV) {
@@ -3428,7 +3338,7 @@ ahd_linux_dv_inq(struct ahd_softc *ahd, struct scsi_cmnd *cmd,
 	}
 
 	ahd_linux_dv_fill_cmd(ahd, cmd, devinfo);
-	cmd->sc_data_direction = SCSI_DATA_READ;
+	cmd->sc_data_direction = DMA_FROM_DEVICE;
 	cmd->cmd_len = 6;
 	cmd->cmnd[0] = INQUIRY;
 	cmd->cmnd[4] = request_length;
@@ -3453,7 +3363,7 @@ ahd_linux_dv_tur(struct ahd_softc *ahd, struct scsi_cmnd *cmd,
 #endif
 	/* Do a TUR to clear out any non-fatal transitional state */
 	ahd_linux_dv_fill_cmd(ahd, cmd, devinfo);
-	cmd->sc_data_direction = SCSI_DATA_NONE;
+	cmd->sc_data_direction = DMA_NONE;
 	cmd->cmd_len = 6;
 	cmd->cmnd[0] = TEST_UNIT_READY;
 }
@@ -3475,7 +3385,7 @@ ahd_linux_dv_rebd(struct ahd_softc *ahd, struct scsi_cmnd *cmd,
 		free(targ->dv_buffer, M_DEVBUF);
 	targ->dv_buffer = malloc(AHD_REBD_LEN, M_DEVBUF, M_WAITOK);
 	ahd_linux_dv_fill_cmd(ahd, cmd, devinfo);
-	cmd->sc_data_direction = SCSI_DATA_READ;
+	cmd->sc_data_direction = DMA_FROM_DEVICE;
 	cmd->cmd_len = 10;
 	cmd->cmnd[0] = READ_BUFFER;
 	cmd->cmnd[1] = 0x0b;
@@ -3497,7 +3407,7 @@ ahd_linux_dv_web(struct ahd_softc *ahd, struct scsi_cmnd *cmd,
 	}
 #endif
 	ahd_linux_dv_fill_cmd(ahd, cmd, devinfo);
-	cmd->sc_data_direction = SCSI_DATA_WRITE;
+	cmd->sc_data_direction = DMA_TO_DEVICE;
 	cmd->cmd_len = 10;
 	cmd->cmnd[0] = WRITE_BUFFER;
 	cmd->cmnd[1] = 0x0a;
@@ -3519,7 +3429,7 @@ ahd_linux_dv_reb(struct ahd_softc *ahd, struct scsi_cmnd *cmd,
 	}
 #endif
 	ahd_linux_dv_fill_cmd(ahd, cmd, devinfo);
-	cmd->sc_data_direction = SCSI_DATA_READ;
+	cmd->sc_data_direction = DMA_FROM_DEVICE;
 	cmd->cmd_len = 10;
 	cmd->cmnd[0] = READ_BUFFER;
 	cmd->cmnd[1] = 0x0a;
@@ -3545,23 +3455,10 @@ ahd_linux_dv_su(struct ahd_softc *ahd, struct scsi_cmnd *cmd,
 	}
 #endif
 	ahd_linux_dv_fill_cmd(ahd, cmd, devinfo);
-	cmd->sc_data_direction = SCSI_DATA_NONE;
+	cmd->sc_data_direction = DMA_NONE;
 	cmd->cmd_len = 6;
 	cmd->cmnd[0] = START_STOP_UNIT;
 	cmd->cmnd[4] = le | SSS_START;
-}
-
-static __inline int
-ahd_linux_dv_fallback(struct ahd_softc *ahd, struct ahd_devinfo *devinfo)
-{
-	u_long s;
-	int retval;
-
-	ahd_lock(ahd, &s);
-	retval = ahd_linux_fallback(ahd, devinfo);
-	ahd_unlock(ahd, &s);
-
-	return (retval);
 }
 
 static int
@@ -4121,12 +4018,12 @@ ahd_linux_run_device_queue(struct ahd_softc *ahd, struct ahd_linux_device *dev)
 			int	 dir;
 
 			cur_seg = (struct scatterlist *)cmd->request_buffer;
-			dir = scsi_to_pci_dma_dir(cmd->sc_data_direction);
+			dir = cmd->sc_data_direction;
 			nseg = pci_map_sg(ahd->dev_softc, cur_seg,
 					  cmd->use_sg, dir);
 			scb->platform_data->xfer_len = 0;
 			for (sg = scb->sg_list; nseg > 0; nseg--, cur_seg++) {
-				bus_addr_t addr;
+				dma_addr_t addr;
 				bus_size_t len;
 
 				addr = sg_dma_address(cur_seg);
@@ -4137,11 +4034,11 @@ ahd_linux_run_device_queue(struct ahd_softc *ahd, struct ahd_linux_device *dev)
 			}
 		} else if (cmd->request_bufflen != 0) {
 			void *sg;
-			bus_addr_t addr;
+			dma_addr_t addr;
 			int dir;
 
 			sg = scb->sg_list;
-			dir = scsi_to_pci_dma_dir(cmd->sc_data_direction);
+			dir = cmd->sc_data_direction;
 			addr = pci_map_single(ahd->dev_softc,
 					      cmd->request_buffer,
 					      cmd->request_bufflen, dir);
@@ -4371,7 +4268,7 @@ ahd_send_async(struct ahd_softc *ahd, char channel,
 		WARN_ON(lun != CAM_LUN_WILDCARD);
 		scsi_report_device_reset(ahd->platform_data->host,
 					 channel - 'A', target);
-#elif LINUX_VERSION_CODE >= KERNEL_VERSION(2,3,0)
+#else
 		Scsi_Device *scsi_dev;
 
 		/*
@@ -4392,12 +4289,10 @@ ahd_send_async(struct ahd_softc *ahd, char channel,
 		break;
 	}
         case AC_BUS_RESET:
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,3,0)
 		if (ahd->platform_data->host != NULL) {
 			scsi_report_bus_reset(ahd->platform_data->host,
 					      channel - 'A');
 		}
-#endif
                 break;
         default:
                 panic("ahd_send_async: Unexpected async event");
@@ -5078,7 +4973,7 @@ static int __init
 ahd_linux_init(void)
 {
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,5,0)
-       return (ahd_linux_detect(&aic79xx_driver_template) ? 0 : -ENODEV);
+	return ahd_linux_detect(&aic79xx_driver_template);
 #else
 	scsi_register_module(MODULE_SCSI_HA, &aic79xx_driver_template);
 	if (aic79xx_driver_template.present == 0) {
@@ -5095,7 +4990,6 @@ static void __exit
 ahd_linux_exit(void)
 {
 	struct ahd_softc *ahd;
-	u_long l;
 
 	/*
 	 * Shutdown DV threads before going into the SCSI mid-layer.
@@ -5103,12 +4997,11 @@ ahd_linux_exit(void)
 	 * kernel so that waiting for our DV threads to exit leads
 	 * to deadlock.
 	 */
-	ahd_list_lock(&l);
 	TAILQ_FOREACH(ahd, &ahd_tailq, links) {
 
 		ahd_linux_kill_dv_thread(ahd);
 	}
-	ahd_list_unlock(&l);
+
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
 	/*
 	 * In 2.4 we have to unregister from the PCI core _after_

@@ -26,6 +26,9 @@
 
 #include "dasd_int.h"
 
+kmem_cache_t *dasd_page_cache;
+EXPORT_SYMBOL(dasd_page_cache);
+
 /*
  * dasd_devmap_t is used to store the features and the relation
  * between device number and device index. To find a dasd_devmap_t
@@ -67,11 +70,10 @@ int dasd_autodetect = 0;	/* is true, when autodetection is active */
  * strings when running as a module.
  */
 static char *dasd[256];
-
 /*
  * Single spinlock to protect devmap structures and lists.
  */
-static spinlock_t dasd_devmap_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(dasd_devmap_lock);
 
 /*
  * Hash lists for devmap structures.
@@ -204,94 +206,144 @@ dasd_feature_list(char *str, char **endp)
 }
 
 /*
- * Read comma separated list of dasd ranges.
+ * Try to match the first element on the comma separated parse string
+ * with one of the known keywords. If a keyword is found, take the approprate
+ * action and return a pointer to the residual string. If the first element
+ * could not be matched to any keyword then return an error code.
  */
-static inline int
-dasd_ranges_list(char *str)
-{
+static char *
+dasd_parse_keyword( char *parsestring ) {
+
+	char *nextcomma, *residual_str;
+	int length;
+
+	nextcomma = strchr(parsestring,',');
+	if (nextcomma) {
+		length = nextcomma - parsestring;
+		residual_str = nextcomma + 1;
+	} else {
+		length = strlen(parsestring);
+		residual_str = parsestring + length;
+        }
+	if (strncmp ("autodetect", parsestring, length) == 0) {
+		dasd_autodetect = 1;
+		MESSAGE (KERN_INFO, "%s",
+			 "turning to autodetection mode");
+                return residual_str;
+        }
+        if (strncmp ("probeonly", parsestring, length) == 0) {
+		dasd_probeonly = 1;
+		MESSAGE(KERN_INFO, "%s",
+			"turning to probeonly mode");
+                return residual_str;
+        }
+        if (strncmp ("fixedbuffers", parsestring, length) == 0) {
+		if (dasd_page_cache)
+			return residual_str;
+		dasd_page_cache =
+			kmem_cache_create("dasd_page_cache", PAGE_SIZE, 0,
+					  SLAB_CACHE_DMA, NULL, NULL );
+		if (!dasd_page_cache)
+			MESSAGE(KERN_WARNING, "%s", "Failed to create slab, "
+				"fixed buffer mode disabled.");
+		else
+			MESSAGE (KERN_INFO, "%s",
+				 "turning on fixed buffer mode");
+                return residual_str;
+        }
+	return ERR_PTR(-EINVAL);
+}
+
+/*
+ * Try to interprete the first element on the comma separated parse string
+ * as a device number or a range of devices. If the interpretation is
+ * successfull, create the matching dasd_devmap entries and return a pointer
+ * to the residual string.
+ * If interpretation fails or in case of an error, return an error code.
+ */
+static char *
+dasd_parse_range( char *parsestring ) {
+
 	struct dasd_devmap *devmap;
 	int from, from_id0, from_id1;
 	int to, to_id0, to_id1;
 	int features, rc;
-	char bus_id[BUS_ID_SIZE+1], *orig_str;
+	char bus_id[BUS_ID_SIZE+1], *str;
 
-	orig_str = str;
-	while (1) {
-		rc = dasd_busid(&str, &from_id0, &from_id1, &from);
-		if (rc == 0) {
-			to = from;
-			to_id0 = from_id0;
-			to_id1 = from_id1;
-			if (*str == '-') {
-				str++;
-				rc = dasd_busid(&str, &to_id0, &to_id1, &to);
-			}
+	str = parsestring;
+	rc = dasd_busid(&str, &from_id0, &from_id1, &from);
+	if (rc == 0) {
+		to = from;
+		to_id0 = from_id0;
+		to_id1 = from_id1;
+		if (*str == '-') {
+			str++;
+			rc = dasd_busid(&str, &to_id0, &to_id1, &to);
 		}
-		if (rc == 0 &&
-		    (from_id0 != to_id0 || from_id1 != to_id1 || from > to))
-			rc = -EINVAL;
-		if (rc) {
-			MESSAGE(KERN_ERR, "Invalid device range %s", orig_str);
-			return rc;
-		}
-		features = dasd_feature_list(str, &str);
-		if (features < 0)
-			return -EINVAL;
-		while (from <= to) {
-			sprintf(bus_id, "%01x.%01x.%04x",
-				from_id0, from_id1, from++);
-			devmap = dasd_add_busid(bus_id, features);
-			if (IS_ERR(devmap))
-				return PTR_ERR(devmap);
-		}
-		if (*str != ',')
-			break;
-		str++;
 	}
-	if (*str != '\0') {
-		MESSAGE(KERN_WARNING,
-			"junk at end of dasd parameter string: %s\n", str);
-		return -EINVAL;
+	if (rc == 0 &&
+	    (from_id0 != to_id0 || from_id1 != to_id1 || from > to))
+		rc = -EINVAL;
+	if (rc) {
+		MESSAGE(KERN_ERR, "Invalid device range %s", parsestring);
+		return ERR_PTR(rc);
 	}
-	return 0;
+	features = dasd_feature_list(str, &str);
+	if (features < 0)
+		return ERR_PTR(-EINVAL);
+	while (from <= to) {
+		sprintf(bus_id, "%01x.%01x.%04x",
+			from_id0, from_id1, from++);
+		devmap = dasd_add_busid(bus_id, features);
+		if (IS_ERR(devmap))
+			return (char *)devmap;
+	}
+	if (*str == ',')
+		return str + 1;
+	if (*str == '\0')
+		return str;
+	MESSAGE(KERN_WARNING,
+		"junk at end of dasd parameter string: %s\n", str);
+	return ERR_PTR(-EINVAL);
+}
+
+static inline char *
+dasd_parse_next_element( char *parsestring ) {
+	char * residual_str;
+	residual_str = dasd_parse_keyword(parsestring);
+	if (!IS_ERR(residual_str))
+		return residual_str;
+	residual_str = dasd_parse_range(parsestring);
+	return residual_str;
 }
 
 /*
- * Parse a single dasd= parameter.
- */
-static int
-dasd_parameter(char *str)
-{
-	if (strcmp ("autodetect", str) == 0) {
-		dasd_autodetect = 1;
-		MESSAGE (KERN_INFO, "%s",
-			 "turning to autodetection mode");
-		return 0;
-	}
-	if (strcmp ("probeonly", str) == 0) {
-		dasd_probeonly = 1;
-		MESSAGE(KERN_INFO, "%s",
-			"turning to probeonly mode");
-		return 0;
-	}
-	/* turn off autodetect mode and scan for dasd ranges */
-	dasd_autodetect = 0;
-	return dasd_ranges_list(str);
-}
-
-/*
- * Parse parameters stored in dasd[] and dasd_disciplines[].
+ * Parse parameters stored in dasd[]
+ * The 'dasd=...' parameter allows to specify a comma separated list of
+ * keywords and device ranges. When the dasd driver is build into the kernel,
+ * the complete list will be stored as one element of the dasd[] array.
+ * When the dasd driver is build as a module, then the list is broken into
+ * it's elements and each dasd[] entry contains one element.
  */
 int
 dasd_parse(void)
 {
 	int rc, i;
+	char *parsestring;
 
 	rc = 0;
 	for (i = 0; i < 256; i++) {
 		if (dasd[i] == NULL)
 			break;
-		rc = dasd_parameter(dasd[i]);
+		parsestring = dasd[i];
+		/* loop over the comma separated list in the parsestring */
+		while (*parsestring) {
+			parsestring = dasd_parse_next_element(parsestring);
+			if(IS_ERR(parsestring)) {
+				rc = PTR_ERR(parsestring);
+				break;
+			}
+		}
 		if (rc) {
 			DBF_EVENT(DBF_ALERT, "%s", "invalid range found");
 			break;
@@ -432,7 +484,8 @@ dasd_devmap_from_cdev(struct ccw_device *cdev)
 
 	devmap = dasd_find_busid(cdev->dev.bus_id);
 	if (IS_ERR(devmap))
-		devmap = dasd_add_busid(cdev->dev.bus_id, DASD_FEATURE_DEFAULT);
+		devmap = dasd_add_busid(cdev->dev.bus_id,
+					DASD_FEATURE_DEFAULT);
 	return devmap;
 }
 
@@ -460,14 +513,6 @@ dasd_create_device(struct ccw_device *cdev)
 	if (!devmap->device) {
 		devmap->device = device;
 		device->devindex = devmap->devindex;
-		if (devmap->features & DASD_FEATURE_READONLY)
-			set_bit(DASD_FLAG_RO, &device->flags);
-		else
-			clear_bit(DASD_FLAG_RO, &device->flags);
-		if (devmap->features & DASD_FEATURE_USEDIAG)
-			set_bit(DASD_FLAG_USE_DIAG, &device->flags);
-		else
-			clear_bit(DASD_FLAG_USE_DIAG, &device->flags);
 		get_device(&cdev->dev);
 		device->cdev = cdev;
 		rc = 0;
@@ -500,6 +545,8 @@ dasd_delete_device(struct dasd_device *device)
 
 	/* First remove device pointer from devmap. */
 	devmap = dasd_find_busid(device->cdev->dev.bus_id);
+	if (IS_ERR(devmap))
+		BUG();
 	spin_lock(&dasd_devmap_lock);
 	if (devmap->device != device) {
 		spin_unlock(&dasd_devmap_lock);
@@ -573,8 +620,8 @@ dasd_ro_show(struct device *dev, char *buf)
 	struct dasd_devmap *devmap;
 	int ro_flag;
 
-	devmap = dev->driver_data;
-	if (devmap)
+	devmap = dasd_find_busid(dev->bus_id);
+	if (!IS_ERR(devmap))
 		ro_flag = (devmap->features & DASD_FEATURE_READONLY) != 0;
 	else
 		ro_flag = (DASD_FEATURE_DEFAULT & DASD_FEATURE_READONLY) != 0;
@@ -588,20 +635,16 @@ dasd_ro_store(struct device *dev, const char *buf, size_t count)
 	int ro_flag;
 
 	devmap = dasd_devmap_from_cdev(to_ccwdev(dev));
+	if (IS_ERR(devmap))
+		return PTR_ERR(devmap);
 	ro_flag = buf[0] == '1';
 	spin_lock(&dasd_devmap_lock);
 	if (ro_flag)
 		devmap->features |= DASD_FEATURE_READONLY;
 	else
 		devmap->features &= ~DASD_FEATURE_READONLY;
-	if (devmap->device) {
-		if (devmap->device->gdp)
-			set_disk_ro(devmap->device->gdp, ro_flag);
-		if (ro_flag)
-			set_bit(DASD_FLAG_RO, &devmap->device->flags);
-		else
-			clear_bit(DASD_FLAG_RO, &devmap->device->flags);
-	}
+	if (devmap->device && devmap->device->gdp)
+		set_disk_ro(devmap->device->gdp, ro_flag);
 	spin_unlock(&dasd_devmap_lock);
 	return count;
 }
@@ -612,15 +655,14 @@ static DEVICE_ATTR(readonly, 0644, dasd_ro_show, dasd_ro_store);
  * use_diag controls whether the driver should use diag rather than ssch
  * to talk to the device
  */
-/* TODO: Implement */
 static ssize_t 
 dasd_use_diag_show(struct device *dev, char *buf)
 {
 	struct dasd_devmap *devmap;
 	int use_diag;
 
-	devmap = dev->driver_data;
-	if (devmap)
+	devmap = dasd_find_busid(dev->bus_id);
+	if (!IS_ERR(devmap))
 		use_diag = (devmap->features & DASD_FEATURE_USEDIAG) != 0;
 	else
 		use_diag = (DASD_FEATURE_DEFAULT & DASD_FEATURE_USEDIAG) != 0;
@@ -631,21 +673,25 @@ static ssize_t
 dasd_use_diag_store(struct device *dev, const char *buf, size_t count)
 {
 	struct dasd_devmap *devmap;
+	ssize_t rc;
 	int use_diag;
 
 	devmap = dasd_devmap_from_cdev(to_ccwdev(dev));
+	if (IS_ERR(devmap))
+		return PTR_ERR(devmap);
 	use_diag = buf[0] == '1';
 	spin_lock(&dasd_devmap_lock);
 	/* Changing diag discipline flag is only allowed in offline state. */
+	rc = count;
 	if (!devmap->device) {
 		if (use_diag)
 			devmap->features |= DASD_FEATURE_USEDIAG;
 		else
 			devmap->features &= ~DASD_FEATURE_USEDIAG;
 	} else
-		count = -EPERM;
+		rc = -EPERM;
 	spin_unlock(&dasd_devmap_lock);
-	return count;
+	return rc;
 }
 
 static
@@ -678,6 +724,45 @@ static struct attribute * dasd_attrs[] = {
 static struct attribute_group dasd_attr_group = {
 	.attrs = dasd_attrs,
 };
+
+/*
+ * Return value of the specified feature.
+ */
+int
+dasd_get_feature(struct ccw_device *cdev, int feature)
+{
+	struct dasd_devmap *devmap;
+
+	devmap = dasd_find_busid(cdev->dev.bus_id);
+	if (IS_ERR(devmap))
+		return (int) PTR_ERR(devmap);
+
+	return ((devmap->features & feature) != 0);
+}
+
+/*
+ * Set / reset given feature.
+ * Flag indicates wether to set (!=0) or the reset (=0) the feature.
+ */
+int
+dasd_set_feature(struct ccw_device *cdev, int feature, int flag)
+{
+	struct dasd_devmap *devmap;
+
+	devmap = dasd_find_busid(cdev->dev.bus_id);
+	if (IS_ERR(devmap))
+		return (int) PTR_ERR(devmap);
+
+	spin_lock(&dasd_devmap_lock);
+	if (flag)
+		devmap->features |= feature;
+	else
+		devmap->features &= ~feature;
+
+	spin_unlock(&dasd_devmap_lock);
+	return 0;
+}
+
 
 int
 dasd_add_sysfs_files(struct ccw_device *cdev)

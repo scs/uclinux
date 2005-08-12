@@ -3,7 +3,6 @@
                              -------------------
     begin                : Thu Sep 7 2000
     copyright            : (C) 2000 by Adaptec
-    email                : deanna_bonds@adaptec.com
 
 			   July 30, 2001 First version being submitted
 			   for inclusion in the kernel.  V2.4
@@ -108,7 +107,7 @@ static dpt_sig_S DPTI_sig = {
  *============================================================================
  */
 
-DECLARE_MUTEX(adpt_configuration_lock);
+static DECLARE_MUTEX(adpt_configuration_lock);
 
 static struct i2o_sys_tbl *sys_tbl = NULL;
 static int sys_tbl_ind = 0;
@@ -146,7 +145,7 @@ struct adpt_i2o_post_wait_data
 
 static struct adpt_i2o_post_wait_data *adpt_post_wait_queue = NULL;
 static u32 adpt_post_wait_id = 0;
-static spinlock_t adpt_post_wait_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(adpt_post_wait_lock);
 
 
 /*============================================================================
@@ -872,8 +871,8 @@ static int adpt_install_hba(struct scsi_host_template* sht, struct pci_dev* pDev
 	ulong base_addr1_phys = 0;
 	u32 hba_map0_area_size = 0;
 	u32 hba_map1_area_size = 0;
-	ulong base_addr_virt = 0;
-	ulong msg_addr_virt = 0;
+	void __iomem *base_addr_virt = NULL;
+	void __iomem *msg_addr_virt = NULL;
 
 	int raptorFlag = FALSE;
 	int i;
@@ -907,17 +906,17 @@ static int adpt_install_hba(struct scsi_host_template* sht, struct pci_dev* pDev
 	}
 
 
-	base_addr_virt = (ulong)ioremap(base_addr0_phys,hba_map0_area_size);
-	if(base_addr_virt == 0) {
+	base_addr_virt = ioremap(base_addr0_phys,hba_map0_area_size);
+	if (!base_addr_virt) {
 		PERROR("dpti: adpt_config_hba: io remap failed\n");
 		return -EINVAL;
 	}
 
         if(raptorFlag == TRUE) {
-		msg_addr_virt = (ulong)ioremap(base_addr1_phys, hba_map1_area_size );
-		if(msg_addr_virt == 0) {
+		msg_addr_virt = ioremap(base_addr1_phys, hba_map1_area_size );
+		if (!msg_addr_virt) {
 			PERROR("dpti: adpt_config_hba: io remap failed on BAR1\n");
-			iounmap((void*)base_addr_virt);
+			iounmap(base_addr_virt);
 			return -EINVAL;
 		}
 	} else {
@@ -928,9 +927,9 @@ static int adpt_install_hba(struct scsi_host_template* sht, struct pci_dev* pDev
 	pHba = kmalloc(sizeof(adpt_hba), GFP_KERNEL);
 	if( pHba == NULL) {
 		if(msg_addr_virt != base_addr_virt){
-			iounmap((void*)msg_addr_virt);
+			iounmap(msg_addr_virt);
 		}
-		iounmap((void*)base_addr_virt);
+		iounmap(base_addr_virt);
 		return -ENOMEM;
 	}
 	memset(pHba, 0, sizeof(adpt_hba));
@@ -961,10 +960,10 @@ static int adpt_install_hba(struct scsi_host_template* sht, struct pci_dev* pDev
 
 	// Set up the Virtual Base Address of the I2O Device
 	pHba->base_addr_virt = base_addr_virt;
-	pHba->msg_addr_virt = msg_addr_virt;  
-	pHba->irq_mask = (ulong)(base_addr_virt+0x30);
-	pHba->post_port = (ulong)(base_addr_virt+0x40);
-	pHba->reply_port = (ulong)(base_addr_virt+0x44);
+	pHba->msg_addr_virt = msg_addr_virt;
+	pHba->irq_mask = base_addr_virt+0x30;
+	pHba->post_port = base_addr_virt+0x40;
+	pHba->reply_port = base_addr_virt+0x44;
 
 	pHba->hrt = NULL;
 	pHba->lct = NULL;
@@ -980,12 +979,12 @@ static int adpt_install_hba(struct scsi_host_template* sht, struct pci_dev* pDev
 	spin_lock_init(&adpt_post_wait_lock);
 
 	if(raptorFlag == 0){
-		printk(KERN_INFO"Adaptec I2O RAID controller %d at %lx size=%x irq=%d\n", 
+		printk(KERN_INFO"Adaptec I2O RAID controller %d at %p size=%x irq=%d\n", 
 			hba_count-1, base_addr_virt, hba_map0_area_size, pDev->irq);
 	} else {
 		printk(KERN_INFO"Adaptec I2O RAID controller %d irq=%d\n",hba_count-1, pDev->irq);
-		printk(KERN_INFO"     BAR0 %lx - size= %x\n",base_addr_virt,hba_map0_area_size);
-		printk(KERN_INFO"     BAR1 %lx - size= %x\n",msg_addr_virt,hba_map1_area_size);
+		printk(KERN_INFO"     BAR0 %p - size= %x\n",base_addr_virt,hba_map0_area_size);
+		printk(KERN_INFO"     BAR1 %p - size= %x\n",msg_addr_virt,hba_map1_area_size);
 	}
 
 	if (request_irq (pDev->irq, adpt_isr, SA_SHIRQ, pHba->name, pHba)) {
@@ -1036,9 +1035,9 @@ static void adpt_i2o_delete_hba(adpt_hba* pHba)
 	hba_count--;
 	up(&adpt_configuration_lock);
 
-	iounmap((void*)pHba->base_addr_virt);
+	iounmap(pHba->base_addr_virt);
 	if(pHba->msg_addr_virt != pHba->base_addr_virt){
-		iounmap((void*)pHba->msg_addr_virt);
+		iounmap(pHba->msg_addr_virt);
 	}
 	if(pHba->hrt) {
 		kfree(pHba->hrt);
@@ -1179,7 +1178,6 @@ static int adpt_i2o_post_wait(adpt_hba* pHba, u32* msg, int len, int timeout)
 				// dangerous.
 				status = -ETIME;
 			}
-			schedule_timeout(timeout*HZ);
 		}
 		if(pHba->host)
 			spin_lock_irq(pHba->host->host_lock);
@@ -1222,7 +1220,7 @@ static s32 adpt_i2o_post_this(adpt_hba* pHba, u32* data, int len)
 {
 
 	u32 m = EMPTY_QUEUE;
-	u32 *msg;
+	u32 __iomem *msg;
 	ulong timeout = jiffies + 30*HZ;
 	do {
 		rmb();
@@ -1238,7 +1236,7 @@ static s32 adpt_i2o_post_this(adpt_hba* pHba, u32* data, int len)
 		schedule_timeout(1);
 	} while(m == EMPTY_QUEUE);
 		
-	msg = (u32*) (pHba->msg_addr_virt + m);
+	msg = pHba->msg_addr_virt + m;
 	memcpy_toio(msg, data, len);
 	wmb();
 
@@ -2638,7 +2636,7 @@ static int adpt_i2o_online_hba(adpt_hba* pHba)
 
 static s32 adpt_send_nop(adpt_hba*pHba,u32 m)
 {
-	u32 *msg;
+	u32 __iomem *msg;
 	ulong timeout = jiffies + 5*HZ;
 
 	while(m == EMPTY_QUEUE){
@@ -2654,7 +2652,7 @@ static s32 adpt_send_nop(adpt_hba*pHba,u32 m)
 		set_current_state(TASK_UNINTERRUPTIBLE);
 		schedule_timeout(1);
 	}
-	msg = (u32*)(pHba->msg_addr_virt + m);
+	msg = (u32 __iomem *)(pHba->msg_addr_virt + m);
 	writel( THREE_WORD_MSG_SIZE | SGL_OFFSET_0,&msg[0]);
 	writel( I2O_CMD_UTIL_NOP << 24 | HOST_TID << 12 | 0,&msg[1]);
 	writel( 0,&msg[2]);
@@ -2668,7 +2666,7 @@ static s32 adpt_send_nop(adpt_hba*pHba,u32 m)
 static s32 adpt_i2o_init_outbound_q(adpt_hba* pHba)
 {
 	u8 *status;
-	u32 *msg = NULL;
+	u32 __iomem *msg = NULL;
 	int i;
 	ulong timeout = jiffies + TMOUT_INITOUTBOUND*HZ;
 	u32* ptr;
@@ -2690,7 +2688,7 @@ static s32 adpt_i2o_init_outbound_q(adpt_hba* pHba)
 		schedule_timeout(1);
 	} while(m == EMPTY_QUEUE);
 
-	msg=(u32 *)(pHba->msg_addr_virt+m);
+	msg=(u32 __iomem *)(pHba->msg_addr_virt+m);
 
 	status = kmalloc(4,GFP_KERNEL|ADDR32);
 	if (status==NULL) {
@@ -2775,7 +2773,7 @@ static s32 adpt_i2o_status_get(adpt_hba* pHba)
 {
 	ulong timeout;
 	u32 m;
-	u32 *msg;
+	u32 __iomem *msg;
 	u8 *status_block=NULL;
 	ulong status_block_bus;
 
@@ -2809,7 +2807,7 @@ static s32 adpt_i2o_status_get(adpt_hba* pHba)
 	} while(m==EMPTY_QUEUE);
 
 	
-	msg=(u32*)(pHba->msg_addr_virt+m);
+	msg=(u32 __iomem *)(pHba->msg_addr_virt+m);
 
 	writel(NINE_WORD_MSG_SIZE|SGL_OFFSET_0, &msg[0]);
 	writel(I2O_CMD_STATUS_GET<<24|HOST_TID<<12|ADAPTER_TID, &msg[1]);

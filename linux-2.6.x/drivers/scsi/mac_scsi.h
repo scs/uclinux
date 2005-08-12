@@ -24,8 +24,8 @@
 
 /*
  * $Log$
- * Revision 1.3  2004/09/08 15:40:07  lgsoft
- * Import of 2.6.8
+ * Revision 1.4  2005/08/12 06:42:46  magicyang
+ *  Update kernel 2.6.8 to 2.6.12
  *
  */
 

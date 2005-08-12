@@ -42,7 +42,7 @@
 #include <acpi/acpi_bus.h>
 #include <asm/uaccess.h>
 
-#define ASUS_ACPI_VERSION "0.28"
+#define ASUS_ACPI_VERSION "0.29"
 
 #define PROC_ASUS       "asus"	//the directory
 #define PROC_MLED       "mled"
@@ -78,9 +78,9 @@ MODULE_LICENSE("GPL");
 
 static uid_t asus_uid;
 static gid_t asus_gid;
-MODULE_PARM(asus_uid, "i");
+module_param(asus_uid, uint, 0);
 MODULE_PARM_DESC(uid, "UID for entries in /proc/acpi/asus.\n");
-MODULE_PARM(asus_gid, "i");
+module_param(asus_gid, uint, 0);
 MODULE_PARM_DESC(gid, "GID for entries in /proc/acpi/asus.\n");
 
 
@@ -123,14 +123,18 @@ struct asus_hotk {
 		L3C,      //L3800C
 		L3D,      //L3400D
 		L3H,      //L3H, but also L2000E
+		L4R,      //L4500R
 		L5x,      //L5800C 
 		L8L,      //L8400L
 		M1A,      //M1300A
 		M2E,      //M2400E, L4400L
+		M6N,      //M6800N
+		M6R,      //M6700R
 		P30,	  //Samsung P30
 		S1x,      //S1300A, but also L1400B and M2400A (L84F)
 		S2x,      //S200 (J1 reported), Victor MP-XP7210
-		xxN,      //M2400N, M3700N, M6800N, S1300N, S5200N (Centrino)
+		xxN,      //M2400N, M3700N, M5200N, S1300N, S5200N, W1OOON
+			  //(Centrino)
 		END_MODEL
 	} model;              //Models currently supported
 	u16 event_count[128]; //count for each event TODO make this better
@@ -247,6 +251,19 @@ static struct model_data model_conf[END_MODEL] = {
 	},
 
 	{
+		.name              = "L4R",
+		.mt_mled           = "MLED",
+		.mt_wled           = "WLED",
+		.wled_status       = "\\_SB.PCI0.SBRG.SG13",
+		.mt_lcd_switch     = xxN_PREFIX "_Q10",
+		.lcd_status        = "\\_SB.PCI0.SBSM.SEO4",
+		.brightness_set    = "SPLV",
+		.brightness_get    = "GPLV", 
+		.display_set       = "SDSP",
+		.display_get       = "\\_SB.PCI0.P0P1.VGA.GETD"
+	},
+
+	{
 		.name              = "L5x",
 		.mt_mled           = "MLED",
 /* WLED present, but not controlled by ACPI */
@@ -287,6 +304,31 @@ static struct model_data model_conf[END_MODEL] = {
 		.display_set       = "SDSP",
 		.display_get       = "\\INFB"
 	},
+
+	{
+		.name              = "M6N",
+		.mt_mled           = "MLED",
+		.mt_wled           = "WLED",
+		.wled_status       = "\\_SB.PCI0.SBRG.SG13",
+		.mt_lcd_switch     = xxN_PREFIX "_Q10",
+		.lcd_status        = "\\_SB.BKLT",
+		.brightness_set    = "SPLV",
+		.brightness_get    = "GPLV",
+		.display_set       = "SDSP",
+		.display_get       = "\\SSTE"
+	},
+	{
+		.name              = "M6R",
+		.mt_mled           = "MLED",
+		.mt_wled           = "WLED",
+		.mt_lcd_switch     = xxN_PREFIX "_Q10",
+		.lcd_status        = "\\_SB.PCI0.SBSM.SEO4",
+		.brightness_set    = "SPLV",
+		.brightness_get    = "GPLV",
+		.display_set       = "SDSP",
+		.display_get       = "\\SSTE"
+	},
+
 
 	{
 		.name              = "P30",
@@ -343,6 +385,9 @@ static struct proc_dir_entry *asus_proc_dir;
  * available before the hotk
  */
 static struct acpi_table_header *asus_info;
+
+/* The actual device the driver binds to */
+static struct asus_hotk *hotk;
 
 /*
  * The hotkey driver declaration
@@ -408,7 +453,6 @@ proc_read_info(char *page, char **start, off_t off, int count, int *eof,
 {
 	int len = 0;
 	int temp;
-	struct asus_hotk *hotk = (struct asus_hotk *) data;
 	char buf[16];		//enough for all info
 	/*
 	 * We use the easy way, we don't care of off and count, so we don't set eof
@@ -428,7 +472,7 @@ proc_read_info(char *page, char **start, off_t off, int count, int *eof,
 		len += sprintf(page + len, "SFUN value         : 0x%04x\n", temp);
 	/*
 	 * Another value for userspace: the ASYM method returns 0x02 for
-	 * battery low and 0x04 for battery critical, it's readings tend to be
+	 * battery low and 0x04 for battery critical, its readings tend to be
 	 * more accurate than those provided by _BST. 
 	 * Note: since not all the laptops provide this method, errors are
 	 * silently ignored.
@@ -467,7 +511,7 @@ proc_read_info(char *page, char **start, off_t off, int count, int *eof,
 
 /* Generic LED functions */
 static int
-read_led(struct asus_hotk *hotk, const char *ledname, int ledmask)
+read_led(const char *ledname, int ledmask)
 {
 	if (ledname) {
 		int led_status;
@@ -498,7 +542,7 @@ static int parse_arg(const char __user *buf, unsigned long count, int *val)
 
 /* FIXME: kill extraneous args so it can be called independently */
 static int
-write_led(const char __user *buffer, unsigned long count, struct asus_hotk *hotk, 
+write_led(const char __user *buffer, unsigned long count,
           char *ledname, int ledmask, int invert)
 {
 	int value;
@@ -528,8 +572,7 @@ static int
 proc_read_mled(char *page, char **start, off_t off, int count, int *eof,
 	       void *data)
 {
-	struct asus_hotk *hotk = (struct asus_hotk *) data;
-	return sprintf(page, "%d\n", read_led(hotk, hotk->methods->mled_status, MLED_ON));
+	return sprintf(page, "%d\n", read_led(hotk->methods->mled_status, MLED_ON));
 }
 
 
@@ -537,8 +580,7 @@ static int
 proc_write_mled(struct file *file, const char __user *buffer,
 		unsigned long count, void *data)
 {
-	struct asus_hotk *hotk = (struct asus_hotk *) data;
-	return write_led(buffer, count, hotk, hotk->methods->mt_mled, MLED_ON, 1);
+	return write_led(buffer, count, hotk->methods->mt_mled, MLED_ON, 1);
 }
 
 /*
@@ -548,16 +590,14 @@ static int
 proc_read_wled(char *page, char **start, off_t off, int count, int *eof,
 	       void *data)
 {
-	struct asus_hotk *hotk = (struct asus_hotk *) data;
-	return sprintf(page, "%d\n", read_led(hotk, hotk->methods->wled_status, WLED_ON));
+	return sprintf(page, "%d\n", read_led(hotk->methods->wled_status, WLED_ON));
 }
 
 static int
 proc_write_wled(struct file *file, const char __user *buffer,
 		unsigned long count, void *data)
 {
-	struct asus_hotk *hotk = (struct asus_hotk *) data;
-	return write_led(buffer, count, hotk, hotk->methods->mt_wled, WLED_ON, 0);
+	return write_led(buffer, count, hotk->methods->mt_wled, WLED_ON, 0);
 }
 
 /*
@@ -567,21 +607,18 @@ static int
 proc_read_tled(char *page, char **start, off_t off, int count, int *eof,
 	       void *data)
 {
-	struct asus_hotk *hotk = (struct asus_hotk *) data;
-	return sprintf(page, "%d\n", read_led(hotk, hotk->methods->tled_status, TLED_ON));
+	return sprintf(page, "%d\n", read_led(hotk->methods->tled_status, TLED_ON));
 }
 
 static int
 proc_write_tled(struct file *file, const char __user *buffer,
 		unsigned long count, void *data)
 {
-	struct asus_hotk *hotk = (struct asus_hotk *) data;
-	return write_led(buffer, count, hotk, hotk->methods->mt_tled, TLED_ON, 0);
+	return write_led(buffer, count, hotk->methods->mt_tled, TLED_ON, 0);
 }
 
 
-
-static int get_lcd_state(struct asus_hotk *hotk)
+static int get_lcd_state(void)
 {
 	int lcd = 0;
 
@@ -622,13 +659,13 @@ static int get_lcd_state(struct asus_hotk *hotk)
 	return (lcd & 1);
 }
 
-static int set_lcd_state(struct asus_hotk *hotk, int value)
+static int set_lcd_state(int value)
 {
 	int lcd = 0;
 	acpi_status status = 0;
 
 	lcd = value ? 1 : 0;
-	if (lcd != get_lcd_state(hotk)) {
+	if (lcd != get_lcd_state()) {
 		/* switch */
 		if (hotk->model != L3H) {
 			status =
@@ -651,7 +688,7 @@ static int
 proc_read_lcd(char *page, char **start, off_t off, int count, int *eof,
 	      void *data)
 {
-	return sprintf(page, "%d\n", get_lcd_state((struct asus_hotk *) data));
+	return sprintf(page, "%d\n", get_lcd_state());
 }
 
 
@@ -660,16 +697,15 @@ proc_write_lcd(struct file *file, const char __user *buffer,
 	       unsigned long count, void *data)
 {
 	int value;
-	struct asus_hotk *hotk = (struct asus_hotk *) data;
 	
 	count = parse_arg(buffer, count, &value);
 	if (count > 0)
-		set_lcd_state(hotk, value);
+		set_lcd_state(value);
 	return count;
 }
 
 
-static int read_brightness(struct asus_hotk *hotk)
+static int read_brightness(void)
 {
 	int value;
 	
@@ -689,7 +725,7 @@ static int read_brightness(struct asus_hotk *hotk)
 /*
  * Change the brightness level
  */
-static void set_brightness(int value, struct asus_hotk *hotk)
+static void set_brightness(int value)
 {
 	acpi_status status = 0;
 
@@ -702,7 +738,7 @@ static void set_brightness(int value, struct asus_hotk *hotk)
 	}
 
 	/* No SPLV method if we are here, act as appropriate */
-	value -= read_brightness(hotk);
+	value -= read_brightness();
 	while (value != 0) {
 		status = acpi_evaluate_object(NULL, (value > 0) ? 
 					      hotk->methods->brightness_up : 
@@ -719,8 +755,7 @@ static int
 proc_read_brn(char *page, char **start, off_t off, int count, int *eof,
 	      void *data)
 {
-	struct asus_hotk *hotk = (struct asus_hotk *) data;
-	return sprintf(page, "%d\n", read_brightness(hotk));
+	return sprintf(page, "%d\n", read_brightness());
 }
 
 static int
@@ -728,13 +763,12 @@ proc_write_brn(struct file *file, const char __user *buffer,
 	       unsigned long count, void *data)
 {
 	int value;
-	struct asus_hotk *hotk = (struct asus_hotk *) data;
 
 	count = parse_arg(buffer, count, &value);
 	if (count > 0) {
 		value = (0 < value) ? ((15 < value) ? 15 : value) : 0;
 			/* 0 <= value <= 15 */
-		set_brightness(value, hotk);
+		set_brightness(value);
 	} else if (count < 0) {
 		printk(KERN_WARNING "Asus ACPI: Error reading user input\n");
 	}
@@ -742,7 +776,7 @@ proc_write_brn(struct file *file, const char __user *buffer,
 	return count;
 }
 
-static void set_display(int value, struct asus_hotk *hotk)
+static void set_display(int value)
 {
 	/* no sanity check needed for now */
 	if (!write_acpi_int(hotk->handle, hotk->methods->display_set, 
@@ -760,10 +794,10 @@ proc_read_disp(char *page, char **start, off_t off, int count, int *eof,
 	      void *data)
 {
 	int value = 0;
-	struct asus_hotk *hotk = (struct asus_hotk *) data;
 	
 	if (!read_acpi_int(hotk->handle, hotk->methods->display_get, &value))
 		printk(KERN_WARNING "Asus ACPI: Error reading display status\n");
+	value &= 0x07; /* needed for some models, shouldn't hurt others */
 	return sprintf(page, "%d\n", value);
 }
 
@@ -778,11 +812,10 @@ proc_write_disp(struct file *file, const char __user *buffer,
 	       unsigned long count, void *data)
 {
 	int value;
-	struct asus_hotk *hotk = (struct asus_hotk *) data;
 
 	count = parse_arg(buffer, count, &value);
 	if (count > 0)
-		set_display(value, hotk);
+		set_display(value);
 	else if (count < 0)
 		printk(KERN_WARNING "Asus ACPI: Error reading user input\n");
 
@@ -817,7 +850,6 @@ __init asus_proc_add(char *name, proc_writefunc *writefunc,
 static int __init asus_hotk_add_fs(struct acpi_device *device)
 {
 	struct proc_dir_entry *proc;
-	struct asus_hotk *hotk = acpi_driver_data(device);
 	mode_t mode;
 	
 	/*
@@ -834,7 +866,7 @@ static int __init asus_hotk_add_fs(struct acpi_device *device)
 
 	acpi_device_dir(device) = asus_proc_dir;
 	if (!acpi_device_dir(device))
-		return(-ENODEV);
+		return -ENODEV;
 
 	proc = create_proc_entry(PROC_INFO, mode, acpi_device_dir(device));
 	if (proc) {
@@ -869,13 +901,12 @@ static int __init asus_hotk_add_fs(struct acpi_device *device)
 	}
 	
 	if ((hotk->methods->brightness_up && hotk->methods->brightness_down) ||
-	    (hotk->methods->brightness_get && hotk->methods->brightness_get)) {
+	    (hotk->methods->brightness_get && hotk->methods->brightness_set)) {
 		asus_proc_add(PROC_BRN, &proc_write_brn, &proc_read_brn, mode, device);
 	}
 
 	if (hotk->methods->display_set) {
 		asus_proc_add(PROC_DISP, &proc_write_disp, &proc_read_disp, mode, device);
-
 	}
 
 	return 0;
@@ -883,10 +914,7 @@ static int __init asus_hotk_add_fs(struct acpi_device *device)
 
 static int asus_hotk_remove_fs(struct acpi_device* device)
 {
-	struct asus_hotk* hotk = acpi_driver_data(device);
-
-
-	if(acpi_device_dir(device)){
+	if(acpi_device_dir(device)) {
 		remove_proc_entry(PROC_INFO,acpi_device_dir(device));
 		if (hotk->methods->mt_wled)
 			remove_proc_entry(PROC_WLED,acpi_device_dir(device));
@@ -894,11 +922,12 @@ static int asus_hotk_remove_fs(struct acpi_device* device)
 			remove_proc_entry(PROC_MLED,acpi_device_dir(device));
 		if (hotk->methods->mt_tled)
 			remove_proc_entry(PROC_TLED,acpi_device_dir(device));
-		if (hotk->methods->mt_lcd_switch && hotk->methods->lcd_status) 
+		if (hotk->methods->mt_lcd_switch && hotk->methods->lcd_status)
 			remove_proc_entry(PROC_LCD, acpi_device_dir(device));
-		if ((hotk->methods->brightness_up && hotk->methods->brightness_down) || (hotk->methods->brightness_get && hotk->methods->brightness_get)) 
+		if ((hotk->methods->brightness_up && hotk->methods->brightness_down) ||
+		    (hotk->methods->brightness_get && hotk->methods->brightness_set))
 			remove_proc_entry(PROC_BRN, acpi_device_dir(device));
-		if (hotk->methods->display_set) 
+		if (hotk->methods->display_set)
 			remove_proc_entry(PROC_DISP, acpi_device_dir(device));
 	}
 	return 0;
@@ -907,11 +936,7 @@ static int asus_hotk_remove_fs(struct acpi_device* device)
 
 static void asus_hotk_notify(acpi_handle handle, u32 event, void *data)
 {
-	/* TODO Find a better way to handle events count. Here, in data, we receive
-	 * the hotk, so we can do anything!
-	 */
-	struct asus_hotk *hotk = (struct asus_hotk *) data;
-
+	/* TODO Find a better way to handle events count.*/
 	if (!hotk)
 		return;
 
@@ -931,7 +956,7 @@ static void asus_hotk_notify(acpi_handle handle, u32 event, void *data)
  * This function is used to initialize the hotk with right values. In this
  * method, we can make all the detection we want, and modify the hotk struct
  */
-static int __init asus_hotk_get_info(struct asus_hotk *hotk)
+static int __init asus_hotk_get_info(void)
 {
 	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
 	struct acpi_buffer dsdt = { ACPI_ALLOCATE_BUFFER, NULL };
@@ -998,11 +1023,19 @@ static int __init asus_hotk_get_info(struct asus_hotk *hotk)
 		hotk->model = L3C;
 	else if (strncmp(model->string.pointer, "L8L", 3) == 0)
 		hotk->model = L8L;
+	else if (strncmp(model->string.pointer, "L4R", 3) == 0)
+		hotk->model = L4R;
+	else if (strncmp(model->string.pointer, "M6N", 3) == 0)
+		hotk->model = M6N;
+	else if (strncmp(model->string.pointer, "M6R", 3) == 0)
+		hotk->model = M6R;
 	else if (strncmp(model->string.pointer, "M2N", 3) == 0 ||
 		 strncmp(model->string.pointer, "M3N", 3) == 0 ||
+		 strncmp(model->string.pointer, "M5N", 3) == 0 ||
 		 strncmp(model->string.pointer, "M6N", 3) == 0 ||
 		 strncmp(model->string.pointer, "S1N", 3) == 0 ||
-		 strncmp(model->string.pointer, "S5N", 3) == 0)
+		 strncmp(model->string.pointer, "S5N", 3) == 0 ||
+                 strncmp(model->string.pointer, "W1N", 3) == 0)
 		hotk->model = xxN;
 	else if (strncmp(model->string.pointer, "M1", 2) == 0)
 		hotk->model = M1A;
@@ -1025,7 +1058,6 @@ static int __init asus_hotk_get_info(struct asus_hotk *hotk)
 		hotk->model = L5x;
 
 	if (hotk->model == END_MODEL) {
-		/* By default use the same values, as I don't know others */
 		printk("unsupported, trying default values, supply the "
 		       "developers with your DSDT\n");
 		hotk->model = M2E;
@@ -1040,16 +1072,14 @@ static int __init asus_hotk_get_info(struct asus_hotk *hotk)
 		hotk->methods->lcd_status = NULL; 
 	/* L2B is similar enough to L3C to use its settings, with this only 
 	   exception */
-	else if (strncmp(model->string.pointer, "S5N", 3) == 0)
+	else if (strncmp(model->string.pointer, "S5N", 3) == 0 ||
+		 strncmp(model->string.pointer, "M5N", 3) == 0)
 		hotk->methods->mt_mled = NULL; 
-	/* S5N has no MLED */
-	else if (strncmp(model->string.pointer, "M6N", 3) == 0) {
-		hotk->methods->display_get = NULL; //TODO
-		hotk->methods->lcd_status = "\\_SB.BKLT";
-		hotk->methods->mt_wled = "WLED";
-		hotk->methods->wled_status = "\\_SB.PCI0.SBRG.SG13";
-	/* M6N differs slightly and has a usable WLED */
-	}
+	/* S5N and M5N have no MLED */
+	else if (strncmp(model->string.pointer, "M2N", 3) == 0 ||
+		 strncmp(model->string.pointer, "W1N", 3) == 0)
+		hotk->methods->mt_wled = "WLED"; 
+	/* M2N and W1N have a usable WLED */
 	else if (asus_info) {
 		if (strncmp(asus_info->oem_table_id, "L1", 2) == 0)
 			hotk->methods->mled_status = NULL;
@@ -1062,38 +1092,32 @@ static int __init asus_hotk_get_info(struct asus_hotk *hotk)
 }
 
 
-
-static int __init asus_hotk_check(struct asus_hotk *hotk)
+static int __init asus_hotk_check(void)
 {
 	int result = 0;
 
-	if (!hotk)
-		return(-EINVAL);
-
 	result = acpi_bus_get_status(hotk->device);
 	if (result)
-		return(result);
+		return result;
 
 	if (hotk->device->status.present) {
-		result = asus_hotk_get_info(hotk);
+		result = asus_hotk_get_info();
 	} else {
 		printk(KERN_ERR "  Hotkey device not present, aborting\n");
-		return(-EINVAL);
+		return -EINVAL;
 	}
 
-	return(result);
+	return result;
 }
-
 
 
 static int __init asus_hotk_add(struct acpi_device *device)
 {
-	struct asus_hotk *hotk = NULL;
 	acpi_status status = AE_OK;
 	int result;
 
 	if (!device)
-		return(-EINVAL);
+		return -EINVAL;
 
 	printk(KERN_NOTICE "Asus Laptop ACPI Extras version %s\n",
 	       ASUS_ACPI_VERSION);
@@ -1101,7 +1125,7 @@ static int __init asus_hotk_add(struct acpi_device *device)
 	hotk =
 	    (struct asus_hotk *) kmalloc(sizeof(struct asus_hotk), GFP_KERNEL);
 	if (!hotk)
-		return(-ENOMEM);
+		return -ENOMEM;
 	memset(hotk, 0, sizeof(struct asus_hotk));
 
 	hotk->handle = device->handle;
@@ -1111,7 +1135,7 @@ static int __init asus_hotk_add(struct acpi_device *device)
 	hotk->device = device;
 
 
-	result = asus_hotk_check(hotk);
+	result = asus_hotk_check();
 	if (result)
 		goto end;
 
@@ -1149,18 +1173,16 @@ static int __init asus_hotk_add(struct acpi_device *device)
 		kfree(hotk);
 	}
 
-	return(result);
+	return result;
 }
+
 
 static int asus_hotk_remove(struct acpi_device *device, int type)
 {
 	acpi_status status = 0;
-	struct asus_hotk *hotk = NULL;
 
 	if (!device || !acpi_driver_data(device))
-		return(-EINVAL);
-
-	hotk = (struct asus_hotk *) acpi_driver_data(device);
+		return -EINVAL;
 
 	status = acpi_remove_notify_handler(hotk->handle, ACPI_SYSTEM_NOTIFY,
 					    asus_hotk_notify);
@@ -1171,7 +1193,7 @@ static int asus_hotk_remove(struct acpi_device *device, int type)
 
 	kfree(hotk);
 
-	return(0);
+	return 0;
 }
 
 
@@ -1179,20 +1201,24 @@ static int __init asus_acpi_init(void)
 {
 	int result;
 
+	if (acpi_disabled)
+		return -ENODEV;
+
 	asus_proc_dir = proc_mkdir(PROC_ASUS, acpi_root_dir);
 	if (!asus_proc_dir) {
 		printk(KERN_ERR "Asus ACPI: Unable to create /proc entry\n");
-		return(-ENODEV);
+		return -ENODEV;
 	}
 	asus_proc_dir->owner = THIS_MODULE;
 
 	result = acpi_bus_register_driver(&asus_hotk_driver);
-	if (result < 0) {
+	if (result < 1) {
+		acpi_bus_unregister_driver(&asus_hotk_driver);
 		remove_proc_entry(PROC_ASUS, acpi_root_dir);
-		return(-ENODEV);
+		return -ENODEV;
 	}
 
-	return(0);
+	return 0;
 }
 
 

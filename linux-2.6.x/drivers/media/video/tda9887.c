@@ -1,4 +1,5 @@
 #include <linux/module.h>
+#include <linux/moduleparam.h>
 #include <linux/kernel.h>
 #include <linux/i2c.h>
 #include <linux/types.h>
@@ -6,8 +7,10 @@
 #include <linux/init.h>
 #include <linux/errno.h>
 #include <linux/slab.h>
+#include <linux/delay.h>
 
 #include <media/audiochip.h>
+#include <media/tuner.h>
 #include <media/id.h>
 
 /* Chips:
@@ -25,6 +28,7 @@
 
 /* Addresses to scan */
 static unsigned short normal_i2c[] = {
+	0x84 >>1,
 	0x86 >>1,
 	0x96 >>1,
 	I2C_CLIENT_END,
@@ -34,7 +38,7 @@ I2C_CLIENT_INSMOD;
 
 /* insmod options */
 static unsigned int debug = 0;
-MODULE_PARM(debug,"i");
+module_param(debug, int, 0644);
 MODULE_LICENSE("GPL");
 
 /* ---------------------------------------------------------------------- */
@@ -47,6 +51,7 @@ struct tda9887 {
 	struct i2c_client  client;
 	v4l2_std_id        std;
 	unsigned int       radio;
+	unsigned int       config;
 	unsigned int       pinnacle_id;
 	unsigned int       using_v4l2;
 };
@@ -243,6 +248,7 @@ static void dump_read_message(unsigned char *buf)
 	printk(PREFIX "read: 0x%2x\n", buf[0]);
 	printk("  after power on : %s\n", (buf[0] & 0x01) ? "yes" : "no");
 	printk("  afc            : %s\n", afc[(buf[0] >> 1) & 0x0f]);
+	printk("  fmif level     : %s\n", (buf[0] & 0x20) ? "high" : "low");
 	printk("  afc window     : %s\n", (buf[0] & 0x40) ? "in" : "out");
 	printk("  vfi level      : %s\n", (buf[0] & 0x80) ? "high" : "low");
 }
@@ -299,9 +305,9 @@ static void dump_write_message(unsigned char *buf)
 	printk("  B5   force mute audio: %s\n",
 	       (buf[1] & 0x20) ? "yes" : "no");
 	printk("  B6   output port 1   : %s\n",
-	       (buf[1] & 0x40) ? "high" : "low");
+	       (buf[1] & 0x40) ? "high (inactive)" : "low (active)");
 	printk("  B7   output port 2   : %s\n",
-	       (buf[1] & 0x80) ? "high" : "low");
+	       (buf[1] & 0x80) ? "high (inactive)" : "low (active)");
 
 	printk(PREFIX "write: byte C 0x%02x\n",buf[2]);
 	printk("  C0-4 top adjustment  : %s dB\n", adjust[buf[2] & 0x1f]);
@@ -370,21 +376,30 @@ static int tda9887_set_tvnorm(struct tda9887 *t, char *buf)
 	return 0;
 }
 
-static unsigned int port1  = 1;
-static unsigned int port2  = 1;
+static unsigned int port1  = UNSET;
+static unsigned int port2  = UNSET;
 static unsigned int qss    = UNSET;
 static unsigned int adjust = 0x10;
-MODULE_PARM(port1,"i");
-MODULE_PARM(port2,"i");
-MODULE_PARM(qss,"i");
-MODULE_PARM(adjust,"i");
+module_param(port1, int, 0644);
+module_param(port2, int, 0644);
+module_param(qss, int, 0644);
+module_param(adjust, int, 0644);
 
 static int tda9887_set_insmod(struct tda9887 *t, char *buf)
 {
-	if (port1)
-		buf[1] |= cOutputPort1Inactive;
-	if (port2)
-		buf[1] |= cOutputPort2Inactive;
+	if (UNSET != port1) {
+		if (port1)
+			buf[1] |= cOutputPort1Inactive;
+		else
+			buf[1] &= ~cOutputPort1Inactive;
+	}
+	if (UNSET != port2) {
+		if (port2)
+			buf[1] |= cOutputPort2Inactive;
+		else
+			buf[1] &= ~cOutputPort2Inactive;
+	}
+
 	if (UNSET != qss) {
 		if (qss)
 			buf[1] |= cQSS;
@@ -397,20 +412,55 @@ static int tda9887_set_insmod(struct tda9887 *t, char *buf)
 	return 0;
 }
 
+static int tda9887_set_config(struct tda9887 *t, char *buf)
+{
+	if (t->config & TDA9887_PORT1_ACTIVE)
+		buf[1] &= ~cOutputPort1Inactive;
+	if (t->config & TDA9887_PORT1_INACTIVE)
+		buf[1] |= cOutputPort1Inactive;
+	if (t->config & TDA9887_PORT2_ACTIVE)
+		buf[1] &= ~cOutputPort2Inactive;
+	if (t->config & TDA9887_PORT2_INACTIVE)
+		buf[1] |= cOutputPort2Inactive;
+
+	if (t->config & TDA9887_QSS)
+		buf[1] |= cQSS;
+	if (t->config & TDA9887_INTERCARRIER)
+		buf[1] &= ~cQSS;
+
+	if (t->config & TDA9887_AUTOMUTE)
+		buf[1] |= cAutoMuteFmActive;
+	if (t->config & TDA9887_DEEMPHASIS_MASK) {
+		buf[2] &= ~0x60;
+		switch (t->config & TDA9887_DEEMPHASIS_MASK) {
+		case TDA9887_DEEMPHASIS_NONE:
+			buf[2] |= cDeemphasisOFF;
+			break;
+		case TDA9887_DEEMPHASIS_50:
+			buf[2] |= cDeemphasisON | cDeemphasis50;
+			break;
+		case TDA9887_DEEMPHASIS_75:
+			buf[2] |= cDeemphasisON | cDeemphasis75;
+			break;
+		}
+	}
+	return 0;
+}
+
 /* ---------------------------------------------------------------------- */
 
 static int tda9887_set_pinnacle(struct tda9887 *t, char *buf)
 {
 	unsigned int bCarrierMode = UNSET;
 
-	if (t->std & V4L2_STD_PAL) {
+	if (t->std & V4L2_STD_625_50) {
 		if ((1 == t->pinnacle_id) || (7 == t->pinnacle_id)) {
 			bCarrierMode = cIntercarrier;
 		} else {
 			bCarrierMode = cQSS;
 		}
 	}
-	if (t->std & V4L2_STD_NTSC) {
+	if (t->std & V4L2_STD_525_60) {
                 if ((5 == t->pinnacle_id) || (6 == t->pinnacle_id)) {
 			bCarrierMode = cIntercarrier;
 		} else {
@@ -427,10 +477,10 @@ static int tda9887_set_pinnacle(struct tda9887 *t, char *buf)
 
 /* ---------------------------------------------------------------------- */
 
-static char *pal = "-";
-MODULE_PARM(pal,"s");
-static char *secam = "-";
-MODULE_PARM(secam,"s");
+static char pal[] = "-";
+module_param_string(pal, pal, sizeof(pal), 0644);
+static char secam[] = "-";
+module_param_string(secam, secam, sizeof(secam), 0644);
 
 static int tda9887_fixup_std(struct tda9887 *t)
 {
@@ -496,10 +546,23 @@ static int tda9887_configure(struct tda9887 *t)
 
 	memset(buf,0,sizeof(buf));
 	tda9887_set_tvnorm(t,buf);
+	buf[1] |= cOutputPort1Inactive;
+	buf[1] |= cOutputPort2Inactive;
 	if (UNSET != t->pinnacle_id) {
 		tda9887_set_pinnacle(t,buf);
 	}
+	tda9887_set_config(t,buf);
 	tda9887_set_insmod(t,buf);
+
+#if 0
+	/* This as-is breaks some cards, must be fixed in a
+	 * card-specific way, probably using TDA9887_SET_CONFIG to
+	 * turn on/off port2 */
+	if (t->std & V4L2_STD_SECAM_L) {
+		/* secam fixup (FIXME: move this to tvnorms array?) */
+		buf[1] &= ~cOutputPort2Inactive;
+	}
+#endif
 
 	dprintk(PREFIX "writing: b=0x%02x c=0x%02x e=0x%02x\n",
 		buf[1],buf[2],buf[3]);
@@ -510,8 +573,7 @@ static int tda9887_configure(struct tda9887 *t)
                 printk(PREFIX "i2c i/o error: rc == %d (should be 4)\n",rc);
 
 	if (debug > 2) {
-		set_current_state(TASK_INTERRUPTIBLE);
-		schedule_timeout(HZ);
+		msleep_interruptible(1000);
 		tda9887_status(t);
 	}
 	return 0;
@@ -532,11 +594,11 @@ static int tda9887_attach(struct i2c_adapter *adap, int addr, int kind)
                 return -ENOMEM;
 	memset(t,0,sizeof(*t));
 	t->client      = client_template;
-	t->std         = 0;;
+	t->std         = 0;
 	t->pinnacle_id = UNSET;
         i2c_set_clientdata(&t->client, t);
         i2c_attach_client(&t->client);
-        
+
 	return 0;
 }
 
@@ -585,12 +647,20 @@ tda9887_command(struct i2c_client *client, unsigned int cmd, void *arg)
 		t->radio = 1;
 		tda9887_configure(t);
 		break;
-		
+
 	case AUDC_CONFIG_PINNACLE:
 	{
 		int *i = arg;
 
 		t->pinnacle_id = *i;
+		tda9887_configure(t);
+		break;
+	}
+	case TDA9887_SET_CONFIG:
+	{
+		int *i = arg;
+
+		t->config = *i;
 		tda9887_configure(t);
 		break;
 	}
@@ -644,11 +714,46 @@ tda9887_command(struct i2c_client *client, unsigned int cmd, void *arg)
 			t->radio = 1;
 		}
 		tda9887_configure(t);
+		break;
+	}
+	case VIDIOC_G_TUNER:
+	{
+		static int AFC_BITS_2_kHz[] = {
+			-12500,  -37500,  -62500,  -97500,
+			-112500, -137500, -162500, -187500,
+			187500,  162500,  137500,  112500,
+			97500 ,  62500,   37500 ,  12500
+		};
+		struct v4l2_tuner* tuner = arg;
+
+		if (t->radio) {
+			__u8 reg = 0;
+			tuner->afc=0;
+			if (1 == i2c_master_recv(&t->client,&reg,1))
+				tuner->afc = AFC_BITS_2_kHz[(reg>>1)&0x0f];
+		}
+		break;
 	}
 	default:
 		/* nothing */
 		break;
 	}
+	return 0;
+}
+
+static int tda9887_suspend(struct device * dev, pm_message_t state, u32 level)
+{
+	dprintk("tda9887: suspend\n");
+	return 0;
+}
+
+static int tda9887_resume(struct device * dev, u32 level)
+{
+	struct i2c_client *c = container_of(dev, struct i2c_client, dev);
+	struct tda9887 *t = i2c_get_clientdata(c);
+
+	dprintk("tda9887: resume\n");
+	tda9887_configure(t);
 	return 0;
 }
 
@@ -662,6 +767,10 @@ static struct i2c_driver driver = {
         .attach_adapter = tda9887_probe,
         .detach_client  = tda9887_detach,
         .command        = tda9887_command,
+	.driver = {
+		.suspend = tda9887_suspend,
+		.resume  = tda9887_resume,
+	},
 };
 static struct i2c_client client_template =
 {
@@ -670,13 +779,12 @@ static struct i2c_client client_template =
         .driver    = &driver,
 };
 
-static int tda9887_init_module(void)
+static int __init tda9887_init_module(void)
 {
-	i2c_add_driver(&driver);
-	return 0;
+	return i2c_add_driver(&driver);
 }
 
-static void tda9887_cleanup_module(void)
+static void __exit tda9887_cleanup_module(void)
 {
 	i2c_del_driver(&driver);
 }

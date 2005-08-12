@@ -461,7 +461,7 @@ static int sbpcd[] =
 /*
  * Protects access to global structures etc.
  */
-static spinlock_t sbpcd_lock __cacheline_aligned = SPIN_LOCK_UNLOCKED;
+static  __cacheline_aligned DEFINE_SPINLOCK(sbpcd_lock);
 static struct request_queue *sbpcd_queue;
 
 MODULE_PARM(sbpcd, "2i");
@@ -1161,11 +1161,11 @@ static void EvaluateStatus(int st)
 	return;
 }
 /*==========================================================================*/
+static int cmd_out_T(void);
+
 static int get_state_T(void)
 {
 	int i;
-	
-	static int cmd_out_T(void);
 
 	clr_cmdbuf();
 	current_drive->n_bytes=1;
@@ -1308,13 +1308,14 @@ static int cc_ReadError(void)
 	return (i);
 }
 /*==========================================================================*/
+static int cc_DriveReset(void);
+
 static int cmd_out_T(void)
 {
 #undef CMDT_TRIES
 #define CMDT_TRIES 1000
 #define TEST_FALSE_FF 1
-	
-	static int cc_DriveReset(void);
+
 	int i, j, l=0, m, ntries;
 	unsigned long flags;
 
@@ -4265,9 +4266,9 @@ static int sbpcd_dev_ioctl(struct cdrom_device_info *cdi, u_int cmd,
 				   sizeof(struct cdrom_read_audio)))
 			RETURN_UP(-EFAULT);
 		if (read_audio.nframes < 0 || read_audio.nframes>current_drive->sbp_audsiz) RETURN_UP(-EINVAL);
-		i=verify_area(VERIFY_WRITE, read_audio.buf,
-			      read_audio.nframes*CD_FRAMESIZE_RAW);
-		if (i) RETURN_UP(i);
+		if (!access_ok(VERIFY_WRITE, read_audio.buf,
+			      read_audio.nframes*CD_FRAMESIZE_RAW))
+                	RETURN_UP(-EFAULT);
 		
 		if (read_audio.addr_format==CDROM_MSF) /* MSF-bin specification of where to start */
 			block=msf2lba(&read_audio.addr.msf.minute);
@@ -5894,7 +5895,7 @@ int __init sbpcd_init(void)
 }
 /*==========================================================================*/
 #ifdef MODULE
-void sbpcd_exit(void)
+static void sbpcd_exit(void)
 {
 	int j;
 	

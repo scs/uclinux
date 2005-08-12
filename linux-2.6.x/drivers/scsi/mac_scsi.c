@@ -27,8 +27,8 @@
 
 /*
  * $Log$
- * Revision 1.3  2004/09/08 15:40:07  lgsoft
- * Import of 2.6.8
+ * Revision 1.4  2005/08/12 06:42:46  magicyang
+ *  Update kernel 2.6.8 to 2.6.12
  *
  */
 
@@ -305,7 +305,7 @@ int macscsi_detect(Scsi_Host_Template * tpnt)
 
     if (instance->irq != SCSI_IRQ_NONE)
 	if (request_irq(instance->irq, NCR5380_intr, IRQ_FLG_SLOW, 
-		"ncr5380", NCR5380_intr)) {
+		"ncr5380", instance)) {
 	    printk(KERN_WARNING "scsi%d: IRQ%d not free, interrupts disabled\n",
 		   instance->host_no, instance->irq);
 	    instance->irq = SCSI_IRQ_NONE;
@@ -329,6 +329,7 @@ int macscsi_release (struct Scsi_Host *shpnt)
 {
 	if (shpnt->irq != SCSI_IRQ_NONE)
 		free_irq (shpnt->irq, NCR5380_intr);
+	NCR5380_exit(shpnt);
 
 	return 0;
 }

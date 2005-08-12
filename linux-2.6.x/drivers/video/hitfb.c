@@ -1,6 +1,6 @@
 /*
- * $Id$
  * linux/drivers/video/hitfb.c -- Hitachi LCD frame buffer device
+ *
  * (C) 1999 Mihai Spatar
  * (C) 2000 YAEGASHI Takeshi
  * (C) 2003, 2004 Paul Mundt
@@ -40,15 +40,15 @@
 static struct fb_var_screeninfo hitfb_var __initdata = {
 	.activate	= FB_ACTIVATE_NOW,
 	.height		= -1,
-	.width 		= -1,
-	.vmode 		= FB_VMODE_NONINTERLACED,
+	.width		= -1,
+	.vmode		= FB_VMODE_NONINTERLACED,
 };
 
 static struct fb_fix_screeninfo hitfb_fix __initdata = {
-	.id 		= "Hitachi HD64461",
-	.type 		= FB_TYPE_PACKED_PIXELS,
-	.ypanstep 	= 8,
-	.accel 		= FB_ACCEL_NONE,
+	.id		= "Hitachi HD64461",
+	.type		= FB_TYPE_PACKED_PIXELS,
+	.ypanstep	= 8,
+	.accel		= FB_ACCEL_NONE,
 };
 
 static u32 pseudo_palette[16];
@@ -255,20 +255,23 @@ static int hitfb_setcolreg(unsigned regno, unsigned red, unsigned green,
 }
 
 static struct fb_ops hitfb_ops = {
-	.owner 			= THIS_MODULE,
-	.fb_setcolreg 	= hitfb_setcolreg,
-	.fb_blank 		= hitfb_blank,
+	.owner		= THIS_MODULE,
+	.fb_setcolreg	= hitfb_setcolreg,
+	.fb_blank	= hitfb_blank,
 	.fb_pan_display = hitfb_pan_display,
-	.fb_fillrect 	= hitfb_fillrect,
-	.fb_copyarea 	= hitfb_copyarea,
-	.fb_imageblit 	= cfb_imageblit,
-	.fb_cursor 		= soft_cursor,
+	.fb_fillrect	= hitfb_fillrect,
+	.fb_copyarea	= hitfb_copyarea,
+	.fb_imageblit	= cfb_imageblit,
+	.fb_cursor	= soft_cursor,
 };
 
 int __init hitfb_init(void)
 {
 	unsigned short lcdclor, ldr3, ldvndr;
 	int size;
+
+	if (fb_get_options("hitfb", NULL))
+		return -ENODEV;
 
 	hitfb_fix.smem_start = CONFIG_HD64461_IOBASE + 0x02000000;
 	hitfb_fix.smem_len = (MACH_HP690) ? 1024 * 1024 : 512 * 1024;
@@ -321,7 +324,7 @@ int __init hitfb_init(void)
 	fb_info.var = hitfb_var;
 	fb_info.fix = hitfb_fix;
 	fb_info.pseudo_palette = pseudo_palette;
-	fb_info.flags = FBINFO_FLAG_DEFAULT;
+	fb_info.flags = FBINFO_DEFAULT;
 
 	fb_info.screen_base = (void *)hitfb_fix.smem_start;
 
@@ -341,9 +344,7 @@ static void __exit hitfb_exit(void)
 	unregister_framebuffer(&fb_info);
 }
 
-#ifdef MODULE
 module_init(hitfb_init);
 module_exit(hitfb_exit);
-#endif
 
 MODULE_LICENSE("GPL");

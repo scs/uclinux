@@ -352,7 +352,21 @@ int iforce_init_device(struct iforce *iforce)
  * Input device fields.
  */
 
-	iforce->dev.id.bustype = BUS_USB;
+	switch (iforce->bus) {
+#ifdef CONFIG_JOYSTICK_IFORCE_USB
+	case IFORCE_USB:
+		iforce->dev.id.bustype = BUS_USB;
+		iforce->dev.dev = &iforce->usbdev->dev;
+		break;
+#endif
+#ifdef CONFIG_JOYSTICK_IFORCE_232
+	case IFORCE_232:
+		iforce->dev.id.bustype = BUS_RS232;
+		iforce->dev.dev = &iforce->serio->dev;
+		break;
+#endif
+	}
+
 	iforce->dev.private = iforce;
 	iforce->dev.name = "Unknown I-Force device";
 	iforce->dev.open = iforce_open;
@@ -524,7 +538,7 @@ static int __init iforce_init(void)
 	usb_register(&iforce_usb_driver);
 #endif
 #ifdef CONFIG_JOYSTICK_IFORCE_232
-	serio_register_device(&iforce_serio_dev);
+	serio_register_driver(&iforce_serio_drv);
 #endif
 	return 0;
 }
@@ -535,7 +549,7 @@ static void __exit iforce_exit(void)
 	usb_deregister(&iforce_usb_driver);
 #endif
 #ifdef CONFIG_JOYSTICK_IFORCE_232
-	serio_unregister_device(&iforce_serio_dev);
+	serio_unregister_driver(&iforce_serio_drv);
 #endif
 }
 

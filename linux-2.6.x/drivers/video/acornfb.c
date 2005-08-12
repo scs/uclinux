@@ -909,7 +909,7 @@ acornfb_mmap(struct fb_info *info, struct file *file, struct vm_area_struct *vma
 	 * some updates to the screen occasionally, but process switches
 	 * should cause the caches and buffers to be flushed often enough.
 	 */
-	if (io_remap_page_range(vma, vma->vm_start, off,
+	if (io_remap_pfn_range(vma, vma->vm_start, off >> PAGE_SHIFT,
 				vma->vm_end - vma->vm_start,
 				vma->vm_page_prot))
 		return -EAGAIN;
@@ -1010,7 +1010,7 @@ static void __init acornfb_init_fbinfo(void)
 	first = 0;
 
 	fb_info.fbops		= &acornfb_ops;
-	fb_info.flags		= FBINFO_FLAG_DEFAULT;
+	fb_info.flags		= FBINFO_DEFAULT | FBINFO_HWACCEL_YPAN;
 	fb_info.pseudo_palette	= current_par.pseudo_palette;
 
 	strcpy(fb_info.fix.id, "Acorn");
@@ -1280,21 +1280,20 @@ free_unused_pages(unsigned int virtual_start, unsigned int virtual_end)
 	printk("acornfb: freed %dK memory\n", mb_freed);
 }
 
-static struct device acornfb_device = {
-	.bus_id			= "acornfb",
-	.coherent_dma_mask	= 0xffffffff,
-};
-
-int __init
-acornfb_init(void)
+static int __init acornfb_probe(struct device *dev)
 {
 	unsigned long size;
 	u_int h_sync, v_sync;
 	int rc, i;
+	char *option = NULL;
+
+	if (fb_get_options("acornfb", &option))
+		return -ENODEV;
+	acornfb_setup(option);
 
 	acornfb_init_fbinfo();
 
-	current_par.dev = &acornfb_device;
+	current_par.dev = dev;
 
 	if (current_par.montype == -1)
 		current_par.montype = acornfb_detect_monitortype();
@@ -1327,7 +1326,6 @@ acornfb_init(void)
 		}
 	}
 
-	fb_info.currcon	       = -1;
 	fb_info.screen_base    = (char *)SCREEN_BASE;
 	fb_info.fix.smem_start = SCREEN_START;
 	current_par.using_vram = 0;
@@ -1455,6 +1453,19 @@ acornfb_init(void)
 		return -EINVAL;
 	return 0;
 }
+
+static struct device_driver acornfb_driver = {
+	.name	= "acornfb",
+	.bus	= &platform_bus_type,
+	.probe	= acornfb_probe,
+};
+
+static int __init acornfb_init(void)
+{
+	return driver_register(&acornfb_driver);
+}
+
+module_init(acornfb_init);
 
 MODULE_AUTHOR("Russell King");
 MODULE_DESCRIPTION("VIDC 1/1a/20 framebuffer driver");

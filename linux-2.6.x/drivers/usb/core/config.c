@@ -10,7 +10,8 @@
 #include <linux/slab.h>
 #include <linux/device.h>
 #include <asm/byteorder.h>
-
+#include "usb.h"
+#include "hcd.h"
 
 #define USB_MAXALTSETTING		128	/* Hard limit */
 #define USB_MAXENDPOINTS		30	/* Hard limit */
@@ -87,7 +88,7 @@ static int usb_parse_endpoint(struct device *ddev, int cfgno, int inum,
 	++ifp->desc.bNumEndpoints;
 
 	memcpy(&endpoint->desc, d, n);
-	le16_to_cpus(&endpoint->desc.wMaxPacketSize);
+	INIT_LIST_HEAD(&endpoint->urb_list);
 
 	/* Skip over any Class Specific or Vendor Specific descriptors;
 	 * find the next endpoint or interface descriptor */
@@ -106,7 +107,7 @@ skip_to_next_endpoint_or_interface_descriptor:
 	return buffer - buffer0 + i;
 }
 
-static void usb_release_interface_cache(struct kref *ref)
+void usb_release_interface_cache(struct kref *ref)
 {
 	struct usb_interface_cache *intfc = ref_to_usb_interface_cache(ref);
 	int j;
@@ -221,7 +222,7 @@ skip_to_next_interface_descriptor:
 	return buffer - buffer0 + i;
 }
 
-int usb_parse_configuration(struct device *ddev, int cfgidx,
+static int usb_parse_configuration(struct device *ddev, int cfgidx,
     struct usb_host_config *config, unsigned char *buffer, int size)
 {
 	unsigned char *buffer0 = buffer;
@@ -319,7 +320,7 @@ int usb_parse_configuration(struct device *ddev, int cfgidx,
 
 	}	/* for ((buffer2 = buffer, size2 = size); ...) */
 	size = buffer2 - buffer;
-	config->desc.wTotalLength = buffer2 - buffer0;
+	config->desc.wTotalLength = cpu_to_le16(buffer2 - buffer0);
 
 	if (n != nintf)
 		dev_warn(ddev, "config %d has %d interface%s, different from "
@@ -356,7 +357,7 @@ int usb_parse_configuration(struct device *ddev, int cfgidx,
 		if (!intfc)
 			return -ENOMEM;
 		memset(intfc, 0, len);
-		kref_init(&intfc->ref, usb_release_interface_cache);
+		kref_init(&intfc->ref);
 	}
 
 	/* Skip over any Class Specific or Vendor Specific descriptors;
@@ -420,9 +421,13 @@ void usb_destroy_configuration(struct usb_device *dev)
 	for (c = 0; c < dev->descriptor.bNumConfigurations; c++) {
 		struct usb_host_config *cf = &dev->config[c];
 
+		kfree(cf->string);
+		cf->string = NULL;
+
 		for (i = 0; i < cf->desc.bNumInterfaces; i++) {
 			if (cf->intf_cache[i])
-				kref_put(&cf->intf_cache[i]->ref);
+				kref_put(&cf->intf_cache[i]->ref, 
+					  usb_release_interface_cache);
 		}
 	}
 	kfree(dev->config);

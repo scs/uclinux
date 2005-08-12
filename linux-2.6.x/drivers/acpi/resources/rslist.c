@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2004, R. Byron Moore
+ * Copyright (C) 2000 - 2005, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -178,6 +178,7 @@ acpi_rs_byte_stream_to_list (
 
 
 		case ACPI_RDESC_TYPE_QWORD_ADDRESS_SPACE:
+		case ACPI_RDESC_TYPE_EXTENDED_ADDRESS_SPACE:
 			/*
 			 * 64-Bit Address Resource
 			 */

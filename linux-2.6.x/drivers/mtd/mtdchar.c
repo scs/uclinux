@@ -61,7 +61,7 @@ static inline void mtdchar_devfs_exit(void)
 
 static loff_t mtd_lseek (struct file *file, loff_t offset, int orig)
 {
-	struct mtd_info *mtd=(struct mtd_info *)file->private_data;
+	struct mtd_info *mtd = file->private_data;
 
 	switch (orig) {
 	case 0:
@@ -134,7 +134,7 @@ static int mtd_close(struct inode *inode, struct file *file)
 
 	DEBUG(MTD_DEBUG_LEVEL0, "MTD_close\n");
 
-	mtd = (struct mtd_info *)file->private_data;
+	mtd = file->private_data;
 	
 	if (mtd->sync)
 		mtd->sync(mtd);
@@ -151,7 +151,7 @@ static int mtd_close(struct inode *inode, struct file *file)
 
 static ssize_t mtd_read(struct file *file, char __user *buf, size_t count,loff_t *ppos)
 {
-	struct mtd_info *mtd = (struct mtd_info *)file->private_data;
+	struct mtd_info *mtd = file->private_data;
 	size_t retlen=0;
 	size_t total_retlen=0;
 	int ret=0;
@@ -179,7 +179,13 @@ static ssize_t mtd_read(struct file *file, char __user *buf, size_t count,loff_t
 			return -ENOMEM;
 		
 		ret = MTD_READ(mtd, *ppos, len, &retlen, kbuf);
-		if (!ret) {
+		/* Nand returns -EBADMSG on ecc errors, but it returns
+		 * the data. For our userspace tools it is important
+		 * to dump areas with ecc errors ! 
+		 * Userspace software which accesses NAND this way
+		 * must be aware of the fact that it deals with NAND
+		 */
+		if (!ret || (ret == -EBADMSG)) {
 			*ppos += retlen;
 			if (copy_to_user(buf, kbuf, retlen)) {
 			        kfree(kbuf);
@@ -198,13 +204,13 @@ static ssize_t mtd_read(struct file *file, char __user *buf, size_t count,loff_t
 		
 		kfree(kbuf);
 	}
-	
+
 	return total_retlen;
 } /* mtd_read */
 
 static ssize_t mtd_write(struct file *file, const char __user *buf, size_t count,loff_t *ppos)
 {
-	struct mtd_info *mtd = (struct mtd_info *)file->private_data;
+	struct mtd_info *mtd = file->private_data;
 	char *kbuf;
 	size_t retlen;
 	size_t total_retlen=0;
@@ -270,7 +276,7 @@ static void mtdchar_erase_callback (struct erase_info *instr)
 static int mtd_ioctl(struct inode *inode, struct file *file,
 		     u_int cmd, u_long arg)
 {
-	struct mtd_info *mtd = (struct mtd_info *)file->private_data;
+	struct mtd_info *mtd = file->private_data;
 	void __user *argp = (void __user *)arg;
 	int ret = 0;
 	u_long size;
@@ -279,12 +285,12 @@ static int mtd_ioctl(struct inode *inode, struct file *file,
 
 	size = (cmd & IOCSIZE_MASK) >> IOCSIZE_SHIFT;
 	if (cmd & IOC_IN) {
-		ret = verify_area(VERIFY_READ, argp, size);
-		if (ret) return ret;
+		if (!access_ok(VERIFY_READ, argp, size))
+			return -EFAULT;
 	}
 	if (cmd & IOC_OUT) {
-		ret = verify_area(VERIFY_WRITE, argp, size);
-		if (ret) return ret;
+		if (!access_ok(VERIFY_WRITE, argp, size))
+			return -EFAULT;
 	}
 	
 	switch (cmd) {
@@ -383,7 +389,8 @@ static int mtd_ioctl(struct inode *inode, struct file *file,
 		if (!mtd->write_oob)
 			ret = -EOPNOTSUPP;
 		else
-			ret = verify_area(VERIFY_READ, buf.ptr, buf.length);
+			ret = access_ok(VERIFY_READ, buf.ptr,
+					buf.length) ? 0 : EFAULT;
 
 		if (ret)
 			return ret;
@@ -422,7 +429,8 @@ static int mtd_ioctl(struct inode *inode, struct file *file,
 		if (!mtd->read_oob)
 			ret = -EOPNOTSUPP;
 		else
-			ret = verify_area(VERIFY_WRITE, buf.ptr, buf.length);
+			ret = access_ok(VERIFY_WRITE, buf.ptr,
+					buf.length) ? 0 : -EFAULT;
 
 		if (ret)
 			return ret;

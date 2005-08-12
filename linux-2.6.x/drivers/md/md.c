@@ -61,7 +61,7 @@ static void autostart_arrays (int part);
 #endif
 
 static mdk_personality_t *pers[MAX_PERSONALITY];
-static spinlock_t pers_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(pers_lock);
 
 /*
  * Current RAID-1,4,5 parallel reconstruction 'guaranteed speed limit'
@@ -129,7 +129,7 @@ static struct block_device_operations md_fops;
  * all_mddevs_lock protects this list.
  */
 static LIST_HEAD(all_mddevs);
-static spinlock_t all_mddevs_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(all_mddevs_lock);
 
 
 /*
@@ -153,6 +153,7 @@ static spinlock_t all_mddevs_lock = SPIN_LOCK_UNLOCKED;
 	     ({ spin_lock(&all_mddevs_lock);				\
 		tmp = tmp->next;})					\
 		)
+
 
 static int md_fail_request (request_queue_t *q, struct bio *bio)
 {
@@ -331,29 +332,24 @@ static int bi_complete(struct bio *bio, unsigned int bytes_done, int error)
 static int sync_page_io(struct block_device *bdev, sector_t sector, int size,
 		   struct page *page, int rw)
 {
-	struct bio bio;
-	struct bio_vec vec;
+	struct bio *bio = bio_alloc(GFP_NOIO, 1);
 	struct completion event;
+	int ret;
 
 	rw |= (1 << BIO_RW_SYNC);
 
-	bio_init(&bio);
-	bio.bi_io_vec = &vec;
-	vec.bv_page = page;
-	vec.bv_len = size;
-	vec.bv_offset = 0;
-	bio.bi_vcnt = 1;
-	bio.bi_idx = 0;
-	bio.bi_size = size;
-	bio.bi_bdev = bdev;
-	bio.bi_sector = sector;
+	bio->bi_bdev = bdev;
+	bio->bi_sector = sector;
+	bio_add_page(bio, page, size, 0);
 	init_completion(&event);
-	bio.bi_private = &event;
-	bio.bi_end_io = bi_complete;
-	submit_bio(rw, &bio);
+	bio->bi_private = &event;
+	bio->bi_end_io = bi_complete;
+	submit_bio(rw, bio);
 	wait_for_completion(&event);
 
-	return test_bit(BIO_UPTODATE, &bio.bi_flags);
+	ret = test_bit(BIO_UPTODATE, &bio->bi_flags);
+	bio_put(bio);
+	return ret;
 }
 
 static int read_disk_sb(mdk_rdev_t * rdev)
@@ -373,7 +369,7 @@ static int read_disk_sb(mdk_rdev_t * rdev)
 	return 0;
 
 fail:
-	printk(KERN_ERR "md: disabled device %s, could not read superblock.\n",
+	printk(KERN_WARNING "md: disabled device %s, could not read superblock.\n",
 		bdevname(rdev->bdev,b));
 	return -EINVAL;
 }
@@ -438,6 +434,7 @@ static unsigned int calc_sb_csum(mdp_super_t * sb)
 	sb->sb_csum = disk_csum;
 	return csum;
 }
+
 
 /*
  * Handle superblock details.
@@ -521,7 +518,7 @@ static int super_90_load(mdk_rdev_t *rdev, mdk_rdev_t *refdev, int minor_version
 	if (sb->raid_disks <= 0)
 		goto abort;
 
-	if (calc_sb_csum(sb) != sb->sb_csum) {
+	if (csum_fold(calc_sb_csum(sb)) != csum_fold(sb->sb_csum)) {
 		printk(KERN_WARNING "md: invalid superblock checksum on %s\n",
 			b);
 		goto abort;
@@ -530,7 +527,7 @@ static int super_90_load(mdk_rdev_t *rdev, mdk_rdev_t *refdev, int minor_version
 	rdev->preferred_minor = sb->md_minor;
 	rdev->data_offset = 0;
 
-	if (sb->level == MULTIPATH)
+	if (sb->level == LEVEL_MULTIPATH)
 		rdev->desc_nr = -1;
 	else
 		rdev->desc_nr = sb->this_disk.number;
@@ -745,13 +742,23 @@ static void super_90_sync(mddev_t *mddev, mdk_rdev_t *rdev)
 static unsigned int calc_sb_1_csum(struct mdp_superblock_1 * sb)
 {
 	unsigned int disk_csum, csum;
-	int size = 256 + sb->max_dev*2;
+	unsigned long long newcsum;
+	int size = 256 + le32_to_cpu(sb->max_dev)*2;
+	unsigned int *isuper = (unsigned int*)sb;
+	int i;
 
 	disk_csum = sb->sb_csum;
 	sb->sb_csum = 0;
-	csum = csum_partial((void *)sb, size, 0);
+	newcsum = 0;
+	for (i=0; size>=4; size -= 4 )
+		newcsum += le32_to_cpu(*isuper++);
+
+	if (size == 2)
+		newcsum += le16_to_cpu(*(unsigned short*) isuper);
+
+	csum = (newcsum & 0xffffffff) + (newcsum >> 32);
 	sb->sb_csum = disk_csum;
-	return csum;
+	return cpu_to_le32(csum);
 }
 
 static int super_1_load(mdk_rdev_t *rdev, mdk_rdev_t *refdev, int minor_version)
@@ -773,7 +780,7 @@ static int super_1_load(mdk_rdev_t *rdev, mdk_rdev_t *refdev, int minor_version)
 	case 0:
 		sb_offset = rdev->bdev->bd_inode->i_size >> 9;
 		sb_offset -= 8*2;
-		sb_offset &= ~(4*2);
+		sb_offset &= ~(4*2-1);
 		/* convert from sectors to K */
 		sb_offset /= 2;
 		break;
@@ -804,6 +811,11 @@ static int super_1_load(mdk_rdev_t *rdev, mdk_rdev_t *refdev, int minor_version)
 	if (calc_sb_1_csum(sb) != sb->sb_csum) {
 		printk("md: invalid superblock checksum on %s\n",
 			bdevname(rdev->bdev,b));
+		return -EINVAL;
+	}
+	if (le64_to_cpu(sb->data_size) < 10) {
+		printk("md: data_size too small on %s\n",
+		       bdevname(rdev->bdev,b));
 		return -EINVAL;
 	}
 	rdev->preferred_minor = 0xffff;
@@ -850,7 +862,6 @@ static int super_1_validate(mddev_t *mddev, mdk_rdev_t *rdev)
 
 	if (mddev->raid_disks == 0) {
 		mddev->major_version = 1;
-		mddev->minor_version = 0;
 		mddev->patch_version = 0;
 		mddev->persistent = 1;
 		mddev->chunk_size = le32_to_cpu(sb->chunksize) << 9;
@@ -859,7 +870,7 @@ static int super_1_validate(mddev_t *mddev, mdk_rdev_t *rdev)
 		mddev->level = le32_to_cpu(sb->level);
 		mddev->layout = le32_to_cpu(sb->layout);
 		mddev->raid_disks = le32_to_cpu(sb->raid_disks);
-		mddev->size = (u32)le64_to_cpu(sb->size);
+		mddev->size = le64_to_cpu(sb->size)/2;
 		mddev->events = le64_to_cpu(sb->events);
 		
 		mddev->recovery_cp = le64_to_cpu(sb->resync_offset);
@@ -924,12 +935,12 @@ static void super_1_sync(mddev_t *mddev, mdk_rdev_t *rdev)
 
 	max_dev = 0;
 	ITERATE_RDEV(mddev,rdev2,tmp)
-		if (rdev2->desc_nr > max_dev)
-			max_dev = rdev2->desc_nr;
+		if (rdev2->desc_nr+1 > max_dev)
+			max_dev = rdev2->desc_nr+1;
 	
-	sb->max_dev = max_dev;
+	sb->max_dev = cpu_to_le32(max_dev);
 	for (i=0; i<max_dev;i++)
-		sb->dev_roles[max_dev] = cpu_to_le16(0xfffe);
+		sb->dev_roles[i] = cpu_to_le16(0xfffe);
 	
 	ITERATE_RDEV(mddev,rdev2,tmp) {
 		i = rdev2->desc_nr;
@@ -942,10 +953,11 @@ static void super_1_sync(mddev_t *mddev, mdk_rdev_t *rdev)
 	}
 
 	sb->recovery_offset = cpu_to_le64(0); /* not supported yet */
+	sb->sb_csum = calc_sb_1_csum(sb);
 }
 
 
-struct super_type super_types[] = {
+static struct super_type super_types[] = {
 	[0] = {
 		.name	= "0.90.0",
 		.owner	= THIS_MODULE,
@@ -1042,20 +1054,24 @@ static void unbind_rdev_from_array(mdk_rdev_t * rdev)
 /*
  * prevent the device from being mounted, repartitioned or
  * otherwise reused by a RAID array (or any other kernel
- * subsystem), by opening the device. [simply getting an
- * inode is not enough, the SCSI module usage code needs
- * an explicit open() on the device]
+ * subsystem), by bd_claiming the device.
  */
 static int lock_rdev(mdk_rdev_t *rdev, dev_t dev)
 {
 	int err = 0;
 	struct block_device *bdev;
+	char b[BDEVNAME_SIZE];
 
 	bdev = open_by_devnum(dev, FMODE_READ|FMODE_WRITE);
-	if (IS_ERR(bdev))
+	if (IS_ERR(bdev)) {
+		printk(KERN_ERR "md: could not open %s.\n",
+			__bdevname(dev, b));
 		return PTR_ERR(bdev);
+	}
 	err = bd_claim(bdev, rdev);
 	if (err) {
+		printk(KERN_ERR "md: could not bd_claim %s.\n",
+			bdevname(bdev, b));
 		blkdev_put(bdev);
 		return err;
 	}
@@ -1117,10 +1133,7 @@ static void export_array(mddev_t *mddev)
 
 static void print_desc(mdp_disk_t *desc)
 {
-	char b[BDEVNAME_SIZE];
-
-	printk(" DISK<N:%d,%s(%d,%d),R:%d,S:%d>\n", desc->number,
-		__bdevname(MKDEV(desc->major, desc->minor), b),
+	printk(" DISK<N:%d,(%d,%d),R:%d,S:%d>\n", desc->number,
 		desc->major,desc->minor,desc->raid_disk,desc->state);
 }
 
@@ -1312,8 +1325,7 @@ static mdk_rdev_t *md_import_device(dev_t newdev, int super_format, int super_mi
 
 	rdev = (mdk_rdev_t *) kmalloc(sizeof(*rdev), GFP_KERNEL);
 	if (!rdev) {
-		printk(KERN_ERR "md: could not alloc mem for %s!\n", 
-			__bdevname(newdev, b));
+		printk(KERN_ERR "md: could not alloc mem for new device!\n");
 		return ERR_PTR(-ENOMEM);
 	}
 	memset(rdev, 0, sizeof(*rdev));
@@ -1322,11 +1334,9 @@ static mdk_rdev_t *md_import_device(dev_t newdev, int super_format, int super_mi
 		goto abort_free;
 
 	err = lock_rdev(rdev, newdev);
-	if (err) {
-		printk(KERN_ERR "md: could not lock %s.\n",
-			__bdevname(newdev, b));
+	if (err)
 		goto abort_free;
-	}
+
 	rdev->desc_nr = -1;
 	rdev->faulty = 0;
 	rdev->in_sync = 0;
@@ -1377,7 +1387,7 @@ abort_free:
  */
 
 
-static int analyze_sbs(mddev_t * mddev)
+static void analyze_sbs(mddev_t * mddev)
 {
 	int i;
 	struct list_head *tmp;
@@ -1424,28 +1434,13 @@ static int analyze_sbs(mddev_t * mddev)
 	}
 
 
-	/*
-	 * Check if we can support this RAID array
-	 */
-	if (mddev->major_version != MD_MAJOR_VERSION ||
-			mddev->minor_version > MD_MINOR_VERSION) {
-		printk(KERN_ALERT 
-			"md: %s: unsupported raid array version %d.%d.%d\n",
-			mdname(mddev), mddev->major_version,
-			mddev->minor_version, mddev->patch_version);
-		goto abort;
-	}
 
-	if ((mddev->recovery_cp != MaxSector) &&
-	    ((mddev->level == 1) ||
-	     ((mddev->level >= 4) && (mddev->level <= 6))))
+	if (mddev->recovery_cp != MaxSector &&
+	    mddev->level >= 1)
 		printk(KERN_ERR "md: %s: raid array is not clean"
 		       " -- starting background reconstruction\n",
 		       mdname(mddev));
 
-	return 0;
-abort:
-	return 1;
 }
 
 int mdp_major = 0;
@@ -1476,10 +1471,13 @@ static struct kobject *md_probe(dev_t dev, int *part, void *data)
 	}
 	disk->major = MAJOR(dev);
 	disk->first_minor = unit << shift;
-	if (partitioned)
+	if (partitioned) {
 		sprintf(disk->disk_name, "md_d%d", unit);
-	else
+		sprintf(disk->devfs_name, "md/d%d", unit);
+	} else {
 		sprintf(disk->disk_name, "md%d", unit);
+		sprintf(disk->devfs_name, "md/%d", unit);
+	}
 	disk->fops = &md_fops;
 	disk->private_data = mddev;
 	disk->queue = mddev->queue;
@@ -1509,10 +1507,9 @@ static int do_md_run(mddev_t * mddev)
 	struct gendisk *disk;
 	char b[BDEVNAME_SIZE];
 
-	if (list_empty(&mddev->disks)) {
-		MD_BUG();
+	if (list_empty(&mddev->disks))
+		/* cannot run an array with no devices.. */
 		return -EINVAL;
-	}
 
 	if (mddev->pers)
 		return -EBUSY;
@@ -1520,10 +1517,8 @@ static int do_md_run(mddev_t * mddev)
 	/*
 	 * Analyze all RAID superblock(s)
 	 */
-	if (!mddev->raid_disks && analyze_sbs(mddev)) {
-		MD_BUG();
-		return -EINVAL;
-	}
+	if (!mddev->raid_disks)
+		analyze_sbs(mddev);
 
 	chunk_size = mddev->chunk_size;
 	pnum = level_to_pers(mddev->level);
@@ -1549,7 +1544,7 @@ static int do_md_run(mddev_t * mddev)
 		 * chunk-size has to be a power of 2 and multiples of PAGE_SIZE
 		 */
 		if ( (1 << ffz(~chunk_size)) != chunk_size) {
-			MD_BUG();
+			printk(KERN_ERR "chunk_size of %d not valid\n", chunk_size);
 			return -EINVAL;
 		}
 		if (chunk_size < PAGE_SIZE) {
@@ -1572,11 +1567,6 @@ static int do_md_run(mddev_t * mddev)
 				return -EINVAL;
 			}
 		}
-	}
-
-	if (pnum >= MAX_PERSONALITY) {
-		MD_BUG();
-		return -EINVAL;
 	}
 
 #ifdef CONFIG_KMOD
@@ -1614,6 +1604,8 @@ static int do_md_run(mddev_t * mddev)
 
 	mddev->pers = pers[pnum];
 	spin_unlock(&pers_lock);
+
+	mddev->resync_max_sectors = mddev->size << 1; /* may be over-ridden by personality */
 
 	err = mddev->pers->run(mddev);
 	if (err) {
@@ -1761,10 +1753,8 @@ static void autorun_array(mddev_t *mddev)
 	struct list_head *tmp;
 	int err;
 
-	if (list_empty(&mddev->disks)) {
-		MD_BUG();
+	if (list_empty(&mddev->disks))
 		return;
-	}
 
 	printk(KERN_INFO "md: running: ");
 
@@ -1776,7 +1766,7 @@ static void autorun_array(mddev_t *mddev)
 
 	err = do_md_run (mddev);
 	if (err) {
-		printk(KERN_WARNING "md :do_md_run() returned %d\n", err);
+		printk(KERN_WARNING "md: do_md_run() returned %d\n", err);
 		do_md_stop (mddev, 0);
 	}
 }
@@ -1881,11 +1871,9 @@ static int autostart_array(dev_t startdev)
 	mdk_rdev_t *start_rdev = NULL, *rdev;
 
 	start_rdev = md_import_device(startdev, 0, 0);
-	if (IS_ERR(start_rdev)) {
-		printk(KERN_WARNING "md: could not import %s!\n",
-			__bdevname(startdev, b));
+	if (IS_ERR(start_rdev))
 		return err;
-	}
+
 
 	/* NOTE: this can only work for 0.90.0 superblocks */
 	sb = (mdp_super_t*)page_address(start_rdev->sb_page);
@@ -1916,12 +1904,9 @@ static int autostart_array(dev_t startdev)
 		if (MAJOR(dev) != desc->major || MINOR(dev) != desc->minor)
 			continue;
 		rdev = md_import_device(dev, 0, 0);
-		if (IS_ERR(rdev)) {
-			printk(KERN_WARNING "md: could not import %s,"
-				" trying to run array nevertheless.\n",
-				__bdevname(dev, b));
+		if (IS_ERR(rdev))
 			continue;
-		}
+
 		list_add(&rdev->same_set, &pending_raid_disks);
 	}
 
@@ -1971,7 +1956,7 @@ static int get_array_info(mddev_t * mddev, void __user * arg)
 
 	info.major_version = mddev->major_version;
 	info.minor_version = mddev->minor_version;
-	info.patch_version = 1;
+	info.patch_version = MD_PATCHLEVEL_VERSION;
 	info.ctime         = mddev->ctime;
 	info.level         = mddev->level;
 	info.size          = mddev->size;
@@ -2153,42 +2138,6 @@ static int add_new_disk(mddev_t * mddev, mdu_disk_info_t *info)
 	return 0;
 }
 
-static int hot_generate_error(mddev_t * mddev, dev_t dev)
-{
-	char b[BDEVNAME_SIZE];
-	struct request_queue *q;
-	mdk_rdev_t *rdev;
-
-	if (!mddev->pers)
-		return -ENODEV;
-
-	printk(KERN_INFO "md: trying to generate %s error in %s ... \n",
-		__bdevname(dev, b), mdname(mddev));
-
-	rdev = find_rdev(mddev, dev);
-	if (!rdev) {
-		/* MD_BUG(); */ /* like hell - it's not a driver bug */
-		return -ENXIO;
-	}
-
-	if (rdev->desc_nr == -1) {
-		MD_BUG();
-		return -EINVAL;
-	}
-	if (!rdev->in_sync)
-		return -ENODEV;
-
-	q = bdev_get_queue(rdev->bdev);
-	if (!q) {
-		MD_BUG();
-		return -ENODEV;
-	}
-	printk(KERN_INFO "md: okay, generating error!\n");
-//	q->oneshot_error = 1; // disabled for now
-
-	return 0;
-}
-
 static int hot_remove_disk(mddev_t * mddev, dev_t dev)
 {
 	char b[BDEVNAME_SIZE];
@@ -2196,9 +2145,6 @@ static int hot_remove_disk(mddev_t * mddev, dev_t dev)
 
 	if (!mddev->pers)
 		return -ENODEV;
-
-	printk(KERN_INFO "md: trying to remove %s from %s ... \n",
-		__bdevname(dev, b), mdname(mddev));
 
 	rdev = find_rdev(mddev, dev);
 	if (!rdev)
@@ -2226,9 +2172,6 @@ static int hot_add_disk(mddev_t * mddev, dev_t dev)
 
 	if (!mddev->pers)
 		return -ENODEV;
-
-	printk(KERN_INFO "md: trying to hot-add %s to %s ... \n",
-		__bdevname(dev, b), mdname(mddev));
 
 	if (mddev->major_version != 0) {
 		printk(KERN_WARNING "%s: HOT_ADD may only be used with"
@@ -2395,16 +2338,27 @@ static int update_array_info(mddev_t *mddev, mdu_array_info_t *info)
 /*	    mddev->patch_version != info->patch_version || */
 	    mddev->ctime         != info->ctime         ||
 	    mddev->level         != info->level         ||
-	    mddev->layout        != info->layout        ||
+/*	    mddev->layout        != info->layout        || */
 	    !mddev->persistent	 != info->not_persistent||
 	    mddev->chunk_size    != info->chunk_size    )
 		return -EINVAL;
 	/* Check there is only one change */
 	if (mddev->size != info->size) cnt++;
 	if (mddev->raid_disks != info->raid_disks) cnt++;
+	if (mddev->layout != info->layout) cnt++;
 	if (cnt == 0) return 0;
 	if (cnt > 1) return -EINVAL;
 
+	if (mddev->layout != info->layout) {
+		/* Change layout
+		 * we don't need to do anything at the md level, the
+		 * personality will take care of it all.
+		 */
+		if (mddev->pers->reconfig == NULL)
+			return -EINVAL;
+		else
+			return mddev->pers->reconfig(mddev, info->layout, -1);
+	}
 	if (mddev->size != info->size) {
 		mdk_rdev_t * rdev;
 		struct list_head *tmp;
@@ -2413,7 +2367,7 @@ static int update_array_info(mddev_t *mddev, mdu_array_info_t *info)
 		/* The "size" is the amount of each device that is used.
 		 * This can only make sense for arrays with redundancy.
 		 * linear and raid0 always use whatever space is available
-		 * We can only consider changing the size of no resync
+		 * We can only consider changing the size if no resync
 		 * or reconstruction is happening, and if the new size
 		 * is acceptable. It must fit before the sb_offset or,
 		 * if that is <data_offset, it must fit before the
@@ -2478,6 +2432,9 @@ static int set_disk_faulty(mddev_t *mddev, dev_t dev)
 {
 	mdk_rdev_t *rdev;
 
+	if (mddev->pers == NULL)
+		return -ENODEV;
+
 	rdev = find_rdev(mddev, dev);
 	if (!rdev)
 		return -ENODEV;
@@ -2489,7 +2446,6 @@ static int set_disk_faulty(mddev_t *mddev, dev_t dev)
 static int md_ioctl(struct inode *inode, struct file *file,
 			unsigned int cmd, unsigned long arg)
 {
-	char b[BDEVNAME_SIZE];
 	int err = 0;
 	void __user *argp = (void __user *)arg;
 	struct hd_geometry __user *loc = argp;
@@ -2548,8 +2504,7 @@ static int md_ioctl(struct inode *inode, struct file *file,
 		}
 		err = autostart_array(new_decode_dev(arg));
 		if (err) {
-			printk(KERN_WARNING "md: autostart %s failed!\n",
-				__bdevname(arg, b));
+			printk(KERN_WARNING "md: autostart failed!\n");
 			goto abort;
 		}
 		goto done;
@@ -2690,9 +2645,7 @@ static int md_ioctl(struct inode *inode, struct file *file,
 				err = add_new_disk(mddev, &info);
 			goto done_unlock;
 		}
-		case HOT_GENERATE_ERROR:
-			err = hot_generate_error(mddev, new_decode_dev(arg));
-			goto done_unlock;
+
 		case HOT_REMOVE_DISK:
 			err = hot_remove_disk(mddev, new_decode_dev(arg));
 			goto done_unlock;
@@ -2787,7 +2740,7 @@ static struct block_device_operations md_fops =
 	.revalidate_disk= md_revalidate,
 };
 
-int md_thread(void * arg)
+static int md_thread(void * arg)
 {
 	mdk_thread_t *thread = arg;
 
@@ -2876,16 +2829,6 @@ mdk_thread_t *md_register_thread(void (*run) (mddev_t *), mddev_t *mddev,
 	return thread;
 }
 
-void md_interrupt_thread(mdk_thread_t *thread)
-{
-	if (!thread->tsk) {
-		MD_BUG();
-		return;
-	}
-	dprintk("interrupting MD-thread pid %d\n", thread->tsk->pid);
-	send_sig(SIGKILL, thread->tsk, 1);
-}
-
 void md_unregister_thread(mdk_thread_t *thread)
 {
 	struct completion event;
@@ -2893,9 +2836,15 @@ void md_unregister_thread(mdk_thread_t *thread)
 	init_completion(&event);
 
 	thread->event = &event;
+
+	/* As soon as ->run is set to NULL, the task could disappear,
+	 * so we need to hold tasklist_lock until we have sent the signal
+	 */
+	dprintk("interrupting MD-thread pid %d\n", thread->tsk->pid);
+	read_lock(&tasklist_lock);
 	thread->run = NULL;
-	thread->name = NULL;
-	md_interrupt_thread(thread);
+	send_sig(SIGKILL, thread->tsk, 1);
+	read_unlock(&tasklist_lock);
 	wait_for_completion(&event);
 	kfree(thread);
 }
@@ -2919,6 +2868,7 @@ void md_error(mddev_t *mddev, mdk_rdev_t *rdev)
 	if (!mddev->pers->error_handler)
 		return;
 	mddev->pers->error_handler(mddev,rdev);
+	set_bit(MD_RECOVERY_INTR, &mddev->recovery);
 	set_bit(MD_RECOVERY_NEEDED, &mddev->recovery);
 	md_wakeup_thread(mddev->thread);
 }
@@ -2951,7 +2901,11 @@ static void status_resync(struct seq_file *seq, mddev_t * mddev)
 	unsigned long max_blocks, resync, res, dt, db, rt;
 
 	resync = (mddev->curr_resync - atomic_read(&mddev->recovery_active))/2;
-	max_blocks = mddev->size;
+
+	if (test_bit(MD_RECOVERY_SYNC, &mddev->recovery))
+		max_blocks = mddev->resync_max_sectors >> 1;
+	else
+		max_blocks = mddev->size;
 
 	/*
 	 * Should not happen.
@@ -3163,7 +3117,6 @@ int register_md_personality(int pnum, mdk_personality_t *p)
 	spin_lock(&pers_lock);
 	if (pers[pnum]) {
 		spin_unlock(&pers_lock);
-		MD_BUG();
 		return -EBUSY;
 	}
 
@@ -3175,21 +3128,14 @@ int register_md_personality(int pnum, mdk_personality_t *p)
 
 int unregister_md_personality(int pnum)
 {
-	if (pnum >= MAX_PERSONALITY) {
-		MD_BUG();
+	if (pnum >= MAX_PERSONALITY)
 		return -EINVAL;
-	}
 
 	printk(KERN_INFO "md: %s personality unregistered\n", pers[pnum]->name);
 	spin_lock(&pers_lock);
 	pers[pnum] = NULL;
 	spin_unlock(&pers_lock);
 	return 0;
-}
-
-void md_sync_acct(mdk_rdev_t *rdev, unsigned long nr_sectors)
-{
-	rdev->bdev->bd_contains->bd_disk->sync_io += nr_sectors;
 }
 
 static int is_mddev_idle(mddev_t *mddev)
@@ -3204,8 +3150,12 @@ static int is_mddev_idle(mddev_t *mddev)
 		struct gendisk *disk = rdev->bdev->bd_contains->bd_disk;
 		curr_events = disk_stat_read(disk, read_sectors) + 
 				disk_stat_read(disk, write_sectors) - 
-				disk->sync_io;
-		if ((curr_events - rdev->last_events) > 32) {
+				atomic_read(&disk->sync_io);
+		/* Allow some slack between valud of curr_events and last_events,
+		 * as there are some uninteresting races.
+		 * Note: the following is an unsigned comparison.
+		 */
+		if ((curr_events - rdev->last_events + 32) > 64) {
 			rdev->last_events = curr_events;
 			idle = 0;
 		}
@@ -3282,7 +3232,7 @@ void md_handle_safemode(mddev_t *mddev)
 }
 
 
-DECLARE_WAIT_QUEUE_HEAD(resync_wait);
+static DECLARE_WAIT_QUEUE_HEAD(resync_wait);
 
 #define SYNC_MARKS	10
 #define	SYNC_MARK_STEP	(3*HZ)
@@ -3308,38 +3258,66 @@ static void md_do_sync(mddev_t *mddev)
 	 * 1 == like 2, but have yielded to allow conflicting resync to
 	 *		commense
 	 * other == active in resync - this many blocks
+	 *
+	 * Before starting a resync we must have set curr_resync to
+	 * 2, and then checked that every "conflicting" array has curr_resync
+	 * less than ours.  When we find one that is the same or higher
+	 * we wait on resync_wait.  To avoid deadlock, we reduce curr_resync
+	 * to 1 if we choose to yield (based arbitrarily on address of mddev structure).
+	 * This will mean we have to start checking from the beginning again.
+	 *
 	 */
+
 	do {
 		mddev->curr_resync = 2;
 
+	try_again:
+		if (signal_pending(current)) {
+			flush_signals(current);
+			goto skip;
+		}
 		ITERATE_MDDEV(mddev2,tmp) {
+			printk(".");
 			if (mddev2 == mddev)
 				continue;
 			if (mddev2->curr_resync && 
 			    match_mddev_units(mddev,mddev2)) {
-				printk(KERN_INFO "md: delaying resync of %s"
-					" until %s has finished resync (they"
-				       	" share one or more physical units)\n",
-				       mdname(mddev), mdname(mddev2));
-				if (mddev < mddev2) {/* arbitrarily yield */
+				DEFINE_WAIT(wq);
+				if (mddev < mddev2 && mddev->curr_resync == 2) {
+					/* arbitrarily yield */
 					mddev->curr_resync = 1;
 					wake_up(&resync_wait);
 				}
-				if (wait_event_interruptible(resync_wait,
-							     mddev2->curr_resync < mddev->curr_resync)) {
-					flush_signals(current);
+				if (mddev > mddev2 && mddev->curr_resync == 1)
+					/* no need to wait here, we can wait the next
+					 * time 'round when curr_resync == 2
+					 */
+					continue;
+				prepare_to_wait(&resync_wait, &wq, TASK_INTERRUPTIBLE);
+				if (!signal_pending(current)
+				    && mddev2->curr_resync >= mddev->curr_resync) {
+					printk(KERN_INFO "md: delaying resync of %s"
+					       " until %s has finished resync (they"
+					       " share one or more physical units)\n",
+					       mdname(mddev), mdname(mddev2));
 					mddev_put(mddev2);
-					goto skip;
+					schedule();
+					finish_wait(&resync_wait, &wq);
+					goto try_again;
 				}
-			}
-			if (mddev->curr_resync == 1) {
-				mddev_put(mddev2);
-				break;
+				finish_wait(&resync_wait, &wq);
 			}
 		}
 	} while (mddev->curr_resync < 2);
 
-	max_sectors = mddev->size << 1;
+	if (test_bit(MD_RECOVERY_SYNC, &mddev->recovery))
+		/* resync follows the size requested by the personality,
+		 * which default to physical size, but can be virtual size
+		 */
+		max_sectors = mddev->resync_max_sectors;
+	else
+		/* recovery follows the physical size of devices */
+		max_sectors = mddev->size << 1;
 
 	printk(KERN_INFO "md: syncing RAID array %s\n", mdname(mddev));
 	printk(KERN_INFO "md: minimum _guaranteed_ reconstruction speed:"
@@ -3365,17 +3343,19 @@ static void md_do_sync(mddev_t *mddev)
 	 * Tune reconstruction:
 	 */
 	window = 32*(PAGE_SIZE/512);
-	printk(KERN_INFO "md: using %dk window, over a total of %Lu blocks.\n",
+	printk(KERN_INFO "md: using %dk window, over a total of %llu blocks.\n",
 		window/2,(unsigned long long) max_sectors/2);
 
 	atomic_set(&mddev->recovery_active, 0);
 	init_waitqueue_head(&mddev->recovery_wait);
 	last_check = 0;
 
-	if (j)
+	if (j>2) {
 		printk(KERN_INFO 
 			"md: resuming recovery of %s from checkpoint.\n",
 			mdname(mddev));
+		mddev->curr_resync = j;
+	}
 
 	while (j < max_sectors) {
 		int sectors;
@@ -3399,7 +3379,7 @@ static void md_do_sync(mddev_t *mddev)
 			break;
 
 	repeat:
-		if (jiffies >= mark[last_mark] + SYNC_MARK_STEP ) {
+		if (time_after_eq(jiffies, mark[last_mark] + SYNC_MARK_STEP )) {
 			/* step marks */
 			int next = (last_mark+1) % SYNC_MARKS;
 
@@ -3438,8 +3418,7 @@ static void md_do_sync(mddev_t *mddev)
 		if (currspeed > sysctl_speed_limit_min) {
 			if ((currspeed > sysctl_speed_limit_max) ||
 					!is_mddev_idle(mddev)) {
-				current->state = TASK_INTERRUPTIBLE;
-				schedule_timeout(HZ/4);
+				msleep_interruptible(250);
 				goto repeat;
 			}
 		}
@@ -3458,7 +3437,7 @@ static void md_do_sync(mddev_t *mddev)
 
 	if (!test_bit(MD_RECOVERY_ERR, &mddev->recovery) &&
 	    mddev->curr_resync > 2 &&
-	    mddev->curr_resync > mddev->recovery_cp) {
+	    mddev->curr_resync >= mddev->recovery_cp) {
 		if (test_bit(MD_RECOVERY_INTR, &mddev->recovery)) {
 			printk(KERN_INFO 
 				"md: checkpointing recovery of %s.\n",
@@ -3471,6 +3450,7 @@ static void md_do_sync(mddev_t *mddev)
 	md_enter_safemode(mddev);
  skip:
 	mddev->curr_resync = 0;
+	wake_up(&resync_wait);
 	set_bit(MD_RECOVERY_DONE, &mddev->recovery);
 	md_wakeup_thread(mddev->thread);
 }
@@ -3538,29 +3518,26 @@ void md_check_recovery(mddev_t *mddev)
 			mddev->recovery = 0;
 			/* flag recovery needed just to double check */
 			set_bit(MD_RECOVERY_NEEDED, &mddev->recovery);
-			wake_up(&resync_wait);
 			goto unlock;
 		}
-		if (mddev->recovery) {
+		if (mddev->recovery)
 			/* probably just the RECOVERY_NEEDED flag */
 			mddev->recovery = 0;
-			wake_up(&resync_wait);
-		}
 
 		/* no recovery is running.
 		 * remove any failed drives, then
-		 * add spares if possible
+		 * add spares if possible.
+		 * Spare are also removed and re-added, to allow
+		 * the personality to fail the re-add.
 		 */
-		ITERATE_RDEV(mddev,rdev,rtmp) {
+		ITERATE_RDEV(mddev,rdev,rtmp)
 			if (rdev->raid_disk >= 0 &&
-			    rdev->faulty &&
+			    (rdev->faulty || ! rdev->in_sync) &&
 			    atomic_read(&rdev->nr_pending)==0) {
 				if (mddev->pers->hot_remove_disk(mddev, rdev->raid_disk)==0)
 					rdev->raid_disk = -1;
 			}
-			if (!rdev->faulty && rdev->raid_disk >= 0 && !rdev->in_sync)
-				spares++;
-		}
+
 		if (mddev->degraded) {
 			ITERATE_RDEV(mddev,rdev,rtmp)
 				if (rdev->raid_disk < 0
@@ -3598,8 +3575,8 @@ void md_check_recovery(mddev_t *mddev)
 	}
 }
 
-int md_notify_reboot(struct notifier_block *this,
-					unsigned long code, void *x)
+static int md_notify_reboot(struct notifier_block *this,
+			    unsigned long code, void *x)
 {
 	struct list_head *tmp;
 	mddev_t *mddev;
@@ -3622,7 +3599,7 @@ int md_notify_reboot(struct notifier_block *this,
 	return NOTIFY_DONE;
 }
 
-struct notifier_block md_notifier = {
+static struct notifier_block md_notifier = {
 	.notifier_call	= md_notify_reboot,
 	.next		= NULL,
 	.priority	= INT_MAX, /* before any real devices */
@@ -3639,7 +3616,7 @@ static void md_geninit(void)
 		p->proc_fops = &md_seq_fops;
 }
 
-int __init md_init(void)
+static int __init md_init(void)
 {
 	int minor;
 
@@ -3668,7 +3645,7 @@ int __init md_init(void)
 	for (minor=0; minor < MAX_MD_DEVS; ++minor)
 		devfs_mk_bdev(MKDEV(mdp_major, minor<<MdpMinorShift),
 			      S_IFBLK|S_IRUSR|S_IWUSR,
-			      "md/d%d", minor);
+			      "md/mdp%d", minor);
 
 
 	register_reboot_notifier(&md_notifier);
@@ -3697,7 +3674,6 @@ void md_autodetect_dev(dev_t dev)
 
 static void autostart_arrays(int part)
 {
-	char b[BDEVNAME_SIZE];
 	mdk_rdev_t *rdev;
 	int i;
 
@@ -3707,11 +3683,9 @@ static void autostart_arrays(int part)
 		dev_t dev = detected_devices[i];
 
 		rdev = md_import_device(dev,0, 0);
-		if (IS_ERR(rdev)) {
-			printk(KERN_ALERT "md: could not import %s!\n",
-				__bdevname(dev, b));
+		if (IS_ERR(rdev))
 			continue;
-		}
+
 		if (rdev->faulty) {
 			MD_BUG();
 			continue;
@@ -3762,7 +3736,6 @@ module_exit(md_exit)
 EXPORT_SYMBOL(register_md_personality);
 EXPORT_SYMBOL(unregister_md_personality);
 EXPORT_SYMBOL(md_error);
-EXPORT_SYMBOL(md_sync_acct);
 EXPORT_SYMBOL(md_done_sync);
 EXPORT_SYMBOL(md_write_start);
 EXPORT_SYMBOL(md_write_end);
@@ -3771,6 +3744,5 @@ EXPORT_SYMBOL(md_register_thread);
 EXPORT_SYMBOL(md_unregister_thread);
 EXPORT_SYMBOL(md_wakeup_thread);
 EXPORT_SYMBOL(md_print_devices);
-EXPORT_SYMBOL(md_interrupt_thread);
 EXPORT_SYMBOL(md_check_recovery);
 MODULE_LICENSE("GPL");

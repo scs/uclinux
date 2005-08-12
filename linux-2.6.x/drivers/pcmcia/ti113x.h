@@ -262,6 +262,7 @@ static void ti_set_zv(struct yenta_socket *socket)
 			case PCI_DEVICE_ID_TI_1220:
 			case PCI_DEVICE_ID_TI_1221:
 			case PCI_DEVICE_ID_TI_1225:
+			case PCI_DEVICE_ID_TI_4510:
 				socket->socket.zoom_video = ti_zoom_video;
 				break;	
 			case PCI_DEVICE_ID_TI_1250:
@@ -441,6 +442,25 @@ out:
 }
 
 
+/* changes the irq of func1 to match that of func0 */
+static int ti12xx_align_irqs(struct yenta_socket *socket, int *old_irq)
+{
+	struct pci_dev *func0;
+
+	/* find func0 device */
+	func0 = pci_get_slot(socket->dev->bus, socket->dev->devfn & ~0x07);
+	if (!func0)
+		return 0;
+
+	if (old_irq)
+		*old_irq = socket->cb_irq;
+	socket->cb_irq = socket->dev->irq = func0->irq;
+
+	pci_dev_put(func0);
+
+	return 1;
+}
+
 /*
  * ties INTA and INTB together. also changes the devices irq to that of
  * the function 0 device. call from func1 only.
@@ -448,25 +468,21 @@ out:
  */
 static int ti12xx_tie_interrupts(struct yenta_socket *socket, int *old_irq)
 {
-	struct pci_dev *func0;
 	u32 sysctl;
+	int ret;
 
 	sysctl = config_readl(socket, TI113X_SYSTEM_CONTROL);
 	if (sysctl & TI122X_SCR_INTRTIE)
 		return 0;
 
-	/* find func0 device */
-	func0 = pci_get_slot(socket->dev->bus, socket->dev->devfn & ~0x07);
-	if (!func0)
+	/* align */
+	ret = ti12xx_align_irqs(socket, old_irq);
+	if (!ret)
 		return 0;
 
-	/* change the interrupt to match func0, tie 'em up */
-	*old_irq = socket->cb_irq;
-	socket->cb_irq = socket->dev->irq = func0->irq;
+	/* tie */
 	sysctl |= TI122X_SCR_INTRTIE;
 	config_writel(socket, TI113X_SYSTEM_CONTROL, sysctl);
-
-	pci_dev_put(func0);
 
 	return 1;
 }
@@ -488,13 +504,18 @@ static void ti12xx_untie_interrupts(struct yenta_socket *socket, int old_irq)
  */
 static void ti12xx_irqroute_func1(struct yenta_socket *socket)
 {
-	u32 mfunc, mfunc_old, devctl;
+	u32 mfunc, mfunc_old, devctl, sysctl;
 	int pci_irq_status;
 
 	mfunc = mfunc_old = config_readl(socket, TI122X_MFUNC);
 	devctl = config_readb(socket, TI113X_DEVICE_CONTROL);
 	printk(KERN_INFO "Yenta TI: socket %s, mfunc 0x%08x, devctl 0x%02x\n",
 	       pci_name(socket->dev), mfunc, devctl);
+
+	/* if IRQs are configured as tied, align irq of func1 with func0 */
+	sysctl = config_readl(socket, TI113X_SYSTEM_CONTROL);
+	if (sysctl & TI122X_SCR_INTRTIE)
+		ti12xx_align_irqs(socket, NULL);
 
 	/* make sure PCI interrupts are enabled before probing */
 	ti_init(socket);
@@ -592,15 +613,20 @@ out:
 
 static int ti12xx_override(struct yenta_socket *socket)
 {
-	u32 val;
+	u32 val, val_orig;
 
 	/* make sure that memory burst is active */
-	val = config_readl(socket, TI113X_SYSTEM_CONTROL);
+	val_orig = val = config_readl(socket, TI113X_SYSTEM_CONTROL);
+	if (disable_clkrun && PCI_FUNC(socket->dev->devfn) == 0) {
+		printk(KERN_INFO "Yenta: Disabling CLKRUN feature\n");
+		val |= TI113X_SCR_KEEPCLK;
+	}
 	if (!(val & TI122X_SCR_MRBURSTUP)) {
 		printk(KERN_INFO "Yenta: Enabling burst memory read transactions\n");
 		val |= TI122X_SCR_MRBURSTUP;
-		config_writel(socket, TI113X_SYSTEM_CONTROL, val);
 	}
+	if (val_orig != val)
+		config_writel(socket, TI113X_SYSTEM_CONTROL, val);
 
 	/*
 	 * for EnE bridges only: clear testbit TLTEnable. this makes the

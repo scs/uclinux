@@ -31,6 +31,19 @@
 #ifndef __MGA_DRV_H__
 #define __MGA_DRV_H__
 
+/* General customization:
+ */
+
+#define DRIVER_AUTHOR		"Gareth Hughes, VA Linux Systems Inc."
+
+#define DRIVER_NAME		"mga"
+#define DRIVER_DESC		"Matrox G200/G400"
+#define DRIVER_DATE		"20021029"
+
+#define DRIVER_MAJOR		3
+#define DRIVER_MINOR		1
+#define DRIVER_PATCHLEVEL	0
+
 typedef struct drm_mga_primary_buffer {
 	u8 *start;
 	u8 *end;
@@ -104,12 +117,10 @@ extern int mga_dma_init( DRM_IOCTL_ARGS );
 extern int mga_dma_flush( DRM_IOCTL_ARGS );
 extern int mga_dma_reset( DRM_IOCTL_ARGS );
 extern int mga_dma_buffers( DRM_IOCTL_ARGS );
+extern void mga_driver_pretakedown(drm_device_t *dev);
+extern int mga_driver_dma_quiescent(drm_device_t *dev);
 
 extern int mga_do_wait_for_idle( drm_mga_private_t *dev_priv );
-extern int mga_do_dma_idle( drm_mga_private_t *dev_priv );
-extern int mga_do_dma_reset( drm_mga_private_t *dev_priv );
-extern int mga_do_engine_reset( drm_mga_private_t *dev_priv );
-extern int mga_do_cleanup_dma( drm_device_t *dev );
 
 extern void mga_do_dma_flush( drm_mga_private_t *dev_priv );
 extern void mga_do_dma_wrap_start( drm_mga_private_t *dev_priv );
@@ -117,18 +128,15 @@ extern void mga_do_dma_wrap_end( drm_mga_private_t *dev_priv );
 
 extern int mga_freelist_put( drm_device_t *dev, drm_buf_t *buf );
 
-				/* mga_state.c */
-extern int  mga_dma_clear( DRM_IOCTL_ARGS );
-extern int  mga_dma_swap( DRM_IOCTL_ARGS );
-extern int  mga_dma_vertex( DRM_IOCTL_ARGS );
-extern int  mga_dma_indices( DRM_IOCTL_ARGS );
-extern int  mga_dma_iload( DRM_IOCTL_ARGS );
-extern int  mga_dma_blit( DRM_IOCTL_ARGS );
-extern int  mga_getparam( DRM_IOCTL_ARGS );
-
 				/* mga_warp.c */
 extern int mga_warp_install_microcode( drm_mga_private_t *dev_priv );
 extern int mga_warp_init( drm_mga_private_t *dev_priv );
+
+extern int mga_driver_vblank_wait(drm_device_t *dev, unsigned int *sequence);
+extern irqreturn_t mga_driver_irq_handler( DRM_IRQ_ARGS );
+extern void mga_driver_irq_preinstall( drm_device_t *dev );
+extern void mga_driver_irq_postinstall( drm_device_t *dev );
+extern void mga_driver_irq_uninstall( drm_device_t *dev );
 
 #define mga_flush_write_combine()	DRM_WRITEMEMORYBARRIER()
 

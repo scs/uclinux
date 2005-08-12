@@ -25,8 +25,6 @@ extern void DIVA_DIDD_Read(void *, int);
 extern int diva_user_mode_idi_create_adapter(const DESCRIPTOR *, int);
 extern void diva_user_mode_idi_remove_adapter(int);
 
-#define MAX_DESCRIPTORS  32
-
 static dword notify_handle;
 static DESCRIPTOR DAdapter;
 static DESCRIPTOR MAdapter;

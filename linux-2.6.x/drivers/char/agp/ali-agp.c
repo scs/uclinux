@@ -139,9 +139,9 @@ static void m1541_cache_flush(void)
 	}
 }
 
-static void *m1541_alloc_page(void)
+static void *m1541_alloc_page(struct agp_bridge_data *bridge)
 {
-	void *addr = agp_generic_alloc_page();
+	void *addr = agp_generic_alloc_page(agp_bridge);
 	u32 temp;
 
 	if (!addr)
@@ -150,7 +150,7 @@ static void *m1541_alloc_page(void)
 	pci_read_config_dword(agp_bridge->dev, ALI_CACHE_FLUSH_CTRL, &temp);
 	pci_write_config_dword(agp_bridge->dev, ALI_CACHE_FLUSH_CTRL,
 			(((temp & ALI_CACHE_FLUSH_ADDR_MASK) |
-			  virt_to_phys(addr)) | ALI_CACHE_FLUSH_EN ));
+			  virt_to_gart(addr)) | ALI_CACHE_FLUSH_EN ));
 	return addr;
 }
 
@@ -174,7 +174,7 @@ static void m1541_destroy_page(void * addr)
 	pci_read_config_dword(agp_bridge->dev, ALI_CACHE_FLUSH_CTRL, &temp);
 	pci_write_config_dword(agp_bridge->dev, ALI_CACHE_FLUSH_CTRL,
 			(((temp & ALI_CACHE_FLUSH_ADDR_MASK) |
-			  virt_to_phys(addr)) | ALI_CACHE_FLUSH_EN));
+			  virt_to_gart(addr)) | ALI_CACHE_FLUSH_EN));
 	agp_generic_destroy_page(addr);
 }
 
@@ -192,7 +192,7 @@ static struct aper_size_info_32 ali_generic_sizes[7] =
 	{4, 1024, 0, 3}
 };
 
-struct agp_bridge_driver ali_generic_bridge = {
+static struct agp_bridge_driver ali_generic_bridge = {
 	.owner			= THIS_MODULE,
 	.aperture_sizes		= ali_generic_sizes,
 	.size_type		= U32_APER_SIZE,
@@ -215,7 +215,7 @@ struct agp_bridge_driver ali_generic_bridge = {
 	.agp_destroy_page	= ali_destroy_page,
 };
 
-struct agp_bridge_driver ali_m1541_bridge = {
+static struct agp_bridge_driver ali_m1541_bridge = {
 	.owner			= THIS_MODULE,
 	.aperture_sizes		= ali_generic_sizes,
 	.size_type		= U32_APER_SIZE,
@@ -277,6 +277,15 @@ static struct agp_device_ids ali_agp_device_ids[] __devinitdata =
 		.device_id	= PCI_DEVICE_ID_AL_M1671,
 		.chipset_name	= "M1671",
 	},
+	{
+		.device_id	= PCI_DEVICE_ID_AL_M1681,
+		.chipset_name	= "M1681",
+	},
+	{
+		.device_id	= PCI_DEVICE_ID_AL_M1683,
+		.chipset_name	= "M1683",
+	},
+
 	{ }, /* dummy final entry, always present */
 };
 
@@ -387,7 +396,9 @@ static struct pci_driver agp_ali_pci_driver = {
 
 static int __init agp_ali_init(void)
 {
-	return pci_module_init(&agp_ali_pci_driver);
+	if (agp_off)
+		return -EINVAL;
+	return pci_register_driver(&agp_ali_pci_driver);
 }
 
 static void __exit agp_ali_cleanup(void)

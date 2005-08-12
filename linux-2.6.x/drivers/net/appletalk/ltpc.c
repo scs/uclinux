@@ -62,8 +62,8 @@
 /***
  *
  * $Log$
- * Revision 1.3  2004/09/08 15:31:15  lgsoft
- * Import of 2.6.8
+ * Revision 1.4  2005/08/12 06:42:37  magicyang
+ *  Update kernel 2.6.8 to 2.6.12
  *
  * Revision 1.1.2.1  2000/03/01 05:35:07  jgarzik
  * at and tr cleanup
@@ -230,17 +230,17 @@ static int dma;
 #include <linux/delay.h>
 #include <linux/timer.h>
 #include <linux/atalk.h>
+#include <linux/bitops.h>
 
 #include <asm/system.h>
-#include <asm/bitops.h>
 #include <asm/dma.h>
 #include <asm/io.h>
 
 /* our stuff */
 #include "ltpc.h"
 
-static spinlock_t txqueue_lock = SPIN_LOCK_UNLOCKED;
-static spinlock_t mbox_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(txqueue_lock);
+static DEFINE_SPINLOCK(mbox_lock);
 
 /* function prototypes */
 static int do_read(struct net_device *dev, void *cbuf, int cbuflen,
@@ -1042,7 +1042,7 @@ struct net_device * __init ltpc_probe(void)
 	unsigned long f;
 	unsigned long timeout;
 
-	dev = alloc_netdev(sizeof(struct ltpc_private), "lt%d", ltalk_setup);
+	dev = alloc_ltalkdev(sizeof(struct ltpc_private));
 	if (!dev)
 		goto out;
 
@@ -1260,10 +1260,10 @@ static struct net_device *dev_ltpc;
 #ifdef MODULE
 
 MODULE_LICENSE("GPL");
-MODULE_PARM(debug, "i");
-MODULE_PARM(io, "i");
-MODULE_PARM(irq, "i");
-MODULE_PARM(dma, "i");
+module_param(debug, int, 0);
+module_param(io, int, 0);
+module_param(irq, int, 0);
+module_param(dma, int, 0);
 
 
 int __init init_module(void)

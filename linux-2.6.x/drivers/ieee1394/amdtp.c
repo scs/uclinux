@@ -286,7 +286,7 @@ static struct hpsb_highlevel amdtp_highlevel;
 #define OHCI1394_CONTEXT_DEAD        0x00000800
 #define OHCI1394_CONTEXT_ACTIVE      0x00000400
 
-void ohci1394_start_it_ctx(struct ti_ohci *ohci, int ctx,
+static void ohci1394_start_it_ctx(struct ti_ohci *ohci, int ctx,
 			   dma_addr_t first_cmd, int z, int cycle_match)
 {
 	reg_write(ohci, OHCI1394_IsoXmitIntMaskSet, 1 << ctx);
@@ -298,13 +298,13 @@ void ohci1394_start_it_ctx(struct ti_ohci *ohci, int ctx,
 		  OHCI1394_CONTEXT_RUN);
 }
 
-void ohci1394_wake_it_ctx(struct ti_ohci *ohci, int ctx)
+static void ohci1394_wake_it_ctx(struct ti_ohci *ohci, int ctx)
 {
 	reg_write(ohci, OHCI1394_IsoXmitContextControlSet + ctx * 16,
 		  OHCI1394_CONTEXT_WAKE);
 }
 
-void ohci1394_stop_it_ctx(struct ti_ohci *ohci, int ctx, int synchronous)
+static void ohci1394_stop_it_ctx(struct ti_ohci *ohci, int ctx, int synchronous)
 {
 	u32 control;
 	int wait;
@@ -530,7 +530,7 @@ static __inline__ int fraction_ceil(struct fraction *frac)
 	return frac->integer + (frac->numerator > 0 ? 1 : 0);
 }
 
-void packet_initialize(struct packet *p, struct packet *next)
+static void packet_initialize(struct packet *p, struct packet *next)
 {
 	/* Here we initialize the dma descriptor block for
 	 * transferring one iso packet.  We use two descriptors per
@@ -559,7 +559,7 @@ void packet_initialize(struct packet *p, struct packet *next)
 	p->db->payload_desc.status = 0;
 }
 
-struct packet_list *packet_list_alloc(struct stream *s)
+static struct packet_list *packet_list_alloc(struct stream *s)
 {
 	int i;
 	struct packet_list *pl;
@@ -588,7 +588,7 @@ struct packet_list *packet_list_alloc(struct stream *s)
 	return pl;
 }
 
-void packet_list_free(struct packet_list *pl, struct stream *s)
+static void packet_list_free(struct packet_list *pl, struct stream *s)
 {
 	int i;
 
@@ -1010,7 +1010,7 @@ static int stream_configure(struct stream *s, int cmd, struct amdtp_ioctl *cfg)
 	return 0;
 }
 
-struct stream *stream_alloc(struct amdtp_host *host)
+static struct stream *stream_alloc(struct amdtp_host *host)
 {
 	struct stream *s;
 	unsigned long flags;
@@ -1062,7 +1062,7 @@ struct stream *stream_alloc(struct amdtp_host *host)
 	return s;
 }
 
-void stream_free(struct stream *s)
+static void stream_free(struct stream *s)
 {
 	unsigned long flags;
 
@@ -1140,24 +1140,28 @@ static ssize_t amdtp_write(struct file *file, const char __user *buffer, size_t 
 	return count;
 }
 
-static int amdtp_ioctl(struct inode *inode, struct file *file,
-			   unsigned int cmd, unsigned long arg)
+static long amdtp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	struct stream *s = file->private_data;
 	struct amdtp_ioctl cfg;
-
+	int err;
+	lock_kernel();
 	switch(cmd)
 	{
 	case AMDTP_IOC_PLUG:
 	case AMDTP_IOC_CHANNEL:
 		if (copy_from_user(&cfg, (struct amdtp_ioctl __user *) arg, sizeof cfg))
-			return -EFAULT;
+			err = -EFAULT;
 		else
-			return stream_configure(s, cmd, &cfg);
+			err = stream_configure(s, cmd, &cfg);
+		break;
 
 	default:
-		return -EINVAL;
+		err = -EINVAL;
+		break;
 	}
+	unlock_kernel();
+	return err;
 }
 
 static unsigned int amdtp_poll(struct file *file, poll_table *pt)
@@ -1203,7 +1207,8 @@ static struct file_operations amdtp_fops =
 	.owner =	THIS_MODULE,
 	.write =	amdtp_write,
 	.poll =		amdtp_poll,
-	.ioctl =	amdtp_ioctl,
+	.unlocked_ioctl = amdtp_ioctl,
+	.compat_ioctl = amdtp_ioctl, /* All amdtp ioctls are compatible */
 	.open =		amdtp_open,
 	.release =	amdtp_release
 };
@@ -1276,18 +1281,6 @@ static int __init amdtp_init_module (void)
 
 	hpsb_register_highlevel(&amdtp_highlevel);
 
-#ifdef CONFIG_COMPAT
-	{
-		int ret;
-		ret = register_ioctl32_conversion(AMDTP_IOC_CHANNEL, NULL);
-		ret |= register_ioctl32_conversion(AMDTP_IOC_PLUG, NULL);
-		ret |= register_ioctl32_conversion(AMDTP_IOC_PING, NULL);
-		ret |= register_ioctl32_conversion(AMDTP_IOC_ZAP, NULL);
-		if (ret)
-			HPSB_ERR("amdtp: Error registering ioctl32 translations");
-	}
-#endif
-
 	HPSB_INFO("Loaded AMDTP driver");
 
 	return 0;
@@ -1295,17 +1288,6 @@ static int __init amdtp_init_module (void)
 
 static void __exit amdtp_exit_module (void)
 {
-#ifdef CONFIG_COMPAT
-	int ret;
-
-	ret = unregister_ioctl32_conversion(AMDTP_IOC_CHANNEL);
-	ret |= unregister_ioctl32_conversion(AMDTP_IOC_PLUG);
-	ret |= unregister_ioctl32_conversion(AMDTP_IOC_PING);
-	ret |= unregister_ioctl32_conversion(AMDTP_IOC_ZAP);
-	if (ret)
-		HPSB_ERR("amdtp: Error unregistering ioctl32 translations");
-#endif
-
         hpsb_unregister_highlevel(&amdtp_highlevel);
 	devfs_remove("amdtp");
 	cdev_del(&amdtp_cdev);

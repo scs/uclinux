@@ -1,4 +1,6 @@
 /*
+    $Id$
+
     bttv - Bt848 frame grabber driver
 
     bttv's *private* header file  --  nobody other than bttv itself
@@ -41,6 +43,7 @@
 #include <media/video-buf.h>
 #include <media/audiochip.h>
 #include <media/tuner.h>
+#include <media/tveeprom.h>
 #include <media/ir-common.h>
 
 #include "bt848.h"
@@ -87,7 +90,6 @@ struct bttv_tvnorm {
 	int   sram;
 };
 extern const struct bttv_tvnorm bttv_tvnorms[];
-extern const unsigned int BTTV_TVNORMS;
 
 struct bttv_format {
 	char *name;
@@ -99,8 +101,6 @@ struct bttv_format {
 	int  flags;
 	int  hshift,vshift;   /* for planar modes   */
 };
-extern const struct bttv_format bttv_formats[];
-extern const unsigned int BTTV_FORMATS;
 
 /* ---------------------------------------------------------- */
 
@@ -127,8 +127,8 @@ struct bttv_buffer {
 struct bttv_buffer_set {
 	struct bttv_buffer     *top;       /* top field buffer    */
 	struct bttv_buffer     *bottom;    /* bottom field buffer */
-	unsigned int           irqflags;
-	unsigned int           topirq;
+	unsigned int           top_irq;
+	unsigned int           frame_irq;
 };
 
 struct bttv_overlay {
@@ -143,7 +143,7 @@ struct bttv_overlay {
 struct bttv_fh {
 	struct bttv              *btv;
 	int resources;
-#ifdef VIDIOC_G_PRIORITY 
+#ifdef VIDIOC_G_PRIORITY
 	enum v4l2_priority       prio;
 #endif
 	enum v4l2_buf_type       type;
@@ -171,25 +171,9 @@ int bttv_risc_packed(struct bttv *btv, struct btcx_riscmem *risc,
 		     struct scatterlist *sglist,
 		     unsigned int offset, unsigned int bpl,
 		     unsigned int pitch, unsigned int lines);
-int bttv_risc_planar(struct bttv *btv, struct btcx_riscmem *risc,
-		     struct scatterlist *sglist,
-		     unsigned int yoffset,  unsigned int ybpl,
-		     unsigned int ypadding, unsigned int ylines,
-		     unsigned int uoffset,  unsigned int voffset,
-		     unsigned int hshift,   unsigned int vshift,
-		     unsigned int cpadding);
-int bttv_risc_overlay(struct bttv *btv, struct btcx_riscmem *risc,
-		      const struct bttv_format *fmt,
-		      struct bttv_overlay *ov,
-		      int skip_top, int skip_bottom);
-
-/* calculate / apply geometry settings */
-void bttv_calc_geo(struct bttv *btv, struct bttv_geometry *geo,
-		   int width, int height, int interleaved, int norm);
-void bttv_apply_geo(struct bttv *btv, struct bttv_geometry *geo, int top);
 
 /* control dma register + risc main loop */
-void bttv_set_dma(struct bttv *btv, int override, int irqflags);
+void bttv_set_dma(struct bttv *btv, int override);
 int bttv_risc_init_main(struct bttv *btv);
 int bttv_risc_hook(struct bttv *btv, int slot, struct btcx_riscmem *risc,
 		   int irqflags);
@@ -237,11 +221,6 @@ extern unsigned int bttv_gpio;
 extern void bttv_gpio_tracking(struct bttv *btv, char *comment);
 extern int init_bttv_i2c(struct bttv *btv);
 extern int fini_bttv_i2c(struct bttv *btv);
-extern int pvr_boot(struct bttv *btv);
-
-extern int bttv_common_ioctls(struct bttv *btv, unsigned int cmd, void *arg);
-extern void bttv_reinit_bt848(struct bttv *btv);
-extern void bttv_field_count(struct bttv *btv);
 
 #define vprintk  if (bttv_verbose) printk
 #define dprintk  if (bttv_debug >= 1) printk
@@ -250,7 +229,6 @@ extern void bttv_field_count(struct bttv *btv);
 /* our devices */
 #define BTTV_MAX 16
 extern unsigned int bttv_num;
-extern struct bttv bttvs[BTTV_MAX];
 
 #define BTTV_MAX_FBUF   0x208000
 #define VBIBUF_SIZE     (2048*VBI_MAXLINES*2)
@@ -276,10 +254,10 @@ struct bttv_input {
 };
 
 struct bttv_suspend_state {
-	u32  pci_cfg[64 / sizeof(u32)];
 	u32  gpio_enable;
 	u32  gpio_data;
 	int  disabled;
+	int  loop_irq;
 	struct bttv_buffer_set video;
 	struct bttv_buffer     *vbi;
 };
@@ -290,7 +268,7 @@ struct bttv {
 	/* pci device config */
 	unsigned short id;
 	unsigned char revision;
-	unsigned char *bt848_mmio;   /* pointer to mmio */
+	unsigned char __iomem *bt848_mmio;   /* pointer to mmio */
 
 	/* card configuration info */
 	unsigned int cardid;   /* pci subsystem id (bt878 based ones) */
@@ -331,10 +309,10 @@ struct bttv {
         struct semaphore lock;
 	int resources;
         struct semaphore reslock;
-#ifdef VIDIOC_G_PRIORITY 
+#ifdef VIDIOC_G_PRIORITY
 	struct v4l2_prio_state prio;
 #endif
-	
+
 	/* video state */
 	unsigned int input;
 	unsigned int audio;
@@ -380,6 +358,7 @@ struct bttv {
 	struct list_head        vcapture;   /* vbi capture queue   */
 	struct bttv_buffer_set  curr;       /* active buffers      */
 	struct bttv_buffer      *cvbi;      /* active vbi buffer   */
+	int                     loop_irq;
 	int                     new_input;
 
 	unsigned long cap_ctl;
@@ -396,6 +375,7 @@ struct bttv {
 	unsigned int users;
 	struct bttv_fh init;
 };
+extern struct bttv bttvs[BTTV_MAX];
 
 /* private ioctls */
 #define BTTV_VERSION            _IOR('v' , BASE_VIDIOCPRIVATE+6, int)
@@ -403,7 +383,7 @@ struct bttv {
 
 #endif
 
-#define btwrite(dat,adr)    writel((dat), (char *) (btv->bt848_mmio+(adr)))
+#define btwrite(dat,adr)    writel((dat), btv->bt848_mmio+(adr))
 #define btread(adr)         readl(btv->bt848_mmio+(adr))
 
 #define btand(dat,adr)      btwrite((dat) & btread(adr), adr)

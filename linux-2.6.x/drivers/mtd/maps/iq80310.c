@@ -68,7 +68,7 @@ static int __init init_iq80310(void)
 	int parsed_nr_parts = 0;
 	int ret;
 
-	iq80310_map.virt = (unsigned long)ioremap(WINDOW_ADDR, WINDOW_SIZE);
+	iq80310_map.virt = ioremap(WINDOW_ADDR, WINDOW_SIZE);
 	if (!iq80310_map.virt) {
 		printk("Failed to ioremap\n");
 		return -EIO;

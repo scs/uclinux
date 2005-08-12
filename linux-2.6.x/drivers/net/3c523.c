@@ -104,10 +104,10 @@
 #include <linux/delay.h>
 #include <linux/mca-legacy.h>
 #include <linux/ethtool.h>
+#include <linux/bitops.h>
 
 #include <asm/uaccess.h>
 #include <asm/processor.h>
-#include <asm/bitops.h>
 #include <asm/io.h>
 
 #include "3c523.h"
@@ -1271,8 +1271,8 @@ static struct ethtool_ops netdev_ethtool_ops = {
 static struct net_device *dev_elmc[MAX_3C523_CARDS];
 static int irq[MAX_3C523_CARDS];
 static int io[MAX_3C523_CARDS];
-MODULE_PARM(irq, "1-" __MODULE_STRING(MAX_3C523_CARDS) "i");
-MODULE_PARM(io, "1-" __MODULE_STRING(MAX_3C523_CARDS) "i");
+module_param_array(irq, int, NULL, 0);
+module_param_array(io, int, NULL, 0);
 MODULE_PARM_DESC(io, "EtherLink/MC I/O base address(es)");
 MODULE_PARM_DESC(irq, "EtherLink/MC IRQ number(s)");
 

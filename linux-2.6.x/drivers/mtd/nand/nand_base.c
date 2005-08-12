@@ -24,6 +24,10 @@
  *  
  *  05-19-2004  tglx: Basic support for Renesas AG-AND chips
  *
+ *  09-24-2004  tglx: add support for hardware controllers (e.g. ECC) shared
+ *		among multiple independend devices. Suggestions and initial patch
+ *		from Ben Dooks <ben-mtd@fluff.org>
+ *
  * Credits:
  *	David Woodhouse for adding multichip support  
  *	
@@ -131,25 +135,31 @@ static int nand_verify_pages (struct mtd_info *mtd, struct nand_chip *this, int 
 #define nand_verify_pages(...) (0)
 #endif
 		
-static void nand_get_chip (struct nand_chip *this, struct mtd_info *mtd, int new_state);
+static void nand_get_device (struct nand_chip *this, struct mtd_info *mtd, int new_state);
 
 /**
- * nand_release_chip - [GENERIC] release chip
+ * nand_release_device - [GENERIC] release chip
  * @mtd:	MTD device structure
  * 
  * Deselect, release chip lock and wake up anyone waiting on the device 
  */
-static void nand_release_chip (struct mtd_info *mtd)
+static void nand_release_device (struct mtd_info *mtd)
 {
 	struct nand_chip *this = mtd->priv;
 
 	/* De-select the NAND device */
 	this->select_chip(mtd, -1);
+	/* Do we have a hardware controller ? */
+	if (this->controller) {
+		spin_lock(&this->controller->lock);
+		this->controller->active = NULL;
+		spin_unlock(&this->controller->lock);
+	}
 	/* Release the chip */
-	spin_lock_bh (&this->chip_lock);
+	spin_lock (&this->chip_lock);
 	this->state = FL_READY;
 	wake_up (&this->wq);
-	spin_unlock_bh (&this->chip_lock);
+	spin_unlock (&this->chip_lock);
 }
 
 /**
@@ -388,7 +398,7 @@ static int nand_block_bad(struct mtd_info *mtd, loff_t ofs, int getchip)
 		chipnr = (int)(ofs >> this->chip_shift);
 
 		/* Grab the lock and see if the device is available */
-		nand_get_chip (this, mtd, FL_READING);
+		nand_get_device (this, mtd, FL_READING);
 
 		/* Select the NAND device */
 		this->select_chip(mtd, chipnr);
@@ -410,7 +420,7 @@ static int nand_block_bad(struct mtd_info *mtd, loff_t ofs, int getchip)
 		
 	if (getchip) {
 		/* Deselect and wake up anyone waiting on the device */
-		nand_release_chip(mtd);
+		nand_release_device(mtd);
 	}	
 	
 	return res;
@@ -533,8 +543,8 @@ static void nand_command (struct mtd_info *mtd, unsigned command, int column, in
 		if (page_addr != -1) {
 			this->write_byte(mtd, (unsigned char) (page_addr & 0xff));
 			this->write_byte(mtd, (unsigned char) ((page_addr >> 8) & 0xff));
-			/* One more address cycle for higher density devices */
-			if (this->chipsize & 0x0c000000) 
+			/* One more address cycle for devices > 32MiB */
+			if (this->chipsize > (32 << 20))
 				this->write_byte(mtd, (unsigned char) ((page_addr >> 16) & 0x0f));
 		}
 		/* Latch in address */
@@ -689,15 +699,16 @@ static void nand_command_lp (struct mtd_info *mtd, unsigned command, int column,
 }
 
 /**
- * nand_get_chip - [GENERIC] Get chip for selected access
+ * nand_get_device - [GENERIC] Get chip for selected access
  * @this:	the nand chip descriptor
  * @mtd:	MTD device structure
  * @new_state:	the state which is requested 
  *
  * Get the device and lock it for exclusive access
  */
-static void nand_get_chip (struct nand_chip *this, struct mtd_info *mtd, int new_state)
+static void nand_get_device (struct nand_chip *this, struct mtd_info *mtd, int new_state)
 {
+	struct nand_chip *active = this;
 
 	DECLARE_WAITQUEUE (wait, current);
 
@@ -705,19 +716,29 @@ static void nand_get_chip (struct nand_chip *this, struct mtd_info *mtd, int new
 	 * Grab the lock and see if the device is available 
 	*/
 retry:
-	spin_lock_bh (&this->chip_lock);
-
-	if (this->state == FL_READY) {
-		this->state = new_state;
-		spin_unlock_bh (&this->chip_lock);
-		return;
+	/* Hardware controller shared among independend devices */
+	if (this->controller) {
+		spin_lock (&this->controller->lock);
+		if (this->controller->active)
+			active = this->controller->active;
+		else
+			this->controller->active = this;
+		spin_unlock (&this->controller->lock);
 	}
-
+	
+	if (active == this) {
+		spin_lock (&this->chip_lock);
+		if (this->state == FL_READY) {
+			this->state = new_state;
+			spin_unlock (&this->chip_lock);
+			return;
+		}
+	}	
 	set_current_state (TASK_UNINTERRUPTIBLE);
-	add_wait_queue (&this->wq, &wait);
-	spin_unlock_bh (&this->chip_lock);
+	add_wait_queue (&active->wq, &wait);
+	spin_unlock (&active->chip_lock);
 	schedule ();
-	remove_wait_queue (&this->wq, &wait);
+	remove_wait_queue (&active->wq, &wait);
 	goto retry;
 }
 
@@ -747,7 +768,6 @@ static int nand_wait(struct mtd_info *mtd, struct nand_chip *this, int state)
 	 * any case on any machine. */
 	ndelay (100);
 
-	spin_lock_bh (&this->chip_lock);
 	if ((state == FL_ERASING) && (this->options & NAND_IS_AND))
 		this->cmdfunc (mtd, NAND_CMD_STATUS_MULTI, -1, -1);
 	else	
@@ -755,24 +775,19 @@ static int nand_wait(struct mtd_info *mtd, struct nand_chip *this, int state)
 
 	while (time_before(jiffies, timeo)) {		
 		/* Check, if we were interrupted */
-		if (this->state != state) {
-			spin_unlock_bh (&this->chip_lock);
+		if (this->state != state)
 			return 0;
-		}
+
 		if (this->dev_ready) {
 			if (this->dev_ready(mtd))
+				break;	
+		} else {
+			if (this->read_byte(mtd) & NAND_STATUS_READY)
 				break;
 		}
-		if (this->read_byte(mtd) & NAND_STATUS_READY)
-			break;
-						
-		spin_unlock_bh (&this->chip_lock);
 		yield ();
-		spin_lock_bh (&this->chip_lock);
 	}
 	status = (int) this->read_byte(mtd);
-	spin_unlock_bh (&this->chip_lock);
-
 	return status;
 }
 
@@ -795,7 +810,7 @@ static int nand_write_page (struct mtd_info *mtd, struct nand_chip *this, int pa
 	u_char *oob_buf,  struct nand_oobinfo *oobsel, int cached)
 {
 	int 	i, status;
-	u_char	ecc_code[8];
+	u_char	ecc_code[32];
 	int	eccmode = oobsel->useecc ? this->eccmode : NAND_ECC_NONE;
 	int  	*oob_config = oobsel->eccpos;
 	int	datidx = 0, eccidx = 0, eccsteps = this->eccsteps;
@@ -825,18 +840,8 @@ static int nand_write_page (struct mtd_info *mtd, struct nand_chip *this, int pa
 		}
 		this->write_buf(mtd, this->data_poi, mtd->oobblock);
 		break;
-		
-	/* Hardware ecc 8 byte / 512 byte data */	
-	case NAND_ECC_HW8_512:	
-		eccbytes += 2;
-	/* Hardware ecc 6 byte / 512 byte data */	
-	case NAND_ECC_HW6_512:	
-		eccbytes += 3;
-	/* Hardware ecc 3 byte / 256 data */	
-	/* Hardware ecc 3 byte / 512 byte data */	
-	case NAND_ECC_HW3_256:		
-	case NAND_ECC_HW3_512:
-		eccbytes += 3;
+	default:
+		eccbytes = this->eccbytes;
 		for (; eccsteps; eccsteps--) {
 			/* enable hardware ecc logic for write */
 			this->enable_hwecc(mtd, NAND_ECC_WRITE);
@@ -849,14 +854,9 @@ static int nand_write_page (struct mtd_info *mtd, struct nand_chip *this, int pa
 			 * the data bytes (words) */
 			if (this->options & NAND_HWECC_SYNDROME)
 				this->write_buf(mtd, ecc_code, eccbytes);
-
 			datidx += this->eccsize;
 		}
 		break;
-
-	default:
-		printk (KERN_WARNING "Invalid NAND_ECC_MODE %d\n", this->eccmode);
-		BUG();	
 	}
 										
 	/* Write out OOB data */
@@ -1036,7 +1036,7 @@ static int nand_read_ecc (struct mtd_info *mtd, loff_t from, size_t len,
         int eccmode, eccsteps;
 	int	*oob_config, datidx;
 	int	blockcheck = (1 << (this->phys_erase_shift - this->page_shift)) - 1;
-	int	eccbytes = 3;
+	int	eccbytes;
 	int	compareecc = 1;
 	int	oobreadlen;
 
@@ -1051,7 +1051,7 @@ static int nand_read_ecc (struct mtd_info *mtd, loff_t from, size_t len,
 	}
 
 	/* Grab the lock and see if the device is available */
-	nand_get_chip (this, mtd ,FL_READING);
+	nand_get_device (this, mtd ,FL_READING);
 
 	/* use userspace supplied oobinfo, if zero */
 	if (oobsel == NULL)
@@ -1077,19 +1077,9 @@ static int nand_read_ecc (struct mtd_info *mtd, loff_t from, size_t len,
 
 	end = mtd->oobblock;
 	ecc = this->eccsize;
-	switch (eccmode) {
-	case NAND_ECC_HW6_512: /* Hardware ECC 6 byte / 512 byte data  */
-		eccbytes = 6;
-		break;						
-	case NAND_ECC_HW8_512: /* Hardware ECC 8 byte / 512 byte data  */
-		eccbytes = 8;
-		break;
-	case NAND_ECC_NONE:
-		compareecc = 0;
-		break;						
-	}	 
-
-	if (this->options & NAND_HWECC_SYNDROME)
+	eccbytes = this->eccbytes;
+	
+	if ((eccmode == NAND_ECC_NONE) || (this->options & NAND_HWECC_SYNDROME))
 		compareecc = 0;
 
 	oobreadlen = mtd->oobsize;
@@ -1149,13 +1139,10 @@ static int nand_read_ecc (struct mtd_info *mtd, loff_t from, size_t len,
 			for (i = 0, datidx = 0; eccsteps; eccsteps--, i+=3, datidx += ecc) 
 				this->calculate_ecc(mtd, &data_poi[datidx], &ecc_calc[i]);
 			break;	
-			
-		case NAND_ECC_HW3_256: /* Hardware ECC 3 byte /256 byte data */
-		case NAND_ECC_HW3_512: /* Hardware ECC 3 byte /512 byte data */	
-		case NAND_ECC_HW6_512: /* Hardware ECC 6 byte / 512 byte data  */
-		case NAND_ECC_HW8_512: /* Hardware ECC 8 byte / 512 byte data  */
+
+		default:
 			for (i = 0, datidx = 0; eccsteps; eccsteps--, i+=eccbytes, datidx += ecc) {
-				this->enable_hwecc(mtd, NAND_ECC_READ);	
+				this->enable_hwecc(mtd, NAND_ECC_READ);
 				this->read_buf(mtd, &data_poi[datidx], ecc);
 
 				/* HW ecc with syndrome calculation must read the
@@ -1178,10 +1165,6 @@ static int nand_read_ecc (struct mtd_info *mtd, loff_t from, size_t len,
 				}	
 			}
 			break;						
-
-		default:
-			printk (KERN_WARNING "Invalid NAND_ECC_MODE %d\n", this->eccmode);
-			BUG();	
 		}
 
 		/* read oobdata */
@@ -1281,7 +1264,7 @@ static int nand_read_ecc (struct mtd_info *mtd, loff_t from, size_t len,
 	}
 
 	/* Deselect and wake up anyone waiting on the device */
-	nand_release_chip(mtd);
+	nand_release_device(mtd);
 
 	/*
 	 * Return success, if no ECC failures, else -EBADMSG
@@ -1328,7 +1311,7 @@ static int nand_read_oob (struct mtd_info *mtd, loff_t from, size_t len, size_t 
 	}
 
 	/* Grab the lock and see if the device is available */
-	nand_get_chip (this, mtd , FL_READING);
+	nand_get_device (this, mtd , FL_READING);
 
 	/* Select the NAND device */
 	this->select_chip(mtd, chipnr);
@@ -1379,7 +1362,7 @@ static int nand_read_oob (struct mtd_info *mtd, loff_t from, size_t len, size_t 
 	}
 
 	/* Deselect and wake up anyone waiting on the device */
-	nand_release_chip(mtd);
+	nand_release_device(mtd);
 
 	/* Return happy */
 	*retlen = len;
@@ -1413,7 +1396,7 @@ int nand_read_raw (struct mtd_info *mtd, uint8_t *buf, loff_t from, size_t len, 
 	}
 
 	/* Grab the lock and see if the device is available */
-	nand_get_chip (this, mtd , FL_READING);
+	nand_get_device (this, mtd , FL_READING);
 
 	this->select_chip (mtd, chip);
 	
@@ -1442,7 +1425,7 @@ int nand_read_raw (struct mtd_info *mtd, uint8_t *buf, loff_t from, size_t len, 
 	}
 
 	/* Deselect and wake up anyone waiting on the device */
-	nand_release_chip(mtd);
+	nand_release_device(mtd);
 	return 0;
 }
 
@@ -1564,7 +1547,7 @@ static int nand_write_ecc (struct mtd_info *mtd, loff_t to, size_t len,
 	}
 
 	/* Grab the lock and see if the device is available */
-	nand_get_chip (this, mtd, FL_WRITING);
+	nand_get_device (this, mtd, FL_WRITING);
 
 	/* Calculate chipnr */
 	chipnr = (int)(to >> this->chip_shift);
@@ -1669,7 +1652,7 @@ cmp:
 
 out:
 	/* Deselect and wake up anyone waiting on the device */
-	nand_release_chip(mtd);
+	nand_release_device(mtd);
 
 	return ret;
 }
@@ -1709,7 +1692,7 @@ static int nand_write_oob (struct mtd_info *mtd, loff_t to, size_t len, size_t *
 	}
 
 	/* Grab the lock and see if the device is available */
-	nand_get_chip (this, mtd, FL_WRITING);
+	nand_get_device (this, mtd, FL_WRITING);
 
 	/* Select the NAND device */
 	this->select_chip(mtd, chipnr);
@@ -1771,7 +1754,7 @@ static int nand_write_oob (struct mtd_info *mtd, loff_t to, size_t len, size_t *
 	ret = 0;
 out:
 	/* Deselect and wake up anyone waiting on the device */
-	nand_release_chip(mtd);
+	nand_release_device(mtd);
 
 	return ret;
 }
@@ -1838,7 +1821,7 @@ static int nand_writev_ecc (struct mtd_info *mtd, const struct kvec *vecs, unsig
 	}
 
 	/* Grab the lock and see if the device is available */
-	nand_get_chip (this, mtd, FL_WRITING);
+	nand_get_device (this, mtd, FL_WRITING);
 
 	/* Get the current chip-nr */
 	chipnr = (int) (to >> this->chip_shift);
@@ -1952,7 +1935,7 @@ static int nand_writev_ecc (struct mtd_info *mtd, const struct kvec *vecs, unsig
 	ret = 0;
 out:
 	/* Deselect and wake up anyone waiting on the device */
-	nand_release_chip(mtd);
+	nand_release_device(mtd);
 
 	*retlen = written;
 	return ret;
@@ -2041,7 +2024,7 @@ int nand_erase_nand (struct mtd_info *mtd, struct erase_info *instr, int allowbb
 	instr->fail_addr = 0xffffffff;
 
 	/* Grab the lock and see if the device is available */
-	nand_get_chip (this, mtd, FL_ERASING);
+	nand_get_device (this, mtd, FL_ERASING);
 
 	/* Shift to get first page */
 	page = (int) (instr->addr >> this->page_shift);
@@ -2112,7 +2095,7 @@ erase_exit:
 		mtd_erase_callback(instr);
 
 	/* Deselect and wake up anyone waiting on the device */
-	nand_release_chip(mtd);
+	nand_release_device(mtd);
 
 	/* Return more or less happy */
 	return ret;
@@ -2127,43 +2110,13 @@ erase_exit:
 static void nand_sync (struct mtd_info *mtd)
 {
 	struct nand_chip *this = mtd->priv;
-	DECLARE_WAITQUEUE (wait, current);
 
 	DEBUG (MTD_DEBUG_LEVEL3, "nand_sync: called\n");
 
-retry:
-	/* Grab the spinlock */
-	spin_lock_bh (&this->chip_lock);
-
-	/* See what's going on */
-	switch (this->state) {
-	case FL_READY:
-	case FL_SYNCING:
-		this->state = FL_SYNCING;
-		spin_unlock_bh (&this->chip_lock);
-		break;
-
-	default:
-		/* Not an idle state */
-		add_wait_queue (&this->wq, &wait);
-		spin_unlock_bh (&this->chip_lock);
-		schedule ();
-
-		remove_wait_queue (&this->wq, &wait);
-		goto retry;
-	}
-
-	/* Lock the device */
-	spin_lock_bh (&this->chip_lock);
-
-	/* Set the device to be ready again */
-	if (this->state == FL_SYNCING) {
-		this->state = FL_READY;
-		wake_up (&this->wq);
-	}
-
-	/* Unlock the device */
-	spin_unlock_bh (&this->chip_lock);
+	/* Grab the lock and see if the device is available */
+	nand_get_device (this, mtd, FL_SYNCING);
+	/* Release it and go back */
+	nand_release_device (mtd);
 }
 
 
@@ -2448,8 +2401,19 @@ int nand_scan (struct mtd_info *mtd, int maxchips)
 	 * fallback to software ECC 
 	*/
 	this->eccsize = 256;	/* set default eccsize */	
+	this->eccbytes = 3;
 
 	switch (this->eccmode) {
+	case NAND_ECC_HW12_2048:
+		if (mtd->oobblock < 2048) {
+			printk(KERN_WARNING "2048 byte HW ECC not possible on %d byte page size, fallback to SW ECC\n",
+			       mtd->oobblock);
+			this->eccmode = NAND_ECC_SOFT;
+			this->calculate_ecc = nand_calculate_ecc;
+			this->correct_data = nand_correct_data;
+		} else
+			this->eccsize = 2048;
+		break;
 
 	case NAND_ECC_HW3_512: 
 	case NAND_ECC_HW6_512: 
@@ -2459,16 +2423,13 @@ int nand_scan (struct mtd_info *mtd, int maxchips)
 			this->eccmode = NAND_ECC_SOFT;
 			this->calculate_ecc = nand_calculate_ecc;
 			this->correct_data = nand_correct_data;
-			break;		
 		} else 
-			this->eccsize = 512; /* set eccsize to 512 and fall through for function check */
-
+			this->eccsize = 512; /* set eccsize to 512 */
+		break;
+			
 	case NAND_ECC_HW3_256:
-		if (this->calculate_ecc && this->correct_data && this->enable_hwecc)
-			break;
-		printk (KERN_WARNING "No ECC functions supplied, Hardware ECC not possible\n");
-		BUG();	
-
+		break;
+		
 	case NAND_ECC_NONE: 
 		printk (KERN_WARNING "NAND_ECC_NONE selected by board driver. This is not recommended !!\n");
 		this->eccmode = NAND_ECC_NONE;
@@ -2483,11 +2444,32 @@ int nand_scan (struct mtd_info *mtd, int maxchips)
 		printk (KERN_WARNING "Invalid NAND_ECC_MODE %d\n", this->eccmode);
 		BUG();	
 	}	
-	
+
+	/* Check hardware ecc function availability and adjust number of ecc bytes per 
+	 * calculation step
+	*/
+	switch (this->eccmode) {
+	case NAND_ECC_HW12_2048:
+		this->eccbytes += 4;
+	case NAND_ECC_HW8_512: 
+		this->eccbytes += 2;
+	case NAND_ECC_HW6_512: 
+		this->eccbytes += 3;
+	case NAND_ECC_HW3_512: 
+	case NAND_ECC_HW3_256:
+		if (this->calculate_ecc && this->correct_data && this->enable_hwecc)
+			break;
+		printk (KERN_WARNING "No ECC functions supplied, Hardware ECC not possible\n");
+		BUG();	
+	}
+		
 	mtd->eccsize = this->eccsize;
 	
 	/* Set the number of read / write steps for one page to ensure ECC generation */
 	switch (this->eccmode) {
+	case NAND_ECC_HW12_2048:
+		this->eccsteps = mtd->oobblock / 2048;
+		break;
 	case NAND_ECC_HW3_512:
 	case NAND_ECC_HW6_512:
 	case NAND_ECC_HW8_512:

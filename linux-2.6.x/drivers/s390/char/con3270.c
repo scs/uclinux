@@ -77,10 +77,9 @@ con3270_set_timer(struct con3270 *cp, int expires)
 			del_timer(&cp->timer);
 		return;
 	}
-	if (timer_pending(&cp->timer)) {
-		if (mod_timer(&cp->timer, jiffies + expires))
-			return;
-	}
+	if (timer_pending(&cp->timer) &&
+	    mod_timer(&cp->timer, jiffies + expires))
+		return;
 	cp->timer.function = (void (*)(unsigned long)) con3270_update;
 	cp->timer.data = (unsigned long) cp;
 	cp->timer.expires = jiffies + expires;

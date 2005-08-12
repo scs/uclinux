@@ -19,6 +19,7 @@
 #include <linux/delay.h>
 #include <linux/pci.h>
 #include <linux/fb.h>
+#include <linux/jiffies.h>
 
 #include <asm/io.h>
 
@@ -106,7 +107,7 @@ static int riva_setup_i2c_bus(struct riva_i2c_chan *chan, const char *name)
 	chan->algo.getsda		= riva_gpio_getsda;
 	chan->algo.getscl		= riva_gpio_getscl;
 	chan->algo.udelay		= 40;
-	chan->algo.timeout		= 20;
+	chan->algo.timeout		= msecs_to_jiffies(2);
 	chan->algo.data 		= chan;
 
 	i2c_set_adapdata(&chan->adapter, chan);
@@ -119,31 +120,29 @@ static int riva_setup_i2c_bus(struct riva_i2c_chan *chan, const char *name)
 	rc = i2c_bit_add_bus(&chan->adapter);
 	if (rc == 0)
 		dev_dbg(&chan->par->pdev->dev, "I2C bus %s registered.\n", name);
-	else
-		dev_warn(&chan->par->pdev->dev, "Failed to register I2C bus %s.\n", name);
+	else {
+		dev_warn(&chan->par->pdev->dev,
+			 "Failed to register I2C bus %s.\n", name);
+		chan->par = NULL;
+	}
+
 	return rc;
 }
 
 void riva_create_i2c_busses(struct riva_par *par)
 {
+	par->bus = 3;
+
 	par->chan[0].par	= par;
 	par->chan[1].par	= par;
 	par->chan[2].par        = par;
 
-	switch (par->riva.Architecture) {
-#if 0		/* no support yet for other nVidia chipsets */
-		par->chan[2].ddc_base   = 0x50;
-		riva_setup_i2c_bus(&par->chan[2], "BUS2");
-#endif
-	case NV_ARCH_10:
-	case NV_ARCH_20:
-	case NV_ARCH_04:
-		par->chan[1].ddc_base	= 0x36;
-		riva_setup_i2c_bus(&par->chan[1], "BUS1");
-	case NV_ARCH_03:
-		par->chan[0].ddc_base	= 0x3e;
-		riva_setup_i2c_bus(&par->chan[0], "BUS0");
-	}
+	par->chan[0].ddc_base = 0x3e;
+	par->chan[1].ddc_base = 0x36;
+	par->chan[2].ddc_base = 0x50;
+	riva_setup_i2c_bus(&par->chan[0], "BUS1");
+	riva_setup_i2c_bus(&par->chan[1], "BUS2");
+	riva_setup_i2c_bus(&par->chan[2], "BUS3");
 }
 
 void riva_delete_i2c_busses(struct riva_par *par)
@@ -156,6 +155,9 @@ void riva_delete_i2c_busses(struct riva_par *par)
 		i2c_bit_del_bus(&par->chan[1].adapter);
 	par->chan[1].par = NULL;
 
+	if (par->chan[2].par)
+		i2c_bit_del_bus(&par->chan[2].adapter);
+	par->chan[2].par = NULL;
 }
 
 static u8 *riva_do_probe_i2c_edid(struct riva_i2c_chan *chan)
@@ -173,6 +175,9 @@ static u8 *riva_do_probe_i2c_edid(struct riva_i2c_chan *chan)
 		},
 	};
 	u8 *buf;
+
+	if (!chan->par)
+		return NULL;
 
 	buf = kmalloc(EDID_LENGTH, GFP_KERNEL);
 	if (!buf) {

@@ -248,7 +248,7 @@ static int veth_allocate_events(HvLpIndex rlp, int number)
 {
 	struct veth_allocation vc = { COMPLETION_INITIALIZER(vc.c), 0 };
 
-	mf_allocateLpEvents(rlp, HvLpEvent_Type_VirtualLan,
+	mf_allocate_lp_events(rlp, HvLpEvent_Type_VirtualLan,
 			    sizeof(struct VethLpEvent), number,
 			    &veth_complete_allocation, &vc);
 	wait_for_completion(&vc.c);
@@ -642,7 +642,7 @@ static int veth_init_connection(u8 rlp)
 	return 0;
 }
 
-static void veth_destroy_connection(u8 rlp)
+static void veth_stop_connection(u8 rlp)
 {
 	struct veth_lpar_connection *cnx = veth_cnx[rlp];
 
@@ -662,18 +662,27 @@ static void veth_destroy_connection(u8 rlp)
 	del_timer_sync(&cnx->ack_timer);
 
 	if (cnx->num_events > 0)
-		mf_deallocateLpEvents(cnx->remote_lp,
+		mf_deallocate_lp_events(cnx->remote_lp,
 				      HvLpEvent_Type_VirtualLan,
 				      cnx->num_events,
 				      NULL, NULL);
 	if (cnx->num_ack_events > 0)
-		mf_deallocateLpEvents(cnx->remote_lp,
+		mf_deallocate_lp_events(cnx->remote_lp,
 				      HvLpEvent_Type_VirtualLan,
 				      cnx->num_ack_events,
 				      NULL, NULL);
+}
 
-	if (cnx->msgs)
-		kfree(cnx->msgs);
+static void veth_destroy_connection(u8 rlp)
+{
+	struct veth_lpar_connection *cnx = veth_cnx[rlp];
+
+	if (! cnx)
+		return;
+
+	kfree(cnx->msgs);
+	kfree(cnx);
+	veth_cnx[rlp] = NULL;
 }
 
 /*
@@ -747,59 +756,40 @@ static void veth_set_multicast_list(struct net_device *dev)
 	write_unlock_irqrestore(&port->mcast_gate, flags);
 }
 
-static int veth_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
+static void veth_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 {
-#ifdef SIOCETHTOOL
-	struct ethtool_cmd ecmd;
-
-	if (cmd != SIOCETHTOOL)
-		return -EOPNOTSUPP;
-	if (copy_from_user(&ecmd, ifr->ifr_data, sizeof (ecmd)))
-		return -EFAULT;
-	switch (ecmd.cmd) {
-	case ETHTOOL_GSET:
-		ecmd.supported = (SUPPORTED_1000baseT_Full
-				  | SUPPORTED_Autoneg | SUPPORTED_FIBRE);
-		ecmd.advertising = (SUPPORTED_1000baseT_Full
-				    | SUPPORTED_Autoneg | SUPPORTED_FIBRE);
-
-		ecmd.port = PORT_FIBRE;
-		ecmd.transceiver = XCVR_INTERNAL;
-		ecmd.phy_address = 0;
-		ecmd.speed = SPEED_1000;
-		ecmd.duplex = DUPLEX_FULL;
-		ecmd.autoneg = AUTONEG_ENABLE;
-		ecmd.maxtxpkt = 120;
-		ecmd.maxrxpkt = 120;
-		if (copy_to_user(ifr->ifr_data, &ecmd, sizeof(ecmd)))
-			return -EFAULT;
-		return 0;
-
-	case ETHTOOL_GDRVINFO:{
-			struct ethtool_drvinfo info = { ETHTOOL_GDRVINFO };
-			strncpy(info.driver, "veth", sizeof(info.driver) - 1);
-			info.driver[sizeof(info.driver) - 1] = '\0';
-			strncpy(info.version, "1.0", sizeof(info.version) - 1);
-			if (copy_to_user(ifr->ifr_data, &info, sizeof(info)))
-				return -EFAULT;
-			return 0;
-		}
-		/* get link status */
-	case ETHTOOL_GLINK:{
-			struct ethtool_value edata = { ETHTOOL_GLINK };
-			edata.data = 1;
-			if (copy_to_user(ifr->ifr_data, &edata, sizeof(edata)))
-				return -EFAULT;
-			return 0;
-		}
-
-	default:
-		break;
-	}
-
-#endif
-	return -EOPNOTSUPP;
+	strncpy(info->driver, "veth", sizeof(info->driver) - 1);
+	info->driver[sizeof(info->driver) - 1] = '\0';
+	strncpy(info->version, "1.0", sizeof(info->version) - 1);
 }
+
+static int veth_get_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
+{
+	ecmd->supported = (SUPPORTED_1000baseT_Full
+			  | SUPPORTED_Autoneg | SUPPORTED_FIBRE);
+	ecmd->advertising = (SUPPORTED_1000baseT_Full
+			    | SUPPORTED_Autoneg | SUPPORTED_FIBRE);
+	ecmd->port = PORT_FIBRE;
+	ecmd->transceiver = XCVR_INTERNAL;
+	ecmd->phy_address = 0;
+	ecmd->speed = SPEED_1000;
+	ecmd->duplex = DUPLEX_FULL;
+	ecmd->autoneg = AUTONEG_ENABLE;
+	ecmd->maxtxpkt = 120;
+	ecmd->maxrxpkt = 120;
+	return 0;
+}
+
+static u32 veth_get_link(struct net_device *dev)
+{
+	return 1;
+}
+
+static struct ethtool_ops ops = {
+	.get_drvinfo = veth_get_drvinfo,
+	.get_settings = veth_get_settings,
+	.get_link = veth_get_link,
+};
 
 static void veth_tx_timeout(struct net_device *dev)
 {
@@ -812,12 +802,13 @@ static void veth_tx_timeout(struct net_device *dev)
 
 	spin_lock_irqsave(&port->pending_gate, flags);
 
+	if (!port->pending_lpmask) {
+		spin_unlock_irqrestore(&port->pending_gate, flags);
+		return;
+	}
+
 	printk(KERN_WARNING "%s: Tx timeout!  Resetting lp connections: %08x\n",
 	       dev->name, port->pending_lpmask);
-
-	/* If we've timed out the queue must be stopped, which should
-	 * only ever happen when there is a pending packet. */
-	WARN_ON(! port->pending_lpmask);
 
 	for (i = 0; i < HVMAXARCHITECTEDLPS; i++) {
 		struct veth_lpar_connection *cnx = veth_cnx[i];
@@ -889,7 +880,7 @@ static struct net_device * __init veth_probe_one(int vlan, struct device *vdev)
 	dev->change_mtu = veth_change_mtu;
 	dev->set_mac_address = NULL;
 	dev->set_multicast_list = veth_set_multicast_list;
-	dev->do_ioctl = veth_ioctl;
+	SET_ETHTOOL_OPS(dev, &ops);
 
 	dev->watchdog_timeo = 2 * (VETH_ACKTIMEOUT * HZ / 1000000);
 	dev->tx_timeout = veth_tx_timeout;
@@ -934,7 +925,7 @@ static int veth_transmit_to_one(struct sk_buff *skb, HvLpIndex rlp,
 
 	spin_lock_irqsave(&cnx->lock, flags);
 
-	if (! cnx->state & VETH_STATE_READY)
+	if (! (cnx->state & VETH_STATE_READY))
 		goto drop;
 
 	if ((skb->len - 14) > VETH_MAX_MTU)
@@ -1032,6 +1023,8 @@ static int veth_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	spin_lock_irqsave(&port->pending_gate, flags);
 
 	lpmask = veth_transmit_to_many(skb, lpmask, dev);
+
+	dev->trans_start = jiffies;
 
 	if (! lpmask) {
 		dev_kfree_skb(skb);
@@ -1272,13 +1265,18 @@ static void veth_receive(struct veth_lpar_connection *cnx,
 
 		vlan = skb->data[9];
 		dev = veth_dev[vlan];
-		if (! dev)
-			/* Some earlier versions of the driver sent
-			   broadcasts down all connections, even to
-			   lpars that weren't on the relevant vlan.
-			   So ignore packets belonging to a vlan we're
-			   not on. */
+		if (! dev) {
+			/*
+			 * Some earlier versions of the driver sent
+			 * broadcasts down all connections, even to lpars
+			 * that weren't on the relevant vlan. So ignore
+			 * packets belonging to a vlan we're not on.
+			 * We can also be here if we receive packets while
+			 * the driver is going down, because then dev is NULL.
+			 */
+			dev_kfree_skb_irq(skb);
 			continue;
+		}
 
 		port = (struct veth_port *)dev->priv;
 		dest = *((u64 *) skb->data) & 0xFFFFFFFFFFFF0000;
@@ -1391,12 +1389,28 @@ void __exit veth_module_cleanup(void)
 {
 	int i;
 
+	/* Stop the queues first to stop any new packets being sent. */
+	for (i = 0; i < HVMAXARCHITECTEDVIRTUALLANS; i++)
+		if (veth_dev[i])
+			netif_stop_queue(veth_dev[i]);
+
+	/* Stop the connections before we unregister the driver. This
+	 * ensures there's no skbs lying around holding the device open. */
+	for (i = 0; i < HVMAXARCHITECTEDLPS; ++i)
+		veth_stop_connection(i);
+
+	HvLpEvent_unregisterHandler(HvLpEvent_Type_VirtualLan);
+
+	/* Hypervisor callbacks may have scheduled more work while we
+	 * were stoping connections. Now that we've disconnected from
+	 * the hypervisor make sure everything's finished. */
+	flush_scheduled_work();
+
 	vio_unregister_driver(&veth_driver);
 
 	for (i = 0; i < HVMAXARCHITECTEDLPS; ++i)
 		veth_destroy_connection(i);
 
-	HvLpEvent_unregisterHandler(HvLpEvent_Type_VirtualLan);
 }
 module_exit(veth_module_cleanup);
 

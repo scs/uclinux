@@ -65,18 +65,7 @@ static struct video_device saa_template;	/* Declared near bottom */
 /* Addresses to scan */
 static unsigned short normal_i2c[]	 = { I2C_ADDRESS, I2C_CLIENT_END };
 static unsigned short normal_i2c_range[] = { I2C_CLIENT_END };
-static unsigned short probe[2]		 = { I2C_CLIENT_END, I2C_CLIENT_END };
-static unsigned short probe_range[2]	 = { I2C_CLIENT_END, I2C_CLIENT_END };
-static unsigned short ignore[2]		 = { I2C_CLIENT_END, I2C_CLIENT_END };
-static unsigned short ignore_range[2]	 = { I2C_CLIENT_END, I2C_CLIENT_END };
-static unsigned short force[2]		 = { I2C_CLIENT_END, I2C_CLIENT_END };
-
-static struct i2c_client_address_data addr_data = {
-	normal_i2c, normal_i2c_range,
-	probe, probe_range,
-	ignore, ignore_range,
-	force
-};
+I2C_CLIENT_INSMOD;
 
 static struct i2c_client client_template;
 
@@ -185,7 +174,6 @@ static struct i2c_driver i2c_driver_videotext =
 };
 
 static struct i2c_client client_template = {
-	.id 		= -1,
 	.driver		= &i2c_driver_videotext,
 	.name		= "(unset)",
 };
@@ -682,6 +670,54 @@ static int do_saa5246a_ioctl(struct inode *inode, struct file *file,
 }
 
 /*
+ * Translates old vtx IOCTLs to new ones
+ *
+ * This keeps new kernel versions compatible with old userspace programs.
+ */
+static inline unsigned int vtx_fix_command(unsigned int cmd)
+{
+	switch (cmd) {
+	case VTXIOCGETINFO_OLD:
+		cmd = VTXIOCGETINFO;
+		break;
+	case VTXIOCCLRPAGE_OLD:
+		cmd = VTXIOCCLRPAGE;
+		break;
+	case VTXIOCCLRFOUND_OLD:
+		cmd = VTXIOCCLRFOUND;
+		break;
+	case VTXIOCPAGEREQ_OLD:
+		cmd = VTXIOCPAGEREQ;
+		break;
+	case VTXIOCGETSTAT_OLD:
+		cmd = VTXIOCGETSTAT;
+		break;
+	case VTXIOCGETPAGE_OLD:
+		cmd = VTXIOCGETPAGE;
+		break;
+	case VTXIOCSTOPDAU_OLD:
+		cmd = VTXIOCSTOPDAU;
+		break;
+	case VTXIOCPUTPAGE_OLD:
+		cmd = VTXIOCPUTPAGE;
+		break;
+	case VTXIOCSETDISP_OLD:
+		cmd = VTXIOCSETDISP;
+		break;
+	case VTXIOCPUTSTAT_OLD:
+		cmd = VTXIOCPUTSTAT;
+		break;
+	case VTXIOCCLRCACHE_OLD:
+		cmd = VTXIOCCLRCACHE;
+		break;
+	case VTXIOCSETVIRT_OLD:
+		cmd = VTXIOCSETVIRT;
+		break;
+	}
+	return cmd;
+}
+
+/*
  *	Handle the locking
  */
 static int saa5246a_ioctl(struct inode *inode, struct file *file,
@@ -691,6 +727,7 @@ static int saa5246a_ioctl(struct inode *inode, struct file *file,
 	struct saa5246a_device *t = vd->priv;
 	int err;
 
+	cmd = vtx_fix_command(cmd);
 	down(&t->lock);
 	err = video_usercopy(inode, file, cmd, arg, do_saa5246a_ioctl);
 	up(&t->lock);

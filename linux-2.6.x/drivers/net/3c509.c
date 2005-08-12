@@ -90,9 +90,9 @@ static int max_interrupt_work = 10;
 #include <linux/ethtool.h>
 #include <linux/device.h>
 #include <linux/eisa.h>
+#include <linux/bitops.h>
 
 #include <asm/uaccess.h>
-#include <asm/bitops.h>
 #include <asm/io.h>
 #include <asm/irq.h>
 
@@ -197,9 +197,9 @@ static int el3_rx(struct net_device *dev);
 static int el3_close(struct net_device *dev);
 static void set_multicast_list(struct net_device *dev);
 static void el3_tx_timeout (struct net_device *dev);
-static int netdev_ioctl (struct net_device *dev, struct ifreq *rq, int cmd);
 static void el3_down(struct net_device *dev);
 static void el3_up(struct net_device *dev);
+static struct ethtool_ops ethtool_ops;
 #ifdef CONFIG_PM
 static int el3_suspend(struct pm_dev *pdev);
 static int el3_resume(struct pm_dev *pdev);
@@ -209,9 +209,12 @@ static int el3_pm_callback(struct pm_dev *pdev, pm_request_t rqst, void *data);
 #if defined(CONFIG_EISA) || defined(CONFIG_MCA)
 static int el3_device_remove (struct device *device);
 #endif
+#ifdef CONFIG_NET_POLL_CONTROLLER
+static void el3_poll_controller(struct net_device *dev);
+#endif
 
 #ifdef CONFIG_EISA
-struct eisa_device_id el3_eisa_ids[] = {
+static struct eisa_device_id el3_eisa_ids[] = {
 		{ "TCM5092" },
 		{ "TCM5093" },
 		{ "" }
@@ -219,7 +222,7 @@ struct eisa_device_id el3_eisa_ids[] = {
 
 static int el3_eisa_probe (struct device *device);
 
-struct eisa_driver el3_eisa_driver = {
+static struct eisa_driver el3_eisa_driver = {
 		.id_table = el3_eisa_ids,
 		.driver   = {
 				.name    = "3c509",
@@ -321,7 +324,10 @@ static int __init el3_common_init(struct net_device *dev)
 	dev->set_multicast_list = &set_multicast_list;
 	dev->tx_timeout = el3_tx_timeout;
 	dev->watchdog_timeo = TX_TIMEOUT;
-	dev->do_ioctl = netdev_ioctl;
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	dev->poll_controller = el3_poll_controller;
+#endif
+	SET_ETHTOOL_OPS(dev, &ethtool_ops);
 
 	err = register_netdev(dev);
 	if (err) {
@@ -999,6 +1005,19 @@ el3_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 }
 
 
+#ifdef CONFIG_NET_POLL_CONTROLLER
+/*
+ * Polling receive - used by netconsole and other diagnostic tools
+ * to allow network i/o with interrupts disabled.
+ */
+static void el3_poll_controller(struct net_device *dev)
+{
+	disable_irq(dev->irq);
+	el3_interrupt(dev->irq, dev, NULL);
+	enable_irq(dev->irq);
+}
+#endif
+
 static struct net_device_stats *
 el3_get_stats(struct net_device *dev)
 {
@@ -1285,122 +1304,63 @@ el3_netdev_set_ecmd(struct net_device *dev, struct ethtool_cmd *ecmd)
 	return 0;
 }
 
-/**
- * netdev_ethtool_ioctl: Handle network interface SIOCETHTOOL ioctls
- * @dev: network interface on which out-of-band action is to be performed
- * @useraddr: userspace address to which data is to be read and returned
- *
- * Process the various commands of the SIOCETHTOOL interface.
- */
-
-static int
-netdev_ethtool_ioctl (struct net_device *dev, void __user *useraddr)
+static void el3_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 {
-	u32 ethcmd;
+	strcpy(info->driver, DRV_NAME);
+	strcpy(info->version, DRV_VERSION);
+}
+
+static int el3_get_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
+{
 	struct el3_private *lp = netdev_priv(dev);
+	int ret;
 
-	/* dev_ioctl() in ../../net/core/dev.c has already checked
-	   capable(CAP_NET_ADMIN), so don't bother with that here.  */
-
-	if (get_user(ethcmd, (u32 __user *)useraddr))
-		return -EFAULT;
-
-	switch (ethcmd) {
-
-	case ETHTOOL_GDRVINFO: {
-		struct ethtool_drvinfo info = { ETHTOOL_GDRVINFO };
-		strcpy (info.driver, DRV_NAME);
-		strcpy (info.version, DRV_VERSION);
-		if (copy_to_user (useraddr, &info, sizeof (info)))
-			return -EFAULT;
-		return 0;
-	}
-
-	/* get settings */
-	case ETHTOOL_GSET: {
-		int ret;
-		struct ethtool_cmd ecmd = { ETHTOOL_GSET };
-		spin_lock_irq(&lp->lock);
-		ret = el3_netdev_get_ecmd(dev, &ecmd);
-		spin_unlock_irq(&lp->lock);
-		if (copy_to_user(useraddr, &ecmd, sizeof(ecmd)))
-			return -EFAULT;
-		return ret;
-	}
-
-	/* set settings */
-	case ETHTOOL_SSET: {
-		int ret;
-		struct ethtool_cmd ecmd;
-		if (copy_from_user(&ecmd, useraddr, sizeof(ecmd)))
-			return -EFAULT;
-		spin_lock_irq(&lp->lock);
-		ret = el3_netdev_set_ecmd(dev, &ecmd);
-		spin_unlock_irq(&lp->lock);
-		return ret;
-	}
-
-	/* get link status */
-	case ETHTOOL_GLINK: {
-		struct ethtool_value edata = { ETHTOOL_GLINK };
-		spin_lock_irq(&lp->lock);
-		edata.data = el3_link_ok(dev);
-		spin_unlock_irq(&lp->lock);
-		if (copy_to_user(useraddr, &edata, sizeof(edata)))
-			return -EFAULT;
-		return 0;
-	}
-
-	/* get message-level */
-	case ETHTOOL_GMSGLVL: {
-		struct ethtool_value edata = {ETHTOOL_GMSGLVL};
-		edata.data = el3_debug;
-		if (copy_to_user(useraddr, &edata, sizeof(edata)))
-			return -EFAULT;
-		return 0;
-	}
-	/* set message-level */
-	case ETHTOOL_SMSGLVL: {
-		struct ethtool_value edata;
-		if (copy_from_user(&edata, useraddr, sizeof(edata)))
-			return -EFAULT;
-		el3_debug = edata.data;
-		return 0;
-	}
-
-	default:
-		break;
-	}
-
-	return -EOPNOTSUPP;
+	spin_lock_irq(&lp->lock);
+	ret = el3_netdev_get_ecmd(dev, ecmd);
+	spin_unlock_irq(&lp->lock);
+	return ret;
 }
 
-/**
- * netdev_ioctl: Handle network interface ioctls
- * @dev: network interface on which out-of-band action is to be performed
- * @rq: user request data
- * @cmd: command issued by user
- *
- * Process the various out-of-band ioctls passed to this driver.
- */
-
-static int
-netdev_ioctl (struct net_device *dev, struct ifreq *rq, int cmd)
+static int el3_set_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 {
-	int rc = 0;
+	struct el3_private *lp = netdev_priv(dev);
+	int ret;
 
-	switch (cmd) {
-	case SIOCETHTOOL:
-		rc = netdev_ethtool_ioctl(dev, rq->ifr_data);
-		break;
-
-	default:
-		rc = -EOPNOTSUPP;
-		break;
-	}
-
-	return rc;
+	spin_lock_irq(&lp->lock);
+	ret = el3_netdev_set_ecmd(dev, ecmd);
+	spin_unlock_irq(&lp->lock);
+	return ret;
 }
+
+static u32 el3_get_link(struct net_device *dev)
+{
+	struct el3_private *lp = netdev_priv(dev);
+	u32 ret;
+
+	spin_lock_irq(&lp->lock);
+	ret = el3_link_ok(dev);
+	spin_unlock_irq(&lp->lock);
+	return ret;
+}
+
+static u32 el3_get_msglevel(struct net_device *dev)
+{
+	return el3_debug;
+}
+
+static void el3_set_msglevel(struct net_device *dev, u32 v)
+{
+	el3_debug = v;
+}
+
+static struct ethtool_ops ethtool_ops = {
+	.get_drvinfo = el3_get_drvinfo,
+	.get_settings = el3_get_settings,
+	.set_settings = el3_set_settings,
+	.get_link = el3_get_link,
+	.get_msglevel = el3_get_msglevel,
+	.set_msglevel = el3_set_msglevel,
+};
 
 static void
 el3_down(struct net_device *dev)
@@ -1594,16 +1554,16 @@ static int debug = -1;
 static int irq[] = {-1, -1, -1, -1, -1, -1, -1, -1};
 static int xcvr[] = {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1};
 
-MODULE_PARM(debug,"i");
-MODULE_PARM(irq,"1-8i");
-MODULE_PARM(xcvr,"1-12i");
-MODULE_PARM(max_interrupt_work, "i");
+module_param(debug,int, 0);
+module_param_array(irq, int, NULL, 0);
+module_param_array(xcvr, int, NULL, 0);
+module_param(max_interrupt_work, int, 0);
 MODULE_PARM_DESC(debug, "debug level (0-6)");
 MODULE_PARM_DESC(irq, "IRQ number(s) (assigned)");
 MODULE_PARM_DESC(xcvr,"transceiver(s) (0=internal, 1=external)");
 MODULE_PARM_DESC(max_interrupt_work, "maximum events handled per interrupt");
 #if defined(__ISAPNP__)
-MODULE_PARM(nopnp, "i");
+module_param(nopnp, int, 0);
 MODULE_PARM_DESC(nopnp, "disable ISA PnP support (0-1)");
 MODULE_DEVICE_TABLE(isapnp, el3_isapnp_adapters);
 #endif	/* __ISAPNP__ */

@@ -52,16 +52,16 @@
 #include <linux/delay.h>
 #include <linux/ioport.h>
 #include <linux/init.h>
+#include <linux/bitops.h>
 #include <asm/io.h>
 #include <asm/uaccess.h>
 #include <asm/system.h>
 #include <asm/irq.h>
-#include <asm/bitops.h>
 #include "smapi.h"
 #include "mwavedd.h"
 #include "3780i.h"
 
-static spinlock_t dsp_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(dsp_lock);
 static unsigned long flags;
 
 

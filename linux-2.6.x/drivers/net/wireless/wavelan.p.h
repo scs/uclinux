@@ -377,8 +377,8 @@
 #include	<linux/in.h>
 #include	<linux/string.h>
 #include	<linux/delay.h>
+#include	<linux/bitops.h>
 #include	<asm/system.h>
-#include	<asm/bitops.h>
 #include	<asm/io.h>
 #include	<asm/dma.h>
 #include	<asm/uaccess.h>
@@ -510,6 +510,7 @@ struct net_local
   iw_stats	wstats;		/* Wireless-specific statistics */
 
   struct iw_spy_data	spy_data;
+  struct iw_public_data	wireless_data;
 #endif
 
 #ifdef HISTOGRAM
@@ -614,6 +615,8 @@ static inline void
 /* ------------------- IOCTL, STATS & RECONFIG ------------------- */
 static en_stats	*
 	wavelan_get_stats(struct net_device *);	/* Give stats /proc/net/dev */
+static iw_stats *
+	wavelan_get_wireless_stats(struct net_device *);
 static void
 	wavelan_set_multicast_list(struct net_device *);
 /* ----------------------- PACKET RECEPTION ----------------------- */
@@ -700,10 +703,11 @@ static unsigned short	iobase[]	=
 /* Parameters set by insmod */
 static int	io[4];
 static int	irq[4];
-static char	name[4][IFNAMSIZ];
-MODULE_PARM(io, "1-4i");
-MODULE_PARM(irq, "1-4i");
-MODULE_PARM(name, "1-4c" __MODULE_STRING(IFNAMSIZ));
+static char	*name[4];
+module_param_array(io, int, NULL, 0);
+module_param_array(irq, int, NULL, 0);
+module_param_array(name, charp, NULL, 0);
+
 MODULE_PARM_DESC(io, "WaveLAN I/O base address(es),required");
 MODULE_PARM_DESC(irq, "WaveLAN IRQ number(s)");
 MODULE_PARM_DESC(name, "WaveLAN interface neme(s)");

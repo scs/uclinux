@@ -73,7 +73,7 @@ int __init h720x_mtd_init(void)
 
 	char	*part_type = NULL;
 	
-	h720x_map.virt = (unsigned long)ioremap(FLASH_PHYS, FLASH_SIZE);
+	h720x_map.virt = ioremap(FLASH_PHYS, FLASH_SIZE);
 
 	if (!h720x_map.virt) {
 		printk(KERN_ERR "H720x-MTD: ioremap failed\n");

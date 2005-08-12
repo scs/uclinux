@@ -23,29 +23,17 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/slab.h>
+#include <linux/jiffies.h>
 #include <linux/i2c.h>
 #include <linux/i2c-sensor.h>
 
 
-/* Registers */
-#define ADM1021_SYSCTL_TEMP		1200
-#define ADM1021_SYSCTL_REMOTE_TEMP	1201
-#define ADM1021_SYSCTL_DIE_CODE		1202
-#define ADM1021_SYSCTL_ALARMS		1203
-
-#define ADM1021_ALARM_TEMP_HIGH		0x40
-#define ADM1021_ALARM_TEMP_LOW		0x20
-#define ADM1021_ALARM_RTEMP_HIGH	0x10
-#define ADM1021_ALARM_RTEMP_LOW		0x08
-#define ADM1021_ALARM_RTEMP_NA		0x04
-
 /* Addresses to scan */
-static unsigned short normal_i2c[] = { I2C_CLIENT_END };
-static unsigned short normal_i2c_range[] = { 0x18, 0x1a, 0x29, 0x2b,
-	0x4c, 0x4e, I2C_CLIENT_END
-};
+static unsigned short normal_i2c[] = { 0x18, 0x19, 0x1a,
+					0x29, 0x2a, 0x2b,
+					0x4c, 0x4d, 0x4e, 
+					I2C_CLIENT_END };
 static unsigned int normal_isa[] = { I2C_CLIENT_ISA_END };
-static unsigned int normal_isa_range[] = { I2C_CLIENT_ISA_END };
 
 /* Insmod parameters */
 SENSORS_INSMOD_8(adm1021, adm1023, max1617, max1617a, thmc10, lm84, gl523sm, mc1066);
@@ -148,8 +136,6 @@ static struct i2c_driver adm1021_driver = {
 	.detach_client	= adm1021_detach_client,
 };
 
-static int adm1021_id = 0;
-
 #define show(value)	\
 static ssize_t show_##value(struct device *dev, char *buf)		\
 {									\
@@ -179,8 +165,10 @@ static ssize_t set_##value(struct device *dev, const char *buf, size_t count)	\
 	struct adm1021_data *data = i2c_get_clientdata(client);	\
 	int temp = simple_strtoul(buf, NULL, 10);		\
 								\
+	down(&data->update_lock);				\
 	data->value = TEMP_TO_REG(temp);			\
 	adm1021_write_value(client, reg, data->value);		\
+	up(&data->update_lock);					\
 	return count;						\
 }
 set(temp_max, ADM1021_REG_TOS_W);
@@ -300,8 +288,6 @@ static int adm1021_detect(struct i2c_adapter *adapter, int address, int kind)
 	/* Fill in the remaining client fields and put it into the global list */
 	strlcpy(new_client->name, type_name, I2C_NAME_SIZE);
 	data->type = kind;
-
-	new_client->id = adm1021_id++;
 	data->valid = 0;
 	init_MUTEX(&data->update_lock);
 
@@ -374,8 +360,8 @@ static struct adm1021_data *adm1021_update_device(struct device *dev)
 
 	down(&data->update_lock);
 
-	if ((jiffies - data->last_updated > HZ + HZ / 2) ||
-	    (jiffies < data->last_updated) || !data->valid) {
+	if (time_after(jiffies, data->last_updated + HZ + HZ / 2)
+	    || !data->valid) {
 		dev_dbg(&client->dev, "Starting adm1021 update\n");
 
 		data->temp_input = adm1021_read_value(client, ADM1021_REG_TEMP);
@@ -384,7 +370,7 @@ static struct adm1021_data *adm1021_update_device(struct device *dev)
 		data->remote_temp_input = adm1021_read_value(client, ADM1021_REG_REMOTE_TEMP);
 		data->remote_temp_max = adm1021_read_value(client, ADM1021_REG_REMOTE_TOS_R);
 		data->remote_temp_hyst = adm1021_read_value(client, ADM1021_REG_REMOTE_THYST_R);
-		data->alarms = adm1021_read_value(client, ADM1021_REG_STATUS) & 0xec;
+		data->alarms = adm1021_read_value(client, ADM1021_REG_STATUS) & 0x7c;
 		if (data->type == adm1021)
 			data->die_code = adm1021_read_value(client, ADM1021_REG_DIE_CODE);
 		if (data->type == adm1023) {
@@ -418,7 +404,7 @@ MODULE_AUTHOR ("Frodo Looijaard <frodol@dds.nl> and "
 MODULE_DESCRIPTION("adm1021 driver");
 MODULE_LICENSE("GPL");
 
-MODULE_PARM(read_only, "i");
+module_param(read_only, bool, 0);
 MODULE_PARM_DESC(read_only, "Don't set any values, read only mode");
 
 module_init(sensors_adm1021_init)

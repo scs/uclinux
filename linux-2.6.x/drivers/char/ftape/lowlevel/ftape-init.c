@@ -23,7 +23,6 @@
 
 #include <linux/config.h>
 #include <linux/module.h>
-#include <linux/version.h>
 #include <linux/errno.h>
 #include <linux/fs.h>
 #include <linux/kernel.h>
@@ -47,12 +46,6 @@
 #include "../lowlevel/ftape-buffer.h"
 #include "../lowlevel/ftape-proc.h"
 #include "../lowlevel/ftape-tracing.h"
-
-/*      Global vars.
- */
-char ft_src[] __initdata = "$Source$";
-char ft_rev[] __initdata = "$Revision$";
-char ft_dat[] __initdata = "$Date$";
 
 
 #if defined(MODULE) && !defined(CONFIG_FT_NO_TRACE_AT_ALL)
@@ -79,12 +72,11 @@ static int __init ftape_init(void)
 KERN_INFO "(c) 1993-1996 Bas Laarhoven (bas@vimec.nl)\n"
 KERN_INFO "(c) 1995-1996 Kai Harrekilde-Petersen (khp@dolphinics.no)\n"
 KERN_INFO "(c) 1996-1997 Claus-Justus Heine (claus@momo.math.rwth-aachen.de)\n"
-KERN_INFO "QIC-117 driver for QIC-40/80/3010/3020 floppy tape drives\n"
-KERN_INFO "Compiled for Linux version %s\n", UTS_RELEASE);
+KERN_INFO "QIC-117 driver for QIC-40/80/3010/3020 floppy tape drives\n");
         }
 #else /* !MODULE */
 	/* print a short no-nonsense boot message */
-	printk(KERN_INFO FTAPE_VERSION " for Linux " UTS_RELEASE "\n");
+	printk(KERN_INFO FTAPE_VERSION "\n");
 #endif /* MODULE */
 	TRACE(ft_t_info, "installing QIC-117 floppy tape hardware drive ... ");
 	TRACE(ft_t_info, "ftape_init @ 0x%p", ftape_init);
@@ -122,20 +114,29 @@ KERN_INFO "Compiled for Linux version %s\n", UTS_RELEASE);
 #endif
 	TRACE_EXIT 0;
 }
-#define FT_MOD_PARM(var,type,desc) \
-	MODULE_PARM(var,type); MODULE_PARM_DESC(var,desc)
 
-FT_MOD_PARM(ft_fdc_base,       "i", "Base address of FDC controller.");
-FT_MOD_PARM(ft_fdc_irq,        "i", "IRQ (interrupt channel) to use.");
-FT_MOD_PARM(ft_fdc_dma,        "i", "DMA channel to use.");
-FT_MOD_PARM(ft_fdc_threshold,  "i", "Threshold of the FDC Fifo.");
-FT_MOD_PARM(ft_fdc_rate_limit, "i", "Maximal data rate for FDC.");
-FT_MOD_PARM(ft_probe_fc10,     "i", 
+module_param(ft_fdc_base,       uint, 0);
+MODULE_PARM_DESC(ft_fdc_base,  "Base address of FDC controller.");
+module_param(ft_fdc_irq,        uint, 0);
+MODULE_PARM_DESC(ft_fdc_irq,   "IRQ (interrupt channel) to use.");
+module_param(ft_fdc_dma,        uint, 0);
+MODULE_PARM_DESC(ft_fdc_dma,   "DMA channel to use.");
+module_param(ft_fdc_threshold,  uint, 0);
+MODULE_PARM_DESC(ft_fdc_threshold,  "Threshold of the FDC Fifo.");
+module_param(ft_fdc_rate_limit, uint, 0);
+MODULE_PARM_DESC(ft_fdc_rate_limit, "Maximal data rate for FDC.");
+module_param(ft_probe_fc10,     bool, 0);
+MODULE_PARM_DESC(ft_probe_fc10,
 	    "If non-zero, probe for a Colorado FC-10/FC-20 controller.");
-FT_MOD_PARM(ft_mach2,          "i",
+module_param(ft_mach2,          bool, 0);
+MODULE_PARM_DESC(ft_mach2,
 	    "If non-zero, probe for a Mountain MACH-2 controller.");
-FT_MOD_PARM(ft_tracing,        "i", 
+#if defined(MODULE) && !defined(CONFIG_FT_NO_TRACE_AT_ALL)
+module_param(ft_tracing,        int, 0644);
+MODULE_PARM_DESC(ft_tracing,
 	    "Amount of debugging output, 0 <= tracing <= 8, default 3.");
+#endif
+
 MODULE_AUTHOR(
 	"(c) 1993-1996 Bas Laarhoven (bas@vimec.nl), "
 	"(c) 1995-1996 Kai Harrekilde-Petersen (khp@dolphinics.no), "

@@ -45,86 +45,24 @@
  */
 
 #include <linux/highmem.h>
-#include "protocol.h"
+#include <scsi/scsi.h>
+#include <scsi/scsi_cmnd.h>
+
 #include "usb.h"
+#include "protocol.h"
 #include "debug.h"
 #include "scsiglue.h"
 #include "transport.h"
 
 /***********************************************************************
- * Helper routines
- ***********************************************************************/
-
-/*
- * Fix-up the return data from an INQUIRY command to show 
- * ANSI SCSI rev 2 so we don't confuse the SCSI layers above us
- */
-static void fix_inquiry_data(Scsi_Cmnd *srb)
-{
-	unsigned char databuf[3];
-	unsigned int index, offset;
-
-	/* verify that it's an INQUIRY command */
-	if (srb->cmnd[0] != INQUIRY)
-		return;
-
-	index = offset = 0;
-	if (usb_stor_access_xfer_buf(databuf, sizeof(databuf), srb,
-			&index, &offset, FROM_XFER_BUF) != sizeof(databuf))
-		return;
-
-	if ((databuf[2] & 7) == 2)
-		return;
-
-	US_DEBUGP("Fixing INQUIRY data to show SCSI rev 2 - was %d\n",
-		  databuf[2] & 7);
-
-	/* Change the SCSI revision number */
-	databuf[2] = (databuf[2] & ~7) | 2;
-
-	index = offset = 0;
-	usb_stor_access_xfer_buf(databuf, sizeof(databuf), srb,
-			&index, &offset, TO_XFER_BUF);
-}
-
-/*
- * Fix-up the return data from a READ CAPACITY command. My Feiya reader
- * returns a value that is 1 too large.
- */
-static void fix_read_capacity(Scsi_Cmnd *srb)
-{
-	unsigned int index, offset;
-	u32 c;
-	unsigned long capacity;
-
-	/* verify that it's a READ CAPACITY command */
-	if (srb->cmnd[0] != READ_CAPACITY)
-		return;
-
-	index = offset = 0;
-	if (usb_stor_access_xfer_buf((unsigned char *) &c, 4, srb,
-			&index, &offset, FROM_XFER_BUF) != 4)
-		return;
-
-	capacity = be32_to_cpu(c);
-	US_DEBUGP("US: Fixing capacity: from %ld to %ld\n",
-	       capacity+1, capacity);
-	c = cpu_to_be32(capacity - 1);
-
-	index = offset = 0;
-	usb_stor_access_xfer_buf((unsigned char *) &c, 4, srb,
-			&index, &offset, TO_XFER_BUF);
-}
-
-/***********************************************************************
  * Protocol routines
  ***********************************************************************/
 
-void usb_stor_qic157_command(Scsi_Cmnd *srb, struct us_data *us)
+void usb_stor_qic157_command(struct scsi_cmnd *srb, struct us_data *us)
 {
 	/* Pad the ATAPI command with zeros 
 	 *
-	 * NOTE: This only works because a Scsi_Cmnd struct field contains
+	 * NOTE: This only works because a scsi_cmnd struct field contains
 	 * a unsigned char cmnd[16], so we know we have storage available
 	 */
 	for (; srb->cmd_len<12; srb->cmd_len++)
@@ -135,17 +73,13 @@ void usb_stor_qic157_command(Scsi_Cmnd *srb, struct us_data *us)
 
 	/* send the command to the transport layer */
 	usb_stor_invoke_transport(srb, us);
-	if (srb->result == SAM_STAT_GOOD) {
-		/* fix the INQUIRY data if necessary */
-		fix_inquiry_data(srb);
-	}
 }
 
-void usb_stor_ATAPI_command(Scsi_Cmnd *srb, struct us_data *us)
+void usb_stor_ATAPI_command(struct scsi_cmnd *srb, struct us_data *us)
 {
 	/* Pad the ATAPI command with zeros 
 	 *
-	 * NOTE: This only works because a Scsi_Cmnd struct field contains
+	 * NOTE: This only works because a scsi_cmnd struct field contains
 	 * a unsigned char cmnd[16], so we know we have storage available
 	 */
 
@@ -158,20 +92,15 @@ void usb_stor_ATAPI_command(Scsi_Cmnd *srb, struct us_data *us)
 
 	/* send the command to the transport layer */
 	usb_stor_invoke_transport(srb, us);
-
-	if (srb->result == SAM_STAT_GOOD) {
-		/* fix the INQUIRY data if necessary */
-		fix_inquiry_data(srb);
-	}
 }
 
 
-void usb_stor_ufi_command(Scsi_Cmnd *srb, struct us_data *us)
+void usb_stor_ufi_command(struct scsi_cmnd *srb, struct us_data *us)
 {
 	/* fix some commands -- this is a form of mode translation
 	 * UFI devices only accept 12 byte long commands 
 	 *
-	 * NOTE: This only works because a Scsi_Cmnd struct field contains
+	 * NOTE: This only works because a scsi_cmnd struct field contains
 	 * a unsigned char cmnd[16], so we know we have storage available
 	 */
 
@@ -206,26 +135,13 @@ void usb_stor_ufi_command(Scsi_Cmnd *srb, struct us_data *us)
 
 	/* send the command to the transport layer */
 	usb_stor_invoke_transport(srb, us);
-
-	if (srb->result == SAM_STAT_GOOD) {
-		/* Fix the data for an INQUIRY, if necessary */
-		fix_inquiry_data(srb);
-	}
 }
 
-void usb_stor_transparent_scsi_command(Scsi_Cmnd *srb, struct us_data *us)
+void usb_stor_transparent_scsi_command(struct scsi_cmnd *srb,
+				       struct us_data *us)
 {
 	/* send the command to the transport layer */
 	usb_stor_invoke_transport(srb, us);
-
-	if (srb->result == SAM_STAT_GOOD) {
-		/* Fix the INQUIRY data if necessary */
-		fix_inquiry_data(srb);
-
-		/* Fix the READ CAPACITY result if necessary */
-		if (us->flags & US_FL_FIX_CAPACITY)
-			fix_read_capacity(srb);
-	}
 }
 
 /***********************************************************************
@@ -241,7 +157,7 @@ void usb_stor_transparent_scsi_command(Scsi_Cmnd *srb, struct us_data *us)
  * pick up from where this one left off. */
 
 unsigned int usb_stor_access_xfer_buf(unsigned char *buffer,
-	unsigned int buflen, Scsi_Cmnd *srb, unsigned int *index,
+	unsigned int buflen, struct scsi_cmnd *srb, unsigned int *index,
 	unsigned int *offset, enum xfer_buf_dir dir)
 {
 	unsigned int cnt;
@@ -327,7 +243,7 @@ unsigned int usb_stor_access_xfer_buf(unsigned char *buffer,
 /* Store the contents of buffer into srb's transfer buffer and set the
  * SCSI residue. */
 void usb_stor_set_xfer_buf(unsigned char *buffer,
-	unsigned int buflen, Scsi_Cmnd *srb)
+	unsigned int buflen, struct scsi_cmnd *srb)
 {
 	unsigned int index = 0, offset = 0;
 

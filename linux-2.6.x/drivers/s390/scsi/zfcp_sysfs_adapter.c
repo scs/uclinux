@@ -10,6 +10,7 @@
  * Authors:
  *      Martin Peschke <mpeschke@de.ibm.com>
  *	Heiko Carstens <heiko.carstens@de.ibm.com>
+ *      Andreas Herrmann <aherrman@de.ibm.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -33,11 +34,11 @@
 #define ZFCP_LOG_AREA                   ZFCP_LOG_AREA_CONFIG
 
 static const char fc_topologies[5][25] = {
-	{"<error>"},
-	{"point-to-point"},
-	{"fabric"},
-	{"arbitrated loop"},
-	{"fabric (virt. adapter)"}
+	"<error>",
+	"point-to-point",
+	"fabric",
+	"arbitrated loop",
+	"fabric (virt. adapter)"
 };
 
 /**
@@ -64,6 +65,9 @@ ZFCP_DEFINE_ADAPTER_ATTR(status, "0x%08x\n", atomic_read(&adapter->status));
 ZFCP_DEFINE_ADAPTER_ATTR(wwnn, "0x%016llx\n", adapter->wwnn);
 ZFCP_DEFINE_ADAPTER_ATTR(wwpn, "0x%016llx\n", adapter->wwpn);
 ZFCP_DEFINE_ADAPTER_ATTR(s_id, "0x%06x\n", adapter->s_id);
+ZFCP_DEFINE_ADAPTER_ATTR(peer_wwnn, "0x%016llx\n", adapter->peer_wwnn);
+ZFCP_DEFINE_ADAPTER_ATTR(peer_wwpn, "0x%016llx\n", adapter->peer_wwpn);
+ZFCP_DEFINE_ADAPTER_ATTR(peer_d_id, "0x%06x\n", adapter->peer_d_id);
 ZFCP_DEFINE_ADAPTER_ATTR(card_version, "0x%04x\n", adapter->hydra_version);
 ZFCP_DEFINE_ADAPTER_ATTR(lic_version, "0x%08x\n", adapter->fsf_lic_version);
 ZFCP_DEFINE_ADAPTER_ATTR(fc_link_speed, "%d Gb/s\n", adapter->fc_link_speed);
@@ -74,29 +78,8 @@ ZFCP_DEFINE_ADAPTER_ATTR(hardware_version, "0x%08x\n",
 			 adapter->hardware_version);
 ZFCP_DEFINE_ADAPTER_ATTR(serial_number, "%17s\n", adapter->serial_number);
 ZFCP_DEFINE_ADAPTER_ATTR(scsi_host_no, "0x%x\n", adapter->scsi_host_no);
-
-/**
- * zfcp_sysfs_adapter_in_recovery_show - recovery state of adapter
- * @dev: pointer to belonging device
- * @buf: pointer to input buffer
- *
- * Show function of "in_recovery" attribute of adapter. Will be
- * "0" if no error recovery is pending for adapter, otherwise "1".
- */
-static ssize_t
-zfcp_sysfs_adapter_in_recovery_show(struct device *dev, char *buf)
-{
-	struct zfcp_adapter *adapter;
-
-	adapter = dev_get_drvdata(dev);
-	if (atomic_test_mask(ZFCP_STATUS_COMMON_ERP_INUSE, &adapter->status))
-		return sprintf(buf, "1\n");
-	else
-		return sprintf(buf, "0\n");
-}
-
-static DEVICE_ATTR(in_recovery, S_IRUGO,
-		   zfcp_sysfs_adapter_in_recovery_show, NULL);
+ZFCP_DEFINE_ADAPTER_ATTR(in_recovery, "%d\n", atomic_test_mask
+			 (ZFCP_STATUS_COMMON_ERP_INUSE, &adapter->status));
 
 /**
  * zfcp_sysfs_port_add_store - add a port to sysfs tree
@@ -127,7 +110,7 @@ zfcp_sysfs_port_add_store(struct device *dev, const char *buf, size_t count)
 	if ((endp + 1) < (buf + count))
 		goto out;
 
-	port = zfcp_port_enqueue(adapter, wwpn, 0);
+	port = zfcp_port_enqueue(adapter, wwpn, 0, 0);
 	if (!port)
 		goto out;
 
@@ -138,7 +121,7 @@ zfcp_sysfs_port_add_store(struct device *dev, const char *buf, size_t count)
 	zfcp_port_put(port);
  out:
 	up(&zfcp_data.config_sema);
-	return retval ? retval : count;
+	return retval ? retval : (ssize_t) count;
 }
 
 static DEVICE_ATTR(port_add, S_IWUSR, NULL, zfcp_sysfs_port_add_store);
@@ -197,7 +180,7 @@ zfcp_sysfs_port_remove_store(struct device *dev, const char *buf, size_t count)
 	zfcp_port_dequeue(port);
  out:
 	up(&zfcp_data.config_sema);
-	return retval ? retval : count;
+	return retval ? retval : (ssize_t) count;
 }
 
 static DEVICE_ATTR(port_remove, S_IWUSR, NULL, zfcp_sysfs_port_remove_store);
@@ -241,7 +224,7 @@ zfcp_sysfs_adapter_failed_store(struct device *dev,
 	zfcp_erp_wait(adapter);
  out:
 	up(&zfcp_data.config_sema);
-	return retval ? retval : count;
+	return retval ? retval : (ssize_t) count;
 }
 
 /**
@@ -275,6 +258,9 @@ static struct attribute *zfcp_adapter_attrs[] = {
 	&dev_attr_wwnn.attr,
 	&dev_attr_wwpn.attr,
 	&dev_attr_s_id.attr,
+	&dev_attr_peer_wwnn.attr,
+	&dev_attr_peer_wwpn.attr,
+	&dev_attr_peer_d_id.attr,
 	&dev_attr_card_version.attr,
 	&dev_attr_lic_version.attr,
 	&dev_attr_fc_link_speed.attr,

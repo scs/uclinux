@@ -38,13 +38,13 @@ MODULE_AUTHOR("Christer Weinigel <wingel@nano-system.com>");
 MODULE_DESCRIPTION("NatSemi SCx200 I2C Driver");
 MODULE_LICENSE("GPL");
 
-MODULE_PARM(scl, "i");
-MODULE_PARM_DESC(scl, "GPIO line for SCL");
-MODULE_PARM(sda, "i");
-MODULE_PARM_DESC(sda, "GPIO line for SDA");
-
 static int scl = CONFIG_SCx200_I2C_SCL;
 static int sda = CONFIG_SCx200_I2C_SDA;
+
+module_param(scl, int, 0);
+MODULE_PARM_DESC(scl, "GPIO line for SCL");
+module_param(sda, int, 0);
+MODULE_PARM_DESC(sda, "GPIO line for SDA");
 
 static void scx200_i2c_setscl(void *data, int state)
 {
@@ -86,7 +86,7 @@ static struct i2c_adapter scx200_i2c_ops = {
 	.name	= "NatSemi SCx200 I2C",
 };
 
-int scx200_i2c_init(void)
+static int scx200_i2c_init(void)
 {
 	pr_debug(NAME ": NatSemi SCx200 I2C Driver\n");
 
@@ -115,7 +115,7 @@ int scx200_i2c_init(void)
 	return 0;
 }
 
-void scx200_i2c_cleanup(void)
+static void scx200_i2c_cleanup(void)
 {
 	i2c_bit_del_bus(&scx200_i2c_ops);
 }

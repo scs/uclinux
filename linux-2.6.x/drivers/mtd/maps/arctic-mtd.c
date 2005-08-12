@@ -98,7 +98,7 @@ init_arctic_mtd(void)
 {
 	printk("%s: 0x%08x at 0x%08x\n", NAME, SIZE, PADDR);
 
-	arctic_mtd_map.virt = (unsigned long) ioremap(PADDR, SIZE);
+	arctic_mtd_map.virt = ioremap(PADDR, SIZE);
 
 	if (!arctic_mtd_map.virt) {
 		printk("%s: failed to ioremap 0x%x\n", NAME, PADDR);

@@ -43,6 +43,7 @@
 struct arxescsi_info {
 	FAS216_Info		info;
 	struct expansion_card	*ec;
+	void __iomem		*base;
 };
 
 #define DMADATA_OFFSET	(0x200)
@@ -73,7 +74,7 @@ arxescsi_dma_setup(struct Scsi_Host *host, Scsi_Pointer *SCp,
 	return fasdma_pseudo;
 }
 
-static void arxescsi_pseudo_dma_write(unsigned char *addr, unsigned char *base)
+static void arxescsi_pseudo_dma_write(unsigned char *addr, void __iomem *base)
 {
        __asm__ __volatile__(
        "               stmdb   sp!, {r0-r12}\n"
@@ -115,7 +116,7 @@ arxescsi_dma_pseudo(struct Scsi_Host *host, Scsi_Pointer *SCp,
 {
 	struct arxescsi_info *info = (struct arxescsi_info *)host->hostdata;
 	unsigned int length, error = 0;
-	unsigned char *base = info->info.scsi.io_base;
+	void __iomem *base = info->info.scsi.io_base;
 	unsigned char *addr;
 
 	length = SCp->this_residual;
@@ -283,17 +284,15 @@ arxescsi_probe(struct expansion_card *ec, const struct ecard_id *id)
 	struct Scsi_Host *host;
 	struct arxescsi_info *info;
 	unsigned long resbase, reslen;
-	unsigned char *base;
+	void __iomem *base;
 	int ret;
+
+	ret = ecard_request_resources(ec);
+	if (ret)
+		goto out;
 
 	resbase = ecard_resource_start(ec, ECARD_RES_MEMC);
 	reslen = ecard_resource_len(ec, ECARD_RES_MEMC);
-
-	if (!request_mem_region(resbase, reslen, "arxescsi")) {
-		ret = -EBUSY;
-		goto out;
-	}
-
 	base = ioremap(resbase, reslen);
 	if (!base) {
 		ret = -ENOMEM;
@@ -306,15 +305,13 @@ arxescsi_probe(struct expansion_card *ec, const struct ecard_id *id)
 		goto out_unmap;
 	}
 
-	host->base = (unsigned long)base;
-	host->irq = NO_IRQ;
-	host->dma_channel = NO_DMA;
-
 	info = (struct arxescsi_info *)host->hostdata;
 	info->ec = ec;
+	info->base = base;
 
 	info->info.scsi.io_base		= base + 0x2000;
-	info->info.scsi.irq		= host->irq;
+	info->info.scsi.irq		= NO_IRQ;
+	info->info.scsi.dma		= NO_DMA;
 	info->info.scsi.io_shift	= 5;
 	info->info.ifcfg.clockrate	= 24; /* MHz */
 	info->info.ifcfg.select_timeout = 255;
@@ -345,7 +342,7 @@ arxescsi_probe(struct expansion_card *ec, const struct ecard_id *id)
  out_unmap:
 	iounmap(base);
  out_region:
-	release_mem_region(resbase, reslen);
+	ecard_release_resources(ec);
  out:
 	return ret;
 }
@@ -353,20 +350,16 @@ arxescsi_probe(struct expansion_card *ec, const struct ecard_id *id)
 static void __devexit arxescsi_remove(struct expansion_card *ec)
 {
 	struct Scsi_Host *host = ecard_get_drvdata(ec);
-	unsigned long resbase, reslen;
+	struct arxescsi_info *info = (struct arxescsi_info *)host->hostdata;
 
 	ecard_set_drvdata(ec, NULL);
 	fas216_remove(host);
 
-	iounmap((void *)host->base);
-
-	resbase = ecard_resource_start(ec, ECARD_RES_MEMC);
-	reslen = ecard_resource_len(ec, ECARD_RES_MEMC);
-
-	release_mem_region(resbase, reslen);
+	iounmap(info->base);
 
 	fas216_release(host);
 	scsi_host_put(host);
+	ecard_release_resources(ec);
 }
 
 static const struct ecard_id arxescsi_cids[] = {

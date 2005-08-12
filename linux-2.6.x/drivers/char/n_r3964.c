@@ -13,8 +13,8 @@
  * L. Haag
  *
  * $Log$
- * Revision 1.3  2004/09/08 15:14:19  lgsoft
- * Import of 2.6.8
+ * Revision 1.4  2005/08/12 06:42:24  magicyang
+ *  Update kernel 2.6.8 to 2.6.12
  *
  * Revision 1.10  2001/03/18 13:02:24  dwmw2
  * Fix timer usage, use spinlocks properly.
@@ -142,7 +142,7 @@ static void r3964_close(struct tty_struct *tty);
 static ssize_t r3964_read(struct tty_struct *tty, struct file *file,
                      unsigned char __user *buf, size_t nr);
 static ssize_t r3964_write(struct tty_struct * tty, struct file * file,
-                      const unsigned char __user * buf, size_t nr);
+                      const unsigned char * buf, size_t nr);
 static int r3964_ioctl(struct tty_struct * tty, struct file * file,
                        unsigned int cmd, unsigned long arg);
 static void r3964_set_termios(struct tty_struct *tty, struct termios * old);
@@ -1249,13 +1249,12 @@ repeat:
 }
 
 static ssize_t r3964_write(struct tty_struct * tty, struct file * file,
-			   const unsigned char __user *data, size_t count)
+			   const unsigned char *data, size_t count)
 {
    struct r3964_info *pInfo=(struct r3964_info*)tty->disc_data;
    struct r3964_block_header *pHeader;
    struct r3964_client_info *pClient;
    unsigned char *new_data;
-   int status;
    int pid;
    
    TRACE_L("write request, %d characters", count);
@@ -1265,12 +1264,6 @@ static ssize_t r3964_write(struct tty_struct * tty, struct file * file,
 
    if(!pInfo)
       return -EIO;
-
-   status = verify_area (VERIFY_READ, data, count);
-   if (status != 0) 
-   {
-      return status;
-   }
 
 /*
  * Ensure that the caller does not wish to send too much.
@@ -1286,7 +1279,7 @@ static ssize_t r3964_write(struct tty_struct * tty, struct file * file,
       count = R3964_MTU;
    }
 /*
- * Allocate a buffer for the data and fetch it from the user space.
+ * Allocate a buffer for the data and copy it from the buffer with header prepended
  */
    new_data = kmalloc (count+sizeof(struct r3964_block_header), GFP_KERNEL);
    TRACE_M("r3964_write - kmalloc %x",(int)new_data);
@@ -1313,7 +1306,7 @@ static ssize_t r3964_write(struct tty_struct * tty, struct file * file,
       pHeader->owner = pClient;
    }
 
-   __copy_from_user(pHeader->data, data, count); /* We already verified this */
+   memcpy(pHeader->data, data, count); /* We already verified this */
 
    if(pInfo->flags & R3964_DEBUG)
    {

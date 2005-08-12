@@ -53,9 +53,9 @@ struct i2c_dev {
 
 #define I2C_MINORS	256
 static struct i2c_dev *i2c_dev_array[I2C_MINORS];
-static spinlock_t i2c_dev_array_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(i2c_dev_array_lock);
 
-struct i2c_dev *i2c_dev_get_by_minor(unsigned index)
+static struct i2c_dev *i2c_dev_get_by_minor(unsigned index)
 {
 	struct i2c_dev *i2c_dev;
 
@@ -65,7 +65,7 @@ struct i2c_dev *i2c_dev_get_by_minor(unsigned index)
 	return i2c_dev;
 }
 
-struct i2c_dev *i2c_dev_get_by_adapter(struct i2c_adapter *adap)
+static struct i2c_dev *i2c_dev_get_by_adapter(struct i2c_adapter *adap)
 {
 	struct i2c_dev *i2c_dev = NULL;
 
@@ -107,13 +107,6 @@ static void return_i2c_dev(struct i2c_dev *i2c_dev)
 	i2c_dev_array[i2c_dev->minor] = NULL;
 	spin_unlock(&i2c_dev_array_lock);
 }
-
-static ssize_t show_dev(struct class_device *class_dev, char *buf)
-{
-	struct i2c_dev *i2c_dev = to_i2c_dev(class_dev);
-	return print_dev_t(buf, MKDEV(I2C_MAJOR, i2c_dev->minor));
-}
-static CLASS_DEVICE_ATTR(dev, S_IRUGO, show_dev, NULL);
 
 static ssize_t show_adapter_name(struct class_device *class_dev, char *buf)
 {
@@ -173,8 +166,8 @@ static ssize_t i2cdev_write (struct file *file, const char __user *buf, size_t c
 	return ret;
 }
 
-int i2cdev_ioctl (struct inode *inode, struct file *file, unsigned int cmd, 
-                  unsigned long arg)
+static int i2cdev_ioctl(struct inode *inode, struct file *file,
+		unsigned int cmd, unsigned long arg)
 {
 	struct i2c_client *client = (struct i2c_client *)file->private_data;
 	struct i2c_rdwr_ioctl_data rdwr_arg;
@@ -451,11 +444,11 @@ static int i2cdev_attach_adapter(struct i2c_adapter *adap)
 	else
 		i2c_dev->class_dev.dev = adap->dev.parent;
 	i2c_dev->class_dev.class = &i2c_dev_class;
+	i2c_dev->class_dev.devt = MKDEV(I2C_MAJOR, i2c_dev->minor);
 	snprintf(i2c_dev->class_dev.class_id, BUS_ID_SIZE, "i2c-%d", i2c_dev->minor);
 	retval = class_device_register(&i2c_dev->class_dev);
 	if (retval)
 		goto error;
-	class_device_create_file(&i2c_dev->class_dev, &class_device_attr_dev);
 	class_device_create_file(&i2c_dev->class_dev, &class_device_attr_name);
 	return 0;
 error:
@@ -507,7 +500,6 @@ static struct i2c_driver i2cdev_driver = {
 
 static struct i2c_client i2cdev_client_template = {
 	.name		= "I2C /dev entry",
-	.id		= 1,
 	.addr		= -1,
 	.driver		= &i2cdev_driver,
 };
@@ -539,7 +531,7 @@ out_unreg_class:
 out_unreg_chrdev:
 	unregister_chrdev(I2C_MAJOR, "i2c");
 out:
-	printk(KERN_ERR "%s: Driver Initialisation failed", __FILE__);
+	printk(KERN_ERR "%s: Driver Initialisation failed\n", __FILE__);
 	return res;
 }
 

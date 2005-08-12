@@ -29,6 +29,7 @@
 #include <linux/config.h>
 
 #include <linux/module.h>
+#include <linux/moduleparam.h>
 #include <linux/init.h>
 #include <linux/fs.h>
 #include <linux/vmalloc.h>
@@ -36,6 +37,7 @@
 #include <linux/proc_fs.h>
 #include <linux/ctype.h>
 #include <linux/pagemap.h>
+#include <linux/delay.h>
 #include <asm/io.h>
 #include <asm/semaphore.h>
 
@@ -55,12 +57,21 @@ extern int cpia_usb_init(void);
 static int video_nr = -1;
 
 #ifdef MODULE
-MODULE_PARM(video_nr,"i");
+module_param(video_nr, int, 0);
 MODULE_AUTHOR("Scott J. Bertin <sbertin@securenym.net> & Peter Pregler <Peter_Pregler@email.com> & Johannes Erdfelt <johannes@erdfeld.com>");
 MODULE_DESCRIPTION("V4L-driver for Vision CPiA based cameras");
 MODULE_LICENSE("GPL");
 MODULE_SUPPORTED_DEVICE("video");
 #endif
+
+static unsigned short colorspace_conv = 0;
+module_param(colorspace_conv, ushort, 0444);
+MODULE_PARM_DESC(colorspace_conv,
+                 "\n<n> Colorspace conversion:"
+                 "\n0 = disable"
+                 "\n1 = enable"
+                 "\nDefault value is 0"
+                 "\n");
 
 #define ABOUT "V4L-Driver for Vision CPiA based cameras"
 
@@ -205,20 +216,6 @@ static void set_flicker(struct cam_params *params, volatile u32 *command_flags,
  * Memory management
  *
  **********************************************************************/
-
-/* Here we want the physical address of the memory.
- * This is used when initializing the contents of the area.
- */
-static inline unsigned long kvirt_to_pa(unsigned long adr)
-{
-	unsigned long kva, ret;
-
-	kva = (unsigned long) page_address(vmalloc_to_page((void *)adr));
-	kva |= adr & (PAGE_SIZE-1); /* restore the offset */
-	ret = __pa(kva);
-	return ret;
-}
-
 static void *rvmalloc(unsigned long size)
 {
 	void *mem;
@@ -1428,14 +1425,19 @@ static void __exit proc_cpia_destroy(void)
 /* supported frame palettes and depths */
 static inline int valid_mode(u16 palette, u16 depth)
 {
-	return (palette == VIDEO_PALETTE_GREY && depth == 8) ||
-	       (palette == VIDEO_PALETTE_RGB555 && depth == 16) ||
-	       (palette == VIDEO_PALETTE_RGB565 && depth == 16) ||
-	       (palette == VIDEO_PALETTE_RGB24 && depth == 24) ||
-	       (palette == VIDEO_PALETTE_RGB32 && depth == 32) ||
-	       (palette == VIDEO_PALETTE_YUV422 && depth == 16) ||
-	       (palette == VIDEO_PALETTE_YUYV && depth == 16) ||
-	       (palette == VIDEO_PALETTE_UYVY && depth == 16);
+	if ((palette == VIDEO_PALETTE_YUV422 && depth == 16) ||
+	    (palette == VIDEO_PALETTE_YUYV && depth == 16))
+		return 1;
+
+	if (colorspace_conv)
+		return (palette == VIDEO_PALETTE_GREY && depth == 8) ||
+		       (palette == VIDEO_PALETTE_RGB555 && depth == 16) ||
+		       (palette == VIDEO_PALETTE_RGB565 && depth == 16) ||
+		       (palette == VIDEO_PALETTE_RGB24 && depth == 24) ||
+		       (palette == VIDEO_PALETTE_RGB32 && depth == 32) ||
+		       (palette == VIDEO_PALETTE_UYVY && depth == 16);
+
+	return 0;
 }
 
 static int match_videosize( int width, int height )
@@ -2871,9 +2873,7 @@ static int fetch_frame(void *data)
 				cond_resched();
 
 				/* sleep for 10 ms, hopefully ;) */
-				current->state = TASK_INTERRUPTIBLE;
-
-				schedule_timeout(10*HZ/1000);
+				msleep_interruptible(10);
 				if (signal_pending(current))
 					return -EINTR;
 
@@ -2936,8 +2936,7 @@ static int fetch_frame(void *data)
 		        		   CPIA_GRAB_SINGLE, 0, 0, 0);
 				/* FIXME: Trial & error - need up to 70ms for
 				   the grab mode change to complete ? */
-				current->state = TASK_INTERRUPTIBLE;
-				schedule_timeout(70*HZ / 1000);
+				msleep_interruptible(70);
 				if (signal_pending(current))
 					return -EINTR;
 			}
@@ -2988,8 +2987,7 @@ static int goto_high_power(struct cam_data *cam)
 {
 	if (do_command(cam, CPIA_COMMAND_GotoHiPower, 0, 0, 0, 0))
 		return -EIO;
-	current->state = TASK_INTERRUPTIBLE;
-	schedule_timeout(40*HZ/1000);	/* windows driver does it too */
+	msleep_interruptible(40);	/* windows driver does it too */
 	if(signal_pending(current))
 		return -EINTR;
 	if (do_command(cam, CPIA_COMMAND_GetCameraStatus, 0, 0, 0, 0))
@@ -3059,10 +3057,8 @@ static int set_camera_state(struct cam_data *cam)
 	
 	/* Wait 6 frames for the sensor to get all settings and
 	   AEC/ACB to settle */
-	current->state = TASK_INTERRUPTIBLE;
-	schedule_timeout((6*(cam->params.sensorFps.baserate ? 33 : 40) *
-	                    (1 << cam->params.sensorFps.divisor) + 10) *
-			 HZ / 1000);
+	msleep_interruptible(6*(cam->params.sensorFps.baserate ? 33 : 40) *
+			       (1 << cam->params.sensorFps.divisor) + 10);
 
 	if(signal_pending(current))
 		return -EINTR;
@@ -3785,8 +3781,8 @@ static int cpia_mmap(struct file *file, struct vm_area_struct *vma)
 
 	pos = (unsigned long)(cam->frame_buf);
 	while (size > 0) {
-		page = kvirt_to_pa(pos);
-		if (remap_page_range(vma, start, page, PAGE_SIZE, PAGE_SHARED)) {
+		page = vmalloc_to_pfn((void *)pos);
+		if (remap_pfn_range(vma, start, page, PAGE_SIZE, PAGE_SHARED)) {
 			up(&cam->busy_lock);
 			return -EAGAIN;
 		}
@@ -4040,19 +4036,16 @@ static int __init cpia_init(void)
 {
 	printk(KERN_INFO "%s v%d.%d.%d\n", ABOUT,
 	       CPIA_MAJ_VER, CPIA_MIN_VER, CPIA_PATCH_VER);
+
+	printk(KERN_WARNING "Since in-kernel colorspace conversion is not "
+	       "allowed, it is disabled by default now. Users should fix the "
+	       "applications in case they don't work without conversion "
+	       "reenabled by setting the 'colorspace_conv' module "
+	       "parameter to 1");
+
 #ifdef CONFIG_PROC_FS
 	proc_cpia_create();
 #endif
-
-#ifdef CONFIG_KMOD
-#ifdef CONFIG_VIDEO_CPIA_PP_MODULE
-	request_module("cpia_pp");
-#endif
-
-#ifdef CONFIG_VIDEO_CPIA_USB_MODULE
-	request_module("cpia_usb");
-#endif
-#endif	/* CONFIG_KMOD */
 
 #ifdef CONFIG_VIDEO_CPIA_PP
 	cpia_pp_init();
@@ -4060,6 +4053,7 @@ static int __init cpia_init(void)
 #ifdef CONFIG_VIDEO_CPIA_USB
 	cpia_usb_init();
 #endif
+
 	return 0;
 }
 

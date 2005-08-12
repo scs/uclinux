@@ -15,16 +15,6 @@
  * As of March 8, 2000 Advanced System Products, Inc. (AdvanSys)
  * changed its name to ConnectCom Solutions, Inc.
  *
- * There is an AdvanSys Linux WWW page at:
- *  http://www.connectcom.net/downloads/software/os/linux.html
- *  http://www.advansys.com/linux.html
- *
- * The latest released version of the AdvanSys driver is available at:
- *  ftp://ftp.advansys.com/pub/linux/linux.tgz
- *  ftp://ftp.connectcom.net/pub/linux/linux.tgz
- *
- * Please send questions, comments, bug reports to:
- *  support@connectcom.net
  */
 
 /*
@@ -41,7 +31,6 @@
   H. Release History
   I. Known Problems/Fix List
   J. Credits (Chronological Order)
-  K. ConnectCom (AdvanSys) Contact Information
 
   A. Linux Kernels Supported by this Driver
 
@@ -725,7 +714,7 @@
      Tom Rini <trini@kernel.crashing.org> provided the CONFIG_ISA
      patch and helped with PowerPC wide and narrow board support.
 
-     Philip Blundell <philip.blundell@pobox.com> provided an
+     Philip Blundell <philb@gnu.org> provided an
      advansys_interrupts_enabled patch.
 
      Dave Jones <dave@denial.force9.co.uk> reported the compiler
@@ -807,6 +796,7 @@
 
 #include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_device.h>
+#include <scsi/scsi_tcq.h>
 #include <scsi/scsi.h>
 #include <scsi/scsi_host.h>
 #include "advansys.h"
@@ -2031,9 +2021,6 @@ STATIC ASC_DCNT  AscGetMaxDmaCount(ushort);
 
 #define ADV_LIB_VERSION_MAJOR  5
 #define ADV_LIB_VERSION_MINOR  14
-
-/* d_os_dep.h */
-#define ADV_OS_LINUX
 
 /*
  * Define Adv Library required special types.
@@ -3370,9 +3357,9 @@ do { \
 /*
  * Default EEPROM Configuration structure defined in a_init.c.
  */
-extern ADVEEP_3550_CONFIG Default_3550_EEPROM_Config;
-extern ADVEEP_38C0800_CONFIG Default_38C0800_EEPROM_Config;
-extern ADVEEP_38C1600_CONFIG Default_38C1600_EEPROM_Config;
+static ADVEEP_3550_CONFIG Default_3550_EEPROM_Config;
+static ADVEEP_38C0800_CONFIG Default_38C0800_EEPROM_Config;
+static ADVEEP_38C1600_CONFIG Default_38C1600_EEPROM_Config;
 
 /*
  * DvcGetPhyAddr() flag arguments
@@ -4335,12 +4322,12 @@ advansys_detect(struct scsi_host_template *tpnt)
     int                 ioport = 0;
     int                 share_irq = FALSE;
     int                 iolen = 0;
+    struct device	*dev = NULL;
 #ifdef CONFIG_PCI
     int                 pci_init_search = 0;
     struct pci_dev      *pci_devicep[ASC_NUM_BOARD_SUPPORTED];
     int                 pci_card_cnt_max = 0;
     int                 pci_card_cnt = 0;
-    struct device	*dev = NULL;
     struct pci_dev      *pci_devp = NULL;
     int                 pci_device_id_cnt = 0;
     unsigned int        pci_device_id[ASC_PCI_DEVICE_ID_CNT] = {
@@ -4580,7 +4567,7 @@ advansys_detect(struct scsi_host_template *tpnt)
             boardp->id = asc_board_count - 1;
 
             /* Initialize spinlock. */
-            boardp->lock = SPIN_LOCK_UNLOCKED;
+            spin_lock_init(&boardp->lock);
 
             /*
              * Handle both narrow and wide boards.
@@ -8957,7 +8944,7 @@ DvcAdvWritePCIConfigByte(
 #ifdef CONFIG_PCI
     pci_write_config_byte(to_pci_dev(asc_dvc->cfg->dev), offset, byte_data);
 #else /* CONFIG_PCI */
-    return 0;
+    return;
 #endif /* CONFIG_PCI */
 }
 
@@ -9211,15 +9198,12 @@ asc_prt_scsi_cmnd(struct scsi_cmnd *s)
         s->use_sg, s->sglist_len, s->abort_reason);
 
     printk(
-" serial_number 0x%x, serial_number_at_timeout 0x%x, retries %d, allowed %d\n",
-        (unsigned) s->serial_number, (unsigned) s->serial_number_at_timeout,
-         s->retries, s->allowed);
+" serial_number 0x%x, retries %d, allowed %d\n",
+        (unsigned) s->serial_number, s->retries, s->allowed);
 
     printk(
 " timeout_per_command %d, timeout_total %d, timeout %d\n",
         s->timeout_per_command, s->timeout_total, s->timeout);
-
-    printk(" internal_timeout %u\n", s->internal_timeout);
 
     printk(
 " scsi_done 0x%lx, done 0x%lx, host_scribble 0x%lx, result 0x%x\n",
@@ -12027,13 +12011,13 @@ AscInitFromAscDvcVar(
     PortAddr            iop_base;
     ushort              cfg_msw;
     ushort              warn_code;
-    ushort              pci_device_id;
+    ushort              pci_device_id = 0;
 
     iop_base = asc_dvc->iop_base;
+#ifdef CONFIG_PCI
     if (asc_dvc->cfg->dev)
         pci_device_id = to_pci_dev(asc_dvc->cfg->dev)->device;
-    else
-	pci_device_id = 0;
+#endif
     warn_code = 0;
     cfg_msw = AscGetChipCfgMsw(iop_base);
     if ((cfg_msw & ASC_CFG_MSW_CLR_MASK) != 0) {

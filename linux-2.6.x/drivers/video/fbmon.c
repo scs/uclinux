@@ -34,7 +34,6 @@
 #include <asm/prom.h>
 #include <asm/pci-bridge.h>
 #endif
-#include <video/edid.h>
 #include "edid.h"
 
 /* 
@@ -49,11 +48,34 @@
 #define DPRINTK(fmt, args...)
 #endif
 
+#define FBMON_FIX_HEADER 1
+#define FBMON_FIX_INPUT  2
 
-const unsigned char edid_v1_header[] = { 0x00, 0xff, 0xff, 0xff,
+#ifdef CONFIG_FB_MODE_HELPERS
+struct broken_edid {
+	u8  manufacturer[4];
+	u32 model;
+	u32 fix;
+};
+
+static struct broken_edid brokendb[] = {
+	/* DEC FR-PCXAV-YZ */
+	{
+		.manufacturer = "DEC",
+		.model        = 0x073a,
+		.fix          = FBMON_FIX_HEADER,
+	},
+	/* ViewSonic PF775a */
+	{
+		.manufacturer = "VSC",
+		.model        = 0x5a44,
+		.fix          = FBMON_FIX_INPUT,
+	},
+};
+
+static const unsigned char edid_v1_header[] = { 0x00, 0xff, 0xff, 0xff,
 	0xff, 0xff, 0xff, 0x00
 };
-const unsigned char edid_v1_descriptor_flag[] = { 0x00, 0x00 };
 
 static void copy_string(unsigned char *c, unsigned char *s)
 {
@@ -65,32 +87,101 @@ static void copy_string(unsigned char *c, unsigned char *s)
   while (i-- && (*--s == 0x20)) *s = 0;
 }
 
+static int check_edid(unsigned char *edid)
+{
+	unsigned char *block = edid + ID_MANUFACTURER_NAME, manufacturer[4];
+	unsigned char *b;
+	u32 model;
+	int i, fix = 0, ret = 0;
+
+	manufacturer[0] = ((block[0] & 0x7c) >> 2) + '@';
+	manufacturer[1] = ((block[0] & 0x03) << 3) +
+		((block[1] & 0xe0) >> 5) + '@';
+	manufacturer[2] = (block[1] & 0x1f) + '@';
+	manufacturer[3] = 0;
+	model = block[2] + (block[3] << 8);
+
+	for (i = 0; i < ARRAY_SIZE(brokendb); i++) {
+		if (!strncmp(manufacturer, brokendb[i].manufacturer, 4) &&
+			brokendb[i].model == model) {
+			printk("fbmon: The EDID Block of "
+			       "Manufacturer: %s Model: 0x%x is known to "
+			       "be broken,\n",  manufacturer, model);
+ 			fix = brokendb[i].fix;
+ 			break;
+		}
+	}
+
+	switch (fix) {
+	case FBMON_FIX_HEADER:
+		for (i = 0; i < 8; i++) {
+			if (edid[i] != edid_v1_header[i])
+				ret = fix;
+		}
+		break;
+	case FBMON_FIX_INPUT:
+		b = edid + EDID_STRUCT_DISPLAY;
+		/* Only if display is GTF capable will
+		   the input type be reset to analog */
+		if (b[4] & 0x01 && b[0] & 0x80)
+			ret = fix;
+		break;
+	}
+
+	return ret;
+}
+
+static void fix_edid(unsigned char *edid, int fix)
+{
+	unsigned char *b;
+
+	switch (fix) {
+	case FBMON_FIX_HEADER:
+		printk("fbmon: trying a header reconstruct\n");
+		memcpy(edid, edid_v1_header, 8);
+		break;
+	case FBMON_FIX_INPUT:
+		printk("fbmon: trying to fix input type\n");
+		b = edid + EDID_STRUCT_DISPLAY;
+		b[0] &= ~0x80;
+		edid[127] += 0x80;
+	}
+}
+
 static int edid_checksum(unsigned char *edid)
 {
-	unsigned char i, csum = 0;
+	unsigned char i, csum = 0, all_null = 0;
+	int err = 0, fix = check_edid(edid);
 
-	for (i = 0; i < EDID_LENGTH; i++)
+	if (fix)
+		fix_edid(edid, fix);
+
+	for (i = 0; i < EDID_LENGTH; i++) {
 		csum += edid[i];
-
-	if (csum == 0x00) {
-		/* checksum passed, everything's good */
-		return 1;
-	} else {
-		printk("EDID checksum failed, aborting\n");
-		return 0;
+		all_null |= edid[i];
 	}
+
+	if (csum == 0x00 && all_null) {
+		/* checksum passed, everything's good */
+		err = 1;
+	}
+
+	return err;
 }
 
 static int edid_check_header(unsigned char *edid)
 {
-	if ((edid[0] != 0x00) || (edid[1] != 0xff) || (edid[2] != 0xff) ||
-	    (edid[3] != 0xff) || (edid[4] != 0xff) || (edid[5] != 0xff) ||
-	    (edid[6] != 0xff)) {
-		printk
-		    ("EDID header doesn't match EDID v1 header, aborting\n");
-		return 0;
+	int i, err = 1, fix = check_edid(edid);
+
+	if (fix)
+		fix_edid(edid, fix);
+
+	for (i = 0; i < 8; i++) {
+		if (edid[i] != edid_v1_header[i])
+			err = 0;
 	}
-	return 1;
+
+	return err;
 }
 
 static void parse_vendor_block(unsigned char *block, struct fb_monspecs *specs)
@@ -425,7 +516,7 @@ static void get_detailed_timing(unsigned char *block,
  * This function builds a mode database using the contents of the EDID
  * data
  */
-struct fb_videomode *fb_create_modedb(unsigned char *edid, int *dbsize)
+static struct fb_videomode *fb_create_modedb(unsigned char *edid, int *dbsize)
 {
 	struct fb_videomode *mode, *m;
 	unsigned char *block;
@@ -496,11 +587,10 @@ struct fb_videomode *fb_create_modedb(unsigned char *edid, int *dbsize)
  */
 void fb_destroy_modedb(struct fb_videomode *modedb)
 {
-	if (modedb)
-		kfree(modedb);
+	kfree(modedb);
 }
 
-int fb_get_monitor_limits(unsigned char *edid, struct fb_monspecs *specs)
+static int fb_get_monitor_limits(unsigned char *edid, struct fb_monspecs *specs)
 {
 	int i, retval = 1;
 	unsigned char *block;
@@ -569,7 +659,7 @@ static void get_monspecs(unsigned char *edid, struct fb_monspecs *specs)
 
 	fb_get_monitor_limits(edid, specs);
 
-	c = (block[0] & 0x80) >> 7;
+	c = block[0] & 0x80;
 	specs->input = 0;
 	if (c) {
 		specs->input |= FB_DISP_DDI;
@@ -593,13 +683,10 @@ static void get_monspecs(unsigned char *edid, struct fb_monspecs *specs)
 			DPRINTK("0.700V/0.000V");
 			specs->input |= FB_DISP_ANA_700_000;
 			break;
-		default:
-			DPRINTK("unknown");
-			specs->input |= FB_DISP_UNKNOWN;
 		}
 	}
 	DPRINTK("\n      Sync: ");
-	c = (block[0] & 0x10) >> 4;
+	c = block[0] & 0x10;
 	if (c)
 		DPRINTK("      Configurable signal level\n");
 	c = block[0] & 0x0f;
@@ -780,18 +867,6 @@ void fb_edid_to_monspecs(unsigned char *edid, struct fb_monspecs *specs)
 
 	specs->modedb = fb_create_modedb(edid, &specs->modedb_len);
 	DPRINTK("========================================\n");
-}
-
-char *get_EDID_from_firmware(struct device *dev)
-{
-	unsigned char *pedid = NULL;
-
-#if defined(CONFIG_EDID_FIRMWARE) && defined(CONFIG_X86)
-	pedid = edid_info.dummy;
-	if (!pedid)
-		return NULL;
-#endif
-	return pedid;
 }
 
 /* 
@@ -1094,6 +1169,24 @@ int fb_get_mode(int flags, u32 val, struct fb_var_screeninfo *var, struct fb_inf
 	
 	return 0;
 }
+#else
+int fb_parse_edid(unsigned char *edid, struct fb_var_screeninfo *var)
+{
+	return 1;
+}
+void fb_edid_to_monspecs(unsigned char *edid, struct fb_monspecs *specs)
+{
+	specs = NULL;
+}
+void fb_destroy_modedb(struct fb_videomode *modedb)
+{
+}
+int fb_get_mode(int flags, u32 val, struct fb_var_screeninfo *var,
+		struct fb_info *info)
+{
+	return -EINVAL;
+}
+#endif /* CONFIG_FB_MODE_HELPERS */
 	
 /*
  * fb_validate_mode - validates var against monitor capabilities
@@ -1158,10 +1251,7 @@ int fb_validate_mode(const struct fb_var_screeninfo *var, struct fb_info *info)
 
 EXPORT_SYMBOL(fb_parse_edid);
 EXPORT_SYMBOL(fb_edid_to_monspecs);
-EXPORT_SYMBOL(get_EDID_from_firmware);
 
 EXPORT_SYMBOL(fb_get_mode);
 EXPORT_SYMBOL(fb_validate_mode);
-EXPORT_SYMBOL(fb_create_modedb);
 EXPORT_SYMBOL(fb_destroy_modedb);
-EXPORT_SYMBOL(fb_get_monitor_limits);

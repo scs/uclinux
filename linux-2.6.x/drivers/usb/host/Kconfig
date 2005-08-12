@@ -6,7 +6,7 @@ comment "USB Host Controller Drivers"
 
 config USB_EHCI_HCD
 	tristate "EHCI HCD (USB 2.0) support"
-	depends on USB
+	depends on USB && PCI
 	---help---
 	  The Enhanced Host Controller Interface (EHCI) is standard for USB 2.0
 	  "high speed" (480 Mbit/sec, 60 Mbyte/sec) host controller hardware.
@@ -47,11 +47,12 @@ config USB_EHCI_ROOT_HUB_TT
 	  controller is needed.  It's safe to say "y" even if your
 	  controller doesn't support this feature.
 
-	  This supports the EHCI implementation from ARC International.
+	  This supports the EHCI implementation from TransDimension Inc.
 
 config USB_OHCI_HCD
 	tristate "OHCI HCD support"
-	depends on USB
+	depends on USB && USB_ARCH_HAS_OHCI
+	select ISP1301_OMAP if MACH_OMAP_H2 || MACH_OMAP_H3
 	---help---
 	  The Open Host Controller Interface (OHCI) is a standard for accessing
 	  USB 1.1 host controller hardware.  It does more in hardware than Intel's
@@ -65,9 +66,38 @@ config USB_OHCI_HCD
 	  To compile this driver as a module, choose M here: the
 	  module will be called ohci-hcd.
 
+config USB_OHCI_HCD_PPC_SOC
+	bool "OHCI support for on-chip PPC USB controller"
+	depends on USB_OHCI_HCD && (STB03xxx || PPC_MPC52xx)
+	default y
+	select USB_OHCI_BIG_ENDIAN
+	---help---
+	  Enables support for the USB controller on the MPC52xx or
+	  STB03xxx processor chip.  If unsure, say Y.
+
+config USB_OHCI_HCD_PCI
+	bool "OHCI support for PCI-bus USB controllers"
+	depends on USB_OHCI_HCD && PCI && (STB03xxx || PPC_MPC52xx)
+	default y
+	select USB_OHCI_LITTLE_ENDIAN
+	---help---
+	  Enables support for PCI-bus plug-in USB controller cards.
+	  If unsure, say Y.
+
+config USB_OHCI_BIG_ENDIAN
+	bool
+	depends on USB_OHCI_HCD
+	default n
+
+config USB_OHCI_LITTLE_ENDIAN
+	bool
+	depends on USB_OHCI_HCD
+	default n if STB03xxx || PPC_MPC52xx
+	default y
+
 config USB_UHCI_HCD
 	tristate "UHCI HCD (most Intel and VIA) support"
-	depends on USB
+	depends on USB && PCI
 	---help---
 	  The Universal Host Controller Interface is a standard by Intel for
 	  accessing the USB hardware in the PC (which is also called the USB
@@ -81,14 +111,27 @@ config USB_UHCI_HCD
 	  To compile this driver as a module, choose M here: the
 	  module will be called uhci-hcd.
 
-config USB_SL811HS
-	tristate "SL811HS support"
-	depends on ARM && USB
+config USB_SL811_HCD
+	tristate "SL811HS HCD support"
+	depends on USB
+	default N
 	help
-	  Say Y here if you have a SL811HS USB host controller in your system.
-
-	  If you do not know what this is, please say N.
+	  The SL811HS is a single-port USB controller that supports either
+	  host side or peripheral side roles.  Enable this option if your
+	  board has this chip, and you want to use it as a host controller. 
+	  If unsure, say N.
 
 	  To compile this driver as a module, choose M here: the
-	  module will be called hc_sl811.
+	  module will be called sl811-hcd.
+
+config USB_SL811_CS
+	tristate "CF/PCMCIA support for SL811HS HCD"
+	depends on USB_SL811_HCD && PCMCIA
+	default N
+	help
+	  Wraps a PCMCIA driver around the SL811HS HCD, supporting the RATOC
+	  REX-CFU1U CF card (often used with PDAs).  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called "sl811_cs".
 

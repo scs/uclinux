@@ -121,7 +121,10 @@ struct capability_entry {
 };
 
 static struct capability_entry capability_table[] __initdata = {
-	{ "6330", CDC_LOCK | CDC_DVD_RAM },
+	{ "6330", CDC_LOCK | CDC_DVD_RAM | CDC_RAM },
+	{ "6331", CDC_LOCK | CDC_DVD_RAM | CDC_RAM },
+	{ "6333", CDC_LOCK | CDC_DVD_RAM | CDC_RAM },
+	{ "632A", CDC_LOCK | CDC_DVD_RAM | CDC_RAM },
 	{ "6321", CDC_LOCK },
 	{ "632B", 0 },
 	{ NULL  , CDC_LOCK },
@@ -151,7 +154,6 @@ static struct disk_info viocd_diskinfo[VIOCD_MAX_CD];
 
 #define DEVICE_NR(di)	((di) - &viocd_diskinfo[0])
 
-static request_queue_t *viocd_queue;
 static spinlock_t viocd_reqlock;
 
 #define MAX_CD_REQ	1
@@ -332,10 +334,19 @@ static int send_request(struct request *req)
 	struct disk_info *diskinfo = req->rq_disk->private_data;
 	u64 len;
 	dma_addr_t dmaaddr;
+	int direction;
+	u16 cmd;
 	struct scatterlist sg;
 
 	BUG_ON(req->nr_phys_segments > 1);
-	BUG_ON(rq_data_dir(req) != READ);
+
+	if (rq_data_dir(req) == READ) {
+		direction = DMA_FROM_DEVICE;
+		cmd = viomajorsubtype_cdio | viocdread;
+	} else {
+		direction = DMA_TO_DEVICE;
+		cmd = viomajorsubtype_cdio | viocdwrite;
+	}
 
         if (blk_rq_map_sg(req->q, req, &sg) == 0) {
 		printk(VIOCD_KERN_WARNING
@@ -343,7 +354,7 @@ static int send_request(struct request *req)
 		return -1;
 	}
 
-	if (dma_map_sg(diskinfo->dev, &sg, 1, DMA_FROM_DEVICE) == 0) {
+	if (dma_map_sg(diskinfo->dev, &sg, 1, direction) == 0) {
 		printk(VIOCD_KERN_WARNING "error allocating sg tce\n");
 		return -1;
 	}
@@ -351,8 +362,7 @@ static int send_request(struct request *req)
 	len = sg_dma_len(&sg);
 
 	hvrc = HvCallEvent_signalLpEventFast(viopath_hostLp,
-			HvLpEvent_Type_VirtualIo,
-			viomajorsubtype_cdio | viocdread,
+			HvLpEvent_Type_VirtualIo, cmd,
 			HvLpEvent_AckInd_DoAck,
 			HvLpEvent_AckType_ImmediateAck,
 			viopath_sourceinst(viopath_hostLp),
@@ -457,6 +467,67 @@ static int viocd_lock_door(struct cdrom_device_info *cdi, int locking)
 	return 0;
 }
 
+static int viocd_packet(struct cdrom_device_info *cdi,
+		struct packet_command *cgc)
+{
+	unsigned int buflen = cgc->buflen;
+	int ret = -EIO;
+
+	switch (cgc->cmd[0]) {
+	case GPCMD_READ_DISC_INFO:
+		{
+			disc_information *di = (disc_information *)cgc->buffer;
+
+			if (buflen >= 2) {
+				di->disc_information_length = cpu_to_be16(1);
+				ret = 0;
+			}
+			if (buflen >= 3)
+				di->erasable =
+					(cdi->ops->capability & ~cdi->mask
+					 & (CDC_DVD_RAM | CDC_RAM)) != 0;
+		}
+		break;
+	case GPCMD_GET_CONFIGURATION:
+		if (cgc->cmd[3] == CDF_RWRT) {
+			struct rwrt_feature_desc *rfd = (struct rwrt_feature_desc *)(cgc->buffer + sizeof(struct feature_header));
+
+			if ((buflen >=
+			     (sizeof(struct feature_header) + sizeof(*rfd))) &&
+			    (cdi->ops->capability & ~cdi->mask
+			     & (CDC_DVD_RAM | CDC_RAM))) {
+				rfd->feature_code = cpu_to_be16(CDF_RWRT);
+				rfd->curr = 1;
+				ret = 0;
+			}
+		}
+		break;
+	default:
+		if (cgc->sense) {
+			/* indicate Unknown code */
+			cgc->sense->sense_key = 0x05;
+			cgc->sense->asc = 0x20;
+			cgc->sense->ascq = 0x00;
+		}
+		break;
+	}
+
+	cgc->stat = ret;
+	return ret;
+}
+
+static void restart_all_queues(int first_index)
+{
+	int i;
+
+	for (i = first_index + 1; i < viocd_numdev; i++)
+		if (viocd_diskinfo[i].viocd_disk)
+			blk_run_queue(viocd_diskinfo[i].viocd_disk->queue);
+	for (i = 0; i <= first_index; i++)
+		if (viocd_diskinfo[i].viocd_disk)
+			blk_run_queue(viocd_diskinfo[i].viocd_disk->queue);
+}
+
 /* This routine handles incoming CD LP events */
 static void vio_handle_cd_event(struct HvLpEvent *event)
 {
@@ -486,7 +557,7 @@ static void vio_handle_cd_event(struct HvLpEvent *event)
 	case viocdopen:
 		if (event->xRc == 0) {
 			di = &viocd_diskinfo[bevent->disk];
-			blk_queue_hardsect_size(viocd_queue,
+			blk_queue_hardsect_size(di->viocd_disk->queue,
 					bevent->block_size);
 			set_capacity(di->viocd_disk,
 					bevent->media_size *
@@ -510,6 +581,7 @@ return_complete:
 	case viocdclose:
 		break;
 
+	case viocdwrite:
 	case viocdread:
 		/*
 		 * Since this is running in interrupt mode, we need to
@@ -518,7 +590,8 @@ return_complete:
 		di = &viocd_diskinfo[bevent->disk];
 		spin_lock_irqsave(&viocd_reqlock, flags);
 		dma_unmap_single(di->dev, bevent->token, bevent->len,
-				DMA_FROM_DEVICE);
+				((event->xSubtype & VIOMINOR_SUBTYPE_MASK) == viocdread)
+				?  DMA_FROM_DEVICE : DMA_TO_DEVICE);
 		req = (struct request *)bevent->event.xCorrelationToken;
 		rwreq--;
 
@@ -536,7 +609,7 @@ return_complete:
 
 		/* restart handling of incoming requests */
 		spin_unlock_irqrestore(&viocd_reqlock, flags);
-		blk_run_queue(viocd_queue);
+		restart_all_queues(bevent->disk);
 		break;
 
 	default:
@@ -555,7 +628,8 @@ static struct cdrom_device_ops viocd_dops = {
 	.release = viocd_release,
 	.media_changed = viocd_media_changed,
 	.lock_door = viocd_lock_door,
-	.capability = CDC_CLOSE_TRAY | CDC_OPEN_TRAY | CDC_LOCK | CDC_SELECT_SPEED | CDC_SELECT_DISC | CDC_MULTI_SESSION | CDC_MCN | CDC_MEDIA_CHANGED | CDC_PLAY_AUDIO | CDC_RESET | CDC_IOCTLS | CDC_DRIVE_STATUS | CDC_GENERIC_PACKET | CDC_CD_R | CDC_CD_RW | CDC_DVD | CDC_DVD_R | CDC_DVD_RAM
+	.generic_packet = viocd_packet,
+	.capability = CDC_CLOSE_TRAY | CDC_OPEN_TRAY | CDC_LOCK | CDC_SELECT_SPEED | CDC_SELECT_DISC | CDC_MULTI_SESSION | CDC_MCN | CDC_MEDIA_CHANGED | CDC_PLAY_AUDIO | CDC_RESET | CDC_IOCTLS | CDC_DRIVE_STATUS | CDC_GENERIC_PACKET | CDC_CD_R | CDC_CD_RW | CDC_DVD | CDC_DVD_R | CDC_DVD_RAM | CDC_RAM
 };
 
 static int __init find_capability(const char *type)
@@ -575,6 +649,7 @@ static int viocd_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 	struct disk_info *d;
 	struct cdrom_device_info *c;
 	struct cdrom_info *ci;
+	struct request_queue *q;
 
 	deviceno = vdev->unit_address;
 	if (deviceno >= viocd_numdev)
@@ -594,17 +669,22 @@ static int viocd_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 	if (register_cdrom(c) != 0) {
 		printk(VIOCD_KERN_WARNING "Cannot register viocd CD-ROM %s!\n",
 				c->name);
-		return 0;
+		goto out;
 	}
 	printk(VIOCD_KERN_INFO "cd %s is iSeries resource %10.10s "
 			"type %4.4s, model %3.3s\n",
 			c->name, ci->rsrcname, ci->type, ci->model);
+	q = blk_init_queue(do_viocd_request, &viocd_reqlock);
+	if (q == NULL) {
+		printk(VIOCD_KERN_WARNING "Cannot allocate queue for %s!\n",
+				c->name);
+		goto out_unregister_cdrom;
+	}
 	gendisk = alloc_disk(1);
 	if (gendisk == NULL) {
 		printk(VIOCD_KERN_WARNING "Cannot create gendisk for %s!\n",
 				c->name);
-		unregister_cdrom(c);
-		return 0;
+		goto out_cleanup_queue;
 	}
 	gendisk->major = VIOCD_MAJOR;
 	gendisk->first_minor = deviceno;
@@ -612,7 +692,10 @@ static int viocd_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 			sizeof(gendisk->disk_name));
 	snprintf(gendisk->devfs_name, sizeof(gendisk->devfs_name),
 			VIOCD_DEVICE_DEVFS "%d", deviceno);
-	gendisk->queue = viocd_queue;
+	blk_queue_max_hw_segments(q, 1);
+	blk_queue_max_phys_segments(q, 1);
+	blk_queue_max_sectors(q, 4096 / 512);
+	gendisk->queue = q;
 	gendisk->fops = &viocd_fops;
 	gendisk->flags = GENHD_FL_CD|GENHD_FL_REMOVABLE;
 	set_capacity(gendisk, 0);
@@ -621,8 +704,14 @@ static int viocd_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 	d->dev = &vdev->dev;
 	gendisk->driverfs_dev = d->dev;
 	add_disk(gendisk);
-
 	return 0;
+
+out_cleanup_queue:
+	blk_cleanup_queue(q);
+out_unregister_cdrom:
+	unregister_cdrom(c);
+out:
+	return -ENODEV;
 }
 
 static int viocd_remove(struct vio_dev *vdev)
@@ -634,6 +723,7 @@ static int viocd_remove(struct vio_dev *vdev)
 				"Cannot unregister viocd CD-ROM %s!\n",
 				d->viocd_info.name);
 	del_gendisk(d->viocd_disk);
+	blk_cleanup_queue(d->viocd_disk->queue);
 	put_disk(d->viocd_disk);
 	return 0;
 }
@@ -689,22 +779,12 @@ static int __init viocd_init(void)
 	vio_setHandler(viomajorsubtype_cdio, vio_handle_cd_event);
 
 	get_viocd_info();
-	if (viocd_numdev == 0)
-		goto out_undo_vio;
 
 	spin_lock_init(&viocd_reqlock);
-	viocd_queue = blk_init_queue(do_viocd_request, &viocd_reqlock);
-	if (viocd_queue == NULL) {
-		ret = -ENOMEM;
-		goto out_free_info;
-	}
-	blk_queue_max_hw_segments(viocd_queue, 1);
-	blk_queue_max_phys_segments(viocd_queue, 1);
-	blk_queue_max_sectors(viocd_queue, 4096 / 512);
 
 	ret = vio_register_driver(&viocd_driver);
 	if (ret)
-		goto out_cleanup_queue;
+		goto out_free_info;
 
 	e = create_proc_entry("iSeries/viocd", S_IFREG|S_IRUGO, NULL);
 	if (e) {
@@ -714,13 +794,10 @@ static int __init viocd_init(void)
 
 	return 0;
 
-out_cleanup_queue:
-	blk_cleanup_queue(viocd_queue);
 out_free_info:
 	dma_free_coherent(iSeries_vio_dev,
 			sizeof(*viocd_unitinfo) * VIOCD_MAX_CD,
 			viocd_unitinfo, unitinfo_dmaaddr);
-out_undo_vio:
 	vio_clearHandler(viomajorsubtype_cdio);
 	viopath_close(viopath_hostLp, viomajorsubtype_cdio, MAX_CD_REQ + 2);
 out_unregister:
@@ -732,7 +809,6 @@ static void __exit viocd_exit(void)
 {
 	remove_proc_entry("iSeries/viocd", NULL);
 	vio_unregister_driver(&viocd_driver);
-	blk_cleanup_queue(viocd_queue);
 	if (viocd_unitinfo != NULL)
 		dma_free_coherent(iSeries_vio_dev,
 				sizeof(*viocd_unitinfo) * VIOCD_MAX_CD,

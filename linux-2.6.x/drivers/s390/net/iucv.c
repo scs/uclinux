@@ -103,7 +103,7 @@ static iucv_GeneralInterrupt *iucv_external_int_buffer = NULL;
 
 /* Spin Lock declaration */
 
-static spinlock_t iucv_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(iucv_lock);
 
 static int messagesDisabled = 0;
 
@@ -115,7 +115,7 @@ typedef struct {
 } iucv_irqdata;
 
 static struct list_head  iucv_irq_queue;
-static spinlock_t iucv_irq_queue_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(iucv_irq_queue_lock);
 
 /*
  *Internal function prototypes
@@ -2285,7 +2285,6 @@ iucv_irq_handler(struct pt_regs *regs, __u16 code)
 	irqdata = kmalloc(sizeof(iucv_irqdata), GFP_ATOMIC);
 	if (!irqdata) {
 		printk(KERN_WARNING "%s: out of memory\n", __FUNCTION__);
-		irq_exit();
 		return;
 	}
 
@@ -2526,7 +2525,7 @@ iucv_tasklet_handler(unsigned long ignored)
 	return;
 }
 
-module_init(iucv_init);
+subsys_initcall(iucv_init);
 module_exit(iucv_exit);
 
 /**
@@ -2550,16 +2549,16 @@ EXPORT_SYMBOL (iucv_reject);
 #if 0
 EXPORT_SYMBOL (iucv_reply);
 EXPORT_SYMBOL (iucv_reply_array);
-EXPORT_SYMBOL (iucv_reply_prmmsg);
 EXPORT_SYMBOL (iucv_resume);
 #endif
+EXPORT_SYMBOL (iucv_reply_prmmsg);
 EXPORT_SYMBOL (iucv_send);
-#if 0
 EXPORT_SYMBOL (iucv_send2way);
 EXPORT_SYMBOL (iucv_send2way_array);
-EXPORT_SYMBOL (iucv_send_array);
 EXPORT_SYMBOL (iucv_send2way_prmmsg);
 EXPORT_SYMBOL (iucv_send2way_prmmsg_array);
+#if 0
+EXPORT_SYMBOL (iucv_send_array);
 EXPORT_SYMBOL (iucv_send_prmmsg);
 EXPORT_SYMBOL (iucv_setmask);
 #endif

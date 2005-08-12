@@ -31,7 +31,7 @@
 #include <linux/ipmi_msgdefs.h>		/* for completion codes */
 #include "ipmi_si_sm.h"
 
-#define IPMI_BT_VERSION "v32"
+#define IPMI_BT_VERSION "v33"
 
 static int bt_debug = 0x00;	/* Production value 0, see following flags */
 
@@ -235,7 +235,6 @@ static void reset_flags(struct si_sm_data *bt)
 	if (BT_STATUS & BT_B_BUSY) BT_CONTROL(BT_B_BUSY);
 	BT_CONTROL(BT_CLR_WR_PTR);
 	BT_CONTROL(BT_SMS_ATN);
-	BT_INTMASK_W(BT_BMC_HWRST);
 #ifdef DEVELOPMENT_ONLY_NOT_FOR_PRODUCTION
 	if (BT_STATUS & BT_B2H_ATN) {
 		int i;

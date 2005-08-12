@@ -228,7 +228,7 @@ struct initvalues {
 	__u8 addr, value;
 };
 
-static struct initvalues ibm_initregs[] __initdata = {
+static struct initvalues ibm_initregs[] __devinitdata = {
 	{ CLKCTL,	0x21 },
 	{ SYNCCTL,	0x00 },
 	{ HSYNCPOS,	0x00 },
@@ -275,7 +275,7 @@ static struct initvalues ibm_initregs[] __initdata = {
 	{ KEYCTL,	0x00 }
 };
 
-static struct initvalues tvp_initregs[] __initdata = {
+static struct initvalues tvp_initregs[] __devinitdata = {
 	{ TVPIRICC,	0x00 },
 	{ TVPIRBRC,	0xe4 },
 	{ TVPIRLAC,	0x06 },
@@ -319,7 +319,7 @@ struct imstt_regvals {
 
 struct imstt_par {
 	struct imstt_regvals init;
-	__u32 *dc_regs;
+	__u32 __iomem *dc_regs;
 	unsigned long cmap_regs_phys;
 	__u8 *cmap_regs;
 	__u32 ramdac;
@@ -338,7 +338,7 @@ enum {
 static int inverse = 0;
 static char fontname[40] __initdata = { 0 };
 #if defined(CONFIG_PPC)
-static signed char init_vmode __initdata = -1, init_cmode __initdata = -1;
+static signed char init_vmode __devinitdata = -1, init_cmode __devinitdata = -1;
 #endif
 
 static struct imstt_regvals tvp_reg_init_2 = {
@@ -406,19 +406,19 @@ static void imsttfb_remove(struct pci_dev *pdev);
 /*
  * Register access
  */
-static inline u32 read_reg_le32(volatile u32 *base, int regindex)
+static inline u32 read_reg_le32(volatile u32 __iomem *base, int regindex)
 {
 #ifdef __powerpc__
-	return in_le32((volatile u32 *) (base + regindex));
+	return in_le32(base + regindex);
 #else
 	return readl(base + regindex);
 #endif
 }
 
-static inline void write_reg_le32(volatile u32 *base, int regindex, u32 val)
+static inline void write_reg_le32(volatile u32 __iomem *base, int regindex, u32 val)
 {
 #ifdef __powerpc__
-	out_le32((volatile u32 *) (base + regindex), val);
+	out_le32(base + regindex, val);
 #else
 	writel(val, base + regindex);
 #endif
@@ -940,9 +940,9 @@ imsttfb_blank(int blank, struct fb_info *info)
 
 	ctrl = read_reg_le32(par->dc_regs, STGCTL);
 	if (blank > 0) {
-		switch (blank - 1) {
-		case VESA_NO_BLANKING:
-		case VESA_POWERDOWN:
+		switch (blank) {
+		case FB_BLANK_NORMAL:
+		case FB_BLANK_POWERDOWN:
 			ctrl &= ~0x00000380;
 			if (par->ramdac == IBM) {
 				par->cmap_regs[PIDXHI] = 0;		eieio();
@@ -958,10 +958,10 @@ imsttfb_blank(int blank, struct fb_info *info)
 				par->cmap_regs[PIDXDATA] = 0xc0;
 			}
 			break;
-		case VESA_VSYNC_SUSPEND:
+		case FB_BLANK_VSYNC_SUSPEND:
 			ctrl &= ~0x00000020;
 			break;
-		case VESA_HSYNC_SUSPEND:
+		case FB_BLANK_HSYNC_SUSPEND:
 			ctrl &= ~0x00000010;
 			break;
 		}
@@ -1287,12 +1287,12 @@ imsttfb_ioctl(struct inode *inode, struct file *file, u_int cmd,
 		case FBIMSTT_SETCMAPREG:
 			if (copy_from_user(reg, argp, 8) || reg[0] > (0x1000 - sizeof(reg[0])) / sizeof(reg[0]))
 				return -EFAULT;
-			write_reg_le32(((u_int *)par->cmap_regs), reg[0], reg[1]);
+			write_reg_le32(((u_int __iomem *)par->cmap_regs), reg[0], reg[1]);
 			return 0;
 		case FBIMSTT_GETCMAPREG:
 			if (copy_from_user(reg, argp, 4) || reg[0] > (0x1000 - sizeof(reg[0])) / sizeof(reg[0]))
 				return -EFAULT;
-			reg[1] = read_reg_le32(((u_int *)par->cmap_regs), reg[0]);
+			reg[1] = read_reg_le32(((u_int __iomem *)par->cmap_regs), reg[0]);
 			if (copy_to_user((void __user *)(arg + 4), &reg[1], 4))
 				return -EFAULT;
 			return 0;
@@ -1348,7 +1348,7 @@ static struct fb_ops imsttfb_ops = {
 	.fb_ioctl 	= imsttfb_ioctl,
 };
 
-static void __init 
+static void __devinit
 init_imstt(struct fb_info *info)
 {
 	struct imstt_par *par = (struct imstt_par *) info->par;
@@ -1442,7 +1442,10 @@ init_imstt(struct fb_info *info)
 	info->var.pixclock = 1000000 / getclkMHz(par);
 
 	info->fbops = &imsttfb_ops;
-	info->flags = FBINFO_FLAG_DEFAULT;
+	info->flags = FBINFO_DEFAULT |
+                      FBINFO_HWACCEL_COPYAREA |
+	              FBINFO_HWACCEL_FILLRECT |
+	              FBINFO_HWACCEL_YPAN;
 
 	fb_alloc_cmap(&info->cmap, 0, 0);
 
@@ -1516,11 +1519,12 @@ imsttfb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	info->fix.smem_start = addr;
 	info->screen_base = (__u8 *)ioremap(addr, par->ramdac == IBM ? 0x400000 : 0x800000);
 	info->fix.mmio_start = addr + 0x800000;
-	par->dc_regs = (__u32 *)ioremap(addr + 0x800000, 0x1000);
+	par->dc_regs = ioremap(addr + 0x800000, 0x1000);
 	par->cmap_regs_phys = addr + 0x840000;
 	par->cmap_regs = (__u8 *)ioremap(addr + 0x840000, 0x1000);
 	info->par = par;
 	info->pseudo_palette = (void *) (par + 1);
+	info->device = &pdev->dev;
 	init_imstt(info);
 
 	pci_set_drvdata(pdev, info);
@@ -1543,7 +1547,7 @@ imsttfb_remove(struct pci_dev *pdev)
 }
 
 #ifndef MODULE
-int __init 
+static int __init
 imsttfb_setup(char *options)
 {
 	char *this_opt;
@@ -1597,9 +1601,17 @@ imsttfb_setup(char *options)
 
 #endif /* MODULE */
 
-int __init imsttfb_init(void)
+static int __init imsttfb_init(void)
 {
-	return pci_module_init(&imsttfb_pci_driver);
+#ifndef MODULE
+	char *option = NULL;
+
+	if (fb_get_options("imsttfb", &option))
+		return -ENODEV;
+
+	imsttfb_setup(option);
+#endif
+	return pci_register_driver(&imsttfb_pci_driver);
 }
  
 static void __exit imsttfb_exit(void)
@@ -1607,9 +1619,8 @@ static void __exit imsttfb_exit(void)
 	pci_unregister_driver(&imsttfb_pci_driver);
 }
 
-#ifdef MODULE
 MODULE_LICENSE("GPL");
+
 module_init(imsttfb_init);
-#endif
 module_exit(imsttfb_exit);
 

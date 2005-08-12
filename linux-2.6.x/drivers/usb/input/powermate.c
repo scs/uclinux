@@ -320,7 +320,7 @@ static int powermate_probe(struct usb_interface *intf, const struct usb_device_i
 	usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
 		0x0a, USB_TYPE_CLASS | USB_RECIP_INTERFACE,
 		0, interface->desc.bInterfaceNumber, NULL, 0,
-		HZ * USB_CTRL_SET_TIMEOUT);
+		USB_CTRL_SET_TIMEOUT);
 
 	if (!(pm = kmalloc(sizeof(struct powermate_device), GFP_KERNEL)))
 		return -ENOMEM;
@@ -349,7 +349,7 @@ static int powermate_probe(struct usb_interface *intf, const struct usb_device_i
 		return -ENOMEM;
 	}
 
-	pm->lock = SPIN_LOCK_UNLOCKED;
+	spin_lock_init(&pm->lock);
 	init_input_dev(&pm->input);
 
 	/* get a handle to the interrupt data pipe */
@@ -375,12 +375,13 @@ static int powermate_probe(struct usb_interface *intf, const struct usb_device_i
 		return -EIO; /* failure */
 	}
 
-	switch (udev->descriptor.idProduct) {
+	switch (le16_to_cpu(udev->descriptor.idProduct)) {
 	case POWERMATE_PRODUCT_NEW: pm->input.name = pm_name_powermate; break;
 	case POWERMATE_PRODUCT_OLD: pm->input.name = pm_name_soundknob; break;
 	default: 
-	  pm->input.name = pm_name_soundknob;
-	  printk(KERN_WARNING "powermate: unknown product id %04x\n", udev->descriptor.idProduct);
+		pm->input.name = pm_name_soundknob;
+		printk(KERN_WARNING "powermate: unknown product id %04x\n",
+		       le16_to_cpu(udev->descriptor.idProduct));
 	}
 
 	pm->input.private = pm;
@@ -389,11 +390,12 @@ static int powermate_probe(struct usb_interface *intf, const struct usb_device_i
 	pm->input.relbit[LONG(REL_DIAL)] = BIT(REL_DIAL);
 	pm->input.mscbit[LONG(MSC_PULSELED)] = BIT(MSC_PULSELED);
 	pm->input.id.bustype = BUS_USB;
-	pm->input.id.vendor = udev->descriptor.idVendor;
-	pm->input.id.product = udev->descriptor.idProduct;
-	pm->input.id.version = udev->descriptor.bcdDevice;
+	pm->input.id.vendor = le16_to_cpu(udev->descriptor.idVendor);
+	pm->input.id.product = le16_to_cpu(udev->descriptor.idProduct);
+	pm->input.id.version = le16_to_cpu(udev->descriptor.bcdDevice);
 	pm->input.event = powermate_input_event;
 	pm->input.dev = &intf->dev;
+	pm->input.phys = pm->phys;
 
 	input_register_device(&pm->input);
 
@@ -417,7 +419,7 @@ static void powermate_disconnect(struct usb_interface *intf)
 	usb_set_intfdata(intf, NULL);
 	if (pm) {
 		pm->requires_update = 0;
-		usb_unlink_urb(pm->irq);
+		usb_kill_urb(pm->irq);
 		input_unregister_device(&pm->input);
 		usb_free_urb(pm->irq);
 		usb_free_urb(pm->config);

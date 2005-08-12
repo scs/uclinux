@@ -16,7 +16,7 @@
  *    along with this program; if not, write to the Free Software
  *    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
- *    Questions/Comments/Bugfixes to arrays@compaq.com
+ *    Questions/Comments/Bugfixes to iss_storagedev@hp.com
  *
  *    If you want to make changes, improve or add functionality to this
  *    driver, you'll probably need the Compaq Array Controller Interface
@@ -90,7 +90,7 @@ struct ctlr_info {
 	__u32	board_id;
 	char	*product_name;	
 
-	void *vaddr;
+	void __iomem *vaddr;
 	unsigned long paddr;
 	unsigned long io_mem_addr;
 	unsigned long io_mem_length;

@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2004, R. Byron Moore
+ * Copyright (C) 2000 - 2005, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -121,7 +121,7 @@ acpi_ex_system_memory_space_handler (
 	 * Hardware does not support non-aligned data transfers, we must verify
 	 * the request.
 	 */
-	(void) acpi_ut_short_divide ((acpi_integer *) &address, length, NULL, &remainder);
+	(void) acpi_ut_short_divide ((acpi_integer) address, length, NULL, &remainder);
 	if (remainder != 0) {
 		return_ACPI_STATUS (AE_AML_ALIGNMENT);
 	}

@@ -25,11 +25,8 @@
  *					518, 520, 531, 532
  *
  * This driver is supported by LSI Logic, with assistance from Red Hat, Dell,
- * and others. Please send updates to the public mailing list
- * linux-megaraid-devel@dell.com, and subscribe to and read archives of this
- * list at http://lists.us.dell.com/.
- *
- * For history of changes, see ChangeLog.megaraid.
+ * and others. Please send updates to the mailing list
+ * linux-scsi@vger.kernel.org .
  *
  */
 
@@ -53,21 +50,24 @@
 
 #include "megaraid.h"
 
+#define MEGARAID_MODULE_VERSION "2.00.3"
+
 MODULE_AUTHOR ("LSI Logic Corporation");
 MODULE_DESCRIPTION ("LSI Logic MegaRAID driver");
 MODULE_LICENSE ("GPL");
+MODULE_VERSION(MEGARAID_MODULE_VERSION);
 
 static unsigned int max_cmd_per_lun = DEF_CMD_PER_LUN;
-MODULE_PARM(max_cmd_per_lun, "i");
+module_param(max_cmd_per_lun, uint, 0);
 MODULE_PARM_DESC(max_cmd_per_lun, "Maximum number of commands which can be issued to a single LUN (default=DEF_CMD_PER_LUN=63)");
 
 static unsigned short int max_sectors_per_io = MAX_SECTORS_PER_IO;
-MODULE_PARM(max_sectors_per_io, "h");
+module_param(max_sectors_per_io, ushort, 0);
 MODULE_PARM_DESC(max_sectors_per_io, "Maximum number of sectors per I/O request (default=MAX_SECTORS_PER_IO=128)");
 
 
 static unsigned short int max_mbox_busy_wait = MBOX_BUSY_WAIT;
-MODULE_PARM(max_mbox_busy_wait, "h");
+module_param(max_mbox_busy_wait, ushort, 0);
 MODULE_PARM_DESC(max_mbox_busy_wait, "Maximum wait for mailbox in microseconds if busy (default=MBOX_BUSY_WAIT=10)");
 
 #define RDINDOOR(adapter)		readl((adapter)->base + 0x20)
@@ -634,11 +634,7 @@ mega_build_cmd(adapter_t *adapter, Scsi_Cmnd *cmd, int *busy)
 			}
 
 			if(!(scb = mega_allocate_scb(adapter, cmd))) {
-
-				cmd->result = (DID_ERROR << 16);
-				cmd->scsi_done(cmd);
 				*busy = 1;
-
 				return NULL;
 			}
 
@@ -677,11 +673,7 @@ mega_build_cmd(adapter_t *adapter, Scsi_Cmnd *cmd, int *busy)
 
 			/* Allocate a SCB and initialize passthru */
 			if(!(scb = mega_allocate_scb(adapter, cmd))) {
-
-				cmd->result = (DID_ERROR << 16);
-				cmd->scsi_done(cmd);
 				*busy = 1;
-
 				return NULL;
 			}
 			pthru = scb->pthru;
@@ -723,11 +715,7 @@ mega_build_cmd(adapter_t *adapter, Scsi_Cmnd *cmd, int *busy)
 
 			/* Allocate a SCB and initialize mailbox */
 			if(!(scb = mega_allocate_scb(adapter, cmd))) {
-
-				cmd->result = (DID_ERROR << 16);
-				cmd->scsi_done(cmd);
 				*busy = 1;
-
 				return NULL;
 			}
 			mbox = (mbox_t *)scb->raw_mbox;
@@ -867,11 +855,7 @@ mega_build_cmd(adapter_t *adapter, Scsi_Cmnd *cmd, int *busy)
 
 			/* Allocate a SCB and initialize mailbox */
 			if(!(scb = mega_allocate_scb(adapter, cmd))) {
-
-				cmd->result = (DID_ERROR << 16);
-				cmd->scsi_done(cmd);
 				*busy = 1;
-
 				return NULL;
 			}
 
@@ -899,11 +883,7 @@ mega_build_cmd(adapter_t *adapter, Scsi_Cmnd *cmd, int *busy)
 	else {
 		/* Allocate a SCB and initialize passthru */
 		if(!(scb = mega_allocate_scb(adapter, cmd))) {
-
-			cmd->result = (DID_ERROR << 16);
-			cmd->scsi_done(cmd);
 			*busy = 1;
-
 			return NULL;
 		}
 
@@ -4006,7 +3986,7 @@ mega_enum_raid_scsi(adapter_t *adapter)
 	mbox->m_out.xferaddr = (u32)adapter->buf_dma_handle;
 
 	/*
-	 * Non-ROMB firware fail this command, so all channels
+	 * Non-ROMB firmware fail this command, so all channels
 	 * must be shown RAID
 	 */
 	adapter->mega_ch_class = 0xFF;
@@ -5129,11 +5109,11 @@ static void __exit megaraid_exit(void)
 	 */
 	unregister_chrdev(major, "megadev");
 
+	pci_unregister_driver(&megaraid_pci_driver);
+
 #ifdef CONFIG_PROC_FS
 	remove_proc_entry("megaraid", &proc_root);
 #endif
-
-	pci_unregister_driver(&megaraid_pci_driver);
 }
 
 module_init(megaraid_init);

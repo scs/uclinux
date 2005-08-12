@@ -60,7 +60,7 @@ MODULE_LICENSE("GPL");
 #include <linux/video_decoder.h>
 
 static int debug = 0;
-MODULE_PARM(debug, "i");
+module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "Debug level (0-1)");
 
 #define dprintk(num, format, args...) \
@@ -342,7 +342,7 @@ saa7111_command (struct i2c_client *client,
 
 		case VIDEO_MODE_SECAM:
 			saa7111_write(client, 0x08,
-				      (decoder->reg[0x0e] & 0x3f) | 0x00);
+				      (decoder->reg[0x08] & 0x3f) | 0x00);
 			saa7111_write(client, 0x0e,
 				      (decoder->reg[0x0e] & 0x8f) | 0x50);
 			break;
@@ -500,7 +500,6 @@ static struct i2c_client_address_data addr_data = {
 	.force			= force
 };
 
-static int saa7111_i2c_id = 0;
 static struct i2c_driver i2c_driver_saa7111;
 
 static int
@@ -530,9 +529,7 @@ saa7111_detect_client (struct i2c_adapter *adapter,
 	client->adapter = adapter;
 	client->driver = &i2c_driver_saa7111;
 	client->flags = I2C_CLIENT_ALLOW_USE;
-	client->id = saa7111_i2c_id++;
-	snprintf(I2C_NAME(client), sizeof(I2C_NAME(client)) - 1,
-		"saa7111[%d]", client->id);
+	strlcpy(I2C_NAME(client), "saa7111", sizeof(I2C_NAME(client)));
 
 	decoder = kmalloc(sizeof(struct saa7111), GFP_KERNEL);
 	if (decoder == NULL) {

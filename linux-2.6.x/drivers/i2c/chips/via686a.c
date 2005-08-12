@@ -35,6 +35,7 @@
 #include <linux/slab.h>
 #include <linux/pci.h>
 #include <linux/delay.h>
+#include <linux/jiffies.h>
 #include <linux/i2c.h>
 #include <linux/i2c-sensor.h>
 #include <linux/init.h>
@@ -43,8 +44,8 @@
 
 /* If force_addr is set to anything different from 0, we forcibly enable
    the device at the given address. */
-static int force_addr = 0;
-MODULE_PARM(force_addr, "i");
+static unsigned short force_addr = 0;
+module_param(force_addr, ushort, 0);
 MODULE_PARM_DESC(force_addr,
 		 "Initialize the base address of the sensors");
 
@@ -52,9 +53,7 @@ MODULE_PARM_DESC(force_addr,
    Note that we can't determine the ISA address until we have initialized
    our module */
 static unsigned short normal_i2c[] = { I2C_CLIENT_END };
-static unsigned short normal_i2c_range[] = { I2C_CLIENT_END };
 static unsigned int normal_isa[] = { 0x0000, I2C_CLIENT_ISA_END };
-static unsigned int normal_isa_range[] = { I2C_CLIENT_ISA_END };
 
 /* Insmod parameters */
 SENSORS_INSMOD_1(via686a);
@@ -364,9 +363,12 @@ static ssize_t set_in_min(struct device *dev, const char *buf,
 	struct i2c_client *client = to_i2c_client(dev);
 	struct via686a_data *data = i2c_get_clientdata(client);
 	unsigned long val = simple_strtoul(buf, NULL, 10);
+
+	down(&data->update_lock);
 	data->in_min[nr] = IN_TO_REG(val,nr);
 	via686a_write_value(client, VIA686A_REG_IN_MIN(nr), 
 			data->in_min[nr]);
+	up(&data->update_lock);
 	return count;
 }
 static ssize_t set_in_max(struct device *dev, const char *buf, 
@@ -374,36 +376,39 @@ static ssize_t set_in_max(struct device *dev, const char *buf,
 	struct i2c_client *client = to_i2c_client(dev);
 	struct via686a_data *data = i2c_get_clientdata(client);
 	unsigned long val = simple_strtoul(buf, NULL, 10);
+
+	down(&data->update_lock);
 	data->in_max[nr] = IN_TO_REG(val,nr);
 	via686a_write_value(client, VIA686A_REG_IN_MAX(nr), 
 			data->in_max[nr]);
+	up(&data->update_lock);
 	return count;
 }
 #define show_in_offset(offset)					\
 static ssize_t 							\
 	show_in##offset (struct device *dev, char *buf)		\
 {								\
-	return show_in(dev, buf, 0x##offset);			\
+	return show_in(dev, buf, offset);			\
 }								\
 static ssize_t 							\
 	show_in##offset##_min (struct device *dev, char *buf)	\
 {								\
-	return show_in_min(dev, buf, 0x##offset);		\
+	return show_in_min(dev, buf, offset);		\
 }								\
 static ssize_t 							\
 	show_in##offset##_max (struct device *dev, char *buf)	\
 {								\
-	return show_in_max(dev, buf, 0x##offset);		\
+	return show_in_max(dev, buf, offset);		\
 }								\
 static ssize_t set_in##offset##_min (struct device *dev, 	\
 		const char *buf, size_t count) 			\
 {								\
-	return set_in_min(dev, buf, count, 0x##offset);		\
+	return set_in_min(dev, buf, count, offset);		\
 }								\
 static ssize_t set_in##offset##_max (struct device *dev,	\
 			const char *buf, size_t count)		\
 {								\
-	return set_in_max(dev, buf, count, 0x##offset);		\
+	return set_in_max(dev, buf, count, offset);		\
 }								\
 static DEVICE_ATTR(in##offset##_input, S_IRUGO, show_in##offset, NULL);\
 static DEVICE_ATTR(in##offset##_min, S_IRUGO | S_IWUSR, 	\
@@ -435,8 +440,11 @@ static ssize_t set_temp_over(struct device *dev, const char *buf,
 	struct i2c_client *client = to_i2c_client(dev);
 	struct via686a_data *data = i2c_get_clientdata(client);
 	int val = simple_strtol(buf, NULL, 10);
+
+	down(&data->update_lock);
 	data->temp_over[nr] = TEMP_TO_REG(val);
 	via686a_write_value(client, VIA686A_REG_TEMP_OVER(nr), data->temp_over[nr]);
+	up(&data->update_lock);
 	return count;
 }
 static ssize_t set_temp_hyst(struct device *dev, const char *buf, 
@@ -444,34 +452,37 @@ static ssize_t set_temp_hyst(struct device *dev, const char *buf,
 	struct i2c_client *client = to_i2c_client(dev);
 	struct via686a_data *data = i2c_get_clientdata(client);
 	int val = simple_strtol(buf, NULL, 10);
+
+	down(&data->update_lock);
 	data->temp_hyst[nr] = TEMP_TO_REG(val);
 	via686a_write_value(client, VIA686A_REG_TEMP_HYST(nr), data->temp_hyst[nr]);
+	up(&data->update_lock);
 	return count;
 }
 #define show_temp_offset(offset)					\
 static ssize_t show_temp_##offset (struct device *dev, char *buf)	\
 {									\
-	return show_temp(dev, buf, 0x##offset - 1);			\
+	return show_temp(dev, buf, offset - 1);				\
 }									\
 static ssize_t								\
 show_temp_##offset##_over (struct device *dev, char *buf)		\
 {									\
-	return show_temp_over(dev, buf, 0x##offset - 1);			\
+	return show_temp_over(dev, buf, offset - 1);			\
 }									\
 static ssize_t								\
 show_temp_##offset##_hyst (struct device *dev, char *buf)		\
 {									\
-	return show_temp_hyst(dev, buf, 0x##offset - 1);			\
+	return show_temp_hyst(dev, buf, offset - 1);			\
 }									\
 static ssize_t set_temp_##offset##_over (struct device *dev, 		\
 		const char *buf, size_t count) 				\
 {									\
-	return set_temp_over(dev, buf, count, 0x##offset - 1);		\
+	return set_temp_over(dev, buf, count, offset - 1);		\
 }									\
 static ssize_t set_temp_##offset##_hyst (struct device *dev, 		\
 		const char *buf, size_t count) 				\
 {									\
-	return set_temp_hyst(dev, buf, count, 0x##offset - 1);		\
+	return set_temp_hyst(dev, buf, count, offset - 1);		\
 }									\
 static DEVICE_ATTR(temp##offset##_input, S_IRUGO, show_temp_##offset, NULL);\
 static DEVICE_ATTR(temp##offset##_max, S_IRUGO | S_IWUSR, 		\
@@ -503,8 +514,11 @@ static ssize_t set_fan_min(struct device *dev, const char *buf,
 	struct i2c_client *client = to_i2c_client(dev);
 	struct via686a_data *data = i2c_get_clientdata(client);
 	int val = simple_strtol(buf, NULL, 10);
+
+	down(&data->update_lock);
 	data->fan_min[nr] = FAN_TO_REG(val, DIV_FROM_REG(data->fan_div[nr]));
 	via686a_write_value(client, VIA686A_REG_FAN_MIN(nr+1), data->fan_min[nr]);
+	up(&data->update_lock);
 	return count;
 }
 static ssize_t set_fan_div(struct device *dev, const char *buf, 
@@ -512,35 +526,39 @@ static ssize_t set_fan_div(struct device *dev, const char *buf,
 	struct i2c_client *client = to_i2c_client(dev);
 	struct via686a_data *data = i2c_get_clientdata(client);
 	int val = simple_strtol(buf, NULL, 10);
-	int old = via686a_read_value(client, VIA686A_REG_FANDIV);
+	int old;
+
+	down(&data->update_lock);
+	old = via686a_read_value(client, VIA686A_REG_FANDIV);
 	data->fan_div[nr] = DIV_TO_REG(val);
 	old = (old & 0x0f) | (data->fan_div[1] << 6) | (data->fan_div[0] << 4);
 	via686a_write_value(client, VIA686A_REG_FANDIV, old);
+	up(&data->update_lock);
 	return count;
 }
 
 #define show_fan_offset(offset)						\
 static ssize_t show_fan_##offset (struct device *dev, char *buf)	\
 {									\
-	return show_fan(dev, buf, 0x##offset - 1);			\
+	return show_fan(dev, buf, offset - 1);				\
 }									\
 static ssize_t show_fan_##offset##_min (struct device *dev, char *buf)	\
 {									\
-	return show_fan_min(dev, buf, 0x##offset - 1);			\
+	return show_fan_min(dev, buf, offset - 1);			\
 }									\
 static ssize_t show_fan_##offset##_div (struct device *dev, char *buf)	\
 {									\
-	return show_fan_div(dev, buf, 0x##offset - 1);			\
+	return show_fan_div(dev, buf, offset - 1);			\
 }									\
 static ssize_t set_fan_##offset##_min (struct device *dev, 		\
 	const char *buf, size_t count) 					\
 {									\
-	return set_fan_min(dev, buf, count, 0x##offset - 1);		\
+	return set_fan_min(dev, buf, count, offset - 1);		\
 }									\
 static ssize_t set_fan_##offset##_div (struct device *dev, 		\
 		const char *buf, size_t count) 				\
 {									\
-	return set_fan_div(dev, buf, count, 0x##offset - 1);		\
+	return set_fan_div(dev, buf, count, offset - 1);		\
 }									\
 static DEVICE_ATTR(fan##offset##_input, S_IRUGO, show_fan_##offset, NULL);\
 static DEVICE_ATTR(fan##offset##_min, S_IRUGO | S_IWUSR, 		\
@@ -556,7 +574,7 @@ static ssize_t show_alarms(struct device *dev, char *buf) {
 	struct via686a_data *data = via686a_update_device(dev);
 	return sprintf(buf,"%d\n", ALARMS_FROM_REG(data->alarms));
 }
-static DEVICE_ATTR(alarms, S_IRUGO | S_IWUSR, show_alarms, NULL);
+static DEVICE_ATTR(alarms, S_IRUGO, show_alarms, NULL);
 
 /* The driver. I choose to use type i2c_driver, as at is identical to both
    smbus_driver and isa_driver, and clients could be of either kind */
@@ -615,7 +633,7 @@ static int via686a_detect(struct i2c_adapter *adapter, int address, int kind)
 	}
 
 	/* Reserve the ISA region */
-	if (!request_region(address, VIA686A_EXTENT, "via686a-sensor")) {
+	if (!request_region(address, VIA686A_EXTENT, via686a_driver.name)) {
 		dev_err(&adapter->dev,"region 0x%x already in use!\n",
 		       address);
 		return -ENODEV;
@@ -633,10 +651,9 @@ static int via686a_detect(struct i2c_adapter *adapter, int address, int kind)
 	new_client->adapter = adapter;
 	new_client->driver = &via686a_driver;
 	new_client->flags = 0;
-	new_client->dev.parent = &adapter->dev;
 
 	/* Fill in the remaining client fields and put into the global list */
-	snprintf(new_client->name, I2C_NAME_SIZE, client_name);
+	strlcpy(new_client->name, client_name, I2C_NAME_SIZE);
 
 	data->valid = 0;
 	init_MUTEX(&data->update_lock);
@@ -728,9 +745,8 @@ static struct via686a_data *via686a_update_device(struct device *dev)
 
 	down(&data->update_lock);
 
-       if ((jiffies - data->last_updated > HZ + HZ / 2) ||
-           (jiffies < data->last_updated) || !data->valid) {
-
+	if (time_after(jiffies, data->last_updated + HZ + HZ / 2)
+	    || !data->valid) {
 		for (i = 0; i <= 4; i++) {
 			data->in[i] =
 			    via686a_read_value(client, VIA686A_REG_IN(i));
@@ -788,14 +804,11 @@ static struct via686a_data *via686a_update_device(struct device *dev)
 }
 
 static struct pci_device_id via686a_pci_ids[] = {
-       {
-	       .vendor 		= PCI_VENDOR_ID_VIA, 
-	       .device 		= PCI_DEVICE_ID_VIA_82C686_4, 
-	       .subvendor	= PCI_ANY_ID, 
-	       .subdevice	= PCI_ANY_ID, 
-       },
+       { PCI_DEVICE(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_82C686_4) },
        { 0, }
 };
+
+MODULE_DEVICE_TABLE(pci, via686a_pci_ids);
 
 static int __devinit via686a_pci_probe(struct pci_dev *dev,
                                       const struct pci_device_id *id)
@@ -820,30 +833,39 @@ static int __devinit via686a_pci_probe(struct pci_dev *dev,
                return -ENODEV;
        }
        normal_isa[0] = addr;
-       s_bridge = dev;
-       return i2c_add_driver(&via686a_driver);
-}
 
-static void __devexit via686a_pci_remove(struct pci_dev *dev)
-{
-       i2c_del_driver(&via686a_driver);
+	s_bridge = pci_dev_get(dev);
+	if (i2c_add_driver(&via686a_driver)) {
+		pci_dev_put(s_bridge);
+		s_bridge = NULL;
+	}
+
+	/* Always return failure here.  This is to allow other drivers to bind
+	 * to this pci device.  We don't really want to have control over the
+	 * pci device, we only wanted to read as few register values from it.
+	 */
+	return -ENODEV;
 }
 
 static struct pci_driver via686a_pci_driver = {
        .name		= "via686a",
        .id_table	= via686a_pci_ids,
        .probe		= via686a_pci_probe,
-       .remove		= __devexit_p(via686a_pci_remove),
 };
 
 static int __init sm_via686a_init(void)
 {
-       return pci_module_init(&via686a_pci_driver);
+       return pci_register_driver(&via686a_pci_driver);
 }
 
 static void __exit sm_via686a_exit(void)
 {
-       pci_unregister_driver(&via686a_pci_driver);
+	pci_unregister_driver(&via686a_pci_driver);
+	if (s_bridge != NULL) {
+		i2c_del_driver(&via686a_driver);
+		pci_dev_put(s_bridge);
+		s_bridge = NULL;
+	}
 }
 
 MODULE_AUTHOR("Kyösti Mälkki <kmalkki@cc.hut.fi>, "

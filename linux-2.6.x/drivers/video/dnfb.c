@@ -239,6 +239,9 @@ static int __devinit dnfb_probe(struct device *device)
 	info->fbops = &dn_fb_ops;
 	info->fix = dnfb_fix;
 	info->var = dnfb_var;
+	info->var.red.length = 1;
+	info->var.red.offset = 0;
+	info->var.green = info->var.blue = info->var.red;
 	info->screen_base = (u_char *) info->fix.smem_start;
 
 	err = fb_alloc_cmap(&info->cmap, 2, 0);
@@ -281,6 +284,9 @@ int __init dnfb_init(void)
 {
 	int ret;
 
+	if (fb_get_options("dnfb", NULL))
+		return -ENODEV;
+
 	ret = driver_register(&dnfb_driver);
 
 	if (!ret) {
@@ -290,5 +296,7 @@ int __init dnfb_init(void)
 	}
 	return ret;
 }
+
+module_init(dnfb_init);
 
 MODULE_LICENSE("GPL");

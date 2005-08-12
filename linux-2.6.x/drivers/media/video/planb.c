@@ -40,6 +40,7 @@
 #include <linux/mm.h>
 #include <linux/sched.h>
 #include <linux/videodev.h>
+#include <linux/wait.h>
 #include <asm/uaccess.h>
 #include <asm/io.h>
 #include <asm/prom.h>
@@ -178,8 +179,7 @@ static unsigned char saa_status(int byte, struct planb *pb)
 	saa_write_reg (SAA7196_STDC, saa_regs[pb->win.norm][SAA7196_STDC]);
 
 	/* Let's wait 30msec for this one */
-	current->state = TASK_INTERRUPTIBLE;
-	schedule_timeout(30 * HZ / 1000);
+	msleep_interruptible(30);
 
 	return (unsigned char)in_8 (&planb_regs->saa_status);
 }
@@ -421,6 +421,16 @@ static void planb_prepare_close(struct planb *pb)
 /*****************************/
 /* overlay support functions */
 /*****************************/
+
+static inline int overlay_is_active(struct planb *pb)
+{
+	unsigned int size = pb->tab_size * sizeof(struct dbdma_cmd);
+	unsigned int caddr = (unsigned)in_le32(&pb->planb_base->ch1.cmdptr);
+
+	return (in_le32(&pb->overlay_last1->cmd_dep) == pb->ch1_cmd_phys)
+			&& (caddr < (pb->ch1_cmd_phys + size))
+			&& (caddr >= (unsigned)pb->ch1_cmd_phys);
+}
 
 static void overlay_start(struct planb *pb)
 {
@@ -852,16 +862,6 @@ static int palette2fmt[] = {
 };
 
 #define PLANB_PALETTE_MAX 15
-
-static inline int overlay_is_active(struct planb *pb)
-{
-	unsigned int size = pb->tab_size * sizeof(struct dbdma_cmd);
-	unsigned int caddr = (unsigned)in_le32(&pb->planb_base->ch1.cmdptr);
-
-	return (in_le32(&pb->overlay_last1->cmd_dep) == pb->ch1_cmd_phys)
-			&& (caddr < (pb->ch1_cmd_phys + size))
-			&& (caddr >= (unsigned)pb->ch1_cmd_phys);
-}
 
 static int vgrab(struct planb *pb, struct video_mmap *mp)
 {
@@ -1610,8 +1610,7 @@ static int planb_ioctl(struct video_device *dev, unsigned int cmd, void *arg)
 				}
 				planb_lock(pb);
 				/* empty the grabbing queue */
-				while(pb->grabbing)
-					interruptible_sleep_on(&pb->capq);
+				wait_event(pb->capq, !pb->grabbing);
 				pb->maxlines = maxlines;
 				pb->win.norm = v.norm;
 				/* Stop overlay if running */
@@ -1996,8 +1995,10 @@ static int planb_mmap(struct vm_area_struct *vma, struct video_device *dev, cons
 			return err;
 	}
 	for (i = 0; i < pb->rawbuf_size; i++) {
-		if (remap_page_range(vma, start, virt_to_phys((void *)pb->rawbuf[i]),
-						PAGE_SIZE, PAGE_SHARED))
+		unsigned long pfn;
+
+		pfn = virt_to_phys((void *)pb->rawbuf[i]) >> PAGE_SHIFT;
+		if (remap_pfn_range(vma, start, pfn, PAGE_SIZE, PAGE_SHARED))
 			return -EAGAIN;
 		start += PAGE_SIZE;
 		if (size <= PAGE_SIZE)

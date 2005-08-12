@@ -10,6 +10,8 @@
  * Authors:
  *      Martin Peschke <mpeschke@de.ibm.com>
  *	Heiko Carstens <heiko.carstens@de.ibm.com>
+ *      Andreas Herrmann <aherrman@de.ibm.com>
+ *      Volker Sameske <sameske@de.ibm.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -64,6 +66,14 @@ static DEVICE_ATTR(_name, S_IRUGO, zfcp_sysfs_unit_##_name##_show, NULL);
 
 ZFCP_DEFINE_UNIT_ATTR(status, "0x%08x\n", atomic_read(&unit->status));
 ZFCP_DEFINE_UNIT_ATTR(scsi_lun, "0x%x\n", unit->scsi_lun);
+ZFCP_DEFINE_UNIT_ATTR(in_recovery, "%d\n", atomic_test_mask
+		      (ZFCP_STATUS_COMMON_ERP_INUSE, &unit->status));
+ZFCP_DEFINE_UNIT_ATTR(access_denied, "%d\n", atomic_test_mask
+		      (ZFCP_STATUS_COMMON_ACCESS_DENIED, &unit->status));
+ZFCP_DEFINE_UNIT_ATTR(access_shared, "%d\n", atomic_test_mask
+		      (ZFCP_STATUS_UNIT_SHARED, &unit->status));
+ZFCP_DEFINE_UNIT_ATTR(access_readonly, "%d\n", atomic_test_mask
+		      (ZFCP_STATUS_UNIT_READONLY, &unit->status));
 
 /**
  * zfcp_sysfs_unit_failed_store - failed state of unit
@@ -101,7 +111,7 @@ zfcp_sysfs_unit_failed_store(struct device *dev, const char *buf, size_t count)
 	zfcp_erp_wait(unit->port->adapter);
  out:
 	up(&zfcp_data.config_sema);
-	return retval ? retval : count;
+	return retval ? retval : (ssize_t) count;
 }
 
 /**
@@ -127,34 +137,14 @@ zfcp_sysfs_unit_failed_show(struct device *dev, char *buf)
 static DEVICE_ATTR(failed, S_IWUSR | S_IRUGO, zfcp_sysfs_unit_failed_show,
 		   zfcp_sysfs_unit_failed_store);
 
-/**
- * zfcp_sysfs_unit_in_recovery_show - recovery state of unit
- * @dev: pointer to belonging device
- * @buf: pointer to input buffer
- *
- * Show function of "in_recovery" attribute of unit. Will be
- * "0" if no error recovery is pending for unit, otherwise "1".
- */
-static ssize_t
-zfcp_sysfs_unit_in_recovery_show(struct device *dev, char *buf)
-{
-	struct zfcp_unit *unit;
-
-	unit = dev_get_drvdata(dev);
-	if (atomic_test_mask(ZFCP_STATUS_COMMON_ERP_INUSE, &unit->status))
-		return sprintf(buf, "1\n");
-	else
-		return sprintf(buf, "0\n");
-}
-
-static DEVICE_ATTR(in_recovery, S_IRUGO, zfcp_sysfs_unit_in_recovery_show,
-		   NULL);
-
 static struct attribute *zfcp_unit_attrs[] = {
 	&dev_attr_scsi_lun.attr,
 	&dev_attr_failed.attr,
 	&dev_attr_in_recovery.attr,
 	&dev_attr_status.attr,
+	&dev_attr_access_denied.attr,
+	&dev_attr_access_shared.attr,
+	&dev_attr_access_readonly.attr,
 	NULL
 };
 

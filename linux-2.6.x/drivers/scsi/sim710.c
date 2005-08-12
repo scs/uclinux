@@ -36,6 +36,9 @@
 #include <linux/eisa.h>
 #include <linux/interrupt.h>
 #include <scsi/scsi_host.h>
+#include <scsi/scsi_device.h>
+#include <scsi/scsi_transport.h>
+#include <scsi/scsi_transport_spi.h>
 
 #include "53c700.h"
 
@@ -44,13 +47,13 @@
 #define MAX_SLOTS 8
 static __u8 __initdata id_array[MAX_SLOTS] = { [0 ... MAX_SLOTS-1] = 7 };
 
-char *sim710;		/* command line passed by insmod */
+static char *sim710;		/* command line passed by insmod */
 
 MODULE_AUTHOR("Richard Hirst");
 MODULE_DESCRIPTION("Simple NCR53C710 driver");
 MODULE_LICENSE("GPL");
 
-MODULE_PARM(sim710, "s");
+module_param(sim710, charp, 0);
 
 #ifdef MODULE
 #define ARG_SEP ' '
@@ -58,7 +61,7 @@ MODULE_PARM(sim710, "s");
 #define ARG_SEP ','
 #endif
 
-__init int
+static __init int
 param_setup(char *str)
 {
 	char *pos = str, *next;
@@ -117,34 +120,30 @@ sim710_probe_common(struct device *dev, unsigned long base_addr,
 	}
 
 	/* Fill in the three required pieces of hostdata */
-	hostdata->base = base_addr;
+	hostdata->base = ioport_map(base_addr, 64);
 	hostdata->differential = differential;
 	hostdata->clock = clock;
 	hostdata->chip710 = 1;
-	NCR_700_set_io_mapped(hostdata);
 
 	/* and register the chip */
-	if((host = NCR_700_detect(&sim710_driver_template, hostdata)) == NULL) {
+	if((host = NCR_700_detect(&sim710_driver_template, hostdata, dev))
+	   == NULL) {
 		printk(KERN_ERR "sim710: No host detected; card configuration problem?\n");
 		goto out_release;
 	}
-
-	host->irq = irq;
 	host->this_id = scsi_id;
-
-	if(request_irq(irq, NCR_700_intr, SA_SHIRQ, "sim710", host)) {
-		printk(KERN_ERR "sim710: irq problem with %d, detaching\n",
-		       irq);
-		goto out_unregister;
+	host->base = base_addr;
+	host->irq = irq;
+	if (request_irq(irq, NCR_700_intr, SA_SHIRQ, "sim710", host)) {
+		printk(KERN_ERR "sim710: request_irq failed\n");
+		goto out_put_host;
 	}
 
-	scsi_add_host(host, dev); /* XXX handle failure */
 	scsi_scan_host(host);
-	hostdata->dev = dev;
 
 	return 0;
 
- out_unregister:
+ out_put_host:
 	scsi_host_put(host);
  out_release:
 	release_region(host->base, 64);
@@ -165,6 +164,7 @@ sim710_device_remove(struct device *dev)
 	NCR_700_release(host);
 	kfree(hostdata);
 	free_irq(host->irq, host);
+	release_region(host->base, 64);
 	return 0;
 }
 
@@ -323,7 +323,7 @@ sim710_eisa_probe(struct device *dev)
 				   differential, scsi_id);
 }
 
-struct eisa_driver sim710_eisa_driver = {
+static struct eisa_driver sim710_eisa_driver = {
 	.id_table		= sim710_eisa_ids,
 	.driver = {
 		.name		= "sim710",

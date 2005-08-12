@@ -411,12 +411,7 @@ static void matroxfb_1bpp_imageblit(WPMINFO u_int32_t fgx, u_int32_t bgx,
 
 	CRITBEGIN
 
-#ifdef __BIG_ENDIAN
-	WaitTillIdle();
-	mga_outl(M_OPMODE, M_OPMODE_8BPP);
-#else
 	mga_fifo(3);
-#endif
 	if (easy)
 		mga_outl(M_DWGCTL, M_DWG_ILOAD | M_DWG_SGNZERO | M_DWG_SHIFTZERO | M_DWG_BMONOWF | M_DWG_LINEAR | M_DWG_REPLACE);
 	else
@@ -432,31 +427,31 @@ static void matroxfb_1bpp_imageblit(WPMINFO u_int32_t fgx, u_int32_t bgx,
 	mga_writel(mmio, M_AR3, 0);
 	if (easy) {
 		mga_writel(mmio, M_YDSTLEN | M_EXEC, ydstlen);
-		mga_memcpy_toio(mmio, 0, chardata, xlen);
+		mga_memcpy_toio(mmio, chardata, xlen);
 	} else {
 		mga_writel(mmio, M_AR5, 0);
 		mga_writel(mmio, M_YDSTLEN | M_EXEC, ydstlen);
 		if ((step & 3) == 0) {
 			/* Great. Source has 32bit aligned lines, so we can feed them
 			   directly to the accelerator. */
-			mga_memcpy_toio(mmio, 0, chardata, charcell);
+			mga_memcpy_toio(mmio, chardata, charcell);
 		} else if (step == 1) {
 			/* Special case for 1..8bit widths */
 			while (height--) {
-#ifdef __LITTLE_ENDIAN
-				mga_writel(mmio, 0, *chardata);
+#if defined(__BIG_ENDIAN)
+				fb_writel((*chardata) << 24, mmio.vaddr);
 #else
-				mga_writel(mmio, 0, (*chardata) << 24);
+				fb_writel(*chardata, mmio.vaddr);
 #endif
 				chardata++;
 			}
 		} else if (step == 2) {
 			/* Special case for 9..15bit widths */
 			while (height--) {
-#ifdef __LITTLE_ENDIAN
-				mga_writel(mmio, 0, *(u_int16_t*)chardata);
+#if defined(__BIG_ENDIAN)
+				fb_writel((*(u_int16_t*)chardata) << 16, mmio.vaddr);
 #else
-				mga_writel(mmio, 0, (*(u_int16_t*)chardata) << 16);
+				fb_writel(*(u_int16_t*)chardata, mmio.vaddr);
 #endif
 				chardata += 2;
 			}
@@ -467,16 +462,13 @@ static void matroxfb_1bpp_imageblit(WPMINFO u_int32_t fgx, u_int32_t bgx,
 				
 				for (i = 0; i < step; i += 4) {
 					/* Hope that there are at least three readable bytes beyond the end of bitmap */
-					mga_writel(mmio, 0, get_unaligned((u_int32_t*)(chardata + i)));
+					fb_writel(get_unaligned((u_int32_t*)(chardata + i)),mmio.vaddr);
 				}
 				chardata += step;
 			}
 		}
 	}
 	WaitTillIdle();
-#ifdef __BIG_ENDIAN
-	mga_outl(M_OPMODE, ACCESS_FBINFO(accel.m_opmode));
-#endif
 	CRITEND
 }
 
@@ -486,7 +478,7 @@ static void matroxfb_imageblit(struct fb_info* info, const struct fb_image* imag
 
 	DBG_HEAVY(__FUNCTION__);
 
-	if (image->depth == 0) {
+	if (image->depth == 1) {
 		u_int32_t fgx, bgx;
 
 		fgx = ((u_int32_t*)info->pseudo_palette)[image->fg_color];

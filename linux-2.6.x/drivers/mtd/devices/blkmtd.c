@@ -59,22 +59,22 @@ static void blkmtd_sync(struct mtd_info *mtd);
 #define MAX_DEVICES 4
 
 /* Module parameters passed by insmod/modprobe */
-char *device[MAX_DEVICES];    /* the block device to use */
-int erasesz[MAX_DEVICES];     /* optional default erase size */
-int ro[MAX_DEVICES];          /* optional read only flag */
-int sync;
+static char *device[MAX_DEVICES];    /* the block device to use */
+static int erasesz[MAX_DEVICES];     /* optional default erase size */
+static int ro[MAX_DEVICES];          /* optional read only flag */
+static int sync;
 
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Simon Evans <spse@secret.org.uk>");
 MODULE_DESCRIPTION("Emulate an MTD using a block device");
-MODULE_PARM(device, "1-4s");
+module_param_array(device, charp, NULL, 0);
 MODULE_PARM_DESC(device, "block device to use");
-MODULE_PARM(erasesz, "1-4i");
+module_param_array(erasesz, int, NULL, 0);
 MODULE_PARM_DESC(erasesz, "optional erase size to use in KiB. eg 4=4KiB.");
-MODULE_PARM(ro, "1-4i");
+module_param_array(ro, bool, NULL, 0);
 MODULE_PARM_DESC(ro, "1=Read only, writes and erases cause errors");
-MODULE_PARM(sync, "i");
+module_param(sync, bool, 0);
 MODULE_PARM_DESC(sync, "1=Synchronous writes");
 
 
@@ -661,7 +661,6 @@ static struct blkmtd_dev *add_device(char *devname, int readonly, int erase_size
 
 	memset(dev, 0, sizeof(struct blkmtd_dev));
 	dev->blkdev = bdev;
-	atomic_set(&(dev->blkdev->bd_inode->i_mapping->truncate_count), 0);
 	if(!readonly) {
 		init_MUTEX(&dev->wrbuf_mutex);
 	}

@@ -44,6 +44,7 @@
 #include <linux/parport.h>
 #include <linux/init.h>
 #include <linux/usb.h>
+#include <linux/delay.h>
 
 /*
  * Version Information
@@ -74,7 +75,7 @@ static int get_1284_register(struct parport *pp, unsigned char reg, unsigned cha
 
 	if (!usbdev)
 		return -1;
-	ret = usb_control_msg(usbdev, usb_rcvctrlpipe(usbdev,0), 3, 0xc0, ((unsigned int)reg) << 8, 0, priv->reg, 7, HZ);
+	ret = usb_control_msg(usbdev, usb_rcvctrlpipe(usbdev,0), 3, 0xc0, ((unsigned int)reg) << 8, 0, priv->reg, 7, 1000);
 	if (ret != 7) {
 		printk(KERN_DEBUG "uss720: get_1284_register(%d) failed, status 0x%x expected 7\n",
 		       (unsigned int)reg, ret);
@@ -104,7 +105,7 @@ static int set_1284_register(struct parport *pp, unsigned char reg, unsigned cha
 
 	if (!usbdev)
 		return -1;
-	ret = usb_control_msg(usbdev, usb_sndctrlpipe(usbdev,0), 4, 0x40, (((unsigned int)reg) << 8) | val, 0, NULL, 0, HZ);
+	ret = usb_control_msg(usbdev, usb_sndctrlpipe(usbdev,0), 4, 0x40, (((unsigned int)reg) << 8) | val, 0, NULL, 0, 1000);
 	if (ret) {
 		printk(KERN_DEBUG "uss720: set_1284_register(%u,0x%02x) failed, status 0x%x\n", 
 		       (unsigned int)reg, (unsigned int)val, ret);
@@ -159,8 +160,7 @@ static int change_mode(struct parport *pp, int m)
 				if (time_after_eq (jiffies, expire))
 					/* The FIFO is stuck. */
 					return -EBUSY;
-				set_current_state(TASK_INTERRUPTIBLE);
-				schedule_timeout((HZ + 99) / 100);
+				msleep_interruptible(10);
 				if (signal_pending (current))
 					break;
 			}
@@ -374,7 +374,7 @@ static size_t parport_uss720_epp_write_data(struct parport *pp, const void *buf,
 		return 0;
 	if (change_mode(pp, ECR_EPP))
 		return 0;
-	i = usb_bulk_msg(usbdev, usb_sndbulkpipe(usbdev, 1), (void *)buf, length, &rlen, HZ*20);
+	i = usb_bulk_msg(usbdev, usb_sndbulkpipe(usbdev, 1), (void *)buf, length, &rlen, 20000);
 	if (i)
 		printk(KERN_ERR "uss720: sendbulk ep 1 buf %p len %Zu rlen %u\n", buf, length, rlen);
 	change_mode(pp, ECR_PS2);
@@ -435,7 +435,7 @@ static size_t parport_uss720_ecp_write_data(struct parport *pp, const void *buff
 		return 0;
 	if (change_mode(pp, ECR_ECP))
 		return 0;
-	i = usb_bulk_msg(usbdev, usb_sndbulkpipe(usbdev, 1), (void *)buffer, len, &rlen, HZ*20);
+	i = usb_bulk_msg(usbdev, usb_sndbulkpipe(usbdev, 1), (void *)buffer, len, &rlen, 20000);
 	if (i)
 		printk(KERN_ERR "uss720: sendbulk ep 1 buf %p len %Zu rlen %u\n", buffer, len, rlen);
 	change_mode(pp, ECR_PS2);
@@ -453,7 +453,7 @@ static size_t parport_uss720_ecp_read_data(struct parport *pp, void *buffer, siz
 		return 0;
 	if (change_mode(pp, ECR_ECP))
 		return 0;
-	i = usb_bulk_msg(usbdev, usb_rcvbulkpipe(usbdev, 2), buffer, len, &rlen, HZ*20);
+	i = usb_bulk_msg(usbdev, usb_rcvbulkpipe(usbdev, 2), buffer, len, &rlen, 20000);
 	if (i)
 		printk(KERN_ERR "uss720: recvbulk ep 2 buf %p len %Zu rlen %u\n", buffer, len, rlen);
 	change_mode(pp, ECR_PS2);
@@ -486,7 +486,7 @@ static size_t parport_uss720_write_compat(struct parport *pp, const void *buffer
 		return 0;
 	if (change_mode(pp, ECR_PPF))
 		return 0;
-	i = usb_bulk_msg(usbdev, usb_sndbulkpipe(usbdev, 1), (void *)buffer, len, &rlen, HZ*20);
+	i = usb_bulk_msg(usbdev, usb_sndbulkpipe(usbdev, 1), (void *)buffer, len, &rlen, 20000);
 	if (i)
 		printk(KERN_ERR "uss720: sendbulk ep 1 buf %p len %Zu rlen %u\n", buffer, len, rlen);
 	change_mode(pp, ECR_PS2);
@@ -544,7 +544,8 @@ static int uss720_probe(struct usb_interface *intf,
 	int i;
 
 	printk(KERN_DEBUG "uss720: probe: vendor id 0x%x, device id 0x%x\n",
-	       usbdev->descriptor.idVendor, usbdev->descriptor.idProduct);
+	       le16_to_cpu(usbdev->descriptor.idVendor),
+	       le16_to_cpu(usbdev->descriptor.idProduct));
 
 	/* our known interfaces have 3 alternate settings */
 	if (intf->num_altsetting != 3)

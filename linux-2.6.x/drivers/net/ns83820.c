@@ -1,4 +1,4 @@
-#define _VERSION "0.20"
+#define VERSION "0.22"
 /* ns83820.c by Benjamin LaHaise with contributions.
  *
  * Questions/comments/discussion to linux-ns83820@kvack.org.
@@ -63,7 +63,11 @@
  *			     -	fix missed txok introduced during performance
  *				tuning
  *			0.20 -	fix stupid RFEN thinko.  i am such a smurf.
- *
+ *	20040828	0.21 -	add hardware vlan accleration
+ *				by Neil Horman <nhorman@redhat.com>
+ *	20050406	0.22 -	improved DAC ifdefs from Andi Kleen	
+ *			     -	removal of dead code from Adrian Bunk
+ *			     -	fix half duplex collision behaviour
  * Driver Overview
  * ===============
  *
@@ -92,7 +96,9 @@
 //#define dprintk		printk
 #define dprintk(x...)		do { } while (0)
 
+#include <linux/config.h>
 #include <linux/module.h>
+#include <linux/moduleparam.h>
 #include <linux/types.h>
 #include <linux/pci.h>
 #include <linux/netdevice.h>
@@ -108,6 +114,7 @@
 #include <linux/prefetch.h>
 #include <linux/ethtool.h>
 #include <linux/timer.h>
+#include <linux/if_vlan.h>
 
 #include <asm/io.h>
 #include <asm/uaccess.h>
@@ -115,7 +122,7 @@
 
 #define DRV_NAME "ns83820"
 
-/* Global parameters.  See MODULE_PARM near the bottom. */
+/* Global parameters.  See module_param near the bottom. */
 static int ihr = 2;
 static int reset_phy = 0;
 static int lnksts = 0;		/* CFG_LNKSTS bit polarity */
@@ -124,20 +131,11 @@ static int lnksts = 0;		/* CFG_LNKSTS bit polarity */
 #undef Dprintk
 #define	Dprintk			dprintk
 
-#if defined(CONFIG_HIGHMEM64G) || defined(__ia64__)
-#define USE_64BIT_ADDR	"+"
-#endif
-
-#if defined(USE_64BIT_ADDR)
-#define	VERSION	_VERSION USE_64BIT_ADDR
-#define TRY_DAC	1
-#else
-#define	VERSION	_VERSION
-#define TRY_DAC	0
-#endif
-
 /* tunables */
 #define RX_BUF_SIZE	1500	/* 8192 */
+#if defined(CONFIG_VLAN_8021Q) || defined(CONFIG_VLAN_8021Q_MODULE)
+#define NS83820_VLAN_ACCEL_SUPPORT
+#endif
 
 /* Must not exceed ~65000. */
 #define NR_RX_DESC	64
@@ -262,6 +260,8 @@ static int lnksts = 0;		/* CFG_LNKSTS bit polarity */
 #define EXTSTS_UDPPKT	0x00200000
 #define EXTSTS_TCPPKT	0x00080000
 #define EXTSTS_IPPKT	0x00020000
+#define EXTSTS_VPKT	0x00010000
+#define EXTSTS_VTG_MASK	0x0000ffff
 
 #define SPDSTS_POLARITY	(CFG_SPDSTS1 | CFG_SPDSTS0 | CFG_DUPSTS | (lnksts ? CFG_LNKSTS : 0))
 
@@ -376,22 +376,16 @@ static int lnksts = 0;		/* CFG_LNKSTS bit polarity */
 #define LINK_DOWN		0x02
 #define LINK_UP			0x04
 
-#ifdef USE_64BIT_ADDR
-#define HW_ADDR_LEN	8
+#define HW_ADDR_LEN	sizeof(dma_addr_t) 
 #define desc_addr_set(desc, addr)				\
 	do {							\
-		u64 __addr = (addr);				\
-		(desc)[0] = cpu_to_le32(__addr);		\
-		(desc)[1] = cpu_to_le32(__addr >> 32);		\
+		((desc)[0] = cpu_to_le32(addr));		\
+		if (HW_ADDR_LEN == 8)		 		\
+			(desc)[1] = cpu_to_le32(((u64)addr) >> 32);	\
 	} while(0)
 #define desc_addr_get(desc)					\
-		(((u64)le32_to_cpu((desc)[1]) << 32)		\
-		     | le32_to_cpu((desc)[0]))
-#else
-#define HW_ADDR_LEN	4
-#define desc_addr_set(desc, addr)	((desc)[0] = cpu_to_le32(addr))
-#define desc_addr_get(desc)		(le32_to_cpu((desc)[0]))
-#endif
+	(le32_to_cpu((desc)[0]) | \
+	(HW_ADDR_LEN == 8 ? ((dma_addr_t)le32_to_cpu((desc)[1]))<<32 : 0))
 
 #define DESC_LINK		0
 #define DESC_BUFPTR		(DESC_LINK + HW_ADDR_LEN/4)
@@ -403,6 +397,7 @@ static int lnksts = 0;		/* CFG_LNKSTS bit polarity */
 #define CMDSTS_INTR	0x20000000
 #define CMDSTS_ERR	0x10000000
 #define CMDSTS_OK	0x08000000
+#define CMDSTS_RUNT	0x00200000
 #define CMDSTS_LEN_MASK	0x0000ffff
 
 #define CMDSTS_DEST_MASK	0x01800000
@@ -428,9 +423,13 @@ struct rx_info {
 
 struct ns83820 {
 	struct net_device_stats	stats;
-	u8			*base;
+	u8			__iomem *base;
 
 	struct pci_dev		*pci_dev;
+
+#ifdef NS83820_VLAN_ACCEL_SUPPORT
+	struct vlan_group	*vlgrp;
+#endif
 
 	struct rx_info		rx_info;
 	struct tasklet_struct	rx_tasklet;
@@ -493,6 +492,33 @@ static inline void kick_rx(struct net_device *ndev)
 #define start_tx_okay(dev)	\
 	(((NR_TX_DESC-2 + dev->tx_done_idx - dev->tx_free_idx) % NR_TX_DESC) > MIN_TX_DESC_FREE)
 
+
+#ifdef NS83820_VLAN_ACCEL_SUPPORT 
+static void ns83820_vlan_rx_register(struct net_device *ndev, struct vlan_group *grp)
+{
+	struct ns83820 *dev = PRIV(ndev);
+
+	spin_lock_irq(&dev->misc_lock);
+	spin_lock(&dev->tx_lock);
+
+	dev->vlgrp = grp;
+
+	spin_unlock(&dev->tx_lock);
+	spin_unlock_irq(&dev->misc_lock);
+}
+
+static void ns83820_vlan_rx_kill_vid(struct net_device *ndev, unsigned short vid)
+{
+	struct ns83820 *dev = PRIV(ndev);
+
+	spin_lock_irq(&dev->misc_lock);
+	spin_lock(&dev->tx_lock);
+	if (dev->vlgrp)
+		dev->vlgrp->vlan_devices[vid] = NULL;
+	spin_unlock(&dev->tx_lock);
+	spin_unlock_irq(&dev->misc_lock);
+}
+#endif
 
 /* Packet Receiver
  *
@@ -685,11 +711,23 @@ static void fastcall phy_intr(struct net_device *ndev)
 		speed = ((cfg / CFG_SPDSTS0) & 3);
 		fullduplex = (cfg & CFG_DUPSTS);
 
-		if (fullduplex)
+		if (fullduplex) {
 			new_cfg |= CFG_SB;
+			writel(readl(dev->base + TXCFG)
+					| TXCFG_CSI | TXCFG_HBI,
+			       dev->base + TXCFG);
+			writel(readl(dev->base + RXCFG) | RXCFG_RX_FD,
+			       dev->base + RXCFG);
+		} else {
+			writel(readl(dev->base + TXCFG)
+					& ~(TXCFG_CSI | TXCFG_HBI),
+			       dev->base + TXCFG);
+			writel(readl(dev->base + RXCFG) & ~(RXCFG_RX_FD),
+			       dev->base + RXCFG);
+		}
 
 		if ((cfg & CFG_LNKSTS) &&
-		    ((new_cfg ^ dev->CFG_cache) & CFG_MODE_1000)) {
+		    ((new_cfg ^ dev->CFG_cache) != 0)) {
 			writel(new_cfg, dev->base + CFG);
 			dev->CFG_cache = new_cfg;
 		}
@@ -836,6 +874,7 @@ static void fastcall rx_irq(struct net_device *ndev)
 	struct ns83820 *dev = PRIV(ndev);
 	struct rx_info *info = &dev->rx_info;
 	unsigned next_rx;
+	int rx_rc, len;
 	u32 cmdsts, *desc;
 	unsigned long flags;
 	int nr = 0;
@@ -876,8 +915,24 @@ static void fastcall rx_irq(struct net_device *ndev)
 
 		pci_unmap_single(dev->pci_dev, bufptr,
 				 RX_BUF_SIZE, PCI_DMA_FROMDEVICE);
+		len = cmdsts & CMDSTS_LEN_MASK;
+#ifdef NS83820_VLAN_ACCEL_SUPPORT
+		/* NH: As was mentioned below, this chip is kinda
+		 * brain dead about vlan tag stripping.  Frames
+		 * that are 64 bytes with a vlan header appended
+		 * like arp frames, or pings, are flagged as Runts
+		 * when the tag is stripped and hardware.  This
+		 * also means that the OK bit in the descriptor 
+		 * is cleared when the frame comes in so we have
+		 * to do a specific length check here to make sure
+		 * the frame would have been ok, had we not stripped
+		 * the tag.
+		 */ 
+		if (likely((CMDSTS_OK & cmdsts) ||
+			((cmdsts & CMDSTS_RUNT) && len >= 56))) {   
+#else
 		if (likely(CMDSTS_OK & cmdsts)) {
-			int len = cmdsts & 0xffff;
+#endif
 			skb_put(skb, len);
 			if (unlikely(!skb))
 				goto netdev_mangle_me_harder_failed;
@@ -891,7 +946,18 @@ static void fastcall rx_irq(struct net_device *ndev)
 				skb->ip_summed = CHECKSUM_NONE;
 			}
 			skb->protocol = eth_type_trans(skb, ndev);
-			if (NET_RX_DROP == netif_rx(skb)) {
+#ifdef NS83820_VLAN_ACCEL_SUPPORT 
+			if(extsts & EXTSTS_VPKT) {
+				unsigned short tag;
+				tag = ntohs(extsts & EXTSTS_VTG_MASK);
+				rx_rc = vlan_hwaccel_rx(skb,dev->vlgrp,tag);
+			} else {
+				rx_rc = netif_rx(skb);
+			}
+#else
+			rx_rc = netif_rx(skb);
+#endif
+			if (NET_RX_DROP == rx_rc) {
 netdev_mangle_me_harder_failed:
 				dev->stats.rx_dropped ++;
 			}
@@ -1099,6 +1165,17 @@ again:
 			extsts |= EXTSTS_UDPPKT;
 	}
 
+#ifdef NS83820_VLAN_ACCEL_SUPPORT
+	if(vlan_tx_tag_present(skb)) {
+		/* fetch the vlan tag info out of the
+		 * ancilliary data if the vlan code
+		 * is using hw vlan acceleration
+		 */
+		short tag = vlan_tx_tag_get(skb);
+		extsts |= (EXTSTS_VPKT | htons(tag));
+	}
+#endif
+
 	len = skb->len;
 	if (nr_frags)
 		len -= skb->data_len;
@@ -1108,7 +1185,6 @@ again:
 
 	for (;;) {
 		volatile u32 *desc = dev->tx_descs + (free_idx * DESC_SIZE);
-		u32 residue = 0;
 
 		dprintk("frag[%3u]: %4u @ 0x%08Lx\n", free_idx, len,
 			(unsigned long long)buf);
@@ -1118,16 +1194,10 @@ again:
 		desc_addr_set(desc + DESC_BUFPTR, buf);
 		desc[DESC_EXTSTS] = cpu_to_le32(extsts);
 
-		cmdsts = ((nr_frags|residue) ? CMDSTS_MORE : do_intr ? CMDSTS_INTR : 0);
+		cmdsts = ((nr_frags) ? CMDSTS_MORE : do_intr ? CMDSTS_INTR : 0);
 		cmdsts |= (desc == first_desc) ? 0 : CMDSTS_OWN;
 		cmdsts |= len;
 		desc[DESC_CMDSTS] = cpu_to_le32(cmdsts);
-
-		if (residue) {
-			buf += len;
-			len = residue;
-			continue;
-		}
 
 		if (!nr_frags)
 			break;
@@ -1164,7 +1234,7 @@ again:
 
 static void ns83820_update_stats(struct ns83820 *dev)
 {
-	u8 *base = dev->base;
+	u8 __iomem *base = dev->base;
 
 	/* the DP83820 will freeze counters, so we need to read all of them */
 	dev->stats.rx_errors		+= readl(base + 0x60) & 0xffff;
@@ -1192,58 +1262,25 @@ static struct net_device_stats *ns83820_get_stats(struct net_device *ndev)
 	return &dev->stats;
 }
 
-static int ns83820_ethtool_ioctl (struct ns83820 *dev, void __user *useraddr)
-{
-	u32 ethcmd;
-
-	if (copy_from_user(&ethcmd, useraddr, sizeof (ethcmd)))
-		return -EFAULT;
-
-	switch (ethcmd) {
-	case ETHTOOL_GDRVINFO:
-		{
-			struct ethtool_drvinfo info = { ETHTOOL_GDRVINFO };
-			strcpy(info.driver, "ns83820");
-			strcpy(info.version, VERSION);
-			strcpy(info.bus_info, pci_name(dev->pci_dev));
-			if (copy_to_user(useraddr, &info, sizeof (info)))
-				return -EFAULT;
-			return 0;
-		}
-
-	/* get link status */
-	case ETHTOOL_GLINK: {
-		struct ethtool_value edata = { ETHTOOL_GLINK };
-		u32 cfg = readl(dev->base + CFG) ^ SPDSTS_POLARITY;
-
-		if (cfg & CFG_LNKSTS)
-			edata.data = 1;
-		else
-			edata.data = 0;
-		if (copy_to_user(useraddr, &edata, sizeof(edata)))
-			return -EFAULT;
-		return 0;
-	}
-
-	default:
-		break;
-	}
-
-	return -EOPNOTSUPP;
-}
-
-static int ns83820_ioctl(struct net_device *ndev, struct ifreq *rq, int cmd)
+static void ns83820_get_drvinfo(struct net_device *ndev, struct ethtool_drvinfo *info)
 {
 	struct ns83820 *dev = PRIV(ndev);
-
-	switch(cmd) {
-	case SIOCETHTOOL:
-		return ns83820_ethtool_ioctl(dev, rq->ifr_data);
-
-	default:
-		return -EOPNOTSUPP;
-	}
+	strcpy(info->driver, "ns83820");
+	strcpy(info->version, VERSION);
+	strcpy(info->bus_info, pci_name(dev->pci_dev));
 }
+
+static u32 ns83820_get_link(struct net_device *ndev)
+{
+	struct ns83820 *dev = PRIV(ndev);
+	u32 cfg = readl(dev->base + CFG) ^ SPDSTS_POLARITY;
+	return cfg & CFG_LNKSTS ? 1 : 0;
+}
+
+static struct ethtool_ops ops = {
+	.get_drvinfo = ns83820_get_drvinfo,
+	.get_link = ns83820_get_link
+};
 
 static void ns83820_mib_isr(struct ns83820 *dev)
 {
@@ -1545,7 +1582,7 @@ static int ns83820_change_mtu(struct net_device *ndev, int new_mtu)
 static void ns83820_set_multicast(struct net_device *ndev)
 {
 	struct ns83820 *dev = PRIV(ndev);
-	u8 *rfcr = dev->base + RFCR;
+	u8 __iomem *rfcr = dev->base + RFCR;
 	u32 and_mask = 0xffffffff;
 	u32 or_mask = 0;
 	u32 val;
@@ -1793,7 +1830,8 @@ static int __devinit ns83820_init_one(struct pci_dev *pci_dev, const struct pci_
 	int using_dac = 0;
 
 	/* See if we can set the dma mask early on; failure is fatal. */
-	if (TRY_DAC && !pci_set_dma_mask(pci_dev, 0xffffffffffffffffULL)) {
+	if (sizeof(dma_addr_t) == 8 && 
+	 	!pci_set_dma_mask(pci_dev, 0xffffffffffffffffULL)) {
 		using_dac = 1;
 	} else if (!pci_set_dma_mask(pci_dev, 0xffffffff)) {
 		using_dac = 0;
@@ -1849,7 +1887,7 @@ static int __devinit ns83820_init_one(struct pci_dev *pci_dev, const struct pci_
 
 	dev->IMR_cache = 0;
 
-	setup_ee_mem_bitbanger(&dev->ee, (long)dev->base + MEAR, 3, 2, 1, 0,
+	setup_ee_mem_bitbanger(&dev->ee, dev->base + MEAR, 3, 2, 1, 0,
 		0);
 
 	err = request_irq(pci_dev->irq, ns83820_irq, SA_SHIRQ,
@@ -1884,10 +1922,9 @@ static int __devinit ns83820_init_one(struct pci_dev *pci_dev, const struct pci_
 	ndev->get_stats = ns83820_get_stats;
 	ndev->change_mtu = ns83820_change_mtu;
 	ndev->set_multicast_list = ns83820_set_multicast;
-	ndev->do_ioctl = ns83820_ioctl;
+	SET_ETHTOOL_OPS(ndev, &ops);
 	ndev->tx_timeout = ns83820_tx_timeout;
 	ndev->watchdog_timeo = 5 * HZ;
-
 	pci_set_drvdata(pci_dev, ndev);
 
 	ns83820_do_reset(dev, CR_RST);
@@ -1925,9 +1962,8 @@ static int __devinit ns83820_init_one(struct pci_dev *pci_dev, const struct pci_
 	/* When compiled with 64 bit addressing, we must always enable
 	 * the 64 bit descriptor format.
 	 */
-#ifdef USE_64BIT_ADDR
-	dev->CFG_cache |= CFG_M64ADDR;
-#endif
+	if (sizeof(dma_addr_t) == 8) 
+		dev->CFG_cache |= CFG_M64ADDR;
 	if (using_dac)
 		dev->CFG_cache |= CFG_T64ADDR;
 
@@ -1960,8 +1996,7 @@ static int __devinit ns83820_init_one(struct pci_dev *pci_dev, const struct pci_
 	if (reset_phy) {
 		printk(KERN_INFO "%s: resetting phy\n", ndev->name);
 		writel(dev->CFG_cache | CFG_PHY_RST, dev->base + CFG);
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		schedule_timeout((HZ+99)/100);
+		msleep(10);
 		writel(dev->CFG_cache, dev->base + CFG);
 	}
 
@@ -2013,11 +2048,25 @@ static int __devinit ns83820_init_one(struct pci_dev *pci_dev, const struct pci_
 	 * a ping with a VLAN header) then the card, strips the 4 byte VLAN
 	 * tag and then checks the packet size, so if RXCFG_ARP is not enabled,
 	 * it discrards it!.  These guys......
+	 * also turn on tag stripping if hardware acceleration is enabled
 	 */
-	writel(VRCR_IPEN | VRCR_VTDEN, dev->base + VRCR);
+#ifdef NS83820_VLAN_ACCEL_SUPPORT
+#define VRCR_INIT_VALUE (VRCR_IPEN|VRCR_VTDEN|VRCR_VTREN) 
+#else
+#define VRCR_INIT_VALUE (VRCR_IPEN|VRCR_VTDEN)
+#endif
+	writel(VRCR_INIT_VALUE, dev->base + VRCR);
 
-	/* Enable per-packet TCP/UDP/IP checksumming */
-	writel(VTCR_PPCHK, dev->base + VTCR);
+	/* Enable per-packet TCP/UDP/IP checksumming
+	 * and per packet vlan tag insertion if
+	 * vlan hardware acceleration is enabled
+	 */
+#ifdef NS83820_VLAN_ACCEL_SUPPORT
+#define VTCR_INIT_VALUE (VTCR_PPCHK|VTCR_VPPTI)
+#else
+#define VTCR_INIT_VALUE VTCR_PPCHK
+#endif
+	writel(VTCR_INIT_VALUE, dev->base + VTCR);
 
 	/* Ramit : Enable async and sync pause frames */
 	/* writel(0, dev->base + PCR); */
@@ -2033,6 +2082,13 @@ static int __devinit ns83820_init_one(struct pci_dev *pci_dev, const struct pci_
 	/* Yes, we support dumb IP checksum on transmit */
 	ndev->features |= NETIF_F_SG;
 	ndev->features |= NETIF_F_IP_CSUM;
+
+#ifdef NS83820_VLAN_ACCEL_SUPPORT
+	/* We also support hardware vlan acceleration */
+	ndev->features |= NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX;
+	ndev->vlan_rx_register = ns83820_vlan_rx_register;
+	ndev->vlan_rx_kill_vid = ns83820_vlan_rx_kill_vid;
+#endif
 
 	if (using_dac) {
 		printk(KERN_INFO "%s: using 64 bit addressing.\n",
@@ -2136,19 +2192,19 @@ static void __exit ns83820_exit(void)
 	pci_unregister_driver(&driver);
 }
 
-MODULE_AUTHOR("Benjamin LaHaise <bcrl@redhat.com>");
+MODULE_AUTHOR("Benjamin LaHaise <bcrl@kvack.org>");
 MODULE_DESCRIPTION("National Semiconductor DP83820 10/100/1000 driver");
 MODULE_LICENSE("GPL");
 
 MODULE_DEVICE_TABLE(pci, ns83820_pci_tbl);
 
-MODULE_PARM(lnksts, "i");
+module_param(lnksts, int, 0);
 MODULE_PARM_DESC(lnksts, "Polarity of LNKSTS bit");
 
-MODULE_PARM(ihr, "i");
+module_param(ihr, int, 0);
 MODULE_PARM_DESC(ihr, "Time in 100 us increments to delay interrupts (range 0-127)");
 
-MODULE_PARM(reset_phy, "i");
+module_param(reset_phy, int, 0);
 MODULE_PARM_DESC(reset_phy, "Set to 1 to reset the PHY on startup");
 
 module_init(ns83820_init);

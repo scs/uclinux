@@ -105,33 +105,7 @@ static void dump_hci_status(struct usb_hcd *hcd, const char *label)
 }
 #endif
 
-static irqreturn_t usb_hcd_sa1111_hcim_irq (int irq, void *__hcd, struct pt_regs * r)
-{
-	struct usb_hcd *hcd = __hcd;
-//	unsigned long status = sa1111_readl(hcd->regs + SA1111_USB_STATUS);
-
-	//dump_hci_status(hcd, "irq");
-
-#if 0
-	/* may work better this way -- need to investigate further */
-	if (status & USB_STATUS_NIRQHCIM) {
-		//dbg ("not normal HC interrupt; ignoring");
-		return;
-	}
-#endif
-
-	usb_hcd_irq(irq, hcd, r);
-
-	/*
-	 * SA1111 seems to re-assert its interrupt immediately
-	 * after processing an interrupt.  Always return IRQ_HANDLED.
-	 */
-	return IRQ_HANDLED;
-}
-
 /*-------------------------------------------------------------------------*/
-
-void usb_hcd_sa1111_remove (struct usb_hcd *, struct sa1111_dev *);
 
 /* configure so an HC device and id are always provided */
 /* always called with process context; sleeping is OK */
@@ -148,76 +122,35 @@ void usb_hcd_sa1111_remove (struct usb_hcd *, struct sa1111_dev *);
  * Store this function in the HCD's struct pci_driver as probe().
  */
 int usb_hcd_sa1111_probe (const struct hc_driver *driver,
-			  struct usb_hcd **hcd_out,
 			  struct sa1111_dev *dev)
 {
+	struct usb_hcd *hcd;
 	int retval;
-	struct usb_hcd *hcd = 0;
 
-	if (!request_mem_region(dev->res.start, 
-				dev->res.end - dev->res.start + 1, hcd_name)) {
+	hcd = usb_create_hcd (driver, &dev->dev, "sa1111");
+	if (!hcd)
+		return -ENOMEM;
+	hcd->rsrc_start = dev->res.start;
+	hcd->rsrc_len = dev->res.end - dev->res.start + 1;
+
+	if (!request_mem_region(hcd->rsrc_start, hcd->rsrc_len, hcd_name)) {
 		dbg("request_mem_region failed");
-		return -EBUSY;
+		retval = -EBUSY;
+		goto err1;
 	}
+	hcd->regs = dev->mapbase;
 
 	sa1111_start_hc(dev);
+	ohci_hcd_init(hcd_to_ohci(hcd));
 
-	hcd = driver->hcd_alloc ();
-	if (hcd == NULL){
-		dbg ("hcd_alloc failed");
-		retval = -ENOMEM;
-		goto err1;
-	}
-
-	hcd->driver = (struct hc_driver *) driver;
-	hcd->description = driver->description;
-	hcd->irq = dev->irq[1];
-	hcd->regs = dev->mapbase;
-	hcd->self.controller = &dev->dev;
-
-	retval = hcd_buffer_create (hcd);
-	if (retval != 0) {
-		dbg ("pool alloc fail");
-		goto err1;
-	}
-
-	retval = request_irq (hcd->irq, usb_hcd_sa1111_hcim_irq, SA_INTERRUPT,
-			      hcd->description, hcd);
-	if (retval != 0) {
-		dbg("request_irq failed");
-		retval = -EBUSY;
-		goto err2;
-	}
-
-	info ("%s (SA-1111) at 0x%p, irq %d\n",
-	      hcd->description, hcd->regs, hcd->irq);
-
-	usb_bus_init (&hcd->self);
-	hcd->self.op = &usb_hcd_operations;
-	hcd->self.hcpriv = (void *) hcd;
-	hcd->self.bus_name = "sa1111";
-	hcd->product_desc = "SA-1111 OHCI";
-
-	INIT_LIST_HEAD (&hcd->dev_list);
-
-	usb_register_bus (&hcd->self);
-
-	if ((retval = driver->start (hcd)) < 0) 
-	{
-		usb_hcd_sa1111_remove(hcd, dev);
+	retval = usb_add_hcd(hcd, dev->irq[1], SA_INTERRUPT);
+	if (retval == 0)
 		return retval;
-	}
 
-	*hcd_out = hcd;
-	return 0;
-
- err2:
-	hcd_buffer_destroy (hcd);
-	if (hcd)
-		driver->hcd_free(hcd);
- err1:
 	sa1111_stop_hc(dev);
-	release_mem_region(dev->res.start, dev->res.end - dev->res.start + 1);
+	release_mem_region(hcd->rsrc_start, hcd->rsrc_len);
+ err1:
+	usb_put_hcd(hcd);
 	return retval;
 }
 
@@ -237,31 +170,10 @@ int usb_hcd_sa1111_probe (const struct hc_driver *driver,
  */
 void usb_hcd_sa1111_remove (struct usb_hcd *hcd, struct sa1111_dev *dev)
 {
-	void *base;
-
-	info ("remove: %s, state %x", hcd->self.bus_name, hcd->state);
-
-	if (in_interrupt ())
-		BUG ();
-
-	hcd->state = USB_STATE_QUIESCING;
-
-	dbg ("%s: roothub graceful disconnect", hcd->self.bus_name);
-	usb_disconnect (&hcd->self.root_hub);
-
-	hcd->driver->stop (hcd);
-	hcd->state = USB_STATE_HALT;
-
-	free_irq (hcd->irq, hcd);
-	hcd_buffer_destroy (hcd);
-
-	usb_deregister_bus (&hcd->self);
-
-	base = hcd->regs;
-	hcd->driver->hcd_free (hcd);
-
+	usb_remove_hcd(hcd);
 	sa1111_stop_hc(dev);
-	release_mem_region(dev->res.start, dev->res.end - dev->res.start + 1);
+	release_mem_region(hcd->rsrc_start, hcd->rsrc_len);
+	usb_put_hcd(hcd);
 }
 
 /*-------------------------------------------------------------------------*/
@@ -272,33 +184,14 @@ ohci_sa1111_start (struct usb_hcd *hcd)
 	struct ohci_hcd	*ohci = hcd_to_ohci (hcd);
 	int		ret;
 
-	ohci->hcca = dma_alloc_coherent (hcd->self.controller,
-			sizeof *ohci->hcca, &ohci->hcca_dma, 0);
-	if (!ohci->hcca)
-		return -ENOMEM;
-        
-	memset (ohci->hcca, 0, sizeof (struct ohci_hcca));
-	if ((ret = ohci_mem_init (ohci)) < 0) {
+	if ((ret = ohci_init(ohci)) < 0)
+		return ret;
+
+	if ((ret = ohci_run (ohci)) < 0) {
+		err ("can't start %s", hcd->self.bus_name);
 		ohci_stop (hcd);
 		return ret;
 	}
-	ohci->regs = hcd->regs;
-
-	if (hc_reset (ohci) < 0) {
-		ohci_stop (hcd);
-		return -ENODEV;
-	}
-
-	if (hc_start (ohci) < 0) {
-		err ("can't start %s", ohci->hcd.self.bus_name);
-		ohci_stop (hcd);
-		return -EBUSY;
-	}
-	create_debug_files (ohci);
-
-#ifdef	DEBUG
-	ohci_dump (ohci, 1);
-#endif
 	return 0;
 }
 
@@ -306,12 +199,14 @@ ohci_sa1111_start (struct usb_hcd *hcd)
 
 static const struct hc_driver ohci_sa1111_hc_driver = {
 	.description =		hcd_name,
+	.product_desc =		"SA-1111 OHCI",
+	.hcd_priv_size =	sizeof(struct ohci_hcd),
 
 	/*
 	 * generic hardware linkage
 	 */
 	.irq =			ohci_irq,
-	.flags =		HCD_USB11,
+	.flags =		HCD_USB11 | HCD_MEMORY,
 
 	/*
 	 * basic lifecycle operations
@@ -322,12 +217,6 @@ static const struct hc_driver ohci_sa1111_hc_driver = {
 	/* resume:		ohci_sa1111_resume,   -- tbd */
 #endif
 	.stop =			ohci_stop,
-
-	/*
-	 * memory lifecycle (except per-request)
-	 */
-	.hcd_alloc =		ohci_hcd_alloc,
-	.hcd_free =		ohci_hcd_free,
 
 	/*
 	 * managing i/o requests and associated device resources
@@ -356,17 +245,12 @@ static const struct hc_driver ohci_sa1111_hc_driver = {
 
 static int ohci_hcd_sa1111_drv_probe(struct sa1111_dev *dev)
 {
-	struct usb_hcd *hcd = NULL;
 	int ret;
 
 	if (usb_disabled())
 		return -ENODEV;
 
-	ret = usb_hcd_sa1111_probe(&ohci_sa1111_hc_driver, &hcd, dev);
-
-	if (ret == 0)
-		sa1111_set_drvdata(dev, hcd);
-
+	ret = usb_hcd_sa1111_probe(&ohci_sa1111_hc_driver, dev);
 	return ret;
 }
 
@@ -375,9 +259,6 @@ static int ohci_hcd_sa1111_drv_remove(struct sa1111_dev *dev)
 	struct usb_hcd *hcd = sa1111_get_drvdata(dev);
 
 	usb_hcd_sa1111_remove(hcd, dev);
-
-	sa1111_set_drvdata(dev, NULL);
-
 	return 0;
 }
 

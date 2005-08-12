@@ -96,8 +96,7 @@ int uflash_devinit(struct linux_ebus_device* edev)
 		pdev->map.name = pdev->name;
 	}
 	pdev->map.phys = edev->resource[0].start;
-	pdev->map.virt = 
-		(unsigned long)ioremap_nocache(edev->resource[0].start, pdev->map.size);
+	pdev->map.virt = ioremap_nocache(edev->resource[0].start, pdev->map.size);
 	if(0 == pdev->map.virt) {
 		printk("%s: failed to map device\n", __FUNCTION__);
 		kfree(pdev->name);
@@ -110,7 +109,7 @@ int uflash_devinit(struct linux_ebus_device* edev)
 	/* MTD registration */
 	pdev->mtd = do_map_probe("cfi_probe", &pdev->map);
 	if(0 == pdev->mtd) {
-		iounmap((void *)pdev->map.virt);
+		iounmap(pdev->map.virt);
 		kfree(pdev->name);
 		kfree(pdev);
 		return(-ENXIO);
@@ -164,8 +163,8 @@ static void __exit uflash_cleanup(void)
 			map_destroy(udev->mtd);
 		}
 		if(0 != udev->map.virt) {
-			iounmap((void*)udev->map.virt);
-			udev->map.virt = 0;
+			iounmap(udev->map.virt);
+			udev->map.virt = NULL;
 		}
 		if(0 != udev->name) {
 			kfree(udev->name);

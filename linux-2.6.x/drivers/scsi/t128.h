@@ -36,8 +36,8 @@
 
 /*
  * $Log$
- * Revision 1.3  2004/09/08 15:40:08  lgsoft
- * Import of 2.6.8
+ * Revision 1.4  2005/08/12 06:42:46  magicyang
+ *  Update kernel 2.6.8 to 2.6.12
  *
  */
 
@@ -114,28 +114,28 @@ static int t128_device_reset(Scsi_Cmnd *);
 #ifndef HOSTS_C
 
 #define NCR5380_implementation_fields \
-    unsigned long base
+    void __iomem *base
 
 #define NCR5380_local_declare() \
-    unsigned long base
+    void __iomem *base
 
 #define NCR5380_setup(instance) \
-    base = (instance)->base
+    base = ((struct NCR5380_hostdata *)(instance->hostdata))->base
 
 #define T128_address(reg) (base + T_5380_OFFSET + ((reg) * 0x20))
 
 #if !(TDEBUG & TDEBUG_TRANSFER) 
-#define NCR5380_read(reg) isa_readb(T128_address(reg))
-#define NCR5380_write(reg, value) isa_writeb((value),(T128_address(reg)))
+#define NCR5380_read(reg) readb(T128_address(reg))
+#define NCR5380_write(reg, value) writeb((value),(T128_address(reg)))
 #else
 #define NCR5380_read(reg)						\
     (((unsigned char) printk("scsi%d : read register %d at address %08x\n"\
-    , instance->hostno, (reg), T128_address(reg))), isa_readb(T128_address(reg)))
+    , instance->hostno, (reg), T128_address(reg))), readb(T128_address(reg)))
 
 #define NCR5380_write(reg, value) {					\
     printk("scsi%d : write %02x to register %d at address %08x\n", 	\
 	    instance->hostno, (value), (reg), T128_address(reg));	\
-    isa_writeb((value), (T128_address(reg)));				\
+    writeb((value), (T128_address(reg)));				\
 }
 #endif
 

@@ -38,7 +38,7 @@
  * 03-06-24 Cleanup PARANOIA usage & code. <ldl@aros.net>
  * 04-02-19 Remove PARANOIA, plus various cleanups (Paul Clements)
  * possible FIXME: make set_sock / set_blksize / set_size / do_it one syscall
- * why not: would need verify_area and friends, would share yet another 
+ * why not: would need access_ok and friends, would share yet another
  *          structure with userland
  */
 
@@ -78,6 +78,7 @@
 #define DBG_RX          0x0200
 #define DBG_TX          0x0400
 static unsigned int debugflags;
+static unsigned int nbds_max = 16;
 #endif /* NDEBUG */
 
 static struct nbd_device nbd_dev[MAX_NBD];
@@ -92,7 +93,7 @@ static struct nbd_device nbd_dev[MAX_NBD];
  *    a single lock.
  * Thanks go to Jens Axboe and Al Viro for their LKML emails explaining this!
  */
-static spinlock_t nbd_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(nbd_lock);
 
 #ifndef NDEBUG
 static const char *ioctl_cmd_to_ascii(int cmd)
@@ -128,22 +129,10 @@ static void nbd_end_request(struct request *req)
 {
 	int uptodate = (req->errors == 0) ? 1 : 0;
 	request_queue_t *q = req->q;
-	struct nbd_device *lo = req->rq_disk->private_data;
 	unsigned long flags;
 
 	dprintk(DBG_BLKDEV, "%s: request %p: %s\n", req->rq_disk->disk_name,
 			req, uptodate? "done": "failed");
-
-	spin_lock(&lo->queue_lock);
-	while (req->ref_count > 1) { /* still in send */
-		spin_unlock(&lo->queue_lock);
-		printk(KERN_DEBUG "%s: request %p still in use (%d), waiting\n",
-		    lo->disk->disk_name, req, req->ref_count);
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		schedule_timeout(HZ); /* wait a second */
-		spin_lock(&lo->queue_lock);
-	}
-	spin_unlock(&lo->queue_lock);
 
 	spin_lock_irqsave(q->queue_lock, flags);
 	if (!end_that_request_first(req, uptodate, req->nr_sectors)) {
@@ -228,7 +217,7 @@ static inline int sock_send_bvec(struct socket *sock, struct bio_vec *bvec,
 	return result;
 }
 
-void nbd_send_req(struct nbd_device *lo, struct request *req)
+static int nbd_send_req(struct nbd_device *lo, struct request *req)
 {
 	int result, i, flags;
 	struct nbd_request request;
@@ -288,11 +277,11 @@ void nbd_send_req(struct nbd_device *lo, struct request *req)
 		}
 	}
 	up(&lo->tx_lock);
-	return;
+	return 0;
 
 error_out:
 	up(&lo->tx_lock);
-	req->errors++;
+	return 1;
 }
 
 static struct request *nbd_find_request(struct nbd_device *lo, char *handle)
@@ -327,7 +316,7 @@ static inline int sock_recv_bvec(struct socket *sock, struct bio_vec *bvec)
 }
 
 /* NULL returned = something went wrong, inform userspace */
-struct request *nbd_read_stat(struct nbd_device *lo)
+static struct request *nbd_read_stat(struct nbd_device *lo)
 {
 	int result;
 	struct nbd_reply reply;
@@ -389,7 +378,7 @@ harderror:
 	return NULL;
 }
 
-void nbd_do_it(struct nbd_device *lo)
+static void nbd_do_it(struct nbd_device *lo)
 {
 	struct request *req;
 
@@ -400,7 +389,7 @@ void nbd_do_it(struct nbd_device *lo)
 	return;
 }
 
-void nbd_clear_que(struct nbd_device *lo)
+static void nbd_clear_que(struct nbd_device *lo)
 {
 	struct request *req;
 
@@ -477,26 +466,19 @@ static void do_nbd_request(request_queue_t * q)
 		}
 
 		list_add(&req->queuelist, &lo->queue_head);
-		req->ref_count++; /* make sure req does not get freed */
 		spin_unlock(&lo->queue_lock);
 
-		nbd_send_req(lo, req);
-
-		if (req->errors) {
+		if (nbd_send_req(lo, req) != 0) {
 			printk(KERN_ERR "%s: Request send failed\n",
 					lo->disk->disk_name);
-			spin_lock(&lo->queue_lock);
-			list_del_init(&req->queuelist);
-			req->ref_count--;
-			spin_unlock(&lo->queue_lock);
-			nbd_end_request(req);
-			spin_lock_irq(q->queue_lock);
-			continue;
+			if (nbd_find_request(lo, (char *)&req) != NULL) {
+				/* we still own req */
+				req->errors++;
+				nbd_end_request(req);
+			} else /* we're racing with nbd_clear_que */
+				printk(KERN_DEBUG "nbd: can't find req\n");
 		}
 
-		spin_lock(&lo->queue_lock);
-		req->ref_count--;
-		spin_unlock(&lo->queue_lock);
 		spin_lock_irq(q->queue_lock);
 		continue;
 
@@ -568,7 +550,7 @@ static int nbd_ioctl(struct inode *inode, struct file *file,
 		file = fget(arg);
 		if (file) {
 			inode = file->f_dentry->d_inode;
-			if (inode->i_sock) {
+			if (S_ISSOCK(inode->i_mode)) {
 				lo->file = file;
 				lo->sock = SOCKET_I(inode);
 				error = 0;
@@ -666,7 +648,13 @@ static int __init nbd_init(void)
 		return -EIO;
 	}
 
-	for (i = 0; i < MAX_NBD; i++) {
+	if (nbds_max > MAX_NBD) {
+		printk(KERN_CRIT "nbd: cannot allocate more than %u nbds; %u requested.\n", MAX_NBD,
+				nbds_max);
+		return -EINVAL;
+	}
+
+	for (i = 0; i < nbds_max; i++) {
 		struct gendisk *disk = alloc_disk(1);
 		if (!disk)
 			goto out;
@@ -692,7 +680,7 @@ static int __init nbd_init(void)
 	dprintk(DBG_INIT, "nbd: debugflags=0x%x\n", debugflags);
 
 	devfs_mk_dir("nbd");
-	for (i = 0; i < MAX_NBD; i++) {
+	for (i = 0; i < nbds_max; i++) {
 		struct gendisk *disk = nbd_dev[i].disk;
 		nbd_dev[i].file = NULL;
 		nbd_dev[i].magic = LO_MAGIC;
@@ -725,8 +713,9 @@ out:
 static void __exit nbd_cleanup(void)
 {
 	int i;
-	for (i = 0; i < MAX_NBD; i++) {
+	for (i = 0; i < nbds_max; i++) {
 		struct gendisk *disk = nbd_dev[i].disk;
+		nbd_dev[i].magic = 0;
 		if (disk) {
 			del_gendisk(disk);
 			blk_cleanup_queue(disk->queue);
@@ -744,7 +733,9 @@ module_exit(nbd_cleanup);
 MODULE_DESCRIPTION("Network Block Device");
 MODULE_LICENSE("GPL");
 
+module_param(nbds_max, int, 0444);
+MODULE_PARM_DESC(nbds_max, "How many network block devices to initialize.");
 #ifndef NDEBUG
-MODULE_PARM(debugflags, "i");
+module_param(debugflags, int, 0644);
 MODULE_PARM_DESC(debugflags, "flags for controlling debug output");
 #endif

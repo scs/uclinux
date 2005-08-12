@@ -360,13 +360,13 @@ struct radeonfb_info {
 	unsigned long mmio_base_phys;
 	unsigned long fb_base_phys;
 
-	unsigned long mmio_base;
-	unsigned long fb_base;
+	void __iomem *mmio_base;
+	void __iomem *fb_base;
 
 	struct pci_dev *pdev;
 
 	unsigned char *EDID;
-	unsigned char *bios_seg;
+	unsigned char __iomem *bios_seg;
 
 	u32 pseudo_palette[17];
 	struct { u8 red, green, blue, pad; } palette[256];
@@ -621,30 +621,6 @@ static void _radeon_engine_reset(struct radeonfb_info *rinfo)
 #define radeon_engine_reset()		_radeon_engine_reset(rinfo)
 
 
-static __inline__ u8 radeon_get_post_div_bitval(int post_div)
-{
-        switch (post_div) {
-                case 1:
-                        return 0x00;
-                case 2: 
-                        return 0x01;
-                case 3: 
-                        return 0x04;
-                case 4:
-                        return 0x02;
-                case 6:
-                        return 0x06;
-                case 8:
-                        return 0x03;
-                case 12:
-                        return 0x07;
-                default:
-                        return 0x02;
-        }
-}
-
-
-
 static __inline__ int round_div(int num, int den)
 {
         return (num + (den / 2)) / den;
@@ -681,14 +657,17 @@ static __inline__ int _max(int val1, int val2)
 /*
  * globals
  */
-        
-static char *mode_option __initdata;
+
+#ifndef MODULE
+static char *mode_option;
+#endif
+
 static char noaccel = 0;
 static char mirror = 0;
-static int panel_yres __initdata = 0;
-static char force_dfp __initdata = 0;
+static int panel_yres = 0;
+static char force_dfp = 0;
 static struct radeonfb_info *board_list = NULL;
-static char nomtrr __initdata = 0;
+static char nomtrr = 0;
 
 /*
  * prototypes
@@ -702,8 +681,8 @@ static void radeon_write_mode (struct radeonfb_info *rinfo,
 static int __devinit radeon_set_fbinfo (struct radeonfb_info *rinfo);
 static int __devinit radeon_init_disp (struct radeonfb_info *rinfo);
 static int radeon_init_disp_var (struct radeonfb_info *rinfo, struct fb_var_screeninfo *var);
-static char *radeon_find_rom(struct radeonfb_info *rinfo);
-static void radeon_get_pllinfo(struct radeonfb_info *rinfo, char *bios_seg);
+static void __iomem *radeon_find_rom(struct radeonfb_info *rinfo);
+static void radeon_get_pllinfo(struct radeonfb_info *rinfo, void __iomem *bios_seg);
 static void radeon_get_moninfo (struct radeonfb_info *rinfo);
 static int radeon_get_dfpinfo (struct radeonfb_info *rinfo);
 static int radeon_get_dfpinfo_BIOS(struct radeonfb_info *rinfo);
@@ -735,12 +714,12 @@ static struct backlight_controller radeon_backlight_controller = {
 #endif /* CONFIG_PPC_OF */
 
 
-static char *radeon_find_rom(struct radeonfb_info *rinfo)
+static void __iomem *radeon_find_rom(struct radeonfb_info *rinfo)
 {       
 #if defined(__i386__)
         u32  segstart;
-        char *rom_base;
-        char *rom;
+        char __iomem *rom_base;
+        char __iomem *rom;
         int  stage;
         int  i,j;       
         char aty_rom_sig[] = "761295520";
@@ -753,7 +732,7 @@ static char *radeon_find_rom(struct radeonfb_info *rinfo)
                         
                 stage = 1;
                 
-                rom_base = (char *)ioremap(segstart, 0x1000);
+                rom_base = ioremap(segstart, 0x1000);
 
                 if ((*rom_base == 0x55) && (((*(rom_base + 1)) & 0xff) == 0xaa))
                         stage = 2;
@@ -804,10 +783,10 @@ static char *radeon_find_rom(struct radeonfb_info *rinfo)
 
 
 
-static void radeon_get_pllinfo(struct radeonfb_info *rinfo, char *bios_seg)
+static void radeon_get_pllinfo(struct radeonfb_info *rinfo, void __iomem *bios_seg)
 {
-        void *bios_header;
-        void *header_ptr;
+        void __iomem *bios_header;
+        void __iomem *header_ptr;
         u16 bios_header_offset, pll_info_offset;
         PLL_BLOCK pll;
 
@@ -838,7 +817,7 @@ static void radeon_get_pllinfo(struct radeonfb_info *rinfo, char *bios_seg)
 		if (radeon_read_OF(rinfo)) {
 			unsigned int tmp, Nx, M, ref_div, xclk;
 
-			tmp = INPLL(X_MPLL_REF_FB_DIV);
+			tmp = INPLL(M_SPLL_REF_FB_DIV);
 			ref_div = INPLL(PPLL_REF_DIV) & 0x3ff;
 
 			Nx = (tmp & 0xff00) >> 8;
@@ -1077,7 +1056,7 @@ static void radeon_update_default_var(struct radeonfb_info *rinfo)
 
 static int radeon_get_dfpinfo_BIOS(struct radeonfb_info *rinfo)
 {
-	char *fpbiosstart, *tmp, *tmp0;
+	char __iomem *fpbiosstart, *tmp, *tmp0;
 	char stmp[30];
 	int i;
 
@@ -1629,15 +1608,16 @@ static int radeonfb_blank (int blank, struct fb_info *info)
 	val2 &= ~(LVDS_DISPLAY_DIS);
 
         switch (blank) {
-                case VESA_NO_BLANKING:
+	        case FB_BLANK_UNBLANK:
+	        case FB_BLANK_NORMAL:
                         break;
-                case VESA_VSYNC_SUSPEND:
+                case FB_BLANK_VSYNC_SUSPEND:
                         val |= (CRTC_DISPLAY_DIS | CRTC_VSYNC_DIS);
                         break;
-                case VESA_HSYNC_SUSPEND:
+                case FB_BLANK_HSYNC_SUSPEND:
                         val |= (CRTC_DISPLAY_DIS | CRTC_HSYNC_DIS);
                         break;
-                case VESA_POWERDOWN:
+                case FB_BLANK_POWERDOWN:
                         val |= (CRTC_DISPLAY_DIS | CRTC_VSYNC_DIS | 
                                 CRTC_HSYNC_DIS);
 			val2 |= (LVDS_DISPLAY_DIS);
@@ -1654,7 +1634,8 @@ static int radeonfb_blank (int blank, struct fb_info *info)
 			break;
 	}
 
-	return 0;
+	/* let fbcon do a soft blank for us */
+	return (blank == FB_BLANK_NORMAL) ? 1 : 0;
 }
 
 
@@ -2126,7 +2107,7 @@ static void radeon_write_mode (struct radeonfb_info *rinfo,
 
 
 	if (rinfo->arch == RADEON_M6) {
-		for (i=0; i<8; i++)
+		for (i=0; i<7; i++)
 			OUTREG(common_regs_m6[i].reg, common_regs_m6[i].val);
 	} else {
 		for (i=0; i<9; i++)
@@ -2247,12 +2228,11 @@ static int __devinit radeon_set_fbinfo (struct radeonfb_info *rinfo)
 
 	info = &rinfo->info;
 
-	info->currcon = -1;
 	info->par = rinfo;
 	info->pseudo_palette = rinfo->pseudo_palette;
-        info->flags = FBINFO_FLAG_DEFAULT;
+        info->flags = FBINFO_DEFAULT | FBINFO_HWACCEL_YPAN;
         info->fbops = &radeonfb_ops;
-        info->screen_base = (char *)rinfo->fb_base;
+        info->screen_base = rinfo->fb_base;
 
 	/* Fill fix common fields */
 	strlcpy(info->fix.id, rinfo->name, sizeof(info->fix.id));
@@ -2851,7 +2831,7 @@ static int radeonfb_pci_register (struct pci_dev *pdev,
 	}
 
 	/* map the regions */
-	rinfo->mmio_base = (unsigned long) ioremap (rinfo->mmio_base_phys, RADEON_REGSIZE);
+	rinfo->mmio_base = ioremap (rinfo->mmio_base_phys, RADEON_REGSIZE);
 	if (!rinfo->mmio_base) {
 		printk ("radeonfb: cannot map MMIO\n");
 		release_mem_region (rinfo->mmio_base_phys,
@@ -2978,7 +2958,7 @@ static int radeonfb_pci_register (struct pci_dev *pdev,
 	if ((rinfo->dviDisp_type == MT_DFP) || (rinfo->dviDisp_type == MT_LCD) ||
 	    (rinfo->crtDisp_type == MT_DFP)) {
 		if (!radeon_get_dfpinfo(rinfo)) {
-			iounmap ((void*)rinfo->mmio_base);
+			iounmap(rinfo->mmio_base);
 			release_mem_region (rinfo->mmio_base_phys,
 					    pci_resource_len(pdev, 2));
 			release_mem_region (rinfo->fb_base_phys,
@@ -2988,10 +2968,10 @@ static int radeonfb_pci_register (struct pci_dev *pdev,
 		}
 	}
 
-	rinfo->fb_base = (unsigned long) ioremap (rinfo->fb_base_phys, rinfo->video_ram);
+	rinfo->fb_base = ioremap (rinfo->fb_base_phys, rinfo->video_ram);
 	if (!rinfo->fb_base) {
 		printk ("radeonfb: cannot map FB\n");
-		iounmap ((void*)rinfo->mmio_base);
+		iounmap(rinfo->mmio_base);
 		release_mem_region (rinfo->mmio_base_phys,
 				    pci_resource_len(pdev, 2));
 		release_mem_region (rinfo->fb_base_phys,
@@ -3040,11 +3020,11 @@ static int radeonfb_pci_register (struct pci_dev *pdev,
 	pci_set_drvdata(pdev, rinfo);
 	rinfo->next = board_list;
 	board_list = rinfo;
-
+	((struct fb_info *) rinfo)->device = &pdev->dev;
 	if (register_framebuffer ((struct fb_info *) rinfo) < 0) {
 		printk ("radeonfb: could not register framebuffer\n");
-		iounmap ((void*)rinfo->fb_base);
-		iounmap ((void*)rinfo->mmio_base);
+		iounmap(rinfo->fb_base);
+		iounmap(rinfo->mmio_base);
 		release_mem_region (rinfo->mmio_base_phys,
 				    pci_resource_len(pdev, 2));
 		release_mem_region (rinfo->fb_base_phys,
@@ -3113,8 +3093,8 @@ static void __devexit radeonfb_pci_unregister (struct pci_dev *pdev)
 
         unregister_framebuffer ((struct fb_info *) rinfo);
                 
-        iounmap ((void*)rinfo->mmio_base);
-        iounmap ((void*)rinfo->fb_base);
+        iounmap(rinfo->mmio_base);
+        iounmap(rinfo->fb_base);
  
 	release_mem_region (rinfo->mmio_base_phys,
 			    pci_resource_len(pdev, 2));
@@ -3132,20 +3112,8 @@ static struct pci_driver radeonfb_driver = {
 	.remove		= __devexit_p(radeonfb_pci_unregister),
 };
 
-
-int __init radeonfb_old_init (void)
-{
-	return pci_module_init (&radeonfb_driver);
-}
-
-
-void __exit radeonfb_old_exit (void)
-{
-	pci_unregister_driver (&radeonfb_driver);
-}
-
-
-int __init radeonfb_old_setup (char *options)
+#ifndef MODULE
+static int __init radeonfb_old_setup (char *options)
 {
         char *this_opt;
 
@@ -3171,11 +3139,28 @@ int __init radeonfb_old_setup (char *options)
 
 	return 0;
 }
+#endif  /*  MODULE  */
 
-#ifdef MODULE
+static int __init radeonfb_old_init (void)
+{
+#ifndef MODULE
+	char *option = NULL;
+
+	if (fb_get_options("radeonfb_old", &option))
+		return -ENODEV;
+	radeonfb_old_setup(option);
+#endif
+	return pci_register_driver (&radeonfb_driver);
+}
+
+
+static void __exit radeonfb_old_exit (void)
+{
+	pci_unregister_driver (&radeonfb_driver);
+}
+
 module_init(radeonfb_old_init);
 module_exit(radeonfb_old_exit);
-#endif
 
 
 MODULE_AUTHOR("Ani Joshi");

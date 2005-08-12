@@ -61,7 +61,7 @@ MODULE_LICENSE("GPL");
 #include <linux/video_encoder.h>
 
 static int debug = 0;
-MODULE_PARM(debug, "i");
+module_param(debug, int, 0);
 MODULE_PARM_DESC(debug, "Debug level (0-1)");
 
 #define dprintk(num, format, args...) \
@@ -306,7 +306,6 @@ static struct i2c_client_address_data addr_data = {
 	.force			= force
 };
 
-static int bt856_i2c_id = 0;
 static struct i2c_driver i2c_driver_bt856;
 
 static int
@@ -335,9 +334,7 @@ bt856_detect_client (struct i2c_adapter *adapter,
 	client->adapter = adapter;
 	client->driver = &i2c_driver_bt856;
 	client->flags = I2C_CLIENT_ALLOW_USE;
-	client->id = bt856_i2c_id++;
-	snprintf(I2C_NAME(client), sizeof(I2C_NAME(client)) - 1,
-		"bt856[%d]", client->id);
+	strlcpy(I2C_NAME(client), "bt856", sizeof(I2C_NAME(client)));
 
 	encoder = kmalloc(sizeof(struct bt856), GFP_KERNEL);
 	if (encoder == NULL) {

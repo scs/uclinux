@@ -24,15 +24,19 @@
  * 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#include "transport.h"
-#include "protocol.h"
-#include "usb.h"
-#include "debug.h"
-#include "sddr55.h"
-
 #include <linux/jiffies.h>
 #include <linux/errno.h>
 #include <linux/slab.h>
+
+#include <scsi/scsi.h>
+#include <scsi/scsi_cmnd.h>
+
+#include "usb.h"
+#include "transport.h"
+#include "protocol.h"
+#include "debug.h"
+#include "sddr55.h"
+
 
 #define short_pack(lsb,msb) ( ((u16)(lsb)) | ( ((u16)(msb))<<8 ) )
 #define LSB_of(s) ((s)&0xFF)
@@ -74,7 +78,7 @@ static int
 sddr55_bulk_transport(struct us_data *us, int direction,
 		      unsigned char *data, unsigned int len) {
 	struct sddr55_card_info *info = (struct sddr55_card_info *)us->extra;
-	unsigned int pipe = (direction == SCSI_DATA_READ) ?
+	unsigned int pipe = (direction == DMA_FROM_DEVICE) ?
 			us->recv_bulk_pipe : us->send_bulk_pipe;
 
 	if (!len)
@@ -99,7 +103,7 @@ static int sddr55_status(struct us_data *us)
 	command[5] = 0xB0;
 	command[7] = 0x80;
 	result = sddr55_bulk_transport(us,
-		SCSI_DATA_WRITE, command, 8);
+		DMA_TO_DEVICE, command, 8);
 
 	US_DEBUGP("Result for send_command in status %d\n",
 		result);
@@ -110,15 +114,13 @@ static int sddr55_status(struct us_data *us)
 	}
 
 	result = sddr55_bulk_transport(us,
-		SCSI_DATA_READ, status,	4);
+		DMA_FROM_DEVICE, status,	4);
 
 	/* expect to get short transfer if no card fitted */
 	if (result == USB_STOR_XFER_SHORT || result == USB_STOR_XFER_STALLED) {
 		/* had a short transfer, no card inserted, free map memory */
-		if (info->lba_to_pba)
-			kfree(info->lba_to_pba);
-		if (info->pba_to_lba)
-			kfree(info->pba_to_lba);
+		kfree(info->lba_to_pba);
+		kfree(info->pba_to_lba);
 		info->lba_to_pba = NULL;
 		info->pba_to_lba = NULL;
 
@@ -139,7 +141,7 @@ static int sddr55_status(struct us_data *us)
 
 	/* now read status */
 	result = sddr55_bulk_transport(us,
-		SCSI_DATA_READ, status,	2);
+		DMA_FROM_DEVICE, status,	2);
 
 	if (result != USB_STOR_XFER_GOOD) {
 		set_sense_info (4, 0, 0);	/* hardware error */
@@ -215,7 +217,7 @@ static int sddr55_read_data(struct us_data *us,
 
 			/* send command */
 			result = sddr55_bulk_transport(us,
-				SCSI_DATA_WRITE, command, 8);
+				DMA_TO_DEVICE, command, 8);
 
 			US_DEBUGP("Result for send_command in read_data %d\n",
 				result);
@@ -227,7 +229,7 @@ static int sddr55_read_data(struct us_data *us,
 
 			/* read data */
 			result = sddr55_bulk_transport(us,
-				SCSI_DATA_READ, buffer, len);
+				DMA_FROM_DEVICE, buffer, len);
 
 			if (result != USB_STOR_XFER_GOOD) {
 				result = USB_STOR_TRANSPORT_ERROR;
@@ -236,7 +238,7 @@ static int sddr55_read_data(struct us_data *us,
 
 			/* now read status */
 			result = sddr55_bulk_transport(us,
-				SCSI_DATA_READ, status, 2);
+				DMA_FROM_DEVICE, status, 2);
 
 			if (result != USB_STOR_XFER_GOOD) {
 				result = USB_STOR_TRANSPORT_ERROR;
@@ -390,7 +392,7 @@ static int sddr55_write_data(struct us_data *us,
 
 		/* send command */
 		result = sddr55_bulk_transport(us,
-			SCSI_DATA_WRITE, command, 8);
+			DMA_TO_DEVICE, command, 8);
 
 		if (result != USB_STOR_XFER_GOOD) {
 			US_DEBUGP("Result for send_command in write_data %d\n",
@@ -404,7 +406,7 @@ static int sddr55_write_data(struct us_data *us,
 
 		/* send the data */
 		result = sddr55_bulk_transport(us,
-			SCSI_DATA_WRITE, buffer, len);
+			DMA_TO_DEVICE, buffer, len);
 
 		if (result != USB_STOR_XFER_GOOD) {
 			US_DEBUGP("Result for send_data in write_data %d\n",
@@ -417,7 +419,7 @@ static int sddr55_write_data(struct us_data *us,
 		}
 
 		/* now read status */
-		result = sddr55_bulk_transport(us, SCSI_DATA_READ, status, 6);
+		result = sddr55_bulk_transport(us, DMA_FROM_DEVICE, status, 6);
 
 		if (result != USB_STOR_XFER_GOOD) {
 			US_DEBUGP("Result for get_status in write_data %d\n",
@@ -483,7 +485,7 @@ static int sddr55_read_deviceID(struct us_data *us,
 	memset(command, 0, 8);
 	command[5] = 0xB0;
 	command[7] = 0x84;
-	result = sddr55_bulk_transport(us, SCSI_DATA_WRITE, command, 8);
+	result = sddr55_bulk_transport(us, DMA_TO_DEVICE, command, 8);
 
 	US_DEBUGP("Result of send_control for device ID is %d\n",
 		result);
@@ -492,7 +494,7 @@ static int sddr55_read_deviceID(struct us_data *us,
 		return USB_STOR_TRANSPORT_ERROR;
 
 	result = sddr55_bulk_transport(us,
-		SCSI_DATA_READ, content, 4);
+		DMA_FROM_DEVICE, content, 4);
 
 	if (result != USB_STOR_XFER_GOOD)
 		return USB_STOR_TRANSPORT_ERROR;
@@ -502,7 +504,7 @@ static int sddr55_read_deviceID(struct us_data *us,
 
 	if (content[0] != 0xff)	{
     		result = sddr55_bulk_transport(us,
-			SCSI_DATA_READ, content, 2);
+			DMA_FROM_DEVICE, content, 2);
 	}
 
 	return USB_STOR_TRANSPORT_GOOD;
@@ -624,39 +626,35 @@ static int sddr55_read_map(struct us_data *us) {
 	command[6] = numblocks * 2 / 256;
 	command[7] = 0x8A;
 
-	result = sddr55_bulk_transport(us, SCSI_DATA_WRITE, command, 8);
+	result = sddr55_bulk_transport(us, DMA_TO_DEVICE, command, 8);
 
 	if ( result != USB_STOR_XFER_GOOD) {
 		kfree (buffer);
 		return -1;
 	}
 
-	result = sddr55_bulk_transport(us, SCSI_DATA_READ, buffer, numblocks * 2);
+	result = sddr55_bulk_transport(us, DMA_FROM_DEVICE, buffer, numblocks * 2);
 
 	if ( result != USB_STOR_XFER_GOOD) {
 		kfree (buffer);
 		return -1;
 	}
 
-	result = sddr55_bulk_transport(us, SCSI_DATA_READ, command, 2);
+	result = sddr55_bulk_transport(us, DMA_FROM_DEVICE, command, 2);
 
 	if ( result != USB_STOR_XFER_GOOD) {
 		kfree (buffer);
 		return -1;
 	}
 
-	if (info->lba_to_pba)
-		kfree(info->lba_to_pba);
-	if (info->pba_to_lba)
-		kfree(info->pba_to_lba);
+	kfree(info->lba_to_pba);
+	kfree(info->pba_to_lba);
 	info->lba_to_pba = kmalloc(numblocks*sizeof(int), GFP_NOIO);
 	info->pba_to_lba = kmalloc(numblocks*sizeof(int), GFP_NOIO);
 
 	if (info->lba_to_pba == NULL || info->pba_to_lba == NULL) {
-		if (info->lba_to_pba != NULL)
-			kfree(info->lba_to_pba);
-		if (info->pba_to_lba != NULL)
-			kfree(info->pba_to_lba);
+		kfree(info->lba_to_pba);
+		kfree(info->pba_to_lba);
 		info->lba_to_pba = NULL;
 		info->pba_to_lba = NULL;
 		kfree(buffer);
@@ -724,17 +722,15 @@ static void sddr55_card_info_destructor(void *extra) {
 	if (!extra)
 		return;
 
-	if (info->lba_to_pba)
-		kfree(info->lba_to_pba);
-	if (info->pba_to_lba)
-		kfree(info->pba_to_lba);
+	kfree(info->lba_to_pba);
+	kfree(info->pba_to_lba);
 }
 
 
 /*
  * Transport for the Sandisk SDDR-55
  */
-int sddr55_transport(Scsi_Cmnd *srb, struct us_data *us)
+int sddr55_transport(struct scsi_cmnd *srb, struct us_data *us)
 {
 	int result;
 	static unsigned char inquiry_response[8] = {
@@ -834,8 +830,8 @@ int sddr55_transport(Scsi_Cmnd *srb, struct us_data *us)
 		capacity /= PAGESIZE;
 		capacity--;
 
-		((u32 *) ptr)[0] = cpu_to_be32(capacity);
-		((u32 *) ptr)[1] = cpu_to_be32(PAGESIZE);
+		((__be32 *) ptr)[0] = cpu_to_be32(capacity);
+		((__be32 *) ptr)[1] = cpu_to_be32(PAGESIZE);
 		usb_stor_set_xfer_buf(ptr, 8, srb);
 
 		sddr55_read_map(us);

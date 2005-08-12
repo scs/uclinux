@@ -1,4 +1,4 @@
-/* 
+/*
  * dvbdev.h
  *
  * Copyright (C) 2000 Ralph Metzler & Marcus Metzler
@@ -28,6 +28,7 @@
 #include <linux/fs.h>
 #include <linux/list.h>
 #include <linux/devfs_fs_kernel.h>
+#include <linux/smp_lock.h>
 
 #define DVB_MAJOR 212
 
@@ -48,6 +49,7 @@ struct dvb_adapter {
 	struct list_head device_list;
 	const char *name;
 	u8 proposed_mac [6];
+	void* priv;
 
 	struct module *module;
 };
@@ -56,9 +58,6 @@ struct dvb_adapter {
 struct dvb_device {
 	struct list_head list_head;
 	struct file_operations *fops;
- 
- 
- 
 	struct dvb_adapter *adapter;
 	int type;
 	u32 id;
@@ -77,11 +76,11 @@ struct dvb_device {
 };
 
 
-extern int dvb_register_adapter (struct dvb_adapter **padap, const char *name, struct module *module);
+extern int dvb_register_adapter (struct dvb_adapter *adap, const char *name, struct module *module);
 extern int dvb_unregister_adapter (struct dvb_adapter *adap);
 
 extern int dvb_register_device (struct dvb_adapter *adap,
-				struct dvb_device **pdvbdev, 
+				struct dvb_device **pdvbdev,
 				const struct dvb_device *template,
 				void *priv,
 				int type);
@@ -92,5 +91,14 @@ extern int dvb_generic_open (struct inode *inode, struct file *file);
 extern int dvb_generic_release (struct inode *inode, struct file *file);
 extern int dvb_generic_ioctl (struct inode *inode, struct file *file,
 			      unsigned int cmd, unsigned long arg);
-#endif /* #ifndef _DVBDEV_H_ */
 
+/* we don't mess with video_usercopy() any more,
+we simply define out own dvb_usercopy(), which will hopefully become
+generic_usercopy()  someday... */
+
+extern int dvb_usercopy(struct inode *inode, struct file *file,
+	                    unsigned int cmd, unsigned long arg,
+			    int (*func)(struct inode *inode, struct file *file,
+			    unsigned int cmd, void *arg));
+
+#endif /* #ifndef _DVBDEV_H_ */

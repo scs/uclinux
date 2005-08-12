@@ -111,30 +111,30 @@ module_param(ovmod_load, bool, 0644);
 module_param(vppmod_load, bool, 0444);
 #endif
 module_param(simcams, ushort, 0644);
-module_param_array(video_nr, short, param_nv[0], 0444);
-module_param_array(packet_size, uint, param_nv[1], 0444);
-module_param_array(max_buffers, ushort, param_nv[2], 0444);
-module_param_array(double_buffer, bool, param_nv[3], 0444);
-module_param_array(clamping, bool, param_nv[4], 0444);
-module_param_array(filter_type, ushort, param_nv[5], 0444);
-module_param_array(largeview, bool, param_nv[6], 0444);
-module_param_array(decompression, ushort, param_nv[7], 0444);
-module_param_array(upscaling, bool, param_nv[8], 0444);
-module_param_array(force_palette, ushort, param_nv[9], 0444);
-module_param_array(force_rgb, ushort, param_nv[10], 0444);
-module_param_array(autobright, bool, param_nv[11], 0444);
-module_param_array(autoexp, bool, param_nv[12], 0444);
-module_param_array(lightfreq, ushort, param_nv[13], 0444);
-module_param_array(bandingfilter, bool, param_nv[14], 0444);
-module_param_array(clockdiv, short, param_nv[15], 0444);
-module_param_array(backlight, bool, param_nv[16], 0444);
-module_param_array(mirror, bool, param_nv[17], 0444);
-module_param_array(monochrome, bool, param_nv[18], 0444);
-module_param_array(brightness, uint, param_nv[19], 0444);
-module_param_array(hue, uint, param_nv[20], 0444);
-module_param_array(colour, uint, param_nv[21], 0444);
-module_param_array(contrast, uint, param_nv[22], 0444);
-module_param_array(whiteness, uint, param_nv[23], 0444);
+module_param_array(video_nr, short, &param_nv[0], 0444);
+module_param_array(packet_size, uint, &param_nv[1], 0444);
+module_param_array(max_buffers, ushort, &param_nv[2], 0444);
+module_param_array(double_buffer, bool, &param_nv[3], 0444);
+module_param_array(clamping, bool, &param_nv[4], 0444);
+module_param_array(filter_type, ushort, &param_nv[5], 0444);
+module_param_array(largeview, bool, &param_nv[6], 0444);
+module_param_array(decompression, ushort, &param_nv[7], 0444);
+module_param_array(upscaling, bool, &param_nv[8], 0444);
+module_param_array(force_palette, ushort, &param_nv[9], 0444);
+module_param_array(force_rgb, ushort, &param_nv[10], 0444);
+module_param_array(autobright, bool, &param_nv[11], 0444);
+module_param_array(autoexp, bool, &param_nv[12], 0444);
+module_param_array(lightfreq, ushort, &param_nv[13], 0444);
+module_param_array(bandingfilter, bool, &param_nv[14], 0444);
+module_param_array(clockdiv, short, &param_nv[15], 0444);
+module_param_array(backlight, bool, &param_nv[16], 0444);
+module_param_array(mirror, bool, &param_nv[17], 0444);
+module_param_array(monochrome, bool, &param_nv[18], 0444);
+module_param_array(brightness, uint, &param_nv[19], 0444);
+module_param_array(hue, uint, &param_nv[20], 0444);
+module_param_array(colour, uint, &param_nv[21], 0444);
+module_param_array(contrast, uint, &param_nv[22], 0444);
+module_param_array(whiteness, uint, &param_nv[23], 0444);
 #ifdef W9968CF_DEBUG
 module_param(debug, ushort, 0644);
 module_param(specific_debug, bool, 0644);
@@ -457,7 +457,6 @@ static int w9968cf_i2c_control(struct i2c_adapter*, unsigned int cmd,
                                unsigned long arg);
 
 /* Memory management */
-static inline unsigned long kvirt_to_pa(unsigned long adr);
 static void* rvmalloc(unsigned long size);
 static void rvfree(void *mem, unsigned long size);
 static void w9968cf_deallocate_memory(struct w9968cf_device*);
@@ -611,20 +610,6 @@ static struct w9968cf_symbolic_list urb_errlist[] = {
 /****************************************************************************
  * Memory management functions                                              *
  ****************************************************************************/
-
-/* Here we want the physical address of the memory.
-   This is used when initializing the contents of the area. */
-static inline unsigned long kvirt_to_pa(unsigned long adr)
-{
-	unsigned long kva, ret;
-
-	kva = (unsigned long) page_address(vmalloc_to_page((void *)adr));
-	kva |= adr & (PAGE_SIZE-1); /* restore the offset */
-	ret = __pa(kva);
-	return ret;
-}
-
-
 static void* rvmalloc(unsigned long size)
 {
 	void* mem;
@@ -2919,9 +2904,9 @@ static int w9968cf_mmap(struct file* filp, struct vm_area_struct *vma)
 		return -EINVAL;
 
 	while (vsize > 0) {
-		page = kvirt_to_pa(pos) + vma->vm_pgoff;
-		if (remap_page_range(vma, start, page, PAGE_SIZE, 
-		                     vma->vm_page_prot))
+		page = vmalloc_to_pfn((void *)pos);
+		if (remap_pfn_range(vma, start, page + vma->vm_pgoff,
+						PAGE_SIZE, vma->vm_page_prot))
 			return -EAGAIN;
 		start += PAGE_SIZE;
 		pos += PAGE_SIZE;
@@ -3531,11 +3516,11 @@ w9968cf_usb_probe(struct usb_interface* intf, const struct usb_device_id* id)
 	u8 sc = 0; /* number of simultaneous cameras */
 	static unsigned short dev_nr = 0; /* we are handling device number n */
 
-	if (udev->descriptor.idVendor  == winbond_id_table[0].idVendor &&
-	    udev->descriptor.idProduct == winbond_id_table[0].idProduct)
+	if (le16_to_cpu(udev->descriptor.idVendor)  == winbond_id_table[0].idVendor &&
+	    le16_to_cpu(udev->descriptor.idProduct) == winbond_id_table[0].idProduct)
 		mod_id = W9968CF_MOD_CLVBWGP; /* see camlist[] table */
-	else if (udev->descriptor.idVendor  == winbond_id_table[1].idVendor &&
-	         udev->descriptor.idProduct == winbond_id_table[1].idProduct)
+	else if (le16_to_cpu(udev->descriptor.idVendor)  == winbond_id_table[1].idVendor &&
+	         le16_to_cpu(udev->descriptor.idProduct) == winbond_id_table[1].idProduct)
 		mod_id = W9968CF_MOD_GENERIC; /* see camlist[] table */
 	else
 		return -ENODEV;
@@ -3639,10 +3624,8 @@ w9968cf_usb_probe(struct usb_interface* intf, const struct usb_device_id* id)
 	return 0;
 
 fail: /* Free unused memory */
-	if (cam->control_buffer)
-		kfree(cam->control_buffer);
-	if (cam->data_buffer)
-		kfree(cam->data_buffer);
+	kfree(cam->control_buffer);
+	kfree(cam->data_buffer);
 	if (cam->v4ldev)
 		video_device_release(cam->v4ldev);
 	up(&cam->dev_sem);

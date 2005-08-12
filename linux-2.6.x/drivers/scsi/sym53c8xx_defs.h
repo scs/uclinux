@@ -66,19 +66,12 @@
 
 #include <linux/config.h>
 
-/* These options are not tunable from 'make config' */
-#define	SCSI_NCR_PROC_INFO_SUPPORT
-
 /*
 **	If you want a driver as small as possible, donnot define the 
 **	following options.
 */
 #define SCSI_NCR_BOOT_COMMAND_LINE_SUPPORT
 #define SCSI_NCR_DEBUG_INFO_SUPPORT
-#ifdef	SCSI_NCR_PROC_INFO_SUPPORT
-#	define	SCSI_NCR_USER_COMMAND_SUPPORT
-#	define	SCSI_NCR_USER_INFO_SUPPORT
-#endif
 
 /*
 **	To disable integrity checking, do not define the 
@@ -321,9 +314,9 @@
 #define	writew_b2l	__raw_writew
 #define	writel_b2l	__raw_writel
 #define	readw_raw	__raw_readw
-#define	readl_raw(a)	__raw_readl((unsigned long)(a))
+#define	readl_raw	__raw_readl
 #define	writew_raw	__raw_writew
-#define	writel_raw(v,a)	__raw_writel(v,(unsigned long)(a))
+#define	writel_raw	__raw_writel
 #else	/* Other big-endian */
 #define	readw_l2b	readw
 #define	readl_l2b	readl
@@ -422,42 +415,42 @@
  *  MEMORY mapped IO input / output
  */
 
-#define INB_OFF(o)		readb_raw((char *)np->reg + ncr_offb(o))
-#define OUTB_OFF(o, val)	writeb_raw((val), (char *)np->reg + ncr_offb(o))
+#define INB_OFF(o)		readb_raw((char __iomem *)np->reg + ncr_offb(o))
+#define OUTB_OFF(o, val)	writeb_raw((val), (char __iomem *)np->reg + ncr_offb(o))
 
 #if	defined(__BIG_ENDIAN) && !defined(SCSI_NCR_BIG_ENDIAN)
 
-#define INW_OFF(o)		readw_l2b((char *)np->reg + ncr_offw(o))
-#define INL_OFF(o)		readl_l2b((char *)np->reg + (o))
+#define INW_OFF(o)		readw_l2b((char __iomem *)np->reg + ncr_offw(o))
+#define INL_OFF(o)		readl_l2b((char __iomem *)np->reg + (o))
 
-#define OUTW_OFF(o, val)	writew_b2l((val), (char *)np->reg + ncr_offw(o))
-#define OUTL_OFF(o, val)	writel_b2l((val), (char *)np->reg + (o))
+#define OUTW_OFF(o, val)	writew_b2l((val), (char __iomem *)np->reg + ncr_offw(o))
+#define OUTL_OFF(o, val)	writel_b2l((val), (char __iomem *)np->reg + (o))
 
 #elif	defined(__LITTLE_ENDIAN) && defined(SCSI_NCR_BIG_ENDIAN)
 
-#define INW_OFF(o)		readw_b2l((char *)np->reg + ncr_offw(o))
-#define INL_OFF(o)		readl_b2l((char *)np->reg + (o))
+#define INW_OFF(o)		readw_b2l((char __iomem *)np->reg + ncr_offw(o))
+#define INL_OFF(o)		readl_b2l((char __iomem *)np->reg + (o))
 
-#define OUTW_OFF(o, val)	writew_l2b((val), (char *)np->reg + ncr_offw(o))
-#define OUTL_OFF(o, val)	writel_l2b((val), (char *)np->reg + (o))
+#define OUTW_OFF(o, val)	writew_l2b((val), (char __iomem *)np->reg + ncr_offw(o))
+#define OUTL_OFF(o, val)	writel_l2b((val), (char __iomem *)np->reg + (o))
 
 #else
 
 #ifdef CONFIG_SCSI_NCR53C8XX_NO_WORD_TRANSFERS
 /* Only 8 or 32 bit transfers allowed */
-#define INW_OFF(o)		(readb((char *)np->reg + ncr_offw(o)) << 8 | readb((char *)np->reg + ncr_offw(o) + 1))
+#define INW_OFF(o)		(readb((char __iomem *)np->reg + ncr_offw(o)) << 8 | readb((char __iomem *)np->reg + ncr_offw(o) + 1))
 #else
-#define INW_OFF(o)		readw_raw((char *)np->reg + ncr_offw(o))
+#define INW_OFF(o)		readw_raw((char __iomem *)np->reg + ncr_offw(o))
 #endif
-#define INL_OFF(o)		readl_raw((char *)np->reg + (o))
+#define INL_OFF(o)		readl_raw((char __iomem *)np->reg + (o))
 
 #ifdef CONFIG_SCSI_NCR53C8XX_NO_WORD_TRANSFERS
 /* Only 8 or 32 bit transfers allowed */
-#define OUTW_OFF(o, val)	do { writeb((char)((val) >> 8), (char *)np->reg + ncr_offw(o)); writeb((char)(val), (char *)np->reg + ncr_offw(o) + 1); } while (0)
+#define OUTW_OFF(o, val)	do { writeb((char)((val) >> 8), (char __iomem *)np->reg + ncr_offw(o)); writeb((char)(val), (char __iomem *)np->reg + ncr_offw(o) + 1); } while (0)
 #else
-#define OUTW_OFF(o, val)	writew_raw((val), (char *)np->reg + ncr_offw(o))
+#define OUTW_OFF(o, val)	writew_raw((val), (char __iomem *)np->reg + ncr_offw(o))
 #endif
-#define OUTL_OFF(o, val)	writel_raw((val), (char *)np->reg + (o))
+#define OUTL_OFF(o, val)	writel_raw((val), (char __iomem *)np->reg + (o))
 
 #endif
 
@@ -1288,34 +1281,34 @@ struct scr_tblsel {
 **	Messages
 */
 
-#define	M_COMPLETE	(0x00)
-#define	M_EXTENDED	(0x01)
-#define	M_SAVE_DP	(0x02)
-#define	M_RESTORE_DP	(0x03)
-#define	M_DISCONNECT	(0x04)
-#define	M_ID_ERROR	(0x05)
-#define	M_ABORT		(0x06)
-#define	M_REJECT	(0x07)
-#define	M_NOOP		(0x08)
-#define	M_PARITY	(0x09)
-#define	M_LCOMPLETE	(0x0a)
-#define	M_FCOMPLETE	(0x0b)
-#define	M_RESET		(0x0c)
-#define	M_ABORT_TAG	(0x0d)
-#define	M_CLEAR_QUEUE	(0x0e)
-#define	M_INIT_REC	(0x0f)
-#define	M_REL_REC	(0x10)
+#define	M_COMPLETE	COMMAND_COMPLETE
+#define	M_EXTENDED	EXTENDED_MESSAGE
+#define	M_SAVE_DP	SAVE_POINTERS
+#define	M_RESTORE_DP	RESTORE_POINTERS
+#define	M_DISCONNECT	DISCONNECT
+#define	M_ID_ERROR	INITIATOR_ERROR
+#define	M_ABORT		ABORT_TASK_SET
+#define	M_REJECT	MESSAGE_REJECT
+#define	M_NOOP		NOP
+#define	M_PARITY	MSG_PARITY_ERROR
+#define	M_LCOMPLETE	LINKED_CMD_COMPLETE
+#define	M_FCOMPLETE	LINKED_FLG_CMD_COMPLETE
+#define	M_RESET		TARGET_RESET
+#define	M_ABORT_TAG	ABORT_TASK
+#define	M_CLEAR_QUEUE	CLEAR_TASK_SET
+#define	M_INIT_REC	INITIATE_RECOVERY
+#define	M_REL_REC	RELEASE_RECOVERY
 #define	M_TERMINATE	(0x11)
-#define	M_SIMPLE_TAG	(0x20)
-#define	M_HEAD_TAG	(0x21)
-#define	M_ORDERED_TAG	(0x22)
-#define	M_IGN_RESIDUE	(0x23)
+#define	M_SIMPLE_TAG	SIMPLE_QUEUE_TAG
+#define	M_HEAD_TAG	HEAD_OF_QUEUE_TAG
+#define	M_ORDERED_TAG	ORDERED_QUEUE_TAG
+#define	M_IGN_RESIDUE	IGNORE_WIDE_RESIDUE
 #define	M_IDENTIFY   	(0x80)
 
-#define	M_X_MODIFY_DP	(0x00)
-#define	M_X_SYNC_REQ	(0x01)
-#define	M_X_WIDE_REQ	(0x03)
-#define	M_X_PPR_REQ	(0x04)
+#define	M_X_MODIFY_DP	EXTENDED_MODIFY_DATA_POINTER
+#define	M_X_SYNC_REQ	EXTENDED_SDTR
+#define	M_X_WIDE_REQ	EXTENDED_WDTR
+#define	M_X_PPR_REQ	EXTENDED_PPR
 
 /*
 **	Status

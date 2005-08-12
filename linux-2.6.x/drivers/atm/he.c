@@ -70,6 +70,7 @@
 #include <linux/sched.h>
 #include <linux/timer.h>
 #include <linux/interrupt.h>
+#include <linux/dma-mapping.h>
 #include <asm/io.h>
 #include <asm/byteorder.h>
 #include <asm/uaccess.h>
@@ -86,44 +87,19 @@
 #undef USE_RBPL_POOL			/* if memory is tight try this */
 #define USE_TPD_POOL
 /* #undef CONFIG_ATM_HE_USE_SUNI */
-
-/* compatibility */
-
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,69)
-typedef void irqreturn_t;
-#define IRQ_NONE
-#define IRQ_HANDLED
-#define IRQ_RETVAL(x)
-#endif
-
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,4,9)
-#define __devexit_p(func)		func
-#endif
-
-#ifndef MODULE_LICENSE
-#define MODULE_LICENSE(x)
-#endif
-
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,4,3)
-#define pci_set_drvdata(pci_dev, data)	(pci_dev)->driver_data = (data)
-#define pci_get_drvdata(pci_dev)	(pci_dev)->driver_data
-#endif
+/* #undef HE_DEBUG */
 
 #include "he.h"
-
 #include "suni.h"
-
 #include <linux/atm_he.h>
 
 #define hprintk(fmt,args...)	printk(KERN_ERR DEV_LABEL "%d: " fmt, he_dev->number , ##args)
 
-#undef DEBUG
-#ifdef DEBUG
+#ifdef HE_DEBUG
 #define HPRINTK(fmt,args...)	printk(KERN_DEBUG DEV_LABEL "%d: " fmt, he_dev->number , ##args)
-#else
+#else /* !HE_DEBUG */
 #define HPRINTK(fmt,args...)	do { } while (0)
-#endif /* DEBUG */
-
+#endif /* HE_DEBUG */
 
 /* version definition */
 
@@ -147,13 +123,55 @@ static u8 read_prom_byte(struct he_dev *he_dev, int addr);
 
 /* globals */
 
-struct he_dev *he_devs = NULL;
-static short disable64 = -1;
+static struct he_dev *he_devs;
+static int disable64;
 static short nvpibits = -1;
 static short nvcibits = -1;
 static short rx_skb_reserve = 16;
-static short irq_coalesce = 1;
-static short sdh = 0;
+static int irq_coalesce = 1;
+static int sdh = 0;
+
+/* Read from EEPROM = 0000 0011b */
+static unsigned int readtab[] = {
+	CS_HIGH | CLK_HIGH,
+	CS_LOW | CLK_LOW,
+	CLK_HIGH,               /* 0 */
+	CLK_LOW,
+	CLK_HIGH,               /* 0 */
+	CLK_LOW,
+	CLK_HIGH,               /* 0 */
+	CLK_LOW,
+	CLK_HIGH,               /* 0 */
+	CLK_LOW,
+	CLK_HIGH,               /* 0 */
+	CLK_LOW,
+	CLK_HIGH,               /* 0 */
+	CLK_LOW | SI_HIGH,
+	CLK_HIGH | SI_HIGH,     /* 1 */
+	CLK_LOW | SI_HIGH,
+	CLK_HIGH | SI_HIGH      /* 1 */
+};     
+ 
+/* Clock to read from/write to the EEPROM */
+static unsigned int clocktab[] = {
+	CLK_LOW,
+	CLK_HIGH,
+	CLK_LOW,
+	CLK_HIGH,
+	CLK_LOW,
+	CLK_HIGH,
+	CLK_LOW,
+	CLK_HIGH,
+	CLK_LOW,
+	CLK_HIGH,
+	CLK_LOW,
+	CLK_HIGH,
+	CLK_LOW,
+	CLK_HIGH,
+	CLK_LOW,
+	CLK_HIGH,
+	CLK_LOW
+};     
 
 static struct atmdev_ops he_ops =
 {
@@ -354,7 +372,7 @@ he_init_one(struct pci_dev *pci_dev, const struct pci_device_id *pci_ent)
 
 	if (pci_enable_device(pci_dev))
 		return -EIO;
-	if (pci_set_dma_mask(pci_dev, HE_DMA_MASK) != 0) {
+	if (pci_set_dma_mask(pci_dev, DMA_32BIT_MASK) != 0) {
 		printk(KERN_WARNING "he: no suitable dma available\n");
 		err = -EIO;
 		goto init_one_failure;
@@ -394,8 +412,7 @@ he_init_one(struct pci_dev *pci_dev, const struct pci_device_id *pci_ent)
 init_one_failure:
 	if (atm_dev)
 		atm_dev_deregister(atm_dev);
-	if (he_dev)
-		kfree(he_dev);
+	kfree(he_dev);
 	pci_disable_device(pci_dev);
 	return err;
 }
@@ -1007,6 +1024,7 @@ he_start(struct atm_dev *dev)
 {
 	struct he_dev *he_dev;
 	struct pci_dev *pci_dev;
+	unsigned long membase;
 
 	u16 command;
 	u32 gen_cntl_0, host_cntl, lb_swap;
@@ -1019,8 +1037,8 @@ he_start(struct atm_dev *dev)
 	he_dev = HE_DEV(dev);
 	pci_dev = he_dev->pci_dev;
 
-	he_dev->membase = pci_dev->resource[0].start;
-	HPRINTK("membase = 0x%lx  irq = %d.\n", he_dev->membase, pci_dev->irq);
+	membase = pci_resource_start(pci_dev, 0);
+	HPRINTK("membase = 0x%lx  irq = %d.\n", membase, pci_dev->irq);
 
 	/*
 	 * pci bus controller initialization 
@@ -1080,7 +1098,7 @@ he_start(struct atm_dev *dev)
 			hprintk("can't set latency timer to %d\n", timer);
 	}
 
-	if (!(he_dev->membase = (unsigned long) ioremap(he_dev->membase, HE_REGMAP_SIZE))) {
+	if (!(he_dev->membase = ioremap(membase, HE_REGMAP_SIZE))) {
 		hprintk("can't set up page mapping\n");
 		return -EINVAL;
 	}
@@ -1700,7 +1718,7 @@ he_stop(struct he_dev *he_dev)
 	}
 	
 	if (he_dev->membase)
-		iounmap((void *) he_dev->membase);
+		iounmap(he_dev->membase);
 }
 
 static struct he_tpd *
@@ -1962,7 +1980,7 @@ he_service_tbrq(struct he_dev *he_dev, int group)
 	struct he_tpd *tpd;
 	int slot, updated = 0;
 #ifdef USE_TPD_POOL
-	struct list_head *p;
+	struct he_tpd *__tpd;
 #endif
 
 	/* 2.1.6 transmit buffer return queue */
@@ -1977,8 +1995,7 @@ he_service_tbrq(struct he_dev *he_dev, int group)
 			TBRQ_MULTIPLE(he_dev->tbrq_head) ? " MULTIPLE" : "");
 #ifdef USE_TPD_POOL
 		tpd = NULL;
-		list_for_each(p, &he_dev->outstanding_tpds) {
-			struct he_tpd *__tpd = list_entry(p, struct he_tpd, entry);
+		list_for_each_entry(__tpd, &he_dev->outstanding_tpds, entry) {
 			if (TPD_ADDR(__tpd->status) == TBRQ_TPD(he_dev->tbrq_head)) {
 				tpd = __tpd;
 				list_del(&__tpd->entry);
@@ -2516,8 +2533,7 @@ he_open(struct atm_vcc *vcc)
 open_failed:
 
 	if (err) {
-		if (he_vcc)
-			kfree(he_vcc);
+		kfree(he_vcc);
 		clear_bit(ATM_VF_ADDR, &vcc->flags);
 	}
 	else
@@ -2558,8 +2574,8 @@ he_close(struct atm_vcc *vcc)
 			udelay(250);
 		}
 
-		add_wait_queue(&he_vcc->rx_waitq, &wait);
 		set_current_state(TASK_UNINTERRUPTIBLE);
+		add_wait_queue(&he_vcc->rx_waitq, &wait);
 
 		he_writel_rsr0(he_dev, RSR0_CLOSE_CONN, cid);
 		(void) he_readl_rsr0(he_dev, cid);		/* flush posted writes */
@@ -2593,11 +2609,10 @@ he_close(struct atm_vcc *vcc)
 		 * TBRQ, the host issues the close command to the adapter.
 		 */
 
-		while (((tx_inuse = atomic_read(&vcc->sk->sk_wmem_alloc)) > 0) &&
+		while (((tx_inuse = atomic_read(&sk_atm(vcc)->sk_wmem_alloc)) > 0) &&
 		       (retry < MAX_RETRY)) {
-			set_current_state(TASK_UNINTERRUPTIBLE);
-			(void) schedule_timeout(sleep);
-			if (sleep < HZ)
+			msleep(sleep);
+			if (sleep < 250)
 				sleep = sleep * 2;
 
 			++retry;
@@ -2634,8 +2649,8 @@ he_close(struct atm_vcc *vcc)
 		tpd->vcc = vcc;
 		wmb();
 
-		add_wait_queue(&he_vcc->tx_waitq, &wait);
 		set_current_state(TASK_UNINTERRUPTIBLE);
+		add_wait_queue(&he_vcc->tx_waitq, &wait);
 		__enqueue_tpd(he_dev, tpd, cid);
 		spin_unlock_irqrestore(&he_dev->global_lock, flags);
 
@@ -3033,17 +3048,17 @@ read_prom_byte(struct he_dev *he_dev, int addr)
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("chas williams <chas@cmf.nrl.navy.mil>");
 MODULE_DESCRIPTION("ForeRunnerHE ATM Adapter driver");
-MODULE_PARM(disable64, "h");
+module_param(disable64, bool, 0);
 MODULE_PARM_DESC(disable64, "disable 64-bit pci bus transfers");
-MODULE_PARM(nvpibits, "i");
+module_param(nvpibits, short, 0);
 MODULE_PARM_DESC(nvpibits, "numbers of bits for vpi (default 0)");
-MODULE_PARM(nvcibits, "i");
+module_param(nvcibits, short, 0);
 MODULE_PARM_DESC(nvcibits, "numbers of bits for vci (default 12)");
-MODULE_PARM(rx_skb_reserve, "i");
+module_param(rx_skb_reserve, short, 0);
 MODULE_PARM_DESC(rx_skb_reserve, "padding for receive skb (default 16)");
-MODULE_PARM(irq_coalesce, "i");
+module_param(irq_coalesce, bool, 0);
 MODULE_PARM_DESC(irq_coalesce, "use interrupt coalescing (default 1)");
-MODULE_PARM(sdh, "i");
+module_param(sdh, bool, 0);
 MODULE_PARM_DESC(sdh, "use SDH framing (default 0)");
 
 static struct pci_device_id he_pci_tbl[] = {
@@ -3051,6 +3066,8 @@ static struct pci_device_id he_pci_tbl[] = {
 	  0, 0, 0 },
 	{ 0, }
 };
+
+MODULE_DEVICE_TABLE(pci, he_pci_tbl);
 
 static struct pci_driver he_driver = {
 	.name =		"he",
@@ -3061,7 +3078,7 @@ static struct pci_driver he_driver = {
 
 static int __init he_init(void)
 {
-	return pci_module_init(&he_driver);
+	return pci_register_driver(&he_driver);
 }
 
 static void __exit he_cleanup(void)

@@ -96,7 +96,7 @@ int __init init_flagadm(void)
 			FLASH_SIZE, FLASH_PHYS_ADDR);
 	
 	flagadm_map.phys = FLASH_PHYS_ADDR;
-	flagadm_map.virt = (unsigned long)ioremap(FLASH_PHYS_ADDR,
+	flagadm_map.virt = ioremap(FLASH_PHYS_ADDR,
 					FLASH_SIZE);
 
 	if (!flagadm_map.virt) {

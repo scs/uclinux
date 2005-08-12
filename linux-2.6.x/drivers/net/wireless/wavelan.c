@@ -2172,6 +2172,11 @@ static int wavelan_get_range(struct net_device *dev,
 	range->num_bitrates = 1;
 	range->bitrate[0] = 2000000;	/* 2 Mb/s */
 
+	/* Event capability (kernel + driver) */
+	range->event_capa[0] = (IW_EVENT_CAPA_MASK(0x8B02) |
+				IW_EVENT_CAPA_MASK(0x8B04));
+	range->event_capa[1] = IW_EVENT_CAPA_K_1;
+
 	/* Disable interrupts and save flags. */
 	spin_lock_irqsave(&lp->spinlock, flags);
 	
@@ -2403,11 +2408,10 @@ static const struct iw_handler_def	wavelan_handler_def =
 	.num_standard	= sizeof(wavelan_handler)/sizeof(iw_handler),
 	.num_private	= sizeof(wavelan_private_handler)/sizeof(iw_handler),
 	.num_private_args = sizeof(wavelan_private_args)/sizeof(struct iw_priv_args),
-	.standard	= (iw_handler *) wavelan_handler,
-	.private	= (iw_handler *) wavelan_private_handler,
-	.private_args	= (struct iw_priv_args *) wavelan_private_args,
-	.spy_offset	= ((void *) (&((net_local *) NULL)->spy_data) -
-			   (void *) NULL),
+	.standard	= wavelan_handler,
+	.private	= wavelan_private_handler,
+	.private_args	= wavelan_private_args,
+	.get_wireless_stats = wavelan_get_wireless_stats,
 };
 
 /*------------------------------------------------------------------*/
@@ -3822,17 +3826,18 @@ static irqreturn_t wavelan_interrupt(int irq, void *dev_id, struct pt_regs *regs
 	if ((hasr & HASR_MMC_INTR) && (lp->hacr & HACR_MMC_INT_ENABLE)) {
 		u8 dce_status;
 
-#ifdef DEBUG_INTERRUPT_ERROR
-		printk(KERN_INFO
-		       "%s: wavelan_interrupt(): unexpected mmc interrupt: status 0x%04x.\n",
-		       dev->name, dce_status);
-#endif
 		/*
 		 * Interrupt from the modem management controller.
 		 * This will clear it -- ignored for now.
 		 */
 		mmc_read(ioaddr, mmroff(0, mmr_dce_status), &dce_status,
 			 sizeof(dce_status));
+
+#ifdef DEBUG_INTERRUPT_ERROR
+		printk(KERN_INFO
+		       "%s: wavelan_interrupt(): unexpected mmc interrupt: status 0x%04x.\n",
+		       dev->name, dce_status);
+#endif
 	}
 
 	/* Check if not controller interrupt */
@@ -4190,8 +4195,9 @@ static int __init wavelan_config(struct net_device *dev, unsigned short ioaddr)
 #endif				/* SET_MAC_ADDRESS */
 
 #ifdef WIRELESS_EXT		/* if wireless extension exists in the kernel */
-	dev->get_wireless_stats = wavelan_get_wireless_stats;
-	dev->wireless_handlers = (struct iw_handler_def *)&wavelan_handler_def;
+	dev->wireless_handlers = &wavelan_handler_def;
+	lp->wireless_data.spy_data = &lp->spy_data;
+	dev->wireless_data = &lp->wireless_data;
 #endif
 
 	dev->mtu = WAVELAN_MTU;
@@ -4338,7 +4344,8 @@ int init_module(void)
 		struct net_device *dev = alloc_etherdev(sizeof(net_local));
 		if (!dev)
 			break;
-		memcpy(dev->name, name[i], IFNAMSIZ);	/* Copy name */
+		if (name[i])
+			strcpy(dev->name, name[i]);	/* Copy name */
 		dev->base_addr = io[i];
 		dev->irq = irq[i];
 

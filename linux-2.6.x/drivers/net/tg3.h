@@ -124,6 +124,10 @@
 #define  CHIPREV_ID_5705_A3		 0x3003
 #define  CHIPREV_ID_5750_A0		 0x4000
 #define  CHIPREV_ID_5750_A1		 0x4001
+#define  CHIPREV_ID_5750_A3		 0x4003
+#define  CHIPREV_ID_5752_A0_HW		 0x5000
+#define  CHIPREV_ID_5752_A0		 0x6000
+#define  CHIPREV_ID_5752_A1		 0x6001
 #define  GET_ASIC_REV(CHIP_REV_ID)	((CHIP_REV_ID) >> 12)
 #define   ASIC_REV_5700			 0x07
 #define   ASIC_REV_5701			 0x00
@@ -131,6 +135,7 @@
 #define   ASIC_REV_5704			 0x02
 #define   ASIC_REV_5705			 0x03
 #define   ASIC_REV_5750			 0x04
+#define   ASIC_REV_5752			 0x06
 #define  GET_CHIP_REV(CHIP_REV_ID)	((CHIP_REV_ID) >> 8)
 #define   CHIPREV_5700_AX		 0x70
 #define   CHIPREV_5700_BX		 0x71
@@ -139,6 +144,8 @@
 #define   CHIPREV_5703_AX		 0x10
 #define   CHIPREV_5704_AX		 0x20
 #define   CHIPREV_5704_BX		 0x21
+#define   CHIPREV_5750_AX		 0x40
+#define   CHIPREV_5750_BX		 0x41
 #define  GET_METAL_REV(CHIP_REV_ID)	((CHIP_REV_ID) & 0xff)
 #define   METAL_REV_A0			 0x00
 #define   METAL_REV_A1			 0x01
@@ -869,10 +876,12 @@
 #define  HOSTCC_STATUS_ERROR_ATTN	 0x00000004
 #define HOSTCC_RXCOL_TICKS		0x00003c08
 #define  LOW_RXCOL_TICKS		 0x00000032
+#define  LOW_RXCOL_TICKS_CLRTCKS	 0x00000014
 #define  DEFAULT_RXCOL_TICKS		 0x00000048
 #define  HIGH_RXCOL_TICKS		 0x00000096
 #define HOSTCC_TXCOL_TICKS		0x00003c0c
 #define  LOW_TXCOL_TICKS		 0x00000096
+#define  LOW_TXCOL_TICKS_CLRTCKS	 0x00000048
 #define  DEFAULT_TXCOL_TICKS		 0x0000012c
 #define  HIGH_TXCOL_TICKS		 0x00000145
 #define HOSTCC_RXMAX_FRAMES		0x00003c10
@@ -885,8 +894,10 @@
 #define  HIGH_TXMAX_FRAMES		 0x00000052
 #define HOSTCC_RXCOAL_TICK_INT		0x00003c18
 #define  DEFAULT_RXCOAL_TICK_INT	 0x00000019
+#define  DEFAULT_RXCOAL_TICK_INT_CLRTCKS 0x00000014
 #define HOSTCC_TXCOAL_TICK_INT		0x00003c1c
 #define  DEFAULT_TXCOAL_TICK_INT	 0x00000019
+#define  DEFAULT_TXCOAL_TICK_INT_CLRTCKS 0x00000014
 #define HOSTCC_RXCOAL_MAXF_INT		0x00003c20
 #define  DEFAULT_RXCOAL_MAXF_INT	 0x00000005
 #define HOSTCC_TXCOAL_MAXF_INT		0x00003c24
@@ -1273,6 +1284,7 @@
 #define  GRC_MODE_HOST_STACKUP		0x00010000
 #define  GRC_MODE_HOST_SENDBDS		0x00020000
 #define  GRC_MODE_NO_TX_PHDR_CSUM	0x00100000
+#define  GRC_MODE_NVRAM_WR_ENABLE	0x00200000
 #define  GRC_MODE_NO_RX_PHDR_CSUM	0x00800000
 #define  GRC_MODE_IRQ_ON_TX_CPU_ATTN	0x01000000
 #define  GRC_MODE_IRQ_ON_RX_CPU_ATTN	0x02000000
@@ -1303,6 +1315,9 @@
 #define  GRC_LCLCTRL_CLEARINT		0x00000002
 #define  GRC_LCLCTRL_SETINT		0x00000004
 #define  GRC_LCLCTRL_INT_ON_ATTN	0x00000008
+#define  GRC_LCLCTRL_GPIO_INPUT3	0x00000020
+#define  GRC_LCLCTRL_GPIO_OE3		0x00000040
+#define  GRC_LCLCTRL_GPIO_OUTPUT3	0x00000080
 #define  GRC_LCLCTRL_GPIO_INPUT0	0x00000100
 #define  GRC_LCLCTRL_GPIO_INPUT1	0x00000200
 #define  GRC_LCLCTRL_GPIO_INPUT2	0x00000400
@@ -1365,6 +1380,8 @@
 #define  NVRAM_CMD_ERASE		 0x00000040
 #define  NVRAM_CMD_FIRST		 0x00000080
 #define  NVRAM_CMD_LAST			 0x00000100
+#define  NVRAM_CMD_WREN			 0x00010000
+#define  NVRAM_CMD_WRDI			 0x00020000
 #define NVRAM_STAT			0x00007004
 #define NVRAM_WRDATA			0x00007008
 #define NVRAM_ADDR			0x0000700c
@@ -1374,8 +1391,32 @@
 #define  NVRAM_CFG1_FLASHIF_ENAB	 0x00000001
 #define  NVRAM_CFG1_BUFFERED_MODE	 0x00000002
 #define  NVRAM_CFG1_PASS_THRU		 0x00000004
+#define  NVRAM_CFG1_STATUS_BITS		 0x00000070
 #define  NVRAM_CFG1_BIT_BANG		 0x00000008
+#define  NVRAM_CFG1_FLASH_SIZE		 0x02000000
 #define  NVRAM_CFG1_COMPAT_BYPASS	 0x80000000
+#define  NVRAM_CFG1_VENDOR_MASK		 0x03000003
+#define  FLASH_VENDOR_ATMEL_EEPROM	 0x02000000
+#define  FLASH_VENDOR_ATMEL_FLASH_BUFFERED	 0x02000003
+#define  FLASH_VENDOR_ATMEL_FLASH_UNBUFFERED	 0x00000003
+#define  FLASH_VENDOR_ST			 0x03000001
+#define  FLASH_VENDOR_SAIFUN		 0x01000003
+#define  FLASH_VENDOR_SST_SMALL		 0x00000001
+#define  FLASH_VENDOR_SST_LARGE		 0x02000001
+#define  NVRAM_CFG1_5752VENDOR_MASK	 0x03c00003
+#define  FLASH_5752VENDOR_ATMEL_EEPROM_64KHZ	 0x00000000
+#define  FLASH_5752VENDOR_ATMEL_EEPROM_376KHZ	 0x02000000
+#define  FLASH_5752VENDOR_ATMEL_FLASH_BUFFERED	 0x02000003
+#define  FLASH_5752VENDOR_ST_M45PE10	 0x02400000
+#define  FLASH_5752VENDOR_ST_M45PE20	 0x02400002
+#define  FLASH_5752VENDOR_ST_M45PE40	 0x02400001
+#define  NVRAM_CFG1_5752PAGE_SIZE_MASK	 0x70000000
+#define  FLASH_5752PAGE_SIZE_256	 0x00000000
+#define  FLASH_5752PAGE_SIZE_512	 0x10000000
+#define  FLASH_5752PAGE_SIZE_1K		 0x20000000
+#define  FLASH_5752PAGE_SIZE_2K		 0x30000000
+#define  FLASH_5752PAGE_SIZE_4K		 0x40000000
+#define  FLASH_5752PAGE_SIZE_264	 0x50000000
 #define NVRAM_CFG2			0x00007018
 #define NVRAM_CFG3			0x0000701c
 #define NVRAM_SWARB			0x00007020
@@ -1395,14 +1436,15 @@
 #define  SWARB_REQ1			 0x00002000
 #define  SWARB_REQ2			 0x00004000
 #define  SWARB_REQ3			 0x00008000
-#define    NVRAM_BUFFERED_PAGE_SIZE	   264
-#define    NVRAM_BUFFERED_PAGE_POS	   9
 #define NVRAM_ACCESS			0x00007024
 #define  ACCESS_ENABLE			 0x00000001
 #define  ACCESS_WR_ENABLE		 0x00000002
-/* 0x7024 --> 0x7400 unused */
+#define NVRAM_WRITE1			0x00007028
+/* 0x702c --> 0x7400 unused */
 
 /* 0x7400 --> 0x8000 unused */
+
+#define TG3_EEPROM_MAGIC		0x669955aa
 
 /* 32K Window into NIC internal memory */
 #define NIC_SRAM_WIN_BASE		0x00008000
@@ -1435,6 +1477,10 @@
 #define  NIC_SRAM_DATA_CFG_EEPROM_WP		 0x00000100
 #define  NIC_SRAM_DATA_CFG_MINI_PCI		 0x00001000
 #define  NIC_SRAM_DATA_CFG_FIBER_WOL		 0x00004000
+#define  NIC_SRAM_DATA_CFG_NO_GPIO2		 0x00100000
+
+#define NIC_SRAM_DATA_VER			0x00000b5c
+#define  NIC_SRAM_DATA_VER_SHIFT		 16
 
 #define NIC_SRAM_DATA_PHY_ID		0x00000b74
 #define  NIC_SRAM_DATA_PHY_ID1_MASK	 0xffff0000
@@ -1497,6 +1543,7 @@
 #define  MII_TG3_CTRL_ENABLE_AS_MASTER	0x1000
 
 #define MII_TG3_EXT_CTRL		0x10 /* Extended control register */
+#define  MII_TG3_EXT_CTRL_FIFO_ELASTIC	0x0001
 #define  MII_TG3_EXT_CTRL_LNK3_LED_MODE	0x0002
 #define  MII_TG3_EXT_CTRL_TBI		0x8000
 
@@ -1529,26 +1576,12 @@
 #define MII_TG3_INT_DUPLEXCHG		0x0008
 #define MII_TG3_INT_ANEG_PAGE_RX	0x0400
 
-/* XXX Add this to mii.h */
-#ifndef ADVERTISE_PAUSE
-#define ADVERTISE_PAUSE_CAP		0x0400
-#endif
-#ifndef ADVERTISE_PAUSE_ASYM
-#define ADVERTISE_PAUSE_ASYM		0x0800
-#endif
-#ifndef LPA_PAUSE
-#define LPA_PAUSE_CAP			0x0400
-#endif
-#ifndef LPA_PAUSE_ASYM
-#define LPA_PAUSE_ASYM			0x0800
-#endif
-
 /* There are two ways to manage the TX descriptors on the tigon3.
  * Either the descriptors are in host DMA'able memory, or they
  * exist only in the cards on-chip SRAM.  All 16 send bds are under
  * the same mode, they may not be configured individually.
  *
- * The mode we use is controlled by TG3_FLAG_HOST_TXDS in tp->tg3_flags.
+ * This driver always uses host memory TX descriptors.
  *
  * To use host memory TX descriptors:
  *	1) Set GRC_MODE_HOST_SENDBDS in GRC_MODE register.
@@ -1988,12 +2021,13 @@ struct tg3 {
 	spinlock_t			lock;
 	spinlock_t			indirect_lock;
 
-	unsigned long			regs;
+	void __iomem			*regs;
 	struct net_device		*dev;
 	struct pci_dev			*pdev;
 
 	struct tg3_hw_status		*hw_status;
 	dma_addr_t			status_mapping;
+	u32				last_tag;
 
 	u32				msg_enable;
 
@@ -2004,7 +2038,6 @@ struct tg3 {
 
 	spinlock_t			tx_lock;
 
-	/* TX descs are only used if TG3_FLAG_HOST_TXDS is set. */
 	struct tg3_tx_buffer_desc	*tx_ring;
 	struct tx_ring_info		*tx_buffers;
 	dma_addr_t			tx_desc_mapping;
@@ -2040,7 +2073,7 @@ struct tg3 {
 
 	u32				rx_offset;
 	u32				tg3_flags;
-#define TG3_FLAG_HOST_TXDS		0x00000001
+#define TG3_FLAG_TAGGED_STATUS		0x00000001
 #define TG3_FLAG_TXD_MBOX_HWBUG		0x00000002
 #define TG3_FLAG_RX_CHECKSUMS		0x00000004
 #define TG3_FLAG_USE_LINKCHG_REG	0x00000008
@@ -2070,15 +2103,13 @@ struct tg3 {
 #define TG3_FLAG_JUMBO_ENABLE		0x00800000
 #define TG3_FLAG_10_100_ONLY		0x01000000
 #define TG3_FLAG_PAUSE_AUTONEG		0x02000000
-#define TG3_FLAG_PAUSE_RX		0x04000000
-#define TG3_FLAG_PAUSE_TX		0x08000000
 #define TG3_FLAG_BROKEN_CHECKSUMS	0x10000000
 #define TG3_FLAG_GOT_SERDES_FLOWCTL	0x20000000
 #define TG3_FLAG_SPLIT_MODE		0x40000000
 #define TG3_FLAG_INIT_COMPLETE		0x80000000
 	u32				tg3_flags2;
 #define TG3_FLG2_RESTART_TIMER		0x00000001
-#define TG3_FLG2_SUN_5704		0x00000002
+#define TG3_FLG2_SUN_570X		0x00000002
 #define TG3_FLG2_NO_ETH_WIRE_SPEED	0x00000004
 #define TG3_FLG2_IS_5788		0x00000008
 #define TG3_FLG2_MAX_RXPEND_64		0x00000010
@@ -2089,6 +2120,16 @@ struct tg3 {
 #define TG3_FLG2_PCI_EXPRESS		0x00000200
 #define TG3_FLG2_ASF_NEW_HANDSHAKE	0x00000400
 #define TG3_FLG2_HW_AUTONEG		0x00000800
+#define TG3_FLG2_PHY_JUST_INITTED	0x00001000
+#define TG3_FLG2_PHY_SERDES		0x00002000
+#define TG3_FLG2_CAPACITIVE_COUPLING	0x00004000
+#define TG3_FLG2_FLASH			0x00008000
+#define TG3_FLG2_HW_TSO			0x00010000
+#define TG3_FLG2_SERDES_PREEMPHASIS	0x00020000
+#define TG3_FLG2_5705_PLUS		0x00040000
+#define TG3_FLG2_5750_PLUS		0x00080000
+#define TG3_FLG2_PROTECTED_NVRAM	0x00100000
+#define TG3_FLG2_USING_MSI		0x00200000
 
 	u32				split_mode_max_reqs;
 #define SPLIT_MODE_5704_MAX_REQ		3
@@ -2120,7 +2161,6 @@ struct tg3 {
 	u8				pci_lat_timer;
 	u8				pci_hdr_type;
 	u8				pci_bist;
-	u32				pci_cfg_state[64 / sizeof(u32)];
 
 	int				pm_cap;
 
@@ -2135,8 +2175,8 @@ struct tg3 {
 #define PHY_ID_BCM5704			0x60008190
 #define PHY_ID_BCM5705			0x600081a0
 #define PHY_ID_BCM5750			0x60008180
+#define PHY_ID_BCM5752			0x60008100
 #define PHY_ID_BCM8002			0x60010140
-#define PHY_ID_SERDES			0xfeedbee0
 #define PHY_ID_INVALID			0xffffffff
 #define PHY_ID_REV_MASK			0x0000000f
 #define PHY_REV_BCM5401_B0		0x1
@@ -2159,11 +2199,39 @@ struct tg3 {
 	 (X) == PHY_ID_BCM5411 || (X) == PHY_ID_BCM5701 || \
 	 (X) == PHY_ID_BCM5703 || (X) == PHY_ID_BCM5704 || \
 	 (X) == PHY_ID_BCM5705 || (X) == PHY_ID_BCM5750 || \
-	 (X) == PHY_ID_BCM8002 || (X) == PHY_ID_SERDES)
+	 (X) == PHY_ID_BCM8002)
 
 	struct tg3_hw_stats		*hw_stats;
 	dma_addr_t			stats_mapping;
 	struct work_struct		reset_task;
+
+	u32				nvram_size;
+	u32				nvram_pagesize;
+	u32				nvram_jedecnum;
+
+#define JEDEC_ATMEL			0x1f
+#define JEDEC_ST			0x20
+#define JEDEC_SAIFUN			0x4f
+#define JEDEC_SST			0xbf
+
+#define ATMEL_AT24C64_CHIP_SIZE		(64 * 1024)
+#define ATMEL_AT24C64_PAGE_SIZE		(32)
+
+#define ATMEL_AT24C512_CHIP_SIZE	(512 * 1024)
+#define ATMEL_AT24C512_PAGE_SIZE	(128)
+
+#define ATMEL_AT45DB0X1B_PAGE_POS	9
+#define ATMEL_AT45DB0X1B_PAGE_SIZE	264
+
+#define ATMEL_AT25F512_PAGE_SIZE	256
+
+#define ST_M45PEX0_PAGE_SIZE		256
+
+#define SAIFUN_SA25F0XX_PAGE_SIZE	256
+
+#define SST_25VF0X0_PAGE_SIZE		4098
+
+	struct ethtool_coalesce		coal;
 };
 
 #endif /* !(_T3_H) */

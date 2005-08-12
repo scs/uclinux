@@ -62,7 +62,7 @@
 
 
 static unsigned long doc_config_location = CONFIG_MTD_DOCPROBE_ADDRESS;
-MODULE_PARM(doc_config_location, "l");
+module_param(doc_config_location, ulong, 0);
 MODULE_PARM_DESC(doc_config_location, "Physical memory address at which to probe for DiskOnChip");
 
 static unsigned long __initdata doc_locations[] = {
@@ -94,9 +94,9 @@ static unsigned long __initdata doc_locations[] = {
 
 /* doccheck: Probe a given memory window to see if there's a DiskOnChip present */
 
-static inline int __init doccheck(unsigned long potential, unsigned long physadr)
+static inline int __init doccheck(void __iomem *potential, unsigned long physadr)
 {
-	unsigned long window=potential;
+	void __iomem *window=potential;
 	unsigned char tmp, tmpb, tmpc, ChipID;
 #ifndef DOC_PASSIVE_PROBE
 	unsigned char tmp2;
@@ -233,7 +233,7 @@ static int docfound;
 
 static void __init DoC_Probe(unsigned long physadr)
 {
-	unsigned long docptr;
+	void __iomem *docptr;
 	struct DiskOnChip *this;
 	struct mtd_info *mtd;
 	int ChipID;
@@ -243,7 +243,7 @@ static void __init DoC_Probe(unsigned long physadr)
 	char *im_modname = NULL;
 	void (*initroutine)(struct mtd_info *) = NULL;
 
-	docptr = (unsigned long)ioremap(physadr, DOC_IOREMAP_LEN);
+	docptr = ioremap(physadr, DOC_IOREMAP_LEN);
 	
 	if (!docptr)
 		return;
@@ -252,7 +252,7 @@ static void __init DoC_Probe(unsigned long physadr)
 		if (ChipID == DOC_ChipID_Doc2kTSOP) {
 			/* Remove this at your own peril. The hardware driver works but nothing prevents you from erasing bad blocks */
 			printk(KERN_NOTICE "Refusing to drive DiskOnChip 2000 TSOP until Bad Block Table is correctly supported by INFTL\n");
-			iounmap((void *)docptr);
+			iounmap(docptr);
 			return;
 		}
 		docfound = 1;
@@ -260,7 +260,7 @@ static void __init DoC_Probe(unsigned long physadr)
 
 		if (!mtd) {
 			printk(KERN_WARNING "Cannot allocate memory for data structures. Dropping.\n");
-			iounmap((void *)docptr);
+			iounmap(docptr);
 			return;
 		}
 		
@@ -318,7 +318,7 @@ static void __init DoC_Probe(unsigned long physadr)
 		printk(KERN_NOTICE "Cannot find driver for DiskOnChip %s at 0x%lX\n", name, physadr);
 		kfree(mtd);
 	}
-	iounmap((void *)docptr);
+	iounmap(docptr);
 }
 
 
@@ -328,7 +328,7 @@ static void __init DoC_Probe(unsigned long physadr)
  *
  ****************************************************************************/
 
-int __init init_doc(void)
+static int __init init_doc(void)
 {
 	int i;
 	

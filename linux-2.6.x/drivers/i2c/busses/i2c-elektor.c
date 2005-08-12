@@ -59,6 +59,7 @@ static int mmapped;
 
 static wait_queue_head_t pcf_wait;
 static int pcf_pending;
+static spinlock_t lock;
 
 /* ----- local functions ----------------------------------------------	*/
 
@@ -79,10 +80,10 @@ static void pcf_isa_setbyte(void *data, int ctl, int val)
 		break;
 	case 2: /* double mapped I/O needed for UP2000 board,
                    I don't know why this... */
-		writeb(val, address);
+		writeb(val, (void *)address);
 		/* fall */
 	case 1: /* memory mapped I/O */
-		writeb(val, address);
+		writeb(val, (void *)address);
 		break;
 	}
 }
@@ -90,7 +91,7 @@ static void pcf_isa_setbyte(void *data, int ctl, int val)
 static int pcf_isa_getbyte(void *data, int ctl)
 {
 	int address = ctl ? (base + 1) : base;
-	int val = mmapped ? readb(address) : inb(address);
+	int val = mmapped ? readb((void *)address) : inb(address);
 
 	pr_debug("i2c-elektor: Read 0x%X 0x%02X\n", address, val);
 
@@ -109,16 +110,27 @@ static int pcf_isa_getclock(void *data)
 }
 
 static void pcf_isa_waitforpin(void) {
-
+	DEFINE_WAIT(wait);
 	int timeout = 2;
+	unsigned long flags;
 
 	if (irq > 0) {
-		cli();
+		spin_lock_irqsave(&lock, flags);
 		if (pcf_pending == 0) {
-			interruptible_sleep_on_timeout(&pcf_wait, timeout*HZ );
-		} else
+			spin_unlock_irqrestore(&lock, flags);
+			prepare_to_wait(&pcf_wait, &wait, TASK_INTERRUPTIBLE);
+			if (schedule_timeout(timeout*HZ)) {
+				spin_lock_irqsave(&lock, flags);
+				if (pcf_pending == 1) {
+					pcf_pending = 0;
+				}
+				spin_unlock_irqrestore(&lock, flags);
+			}
+			finish_wait(&pcf_wait, &wait);
+		} else {
 			pcf_pending = 0;
-		sti();
+			spin_unlock_irqrestore(&lock, flags);
+		}
 	} else {
 		udelay(100);
 	}
@@ -126,7 +138,9 @@ static void pcf_isa_waitforpin(void) {
 
 
 static irqreturn_t pcf_isa_handler(int this_irq, void *dev_id, struct pt_regs *regs) {
+	spin_lock(&lock);
 	pcf_pending = 1;
+	spin_unlock(&lock);
 	wake_up_interruptible(&pcf_wait);
 	return IRQ_HANDLED;
 }
@@ -134,6 +148,7 @@ static irqreturn_t pcf_isa_handler(int this_irq, void *dev_id, struct pt_regs *r
 
 static int pcf_isa_init(void)
 {
+	spin_lock_init(&lock);
 	if (!mmapped) {
 		if (!request_region(base, 2, "i2c (isa bus adapter)")) {
 			printk(KERN_ERR
@@ -169,6 +184,7 @@ static struct i2c_algo_pcf_data pcf_isa_data = {
 
 static struct i2c_adapter pcf_isa_ops = {
 	.owner		= THIS_MODULE,
+	.class		= I2C_CLASS_HWMON,
 	.id		= I2C_HW_P_ELEK,
 	.algo_data	= &pcf_isa_data,
 	.name		= "PCF8584 ISA adapter",
@@ -180,11 +196,10 @@ static int __init i2c_pcfisa_init(void)
 	/* check to see we have memory mapped PCF8584 connected to the 
 	Cypress cy82c693 PCI-ISA bridge as on UP2000 board */
 	if (base == 0) {
+		struct pci_dev *cy693_dev;
 		
-		struct pci_dev *cy693_dev =
-                    pci_find_device(PCI_VENDOR_ID_CONTAQ, 
-		                    PCI_DEVICE_ID_CONTAQ_82C693, NULL);
-
+		cy693_dev = pci_get_device(PCI_VENDOR_ID_CONTAQ, 
+					   PCI_DEVICE_ID_CONTAQ_82C693, NULL);
 		if (cy693_dev) {
 			char config;
 			/* yeap, we've found cypress, let's check config */
@@ -215,6 +230,7 @@ static int __init i2c_pcfisa_init(void)
 					printk(KERN_INFO "i2c-elektor: found API UP2000 like board, will probe PCF8584 later.\n");
 				}
 			}
+			pci_dev_put(cy693_dev);
 		}
 	}
 #endif
@@ -269,11 +285,11 @@ MODULE_AUTHOR("Hans Berglund <hb@spacetec.no>");
 MODULE_DESCRIPTION("I2C-Bus adapter routines for PCF8584 ISA bus adapter");
 MODULE_LICENSE("GPL");
 
-MODULE_PARM(base, "i");
-MODULE_PARM(irq, "i");
-MODULE_PARM(clock, "i");
-MODULE_PARM(own, "i");
-MODULE_PARM(mmapped, "i");
+module_param(base, int, 0);
+module_param(irq, int, 0);
+module_param(clock, int, 0);
+module_param(own, int, 0);
+module_param(mmapped, int, 0);
 
 module_init(i2c_pcfisa_init);
 module_exit(i2c_pcfisa_exit);

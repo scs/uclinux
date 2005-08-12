@@ -1239,8 +1239,6 @@ int __init amifb_setup(char *options)
 		if (!strcmp(this_opt, "inverse")) {
 			amifb_inverse = 1;
 			fb_invert_cmaps();
-		} else if (!strcmp(this_opt, "off")) {
-			amifb_video_off();
 		} else if (!strcmp(this_opt, "ilbm"))
 			amifb_ilbm = 1;
 		else if (!strncmp(this_opt, "monitorcap:", 11))
@@ -1307,6 +1305,8 @@ static int amifb_set_par(struct fb_info *info)
 		info->fix.ywrapstep = 1;
 		info->fix.xpanstep = 0;
 		info->fix.ypanstep = 0;
+		info->flags = FBINFO_DEFAULT | FBINFO_HWACCEL_YWRAP |
+		    FBINFO_READS_FAST; /* override SCROLL_REDRAW */
 	} else {
 		info->fix.ywrapstep = 0;
 		if (par->vmode & FB_VMODE_SMOOTH_XPAN)
@@ -1314,6 +1314,7 @@ static int amifb_set_par(struct fb_info *info)
 		else
 			info->fix.xpanstep = 16<<maxfmode;
 		info->fix.ypanstep = 1;
+		info->flags = FBINFO_DEFAULT | FBINFO_HWACCEL_YPAN;
 	}
 	return 0;
 }
@@ -2254,21 +2255,17 @@ int __init amifb_init(void)
 	u_long chipptr;
 	u_int defmode;
 
+#ifndef MODULE
+	char *option = NULL;
+
+	if (fb_get_options("amifb", &option)) {
+		amifb_video_off();
+		return -ENODEV;
+	}
+	amifb_setup(option);
+#endif
 	if (!MACH_IS_AMIGA || !AMIGAHW_PRESENT(AMI_VIDEO))
 		return -ENXIO;
-
-	/*
-	 * TODO: where should we put this? The DMI Resolver doesn't have a
-	 *	 frame buffer accessible by the CPU
-	 */
-
-#ifdef CONFIG_GSP_RESOLVER
-	if (amifb_resolver){
-		custom.dmacon = DMAF_MASTER | DMAF_RASTER | DMAF_COPPER |
-				DMAF_BLITTER | DMAF_SPRITE;
-		return 0;
-	}
-#endif
 
 	/*
 	 * We request all registers starting from bplpt[0]
@@ -2382,7 +2379,7 @@ default_chipset:
 
 	fb_info.fbops = &amifb_ops;
 	fb_info.par = &currentpar;
-	fb_info.flags = FBINFO_FLAG_DEFAULT;
+	fb_info.flags = FBINFO_DEFAULT;
 
 	if (!fb_find_mode(&fb_info.var, &fb_info, mode_option, ami_modedb,
 			  NUM_TOTAL_MODES, &ami_modedb[defmode], 4)) {
@@ -2472,6 +2469,7 @@ static void amifb_deinit(void)
 static int amifb_blank(int blank, struct fb_info *info)
 {
 	do_blank = blank ? blank : -1;
+
 	return 0;
 }
 
@@ -2946,21 +2944,11 @@ static int ami_encode_var(struct fb_var_screeninfo *var,
 	var->bits_per_pixel = par->bpp;
 	var->grayscale = 0;
 
-	if (IS_AGA) {
-		var->red.offset = 0;
-		var->red.length = 8;
-		var->red.msb_right = 0;
-	} else {
-		if (clk_shift == TAG_SHRES) {
-			var->red.offset = 0;
-			var->red.length = 2;
-			var->red.msb_right = 0;
-		} else {
-			var->red.offset = 0;
-			var->red.length = 4;
-			var->red.msb_right = 0;
-		}
-	}
+	var->red.offset = 0;
+	var->red.msb_right = 0;
+	var->red.length = par->bpp;
+	if (par->bplcon0 & BPC0_HAM)
+	    var->red.length -= 2;
 	var->blue = var->green = var->red;
 	var->transp.offset = 0;
 	var->transp.length = 0;
@@ -3260,20 +3248,20 @@ static void ami_do_blank(void)
 		custom.dmacon = DMAF_RASTER | DMAF_SPRITE;
 		red = green = blue = 0;
 		if (!IS_OCS && do_blank > 1) {
-			switch (do_blank-1) {
-				case VESA_VSYNC_SUSPEND:
+			switch (do_blank) {
+				case FB_BLANK_VSYNC_SUSPEND:
 					custom.hsstrt = hsstrt2hw(par->hsstrt);
 					custom.hsstop = hsstop2hw(par->hsstop);
 					custom.vsstrt = vsstrt2hw(par->vtotal+4);
 					custom.vsstop = vsstop2hw(par->vtotal+4);
 					break;
-				case VESA_HSYNC_SUSPEND:
+				case FB_BLANK_HSYNC_SUSPEND:
 					custom.hsstrt = hsstrt2hw(par->htotal+16);
 					custom.hsstop = hsstop2hw(par->htotal+16);
 					custom.vsstrt = vsstrt2hw(par->vsstrt);
 					custom.vsstop = vsstrt2hw(par->vsstop);
 					break;
-				case VESA_POWERDOWN:
+				case FB_BLANK_POWERDOWN:
 					custom.hsstrt = hsstrt2hw(par->htotal+16);
 					custom.hsstop = hsstop2hw(par->htotal+16);
 					custom.vsstrt = vsstrt2hw(par->vtotal+4);
@@ -3350,7 +3338,7 @@ static int ami_get_var_cursorinfo(struct fb_var_cursorinfo *var, u_char *data)
 	register short delta;
 	register u_char color;
 	short height, width, bits, words;
-	int i, size, alloc;
+	int size, alloc;
 
 	size = par->crsr.height*par->crsr.width;
 	alloc = var->height*var->width;
@@ -3360,8 +3348,8 @@ static int ami_get_var_cursorinfo(struct fb_var_cursorinfo *var, u_char *data)
 	var->yspot = par->crsr.spot_y;
 	if (size > var->height*var->width)
 		return -ENAMETOOLONG;
-	if ((i = verify_area(VERIFY_WRITE, (void *)data, size)))
-		return i;
+	if (!access_ok(VERIFY_WRITE, (void *)data, size))
+		return -EFAULT;
 	delta = 1<<par->crsr.fmode;
 	lspr = lofsprite + (delta<<1);
 	if (par->bplcon0 & BPC0_LACE)
@@ -3425,7 +3413,6 @@ static int ami_set_var_cursorinfo(struct fb_var_cursorinfo *var, u_char *data)
 	register short delta;
 	u_short fmode;
 	short height, width, bits, words;
-	int i;
 
 	if (!var->width)
 		return -EINVAL;
@@ -3441,8 +3428,8 @@ static int ami_set_var_cursorinfo(struct fb_var_cursorinfo *var, u_char *data)
 		return -EINVAL;
 	if (!var->height)
 		return -EINVAL;
-	if ((i = verify_area(VERIFY_READ, (void *)data, var->width*var->height)))
-		return i;
+	if (!access_ok(VERIFY_READ, (void *)data, var->width*var->height))
+		return -EFAULT;
 	delta = 1<<fmode;
 	lofsprite = shfsprite = (u_short *)spritememory;
 	lspr = lofsprite + (delta<<1);
@@ -3811,13 +3798,10 @@ static void ami_rebuild_copper(void)
 }
 
 
+module_init(amifb_init);
+
 #ifdef MODULE
 MODULE_LICENSE("GPL");
-
-int init_module(void)
-{
-	return amifb_init();
-}
 
 void cleanup_module(void)
 {

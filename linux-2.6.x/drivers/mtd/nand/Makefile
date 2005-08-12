@@ -14,6 +14,11 @@ obj-$(CONFIG_MTD_NAND_TX4925NDFMC)	+= tx4925ndfmc.o
 obj-$(CONFIG_MTD_NAND_TX4938NDFMC)	+= tx4938ndfmc.o
 obj-$(CONFIG_MTD_NAND_AU1550)		+= au1550nd.o
 obj-$(CONFIG_MTD_NAND_PPCHAMELEONEVB)	+= ppchameleonevb.o
+obj-$(CONFIG_MTD_NAND_S3C2410)		+= s3c2410.o
 obj-$(CONFIG_MTD_NAND_DISKONCHIP)	+= diskonchip.o
+obj-$(CONFIG_MTD_NAND_H1900)		+= h1910.o
+obj-$(CONFIG_MTD_NAND_RTC_FROM4)	+= rtc_from4.o
+obj-$(CONFIG_MTD_NAND_SHARPSL)		+= sharpsl.o
+obj-$(CONFIG_MTD_NAND_NANDSIM)		+= nandsim.o
 
 nand-objs = nand_base.o nand_bbt.o

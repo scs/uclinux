@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2004, R. Byron Moore
+ * Copyright (C) 2000 - 2005, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -94,8 +94,9 @@ acpi_ns_one_complete_parse (
 		return_ACPI_STATUS (AE_NO_MEMORY);
 	}
 
-	status = acpi_ds_init_aml_walk (walk_state, parse_root, NULL, table_desc->aml_start,
-			  table_desc->aml_length, NULL, NULL, pass_number);
+	status = acpi_ds_init_aml_walk (walk_state, parse_root, NULL,
+			  table_desc->aml_start, table_desc->aml_length,
+			  NULL, pass_number);
 	if (ACPI_FAILURE (status)) {
 		acpi_ds_delete_walk_state (walk_state);
 		return_ACPI_STATUS (status);

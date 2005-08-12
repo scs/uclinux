@@ -42,11 +42,11 @@ unsigned long parport_default_timeslice = PARPORT_DEFAULT_TIMESLICE;
 int parport_default_spintime =  DEFAULT_SPIN_TIME;
 
 static LIST_HEAD(portlist);
-static spinlock_t parportlist_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(parportlist_lock);
 
 /* list of all allocated ports, sorted by ->number */
 static LIST_HEAD(all_ports);
-static spinlock_t full_list_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(full_list_lock);
 
 static LIST_HEAD(drivers);
 
@@ -306,7 +306,7 @@ struct parport *parport_register_port(unsigned long base, int irq, int dma,
 	tmp->ops = ops;
 	tmp->physport = tmp;
 	memset (tmp->probe_info, 0, 5 * sizeof (struct parport_device_info));
-	tmp->cad_lock = RW_LOCK_UNLOCKED;
+	rwlock_init(&tmp->cad_lock);
 	spin_lock_init(&tmp->waitlist_lock);
 	spin_lock_init(&tmp->pardevice_lock);
 	tmp->ieee1284.mode = IEEE1284_MODE_COMPAT;
@@ -1007,7 +1007,6 @@ EXPORT_SYMBOL(parport_register_driver);
 EXPORT_SYMBOL(parport_unregister_driver);
 EXPORT_SYMBOL(parport_register_device);
 EXPORT_SYMBOL(parport_unregister_device);
-EXPORT_SYMBOL(parport_get_port);
 EXPORT_SYMBOL(parport_put_port);
 EXPORT_SYMBOL(parport_find_number);
 EXPORT_SYMBOL(parport_find_base);

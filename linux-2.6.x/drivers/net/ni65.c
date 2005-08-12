@@ -73,8 +73,8 @@
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
 #include <linux/module.h>
+#include <linux/bitops.h>
 
-#include <asm/bitops.h>
 #include <asm/io.h>
 #include <asm/dma.h>
 
@@ -526,8 +526,7 @@ static int __init ni65_probe1(struct net_device *dev,int ioaddr)
 			ni65_init_lance(p,dev->dev_addr,0,0);
 			irq_mask = probe_irq_on();
 			writereg(CSR0_INIT|CSR0_INEA,CSR0); /* trigger interrupt */
-			set_current_state(TASK_UNINTERRUPTIBLE);
-			schedule_timeout(HZ/50);
+			msleep(20);
 			dev->irq = probe_irq_off(irq_mask);
 			if(!dev->irq)
 			{
@@ -1250,9 +1249,9 @@ static void set_multicast_list(struct net_device *dev)
 #ifdef MODULE
 static struct net_device *dev_ni65;
 
-MODULE_PARM(irq, "i");
-MODULE_PARM(io, "i");
-MODULE_PARM(dma, "i");
+module_param(irq, int, 0);
+module_param(io, int, 0);
+module_param(dma, int, 0);
 MODULE_PARM_DESC(irq, "ni6510 IRQ number (ignored for some cards)");
 MODULE_PARM_DESC(io, "ni6510 I/O base address");
 MODULE_PARM_DESC(dma, "ni6510 ISA DMA channel (ignored for some cards)");

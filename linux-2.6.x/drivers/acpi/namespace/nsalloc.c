@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2004, R. Byron Moore
+ * Copyright (C) 2000 - 2005, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -267,7 +267,7 @@ acpi_ns_install_node (
 	else {
 #ifdef ACPI_ALPHABETIC_NAMESPACE
 		/*
-		 * Walk the list whilst searching for the the correct
+		 * Walk the list whilst searching for the correct
 		 * alphabetic placement.
 		 */
 		previous_child_node = NULL;
@@ -502,8 +502,8 @@ acpi_ns_delete_namespace_subtree (
 				 * visit the node
 				 */
 				level++;
-				parent_node   = child_node;
-				child_node    = NULL;
+				parent_node = child_node;
+				child_node = NULL;
 			}
 		}
 		else {
@@ -650,8 +650,8 @@ acpi_ns_delete_namespace_by_owner (
 				 * visit the node
 				 */
 				level++;
-				parent_node   = child_node;
-				child_node    = NULL;
+				parent_node = child_node;
+				child_node = NULL;
 			}
 			else if (child_node->owner_id == owner_id) {
 				deletion_node = child_node;

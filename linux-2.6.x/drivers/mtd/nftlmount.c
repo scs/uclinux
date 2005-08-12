@@ -41,7 +41,6 @@ char nftlmountrev[]="$Revision$";
 static int find_boot_record(struct NFTLrecord *nftl)
 {
 	struct nftl_uci1 h1;
-	struct nftl_oob oob;
 	unsigned int block, boot_record_count = 0;
 	size_t retlen;
 	u8 buf[SECTORSIZE];
@@ -269,7 +268,8 @@ static int memcmpb(void *a, int c, int n)
 static int check_free_sectors(struct NFTLrecord *nftl, unsigned int address, int len, 
 			      int check_oob)
 {
-	int i, retlen;
+	int i;
+	size_t retlen;
 	u8 buf[SECTORSIZE + nftl->mbd.mtd->oobsize];
 
 	for (i = 0; i < len; i += SECTORSIZE) {
@@ -318,6 +318,7 @@ int NFTL_formatblock(struct NFTLrecord *nftl, int block)
 	memset(instr, 0, sizeof(struct erase_info));
 
 	/* XXX: use async erase interface, XXX: test return code */
+	instr->mtd = nftl->mbd.mtd;
 	instr->addr = block * nftl->EraseSize;
 	instr->len = nftl->EraseSize;
 	MTD_ERASE(nftl->mbd.mtd, instr);
@@ -366,7 +367,8 @@ static void check_sectors_in_chain(struct NFTLrecord *nftl, unsigned int first_b
 {
 	unsigned int block, i, status;
 	struct nftl_bci bci;
-	int sectors_per_block, retlen;
+	int sectors_per_block;
+	size_t retlen;
 
 	sectors_per_block = nftl->EraseSize / SECTORSIZE;
 	block = first_block;

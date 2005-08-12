@@ -19,8 +19,8 @@
 #include <linux/timer.h>
 
 #include <linux/init.h>
+#include <linux/bitops.h>
 #include <asm/system.h>
-#include <asm/bitops.h>
 #include <asm/io.h>
 #include <linux/errno.h>
 #include <linux/delay.h>
@@ -43,8 +43,8 @@
 extern int init_arlan_proc(void);
 extern void cleanup_arlan_proc(void);
 #else
-#define init_arlan_proc()	(0)
-#define cleanup_arlan_proc()	do { } while (0);
+#define init_arlan_proc()	({ 0; })
+#define cleanup_arlan_proc()	do { } while (0)
 #endif
 
 extern struct net_device *arlan_device[MAX_ARLANS];
@@ -332,7 +332,7 @@ struct TxParam
 /* Information that need to be kept for each board. */
 struct arlan_private {
       struct net_device_stats stats;
-      struct arlan_shmem * card;
+      struct arlan_shmem __iomem * card;
       struct arlan_shmem * conf;
 
       struct arlan_conf_stru * Conf;	     
@@ -403,14 +403,12 @@ struct arlan_private {
 #define ARLAN_COM_INT                 0x80
 
 
-#define TXLAST(dev) (((struct arlan_private *)dev->priv)->txRing[((struct arlan_private *)dev->priv)->txLast])
-#define TXHEAD(dev) (((struct arlan_private *)dev->priv)->txRing[0])
-#define TXTAIL(dev) (((struct arlan_private *)dev->priv)->txRing[1])
+#define TXLAST(dev) (((struct arlan_private *)netdev_priv(dev))->txRing[((struct arlan_private *)netdev_priv(dev))->txLast])
+#define TXHEAD(dev) (((struct arlan_private *)netdev_priv(dev))->txRing[0])
+#define TXTAIL(dev) (((struct arlan_private *)netdev_priv(dev))->txRing[1])
 
-#define TXBuffStart(dev) \
- ((int)(((struct arlan_private *)dev->priv)->card)->txBuffer) - ((int)(((struct arlan_private *)dev->priv)->card) )
-#define TXBuffEnd(dev) \
- ((int)(((struct arlan_private *)dev->priv)->card)->rxBuffer) - ((int)(((struct arlan_private *)dev->priv)->card)
+#define TXBuffStart(dev) offsetof(struct arlan_shmem, txBuffer)
+#define TXBuffEnd(dev) offsetof(struct arlan_shmem, xxBuffer)
  
 #define READSHM(to,from,atype) {\
 	atype tmp;\
@@ -451,16 +449,16 @@ struct arlan_private {
 
 
 #define registrationBad(dev)\
-   ( (   READSHMB(((struct arlan_private *)dev->priv)->card->registrationMode)    > 0) && \
-     (   READSHMB(((struct arlan_private *)dev->priv)->card->registrationStatus) == 0)    )
+   ( (   READSHMB(((struct arlan_private *)netdev_priv(dev))->card->registrationMode)    > 0) && \
+     (   READSHMB(((struct arlan_private *)netdev_priv(dev))->card->registrationStatus) == 0)    )
 
 
 #define readControlRegister(dev)\
- 	READSHMB(((struct arlan_private *)dev->priv)->card->cntrlRegImage)
+ 	READSHMB(((struct arlan_private *)netdev_priv(dev))->card->cntrlRegImage)
 
 #define writeControlRegister(dev, v){\
-   WRITESHMB(((struct arlan_private *)dev->priv)->card->cntrlRegImage	,((v) &0xF) );\
-   WRITESHMB(((struct arlan_private *)dev->priv)->card->controlRegister	,(v) 	);}
+   WRITESHMB(((struct arlan_private *)netdev_priv(dev))->card->cntrlRegImage	,((v) &0xF) );\
+   WRITESHMB(((struct arlan_private *)netdev_priv(dev))->card->controlRegister	,(v) 	);}
 
 
 #define arlan_interrupt_lancpu(dev) {\

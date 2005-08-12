@@ -229,7 +229,7 @@ s390_redo_validation (void)
 	unsigned int irq;
 
 	CIO_TRACE_EVENT (0, "redoval");
-	for (irq = 0; irq <= __MAX_SUBCHANNELS; irq++) {
+	for (irq = 0; irq < __MAX_SUBCHANNELS; irq++) {
 		int ret;
 		struct subchannel *sch;
 

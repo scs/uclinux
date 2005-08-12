@@ -107,7 +107,7 @@ static volatile unsigned char sjcd_completion_status = 0;
 static volatile unsigned char sjcd_completion_error = 0;
 static unsigned short sjcd_command_is_in_progress = 0;
 static unsigned short sjcd_error_reported = 0;
-static spinlock_t sjcd_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(sjcd_lock);
 
 static int sjcd_open_count;
 
@@ -116,7 +116,7 @@ static struct sjcd_play_msf sjcd_playing;
 
 static int sjcd_base = SJCD_BASE_ADDR;
 
-MODULE_PARM(sjcd_base, "i");
+module_param(sjcd_base, int, 0);
 
 static DECLARE_WAIT_QUEUE_HEAD(sjcd_waitq);
 
@@ -831,8 +831,8 @@ static int sjcd_ioctl(struct inode *ip, struct file *fp,
 			printk("SJCD: ioctl: playmsf\n");
 #endif
 			if ((s =
-			     verify_area(VERIFY_READ, argp,
-					 sizeof(sjcd_msf))) == 0) {
+			     access_ok(VERIFY_READ, argp, sizeof(sjcd_msf))
+			     		? 0 : -EFAULT) == 0) {
 				if (sjcd_audio_status == CDROM_AUDIO_PLAY) {
 					sjcd_send_cmd(SCMD_PAUSE);
 					(void) sjcd_receive_status();
@@ -888,8 +888,8 @@ static int sjcd_ioctl(struct inode *ip, struct file *fp,
 			printk("SJCD: ioctl: readtocentry\n");
 #endif
 			if ((s =
-			     verify_area(VERIFY_WRITE, argp,
-					 sizeof(toc_entry))) == 0) {
+			     access_ok(VERIFY_WRITE, argp, sizeof(toc_entry))
+			     		? 0 : -EFAULT) == 0) {
 				struct sjcd_hw_disk_info *tp;
 
 				if (copy_from_user(&toc_entry, argp,
@@ -943,8 +943,8 @@ static int sjcd_ioctl(struct inode *ip, struct file *fp,
 			printk("SJCD: ioctl: subchnl\n");
 #endif
 			if ((s =
-			     verify_area(VERIFY_WRITE, argp,
-					 sizeof(subchnl))) == 0) {
+			     access_ok(VERIFY_WRITE, argp, sizeof(subchnl))
+			     		? 0 : -EFAULT) == 0) {
 				struct sjcd_hw_qinfo q_info;
 
 				if (copy_from_user(&subchnl, argp,
@@ -1002,8 +1002,8 @@ static int sjcd_ioctl(struct inode *ip, struct file *fp,
 			printk("SJCD: ioctl: volctrl\n");
 #endif
 			if ((s =
-			     verify_area(VERIFY_READ, argp,
-					 sizeof(vol_ctrl))) == 0) {
+			     access_ok(VERIFY_READ, argp, sizeof(vol_ctrl))
+			     		? 0 : -EFAULT) == 0) {
 				unsigned char dummy[4];
 
 				if (copy_from_user(&vol_ctrl, argp,

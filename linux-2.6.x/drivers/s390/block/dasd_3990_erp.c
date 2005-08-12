@@ -20,9 +20,9 @@
 
 
 struct DCTL_data {
-	unsigned char subcommand;	/* e.g Inhibit Write, Enable Write,... */
-	unsigned char modifier;	/* Subcommand modifier		       */
-	unsigned short res;	/* reserved */
+	unsigned char subcommand;  /* e.g Inhibit Write, Enable Write,... */
+	unsigned char modifier;	   /* Subcommand modifier */
+	unsigned short res;	   /* reserved */
 } __attribute__ ((packed));
 
 /*
@@ -422,7 +422,8 @@ dasd_3990_erp_action_1(struct dasd_ccw_req * erp)
  *   Setup ERP to do the ERP action 4 (see Reference manual).
  *   Set the current request to PENDING to block the CQR queue for that device
  *   until the state change interrupt appears.
- *   Use a timer (20 seconds) to retry the cqr if the interrupt is still missing.
+ *   Use a timer (20 seconds) to retry the cqr if the interrupt is still
+ *   missing.
  *
  *  PARAMETER
  *   sense		sense data of the actual error
@@ -443,9 +444,8 @@ dasd_3990_erp_action_4(struct dasd_ccw_req * erp, char *sense)
 	/* interrupt (this enables easier enqueing of the cqr)	    */
 	if (erp->function != dasd_3990_erp_action_4) {
 
-		DEV_MESSAGE(KERN_INFO, device,
-			    "dasd_3990_erp_action_4: first time retry"
-			    "%s", " ");
+		DEV_MESSAGE(KERN_INFO, device, "%s",
+			    "dasd_3990_erp_action_4: first time retry");
 
 		erp->retries = 256;
 		erp->function = dasd_3990_erp_action_4;
@@ -461,6 +461,12 @@ dasd_3990_erp_action_4(struct dasd_ccw_req * erp, char *sense)
 			
 			dasd_3990_erp_block_queue(erp, 30*HZ);
 
+                } else if (sense[25] == 0x1E) {	/* busy */
+			DEV_MESSAGE(KERN_INFO, device,
+				    "busy - redriving request later, "
+				    "%d retries left",
+				    erp->retries);
+                        dasd_3990_erp_block_queue(erp, HZ);
 		} else {
 
 			/* no state change pending - retry */
@@ -820,7 +826,7 @@ dasd_3990_handle_env_data(struct dasd_ccw_req * erp, char *sense)
 		}
 		break;
 
-	case 0x50:		/* Format 5 - Data Check with displacement information */
+	case 0x50:  /* Format 5 - Data Check with displacement information */
 		switch (msg_no) {
 		case 0x00:
 			DEV_MESSAGE(KERN_WARNING, device, "%s",
@@ -865,7 +871,7 @@ dasd_3990_handle_env_data(struct dasd_ccw_req * erp, char *sense)
 		}
 		break;
 
-	case 0x60:		/* Format 6 - Usage Statistics/Overrun Errors */
+	case 0x60:  /* Format 6 - Usage Statistics/Overrun Errors */
 		switch (msg_no) {
 		case 0x00:
 			DEV_MESSAGE(KERN_WARNING, device, "%s",
@@ -905,7 +911,7 @@ dasd_3990_handle_env_data(struct dasd_ccw_req * erp, char *sense)
 		}
 		break;
 
-	case 0x70:		/* Format 7 - Device Connection Control Checks */
+	case 0x70:  /* Format 7 - Device Connection Control Checks */
 		switch (msg_no) {
 		case 0x00:
 			DEV_MESSAGE(KERN_WARNING, device, "%s",
@@ -982,7 +988,7 @@ dasd_3990_handle_env_data(struct dasd_ccw_req * erp, char *sense)
 		}
 		break;
 
-	case 0x80:		/* Format 8 - Additional Device Equipment Checks */
+	case 0x80:  /* Format 8 - Additional Device Equipment Checks */
 		switch (msg_no) {
 		case 0x00:	/* No Message */
 		case 0x01:
@@ -1035,7 +1041,7 @@ dasd_3990_handle_env_data(struct dasd_ccw_req * erp, char *sense)
 		}
 		break;
 
-	case 0x90:		/* Format 9 - Device Read, Write, and Seek Checks */
+	case 0x90:  /* Format 9 - Device Read, Write, and Seek Checks */
 		switch (msg_no) {
 		case 0x00:
 			break;	/* No Message */
@@ -1304,8 +1310,8 @@ dasd_3990_erp_data_check(struct dasd_ccw_req * erp, char *sense)
 			    "fetch mode active");
 
 		/* not possible to handle this situation in Linux */
-		panic("No way to inform appliction about the possibly "
-		      "incorret data");
+		panic("No way to inform application about the possibly "
+		      "incorrect data");
 
 	} else if (sense[2] & SNS2_ENV_DATA_PRESENT) {
 
@@ -2153,7 +2159,7 @@ dasd_3990_erp_inspect_32(struct dasd_ccw_req * erp, char *sense)
 			erp = dasd_3990_erp_int_req(erp);
 			break;
 
-		case 0x0F:	/* length mismatch during update write command */
+		case 0x0F:  /* length mismatch during update write command */
 			DEV_MESSAGE(KERN_ERR, device, "%s",
 				    "update write command error - should not "
 				    "happen;\n"
@@ -2164,7 +2170,7 @@ dasd_3990_erp_inspect_32(struct dasd_ccw_req * erp, char *sense)
 			erp = dasd_3990_erp_cleanup(erp, DASD_CQR_FAILED);
 			break;
 
-		case 0x10:	/* logging required for other channel program */
+		case 0x10:  /* logging required for other channel program */
 			erp = dasd_3990_erp_action_10_32(erp, sense);
 			break;
 
@@ -2191,8 +2197,8 @@ dasd_3990_erp_inspect_32(struct dasd_ccw_req * erp, char *sense)
 
 			/* not possible to handle this situation in Linux */
 			panic
-			    ("Invalid data - No way to inform appliction about "
-			     "the possibly incorret data");
+			    ("Invalid data - No way to inform application "
+			     "about the possibly incorrect data");
 			break;
 
 		case 0x1D:	/* state-change pending */
@@ -2201,6 +2207,13 @@ dasd_3990_erp_inspect_32(struct dasd_ccw_req * erp, char *sense)
 				    "for the subsystem or device");
 
 			erp = dasd_3990_erp_action_4(erp, sense);
+			break;
+
+		case 0x1E:	/* busy */
+                        DEV_MESSAGE(KERN_DEBUG, device, "%s",
+				    "Busy condition exists "
+				    "for the subsystem or device");
+                        erp = dasd_3990_erp_action_4(erp, sense);
 			break;
 
 		default:	/* all others errors - default erp  */
@@ -2250,11 +2263,10 @@ dasd_3990_erp_inspect(struct dasd_ccw_req * erp)
 		/* inspect the 32 byte sense data */
 		erp_new = dasd_3990_erp_inspect_32(erp, sense);
 
-	}			/* end distinguish between 24 and 32 byte sense data */
+	}	/* end distinguish between 24 and 32 byte sense data */
 
 	return erp_new;
-
-}				/* END dasd_3990_erp_inspect */
+}
 
 /*
  * DASD_3990_ERP_ADD_ERP
@@ -2507,7 +2519,8 @@ dasd_3990_erp_further_erp(struct dasd_ccw_req *erp)
 		erp = dasd_3990_erp_compound(erp, sense);
 
 	} else {
-		/* no retry left and no additional special handling necessary */
+		/* No retry left and no additional special handling */
+		/*necessary */
 		DEV_MESSAGE(KERN_ERR, device,
 			    "no retries left for erp %p - "
 			    "set status to FAILED", erp);

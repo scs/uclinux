@@ -82,8 +82,7 @@ int __init init_edb7312nor(void)
 
        	printk(KERN_NOTICE MSG_PREFIX "0x%08x at 0x%08x\n", 
 	       WINDOW_SIZE, WINDOW_ADDR);
-	edb7312nor_map.virt = (unsigned long)
-	  ioremap(WINDOW_ADDR, WINDOW_SIZE);
+	edb7312nor_map.virt = ioremap(WINDOW_ADDR, WINDOW_SIZE);
 
 	if (!edb7312nor_map.virt) {
 		printk(MSG_PREFIX "failed to ioremap\n");

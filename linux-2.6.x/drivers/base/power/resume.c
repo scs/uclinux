@@ -22,8 +22,17 @@ extern int sysdev_resume(void);
 
 int resume_device(struct device * dev)
 {
-	if (dev->bus && dev->bus->resume)
+	if (dev->power.pm_parent
+			&& dev->power.pm_parent->power.power_state) {
+		dev_err(dev, "PM: resume from %d, parent %s still %d\n",
+			dev->power.power_state,
+			dev->power.pm_parent->bus_id,
+			dev->power.pm_parent->power.power_state);
+	}
+	if (dev->bus && dev->bus->resume) {
+		dev_dbg(dev,"resuming\n");
 		return dev->bus->resume(dev);
+	}
 	return 0;
 }
 
@@ -31,16 +40,22 @@ int resume_device(struct device * dev)
 
 void dpm_resume(void)
 {
+	down(&dpm_list_sem);
 	while(!list_empty(&dpm_off)) {
 		struct list_head * entry = dpm_off.next;
 		struct device * dev = to_device(entry);
-		list_del_init(entry);
 
+		get_device(dev);
+		list_del_init(entry);
+		list_add_tail(entry, &dpm_active);
+
+		up(&dpm_list_sem);
 		if (!dev->power.prev_state)
 			resume_device(dev);
-
-		list_add_tail(entry, &dpm_active);
+		down(&dpm_list_sem);
+		put_device(dev);
 	}
+	up(&dpm_list_sem);
 }
 
 
@@ -58,7 +73,7 @@ void device_resume(void)
 	up(&dpm_sem);
 }
 
-EXPORT_SYMBOL(device_resume);
+EXPORT_SYMBOL_GPL(device_resume);
 
 
 /**
@@ -76,9 +91,13 @@ void dpm_power_up(void)
 {
 	while(!list_empty(&dpm_off_irq)) {
 		struct list_head * entry = dpm_off_irq.next;
+		struct device * dev = to_device(entry);
+
+		get_device(dev);
 		list_del_init(entry);
-		resume_device(to_device(entry));
 		list_add_tail(entry, &dpm_active);
+		resume_device(dev);
+		put_device(dev);
 	}
 }
 
@@ -97,6 +116,6 @@ void device_power_up(void)
 	dpm_power_up();
 }
 
-EXPORT_SYMBOL(device_power_up);
+EXPORT_SYMBOL_GPL(device_power_up);
 
 

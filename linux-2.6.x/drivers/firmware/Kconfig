@@ -14,8 +14,9 @@ config EDD
 	  Services real mode BIOS calls to determine which disk
 	  BIOS tries boot from.  This information is then exported via sysfs.
 
-	  This option is experimental, but believed to be safe,
-	  and most disk controller BIOS vendors do not yet implement this feature.
+	  This option is experimental and is known to fail to boot on some
+          obscure configurations. Most disk controller BIOS vendors do
+          not yet implement this feature.
 
 config EFI_VARS
 	tristate "EFI Variable Support via sysfs"
@@ -29,10 +30,10 @@ config EFI_VARS
 	  Note that using this driver in concert with efibootmgr requires
 	  at least test release version 0.5.0-test3 or later, which is
 	  available from Matt Domsch's website located at:
-	  http://linux.dell.com/efibootmgr/testing/efibootmgr-0.5.0-test3.tar.gz
+	  <http://linux.dell.com/efibootmgr/testing/efibootmgr-0.5.0-test3.tar.gz>
 
 	  Subsequent efibootmgr releases may be found at:
-	  http://linux.dell.com/efibootmgr
+	  <http://linux.dell.com/efibootmgr>
 
 config EFI_PCDP
 	bool "Console device selection via EFI PCDP or HCDP table"
@@ -47,7 +48,11 @@ config EFI_PCDP
 	  use the first serial port it describes as the Linux console,
 	  say Y here.  If your EFI ConOut path contains only a UART
 	  device, it will become the console automatically.  Otherwise,
-	  you must specify the "console=ttyS0" kernel boot argument.
+	  you must specify the "console=hcdp" kernel boot argument.
+
+	  Neither the PCDP nor the HCDP affects naming of serial devices,
+	  so a serial console may be /dev/ttyS0, /dev/ttyS1, etc, depending
+	  on how the driver discovers devices.
 
 	  You must also enable the appropriate drivers (serial, VGA, etc.)
 

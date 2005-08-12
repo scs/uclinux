@@ -16,7 +16,7 @@
  *    along with this program; if not, write to the Free Software
  *    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
- *    Questions/Comments/Bugfixes to arrays@compaq.com
+ *    Questions/Comments/Bugfixes to iss_storagedev@hp.com
  *
  */
 #ifdef CONFIG_CISS_SCSI_TAPE
@@ -39,7 +39,6 @@
 #define SCSI_CCISS_CAN_QUEUE 2
 
 /* 
-	info:           	cciss_scsi_info,		\
 
 Note, cmd_per_lun could give us some trouble, so I'm setting it very low.
 Likewise, SCSI_CCISS_CAN_QUEUE is set very conservatively.

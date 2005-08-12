@@ -56,31 +56,27 @@
 /*
  * debugging macros
  */
-#undef RNG_DEBUG /* define to enable copious debugging info */
 
-#ifdef RNG_DEBUG
-/* note: prints function name for you */
-#define DPRINTK(fmt, args...) printk(KERN_DEBUG "%s: " fmt, __FUNCTION__ , ## args)
-#else
-#define DPRINTK(fmt, args...)
-#endif
+/* pr_debug() collapses to a no-op if DEBUG is not defined */
+#define DPRINTK(fmt, args...) pr_debug(PFX "%s: " fmt, __FUNCTION__ , ## args)
 
-#define RNG_NDEBUG        /* define to disable lightweight runtime checks */
+
+#undef RNG_NDEBUG        /* define to enable lightweight runtime checks */
 #ifdef RNG_NDEBUG
-#define assert(expr)
+#define assert(expr)							\
+		if(!(expr)) {						\
+		printk(KERN_DEBUG PFX "Assertion failed! %s,%s,%s,"	\
+		"line=%d\n", #expr, __FILE__, __FUNCTION__, __LINE__);	\
+		}
 #else
-#define assert(expr) \
-        if(!(expr)) {                                   \
-        printk( "Assertion failed! %s,%s,%s,line=%d\n", \
-        #expr,__FILE__,__FUNCTION__,__LINE__);          \
-        }
+#define assert(expr)
 #endif
 
 #define RNG_MISCDEV_MINOR		183 /* official */
 
 static int rng_dev_open (struct inode *inode, struct file *filp);
 static ssize_t rng_dev_read (struct file *filp, char __user *buf, size_t size,
-			     loff_t * offp);
+				loff_t * offp);
 
 static int __init intel_init (struct pci_dev *dev);
 static void intel_cleanup(void);
@@ -191,7 +187,7 @@ MODULE_DEVICE_TABLE (pci, rng_pci_tbl);
 #define INTEL_RNG_ADDR_LEN			3
 
 /* token to our ioremap'd RNG register area */
-static void *rng_mem;
+static void __iomem *rng_mem;
 
 static inline u8 intel_hwstatus (void)
 {
@@ -322,7 +318,8 @@ static int __init amd_init (struct pci_dev *dev)
 	rnen |= (1 << 7);	/* PMIO enable */
 	pci_write_config_byte(dev, 0x41, rnen);
 
-	printk(KERN_INFO PFX "AMD768 system management I/O registers at 0x%X.\n", pmbase);
+	pr_info( PFX "AMD768 system management I/O registers at 0x%X.\n",
+			pmbase);
 
 	amd_dev = dev;
 
@@ -369,7 +366,7 @@ enum {
 	VIA_RNG_CHUNK_1_MASK	= 0xFF,
 };
 
-u32 via_rng_datum;
+static u32 via_rng_datum;
 
 /*
  * Investigate using the 'rep' prefix to obtain 32 bits of random data
@@ -483,9 +480,9 @@ static int rng_dev_open (struct inode *inode, struct file *filp)
 
 
 static ssize_t rng_dev_read (struct file *filp, char __user *buf, size_t size,
-			     loff_t * offp)
+				loff_t * offp)
 {
-	static spinlock_t rng_lock = SPIN_LOCK_UNLOCKED;
+	static DEFINE_SPINLOCK(rng_lock);
 	unsigned int have_data;
 	u32 data = 0;
 	ssize_t ret = 0;
@@ -581,7 +578,7 @@ static int __init rng_init (void)
 	DPRINTK ("ENTER\n");
 
 	/* Probe for Intel, AMD RNGs */
-	while ((pdev = pci_find_device(PCI_ANY_ID, PCI_ANY_ID, pdev)) != NULL) {
+	for_each_pci_dev(pdev) {
 		ent = pci_match_device (rng_pci_tbl, pdev);
 		if (ent) {
 			rng_ops = &rng_vendor_ops[ent->driver_data];
@@ -606,7 +603,7 @@ match:
 	if (rc)
 		return rc;
 
-	printk (KERN_INFO RNG_DRIVER_NAME " loaded\n");
+	pr_info( RNG_DRIVER_NAME " loaded\n");
 
 	DPRINTK ("EXIT, returning 0\n");
 	return 0;

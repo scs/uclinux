@@ -24,9 +24,17 @@
 
 struct w1_reg_num
 {
+#if defined(__LITTLE_ENDIAN_BITFIELD)
 	__u64	family:8,
 		id:48,
 		crc:8;
+#elif defined(__BIG_ENDIAN_BITFIELD)
+	__u64	crc:8,
+		id:48,
+		family:8;
+#else
+#error "Please fix <asm/byteorder.h>"
+#endif
 };
 
 #ifdef __KERNEL__
@@ -52,6 +60,8 @@ struct w1_reg_num
 #define W1_READ_PSUPPLY		0xB4
 #define W1_MATCH_ROM		0x55
 
+#define W1_SLAVE_ACTIVE		(1<<0)
+
 struct w1_slave
 {
 	struct module		*owner;
@@ -60,12 +70,19 @@ struct w1_slave
 	struct w1_reg_num	reg_num;
 	atomic_t		refcnt;
 	u8			rom[9];
+	u32			flags;
+	int			ttl;
 
 	struct w1_master	*master;
 	struct w1_family 	*family;
 	struct device 		dev;
 	struct completion 	dev_released;
+
+	struct bin_attribute 	attr_bin;
+	struct device_attribute	attr_name, attr_val;
 };
+
+typedef void (* w1_slave_found_callback)(unsigned long, u64);
 
 struct w1_bus_master
 {
@@ -73,6 +90,18 @@ struct w1_bus_master
 
 	u8			(*read_bit)(unsigned long);
 	void			(*write_bit)(unsigned long, u8);
+  	
+	u8			(*read_byte)(unsigned long);
+  	void			(*write_byte)(unsigned long, u8);
+  	
+	u8			(*read_block)(unsigned long, u8 *, int);
+	void			(*write_block)(unsigned long, u8 *, int);
+	
+  	u8			(*touch_bit)(unsigned long, u8);
+  
+  	u8			(*reset_bus)(unsigned long);
+
+	void			(*search)(unsigned long, w1_slave_found_callback);
 };
 
 struct w1_master
@@ -83,6 +112,7 @@ struct w1_master
 	struct list_head	slist;
 	int			max_slave_count, slave_count;
 	unsigned long		attempts;
+	int			slave_ttl;
 	int			initialized;
 	u32			id;
 
@@ -93,7 +123,6 @@ struct w1_master
 
 	int			need_exit;
 	pid_t			kpid;
-	wait_queue_head_t 	kwait;
 	struct semaphore 	mutex;
 
 	struct device_driver	*driver;
@@ -106,6 +135,10 @@ struct w1_master
 	u32			seq, groups;
 	struct sock 		*nls;
 };
+
+int w1_create_master_attributes(struct w1_master *);
+void w1_destroy_master_attributes(struct w1_master *);
+void w1_search(struct w1_master *dev);
 
 #endif /* __KERNEL__ */
 

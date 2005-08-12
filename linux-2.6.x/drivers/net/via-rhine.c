@@ -125,11 +125,16 @@
 	LK1.1.19 (Roger Luethi)
 	- Increase Tx threshold for unspecified errors
 
+	LK1.2.0-2.6 (Roger Luethi)
+	- Massive clean-up
+	- Rewrite PHY, media handling (remove options, full_duplex, backoff)
+	- Fix Tx engine race for good
+
 */
 
 #define DRV_NAME	"via-rhine"
-#define DRV_VERSION	"1.1.20-2.6"
-#define DRV_RELDATE	"May-23-2004"
+#define DRV_VERSION	"1.2.0-2.6"
+#define DRV_RELDATE	"June-10-2004"
 
 
 /* A few user-configurable values.
@@ -142,22 +147,10 @@ static int max_interrupt_work = 20;
    Setting to > 1518 effectively disables this feature. */
 static int rx_copybreak;
 
-/* Select a backoff algorithm (Ethernet capture effect) */
-static int backoff;
-
-/* Used to pass the media type, etc.
-   Both 'options[]' and 'full_duplex[]' should exist for driver
-   interoperability.
-   The media type is usually passed in 'options[]'.
-   The default is autonegotiation for speed and duplex.
-     This should rarely be overridden.
-   Use option values 0x10/0x20 for 10Mbps, 0x100,0x200 for 100Mbps.
-   Use option values 0x10 and 0x100 for forcing half duplex fixed speed.
-   Use option values 0x20 and 0x200 for forcing full duplex operation.
-*/
-#define MAX_UNITS	8	/* More are supported, limit only on options */
-static int options[MAX_UNITS] = {-1, -1, -1, -1, -1, -1, -1, -1};
-static int full_duplex[MAX_UNITS] = {-1, -1, -1, -1, -1, -1, -1, -1};
+/*
+ * In case you are looking for 'options[]' or 'full_duplex[]', they
+ * are gone. Use ethtool(8) instead.
+ */
 
 /* Maximum number of multicast addresses to filter (vs. rx-all-multicast).
    The Rhine has a 64 element 8390-like hash table. */
@@ -184,6 +177,7 @@ static const int multicast_filter_limit = 32;
 #define PKT_BUF_SZ	1536	/* Size of each temporary Rx buffer.*/
 
 #include <linux/module.h>
+#include <linux/moduleparam.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/timer.h>
@@ -200,8 +194,8 @@ static const int multicast_filter_limit = 32;
 #include <linux/mii.h>
 #include <linux/ethtool.h>
 #include <linux/crc32.h>
+#include <linux/bitops.h>
 #include <asm/processor.h>	/* Processor type for cache alignment. */
-#include <asm/bitops.h>
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/uaccess.h>
@@ -210,44 +204,23 @@ static const int multicast_filter_limit = 32;
 static char version[] __devinitdata =
 KERN_INFO DRV_NAME ".c:v1.10-LK" DRV_VERSION " " DRV_RELDATE " Written by Donald Becker\n";
 
-static char shortname[] = DRV_NAME;
-
-
 /* This driver was written to use PCI memory space. Some early versions
    of the Rhine may only work correctly with I/O space accesses. */
 #ifdef CONFIG_VIA_RHINE_MMIO
 #define USE_MMIO
 #else
-#undef readb
-#undef readw
-#undef readl
-#undef writeb
-#undef writew
-#undef writel
-#define readb inb
-#define readw inw
-#define readl inl
-#define writeb outb
-#define writew outw
-#define writel outl
 #endif
 
 MODULE_AUTHOR("Donald Becker <becker@scyld.com>");
 MODULE_DESCRIPTION("VIA Rhine PCI Fast Ethernet driver");
 MODULE_LICENSE("GPL");
 
-MODULE_PARM(max_interrupt_work, "i");
-MODULE_PARM(debug, "i");
-MODULE_PARM(rx_copybreak, "i");
-MODULE_PARM(backoff, "i");
-MODULE_PARM(options, "1-" __MODULE_STRING(MAX_UNITS) "i");
-MODULE_PARM(full_duplex, "1-" __MODULE_STRING(MAX_UNITS) "i");
+module_param(max_interrupt_work, int, 0);
+module_param(debug, int, 0);
+module_param(rx_copybreak, int, 0);
 MODULE_PARM_DESC(max_interrupt_work, "VIA Rhine maximum events handled per interrupt");
 MODULE_PARM_DESC(debug, "VIA Rhine debug level (0-7)");
 MODULE_PARM_DESC(rx_copybreak, "VIA Rhine copy breakpoint for copy-only-tiny-frames");
-MODULE_PARM_DESC(backoff, "VIA Rhine: Bits 0-3: backoff algorithm");
-MODULE_PARM_DESC(options, "VIA Rhine: Bits 0-3: media type, bit 17: full duplex");
-MODULE_PARM_DESC(full_duplex, "VIA Rhine full duplex setting(s) (1)");
 
 /*
 		Theory of Operation
@@ -350,24 +323,24 @@ The chip does not pad to minimum transmit length.
 
 enum rhine_revs {
 	VT86C100A	= 0x00,
+	VTunknown0	= 0x20,
 	VT6102		= 0x40,
 	VT8231		= 0x50,	/* Integrated MAC */
 	VT8233		= 0x60,	/* Integrated MAC */
 	VT8235		= 0x74,	/* Integrated MAC */
 	VT8237		= 0x78,	/* Integrated MAC */
-	VTunknown0	= 0x7C,
+	VTunknown1	= 0x7C,
 	VT6105		= 0x80,
 	VT6105_B0	= 0x83,
 	VT6105L		= 0x8A,
 	VT6107		= 0x8C,
-	VTunknown1	= 0x8E,
-	VT6105M		= 0x90,
+	VTunknown2	= 0x8E,
+	VT6105M		= 0x90,	/* Management adapter */
 };
 
 enum rhine_quirks {
 	rqWOL		= 0x0001,	/* Wake-On-LAN support */
 	rqForceReset	= 0x0002,
-	rqDavicomPhy	= 0x0020,
 	rq6patterns	= 0x0040,	/* 6 instead of 4 patterns for WOL */
 	rqStatusWBRace	= 0x0080,	/* Tx Status Writeback Error possible */
 	rqRhineI	= 0x0100,	/* See comment below */
@@ -379,7 +352,7 @@ enum rhine_quirks {
  */
 
 /* Beware of PCI posted writes */
-#define IOSYNC	do { readb(dev->base_addr + StationAddr); } while (0)
+#define IOSYNC	do { ioread8(ioaddr + StationAddr); } while (0)
 
 static struct pci_device_id rhine_pci_tbl[] =
 {
@@ -395,6 +368,7 @@ MODULE_DEVICE_TABLE(pci, rhine_pci_tbl);
 /* Offsets to the device registers. */
 enum register_offsets {
 	StationAddr=0x00, RxConfig=0x06, TxConfig=0x07, ChipCmd=0x08,
+	ChipCmd1=0x09,
 	IntrStatus=0x0C, IntrEnable=0x0E,
 	MulticastFilter0=0x10, MulticastFilter1=0x14,
 	RxRingPtr=0x18, TxRingPtr=0x1C, GFIFOTest=0x54,
@@ -403,8 +377,8 @@ enum register_offsets {
 	ConfigA=0x78, ConfigB=0x79, ConfigC=0x7A, ConfigD=0x7B,
 	RxMissed=0x7C, RxCRCErrs=0x7E, MiscCmd=0x81,
 	StickyHW=0x83, IntrStatus2=0x84,
-	WOLcrSet=0xA0, WOLcrClr=0xA4, WOLcrClr1=0xA6,
-	WOLcgClr=0xA7,
+	WOLcrSet=0xA0, PwcfgSet=0xA1, WOLcgSet=0xA3, WOLcrClr=0xA4,
+	WOLcrClr1=0xA6, WOLcgClr=0xA7,
 	PwrcsrSet=0xA8, PwrcsrSet1=0xA9, PwrcsrClr=0xAC, PwrcsrClr1=0xAD,
 };
 
@@ -416,7 +390,7 @@ enum backoff_bits {
 
 #ifdef USE_MMIO
 /* Registers we check that mmio and reg are the same. */
-int mmio_verify_registers[] = {
+static const int mmio_verify_registers[] = {
 	RxConfig, TxConfig, IntrEnable, ConfigA, ConfigB, ConfigC, ConfigD,
 	0
 };
@@ -434,6 +408,15 @@ enum intr_status_bits {
 	IntrNormalSummary=0x0003, IntrAbnormalSummary=0xC260,
 	IntrTxDescRace=0x080000,	/* mapped from IntrStatus2 */
 	IntrTxErrSummary=0x082218,
+};
+
+/* Bits in WOLcrSet/WOLcrClr and PwrcsrSet/PwrcsrClr */
+enum wol_bits {
+	WOLucast	= 0x10,
+	WOLmagic	= 0x20,
+	WOLbmcast	= 0x30,
+	WOLlnkon	= 0x40,
+	WOLlnkoff	= 0x80,
 };
 
 /* The Rx and Tx buffer descriptors. */
@@ -464,13 +447,12 @@ enum desc_status_bits {
 
 /* Bits in ChipCmd. */
 enum chip_cmd_bits {
-	CmdInit=0x0001, CmdStart=0x0002, CmdStop=0x0004, CmdRxOn=0x0008,
-	CmdTxOn=0x0010, CmdTxDemand=0x0020, CmdRxDemand=0x0040,
-	CmdEarlyRx=0x0100, CmdEarlyTx=0x0200, CmdFDuplex=0x0400,
-	CmdNoTxPoll=0x0800, CmdReset=0x8000,
+	CmdInit=0x01, CmdStart=0x02, CmdStop=0x04, CmdRxOn=0x08,
+	CmdTxOn=0x10, Cmd1TxDemand=0x20, CmdRxDemand=0x40,
+	Cmd1EarlyRx=0x01, Cmd1EarlyTx=0x02, Cmd1FDuplex=0x04,
+	Cmd1NoTxPoll=0x08, Cmd1Reset=0x80,
 };
 
-#define MAX_MII_CNT	4
 struct rhine_private {
 	/* Descriptor rings */
 	struct rx_desc *rx_ring;
@@ -492,8 +474,8 @@ struct rhine_private {
 	dma_addr_t tx_bufs_dma;
 
 	struct pci_dev *pdev;
+	long pioaddr;
 	struct net_device_stats stats;
-	struct timer_list timer;	/* Media monitoring timer. */
 	spinlock_t lock;
 
 	/* Frequently used values: keep some adjacent for cache effect. */
@@ -502,23 +484,17 @@ struct rhine_private {
 	unsigned int cur_rx, dirty_rx;	/* Producer/consumer ring indices */
 	unsigned int cur_tx, dirty_tx;
 	unsigned int rx_buf_sz;		/* Based on MTU+slack. */
-	u16 chip_cmd;			/* Current setting for ChipCmd */
+	u8 wolopts;
 
-	/* These values are keep track of the transceiver/media in use. */
 	u8 tx_thresh, rx_thresh;
 
-	/* MII transceiver section. */
-	unsigned char phys[MAX_MII_CNT];	/* MII device addresses. */
-	unsigned int mii_cnt;		/* number of MIIs found, but only the first one is used */
-	u16 mii_status;			/* last read MII status */
 	struct mii_if_info mii_if;
+	void __iomem *base;
 };
 
 static int  mdio_read(struct net_device *dev, int phy_id, int location);
 static void mdio_write(struct net_device *dev, int phy_id, int location, int value);
 static int  rhine_open(struct net_device *dev);
-static void rhine_check_duplex(struct net_device *dev);
-static void rhine_timer(unsigned long data);
 static void rhine_tx_timeout(struct net_device *dev);
 static int  rhine_start_tx(struct sk_buff *skb, struct net_device *dev);
 static irqreturn_t rhine_interrupt(int irq, void *dev_instance, struct pt_regs *regs);
@@ -530,99 +506,156 @@ static struct net_device_stats *rhine_get_stats(struct net_device *dev);
 static int netdev_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
 static struct ethtool_ops netdev_ethtool_ops;
 static int  rhine_close(struct net_device *dev);
+static void rhine_shutdown (struct device *gdev);
+
+#define RHINE_WAIT_FOR(condition) do {					\
+	int i=1024;							\
+	while (!(condition) && --i)					\
+		;							\
+	if (debug > 1 && i < 512)					\
+		printk(KERN_INFO "%s: %4d cycles used @ %s:%d\n",	\
+				DRV_NAME, 1024-i, __func__, __LINE__);	\
+} while(0)
 
 static inline u32 get_intr_status(struct net_device *dev)
 {
-	long ioaddr = dev->base_addr;
 	struct rhine_private *rp = netdev_priv(dev);
+	void __iomem *ioaddr = rp->base;
 	u32 intr_status;
 
-	intr_status = readw(ioaddr + IntrStatus);
+	intr_status = ioread16(ioaddr + IntrStatus);
 	/* On Rhine-II, Bit 3 indicates Tx descriptor write-back race. */
 	if (rp->quirks & rqStatusWBRace)
-		intr_status |= readb(ioaddr + IntrStatus2) << 16;
+		intr_status |= ioread8(ioaddr + IntrStatus2) << 16;
 	return intr_status;
 }
 
 /*
  * Get power related registers into sane state.
- * Returns content of power-event (WOL) registers.
+ * Notify user about past WOL event.
  */
 static void rhine_power_init(struct net_device *dev)
 {
-	long ioaddr = dev->base_addr;
 	struct rhine_private *rp = netdev_priv(dev);
+	void __iomem *ioaddr = rp->base;
+	u16 wolstat;
 
 	if (rp->quirks & rqWOL) {
 		/* Make sure chip is in power state D0 */
-		writeb(readb(ioaddr + StickyHW) & 0xFC, ioaddr + StickyHW);
+		iowrite8(ioread8(ioaddr + StickyHW) & 0xFC, ioaddr + StickyHW);
 
 		/* Disable "force PME-enable" */
-		writeb(0x80, ioaddr + WOLcgClr);
+		iowrite8(0x80, ioaddr + WOLcgClr);
 
 		/* Clear power-event config bits (WOL) */
-		writeb(0xFF, ioaddr + WOLcrClr);
+		iowrite8(0xFF, ioaddr + WOLcrClr);
 		/* More recent cards can manage two additional patterns */
 		if (rp->quirks & rq6patterns)
-			writeb(0x03, ioaddr + WOLcrClr1);
+			iowrite8(0x03, ioaddr + WOLcrClr1);
+
+		/* Save power-event status bits */
+		wolstat = ioread8(ioaddr + PwrcsrSet);
+		if (rp->quirks & rq6patterns)
+			wolstat |= (ioread8(ioaddr + PwrcsrSet1) & 0x03) << 8;
 
 		/* Clear power-event status bits */
-		writeb(0xFF, ioaddr + PwrcsrClr);
+		iowrite8(0xFF, ioaddr + PwrcsrClr);
 		if (rp->quirks & rq6patterns)
-			writeb(0x03, ioaddr + PwrcsrClr1);
+			iowrite8(0x03, ioaddr + PwrcsrClr1);
+
+		if (wolstat) {
+			char *reason;
+			switch (wolstat) {
+			case WOLmagic:
+				reason = "Magic packet";
+				break;
+			case WOLlnkon:
+				reason = "Link went up";
+				break;
+			case WOLlnkoff:
+				reason = "Link went down";
+				break;
+			case WOLucast:
+				reason = "Unicast packet";
+				break;
+			case WOLbmcast:
+				reason = "Multicast/broadcast packet";
+				break;
+			default:
+				reason = "Unknown";
+			}
+			printk(KERN_INFO "%s: Woke system up. Reason: %s.\n",
+			       DRV_NAME, reason);
+		}
 	}
 }
 
-static void wait_for_reset(struct net_device *dev, u32 quirks, char *name)
+static void rhine_chip_reset(struct net_device *dev)
 {
-	long ioaddr = dev->base_addr;
-	int boguscnt = 20;
+	struct rhine_private *rp = netdev_priv(dev);
+	void __iomem *ioaddr = rp->base;
 
+	iowrite8(Cmd1Reset, ioaddr + ChipCmd1);
 	IOSYNC;
 
-	if (readw(ioaddr + ChipCmd) & CmdReset) {
+	if (ioread8(ioaddr + ChipCmd1) & Cmd1Reset) {
 		printk(KERN_INFO "%s: Reset not complete yet. "
-			"Trying harder.\n", name);
+			"Trying harder.\n", DRV_NAME);
 
-		/* Rhine-II needs to be forced sometimes */
-		if (quirks & rqForceReset)
-			writeb(0x40, ioaddr + MiscCmd);
+		/* Force reset */
+		if (rp->quirks & rqForceReset)
+			iowrite8(0x40, ioaddr + MiscCmd);
 
-		/* VT86C100A may need long delay after reset (dlink) */
-		/* Seen on Rhine-II as well (rl) */
-		while ((readw(ioaddr + ChipCmd) & CmdReset) && --boguscnt)
-			udelay(5);
-
+		/* Reset can take somewhat longer (rare) */
+		RHINE_WAIT_FOR(!(ioread8(ioaddr + ChipCmd1) & Cmd1Reset));
 	}
 
 	if (debug > 1)
-		printk(KERN_INFO "%s: Reset %s.\n", name,
-			boguscnt ? "succeeded" : "failed");
+		printk(KERN_INFO "%s: Reset %s.\n", dev->name,
+			(ioread8(ioaddr + ChipCmd1) & Cmd1Reset) ?
+			"failed" : "succeeded");
 }
 
 #ifdef USE_MMIO
-static void __devinit enable_mmio(long ioaddr, u32 quirks)
+static void enable_mmio(long pioaddr, u32 quirks)
 {
 	int n;
 	if (quirks & rqRhineI) {
 		/* More recent docs say that this bit is reserved ... */
-		n = inb(ioaddr + ConfigA) | 0x20;
-		outb(n, ioaddr + ConfigA);
+		n = inb(pioaddr + ConfigA) | 0x20;
+		outb(n, pioaddr + ConfigA);
 	} else {
-		n = inb(ioaddr + ConfigD) | 0x80;
-		outb(n, ioaddr + ConfigD);
+		n = inb(pioaddr + ConfigD) | 0x80;
+		outb(n, pioaddr + ConfigD);
 	}
 }
 #endif
 
-static void __devinit reload_eeprom(long ioaddr)
+/*
+ * Loads bytes 0x00-0x05, 0x6E-0x6F, 0x78-0x7B from EEPROM
+ * (plus 0x6C for Rhine-I/II)
+ */
+static void __devinit rhine_reload_eeprom(long pioaddr, struct net_device *dev)
 {
-	int i;
-	outb(0x20, ioaddr + MACRegEEcsr);
-	/* Typically 2 cycles to reload. */
-	for (i = 0; i < 150; i++)
-		if (! (inb(ioaddr + MACRegEEcsr) & 0x20))
-			break;
+	struct rhine_private *rp = netdev_priv(dev);
+	void __iomem *ioaddr = rp->base;
+
+	outb(0x20, pioaddr + MACRegEEcsr);
+	RHINE_WAIT_FOR(!(inb(pioaddr + MACRegEEcsr) & 0x20));
+
+#ifdef USE_MMIO
+	/*
+	 * Reloading from EEPROM overwrites ConfigA-D, so we must re-enable
+	 * MMIO. If reloading EEPROM was done first this could be avoided, but
+	 * it is not known if that still works with the "win98-reboot" problem.
+	 */
+	enable_mmio(pioaddr, rp->quirks);
+#endif
+
+	/* Turn off EEPROM-controlled wake-up (magic packet) */
+	if (rp->quirks & rqWOL)
+		iowrite8(ioread8(ioaddr + ConfigA) & 0xFC, ioaddr + ConfigA);
+
 }
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
@@ -634,23 +667,39 @@ static void rhine_poll(struct net_device *dev)
 }
 #endif
 
+static void rhine_hw_init(struct net_device *dev, long pioaddr)
+{
+	struct rhine_private *rp = netdev_priv(dev);
+
+	/* Reset the chip to erase previous misconfiguration. */
+	rhine_chip_reset(dev);
+
+	/* Rhine-I needs extra time to recuperate before EEPROM reload */
+	if (rp->quirks & rqRhineI)
+		msleep(5);
+
+	/* Reload EEPROM controlled bytes cleared by soft reset */
+	rhine_reload_eeprom(pioaddr, dev);
+}
+
 static int __devinit rhine_init_one(struct pci_dev *pdev,
 				    const struct pci_device_id *ent)
 {
 	struct net_device *dev;
 	struct rhine_private *rp;
-	int i, option, rc;
+	int i, rc;
 	u8 pci_rev;
 	u32 quirks;
-	static int card_idx = -1;
-	long ioaddr;
+	long pioaddr;
 	long memaddr;
-	int io_size;
-	int phy, phy_idx = 0;
-#ifdef USE_MMIO
-	long ioaddr0;
-#endif
+	void __iomem *ioaddr;
+	int io_size, phy_id;
 	const char *name;
+#ifdef USE_MMIO
+	int bar = 1;
+#else
+	int bar = 0;
+#endif
 
 /* when built into the kernel, we only print version if device is found */
 #ifndef MODULE
@@ -659,26 +708,30 @@ static int __devinit rhine_init_one(struct pci_dev *pdev,
 		printk(version);
 #endif
 
-	card_idx++;
-	option = card_idx < MAX_UNITS ? options[card_idx] : 0;
 	pci_read_config_byte(pdev, PCI_REVISION_ID, &pci_rev);
 
 	io_size = 256;
-	if (pci_rev < VT6102) {
-		quirks = rqRhineI | rqDavicomPhy;
+	phy_id = 0;
+	quirks = 0;
+	name = "Rhine";
+	if (pci_rev < VTunknown0) {
+		quirks = rqRhineI;
 		io_size = 128;
-		name = "VT86C100A Rhine";
 	}
-	else {
+	else if (pci_rev >= VT6102) {
 		quirks = rqWOL | rqForceReset;
 		if (pci_rev < VT6105) {
 			name = "Rhine II";
 			quirks |= rqStatusWBRace;	/* Rhine-II exclusive */
 		}
 		else {
-			name = "Rhine III";
+			phy_id = 1;	/* Integrated PHY, phy_id fixed to 1 */
 			if (pci_rev >= VT6105_B0)
 				quirks |= rq6patterns;
+			if (pci_rev < VT6105M)
+				name = "Rhine III";
+			else
+				name = "Rhine III (Management Adapter)";
 		}
 	}
 
@@ -702,30 +755,30 @@ static int __devinit rhine_init_one(struct pci_dev *pdev,
 		goto err_out;
 	}
 
-	ioaddr = pci_resource_start(pdev, 0);
+	pioaddr = pci_resource_start(pdev, 0);
 	memaddr = pci_resource_start(pdev, 1);
 
 	pci_set_master(pdev);
 
-	dev = alloc_etherdev(sizeof(*rp));
-	if (dev == NULL) {
+	dev = alloc_etherdev(sizeof(struct rhine_private));
+	if (!dev) {
 		rc = -ENOMEM;
-		printk(KERN_ERR "init_ethernet failed for card #%d\n",
-		       card_idx);
+		printk(KERN_ERR "alloc_etherdev failed\n");
 		goto err_out;
 	}
 	SET_MODULE_OWNER(dev);
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
-	rc = pci_request_regions(pdev, shortname);
+	rp = netdev_priv(dev);
+	rp->quirks = quirks;
+	rp->pioaddr = pioaddr;
+	rp->pdev = pdev;
+
+	rc = pci_request_regions(pdev, DRV_NAME);
 	if (rc)
 		goto err_out_free_netdev;
 
-#ifdef USE_MMIO
-	ioaddr0 = ioaddr;
-	enable_mmio(ioaddr0, quirks);
-
-	ioaddr = (long) ioremap(memaddr, io_size);
+	ioaddr = pci_iomap(pdev, bar, io_size);
 	if (!ioaddr) {
 		rc = -EIO;
 		printk(KERN_ERR "ioremap failed for device %s, region 0x%X "
@@ -733,11 +786,14 @@ static int __devinit rhine_init_one(struct pci_dev *pdev,
 		goto err_out_free_res;
 	}
 
+#ifdef USE_MMIO
+	enable_mmio(pioaddr, quirks);
+
 	/* Check that selected MMIO registers match the PIO ones */
 	i = 0;
 	while (mmio_verify_registers[i]) {
 		int reg = mmio_verify_registers[i++];
-		unsigned char a = inb(ioaddr0+reg);
+		unsigned char a = inb(pioaddr+reg);
 		unsigned char b = readb(ioaddr+reg);
 		if (a != b) {
 			rc = -EIO;
@@ -747,63 +803,35 @@ static int __devinit rhine_init_one(struct pci_dev *pdev,
 		}
 	}
 #endif /* USE_MMIO */
-	dev->base_addr = ioaddr;
-	rp = netdev_priv(dev);
-	rp->quirks = quirks;
 
+	dev->base_addr = (unsigned long)ioaddr;
+	rp->base = ioaddr;
+
+	/* Get chip registers into a sane state */
 	rhine_power_init(dev);
-
-	/* Reset the chip to erase previous misconfiguration. */
-	writew(CmdReset, ioaddr + ChipCmd);
-
-	wait_for_reset(dev, quirks, shortname);
-
-	/* Reload the station address from the EEPROM. */
-#ifdef USE_MMIO
-	reload_eeprom(ioaddr0);
-	/* Reloading from eeprom overwrites cfgA-D, so we must re-enable MMIO.
-	   If reload_eeprom() was done first this could be avoided, but it is
-	   not known if that still works with the "win98-reboot" problem. */
-	enable_mmio(ioaddr0, quirks);
-#else
-	reload_eeprom(ioaddr);
-#endif
+	rhine_hw_init(dev, pioaddr);
 
 	for (i = 0; i < 6; i++)
-		dev->dev_addr[i] = readb(ioaddr + StationAddr + i);
+		dev->dev_addr[i] = ioread8(ioaddr + StationAddr + i);
 
 	if (!is_valid_ether_addr(dev->dev_addr)) {
 		rc = -EIO;
-		printk(KERN_ERR "Invalid MAC address for card #%d\n", card_idx);
+		printk(KERN_ERR "Invalid MAC address\n");
 		goto err_out_unmap;
 	}
 
-	if (quirks & rqWOL) {
-		/*
-		 * for 3065D, EEPROM reloaded will cause bit 0 in MAC_REG_CFGA
-		 * turned on. it makes MAC receive magic packet
-		 * automatically. So, we turn it off. (D-Link)
-		 */
-		writeb(readb(ioaddr + ConfigA) & 0xFE, ioaddr + ConfigA);
-	}
-
-	/* Select backoff algorithm */
-	if (backoff)
-		writeb(readb(ioaddr + ConfigD) & (0xF0 | backoff),
-		       ioaddr + ConfigD);
+	/* For Rhine-I/II, phy_id is loaded from EEPROM */
+	if (!phy_id)
+		phy_id = ioread8(ioaddr + 0x6C);
 
 	dev->irq = pdev->irq;
 
 	spin_lock_init(&rp->lock);
-	rp->pdev = pdev;
 	rp->mii_if.dev = dev;
 	rp->mii_if.mdio_read = mdio_read;
 	rp->mii_if.mdio_write = mdio_write;
 	rp->mii_if.phy_id_mask = 0x1f;
 	rp->mii_if.reg_num_mask = 0x1f;
-
-	if (dev->mem_start)
-		option = dev->mem_start;
 
 	/* The chip-specific entries in the device structure. */
 	dev->open = rhine_open;
@@ -826,26 +854,12 @@ static int __devinit rhine_init_one(struct pci_dev *pdev,
 	if (rc)
 		goto err_out_unmap;
 
-	/* The lower four bits are the media type. */
-	if (option > 0) {
-		if (option & 0x220)
-			rp->mii_if.full_duplex = 1;
-	}
-	if (card_idx < MAX_UNITS && full_duplex[card_idx] > 0)
-		rp->mii_if.full_duplex = 1;
-
-	if (rp->mii_if.full_duplex) {
-		printk(KERN_INFO "%s: Set to forced full duplex, "
-		       "autonegotiation disabled.\n", dev->name);
-		rp->mii_if.force_media = 1;
-	}
-
 	printk(KERN_INFO "%s: VIA %s at 0x%lx, ",
 	       dev->name, name,
 #ifdef USE_MMIO
 		memaddr
 #else
-		ioaddr
+		(long)ioaddr
 #endif
 		 );
 
@@ -855,17 +869,18 @@ static int __devinit rhine_init_one(struct pci_dev *pdev,
 
 	pci_set_drvdata(pdev, dev);
 
-	rp->phys[0] = 1;		/* Standard for this chip. */
-	for (phy = 1; phy < 32 && phy_idx < MAX_MII_CNT; phy++) {
-		int mii_status = mdio_read(dev, phy, 1);
+	{
+		u16 mii_cmd;
+		int mii_status = mdio_read(dev, phy_id, 1);
+		mii_cmd = mdio_read(dev, phy_id, MII_BMCR) & ~BMCR_ISOLATE;
+		mdio_write(dev, phy_id, MII_BMCR, mii_cmd);
 		if (mii_status != 0xffff && mii_status != 0x0000) {
-			rp->phys[phy_idx++] = phy;
-			rp->mii_if.advertising = mdio_read(dev, phy, 4);
+			rp->mii_if.advertising = mdio_read(dev, phy_id, 4);
 			printk(KERN_INFO "%s: MII PHY found at address "
 			       "%d, status 0x%4.4x advertising %4.4x "
-			       "Link %4.4x.\n", dev->name, phy,
+			       "Link %4.4x.\n", dev->name, phy_id,
 			       mii_status, rp->mii_if.advertising,
-			       mdio_read(dev, phy, 5));
+			       mdio_read(dev, phy_id, 5));
 
 			/* set IFF_RUNNING */
 			if (mii_status & BMSR_LSTATUS)
@@ -873,35 +888,15 @@ static int __devinit rhine_init_one(struct pci_dev *pdev,
 			else
 				netif_carrier_off(dev);
 
-			break;
 		}
 	}
-	rp->mii_cnt = phy_idx;
-	rp->mii_if.phy_id = rp->phys[0];
-
-	/* Allow forcing the media type. */
-	if (option > 0) {
-		if (option & 0x220)
-			rp->mii_if.full_duplex = 1;
-		if (option & 0x330) {
-			printk(KERN_INFO " Forcing %dMbs %s-duplex "
-				"operation.\n",
-			       (option & 0x300 ? 100 : 10),
-			       (option & 0x220 ? "full" : "half"));
-			if (rp->mii_cnt)
-				mdio_write(dev, rp->phys[0], MII_BMCR,
-					   ((option & 0x300) ? 0x2000 : 0) | /* 100mbps? */
-					   ((option & 0x220) ? 0x0100 : 0)); /* Full duplex? */
-		}
-	}
+	rp->mii_if.phy_id = phy_id;
 
 	return 0;
 
 err_out_unmap:
-#ifdef USE_MMIO
-	iounmap((void *)ioaddr);
+	pci_iounmap(pdev, ioaddr);
 err_out_free_res:
-#endif
 	pci_release_regions(pdev);
 err_out_free_netdev:
 	free_netdev(dev);
@@ -944,7 +939,7 @@ static int alloc_ring(struct net_device* dev)
 	return 0;
 }
 
-void free_ring(struct net_device* dev)
+static void free_ring(struct net_device* dev)
 {
 	struct rhine_private *rp = netdev_priv(dev);
 
@@ -1065,220 +1060,176 @@ static void free_tbufs(struct net_device* dev)
 	}
 }
 
+static void rhine_check_media(struct net_device *dev, unsigned int init_media)
+{
+	struct rhine_private *rp = netdev_priv(dev);
+	void __iomem *ioaddr = rp->base;
+
+	mii_check_media(&rp->mii_if, debug, init_media);
+
+	if (rp->mii_if.full_duplex)
+	    iowrite8(ioread8(ioaddr + ChipCmd1) | Cmd1FDuplex,
+		   ioaddr + ChipCmd1);
+	else
+	    iowrite8(ioread8(ioaddr + ChipCmd1) & ~Cmd1FDuplex,
+		   ioaddr + ChipCmd1);
+}
+
 static void init_registers(struct net_device *dev)
 {
 	struct rhine_private *rp = netdev_priv(dev);
-	long ioaddr = dev->base_addr;
+	void __iomem *ioaddr = rp->base;
 	int i;
 
 	for (i = 0; i < 6; i++)
-		writeb(dev->dev_addr[i], ioaddr + StationAddr + i);
+		iowrite8(dev->dev_addr[i], ioaddr + StationAddr + i);
 
 	/* Initialize other registers. */
-	writew(0x0006, ioaddr + PCIBusConfig);	/* Tune configuration??? */
+	iowrite16(0x0006, ioaddr + PCIBusConfig);	/* Tune configuration??? */
 	/* Configure initial FIFO thresholds. */
-	writeb(0x20, ioaddr + TxConfig);
+	iowrite8(0x20, ioaddr + TxConfig);
 	rp->tx_thresh = 0x20;
 	rp->rx_thresh = 0x60;		/* Written in rhine_set_rx_mode(). */
-	rp->mii_if.full_duplex = 0;
 
-	writel(rp->rx_ring_dma, ioaddr + RxRingPtr);
-	writel(rp->tx_ring_dma, ioaddr + TxRingPtr);
+	iowrite32(rp->rx_ring_dma, ioaddr + RxRingPtr);
+	iowrite32(rp->tx_ring_dma, ioaddr + TxRingPtr);
 
 	rhine_set_rx_mode(dev);
 
 	/* Enable interrupts by setting the interrupt mask. */
-	writew(IntrRxDone | IntrRxErr | IntrRxEmpty| IntrRxOverflow |
+	iowrite16(IntrRxDone | IntrRxErr | IntrRxEmpty| IntrRxOverflow |
 	       IntrRxDropped | IntrRxNoBuf | IntrTxAborted |
 	       IntrTxDone | IntrTxError | IntrTxUnderrun |
 	       IntrPCIErr | IntrStatsMax | IntrLinkChange,
 	       ioaddr + IntrEnable);
 
-	rp->chip_cmd = CmdStart|CmdTxOn|CmdRxOn|CmdNoTxPoll;
-	if (rp->mii_if.force_media)
-		rp->chip_cmd |= CmdFDuplex;
-	writew(rp->chip_cmd, ioaddr + ChipCmd);
+	iowrite16(CmdStart | CmdTxOn | CmdRxOn | (Cmd1NoTxPoll << 8),
+	       ioaddr + ChipCmd);
+	rhine_check_media(dev, 1);
+}
 
-	rhine_check_duplex(dev);
+/* Enable MII link status auto-polling (required for IntrLinkChange) */
+static void rhine_enable_linkmon(void __iomem *ioaddr)
+{
+	iowrite8(0, ioaddr + MIICmd);
+	iowrite8(MII_BMSR, ioaddr + MIIRegAddr);
+	iowrite8(0x80, ioaddr + MIICmd);
 
-	/* The LED outputs of various MII xcvrs should be configured. */
-	/* For NS or Mison phys, turn on bit 1 in register 0x17 */
-	mdio_write(dev, rp->phys[0], 0x17, mdio_read(dev, rp->phys[0], 0x17) |
-		   0x0001);
+	RHINE_WAIT_FOR((ioread8(ioaddr + MIIRegAddr) & 0x20));
+
+	iowrite8(MII_BMSR | 0x40, ioaddr + MIIRegAddr);
+}
+
+/* Disable MII link status auto-polling (required for MDIO access) */
+static void rhine_disable_linkmon(void __iomem *ioaddr, u32 quirks)
+{
+	iowrite8(0, ioaddr + MIICmd);
+
+	if (quirks & rqRhineI) {
+		iowrite8(0x01, ioaddr + MIIRegAddr);	// MII_BMSR
+
+		/* Can be called from ISR. Evil. */
+		mdelay(1);
+
+		/* 0x80 must be set immediately before turning it off */
+		iowrite8(0x80, ioaddr + MIICmd);
+
+		RHINE_WAIT_FOR(ioread8(ioaddr + MIIRegAddr) & 0x20);
+
+		/* Heh. Now clear 0x80 again. */
+		iowrite8(0, ioaddr + MIICmd);
+	}
+	else
+		RHINE_WAIT_FOR(ioread8(ioaddr + MIIRegAddr) & 0x80);
 }
 
 /* Read and write over the MII Management Data I/O (MDIO) interface. */
 
 static int mdio_read(struct net_device *dev, int phy_id, int regnum)
 {
-	long ioaddr = dev->base_addr;
-	int boguscnt = 1024;
+	struct rhine_private *rp = netdev_priv(dev);
+	void __iomem *ioaddr = rp->base;
+	int result;
 
-	/* Wait for a previous command to complete. */
-	while ((readb(ioaddr + MIICmd) & 0x60) && --boguscnt > 0)
-		;
-	writeb(0x00, ioaddr + MIICmd);
-	writeb(phy_id, ioaddr + MIIPhyAddr);
-	writeb(regnum, ioaddr + MIIRegAddr);
-	writeb(0x40, ioaddr + MIICmd);		/* Trigger read */
-	boguscnt = 1024;
-	while ((readb(ioaddr + MIICmd) & 0x40) && --boguscnt > 0)
-		;
-	return readw(ioaddr + MIIData);
+	rhine_disable_linkmon(ioaddr, rp->quirks);
+
+	/* rhine_disable_linkmon already cleared MIICmd */
+	iowrite8(phy_id, ioaddr + MIIPhyAddr);
+	iowrite8(regnum, ioaddr + MIIRegAddr);
+	iowrite8(0x40, ioaddr + MIICmd);		/* Trigger read */
+	RHINE_WAIT_FOR(!(ioread8(ioaddr + MIICmd) & 0x40));
+	result = ioread16(ioaddr + MIIData);
+
+	rhine_enable_linkmon(ioaddr);
+	return result;
 }
 
 static void mdio_write(struct net_device *dev, int phy_id, int regnum, int value)
 {
 	struct rhine_private *rp = netdev_priv(dev);
-	long ioaddr = dev->base_addr;
-	int boguscnt = 1024;
+	void __iomem *ioaddr = rp->base;
 
-	if (phy_id == rp->phys[0]) {
-		switch (regnum) {
-		case MII_BMCR:		/* Is user forcing speed/duplex? */
-			if (value & 0x9000)	/* Autonegotiation. */
-				rp->mii_if.force_media = 0;
-			else
-				rp->mii_if.full_duplex = (value & 0x0100) ? 1 : 0;
-			break;
-		case MII_ADVERTISE:
-			rp->mii_if.advertising = value;
-			break;
-		}
-	}
+	rhine_disable_linkmon(ioaddr, rp->quirks);
 
-	/* Wait for a previous command to complete. */
-	while ((readb(ioaddr + MIICmd) & 0x60) && --boguscnt > 0)
-		;
-	writeb(0x00, ioaddr + MIICmd);
-	writeb(phy_id, ioaddr + MIIPhyAddr);
-	writeb(regnum, ioaddr + MIIRegAddr);
-	writew(value, ioaddr + MIIData);
-	writeb(0x20, ioaddr + MIICmd);		/* Trigger write. */
+	/* rhine_disable_linkmon already cleared MIICmd */
+	iowrite8(phy_id, ioaddr + MIIPhyAddr);
+	iowrite8(regnum, ioaddr + MIIRegAddr);
+	iowrite16(value, ioaddr + MIIData);
+	iowrite8(0x20, ioaddr + MIICmd);		/* Trigger write */
+	RHINE_WAIT_FOR(!(ioread8(ioaddr + MIICmd) & 0x20));
+
+	rhine_enable_linkmon(ioaddr);
 }
-
 
 static int rhine_open(struct net_device *dev)
 {
 	struct rhine_private *rp = netdev_priv(dev);
-	long ioaddr = dev->base_addr;
-	int i;
+	void __iomem *ioaddr = rp->base;
+	int rc;
 
-	/* Reset the chip. */
-	writew(CmdReset, ioaddr + ChipCmd);
-
-	i = request_irq(rp->pdev->irq, &rhine_interrupt, SA_SHIRQ, dev->name,
+	rc = request_irq(rp->pdev->irq, &rhine_interrupt, SA_SHIRQ, dev->name,
 			dev);
-	if (i)
-		return i;
+	if (rc)
+		return rc;
 
 	if (debug > 1)
 		printk(KERN_DEBUG "%s: rhine_open() irq %d.\n",
 		       dev->name, rp->pdev->irq);
 
-	i = alloc_ring(dev);
-	if (i)
-		return i;
+	rc = alloc_ring(dev);
+	if (rc) {
+		free_irq(rp->pdev->irq, dev);
+		return rc;
+	}
 	alloc_rbufs(dev);
 	alloc_tbufs(dev);
-	wait_for_reset(dev, rp->quirks, dev->name);
+	rhine_chip_reset(dev);
 	init_registers(dev);
 	if (debug > 2)
 		printk(KERN_DEBUG "%s: Done rhine_open(), status %4.4x "
 		       "MII status: %4.4x.\n",
-		       dev->name, readw(ioaddr + ChipCmd),
-		       mdio_read(dev, rp->phys[0], MII_BMSR));
+		       dev->name, ioread16(ioaddr + ChipCmd),
+		       mdio_read(dev, rp->mii_if.phy_id, MII_BMSR));
 
 	netif_start_queue(dev);
-
-	/* Set the timer to check for link beat. */
-	init_timer(&rp->timer);
-	rp->timer.expires = jiffies + 2 * HZ/100;
-	rp->timer.data = (unsigned long)dev;
-	rp->timer.function = &rhine_timer;		/* timer handler */
-	add_timer(&rp->timer);
 
 	return 0;
 }
 
-static void rhine_check_duplex(struct net_device *dev)
-{
-	struct rhine_private *rp = netdev_priv(dev);
-	long ioaddr = dev->base_addr;
-	int mii_lpa = mdio_read(dev, rp->phys[0], MII_LPA);
-	int negotiated = mii_lpa & rp->mii_if.advertising;
-	int duplex;
-
-	if (rp->mii_if.force_media || mii_lpa == 0xffff)
-		return;
-	duplex = (negotiated & 0x0100) || (negotiated & 0x01C0) == 0x0040;
-	if (rp->mii_if.full_duplex != duplex) {
-		rp->mii_if.full_duplex = duplex;
-		if (debug)
-			printk(KERN_INFO "%s: Setting %s-duplex based on "
-			       "MII #%d link partner capability of %4.4x.\n",
-			       dev->name, duplex ? "full" : "half",
-			       rp->phys[0], mii_lpa);
-		if (duplex)
-			rp->chip_cmd |= CmdFDuplex;
-		else
-			rp->chip_cmd &= ~CmdFDuplex;
-		writew(rp->chip_cmd, ioaddr + ChipCmd);
-	}
-}
-
-
-static void rhine_timer(unsigned long data)
-{
-	struct net_device *dev = (struct net_device *)data;
-	struct rhine_private *rp = netdev_priv(dev);
-	long ioaddr = dev->base_addr;
-	int next_tick = 10*HZ;
-	int mii_status;
-
-	if (debug > 3) {
-		printk(KERN_DEBUG "%s: VIA Rhine monitor tick, status %4.4x.\n",
-		       dev->name, readw(ioaddr + IntrStatus));
-	}
-
-	spin_lock_irq (&rp->lock);
-
-	rhine_check_duplex(dev);
-
-	/* make IFF_RUNNING follow the MII status bit "Link established" */
-	mii_status = mdio_read(dev, rp->phys[0], MII_BMSR);
-	if ((mii_status & BMSR_LSTATUS) != (rp->mii_status & BMSR_LSTATUS)) {
-		if (mii_status & BMSR_LSTATUS)
-			netif_carrier_on(dev);
-		else
-			netif_carrier_off(dev);
-	}
-	rp->mii_status = mii_status;
-
-	spin_unlock_irq(&rp->lock);
-
-	rp->timer.expires = jiffies + next_tick;
-	add_timer(&rp->timer);
-}
-
-
 static void rhine_tx_timeout(struct net_device *dev)
 {
 	struct rhine_private *rp = netdev_priv(dev);
-	long ioaddr = dev->base_addr;
+	void __iomem *ioaddr = rp->base;
 
 	printk(KERN_WARNING "%s: Transmit timed out, status %4.4x, PHY status "
 	       "%4.4x, resetting...\n",
-	       dev->name, readw(ioaddr + IntrStatus),
-	       mdio_read(dev, rp->phys[0], MII_BMSR));
+	       dev->name, ioread16(ioaddr + IntrStatus),
+	       mdio_read(dev, rp->mii_if.phy_id, MII_BMSR));
 
 	/* protect against concurrent rx interrupts */
 	disable_irq(rp->pdev->irq);
 
 	spin_lock(&rp->lock);
-
-	/* Reset the chip. */
-	writew(CmdReset, ioaddr + ChipCmd);
 
 	/* clear all descriptors */
 	free_tbufs(dev);
@@ -1287,7 +1238,7 @@ static void rhine_tx_timeout(struct net_device *dev)
 	alloc_rbufs(dev);
 
 	/* Reinitialize the hardware. */
-	wait_for_reset(dev, rp->quirks, dev->name);
+	rhine_chip_reset(dev);
 	init_registers(dev);
 
 	spin_unlock(&rp->lock);
@@ -1301,8 +1252,8 @@ static void rhine_tx_timeout(struct net_device *dev)
 static int rhine_start_tx(struct sk_buff *skb, struct net_device *dev)
 {
 	struct rhine_private *rp = netdev_priv(dev);
+	void __iomem *ioaddr = rp->base;
 	unsigned entry;
-	u32 intr_status;
 
 	/* Caution: the write order is important here, set the field
 	   with the "ownership" bits last. */
@@ -1319,7 +1270,7 @@ static int rhine_start_tx(struct sk_buff *skb, struct net_device *dev)
 	rp->tx_skbuff[entry] = skb;
 
 	if ((rp->quirks & rqRhineI) &&
-	    (((long)skb->data & 3) || skb_shinfo(skb)->nr_frags != 0 || skb->ip_summed == CHECKSUM_HW)) {
+	    (((unsigned long)skb->data & 3) || skb_shinfo(skb)->nr_frags != 0 || skb->ip_summed == CHECKSUM_HW)) {
 		/* Must use alignment buffer. */
 		if (skb->len > PKT_BUF_SZ) {
 			/* packet too long, drop it */
@@ -1353,14 +1304,9 @@ static int rhine_start_tx(struct sk_buff *skb, struct net_device *dev)
 
 	/* Non-x86 Todo: explicitly flush cache lines here. */
 
-	/*
-	 * Wake the potentially-idle transmit channel unless errors are
-	 * pending (the ISR must sort them out first).
-	 */
-	intr_status = get_intr_status(dev);
-	if ((intr_status & IntrTxErrSummary) == 0) {
-		writew(CmdTxDemand | rp->chip_cmd, dev->base_addr + ChipCmd);
-	}
+	/* Wake the potentially-idle transmit channel */
+	iowrite8(ioread8(ioaddr + ChipCmd1) | Cmd1TxDemand,
+	       ioaddr + ChipCmd1);
 	IOSYNC;
 
 	if (rp->cur_tx == rp->dirty_tx + TX_QUEUE_LEN)
@@ -1382,20 +1328,19 @@ static int rhine_start_tx(struct sk_buff *skb, struct net_device *dev)
 static irqreturn_t rhine_interrupt(int irq, void *dev_instance, struct pt_regs *rgs)
 {
 	struct net_device *dev = dev_instance;
-	long ioaddr;
+	struct rhine_private *rp = netdev_priv(dev);
+	void __iomem *ioaddr = rp->base;
 	u32 intr_status;
 	int boguscnt = max_interrupt_work;
 	int handled = 0;
-
-	ioaddr = dev->base_addr;
 
 	while ((intr_status = get_intr_status(dev))) {
 		handled = 1;
 
 		/* Acknowledge all of the current interrupt sources ASAP. */
 		if (intr_status & IntrTxDescRace)
-			writeb(0x08, ioaddr + IntrStatus2);
-		writew(intr_status & 0xffff, ioaddr + IntrStatus);
+			iowrite8(0x08, ioaddr + IntrStatus2);
+		iowrite16(intr_status & 0xffff, ioaddr + IntrStatus);
 		IOSYNC;
 
 		if (debug > 4)
@@ -1408,11 +1353,10 @@ static irqreturn_t rhine_interrupt(int irq, void *dev_instance, struct pt_regs *
 
 		if (intr_status & (IntrTxErrSummary | IntrTxDone)) {
 			if (intr_status & IntrTxErrSummary) {
-				int cnt = 20;
 				/* Avoid scavenging before Tx engine turned off */
-				while ((readw(ioaddr+ChipCmd) & CmdTxOn) && --cnt)
-					udelay(5);
-				if (debug > 2 && !cnt)
+				RHINE_WAIT_FOR(!(ioread8(ioaddr+ChipCmd) & CmdTxOn));
+				if (debug > 2 &&
+				    ioread8(ioaddr+ChipCmd) & CmdTxOn)
 					printk(KERN_WARNING "%s: "
 					       "rhine_interrupt() Tx engine"
 					       "still on.\n", dev->name);
@@ -1436,7 +1380,7 @@ static irqreturn_t rhine_interrupt(int irq, void *dev_instance, struct pt_regs *
 
 	if (debug > 3)
 		printk(KERN_DEBUG "%s: exiting interrupt, status=%8.8x.\n",
-		       dev->name, readw(ioaddr + IntrStatus));
+		       dev->name, ioread16(ioaddr + IntrStatus));
 	return IRQ_RETVAL(handled);
 }
 
@@ -1572,10 +1516,6 @@ static void rhine_rx(struct net_device *dev)
 							    rp->rx_buf_sz,
 							    PCI_DMA_FROMDEVICE);
 
-				/* *_IP_COPYSUM isn't defined anywhere and
-				   eth_copy_and_sum is memcpy for all archs so
-				   this is kind of pointless right now
-				   ... or? */
 				eth_copy_and_sum(skb,
 						 rp->rx_skbuff[entry]->tail,
 						 pkt_len, 0);
@@ -1627,10 +1567,6 @@ static void rhine_rx(struct net_device *dev)
 		}
 		rp->rx_ring[entry].rx_status = cpu_to_le32(DescOwn);
 	}
-
-	/* Pre-emptively restart Rx engine. */
-	writew(readw(dev->base_addr + ChipCmd) | CmdRxOn | CmdRxDemand,
-	       dev->base_addr + ChipCmd);
 }
 
 /*
@@ -1639,16 +1575,16 @@ static void rhine_rx(struct net_device *dev)
  * these, for others the counters are set to 1 when written to and
  * instead cleared when read. So we clear them both ways ...
  */
-static inline void clear_tally_counters(const long ioaddr)
+static inline void clear_tally_counters(void __iomem *ioaddr)
 {
-	writel(0, ioaddr + RxMissed);
-	readw(ioaddr + RxCRCErrs);
-	readw(ioaddr + RxMissed);
+	iowrite32(0, ioaddr + RxMissed);
+	ioread16(ioaddr + RxCRCErrs);
+	ioread16(ioaddr + RxMissed);
 }
 
 static void rhine_restart_tx(struct net_device *dev) {
 	struct rhine_private *rp = netdev_priv(dev);
-	long ioaddr = dev->base_addr;
+	void __iomem *ioaddr = rp->base;
 	int entry = rp->dirty_tx % TX_RING_SIZE;
 	u32 intr_status;
 
@@ -1661,10 +1597,13 @@ static void rhine_restart_tx(struct net_device *dev) {
 	if ((intr_status & IntrTxErrSummary) == 0) {
 
 		/* We know better than the chip where it should continue. */
-		writel(rp->tx_ring_dma + entry * sizeof(struct tx_desc),
+		iowrite32(rp->tx_ring_dma + entry * sizeof(struct tx_desc),
 		       ioaddr + TxRingPtr);
 
-		writew(CmdTxDemand | rp->chip_cmd, ioaddr + ChipCmd);
+		iowrite8(ioread8(ioaddr + ChipCmd) | CmdTxOn,
+		       ioaddr + ChipCmd);
+		iowrite8(ioread8(ioaddr + ChipCmd1) | Cmd1TxDemand,
+		       ioaddr + ChipCmd1);
 		IOSYNC;
 	}
 	else {
@@ -1680,27 +1619,15 @@ static void rhine_restart_tx(struct net_device *dev) {
 static void rhine_error(struct net_device *dev, int intr_status)
 {
 	struct rhine_private *rp = netdev_priv(dev);
-	long ioaddr = dev->base_addr;
+	void __iomem *ioaddr = rp->base;
 
 	spin_lock(&rp->lock);
 
-	if (intr_status & (IntrLinkChange)) {
-		if (readb(ioaddr + MIIStatus) & 0x02) {
-			/* Link failed, restart autonegotiation. */
-			if (rp->quirks & rqRhineI)
-				mdio_write(dev, rp->phys[0], MII_BMCR, 0x3300);
-		} else
-			rhine_check_duplex(dev);
-		if (debug)
-			printk(KERN_ERR "%s: MII status changed: "
-			       "Autonegotiation advertising %4.4x partner "
-			       "%4.4x.\n", dev->name,
-			       mdio_read(dev, rp->phys[0], MII_ADVERTISE),
-			       mdio_read(dev, rp->phys[0], MII_LPA));
-	}
+	if (intr_status & IntrLinkChange)
+		rhine_check_media(dev, 0);
 	if (intr_status & IntrStatsMax) {
-		rp->stats.rx_crc_errors += readw(ioaddr + RxCRCErrs);
-		rp->stats.rx_missed_errors += readw(ioaddr + RxMissed);
+		rp->stats.rx_crc_errors += ioread16(ioaddr + RxCRCErrs);
+		rp->stats.rx_missed_errors += ioread16(ioaddr + RxMissed);
 		clear_tally_counters(ioaddr);
 	}
 	if (intr_status & IntrTxAborted) {
@@ -1710,7 +1637,7 @@ static void rhine_error(struct net_device *dev, int intr_status)
 	}
 	if (intr_status & IntrTxUnderrun) {
 		if (rp->tx_thresh < 0xE0)
-			writeb(rp->tx_thresh += 0x20, ioaddr + TxConfig);
+			iowrite8(rp->tx_thresh += 0x20, ioaddr + TxConfig);
 		if (debug > 1)
 			printk(KERN_INFO "%s: Transmitter underrun, Tx "
 			       "threshold now %2.2x.\n",
@@ -1725,7 +1652,7 @@ static void rhine_error(struct net_device *dev, int intr_status)
 	    (intr_status & (IntrTxAborted |
 	     IntrTxUnderrun | IntrTxDescRace)) == 0) {
 		if (rp->tx_thresh < 0xE0) {
-			writeb(rp->tx_thresh += 0x20, ioaddr + TxConfig);
+			iowrite8(rp->tx_thresh += 0x20, ioaddr + TxConfig);
 		}
 		if (debug > 1)
 			printk(KERN_INFO "%s: Unspecified error. Tx "
@@ -1750,12 +1677,12 @@ static void rhine_error(struct net_device *dev, int intr_status)
 static struct net_device_stats *rhine_get_stats(struct net_device *dev)
 {
 	struct rhine_private *rp = netdev_priv(dev);
-	long ioaddr = dev->base_addr;
+	void __iomem *ioaddr = rp->base;
 	unsigned long flags;
 
 	spin_lock_irqsave(&rp->lock, flags);
-	rp->stats.rx_crc_errors += readw(ioaddr + RxCRCErrs);
-	rp->stats.rx_missed_errors += readw(ioaddr + RxMissed);
+	rp->stats.rx_crc_errors += ioread16(ioaddr + RxCRCErrs);
+	rp->stats.rx_missed_errors += ioread16(ioaddr + RxMissed);
 	clear_tally_counters(ioaddr);
 	spin_unlock_irqrestore(&rp->lock, flags);
 
@@ -1765,7 +1692,7 @@ static struct net_device_stats *rhine_get_stats(struct net_device *dev)
 static void rhine_set_rx_mode(struct net_device *dev)
 {
 	struct rhine_private *rp = netdev_priv(dev);
-	long ioaddr = dev->base_addr;
+	void __iomem *ioaddr = rp->base;
 	u32 mc_filter[2];	/* Multicast hash filter */
 	u8 rx_mode;		/* Note: 0x02=accept runt, 0x01=accept errs */
 
@@ -1774,13 +1701,13 @@ static void rhine_set_rx_mode(struct net_device *dev)
 		printk(KERN_NOTICE "%s: Promiscuous mode enabled.\n",
 		       dev->name);
 		rx_mode = 0x1C;
-		writel(0xffffffff, ioaddr + MulticastFilter0);
-		writel(0xffffffff, ioaddr + MulticastFilter1);
+		iowrite32(0xffffffff, ioaddr + MulticastFilter0);
+		iowrite32(0xffffffff, ioaddr + MulticastFilter1);
 	} else if ((dev->mc_count > multicast_filter_limit)
 		   || (dev->flags & IFF_ALLMULTI)) {
 		/* Too many to match, or accept all multicasts. */
-		writel(0xffffffff, ioaddr + MulticastFilter0);
-		writel(0xffffffff, ioaddr + MulticastFilter1);
+		iowrite32(0xffffffff, ioaddr + MulticastFilter0);
+		iowrite32(0xffffffff, ioaddr + MulticastFilter1);
 		rx_mode = 0x0C;
 	} else {
 		struct dev_mc_list *mclist;
@@ -1790,13 +1717,13 @@ static void rhine_set_rx_mode(struct net_device *dev)
 		     i++, mclist = mclist->next) {
 			int bit_nr = ether_crc(ETH_ALEN, mclist->dmi_addr) >> 26;
 
-			mc_filter[bit_nr >> 5] |= cpu_to_le32(1 << (bit_nr & 31));
+			mc_filter[bit_nr >> 5] |= 1 << (bit_nr & 31);
 		}
-		writel(mc_filter[0], ioaddr + MulticastFilter0);
-		writel(mc_filter[1], ioaddr + MulticastFilter1);
+		iowrite32(mc_filter[0], ioaddr + MulticastFilter0);
+		iowrite32(mc_filter[1], ioaddr + MulticastFilter1);
 		rx_mode = 0x0C;
 	}
-	writeb(rp->rx_thresh | rx_mode, ioaddr + RxConfig);
+	iowrite8(rp->rx_thresh | rx_mode, ioaddr + RxConfig);
 }
 
 static void netdev_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
@@ -1856,6 +1783,39 @@ static void netdev_set_msglevel(struct net_device *dev, u32 value)
 	debug = value;
 }
 
+static void rhine_get_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
+{
+	struct rhine_private *rp = netdev_priv(dev);
+
+	if (!(rp->quirks & rqWOL))
+		return;
+
+	spin_lock_irq(&rp->lock);
+	wol->supported = WAKE_PHY | WAKE_MAGIC |
+			 WAKE_UCAST | WAKE_MCAST | WAKE_BCAST;	/* Untested */
+	wol->wolopts = rp->wolopts;
+	spin_unlock_irq(&rp->lock);
+}
+
+static int rhine_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
+{
+	struct rhine_private *rp = netdev_priv(dev);
+	u32 support = WAKE_PHY | WAKE_MAGIC |
+		      WAKE_UCAST | WAKE_MCAST | WAKE_BCAST;	/* Untested */
+
+	if (!(rp->quirks & rqWOL))
+		return -EINVAL;
+
+	if (wol->wolopts & ~support)
+		return -EINVAL;
+
+	spin_lock_irq(&rp->lock);
+	rp->wolopts = wol->wolopts;
+	spin_unlock_irq(&rp->lock);
+
+	return 0;
+}
+
 static struct ethtool_ops netdev_ethtool_ops = {
 	.get_drvinfo		= netdev_get_drvinfo,
 	.get_settings		= netdev_get_settings,
@@ -1864,6 +1824,8 @@ static struct ethtool_ops netdev_ethtool_ops = {
 	.get_link		= netdev_get_link,
 	.get_msglevel		= netdev_get_msglevel,
 	.set_msglevel		= netdev_set_msglevel,
+	.get_wol		= rhine_get_wol,
+	.set_wol		= rhine_set_wol,
 	.get_sg			= ethtool_op_get_sg,
 	.get_tx_csum		= ethtool_op_get_tx_csum,
 };
@@ -1885,10 +1847,8 @@ static int netdev_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 
 static int rhine_close(struct net_device *dev)
 {
-	long ioaddr = dev->base_addr;
 	struct rhine_private *rp = netdev_priv(dev);
-
-	del_timer_sync(&rp->timer);
+	void __iomem *ioaddr = rp->base;
 
 	spin_lock_irq(&rp->lock);
 
@@ -1897,16 +1857,16 @@ static int rhine_close(struct net_device *dev)
 	if (debug > 1)
 		printk(KERN_DEBUG "%s: Shutting down ethercard, "
 		       "status was %4.4x.\n",
-		       dev->name, readw(ioaddr + ChipCmd));
+		       dev->name, ioread16(ioaddr + ChipCmd));
 
 	/* Switch to loopback mode to avoid hardware races. */
-	writeb(rp->tx_thresh | 0x02, ioaddr + TxConfig);
+	iowrite8(rp->tx_thresh | 0x02, ioaddr + TxConfig);
 
 	/* Disable interrupts by clearing the interrupt mask. */
-	writew(0x0000, ioaddr + IntrEnable);
+	iowrite16(0x0000, ioaddr + IntrEnable);
 
 	/* Stop the chip's Tx and Rx processes. */
-	writew(CmdStop, ioaddr + ChipCmd);
+	iowrite16(CmdStop, ioaddr + ChipCmd);
 
 	spin_unlock_irq(&rp->lock);
 
@@ -1922,26 +1882,136 @@ static int rhine_close(struct net_device *dev)
 static void __devexit rhine_remove_one(struct pci_dev *pdev)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
+	struct rhine_private *rp = netdev_priv(dev);
 
 	unregister_netdev(dev);
 
+	pci_iounmap(pdev, rp->base);
 	pci_release_regions(pdev);
-
-#ifdef USE_MMIO
-	iounmap((char *)(dev->base_addr));
-#endif
 
 	free_netdev(dev);
 	pci_disable_device(pdev);
 	pci_set_drvdata(pdev, NULL);
 }
 
+static void rhine_shutdown (struct device *gendev)
+{
+	struct pci_dev *pdev = to_pci_dev(gendev);
+	struct net_device *dev = pci_get_drvdata(pdev);
+	struct rhine_private *rp = netdev_priv(dev);
+	void __iomem *ioaddr = rp->base;
+
+	if (!(rp->quirks & rqWOL))
+		return; /* Nothing to do for non-WOL adapters */
+
+	rhine_power_init(dev);
+
+	/* Make sure we use pattern 0, 1 and not 4, 5 */
+	if (rp->quirks & rq6patterns)
+		iowrite8(0x04, ioaddr + 0xA7);
+
+	if (rp->wolopts & WAKE_MAGIC) {
+		iowrite8(WOLmagic, ioaddr + WOLcrSet);
+		/*
+		 * Turn EEPROM-controlled wake-up back on -- some hardware may
+		 * not cooperate otherwise.
+		 */
+		iowrite8(ioread8(ioaddr + ConfigA) | 0x03, ioaddr + ConfigA);
+	}
+
+	if (rp->wolopts & (WAKE_BCAST|WAKE_MCAST))
+		iowrite8(WOLbmcast, ioaddr + WOLcgSet);
+
+	if (rp->wolopts & WAKE_PHY)
+		iowrite8(WOLlnkon | WOLlnkoff, ioaddr + WOLcrSet);
+
+	if (rp->wolopts & WAKE_UCAST)
+		iowrite8(WOLucast, ioaddr + WOLcrSet);
+
+	if (rp->wolopts) {
+		/* Enable legacy WOL (for old motherboards) */
+		iowrite8(0x01, ioaddr + PwcfgSet);
+		iowrite8(ioread8(ioaddr + StickyHW) | 0x04, ioaddr + StickyHW);
+	}
+
+	/* Hit power state D3 (sleep) */
+	iowrite8(ioread8(ioaddr + StickyHW) | 0x03, ioaddr + StickyHW);
+
+	/* TODO: Check use of pci_enable_wake() */
+
+}
+
+#ifdef CONFIG_PM
+static int rhine_suspend(struct pci_dev *pdev, pm_message_t state)
+{
+	struct net_device *dev = pci_get_drvdata(pdev);
+	struct rhine_private *rp = netdev_priv(dev);
+	unsigned long flags;
+
+	if (!netif_running(dev))
+		return 0;
+
+	netif_device_detach(dev);
+	pci_save_state(pdev);
+
+	spin_lock_irqsave(&rp->lock, flags);
+	rhine_shutdown(&pdev->dev);
+	spin_unlock_irqrestore(&rp->lock, flags);
+
+	free_irq(dev->irq, dev);
+	return 0;
+}
+
+static int rhine_resume(struct pci_dev *pdev)
+{
+	struct net_device *dev = pci_get_drvdata(pdev);
+	struct rhine_private *rp = netdev_priv(dev);
+	unsigned long flags;
+	int ret;
+
+	if (!netif_running(dev))
+		return 0;
+
+        if (request_irq(dev->irq, rhine_interrupt, SA_SHIRQ, dev->name, dev))
+		printk(KERN_ERR "via-rhine %s: request_irq failed\n", dev->name);
+
+	ret = pci_set_power_state(pdev, PCI_D0);
+	if (debug > 1)
+		printk(KERN_INFO "%s: Entering power state D0 %s (%d).\n",
+			dev->name, ret ? "failed" : "succeeded", ret);
+
+	pci_restore_state(pdev);
+
+	spin_lock_irqsave(&rp->lock, flags);
+#ifdef USE_MMIO
+	enable_mmio(rp->pioaddr, rp->quirks);
+#endif
+	rhine_power_init(dev);
+	free_tbufs(dev);
+	free_rbufs(dev);
+	alloc_tbufs(dev);
+	alloc_rbufs(dev);
+	init_registers(dev);
+	spin_unlock_irqrestore(&rp->lock, flags);
+
+	netif_device_attach(dev);
+
+	return 0;
+}
+#endif /* CONFIG_PM */
 
 static struct pci_driver rhine_driver = {
-	.name		= "via-rhine",
+	.name		= DRV_NAME,
 	.id_table	= rhine_pci_tbl,
 	.probe		= rhine_init_one,
 	.remove		= __devexit_p(rhine_remove_one),
+#ifdef CONFIG_PM
+	.suspend	= rhine_suspend,
+	.resume		= rhine_resume,
+#endif /* CONFIG_PM */
+	.driver = {
+		.shutdown = rhine_shutdown,
+	}
 };
 
 

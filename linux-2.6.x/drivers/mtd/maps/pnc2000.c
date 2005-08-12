@@ -26,12 +26,12 @@
  */
 
 
-struct map_info pnc_map = {
+static struct map_info pnc_map = {
 	.name = "PNC-2000",
 	.size = WINDOW_SIZE,
 	.bankwidth = 4,
 	.phys = 0xFFFFFFFF,
-	.virt = WINDOW_ADDR,
+	.virt = (void __iomem *)WINDOW_ADDR,
 };
 
 
@@ -62,7 +62,7 @@ static struct mtd_partition pnc_partitions[3] = {
  */
 static struct mtd_info *mymtd;
 
-int __init init_pnc2000(void)
+static int __init init_pnc2000(void)
 {
 	printk(KERN_NOTICE "Photron PNC-2000 flash mapping: %x at %x\n", WINDOW_SIZE, WINDOW_ADDR);
 

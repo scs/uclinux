@@ -124,38 +124,38 @@ static int init_model2_yb = -1;
 /* Settings for camera model 3 */
 static int init_model3_input = 0;
 
-MODULE_PARM(debug, "i");
+module_param(debug, int, 0);
 MODULE_PARM_DESC(debug, "Debug level: 0-9 (default=0)");
-MODULE_PARM(flags, "i");
+module_param(flags, int, 0);
 MODULE_PARM_DESC(flags, "Bitfield: 0=VIDIOCSYNC, 1=B/W, 2=show hints, 3=show stats, 4=test pattern, 5=separate frames, 6=clean frames");
-MODULE_PARM(framerate, "i");
+module_param(framerate, int, 0);
 MODULE_PARM_DESC(framerate, "Framerate setting: 0=slowest, 6=fastest (default=2)");
-MODULE_PARM(lighting, "i");
+module_param(lighting, int, 0);
 MODULE_PARM_DESC(lighting, "Photosensitivity: 0=bright, 1=medium (default), 2=low light");
-MODULE_PARM(sharpness, "i");
+module_param(sharpness, int, 0);
 MODULE_PARM_DESC(sharpness, "Model1 noise reduction: 0=smooth, 6=sharp (default=4)");
-MODULE_PARM(size, "i");
+module_param(size, int, 0);
 MODULE_PARM_DESC(size, "Image size: 0=128x96 1=160x120 2=176x144 3=320x240 4=352x240 5=352x288 6=640x480  (default=5)");
-MODULE_PARM(init_brightness, "i");
+module_param(init_brightness, int, 0);
 MODULE_PARM_DESC(init_brightness, "Brightness preconfiguration: 0-255 (default=128)");
-MODULE_PARM(init_contrast, "i");
+module_param(init_contrast, int, 0);
 MODULE_PARM_DESC(init_contrast, "Contrast preconfiguration: 0-255 (default=192)");
-MODULE_PARM(init_color, "i");
+module_param(init_color, int, 0);
 MODULE_PARM_DESC(init_color, "Color preconfiguration: 0-255 (default=128)");
-MODULE_PARM(init_hue, "i");
+module_param(init_hue, int, 0);
 MODULE_PARM_DESC(init_hue, "Hue preconfiguration: 0-255 (default=128)");
-MODULE_PARM(hue_correction, "i");
+module_param(hue_correction, int, 0);
 MODULE_PARM_DESC(hue_correction, "YUV colorspace regulation: 0-255 (default=128)");
 
-MODULE_PARM(init_model2_rg2, "i");
+module_param(init_model2_rg2, int, 0);
 MODULE_PARM_DESC(init_model2_rg2, "Model2 preconfiguration: 0-255 (default=47)");
-MODULE_PARM(init_model2_sat, "i");
+module_param(init_model2_sat, int, 0);
 MODULE_PARM_DESC(init_model2_sat, "Model2 preconfiguration: 0-255 (default=52)");
-MODULE_PARM(init_model2_yb, "i");
+module_param(init_model2_yb, int, 0);
 MODULE_PARM_DESC(init_model2_yb, "Model2 preconfiguration: 0-255 (default=160)");
 
 /* 01.01.08 - Added for RCA video in support -LO */
-MODULE_PARM(init_model3_input, "i");
+module_param(init_model3_input, int, 0);
 MODULE_PARM_DESC(init_model3_input, "Model3 input: 0=CCD 1=RCA");
 
 MODULE_AUTHOR ("Dmitri");
@@ -1036,7 +1036,8 @@ static enum ParseState ibmcam_model4_128x96_parse_lines(
  * History:
  * 1/21/00  Created.
  */
-void ibmcam_ProcessIsocData(struct uvd *uvd, struct usbvideo_frame *frame)
+static void ibmcam_ProcessIsocData(struct uvd *uvd,
+				   struct usbvideo_frame *frame)
 {
 	enum ParseState newstate;
 	long copylen = 0;
@@ -1137,7 +1138,7 @@ static int ibmcam_veio(
 			index,
 			cp,
 			sizeof(cp),
-			HZ);
+			1000);
 #if 0
 		info("USB => %02x%02x%02x%02x%02x%02x%02x%02x "
 		       "(req=$%02x val=$%04x ind=$%04x)",
@@ -1154,7 +1155,7 @@ static int ibmcam_veio(
 			index,
 			NULL,
 			0,
-			HZ);
+			1000);
 	}
 	if (i < 0) {
 		err("%s: ERROR=%d. Camera stopped; Reconnect or reload driver.",
@@ -3659,17 +3660,8 @@ static int ibmcam_probe(struct usb_interface *intf, const struct usb_device_id *
 	if (dev->descriptor.bNumConfigurations != 1)
 		return -ENODEV;
 
-	/* Is it an IBM camera? */
-	if (dev->descriptor.idVendor != IBMCAM_VENDOR_ID)
-		return -ENODEV;
-	if ((dev->descriptor.idProduct != IBMCAM_PRODUCT_ID) &&
-	    (dev->descriptor.idProduct != VEO_800C_PRODUCT_ID) &&
-	    (dev->descriptor.idProduct != VEO_800D_PRODUCT_ID) &&
-	    (dev->descriptor.idProduct != NETCAM_PRODUCT_ID))
-		return -ENODEV;
-
 	/* Check the version/revision */
-	switch (dev->descriptor.bcdDevice) {
+	switch (le16_to_cpu(dev->descriptor.bcdDevice)) {
 	case 0x0002:
 		if (ifnum != 2)
 			return -ENODEV;
@@ -3678,8 +3670,8 @@ static int ibmcam_probe(struct usb_interface *intf, const struct usb_device_id *
 	case 0x030A:
 		if (ifnum != 0)
 			return -ENODEV;
-		if ((dev->descriptor.idProduct == NETCAM_PRODUCT_ID) ||
-		    (dev->descriptor.idProduct == VEO_800D_PRODUCT_ID))
+		if ((le16_to_cpu(dev->descriptor.idProduct) == NETCAM_PRODUCT_ID) ||
+		    (le16_to_cpu(dev->descriptor.idProduct) == VEO_800D_PRODUCT_ID))
 			model = IBMCAM_MODEL_4;
 		else
 			model = IBMCAM_MODEL_2;
@@ -3691,14 +3683,14 @@ static int ibmcam_probe(struct usb_interface *intf, const struct usb_device_id *
 		break;
 	default:
 		err("IBM camera with revision 0x%04x is not supported.",
-			dev->descriptor.bcdDevice);
+			le16_to_cpu(dev->descriptor.bcdDevice));
 		return -ENODEV;
 	}
 
 	/* Print detailed info on what we found so far */
 	do {
 		char *brand = NULL;
-		switch (dev->descriptor.idProduct) {
+		switch (le16_to_cpu(dev->descriptor.idProduct)) {
 		case NETCAM_PRODUCT_ID:
 			brand = "IBM NetCamera";
 			break;
@@ -3714,7 +3706,7 @@ static int ibmcam_probe(struct usb_interface *intf, const struct usb_device_id *
 			break;
 		}
 		info("%s USB camera found (model %d, rev. 0x%04x)",
-		     brand, model, dev->descriptor.bcdDevice);
+		     brand, model, le16_to_cpu(dev->descriptor.bcdDevice));
 	} while (0);
 
 	/* Validate found interface: must have one ISO endpoint */
@@ -3752,7 +3744,7 @@ static int ibmcam_probe(struct usb_interface *intf, const struct usb_device_id *
 			err("Interface %d. has ISO OUT endpoint!", ifnum);
 			return -ENODEV;
 		}
-		if (endpoint->wMaxPacketSize == 0) {
+		if (le16_to_cpu(endpoint->wMaxPacketSize) == 0) {
 			if (inactInterface < 0)
 				inactInterface = i;
 			else {
@@ -3762,7 +3754,7 @@ static int ibmcam_probe(struct usb_interface *intf, const struct usb_device_id *
 		} else {
 			if (actInterface < 0) {
 				actInterface = i;
-				maxPS = endpoint->wMaxPacketSize;
+				maxPS = le16_to_cpu(endpoint->wMaxPacketSize);
 				if (debug > 0)
 					info("Active setting=%d. maxPS=%d.", i, maxPS);
 			} else

@@ -72,10 +72,10 @@ static const char rcsid[] = "$Id$";
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
+#include <linux/bitops.h>
 
 #include <asm/system.h>
 #include <asm/io.h>
-#include <asm/bitops.h> 
 
 #include "sk_g16.h"
 
@@ -457,7 +457,7 @@ struct priv
 /* static variables */
 
 static SK_RAM *board;  /* pointer to our memory mapped board components */
-static spinlock_t SK_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(SK_lock);
 
 /* Macros */
 

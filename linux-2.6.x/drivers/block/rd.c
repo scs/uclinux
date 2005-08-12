@@ -48,6 +48,7 @@
 #include <asm/atomic.h>
 #include <linux/bio.h>
 #include <linux/module.h>
+#include <linux/moduleparam.h>
 #include <linux/init.h>
 #include <linux/devfs_fs_kernel.h>
 #include <linux/pagemap.h>
@@ -60,15 +61,12 @@
 
 #include <asm/uaccess.h>
 
-/* The RAM disk size is now a parameter */
-#define NUM_RAMDISKS 16		/* This cannot be overridden (yet) */
-
 /* Various static variables go here.  Most are used only in the RAM disk code.
  */
 
-static struct gendisk *rd_disks[NUM_RAMDISKS];
-static struct block_device *rd_bdev[NUM_RAMDISKS];/* Protected device data */
-static struct request_queue *rd_queue[NUM_RAMDISKS];
+static struct gendisk *rd_disks[CONFIG_BLK_DEV_RAM_COUNT];
+static struct block_device *rd_bdev[CONFIG_BLK_DEV_RAM_COUNT];/* Protected device data */
+static struct request_queue *rd_queue[CONFIG_BLK_DEV_RAM_COUNT];
 
 /*
  * Parameters for the boot-loading of the RAM disk.  These are set by
@@ -88,7 +86,7 @@ int rd_size = CONFIG_BLK_DEV_RAM_SIZE;		/* Size of the RAM disks */
  * behaviour. The default is still BLOCK_SIZE (needed by rd_load_image that
  * supposes the filesystem in the image uses a BLOCK_SIZE blocksize).
  */
-int rd_blocksize = BLOCK_SIZE;			/* blocksize of the RAM disks */
+static int rd_blocksize = BLOCK_SIZE;		/* blocksize of the RAM disks */
 
 /*
  * Copyright (C) 2000 Linus Torvalds.
@@ -327,7 +325,7 @@ static int rd_ioctl(struct inode *inode, struct file *file,
  */
 static struct backing_dev_info rd_backing_dev_info = {
 	.ra_pages	= 0,	/* No readahead */
-	.memory_backed	= 1,	/* Does not contribute to dirty memory */
+	.capabilities	= BDI_CAP_NO_ACCT_DIRTY | BDI_CAP_NO_WRITEBACK | BDI_CAP_MAP_COPY,
 	.unplug_io_fn	= default_unplug_io_fn,
 };
 
@@ -338,7 +336,7 @@ static struct backing_dev_info rd_backing_dev_info = {
  */
 static struct backing_dev_info rd_file_backing_dev_info = {
 	.ra_pages	= 0,	/* No readahead */
-	.memory_backed	= 0,	/* Does contribute to dirty memory */
+	.capabilities	= BDI_CAP_MAP_COPY,	/* Does contribute to dirty memory */
 	.unplug_io_fn	= default_unplug_io_fn,
 };
 
@@ -349,13 +347,17 @@ static int rd_open(struct inode *inode, struct file *filp)
 	if (rd_bdev[unit] == NULL) {
 		struct block_device *bdev = inode->i_bdev;
 		struct address_space *mapping;
+		unsigned bsize;
 		int gfp_mask;
 
 		inode = igrab(bdev->bd_inode);
 		rd_bdev[unit] = bdev;
 		bdev->bd_openers++;
-		bdev->bd_block_size = rd_blocksize;
-		inode->i_size = get_capacity(rd_disks[unit])<<9;
+		bsize = bdev_hardsect_size(bdev);
+		bdev->bd_block_size = bsize;
+		inode->i_blkbits = blksize_bits(bsize);
+		inode->i_size = get_capacity(bdev->bd_disk)<<9;
+
 		mapping = inode->i_mapping;
 		mapping->a_ops = &ramdisk_aops;
 		mapping->backing_dev_info = &rd_backing_dev_info;
@@ -398,7 +400,7 @@ static void __exit rd_cleanup(void)
 {
 	int i;
 
-	for (i = 0; i < NUM_RAMDISKS; i++) {
+	for (i = 0; i < CONFIG_BLK_DEV_RAM_COUNT; i++) {
 		struct block_device *bdev = rd_bdev[i];
 		rd_bdev[i] = NULL;
 		if (bdev) {
@@ -428,7 +430,7 @@ static int __init rd_init(void)
 		rd_blocksize = BLOCK_SIZE;
 	}
 
-	for (i = 0; i < NUM_RAMDISKS; i++) {
+	for (i = 0; i < CONFIG_BLK_DEV_RAM_COUNT; i++) {
 		rd_disks[i] = alloc_disk(1);
 		if (!rd_disks[i])
 			goto out;
@@ -441,7 +443,7 @@ static int __init rd_init(void)
 
 	devfs_mk_dir("rd");
 
-	for (i = 0; i < NUM_RAMDISKS; i++) {
+	for (i = 0; i < CONFIG_BLK_DEV_RAM_COUNT; i++) {
 		struct gendisk *disk = rd_disks[i];
 
 		rd_queue[i] = blk_alloc_queue(GFP_KERNEL);
@@ -449,6 +451,7 @@ static int __init rd_init(void)
 			goto out_queue;
 
 		blk_queue_make_request(rd_queue[i], &rd_make_request);
+		blk_queue_hardsect_size(rd_queue[i], rd_blocksize);
 
 		/* rd_size is given in kB */
 		disk->major = RAMDISK_MAJOR;
@@ -465,7 +468,7 @@ static int __init rd_init(void)
 	/* rd_size is given in kB */
 	printk("RAMDISK driver initialized: "
 		"%d RAM disks of %dK size %d blocksize\n",
-		NUM_RAMDISKS, rd_size, rd_blocksize);
+		CONFIG_BLK_DEV_RAM_COUNT, rd_size, rd_blocksize);
 
 	return 0;
 out_queue:
@@ -503,9 +506,10 @@ __setup("ramdisk_blocksize=", ramdisk_blocksize);
 #endif
 
 /* options - modular */
-MODULE_PARM     (rd_size, "1i");
+module_param(rd_size, int, 0);
 MODULE_PARM_DESC(rd_size, "Size of each RAM disk in kbytes.");
-MODULE_PARM     (rd_blocksize, "i");
+module_param(rd_blocksize, int, 0);
 MODULE_PARM_DESC(rd_blocksize, "Blocksize of each RAM disk in bytes.");
+MODULE_ALIAS_BLOCKDEV_MAJOR(RAMDISK_MAJOR);
 
 MODULE_LICENSE("GPL");

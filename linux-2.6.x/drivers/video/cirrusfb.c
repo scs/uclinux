@@ -391,9 +391,9 @@ typedef enum {
 struct cirrusfb_info {
 	struct fb_info *info;
 
-	caddr_t fbmem;
-	caddr_t regbase;
-	caddr_t mem;
+	u8 __iomem *fbmem;
+	u8 __iomem *regbase;
+	u8 __iomem *mem;
 	unsigned long size;
 	cirrusfb_board_t btype;
 	unsigned char SFR;	/* Shadow of special function register */
@@ -515,23 +515,25 @@ static const struct {
 
 
 /*--- Interface used by the world ------------------------------------------*/
-int cirrusfb_init (void);
-int cirrusfb_setup (char *options);
+static int cirrusfb_init (void);
+#ifndef MODULE
+static int cirrusfb_setup (char *options);
+#endif
 
-int cirrusfb_open (struct fb_info *info, int user);
-int cirrusfb_release (struct fb_info *info, int user);
-int cirrusfb_setcolreg (unsigned regno, unsigned red, unsigned green,
-			unsigned blue, unsigned transp,
-			struct fb_info *info);
-int cirrusfb_check_var (struct fb_var_screeninfo *var,
-			struct fb_info *info);
-int cirrusfb_set_par (struct fb_info *info);
-int cirrusfb_pan_display (struct fb_var_screeninfo *var,
-			  struct fb_info *info);
-int cirrusfb_blank (int blank_mode, struct fb_info *info);
-void cirrusfb_fillrect (struct fb_info *info, const struct fb_fillrect *region);
-void cirrusfb_copyarea(struct fb_info *info, const struct fb_copyarea *area);
-void cirrusfb_imageblit(struct fb_info *info, const struct fb_image *image);
+static int cirrusfb_open (struct fb_info *info, int user);
+static int cirrusfb_release (struct fb_info *info, int user);
+static int cirrusfb_setcolreg (unsigned regno, unsigned red, unsigned green,
+			       unsigned blue, unsigned transp,
+			       struct fb_info *info);
+static int cirrusfb_check_var (struct fb_var_screeninfo *var,
+			       struct fb_info *info);
+static int cirrusfb_set_par (struct fb_info *info);
+static int cirrusfb_pan_display (struct fb_var_screeninfo *var,
+				 struct fb_info *info);
+static int cirrusfb_blank (int blank_mode, struct fb_info *info);
+static void cirrusfb_fillrect (struct fb_info *info, const struct fb_fillrect *region);
+static void cirrusfb_copyarea(struct fb_info *info, const struct fb_copyarea *area);
+static void cirrusfb_imageblit(struct fb_info *info, const struct fb_image *image);
 
 /* function table of the above functions */
 static struct fb_ops cirrusfb_ops = {
@@ -571,13 +573,13 @@ static void RClut (struct cirrusfb_info *cinfo, unsigned char regnum, unsigned c
 		   unsigned char *green,
 		   unsigned char *blue);
 #endif
-static void cirrusfb_WaitBLT (caddr_t regbase);
-static void cirrusfb_BitBLT (caddr_t regbase, int bits_per_pixel,
+static void cirrusfb_WaitBLT (u8 __iomem *regbase);
+static void cirrusfb_BitBLT (u8 __iomem *regbase, int bits_per_pixel,
 			     u_short curx, u_short cury,
 			     u_short destx, u_short desty,
 			     u_short width, u_short height,
 			     u_short line_length);
-static void cirrusfb_RectFill (caddr_t regbase, int bits_per_pixel,
+static void cirrusfb_RectFill (u8 __iomem *regbase, int bits_per_pixel,
 			       u_short x, u_short y,
 			       u_short width, u_short height,
 			       u_char color, u_short line_length);
@@ -600,7 +602,7 @@ static void cirrusfb_dbg_print_byte (const char *name, unsigned char val);
 static int opencount = 0;
 
 /*--- Open /dev/fbx ---------------------------------------------------------*/
-int cirrusfb_open (struct fb_info *info, int user)
+static int cirrusfb_open (struct fb_info *info, int user)
 {
 	if (opencount++ == 0)
 		switch_monitor (info->par, 1);
@@ -608,7 +610,7 @@ int cirrusfb_open (struct fb_info *info, int user)
 }
 
 /*--- Close /dev/fbx --------------------------------------------------------*/
-int cirrusfb_release (struct fb_info *info, int user)
+static int cirrusfb_release (struct fb_info *info, int user)
 {
 	if (--opencount == 0)
 		switch_monitor (info->par, 0);
@@ -660,8 +662,8 @@ static long cirrusfb_get_mclk (long freq, int bpp, long *div)
 	return mclk;
 }
 
-int cirrusfb_check_var(struct fb_var_screeninfo *var,
-		       struct fb_info *info)
+static int cirrusfb_check_var(struct fb_var_screeninfo *var,
+			      struct fb_info *info)
 {
 	struct cirrusfb_info *cinfo = info->par;
 	int nom, den;		/* translyting from pixels->bytes */
@@ -752,6 +754,12 @@ int cirrusfb_check_var(struct fb_var_screeninfo *var,
 
 	switch (var->bits_per_pixel) {
 	case 1:
+		var->red.offset = 0;
+		var->red.length = 1;
+		var->green.offset = 0;
+		var->green.length = 1;
+		var->blue.offset = 0;
+		var->blue.length = 1;
 		break;
 
 	case 8:
@@ -1010,7 +1018,7 @@ static int cirrusfb_set_par_foo (struct fb_info *info)
 	struct cirrusfb_info *cinfo = info->par;
 	struct fb_var_screeninfo *var = &info->var;
 	struct cirrusfb_regs regs;
-	caddr_t regbase = cinfo->regbase;
+	u8 __iomem *regbase = cinfo->regbase;
 	unsigned char tmp;
 	int offset = 0, err;
 	const struct cirrusfb_board_info_rec *bi;
@@ -1567,15 +1575,15 @@ static int cirrusfb_set_par_foo (struct fb_info *info)
 
 /* for some reason incomprehensible to me, cirrusfb requires that you write
  * the registers twice for the settings to take..grr. -dte */
-int cirrusfb_set_par (struct fb_info *info)
+static int cirrusfb_set_par (struct fb_info *info)
 {
 	cirrusfb_set_par_foo (info);
 	return cirrusfb_set_par_foo (info);
 }
 
-int cirrusfb_setcolreg (unsigned regno, unsigned red, unsigned green,
-			unsigned blue, unsigned transp,
-			struct fb_info *info)
+static int cirrusfb_setcolreg (unsigned regno, unsigned red, unsigned green,
+			       unsigned blue, unsigned transp,
+			       struct fb_info *info)
 {
 	struct cirrusfb_info *cinfo = info->par;
 
@@ -1626,8 +1634,8 @@ int cirrusfb_setcolreg (unsigned regno, unsigned red, unsigned green,
 
 	performs display panning - provided hardware permits this
 **************************************************************************/
-int cirrusfb_pan_display (struct fb_var_screeninfo *var,
-			  struct fb_info *info)
+static int cirrusfb_pan_display (struct fb_var_screeninfo *var,
+				 struct fb_info *info)
 {
 	int xoffset = 0;
 	int yoffset = 0;
@@ -1696,7 +1704,7 @@ int cirrusfb_pan_display (struct fb_var_screeninfo *var,
 }
 
 
-int cirrusfb_blank (int blank_mode, struct fb_info *info)
+static int cirrusfb_blank (int blank_mode, struct fb_info *info)
 {
 	/*
 	 *  Blank the screen if blank_mode != 0, else unblank. If blank == NULL
@@ -1721,7 +1729,8 @@ int cirrusfb_blank (int blank_mode, struct fb_info *info)
 	}
 
 	/* Undo current */
-	if (current_mode != VESA_NO_BLANKING) {
+	if (current_mode == FB_BLANK_NORMAL ||
+	    current_mode == FB_BLANK_UNBLANK) {
 		/* unblank the screen */
 		val = vga_rseq (cinfo->regbase, VGA_SEQ_CLOCK_MODE);
 		vga_wseq (cinfo->regbase, VGA_SEQ_CLOCK_MODE, val & 0xdf);	/* clear "FullBandwidth" bit */
@@ -1730,22 +1739,23 @@ int cirrusfb_blank (int blank_mode, struct fb_info *info)
 	}
 
 	/* set new */
-	if(blank_mode != VESA_NO_BLANKING) {
+	if(blank_mode > FB_BLANK_NORMAL) {
 		/* blank the screen */
 		val = vga_rseq (cinfo->regbase, VGA_SEQ_CLOCK_MODE);
 		vga_wseq (cinfo->regbase, VGA_SEQ_CLOCK_MODE, val | 0x20);	/* set "FullBandwidth" bit */
 	}
 
 	switch (blank_mode) {
-	case VESA_NO_BLANKING:
+	case FB_BLANK_UNBLANK:
+	case FB_BLANK_NORMAL:
 		break;
-	case VESA_VSYNC_SUSPEND:
+	case FB_BLANK_VSYNC_SUSPEND:
 		vga_wgfx (cinfo->regbase, CL_GRE, 0x04);
 		break;
-	case VESA_HSYNC_SUSPEND:
+	case FB_BLANK_HSYNC_SUSPEND:
 		vga_wgfx (cinfo->regbase, CL_GRE, 0x02);
 		break;
-	case VESA_POWERDOWN:
+	case FB_BLANK_POWERDOWN:
 		vga_wgfx (cinfo->regbase, CL_GRE, 0x06);
 		break;
 	default:
@@ -1755,7 +1765,9 @@ int cirrusfb_blank (int blank_mode, struct fb_info *info)
 
 	cinfo->blank_mode = blank_mode;
 	DPRINTK ("EXIT, returning 0\n");
-	return 0;
+
+	/* Let fbcon do a soft blank for us */
+	return (blank_mode == FB_BLANK_NORMAL) ? 1 : 0;
 }
 /**** END   Hardware specific Routines **************************************/
 /****************************************************************************/
@@ -2026,7 +2038,7 @@ static void cirrusfb_prim_fillrect(struct cirrusfb_info *cinfo,
 	return;
 }
 
-void cirrusfb_fillrect (struct fb_info *info, const struct fb_fillrect *region)
+static void cirrusfb_fillrect (struct fb_info *info, const struct fb_fillrect *region)
 {
 	struct cirrusfb_info *cinfo = info->par;
 	struct fb_fillrect modded;
@@ -2076,7 +2088,7 @@ static void cirrusfb_prim_copyarea(struct cirrusfb_info *cinfo,
 }
 
 
-void cirrusfb_copyarea(struct fb_info *info, const struct fb_copyarea *area)
+static void cirrusfb_copyarea(struct fb_info *info, const struct fb_copyarea *area)
 {
 	struct cirrusfb_info *cinfo = info->par;
 	struct fb_copyarea modded;
@@ -2111,7 +2123,7 @@ void cirrusfb_copyarea(struct fb_info *info, const struct fb_copyarea *area)
 	cirrusfb_prim_copyarea(cinfo, &modded);
 }
 
-void cirrusfb_imageblit(struct fb_info *info, const struct fb_image *image)
+static void cirrusfb_imageblit(struct fb_info *info, const struct fb_image *image)
 {
 	struct cirrusfb_info *cinfo = info->par;
 
@@ -2143,7 +2155,7 @@ static int release_io_ports = 0;
  * based on the DRAM bandwidth bit and DRAM bank switching bit.  This
  * works with 1MB, 2MB and 4MB configurations (which the Motorola boards
  * seem to have. */
-static unsigned int cirrusfb_get_memsize (caddr_t regbase)
+static unsigned int cirrusfb_get_memsize (u8 __iomem *regbase)
 {
 	unsigned long mem;
 	unsigned char SRF;
@@ -2240,7 +2252,6 @@ static int cirrusfb_set_fbinfo(struct cirrusfb_info *cinfo)
 	struct fb_info *info = cinfo->info;
 	struct fb_var_screeninfo *var = &info->var;
 
-	info->currcon = -1;
 	info->par = cinfo;
 	info->pseudo_palette = cinfo->pseudo_palette;
 	info->flags = FBINFO_DEFAULT
@@ -2388,7 +2399,7 @@ static int cirrusfb_pci_register (struct pci_dev *pdev,
 		get_prep_addrs (&board_addr, &cinfo->fbregs_phys);
 #endif
 		/* PReP dies if we ioremap the IO registers, but it works w/out... */
-		cinfo->regbase = (char *) cinfo->fbregs_phys;
+		cinfo->regbase = (char __iomem *) cinfo->fbregs_phys;
 	} else {
 		DPRINTK ("Attempt to get PCI info for Cirrus Graphics Card\n");
 		get_pci_addrs (pdev, &board_addr, &cinfo->fbregs_phys);
@@ -2450,7 +2461,7 @@ err_out:
 	return ret;
 }
 
-void __devexit cirrusfb_pci_unregister (struct pci_dev *pdev)
+static void __devexit cirrusfb_pci_unregister (struct pci_dev *pdev)
 {
 	struct fb_info *info = pci_get_drvdata(pdev);
 	DPRINTK ("ENTER\n");
@@ -2596,15 +2607,23 @@ static struct zorro_driver cirrusfb_zorro_driver = {
 };
 #endif /* CONFIG_ZORRO */
 
-int __init cirrusfb_init(void)
+static int __init cirrusfb_init(void)
 {
 	int error = 0;
+
+#ifndef MODULE
+	char *option = NULL;
+
+	if (fb_get_options("cirrusfb", &option))
+		return -ENODEV;
+	cirrusfb_setup(option);
+#endif
 
 #ifdef CONFIG_ZORRO
 	error |= zorro_module_init(&cirrusfb_zorro_driver);
 #endif
 #ifdef CONFIG_PCI
-	error |= pci_module_init(&cirrusfb_pci_driver);
+	error |= pci_register_driver(&cirrusfb_pci_driver);
 #endif
 	return error;
 }
@@ -2612,7 +2631,7 @@ int __init cirrusfb_init(void)
 
 
 #ifndef MODULE
-int __init cirrusfb_setup(char *options) {
+static int __init cirrusfb_setup(char *options) {
 	char *this_opt, s[32];
 	int i;
 
@@ -2647,7 +2666,7 @@ MODULE_AUTHOR("Copyright 1999,2000 Jeff Garzik <jgarzik@pobox.com>");
 MODULE_DESCRIPTION("Accelerated FBDev driver for Cirrus Logic chips");
 MODULE_LICENSE("GPL");
 
-void __exit cirrusfb_exit (void)
+static void __exit cirrusfb_exit (void)
 {
 #ifdef CONFIG_PCI
 	pci_unregister_driver(&cirrusfb_pci_driver);
@@ -2657,8 +2676,9 @@ void __exit cirrusfb_exit (void)
 #endif
 }
 
-#ifdef MODULE
 module_init(cirrusfb_init);
+
+#ifdef MODULE
 module_exit(cirrusfb_exit);
 #endif
 
@@ -2850,7 +2870,7 @@ static void RClut (struct cirrusfb_info *cinfo, unsigned char regnum, unsigned c
 *********************************************************************/
 
 /* FIXME: use interrupts instead */
-static void cirrusfb_WaitBLT (caddr_t regbase)
+static void cirrusfb_WaitBLT (u8 __iomem *regbase)
 {
 	/* now busy-wait until we're done */
 	while (vga_rgfx (regbase, CL_GR31) & 0x08)
@@ -2863,7 +2883,7 @@ static void cirrusfb_WaitBLT (caddr_t regbase)
 	perform accelerated "scrolling"
 ********************************************************************/
 
-static void cirrusfb_BitBLT (caddr_t regbase, int bits_per_pixel,
+static void cirrusfb_BitBLT (u8 __iomem *regbase, int bits_per_pixel,
 			     u_short curx, u_short cury, u_short destx, u_short desty,
 			     u_short width, u_short height, u_short line_length)
 {
@@ -2954,7 +2974,7 @@ static void cirrusfb_BitBLT (caddr_t regbase, int bits_per_pixel,
 	perform accelerated rectangle fill
 ********************************************************************/
 
-static void cirrusfb_RectFill (caddr_t regbase, int bits_per_pixel,
+static void cirrusfb_RectFill (u8 __iomem *regbase, int bits_per_pixel,
 		     u_short x, u_short y, u_short width, u_short height,
 		     u_char color, u_short line_length)
 {

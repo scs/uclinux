@@ -36,6 +36,7 @@ static int tcx_blank(int, struct fb_info *);
 static int tcx_mmap(struct fb_info *, struct file *, struct vm_area_struct *);
 static int tcx_ioctl(struct inode *, struct file *, unsigned int,
 		     unsigned long, struct fb_info *);
+static int tcx_pan_display(struct fb_var_screeninfo *, struct fb_info *);
 
 /*
  *  Frame buffer operations
@@ -45,6 +46,7 @@ static struct fb_ops tcx_ops = {
 	.owner			= THIS_MODULE,
 	.fb_setcolreg		= tcx_setcolreg,
 	.fb_blank		= tcx_blank,
+	.fb_pan_display		= tcx_pan_display,
 	.fb_fillrect		= cfb_fillrect,
 	.fb_copyarea		= cfb_copyarea,
 	.fb_imageblit		= cfb_imageblit,
@@ -106,10 +108,10 @@ struct bt_regs {
 
 struct tcx_par {
 	spinlock_t		lock;
-	struct bt_regs		*bt;
-	struct tcx_thc		*thc;
-	struct tcx_tec		*tec;
-	volatile u32		*cplane;
+	struct bt_regs		__iomem *bt;
+	struct tcx_thc		__iomem *thc;
+	struct tcx_tec		__iomem *tec;
+	volatile u32		__iomem *cplane;
 
 	u32			flags;
 #define TCX_FLAG_BLANKED	0x00000001
@@ -127,7 +129,7 @@ struct tcx_par {
 /* Reset control plane so that WID is 8-bit plane. */
 static void __tcx_set_control_plane (struct tcx_par *par)
 {
-	volatile u32 *p, *pend;
+	volatile u32 __iomem *p, *pend;
         
 	if (par->lowdepth)
 		return;
@@ -153,6 +155,12 @@ static void tcx_reset (struct fb_info *info)
 	spin_unlock_irqrestore(&par->lock, flags);
 }
 
+static int tcx_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
+{
+	tcx_reset(info);
+	return 0;
+}
+
 /**
  *      tcx_setcolreg - Optional function. Sets a color register.
  *      @regno: boolean, 0 copy local, 1 get_user() function
@@ -167,7 +175,7 @@ static int tcx_setcolreg(unsigned regno,
 			 unsigned transp, struct fb_info *info)
 {
 	struct tcx_par *par = (struct tcx_par *) info->par;
-	struct bt_regs *bt = par->bt;
+	struct bt_regs __iomem *bt = par->bt;
 	unsigned long flags;
 
 	if (regno >= 256)
@@ -198,7 +206,7 @@ static int
 tcx_blank(int blank, struct fb_info *info)
 {
 	struct tcx_par *par = (struct tcx_par *) info->par;
-	struct tcx_thc *thc = par->thc;
+	struct tcx_thc __iomem *thc = par->thc;
 	unsigned long flags;
 	u32 val;
 
@@ -207,26 +215,26 @@ tcx_blank(int blank, struct fb_info *info)
 	val = sbus_readl(&thc->thc_misc);
 
 	switch (blank) {
-	case 0: /* Unblanking */
+	case FB_BLANK_UNBLANK: /* Unblanking */
 		val &= ~(TCX_THC_MISC_VSYNC_DIS |
 			 TCX_THC_MISC_HSYNC_DIS);
 		val |= TCX_THC_MISC_VIDEO;
 		par->flags &= ~TCX_FLAG_BLANKED;
 		break;
 
-	case 1: /* Normal blanking */
+	case FB_BLANK_NORMAL: /* Normal blanking */
 		val &= ~TCX_THC_MISC_VIDEO;
 		par->flags |= TCX_FLAG_BLANKED;
 		break;
 
-	case 2: /* VESA blank (vsync off) */
+	case FB_BLANK_VSYNC_SUSPEND: /* VESA blank (vsync off) */
 		val |= TCX_THC_MISC_VSYNC_DIS;
 		break;
-	case 3: /* VESA blank (hsync off) */
+	case FB_BLANK_HSYNC_SUSPEND: /* VESA blank (hsync off) */
 		val |= TCX_THC_MISC_HSYNC_DIS;
 		break;
 
-	case 4: /* Poweroff */
+	case FB_BLANK_POWERDOWN: /* Poweroff */
 		break;
 	};
 
@@ -366,24 +374,23 @@ static void tcx_init_one(struct sbus_dev *sdev)
 	all->par.lowdepth = prom_getbool(sdev->prom_node, "tcx-8-bit");
 
 	sbusfb_fill_var(&all->info.var, sdev->prom_node, 8);
+	all->info.var.red.length = 8;
+	all->info.var.green.length = 8;
+	all->info.var.blue.length = 8;
 
 	linebytes = prom_getintdefault(sdev->prom_node, "linebytes",
 				       all->info.var.xres);
 	all->par.fbsize = PAGE_ALIGN(linebytes * all->info.var.yres);
 
-	all->par.tec = (struct tcx_tec *)
-		sbus_ioremap(&sdev->resource[7], 0,
+	all->par.tec = sbus_ioremap(&sdev->resource[7], 0,
 			     sizeof(struct tcx_tec), "tcx tec");
-	all->par.thc = (struct tcx_thc *)
-		sbus_ioremap(&sdev->resource[9], 0,
+	all->par.thc = sbus_ioremap(&sdev->resource[9], 0,
 			     sizeof(struct tcx_thc), "tcx thc");
-	all->par.bt = (struct bt_regs *)
-		sbus_ioremap(&sdev->resource[8], 0,
+	all->par.bt = sbus_ioremap(&sdev->resource[8], 0,
 			     sizeof(struct bt_regs), "tcx dac");
 	memcpy(&all->par.mmap_map, &__tcx_mmap_map, sizeof(all->par.mmap_map));
 	if (!all->par.lowdepth) {
-		all->par.cplane = (volatile u32 *)
-			sbus_ioremap(&sdev->resource[4], 0,
+		all->par.cplane = sbus_ioremap(&sdev->resource[4], 0,
 				     all->par.fbsize * sizeof(u32), "tcx cplane");
 	} else {
 		all->par.mmap_map[1].size = SBUS_MMAP_EMPTY;
@@ -412,17 +419,15 @@ static void tcx_init_one(struct sbus_dev *sdev)
 		all->par.mmap_map[i].poff = sdev->reg_addrs[j].phys_addr;
 	}
 
-	all->info.flags = FBINFO_FLAG_DEFAULT;
+	all->info.flags = FBINFO_DEFAULT;
 	all->info.fbops = &tcx_ops;
 #ifdef CONFIG_SPARC32
-	all->info.screen_base = (char *)
+	all->info.screen_base = (char __iomem *)
 		prom_getintdefault(sdev->prom_node, "address", 0);
 #endif
 	if (!all->info.screen_base)
-		all->info.screen_base = (char *)
-			sbus_ioremap(&sdev->resource[0], 0,
+		all->info.screen_base = sbus_ioremap(&sdev->resource[0], 0,
 				     all->par.fbsize, "tcx ram");
-	all->info.currcon = -1;
 	all->info.par = &all->par;
 
 	/* Initialize brooktree DAC. */
@@ -445,6 +450,7 @@ static void tcx_init_one(struct sbus_dev *sdev)
 		return;
 	}
 
+	fb_set_cmap(&all->info.cmap, &all->info);
 	tcx_init_fix(&all->info, linebytes);
 
 	if (register_framebuffer(&all->info) < 0) {
@@ -468,8 +474,11 @@ int __init tcx_init(void)
 	struct sbus_bus *sbus;
 	struct sbus_dev *sdev;
 
+	if (fb_get_options("tcxfb", NULL))
+		return -ENODEV;
+
 	for_all_sbusdev(sdev, sbus) {
-		if (!strcmp(sdev->prom_name, "tcx"))
+		if (!strcmp(sdev->prom_name, "SUNW,tcx"))
 			tcx_init_one(sdev);
 	}
 
@@ -496,8 +505,9 @@ tcx_setup(char *arg)
 	return 0;
 }
 
-#ifdef MODULE
 module_init(tcx_init);
+
+#ifdef MODULE
 module_exit(tcx_exit);
 #endif
 

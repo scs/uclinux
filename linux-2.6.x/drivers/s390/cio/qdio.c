@@ -95,7 +95,7 @@ static debug_info_t *qdio_dbf_slsb_in;
 /* iQDIO stuff: */
 static volatile struct qdio_q *tiq_list=NULL; /* volatile as it could change
 						 during a while loop */
-static spinlock_t ttiq_list_lock=SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(ttiq_list_lock);
 static int register_thinint_result;
 static void tiqdio_tl(unsigned long);
 static DECLARE_TASKLET(tiqdio_tasklet,tiqdio_tl,0);
@@ -365,7 +365,7 @@ qdio_stop_polling(struct qdio_q *q)
 	 * small window we can miss between resetting it and
 	 * checking for PRIMED state 
 	 */
-	if (q->is_iqdio_q)
+	if (q->is_thinint_q)
 		tiqdio_set_summary_bit((__u32*)q->dev_st_chg_ind);
 	return 0;
 
@@ -605,8 +605,8 @@ qdio_kick_outbound_q(struct qdio_q *q)
 			sprintf(dbf_text,"%4x%2x%2x",q->irq,q->q_no,
 				atomic_read(&q->busy_siga_counter));
 			QDIO_DBF_TEXT3(0,trace,dbf_text);
-			q->timing.busy_start=0;
 #endif /* CONFIG_QDIO_DEBUG */
+			q->timing.busy_start=0;
 			break;
 		case (2|QDIO_SIGA_ERROR_B_BIT_SET):
 			/* cc=2 and busy bit: */
@@ -808,7 +808,7 @@ check_next:
 #endif /* QDIO_USE_PROCESSING_STATE */
 		/* 
 		 * not needed, as the inbound queue will be synced on the next
-		 * siga-r
+		 * siga-r, resp. tiqdio_is_inbound_q_done will do the siga-s
 		 */
 		/*SYNC_MEMORY;*/
 		f++;
@@ -899,7 +899,7 @@ qdio_has_inbound_q_moved(struct qdio_q *q)
 
 /* means, no more buffers to be filled */
 inline static int
-iqdio_is_inbound_q_done(struct qdio_q *q)
+tiqdio_is_inbound_q_done(struct qdio_q *q)
 {
 	int no_used;
 #ifdef CONFIG_QDIO_DEBUG
@@ -1139,7 +1139,7 @@ __tiqdio_inbound_processing(struct qdio_q *q, int spare_ind_was_set)
 		goto out;
 
 	qdio_kick_inbound_handler(q);
-	if (iqdio_is_inbound_q_done(q))
+	if (tiqdio_is_inbound_q_done(q))
 		if (!qdio_stop_polling(q)) {
 			/* 
 			 * we set the flags to get into the stuff next time,
@@ -2043,6 +2043,7 @@ tiqdio_check_chsc_availability(void)
 				"installed.\n");
 		return -ENOENT;
 	}
+
 	/* Check for bits 107 and 108. */
 	if (!css_chsc_characteristics.scssc ||
 	    !css_chsc_characteristics.scsscf) {
@@ -2088,7 +2089,10 @@ tiqdio_set_subchannel_ind(struct qdio_irq *irq_ptr, int reset_to_zero)
 		u32 kc:4;
 		u32 reserved4:21;
 		u32 isc:3;
-		u32 reserved5[2];
+		u32 word_with_d_bit;
+		/* set to 0x10000000 to enable
+		 * time delay disablement facility */
+		u32 reserved5;
 		u32 subsystem_id;
 		u32 reserved6[1004];
 		struct chsc_header response;
@@ -2126,6 +2130,16 @@ tiqdio_set_subchannel_ind(struct qdio_irq *irq_ptr, int reset_to_zero)
 	scssc_area->kc = QDIO_STORAGE_KEY;
 	scssc_area->isc = TIQDIO_THININT_ISC;
 	scssc_area->subsystem_id = (1<<16) + irq_ptr->irq;
+	/* enables the time delay disablement facility. Don't care
+	 * whether it is really there (i.e. we haven't checked for
+	 * it) */
+	if (css_general_characteristics.aif_tdd)
+		scssc_area->word_with_d_bit = 0x10000000;
+	else
+		QDIO_PRINT_WARN("Time delay disablement facility " \
+				"not available\n");
+
+
 
 	result = chsc(scssc_area);
 	if (result) {
@@ -2310,6 +2324,15 @@ qdio_shutdown(struct ccw_device *cdev, int how)
 	}
 	if (rc == -ENODEV) {
 		/* No need to wait for device no longer present. */
+		qdio_set_state(irq_ptr, QDIO_IRQ_STATE_INACTIVE);
+		spin_unlock_irqrestore(get_ccwdev_lock(cdev), flags);
+	} else if (((void *)cdev->handler != (void *)qdio_handler) && rc == 0) {
+		/*
+		 * Whoever put another handler there, has to cope with the
+		 * interrupt theirself. Might happen if qdio_shutdown was
+		 * called on already shutdown queues, but this shouldn't have
+		 * bad side effects.
+		 */
 		qdio_set_state(irq_ptr, QDIO_IRQ_STATE_INACTIVE);
 		spin_unlock_irqrestore(get_ccwdev_lock(cdev), flags);
 	} else if (rc == 0) {
@@ -2620,6 +2643,7 @@ qdio_allocate(struct qdio_initialize *init_data)
 
 	init_MUTEX(&irq_ptr->setting_up_sema);
 
+	/* QDR must be in DMA area since CCW data address is only 32 bit */
 	irq_ptr->qdr=kmalloc(sizeof(struct qdr), GFP_KERNEL | GFP_DMA);
   	if (!(irq_ptr->qdr)) {
    		kfree(irq_ptr);

@@ -94,13 +94,13 @@ enum {
 };
 
 /* The master ring of all esp hosts we are managing in this driver. */
-struct NCR_ESP *espchain = 0;
+struct NCR_ESP *espchain;
 int nesps = 0, esps_in_use = 0, esps_running = 0;
 
 irqreturn_t esp_intr(int irq, void *dev_id, struct pt_regs *pregs);
 
 /* Debugging routines */
-struct esp_cmdstrings {
+static struct esp_cmdstrings {
 	unchar cmdchar;
 	char *text;
 } esp_cmd_strings[] = {
@@ -290,7 +290,7 @@ static inline void esp_advance_phase(Scsi_Cmnd *s, int newphase)
 #endif
 
 #ifdef DEBUG_ESP_CMDS
-inline void esp_cmd(struct NCR_ESP *esp, struct ESP_regs *eregs,
+static inline void esp_cmd(struct NCR_ESP *esp, struct ESP_regs *eregs,
 			   unchar cmd)
 {
 	esp->espcmdlog[esp->espcmdent] = cmd;
@@ -555,7 +555,7 @@ struct NCR_ESP* esp_allocate(Scsi_Host_Template *tpnt, void *esp_dev)
 	} else {
 		espchain = esp;
 	}
-	esp->next = 0;
+	esp->next = NULL;
 
 	return esp;
 }
@@ -565,7 +565,7 @@ void esp_deallocate(struct NCR_ESP *esp)
 	struct NCR_ESP *elink;
 
 	if(espchain == esp) {
-		espchain = 0;
+		espchain = NULL;
 	} else {
 		for(elink = espchain; elink && (elink->next != esp); elink = elink->next);
 		if(elink) 
@@ -708,9 +708,9 @@ void esp_initialize(struct NCR_ESP *esp)
 	}				
 
 	/* Initialize the command queues */
-	esp->current_SC = 0;
-	esp->disconnected_SC = 0;
-	esp->issue_SC = 0;
+	esp->current_SC = NULL;
+	esp->disconnected_SC = NULL;
+	esp->issue_SC = NULL;
 
 	/* Clear the state machines. */
 	esp->targets_present = 0;
@@ -1271,17 +1271,6 @@ int esp_queue(Scsi_Cmnd *SCpnt, void (*done)(Scsi_Cmnd *))
 	return 0;
 }
 
-/* Only queuing supported in this ESP driver. */
-int esp_command(Scsi_Cmnd *SCpnt)
-{
-#ifdef DEBUG_ESP
-	struct NCR_ESP *esp = (struct NCR_ESP *) SCpnt->device->host->hostdata;
-#endif
-
-	ESPLOG(("esp%d: esp_command() called...\n", esp->esp_id));
-	return -1;
-}
-
 /* Dump driver state. */
 static void esp_dump_cmd(Scsi_Cmnd *SCptr)
 {
@@ -1728,7 +1717,7 @@ static inline void esp_reconnect(struct NCR_ESP *esp, Scsi_Cmnd *sp)
 		ESPLOG(("esp%d: Weird, being reselected but disconnected "
 			"command queue is empty.\n", esp->esp_id));
 	esp->snip = 0;
-	esp->current_SC = 0;
+	esp->current_SC = NULL;
 	sp->SCp.phase = not_issued;
 	append_SC(&esp->issue_SC, sp);
 }
@@ -1835,7 +1824,10 @@ static int esp_do_data(struct NCR_ESP *esp, struct ESP_regs *eregs)
 		/* loop */
 		while (hmuch) {
 			int j, fifo_stuck = 0, newphase;
-			unsigned long flags, timeout;
+			unsigned long timeout;
+#if 0
+			unsigned long flags;
+#endif
 #if 0
 			if ( i % 10 )
 				ESPDATA(("\r"));
@@ -3393,7 +3385,7 @@ static int esp_work_bus(struct NCR_ESP *esp, struct ESP_regs *eregs)
 }
 
 static espfunc_t isvc_vector[] = {
-	0,
+	NULL,
 	esp_do_phase_determine,
 	esp_do_resetbus,
 	esp_finish_reset,

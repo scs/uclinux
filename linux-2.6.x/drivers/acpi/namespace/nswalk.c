@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2004, R. Byron Moore
+ * Copyright (C) 2000 - 2005, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -264,8 +264,8 @@ acpi_ns_walk_namespace (
 					 * node, visit the onde
 					 */
 					level++;
-					parent_node   = child_node;
-					child_node    = NULL;
+					parent_node = child_node;
+					child_node = NULL;
 				}
 			}
 		}

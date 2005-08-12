@@ -52,15 +52,15 @@ struct sbp2_command_orb {
 	u8 cdb[12];
 };
 
-#define LOGIN_REQUEST			0x0
-#define QUERY_LOGINS_REQUEST		0x1
-#define RECONNECT_REQUEST		0x3
-#define SET_PASSWORD_REQUEST		0x4
-#define LOGOUT_REQUEST			0x7
-#define ABORT_TASK_REQUEST		0xb
-#define ABORT_TASK_SET			0xc
-#define LOGICAL_UNIT_RESET		0xe
-#define TARGET_RESET_REQUEST		0xf
+#define SBP2_LOGIN_REQUEST		0x0
+#define SBP2_QUERY_LOGINS_REQUEST	0x1
+#define SBP2_RECONNECT_REQUEST		0x3
+#define SBP2_SET_PASSWORD_REQUEST	0x4
+#define SBP2_LOGOUT_REQUEST		0x7
+#define SBP2_ABORT_TASK_REQUEST		0xb
+#define SBP2_ABORT_TASK_SET		0xc
+#define SBP2_LOGICAL_UNIT_RESET		0xe
+#define SBP2_TARGET_RESET_REQUEST	0xf
 
 #define ORB_SET_LUN(value)                      (value & 0xffff)
 #define ORB_SET_FUNCTION(value)                 ((value & 0xf) << 16)
@@ -324,8 +324,8 @@ struct sbp2_command_info {
 	struct list_head list;
 	struct sbp2_command_orb command_orb ____cacheline_aligned;
 	dma_addr_t command_orb_dma ____cacheline_aligned;
-	Scsi_Cmnd *Current_SCpnt;
-	void (*Current_done)(Scsi_Cmnd *);
+	struct scsi_cmnd *Current_SCpnt;
+	void (*Current_done)(struct scsi_cmnd *);
 
 	/* Also need s/g structure for each sbp2 command */
 	struct sbp2_unrestricted_page_table scatter_gather_element[SG_ALL] ____cacheline_aligned;
@@ -434,8 +434,8 @@ static void sbp2util_remove_command_orb_pool(struct scsi_id_instance_data *scsi_
 static struct sbp2_command_info *sbp2util_find_command_for_orb(struct scsi_id_instance_data *scsi_id, dma_addr_t orb);
 static struct sbp2_command_info *sbp2util_find_command_for_SCpnt(struct scsi_id_instance_data *scsi_id, void *SCpnt);
 static struct sbp2_command_info *sbp2util_allocate_command_orb(struct scsi_id_instance_data *scsi_id,
-							  Scsi_Cmnd *Current_SCpnt,
-							  void (*Current_done)(Scsi_Cmnd *));
+							  struct scsi_cmnd *Current_SCpnt,
+							  void (*Current_done)(struct scsi_cmnd *));
 static void sbp2util_mark_command_completed(struct scsi_id_instance_data *scsi_id,
 		struct sbp2_command_info *command);
 
@@ -466,14 +466,16 @@ static int sbp2_create_command_orb(struct scsi_id_instance_data *scsi_id,
 				   unsigned int scsi_use_sg,
 				   unsigned int scsi_request_bufflen,
 				   void *scsi_request_buffer,
-				   unsigned char scsi_dir);
+				   enum dma_data_direction dma_dir);
 static int sbp2_link_orb_command(struct scsi_id_instance_data *scsi_id,
 				 struct sbp2_command_info *command);
 static int sbp2_send_command(struct scsi_id_instance_data *scsi_id,
-			     Scsi_Cmnd *SCpnt, void (*done)(Scsi_Cmnd *));
+			     struct scsi_cmnd *SCpnt,
+			     void (*done)(struct scsi_cmnd *));
 static unsigned int sbp2_status_to_sense_data(unchar *sbp2_status, unchar *sense_data);
 static void sbp2_check_sbp2_command(struct scsi_id_instance_data *scsi_id, unchar *cmd);
-static void sbp2_check_sbp2_response(struct scsi_id_instance_data *scsi_id, Scsi_Cmnd *SCpnt);
+static void sbp2_check_sbp2_response(struct scsi_id_instance_data *scsi_id,
+				     struct scsi_cmnd *SCpnt);
 static void sbp2_parse_unit_directory(struct scsi_id_instance_data *scsi_id,
 				      struct unit_directory *ud);
 static int sbp2_set_busy_timeout(struct scsi_id_instance_data *scsi_id);

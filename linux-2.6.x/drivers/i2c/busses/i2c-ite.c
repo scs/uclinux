@@ -40,6 +40,7 @@
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/init.h>
+#include <linux/wait.h>
 #include <asm/irq.h>
 #include <asm/io.h>
 
@@ -54,14 +55,15 @@
 #define DEFAULT_CLOCK 0x1b0e	/* default 16MHz/(27+14) = 400KHz */
 #define DEFAULT_OWN   0x55
 
-static int base  = 0;
-static int irq   = 0;
-static int clock = 0;
-static int own   = 0;
+static int base;
+static int irq;
+static int clock;
+static int own;
 
 static struct iic_ite gpi;
 static wait_queue_head_t iic_wait;
 static int iic_pending;
+static spinlock_t lock;
 
 /* ----- local functions ----------------------------------------------	*/
 
@@ -102,20 +104,13 @@ static int iic_ite_getclock(void *data)
 }
 
 
-#if 0
-static void iic_ite_sleep(unsigned long timeout)
-{
-	schedule_timeout( timeout * HZ);
-}
-#endif
-
-
 /* Put this process to sleep.  We will wake up when the
  * IIC controller interrupts.
  */
 static void iic_ite_waitforpin(void) {
-
+   DEFINE_WAIT(wait);
    int timeout = 2;
+   long flags;
 
    /* If interrupts are enabled (which they are), then put the process to
     * sleep.  This process will be awakened by two events -- either the
@@ -124,24 +119,38 @@ static void iic_ite_waitforpin(void) {
     * of time and return.
     */
    if (gpi.iic_irq > 0) {
-	cli();
+	spin_lock_irqsave(&lock, flags);
 	if (iic_pending == 0) {
-		interruptible_sleep_on_timeout(&iic_wait, timeout*HZ );
-	} else
+		spin_unlock_irqrestore(&lock, flags);
+		prepare_to_wait(&iic_wait, &wait, TASK_INTERRUPTIBLE);
+		if (schedule_timeout(timeout*HZ)) {
+			spin_lock_irqsave(&lock, flags);
+			if (iic_pending == 1) {
+				iic_pending = 0;
+			}
+			spin_unlock_irqrestore(&lock, flags);
+		}
+		finish_wait(&iic_wait, &wait);
+	} else {
 		iic_pending = 0;
-	sti();
+		spin_unlock_irqrestore(&lock, flags);
+	}
    } else {
       udelay(100);
    }
 }
 
 
-static void iic_ite_handler(int this_irq, void *dev_id, struct pt_regs *regs) 
+static irqreturn_t iic_ite_handler(int this_irq, void *dev_id,
+							struct pt_regs *regs)
 {
-	
-   iic_pending = 1;
+	spin_lock(&lock);
+	iic_pending = 1;
+	spin_unlock(&lock);
 
-   wake_up_interruptible(&iic_wait);
+	wake_up_interruptible(&iic_wait);
+
+	return IRQ_HANDLED;
 }
 
 
@@ -229,6 +238,7 @@ static int __init iic_ite_init(void)
 
 	iic_ite_data.data = (void *)piic;
 	init_waitqueue_head(&iic_wait);
+	spin_lock_init(&lock);
 	if (iic_hw_resrc_init() == 0) {
 		if (i2c_iic_add_bus(&iic_ite_ops) < 0)
 			return -ENODEV;
@@ -254,10 +264,10 @@ MODULE_AUTHOR("MontaVista Software <www.mvista.com>");
 MODULE_DESCRIPTION("I2C-Bus adapter routines for ITE IIC bus adapter");
 MODULE_LICENSE("GPL");
 
-MODULE_PARM(base, "i");
-MODULE_PARM(irq, "i");
-MODULE_PARM(clock, "i");
-MODULE_PARM(own, "i");
+module_param(base, int, 0);
+module_param(irq, int, 0);
+module_param(clock, int, 0);
+module_param(own, int, 0);
 
 
 /* Called when module is loaded or when kernel is initialized.

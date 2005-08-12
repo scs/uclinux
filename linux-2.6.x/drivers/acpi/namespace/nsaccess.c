@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2004, R. Byron Moore
+ * Copyright (C) 2000 - 2005, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -155,14 +155,15 @@ acpi_ns_root_initialize (void)
 			 */
 			switch (init_val->type) {
 			case ACPI_TYPE_METHOD:
-				obj_desc->method.param_count = (u8) ACPI_STRTOUL
-						  (val, NULL, 10);
+				obj_desc->method.param_count = (u8) ACPI_TO_INTEGER (val);
 				obj_desc->common.flags |= AOPOBJ_DATA_VALID;
 
 #if defined (_ACPI_ASL_COMPILER) || defined (_ACPI_DUMP_App)
 
-				/* i_aSL Compiler cheats by putting parameter count in the owner_iD */
-
+				/*
+				 * i_aSL Compiler cheats by putting parameter count
+				 * in the owner_iD
+				 */
 				new_node->owner_id = obj_desc->method.param_count;
 #else
 				/* Mark this as a very SPECIAL method */
@@ -174,8 +175,7 @@ acpi_ns_root_initialize (void)
 
 			case ACPI_TYPE_INTEGER:
 
-				obj_desc->integer.value =
-						(acpi_integer) ACPI_STRTOUL (val, NULL, 10);
+				obj_desc->integer.value = ACPI_TO_INTEGER (val);
 				break;
 
 
@@ -193,8 +193,7 @@ acpi_ns_root_initialize (void)
 			case ACPI_TYPE_MUTEX:
 
 				obj_desc->mutex.node = new_node;
-				obj_desc->mutex.sync_level = (u16) ACPI_STRTOUL
-						  (val, NULL, 10);
+				obj_desc->mutex.sync_level = (u8) (ACPI_TO_INTEGER (val) - 1);
 
 				if (ACPI_STRCMP (init_val->name, "_GL_") == 0) {
 					/*
@@ -204,6 +203,7 @@ acpi_ns_root_initialize (void)
 					status = acpi_os_create_semaphore (ACPI_NO_UNIT_LIMIT,
 							 1, &obj_desc->mutex.semaphore);
 					if (ACPI_FAILURE (status)) {
+						acpi_ut_remove_reference (obj_desc);
 						goto unlock_and_exit;
 					}
 
@@ -219,6 +219,7 @@ acpi_ns_root_initialize (void)
 					status = acpi_os_create_semaphore (1, 1,
 							   &obj_desc->mutex.semaphore);
 					if (ACPI_FAILURE (status)) {
+						acpi_ut_remove_reference (obj_desc);
 						goto unlock_and_exit;
 					}
 				}
@@ -236,7 +237,8 @@ acpi_ns_root_initialize (void)
 
 			/* Store pointer to value descriptor in the Node */
 
-			status = acpi_ns_attach_object (new_node, obj_desc, ACPI_GET_OBJECT_TYPE (obj_desc));
+			status = acpi_ns_attach_object (new_node, obj_desc,
+					 ACPI_GET_OBJECT_TYPE (obj_desc));
 
 			/* Remove local reference to the object */
 
@@ -462,7 +464,8 @@ acpi_ns_lookup (
 			type = this_node->type;
 
 			ACPI_DEBUG_PRINT ((ACPI_DB_NAMES,
-				"Prefix-only Pathname (Zero name segments), Flags=%X\n", flags));
+				"Prefix-only Pathname (Zero name segments), Flags=%X\n",
+				flags));
 			break;
 
 		case AML_DUAL_NAME_PREFIX:
@@ -554,7 +557,7 @@ acpi_ns_lookup (
 		/* Try to find the single (4 character) ACPI name */
 
 		status = acpi_ns_search_and_enter (simple_name, walk_state, current_node,
-				  interpreter_mode, this_search_type, local_flags, &this_node);
+				 interpreter_mode, this_search_type, local_flags, &this_node);
 		if (ACPI_FAILURE (status)) {
 			if (status == AE_NOT_FOUND) {
 				/* Name not found in ACPI namespace */

@@ -34,8 +34,10 @@
 #include <linux/init.h>
 #include <linux/serio.h>
 
+#define DRIVER_DESC	"XT keyboard driver"
+
 MODULE_AUTHOR("Vojtech Pavlik <vojtech@ucw.cz>");
-MODULE_DESCRIPTION("XT keyboard driver");
+MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");
 
 #define XTKBD_EMUL0	0xe0
@@ -63,10 +65,10 @@ struct xtkbd {
 	char phys[32];
 };
 
-irqreturn_t xtkbd_interrupt(struct serio *serio,
+static irqreturn_t xtkbd_interrupt(struct serio *serio,
 	unsigned char data, unsigned int flags, struct pt_regs *regs)
 {
-	struct xtkbd *xtkbd = serio->private;
+	struct xtkbd *xtkbd = serio_get_drvdata(serio);
 
 	switch (data) {
 		case XTKBD_EMUL0:
@@ -86,16 +88,14 @@ irqreturn_t xtkbd_interrupt(struct serio *serio,
 	return IRQ_HANDLED;
 }
 
-void xtkbd_connect(struct serio *serio, struct serio_dev *dev)
+static int xtkbd_connect(struct serio *serio, struct serio_driver *drv)
 {
 	struct xtkbd *xtkbd;
 	int i;
-
-	if ((serio->type & SERIO_TYPE) != SERIO_XT)
-		return;
+	int err;
 
 	if (!(xtkbd = kmalloc(sizeof(struct xtkbd), GFP_KERNEL)))
-		return;
+		return -ENOMEM;
 
 	memset(xtkbd, 0, sizeof(struct xtkbd));
 
@@ -109,11 +109,13 @@ void xtkbd_connect(struct serio *serio, struct serio_dev *dev)
 	xtkbd->dev.keycodemax = ARRAY_SIZE(xtkbd_keycode);
 	xtkbd->dev.private = xtkbd;
 
-	serio->private = xtkbd;
+	serio_set_drvdata(serio, xtkbd);
 
-	if (serio_open(serio, dev)) {
+	err = serio_open(serio, drv);
+	if (err) {
+		serio_set_drvdata(serio, NULL);
 		kfree(xtkbd);
-		return;
+		return err;
 	}
 
 	memcpy(xtkbd->keycode, xtkbd_keycode, sizeof(xtkbd->keycode));
@@ -129,35 +131,57 @@ void xtkbd_connect(struct serio *serio, struct serio_dev *dev)
 	xtkbd->dev.id.vendor = 0x0001;
 	xtkbd->dev.id.product = 0x0001;
 	xtkbd->dev.id.version = 0x0100;
+	xtkbd->dev.dev = &serio->dev;
 
 	input_register_device(&xtkbd->dev);
 
 	printk(KERN_INFO "input: %s on %s\n", xtkbd_name, serio->phys);
-}
 
-void xtkbd_disconnect(struct serio *serio)
-{
-	struct xtkbd *xtkbd = serio->private;
-	input_unregister_device(&xtkbd->dev);
-	serio_close(serio);
-	kfree(xtkbd);
-}
-
-struct serio_dev xtkbd_dev = {
-	.interrupt =	xtkbd_interrupt,
-	.connect =	xtkbd_connect,
-	.disconnect =	xtkbd_disconnect
-};
-
-int __init xtkbd_init(void)
-{
-	serio_register_device(&xtkbd_dev);
 	return 0;
 }
 
-void __exit xtkbd_exit(void)
+static void xtkbd_disconnect(struct serio *serio)
 {
-	serio_unregister_device(&xtkbd_dev);
+	struct xtkbd *xtkbd = serio_get_drvdata(serio);
+
+	input_unregister_device(&xtkbd->dev);
+	serio_close(serio);
+	serio_set_drvdata(serio, NULL);
+	kfree(xtkbd);
+}
+
+static struct serio_device_id xtkbd_serio_ids[] = {
+	{
+		.type	= SERIO_XT,
+		.proto	= SERIO_ANY,
+		.id	= SERIO_ANY,
+		.extra	= SERIO_ANY,
+	},
+	{ 0 }
+};
+
+MODULE_DEVICE_TABLE(serio, xtkbd_serio_ids);
+
+static struct serio_driver xtkbd_drv = {
+	.driver		= {
+		.name	= "xtkbd",
+	},
+	.description	= DRIVER_DESC,
+	.id_table	= xtkbd_serio_ids,
+	.interrupt	= xtkbd_interrupt,
+	.connect	= xtkbd_connect,
+	.disconnect	= xtkbd_disconnect,
+};
+
+static int __init xtkbd_init(void)
+{
+	serio_register_driver(&xtkbd_drv);
+	return 0;
+}
+
+static void __exit xtkbd_exit(void)
+{
+	serio_unregister_driver(&xtkbd_drv);
 }
 
 module_init(xtkbd_init);

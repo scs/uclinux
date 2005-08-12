@@ -22,32 +22,19 @@
  *
  *-----------------------------------------------------------------------------
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. The name of the author may not be used to endorse or promote products
- *    derived from this software without specific prior written permission.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
- * Where this Software is combined with software released under the terms of 
- * the GNU Public License ("GPL") and the terms of the GPL would require the 
- * combined work to also be released under the terms of the GPL, the terms
- * and conditions of this License will apply in addition to those of the
- * GPL with the exception of any terms or conditions of this License that
- * conflict with, or are expressly prohibited by, the GPL.
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 #ifdef __FreeBSD__
@@ -79,7 +66,7 @@ static void *___sym_malloc(m_pool_p mp, int size)
 	int i = 0;
 	int s = (1 << SYM_MEM_SHIFT);
 	int j;
-	m_addr_t a;
+	void *a;
 	m_link_p h = mp->h;
 
 	if (size > SYM_MEM_CLUSTER_SIZE)
@@ -101,7 +88,7 @@ static void *___sym_malloc(m_pool_p mp, int size)
 		++j;
 		s <<= 1;
 	}
-	a = (m_addr_t) h[j].next;
+	a = h[j].next;
 	if (a) {
 		h[j].next = h[j].next->next;
 		while (j > i) {
@@ -114,7 +101,7 @@ static void *___sym_malloc(m_pool_p mp, int size)
 #ifdef DEBUG
 	printf("___sym_malloc(%d) = %p\n", size, (void *) a);
 #endif
-	return (void *) a;
+	return a;
 }
 
 /*
@@ -125,7 +112,7 @@ static void ___sym_mfree(m_pool_p mp, void *ptr, int size)
 	int i = 0;
 	int s = (1 << SYM_MEM_SHIFT);
 	m_link_p q;
-	m_addr_t a, b;
+	unsigned long a, b;
 	m_link_p h = mp->h;
 
 #ifdef DEBUG
@@ -140,12 +127,12 @@ static void ___sym_mfree(m_pool_p mp, void *ptr, int size)
 		++i;
 	}
 
-	a = (m_addr_t) ptr;
+	a = (unsigned long)ptr;
 
 	while (1) {
 		if (s == SYM_MEM_CLUSTER_SIZE) {
 #ifdef SYM_MEM_FREE_UNUSED
-			M_FREE_MEM_CLUSTER(a);
+			M_FREE_MEM_CLUSTER((void *)a);
 #else
 			((m_link_p) a)->next = h[i].next;
 			h[i].next = (m_link_p) a;
@@ -183,7 +170,7 @@ static void *__sym_calloc2(m_pool_p mp, int size, char *name, int uflags)
 	}
 
 	if (p)
-		bzero(p, size);
+		memset(p, 0, size);
 	else if (uflags & SYM_MEM_WARN)
 		printf ("__sym_calloc2: failed to allocate %s[%d]\n", name, size);
 	return p;
@@ -207,58 +194,40 @@ static void __sym_mfree(m_pool_p mp, void *ptr, int size, char *name)
  *  With DMA abstraction, we use functions (methods), to 
  *  distinguish between non DMAable memory and DMAable memory.
  */
-static m_addr_t ___mp0_get_mem_cluster(m_pool_p mp)
+static void *___mp0_get_mem_cluster(m_pool_p mp)
 {
-	m_addr_t m = (m_addr_t) sym_get_mem_cluster();
+	void *m = sym_get_mem_cluster();
 	if (m)
 		++mp->nump;
 	return m;
 }
 
 #ifdef	SYM_MEM_FREE_UNUSED
-static void ___mp0_free_mem_cluster(m_pool_p mp, m_addr_t m)
+static void ___mp0_free_mem_cluster(m_pool_p mp, void *m)
 {
 	sym_free_mem_cluster(m);
 	--mp->nump;
 }
-#endif
-
-#ifdef	SYM_MEM_FREE_UNUSED
-static struct sym_m_pool mp0 =
-	{NULL, ___mp0_get_mem_cluster, ___mp0_free_mem_cluster};
 #else
-static struct sym_m_pool mp0 =
-	{NULL, ___mp0_get_mem_cluster};
+#define ___mp0_free_mem_cluster NULL
 #endif
 
-/*
- * Actual memory allocation routine for non-DMAed memory.
- */
-void *sym_calloc_unlocked(int size, char *name)
-{
-	void *m;
-	m = __sym_calloc(&mp0, size, name);
-	return m;
-}
-
-/*
- *  Its counter-part.
- */
-void sym_mfree_unlocked(void *ptr, int size, char *name)
-{
-	__sym_mfree(&mp0, ptr, size, name);
-}
+static struct sym_m_pool mp0 = {
+	NULL,
+	___mp0_get_mem_cluster,
+	___mp0_free_mem_cluster
+};
 
 /*
  *  Methods that maintains DMAable pools according to user allocations.
  *  New pools are created on the fly when a new pool id is provided.
  *  They are deleted on the fly when they get emptied.
  */
-/* Get a memory cluster that matches the DMA contraints of a given pool */
-static m_addr_t ___get_dma_mem_cluster(m_pool_p mp)
+/* Get a memory cluster that matches the DMA constraints of a given pool */
+static void * ___get_dma_mem_cluster(m_pool_p mp)
 {
 	m_vtob_p vbp;
-	m_addr_t vaddr;
+	void *vaddr;
 
 	vbp = __sym_calloc(&mp0, sizeof(*vbp), "VTOB");
 	if (!vbp)
@@ -270,16 +239,15 @@ static m_addr_t ___get_dma_mem_cluster(m_pool_p mp)
 		vbp->next = mp->vtob[hc];
 		mp->vtob[hc] = vbp;
 		++mp->nump;
-		return (m_addr_t) vaddr;
 	}
 	return vaddr;
 out_err:
-	return 0;
+	return NULL;
 }
 
 #ifdef	SYM_MEM_FREE_UNUSED
 /* Free a memory cluster and associated resources for DMA */
-static void ___free_dma_mem_cluster(m_pool_p mp, m_addr_t m)
+static void ___free_dma_mem_cluster(m_pool_p mp, void *m)
 {
 	m_vtob_p *vbpp, vbp;
 	int hc = VTOB_HASH_CODE(m);
@@ -310,23 +278,17 @@ static __inline m_pool_p ___get_dma_pool(m_pool_ident_t dev_dmat)
 /* Create a new memory DMAable pool (when fetch failed) */
 static m_pool_p ___cre_dma_pool(m_pool_ident_t dev_dmat)
 {
-	m_pool_p mp = NULL;
-
-	mp = __sym_calloc(&mp0, sizeof(*mp), "MPOOL");
+	m_pool_p mp = __sym_calloc(&mp0, sizeof(*mp), "MPOOL");
 	if (mp) {
 		mp->dev_dmat = dev_dmat;
-		if (!sym_m_create_dma_mem_tag(mp)) {
-			mp->get_mem_cluster = ___get_dma_mem_cluster;
+		mp->get_mem_cluster = ___get_dma_mem_cluster;
 #ifdef	SYM_MEM_FREE_UNUSED
-			mp->free_mem_cluster = ___free_dma_mem_cluster;
+		mp->free_mem_cluster = ___free_dma_mem_cluster;
 #endif
-			mp->next = mp0.next;
-			mp0.next = mp;
-			return mp;
-		}
+		mp->next = mp0.next;
+		mp0.next = mp;
+		return mp;
 	}
-	if (mp)
-		__sym_mfree(&mp0, mp, sizeof(*mp), "MPOOL");
 	return NULL;
 }
 
@@ -340,68 +302,81 @@ static void ___del_dma_pool(m_pool_p p)
 		pp = &(*pp)->next;
 	if (*pp) {
 		*pp = (*pp)->next;
-		sym_m_delete_dma_mem_tag(p);
 		__sym_mfree(&mp0, p, sizeof(*p), "MPOOL");
 	}
 }
 #endif
 
+/* This lock protects only the memory allocation/free.  */
+static DEFINE_SPINLOCK(sym53c8xx_lock);
+
 /*
  *  Actual allocator for DMAable memory.
  */
-void *__sym_calloc_dma_unlocked(m_pool_ident_t dev_dmat, int size, char *name)
+void *__sym_calloc_dma(m_pool_ident_t dev_dmat, int size, char *name)
 {
+	unsigned long flags;
 	m_pool_p mp;
 	void *m = NULL;
 
+	spin_lock_irqsave(&sym53c8xx_lock, flags);
 	mp = ___get_dma_pool(dev_dmat);
 	if (!mp)
 		mp = ___cre_dma_pool(dev_dmat);
-	if (mp)
-		m = __sym_calloc(mp, size, name);
+	if (!mp)
+		goto out;
+	m = __sym_calloc(mp, size, name);
 #ifdef	SYM_MEM_FREE_UNUSED
-	if (mp && !mp->nump)
+	if (!mp->nump)
 		___del_dma_pool(mp);
 #endif
 
+ out:
+	spin_unlock_irqrestore(&sym53c8xx_lock, flags);
 	return m;
 }
 
-/*
- *  Its counter-part.
- */
-void 
-__sym_mfree_dma_unlocked(m_pool_ident_t dev_dmat, void *m, int size, char *name)
+void __sym_mfree_dma(m_pool_ident_t dev_dmat, void *m, int size, char *name)
 {
+	unsigned long flags;
 	m_pool_p mp;
 
+	spin_lock_irqsave(&sym53c8xx_lock, flags);
 	mp = ___get_dma_pool(dev_dmat);
-	if (mp)
-		__sym_mfree(mp, m, size, name);
+	if (!mp)
+		goto out;
+	__sym_mfree(mp, m, size, name);
 #ifdef	SYM_MEM_FREE_UNUSED
-	if (mp && !mp->nump)
+	if (!mp->nump)
 		___del_dma_pool(mp);
 #endif
+ out:
+	spin_unlock_irqrestore(&sym53c8xx_lock, flags);
 }
 
 /*
  *  Actual virtual to bus physical address translator 
  *  for 32 bit addressable DMAable memory.
  */
-u32 __vtobus_unlocked(m_pool_ident_t dev_dmat, void *m)
+dma_addr_t __vtobus(m_pool_ident_t dev_dmat, void *m)
 {
+	unsigned long flags;
 	m_pool_p mp;
 	int hc = VTOB_HASH_CODE(m);
 	m_vtob_p vp = NULL;
-	m_addr_t a = ((m_addr_t) m) & ~SYM_MEM_CLUSTER_MASK;
+	void *a = (void *)((unsigned long)m & ~SYM_MEM_CLUSTER_MASK);
+	dma_addr_t b;
 
+	spin_lock_irqsave(&sym53c8xx_lock, flags);
 	mp = ___get_dma_pool(dev_dmat);
 	if (mp) {
 		vp = mp->vtob[hc];
-		while (vp && (m_addr_t) vp->vaddr != a)
+		while (vp && vp->vaddr != a)
 			vp = vp->next;
 	}
 	if (!vp)
 		panic("sym: VTOBUS FAILED!\n");
-	return (u32)(vp ? vp->baddr + (((m_addr_t) m) - a) : 0);
+	b = vp->baddr + (m - a);
+	spin_unlock_irqrestore(&sym53c8xx_lock, flags);
+	return b;
 }

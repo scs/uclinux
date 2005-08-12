@@ -113,11 +113,6 @@ const ftape_info *ftape_get_status(void)
 #endif
 }
 
-void ftape_set_status(const ftape_info *status)
-{
-	ftape_status = *status;
-}
-
 static int ftape_not_operational(int status)
 {
 	/* return true if status indicates tape can not be used.
@@ -210,7 +205,7 @@ static int lookup_vendor_id(unsigned int vendor_id)
 	return i;
 }
 
-void ftape_detach_drive(void)
+static void ftape_detach_drive(void)
 {
 	TRACE_FUN(ft_t_any);
 
@@ -241,7 +236,7 @@ static void clear_history(void)
 		ft_history.rewinds = 0;
 }
 
-int ftape_activate_drive(vendor_struct * drive_type)
+static int ftape_activate_drive(vendor_struct * drive_type)
 {
 	int result = 0;
 	TRACE_FUN(ft_t_flow);
@@ -301,7 +296,7 @@ int ftape_activate_drive(vendor_struct * drive_type)
 	TRACE_EXIT result;
 }
 
-int ftape_get_drive_status(void)
+static int ftape_get_drive_status(void)
 {
 	int result;
 	int status;
@@ -374,7 +369,7 @@ int ftape_get_drive_status(void)
 	TRACE_EXIT 0;
 }
 
-void ftape_log_vendor_id(void)
+static void ftape_log_vendor_id(void)
 {
 	int vendor_index;
 	TRACE_FUN(ft_t_flow);
@@ -580,7 +575,7 @@ int ftape_calibrate_data_rate(unsigned int qic_std)
 	TRACE_EXIT 0;
 }
 
-int ftape_init_drive(void)
+static int ftape_init_drive(void)
 {
 	int status;
 	qic_model model;
@@ -726,9 +721,12 @@ int ftape_mmap(struct vm_area_struct *vma)
 		ftape_reset_buffer();
 	}
 	for (i = 0; i < num_buffers; i++) {
-		TRACE_CATCH(remap_page_range(vma, vma->vm_start +
+		unsigned long pfn;
+
+		pfn = virt_to_phys(ft_buffer[i]->address) >> PAGE_SHIFT;
+		TRACE_CATCH(remap_pfn_range(vma, vma->vm_start +
 					     i * FT_BUFF_SIZE,
-					     virt_to_phys(ft_buffer[i]->address),
+					     pfn,
 					     FT_BUFF_SIZE,
 					     vma->vm_page_prot),
 			    _res = -EAGAIN);

@@ -53,9 +53,9 @@ MODULE_DEVICE_TABLE(usb, device_table);
 MODULE_AUTHOR("Jeroen Vreeken <pe1rxq@amsat.org>");
 MODULE_DESCRIPTION("SE401 USB Camera Driver");
 MODULE_LICENSE("GPL");
-MODULE_PARM(flickerless, "i");
+module_param(flickerless, int, 0);
 MODULE_PARM_DESC(flickerless, "Net frequency to adjust exposure time to (0/50/60)");
-MODULE_PARM(video_nr, "i");
+module_param(video_nr, int, 0);
 
 static struct usb_driver se401_driver;
 
@@ -65,20 +65,6 @@ static struct usb_driver se401_driver;
  * Memory management
  *
  **********************************************************************/
-
-/* Here we want the physical address of the memory.
- * This is used when initializing the contents of the area.
- */
-static inline unsigned long kvirt_to_pa(unsigned long adr)
-{
-	unsigned long kva, ret;
-
-	kva = (unsigned long) page_address(vmalloc_to_page((void *)adr));
-	kva |= adr & (PAGE_SIZE-1); /* restore the offset */
-	ret = __pa(kva);
-	return ret;
-}
-
 static void *rvmalloc(unsigned long size)
 {
 	void *mem;
@@ -136,7 +122,7 @@ static int se401_sndctrl(int set, struct usb_se401 *se401, unsigned short req,
                 0,
                 cp,
                 size,
-                HZ
+                1000
         );
 }
 
@@ -156,7 +142,7 @@ static int se401_set_feature(struct usb_se401 *se401, unsigned short selector,
 		selector,
                 NULL,
                 0,
-                HZ
+                1000
         );
 }
 
@@ -176,7 +162,7 @@ static unsigned short se401_get_feature(struct usb_se401 *se401,
                 selector,
                 cp,
                 2,
-                HZ
+                1000
         );
 	return cp[0]+cp[1]*256;
 }
@@ -514,7 +500,7 @@ static int se401_stop_stream(struct usb_se401 *se401)
 	se401_sndctrl(1, se401, SE401_REQ_CAMERA_POWER, 0, NULL, 0);
 
 	for (i=0; i<SE401_NUMSBUF; i++) if (se401->urb[i]) {
-		usb_unlink_urb(se401->urb[i]);
+		usb_kill_urb(se401->urb[i]);
 		usb_free_urb(se401->urb[i]);
 		se401->urb[i]=NULL;
 		kfree(se401->sbuf[i].data);
@@ -882,17 +868,18 @@ static void usb_se401_remove_disconnected (struct usb_se401 *se401)
 
         se401->dev = NULL;
 
-	for (i=0; i<SE401_NUMSBUF; i++) if (se401->urb[i]) {
-		usb_unlink_urb(se401->urb[i]);
-		usb_free_urb(se401->urb[i]);
-		se401->urb[i] = NULL;
-		kfree(se401->sbuf[i].data);
-	}
-	for (i=0; i<SE401_NUMSCRATCH; i++) if (se401->scratch[i].data) {
+	for (i=0; i<SE401_NUMSBUF; i++)
+		if (se401->urb[i]) {
+			usb_kill_urb(se401->urb[i]);
+			usb_free_urb(se401->urb[i]);
+			se401->urb[i] = NULL;
+			kfree(se401->sbuf[i].data);
+		}
+	for (i=0; i<SE401_NUMSCRATCH; i++) {
 		kfree(se401->scratch[i].data);
 	}
 	if (se401->inturb) {
-		usb_unlink_urb(se401->inturb);
+		usb_kill_urb(se401->inturb);
 		usb_free_urb(se401->inturb);
 	}
         info("%s disconnected", se401->camera_name);
@@ -1182,8 +1169,8 @@ static int se401_mmap(struct file *file, struct vm_area_struct *vma)
 	}
 	pos = (unsigned long)se401->fbuf;
 	while (size > 0) {
-		page = kvirt_to_pa(pos);
-		if (remap_page_range(vma, start, page, PAGE_SIZE, PAGE_SHARED)) {
+		page = vmalloc_to_pfn((void *)pos);
+		if (remap_pfn_range(vma, start, page, PAGE_SIZE, PAGE_SHARED)) {
 			up(&se401->lock);
 			return -EAGAIN;
 		}
@@ -1329,20 +1316,20 @@ static int se401_probe(struct usb_interface *intf,
         interface = &intf->cur_altsetting->desc;
 
         /* Is it an se401? */
-        if (dev->descriptor.idVendor == 0x03e8 &&
-            dev->descriptor.idProduct == 0x0004) {
+        if (le16_to_cpu(dev->descriptor.idVendor) == 0x03e8 &&
+            le16_to_cpu(dev->descriptor.idProduct) == 0x0004) {
                 camera_name="Endpoints/Aox SE401";
-        } else if (dev->descriptor.idVendor == 0x0471 &&
-            dev->descriptor.idProduct == 0x030b) {
+        } else if (le16_to_cpu(dev->descriptor.idVendor) == 0x0471 &&
+            le16_to_cpu(dev->descriptor.idProduct) == 0x030b) {
                 camera_name="Philips PCVC665K";
-        } else if (dev->descriptor.idVendor == 0x047d &&
-	    dev->descriptor.idProduct == 0x5001) {
+        } else if (le16_to_cpu(dev->descriptor.idVendor) == 0x047d &&
+	    le16_to_cpu(dev->descriptor.idProduct) == 0x5001) {
 		camera_name="Kensington VideoCAM 67014";
-        } else if (dev->descriptor.idVendor == 0x047d &&
-	    dev->descriptor.idProduct == 0x5002) {
+        } else if (le16_to_cpu(dev->descriptor.idVendor) == 0x047d &&
+	    le16_to_cpu(dev->descriptor.idProduct) == 0x5002) {
 		camera_name="Kensington VideoCAM 6701(5/7)";
-        } else if (dev->descriptor.idVendor == 0x047d &&
-	    dev->descriptor.idProduct == 0x5003) {
+        } else if (le16_to_cpu(dev->descriptor.idVendor) == 0x047d &&
+	    le16_to_cpu(dev->descriptor.idProduct) == 0x5003) {
 		camera_name="Kensington VideoCAM 67016";
 		button=0;
 	} else
@@ -1368,7 +1355,7 @@ static int se401_probe(struct usb_interface *intf,
         se401->iface = interface->bInterfaceNumber;
         se401->camera_name = camera_name;
 
-	info("firmware version: %02x", dev->descriptor.bcdDevice & 255);
+	info("firmware version: %02x", le16_to_cpu(dev->descriptor.bcdDevice) & 255);
 
         if (se401_init(se401, button)) {
 		kfree(se401);

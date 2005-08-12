@@ -103,7 +103,7 @@ static volatile unsigned char cmd_buffer[16];
 static struct ESP_regs eregs;
 
 /***************************************************************** Detection */
-int mca_esp_detect(Scsi_Host_Template *tpnt)
+static int mca_esp_detect(Scsi_Host_Template *tpnt)
 {
 	struct NCR_ESP *esp;
 	static int io_port_by_pos[] = MCA_53C9X_IO_PORTS;
@@ -238,15 +238,15 @@ int mca_esp_detect(Scsi_Host_Template *tpnt)
 
 			/* Optional functions */
 
-			esp->dma_barrier = 0;
-			esp->dma_drain = 0;
-			esp->dma_invalidate = 0;
-			esp->dma_irq_entry = 0;
-			esp->dma_irq_exit = 0;
+			esp->dma_barrier = NULL;
+			esp->dma_drain = NULL;
+			esp->dma_invalidate = NULL;
+			esp->dma_irq_entry = NULL;
+			esp->dma_irq_exit = NULL;
 			esp->dma_led_on = dma_led_on;
 			esp->dma_led_off = dma_led_off;
-			esp->dma_poll = 0;
-			esp->dma_reset = 0;
+			esp->dma_poll = NULL;
+			esp->dma_reset = NULL;
 
 			/* Set the command buffer */
 
@@ -283,7 +283,7 @@ int mca_esp_detect(Scsi_Host_Template *tpnt)
 
 /******************************************************************* Release */
 
-int mca_esp_release(struct Scsi_Host *host)
+static int mca_esp_release(struct Scsi_Host *host)
 {
 	struct NCR_ESP *esp = (struct NCR_ESP *)host->hostdata;
 	unsigned char tmp_byte;
@@ -445,7 +445,7 @@ static void dma_led_off(struct NCR_ESP *esp)
 }
 
 static Scsi_Host_Template driver_template = {
-	.proc_name		= "esp",
+	.proc_name		= "mca_53c9x",
 	.name			= "NCR 53c9x SCSI",
 	.detect			= mca_esp_detect,
 	.slave_alloc		= esp_slave_alloc,

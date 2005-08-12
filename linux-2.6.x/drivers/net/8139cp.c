@@ -71,6 +71,7 @@
 #include <linux/udp.h>
 #include <linux/cache.h>
 #include <asm/io.h>
+#include <asm/irq.h>
 #include <asm/uaccess.h>
 
 /* VLAN tagging feature enable/disable */
@@ -335,7 +336,7 @@ struct cp_extra_stats {
 };
 
 struct cp_private {
-	void			*regs;
+	void			__iomem *regs;
 	struct net_device	*dev;
 	spinlock_t		lock;
 	u32			msg_enable;
@@ -366,7 +367,6 @@ struct cp_private {
 #endif
 
 	unsigned int		wol_enabled : 1; /* Is Wake-on-LAN enabled? */
-	u32			power_state[16];
 
 	struct mii_if_info	mii_if;
 };
@@ -397,6 +397,8 @@ static void cp_clean_rings (struct cp_private *cp);
 
 static struct pci_device_id cp_pci_tbl[] = {
 	{ PCI_VENDOR_ID_REALTEK, PCI_DEVICE_ID_REALTEK_8139,
+	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, },
+	{ PCI_VENDOR_ID_TTTECH, PCI_DEVICE_ID_TTTECH_MC322,
 	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, },
 	{ },
 };
@@ -1580,11 +1582,11 @@ static int cp_ioctl (struct net_device *dev, struct ifreq *rq, int cmd)
 #define EE_READ_CMD		(6)
 #define EE_ERASE_CMD	(7)
 
-static int read_eeprom (void *ioaddr, int location, int addr_len)
+static int read_eeprom (void __iomem *ioaddr, int location, int addr_len)
 {
 	int i;
 	unsigned retval = 0;
-	void *ee_addr = ioaddr + Cfg9346;
+	void __iomem *ee_addr = ioaddr + Cfg9346;
 	int read_cmd = location | (EE_READ_CMD << addr_len);
 
 	writeb (EE_ENB & ~EE_CS, ee_addr);
@@ -1623,7 +1625,7 @@ static int read_eeprom (void *ioaddr, int location, int addr_len)
 static void cp_set_d3_state (struct cp_private *cp)
 {
 	pci_enable_wake (cp->pdev, 0, 1); /* Enable PME# generation */
-	pci_set_power_state (cp->pdev, 3);
+	pci_set_power_state (cp->pdev, PCI_D3hot);
 }
 
 static int cp_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
@@ -1631,7 +1633,7 @@ static int cp_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct net_device *dev;
 	struct cp_private *cp;
 	int rc;
-	void *regs;
+	void __iomem *regs;
 	long pciaddr;
 	unsigned int addr_len, i, pci_using_dac;
 	u8 pci_rev;
@@ -1698,7 +1700,7 @@ static int cp_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 
 	/* Configure DMA attributes. */
-	if ((sizeof(dma_addr_t) > 32) &&
+	if ((sizeof(dma_addr_t) > 4) &&
 	    !pci_set_consistent_dma_mask(pdev, 0xffffffffffffffffULL) &&
 	    !pci_set_dma_mask(pdev, 0xffffffffffffffffULL)) {
 		pci_using_dac = 1;
@@ -1813,7 +1815,7 @@ static void cp_remove_one (struct pci_dev *pdev)
 		BUG();
 	unregister_netdev(dev);
 	iounmap(cp->regs);
-	if (cp->wol_enabled) pci_set_power_state (pdev, 0);
+	if (cp->wol_enabled) pci_set_power_state (pdev, PCI_D0);
 	pci_release_regions(pdev);
 	pci_clear_mwi(pdev);
 	pci_disable_device(pdev);
@@ -1822,7 +1824,7 @@ static void cp_remove_one (struct pci_dev *pdev)
 }
 
 #ifdef CONFIG_PM
-static int cp_suspend (struct pci_dev *pdev, u32 state)
+static int cp_suspend (struct pci_dev *pdev, pm_message_t state)
 {
 	struct net_device *dev;
 	struct cp_private *cp;
@@ -1845,7 +1847,7 @@ static int cp_suspend (struct pci_dev *pdev, u32 state)
 	spin_unlock_irqrestore (&cp->lock, flags);
 
 	if (cp->pdev && cp->wol_enabled) {
-		pci_save_state (cp->pdev, cp->power_state);
+		pci_save_state (cp->pdev);
 		cp_set_d3_state (cp);
 	}
 
@@ -1863,8 +1865,8 @@ static int cp_resume (struct pci_dev *pdev)
 	netif_device_attach (dev);
 	
 	if (cp->pdev && cp->wol_enabled) {
-		pci_set_power_state (cp->pdev, 0);
-		pci_restore_state (cp->pdev, cp->power_state);
+		pci_set_power_state (cp->pdev, PCI_D0);
+		pci_restore_state (cp->pdev);
 	}
 	
 	cp_init_hw (cp);

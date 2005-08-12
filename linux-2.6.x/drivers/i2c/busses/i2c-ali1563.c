@@ -2,6 +2,7 @@
  *	i2c-ali1563.c - i2c driver for the ALi 1563 Southbridge
  *
  *	Copyright (C) 2004 Patrick Mochel
+ *		      2005 Rudolf Marek <r.marek@sh.cvut.cz>
  *
  *	The 1563 southbridge is deceptively similar to the 1533, with a
  *	few notable exceptions. One of those happens to be the fact they
@@ -57,10 +58,11 @@
 #define HST_CNTL2_BLOCK		0x05
 
 
+#define HST_CNTL2_SIZEMASK	0x38
 
 static unsigned short ali1563_smba;
 
-static int ali1563_transaction(struct i2c_adapter * a)
+static int ali1563_transaction(struct i2c_adapter * a, int size)
 {
 	u32 data;
 	int timeout;
@@ -73,7 +75,7 @@ static int ali1563_transaction(struct i2c_adapter * a)
 
 	data = inb_p(SMB_HST_STS);
 	if (data & HST_STS_BAD) {
-		dev_warn(&a->dev,"ali1563: Trying to reset busy device\n");
+		dev_err(&a->dev, "ali1563: Trying to reset busy device\n");
 		outb_p(data | HST_STS_BAD,SMB_HST_STS);
 		data = inb_p(SMB_HST_STS);
 		if (data & HST_STS_BAD)
@@ -94,19 +96,31 @@ static int ali1563_transaction(struct i2c_adapter * a)
 
 	if (timeout && !(data & HST_STS_BAD))
 		return 0;
-	dev_warn(&a->dev, "SMBus Error: %s%s%s%s%s\n",
-		timeout ? "Timeout " : "",
-		data & HST_STS_FAIL ? "Transaction Failed " : "",
-		data & HST_STS_BUSERR ? "No response or Bus Collision " : "",
-		data & HST_STS_DEVERR ? "Device Error " : "",
-		!(data & HST_STS_DONE) ? "Transaction Never Finished " : "");
 
-	if (!(data & HST_STS_DONE))
+	if (!timeout) {
+		dev_err(&a->dev, "Timeout - Trying to KILL transaction!\n");
 		/* Issue 'kill' to host controller */
 		outb_p(HST_CNTL2_KILL,SMB_HST_CNTL2);
-	else
-		/* Issue timeout to reset all devices on bus */
+		data = inb_p(SMB_HST_STS);
+ 	}
+
+	/* device error - no response, ignore the autodetection case */
+	if ((data & HST_STS_DEVERR) && (size != HST_CNTL2_QUICK)) {
+		dev_err(&a->dev, "Device error!\n");
+	}
+
+	/* bus collision */
+	if (data & HST_STS_BUSERR) {
+		dev_err(&a->dev, "Bus collision!\n");
+		/* Issue timeout, hoping it helps */
 		outb_p(HST_CNTL1_TIMEOUT,SMB_HST_CNTL1);
+	}
+
+	if (data & HST_STS_FAIL) {
+		dev_err(&a->dev, "Cleaning fail after KILL!\n");
+		outb_p(0x0,SMB_HST_CNTL2);
+	}
+
 	return -1;
 }
 
@@ -149,7 +163,7 @@ static int ali1563_block_start(struct i2c_adapter * a)
 
 	if (timeout && !(data & HST_STS_BAD))
 		return 0;
-	dev_warn(&a->dev, "SMBus Error: %s%s%s%s%s\n",
+	dev_err(&a->dev, "SMBus Error: %s%s%s%s%s\n",
 		timeout ? "Timeout " : "",
 		data & HST_STS_FAIL ? "Transaction Failed " : "",
 		data & HST_STS_BUSERR ? "No response or Bus Collision " : "",
@@ -242,13 +256,15 @@ static s32 ali1563_access(struct i2c_adapter * a, u16 addr,
 	}
 
 	outb_p(((addr & 0x7f) << 1) | (rw & 0x01), SMB_HST_ADD);
-	outb_p(inb_p(SMB_HST_CNTL2) | (size << 3), SMB_HST_CNTL2);
+	outb_p((inb_p(SMB_HST_CNTL2) & ~HST_CNTL2_SIZEMASK) | (size << 3), SMB_HST_CNTL2);
 
 	/* Write the command register */
+
 	switch(size) {
 	case HST_CNTL2_BYTE:
 		if (rw== I2C_SMBUS_WRITE)
-			outb_p(cmd, SMB_HST_CMD);
+			/* Beware it uses DAT0 register and not CMD! */
+			outb_p(cmd, SMB_HST_DAT0);
 		break;
 	case HST_CNTL2_BYTE_DATA:
 		outb_p(cmd, SMB_HST_CMD);
@@ -268,7 +284,7 @@ static s32 ali1563_access(struct i2c_adapter * a, u16 addr,
 		goto Done;
 	}
 
-	if ((error = ali1563_transaction(a)))
+	if ((error = ali1563_transaction(a, size)))
 		goto Done;
 
 	if ((rw == I2C_SMBUS_WRITE) || (size == HST_CNTL2_QUICK))
@@ -306,7 +322,7 @@ static void ali1563_enable(struct pci_dev * dev)
 	pci_write_config_word(dev,ALI1563_SMBBA,ctrl);
 }
 
-static int __init ali1563_setup(struct pci_dev * dev)
+static int __devinit ali1563_setup(struct pci_dev * dev)
 {
 	u16 ctrl;
 
@@ -362,7 +378,7 @@ static struct i2c_adapter ali1563_adapter = {
 	.algo	= &ali1563_algorithm,
 };
 
-static int __init ali1563_probe(struct pci_dev * dev,
+static int __devinit ali1563_probe(struct pci_dev * dev,
 				const struct pci_device_id * id_table)
 {
 	int error;
@@ -378,32 +394,29 @@ static int __init ali1563_probe(struct pci_dev * dev,
 	return error;
 }
 
-static void __exit ali1563_remove(struct pci_dev * dev)
+static void __devexit ali1563_remove(struct pci_dev * dev)
 {
 	i2c_del_adapter(&ali1563_adapter);
 	ali1563_shutdown(dev);
 }
 
 static struct pci_device_id __devinitdata ali1563_id_table[] = {
-	{
-		.vendor		= PCI_VENDOR_ID_AL,
-		.device		= PCI_DEVICE_ID_AL_M1563,
-		.subvendor	= PCI_ANY_ID,
-		.subdevice	= PCI_ANY_ID,
-	},
+	{ PCI_DEVICE(PCI_VENDOR_ID_AL, PCI_DEVICE_ID_AL_M1563) },
 	{},
 };
 
+MODULE_DEVICE_TABLE (pci, ali1563_id_table);
+
 static struct pci_driver ali1563_pci_driver = {
- 	.name		= "i2c-ali1563",
+ 	.name		= "ali1563_i2c",
 	.id_table	= ali1563_id_table,
  	.probe		= ali1563_probe,
-	.remove		= ali1563_remove,
+	.remove		= __devexit_p(ali1563_remove),
 };
 
 static int __init ali1563_init(void)
 {
-	return pci_module_init(&ali1563_pci_driver);
+	return pci_register_driver(&ali1563_pci_driver);
 }
 
 module_init(ali1563_init);

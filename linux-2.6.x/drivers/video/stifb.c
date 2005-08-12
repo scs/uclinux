@@ -112,10 +112,10 @@ struct stifb_info {
 	ngle_rom_t ngle_rom;
 	struct sti_struct *sti;
 	int deviceSpecificConfig;
+	u32 pseudo_palette[256];
 };
 
-static int __initdata bpp = 8;	/* parameter from modprobe */
-static int __initdata stifb_force_bpp[MAX_STI_ROMS];
+static int __initdata stifb_bpp_pref[MAX_STI_ROMS];
 
 /* ------------------- chipset specific functions -------------------------- */
 
@@ -154,15 +154,15 @@ static int __initdata stifb_force_bpp[MAX_STI_ROMS];
 #define REG_44		0x210030
 #define REG_45		0x210034
 
-#define READ_BYTE(fb,reg)		__raw_readb((fb)->info.fix.mmio_start + (reg))
-#define READ_WORD(fb,reg)		__raw_readl((fb)->info.fix.mmio_start + (reg))
+#define READ_BYTE(fb,reg)		gsc_readb((fb)->info.fix.mmio_start + (reg))
+#define READ_WORD(fb,reg)		gsc_readl((fb)->info.fix.mmio_start + (reg))
 
 
 #ifndef DEBUG_STIFB_REGS
 # define  DEBUG_OFF()
 # define  DEBUG_ON()
-# define WRITE_BYTE(value,fb,reg)	__raw_writeb((value),(fb)->info.fix.mmio_start + (reg))
-# define WRITE_WORD(value,fb,reg)	__raw_writel((value),(fb)->info.fix.mmio_start + (reg))
+# define WRITE_BYTE(value,fb,reg)	gsc_writeb((value),(fb)->info.fix.mmio_start + (reg))
+# define WRITE_WORD(value,fb,reg)	gsc_writel((value),(fb)->info.fix.mmio_start + (reg))
 #else
   static int debug_on = 1;
 # define  DEBUG_OFF() debug_on=0
@@ -170,11 +170,11 @@ static int __initdata stifb_force_bpp[MAX_STI_ROMS];
 # define WRITE_BYTE(value,fb,reg)	do { if (debug_on) \
 						printk(KERN_DEBUG "%30s: WRITE_BYTE(0x%06x) = 0x%02x (old=0x%02x)\n", \
 							__FUNCTION__, reg, value, READ_BYTE(fb,reg)); 		  \
-					__raw_writeb((value),(fb)->info.fix.mmio_start + (reg)); } while (0)
+					gsc_writeb((value),(fb)->info.fix.mmio_start + (reg)); } while (0)
 # define WRITE_WORD(value,fb,reg)	do { if (debug_on) \
 						printk(KERN_DEBUG "%30s: WRITE_WORD(0x%06x) = 0x%08x (old=0x%08x)\n", \
 							__FUNCTION__, reg, value, READ_WORD(fb,reg)); 		  \
-					__raw_writel((value),(fb)->info.fix.mmio_start + (reg)); } while (0)
+					gsc_writel((value),(fb)->info.fix.mmio_start + (reg)); } while (0)
 #endif /* DEBUG_STIFB_REGS */
 
 
@@ -1017,6 +1017,15 @@ stifb_setcolreg(u_int regno, u_int red, u_int green,
 			 (blue));
 	}
 
+	if (info->var.bits_per_pixel == 32) {
+		((u32 *)(info->pseudo_palette))[regno] =
+			(red   << info->var.red.offset)   |
+			(green << info->var.green.offset) |
+			(blue  << info->var.blue.offset);
+	} else {
+		((u32 *)(info->pseudo_palette))[regno] = regno;
+	}
+
 	WRITE_IMAGE_COLOR(fb, regno, color);
 	
 	if (fb->id == S9000_ID_HCRX) {
@@ -1147,7 +1156,7 @@ static struct fb_ops stifb_ops = {
  */
 
 int __init
-stifb_init_fb(struct sti_struct *sti, int force_bpp)
+stifb_init_fb(struct sti_struct *sti, int bpp_pref)
 {
 	struct fb_fix_screeninfo *fix;
 	struct fb_var_screeninfo *var;
@@ -1248,10 +1257,10 @@ stifb_init_fb(struct sti_struct *sti, int force_bpp)
 #ifdef __LP64__
 	        sti_rom_address |= 0xffffffff00000000;
 #endif
-		fb->deviceSpecificConfig = __raw_readl(sti_rom_address);
+		fb->deviceSpecificConfig = gsc_readl(sti_rom_address);
 		if (IS_24_DEVICE(fb)) {
-			if (force_bpp == 8 || force_bpp == 32)
-				bpp = force_bpp;
+			if (bpp_pref == 8 || bpp_pref == 32)
+				bpp = bpp_pref;
 			else
 				bpp = 32;
 		} else
@@ -1298,6 +1307,7 @@ stifb_init_fb(struct sti_struct *sti, int force_bpp)
 	    case 1:
 		fix->type = FB_TYPE_PLANES;	/* well, sort of */
 		fix->visual = FB_VISUAL_MONO10;
+		var->red.length = var->green.length = var->blue.length = 1;
 		break;
 	    case 8:
 		fix->type = FB_TYPE_PACKED_PIXELS;
@@ -1324,8 +1334,8 @@ stifb_init_fb(struct sti_struct *sti, int force_bpp)
 	strcpy(fix->id, "stifb");
 	info->fbops = &stifb_ops;
 	info->screen_base = (void*) REGION_BASE(fb,1);
-	info->flags = FBINFO_FLAG_DEFAULT;
-	info->currcon = -1;
+	info->flags = FBINFO_DEFAULT;
+	info->pseudo_palette = &fb->pseudo_palette;
 
 	/* This has to been done !!! */
 	fb_alloc_cmap(&info->cmap, 256, 0);
@@ -1376,23 +1386,47 @@ out_err0:
 static int stifb_disabled __initdata;
 
 int __init
+stifb_setup(char *options);
+
+int __init
 stifb_init(void)
 {
 	struct sti_struct *sti;
+	struct sti_struct *def_sti;
 	int i;
 	
+#ifndef MODULE
+	char *option = NULL;
+
+	if (fb_get_options("stifb", &option))
+		return -ENODEV;
+	stifb_setup(option);
+#endif
 	if (stifb_disabled) {
 		printk(KERN_INFO "stifb: disabled by \"stifb=off\" kernel parameter\n");
 		return -ENXIO;
 	}
 	
-	for (i = 1; i < MAX_STI_ROMS; i++) {
+	def_sti = sti_get_rom(0);
+	if (def_sti) {
+		for (i = 1; i <= MAX_STI_ROMS; i++) {
+			sti = sti_get_rom(i);
+			if (!sti)
+				break;
+			if (sti == def_sti) {
+				stifb_init_fb(sti, stifb_bpp_pref[i - 1]);
+				break;
+			}
+		}
+	}
+
+	for (i = 1; i <= MAX_STI_ROMS; i++) {
 		sti = sti_get_rom(i);
 		if (!sti)
 			break;
-		if (bpp > 0)
-			stifb_force_bpp[i] = bpp;
-		stifb_init_fb(sti, stifb_force_bpp[i]);
+		if (sti == def_sti)
+			continue;
+		stifb_init_fb(sti, stifb_bpp_pref[i - 1]);
 	}
 	return 0;
 }
@@ -1407,7 +1441,7 @@ stifb_cleanup(void)
 	struct sti_struct *sti;
 	int i;
 	
-	for (i = 1; i < MAX_STI_ROMS; i++) {
+	for (i = 1; i <= MAX_STI_ROMS; i++) {
 		sti = sti_get_rom(i);
 		if (!sti)
 			break;
@@ -1439,11 +1473,9 @@ stifb_setup(char *options)
 	if (strncmp(options, "bpp", 3) == 0) {
 		options += 3;
 		for (i = 0; i < MAX_STI_ROMS; i++) {
-			if (*options++ == ':') {
-				stifb_force_bpp[i] = simple_strtoul(options, &options, 10);
-				bpp = -1;
-			} else
+			if (*options++ != ':')
 				break;
+			stifb_bpp_pref[i] = simple_strtoul(options, &options, 10);
 		}
 	}
 	return 0;
@@ -1451,9 +1483,7 @@ stifb_setup(char *options)
 
 __setup("stifb=", stifb_setup);
 
-#ifdef MODULE
 module_init(stifb_init);
-#endif
 module_exit(stifb_cleanup);
 
 MODULE_AUTHOR("Helge Deller <deller@gmx.de>, Thomas Bogendoerfer <tsbogend@alpha.franken.de>");

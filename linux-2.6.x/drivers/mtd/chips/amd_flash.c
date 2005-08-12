@@ -1122,7 +1122,7 @@ retry:
 	timeo = jiffies + (HZ * 20);
 
 	spin_unlock_bh(chip->mutex);
-	schedule_timeout(HZ);
+	msleep(1000);
 	spin_lock_bh(chip->mutex);
 	
 	while (flash_is_busy(map, adr, private->interleave)) {

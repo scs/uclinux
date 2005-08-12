@@ -31,8 +31,6 @@ int (*platform_notify_remove)(struct device * dev) = NULL;
 #define to_dev(obj) container_of(obj, struct device, kobj)
 #define to_dev_attr(_attr) container_of(_attr, struct device_attribute, attr)
 
-extern struct attribute * dev_default_attrs[];
-
 static ssize_t
 dev_attr_show(struct kobject * kobj, struct attribute * attr, char * buf)
 {
@@ -89,7 +87,6 @@ static void device_release(struct kobject * kobj)
 static struct kobj_type ktype_device = {
 	.release	= device_release,
 	.sysfs_ops	= &dev_sysfs_ops,
-	.default_attrs	= dev_default_attrs,
 };
 
 
@@ -116,9 +113,30 @@ static int dev_hotplug(struct kset *kset, struct kobject *kobj, char **envp,
 			int num_envp, char *buffer, int buffer_size)
 {
 	struct device *dev = to_dev(kobj);
+	int i = 0;
+	int length = 0;
 	int retval = 0;
 
-	if (dev->bus->hotplug) {
+	/* add bus name of physical device */
+	if (dev->bus)
+		add_hotplug_env_var(envp, num_envp, &i,
+				    buffer, buffer_size, &length,
+				    "PHYSDEVBUS=%s", dev->bus->name);
+
+	/* add driver name of physical device */
+	if (dev->driver)
+		add_hotplug_env_var(envp, num_envp, &i,
+				    buffer, buffer_size, &length,
+				    "PHYSDEVDRIVER=%s", dev->driver->name);
+
+	/* terminate, set to next free slot, shrink available space */
+	envp[i] = NULL;
+	envp = &envp[i];
+	num_envp -= i;
+	buffer = &buffer[length];
+	buffer_size -= length;
+
+	if (dev->bus && dev->bus->hotplug) {
 		/* have the bus specific function add its stuff */
 		retval = dev->bus->hotplug (dev, envp, num_envp, buffer, buffer_size);
 			if (retval) {
@@ -209,24 +227,25 @@ void device_initialize(struct device *dev)
  */
 int device_add(struct device *dev)
 {
-	struct device * parent;
-	int error;
+	struct device *parent = NULL;
+	int error = -EINVAL;
 
 	dev = get_device(dev);
 	if (!dev || !strlen(dev->bus_id))
-		return -EINVAL;
+		goto Error;
 
 	parent = get_device(dev->parent);
 
 	pr_debug("DEV: registering device: ID = '%s'\n", dev->bus_id);
 
 	/* first, register with generic layer. */
-	kobject_set_name(&dev->kobj, dev->bus_id);
+	kobject_set_name(&dev->kobj, "%s", dev->bus_id);
 	if (parent)
 		dev->kobj.parent = &parent->kobj;
 
 	if ((error = kobject_add(&dev->kobj)))
 		goto Error;
+	kobject_hotplug(&dev->kobj, KOBJ_ADD);
 	if ((error = device_pm_add(dev)))
 		goto PMError;
 	if ((error = bus_add_device(dev)))
@@ -245,6 +264,7 @@ int device_add(struct device *dev)
  BusError:
 	device_pm_remove(dev);
  PMError:
+	kobject_hotplug(&dev->kobj, KOBJ_REMOVE);
 	kobject_del(&dev->kobj);
  Error:
 	if (parent)
@@ -293,7 +313,8 @@ struct device * get_device(struct device * dev)
  */
 void put_device(struct device * dev)
 {
-	kobject_put(&dev->kobj);
+	if (dev)
+		kobject_put(&dev->kobj);
 }
 
 
@@ -327,6 +348,7 @@ void device_del(struct device * dev)
 		platform_notify_remove(dev);
 	bus_remove_device(dev);
 	device_pm_remove(dev);
+	kobject_hotplug(&dev->kobj, KOBJ_REMOVE);
 	kobject_del(&dev->kobj);
 	if (parent)
 		put_device(parent);
@@ -401,17 +423,17 @@ int __init devices_init(void)
 	return subsystem_register(&devices_subsys);
 }
 
-EXPORT_SYMBOL(device_for_each_child);
+EXPORT_SYMBOL_GPL(device_for_each_child);
 
-EXPORT_SYMBOL(device_initialize);
-EXPORT_SYMBOL(device_add);
-EXPORT_SYMBOL(device_register);
+EXPORT_SYMBOL_GPL(device_initialize);
+EXPORT_SYMBOL_GPL(device_add);
+EXPORT_SYMBOL_GPL(device_register);
 
-EXPORT_SYMBOL(device_del);
-EXPORT_SYMBOL(device_unregister);
-EXPORT_SYMBOL(get_device);
-EXPORT_SYMBOL(put_device);
-EXPORT_SYMBOL(device_find);
+EXPORT_SYMBOL_GPL(device_del);
+EXPORT_SYMBOL_GPL(device_unregister);
+EXPORT_SYMBOL_GPL(get_device);
+EXPORT_SYMBOL_GPL(put_device);
+EXPORT_SYMBOL_GPL(device_find);
 
-EXPORT_SYMBOL(device_create_file);
-EXPORT_SYMBOL(device_remove_file);
+EXPORT_SYMBOL_GPL(device_create_file);
+EXPORT_SYMBOL_GPL(device_remove_file);

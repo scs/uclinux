@@ -516,7 +516,7 @@ Sedl_card_msg(struct IsdnCardState *cs, int mt, void *arg)
 static struct pci_dev *dev_sedl __devinitdata = NULL;
 
 #ifdef __ISAPNP__
-static struct isapnp_device_id sedl_ids[] __initdata = {
+static struct isapnp_device_id sedl_ids[] __devinitdata = {
 	{ ISAPNP_VENDOR('S', 'A', 'G'), ISAPNP_FUNCTION(0x01),
 	  ISAPNP_VENDOR('S', 'A', 'G'), ISAPNP_FUNCTION(0x01), 
 	  (unsigned long) "Speed win" },
@@ -526,7 +526,7 @@ static struct isapnp_device_id sedl_ids[] __initdata = {
 	{ 0, }
 };
 
-static struct isapnp_device_id *ipid __initdata = &sedl_ids[0];
+static struct isapnp_device_id *ipid __devinitdata = &sedl_ids[0];
 static struct pnp_card *pnp_c __devinitdata = NULL;
 #endif
 
@@ -618,7 +618,7 @@ setup_sedlbauer(struct IsdnCard *card)
 		}
 #endif
 /* Probe for Sedlbauer speed pci */
-#if CONFIG_PCI
+#ifdef CONFIG_PCI
 		if ((dev_sedl = pci_find_device(PCI_VENDOR_ID_TIGERJET,
 				PCI_DEVICE_ID_TIGERJET_100, dev_sedl))) {
 			if (pci_enable_device(dev_sedl))

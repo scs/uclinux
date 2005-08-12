@@ -1,6 +1,5 @@
 /*
     cx24110 - Single Chip Satellite Channel Receiver driver module
-               used on the the Pinnacle PCTV Sat cards
 
     Copyright (C) 2002 Peter Hettkamp <peter.hettkamp@t-online.de> based on
     work
@@ -23,46 +22,36 @@
 
 */
 
-/* currently drives the Conexant cx24110 and cx24106 QPSK decoder chips,
-   connected via i2c to a Conexant Fusion 878 (this uses the standard
-   linux bttv driver). The tuner chip is supposed to be the Conexant
-   cx24108 digital satellite tuner, driven through the tuner interface
-   of the cx24110. SEC is also supplied by the cx24110.
-
-   Oct-2002: Migrate to API V3 (formerly known as NEWSTRUCT)
-*/
-
 #include <linux/slab.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/moduleparam.h>
 #include <linux/init.h>
 
 #include "dvb_frontend.h"
-#include "dvb_functions.h"
-
-static int debug = 0;
-#define dprintk	if (debug) printk
+#include "cx24110.h"
 
 
-static struct dvb_frontend_info cx24110_info = {
-	.name = "Conexant CX24110 with CX24108 tuner, aka HM1221/HM1811",
-	.type = FE_QPSK,
-	.frequency_min = 950000,
-	.frequency_max = 2150000,
-	.frequency_stepsize = 1011,  /* kHz for QPSK frontends, can be reduced
-					to 253kHz on the cx24108 tuner */
-	.frequency_tolerance = 29500,
-	.symbol_rate_min = 1000000,
-	.symbol_rate_max = 45000000,
-/*      .symbol_rate_tolerance = ???,*/
-	.notifier_delay = 50,                /* 1/20 s */
-	.caps = FE_CAN_INVERSION_AUTO |
-		FE_CAN_FEC_1_2 | FE_CAN_FEC_2_3 | FE_CAN_FEC_3_4 |
-		FE_CAN_FEC_5_6 | FE_CAN_FEC_7_8 | FE_CAN_FEC_AUTO |
-		FE_CAN_QPSK | FE_CAN_RECOVER
+struct cx24110_state {
+
+	struct i2c_adapter* i2c;
+
+	struct dvb_frontend_ops ops;
+
+	const struct cx24110_config* config;
+
+	struct dvb_frontend frontend;
+
+	u32 lastber;
+	u32 lastbler;
+	u32 lastesn0;
 };
-/* fixme: are these values correct? especially ..._tolerance and caps */
 
+static int debug;
+#define dprintk(args...) \
+	do { \
+		if (debug) printk(KERN_DEBUG "cx24110: " args); \
+	} while (0)
 
 static struct {u8 reg; u8 data;} cx24110_regdata[]=
                       /* Comments beginning with @ denote this value should
@@ -127,178 +116,61 @@ static struct {u8 reg; u8 data;} cx24110_regdata[]=
 	};
 
 
-static int cx24110_writereg (struct dvb_i2c_bus *i2c, int reg, int data)
+static int cx24110_writereg (struct cx24110_state* state, int reg, int data)
 {
         u8 buf [] = { reg, data };
-	struct i2c_msg msg = { .addr = 0x55, .flags = 0, .buf = buf, .len = 2 };
-/* fixme (medium): HW allows any i2c address. 0x55 is the default, but the
-   cx24110 might show up at any address */
+	struct i2c_msg msg = { .addr = state->config->demod_address, .flags = 0, .buf = buf, .len = 2 };
 	int err;
 
-        if ((err = i2c->xfer (i2c, &msg, 1)) != 1) {
-		dprintk ("%s: writereg error (err == %i, reg == 0x%02x, data == 0x%02x)\n", __FUNCTION__, err, reg, data);
+        if ((err = i2c_transfer(state->i2c, &msg, 1)) != 1) {
+		dprintk ("%s: writereg error (err == %i, reg == 0x%02x,"
+			 " data == 0x%02x)\n", __FUNCTION__, err, reg, data);
 		return -EREMOTEIO;
 	}
 
         return 0;
 }
 
-
-static u8 cx24110_readreg (struct dvb_i2c_bus *i2c, u8 reg)
+static int cx24110_readreg (struct cx24110_state* state, u8 reg)
 {
 	int ret;
 	u8 b0 [] = { reg };
 	u8 b1 [] = { 0 };
-	struct i2c_msg msg [] = { { .addr = 0x55, .flags = 0, .buf = b0, .len = 1 },
-			   { .addr = 0x55, .flags = I2C_M_RD, .buf = b1, .len = 1 } };
-/* fixme (medium): address might be different from 0x55 */
-	ret = i2c->xfer (i2c, msg, 2);
+	struct i2c_msg msg [] = { { .addr = state->config->demod_address, .flags = 0, .buf = b0, .len = 1 },
+			   { .addr = state->config->demod_address, .flags = I2C_M_RD, .buf = b1, .len = 1 } };
 
-	if (ret != 2)
-		dprintk("%s: readreg error (ret == %i)\n", __FUNCTION__, ret);
+	ret = i2c_transfer(state->i2c, msg, 2);
+
+	if (ret != 2) return ret;
 
 	return b1[0];
 }
 
-
-static int cx24108_write (struct dvb_i2c_bus *i2c, u32 data)
-{
-/* tuner data is 21 bits long, must be left-aligned in data */
-/* tuner cx24108 is written through a dedicated 3wire interface on the demod chip */
-/* FIXME (low): add error handling, avoid infinite loops if HW fails... */
-
-dprintk("cx24110 debug: cx24108_write(%8.8x)\n",data);
-
-        cx24110_writereg(i2c,0x6d,0x30); /* auto mode at 62kHz */
-        cx24110_writereg(i2c,0x70,0x15); /* auto mode 21 bits */
-        /* if the auto tuner writer is still busy, clear it out */
-        while (cx24110_readreg(i2c,0x6d)&0x80)
-		cx24110_writereg(i2c,0x72,0);
-        /* write the topmost 8 bits */
-        cx24110_writereg(i2c,0x72,(data>>24)&0xff);
-        /* wait for the send to be completed */
-        while ((cx24110_readreg(i2c,0x6d)&0xc0)==0x80)
-		;
-        /* send another 8 bytes */
-        cx24110_writereg(i2c,0x72,(data>>16)&0xff);
-        while ((cx24110_readreg(i2c,0x6d)&0xc0)==0x80)
-		;
-        /* and the topmost 5 bits of this byte */
-        cx24110_writereg(i2c,0x72,(data>>8)&0xff);
-        while ((cx24110_readreg(i2c,0x6d)&0xc0)==0x80)
-		;
-        /* now strobe the enable line once */
-        cx24110_writereg(i2c,0x6d,0x32);
-        cx24110_writereg(i2c,0x6d,0x30);
-
-        return 0;
-}
-
-
-static int cx24108_set_tv_freq (struct dvb_i2c_bus *i2c, u32 freq)
-{
-/* fixme (low): error handling */
-        int i, a, n, pump;
-        u32 band, pll;
-
-
-        static const u32 osci[]={ 950000,1019000,1075000,1178000,
-			         1296000,1432000,1576000,1718000,
-				 1856000,2036000,2150000};
-        static const u32 bandsel[]={0,0x00020000,0x00040000,0x00100800,
-				      0x00101000,0x00102000,0x00104000,
-				      0x00108000,0x00110000,0x00120000,
-				      0x00140000};
-
-#define XTAL 1011100 /* Hz, really 1.0111 MHz and a /10 prescaler */
-        dprintk("cx24110 debug: cx24108_set_tv_freq, freq=%d\n",freq);
-
-        if (freq<950000)
-		freq=950000; /* kHz */
-        if (freq>2150000)
-		freq=2150000; /* satellite IF is 950..2150MHz */
-        /* decide which VCO to use for the input frequency */
-        for (i=1;(i<sizeof(osci)/sizeof(osci[0]))&&(osci[i]<freq);i++)
-		;
-        dprintk("cx24110 debug: select vco #%d (f=%d)\n",i,freq);
-        band=bandsel[i];
-        /* the gain values must be set by SetSymbolrate */
-        /* compute the pll divider needed, from Conexant data sheet,
-           resolved for (n*32+a), remember f(vco) is f(receive) *2 or *4,
-           depending on the divider bit. It is set to /4 on the 2 lowest
-           bands  */
-        n=((i<=2?2:1)*freq*10L)/(XTAL/100);
-        a=n%32; n/=32;
-	if (a==0)
-		n--;
-        pump=(freq<(osci[i-1]+osci[i])/2);
-        pll=0xf8000000|
-            ((pump?1:2)<<(14+11))|
-            ((n&0x1ff)<<(5+11))|
-            ((a&0x1f)<<11);
-        /* everything is shifted left 11 bits to left-align the bits in the
-           32bit word. Output to the tuner goes MSB-aligned, after all */
-        dprintk("cx24110 debug: pump=%d, n=%d, a=%d\n",pump,n,a);
-        cx24108_write(i2c,band);
-        /* set vga and vca to their widest-band settings, as a precaution.
-           SetSymbolrate might not be called to set this up */
-        cx24108_write(i2c,0x500c0000);
-        cx24108_write(i2c,0x83f1f800);
-        cx24108_write(i2c,pll);
-        cx24110_writereg(i2c,0x56,0x7f);
-
-	dvb_delay(10); /* wait a moment for the tuner pll to lock */
-
-	/* tuner pll lock can be monitored on GPIO pin 4 of cx24110 */
-        while (!(cx24110_readreg(i2c,0x66)&0x20)&&i<1000)
-		i++;
-        dprintk("cx24110 debug: GPIO IN=%2.2x(loop=%d)\n",
-                cx24110_readreg(i2c,0x66),i);
-        return 0;
-
-}
-
-
-static int cx24110_init (struct dvb_i2c_bus *i2c)
-{
-/* fixme (low): error handling */
-        int i;
-
-	dprintk("%s: init chip\n", __FUNCTION__);
-
-        for(i=0;i<sizeof(cx24110_regdata)/sizeof(cx24110_regdata[0]);i++) {
-		cx24110_writereg(i2c,cx24110_regdata[i].reg,cx24110_regdata[i].data);
-        };
-
-	return 0;
-}
-
-
-static int cx24110_set_inversion (struct dvb_i2c_bus *i2c, fe_spectral_inversion_t inversion)
+static int cx24110_set_inversion (struct cx24110_state* state, fe_spectral_inversion_t inversion)
 {
 /* fixme (low): error handling */
 
 	switch (inversion) {
 	case INVERSION_OFF:
-                cx24110_writereg(i2c,0x37,cx24110_readreg(i2c,0x37)|0x1);
+                cx24110_writereg(state,0x37,cx24110_readreg(state,0x37)|0x1);
                 /* AcqSpectrInvDis on. No idea why someone should want this */
-                cx24110_writereg(i2c,0x5,cx24110_readreg(i2c,0x5)&0xf7);
+                cx24110_writereg(state,0x5,cx24110_readreg(state,0x5)&0xf7);
                 /* Initial value 0 at start of acq */
-                cx24110_writereg(i2c,0x22,cx24110_readreg(i2c,0x22)&0xef);
+                cx24110_writereg(state,0x22,cx24110_readreg(state,0x22)&0xef);
                 /* current value 0 */
                 /* The cx24110 manual tells us this reg is read-only.
                    But what the heck... set it ayways */
                 break;
 	case INVERSION_ON:
-                cx24110_writereg(i2c,0x37,cx24110_readreg(i2c,0x37)|0x1);
+                cx24110_writereg(state,0x37,cx24110_readreg(state,0x37)|0x1);
                 /* AcqSpectrInvDis on. No idea why someone should want this */
-                cx24110_writereg(i2c,0x5,cx24110_readreg(i2c,0x5)|0x08);
+                cx24110_writereg(state,0x5,cx24110_readreg(state,0x5)|0x08);
                 /* Initial value 1 at start of acq */
-                cx24110_writereg(i2c,0x22,cx24110_readreg(i2c,0x22)|0x10);
+                cx24110_writereg(state,0x22,cx24110_readreg(state,0x22)|0x10);
                 /* current value 1 */
                 break;
 	case INVERSION_AUTO:
-                cx24110_writereg(i2c,0x37,cx24110_readreg(i2c,0x37)&0xfe);
+                cx24110_writereg(state,0x37,cx24110_readreg(state,0x37)&0xfe);
                 /* AcqSpectrInvDis off. Leave initial & current states as is */
                 break;
 	default:
@@ -308,8 +180,7 @@ static int cx24110_set_inversion (struct dvb_i2c_bus *i2c, fe_spectral_inversion
 	return 0;
 }
 
-
-static int cx24110_set_fec (struct dvb_i2c_bus *i2c, fe_code_rate_t fec)
+static int cx24110_set_fec (struct cx24110_state* state, fe_code_rate_t fec)
 {
 /* fixme (low): error handling */
 
@@ -325,27 +196,27 @@ static int cx24110_set_fec (struct dvb_i2c_bus *i2c, fe_code_rate_t fec)
                 fec=FEC_AUTO;
 
         if (fec==FEC_AUTO) { /* (re-)establish AutoAcq behaviour */
-		cx24110_writereg(i2c,0x37,cx24110_readreg(i2c,0x37)&0xdf);
+		cx24110_writereg(state,0x37,cx24110_readreg(state,0x37)&0xdf);
 		/* clear AcqVitDis bit */
-		cx24110_writereg(i2c,0x18,0xae);
+		cx24110_writereg(state,0x18,0xae);
 		/* allow all DVB standard code rates */
-		cx24110_writereg(i2c,0x05,(cx24110_readreg(i2c,0x05)&0xf0)|0x3);
+		cx24110_writereg(state,0x05,(cx24110_readreg(state,0x05)&0xf0)|0x3);
 		/* set nominal Viterbi rate 3/4 */
-		cx24110_writereg(i2c,0x22,(cx24110_readreg(i2c,0x22)&0xf0)|0x3);
+		cx24110_writereg(state,0x22,(cx24110_readreg(state,0x22)&0xf0)|0x3);
 		/* set current Viterbi rate 3/4 */
-		cx24110_writereg(i2c,0x1a,0x05); cx24110_writereg(i2c,0x1b,0x06);
+		cx24110_writereg(state,0x1a,0x05); cx24110_writereg(state,0x1b,0x06);
 		/* set the puncture registers for code rate 3/4 */
 		return 0;
         } else {
-		cx24110_writereg(i2c,0x37,cx24110_readreg(i2c,0x37)|0x20);
+		cx24110_writereg(state,0x37,cx24110_readreg(state,0x37)|0x20);
 		/* set AcqVitDis bit */
 		if(rate[fec]>0) {
-			cx24110_writereg(i2c,0x05,(cx24110_readreg(i2c,0x05)&0xf0)|rate[fec]);
+			cx24110_writereg(state,0x05,(cx24110_readreg(state,0x05)&0xf0)|rate[fec]);
 			/* set nominal Viterbi rate */
-			cx24110_writereg(i2c,0x22,(cx24110_readreg(i2c,0x22)&0xf0)|rate[fec]);
+			cx24110_writereg(state,0x22,(cx24110_readreg(state,0x22)&0xf0)|rate[fec]);
 			/* set current Viterbi rate */
-			cx24110_writereg(i2c,0x1a,g1[fec]);
-			cx24110_writereg(i2c,0x1b,g2[fec]);
+			cx24110_writereg(state,0x1a,g1[fec]);
+			cx24110_writereg(state,0x1b,g2[fec]);
 			/* not sure if this is the right way: I always used AutoAcq mode */
            } else
 		   return -EOPNOTSUPP;
@@ -354,12 +225,11 @@ static int cx24110_set_fec (struct dvb_i2c_bus *i2c, fe_code_rate_t fec)
 	return 0;
 }
 
-
-static fe_code_rate_t cx24110_get_fec (struct dvb_i2c_bus *i2c)
+static fe_code_rate_t cx24110_get_fec (struct cx24110_state* state)
 {
 	int i;
 
-	i=cx24110_readreg(i2c,0x22)&0x0f;
+	i=cx24110_readreg(state,0x22)&0x0f;
 	if(!(i&0x08)) {
 		return FEC_1_2 + i - 1;
 	} else {
@@ -371,17 +241,13 @@ static fe_code_rate_t cx24110_get_fec (struct dvb_i2c_bus *i2c)
 	}
 }
 
-
-static int cx24110_set_symbolrate (struct dvb_i2c_bus *i2c, u32 srate)
+static int cx24110_set_symbolrate (struct cx24110_state* state, u32 srate)
 {
 /* fixme (low): add error handling */
         u32 ratio;
         u32 tmp, fclk, BDRI;
 
         static const u32 bands[]={5000000UL,15000000UL,90999000UL/2};
-        static const u32 vca[]={0x80f03800,0x81f0f800,0x83f1f800};
-        static const u32 vga[]={0x5f8fc000,0x580f0000,0x500c0000};
-        static const u8  filtune[]={0xa2,0xcc,0x66};
         int i;
 
 dprintk("cx24110 debug: entering %s(%d)\n",__FUNCTION__,srate);
@@ -395,22 +261,22 @@ dprintk("cx24110 debug: entering %s(%d)\n",__FUNCTION__,srate);
         /* first, check which sample rate is appropriate: 45, 60 80 or 90 MHz,
            and set the PLL accordingly (R07[1:0] Fclk, R06[7:4] PLLmult,
            R06[3:0] PLLphaseDetGain */
-        tmp=cx24110_readreg(i2c,0x07)&0xfc;
+        tmp=cx24110_readreg(state,0x07)&0xfc;
         if(srate<90999000UL/4) { /* sample rate 45MHz*/
-		cx24110_writereg(i2c,0x07,tmp);
-		cx24110_writereg(i2c,0x06,0x78);
+		cx24110_writereg(state,0x07,tmp);
+		cx24110_writereg(state,0x06,0x78);
 		fclk=90999000UL/2;
         } else if(srate<60666000UL/2) { /* sample rate 60MHz */
-		cx24110_writereg(i2c,0x07,tmp|0x1);
-		cx24110_writereg(i2c,0x06,0xa5);
+		cx24110_writereg(state,0x07,tmp|0x1);
+		cx24110_writereg(state,0x06,0xa5);
 		fclk=60666000UL;
         } else if(srate<80888000UL/2) { /* sample rate 80MHz */
-		cx24110_writereg(i2c,0x07,tmp|0x2);
-		cx24110_writereg(i2c,0x06,0x87);
+		cx24110_writereg(state,0x07,tmp|0x2);
+		cx24110_writereg(state,0x06,0x87);
 		fclk=80888000UL;
         } else { /* sample rate 90MHz */
-		cx24110_writereg(i2c,0x07,tmp|0x3);
-		cx24110_writereg(i2c,0x06,0x78);
+		cx24110_writereg(state,0x07,tmp|0x3);
+		cx24110_writereg(state,0x06,0x78);
 		fclk=90999000UL;
         };
         dprintk("cx24110 debug: fclk %d Hz\n",fclk);
@@ -439,240 +305,352 @@ dprintk("cx24110 debug: entering %s(%d)\n",__FUNCTION__,srate);
         dprintk("fclk = %d\n", fclk);
         dprintk("ratio= %08x\n", ratio);
 
-        cx24110_writereg(i2c, 0x1, (ratio>>16)&0xff);
-        cx24110_writereg(i2c, 0x2, (ratio>>8)&0xff);
-        cx24110_writereg(i2c, 0x3, (ratio)&0xff);
-
-        /* please see the cx24108 data sheet, this controls tuner gain
-           and bandwidth settings depending on the symbol rate */
-        cx24108_write(i2c,vga[i]);
-        cx24108_write(i2c,vca[i]); /* gain is set on tuner chip */
-        cx24110_writereg(i2c,0x56,filtune[i]); /* bw is contolled by filtune voltage */
+        cx24110_writereg(state, 0x1, (ratio>>16)&0xff);
+        cx24110_writereg(state, 0x2, (ratio>>8)&0xff);
+        cx24110_writereg(state, 0x3, (ratio)&0xff);
 
         return 0;
 
 }
 
-
-static int cx24110_set_voltage (struct dvb_i2c_bus *i2c, fe_sec_voltage_t voltage)
+int cx24110_pll_write (struct dvb_frontend* fe, u32 data)
 {
+	struct cx24110_state *state = fe->demodulator_priv;
+
+/* tuner data is 21 bits long, must be left-aligned in data */
+/* tuner cx24108 is written through a dedicated 3wire interface on the demod chip */
+/* FIXME (low): add error handling, avoid infinite loops if HW fails... */
+
+	dprintk("cx24110 debug: cx24108_write(%8.8x)\n",data);
+
+        cx24110_writereg(state,0x6d,0x30); /* auto mode at 62kHz */
+        cx24110_writereg(state,0x70,0x15); /* auto mode 21 bits */
+
+        /* if the auto tuner writer is still busy, clear it out */
+        while (cx24110_readreg(state,0x6d)&0x80)
+		cx24110_writereg(state,0x72,0);
+
+        /* write the topmost 8 bits */
+        cx24110_writereg(state,0x72,(data>>24)&0xff);
+
+        /* wait for the send to be completed */
+        while ((cx24110_readreg(state,0x6d)&0xc0)==0x80)
+		;
+
+        /* send another 8 bytes */
+        cx24110_writereg(state,0x72,(data>>16)&0xff);
+        while ((cx24110_readreg(state,0x6d)&0xc0)==0x80)
+		;
+
+        /* and the topmost 5 bits of this byte */
+        cx24110_writereg(state,0x72,(data>>8)&0xff);
+        while ((cx24110_readreg(state,0x6d)&0xc0)==0x80)
+		;
+
+        /* now strobe the enable line once */
+        cx24110_writereg(state,0x6d,0x32);
+        cx24110_writereg(state,0x6d,0x30);
+
+        return 0;
+}
+
+static int cx24110_initfe(struct dvb_frontend* fe)
+{
+	struct cx24110_state *state = fe->demodulator_priv;
+/* fixme (low): error handling */
+        int i;
+
+	dprintk("%s: init chip\n", __FUNCTION__);
+
+        for(i=0;i<sizeof(cx24110_regdata)/sizeof(cx24110_regdata[0]);i++) {
+		cx24110_writereg(state, cx24110_regdata[i].reg, cx24110_regdata[i].data);
+        };
+
+	if (state->config->pll_init) state->config->pll_init(fe);
+
+	return 0;
+}
+
+static int cx24110_set_voltage (struct dvb_frontend* fe, fe_sec_voltage_t voltage)
+{
+	struct cx24110_state *state = fe->demodulator_priv;
+
 	switch (voltage) {
 	case SEC_VOLTAGE_13:
-		return cx24110_writereg(i2c,0x76,(cx24110_readreg(i2c,0x76)&0x3b)|0xc0);
+		return cx24110_writereg(state,0x76,(cx24110_readreg(state,0x76)&0x3b)|0xc0);
 	case SEC_VOLTAGE_18:
-		return cx24110_writereg(i2c,0x76,(cx24110_readreg(i2c,0x76)&0x3b)|0x40);
+		return cx24110_writereg(state,0x76,(cx24110_readreg(state,0x76)&0x3b)|0x40);
 	default:
 		return -EINVAL;
 	};
 }
 
-static void sendDiSEqCMessage(struct dvb_i2c_bus *i2c, struct dvb_diseqc_master_cmd *pCmd)
+static int cx24110_diseqc_send_burst(struct dvb_frontend* fe, fe_sec_mini_cmd_t burst)
 {
-	int i, rv;
+	int rv, bit, i;
+	struct cx24110_state *state = fe->demodulator_priv;
 
-	for (i = 0; i < pCmd->msg_len; i++)
-		cx24110_writereg(i2c, 0x79 + i, pCmd->msg[i]);
+	if (burst == SEC_MINI_A)
+		bit = 0x00;
+	else if (burst == SEC_MINI_B)
+		bit = 0x08;
+	else
+		return -EINVAL;
 
-	rv = cx24110_readreg(i2c, 0x76);
+	rv = cx24110_readreg(state, 0x77);
+	cx24110_writereg(state, 0x77, rv|0x04);
 
-	cx24110_writereg(i2c, 0x76, ((rv & 0x90) | 0x40) | ((pCmd->msg_len-3) & 3));
-	for (i=500; i-- > 0 && !(cx24110_readreg(i2c,0x76)&0x40);)
-		; /* wait for LNB ready */
+	rv = cx24110_readreg(state, 0x76);
+	cx24110_writereg(state, 0x76, ((rv & 0x90) | 0x40 | bit));
+	for (i = 500; i-- > 0 && !(cx24110_readreg(state,0x76)&0x40) ; )
+              ; /* wait for LNB ready */
+
+	return 0;
 }
 
-
-static int cx24110_ioctl (struct dvb_frontend *fe, unsigned int cmd, void *arg)
+static int cx24110_send_diseqc_msg(struct dvb_frontend* fe,
+				   struct dvb_diseqc_master_cmd *cmd)
 {
-	struct dvb_i2c_bus *i2c = fe->i2c;
-	static int lastber=0, lastbyer=0,lastbler=0, lastesn0=0, sum_bler=0;
+	int i, rv;
+	struct cx24110_state *state = fe->demodulator_priv;
 
-        switch (cmd) {
-        case FE_GET_INFO:
-		memcpy (arg, &cx24110_info, sizeof(struct dvb_frontend_info));
-		break;
+	for (i = 0; i < cmd->msg_len; i++)
+		cx24110_writereg(state, 0x79 + i, cmd->msg[i]);
 
-        case FE_READ_STATUS:
-	{
-		fe_status_t *status = arg;
-		int sync = cx24110_readreg (i2c, 0x55);
+	rv = cx24110_readreg(state, 0x77);
+	cx24110_writereg(state, 0x77, rv|0x04);
 
-		*status = 0;
+	rv = cx24110_readreg(state, 0x76);
 
-		if (sync & 0x10)
-			*status |= FE_HAS_SIGNAL;
+	cx24110_writereg(state, 0x76, ((rv & 0x90) | 0x40) | ((cmd->msg_len-3) & 3));
+	for (i=500; i-- > 0 && !(cx24110_readreg(state,0x76)&0x40);)
+		; /* wait for LNB ready */
 
-		if (sync & 0x08)
-			*status |= FE_HAS_CARRIER;
+	return 0;
+}
 
-		sync = cx24110_readreg (i2c, 0x08);
+static int cx24110_read_status(struct dvb_frontend* fe, fe_status_t* status)
+{
+	struct cx24110_state *state = fe->demodulator_priv;
 
-		if (sync & 0x40)
-			*status |= FE_HAS_VITERBI;
+	int sync = cx24110_readreg (state, 0x55);
 
-		if (sync & 0x20)
-			*status |= FE_HAS_SYNC;
+	*status = 0;
 
-		if ((sync & 0x60) == 0x60)
-			*status |= FE_HAS_LOCK;
+	if (sync & 0x10)
+		*status |= FE_HAS_SIGNAL;
 
-		if(cx24110_readreg(i2c,0x10)&0x40) {
-			/* the RS error counter has finished one counting window */
-			cx24110_writereg(i2c,0x10,0x60); /* select the byer reg */
-			lastbyer=cx24110_readreg(i2c,0x12)|
-				(cx24110_readreg(i2c,0x13)<<8)|
-				(cx24110_readreg(i2c,0x14)<<16);
-			cx24110_writereg(i2c,0x10,0x70); /* select the bler reg */
-			lastbler=cx24110_readreg(i2c,0x12)|
-				(cx24110_readreg(i2c,0x13)<<8)|
-				(cx24110_readreg(i2c,0x14)<<16);
-			cx24110_writereg(i2c,0x10,0x20); /* start new count window */
-			sum_bler += lastbler;
-		}
-		if(cx24110_readreg(i2c,0x24)&0x10) {
-			/* the Viterbi error counter has finished one counting window */
-			cx24110_writereg(i2c,0x24,0x04); /* select the ber reg */
-			lastber=cx24110_readreg(i2c,0x25)|
-				(cx24110_readreg(i2c,0x26)<<8);
-			cx24110_writereg(i2c,0x24,0x04); /* start new count window */
-			cx24110_writereg(i2c,0x24,0x14);
-		}
-		if(cx24110_readreg(i2c,0x6a)&0x80) {
-			/* the Es/N0 error counter has finished one counting window */
-			lastesn0=cx24110_readreg(i2c,0x69)|
-				(cx24110_readreg(i2c,0x68)<<8);
-			cx24110_writereg(i2c,0x6a,0x84); /* start new count window */
-		}
-		break;
+	if (sync & 0x08)
+		*status |= FE_HAS_CARRIER;
+
+	sync = cx24110_readreg (state, 0x08);
+
+	if (sync & 0x40)
+		*status |= FE_HAS_VITERBI;
+
+	if (sync & 0x20)
+		*status |= FE_HAS_SYNC;
+
+	if ((sync & 0x60) == 0x60)
+		*status |= FE_HAS_LOCK;
+
+	return 0;
+}
+
+static int cx24110_read_ber(struct dvb_frontend* fe, u32* ber)
+{
+	struct cx24110_state *state = fe->demodulator_priv;
+
+	/* fixme (maybe): value range is 16 bit. Scale? */
+	if(cx24110_readreg(state,0x24)&0x10) {
+		/* the Viterbi error counter has finished one counting window */
+		cx24110_writereg(state,0x24,0x04); /* select the ber reg */
+		state->lastber=cx24110_readreg(state,0x25)|
+			(cx24110_readreg(state,0x26)<<8);
+		cx24110_writereg(state,0x24,0x04); /* start new count window */
+		cx24110_writereg(state,0x24,0x14);
 	}
+	*ber = state->lastber;
 
-        case FE_READ_BER:
-	{
-		u32 *ber = (u32 *) arg;
+	return 0;
+}
 
-		*ber = lastber;
-/* fixme (maybe): value range is 16 bit. Scale? */
-		break;
-	}
+static int cx24110_read_signal_strength(struct dvb_frontend* fe, u16* signal_strength)
+{
+	struct cx24110_state *state = fe->demodulator_priv;
 
-        case FE_READ_SIGNAL_STRENGTH:
-	{
 /* no provision in hardware. Read the frontend AGC accumulator. No idea how to scale this, but I know it is 2s complement */
-		u8 signal = cx24110_readreg (i2c, 0x27)+128;
-		*((u16*) arg) = (signal << 8) | signal;
-		break;
+	u8 signal = cx24110_readreg (state, 0x27)+128;
+	*signal_strength = (signal << 8) | signal;
+
+	return 0;
+}
+
+static int cx24110_read_snr(struct dvb_frontend* fe, u16* snr)
+{
+	struct cx24110_state *state = fe->demodulator_priv;
+
+	/* no provision in hardware. Can be computed from the Es/N0 estimator, but I don't know how. */
+	if(cx24110_readreg(state,0x6a)&0x80) {
+		/* the Es/N0 error counter has finished one counting window */
+		state->lastesn0=cx24110_readreg(state,0x69)|
+			(cx24110_readreg(state,0x68)<<8);
+		cx24110_writereg(state,0x6a,0x84); /* start new count window */
 	}
+	*snr = state->lastesn0;
 
-        case FE_READ_SNR:
-	{
-/* no provision in hardware. Can be computed from the Es/N0 estimator, but I don't know how. */
-		*(u16*) arg = lastesn0;
-		break;
+	return 0;
+}
+
+static int cx24110_read_ucblocks(struct dvb_frontend* fe, u32* ucblocks)
+{
+	struct cx24110_state *state = fe->demodulator_priv;
+	u32 lastbyer;
+
+	if(cx24110_readreg(state,0x10)&0x40) {
+		/* the RS error counter has finished one counting window */
+		cx24110_writereg(state,0x10,0x60); /* select the byer reg */
+		lastbyer=cx24110_readreg(state,0x12)|
+			(cx24110_readreg(state,0x13)<<8)|
+			(cx24110_readreg(state,0x14)<<16);
+		cx24110_writereg(state,0x10,0x70); /* select the bler reg */
+		state->lastbler=cx24110_readreg(state,0x12)|
+			(cx24110_readreg(state,0x13)<<8)|
+			(cx24110_readreg(state,0x14)<<16);
+		cx24110_writereg(state,0x10,0x20); /* start new count window */
 	}
+	*ucblocks = state->lastbler;
 
-	case FE_READ_UNCORRECTED_BLOCKS:
-	{
-		*(u16*) arg = sum_bler&0xffff;
-		sum_bler=0;
-		break;
-	}
+	return 0;
+}
 
-        case FE_SET_FRONTEND:
-        {
-		struct dvb_frontend_parameters *p = arg;
+static int cx24110_set_frontend(struct dvb_frontend* fe, struct dvb_frontend_parameters *p)
+{
+	struct cx24110_state *state = fe->demodulator_priv;
 
-		cx24108_set_tv_freq (i2c, p->frequency);
-		cx24110_set_inversion (i2c, p->inversion);
-		cx24110_set_fec (i2c, p->u.qpsk.fec_inner);
-		cx24110_set_symbolrate (i2c, p->u.qpsk.symbol_rate);
-		cx24110_writereg(i2c,0x04,0x05); /* start aquisition */
-                break;
-        }
+	state->config->pll_set(fe, p);
+	cx24110_set_inversion (state, p->inversion);
+	cx24110_set_fec (state, p->u.qpsk.fec_inner);
+	cx24110_set_symbolrate (state, p->u.qpsk.symbol_rate);
+	cx24110_writereg(state,0x04,0x05); /* start aquisition */
 
-	case FE_GET_FRONTEND:
-	{
-		struct dvb_frontend_parameters *p = arg;
-		s32 afc; unsigned sclk;
+	return 0;
+}
+
+static int cx24110_get_frontend(struct dvb_frontend* fe, struct dvb_frontend_parameters *p)
+{
+	struct cx24110_state *state = fe->demodulator_priv;
+	s32 afc; unsigned sclk;
 
 /* cannot read back tuner settings (freq). Need to have some private storage */
 
-		sclk = cx24110_readreg (i2c, 0x07) & 0x03;
+	sclk = cx24110_readreg (state, 0x07) & 0x03;
 /* ok, real AFC (FEDR) freq. is afc/2^24*fsamp, fsamp=45/60/80/90MHz.
  * Need 64 bit arithmetic. Is thiss possible in the kernel? */
-		if (sclk==0) sclk=90999000L/2L;
-		else if (sclk==1) sclk=60666000L;
-		else if (sclk==2) sclk=80888000L;
-		else sclk=90999000L;
-		sclk>>=8;
-		afc = sclk*(cx24110_readreg (i2c, 0x44)&0x1f)+
-		      ((sclk*cx24110_readreg (i2c, 0x45))>>8)+
-		      ((sclk*cx24110_readreg (i2c, 0x46))>>16);
+	if (sclk==0) sclk=90999000L/2L;
+	else if (sclk==1) sclk=60666000L;
+	else if (sclk==2) sclk=80888000L;
+	else sclk=90999000L;
+	sclk>>=8;
+	afc = sclk*(cx24110_readreg (state, 0x44)&0x1f)+
+	      ((sclk*cx24110_readreg (state, 0x45))>>8)+
+	      ((sclk*cx24110_readreg (state, 0x46))>>16);
 
-		p->frequency += afc;
-		p->inversion = (cx24110_readreg (i2c, 0x22) & 0x10) ?
-					INVERSION_ON : INVERSION_OFF;
-		p->u.qpsk.fec_inner = cx24110_get_fec (i2c);
-		break;
-	}
+	p->frequency += afc;
+	p->inversion = (cx24110_readreg (state, 0x22) & 0x10) ?
+				INVERSION_ON : INVERSION_OFF;
+	p->u.qpsk.fec_inner = cx24110_get_fec (state);
 
-        case FE_SLEEP:
-/* cannot do this from the FE end. How to communicate this to the place where it can be done? */
-		break;
-        case FE_INIT:
-		return cx24110_init (i2c);
-
-	case FE_SET_TONE:
-		return cx24110_writereg(i2c,0x76,(cx24110_readreg(i2c,0x76)&~0x10)|((((fe_sec_tone_mode_t) arg)==SEC_TONE_ON)?0x10:0));
-	case FE_SET_VOLTAGE:
-		return cx24110_set_voltage (i2c, (fe_sec_voltage_t) arg);
-
-	case FE_DISEQC_SEND_MASTER_CMD:
-		sendDiSEqCMessage(i2c, (struct dvb_diseqc_master_cmd*) arg);
-		return 0;
-
-	default:
-		return -EOPNOTSUPP;
-        };
-
-        return 0;
+	return 0;
 }
 
-
-static int cx24110_attach (struct dvb_i2c_bus *i2c, void **data)
+static int cx24110_set_tone(struct dvb_frontend* fe, fe_sec_tone_mode_t tone)
 {
-	u8 sig;
+	struct cx24110_state *state = fe->demodulator_priv;
 
-	sig=cx24110_readreg (i2c, 0x00);
-	if ( sig != 0x5a && sig != 0x69 )
-		return -ENODEV;
-
-	return dvb_register_frontend (cx24110_ioctl, i2c, NULL, &cx24110_info);
+	return cx24110_writereg(state,0x76,(cx24110_readreg(state,0x76)&~0x10)|(((tone==SEC_TONE_ON))?0x10:0));
 }
 
-
-static void cx24110_detach (struct dvb_i2c_bus *i2c, void *data)
+static void cx24110_release(struct dvb_frontend* fe)
 {
-	dvb_unregister_frontend (cx24110_ioctl, i2c);
+	struct cx24110_state* state = fe->demodulator_priv;
+	kfree(state);
 }
 
+static struct dvb_frontend_ops cx24110_ops;
 
-static int __init init_cx24110 (void)
+struct dvb_frontend* cx24110_attach(const struct cx24110_config* config,
+				    struct i2c_adapter* i2c)
 {
-	return dvb_register_i2c_device (THIS_MODULE, cx24110_attach, cx24110_detach);
+	struct cx24110_state* state = NULL;
+	int ret;
+
+	/* allocate memory for the internal state */
+	state = kmalloc(sizeof(struct cx24110_state), GFP_KERNEL);
+	if (state == NULL) goto error;
+
+	/* setup the state */
+	state->config = config;
+	state->i2c = i2c;
+	memcpy(&state->ops, &cx24110_ops, sizeof(struct dvb_frontend_ops));
+	state->lastber = 0;
+	state->lastbler = 0;
+	state->lastesn0 = 0;
+
+	/* check if the demod is there */
+	ret = cx24110_readreg(state, 0x00);
+	if ((ret != 0x5a) && (ret != 0x69)) goto error;
+
+	/* create dvb_frontend */
+	state->frontend.ops = &state->ops;
+	state->frontend.demodulator_priv = state;
+	return &state->frontend;
+
+error:
+	kfree(state);
+	return NULL;
 }
 
+static struct dvb_frontend_ops cx24110_ops = {
 
-static void __exit exit_cx24110 (void)
-{
-	dvb_unregister_i2c_device (cx24110_attach);
-}
+	.info = {
+		.name = "Conexant CX24110 DVB-S",
+		.type = FE_QPSK,
+		.frequency_min = 950000,
+		.frequency_max = 2150000,
+		.frequency_stepsize = 1011,  /* kHz for QPSK frontends */
+		.frequency_tolerance = 29500,
+		.symbol_rate_min = 1000000,
+		.symbol_rate_max = 45000000,
+		.caps = FE_CAN_INVERSION_AUTO |
+			FE_CAN_FEC_1_2 | FE_CAN_FEC_2_3 | FE_CAN_FEC_3_4 |
+			FE_CAN_FEC_5_6 | FE_CAN_FEC_7_8 | FE_CAN_FEC_AUTO |
+			FE_CAN_QPSK | FE_CAN_RECOVER
+	},
 
+	.release = cx24110_release,
 
-module_init(init_cx24110);
-module_exit(exit_cx24110);
+	.init = cx24110_initfe,
+	.set_frontend = cx24110_set_frontend,
+	.get_frontend = cx24110_get_frontend,
+	.read_status = cx24110_read_status,
+	.read_ber = cx24110_read_ber,
+	.read_signal_strength = cx24110_read_signal_strength,
+	.read_snr = cx24110_read_snr,
+	.read_ucblocks = cx24110_read_ucblocks,
 
+	.diseqc_send_master_cmd = cx24110_send_diseqc_msg,
+	.set_tone = cx24110_set_tone,
+	.set_voltage = cx24110_set_voltage,
+	.diseqc_send_burst = cx24110_diseqc_send_burst,
+};
 
-MODULE_DESCRIPTION("DVB Frontend driver module for the Conexant cx24108/cx24110 chipset");
+module_param(debug, int, 0644);
+MODULE_PARM_DESC(debug, "Turn on/off frontend debugging (default:off).");
+
+MODULE_DESCRIPTION("Conexant CX24110 DVB-S Demodulator driver");
 MODULE_AUTHOR("Peter Hettkamp");
 MODULE_LICENSE("GPL");
-MODULE_PARM(debug,"i");
 
+EXPORT_SYMBOL(cx24110_attach);
+EXPORT_SYMBOL(cx24110_pll_write);

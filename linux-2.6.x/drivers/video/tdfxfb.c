@@ -1,4 +1,3 @@
-
 /*
  *
  * tdfxfb.c
@@ -90,7 +89,7 @@
 #define VOODOO3_MAX_PIXCLOCK 300000
 #define VOODOO5_MAX_PIXCLOCK 350000
 
-static struct fb_fix_screeninfo tdfx_fix __initdata = {
+static struct fb_fix_screeninfo tdfx_fix __devinitdata = {
 	.id =		"3Dfx",
 	.type =		FB_TYPE_PACKED_PIXELS,
 	.visual =	FB_VISUAL_PSEUDOCOLOR, 
@@ -99,7 +98,7 @@ static struct fb_fix_screeninfo tdfx_fix __initdata = {
 	.accel =	FB_ACCEL_3DFX_BANSHEE
 };
 
-static struct fb_var_screeninfo tdfx_var __initdata = {
+static struct fb_var_screeninfo tdfx_var __devinitdata = {
 	/* "640x480, 8 bpp @ 60 Hz */
 	.xres =		640,
 	.yres =		480,
@@ -126,8 +125,9 @@ static struct fb_var_screeninfo tdfx_var __initdata = {
 /*
  * PCI driver prototypes
  */
-static int tdfxfb_probe(struct pci_dev *pdev, const struct pci_device_id *id);
-static void tdfxfb_remove(struct pci_dev *pdev);
+static int __devinit tdfxfb_probe(struct pci_dev *pdev,
+				  const struct pci_device_id *id);
+static void __devexit tdfxfb_remove(struct pci_dev *pdev);
 
 static struct pci_device_id tdfxfb_id_table[] = {
 	{ PCI_VENDOR_ID_3DFX, PCI_DEVICE_ID_3DFX_BANSHEE,
@@ -154,24 +154,18 @@ MODULE_DEVICE_TABLE(pci, tdfxfb_id_table);
 /*
  *  Frame buffer device API
  */
-int tdfxfb_init(void);
-void tdfxfb_setup(char *options, int *ints); 
-
 static int tdfxfb_check_var(struct fb_var_screeninfo *var, struct fb_info *fb); 
 static int tdfxfb_set_par(struct fb_info *info); 
 static int tdfxfb_setcolreg(u_int regno, u_int red, u_int green, u_int blue, 
 			    u_int transp, struct fb_info *info); 
 static int tdfxfb_blank(int blank, struct fb_info *info); 
 static int tdfxfb_pan_display(struct fb_var_screeninfo *var, struct fb_info *info);
+static int banshee_wait_idle(struct fb_info *info);
+#ifdef CONFIG_FB_3DFX_ACCEL
 static void tdfxfb_fillrect(struct fb_info *info, const struct fb_fillrect *rect);
 static void tdfxfb_copyarea(struct fb_info *info, const struct fb_copyarea *area);  
 static void tdfxfb_imageblit(struct fb_info *info, const struct fb_image *image); 
-#ifdef CONFIG_FB_3DFX_ACCEL
-static int tdfxfb_cursor(struct fb_info *info, struct fb_cursor *cursor);
-#else /* !CONFIG_FB_3DFX_ACCEL */
-#define tdfxfb_cursor soft_cursor
 #endif /* CONFIG_FB_3DFX_ACCEL */
-static int banshee_wait_idle(struct fb_info *info);
 
 static struct fb_ops tdfxfb_ops = {
 	.owner		= THIS_MODULE,
@@ -180,11 +174,17 @@ static struct fb_ops tdfxfb_ops = {
 	.fb_setcolreg	= tdfxfb_setcolreg,
 	.fb_blank	= tdfxfb_blank,
 	.fb_pan_display	= tdfxfb_pan_display,
+	.fb_sync	= banshee_wait_idle,
+#ifdef CONFIG_FB_3DFX_ACCEL
 	.fb_fillrect	= tdfxfb_fillrect,
 	.fb_copyarea	= tdfxfb_copyarea,
 	.fb_imageblit	= tdfxfb_imageblit,
-	.fb_sync	= banshee_wait_idle,
-	.fb_cursor	= tdfxfb_cursor,
+#else
+	.fb_fillrect	= cfb_fillrect,
+	.fb_copyarea	= cfb_copyarea,
+	.fb_imageblit	= cfb_imageblit,
+#endif
+	.fb_cursor	= soft_cursor,
 };
 
 /*
@@ -199,8 +199,7 @@ static unsigned long do_lfb_size(struct tdfx_par *par, unsigned short);
  */
 static int  nopan   = 0;
 static int  nowrap  = 1;      // not implemented (yet)
-static int  inverse = 0;
-static char *mode_option __initdata = NULL;
+static char *mode_option __devinitdata = NULL;
 
 /* ------------------------------------------------------------------------- 
  *                      Hardware-specific funcions
@@ -208,39 +207,19 @@ static char *mode_option __initdata = NULL;
 
 #ifdef VGA_REG_IO 
 static inline  u8 vga_inb(struct tdfx_par *par, u32 reg) { return inb(reg); }
-static inline u16 vga_inw(struct tdfx_par *par, u32 reg) { return inw(reg); }
-static inline u16 vga_inl(struct tdfx_par *par, u32 reg) { return inl(reg); }
 
 static inline void vga_outb(struct tdfx_par *par, u32 reg,  u8 val) { outb(val, reg); }
-static inline void vga_outw(struct tdfx_par *par, u32 reg, u16 val) { outw(val, reg); }
-static inline void vga_outl(struct tdfx_par *par, u32 reg, u32 val) { outl(val, reg); }
 #else
 static inline  u8 vga_inb(struct tdfx_par *par, u32 reg) { 
 	return inb(par->iobase + reg - 0x300); 
 }
-static inline u16 vga_inw(struct tdfx_par *par, u32 reg) { 
-	return inw(par->iobase + reg - 0x300); 
-}
-static inline u16 vga_inl(struct tdfx_par *par, u32 reg) { 
-	return inl(par->iobase + reg - 0x300); 
-}
 static inline void vga_outb(struct tdfx_par *par, u32 reg,  u8 val) { 
 	outb(val, par->iobase + reg - 0x300); 
-}
-static inline void vga_outw(struct tdfx_par *par, u32 reg, u16 val) { 
-	outw(val, par->iobase + reg - 0x300); 
-}
-static inline void vga_outl(struct tdfx_par *par, u32 reg, u32 val) { 
-	outl(val, par->iobase + reg - 0x300); 
 }
 #endif
 
 static inline void gra_outb(struct tdfx_par *par, u32 idx, u8 val) {
 	vga_outb(par, GRA_I, idx); vga_outb(par, GRA_D, val);
-}
-
-static inline u8 gra_inb(struct tdfx_par *par, u32 idx) {
-	vga_outb(par, GRA_I, idx); return vga_inb(par, GRA_D);
 }
 
 static inline void seq_outb(struct tdfx_par *par, u32 idx, u8 val) {
@@ -268,15 +247,6 @@ static inline void att_outb(struct tdfx_par *par, u32 idx, u8 val)
 	vga_outb(par, ATT_IW, val);
 }
 
-static inline u8 att_inb(struct tdfx_par *par, u32 idx) 
-{
-	unsigned char tmp;
-
-	tmp = vga_inb(par, IS1_R);
-	vga_outb(par, ATT_IW, idx);
-	return vga_inb(par, ATT_IW);
-}
-
 static inline void vga_disable_video(struct tdfx_par *par)
 {
 	unsigned char s;
@@ -295,12 +265,6 @@ static inline void vga_enable_video(struct tdfx_par *par)
 	seq_outb(par, 0x00, 0x01);
 	seq_outb(par, 0x01, s);
 	seq_outb(par, 0x00, 0x03);
-}
-
-static inline void vga_disable_palette(struct tdfx_par *par)
-{
-	vga_inb(par, IS1_R);
-	vga_outb(par, ATT_IW, 0x00);
 }
 
 static inline void vga_enable_palette(struct tdfx_par *par)
@@ -353,30 +317,49 @@ static inline void do_setpalentry(struct tdfx_par *par, unsigned regno, u32 c)
 
 static u32 do_calc_pll(int freq, int* freq_out) 
 {
-	int m, n, k, best_m, best_n, best_k, f_cur, best_error;
+	int m, n, k, best_m, best_n, best_k, best_error;
 	int fref = 14318;
   
-	/* this really could be done with more intelligence --
-	   255*63*4 = 64260 iterations is silly */
 	best_error = freq;
 	best_n = best_m = best_k = 0;
-	for (n = 1; n < 256; n++) {
-		for (m = 1; m < 64; m++) {
-			for (k = 0; k < 4; k++) {
-				f_cur = fref*(n + 2)/(m + 2)/(1 << k);
-				if (abs(f_cur - freq) < best_error) {
-					best_error = abs(f_cur-freq);
-					best_n = n;
-					best_m = m;
-					best_k = k;
+
+	for (k = 3; k >= 0; k--) {
+		for (m = 63; m >= 0; m--) {
+			/*
+			 * Estimate value of n that produces target frequency
+			 * with current m and k
+			 */
+			int n_estimated = (freq * (m + 2) * (1 << k) / fref) - 2;
+
+			/* Search neighborhood of estimated n */
+			for (n = max(0, n_estimated - 1);
+					n <= min(255, n_estimated + 1); n++) {
+				/*
+				 * Calculate PLL freqency with current m, k and
+				 * estimated n
+				 */
+				int f = fref * (n + 2) / (m + 2) / (1 << k);
+				int error = abs (f - freq);
+
+				/*
+				 *  If this is the closest we've come to the
+				 * target frequency then remember n, m and k
+				 */
+				if (error  < best_error) {
+					best_error = error;
+					best_n     = n;
+					best_m     = m;
+					best_k     = k;
 				}
 			}
 		}
 	}
+
 	n = best_n;
 	m = best_m;
 	k = best_k;
 	*freq_out = fref*(n + 2)/(m + 2)/(1 << k);
+
 	return (n << 8) | (m << 2) | k;
 }
 
@@ -447,36 +430,35 @@ static void do_write_regs(struct fb_info *info, struct banshee_reg* reg)
 
 static unsigned long do_lfb_size(struct tdfx_par *par, unsigned short dev_id) 
 {
-	u32 draminit0 = 0;
-	u32 draminit1 = 0;
-	u32 miscinit1 = 0;
-	u32 lfbsize   = 0;
-	int sgram_p   = 0;
+	u32 draminit0;
+	u32 draminit1;
+	u32 miscinit1;
+
+	int num_chips;
+	int chip_size; /* in MB */
+	u32 lfbsize;
+	int has_sgram;
 
 	draminit0 = tdfx_inl(par, DRAMINIT0);  
 	draminit1 = tdfx_inl(par, DRAMINIT1);
+
+	num_chips = (draminit0 & DRAMINIT0_SGRAM_NUM) ? 8 : 4;
  
-	if ((dev_id == PCI_DEVICE_ID_3DFX_BANSHEE) ||
-	    (dev_id == PCI_DEVICE_ID_3DFX_VOODOO3)) {             	 
-		sgram_p = (draminit1 & DRAMINIT1_MEM_SDRAM) ? 0 : 1;
-  
-	lfbsize = sgram_p ?
-		(((draminit0 & DRAMINIT0_SGRAM_NUM)  ? 2 : 1) * 
-		((draminit0 & DRAMINIT0_SGRAM_TYPE) ? 8 : 4) * 1024 * 1024) :
-		16 * 1024 * 1024;
+	if (dev_id < PCI_DEVICE_ID_3DFX_VOODOO5) {
+		/* Banshee/Voodoo3 */
+		has_sgram = draminit1 & DRAMINIT1_MEM_SDRAM;
+		chip_size = has_sgram ? ((draminit0 & DRAMINIT0_SGRAM_TYPE) ? 2 : 1)
+				      : 2;
 	} else {
 		/* Voodoo4/5 */
-		u32 chips, psize, banks;
+		has_sgram = 0;
+		chip_size = 1 << ((draminit0 & DRAMINIT0_SGRAM_TYPE_MASK) >> DRAMINIT0_SGRAM_TYPE_SHIFT);
+	}
+	lfbsize = num_chips * chip_size * 1024 * 1024;
 
-		chips = ((draminit0 & (1 << 26)) == 0) ? 4 : 8;
-		psize = 1 << ((draminit0 & 0x38000000) >> 28);
-		banks = ((draminit0 & (1 << 30)) == 0) ? 2 : 4;
-		lfbsize = chips * psize * banks;
-		lfbsize <<= 20;
-	}                 
-	/* disable block writes for SDRAM (why?) */
+	/* disable block writes for SDRAM */
 	miscinit1 = tdfx_inl(par, MISCINIT1);
-	miscinit1 |= sgram_p ? 0 : MISCINIT1_2DBLOCK_DIS;
+	miscinit1 |= has_sgram ? 0 : MISCINIT1_2DBLOCK_DIS;
 	miscinit1 |= MISCINIT1_CLUT_INV;
 
 	banshee_make_room(par, 1); 
@@ -497,23 +479,21 @@ static int tdfxfb_check_var(struct fb_var_screeninfo *var,struct fb_info *info)
 		return -EINVAL;
 	}
 
-	if (var->xres != var->xres_virtual) {
-		DPRINTK("virtual x resolution != physical x resolution not supported\n");
-		return -EINVAL;
-	}
+	if (var->xres != var->xres_virtual)
+		var->xres_virtual = var->xres;
 
-	if (var->yres > var->yres_virtual) {
-		DPRINTK("virtual y resolution < physical y resolution not possible\n");
-		return -EINVAL;
-	}
+	if (var->yres > var->yres_virtual)
+		var->yres_virtual = var->yres;
 
 	if (var->xoffset) {
 		DPRINTK("xoffset not supported\n");
 		return -EINVAL;
 	}
 
-	/* fixme: does Voodoo3 support interlace? Banshee doesn't */
-	if ((var->vmode & FB_VMODE_MASK) == FB_VMODE_INTERLACED) {
+	/* Banshee doesn't support interlace, but Voodoo4/5 and probably Voodoo3 do. */
+	/* no direct information about device id now? use max_pixclock for this... */
+	if (((var->vmode & FB_VMODE_MASK) == FB_VMODE_INTERLACED) &&
+			(par->max_pixclock < VOODOO3_MAX_PIXCLOCK)) {
 		DPRINTK("interlace not supported\n");
 		return -EINVAL;
 	}
@@ -532,9 +512,12 @@ static int tdfxfb_check_var(struct fb_var_screeninfo *var,struct fb_info *info)
 	}
   
 	if (lpitch * var->yres_virtual > info->fix.smem_len) {
-		DPRINTK("no memory for screen (%ux%ux%u)\n",
-		var->xres, var->yres_virtual, var->bits_per_pixel);
-		return -EINVAL;
+		var->yres_virtual = info->fix.smem_len/lpitch;
+		if (var->yres_virtual < var->yres) {
+			DPRINTK("no memory for screen (%ux%ux%u)\n",
+			var->xres, var->yres_virtual, var->bits_per_pixel);
+			return -EINVAL;
+		}
 	}
   
 	if (PICOS2KHZ(var->pixclock) > par->max_pixclock) {
@@ -584,7 +567,6 @@ static int tdfxfb_set_par(struct fb_info *info)
 	int fout, freq;
 	u32 wd, cpp;
   
-	info->cmap.len = (info->var.bits_per_pixel == 8) ? 256 : 16;
 	par->baseline  = 0;
  
 	memset(&reg, 0, sizeof(reg));
@@ -620,10 +602,17 @@ static int tdfxfb_set_par(struct fb_info *info)
 	hbs = hd;
 	hbe = ht;
 
-	vbs = vd = info->var.yres - 1;
-	vs  = vd + info->var.lower_margin;
-	ve  = vs + info->var.vsync_len;
-	vbe = vt = ve + info->var.upper_margin - 1;
+	if ((info->var.vmode & FB_VMODE_MASK) == FB_VMODE_DOUBLE) {
+		vbs = vd = (info->var.yres << 1) - 1;
+		vs  = vd + (info->var.lower_margin << 1);
+		ve  = vs + (info->var.vsync_len << 1);
+		vbe = vt = ve + (info->var.upper_margin << 1) - 1;
+	} else {
+		vbs = vd = info->var.yres - 1;
+		vs  = vd + info->var.lower_margin;
+		ve  = vs + info->var.vsync_len;
+		vbe = vt = ve + info->var.upper_margin - 1;
+	}
   
 	/* this is all pretty standard VGA register stuffing */
 	reg.misc[0x00] = 0x0f | 
@@ -746,8 +735,16 @@ static int tdfxfb_set_par(struct fb_info *info)
 	reg.gfxpll = do_calc_pll(..., &fout);
 #endif
 
-	reg.screensize = info->var.xres | (info->var.yres << 12);
-	reg.vidcfg &= ~VIDCFG_HALF_MODE;
+	if ((info->var.vmode & FB_VMODE_MASK) == FB_VMODE_DOUBLE) {
+		reg.screensize = info->var.xres | (info->var.yres << 13);
+		reg.vidcfg |= VIDCFG_HALF_MODE;
+		reg.crt[0x09] |= 0x80;
+	} else {
+		reg.screensize = info->var.xres | (info->var.yres << 12);
+		reg.vidcfg &= ~VIDCFG_HALF_MODE;
+	}
+	if ((info->var.vmode & FB_VMODE_MASK) == FB_VMODE_INTERLACED)
+		reg.vidcfg |= VIDCFG_INTERLACE;
 	reg.miscinit0 = tdfx_inl(par, MISCINIT0);
 
 #if defined(__BIG_ENDIAN)
@@ -787,7 +784,7 @@ static int tdfxfb_setcolreg(unsigned regno, unsigned red, unsigned green,
 	struct tdfx_par *par = (struct tdfx_par *) info->par;
 	u32 rgbcol;
    
-	if (regno >= info->cmap.len) return 1;
+	if (regno >= info->cmap.len || regno > 255) return 1;
    
 	switch (info->fix.visual) {
 		case FB_VISUAL_PSEUDOCOLOR:
@@ -820,23 +817,23 @@ static int tdfxfb_blank(int blank, struct fb_info *info)
 	dacmode = tdfx_inl(par, DACMODE);
 
 	switch (blank) {
-		case 0: /* Screen: On; HSync: On, VSync: On */    
+		case FB_BLANK_UNBLANK: /* Screen: On; HSync: On, VSync: On */
 			state    = 0;
 			vgablank = 0;
 			break;
-		case 1: /* Screen: Off; HSync: On, VSync: On */
+		case FB_BLANK_NORMAL: /* Screen: Off; HSync: On, VSync: On */
 			state    = 0;
 			vgablank = 1;
 			break;
-		case 2: /* Screen: Off; HSync: On, VSync: Off */
+		case FB_BLANK_VSYNC_SUSPEND: /* Screen: Off; HSync: On, VSync: Off */
 			state    = BIT(3);
 			vgablank = 1;
 			break;
-		case 3: /* Screen: Off; HSync: Off, VSync: On */
+		case FB_BLANK_HSYNC_SUSPEND: /* Screen: Off; HSync: Off, VSync: On */
 			state    = BIT(1);
 			vgablank = 1;
 			break;
-		case 4: /* Screen: Off; HSync: Off, VSync: Off */
+		case FB_BLANK_POWERDOWN: /* Screen: Off; HSync: Off, VSync: Off */
 			state    = BIT(1) | BIT(3);
 			vgablank = 1;
 			break;
@@ -876,6 +873,7 @@ static int tdfxfb_pan_display(struct fb_var_screeninfo *var,
 	return 0;
 }
 
+#ifdef CONFIG_FB_3DFX_ACCEL
 /*
  * FillRect 2D command (solidfill or invert (via ROP_XOR))   
  */
@@ -894,11 +892,14 @@ static void tdfxfb_fillrect(struct fb_info *info, const struct fb_fillrect *rect
 
 	banshee_make_room(par, 5);
 	tdfx_outl(par,	DSTFORMAT, fmt);
-	tdfx_outl(par,	COLORFORE, rect->color);
+	if (info->fix.visual == FB_VISUAL_PSEUDOCOLOR) {
+		tdfx_outl(par,	COLORFORE, rect->color);
+	} else { /* FB_VISUAL_TRUECOLOR */
+		tdfx_outl(par, COLORFORE, ((u32*)(info->pseudo_palette))[rect->color]);
+	}
 	tdfx_outl(par,	COMMAND_2D, COMMAND_2D_FILLRECT | (tdfx_rop << 24));
 	tdfx_outl(par,	DSTSIZE,    rect->width | (rect->height << 16));
 	tdfx_outl(par,	LAUNCH_2D,  rect->dx | (rect->dy << 16));
-	banshee_wait_idle(info);
 }
 
 /*
@@ -934,7 +935,6 @@ static void tdfxfb_copyarea(struct fb_info *info, const struct fb_copyarea *area
 	tdfx_outl(par,	DSTSIZE,   area->width | (area->height << 16));
 	tdfx_outl(par,	DSTXY,     dx | (dy << 16));
 	tdfx_outl(par,	LAUNCH_2D, sx | (sy << 16)); 
-	banshee_wait_idle(info);
 }
 
 static void tdfxfb_imageblit(struct fb_info *info, const struct fb_image *image) 
@@ -1002,10 +1002,10 @@ static void tdfxfb_imageblit(struct fb_info *info, const struct fb_image *image)
 		case 2:  tdfx_outl(par,	LAUNCH_2D,*(u16*)chardata); break;
 		case 3:  tdfx_outl(par,	LAUNCH_2D,*(u16*)chardata | ((chardata[3]) << 24)); break;
 	}
-	banshee_wait_idle(info);
 }
+#endif /* CONFIG_FB_3DFX_ACCEL */
 
-#ifdef CONFIG_FB_3DFX_ACCEL
+#ifdef TDFX_HARDWARE_CURSOR
 static int tdfxfb_cursor(struct fb_info *info, struct fb_cursor *cursor)
 {
 	struct tdfx_par *par = (struct tdfx_par *) info->par;
@@ -1043,7 +1043,7 @@ static int tdfxfb_cursor(struct fb_info *info, struct fb_cursor *cursor)
 		struct fb_cmap cmap = cursor->image.cmap;
 		unsigned long bg_color, fg_color;
 
-		cmap.len = 2;/* Voodoo 3+ only support 2 color cursors*/
+		cmap.len = 2; /* Voodoo 3+ only support 2 color cursors */
 		fg_color = ((cmap.red[cmap.start] << 16) |
 			    (cmap.green[cmap.start] << 8)  |
 			    (cmap.blue[cmap.start]));
@@ -1101,7 +1101,7 @@ static int tdfxfb_cursor(struct fb_info *info, struct fb_cursor *cursor)
 		 */
 		u8 *cursorbase = (u8 *) info->cursor.image.data;
 		char *bitmap = (char *)cursor->image.data;
-		const char *mask = cursor->mask;
+		char *mask = (char *) cursor->mask;
 		int i, j, k, h = 0;
 
 		for (i = 0; i < 64; i++) {
@@ -1142,7 +1142,7 @@ static int tdfxfb_cursor(struct fb_info *info, struct fb_cursor *cursor)
 	spin_unlock_irqrestore(&par->DAClock, flags);
 	return 0;
 }
-#endif /* CONFIG_FB_3DFX_ACCEL */
+#endif
 
 /**
  *      tdfxfb_probe - Device Initializiation
@@ -1158,22 +1158,20 @@ static int __devinit tdfxfb_probe(struct pci_dev *pdev,
 {
 	struct tdfx_par *default_par;
 	struct fb_info *info;
-	int size, err;
+	int size, err, lpitch;
 
 	if ((err = pci_enable_device(pdev))) {
 		printk(KERN_WARNING "tdfxfb: Can't enable pdev: %d\n", err);
 		return err;
 	}
 
-	size = sizeof(struct fb_info)+sizeof(struct tdfx_par)+16*sizeof(u32);
+	size = sizeof(struct tdfx_par)+256*sizeof(u32);
 
-	info = kmalloc(size, GFP_KERNEL);
+	info = framebuffer_alloc(size, &pdev->dev);
 
 	if (!info)	return -ENOMEM;
 		
-	memset(info, 0, size);
-    
-	default_par = (struct tdfx_par *) (info + 1);
+	default_par = info->par;
  
 	/* Configure the default fb_fix_screeninfo first */
 	switch (pdev->device) {
@@ -1251,24 +1249,44 @@ static int __devinit tdfxfb_probe(struct pci_dev *pdev,
    
 	info->fbops		= &tdfxfb_ops;
 	info->fix		= tdfx_fix; 	
-	info->par		= default_par;
 	info->pseudo_palette	= (void *)(default_par + 1); 
-	info->flags		= FBINFO_FLAG_DEFAULT;
+	info->flags		= FBINFO_DEFAULT | FBINFO_HWACCEL_YPAN;
+#ifdef CONFIG_FB_3DFX_ACCEL
+	info->flags             |= FBINFO_HWACCEL_FILLRECT |
+		FBINFO_HWACCEL_COPYAREA | FBINFO_HWACCEL_IMAGEBLIT;
+#endif
 
-#ifndef MODULE
 	if (!mode_option)
 		mode_option = "640x480@60";
 	 
 	err = fb_find_mode(&info->var, info, mode_option, NULL, 0, NULL, 8); 
 	if (!err || err == 4)
-#endif
 		info->var = tdfx_var;
 
-	size = (info->var.bits_per_pixel == 8) ? 256 : 16;
-	fb_alloc_cmap(&info->cmap, size, 0);  
+	/* maximize virtual vertical length */
+	lpitch = info->var.xres_virtual * ((info->var.bits_per_pixel + 7) >> 3);
+	info->var.yres_virtual = info->fix.smem_len/lpitch;
+	if (info->var.yres_virtual < info->var.yres)
+		goto out_err;
+
+#ifdef CONFIG_FB_3DFX_ACCEL
+	/*
+	 * FIXME: Limit var->yres_virtual to 4096 because of screen artifacts
+	 * during scrolling. This is only present if 2D acceleration is
+	 * enabled.
+	 */
+	if (info->var.yres_virtual > 4096)
+		info->var.yres_virtual = 4096;
+#endif /* CONFIG_FB_3DFX_ACCEL */
+
+	if (fb_alloc_cmap(&info->cmap, 256, 0) < 0) {
+		printk(KERN_WARNING "tdfxfb: Can't allocate color map\n");
+		goto out_err;
+	}
 
 	if (register_framebuffer(info) < 0) {
 		printk("tdfxfb: can't register framebuffer\n");
+		fb_dealloc_cmap(&info->cmap);
 		goto out_err;
 	}
 	/*
@@ -1285,9 +1303,31 @@ out_err:
 		iounmap(default_par->regbase_virt);
 	if (info->screen_base)
 		iounmap(info->screen_base);
-	kfree(info);
+	framebuffer_release(info);
 	return -ENXIO;
 }
+
+#ifndef MODULE
+void tdfxfb_setup(char *options)
+{
+	char* this_opt;
+
+	if (!options || !*options)
+		return;
+
+	while ((this_opt = strsep(&options, ",")) != NULL) {
+		if (!*this_opt)
+			continue;
+		if(!strcmp(this_opt, "nopan")) {
+			nopan = 1;
+		} else if(!strcmp(this_opt, "nowrap")) {
+			nowrap = 1;
+		} else {
+			mode_option = this_opt;
+		}
+	}
+}
+#endif
 
 /**
  *      tdfxfb_remove - Device removal
@@ -1315,12 +1355,20 @@ static void __devexit tdfxfb_remove(struct pci_dev *pdev)
 	release_mem_region(pci_resource_start(pdev, 0),
 			   pci_resource_len(pdev, 0));
 	pci_set_drvdata(pdev, NULL);
-	kfree(info);
+	framebuffer_release(info);
 }
 
-int __init tdfxfb_init(void)
+static int __init tdfxfb_init(void)
 {
-        return pci_module_init(&tdfxfb_driver);
+#ifndef MODULE
+	char *option = NULL;
+
+	if (fb_get_options("tdfxfb", &option))
+		return -ENODEV;
+
+	tdfxfb_setup(option);
+#endif
+        return pci_register_driver(&tdfxfb_driver);
 }
 
 static void __exit tdfxfb_exit(void)
@@ -1332,34 +1380,5 @@ MODULE_AUTHOR("Hannu Mallat <hmallat@cc.hut.fi>");
 MODULE_DESCRIPTION("3Dfx framebuffer device driver");
 MODULE_LICENSE("GPL");
  
-#ifdef MODULE
 module_init(tdfxfb_init);
-#endif
 module_exit(tdfxfb_exit);
-
-
-#ifndef MODULE
-void tdfxfb_setup(char *options, int *ints)
-{ 
-	char* this_opt;
-
-	if (!options || !*options)
-		return;
-
-	while ((this_opt = strsep(&options, ",")) != NULL) {	
-		if (!*this_opt)
-			continue;
-		if (!strcmp(this_opt, "inverse")) {
-			inverse = 1;
-			fb_invert_cmaps();
-		} else if(!strcmp(this_opt, "nopan")) {
-			nopan = 1;
-		} else if(!strcmp(this_opt, "nowrap")) {
-			nowrap = 1;
-		} else {
-			mode_option = this_opt;
-		}
-	} 
-}
-#endif
-

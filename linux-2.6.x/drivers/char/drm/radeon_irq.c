@@ -27,10 +27,9 @@
  *
  * Authors:
  *    Keith Whitwell <keith@tungstengraphics.com>
- *    Michel Dänzer <michel@daenzer.net>
+ *    Michel Dï¿½zer <michel@daenzer.net>
  */
 
-#include "radeon.h"
 #include "drmP.h"
 #include "drm.h"
 #include "radeon_drm.h"
@@ -54,7 +53,7 @@
  * tied to dma at all, this is just a hangover from dri prehistory.
  */
 
-irqreturn_t DRM(irq_handler)( DRM_IRQ_ARGS )
+irqreturn_t radeon_driver_irq_handler( DRM_IRQ_ARGS )
 {
 	drm_device_t *dev = (drm_device_t *) arg;
 	drm_radeon_private_t *dev_priv = 
@@ -78,7 +77,7 @@ irqreturn_t DRM(irq_handler)( DRM_IRQ_ARGS )
 	if (stat & RADEON_CRTC_VBLANK_STAT) {
 		atomic_inc(&dev->vbl_received);
 		DRM_WAKEUP(&dev->vbl_queue);
-		DRM(vbl_send_signals)( dev );
+		drm_vbl_send_signals( dev );
 	}
 
 	/* Acknowledge interrupts we handle */
@@ -94,7 +93,7 @@ static __inline__ void radeon_acknowledge_irqs(drm_radeon_private_t *dev_priv)
 		RADEON_WRITE( RADEON_GEN_INT_STATUS, tmp );
 }
 
-int radeon_emit_irq(drm_device_t *dev)
+static int radeon_emit_irq(drm_device_t *dev)
 {
 	drm_radeon_private_t *dev_priv = dev->dev_private;
 	unsigned int ret;
@@ -113,7 +112,7 @@ int radeon_emit_irq(drm_device_t *dev)
 }
 
 
-int radeon_wait_irq(drm_device_t *dev, int swi_nr)
+static int radeon_wait_irq(drm_device_t *dev, int swi_nr)
 {
   	drm_radeon_private_t *dev_priv = 
 	   (drm_radeon_private_t *)dev->dev_private;
@@ -124,24 +123,13 @@ int radeon_wait_irq(drm_device_t *dev, int swi_nr)
 
 	dev_priv->stats.boxes |= RADEON_BOX_WAIT_IDLE;
 
-	/* This is a hack to work around mysterious freezes on certain
-	 * systems:
-	 */ 
-	radeon_acknowledge_irqs( dev_priv );
-
 	DRM_WAIT_ON( ret, dev_priv->swi_queue, 3 * DRM_HZ, 
 		     RADEON_READ( RADEON_LAST_SWI_REG ) >= swi_nr );
 
 	return ret;
 }
 
-int radeon_emit_and_wait_irq(drm_device_t *dev)
-{
-	return radeon_wait_irq( dev, radeon_emit_irq(dev) );
-}
-
-
-int DRM(vblank_wait)(drm_device_t *dev, unsigned int *sequence)
+int radeon_driver_vblank_wait(drm_device_t *dev, unsigned int *sequence)
 {
   	drm_radeon_private_t *dev_priv = 
 	   (drm_radeon_private_t *)dev->dev_private;
@@ -223,7 +211,7 @@ int radeon_irq_wait( DRM_IOCTL_ARGS )
 
 /* drm_dma.h hooks
 */
-void DRM(driver_irq_preinstall)( drm_device_t *dev ) {
+void radeon_driver_irq_preinstall( drm_device_t *dev ) {
 	drm_radeon_private_t *dev_priv =
 		(drm_radeon_private_t *)dev->dev_private;
 
@@ -234,7 +222,7 @@ void DRM(driver_irq_preinstall)( drm_device_t *dev ) {
 	radeon_acknowledge_irqs( dev_priv );
 }
 
-void DRM(driver_irq_postinstall)( drm_device_t *dev ) {
+void radeon_driver_irq_postinstall( drm_device_t *dev ) {
 	drm_radeon_private_t *dev_priv =
 		(drm_radeon_private_t *)dev->dev_private;
 
@@ -247,7 +235,7 @@ void DRM(driver_irq_postinstall)( drm_device_t *dev ) {
 		      RADEON_SW_INT_ENABLE );
 }
 
-void DRM(driver_irq_uninstall)( drm_device_t *dev ) {
+void radeon_driver_irq_uninstall( drm_device_t *dev ) {
 	drm_radeon_private_t *dev_priv =
 		(drm_radeon_private_t *)dev->dev_private;
 	if (!dev_priv)

@@ -47,8 +47,6 @@
 #define LOG_TEMP		0			/* continously log temperature */
 
 #define I2C_DRIVERID_G4FAN	0x9001			/* fixme */
-#define THERMOSTAT_CLIENT_ID	1
-#define FAN_CLIENT_ID		2
 
 static int 			do_probe( struct i2c_adapter *adapter, int addr, int kind);
 
@@ -292,8 +290,7 @@ control_loop( void *dummy )
 	while( x.running ) {
 		up( &x.lock );
 
-		set_current_state(TASK_INTERRUPTIBLE);
-		schedule_timeout( 8*HZ );
+		msleep_interruptible(8000);
 		
 		down( &x.lock );
 		poll_temp();
@@ -354,12 +351,12 @@ do_detach( struct i2c_client *client )
 }
 
 static struct i2c_driver g4fan_driver = {  
-	.name		= "Apple G4 Thermostat/Fan",
+	.owner		= THIS_MODULE,
+	.name		= "therm_windtunnel",
 	.id		= I2C_DRIVERID_G4FAN,
 	.flags		= I2C_DF_NOTIFY,
-	.attach_adapter = &do_attach,
-	.detach_client	= &do_detach,
-	.command	= NULL,
+	.attach_adapter = do_attach,
+	.detach_client	= do_detach,
 };
 
 static int
@@ -373,7 +370,6 @@ attach_fan( struct i2c_client *cl )
 		goto out;
 	printk("ADM1030 fan controller [@%02x]\n", cl->addr );
 
-	cl->id = FAN_CLIENT_ID;
 	strlcpy( cl->name, "ADM1030 fan controller", sizeof(cl->name) );
 
 	if( !i2c_attach_client(cl) )
@@ -413,7 +409,6 @@ attach_thermostat( struct i2c_client *cl )
 	x.overheat_temp = os_temp;
 	x.overheat_hyst = hyst_temp;
 	
-	cl->id = THERMOSTAT_CLIENT_ID;
 	strlcpy( cl->name, "DS1775 thermostat", sizeof(cl->name) );
 
 	if( !i2c_attach_client(cl) )

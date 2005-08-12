@@ -29,8 +29,10 @@
 #define MANUFACTURER_AMD	0x0001
 #define MANUFACTURER_ATMEL	0x001f
 #define MANUFACTURER_FUJITSU	0x0004
+#define MANUFACTURER_HYUNDAI	0x00AD
 #define MANUFACTURER_INTEL	0x0089
 #define MANUFACTURER_MACRONIX	0x00C2
+#define MANUFACTURER_NEC	0x0010
 #define MANUFACTURER_PMC	0x009D
 #define MANUFACTURER_SST	0x00BF
 #define MANUFACTURER_ST		0x0020
@@ -56,6 +58,7 @@
 #define AM29F040	0x00A4
 #define AM29LV040B	0x004F
 #define AM29F032B	0x0041
+#define AM29F002T	0x00B0
 
 /* Atmel */
 #define AT49BV512	0x0003
@@ -77,6 +80,8 @@
 #define MBM29LV400TC	0x22B9
 #define MBM29LV400BC	0x22BA
 
+/* Hyundai */
+#define HY29F002T	0x00B0
 
 /* Intel */
 #define I28F004B3T	0x00d4
@@ -103,11 +108,16 @@
 #define I82802AC	0x00ac
 
 /* Macronix */
+#define MX29LV040C	0x004F
 #define MX29LV160T	0x22C4
 #define MX29LV160B	0x2249
 #define MX29F016	0x00AD
+#define MX29F002T	0x00B0
 #define MX29F004T	0x0045
 #define MX29F004B	0x0046
+
+/* NEC */
+#define UPD29F064115	0x221C
 
 /* PMC */
 #define PM49FL002	0x006D
@@ -123,6 +133,7 @@
 #define M50FW040	0x002C
 #define M50FW080	0x002D
 #define M50FW016	0x002E
+#define M50LPW080       0x002F
 
 /* SST */
 #define SST29EE020	0x0010
@@ -176,8 +187,8 @@ enum uaddr {
 
 
 struct unlock_addr {
-	int addr1;
-	int addr2;
+	u32 addr1;
+	u32 addr2;
 };
 
 
@@ -220,6 +231,11 @@ static const struct unlock_addr  unlock_addrs[] = {
 	[MTD_UADDR_DONT_CARE] = {
 		.addr1 = 0x0000,      /* Doesn't matter which address */
 		.addr2 = 0x0000       /* is used - must be last entry */
+	},
+
+	[MTD_UADDR_UNNECESSARY] = {
+		.addr1 = 0x0000,
+		.addr2 = 0x0000
 	}
 };
 
@@ -507,6 +523,22 @@ static const struct amd_flash_info jedec_table[] = {
 			ERASEINFO(0x10000,8),
 		}
 	}, {
+		.mfr_id		= MANUFACTURER_AMD,
+		.dev_id		= AM29F002T,
+		.name		= "AMD AM29F002T",
+		.uaddr		= {
+			[0] = MTD_UADDR_0x0555_0x02AA /* x8 */
+		},
+		.DevSize	= SIZE_256KiB,
+		.CmdSet		= P_ID_AMD_STD,
+		.NumEraseRegions= 4,
+		.regions	= {
+			ERASEINFO(0x10000,3),
+			ERASEINFO(0x08000,1),
+			ERASEINFO(0x02000,2),
+			ERASEINFO(0x04000,1),
+		}
+	}, {
 		.mfr_id		= MANUFACTURER_ATMEL,
 		.dev_id		= AT49BV512,
 		.name		= "Atmel AT49BV512",
@@ -750,6 +782,22 @@ static const struct amd_flash_info jedec_table[] = {
 			ERASEINFO(0x08000,1),
 			ERASEINFO(0x02000,2),
 			ERASEINFO(0x04000,1)
+		}
+	}, {
+		.mfr_id		= MANUFACTURER_HYUNDAI,
+		.dev_id		= HY29F002T,
+		.name		= "Hyundai HY29F002T",
+		.uaddr		= {
+			[0] = MTD_UADDR_0x0555_0x02AA /* x8 */
+		},
+		.DevSize	= SIZE_256KiB,
+		.CmdSet		= P_ID_AMD_STD,
+		.NumEraseRegions= 4,
+		.regions	= {
+			ERASEINFO(0x10000,3),
+			ERASEINFO(0x08000,1),
+			ERASEINFO(0x02000,2),
+			ERASEINFO(0x04000,1),
 		}
 	}, {
 		.mfr_id		= MANUFACTURER_INTEL,
@@ -1057,6 +1105,19 @@ static const struct amd_flash_info jedec_table[] = {
 		}
 	}, {
 		.mfr_id		= MANUFACTURER_MACRONIX,
+		.dev_id		= MX29LV040C,
+		.name		= "Macronix MX29LV040C",
+		.uaddr		= {
+			[0] = MTD_UADDR_0x0555_0x02AA,  /* x8 */
+		},
+		.DevSize	= SIZE_512KiB,
+		.CmdSet		= P_ID_AMD_STD,
+		.NumEraseRegions= 1,
+		.regions	= {
+			ERASEINFO(0x10000,8),
+		}
+	}, {
+		.mfr_id		= MANUFACTURER_MACRONIX,
 		.dev_id		= MX29LV160T,
 		.name		= "MXIC MX29LV160T",
 		.uaddr		= {
@@ -1071,6 +1132,22 @@ static const struct amd_flash_info jedec_table[] = {
 			ERASEINFO(0x08000,1),
 			ERASEINFO(0x02000,2),
 			ERASEINFO(0x04000,1)
+		}
+	}, {
+		.mfr_id		= MANUFACTURER_NEC,
+		.dev_id		= UPD29F064115,
+		.name		= "NEC uPD29F064115",
+		.uaddr		= {
+			[0] = MTD_UADDR_0x0555_0x02AA,  /* x8 */
+			[1] = MTD_UADDR_0x0555_0x02AA,  /* x16 */
+		},
+		.DevSize	= SIZE_8MiB,
+		.CmdSet		= P_ID_AMD_STD,
+		.NumEraseRegions= 3,
+		.regions	= {
+			ERASEINFO(0x2000,8),
+			ERASEINFO(0x10000,126),
+			ERASEINFO(0x2000,8),
 		}
 	}, {
 		.mfr_id		= MANUFACTURER_MACRONIX,
@@ -1133,6 +1210,22 @@ static const struct amd_flash_info jedec_table[] = {
 			ERASEINFO(0x02000,2),
 			ERASEINFO(0x08000,1),
 			ERASEINFO(0x10000,7),
+		}
+	}, {
+		.mfr_id		= MANUFACTURER_MACRONIX,
+		.dev_id		= MX29F002T,
+		.name		= "Macronix MX29F002T",
+		.uaddr		= {
+			[0] = MTD_UADDR_0x0555_0x02AA /* x8 */
+		},
+		.DevSize	= SIZE_256KiB,
+		.CmdSet		= P_ID_AMD_STD,
+		.NumEraseRegions= 4,
+		.regions	= {
+			ERASEINFO(0x10000,3),
+			ERASEINFO(0x08000,1),
+			ERASEINFO(0x02000,2),
+			ERASEINFO(0x04000,1),
 		}
 	}, {
 		.mfr_id		= MANUFACTURER_PMC,
@@ -1209,7 +1302,7 @@ static const struct amd_flash_info jedec_table[] = {
  		.DevSize	= SIZE_256KiB,
  		.CmdSet		= P_ID_SST_PAGE,
  		.NumEraseRegions= 1,
- 		regions: {ERASEINFO(0x01000,64),
+ 		.regions = {ERASEINFO(0x01000,64),
  		}
          }, {
  		.mfr_id		= MANUFACTURER_SST,
@@ -1221,7 +1314,7 @@ static const struct amd_flash_info jedec_table[] = {
  		.DevSize	= SIZE_256KiB,
  		.CmdSet		= P_ID_SST_PAGE,
  		.NumEraseRegions= 1,
- 		regions: {ERASEINFO(0x01000,64),
+ 		.regions = {ERASEINFO(0x01000,64),
  		}
 	}, {
 		.mfr_id		= MANUFACTURER_SST,
@@ -1341,6 +1434,22 @@ static const struct amd_flash_info jedec_table[] = {
 			ERASEINFO(0x01000,256),
 		}
 	}, {
+               .mfr_id         = MANUFACTURER_SST,     /* should be CFI */
+               .dev_id         = SST39LF160,
+               .name           = "SST 39LF160",
+               .uaddr          = {
+                       [0] = MTD_UADDR_0x5555_0x2AAA,  /* x8 */
+                       [1] = MTD_UADDR_0x5555_0x2AAA   /* x16 */
+               },
+               .DevSize        = SIZE_2MiB,
+               .CmdSet         = P_ID_AMD_STD,
+               .NumEraseRegions= 2,
+               .regions        = {
+                       ERASEINFO(0x1000,256),
+                       ERASEINFO(0x1000,256)
+               }
+
+       }, {
 		.mfr_id		= MANUFACTURER_ST,	/* FIXME - CFI device? */
 		.dev_id		= M29W800DT,
 		.name		= "ST M29W800DT",
@@ -1461,6 +1570,19 @@ static const struct amd_flash_info jedec_table[] = {
 			ERASEINFO(0x10000,32),
 		}
 	}, {
+		.mfr_id		= MANUFACTURER_ST,
+		.dev_id		= M50LPW080,
+		.name		= "ST M50LPW080",
+		.uaddr		= {
+			[0] = MTD_UADDR_UNNECESSARY,    /* x8 */
+		},
+		.DevSize	= SIZE_1MiB,
+		.CmdSet		= P_ID_INTEL_EXT,
+		.NumEraseRegions= 1,
+		.regions	= {
+			ERASEINFO(0x10000,16),
+		}
+	}, {
 		.mfr_id		= MANUFACTURER_TOSHIBA,
 		.dev_id		= TC58FVT160,
 		.name		= "Toshiba TC58FVT160",
@@ -1570,7 +1692,7 @@ static const struct amd_flash_info jedec_table[] = {
 			ERASEINFO(0x02000, 2),
 			ERASEINFO(0x04000, 1),
 		}
-	} 
+	}
 };
 
 
@@ -1579,27 +1701,27 @@ static int cfi_jedec_setup(struct cfi_private *p_cfi, int index);
 static int jedec_probe_chip(struct map_info *map, __u32 base,
 			    unsigned long *chip_map, struct cfi_private *cfi);
 
-struct mtd_info *jedec_probe(struct map_info *map);
+static struct mtd_info *jedec_probe(struct map_info *map);
 
 static inline u32 jedec_read_mfr(struct map_info *map, __u32 base, 
 	struct cfi_private *cfi)
 {
 	map_word result;
 	unsigned long mask;
+	u32 ofs = cfi_build_cmd_addr(0, cfi_interleave(cfi), cfi->device_type);
 	mask = (1 << (cfi->device_type * 8)) -1;
-	result = map_read(map, base);
+	result = map_read(map, base + ofs);
 	return result.x[0] & mask;
 }
 
 static inline u32 jedec_read_id(struct map_info *map, __u32 base, 
 	struct cfi_private *cfi)
 {
-	int osf;
 	map_word result;
 	unsigned long mask;
-	osf = cfi->interleave *cfi->device_type;
+	u32 ofs = cfi_build_cmd_addr(1, cfi_interleave(cfi), cfi->device_type);
 	mask = (1 << (cfi->device_type * 8)) -1;
-	result = map_read(map, base + osf);
+	result = map_read(map, base + ofs);
 	return result.x[0] & mask;
 }
 
@@ -1615,9 +1737,11 @@ static inline void jedec_reset(u32 base, struct map_info *map,
 	 * as they will ignore the writes and dont care what address
 	 * the F0 is written to */
 	if(cfi->addr_unlock1) {
-		/*printk("reset unlock called %x %x \n",cfi->addr_unlock1,cfi->addr_unlock2);*/
-		cfi_send_gen_cmd(0xaa, cfi->addr_unlock1, base, map, cfi, CFI_DEVICETYPE_X8, NULL);
-		cfi_send_gen_cmd(0x55, cfi->addr_unlock2, base, map, cfi, CFI_DEVICETYPE_X8, NULL);
+		DEBUG( MTD_DEBUG_LEVEL3,
+		       "reset unlock called %x %x \n",
+		       cfi->addr_unlock1,cfi->addr_unlock2);
+		cfi_send_gen_cmd(0xaa, cfi->addr_unlock1, base, map, cfi, cfi->device_type, NULL);
+		cfi_send_gen_cmd(0x55, cfi->addr_unlock2, base, map, cfi, cfi->device_type, NULL);
 	}
 
 	cfi_send_gen_cmd(0xF0, cfi->addr_unlock1, base, map, cfi, cfi->device_type, NULL);
@@ -1662,7 +1786,6 @@ static inline __u8 finfo_uaddr(const struct amd_flash_info *finfo, int device_ty
 static int cfi_jedec_setup(struct cfi_private *p_cfi, int index)
 {
 	int i,num_erase_regions;
-	unsigned long mask;
 	__u8 uaddr;
 
 	printk("Found: %s\n",jedec_table[index].name);
@@ -1697,10 +1820,8 @@ static int cfi_jedec_setup(struct cfi_private *p_cfi, int index)
 		return 0;
 	}
 
-	/* Mask out address bits which are smaller than the device type */
-	mask = ~(p_cfi->device_type-1);
-	p_cfi->addr_unlock1 = unlock_addrs[uaddr].addr1 & mask;
-	p_cfi->addr_unlock2 = unlock_addrs[uaddr].addr2 & mask;
+	p_cfi->addr_unlock1 = unlock_addrs[uaddr].addr1;
+	p_cfi->addr_unlock2 = unlock_addrs[uaddr].addr2;
 
 	return 1; 	/* ok */
 }
@@ -1721,7 +1842,6 @@ static inline int jedec_match( __u32 base,
 	int rc = 0;           /* failure until all tests pass */
 	u32 mfr, id;
 	__u8 uaddr;
-	unsigned long mask;
 
 	/*
 	 * The IDs must match.  For X16 and X32 devices operating in
@@ -1759,7 +1879,7 @@ static inline int jedec_match( __u32 base,
 	DEBUG( MTD_DEBUG_LEVEL3,
 	       "MTD %s(): Check fit 0x%.8x + 0x%.8x = 0x%.8x\n",
 	       __func__, base, 1 << finfo->DevSize, base + (1 << finfo->DevSize) );
-	if ( base + cfi->interleave * ( 1 << finfo->DevSize ) > map->size ) {
+	if ( base + cfi_interleave(cfi) * ( 1 << finfo->DevSize ) > map->size ) {
 		DEBUG( MTD_DEBUG_LEVEL3,
 		       "MTD %s(): 0x%.4x 0x%.4x %dKiB doesn't fit\n",
 		       __func__, finfo->mfr_id, finfo->dev_id,
@@ -1772,18 +1892,16 @@ static inline int jedec_match( __u32 base,
 		goto match_done;
 	}
 
-	mask = ~(cfi->device_type-1);
-
 	DEBUG( MTD_DEBUG_LEVEL3, "MTD %s(): check unlock addrs 0x%.4x 0x%.4x\n",
 	       __func__, cfi->addr_unlock1, cfi->addr_unlock2 );
 	if ( MTD_UADDR_UNNECESSARY != uaddr && MTD_UADDR_DONT_CARE != uaddr
-	     && ( (unlock_addrs[uaddr].addr1 & mask) != cfi->addr_unlock1 ||
-		  (unlock_addrs[uaddr].addr2 & mask) != cfi->addr_unlock2 ) ) {
+	     && ( unlock_addrs[uaddr].addr1 != cfi->addr_unlock1 ||
+		  unlock_addrs[uaddr].addr2 != cfi->addr_unlock2 ) ) {
 		DEBUG( MTD_DEBUG_LEVEL3,
-		       "MTD %s(): 0x%.4lx 0x%.4lx did not match\n",
-		       __func__,
-		       unlock_addrs[uaddr].addr1 & mask,
-		       unlock_addrs[uaddr].addr2 & mask);
+			"MTD %s(): 0x%.4x 0x%.4x did not match\n",
+			__func__,
+			unlock_addrs[uaddr].addr1,
+			unlock_addrs[uaddr].addr2);
 		goto match_done;
 	}
 
@@ -1819,10 +1937,10 @@ static inline int jedec_match( __u32 base,
 	 */
 	DEBUG( MTD_DEBUG_LEVEL3, "MTD %s(): return to ID mode\n", __func__ );
 	if(cfi->addr_unlock1) {
-		cfi_send_gen_cmd(0xaa, cfi->addr_unlock1, base, map, cfi, CFI_DEVICETYPE_X8, NULL);
-		cfi_send_gen_cmd(0x55, cfi->addr_unlock2, base, map, cfi, CFI_DEVICETYPE_X8, NULL);
+		cfi_send_gen_cmd(0xaa, cfi->addr_unlock1, base, map, cfi, cfi->device_type, NULL);
+		cfi_send_gen_cmd(0x55, cfi->addr_unlock2, base, map, cfi, cfi->device_type, NULL);
 	}
-	cfi_send_gen_cmd(0x90, cfi->addr_unlock1, base, map, cfi, CFI_DEVICETYPE_X8, NULL);
+	cfi_send_gen_cmd(0x90, cfi->addr_unlock1, base, map, cfi, cfi->device_type, NULL);
 	/* FIXME - should have a delay before continuing */
 
  match_done:	
@@ -1835,19 +1953,17 @@ static int jedec_probe_chip(struct map_info *map, __u32 base,
 {
 	int i;
 	enum uaddr uaddr_idx = MTD_UADDR_NOT_SUPPORTED;
+	u32 probe_offset1, probe_offset2;
 
  retry:
 	if (!cfi->numchips) {
-		unsigned long mask = ~(cfi->device_type-1);
-
 		uaddr_idx++;
 
 		if (MTD_UADDR_UNNECESSARY == uaddr_idx)
 			return 0;
 
-		/* Mask out address bits which are smaller than the device type */
-		cfi->addr_unlock1 = unlock_addrs[uaddr_idx].addr1 & mask;
-		cfi->addr_unlock2 = unlock_addrs[uaddr_idx].addr2 & mask;
+		cfi->addr_unlock1 = unlock_addrs[uaddr_idx].addr1;
+		cfi->addr_unlock2 = unlock_addrs[uaddr_idx].addr2;
 	}
 
 	/* Make certain we aren't probing past the end of map */
@@ -1858,30 +1974,30 @@ static int jedec_probe_chip(struct map_info *map, __u32 base,
 		return 0;
 		
 	}
-	if ((base + cfi->addr_unlock1) >= map->size) {
-		printk(KERN_NOTICE
-			"Probe at addr_unlock1(0x%08x + 0x%08x) past the end of the map(0x%08lx)\n",
-			base, cfi->addr_unlock1, map->size -1);
-
-		return 0;
+	/* Ensure the unlock addresses we try stay inside the map */
+	probe_offset1 = cfi_build_cmd_addr(
+		cfi->addr_unlock1, 
+		cfi_interleave(cfi), 
+		cfi->device_type);
+	probe_offset2 = cfi_build_cmd_addr(
+		cfi->addr_unlock1, 
+		cfi_interleave(cfi), 
+		cfi->device_type);
+	if (	((base + probe_offset1 + map_bankwidth(map)) >= map->size) ||
+		((base + probe_offset2 + map_bankwidth(map)) >= map->size))
+	{
+		goto retry;
 	}
-	if ((base + cfi->addr_unlock2) >= map->size) {
-		printk(KERN_NOTICE
-			"Probe at addr_unlock2(0x%08x + 0x%08x) past the end of the map(0x%08lx)\n",
-			base, cfi->addr_unlock2, map->size -1);
-		return 0;
 		
-	}
-
 	/* Reset */
 	jedec_reset(base, map, cfi);
 
 	/* Autoselect Mode */
 	if(cfi->addr_unlock1) {
-		cfi_send_gen_cmd(0xaa, cfi->addr_unlock1, base, map, cfi, CFI_DEVICETYPE_X8, NULL);
-		cfi_send_gen_cmd(0x55, cfi->addr_unlock2, base, map, cfi, CFI_DEVICETYPE_X8, NULL);
+		cfi_send_gen_cmd(0xaa, cfi->addr_unlock1, base, map, cfi, cfi->device_type, NULL);
+		cfi_send_gen_cmd(0x55, cfi->addr_unlock2, base, map, cfi, cfi->device_type, NULL);
 	}
-	cfi_send_gen_cmd(0x90, cfi->addr_unlock1, base, map, cfi, CFI_DEVICETYPE_X8, NULL);
+	cfi_send_gen_cmd(0x90, cfi->addr_unlock1, base, map, cfi, cfi->device_type, NULL);
 	/* FIXME - should have a delay before continuing */
 
 	if (!cfi->numchips) {
@@ -1892,7 +2008,7 @@ static int jedec_probe_chip(struct map_info *map, __u32 base,
 		cfi->id = jedec_read_id(map, base, cfi);
 		DEBUG(MTD_DEBUG_LEVEL3,
 		      "Search for id:(%02x %02x) interleave(%d) type(%d)\n", 
-			cfi->mfr, cfi->id, cfi->interleave, cfi->device_type);
+			cfi->mfr, cfi->id, cfi_interleave(cfi), cfi->device_type);
 		for (i=0; i<sizeof(jedec_table)/sizeof(jedec_table[0]); i++) {
 			if ( jedec_match( base, map, cfi, &jedec_table[i] ) ) {
 				DEBUG( MTD_DEBUG_LEVEL3,
@@ -1966,7 +2082,7 @@ ok_out:
 	jedec_reset(base, map, cfi);
 
 	printk(KERN_INFO "%s: Found %d x%d devices at 0x%x in %d-bit bank\n",
-	       map->name, cfi->interleave, cfi->device_type*8, base, 
+	       map->name, cfi_interleave(cfi), cfi->device_type*8, base, 
 	       map->bankwidth*8);
 	
 	return 1;
@@ -1977,7 +2093,7 @@ static struct chip_probe jedec_chip_probe = {
 	.probe_chip = jedec_probe_chip
 };
 
-struct mtd_info *jedec_probe(struct map_info *map)
+static struct mtd_info *jedec_probe(struct map_info *map)
 {
 	/*
 	 * Just use the generic probe stuff to call our CFI-specific
@@ -1992,7 +2108,7 @@ static struct mtd_chip_driver jedec_chipdrv = {
 	.module	= THIS_MODULE
 };
 
-int __init jedec_probe_init(void)
+static int __init jedec_probe_init(void)
 {
 	register_mtd_chip_driver(&jedec_chipdrv);
 	return 0;

@@ -97,8 +97,8 @@
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
+#include <linux/bitops.h>
 
-#include <asm/bitops.h>
 #include <asm/io.h>
 #include <asm/byteorder.h>
 #include <asm/uaccess.h>
@@ -454,7 +454,7 @@ do_plx_dma(
  *	up some state variables to let the host CPU continue doing
  *	other things until a DMA completion interrupt comes along.
  */
-void
+static void
 dgrs_rcv_frame(
 	struct net_device	*dev0,
 	DGRS_PRIV	*priv0,
@@ -1150,7 +1150,7 @@ dgrs_download(struct net_device *dev0)
 /*
  *	Probe (init) a board
  */
-int __init 
+static int __init 
 dgrs_probe1(struct net_device *dev)
 {
 	DGRS_PRIV	*priv = (DGRS_PRIV *) dev->priv;
@@ -1228,7 +1228,7 @@ err_out:
        	return rc;
 }
 
-int __init 
+static int __init 
 dgrs_initclone(struct net_device *dev)
 {
 	DGRS_PRIV	*priv = (DGRS_PRIV *) dev->priv;
@@ -1534,14 +1534,14 @@ static int	iptrap[4] = { -1 };
 static __u32	ipxnet = -1;
 static int	nicmode = -1;
 
-MODULE_PARM(debug, "i");
-MODULE_PARM(dma, "i");
-MODULE_PARM(hashexpire, "i");
-MODULE_PARM(spantree, "i");
-MODULE_PARM(ipaddr, "1-4i");
-MODULE_PARM(iptrap, "1-4i");
-MODULE_PARM(ipxnet, "i");
-MODULE_PARM(nicmode, "i");
+module_param(debug, int, 0);
+module_param(dma, int, 0);
+module_param(hashexpire, int, 0);
+module_param(spantree, int, 0);
+module_param_array(ipaddr, int, NULL, 0);
+module_param_array(iptrap, int, NULL, 0);
+module_param(ipxnet, int, 0);
+module_param(nicmode, int, 0);
 MODULE_PARM_DESC(debug, "Digi RightSwitch enable debugging (0-1)");
 MODULE_PARM_DESC(dma, "Digi RightSwitch enable BM DMA (0-1)");
 MODULE_PARM_DESC(nicmode, "Digi RightSwitch operating mode (1: switch, 2: multi-NIC)");
@@ -1597,10 +1597,10 @@ static int __init dgrs_init_module (void)
 #endif
 #ifdef CONFIG_PCI
 	pcicount = pci_register_driver(&dgrs_pci_driver);
-	if (pcicount < 0)
+	if (pcicount)
 		return pcicount;
 #endif
-	return (eisacount + pcicount) == 0 ? -ENODEV : 0;
+	return 0;
 }
 
 static void __exit dgrs_cleanup_module (void)

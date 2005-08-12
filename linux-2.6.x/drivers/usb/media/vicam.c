@@ -351,16 +351,6 @@ static unsigned char setup5[] = {
 	0x46, 0x05, 0x6C, 0x05, 0x00, 0x00
 };
 
-static unsigned long kvirt_to_pa(unsigned long adr)
-{
-	unsigned long kva, ret;
-
-	kva = (unsigned long) page_address(vmalloc_to_page((void *)adr));
-	kva |= adr & (PAGE_SIZE-1); /* restore the offset */
-	ret = __pa(kva);
-	return ret;
-}
-
 /* rvmalloc / rvfree copied from usbvideo.c
  *
  * Not sure why these are not yet non-statics which I can reference through
@@ -451,7 +441,7 @@ static int __send_control_msg(struct vicam_camera *cam,
 				 request,
 				 USB_DIR_OUT | USB_TYPE_VENDOR |
 				 USB_RECIP_DEVICE, value, index,
-				 cp, size, HZ);
+				 cp, size, 1000);
 
 	status = min(status, 0);
 
@@ -987,7 +977,7 @@ read_frame(struct vicam_camera *cam, int framenum)
 	n = usb_bulk_msg(cam->udev,
 			 usb_rcvbulkpipe(cam->udev, cam->bulkEndpoint),
 			 cam->raw_image,
-			 512 * 242 + 128, &actual_length, HZ*10);
+			 512 * 242 + 128, &actual_length, 10000);
 
 	if (n < 0) {
 		printk(KERN_ERR "Problem during bulk read of frame data: %d\n",
@@ -1055,8 +1045,8 @@ vicam_mmap(struct file *file, struct vm_area_struct *vma)
 
 	pos = (unsigned long)cam->framebuf;
 	while (size > 0) {
-		page = kvirt_to_pa(pos);
-		if (remap_page_range(vma, start, page, PAGE_SIZE, PAGE_SHARED))
+		page = vmalloc_to_pfn((void *)pos);
+		if (remap_pfn_range(vma, start, page, PAGE_SIZE, PAGE_SHARED))
 			return -EAGAIN;
 
 		start += PAGE_SIZE;
@@ -1291,12 +1281,6 @@ vicam_probe( struct usb_interface *intf, const struct usb_device_id *id)
 	const struct usb_endpoint_descriptor *endpoint;
 	struct vicam_camera *cam;
 	
-	/* See if the device offered us matches what we can accept */
-	if ((dev->descriptor.idVendor != USB_VICAM_VENDOR_ID) ||
-	    (dev->descriptor.idProduct != USB_VICAM_PRODUCT_ID)) {
-		return -ENODEV;
-	}
-
 	printk(KERN_INFO "ViCam based webcam connected\n");
 
 	interface = intf->cur_altsetting;

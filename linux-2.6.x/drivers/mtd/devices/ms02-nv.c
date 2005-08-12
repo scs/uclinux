@@ -59,7 +59,7 @@ static struct mtd_info *root_ms02nv_mtd;
 static int ms02nv_read(struct mtd_info *mtd, loff_t from,
 			size_t len, size_t *retlen, u_char *buf)
 {
-	struct ms02nv_private *mp = (struct ms02nv_private *)mtd->priv;
+	struct ms02nv_private *mp = mtd->priv;
 
 	if (from + len > mtd->size)
 		return -EINVAL;
@@ -73,7 +73,7 @@ static int ms02nv_read(struct mtd_info *mtd, loff_t from,
 static int ms02nv_write(struct mtd_info *mtd, loff_t to,
 			size_t len, size_t *retlen, const u_char *buf)
 {
-	struct ms02nv_private *mp = (struct ms02nv_private *)mtd->priv;
+	struct ms02nv_private *mp = mtd->priv;
 
 	if (to + len > mtd->size)
 		return -EINVAL;
@@ -265,7 +265,7 @@ err_out_mod_res:
 static void __exit ms02nv_remove_one(void)
 {
 	struct mtd_info *mtd = root_ms02nv_mtd;
-	struct ms02nv_private *mp = (struct ms02nv_private *)mtd->priv;
+	struct ms02nv_private *mp = mtd->priv;
 
 	root_ms02nv_mtd = mp->next;
 

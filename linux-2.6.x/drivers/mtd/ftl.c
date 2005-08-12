@@ -80,7 +80,7 @@
 
 /* Parameters that can be set with 'insmod' */
 static int shuffle_freq = 50;
-MODULE_PARM(shuffle_freq, "i");
+module_param(shuffle_freq, int, 0);
 
 /*====================================================================*/
 
@@ -1067,16 +1067,18 @@ static void ftl_add_mtd(struct mtd_blktrans_ops *tr, struct mtd_info *mtd)
 		partition->mbd.blksize = SECTOR_SIZE;
 		partition->mbd.tr = tr;
 		partition->mbd.devnum = -1;
-		if (add_mtd_blktrans_dev((void *)partition))
-			kfree(partition);
-	
-	} else
-		kfree(partition);
+		if (!add_mtd_blktrans_dev((void *)partition))
+			return;
+	}
+
+	ftl_freepart(partition);
+	kfree(partition);
 }
 
 static void ftl_remove_dev(struct mtd_blktrans_dev *dev)
 {
 	del_mtd_blktrans_dev(dev);
+	ftl_freepart((partition_t *)dev);
 	kfree(dev);
 }
 

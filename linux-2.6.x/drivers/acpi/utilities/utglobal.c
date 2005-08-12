@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2004, R. Byron Moore
+ * Copyright (C) 2000 - 2005, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -42,6 +42,8 @@
  */
 
 #define DEFINE_ACPI_GLOBALS
+
+#include <linux/module.h>
 
 #include <acpi/acpi.h>
 #include <acpi/acnamesp.h>
@@ -142,16 +144,13 @@ unknown:
  */
 
 /* Debug switch - level and trace mask */
-
-#ifdef ACPI_DEBUG_OUTPUT
 u32                                 acpi_dbg_level = ACPI_DEBUG_DEFAULT;
-#else
-u32                                 acpi_dbg_level = ACPI_NORMAL_DEFAULT;
-#endif
+EXPORT_SYMBOL(acpi_dbg_level);
 
 /* Debug switch - layer (component) mask */
 
-u32                                 acpi_dbg_layer = ACPI_COMPONENT_DEFAULT;
+u32                                 acpi_dbg_layer = ACPI_COMPONENT_DEFAULT | ACPI_ALL_DRIVERS;
+EXPORT_SYMBOL(acpi_dbg_layer);
 u32                                 acpi_gbl_nesting_level = 0;
 
 
@@ -171,27 +170,46 @@ u8                                  acpi_gbl_shutdown = TRUE;
 
 const u8                            acpi_gbl_decode_to8bit [8] = {1,2,4,8,16,32,64,128};
 
-const char                          *acpi_gbl_sleep_state_names[ACPI_S_STATE_COUNT] = {
-			  "\\_S0_",
-			  "\\_S1_",
-			  "\\_S2_",
-			  "\\_S3_",
-			  "\\_S4_",
-			  "\\_S5_"};
+const char                          *acpi_gbl_sleep_state_names[ACPI_S_STATE_COUNT] =
+{
+	"\\_S0_",
+	"\\_S1_",
+	"\\_S2_",
+	"\\_S3_",
+	"\\_S4_",
+	"\\_S5_"
+};
 
-const char                          *acpi_gbl_highest_dstate_names[4] = {
-					   "_S1D",
-					   "_S2D",
-					   "_S3D",
-					   "_S4D"};
+const char                          *acpi_gbl_highest_dstate_names[4] =
+{
+	"_S1D",
+	"_S2D",
+	"_S3D",
+	"_S4D"
+};
 
-/* Strings supported by the _OSI predefined (internal) method */
+/*
+ * Strings supported by the _OSI predefined (internal) method.
+ * When adding strings, be sure to update ACPI_NUM_OSI_STRINGS.
+ */
+const char                          *acpi_gbl_valid_osi_strings[ACPI_NUM_OSI_STRINGS] =
+{
+	/* Operating System Vendor Strings */
 
-const char                          *acpi_gbl_valid_osi_strings[ACPI_NUM_OSI_STRINGS] = {
-							 "Linux",
-							 "Windows 2000",
-							 "Windows 2001",
-							 "Windows 2001.1"};
+	"Linux",
+	"Windows 2000",
+	"Windows 2001",
+	"Windows 2001.1",
+	"Windows 2001 SP0",
+	"Windows 2001 SP1",
+	"Windows 2001 SP2",
+	"Windows 2001 SP3",
+	"Windows 2001 SP4",
+
+	/* Feature Group Strings */
+
+	"Extended Address Space Descriptor"
+};
 
 
 /******************************************************************************
@@ -207,19 +225,21 @@ const char                          *acpi_gbl_valid_osi_strings[ACPI_NUM_OSI_STR
  * NOTES:
  * 1) _SB_ is defined to be a device to allow \_SB_._INI to be run
  *    during the initialization sequence.
+ * 2) _TZ_ is defined to be a thermal zone in order to allow ASL code to
+ *    perform a Notify() operation on it.
  */
 const struct acpi_predefined_names      acpi_gbl_pre_defined_names[] =
 { {"_GPE",    ACPI_TYPE_LOCAL_SCOPE,      NULL},
 	{"_PR_",    ACPI_TYPE_LOCAL_SCOPE,      NULL},
 	{"_SB_",    ACPI_TYPE_DEVICE,           NULL},
 	{"_SI_",    ACPI_TYPE_LOCAL_SCOPE,      NULL},
-	{"_TZ_",    ACPI_TYPE_LOCAL_SCOPE,      NULL},
-	{"_REV",    ACPI_TYPE_INTEGER,          "2"},
+	{"_TZ_",    ACPI_TYPE_THERMAL,          NULL},
+	{"_REV",    ACPI_TYPE_INTEGER,          (char *) ACPI_CA_SUPPORT_LEVEL},
 	{"_OS_",    ACPI_TYPE_STRING,           ACPI_OS_NAME},
-	{"_GL_",    ACPI_TYPE_MUTEX,            "0"},
+	{"_GL_",    ACPI_TYPE_MUTEX,            (char *) 1},
 
 #if !defined (ACPI_NO_METHOD_EXECUTION) || defined (ACPI_CONSTANT_EVAL_ONLY)
-	{"_OSI",    ACPI_TYPE_METHOD,           "1"},
+	{"_OSI",    ACPI_TYPE_METHOD,           (char *) 1},
 #endif
 	{NULL,      ACPI_TYPE_ANY,              NULL}              /* Table terminator */
 };
@@ -341,6 +361,7 @@ struct acpi_bit_register_info       acpi_gbl_bit_register_info[ACPI_NUM_BITREG] 
 	/* ACPI_BITREG_SLEEP_BUTTON_STATUS  */   {ACPI_REGISTER_PM1_STATUS,   ACPI_BITPOSITION_SLEEP_BUTTON_STATUS,   ACPI_BITMASK_SLEEP_BUTTON_STATUS},
 	/* ACPI_BITREG_RT_CLOCK_STATUS      */   {ACPI_REGISTER_PM1_STATUS,   ACPI_BITPOSITION_RT_CLOCK_STATUS,       ACPI_BITMASK_RT_CLOCK_STATUS},
 	/* ACPI_BITREG_WAKE_STATUS          */   {ACPI_REGISTER_PM1_STATUS,   ACPI_BITPOSITION_WAKE_STATUS,           ACPI_BITMASK_WAKE_STATUS},
+	/* ACPI_BITREG_PCIEXP_WAKE_STATUS   */   {ACPI_REGISTER_PM1_STATUS,   ACPI_BITPOSITION_PCIEXP_WAKE_STATUS,    ACPI_BITMASK_PCIEXP_WAKE_STATUS},
 
 	/* ACPI_BITREG_TIMER_ENABLE         */   {ACPI_REGISTER_PM1_ENABLE,   ACPI_BITPOSITION_TIMER_ENABLE,          ACPI_BITMASK_TIMER_ENABLE},
 	/* ACPI_BITREG_GLOBAL_LOCK_ENABLE   */   {ACPI_REGISTER_PM1_ENABLE,   ACPI_BITPOSITION_GLOBAL_LOCK_ENABLE,    ACPI_BITMASK_GLOBAL_LOCK_ENABLE},
@@ -348,6 +369,7 @@ struct acpi_bit_register_info       acpi_gbl_bit_register_info[ACPI_NUM_BITREG] 
 	/* ACPI_BITREG_SLEEP_BUTTON_ENABLE  */   {ACPI_REGISTER_PM1_ENABLE,   ACPI_BITPOSITION_SLEEP_BUTTON_ENABLE,   ACPI_BITMASK_SLEEP_BUTTON_ENABLE},
 	/* ACPI_BITREG_RT_CLOCK_ENABLE      */   {ACPI_REGISTER_PM1_ENABLE,   ACPI_BITPOSITION_RT_CLOCK_ENABLE,       ACPI_BITMASK_RT_CLOCK_ENABLE},
 	/* ACPI_BITREG_WAKE_ENABLE          */   {ACPI_REGISTER_PM1_ENABLE,   0,                                      0},
+	/* ACPI_BITREG_PCIEXP_WAKE_DISABLE  */   {ACPI_REGISTER_PM1_ENABLE,   ACPI_BITPOSITION_PCIEXP_WAKE_DISABLE,   ACPI_BITMASK_PCIEXP_WAKE_DISABLE},
 
 	/* ACPI_BITREG_SCI_ENABLE           */   {ACPI_REGISTER_PM1_CONTROL,  ACPI_BITPOSITION_SCI_ENABLE,            ACPI_BITMASK_SCI_ENABLE},
 	/* ACPI_BITREG_BUS_MASTER_RLD       */   {ACPI_REGISTER_PM1_CONTROL,  ACPI_BITPOSITION_BUS_MASTER_RLD,        ACPI_BITMASK_BUS_MASTER_RLD},
@@ -561,25 +583,36 @@ acpi_ut_get_node_name (
 	struct acpi_namespace_node      *node = (struct acpi_namespace_node *) object;
 
 
+	/* Must return a string of exactly 4 characters == ACPI_NAME_SIZE */
+
 	if (!object)
 	{
-		return ("NULL NODE");
+		return ("NULL");
 	}
 
-	if (object == ACPI_ROOT_OBJECT)
+	/* Check for Root node */
+
+	if ((object == ACPI_ROOT_OBJECT) ||
+		(object == acpi_gbl_root_node))
 	{
-		node = acpi_gbl_root_node;
+		return ("\"\\\" ");
 	}
+
+	/* Descriptor must be a namespace node */
 
 	if (node->descriptor != ACPI_DESC_TYPE_NAMED)
 	{
-		return ("****");
+		return ("####");
 	}
+
+	/* Name must be a valid ACPI name */
 
 	if (!acpi_ut_valid_acpi_name (* (u32 *) node->name.ascii))
 	{
-		return ("----");
+		return ("????");
 	}
+
+	/* Return the name */
 
 	return (node->name.ascii);
 }
@@ -783,10 +816,6 @@ acpi_ut_init_globals (
 
 	ACPI_FUNCTION_TRACE ("ut_init_globals");
 
-	/* Runtime configuration */
-
-	acpi_gbl_create_osi_method = TRUE;
-	acpi_gbl_all_methods_serialized = FALSE;
 
 	/* Memory allocation and cache lists */
 
@@ -846,6 +875,7 @@ acpi_ut_init_globals (
 
 	acpi_gbl_system_notify.handler      = NULL;
 	acpi_gbl_device_notify.handler      = NULL;
+	acpi_gbl_exception_handler          = NULL;
 	acpi_gbl_init_handler               = NULL;
 
 	/* Global "typed" ACPI table pointers */
@@ -880,6 +910,7 @@ acpi_ut_init_globals (
 	/* Hardware oriented */
 
 	acpi_gbl_events_initialized         = FALSE;
+	acpi_gbl_system_awake_and_running   = TRUE;
 
 	/* Namespace */
 

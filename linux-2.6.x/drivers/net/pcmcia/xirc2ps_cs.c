@@ -79,6 +79,7 @@
 #include <linux/skbuff.h>
 #include <linux/if_arp.h>
 #include <linux/ioport.h>
+#include <linux/bitops.h>
 
 #include <pcmcia/version.h>
 #include <pcmcia/cs_types.h>
@@ -89,7 +90,6 @@
 
 #include <asm/io.h>
 #include <asm/system.h>
-#include <asm/bitops.h>
 #include <asm/uaccess.h>
 
 #ifndef MANFID_COMPAQ
@@ -220,7 +220,7 @@ static char *if_names[] = { "Auto", "10BaseT", "10Base2", "AUI", "100BaseT" };
  */
 #ifdef PCMCIA_DEBUG
 static int pc_debug = PCMCIA_DEBUG;
-MODULE_PARM(pc_debug, "i");
+module_param(pc_debug, int, 0);
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KDBG_XIRC args)
 #else
 #define DEBUG(n, args...)
@@ -255,11 +255,8 @@ MODULE_PARM(pc_debug, "i");
 MODULE_DESCRIPTION("Xircom PCMCIA ethernet driver");
 MODULE_LICENSE("Dual MPL/GPL");
 
-#define INT_MODULE_PARM(n, v) static int n = v; MODULE_PARM(n, "i")
+#define INT_MODULE_PARM(n, v) static int n = v; module_param(n, int, 0)
 
-static int irq_list[4] = { -1 };
-MODULE_PARM(irq_list, "1-4i");
-INT_MODULE_PARM(irq_mask,	0xdeb8);
 INT_MODULE_PARM(if_port,	0);
 INT_MODULE_PARM(full_duplex,	0);
 INT_MODULE_PARM(do_sound, 	1);
@@ -277,12 +274,12 @@ INT_MODULE_PARM(lockup_hack,	0);  /* anti lockup hack */
 static unsigned maxrx_bytes = 22000;
 
 /* MII management prototypes */
-static void mii_idle(ioaddr_t ioaddr);
-static void mii_putbit(ioaddr_t ioaddr, unsigned data);
-static int  mii_getbit(ioaddr_t ioaddr);
-static void mii_wbits(ioaddr_t ioaddr, unsigned data, int len);
-static unsigned mii_rd(ioaddr_t ioaddr,	u_char phyaddr, u_char phyreg);
-static void mii_wr(ioaddr_t ioaddr, u_char phyaddr, u_char phyreg,
+static void mii_idle(kio_addr_t ioaddr);
+static void mii_putbit(kio_addr_t ioaddr, unsigned data);
+static int  mii_getbit(kio_addr_t ioaddr);
+static void mii_wbits(kio_addr_t ioaddr, unsigned data, int len);
+static unsigned mii_rd(kio_addr_t ioaddr, u_char phyaddr, u_char phyreg);
+static void mii_wr(kio_addr_t ioaddr, u_char phyaddr, u_char phyreg,
 		   unsigned data, int len);
 
 /*
@@ -365,7 +362,7 @@ typedef struct local_info_t {
     int dingo;	 /* a CEM56 type card */
     int new_mii; /* has full 10baseT/100baseT MII */
     int modem;	 /* is a multi function card (i.e with a modem) */
-    caddr_t dingo_ccr; /* only used for CEM56 cards */
+    void __iomem *dingo_ccr; /* only used for CEM56 cards */
     unsigned last_ptr_value; /* last packets transmitted value */
     const char *manf_str;
 } local_info_t;
@@ -418,17 +415,12 @@ next_tuple(client_handle_t handle, tuple_t *tuple, cisparse_t *parse)
 #define PutByte(reg,value) outb((value), ioaddr+(reg))
 #define PutWord(reg,value) outw((value), ioaddr+(reg))
 
-#define Wait(n) do { \
-	set_current_state(TASK_UNINTERRUPTIBLE); \
-	schedule_timeout(n); \
-} while (0)
-
 /*====== Functions used for debugging =================================*/
 #if defined(PCMCIA_DEBUG) && 0 /* reading regs may change system status */
 static void
 PrintRegisters(struct net_device *dev)
 {
-    ioaddr_t ioaddr = dev->base_addr;
+    kio_addr_t ioaddr = dev->base_addr;
 
     if (pc_debug > 1) {
 	int i, page;
@@ -464,7 +456,7 @@ PrintRegisters(struct net_device *dev)
  * Turn around for read
  */
 static void
-mii_idle(ioaddr_t ioaddr)
+mii_idle(kio_addr_t ioaddr)
 {
     PutByte(XIRCREG2_GPR2, 0x04|0); /* drive MDCK low */
     udelay(1);
@@ -476,7 +468,7 @@ mii_idle(ioaddr_t ioaddr)
  * Write a bit to MDI/O
  */
 static void
-mii_putbit(ioaddr_t ioaddr, unsigned data)
+mii_putbit(kio_addr_t ioaddr, unsigned data)
 {
   #if 1
     if (data) {
@@ -509,7 +501,7 @@ mii_putbit(ioaddr_t ioaddr, unsigned data)
  * Get a bit from MDI/O
  */
 static int
-mii_getbit(ioaddr_t ioaddr)
+mii_getbit(kio_addr_t ioaddr)
 {
     unsigned d;
 
@@ -522,7 +514,7 @@ mii_getbit(ioaddr_t ioaddr)
 }
 
 static void
-mii_wbits(ioaddr_t ioaddr, unsigned data, int len)
+mii_wbits(kio_addr_t ioaddr, unsigned data, int len)
 {
     unsigned m = 1 << (len-1);
     for (; m; m >>= 1)
@@ -530,7 +522,7 @@ mii_wbits(ioaddr_t ioaddr, unsigned data, int len)
 }
 
 static unsigned
-mii_rd(ioaddr_t ioaddr,	u_char phyaddr, u_char phyreg)
+mii_rd(kio_addr_t ioaddr,	u_char phyaddr, u_char phyreg)
 {
     int i;
     unsigned data=0, m;
@@ -552,7 +544,7 @@ mii_rd(ioaddr_t ioaddr,	u_char phyaddr, u_char phyreg)
 }
 
 static void
-mii_wr(ioaddr_t ioaddr, u_char phyaddr, u_char phyreg, unsigned data, int len)
+mii_wr(kio_addr_t ioaddr, u_char phyaddr, u_char phyreg, unsigned data, int len)
 {
     int i;
 
@@ -627,7 +619,6 @@ xirc2ps_attach(void)
     link->next = dev_list;
     dev_list = link;
     client_reg.dev_info = &dev_info;
-    client_reg.Attributes = INFO_IO_CLIENT | INFO_CARD_SHARE;
     client_reg.EventMask =
 	CS_EVENT_CARD_INSERTION | CS_EVENT_CARD_REMOVAL |
 	CS_EVENT_RESET_PHYSICAL | CS_EVENT_CARD_RESET |
@@ -809,7 +800,7 @@ xirc2ps_config(dev_link_t * link)
     local_info_t *local = netdev_priv(dev);
     tuple_t tuple;
     cisparse_t parse;
-    ioaddr_t ioaddr;
+    kio_addr_t ioaddr;
     int err, i;
     u_char buf[64];
     cistpl_lan_node_id_t *node_id = (cistpl_lan_node_id_t*)parse.funce.data;
@@ -922,13 +913,7 @@ xirc2ps_config(dev_link_t * link)
     link->io.IOAddrLines =10;
     link->io.Attributes1 = IO_DATA_PATH_WIDTH_16;
     link->irq.Attributes = IRQ_HANDLE_PRESENT;
-    link->irq.IRQInfo1 = IRQ_INFO2_VALID | IRQ_LEVEL_ID;
-    if (irq_list[0] == -1)
-	link->irq.IRQInfo2 = irq_mask;
-    else {
-	for (i = 0; i < 4; i++)
-	    link->irq.IRQInfo2 |= 1 << irq_list[i];
-    }
+    link->irq.IRQInfo1 = IRQ_LEVEL_ID;
     if (local->modem) {
 	int pass;
 
@@ -1121,6 +1106,7 @@ xirc2ps_config(dev_link_t * link)
 
     link->dev = &local->node;
     link->state &= ~DEV_CONFIG_PENDING;
+    SET_NETDEV_DEV(dev, &handle_to_dev(handle));
 
     if ((err=register_netdev(dev))) {
 	printk(KNOT_XIRC "register_netdev() failed\n");
@@ -1249,7 +1235,7 @@ xirc2ps_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 {
     struct net_device *dev = (struct net_device *)dev_id;
     local_info_t *lp = netdev_priv(dev);
-    ioaddr_t ioaddr;
+    kio_addr_t ioaddr;
     u_char saved_page;
     unsigned bytes_rcvd;
     unsigned int_status, eth_status, rx_status, tx_status;
@@ -1354,7 +1340,7 @@ xirc2ps_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 		    unsigned i;
 		    u_long *p = skb_put(skb, pktlen);
 		    register u_long a;
-		    ioaddr_t edpreg = ioaddr+XIRCREG_EDP-2;
+		    kio_addr_t edpreg = ioaddr+XIRCREG_EDP-2;
 		    for (i=0; i < len ; i += 4, p++) {
 			a = inl(edpreg);
 			__asm__("rorl $16,%0\n\t"
@@ -1483,7 +1469,7 @@ static int
 do_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
     local_info_t *lp = netdev_priv(dev);
-    ioaddr_t ioaddr = dev->base_addr;
+    kio_addr_t ioaddr = dev->base_addr;
     int okay;
     unsigned freespace;
     unsigned pktlen = skb? skb->len : 0;
@@ -1553,7 +1539,7 @@ do_get_stats(struct net_device *dev)
 static void
 set_addresses(struct net_device *dev)
 {
-    ioaddr_t ioaddr = dev->base_addr;
+    kio_addr_t ioaddr = dev->base_addr;
     local_info_t *lp = netdev_priv(dev);
     struct dev_mc_list *dmi = dev->mc_list;
     char *addr;
@@ -1595,7 +1581,7 @@ set_addresses(struct net_device *dev)
 static void
 set_multicast_list(struct net_device *dev)
 {
-    ioaddr_t ioaddr = dev->base_addr;
+    kio_addr_t ioaddr = dev->base_addr;
 
     SelectPage(0x42);
     if (dev->flags & IFF_PROMISC) { /* snoop */
@@ -1679,7 +1665,7 @@ static int
 do_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 {
     local_info_t *local = netdev_priv(dev);
-    ioaddr_t ioaddr = dev->base_addr;
+    kio_addr_t ioaddr = dev->base_addr;
     u16 *data = (u16 *)&rq->ifr_ifru;
 
     DEBUG(1, "%s: ioctl(%-.6s, %#04x) %04x %04x %04x %04x\n",
@@ -1711,33 +1697,33 @@ static void
 hardreset(struct net_device *dev)
 {
     local_info_t *local = netdev_priv(dev);
-    ioaddr_t ioaddr = dev->base_addr;
+    kio_addr_t ioaddr = dev->base_addr;
 
     SelectPage(4);
     udelay(1);
     PutByte(XIRCREG4_GPR1, 0);	     /* clear bit 0: power down */
-    Wait(HZ/25);		     /* wait 40 msec */
+    msleep(40);				     /* wait 40 msec */
     if (local->mohawk)
 	PutByte(XIRCREG4_GPR1, 1);	 /* set bit 0: power up */
     else
 	PutByte(XIRCREG4_GPR1, 1 | 4);	 /* set bit 0: power up, bit 2: AIC */
-    Wait(HZ/50);		     /* wait 20 msec */
+    msleep(20);			     /* wait 20 msec */
 }
 
 static void
 do_reset(struct net_device *dev, int full)
 {
     local_info_t *local = netdev_priv(dev);
-    ioaddr_t ioaddr = dev->base_addr;
+    kio_addr_t ioaddr = dev->base_addr;
     unsigned value;
 
     DEBUG(0, "%s: do_reset(%p,%d)\n", dev? dev->name:"eth?", dev, full);
 
     hardreset(dev);
     PutByte(XIRCREG_CR, SoftReset); /* set */
-    Wait(HZ/50);		     /* wait 20 msec */
+    msleep(20);			     /* wait 20 msec */
     PutByte(XIRCREG_CR, 0);	     /* clear */
-    Wait(HZ/25);		     /* wait 40 msec */
+    msleep(40);			     /* wait 40 msec */
     if (local->mohawk) {
 	SelectPage(4);
 	/* set pin GP1 and GP2 to output  (0x0c)
@@ -1748,7 +1734,7 @@ do_reset(struct net_device *dev, int full)
     }
 
     /* give the circuits some time to power up */
-    Wait(HZ/2);		/* about 500ms */
+    msleep(500);			/* about 500ms */
 
     local->last_ptr_value = 0;
     local->silicon = local->mohawk ? (GetByte(XIRCREG4_BOV) & 0x70) >> 4
@@ -1767,7 +1753,7 @@ do_reset(struct net_device *dev, int full)
 	SelectPage(0x42);
 	PutByte(XIRCREG42_SWC1, 0x80);
     }
-    Wait(HZ/25);		     /* wait 40 msec to let it complete */
+    msleep(40);			     /* wait 40 msec to let it complete */
 
   #ifdef PCMCIA_DEBUG
     if (pc_debug) {
@@ -1826,7 +1812,7 @@ do_reset(struct net_device *dev, int full)
 	    printk(KERN_INFO "%s: MII selected\n", dev->name);
 	    SelectPage(2);
 	    PutByte(XIRCREG2_MSR, GetByte(XIRCREG2_MSR) | 0x08);
-	    Wait(HZ/50);
+	    msleep(20);
 	} else {
 	    printk(KERN_INFO "%s: MII detected; using 10mbs\n",
 		   dev->name);
@@ -1835,7 +1821,7 @@ do_reset(struct net_device *dev, int full)
 		PutByte(XIRCREG42_SWC1, 0xC0);
 	    else  /* enable 10BaseT */
 		PutByte(XIRCREG42_SWC1, 0x80);
-	    Wait(HZ/25);	/* wait 40 msec to let it complete */
+	    msleep(40);			/* wait 40 msec to let it complete */
 	}
 	if (full_duplex)
 	    PutByte(XIRCREG1_ECR, GetByte(XIRCREG1_ECR | FullDuplex));
@@ -1889,7 +1875,7 @@ static int
 init_mii(struct net_device *dev)
 {
     local_info_t *local = netdev_priv(dev);
-    ioaddr_t ioaddr = dev->base_addr;
+    kio_addr_t ioaddr = dev->base_addr;
     unsigned control, status, linkpartner;
     int i;
 
@@ -1928,7 +1914,7 @@ init_mii(struct net_device *dev)
 	 * Fixme: Better to use a timer here!
 	 */
 	for (i=0; i < 35; i++) {
-	    Wait(HZ/10);	 /* wait 100 msec */
+	    msleep(100);	 /* wait 100 msec */
 	    status = mii_rd(ioaddr,  0, 1);
 	    if ((status & 0x0020) && (status & 0x0004))
 		break;
@@ -1962,7 +1948,7 @@ static void
 do_powerdown(struct net_device *dev)
 {
 
-    ioaddr_t ioaddr = dev->base_addr;
+    kio_addr_t ioaddr = dev->base_addr;
 
     DEBUG(0, "do_powerdown(%p)\n", dev);
 
@@ -1974,7 +1960,7 @@ do_powerdown(struct net_device *dev)
 static int
 do_stop(struct net_device *dev)
 {
-    ioaddr_t ioaddr = dev->base_addr;
+    kio_addr_t ioaddr = dev->base_addr;
     local_info_t *lp = netdev_priv(dev);
     dev_link_t *link = &lp->link;
 
@@ -2016,9 +2002,7 @@ static void __exit
 exit_xirc2ps_cs(void)
 {
 	pcmcia_unregister_driver(&xirc2ps_cs_driver);
-
-	while (dev_list)
-		xirc2ps_detach(dev_list);
+	BUG_ON(dev_list != NULL);
 }
 
 module_init(init_xirc2ps_cs);
@@ -2027,23 +2011,17 @@ module_exit(exit_xirc2ps_cs);
 #ifndef MODULE
 static int __init setup_xirc2ps_cs(char *str)
 {
-	/* irq, irq_mask, if_port, full_duplex, do_sound, lockup_hack
-	 * [,irq2 [,irq3 [,irq4]]]
+	/* if_port, full_duplex, do_sound, lockup_hack
 	 */
 	int ints[10] = { -1 };
 
 	str = get_options(str, 9, ints);
 
 #define MAYBE_SET(X,Y) if (ints[0] >= Y && ints[Y] != -1) { X = ints[Y]; }
-	MAYBE_SET(irq_list[0], 1);
-	MAYBE_SET(irq_mask, 2);
 	MAYBE_SET(if_port, 3);
 	MAYBE_SET(full_duplex, 4);
 	MAYBE_SET(do_sound, 5);
 	MAYBE_SET(lockup_hack, 6);
-	MAYBE_SET(irq_list[1], 7);
-	MAYBE_SET(irq_list[2], 8);
-	MAYBE_SET(irq_list[3], 9);
 #undef  MAYBE_SET
 
 	return 0;

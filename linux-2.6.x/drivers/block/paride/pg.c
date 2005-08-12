@@ -165,32 +165,13 @@ enum {D_PRT, D_PRO, D_UNI, D_MOD, D_SLV, D_DLY};
 
 #include <asm/uaccess.h>
 
-#ifndef MODULE
-
-#include "setup.h"
-
-static STT pg_stt[5] = {
-	{"drive0", 6, drive0},
-	{"drive1", 6, drive1},
-	{"drive2", 6, drive2},
-	{"drive3", 6, drive3},
-	{"disable", 1, &disable}
-};
-
-void pg_setup(char *str, int *ints)
-{
-	generic_setup(pg_stt, 5, str);
-}
-
-#endif
-
-MODULE_PARM(verbose, "i");
-MODULE_PARM(major, "i");
-MODULE_PARM(name, "s");
-MODULE_PARM(drive0, "1-6i");
-MODULE_PARM(drive1, "1-6i");
-MODULE_PARM(drive2, "1-6i");
-MODULE_PARM(drive3, "1-6i");
+module_param(verbose, bool, 0644);
+module_param(major, int, 0);
+module_param(name, charp, 0);
+module_param_array(drive0, int, NULL, 0);
+module_param_array(drive1, int, NULL, 0);
+module_param_array(drive2, int, NULL, 0);
+module_param_array(drive3, int, NULL, 0);
 
 #include "paride.h"
 
@@ -235,7 +216,7 @@ struct pg {
 	char name[PG_NAMELEN];	/* pg0, pg1, ... */
 };
 
-struct pg devices[PG_UNITS];
+static struct pg devices[PG_UNITS];
 
 static int pg_identify(struct pg *dev, int log);
 
@@ -262,7 +243,7 @@ static void pg_init_units(void)
 		int *parm = *drives[unit];
 		struct pg *dev = &devices[unit];
 		dev->pi = &dev->pia;
-		set_bit(0, &dev->access);
+		clear_bit(0, &dev->access);
 		dev->busy = 0;
 		dev->present = 0;
 		dev->bufptr = NULL;

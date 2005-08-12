@@ -26,7 +26,6 @@ static uint16_t qla2x00_nvram_request(scsi_qla_host_t *, uint32_t);
 static void qla2x00_nv_deselect(scsi_qla_host_t *);
 static void qla2x00_nv_write(scsi_qla_host_t *, uint16_t);
 
-
 /*
  * NVRAM support routines
  */
@@ -39,9 +38,7 @@ void
 qla2x00_lock_nvram_access(scsi_qla_host_t *ha)
 {
 	uint16_t data;
-	device_reg_t *reg;
-
-	reg = ha->iobase;
+	device_reg_t __iomem *reg = ha->iobase;
 
 	if (!IS_QLA2100(ha) && !IS_QLA2200(ha) && !IS_QLA2300(ha)) {
 		data = RD_REG_WORD(&reg->nvram);
@@ -52,12 +49,14 @@ qla2x00_lock_nvram_access(scsi_qla_host_t *ha)
 
 		/* Lock resource */
 		WRT_REG_WORD(&reg->u.isp2300.host_semaphore, 0x1);
+		RD_REG_WORD(&reg->u.isp2300.host_semaphore);
 		udelay(5);
 		data = RD_REG_WORD(&reg->u.isp2300.host_semaphore);
 		while ((data & BIT_0) == 0) {
 			/* Lock failed */
 			udelay(100);
 			WRT_REG_WORD(&reg->u.isp2300.host_semaphore, 0x1);
+			RD_REG_WORD(&reg->u.isp2300.host_semaphore);
 			udelay(5);
 			data = RD_REG_WORD(&reg->u.isp2300.host_semaphore);
 		}
@@ -71,12 +70,62 @@ qla2x00_lock_nvram_access(scsi_qla_host_t *ha)
 void
 qla2x00_unlock_nvram_access(scsi_qla_host_t *ha)
 {
-	device_reg_t *reg;
+	device_reg_t __iomem *reg = ha->iobase;
+
+	if (!IS_QLA2100(ha) && !IS_QLA2200(ha) && !IS_QLA2300(ha)) {
+		WRT_REG_WORD(&reg->u.isp2300.host_semaphore, 0);
+		RD_REG_WORD(&reg->u.isp2300.host_semaphore);
+	}
+}
+
+/**
+ * qla2x00_release_nvram_protection() - 
+ * @ha: HA context
+ */
+void
+qla2x00_release_nvram_protection(scsi_qla_host_t *ha)
+{
+	device_reg_t __iomem *reg;
+	uint32_t word;
 
 	reg = ha->iobase;
 
-	if (!IS_QLA2100(ha) && !IS_QLA2200(ha) && !IS_QLA2300(ha))
-		WRT_REG_WORD(&reg->u.isp2300.host_semaphore, 0);
+	/* Release NVRAM write protection. */
+	if (IS_QLA2322(ha) || IS_QLA6322(ha)) {
+		/* Write enable. */
+		qla2x00_nv_write(ha, NVR_DATA_OUT);
+		qla2x00_nv_write(ha, 0);
+		qla2x00_nv_write(ha, 0);
+		for (word = 0; word < 8; word++)
+			qla2x00_nv_write(ha, NVR_DATA_OUT);
+
+		qla2x00_nv_deselect(ha);
+
+		/* Enable protection register. */
+		qla2x00_nv_write(ha, NVR_PR_ENABLE | NVR_DATA_OUT);
+		qla2x00_nv_write(ha, NVR_PR_ENABLE);
+		qla2x00_nv_write(ha, NVR_PR_ENABLE);
+		for (word = 0; word < 8; word++)
+			qla2x00_nv_write(ha, NVR_DATA_OUT | NVR_PR_ENABLE);
+
+		qla2x00_nv_deselect(ha);
+
+		/* Clear protection register (ffff is cleared). */
+		qla2x00_nv_write(ha, NVR_PR_ENABLE | NVR_DATA_OUT);
+		qla2x00_nv_write(ha, NVR_PR_ENABLE | NVR_DATA_OUT);
+		qla2x00_nv_write(ha, NVR_PR_ENABLE | NVR_DATA_OUT);
+		for (word = 0; word < 8; word++)
+			qla2x00_nv_write(ha, NVR_DATA_OUT | NVR_PR_ENABLE);
+
+		qla2x00_nv_deselect(ha);
+
+		/* Wait for NVRAM to become ready. */
+		WRT_REG_WORD(&reg->nvram, NVR_SELECT);
+		do {
+			NVRAM_DELAY();
+			word = RD_REG_WORD(&reg->nvram);
+		} while ((word & NVR_DATA_IN) == 0);
+	}
 }
 
 /**
@@ -112,7 +161,7 @@ qla2x00_write_nvram_word(scsi_qla_host_t *ha, uint32_t addr, uint16_t data)
 	int count;
 	uint16_t word;
 	uint32_t nv_cmd;
-	device_reg_t *reg = ha->iobase;
+	device_reg_t __iomem *reg = ha->iobase;
 
 	qla2x00_nv_write(ha, NVR_DATA_OUT);
 	qla2x00_nv_write(ha, 0);
@@ -120,29 +169,6 @@ qla2x00_write_nvram_word(scsi_qla_host_t *ha, uint32_t addr, uint16_t data)
 
 	for (word = 0; word < 8; word++)
 		qla2x00_nv_write(ha, NVR_DATA_OUT);
-
-	qla2x00_nv_deselect(ha);
-
-	/* Erase Location */
-	nv_cmd = (addr << 16) | NV_ERASE_OP;
-	nv_cmd <<= 5;
-	for (count = 0; count < 11; count++) {
-		if (nv_cmd & BIT_31)
-			qla2x00_nv_write(ha, NVR_DATA_OUT);
-		else
-			qla2x00_nv_write(ha, 0);
-
-		nv_cmd <<= 1;
-	}
-
-	qla2x00_nv_deselect(ha);
-
-	/* Wait for Erase to Finish */
-	WRT_REG_WORD(&reg->nvram, NVR_SELECT);
-	do {
-		NVRAM_DELAY();
-		word = RD_REG_WORD(&reg->nvram);
-	} while ((word & NVR_DATA_IN) == 0);
 
 	qla2x00_nv_deselect(ha);
 
@@ -197,7 +223,7 @@ static uint16_t
 qla2x00_nvram_request(scsi_qla_host_t *ha, uint32_t nv_cmd)
 {
 	uint8_t		cnt;
-	device_reg_t	*reg = ha->iobase;
+	device_reg_t __iomem *reg = ha->iobase;
 	uint16_t	data = 0;
 	uint16_t	reg_data;
 
@@ -220,14 +246,14 @@ qla2x00_nvram_request(scsi_qla_host_t *ha, uint32_t nv_cmd)
 		if (reg_data & NVR_DATA_IN)
 			data |= BIT_0;
 		WRT_REG_WORD(&reg->nvram, NVR_SELECT);
-		NVRAM_DELAY();
 		RD_REG_WORD(&reg->nvram);	/* PCI Posting. */
+		NVRAM_DELAY();
 	}
 
 	/* Deselect chip. */
 	WRT_REG_WORD(&reg->nvram, NVR_DESELECT);
-	NVRAM_DELAY();
 	RD_REG_WORD(&reg->nvram);		/* PCI Posting. */
+	NVRAM_DELAY();
 
 	return (data);
 }
@@ -236,14 +262,14 @@ qla2x00_nvram_request(scsi_qla_host_t *ha, uint32_t nv_cmd)
  * qla2x00_nv_write() - Clean NVRAM operations.
  * @ha: HA context
  */
-void
+static void
 qla2x00_nv_deselect(scsi_qla_host_t *ha)
 {
-	device_reg_t *reg = ha->iobase;
+	device_reg_t __iomem *reg = ha->iobase;
 
 	WRT_REG_WORD(&reg->nvram, NVR_DESELECT);
-	NVRAM_DELAY();
 	RD_REG_WORD(&reg->nvram);		/* PCI Posting. */
+	NVRAM_DELAY();
 }
 
 /**
@@ -251,19 +277,20 @@ qla2x00_nv_deselect(scsi_qla_host_t *ha)
  * @ha: HA context
  * @data: Serial interface selector
  */
-void
+static void
 qla2x00_nv_write(scsi_qla_host_t *ha, uint16_t data)
 {
-	device_reg_t *reg = ha->iobase;
+	device_reg_t __iomem *reg = ha->iobase;
 
-	WRT_REG_WORD(&reg->nvram, data | NVR_SELECT);
-	NVRAM_DELAY();
+	WRT_REG_WORD(&reg->nvram, data | NVR_SELECT | NVR_WRT_ENABLE);
 	RD_REG_WORD(&reg->nvram);		/* PCI Posting. */
-	WRT_REG_WORD(&reg->nvram, data | NVR_SELECT | NVR_CLOCK);
 	NVRAM_DELAY();
+	WRT_REG_WORD(&reg->nvram, data | NVR_SELECT| NVR_CLOCK |
+	    NVR_WRT_ENABLE);
 	RD_REG_WORD(&reg->nvram);		/* PCI Posting. */
-	WRT_REG_WORD(&reg->nvram, data | NVR_SELECT);
 	NVRAM_DELAY();
+	WRT_REG_WORD(&reg->nvram, data | NVR_SELECT | NVR_WRT_ENABLE);
 	RD_REG_WORD(&reg->nvram);		/* PCI Posting. */
+	NVRAM_DELAY();
 }
 

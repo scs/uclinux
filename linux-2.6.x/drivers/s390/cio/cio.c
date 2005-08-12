@@ -17,8 +17,8 @@
 #include <linux/slab.h>
 #include <linux/device.h>
 #include <linux/kernel_stat.h>
+#include <linux/interrupt.h>
 
-#include <asm/hardirq.h>
 #include <asm/cio.h>
 #include <asm/delay.h>
 #include <asm/irq.h>
@@ -141,6 +141,7 @@ cio_tpi(void)
 	sch = (struct subchannel *)(unsigned long)tpi_info->intparm;
 	if (!sch)
 		return 1;
+	local_bh_disable();
 	irq_enter ();
 	spin_lock(&sch->lock);
 	memcpy (&sch->schib.scsw, &irb->scsw, sizeof (struct scsw));
@@ -148,6 +149,7 @@ cio_tpi(void)
 		sch->driver->irq(&sch->dev);
 	spin_unlock(&sch->lock);
 	irq_exit ();
+	__local_bh_enable();
 	return 1;
 }
 
@@ -173,9 +175,10 @@ cio_start_handle_notoper(struct subchannel *sch, __u8 lpm)
 }
 
 int
-cio_start (struct subchannel *sch,	/* subchannel structure */
-	   struct ccw1 * cpa,		/* logical channel prog addr */
-	   __u8 lpm)			/* logical path mask */
+cio_start_key (struct subchannel *sch,	/* subchannel structure */
+	       struct ccw1 * cpa,	/* logical channel prog addr */
+	       __u8 lpm,		/* logical path mask */
+	       __u8 key)                /* storage key */
 {
 	char dbf_txt[15];
 	int ccode;
@@ -198,12 +201,12 @@ cio_start (struct subchannel *sch,	/* subchannel structure */
 	sch->orb.c64 = 1;
 	sch->orb.i2k = 0;
 #endif
+	sch->orb.key = key >> 4;
+	/* issue "Start Subchannel" */
 	sch->orb.cpa = (__u32) __pa (cpa);
-
-	/*
-	 * Issue "Start subchannel" and process condition code
-	 */
 	ccode = ssch (sch->irq, &sch->orb);
+
+	/* process condition code */
 	sprintf (dbf_txt, "ccode:%d", ccode);
 	CIO_TRACE_EVENT (4, dbf_txt);
 
@@ -220,6 +223,12 @@ cio_start (struct subchannel *sch,	/* subchannel structure */
 	default:		/* device/path not operational */
 		return cio_start_handle_notoper(sch, lpm);
 	}
+}
+
+int
+cio_start (struct subchannel *sch, struct ccw1 *cpa, __u8 lpm)
+{
+	return cio_start_key(sch, cpa, lpm, PAGE_DEFAULT_KEY);
 }
 
 /*
@@ -409,10 +418,10 @@ cio_enable_subchannel (struct subchannel *sch, unsigned int isc)
 	if (ccode)
 		return -ENODEV;
 
-	sch->schib.pmcw.ena = 1;
-	sch->schib.pmcw.isc = isc;
-	sch->schib.pmcw.intparm = (__u32)(unsigned long)sch;
 	for (retry = 5, ret = 0; retry > 0; retry--) {
+		sch->schib.pmcw.ena = 1;
+		sch->schib.pmcw.isc = isc;
+		sch->schib.pmcw.intparm = (__u32)(unsigned long)sch;
 		ret = cio_modify(sch);
 		if (ret == -ENODEV)
 			break;
@@ -463,9 +472,8 @@ cio_disable_subchannel (struct subchannel *sch)
 		 */
 		return -EBUSY;
 
-
-	sch->schib.pmcw.ena = 0;
 	for (retry = 5, ret = 0; retry > 0; retry--) {
+		sch->schib.pmcw.ena = 0;
 		ret = cio_modify(sch);
 		if (ret == -ENODEV)
 			break;
@@ -600,6 +608,10 @@ do_IRQ (struct pt_regs *regs)
 	irq_enter ();
 	asm volatile ("mc 0,0");
 	if (S390_lowcore.int_clock >= S390_lowcore.jiffy_timer)
+		/**
+		 * Make sure that the i/o interrupt did not "overtake"
+		 * the last HZ timer interrupt.
+		 */
 		account_ticks(regs);
 	/*
 	 * Get interrupt information from lowcore
@@ -812,9 +824,10 @@ __clear_subchannel_easy(unsigned int schid)
 }
 
 extern void do_reipl(unsigned long devno);
-/* Make sure all subchannels are quiet before we re-ipl an lpar. */
+
+/* Clear all subchannels. */
 void
-reipl(unsigned long devno)
+clear_all_subchannels(void)
 {
 	unsigned int schid;
 
@@ -822,7 +835,7 @@ reipl(unsigned long devno)
 	for (schid=0;schid<=highest_subchannel;schid++) {
 		struct schib schib;
 		if (stsch(schid, &schib))
-			goto out;
+			break; /* break out of the loop */
 		if (!schib.pmcw.ena)
 			continue;
 		switch(__disable_subchannel_easy(schid, &schib)) {
@@ -831,11 +844,17 @@ reipl(unsigned long devno)
 			break;
 		default: /* -EBUSY */
 			if (__clear_subchannel_easy(schid))
-				break; /* give up... */
+				break; /* give up... jump out of switch */
 			stsch(schid, &schib);
 			__disable_subchannel_easy(schid, &schib);
 		}
 	}
-out:
+}
+
+/* Make sure all subchannels are quiet before we re-ipl an lpar. */
+void
+reipl(unsigned long devno)
+{
+	clear_all_subchannels();
 	do_reipl(devno);
 }

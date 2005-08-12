@@ -1,8 +1,8 @@
 /***************************************************************************
- * Driver for TAS5130D1B image sensor connected to the SN9C10[12] PC       *
- * Camera Controllers                                                      *
+ * Plug-in for TAS5130D1B image sensor connected to the SN9C10x PC Camera  *
+ * Controllers                                                             *
  *                                                                         *
- * Copyright (C) 2004 by Luca Risolia <luca.risolia@studio.unibo.it>       *
+ * Copyright (C) 2004-2005 by Luca Risolia <luca.risolia@studio.unibo.it>  *
  *                                                                         *
  * This program is free software; you can redistribute it and/or modify    *
  * it under the terms of the GNU General Public License as published by    *
@@ -24,6 +24,8 @@
 
 static struct sn9c102_sensor tas5130d1b;
 
+static struct v4l2_control tas5130d1b_gain, tas5130d1b_exposure;
+
 
 static int tas5130d1b_init(struct sn9c102_device* cam)
 {
@@ -37,24 +39,48 @@ static int tas5130d1b_init(struct sn9c102_device* cam)
 	err += sn9c102_write_reg(cam, 0x00, 0x14);
 	err += sn9c102_write_reg(cam, 0x60, 0x17);
 	err += sn9c102_write_reg(cam, 0x07, 0x18);
-	err += sn9c102_write_reg(cam, 0x33, 0x19);
-
-	err += sn9c102_i2c_try_raw_write(cam, &tas5130d1b, 4, 0x11, 0x00, 0x40,
-	                                 0x47, 0, 0);
-	err += sn9c102_i2c_try_raw_write(cam, &tas5130d1b, 4, 0x11, 0x02, 0x20,
-	                                 0xa9, 0, 0);
-	err += sn9c102_i2c_try_raw_write(cam, &tas5130d1b, 4, 0x11, 0x00, 0xc0,
-	                                 0x49, 0, 0);
-	err += sn9c102_i2c_try_raw_write(cam, &tas5130d1b, 4, 0x11, 0x02, 0x20,
-	                                 0x6c, 0, 0);
-	err += sn9c102_i2c_try_raw_write(cam, &tas5130d1b, 4, 0x11, 0x00, 0xc0,
-	                                 0x08, 0, 0);
-	err += sn9c102_i2c_try_raw_write(cam, &tas5130d1b, 4, 0x11, 0x00, 0x20,
-	                                 0x00, 0, 0);
-
-	err += sn9c102_write_reg(cam, 0x63, 0x19);
 
 	return err;
+}
+
+
+static int tas5130d1b_get_ctrl(struct sn9c102_device* cam, 
+                               struct v4l2_control* ctrl)
+{
+	switch (ctrl->id) {
+	case V4L2_CID_GAIN:
+		ctrl->value = tas5130d1b_gain.value;
+		break;
+	case V4L2_CID_EXPOSURE:
+		ctrl->value = tas5130d1b_exposure.value;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+
+static int tas5130d1b_set_ctrl(struct sn9c102_device* cam, 
+                               const struct v4l2_control* ctrl)
+{
+	int err = 0;
+
+	switch (ctrl->id) {
+	case V4L2_CID_GAIN:
+		if (!(err += sn9c102_i2c_write(cam, 0x20, 0xf6 - ctrl->value)))
+			tas5130d1b_gain.value = ctrl->value;
+		break;
+	case V4L2_CID_EXPOSURE:
+		if (!(err += sn9c102_i2c_write(cam, 0x40, 0x47 - ctrl->value)))
+			tas5130d1b_exposure.value = ctrl->value;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return err ? -EIO : 0;
 }
 
 
@@ -62,12 +88,31 @@ static int tas5130d1b_set_crop(struct sn9c102_device* cam,
                                const struct v4l2_rect* rect)
 {
 	struct sn9c102_sensor* s = &tas5130d1b;
-	int err = 0;
 	u8 h_start = (u8)(rect->left - s->cropcap.bounds.left) + 104,
 	   v_start = (u8)(rect->top - s->cropcap.bounds.top) + 12;
+	int err = 0;
 
 	err += sn9c102_write_reg(cam, h_start, 0x12);
 	err += sn9c102_write_reg(cam, v_start, 0x13);
+
+	/* Do NOT change! */
+	err += sn9c102_write_reg(cam, 0x1f, 0x1a);
+	err += sn9c102_write_reg(cam, 0x1a, 0x1b);
+	err += sn9c102_write_reg(cam, sn9c102_pread_reg(cam, 0x19), 0x19);
+
+	return err;
+}
+
+
+static int tas5130d1b_set_pix_format(struct sn9c102_device* cam, 
+                                     const struct v4l2_pix_format* pix)
+{
+	int err = 0;
+
+	if (pix->pixelformat == V4L2_PIX_FMT_SN9C10X)
+		err += sn9c102_write_reg(cam, 0x63, 0x19);
+	else
+		err += sn9c102_write_reg(cam, 0xf3, 0x19);
 
 	return err;
 }
@@ -76,9 +121,34 @@ static int tas5130d1b_set_crop(struct sn9c102_device* cam,
 static struct sn9c102_sensor tas5130d1b = {
 	.name = "TAS5130D1B",
 	.maintainer = "Luca Risolia <luca.risolia@studio.unibo.it>",
+	.sysfs_ops = SN9C102_I2C_WRITE,
 	.frequency = SN9C102_I2C_100KHZ,
 	.interface = SN9C102_I2C_3WIRES,
 	.init = &tas5130d1b_init,
+	.qctrl = {
+		{
+			.id = V4L2_CID_GAIN,
+			.type = V4L2_CTRL_TYPE_INTEGER,
+			.name = "global gain",
+			.minimum = 0x00,
+			.maximum = 0xf6,
+			.step = 0x02,
+			.default_value = 0x00,
+			.flags = 0,
+		},
+		{
+			.id = V4L2_CID_EXPOSURE,
+			.type = V4L2_CTRL_TYPE_INTEGER,
+			.name = "exposure",
+			.minimum = 0x00,
+			.maximum = 0x47,
+			.step = 0x01,
+			.default_value = 0x00,
+			.flags = 0,
+		},
+	},
+	.get_ctrl = &tas5130d1b_get_ctrl,
+	.set_ctrl = &tas5130d1b_set_ctrl,
 	.cropcap = {
 		.bounds = {
 			.left = 0,
@@ -99,7 +169,8 @@ static struct sn9c102_sensor tas5130d1b = {
 		.height = 480,
 		.pixelformat = V4L2_PIX_FMT_SBGGR8,
 		.priv = 8,
-	}
+	},
+	.set_pix_format = &tas5130d1b_set_pix_format
 };
 
 
@@ -108,13 +179,10 @@ int sn9c102_probe_tas5130d1b(struct sn9c102_device* cam)
 	/* This sensor has no identifiers, so let's attach it anyway */
 	sn9c102_attach_sensor(cam, &tas5130d1b);
 
-	/* At the moment, only devices whose PID is 0x6025 have this sensor */
-	if (tas5130d1b.usbdev->descriptor.idProduct != 0x6025)
+	/* Sensor detection is based on USB pid/vid */
+	if (le16_to_cpu(tas5130d1b.usbdev->descriptor.idProduct) != 0x6025 &&
+	    le16_to_cpu(tas5130d1b.usbdev->descriptor.idProduct) != 0x60aa)
 		return -ENODEV;
 
-	dev_info(tas5130d1b.dev, "TAS5130D1B detected, but the support for it "
-	                         "is disabled at the moment - needs further "
-	                         "testing -\n");
-
-	return -ENODEV;
+	return 0;
 }

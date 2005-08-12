@@ -33,26 +33,33 @@
 static int ehci_hub_suspend (struct usb_hcd *hcd)
 {
 	struct ehci_hcd		*ehci = hcd_to_ehci (hcd);
-	struct usb_device	*root = hcd_to_bus (&ehci->hcd)->root_hub;
 	int			port;
-	int			status = 0;
 
-	if (root->dev.power.power_state != 0)
-		return 0;
 	if (time_before (jiffies, ehci->next_statechange))
-		return -EAGAIN;
+		msleep(5);
 
 	port = HCS_N_PORTS (ehci->hcs_params);
 	spin_lock_irq (&ehci->lock);
 
+	/* stop schedules, clean any completed work */
+	if (HC_IS_RUNNING(hcd->state)) {
+		ehci_quiesce (ehci);
+		hcd->state = HC_STATE_QUIESCING;
+	}
+	ehci->command = readl (&ehci->regs->command);
+	if (ehci->reclaim)
+		ehci->reclaim_ready = 1;
+	ehci_work(ehci, NULL);
+
 	/* suspend any active/unsuspended ports, maybe allow wakeup */
 	while (port--) {
-		u32	t1 = readl (&ehci->regs->port_status [port]);
-		u32	t2 = t1;
+		u32 __iomem	*reg = &ehci->regs->port_status [port];
+		u32		t1 = readl (reg);
+		u32		t2 = t1;
 
 		if ((t1 & PORT_PE) && !(t1 & PORT_OWNER))
 			t2 |= PORT_SUSPEND;
-		if (ehci->hcd.remote_wakeup)
+		if (hcd->remote_wakeup)
 			t2 |= PORT_WKOC_E|PORT_WKDISC_E|PORT_WKCONN_E;
 		else
 			t2 &= ~(PORT_WKOC_E|PORT_WKDISC_E|PORT_WKCONN_E);
@@ -60,48 +67,46 @@ static int ehci_hub_suspend (struct usb_hcd *hcd)
 		if (t1 != t2) {
 			ehci_vdbg (ehci, "port %d, %08x -> %08x\n",
 				port + 1, t1, t2);
-			writel (t2, &ehci->regs->port_status [port]);
+			writel (t2, reg);
 		}
 	}
 
-	/* stop schedules, then turn off HC and clean any completed work */
-	if (hcd->state == USB_STATE_RUNNING)
-		ehci_ready (ehci);
-	ehci->command = readl (&ehci->regs->command);
-	writel (ehci->command & ~CMD_RUN, &ehci->regs->command);
-	if (ehci->reclaim)
-		ehci->reclaim_ready = 1;
-	ehci_work(ehci, NULL);
-	(void) handshake (&ehci->regs->status, STS_HALT, STS_HALT, 2000);
+	/* turn off now-idle HC */
+	del_timer_sync (&ehci->watchdog);
+	ehci_halt (ehci);
+	hcd->state = HC_STATE_SUSPENDED;
 
-	root->dev.power.power_state = 3;
 	ehci->next_statechange = jiffies + msecs_to_jiffies(10);
 	spin_unlock_irq (&ehci->lock);
-	return status;
+	return 0;
 }
 
 
-/* caller owns root->serialize, and should reset/reinit on error */
+/* caller has locked the root hub, and should reset/reinit on error */
 static int ehci_hub_resume (struct usb_hcd *hcd)
 {
 	struct ehci_hcd		*ehci = hcd_to_ehci (hcd);
-	struct usb_device	*root = hcd_to_bus (&ehci->hcd)->root_hub;
 	u32			temp;
 	int			i;
+	int			intr_enable;
 
-	if (!root->dev.power.power_state)
-		return 0;
 	if (time_before (jiffies, ehci->next_statechange))
-		return -EAGAIN;
+		msleep(5);
+	spin_lock_irq (&ehci->lock);
 
 	/* re-init operational registers in case we lost power */
 	if (readl (&ehci->regs->intr_enable) == 0) {
-		writel (INTR_MASK, &ehci->regs->intr_enable);
+ 		/* at least some APM implementations will try to deliver
+		 * IRQs right away, so delay them until we're ready.
+ 		 */
+ 		intr_enable = 1;
 		writel (0, &ehci->regs->segment);
 		writel (ehci->periodic_dma, &ehci->regs->frame_list);
 		writel ((u32)ehci->async->qh_dma, &ehci->regs->async_next);
-		/* FIXME will this work even (pci) vAUX was lost? */
-	}
+	} else
+		intr_enable = 0;
+	ehci_dbg(ehci, "resume root hub%s\n",
+			intr_enable ? " after power loss" : "");
 
 	/* restore CMD_RUN, framelist size, and irq threshold */
 	writel (ehci->command, &ehci->regs->command);
@@ -118,7 +123,7 @@ static int ehci_hub_resume (struct usb_hcd *hcd)
 		writel (temp, &ehci->regs->port_status [i]);
 	}
 	i = HCS_N_PORTS (ehci->hcs_params);
-	msleep (20);
+	mdelay (20);
 	while (i--) {
 		temp = readl (&ehci->regs->port_status [i]);
 		if ((temp & PORT_SUSPEND) == 0)
@@ -135,19 +140,26 @@ static int ehci_hub_resume (struct usb_hcd *hcd)
 		temp |= CMD_ASE;
 	if (ehci->periodic_sched)
 		temp |= CMD_PSE;
-	if (temp)
-		writel (ehci->command | temp, &ehci->regs->command);
+	if (temp) {
+		ehci->command |= temp;
+		writel (ehci->command, &ehci->regs->command);
+	}
 
-	root->dev.power.power_state = 0;
 	ehci->next_statechange = jiffies + msecs_to_jiffies(5);
-	ehci->hcd.state = USB_STATE_RUNNING;
+	hcd->state = HC_STATE_RUNNING;
+
+	/* Now we can safely re-enable irqs */
+	if (intr_enable)
+		writel (INTR_MASK, &ehci->regs->intr_enable);
+
+	spin_unlock_irq (&ehci->lock);
 	return 0;
 }
 
 #else
 
-#define ehci_hub_suspend	0
-#define ehci_hub_resume		0
+#define ehci_hub_suspend	NULL
+#define ehci_hub_resume		NULL
 
 #endif	/* CONFIG_PM */
 
@@ -167,7 +179,7 @@ static int check_reset_complete (
 	if (!(port_status & PORT_PE)) {
 
 		/* with integrated TT, there's nobody to hand it to! */
-		if (ehci_is_ARC(ehci)) {
+		if (ehci_is_TDI(ehci)) {
 			ehci_dbg (ehci,
 				"Failed to enable port %d on root hub TT\n",
 				index+1);
@@ -199,6 +211,10 @@ ehci_hub_status_data (struct usb_hcd *hcd, char *buf)
 	u32		temp, status = 0;
 	int		ports, i, retval = 1;
 	unsigned long	flags;
+
+	/* if !USB_SUSPEND, root hub timers won't get shut down ... */
+	if (!HC_IS_RUNNING(hcd->state))
+		return 0;
 
 	/* init status to no-changes */
 	buf [0] = 0;
@@ -236,6 +252,7 @@ ehci_hub_status_data (struct usb_hcd *hcd, char *buf)
 			status = STS_PCD;
 		}
 	}
+	/* FIXME autosuspend idle root hubs */
 	spin_unlock_irqrestore (&ehci->lock, flags);
 	return status ? retval : 0;
 }
@@ -265,9 +282,14 @@ ehci_hub_descriptor (
 	temp = 0x0008;			/* per-port overcurrent reporting */
 	if (HCS_PPC (ehci->hcs_params))
 		temp |= 0x0001;		/* per-port power control */
+	else
+		temp |= 0x0002;		/* no power switching */
+#if 0
+// re-enable when we support USB_PORT_FEAT_INDICATOR below.
 	if (HCS_INDICATOR (ehci->hcs_params))
 		temp |= 0x0080;		/* per-port indicators (LEDs) */
-	desc->wHubCharacteristics = cpu_to_le16 (temp);
+#endif
+	desc->wHubCharacteristics = (__force __u16)cpu_to_le16 (temp);
 }
 
 /*-------------------------------------------------------------------------*/
@@ -417,9 +439,12 @@ static int ehci_hub_control (
 			/* force reset to complete */
 			writel (temp & ~PORT_RESET,
 					&ehci->regs->port_status [wIndex]);
+			/* REVISIT:  some hardware needs 550+ usec to clear
+			 * this bit; seems too long to spin routinely...
+			 */
 			retval = handshake (
 					&ehci->regs->port_status [wIndex],
-					PORT_RESET, 0, 500);
+					PORT_RESET, 0, 750);
 			if (retval != 0) {
 				ehci_err (ehci, "port %d reset error %d\n",
 					wIndex + 1, retval);
@@ -455,7 +480,7 @@ static int ehci_hub_control (
 #endif
 		dbg_port (ehci, "GetStatus", wIndex + 1, temp);
 		// we "know" this alignment is good, caller used kmalloc()...
-		*((u32 *) buf) = cpu_to_le32 (status);
+		*((__le32 *) buf) = cpu_to_le32 (status);
 		break;
 	case SetHubFeature:
 		switch (wValue) {
@@ -480,7 +505,7 @@ static int ehci_hub_control (
 			if ((temp & PORT_PE) == 0
 					|| (temp & PORT_RESET) != 0)
 				goto error;
-			if (ehci->hcd.remote_wakeup)
+			if (hcd->remote_wakeup)
 				temp |= PORT_WAKE_BITS;
 			writel (temp | PORT_SUSPEND,
 				&ehci->regs->port_status [wIndex]);
@@ -498,7 +523,7 @@ static int ehci_hub_control (
 			 * transaction translator built in.
 			 */
 			if ((temp & (PORT_PE|PORT_CONNECT)) == PORT_CONNECT
-					&& !ehci_is_ARC(ehci)
+					&& !ehci_is_TDI(ehci)
 					&& PORT_USB11 (temp)) {
 				ehci_dbg (ehci,
 					"port %d low speed --> companion\n",

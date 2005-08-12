@@ -7,6 +7,7 @@
 #include <linux/blkdev.h>
 #include <linux/blkpg.h>
 #include <linux/cdrom.h>
+#include <linux/delay.h>
 #include <asm/io.h>
 #include <asm/uaccess.h>
 
@@ -27,6 +28,9 @@
 /* The sr_is_xa() seems to trigger firmware bugs with some drives :-(
  * It is off by default and can be turned on with this module parameter */
 static int xa_test = 0;
+
+module_param(xa_test, int, S_IRUGO | S_IWUSR);
+
 
 #define IOCTL_RETRIES 3
 
@@ -131,7 +135,7 @@ int sr_do_ioctl(Scsi_CD *cd, struct packet_command *cgc)
 					printk(KERN_INFO "%s: CDROM not ready yet.\n", cd->cdi.name);
 				if (retries++ < 10) {
 					/* sleep 2 sec and try again */
-					scsi_sleep(2 * HZ);
+					ssleep(2);
 					goto retry;
 				} else {
 					/* 20 secs are enough? */
@@ -276,6 +280,9 @@ int sr_get_mcn(struct cdrom_device_info *cdi, struct cdrom_mcn *mcn)
 	struct packet_command cgc;
 	char *buffer = kmalloc(32, GFP_KERNEL | SR_GFP_DMA(cd));
 	int result;
+
+	if (!buffer)
+		return -ENOMEM;
 
 	memset(&cgc, 0, sizeof(struct packet_command));
 	cgc.cmd[0] = GPCMD_READ_SUBCHANNEL;
@@ -548,5 +555,17 @@ int sr_dev_ioctl(struct cdrom_device_info *cdi,
 		 unsigned int cmd, unsigned long arg)
 {
 	Scsi_CD *cd = cdi->handle;
+	int ret;
+	
+	ret = scsi_nonblockable_ioctl(cd->device, cmd,
+				      (void __user *)arg, NULL);
+	/*
+	 * ENODEV means that we didn't recognise the ioctl, or that we
+	 * cannot execute it in the current device state.  In either
+	 * case fall through to scsi_ioctl, which will return ENDOEV again
+	 * if it doesn't recognise the ioctl
+	 */
+	if (ret != -ENODEV)
+		return ret;
 	return scsi_ioctl(cd->device, cmd, (void __user *)arg);
 }

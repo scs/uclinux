@@ -61,7 +61,7 @@ MODULE_LICENSE("GPL");
 #include <linux/video_encoder.h>
 
 static int debug = 0;
-MODULE_PARM(debug, "i");
+module_param(debug, int, 0);
 MODULE_PARM_DESC(debug, "Debug level (0-1)");
 
 #define dprintk(num, format, args...) \
@@ -130,7 +130,7 @@ adv7170_write_block (struct i2c_client *client,
 		u8 block_data[32];
 
 		msg.addr = client->addr;
-		msg.flags = client->flags;
+		msg.flags = 0;
 		while (len >= 2) {
 			msg.buf = (char *) block_data;
 			msg.len = 0;
@@ -402,7 +402,6 @@ static struct i2c_client_address_data addr_data = {
 	.force			= force
 };
 
-static int adv7170_i2c_id = 0;
 static struct i2c_driver i2c_driver_adv7170;
 
 static int
@@ -432,7 +431,6 @@ adv7170_detect_client (struct i2c_adapter *adapter,
 	client->adapter = adapter;
 	client->driver = &i2c_driver_adv7170;
 	client->flags = I2C_CLIENT_ALLOW_USE;
-	client->id = adv7170_i2c_id++;
 	if ((client->addr == I2C_ADV7170 >> 1) ||
 	    (client->addr == (I2C_ADV7170 >> 1) + 1)) {
 		dname = adv7170_name;
@@ -444,8 +442,7 @@ adv7170_detect_client (struct i2c_adapter *adapter,
 		kfree(client);
 		return 0;
 	}
-	snprintf(I2C_NAME(client), sizeof(I2C_NAME(client)) - 1,
-		"%s[%d]", dname, client->id);
+	strlcpy(I2C_NAME(client), dname, sizeof(I2C_NAME(client)));
 
 	encoder = kmalloc(sizeof(struct adv7170), GFP_KERNEL);
 	if (encoder == NULL) {

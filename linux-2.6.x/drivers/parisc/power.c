@@ -47,16 +47,15 @@
 #include <linux/workqueue.h>
 
 #include <asm/pdc.h>
-#include <asm/irq.h>
 #include <asm/io.h>
 #include <asm/led.h>
 #include <asm/uaccess.h>
 
 
 #ifdef DEBUG
-# define DPRINTK(x) printk x
+# define DPRINTK(x...) printk(x)
 #else
-# define DPRINTK(x) do { } while (0)
+# define DPRINTK(x...)
 #endif
 
 
@@ -120,17 +119,17 @@ static int shutdown_timer;
 static void process_shutdown(void)
 {
 	if (shutdown_timer == 0)
-		DPRINTK((KERN_INFO "Shutdown requested...\n"));
+		DPRINTK(KERN_INFO "Shutdown requested...\n");
 
 	shutdown_timer++;
 	
 	/* wait until the button was pressed for 1 second */
 	if (shutdown_timer == HZ) {
+#if defined (DEBUG) || defined(CONFIG_CHASSIS_LCD_LED)
 		static char msg[] = "Shutting down...";
-		DPRINTK((KERN_INFO "%s\n", msg));
-#ifdef CONFIG_CHASSIS_LCD_LED
-		lcd_print(msg);
 #endif
+		DPRINTK(KERN_INFO "%s\n", msg);
+		lcd_print(msg);
 		poweroff();
 	}
 }

@@ -65,7 +65,7 @@ static const PCI_ENTRY id_list[] =
 };
 
 
-#if CONFIG_PCI
+#ifdef CONFIG_PCI
 
 /******************************************/
 /* free hardware resources used by driver */
@@ -1619,8 +1619,7 @@ hfcpci_card_msg(struct IsdnCardState *cs, int mt, void *arg)
 			inithfcpci(cs);
 			reset_hfcpci(cs);
 			spin_unlock_irqrestore(&cs->lock, flags);
-			set_current_state(TASK_UNINTERRUPTIBLE);
-			schedule_timeout((80 * HZ) / 1000);	/* Timeout 80ms */
+			msleep(80);				/* Timeout 80ms */
 			/* now switch timer interrupt off */
 			spin_lock_irqsave(&cs->lock, flags);
 			cs->hw.hfcpci.int_m1 &= ~HFCPCI_INTS_TIMER;
@@ -1655,7 +1654,7 @@ setup_hfcpci(struct IsdnCard *card)
 #endif
 	strcpy(tmp, hfcpci_revision);
 	printk(KERN_INFO "HiSax: HFC-PCI driver Rev. %s\n", HiSax_getrev(tmp));
-#if CONFIG_PCI
+#ifdef CONFIG_PCI
 	cs->hw.hfcpci.int_s1 = 0;
 	cs->dc.hfcpci.ph_state = 0;
 	cs->hw.hfcpci.fifo = 255;

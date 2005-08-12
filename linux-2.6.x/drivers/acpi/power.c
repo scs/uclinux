@@ -58,8 +58,8 @@ ACPI_MODULE_NAME		("acpi_power")
 #define ACPI_POWER_RESOURCE_STATE_ON	0x01
 #define ACPI_POWER_RESOURCE_STATE_UNKNOWN 0xFF
 
-int acpi_power_add (struct acpi_device *device);
-int acpi_power_remove (struct acpi_device *device, int type);
+static int acpi_power_add (struct acpi_device *device);
+static int acpi_power_remove (struct acpi_device *device, int type);
 static int acpi_power_open_fs(struct inode *inode, struct file *file);
 
 static struct acpi_driver acpi_power_driver = {
@@ -288,6 +288,86 @@ acpi_power_off_device (
 	return_VALUE(0);
 }
 
+/*
+ * Prepare a wakeup device, two steps (Ref ACPI 2.0:P229):
+ * 1. Power on the power resources required for the wakeup device 
+ * 2. Enable _PSW (power state wake) for the device if present
+ */
+int acpi_enable_wakeup_device_power (struct acpi_device *dev)
+{
+	union acpi_object 		arg = {ACPI_TYPE_INTEGER};
+	struct acpi_object_list	arg_list = {1, &arg};
+	acpi_status			status = AE_OK;
+	int					i;
+	int 					ret = 0;
+
+	ACPI_FUNCTION_TRACE("acpi_enable_wakeup_device_power");
+	if (!dev || !dev->wakeup.flags.valid)
+		return_VALUE(-1);
+
+	arg.integer.value = 1;
+	/* Open power resource */
+	for (i = 0; i < dev->wakeup.resources.count; i++) {
+		ret = acpi_power_on(dev->wakeup.resources.handles[i]);
+		if (ret) {
+			ACPI_DEBUG_PRINT((ACPI_DB_ERROR, 
+				"Error transition power state\n"));
+			dev->wakeup.flags.valid = 0;
+			return_VALUE(-1);
+		}
+	}
+
+	/* Execute PSW */
+	status = acpi_evaluate_object(dev->handle, "_PSW", &arg_list, NULL);
+	if (ACPI_FAILURE(status) && (status != AE_NOT_FOUND)) {
+		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "Error evaluate _PSW\n"));
+		dev->wakeup.flags.valid = 0;
+		ret = -1;
+	}
+
+	return_VALUE(ret);
+}
+
+/*
+ * Shutdown a wakeup device, counterpart of above method
+ * 1. Disable _PSW (power state wake)
+ * 2. Shutdown down the power resources
+ */
+int acpi_disable_wakeup_device_power (struct acpi_device *dev)
+{
+	union acpi_object 		arg = {ACPI_TYPE_INTEGER};
+	struct acpi_object_list	arg_list = {1, &arg};
+	acpi_status			status = AE_OK;
+	int					i;
+	int 					ret = 0;
+
+	ACPI_FUNCTION_TRACE("acpi_disable_wakeup_device_power");
+
+	if (!dev || !dev->wakeup.flags.valid)
+		return_VALUE(-1);
+
+	arg.integer.value = 0;	
+	/* Execute PSW */
+	status = acpi_evaluate_object(dev->handle, "_PSW", &arg_list, NULL);
+	if (ACPI_FAILURE(status) && (status != AE_NOT_FOUND)) {
+		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "Error evaluate _PSW\n"));
+		dev->wakeup.flags.valid = 0;
+		return_VALUE(-1);
+	}
+
+	/* Close power resource */
+	for (i = 0; i < dev->wakeup.resources.count; i++) {
+		ret = acpi_power_off_device(dev->wakeup.resources.handles[i]);
+		if (ret) {
+			ACPI_DEBUG_PRINT((ACPI_DB_ERROR, 
+				"Error transition power state\n"));
+			dev->wakeup.flags.valid = 0;
+			return_VALUE(-1);
+		}
+	}
+
+	return_VALUE(ret);
+}
 
 /* --------------------------------------------------------------------------
                              Device Power Management
@@ -399,7 +479,7 @@ end:
                               FS Interface (/proc)
    -------------------------------------------------------------------------- */
 
-struct proc_dir_entry		*acpi_power_dir;
+static struct proc_dir_entry	*acpi_power_dir;
 
 static int acpi_power_seq_show(struct seq_file *seq, void *offset)
 {
@@ -433,7 +513,7 @@ static int acpi_power_seq_show(struct seq_file *seq, void *offset)
 			resource->references);
 
 end:
-	return 0;
+	return_VALUE(0);
 }
 
 static int acpi_power_open_fs(struct inode *inode, struct file *file)
@@ -496,7 +576,7 @@ acpi_power_remove_fs (
                                 Driver Interface
    -------------------------------------------------------------------------- */
 
-int
+static int
 acpi_power_add (
 	struct acpi_device	*device)
 {
@@ -562,7 +642,7 @@ end:
 }
 
 
-int
+static int
 acpi_power_remove (
 	struct acpi_device	*device,
 	int			type)

@@ -21,17 +21,29 @@
 
 #include <linux/spinlock.h>
 #include <linux/list.h>
+#include <linux/delay.h>
 
 #include "w1_family.h"
 
-spinlock_t w1_flock = SPIN_LOCK_UNLOCKED;
+DEFINE_SPINLOCK(w1_flock);
 static LIST_HEAD(w1_families);
+
+static int w1_check_family(struct w1_family *f)
+{
+	if (!f->fops->rname || !f->fops->rbin || !f->fops->rval || !f->fops->rvalname)
+		return -EINVAL;
+
+	return 0;
+}
 
 int w1_register_family(struct w1_family *newf)
 {
 	struct list_head *ent, *n;
 	struct w1_family *f;
 	int ret = 0;
+
+	if (w1_check_family(newf))
+		return -EINVAL;
 
 	spin_lock(&w1_flock);
 	list_for_each_safe(ent, n, &w1_families) {
@@ -73,8 +85,13 @@ void w1_unregister_family(struct w1_family *fent)
 
 	spin_unlock(&w1_flock);
 
-	while (atomic_read(&fent->refcnt))
-		schedule_timeout(10);
+	while (atomic_read(&fent->refcnt)) {
+		printk(KERN_INFO "Waiting for family %u to become free: refcnt=%d.\n",
+				fent->fid, atomic_read(&fent->refcnt));
+
+		if (msleep_interruptible(1000))
+			flush_signals(current);
+	}
 }
 
 /*
@@ -121,13 +138,13 @@ void w1_family_get(struct w1_family *f)
 
 void __w1_family_get(struct w1_family *f)
 {
+	smp_mb__before_atomic_inc();
 	atomic_inc(&f->refcnt);
+	smp_mb__after_atomic_inc();
 }
 
 EXPORT_SYMBOL(w1_family_get);
 EXPORT_SYMBOL(w1_family_put);
-EXPORT_SYMBOL(__w1_family_get);
-EXPORT_SYMBOL(__w1_family_put);
 EXPORT_SYMBOL(w1_family_registered);
 EXPORT_SYMBOL(w1_unregister_family);
 EXPORT_SYMBOL(w1_register_family);

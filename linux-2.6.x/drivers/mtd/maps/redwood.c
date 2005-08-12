@@ -131,8 +131,7 @@ int __init init_redwood_flash(void)
 	printk(KERN_NOTICE "redwood: flash mapping: %x at %x\n",
 			WINDOW_SIZE, WINDOW_ADDR);
 
-	redwood_flash_map.virt =
-		(unsigned long)ioremap(WINDOW_ADDR, WINDOW_SIZE);
+	redwood_flash_map.virt = ioremap(WINDOW_ADDR, WINDOW_SIZE);
 
 	if (!redwood_flash_map.virt) {
 		printk("init_redwood_flash: failed to ioremap\n");

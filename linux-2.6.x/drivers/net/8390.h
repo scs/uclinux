@@ -12,17 +12,7 @@
 #include <linux/ioport.h>
 #include <linux/skbuff.h>
 
-#define TX_2X_PAGES 12
-#define TX_1X_PAGES 6
-
-/* Should always use two Tx slots to get back-to-back transmits. */
-#define EI_PINGPONG
-
-#ifdef EI_PINGPONG
-#define TX_PAGES TX_2X_PAGES
-#else
-#define TX_PAGES TX_1X_PAGES
-#endif
+#define TX_PAGES 12	/* Two Tx slots */
 
 #define ETHER_ADDR_LEN 6
 
@@ -62,6 +52,7 @@ struct ei_device {
 	void (*block_input)(struct net_device *, int, struct sk_buff *, int);
 	unsigned long rmem_start;
 	unsigned long rmem_end;
+	void __iomem *mem;
 	unsigned char mcfilter[8];
 	unsigned open:1;
 	unsigned word16:1;  		/* We have the 16-bit (vs 8-bit) version of the card. */

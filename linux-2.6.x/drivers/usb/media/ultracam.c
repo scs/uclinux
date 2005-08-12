@@ -60,9 +60,9 @@ static int init_color = 128;
 static int init_hue = 128;
 static int hue_correction = 128;
 
-MODULE_PARM(debug, "i");
+module_param(debug, int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(debug, "Debug level: 0-9 (default=0)");
-MODULE_PARM(flags, "i");
+module_param(flags, int, 0);
 MODULE_PARM_DESC(flags,
 		"Bitfield: 0=VIDIOCSYNC, "
 		"1=B/W, "
@@ -71,18 +71,18 @@ MODULE_PARM_DESC(flags,
 		"4=test pattern, "
 		"5=separate frames, "
 		"6=clean frames");
-MODULE_PARM(framerate, "i");
+module_param(framerate, int, 0);
 MODULE_PARM_DESC(framerate, "Framerate setting: 0=slowest, 6=fastest (default=2)");
 
-MODULE_PARM(init_brightness, "i");
+module_param(init_brightness, int, 0);
 MODULE_PARM_DESC(init_brightness, "Brightness preconfiguration: 0-255 (default=128)");
-MODULE_PARM(init_contrast, "i");
+module_param(init_contrast, int, 0);
 MODULE_PARM_DESC(init_contrast, "Contrast preconfiguration: 0-255 (default=192)");
-MODULE_PARM(init_color, "i");
+module_param(init_color, int, 0);
 MODULE_PARM_DESC(init_color, "Color preconfiguration: 0-255 (default=128)");
-MODULE_PARM(init_hue, "i");
+module_param(init_hue, int, 0);
 MODULE_PARM_DESC(init_hue, "Hue preconfiguration: 0-255 (default=128)");
-MODULE_PARM(hue_correction, "i");
+module_param(hue_correction, int, 0);
 MODULE_PARM_DESC(hue_correction, "YUV colorspace regulation: 0-255 (default=128)");
 
 /*
@@ -155,7 +155,7 @@ static int ultracam_veio(
 			index,
 			cp,
 			sizeof(cp),
-			HZ);
+			1000);
 #if 1
 		info("USB => %02x%02x%02x%02x%02x%02x%02x%02x "
 		       "(req=$%02x val=$%04x ind=$%04x)",
@@ -172,7 +172,7 @@ static int ultracam_veio(
 			index,
 			NULL,
 			0,
-			HZ);
+			1000);
 	}
 	if (i < 0) {
 		err("%s: ERROR=%d. Camera stopped; Reconnect or reload driver.",
@@ -524,12 +524,8 @@ static int ultracam_probe(struct usb_interface *intf, const struct usb_device_id
 	if (dev->descriptor.bNumConfigurations != 1)
 		return -ENODEV;
 
-	/* Is it an IBM camera? */
-	if ((dev->descriptor.idVendor != ULTRACAM_VENDOR_ID) ||
-	    (dev->descriptor.idProduct != ULTRACAM_PRODUCT_ID))
-		return -ENODEV;
-
-	info("IBM Ultra camera found (rev. 0x%04x)", dev->descriptor.bcdDevice);
+	info("IBM Ultra camera found (rev. 0x%04x)",
+		le16_to_cpu(dev->descriptor.bcdDevice));
 
 	/* Validate found interface: must have one ISO endpoint */
 	nas = intf->num_altsetting;
@@ -569,7 +565,7 @@ static int ultracam_probe(struct usb_interface *intf, const struct usb_device_id
 			    interface->desc.bInterfaceNumber);
 			return -ENODEV;
 		}
-		if (endpoint->wMaxPacketSize == 0) {
+		if (le16_to_cpu(endpoint->wMaxPacketSize) == 0) {
 			if (inactInterface < 0)
 				inactInterface = i;
 			else {
@@ -579,15 +575,15 @@ static int ultracam_probe(struct usb_interface *intf, const struct usb_device_id
 		} else {
 			if (actInterface < 0) {
 				actInterface = i;
-				maxPS = endpoint->wMaxPacketSize;
+				maxPS = le16_to_cpu(endpoint->wMaxPacketSize);
 				if (debug > 0)
 					info("Active setting=%d. maxPS=%d.", i, maxPS);
 			} else {
 				/* Got another active alt. setting */
-				if (maxPS < endpoint->wMaxPacketSize) {
+				if (maxPS < le16_to_cpu(endpoint->wMaxPacketSize)) {
 					/* This one is better! */
 					actInterface = i;
-					maxPS = endpoint->wMaxPacketSize;
+					maxPS = le16_to_cpu(endpoint->wMaxPacketSize);
 					if (debug > 0) {
 						info("Even better ctive setting=%d. maxPS=%d.",
 						     i, maxPS);

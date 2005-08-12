@@ -72,14 +72,10 @@ static int isp16_cdrom_irq = ISP16_CDROM_IRQ;
 static int isp16_cdrom_dma = ISP16_CDROM_DMA;
 static char *isp16_cdrom_type = ISP16_CDROM_TYPE;
 
-MODULE_PARM(isp16_cdrom_base, "i");
-MODULE_PARM(isp16_cdrom_irq, "i");
-MODULE_PARM(isp16_cdrom_dma, "i");
-MODULE_PARM(isp16_cdrom_type, "s");
-
-#ifdef MODULE
-void isp16_exit(void);
-#endif
+module_param(isp16_cdrom_base, int, 0);
+module_param(isp16_cdrom_irq, int, 0);
+module_param(isp16_cdrom_dma, int, 0);
+module_param(isp16_cdrom_type, charp, 0);
 
 #define ISP16_IN(p) (outb(isp16_ctrl,ISP16_CTRL_PORT), inb(p))
 #define ISP16_OUT(p,b) (outb(isp16_ctrl,ISP16_CTRL_PORT), outb(b,p))
@@ -112,7 +108,7 @@ __setup("isp16=", isp16_setup);
  *  ISP16 initialisation.
  *
  */
-int __init isp16_init(void)
+static int __init isp16_init(void)
 {
 	u_char expected_drive;
 
@@ -366,15 +362,13 @@ isp16_cdi_config(int base, u_char drive_type, int irq, int dma)
 	return 0;
 }
 
-void __exit isp16_exit(void)
+static void __exit isp16_exit(void)
 {
 	release_region(ISP16_IO_BASE, ISP16_IO_SIZE);
 	printk(KERN_INFO "ISP16: module released.\n");
 }
 
-#ifdef MODULE
 module_init(isp16_init);
-#endif
 module_exit(isp16_exit);
 
 MODULE_LICENSE("GPL");

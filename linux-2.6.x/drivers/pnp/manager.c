@@ -150,13 +150,19 @@ static int pnp_assign_irq(struct pnp_dev * dev, struct pnp_irq *rule, int idx)
 	*flags |= rule->flags | IORESOURCE_IRQ;
 	*flags &=  ~IORESOURCE_UNSET;
 
-	if (!rule->map) {
+	if (bitmap_empty(rule->map, PNP_IRQ_NR)) {
 		*flags |= IORESOURCE_DISABLED;
 		return 1; /* skip disabled resource requests */
 	}
 
+	/* TBD: need check for >16 IRQ */
+	*start = find_next_bit(rule->map, PNP_IRQ_NR, 16);
+	if (*start < PNP_IRQ_NR) {
+		*end = *start;
+		return 1;
+	}
 	for (i = 0; i < 16; i++) {
-		if(rule->map & (1<<xtab[i])) {
+		if(test_bit(xtab[i], rule->map)) {
 			*start = *end = xtab[i];
 			if(pnp_check_irq(dev, idx))
 				return 1;
@@ -247,7 +253,7 @@ void pnp_init_resource_table(struct pnp_resource_table *table)
 
 /**
  * pnp_clean_resources - clears resources that were not manually set
- * @res - the resources to clean
+ * @res: the resources to clean
  *
  */
 static void pnp_clean_resource_table(struct pnp_resource_table * res)
@@ -290,7 +296,7 @@ static void pnp_clean_resource_table(struct pnp_resource_table * res)
  *
  * Only set depnum to 0 if the device does not have dependent options.
  */
-int pnp_assign_resources(struct pnp_dev *dev, int depnum)
+static int pnp_assign_resources(struct pnp_dev *dev, int depnum)
 {
 	struct pnp_port *port;
 	struct pnp_mem *mem;
@@ -552,7 +558,6 @@ void pnp_resource_change(struct resource *resource, unsigned long start, unsigne
 }
 
 
-EXPORT_SYMBOL(pnp_assign_resources);
 EXPORT_SYMBOL(pnp_manual_config_dev);
 EXPORT_SYMBOL(pnp_auto_config_dev);
 EXPORT_SYMBOL(pnp_activate_dev);

@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2004, R. Byron Moore
+ * Copyright (C) 2000 - 2005, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -160,7 +160,7 @@ acpi_ex_resolve_operands (
 		return_ACPI_STATUS (AE_AML_INTERNAL);
 	}
 
-	ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "Opcode %X [%s] operand_types=%X \n",
+	ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "Opcode %X [%s] required_operand_types=%8.8X \n",
 		opcode, op_info->name, arg_types));
 
 	/*
@@ -227,12 +227,13 @@ acpi_ex_resolve_operands (
 				case AML_LOAD_OP:   /* ddb_handle from LOAD_OP or LOAD_TABLE_OP */
 
 					ACPI_DEBUG_ONLY_MEMBERS (ACPI_DEBUG_PRINT ((ACPI_DB_EXEC,
-						"Reference Opcode: %s\n", op_info->name)));
+						"Operand is a Reference, ref_opcode [%s]\n",
+						(acpi_ps_get_opcode_info (obj_desc->reference.opcode))->name)));
 					break;
 
 				default:
 					ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
-						"Unknown Reference Opcode %X [%s]\n",
+						"Operand is a Reference, Unknown Reference Opcode %X [%s]\n",
 						obj_desc->reference.opcode,
 						(acpi_ps_get_opcode_info (obj_desc->reference.opcode))->name));
 
@@ -311,7 +312,7 @@ acpi_ex_resolve_operands (
 			goto next_operand;
 
 
-		case ARGI_ANYTYPE:
+		case ARGI_DATAREFOBJ:  /* Store operator only */
 
 			/*
 			 * We don't want to resolve index_op reference objects during
@@ -398,7 +399,7 @@ acpi_ex_resolve_operands (
 			 * But we can implicitly convert from a STRING or BUFFER
 			 * Aka - "Implicit Source Operand Conversion"
 			 */
-			status = acpi_ex_convert_to_integer (obj_desc, stack_ptr, walk_state);
+			status = acpi_ex_convert_to_integer (obj_desc, stack_ptr, 16);
 			if (ACPI_FAILURE (status)) {
 				if (status == AE_TYPE) {
 					ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
@@ -420,7 +421,7 @@ acpi_ex_resolve_operands (
 			 * But we can implicitly convert from a STRING or INTEGER
 			 * Aka - "Implicit Source Operand Conversion"
 			 */
-			status = acpi_ex_convert_to_buffer (obj_desc, stack_ptr, walk_state);
+			status = acpi_ex_convert_to_buffer (obj_desc, stack_ptr);
 			if (ACPI_FAILURE (status)) {
 				if (status == AE_TYPE) {
 					ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
@@ -442,7 +443,8 @@ acpi_ex_resolve_operands (
 			 * But we can implicitly convert from a BUFFER or INTEGER
 			 * Aka - "Implicit Source Operand Conversion"
 			 */
-			status = acpi_ex_convert_to_string (obj_desc, stack_ptr, 16, ACPI_UINT32_MAX, walk_state);
+			status = acpi_ex_convert_to_string (obj_desc, stack_ptr,
+					 ACPI_IMPLICIT_CONVERT_HEX);
 			if (ACPI_FAILURE (status)) {
 				if (status == AE_TYPE) {
 					ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
@@ -494,7 +496,7 @@ acpi_ex_resolve_operands (
 
 				/* Highest priority conversion is to type Buffer */
 
-				status = acpi_ex_convert_to_buffer (obj_desc, stack_ptr, walk_state);
+				status = acpi_ex_convert_to_buffer (obj_desc, stack_ptr);
 				if (ACPI_FAILURE (status)) {
 					return_ACPI_STATUS (status);
 				}
@@ -575,6 +577,45 @@ acpi_ex_resolve_operands (
 			default:
 				ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
 					"Needed [Region/region_field], found [%s] %p\n",
+					acpi_ut_get_object_type_name (obj_desc), obj_desc));
+
+				return_ACPI_STATUS (AE_AML_OPERAND_TYPE);
+			}
+			goto next_operand;
+
+
+		case ARGI_DATAREFOBJ:
+
+			/* Used by the Store() operator only */
+
+			switch (ACPI_GET_OBJECT_TYPE (obj_desc)) {
+			case ACPI_TYPE_INTEGER:
+			case ACPI_TYPE_PACKAGE:
+			case ACPI_TYPE_STRING:
+			case ACPI_TYPE_BUFFER:
+			case ACPI_TYPE_BUFFER_FIELD:
+			case ACPI_TYPE_LOCAL_REFERENCE:
+			case ACPI_TYPE_LOCAL_REGION_FIELD:
+			case ACPI_TYPE_LOCAL_BANK_FIELD:
+			case ACPI_TYPE_LOCAL_INDEX_FIELD:
+			case ACPI_TYPE_DDB_HANDLE:
+
+				/* Valid operand */
+				break;
+
+			default:
+
+				if (acpi_gbl_enable_interpreter_slack) {
+					/*
+					 * Enable original behavior of Store(), allowing any and all
+					 * objects as the source operand.  The ACPI spec does not
+					 * allow this, however.
+					 */
+					break;
+				}
+
+				ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
+					"Needed Integer/Buffer/String/Package/Ref/Ddb], found [%s] %p\n",
 					acpi_ut_get_object_type_name (obj_desc), obj_desc));
 
 				return_ACPI_STATUS (AE_AML_OPERAND_TYPE);

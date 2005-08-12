@@ -98,7 +98,7 @@ static void map_absent_destroy(struct mtd_info *mtd)
 	/* nop */
 }
 
-int __init map_absent_init(void)
+static int __init map_absent_init(void)
 {
 	register_mtd_chip_driver(&map_absent_chipdrv);
 	return 0;

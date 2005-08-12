@@ -180,7 +180,7 @@ int nettel_eraseconfig(void)
 	if (mtd) {
 		nettel_erase.mtd = mtd;
 		nettel_erase.callback = nettel_erasecallback;
-		nettel_erase.callback = 0;
+		nettel_erase.callback = NULL;
 		nettel_erase.addr = 0;
 		nettel_erase.len = mtd->size;
 		nettel_erase.priv = (u_long) &wait_q;
@@ -273,8 +273,7 @@ int __init nettel_init(void)
 	__asm__ ("wbinvd");
 
 	nettel_amd_map.phys = amdaddr;
-	nettel_amd_map.virt = (unsigned long)
-		ioremap_nocache(amdaddr, maxsize);
+	nettel_amd_map.virt = ioremap_nocache(amdaddr, maxsize);
 	if (!nettel_amd_map.virt) {
 		printk("SNAPGEAR: failed to ioremap() BOOTCS\n");
 		return(-EIO);
@@ -333,8 +332,8 @@ int __init nettel_init(void)
 
 		/* Destroy useless AMD MTD mapping */
 		amd_mtd = NULL;
-		iounmap((void *) nettel_amd_map.virt);
-		nettel_amd_map.virt = (unsigned long) NULL;
+		iounmap(nettel_amd_map.virt);
+		nettel_amd_map.virt = NULL;
 #else
 		/* Only AMD flash supported */
 		return(-ENXIO);
@@ -358,8 +357,7 @@ int __init nettel_init(void)
 	/* Probe for the the size of the first Intel flash */
 	nettel_intel_map.size = maxsize;
 	nettel_intel_map.phys = intel0addr;
-	nettel_intel_map.virt = (unsigned long)
-		ioremap_nocache(intel0addr, maxsize);
+	nettel_intel_map.virt = ioremap_nocache(intel0addr, maxsize);
 	if (!nettel_intel_map.virt) {
 		printk("SNAPGEAR: failed to ioremap() ROMCS1\n");
 		return(-EIO);
@@ -367,8 +365,8 @@ int __init nettel_init(void)
 	simple_map_init(&nettel_intel_map);
 
 	intel_mtd = do_map_probe("cfi_probe", &nettel_intel_map);
-	if (! intel_mtd) {
-		iounmap((void *) nettel_intel_map.virt);
+	if (!intel_mtd) {
+		iounmap(nettel_intel_map.virt);
 		return(-ENXIO);
 	}
 
@@ -389,11 +387,10 @@ int __init nettel_init(void)
 	/* Delete the old map and probe again to do both chips */
 	map_destroy(intel_mtd);
 	intel_mtd = NULL;
-	iounmap((void *) nettel_intel_map.virt);
+	iounmap(nettel_intel_map.virt);
 
 	nettel_intel_map.size = maxsize;
-	nettel_intel_map.virt = (unsigned long)
-		ioremap_nocache(intel0addr, maxsize);
+	nettel_intel_map.virt = ioremap_nocache(intel0addr, maxsize);
 	if (!nettel_intel_map.virt) {
 		printk("SNAPGEAR: failed to ioremap() ROMCS1/2\n");
 		return(-EIO);
@@ -472,8 +469,8 @@ void __exit nettel_cleanup(void)
 		map_destroy(amd_mtd);
 	}
 	if (nettel_amd_map.virt) {
-		iounmap((void *)nettel_amd_map.virt);
-		nettel_amd_map.virt = 0;
+		iounmap(nettel_amd_map.virt);
+		nettel_amd_map.virt = NULL;
 	}
 #ifdef CONFIG_MTD_CFI_INTELEXT
 	if (intel_mtd) {
@@ -481,7 +478,7 @@ void __exit nettel_cleanup(void)
 		map_destroy(intel_mtd);
 	}
 	if (nettel_intel_map.virt) {
-		iounmap((void *)nettel_intel_map.virt);
+		iounmap(nettel_intel_map.virt);
 		nettel_intel_map.virt = 0;
 	}
 #endif

@@ -4,7 +4,6 @@
  *	uclinux.c -- generic memory mapped MTD driver for uclinux
  *
  *	(C) Copyright 2002, Greg Ungerer (gerg@snapgear.com)
- *	(C) Copyright 2004, LG Soft India (bfin changes) 
  *
  * 	$Id$
  */
@@ -31,7 +30,6 @@
 
 struct map_info uclinux_ram_map = {
 	.name = "RAM",
-
 };
 
 struct mtd_info *uclinux_ram_mtdinfo;
@@ -62,7 +60,7 @@ struct mtd_partition uclinux_romfs[] = {
 int uclinux_point(struct mtd_info *mtd, loff_t from, size_t len,
 	size_t *retlen, u_char **mtdbuf)
 {
-	struct map_info *map = (struct map_info *) mtd->priv;
+	struct map_info *map = mtd->priv;
 	*mtdbuf = (u_char *) (map->virt + ((int) from));
 	*retlen = len;
 	return(0);
@@ -86,8 +84,8 @@ int __init uclinux_mtd_init(void)
 #endif
 
 	mapp = &uclinux_ram_map;
-	mapp->phys = addr;
-	mapp->size = PAGE_ALIGN(ntohl(*((unsigned long *)(addr + 8))));
+	mapp->phys = (unsigned long) &_ebss;
+	mapp->size = PAGE_ALIGN(*((unsigned long *)(addr + 8)));
 
 #if defined(CONFIG_EXT2_FS) || defined(CONFIG_EXT3_FS)
 	mapp->size = PAGE_ALIGN(*((unsigned long *)(addr + 0x404)));
@@ -95,28 +93,30 @@ int __init uclinux_mtd_init(void)
 #endif
 
 	mapp->bankwidth = 4;
+
 	printk("uclinux[mtd]: RAM probe address=0x%x size=0x%x\n",
 	       	(int) mapp->phys, (int) mapp->size);
 
-	mapp->virt = (unsigned long)
-		ioremap_nocache(mapp->phys, mapp->size);
+	mapp->virt = ioremap_nocache(mapp->phys, mapp->size);
 
 	if (mapp->virt == 0) {
 		printk("uclinux[mtd]: ioremap_nocache() failed\n");
 		return(-EIO);
 	}
-	simple_map_init(mapp);
-	mtd = do_map_probe("map_ram", mapp);
 
+	simple_map_init(mapp);
+
+	mtd = do_map_probe("map_ram", mapp);
 	if (!mtd) {
 		printk("uclinux[mtd]: failed to find a mapping?\n");
-		iounmap((void *) mapp->virt);
+		iounmap(mapp->virt);
 		return(-ENXIO);
 	}
 		
 	mtd->owner = THIS_MODULE;
 	mtd->point = uclinux_point;
 	mtd->priv = mapp;
+	++mtd->usecount;
 
 	uclinux_ram_mtdinfo = mtd;
 #ifdef CONFIG_MTD_PARTITIONS
@@ -139,6 +139,7 @@ int __init uclinux_mtd_init(void)
 	} else {
 	    /* fault ?? */
 	}
+	put_mtd_device(mtd);
 
 	return(0);
 }
@@ -156,7 +157,7 @@ void __exit uclinux_mtd_cleanup(void)
 		map_destroy(uclinux_ram_mtdinfo);
 		uclinux_ram_mtdinfo = NULL;
 	}
-	if (uclinux_ram_map.virt) {
+	if (uclinux_ram_map.map_priv_1) {
 		iounmap((void *) uclinux_ram_map.virt);
 		uclinux_ram_map.virt = 0;
 	}

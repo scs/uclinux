@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2004, R. Byron Moore
+ * Copyright (C) 2000 - 2005, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -50,6 +50,8 @@
 #define _COMPONENT          ACPI_DISPATCHER
 	 ACPI_MODULE_NAME    ("dswstate")
 
+
+#ifdef ACPI_FUTURE_USAGE
 
 /*******************************************************************************
  *
@@ -173,6 +175,8 @@ acpi_ds_result_remove (
 
 	return (AE_OK);
 }
+
+#endif  /*  ACPI_FUTURE_USAGE  */
 
 
 /*******************************************************************************
@@ -445,7 +449,7 @@ acpi_ds_result_stack_pop (
  *              Should be used with great care, if at all!
  *
  ******************************************************************************/
-
+#ifdef ACPI_FUTURE_USAGE
 acpi_status
 acpi_ds_obj_stack_delete_all (
 	struct acpi_walk_state          *walk_state)
@@ -467,6 +471,7 @@ acpi_ds_obj_stack_delete_all (
 
 	return_ACPI_STATUS (AE_OK);
 }
+#endif  /*  ACPI_FUTURE_USAGE  */
 
 
 /*******************************************************************************
@@ -687,7 +692,7 @@ acpi_ds_obj_stack_pop_and_delete (
  *              be within the range of the current stack pointer.
  *
  ******************************************************************************/
-
+#ifdef ACPI_FUTURE_USAGE
 void *
 acpi_ds_obj_stack_get_value (
 	u32                             index,
@@ -712,6 +717,7 @@ acpi_ds_obj_stack_get_value (
 	return_PTR (walk_state->operands[(acpi_native_uint)(walk_state->num_operands - 1) -
 			  index]);
 }
+#endif  /*  ACPI_FUTURE_USAGE  */
 
 
 /*******************************************************************************
@@ -867,6 +873,7 @@ acpi_ds_create_walk_state (
 
 	status = acpi_ds_result_stack_push (walk_state);
 	if (ACPI_FAILURE (status)) {
+		acpi_ut_release_to_cache (ACPI_MEM_LIST_WALK, walk_state);
 		return_PTR (NULL);
 	}
 
@@ -906,8 +913,7 @@ acpi_ds_init_aml_walk (
 	struct acpi_namespace_node      *method_node,
 	u8                              *aml_start,
 	u32                             aml_length,
-	union acpi_operand_object       **params,
-	union acpi_operand_object       **return_obj_desc,
+	struct acpi_parameter_info      *info,
 	u32                             pass_number)
 {
 	acpi_status                     status;
@@ -926,8 +932,17 @@ acpi_ds_init_aml_walk (
 	/* The next_op of the next_walk will be the beginning of the method */
 
 	walk_state->next_op             = NULL;
-	walk_state->params              = params;
-	walk_state->caller_return_desc  = return_obj_desc;
+
+	if (info) {
+		if (info->parameter_type == ACPI_PARAM_GPE) {
+			walk_state->gpe_event_info = ACPI_CAST_PTR (struct acpi_gpe_event_info,
+					   info->parameters);
+		}
+		else {
+			walk_state->params              = info->parameters;
+			walk_state->caller_return_desc  = &info->return_object;
+		}
+	}
 
 	status = acpi_ps_init_scope (&walk_state->parser_state, op);
 	if (ACPI_FAILURE (status)) {
@@ -949,7 +964,7 @@ acpi_ds_init_aml_walk (
 
 		/* Init the method arguments */
 
-		status = acpi_ds_method_data_init_args (params, ACPI_METHOD_NUM_ARGS, walk_state);
+		status = acpi_ds_method_data_init_args (walk_state->params, ACPI_METHOD_NUM_ARGS, walk_state);
 		if (ACPI_FAILURE (status)) {
 			return_ACPI_STATUS (status);
 		}
@@ -1056,6 +1071,7 @@ acpi_ds_delete_walk_state (
 }
 
 
+#ifdef ACPI_ENABLE_OBJECT_CACHE
 /******************************************************************************
  *
  * FUNCTION:    acpi_ds_delete_walk_state_cache
@@ -1079,5 +1095,6 @@ acpi_ds_delete_walk_state_cache (
 	acpi_ut_delete_generic_cache (ACPI_MEM_LIST_WALK);
 	return_VOID;
 }
+#endif
 
 

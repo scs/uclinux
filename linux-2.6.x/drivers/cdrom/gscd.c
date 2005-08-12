@@ -70,7 +70,6 @@
 
 #define MAJOR_NR GOLDSTAR_CDROM_MAJOR
 #include <linux/blkdev.h>
-#define gscd_port gscd		/* for compatible parameter passing with "insmod" */
 #include "gscd.h"
 
 static int gscdPresent = 0;
@@ -78,7 +77,7 @@ static int gscdPresent = 0;
 static unsigned char gscd_buf[2048];	/* buffer for block size conversion */
 static int gscd_bn = -1;
 static short gscd_port = GSCD_BASE_ADDR;
-MODULE_PARM(gscd, "h");
+module_param_named(gscd, gscd_port, short, 0);
 
 /* Kommt spaeter vielleicht noch mal dran ...
  *    static DECLARE_WAIT_QUEUE_HEAD(gscd_waitq);
@@ -148,7 +147,7 @@ static int AudioEnd_m;
 static int AudioEnd_f;
 
 static struct timer_list gscd_timer = TIMER_INITIALIZER(NULL, 0, 0);
-static spinlock_t gscd_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(gscd_lock);
 static struct request_queue *gscd_queue;
 
 static struct block_device_operations gscd_fops = {

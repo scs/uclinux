@@ -481,7 +481,7 @@ read_version(char* p)
 
 #define PROC_TOSHIBA		"toshiba"
 
-ProcItem proc_items[] =
+static ProcItem proc_items[] =
 {
 	{ "lcd"		, read_lcd	, write_lcd	},
 	{ "video"	, read_video	, write_video	},
@@ -508,7 +508,7 @@ add_device(void)
 			proc->write_proc = (write_proc_t*)dispatch_write;
 	}
 
-	return(AE_OK);
+	return AE_OK;
 }
 
 static acpi_status __exit
@@ -518,7 +518,7 @@ remove_device(void)
 
 	for (item = proc_items; item->name; ++item)
 		remove_proc_entry(item->name, toshiba_proc_dir);
-	return(AE_OK);
+	return AE_OK;
 }
 
 static int __init

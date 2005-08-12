@@ -99,6 +99,8 @@ static struct pci_device_id vt586b_ids[] __devinitdata = {
 	{ 0, }
 };
 
+MODULE_DEVICE_TABLE (pci, vt586b_ids);
+
 static int __devinit vt586b_probe(struct pci_dev *dev, const struct pci_device_id *id)
 {
 	u16 base;
@@ -158,7 +160,7 @@ static void __devexit vt586b_remove(struct pci_dev *dev)
 
 
 static struct pci_driver vt586b_driver = {
-	.name		= "vt586b smbus",
+	.name		= "vt586b_smbus",
 	.id_table	= vt586b_ids,
 	.probe		= vt586b_probe,
 	.remove		= __devexit_p(vt586b_remove),
@@ -166,7 +168,7 @@ static struct pci_driver vt586b_driver = {
 
 static int __init i2c_vt586b_init(void)
 {
-	return pci_module_init(&vt586b_driver);
+	return pci_register_driver(&vt586b_driver);
 }
 
 static void __exit i2c_vt586b_exit(void)

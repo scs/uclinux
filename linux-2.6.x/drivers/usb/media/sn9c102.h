@@ -1,7 +1,7 @@
 /***************************************************************************
- * V4L2 driver for SN9C10[12] PC Camera Controllers                        *
+ * V4L2 driver for SN9C10x PC Camera Controllers                           *
  *                                                                         *
- * Copyright (C) 2004 by Luca Risolia <luca.risolia@studio.unibo.it>       *
+ * Copyright (C) 2004-2005 by Luca Risolia <luca.risolia@studio.unibo.it>  *
  *                                                                         *
  * This program is free software; you can redistribute it and/or modify    *
  * it under the terms of the GNU General Public License as published by    *
@@ -27,10 +27,12 @@
 #include <linux/device.h>
 #include <linux/list.h>
 #include <linux/spinlock.h>
+#include <linux/time.h>
 #include <linux/wait.h>
 #include <linux/types.h>
 #include <linux/param.h>
 #include <linux/rwsem.h>
+#include <asm/semaphore.h>
 
 #include "sn9c102_sensor.h"
 
@@ -39,23 +41,32 @@
 #define SN9C102_DEBUG
 #define SN9C102_DEBUG_LEVEL       2
 #define SN9C102_MAX_DEVICES       64
+#define SN9C102_PRESERVE_IMGSCALE 0
+#define SN9C102_FORCE_MUNMAP      0
 #define SN9C102_MAX_FRAMES        32
 #define SN9C102_URBS              2
 #define SN9C102_ISO_PACKETS       7
 #define SN9C102_ALTERNATE_SETTING 8
-#define SN9C102_CTRL_TIMEOUT      10*HZ
+#define SN9C102_URB_TIMEOUT       msecs_to_jiffies(2 * SN9C102_ISO_PACKETS)
+#define SN9C102_CTRL_TIMEOUT      300
 
 /*****************************************************************************/
 
-#define SN9C102_MODULE_NAME  "V4L2 driver for SN9C10[12] PC Camera Controllers"
-#define SN9C102_MODULE_AUTHOR   "(C) 2004 Luca Risolia"
+#define SN9C102_MODULE_NAME     "V4L2 driver for SN9C10x PC Camera Controllers"
+#define SN9C102_MODULE_AUTHOR   "(C) 2004-2005 Luca Risolia"
 #define SN9C102_AUTHOR_EMAIL    "<luca.risolia@studio.unibo.it>"
 #define SN9C102_MODULE_LICENSE  "GPL"
-#define SN9C102_MODULE_VERSION  "1:1.01-beta"
-#define SN9C102_MODULE_VERSION_CODE  KERNEL_VERSION(1, 0, 1)
+#define SN9C102_MODULE_VERSION  "1:1.24"
+#define SN9C102_MODULE_VERSION_CODE  KERNEL_VERSION(1, 0, 24)
 
-SN9C102_ID_TABLE;
-SN9C102_SENSOR_TABLE;
+enum sn9c102_bridge {
+	BRIDGE_SN9C101 = 0x01,
+	BRIDGE_SN9C102 = 0x02,
+	BRIDGE_SN9C103 = 0x04,
+};
+
+SN9C102_ID_TABLE
+SN9C102_SENSOR_TABLE
 
 enum sn9c102_frame_state {
 	F_UNUSED,
@@ -91,8 +102,16 @@ enum sn9c102_stream_state {
 	STREAM_ON,
 };
 
+typedef char sn9c102_sof_header_t[12];
+typedef char sn9c102_eof_header_t[4];
+
 struct sn9c102_sysfs_attr {
-	u8 reg, val, i2c_reg, i2c_val;
+	u8 reg, i2c_reg;
+	sn9c102_sof_header_t frame_header;
+};
+
+struct sn9c102_module_param {
+	u8 force_munmap;
 };
 
 static DECLARE_MUTEX(sn9c102_sysfs_lock);
@@ -103,6 +122,7 @@ struct sn9c102_device {
 
 	struct video_device* v4ldev;
 
+	enum sn9c102_bridge bridge;
 	struct sn9c102_sensor* sensor;
 
 	struct usb_device* usbdev;
@@ -112,13 +132,18 @@ struct sn9c102_device {
 
 	struct sn9c102_frame_t *frame_current, frame[SN9C102_MAX_FRAMES];
 	struct list_head inqueue, outqueue;
-	u32 frame_count, nbuffers;
+	u32 frame_count, nbuffers, nreadbuffers;
 
 	enum sn9c102_io_method io;
 	enum sn9c102_stream_state stream;
 
+	struct v4l2_jpegcompression compression;
+
 	struct sn9c102_sysfs_attr sysfs;
+	sn9c102_sof_header_t sof_header;
 	u16 reg[32];
+
+	struct sn9c102_module_param module_param;
 
 	enum sn9c102_dev_state state;
 	u8 users;

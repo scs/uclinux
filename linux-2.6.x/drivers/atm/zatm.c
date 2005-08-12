@@ -22,6 +22,7 @@
 #include <linux/atm_zatm.h>
 #include <linux/capability.h>
 #include <linux/bitops.h>
+#include <linux/wait.h>
 #include <asm/byteorder.h>
 #include <asm/system.h>
 #include <asm/string.h>
@@ -45,6 +46,8 @@
  *  - better receive timestamps
  *  - OAM
  */
+
+#define ZATM_COPPER	1
 
 #if 0
 #define DPRINTK(format,args...) printk(KERN_DEBUG format,##args)
@@ -408,7 +411,7 @@ printk("[-3..0] 0x%08lx 0x%08lx 0x%08lx 0x%08lx\n",((unsigned *) skb->data)[-3],
 #if 0
 printk("dummy: 0x%08lx, 0x%08lx\n",dummy[0],dummy[1]);
 #endif
-		size = error ? 0 : ntohs(((u16 *) skb->data)[cells*
+		size = error ? 0 : ntohs(((__be16 *) skb->data)[cells*
 		    ATM_CELL_PAYLOAD/sizeof(u16)-3]);
 		EVENT("got skb 0x%lx, size %d\n",(unsigned long) skb,size);
 		chan = (here[3] & uPD98401_AAL5_CHAN) >>
@@ -865,31 +868,21 @@ static void close_tx(struct atm_vcc *vcc)
 	struct zatm_vcc *zatm_vcc;
 	unsigned long flags;
 	int chan;
-struct sk_buff *skb;
-int once = 1;
 
 	zatm_vcc = ZATM_VCC(vcc);
 	zatm_dev = ZATM_DEV(vcc->dev);
 	chan = zatm_vcc->tx_chan;
 	if (!chan) return;
 	DPRINTK("close_tx\n");
-	while (skb_peek(&zatm_vcc->backlog)) {
-if (once) {
-printk("waiting for backlog to drain ...\n");
-event_dump();
-once = 0;
-}
-		sleep_on(&zatm_vcc->tx_wait);
+	if (skb_peek(&zatm_vcc->backlog)) {
+		printk("waiting for backlog to drain ...\n");
+		event_dump();
+		wait_event(zatm_vcc->tx_wait, !skb_peek(&zatm_vcc->backlog));
 	}
-once = 1;
-	while ((skb = skb_peek(&zatm_vcc->tx_queue))) {
-if (once) {
-printk("waiting for TX queue to drain ... %p\n",skb);
-event_dump();
-once = 0;
-}
-		DPRINTK("waiting for TX queue to drain ... %p\n",skb);
-		sleep_on(&zatm_vcc->tx_wait);
+	if (skb_peek(&zatm_vcc->tx_queue)) {
+		printk("waiting for TX queue to drain ...\n");
+		event_dump();
+		wait_event(zatm_vcc->tx_wait, !skb_peek(&zatm_vcc->tx_queue));
 	}
 	spin_lock_irqsave(&zatm_dev->lock, flags);
 #if 0
@@ -909,7 +902,7 @@ once = 0;
 		zatm_dev->tx_bw += vcc->qos.txtp.min_pcr;
 		dealloc_shaper(vcc->dev,zatm_vcc->shaper);
 	}
-	if (zatm_vcc->ring) kfree(zatm_vcc->ring);
+	kfree(zatm_vcc->ring);
 }
 
 
@@ -1097,7 +1090,7 @@ static irqreturn_t zatm_int(int irq,void *dev_id,struct pt_regs *regs)
 /*----------------------------- (E)EPROM access -----------------------------*/
 
 
-static void __init eprom_set(struct zatm_dev *zatm_dev,unsigned long value,
+static void __devinit eprom_set(struct zatm_dev *zatm_dev,unsigned long value,
     unsigned short cmd)
 {
 	int error;
@@ -1108,7 +1101,7 @@ static void __init eprom_set(struct zatm_dev *zatm_dev,unsigned long value,
 }
 
 
-static unsigned long __init eprom_get(struct zatm_dev *zatm_dev,
+static unsigned long __devinit eprom_get(struct zatm_dev *zatm_dev,
     unsigned short cmd)
 {
 	unsigned int value;
@@ -1121,7 +1114,7 @@ static unsigned long __init eprom_get(struct zatm_dev *zatm_dev,
 }
 
 
-static void __init eprom_put_bits(struct zatm_dev *zatm_dev,
+static void __devinit eprom_put_bits(struct zatm_dev *zatm_dev,
     unsigned long data,int bits,unsigned short cmd)
 {
 	unsigned long value;
@@ -1136,7 +1129,7 @@ static void __init eprom_put_bits(struct zatm_dev *zatm_dev,
 }
 
 
-static void __init eprom_get_byte(struct zatm_dev *zatm_dev,
+static void __devinit eprom_get_byte(struct zatm_dev *zatm_dev,
     unsigned char *byte,unsigned short cmd)
 {
 	int i;
@@ -1152,7 +1145,7 @@ static void __init eprom_get_byte(struct zatm_dev *zatm_dev,
 }
 
 
-static unsigned char __init eprom_try_esi(struct atm_dev *dev,
+static unsigned char __devinit eprom_try_esi(struct atm_dev *dev,
     unsigned short cmd,int offset,int swap)
 {
 	unsigned char buf[ZEPROM_SIZE];
@@ -1173,7 +1166,7 @@ static unsigned char __init eprom_try_esi(struct atm_dev *dev,
 }
 
 
-static void __init eprom_get_esi(struct atm_dev *dev)
+static void __devinit eprom_get_esi(struct atm_dev *dev)
 {
 	if (eprom_try_esi(dev,ZEPROM_V1_REG,ZEPROM_V1_ESI_OFF,1)) return;
 	(void) eprom_try_esi(dev,ZEPROM_V2_REG,ZEPROM_V2_ESI_OFF,0);
@@ -1346,12 +1339,9 @@ static int __init zatm_start(struct atm_dev *dev)
 	return 0;
     out:
 	for (i = 0; i < NR_MBX; i++)
-		if (zatm_dev->mbx_start[i] != 0)
-			kfree((void *) zatm_dev->mbx_start[i]);
-	if (zatm_dev->rx_map != NULL)
-		kfree(zatm_dev->rx_map);
-	if (zatm_dev->tx_map != NULL)
-		kfree(zatm_dev->tx_map);
+		kfree(zatm_dev->mbx_start[i]);
+	kfree(zatm_dev->rx_map);
+	kfree(zatm_dev->tx_map);
 	free_irq(zatm_dev->irq, dev);
 	return error;
 }
@@ -1577,51 +1567,77 @@ static const struct atmdev_ops ops = {
 	.change_qos	= zatm_change_qos,
 };
 
-static int __init zatm_module_init(void)
+static int __devinit zatm_init_one(struct pci_dev *pci_dev,
+				   const struct pci_device_id *ent)
 {
 	struct atm_dev *dev;
 	struct zatm_dev *zatm_dev;
-	int devs,type;
+	int ret = -ENOMEM;
 
-	zatm_dev = (struct zatm_dev *) kmalloc(sizeof(struct zatm_dev),
-	    GFP_KERNEL);
-	if (!zatm_dev) return -ENOMEM;
-	devs = 0;
-	for (type = 0; type < 2; type++) {
-		struct pci_dev *pci_dev;
-
-		pci_dev = NULL;
-		while ((pci_dev = pci_find_device(PCI_VENDOR_ID_ZEITNET,type ?
-		    PCI_DEVICE_ID_ZEITNET_1225 : PCI_DEVICE_ID_ZEITNET_1221,
-		    pci_dev))) {
-			if (pci_enable_device(pci_dev)) break;
-			dev = atm_dev_register(DEV_LABEL,&ops,-1,NULL);
-			if (!dev) break;
-			zatm_dev->pci_dev = pci_dev;
-			dev->dev_data = zatm_dev;
-			zatm_dev->copper = type;
-			if (zatm_init(dev) || zatm_start(dev)) {
-				atm_dev_deregister(dev);
-				break;
-			}
-			zatm_dev->more = zatm_boards;
-			zatm_boards = dev;
-			devs++;
-			zatm_dev = (struct zatm_dev *) kmalloc(sizeof(struct
-			    zatm_dev),GFP_KERNEL);
-			if (!zatm_dev) {
-				printk(KERN_EMERG "zatm.c: memory shortage\n");
-				goto out;
-			}
-		}
+	zatm_dev = (struct zatm_dev *) kmalloc(sizeof(*zatm_dev), GFP_KERNEL);
+	if (!zatm_dev) {
+		printk(KERN_EMERG "%s: memory shortage\n", DEV_LABEL);
+		goto out;
 	}
-out:
-	kfree(zatm_dev);
 
-	return 0;
+	dev = atm_dev_register(DEV_LABEL, &ops, -1, NULL);
+	if (!dev)
+		goto out_free;
+
+	ret = pci_enable_device(pci_dev);
+	if (ret < 0)
+		goto out_deregister;
+
+	ret = pci_request_regions(pci_dev, DEV_LABEL);
+	if (ret < 0)
+		goto out_disable;
+
+	zatm_dev->pci_dev = pci_dev;
+	dev->dev_data = zatm_dev;
+	zatm_dev->copper = (int)ent->driver_data;
+	if ((ret = zatm_init(dev)) || (ret = zatm_start(dev)))
+		goto out_release;
+
+	pci_set_drvdata(pci_dev, dev);
+	zatm_dev->more = zatm_boards;
+	zatm_boards = dev;
+	ret = 0;
+out:
+	return ret;
+
+out_release:
+	pci_release_regions(pci_dev);
+out_disable:
+	pci_disable_device(pci_dev);
+out_deregister:
+	atm_dev_deregister(dev);
+out_free:
+	kfree(zatm_dev);
+	goto out;
 }
+
 
 MODULE_LICENSE("GPL");
 
-module_init(zatm_module_init);
+static struct pci_device_id zatm_pci_tbl[] __devinitdata = {
+	{ PCI_VENDOR_ID_ZEITNET, PCI_DEVICE_ID_ZEITNET_1221,
+		PCI_ANY_ID, PCI_ANY_ID, 0, 0, ZATM_COPPER },
+	{ PCI_VENDOR_ID_ZEITNET, PCI_DEVICE_ID_ZEITNET_1225,
+		PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ 0, }
+};
+MODULE_DEVICE_TABLE(pci, zatm_pci_tbl);
+
+static struct pci_driver zatm_driver = {
+	.name =		DEV_LABEL,
+	.id_table =	zatm_pci_tbl,
+	.probe =	zatm_init_one,
+};
+
+static int __init zatm_init_module(void)
+{
+	return pci_register_driver(&zatm_driver);
+}
+
+module_init(zatm_init_module);
 /* module_exit not defined so not unloadable */

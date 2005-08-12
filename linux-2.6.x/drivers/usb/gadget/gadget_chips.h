@@ -44,6 +44,12 @@
 #define	gadget_is_sa1100(g)	0
 #endif
 
+#ifdef CONFIG_USB_GADGET_LH7A40X
+#define	gadget_is_lh7a40x(g)	!strcmp("lh7a40x_udc", (g)->name)
+#else
+#define	gadget_is_lh7a40x(g)	0
+#endif
+
 #ifdef CONFIG_USB_GADGET_MQ11XX
 #define	gadget_is_mq11xx(g)	!strcmp("mq11xx_udc", (g)->name)
 #else
@@ -56,7 +62,30 @@
 #define	gadget_is_omap(g)	0
 #endif
 
-// CONFIG_USB_GADGET_AT91RM9200
+#ifdef CONFIG_USB_GADGET_N9604
+#define	gadget_is_n9604(g)	!strcmp("n9604_udc", (g)->name)
+#else
+#define	gadget_is_n9604(g)	0
+#endif
+
+#ifdef CONFIG_USB_GADGET_PXA27X
+#define	gadget_is_pxa27x(g)	!strcmp("pxa27x_udc", (g)->name)
+#else
+#define	gadget_is_pxa27x(g)	0
+#endif
+
+#ifdef CONFIG_USB_GADGET_S3C2410
+#define gadget_is_s3c2410(g)    !strcmp("s3c2410_udc", (g)->name)
+#else
+#define gadget_is_s3c2410(g)    0
+#endif
+
+#ifdef CONFIG_USB_GADGET_AT91
+#define gadget_is_at91(g)	!strcmp("at91_udc", (g)->name)
+#else
+#define gadget_is_at91(g)	0
+#endif
+
 // CONFIG_USB_GADGET_SX2
 // CONFIG_USB_GADGET_AU1X00
 // ...

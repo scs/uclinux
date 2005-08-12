@@ -352,7 +352,7 @@ static u16 INFTL_foldchain(struct INFTLrecord *inftl, unsigned thisVUC, unsigned
 	return targetEUN;
 }
 
-u16 INFTL_makefreeblock(struct INFTLrecord *inftl, unsigned pendingblock)
+static u16 INFTL_makefreeblock(struct INFTLrecord *inftl, unsigned pendingblock)
 {
 	/*
 	 * This is the part that needs some cleverness applied. 
@@ -877,7 +877,7 @@ static int inftl_getgeo(struct mtd_blktrans_dev *dev, struct hd_geometry *geo)
 	return 0;
 }
 
-struct mtd_blktrans_ops inftl_tr = {
+static struct mtd_blktrans_ops inftl_tr = {
 	.name		= "inftl",
 	.major		= INFTL_MAJOR,
 	.part_bits	= INFTL_PARTN_BITS,
@@ -891,7 +891,7 @@ struct mtd_blktrans_ops inftl_tr = {
 
 extern char inftlmountrev[];
 
-int __init init_inftl(void)
+static int __init init_inftl(void)
 {
 	printk(KERN_INFO "INFTL: inftlcore.c $Revision$, "
 		"inftlmount.c %s\n", inftlmountrev);

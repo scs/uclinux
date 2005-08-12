@@ -28,6 +28,9 @@
 #include "yenta_socket.h"
 #include "i82365.h"
 
+static int disable_clkrun;
+module_param(disable_clkrun, bool, 0444);
+MODULE_PARM_DESC(disable_clkrun, "If PC card doesn't function properly, please try this option");
 
 #if 0
 #define debug(x,args...) printk(KERN_DEBUG "%s: " x, __func__ , ##args)
@@ -41,6 +44,10 @@
 
 static int yenta_probe_cb_irq(struct yenta_socket *socket);
 
+
+static unsigned int override_bios;
+module_param(override_bios, uint, 0000);
+MODULE_PARM_DESC (override_bios, "yenta ignore bios resource allocation");
 
 /*
  * Generate easy-to-use ways of reading a cardbus sockets
@@ -343,14 +350,17 @@ static int yenta_set_io_map(struct pcmcia_socket *sock, struct pccard_io_map *io
 static int yenta_set_mem_map(struct pcmcia_socket *sock, struct pccard_mem_map *mem)
 {
 	struct yenta_socket *socket = container_of(sock, struct yenta_socket, socket);
+	struct pci_bus_region region;
 	int map;
 	unsigned char addr, enable;
 	unsigned int start, stop, card_start;
 	unsigned short word;
 
+	pcibios_resource_to_bus(socket->dev, &region, mem->res);
+
 	map = mem->map;
-	start = mem->sys_start;
-	stop = mem->sys_stop;
+	start = region.start;
+	stop = region.end;
 	card_start = mem->card_start;
 
 	if (map > 4 || start > stop || ((start ^ stop) >> 24) ||
@@ -447,7 +457,7 @@ static void yenta_clear_maps(struct yenta_socket *socket)
 	int i;
 	struct resource res = { .start = 0, .end = 0x0fff };
 	pccard_io_map io = { 0, 0, 0, 0, 1 };
-	pccard_mem_map mem = { .res = &res, .sys_stop = 0x0fff, };
+	pccard_mem_map mem = { .res = &res, };
 
 	yenta_set_socket(&socket->socket, &dead_socket);
 	for (i = 0; i < 2; i++) {
@@ -495,8 +505,6 @@ static int yenta_sock_init(struct pcmcia_socket *sock)
 static int yenta_sock_suspend(struct pcmcia_socket *sock)
 {
 	struct yenta_socket *socket = container_of(sock, struct yenta_socket, socket);
-
-	yenta_set_socket(sock, &dead_socket);
 
 	/* Disable CSC interrupts */
 	cb_writel(socket, CB_SOCKET_MASK, 0x0);
@@ -548,7 +556,7 @@ static void yenta_allocate_res(struct yenta_socket *socket, int nr, unsigned typ
 
 	start = config_readl(socket, offset) & mask;
 	end = config_readl(socket, offset+4) | ~mask;
-	if (start && end > start) {
+	if (start && end > start && !override_bios) {
 		res->start = start;
 		res->end = end;
 		if (request_resource(root, res) == 0)
@@ -650,6 +658,7 @@ static void yenta_close(struct pci_dev *dev)
 	yenta_free_resources(sock);
 
 	pci_release_regions(dev);
+	pci_disable_device(dev);
 	pci_set_drvdata(dev, NULL);
 }
 
@@ -685,7 +694,7 @@ enum {
  * Different cardbus controllers have slightly different
  * initialization sequences etc details. List them here..
  */
-struct cardbus_type cardbus_type[] = {
+static struct cardbus_type cardbus_type[] = {
 	[CARDBUS_TYPE_TI]	= {
 		.override	= ti_override,
 		.save_state	= ti_save_state,
@@ -824,8 +833,7 @@ static int yenta_probe_cb_irq(struct yenta_socket *socket)
 	cb_writel(socket, CB_SOCKET_MASK, CB_CSTSMASK);
 	cb_writel(socket, CB_SOCKET_FORCE, CB_FCARDSTS);
 	
-	set_current_state(TASK_UNINTERRUPTIBLE);
-	schedule_timeout(HZ/10);
+	msleep(100);
 
 	/* disable interrupts */
 	cb_writel(socket, CB_SOCKET_MASK, 0);
@@ -911,6 +919,7 @@ static int __devinit yenta_probe (struct pci_dev *dev, const struct pci_device_i
 
 	/* prepare pcmcia_socket */
 	socket->socket.ops = &yenta_socket_operations;
+	socket->socket.resource_ops = &pccard_nonstatic_ops;
 	socket->socket.dev.dev = &dev->dev;
 	socket->socket.driver_data = socket;
 	socket->socket.owner = THIS_MODULE;
@@ -952,7 +961,7 @@ static int __devinit yenta_probe (struct pci_dev *dev, const struct pci_device_i
 	 * the irq stuff...
 	 */
 	printk(KERN_INFO "Yenta: CardBus bridge found at %s [%04x:%04x]\n",
-		dev->slot_name, dev->subsystem_vendor, dev->subsystem_device);
+		pci_name(dev), dev->subsystem_vendor, dev->subsystem_device);
 
 	yenta_config_init(socket);
 
@@ -1008,7 +1017,7 @@ static int __devinit yenta_probe (struct pci_dev *dev, const struct pci_device_i
 }
 
 
-static int yenta_dev_suspend (struct pci_dev *dev, u32 state)
+static int yenta_dev_suspend (struct pci_dev *dev, pm_message_t state)
 {
 	struct yenta_socket *socket = pci_get_drvdata(dev);
 	int ret;
@@ -1020,10 +1029,16 @@ static int yenta_dev_suspend (struct pci_dev *dev, u32 state)
 			socket->type->save_state(socket);
 
 		/* FIXME: pci_save_state needs to have a better interface */
-		pci_save_state(dev, socket->saved_state);
-		pci_read_config_dword(dev, 16*4, &socket->saved_state[16]);
-		pci_read_config_dword(dev, 17*4, &socket->saved_state[17]);
-		pci_set_power_state(dev, 3);
+		pci_save_state(dev);
+		pci_read_config_dword(dev, 16*4, &socket->saved_state[0]);
+		pci_read_config_dword(dev, 17*4, &socket->saved_state[1]);
+
+		/*
+		 * Some laptops (IBM T22) do not like us putting the Cardbus
+		 * bridge into D3.  At a guess, some other laptop will
+		 * probably require this, so leave it commented out for now.
+		 */
+		/* pci_set_power_state(dev, 3); */
 	}
 
 	return ret;
@@ -1037,9 +1052,9 @@ static int yenta_dev_resume (struct pci_dev *dev)
 	if (socket) {
 		pci_set_power_state(dev, 0);
 		/* FIXME: pci_restore_state needs to have a better interface */
-		pci_restore_state(dev, socket->saved_state);
-		pci_write_config_dword(dev, 16*4, socket->saved_state[16]);
-		pci_write_config_dword(dev, 17*4, socket->saved_state[17]);
+		pci_restore_state(dev);
+		pci_write_config_dword(dev, 16*4, socket->saved_state[0]);
+		pci_write_config_dword(dev, 17*4, socket->saved_state[1]);
 
 		if (socket->type && socket->type->restore_state)
 			socket->type->restore_state(socket);
@@ -1088,6 +1103,8 @@ static struct pci_device_id yenta_table [] = {
 	CB_ID(PCI_VENDOR_ID_TI, PCI_DEVICE_ID_TI_4410, TI12XX),
 	CB_ID(PCI_VENDOR_ID_TI, PCI_DEVICE_ID_TI_4450, TI12XX),
 	CB_ID(PCI_VENDOR_ID_TI, PCI_DEVICE_ID_TI_4451, TI12XX),
+	CB_ID(PCI_VENDOR_ID_TI, PCI_DEVICE_ID_TI_4510, TI12XX),
+	CB_ID(PCI_VENDOR_ID_TI, PCI_DEVICE_ID_TI_4520, TI12XX),
 
 	CB_ID(PCI_VENDOR_ID_TI, PCI_DEVICE_ID_TI_1250, TI1250),
 	CB_ID(PCI_VENDOR_ID_TI, PCI_DEVICE_ID_TI_1410, TI1250),

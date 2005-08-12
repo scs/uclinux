@@ -33,6 +33,7 @@
 #include <linux/interrupt.h>
 #include <linux/init.h>
 #include <linux/serio.h>
+#include <linux/err.h>
 
 #include <asm/irq.h>
 #include <asm/hardware.h>
@@ -101,25 +102,54 @@ static void rpckbd_close(struct serio *port)
 	free_irq(IRQ_KEYBOARDTX, port);
 }
 
-static struct serio rpckbd_port =
+/*
+ * Allocate and initialize serio structure for subsequent registration
+ * with serio core.
+ */
+static int __devinit rpckbd_probe(struct device *dev)
 {
-	.type	= SERIO_8042,
-	.open	= rpckbd_open,
-	.close	= rpckbd_close,
-	.write	= rpckbd_write,
-	.name	= "RiscPC PS/2 kbd port",
-	.phys	= "rpckbd/serio0",
+	struct serio *serio;
+
+	serio = kmalloc(sizeof(struct serio), GFP_KERNEL);
+	if (!serio)
+		return -ENOMEM;
+
+	memset(serio, 0, sizeof(struct serio));
+	serio->id.type		= SERIO_8042;
+	serio->write		= rpckbd_write;
+	serio->open		= rpckbd_open;
+	serio->close		= rpckbd_close;
+	serio->dev.parent	= dev;
+	strlcpy(serio->name, "RiscPC PS/2 kbd port", sizeof(serio->name));
+	strlcpy(serio->phys, "rpckbd/serio0", sizeof(serio->phys));
+
+	dev_set_drvdata(dev, serio);
+	serio_register_port(serio);
+	return 0;
+}
+
+static int __devexit rpckbd_remove(struct device *dev)
+{
+	struct serio *serio = dev_get_drvdata(dev);
+	serio_unregister_port(serio);
+	return 0;
+}
+
+static struct device_driver rpckbd_driver = {
+	.name		= "kart",
+	.bus		= &platform_bus_type,
+	.probe		= rpckbd_probe,
+	.remove		= __devexit_p(rpckbd_remove),
 };
 
 static int __init rpckbd_init(void)
 {
-	serio_register_port(&rpckbd_port);
-	return 0;
+	return driver_register(&rpckbd_driver);
 }
 
 static void __exit rpckbd_exit(void)
 {
-	serio_unregister_port(&rpckbd_port);
+	driver_unregister(&rpckbd_driver);
 }
 
 module_init(rpckbd_init);

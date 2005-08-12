@@ -12,7 +12,7 @@
 #include <linux/init.h>
 #include <linux/timer.h>
 #include <linux/vmalloc.h>
-#include <asm/hardirq.h>
+#include <linux/interrupt.h>
 #include <linux/bitops.h>
 #include <asm/semaphore.h>
 
@@ -94,19 +94,20 @@ firmware_class_hotplug(struct class_device *class_dev, char **envp,
 		       int num_envp, char *buffer, int buffer_size)
 {
 	struct firmware_priv *fw_priv = class_get_devdata(class_dev);
-	int i = 0;
-	char *scratch = buffer;
+	int i = 0, len = 0;
 
 	if (!test_bit(FW_STATUS_READY, &fw_priv->status))
 		return -ENODEV;
 
-	if (buffer_size < (FIRMWARE_NAME_MAX + 10))
+	if (add_hotplug_env_var(envp, num_envp, &i, buffer, buffer_size, &len,
+			"FIRMWARE=%s", fw_priv->fw_id))
 		return -ENOMEM;
-	if (num_envp < 1)
+	if (add_hotplug_env_var(envp, num_envp, &i, buffer, buffer_size, &len,
+			"TIMEOUT=%i", loading_timeout))
 		return -ENOMEM;
 
-	envp[i++] = scratch;
-	scratch += sprintf(scratch, "FIRMWARE=%s", fw_priv->fw_id) + 1;
+	envp[i] = NULL;
+
 	return 0;
 }
 
@@ -235,6 +236,8 @@ firmware_data_write(struct kobject *kobj,
 	struct firmware *fw;
 	ssize_t retval;
 
+	if (!capable(CAP_SYS_RAWIO))
+		return -EPERM;
 	down(&fw_lock);
 	fw = fw_priv->fw;
 	if (test_bit(FW_STATUS_DONE, &fw_priv->status)) {
@@ -420,7 +423,7 @@ request_firmware(const struct firmware **firmware_p, const char *name,
 		add_timer(&fw_priv->timeout);
 	}
 
-	kobject_hotplug("add", &class_dev->kobj);
+	kobject_hotplug(&class_dev->kobj, KOBJ_ADD);
 	wait_for_completion(&fw_priv->completion);
 	set_bit(FW_STATUS_DONE, &fw_priv->status);
 
@@ -439,6 +442,7 @@ request_firmware(const struct firmware **firmware_p, const char *name,
 
 error_kfree_fw:
 	kfree(firmware);
+	*firmware_p = NULL;
 out:
 	return retval;
 }
@@ -580,4 +584,3 @@ EXPORT_SYMBOL(release_firmware);
 EXPORT_SYMBOL(request_firmware);
 EXPORT_SYMBOL(request_firmware_nowait);
 EXPORT_SYMBOL(register_firmware);
-EXPORT_SYMBOL(firmware_class);

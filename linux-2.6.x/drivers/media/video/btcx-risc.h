@@ -1,4 +1,6 @@
-
+/*
+ * $Id$
+ */
 struct btcx_riscmem {
 	unsigned int   size;
 	u32            *cpu;

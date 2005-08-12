@@ -1,6 +1,6 @@
 /* Low-level parallel-port routines for 8255-based PC-style hardware.
  * 
- * Authors: Phil Blundell <Philip.Blundell@pobox.com>
+ * Authors: Phil Blundell <philb@gnu.org>
  *          Tim Waugh <tim@cyberelk.demon.co.uk>
  *	    Jose Renau <renau@acm.org>
  *          David Campbell <campbell@torque.net>
@@ -62,9 +62,14 @@
 
 #include <linux/parport.h>
 #include <linux/parport_pc.h>
+#include <linux/via.h>
 #include <asm/parport.h>
 
 #define PARPORT_PC_MAX_PORTS PARPORT_MAX
+
+#ifdef CONFIG_ISA_DMA_API
+#define HAS_DMA
+#endif
 
 /* ECR modes */
 #define ECR_SPP 00
@@ -192,6 +197,7 @@ static int change_mode(struct parport *p, int m)
 
 #ifdef CONFIG_PARPORT_1284
 /* Find FIFO lossage; FIFO is reset */
+#if 0
 static int get_fifo_residue (struct parport *p)
 {
 	int residue;
@@ -232,6 +238,7 @@ static int get_fifo_residue (struct parport *p)
 	DPRINTK (KERN_DEBUG "*** get_fifo_residue: done residue collecting (ecr = 0x%2.2x)\n", inb (ECONTROL (p)));
 	return residue;
 }
+#endif  /*  0 */
 #endif /* IEEE 1284 support */
 #endif /* FIFO support */
 
@@ -272,7 +279,7 @@ static irqreturn_t parport_pc_interrupt(int irq, void *dev_id, struct pt_regs *r
 	return IRQ_HANDLED;
 }
 
-void parport_pc_init_state(struct pardevice *dev, struct parport_state *s)
+static void parport_pc_init_state(struct pardevice *dev, struct parport_state *s)
 {
 	s->u.pc.ctr = 0xc;
 	if (dev->irq_func &&
@@ -284,7 +291,7 @@ void parport_pc_init_state(struct pardevice *dev, struct parport_state *s)
 			     * D.Gruszka VScom */
 }
 
-void parport_pc_save_state(struct parport *p, struct parport_state *s)
+static void parport_pc_save_state(struct parport *p, struct parport_state *s)
 {
 	const struct parport_pc_private *priv = p->physport->private_data;
 	s->u.pc.ctr = priv->ctr;
@@ -292,7 +299,7 @@ void parport_pc_save_state(struct parport *p, struct parport_state *s)
 		s->u.pc.ecr = inb (ECONTROL (p));
 }
 
-void parport_pc_restore_state(struct parport *p, struct parport_state *s)
+static void parport_pc_restore_state(struct parport *p, struct parport_state *s)
 {
 	struct parport_pc_private *priv = p->physport->private_data;
 	register unsigned char c = s->u.pc.ctr & priv->ctr_writable;
@@ -607,6 +614,7 @@ dump_parport_state ("leave fifo_write_block_pio", port);
 	return length - left;
 }
 
+#ifdef HAS_DMA
 static size_t parport_pc_fifo_write_block_dma (struct parport *port,
 					       const void *buf, size_t length)
 {
@@ -729,11 +737,22 @@ dump_parport_state ("enter fifo_write_block_dma", port);
 dump_parport_state ("leave fifo_write_block_dma", port);
 	return length - left;
 }
+#endif
+
+static inline size_t parport_pc_fifo_write_block(struct parport *port,
+					       const void *buf, size_t length)
+{
+#ifdef HAS_DMA
+	if (port->dma != PARPORT_DMA_NONE)
+		return parport_pc_fifo_write_block_dma (port, buf, length);
+#endif
+	return parport_pc_fifo_write_block_pio (port, buf, length);
+}
 
 /* Parallel Port FIFO mode (ECP chipsets) */
-size_t parport_pc_compat_write_block_pio (struct parport *port,
-					  const void *buf, size_t length,
-					  int flags)
+static size_t parport_pc_compat_write_block_pio (struct parport *port,
+						 const void *buf, size_t length,
+						 int flags)
 {
 	size_t written;
 	int r;
@@ -755,10 +774,7 @@ size_t parport_pc_compat_write_block_pio (struct parport *port,
 	port->physport->ieee1284.phase = IEEE1284_PH_FWD_DATA;
 
 	/* Write the data to the FIFO. */
-	if (port->dma != PARPORT_DMA_NONE)
-		written = parport_pc_fifo_write_block_dma (port, buf, length);
-	else
-		written = parport_pc_fifo_write_block_pio (port, buf, length);
+	written = parport_pc_fifo_write_block(port, buf, length);
 
 	/* Finish up. */
 	/* For some hardware we don't want to touch the mode until
@@ -808,9 +824,9 @@ size_t parport_pc_compat_write_block_pio (struct parport *port,
 
 /* ECP */
 #ifdef CONFIG_PARPORT_1284
-size_t parport_pc_ecp_write_block_pio (struct parport *port,
-				       const void *buf, size_t length,
-				       int flags)
+static size_t parport_pc_ecp_write_block_pio (struct parport *port,
+					      const void *buf, size_t length,
+					      int flags)
 {
 	size_t written;
 	int r;
@@ -853,10 +869,7 @@ size_t parport_pc_ecp_write_block_pio (struct parport *port,
 	port->physport->ieee1284.phase = IEEE1284_PH_FWD_DATA;
 
 	/* Write the data to the FIFO. */
-	if (port->dma != PARPORT_DMA_NONE)
-		written = parport_pc_fifo_write_block_dma (port, buf, length);
-	else
-		written = parport_pc_fifo_write_block_pio (port, buf, length);
+	written = parport_pc_fifo_write_block(port, buf, length);
 
 	/* Finish up. */
 	/* For some hardware we don't want to touch the mode until
@@ -923,8 +936,10 @@ size_t parport_pc_ecp_write_block_pio (struct parport *port,
 	return written;
 }
 
-size_t parport_pc_ecp_read_block_pio (struct parport *port,
-				      void *buf, size_t length, int flags)
+#if 0
+static size_t parport_pc_ecp_read_block_pio (struct parport *port,
+					     void *buf, size_t length,
+					     int flags)
 {
 	size_t left = length;
 	size_t fifofull;
@@ -1142,7 +1157,7 @@ out_no_data:
 dump_parport_state ("fwd idle", port);
 	return length - left;
 }
-
+#endif  /*  0  */
 #endif /* IEEE 1284 support */
 #endif /* Allowed to use FIFO/DMA */
 
@@ -1155,7 +1170,7 @@ dump_parport_state ("fwd idle", port);
 
 /* GCC is not inlining extern inline function later overwriten to non-inline,
    so we use outlined_ variants here.  */
-struct parport_operations parport_pc_ops = 
+static struct parport_operations parport_pc_ops =
 {
 	.write_data	= parport_pc_write_data,
 	.read_data	= parport_pc_read_data,
@@ -1403,6 +1418,9 @@ static void __devinit winbond_check(int io, int key)
 {
 	int devid,devrev,oldid,x_devid,x_devrev,x_oldid;
 
+	if (!request_region(io, 3, __FUNCTION__))
+		return;
+
 	/* First probe without key */
 	outb(0x20,io);
 	x_devid=inb(io+1);
@@ -1423,14 +1441,19 @@ static void __devinit winbond_check(int io, int key)
 	outb(0xaa,io);    /* Magic Seal */
 
 	if ((x_devid == devid) && (x_devrev == devrev) && (x_oldid == oldid))
-		return; /* protection against false positives */
+		goto out; /* protection against false positives */
 
 	decode_winbond(io,key,devid,devrev,oldid);
+out:
+	release_region(io, 3);
 }
 
 static void __devinit winbond_check2(int io,int key)
 {
         int devid,devrev,oldid,x_devid,x_devrev,x_oldid;
+
+	if (!request_region(io, 3, __FUNCTION__))
+		return;
 
 	/* First probe without the key */
 	outb(0x20,io+2);
@@ -1451,14 +1474,19 @@ static void __devinit winbond_check2(int io,int key)
         outb(0xaa,io);    /* Magic Seal */
 
 	if ((x_devid == devid) && (x_devrev == devrev) && (x_oldid == oldid))
-		return; /* protection against false positives */
+		goto out; /* protection against false positives */
 
-        decode_winbond(io,key,devid,devrev,oldid);
+	decode_winbond(io,key,devid,devrev,oldid);
+out:
+	release_region(io, 3);
 }
 
 static void __devinit smsc_check(int io, int key)
 {
         int id,rev,oldid,oldrev,x_id,x_rev,x_oldid,x_oldrev;
+
+	if (!request_region(io, 3, __FUNCTION__))
+		return;
 
 	/* First probe without the key */
 	outb(0x0d,io);
@@ -1485,9 +1513,11 @@ static void __devinit smsc_check(int io, int key)
 
 	if ((x_id == id) && (x_oldrev == oldrev) &&
 	    (x_oldid == oldid) && (x_rev == rev))
-		return; /* protection against false positives */
+		goto out; /* protection against false positives */
 
         decode_smsc(io,key,oldid,oldrev);
+out:
+	release_region(io, 3);
 }
 
 
@@ -2110,7 +2140,7 @@ static int __devinit parport_dma_probe (struct parport *p)
 /* --- Initialisation code -------------------------------- */
 
 static LIST_HEAD(ports_list);
-static spinlock_t ports_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(ports_lock);
 
 struct parport *parport_pc_probe_port (unsigned long int base,
 				       unsigned long int base_hi,
@@ -2265,6 +2295,7 @@ struct parport *parport_pc_probe_port (unsigned long int base,
 		}
 
 #ifdef CONFIG_PARPORT_PC_FIFO
+#ifdef HAS_DMA
 		if (p->dma != PARPORT_DMA_NONE) {
 			if (request_dma (p->dma, p->name)) {
 				printk (KERN_WARNING "%s: dma %d in use, "
@@ -2286,7 +2317,8 @@ struct parport *parport_pc_probe_port (unsigned long int base,
 				}
 			}
 		}
-#endif /* CONFIG_PARPORT_PC_FIFO */
+#endif
+#endif
 	}
 
 	/* Done probing.  Now put the port into a sensible start-up state. */
@@ -2347,11 +2379,13 @@ void parport_pc_unregister_port (struct parport *p)
 	if (p->modes & PARPORT_MODE_ECP)
 		release_region(p->base_hi, 3);
 #ifdef CONFIG_PARPORT_PC_FIFO
+#ifdef HAS_DMA
 	if (priv->dma_buf)
 		pci_free_consistent(priv->dev, PAGE_SIZE,
 				    priv->dma_buf,
 				    priv->dma_handle);
-#endif /* CONFIG_PARPORT_PC_FIFO */
+#endif
+#endif
 	kfree (p->private_data);
 	parport_put_port(p);
 	kfree (ops); /* hope no-one cached it */
@@ -2363,7 +2397,7 @@ EXPORT_SYMBOL (parport_pc_unregister_port);
 
 /* ITE support maintained by Rich Liu <richliu@poorman.org> */
 static int __devinit sio_ite_8872_probe (struct pci_dev *pdev, int autoirq,
-					 int autodma)
+					 int autodma, struct parport_pc_via_data *via)
 {
 	short inta_addr[6] = { 0x2A0, 0x2C0, 0x220, 0x240, 0x1E0 };
 	struct resource *base_res;
@@ -2466,70 +2500,160 @@ static int __devinit sio_ite_8872_probe (struct pci_dev *pdev, int autoirq,
 	return 0;
 }
 
-/* Via support maintained by Jeff Garzik <jgarzik@pobox.com> */
-static int __devinit sio_via_686a_probe (struct pci_dev *pdev, int autoirq,
-					 int autodma)
+/* VIA 8231 support by Pavel Fedin <sonic_amiga@rambler.ru>
+   based on VIA 686a support code by Jeff Garzik <jgarzik@pobox.com> */
+static int __devinitdata parport_init_mode = 0;
+
+/* Data for two known VIA chips */
+static struct parport_pc_via_data via_686a_data __devinitdata = {
+	0x51,
+	0x50,
+	0x85,
+	0x02,
+	0xE2,
+	0xF0,
+	0xE6
+};
+static struct parport_pc_via_data via_8231_data __devinitdata = {
+	0x45,
+	0x44,
+	0x50,
+	0x04,
+	0xF2,
+	0xFA,
+	0xF6
+};
+
+static int __devinit sio_via_probe (struct pci_dev *pdev, int autoirq,
+					 int autodma, struct parport_pc_via_data *via)
 {
-	u8 tmp;
+	u8 tmp, tmp2, siofunc;
+	u8 ppcontrol = 0;
 	int dma, irq;
-	unsigned port1, port2, have_eppecp;
+	unsigned port1, port2;
+	unsigned have_epp = 0;
+
+	printk(KERN_DEBUG "parport_pc: VIA 686A/8231 detected\n");
+
+	switch(parport_init_mode)
+	{
+	case 1:
+	    printk(KERN_DEBUG "parport_pc: setting SPP mode\n");
+	    siofunc = VIA_FUNCTION_PARPORT_SPP;
+	    break;
+	case 2:
+	    printk(KERN_DEBUG "parport_pc: setting PS/2 mode\n");
+	    siofunc = VIA_FUNCTION_PARPORT_SPP;
+	    ppcontrol = VIA_PARPORT_BIDIR;
+	    break;
+	case 3:
+	    printk(KERN_DEBUG "parport_pc: setting EPP mode\n");
+	    siofunc = VIA_FUNCTION_PARPORT_EPP;
+	    ppcontrol = VIA_PARPORT_BIDIR;
+	    have_epp = 1;
+	    break;
+	case 4:
+	    printk(KERN_DEBUG "parport_pc: setting ECP mode\n");
+	    siofunc = VIA_FUNCTION_PARPORT_ECP;
+	    ppcontrol = VIA_PARPORT_BIDIR;
+	    break;
+	case 5:
+	    printk(KERN_DEBUG "parport_pc: setting EPP+ECP mode\n");
+	    siofunc = VIA_FUNCTION_PARPORT_ECP;
+	    ppcontrol = VIA_PARPORT_BIDIR|VIA_PARPORT_ECPEPP;
+	    have_epp = 1;
+	    break;
+	 default:
+	    printk(KERN_DEBUG "parport_pc: probing current configuration\n");
+	    siofunc = VIA_FUNCTION_PROBE;
+	    break;
+	}
+	/*
+	 * unlock super i/o configuration
+	 */
+	pci_read_config_byte(pdev, via->via_pci_superio_config_reg, &tmp);
+	tmp |= via->via_pci_superio_config_data;
+	pci_write_config_byte(pdev, via->via_pci_superio_config_reg, tmp);
+
+	/* Bits 1-0: Parallel Port Mode / Enable */
+	outb(via->viacfg_function, VIA_CONFIG_INDEX);
+	tmp = inb (VIA_CONFIG_DATA);
+	/* Bit 5: EPP+ECP enable; bit 7: PS/2 bidirectional port enable */
+	outb(via->viacfg_parport_control, VIA_CONFIG_INDEX);
+	tmp2 = inb (VIA_CONFIG_DATA);
+	if (siofunc == VIA_FUNCTION_PROBE)
+	{
+	    siofunc = tmp & VIA_FUNCTION_PARPORT_DISABLE;
+	    ppcontrol = tmp2;
+	}
+	else
+	{
+	    tmp &= ~VIA_FUNCTION_PARPORT_DISABLE;
+	    tmp |= siofunc;
+	    outb(via->viacfg_function, VIA_CONFIG_INDEX);
+	    outb(tmp, VIA_CONFIG_DATA);
+	    tmp2 &= ~(VIA_PARPORT_BIDIR|VIA_PARPORT_ECPEPP);
+	    tmp2 |= ppcontrol;
+	    outb(via->viacfg_parport_control, VIA_CONFIG_INDEX);
+	    outb(tmp2, VIA_CONFIG_DATA);
+	}
+	
+	/* Parallel Port I/O Base Address, bits 9-2 */
+	outb(via->viacfg_parport_base, VIA_CONFIG_INDEX);
+	port1 = inb(VIA_CONFIG_DATA) << 2;
+	
+	printk (KERN_DEBUG "parport_pc: Current parallel port base: 0x%X\n",port1);
+	if ((port1 == 0x3BC) && have_epp)
+	{
+	    outb(via->viacfg_parport_base, VIA_CONFIG_INDEX);
+	    outb((0x378 >> 2), VIA_CONFIG_DATA);
+	    printk(KERN_DEBUG "parport_pc: Parallel port base changed to 0x378\n");
+	    port1 = 0x378;
+	}
 
 	/*
-	 * unlock super i/o configuration, set 0x85_1
+	 * lock super i/o configuration
 	 */
-	pci_read_config_byte (pdev, 0x85, &tmp);
-	tmp |= (1 << 1);
-	pci_write_config_byte (pdev, 0x85, tmp);
-	
-	/* 
-	 * Super I/O configuration, index port == 3f0h, data port == 3f1h
-	 */
-	
-	/* 0xE2_1-0: Parallel Port Mode / Enable */
-	outb (0xE2, 0x3F0);
-	tmp = inb (0x3F1);
-	
-	if ((tmp & 0x03) == 0x03) {
-		printk (KERN_INFO "parport_pc: Via 686A parallel port disabled in BIOS\n");
+	pci_read_config_byte(pdev, via->via_pci_superio_config_reg, &tmp);
+	tmp &= ~via->via_pci_superio_config_data;
+	pci_write_config_byte(pdev, via->via_pci_superio_config_reg, tmp);
+
+	if (siofunc == VIA_FUNCTION_PARPORT_DISABLE) {
+		printk(KERN_INFO "parport_pc: VIA parallel port disabled in BIOS\n");
 		return 0;
 	}
 	
-	/* 0xE6: Parallel Port I/O Base Address, bits 9-2 */
-	outb (0xE6, 0x3F0);
-	port1 = inb (0x3F1) << 2;
-	
+	/* Bits 7-4: PnP Routing for Parallel Port IRQ */
+	pci_read_config_byte(pdev, via->via_pci_parport_irq_reg, &tmp);
+	irq = ((tmp & VIA_IRQCONTROL_PARALLEL) >> 4);
+
+	if (siofunc == VIA_FUNCTION_PARPORT_ECP)
+	{
+	    /* Bits 3-2: PnP Routing for Parallel Port DMA */
+	    pci_read_config_byte(pdev, via->via_pci_parport_dma_reg, &tmp);
+	    dma = ((tmp & VIA_DMACONTROL_PARALLEL) >> 2);
+	}
+	else
+	    /* if ECP not enabled, DMA is not enabled, assumed bogus 'dma' value */
+	    dma = PARPORT_DMA_NONE;
+
+	/* Let the user (or defaults) steer us away from interrupts and DMA */
+	if (autoirq == PARPORT_IRQ_NONE) {
+	    irq = PARPORT_IRQ_NONE;
+	    dma = PARPORT_DMA_NONE;
+	}
+	if (autodma == PARPORT_DMA_NONE)
+	    dma = PARPORT_DMA_NONE;
+
 	switch (port1) {
 	case 0x3bc: port2 = 0x7bc; break;
 	case 0x378: port2 = 0x778; break;
 	case 0x278: port2 = 0x678; break;
 	default:
-		printk (KERN_INFO "parport_pc: Weird Via 686A parport base 0x%X, ignoring\n",
+		printk(KERN_INFO "parport_pc: Weird VIA parport base 0x%X, ignoring\n",
 			port1);
 		return 0;
 	}
-
-	/* 0xF0_5: EPP+ECP enable */
-	outb (0xF0, 0x3F0);
-	have_eppecp = (inb (0x3F1) & (1 << 5));
-	
-	/*
-	 * lock super i/o configuration, clear 0x85_1
-	 */
-	pci_read_config_byte (pdev, 0x85, &tmp);
-	tmp &= ~(1 << 1);
-	pci_write_config_byte (pdev, 0x85, tmp);
-
-	/*
-	 * Get DMA and IRQ from PCI->ISA bridge PCI config registers
-	 */
-
-	/* 0x50_3-2: PnP Routing for Parallel Port DRQ */
-	pci_read_config_byte (pdev, 0x50, &tmp);
-	dma = ((tmp >> 2) & 0x03);
-	
-	/* 0x51_7-4: PnP Routing for Parallel Port IRQ */
-	pci_read_config_byte (pdev, 0x51, &tmp);
-	irq = ((tmp >> 4) & 0x0F);
 
 	/* filter bogus IRQs */
 	switch (irq) {
@@ -2544,22 +2668,10 @@ static int __devinit sio_via_686a_probe (struct pci_dev *pdev, int autoirq,
 		break;
 	}
 
-	/* if ECP not enabled, DMA is not enabled, assumed bogus 'dma' value */
-	if (!have_eppecp)
-		dma = PARPORT_DMA_NONE;
-
-	/* Let the user (or defaults) steer us away from interrupts and DMA */
-	if (autoirq != PARPORT_IRQ_AUTO) {
-		irq = PARPORT_IRQ_NONE;
-		dma = PARPORT_DMA_NONE;
-	}
-	if (autodma != PARPORT_DMA_AUTO)
-		dma = PARPORT_DMA_NONE;
-
 	/* finally, do the probe with values obtained */
 	if (parport_pc_probe_port (port1, port2, irq, dma, NULL)) {
 		printk (KERN_INFO
-			"parport_pc: Via 686A parallel port: io=0x%X", port1);
+			"parport_pc: VIA parallel port: io=0x%X", port1);
 		if (irq != PARPORT_IRQ_NONE)
 			printk (", irq=%d", irq);
 		if (dma != PARPORT_DMA_NONE)
@@ -2568,7 +2680,7 @@ static int __devinit sio_via_686a_probe (struct pci_dev *pdev, int autoirq,
 		return 1;
 	}
 	
-	printk (KERN_WARNING "parport_pc: Strange, can't probe Via 686A parallel port: io=0x%X, irq=%d, dma=%d\n",
+	printk(KERN_WARNING "parport_pc: Strange, can't probe VIA parallel port: io=0x%X, irq=%d, dma=%d\n",
 		port1, irq, dma);
 	return 0;
 }
@@ -2576,18 +2688,20 @@ static int __devinit sio_via_686a_probe (struct pci_dev *pdev, int autoirq,
 
 enum parport_pc_sio_types {
 	sio_via_686a = 0,	/* Via VT82C686A motherboard Super I/O */
+	sio_via_8231,		/* Via VT8231 south bridge integrated Super IO */
 	sio_ite_8872,
 	last_sio
 };
 
 /* each element directly indexed from enum list, above */
 static struct parport_pc_superio {
-	int (*probe) (struct pci_dev *pdev, int autoirq, int autodma);
+	int (*probe) (struct pci_dev *pdev, int autoirq, int autodma, struct parport_pc_via_data *via);
+	struct parport_pc_via_data *via;
 } parport_pc_superio_info[] __devinitdata = {
-	{ sio_via_686a_probe, },
-	{ sio_ite_8872_probe, },
+	{ sio_via_probe, &via_686a_data, },
+	{ sio_via_probe, &via_8231_data, },
+	{ sio_ite_8872_probe, NULL, },
 };
-
 
 enum parport_pc_pci_cards {
 	siig_1p_10x = last_sio,
@@ -2633,6 +2747,8 @@ enum parport_pc_pci_cards {
 	aks_0100,
 	mobility_pp,
 	netmos_9705,
+	netmos_9715,
+	netmos_9755,
 	netmos_9805,
 	netmos_9815,
 	netmos_9855,
@@ -2706,6 +2822,8 @@ static struct parport_pc_pci {
 	/* aks_0100 */                  { 1, { { 0, -1 }, } },
 	/* mobility_pp */		{ 1, { { 0, 1 }, } },
 	/* netmos_9705 */               { 1, { { 0, -1 }, } }, /* untested */
+        /* netmos_9715 */               { 2, { { 0, 1 }, { 2, 3 },} }, /* untested */
+        /* netmos_9755 */               { 2, { { 0, 1 }, { 2, 3 },} }, /* untested */
 	/* netmos_9805 */               { 1, { { 0, -1 }, } }, /* untested */
 	/* netmos_9815 */               { 2, { { 0, -1 }, { 2, -1 }, } }, /* untested */
 	/* netmos_9855 */               { 2, { { 0, -1 }, { 2, -1 }, } }, /* untested */
@@ -2714,6 +2832,7 @@ static struct parport_pc_pci {
 static struct pci_device_id parport_pc_pci_tbl[] = {
 	/* Super-IO onboard chips */
 	{ 0x1106, 0x0686, PCI_ANY_ID, PCI_ANY_ID, 0, 0, sio_via_686a },
+	{ 0x1106, 0x8231, PCI_ANY_ID, PCI_ANY_ID, 0, 0, sio_via_8231 },
 	{ PCI_VENDOR_ID_ITE, PCI_DEVICE_ID_ITE_8872,
 	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, sio_ite_8872 },
 
@@ -2780,6 +2899,10 @@ static struct pci_device_id parport_pc_pci_tbl[] = {
 	/* NetMos communication controllers */
 	{ PCI_VENDOR_ID_NETMOS, PCI_DEVICE_ID_NETMOS_9705,
 	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, netmos_9705 },
+	{ PCI_VENDOR_ID_NETMOS, PCI_DEVICE_ID_NETMOS_9715,
+	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, netmos_9715 },
+	{ PCI_VENDOR_ID_NETMOS, PCI_DEVICE_ID_NETMOS_9755,
+	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, netmos_9755 },
 	{ PCI_VENDOR_ID_NETMOS, PCI_DEVICE_ID_NETMOS_9805,
 	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, netmos_9805 },
 	{ PCI_VENDOR_ID_NETMOS, PCI_DEVICE_ID_NETMOS_9815,
@@ -2790,10 +2913,16 @@ static struct pci_device_id parport_pc_pci_tbl[] = {
 };
 MODULE_DEVICE_TABLE(pci,parport_pc_pci_tbl);
 
+struct pci_parport_data {
+	int num;
+	struct parport *ports[2];
+};
+
 static int parport_pc_pci_probe (struct pci_dev *dev,
 					   const struct pci_device_id *id)
 {
 	int err, count, n, i = id->driver_data;
+	struct pci_parport_data *data;
 
 	if (i < last_sio)
 		/* This is an onboard Super-IO and has already been probed */
@@ -2805,9 +2934,15 @@ static int parport_pc_pci_probe (struct pci_dev *dev,
 	if ((err = pci_enable_device (dev)) != 0)
 		return err;
 
+	data = kmalloc(sizeof(struct pci_parport_data), GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
+
 	if (cards[i].preinit_hook &&
-	    cards[i].preinit_hook (dev, PARPORT_IRQ_NONE, PARPORT_DMA_NONE))
+	    cards[i].preinit_hook (dev, PARPORT_IRQ_NONE, PARPORT_DMA_NONE)) {
+		kfree(data);
 		return -ENODEV;
+	}
 
 	for (n = 0; n < cards[i].numports; n++) {
 		int lo = cards[i].addr[n].lo;
@@ -2826,21 +2961,48 @@ static int parport_pc_pci_probe (struct pci_dev *dev,
 			"I/O at %#lx(%#lx)\n",
 			parport_pc_pci_tbl[i + last_sio].vendor,
 			parport_pc_pci_tbl[i + last_sio].device, io_lo, io_hi);
-		if (parport_pc_probe_port (io_lo, io_hi, PARPORT_IRQ_NONE,
-					   PARPORT_DMA_NONE, dev))
+		data->ports[count] =
+			parport_pc_probe_port (io_lo, io_hi, PARPORT_IRQ_NONE,
+					       PARPORT_DMA_NONE, dev);
+		if (data->ports[count])
 			count++;
 	}
+
+	data->num = count;
 
 	if (cards[i].postinit_hook)
 		cards[i].postinit_hook (dev, count == 0);
 
-	return count == 0 ? -ENODEV : 0;
+	if (count) {
+		pci_set_drvdata(dev, data);
+		return 0;
+	}
+
+	kfree(data);
+
+	return -ENODEV;
+}
+
+static void __devexit parport_pc_pci_remove(struct pci_dev *dev)
+{
+	struct pci_parport_data *data = pci_get_drvdata(dev);
+	int i;
+
+	pci_set_drvdata(dev, NULL);
+
+	if (data) {
+		for (i = data->num - 1; i >= 0; i--)
+			parport_pc_unregister_port(data->ports[i]);
+
+		kfree(data);
+	}
 }
 
 static struct pci_driver parport_pc_pci_driver = {
 	.name		= "parport_pc",
 	.id_table	= parport_pc_pci_tbl,
 	.probe		= parport_pc_pci_probe,
+	.remove		= __devexit_p(parport_pc_pci_remove),
 };
 
 static int __init parport_pc_init_superio (int autoirq, int autodma)
@@ -2855,7 +3017,7 @@ static int __init parport_pc_init_superio (int autoirq, int autodma)
 			continue;
 
 		if (parport_pc_superio_info[id->driver_data].probe
-			(pdev, autoirq, autodma)) {
+			(pdev, autoirq, autodma,parport_pc_superio_info[id->driver_data].via)) {
 			ret++;
 		}
 	}
@@ -2935,7 +3097,7 @@ static struct pnp_driver parport_pc_pnp_driver = {
 
 
 /* This is called by parport_pc_find_nonpci_ports (in asm/parport.h) */
-static int __init __attribute__((unused))
+static int __devinit __attribute__((unused))
 parport_pc_find_isa_ports (int autoirq, int autodma)
 {
 	int count = 0;
@@ -2985,10 +3147,10 @@ static int __init parport_pc_find_ports (int autoirq, int autodma)
 	count += parport_pc_find_nonpci_ports (autoirq, autodma);
 
 	r = pci_register_driver (&parport_pc_pci_driver);
-	if (r >= 0) {
-		pci_registered_parport = 1;
-		count += r;
-	}
+	if (r)
+		return r;
+	pci_registered_parport = 1;
+	count += 1;
 
 	return count;
 }
@@ -3041,28 +3203,57 @@ static int __init parport_parse_dma(const char *dmastr, int *val)
 				     PARPORT_DMA_NONE, PARPORT_DMA_NOFIFO);
 }
 
+#ifdef CONFIG_PCI
+static int __init parport_init_mode_setup(char *str)
+{
+	printk(KERN_DEBUG "parport_pc.c: Specified parameter parport_init_mode=%s\n", str);
+
+	if (!strcmp (str, "spp"))
+		parport_init_mode=1;
+	if (!strcmp (str, "ps2"))
+		parport_init_mode=2;
+	if (!strcmp (str, "epp"))
+		parport_init_mode=3;
+	if (!strcmp (str, "ecp"))
+		parport_init_mode=4;
+	if (!strcmp (str, "ecpepp"))
+		parport_init_mode=5;
+	return 1;
+}
+#endif
+
 #ifdef MODULE
 static const char *irq[PARPORT_PC_MAX_PORTS];
 static const char *dma[PARPORT_PC_MAX_PORTS];
 
 MODULE_PARM_DESC(io, "Base I/O address (SPP regs)");
-MODULE_PARM(io, "1-" __MODULE_STRING(PARPORT_PC_MAX_PORTS) "i");
+module_param_array(io, int, NULL, 0);
 MODULE_PARM_DESC(io_hi, "Base I/O address (ECR)");
-MODULE_PARM(io_hi, "1-" __MODULE_STRING(PARPORT_PC_MAX_PORTS) "i");
+module_param_array(io_hi, int, NULL, 0);
 MODULE_PARM_DESC(irq, "IRQ line");
-MODULE_PARM(irq, "1-" __MODULE_STRING(PARPORT_PC_MAX_PORTS) "s");
+module_param_array(irq, charp, NULL, 0);
 MODULE_PARM_DESC(dma, "DMA channel");
-MODULE_PARM(dma, "1-" __MODULE_STRING(PARPORT_PC_MAX_PORTS) "s");
+module_param_array(dma, charp, NULL, 0);
 #if defined(CONFIG_PARPORT_PC_SUPERIO) || \
        (defined(CONFIG_PARPORT_1284) && defined(CONFIG_PARPORT_PC_FIFO))
 MODULE_PARM_DESC(verbose_probing, "Log chit-chat during initialisation");
-MODULE_PARM(verbose_probing, "i");
+module_param(verbose_probing, int, 0644);
+#endif
+#ifdef CONFIG_PCI
+static char *init_mode;
+MODULE_PARM_DESC(init_mode, "Initialise mode for VIA VT8231 port (spp, ps2, epp, ecp or ecpepp)");
+module_param(init_mode, charp, 0);
 #endif
 
 static int __init parse_parport_params(void)
 {
 	unsigned int i;
 	int val;
+
+#ifdef CONFIG_PCI
+	if (init_mode)
+		parport_init_mode_setup(init_mode);
+#endif
 
 	for (i = 0; i < PARPORT_PC_MAX_PORTS && io[i]; i++) {
 		if (parport_parse_irq(irq[i], &val))
@@ -3171,6 +3362,15 @@ static int __init parse_parport_params(void)
 }
 
 __setup ("parport=", parport_setup);
+
+/*
+ * Acceptable parameters:
+ *
+ * parport_init_mode=[spp|ps2|epp|ecp|ecpepp]
+ */
+#ifdef CONFIG_PCI
+__setup("parport_init_mode=",parport_init_mode_setup);
+#endif
 #endif
 
 /* "Parser" ends here */

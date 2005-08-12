@@ -94,7 +94,7 @@
 #define BBD_ERR			0x80	/* pre-EIDE meaning:  block marked bad */
 #define ICRC_ERR		0x80	/* new meaning:  CRC error during transfer */
 
-static spinlock_t hd_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(hd_lock);
 static struct request_queue *hd_queue;
 
 #define MAJOR_NR HD_MAJOR
@@ -174,7 +174,7 @@ unsigned long read_timer(void)
 }
 #endif
 
-void __init hd_setup(char *str, int *ints)
+static void __init hd_setup(char *str, int *ints)
 {
 	int hdind = 0;
 
@@ -239,7 +239,7 @@ static void dump_status (const char *msg, unsigned int stat)
 #endif
 }
 
-void check_status(void)
+static void check_status(void)
 {
 	int i = inb_p(HD_STATUS);
 
@@ -386,7 +386,7 @@ repeat:
  * drive enters "idle", "standby", or "sleep" mode, so if the status looks
  * "good", we just ignore the interrupt completely.
  */
-void unexpected_hd_interrupt(void)
+static void unexpected_hd_interrupt(void)
 {
 	unsigned int stat = inb_p(HD_STATUS);
 
@@ -551,7 +551,7 @@ static void hd_times_out(unsigned long dummy)
 	enable_irq(HD_IRQ);
 }
 
-int do_special_op(struct hd_i_struct *disk, struct request *req)
+static int do_special_op(struct hd_i_struct *disk, struct request *req)
 {
 	if (disk->recalibrate) {
 		disk->recalibrate = 0;
@@ -851,7 +851,7 @@ Enomem:
 	goto out;
 }
 
-static int parse_hd_setup (char *line) {
+static int __init parse_hd_setup (char *line) {
 	int ints[6];
 
 	(void) get_options(line, ARRAY_SIZE(ints), ints);

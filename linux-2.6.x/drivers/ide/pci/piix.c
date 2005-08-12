@@ -103,168 +103,7 @@
 
 #include <asm/io.h>
 
-#include "piix.h"
-
 static int no_piix_dma;
-#if defined(DISPLAY_PIIX_TIMINGS) && defined(CONFIG_PROC_FS)
-#include <linux/stat.h>
-#include <linux/proc_fs.h>
-
-static u8 piix_proc = 0;
-#define PIIX_MAX_DEVS		5
-static struct pci_dev *piix_devs[PIIX_MAX_DEVS];
-static int n_piix_devs;
-
-/**
- *	piix_get_info		-	fill in /proc for PIIX ide
- *	@buffer: buffer to fill
- *	@addr: address of user start in buffer
- *	@offset: offset into 'file'
- *	@count: buffer count
- *
- *	Walks the PIIX devices and outputs summary data on the tuning and
- *	anything else that will help with debugging
- */
- 
-static int piix_get_info (char *buffer, char **addr, off_t offset, int count)
-{
-	char *p = buffer;
-	int i;
-
-	for (i = 0; i < n_piix_devs; i++) {
-		struct pci_dev *dev	= piix_devs[i];
-		unsigned long bibma = pci_resource_start(dev, 4);
-	        u16 reg40 = 0, psitre = 0, reg42 = 0, ssitre = 0;
-		u8  c0 = 0, c1 = 0, reg54 = 0, reg55 = 0;
-		u8  reg44 = 0, reg48 = 0, reg4a = 0, reg4b = 0;
-
-		p += sprintf(p, "\nController: %d\n", i);
-		p += sprintf(p, "\n                                Intel ");
-		switch(dev->device) {
-			case PCI_DEVICE_ID_INTEL_82801EB_1:
-				p += sprintf(p, "PIIX4 SATA 150 ");
-				break;
-			case PCI_DEVICE_ID_INTEL_82801BA_8:
-			case PCI_DEVICE_ID_INTEL_82801BA_9:
-			case PCI_DEVICE_ID_INTEL_82801CA_10:
-			case PCI_DEVICE_ID_INTEL_82801CA_11:
-			case PCI_DEVICE_ID_INTEL_82801DB_10:
-			case PCI_DEVICE_ID_INTEL_82801DB_11:
-			case PCI_DEVICE_ID_INTEL_82801EB_11:
-			case PCI_DEVICE_ID_INTEL_82801E_11:
-			case PCI_DEVICE_ID_INTEL_ESB_2:
-			case PCI_DEVICE_ID_INTEL_ICH6_19:
-				p += sprintf(p, "PIIX4 Ultra 100 ");
-				break;
-			case PCI_DEVICE_ID_INTEL_82372FB_1:
-			case PCI_DEVICE_ID_INTEL_82801AA_1:
-				p += sprintf(p, "PIIX4 Ultra 66 ");
-				break;
-			case PCI_DEVICE_ID_INTEL_82451NX:
-			case PCI_DEVICE_ID_INTEL_82801AB_1:
-			case PCI_DEVICE_ID_INTEL_82443MX_1:
-			case PCI_DEVICE_ID_INTEL_82371AB:
-				p += sprintf(p, "PIIX4 Ultra 33 ");
-				break;
-			case PCI_DEVICE_ID_INTEL_82371SB_1:
-				p += sprintf(p, "PIIX3 ");
-				break;
-			case PCI_DEVICE_ID_INTEL_82371MX:
-				p += sprintf(p, "MPIIX ");
-				break;
-			case PCI_DEVICE_ID_INTEL_82371FB_1:
-			case PCI_DEVICE_ID_INTEL_82371FB_0:
-			default:
-				p += sprintf(p, "PIIX ");
-				break;
-		}
-		p += sprintf(p, "Chipset.\n");
-
-		if (dev->device == PCI_DEVICE_ID_INTEL_82371MX)
-			continue;
-
-		pci_read_config_word(dev, 0x40, &reg40);
-		pci_read_config_word(dev, 0x42, &reg42);
-		pci_read_config_byte(dev, 0x44, &reg44);
-		pci_read_config_byte(dev, 0x48, &reg48);
-		pci_read_config_byte(dev, 0x4a, &reg4a);
-		pci_read_config_byte(dev, 0x4b, &reg4b);
-		pci_read_config_byte(dev, 0x54, &reg54);
-		pci_read_config_byte(dev, 0x55, &reg55);
-
-		psitre = (reg40 & 0x4000) ? 1 : 0;
-		ssitre = (reg42 & 0x4000) ? 1 : 0;
-
-		/*
-		 * at that point bibma+0x2 et bibma+0xa are byte registers
-		 * to investigate:
-		 */
-		c0 = inb(bibma + 0x02);
-		c1 = inb(bibma + 0x0a);
-
-		p += sprintf(p, "--------------- Primary Channel "
-				"---------------- Secondary Channel "
-				"-------------\n");
-		p += sprintf(p, "                %sabled "
-				"                        %sabled\n",
-				(c0&0x80) ? "dis" : " en",
-				(c1&0x80) ? "dis" : " en");
-		p += sprintf(p, "--------------- drive0 --------- drive1 "
-				"-------- drive0 ---------- drive1 ------\n");
-		p += sprintf(p, "DMA enabled:    %s              %s "
-				"            %s               %s\n",
-				(c0&0x20) ? "yes" : "no ",
-				(c0&0x40) ? "yes" : "no ",
-				(c1&0x20) ? "yes" : "no ",
-				(c1&0x40) ? "yes" : "no " );
-		p += sprintf(p, "UDMA enabled:   %s              %s "
-				"            %s               %s\n",
-				(reg48&0x01) ? "yes" : "no ",
-				(reg48&0x02) ? "yes" : "no ",
-				(reg48&0x04) ? "yes" : "no ",
-				(reg48&0x08) ? "yes" : "no " );
-		p += sprintf(p, "UDMA enabled:   %s                %s "
-				"              %s                 %s\n",
-				((reg54&0x11) &&
-				 (reg55&0x10) && (reg4a&0x01)) ? "5" :
-				((reg54&0x11) && (reg4a&0x02)) ? "4" :
-				((reg54&0x11) && (reg4a&0x01)) ? "3" :
-				(reg4a&0x02) ? "2" :
-				(reg4a&0x01) ? "1" :
-				(reg4a&0x00) ? "0" : "X",
-				((reg54&0x22) &&
-				 (reg55&0x20) && (reg4a&0x10)) ? "5" :
-				((reg54&0x22) && (reg4a&0x20)) ? "4" :
-				((reg54&0x22) && (reg4a&0x10)) ? "3" :
-				(reg4a&0x20) ? "2" :
-				(reg4a&0x10) ? "1" :
-				(reg4a&0x00) ? "0" : "X",
-				((reg54&0x44) &&
-				 (reg55&0x40) && (reg4b&0x03)) ? "5" :
-				((reg54&0x44) && (reg4b&0x02)) ? "4" :
-				((reg54&0x44) && (reg4b&0x01)) ? "3" :
-				(reg4b&0x02) ? "2" :
-				(reg4b&0x01) ? "1" :
-				(reg4b&0x00) ? "0" : "X",
-				((reg54&0x88) &&
-				 (reg55&0x80) && (reg4b&0x30)) ? "5" :
-				((reg54&0x88) && (reg4b&0x20)) ? "4" :
-				((reg54&0x88) && (reg4b&0x10)) ? "3" :
-				(reg4b&0x20) ? "2" :
-				(reg4b&0x10) ? "1" :
-				(reg4b&0x00) ? "0" : "X");
-
-		p += sprintf(p, "UDMA\n");
-		p += sprintf(p, "DMA\n");
-		p += sprintf(p, "PIO\n");
-
-		/*
-		 * FIXME.... Add configuration junk data....blah blah......
-		 */
-	}
-	return p-buffer;	 /* => must be less than 4k! */
-}
-#endif  /* defined(DISPLAY_PIIX_TIMINGS) && defined(CONFIG_PROC_FS) */
 
 /**
  *	piix_ratemask		-	compute rate mask for PIIX IDE
@@ -288,11 +127,14 @@ static u8 piix_ratemask (ide_drive_t *drive)
 		case PCI_DEVICE_ID_INTEL_82801CA_10:
 		case PCI_DEVICE_ID_INTEL_82801CA_11:
 		case PCI_DEVICE_ID_INTEL_82801E_11:
+		case PCI_DEVICE_ID_INTEL_82801DB_1:
 		case PCI_DEVICE_ID_INTEL_82801DB_10:
 		case PCI_DEVICE_ID_INTEL_82801DB_11:
 		case PCI_DEVICE_ID_INTEL_82801EB_11:
 		case PCI_DEVICE_ID_INTEL_ESB_2:
 		case PCI_DEVICE_ID_INTEL_ICH6_19:
+		case PCI_DEVICE_ID_INTEL_ICH7_21:
+		case PCI_DEVICE_ID_INTEL_ESB2_18:
 			mode = 3;
 			break;
 		/* UDMA 66 capable */
@@ -561,36 +403,17 @@ static int piix_config_drive_xfer_rate (ide_drive_t *drive)
 	drive->init_speed = 0;
 
 	if ((id->capability & 1) && drive->autodma) {
-		/* Consult the list of known "bad" drives */
-		if (__ide_dma_bad_drive(drive))
-			goto fast_ata_pio;
-		if (id->field_valid & 4) {
-			if (id->dma_ultra & hwif->ultra_mask) {
-				/* Force if Capable UltraDMA */
-				if ((id->field_valid & 2) &&
-				    (!piix_config_drive_for_dma(drive)))
-					goto try_dma_modes;
-			}
-		} else if (id->field_valid & 2) {
-try_dma_modes:
-			if ((id->dma_mword & hwif->mwdma_mask) ||
-			    (id->dma_1word & hwif->swdma_mask)) {
-				/* Force if Capable regular DMA modes */
-				if (!piix_config_drive_for_dma(drive))
-					goto no_dma_set;
-			}
-		} else if (__ide_dma_good_drive(drive) &&
-			   (id->eide_dma_time < 150)) {
-			/* Consult the list of known "good" drives */
-			if (!piix_config_drive_for_dma(drive))
-				goto no_dma_set;
-		} else {
-			goto fast_ata_pio;
+
+		if (ide_use_dma(drive)) {
+			if (piix_config_drive_for_dma(drive))
+				return hwif->ide_dma_on(drive);
 		}
-		return hwif->ide_dma_on(drive);
+
+		goto fast_ata_pio;
+
 	} else if ((id->capability & 8) || (id->field_valid & 2)) {
 fast_ata_pio:
-no_dma_set:
+		/* Find best PIO mode. */
 		hwif->tuneproc(drive, 255);
 		return hwif->ide_dma_off_quietly(drive);
 	}
@@ -617,12 +440,15 @@ static unsigned int __devinit init_chipset_piix (struct pci_dev *dev, const char
 		case PCI_DEVICE_ID_INTEL_82801BA_9:
 		case PCI_DEVICE_ID_INTEL_82801CA_10:
 		case PCI_DEVICE_ID_INTEL_82801CA_11:
+		case PCI_DEVICE_ID_INTEL_82801DB_1:
 		case PCI_DEVICE_ID_INTEL_82801DB_10:
 		case PCI_DEVICE_ID_INTEL_82801DB_11:
 		case PCI_DEVICE_ID_INTEL_82801EB_11:
 		case PCI_DEVICE_ID_INTEL_82801E_11:
 		case PCI_DEVICE_ID_INTEL_ESB_2:
 		case PCI_DEVICE_ID_INTEL_ICH6_19:
+		case PCI_DEVICE_ID_INTEL_ICH7_21:
+		case PCI_DEVICE_ID_INTEL_ESB2_18:
 		{
 			unsigned int extra = 0;
 			pci_read_config_dword(dev, 0x54, &extra);
@@ -632,14 +458,6 @@ static unsigned int __devinit init_chipset_piix (struct pci_dev *dev, const char
 			break;
 	}
 
-#if defined(DISPLAY_PIIX_TIMINGS) && defined(CONFIG_PROC_FS)
-	piix_devs[n_piix_devs++] = dev;
-
-	if (!piix_proc) {
-		piix_proc = 1;
-		ide_pci_create_host_proc("piix", piix_get_info);
-	}
-#endif /* DISPLAY_PIIX_TIMINGS && CONFIG_PROC_FS */
 	return 0;
 }
 
@@ -712,19 +530,52 @@ static void __devinit init_hwif_piix(ide_hwif_t *hwif)
 	hwif->drives[0].autodma = hwif->autodma;
 }
 
-/**
- *	init_setup_piix		-	callback for IDE initialize
- *	@dev: PIIX PCI device
- *	@d: IDE pci info
- *
- *	Enable the xp fixup for the PIIX controller and then perform
- *	a standard ide PCI setup
- */
+#define DECLARE_PIIX_DEV(name_str) \
+	{						\
+		.name		= name_str,		\
+		.init_chipset	= init_chipset_piix,	\
+		.init_hwif	= init_hwif_piix,	\
+		.channels	= 2,			\
+		.autodma	= AUTODMA,		\
+		.enablebits	= {{0x41,0x80,0x80}, {0x43,0x80,0x80}}, \
+		.bootable	= ON_BOARD,		\
+	}
 
-static void __devinit init_setup_piix(struct pci_dev *dev, ide_pci_device_t *d)
-{
-	ide_setup_pci_device(dev, d);
-}
+static ide_pci_device_t piix_pci_info[] __devinitdata = {
+	/*  0 */ DECLARE_PIIX_DEV("PIIXa"),
+	/*  1 */ DECLARE_PIIX_DEV("PIIXb"),
+
+	{	/* 2 */
+		.name		= "MPIIX",
+		.init_hwif	= init_hwif_piix,
+		.channels	= 2,
+		.autodma	= NODMA,
+		.enablebits	= {{0x6D,0x80,0x80}, {0x6F,0x80,0x80}},
+		.bootable	= ON_BOARD,
+	},
+
+	/*  3 */ DECLARE_PIIX_DEV("PIIX3"),
+	/*  4 */ DECLARE_PIIX_DEV("PIIX4"),
+	/*  5 */ DECLARE_PIIX_DEV("ICH0"),
+	/*  6 */ DECLARE_PIIX_DEV("PIIX4"),
+	/*  7 */ DECLARE_PIIX_DEV("ICH"),
+	/*  8 */ DECLARE_PIIX_DEV("PIIX4"),
+	/*  9 */ DECLARE_PIIX_DEV("PIIX4"),
+	/* 10 */ DECLARE_PIIX_DEV("ICH2"),
+	/* 11 */ DECLARE_PIIX_DEV("ICH2M"),
+	/* 12 */ DECLARE_PIIX_DEV("ICH3M"),
+	/* 13 */ DECLARE_PIIX_DEV("ICH3"),
+	/* 14 */ DECLARE_PIIX_DEV("ICH4"),
+	/* 15 */ DECLARE_PIIX_DEV("ICH5"),
+	/* 16 */ DECLARE_PIIX_DEV("C-ICH"),
+	/* 17 */ DECLARE_PIIX_DEV("ICH4"),
+	/* 18 */ DECLARE_PIIX_DEV("ICH5-SATA"),
+	/* 19 */ DECLARE_PIIX_DEV("ICH5"),
+	/* 20 */ DECLARE_PIIX_DEV("ICH6"),
+	/* 21 */ DECLARE_PIIX_DEV("ICH7"),
+	/* 22 */ DECLARE_PIIX_DEV("ICH4"),
+	/* 23 */ DECLARE_PIIX_DEV("ESB2"),
+};
 
 /**
  *	piix_init_one	-	called when a PIIX is found
@@ -739,8 +590,7 @@ static int __devinit piix_init_one(struct pci_dev *dev, const struct pci_device_
 {
 	ide_pci_device_t *d = &piix_pci_info[id->driver_data];
 
-	d->init_setup(dev, d);
-	return 0;
+	return ide_setup_pci_device(dev, d);
 }
 
 /**
@@ -798,12 +648,15 @@ static struct pci_device_id piix_pci_tbl[] = {
 #endif
 	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ESB_2, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 19},
 	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ICH6_19, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 20},
+	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ICH7_21, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 21},
+	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82801DB_1, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 22},
+	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ESB2_18, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 23},
 	{ 0, },
 };
 MODULE_DEVICE_TABLE(pci, piix_pci_tbl);
 
 static struct pci_driver driver = {
-	.name		= "PIIX IDE",
+	.name		= "PIIX_IDE",
 	.id_table	= piix_pci_tbl,
 	.probe		= piix_init_one,
 };

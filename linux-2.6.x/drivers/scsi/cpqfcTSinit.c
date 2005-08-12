@@ -302,10 +302,16 @@ int cpqfcTS_detect(Scsi_Host_Template *ScsiHostTemplate)
 				    cpqfc_boards[i].device_id, PciDev)))
     {
 
+      if (pci_enable_device(PciDev)) {
+	printk(KERN_ERR
+		"cpqfc: can't enable PCI device at %s\n", pci_name(PciDev));
+	goto err_continue;
+      }
+
       if (pci_set_dma_mask(PciDev, CPQFCTS_DMA_MASK) != 0) {
 	printk(KERN_WARNING 
 		"cpqfc: HBA cannot support required DMA mask, skipping.\n");
-	continue;
+	goto err_disable_dev;
       }
 
       // NOTE: (kernel 2.2.12-32) limits allocation to 128k bytes...
@@ -314,8 +320,11 @@ int cpqfcTS_detect(Scsi_Host_Template *ScsiHostTemplate)
 
       HostAdapter = scsi_register( ScsiHostTemplate, sizeof( CPQFCHBA ) );
       
-      if(HostAdapter == NULL)
-      	continue;
+      if(HostAdapter == NULL) {
+	printk(KERN_WARNING
+		"cpqfc: can't register SCSI HBA, skipping.\n");
+      	goto err_disable_dev;
+      }
       DEBUG_PCI( printk("  HBA found!\n"));
       DEBUG_PCI( printk("  HostAdapter->PciDev->irq = %u\n", PciDev->irq) );
       DEBUG_PCI(printk("  PciDev->baseaddress[0]= %lx\n", 
@@ -358,7 +367,7 @@ int cpqfcTS_detect(Scsi_Host_Template *ScsiHostTemplate)
       Cpqfc_initHBAdata( cpqfcHBAdata, PciDev ); // fill MOST fields
      
       cpqfcHBAdata->HBAnum = NumberOfAdapters;
-      cpqfcHBAdata->hba_spinlock = SPIN_LOCK_UNLOCKED;
+      spin_lock_init(&cpqfcHBAdata->hba_spinlock);
 
       // request necessary resources and check for conflicts
       if( request_irq( HostAdapter->irq,
@@ -367,9 +376,8 @@ int cpqfcTS_detect(Scsi_Host_Template *ScsiHostTemplate)
 	               DEV_NAME,
 		       HostAdapter) )
       {
-	printk(" IRQ %u already used\n", HostAdapter->irq);
-        scsi_unregister( HostAdapter);
-	continue;
+	printk(KERN_WARNING "cpqfc: IRQ %u already used\n", HostAdapter->irq);
+	goto err_unregister;
       }
 
       // Since we have two 256-byte I/O port ranges (upper
@@ -377,22 +385,17 @@ int cpqfcTS_detect(Scsi_Host_Template *ScsiHostTemplate)
       if( !request_region( cpqfcHBAdata->fcChip.Registers.IOBaseU,
       	                   0xff, DEV_NAME ) )
       {
-	printk("  cpqfcTS address in use: %x\n", 
+	printk(KERN_WARNING "cpqfc: address in use: %x\n",
 			cpqfcHBAdata->fcChip.Registers.IOBaseU);
-	free_irq( HostAdapter->irq, HostAdapter);
-        scsi_unregister( HostAdapter);
-	continue;
+	goto err_free_irq;
       }	
       
       if( !request_region( cpqfcHBAdata->fcChip.Registers.IOBaseL,
       			   0xff, DEV_NAME ) )
       {
-  	printk("  cpqfcTS address in use: %x\n", 
+  	printk(KERN_WARNING "cpqfc: address in use: %x\n",
 	      			cpqfcHBAdata->fcChip.Registers.IOBaseL);
-	release_region( cpqfcHBAdata->fcChip.Registers.IOBaseU, 0xff );
-	free_irq( HostAdapter->irq, HostAdapter);
-        scsi_unregister( HostAdapter);
-	continue;
+	goto err_release_region_U;
       }	
       
       // OK, we have grabbed everything we need now.
@@ -424,7 +427,7 @@ int cpqfcTS_detect(Scsi_Host_Template *ScsiHostTemplate)
       // now initialize our hardware...
       if (cpqfcHBAdata->fcChip.InitializeTachyon( cpqfcHBAdata, 1,1)) {
 	printk(KERN_WARNING "cpqfc: initialization of HBA hardware failed.\n");
-	// FIXME: might want to do something better than nothing here.
+	goto err_release_region_L;
       }
 
       cpqfcHBAdata->fcStatsTime = jiffies;  // (for FC Statistics delta)
@@ -455,6 +458,21 @@ int cpqfcTS_detect(Scsi_Host_Template *ScsiHostTemplate)
       spin_lock_irq(HostAdapter->host_lock);
       NumberOfAdapters++; 
       spin_unlock_irq(HostAdapter->host_lock);
+
+      continue;
+
+err_release_region_L:
+      release_region( cpqfcHBAdata->fcChip.Registers.IOBaseL, 0xff );
+err_release_region_U:
+      release_region( cpqfcHBAdata->fcChip.Registers.IOBaseU, 0xff );
+err_free_irq:
+      free_irq( HostAdapter->irq, HostAdapter);
+err_unregister:
+      scsi_unregister( HostAdapter);
+err_disable_dev:
+      pci_disable_device( PciDev );
+err_continue:
+      continue;
     } // end of while()
   }
 
@@ -624,12 +642,12 @@ int cpqfcTS_ioctl( struct scsi_device *ScsiDev, int Cmnd, void *arg)
 				return( -EFAULT);
 			}
 		}
-		ScsiPassThruReq->sr_data_direction = SCSI_DATA_WRITE; 
+		ScsiPassThruReq->sr_data_direction = DMA_TO_DEVICE; 
 	} else if (vendor_cmd->rw_flag == VENDOR_READ_OPCODE) {
-		ScsiPassThruReq->sr_data_direction = SCSI_DATA_READ; 
+		ScsiPassThruReq->sr_data_direction = DMA_FROM_DEVICE;
 	} else
 		// maybe this means a bug in the user app
-		ScsiPassThruReq->sr_data_direction = SCSI_DATA_NONE;
+		ScsiPassThruReq->sr_data_direction = DMA_BIDIRECTIONAL;
 	    
 	ScsiPassThruReq->sr_cmd_len = 0; // set correctly by scsi_do_req()
 	ScsiPassThruReq->sr_sense_buffer[0] = 0;
@@ -734,7 +752,7 @@ int cpqfcTS_ioctl( struct scsi_device *ScsiDev, int Cmnd, void *arg)
 		result = -ENXIO;
 		break;
 	}
-	result = verify_area(VERIFY_WRITE, arg, sizeof(Scsi_FCTargAddress));
+	result = access_ok(VERIFY_WRITE, arg, sizeof(Scsi_FCTargAddress)) ? 0 : -EFAULT;
 	if (result) break;
  
       put_user(pLoggedInPort->port_id,
@@ -811,6 +829,7 @@ int cpqfcTS_release(struct Scsi_Host *HostAdapter)
       cpqfcHBAdata->fcChip.Registers.ReMapMemBase)
     vfree( cpqfcHBAdata->fcChip.Registers.ReMapMemBase);
 */
+  pci_disable_device( cpqfcHBAdata->PciDev);
 
   LEAVE("cpqfcTS_release");
   return 0;

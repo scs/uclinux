@@ -91,8 +91,8 @@ static struct fb_var_screeninfo vga16fb_defined = {
 	.pixclock	= 39721,
 	.left_margin	= 48,
 	.right_margin	= 16,
-	.upper_margin	= 39,
-	.lower_margin	= 8,
+	.upper_margin	= 33,
+	.lower_margin	= 10,
 	.hsync_len 	= 96,
 	.vsync_len	= 2,
 	.vmode		= FB_VMODE_NONINTERLACED,
@@ -123,7 +123,7 @@ static struct fb_fix_screeninfo vga16fb_fix __initdata = {
    suitable instruction is the x86 bitwise OR.  The following
    read-modify-write routine should optimize to one such bitwise
    OR. */
-static inline void rmw(volatile char *p)
+static inline void rmw(volatile char __iomem *p)
 {
 	readb(p);
 	writeb(1, p);
@@ -771,7 +771,7 @@ static void vga_vesa_blank(struct vga16fb_par *par, int mode)
 	 * <Start of vertical Retrace> to maximum (incl. overflow)
 	 * Result: turn off vertical sync (VSync) pulse.
 	 */
-	if (mode & VESA_VSYNC_SUSPEND) {
+	if (mode & FB_BLANK_VSYNC_SUSPEND) {
 		outb_p(0x10,vga_video_port_reg);	/* StartVertRetrace */
 		outb_p(0xff,vga_video_port_val); 	/* maximum value */
 		outb_p(0x11,vga_video_port_reg);	/* EndVertRetrace */
@@ -780,7 +780,7 @@ static void vga_vesa_blank(struct vga16fb_par *par, int mode)
 		outb_p(par->vga_state.Overflow | 0x84,vga_video_port_val); /* bits 9,10 of vert. retrace */
 	}
 
-	if (mode & VESA_HSYNC_SUSPEND) {
+	if (mode & FB_BLANK_HSYNC_SUSPEND) {
 		/*
 		 * Set <End of horizontal retrace> to minimum (0) and
 		 *  <Start of horizontal Retrace> to maximum
@@ -853,29 +853,28 @@ static int vga16fb_blank(int blank, struct fb_info *info)
 	struct vga16fb_par *par = (struct vga16fb_par *) info->par;
 
 	switch (blank) {
-	case 0:				/* Unblank */
+	case FB_BLANK_UNBLANK:				/* Unblank */
 		if (par->vesa_blanked) {
 			vga_vesa_unblank(par);
 			par->vesa_blanked = 0;
 		}
 		if (par->palette_blanked) {
-			//do_install_cmap(info->currcon, info);
 			par->palette_blanked = 0;
 		}
 		break;
-	case 1:				/* blank */
+	case FB_BLANK_NORMAL:				/* blank */
 		vga_pal_blank();
 		par->palette_blanked = 1;
 		break;
 	default:			/* VESA blanking */
-		vga_vesa_blank(par, blank-1);
+		vga_vesa_blank(par, blank);
 		par->vesa_blanked = 1;
 		break;
 	}
 	return 0;
 }
 
-void vga_8planes_fillrect(struct fb_info *info, const struct fb_fillrect *rect)
+static void vga_8planes_fillrect(struct fb_info *info, const struct fb_fillrect *rect)
 {
 	u32 dx = rect->dx, width = rect->width;
         char oldindex = getindex();
@@ -883,7 +882,7 @@ void vga_8planes_fillrect(struct fb_info *info, const struct fb_fillrect *rect)
         char oldmask = selectmask();
         int line_ofs, height;
         char oldop, oldsr;
-        char *where;
+        char __iomem *where;
 
         dx /= 4;
         where = info->screen_base + dx + rect->dy * info->fix.line_length;
@@ -929,10 +928,10 @@ void vga_8planes_fillrect(struct fb_info *info, const struct fb_fillrect *rect)
         setindex(oldindex);
 }
 
-void vga16fb_fillrect(struct fb_info *info, const struct fb_fillrect *rect)
+static void vga16fb_fillrect(struct fb_info *info, const struct fb_fillrect *rect)
 {
 	int x, x2, y2, vxres, vyres, width, height, line_ofs;
-	char *dst;
+	char __iomem *dst;
 
 	vxres = info->var.xres_virtual;
 	vyres = info->var.yres_virtual;
@@ -1004,7 +1003,7 @@ void vga16fb_fillrect(struct fb_info *info, const struct fb_fillrect *rect)
 	}
 }
 
-void vga_8planes_copyarea(struct fb_info *info, const struct fb_copyarea *area)
+static void vga_8planes_copyarea(struct fb_info *info, const struct fb_copyarea *area)
 {
         char oldindex = getindex();
         char oldmode = setmode(0x41);
@@ -1012,7 +1011,8 @@ void vga_8planes_copyarea(struct fb_info *info, const struct fb_copyarea *area)
         char oldsr = setsr(0xf);
         int height, line_ofs, x;
 	u32 sx, dx, width;
-	char *dest, *src;
+	char __iomem *dest;
+	char __iomem *src;
 
         height = area->height;
 
@@ -1058,12 +1058,13 @@ void vga_8planes_copyarea(struct fb_info *info, const struct fb_copyarea *area)
         setindex(oldindex);
 }
 
-void vga16fb_copyarea(struct fb_info *info, const struct fb_copyarea *area)
+static void vga16fb_copyarea(struct fb_info *info, const struct fb_copyarea *area)
 {
 	u32 dx = area->dx, dy = area->dy, sx = area->sx, sy = area->sy; 
 	int x, x2, y2, old_dx, old_dy, vxres, vyres;
 	int height, width, line_ofs;
-	char *dst = NULL, *src = NULL;
+	char __iomem *dst = NULL;
+	char __iomem *src = NULL;
 
 	vxres = info->var.xres_virtual;
 	vyres = info->var.yres_virtual;
@@ -1165,7 +1166,7 @@ static unsigned int transl_l[] =
 #endif
 #endif
 
-void vga_8planes_imageblit(struct fb_info *info, const struct fb_image *image)
+static void vga_8planes_imageblit(struct fb_info *info, const struct fb_image *image)
 {
         char oldindex = getindex();
         char oldmode = setmode(0x40);
@@ -1174,7 +1175,7 @@ void vga_8planes_imageblit(struct fb_info *info, const struct fb_image *image)
         char oldmask = selectmask();
         const char *cdat = image->data;
 	u32 dx = image->dx;
-        char *where;
+        char __iomem *where;
         int y;
 
         dx /= 4;
@@ -1196,12 +1197,13 @@ void vga_8planes_imageblit(struct fb_info *info, const struct fb_image *image)
         setindex(oldindex);
 }
 
-void vga_imageblit_expand(struct fb_info *info, const struct fb_image *image)
+static void vga_imageblit_expand(struct fb_info *info, const struct fb_image *image)
 {
-	char *where = info->screen_base + (image->dx/8) + 
+	char __iomem *where = info->screen_base + (image->dx/8) +
 		image->dy * info->fix.line_length;
 	struct vga16fb_par *par = (struct vga16fb_par *) info->par;
-	char *cdat = (char *) image->data, *dst;
+	char *cdat = (char *) image->data;
+	char __iomem *dst;
 	int x, y;
 
 	switch (info->fix.type) {
@@ -1259,15 +1261,17 @@ void vga_imageblit_expand(struct fb_info *info, const struct fb_image *image)
 	}
 }
 
-void vga_imageblit_color(struct fb_info *info, const struct fb_image *image) 
+static void vga_imageblit_color(struct fb_info *info, const struct fb_image *image)
 {
 	/*
 	 * Draw logo 
 	 */
 	struct vga16fb_par *par = (struct vga16fb_par *) info->par;
-	char *where = info->screen_base + image->dy * info->fix.line_length + 
+	char __iomem *where =
+		info->screen_base + image->dy * info->fix.line_length +
 		image->dx/8;
-	const char *cdat = image->data, *dst;
+	const char *cdat = image->data;
+	char __iomem *dst;
 	int x, y;
 
 	switch (info->fix.type) {
@@ -1302,11 +1306,11 @@ void vga_imageblit_color(struct fb_info *info, const struct fb_image *image)
 	}
 }
 				
-void vga16fb_imageblit(struct fb_info *info, const struct fb_image *image)
+static void vga16fb_imageblit(struct fb_info *info, const struct fb_image *image)
 {
 	if (image->depth == 1)
 		vga_imageblit_expand(info, image);
-	else if (image->depth <= info->var.bits_per_pixel)
+	else
 		vga_imageblit_color(info, image);
 }
 
@@ -1325,7 +1329,8 @@ static struct fb_ops vga16fb_ops = {
 	.fb_cursor      = soft_cursor,
 };
 
-int vga16fb_setup(char *options)
+#ifndef MODULE
+static int vga16fb_setup(char *options)
 {
 	char *this_opt;
 	
@@ -1337,17 +1342,25 @@ int vga16fb_setup(char *options)
 	}
 	return 0;
 }
+#endif
 
-int __init vga16fb_init(void)
+static int __init vga16fb_init(void)
 {
 	int i;
 	int ret;
+#ifndef MODULE
+	char *option = NULL;
 
+	if (fb_get_options("vga16fb", &option))
+		return -ENODEV;
+
+	vga16fb_setup(option);
+#endif
 	printk(KERN_DEBUG "vga16fb: initializing\n");
 
 	/* XXX share VGA_FB_PHYS and I/O region with vgacon and others */
 
-	vga16fb.screen_base = (void *)VGA_MAP_MEM(VGA_FB_PHYS);
+	vga16fb.screen_base = (void __iomem *)VGA_MAP_MEM(VGA_FB_PHYS);
 	if (!vga16fb.screen_base) {
 		printk(KERN_ERR "vga16fb: unable to map device\n");
 		ret = -ENOMEM;
@@ -1416,10 +1429,8 @@ static void __exit vga16fb_exit(void)
     /* XXX unshare VGA regions */
 }
 
-#ifdef MODULE
 MODULE_LICENSE("GPL");
 module_init(vga16fb_init);
-#endif
 module_exit(vga16fb_exit);
 
 

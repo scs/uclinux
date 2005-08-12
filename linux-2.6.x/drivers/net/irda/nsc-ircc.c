@@ -94,16 +94,13 @@ static nsc_chip_t chips[] = {
 	  nsc_ircc_probe_108, nsc_ircc_init_108 },
 	{ "PC87338", { 0x398, 0x15c, 0x2e }, 0x08, 0xb0, 0xf8, 
 	  nsc_ircc_probe_338, nsc_ircc_init_338 },
+	/* Contributed by Steffen Pingel - IBM X40 */
+	{ "PC8738x", { 0x164e, 0x4e, 0x0 }, 0x20, 0xf4, 0xff,
+	  nsc_ircc_probe_39x, nsc_ircc_init_39x },
 	/* Contributed by Jan Frey - IBM A30/A31 */
 	{ "PC8739x", { 0x2e, 0x4e, 0x0 }, 0x20, 0xea, 0xff, 
 	  nsc_ircc_probe_39x, nsc_ircc_init_39x },
 	{ NULL }
-#if 0
-	/* Probably bogus, "PC8739x" should be the real thing. Jean II */
-	/* Contributed by Kevin Thayer - OmniBook 6100 */
-	{ "PC87338?", { 0x2e, 0x15c, 0x398 }, 0x08, 0x00, 0xf8, 
-	  nsc_ircc_probe_338, nsc_ircc_init_338 },
-#endif
 };
 
 /* Max 4 instances for now */
@@ -253,18 +250,18 @@ static int __init nsc_ircc_open(int i, chipio_t *info)
 
 	IRDA_DEBUG(2, "%s()\n", __FUNCTION__);
 
-	MESSAGE("%s, Found chip at base=0x%03x\n", driver_name,
-		info->cfg_base);
+	IRDA_MESSAGE("%s, Found chip at base=0x%03x\n", driver_name,
+		     info->cfg_base);
 
 	if ((nsc_ircc_setup(info)) == -1)
 		return -1;
 
-	MESSAGE("%s, driver loaded (Dag Brattli)\n", driver_name);
+	IRDA_MESSAGE("%s, driver loaded (Dag Brattli)\n", driver_name);
 
 	dev = alloc_irdadev(sizeof(struct nsc_ircc_cb));
 	if (dev == NULL) {
-		ERROR("%s(), can't allocate memory for "
-		       "control block!\n", __FUNCTION__);
+		IRDA_ERROR("%s(), can't allocate memory for "
+			   "control block!\n", __FUNCTION__);
 		return -ENOMEM;
 	}
 
@@ -287,8 +284,8 @@ static int __init nsc_ircc_open(int i, chipio_t *info)
 	/* Reserve the ioports that we need */
 	ret = request_region(self->io.fir_base, self->io.fir_ext, driver_name);
 	if (!ret) {
-		WARNING("%s(), can't get iobase of 0x%03x\n",
-			__FUNCTION__, self->io.fir_base);
+		IRDA_WARNING("%s(), can't get iobase of 0x%03x\n",
+			     __FUNCTION__, self->io.fir_base);
 		err = -ENODEV;
 		goto out1;
 	}
@@ -346,20 +343,21 @@ static int __init nsc_ircc_open(int i, chipio_t *info)
 
 	err = register_netdev(dev);
 	if (err) {
-		ERROR("%s(), register_netdev() failed!\n", __FUNCTION__);
+		IRDA_ERROR("%s(), register_netdev() failed!\n", __FUNCTION__);
 		goto out4;
 	}
-	MESSAGE("IrDA: Registered device %s\n", dev->name);
+	IRDA_MESSAGE("IrDA: Registered device %s\n", dev->name);
 
-	/* Check if user has supplied the dongle id or not */
-	if (!dongle_id) {
+	/* Check if user has supplied a valid dongle id or not */
+	if ((dongle_id <= 0) ||
+	    (dongle_id >= (sizeof(dongle_types) / sizeof(dongle_types[0]))) ) {
 		dongle_id = nsc_ircc_read_dongle_id(self->io.fir_base);
 		
-		MESSAGE("%s, Found dongle: %s\n", driver_name,
-			dongle_types[dongle_id]);
+		IRDA_MESSAGE("%s, Found dongle: %s\n", driver_name,
+			     dongle_types[dongle_id]);
 	} else {
-		MESSAGE("%s, Using dongle: %s\n", driver_name,
-			dongle_types[dongle_id]);
+		IRDA_MESSAGE("%s, Using dongle: %s\n", driver_name,
+			     dongle_types[dongle_id]);
 	}
 	
 	self->io.dongle_id = dongle_id;
@@ -396,7 +394,7 @@ static int __exit nsc_ircc_close(struct nsc_ircc_cb *self)
 
 	IRDA_DEBUG(4, "%s()\n", __FUNCTION__);
 
-	ASSERT(self != NULL, return -1;);
+	IRDA_ASSERT(self != NULL, return -1;);
 
         iobase = self->io.fir_base;
 
@@ -443,7 +441,7 @@ static int nsc_ircc_init_108(nsc_chip_t *chip, chipio_t *info)
 	case 0x2e8: outb(0x15, cfg_base+1); break;
 	case 0x3f8: outb(0x16, cfg_base+1); break;
 	case 0x2f8: outb(0x17, cfg_base+1); break;
-	default: ERROR("%s(), invalid base_address", __FUNCTION__);
+	default: IRDA_ERROR("%s(), invalid base_address", __FUNCTION__);
 	}
 	
 	/* Control Signal Routing Register (CSRT) */
@@ -455,7 +453,7 @@ static int nsc_ircc_init_108(nsc_chip_t *chip, chipio_t *info)
 	case 9:  temp = 0x05; break;
 	case 11: temp = 0x06; break;
 	case 15: temp = 0x07; break;
-	default: ERROR("%s(), invalid irq", __FUNCTION__);
+	default: IRDA_ERROR("%s(), invalid irq", __FUNCTION__);
 	}
 	outb(CFG_108_CSRT, cfg_base);
 	
@@ -463,7 +461,7 @@ static int nsc_ircc_init_108(nsc_chip_t *chip, chipio_t *info)
 	case 0: outb(0x08+temp, cfg_base+1); break;
 	case 1: outb(0x10+temp, cfg_base+1); break;
 	case 3: outb(0x18+temp, cfg_base+1); break;
-	default: ERROR("%s(), invalid dma", __FUNCTION__);
+	default: IRDA_ERROR("%s(), invalid dma", __FUNCTION__);
 	}
 	
 	outb(CFG_108_MCTL, cfg_base);      /* Mode Control Register (MCTL) */
@@ -827,7 +825,8 @@ static int nsc_ircc_setup(chipio_t *info)
 
 	/* Should be 0x2? */
 	if (0x20 != (version & 0xf0)) {
-		ERROR("%s, Wrong chip version %02x\n", driver_name, version);
+		IRDA_ERROR("%s, Wrong chip version %02x\n",
+			   driver_name, version);
 		return -1;
 	}
 
@@ -1091,7 +1090,7 @@ static __u8 nsc_ircc_change_speed(struct nsc_ircc_cb *self, __u32 speed)
 
 	IRDA_DEBUG(2, "%s(), speed=%d\n", __FUNCTION__, speed);
 
-	ASSERT(self != NULL, return 0;);
+	IRDA_ASSERT(self != NULL, return 0;);
 
 	iobase = self->io.fir_base;
 
@@ -1199,7 +1198,7 @@ static int nsc_ircc_hard_xmit_sir(struct sk_buff *skb, struct net_device *dev)
 	
 	self = (struct nsc_ircc_cb *) dev->priv;
 
-	ASSERT(self != NULL, return 0;);
+	IRDA_ASSERT(self != NULL, return 0;);
 
 	iobase = self->io.fir_base;
 
@@ -1704,8 +1703,9 @@ static int nsc_ircc_dma_receive_complete(struct nsc_ircc_cb *self, int iobase)
 
 			skb = dev_alloc_skb(len+1);
 			if (skb == NULL)  {
-				WARNING("%s(), memory squeeze, "
-					"dropping frame.\n", __FUNCTION__);
+				IRDA_WARNING("%s(), memory squeeze, "
+					     "dropping frame.\n",
+					     __FUNCTION__);
 				self->stats.rx_dropped++;
 
 				/* Restore bank register */
@@ -1891,9 +1891,9 @@ static void nsc_ircc_fir_interrupt(struct nsc_ircc_cb *self, int iobase,
 					nsc_ircc_dma_receive(self);
 					self->ier = IER_SFIF_IE;
 				} else
-					WARNING("%s(), potential "
-						"Tx queue lockup !\n",
-						__FUNCTION__);
+					IRDA_WARNING("%s(), potential "
+						     "Tx queue lockup !\n",
+						     __FUNCTION__);
 			}
 		} else {
 			/*  Not finished yet, so interrupt on DMA again */
@@ -1926,7 +1926,8 @@ static irqreturn_t nsc_ircc_interrupt(int irq, void *dev_id,
 	int iobase;
 
 	if (!dev) {
-		WARNING("%s: irq %d for unknown device.\n", driver_name, irq);
+		IRDA_WARNING("%s: irq %d for unknown device.\n",
+			     driver_name, irq);
 		return IRQ_NONE;
 	}
 	self = (struct nsc_ircc_cb *) dev->priv;
@@ -1971,7 +1972,7 @@ static int nsc_ircc_is_receiving(struct nsc_ircc_cb *self)
 	int iobase;
 	__u8 bank;
 
-	ASSERT(self != NULL, return FALSE;);
+	IRDA_ASSERT(self != NULL, return FALSE;);
 
 	spin_lock_irqsave(&self->lock, flags);
 
@@ -2009,16 +2010,16 @@ static int nsc_ircc_net_open(struct net_device *dev)
 	
 	IRDA_DEBUG(4, "%s()\n", __FUNCTION__);
 	
-	ASSERT(dev != NULL, return -1;);
+	IRDA_ASSERT(dev != NULL, return -1;);
 	self = (struct nsc_ircc_cb *) dev->priv;
 	
-	ASSERT(self != NULL, return 0;);
+	IRDA_ASSERT(self != NULL, return 0;);
 	
 	iobase = self->io.fir_base;
 	
 	if (request_irq(self->io.irq, nsc_ircc_interrupt, 0, dev->name, dev)) {
-		WARNING("%s, unable to allocate irq=%d\n", driver_name, 
-			self->io.irq);
+		IRDA_WARNING("%s, unable to allocate irq=%d\n",
+			     driver_name, self->io.irq);
 		return -EAGAIN;
 	}
 	/*
@@ -2026,8 +2027,8 @@ static int nsc_ircc_net_open(struct net_device *dev)
 	 * failure.
 	 */
 	if (request_dma(self->io.dma, dev->name)) {
-		WARNING("%s, unable to allocate dma=%d\n", driver_name, 
-			self->io.dma);
+		IRDA_WARNING("%s, unable to allocate dma=%d\n",
+			     driver_name, self->io.dma);
 		free_irq(self->io.irq, dev);
 		return -EAGAIN;
 	}
@@ -2071,10 +2072,10 @@ static int nsc_ircc_net_close(struct net_device *dev)
 
 	IRDA_DEBUG(4, "%s()\n", __FUNCTION__);
 	
-	ASSERT(dev != NULL, return -1;);
+	IRDA_ASSERT(dev != NULL, return -1;);
 
 	self = (struct nsc_ircc_cb *) dev->priv;
-	ASSERT(self != NULL, return 0;);
+	IRDA_ASSERT(self != NULL, return 0;);
 
 	/* Stop device */
 	netif_stop_queue(dev);
@@ -2117,11 +2118,11 @@ static int nsc_ircc_net_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	unsigned long flags;
 	int ret = 0;
 
-	ASSERT(dev != NULL, return -1;);
+	IRDA_ASSERT(dev != NULL, return -1;);
 
 	self = dev->priv;
 
-	ASSERT(self != NULL, return -1;);
+	IRDA_ASSERT(self != NULL, return -1;);
 
 	IRDA_DEBUG(2, "%s(), %s, (cmd=0x%X)\n", __FUNCTION__, dev->name, cmd);
 	
@@ -2161,7 +2162,7 @@ static struct net_device_stats *nsc_ircc_net_get_stats(struct net_device *dev)
 
 static void nsc_ircc_suspend(struct nsc_ircc_cb *self)
 {
-	MESSAGE("%s, Suspending\n", driver_name);
+	IRDA_MESSAGE("%s, Suspending\n", driver_name);
 
 	if (self->io.suspended)
 		return;
@@ -2179,7 +2180,7 @@ static void nsc_ircc_wakeup(struct nsc_ircc_cb *self)
 	nsc_ircc_setup(&self->io);
 	nsc_ircc_net_open(self->netdev);
 	
-	MESSAGE("%s, Waking up\n", driver_name);
+	IRDA_MESSAGE("%s, Waking up\n", driver_name);
 
 	self->io.suspended = 0;
 }
@@ -2205,15 +2206,15 @@ MODULE_DESCRIPTION("NSC IrDA Device Driver");
 MODULE_LICENSE("GPL");
 
 
-MODULE_PARM(qos_mtt_bits, "i");
+module_param(qos_mtt_bits, int, 0);
 MODULE_PARM_DESC(qos_mtt_bits, "Minimum Turn Time");
-MODULE_PARM(io,  "1-4i");
+module_param_array(io, int, NULL, 0);
 MODULE_PARM_DESC(io, "Base I/O addresses");
-MODULE_PARM(irq, "1-4i");
+module_param_array(irq, int, NULL, 0);
 MODULE_PARM_DESC(irq, "IRQ lines");
-MODULE_PARM(dma, "1-4i");
+module_param_array(dma, int, NULL, 0);
 MODULE_PARM_DESC(dma, "DMA channels");
-MODULE_PARM(dongle_id, "i");
+module_param(dongle_id, int, 0);
 MODULE_PARM_DESC(dongle_id, "Type-id of used dongle");
 
 module_init(nsc_ircc_init);

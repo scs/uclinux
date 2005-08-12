@@ -214,8 +214,8 @@ static struct usb_driver mts_usb_driver = {
 #ifdef MTS_DO_DEBUG
 
 static inline void mts_debug_dump(struct mts_desc* desc) {
-	MTS_DEBUG("desc at 0x%x: halted = %02x%02x, toggle = %02x%02x\n",
-		  (int)desc,(int)desc->usb_dev->halted[1],(int)desc->usb_dev->halted[0],
+	MTS_DEBUG("desc at 0x%x: toggle = %02x%02x\n",
+		  (int)desc,
 		  (int)desc->usb_dev->toggle[1],(int)desc->usb_dev->toggle[0]
 		);
 	MTS_DEBUG("ep_out=%x ep_response=%x ep_image=%x\n",
@@ -324,7 +324,7 @@ static inline void mts_urb_abort(struct mts_desc* desc) {
 	MTS_DEBUG_GOT_HERE();
 	mts_debug_dump(desc);
 
-	usb_unlink_urb( desc->urb );
+	usb_kill_urb( desc->urb );
 }
 
 static int mts_scsi_abort (Scsi_Cmnd *srb)
@@ -335,18 +335,24 @@ static int mts_scsi_abort (Scsi_Cmnd *srb)
 
 	mts_urb_abort(desc);
 
-	return SCSI_ABORT_PENDING;
+	return FAILED;
 }
 
 static int mts_scsi_host_reset (Scsi_Cmnd *srb)
 {
 	struct mts_desc* desc = (struct mts_desc*)(srb->device->host->hostdata[0]);
+	int result, rc;
 
 	MTS_DEBUG_GOT_HERE();
 	mts_debug_dump(desc);
 
-	usb_reset_device(desc->usb_dev); /*FIXME: untested on new reset code */
-	return 0;  /* RANT why here 0 and not SUCCESS */
+	rc = usb_lock_device_for_reset(desc->usb_dev, desc->usb_intf);
+	if (rc < 0)
+		return FAILED;
+	result = usb_reset_device(desc->usb_dev);;
+	if (rc)
+		usb_unlock_device(desc->usb_dev);
+	return result ? FAILED : SUCCESS;
 }
 
 static
@@ -697,6 +703,7 @@ static int mts_usb_probe(struct usb_interface *intf,
 	int ep_in_set[3]; /* this will break if we have more than three endpoints
 			   which is why we check */
 	int *ep_in_current = ep_in_set;
+	int err_retval = -ENOMEM;
 
 	struct mts_desc * new_desc;
 	struct vendor_product const* p;
@@ -709,8 +716,8 @@ static int mts_usb_probe(struct usb_interface *intf,
 	MTS_DEBUG( "usb-device descriptor at %x\n", (int)dev );
 
 	MTS_DEBUG( "product id = 0x%x, vendor id = 0x%x\n",
-		   (int)dev->descriptor.idProduct,
-		   (int)dev->descriptor.idVendor );
+		   le16_to_cpu(dev->descriptor.idProduct),
+		   le16_to_cpu(dev->descriptor.idVendor) );
 
 	MTS_DEBUG_GOT_HERE();
 
@@ -777,6 +784,7 @@ static int mts_usb_probe(struct usb_interface *intf,
 		goto out_kfree;
 
 	new_desc->usb_dev = dev;
+	new_desc->usb_intf = intf;
 	init_MUTEX(&new_desc->lock);
 
 	/* endpoints */
@@ -802,7 +810,10 @@ static int mts_usb_probe(struct usb_interface *intf,
 		goto out_free_urb;
 
 	new_desc->host->hostdata[0] = (unsigned long)new_desc;
-	scsi_add_host(new_desc->host, NULL); /* XXX handle failure */
+	if (scsi_add_host(new_desc->host, NULL)) {
+		err_retval = -EIO;
+		goto out_free_urb;
+	}
 	scsi_scan_host(new_desc->host);
 
 	usb_set_intfdata(intf, new_desc);
@@ -813,7 +824,7 @@ static int mts_usb_probe(struct usb_interface *intf,
  out_kfree:
 	kfree(new_desc);
  out:
-	return -ENOMEM;
+	return err_retval;
 }
 
 static void mts_usb_disconnect (struct usb_interface *intf)
@@ -822,10 +833,10 @@ static void mts_usb_disconnect (struct usb_interface *intf)
 
 	usb_set_intfdata(intf, NULL);
 
+	usb_kill_urb(desc->urb);
 	scsi_remove_host(desc->host);
-	usb_unlink_urb(desc->urb);
-	scsi_host_put(desc->host);
 
+	scsi_host_put(desc->host);
 	usb_free_urb(desc->urb);
 	kfree(desc);
 }

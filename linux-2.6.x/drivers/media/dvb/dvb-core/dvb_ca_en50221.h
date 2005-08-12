@@ -42,6 +42,12 @@
 /* Structure describing a CA interface */
 struct dvb_ca_en50221 {
 
+	/* the module owning this structure */
+	struct module* owner;
+
+	/* NOTE: the read_*, write_* and poll_slot_status functions must use locks as
+	 * they may be called from several threads at once */
+
 	/* functions for accessing attribute memory on the CAM */
 	int (*read_attribute_mem)(struct dvb_ca_en50221* ca, int slot, int address);
 	int (*write_attribute_mem)(struct dvb_ca_en50221* ca, int slot, int address, u8 value);
@@ -59,7 +65,7 @@ struct dvb_ca_en50221 {
 	* Poll slot status.
 	* Only necessary if DVB_CA_FLAG_EN50221_IRQ_CAMCHANGE is not set
 	*/
-	int (*poll_slot_status)(struct dvb_ca_en50221* ca, int slot);
+	int (*poll_slot_status)(struct dvb_ca_en50221* ca, int slot, int open);
 
 	/* private data, used by caller */
 	void* data;

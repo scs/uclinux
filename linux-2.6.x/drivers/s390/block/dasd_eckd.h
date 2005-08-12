@@ -11,9 +11,9 @@
 #ifndef DASD_ECKD_H
 #define DASD_ECKD_H
 
-/*******************************************************************************
+/*****************************************************************************
  * SECTION: CCW Definitions
- ******************************************************************************/
+ ****************************************************************************/
 #define DASD_ECKD_CCW_WRITE		 0x05
 #define DASD_ECKD_CCW_READ		 0x06
 #define DASD_ECKD_CCW_WRITE_HOME_ADDRESS 0x09
@@ -45,9 +45,9 @@
  */
 #define PSF_ORDER_PRSSD			 0x18
 
-/*******************************************************************************
+/*****************************************************************************
  * SECTION: Type Definitions
- ******************************************************************************/
+ ****************************************************************************/
 
 struct eckd_count {
 	__u16 cyl;
@@ -112,7 +112,7 @@ struct DE_eckd_data {
 	__u8 ga_extended;	/* Global Attributes Extended	*/
 	struct ch_t beg_ext;
 	struct ch_t end_ext;
-	unsigned long long ep_sys_time; /* Extended Parameter - System Time Stamp */
+	unsigned long long ep_sys_time; /* Ext Parameter - System Time Stamp */
 	__u8 ep_format;        /* Extended Parameter format byte       */
 	__u8 ep_prio;          /* Extended Parameter priority I/O byte */
 	__u8 ep_reserved[6];   /* Extended Parameter Reserved          */
@@ -325,6 +325,12 @@ struct dasd_eckd_confdata {
 		unsigned char reserved2[12];
 	} __attribute__ ((packed)) neq;
 } __attribute__ ((packed));
+
+struct dasd_eckd_path {
+	__u8 opm;
+	__u8 ppm;
+	__u8 npm;
+};
 
 /*
  * Perform Subsystem Function - Prepare for Read Subsystem Data	 

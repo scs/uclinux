@@ -116,7 +116,7 @@ int __init init_sbc82xx_flash(void)
 		}
 		printk(" at %08lx)\n",  sbc82xx_flash_map[i].phys);
 
-		sbc82xx_flash_map[i].virt = (unsigned long)ioremap(sbc82xx_flash_map[i].phys, sbc82xx_flash_map[i].size);
+		sbc82xx_flash_map[i].virt = ioremap(sbc82xx_flash_map[i].phys, sbc82xx_flash_map[i].size);
 
 		if (!sbc82xx_flash_map[i].virt) {
 			printk("Failed to ioremap\n");

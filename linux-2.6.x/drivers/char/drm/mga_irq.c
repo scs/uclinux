@@ -30,13 +30,12 @@
  *    Eric Anholt <anholt@FreeBSD.org>
  */
 
-#include "mga.h"
 #include "drmP.h"
 #include "drm.h"
 #include "mga_drm.h"
 #include "mga_drv.h"
 
-irqreturn_t mga_irq_handler( DRM_IRQ_ARGS )
+irqreturn_t mga_driver_irq_handler( DRM_IRQ_ARGS )
 {
 	drm_device_t *dev = (drm_device_t *) arg;
 	drm_mga_private_t *dev_priv = 
@@ -50,13 +49,13 @@ irqreturn_t mga_irq_handler( DRM_IRQ_ARGS )
 		MGA_WRITE( MGA_ICLEAR, MGA_VLINEICLR );
 		atomic_inc(&dev->vbl_received);
 		DRM_WAKEUP(&dev->vbl_queue);
-		DRM(vbl_send_signals)( dev );
+		drm_vbl_send_signals( dev );
 		return IRQ_HANDLED;
 	}
 	return IRQ_NONE;
 }
 
-int mga_vblank_wait(drm_device_t *dev, unsigned int *sequence)
+int mga_driver_vblank_wait(drm_device_t *dev, unsigned int *sequence)
 {
 	unsigned int cur_vblank;
 	int ret = 0;

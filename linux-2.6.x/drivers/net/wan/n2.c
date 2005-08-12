@@ -111,7 +111,7 @@ typedef struct port_s {
 
 
 typedef struct card_s {
-	u8 *winbase;		/* ISA window base address */
+	u8 __iomem *winbase;		/* ISA window base address */
 	u32 phy_winbase;	/* ISA physical base address */
 	u32 ram_size;		/* number of bytes */
 	u16 io;			/* IO Base address */
@@ -158,11 +158,6 @@ static __inline__ void openwin(card_t *card, u8 page)
 	outb((psr & ~PSR_PAGEBITS) | page, card->io + N2_PSR);
 }
 
-
-static __inline__ void close_windows(card_t *card)
-{
-	outb(inb(card->io + N2_PCR) & ~PCR_ENWIN, card->io + N2_PCR);
-}
 
 
 #include "hd6457x.c"

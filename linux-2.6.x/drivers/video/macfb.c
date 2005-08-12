@@ -614,6 +614,11 @@ void __init macfb_init(void)
 {
 	int video_cmap_len, video_is_nubus = 0;
 	struct nubus_dev* ndev = NULL;
+	char *option = NULL;
+
+	if (fb_get_options("macfb", &option))
+		return -ENODEV;
+	macfb_setup(option);
 
 	if (!MACH_IS_MAC) 
 		return;
@@ -660,6 +665,9 @@ void __init macfb_init(void)
 	case 1:
 		/* XXX: I think this will catch any program that tries
 		   to do FBIO_PUTCMAP when the visual is monochrome */
+		macfb_defined.red.length = macfb_defined.bits_per_pixel;
+		macfb_defined.green.length = macfb_defined.bits_per_pixel;
+		macfb_defined.blue.length = macfb_defined.bits_per_pixel;
 		video_cmap_len = 0;
 		macfb_fix.visual = FB_VISUAL_MONO01;
 		break;
@@ -947,7 +955,7 @@ void __init macfb_init(void)
 	fb_info.var		= macfb_defined;
 	fb_info.fix		= macfb_fix;
 	fb_info.pseudo_palette	= pseudo_palette;
-	fb_info.flags		= FBINFO_FLAG_DEFAULT;
+	fb_info.flags		= FBINFO_DEFAULT;
 
 	fb_alloc_cmap(&fb_info.cmap, video_cmap_len, 0);
 	
@@ -958,4 +966,5 @@ void __init macfb_init(void)
 	       fb_info.node, fb_info.fix.id);
 }
 
+module_init(macfb_init);
 MODULE_LICENSE("GPL");

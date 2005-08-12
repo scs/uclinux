@@ -45,8 +45,10 @@
 #include <asm/arch/hardware.h>
 #include <asm/arch/irqs.h>
 
+#define DRIVER_DESC	"H3600 touchscreen driver"
+
 MODULE_AUTHOR("James Simmons <jsimmons@transvirtual.com>");
-MODULE_DESCRIPTION("H3600 touchscreen driver");
+MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");
 
 /*
@@ -98,7 +100,9 @@ static char *h3600_name = "H3600 TouchScreen";
  */
 struct h3600_dev {
 	struct input_dev dev;
+	struct pm_dev *pm_dev;
 	struct serio *serio;
+	struct pm_dev *pm_dev;
 	unsigned char event;	/* event ID from packet */
 	unsigned char chksum;
 	unsigned char len;
@@ -328,7 +332,7 @@ static int state;
 static irqreturn_t h3600ts_interrupt(struct serio *serio, unsigned char data,
                                      unsigned int flags, struct pt_regs *regs)
 {
-        struct h3600_dev *ts = serio->private;
+        struct h3600_dev *ts = serio_get_drvdata(serio);
 
 	/*
          * We have a new frame coming in.
@@ -370,18 +374,16 @@ static irqreturn_t h3600ts_interrupt(struct serio *serio, unsigned char data,
 
 /*
  * h3600ts_connect() is the routine that is called when someone adds a
- * new serio device. It looks whether it was registered as a H3600 touchscreen
- * and if yes, registers it as an input device.
+ * new serio device that supports H3600 protocol and registers it as
+ * an input device.
  */
-static void h3600ts_connect(struct serio *serio, struct serio_dev *dev)
+static int h3600ts_connect(struct serio *serio, struct serio_driver *drv)
 {
 	struct h3600_dev *ts;
-
-	if (serio->type != (SERIO_RS232 | SERIO_H3600))
-		return;
+	int err;
 
 	if (!(ts = kmalloc(sizeof(struct h3600_dev), GFP_KERNEL)))
-		return;
+		return -ENOMEM;
 
 	memset(ts, 0, sizeof(struct h3600_dev));
 
@@ -396,7 +398,7 @@ static void h3600ts_connect(struct serio *serio, struct serio_dev *dev)
 			"h3600_action", &ts->dev)) {
 		printk(KERN_ERR "h3600ts.c: Could not allocate Action Button IRQ!\n");
 		kfree(ts);
-		return;
+		return -EBUSY;
 	}
 
         if (request_irq(IRQ_GPIO_BITSY_NPOWER_BUTTON, npower_button_handler,
@@ -405,7 +407,7 @@ static void h3600ts_connect(struct serio *serio, struct serio_dev *dev)
 		free_irq(IRQ_GPIO_BITSY_ACTION_BUTTON, &ts->dev);
 		printk(KERN_ERR "h3600ts.c: Could not allocate Power Button IRQ!\n");
 		kfree(ts);
-		return;
+		return -EBUSY;
 	}
 
 	/* Now we have things going we setup our input device */
@@ -428,7 +430,6 @@ static void h3600ts_connect(struct serio *serio, struct serio_dev *dev)
 	ts->dev.keybit[LONG(KEY_SUSPEND)] |= BIT(KEY_SUSPEND);
 
 	ts->serio = serio;
-	serio->private = ts;
 
 	sprintf(ts->phys, "%s/input0", serio->phys);
 
@@ -441,22 +442,28 @@ static void h3600ts_connect(struct serio *serio, struct serio_dev *dev)
 	ts->dev.id.product = 0x0666;  /* FIXME !!! We can ask the hardware */
 	ts->dev.id.version = 0x0100;
 
-	if (serio_open(serio, dev)) {
+	serio_set_drvdata(serio, ts);
+
+	err = serio_open(serio, drv);
+	if (err) {
         	free_irq(IRQ_GPIO_BITSY_ACTION_BUTTON, ts);
         	free_irq(IRQ_GPIO_BITSY_NPOWER_BUTTON, ts);
+		serio_set_drvdata(serio, NULL);
 		kfree(ts);
-		return;
+		return err;
 	}
 
 	//h3600_flite_control(1, 25);     /* default brightness */
 #ifdef CONFIG_PM
-	ts->dev.pm_dev = pm_register(PM_ILLUMINATION_DEV, PM_SYS_LIGHT,
-					h3600ts_pm_callback);
+	ts->pm_dev = pm_register(PM_ILLUMINATION_DEV, PM_SYS_LIGHT,
+				h3600ts_pm_callback);
 	printk("registered pm callback\n");
 #endif
 	input_register_device(&ts->dev);
 
 	printk(KERN_INFO "input: %s on %s\n", h3600_name, serio->phys);
+
+	return 0;
 }
 
 /*
@@ -465,23 +472,41 @@ static void h3600ts_connect(struct serio *serio, struct serio_dev *dev)
 
 static void h3600ts_disconnect(struct serio *serio)
 {
-	struct h3600_dev *ts = serio->private;
+	struct h3600_dev *ts = serio_get_drvdata(serio);
 
-        free_irq(IRQ_GPIO_BITSY_ACTION_BUTTON, &ts->dev);
-        free_irq(IRQ_GPIO_BITSY_NPOWER_BUTTON, &ts->dev);
+	free_irq(IRQ_GPIO_BITSY_ACTION_BUTTON, &ts->dev);
+	free_irq(IRQ_GPIO_BITSY_NPOWER_BUTTON, &ts->dev);
 	input_unregister_device(&ts->dev);
 	serio_close(serio);
+	serio_set_drvdata(serio, NULL);
 	kfree(ts);
 }
 
 /*
- * The serio device structure.
+ * The serio driver structure.
  */
 
-static struct serio_dev h3600ts_dev = {
-	.interrupt =	h3600ts_interrupt,
-	.connect =	h3600ts_connect,
-	.disconnect =	h3600ts_disconnect,
+static struct serio_device_id h3600ts_serio_ids[] = {
+	{
+		.type	= SERIO_RS232,
+		.proto	= SERIO_H3600,
+		.id	= SERIO_ANY,
+		.extra	= SERIO_ANY,
+	},
+	{ 0 }
+};
+
+MODULE_DEVICE_TABLE(serio, h3600ts_serio_ids);
+
+static struct serio_driver h3600ts_drv = {
+	.driver		= {
+		.name	= "h3600ts",
+	},
+	.description	= DRIVER_DESC,
+	.id_table	= h3600ts_serio_ids,
+	.interrupt	= h3600ts_interrupt,
+	.connect	= h3600ts_connect,
+	.disconnect	= h3600ts_disconnect,
 };
 
 /*
@@ -490,13 +515,13 @@ static struct serio_dev h3600ts_dev = {
 
 static int __init h3600ts_init(void)
 {
-	serio_register_device(&h3600ts_dev);
+	serio_register_driver(&h3600ts_drv);
 	return 0;
 }
 
 static void __exit h3600ts_exit(void)
 {
-	serio_unregister_device(&h3600ts_dev);
+	serio_unregister_driver(&h3600ts_drv);
 }
 
 module_init(h3600ts_init);

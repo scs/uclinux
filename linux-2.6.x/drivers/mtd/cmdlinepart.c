@@ -338,8 +338,10 @@ static int parse_cmdline_partitions(struct mtd_info *master,
  * This is the handler for our kernel parameter, called from 
  * main.c::checksetup(). Note that we can not yet kmalloc() anything,
  * so we only save the commandline for later processing.
+ *
+ * This function needs to be visible for bootloaders.
  */
-static int __init mtdpart_setup(char *s)
+int mtdpart_setup(char *s)
 {
 	cmdline = s;
 	return 1;

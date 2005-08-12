@@ -45,6 +45,8 @@
 #include <linux/init.h>
 #include <asm/io.h>
 
+static struct pci_dev *vt596_pdev;
+
 #define SMBBA1	   	 0x90
 #define SMBBA2     	 0x80
 #define SMBBA3     	 0xD0
@@ -92,13 +94,13 @@ static unsigned short smb_cf_hstcfg = 0xD2;
 /* If force is set to anything different from 0, we forcibly enable the
    VT596. DANGEROUS! */
 static int force;
-MODULE_PARM(force, "i");
+module_param(force, bool, 0);
 MODULE_PARM_DESC(force, "Forcibly enable the SMBus. DANGEROUS!");
 
 /* If force_addr is set to anything different from 0, we forcibly enable
    the VT596 at the given address. VERY DANGEROUS! */
-static int force_addr;
-MODULE_PARM(force_addr, "i");
+static u16 force_addr;
+module_param(force_addr, ushort, 0);
 MODULE_PARM_DESC(force_addr,
 		 "Forcibly enable the SMBus at the given address. "
 		 "EXTREMELY DANGEROUS!");
@@ -119,12 +121,12 @@ static int vt596_transaction(void)
 		inb_p(SMBHSTDAT1));
 
 	/* Make sure the SMBus host is ready to start transmitting */
-	if ((temp = inb_p(SMBHSTSTS)) != 0x00) {
+	if ((temp = inb_p(SMBHSTSTS)) & 0x1F) {
 		dev_dbg(&vt596_adapter.dev, "SMBus busy (0x%02x). "
 				"Resetting...\n", temp);
 		
 		outb_p(temp, SMBHSTSTS);
-		if ((temp = inb_p(SMBHSTSTS)) != 0x00) {
+		if ((temp = inb_p(SMBHSTSTS)) & 0x1F) {
 			dev_dbg(&vt596_adapter.dev, "Failed! (0x%02x)\n", temp);
 			
 			return -1;
@@ -166,13 +168,14 @@ static int vt596_transaction(void)
 		dev_dbg(&vt596_adapter.dev, "Error: no response!\n");
 	}
 
-	if (inb_p(SMBHSTSTS) != 0x00)
-		outb_p(inb(SMBHSTSTS), SMBHSTSTS);
-
-	if ((temp = inb_p(SMBHSTSTS)) != 0x00) {
-		dev_dbg(&vt596_adapter.dev, "Failed reset at end of "
-			"transaction (%02x)\n", temp);
+	if ((temp = inb_p(SMBHSTSTS)) & 0x1F) {
+		outb_p(temp, SMBHSTSTS);
+		if ((temp = inb_p(SMBHSTSTS)) & 0x1F) {
+			dev_warn(&vt596_adapter.dev, "Failed reset at end "
+				 "of transaction (%02x)\n", temp);
+		}
 	}
+
 	dev_dbg(&vt596_adapter.dev, "Transaction (post): CNT=%02x, CMD=%02x, "
 		"ADD=%02x, DAT0=%02x, DAT1=%02x\n", inb_p(SMBHSTCNT),
 		inb_p(SMBHSTCMD), inb_p(SMBHSTADD), inb_p(SMBHSTDAT0), 
@@ -231,8 +234,8 @@ static s32 vt596_access(struct i2c_adapter *adap, u16 addr,
 			len = data->block[0];
 			if (len < 0)
 				len = 0;
-			if (len > 32)
-				len = 32;
+			if (len > I2C_SMBUS_BLOCK_MAX)
+				len = I2C_SMBUS_BLOCK_MAX;
 			outb_p(len, SMBHSTDAT0);
 			i = inb_p(SMBHSTCNT);	/* Reset SMBBLKDAT */
 			for (i = 1; i <= len; i++)
@@ -266,6 +269,8 @@ static s32 vt596_access(struct i2c_adapter *adap, u16 addr,
 		break;
 	case VT596_BLOCK_DATA:
 		data->block[0] = inb_p(SMBHSTDAT0);
+		if (data->block[0] > I2C_SMBUS_BLOCK_MAX)
+			data->block[0] = I2C_SMBUS_BLOCK_MAX;
 		i = inb_p(SMBHSTCNT);	/* Reset SMBBLKDAT */
 		for (i = 1; i <= data->block[0]; i++)
 			data->block[i] = inb_p(SMBBLKDAT);
@@ -381,95 +386,66 @@ static int __devinit vt596_probe(struct pci_dev *pdev,
 	snprintf(vt596_adapter.name, I2C_NAME_SIZE,
 			"SMBus Via Pro adapter at %04x", vt596_smba);
 	
-	return i2c_add_adapter(&vt596_adapter);
+	vt596_pdev = pci_dev_get(pdev);
+	if (i2c_add_adapter(&vt596_adapter)) {
+		pci_dev_put(vt596_pdev);
+		vt596_pdev = NULL;
+	}
+
+	/* Always return failure here.  This is to allow other drivers to bind
+	 * to this pci device.  We don't really want to have control over the
+	 * pci device, we only wanted to read as few register values from it.
+	 */
+	return -ENODEV;
 
  release_region:
 	release_region(vt596_smba, 8);
 	return error;
 }
 
-static void __devexit vt596_remove(struct pci_dev *pdev)
-{
-	i2c_del_adapter(&vt596_adapter);
-	release_region(vt596_smba, 8);
-}
-
 static struct pci_device_id vt596_ids[] = {
-	{
-		.vendor		= PCI_VENDOR_ID_VIA,
-		.device 	= PCI_DEVICE_ID_VIA_82C596_3,
-		.subvendor	= PCI_ANY_ID,
-		.subdevice	= PCI_ANY_ID,
-		.driver_data	= SMBBA1,
-	},
-	{
-		.vendor		= PCI_VENDOR_ID_VIA,
-		.device		= PCI_DEVICE_ID_VIA_82C596B_3,
-		.subvendor	= PCI_ANY_ID,
-		.subdevice	= PCI_ANY_ID,
-		.driver_data	= SMBBA1,
-	},
-	{
-		.vendor		= PCI_VENDOR_ID_VIA,
-		.device 	= PCI_DEVICE_ID_VIA_82C686_4,
-		.subvendor	= PCI_ANY_ID,
-		.subdevice	= PCI_ANY_ID,
-		.driver_data	= SMBBA1,
-	},
-	{
-		.vendor		= PCI_VENDOR_ID_VIA,
-		.device 	= PCI_DEVICE_ID_VIA_8233_0,
-		.subvendor	= PCI_ANY_ID,
-		.subdevice	= PCI_ANY_ID,
-		.driver_data	= SMBBA3
-	},
-	{
-		.vendor		= PCI_VENDOR_ID_VIA,
-		.device 	= PCI_DEVICE_ID_VIA_8233A,
-		.subvendor	= PCI_ANY_ID,
-		.subdevice	= PCI_ANY_ID,
-		.driver_data	= SMBBA3,
-	},
-	{
-		.vendor		= PCI_VENDOR_ID_VIA,
-		.device 	= PCI_DEVICE_ID_VIA_8235,
-		.subvendor	= PCI_ANY_ID,
-		.subdevice	= PCI_ANY_ID,
-		.driver_data	= SMBBA3
-	},
-	{
-		.vendor		= PCI_VENDOR_ID_VIA,
-		.device 	= PCI_DEVICE_ID_VIA_8237,
-		.subvendor	= PCI_ANY_ID,
-		.subdevice	= PCI_ANY_ID,
-		.driver_data	= SMBBA3
-	},
-	{
-		.vendor		= PCI_VENDOR_ID_VIA,
-		.device 	= PCI_DEVICE_ID_VIA_8231_4,
-		.subvendor	= PCI_ANY_ID,
-		.subdevice	= PCI_ANY_ID,
-		.driver_data	= SMBBA1,
-	},
+	{ PCI_DEVICE(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_82C596_3),
+	  .driver_data = SMBBA1 },
+	{ PCI_DEVICE(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_82C596B_3),
+	  .driver_data = SMBBA1 },
+	{ PCI_DEVICE(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_82C686_4),
+	  .driver_data = SMBBA1 },
+	{ PCI_DEVICE(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_8233_0),
+	  .driver_data = SMBBA3 },
+	{ PCI_DEVICE(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_8233A),
+	  .driver_data = SMBBA3 },
+	{ PCI_DEVICE(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_8235),
+	  .driver_data = SMBBA3 },
+	{ PCI_DEVICE(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_8237),
+	  .driver_data = SMBBA3 },
+	{ PCI_DEVICE(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_8231_4),
+	  .driver_data = SMBBA1 },
 	{ 0, }
 };
 
+MODULE_DEVICE_TABLE (pci, vt596_ids);
+
 static struct pci_driver vt596_driver = {
-	.name		= "vt596 smbus",
+	.name		= "vt596_smbus",
 	.id_table	= vt596_ids,
 	.probe		= vt596_probe,
-	.remove		= __devexit_p(vt596_remove),
 };
 
 static int __init i2c_vt596_init(void)
 {
-	return pci_module_init(&vt596_driver);
+	return pci_register_driver(&vt596_driver);
 }
 
 
 static void __exit i2c_vt596_exit(void)
 {
 	pci_unregister_driver(&vt596_driver);
+	if (vt596_pdev != NULL) {
+		i2c_del_adapter(&vt596_adapter);
+		release_region(vt596_smba, 8);
+		pci_dev_put(vt596_pdev);
+		vt596_pdev = NULL;
+	}
 }
 
 MODULE_AUTHOR(

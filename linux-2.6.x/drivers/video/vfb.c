@@ -35,7 +35,7 @@
 
 static void *videomemory;
 static u_long videomemorysize = VIDEOMEMSIZE;
-MODULE_PARM(videomemorysize, "l");
+module_param(videomemorysize, ulong, 0);
 
 static struct fb_var_screeninfo vfb_default __initdata = {
 	.xres =		640,
@@ -70,13 +70,7 @@ static struct fb_fix_screeninfo vfb_fix __initdata = {
 };
 
 static int vfb_enable __initdata = 0;	/* disabled by default */
-MODULE_PARM(vfb_enable, "i");
-
-    /*
-     *  Interface used by the world
-     */
-int vfb_init(void);
-int vfb_setup(char *);
+module_param(vfb_enable, bool, 0);
 
 static int vfb_check_var(struct fb_var_screeninfo *var,
 			 struct fb_info *info);
@@ -379,7 +373,8 @@ static int vfb_mmap(struct fb_info *info, struct file *file,
 	return -EINVAL;
 }
 
-int __init vfb_setup(char *options)
+#ifndef MODULE
+static int __init vfb_setup(char *options)
 {
 	char *this_opt;
 
@@ -396,6 +391,7 @@ int __init vfb_setup(char *options)
 	}
 	return 1;
 }
+#endif  /*  MODULE  */
 
     /*
      *  Initialisation
@@ -430,7 +426,7 @@ static int __init vfb_probe(struct device *device)
 	if (!info)
 		goto err;
 
-	info->screen_base = videomemory;
+	info->screen_base = (char __iomem *)videomemory;
 	info->fbops = &vfb_ops;
 
 	retval = fb_find_mode(&info->var, info, NULL,
@@ -492,9 +488,17 @@ static struct platform_device vfb_device = {
 	}
 };
 
-int __init vfb_init(void)
+static int __init vfb_init(void)
 {
 	int ret = 0;
+
+#ifndef MODULE
+	char *option = NULL;
+
+	if (fb_get_options("vfb", &option))
+		return -ENODEV;
+	vfb_setup(option);
+#endif
 
 	if (!vfb_enable)
 		return -ENXIO;
@@ -509,6 +513,8 @@ int __init vfb_init(void)
 	return ret;
 }
 
+module_init(vfb_init);
+
 #ifdef MODULE
 static void __exit vfb_exit(void)
 {
@@ -516,7 +522,6 @@ static void __exit vfb_exit(void)
 	driver_unregister(&vfb_driver);
 }
 
-module_init(vfb_init);
 module_exit(vfb_exit);
 
 MODULE_LICENSE("GPL");

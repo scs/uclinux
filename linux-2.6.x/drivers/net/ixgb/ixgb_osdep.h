@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   
-  Copyright(c) 1999 - 2004 Intel Corporation. All rights reserved.
+  Copyright(c) 1999 - 2005 Intel Corporation. All rights reserved.
   
   This program is free software; you can redistribute it and/or modify it 
   under the terms of the GNU General Public License as published by the Free 
@@ -45,8 +45,7 @@
 				/* Don't mdelay in interrupt context! */ \
 	                	BUG(); \
 			} else { \
-				set_current_state(TASK_UNINTERRUPTIBLE); \
-				schedule_timeout((x * HZ)/1000 + 2); \
+				msleep(x); \
 			} } while(0)
 #endif
 
@@ -78,19 +77,19 @@ typedef enum {
 #define DEBUGOUT7 DEBUGOUT3
 
 #define IXGB_WRITE_REG(a, reg, value) ( \
-    writel((value), ((a)->hw_addr + IXGB_##reg)))
+	writel((value), ((a)->hw_addr + IXGB_##reg)))
 
 #define IXGB_READ_REG(a, reg) ( \
-    readl((a)->hw_addr + IXGB_##reg))
+	readl((a)->hw_addr + IXGB_##reg))
 
 #define IXGB_WRITE_REG_ARRAY(a, reg, offset, value) ( \
-    writel((value), ((a)->hw_addr + IXGB_##reg + ((offset) << 2))))
+	writel((value), ((a)->hw_addr + IXGB_##reg + ((offset) << 2))))
 
 #define IXGB_READ_REG_ARRAY(a, reg, offset) ( \
-    readl((a)->hw_addr + IXGB_##reg + ((offset) << 2)))
+	readl((a)->hw_addr + IXGB_##reg + ((offset) << 2)))
 
 #define IXGB_WRITE_FLUSH(a) IXGB_READ_REG(a, STATUS)
 
 #define IXGB_MEMCPY memcpy
 
-#endif				/* _IXGB_OSDEP_H_ */
+#endif /* _IXGB_OSDEP_H_ */

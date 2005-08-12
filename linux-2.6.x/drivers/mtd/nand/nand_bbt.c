@@ -114,6 +114,7 @@ static int check_pattern (uint8_t *buf, int len, int paglen, struct nand_bbt_des
  * @num:	the number of bbt descriptors to read
  * @bits:	number of bits per block
  * @offs:	offset in the memory table
+ * @reserved_block_code:	Pattern to identify reserved blocks
  *
  * Read the bad block table starting from page.
  *
@@ -796,7 +797,7 @@ int nand_scan_bbt (struct mtd_info *mtd, struct nand_bbt_descr *bd)
 
 	len = mtd->size >> (this->bbt_erase_shift + 2);
 	/* Allocate memory (2bit per block) */
-	this->bbt = (uint8_t *) kmalloc (len, GFP_KERNEL);
+	this->bbt = kmalloc (len, GFP_KERNEL);
 	if (!this->bbt) {
 		printk (KERN_ERR "nand_scan_bbt: Out of memory\n");
 		return -ENOMEM;
@@ -1000,25 +1001,27 @@ int nand_default_bbt (struct mtd_info *mtd)
 		return nand_scan_bbt (mtd, &agand_flashbased);
 	}
 	
+	
 	/* Is a flash based bad block table requested ? */
 	if (this->options & NAND_USE_FLASH_BBT) {
 		/* Use the default pattern descriptors */	
 		if (!this->bbt_td) {	
 			this->bbt_td = &bbt_main_descr;
 			this->bbt_md = &bbt_mirror_descr;
-		}	
-		if (mtd->oobblock > 512)
-			return nand_scan_bbt (mtd, &largepage_flashbased);
-		else	
-			return nand_scan_bbt (mtd, &smallpage_flashbased);			
+		}
+		if (!this->badblock_pattern) {
+			this->badblock_pattern = (mtd->oobblock > 512) ?
+				&largepage_flashbased : &smallpage_flashbased;
+		}
 	} else {
 		this->bbt_td = NULL;
 		this->bbt_md = NULL;
-		if (mtd->oobblock > 512)
-			return nand_scan_bbt (mtd, &largepage_memorybased);
-		else
-			return nand_scan_bbt (mtd, &smallpage_memorybased);
+		if (!this->badblock_pattern) {
+			this->badblock_pattern = (mtd->oobblock > 512) ?
+				&largepage_memorybased : &smallpage_memorybased;
+		}
 	}
+	return nand_scan_bbt (mtd, this->badblock_pattern);
 }
 
 /**

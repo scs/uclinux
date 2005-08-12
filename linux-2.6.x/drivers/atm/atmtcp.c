@@ -67,7 +67,7 @@ static int atmtcp_send_control(struct atm_vcc *vcc,int type,
 	*(struct atm_vcc **) &new_msg->vcc = vcc;
 	old_test = test_bit(flag,&vcc->flags);
 	out_vcc->push(out_vcc,skb);
-	add_wait_queue(vcc->sk->sk_sleep, &wait);
+	add_wait_queue(sk_atm(vcc)->sk_sleep, &wait);
 	while (test_bit(flag,&vcc->flags) == old_test) {
 		mb();
 		out_vcc = PRIV(vcc->dev) ? PRIV(vcc->dev)->vcc : NULL;
@@ -79,7 +79,7 @@ static int atmtcp_send_control(struct atm_vcc *vcc,int type,
 		schedule();
 	}
 	set_current_state(TASK_RUNNING);
-	remove_wait_queue(vcc->sk->sk_sleep, &wait);
+	remove_wait_queue(sk_atm(vcc)->sk_sleep, &wait);
 	return error;
 }
 
@@ -91,7 +91,7 @@ static int atmtcp_recv_control(const struct atmtcp_control *msg)
 	vcc->vpi = msg->addr.sap_addr.vpi;
 	vcc->vci = msg->addr.sap_addr.vci;
 	vcc->qos = msg->qos;
-	vcc->sk->sk_err = -msg->result;
+	sk_atm(vcc)->sk_err = -msg->result;
 	switch (msg->type) {
 	    case ATMTCP_CTRL_OPEN:
 		change_bit(ATM_VF_READY,&vcc->flags);
@@ -104,7 +104,7 @@ static int atmtcp_recv_control(const struct atmtcp_control *msg)
 		    msg->type);
 		return -EINVAL;
 	}
-	wake_up(vcc->sk->sk_sleep);
+	wake_up(sk_atm(vcc)->sk_sleep);
 	return 0;
 }
 
@@ -135,7 +135,7 @@ static int atmtcp_v_open(struct atm_vcc *vcc)
 	clear_bit(ATM_VF_READY,&vcc->flags); /* just in case ... */
 	error = atmtcp_send_control(vcc,ATMTCP_CTRL_OPEN,&msg,ATM_VF_READY);
 	if (error) return error;
-	return -vcc->sk->sk_err;
+	return -sk_atm(vcc)->sk_err;
 }
 
 
@@ -267,10 +267,32 @@ static void atmtcp_c_close(struct atm_vcc *vcc)
 			walk = atm_sk(s);
 			if (walk->dev != atmtcp_dev)
 				continue;
-			wake_up(walk->sk->sk_sleep);
+			wake_up(s->sk_sleep);
 		}
 	}
 	read_unlock(&vcc_sklist_lock);
+	module_put(THIS_MODULE);
+}
+
+
+static struct atm_vcc *find_vcc(struct atm_dev *dev, short vpi, int vci)
+{
+        struct hlist_head *head;
+        struct atm_vcc *vcc;
+        struct hlist_node *node;
+        struct sock *s;
+
+        head = &vcc_hash[vci & (VCC_HTABLE_SIZE -1)];
+
+        sk_for_each(s, node, head) {
+                vcc = atm_sk(s);
+                if (vcc->dev == dev &&
+                    vcc->vci == vci && vcc->vpi == vpi &&
+                    vcc->qos.rxtp.traffic_class != ATM_NONE) {
+                                return vcc;
+                }
+        }
+        return NULL;
 }
 
 
@@ -278,11 +300,9 @@ static int atmtcp_c_send(struct atm_vcc *vcc,struct sk_buff *skb)
 {
 	struct atm_dev *dev;
 	struct atmtcp_hdr *hdr;
-	struct sock *s;
-	struct hlist_node *node;
-	struct atm_vcc *out_vcc = NULL;
+	struct atm_vcc *out_vcc;
 	struct sk_buff *new_skb;
-	int i, result = 0;
+	int result = 0;
 
 	if (!skb->len) return 0;
 	dev = vcc->dev_data;
@@ -293,19 +313,7 @@ static int atmtcp_c_send(struct atm_vcc *vcc,struct sk_buff *skb)
 		goto done;
 	}
 	read_lock(&vcc_sklist_lock);
-	for(i = 0; i < VCC_HTABLE_SIZE; ++i) {
-		struct hlist_head *head = &vcc_hash[i];
-
-		sk_for_each(s, node, head) {
-			out_vcc = atm_sk(s);
-			if (out_vcc->dev != dev)
-				continue;
-			if (out_vcc->vpi == ntohs(hdr->vpi) &&
-			    out_vcc->vci == ntohs(hdr->vci) &&
-			    out_vcc->qos.rxtp.traffic_class != ATM_NONE)
-				break;
-		}
-	}
+	out_vcc = find_vcc(dev, ntohs(hdr->vpi), ntohs(hdr->vci));
 	read_unlock(&vcc_sklist_lock);
 	if (!out_vcc) {
 		atomic_inc(&vcc->stats->tx_err);
@@ -388,7 +396,7 @@ static int atmtcp_create(int itf,int persist,struct atm_dev **result)
 }
 
 
-int atmtcp_attach(struct atm_vcc *vcc,int itf)
+static int atmtcp_attach(struct atm_vcc *vcc,int itf)
 {
 	struct atm_dev *dev;
 
@@ -409,7 +417,7 @@ int atmtcp_attach(struct atm_vcc *vcc,int itf)
 	}
 	PRIV(dev)->vcc = vcc;
 	vcc->dev = &atmtcp_control_dev;
-	vcc_insert_socket(vcc->sk);
+	vcc_insert_socket(sk_atm(vcc));
 	set_bit(ATM_VF_META,&vcc->flags);
 	set_bit(ATM_VF_READY,&vcc->flags);
 	vcc->dev_data = dev;
@@ -419,13 +427,13 @@ int atmtcp_attach(struct atm_vcc *vcc,int itf)
 }
 
 
-int atmtcp_create_persistent(int itf)
+static int atmtcp_create_persistent(int itf)
 {
 	return atmtcp_create(itf,1,NULL);
 }
 
 
-int atmtcp_remove_persistent(int itf)
+static int atmtcp_remove_persistent(int itf)
 {
 	struct atm_dev *dev;
 	struct atmtcp_dev_data *dev_data;

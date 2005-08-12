@@ -19,9 +19,6 @@
 #include <linux/fb.h>
 #include <linux/ioport.h>
 #include <linux/init.h>
-#ifdef __i386__
-#include <video/edid.h>
-#endif
 #include <asm/io.h>
 #include <asm/mtrr.h>
 
@@ -49,12 +46,14 @@ static struct fb_fix_screeninfo vesafb_fix __initdata = {
 
 static int             inverse   = 0;
 static int             mtrr      = 1;
-static int	       vram __initdata = 0; /* Set amount of memory to be used */
+static int	       vram_remap __initdata = 0; /* Set amount of memory to be used */
+static int	       vram_total __initdata = 0; /* Set total amount of memory */
 static int             pmi_setpal = 0;	/* pmi for palette changes ??? */
 static int             ypan       = 0;  /* 0..nothing, 1..ypan, 2..ywrap */
 static unsigned short  *pmi_base  = NULL;
 static void            (*pmi_start)(void);
 static void            (*pmi_pal)(void);
+static int             depth;
 
 /* --------------------------------------------------------------------- */
 
@@ -87,15 +86,17 @@ static int vesafb_pan_display(struct fb_var_screeninfo *var,
 	return 0;
 }
 
-static void vesa_setpalette(int regno, unsigned red, unsigned green, unsigned blue)
+static void vesa_setpalette(int regno, unsigned red, unsigned green,
+			    unsigned blue)
 {
 #ifdef __i386__
 	struct { u_char blue, green, red, pad; } entry;
+	int shift = 16 - depth;
 
 	if (pmi_setpal) {
-		entry.red   = red   >> 10;
-		entry.green = green >> 10;
-		entry.blue  = blue  >> 10;
+		entry.red   = red   >> shift;
+		entry.green = green >> shift;
+		entry.blue  = blue  >> shift;
 		entry.pad   = 0;
 	        __asm__ __volatile__(
                 "call *(%%esi)"
@@ -109,9 +110,9 @@ static void vesa_setpalette(int regno, unsigned red, unsigned green, unsigned bl
 	} else {
 		/* without protected mode interface, try VGA registers... */
 		outb_p(regno,       dac_reg);
-		outb_p(red   >> 10, dac_val);
-		outb_p(green >> 10, dac_val);
-		outb_p(blue  >> 10, dac_val);
+		outb_p(red   >> shift, dac_val);
+		outb_p(green >> shift, dac_val);
+		outb_p(blue  >> shift, dac_val);
 	}
 #endif
 }
@@ -181,7 +182,7 @@ static struct fb_ops vesafb_ops = {
 	.fb_cursor	= soft_cursor,
 };
 
-int __init vesafb_setup(char *options)
+static int __init vesafb_setup(char *options)
 {
 	char *this_opt;
 	
@@ -207,8 +208,10 @@ int __init vesafb_setup(char *options)
 			mtrr=1;
 		else if (! strcmp(this_opt, "nomtrr"))
 			mtrr=0;
-		else if (! strncmp(this_opt, "vram:", 5))
-			vram = simple_strtoul(this_opt+5, NULL, 0);
+		else if (! strncmp(this_opt, "vtotal:", 7))
+			vram_total = simple_strtoul(this_opt+7, NULL, 0);
+		else if (! strncmp(this_opt, "vremap:", 7))
+			vram_remap = simple_strtoul(this_opt+7, NULL, 0);
 	}
 	return 0;
 }
@@ -218,9 +221,12 @@ static int __init vesafb_probe(struct device *device)
 	struct platform_device *dev = to_platform_device(device);
 	struct fb_info *info;
 	int i, err;
+	unsigned int size_vmode;
+	unsigned int size_remap;
+	unsigned int size_total;
 
 	if (screen_info.orig_video_isVGA != VIDEO_TYPE_VLFB)
-		return -ENXIO;
+		return -ENODEV;
 
 	vesafb_fix.smem_start = screen_info.lfb_base;
 	vesafb_defined.bits_per_pixel = screen_info.lfb_depth;
@@ -229,32 +235,41 @@ static int __init vesafb_probe(struct device *device)
 	vesafb_defined.xres = screen_info.lfb_width;
 	vesafb_defined.yres = screen_info.lfb_height;
 	vesafb_fix.line_length = screen_info.lfb_linelength;
-
-	/* Allocate enough memory for double buffering */
-	vesafb_fix.smem_len = screen_info.lfb_width * screen_info.lfb_height * vesafb_defined.bits_per_pixel >> 2;
-
-	/* check that we don't remap more memory than old cards have */
-	if (vesafb_fix.smem_len > (screen_info.lfb_size * 65536))
-		vesafb_fix.smem_len = screen_info.lfb_size * 65536;
-
-	/* Set video size according to vram boot option */
-	if (vram)
-		vesafb_fix.smem_len = vram * 1024 * 1024;
-
 	vesafb_fix.visual   = (vesafb_defined.bits_per_pixel == 8) ?
 		FB_VISUAL_PSEUDOCOLOR : FB_VISUAL_TRUECOLOR;
 
-	/* limit framebuffer size to 16 MB.  Otherwise we'll eat tons of
-	 * kernel address space for nothing if the gfx card has alot of
-	 * memory (>= 128 MB isn't uncommon these days ...) */
-	if (vesafb_fix.smem_len > 16 * 1024 * 1024)
-		vesafb_fix.smem_len = 16 * 1024 * 1024;
+	/*   size_vmode -- that is the amount of memory needed for the
+	 *                 used video mode, i.e. the minimum amount of
+	 *                 memory we need. */
+	size_vmode = vesafb_defined.yres * vesafb_fix.line_length;
+
+	/*   size_total -- all video memory we have. Used for mtrr
+	 *                 entries, ressource allocation and bounds
+	 *                 checking. */
+	size_total = screen_info.lfb_size * 65536;
+	if (vram_total)
+		size_total = vram_total * 1024 * 1024;
+	if (size_total < size_vmode)
+		size_total = size_vmode;
+
+	/*   size_remap -- the amount of video memory we are going to
+	 *                 use for vesafb.  With modern cards it is no
+	 *                 option to simply use size_total as that
+	 *                 wastes plenty of kernel address space. */
+	size_remap  = size_vmode * 2;
+	if (vram_remap)
+		size_remap = vram_remap * 1024 * 1024;
+	if (size_remap < size_vmode)
+		size_remap = size_vmode;
+	if (size_remap > size_total)
+		size_remap = size_total;
+	vesafb_fix.smem_len = size_remap;
 
 #ifndef __i386__
 	screen_info.vesapm_seg = 0;
 #endif
 
-	if (!request_mem_region(vesafb_fix.smem_start, vesafb_fix.smem_len, "vesafb")) {
+	if (!request_mem_region(vesafb_fix.smem_start, size_total, "vesafb")) {
 		printk(KERN_WARNING
 		       "vesafb: abort, cannot reserve video memory at 0x%lx\n",
 			vesafb_fix.smem_start);
@@ -279,8 +294,10 @@ static int __init vesafb_probe(struct device *device)
 		goto err;
 	}
 
-	printk(KERN_INFO "vesafb: framebuffer at 0x%lx, mapped to 0x%p, size %dk\n",
-	       vesafb_fix.smem_start, info->screen_base, vesafb_fix.smem_len/1024);
+	printk(KERN_INFO "vesafb: framebuffer at 0x%lx, mapped to 0x%p, "
+	       "using %dk, total %dk\n",
+	       vesafb_fix.smem_start, info->screen_base,
+	       size_remap/1024, size_total/1024);
 	printk(KERN_INFO "vesafb: mode is %dx%dx%d, linelength=%d, pages=%d\n",
 	       vesafb_defined.xres, vesafb_defined.yres, vesafb_defined.bits_per_pixel, vesafb_fix.line_length, screen_info.pages);
 
@@ -331,30 +348,35 @@ static int __init vesafb_probe(struct device *device)
 	vesafb_defined.left_margin  = (vesafb_defined.xres / 8) & 0xf8;
 	vesafb_defined.hsync_len    = (vesafb_defined.xres / 8) & 0xf8;
 	
-	if (vesafb_defined.bits_per_pixel > 8) {
-		vesafb_defined.red.offset    = screen_info.red_pos;
-		vesafb_defined.red.length    = screen_info.red_size;
-		vesafb_defined.green.offset  = screen_info.green_pos;
-		vesafb_defined.green.length  = screen_info.green_size;
-		vesafb_defined.blue.offset   = screen_info.blue_pos;
-		vesafb_defined.blue.length   = screen_info.blue_size;
-		vesafb_defined.transp.offset = screen_info.rsvd_pos;
-		vesafb_defined.transp.length = screen_info.rsvd_size;
-		printk(KERN_INFO "vesafb: directcolor: "
-		       "size=%d:%d:%d:%d, shift=%d:%d:%d:%d\n",
-		       screen_info.rsvd_size,
-		       screen_info.red_size,
-		       screen_info.green_size,
-		       screen_info.blue_size,
-		       screen_info.rsvd_pos,
-		       screen_info.red_pos,
-		       screen_info.green_pos,
-		       screen_info.blue_pos);
-	} else {
-		vesafb_defined.red.length   = 6;
-		vesafb_defined.green.length = 6;
-		vesafb_defined.blue.length  = 6;
+	vesafb_defined.red.offset    = screen_info.red_pos;
+	vesafb_defined.red.length    = screen_info.red_size;
+	vesafb_defined.green.offset  = screen_info.green_pos;
+	vesafb_defined.green.length  = screen_info.green_size;
+	vesafb_defined.blue.offset   = screen_info.blue_pos;
+	vesafb_defined.blue.length   = screen_info.blue_size;
+	vesafb_defined.transp.offset = screen_info.rsvd_pos;
+	vesafb_defined.transp.length = screen_info.rsvd_size;
+
+	if (vesafb_defined.bits_per_pixel <= 8) {
+		depth = vesafb_defined.green.length;
+		vesafb_defined.red.length =
+		vesafb_defined.green.length =
+		vesafb_defined.blue.length =
+		vesafb_defined.bits_per_pixel;
 	}
+
+	printk(KERN_INFO "vesafb: %s: "
+	       "size=%d:%d:%d:%d, shift=%d:%d:%d:%d\n",
+	       (vesafb_defined.bits_per_pixel > 8) ?
+	       "Truecolor" : "Pseudocolor",
+	       screen_info.rsvd_size,
+	       screen_info.red_size,
+	       screen_info.green_size,
+	       screen_info.blue_size,
+	       screen_info.rsvd_pos,
+	       screen_info.red_pos,
+	       screen_info.green_pos,
+	       screen_info.blue_pos);
 
 	vesafb_fix.ypanstep  = ypan     ? 1 : 0;
 	vesafb_fix.ywrapstep = (ypan>1) ? 1 : 0;
@@ -364,7 +386,7 @@ static int __init vesafb_probe(struct device *device)
 	request_region(0x3c0, 32, "vesafb");
 
 	if (mtrr) {
-		int temp_size = vesafb_fix.smem_len;
+		int temp_size = size_total;
 		/* Find the largest power-of-two */
 		while (temp_size & (temp_size - 1))
                 	temp_size &= (temp_size - 1);
@@ -382,7 +404,7 @@ static int __init vesafb_probe(struct device *device)
 		(ypan) ? FBINFO_HWACCEL_YPAN : 0;
 
 	if (fb_alloc_cmap(&info->cmap, 256, 0) < 0) {
-		err = -ENXIO;
+		err = -ENOMEM;
 		goto err;
 	}
 	if (register_framebuffer(info)<0) {
@@ -395,7 +417,7 @@ static int __init vesafb_probe(struct device *device)
 	return 0;
 err:
 	framebuffer_release(info);
-	release_mem_region(vesafb_fix.smem_start, vesafb_fix.smem_len);
+	release_mem_region(vesafb_fix.smem_start, size_total);
 	return err;
 }
 
@@ -409,10 +431,14 @@ static struct platform_device vesafb_device = {
 	.name	= "vesafb",
 };
 
-int __init vesafb_init(void)
+static int __init vesafb_init(void)
 {
 	int ret;
+	char *option = NULL;
 
+	/* ignore error return of fb_get_options */
+	fb_get_options("vesafb", &option);
+	vesafb_setup(option);
 	ret = driver_register(&vesafb_driver);
 
 	if (!ret) {
@@ -422,13 +448,6 @@ int __init vesafb_init(void)
 	}
 	return ret;
 }
-
-/*
- * Overrides for Emacs so that we follow Linus's tabbing style.
- * ---------------------------------------------------------------------------
- * Local variables:
- * c-basic-offset: 8
- * End:
- */
+module_init(vesafb_init);
 
 MODULE_LICENSE("GPL");

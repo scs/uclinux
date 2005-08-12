@@ -19,7 +19,7 @@
 static int maprom_read (struct mtd_info *, loff_t, size_t, size_t *, u_char *);
 static int maprom_write (struct mtd_info *, loff_t, size_t, size_t *, const u_char *);
 static void maprom_nop (struct mtd_info *);
-struct mtd_info *map_rom_probe(struct map_info *map);
+static struct mtd_info *map_rom_probe(struct map_info *map);
 
 static struct mtd_chip_driver maprom_chipdrv = {
 	.probe	= map_rom_probe,
@@ -27,7 +27,7 @@ static struct mtd_chip_driver maprom_chipdrv = {
 	.module	= THIS_MODULE
 };
 
-struct mtd_info *map_rom_probe(struct map_info *map)
+static struct mtd_info *map_rom_probe(struct map_info *map)
 {
 	struct mtd_info *mtd;
 
@@ -57,7 +57,7 @@ struct mtd_info *map_rom_probe(struct map_info *map)
 
 static int maprom_read (struct mtd_info *mtd, loff_t from, size_t len, size_t *retlen, u_char *buf)
 {
-	struct map_info *map = (struct map_info *)mtd->priv;
+	struct map_info *map = mtd->priv;
 
 	map_copy_from(map, buf, from, len);
 	*retlen = len;
@@ -75,7 +75,7 @@ static int maprom_write (struct mtd_info *mtd, loff_t to, size_t len, size_t *re
 	return -EIO;
 }
 
-int __init map_rom_init(void)
+static int __init map_rom_init(void)
 {
 	register_mtd_chip_driver(&maprom_chipdrv);
 	return 0;

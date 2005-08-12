@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2004, R. Byron Moore
+ * Copyright (C) 2000 - 2005, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -41,6 +41,7 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
+#include <linux/module.h>
 
 #include <acpi/acpi.h>
 #include <acpi/acevents.h>
@@ -200,6 +201,56 @@ acpi_enable_event (
 
 	return_ACPI_STATUS (status);
 }
+EXPORT_SYMBOL(acpi_enable_event);
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_set_gpe_type
+ *
+ * PARAMETERS:  gpe_device      - Parent GPE Device
+ *              gpe_number      - GPE level within the GPE block
+ *              Type            - New GPE type
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Enable an ACPI event (general purpose)
+ *
+ ******************************************************************************/
+
+acpi_status
+acpi_set_gpe_type (
+	acpi_handle                     gpe_device,
+	u32                             gpe_number,
+	u8                              type)
+{
+	acpi_status                     status = AE_OK;
+	struct acpi_gpe_event_info      *gpe_event_info;
+
+
+	ACPI_FUNCTION_TRACE ("acpi_set_gpe_type");
+
+
+	/* Ensure that we have a valid GPE number */
+
+	gpe_event_info = acpi_ev_get_gpe_event_info (gpe_device, gpe_number);
+	if (!gpe_event_info) {
+		status = AE_BAD_PARAMETER;
+		goto unlock_and_exit;
+	}
+
+	if ((gpe_event_info->flags & ACPI_GPE_TYPE_MASK) == type) {
+		return_ACPI_STATUS (AE_OK);
+	}
+
+	/* Set the new type (will disable GPE if currently enabled) */
+
+	status = acpi_ev_set_gpe_type (gpe_event_info, type);
+
+unlock_and_exit:
+	return_ACPI_STATUS (status);
+}
+EXPORT_SYMBOL(acpi_set_gpe_type);
 
 
 /*******************************************************************************
@@ -247,29 +298,65 @@ acpi_enable_gpe (
 		goto unlock_and_exit;
 	}
 
-	/* Check for Wake vs Runtime GPE */
+	/* Perform the enable */
 
-	if (flags & ACPI_EVENT_WAKE_ENABLE) {
-		/* Ensure the requested wake GPE is disabled */
+	status = acpi_ev_enable_gpe (gpe_event_info, TRUE);
 
-		status = acpi_hw_disable_gpe (gpe_event_info);
-		if (ACPI_FAILURE (status)) {
-			goto unlock_and_exit;
-		}
-
-		/* Defer Enable of Wake GPE until sleep time */
-
-		acpi_hw_enable_gpe_for_wakeup (gpe_event_info);
+unlock_and_exit:
+	if (flags & ACPI_NOT_ISR) {
+		(void) acpi_ut_release_mutex (ACPI_MTX_EVENTS);
 	}
-	else {
-		/* Enable the requested runtime GPE  */
+	return_ACPI_STATUS (status);
+}
+EXPORT_SYMBOL(acpi_enable_gpe);
 
-		status = acpi_hw_enable_gpe (gpe_event_info);
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_disable_gpe
+ *
+ * PARAMETERS:  gpe_device      - Parent GPE Device
+ *              gpe_number      - GPE level within the GPE block
+ *              Flags           - Just disable, or also wake disable?
+ *                                Called from ISR or not
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Disable an ACPI event (general purpose)
+ *
+ ******************************************************************************/
+
+acpi_status
+acpi_disable_gpe (
+	acpi_handle                     gpe_device,
+	u32                             gpe_number,
+	u32                             flags)
+{
+	acpi_status                     status = AE_OK;
+	struct acpi_gpe_event_info      *gpe_event_info;
+
+
+	ACPI_FUNCTION_TRACE ("acpi_disable_gpe");
+
+
+	/* Use semaphore lock if not executing at interrupt level */
+
+	if (flags & ACPI_NOT_ISR) {
+		status = acpi_ut_acquire_mutex (ACPI_MTX_EVENTS);
 		if (ACPI_FAILURE (status)) {
-			goto unlock_and_exit;
+			return_ACPI_STATUS (status);
 		}
 	}
 
+	/* Ensure that we have a valid GPE number */
+
+	gpe_event_info = acpi_ev_get_gpe_event_info (gpe_device, gpe_number);
+	if (!gpe_event_info) {
+		status = AE_BAD_PARAMETER;
+		goto unlock_and_exit;
+	}
+
+	status = acpi_ev_disable_gpe (gpe_event_info);
 
 unlock_and_exit:
 	if (flags & ACPI_NOT_ISR) {
@@ -334,70 +421,7 @@ acpi_disable_event (
 
 	return_ACPI_STATUS (status);
 }
-
-
-/*******************************************************************************
- *
- * FUNCTION:    acpi_disable_gpe
- *
- * PARAMETERS:  gpe_device      - Parent GPE Device
- *              gpe_number      - GPE level within the GPE block
- *              Flags           - Just enable, or also wake enable?
- *                                Called from ISR or not
- *
- * RETURN:      Status
- *
- * DESCRIPTION: Disable an ACPI event (general purpose)
- *
- ******************************************************************************/
-
-acpi_status
-acpi_disable_gpe (
-	acpi_handle                     gpe_device,
-	u32                             gpe_number,
-	u32                             flags)
-{
-	acpi_status                     status = AE_OK;
-	struct acpi_gpe_event_info      *gpe_event_info;
-
-
-	ACPI_FUNCTION_TRACE ("acpi_disable_gpe");
-
-
-	/* Use semaphore lock if not executing at interrupt level */
-
-	if (flags & ACPI_NOT_ISR) {
-		status = acpi_ut_acquire_mutex (ACPI_MTX_EVENTS);
-		if (ACPI_FAILURE (status)) {
-			return_ACPI_STATUS (status);
-		}
-	}
-
-	/* Ensure that we have a valid GPE number */
-
-	gpe_event_info = acpi_ev_get_gpe_event_info (gpe_device, gpe_number);
-	if (!gpe_event_info) {
-		status = AE_BAD_PARAMETER;
-		goto unlock_and_exit;
-	}
-
-	/*
-	 * Only disable the requested GPE number for wake if specified.
-	 * Otherwise, turn it totally off
-	 */
-	if (flags & ACPI_EVENT_WAKE_DISABLE) {
-		acpi_hw_disable_gpe_for_wakeup (gpe_event_info);
-	}
-	else {
-		status = acpi_hw_disable_gpe (gpe_event_info);
-	}
-
-unlock_and_exit:
-	if (flags & ACPI_NOT_ISR) {
-		(void) acpi_ut_release_mutex (ACPI_MTX_EVENTS);
-	}
-	return_ACPI_STATUS (status);
-}
+EXPORT_SYMBOL(acpi_disable_event);
 
 
 /*******************************************************************************
@@ -437,6 +461,7 @@ acpi_clear_event (
 
 	return_ACPI_STATUS (status);
 }
+EXPORT_SYMBOL(acpi_clear_event);
 
 
 /*******************************************************************************
@@ -492,6 +517,8 @@ unlock_and_exit:
 	return_ACPI_STATUS (status);
 }
 
+
+#ifdef ACPI_FUTURE_USAGE
 
 /*******************************************************************************
  *
@@ -594,6 +621,7 @@ unlock_and_exit:
 	}
 	return_ACPI_STATUS (status);
 }
+#endif  /*  ACPI_FUTURE_USAGE  */
 
 
 /*******************************************************************************
@@ -686,6 +714,7 @@ unlock_and_exit:
 	(void) acpi_ut_release_mutex (ACPI_MTX_NAMESPACE);
 	return_ACPI_STATUS (status);
 }
+EXPORT_SYMBOL(acpi_install_gpe_block);
 
 
 /*******************************************************************************
@@ -746,4 +775,4 @@ unlock_and_exit:
 	(void) acpi_ut_release_mutex (ACPI_MTX_NAMESPACE);
 	return_ACPI_STATUS (status);
 }
-
+EXPORT_SYMBOL(acpi_remove_gpe_block);

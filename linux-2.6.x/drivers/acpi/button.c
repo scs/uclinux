@@ -116,12 +116,12 @@ static int acpi_button_info_seq_show(struct seq_file *seq, void *offset)
 	ACPI_FUNCTION_TRACE("acpi_button_info_seq_show");
 
 	if (!button || !button->device)
-		return 0;
+		return_VALUE(0);
 
 	seq_printf(seq, "type:                    %s\n", 
 		acpi_device_name(button->device));
 
-	return 0;
+	return_VALUE(0);
 }
 
 static int acpi_button_info_open_fs(struct inode *inode, struct file *file)
@@ -138,7 +138,7 @@ static int acpi_button_state_seq_show(struct seq_file *seq, void *offset)
 	ACPI_FUNCTION_TRACE("acpi_button_state_seq_show");
 
 	if (!button || !button->device)
-		return 0;
+		return_VALUE(0);
 
 	status = acpi_evaluate_integer(button->handle,"_LID",NULL,&state);
 	if (ACPI_FAILURE(status)) {
@@ -148,7 +148,7 @@ static int acpi_button_state_seq_show(struct seq_file *seq, void *offset)
 		seq_printf(seq, "state:      %s\n", (state ? "open" : "closed")); 
 	}
 
-	return 0;
+	return_VALUE(0);
 }
 
 static int acpi_button_state_open_fs(struct inode *inode, struct file *file)
@@ -275,7 +275,7 @@ acpi_button_remove_fs (
                                 Driver Interface
    -------------------------------------------------------------------------- */
 
-void
+static void
 acpi_button_notify (
 	acpi_handle		handle,
 	u32			event,
@@ -302,7 +302,7 @@ acpi_button_notify (
 }
 
 
-acpi_status
+static acpi_status
 acpi_button_notify_fixed (
 	void			*data)
 {
@@ -454,6 +454,15 @@ acpi_button_add (
 			"Error installing notify handler\n"));
 		result = -ENODEV;
 		goto end;
+	}
+
+	if (device->wakeup.flags.valid) {
+		/* Button's GPE is run-wake GPE */
+		acpi_set_gpe_type(device->wakeup.gpe_device, 
+			device->wakeup.gpe_number, ACPI_GPE_TYPE_WAKE_RUN);
+		acpi_enable_gpe(device->wakeup.gpe_device, 
+			device->wakeup.gpe_number, ACPI_NOT_ISR);
+		device->wakeup.state.enabled = 1;
 	}
 
 	printk(KERN_INFO PREFIX "%s [%s]\n", 

@@ -171,6 +171,7 @@ struct hid_item {
 
 #define HID_USAGE_PAGE		0xffff0000
 
+#define HID_UP_UNDEFINED	0x00000000
 #define HID_UP_GENDESK 		0x00010000
 #define HID_UP_KEYBOARD 	0x00070000
 #define HID_UP_LED 		0x00080000
@@ -180,6 +181,7 @@ struct hid_item {
 #define HID_UP_DIGITIZER 	0x000d0000
 #define HID_UP_PID 		0x000f0000
 #define HID_UP_HPVENDOR         0xff7f0000
+#define HID_UP_MSVENDOR		0xff000000
 
 #define HID_USAGE		0x0000ffff
 
@@ -187,7 +189,36 @@ struct hid_item {
 #define HID_GD_MOUSE		0x00010002
 #define HID_GD_JOYSTICK		0x00010004
 #define HID_GD_GAMEPAD		0x00010005
+#define HID_GD_KEYBOARD		0x00010006
+#define HID_GD_KEYPAD		0x00010007
+#define HID_GD_MULTIAXIS	0x00010008
+#define HID_GD_X		0x00010030
+#define HID_GD_Y		0x00010031
+#define HID_GD_Z		0x00010032
+#define HID_GD_RX		0x00010033
+#define HID_GD_RY		0x00010034
+#define HID_GD_RZ		0x00010035
+#define HID_GD_SLIDER		0x00010036
+#define HID_GD_DIAL		0x00010037
+#define HID_GD_WHEEL		0x00010038
 #define HID_GD_HATSWITCH	0x00010039
+#define HID_GD_BUFFER		0x0001003a
+#define HID_GD_BYTECOUNT	0x0001003b
+#define HID_GD_MOTION		0x0001003c
+#define HID_GD_START		0x0001003d
+#define HID_GD_SELECT		0x0001003e
+#define HID_GD_VX		0x00010040
+#define HID_GD_VY		0x00010041
+#define HID_GD_VZ		0x00010042
+#define HID_GD_VBRX		0x00010043
+#define HID_GD_VBRY		0x00010044
+#define HID_GD_VBRZ		0x00010045
+#define HID_GD_VNO		0x00010046
+#define HID_GD_FEATURE		0x00010047
+#define HID_GD_UP		0x00010090
+#define HID_GD_DOWN		0x00010091
+#define HID_GD_RIGHT		0x00010092
+#define HID_GD_LEFT		0x00010093
 
 /*
  * HID report types --- Ouch! HID spec says 1 2 3!
@@ -208,8 +239,8 @@ struct hid_item {
 #define HID_QUIRK_HIDDEV			0x010
 #define HID_QUIRK_BADPAD			0x020
 #define HID_QUIRK_MULTI_INPUT			0x040
-#define HID_QUIRK_2WHEEL_MOUSE_HACK_BACK	0x080
-#define HID_QUIRK_2WHEEL_MOUSE_HACK_EXTRA	0x100
+#define HID_QUIRK_2WHEEL_MOUSE_HACK_7		0x080
+#define HID_QUIRK_2WHEEL_MOUSE_HACK_5		0x100
 #define HID_QUIRK_2WHEEL_MOUSE_HACK_ON		0x200
 
 /*
@@ -262,11 +293,15 @@ struct hid_collection {
 struct hid_usage {
 	unsigned  hid;			/* hid usage code */
 	unsigned  collection_index;	/* index into collection array */
+	/* hidinput data */
 	__u16     code;			/* input driver code */
 	__u8      type;			/* input driver type */
 	__s8	  hat_min;		/* hat switch fun */
 	__s8	  hat_max;		/* ditto */
+	__s8	  hat_dir;		/* ditto */
 };
+
+struct hid_input;
 
 struct hid_field {
 	unsigned  physical;		/* physical usage for this field */
@@ -288,6 +323,9 @@ struct hid_field {
 	unsigned  unit;
 	struct hid_report *report;	/* associated report */
 	unsigned index;			/* index into report->field[] */
+	/* hidinput data */
+	struct hid_input *hidinput;	/* associated input structure */
+	__u16 dpad;			/* dpad input code */
 };
 
 #define HID_MAX_FIELDS 64
@@ -423,6 +461,7 @@ struct hid_descriptor {
 #define hid_dump_device(c)	do { } while (0)
 #define hid_dump_field(a,b)	do { } while (0)
 #define resolv_usage(a)		do { } while (0)
+#define resolv_event(a,b)	do { } while (0)
 #endif
 
 #endif
@@ -430,7 +469,7 @@ struct hid_descriptor {
 #ifdef CONFIG_USB_HIDINPUT
 /* Applications from HID Usage Tables 4/8/99 Version 1.1 */
 /* We ignore a few input applications that are not widely used */
-#define IS_INPUT_APPLICATION(a) (((a >= 0x00010000) && (a <= 0x00010008)) || ( a == 0x00010080) || ( a == 0x000c0001))
+#define IS_INPUT_APPLICATION(a) (((a >= 0x00010000) && (a <= 0x00010008)) || (a == 0x00010080) || (a == 0x000c0001))
 extern void hidinput_hid_event(struct hid_device *, struct hid_field *, struct hid_usage *, __s32, struct pt_regs *regs);
 extern void hidinput_report_event(struct hid_device *hid, struct hid_report *report);
 extern int hidinput_connect(struct hid_device *);
@@ -445,11 +484,10 @@ static inline void hidinput_disconnect(struct hid_device *hid) { }
 
 int hid_open(struct hid_device *);
 void hid_close(struct hid_device *);
-int hid_find_field(struct hid_device *, unsigned int, unsigned int, struct hid_field **);
 int hid_set_field(struct hid_field *, unsigned, __s32);
 void hid_submit_report(struct hid_device *, struct hid_report *, unsigned char dir);
 void hid_init_reports(struct hid_device *hid);
-int hid_find_report_by_usage(struct hid_device *hid, __u32 wanted_usage, struct hid_report **report, int type);
+struct hid_field *hid_find_field_by_usage(struct hid_device *hid, __u32 wanted_usage, int type);
 int hid_wait_io(struct hid_device* hid);
 
 

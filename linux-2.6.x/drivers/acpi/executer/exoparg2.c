@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2004, R. Byron Moore
+ * Copyright (C) 2000 - 2005, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -97,6 +97,7 @@ acpi_ex_opcode_2A_0T_0R (
 {
 	union acpi_operand_object       **operand = &walk_state->operands[0];
 	struct acpi_namespace_node      *node;
+	u32                             value;
 	acpi_status                     status = AE_OK;
 
 
@@ -113,15 +114,45 @@ acpi_ex_opcode_2A_0T_0R (
 
 		node = (struct acpi_namespace_node *) operand[0];
 
+		/* Second value is the notify value */
+
+		value = (u32) operand[1]->integer.value;
+
 		/* Notifies allowed on this object? */
 
 		if (!acpi_ev_is_notify_object (node)) {
-			ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Unexpected notify object type [%s]\n",
+			ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
+					"Unexpected notify object type [%s]\n",
 					acpi_ut_get_type_name (node->type)));
 
 			status = AE_AML_OPERAND_TYPE;
 			break;
 		}
+
+#ifdef ACPI_GPE_NOTIFY_CHECK
+		/*
+		 * GPE method wake/notify check.  Here, we want to ensure that we
+		 * don't receive any "device_wake" Notifies from a GPE _Lxx or _Exx
+		 * GPE method during system runtime.  If we do, the GPE is marked
+		 * as "wake-only" and disabled.
+		 *
+		 * 1) Is the Notify() value == device_wake?
+		 * 2) Is this a GPE deferred method?  (An _Lxx or _Exx method)
+		 * 3) Did the original GPE happen at system runtime?
+		 *    (versus during wake)
+		 *
+		 * If all three cases are true, this is a wake-only GPE that should
+		 * be disabled at runtime.
+		 */
+		if (value == 2)     /* device_wake */ {
+			status = acpi_ev_check_for_wake_only_gpe (walk_state->gpe_event_info);
+			if (ACPI_FAILURE (status)) {
+				/* AE_WAKE_ONLY_GPE only error, means ignore this notify */
+
+				return_ACPI_STATUS (AE_OK)
+			}
+		}
+#endif
 
 		/*
 		 * Dispatch the notify to the appropriate handler
@@ -130,8 +161,7 @@ acpi_ex_opcode_2A_0T_0R (
 		 * from this thread -- because handlers may in turn run other
 		 * control methods.
 		 */
-		status = acpi_ev_queue_notify_request (node,
-				  (u32) operand[1]->integer.value);
+		status = acpi_ev_queue_notify_request (node, value);
 		break;
 
 
@@ -169,7 +199,8 @@ acpi_ex_opcode_2A_2T_1R (
 	acpi_status                     status;
 
 
-	ACPI_FUNCTION_TRACE_STR ("ex_opcode_2A_2T_1R", acpi_ps_get_opcode_name (walk_state->opcode));
+	ACPI_FUNCTION_TRACE_STR ("ex_opcode_2A_2T_1R",
+		acpi_ps_get_opcode_name (walk_state->opcode));
 
 
 	/*
@@ -192,8 +223,10 @@ acpi_ex_opcode_2A_2T_1R (
 
 		/* Quotient to return_desc1, remainder to return_desc2 */
 
-		status = acpi_ut_divide (&operand[0]->integer.value, &operand[1]->integer.value,
-				   &return_desc1->integer.value, &return_desc2->integer.value);
+		status = acpi_ut_divide (operand[0]->integer.value,
+				   operand[1]->integer.value,
+				   &return_desc1->integer.value,
+				   &return_desc2->integer.value);
 		if (ACPI_FAILURE (status)) {
 			goto cleanup;
 		}
@@ -262,13 +295,13 @@ acpi_ex_opcode_2A_1T_1R (
 {
 	union acpi_operand_object       **operand = &walk_state->operands[0];
 	union acpi_operand_object       *return_desc = NULL;
-	union acpi_operand_object       *temp_desc = NULL;
 	u32                             index;
 	acpi_status                     status = AE_OK;
 	acpi_size                       length;
 
 
-	ACPI_FUNCTION_TRACE_STR ("ex_opcode_2A_1T_1R", acpi_ps_get_opcode_name (walk_state->opcode));
+	ACPI_FUNCTION_TRACE_STR ("ex_opcode_2A_1T_1R",
+		acpi_ps_get_opcode_name (walk_state->opcode));
 
 
 	/*
@@ -301,52 +334,17 @@ acpi_ex_opcode_2A_1T_1R (
 
 		/* return_desc will contain the remainder */
 
-		status = acpi_ut_divide (&operand[0]->integer.value, &operand[1]->integer.value,
-				  NULL, &return_desc->integer.value);
+		status = acpi_ut_divide (operand[0]->integer.value,
+				   operand[1]->integer.value,
+				   NULL,
+				   &return_desc->integer.value);
 		break;
 
 
 	case AML_CONCAT_OP:             /* Concatenate (Data1, Data2, Result) */
 
-		/*
-		 * Convert the second operand if necessary.  The first operand
-		 * determines the type of the second operand, (See the Data Types
-		 * section of the ACPI specification.)  Both object types are
-		 * guaranteed to be either Integer/String/Buffer by the operand
-		 * resolution mechanism above.
-		 */
-		switch (ACPI_GET_OBJECT_TYPE (operand[0])) {
-		case ACPI_TYPE_INTEGER:
-			status = acpi_ex_convert_to_integer (operand[1], &temp_desc, walk_state);
-			break;
-
-		case ACPI_TYPE_STRING:
-			status = acpi_ex_convert_to_string (operand[1], &temp_desc, 16, ACPI_UINT32_MAX, walk_state);
-			break;
-
-		case ACPI_TYPE_BUFFER:
-			status = acpi_ex_convert_to_buffer (operand[1], &temp_desc, walk_state);
-			break;
-
-		default:
-			ACPI_REPORT_ERROR (("Concat - invalid obj type: %X\n",
-					ACPI_GET_OBJECT_TYPE (operand[0])));
-			status = AE_AML_INTERNAL;
-		}
-
-		if (ACPI_FAILURE (status)) {
-			goto cleanup;
-		}
-
-		/*
-		 * Both operands are now known to be the same object type
-		 * (Both are Integer, String, or Buffer), and we can now perform the
-		 * concatenation.
-		 */
-		status = acpi_ex_do_concatenate (operand[0], temp_desc, &return_desc, walk_state);
-		if (temp_desc != operand[1]) {
-			acpi_ut_remove_reference (temp_desc);
-		}
+		status = acpi_ex_do_concatenate (operand[0], operand[1],
+				 &return_desc, walk_state);
 		break;
 
 
@@ -357,55 +355,45 @@ acpi_ex_opcode_2A_1T_1R (
 		 * been converted.)  Copy the raw buffer data to a new object of type String.
 		 */
 
-		/* Get the length of the new string */
-
+		/*
+		 * Get the length of the new string. It is the smallest of:
+		 * 1) Length of the input buffer
+		 * 2) Max length as specified in the to_string operator
+		 * 3) Length of input buffer up to a zero byte (null terminator)
+		 *
+		 * NOTE: A length of zero is ok, and will create a zero-length, null
+		 *       terminated string.
+		 */
 		length = 0;
-		if (operand[1]->integer.value == 0) {
-			/* Handle optional length value */
-
-			operand[1]->integer.value = ACPI_INTEGER_MAX;
-		}
-
 		while ((length < operand[0]->buffer.length) &&
 			   (length < operand[1]->integer.value) &&
 			   (operand[0]->buffer.pointer[length])) {
 			length++;
+			if (length > ACPI_MAX_STRING_CONVERSION) {
+				status = AE_AML_STRING_LIMIT;
+				goto cleanup;
+			}
 		}
 
-		if (length > ACPI_MAX_STRING_CONVERSION) {
-			status = AE_AML_STRING_LIMIT;
-			goto cleanup;
-		}
+		/* Allocate a new string object */
 
-		/* Create the internal return object */
-
-		return_desc = acpi_ut_create_internal_object (ACPI_TYPE_STRING);
+		return_desc = acpi_ut_create_string_object (length);
 		if (!return_desc) {
 			status = AE_NO_MEMORY;
 			goto cleanup;
 		}
 
-		/* Allocate a new string buffer (Length + 1 for null terminator) */
+		/* Copy the raw buffer data with no transform. NULL terminated already. */
 
-		return_desc->string.pointer = ACPI_MEM_CALLOCATE (length + 1);
-		if (!return_desc->string.pointer) {
-			status = AE_NO_MEMORY;
-			goto cleanup;
-		}
-
-		/* Copy the raw buffer data with no transform */
-
-		ACPI_MEMCPY (return_desc->string.pointer, operand[0]->buffer.pointer, length);
-
-		/* Set the string length */
-
-		return_desc->string.length = (u32) length;
+		ACPI_MEMCPY (return_desc->string.pointer,
+			operand[0]->buffer.pointer, length);
 		break;
 
 
 	case AML_CONCAT_RES_OP:         /* concatenate_res_template (Buffer, Buffer, Result) (ACPI 2.0) */
 
-		status = acpi_ex_concat_template (operand[0], operand[1], &return_desc, walk_state);
+		status = acpi_ex_concat_template (operand[0], operand[1],
+				 &return_desc, walk_state);
 		break;
 
 
@@ -422,13 +410,14 @@ acpi_ex_opcode_2A_1T_1R (
 		index = (u32) operand[1]->integer.value;
 
 		/*
-		 * At this point, the Source operand is either a Package or a Buffer
+		 * At this point, the Source operand is a Package, Buffer, or String
 		 */
 		if (ACPI_GET_OBJECT_TYPE (operand[0]) == ACPI_TYPE_PACKAGE) {
 			/* Object to be indexed is a Package */
 
 			if (index >= operand[0]->package.count) {
-				ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Index value (%X) beyond package end (%X)\n",
+				ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
+					"Index value (%X) beyond package end (%X)\n",
 					index, operand[0]->package.count));
 				status = AE_AML_PACKAGE_LIMIT;
 				goto cleanup;
@@ -439,10 +428,11 @@ acpi_ex_opcode_2A_1T_1R (
 			return_desc->reference.where     = &operand[0]->package.elements [index];
 		}
 		else {
-			/* Object to be indexed is a Buffer */
+			/* Object to be indexed is a Buffer/String */
 
 			if (index >= operand[0]->buffer.length) {
-				ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Index value (%X) beyond end of buffer (%X)\n",
+				ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
+					"Index value (%X) beyond end of buffer (%X)\n",
 					index, operand[0]->buffer.length));
 				status = AE_AML_BUFFER_LIMIT;
 				goto cleanup;
@@ -451,6 +441,12 @@ acpi_ex_opcode_2A_1T_1R (
 			return_desc->reference.target_type = ACPI_TYPE_BUFFER_FIELD;
 			return_desc->reference.object    = operand[0];
 		}
+
+		/*
+		 * Add a reference to the target package/buffer/string for the life
+		 * of the index.
+		 */
+		acpi_ut_add_reference (operand[0]);
 
 		/* Complete the Index reference object */
 
@@ -528,7 +524,8 @@ acpi_ex_opcode_2A_0T_1R (
 	u8                              logical_result = FALSE;
 
 
-	ACPI_FUNCTION_TRACE_STR ("ex_opcode_2A_0T_1R", acpi_ps_get_opcode_name (walk_state->opcode));
+	ACPI_FUNCTION_TRACE_STR ("ex_opcode_2A_0T_1R",
+		acpi_ps_get_opcode_name (walk_state->opcode));
 
 
 	/* Create the internal return object */
@@ -542,10 +539,15 @@ acpi_ex_opcode_2A_0T_1R (
 	/*
 	 * Execute the Opcode
 	 */
-	if (walk_state->op_info->flags & AML_LOGICAL) /* logical_op (Operand0, Operand1) */ {
-		logical_result = acpi_ex_do_logical_op (walk_state->opcode,
-				 operand[0]->integer.value,
-				 operand[1]->integer.value);
+	if (walk_state->op_info->flags & AML_LOGICAL_NUMERIC) /* logical_op (Operand0, Operand1) */ {
+		status = acpi_ex_do_logical_numeric_op (walk_state->opcode,
+				  operand[0]->integer.value, operand[1]->integer.value,
+				  &logical_result);
+		goto store_logical_result;
+	}
+	else if (walk_state->op_info->flags & AML_LOGICAL)  /* logical_op (Operand0, Operand1) */ {
+		status = acpi_ex_do_logical_op (walk_state->opcode, operand[0],
+				 operand[1], &logical_result);
 		goto store_logical_result;
 	}
 

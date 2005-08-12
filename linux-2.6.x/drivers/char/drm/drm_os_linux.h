@@ -16,13 +16,17 @@
 #define DRM_CURRENTPID			current->pid
 #define DRM_UDELAY(d)			udelay(d)
 /** Read a byte from a MMIO region */
-#define DRM_READ8(map, offset)		readb(((unsigned long)(map)->handle) + (offset))
+#define DRM_READ8(map, offset)		readb(((void __iomem *)(map)->handle) + (offset))
+/** Read a word from a MMIO region */
+#define DRM_READ16(map, offset)         readw(((void __iomem *)(map)->handle) + (offset))
 /** Read a dword from a MMIO region */
-#define DRM_READ32(map, offset)		readl(((unsigned long)(map)->handle) + (offset))
+#define DRM_READ32(map, offset)		readl(((void __iomem *)(map)->handle) + (offset))
 /** Write a byte into a MMIO region */
-#define DRM_WRITE8(map, offset, val)	writeb(val, ((unsigned long)(map)->handle) + (offset))
+#define DRM_WRITE8(map, offset, val)	writeb(val, ((void __iomem *)(map)->handle) + (offset))
+/** Write a word into a MMIO region */
+#define DRM_WRITE16(map, offset, val)   writew(val, ((void __iomem *)(map)->handle) + (offset))
 /** Write a dword into a MMIO region */
-#define DRM_WRITE32(map, offset, val)	writel(val, ((unsigned long)(map)->handle) + (offset))
+#define DRM_WRITE32(map, offset, val)	writel(val, ((void __iomem *)(map)->handle) + (offset))
 /** Read memory barrier */
 #define DRM_READMEMORYBARRIER()		rmb()
 /** Write memory barrier */
@@ -31,14 +35,40 @@
 #define DRM_MEMORYBARRIER()		mb()
 /** DRM device local declaration */
 #define DRM_DEVICE	drm_file_t	*priv	= filp->private_data; \
-			drm_device_t	*dev	= priv->dev
+			drm_device_t	*dev	= priv->head->dev
 
 /** IRQ handler arguments and return type and values */
 #define DRM_IRQ_ARGS		int irq, void *arg, struct pt_regs *regs
 
 /** AGP types */
+#if __OS_HAS_AGP
 #define DRM_AGP_MEM		struct agp_memory
 #define DRM_AGP_KERN		struct agp_kern_info
+#else
+/* define some dummy types for non AGP supporting kernels */
+struct no_agp_kern {
+  unsigned long aper_base;
+  unsigned long aper_size;
+};
+#define DRM_AGP_MEM             int
+#define DRM_AGP_KERN            struct no_agp_kern
+#endif
+
+#if !(__OS_HAS_MTRR)
+static __inline__ int mtrr_add (unsigned long base, unsigned long size,
+                                unsigned int type, char increment)
+{
+	return -ENODEV;
+}
+
+static __inline__ int mtrr_del (int reg, unsigned long base,
+                                unsigned long size)
+{
+	return -ENODEV;
+}
+#define MTRR_TYPE_WRCOMB     1
+
+#endif
 
 /** Task queue handler arguments */
 #define DRM_TASKQUEUE_ARGS	void *arg
@@ -59,21 +89,13 @@
 	copy_to_user(arg1, arg2, arg3)
 /* Macros for copyfrom user, but checking readability only once */
 #define DRM_VERIFYAREA_READ( uaddr, size ) 		\
-	verify_area( VERIFY_READ, uaddr, size )
+	(access_ok( VERIFY_READ, uaddr, size ) ? 0 : -EFAULT)
 #define DRM_COPY_FROM_USER_UNCHECKED(arg1, arg2, arg3) 	\
 	__copy_from_user(arg1, arg2, arg3)
 #define DRM_COPY_TO_USER_UNCHECKED(arg1, arg2, arg3)	\
 	__copy_to_user(arg1, arg2, arg3)
 #define DRM_GET_USER_UNCHECKED(val, uaddr)		\
 	__get_user(val, uaddr)
-#define DRM_PUT_USER_UNCHECKED(uaddr, val)		\
-	__put_user(val, uaddr)
-
-
-/** 'malloc' without the overhead of DRM(alloc)() */
-#define DRM_MALLOC(x) kmalloc(x, GFP_KERNEL)
-/** 'free' without the overhead of DRM(free)() */
-#define DRM_FREE(x,size) kfree(x)
 
 #define DRM_GET_PRIV_WITH_RETURN(_priv, _filp) _priv = _filp->private_data
 
@@ -104,7 +126,7 @@ do {								\
 	add_wait_queue(&(queue), &entry);			\
 								\
 	for (;;) {						\
-		current->state = TASK_INTERRUPTIBLE;		\
+		__set_current_state(TASK_INTERRUPTIBLE);	\
 		if (condition)					\
 			break;					\
 		if (time_after_eq(jiffies, end)) {		\
@@ -117,7 +139,7 @@ do {								\
 			break;					\
 		}						\
 	}							\
-	current->state = TASK_RUNNING;				\
+	__set_current_state(TASK_RUNNING);			\
 	remove_wait_queue(&(queue), &entry);			\
 } while (0)
 

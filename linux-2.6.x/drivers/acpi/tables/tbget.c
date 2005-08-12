@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2004, R. Byron Moore
+ * Copyright (C) 2000 - 2005, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -166,6 +166,9 @@ acpi_tb_get_table_header (
 			address->pointer_type));
 		return_ACPI_STATUS (AE_BAD_PARAMETER);
 	}
+
+	ACPI_DEBUG_PRINT ((ACPI_DB_TABLES, "Table Signature: [%4.4s]\n",
+		return_header->signature));
 
 	return_ACPI_STATUS (AE_OK);
 }

@@ -37,8 +37,6 @@ MODULE_AUTHOR("Cytronics & Melware, Eicon Networks");
 MODULE_SUPPORTED_DEVICE("Eicon diva drivers");
 MODULE_LICENSE("GPL");
 
-#define MAX_DESCRIPTORS  32
-
 #define DBG_MINIMUM  (DL_LOG + DL_FTL + DL_ERR)
 #define DBG_DEFAULT  (DBG_MINIMUM + DL_XLOG + DL_REG)
 
@@ -50,8 +48,8 @@ extern void DIVA_DIDD_Read(void *, int);
 static struct proc_dir_entry *proc_didd;
 struct proc_dir_entry *proc_net_eicon = NULL;
 
-EXPORT_SYMBOL_NOVERS(DIVA_DIDD_Read);
-EXPORT_SYMBOL_NOVERS(proc_net_eicon);
+EXPORT_SYMBOL(DIVA_DIDD_Read);
+EXPORT_SYMBOL(proc_net_eicon);
 
 static char *getrev(const char *revision)
 {
@@ -142,7 +140,7 @@ static int DIVA_INIT_FUNCTION divadidd_init(void)
 	return (ret);
 }
 
-void DIVA_EXIT_FUNCTION divadidd_exit(void)
+static void DIVA_EXIT_FUNCTION divadidd_exit(void)
 {
 	diddfunc_finit();
 	remove_proc();

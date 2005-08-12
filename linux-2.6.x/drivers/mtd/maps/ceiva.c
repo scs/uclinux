@@ -150,7 +150,7 @@ static int __init clps_setup_mtd(struct clps_info *clps, int nr, struct mtd_info
 			break;
 		}
 
-		clps[i].map->virt = (unsigned long)clps[i].vbase;
+		clps[i].map->virt = (void __iomem *)clps[i].vbase;
 		clps[i].map->bankwidth = clps[i].width;
 		clps[i].map->size = clps[i].size;
 

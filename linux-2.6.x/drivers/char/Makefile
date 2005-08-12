@@ -7,8 +7,11 @@
 #
 FONTMAPFILE = cp437.uni
 
-obj-y	 += mem.o random.o tty_io.o n_tty.o tty_ioctl.o pty.o misc.o
+obj-y	 += mem.o random.o tty_io.o n_tty.o tty_ioctl.o
 
+obj-$(CONFIG_LEGACY_PTYS)	+= pty.o
+obj-$(CONFIG_UNIX98_PTYS)	+= pty.o
+obj-y				+= misc.o
 obj-$(CONFIG_VT)		+= vt_ioctl.o vc_screen.o consolemap.o \
 				   consolemap_deftbl.o selection.o keyboard.o
 obj-$(CONFIG_HW_CONSOLE)	+= vt.o defkeymap.o
@@ -17,13 +20,11 @@ obj-$(CONFIG_ESPSERIAL)		+= esp.o
 obj-$(CONFIG_MVME147_SCC)	+= generic_serial.o vme_scc.o
 obj-$(CONFIG_MVME162_SCC)	+= generic_serial.o vme_scc.o
 obj-$(CONFIG_BVME6000_SCC)	+= generic_serial.o vme_scc.o
-obj-$(CONFIG_SERIAL_TX3912)	+= generic_serial.o serial_tx3912.o
 obj-$(CONFIG_ROCKETPORT)	+= rocket.o
 obj-$(CONFIG_SERIAL167)		+= serial167.o
 obj-$(CONFIG_CYCLADES)		+= cyclades.o
 obj-$(CONFIG_STALLION)		+= stallion.o
 obj-$(CONFIG_ISTALLION)		+= istallion.o
-obj-$(CONFIG_DIGI)		+= pcxx.o
 obj-$(CONFIG_DIGIEPCA)		+= epca.o
 obj-$(CONFIG_SPECIALIX)		+= specialix.o
 obj-$(CONFIG_MOXA_INTELLIO)	+= moxa.o
@@ -39,11 +40,14 @@ obj-$(CONFIG_N_HDLC)		+= n_hdlc.o
 obj-$(CONFIG_AMIGA_BUILTIN_SERIAL) += amiserial.o
 obj-$(CONFIG_SX)		+= sx.o generic_serial.o
 obj-$(CONFIG_RIO)		+= rio/ generic_serial.o
-obj-$(CONFIG_HVC_CONSOLE)	+= hvc_console.o
+obj-$(CONFIG_HVC_CONSOLE)	+= hvc_console.o hvsi.o
 obj-$(CONFIG_RAW_DRIVER)	+= raw.o
+obj-$(CONFIG_SGI_SNSC)		+= snsc.o snsc_event.o
+obj-$(CONFIG_MMTIMER)		+= mmtimer.o
 obj-$(CONFIG_VIOCONS) += viocons.o
 obj-$(CONFIG_VIOTAPE)		+= viotape.o
 obj-$(CONFIG_HVCS)		+= hvcs.o
+obj-$(CONFIG_SGI_MBCS)		+= mbcs.o
 obj-$(CONFIG_SPI_BF533) += spi.o
 obj-$(CONFIG_SPI_ADC_BF533) += adsp-spiadc.o
 obj-$(CONFIG_BF533_PFLAGS) += pflags.o
@@ -62,6 +66,9 @@ obj-$(CONFIG_GEN_RTC) += genrtc.o
 obj-$(CONFIG_EFI_RTC) += efirtc.o
 obj-$(CONFIG_SGI_DS1286) += ds1286.o
 obj-$(CONFIG_SGI_IP27_RTC) += ip27-rtc.o
+obj-$(CONFIG_DS1302) += ds1302.o
+obj-$(CONFIG_S3C2410_RTC) += s3c2410-rtc.o
+obj-$(CONFIG_RTC_VR41XX) += vr41xx_rtc.o
 ifeq ($(CONFIG_GENERIC_NVRAM),y)
   obj-$(CONFIG_NVRAM) += generic_nvram.o
 else
@@ -71,13 +78,13 @@ obj-$(CONFIG_TOSHIBA) += toshiba.o
 obj-$(CONFIG_I8K) += i8k.o
 obj-$(CONFIG_DS1620) += ds1620.o
 obj-$(CONFIG_HW_RANDOM) += hw_random.o
-obj-$(CONFIG_QIC02_TAPE) += tpqic02.o
 obj-$(CONFIG_FTAPE) += ftape/
 obj-$(CONFIG_COBALT_LCD) += lcd.o
 obj-$(CONFIG_PPDEV) += ppdev.o
 obj-$(CONFIG_NWBUTTON) += nwbutton.o
 obj-$(CONFIG_NWFLASH) += nwflash.o
 obj-$(CONFIG_SCx200_GPIO) += scx200_gpio.o
+obj-$(CONFIG_TANBAC_TB0219) += tb0219.o
 
 obj-$(CONFIG_WATCHDOG)	+= watchdog/
 obj-$(CONFIG_MWAVE) += mwave/
@@ -89,6 +96,8 @@ obj-$(CONFIG_BLACKFIN_RTC) += blackfin_rtc.o
 obj-$(CONFIG_BLACKFIN_DPMC) += blackfin_dpmc.o
 obj-$(CONFIG_HANGCHECK_TIMER) += hangcheck-timer.o
 
+obj-$(CONFIG_HANGCHECK_TIMER) += hangcheck-timer.o
+obj-$(CONFIG_TCG_TPM) += tpm/
 # Files generated that shall be removed upon make clean
 clean-files := consolemap_deftbl.c defkeymap.c qtronixmap.c
 

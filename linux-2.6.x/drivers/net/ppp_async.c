@@ -84,7 +84,7 @@ struct asyncppp {
 #define SC_RCV_BITS	(SC_RCV_B7_1|SC_RCV_B7_0|SC_RCV_ODDP|SC_RCV_EVNP)
 
 static int flag_time = HZ;
-MODULE_PARM(flag_time, "i");
+module_param(flag_time, int, 0);
 MODULE_PARM_DESC(flag_time, "ppp_async: interval between flagged packets (in clock ticks)");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_LDISC(N_PPP);
@@ -122,8 +122,11 @@ static struct ppp_channel_ops async_ops = {
  * frees the memory that ppp_asynctty_receive is using.  The best
  * way to fix this is to use a rwlock in the tty struct, but for now
  * we use a single global rwlock for all ttys in ppp line discipline.
+ *
+ * FIXME: this is no longer true. The _close path for the ldisc is 
+ * now guaranteed to be sane. 
  */
-static rwlock_t disc_data_lock = RW_LOCK_UNLOCKED;
+static DEFINE_RWLOCK(disc_data_lock);
 
 static struct asyncppp *ap_get(struct tty_struct *tty)
 {
@@ -144,7 +147,8 @@ static void ap_put(struct asyncppp *ap)
 }
 
 /*
- * Called when a tty is put into PPP line discipline.
+ * Called when a tty is put into PPP line discipline. Called in process
+ * context.
  */
 static int
 ppp_asynctty_open(struct tty_struct *tty)
@@ -234,6 +238,18 @@ ppp_asynctty_close(struct tty_struct *tty)
 }
 
 /*
+ * Called on tty hangup in process context.
+ *
+ * Wait for I/O to driver to complete and unregister PPP channel.
+ * This is already done by the close routine, so just call that.
+ */
+static int ppp_asynctty_hangup(struct tty_struct *tty)
+{
+	ppp_asynctty_close(tty);
+	return 0;
+}
+
+/*
  * Read does nothing - no data is ever available this way.
  * Pppd reads and writes packets via /dev/ppp instead.
  */
@@ -250,11 +266,16 @@ ppp_asynctty_read(struct tty_struct *tty, struct file *file,
  */
 static ssize_t
 ppp_asynctty_write(struct tty_struct *tty, struct file *file,
-		   const unsigned char __user *buf, size_t count)
+		   const unsigned char *buf, size_t count)
 {
 	return -EAGAIN;
 }
 
+/*
+ * Called in process context only. May be re-entered by multiple
+ * ioctl calling threads.
+ */
+ 
 static int
 ppp_asynctty_ioctl(struct tty_struct *tty, struct file *file,
 		   unsigned int cmd, unsigned long arg)
@@ -371,6 +392,7 @@ static struct tty_ldisc ppp_ldisc = {
 	.name	= "ppp",
 	.open	= ppp_asynctty_open,
 	.close	= ppp_asynctty_close,
+	.hangup	= ppp_asynctty_hangup,
 	.read	= ppp_asynctty_read,
 	.write	= ppp_asynctty_write,
 	.ioctl	= ppp_asynctty_ioctl,
@@ -664,7 +686,7 @@ ppp_async_push(struct asyncppp *ap)
 		if (!tty_stuffed && ap->optr < ap->olim) {
 			avail = ap->olim - ap->optr;
 			set_bit(TTY_DO_WRITE_WAKEUP, &tty->flags);
-			sent = tty->driver->write(tty, 0, ap->optr, avail);
+			sent = tty->driver->write(tty, ap->optr, avail);
 			if (sent < 0)
 				goto flush;	/* error, e.g. loss of CD */
 			ap->optr += sent;
@@ -716,7 +738,8 @@ flush:
 
 /*
  * Flush output from our internal buffers.
- * Called for the TCFLSH ioctl.
+ * Called for the TCFLSH ioctl. Can be entered in parallel
+ * but this is covered by the xmit_lock.
  */
 static void
 ppp_async_flush_output(struct asyncppp *ap)
@@ -816,7 +839,9 @@ process_input_packet(struct asyncppp *ap)
 		skb_trim(skb, 0);
 }
 
-/* called when the tty driver has data for us. */
+/* Called when the tty driver has data for us. Runs parallel with the
+   other ldisc functions but will not be re-entered */
+
 static void
 ppp_async_input(struct asyncppp *ap, const unsigned char *buf,
 		char *flags, int count)
@@ -886,7 +911,9 @@ ppp_async_input(struct asyncppp *ap, const unsigned char *buf,
 			break;
 
 		c = buf[n];
-		if (c == PPP_FLAG) {
+		if (flags != NULL && flags[n] != 0) {
+			ap->state |= SC_TOSS;
+		} else if (c == PPP_FLAG) {
 			process_input_packet(ap);
 		} else if (c == PPP_ESCAPE) {
 			ap->state |= SC_ESCAPE;
@@ -973,7 +1000,7 @@ static void async_lcp_peek(struct asyncppp *ap, unsigned char *data,
 	data += 4;
 	dlen -= 4;
 	/* data[0] is code, data[1] is length */
-	while (dlen >= 2 && dlen >= data[1]) {
+	while (dlen >= 2 && dlen >= data[1] && data[1] >= 2) {
 		switch (data[0]) {
 		case LCP_MRU:
 			val = (data[2] << 8) + data[3];

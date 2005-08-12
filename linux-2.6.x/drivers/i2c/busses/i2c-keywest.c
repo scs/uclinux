@@ -88,12 +88,12 @@ static const char *__kw_state_names[] = {
 };
 #endif /* DEBUG */
 
+static int probe;
+
 MODULE_AUTHOR("Benjamin Herrenschmidt <benh@kernel.crashing.org>");
 MODULE_DESCRIPTION("I2C driver for Apple's Keywest");
 MODULE_LICENSE("GPL");
-MODULE_PARM(probe, "i");
-
-static int probe = 0;
+module_param(probe, bool, 0);
 
 #ifdef POLLED_MODE
 /* Don't schedule, the g5 fan controller is too
@@ -399,7 +399,7 @@ keywest_smbus_xfer(	struct i2c_adapter*	adap,
  */
 static int
 keywest_xfer(	struct i2c_adapter *adap,
-		struct i2c_msg msgs[], 
+		struct i2c_msg *msgs, 
 		int num)
 {
 	struct keywest_chan* chan = i2c_get_adapdata(adap);
@@ -516,6 +516,11 @@ create_iface(struct device_node *np, struct device *dev)
 	u32 *psteps, *prate;
 	int rc;
 
+	if (np->n_intrs < 1 || np->n_addrs < 1) {
+		printk(KERN_ERR "%s: Missing interrupt or address !\n",
+		       np->full_name);
+		return -ENODEV;
+	}
 	if (pmac_low_i2c_lock(np))
 		return -ENODEV;
 
@@ -552,9 +557,9 @@ create_iface(struct device_node *np, struct device *dev)
 	iface->irq = np->intrs[0].line;
 	iface->channels = (struct keywest_chan *)
 		(((unsigned long)(iface + 1) + 3UL) & ~3UL);
-	iface->base = (unsigned long)ioremap(np->addrs[0].address + addroffset,
+	iface->base = ioremap(np->addrs[0].address + addroffset,
 						np->addrs[0].size);
-	if (iface->base == 0) {
+	if (!iface->base) {
 		printk(KERN_ERR "i2c-keywest: can't map inteface !\n");
 		kfree(iface);
 		pmac_low_i2c_unlock(np);
@@ -600,7 +605,7 @@ create_iface(struct device_node *np, struct device *dev)
 	rc = request_irq(iface->irq, keywest_irq, SA_INTERRUPT, "keywest i2c", iface);
 	if (rc) {
 		printk(KERN_ERR "i2c-keywest: can't get IRQ %d !\n", iface->irq);
-		iounmap((void *)iface->base);
+		iounmap(iface->base);
 		kfree(iface);
 		pmac_low_i2c_unlock(np);
 		return -ENODEV;
@@ -662,8 +667,7 @@ dispose_iface(struct device *dev)
 	spin_lock_irq(&iface->lock);
 	while (iface->state != state_idle) {
 		spin_unlock_irq(&iface->lock);
-		set_task_state(current,TASK_UNINTERRUPTIBLE);
-		schedule_timeout(HZ/10);
+		msleep(100);
 		spin_lock_irq(&iface->lock);
 	}
 #endif /* POLLED_MODE */
@@ -686,7 +690,7 @@ dispose_iface(struct device *dev)
 		if (rc)
 			printk("i2c-keywest.c: i2c_del_adapter failed, that's bad !\n");
 	}
-	iounmap((void *)iface->base);
+	iounmap(iface->base);
 	dev_set_drvdata(dev, NULL);
 	of_node_put(iface->node);
 	kfree(iface);

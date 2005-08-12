@@ -2,7 +2,9 @@
  *  blacklist.c
  *
  *  Check to see if the given machine has a known bad ACPI BIOS
+ *  or if the BIOS is too old.
  *
+ *  Copyright (C) 2004 Len Brown <len.brown@intel.com>
  *  Copyright (C) 2002 Andy Grover <andrew.grover@intel.com>
  *
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -30,6 +32,7 @@
 #include <linux/init.h>
 #include <linux/acpi.h>
 #include <acpi/acpi_bus.h>
+#include <linux/dmi.h>
 
 enum acpi_blacklist_predicates
 {
@@ -56,20 +59,6 @@ struct acpi_blacklist_item
  */
 static struct acpi_blacklist_item acpi_blacklist[] __initdata =
 {
-	/* Portege 7020, BIOS 8.10 */
-	{"TOSHIB", "7020CT  ", 0x19991112, ACPI_DSDT, all_versions, "Implicit Return", 0},
-	/* Portege 4030 */
-	{"TOSHIB", "4030    ", 0x19991112, ACPI_DSDT, all_versions, "Implicit Return", 0},
-	/* Portege 310/320, BIOS 7.1 */
-	{"TOSHIB", "310     ", 0x19990511, ACPI_DSDT, all_versions, "Implicit Return", 0},
-	/* Seattle 2, old bios rev. */
-	{"INTEL ", "440BX   ", 0x00001000, ACPI_DSDT, less_than_or_equal, "Field beyond end of region", 0},
-	/* ASUS K7M */
-	{"ASUS  ", "K7M     ", 0x00001000, ACPI_DSDT, less_than_or_equal, "Field beyond end of region", 0},
-	/* Intel 810 Motherboard? */
-	{"MNTRAL", "MO81010A", 0x00000012, ACPI_DSDT, less_than_or_equal, "Field beyond end of region", 0},
-	/* Compaq Presario 711FR */
-	{"COMAPQ", "EAGLES", 0x06040000, ACPI_DSDT, less_than_or_equal, "SCI issues (C2 disabled)", 0},
 	/* Compaq Presario 1700 */
 	{"PTLTD ", "  DSDT  ", 0x06040000, ACPI_DSDT, less_than_or_equal, "Multiple problems", 1},
 	/* Sony FX120, FX140, FX150? */
@@ -83,6 +72,45 @@ static struct acpi_blacklist_item acpi_blacklist[] __initdata =
 	{""}
 };
 
+
+#if	CONFIG_ACPI_BLACKLIST_YEAR
+
+static int __init
+blacklist_by_year(void)
+{
+	int year;
+	char *s = dmi_get_system_info(DMI_BIOS_DATE);
+
+	if (!s)
+		return 0;
+	if (!*s)
+		return 0;
+
+	s = strrchr(s, '/');
+	if (!s)
+		return 0;
+
+	s += 1;
+
+	year = simple_strtoul(s,NULL,0); 
+
+	if (year < 100) {		/* 2-digit year */
+		year += 1900;
+		if (year < 1996)	/* no dates < spec 1.0 */
+			year += 100;
+	}
+
+	if (year < CONFIG_ACPI_BLACKLIST_YEAR) {
+		printk(KERN_ERR PREFIX "BIOS age (%d) fails cutoff (%d), " 
+			"acpi=force is required to enable ACPI\n",
+			year, CONFIG_ACPI_BLACKLIST_YEAR);
+		return 1;
+	}
+	return 0;
+}
+#else
+static inline int blacklist_by_year(void) { return 0; }
+#endif
 
 int __init
 acpi_blacklisted(void)
@@ -133,6 +161,8 @@ acpi_blacklisted(void)
 			i++;
 		}
 	}
+
+	blacklisted += blacklist_by_year();
 
 	return blacklisted;
 }

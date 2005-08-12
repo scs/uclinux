@@ -242,10 +242,9 @@ static void acpi_run_oshp ( struct acpi_bridge	*ab)
 {
 	acpi_status		status;
 	u8			*path_name = acpi_path_name(ab->handle);
-	struct acpi_buffer	ret_buf = { 0, NULL};
 
 	/* run OSHP */
-	status = acpi_evaluate_object(ab->handle, METHOD_NAME_OSHP, NULL, &ret_buf);
+	status = acpi_evaluate_object(ab->handle, METHOD_NAME_OSHP, NULL, NULL);
 	if (ACPI_FAILURE(status)) {
 		err("acpi_pciehprm:%s OSHP fails=0x%x\n", path_name, status);
 	} else
@@ -1396,17 +1395,19 @@ static int configure_existing_function(
 static int bind_pci_resources_to_slots ( struct controller *ctrl)
 {
 	struct pci_func *func, new_func;
-	int busn = ctrl->bus;
+	int busn = ctrl->slot_bus;
 	int devn, funn;
 	u32	vid;
 
 	for (devn = 0; devn < 32; devn++) {
 		for (funn = 0; funn < 8; funn++) {
+			/*
 			if (devn == ctrl->device && funn == ctrl->function)
 				continue;
+			*/
 			/* find out if this entry is for an occupied slot */
 			vid = 0xFFFFFFFF;
-			pci_bus_read_config_dword(ctrl->pci_bus, PCI_DEVFN(devn, funn), PCI_VENDOR_ID, &vid);
+			pci_bus_read_config_dword(ctrl->pci_dev->subordinate, PCI_DEVFN(devn, funn), PCI_VENDOR_ID, &vid);
 
 			if (vid != 0xFFFFFFFF) {
 				func = shpchp_slot_find(busn, devn, funn);
@@ -1625,7 +1626,7 @@ int shpchprm_set_hpp(
 	pci_bus->number = func->bus;
 	devfn = PCI_DEVFN(func->device, func->function);
 
-	ab = find_acpi_bridge_by_bus(acpi_bridges_head, ctrl->seg, ctrl->bus);
+	ab = find_acpi_bridge_by_bus(acpi_bridges_head, ctrl->seg, ctrl->slot_bus);
 
 	if (ab) {
 		if (ab->_hpp) {
@@ -1680,7 +1681,7 @@ void shpchprm_enable_card(
 		| PCI_COMMAND_IO | PCI_COMMAND_MEMORY;
 	bcmd = bcommand  = bcommand | PCI_BRIDGE_CTL_NO_ISA;
 
-	ab = find_acpi_bridge_by_bus(acpi_bridges_head, ctrl->seg, ctrl->bus);
+	ab = find_acpi_bridge_by_bus(acpi_bridges_head, ctrl->seg, ctrl->slot_bus);
 	if (ab) {
 		if (ab->_hpp) {
 			if (ab->_hpp->enable_perr) {

@@ -84,9 +84,7 @@ static struct IdentifyRta IdRta;
 static struct KillNeighbour KillUnit;
 
 int
-RIOFoadRta(HostP, MapP)
-struct Host *	HostP;
-struct Map *	MapP;
+RIOFoadRta(struct Host *HostP, struct Map *MapP)
 {
 	struct CmdBlk *CmdBlkP;
 
@@ -117,9 +115,7 @@ struct Map *	MapP;
 }
 
 int
-RIOZombieRta(HostP, MapP)
-struct Host *	HostP;
-struct Map *	MapP;
+RIOZombieRta(struct Host *HostP, struct Map *MapP)
 {
 	struct CmdBlk *CmdBlkP;
 
@@ -150,10 +146,8 @@ struct Map *	MapP;
 }
 
 int
-RIOCommandRta(p, RtaUnique, func)
-struct rio_info *	p;
-uint RtaUnique;
-int (* func)( struct Host *HostP, struct Map *MapP );
+RIOCommandRta(struct rio_info *p, uint RtaUnique,
+	int (* func)(struct Host *HostP, struct Map *MapP))
 {
 	uint Host;
 
@@ -195,9 +189,7 @@ int (* func)( struct Host *HostP, struct Map *MapP );
 
 
 int
-RIOIdentifyRta(p, arg)
-struct rio_info *	p;
-caddr_t arg;
+RIOIdentifyRta(struct rio_info *p, caddr_t arg)
 {
 	uint Host;
 
@@ -263,9 +255,7 @@ caddr_t arg;
 
 
 int
-RIOKillNeighbour(p, arg)
-struct rio_info *	p;
-caddr_t arg;
+RIOKillNeighbour(struct rio_info *p, caddr_t arg)
 {
 	uint Host;
 	uint ID;
@@ -329,10 +319,7 @@ caddr_t arg;
 }
 
 int
-RIOSuspendBootRta(HostP, ID, Link)
-struct Host *HostP;
-int ID;
-int Link; 
+RIOSuspendBootRta(struct Host *HostP, int ID, int Link)
 {
 	struct CmdBlk *CmdBlkP;
 
@@ -363,8 +350,7 @@ int Link;
 }
 
 int
-RIOFoadWakeup(p)
-struct rio_info *	p;
+RIOFoadWakeup(struct rio_info *p)
 {
 	int port;
 	register struct Port *PortP;
@@ -397,12 +383,8 @@ struct rio_info *	p;
 /*
 ** Incoming command on the COMMAND_RUP to be processed.
 */
-int
-RIOCommandRup(p, Rup, HostP, PacketP)
-struct rio_info *	p;
-uint Rup;
-struct Host *HostP;
-PKT *PacketP; 
+static int
+RIOCommandRup(struct rio_info *p, uint Rup, struct Host *HostP, PKT *PacketP)
 {
 	struct PktCmd *PktCmdP = (struct PktCmd *)PacketP->data;
 	struct Port *PortP;
@@ -619,7 +601,7 @@ PKT *PacketP;
 ** Allocate an empty command block.
 */
 struct CmdBlk *
-RIOGetCmdBlk()
+RIOGetCmdBlk(void)
 {
 	struct CmdBlk *CmdBlkP;
 
@@ -634,8 +616,7 @@ RIOGetCmdBlk()
 ** Return a block to the head of the free list.
 */
 void
-RIOFreeCmdBlk(CmdBlkP)
-struct CmdBlk *CmdBlkP;
+RIOFreeCmdBlk(struct CmdBlk *CmdBlkP)
 {
 	sysfree((void *)CmdBlkP, sizeof(struct CmdBlk));
 }
@@ -645,10 +626,7 @@ struct CmdBlk *CmdBlkP;
 ** a given rup.
 */
 int
-RIOQueueCmdBlk(HostP, Rup, CmdBlkP)
-struct Host *HostP;
-uint Rup;
-struct CmdBlk *CmdBlkP;
+RIOQueueCmdBlk(struct Host *HostP, uint Rup, struct CmdBlk *CmdBlkP)
 {
 	struct CmdBlk **Base;
 	struct UnixRup *UnixRupP;
@@ -679,7 +657,6 @@ struct CmdBlk *CmdBlkP;
 							:TRUE)) {
 		rio_dprintk (RIO_DEBUG_CMD, "RUP inactive-placing command straight on. Cmd byte is 0x%x\n",
 					     CmdBlkP->Packet.data[0]);
-                                            
 
 		/*
 		** Whammy! blat that pack!
@@ -737,9 +714,7 @@ struct CmdBlk *CmdBlkP;
 ** must be called at splrio() or higher.
 */
 void
-RIOPollHostCommands(p, HostP)
-struct rio_info *	p;
-struct Host *		HostP;
+RIOPollHostCommands(struct rio_info *p, struct Host *HostP)
 {
 	register struct CmdBlk *CmdBlkP;
 	register struct UnixRup *UnixRupP;
@@ -917,66 +892,8 @@ struct Host *		HostP;
 	} while ( Rup );
 }
 
-
-/*
-** Return the length of the named string
-*/
 int
-RIOStrlen(Str)
-register char *Str;
-{
-	register int len = 0;
-
-	while ( *Str++ )
-		len++;
-	return len;
-}
-
-/*
-** compares s1 to s2 and return 0 if they match.
-*/
-int
-RIOStrCmp(s1, s2)
-register char *s1;
-register char *s2;
-{
-	while ( *s1 && *s2 && *s1==*s2 )
-		s1++, s2++;
-	return *s1-*s2;
-}
-
-/*
-** compares s1 to s2 for upto n bytes and return 0 if they match.
-*/
-int
-RIOStrnCmp(s1, s2, n)
-register char *s1;
-register char *s2;
-int n;
-{
-	while ( n && *s1 && *s2 && *s1==*s2 )
-		n--, s1++, s2++;
-	return n ? *s1!=*s2 : 0;
-}
-
-/*
-** copy up to 'len' bytes from 'from' to 'to'.
-*/
-void
-RIOStrNCpy(to, from, len)
-char *to;
-char *from;
-int len; 
-{
-	while ( len-- && (*to++ = *from++) )
-		;
-	to[-1]='\0';
-}
-
-int
-RIOWFlushMark(iPortP, CmdBlkP)
-int iPortP;
-struct CmdBlk *CmdBlkP;
+RIOWFlushMark(int iPortP, struct CmdBlk *CmdBlkP)
 {
 	struct Port *	PortP = (struct Port *)iPortP;
 	unsigned long flags;
@@ -992,9 +909,7 @@ struct CmdBlk *CmdBlkP;
 }
 
 int
-RIORFlushEnable(iPortP, CmdBlkP)
-int iPortP;
-struct CmdBlk *CmdBlkP; 
+RIORFlushEnable(int iPortP, struct CmdBlk *CmdBlkP)
 {
 	struct Port *	PortP = (struct Port *)iPortP;
 	PKT *PacketP;
@@ -1021,9 +936,7 @@ struct CmdBlk *CmdBlkP;
 }
 
 int
-RIOUnUse(iPortP, CmdBlkP)
-int iPortP;
-struct CmdBlk *CmdBlkP; 
+RIOUnUse(int iPortP, struct CmdBlk *CmdBlkP)
 {
 	struct Port *	PortP = (struct Port *)iPortP;
 	unsigned long flags;
@@ -1065,9 +978,7 @@ struct CmdBlk *CmdBlkP;
 }
 
 void
-ShowPacket(Flags, PacketP)
-uint Flags;
-struct PKT *PacketP; 
+ShowPacket(uint Flags, struct PKT *PacketP)
 {
 }
 

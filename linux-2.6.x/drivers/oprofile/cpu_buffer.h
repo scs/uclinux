@@ -12,14 +12,16 @@
 
 #include <linux/types.h>
 #include <linux/spinlock.h>
+#include <linux/workqueue.h>
 #include <linux/cache.h>
  
 struct task_struct;
  
-/* allocate a sample buffer for each CPU */
 int alloc_cpu_buffers(void);
-
 void free_cpu_buffers(void);
+
+void start_cpu_work(void);
+void end_cpu_work(void);
 
 /* CPU buffer is composed of such entries (which are
  * also used for context switch notes)
@@ -35,14 +37,21 @@ struct oprofile_cpu_buffer {
 	unsigned long buffer_size;
 	struct task_struct * last_task;
 	int last_is_kernel;
+	int tracing;
 	struct op_sample * buffer;
 	unsigned long sample_received;
 	unsigned long sample_lost_overflow;
-	unsigned long sample_lost_task_exit;
+	unsigned long backtrace_aborted;
+	int cpu;
+	struct work_struct work;
 } ____cacheline_aligned;
 
 extern struct oprofile_cpu_buffer cpu_buffer[];
 
-void cpu_buffer_reset(struct oprofile_cpu_buffer *cpu_buf);
+void cpu_buffer_reset(struct oprofile_cpu_buffer * cpu_buf);
+
+/* transient events for the CPU buffer -> event buffer */
+#define CPU_IS_KERNEL 1
+#define CPU_TRACE_BEGIN 2
 
 #endif /* OPROFILE_CPU_BUFFER_H */

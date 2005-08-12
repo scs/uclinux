@@ -5,6 +5,7 @@
 config SCSI_AIC7XXX
 	tristate "Adaptec AIC7xxx Fast -> U160 support (New Driver)"
 	depends on (PCI || EISA) && SCSI
+	select SCSI_SPI_ATTRS
 	---help---
 	This driver supports all of Adaptec's Fast through Ultra 160 PCI
 	based SCSI controllers as well as the aic7770 based EISA and VLB
@@ -61,7 +62,7 @@ config AIC7XXX_PROBE_EISA_VL
 
 config AIC7XXX_BUILD_FIRMWARE
 	bool "Build Adapter Firmware with Kernel Build"
-	depends on SCSI_AIC7XXX
+	depends on SCSI_AIC7XXX && !PREVENT_FIRMWARE_BUILD
 	help
 	This option should only be enabled if you are modifying the firmware
 	source to the aic7xxx driver and wish to have the generated firmware

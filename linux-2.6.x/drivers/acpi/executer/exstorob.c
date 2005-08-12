@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2004, R. Byron Moore
+ * Copyright (C) 2000 - 2005, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -76,9 +76,8 @@ acpi_ex_store_buffer_to_buffer (
 	ACPI_FUNCTION_TRACE_PTR ("ex_store_buffer_to_buffer", source_desc);
 
 
-	/*
-	 * We know that source_desc is a buffer by now
-	 */
+	/* We know that source_desc is a buffer by now */
+
 	buffer = (u8 *) source_desc->buffer.pointer;
 	length = source_desc->buffer.length;
 
@@ -93,34 +92,53 @@ acpi_ex_store_buffer_to_buffer (
 			return_ACPI_STATUS (AE_NO_MEMORY);
 		}
 
-		target_desc->common.flags &= ~AOPOBJ_STATIC_POINTER;
 		target_desc->buffer.length = length;
 	}
 
-	/*
-	 * Buffer is a static allocation,
-	 * only place what will fit in the buffer.
-	 */
+	/* Copy source buffer to target buffer */
+
 	if (length <= target_desc->buffer.length) {
 		/* Clear existing buffer and copy in the new one */
 
 		ACPI_MEMSET (target_desc->buffer.pointer, 0, target_desc->buffer.length);
 		ACPI_MEMCPY (target_desc->buffer.pointer, buffer, length);
+
+#ifdef ACPI_OBSOLETE_BEHAVIOR
+		/*
+		 * NOTE: ACPI versions up to 3.0 specified that the buffer must be
+		 * truncated if the string is smaller than the buffer.  However, "other"
+		 * implementations of ACPI never did this and thus became the defacto
+		 * standard. ACPi 3.0_a changes this behavior such that the buffer
+		 * is no longer truncated.
+		 */
+
+		/*
+		 * OBSOLETE BEHAVIOR:
+		 * If the original source was a string, we must truncate the buffer,
+		 * according to the ACPI spec.  Integer-to-Buffer and Buffer-to-Buffer
+		 * copy must not truncate the original buffer.
+		 */
+		if (original_src_type == ACPI_TYPE_STRING) {
+			/* Set the new length of the target */
+
+			target_desc->buffer.length = length;
+		}
+#endif
 	}
 	else {
-		/*
-		 * Truncate the source, copy only what will fit
-		 */
+		/* Truncate the source, copy only what will fit */
+
 		ACPI_MEMCPY (target_desc->buffer.pointer, buffer, target_desc->buffer.length);
 
 		ACPI_DEBUG_PRINT ((ACPI_DB_INFO,
-			"Truncating src buffer from %X to %X\n",
+			"Truncating source buffer from %X to %X\n",
 			length, target_desc->buffer.length));
 	}
 
 	/* Copy flags */
 
 	target_desc->buffer.flags = source_desc->buffer.flags;
+	target_desc->common.flags &= ~AOPOBJ_STATIC_POINTER;
 	return_ACPI_STATUS (AE_OK);
 }
 
@@ -150,9 +168,8 @@ acpi_ex_store_string_to_string (
 	ACPI_FUNCTION_TRACE_PTR ("ex_store_string_to_string", source_desc);
 
 
-	/*
-	 * We know that source_desc is a string by now.
-	 */
+	/* We know that source_desc is a string by now */
+
 	buffer = (u8 *) source_desc->string.pointer;
 	length = source_desc->string.length;
 
@@ -176,9 +193,8 @@ acpi_ex_store_string_to_string (
 		 */
 		if (target_desc->string.pointer &&
 		   (!(target_desc->common.flags & AOPOBJ_STATIC_POINTER))) {
-			/*
-			 * Only free if not a pointer into the DSDT
-			 */
+			/* Only free if not a pointer into the DSDT */
+
 			ACPI_MEM_FREE (target_desc->string.pointer);
 		}
 

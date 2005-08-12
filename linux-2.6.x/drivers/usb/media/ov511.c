@@ -119,78 +119,79 @@ static int remove_zeros;
 static int mirror;
 static int ov518_color;
 
-MODULE_PARM(autobright, "i");
+module_param(autobright, int, 0);
 MODULE_PARM_DESC(autobright, "Sensor automatically changes brightness");
-MODULE_PARM(autogain, "i");
+module_param(autogain, int, 0);
 MODULE_PARM_DESC(autogain, "Sensor automatically changes gain");
-MODULE_PARM(autoexp, "i");
+module_param(autoexp, int, 0);
 MODULE_PARM_DESC(autoexp, "Sensor automatically changes exposure");
-MODULE_PARM(debug, "i");
+module_param(debug, int, 0);
 MODULE_PARM_DESC(debug,
   "Debug level: 0=none, 1=inits, 2=warning, 3=config, 4=functions, 5=max");
-MODULE_PARM(snapshot, "i");
+module_param(snapshot, int, 0);
 MODULE_PARM_DESC(snapshot, "Enable snapshot mode");
-MODULE_PARM(cams, "i");
+module_param(cams, int, 0);
 MODULE_PARM_DESC(cams, "Number of simultaneous cameras");
-MODULE_PARM(compress, "i");
+module_param(compress, int, 0);
 MODULE_PARM_DESC(compress, "Turn on compression");
-MODULE_PARM(testpat, "i");
+module_param(testpat, int, 0);
 MODULE_PARM_DESC(testpat,
   "Replace image with vertical bar testpattern (only partially working)");
-MODULE_PARM(dumppix, "i");
+module_param(dumppix, int, 0);
 MODULE_PARM_DESC(dumppix, "Dump raw pixel data");
-MODULE_PARM(led, "i");
+module_param(led, int, 0);
 MODULE_PARM_DESC(led,
   "LED policy (OV511+ or later). 0=off, 1=on (default), 2=auto (on when open)");
-MODULE_PARM(dump_bridge, "i");
+module_param(dump_bridge, int, 0);
 MODULE_PARM_DESC(dump_bridge, "Dump the bridge registers");
-MODULE_PARM(dump_sensor, "i");
+module_param(dump_sensor, int, 0);
 MODULE_PARM_DESC(dump_sensor, "Dump the sensor registers");
-MODULE_PARM(printph, "i");
+module_param(printph, int, 0);
 MODULE_PARM_DESC(printph, "Print frame start/end headers");
-MODULE_PARM(phy, "i");
+module_param(phy, int, 0);
 MODULE_PARM_DESC(phy, "Prediction range (horiz. Y)");
-MODULE_PARM(phuv, "i");
+module_param(phuv, int, 0);
 MODULE_PARM_DESC(phuv, "Prediction range (horiz. UV)");
-MODULE_PARM(pvy, "i");
+module_param(pvy, int, 0);
 MODULE_PARM_DESC(pvy, "Prediction range (vert. Y)");
-MODULE_PARM(pvuv, "i");
+module_param(pvuv, int, 0);
 MODULE_PARM_DESC(pvuv, "Prediction range (vert. UV)");
-MODULE_PARM(qhy, "i");
+module_param(qhy, int, 0);
 MODULE_PARM_DESC(qhy, "Quantization threshold (horiz. Y)");
-MODULE_PARM(qhuv, "i");
+module_param(qhuv, int, 0);
 MODULE_PARM_DESC(qhuv, "Quantization threshold (horiz. UV)");
-MODULE_PARM(qvy, "i");
+module_param(qvy, int, 0);
 MODULE_PARM_DESC(qvy, "Quantization threshold (vert. Y)");
-MODULE_PARM(qvuv, "i");
+module_param(qvuv, int, 0);
 MODULE_PARM_DESC(qvuv, "Quantization threshold (vert. UV)");
-MODULE_PARM(lightfreq, "i");
+module_param(lightfreq, int, 0);
 MODULE_PARM_DESC(lightfreq,
   "Light frequency. Set to 50 or 60 Hz, or zero for default settings");
-MODULE_PARM(bandingfilter, "i");
+module_param(bandingfilter, int, 0);
 MODULE_PARM_DESC(bandingfilter,
   "Enable banding filter (to reduce effects of fluorescent lighting)");
-MODULE_PARM(clockdiv, "i");
+module_param(clockdiv, int, 0);
 MODULE_PARM_DESC(clockdiv, "Force pixel clock divisor to a specific value");
-MODULE_PARM(packetsize, "i");
+module_param(packetsize, int, 0);
 MODULE_PARM_DESC(packetsize, "Force a specific isoc packet size");
-MODULE_PARM(framedrop, "i");
+module_param(framedrop, int, 0);
 MODULE_PARM_DESC(framedrop, "Force a specific frame drop register setting");
-MODULE_PARM(fastset, "i");
+module_param(fastset, int, 0);
 MODULE_PARM_DESC(fastset, "Allows picture settings to take effect immediately");
-MODULE_PARM(force_palette, "i");
+module_param(force_palette, int, 0);
 MODULE_PARM_DESC(force_palette, "Force the palette to a specific value");
-MODULE_PARM(backlight, "i");
+module_param(backlight, int, 0);
 MODULE_PARM_DESC(backlight, "For objects that are lit from behind");
-MODULE_PARM(unit_video, "1-" __MODULE_STRING(OV511_MAX_UNIT_VIDEO) "i");
+static int num_uv;
+module_param_array(unit_video, int, &num_uv, 0);
 MODULE_PARM_DESC(unit_video,
   "Force use of specific minor number(s). 0 is not allowed.");
-MODULE_PARM(remove_zeros, "i");
+module_param(remove_zeros, int, 0);
 MODULE_PARM_DESC(remove_zeros,
   "Remove zero-padding from uncompressed incoming data");
-MODULE_PARM(mirror, "i");
+module_param(mirror, int, 0);
 MODULE_PARM_DESC(mirror, "Reverse image horizontally");
-MODULE_PARM(ov518_color, "i");
+module_param(ov518_color, int, 0);
 MODULE_PARM_DESC(ov518_color, "Enable OV518 color (experimental)");
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
@@ -323,21 +324,6 @@ static struct symbolic_list urb_errlist[] = {
 /**********************************************************************
  * Memory management
  **********************************************************************/
-
-/* Here we want the physical address of the memory.
- * This is used when initializing the contents of the area.
- */
-static inline unsigned long
-kvirt_to_pa(unsigned long adr)
-{
-	unsigned long kva, ret;
-
-	kva = (unsigned long) page_address(vmalloc_to_page((void *)adr));
-	kva |= adr & (PAGE_SIZE-1); /* restore the offset */
-	ret = __pa(kva);
-	return ret;
-}
-
 static void *
 rvmalloc(unsigned long size)
 {
@@ -397,7 +383,7 @@ reg_w(struct usb_ov511 *ov, unsigned char reg, unsigned char value)
 			     usb_sndctrlpipe(ov->dev, 0),
 			     (ov->bclass == BCL_OV518)?1:2 /* REG_IO */,
 			     USB_TYPE_VENDOR | USB_RECIP_DEVICE,
-			     0, (__u16)reg, &ov->cbuf[0], 1, HZ);
+			     0, (__u16)reg, &ov->cbuf[0], 1, 1000);
 	up(&ov->cbuf_lock);
 
 	if (rc < 0)
@@ -418,7 +404,7 @@ reg_r(struct usb_ov511 *ov, unsigned char reg)
 			     usb_rcvctrlpipe(ov->dev, 0),
 			     (ov->bclass == BCL_OV518)?1:3 /* REG_IO */,
 			     USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
-			     0, (__u16)reg, &ov->cbuf[0], 1, HZ);
+			     0, (__u16)reg, &ov->cbuf[0], 1, 1000);
 
 	if (rc < 0) {
 		err("reg read: error %d: %s", rc, symbolic(urb_errlist, rc));
@@ -472,13 +458,13 @@ ov518_reg_w32(struct usb_ov511 *ov, unsigned char reg, u32 val, int n)
 
 	down(&ov->cbuf_lock);
 
-	*((u32 *)ov->cbuf) = __cpu_to_le32(val);
+	*((__le32 *)ov->cbuf) = __cpu_to_le32(val);
 
 	rc = usb_control_msg(ov->dev,
 			     usb_sndctrlpipe(ov->dev, 0),
 			     1 /* REG_IO */,
 			     USB_TYPE_VENDOR | USB_RECIP_DEVICE,
-			     0, (__u16)reg, ov->cbuf, n, HZ);
+			     0, (__u16)reg, ov->cbuf, n, 1000);
 	up(&ov->cbuf_lock);
 
 	if (rc < 0)
@@ -1169,7 +1155,7 @@ init_ov_sensor(struct usb_ov511 *ov)
 		return -EIO;
 
 	/* Wait for it to initialize */
-	schedule_timeout(1 + 150 * HZ / 1000);
+	msleep(150);
 
 	for (i = 0, success = 0; i < i2c_detect_tries && !success; i++) {
 		if ((i2c_r(ov, OV7610_REG_ID_HIGH) == 0x7F) &&
@@ -1182,7 +1168,7 @@ init_ov_sensor(struct usb_ov511 *ov)
 		if (i2c_w(ov, 0x12, 0x80) < 0)
 			return -EIO;
 		/* Wait for it to initialize */
-		schedule_timeout(1 + 150 * HZ / 1000);
+		msleep(150);
 		/* Dummy read to sync I2C */
 		if (i2c_r(ov, 0x00) < 0)
 			return -EIO;
@@ -3829,7 +3815,7 @@ ov51x_unlink_isoc(struct usb_ov511 *ov)
 	/* Unschedule all of the iso td's */
 	for (n = OV511_NUMSBUF - 1; n >= 0; n--) {
 		if (ov->sbuf[n].urb) {
-			usb_unlink_urb(ov->sbuf[n].urb);
+			usb_kill_urb(ov->sbuf[n].urb);
 			usb_free_urb(ov->sbuf[n].urb);
 			ov->sbuf[n].urb = NULL;
 		}
@@ -3922,21 +3908,15 @@ ov51x_do_dealloc(struct usb_ov511 *ov)
 		ov->fbuf = NULL;
 	}
 
-	if (ov->rawfbuf) {
-		vfree(ov->rawfbuf);
-		ov->rawfbuf = NULL;
-	}
+	vfree(ov->rawfbuf);
+	ov->rawfbuf = NULL;
 
-	if (ov->tempfbuf) {
-		vfree(ov->tempfbuf);
-		ov->tempfbuf = NULL;
-	}
+	vfree(ov->tempfbuf);
+	ov->tempfbuf = NULL;
 
 	for (i = 0; i < OV511_NUMSBUF; i++) {
-		if (ov->sbuf[i].data) {
-			kfree(ov->sbuf[i].data);
-			ov->sbuf[i].data = NULL;
-		}
+		kfree(ov->sbuf[i].data);
+		ov->sbuf[i].data = NULL;
 	}
 
 	for (i = 0; i < OV511_NUMFRAMES; i++) {
@@ -4770,9 +4750,8 @@ ov51x_v4l1_mmap(struct file *file, struct vm_area_struct *vma)
 
 	pos = (unsigned long)ov->fbuf;
 	while (size > 0) {
-		page = kvirt_to_pa(pos);
-		if (remap_page_range(vma, start, page, PAGE_SIZE,
-				     PAGE_SHARED)) {
+		page = vmalloc_to_pfn((void *)pos);
+		if (remap_pfn_range(vma, start, page, PAGE_SIZE, PAGE_SHARED)) {
 			up(&ov->lock);
 			return -EAGAIN;
 		}
@@ -4947,7 +4926,7 @@ ov7xx0_configure(struct usb_ov511 *ov)
 			return -1;
 
 		/* Wait for it to initialize */
-		schedule_timeout(1 + 150 * HZ / 1000);
+		msleep(150);
 
 		i = 0;
 		success = 0;
@@ -5062,7 +5041,7 @@ ov6xx0_configure(struct usb_ov511 *ov)
 		{ OV511_I2C_BUS, 0x2a, 0x04 }, /* Disable framerate adjust */
 //		{ OV511_I2C_BUS, 0x2b, 0xac }, /* Framerate; Set 2a[7] first */
 		{ OV511_I2C_BUS, 0x2d, 0x99 },
-		{ OV511_I2C_BUS, 0x33, 0xa0 }, /* Color Procesing Parameter */
+		{ OV511_I2C_BUS, 0x33, 0xa0 }, /* Color Processing Parameter */
 		{ OV511_I2C_BUS, 0x34, 0xd2 }, /* Max A/D range */
 		{ OV511_I2C_BUS, 0x38, 0x8b },
 		{ OV511_I2C_BUS, 0x39, 0x40 },
@@ -5611,7 +5590,7 @@ ov518_configure(struct usb_ov511 *ov)
 		if (ifp) {
 			alt = usb_altnum_to_altsetting(ifp, 7);
 			if (alt)
-				mxps = alt->endpoint[0].desc.wMaxPacketSize;
+				mxps = le16_to_cpu(alt->endpoint[0].desc.wMaxPacketSize);
 		}
 
 		/* Some OV518s have packet numbering by default, some don't */
@@ -5840,7 +5819,7 @@ ov51x_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	ov->auto_gain = autogain;
 	ov->auto_exp = autoexp;
 
-	switch (dev->descriptor.idProduct) {
+	switch (le16_to_cpu(dev->descriptor.idProduct)) {
 	case PROD_OV511:
 		ov->bridge = BRG_OV511;
 		ov->bclass = BCL_OV511;
@@ -5858,13 +5837,13 @@ ov51x_probe(struct usb_interface *intf, const struct usb_device_id *id)
 		ov->bclass = BCL_OV518;
 		break;
 	case PROD_ME2CAM:
-		if (dev->descriptor.idVendor != VEND_MATTEL)
+		if (le16_to_cpu(dev->descriptor.idVendor) != VEND_MATTEL)
 			goto error;
 		ov->bridge = BRG_OV511PLUS;
 		ov->bclass = BCL_OV511;
 		break;
 	default:
-		err("Unknown product ID 0x%04x", dev->descriptor.idProduct);
+		err("Unknown product ID 0x%04x", le16_to_cpu(dev->descriptor.idProduct));
 		goto error;
 	}
 
@@ -5973,10 +5952,8 @@ error:
 		up(&ov->cbuf_lock);
 	}
 
-	if (ov) {
-		kfree(ov);
-		ov = NULL;
-	}
+	kfree(ov);
+	ov = NULL;
 
 error_out:
 	err("Camera initialization failed");

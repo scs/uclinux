@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2004, R. Byron Moore
+ * Copyright (C) 2000 - 2005, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -50,6 +50,9 @@
 #include <acpi/acnamesp.h>
 #include <acpi/acevents.h>
 
+#ifdef _ACPI_ASL_COMPILER
+#include <acpi/acdisasm.h>
+#endif
 
 #define _COMPONENT          ACPI_DISPATCHER
 	 ACPI_MODULE_NAME    ("dswload")
@@ -179,6 +182,18 @@ acpi_ds_load1_begin_op (
 		 */
 		status = acpi_ns_lookup (walk_state->scope_info, path, object_type,
 				  ACPI_IMODE_EXECUTE, ACPI_NS_SEARCH_PARENT, walk_state, &(node));
+#ifdef _ACPI_ASL_COMPILER
+		if (status == AE_NOT_FOUND) {
+			/*
+			 * Table disassembly:
+			 * Target of Scope() not found.  Generate an External for it, and
+			 * insert the name into the namespace.
+			 */
+			acpi_dm_add_to_external_list (path);
+			status = acpi_ns_lookup (walk_state->scope_info, path, object_type,
+					   ACPI_IMODE_LOAD_PASS1, ACPI_NS_SEARCH_PARENT, walk_state, &(node));
+		}
+#endif
 		if (ACPI_FAILURE (status)) {
 			ACPI_REPORT_NSERROR (path, status);
 			return (status);
@@ -529,7 +544,16 @@ acpi_ds_load2_begin_op (
 		status = acpi_ns_lookup (walk_state->scope_info, buffer_ptr, object_type,
 				  ACPI_IMODE_EXECUTE, ACPI_NS_SEARCH_PARENT, walk_state, &(node));
 		if (ACPI_FAILURE (status)) {
+#ifdef _ACPI_ASL_COMPILER
+			if (status == AE_NOT_FOUND) {
+				status = AE_OK;
+			}
+			else {
+				ACPI_REPORT_NSERROR (buffer_ptr, status);
+			}
+#else
 			ACPI_REPORT_NSERROR (buffer_ptr, status);
+#endif
 			return_ACPI_STATUS (status);
 		}
 		/*

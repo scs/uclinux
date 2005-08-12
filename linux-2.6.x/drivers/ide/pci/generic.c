@@ -39,14 +39,7 @@
 
 #include <asm/io.h>
 
-#include "generic.h"
-
-static unsigned int __init init_chipset_generic (struct pci_dev *dev, const char *name)
-{
-	return 0;
-}
-
-static void __init init_hwif_generic (ide_hwif_t *hwif)
+static void __devinit init_hwif_generic (ide_hwif_t *hwif)
 {
 	switch(hwif->pci_dev->device) {
 		case PCI_DEVICE_ID_UMC_UM8673F:
@@ -83,6 +76,89 @@ static void __init init_hwif_generic (ide_hwif_t *hwif)
 	return 0;
 #endif	
 
+static ide_pci_device_t generic_chipsets[] __devinitdata = {
+	{	/* 0 */
+		.name		= "NS87410",
+		.init_hwif	= init_hwif_generic,
+		.channels	= 2,
+		.autodma	= AUTODMA,
+		.enablebits	= {{0x43,0x08,0x08}, {0x47,0x08,0x08}},
+		.bootable	= ON_BOARD,
+        },{	/* 1 */
+		.name		= "SAMURAI",
+		.init_hwif	= init_hwif_generic,
+		.channels	= 2,
+		.autodma	= AUTODMA,
+		.bootable	= ON_BOARD,
+	},{	/* 2 */
+		.name		= "HT6565",
+		.init_hwif	= init_hwif_generic,
+		.channels	= 2,
+		.autodma	= AUTODMA,
+		.bootable	= ON_BOARD,
+	},{	/* 3 */
+		.name		= "UM8673F",
+		.init_hwif	= init_hwif_generic,
+		.channels	= 2,
+		.autodma	= NODMA,
+		.bootable	= ON_BOARD,
+	},{	/* 4 */
+		.name		= "UM8886A",
+		.init_hwif	= init_hwif_generic,
+		.channels	= 2,
+		.autodma	= NODMA,
+		.bootable	= ON_BOARD,
+	},{	/* 5 */
+		.name		= "UM8886BF",
+		.init_hwif	= init_hwif_generic,
+		.channels	= 2,
+		.autodma	= NODMA,
+		.bootable	= ON_BOARD,
+	},{	/* 6 */
+		.name		= "HINT_IDE",
+		.init_hwif	= init_hwif_generic,
+		.channels	= 2,
+		.autodma	= AUTODMA,
+		.bootable	= ON_BOARD,
+	},{	/* 7 */
+		.name		= "VIA_IDE",
+		.init_hwif	= init_hwif_generic,
+		.channels	= 2,
+		.autodma	= NOAUTODMA,
+		.bootable	= ON_BOARD,
+	},{	/* 8 */
+		.name		= "OPTI621V",
+		.init_hwif	= init_hwif_generic,
+		.channels	= 2,
+		.autodma	= NOAUTODMA,
+		.bootable	= ON_BOARD,
+	},{	/* 9 */
+		.name		= "VIA8237SATA",
+		.init_hwif	= init_hwif_generic,
+		.channels	= 2,
+		.autodma	= AUTODMA,
+		.bootable	= OFF_BOARD,
+	},{	/* 10 */
+		.name 		= "Piccolo0102",
+		.init_hwif	= init_hwif_generic,
+		.channels	= 2,
+		.autodma	= NOAUTODMA,
+		.bootable	= ON_BOARD,
+	},{	/* 11 */
+		.name 		= "Piccolo0103",
+		.init_hwif	= init_hwif_generic,
+		.channels	= 2,
+		.autodma	= NOAUTODMA,
+		.bootable	= ON_BOARD,
+	},{	/* 12 */
+		.name 		= "Piccolo0105",
+		.init_hwif	= init_hwif_generic,
+		.channels	= 2,
+		.autodma	= NOAUTODMA,
+		.bootable	= ON_BOARD,
+	}
+};
+
 /**
  *	generic_init_one	-	called when a PIIX is found
  *	@dev: the generic device
@@ -96,25 +172,26 @@ static int __devinit generic_init_one(struct pci_dev *dev, const struct pci_devi
 {
 	ide_pci_device_t *d = &generic_chipsets[id->driver_data];
 	u16 command;
+	int ret = -ENODEV;
 
 	if (dev->vendor == PCI_VENDOR_ID_UMC &&
 	    dev->device == PCI_DEVICE_ID_UMC_UM8886A &&
 	    (!(PCI_FUNC(dev->devfn) & 1)))
-		return 1; /* UM8886A/BF pair */
+		goto out; /* UM8886A/BF pair */
 
 	if (dev->vendor == PCI_VENDOR_ID_OPTI &&
 	    dev->device == PCI_DEVICE_ID_OPTI_82C558 &&
 	    (!(PCI_FUNC(dev->devfn) & 1)))
-		return 1;
+		goto out;
 
 	pci_read_config_word(dev, PCI_COMMAND, &command);
-	if(!(command & PCI_COMMAND_IO))
-	{
+	if (!(command & PCI_COMMAND_IO)) {
 		printk(KERN_INFO "Skipping disabled %s IDE controller.\n", d->name);
-		return 1; 
+		goto out;
 	}
-	ide_setup_pci_device(dev, d);
-	return 0;
+	ret = ide_setup_pci_device(dev, d);
+out:
+	return ret;
 }
 
 static struct pci_device_id generic_pci_tbl[] = {
@@ -138,7 +215,7 @@ static struct pci_device_id generic_pci_tbl[] = {
 MODULE_DEVICE_TABLE(pci, generic_pci_tbl);
 
 static struct pci_driver driver = {
-	.name		= "PCI IDE",
+	.name		= "PCI_IDE",
 	.id_table	= generic_pci_tbl,
 	.probe		= generic_init_one,
 };

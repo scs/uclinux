@@ -22,15 +22,17 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/slab.h>
+#include <linux/jiffies.h>
 #include <linux/i2c.h>
 #include <linux/i2c-sensor.h>
 #include <asm/io.h>
 
 /* Addresses to scan */
-static unsigned short normal_i2c[] = { I2C_CLIENT_END };
-static unsigned short normal_i2c_range[] = { 0x20, 0x2f, I2C_CLIENT_END };
+static unsigned short normal_i2c[] = { 0x20, 0x21, 0x22, 0x23, 0x24,
+					0x25, 0x26, 0x27, 0x28, 0x29,
+					0x2a, 0x2b, 0x2c, 0x2d, 0x2e,
+					0x2f, I2C_CLIENT_END };
 static unsigned int normal_isa[] = { 0x0290, I2C_CLIENT_ISA_END };
-static unsigned int normal_isa_range[] = { I2C_CLIENT_ISA_END };
 
 /* Insmod parameters */
 SENSORS_INSMOD_3(lm78, lm78j, lm79);
@@ -80,9 +82,8 @@ static inline u8 IN_TO_REG(unsigned long val)
 
 static inline u8 FAN_TO_REG(long rpm, int div)
 {
-	if (rpm == 0)
+	if (rpm <= 0)
 		return 255;
-	rpm = SENSORS_LIMIT(rpm, 1, 1000000);
 	return SENSORS_LIMIT((1350000 + rpm * div / 2) / (rpm * div), 1, 254);
 }
 
@@ -93,15 +94,15 @@ static inline int FAN_FROM_REG(u8 val, int div)
 
 /* TEMP: mC (-128C to +127C)
    REG: 1C/bit, two's complement */
-static inline u8 TEMP_TO_REG(int val)
+static inline s8 TEMP_TO_REG(int val)
 {
 	int nval = SENSORS_LIMIT(val, -128000, 127000) ;
-	return nval<0 ? (nval-500)/1000+0x100 : (nval+500)/1000;
+	return nval<0 ? (nval-500)/1000 : (nval+500)/1000;
 }
 
-static inline int TEMP_FROM_REG(u8 val)
+static inline int TEMP_FROM_REG(s8 val)
 {
-	return (val>=0x80 ? val-0x100 : val) * 1000;
+	return val * 1000;
 }
 
 /* VID: mV
@@ -111,16 +112,6 @@ static inline int VID_FROM_REG(u8 val)
 	return val==0x1f ? 0 : val>=0x10 ? 5100-val*100 : 2050-val*50;
 }
 
-/* ALARMS: chip-specific bitmask
-   REG: (same) */
-#define ALARMS_FROM_REG(val) (val)
-
-/* FAN DIV: 1, 2, 4, or 8 (defaults to 2)
-   REG: 0, 1, 2, or 3 (respectively) (defaults to 1) */
-static inline u8 DIV_TO_REG(int val)
-{
-	return val==8 ? 3 : val==4 ? 2 : val==1 ? 0 : 1;
-}
 #define DIV_FROM_REG(val) (1 << (val))
 
 /* There are some complications in a module like this. First off, LM78 chips
@@ -156,9 +147,9 @@ struct lm78_data {
 	u8 in_min[7];		/* Register value */
 	u8 fan[3];		/* Register value */
 	u8 fan_min[3];		/* Register value */
-	u8 temp;		/* Register value */
-	u8 temp_over;		/* Register value */
-	u8 temp_hyst;		/* Register value */
+	s8 temp;		/* Register value */
+	s8 temp_over;		/* Register value */
+	s8 temp_hyst;		/* Register value */
 	u8 fan_div[3];		/* Register encoding, shifted right */
 	u8 vid;			/* Register encoding, combined */
 	u16 alarms;		/* Register encoding, combined */
@@ -209,8 +200,11 @@ static ssize_t set_in_min(struct device *dev, const char *buf,
 	struct i2c_client *client = to_i2c_client(dev);
 	struct lm78_data *data = i2c_get_clientdata(client);
 	unsigned long val = simple_strtoul(buf, NULL, 10);
+
+	down(&data->update_lock);
 	data->in_min[nr] = IN_TO_REG(val);
 	lm78_write_value(client, LM78_REG_IN_MIN(nr), data->in_min[nr]);
+	up(&data->update_lock);
 	return count;
 }
 
@@ -220,8 +214,11 @@ static ssize_t set_in_max(struct device *dev, const char *buf,
 	struct i2c_client *client = to_i2c_client(dev);
 	struct lm78_data *data = i2c_get_clientdata(client);
 	unsigned long val = simple_strtoul(buf, NULL, 10);
+
+	down(&data->update_lock);
 	data->in_max[nr] = IN_TO_REG(val);
 	lm78_write_value(client, LM78_REG_IN_MAX(nr), data->in_max[nr]);
+	up(&data->update_lock);
 	return count;
 }
 	
@@ -229,29 +226,29 @@ static ssize_t set_in_max(struct device *dev, const char *buf,
 static ssize_t							\
 	show_in##offset (struct device *dev, char *buf)		\
 {								\
-	return show_in(dev, buf, 0x##offset);			\
+	return show_in(dev, buf, offset);			\
 }								\
 static DEVICE_ATTR(in##offset##_input, S_IRUGO, 		\
 		show_in##offset, NULL);				\
 static ssize_t							\
 	show_in##offset##_min (struct device *dev, char *buf)   \
 {								\
-	return show_in_min(dev, buf, 0x##offset);		\
+	return show_in_min(dev, buf, offset);			\
 }								\
 static ssize_t							\
 	show_in##offset##_max (struct device *dev, char *buf)   \
 {								\
-	return show_in_max(dev, buf, 0x##offset);		\
+	return show_in_max(dev, buf, offset);			\
 }								\
 static ssize_t set_in##offset##_min (struct device *dev,	\
 		const char *buf, size_t count)			\
 {								\
-	return set_in_min(dev, buf, count, 0x##offset);		\
+	return set_in_min(dev, buf, count, offset);		\
 }								\
 static ssize_t set_in##offset##_max (struct device *dev,	\
 		const char *buf, size_t count)			\
 {								\
-	return set_in_max(dev, buf, count, 0x##offset);		\
+	return set_in_max(dev, buf, count, offset);		\
 }								\
 static DEVICE_ATTR(in##offset##_min, S_IRUGO | S_IWUSR,		\
 		show_in##offset##_min, set_in##offset##_min);	\
@@ -284,8 +281,11 @@ static ssize_t set_temp_over(struct device *dev, const char *buf, size_t count)
 	struct i2c_client *client = to_i2c_client(dev);
 	struct lm78_data *data = i2c_get_clientdata(client);
 	long val = simple_strtol(buf, NULL, 10);
+
+	down(&data->update_lock);
 	data->temp_over = TEMP_TO_REG(val);
 	lm78_write_value(client, LM78_REG_TEMP_OVER, data->temp_over);
+	up(&data->update_lock);
 	return count;
 }
 
@@ -300,8 +300,11 @@ static ssize_t set_temp_hyst(struct device *dev, const char *buf, size_t count)
 	struct i2c_client *client = to_i2c_client(dev);
 	struct lm78_data *data = i2c_get_clientdata(client);
 	long val = simple_strtol(buf, NULL, 10);
+
+	down(&data->update_lock);
 	data->temp_hyst = TEMP_TO_REG(val);
 	lm78_write_value(client, LM78_REG_TEMP_HYST, data->temp_hyst);
+	up(&data->update_lock);
 	return count;
 }
 
@@ -332,8 +335,11 @@ static ssize_t set_fan_min(struct device *dev, const char *buf,
 	struct i2c_client *client = to_i2c_client(dev);
 	struct lm78_data *data = i2c_get_clientdata(client);
 	unsigned long val = simple_strtoul(buf, NULL, 10);
+
+	down(&data->update_lock);
 	data->fan_min[nr] = FAN_TO_REG(val, DIV_FROM_REG(data->fan_div[nr]));
 	lm78_write_value(client, LM78_REG_FAN_MIN(nr), data->fan_min[nr]);
+	up(&data->update_lock);
 	return count;
 }
 
@@ -352,11 +358,27 @@ static ssize_t set_fan_div(struct device *dev, const char *buf,
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct lm78_data *data = i2c_get_clientdata(client);
-	unsigned long min = FAN_FROM_REG(data->fan_min[nr],
-			DIV_FROM_REG(data->fan_div[nr]));
 	unsigned long val = simple_strtoul(buf, NULL, 10);
-	int reg = lm78_read_value(client, LM78_REG_VID_FANDIV);
-	data->fan_div[nr] = DIV_TO_REG(val);
+	unsigned long min;
+	u8 reg;
+
+	down(&data->update_lock);
+	min = FAN_FROM_REG(data->fan_min[nr],
+			   DIV_FROM_REG(data->fan_div[nr]));
+
+	switch (val) {
+	case 1: data->fan_div[nr] = 0; break;
+	case 2: data->fan_div[nr] = 1; break;
+	case 4: data->fan_div[nr] = 2; break;
+	case 8: data->fan_div[nr] = 3; break;
+	default:
+		dev_err(&client->dev, "fan_div value %ld not "
+			"supported. Choose one of 1, 2, 4 or 8!\n", val);
+		up(&data->update_lock);
+		return -EINVAL;
+	}
+
+	reg = lm78_read_value(client, LM78_REG_VID_FANDIV);
 	switch (nr) {
 	case 0:
 		reg = (reg & 0xcf) | (data->fan_div[nr] << 4);
@@ -366,29 +388,32 @@ static ssize_t set_fan_div(struct device *dev, const char *buf,
 		break;
 	}
 	lm78_write_value(client, LM78_REG_VID_FANDIV, reg);
+
 	data->fan_min[nr] =
 		FAN_TO_REG(min, DIV_FROM_REG(data->fan_div[nr]));
 	lm78_write_value(client, LM78_REG_FAN_MIN(nr), data->fan_min[nr]);
+	up(&data->update_lock);
+
 	return count;
 }
 
 #define show_fan_offset(offset)						\
 static ssize_t show_fan_##offset (struct device *dev, char *buf)	\
 {									\
-	return show_fan(dev, buf, 0x##offset - 1);			\
+	return show_fan(dev, buf, offset - 1);				\
 }									\
 static ssize_t show_fan_##offset##_min (struct device *dev, char *buf)  \
 {									\
-	return show_fan_min(dev, buf, 0x##offset - 1);			\
+	return show_fan_min(dev, buf, offset - 1);			\
 }									\
 static ssize_t show_fan_##offset##_div (struct device *dev, char *buf)  \
 {									\
-	return show_fan_div(dev, buf, 0x##offset - 1);			\
+	return show_fan_div(dev, buf, offset - 1);			\
 }									\
 static ssize_t set_fan_##offset##_min (struct device *dev,		\
 		const char *buf, size_t count)				\
 {									\
-	return set_fan_min(dev, buf, count, 0x##offset - 1);		\
+	return set_fan_min(dev, buf, count, offset - 1);		\
 }									\
 static DEVICE_ATTR(fan##offset##_input, S_IRUGO, show_fan_##offset, NULL);\
 static DEVICE_ATTR(fan##offset##_min, S_IRUGO | S_IWUSR,		\
@@ -423,13 +448,13 @@ static ssize_t show_vid(struct device *dev, char *buf)
 	struct lm78_data *data = lm78_update_device(dev);
 	return sprintf(buf, "%d\n", VID_FROM_REG(data->vid));
 }
-static DEVICE_ATTR(in0_ref, S_IRUGO, show_vid, NULL);
+static DEVICE_ATTR(cpu0_vid, S_IRUGO, show_vid, NULL);
 
 /* Alarms */
 static ssize_t show_alarms(struct device *dev, char *buf)
 {
 	struct lm78_data *data = lm78_update_device(dev);
-	return sprintf(buf, "%d\n", ALARMS_FROM_REG(data->alarms));
+	return sprintf(buf, "%u\n", data->alarms);
 }
 static DEVICE_ATTR(alarms, S_IRUGO, show_alarms, NULL);
 
@@ -461,7 +486,7 @@ int lm78_detect(struct i2c_adapter *adapter, int address, int kind)
 
 	/* Reserve the ISA region */
 	if (is_isa)
-		if (!request_region(address, LM78_EXTENT, "lm78")) {
+		if (!request_region(address, LM78_EXTENT, lm78_driver.name)) {
 			err = -EBUSY;
 			goto ERROR0;
 		}
@@ -615,7 +640,7 @@ int lm78_detect(struct i2c_adapter *adapter, int address, int kind)
 	device_create_file(&new_client->dev, &dev_attr_fan3_min);
 	device_create_file(&new_client->dev, &dev_attr_fan3_div);
 	device_create_file(&new_client->dev, &dev_attr_alarms);
-	device_create_file(&new_client->dev, &dev_attr_in0_ref);
+	device_create_file(&new_client->dev, &dev_attr_cpu0_vid);
 
 	return 0;
 
@@ -632,16 +657,14 @@ static int lm78_detach_client(struct i2c_client *client)
 {
 	int err;
 
-	/* release ISA region first */
-	if(i2c_is_isa_client(client))
-		release_region(client->addr, LM78_EXTENT);
-
-	/* now it's safe to scrap the rest */
 	if ((err = i2c_detach_client(client))) {
 		dev_err(&client->dev,
 		    "Client deregistration failed, client not detached.\n");
 		return err;
 	}
+
+	if(i2c_is_isa_client(client))
+		release_region(client->addr, LM78_EXTENT);
 
 	kfree(i2c_get_clientdata(client));
 
@@ -652,9 +675,7 @@ static int lm78_detach_client(struct i2c_client *client)
    We don't want to lock the whole ISA bus, so we lock each client
    separately.
    We ignore the LM78 BUSY flag at this moment - it could lead to deadlocks,
-   would slow down the LM78 access and should not be necessary. 
-   There are some ugly typecasts here, but the good new is - they should
-   nowhere else be necessary! */
+   would slow down the LM78 access and should not be necessary.  */
 static int lm78_read_value(struct i2c_client *client, u8 reg)
 {
 	int res;
@@ -692,26 +713,12 @@ static int lm78_write_value(struct i2c_client *client, u8 reg, u8 value)
 /* Called when we have found a new LM78. It should set limits, etc. */
 static void lm78_init_client(struct i2c_client *client)
 {
-	struct lm78_data *data = i2c_get_clientdata(client);
-	int vid;
-
-	/* Reset all except Watchdog values and last conversion values
-	   This sets fan-divs to 2, among others */
-	lm78_write_value(client, LM78_REG_CONFIG, 0x80);
-
-	vid = lm78_read_value(client, LM78_REG_VID_FANDIV) & 0x0f;
-	if (data->type == lm79)
-		vid |=
-		    (lm78_read_value(client, LM78_REG_CHIPID) & 0x01) << 4;
-	else
-		vid |= 0x10;
-	vid = VID_FROM_REG(vid);
+	u8 config = lm78_read_value(client, LM78_REG_CONFIG);
 
 	/* Start monitoring */
-	lm78_write_value(client, LM78_REG_CONFIG,
-			 (lm78_read_value(client, LM78_REG_CONFIG) & 0xf7)
-			 | 0x01);
-
+	if (!(config & 0x01))
+		lm78_write_value(client, LM78_REG_CONFIG,
+				 (config & 0xf7) | 0x01);
 }
 
 static struct lm78_data *lm78_update_device(struct device *dev)
@@ -722,8 +729,8 @@ static struct lm78_data *lm78_update_device(struct device *dev)
 
 	down(&data->update_lock);
 
-	if ((jiffies - data->last_updated > HZ + HZ / 2) ||
-	    (jiffies < data->last_updated) || !data->valid) {
+	if (time_after(jiffies, data->last_updated + HZ + HZ / 2)
+	    || !data->valid) {
 
 		dev_dbg(&client->dev, "Starting lm78 update\n");
 

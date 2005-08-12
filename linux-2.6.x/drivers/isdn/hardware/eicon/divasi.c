@@ -20,6 +20,7 @@
 #include <linux/proc_fs.h>
 #include <linux/skbuff.h>
 #include <linux/devfs_fs_kernel.h>
+#include <asm/uaccess.h>
 
 #include "platform.h"
 #include "di_defs.h"

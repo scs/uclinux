@@ -210,7 +210,7 @@ static int do_sony_cmd(Byte * cmd, int nCmd, Byte status[2],
 /* The base I/O address of the Sony Interface.  This is a variable (not a
    #define) so it can be easily changed via some future ioctl() */
 static unsigned int sony535_cd_base_io = CDU535_ADDRESS;
-MODULE_PARM(sony535_cd_base_io, "i");
+module_param(sony535_cd_base_io, int, 0);
 
 /*
  * The following are I/O addresses of the various registers for the drive.  The
@@ -222,7 +222,7 @@ static unsigned short command_reg;
 static unsigned short read_status_reg;
 static unsigned short data_reg;
 
-static spinlock_t sonycd535_lock = SPIN_LOCK_UNLOCKED; /* queue lock */
+static DEFINE_SPINLOCK(sonycd535_lock); /* queue lock */
 static struct request_queue *sonycd535_queue;
 
 static int initialized;			/* Has the drive been initialized? */

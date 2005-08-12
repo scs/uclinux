@@ -32,6 +32,15 @@ config SENSORS_ADM1025
 	  This driver can also be built as a module.  If so, the module
 	  will be called adm1025.
 
+config SENSORS_ADM1026
+	tristate "Analog Devices ADM1026 and compatibles"
+	depends on I2C && EXPERIMENTAL
+	select I2C_SENSOR
+	help
+	  If you say yes here you get support for Analog Devices ADM1026
+	  This driver can also be built as a module.  If so, the module
+	  will be called adm1026.
+
 config SENSORS_ADM1031
 	tristate "Analog Devices ADM1031 and compatibles"
 	depends on I2C && EXPERIMENTAL
@@ -54,7 +63,7 @@ config SENSORS_ASB100
 	  will be called asb100.
 
 config SENSORS_DS1621
-      	tristate "Dallas Semiconductor DS1621 and DS1625"
+	tristate "Dallas Semiconductor DS1621 and DS1625"
 	depends on I2C && EXPERIMENTAL
 	select I2C_SENSOR
 	help
@@ -75,6 +84,17 @@ config SENSORS_FSCHER
 	  This driver can also be built as a module.  If so, the module
 	  will be called fscher.
 
+config SENSORS_FSCPOS
+	tristate "FSC Poseidon"
+	depends on I2C && EXPERIMENTAL
+	select I2C_SENSOR
+	help
+	  If you say yes here you get support for Fujitsu Siemens
+	  Computers Poseidon sensor chips.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called fscpos.
+
 config SENSORS_GL518SM
 	tristate "Genesys Logic GL518SM"
 	depends on I2C && EXPERIMENTAL
@@ -86,6 +106,17 @@ config SENSORS_GL518SM
 	  This driver can also be built as a module.  If so, the module
 	  will be called gl518sm.
 
+config SENSORS_GL520SM
+	tristate "Genesys Logic GL520SM"
+	depends on I2C && EXPERIMENTAL
+	select I2C_SENSOR
+	help
+	  If you say yes here you get support for Genesys Logic GL520SM
+	  sensor chips.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called gl520sm.
+
 config SENSORS_IT87
 	tristate "ITE IT87xx and compatibles"
 	depends on I2C && EXPERIMENTAL
@@ -96,6 +127,19 @@ config SENSORS_IT87
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called it87.
+
+config SENSORS_LM63
+	tristate "National Semiconductor LM63"
+	depends on I2C && EXPERIMENTAL
+	select I2C_SENSOR
+	help
+	  If you say yes here you get support for the National Semiconductor
+	  LM63 remote diode digital temperature sensor with integrated fan
+	  control.  Such chips are found on the Tyan S4882 (Thunder K8QS Pro)
+	  motherboard, among others.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called lm63.
 
 config SENSORS_LM75
 	tristate "National Semiconductor LM75 and compatibles"
@@ -149,7 +193,7 @@ config SENSORS_LM80
 
 config SENSORS_LM83
 	tristate "National Semiconductor LM83"
-	depends on I2C && EXPERIMENTAL
+	depends on I2C
 	select I2C_SENSOR
 	help
 	  If you say yes here you get support for National Semiconductor
@@ -169,6 +213,17 @@ config SENSORS_LM85
 	  This driver can also be built as a module.  If so, the module
 	  will be called lm85.
 
+config SENSORS_LM87
+	tristate "National Semiconductor LM87"
+	depends on I2C && EXPERIMENTAL
+	select I2C_SENSOR
+	help
+	  If you say yes here you get support for National Semiconductor LM87
+	  sensor chips.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called lm87.
+
 config SENSORS_LM90
 	tristate "National Semiconductor LM90 and compatibles"
 	depends on I2C
@@ -178,8 +233,22 @@ config SENSORS_LM90
 	  LM86, LM89 and LM99, Analog Devices ADM1032 and Maxim MAX6657 and
 	  MAX6658 sensor chips.
 
+	  The Analog Devices ADT7461 sensor chip is also supported, but only
+	  if found in ADM1032 compatibility mode.
+
 	  This driver can also be built as a module.  If so, the module
 	  will be called lm90.
+
+config SENSORS_LM92
+	tristate "National Semiconductor LM92 and compatibles"
+	depends on I2C && EXPERIMENTAL
+	select I2C_SENSOR
+	help
+	  If you say yes here you get support for National Semiconductor LM92
+	  and Maxim MAX6635 sensor chips.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called lm92.
 
 config SENSORS_MAX1619
 	tristate "Maxim MAX1619 sensor chip"
@@ -190,6 +259,58 @@ config SENSORS_MAX1619
 	  
 	  This driver can also be built as a module.  If so, the module
 	  will be called max1619.
+
+config SENSORS_PC87360
+	tristate "National Semiconductor PC87360 family"
+	depends on I2C && EXPERIMENTAL
+	select I2C_SENSOR
+	select I2C_ISA
+	help
+	  If you say yes here you get access to the hardware monitoring
+	  functions of the National Semiconductor PC8736x Super-I/O chips.
+	  The PC87360, PC87363 and PC87364 only have fan monitoring and
+	  control.  The PC87365 and PC87366 additionally have voltage and
+	  temperature monitoring.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called pc87360.
+
+config SENSORS_SMSC47B397
+	tristate "SMSC LPC47B397-NC"
+	depends on I2C && EXPERIMENTAL
+	select I2C_SENSOR
+	select I2C_ISA
+	help
+	  If you say yes here you get support for the SMSC LPC47B397-NC
+	  sensor chip.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called smsc47b397.
+
+config SENSORS_SIS5595
+	tristate "Silicon Integrated Systems Corp. SiS5595"
+	depends on I2C && PCI && EXPERIMENTAL
+	select I2C_SENSOR
+	select I2C_ISA
+	help
+	  If you say yes here you get support for the integrated sensors in
+	  SiS5595 South Bridges.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called sis5595.
+
+config SENSORS_SMSC47M1
+	tristate "SMSC LPC47M10x and compatibles"
+	depends on I2C && EXPERIMENTAL
+	select I2C_SENSOR
+	select I2C_ISA
+	help
+	  If you say yes here you get support for the integrated fan
+	  monitoring and control capabilities of the SMSC LPC47B27x,
+	  LPC47M10x, LPC47M13x and LPC47M14x chips.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called smsc47m1.
 
 config SENSORS_VIA686A
 	tristate "VIA686A"
@@ -231,6 +352,7 @@ config SENSORS_W83627HF
 	tristate "Winbond W83627HF, W83627THF, W83637HF, W83697HF"
 	depends on I2C && EXPERIMENTAL
 	select I2C_SENSOR
+	select I2C_ISA
 	help
 	  If you say yes here you get support for the Winbond W836X7 series
 	  of sensor chips: the W83627HF, W83627THF, W83637HF, and the W83697HF
@@ -242,6 +364,17 @@ endmenu
 
 menu "Other I2C Chip support"
 	depends on I2C
+
+config SENSORS_DS1337
+	tristate "Dallas Semiconductor DS1337 Real Time Clock"
+	depends on I2C && EXPERIMENTAL
+	select I2C_SENSOR
+	help
+	  If you say yes here you get support for Dallas Semiconductor
+	  DS1337 real-time clock chips. 
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called ds1337.
 
 config SENSORS_EEPROM
 	tristate "EEPROM reader"
@@ -285,5 +418,26 @@ config SENSORS_RTC8564
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-rtc8564.
+
+config ISP1301_OMAP
+	tristate "Philips ISP1301 with OMAP OTG"
+	depends on I2C && ARCH_OMAP_OTG
+	help
+	  If you say yes here you get support for the Philips ISP1301
+	  USB-On-The-Go transceiver working with the OMAP OTG controller.
+	  The ISP1301 is used in products including H2 and H3 development
+	  boards for Texas Instruments OMAP processors.
+	  
+	  This driver can also be built as a module.  If so, the module
+	  will be called isp1301_omap.
+
+config SENSORS_M41T00
+	tristate "ST M41T00 RTC chip"
+	depends on I2C && PPC32
+	help
+	  If you say yes here you get support for the ST M41T00 RTC chip.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called m41t00.
 
 endmenu

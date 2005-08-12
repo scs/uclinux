@@ -53,6 +53,7 @@
 #include <linux/delay.h>  
 #include <linux/uio.h>  
 #include <linux/init.h>  
+#include <linux/wait.h>
 #include <asm/system.h>  
 #include <asm/io.h>  
 #include <asm/atomic.h>  
@@ -72,23 +73,23 @@ struct suni_priv {
 #define PRIV(dev) ((struct suni_priv *) dev->phy_data)
 
 static unsigned char ia_phy_get(struct atm_dev *dev, unsigned long addr);
+static void desc_dbg(IADEV *iadev);
 
 static IADEV *ia_dev[8];
 static struct atm_dev *_ia_dev[8];
 static int iadev_count;
 static void ia_led_timer(unsigned long arg);
 static struct timer_list ia_timer = TIMER_INITIALIZER(ia_led_timer, 0, 0);
-struct atm_vcc *vcc_close_que[100];
 static int IA_TX_BUF = DFL_TX_BUFFERS, IA_TX_BUF_SZ = DFL_TX_BUF_SZ;
 static int IA_RX_BUF = DFL_RX_BUFFERS, IA_RX_BUF_SZ = DFL_RX_BUF_SZ;
-static u32 IADebugFlag = /* IF_IADBG_ERR | IF_IADBG_CBR| IF_IADBG_INIT_ADAPTER
+static uint IADebugFlag = /* IF_IADBG_ERR | IF_IADBG_CBR| IF_IADBG_INIT_ADAPTER
             |IF_IADBG_ABR | IF_IADBG_EVENT*/ 0; 
 
-MODULE_PARM(IA_TX_BUF, "i");
-MODULE_PARM(IA_TX_BUF_SZ, "i");
-MODULE_PARM(IA_RX_BUF, "i");
-MODULE_PARM(IA_RX_BUF_SZ, "i");
-MODULE_PARM(IADebugFlag, "i");
+module_param(IA_TX_BUF, int, 0);
+module_param(IA_TX_BUF_SZ, int, 0);
+module_param(IA_RX_BUF, int, 0);
+module_param(IA_RX_BUF_SZ, int, 0);
+module_param(IADebugFlag, uint, 0644);
 
 MODULE_LICENSE("GPL");
 
@@ -147,7 +148,6 @@ static void ia_hack_tcq(IADEV *dev) {
   u_short 		desc1;
   u_short		tcq_wr;
   struct ia_vcc         *iavcc_r = NULL; 
-  extern void desc_dbg(IADEV *iadev);
 
   tcq_wr = readl(dev->seg_reg+TCQ_WR_PTR) & 0xffff;
   while (dev->host_tcq_wr != tcq_wr) {
@@ -187,7 +187,6 @@ static u16 get_desc (IADEV *dev, struct ia_vcc *iavcc) {
   unsigned long delta;
   static unsigned long timer = 0;
   int ltimeout;
-  extern void desc_dbg(IADEV *iadev);
 
   ia_hack_tcq (dev);
   if(((jiffies - timer)>50)||((dev->ffL.tcq_rd==dev->host_tcq_wr))){      
@@ -615,12 +614,13 @@ static int ia_avail_descs(IADEV *iadev) {
    return tmp;
 }    
 
+static int ia_pkt_tx (struct atm_vcc *vcc, struct sk_buff *skb);
+
 static int ia_que_tx (IADEV *iadev) { 
    struct sk_buff *skb;
    int num_desc;
    struct atm_vcc *vcc;
    struct ia_vcc *iavcc;
-   static int ia_pkt_tx (struct atm_vcc *vcc, struct sk_buff *skb);
    num_desc = ia_avail_descs(iadev);
 
    while (num_desc && (skb = skb_dequeue(&iadev->tx_backlog))) {
@@ -643,7 +643,7 @@ static int ia_que_tx (IADEV *iadev) {
    return 0;
 }
 
-void ia_tx_poll (IADEV *iadev) {
+static void ia_tx_poll (IADEV *iadev) {
    struct atm_vcc *vcc = NULL;
    struct sk_buff *skb = NULL, *skb1 = NULL;
    struct ia_vcc *iavcc;
@@ -860,7 +860,7 @@ static void IaFrontEndIntr(IADEV *iadev) {
   return;
 }
 
-void ia_mb25_init (IADEV *iadev)
+static void ia_mb25_init (IADEV *iadev)
 {
    volatile ia_mb25_t  *mb25 = (ia_mb25_t*)iadev->phy;
 #if 0
@@ -875,7 +875,7 @@ void ia_mb25_init (IADEV *iadev)
    return;
 }                   
 
-void ia_suni_pm7345_init (IADEV *iadev)
+static void ia_suni_pm7345_init (IADEV *iadev)
 {
    volatile suni_pm7345_t *suni_pm7345 = (suni_pm7345_t *)iadev->phy;
    if (iadev->phy_type & FE_DS3_PHY)
@@ -958,9 +958,8 @@ void ia_suni_pm7345_init (IADEV *iadev)
 
 /***************************** IA_LIB END *****************************/
     
-/* pwang_test debug utility */
-int tcnter = 0, rcnter = 0;
-void xdump( u_char*  cp, int  length, char*  prefix )
+static int tcnter = 0;
+static void xdump( u_char*  cp, int  length, char*  prefix )
 {
     int col, count;
     u_char prntBuf[120];
@@ -1007,10 +1006,11 @@ static struct atm_dev *ia_boards = NULL;
   
 /*-- some utilities and memory allocation stuff will come here -------------*/  
   
-void desc_dbg(IADEV *iadev) {
+static void desc_dbg(IADEV *iadev) {
 
   u_short tcq_wr_ptr, tcq_st_ptr, tcq_ed_ptr;
-  u32 tmp, i;
+  u32 i;
+  void __iomem *tmp;
   // regval = readl((u32)ia_cmds->maddr);
   tcq_wr_ptr =  readw(iadev->seg_reg+TCQ_WR_PTR);
   printk("B_tcq_wr = 0x%x desc = %d last desc = %d\n",
@@ -1024,7 +1024,7 @@ void desc_dbg(IADEV *iadev) {
   i = 0;
   while (tcq_st_ptr != tcq_ed_ptr) {
       tmp = iadev->seg_ram+tcq_st_ptr;
-      printk("TCQ slot %d desc = %d  Addr = 0x%x\n", i++, readw(tmp), tmp);
+      printk("TCQ slot %d desc = %d  Addr = %p\n", i++, readw(tmp), tmp);
       tcq_st_ptr += 2;
   }
   for(i=0; i <iadev->num_tx_desc; i++)
@@ -1080,7 +1080,7 @@ static int rx_pkt(struct atm_dev *dev)
 	IADEV *iadev;  
 	struct atm_vcc *vcc;  
 	unsigned short status;  
-	struct rx_buf_desc *buf_desc_ptr;  
+	struct rx_buf_desc __iomem *buf_desc_ptr;  
 	int desc;   
 	struct dle* wr_ptr;  
 	int len;  
@@ -1095,7 +1095,7 @@ static int rx_pkt(struct atm_dev *dev)
 	}  
 	/* mask 1st 3 bits to get the actual descno. */  
 	desc = readw(iadev->reass_ram+iadev->rfL.pcq_rd) & 0x1fff;  
-        IF_RX(printk("reass_ram = 0x%x iadev->rfL.pcq_rd = 0x%x desc = %d\n", 
+        IF_RX(printk("reass_ram = %p iadev->rfL.pcq_rd = 0x%x desc = %d\n", 
                                     iadev->reass_ram, iadev->rfL.pcq_rd, desc);
               printk(" pcq_wr_ptr = 0x%x\n",
                                readw(iadev->reass_reg+PCQ_WR_PTR)&0xffff);)
@@ -1109,7 +1109,7 @@ static int rx_pkt(struct atm_dev *dev)
 	/* get the buffer desc entry.  
 		update stuff. - doesn't seem to be any update necessary  
 	*/  
-	buf_desc_ptr = (struct rx_buf_desc *)iadev->RX_DESC_BASE_ADDR;
+	buf_desc_ptr = iadev->RX_DESC_BASE_ADDR;
 	/* make the ptr point to the corresponding buffer desc entry */  
 	buf_desc_ptr += desc;	  
         if (!desc || (desc > iadev->num_rx_desc) || 
@@ -1358,8 +1358,8 @@ INCR_DLE:
 static int open_rx(struct atm_vcc *vcc)  
 {  
 	IADEV *iadev;  
-	u_short *vc_table;  
-	u_short *reass_ptr;  
+	u_short __iomem *vc_table;  
+	u_short __iomem *reass_ptr;  
 	IF_EVENT(printk("iadev: open_rx %d.%d\n", vcc->vpi, vcc->vci);)
 
 	if (vcc->qos.rxtp.traffic_class == ATM_NONE) return 0;    
@@ -1372,8 +1372,8 @@ static int open_rx(struct atm_vcc *vcc)
         }
 	/* Make only this VCI in the vc table valid and let all   
 		others be invalid entries */  
-	vc_table = (u_short *)(iadev->reass_ram+RX_VC_TABLE*iadev->memSize);  
-	vc_table += vcc->vci;  
+	vc_table = iadev->reass_ram+RX_VC_TABLE*iadev->memSize;
+	vc_table += vcc->vci;
 	/* mask the last 6 bits and OR it with 3 for 1K VCs */  
 
         *vc_table = vcc->vci << 6;
@@ -1387,9 +1387,8 @@ static int open_rx(struct atm_vcc *vcc)
                 ia_open_abr_vc(iadev, &srv_p, vcc, 0);
 	} 
        	else {  /* for UBR  later may need to add CBR logic */
-        	reass_ptr = (u_short *)
-                           (iadev->reass_ram+REASS_TABLE*iadev->memSize);
-           	reass_ptr += vcc->vci;  
+        	reass_ptr = iadev->reass_ram+REASS_TABLE*iadev->memSize;
+           	reass_ptr += vcc->vci;
            	*reass_ptr = NO_AAL5_PKT;
        	}
 	
@@ -1403,7 +1402,7 @@ static int open_rx(struct atm_vcc *vcc)
 static int rx_init(struct atm_dev *dev)  
 {  
 	IADEV *iadev;  
-	struct rx_buf_desc *buf_desc_ptr;  
+	struct rx_buf_desc __iomem *buf_desc_ptr;  
 	unsigned long rx_pkt_start = 0;  
 	void *dle_addr;  
 	struct abr_vc_table  *abr_vc_table; 
@@ -1465,13 +1464,13 @@ static int rx_init(struct atm_dev *dev)
   
 	/* Initialize each entry in the Buffer Descriptor Table */  
         iadev->RX_DESC_BASE_ADDR = iadev->reass_ram+RX_DESC_BASE*iadev->memSize;
-	buf_desc_ptr =(struct rx_buf_desc *)iadev->RX_DESC_BASE_ADDR;
-	memset((caddr_t)buf_desc_ptr, 0, sizeof(*buf_desc_ptr));  
+	buf_desc_ptr = iadev->RX_DESC_BASE_ADDR;
+	memset_io(buf_desc_ptr, 0, sizeof(*buf_desc_ptr));
 	buf_desc_ptr++;  
 	rx_pkt_start = iadev->rx_pkt_ram;  
 	for(i=1; i<=iadev->num_rx_desc; i++)  
 	{  
-		memset((caddr_t)buf_desc_ptr, 0, sizeof(*buf_desc_ptr));  
+		memset_io(buf_desc_ptr, 0, sizeof(*buf_desc_ptr));  
 		buf_desc_ptr->buf_start_hi = rx_pkt_start >> 16;  
 		buf_desc_ptr->buf_start_lo = rx_pkt_start & 0x0000ffff;  
 		buf_desc_ptr++;		  
@@ -1779,16 +1778,18 @@ static int open_tx(struct atm_vcc *vcc)
         if (ia_vcc->pcr < iadev->rate_limit)
            skb_queue_head_init (&ia_vcc->txing_skb);
         if (ia_vcc->pcr < iadev->rate_limit) {
-           if (vcc->qos.txtp.max_sdu != 0) {
+	   struct sock *sk = sk_atm(vcc);
+
+	   if (vcc->qos.txtp.max_sdu != 0) {
                if (ia_vcc->pcr > 60000)
-                  vcc->sk->sk_sndbuf = vcc->qos.txtp.max_sdu * 5;
+                  sk->sk_sndbuf = vcc->qos.txtp.max_sdu * 5;
                else if (ia_vcc->pcr > 2000)
-                  vcc->sk->sk_sndbuf = vcc->qos.txtp.max_sdu * 4;
+                  sk->sk_sndbuf = vcc->qos.txtp.max_sdu * 4;
                else
-                 vcc->sk->sk_sndbuf = vcc->qos.txtp.max_sdu * 3;
+                 sk->sk_sndbuf = vcc->qos.txtp.max_sdu * 3;
            }
            else
-             vcc->sk->sk_sndbuf = 24576;
+             sk->sk_sndbuf = 24576;
         }
            
 	vc = (struct main_vc *)iadev->MAIN_VC_TABLE_ADDR;  
@@ -2053,10 +2054,9 @@ static int tx_init(struct atm_dev *dev)
         IF_INIT(printk("CBR_TAB_BEG = 0x%x, CBR_TAB_END = 0x%x, CBR_PTR = 0x%x\n",
           readw(iadev->seg_reg+CBR_TAB_BEG), readw(iadev->seg_reg+CBR_TAB_END),
           readw(iadev->seg_reg+CBR_TAB_END+1));)
-        tmp16 = (iadev->seg_ram+CBR_SCHED_TABLE*iadev->memSize);
 
         /* Initialize the CBR Schedualing Table */
-        memset((caddr_t)(iadev->seg_ram+CBR_SCHED_TABLE*iadev->memSize), 
+        memset_io(iadev->seg_ram+CBR_SCHED_TABLE*iadev->memSize, 
                                                           0, iadev->num_vc*6); 
         iadev->CbrRemEntries = iadev->CbrTotEntries = iadev->num_vc*3;
         iadev->CbrEntryPt = 0;
@@ -2287,7 +2287,8 @@ static int reset_sar(struct atm_dev *dev)
 static int __init ia_init(struct atm_dev *dev)
 {  
 	IADEV *iadev;  
-	unsigned long real_base, base;  
+	unsigned long real_base;
+	void __iomem *base;
 	unsigned short command;  
 	unsigned char revision;  
 	int error, i; 
@@ -2343,7 +2344,7 @@ static int __init ia_init(struct atm_dev *dev)
 	udelay(10);  
 	  
 	/* mapping the physical address to a virtual address in address space */  
-	base=(unsigned long)ioremap((unsigned long)real_base,iadev->pci_map_size);  /* ioremap is not resolved ??? */  
+	base = ioremap(real_base,iadev->pci_map_size);  /* ioremap is not resolved ??? */  
 	  
 	if (!base)  
 	{  
@@ -2351,39 +2352,38 @@ static int __init ia_init(struct atm_dev *dev)
 			    dev->number);  
 		return error;  
 	}  
-	IF_INIT(printk(DEV_LABEL " (itf %d): rev.%d,base=0x%lx,irq=%d\n",  
+	IF_INIT(printk(DEV_LABEL " (itf %d): rev.%d,base=%p,irq=%d\n",  
 			dev->number, revision, base, iadev->irq);)  
 	  
 	/* filling the iphase dev structure */  
 	iadev->mem = iadev->pci_map_size /2;  
-	iadev->base_diff = real_base - base;  
 	iadev->real_base = real_base;  
 	iadev->base = base;  
 		  
 	/* Bus Interface Control Registers */  
-	iadev->reg = (u32 *) (base + REG_BASE);  
+	iadev->reg = base + REG_BASE;
 	/* Segmentation Control Registers */  
-	iadev->seg_reg = (u32 *) (base + SEG_BASE);  
+	iadev->seg_reg = base + SEG_BASE;
 	/* Reassembly Control Registers */  
-	iadev->reass_reg = (u32 *) (base + REASS_BASE);  
+	iadev->reass_reg = base + REASS_BASE;  
 	/* Front end/ DMA control registers */  
-	iadev->phy = (u32 *) (base + PHY_BASE);  
-	iadev->dma = (u32 *) (base + PHY_BASE);  
+	iadev->phy = base + PHY_BASE;  
+	iadev->dma = base + PHY_BASE;  
 	/* RAM - Segmentation RAm and Reassembly RAM */  
-	iadev->ram = (u32 *) (base + ACTUAL_RAM_BASE);  
-	iadev->seg_ram =  (base + ACTUAL_SEG_RAM_BASE);  
-	iadev->reass_ram = (base + ACTUAL_REASS_RAM_BASE);  
+	iadev->ram = base + ACTUAL_RAM_BASE;  
+	iadev->seg_ram = base + ACTUAL_SEG_RAM_BASE;  
+	iadev->reass_ram = base + ACTUAL_REASS_RAM_BASE;  
   
 	/* lets print out the above */  
-	IF_INIT(printk("Base addrs: %08x %08x %08x \n %08x %08x %08x %08x\n", 
-          (u32)iadev->reg,(u32)iadev->seg_reg,(u32)iadev->reass_reg, 
-          (u32)iadev->phy, (u32)iadev->ram, (u32)iadev->seg_ram, 
-          (u32)iadev->reass_ram);) 
+	IF_INIT(printk("Base addrs: %p %p %p \n %p %p %p %p\n", 
+          iadev->reg,iadev->seg_reg,iadev->reass_reg, 
+          iadev->phy, iadev->ram, iadev->seg_ram, 
+          iadev->reass_ram);) 
 	  
 	/* lets try reading the MAC address */  
 	error = get_esi(dev);  
 	if (error) {
-	  iounmap((void *) iadev->base);
+	  iounmap(iadev->base);
 	  return error;  
 	}
         printk("IA: ");
@@ -2393,7 +2393,7 @@ static int __init ia_init(struct atm_dev *dev)
   
         /* reset SAR */  
         if (reset_sar(dev)) {
-	   iounmap((void *) iadev->base);
+	   iounmap(iadev->base);
            printk("IA: reset SAR fail, please try again\n");
            return 1;
         }
@@ -2589,14 +2589,14 @@ err_out:
 }  
   
 static void ia_close(struct atm_vcc *vcc)  
-{  
+{
+	DEFINE_WAIT(wait);
         u16 *vc_table;
         IADEV *iadev;
         struct ia_vcc *ia_vcc;
         struct sk_buff *skb = NULL;
         struct sk_buff_head tmp_tx_backlog, tmp_vcc_backlog;
         unsigned long closetime, flags;
-        int ctimeout;
 
         iadev = INPH_IA_DEV(vcc->dev);
         ia_vcc = INPH_IA_VCC(vcc);
@@ -2609,7 +2609,9 @@ static void ia_close(struct atm_vcc *vcc)
         skb_queue_head_init (&tmp_vcc_backlog); 
         if (vcc->qos.txtp.traffic_class != ATM_NONE) {
            iadev->close_pending++;
-           sleep_on_timeout(&iadev->timeout_wait, 50);
+	   prepare_to_wait(&iadev->timeout_wait, &wait, TASK_UNINTERRUPTIBLE);
+	   schedule_timeout(50);
+	   finish_wait(&iadev->timeout_wait, &wait);
            spin_lock_irqsave(&iadev->tx_lock, flags); 
            while((skb = skb_dequeue(&iadev->tx_backlog))) {
               if (ATM_SKB(skb)->vcc == vcc){ 
@@ -2622,17 +2624,12 @@ static void ia_close(struct atm_vcc *vcc)
            while((skb = skb_dequeue(&tmp_tx_backlog))) 
              skb_queue_tail(&iadev->tx_backlog, skb);
            IF_EVENT(printk("IA TX Done decs_cnt = %d\n", ia_vcc->vc_desc_cnt);) 
-           closetime = jiffies;
-           ctimeout = 300000 / ia_vcc->pcr;
-           if (ctimeout == 0)
-              ctimeout = 1;
-           while (ia_vcc->vc_desc_cnt > 0){
-              if ((jiffies - closetime) >= ctimeout) 
-                 break;
-              spin_unlock_irqrestore(&iadev->tx_lock, flags);
-              sleep_on(&iadev->close_wait);
-              spin_lock_irqsave(&iadev->tx_lock, flags);
-           }    
+           closetime = 300000 / ia_vcc->pcr;
+           if (closetime == 0)
+              closetime = 1;
+           spin_unlock_irqrestore(&iadev->tx_lock, flags);
+           wait_event_timeout(iadev->close_wait, (ia_vcc->vc_desc_cnt <= 0), closetime);
+           spin_lock_irqsave(&iadev->tx_lock, flags);
            iadev->close_pending--;
            iadev->testTable[vcc->vci]->lastTime = 0;
            iadev->testTable[vcc->vci]->fract = 0; 
@@ -2659,7 +2656,7 @@ static void ia_close(struct atm_vcc *vcc)
            vc_table += vcc->vci;
            *vc_table = (vcc->vci << 6) | 15;
            if (vcc->qos.rxtp.traffic_class == ATM_ABR) {
-              struct abr_vc_table *abr_vc_table = (struct abr_vc_table *)
+              struct abr_vc_table __iomem *abr_vc_table = 
                                 (iadev->reass_ram+ABR_VC_TABLE*iadev->memSize);
               abr_vc_table +=  vcc->vci;
               abr_vc_table->rdf = 0x0003;
@@ -2890,7 +2887,7 @@ static int ia_setsockopt(struct atm_vcc *vcc, int level, int optname,
 static int ia_pkt_tx (struct atm_vcc *vcc, struct sk_buff *skb) {
         IADEV *iadev;
         struct dle *wr_ptr;
-        struct tx_buf_desc *buf_desc_ptr;
+        struct tx_buf_desc __iomem *buf_desc_ptr;
         int desc;
         int comp_code;
         int total_len;
@@ -2994,7 +2991,7 @@ static int ia_pkt_tx (struct atm_vcc *vcc, struct sk_buff *skb) {
         printk("\n");)
 
 	/* Build the buffer descriptor */  
-	buf_desc_ptr = (struct tx_buf_desc *)(iadev->seg_ram+TX_DESC_BASE);  
+	buf_desc_ptr = iadev->seg_ram+TX_DESC_BASE;
 	buf_desc_ptr += desc;	/* points to the corresponding entry */  
 	buf_desc_ptr->desc_mode = AAL5 | EOM_EN | APP_CRC32 | CMPL_INT;   
 	/* Huh ? p.115 of users guide describes this as a read-only register */
@@ -3249,10 +3246,10 @@ static void __devexit ia_remove_one(struct pci_dev *pdev)
 	iadev_count--;
 	ia_dev[iadev_count] = NULL;
 	_ia_dev[iadev_count] = NULL;
+	IF_EVENT(printk("deregistering iav at (itf:%d)\n", dev->number);)
 	atm_dev_deregister(dev);
-	IF_EVENT(printk("iav deregistered at (itf:%d)\n", dev->number);)
 
-      	iounmap((void *) iadev->base);  
+      	iounmap(iadev->base);  
 	pci_disable_device(pdev);
 
 	ia_free_rx(iadev);
@@ -3279,7 +3276,7 @@ static int __init ia_module_init(void)
 {
 	int ret;
 
-	ret = pci_module_init(&ia_driver);
+	ret = pci_register_driver(&ia_driver);
 	if (ret >= 0) {
 		ia_timer.expires = jiffies + 3*HZ;
 		add_timer(&ia_timer); 

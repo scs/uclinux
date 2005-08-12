@@ -47,15 +47,19 @@
   * in that routine.
   */
 
-#include "transport.h"
-#include "protocol.h"
-#include "usb.h"
-#include "debug.h"
-#include "jumpshot.h"
-
 #include <linux/sched.h>
 #include <linux/errno.h>
 #include <linux/slab.h>
+
+#include <scsi/scsi.h>
+#include <scsi/scsi_cmnd.h>
+
+#include "usb.h"
+#include "transport.h"
+#include "protocol.h"
+#include "debug.h"
+#include "jumpshot.h"
+
 
 static inline int jumpshot_bulk_read(struct us_data *us,
 				     unsigned char *data, 
@@ -319,7 +323,7 @@ static int jumpshot_id_device(struct us_data *us,
 }
 
 static int jumpshot_handle_mode_sense(struct us_data *us,
-				      Scsi_Cmnd * srb, 
+				      struct scsi_cmnd * srb, 
 				      int sense_6)
 {
 	static unsigned char rw_err_page[12] = {
@@ -409,7 +413,7 @@ static int jumpshot_handle_mode_sense(struct us_data *us,
 	if (sense_6)
 		ptr[0] = i - 1;
 	else
-		((u16 *) ptr)[0] = cpu_to_be16(i - 2);
+		((__be16 *) ptr)[0] = cpu_to_be16(i - 2);
 	usb_stor_set_xfer_buf(ptr, i, srb);
 
 	return USB_STOR_TRANSPORT_GOOD;
@@ -426,7 +430,7 @@ static void jumpshot_info_destructor(void *extra)
 
 // Transport for the Lexar 'Jumpshot'
 //
-int jumpshot_transport(Scsi_Cmnd * srb, struct us_data *us)
+int jumpshot_transport(struct scsi_cmnd * srb, struct us_data *us)
 {
 	struct jumpshot_info *info;
 	int rc;
@@ -471,8 +475,8 @@ int jumpshot_transport(Scsi_Cmnd * srb, struct us_data *us)
 
 		// build the reply
 		//
-		((u32 *) ptr)[0] = cpu_to_be32(info->sectors - 1);
-		((u32 *) ptr)[1] = cpu_to_be32(info->ssize);
+		((__be32 *) ptr)[0] = cpu_to_be32(info->sectors - 1);
+		((__be32 *) ptr)[1] = cpu_to_be32(info->ssize);
 		usb_stor_set_xfer_buf(ptr, 8, srb);
 
 		return USB_STOR_TRANSPORT_GOOD;
@@ -551,12 +555,12 @@ int jumpshot_transport(Scsi_Cmnd * srb, struct us_data *us)
 
 	if (srb->cmnd[0] == MODE_SENSE) {
 		US_DEBUGP("jumpshot_transport:  MODE_SENSE_6 detected\n");
-		return jumpshot_handle_mode_sense(us, srb, TRUE);
+		return jumpshot_handle_mode_sense(us, srb, 1);
 	}
 
 	if (srb->cmnd[0] == MODE_SENSE_10) {
 		US_DEBUGP("jumpshot_transport:  MODE_SENSE_10 detected\n");
-		return jumpshot_handle_mode_sense(us, srb, FALSE);
+		return jumpshot_handle_mode_sense(us, srb, 0);
 	}
 
 	if (srb->cmnd[0] == ALLOW_MEDIUM_REMOVAL) {

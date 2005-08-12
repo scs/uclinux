@@ -60,7 +60,7 @@ static inline imm_struct *imm_dev(struct Scsi_Host *host)
 	return *(imm_struct **)&host->hostdata;
 }
 
-static spinlock_t arbitration_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(arbitration_lock);
 
 static void got_it(imm_struct *dev)
 {
@@ -758,7 +758,7 @@ static void imm_interrupt(void *data)
 	case DID_OK:
 		break;
 	case DID_NO_CONNECT:
-		printk("imm: no device at SCSI ID %i\n", cmd->target);
+		printk("imm: no device at SCSI ID %i\n", cmd->device->id);
 		break;
 	case DID_BUS_BUSY:
 		printk("imm: BUS BUSY - EPP timeout detected\n");
@@ -1140,6 +1140,10 @@ static struct scsi_host_template imm_template = {
 	.use_clustering		= ENABLE_CLUSTERING,
 	.can_queue		= 1,
 	.slave_alloc		= imm_adjust_queue,
+	.unchecked_isa_dma	= 1, /* imm cannot deal with highmem, so
+				      * this is an easy trick to ensure
+				      * all io pages for this host reside
+				      * in low memory */
 };
 
 /***************************************************************************

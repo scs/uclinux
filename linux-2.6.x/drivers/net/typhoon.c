@@ -1,6 +1,6 @@
 /* typhoon.c: A Linux Ethernet device driver for 3Com 3CR990 family of NICs */
 /*
-	Written 2002-2003 by David Dillow <dave@thedillows.org>
+	Written 2002-2004 by David Dillow <dave@thedillows.org>
 	Based on code written 1998-2000 by Donald Becker <becker@scyld.com> and
 	Linux 2.2.x driver by David P. McLean <davidpmclean@yahoo.com>.
 
@@ -33,14 +33,29 @@
 	*) Waiting for a command response takes 8ms due to non-preemptable
 		polling. Only significant for getting stats and creating
 		SAs, but an ugly wart never the less.
-	*) I've not tested multicast. I think it works, but reports welcome.
+
+	TODO:
 	*) Doesn't do IPSEC offloading. Yet. Keep yer pants on, it's coming.
+	*) Add more support for ethtool (especially for NIC stats)
+	*) Allow disabling of RX checksum offloading
+	*) Fix MAC changing to work while the interface is up
+		(Need to put commands on the TX ring, which changes
+		the locking)
+	*) Add in FCS to {rx,tx}_bytes, since the hardware doesn't. See
+		http://oss.sgi.com/cgi-bin/mesg.cgi?a=netdev&i=20031215152211.7003fe8e.rddunlap%40osdl.org
 */
 
 /* Set the copy breakpoint for the copy-only-tiny-frames scheme.
  * Setting to > 1518 effectively disables this feature.
  */
 static int rx_copybreak = 200;
+
+/* Should we use MMIO or Port IO?
+ * 0: Port IO
+ * 1: MMIO
+ * 2: Try MMIO, fallback to Port IO
+ */
+static unsigned int use_mmio = 2;
 
 /* end user-configurable values */
 
@@ -85,8 +100,8 @@ static const int multicast_filter_limit = 32;
 #define PKT_BUF_SZ		1536
 
 #define DRV_MODULE_NAME		"typhoon"
-#define DRV_MODULE_VERSION 	"1.5.3"
-#define DRV_MODULE_RELDATE	"03/12/15"
+#define DRV_MODULE_VERSION 	"1.5.7"
+#define DRV_MODULE_RELDATE	"05/01/07"
 #define PFX			DRV_MODULE_NAME ": "
 #define ERR_PFX			KERN_ERR PFX
 
@@ -107,13 +122,14 @@ static const int multicast_filter_limit = 32;
 #include <linux/ethtool.h>
 #include <linux/if_vlan.h>
 #include <linux/crc32.h>
+#include <linux/bitops.h>
 #include <asm/processor.h>
-#include <asm/bitops.h>
 #include <asm/io.h>
 #include <asm/uaccess.h>
 #include <linux/in6.h>
 #include <asm/checksum.h>
 #include <linux/version.h>
+#include <linux/dma-mapping.h>
 
 #include "typhoon.h"
 #include "typhoon-firmware.h"
@@ -122,9 +138,16 @@ static char version[] __devinitdata =
     "typhoon.c: version " DRV_MODULE_VERSION " (" DRV_MODULE_RELDATE ")\n";
 
 MODULE_AUTHOR("David Dillow <dave@thedillows.org>");
+MODULE_VERSION(DRV_MODULE_VERSION);
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("3Com Typhoon Family (3C990, 3CR990, and variants)");
-MODULE_PARM(rx_copybreak, "i");
+MODULE_PARM_DESC(rx_copybreak, "Packets smaller than this are copied and "
+			       "the buffer given back to the NIC. Default "
+			       "is 200.");
+MODULE_PARM_DESC(use_mmio, "Use MMIO (1) or PIO(0) to access the NIC. "
+			   "Default is to try MMIO and fallback to PIO.");
+module_param(rx_copybreak, int, 0);
+module_param(use_mmio, int, 0);
 
 #if defined(NETIF_F_TSO) && MAX_SKB_FRAGS > 32
 #warning Typhoon only supports 32 entries in its SG list for TSO, disabling TSO
@@ -248,11 +271,11 @@ struct typhoon {
 	/* Tx cache line section */
 	struct transmit_ring 	txLoRing	____cacheline_aligned;	
 	struct pci_dev *	tx_pdev;
-	unsigned long		tx_ioaddr;
+	void __iomem		*tx_ioaddr;
 	u32			txlo_dma_addr;
 
 	/* Irq/Rx cache line section */
-	unsigned long		ioaddr		____cacheline_aligned;
+	void __iomem		*ioaddr		____cacheline_aligned;
 	struct typhoon_indexes *indexes;
 	u8			awaiting_resp;
 	u8			duplex;
@@ -279,7 +302,6 @@ struct typhoon {
 	u16			xcvr_select;
 	u16			wol_events;
 	u32			offload;
-	u32			pci_state[16];
 
 	/* unused stuff (future use) */
 	int			capabilities;
@@ -302,7 +324,7 @@ enum state_values {
  * cannot pass a read, so this forces current writes to post.
  */
 #define typhoon_post_pci_writes(x) \
-	do { readl(x + TYPHOON_REG_HEARTBEAT); } while(0)
+	do { if(likely(use_mmio)) ioread32(x+TYPHOON_REG_HEARTBEAT); } while(0)
 
 /* We'll wait up to six seconds for a reset, and half a second normally.
  */
@@ -373,7 +395,7 @@ typhoon_inc_rx_index(u32 *index, const int count)
 }
 
 static int
-typhoon_reset(unsigned long ioaddr, int wait_type)
+typhoon_reset(void __iomem *ioaddr, int wait_type)
 {
 	int i, err = 0;
 	int timeout;
@@ -383,17 +405,17 @@ typhoon_reset(unsigned long ioaddr, int wait_type)
 	else
 		timeout = TYPHOON_RESET_TIMEOUT_SLEEP;
 
-	writel(TYPHOON_INTR_ALL, ioaddr + TYPHOON_REG_INTR_MASK);
-	writel(TYPHOON_INTR_ALL, ioaddr + TYPHOON_REG_INTR_STATUS);
+	iowrite32(TYPHOON_INTR_ALL, ioaddr + TYPHOON_REG_INTR_MASK);
+	iowrite32(TYPHOON_INTR_ALL, ioaddr + TYPHOON_REG_INTR_STATUS);
 
-	writel(TYPHOON_RESET_ALL, ioaddr + TYPHOON_REG_SOFT_RESET);
+	iowrite32(TYPHOON_RESET_ALL, ioaddr + TYPHOON_REG_SOFT_RESET);
 	typhoon_post_pci_writes(ioaddr);
 	udelay(1);
-	writel(TYPHOON_RESET_NONE, ioaddr + TYPHOON_REG_SOFT_RESET);
+	iowrite32(TYPHOON_RESET_NONE, ioaddr + TYPHOON_REG_SOFT_RESET);
 
 	if(wait_type != NoWait) {
 		for(i = 0; i < timeout; i++) {
-			if(readl(ioaddr + TYPHOON_REG_STATUS) ==
+			if(ioread32(ioaddr + TYPHOON_REG_STATUS) ==
 			   TYPHOON_STATUS_WAITING_FOR_HOST)
 				goto out;
 
@@ -408,32 +430,33 @@ typhoon_reset(unsigned long ioaddr, int wait_type)
 	}
 
 out:
-	writel(TYPHOON_INTR_ALL, ioaddr + TYPHOON_REG_INTR_MASK);
-	writel(TYPHOON_INTR_ALL, ioaddr + TYPHOON_REG_INTR_STATUS);
-	udelay(100);
-	return err;
+	iowrite32(TYPHOON_INTR_ALL, ioaddr + TYPHOON_REG_INTR_MASK);
+	iowrite32(TYPHOON_INTR_ALL, ioaddr + TYPHOON_REG_INTR_STATUS);
 
 	/* The 3XP seems to need a little extra time to complete the load
 	 * of the sleep image before we can reliably boot it. Failure to
 	 * do this occasionally results in a hung adapter after boot in
 	 * typhoon_init_one() while trying to read the MAC address or
 	 * putting the card to sleep. 3Com's driver waits 5ms, but
-	 * that seems to be overkill -- with a 50usec delay, it survives
-	 * 35000 typhoon_init_one() calls, where it only make it 25-100
-	 * without it.
-	 *
-	 * As it turns out, still occasionally getting a hung adapter,
-	 * so I'm bumping it to 100us.
+	 * that seems to be overkill. However, if we can sleep, we might
+	 * as well give it that much time. Otherwise, we'll give it 500us,
+	 * which should be enough (I've see it work well at 100us, but still
+	 * saw occasional problems.)
 	 */
+	if(wait_type == WaitSleep)
+		msleep(5);
+	else
+		udelay(500);
+	return err;
 }
 
 static int
-typhoon_wait_status(unsigned long ioaddr, u32 wait_value)
+typhoon_wait_status(void __iomem *ioaddr, u32 wait_value)
 {
 	int i, err = 0;
 
 	for(i = 0; i < TYPHOON_WAIT_TIMEOUT; i++) {
-		if(readl(ioaddr + TYPHOON_REG_STATUS) == wait_value)
+		if(ioread32(ioaddr + TYPHOON_REG_STATUS) == wait_value)
 			goto out;
 		udelay(TYPHOON_UDELAY);
 	}
@@ -469,7 +492,7 @@ typhoon_hello(struct typhoon *tp)
 
 		INIT_COMMAND_NO_RESPONSE(cmd, TYPHOON_CMD_HELLO_RESP);
 		smp_wmb();
-		writel(ring->lastWrite, tp->ioaddr + TYPHOON_REG_CMD_READY);
+		iowrite32(ring->lastWrite, tp->ioaddr + TYPHOON_REG_CMD_READY);
 		spin_unlock(&tp->command_lock);
 	}
 }
@@ -624,7 +647,7 @@ typhoon_issue_command(struct typhoon *tp, int num_cmd, struct cmd_desc *cmd,
 	/* "I feel a presence... another warrior is on the the mesa."
 	 */
 	wmb();
-	writel(ring->lastWrite, tp->ioaddr + TYPHOON_REG_CMD_READY);
+	iowrite32(ring->lastWrite, tp->ioaddr + TYPHOON_REG_CMD_READY);
 	typhoon_post_pci_writes(tp->ioaddr);
 
 	if((cmd->flags & TYPHOON_CMD_RESPOND) == 0)
@@ -678,7 +701,7 @@ out:
 		 * is the case.
 		 */
 		if(indexes->respCleared != indexes->respReady)
-			writel(1, tp->ioaddr + TYPHOON_REG_SELF_INTERRUPT);
+			iowrite32(1, tp->ioaddr + TYPHOON_REG_SELF_INTERRUPT);
 	}
 
 	spin_unlock(&tp->command_lock);
@@ -688,7 +711,7 @@ out:
 static void
 typhoon_vlan_rx_register(struct net_device *dev, struct vlan_group *grp)
 {
-	struct typhoon *tp = (struct typhoon *) dev->priv;
+	struct typhoon *tp = netdev_priv(dev);
 	struct cmd_desc xp_cmd;
 	int err;
 
@@ -726,7 +749,7 @@ typhoon_vlan_rx_register(struct net_device *dev, struct vlan_group *grp)
 static void
 typhoon_vlan_rx_kill_vid(struct net_device *dev, unsigned short vid)
 {
-	struct typhoon *tp = (struct typhoon *) dev->priv;
+	struct typhoon *tp = netdev_priv(dev);
 	spin_lock_bh(&tp->state_lock);
 	if(tp->vlgrp)
 		tp->vlgrp->vlan_devices[vid] = NULL;
@@ -757,7 +780,7 @@ typhoon_tso_fill(struct sk_buff *skb, struct transmit_ring *txRing,
 static int
 typhoon_start_tx(struct sk_buff *skb, struct net_device *dev)
 {
-	struct typhoon *tp = (struct typhoon *) dev->priv;
+	struct typhoon *tp = netdev_priv(dev);
 	struct transmit_ring *txRing;
 	struct tx_desc *txd, *first_txd;
 	dma_addr_t skb_dma;
@@ -880,7 +903,7 @@ typhoon_start_tx(struct sk_buff *skb, struct net_device *dev)
 	/* Kick the 3XP
 	 */
 	wmb();
-	writel(txRing->lastWrite, tp->tx_ioaddr + txRing->writeRegister);
+	iowrite32(txRing->lastWrite, tp->tx_ioaddr + txRing->writeRegister);
 
 	dev->trans_start = jiffies;
 
@@ -908,7 +931,7 @@ typhoon_start_tx(struct sk_buff *skb, struct net_device *dev)
 static void
 typhoon_set_rx_mode(struct net_device *dev)
 {
-	struct typhoon *tp = (struct typhoon *) dev->priv;
+	struct typhoon *tp = netdev_priv(dev);
 	struct cmd_desc xp_cmd;
 	u32 mc_filter[2];
 	u16 filter;
@@ -965,6 +988,9 @@ typhoon_do_get_stats(struct typhoon *tp)
 
 	/* 3Com's Linux driver uses txMultipleCollisions as it's
 	 * collisions value, but there is some other collision info as well...
+	 *
+	 * The extra status reported would be a good candidate for
+	 * ethtool_ops->get_{strings,stats}()
 	 */
 	stats->tx_packets = le32_to_cpu(s->txPackets);
 	stats->tx_bytes = le32_to_cpu(s->txBytes);
@@ -1002,7 +1028,7 @@ typhoon_do_get_stats(struct typhoon *tp)
 static struct net_device_stats *
 typhoon_get_stats(struct net_device *dev)
 {
-	struct typhoon *tp = (struct typhoon *) dev->priv;
+	struct typhoon *tp = netdev_priv(dev);
 	struct net_device_stats *stats = &tp->stats;
 	struct net_device_stats *saved = &tp->stats_saved;
 
@@ -1030,9 +1056,10 @@ typhoon_set_mac_address(struct net_device *dev, void *addr)
 	return 0;
 }
 
-static inline void
-typhoon_ethtool_gdrvinfo(struct typhoon *tp, struct ethtool_drvinfo *info)
+static void
+typhoon_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 {
+	struct typhoon *tp = netdev_priv(dev);
 	struct pci_dev *pci_dev = tp->pdev;
 	struct cmd_desc xp_cmd;
 	struct resp_desc xp_resp[3];
@@ -1045,8 +1072,10 @@ typhoon_ethtool_gdrvinfo(struct typhoon *tp, struct ethtool_drvinfo *info)
 		if(typhoon_issue_command(tp, 1, &xp_cmd, 3, xp_resp) < 0) {
 			strcpy(info->fw_version, "Unknown runtime");
 		} else {
-			strncpy(info->fw_version, (char *) &xp_resp[1], 32);
-			info->fw_version[31] = 0;
+			u32 sleep_ver = xp_resp[0].parm2;
+			snprintf(info->fw_version, 32, "%02x.%03x.%03x",
+				 sleep_ver >> 24, (sleep_ver >> 12) & 0xfff, 
+				 sleep_ver & 0xfff);
 		}
 	}
 
@@ -1055,9 +1084,11 @@ typhoon_ethtool_gdrvinfo(struct typhoon *tp, struct ethtool_drvinfo *info)
 	strcpy(info->bus_info, pci_name(pci_dev));
 }
 
-static inline void
-typhoon_ethtool_gset(struct typhoon *tp, struct ethtool_cmd *cmd)
+static int
+typhoon_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 {
+	struct typhoon *tp = netdev_priv(dev);
+
 	cmd->supported = SUPPORTED_100baseT_Half | SUPPORTED_100baseT_Full |
 				SUPPORTED_Autoneg;
 
@@ -1107,15 +1138,19 @@ typhoon_ethtool_gset(struct typhoon *tp, struct ethtool_cmd *cmd)
 		cmd->autoneg = AUTONEG_DISABLE;
 	cmd->maxtxpkt = 1;
 	cmd->maxrxpkt = 1;
+
+	return 0;
 }
 
-static inline int
-typhoon_ethtool_sset(struct typhoon *tp, struct ethtool_cmd *cmd)
+static int
+typhoon_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 {
+	struct typhoon *tp = netdev_priv(dev);
 	struct cmd_desc xp_cmd;
 	int xcvr;
 	int err;
 
+	err = -EINVAL;
 	if(cmd->autoneg == AUTONEG_ENABLE) {
 		xcvr = TYPHOON_XCVR_AUTONEG;
 	} else {
@@ -1125,23 +1160,23 @@ typhoon_ethtool_sset(struct typhoon *tp, struct ethtool_cmd *cmd)
 			else if(cmd->speed == SPEED_100)
 				xcvr = TYPHOON_XCVR_100HALF;
 			else
-				return -EINVAL;
+				goto out;
 		} else if(cmd->duplex == DUPLEX_FULL) {
 			if(cmd->speed == SPEED_10)
 				xcvr = TYPHOON_XCVR_10FULL;
 			else if(cmd->speed == SPEED_100)
 				xcvr = TYPHOON_XCVR_100FULL;
 			else
-				return -EINVAL;
+				goto out;
 		} else
-			return -EINVAL;
+			goto out;
 	}
 
 	INIT_COMMAND_NO_RESPONSE(&xp_cmd, TYPHOON_CMD_XCVR_SELECT);
 	xp_cmd.parm1 = cpu_to_le16(xcvr);
 	err = typhoon_issue_command(tp, 1, &xp_cmd, 0, NULL);
 	if(err < 0)
-		return err;
+		goto out;
 
 	tp->xcvr_select = xcvr;
 	if(cmd->autoneg == AUTONEG_ENABLE) {
@@ -1152,100 +1187,87 @@ typhoon_ethtool_sset(struct typhoon *tp, struct ethtool_cmd *cmd)
 		tp->duplex = cmd->duplex;
 	}
 
+out:
+	return err;
+}
+
+static void
+typhoon_get_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
+{
+	struct typhoon *tp = netdev_priv(dev);
+
+	wol->supported = WAKE_PHY | WAKE_MAGIC;
+	wol->wolopts = 0;
+	if(tp->wol_events & TYPHOON_WAKE_LINK_EVENT)
+		wol->wolopts |= WAKE_PHY;
+	if(tp->wol_events & TYPHOON_WAKE_MAGIC_PKT)
+		wol->wolopts |= WAKE_MAGIC;
+	memset(&wol->sopass, 0, sizeof(wol->sopass));
+}
+
+static int
+typhoon_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
+{
+	struct typhoon *tp = netdev_priv(dev);
+
+	if(wol->wolopts & ~(WAKE_PHY | WAKE_MAGIC))
+		return -EINVAL;
+
+	tp->wol_events = 0;
+	if(wol->wolopts & WAKE_PHY)
+		tp->wol_events |= TYPHOON_WAKE_LINK_EVENT;
+	if(wol->wolopts & WAKE_MAGIC)
+		tp->wol_events |= TYPHOON_WAKE_MAGIC_PKT;
+
 	return 0;
 }
 
-static inline int
-typhoon_ethtool_ioctl(struct net_device *dev, void __user *useraddr)
+static u32
+typhoon_get_rx_csum(struct net_device *dev)
 {
-	struct typhoon *tp = (struct typhoon *) dev->priv;
-	u32 ethcmd;
-
-	if(copy_from_user(&ethcmd, useraddr, sizeof(ethcmd)))
-		return -EFAULT;
-
-	switch (ethcmd) {
-	case ETHTOOL_GDRVINFO: {
-			struct ethtool_drvinfo info = { ETHTOOL_GDRVINFO };
-
-			typhoon_ethtool_gdrvinfo(tp, &info);
-			if(copy_to_user(useraddr, &info, sizeof(info)))
-				return -EFAULT;
-			return 0;
-		}
-	case ETHTOOL_GSET: {
-			struct ethtool_cmd cmd = { ETHTOOL_GSET };
-
-			typhoon_ethtool_gset(tp, &cmd);
-			if(copy_to_user(useraddr, &cmd, sizeof(cmd)))
-				return -EFAULT;
-			return 0;
-		}
-	case ETHTOOL_SSET: {
-			struct ethtool_cmd cmd;
-			if(copy_from_user(&cmd, useraddr, sizeof(cmd)))
-				return -EFAULT;
-
-			return typhoon_ethtool_sset(tp, &cmd);
-		}
-	case ETHTOOL_GLINK:{
-			struct ethtool_value edata = { ETHTOOL_GLINK };
-
-			edata.data = netif_carrier_ok(dev) ? 1 : 0;
-			if(copy_to_user(useraddr, &edata, sizeof(edata)))
-				return -EFAULT;
-			return 0;
-		}
-	case ETHTOOL_GWOL: {
-			struct ethtool_wolinfo wol = { ETHTOOL_GWOL };
-
-			if(tp->wol_events & TYPHOON_WAKE_LINK_EVENT)
-				wol.wolopts |= WAKE_PHY;
-			if(tp->wol_events & TYPHOON_WAKE_MAGIC_PKT)
-				wol.wolopts |= WAKE_MAGIC;
-			if(copy_to_user(useraddr, &wol, sizeof(wol)))
-				return -EFAULT;
-			return 0;
-	}
-	case ETHTOOL_SWOL: {
-			struct ethtool_wolinfo wol;
-
-			if(copy_from_user(&wol, useraddr, sizeof(wol)))
-				return -EFAULT;
-			tp->wol_events = 0;
-			if(wol.wolopts & WAKE_PHY)
-				tp->wol_events |= TYPHOON_WAKE_LINK_EVENT;
-			if(wol.wolopts & WAKE_MAGIC)
-				tp->wol_events |= TYPHOON_WAKE_MAGIC_PKT;
-			return 0;
-	}
-	default:
-		break;
-	}
-
-	return -EOPNOTSUPP;
+	/* For now, we don't allow turning off RX checksums.
+	 */
+	return 1;
 }
 
-static int
-typhoon_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
+static void
+typhoon_get_ringparam(struct net_device *dev, struct ethtool_ringparam *ering)
 {
-	switch (cmd) {
-	case SIOCETHTOOL:
-		return typhoon_ethtool_ioctl(dev, ifr->ifr_data);
-	default:
-		break;
-	}
+	ering->rx_max_pending = RXENT_ENTRIES;
+	ering->rx_mini_max_pending = 0;
+	ering->rx_jumbo_max_pending = 0;
+	ering->tx_max_pending = TXLO_ENTRIES - 1;
 
-	return -EOPNOTSUPP;
+	ering->rx_pending = RXENT_ENTRIES;
+	ering->rx_mini_pending = 0;
+	ering->rx_jumbo_pending = 0;
+	ering->tx_pending = TXLO_ENTRIES - 1;
 }
 
+static struct ethtool_ops typhoon_ethtool_ops = {
+	.get_settings		= typhoon_get_settings,
+	.set_settings		= typhoon_set_settings,
+	.get_drvinfo		= typhoon_get_drvinfo,
+	.get_wol		= typhoon_get_wol,
+	.set_wol		= typhoon_set_wol,
+	.get_link		= ethtool_op_get_link,
+	.get_rx_csum		= typhoon_get_rx_csum,
+	.get_tx_csum		= ethtool_op_get_tx_csum,
+	.set_tx_csum		= ethtool_op_set_tx_csum,
+	.get_sg			= ethtool_op_get_sg,
+	.set_sg			= ethtool_op_set_sg,
+	.get_tso		= ethtool_op_get_tso,
+	.set_tso		= ethtool_op_set_tso,
+	.get_ringparam		= typhoon_get_ringparam,
+};
+
 static int
-typhoon_wait_interrupt(unsigned long ioaddr)
+typhoon_wait_interrupt(void __iomem *ioaddr)
 {
 	int i, err = 0;
 
 	for(i = 0; i < TYPHOON_WAIT_TIMEOUT; i++) {
-		if(readl(ioaddr + TYPHOON_REG_INTR_STATUS) &
+		if(ioread32(ioaddr + TYPHOON_REG_INTR_STATUS) &
 		   TYPHOON_INTR_BOOTCMD)
 			goto out;
 		udelay(TYPHOON_UDELAY);
@@ -1254,7 +1276,7 @@ typhoon_wait_interrupt(unsigned long ioaddr)
 	err = -ETIMEDOUT;
 
 out:
-	writel(TYPHOON_INTR_BOOTCMD, ioaddr + TYPHOON_REG_INTR_STATUS);
+	iowrite32(TYPHOON_INTR_BOOTCMD, ioaddr + TYPHOON_REG_INTR_STATUS);
 	return err;
 }
 
@@ -1348,7 +1370,7 @@ typhoon_init_rings(struct typhoon *tp)
 static int
 typhoon_download_firmware(struct typhoon *tp)
 {
-	unsigned long ioaddr = tp->ioaddr;
+	void __iomem *ioaddr = tp->ioaddr;
 	struct pci_dev *pdev = tp->pdev;
 	struct typhoon_file_header *fHdr;
 	struct typhoon_section_header *sHdr;
@@ -1388,11 +1410,11 @@ typhoon_download_firmware(struct typhoon *tp)
 		goto err_out;
 	}
 
-	irqEnabled = readl(ioaddr + TYPHOON_REG_INTR_ENABLE);
-	writel(irqEnabled | TYPHOON_INTR_BOOTCMD,
+	irqEnabled = ioread32(ioaddr + TYPHOON_REG_INTR_ENABLE);
+	iowrite32(irqEnabled | TYPHOON_INTR_BOOTCMD,
 	       ioaddr + TYPHOON_REG_INTR_ENABLE);
-	irqMasked = readl(ioaddr + TYPHOON_REG_INTR_MASK);
-	writel(irqMasked | TYPHOON_INTR_BOOTCMD,
+	irqMasked = ioread32(ioaddr + TYPHOON_REG_INTR_MASK);
+	iowrite32(irqMasked | TYPHOON_INTR_BOOTCMD,
 	       ioaddr + TYPHOON_REG_INTR_MASK);
 
 	err = -ETIMEDOUT;
@@ -1404,24 +1426,24 @@ typhoon_download_firmware(struct typhoon *tp)
 	numSections = le32_to_cpu(fHdr->numSections);
 	load_addr = le32_to_cpu(fHdr->startAddr);
 
-	writel(TYPHOON_INTR_BOOTCMD, ioaddr + TYPHOON_REG_INTR_STATUS);
-	writel(load_addr, ioaddr + TYPHOON_REG_DOWNLOAD_BOOT_ADDR);
+	iowrite32(TYPHOON_INTR_BOOTCMD, ioaddr + TYPHOON_REG_INTR_STATUS);
+	iowrite32(load_addr, ioaddr + TYPHOON_REG_DOWNLOAD_BOOT_ADDR);
 	hmac = le32_to_cpu(fHdr->hmacDigest[0]);
-	writel(hmac, ioaddr + TYPHOON_REG_DOWNLOAD_HMAC_0);
+	iowrite32(hmac, ioaddr + TYPHOON_REG_DOWNLOAD_HMAC_0);
 	hmac = le32_to_cpu(fHdr->hmacDigest[1]);
-	writel(hmac, ioaddr + TYPHOON_REG_DOWNLOAD_HMAC_1);
+	iowrite32(hmac, ioaddr + TYPHOON_REG_DOWNLOAD_HMAC_1);
 	hmac = le32_to_cpu(fHdr->hmacDigest[2]);
-	writel(hmac, ioaddr + TYPHOON_REG_DOWNLOAD_HMAC_2);
+	iowrite32(hmac, ioaddr + TYPHOON_REG_DOWNLOAD_HMAC_2);
 	hmac = le32_to_cpu(fHdr->hmacDigest[3]);
-	writel(hmac, ioaddr + TYPHOON_REG_DOWNLOAD_HMAC_3);
+	iowrite32(hmac, ioaddr + TYPHOON_REG_DOWNLOAD_HMAC_3);
 	hmac = le32_to_cpu(fHdr->hmacDigest[4]);
-	writel(hmac, ioaddr + TYPHOON_REG_DOWNLOAD_HMAC_4);
+	iowrite32(hmac, ioaddr + TYPHOON_REG_DOWNLOAD_HMAC_4);
 	typhoon_post_pci_writes(ioaddr);
-	writel(TYPHOON_BOOTCMD_RUNTIME_IMAGE, ioaddr + TYPHOON_REG_COMMAND);
+	iowrite32(TYPHOON_BOOTCMD_RUNTIME_IMAGE, ioaddr + TYPHOON_REG_COMMAND);
 
 	image_data += sizeof(struct typhoon_file_header);
 
-	/* The readl() in typhoon_wait_interrupt() will force the
+	/* The ioread32() in typhoon_wait_interrupt() will force the
 	 * last write to the command register to post, so
 	 * we don't need a typhoon_post_pci_writes() after it.
 	 */
@@ -1435,7 +1457,7 @@ typhoon_download_firmware(struct typhoon *tp)
 			len = min_t(u32, section_len, PAGE_SIZE);
 
 			if(typhoon_wait_interrupt(ioaddr) < 0 ||
-			   readl(ioaddr + TYPHOON_REG_STATUS) !=
+			   ioread32(ioaddr + TYPHOON_REG_STATUS) !=
 			   TYPHOON_STATUS_WAITING_FOR_SEGMENT) {
 				printk(KERN_ERR "%s: segment ready timeout\n",
 				       tp->name);
@@ -1452,13 +1474,14 @@ typhoon_download_firmware(struct typhoon *tp)
 			csum = csum_fold(csum);
 			csum = le16_to_cpu(csum);
 
-			writel(len, ioaddr + TYPHOON_REG_BOOT_LENGTH);
-			writel(csum, ioaddr + TYPHOON_REG_BOOT_CHECKSUM);
-			writel(load_addr, ioaddr + TYPHOON_REG_BOOT_DEST_ADDR);
-			writel(0, ioaddr + TYPHOON_REG_BOOT_DATA_HI);
-			writel(dpage_dma, ioaddr + TYPHOON_REG_BOOT_DATA_LO);
+			iowrite32(len, ioaddr + TYPHOON_REG_BOOT_LENGTH);
+			iowrite32(csum, ioaddr + TYPHOON_REG_BOOT_CHECKSUM);
+			iowrite32(load_addr,
+					ioaddr + TYPHOON_REG_BOOT_DEST_ADDR);
+			iowrite32(0, ioaddr + TYPHOON_REG_BOOT_DATA_HI);
+			iowrite32(dpage_dma, ioaddr + TYPHOON_REG_BOOT_DATA_LO);
 			typhoon_post_pci_writes(ioaddr);
-			writel(TYPHOON_BOOTCMD_SEG_AVAILABLE,
+			iowrite32(TYPHOON_BOOTCMD_SEG_AVAILABLE,
 			       ioaddr + TYPHOON_REG_COMMAND);
 
 			image_data += len;
@@ -1468,25 +1491,25 @@ typhoon_download_firmware(struct typhoon *tp)
 	}
 
 	if(typhoon_wait_interrupt(ioaddr) < 0 ||
-	   readl(ioaddr + TYPHOON_REG_STATUS) !=
+	   ioread32(ioaddr + TYPHOON_REG_STATUS) !=
 	   TYPHOON_STATUS_WAITING_FOR_SEGMENT) {
 		printk(KERN_ERR "%s: final segment ready timeout\n", tp->name);
 		goto err_out_irq;
 	}
 
-	writel(TYPHOON_BOOTCMD_DNLD_COMPLETE, ioaddr + TYPHOON_REG_COMMAND);
+	iowrite32(TYPHOON_BOOTCMD_DNLD_COMPLETE, ioaddr + TYPHOON_REG_COMMAND);
 
 	if(typhoon_wait_status(ioaddr, TYPHOON_STATUS_WAITING_FOR_BOOT) < 0) {
 		printk(KERN_ERR "%s: boot ready timeout, status 0x%0x\n",
-		       tp->name, readl(ioaddr + TYPHOON_REG_STATUS));
+		       tp->name, ioread32(ioaddr + TYPHOON_REG_STATUS));
 		goto err_out_irq;
 	}
 
 	err = 0;
 
 err_out_irq:
-	writel(irqMasked, ioaddr + TYPHOON_REG_INTR_MASK);
-	writel(irqEnabled, ioaddr + TYPHOON_REG_INTR_ENABLE);
+	iowrite32(irqMasked, ioaddr + TYPHOON_REG_INTR_MASK);
+	iowrite32(irqEnabled, ioaddr + TYPHOON_REG_INTR_ENABLE);
 
 	pci_free_consistent(pdev, PAGE_SIZE, dpage, dpage_dma);
 
@@ -1497,31 +1520,32 @@ err_out:
 static int
 typhoon_boot_3XP(struct typhoon *tp, u32 initial_status)
 {
-	unsigned long ioaddr = tp->ioaddr;
+	void __iomem *ioaddr = tp->ioaddr;
 
 	if(typhoon_wait_status(ioaddr, initial_status) < 0) {
 		printk(KERN_ERR "%s: boot ready timeout\n", tp->name);
 		goto out_timeout;
 	}
 
-	writel(0, ioaddr + TYPHOON_REG_BOOT_RECORD_ADDR_HI);
-	writel(tp->shared_dma, ioaddr + TYPHOON_REG_BOOT_RECORD_ADDR_LO);
+	iowrite32(0, ioaddr + TYPHOON_REG_BOOT_RECORD_ADDR_HI);
+	iowrite32(tp->shared_dma, ioaddr + TYPHOON_REG_BOOT_RECORD_ADDR_LO);
 	typhoon_post_pci_writes(ioaddr);
-	writel(TYPHOON_BOOTCMD_REG_BOOT_RECORD, ioaddr + TYPHOON_REG_COMMAND);
+	iowrite32(TYPHOON_BOOTCMD_REG_BOOT_RECORD,
+				ioaddr + TYPHOON_REG_COMMAND);
 
 	if(typhoon_wait_status(ioaddr, TYPHOON_STATUS_RUNNING) < 0) {
 		printk(KERN_ERR "%s: boot finish timeout (status 0x%x)\n",
-		       tp->name, readl(ioaddr + TYPHOON_REG_STATUS));
+		       tp->name, ioread32(ioaddr + TYPHOON_REG_STATUS));
 		goto out_timeout;
 	}
 
 	/* Clear the Transmit and Command ready registers
 	 */
-	writel(0, ioaddr + TYPHOON_REG_TX_HI_READY);
-	writel(0, ioaddr + TYPHOON_REG_CMD_READY);
-	writel(0, ioaddr + TYPHOON_REG_TX_LO_READY);
+	iowrite32(0, ioaddr + TYPHOON_REG_TX_HI_READY);
+	iowrite32(0, ioaddr + TYPHOON_REG_CMD_READY);
+	iowrite32(0, ioaddr + TYPHOON_REG_TX_LO_READY);
 	typhoon_post_pci_writes(ioaddr);
-	writel(TYPHOON_BOOTCMD_BOOT, ioaddr + TYPHOON_REG_COMMAND);
+	iowrite32(TYPHOON_BOOTCMD_BOOT, ioaddr + TYPHOON_REG_COMMAND);
 
 	return 0;
 
@@ -1681,8 +1705,7 @@ typhoon_rx(struct typhoon *tp, struct basic_ring *rxRing, volatile u32 * ready,
 		skb = rxb->skb;
 		dma_addr = rxb->dma_addr;
 
-		rxaddr += sizeof(struct rx_desc);
-		rxaddr %= RX_ENTRIES * sizeof(struct rx_desc);
+		typhoon_inc_rx_index(&rxaddr, 1);
 
 		if(rx->flags & TYPHOON_RX_ERROR) {
 			typhoon_recycle_rx_skb(tp, idx);
@@ -1756,7 +1779,7 @@ typhoon_fill_free_ring(struct typhoon *tp)
 static int
 typhoon_poll(struct net_device *dev, int *total_budget)
 {
-	struct typhoon *tp = (struct typhoon *) dev->priv;
+	struct typhoon *tp = netdev_priv(dev);
 	struct typhoon_indexes *indexes = tp->indexes;
 	int orig_budget = *total_budget;
 	int budget, work_done, done;
@@ -1801,7 +1824,8 @@ typhoon_poll(struct net_device *dev, int *total_budget)
 
 	if(done) {
 		netif_rx_complete(dev);
-		writel(TYPHOON_INTR_NONE, tp->ioaddr + TYPHOON_REG_INTR_MASK);
+		iowrite32(TYPHOON_INTR_NONE,
+				tp->ioaddr + TYPHOON_REG_INTR_MASK);
 		typhoon_post_pci_writes(tp->ioaddr);
 	}
 
@@ -1812,17 +1836,18 @@ static irqreturn_t
 typhoon_interrupt(int irq, void *dev_instance, struct pt_regs *rgs)
 {
 	struct net_device *dev = (struct net_device *) dev_instance;
-	unsigned long ioaddr = dev->base_addr;
+	struct typhoon *tp = dev->priv;
+	void __iomem *ioaddr = tp->ioaddr;
 	u32 intr_status;
 
-	intr_status = readl(ioaddr + TYPHOON_REG_INTR_STATUS);
+	intr_status = ioread32(ioaddr + TYPHOON_REG_INTR_STATUS);
 	if(!(intr_status & TYPHOON_INTR_HOST_INT))
 		return IRQ_NONE;
 
-	writel(intr_status, ioaddr + TYPHOON_REG_INTR_STATUS);
+	iowrite32(intr_status, ioaddr + TYPHOON_REG_INTR_STATUS);
 
 	if(netif_rx_schedule_prep(dev)) {
-		writel(TYPHOON_INTR_ALL, ioaddr + TYPHOON_REG_INTR_MASK);
+		iowrite32(TYPHOON_INTR_ALL, ioaddr + TYPHOON_REG_INTR_MASK);
 		typhoon_post_pci_writes(ioaddr);
 		__netif_rx_schedule(dev);
 	} else {
@@ -1849,10 +1874,10 @@ typhoon_free_rx_rings(struct typhoon *tp)
 }
 
 static int
-typhoon_sleep(struct typhoon *tp, int state, u16 events)
+typhoon_sleep(struct typhoon *tp, pci_power_t state, u16 events)
 {
 	struct pci_dev *pdev = tp->pdev;
-	unsigned long ioaddr = tp->ioaddr;
+	void __iomem *ioaddr = tp->ioaddr;
 	struct cmd_desc xp_cmd;
 	int err;
 
@@ -1881,25 +1906,25 @@ typhoon_sleep(struct typhoon *tp, int state, u16 events)
 	 */
 	netif_carrier_off(tp->dev);
 
-	pci_enable_wake(tp->pdev, state, 1);
+	pci_enable_wake(tp->pdev, pci_choose_state(pdev, state), 1);
 	pci_disable_device(pdev);
-	return pci_set_power_state(pdev, state);
+	return pci_set_power_state(pdev, pci_choose_state(pdev, state));
 }
 
 static int
 typhoon_wakeup(struct typhoon *tp, int wait_type)
 {
 	struct pci_dev *pdev = tp->pdev;
-	unsigned long ioaddr = tp->ioaddr;
+	void __iomem *ioaddr = tp->ioaddr;
 
-	pci_set_power_state(pdev, 0);
-	pci_restore_state(pdev, tp->pci_state);
+	pci_set_power_state(pdev, PCI_D0);
+	pci_restore_state(pdev);
 
 	/* Post 2.x.x versions of the Sleep Image require a reset before
 	 * we can download the Runtime Image. But let's not make users of
 	 * the old firmware pay for the reset.
 	 */
-	writel(TYPHOON_BOOTCMD_WAKEUP, ioaddr + TYPHOON_REG_COMMAND);
+	iowrite32(TYPHOON_BOOTCMD_WAKEUP, ioaddr + TYPHOON_REG_COMMAND);
 	if(typhoon_wait_status(ioaddr, TYPHOON_STATUS_WAITING_FOR_HOST) < 0 ||
 			(tp->capabilities & TYPHOON_WAKEUP_NEEDS_RESET))
 		return typhoon_reset(ioaddr, wait_type);
@@ -1911,7 +1936,7 @@ static int
 typhoon_start_runtime(struct typhoon *tp)
 {
 	struct net_device *dev = tp->dev;
-	unsigned long ioaddr = tp->ioaddr;
+	void __iomem *ioaddr = tp->ioaddr;
 	struct cmd_desc xp_cmd;
 	int err;
 
@@ -1988,8 +2013,8 @@ typhoon_start_runtime(struct typhoon *tp)
 	tp->card_state = Running;
 	smp_wmb();
 
-	writel(TYPHOON_INTR_ENABLE_ALL, ioaddr + TYPHOON_REG_INTR_ENABLE);
-	writel(TYPHOON_INTR_NONE, ioaddr + TYPHOON_REG_INTR_MASK);
+	iowrite32(TYPHOON_INTR_ENABLE_ALL, ioaddr + TYPHOON_REG_INTR_ENABLE);
+	iowrite32(TYPHOON_INTR_NONE, ioaddr + TYPHOON_REG_INTR_MASK);
 	typhoon_post_pci_writes(ioaddr);
 
 	return 0;
@@ -2006,7 +2031,7 @@ typhoon_stop_runtime(struct typhoon *tp, int wait_type)
 {
 	struct typhoon_indexes *indexes = tp->indexes;
 	struct transmit_ring *txLo = &tp->txLoRing;
-	unsigned long ioaddr = tp->ioaddr;
+	void __iomem *ioaddr = tp->ioaddr;
 	struct cmd_desc xp_cmd;
 	int i;
 
@@ -2014,7 +2039,7 @@ typhoon_stop_runtime(struct typhoon *tp, int wait_type)
 	 * when called with !netif_running(). This will be posted
 	 * when we force the posting of the command.
 	 */
-	writel(TYPHOON_INTR_NONE, ioaddr + TYPHOON_REG_INTR_ENABLE);
+	iowrite32(TYPHOON_INTR_NONE, ioaddr + TYPHOON_REG_INTR_ENABLE);
 
 	INIT_COMMAND_NO_RESPONSE(&xp_cmd, TYPHOON_CMD_RX_DISABLE);
 	typhoon_issue_command(tp, 1, &xp_cmd, 0, NULL);
@@ -2068,9 +2093,9 @@ typhoon_stop_runtime(struct typhoon *tp, int wait_type)
 static void
 typhoon_tx_timeout(struct net_device *dev)
 {
-	struct typhoon *tp = (struct typhoon *) dev->priv;
+	struct typhoon *tp = netdev_priv(dev);
 
-	if(typhoon_reset(dev->base_addr, WaitNoSleep) < 0) {
+	if(typhoon_reset(tp->ioaddr, WaitNoSleep) < 0) {
 		printk(KERN_WARNING "%s: could not reset in tx timeout\n",
 					dev->name);
 		goto truely_dead;
@@ -2091,14 +2116,14 @@ typhoon_tx_timeout(struct net_device *dev)
 
 truely_dead:
 	/* Reset the hardware, and turn off carrier to avoid more timeouts */
-	typhoon_reset(dev->base_addr, NoWait);
+	typhoon_reset(tp->ioaddr, NoWait);
 	netif_carrier_off(dev);
 }
 
 static int
 typhoon_open(struct net_device *dev)
 {
-	struct typhoon *tp = (struct typhoon *) dev->priv;
+	struct typhoon *tp = netdev_priv(dev);
 	int err;
 
 	err = typhoon_wakeup(tp, WaitSleep);
@@ -2126,11 +2151,11 @@ out_sleep:
 	if(typhoon_boot_3XP(tp, TYPHOON_STATUS_WAITING_FOR_HOST) < 0) {
 		printk(KERN_ERR "%s: unable to reboot into sleep img\n",
 				dev->name);
-		typhoon_reset(dev->base_addr, NoWait);
+		typhoon_reset(tp->ioaddr, NoWait);
 		goto out;
 	}
 
-	if(typhoon_sleep(tp, 3, 0) < 0) 
+	if(typhoon_sleep(tp, PCI_D3hot, 0) < 0) 
 		printk(KERN_ERR "%s: unable to go back to sleep\n", dev->name);
 
 out:
@@ -2140,7 +2165,7 @@ out:
 static int
 typhoon_close(struct net_device *dev)
 {
-	struct typhoon *tp = (struct typhoon *) dev->priv;
+	struct typhoon *tp = netdev_priv(dev);
 
 	netif_stop_queue(dev);
 
@@ -2157,7 +2182,7 @@ typhoon_close(struct net_device *dev)
 	if(typhoon_boot_3XP(tp, TYPHOON_STATUS_WAITING_FOR_HOST) < 0)
 		printk(KERN_ERR "%s: unable to boot sleep image\n", dev->name);
 
-	if(typhoon_sleep(tp, 3, 0) < 0)
+	if(typhoon_sleep(tp, PCI_D3hot, 0) < 0)
 		printk(KERN_ERR "%s: unable to put card to sleep\n", dev->name);
 
 	return 0;
@@ -2168,7 +2193,7 @@ static int
 typhoon_resume(struct pci_dev *pdev)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
-	struct typhoon *tp = (struct typhoon *) dev->priv;
+	struct typhoon *tp = netdev_priv(dev);
 
 	/* If we're down, resume when we are upped.
 	 */
@@ -2192,15 +2217,15 @@ typhoon_resume(struct pci_dev *pdev)
 	return 0;
 
 reset:
-	typhoon_reset(dev->base_addr, NoWait);
+	typhoon_reset(tp->ioaddr, NoWait);
 	return -EBUSY;
 }
 
 static int
-typhoon_suspend(struct pci_dev *pdev, u32 state)
+typhoon_suspend(struct pci_dev *pdev, pm_message_t state)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
-	struct typhoon *tp = (struct typhoon *) dev->priv;
+	struct typhoon *tp = netdev_priv(dev);
 	struct cmd_desc xp_cmd;
 
 	/* If we're down, we're already suspended.
@@ -2262,11 +2287,57 @@ need_resume:
 }
 
 static int
-typhoon_enable_wake(struct pci_dev *pdev, u32 state, int enable)
+typhoon_enable_wake(struct pci_dev *pdev, pci_power_t state, int enable)
 {
 	return pci_enable_wake(pdev, state, enable);
 }
 #endif
+
+static int __devinit
+typhoon_test_mmio(struct pci_dev *pdev)
+{
+	void __iomem *ioaddr = pci_iomap(pdev, 1, 128);
+	int mode = 0;
+	u32 val;
+
+	if(!ioaddr)
+		goto out;
+
+	if(ioread32(ioaddr + TYPHOON_REG_STATUS) !=
+				TYPHOON_STATUS_WAITING_FOR_HOST)
+		goto out_unmap;
+
+	iowrite32(TYPHOON_INTR_ALL, ioaddr + TYPHOON_REG_INTR_MASK);
+	iowrite32(TYPHOON_INTR_ALL, ioaddr + TYPHOON_REG_INTR_STATUS);
+	iowrite32(TYPHOON_INTR_ALL, ioaddr + TYPHOON_REG_INTR_ENABLE);
+
+	/* Ok, see if we can change our interrupt status register by
+	 * sending ourselves an interrupt. If so, then MMIO works.
+	 * The 50usec delay is arbitrary -- it could probably be smaller.
+	 */
+	val = ioread32(ioaddr + TYPHOON_REG_INTR_STATUS);
+	if((val & TYPHOON_INTR_SELF) == 0) {
+		iowrite32(1, ioaddr + TYPHOON_REG_SELF_INTERRUPT);
+		ioread32(ioaddr + TYPHOON_REG_INTR_STATUS);
+		udelay(50);
+		val = ioread32(ioaddr + TYPHOON_REG_INTR_STATUS);
+		if(val & TYPHOON_INTR_SELF)
+			mode = 1;
+	}
+
+	iowrite32(TYPHOON_INTR_ALL, ioaddr + TYPHOON_REG_INTR_MASK);
+	iowrite32(TYPHOON_INTR_ALL, ioaddr + TYPHOON_REG_INTR_STATUS);
+	iowrite32(TYPHOON_INTR_NONE, ioaddr + TYPHOON_REG_INTR_ENABLE);
+	ioread32(ioaddr + TYPHOON_REG_INTR_STATUS);
+
+out_unmap:
+	pci_iounmap(pdev, ioaddr);
+
+out:
+	if(!mode)
+		printk(KERN_INFO PFX "falling back to port IO\n");
+	return mode;
+}
 
 static int __devinit
 typhoon_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
@@ -2275,7 +2346,7 @@ typhoon_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct net_device *dev;
 	struct typhoon *tp;
 	int card_id = (int) ent->driver_data;
-	unsigned long ioaddr;
+	void __iomem *ioaddr;
 	void *shared;
 	dma_addr_t shared_dma;
 	struct cmd_desc xp_cmd;
@@ -2303,56 +2374,67 @@ typhoon_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto error_out_dev;
 	}
 
-	/* If we transitioned from D3->D0 in pci_enable_device(),
-	 * we lost our configuration and need to restore it to the
-	 * conditions at boot.
-	 */
-	pci_restore_state(pdev, NULL);
+	err = pci_set_mwi(pdev);
+	if(err < 0) {
+		printk(ERR_PFX "%s: unable to set MWI\n", pci_name(pdev));
+		goto error_out_disable;
+	}
 
-	err = pci_set_dma_mask(pdev, 0xffffffffULL);
+	err = pci_set_dma_mask(pdev, DMA_32BIT_MASK);
 	if(err < 0) {
 		printk(ERR_PFX "%s: No usable DMA configuration\n",
 		       pci_name(pdev));
-		goto error_out_dev;
+		goto error_out_mwi;
 	}
 
-	/* sanity checks, resource #1 is our mmio area
+	/* sanity checks on IO and MMIO BARs
 	 */
+	if(!(pci_resource_flags(pdev, 0) & IORESOURCE_IO)) {
+		printk(ERR_PFX
+		       "%s: region #1 not a PCI IO resource, aborting\n",
+		       pci_name(pdev));
+		err = -ENODEV;
+		goto error_out_mwi;
+	}
+	if(pci_resource_len(pdev, 0) < 128) {
+		printk(ERR_PFX "%s: Invalid PCI IO region size, aborting\n",
+		       pci_name(pdev));
+		err = -ENODEV;
+		goto error_out_mwi;
+	}
 	if(!(pci_resource_flags(pdev, 1) & IORESOURCE_MEM)) {
 		printk(ERR_PFX
 		       "%s: region #1 not a PCI MMIO resource, aborting\n",
 		       pci_name(pdev));
 		err = -ENODEV;
-		goto error_out_dev;
+		goto error_out_mwi;
 	}
 	if(pci_resource_len(pdev, 1) < 128) {
 		printk(ERR_PFX "%s: Invalid PCI MMIO region size, aborting\n",
 		       pci_name(pdev));
 		err = -ENODEV;
-		goto error_out_dev;
+		goto error_out_mwi;
 	}
 
 	err = pci_request_regions(pdev, "typhoon");
 	if(err < 0) {
 		printk(ERR_PFX "%s: could not request regions\n",
 		       pci_name(pdev));
-		goto error_out_dev;
+		goto error_out_mwi;
 	}
 
-	pci_set_master(pdev);
-	pci_set_mwi(pdev);
-
-	/* map our MMIO region
+	/* map our registers
 	 */
-	ioaddr = pci_resource_start(pdev, 1);
-	ioaddr = (unsigned long) ioremap(ioaddr, 128);
-	if(!ioaddr) {
-		printk(ERR_PFX "%s: cannot remap MMIO, aborting\n",
+	if(use_mmio != 0 && use_mmio != 1)
+		use_mmio = typhoon_test_mmio(pdev);
+
+	ioaddr = pci_iomap(pdev, use_mmio, 128);
+	if (!ioaddr) {
+		printk(ERR_PFX "%s: cannot remap registers, aborting\n",
 		       pci_name(pdev));
 		err = -EIO;
 		goto error_out_regions;
 	}
-	dev->base_addr = ioaddr;
 
 	/* allocate pci dma space for rx and tx descriptor rings
 	 */
@@ -2366,17 +2448,14 @@ typhoon_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 
 	dev->irq = pdev->irq;
-	tp = dev->priv;
+	tp = netdev_priv(dev);
 	tp->shared = (struct typhoon_shared *) shared;
 	tp->shared_dma = shared_dma;
 	tp->pdev = pdev;
 	tp->tx_pdev = pdev;
-	tp->ioaddr = dev->base_addr;
-	tp->tx_ioaddr = dev->base_addr;
+	tp->ioaddr = ioaddr;
+	tp->tx_ioaddr = ioaddr;
 	tp->dev = dev;
-
-	/* need to be able to restore PCI state after a suspend */
-	pci_save_state(pdev, tp->pci_state);
 
 	/* Init sequence:
 	 * 1) Reset the adapter to clear any bad juju
@@ -2385,11 +2464,18 @@ typhoon_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	 * 4) Get the hardware address.
 	 * 5) Put the card to sleep.
 	 */
-	if(typhoon_reset(ioaddr, WaitSleep) < 0) {
+	if (typhoon_reset(ioaddr, WaitSleep) < 0) {
 		printk(ERR_PFX "%s: could not reset 3XP\n", pci_name(pdev));
 		err = -EIO;
 		goto error_out_dma;
 	}
+
+	/* Now that we've reset the 3XP and are sure it's not going to
+	 * write all over memory, enable bus mastering, and save our
+	 * state for resuming after a suspend.
+	 */
+	pci_set_master(pdev);
+	pci_save_state(pdev);
 
 	/* dev->name is not valid until we register, but we need to
 	 * use some common routines to initialize the card. So that those
@@ -2430,7 +2516,7 @@ typhoon_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	INIT_COMMAND_WITH_RESPONSE(&xp_cmd, TYPHOON_CMD_READ_VERSIONS);
 	if(typhoon_issue_command(tp, 1, &xp_cmd, 3, xp_resp) < 0) {
 		printk(ERR_PFX "%s: Could not get Sleep Image version\n",
-			pdev->slot_name);
+			pci_name(pdev));
 		goto error_out_reset;
 	}
 
@@ -2446,7 +2532,7 @@ typhoon_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if(xp_resp[0].numDesc != 0)
 		tp->capabilities |= TYPHOON_WAKEUP_NEEDS_RESET;
 
-	if(typhoon_sleep(tp, 3, 0) < 0) {
+	if(typhoon_sleep(tp, PCI_D3hot, 0) < 0) {
 		printk(ERR_PFX "%s: cannot put adapter to sleep\n",
 		       pci_name(pdev));
 		err = -EIO;
@@ -2464,9 +2550,9 @@ typhoon_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	dev->watchdog_timeo	= TX_TIMEOUT;
 	dev->get_stats		= typhoon_get_stats;
 	dev->set_mac_address	= typhoon_set_mac_address;
-	dev->do_ioctl		= typhoon_ioctl;
 	dev->vlan_rx_register	= typhoon_vlan_rx_register;
 	dev->vlan_rx_kill_vid	= typhoon_vlan_rx_kill_vid;
+	SET_ETHTOOL_OPS(dev, &typhoon_ethtool_ops);
 
 	/* We can handle scatter gather, up to 16 entries, and
 	 * we can do IP checksumming (only version 4, doh...)
@@ -2483,8 +2569,9 @@ typhoon_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	pci_set_drvdata(pdev, dev);
 
-	printk(KERN_INFO "%s: %s at 0x%lx, ",
-	       dev->name, typhoon_card_info[card_id].name, ioaddr);
+	printk(KERN_INFO "%s: %s at %s 0x%lx, ",
+	       dev->name, typhoon_card_info[card_id].name,
+	       use_mmio ? "MMIO" : "IO", pci_resource_start(pdev, use_mmio));
 	for(i = 0; i < 5; i++)
 		printk("%2.2x:", dev->dev_addr[i]);
 	printk("%2.2x\n", dev->dev_addr[i]);
@@ -2507,7 +2594,8 @@ typhoon_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		u8 *ver_string = (u8 *) &xp_resp[1];
 		ver_string[25] = 0;
 		printk(KERN_INFO "%s: Typhoon 1.1+ Sleep Image version "
-			"%u.%u.%u.%u %s\n", dev->name, HIPQUAD(sleep_ver),
+			"%02x.%03x.%03x %s\n", dev->name, sleep_ver >> 24,
+			(sleep_ver >> 12) & 0xfff, sleep_ver & 0xfff,
 			ver_string);
 	} else {
 		printk(KERN_WARNING "%s: Unknown Sleep Image version "
@@ -2524,9 +2612,13 @@ error_out_dma:
 	pci_free_consistent(pdev, sizeof(struct typhoon_shared),
 			    shared, shared_dma);
 error_out_remap:
-	iounmap((void *) ioaddr);
+	pci_iounmap(pdev, ioaddr);
 error_out_regions:
 	pci_release_regions(pdev);
+error_out_mwi:
+	pci_clear_mwi(pdev);
+error_out_disable:
+	pci_disable_device(pdev);
 error_out_dev:
 	free_netdev(dev);
 error_out:
@@ -2537,16 +2629,17 @@ static void __devexit
 typhoon_remove_one(struct pci_dev *pdev)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
-	struct typhoon *tp = (struct typhoon *) (dev->priv);
+	struct typhoon *tp = netdev_priv(dev);
 
 	unregister_netdev(dev);
-	pci_set_power_state(pdev, 0);
-	pci_restore_state(pdev, tp->pci_state);
-	typhoon_reset(dev->base_addr, NoWait);
-	iounmap((char *) (dev->base_addr));
+	pci_set_power_state(pdev, PCI_D0);
+	pci_restore_state(pdev);
+	typhoon_reset(tp->ioaddr, NoWait);
+	pci_iounmap(pdev, tp->ioaddr);
 	pci_free_consistent(pdev, sizeof(struct typhoon_shared),
 			    tp->shared, tp->shared_dma);
 	pci_release_regions(pdev);
+	pci_clear_mwi(pdev);
 	pci_disable_device(pdev);
 	pci_set_drvdata(pdev, NULL);
 	free_netdev(dev);

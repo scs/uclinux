@@ -62,7 +62,7 @@ MODULE_AUTHOR("Jes Sorensen <jes@wildopensource.com>");
 MODULE_DESCRIPTION("Essential RoadRunner HIPPI driver");
 MODULE_LICENSE("GPL");
 
-static char version[] __initdata = "rrunner.c: v0.50 11/11/2002  Jes Sorensen (jes@wildopensource.com)\n";
+static char version[] __devinitdata = "rrunner.c: v0.50 11/11/2002  Jes Sorensen (jes@wildopensource.com)\n";
 
 /*
  * Implementation notes:
@@ -157,7 +157,7 @@ static int __devinit rr_init_one(struct pci_dev *pdev,
 	 * Remap the regs into kernel space.
 	 */
 
-	rrpriv->regs = (struct rr_regs *)ioremap(dev->base_addr, 0x1000);
+	rrpriv->regs = ioremap(dev->base_addr, 0x1000);
 
 	if (!rrpriv->regs){
 		printk(KERN_ERR "%s:  Unable to map I/O register, "
@@ -267,7 +267,7 @@ static void __devexit rr_remove_one (struct pci_dev *pdev)
  */
 static void rr_issue_cmd(struct rr_private *rrpriv, struct cmd *cmd)
 {
-	struct rr_regs *regs;
+	struct rr_regs __iomem *regs;
 	u32 idx;
 
 	regs = rrpriv->regs;
@@ -304,7 +304,7 @@ static void rr_issue_cmd(struct rr_private *rrpriv, struct cmd *cmd)
 static int rr_reset(struct net_device *dev)
 {
 	struct rr_private *rrpriv;
-	struct rr_regs *regs;
+	struct rr_regs __iomem *regs;
 	struct eeprom *hw = NULL;
 	u32 start_pc;
 	int i;
@@ -418,7 +418,7 @@ static unsigned int rr_read_eeprom(struct rr_private *rrpriv,
 				unsigned char *buf,
 				unsigned long length)
 {
-	struct rr_regs *regs = rrpriv->regs;
+	struct rr_regs __iomem *regs = rrpriv->regs;
 	u32 misc, io, host, i;
 
 	io = readl(&regs->ExtIo);
@@ -470,7 +470,7 @@ static unsigned int write_eeprom(struct rr_private *rrpriv,
 				 unsigned char *buf,
 				 unsigned long length)
 {
-	struct rr_regs *regs = rrpriv->regs;
+	struct rr_regs __iomem *regs = rrpriv->regs;
 	u32 misc, io, data, i, j, ready, error = 0;
 
 	io = readl(&regs->ExtIo);
@@ -520,7 +520,7 @@ static unsigned int write_eeprom(struct rr_private *rrpriv,
 static int __init rr_init(struct net_device *dev)
 {
 	struct rr_private *rrpriv;
-	struct rr_regs *regs;
+	struct rr_regs __iomem *regs;
 	struct eeprom *hw = NULL;
 	u32 sram_size, rev;
 	int i;
@@ -589,7 +589,7 @@ static int __init rr_init(struct net_device *dev)
 static int rr_init1(struct net_device *dev)
 {
 	struct rr_private *rrpriv;
-	struct rr_regs *regs;
+	struct rr_regs __iomem *regs;
 	unsigned long myjif, flags;
 	struct cmd cmd;
 	u32 hostctrl;
@@ -759,7 +759,7 @@ static int rr_init1(struct net_device *dev)
 static u32 rr_handle_event(struct net_device *dev, u32 prodidx, u32 eidx)
 {
 	struct rr_private *rrpriv;
-	struct rr_regs *regs;
+	struct rr_regs __iomem *regs;
 	u32 tmp;
 
 	rrpriv = netdev_priv(dev);
@@ -962,7 +962,7 @@ static u32 rr_handle_event(struct net_device *dev, u32 prodidx, u32 eidx)
 static void rx_int(struct net_device *dev, u32 rxlimit, u32 index)
 {
 	struct rr_private *rrpriv = netdev_priv(dev);
-	struct rr_regs *regs = rrpriv->regs;
+	struct rr_regs __iomem *regs = rrpriv->regs;
 
 	do {
 		struct rx_desc *desc;
@@ -1057,7 +1057,7 @@ static void rx_int(struct net_device *dev, u32 rxlimit, u32 index)
 static irqreturn_t rr_interrupt(int irq, void *dev_id, struct pt_regs *ptregs)
 {
 	struct rr_private *rrpriv;
-	struct rr_regs *regs;
+	struct rr_regs __iomem *regs;
 	struct net_device *dev = (struct net_device *)dev_id;
 	u32 prodidx, rxindex, eidx, txcsmr, rxlimit, txcon;
 
@@ -1139,11 +1139,54 @@ static irqreturn_t rr_interrupt(int irq, void *dev_id, struct pt_regs *ptregs)
 	return IRQ_HANDLED;
 }
 
+static inline void rr_raz_tx(struct rr_private *rrpriv,
+			     struct net_device *dev)
+{
+	int i;
+
+	for (i = 0; i < TX_RING_ENTRIES; i++) {
+		struct sk_buff *skb = rrpriv->tx_skbuff[i];
+
+		if (skb) {
+			struct tx_desc *desc = &(rrpriv->tx_ring[i]);
+
+	        	pci_unmap_single(rrpriv->pci_dev, desc->addr.addrlo,
+				skb->len, PCI_DMA_TODEVICE);
+			desc->size = 0;
+			set_rraddr(&desc->addr, 0);
+			dev_kfree_skb(skb);
+			rrpriv->tx_skbuff[i] = NULL;
+		}
+	}
+}
+
+
+static inline void rr_raz_rx(struct rr_private *rrpriv,
+			     struct net_device *dev)
+{
+	int i;
+
+	for (i = 0; i < RX_RING_ENTRIES; i++) {
+		struct sk_buff *skb = rrpriv->rx_skbuff[i];
+
+		if (skb) {
+			struct rx_desc *desc = &(rrpriv->rx_ring[i]);
+
+	        	pci_unmap_single(rrpriv->pci_dev, desc->addr.addrlo,
+				dev->mtu + HIPPI_HLEN, PCI_DMA_FROMDEVICE);
+			desc->size = 0;
+			set_rraddr(&desc->addr, 0);
+			dev_kfree_skb(skb);
+			rrpriv->rx_skbuff[i] = NULL;
+		}
+	}
+}
+
 static void rr_timer(unsigned long data)
 {
 	struct net_device *dev = (struct net_device *)data;
 	struct rr_private *rrpriv = netdev_priv(dev);
-	struct rr_regs *regs = rrpriv->regs;
+	struct rr_regs __iomem *regs = rrpriv->regs;
 	unsigned long flags;
 
 	if (readl(&regs->HostCtrl) & NIC_HALTED){
@@ -1171,7 +1214,7 @@ static int rr_open(struct net_device *dev)
 {
 	struct rr_private *rrpriv = netdev_priv(dev);
 	struct pci_dev *pdev = rrpriv->pci_dev;
-	struct rr_regs *regs;
+	struct rr_regs __iomem *regs;
 	int ecode = 0;
 	unsigned long flags;
 	dma_addr_t dma_addr;
@@ -1254,53 +1297,10 @@ static int rr_open(struct net_device *dev)
 }
 
 
-static inline void rr_raz_tx(struct rr_private *rrpriv, 
-			     struct net_device *dev)
-{
-	int i;
-
-	for (i = 0; i < TX_RING_ENTRIES; i++) {
-		struct sk_buff *skb = rrpriv->tx_skbuff[i];
-
-		if (skb) {
-			struct tx_desc *desc = &(rrpriv->tx_ring[i]);
-
-	        	pci_unmap_single(rrpriv->pci_dev, desc->addr.addrlo, 
-				skb->len, PCI_DMA_TODEVICE);
-			desc->size = 0;
-			set_rraddr(&desc->addr, 0);
-			dev_kfree_skb(skb);
-			rrpriv->tx_skbuff[i] = NULL;
-		}
-	}
-}
-
-
-static inline void rr_raz_rx(struct rr_private *rrpriv, 
-			     struct net_device *dev)
-{
-	int i;
-
-	for (i = 0; i < RX_RING_ENTRIES; i++) {
-		struct sk_buff *skb = rrpriv->rx_skbuff[i];
-
-		if (skb) {
-			struct rx_desc *desc = &(rrpriv->rx_ring[i]);
-
-	        	pci_unmap_single(rrpriv->pci_dev, desc->addr.addrlo, 
-				dev->mtu + HIPPI_HLEN, PCI_DMA_FROMDEVICE);
-			desc->size = 0;
-			set_rraddr(&desc->addr, 0);
-			dev_kfree_skb(skb);
-			rrpriv->rx_skbuff[i] = NULL;
-		}
-	}
-}
-
 static void rr_dump(struct net_device *dev)
 {
 	struct rr_private *rrpriv;
-	struct rr_regs *regs;
+	struct rr_regs __iomem *regs;
 	u32 index, cons;
 	short i;
 	int len;
@@ -1363,7 +1363,7 @@ static void rr_dump(struct net_device *dev)
 static int rr_close(struct net_device *dev)
 {
 	struct rr_private *rrpriv;
-	struct rr_regs *regs;
+	struct rr_regs __iomem *regs;
 	unsigned long flags;
 	u32 tmp;
 	short i;
@@ -1428,7 +1428,7 @@ static int rr_close(struct net_device *dev)
 static int rr_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct rr_private *rrpriv = netdev_priv(dev);
-	struct rr_regs *regs = rrpriv->regs;
+	struct rr_regs __iomem *regs = rrpriv->regs;
 	struct ring_ctrl *txctrl;
 	unsigned long flags;
 	u32 index, len = skb->len;
@@ -1513,7 +1513,7 @@ static struct net_device_stats *rr_get_stats(struct net_device *dev)
 static int rr_load_firmware(struct net_device *dev)
 {
 	struct rr_private *rrpriv;
-	struct rr_regs *regs;
+	struct rr_regs __iomem *regs;
 	unsigned long eptr, segptr;
 	int i, j;
 	u32 localctrl, sptr, len, tmp;

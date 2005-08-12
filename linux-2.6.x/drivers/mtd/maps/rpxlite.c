@@ -28,7 +28,7 @@ static struct map_info rpxlite_map = {
 int __init init_rpxlite(void)
 {
 	printk(KERN_NOTICE "RPX Lite or CLLF flash device: %x at %x\n", WINDOW_SIZE*4, WINDOW_ADDR);
-	rpxlite_map.virt = (unsigned long)ioremap(WINDOW_ADDR, WINDOW_SIZE * 4);
+	rpxlite_map.virt = ioremap(WINDOW_ADDR, WINDOW_SIZE * 4);
 
 	if (!rpxlite_map.virt) {
 		printk("Failed to ioremap\n");

@@ -87,32 +87,31 @@ zalon_probe(struct parisc_device *dev)
 {
 	struct gsc_irq gsc_irq;
 	u32 zalon_vers;
-	int irq, error = -ENODEV;
-	unsigned long zalon = dev->hpa;
-	unsigned long io_port = zalon + GSC_SCSI_ZALON_OFFSET;
+	int error = -ENODEV;
+	void __iomem *zalon = ioremap(dev->hpa, 4096);
+	void __iomem *io_port = zalon + GSC_SCSI_ZALON_OFFSET;
 	static int unit = 0;
 	struct Scsi_Host *host;
 	struct ncr_device device;
 
 	__raw_writel(CMD_RESET, zalon + IO_MODULE_IO_COMMAND);
 	while (!(__raw_readl(zalon + IO_MODULE_IO_STATUS) & IOSTATUS_RY))
-		;
+		cpu_relax();
 	__raw_writel(IOIIDATA_MINT5EN | IOIIDATA_PACKEN | IOIIDATA_PREFETCHEN,
 		zalon + IO_MODULE_II_CDATA);
 
 	/* XXX: Save the Zalon version for bug workarounds? */
-	zalon_vers = __raw_readl(dev->hpa + IO_MODULE_II_CDATA) & 0x07000000;
-	zalon_vers >>= 24;
+	zalon_vers = (__raw_readl(zalon + IO_MODULE_II_CDATA) >> 24) & 0x07;
 
 	/* Setup the interrupts first.
 	** Later on request_irq() will register the handler.
 	*/
-	irq = gsc_alloc_irq(&gsc_irq);
+	dev->irq = gsc_alloc_irq(&gsc_irq);
 
-	printk("%s: Zalon vers field is 0x%x, IRQ %d\n", __FUNCTION__,
-		zalon_vers, irq);
+	printk(KERN_INFO "%s: Zalon version %d, IRQ %d\n", __FUNCTION__,
+		zalon_vers, dev->irq);
 
-	__raw_writel(gsc_irq.txn_addr | gsc_irq.txn_data, dev->hpa + IO_MODULE_EIM);
+	__raw_writel(gsc_irq.txn_addr | gsc_irq.txn_data, zalon + IO_MODULE_EIM);
 
 	if (zalon_vers == 0)
 		printk(KERN_WARNING "%s: Zalon 1.1 or earlier\n", __FUNCTION__);
@@ -120,26 +119,26 @@ zalon_probe(struct parisc_device *dev)
 	memset(&device, 0, sizeof(struct ncr_device));
 
 	/* The following three are needed before any other access. */
-	writeb(0x20, io_port + 0x38); /* DCNTL_REG,  EA  */
-	writeb(0x04, io_port + 0x1b); /* CTEST0_REG, EHP */
-	writeb(0x80, io_port + 0x22); /* CTEST4_REG, MUX */
+	__raw_writeb(0x20, io_port + 0x38); /* DCNTL_REG,  EA  */
+	__raw_writeb(0x04, io_port + 0x1b); /* CTEST0_REG, EHP */
+	__raw_writeb(0x80, io_port + 0x22); /* CTEST4_REG, MUX */
 
 	/* Initialise ncr_device structure with items required by ncr_attach. */
 	device.chip		= zalon720_chip;
 	device.host_id		= 7;
 	device.dev		= &dev->dev;
-	device.slot.base	= (u_long)io_port;
-	device.slot.base_c	= (u_long)io_port;
-	device.slot.irq		= irq;
+	device.slot.base	= dev->hpa + GSC_SCSI_ZALON_OFFSET;
+	device.slot.base_v	= io_port;
+	device.slot.irq		= dev->irq;
 	device.differential	= 2;
 
 	host = ncr_attach(&zalon7xx_template, unit, &device);
 	if (!host)
 		goto fail;
 
-	if (request_irq(irq, ncr53c8xx_intr, SA_SHIRQ, dev->dev.bus_id, host)) {
+	if (request_irq(dev->irq, ncr53c8xx_intr, SA_SHIRQ, "zalon", host)) {
 		printk(KERN_ERR "%s: irq problem with %d, detaching\n ",
-			dev->dev.bus_id, irq);
+			dev->dev.bus_id, dev->irq);
 		goto fail;
 	}
 
@@ -155,7 +154,7 @@ zalon_probe(struct parisc_device *dev)
 	return 0;
 
  fail_free_irq:
-	free_irq(irq, host);
+	free_irq(dev->irq, host);
  fail:
 	ncr53c8xx_release(host);
 	return error;
@@ -171,18 +170,16 @@ MODULE_DEVICE_TABLE(parisc, zalon_tbl);
 static int __exit zalon_remove(struct parisc_device *dev)
 {
 	struct Scsi_Host *host = dev_get_drvdata(&dev->dev);
-	int irq = host->irq;
 
 	scsi_remove_host(host);
 	ncr53c8xx_release(host);
-	free_irq(irq, host);
+	free_irq(dev->irq, host);
 
 	return 0;
 }
-	
 
 static struct parisc_driver zalon_driver = {
-	.name =		"GSC SCSI (Zalon)",
+	.name =		"zalon",
 	.id_table =	zalon_tbl,
 	.probe =	zalon_probe,
 	.remove =	__devexit_p(zalon_remove),
@@ -190,12 +187,18 @@ static struct parisc_driver zalon_driver = {
 
 static int __init zalon7xx_init(void)
 {
-	return register_parisc_driver(&zalon_driver);
+	int ret = ncr53c8xx_init();
+	if (!ret)
+		ret = register_parisc_driver(&zalon_driver);
+	if (ret)
+		ncr53c8xx_exit();
+	return ret;
 }
 
 static void __exit zalon7xx_exit(void)
 {
 	unregister_parisc_driver(&zalon_driver);
+	ncr53c8xx_exit();
 }
 
 module_init(zalon7xx_init);

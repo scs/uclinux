@@ -31,11 +31,15 @@ int
 dasd_gendisk_alloc(struct dasd_device *device)
 {
 	struct gendisk *gdp;
-	int len;
+	int len, feature_ro;
 
 	/* Make sure the minor for this device exists. */
 	if (device->devindex >= DASD_PER_MAJOR)
 		return -EBUSY;
+
+	feature_ro = dasd_get_feature(device->cdev, DASD_FEATURE_READONLY);
+	if (feature_ro < 0)
+		return feature_ro;
 
 	gdp = alloc_disk(1 << DASD_PARTN_BITS);
 	if (!gdp)
@@ -71,7 +75,7 @@ dasd_gendisk_alloc(struct dasd_device *device)
 
  	sprintf(gdp->devfs_name, "dasd/%s", device->cdev->dev.bus_id);
 
-	if (test_bit(DASD_FLAG_RO, &device->flags))
+	if (feature_ro)
 		set_disk_ro(gdp, 1);
 	gdp->private_data = device;
 	gdp->queue = device->request_queue;
@@ -149,8 +153,8 @@ dasd_destroy_partitions(struct dasd_device * device)
 	 * Can't call delete_partitions directly. Use ioctl.
 	 * The ioctl also does locking and invalidation.
 	 */
-	memset(&bpart, sizeof(struct blkpg_partition), 0);
-	memset(&barg, sizeof(struct blkpg_ioctl_arg), 0);
+	memset(&bpart, 0, sizeof(struct blkpg_partition));
+	memset(&barg, 0, sizeof(struct blkpg_ioctl_arg));
 	barg.data = &bpart;
 	barg.op = BLKPG_DEL_PARTITION;
 	for (bpart.pno = device->gdp->minors - 1; bpart.pno > 0; bpart.pno--)

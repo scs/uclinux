@@ -84,8 +84,8 @@ separate MTD devices.
 // Globals
 
 static volatile int page_in_window = -1; // Current page in window.
-static unsigned long iomapadr;
-static spinlock_t sbc_gxx_spin = SPIN_LOCK_UNLOCKED;
+static void __iomem *iomapadr;
+static DEFINE_SPINLOCK(sbc_gxx_spin);
 
 /* partition_info gives details on the logical partitions that the split the 
  * single flash device into. If the size if zero we use up to the end of the
@@ -189,13 +189,13 @@ static void cleanup_sbc_gxx(void)
 		map_destroy( all_mtd );
 	}
 
-	iounmap((void *)iomapadr);
+	iounmap(iomapadr);
 	release_region(PAGE_IO,PAGE_IO_SIZE);
 }
 
-int __init init_sbc_gxx(void)
+static int __init init_sbc_gxx(void)
 {
-  	iomapadr = (unsigned long)ioremap(WINDOW_START, WINDOW_LENGTH);
+  	iomapadr = ioremap(WINDOW_START, WINDOW_LENGTH);
 	if (!iomapadr) {
 		printk( KERN_ERR"%s: failed to ioremap memory region\n",
 			sbc_gxx_map.name );
@@ -206,7 +206,7 @@ int __init init_sbc_gxx(void)
 		printk( KERN_ERR"%s: IO ports 0x%x-0x%x in use\n",
 			sbc_gxx_map.name,
 			PAGE_IO, PAGE_IO+PAGE_IO_SIZE-1 );
-		iounmap((void *)iomapadr);
+		iounmap(iomapadr);
 		return -EAGAIN;
 	}
 		

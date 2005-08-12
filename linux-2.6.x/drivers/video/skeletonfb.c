@@ -120,7 +120,7 @@ static struct fb_fix_screeninfo xxxfb_fix __initdata = {
 static struct fb_info info;
 
     /* 
-     * Each one represents the a state of the hardware. Most hardware have 
+     * Each one represents the state of the hardware. Most hardware have
      * just one hardware state. These here represent the default state(s). 
      */
 static struct xxx_par __initdata current_par;
@@ -139,6 +139,8 @@ int xxxfb_setup(char*);
  *	Usually you don't need to provide this function. The case where it 
  *	is used is to change from a text mode hardware state to a graphics
  * 	mode state. 
+ *
+ *	Returns negative errno on error, or zero on success.
  */
 static int xxxfb_open(const struct fb_info *info, int user)
 {
@@ -156,6 +158,8 @@ static int xxxfb_open(const struct fb_info *info, int user)
  *	console system is released. Usually you don't need this function.
  *	The case where it is usually used is to go from a graphics state
  *	to a text mode state.
+ *
+ *	Returns negative errno on error, or zero on success.
  */
 static int xxxfb_release(const struct fb_info *info, int user)
 {
@@ -201,8 +205,9 @@ static int xxxfb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
  *	fb_info since we are using that data. This means we depend on the
  *	data in var inside fb_info to be supported by the hardware. 
  *	xxxfb_check_var is always called before xxxfb_set_par to ensure this.
- *	Again if you can't can't the resolution you don't need this function.
+ *	Again if you can't change the resolution you don't need this function.
  *
+ *	Returns negative errno on error, or zero on success.
  */
 static int xxxfb_set_par(struct fb_info *info)
 {
@@ -217,14 +222,14 @@ static int xxxfb_set_par(struct fb_info *info)
  *      @red: The red value which can be up to 16 bits wide 
  *	@green: The green value which can be up to 16 bits wide 
  *	@blue:  The blue value which can be up to 16 bits wide.
- *	@transp: If supported the alpha value which can be up to 16 bits wide.	
+ *	@transp: If supported, the alpha value which can be up to 16 bits wide.
  *      @info: frame buffer info structure
  * 
  *  	Set a single color register. The values supplied have a 16 bit
  *  	magnitude which needs to be scaled in this function for the hardware. 
  *	Things to take into consideration are how many color registers, if
  *	any, are supported with the current color visual. With truecolor mode
- *	no color palettes are supported. Here a psuedo palette is created 
+ *	no color palettes are supported. Here a pseudo palette is created
  *	which we store the value in pseudo_palette in struct fb_info. For
  *	pseudocolor mode we have a limited color palette. To deal with this
  *	we can program what color is displayed for a particular pixel value.
@@ -238,7 +243,7 @@ static int xxxfb_setcolreg(unsigned regno, unsigned red, unsigned green,
 			   const struct fb_info *info)
 {
     if (regno >= 256)  /* no. of hw registers */
-       return 1;
+       return -EINVAL;
     /*
      * Program hardware... do anything you want with transp
      */
@@ -295,7 +300,7 @@ static int xxxfb_setcolreg(unsigned regno, unsigned red, unsigned green,
        u32 v;
 
        if (regno >= 16)
-           return 1;
+           return -EINVAL;
 
        v = (red << info->var.red.offset) |
            (green << info->var.green.offset) |
@@ -477,6 +482,28 @@ int xxxfb_cursor(struct fb_info *info, struct fb_cursor *cursor)
  *		Used internally by the driver.	 
  *      @hot:	The hot spot. 
  *	@image:	The actual data for the cursor image.
+ *
+ *      NOTES ON FLAGS (cursor->set):
+ *
+ *      FB_CUR_SETIMAGE - the cursor image has changed (cursor->image.data)
+ *      FB_CUR_SETPOS   - the cursor position has changed (cursor->image.dx|dy)
+ *      FB_CUR_SETHOT   - the cursor hot spot has changed (cursor->hot.dx|dy)
+ *      FB_CUR_SETCMAP  - the cursor colors has changed (cursor->fg_color|bg_color)
+ *      FB_CUR_SETSHAPE - the cursor bitmask has changed (cursor->mask)
+ *      FB_CUR_SETSIZE  - the cursor size has changed (cursor->width|height)
+ *      FB_CUR_SETALL   - everything has changed
+ *
+ *      NOTES ON ROPs (cursor->rop, Raster Operation)
+ *
+ *      ROP_XOR         - cursor->image.data XOR cursor->mask
+ *      ROP_COPY        - curosr->image.data AND cursor->mask
+ *
+ *      OTHER NOTES:
+ *
+ *      - fbcon only supports a 2-color cursor (cursor->image.depth = 1)
+ *      - The fb_cursor structure, @cursor, _will_ always contain valid
+ *        fields, whether any particular bitfields in cursor->set is set
+ *        or not.
  */
 }
 
@@ -529,8 +556,19 @@ int __init xxxfb_init(void)
 {
     int cmap_len, retval;	
    
+    /*
+     *  For kernel boot options (in 'video=xxxfb:<options>' format)
+     */
+#ifndef MODULE
+    char *option = NULL;
+
+    if (fb_get_options("xxxfb", &option))
+	    return -ENODEV;
+    xxxfb_setup(option);
+#endif
+
     /* 
-     * Here we set the screen_base to the vitrual memory address
+     * Here we set the screen_base to the virtual memory address
      * for the framebuffer. Usually we obtain the resource address
      * from the bus layer and then translate it to virtual memory
      * space via ioremap. Consult ioport.h. 
@@ -588,6 +626,7 @@ static void __exit xxxfb_cleanup(void)
      */
 
     unregister_framebuffer(info);
+    fb_dealloc_cmap(&info.cmap);
     /* ... */
 }
 
@@ -639,9 +678,7 @@ static struct fb_ops xxxfb_ops = {
      *  Modularization
      */
 
-#ifdef MODULE
 module_init(xxxfb_init);
-#endif 
 module_exit(xxxfb_cleanup);
 
 MODULE_LICENSE("GPL");

@@ -21,23 +21,25 @@
 
 #include <linux/kernel.h>
 #include <linux/list.h>
+#include <linux/delay.h>
 
 #include "w1.h"
 #include "w1_log.h"
+#include "w1_netlink.h"
 
 static u32 w1_ids = 1;
 
 extern struct device_driver w1_driver;
 extern struct bus_type w1_bus_type;
 extern struct device w1_device;
-extern struct device_attribute w1_master_attribute;
 extern int w1_max_slave_count;
+extern int w1_max_slave_ttl;
 extern struct list_head w1_masters;
 extern spinlock_t w1_mlock;
 
 extern int w1_process(void *);
 
-struct w1_master * w1_alloc_dev(u32 id, int slave_count,
+struct w1_master * w1_alloc_dev(u32 id, int slave_count, int slave_ttl,
 	      struct device_driver *driver, struct device *device)
 {
 	struct w1_master *dev;
@@ -65,13 +67,13 @@ struct w1_master * w1_alloc_dev(u32 id, int slave_count,
 	dev->kpid 		= -1;
 	dev->initialized 	= 0;
 	dev->id 		= id;
+	dev->slave_ttl		= slave_ttl;
 
 	atomic_set(&dev->refcnt, 2);
 
 	INIT_LIST_HEAD(&dev->slist);
 	init_MUTEX(&dev->mutex);
 
-	init_waitqueue_head(&dev->kwait);
 	init_completion(&dev->dev_released);
 	init_completion(&dev->dev_exited);
 
@@ -86,17 +88,14 @@ struct w1_master * w1_alloc_dev(u32 id, int slave_count,
 	dev->seq = 1;
 	dev->nls = netlink_kernel_create(NETLINK_NFLOG, NULL);
 	if (!dev->nls) {
-		printk(KERN_ERR "Failed to create new netlink socket(%u).\n",
-			NETLINK_NFLOG);
-		memset(dev, 0, sizeof(struct w1_master));
-		kfree(dev);
-		dev = NULL;
+		printk(KERN_ERR "Failed to create new netlink socket(%u) for w1 master %s.\n",
+			NETLINK_NFLOG, dev->dev.bus_id);
 	}
 
 	err = device_register(&dev->dev);
 	if (err) {
 		printk(KERN_ERR "Failed to register master device. err=%d\n", err);
-		if (dev->nls->sk_socket)
+		if (dev->nls && dev->nls->sk_socket)
 			sock_release(dev->nls->sk_socket);
 		memset(dev, 0, sizeof(struct w1_master));
 		kfree(dev);
@@ -109,7 +108,7 @@ struct w1_master * w1_alloc_dev(u32 id, int slave_count,
 void w1_free_dev(struct w1_master *dev)
 {
 	device_unregister(&dev->dev);
-	if (dev->nls->sk_socket)
+	if (dev->nls && dev->nls->sk_socket)
 		sock_release(dev->nls->sk_socket);
 	memset(dev, 0, sizeof(struct w1_master) + sizeof(struct w1_bus_master));
 	kfree(dev);
@@ -119,8 +118,9 @@ int w1_add_master_device(struct w1_bus_master *master)
 {
 	struct w1_master *dev;
 	int retval = 0;
+	struct w1_netlink_msg msg;
 
-	dev = w1_alloc_dev(w1_ids++, w1_max_slave_count, &w1_driver, &w1_device);
+	dev = w1_alloc_dev(w1_ids++, w1_max_slave_count, w1_max_slave_ttl, &w1_driver, &w1_device);
 	if (!dev)
 		return -ENOMEM;
 
@@ -133,7 +133,7 @@ int w1_add_master_device(struct w1_bus_master *master)
 		goto err_out_free_dev;
 	}
 
-	retval = device_create_file(&dev->dev, &w1_master_attribute);
+	retval =  w1_create_master_attributes(dev);
 	if (retval)
 		goto err_out_kill_thread;
 
@@ -144,6 +144,11 @@ int w1_add_master_device(struct w1_bus_master *master)
 	spin_lock(&w1_mlock);
 	list_add(&dev->w1_master_entry, &w1_masters);
 	spin_unlock(&w1_mlock);
+
+	msg.id.mst.id = dev->id;
+	msg.id.mst.pid = dev->kpid;
+	msg.type = W1_MASTER_ADD;
+	w1_netlink_send(dev, &msg);
 
 	return 0;
 
@@ -164,6 +169,7 @@ err_out_free_dev:
 void __w1_remove_master_device(struct w1_master *dev)
 {
 	int err;
+	struct w1_netlink_msg msg;
 
 	dev->need_exit = 1;
 	err = kill_proc(dev->kpid, SIGTERM, 1);
@@ -172,8 +178,18 @@ void __w1_remove_master_device(struct w1_master *dev)
 			 "%s: Failed to send signal to w1 kernel thread %d.\n",
 			 __func__, dev->kpid);
 
-	while (atomic_read(&dev->refcnt))
-		schedule_timeout(10);
+	while (atomic_read(&dev->refcnt)) {
+		printk(KERN_INFO "Waiting for %s to become free: refcnt=%d.\n",
+				dev->name, atomic_read(&dev->refcnt));
+
+		if (msleep_interruptible(1000))
+			flush_signals(current);
+	}
+
+	msg.id.mst.id = dev->id;
+	msg.id.mst.pid = dev->kpid;
+	msg.type = W1_MASTER_REMOVE;
+	w1_netlink_send(dev, &msg);
 
 	w1_free_dev(dev);
 }
@@ -200,8 +216,5 @@ void w1_remove_master_device(struct w1_bus_master *bm)
 	__w1_remove_master_device(dev);
 }
 
-EXPORT_SYMBOL(w1_alloc_dev);
-EXPORT_SYMBOL(w1_free_dev);
 EXPORT_SYMBOL(w1_add_master_device);
 EXPORT_SYMBOL(w1_remove_master_device);
-EXPORT_SYMBOL(__w1_remove_master_device);

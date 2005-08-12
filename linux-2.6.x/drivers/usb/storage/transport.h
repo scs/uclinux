@@ -43,15 +43,13 @@
 
 #include <linux/config.h>
 #include <linux/blkdev.h>
-#include "usb.h"
-#include "scsi.h"
 
 /* Protocols */
 
 #define US_PR_CBI	0x00		/* Control/Bulk/Interrupt */
 #define US_PR_CB	0x01		/* Control/Bulk w/o interrupt */
 #define US_PR_BULK	0x50		/* bulk only */
-#ifdef CONFIG_USB_STORAGE_HP8200e
+#ifdef CONFIG_USB_STORAGE_USBAT
 #define US_PR_SCM_ATAPI	0x80		/* SCM-ATAPI bridge */
 #endif
 #ifdef CONFIG_USB_STORAGE_SDDR09
@@ -82,9 +80,9 @@
 
 /* command block wrapper */
 struct bulk_cb_wrap {
-	__u32	Signature;		/* contains 'USBC' */
+	__le32	Signature;		/* contains 'USBC' */
 	__u32	Tag;			/* unique per command id */
-	__u32	DataTransferLength;	/* size of data */
+	__le32	DataTransferLength;	/* size of data */
 	__u8	Flags;			/* direction in bit 0 */
 	__u8	Lun;			/* LUN normally 0 */
 	__u8	Length;			/* of of the CDB */
@@ -98,17 +96,15 @@ struct bulk_cb_wrap {
 
 /* command status wrapper */
 struct bulk_cs_wrap {
-	__u32	Signature;		/* should = 'USBS' */
+	__le32	Signature;		/* should = 'USBS' */
 	__u32	Tag;			/* same as original command */
-	__u32	Residue;		/* amount not transferred */
+	__le32	Residue;		/* amount not transferred */
 	__u8	Status;			/* see below */
 	__u8	Filler[18];
 };
 
 #define US_BULK_CS_WRAP_LEN	13
 #define US_BULK_CS_SIGN		0x53425355	/* spells out 'USBS' */
-/* This is for Olympus Camedia digital cameras */
-#define US_BULK_CS_OLYMPUS_SIGN		0x55425355	/* spells out 'USBU' */
 #define US_BULK_STAT_OK		0
 #define US_BULK_STAT_FAIL	1
 #define US_BULK_STAT_PHASE	2
@@ -150,16 +146,16 @@ struct bulk_cs_wrap {
 
 #define US_CBI_ADSC		0
 
-extern int usb_stor_CBI_transport(Scsi_Cmnd*, struct us_data*);
+extern int usb_stor_CBI_transport(struct scsi_cmnd *, struct us_data*);
 
-extern int usb_stor_CB_transport(Scsi_Cmnd*, struct us_data*);
+extern int usb_stor_CB_transport(struct scsi_cmnd *, struct us_data*);
 extern int usb_stor_CB_reset(struct us_data*);
 
-extern int usb_stor_Bulk_transport(Scsi_Cmnd*, struct us_data*);
+extern int usb_stor_Bulk_transport(struct scsi_cmnd *, struct us_data*);
 extern int usb_stor_Bulk_max_lun(struct us_data*);
 extern int usb_stor_Bulk_reset(struct us_data*);
 
-extern void usb_stor_invoke_transport(Scsi_Cmnd*, struct us_data*);
+extern void usb_stor_invoke_transport(struct scsi_cmnd *, struct us_data*);
 extern void usb_stor_stop_transport(struct us_data*);
 
 extern int usb_stor_control_msg(struct us_data *us, unsigned int pipe,
@@ -170,13 +166,8 @@ extern int usb_stor_clear_halt(struct us_data *us, unsigned int pipe);
 extern int usb_stor_ctrl_transfer(struct us_data *us, unsigned int pipe,
 		u8 request, u8 requesttype, u16 value, u16 index,
 		void *data, u16 size);
-extern int usb_stor_intr_transfer(struct us_data *us, void *buf,
-		unsigned int length);
 extern int usb_stor_bulk_transfer_buf(struct us_data *us, unsigned int pipe,
 		void *buf, unsigned int length, unsigned int *act_len);
-extern int usb_stor_bulk_transfer_sglist(struct us_data *us, unsigned int pipe,
-		struct scatterlist *sg, int num_sg, unsigned int length,
-		unsigned int *act_len);
 extern int usb_stor_bulk_transfer_sg(struct us_data *us, unsigned int pipe,
 		void *buf, unsigned int length, int use_sg, int *residual);
 
