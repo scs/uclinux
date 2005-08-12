@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2004, R. Byron Moore
+ * Copyright (C) 2000 - 2005, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -210,6 +210,7 @@ acpi_ns_remove_reference (
  * Namespace modification - nsmodify
  */
 
+#ifdef ACPI_FUTURE_USAGE
 acpi_status
 acpi_ns_unload_namespace (
 	acpi_handle                     handle);
@@ -217,16 +218,19 @@ acpi_ns_unload_namespace (
 acpi_status
 acpi_ns_delete_subtree (
 	acpi_handle                     start_handle);
+#endif
 
 
 /*
  * Namespace dump/print utilities - nsdump
  */
 
+#ifdef ACPI_FUTURE_USAGE
 void
 acpi_ns_dump_tables (
 	acpi_handle                     search_base,
 	u32                             max_depth);
+#endif
 
 void
 acpi_ns_dump_entry (
@@ -245,6 +249,7 @@ acpi_ns_print_pathname (
 	u32                             num_segments,
 	char                            *pathname);
 
+#ifdef ACPI_FUTURE_USAGE
 acpi_status
 acpi_ns_dump_one_device (
 	acpi_handle                     obj_handle,
@@ -255,6 +260,7 @@ acpi_ns_dump_one_device (
 void
 acpi_ns_dump_root_devices (
 	void);
+#endif  /*  ACPI_FUTURE_USAGE  */
 
 acpi_status
 acpi_ns_dump_one_object (
@@ -263,6 +269,7 @@ acpi_ns_dump_one_object (
 	void                            *context,
 	void                            **return_value);
 
+#ifdef ACPI_FUTURE_USAGE
 void
 acpi_ns_dump_objects (
 	acpi_object_type                type,
@@ -270,6 +277,7 @@ acpi_ns_dump_objects (
 	u32                             max_depth,
 	u32                             ownder_id,
 	acpi_handle                     start_handle);
+#endif
 
 
 /*
@@ -278,42 +286,36 @@ acpi_ns_dump_objects (
 
 acpi_status
 acpi_ns_evaluate_by_handle (
-	struct acpi_namespace_node      *prefix_node,
-	union acpi_operand_object       **params,
-	union acpi_operand_object       **return_object);
+	struct acpi_parameter_info      *info);
 
 acpi_status
 acpi_ns_evaluate_by_name (
 	char                            *pathname,
-	union acpi_operand_object       **params,
-	union acpi_operand_object       **return_object);
+	struct acpi_parameter_info      *info);
 
 acpi_status
 acpi_ns_evaluate_relative (
-	struct acpi_namespace_node      *prefix_node,
 	char                            *pathname,
-	union acpi_operand_object       **params,
-	union acpi_operand_object       **return_object);
+	struct acpi_parameter_info      *info);
 
 acpi_status
 acpi_ns_execute_control_method (
-	struct acpi_namespace_node      *method_node,
-	union acpi_operand_object       **params,
-	union acpi_operand_object       **return_obj_desc);
+	struct acpi_parameter_info      *info);
 
 acpi_status
 acpi_ns_get_object_value (
-	struct acpi_namespace_node      *object_node,
-	union acpi_operand_object       **return_obj_desc);
+	struct acpi_parameter_info      *info);
 
 
 /*
  * Parent/Child/Peer utility functions
  */
 
+#ifdef ACPI_FUTURE_USAGE
 acpi_name
 acpi_ns_find_parent_name (
 	struct acpi_namespace_node      *node_to_search);
+#endif
 
 
 /*

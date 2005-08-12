@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2004, R. Byron Moore
+ * Copyright (C) 2000 - 2005, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -106,6 +106,10 @@ acpi_db_method_end (
  * dbcmds - debug commands and output routines
  */
 
+acpi_status
+acpi_db_disassemble_method (
+	char                            *name);
+
 void
 acpi_db_display_table_info (
 	char                            *table_arg);
@@ -163,6 +167,10 @@ acpi_db_find_name_in_namespace (
 void
 acpi_db_set_scope (
 	char                            *name);
+
+acpi_status
+acpi_db_sleep (
+	char                            *object_arg);
 
 void
 acpi_db_find_references (
@@ -377,11 +385,6 @@ acpi_db_command_dispatch (
 void ACPI_SYSTEM_XFACE
 acpi_db_execute_thread (
 	void                            *context);
-
-acpi_status
-acpi_db_user_commands (
-	char                            prompt,
-	union acpi_parse_object         *op);
 
 void
 acpi_db_display_help (

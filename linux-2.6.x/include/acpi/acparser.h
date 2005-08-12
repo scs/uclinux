@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2004, R. Byron Moore
+ * Copyright (C) 2000 - 2005, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -73,9 +73,7 @@ acpi_psx_load_table (
 
 acpi_status
 acpi_psx_execute (
-	struct acpi_namespace_node      *method_node,
-	union acpi_operand_object       **params,
-	union acpi_operand_object       **return_obj_desc);
+	struct acpi_parameter_info      *info);
 
 
 /******************************************************************************
@@ -249,6 +247,7 @@ acpi_ps_get_arg(
 	union acpi_parse_object         *op,
 	u32                              argn);
 
+#ifdef ACPI_FUTURE_USAGE
 union acpi_parse_object *
 acpi_ps_get_child (
 	union acpi_parse_object         *op);
@@ -257,6 +256,7 @@ union acpi_parse_object *
 acpi_ps_get_depth_next (
 	union acpi_parse_object         *origin,
 	union acpi_parse_object         *op);
+#endif  /*  ACPI_FUTURE_USAGE  */
 
 
 /* pswalk - parse tree walk routines */
@@ -303,9 +303,11 @@ void
 acpi_ps_free_op (
 	union acpi_parse_object         *op);
 
+#ifdef ACPI_ENABLE_OBJECT_CACHE
 void
 acpi_ps_delete_parse_cache (
 	void);
+#endif
 
 u8
 acpi_ps_is_leading_char (
@@ -315,9 +317,11 @@ u8
 acpi_ps_is_prefix_char (
 	u32                             c);
 
+#ifdef ACPI_FUTURE_USAGE
 u32
 acpi_ps_get_name(
 	union acpi_parse_object         *op);
+#endif
 
 void
 acpi_ps_set_name(

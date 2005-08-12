@@ -56,17 +56,20 @@
 /* ACPI PCI Interrupt Link (pci_link.c) */
 
 int acpi_irq_penalty_init (void);
-int acpi_pci_link_get_irq (acpi_handle handle, int index, int* edge_level, int* active_high_low);
+int acpi_pci_link_get_irq (acpi_handle handle, int index, int *edge_level,
+	int *active_high_low, char **name);
 
 /* ACPI PCI Interrupt Routing (pci_irq.c) */
 
 int acpi_pci_irq_add_prt (acpi_handle handle, int segment, int bus);
+void acpi_pci_irq_del_prt (int segment, int bus);
 
 /* ACPI PCI Device Binding (pci_bind.c) */
 
 struct pci_bus;
 
 int acpi_pci_bind (struct acpi_device *device);
+int acpi_pci_unbind (struct acpi_device *device);
 int acpi_pci_bind_root (struct acpi_device *device, struct acpi_pci_id *id, struct pci_bus *bus);
 
 /* Arch-defined function to add a bus to the system */
@@ -81,7 +84,8 @@ struct pci_bus *pci_acpi_scan_root(struct acpi_device *device, int domain, int b
    -------------------------------------------------------------------------- */
 
 #ifdef CONFIG_ACPI_POWER
-
+int acpi_enable_wakeup_device_power (struct acpi_device *dev);
+int acpi_disable_wakeup_device_power (struct acpi_device *dev);
 int acpi_power_get_inferred_state (struct acpi_device *device);
 int acpi_power_transition (struct acpi_device *device, int state);
 #endif
@@ -103,61 +107,6 @@ int acpi_ec_ecdt_probe (void);
 #define ACPI_PROCESSOR_LIMIT_DECREMENT	0x02
 
 int acpi_processor_set_thermal_limit(acpi_handle handle, int type);
-
-
-/* --------------------------------------------------------------------------
-                                Debug Support
-   -------------------------------------------------------------------------- */
-
-#define ACPI_DEBUG_RESTORE	0
-#define ACPI_DEBUG_LOW		1
-#define ACPI_DEBUG_MEDIUM	2
-#define ACPI_DEBUG_HIGH		3
-#define ACPI_DEBUG_DRIVERS	4
-
-extern u32 acpi_dbg_level;
-extern u32 acpi_dbg_layer;
-
-static inline void
-acpi_set_debug (
-	u32			flag)
-{
-	static u32		layer_save;
-	static u32		level_save;
-
-	switch (flag) {
-	case ACPI_DEBUG_RESTORE:
-		acpi_dbg_layer = layer_save;
-		acpi_dbg_level = level_save;
-		break;
-	case ACPI_DEBUG_LOW:
-	case ACPI_DEBUG_MEDIUM:
-	case ACPI_DEBUG_HIGH:
-	case ACPI_DEBUG_DRIVERS:
-		layer_save = acpi_dbg_layer;
-		level_save = acpi_dbg_level;
-		break;
-	}
-
-	switch (flag) {
-	case ACPI_DEBUG_LOW:
-		acpi_dbg_layer = ACPI_COMPONENT_DEFAULT | ACPI_ALL_DRIVERS;
-		acpi_dbg_level = ACPI_DEBUG_DEFAULT;
-		break;
-	case ACPI_DEBUG_MEDIUM:
-		acpi_dbg_layer = ACPI_COMPONENT_DEFAULT | ACPI_ALL_DRIVERS;
-		acpi_dbg_level = ACPI_LV_FUNCTIONS | ACPI_LV_ALL_EXCEPTIONS;
-		break;
-	case ACPI_DEBUG_HIGH:
-		acpi_dbg_layer = 0xFFFFFFFF;
-		acpi_dbg_level = 0xFFFFFFFF;
-		break;
-	case ACPI_DEBUG_DRIVERS:
-		acpi_dbg_layer = ACPI_ALL_DRIVERS;
-		acpi_dbg_level = 0xFFFFFFFF;
-		break;
-	}
-}
 
 
 #endif /*__ACPI_DRIVERS_H__*/

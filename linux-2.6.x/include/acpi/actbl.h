@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2004, R. Byron Moore
+ * Copyright (C) 2000 - 2005, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -261,6 +261,8 @@ struct madt_local_sapic
 	u8                              local_sapic_eid;        /* SAPIC EID */
 	u8                              reserved [3];           /* Reserved - must be zero */
 	LOCAL_APIC_FLAGS
+	u32                             processor_uID;          /* Numeric UID - ACPI 3.0 */
+	char                            processor_uIDstring[1]; /* String UID  - ACPI 3.0 */
 };
 
 struct madt_interrupt_source
@@ -272,7 +274,7 @@ struct madt_interrupt_source
 	u8                              processor_eid;          /* Processor EID */
 	u8                              io_sapic_vector;        /* Vector value for PMI interrupts */
 	u32                             interrupt;              /* Global system interrupt */
-	u32                             reserved;               /* Reserved - must be zero */
+	u32                             flags;                  /* Interrupt Source Flags */
 };
 
 
@@ -287,19 +289,6 @@ struct smart_battery_table
 	u32                             critical_level;
 };
 
-
-/*
- * High performance timer
- */
-struct hpet_table
-{
-	ACPI_TABLE_HEADER_DEF
-	u32                             hardware_id;
-	u32                             base_address [3];
-	u8                              hpet_number;
-	u16                             clock_tick;
-	u8                              attributes;
-};
 
 #pragma pack()
 
@@ -343,5 +332,23 @@ struct acpi_table_support
 #include "actbl1.h"   /* Acpi 1.0 table definitions */
 #include "actbl2.h"   /* Acpi 2.0 table definitions */
 
+extern u8 acpi_fadt_is_v1; /* is set to 1 if FADT is revision 1,
+			    * needed for certain workarounds */
+
+#pragma pack(1)
+/*
+ * High performance timer
+ */
+struct hpet_table
+{
+	ACPI_TABLE_HEADER_DEF
+	u32                             hardware_id;
+	struct acpi_generic_address     base_address;
+	u8                              hpet_number;
+	u16                             clock_tick;
+	u8                              attributes;
+};
+
+#pragma pack()
 
 #endif /* __ACTBL_H__ */

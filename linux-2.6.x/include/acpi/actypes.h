@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2004, R. Byron Moore
+ * Copyright (C) 2000 - 2005, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -303,7 +303,7 @@ struct uint32_struct
 typedef u32                                     acpi_integer;
 #define ACPI_INTEGER_MAX                ACPI_UINT32_MAX
 #define ACPI_INTEGER_BIT_SIZE           32
-#define ACPI_MAX_DECIMAL_DIGITS         10
+#define ACPI_MAX_DECIMAL_DIGITS         10  /* 2^32 = 4,294,967,296 */
 
 #define ACPI_USE_NATIVE_DIVIDE          /* Use compiler native 32-bit divide */
 
@@ -315,13 +315,18 @@ typedef u32                                     acpi_integer;
 typedef u64                                     acpi_integer;
 #define ACPI_INTEGER_MAX                ACPI_UINT64_MAX
 #define ACPI_INTEGER_BIT_SIZE           64
-#define ACPI_MAX_DECIMAL_DIGITS         19
+#define ACPI_MAX_DECIMAL_DIGITS         20  /* 2^64 = 18,446,744,073,709,551,616 */
+
 
 #if ACPI_MACHINE_WIDTH == 64
 #define ACPI_USE_NATIVE_DIVIDE          /* Use compiler native 64-bit divide */
 #endif
 #endif
 
+#define ACPI_MAX64_DECIMAL_DIGITS       20
+#define ACPI_MAX32_DECIMAL_DIGITS       10
+#define ACPI_MAX16_DECIMAL_DIGITS        5
+#define ACPI_MAX8_DECIMAL_DIGITS         3
 
 /*
  * Constants with special meanings
@@ -557,34 +562,56 @@ typedef u32                                     acpi_event_status;
 #define ACPI_GPE_MAX                    0xFF
 #define ACPI_NUM_GPE                    256
 
+#define ACPI_GPE_ENABLE                 0
+#define ACPI_GPE_DISABLE                1
+
+
 /*
  * GPE info flags - Per GPE
- * +---------+-+-+-+
- * |Bits 8:3 |2|1|0|
- * +---------+-+-+-+
- *          | | | |
- *          | | | +- Edge or Level Triggered
- *          | | +--- Type: Wake or Runtime
- *          | +----- Enabled for wake?
- *          +--------<Reserved>
+ * +-+-+-+---+---+-+
+ * |7|6|5|4:3|2:1|0|
+ * +-+-+-+---+---+-+
+ *  | | |  |   |  |
+ *  | | |  |   |  +--- Interrupt type: Edge or Level Triggered
+ *  | | |  |   +--- Type: Wake-only, Runtime-only, or wake/runtime
+ *  | | |  +--- Type of dispatch -- to method, handler, or none
+ *  | | +--- Enabled for runtime?
+ *  | +--- Enabled for wake?
+ *  +--- System state when GPE ocurred (running/waking)
  */
-#define ACPI_GPE_XRUPT_TYPE_MASK        (u8) 1
-#define ACPI_GPE_LEVEL_TRIGGERED        (u8) 1
-#define ACPI_GPE_EDGE_TRIGGERED         (u8) 0
+#define ACPI_GPE_XRUPT_TYPE_MASK        (u8) 0x01
+#define ACPI_GPE_LEVEL_TRIGGERED        (u8) 0x01
+#define ACPI_GPE_EDGE_TRIGGERED         (u8) 0x00
 
-#define ACPI_GPE_TYPE_MASK              (u8) 2
-#define ACPI_GPE_TYPE_WAKE              (u8) 2
-#define ACPI_GPE_TYPE_RUNTIME           (u8) 0       /* Default */
+#define ACPI_GPE_TYPE_MASK              (u8) 0x06
+#define ACPI_GPE_TYPE_WAKE_RUN          (u8) 0x06
+#define ACPI_GPE_TYPE_WAKE              (u8) 0x02
+#define ACPI_GPE_TYPE_RUNTIME           (u8) 0x04    /* Default */
 
-#define ACPI_GPE_ENABLE_MASK            (u8) 4
-#define ACPI_GPE_ENABLED                (u8) 4
-#define ACPI_GPE_DISABLED               (u8) 0       /* Default */
+#define ACPI_GPE_DISPATCH_MASK          (u8) 0x18
+#define ACPI_GPE_DISPATCH_HANDLER       (u8) 0x08
+#define ACPI_GPE_DISPATCH_METHOD        (u8) 0x10
+#define ACPI_GPE_DISPATCH_NOT_USED      (u8) 0x00    /* Default */
+
+#define ACPI_GPE_RUN_ENABLE_MASK        (u8) 0x20
+#define ACPI_GPE_RUN_ENABLED            (u8) 0x20
+#define ACPI_GPE_RUN_DISABLED           (u8) 0x00    /* Default */
+
+#define ACPI_GPE_WAKE_ENABLE_MASK       (u8) 0x40
+#define ACPI_GPE_WAKE_ENABLED           (u8) 0x40
+#define ACPI_GPE_WAKE_DISABLED          (u8) 0x00    /* Default */
+
+#define ACPI_GPE_ENABLE_MASK            (u8) 0x60    /* Both run/wake */
+
+#define ACPI_GPE_SYSTEM_MASK            (u8) 0x80
+#define ACPI_GPE_SYSTEM_RUNNING         (u8) 0x80
+#define ACPI_GPE_SYSTEM_WAKING          (u8) 0x00
 
 /*
  * Flags for GPE and Lock interfaces
  */
-#define ACPI_EVENT_WAKE_ENABLE          0x2
-#define ACPI_EVENT_WAKE_DISABLE         0x2
+#define ACPI_EVENT_WAKE_ENABLE          0x2             /* acpi_gpe_enable */
+#define ACPI_EVENT_WAKE_DISABLE         0x2             /* acpi_gpe_disable */
 
 #define ACPI_NOT_ISR                    0x1
 #define ACPI_ISR                        0x0
@@ -592,9 +619,10 @@ typedef u32                                     acpi_event_status;
 
 /* Notify types */
 
-#define ACPI_SYSTEM_NOTIFY              0
-#define ACPI_DEVICE_NOTIFY              1
-#define ACPI_MAX_NOTIFY_HANDLER_TYPE    1
+#define ACPI_SYSTEM_NOTIFY              0x1
+#define ACPI_DEVICE_NOTIFY              0x2
+#define ACPI_ALL_NOTIFY                 0x3
+#define ACPI_MAX_NOTIFY_HANDLER_TYPE    0x3
 
 #define ACPI_MAX_SYS_NOTIFY             0x7f
 
@@ -625,24 +653,26 @@ typedef u8                                      acpi_adr_space_type;
 #define ACPI_BITREG_SLEEP_BUTTON_STATUS         0x04
 #define ACPI_BITREG_RT_CLOCK_STATUS             0x05
 #define ACPI_BITREG_WAKE_STATUS                 0x06
+#define ACPI_BITREG_PCIEXP_WAKE_STATUS          0x07
 
-#define ACPI_BITREG_TIMER_ENABLE                0x07
-#define ACPI_BITREG_GLOBAL_LOCK_ENABLE          0x08
-#define ACPI_BITREG_POWER_BUTTON_ENABLE         0x09
-#define ACPI_BITREG_SLEEP_BUTTON_ENABLE         0x0A
-#define ACPI_BITREG_RT_CLOCK_ENABLE             0x0B
-#define ACPI_BITREG_WAKE_ENABLE                 0x0C
+#define ACPI_BITREG_TIMER_ENABLE                0x08
+#define ACPI_BITREG_GLOBAL_LOCK_ENABLE          0x09
+#define ACPI_BITREG_POWER_BUTTON_ENABLE         0x0A
+#define ACPI_BITREG_SLEEP_BUTTON_ENABLE         0x0B
+#define ACPI_BITREG_RT_CLOCK_ENABLE             0x0C
+#define ACPI_BITREG_WAKE_ENABLE                 0x0D
+#define ACPI_BITREG_PCIEXP_WAKE_DISABLE         0x0E
 
-#define ACPI_BITREG_SCI_ENABLE                  0x0D
-#define ACPI_BITREG_BUS_MASTER_RLD              0x0E
-#define ACPI_BITREG_GLOBAL_LOCK_RELEASE         0x0F
-#define ACPI_BITREG_SLEEP_TYPE_A                0x10
-#define ACPI_BITREG_SLEEP_TYPE_B                0x11
-#define ACPI_BITREG_SLEEP_ENABLE                0x12
+#define ACPI_BITREG_SCI_ENABLE                  0x0F
+#define ACPI_BITREG_BUS_MASTER_RLD              0x10
+#define ACPI_BITREG_GLOBAL_LOCK_RELEASE         0x11
+#define ACPI_BITREG_SLEEP_TYPE_A                0x12
+#define ACPI_BITREG_SLEEP_TYPE_B                0x13
+#define ACPI_BITREG_SLEEP_ENABLE                0x14
 
-#define ACPI_BITREG_ARB_DISABLE                 0x13
+#define ACPI_BITREG_ARB_DISABLE                 0x15
 
-#define ACPI_BITREG_MAX                         0x13
+#define ACPI_BITREG_MAX                         0x15
 #define ACPI_NUM_BITREG                         ACPI_BITREG_MAX + 1
 
 
@@ -775,11 +805,11 @@ struct acpi_system_info
  */
 
 typedef u32
-(ACPI_SYSTEM_XFACE *OSD_HANDLER) (
+(ACPI_SYSTEM_XFACE *acpi_osd_handler) (
 	void                            *context);
 
 typedef void
-(ACPI_SYSTEM_XFACE *OSD_EXECUTION_CALLBACK) (
+(ACPI_SYSTEM_XFACE *acpi_osd_exec_callback) (
 	void                            *context);
 
 /*
@@ -787,10 +817,6 @@ typedef void
  */
 typedef
 u32 (*acpi_event_handler) (
-	void                                *context);
-
-typedef
-void (*acpi_gpe_handler) (
 	void                                *context);
 
 typedef
@@ -811,6 +837,14 @@ acpi_status (*acpi_init_handler) (
 	u32                                 function);
 
 #define ACPI_INIT_DEVICE_INI        1
+
+typedef
+acpi_status (*acpi_exception_handler) (
+	acpi_status                     aml_status,
+	acpi_name                       name,
+	u16                             opcode,
+	u32                             aml_offset,
+	void                            *context);
 
 
 /* Address Spaces (For Operation Regions) */
@@ -880,6 +914,7 @@ struct acpi_compatible_id_list
 #define ACPI_VALID_HID                  0x0004
 #define ACPI_VALID_UID                  0x0008
 #define ACPI_VALID_CID                  0x0010
+#define ACPI_VALID_SXDS                 0x0020
 
 
 #define ACPI_COMMON_OBJ_INFO \
@@ -899,12 +934,12 @@ struct acpi_device_info
 {
 	ACPI_COMMON_OBJ_INFO;
 
-	u8                                  highest_dstates[4]; /* _sx_d values 0xFF indicates not valid */
 	u32                                 valid;              /* Indicates which fields below are valid */
 	u32                                 current_status;     /* _STA value */
 	acpi_integer                        address;            /* _ADR value if any */
 	struct acpi_device_id               hardware_id;        /* _HID value if any */
 	struct acpi_device_id               unique_id;          /* _UID value if any */
+	u8                                  highest_dstates[4]; /* _sx_d values: 0xFF indicates not valid */
 	struct acpi_compatible_id_list      compatibility_id;   /* List of _CIDs if any */
 };
 
@@ -1173,6 +1208,7 @@ struct acpi_resource_address64
 	u64                                 max_address_range;
 	u64                                 address_translation_offset;
 	u64                                 address_length;
+	u64                                 type_specific_attributes;
 	struct acpi_resource_source         resource_source;
 };
 

@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2004, R. Byron Moore
+ * Copyright (C) 2000 - 2005, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -53,7 +53,7 @@ typedef u32                                     acpi_mutex_handle;
 
 /* Total number of aml opcodes defined */
 
-#define AML_NUM_OPCODES                 0x7E
+#define AML_NUM_OPCODES                 0x7F
 
 
 /*****************************************************************************
@@ -189,8 +189,6 @@ struct acpi_namespace_node
 	u8                                  type;           /* Type associated with this name */
 	u16                                 owner_id;
 	union acpi_name_union               name;           /* ACPI Name, always 4 chars per ACPI spec */
-
-
 	union acpi_operand_object           *object;        /* Pointer to attached ACPI object (optional) */
 	struct acpi_namespace_node          *child;         /* First child */
 	struct acpi_namespace_node          *peer;          /* Next peer*/
@@ -211,9 +209,7 @@ struct acpi_namespace_node
 #define ANOBJ_METHOD_LOCAL              0x10
 #define ANOBJ_METHOD_NO_RETVAL          0x20
 #define ANOBJ_METHOD_SOME_NO_RETVAL     0x40
-
 #define ANOBJ_IS_BIT_OFFSET             0x80
-
 
 /*
  * ACPI Table Descriptor.  One per ACPI table
@@ -309,16 +305,31 @@ struct acpi_create_field_info
  *
  ****************************************************************************/
 
-/* Information about a GPE, one per each GPE in an array */
+/* Dispatch info for each GPE -- either a method or handler, cannot be both */
 
-struct acpi_gpe_event_info
+struct acpi_handler_info
+{
+	acpi_event_handler                      address;        /* Address of handler, if any */
+	void                                    *context;       /* Context to be passed to handler */
+	struct acpi_namespace_node              *method_node;   /* Method node for this GPE level (saved) */
+};
+
+union acpi_gpe_dispatch_info
 {
 	struct acpi_namespace_node              *method_node;   /* Method node for this GPE level */
-	acpi_gpe_handler                        handler;        /* Address of handler, if any */
-	void                                    *context;       /* Context to be passed to handler */
+	struct acpi_handler_info                *handler;
+};
+
+/*
+ * Information about a GPE, one per each GPE in an array.
+ * NOTE: Important to keep this struct as small as possible.
+ */
+struct acpi_gpe_event_info
+{
+	union acpi_gpe_dispatch_info    dispatch;       /* Either Method or Handler */
 	struct acpi_gpe_register_info           *register_info; /* Backpointer to register info */
-	u8                                      flags;          /* Level or Edge */
-	u8                                      bit_mask;       /* This GPE within the register */
+	u8                                      flags;          /* Misc info about this GPE */
+	u8                                      register_bit;   /* This GPE bit within the register */
 };
 
 /* Information about a GPE register pair, one per each status/enable pair in an array */
@@ -327,9 +338,8 @@ struct acpi_gpe_register_info
 {
 	struct acpi_generic_address             status_address; /* Address of status reg */
 	struct acpi_generic_address             enable_address; /* Address of enable reg */
-	u8                                      status;         /* Current value of status reg */
-	u8                                      enable;         /* Current value of enable reg */
-	u8                                      wake_enable;    /* Mask of bits to keep enabled when sleeping */
+	u8                                      enable_for_wake; /* GPEs to keep enabled when sleeping */
+	u8                                      enable_for_run; /* GPEs to keep enabled when running */
 	u8                                      base_gpe_number; /* Base GPE number for this register */
 };
 
@@ -339,6 +349,7 @@ struct acpi_gpe_register_info
  */
 struct acpi_gpe_block_info
 {
+	struct acpi_namespace_node              *node;
 	struct acpi_gpe_block_info              *previous;
 	struct acpi_gpe_block_info              *next;
 	struct acpi_gpe_xrupt_info              *xrupt_block;   /* Backpointer to interrupt block */
@@ -502,7 +513,7 @@ struct acpi_thread_state
 	struct acpi_walk_state              *walk_state_list;       /* Head of list of walk_states for this thread */
 	union acpi_operand_object           *acquired_mutex_list;   /* List of all currently acquired mutexes */
 	u32                                 thread_id;              /* Running thread ID */
-	u16                                 current_sync_level;     /* Mutex Sync (nested acquire) level */
+	u8                                  current_sync_level;     /* Mutex Sync (nested acquire) level */
 };
 
 
@@ -763,6 +774,7 @@ struct acpi_bit_register_info
 #define ACPI_BITMASK_POWER_BUTTON_STATUS        0x0100
 #define ACPI_BITMASK_SLEEP_BUTTON_STATUS        0x0200
 #define ACPI_BITMASK_RT_CLOCK_STATUS            0x0400
+#define ACPI_BITMASK_PCIEXP_WAKE_STATUS         0x4000    /* ACPI 3.0 */
 #define ACPI_BITMASK_WAKE_STATUS                0x8000
 
 #define ACPI_BITMASK_ALL_FIXED_STATUS           (ACPI_BITMASK_TIMER_STATUS          | \
@@ -778,6 +790,7 @@ struct acpi_bit_register_info
 #define ACPI_BITMASK_POWER_BUTTON_ENABLE        0x0100
 #define ACPI_BITMASK_SLEEP_BUTTON_ENABLE        0x0200
 #define ACPI_BITMASK_RT_CLOCK_ENABLE            0x0400
+#define ACPI_BITMASK_PCIEXP_WAKE_DISABLE        0x4000    /* ACPI 3.0 */
 
 #define ACPI_BITMASK_SCI_ENABLE                 0x0001
 #define ACPI_BITMASK_BUS_MASTER_RLD             0x0002
@@ -796,6 +809,7 @@ struct acpi_bit_register_info
 #define ACPI_BITPOSITION_POWER_BUTTON_STATUS    0x08
 #define ACPI_BITPOSITION_SLEEP_BUTTON_STATUS    0x09
 #define ACPI_BITPOSITION_RT_CLOCK_STATUS        0x0A
+#define ACPI_BITPOSITION_PCIEXP_WAKE_STATUS     0x0E    /* ACPI 3.0 */
 #define ACPI_BITPOSITION_WAKE_STATUS            0x0F
 
 #define ACPI_BITPOSITION_TIMER_ENABLE           0x00
@@ -803,6 +817,7 @@ struct acpi_bit_register_info
 #define ACPI_BITPOSITION_POWER_BUTTON_ENABLE    0x08
 #define ACPI_BITPOSITION_SLEEP_BUTTON_ENABLE    0x09
 #define ACPI_BITPOSITION_RT_CLOCK_ENABLE        0x0A
+#define ACPI_BITPOSITION_PCIEXP_WAKE_DISABLE    0x0E    /* ACPI 3.0 */
 
 #define ACPI_BITPOSITION_SCI_ENABLE             0x00
 #define ACPI_BITPOSITION_BUS_MASTER_RLD         0x01
@@ -851,7 +866,6 @@ struct acpi_bit_register_info
 /*
  * Large resource descriptor types
  */
-
 #define ACPI_RDESC_TYPE_MEMORY_24               0x81
 #define ACPI_RDESC_TYPE_GENERAL_REGISTER        0x82
 #define ACPI_RDESC_TYPE_LARGE_VENDOR            0x84
@@ -861,6 +875,7 @@ struct acpi_bit_register_info
 #define ACPI_RDESC_TYPE_WORD_ADDRESS_SPACE      0x88
 #define ACPI_RDESC_TYPE_EXTENDED_XRUPT          0x89
 #define ACPI_RDESC_TYPE_QWORD_ADDRESS_SPACE     0x8A
+#define ACPI_RDESC_TYPE_EXTENDED_ADDRESS_SPACE  0x8B
 
 
 /*****************************************************************************
