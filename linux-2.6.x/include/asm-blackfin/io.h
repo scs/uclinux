@@ -113,6 +113,17 @@ extern void blkfin_inv_cache_all(void);
 #define virt_to_bus virt_to_phys
 #define bus_to_virt phys_to_virt
 
+/*
+ * Convert a physical pointer to a virtual kernel pointer for /dev/mem
+ * access
+ */
+#define xlate_dev_mem_ptr(p)	__va(p)
+
+/*
+ * Convert a virtual cached pointer to an uncached pointer
+ */
+#define xlate_dev_kmem_ptr(p)	p
+
 #endif /* __KERNEL__ */
 
 #endif /* _BFIN_IO_H */

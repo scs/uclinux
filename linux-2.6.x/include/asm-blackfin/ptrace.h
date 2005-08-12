@@ -89,6 +89,7 @@ struct pt_regs {
 
 #define user_mode(regs) (!((regs)->ipend & ((regs)->ipend -1)))
 #define instruction_pointer(regs) ((regs)->pc)
+#define profile_pc(regs) instruction_pointer(regs)
 extern void show_regs(struct pt_regs *);
 
 #endif /* __ASSEMBLY__ */

@@ -19,6 +19,8 @@ extern void blackfin_dcache_invalidate_range(unsigned int, unsigned int);
 extern void blackfin_dflush_page(void *);
 extern void flush_data_cache(void);
 
+#define flush_dcache_mmap_lock(mapping)		do { } while (0)
+#define flush_dcache_mmap_unlock(mapping)	do { } while (0)
 #define flush_cache_mm(mm)			do { } while (0)
 #define flush_cache_range(vma, start, end)	do { } while (0)
 #define flush_cache_page(vma, vmaddr)		do { } while (0)
