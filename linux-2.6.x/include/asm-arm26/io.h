@@ -320,6 +320,8 @@ DECLARE_IO(int,l,"")
 #define writesw(p,d,l)                        __readwrite_bug("writesw")
 #define writesl(p,d,l)                        __readwrite_bug("writesl")
 
+#define mmiowb()
+
 /* the following macro is depreciated */
 #define ioaddr(port)                    __ioaddr((port))
 
@@ -417,6 +419,17 @@ extern void consistent_sync(void *vaddr, size_t size, int rw);
  */
 #define BIOVEC_MERGEABLE(vec1, vec2)	\
 	((bvec_to_phys((vec1)) + (vec1)->bv_len) == bvec_to_phys((vec2)))
+
+/*
+ * Convert a physical pointer to a virtual kernel pointer for /dev/mem
+ * access
+ */
+#define xlate_dev_mem_ptr(p)	__va(p)
+
+/*
+ * Convert a virtual cached pointer to an uncached pointer
+ */
+#define xlate_dev_kmem_ptr(p)	p
 
 #endif	/* __KERNEL__ */
 #endif	/* __ASM_ARM_IO_H */

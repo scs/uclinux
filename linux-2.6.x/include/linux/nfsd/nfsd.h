@@ -76,6 +76,11 @@ int		nfsd_lookup(struct svc_rqst *, struct svc_fh *,
 				const char *, int, struct svc_fh *);
 int		nfsd_setattr(struct svc_rqst *, struct svc_fh *,
 				struct iattr *, int, time_t);
+#ifdef CONFIG_NFSD_V4
+int             nfsd4_set_nfs4_acl(struct svc_rqst *, struct svc_fh *,
+                    struct nfs4_acl *);
+int             nfsd4_get_nfs4_acl(struct svc_rqst *, struct dentry *, struct nfs4_acl **);
+#endif /* CONFIG_NFSD_V4 */
 int		nfsd_create(struct svc_rqst *, struct svc_fh *,
 				char *name, int len, struct iattr *attrs,
 				int type, dev_t rdev, struct svc_fh *res);
@@ -89,11 +94,11 @@ int		nfsd_commit(struct svc_rqst *, struct svc_fh *,
 				loff_t, unsigned long);
 #endif /* CONFIG_NFSD_V3 */
 int		nfsd_open(struct svc_rqst *, struct svc_fh *, int,
-				int, struct file *);
+				int, struct file **);
 void		nfsd_close(struct file *);
-int		nfsd_read(struct svc_rqst *, struct svc_fh *,
-				loff_t, struct kvec *,int, unsigned long *);
-int		nfsd_write(struct svc_rqst *, struct svc_fh *,
+int 		nfsd_read(struct svc_rqst *, struct svc_fh *, struct file *,
+				loff_t, struct kvec *, int, unsigned long *);
+int 		nfsd_write(struct svc_rqst *, struct svc_fh *,struct file *,
 				loff_t, struct kvec *,int, unsigned long, int *);
 int		nfsd_readlink(struct svc_rqst *, struct svc_fh *,
 				char *, int *);
@@ -124,15 +129,15 @@ int		nfsd_permission(struct svc_export *, struct dentry *, int);
  * NFSv4 State
  */
 #ifdef CONFIG_NFSD_V4
-void nfs4_state_init(void);
+int nfs4_state_init(void);
 void nfs4_state_shutdown(void);
 time_t nfs4_lease_time(void);
 void nfs4_reset_lease(time_t leasetime);
 #else
-void static inline nfs4_state_init(void){}
-void static inline nfs4_state_shutdown(void){}
-time_t static inline nfs4_lease_time(void){return 0;}
-void static inline nfs4_reset_lease(time_t leasetime){}
+static inline int nfs4_state_init(void){return 0;}
+static inline void nfs4_state_shutdown(void){}
+static inline time_t nfs4_lease_time(void){return 0;}
+static inline void nfs4_reset_lease(time_t leasetime){}
 #endif
 
 /*
@@ -204,6 +209,7 @@ void		nfsd_lockd_shutdown(void);
 #define	nfserr_no_grace		__constant_htonl(NFSERR_NO_GRACE)
 #define	nfserr_reclaim_bad	__constant_htonl(NFSERR_RECLAIM_BAD)
 #define	nfserr_badname		__constant_htonl(NFSERR_BADNAME)
+#define	nfserr_cb_path_down	__constant_htonl(NFSERR_CB_PATH_DOWN)
 
 /* error codes for internal use */
 /* if a request fails due to kmalloc failure, it gets dropped.
@@ -258,7 +264,6 @@ static inline int is_fsid(struct svc_fh *fh, struct knfsd_fh *reffh)
 
 /*
  * The following attributes are currently not supported by the NFSv4 server:
- *    ACL           (will be supported in a forthcoming patch)
  *    ARCHIVE       (deprecated anyway)
  *    FS_LOCATIONS  (will be supported eventually)
  *    HIDDEN        (unlikely to be supported any time soon)
@@ -278,7 +283,7 @@ static inline int is_fsid(struct svc_fh *fh, struct knfsd_fh *reffh)
  | FATTR4_WORD0_FILEHANDLE      | FATTR4_WORD0_FILEID       | FATTR4_WORD0_FILES_AVAIL      \
  | FATTR4_WORD0_FILES_FREE      | FATTR4_WORD0_FILES_TOTAL  | FATTR4_WORD0_HOMOGENEOUS      \
  | FATTR4_WORD0_MAXFILESIZE     | FATTR4_WORD0_MAXLINK      | FATTR4_WORD0_MAXNAME          \
- | FATTR4_WORD0_MAXREAD         | FATTR4_WORD0_MAXWRITE)
+ | FATTR4_WORD0_MAXREAD         | FATTR4_WORD0_MAXWRITE     | FATTR4_WORD0_ACL)
 
 #define NFSD_SUPPORTED_ATTRS_WORD1                                                          \
 (FATTR4_WORD1_MODE              | FATTR4_WORD1_NO_TRUNC     | FATTR4_WORD1_NUMLINKS         \
@@ -293,7 +298,8 @@ static inline int is_fsid(struct svc_fh *fh, struct knfsd_fh *reffh)
 (FATTR4_WORD1_TIME_ACCESS_SET   | FATTR4_WORD1_TIME_MODIFY_SET)
 
 /* These are the only attrs allowed in CREATE/OPEN/SETATTR. */
-#define NFSD_WRITEABLE_ATTRS_WORD0                            FATTR4_WORD0_SIZE
+#define NFSD_WRITEABLE_ATTRS_WORD0                                                          \
+(FATTR4_WORD0_SIZE              | FATTR4_WORD0_ACL                                         )
 #define NFSD_WRITEABLE_ATTRS_WORD1                                                          \
 (FATTR4_WORD1_MODE              | FATTR4_WORD1_OWNER         | FATTR4_WORD1_OWNER_GROUP     \
  | FATTR4_WORD1_TIME_ACCESS_SET | FATTR4_WORD1_TIME_METADATA | FATTR4_WORD1_TIME_MODIFY_SET)

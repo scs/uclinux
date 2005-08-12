@@ -230,7 +230,7 @@ typedef struct {
 	int mode;		/* operation mode */
 	int client;		/* sequencer client number */
 	int port;		/* sequencer port number */
-	int midi_has_voices: 1;
+	unsigned int midi_has_voices: 1;
 } snd_gus_port_t;
 
 typedef struct _snd_gus_voice snd_gus_voice_t;
@@ -264,7 +264,7 @@ typedef enum {
 
 struct _snd_gus_voice {
 	int number;
-	int use: 1,
+	unsigned int use: 1,
 	    pcm: 1,
 	    synth:1,
 	    midi: 1;
@@ -598,10 +598,6 @@ int snd_gf1_mem_proc_init(snd_gus_card_t * gus);
 
 /* gus_dma.c */
 
-void snd_gf1_dma_program(snd_gus_card_t * gus, unsigned int addr,
-			 unsigned long buf_addr, unsigned int count,
-			 unsigned int cmd);
-void snd_gf1_dma_ack(snd_gus_card_t * gus);
 int snd_gf1_dma_init(snd_gus_card_t * gus);
 int snd_gf1_dma_done(snd_gus_card_t * gus);
 int snd_gf1_dma_transfer_block(snd_gus_card_t * gus,

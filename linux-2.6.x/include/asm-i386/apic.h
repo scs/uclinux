@@ -7,13 +7,28 @@
 #include <asm/apicdef.h>
 #include <asm/system.h>
 
-#define APIC_DEBUG 0
-
-#if APIC_DEBUG
-#define Dprintk(x...) printk(x)
-#else
 #define Dprintk(x...)
-#endif
+
+/*
+ * Debugging macros
+ */
+#define APIC_QUIET   0
+#define APIC_VERBOSE 1
+#define APIC_DEBUG   2
+
+extern int apic_verbosity;
+
+/*
+ * Define the default level of output to be very little
+ * This can be turned up by using apic=verbose for more
+ * information and apic=debug for _lots_ of information.
+ * apic_verbosity is defined in apic.c
+ */
+#define apic_printk(v, s, a...) do {       \
+		if ((v) <= apic_verbosity) \
+			printk(s, ##a);    \
+	} while (0)
+
 
 #ifdef CONFIG_X86_LOCAL_APIC
 
@@ -38,7 +53,8 @@ static __inline unsigned long apic_read(unsigned long reg)
 
 static __inline__ void apic_wait_icr_idle(void)
 {
-	do { } while ( apic_read( APIC_ICR ) & APIC_ICR_BUSY );
+	while ( apic_read( APIC_ICR ) & APIC_ICR_BUSY )
+		cpu_relax();
 }
 
 int get_physical_broadcast(void);
@@ -73,6 +89,7 @@ extern void clear_local_APIC(void);
 extern void connect_bsp_APIC (void);
 extern void disconnect_bsp_APIC (void);
 extern void disable_local_APIC (void);
+extern void lapic_shutdown (void);
 extern int verify_local_APIC (void);
 extern void cache_APIC_registers (void);
 extern void sync_Arb_IDs (void);
@@ -92,7 +109,6 @@ extern int APIC_init_uniprocessor (void);
 extern void disable_APIC_timer(void);
 extern void enable_APIC_timer(void);
 
-extern int check_nmi_watchdog (void);
 extern void enable_NMI_through_LVT0 (void * dummy);
 
 extern unsigned int nmi_watchdog;
@@ -101,6 +117,9 @@ extern unsigned int nmi_watchdog;
 #define NMI_LOCAL_APIC	2
 #define NMI_INVALID	3
 
-#endif /* CONFIG_X86_LOCAL_APIC */
+#else /* !CONFIG_X86_LOCAL_APIC */
+static inline void lapic_shutdown(void) { }
+
+#endif /* !CONFIG_X86_LOCAL_APIC */
 
 #endif /* __ASM_APIC_H */

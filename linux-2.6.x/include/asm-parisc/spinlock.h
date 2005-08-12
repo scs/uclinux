@@ -27,21 +27,35 @@ static inline int spin_is_locked(spinlock_t *x)
 
 static inline void _raw_spin_lock(spinlock_t *x)
 {
-	volatile unsigned int *a = __ldcw_align(x);
+	volatile unsigned int *a;
+
+	mb();
+	a = __ldcw_align(x);
 	while (__ldcw(a) == 0)
 		while (*a == 0);
+	mb();
 }
 
 static inline void _raw_spin_unlock(spinlock_t *x)
 {
-	volatile unsigned int *a = __ldcw_align(x);
+	volatile unsigned int *a;
+	mb();
+	a = __ldcw_align(x);
 	*a = 1;
+	mb();
 }
 
 static inline int _raw_spin_trylock(spinlock_t *x)
 {
-	volatile unsigned int *a = __ldcw_align(x);
-	return __ldcw(a) != 0;
+	volatile unsigned int *a;
+	int ret;
+
+	mb();
+	a = __ldcw_align(x);
+        ret = __ldcw(a) != 0;
+	mb();
+
+	return ret;
 }
 	
 #define spin_lock_own(LOCK, LOCATION)	((void)0)
@@ -128,13 +142,16 @@ do {									\
 typedef struct {
 	spinlock_t lock;
 	volatile int counter;
+#ifdef CONFIG_PREEMPT
+	unsigned int break_lock;
+#endif
 } rwlock_t;
 
 #define RW_LOCK_UNLOCKED (rwlock_t) { __SPIN_LOCK_UNLOCKED, 0 }
 
 #define rwlock_init(lp)	do { *(lp) = RW_LOCK_UNLOCKED; } while (0)
 
-#define rwlock_is_locked(lp) ((lp)->counter != 0)
+#define _raw_read_trylock(lock) generic_raw_read_trylock(lock)
 
 /* read_lock, read_unlock are pretty straightforward.  Of course it somehow
  * sucks we end up saving/restoring flags twice for read_lock_irqsave aso. */
@@ -207,6 +224,26 @@ static  __inline__ void _raw_write_unlock(rwlock_t *rw)
 	rw->counter = 0;
 	_raw_spin_unlock(&rw->lock);
 }
+
+#ifdef CONFIG_DEBUG_RWLOCK
+extern int _dbg_write_trylock(rwlock_t * rw, const char *bfile, int bline);
+#define _raw_write_trylock(rw) _dbg_write_trylock(rw, __FILE__, __LINE__)
+#else
+static  __inline__ int _raw_write_trylock(rwlock_t *rw)
+{
+	_raw_spin_lock(&rw->lock);
+	if (rw->counter != 0) {
+		/* this basically never happens */
+		_raw_spin_unlock(&rw->lock);
+
+		return 0;
+	}
+
+	/* got it.  now leave without unlocking */
+	rw->counter = -1; /* remember we are locked */
+	return 1;
+}
+#endif /* CONFIG_DEBUG_RWLOCK */
 
 static __inline__ int is_read_locked(rwlock_t *rw)
 {

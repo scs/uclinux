@@ -70,15 +70,24 @@ static inline unsigned long _swapl(volatile unsigned long v)
 }
 
 #define readb(addr) \
-    ({ unsigned char __v = (*(volatile unsigned char *) ((addr) & 0x00ffffff)); __v; })
+    ({ unsigned char __v = \
+     *(volatile unsigned char *)((unsigned long)(addr) & 0x00ffffff); \
+     __v; })
 #define readw(addr) \
-    ({ unsigned short __v = (*(volatile unsigned short *) ((addr) & 0x00ffffff)); __v; })
+    ({ unsigned short __v = \
+     *(volatile unsigned short *)((unsigned long)(addr) & 0x00ffffff); \
+     __v; })
 #define readl(addr) \
-    ({ unsigned int __v = (*(volatile unsigned int *) ((addr) & 0x00ffffff)); __v; })
+    ({ unsigned long __v = \
+     *(volatile unsigned long *)((unsigned long)(addr) & 0x00ffffff); \
+     __v; })
 
-#define writeb(b,addr) (void)((*(volatile unsigned char *) ((addr) & 0x00ffffff)) = (b))
-#define writew(b,addr) (void)((*(volatile unsigned short *) ((addr) & 0x00ffffff)) = (b))
-#define writel(b,addr) (void)((*(volatile unsigned int *) ((addr) & 0x00ffffff)) = (b))
+#define writeb(b,addr) (void)((*(volatile unsigned char *) \
+                             ((unsigned long)(addr) & 0x00ffffff)) = (b))
+#define writew(b,addr) (void)((*(volatile unsigned short *) \
+                             ((unsigned long)(addr) & 0x00ffffff)) = (b))
+#define writel(b,addr) (void)((*(volatile unsigned long *) \
+                             ((unsigned long)(addr) & 0x00ffffff)) = (b))
 #define readb_relaxed(addr) readb(addr)
 #define readw_relaxed(addr) readw(addr)
 #define readl_relaxed(addr) readl(addr)
@@ -200,6 +209,8 @@ static inline void io_insl_noswap(unsigned int addr, void *buf, int len)
 #define memcpy_fromio(a,b,c)	memcpy((a),(void *)(b),(c))
 #define memcpy_toio(a,b,c)	memcpy((void *)(a),(b),(c))
 
+#define mmiowb()
+
 #define inb(addr)    ((h8300_buswidth(addr))?readw((addr) & ~1) & 0xff:readb(addr))
 #define inw(addr)    _swapw(readw(addr))
 #define inl(addr)    _swapl(readl(addr))
@@ -305,6 +316,17 @@ static __inline__ void ctrl_outl(unsigned long b, unsigned long addr)
 
 #define virt_to_bus virt_to_phys
 #define bus_to_virt phys_to_virt
+
+/*
+ * Convert a physical pointer to a virtual kernel pointer for /dev/mem
+ * access
+ */
+#define xlate_dev_mem_ptr(p)	__va(p)
+
+/*
+ * Convert a virtual cached pointer to an uncached pointer
+ */
+#define xlate_dev_kmem_ptr(p)	p
 
 #endif /* __KERNEL__ */
 

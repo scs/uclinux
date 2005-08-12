@@ -15,11 +15,13 @@
  * virtual/physical addressing like 32-bit virtual / 36-bit
  * physical need a larger than native word size type. -Matt
  */
-#ifndef CONFIG_PTE_64BIT
+#ifndef CONFIG_PHYS_64BIT
 typedef unsigned long phys_addr_t;
+#define PHYS_FMT	"%.8lx"
 #else
 typedef unsigned long long phys_addr_t;
 extern phys_addr_t fixup_bigphys_addr(phys_addr_t, phys_addr_t);
+#define PHYS_FMT	"%16Lx"
 #endif
 
 /* Default "unsigned long" context */
@@ -152,7 +154,7 @@ typedef struct _P601_BAT {
  * is written, and the contents of several registers are used to
  * create the entry.
  */
-#define MI_CTR		784	/* Instruction TLB control register */
+#define SPRN_MI_CTR	784	/* Instruction TLB control register */
 #define MI_GPM		0x80000000	/* Set domain manager mode */
 #define MI_PPM		0x40000000	/* Set subpage protection */
 #define MI_CIDEF	0x20000000	/* Set cache inhibit when MMU dis */
@@ -164,7 +166,7 @@ typedef struct _P601_BAT {
 /* These are the Ks and Kp from the PowerPC books.  For proper operation,
  * Ks = 0, Kp = 1.
  */
-#define MI_AP		786
+#define SPRN_MI_AP	786
 #define MI_Ks		0x80000000	/* Should not be set */
 #define MI_Kp		0x40000000	/* Should always be set */
 
@@ -172,7 +174,7 @@ typedef struct _P601_BAT {
  * about the last instruction TLB miss.  When MI_RPN is written, bits in
  * this register are used to create the TLB entry.
  */
-#define MI_EPN		787
+#define SPRN_MI_EPN	787
 #define MI_EPNMASK	0xfffff000	/* Effective page number for entry */
 #define MI_EVALID	0x00000200	/* Entry is valid */
 #define MI_ASIDMASK	0x0000000f	/* ASID match value */
@@ -182,7 +184,7 @@ typedef struct _P601_BAT {
  * For the instruction TLB, it contains bits that get loaded into the
  * TLB entry when the MI_RPN is written.
  */
-#define MI_TWC		789
+#define SPRN_MI_TWC	789
 #define MI_APG		0x000001e0	/* Access protection group (0) */
 #define MI_GUARDED	0x00000010	/* Guarded storage */
 #define MI_PSMASK	0x0000000c	/* Mask of page size bits */
@@ -196,7 +198,7 @@ typedef struct _P601_BAT {
  * causes a TLB entry to be created for the instruction TLB, using
  * additional information from the MI_EPN, and MI_TWC registers.
  */
-#define MI_RPN		790
+#define SPRN_MI_RPN	790
 
 /* Define an RPN value for mapping kernel memory to large virtual
  * pages for boot initialization.  This has real page number of 0,
@@ -205,7 +207,7 @@ typedef struct _P601_BAT {
  */
 #define MI_BOOTINIT	0x000001fd
 
-#define MD_CTR		792	/* Data TLB control register */
+#define SPRN_MD_CTR	792	/* Data TLB control register */
 #define MD_GPM		0x80000000	/* Set domain manager mode */
 #define MD_PPM		0x40000000	/* Set subpage protection */
 #define MD_CIDEF	0x20000000	/* Set cache inhibit when MMU dis */
@@ -216,14 +218,14 @@ typedef struct _P601_BAT {
 #define MD_IDXMASK	0x00001f00	/* TLB index to be loaded */
 #define MD_RESETVAL	0x04000000	/* Value of register at reset */
 
-#define M_CASID		793	/* Address space ID (context) to match */
+#define SPRN_M_CASID	793	/* Address space ID (context) to match */
 #define MC_ASIDMASK	0x0000000f	/* Bits used for ASID value */
 
 
 /* These are the Ks and Kp from the PowerPC books.  For proper operation,
  * Ks = 0, Kp = 1.
  */
-#define MD_AP		794
+#define SPRN_MD_AP	794
 #define MD_Ks		0x80000000	/* Should not be set */
 #define MD_Kp		0x40000000	/* Should always be set */
 
@@ -231,7 +233,7 @@ typedef struct _P601_BAT {
  * about the last instruction TLB miss.  When MD_RPN is written, bits in
  * this register are used to create the TLB entry.
  */
-#define MD_EPN		795
+#define SPRN_MD_EPN	795
 #define MD_EPNMASK	0xfffff000	/* Effective page number for entry */
 #define MD_EVALID	0x00000200	/* Entry is valid */
 #define MD_ASIDMASK	0x0000000f	/* ASID match value */
@@ -241,7 +243,7 @@ typedef struct _P601_BAT {
  * During a software tablewalk, reading this register provides the address
  * of the entry associated with MD_EPN.
  */
-#define M_TWB		796
+#define SPRN_M_TWB	796
 #define	M_L1TB		0xfffff000	/* Level 1 table base address */
 #define M_L1INDX	0x00000ffc	/* Level 1 index, when read */
 					/* Reset value is undefined */
@@ -251,7 +253,7 @@ typedef struct _P601_BAT {
  * when the MD_RPN is written.  It is also provides the hardware assist
  * for finding the PTE address during software tablewalk.
  */
-#define MD_TWC		797
+#define SPRN_MD_TWC	797
 #define MD_L2TB		0xfffff000	/* Level 2 table base address */
 #define MD_L2INDX	0xfffffe00	/* Level 2 index (*pte), when read */
 #define MD_APG		0x000001e0	/* Access protection group (0) */
@@ -269,12 +271,12 @@ typedef struct _P601_BAT {
  * causes a TLB entry to be created for the data TLB, using
  * additional information from the MD_EPN, and MD_TWC registers.
  */
-#define MD_RPN		798
+#define SPRN_MD_RPN	798
 
 /* This is a temporary storage register that could be used to save
  * a processor working register during a tablewalk.
  */
-#define M_TW		799
+#define SPRN_M_TW	799
 
 /*
  * At present, all PowerPC 400-class processors share a similar TLB
@@ -401,18 +403,17 @@ typedef struct _P601_BAT {
  * Freescale Book-E MMU support
  */
 
-#define MAS0_TLBSEL	0x10000000
-#define MAS0_ESEL	0x000F0000
-#define MAS0_NV		0x00000001
+#define MAS0_TLBSEL(x)	((x << 28) & 0x30000000)
+#define MAS0_ESEL(x)	((x << 16) & 0x0FFF0000)
+#define MAS0_NV		0x00000FFF
 
 #define MAS1_VALID 	0x80000000
 #define MAS1_IPROT	0x40000000
-#define MAS1_TID 	0x03FF0000
+#define MAS1_TID(x)	((x << 16) & 0x3FFF0000)
 #define MAS1_TS		0x00001000
-#define MAS1_TSIZE(x)	(x << 8)
+#define MAS1_TSIZE(x)	((x << 8) & 0x00000F00)
 
 #define MAS2_EPN	0xFFFFF000
-#define MAS2_SHAREN	0x00000200
 #define MAS2_X0		0x00000040
 #define MAS2_X1		0x00000020
 #define MAS2_W		0x00000010
@@ -433,10 +434,9 @@ typedef struct _P601_BAT {
 #define MAS3_UR		0x00000002
 #define MAS3_SR		0x00000001
 
-#define MAS4_TLBSELD	0x10000000
-#define MAS4_TIDDSEL	0x00030000
-#define MAS4_DSHAREN	0x00001000
-#define MAS4_TSIZED(x)	(x << 8)
+#define MAS4_TLBSELD(x) MAS0_TLBSEL(x)
+#define MAS4_TIDDSEL	0x000F0000
+#define MAS4_TSIZED(x)	MAS1_TSIZE(x)
 #define MAS4_X0D	0x00000040
 #define MAS4_X1D	0x00000020
 #define MAS4_WD		0x00000010
@@ -445,8 +445,12 @@ typedef struct _P601_BAT {
 #define MAS4_GD		0x00000002
 #define MAS4_ED		0x00000001
 
-#define MAS6_SPID	0x00FF0000
+#define MAS6_SPID0	0x3FFF0000
+#define MAS6_SPID1	0x00007FFE
 #define MAS6_SAS	0x00000001
+#define MAS6_SPID	MAS6_SPID0
+
+#define MAS7_RPN	0xFFFFFFFF
 
 #endif /* _PPC_MMU_H_ */
 #endif /* __KERNEL__ */

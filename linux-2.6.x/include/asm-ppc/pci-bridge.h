@@ -12,7 +12,7 @@ struct pci_controller;
  * pci_io_base returns the memory address at which you can access
  * the I/O space for PCI bus number `bus' (or NULL on error).
  */
-extern void *pci_bus_io_base(unsigned int bus);
+extern void __iomem *pci_bus_io_base(unsigned int bus);
 extern unsigned long pci_bus_io_base_phys(unsigned int bus);
 extern unsigned long pci_bus_mem_base_phys(unsigned int bus);
 
@@ -48,7 +48,7 @@ struct pci_controller {
 	int last_busno;
 	int bus_offset;
 
-	void *io_base_virt;
+	void __iomem *io_base_virt;
 	unsigned long io_base_phys;
 
 	/* Some machines (PReP) have a non 1:1 mapping of
@@ -57,8 +57,8 @@ struct pci_controller {
 	unsigned long pci_mem_offset;
 
 	struct pci_ops *ops;
-	volatile unsigned int *cfg_addr;
-	volatile unsigned char *cfg_data;
+	volatile unsigned int __iomem *cfg_addr;
+	volatile void __iomem *cfg_data;
 	/*
 	 * If set, indirect method will set the cfg_type bit as
 	 * needed to generate type 1 configuration transactions.
@@ -94,6 +94,8 @@ int early_write_config_word(struct pci_controller *hose, int bus, int dev_fn,
 int early_write_config_dword(struct pci_controller *hose, int bus, int dev_fn,
 			     int where, u32 val);
 
+extern void setup_indirect_pci_nomap(struct pci_controller* hose,
+			       void __iomem *cfg_addr, void __iomem *cfg_data);
 extern void setup_indirect_pci(struct pci_controller* hose,
 			       u32 cfg_addr, u32 cfg_data);
 extern void setup_grackle(struct pci_controller *hose);

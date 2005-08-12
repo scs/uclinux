@@ -61,8 +61,9 @@ struct mq_attr;
 #include <asm/siginfo.h>
 #include <asm/signal.h>
 #include <linux/quota.h>
+#include <linux/key.h>
 
-asmlinkage long sys_time(int __user *tloc);
+asmlinkage long sys_time(time_t __user *tloc);
 asmlinkage long sys_stime(time_t __user *tptr);
 asmlinkage long sys_gettimeofday(struct timeval __user *tv,
 				struct timezone __user *tz);
@@ -114,6 +115,9 @@ asmlinkage long sys_getitimer(int which, struct itimerval __user *value);
 asmlinkage long sys_setitimer(int which,
 				struct itimerval __user *value,
 				struct itimerval __user *ovalue);
+asmlinkage long sys_timer_create(clockid_t which_clock,
+				 struct sigevent __user *timer_event_spec,
+				 timer_t __user * created_timer_id);
 asmlinkage long sys_timer_gettime(timer_t timer_id,
 				struct itimerspec __user *setting);
 asmlinkage long sys_timer_getoverrun(timer_t timer_id);
@@ -160,9 +164,12 @@ asmlinkage long sys_kexec_load(void *entry, unsigned long nr_segments,
 
 asmlinkage long sys_exit(int error_code);
 asmlinkage void sys_exit_group(int error_code);
-asmlinkage long sys_wait4(pid_t pid, unsigned int __user *stat_addr,
+asmlinkage long sys_wait4(pid_t pid, int __user *stat_addr,
 				int options, struct rusage __user *ru);
-asmlinkage long sys_waitpid(pid_t pid, unsigned int __user *stat_addr, int options);
+asmlinkage long sys_waitid(int which, pid_t pid,
+			   struct siginfo __user *infop,
+			   int options, struct rusage __user *ru);
+asmlinkage long sys_waitpid(pid_t pid, int __user *stat_addr, int options);
 asmlinkage long sys_set_tid_address(int __user *tidptr);
 asmlinkage long sys_futex(u32 __user *uaddr, int op, int val,
 			struct timespec __user *utime, u32 __user *uaddr2,
@@ -449,8 +456,7 @@ asmlinkage long sys_semctl(int semid, int semnum, int cmd, union semun arg);
 asmlinkage long sys_semtimedop(int semid, struct sembuf __user *sops,
 				unsigned nsops,
 				const struct timespec __user *timeout);
-asmlinkage long sys_shmat(int shmid, char __user *shmaddr,
-				int shmflg, unsigned long __user *addr);
+asmlinkage long sys_shmat(int shmid, char __user *shmaddr, int shmflg);
 asmlinkage long sys_shmget(key_t key, size_t size, int flag);
 asmlinkage long sys_shmdt(char __user *shmaddr);
 asmlinkage long sys_shmctl(int shmid, int cmd, struct shmid_ds __user *buf);
@@ -484,5 +490,19 @@ asmlinkage long sys_nfsservctl(int cmd,
 asmlinkage long sys_syslog(int type, char __user *buf, int len);
 asmlinkage long sys_uselib(const char __user *library);
 asmlinkage long sys_ni_syscall(void);
+
+asmlinkage long sys_add_key(const char __user *_type,
+			    const char __user *_description,
+			    const void __user *_payload,
+			    size_t plen,
+			    key_serial_t destringid);
+
+asmlinkage long sys_request_key(const char __user *_type,
+				const char __user *_description,
+				const char __user *_callout_info,
+				key_serial_t destringid);
+
+asmlinkage long sys_keyctl(int cmd, unsigned long arg2, unsigned long arg3,
+			   unsigned long arg4, unsigned long arg5);
 
 #endif

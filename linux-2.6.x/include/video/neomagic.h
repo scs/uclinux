@@ -69,6 +69,9 @@
 #define NEO_ICON128_ENABLE	0x0000000C
 #define NEO_ICON_BLANK		0x00000010
 
+#define NEO_GR01_SUPPRESS_VSYNC 0x10
+#define NEO_GR01_SUPPRESS_HSYNC 0x20
+
 #ifdef __KERNEL__
 
 #ifdef NEOFB_DEBUG
@@ -176,11 +179,11 @@ struct neofb_par {
 #ifdef CONFIG_MTRR
 	int mtrr;
 #endif
-	u8 *mmio_vbase;
+	u8 __iomem *mmio_vbase;
 	u8 cursorOff;
 	u8 *cursorPad;		/* Must die !! */
 
-	Neo2200 *neo2200;
+	Neo2200 __iomem *neo2200;
 
 	/* Panels size */
 	int NeoPanelWidth;

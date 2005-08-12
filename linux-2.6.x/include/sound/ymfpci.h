@@ -198,6 +198,10 @@
 #define YMFPCI_LEGACY2_IMOD	(1 << 15)	/* legacy IRQ mode */
 /* SIEN:IMOD 0:0 = legacy irq, 0:1 = INTA, 1:0 = serialized IRQ */
 
+#if defined(CONFIG_GAMEPORT) || (defined(MODULE) && defined(CONFIG_GAMEPORT_MODULE))
+#define SUPPORT_JOYSTICK
+#endif
+
 /*
  *
  */
@@ -262,7 +266,7 @@ typedef enum {
 struct _snd_ymfpci_voice {
 	ymfpci_t *chip;
 	int number;
-	int use: 1,
+	unsigned int use: 1,
 	    pcm: 1,
 	    synth: 1,
 	    midi: 1;
@@ -288,9 +292,9 @@ struct _snd_ymfpci_pcm {
 	snd_ymfpci_pcm_type_t type;
 	snd_pcm_substream_t *substream;
 	ymfpci_voice_t *voices[2];	/* playback only */
-	int running: 1;
-	int output_front: 1;
-	int output_rear: 1;
+	unsigned int running: 1;
+	unsigned int output_front: 1;
+	unsigned int output_rear: 1;
 	u32 period_size;		/* cached from runtime->period_size */
 	u32 buffer_size;		/* cached from runtime->buffer_size */
 	u32 period_pos;
@@ -305,18 +309,16 @@ struct _snd_ymfpci {
 	unsigned int device_id;	/* PCI device ID */
 	unsigned int rev;	/* PCI revision */
 	unsigned long reg_area_phys;
-	unsigned long reg_area_virt;
+	void __iomem *reg_area_virt;
 	struct resource *res_reg_area;
 	struct resource *fm_res;
 	struct resource *mpu_res;
 
 	unsigned short old_legacy_ctrl;
-#if defined(CONFIG_GAMEPORT) || defined(CONFIG_GAMEPORT_MODULE)
-	struct resource *joystick_res;
-	struct gameport gameport;
+#ifdef SUPPORT_JOYSTICK
+	struct gameport *gameport;
 #endif
 
-	struct snd_dma_device dma_dev;
 	struct snd_dma_buffer work_ptr;
 
 	unsigned int bank_size_playback;
@@ -382,6 +384,7 @@ int snd_ymfpci_create(snd_card_t * card,
 		      struct pci_dev *pci,
 		      unsigned short old_legacy_ctrl,
 		      ymfpci_t ** rcodec);
+void snd_ymfpci_free_gameport(ymfpci_t *chip);
 
 int snd_ymfpci_pcm(ymfpci_t *chip, int device, snd_pcm_t **rpcm);
 int snd_ymfpci_pcm2(ymfpci_t *chip, int device, snd_pcm_t **rpcm);
@@ -389,12 +392,5 @@ int snd_ymfpci_pcm_spdif(ymfpci_t *chip, int device, snd_pcm_t **rpcm);
 int snd_ymfpci_pcm_4ch(ymfpci_t *chip, int device, snd_pcm_t **rpcm);
 int snd_ymfpci_mixer(ymfpci_t *chip, int rear_switch);
 int snd_ymfpci_timer(ymfpci_t *chip, int device);
-
-int snd_ymfpci_voice_alloc(ymfpci_t *chip, ymfpci_voice_type_t type, int pair, ymfpci_voice_t **rvoice);
-int snd_ymfpci_voice_free(ymfpci_t *chip, ymfpci_voice_t *pvoice);
-
-#if defined(CONFIG_GAMEPORT) || (defined(MODULE) && defined(CONFIG_GAMEPORT_MODULE))
-#define SUPPORT_JOYSTICK
-#endif
 
 #endif /* __SOUND_YMFPCI_H */

@@ -14,12 +14,19 @@
 
 #ifdef __KERNEL__
 
-extern uint32_t rxrpc_epoch;
+extern __be32 rxrpc_epoch;
 
+#ifdef CONFIG_SYSCTL
 extern int rxrpc_ktrace;
 extern int rxrpc_kdebug;
 extern int rxrpc_kproto;
 extern int rxrpc_knet;
+#else
+#define rxrpc_ktrace	0
+#define rxrpc_kdebug	0
+#define rxrpc_kproto	0
+#define rxrpc_knet	0
+#endif
 
 extern int rxrpc_sysctl_init(void);
 extern void rxrpc_sysctl_cleanup(void);

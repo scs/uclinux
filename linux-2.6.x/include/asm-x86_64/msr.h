@@ -28,8 +28,8 @@
 
 #define wrmsrl(msr,val) wrmsr(msr,(__u32)((__u64)(val)),((__u64)(val))>>32) 
 
-/* wrmsrl with exception handling */
-#define checking_wrmsrl(msr,val) ({ int ret__;						\
+/* wrmsr with exception handling */
+#define wrmsr_safe(msr,a,b) ({ int ret__;						\
 	asm volatile("2: wrmsr ; xorl %0,%0\n"						\
 		     "1:\n\t"								\
 		     ".section .fixup,\"ax\"\n\t"					\
@@ -40,8 +40,10 @@
 		     "   .quad 	2b,3b\n\t"						\
 		     ".previous"							\
 		     : "=a" (ret__)							\
-		     : "c" (msr), "0" ((__u32)val), "d" ((val)>>32), "i" (-EFAULT));\
+		     : "c" (msr), "0" (a), "d" (b), "i" (-EFAULT));\
 	ret__; })
+
+#define checking_wrmsrl(msr,val) wrmsr_safe(msr,(u32)(val),(u32)((val)>>32))
 
 #define rdtsc(low,high) \
      __asm__ __volatile__("rdtsc" : "=a" (low), "=d" (high))
@@ -67,7 +69,8 @@
 			  : "=a" (low), "=d" (high) \
 			  : "c" (counter))
 
-extern inline void cpuid(int op, int *eax, int *ebx, int *ecx, int *edx)
+extern inline void cpuid(int op, unsigned int *eax, unsigned int *ebx,
+			 unsigned int *ecx, unsigned int *edx)
 {
 	__asm__("cpuid"
 		: "=a" (*eax),
@@ -75,6 +78,18 @@ extern inline void cpuid(int op, int *eax, int *ebx, int *ecx, int *edx)
 		  "=c" (*ecx),
 		  "=d" (*edx)
 		: "0" (op));
+}
+
+/* Some CPUID calls want 'count' to be placed in ecx */
+static inline void cpuid_count(int op, int count, int *eax, int *ebx, int *ecx,
+	       	int *edx)
+{
+	__asm__("cpuid"
+		: "=a" (*eax),
+		  "=b" (*ebx),
+		  "=c" (*ecx),
+		  "=d" (*edx)
+		: "0" (op), "c" (count));
 }
 
 /*
@@ -148,6 +163,7 @@ extern inline unsigned int cpuid_edx(unsigned int op)
 #define EFER_NX (1<<_EFER_NX)
 
 /* Intel MSRs. Some also available on other CPUs */
+#define MSR_IA32_TSC		0x10
 #define MSR_IA32_PLATFORM_ID	0x17
 
 #define MSR_IA32_PERFCTR0      0xc1

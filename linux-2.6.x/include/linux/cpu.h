@@ -32,6 +32,9 @@ struct cpu {
 };
 
 extern int register_cpu(struct cpu *, int, struct node *);
+#ifdef CONFIG_HOTPLUG_CPU
+extern void unregister_cpu(struct cpu *, struct node *);
+#endif
 struct notifier_block;
 
 #ifdef CONFIG_SMP
@@ -74,7 +77,7 @@ int cpu_down(unsigned int cpu);
 #define hotcpu_notifier(fn, pri)
 
 /* CPUs don't go offline once they're online w/o CONFIG_HOTPLUG_CPU */
-#define cpu_is_offline(cpu) 0
+static inline int cpu_is_offline(int cpu) { return 0; }
 #endif
 
 #endif /* _LINUX_CPU_H_ */

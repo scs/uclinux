@@ -1,7 +1,18 @@
 #ifndef IOCTL32_H
 #define IOCTL32_H 1
 
+#include <linux/compiler.h>	/* for __deprecated */
+
 struct file;
+
+typedef int (*ioctl_trans_handler_t)(unsigned int, unsigned int,
+					unsigned long, struct file *);
+
+struct ioctl_trans {
+	unsigned long cmd;
+	ioctl_trans_handler_t handler;
+	struct ioctl_trans *next;
+};
 
 /* 
  * Register an 32bit ioctl translation handler for ioctl cmd.
@@ -13,16 +24,16 @@ struct file;
  *                        struct file *file: file descriptor pointer.
  */ 
 
-extern int register_ioctl32_conversion(unsigned int cmd, int (*handler)(unsigned int, unsigned int, unsigned long, struct file *));
+#ifdef CONFIG_COMPAT
+extern int __deprecated register_ioctl32_conversion(unsigned int cmd,
+				ioctl_trans_handler_t handler);
+extern int __deprecated unregister_ioctl32_conversion(unsigned int cmd);
 
-extern int unregister_ioctl32_conversion(unsigned int cmd);
+#else
 
-typedef int (*ioctl_trans_handler_t)(unsigned int, unsigned int, unsigned long, struct file *);
+#define register_ioctl32_conversion(cmd, handler)	({ 0; })
+#define unregister_ioctl32_conversion(cmd)		({ 0; })
 
-struct ioctl_trans {
-	unsigned long cmd;
-	ioctl_trans_handler_t handler;
-	struct ioctl_trans *next;
-};
+#endif
 
 #endif

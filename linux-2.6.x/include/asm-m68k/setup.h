@@ -264,7 +264,7 @@ extern int m68k_is040or060;
 #  define MMU_IS_SUN3 (0)
 #elif defined(CONFIG_M68030) || defined(CONFIG_M68040) || defined(CONFIG_M68060)
 #  define CPU_IS_020 (m68k_cputype & CPU_68020)
-#  define MMU_IS_851 (m68k_cputype & MMU_68851)
+#  define MMU_IS_851 (m68k_mmutype & MMU_68851)
 #  define MMU_IS_SUN3 (0)	/* Sun3 not supported with other CPU enabled */
 #else
 #  define CPU_M68020_ONLY
@@ -360,14 +360,14 @@ extern int m68k_is040or060;
 #define COMMAND_LINE_SIZE	CL_SIZE
 
 #ifndef __ASSEMBLY__
-extern int m68k_num_memory;		/* # of memory blocks found (and used) */
-extern int m68k_realnum_memory;		/* real # of memory blocks found */
-extern struct mem_info m68k_memory[NUM_MEMINFO];/* memory description */
-
 struct mem_info {
 	unsigned long addr;		/* physical address of memory chunk */
 	unsigned long size;		/* length of memory chunk (in bytes) */
 };
+
+extern int m68k_num_memory;		/* # of memory blocks found (and used) */
+extern int m68k_realnum_memory;		/* real # of memory blocks found */
+extern struct mem_info m68k_memory[NUM_MEMINFO];/* memory description */
 #endif
 
 #endif /* __KERNEL__ */

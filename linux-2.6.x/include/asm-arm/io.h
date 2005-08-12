@@ -16,6 +16,7 @@
  *  04-Apr-1999	PJB	Added check_signature.
  *  12-Dec-1999	RMK	More cleanups
  *  18-Jun-2000 RMK	Removed virt_to_* and friends definitions
+ *  05-Oct-2004 BJD     Moved memory string functions to use void __iomem
  */
 #ifndef __ASM_ARM_IO_H
 #define __ASM_ARM_IO_H
@@ -38,21 +39,21 @@
  * Generic IO read/write.  These perform native-endian accesses.  Note
  * that some architectures will want to re-define __raw_{read,write}w.
  */
-extern void __raw_writesb(unsigned int addr, const void *data, int bytelen);
-extern void __raw_writesw(unsigned int addr, const void *data, int wordlen);
-extern void __raw_writesl(unsigned int addr, const void *data, int longlen);
+extern void __raw_writesb(void __iomem *addr, const void *data, int bytelen);
+extern void __raw_writesw(void __iomem *addr, const void *data, int wordlen);
+extern void __raw_writesl(void __iomem *addr, const void *data, int longlen);
 
-extern void __raw_readsb(unsigned int addr, void *data, int bytelen);
-extern void __raw_readsw(unsigned int addr, void *data, int wordlen);
-extern void __raw_readsl(unsigned int addr, void *data, int longlen);
+extern void __raw_readsb(void __iomem *addr, void *data, int bytelen);
+extern void __raw_readsw(void __iomem *addr, void *data, int wordlen);
+extern void __raw_readsl(void __iomem *addr, void *data, int longlen);
 
-#define __raw_writeb(v,a)	(*(volatile unsigned char  *)(a) = (v))
-#define __raw_writew(v,a)	(*(volatile unsigned short *)(a) = (v))
-#define __raw_writel(v,a)	(*(volatile unsigned int   *)(a) = (v))
+#define __raw_writeb(v,a)	(__chk_io_ptr(a), *(volatile unsigned char __force  *)(a) = (v))
+#define __raw_writew(v,a)	(__chk_io_ptr(a), *(volatile unsigned short __force *)(a) = (v))
+#define __raw_writel(v,a)	(__chk_io_ptr(a), *(volatile unsigned int __force   *)(a) = (v))
 
-#define __raw_readb(a)		(*(volatile unsigned char  *)(a))
-#define __raw_readw(a)		(*(volatile unsigned short *)(a))
-#define __raw_readl(a)		(*(volatile unsigned int   *)(a))
+#define __raw_readb(a)		(__chk_io_ptr(a), *(volatile unsigned char __force  *)(a))
+#define __raw_readw(a)		(__chk_io_ptr(a), *(volatile unsigned short __force *)(a))
+#define __raw_readl(a)		(__chk_io_ptr(a), *(volatile unsigned int __force   *)(a))
 
 /*
  * Bad read/write accesses...
@@ -98,12 +99,16 @@ extern void __readwrite_bug(const char *fn);
  */
 #ifdef __io
 #define outb(v,p)		__raw_writeb(v,__io(p))
-#define outw(v,p)		__raw_writew(cpu_to_le16(v),__io(p))
-#define outl(v,p)		__raw_writel(cpu_to_le32(v),__io(p))
+#define outw(v,p)		__raw_writew((__force __u16) \
+					cpu_to_le16(v),__io(p))
+#define outl(v,p)		__raw_writel((__force __u32) \
+					cpu_to_le32(v),__io(p))
 
-#define inb(p)	({ unsigned int __v = __raw_readb(__io(p)); __v; })
-#define inw(p)	({ unsigned int __v = le16_to_cpu(__raw_readw(__io(p))); __v; })
-#define inl(p)	({ unsigned int __v = le32_to_cpu(__raw_readl(__io(p))); __v; })
+#define inb(p)	({ __u8 __v = __raw_readb(__io(p)); __v; })
+#define inw(p)	({ __u16 __v = le16_to_cpu((__force __le16) \
+			__raw_readw(__io(p))); __v; })
+#define inl(p)	({ __u32 __v = le32_to_cpu((__force __le32) \
+			__raw_readl(__io(p))); __v; })
 
 #define outsb(p,d,l)		__raw_writesb(__io(p),d,l)
 #define outsw(p,d,l)		__raw_writesw(__io(p),d,l)
@@ -131,9 +136,11 @@ extern void __readwrite_bug(const char *fn);
 /*
  * String version of IO memory access ops:
  */
-extern void _memcpy_fromio(void *, unsigned long, size_t);
-extern void _memcpy_toio(unsigned long, const void *, size_t);
-extern void _memset_io(unsigned long, int, size_t);
+extern void _memcpy_fromio(void *, void __iomem *, size_t);
+extern void _memcpy_toio(void __iomem *, const void *, size_t);
+extern void _memset_io(void __iomem *, int, size_t);
+
+#define mmiowb()
 
 /*
  *  Memory access primitives
@@ -146,24 +153,28 @@ extern void _memset_io(unsigned long, int, size_t);
  * IO port primitives for more information.
  */
 #ifdef __mem_pci
-#define readb(c) ({ unsigned int __v = __raw_readb(__mem_pci(c)); __v; })
-#define readw(c) ({ unsigned int __v = le16_to_cpu(__raw_readw(__mem_pci(c))); __v; })
-#define readl(c) ({ unsigned int __v = le32_to_cpu(__raw_readl(__mem_pci(c))); __v; })
+#define readb(c) ({ __u8  __v = __raw_readb(__mem_pci(c)); __v; })
+#define readw(c) ({ __u16 __v = le16_to_cpu((__force __le16) \
+					__raw_readw(__mem_pci(c))); __v; })
+#define readl(c) ({ __u32 __v = le32_to_cpu((__force __le32) \
+					__raw_readl(__mem_pci(c))); __v; })
 #define readb_relaxed(addr) readb(addr)
 #define readw_relaxed(addr) readw(addr)
 #define readl_relaxed(addr) readl(addr)
 
-#define readsb(p,d,l)		__raw_readsb((unsigned int)__mem_pci(p),d,l)
-#define readsw(p,d,l)		__raw_readsw((unsigned int)__mem_pci(p),d,l)
-#define readsl(p,d,l)		__raw_readsl((unsigned int)__mem_pci(p),d,l)
+#define readsb(p,d,l)		__raw_readsb(__mem_pci(p),d,l)
+#define readsw(p,d,l)		__raw_readsw(__mem_pci(p),d,l)
+#define readsl(p,d,l)		__raw_readsl(__mem_pci(p),d,l)
 
 #define writeb(v,c)		__raw_writeb(v,__mem_pci(c))
-#define writew(v,c)		__raw_writew(cpu_to_le16(v),__mem_pci(c))
-#define writel(v,c)		__raw_writel(cpu_to_le32(v),__mem_pci(c))
+#define writew(v,c)		__raw_writew((__force __u16) \
+					cpu_to_le16(v),__mem_pci(c))
+#define writel(v,c)		__raw_writel((__force __u32) \
+					cpu_to_le32(v),__mem_pci(c))
 
-#define writesb(p,d,l)		__raw_writesb((unsigned int)__mem_pci(p),d,l)
-#define writesw(p,d,l)		__raw_writesw((unsigned int)__mem_pci(p),d,l)
-#define writesl(p,d,l)		__raw_writesl((unsigned int)__mem_pci(p),d,l)
+#define writesb(p,d,l)		__raw_writesb(__mem_pci(p),d,l)
+#define writesw(p,d,l)		__raw_writesw(__mem_pci(p),d,l)
+#define writesl(p,d,l)		__raw_writesl(__mem_pci(p),d,l)
 
 #define memset_io(c,v,l)	_memset_io(__mem_pci(c),(v),(l))
 #define memcpy_fromio(a,c,l)	_memcpy_fromio((a),__mem_pci(c),(l))
@@ -173,7 +184,7 @@ extern void _memset_io(unsigned long, int, size_t);
 				eth_copy_and_sum((s),__mem_pci(c),(l),(b))
 
 static inline int
-check_signature(unsigned long io_addr, const unsigned char *signature,
+check_signature(void __iomem *io_addr, const unsigned char *signature,
 		int length)
 {
 	int retval = 0;
@@ -223,23 +234,6 @@ out:
 #define isa_eth_io_copy_and_sum(a,b,c,d) \
 				eth_copy_and_sum((a),__mem_isa(b),(c),(d))
 
-static inline int
-isa_check_signature(unsigned long io_addr, const unsigned char *signature,
-		    int length)
-{
-	int retval = 0;
-	do {
-		if (isa_readb(io_addr) != *signature)
-			goto out;
-		io_addr++;
-		signature++;
-		length--;
-	} while (length);
-	retval = 1;
-out:
-	return retval;
-}
-
 #else	/* __mem_isa */
 
 #define isa_readb(addr)			(__readwrite_bug("isa_readb"),0)
@@ -255,8 +249,6 @@ out:
 #define isa_eth_io_copy_and_sum(a,b,c,d) \
 				__readwrite_bug("isa_eth_io_copy_and_sum")
 
-#define isa_check_signature(io,sig,len)	(0)
-
 #endif	/* __mem_isa */
 
 /*
@@ -265,16 +257,18 @@ out:
  * ioremap takes a PCI memory address, as specified in
  * Documentation/IO-mapping.txt.
  */
-extern void * __ioremap(unsigned long, size_t, unsigned long, unsigned long);
-extern void __iounmap(void *addr);
+extern void __iomem * __ioremap(unsigned long, size_t, unsigned long, unsigned long);
+extern void __iounmap(void __iomem *addr);
 
 #ifndef __arch_ioremap
 #define ioremap(cookie,size)		__ioremap(cookie,size,0,1)
 #define ioremap_nocache(cookie,size)	__ioremap(cookie,size,0,1)
+#define ioremap_cached(cookie,size)	__ioremap(cookie,size,L_PTE_CACHEABLE,1)
 #define iounmap(cookie)			__iounmap(cookie)
 #else
 #define ioremap(cookie,size)		__arch_ioremap((cookie),(size),0,1)
 #define ioremap_nocache(cookie,size)	__arch_ioremap((cookie),(size),0,1)
+#define ioremap_cached(cookie,size)	__arch_ioremap((cookie),(size),L_PTE_CACHEABLE,1)
 #define iounmap(cookie)			__arch_iounmap(cookie)
 #endif
 
@@ -284,6 +278,17 @@ extern void __iounmap(void *addr);
  */
 #define BIOVEC_MERGEABLE(vec1, vec2)	\
 	((bvec_to_phys((vec1)) + (vec1)->bv_len) == bvec_to_phys((vec2)))
+
+/*
+ * Convert a physical pointer to a virtual kernel pointer for /dev/mem
+ * access
+ */
+#define xlate_dev_mem_ptr(p)	__va(p)
+
+/*
+ * Convert a virtual cached pointer to an uncached pointer
+ */
+#define xlate_dev_kmem_ptr(p)	p
 
 #endif	/* __KERNEL__ */
 #endif	/* __ASM_ARM_IO_H */

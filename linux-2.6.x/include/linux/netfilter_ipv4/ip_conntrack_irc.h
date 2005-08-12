@@ -14,31 +14,18 @@
 #ifndef _IP_CONNTRACK_IRC_H
 #define _IP_CONNTRACK_IRC_H
 
-/* We record seq number and length of irc ip/port text here: all in
-   host order. */
-
-/* This structure is per expected connection */
-struct ip_ct_irc_expect
-{
-	/* length of IP address */
-	u_int32_t len;
-	/* Port that was to be used */
-	u_int16_t port;
-};
-
 /* This structure exists only once per master */
 struct ip_ct_irc_master {
 };
 
-
 #ifdef __KERNEL__
-
-#include <linux/netfilter_ipv4/lockhelp.h>
+extern unsigned int (*ip_nat_irc_hook)(struct sk_buff **pskb,
+				       enum ip_conntrack_info ctinfo,
+				       unsigned int matchoff,
+				       unsigned int matchlen,
+				       struct ip_conntrack_expect *exp);
 
 #define IRC_PORT	6667
-
-/* Protects irc part of conntracks */
-DECLARE_LOCK_EXTERN(ip_irc_lock);
 
 #endif /* __KERNEL__ */
 

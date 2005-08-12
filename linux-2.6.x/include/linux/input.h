@@ -328,6 +328,11 @@ struct input_absinfo {
 #define KEY_BRIGHTNESSUP	225
 #define KEY_MEDIA		226
 
+#define KEY_SWITCHVIDEOMODE	227
+#define KEY_KBDILLUMTOGGLE	228
+#define KEY_KBDILLUMDOWN	229
+#define KEY_KBDILLUMUP		230
+
 #define KEY_UNKNOWN		240
 
 #define BTN_MISC		0x100
@@ -473,6 +478,28 @@ struct input_absinfo {
 #define KEY_INS_LINE		0x1c2
 #define KEY_DEL_LINE		0x1c3
 
+#define KEY_FN			0x1d0
+#define KEY_FN_ESC		0x1d1
+#define KEY_FN_F1		0x1d2
+#define KEY_FN_F2		0x1d3
+#define KEY_FN_F3		0x1d4
+#define KEY_FN_F4		0x1d5
+#define KEY_FN_F5		0x1d6
+#define KEY_FN_F6		0x1d7
+#define KEY_FN_F7		0x1d8
+#define KEY_FN_F8		0x1d9
+#define KEY_FN_F9		0x1da
+#define KEY_FN_F10		0x1db
+#define KEY_FN_F11		0x1dc
+#define KEY_FN_F12		0x1dd
+#define KEY_FN_1		0x1de
+#define KEY_FN_2		0x1df
+#define KEY_FN_D		0x1e0
+#define KEY_FN_E		0x1e1
+#define KEY_FN_F		0x1e2
+#define KEY_FN_S		0x1e3
+#define KEY_FN_B		0x1e4
+
 #define KEY_MAX			0x1ff
 
 /*
@@ -482,6 +509,9 @@ struct input_absinfo {
 #define REL_X			0x00
 #define REL_Y			0x01
 #define REL_Z			0x02
+#define REL_RX			0x03
+#define REL_RY			0x04
+#define REL_RZ			0x05
 #define REL_HWHEEL		0x06
 #define REL_DIAL		0x07
 #define REL_WHEEL		0x08
@@ -527,6 +557,8 @@ struct input_absinfo {
 #define MSC_SERIAL		0x00
 #define MSC_PULSELED		0x01
 #define MSC_GESTURE		0x02
+#define MSC_RAW			0x03
+#define MSC_SCAN		0x04
 #define MSC_MAX			0x07
 
 /*
@@ -542,6 +574,8 @@ struct input_absinfo {
 #define LED_SUSPEND		0x06
 #define LED_MUTE		0x07
 #define LED_MISC		0x08
+#define LED_MAIL		0x09
+#define LED_CHARGING		0x0a
 #define LED_MAX			0x0f
 
 /*
@@ -742,7 +776,7 @@ struct ff_effect {
 #include <linux/fs.h>
 #include <linux/timer.h>
 
-#define NBITS(x) ((((x)-1)/BITS_PER_LONG)+1)
+#define NBITS(x) (((x)/BITS_PER_LONG)+1)
 #define BIT(x)	(1UL<<((x)%BITS_PER_LONG))
 #define LONG(x) ((x)/BITS_PER_LONG)
 
@@ -799,7 +833,6 @@ struct input_dev {
 	unsigned int repeat_key;
 	struct timer_list timer;
 
-	struct pm_dev *pm_dev;
 	struct pt_regs *regs;
 	int state;
 

@@ -2,8 +2,6 @@
  * include/asm-parisc/serial.h
  */
 
-#include <linux/config.h>
-
 /*
  * This assumes you have a 7.272727 MHz clock for your UART.
  * The documentation implies a 40Mhz clock, and elsewhere a 7Mhz clock
@@ -13,21 +11,6 @@
 #define LASI_BASE_BAUD ( 7272727 / 16 )
 #define BASE_BAUD  LASI_BASE_BAUD
 
-#ifdef CONFIG_SERIAL_DETECT_IRQ
-#define STD_COM_FLAGS (ASYNC_BOOT_AUTOCONF | ASYNC_SKIP_TEST | ASYNC_AUTO_IRQ)
-#define STD_COM4_FLAGS (ASYNC_BOOT_AUTOCONF | ASYNC_AUTO_IRQ)
-#else
-#define STD_COM_FLAGS (ASYNC_BOOT_AUTOCONF | ASYNC_SKIP_TEST)
-#define STD_COM4_FLAGS ASYNC_BOOT_AUTOCONF
-#endif
-
-#ifdef CONFIG_SERIAL_MANY_PORTS
-#define FOURPORT_FLAGS ASYNC_FOURPORT
-#define ACCENT_FLAGS 0
-#define BOCA_FLAGS 0
-#define HUB6_FLAGS 0
-#endif
-	
 /*
  * We don't use the ISA probing code, so these entries are just to reserve
  * space.  Some example (maximal) configurations:

@@ -35,9 +35,12 @@
 #include <linux/compiler.h>
 #include <linux/errno.h>
 #include <linux/sched.h>
+#include <linux/page-flags.h>
+#include <linux/mm.h>
 
 #include <asm/intrinsics.h>
 #include <asm/pgtable.h>
+#include <asm/io.h>
 
 /*
  * For historical reasons, the following macros are grossly misnamed:
@@ -60,14 +63,18 @@
  * address TASK_SIZE is never valid.  We also need to make sure that the address doesn't
  * point inside the virtually mapped linear page table.
  */
-#define __access_ok(addr, size, segment)					\
-	(likely((unsigned long) (addr) <= (segment).seg)			\
-	 && ((segment).seg == KERNEL_DS.seg					\
-	     || likely(REGION_OFFSET((unsigned long) (addr)) < RGN_MAP_LIMIT)))
+#define __access_ok(addr, size, segment)						\
+({											\
+	__chk_user_ptr(addr);								\
+	(likely((unsigned long) (addr) <= (segment).seg)				\
+	 && ((segment).seg == KERNEL_DS.seg						\
+	     || likely(REGION_OFFSET((unsigned long) (addr)) < RGN_MAP_LIMIT)));	\
+})
 #define access_ok(type, addr, size)	__access_ok((addr), (size), get_fs())
 
-static inline int
-verify_area (int type, const void *addr, unsigned long size)
+/* this function will go away soon - use access_ok() instead */
+static inline int __deprecated
+verify_area (int type, const void __user *addr, unsigned long size)
 {
 	return access_ok(type, addr, size) ? 0 : -EFAULT;
 }
@@ -91,9 +98,45 @@ verify_area (int type, const void *addr, unsigned long size)
 #define __put_user(x, ptr)	__put_user_nocheck((__typeof__(*(ptr))) (x), (ptr), sizeof(*(ptr)))
 #define __get_user(x, ptr)	__get_user_nocheck((x), (ptr), sizeof(*(ptr)))
 
+extern long __put_user_unaligned_unknown (void);
+
+#define __put_user_unaligned(x, ptr)								\
+({												\
+	long __ret;										\
+	switch (sizeof(*(ptr))) {								\
+		case 1: __ret = __put_user((x), (ptr)); break;					\
+		case 2: __ret = (__put_user((x), (u8 __user *)(ptr)))				\
+			| (__put_user((x) >> 8, ((u8 __user *)(ptr) + 1))); break;		\
+		case 4: __ret = (__put_user((x), (u16 __user *)(ptr)))				\
+			| (__put_user((x) >> 16, ((u16 __user *)(ptr) + 1))); break;		\
+		case 8: __ret = (__put_user((x), (u32 __user *)(ptr)))				\
+			| (__put_user((x) >> 32, ((u32 __user *)(ptr) + 1))); break;		\
+		default: __ret = __put_user_unaligned_unknown();				\
+	}											\
+	__ret;											\
+})
+
+extern long __get_user_unaligned_unknown (void);
+
+#define __get_user_unaligned(x, ptr)								\
+({												\
+	long __ret;										\
+	switch (sizeof(*(ptr))) {								\
+		case 1: __ret = __get_user((x), (ptr)); break;					\
+		case 2: __ret = (__get_user((x), (u8 __user *)(ptr)))				\
+			| (__get_user((x) >> 8, ((u8 __user *)(ptr) + 1))); break;		\
+		case 4: __ret = (__get_user((x), (u16 __user *)(ptr)))				\
+			| (__get_user((x) >> 16, ((u16 __user *)(ptr) + 1))); break;		\
+		case 8: __ret = (__get_user((x), (u32 __user *)(ptr)))				\
+			| (__get_user((x) >> 32, ((u32 __user *)(ptr) + 1))); break;		\
+		default: __ret = __get_user_unaligned_unknown();				\
+	}											\
+	__ret;											\
+})
+
 #ifdef ASM_SUPPORTED
   struct __large_struct { unsigned long buf[100]; };
-# define __m(x) (*(struct __large_struct *)(x))
+# define __m(x) (*(struct __large_struct __user *)(x))
 
 /* We need to declare the __ex_table section before we can use it in .xdata.  */
 asm (".section \"__ex_table\", \"a\"\n\t.previous");
@@ -149,11 +192,11 @@ extern void __get_user_unknown (void);
  */
 #define __do_get_user(check, x, ptr, size, segment)					\
 ({											\
-	const __typeof__(*(ptr)) *__gu_ptr = (ptr);					\
+	const __typeof__(*(ptr)) __user *__gu_ptr = (ptr);				\
 	__typeof__ (size) __gu_size = (size);						\
 	long __gu_err = -EFAULT, __gu_val = 0;						\
 											\
-	if (!check || __access_ok((long) __gu_ptr, size, segment))			\
+	if (!check || __access_ok(__gu_ptr, size, segment))				\
 		switch (__gu_size) {							\
 		      case 1: __get_user_size(__gu_val, __gu_ptr, 1, __gu_err); break;	\
 		      case 2: __get_user_size(__gu_val, __gu_ptr, 2, __gu_err); break;	\
@@ -177,11 +220,11 @@ extern void __put_user_unknown (void);
 #define __do_put_user(check, x, ptr, size, segment)					\
 ({											\
 	__typeof__ (x) __pu_x = (x);							\
-	__typeof__ (*(ptr)) *__pu_ptr = (ptr);						\
+	__typeof__ (*(ptr)) __user *__pu_ptr = (ptr);					\
 	__typeof__ (size) __pu_size = (size);						\
 	long __pu_err = -EFAULT;							\
 											\
-	if (!check || __access_ok((long) __pu_ptr, __pu_size, segment))			\
+	if (!check || __access_ok(__pu_ptr, __pu_size, segment))			\
 		switch (__pu_size) {							\
 		      case 1: __put_user_size(__pu_x, __pu_ptr, 1, __pu_err); break;	\
 		      case 2: __put_user_size(__pu_x, __pu_ptr, 2, __pu_err); break;	\
@@ -198,43 +241,64 @@ extern void __put_user_unknown (void);
 /*
  * Complex access routines
  */
-extern unsigned long __copy_user (void *to, const void *from, unsigned long count);
+extern unsigned long __must_check __copy_user (void __user *to, const void __user *from,
+					       unsigned long count);
 
-#define __copy_to_user(to, from, n)	__copy_user((to), (from), (n))
-#define __copy_from_user(to, from, n)	__copy_user((to), (from), (n))
+static inline unsigned long
+__copy_to_user (void __user *to, const void *from, unsigned long count)
+{
+	return __copy_user(to, (void __user *) from, count);
+}
 
-#define copy_to_user(to, from, n)	__copy_tofrom_user((to), (from), (n), 1)
-#define copy_from_user(to, from, n)	__copy_tofrom_user((to), (from), (n), 0)
+static inline unsigned long
+__copy_from_user (void *to, const void __user *from, unsigned long count)
+{
+	return __copy_user((void __user *) to, from, count);
+}
 
-#define __copy_tofrom_user(to, from, n, check_to)					\
+#define __copy_to_user_inatomic		__copy_to_user
+#define __copy_from_user_inatomic	__copy_from_user
+#define copy_to_user(to, from, n)							\
 ({											\
-	void *__cu_to = (to);								\
+	void __user *__cu_to = (to);							\
 	const void *__cu_from = (from);							\
 	long __cu_len = (n);								\
 											\
-	if (__access_ok((long) ((check_to) ? __cu_to : __cu_from), __cu_len, get_fs()))	\
-		__cu_len = __copy_user(__cu_to, __cu_from, __cu_len);			\
+	if (__access_ok(__cu_to, __cu_len, get_fs()))					\
+		__cu_len = __copy_user(__cu_to, (void __user *) __cu_from, __cu_len);	\
+	__cu_len;									\
+})
+
+#define copy_from_user(to, from, n)							\
+({											\
+	void *__cu_to = (to);								\
+	const void __user *__cu_from = (from);						\
+	long __cu_len = (n);								\
+											\
+	__chk_user_ptr(__cu_from);							\
+	if (__access_ok(__cu_from, __cu_len, get_fs()))					\
+		__cu_len = __copy_user((void __user *) __cu_to, __cu_from, __cu_len);	\
 	__cu_len;									\
 })
 
 #define __copy_in_user(to, from, size)	__copy_user((to), (from), (size))
 
 static inline unsigned long
-copy_in_user (void *to, const void *from, unsigned long n)
+copy_in_user (void __user *to, const void __user *from, unsigned long n)
 {
 	if (likely(access_ok(VERIFY_READ, from, n) && access_ok(VERIFY_WRITE, to, n)))
 		n = __copy_user(to, from, n);
 	return n;
 }
 
-extern unsigned long __do_clear_user (void *, unsigned long);
+extern unsigned long __do_clear_user (void __user *, unsigned long);
 
 #define __clear_user(to, n)		__do_clear_user(to, n)
 
 #define clear_user(to, n)					\
 ({								\
 	unsigned long __cu_len = (n);				\
-	if (__access_ok((long) to, __cu_len, get_fs()))		\
+	if (__access_ok(to, __cu_len, get_fs()))		\
 		__cu_len = __do_clear_user(to, __cu_len);	\
 	__cu_len;						\
 })
@@ -244,25 +308,25 @@ extern unsigned long __do_clear_user (void *, unsigned long);
  * Returns: -EFAULT if exception before terminator, N if the entire buffer filled, else
  * strlen.
  */
-extern long __strncpy_from_user (char *to, const char *from, long to_len);
+extern long __must_check __strncpy_from_user (char *to, const char __user *from, long to_len);
 
 #define strncpy_from_user(to, from, n)					\
 ({									\
-	const char * __sfu_from = (from);				\
+	const char __user * __sfu_from = (from);			\
 	long __sfu_ret = -EFAULT;					\
-	if (__access_ok((long) __sfu_from, 0, get_fs()))		\
+	if (__access_ok(__sfu_from, 0, get_fs()))			\
 		__sfu_ret = __strncpy_from_user((to), __sfu_from, (n));	\
 	__sfu_ret;							\
 })
 
 /* Returns: 0 if bad, string length+1 (memory size) of string if ok */
-extern unsigned long __strlen_user (const char *);
+extern unsigned long __strlen_user (const char __user *);
 
 #define strlen_user(str)				\
 ({							\
-	const char *__su_str = (str);			\
+	const char __user *__su_str = (str);		\
 	unsigned long __su_ret = 0;			\
-	if (__access_ok((long) __su_str, 0, get_fs()))	\
+	if (__access_ok(__su_str, 0, get_fs()))		\
 		__su_ret = __strlen_user(__su_str);	\
 	__su_ret;					\
 })
@@ -272,13 +336,13 @@ extern unsigned long __strlen_user (const char *);
  * (N), a value greater than N if the limit would be exceeded, else
  * strlen.
  */
-extern unsigned long __strnlen_user (const char *, long);
+extern unsigned long __strnlen_user (const char __user *, long);
 
 #define strnlen_user(str, len)					\
 ({								\
-	const char *__su_str = (str);				\
+	const char __user *__su_str = (str);			\
 	unsigned long __su_ret = 0;				\
-	if (__access_ok((long) __su_str, 0, get_fs()))		\
+	if (__access_ok(__su_str, 0, get_fs()))			\
 		__su_ret = __strnlen_user(__su_str, len);	\
 	__su_ret;						\
 })
@@ -305,6 +369,40 @@ ia64_done_with_exception (struct pt_regs *regs)
 		return 1;
 	}
 	return 0;
+}
+
+#define ARCH_HAS_TRANSLATE_MEM_PTR	1
+static __inline__ char *
+xlate_dev_mem_ptr (unsigned long p)
+{
+	struct page *page;
+	char * ptr;
+
+	page = pfn_to_page(p >> PAGE_SHIFT);
+	if (PageUncached(page))
+		ptr = (char *)p + __IA64_UNCACHED_OFFSET;
+	else
+		ptr = __va(p);
+
+	return ptr;
+}
+
+/*
+ * Convert a virtual cached kernel memory pointer to an uncached pointer
+ */
+static __inline__ char *
+xlate_dev_kmem_ptr (char * p)
+{
+	struct page *page;
+	char * ptr;
+
+	page = virt_to_page((unsigned long)p >> PAGE_SHIFT);
+	if (PageUncached(page))
+		ptr = (char *)__pa(p) + __IA64_UNCACHED_OFFSET;
+	else
+		ptr = p;
+
+	return ptr;
 }
 
 #endif /* _ASM_IA64_UACCESS_H */

@@ -44,34 +44,28 @@ struct rand_pool_info {
 
 extern void rand_initialize_irq(int irq);
 
-extern void batch_entropy_store(u32 a, u32 b, int num);
-
-extern void add_keyboard_randomness(unsigned char scancode);
-extern void add_mouse_randomness(__u32 mouse_data);
+extern void add_input_randomness(unsigned int type, unsigned int code,
+				 unsigned int value);
 extern void add_interrupt_randomness(int irq);
 
 extern void get_random_bytes(void *buf, int nbytes);
 void generate_random_uuid(unsigned char uuid_out[16]);
 
 extern __u32 secure_ip_id(__u32 daddr);
+extern u32 secure_tcp_port_ephemeral(__u32 saddr, __u32 daddr, __u16 dport);
+extern u32 secure_tcpv6_port_ephemeral(const __u32 *saddr, const __u32 *daddr, 
+				       __u16 dport);
 extern __u32 secure_tcp_sequence_number(__u32 saddr, __u32 daddr,
 					__u16 sport, __u16 dport);
-extern __u32 secure_tcp_syn_cookie(__u32 saddr, __u32 daddr,
-				   __u16 sport, __u16 dport,
-				   __u32 sseq, __u32 count,
-				   __u32 data);
-extern __u32 check_tcp_syn_cookie(__u32 cookie, __u32 saddr,
-				  __u32 daddr, __u16 sport,
-				  __u16 dport, __u32 sseq,
-				  __u32 count, __u32 maxdiff);
 extern __u32 secure_tcpv6_sequence_number(__u32 *saddr, __u32 *daddr,
 					  __u16 sport, __u16 dport);
-
-extern __u32 secure_ipv6_id(__u32 *daddr);
 
 #ifndef MODULE
 extern struct file_operations random_fops, urandom_fops;
 #endif
+
+unsigned int get_random_int(void);
+unsigned long randomize_range(unsigned long start, unsigned long end, unsigned long len);
 
 #endif /* __KERNEL___ */
 

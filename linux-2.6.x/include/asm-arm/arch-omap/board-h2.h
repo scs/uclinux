@@ -21,8 +21,8 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * You should have received a copy of the  GNU General Public License along
- * with this program; if not, write  to the Free Software Foundation, Inc.,
+ * You should have received a copy of the GNU General Public License along
+ * with this program; if not, write to the Free Software Foundation, Inc.,
  * 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
@@ -30,6 +30,18 @@
 #define __ASM_ARCH_OMAP_H2_H
 
 /* Placeholder for H2 specific defines */
+
+/* At OMAP1610 Innovator the Ethernet is directly connected to CS1 */
+#define OMAP1610_ETHR_START		0x04000300
+
+/* Intel STRATA NOR flash at CS3 or CS2B(NAND Boot) */
+#define OMAP_NOR_FLASH_SIZE             SZ_32M
+#define OMAP_NOR_FLASH_START1           0x0C000000 /* CS3 */
+#define OMAP_NOR_FLASH_START2           0x0A000000 /* CS2B */
+
+/* Samsung NAND flash at CS2B or CS3(NAND Boot) */
+#define OMAP_NAND_FLASH_START1           0x0A000000 /* CS2B */
+#define OMAP_NAND_FLASH_START2           0x0C000000 /* CS3 */
 
 #endif /*  __ASM_ARCH_OMAP_H2_H */
 

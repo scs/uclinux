@@ -88,11 +88,11 @@ typedef elf_greg_t elf_gregset_t[ELF_NGREG];
 #define ELF_CORE_COPY_REGS(__elf_regs, __pt_regs)	\
 do {	unsigned long *dest = &(__elf_regs[0]);		\
 	struct pt_regs *src = (__pt_regs);		\
-	unsigned long *sp;				\
+	unsigned long __user *sp;			\
 	memcpy(&dest[0], &src->u_regs[0],		\
 	       sizeof(unsigned long) * 16);		\
 	/* Don't try this at home kids... */		\
-	sp = (unsigned long *) src->u_regs[14];		\
+	sp = (unsigned long __user *) src->u_regs[14];	\
 	copy_from_user(&dest[16], sp,			\
 		       sizeof(unsigned long) * 16);	\
 	dest[32] = src->psr;				\
@@ -143,7 +143,7 @@ typedef struct {
    the loader.  We need to make sure that it is out of the way of the program
    that it will "exec", and that there is sufficient room for the brk.  */
 
-#define ELF_ET_DYN_BASE         (0x08000000)
+#define ELF_ET_DYN_BASE         (TASK_UNMAPPED_BASE)
 
 /* This yields a mask that user programs can use to figure out what
    instruction set this cpu supports.  This can NOT be done in userspace

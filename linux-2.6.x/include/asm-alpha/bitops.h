@@ -2,7 +2,6 @@
 #define _ALPHA_BITOPS_H
 
 #include <linux/config.h>
-#include <linux/kernel.h>
 #include <asm/compiler.h>
 
 /*
@@ -324,7 +323,7 @@ static inline int fls(int word)
 #endif
 
 /* Compute powers of two for the given integer.  */
-static inline int floor_log2(unsigned long word)
+static inline long floor_log2(unsigned long word)
 {
 #if defined(__alpha_cix__) && defined(__alpha_fix__)
 	return 63 - __kernel_ctlz(word);
@@ -336,7 +335,7 @@ static inline int floor_log2(unsigned long word)
 #endif
 }
 
-static inline int ceil_log2(unsigned int word)
+static inline long ceil_log2(unsigned long word)
 {
 	long bit = floor_log2(word);
 	return bit + (word > (1UL << bit));
@@ -354,9 +353,9 @@ static inline unsigned long hweight64(unsigned long w)
 	return __kernel_ctpop(w);
 }
 
-#define hweight32(x) hweight64((x) & 0xfffffffful)
-#define hweight16(x) hweight64((x) & 0xfffful)
-#define hweight8(x)  hweight64((x) & 0xfful)
+#define hweight32(x)	(unsigned int) hweight64((x) & 0xfffffffful)
+#define hweight16(x)	(unsigned int) hweight64((x) & 0xfffful)
+#define hweight8(x)	(unsigned int) hweight64((x) & 0xfful)
 #else
 static inline unsigned long hweight64(unsigned long w)
 {
@@ -377,12 +376,13 @@ static inline unsigned long hweight64(unsigned long w)
  * Find next zero bit in a bitmap reasonably efficiently..
  */
 static inline unsigned long
-find_next_zero_bit(void * addr, unsigned long size, unsigned long offset)
+find_next_zero_bit(const void *addr, unsigned long size, unsigned long offset)
 {
-	unsigned long * p = ((unsigned long *) addr) + (offset >> 6);
+	const unsigned long *p = addr;
 	unsigned long result = offset & ~63UL;
 	unsigned long tmp;
 
+	p += offset >> 6;
 	if (offset >= size)
 		return size;
 	size -= result;
@@ -420,10 +420,11 @@ find_next_zero_bit(void * addr, unsigned long size, unsigned long offset)
 static inline unsigned long
 find_next_bit(const void * addr, unsigned long size, unsigned long offset)
 {
-	const unsigned long * p = ((const unsigned long *) addr) + (offset >> 6);
+	const unsigned long *p = addr;
 	unsigned long result = offset & ~63UL;
 	unsigned long tmp;
 
+	p += offset >> 6;
 	if (offset >= size)
 		return size;
 	size -= result;

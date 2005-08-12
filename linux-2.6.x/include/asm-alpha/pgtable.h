@@ -1,6 +1,8 @@
 #ifndef _ALPHA_PGTABLE_H
 #define _ALPHA_PGTABLE_H
 
+#include <asm-generic/4level-fixup.h>
+
 /*
  * This file contains the functions and defines necessary to modify and use
  * the Alpha page table tree.
@@ -20,6 +22,7 @@
  * hook is made available.
  */
 #define set_pte(pteptr, pteval) ((*(pteptr)) = (pteval))
+#define set_pte_at(mm,addr,ptep,pteval) set_pte(ptep,pteval)
 
 /* PMD_SHIFT determines the size of the area a second-level page table can map */
 #define PMD_SHIFT	(PAGE_SHIFT + (PAGE_SHIFT-3))
@@ -39,7 +42,7 @@
 #define PTRS_PER_PMD	(1UL << (PAGE_SHIFT-3))
 #define PTRS_PER_PGD	(1UL << (PAGE_SHIFT-3))
 #define USER_PTRS_PER_PGD	(TASK_SIZE / PGDIR_SIZE)
-#define FIRST_USER_PGD_NR	0
+#define FIRST_USER_ADDRESS	0
 
 /* Number of pointers that fit on a page:  this will go away. */
 #define PTRS_PER_PAGE	(1UL << (PAGE_SHIFT-3))
@@ -192,7 +195,7 @@ extern unsigned long __zero_page(void);
  * and a page entry and page directory to the page they refer to.
  */
 #ifndef CONFIG_DISCONTIGMEM
-#define page_to_pa(page)	((page - mem_map) << PAGE_SHIFT)
+#define page_to_pa(page)	(((page) - mem_map) << PAGE_SHIFT)
 
 #define pte_pfn(pte)	(pte_val(pte) >> 32)
 #define pte_page(pte)	pfn_to_page(pte_pfn(pte))
@@ -233,7 +236,10 @@ extern inline unsigned long pgd_page(pgd_t pgd)
 
 extern inline int pte_none(pte_t pte)		{ return !pte_val(pte); }
 extern inline int pte_present(pte_t pte)	{ return pte_val(pte) & _PAGE_VALID; }
-extern inline void pte_clear(pte_t *ptep)	{ pte_val(*ptep) = 0; }
+extern inline void pte_clear(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
+{
+	pte_val(*ptep) = 0;
+}
 
 extern inline int pmd_none(pmd_t pmd)		{ return !pmd_val(pmd); }
 extern inline int pmd_bad(pmd_t pmd)		{ return (pmd_val(pmd) & ~_PFN_MASK) != _PAGE_TABLE; }
@@ -270,10 +276,10 @@ extern inline pte_t pte_mkyoung(pte_t pte)	{ pte_val(pte) |= __ACCESS_BITS; retu
 #define PAGE_DIR_OFFSET(tsk,address) pgd_offset((tsk),(address))
 
 /* to find an entry in a kernel page-table-directory */
-#define pgd_offset_k(address) pgd_offset(&init_mm, address)
+#define pgd_offset_k(address) pgd_offset(&init_mm, (address))
 
 /* to find an entry in a page-table-directory. */
-#define pgd_index(address)	((address >> PGDIR_SHIFT) & (PTRS_PER_PGD - 1))
+#define pgd_index(address)	(((address) >> PGDIR_SHIFT) & (PTRS_PER_PGD-1))
 #define pgd_offset(mm, address)	((mm)->pgd+pgd_index(address))
 
 /* Find an entry in the second-level page table.. */
@@ -327,8 +333,19 @@ extern inline pte_t mk_swap_pte(unsigned long type, unsigned long offset)
 #define kern_addr_valid(addr)	(1)
 #endif
 
-#define io_remap_page_range(vma, start, busaddr, size, prot) \
-    remap_page_range(vma, start, virt_to_phys(__ioremap(busaddr, size)), size, prot)
+#define io_remap_page_range(vma, start, busaddr, size, prot)	\
+({								\
+	void *va = (void __force *)ioremap(busaddr, size);	\
+	unsigned long pfn = virt_to_phys(va) >> PAGE_SHIFT;	\
+	remap_pfn_range(vma, start, pfn, size, prot);		\
+})
+
+#define io_remap_pfn_range(vma, start, pfn, size, prot)	\
+		remap_pfn_range(vma, start, pfn, size, prot)
+
+#define MK_IOSPACE_PFN(space, pfn)	(pfn)
+#define GET_IOSPACE(pfn)		0
+#define GET_PFN(pfn)			(pfn)
 
 #define pte_ERROR(e) \
 	printk("%s:%d: bad pte %016lx.\n", __FILE__, __LINE__, pte_val(e))

@@ -147,9 +147,18 @@
 #define INT_1610_SoSSI		(9 + IH2_BASE)
 #define INT_1610_SoSSI_MATCH	(19 + IH2_BASE)
 #define INT_1610_McBSP2RX_OF	(31 + IH2_BASE)
+#define INT_1610_STI		(32 + IH2_BASE)
+#define INT_1610_STI_WAKEUP	(33 + IH2_BASE)
+#define INT_1610_GPTIMER3	(34 + IH2_BASE)
+#define INT_1610_GPTIMER4	(35 + IH2_BASE)
+#define INT_1610_GPTIMER5	(36 + IH2_BASE)
+#define INT_1610_GPTIMER6	(37 + IH2_BASE)
+#define INT_1610_GPTIMER7	(38 + IH2_BASE)
+#define INT_1610_GPTIMER8	(39 + IH2_BASE)
 #define INT_1610_GPIO_BANK2	(40 + IH2_BASE)
 #define INT_1610_GPIO_BANK3	(41 + IH2_BASE)
 #define INT_1610_MMC2		(42 + IH2_BASE)
+#define INT_1610_CF		(43 + IH2_BASE)
 #define INT_1610_GPIO_BANK4	(48 + IH2_BASE)
 #define INT_1610_SPI		(49 + IH2_BASE)
 #define INT_1610_DMA_CH6	(53 + IH2_BASE)
@@ -192,8 +201,6 @@
 #define INT_730_TIMER32K	(22 + IH2_BASE)
 #define INT_730_MMC_SDIO	(23 + IH2_BASE)
 #define INT_730_UPLD		(24 + IH2_BASE)
-#define INT_730_RTC_TIMER	(25 + IH2_BASE)
-#define INT_730_RTC_ALARM	(26 + IH2_BASE)
 #define INT_730_USB_HHC_1	(27 + IH2_BASE)
 #define INT_730_USB_HHC_2	(28 + IH2_BASE)
 #define INT_730_USB_GENI	(29 + IH2_BASE)
@@ -224,24 +231,6 @@
 #define INT_730_DMA_CH15	(62 + IH2_BASE)
 #define INT_730_NAND		(63 + IH2_BASE)
 
-/* OMAP-730 differences */
-#ifdef CONFIG_ARCH_OMAP730
-#undef	INT_IH2_IRQ
-#define INT_IH2_IRQ		INT_730_IH2_IRQ
-#undef	INT_KEYBOARD
-#define INT_KEYBOARD		INT_730_MPUIO_KEYPAD
-#undef	INT_UART1
-#define INT_UART1		INT_730_UART_MODEM_1
-#undef	INT_UART2
-#define INT_UART2		INT_730_UART_MODEM_IRDA_2
-#undef	INT_MPUIO
-#define INT_MPUIO		INT_730_MPUIO
-#undef	INT_RTC_TIMER
-#define INT_RTC_TIMER		INT_730_RTC_TIMER
-#undef	INT_RTC_ALARM
-#define INT_RTC_ALARM		INT_730_RTC_ALARM
-#endif
-
 /* Max. 128 level 2 IRQs (OMAP1610), 192 GPIOs (OMAP730) and
  * 16 MPUIO lines */
 #define OMAP_MAX_GPIO_LINES	192
@@ -260,7 +249,7 @@ extern void omap_init_irq(void);
 #include <asm/arch/hardware.h>
 
 #ifndef NR_IRQS
-#define NR_IRQS                 256
+#define NR_IRQS                 IH_BOARD_BASE
 #endif
 
 #endif

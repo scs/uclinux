@@ -9,12 +9,10 @@
 #define _PPC_PROM_H
 
 #include <linux/config.h>
+#include <linux/types.h>
 
-typedef void *phandle;
-typedef void *ihandle;
-
-extern char *prom_display_paths[];
-extern unsigned int prom_num_displays;
+typedef u32 phandle;
+typedef u32 ihandle;
 
 struct address_range {
 	unsigned int space;

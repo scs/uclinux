@@ -210,8 +210,8 @@ extern void _change_bit_le(int nr, volatile unsigned long * p);
 extern int _test_and_set_bit_le(int nr, volatile unsigned long * p);
 extern int _test_and_clear_bit_le(int nr, volatile unsigned long * p);
 extern int _test_and_change_bit_le(int nr, volatile unsigned long * p);
-extern int _find_first_zero_bit_le(void * p, unsigned size);
-extern int _find_next_zero_bit_le(void * p, int size, int offset);
+extern int _find_first_zero_bit_le(const void * p, unsigned size);
+extern int _find_next_zero_bit_le(const void * p, int size, int offset);
 extern int _find_first_bit_le(const unsigned long *p, unsigned size);
 extern int _find_next_bit_le(const unsigned long *p, int size, int offset);
 
@@ -224,8 +224,8 @@ extern void _change_bit_be(int nr, volatile unsigned long * p);
 extern int _test_and_set_bit_be(int nr, volatile unsigned long * p);
 extern int _test_and_clear_bit_be(int nr, volatile unsigned long * p);
 extern int _test_and_change_bit_be(int nr, volatile unsigned long * p);
-extern int _find_first_zero_bit_be(void * p, unsigned size);
-extern int _find_next_zero_bit_be(void * p, int size, int offset);
+extern int _find_first_zero_bit_be(const void * p, unsigned size);
+extern int _find_next_zero_bit_be(const void * p, int size, int offset);
 extern int _find_first_bit_be(const unsigned long *p, unsigned size);
 extern int _find_next_bit_be(const unsigned long *p, int size, int offset);
 
@@ -342,10 +342,10 @@ static inline unsigned long __ffs(unsigned long word)
  * the clz instruction for much better code efficiency.
  */
 
-extern __inline__ int generic_fls(int x);
+static __inline__ int generic_fls(int x);
 #define fls(x) \
 	( __builtin_constant_p(x) ? generic_fls(x) : \
-	  ({ int __r; asm("clz%?\t%0, %1" : "=r"(__r) : "r"(x)); 32-__r; }) )
+	  ({ int __r; asm("clz\t%0, %1" : "=r"(__r) : "r"(x) : "cc"); 32-__r; }) )
 #define ffs(x) ({ unsigned long __t = (x); fls(__t & -__t); })
 #define __ffs(x) (ffs(x) - 1)
 #define ffz(x) __ffs( ~(x) )
@@ -356,7 +356,7 @@ extern __inline__ int generic_fls(int x);
  * Find first bit set in a 168-bit bitmap, where the first
  * 128 bits are unlikely to be set.
  */
-static inline int sched_find_first_bit(unsigned long *b)
+static inline int sched_find_first_bit(const unsigned long *b)
 {
 	unsigned long v;
 	unsigned int off;

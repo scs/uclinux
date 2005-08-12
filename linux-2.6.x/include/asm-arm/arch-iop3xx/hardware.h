@@ -1,10 +1,10 @@
 /*
- * linux/include/asm-arm/arch-iop80310/hardware.h
+ * linux/include/asm-arm/arch-iop3xx/hardware.h
  */
 #ifndef __ASM_ARCH_HARDWARE_H
 #define __ASM_ARCH_HARDWARE_H
 
-#include <linux/config.h>
+#include <asm/types.h>
 
 /*
  * Note about PCI IO space mappings
@@ -15,41 +15,43 @@
  * The PCI IO space is located at virtual 0xfe000000 from physical
  * 0x90000000.  The PCI BARs must be programmed with physical addresses,
  * but when we read them, we convert them to virtual addresses.  See
- * arch/arm/mach-iop310/iop310-pci.c
+ * arch/arm/mach-iop3xx/iop3xx-pci.c
  */
 
 #define pcibios_assign_all_busses() 1
 
-#ifdef CONFIG_ARCH_IOP310
+
 /*
- * these are the values for the secondary PCI bus on the 80312 chip.  I will
- * have to do some fixup in the bus/dev fixup code
+ * The min PCI I/O and MEM space are dependent on what specific
+ * chipset/platform we are running on, so instead of hardcoding with
+ * #ifdefs, we just fill these in the platform level PCI init code.
  */
-#define PCIBIOS_MIN_IO      0
-#define PCIBIOS_MIN_MEM     0x88000000
+#ifndef __ASSEMBLY__
+extern unsigned long iop3xx_pcibios_min_io;
+extern unsigned long iop3xx_pcibios_min_mem;
 
-// Generic chipset bits
-#include "iop310.h"
-
-// Board specific
-#if defined(CONFIG_ARCH_IQ80310)
-#include "iq80310.h"
-#endif
+extern unsigned int processor_id;
 #endif
 
-#ifdef CONFIG_ARCH_IOP321
+/*
+ * We just set these to zero since they are really bogus anyways
+ */
+#define PCIBIOS_MIN_IO      (iop3xx_pcibios_min_io)
+#define PCIBIOS_MIN_MEM     (iop3xx_pcibios_min_mem)
 
-#define PCIBIOS_MIN_IO		0x90000000
-#define PCIBIOS_MIN_MEM		0x80000000
-
+/*
+ * Generic chipset bits
+ *
+ */
 #include "iop321.h"
+#include "iop331.h"
 
-#ifdef CONFIG_ARCH_IQ80321
+/*
+ * Board specific bits
+ */
 #include "iq80321.h"
-#endif
-#endif
-
-
-
+#include "iq31244.h"
+#include "iq80331.h"
+#include "iq80332.h"
 
 #endif  /* _ASM_ARCH_HARDWARE_H */

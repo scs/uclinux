@@ -19,6 +19,7 @@
 #define SUN_OPENPROM_MINOR 139
 #define DMAPI_MINOR		140	/* DMAPI */
 #define NVRAM_MINOR 144
+#define SGI_MMTIMER        153
 #define STORE_QUEUE_MINOR	155
 #define I2O_MINOR 166
 #define MICROCODE_MINOR		184
@@ -30,14 +31,15 @@
 #define	HPET_MINOR	     228
 
 struct device;
+struct class_device;
 
-struct miscdevice 
-{
+struct miscdevice  {
 	int minor;
 	const char *name;
 	struct file_operations *fops;
 	struct list_head list;
 	struct device *dev;
+	struct class_device *class;
 	char devfs_name[64];
 };
 

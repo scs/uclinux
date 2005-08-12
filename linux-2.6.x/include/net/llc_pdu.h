@@ -253,9 +253,9 @@ static inline void llc_pdu_header_init(struct sk_buff *skb, u8 type,
 static inline void llc_pdu_decode_sa(struct sk_buff *skb, u8 *sa)
 {
 	if (skb->protocol == ntohs(ETH_P_802_2))
-		memcpy(sa, ((struct ethhdr *)skb->mac.raw)->h_source, ETH_ALEN);
+		memcpy(sa, eth_hdr(skb)->h_source, ETH_ALEN);
 	else if (skb->protocol == ntohs(ETH_P_TR_802_2))
-		memcpy(sa, ((struct trh_hdr *)skb->mac.raw)->saddr, ETH_ALEN);
+		memcpy(sa, tr_hdr(skb)->saddr, ETH_ALEN);
 }
 
 /**
@@ -268,9 +268,9 @@ static inline void llc_pdu_decode_sa(struct sk_buff *skb, u8 *sa)
 static inline void llc_pdu_decode_da(struct sk_buff *skb, u8 *da)
 {
 	if (skb->protocol == ntohs(ETH_P_802_2))
-		memcpy(da, ((struct ethhdr *)skb->mac.raw)->h_dest, ETH_ALEN);
+		memcpy(da, eth_hdr(skb)->h_dest, ETH_ALEN);
 	else if (skb->protocol == ntohs(ETH_P_TR_802_2))
-		memcpy(da, ((struct trh_hdr *)skb->mac.raw)->daddr, ETH_ALEN);
+		memcpy(da, tr_hdr(skb)->daddr, ETH_ALEN);
 }
 
 /**
@@ -347,7 +347,7 @@ static inline void llc_pdu_init_as_test_rsp(struct sk_buff *skb,
 		struct llc_pdu_un *ev_pdu = llc_pdu_un_hdr(ev_skb);
 		int dsize;
 
-		dsize = ntohs(((struct ethhdr *)ev_skb->mac.raw)->h_proto) - 3;
+		dsize = ntohs(eth_hdr(ev_skb)->h_proto) - 3;
 		memcpy(((u8 *)pdu) + 3, ((u8 *)ev_pdu) + 3, dsize);
 		skb_put(skb, dsize);
 	}
@@ -419,7 +419,6 @@ struct llc_frmr_info {
 extern void llc_pdu_set_cmd_rsp(struct sk_buff *skb, u8 type);
 extern void llc_pdu_set_pf_bit(struct sk_buff *skb, u8 bit_value);
 extern void llc_pdu_decode_pf_bit(struct sk_buff *skb, u8 *pf_bit);
-extern void llc_pdu_decode_cr_bit(struct sk_buff *skb, u8 *cr_bit);
 extern void llc_pdu_init_as_disc_cmd(struct sk_buff *skb, u8 p_bit);
 extern void llc_pdu_init_as_i_cmd(struct sk_buff *skb, u8 p_bit, u8 ns, u8 nr);
 extern void llc_pdu_init_as_rej_cmd(struct sk_buff *skb, u8 p_bit, u8 nr);

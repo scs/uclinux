@@ -52,10 +52,8 @@ typedef struct sndrv_pcm_mmap_control snd_pcm_mmap_control_t;
 typedef struct sndrv_mask snd_mask_t;
 typedef struct snd_sg_buf snd_pcm_sgbuf_t;
 
-#define _snd_pcm_substream_chip(substream) ((substream)->private_data)
-#define snd_pcm_substream_chip(substream) snd_magic_cast1(chip_t, _snd_pcm_substream_chip(substream), return -ENXIO)
-#define _snd_pcm_chip(pcm) ((pcm)->private_data)
-#define snd_pcm_chip(pcm) snd_magic_cast1(chip_t, _snd_pcm_chip(pcm), return -ENXIO)
+#define snd_pcm_substream_chip(substream) ((substream)->private_data)
+#define snd_pcm_chip(pcm) ((pcm)->private_data)
 
 typedef struct _snd_pcm_file snd_pcm_file_t;
 typedef struct _snd_pcm_runtime snd_pcm_runtime_t;
@@ -99,6 +97,7 @@ typedef struct _snd_pcm_ops {
 	int (*silence)(snd_pcm_substream_t *substream, int channel, 
 		       snd_pcm_uframes_t pos, snd_pcm_uframes_t count);
 	struct page *(*page)(snd_pcm_substream_t *substream, unsigned long offset);
+	int (*mmap)(snd_pcm_substream_t *substream, struct vm_area_struct *vma);
 	int (*ack)(snd_pcm_substream_t *substream);
 } snd_pcm_ops_t;
 
@@ -122,6 +121,8 @@ typedef struct _snd_pcm_ops {
 #define SNDRV_PCM_TRIGGER_PAUSE_RELEASE	4
 #define SNDRV_PCM_TRIGGER_SUSPEND	5
 #define SNDRV_PCM_TRIGGER_RESUME	6
+
+#define SNDRV_PCM_POS_XRUN		((snd_pcm_uframes_t)-1)
 
 /* If you change this don't forget to change rates[] table in pcm_native.c */
 #define SNDRV_PCM_RATE_5512		(1<<0)		/* 5512Hz */
@@ -351,7 +352,8 @@ struct _snd_pcm_runtime {
 	unsigned char *dma_area;	/* DMA area */
 	dma_addr_t dma_addr;		/* physical bus address (not accessible from main CPU) */
 	size_t dma_bytes;		/* size of DMA area */
-	void *dma_private;		/* private DMA data for the memory allocator */
+
+	struct snd_dma_buffer *dma_buffer_p;	/* allocated buffer */
 
 #if defined(CONFIG_SND_PCM_OSS) || defined(CONFIG_SND_PCM_OSS_MODULE)
 	/* -- OSS things -- */
@@ -362,6 +364,7 @@ struct _snd_pcm_runtime {
 typedef struct _snd_pcm_group {		/* keep linked substreams */
 	spinlock_t lock;
 	struct list_head substreams;
+	int count;
 } snd_pcm_group_t;
 
 struct _snd_pcm_substream {
@@ -372,8 +375,8 @@ struct _snd_pcm_substream {
 	char name[32];			/* substream name */
 	int stream;			/* stream (direction) */
 	size_t buffer_bytes_max;	/* limit ring buffer size */
-	struct snd_dma_device dma_device;
 	struct snd_dma_buffer dma_buffer;
+	unsigned int dma_buf_id;
 	size_t dma_max;
 	/* -- hardware operations -- */
 	unsigned int open_flag: 1;	/* lowlevel device has been opened */
@@ -382,7 +385,7 @@ struct _snd_pcm_substream {
 	snd_pcm_runtime_t *runtime;
         /* -- timer section -- */
 	snd_timer_t *timer;		/* timer */
-	int timer_running: 1;		/* time is running */
+	unsigned timer_running: 1;	/* time is running */
 	spinlock_t timer_lock;
 	/* -- next substream -- */
 	snd_pcm_substream_t *next;
@@ -403,6 +406,8 @@ struct _snd_pcm_substream {
 	snd_info_entry_t *proc_sw_params_entry;
 	snd_info_entry_t *proc_status_entry;
 	snd_info_entry_t *proc_prealloc_entry;
+	/* misc flags */
+	unsigned int no_mmap_ctrl: 1;
 };
 
 #if defined(CONFIG_SND_PCM_OSS) || defined(CONFIG_SND_PCM_OSS_MODULE)
@@ -484,6 +489,7 @@ int snd_pcm_status(snd_pcm_substream_t * substream, snd_pcm_status_t *status);
 int snd_pcm_prepare(snd_pcm_substream_t *substream);
 int snd_pcm_start(snd_pcm_substream_t *substream);
 int snd_pcm_stop(snd_pcm_substream_t *substream, int status);
+int snd_pcm_drain_done(snd_pcm_substream_t *substream);
 #ifdef CONFIG_PM
 int snd_pcm_suspend(snd_pcm_substream_t *substream);
 int snd_pcm_suspend_all(snd_pcm_t *pcm);
@@ -491,10 +497,6 @@ int snd_pcm_suspend_all(snd_pcm_t *pcm);
 int snd_pcm_kernel_playback_ioctl(snd_pcm_substream_t *substream, unsigned int cmd, void *arg);
 int snd_pcm_kernel_capture_ioctl(snd_pcm_substream_t *substream, unsigned int cmd, void *arg);
 int snd_pcm_kernel_ioctl(snd_pcm_substream_t *substream, unsigned int cmd, void *arg);
-int snd_pcm_open(struct inode *inode, struct file *file);
-int snd_pcm_release(struct inode *inode, struct file *file);
-unsigned int snd_pcm_playback_poll(struct file *file, poll_table * wait);
-unsigned int snd_pcm_capture_poll(struct file *file, poll_table * wait);
 int snd_pcm_open_substream(snd_pcm_t *pcm, int stream, snd_pcm_substream_t **rsubstream);
 void snd_pcm_release_substream(snd_pcm_substream_t *substream);
 void snd_pcm_vma_notify_data(void *client, void *data);
@@ -703,6 +705,80 @@ static inline snd_pcm_sframes_t snd_pcm_capture_hw_avail(snd_pcm_runtime_t *runt
 	return runtime->buffer_size - snd_pcm_capture_avail(runtime);
 }
 
+/**
+ * snd_pcm_playback_ready - check whether the playback buffer is available
+ * @substream: the pcm substream instance
+ *
+ * Checks whether enough free space is available on the playback buffer.
+ *
+ * Returns non-zero if available, or zero if not.
+ */
+static inline int snd_pcm_playback_ready(snd_pcm_substream_t *substream)
+{
+	snd_pcm_runtime_t *runtime = substream->runtime;
+	return snd_pcm_playback_avail(runtime) >= runtime->control->avail_min;
+}
+
+/**
+ * snd_pcm_capture_ready - check whether the capture buffer is available
+ * @substream: the pcm substream instance
+ *
+ * Checks whether enough capture data is available on the capture buffer.
+ *
+ * Returns non-zero if available, or zero if not.
+ */
+static inline int snd_pcm_capture_ready(snd_pcm_substream_t *substream)
+{
+	snd_pcm_runtime_t *runtime = substream->runtime;
+	return snd_pcm_capture_avail(runtime) >= runtime->control->avail_min;
+}
+
+/**
+ * snd_pcm_playback_data - check whether any data exists on the playback buffer
+ * @substream: the pcm substream instance
+ *
+ * Checks whether any data exists on the playback buffer. If stop_threshold
+ * is bigger or equal to boundary, then this function returns always non-zero.
+ *
+ * Returns non-zero if exists, or zero if not.
+ */
+static inline int snd_pcm_playback_data(snd_pcm_substream_t *substream)
+{
+	snd_pcm_runtime_t *runtime = substream->runtime;
+	
+	if (runtime->stop_threshold >= runtime->boundary)
+		return 1;
+	return snd_pcm_playback_avail(runtime) < runtime->buffer_size;
+}
+
+/**
+ * snd_pcm_playback_empty - check whether the playback buffer is empty
+ * @substream: the pcm substream instance
+ *
+ * Checks whether the playback buffer is empty.
+ *
+ * Returns non-zero if empty, or zero if not.
+ */
+static inline int snd_pcm_playback_empty(snd_pcm_substream_t *substream)
+{
+	snd_pcm_runtime_t *runtime = substream->runtime;
+	return snd_pcm_playback_avail(runtime) >= runtime->buffer_size;
+}
+
+/**
+ * snd_pcm_capture_empty - check whether the capture buffer is empty
+ * @substream: the pcm substream instance
+ *
+ * Checks whether the capture buffer is empty.
+ *
+ * Returns non-zero if empty, or zero if not.
+ */
+static inline int snd_pcm_capture_empty(snd_pcm_substream_t *substream)
+{
+	snd_pcm_runtime_t *runtime = substream->runtime;
+	return snd_pcm_capture_avail(runtime) == 0;
+}
+
 static inline void snd_pcm_trigger_done(snd_pcm_substream_t *substream, 
 					snd_pcm_substream_t *master)
 {
@@ -766,12 +842,8 @@ void snd_interval_muldivk(const snd_interval_t *a, const snd_interval_t *b,
 void snd_interval_mulkdiv(const snd_interval_t *a, unsigned int k,
 			  const snd_interval_t *b, snd_interval_t *c);
 int snd_interval_list(snd_interval_t *i, unsigned int count, unsigned int *list, unsigned int mask);
-int snd_interval_step(snd_interval_t *i, unsigned int min, unsigned int step);
 int snd_interval_ratnum(snd_interval_t *i,
 			unsigned int rats_count, ratnum_t *rats,
-			unsigned int *nump, unsigned int *denp);
-int snd_interval_ratden(snd_interval_t *i,
-			unsigned int rats_count, ratden_t *rats,
 			unsigned int *nump, unsigned int *denp);
 
 void _snd_pcm_hw_params_any(snd_pcm_hw_params_t *params);
@@ -804,6 +876,7 @@ int snd_pcm_hw_param_set(snd_pcm_substream_t *pcm,
 int snd_pcm_hw_params_choose(snd_pcm_substream_t *substream, snd_pcm_hw_params_t *params);
 
 int snd_pcm_hw_refine(snd_pcm_substream_t *substream, snd_pcm_hw_params_t *params);
+int snd_pcm_hw_params(snd_pcm_substream_t *substream, snd_pcm_hw_params_t *params);
 
 int snd_pcm_hw_constraints_init(snd_pcm_substream_t *substream);
 int snd_pcm_hw_constraints_complete(snd_pcm_substream_t *substream);
@@ -851,12 +924,10 @@ int snd_pcm_format_little_endian(snd_pcm_format_t format);
 int snd_pcm_format_big_endian(snd_pcm_format_t format);
 int snd_pcm_format_width(snd_pcm_format_t format);			/* in bits */
 int snd_pcm_format_physical_width(snd_pcm_format_t format);		/* in bits */
-u_int64_t snd_pcm_format_silence_64(snd_pcm_format_t format);
+const unsigned char *snd_pcm_format_silence_64(snd_pcm_format_t format);
 int snd_pcm_format_set_silence(snd_pcm_format_t format, void *buf, unsigned int frames);
 snd_pcm_format_t snd_pcm_build_linear_format(int width, int unsignd, int big_endian);
-ssize_t snd_pcm_format_size(snd_pcm_format_t format, size_t samples);
 const char *snd_pcm_format_name(snd_pcm_format_t format);
-const char *snd_pcm_subformat_name(snd_pcm_subformat_t subformat);
 
 void snd_pcm_set_ops(snd_pcm_t * pcm, int direction, snd_pcm_ops_t *ops);
 void snd_pcm_set_sync(snd_pcm_substream_t * substream);
@@ -869,13 +940,6 @@ int snd_pcm_capture_xrun_check(snd_pcm_substream_t *substream);
 int snd_pcm_playback_xrun_asap(snd_pcm_substream_t *substream);
 int snd_pcm_capture_xrun_asap(snd_pcm_substream_t *substream);
 void snd_pcm_playback_silence(snd_pcm_substream_t *substream, snd_pcm_uframes_t new_hw_ptr);
-int snd_pcm_playback_ready(snd_pcm_substream_t *substream);
-int snd_pcm_capture_ready(snd_pcm_substream_t *substream);
-long snd_pcm_playback_ready_jiffies(snd_pcm_substream_t *substream);
-long snd_pcm_capture_ready_jiffies(snd_pcm_substream_t *substream);
-int snd_pcm_playback_data(snd_pcm_substream_t *substream);
-int snd_pcm_playback_empty(snd_pcm_substream_t *substream);
-int snd_pcm_capture_empty(snd_pcm_substream_t *substream);
 void snd_pcm_tick_prepare(snd_pcm_substream_t *substream);
 void snd_pcm_tick_set(snd_pcm_substream_t *substream, unsigned long ticks);
 void snd_pcm_tick_elapsed(snd_pcm_substream_t *substream);
@@ -892,6 +956,22 @@ snd_pcm_sframes_t snd_pcm_lib_readv(snd_pcm_substream_t *substream,
 
 int snd_pcm_limit_hw_rates(snd_pcm_runtime_t *runtime);
 
+static inline void snd_pcm_set_runtime_buffer(snd_pcm_substream_t *substream,
+					      struct snd_dma_buffer *bufp)
+{
+	snd_pcm_runtime_t *runtime = substream->runtime;
+	if (bufp) {
+		runtime->dma_buffer_p = bufp;
+		runtime->dma_area = bufp->area;
+		runtime->dma_addr = bufp->addr;
+		runtime->dma_bytes = bufp->bytes;
+	} else {
+		runtime->dma_buffer_p = NULL;
+		runtime->dma_area = NULL;
+		runtime->dma_addr = 0;
+		runtime->dma_bytes = 0;
+	}
+}
 
 /*
  *  Timer interface
@@ -916,10 +996,32 @@ int snd_pcm_lib_preallocate_pages_for_all(snd_pcm_t *pcm,
 int snd_pcm_lib_malloc_pages(snd_pcm_substream_t *substream, size_t size);
 int snd_pcm_lib_free_pages(snd_pcm_substream_t *substream);
 
-#define snd_pcm_substream_sgbuf(substream) ((substream)->runtime->dma_private)
+#define snd_pcm_substream_sgbuf(substream) ((substream)->runtime->dma_buffer_p->private_data)
 #define snd_pcm_sgbuf_pages(size) snd_sgbuf_aligned_pages(size)
 #define snd_pcm_sgbuf_get_addr(sgbuf,ofs) snd_sgbuf_get_addr(sgbuf,ofs)
 struct page *snd_pcm_sgbuf_ops_page(snd_pcm_substream_t *substream, unsigned long offset);
+
+/* handle mmap counter - PCM mmap callback should handle this counter properly */
+static inline void snd_pcm_mmap_data_open(struct vm_area_struct *area)
+{
+	snd_pcm_substream_t *substream = (snd_pcm_substream_t *)area->vm_private_data;
+	atomic_inc(&substream->runtime->mmap_count);
+}
+
+static inline void snd_pcm_mmap_data_close(struct vm_area_struct *area)
+{
+	snd_pcm_substream_t *substream = (snd_pcm_substream_t *)area->vm_private_data;
+	atomic_dec(&substream->runtime->mmap_count);
+}
+
+/* mmap for io-memory area */
+#if defined(CONFIG_X86) || defined(CONFIG_PPC) || defined(CONFIG_ALPHA)
+#define SNDRV_PCM_INFO_MMAP_IOMEM	SNDRV_PCM_INFO_MMAP
+int snd_pcm_lib_mmap_iomem(snd_pcm_substream_t *substream, struct vm_area_struct *area);
+#else
+#define SNDRV_PCM_INFO_MMAP_IOMEM	0
+#define snd_pcm_lib_mmap_iomem	NULL
+#endif
 
 static inline void snd_pcm_limit_isa_dma_size(int dma, size_t *max)
 {

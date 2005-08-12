@@ -24,7 +24,8 @@ static inline int __access_ok(unsigned long addr, unsigned long size)
 	return(RANGE_CHECK_OK(addr, size, 0L, (unsigned long)&_ramend));
 }
 
-static inline int verify_area(int type, const void *addr, unsigned long size)
+/* this function will go away soon - use access_ok() instead */
+static inline int __deprecated verify_area(int type, const void *addr, unsigned long size)
 {
 	return access_ok(type,addr,size)?0:-EFAULT;
 }
@@ -123,6 +124,8 @@ extern int __get_user_bad(void);
 
 #define __copy_from_user(to, from, n) copy_from_user(to, from, n)
 #define __copy_to_user(to, from, n) copy_to_user(to, from, n)
+#define __copy_to_user_inatomic __copy_to_user
+#define __copy_from_user_inatomic __copy_from_user
 
 #define copy_to_user_ret(to,from,n,retval) ({ if (copy_to_user(to,from,n)) return retval; })
 

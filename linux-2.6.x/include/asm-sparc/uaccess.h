@@ -18,7 +18,7 @@
 
 #ifndef __ASSEMBLY__
 
-/* Sparc is not segmented, however we need to be able to fool verify_area()
+/* Sparc is not segmented, however we need to be able to fool access_ok()
  * when doing system calls from kernel mode legitimately.
  *
  * "For historical reasons, these macros are grossly misnamed." -Linus
@@ -41,14 +41,16 @@
  * No one can read/write anything from userland in the kernel space by setting
  * large size and address near to PAGE_OFFSET - a fault will break his intentions.
  */
-#define __user_ok(addr,size) ((addr) < STACK_TOP)
+#define __user_ok(addr, size) ({ (void)(size); (addr) < STACK_TOP; })
 #define __kernel_ok (segment_eq(get_fs(), KERNEL_DS))
 #define __access_ok(addr,size) (__user_ok((addr) & get_fs().seg,(size)))
-#define access_ok(type,addr,size) __access_ok((unsigned long)(addr),(size))
+#define access_ok(type, addr, size)					\
+	({ (void)(type); __access_ok((unsigned long)(addr), size); })
 
-static inline int verify_area(int type, const void __user * addr, unsigned long size)
+/* this function will go away soon - use access_ok() instead */
+static inline int __deprecated verify_area(int type, const void __user * addr, unsigned long size)
 {
-	return access_ok(type,addr,size)?0:-EFAULT;
+	return access_ok(type,addr,size) ? 0 : -EFAULT;
 }
 
 /*
@@ -111,7 +113,7 @@ __get_user_check((x),__gu_addr,sizeof(*(ptr)),__typeof__(*(ptr))); })
 #define __get_user(x,ptr) __get_user_nocheck((x),(ptr),sizeof(*(ptr)),__typeof__(*(ptr)))
 
 struct __large_struct { unsigned long buf[100]; };
-#define __m(x) ((struct __large_struct *)(x))
+#define __m(x) ((struct __large_struct __user *)(x))
 
 #define __put_user_check(x,addr,size) ({ \
 register int __pu_ret; \
@@ -299,28 +301,31 @@ extern unsigned long __copy_user(void __user *to, const void __user *from, unsig
 static inline unsigned long copy_to_user(void __user *to, const void *from, unsigned long n)
 {
 	if (n && __access_ok((unsigned long) to, n))
-		return __copy_user(to, (void __user *) from, n);
+		return __copy_user(to, (__force void __user *) from, n);
 	else
 		return n;
 }
 
 static inline unsigned long __copy_to_user(void __user *to, const void *from, unsigned long n)
 {
-	return __copy_user(to, (void __user *) from, n);
+	return __copy_user(to, (__force void __user *) from, n);
 }
 
 static inline unsigned long copy_from_user(void *to, const void __user *from, unsigned long n)
 {
 	if (n && __access_ok((unsigned long) from, n))
-		return __copy_user((void __user *) to, from, n);
+		return __copy_user((__force void __user *) to, from, n);
 	else
 		return n;
 }
 
 static inline unsigned long __copy_from_user(void *to, const void __user *from, unsigned long n)
 {
-	return __copy_user((void __user *) to, from, n);
+	return __copy_user((__force void __user *) to, from, n);
 }
+
+#define __copy_to_user_inatomic __copy_to_user
+#define __copy_from_user_inatomic __copy_from_user
 
 static inline unsigned long __clear_user(void __user *addr, unsigned long size)
 {

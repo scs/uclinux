@@ -47,39 +47,18 @@
  *      kernel PLL updated to 1994-12-13 specs (rfc-1589)
  * 1997-08-30    Ulrich Windl
  *      Added new constant NTP_PHASE_LIMIT
+ * 2004-08-12    Christoph Lameter
+ *      Reworked time interpolation logic
  */
 #ifndef _LINUX_TIMEX_H
 #define _LINUX_TIMEX_H
 
 #include <linux/config.h>
 #include <linux/compiler.h>
+#include <linux/time.h>
 
 #include <asm/param.h>
-
-/*
- * The following defines establish the engineering parameters of the PLL
- * model. The HZ variable establishes the timer interrupt frequency, 100 Hz
- * for the SunOS kernel, 256 Hz for the Ultrix kernel and 1024 Hz for the
- * OSF/1 kernel. The SHIFT_HZ define expresses the same value as the
- * nearest power of two in order to avoid hardware multiply operations.
- */
-#if HZ >= 12 && HZ < 24
-# define SHIFT_HZ	4
-#elif HZ >= 24 && HZ < 48
-# define SHIFT_HZ	5
-#elif HZ >= 48 && HZ < 96
-# define SHIFT_HZ	6
-#elif HZ >= 96 && HZ < 192
-# define SHIFT_HZ	7
-#elif HZ >= 192 && HZ < 384
-# define SHIFT_HZ	8
-#elif HZ >= 384 && HZ < 768
-# define SHIFT_HZ	9
-#elif HZ >= 768 && HZ < 1536
-# define SHIFT_HZ	10
-#else
-# error You lose.
-#endif
+#include <asm/timex.h>
 
 /*
  * SHIFT_KG and SHIFT_KF establish the damping of the PLL and are chosen
@@ -149,41 +128,6 @@
 #define PPS_VALID 120		/* pps signal watchdog max (s) */
 #define MAXGLITCH 30		/* pps signal glitch max (s) */
 
-/*
- * Pick up the architecture specific timex specifications
- */
-#include <asm/timex.h>
-
-/* LATCH is used in the interval timer and ftape setup. */
-#define LATCH  ((CLOCK_TICK_RATE + HZ/2) / HZ)	/* For divider */
-
-/* Suppose we want to devide two numbers NOM and DEN: NOM/DEN, the we can
- * improve accuracy by shifting LSH bits, hence calculating:
- *     (NOM << LSH) / DEN
- * This however means trouble for large NOM, because (NOM << LSH) may no
- * longer fit in 32 bits. The following way of calculating this gives us
- * some slack, under the following conditions:
- *   - (NOM / DEN) fits in (32 - LSH) bits.
- *   - (NOM % DEN) fits in (32 - LSH) bits.
- */
-#define SH_DIV(NOM,DEN,LSH) (   ((NOM / DEN) << LSH)                    \
-                             + (((NOM % DEN) << LSH) + DEN / 2) / DEN)
-
-/* HZ is the requested value. ACTHZ is actual HZ ("<< 8" is for accuracy) */
-#define ACTHZ (SH_DIV (CLOCK_TICK_RATE, LATCH, 8))
-
-/* TICK_NSEC is the time between ticks in nsec assuming real ACTHZ */
-#define TICK_NSEC (SH_DIV (1000000UL * 1000, ACTHZ, 8))
-
-/* TICK_USEC is the time between ticks in usec assuming fake USER_HZ */
-#define TICK_USEC ((1000000UL + USER_HZ/2) / USER_HZ)
-
-/* TICK_USEC_TO_NSEC is the time between ticks in nsec assuming real ACTHZ and	*/
-/* a value TUSEC for TICK_USEC (can be set bij adjtimex)		*/
-#define TICK_USEC_TO_NSEC(TUSEC) (SH_DIV (TUSEC * USER_HZ * 1000, ACTHZ, 8))
-
-
-#include <linux/time.h>
 /*
  * syscall interface - used (mainly by NTP daemon)
  * to discipline kernel clock oscillator
@@ -296,9 +240,7 @@ extern long time_precision;	/* clock precision (us) */
 extern long time_maxerror;	/* maximum error */
 extern long time_esterror;	/* estimated error */
 
-extern long time_phase;		/* phase offset (scaled us) */
 extern long time_freq;		/* frequency offset (scaled ppm) */
-extern long time_adj;		/* tick adjust (scaled 1 / HZ) */
 extern long time_reftime;	/* time at last adjustment (s) */
 
 extern long time_adjust;	/* The amount of adjtime left */
@@ -320,99 +262,55 @@ extern long pps_stbcnt;		/* stability limit exceeded */
 
 #ifdef CONFIG_TIME_INTERPOLATION
 
+#define TIME_SOURCE_CPU 0
+#define TIME_SOURCE_MMIO64 1
+#define TIME_SOURCE_MMIO32 2
+#define TIME_SOURCE_FUNCTION 3
+
+/* For proper operations time_interpolator clocks must run slightly slower
+ * than the standard clock since the interpolator may only correct by having
+ * time jump forward during a tick. A slower clock is usually a side effect
+ * of the integer divide of the nanoseconds in a second by the frequency.
+ * The accuracy of the division can be increased by specifying a shift.
+ * However, this may cause the clock not to be slow enough.
+ * The interpolator will self-tune the clock by slowing down if no
+ * resets occur or speeding up if the time jumps per analysis cycle
+ * become too high.
+ *
+ * Setting jitter compensates for a fluctuating timesource by comparing
+ * to the last value read from the timesource to insure that an earlier value
+ * is not returned by a later call. The price to pay
+ * for the compensation is that the timer routines are not as scalable anymore.
+ */
+
 struct time_interpolator {
-	/* cache-hot stuff first: */
-	unsigned long (*get_offset) (void);
-	void (*update) (long);
-	void (*reset) (void);
-
-	/* cache-cold stuff follows here: */
-	struct time_interpolator *next;
-	unsigned long frequency;	/* frequency in counts/second */
+	u16 source;			/* time source flags */
+	u8 shift;			/* increases accuracy of multiply by shifting. */
+				/* Note that bits may be lost if shift is set too high */
+	u8 jitter;			/* if set compensate for fluctuations */
+	u32 nsec_per_cyc;		/* set by register_time_interpolator() */
+	void *addr;			/* address of counter or function */
+	u64 mask;			/* mask the valid bits of the counter */
+	unsigned long offset;		/* nsec offset at last update of interpolator */
+	u64 last_counter;		/* counter value in units of the counter at last update */
+	u64 last_cycle;			/* Last timer value if TIME_SOURCE_JITTER is set */
+	u64 frequency;			/* frequency in counts/second */
 	long drift;			/* drift in parts-per-million (or -1) */
+	unsigned long skips;		/* skips forward */
+	unsigned long ns_skipped;	/* nanoseconds skipped */
+	struct time_interpolator *next;
 };
-
-extern volatile unsigned long last_nsec_offset;
-#ifndef __HAVE_ARCH_CMPXCHG
-extern spin_lock_t last_nsec_offset_lock;
-#endif
-extern struct time_interpolator *time_interpolator;
 
 extern void register_time_interpolator(struct time_interpolator *);
 extern void unregister_time_interpolator(struct time_interpolator *);
-
-/* Called with xtime WRITE-lock acquired.  */
-static inline void
-time_interpolator_update(long delta_nsec)
-{
-	struct time_interpolator *ti = time_interpolator;
-
-	if (last_nsec_offset > 0) {
-#ifdef __HAVE_ARCH_CMPXCHG
-		unsigned long new, old;
-
-		do {
-			old = last_nsec_offset;
-			if (old > delta_nsec)
-				new = old - delta_nsec;
-			else
-				new = 0;
-		} while (cmpxchg(&last_nsec_offset, old, new) != old);
-#else
-		/*
-		 * This really hurts, because it serializes gettimeofday(), but without an
-		 * atomic single-word compare-and-exchange, there isn't all that much else
-		 * we can do.
-		 */
-		spin_lock(&last_nsec_offset_lock);
-		{
-			last_nsec_offset -= min(last_nsec_offset, delta_nsec);
-		}
-		spin_unlock(&last_nsec_offset_lock);
-#endif
-	}
-
-	if (ti)
-		(*ti->update)(delta_nsec);
-}
-
-/* Called with xtime WRITE-lock acquired.  */
-static inline void
-time_interpolator_reset(void)
-{
-	struct time_interpolator *ti = time_interpolator;
-
-	last_nsec_offset = 0;
-	if (ti)
-		(*ti->reset)();
-}
-
-/* Called with xtime READ-lock acquired.  */
-static inline unsigned long
-time_interpolator_get_offset(void)
-{
-	struct time_interpolator *ti = time_interpolator;
-	if (ti)
-		return (*ti->get_offset)();
-	return last_nsec_offset;
-}
+extern void time_interpolator_reset(void);
+extern unsigned long time_interpolator_get_offset(void);
 
 #else /* !CONFIG_TIME_INTERPOLATION */
 
 static inline void
-time_interpolator_update(long delta_nsec)
-{
-}
-
-static inline void
 time_interpolator_reset(void)
 {
-}
-
-static inline unsigned long
-time_interpolator_get_offset(void)
-{
-	return 0;
 }
 
 #endif /* !CONFIG_TIME_INTERPOLATION */

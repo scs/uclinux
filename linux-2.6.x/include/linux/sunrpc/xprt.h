@@ -140,6 +140,9 @@ struct rpc_xprt {
 	unsigned int		rcvsize,	/* socket receive buffer size */
 				sndsize;	/* socket send buffer size */
 
+	size_t			max_payload;	/* largest RPC payload size,
+						   in bytes */
+
 	struct rpc_wait_queue	sending;	/* requests waiting to send */
 	struct rpc_wait_queue	resend;		/* requests waiting to resend */
 	struct rpc_wait_queue	pending;	/* requests in flight */
@@ -201,8 +204,6 @@ struct rpc_xprt {
 struct rpc_xprt *	xprt_create_proto(int proto, struct sockaddr_in *addr,
 					struct rpc_timeout *toparms);
 int			xprt_destroy(struct rpc_xprt *);
-void			xprt_shutdown(struct rpc_xprt *);
-void			xprt_default_timeout(struct rpc_timeout *, int);
 void			xprt_set_timeout(struct rpc_timeout *, unsigned int,
 					unsigned long);
 
@@ -213,7 +214,6 @@ void			xprt_receive(struct rpc_task *);
 int			xprt_adjust_timeout(struct rpc_rqst *req);
 void			xprt_release(struct rpc_task *);
 void			xprt_connect(struct rpc_task *);
-int			xprt_clear_backlog(struct rpc_xprt *);
 void			xprt_sock_setbufsize(struct rpc_xprt *);
 
 #define XPRT_LOCKED	0

@@ -12,10 +12,11 @@
 
 struct tag;
 struct meminfo;
+struct sys_timer;
 
 struct machine_desc {
 	/*
-	 * Note! The first four elements are used
+	 * Note! The first five elements are used
 	 * by assembler code in head-armv.S
 	 */
 	unsigned int		nr;		/* architecture number	*/
@@ -39,7 +40,7 @@ struct machine_desc {
 					 struct meminfo *);
 	void			(*map_io)(void);/* IO mapping function	*/
 	void			(*init_irq)(void);
-	void			(*init_time)(void);
+	struct sys_timer	*timer;		/* system tick timer	*/
 	void			(*init_machine)(void);
 };
 
@@ -81,9 +82,6 @@ const struct machine_desc __mach_desc_##_type	\
 
 #define INITIRQ(_func)				\
 	.init_irq	= _func,
-
-#define INITTIME(_func)				\
-	.init_time	= _func,
 
 #define INIT_MACHINE(_func)			\
 	.init_machine	= _func,

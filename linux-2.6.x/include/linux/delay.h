@@ -38,6 +38,13 @@ extern unsigned long loops_per_jiffy;
 #define ndelay(x)	udelay(((x)+999)/1000)
 #endif
 
+void calibrate_delay(void);
 void msleep(unsigned int msecs);
+unsigned long msleep_interruptible(unsigned int msecs);
+
+static inline void ssleep(unsigned int seconds)
+{
+	msleep(seconds * 1000);
+}
 
 #endif /* defined(_LINUX_DELAY_H) */

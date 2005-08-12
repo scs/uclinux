@@ -11,41 +11,20 @@ struct pt_regs;
 struct task_struct;
 
 #include "linux/config.h"
-#include "linux/signal.h"
 #include "asm/ptrace.h"
-#include "asm/siginfo.h"
 #include "choose-mode.h"
 
 struct mm_struct;
 
-#define current_text_addr() ((void *) 0)
-
-#define cpu_relax()	do ; while (0)
-
-#ifdef CONFIG_MODE_TT
-struct proc_tt_mode {
-	int extern_pid;
-	int tracing;
-	int switch_pipe[2];
-	int singlestep_syscall;
-	int vm_seq;
-};
-#endif
-
-#ifdef CONFIG_MODE_SKAS
-struct proc_skas_mode {
-	void *switch_buf;
-	void *fork_buf;
-};
-#endif
-
 struct thread_struct {
+	/* This flag is set to 1 before calling do_fork (and analyzed in
+	 * copy_thread) to mark that we are begin called from userspace (fork /
+	 * vfork / clone), and reset to 0 after. It is left to 0 when called
+	 * from kernelspace (i.e. kernel_thread() or fork_idle(), as of 2.6.11). */
 	int forking;
-	unsigned long kernel_stack;
 	int nsyscalls;
 	struct pt_regs regs;
-	unsigned long cr2;
-	int err;
+	int singlestep_syscall;
 	void *fault_addr;
 	void *fault_catcher;
 	struct task_struct *prev_sched;
@@ -54,10 +33,19 @@ struct thread_struct {
 	struct arch_thread arch;
 	union {
 #ifdef CONFIG_MODE_TT
-		struct proc_tt_mode tt;
+		struct {
+			int extern_pid;
+			int tracing;
+			int switch_pipe[2];
+			int vm_seq;
+		} tt;
 #endif
 #ifdef CONFIG_MODE_SKAS
-		struct proc_skas_mode skas;
+		struct {
+			void *switch_buf;
+			void *fork_buf;
+			int mm_count;
+		} skas;
 #endif
 	} mode;
 	struct {
@@ -81,11 +69,8 @@ struct thread_struct {
 #define INIT_THREAD \
 { \
 	.forking		= 0, \
-	.kernel_stack		= 0, \
 	.nsyscalls		= 0, \
         .regs		   	= EMPTY_REGS, \
-	.cr2			= 0, \
-	.err			= 0, \
 	.fault_addr		= NULL, \
 	.prev_sched		= NULL, \
 	.temp_stack		= 0, \
@@ -99,13 +84,22 @@ typedef struct {
 } mm_segment_t;
 
 extern struct task_struct *alloc_task_struct(void);
-extern void free_task_struct(struct task_struct *task);
 
 extern void release_thread(struct task_struct *);
 extern int kernel_thread(int (*fn)(void *), void * arg, unsigned long flags);
 extern void dump_thread(struct pt_regs *regs, struct user *u);
 
+static inline void prepare_to_copy(struct task_struct *tsk)
+{
+}
+
+
 extern unsigned long thread_saved_pc(struct task_struct *t);
+
+static inline void mm_copy_segments(struct mm_struct *from_mm,
+				    struct mm_struct *new_mm)
+{
+}
 
 #define init_stack	(init_thread_union.stack)
 

@@ -26,10 +26,13 @@ struct clk;
 /**
  * clk_get - lookup and obtain a reference to a clock producer.
  * @dev: device for clock "consumer"
- * @id: device ID
+ * @id: clock comsumer ID
  *
  * Returns a struct clk corresponding to the clock producer, or
- * valid IS_ERR() condition containing errno.
+ * valid IS_ERR() condition containing errno.  The implementation
+ * uses @dev and @id to determine the clock consumer, and thereby
+ * the clock producer.  (IOW, @id may be identical strings, but
+ * clk_get may return different clock producers depending on @dev.)
  */
 struct clk *clk_get(struct device *dev, const char *id);
 
@@ -64,7 +67,7 @@ int clk_use(struct clk *clk);
 void clk_unuse(struct clk *clk);
 
 /**
- * clk_get_rate - obtain the current clock rate for a clock source.
+ * clk_get_rate - obtain the current clock rate (in Hz) for a clock source.
  *		  This is only valid once the clock source has been enabled.
  * @clk: clock source
  */
@@ -85,16 +88,16 @@ void clk_put(struct clk *clk);
 /**
  * clk_round_rate - adjust a rate to the exact rate a clock can provide
  * @clk: clock source
- * @rate: desired clock rate in kHz
+ * @rate: desired clock rate in Hz
  *
- * Returns rounded clock rate, or negative errno.
+ * Returns rounded clock rate in Hz, or negative errno.
  */
 long clk_round_rate(struct clk *clk, unsigned long rate);
  
 /**
  * clk_set_rate - set the clock rate for a clock source
  * @clk: clock source
- * @rate: desired clock rate in kHz
+ * @rate: desired clock rate in Hz
  *
  * Returns success (0) or negative errno.
  */

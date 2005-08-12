@@ -16,6 +16,7 @@
 #ifndef _LINUX_CRYPTO_H
 #define _LINUX_CRYPTO_H
 
+#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
@@ -55,6 +56,9 @@
  */
 #define CRYPTO_UNSPEC			0
 #define CRYPTO_MAX_ALG_NAME		64
+
+#define CRYPTO_DIR_ENCRYPT		1
+#define CRYPTO_DIR_DECRYPT		0
 
 struct scatterlist;
 
@@ -118,7 +122,14 @@ int crypto_unregister_alg(struct crypto_alg *alg);
 /*
  * Algorithm query interface.
  */
+#ifdef CONFIG_CRYPTO
 int crypto_alg_available(const char *name, u32 flags);
+#else
+static inline int crypto_alg_available(const char *name, u32 flags)
+{
+	return 0;
+}
+#endif
 
 /*
  * Transforms: user-instantiated objects which encapsulate algorithms

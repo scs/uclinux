@@ -30,9 +30,6 @@
 #define ATM_DS3_PCR	(8000*12)
 			/* DS3: 12 cells in a 125 usec time slot */
 
-#define atm_sk(__sk) ((struct atm_vcc *)(__sk)->sk_protinfo)
-#define ATM_SD(s)	(atm_sk((s)->sk))
-
 
 #define __AAL_STAT_ITEMS \
     __HANDLE_ITEM(tx);			/* TX okay */ \
@@ -95,6 +92,10 @@ struct atm_dev_stats {
 					/* set backend handler */
 #define ATM_NEWBACKENDIF _IOW('a',ATMIOC_SPECIAL+3,atm_backend_t)
 					/* use backend to make new if */
+#define ATM_ADDPARTY  	_IOW('a', ATMIOC_SPECIAL+4,struct atm_iobuf)
+ 					/* add party to p2mp call */
+#define ATM_DROPPARTY 	_IOW('a', ATMIOC_SPECIAL+5,int)
+					/* drop party from p2mp call */
 
 /*
  * These are backend handkers that can be set via the ATM_SETBACKEND call
@@ -277,6 +278,8 @@ enum {
 #define ATM_ATMOPT_CLP	1	/* set CLP bit */
 
 struct atm_vcc {
+	/* struct sock has to be the first member of atm_vcc */
+	struct sock	sk;
 	unsigned long	flags;		/* VCC flags (ATM_VF_*) */
 	short		vpi;		/* VPI and VCI (types must be equal */
 					/* with sockaddr) */
@@ -293,7 +296,6 @@ struct atm_vcc {
 	void		*dev_data;	/* per-device data */
 	void		*proto_data;	/* per-protocol data */
 	struct k_atm_aal_stats *stats;	/* pointer to AAL stats group */
-	struct sock	*sk;		/* socket backpointer */
 	/* SVC part --- may move later ------------------------------------- */
 	short		itf;		/* interface number */
 	struct sockaddr_atmsvc local;
@@ -306,10 +308,24 @@ struct atm_vcc {
 					/* by CLIP and sch_atm. */
 };
 
+static inline struct atm_vcc *atm_sk(struct sock *sk)
+{
+	return (struct atm_vcc *)sk;
+}
+
+static inline struct atm_vcc *ATM_SD(struct socket *sock)
+{
+	return atm_sk(sock->sk);
+}
+
+static inline struct sock *sk_atm(struct atm_vcc *vcc)
+{
+	return (struct sock *)vcc;
+}
 
 struct atm_dev_addr {
 	struct sockaddr_atmsvc addr;	/* ATM address */
-	struct atm_dev_addr *next;	/* next address */
+	struct list_head entry;		/* next address */
 };
 
 struct atm_dev {
@@ -321,7 +337,7 @@ struct atm_dev {
 	void		*dev_data;	/* per-device data */
 	void		*phy_data;	/* private PHY date */
 	unsigned long	flags;		/* device flags (ATM_DF_*) */
-	struct atm_dev_addr *local;	/* local ATM addresses */
+	struct list_head local;		/* local ATM addresses */
 	unsigned char	esi[ESI_LEN];	/* ESI ("MAC" addr) */
 	struct atm_cirange ci_range;	/* VPI/VCI range */
 	struct k_atm_dev_stats stats;	/* statistics */
@@ -391,7 +407,6 @@ struct atm_dev *atm_dev_lookup(int number);
 void atm_dev_deregister(struct atm_dev *dev);
 void shutdown_atm_dev(struct atm_dev *dev);
 void vcc_insert_socket(struct sock *sk);
-void vcc_remove_socket(struct sock *sk);
 
 
 /*
@@ -407,20 +422,20 @@ static inline int atm_guess_pdu2truesize(int size)
 
 static inline void atm_force_charge(struct atm_vcc *vcc,int truesize)
 {
-	atomic_add(truesize, &vcc->sk->sk_rmem_alloc);
+	atomic_add(truesize, &sk_atm(vcc)->sk_rmem_alloc);
 }
 
 
 static inline void atm_return(struct atm_vcc *vcc,int truesize)
 {
-	atomic_sub(truesize, &vcc->sk->sk_rmem_alloc);
+	atomic_sub(truesize, &sk_atm(vcc)->sk_rmem_alloc);
 }
 
 
 static inline int atm_may_send(struct atm_vcc *vcc,unsigned int size)
 {
-	return (size + atomic_read(&vcc->sk->sk_wmem_alloc)) <
-	       vcc->sk->sk_sndbuf;
+	return (size + atomic_read(&sk_atm(vcc)->sk_wmem_alloc)) <
+	       sk_atm(vcc)->sk_sndbuf;
 }
 
 

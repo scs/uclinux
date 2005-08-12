@@ -23,10 +23,16 @@
 #include <linux/config.h>
 #include <asm/addrspace.h>
 
+#ifdef CONFIG_BUILD_ELF64
+#define REP_BASE	CAC_BASE
+#else
+#define REP_BASE	CKSEG0
+#endif
+
 #ifdef CONFIG_MAPPED_KERNEL
 
-#define MAPPED_ADDR_RO_TO_PHYS(x)	(x - CKSSEG)
-#define MAPPED_ADDR_RW_TO_PHYS(x)	(x - CKSSEG - 16777216)
+#define MAPPED_ADDR_RO_TO_PHYS(x)	(x - REP_BASE)
+#define MAPPED_ADDR_RW_TO_PHYS(x)	(x - REP_BASE - 16777216)
 
 #define MAPPED_KERN_RO_PHYSBASE(n) \
 			(PLAT_NODE_DATA(n)->kern_vars.kv_ro_baseaddr)
@@ -39,13 +45,11 @@
 #define MAPPED_KERN_RW_TO_PHYS(x) \
 				((unsigned long)MAPPED_ADDR_RW_TO_PHYS(x) | \
 				MAPPED_KERN_RW_PHYSBASE(get_compact_nodeid()))
-#define MAPPED_OFFSET			16777216
 
 #else /* CONFIG_MAPPED_KERNEL */
 
-#define MAPPED_KERN_RO_TO_PHYS(x)	(x - CKSEG0)
-#define MAPPED_KERN_RW_TO_PHYS(x)	(x - CKSEG0)
-#define MAPPED_OFFSET			0
+#define MAPPED_KERN_RO_TO_PHYS(x)	(x - REP_BASE)
+#define MAPPED_KERN_RW_TO_PHYS(x)	(x - REP_BASE)
 
 #endif /* CONFIG_MAPPED_KERNEL */
 

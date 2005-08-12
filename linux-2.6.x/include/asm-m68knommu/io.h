@@ -102,6 +102,8 @@ static inline void io_insl(unsigned int addr, void *buf, int len)
 		*bp++ = _swapl(*ap);
 }
 
+#define mmiowb()
+
 /*
  *	make the short names macros so specific devices
  *	can override them as required
@@ -184,6 +186,17 @@ extern void iounmap(void *addr);
 
 #define virt_to_bus virt_to_phys
 #define bus_to_virt phys_to_virt
+
+/*
+ * Convert a physical pointer to a virtual kernel pointer for /dev/mem
+ * access
+ */
+#define xlate_dev_mem_ptr(p)	__va(p)
+
+/*
+ * Convert a virtual cached pointer to an uncached pointer
+ */
+#define xlate_dev_kmem_ptr(p)	p
 
 #endif /* __KERNEL__ */
 

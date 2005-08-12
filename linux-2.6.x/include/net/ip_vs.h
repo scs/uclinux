@@ -8,7 +8,7 @@
 
 #include <asm/types.h>		/* For __uXX types */
 
-#define IP_VS_VERSION_CODE	0x010200
+#define IP_VS_VERSION_CODE	0x010201
 #define NVERSION(version)			\
 	(version >> 16) & 0xFF,			\
 	(version >> 8) & 0xFF,			\
@@ -358,6 +358,7 @@ enum {
 	NET_IPV4_VS_EXPIRE_NODEST_CONN=23,
 	NET_IPV4_VS_SYNC_THRESHOLD=24,
 	NET_IPV4_VS_NAT_ICMP_SEND=25,
+	NET_IPV4_VS_EXPIRE_QUIESCENT_TEMPLATE=26,
 	NET_IPV4_VS_LAST
 };
 
@@ -700,8 +701,6 @@ struct ip_vs_app
  *      (from ip_vs_core.c)
  */
 extern const char *ip_vs_proto_name(unsigned proto);
-extern unsigned int check_for_ip_vs_out(struct sk_buff **skb_p,
-					int (*okfn)(struct sk_buff *));
 extern void ip_vs_init_hash_table(struct list_head *table, int rows);
 #define IP_VS_INIT_HASH_TABLE(t) ip_vs_init_hash_table(t, sizeof(t)/sizeof(t[0]))
 
@@ -879,6 +878,7 @@ extern int ip_vs_leave(struct ip_vs_service *svc, struct sk_buff *skb,
  */
 extern int sysctl_ip_vs_cache_bypass;
 extern int sysctl_ip_vs_expire_nodest_conn;
+extern int sysctl_ip_vs_expire_quiescent_template;
 extern int sysctl_ip_vs_sync_threshold[2];
 extern int sysctl_ip_vs_nat_icmp_send;
 extern struct ip_vs_stats ip_vs_stats;

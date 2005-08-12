@@ -7,7 +7,7 @@
 #ifndef __ASM_X8664_CPUFEATURE_H
 #define __ASM_X8664_CPUFEATURE_H
 
-#define NCAPINTS	5	/* Currently we have 4 32-bit words worth of info */
+#define NCAPINTS	7	/* N 32-bit words worth of info */
 
 /* Intel-defined CPU features, CPUID level 0x00000001, word 0 */
 #define X86_FEATURE_FPU		(0*32+ 0) /* Onboard FPU */
@@ -45,6 +45,7 @@
 /* Don't duplicate feature flags which are redundant with Intel! */
 #define X86_FEATURE_SYSCALL	(1*32+11) /* SYSCALL/SYSRET */
 #define X86_FEATURE_MMXEXT	(1*32+22) /* AMD MMX extensions */
+#define X86_FEATURE_FXSR_OPT	(1*32+25) /* FXSR optimizations */
 #define X86_FEATURE_LM		(1*32+29) /* Long Mode (x86-64) */
 #define X86_FEATURE_3DNOWEXT	(1*32+30) /* AMD 3DNow! extensions */
 #define X86_FEATURE_3DNOW	(1*32+31) /* 3DNow! */
@@ -61,10 +62,27 @@
 #define X86_FEATURE_CYRIX_ARR	(3*32+ 2) /* Cyrix ARRs (= MTRRs) */
 #define X86_FEATURE_CENTAUR_MCR	(3*32+ 3) /* Centaur MCRs (= MTRRs) */
 #define X86_FEATURE_K8_C	(3*32+ 4) /* C stepping K8 */
+#define X86_FEATURE_CONSTANT_TSC (3*32+5) /* TSC runs at constant rate */
 
 /* Intel-defined CPU features, CPUID level 0x00000001 (ecx), word 4 */
-#define X86_FEATURE_EST		(4*32+ 7) /* Enhanced SpeedStep */
+#define X86_FEATURE_XMM3	(4*32+ 0) /* Streaming SIMD Extensions-3 */
 #define X86_FEATURE_MWAIT	(4*32+ 3) /* Monitor/Mwait support */
+#define X86_FEATURE_DSCPL	(4*32+ 4) /* CPL Qualified Debug Store */
+#define X86_FEATURE_EST		(4*32+ 7) /* Enhanced SpeedStep */
+#define X86_FEATURE_TM2		(4*32+ 8) /* Thermal Monitor 2 */
+#define X86_FEATURE_CID		(4*32+10) /* Context ID */
+#define X86_FEATURE_CX16	(4*32+13) /* CMPXCHG16B */
+#define X86_FEATURE_XTPR	(4*32+14) /* Send Task Priority Messages */
+
+/* VIA/Cyrix/Centaur-defined CPU features, CPUID level 0xC0000001, word 5 */
+#define X86_FEATURE_XSTORE	(5*32+ 2) /* on-CPU RNG present (xstore insn) */
+#define X86_FEATURE_XSTORE_EN	(5*32+ 3) /* on-CPU RNG enabled */
+#define X86_FEATURE_XCRYPT	(5*32+ 6) /* on-CPU crypto (xcrypt insn) */
+#define X86_FEATURE_XCRYPT_EN	(5*32+ 7) /* on-CPU crypto enabled */
+
+/* More extended AMD flags: CPUID level 0x80000001, ecx, word 6 */
+#define X86_FEATURE_LAHF_LM	(6*32+ 0) /* LAHF/SAHF in long mode */
+#define X86_FEATURE_CMP_LEGACY	(6*32+ 1) /* If yes HyperThreading not valid */
 
 #define cpu_has(c, bit)                test_bit(bit, (c)->x86_capability)
 #define boot_cpu_has(bit)      test_bit(bit, boot_cpu_data.x86_capability)
@@ -81,6 +99,8 @@
 #define cpu_has_mmx            1
 #define cpu_has_fxsr           1
 #define cpu_has_xmm            1
+#define cpu_has_xmm2           1
+#define cpu_has_xmm3           boot_cpu_has(X86_FEATURE_XMM3)
 #define cpu_has_ht             boot_cpu_has(X86_FEATURE_HT)
 #define cpu_has_mp             1 /* XXX */
 #define cpu_has_k6_mtrr        0

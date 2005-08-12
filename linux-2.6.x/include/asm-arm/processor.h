@@ -19,15 +19,9 @@
 
 #ifdef __KERNEL__
 
-#define MCA_bus 0
-#define MCA_bus__is_a_macro
-
-#include <asm/atomic.h>
 #include <asm/ptrace.h>
 #include <asm/procinfo.h>
 #include <asm/types.h>
-
-#define KERNEL_STACK_SIZE	PAGE_SIZE
 
 union debug_insn {
 	u32	arm;
@@ -91,8 +85,9 @@ unsigned long get_wchan(struct task_struct *p);
  */
 extern int kernel_thread(int (*fn)(void *), void *arg, unsigned long flags);
 
-#define KSTK_EIP(tsk)	(((unsigned long *)(4096+(unsigned long)(tsk)->thread_info))[1019])
-#define KSTK_ESP(tsk)	(((unsigned long *)(4096+(unsigned long)(tsk)->thread_info))[1017])
+#define KSTK_REGS(tsk)	(((struct pt_regs *)(THREAD_START_SP + (unsigned long)(tsk)->thread_info)) - 1)
+#define KSTK_EIP(tsk)	KSTK_REGS(tsk)->ARM_pc
+#define KSTK_ESP(tsk)	KSTK_REGS(tsk)->ARM_sp
 
 /*
  * Prefetching support - only ARMv5.

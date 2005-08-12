@@ -25,6 +25,10 @@
 #ifndef _LINUX_ACPI_H
 #define _LINUX_ACPI_H
 
+#include <linux/config.h>
+
+#ifdef	CONFIG_ACPI
+
 #ifndef _LINUX
 #define _LINUX
 #endif
@@ -379,6 +383,7 @@ typedef int (*acpi_madt_entry_handler) (acpi_table_entry_header *header, const u
 char * __acpi_map_table (unsigned long phys_addr, unsigned long size);
 unsigned long acpi_find_rsdp (void);
 int acpi_boot_init (void);
+int acpi_boot_table_init (void);
 int acpi_numa_init (void);
 
 int acpi_table_init (void);
@@ -396,6 +401,12 @@ void acpi_numa_processor_affinity_init (struct acpi_table_processor_affinity *pa
 void acpi_numa_memory_affinity_init (struct acpi_table_memory_affinity *ma);
 void acpi_numa_arch_fixup(void);
 
+#ifdef CONFIG_ACPI_HOTPLUG_CPU
+/* Arch dependent functions for cpu hotplug support */
+int acpi_map_lsapic(acpi_handle handle, int *pcpu);
+int acpi_unmap_lsapic(int cpu);
+#endif /* CONFIG_ACPI_HOTPLUG_CPU */
+
 extern int acpi_mp_config;
 
 extern u32 pci_mmcfg_base_addr;
@@ -411,10 +422,24 @@ static inline int acpi_boot_init(void)
 	return 0;
 }
 
+static inline int acpi_boot_table_init(void)
+{
+	return 0;
+}
+
 #endif 	/*!CONFIG_ACPI_BOOT*/
 
 unsigned int acpi_register_gsi (u32 gsi, int edge_level, int active_high_low);
 int acpi_gsi_to_irq (u32 gsi, unsigned int *irq);
+
+/*
+ * This function undoes the effect of one call to acpi_register_gsi().
+ * If this matches the last registration, any IRQ resources for gsi
+ * are freed.
+ */
+#ifdef CONFIG_ACPI_DEALLOCATE_IRQ
+void acpi_unregister_gsi (u32 gsi);
+#endif
 
 #ifdef CONFIG_ACPI_PCI
 
@@ -434,11 +459,14 @@ struct acpi_prt_list {
 	struct list_head	entries;
 };
 
-extern struct acpi_prt_list	acpi_prt;
-
 struct pci_dev;
 
 int acpi_pci_irq_enable (struct pci_dev *dev);
+void acpi_penalize_isa_irq(int irq);
+
+#ifdef CONFIG_ACPI_DEALLOCATE_IRQ
+void acpi_pci_irq_disable (struct pci_dev *dev);
+#endif
 
 struct acpi_pci_driver {
 	struct acpi_pci_driver *next;
@@ -453,14 +481,15 @@ void acpi_pci_unregister_driver(struct acpi_pci_driver *driver);
 
 #ifdef CONFIG_ACPI_EC
 
-int ec_read(u8 addr, u8 *val);
-int ec_write(u8 addr, u8 val);
+extern int ec_read(u8 addr, u8 *val);
+extern int ec_write(u8 addr, u8 val);
 
 #endif /*CONFIG_ACPI_EC*/
 
 #ifdef CONFIG_ACPI_INTERPRETER
 
-int acpi_blacklisted(void);
+extern int acpi_blacklisted(void);
+extern void acpi_bios_year(char *s);
 
 #else /*!CONFIG_ACPI_INTERPRETER*/
 
@@ -471,4 +500,42 @@ static inline int acpi_blacklisted(void)
 
 #endif /*!CONFIG_ACPI_INTERPRETER*/
 
-#endif /*_LINUX_ACPI_H*/
+#define	ACPI_CSTATE_LIMIT_DEFINED	/* for driver builds */
+#ifdef	CONFIG_ACPI
+
+/*
+ * Set highest legal C-state
+ * 0: C0 okay, but not C1
+ * 1: C1 okay, but not C2
+ * 2: C2 okay, but not C3 etc.
+ */
+
+extern unsigned int max_cstate;
+
+static inline unsigned int acpi_get_cstate_limit(void)
+{
+	return max_cstate;
+}
+static inline void acpi_set_cstate_limit(unsigned int new_limit)
+{
+	max_cstate = new_limit;
+	return;
+}
+#else
+static inline unsigned int acpi_get_cstate_limit(void) { return 0; }
+static inline void acpi_set_cstate_limit(unsigned int new_limit) { return; }
+#endif
+
+#ifdef CONFIG_ACPI_NUMA
+int acpi_get_pxm(acpi_handle handle);
+#else
+static inline int acpi_get_pxm(acpi_handle handle)
+{
+	return 0;
+}
+#endif
+
+extern int pnpacpi_disabled;
+
+#endif	/* CONFIG_ACPI */
+#endif	/*_LINUX_ACPI_H*/

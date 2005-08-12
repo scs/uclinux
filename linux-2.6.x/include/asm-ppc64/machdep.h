@@ -21,6 +21,7 @@ struct pci_bus;
 struct device_node;
 struct iommu_table;
 struct rtc_time;
+struct file;
 
 #ifdef CONFIG_SMP
 struct smp_ops_t {
@@ -30,6 +31,10 @@ struct smp_ops_t {
 	void  (*setup_cpu)(int nr);
 	void  (*take_timebase)(void);
 	void  (*give_timebase)(void);
+	int   (*cpu_enable)(unsigned int nr);
+	int   (*cpu_disable)(void);
+	void  (*cpu_die)(unsigned int nr);
+	int   (*cpu_bootable)(unsigned int nr);
 };
 #endif
 
@@ -56,6 +61,9 @@ struct machdep_calls {
 	void		(*flush_hash_range)(unsigned long context,
 					    unsigned long number,
 					    int local);
+	/* special for kexec, to be called in real mode, linar mapping is
+	 * destroyed as well */
+	void		(*hpte_clear_all)(void);
 
 	void		(*tce_build)(struct iommu_table * tbl,
 				     long index,
@@ -66,8 +74,12 @@ struct machdep_calls {
 				    long index,
 				    long npages);
 	void		(*tce_flush)(struct iommu_table *tbl);
+	void		(*iommu_dev_setup)(struct pci_dev *dev);
+	void		(*iommu_bus_setup)(struct pci_bus *bus);
 
+	int		(*probe)(int platform);
 	void		(*setup_arch)(void);
+	void		(*init_early)(void);
 	/* Optional, may be NULL. */
 	void		(*get_cpuinfo)(struct seq_file *m);
 
@@ -77,13 +89,11 @@ struct machdep_calls {
 	/* PCI stuff */
 	void		(*pcibios_fixup)(void);
 
-	/* Optional, may be NULL. */
-	void		(*init)(void);
-
 	void		(*restart)(char *cmd);
 	void		(*power_off)(void);
 	void		(*halt)(void);
 	void		(*panic)(char *str);
+	void		(*cpu_die)(void);
 
 	int		(*set_rtc_time)(struct rtc_time *);
 	void		(*get_rtc_time)(struct rtc_time *);
@@ -106,16 +116,49 @@ struct machdep_calls {
 	ssize_t		(*nvram_size)(void);		
 	int		(*nvram_sync)(void);
 
+	/* Exception handlers */
+	void		(*system_reset_exception)(struct pt_regs *regs);
+	int 		(*machine_check_exception)(struct pt_regs *regs);
+
 	/* Motherboard/chipset features. This is a kind of general purpose
 	 * hook used to control some machine specific features (like reset
 	 * lines, chip power control, etc...).
 	 */
 	long	 	(*feature_call)(unsigned int feature, ...);
 
+	/* Check availability of legacy devices like i8042 */
+	int 		(*check_legacy_ioport)(unsigned int baseport);
+
+	/* Get legacy PCI/IDE interrupt mapping */ 
+	int		(*pci_get_legacy_ide_irq)(struct pci_dev *dev, int channel);
+	
+	/* Get access protection for /dev/mem */
+	pgprot_t	(*phys_mem_access_prot)(struct file *file,
+						unsigned long offset,
+						unsigned long size,
+						pgprot_t vma_prot);
+
 };
 
 extern struct machdep_calls ppc_md;
 extern char cmd_line[COMMAND_LINE_SIZE];
+
+#ifdef CONFIG_PPC_PMAC
+/*
+ * Power macintoshes have either a CUDA, PMU or SMU controlling
+ * system reset, power, NVRAM, RTC.
+ */
+typedef enum sys_ctrler_kind {
+	SYS_CTRLER_UNKNOWN = 0,
+	SYS_CTRLER_CUDA = 1,
+	SYS_CTRLER_PMU = 2,
+	SYS_CTRLER_SMU = 3,
+} sys_ctrler_t;
+extern sys_ctrler_t sys_ctrler;
+
+#endif /* CONFIG_PPC_PMAC */
+
+
 
 /* Functions to produce codes on the leds.
  * The SRC code should be unique for the message category and should

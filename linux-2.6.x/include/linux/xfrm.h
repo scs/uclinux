@@ -140,8 +140,11 @@ enum {
 	XFRM_MSG_FLUSHPOLICY,
 #define XFRM_MSG_FLUSHPOLICY XFRM_MSG_FLUSHPOLICY
 
-	XFRM_MSG_MAX
+	__XFRM_MSG_MAX
 };
+#define XFRM_MSG_MAX (__XFRM_MSG_MAX - 1)
+
+#define XFRM_NR_MSGTYPES (XFRM_MSG_MAX + 1 - XFRM_MSG_BASE)
 
 struct xfrm_user_tmpl {
 	struct xfrm_id		id;
@@ -190,6 +193,7 @@ struct xfrm_usersa_info {
 	__u8				replay_window;
 	__u8				flags;
 #define XFRM_STATE_NOECN	1
+#define XFRM_STATE_DECAP_DSCP	2
 };
 
 struct xfrm_usersa_id {

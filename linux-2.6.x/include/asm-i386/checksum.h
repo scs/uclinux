@@ -25,28 +25,30 @@ asmlinkage unsigned int csum_partial(const unsigned char * buff, int len, unsign
  * better 64-bit) boundary
  */
 
-asmlinkage unsigned int csum_partial_copy_generic( const char *src, char *dst, int len, int sum,
-						   int *src_err_ptr, int *dst_err_ptr);
+asmlinkage unsigned int csum_partial_copy_generic(const unsigned char *src, unsigned char *dst,
+						  int len, int sum, int *src_err_ptr, int *dst_err_ptr);
 
 /*
  *	Note: when you get a NULL pointer exception here this means someone
  *	passed in an incorrect kernel address to one of these functions.
  *
  *	If you use these functions directly please don't forget the
- *	verify_area().
+ *	access_ok().
  */
 static __inline__
-unsigned int csum_partial_copy_nocheck ( const char *src, char *dst,
+unsigned int csum_partial_copy_nocheck (const unsigned char *src, unsigned char *dst,
 					int len, int sum)
 {
 	return csum_partial_copy_generic ( src, dst, len, sum, NULL, NULL);
 }
 
 static __inline__
-unsigned int csum_partial_copy_from_user ( const char __user *src, char *dst,
+unsigned int csum_partial_copy_from_user(const unsigned char __user *src, unsigned char *dst,
 						int len, int sum, int *err_ptr)
 {
-	return csum_partial_copy_generic ( (__force char *)src, dst, len, sum, err_ptr, NULL);
+	might_sleep();
+	return csum_partial_copy_generic((__force unsigned char *)src, dst,
+					len, sum, err_ptr, NULL);
 }
 
 /*
@@ -172,13 +174,14 @@ static __inline__ unsigned short int csum_ipv6_magic(struct in6_addr *saddr,
  *	Copy and checksum to user
  */
 #define HAVE_CSUM_COPY_USER
-static __inline__ unsigned int csum_and_copy_to_user(const char *src, 
-						     char __user *dst,
+static __inline__ unsigned int csum_and_copy_to_user(const unsigned char *src,
+						     unsigned char __user *dst,
 						     int len, int sum, 
 						     int *err_ptr)
 {
+	might_sleep();
 	if (access_ok(VERIFY_WRITE, dst, len))
-		return csum_partial_copy_generic(src, (__force char *)dst, len, sum, NULL, err_ptr);
+		return csum_partial_copy_generic(src, (__force unsigned char *)dst, len, sum, NULL, err_ptr);
 
 	if (len)
 		*err_ptr = -EFAULT;

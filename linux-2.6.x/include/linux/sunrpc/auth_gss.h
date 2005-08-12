@@ -15,11 +15,9 @@
 #define _LINUX_SUNRPC_AUTH_GSS_H
 
 #ifdef __KERNEL__
-#ifdef __linux__
 #include <linux/sunrpc/auth.h>
 #include <linux/sunrpc/svc.h>
 #include <linux/sunrpc/gss_api.h>
-#endif
 
 #define RPC_GSS_VERSION		1
 
@@ -70,18 +68,21 @@ struct rpc_gss_init_res {
 
 struct gss_cl_ctx {
 	atomic_t		count;
-	u32			gc_proc;
+	enum rpc_gss_proc	gc_proc;
 	u32			gc_seq;
 	spinlock_t		gc_seq_lock;
 	struct gss_ctx		*gc_gss_ctx;
 	struct xdr_netobj	gc_wire_ctx;
 	u32			gc_win;
+	unsigned long		gc_expiry;
 };
 
+struct gss_upcall_msg;
 struct gss_cred {
 	struct rpc_cred		gc_base;
-	u32			gc_flavor;
+	enum rpc_gss_svc	gc_service;
 	struct gss_cl_ctx	*gc_ctx;
+	struct gss_upcall_msg	*gc_upcall;
 };
 
 #define gc_uid			gc_base.cr_uid

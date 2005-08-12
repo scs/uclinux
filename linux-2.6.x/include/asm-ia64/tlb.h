@@ -39,6 +39,7 @@
  */
 #include <linux/config.h>
 #include <linux/mm.h>
+#include <linux/pagemap.h>
 #include <linux/swap.h>
 
 #include <asm/pgalloc.h>
@@ -160,11 +161,11 @@ tlb_finish_mmu (struct mmu_gather *tlb, unsigned long start, unsigned long end)
 {
 	unsigned long freed = tlb->freed;
 	struct mm_struct *mm = tlb->mm;
-	unsigned long rss = mm->rss;
+	unsigned long rss = get_mm_counter(mm, rss);
 
 	if (rss < freed)
 		freed = rss;
-	mm->rss = rss - freed;
+	add_mm_counter(mm, rss, -freed);
 	/*
 	 * Note: tlb->nr may be 0 at this point, so we can't rely on tlb->start_addr and
 	 * tlb->end_addr.
@@ -233,6 +234,12 @@ do {							\
 do {							\
 	tlb->need_flush = 1;				\
 	__pmd_free_tlb(tlb, ptep);			\
+} while (0)
+
+#define pud_free_tlb(tlb, pudp)				\
+do {							\
+	tlb->need_flush = 1;				\
+	__pud_free_tlb(tlb, pudp);			\
 } while (0)
 
 #endif /* _ASM_IA64_TLB_H */

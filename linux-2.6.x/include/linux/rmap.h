@@ -7,12 +7,8 @@
 #include <linux/config.h>
 #include <linux/list.h>
 #include <linux/slab.h>
+#include <linux/mm.h>
 #include <linux/spinlock.h>
-
-#define page_map_lock(page) \
-	bit_spin_lock(PG_maplock, (unsigned long *)&(page)->flags)
-#define page_map_unlock(page) \
-	bit_spin_unlock(PG_maplock, (unsigned long *)&(page)->flags)
 
 /*
  * The anon_vma heads a list of private "related" vmas, to scan if
@@ -87,16 +83,19 @@ void page_remove_rmap(struct page *);
  */
 static inline void page_dup_rmap(struct page *page)
 {
-	page_map_lock(page);
-	page->mapcount++;
-	page_map_unlock(page);
+	atomic_inc(&page->_mapcount);
 }
 
 /*
  * Called from mm/vmscan.c to handle paging out
  */
-int page_referenced(struct page *);
+int page_referenced(struct page *, int is_locked, int ignore_token);
 int try_to_unmap(struct page *);
+
+/*
+ * Used by swapoff to help locate where page is expected in vma.
+ */
+unsigned long page_address_in_vma(struct page *, struct vm_area_struct *);
 
 #else	/* !CONFIG_MMU */
 
@@ -104,7 +103,7 @@ int try_to_unmap(struct page *);
 #define anon_vma_prepare(vma)	(0)
 #define anon_vma_link(vma)	do {} while (0)
 
-#define page_referenced(page)	TestClearPageReferenced(page)
+#define page_referenced(page,l,i) TestClearPageReferenced(page)
 #define try_to_unmap(page)	SWAP_FAIL
 
 #endif	/* CONFIG_MMU */

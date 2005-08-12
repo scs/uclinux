@@ -18,6 +18,8 @@
 #define compat_jiffies_to_clock_t(x)	\
 		(((unsigned long)(x) * COMPAT_USER_HZ) / HZ)
 
+struct rusage;
+
 struct compat_itimerspec { 
 	struct compat_timespec it_interval;
 	struct compat_timespec it_value;
@@ -79,6 +81,14 @@ struct compat_rusage {
 	compat_long_t	ru_nivcsw;
 };
 
+extern int put_compat_rusage(const struct rusage *, struct compat_rusage __user *);
+
+struct compat_siginfo;
+
+extern asmlinkage long compat_sys_waitid(int, compat_pid_t,
+		struct compat_siginfo __user *, int,
+		struct compat_rusage __user *);
+
 struct compat_dirent {
 	u32		d_ino;
 	compat_off_t	d_off;
@@ -91,12 +101,14 @@ typedef union compat_sigval {
 	compat_uptr_t	sival_ptr;
 } compat_sigval_t;
 
+#define COMPAT_SIGEV_PAD_SIZE	((SIGEV_MAX_SIZE/sizeof(int)) - 3)
+
 typedef struct compat_sigevent {
 	compat_sigval_t sigev_value;
 	compat_int_t sigev_signo;
 	compat_int_t sigev_notify;
 	union {
-		compat_int_t _pad[SIGEV_PAD_SIZE];
+		compat_int_t _pad[COMPAT_SIGEV_PAD_SIZE];
 		compat_int_t _tid;
 
 		struct {
@@ -117,6 +129,8 @@ long compat_sys_shmat(int first, int second, compat_uptr_t third, int version,
 long compat_sys_shmctl(int first, int second, void __user *uptr);
 long compat_sys_semtimedop(int semid, struct sembuf __user *tsems,
 		unsigned nsems, const struct compat_timespec __user *timeout);
+asmlinkage long compat_sys_keyctl(u32 option,
+			      u32 arg2, u32 arg3, u32 arg4, u32 arg5);
 
 asmlinkage ssize_t compat_sys_readv(unsigned long fd,
 		const struct compat_iovec __user *vec, unsigned long vlen);
@@ -129,6 +143,20 @@ int compat_do_execve(char * filename, compat_uptr_t __user *argv,
 asmlinkage long compat_sys_select(int n, compat_ulong_t __user *inp,
 		compat_ulong_t __user *outp, compat_ulong_t __user *exp,
 		struct compat_timeval __user *tvp);
+
+#define BITS_PER_COMPAT_LONG    (8*sizeof(compat_long_t))
+
+#define BITS_TO_COMPAT_LONGS(bits) \
+	(((bits)+BITS_PER_COMPAT_LONG-1)/BITS_PER_COMPAT_LONG)
+
+long compat_get_bitmap(unsigned long *mask, compat_ulong_t __user *umask,
+		       unsigned long bitmap_size);
+long compat_put_bitmap(compat_ulong_t __user *umask, unsigned long *mask,
+		       unsigned long bitmap_size);
+int copy_siginfo_from_user32(siginfo_t *to, struct compat_siginfo __user *from);
+int copy_siginfo_to_user32(struct compat_siginfo __user *to, siginfo_t *from);
+int get_compat_sigevent(struct sigevent *event,
+		const struct compat_sigevent __user *u_event);
 
 #endif /* CONFIG_COMPAT */
 #endif /* _LINUX_COMPAT_H */

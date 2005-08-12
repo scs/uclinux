@@ -373,8 +373,12 @@
 #define __NR_mq_timedreceive		435
 #define __NR_mq_notify			436
 #define __NR_mq_getsetattr		437
+#define __NR_waitid			438
+#define __NR_add_key			439
+#define __NR_request_key		440
+#define __NR_keyctl			441
 
-#define NR_SYSCALLS			438
+#define NR_SYSCALLS			442
 
 #if defined(__GNUC__)
 
@@ -617,7 +621,7 @@ static inline long read(int fd, char * buf, size_t nr)
 	return sys_read(fd, buf, nr);
 }
 
-extern long execve(char *, char **, char **);
+extern int execve(char *, char **, char **);
 
 static inline long setsid(void)
 {
@@ -650,6 +654,6 @@ asmlinkage long sys_rt_sigaction(int sig,
    have declarations.  If we use no prototype, then we get warnings from
    -Wstrict-prototypes.  Ho hum.  */
 
-#define cond_syscall(x)  asm(".weak\t" #x "\n" #x " = sys_ni_syscall");
+#define cond_syscall(x)  asm(".weak\t" #x "\n" #x " = sys_ni_syscall")
 
 #endif /* _ALPHA_UNISTD_H */

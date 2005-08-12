@@ -7,6 +7,11 @@
  *	Authors:
  *	Pedro Roque		<roque@di.fc.ul.pt>
  *	Alexey Kuznetsov	<kuznet@ms2.inr.ac.ru>
+ *
+ * 	Changes:
+ *
+ *	Harald Welte:		<laforge@gnumonks.org>
+ *		- Add neighbour cache statistics like rtstat
  */
 
 /* The following flags & states are exported to user space,
@@ -45,13 +50,18 @@
 
 #include <asm/atomic.h>
 #include <linux/skbuff.h>
+#include <linux/netdevice.h>
+#include <linux/rcupdate.h>
+#include <linux/seq_file.h>
 
 #include <linux/err.h>
 #include <linux/sysctl.h>
 
-#define NUD_IN_TIMER	(NUD_INCOMPLETE|NUD_DELAY|NUD_PROBE)
+#define NUD_IN_TIMER	(NUD_INCOMPLETE|NUD_REACHABLE|NUD_DELAY|NUD_PROBE)
 #define NUD_VALID	(NUD_PERMANENT|NUD_NOARP|NUD_REACHABLE|NUD_PROBE|NUD_STALE|NUD_DELAY)
 #define NUD_CONNECTED	(NUD_PERMANENT|NUD_NOARP|NUD_REACHABLE)
+
+struct neighbour;
 
 struct neigh_parms
 {
@@ -62,6 +72,10 @@ struct neigh_parms
 	void	*priv;
 
 	void	*sysctl_table;
+
+	int dead;
+	atomic_t refcnt;
+	struct rcu_head rcu_head;
 
 	int	base_reachable_time;
 	int	retrans_time;
@@ -81,11 +95,28 @@ struct neigh_parms
 
 struct neigh_statistics
 {
-	unsigned long allocs;
-	unsigned long res_failed;
-	unsigned long rcv_probes_mcast;
-	unsigned long rcv_probes_ucast;
+	unsigned long allocs;		/* number of allocated neighs */
+	unsigned long destroys;		/* number of destroyed neighs */
+	unsigned long hash_grows;	/* number of hash resizes */
+
+	unsigned long res_failed;	/* nomber of failed resolutions */
+
+	unsigned long lookups;		/* number of lookups */
+	unsigned long hits;		/* number of hits (among lookups) */
+
+	unsigned long rcv_probes_mcast;	/* number of received mcast ipv6 */
+	unsigned long rcv_probes_ucast; /* number of received ucast ipv6 */
+
+	unsigned long periodic_gc_runs;	/* number of periodic GC runs */
+	unsigned long forced_gc_runs;	/* number of forced GC runs */
 };
+
+#define NEIGH_CACHE_STAT_INC(tbl, field)				\
+	do {								\
+		preempt_disable();					\
+		(per_cpu_ptr((tbl)->stats, smp_processor_id())->field)++; \
+		preempt_enable();					\
+	} while (0)
 
 struct neighbour
 {
@@ -131,9 +162,6 @@ struct pneigh_entry
 	u8			key[0];
 };
 
-#define NEIGH_HASHMASK		0x1F
-#define PNEIGH_HASHMASK		0xF
-
 /*
  *	neighbour table manipulation
  */
@@ -161,27 +189,43 @@ struct neigh_table
 	struct timer_list 	gc_timer;
 	struct timer_list 	proxy_timer;
 	struct sk_buff_head	proxy_queue;
-	int			entries;
+	atomic_t		entries;
 	rwlock_t		lock;
 	unsigned long		last_rand;
 	struct neigh_parms	*parms_list;
 	kmem_cache_t		*kmem_cachep;
-	struct neigh_statistics	stats;
-	struct neighbour	*hash_buckets[NEIGH_HASHMASK+1];
-	struct pneigh_entry	*phash_buckets[PNEIGH_HASHMASK+1];
+	struct neigh_statistics	*stats;
+	struct neighbour	**hash_buckets;
+	unsigned int		hash_mask;
+	__u32			hash_rnd;
+	unsigned int		hash_chain_gc;
+	struct pneigh_entry	**phash_buckets;
+#ifdef CONFIG_PROC_FS
+	struct proc_dir_entry	*pde;
+#endif
 };
+
+/* flags for neigh_update() */
+#define NEIGH_UPDATE_F_OVERRIDE			0x00000001
+#define NEIGH_UPDATE_F_WEAK_OVERRIDE		0x00000002
+#define NEIGH_UPDATE_F_OVERRIDE_ISROUTER	0x00000004
+#define NEIGH_UPDATE_F_ISROUTER			0x40000000
+#define NEIGH_UPDATE_F_ADMIN			0x80000000
 
 extern void			neigh_table_init(struct neigh_table *tbl);
 extern int			neigh_table_clear(struct neigh_table *tbl);
 extern struct neighbour *	neigh_lookup(struct neigh_table *tbl,
 					     const void *pkey,
 					     struct net_device *dev);
+extern struct neighbour *	neigh_lookup_nodev(struct neigh_table *tbl,
+						   const void *pkey);
 extern struct neighbour *	neigh_create(struct neigh_table *tbl,
 					     const void *pkey,
 					     struct net_device *dev);
 extern void			neigh_destroy(struct neighbour *neigh);
 extern int			__neigh_event_send(struct neighbour *neigh, struct sk_buff *skb);
-extern int			neigh_update(struct neighbour *neigh, const u8 *lladdr, u8 new, int override, int arp);
+extern int			neigh_update(struct neighbour *neigh, const u8 *lladdr, u8 new, 
+					     u32 flags);
 extern void			neigh_changeaddr(struct neigh_table *tbl, struct net_device *dev);
 extern int			neigh_ifdown(struct neigh_table *tbl, struct net_device *dev);
 extern int			neigh_resolve_output(struct sk_buff *skb);
@@ -193,6 +237,7 @@ extern struct neighbour 	*neigh_event_ns(struct neigh_table *tbl,
 
 extern struct neigh_parms	*neigh_parms_alloc(struct net_device *dev, struct neigh_table *tbl);
 extern void			neigh_parms_release(struct neigh_table *tbl, struct neigh_parms *parms);
+extern void			neigh_parms_destroy(struct neigh_parms *parms);
 extern unsigned long		neigh_rand_reach_time(unsigned long base);
 
 extern void			pneigh_enqueue(struct neigh_table *tbl, struct neigh_parms *p,
@@ -207,12 +252,48 @@ extern int neigh_add(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg);
 extern int neigh_delete(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg);
 extern void neigh_app_ns(struct neighbour *n);
 
+extern void neigh_for_each(struct neigh_table *tbl, void (*cb)(struct neighbour *, void *), void *cookie);
+extern void __neigh_for_each_release(struct neigh_table *tbl, int (*cb)(struct neighbour *));
+extern void pneigh_for_each(struct neigh_table *tbl, void (*cb)(struct pneigh_entry *));
+
+struct neigh_seq_state {
+	struct neigh_table *tbl;
+	void *(*neigh_sub_iter)(struct neigh_seq_state *state,
+				struct neighbour *n, loff_t *pos);
+	unsigned int bucket;
+	unsigned int flags;
+#define NEIGH_SEQ_NEIGH_ONLY	0x00000001
+#define NEIGH_SEQ_IS_PNEIGH	0x00000002
+#define NEIGH_SEQ_SKIP_NOARP	0x00000004
+};
+extern void *neigh_seq_start(struct seq_file *, loff_t *, struct neigh_table *, unsigned int);
+extern void *neigh_seq_next(struct seq_file *, void *, loff_t *);
+extern void neigh_seq_stop(struct seq_file *, void *);
+
 extern int			neigh_sysctl_register(struct net_device *dev, 
 						      struct neigh_parms *p,
 						      int p_id, int pdev_id,
 						      char *p_name,
-						      proc_handler *proc_handler);
+						      proc_handler *proc_handler,
+						      ctl_handler *strategy);
 extern void			neigh_sysctl_unregister(struct neigh_parms *p);
+
+static inline void __neigh_parms_put(struct neigh_parms *parms)
+{
+	atomic_dec(&parms->refcnt);
+}
+
+static inline void neigh_parms_put(struct neigh_parms *parms)
+{
+	if (atomic_dec_and_test(&parms->refcnt))
+		neigh_parms_destroy(parms);
+}
+
+static inline struct neigh_parms *neigh_parms_clone(struct neigh_parms *parms)
+{
+	atomic_inc(&parms->refcnt);
+	return parms;
+}
 
 /*
  *	Neighbour references

@@ -1,9 +1,9 @@
-/* 
+/*
  * osd.h
  *
  * Copyright (C) 2001 Ralph  Metzler <ralph@convergence.de>
  *                  & Marcus Metzler <marcus@convergence.de>
-                      for convergence integrated media GmbH
+ *                    for convergence integrated media GmbH
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Lesser Public License
@@ -93,7 +93,8 @@ typedef enum {
 // TODO: remove "test" in final version
   OSD_Text,       // (x0,y0,size,color,text)
   OSD_SetWindow, //  (x0) set window with number 0<x0<8 as current
-  OSD_MoveWindow, //  move current window to (x0, y0)  
+  OSD_MoveWindow, //  move current window to (x0, y0)
+  OSD_OpenRaw,	// Open other types of OSD windows
 } OSD_Command;
 
 typedef struct osd_cmd_s {
@@ -106,8 +107,38 @@ typedef struct osd_cmd_s {
         void __user *data;
 } osd_cmd_t;
 
+/* OSD_OpenRaw: set 'color' to desired window type */
+typedef enum {
+        OSD_BITMAP1,           /* 1 bit bitmap */
+        OSD_BITMAP2,           /* 2 bit bitmap */
+        OSD_BITMAP4,           /* 4 bit bitmap */
+        OSD_BITMAP8,           /* 8 bit bitmap */
+        OSD_BITMAP1HR,         /* 1 Bit bitmap half resolution */
+        OSD_BITMAP2HR,         /* 2 bit bitmap half resolution */
+        OSD_BITMAP4HR,         /* 4 bit bitmap half resolution */
+        OSD_BITMAP8HR,         /* 8 bit bitmap half resolution */
+        OSD_YCRCB422,          /* 4:2:2 YCRCB Graphic Display */
+        OSD_YCRCB444,          /* 4:4:4 YCRCB Graphic Display */
+        OSD_YCRCB444HR,        /* 4:4:4 YCRCB graphic half resolution */
+        OSD_VIDEOTSIZE,        /* True Size Normal MPEG Video Display */
+        OSD_VIDEOHSIZE,        /* MPEG Video Display Half Resolution */
+        OSD_VIDEOQSIZE,        /* MPEG Video Display Quarter Resolution */
+        OSD_VIDEODSIZE,        /* MPEG Video Display Double Resolution */
+        OSD_VIDEOTHSIZE,       /* True Size MPEG Video Display Half Resolution */
+        OSD_VIDEOTQSIZE,       /* True Size MPEG Video Display Quarter Resolution*/
+        OSD_VIDEOTDSIZE,       /* True Size MPEG Video Display Double Resolution */
+        OSD_VIDEONSIZE,        /* Full Size MPEG Video Display */
+        OSD_CURSOR             /* Cursor */
+} osd_raw_window_t;
 
-#define OSD_SEND_CMD       _IOW('o', 160, osd_cmd_t)
+typedef struct osd_cap_s {
+        int  cmd;
+#define OSD_CAP_MEMSIZE         1  /* memory size */
+        long val;
+} osd_cap_t;
+
+
+#define OSD_SEND_CMD            _IOW('o', 160, osd_cmd_t)
+#define OSD_GET_CAPABILITY      _IOR('o', 161, osd_cap_t)
 
 #endif
-

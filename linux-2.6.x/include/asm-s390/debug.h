@@ -43,7 +43,7 @@ struct __debug_entry{
 #define DEBUG_OFF_LEVEL            -1 /* level where debug is switched off */
 #define DEBUG_FLUSH_ALL            -1 /* parameter to flush all areas */
 #define DEBUG_MAX_VIEWS            10 /* max number of views in proc fs */
-#define DEBUG_MAX_PROCF_LEN        16 /* max length for a proc file name */
+#define DEBUG_MAX_PROCF_LEN        64 /* max length for a proc file name */
 #define DEBUG_DEFAULT_LEVEL        3  /* initial debug level */
 
 #define DEBUG_DIR_ROOT "s390dbf" /* name of debug root directory in proc fs */
@@ -126,6 +126,8 @@ debug_info_t* debug_register(char* name, int pages_index, int nr_areas,
 void debug_unregister(debug_info_t* id);
 
 void debug_set_level(debug_info_t* id, int new_level);
+
+void debug_stop_all(void);
 
 extern inline debug_entry_t* 
 debug_event(debug_info_t* id, int level, void* data, int length)

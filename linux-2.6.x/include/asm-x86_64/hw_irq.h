@@ -87,8 +87,6 @@ extern u8 irq_vector[NR_IRQ_VECTORS];
  * Interrupt entry/exit code at both C and assembly level
  */
 
-extern void mask_irq(unsigned int irq);
-extern void unmask_irq(unsigned int irq);
 extern void disable_8259A_irq(unsigned int irq);
 extern void enable_8259A_irq(unsigned int irq);
 extern int i8259A_irq_pending(unsigned int irq);
@@ -101,6 +99,7 @@ extern void disable_IO_APIC(void);
 extern void print_IO_APIC(void);
 extern int IO_APIC_get_PCI_irq_vector(int bus, int slot, int fn);
 extern void send_IPI(int dest, int vector);
+extern void setup_ioapic_dest(void);
 
 extern unsigned long io_apic_irqs;
 
@@ -129,41 +128,7 @@ __asm__( \
 	"push $" #nr "-256 ; " \
 	"jmp common_interrupt");
 
-static inline void x86_do_profile (struct pt_regs *regs) 
-{
-	unsigned long rip;
-	extern unsigned long prof_cpu_mask;
-	extern char _stext[];
- 
-	profile_hook(regs);
-
-	if (user_mode(regs))
-		return;
-	if (!prof_buffer)
-		return;
-
-	rip = regs->rip;
-
-	/*
-	 * Only measure the CPUs specified by /proc/irq/prof_cpu_mask.
-	 * (default is all CPUs.)
-	 */
-	if (!((1<<smp_processor_id()) & prof_cpu_mask))
-		return;
-
-	rip -= (unsigned long) &_stext;
-	rip >>= prof_shift;
-	/*
-	 * Don't ignore out-of-bounds EIP values silently,
-	 * put them into the last histogram slot, so if
-	 * present, they will show up as a sharp peak.
-	 */
-	if (rip > prof_len-1)
-		rip = prof_len-1;
-	atomic_inc((atomic_t *)&prof_buffer[rip]);
-}
-
-#if defined(CONFIG_X86_IO_APIC) && defined(CONFIG_SMP)
+#if defined(CONFIG_X86_IO_APIC)
 static inline void hw_resend_irq(struct hw_interrupt_type *h, unsigned int i) {
 	if (IO_APIC_IRQ(i))
 		send_IPI_self(IO_APIC_VECTOR(i));

@@ -76,7 +76,7 @@ __SYSCALL(__NR_madvise, sys_madvise)
 #define __NR_shmget                             29
 __SYSCALL(__NR_shmget, sys_shmget)
 #define __NR_shmat                              30
-__SYSCALL(__NR_shmat, wrap_sys_shmat)
+__SYSCALL(__NR_shmat, sys_shmat)
 #define __NR_shmctl                             31
 __SYSCALL(__NR_shmctl, sys_shmctl)
 
@@ -298,8 +298,9 @@ __SYSCALL(__NR_utime, sys_utime)
 #define __NR_mknod                             133
 __SYSCALL(__NR_mknod, sys_mknod)
 
+/* Only needed for a.out */
 #define __NR_uselib                            134
-__SYSCALL(__NR_uselib, sys_uselib)
+__SYSCALL(__NR_uselib, sys_ni_syscall)
 #define __NR_personality                       135
 __SYSCALL(__NR_personality, sys_personality)
 
@@ -532,8 +533,6 @@ __SYSCALL(__NR_tgkill, sys_tgkill)
 __SYSCALL(__NR_utimes, sys_utimes)
 #define __NR_vserver		236
 __SYSCALL(__NR_vserver, sys_ni_syscall)
-#define __NR_vserver		236
-__SYSCALL(__NR_vserver, sys_ni_syscall)
 #define __NR_mbind 		237
 __SYSCALL(__NR_mbind, sys_mbind)
 #define __NR_set_mempolicy 	238
@@ -554,8 +553,16 @@ __SYSCALL(__NR_mq_notify, sys_mq_notify)
 __SYSCALL(__NR_mq_getsetattr, sys_mq_getsetattr)
 #define __NR_kexec_load 	246
 __SYSCALL(__NR_kexec_load, sys_ni_syscall)
+#define __NR_waitid		247
+__SYSCALL(__NR_waitid, sys_waitid)
+#define __NR_add_key		248
+__SYSCALL(__NR_add_key, sys_add_key)
+#define __NR_request_key	249
+__SYSCALL(__NR_request_key, sys_request_key)
+#define __NR_keyctl		250
+__SYSCALL(__NR_keyctl, sys_keyctl)
 
-#define __NR_syscall_max __NR_kexec_load
+#define __NR_syscall_max __NR_keyctl
 #ifndef __NO_STUBS
 
 /* user-visible error numbers are in the range -1 - -4095 */
@@ -579,7 +586,6 @@ do { \
 #define __ARCH_WANT_SYS_PAUSE
 #define __ARCH_WANT_SYS_SGETMASK
 #define __ARCH_WANT_SYS_SIGNAL
-#define __ARCH_WANT_SYS_TIME
 #define __ARCH_WANT_SYS_UTIME
 #define __ARCH_WANT_SYS_WAITPID
 #define __ARCH_WANT_SYS_SOCKETCALL
@@ -592,6 +598,7 @@ do { \
 #define __ARCH_WANT_SYS_SIGPENDING
 #define __ARCH_WANT_SYS_SIGPROCMASK
 #define __ARCH_WANT_SYS_RT_SIGACTION
+#define __ARCH_WANT_COMPAT_SYS_TIME
 #endif
 
 #ifndef __KERNEL_SYSCALLS__
@@ -722,7 +729,7 @@ static inline long dup(unsigned int fd)
 }
 
 /* implemented in asm in arch/x86_64/kernel/entry.S */
-extern long execve(char *, char **, char **);
+extern int execve(const char *, char * const *, char * const *);
 
 static inline long open(const char * filename, int flags, int mode)
 {
@@ -765,7 +772,7 @@ asmlinkage long sys_pipe(int *fildes);
 
 asmlinkage long sys_ptrace(long request, long pid,
 				unsigned long addr, long data);
-asmlinkage long sys_iopl(unsigned int level, struct pt_regs regs);
+asmlinkage long sys_iopl(unsigned int level, struct pt_regs *regs);
 asmlinkage long sys_ioperm(unsigned long from, unsigned long num, int turn_on);
 struct sigaction;
 asmlinkage long sys_rt_sigaction(int sig,
@@ -783,6 +790,6 @@ asmlinkage long sys_rt_sigaction(int sig,
  * What we want is __attribute__((weak,alias("sys_ni_syscall"))),
  * but it doesn't work on all toolchains, so we just do it by hand
  */
-#define cond_syscall(x) asm(".weak\t" #x "\n\t.set\t" #x ",sys_ni_syscall");
+#define cond_syscall(x) asm(".weak\t" #x "\n\t.set\t" #x ",sys_ni_syscall")
 
 #endif

@@ -55,8 +55,6 @@ struct _snd_es1688 {
 
 typedef struct _snd_es1688 es1688_t;
 
-#define chip_t es1688_t
-
 /* I/O ports */
 
 #define ES1688P(codec, x) ((codec)->port + e_s_s_ESS1688##x)
@@ -110,9 +108,6 @@ typedef struct _snd_es1688 es1688_t;
  */
 
 void snd_es1688_mixer_write(es1688_t *chip, unsigned char reg, unsigned char data);
-unsigned char snd_es1688_mixer_read(es1688_t *chip, unsigned char reg);
-
-irqreturn_t snd_es1688_interrupt(int irq, void *dev_id, struct pt_regs *regs);
 
 int snd_es1688_create(snd_card_t * card,
 		      unsigned long port,

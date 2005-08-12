@@ -136,7 +136,7 @@ typedef struct snd_seq_midi_op {
 #define gm_sustain	 	control[MIDI_CTL_SUSTAIN]
 #define gm_hold			gm_sustain
 #define gm_portamento		control[MIDI_CTL_PORTAMENTO]
-#define gm_sustenuto		control[MIDI_CTL_SUSTENUTO]
+#define gm_sostenuto		control[MIDI_CTL_SOSTENUTO]
 
 /*
  * These macros give the complete value of the controls that consist
@@ -166,7 +166,7 @@ typedef struct snd_seq_midi_op {
 #define SNDRV_MIDI_NOTE_OFF		0x00
 #define SNDRV_MIDI_NOTE_ON		0x01
 #define SNDRV_MIDI_NOTE_RELEASED		0x02
-#define SNDRV_MIDI_NOTE_SUSTENUTO		0x04
+#define SNDRV_MIDI_NOTE_SOSTENUTO		0x04
  
 #define SNDRV_MIDI_PARAM_TYPE_REGISTERED		0
 #define SNDRV_MIDI_PARAM_TYPE_NONREGISTERED	1
@@ -189,8 +189,6 @@ enum {
 void snd_midi_process_event(snd_midi_op_t *ops, snd_seq_event_t *ev,
 			    snd_midi_channel_set_t *chanset);
 void snd_midi_channel_set_clear(snd_midi_channel_set_t *chset);
-void snd_midi_channel_init(snd_midi_channel_t *p, int n);
-snd_midi_channel_t *snd_midi_channel_init_set(int n);
 snd_midi_channel_set_t *snd_midi_channel_alloc_set(int n);
 void snd_midi_channel_free_set(snd_midi_channel_set_t *chset);
 

@@ -4,14 +4,20 @@
 #include <asm/ldt.h>
 #include <asm/segment.h>
 
+#define CPU_16BIT_STACK_SIZE 1024
+
 #ifndef __ASSEMBLY__
 
 #include <linux/preempt.h>
 #include <linux/smp.h>
+#include <linux/percpu.h>
 
 #include <asm/mmu.h>
 
-extern struct desc_struct cpu_gdt_table[NR_CPUS][GDT_ENTRIES];
+extern struct desc_struct cpu_gdt_table[GDT_ENTRIES];
+DECLARE_PER_CPU(struct desc_struct, cpu_gdt_table[GDT_ENTRIES]);
+
+DECLARE_PER_CPU(unsigned char, cpu_16bit_stack[CPU_16BIT_STACK_SIZE]);
 
 struct Xgt_desc_struct {
 	unsigned short size;
@@ -44,7 +50,7 @@ __asm__ __volatile__ ("movw %w3,0(%2)\n\t" \
 
 static inline void __set_tss_desc(unsigned int cpu, unsigned int entry, void *addr)
 {
-	_set_tssldt_desc(&cpu_gdt_table[cpu][entry], (int)addr,
+	_set_tssldt_desc(&per_cpu(cpu_gdt_table, cpu)[entry], (int)addr,
 		offsetof(struct tss_struct, __cacheline_filler) - 1, 0x89);
 }
 
@@ -52,7 +58,7 @@ static inline void __set_tss_desc(unsigned int cpu, unsigned int entry, void *ad
 
 static inline void set_ldt_desc(unsigned int cpu, void *addr, unsigned int size)
 {
-	_set_tssldt_desc(&cpu_gdt_table[cpu][GDT_ENTRY_LDT], (int)addr, ((size << 3)-1), 0x82);
+	_set_tssldt_desc(&per_cpu(cpu_gdt_table, cpu)[GDT_ENTRY_LDT], (int)addr, ((size << 3)-1), 0x82);
 }
 
 #define LDT_entry_a(info) \
@@ -86,7 +92,7 @@ static inline void set_ldt_desc(unsigned int cpu, void *addr, unsigned int size)
 
 static inline void load_TLS(struct thread_struct *t, unsigned int cpu)
 {
-#define C(i) cpu_gdt_table[cpu][GDT_ENTRY_TLS_MIN + i] = t->tls_array[i]
+#define C(i) per_cpu(cpu_gdt_table, cpu)[GDT_ENTRY_TLS_MIN + i] = t->tls_array[i]
 	C(0); C(1); C(2);
 #undef C
 }
@@ -122,6 +128,15 @@ static inline void load_LDT(mm_context_t *pc)
 	int cpu = get_cpu();
 	load_LDT_nolock(pc, cpu);
 	put_cpu();
+}
+
+static inline unsigned long get_desc_base(unsigned long *desc)
+{
+	unsigned long base;
+	base = ((desc[0] >> 16)  & 0x0000ffff) |
+		((desc[1] << 16) & 0x00ff0000) |
+		(desc[1] & 0xff000000);
+	return base;
 }
 
 #endif /* !__ASSEMBLY__ */

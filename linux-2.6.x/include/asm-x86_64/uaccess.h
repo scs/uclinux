@@ -49,7 +49,8 @@
 
 #define access_ok(type, addr, size) (__range_not_ok(addr,size) == 0)
 
-extern inline int verify_area(int type, const void __user * addr, unsigned long size)
+/* this function will go away soon - use access_ok() instead */
+extern inline int __deprecated verify_area(int type, const void __user * addr, unsigned long size)
 {
 	return access_ok(type,addr,size) ? 0 : -EFAULT;
 }
@@ -73,6 +74,7 @@ struct exception_table_entry
 	unsigned long insn, fixup;
 };
 
+#define ARCH_HAS_SEARCH_EXTABLE
 
 /*
  * These are the main single-value transfer routines.  They automatically
@@ -89,20 +91,15 @@ struct exception_table_entry
  * accesses to the same area of user memory).
  */
 
-extern void __get_user_1(void);
-extern void __get_user_2(void);
-extern void __get_user_4(void);
-extern void __get_user_8(void);
-
 #define __get_user_x(size,ret,x,ptr) \
 	__asm__ __volatile__("call __get_user_" #size \
 		:"=a" (ret),"=d" (x) \
-		:"0" (ptr) \
-		:"rbx")
+		:"c" (ptr) \
+		:"r8")
 
 /* Careful: we have to cast the result to the type of the pointer for sign reasons */
 #define get_user(x,ptr)							\
-({	long __val_gu;							\
+({	unsigned long __val_gu;						\
 	int __ret_gu; 							\
 	__chk_user_ptr(ptr);						\
 	switch(sizeof (*(ptr))) {					\
@@ -120,14 +117,13 @@ extern void __put_user_1(void);
 extern void __put_user_2(void);
 extern void __put_user_4(void);
 extern void __put_user_8(void);
-
 extern void __put_user_bad(void);
 
 #define __put_user_x(size,ret,x,ptr)					\
 	__asm__ __volatile__("call __put_user_" #size			\
 		:"=a" (ret)						\
-		:"0" (ptr),"d" (x)					\
-		:"rbx")
+		:"c" (ptr),"d" (x)					\
+		:"r8")
 
 #define put_user(x,ptr)							\
   __put_user_check((__typeof__(*(ptr)))(x),(ptr),sizeof(*(ptr)))
@@ -136,6 +132,9 @@ extern void __put_user_bad(void);
   __get_user_nocheck((x),(ptr),sizeof(*(ptr)))
 #define __put_user(x,ptr) \
   __put_user_nocheck((__typeof__(*(ptr)))(x),(ptr),sizeof(*(ptr)))
+
+#define __get_user_unaligned __get_user
+#define __put_user_unaligned __put_user
 
 #define __put_user_nocheck(x,ptr,size)			\
 ({							\
@@ -147,10 +146,15 @@ extern void __put_user_bad(void);
 
 #define __put_user_check(x,ptr,size)			\
 ({							\
-	int __pu_err = -EFAULT;				\
+	int __pu_err;					\
 	__typeof__(*(ptr)) __user *__pu_addr = (ptr);	\
-	if (likely(access_ok(VERIFY_WRITE,__pu_addr,size)))	\
-		__put_user_size((x),__pu_addr,(size),__pu_err);	\
+	switch (size) { 				\
+	case 1: __put_user_x(1,__pu_err,x,__pu_addr); break;	\
+	case 2: __put_user_x(2,__pu_err,x,__pu_addr); break;	\
+	case 4: __put_user_x(4,__pu_err,x,__pu_addr); break;	\
+	case 8: __put_user_x(8,__pu_err,x,__pu_addr); break;	\
+	default: __put_user_bad();			\
+	}						\
 	__pu_err;					\
 })
 
@@ -169,7 +173,7 @@ do {									\
 
 /* FIXME: this hack is definitely wrong -AK */
 struct __large_struct { unsigned long buf[100]; };
-#define __m(x) (*(struct __large_struct *)(x))
+#define __m(x) (*(struct __large_struct __user *)(x))
 
 /*
  * Tell gcc we read from memory instead of writing: this is because
@@ -195,12 +199,16 @@ struct __large_struct { unsigned long buf[100]; };
 #define __get_user_nocheck(x,ptr,size)				\
 ({								\
 	int __gu_err;						\
-	long __gu_val;						\
+	unsigned long __gu_val;					\
 	__get_user_size(__gu_val,(ptr),(size),__gu_err);	\
 	(x) = (__typeof__(*(ptr)))__gu_val;			\
 	__gu_err;						\
 })
 
+extern int __get_user_1(void);
+extern int __get_user_2(void);
+extern int __get_user_4(void);
+extern int __get_user_8(void);
 extern int __get_user_bad(void);
 
 #define __get_user_size(x,ptr,size,retval)				\
@@ -350,5 +358,8 @@ long strnlen_user(const char __user *str, long n);
 long strlen_user(const char __user *str);
 unsigned long clear_user(void __user *mem, unsigned long len);
 unsigned long __clear_user(void __user *mem, unsigned long len);
+
+#define __copy_to_user_inatomic __copy_to_user
+#define __copy_from_user_inatomic __copy_from_user
 
 #endif /* __X86_64_UACCESS_H */

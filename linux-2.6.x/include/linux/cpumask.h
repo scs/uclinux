@@ -10,6 +10,8 @@
  *
  * For details of cpumask_scnprintf() and cpumask_parse(),
  * see bitmap_scnprintf() and bitmap_parse() in lib/bitmap.c.
+ * For details of cpulist_scnprintf() and cpulist_parse(), see
+ * bitmap_scnlistprintf() and bitmap_parselist(), also in bitmap.c.
  *
  * The available cpumask operations are:
  *
@@ -46,6 +48,8 @@
  *
  * int cpumask_scnprintf(buf, len, mask) Format cpumask for printing
  * int cpumask_parse(ubuf, ulen, mask)	Parse ascii string as cpumask
+ * int cpulist_scnprintf(buf, len, mask) Format cpumask as list for printing
+ * int cpulist_parse(buf, map)		Parse ascii string as cpulist
  *
  * for_each_cpu_mask(cpu, mask)		for-loop cpu over mask
  *
@@ -73,6 +77,7 @@
  *    inside a macro, the way we do the other calls.
  */
 
+#include <linux/kernel.h>
 #include <linux/threads.h>
 #include <linux/bitmap.h>
 #include <asm/bug.h>
@@ -207,13 +212,13 @@ static inline void __cpus_shift_left(cpumask_t *dstp,
 #define first_cpu(src) __first_cpu(&(src), NR_CPUS)
 static inline int __first_cpu(const cpumask_t *srcp, int nbits)
 {
-	return find_first_bit(srcp->bits, nbits);
+	return min_t(int, nbits, find_first_bit(srcp->bits, nbits));
 }
 
 #define next_cpu(n, src) __next_cpu((n), &(src), NR_CPUS)
 static inline int __next_cpu(int n, const cpumask_t *srcp, int nbits)
 {
-	return find_next_bit(srcp->bits, nbits, n+1);
+	return min_t(int, nbits, find_next_bit(srcp->bits, nbits, n+1));
 }
 
 #define cpumask_of_cpu(cpu)						\
@@ -233,29 +238,29 @@ static inline int __next_cpu(int n, const cpumask_t *srcp, int nbits)
 #if NR_CPUS <= BITS_PER_LONG
 
 #define CPU_MASK_ALL							\
-((cpumask_t) { {							\
+(cpumask_t) { {								\
 	[BITS_TO_LONGS(NR_CPUS)-1] = CPU_MASK_LAST_WORD			\
-} })
+} }
 
 #else
 
 #define CPU_MASK_ALL							\
-((cpumask_t) { {							\
+(cpumask_t) { {								\
 	[0 ... BITS_TO_LONGS(NR_CPUS)-2] = ~0UL,			\
 	[BITS_TO_LONGS(NR_CPUS)-1] = CPU_MASK_LAST_WORD			\
-} })
+} }
 
 #endif
 
 #define CPU_MASK_NONE							\
-((cpumask_t) { {							\
+(cpumask_t) { {								\
 	[0 ... BITS_TO_LONGS(NR_CPUS)-1] =  0UL				\
-} })
+} }
 
 #define CPU_MASK_CPU0							\
-((cpumask_t) { {							\
+(cpumask_t) { {								\
 	[0] =  1UL							\
-} })
+} }
 
 #define cpus_addr(src) ((src).bits)
 
@@ -267,12 +272,26 @@ static inline int __cpumask_scnprintf(char *buf, int len,
 	return bitmap_scnprintf(buf, len, srcp->bits, nbits);
 }
 
-#define cpumask_parse(ubuf, ulen, src) \
-			__cpumask_parse((ubuf), (ulen), &(src), NR_CPUS)
+#define cpumask_parse(ubuf, ulen, dst) \
+			__cpumask_parse((ubuf), (ulen), &(dst), NR_CPUS)
 static inline int __cpumask_parse(const char __user *buf, int len,
 					cpumask_t *dstp, int nbits)
 {
 	return bitmap_parse(buf, len, dstp->bits, nbits);
+}
+
+#define cpulist_scnprintf(buf, len, src) \
+			__cpulist_scnprintf((buf), (len), &(src), NR_CPUS)
+static inline int __cpulist_scnprintf(char *buf, int len,
+					const cpumask_t *srcp, int nbits)
+{
+	return bitmap_scnlistprintf(buf, len, srcp->bits, nbits);
+}
+
+#define cpulist_parse(buf, dst) __cpulist_parse((buf), &(dst), NR_CPUS)
+static inline int __cpulist_parse(const char *buf, cpumask_t *dstp, int nbits)
+{
+	return bitmap_parselist(buf, dstp->bits, nbits);
 }
 
 #if NR_CPUS > 1

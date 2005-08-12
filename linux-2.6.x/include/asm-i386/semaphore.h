@@ -45,21 +45,15 @@ struct semaphore {
 	atomic_t count;
 	int sleepers;
 	wait_queue_head_t wait;
-#ifdef WAITQUEUE_DEBUG
-	long __magic;
-#endif
 };
 
-#ifdef WAITQUEUE_DEBUG
-# define __SEM_DEBUG_INIT(name) \
-		, (int)&(name).__magic
-#else
-# define __SEM_DEBUG_INIT(name)
-#endif
 
-#define __SEMAPHORE_INITIALIZER(name,count) \
-{ ATOMIC_INIT(count), 0, __WAIT_QUEUE_HEAD_INITIALIZER((name).wait) \
-	__SEM_DEBUG_INIT(name) }
+#define __SEMAPHORE_INITIALIZER(name, n)				\
+{									\
+	.count		= ATOMIC_INIT(n),				\
+	.sleepers	= 0,						\
+	.wait		= __WAIT_QUEUE_HEAD_INITIALIZER((name).wait)	\
+}
 
 #define __MUTEX_INITIALIZER(name) \
 	__SEMAPHORE_INITIALIZER(name,1)
@@ -81,9 +75,6 @@ static inline void sema_init (struct semaphore *sem, int val)
 	atomic_set(&sem->count, val);
 	sem->sleepers = 0;
 	init_waitqueue_head(&sem->wait);
-#ifdef WAITQUEUE_DEBUG
-	sem->__magic = (int)&sem->__magic;
-#endif
 }
 
 static inline void init_MUTEX (struct semaphore *sem)
@@ -96,15 +87,10 @@ static inline void init_MUTEX_LOCKED (struct semaphore *sem)
 	sema_init(sem, 0);
 }
 
-asmlinkage void __down_failed(void /* special register calling convention */);
-asmlinkage int  __down_failed_interruptible(void  /* params in registers */);
-asmlinkage int  __down_failed_trylock(void  /* params in registers */);
-asmlinkage void __up_wakeup(void /* special register calling convention */);
-
-asmlinkage void __down(struct semaphore * sem);
-asmlinkage int  __down_interruptible(struct semaphore * sem);
-asmlinkage int  __down_trylock(struct semaphore * sem);
-asmlinkage void __up(struct semaphore * sem);
+fastcall void __down_failed(void /* special register calling convention */);
+fastcall int  __down_failed_interruptible(void  /* params in registers */);
+fastcall int  __down_failed_trylock(void  /* params in registers */);
+fastcall void __up_wakeup(void /* special register calling convention */);
 
 /*
  * This is ugly, but we want the default case to fall through.
@@ -113,9 +99,6 @@ asmlinkage void __up(struct semaphore * sem);
  */
 static inline void down(struct semaphore * sem)
 {
-#ifdef WAITQUEUE_DEBUG
-	CHECK_MAGIC(sem->__magic);
-#endif
 	might_sleep();
 	__asm__ __volatile__(
 		"# atomic down operation\n\t"
@@ -123,12 +106,13 @@ static inline void down(struct semaphore * sem)
 		"js 2f\n"
 		"1:\n"
 		LOCK_SECTION_START("")
-		"2:\tcall __down_failed\n\t"
+		"2:\tlea %0,%%eax\n\t"
+		"call __down_failed\n\t"
 		"jmp 1b\n"
 		LOCK_SECTION_END
 		:"=m" (sem->count)
-		:"c" (sem)
-		:"memory");
+		:
+		:"memory","ax");
 }
 
 /*
@@ -139,9 +123,6 @@ static inline int down_interruptible(struct semaphore * sem)
 {
 	int result;
 
-#ifdef WAITQUEUE_DEBUG
-	CHECK_MAGIC(sem->__magic);
-#endif
 	might_sleep();
 	__asm__ __volatile__(
 		"# atomic interruptible down operation\n\t"
@@ -150,11 +131,12 @@ static inline int down_interruptible(struct semaphore * sem)
 		"xorl %0,%0\n"
 		"1:\n"
 		LOCK_SECTION_START("")
-		"2:\tcall __down_failed_interruptible\n\t"
+		"2:\tlea %1,%%eax\n\t"
+		"call __down_failed_interruptible\n\t"
 		"jmp 1b\n"
 		LOCK_SECTION_END
 		:"=a" (result), "=m" (sem->count)
-		:"c" (sem)
+		:
 		:"memory");
 	return result;
 }
@@ -167,10 +149,6 @@ static inline int down_trylock(struct semaphore * sem)
 {
 	int result;
 
-#ifdef WAITQUEUE_DEBUG
-	CHECK_MAGIC(sem->__magic);
-#endif
-
 	__asm__ __volatile__(
 		"# atomic interruptible down operation\n\t"
 		LOCK "decl %1\n\t"     /* --sem->count */
@@ -178,11 +156,12 @@ static inline int down_trylock(struct semaphore * sem)
 		"xorl %0,%0\n"
 		"1:\n"
 		LOCK_SECTION_START("")
-		"2:\tcall __down_failed_trylock\n\t"
+		"2:\tlea %1,%%eax\n\t"
+		"call __down_failed_trylock\n\t"
 		"jmp 1b\n"
 		LOCK_SECTION_END
 		:"=a" (result), "=m" (sem->count)
-		:"c" (sem)
+		:
 		:"memory");
 	return result;
 }
@@ -195,22 +174,20 @@ static inline int down_trylock(struct semaphore * sem)
  */
 static inline void up(struct semaphore * sem)
 {
-#ifdef WAITQUEUE_DEBUG
-	CHECK_MAGIC(sem->__magic);
-#endif
 	__asm__ __volatile__(
 		"# atomic up operation\n\t"
 		LOCK "incl %0\n\t"     /* ++sem->count */
 		"jle 2f\n"
 		"1:\n"
 		LOCK_SECTION_START("")
-		"2:\tcall __up_wakeup\n\t"
+		"2:\tlea %0,%%eax\n\t"
+		"call __up_wakeup\n\t"
 		"jmp 1b\n"
 		LOCK_SECTION_END
 		".subsection 0\n"
 		:"=m" (sem->count)
-		:"c" (sem)
-		:"memory");
+		:
+		:"memory","ax");
 }
 
 #endif

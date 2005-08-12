@@ -28,7 +28,7 @@ typedef u16		compat_ipc_pid_t;
 typedef s32		compat_daddr_t;
 typedef u32		compat_caddr_t;
 typedef __kernel_fsid_t	compat_fsid_t;
-typedef u32		compat_timer_t;
+typedef s32		compat_timer_t;
 typedef s32		compat_key_t;
 
 typedef s32		compat_int_t;
@@ -189,6 +189,11 @@ typedef	u32		compat_uptr_t;
 static inline void __user *compat_ptr(compat_uptr_t uptr)
 {
 	return (void __user *)(unsigned long)uptr;
+}
+
+static inline compat_uptr_t ptr_to_compat(void __user *uptr)
+{
+	return (u32)(unsigned long)uptr;
 }
 
 static __inline__ void __user *compat_alloc_user_space(long len)

@@ -13,8 +13,8 @@
  * L. Haag
  *
  * $Log$
- * Revision 1.3  2004/09/08 16:20:01  lgsoft
- * Import of 2.6.8
+ * Revision 1.4  2005/08/12 03:36:44  magicyang
+ *  Update kernel 2.6.8 to 2.6.12
  *
  * Revision 1.3  2001/03/18 13:02:24  dwmw2
  * Fix timer usage, use spinlocks properly.

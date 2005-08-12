@@ -19,26 +19,30 @@
 #include <asm/tlbflush.h>
 
 /*
- * For the fast tlb miss handlers, we currently keep a per cpu array
- * of pointers to the current pgd for each processor. Also, the proc.
- * id is stuffed into the context register. This should be changed to
- * use the processor id via current->processor, where current is stored
- * in watchhi/lo. The context register should be used to contiguously
- * map the page tables.
+ * For the fast tlb miss handlers, we keep a per cpu array of pointers
+ * to the current pgd for each processor. Also, the proc. id is stuffed
+ * into the context register.
  */
+extern unsigned long pgd_current[];
+
 #define TLBMISS_HANDLER_SETUP_PGD(pgd) \
 	pgd_current[smp_processor_id()] = (unsigned long)(pgd)
+
 #ifdef CONFIG_MIPS32
-#define TLBMISS_HANDLER_SETUP() \
-	write_c0_context((unsigned long) smp_processor_id() << 23); \
+#define TLBMISS_HANDLER_SETUP()						\
+	write_c0_context((unsigned long) smp_processor_id() << 23);	\
 	TLBMISS_HANDLER_SETUP_PGD(swapper_pg_dir)
 #endif
-#ifdef CONFIG_MIPS64
-#define TLBMISS_HANDLER_SETUP() \
+#if defined(CONFIG_MIPS64) && !defined(CONFIG_BUILD_ELF64)
+#define TLBMISS_HANDLER_SETUP()						\
 	write_c0_context((unsigned long) &pgd_current[smp_processor_id()] << 23); \
 	TLBMISS_HANDLER_SETUP_PGD(swapper_pg_dir)
 #endif
-extern unsigned long pgd_current[];
+#if defined(CONFIG_MIPS64) && defined(CONFIG_BUILD_ELF64)
+#define TLBMISS_HANDLER_SETUP()						\
+	write_c0_context((unsigned long) smp_processor_id() << 23);	\
+	TLBMISS_HANDLER_SETUP_PGD(swapper_pg_dir)
+#endif
 
 #if defined(CONFIG_CPU_R3000) || defined(CONFIG_CPU_TX39XX)
 
@@ -126,8 +130,8 @@ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
 	 * Mark current->active_mm as not "active" anymore.
 	 * We don't want to mislead possible IPI tlb flush routines.
 	 */
-	clear_bit(cpu, &prev->cpu_vm_mask);
-	set_bit(cpu, &next->cpu_vm_mask);
+	cpu_clear(cpu, prev->cpu_vm_mask);
+	cpu_set(cpu, next->cpu_vm_mask);
 
 	local_irq_restore(flags);
 }
@@ -150,7 +154,7 @@ static inline void
 activate_mm(struct mm_struct *prev, struct mm_struct *next)
 {
 	unsigned long flags;
-	int cpu = smp_processor_id();
+	unsigned int cpu = smp_processor_id();
 
 	local_irq_save(flags);
 
@@ -161,8 +165,8 @@ activate_mm(struct mm_struct *prev, struct mm_struct *next)
 	TLBMISS_HANDLER_SETUP_PGD(next->pgd);
 
 	/* mark mmu ownership change */
-	clear_bit(cpu, &prev->cpu_vm_mask);
-	set_bit(cpu, &next->cpu_vm_mask);
+	cpu_clear(cpu, prev->cpu_vm_mask);
+	cpu_set(cpu, next->cpu_vm_mask);
 
 	local_irq_restore(flags);
 }
@@ -178,7 +182,7 @@ drop_mmu_context(struct mm_struct *mm, unsigned cpu)
 
 	local_irq_save(flags);
 
-	if (test_bit(cpu, &mm->cpu_vm_mask))  {
+	if (cpu_isset(cpu, mm->cpu_vm_mask))  {
 		get_new_mmu_context(mm, cpu);
 		write_c0_entryhi(cpu_asid(cpu, mm));
 	} else {

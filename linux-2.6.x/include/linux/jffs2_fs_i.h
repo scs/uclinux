@@ -5,6 +5,7 @@
 
 #include <linux/version.h>
 #include <linux/rbtree.h>
+#include <asm/semaphore.h>
 
 struct jffs2_inode_info {
 	/* We need an internal semaphore similar to inode->i_sem.

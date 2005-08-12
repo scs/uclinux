@@ -74,7 +74,7 @@ extern struct task_struct *last_task_used_math;
 
 #endif /* __s390x__ */
 
-#define MM_VM_SIZE(mm)		DEFAULT_TASK_SIZE
+#define HAVE_ARCH_PICK_MMAP_LAYOUT
 
 typedef struct {
         __u32 ar4;
@@ -100,6 +100,25 @@ struct thread_struct {
 };
 
 typedef struct thread_struct thread_struct;
+
+/*
+ * Stack layout of a C stack frame.
+ */
+#ifndef __PACK_STACK
+struct stack_frame {
+	unsigned long back_chain;
+	unsigned long empty1[5];
+	unsigned long gprs[10];
+	unsigned int  empty2[8];
+};
+#else
+struct stack_frame {
+	unsigned long empty1[5];
+	unsigned int  empty2[8];
+	unsigned long gprs[10];
+	unsigned long back_chain;
+};
+#endif
 
 #define ARCH_MIN_TASKALIGN	8
 
@@ -226,7 +245,7 @@ static inline void enabled_wait(void)
 	psw_t wait_psw;
 
 	wait_psw.mask = PSW_BASE_BITS | PSW_MASK_IO | PSW_MASK_EXT |
-		PSW_MASK_MCHECK | PSW_MASK_WAIT;
+		PSW_MASK_MCHECK | PSW_MASK_WAIT | PSW_DEFAULT_KEY;
 #ifndef __s390x__
 	asm volatile (
 		"    basr %0,0\n"

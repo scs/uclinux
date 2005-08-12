@@ -107,10 +107,6 @@ struct ip6t_counters
 	u_int64_t pcnt, bcnt;			/* Packet and byte counters */
 };
 
-#ifdef __KERNEL__
-static DECLARE_MUTEX(ip6t_mutex);
-#endif
-
 /* Values for "flag" field in struct ip6t_ip6 (general ip6 structure). */
 #define IP6T_F_PROTO		0x01	/* Set if rule cares about upper 
 					   protocols */
@@ -170,7 +166,7 @@ struct ip6t_entry
 #define IP6T_CONTINUE 0xFFFFFFFF
 
 /* For standard target */
-#define IP6T_RETURN (-NF_MAX_VERDICT - 1)
+#define IP6T_RETURN (-NF_REPEAT - 1)
 
 /* TCP matching stuff */
 struct ip6t_tcp
@@ -359,13 +355,15 @@ struct ip6t_match
 
 	/* Return true or false: return FALSE and set *hotdrop = 1 to
            force immediate packet drop. */
+	/* Arguments changed since 2.6.9, as this must now handle
+	   non-linear skb, using skb_header_pointer and
+	   skb_ip_make_writable. */
 	int (*match)(const struct sk_buff *skb,
 		     const struct net_device *in,
 		     const struct net_device *out,
 		     const void *matchinfo,
 		     int offset,
-		     const void *hdr,
-		     u_int16_t datalen,
+		     unsigned int protoff,
 		     int *hotdrop);
 
 	/* Called when user tries to insert an entry of this type. */
@@ -390,11 +388,13 @@ struct ip6t_target
 
 	const char name[IP6T_FUNCTION_MAXNAMELEN];
 
-	/* Returns verdict. */
+	/* Returns verdict. Argument order changed since 2.6.9, as this
+	   must now handle non-linear skbs, using skb_copy_bits and
+	   skb_ip_make_writable. */
 	unsigned int (*target)(struct sk_buff **pskb,
-			       unsigned int hooknum,
 			       const struct net_device *in,
 			       const struct net_device *out,
+			       unsigned int hooknum,
 			       const void *targinfo,
 			       void *userdata);
 
@@ -429,9 +429,6 @@ struct ip6t_table
 	/* A unique name... */
 	char name[IP6T_TABLE_MAXNAMELEN];
 
-	/* Seed table: copied in register_table */
-	struct ip6t_replace *table;
-
 	/* What hooks you will enter on */
 	unsigned int valid_hooks;
 
@@ -445,7 +442,8 @@ struct ip6t_table
 	struct module *me;
 };
 
-extern int ip6t_register_table(struct ip6t_table *table);
+extern int ip6t_register_table(struct ip6t_table *table,
+			       const struct ip6t_replace *repl);
 extern void ip6t_unregister_table(struct ip6t_table *table);
 extern unsigned int ip6t_do_table(struct sk_buff **pskb,
 				  unsigned int hook,

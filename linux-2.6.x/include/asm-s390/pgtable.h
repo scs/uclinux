@@ -13,6 +13,8 @@
 #ifndef _ASM_S390_PGTABLE_H
 #define _ASM_S390_PGTABLE_H
 
+#include <asm-generic/4level-fixup.h>
+
 /*
  * The Linux memory management assumes a three-level page table setup. For
  * s390 31 bit we "fold" the mid level into the top-level page table, so
@@ -93,13 +95,13 @@ extern char empty_zero_page[PAGE_SIZE];
 # define USER_PTRS_PER_PGD  512
 # define USER_PGD_PTRS      512
 # define KERNEL_PGD_PTRS    512
-# define FIRST_USER_PGD_NR  0
 #else /* __s390x__ */
 # define USER_PTRS_PER_PGD  2048
 # define USER_PGD_PTRS      2048
 # define KERNEL_PGD_PTRS    2048
-# define FIRST_USER_PGD_NR  0
 #endif /* __s390x__ */
+
+#define FIRST_USER_ADDRESS  0
 
 #define pte_ERROR(e) \
 	printk("%s:%d: bad pte %p.\n", __FILE__, __LINE__, (void *) pte_val(e))
@@ -320,6 +322,7 @@ extern inline void set_pte(pte_t *pteptr, pte_t pteval)
 {
 	*pteptr = pteval;
 }
+#define set_pte_at(mm,addr,ptep,pteval) set_pte(ptep,pteval)
 
 /*
  * pgd/pmd/pte query functions
@@ -416,6 +419,14 @@ extern inline int pte_young(pte_t pte)
 	return 0;
 }
 
+extern inline int pte_read(pte_t pte)
+{
+	/* All pages are readable since we don't use the fetch
+	 * protection bit in the storage key.
+	 */
+	return 1;
+}
+
 /*
  * pgd/pmd/pte modification functions
  */
@@ -447,7 +458,7 @@ extern inline void pmd_clear(pmd_t * pmdp)
 
 #endif /* __s390x__ */
 
-extern inline void pte_clear(pte_t *ptep)
+extern inline void pte_clear(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
 {
 	pte_val(*ptep) = _PAGE_INVALID_EMPTY;
 }
@@ -511,7 +522,7 @@ extern inline pte_t pte_mkyoung(pte_t pte)
 	return pte;
 }
 
-static inline int ptep_test_and_clear_young(pte_t *ptep)
+static inline int ptep_test_and_clear_young(struct vm_area_struct *vma, unsigned long addr, pte_t *ptep)
 {
 	return 0;
 }
@@ -521,10 +532,10 @@ ptep_clear_flush_young(struct vm_area_struct *vma,
 			unsigned long address, pte_t *ptep)
 {
 	/* No need to flush TLB; bits are in storage key */
-	return ptep_test_and_clear_young(ptep);
+	return ptep_test_and_clear_young(vma, address, ptep);
 }
 
-static inline int ptep_test_and_clear_dirty(pte_t *ptep)
+static inline int ptep_test_and_clear_dirty(struct vm_area_struct *vma, unsigned long addr, pte_t *ptep)
 {
 	return 0;
 }
@@ -534,13 +545,13 @@ ptep_clear_flush_dirty(struct vm_area_struct *vma,
 			unsigned long address, pte_t *ptep)
 {
 	/* No need to flush TLB; bits are in storage key */
-	return ptep_test_and_clear_dirty(ptep);
+	return ptep_test_and_clear_dirty(vma, address, ptep);
 }
 
-static inline pte_t ptep_get_and_clear(pte_t *ptep)
+static inline pte_t ptep_get_and_clear(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
 {
 	pte_t pte = *ptep;
-	pte_clear(ptep);
+	pte_clear(mm, addr, ptep);
 	return pte;
 }
 
@@ -563,19 +574,14 @@ ptep_clear_flush(struct vm_area_struct *vma,
 				      : "=m" (*ptep) : "m" (*ptep),
 				        "a" (ptep), "a" (address) );
 #endif /* __s390x__ */
-	pte_clear(ptep);
+	pte_val(*ptep) = _PAGE_INVALID_EMPTY;
 	return pte;
 }
 
-static inline void ptep_set_wrprotect(pte_t *ptep)
+static inline void ptep_set_wrprotect(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
 {
 	pte_t old_pte = *ptep;
-	set_pte(ptep, pte_wrprotect(old_pte));
-}
-
-static inline void ptep_mkdirty(pte_t *ptep)
-{
-	pte_mkdirty(*ptep);
+	set_pte_at(mm, addr, ptep, pte_wrprotect(old_pte));
 }
 
 static inline void
@@ -597,17 +603,13 @@ ptep_establish(struct vm_area_struct *vma,
  * should therefore only be called if it is not mapped in any
  * address space.
  */
-#define page_test_and_clear_dirty(page)					  \
+#define page_test_and_clear_dirty(_page)				  \
 ({									  \
-	struct page *__page = (page);					  \
+	struct page *__page = (_page);					  \
 	unsigned long __physpage = __pa((__page-mem_map) << PAGE_SHIFT);  \
-	int __skey;							  \
-	asm volatile ("iske %0,%1" : "=d" (__skey) : "a" (__physpage));   \
-	if (__skey & _PAGE_CHANGED) {					  \
-		asm volatile ("sske %0,%1"				  \
-			      : : "d" (__skey & ~_PAGE_CHANGED),	  \
-			          "a" (__physpage));			  \
-	}								  \
+	int __skey = page_get_storage_key(__physpage);			  \
+	if (__skey & _PAGE_CHANGED)					  \
+		page_set_storage_key(__physpage, __skey & ~_PAGE_CHANGED);\
 	(__skey & _PAGE_CHANGED);					  \
 })
 
@@ -655,11 +657,10 @@ static inline pte_t mk_pte_phys(unsigned long physpage, pgprot_t pgprot)
 })
 
 #define SetPageUptodate(_page) \
-	do {								  \
-		struct page *__page = (_page);				  \
-		if (!test_and_set_bit(PG_uptodate, &__page->flags))	  \
-			asm volatile ("sske %0,%1" : : "d" (0),		  \
-			      "a" (__pa((__page-mem_map) << PAGE_SHIFT)));\
+	do {								      \
+		struct page *__page = (_page);				      \
+		if (!test_and_set_bit(PG_uptodate, &__page->flags))	      \
+			page_test_and_clear_dirty(_page);		      \
 	} while (0)
 
 #ifdef __s390x__
@@ -684,7 +685,7 @@ static inline pte_t mk_pte_phys(unsigned long physpage, pgprot_t pgprot)
 #define pgd_page_kernel(pgd) (pgd_val(pgd) & PAGE_MASK)
 
 /* to find an entry in a page-table-directory */
-#define pgd_index(address) ((address >> PGDIR_SHIFT) & (PTRS_PER_PGD-1))
+#define pgd_index(address) (((address) >> PGDIR_SHIFT) & (PTRS_PER_PGD-1))
 #define pgd_offset(mm, address) ((mm)->pgd+pgd_index(address))
 
 /* to find an entry in a kernel page-table-directory */
@@ -751,11 +752,17 @@ extern inline pmd_t * pmd_offset(pgd_t * dir, unsigned long address)
  *  0000000000111111111122222222223333333333444444444455 5555 5 55566 66
  *  0123456789012345678901234567890123456789012345678901 2345 6 78901 23
  */
+#ifndef __s390x__
+#define __SWP_OFFSET_MASK (~0UL >> 12)
+#else
+#define __SWP_OFFSET_MASK (~0UL >> 11)
+#endif
 extern inline pte_t mk_swap_pte(unsigned long type, unsigned long offset)
 {
 	pte_t pte;
+	offset &= __SWP_OFFSET_MASK;
 	pte_val(pte) = _PAGE_INVALID_SWAP | ((type & 0x1f) << 2) |
-		((offset & 1) << 7) | ((offset & 0xffffe) << 11);
+		((offset & 1UL) << 7) | ((offset & ~1UL) << 11);
 	return pte;
 }
 
@@ -797,7 +804,6 @@ extern inline pte_t mk_swap_pte(unsigned long type, unsigned long offset)
 #define __HAVE_ARCH_PTEP_GET_AND_CLEAR
 #define __HAVE_ARCH_PTEP_CLEAR_FLUSH
 #define __HAVE_ARCH_PTEP_SET_WRPROTECT
-#define __HAVE_ARCH_PTEP_MKDIRTY
 #define __HAVE_ARCH_PTE_SAME
 #define __HAVE_ARCH_PAGE_TEST_AND_CLEAR_DIRTY
 #define __HAVE_ARCH_PAGE_TEST_AND_CLEAR_YOUNG

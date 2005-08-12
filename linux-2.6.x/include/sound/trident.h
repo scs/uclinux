@@ -290,7 +290,7 @@ typedef struct {
 	int mode;		/* operation mode */
 	int client;		/* sequencer client number */
 	int port;		/* sequencer port number */
-	int midi_has_voices: 1;
+	unsigned int midi_has_voices: 1;
 } snd_trident_port_t;
 
 typedef struct snd_trident_memblk_arg {
@@ -308,7 +308,7 @@ typedef struct {
 
 struct _snd_trident_voice {
 	unsigned int number;
-	int use: 1,
+	unsigned int use: 1,
 	    pcm: 1,
 	    synth:1,
 	    midi: 1;
@@ -347,7 +347,7 @@ struct _snd_trident_voice {
 	trident_t *trident;
 	snd_pcm_substream_t *substream;
 	snd_trident_voice_t *extra;	/* extra PCM voice (acts as interrupt generator) */
-	int running: 1,
+	unsigned int running: 1,
             capture: 1,
             spdif: 1,
             foldback: 1,
@@ -398,7 +398,6 @@ struct _snd_trident {
         unsigned char  bDMAStart;
 
 	unsigned long port;
-	struct resource *res_port;
 	unsigned long midi_port;
 
 	unsigned int spurious_irq_count;
@@ -449,7 +448,7 @@ struct _snd_trident {
 
 	spinlock_t reg_lock;
 
-	struct snd_trident_gameport *gameport;
+	struct gameport *gameport;
 };
 
 int snd_trident_create(snd_card_t * card,
@@ -458,27 +457,23 @@ int snd_trident_create(snd_card_t * card,
 		       int pcm_spdif_device,
 		       int max_wavetable_size,
 		       trident_t ** rtrident);
-int snd_trident_free(trident_t *trident);
-void snd_trident_gameport(trident_t *trident);
+int snd_trident_create_gameport(trident_t *trident);
 
 int snd_trident_pcm(trident_t * trident, int device, snd_pcm_t **rpcm);
 int snd_trident_foldback_pcm(trident_t * trident, int device, snd_pcm_t **rpcm);
 int snd_trident_spdif_pcm(trident_t * trident, int device, snd_pcm_t **rpcm);
 int snd_trident_attach_synthesizer(trident_t * trident);
-int snd_trident_detach_synthesizer(trident_t * trident);
 snd_trident_voice_t *snd_trident_alloc_voice(trident_t * trident, int type, int client, int port);
 void snd_trident_free_voice(trident_t * trident, snd_trident_voice_t *voice);
 void snd_trident_start_voice(trident_t * trident, unsigned int voice);
 void snd_trident_stop_voice(trident_t * trident, unsigned int voice);
 void snd_trident_write_voice_regs(trident_t * trident, snd_trident_voice_t *voice);
-void snd_trident_clear_voices(trident_t * trident, unsigned short v_min, unsigned short v_max);
 
 /* TLB memory allocation */
 snd_util_memblk_t *snd_trident_alloc_pages(trident_t *trident, snd_pcm_substream_t *substream);
 int snd_trident_free_pages(trident_t *trident, snd_util_memblk_t *blk);
 snd_util_memblk_t *snd_trident_synth_alloc(trident_t *trident, unsigned int size);
 int snd_trident_synth_free(trident_t *trident, snd_util_memblk_t *blk);
-int snd_trident_synth_bzero(trident_t *trident, snd_util_memblk_t *blk, int offset, int size);
 int snd_trident_synth_copy_from_user(trident_t *trident, snd_util_memblk_t *blk, int offset, const char __user *data, int size);
 
 #endif /* __SOUND_TRIDENT_H */

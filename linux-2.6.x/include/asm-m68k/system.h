@@ -51,7 +51,7 @@ asmlinkage void resume(void);
 #if 0
 #define local_irq_enable() asm volatile ("andiw %0,%%sr": : "i" (ALLOWINT) : "memory")
 #else
-#include <asm/hardirq.h>
+#include <linux/hardirq.h>
 #define local_irq_enable() ({							\
 	if (MACH_IS_Q40 || !hardirq_count())					\
 		asm volatile ("andiw %0,%%sr": : "i" (ALLOWINT) : "memory");	\
@@ -193,6 +193,8 @@ static inline unsigned long __cmpxchg(volatile void *p, unsigned long old,
 	((__typeof__(*(ptr)))__cmpxchg((ptr),(unsigned long)(o),\
 					(unsigned long)(n),sizeof(*(ptr))))
 #endif
+
+#define arch_align_stack(x) (x)
 
 #endif /* __KERNEL__ */
 

@@ -177,7 +177,7 @@
 
 /* 150-151: kernel events with quote - DO NOT use in user clients */
 #define SNDRV_SEQ_EVENT_KERNEL_ERROR	150
-#define SNDRV_SEQ_EVENT_KERNEL_QUOTE	151
+#define SNDRV_SEQ_EVENT_KERNEL_QUOTE	151	/* obsolete */
 
 /* 152-191: reserved */
 
@@ -640,7 +640,7 @@ struct sndrv_seq_queue_info {
 	 *  etc. if the queue is locked for other clients
 	 */
 	int owner;		/* client id for owner of the queue */
-	int locked:1;		/* timing queue locked for other queues */
+	unsigned locked:1;	/* timing queue locked for other queues */
 	char name[64];		/* name of this queue */
 	unsigned int flags;	/* flags */
 	char reserved[60];	/* for future use */

@@ -108,6 +108,7 @@ extern const char *const scsi_device_types[MAX_SCSI_DEVICE_CODE];
 #define WRITE_LONG_2          0xea
 #define READ_16               0x88
 #define WRITE_16              0x8a
+#define VERIFY_16	      0x8f
 #define SERVICE_ACTION_IN     0x9e
 /* values for service action in */
 #define	SAI_READ_CAPACITY_16  0x10
@@ -168,8 +169,10 @@ static inline int scsi_status_is_good(int status)
 #define RESERVATION_CONFLICT 0x0c
 #define COMMAND_TERMINATED   0x11
 #define QUEUE_FULL           0x14
+#define ACA_ACTIVE           0x18
+#define TASK_ABORTED         0x20
 
-#define STATUS_MASK          0x3e
+#define STATUS_MASK          0xfe
 
 /*
  *  SENSE KEYS
@@ -245,24 +248,35 @@ struct scsi_lun {
 #define     EXTENDED_SDTR                   0x01
 #define     EXTENDED_EXTENDED_IDENTIFY      0x02    /* SCSI-I only */
 #define     EXTENDED_WDTR                   0x03
+#define     EXTENDED_PPR                    0x04
+#define     EXTENDED_MODIFY_BIDI_DATA_PTR   0x05
 #define SAVE_POINTERS       0x02
 #define RESTORE_POINTERS    0x03
 #define DISCONNECT          0x04
 #define INITIATOR_ERROR     0x05
-#define ABORT               0x06
+#define ABORT_TASK_SET      0x06
 #define MESSAGE_REJECT      0x07
 #define NOP                 0x08
 #define MSG_PARITY_ERROR    0x09
 #define LINKED_CMD_COMPLETE 0x0a
 #define LINKED_FLG_CMD_COMPLETE 0x0b
-#define BUS_DEVICE_RESET    0x0c
-
+#define TARGET_RESET        0x0c
+#define ABORT_TASK          0x0d
+#define CLEAR_TASK_SET      0x0e
 #define INITIATE_RECOVERY   0x0f            /* SCSI-II only */
 #define RELEASE_RECOVERY    0x10            /* SCSI-II only */
-
+#define CLEAR_ACA           0x16
+#define LOGICAL_UNIT_RESET  0x17
 #define SIMPLE_QUEUE_TAG    0x20
 #define HEAD_OF_QUEUE_TAG   0x21
 #define ORDERED_QUEUE_TAG   0x22
+#define IGNORE_WIDE_RESIDUE 0x23
+#define ACA                 0x24
+#define QAS_REQUEST         0x55
+
+/* Old SCSI2 names, don't use in new code */
+#define BUS_DEVICE_RESET    TARGET_RESET
+#define ABORT               ABORT_TASK_SET
 
 /*
  * Host byte codes
@@ -281,6 +295,8 @@ struct scsi_lun {
 #define DID_PASSTHROUGH 0x0a	/* Force command past mid-layer            */
 #define DID_SOFT_ERROR  0x0b	/* The low level driver just wish a retry  */
 #define DID_IMM_RETRY   0x0c	/* Retry without decrementing retry count  */
+#define DID_REQUEUE	0x0d	/* Requeue command (no immediate retry) also
+				 * without decrementing the retry count	   */
 #define DRIVER_OK       0x00	/* Driver status                           */
 
 /*
@@ -336,7 +352,7 @@ struct scsi_lun {
  *      host_byte   = set by low-level driver to indicate status.
  *      driver_byte = set by mid-level.
  */
-#define status_byte(result) (((result) >> 1) & 0x1f)
+#define status_byte(result) (((result) >> 1) & 0x7f)
 #define msg_byte(result)    (((result) >> 8) & 0xff)
 #define host_byte(result)   (((result) >> 16) & 0xff)
 #define driver_byte(result) (((result) >> 24) & 0xff)
@@ -346,6 +362,15 @@ struct scsi_lun {
 #define sense_error(sense)  ((sense) & 0xf)
 #define sense_valid(sense)  ((sense) & 0x80);
 
+/*
+ * default timeouts
+*/
+#define FORMAT_UNIT_TIMEOUT		(2 * 60 * 60 * HZ)
+#define START_STOP_TIMEOUT		(60 * HZ)
+#define MOVE_MEDIUM_TIMEOUT		(5 * 60 * HZ)
+#define READ_ELEMENT_STATUS_TIMEOUT	(5 * 60 * HZ)
+#define READ_DEFECT_DATA_TIMEOUT	(60 * HZ )
+
 
 #define IDENTIFY_BASE       0x80
 #define IDENTIFY(can_disconnect, lun)   (IDENTIFY_BASE |\
@@ -353,14 +378,19 @@ struct scsi_lun {
 		     ((lun) & 0x07))
 
 /*
- *  SCSI command sets
+ *  struct scsi_device::scsi_level values. For SCSI devices other than those
+ *  prior to SCSI-2 (i.e. over 12 years old) this value is (resp[2] + 1)
+ *  where "resp" is a byte array of the response to an INQUIRY. The scsi_level
+ *  variable is visible to the user via sysfs.
  */
 
 #define SCSI_UNKNOWN    0
 #define SCSI_1          1
 #define SCSI_1_CCS      2
 #define SCSI_2          3
-#define SCSI_3          4
+#define SCSI_3          4        /* SPC */
+#define SCSI_SPC_2      5
+#define SCSI_SPC_3      6
 
 /*
  * INQ PERIPHERAL QUALIFIERS

@@ -12,7 +12,11 @@
  * the SpitFire page tables.
  */
 
+#include <asm-generic/pgtable-nopud.h>
+
 #include <linux/config.h>
+#include <linux/compiler.h>
+#include <asm/types.h>
 #include <asm/spitfire.h>
 #include <asm/asi.h>
 #include <asm/system.h>
@@ -56,45 +60,25 @@
 #define PMD_SHIFT	(PAGE_SHIFT + (PAGE_SHIFT-3))
 #define PMD_SIZE	(1UL << PMD_SHIFT)
 #define PMD_MASK	(~(PMD_SIZE-1))
-#define PMD_BITS	11
+#define PMD_BITS	(PAGE_SHIFT - 2)
 
 /* PGDIR_SHIFT determines what a third-level page table entry can map */
 #define PGDIR_SHIFT	(PAGE_SHIFT + (PAGE_SHIFT-3) + PMD_BITS)
 #define PGDIR_SIZE	(1UL << PGDIR_SHIFT)
 #define PGDIR_MASK	(~(PGDIR_SIZE-1))
+#define PGDIR_BITS	(PAGE_SHIFT - 2)
 
 #ifndef __ASSEMBLY__
 
 #include <linux/sched.h>
 
 /* Entries per page directory level. */
-#define PTRS_PER_PTE		(1UL << (PAGE_SHIFT-3))
-
-/* We the first one in this file, what we export to the kernel
- * is different so we can optimize correctly for 32-bit tasks.
- */
-#define REAL_PTRS_PER_PMD	(1UL << PMD_BITS)
-
-/* This is gross, but unless we do this gcc retests the
- * thread flag every interation in pmd traversal loops.
- */
-extern unsigned long __ptrs_per_pmd(void) __attribute_const__;
-#define PTRS_PER_PMD		__ptrs_per_pmd()
-
-/*
- * We cannot use the top address range because VPTE table lives there. This
- * formula finds the total legal virtual space in the processor, subtracts the
- * vpte size, then aligns it to the number of bytes mapped by one pgde, and
- * thus calculates the number of pgdes needed.
- */
-#define PTRS_PER_PGD (((1UL << VA_BITS) - VPTE_SIZE + (1UL << (PAGE_SHIFT + \
-		      (PAGE_SHIFT-3) + PMD_BITS)) - 1) / (1UL << (PAGE_SHIFT + \
-		      (PAGE_SHIFT-3) + PMD_BITS)))
+#define PTRS_PER_PTE	(1UL << (PAGE_SHIFT-3))
+#define PTRS_PER_PMD	(1UL << PMD_BITS)
+#define PTRS_PER_PGD	(1UL << PGDIR_BITS)
 
 /* Kernel has a separate 44bit address space. */
-#define USER_PTRS_PER_PGD	((const int)(test_thread_flag(TIF_32BIT)) ? \
-				 (1) : (PTRS_PER_PGD))
-#define FIRST_USER_PGD_NR	0
+#define FIRST_USER_ADDRESS	0
 
 #define pte_ERROR(e)	__builtin_trap()
 #define pmd_ERROR(e)	__builtin_trap()
@@ -232,8 +216,8 @@ extern struct page *mem_map_zero;
 
 /* PFNs are real physical page numbers.  However, mem_map only begins to record
  * per-page information starting at pfn_base.  This is to handle systems where
- * the first physical page in the machine is at some huge physical address, such
- * as 4GB.   This is common on a partitioned E10000, for example.
+ * the first physical page in the machine is at some huge physical address,
+ * such as 4GB.   This is common on a partitioned E10000, for example.
  */
 
 #define pfn_pte(pfn, prot)	\
@@ -261,23 +245,23 @@ static inline pte_t pte_modify(pte_t orig_pte, pgprot_t new_prot)
 }
 #define pmd_set(pmdp, ptep)	\
 	(pmd_val(*(pmdp)) = (__pa((unsigned long) (ptep)) >> 11UL))
-#define pgd_set(pgdp, pmdp)	\
-	(pgd_val(*(pgdp)) = (__pa((unsigned long) (pmdp)) >> 11UL))
+#define pud_set(pudp, pmdp)	\
+	(pud_val(*(pudp)) = (__pa((unsigned long) (pmdp)) >> 11UL))
 #define __pmd_page(pmd)		\
 	((unsigned long) __va((((unsigned long)pmd_val(pmd))<<11UL)))
 #define pmd_page(pmd) 			virt_to_page((void *)__pmd_page(pmd))
-#define pgd_page(pgd)		\
-	((unsigned long) __va((((unsigned long)pgd_val(pgd))<<11UL)))
+#define pud_page(pud)		\
+	((unsigned long) __va((((unsigned long)pud_val(pud))<<11UL)))
 #define pte_none(pte) 			(!pte_val(pte))
 #define pte_present(pte)		(pte_val(pte) & _PAGE_PRESENT)
 #define pmd_none(pmd)			(!pmd_val(pmd))
 #define pmd_bad(pmd)			(0)
 #define pmd_present(pmd)		(pmd_val(pmd) != 0U)
 #define pmd_clear(pmdp)			(pmd_val(*(pmdp)) = 0U)
-#define pgd_none(pgd)			(!pgd_val(pgd))
-#define pgd_bad(pgd)			(0)
-#define pgd_present(pgd)		(pgd_val(pgd) != 0U)
-#define pgd_clear(pgdp)			(pgd_val(*(pgdp)) = 0U)
+#define pud_none(pud)			(!pud_val(pud))
+#define pud_bad(pud)			(0)
+#define pud_present(pud)		(pud_val(pud) != 0U)
+#define pud_clear(pudp)			(pud_val(*(pudp)) = 0U)
 
 /* The following only work if pte_present() is true.
  * Undefined behaviour if not..
@@ -304,16 +288,21 @@ static inline pte_t pte_modify(pte_t orig_pte, pgprot_t new_prot)
 #define pte_mkdirty(pte)	(__pte(pte_val(pte) | _PAGE_MODIFIED | _PAGE_W))
 
 /* to find an entry in a page-table-directory. */
-#define pgd_index(address)	(((address) >> PGDIR_SHIFT) & (PTRS_PER_PGD))
+#define pgd_index(address)	(((address) >> PGDIR_SHIFT) & (PTRS_PER_PGD - 1))
 #define pgd_offset(mm, address)	((mm)->pgd + pgd_index(address))
 
 /* to find an entry in a kernel page-table-directory */
 #define pgd_offset_k(address) pgd_offset(&init_mm, address)
 
+/* extract the pgd cache used for optimizing the tlb miss
+ * slow path when executing 32-bit compat processes
+ */
+#define get_pgd_cache(pgd)	((unsigned long) pgd_val(*pgd) << 11)
+
 /* Find an entry in the second-level page table.. */
-#define pmd_offset(dir, address)	\
-	((pmd_t *) pgd_page(*(dir)) + \
-	 ((address >> PMD_SHIFT) & (REAL_PTRS_PER_PMD-1)))
+#define pmd_offset(pudp, address)	\
+	((pmd_t *) pud_page(*(pudp)) + \
+	 (((address) >> PMD_SHIFT) & (PTRS_PER_PMD-1)))
 
 /* Find an entry in the third-level page table.. */
 #define pte_index(dir, address)	\
@@ -326,18 +315,23 @@ static inline pte_t pte_modify(pte_t orig_pte, pgprot_t new_prot)
 #define pte_unmap_nested(pte)		do { } while (0)
 
 /* Actual page table PTE updates.  */
-extern void tlb_batch_add(pte_t *ptep, pte_t orig);
+extern void tlb_batch_add(struct mm_struct *mm, unsigned long vaddr, pte_t *ptep, pte_t orig);
 
-static inline void set_pte(pte_t *ptep, pte_t pte)
+static inline void set_pte_at(struct mm_struct *mm, unsigned long addr, pte_t *ptep, pte_t pte)
 {
 	pte_t orig = *ptep;
 
 	*ptep = pte;
-	if (pte_present(orig))
-		tlb_batch_add(ptep, orig);
+
+	/* It is more efficient to let flush_tlb_kernel_range()
+	 * handle init_mm tlb flushes.
+	 */
+	if (likely(mm != &init_mm) && (pte_val(orig) & _PAGE_VALID))
+		tlb_batch_add(mm, addr, ptep, orig);
 }
 
-#define pte_clear(ptep)		set_pte((ptep), __pte(0UL))
+#define pte_clear(mm,addr,ptep)		\
+	set_pte_at((mm), (addr), (ptep), __pte(0UL))
 
 extern pgd_t swapper_pg_dir[1];
 
@@ -382,6 +376,7 @@ static __inline__ unsigned long
 sun4u_get_pte (unsigned long addr)
 {
 	pgd_t *pgdp;
+	pud_t *pudp;
 	pmd_t *pmdp;
 	pte_t *ptep;
 
@@ -390,7 +385,8 @@ sun4u_get_pte (unsigned long addr)
 	if ((addr >= LOW_OBP_ADDRESS) && (addr < HI_OBP_ADDRESS))
 		return prom_virt_to_phys(addr, NULL);
 	pgdp = pgd_offset_k(addr);
-	pmdp = pmd_offset(pgdp, addr);
+	pudp = pud_offset(pgdp, addr);
+	pmdp = pmd_offset(pudp, addr);
 	ptep = pte_offset_kernel(pmdp, addr);
 	return pte_val(*ptep) & _PAGE_PADDR;
 }
@@ -416,6 +412,22 @@ extern unsigned long *sparc64_valid_addr_bitmap;
 extern int io_remap_page_range(struct vm_area_struct *vma, unsigned long from,
 			       unsigned long offset,
 			       unsigned long size, pgprot_t prot, int space);
+extern int io_remap_pfn_range(struct vm_area_struct *vma, unsigned long from,
+			       unsigned long pfn,
+			       unsigned long size, pgprot_t prot);
+
+/* Clear virtual and physical cachability, set side-effect bit.  */
+#define pgprot_noncached(prot) \
+	(__pgprot((pgprot_val(prot) & ~(_PAGE_CP | _PAGE_CV)) | \
+	 _PAGE_E))
+
+/*
+ * For sparc32&64, the pfn in io_remap_pfn_range() carries <iospace> in
+ * its high 4 bits.  These macros/functions put it there or get it from there.
+ */
+#define MK_IOSPACE_PFN(space, pfn)	(pfn | (space << (BITS_PER_LONG - 4)))
+#define GET_IOSPACE(pfn)		(pfn >> (BITS_PER_LONG - 4))
+#define GET_PFN(pfn)			(pfn & 0x0fffffffffffffffUL)
 
 #include <asm-generic/pgtable.h>
 

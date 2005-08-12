@@ -36,6 +36,9 @@
 
 typedef struct {
 	volatile unsigned int lock;
+#ifdef CONFIG_PREEMPT
+	unsigned int break_lock;
+#endif
 } __attribute__ ((aligned (4))) spinlock_t;
 
 #define SPIN_LOCK_UNLOCKED (spinlock_t) { 0 }
@@ -105,13 +108,26 @@ extern inline void _raw_spin_unlock(spinlock_t *lp)
 typedef struct {
 	volatile unsigned long lock;
 	volatile unsigned long owner_pc;
+#ifdef CONFIG_PREEMPT
+	unsigned int break_lock;
+#endif
 } rwlock_t;
 
 #define RW_LOCK_UNLOCKED (rwlock_t) { 0, 0 }
 
 #define rwlock_init(x)	do { *(x) = RW_LOCK_UNLOCKED; } while(0)
 
-#define rwlock_is_locked(x) ((x)->lock != 0)
+/**
+ * read_can_lock - would read_trylock() succeed?
+ * @lock: the rwlock in question.
+ */
+#define read_can_lock(x) ((int)(x)->lock >= 0)
+
+/**
+ * write_can_lock - would write_trylock() succeed?
+ * @lock: the rwlock in question.
+ */
+#define write_can_lock(x) ((x)->lock == 0)
 
 #ifndef __s390x__
 #define _raw_read_lock(rw)   \
@@ -210,6 +226,8 @@ typedef struct {
 		     : "a" (&(rw)->lock), "i" (__DIAG44_OPERAND), \
 		       "m" ((rw)->lock) : "2", "3", "cc", "memory" )
 #endif /* __s390x__ */
+
+#define _raw_read_trylock(lock) generic_raw_read_trylock(lock)
 
 extern inline int _raw_write_trylock(rwlock_t *rw)
 {

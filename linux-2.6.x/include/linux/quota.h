@@ -45,7 +45,6 @@
 typedef __kernel_uid32_t qid_t; /* Type in which we store ids in memory */
 typedef __u64 qsize_t;          /* Type in which we store sizes */
 
-extern spinlock_t dq_list_lock;
 extern spinlock_t dq_data_lock;
 
 /* Size of blocks in which are counted size limits */
@@ -286,7 +285,8 @@ struct quota_info {
 	struct semaphore dqio_sem;		/* lock device while I/O in progress */
 	struct semaphore dqonoff_sem;		/* Serialize quotaon & quotaoff */
 	struct rw_semaphore dqptr_sem;		/* serialize ops using quota_info struct, pointers from inode to dquots */
-	struct file *files[MAXQUOTAS];		/* fp's to quotafiles */
+	struct inode *files[MAXQUOTAS];		/* inodes of quotafiles */
+	struct vfsmount *mnt[MAXQUOTAS];	/* mountpoint entries of filesystems with quota files */
 	struct mem_dqinfo info[MAXQUOTAS];	/* Information for each quota type */
 	struct quota_format_ops *ops[MAXQUOTAS];	/* Operations for each type */
 };

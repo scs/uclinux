@@ -23,6 +23,7 @@
  */
 
 #include <sound/asound.h>
+#include <linux/interrupt.h>
 #include <linux/spinlock.h>
 #include <linux/wait.h>
 #include <asm/semaphore.h>
@@ -65,8 +66,7 @@ typedef struct _snd_rawmidi_global_ops {
 } snd_rawmidi_global_ops_t;
 
 struct _snd_rawmidi_runtime {
-	unsigned int trigger: 1, /* transfer is running */
-		     drain: 1,	/* drain stage */
+	unsigned int drain: 1,	/* drain stage */
 		     oss: 1;	/* OSS compatible mode */
 	/* midi stream buffer */
 	unsigned char *buffer;	/* buffer for MIDI data */
@@ -79,8 +79,10 @@ struct _snd_rawmidi_runtime {
 	/* misc */
 	spinlock_t lock;
 	wait_queue_head_t sleep;
-	/* event handler (room [output] or new bytes [input]) */
+	/* event handler (new bytes, input only) */
 	void (*event)(snd_rawmidi_substream_t *substream);
+	/* defers calls to event [input] or ops->trigger [output] */
+	struct tasklet_struct tasklet;
 	/* private data */
 	void *private_data;
 	void (*private_free)(snd_rawmidi_substream_t *substream);
@@ -151,13 +153,6 @@ int snd_rawmidi_new(snd_card_t * card, char *id, int device,
 		    int output_count, int input_count,
 		    snd_rawmidi_t ** rmidi);
 void snd_rawmidi_set_ops(snd_rawmidi_t * rmidi, int stream, snd_rawmidi_ops_t * ops);
-
-/* control functions */
-
-int snd_rawmidi_control_ioctl(snd_card_t * card,
-			      snd_ctl_file_t * control,
-			      unsigned int cmd,
-			      unsigned long arg);
 
 /* callbacks */
 

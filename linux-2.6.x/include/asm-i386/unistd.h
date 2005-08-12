@@ -289,14 +289,21 @@
 #define __NR_mq_notify		(__NR_mq_open+4)
 #define __NR_mq_getsetattr	(__NR_mq_open+5)
 #define __NR_sys_kexec_load	283
+#define __NR_waitid		284
+/* #define __NR_sys_setaltroot	285 */
+#define __NR_add_key		286
+#define __NR_request_key	287
+#define __NR_keyctl		288
 
-#define NR_syscalls 284
+#define NR_syscalls 289
 
-/* user-visible error numbers are in the range -1 - -124: see <asm-i386/errno.h> */
-
+/*
+ * user-visible error numbers are in the range -1 - -128: see
+ * <asm-i386/errno.h>
+ */
 #define __syscall_return(type, res) \
 do { \
-	if ((unsigned long)(res) >= (unsigned long)(-125)) { \
+	if ((unsigned long)(res) >= (unsigned long)(-(128 + 1))) { \
 		errno = -(res); \
 		res = -1; \
 	} \
@@ -453,7 +460,7 @@ asmlinkage long sys_rt_sigaction(int sig,
  * but it doesn't work on all toolchains, so we just do it by hand
  */
 #ifndef cond_syscall
-#define cond_syscall(x) asm(".weak\t" #x "\n\t.set\t" #x ",sys_ni_syscall");
+#define cond_syscall(x) asm(".weak\t" #x "\n\t.set\t" #x ",sys_ni_syscall")
 #endif
 
 #endif /* _ASM_I386_UNISTD_H_ */

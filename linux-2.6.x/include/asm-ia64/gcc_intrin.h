@@ -133,13 +133,17 @@ register unsigned long ia64_r13 asm ("r13") __attribute_used__;
 	ia64_intri_res;								\
 })
 
-#define ia64_popcnt(x)						\
-({								\
+#if __GNUC__ >= 4 || (__GNUC__ == 3 && __GNUC_MINOR__ >= 4)
+# define ia64_popcnt(x)		__builtin_popcountl(x)
+#else
+# define ia64_popcnt(x)						\
+  ({								\
 	__u64 ia64_intri_res;					\
 	asm ("popcnt %0=%1" : "=r" (ia64_intri_res) : "r" (x));	\
 								\
 	ia64_intri_res;						\
-})
+  })
+#endif
 
 #define ia64_getf_exp(x)					\
 ({								\
@@ -259,35 +263,35 @@ register unsigned long ia64_r13 asm ("r13") __attribute_used__;
 	ia64_intri_res;								\
 })
 
-#define ia64_xchg1(ptr,x)						\
-({									\
-	__u64 ia64_intri_res;						\
-	asm __volatile ("xchg1 %0=[%1],%2" : "=r" (ia64_intri_res)	\
-			    : "r" (ptr), "r" (x) : "memory");		\
-	ia64_intri_res;							\
+#define ia64_xchg1(ptr,x)							\
+({										\
+	__u64 ia64_intri_res;							\
+	asm volatile ("xchg1 %0=[%1],%2"					\
+		      : "=r" (ia64_intri_res) : "r" (ptr), "r" (x) : "memory");	\
+	ia64_intri_res;								\
 })
 
 #define ia64_xchg2(ptr,x)						\
 ({									\
 	__u64 ia64_intri_res;						\
-	asm __volatile ("xchg2 %0=[%1],%2" : "=r" (ia64_intri_res)	\
-			    : "r" (ptr), "r" (x) : "memory");		\
+	asm volatile ("xchg2 %0=[%1],%2" : "=r" (ia64_intri_res)	\
+		      : "r" (ptr), "r" (x) : "memory");			\
 	ia64_intri_res;							\
 })
 
 #define ia64_xchg4(ptr,x)						\
 ({									\
 	__u64 ia64_intri_res;						\
-	asm __volatile ("xchg4 %0=[%1],%2" : "=r" (ia64_intri_res)	\
-			    : "r" (ptr), "r" (x) : "memory");		\
+	asm volatile ("xchg4 %0=[%1],%2" : "=r" (ia64_intri_res)	\
+		      : "r" (ptr), "r" (x) : "memory");			\
 	ia64_intri_res;							\
 })
 
 #define ia64_xchg8(ptr,x)						\
 ({									\
 	__u64 ia64_intri_res;						\
-	asm __volatile ("xchg8 %0=[%1],%2" : "=r" (ia64_intri_res)	\
-			    : "r" (ptr), "r" (x) : "memory");		\
+	asm volatile ("xchg8 %0=[%1],%2" : "=r" (ia64_intri_res)	\
+		      : "r" (ptr), "r" (x) : "memory");			\
 	ia64_intri_res;							\
 })
 

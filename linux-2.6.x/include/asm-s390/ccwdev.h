@@ -144,6 +144,19 @@ extern int ccw_device_start(struct ccw_device *, struct ccw1 *,
  */
 extern int ccw_device_start_timeout(struct ccw_device *, struct ccw1 *,
 				    unsigned long, __u8, unsigned long, int);
+/*
+ * ccw_device_start_key()
+ * ccw_device_start_key_timeout()
+ *
+ * Same as ccw_device_start() and ccw_device_start_timeout(), except a
+ * storage key != default key can be provided for the I/O.
+ */
+extern int ccw_device_start_key(struct ccw_device *, struct ccw1 *,
+				unsigned long, __u8, __u8, unsigned long);
+extern int ccw_device_start_timeout_key(struct ccw_device *, struct ccw1 *,
+					unsigned long, __u8, __u8,
+					unsigned long, int);
+
 
 extern int ccw_device_resume(struct ccw_device *);
 extern int ccw_device_halt(struct ccw_device *, unsigned long);
@@ -151,6 +164,8 @@ extern int ccw_device_clear(struct ccw_device *, unsigned long);
 
 extern int read_dev_chars(struct ccw_device *cdev, void **buffer, int length);
 extern int read_conf_data(struct ccw_device *cdev, void **buffer, int *length);
+extern int read_conf_data_lpm(struct ccw_device *cdev, void **buffer,
+			      int *length, __u8 lpm);
 
 extern int ccw_device_set_online(struct ccw_device *cdev);
 extern int ccw_device_set_offline(struct ccw_device *cdev);
@@ -173,4 +188,5 @@ extern int _ccw_device_get_subchannel_number(struct ccw_device *);
 extern struct device *s390_root_dev_register(const char *);
 extern void s390_root_dev_unregister(struct device *);
 
+extern void *ccw_device_get_chp_desc(struct ccw_device *, int);
 #endif /* _S390_CCWDEV_H_ */

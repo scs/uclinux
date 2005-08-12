@@ -19,8 +19,6 @@
  * -  Kissed strtok() goodbye
  */
 
-#define IN_STRING_C 1
- 
 #include <linux/types.h>
 #include <linux/string.h>
 #include <linux/ctype.h>
@@ -67,6 +65,7 @@ EXPORT_SYMBOL(strnicmp);
  * @dest: Where to copy the string to
  * @src: Where to copy the string from
  */
+#undef strcpy
 char * strcpy(char * dest,const char *src)
 {
 	char *tmp = dest;
@@ -87,6 +86,10 @@ EXPORT_SYMBOL(strcpy);
  *
  * The result is not %NUL-terminated if the source exceeds
  * @count bytes.
+ *
+ * In the case where the length of @src is less than  that  of
+ * count, the remainder of @dest will be padded with %NUL.
+ *
  */
 char * strncpy(char * dest,const char *src,size_t count)
 {
@@ -134,6 +137,7 @@ EXPORT_SYMBOL(strlcpy);
  * @dest: The string to be appended to
  * @src: The string to append to it
  */
+#undef strcat
 char * strcat(char * dest, const char * src)
 {
 	char *tmp = dest;
@@ -211,6 +215,7 @@ EXPORT_SYMBOL(strlcat);
  * @cs: One string
  * @ct: Another string
  */
+#undef strcmp
 int strcmp(const char * cs,const char * ct)
 {
 	register signed char __res;
@@ -456,30 +461,6 @@ void * memset(void * s,int c,size_t count)
 EXPORT_SYMBOL(memset);
 #endif
 
-#ifndef __HAVE_ARCH_BCOPY
-/**
- * bcopy - Copy one area of memory to another
- * @srcp: Where to copy from
- * @destp: Where to copy to
- * @count: The size of the area.
- *
- * Note that this is the same as memcpy(), with the arguments reversed.
- * memcpy() is the standard, bcopy() is a legacy BSD function.
- *
- * You should not use this function to access IO space, use memcpy_toio()
- * or memcpy_fromio() instead.
- */
-void bcopy(const void * srcp, void * destp, size_t count)
-{
-	const char *src = srcp;
-	char *dest = destp;
-
-	while (count--)
-		*dest++ = *src++;
-}
-EXPORT_SYMBOL(bcopy);
-#endif
-
 #ifndef __HAVE_ARCH_MEMCPY
 /**
  * memcpy - Copy one area of memory to another
@@ -540,6 +521,7 @@ EXPORT_SYMBOL(memmove);
  * @ct: Another area of memory
  * @count: The size of the area.
  */
+#undef memcmp
 int memcmp(const void * cs,const void * ct,size_t count)
 {
 	const unsigned char *su1, *su2;

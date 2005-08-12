@@ -16,40 +16,37 @@ extern int ip_conntrack_init(void);
 extern void ip_conntrack_cleanup(void);
 
 struct ip_conntrack_protocol;
-extern struct ip_conntrack_protocol *ip_ct_find_proto(u_int8_t protocol);
-/* Like above, but you already have conntrack read lock. */
-extern struct ip_conntrack_protocol *__ip_ct_find_proto(u_int8_t protocol);
-extern struct list_head protocol_list;
 
-/* Returns conntrack if it dealt with ICMP, and filled in skb->nfct */
-extern struct ip_conntrack *icmp_error_track(struct sk_buff *skb,
-					     enum ip_conntrack_info *ctinfo,
-					     unsigned int hooknum);
-extern int get_tuple(const struct iphdr *iph,
-		     const struct sk_buff *skb,
-		     unsigned int dataoff,
-		     struct ip_conntrack_tuple *tuple,
-		     const struct ip_conntrack_protocol *protocol);
+extern int
+ip_ct_get_tuple(const struct iphdr *iph,
+		const struct sk_buff *skb,
+		unsigned int dataoff,
+		struct ip_conntrack_tuple *tuple,
+		const struct ip_conntrack_protocol *protocol);
+
+extern int
+ip_ct_invert_tuple(struct ip_conntrack_tuple *inverse,
+		   const struct ip_conntrack_tuple *orig,
+		   const struct ip_conntrack_protocol *protocol);
 
 /* Find a connection corresponding to a tuple. */
 struct ip_conntrack_tuple_hash *
 ip_conntrack_find_get(const struct ip_conntrack_tuple *tuple,
 		      const struct ip_conntrack *ignored_conntrack);
 
-extern int __ip_conntrack_confirm(struct nf_ct_info *nfct);
+extern int __ip_conntrack_confirm(struct sk_buff **pskb);
 
 /* Confirm a connection: returns NF_DROP if packet must be dropped. */
-static inline int ip_conntrack_confirm(struct sk_buff *skb)
+static inline int ip_conntrack_confirm(struct sk_buff **pskb)
 {
-	if (skb->nfct
-	    && !is_confirmed((struct ip_conntrack *)skb->nfct->master))
-		return __ip_conntrack_confirm(skb->nfct);
+	if ((*pskb)->nfct
+	    && !is_confirmed((struct ip_conntrack *)(*pskb)->nfct))
+		return __ip_conntrack_confirm(pskb);
 	return NF_ACCEPT;
 }
 
 extern struct list_head *ip_conntrack_hash;
 extern struct list_head ip_conntrack_expect_list;
 DECLARE_RWLOCK_EXTERN(ip_conntrack_lock);
-DECLARE_RWLOCK_EXTERN(ip_conntrack_expect_tuple_lock);
 #endif /* _IP_CONNTRACK_CORE_H */
 

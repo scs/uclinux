@@ -21,6 +21,9 @@ extern void consistent_sync(void *kaddr, size_t size, int rw);
  * properly.  For example, if your device can only drive the low 24-bits
  * during bus mastering, then you would pass 0x00ffffff as the mask
  * to this function.
+ *
+ * FIXME: This should really be a platform specific issue - we should
+ * return false if GFP_DMA allocations may not satisfy the supplied 'mask'.
  */
 static inline int dma_supported(struct device *dev, u64 mask)
 {
@@ -87,6 +90,22 @@ dma_free_coherent(struct device *dev, size_t size, void *cpu_addr,
 		  dma_addr_t handle);
 
 /**
+ * dma_mmap_coherent - map a coherent DMA allocation into user space
+ * @dev: valid struct device pointer, or NULL for ISA and EISA-like devices
+ * @vma: vm_area_struct describing requested user mapping
+ * @cpu_addr: kernel CPU-view address returned from dma_alloc_coherent
+ * @handle: device-view address returned from dma_alloc_coherent
+ * @size: size of memory originally requested in dma_alloc_coherent
+ *
+ * Map a coherent DMA buffer previously allocated by dma_alloc_coherent
+ * into user space.  The coherent DMA buffer must not be freed by the
+ * driver until the user space mapping has been released.
+ */
+int dma_mmap_coherent(struct device *dev, struct vm_area_struct *vma,
+		      void *cpu_addr, dma_addr_t handle, size_t size);
+
+
+/**
  * dma_alloc_writecombine - allocate writecombining memory for DMA
  * @dev: valid struct device pointer, or NULL for ISA and EISA-like devices
  * @size: required memory size
@@ -102,6 +121,9 @@ dma_alloc_writecombine(struct device *dev, size_t size, dma_addr_t *handle, int 
 
 #define dma_free_writecombine(dev,size,cpu_addr,handle) \
 	dma_free_coherent(dev,size,cpu_addr,handle)
+
+int dma_mmap_writecombine(struct device *dev, struct vm_area_struct *vma,
+			  void *cpu_addr, dma_addr_t handle, size_t size);
 
 
 /**

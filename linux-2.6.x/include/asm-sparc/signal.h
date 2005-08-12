@@ -3,6 +3,7 @@
 #define _ASMSPARC_SIGNAL_H
 
 #include <asm/sigcontext.h>
+#include <linux/compiler.h>
 
 #ifdef __KERNEL__
 #ifndef __ASSEMBLY__
@@ -111,11 +112,14 @@ typedef struct {
 	unsigned long	sig[_NSIG_WORDS];
 } __new_sigset_t;
 
+
+#ifdef __KERNEL__
 /* A SunOS sigstack */
 struct sigstack {
 	char *the_stack;
 	int   cur_status;
 };
+#endif
 
 /* Sigvec flags */
 #define _SV_SSTACK    1u    /* This signal handler should use sig-stack */
@@ -139,7 +143,6 @@ struct sigstack {
 #define SA_ONESHOT	_SV_RESET
 #define SA_INTERRUPT	0x10u
 #define SA_NOMASK	0x20u
-#define SA_SHIRQ	0x40u
 #define SA_NOCLDWAIT	0x100u
 #define SA_SIGINFO	0x200u
 
@@ -158,11 +161,6 @@ struct sigstack {
 
 #ifdef __KERNEL__
 /*
- * These values of sa_flags are used only by the kernel as part of the
- * irq handling routines.
- *
- * SA_INTERRUPT is also used by the irq handling routines.
- *
  * DJHR
  * SA_STATIC_ALLOC is used for the SPARC system to indicate that this
  * interrupt handler's irq structure should be statically allocated
@@ -173,22 +171,12 @@ struct sigstack {
  * statically allocated data.. which is NOT GOOD.
  *
  */
-#define SA_PROBE SA_ONESHOT
-#define SA_SAMPLE_RANDOM SA_RESTART
 #define SA_STATIC_ALLOC		0x80
 #endif
 
-/* Type of a signal handler.  */
+#include <asm-generic/signal.h>
+
 #ifdef __KERNEL__
-typedef void (*__sighandler_t)(int, int, struct sigcontext *, char *);
-#else
-typedef void (*__sighandler_t)(int);
-#endif
-
-#define SIG_DFL	((__sighandler_t)0)	/* default signal handling */
-#define SIG_IGN	((__sighandler_t)1)	/* ignore signal */
-#define SIG_ERR	((__sighandler_t)-1)	/* error return from signal */
-
 struct __new_sigaction {
 	__sighandler_t	sa_handler;
 	unsigned long	sa_flags;
@@ -196,12 +184,10 @@ struct __new_sigaction {
 	__new_sigset_t	sa_mask;
 };
 
-#ifdef __KERNEL__
 struct k_sigaction {
 	struct __new_sigaction	sa;
 	void			__user *ka_restorer;
 };
-#endif
 
 struct __old_sigaction {
 	__sighandler_t	sa_handler;
@@ -216,7 +202,6 @@ typedef struct sigaltstack {
 	size_t		ss_size;
 } stack_t;
 
-#ifdef __KERNEL__
 struct sparc_deliver_cookie {
 	int restart_syscall;
 	unsigned long orig_i0;

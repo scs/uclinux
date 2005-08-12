@@ -134,6 +134,8 @@
 #define readw_relaxed(a) readw(a)
 #define readl_relaxed(a) readl(a)
 
+#define mmiowb()
+
 /*
  * If the platform has PC-like I/O, this function converts the offset into
  * an address.
@@ -292,6 +294,17 @@ out:
     __flush_invalidate_region(_start,_size)
 #define dma_cache_wback(_start,_size) \
     __flush_wback_region(_start,_size)
+
+/*
+ * Convert a physical pointer to a virtual kernel pointer for /dev/mem
+ * access
+ */
+#define xlate_dev_mem_ptr(p)	__va(p)
+
+/*
+ * Convert a virtual cached pointer to an uncached pointer
+ */
+#define xlate_dev_kmem_ptr(p)	p
 
 #endif /* __KERNEL__ */
 

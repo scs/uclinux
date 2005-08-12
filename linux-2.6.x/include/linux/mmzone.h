@@ -11,6 +11,7 @@
 #include <linux/cache.h>
 #include <linux/threads.h>
 #include <linux/numa.h>
+#include <linux/init.h>
 #include <asm/atomic.h>
 
 /* Free memory management - zoned buddy allocator.  */
@@ -20,21 +21,9 @@
 #define MAX_ORDER CONFIG_FORCE_MAX_ZONEORDER
 #endif
 
-/*
- * system hash table size limits
- * - on large memory machines, we may want to allocate a bigger hash than that
- *   permitted by MAX_ORDER, so we allocate with the bootmem allocator, and are
- *   limited to this size
- */
-#if MAX_ORDER > 14
-#define MAX_SYS_HASH_TABLE_ORDER MAX_ORDER
-#else
-#define MAX_SYS_HASH_TABLE_ORDER 14
-#endif
-
 struct free_area {
 	struct list_head	free_list;
-	unsigned long		*map;
+	unsigned long		nr_free;
 };
 
 struct pglist_data;
@@ -47,7 +36,7 @@ struct pglist_data;
  */
 #if defined(CONFIG_SMP)
 struct zone_padding {
-	int x;
+	char x[0];
 } ____cacheline_maxaligned_in_smp;
 #define ZONE_PADDING(name)	struct zone_padding name;
 #else
@@ -120,28 +109,31 @@ struct per_cpu_pageset {
  */
 
 struct zone {
-	/*
-	 * Commonly accessed fields:
-	 */
-	spinlock_t		lock;
+	/* Fields commonly accessed by the page allocator */
 	unsigned long		free_pages;
 	unsigned long		pages_min, pages_low, pages_high;
 	/*
-	 * protection[] is a pre-calculated number of extra pages that must be
-	 * available in a zone in order for __alloc_pages() to allocate memory
-	 * from the zone. i.e., for a GFP_KERNEL alloc of "order" there must
-	 * be "(1<<order) + protection[ZONE_NORMAL]" free pages in the zone
-	 * for us to choose to allocate the page from that zone.
-	 *
-	 * It uses both min_free_kbytes and sysctl_lower_zone_protection.
-	 * The protection values are recalculated if either of these values
-	 * change.  The array elements are in zonelist order:
-	 *	[0] == GFP_DMA, [1] == GFP_KERNEL, [2] == GFP_HIGHMEM.
+	 * We don't know if the memory that we're going to allocate will be freeable
+	 * or/and it will be released eventually, so to avoid totally wasting several
+	 * GB of ram we must reserve some of the lower zone memory (otherwise we risk
+	 * to run OOM on the lower zones despite there's tons of freeable ram
+	 * on the higher zones). This array is recalculated at runtime if the
+	 * sysctl_lowmem_reserve_ratio sysctl changes.
 	 */
-	unsigned long		protection[MAX_NR_ZONES];
+	unsigned long		lowmem_reserve[MAX_NR_ZONES];
+
+	struct per_cpu_pageset	pageset[NR_CPUS];
+
+	/*
+	 * free areas of different sizes
+	 */
+	spinlock_t		lock;
+	struct free_area	free_area[MAX_ORDER];
+
 
 	ZONE_PADDING(_pad1_)
 
+	/* Fields commonly accessed by the page reclaim scanner */
 	spinlock_t		lru_lock;	
 	struct list_head	active_list;
 	struct list_head	inactive_list;
@@ -149,10 +141,8 @@ struct zone {
 	unsigned long		nr_scan_inactive;
 	unsigned long		nr_active;
 	unsigned long		nr_inactive;
-	int			all_unreclaimable; /* All pages pinned */
 	unsigned long		pages_scanned;	   /* since last reclaim */
-
-	ZONE_PADDING(_pad2_)
+	int			all_unreclaimable; /* All pages pinned */
 
 	/*
 	 * prev_priority holds the scanning priority for this zone.  It is
@@ -173,10 +163,9 @@ struct zone {
 	int temp_priority;
 	int prev_priority;
 
-	/*
-	 * free areas of different sizes
-	 */
-	struct free_area	free_area[MAX_ORDER];
+
+	ZONE_PADDING(_pad2_)
+	/* Rarely used or read-mostly fields */
 
 	/*
 	 * wait_table		-- the array holding the hash table
@@ -206,10 +195,6 @@ struct zone {
 	unsigned long		wait_table_size;
 	unsigned long		wait_table_bits;
 
-	ZONE_PADDING(_pad3_)
-
-	struct per_cpu_pageset	pageset[NR_CPUS];
-
 	/*
 	 * Discontig memory support fields.
 	 */
@@ -218,12 +203,13 @@ struct zone {
 	/* zone_start_pfn == zone_start_paddr >> PAGE_SHIFT */
 	unsigned long		zone_start_pfn;
 
+	unsigned long		spanned_pages;	/* total size, including holes */
+	unsigned long		present_pages;	/* amount of memory (excluding holes) */
+
 	/*
 	 * rarely used fields:
 	 */
 	char			*name;
-	unsigned long		spanned_pages;	/* total size, including holes */
-	unsigned long		present_pages;	/* amount of memory (excluding holes) */
 } ____cacheline_maxaligned_in_smp;
 
 
@@ -274,20 +260,34 @@ typedef struct pglist_data {
 					     range, including holes */
 	int node_id;
 	struct pglist_data *pgdat_next;
-	wait_queue_head_t       kswapd_wait;
+	wait_queue_head_t kswapd_wait;
 	struct task_struct *kswapd;
+	int kswapd_max_order;
 } pg_data_t;
 
 #define node_present_pages(nid)	(NODE_DATA(nid)->node_present_pages)
 #define node_spanned_pages(nid)	(NODE_DATA(nid)->node_spanned_pages)
 
-extern int numnodes;
 extern struct pglist_data *pgdat_list;
 
+void __get_zone_counts(unsigned long *active, unsigned long *inactive,
+			unsigned long *free, struct pglist_data *pgdat);
 void get_zone_counts(unsigned long *active, unsigned long *inactive,
 			unsigned long *free);
 void build_all_zonelists(void);
-void wakeup_kswapd(struct zone *zone);
+void wakeup_kswapd(struct zone *zone, int order);
+int zone_watermark_ok(struct zone *z, int order, unsigned long mark,
+		int alloc_type, int can_try_harder, int gfp_high);
+
+#ifdef CONFIG_HAVE_MEMORY_PRESENT
+void memory_present(int nid, unsigned long start, unsigned long end);
+#else
+static inline void memory_present(int nid, unsigned long start, unsigned long end) {}
+#endif
+
+#ifdef CONFIG_NEED_NODE_MEMMAP_SIZE
+unsigned long __init node_memmap_size_bytes(int, unsigned long, unsigned long);
+#endif
 
 /*
  * zone_idx() returns 0 for the ZONE_DMA zone, 1 for the ZONE_NORMAL zone, etc.
@@ -316,7 +316,7 @@ static inline struct zone *next_zone(struct zone *zone)
 {
 	pg_data_t *pgdat = zone->zone_pgdat;
 
-	if (zone - pgdat->node_zones < MAX_NR_ZONES - 1)
+	if (zone < pgdat->node_zones + MAX_NR_ZONES - 1)
 		zone++;
 	else if (pgdat->pgdat_next) {
 		pgdat = pgdat->pgdat_next;
@@ -362,12 +362,12 @@ static inline int is_normal_idx(int idx)
  */
 static inline int is_highmem(struct zone *zone)
 {
-	return (is_highmem_idx(zone - zone->zone_pgdat->node_zones));
+	return zone == zone->zone_pgdat->node_zones + ZONE_HIGHMEM;
 }
 
 static inline int is_normal(struct zone *zone)
 {
-	return (is_normal_idx(zone - zone->zone_pgdat->node_zones));
+	return zone == zone->zone_pgdat->node_zones + ZONE_NORMAL;
 }
 
 /* These two functions are used to setup the per zone pages min values */
@@ -375,12 +375,13 @@ struct ctl_table;
 struct file;
 int min_free_kbytes_sysctl_handler(struct ctl_table *, int, struct file *, 
 					void __user *, size_t *, loff_t *);
-int lower_zone_protection_sysctl_handler(struct ctl_table *, int, struct file *,
+extern int sysctl_lowmem_reserve_ratio[MAX_NR_ZONES-1];
+int lowmem_reserve_ratio_sysctl_handler(struct ctl_table *, int, struct file *,
 					void __user *, size_t *, loff_t *);
 
 #include <linux/topology.h>
 /* Returns the number of the current Node. */
-#define numa_node_id()		(cpu_to_node(smp_processor_id()))
+#define numa_node_id()		(cpu_to_node(_smp_processor_id()))
 
 #ifndef CONFIG_DISCONTIGMEM
 
@@ -420,35 +421,6 @@ extern struct pglist_data contig_page_data;
 #error ZONES_SHIFT > MAX_ZONES_SHIFT
 #endif
 
-extern DECLARE_BITMAP(node_online_map, MAX_NUMNODES);
-
-#if defined(CONFIG_DISCONTIGMEM) || defined(CONFIG_NUMA)
-
-#define node_online(node)	test_bit(node, node_online_map)
-#define node_set_online(node)	set_bit(node, node_online_map)
-#define node_set_offline(node)	clear_bit(node, node_online_map)
-static inline unsigned int num_online_nodes(void)
-{
-	int i, num = 0;
-
-	for(i = 0; i < MAX_NUMNODES; i++){
-		if (node_online(i))
-			num++;
-	}
-	return num;
-}
-
-#else /* !CONFIG_DISCONTIGMEM && !CONFIG_NUMA */
-
-#define node_online(node) \
-	({ BUG_ON((node) != 0); test_bit(node, node_online_map); })
-#define node_set_online(node) \
-	({ BUG_ON((node) != 0); set_bit(node, node_online_map); })
-#define node_set_offline(node) \
-	({ BUG_ON((node) != 0); clear_bit(node, node_online_map); })
-#define num_online_nodes()	1
-
-#endif /* CONFIG_DISCONTIGMEM || CONFIG_NUMA */
 #endif /* !__ASSEMBLY__ */
 #endif /* __KERNEL__ */
 #endif /* _LINUX_MMZONE_H */

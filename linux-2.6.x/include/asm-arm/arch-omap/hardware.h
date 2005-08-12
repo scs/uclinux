@@ -40,6 +40,7 @@
 #include <linux/config.h>
 #ifndef __ASSEMBLER__
 #include <asm/types.h>
+#include <asm/arch/cpu.h>
 #endif
 #include <asm/arch/io.h>
 
@@ -64,6 +65,7 @@
 #define ARM_RSTCT1		(CLKGEN_REG_BASE + 0x10)
 #define ARM_RSTCT2		(CLKGEN_REG_BASE + 0x14)
 #define ARM_SYSST		(CLKGEN_REG_BASE + 0x18)
+#define ARM_IDLECT3		(CLKGEN_REG_BASE + 0x24)
 
 #define CK_RATEF		1
 #define CK_IDLEF		2
@@ -87,65 +89,38 @@
 #define ULPD_REG_BASE		(0xfffe0800)
 #define ULPD_IT_STATUS		(ULPD_REG_BASE + 0x14)
 #define ULPD_CLOCK_CTRL		(ULPD_REG_BASE + 0x30)
+#	define DIS_USB_PVCI_CLK		(1 << 5)	/* no USB/FAC synch */
+#	define USB_MCLK_EN		(1 << 4)	/* enable W4_USB_CLKO */
 #define ULPD_SOFT_REQ		(ULPD_REG_BASE + 0x34)
+#	define SOFT_UDC_REQ		(1 << 4)
+#	define SOFT_USB_CLK_REQ		(1 << 3)
+#	define SOFT_DPLL_REQ		(1 << 0)
 #define ULPD_DPLL_CTRL		(ULPD_REG_BASE + 0x3c)
 #define ULPD_STATUS_REQ		(ULPD_REG_BASE + 0x40)
 #define ULPD_APLL_CTRL		(ULPD_REG_BASE + 0x4c)
 #define ULPD_POWER_CTRL		(ULPD_REG_BASE + 0x50)
+#define ULPD_SOFT_DISABLE_REQ_REG	(ULPD_REG_BASE + 0x68)
+#	define DIS_MMC2_DPLL_REQ	(1 << 11)
+#	define DIS_MMC1_DPLL_REQ	(1 << 10)
+#	define DIS_UART3_DPLL_REQ	(1 << 9)
+#	define DIS_UART2_DPLL_REQ	(1 << 8)
+#	define DIS_UART1_DPLL_REQ	(1 << 7)
+#	define DIS_USB_HOST_DPLL_REQ	(1 << 6)
+#define ULPD_SDW_CLK_DIV_CTRL_SEL	(ULPD_REG_BASE + 0x74)
 #define ULPD_CAM_CLK_CTRL	(ULPD_REG_BASE + 0x7c)
 
 /*
  * ---------------------------------------------------------------------------
- * Timers
+ * Watchdog timer
  * ---------------------------------------------------------------------------
  */
-#define OMAP_32kHz_TIMER_BASE 0xfffb9000
 
-/* 32k Timer Registers */
-#define TIMER32k_CR		0x08
-#define TIMER32k_TVR		0x00
-#define TIMER32k_TCR		0x04
-
-/* 32k Timer Control Register definition */
-#define TIMER32k_TSS		(1<<0)
-#define TIMER32k_TRB		(1<<1)
-#define TIMER32k_INT		(1<<2)
-#define TIMER32k_ARL		(1<<3)
-
-/* MPU Timer base addresses */
-#define OMAP_TIMER1_BASE	(0xfffec500)
-#define OMAP_TIMER2_BASE	(0xfffec600)
-#define OMAP_TIMER3_BASE	(0xfffec700)
-#define OMAP_MPUTIMER_BASE	OMAP_TIMER1_BASE
-#define OMAP_MPUTIMER_OFFSET	0x100
-
-/* MPU Timer Registers */
-#define OMAP_TIMER1_CNTL	(OMAP_TIMER_BASE1 + 0x0)
-#define OMAP_TIMER1_LOAD_TIM	(OMAP_TIMER_BASE1 + 0x4)
-#define OMAP_TIMER1_READ_TIM	(OMAP_TIMER_BASE1 + 0x8)
-
-#define OMAP_TIMER2_CNTL	(OMAP_TIMER_BASE2 + 0x0)
-#define OMAP_TIMER2_LOAD_TIM	(OMAP_TIMER_BASE2 + 0x4)
-#define OMAP_TIMER2_READ_TIM	(OMAP_TIMER_BASE2 + 0x8)
-
-#define OMAP_TIMER3_CNTL	(OMAP_TIMER_BASE3 + 0x0)
-#define OMAP_TIMER3_LOAD_TIM	(OMAP_TIMER_BASE3 + 0x4)
-#define OMAP_TIMER3_READ_TIM	(OMAP_TIMER_BASE3 + 0x8)
-
-/* CNTL_TIMER register bits */
-#define MPUTIM_FREE		(1<<6)
-#define MPUTIM_CLOCK_ENABLE	(1<<5)
-#define MPUTIM_PTV_MASK		(0x7<<PTV_BIT)
-#define MPUTIM_PTV_BIT		2
-#define MPUTIM_AR		(1<<1)
-#define MPUTIM_ST		(1<<0)
-
-/* Watchdog */
-#define OMAP_WATCHDOG_BASE	(0xfffec800)
-#define OMAP_WDT_TIMER		(OMAP_WATCHDOG_BASE + 0x0)
-#define OMAP_WDT_LOAD_TIM	(OMAP_WATCHDOG_BASE + 0x4)
-#define OMAP_WDT_READ_TIM	(OMAP_WATCHDOG_BASE + 0x4)
-#define OMAP_WDT_TIMER_MODE	(OMAP_WATCHDOG_BASE + 0x8)
+/* Watchdog timer within the OMAP3.2 gigacell */
+#define OMAP_MPU_WATCHDOG_BASE	(0xfffec800)
+#define OMAP_WDT_TIMER		(OMAP_MPU_WATCHDOG_BASE + 0x0)
+#define OMAP_WDT_LOAD_TIM	(OMAP_MPU_WATCHDOG_BASE + 0x4)
+#define OMAP_WDT_READ_TIM	(OMAP_MPU_WATCHDOG_BASE + 0x4)
+#define OMAP_WDT_TIMER_MODE	(OMAP_MPU_WATCHDOG_BASE + 0x8)
 
 /*
  * ---------------------------------------------------------------------------
@@ -178,29 +153,8 @@
 #define IRQ_CONTROL_REG_OFFSET	0x18
 #define IRQ_ISR_REG_OFFSET	0x9c
 #define IRQ_ILR0_REG_OFFSET	0x1c
+#define IRQ_GMR_REG_OFFSET	0xa0
 
-/*
- * ---------------------------------------------------------------------------
- * Traffic controller memory interface
- * ---------------------------------------------------------------------------
- */
-#define TCMIF_BASE		0xfffecc00
-#define IMIF_PRIO		(TCMIF_BASE + 0x00)
-#define EMIFS_PRIO		(TCMIF_BASE + 0x04)
-#define EMIFF_PRIO		(TCMIF_BASE + 0x08)
-#define EMIFS_CONFIG		(TCMIF_BASE + 0x0c)
-#define EMIFS_CS0_CONFIG	(TCMIF_BASE + 0x10)
-#define EMIFS_CS1_CONFIG	(TCMIF_BASE + 0x14)
-#define EMIFS_CS2_CONFIG	(TCMIF_BASE + 0x18)
-#define EMIFS_CS3_CONFIG	(TCMIF_BASE + 0x1c)
-#define EMIFF_SDRAM_CONFIG	(TCMIF_BASE + 0x20)
-#define EMIFF_MRS		(TCMIF_BASE + 0x24)
-#define TC_TIMEOUT1		(TCMIF_BASE + 0x28)
-#define TC_TIMEOUT2		(TCMIF_BASE + 0x2c)
-#define TC_TIMEOUT3		(TCMIF_BASE + 0x30)
-#define TC_ENDIANISM		(TCMIF_BASE + 0x34)
-#define EMIFF_SDRAM_CONFIG_2	(TCMIF_BASE + 0x3c)
-#define EMIF_CFG_DYNAMIC_WS	(TCMIF_BASE + 0x40)
 /*
  * ----------------------------------------------------------------------------
  * System control registers
@@ -233,6 +187,7 @@
 #define PULL_DWN_CTRL_1		0xfffe1044
 #define PULL_DWN_CTRL_2		0xfffe1048
 #define PULL_DWN_CTRL_3		0xfffe104c
+#define PULL_DWN_CTRL_4		0xfffe10ac
 
 /* OMAP-1610 specific multiplexing registers */
 #define FUNC_MUX_CTRL_E		0xfffe1090
@@ -245,6 +200,9 @@
 #define PU_PD_SEL_2		0xfffe10bc
 #define PU_PD_SEL_3		0xfffe10c0
 #define PU_PD_SEL_4		0xfffe10c4
+
+/* Timer32K for 1610 and 1710*/
+#define OMAP_TIMER32K_BASE	0xFFFBC400
 
 /*
  * ---------------------------------------------------------------------------
@@ -271,61 +229,60 @@
 #define MPUI_DSP_BOOT_CONFIG		(MPUI_BASE + 0x18)
 #define MPUI_DSP_API_CONFIG		(MPUI_BASE + 0x1c)
 
+/*
+ * ----------------------------------------------------------------------------
+ * LED Pulse Generator
+ * ----------------------------------------------------------------------------
+ */
+#define OMAP_LPG1_BASE			0xfffbd000
+#define OMAP_LPG2_BASE			0xfffbd800
+#define OMAP_LPG1_LCR			(OMAP_LPG1_BASE + 0x00)
+#define OMAP_LPG1_PMR			(OMAP_LPG1_BASE + 0x04)
+#define OMAP_LPG2_LCR			(OMAP_LPG2_BASE + 0x00)
+#define OMAP_LPG2_PMR			(OMAP_LPG2_BASE + 0x04)
+
 #ifndef __ASSEMBLER__
 
 /*
  * ---------------------------------------------------------------------------
- * Processor differentiation
+ * Serial ports
  * ---------------------------------------------------------------------------
  */
-#define OMAP_ID_BASE		(0xfffed400)
-#define OMAP_ID_REG		__REG32(OMAP_ID_BASE +  0x04)
+#define OMAP_UART1_BASE		(unsigned char *)0xfffb0000
+#define OMAP_UART2_BASE		(unsigned char *)0xfffb0800
+#define OMAP_UART3_BASE		(unsigned char *)0xfffb9800
+#define OMAP_MAX_NR_PORTS	3
+#define OMAP1510_BASE_BAUD	(12000000/16)
+#define OMAP16XX_BASE_BAUD	(48000000/16)
 
-#define ID_SHIFT		12
-#define ID_MASK			0x7fff
+#define is_omap_port(p)	({int __ret = 0;			\
+			if (p == IO_ADDRESS(OMAP_UART1_BASE) ||	\
+			    p == IO_ADDRESS(OMAP_UART2_BASE) ||	\
+			    p == IO_ADDRESS(OMAP_UART3_BASE))	\
+				__ret = 1;			\
+			__ret;					\
+			})
 
-/* See also uncompress.h */
-#define OMAP_ID_730		0x355F
-#define OMAP_ID_1510		0x3470
-#define OMAP_ID_1610		0x3576
-#define OMAP_ID_1710		0x35F7
-#define OMAP_ID_5912		0x358C
-
+/*
+ * ---------------------------------------------------------------------------
+ * Processor specific defines
+ * ---------------------------------------------------------------------------
+ */
 #ifdef CONFIG_ARCH_OMAP730
 #include "omap730.h"
-#define cpu_is_omap730()	(((OMAP_ID_REG >> ID_SHIFT) & ID_MASK) == OMAP_ID_730)
-#else
-#define cpu_is_omap730()	0
 #endif
 
 #ifdef CONFIG_ARCH_OMAP1510
 #include "omap1510.h"
-#define cpu_is_omap1510()	(((OMAP_ID_REG >> ID_SHIFT) & ID_MASK) == OMAP_ID_1510)
-#else
-#define cpu_is_omap1510()	0
 #endif
 
-#ifdef CONFIG_ARCH_OMAP1610
-#include "omap1610.h"
-#define cpu_is_omap1710()       (((OMAP_ID_REG >> ID_SHIFT) & ID_MASK) == OMAP_ID_1710)
-/* Detect 1710 as 1610 for now */
-#define cpu_is_omap1610()	(((OMAP_ID_REG >> ID_SHIFT) & ID_MASK) == OMAP_ID_1610 \
-				|| cpu_is_omap1710())
-#else
-#define cpu_is_omap1610()	0
-#define cpu_is_omap1710()	0
-#endif
-
-#ifdef CONFIG_ARCH_OMAP5912
-#include "omap5912.h"
-#define cpu_is_omap5912()	(((OMAP_ID_REG >> ID_SHIFT) & ID_MASK) == OMAP_ID_5912)
-#else
-#define cpu_is_omap5912()	0
+#ifdef CONFIG_ARCH_OMAP16XX
+#include "omap16xx.h"
 #endif
 
 /*
  * ---------------------------------------------------------------------------
- * Board differentiation
+ * Board specific defines
  * ---------------------------------------------------------------------------
  */
 
@@ -343,7 +300,6 @@
 
 #ifdef CONFIG_MACH_OMAP_H3
 #include "board-h3.h"
-#error "Support for H3 board not yet implemented."
 #endif
 
 #ifdef CONFIG_MACH_OMAP_H4
@@ -353,6 +309,14 @@
 
 #ifdef CONFIG_MACH_OMAP_OSK
 #include "board-osk.h"
+#endif
+
+#ifdef CONFIG_MACH_VOICEBLUE
+#include "board-voiceblue.h"
+#endif
+
+#ifdef CONFIG_MACH_NETSTAR
+#include "board-netstar.h"
 #endif
 
 #endif /* !__ASSEMBLER__ */

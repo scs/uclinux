@@ -4,7 +4,7 @@
  * (markhe@nextd.demon.co.uk)
  */
 
-#if	!defined(_LINUX_SLAB_H)
+#ifndef _LINUX_SLAB_H
 #define	_LINUX_SLAB_H
 
 #if	defined(__KERNEL__)
@@ -13,6 +13,7 @@ typedef struct kmem_cache_s kmem_cache_t;
 
 #include	<linux/config.h>	/* kmalloc_sizes.h needs CONFIG_ options */
 #include	<linux/gfp.h>
+#include	<linux/init.h>
 #include	<linux/types.h>
 #include	<asm/page.h>		/* kmalloc_sizes.h needs PAGE_SIZE */
 #include	<asm/cache.h>		/* kmalloc_sizes.h needs L1_CACHE_BYTES */
@@ -45,6 +46,7 @@ typedef struct kmem_cache_s kmem_cache_t;
 #define SLAB_RECLAIM_ACCOUNT	0x00020000UL	/* track pages allocated to indicate
 						   what is reclaimable later*/
 #define SLAB_PANIC		0x00040000UL	/* panic if kmem_cache_create() fails */
+#define SLAB_DESTROY_BY_RCU	0x00080000UL	/* defer freeing pages to RCU */
 
 /* flags passed to a constructor func */
 #define	SLAB_CTOR_CONSTRUCTOR	0x001UL		/* if not set, then deconstructor */
@@ -52,18 +54,17 @@ typedef struct kmem_cache_s kmem_cache_t;
 #define	SLAB_CTOR_VERIFY	0x004UL		/* tell constructor it's a verify call */
 
 /* prototypes */
-extern void kmem_cache_init(void);
+extern void __init kmem_cache_init(void);
 
-extern kmem_cache_t *kmem_find_general_cachep(size_t, int gfpflags);
 extern kmem_cache_t *kmem_cache_create(const char *, size_t, size_t, unsigned long,
 				       void (*)(void *, kmem_cache_t *, unsigned long),
 				       void (*)(void *, kmem_cache_t *, unsigned long));
 extern int kmem_cache_destroy(kmem_cache_t *);
 extern int kmem_cache_shrink(kmem_cache_t *);
-extern void *kmem_cache_alloc(kmem_cache_t *, int);
-extern void *kmem_cache_alloc_node(kmem_cache_t *, int);
+extern void *kmem_cache_alloc(kmem_cache_t *, unsigned int __nocast);
 extern void kmem_cache_free(kmem_cache_t *, void *);
 extern unsigned int kmem_cache_size(kmem_cache_t *);
+extern kmem_cache_t *kmem_find_general_cachep(size_t size, int gfpflags);
 
 /* Size description struct for general caches. */
 struct cache_sizes {
@@ -72,9 +73,9 @@ struct cache_sizes {
 	kmem_cache_t	*cs_dmacachep;
 };
 extern struct cache_sizes malloc_sizes[];
-extern void *__kmalloc(size_t, int);
+extern void *__kmalloc(size_t, unsigned int __nocast);
 
-static inline void *kmalloc(size_t size, int flags)
+static inline void *kmalloc(size_t size, unsigned int __nocast flags)
 {
 	if (__builtin_constant_p(size)) {
 		int i = 0;
@@ -97,25 +98,36 @@ found:
 	return __kmalloc(size, flags);
 }
 
+extern void *kcalloc(size_t, size_t, unsigned int __nocast);
 extern void kfree(const void *);
 extern unsigned int ksize(const void *);
+
+#ifdef CONFIG_NUMA
+extern void *kmem_cache_alloc_node(kmem_cache_t *, int flags, int node);
+extern void *kmalloc_node(size_t size, int flags, int node);
+#else
+static inline void *kmem_cache_alloc_node(kmem_cache_t *cachep, int flags, int node)
+{
+	return kmem_cache_alloc(cachep, flags);
+}
+static inline void *kmalloc_node(size_t size, int flags, int node)
+{
+	return kmalloc(size, flags);
+}
+#endif
 
 extern int FASTCALL(kmem_cache_reap(int));
 extern int FASTCALL(kmem_ptr_validate(kmem_cache_t *cachep, void *ptr));
 
 /* System wide caches */
 extern kmem_cache_t	*vm_area_cachep;
-extern kmem_cache_t	*mm_cachep;
 extern kmem_cache_t	*names_cachep;
 extern kmem_cache_t	*files_cachep;
 extern kmem_cache_t	*filp_cachep;
-extern kmem_cache_t	*dquot_cachep;
 extern kmem_cache_t	*fs_cachep;
 extern kmem_cache_t	*signal_cachep;
 extern kmem_cache_t	*sighand_cachep;
 extern kmem_cache_t	*bio_cachep;
-
-void ptrinfo(unsigned long addr);
 
 extern atomic_t slab_reclaim_pages;
 

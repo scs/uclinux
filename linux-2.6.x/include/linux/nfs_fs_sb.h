@@ -18,6 +18,7 @@ struct nfs_server {
 	unsigned int		rpages;		/* read size (in pages) */
 	unsigned int		wsize;		/* write size */
 	unsigned int		wpages;		/* write size (in pages) */
+	unsigned int		wtmult;		/* server disk block size */
 	unsigned int		dtsize;		/* readdir size */
 	unsigned int		bsize;		/* server block size */
 	unsigned int		acregmin;	/* attr cache timeouts */
@@ -52,5 +53,6 @@ struct nfs_server {
 #define NFS_CAP_HARDLINKS	(1U << 1)
 #define NFS_CAP_SYMLINKS	(1U << 2)
 #define NFS_CAP_ACLS		(1U << 3)
+#define NFS_CAP_ATOMIC_OPEN	(1U << 4)
 
 #endif

@@ -44,8 +44,6 @@ typedef struct __user_cap_data_struct {
 
 #include <linux/spinlock.h>
 
-extern spinlock_t task_capability_lock;
-
 /* #define STRICT_CAP_T_TYPECHECKS */
 
 #ifdef STRICT_CAP_T_TYPECHECKS
@@ -283,6 +281,10 @@ typedef __u32 kernel_cap_t;
 /* Allow taking of leases on files */
 
 #define CAP_LEASE            28
+
+#define CAP_AUDIT_WRITE      29
+
+#define CAP_AUDIT_CONTROL    30
 
 #ifdef __KERNEL__
 /* 

@@ -3,8 +3,8 @@
  *	       Hans-Peter Nilsson (hp@axis.com)
  *
  * $Log$
- * Revision 1.3  2004/09/08 16:04:33  lgsoft
- * Import of 2.6.8
+ * Revision 1.4  2005/08/12 03:36:35  magicyang
+ *  Update kernel 2.6.8 to 2.6.12
  *
  * Revision 1.8  2001/10/29 13:01:48  bjornw
  * Removed unused variable tmp2 in strnlen_user
@@ -94,7 +94,8 @@
 #define __access_ok(addr,size) (__kernel_ok || __user_ok((addr),(size)))
 #define access_ok(type,addr,size) __access_ok((unsigned long)(addr),(size))
 
-extern inline int verify_area(int type, const void __user * addr, unsigned long size)
+/* this function will go away soon - use access_ok() instead */
+extern inline int __deprecated verify_area(int type, const void __user * addr, unsigned long size)
 {
 	return access_ok(type,addr,size) ? 0 : -EFAULT;
 }
@@ -437,6 +438,8 @@ __generic_clear_user_nocheck(void *to, unsigned long n)
 
 #define __copy_to_user(to,from,n)   __generic_copy_to_user_nocheck((to),(from),(n))
 #define __copy_from_user(to,from,n) __generic_copy_from_user_nocheck((to),(from),(n))
+#define __copy_to_user_inatomic __copy_to_user
+#define __copy_from_user_inatomic __copy_from_user
 #define __clear_user(to,n) __generic_clear_user_nocheck((to),(n))
 
 #define strlen_user(str)	strnlen_user((str), 0x7ffffffe)

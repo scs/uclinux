@@ -105,9 +105,9 @@ extern int fix_alignment(struct pt_regs *regs);
 extern void bad_page_fault(struct pt_regs *regs, unsigned long address,
 			   int sig);
 extern void show_regs(struct pt_regs * regs);
+extern void low_hash_fault(struct pt_regs *regs, unsigned long address);
 extern int die(const char *str, struct pt_regs *regs, long err);
 
-extern void flush_instruction_cache(void);
 extern int _get_PVR(void);
 extern void giveup_fpu(struct task_struct *);
 extern void disable_kernel_fp(void);
@@ -127,6 +127,8 @@ static inline void flush_altivec_to_thread(struct task_struct *t)
 {
 }
 #endif
+
+extern int mem_init_done;	/* set on boot once kmalloc can be called */
 
 /* EBCDIC -> ASCII conversion for [0-9A-Z] on iSeries */
 extern unsigned char e2a(unsigned char);
@@ -297,6 +299,8 @@ __cmpxchg(volatile void *ptr, unsigned long old, unsigned long new, int size)
  * Based on this we disable the IP header alignment in network drivers.
  */
 #define NET_IP_ALIGN   0
+
+#define arch_align_stack(x) (x)
 
 #endif /* __KERNEL__ */
 #endif

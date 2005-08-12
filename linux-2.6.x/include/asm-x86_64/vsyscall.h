@@ -21,10 +21,11 @@ enum vsyscall_num {
 #define __section_sys_tz __attribute__ ((unused, __section__ (".sys_tz"), aligned(16)))
 #define __section_sysctl_vsyscall __attribute__ ((unused, __section__ (".sysctl_vsyscall"), aligned(16)))
 #define __section_xtime __attribute__ ((unused, __section__ (".xtime"), aligned(16)))
-#define __section_xtime_lock __attribute__ ((unused, __section__ (".xtime_lock"), aligned(L1_CACHE_BYTES)))
+#define __section_xtime_lock __attribute__ ((unused, __section__ (".xtime_lock"), aligned(16)))
 
 #define VXTIME_TSC	1
 #define VXTIME_HPET	2
+#define VXTIME_PMTMR	3
 
 struct vxtime_data {
 	long hpet_address;	/* HPET base address */
@@ -36,8 +37,8 @@ struct vxtime_data {
 	int mode;
 };
 
-#define hpet_readl(a)           readl(fix_to_virt(FIX_HPET_BASE) + a)
-#define hpet_writel(d,a)        writel(d, fix_to_virt(FIX_HPET_BASE) + a)
+#define hpet_readl(a)           readl((void *)fix_to_virt(FIX_HPET_BASE) + a)
+#define hpet_writel(d,a)        writel(d, (void *)fix_to_virt(FIX_HPET_BASE) + a)
 
 /* vsyscall space (readonly) */
 extern struct vxtime_data __vxtime;
@@ -53,6 +54,8 @@ extern unsigned long wall_jiffies;
 extern struct timezone sys_tz;
 extern int sysctl_vsyscall;
 extern seqlock_t xtime_lock;
+
+extern int sysctl_vsyscall;
 
 #define ARCH_HAVE_XTIME_LOCK 1
 

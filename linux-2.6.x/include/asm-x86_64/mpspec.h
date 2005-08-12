@@ -14,9 +14,9 @@
 #define SMP_MAGIC_IDENT	(('_'<<24)|('P'<<16)|('M'<<8)|'_')
 
 /*
- * a maximum of 16 APICs with the current APIC ID architecture.
+ * A maximum of 255 APICs with the current APIC ID architecture.
  */
-#define MAX_APICS 16
+#define MAX_APICS 128
 
 struct intel_mp_floating
 {
@@ -156,8 +156,8 @@ struct mpc_config_lintsrc
  *	7	2 CPU MCA+PCI
  */
 
+#define MAX_MP_BUSSES 256
 #define MAX_IRQ_SOURCES 256
-#define MAX_MP_BUSSES 32
 enum mp_bustype {
 	MP_BUS_ISA = 1,
 	MP_BUS_EISA,
@@ -166,7 +166,6 @@ enum mp_bustype {
 };
 extern unsigned char mp_bus_id_to_type [MAX_MP_BUSSES];
 extern int mp_bus_id_to_pci_bus [MAX_MP_BUSSES];
-extern cpumask_t pci_bus_to_cpumask [256];
 
 extern unsigned int boot_cpu_physical_apicid;
 extern int smp_found_config;
@@ -177,7 +176,6 @@ extern int apic_version [MAX_APICS];
 extern int mp_irq_entries;
 extern struct mpc_config_intsrc mp_irqs [MAX_IRQ_SOURCES];
 extern int mpc_default_type;
-extern int mp_current_pci_id;
 extern unsigned long mp_lapic_addr;
 extern int pic_mode;
 
@@ -189,7 +187,7 @@ extern void mp_register_lapic_address (u64 address);
 extern void mp_register_ioapic (u8 id, u32 address, u32 gsi_base);
 extern void mp_override_legacy_irq (u8 bus_irq, u8 polarity, u8 trigger, u32 gsi);
 extern void mp_config_acpi_legacy_irqs (void);
-extern void mp_register_gsi (u32 gsi, int edge_level, int active_high_low);
+extern int mp_register_gsi (u32 gsi, int edge_level, int active_high_low);
 #endif /*CONFIG_X86_IO_APIC*/
 #endif
 

@@ -7,7 +7,7 @@
  *
  * Version:	@(#)route.h	1.0.4	05/27/93
  *
- * Authors:	Ross Biro, <bir7@leland.Stanford.Edu>
+ * Authors:	Ross Biro
  *		Fred N. van Kempen, <waltje@uWalt.NL.Mugnet.ORG>
  * Fixes:
  *		Alan Cox	:	Reformatted. Added ip_rt_local()
@@ -44,8 +44,9 @@
 /* RTO_CONN is not used (being alias for 0), but preserved not to break
  * some modules referring to it. */
 
-#define RT_CONN_FLAGS(sk)   (RT_TOS(inet_sk(sk)->tos) | sk->sk_localroute)
+#define RT_CONN_FLAGS(sk)   (RT_TOS(inet_sk(sk)->tos) | sock_flag(sk, SOCK_LOCALROUTE))
 
+struct fib_nh;
 struct inet_peer;
 struct rtable
 {
@@ -58,7 +59,8 @@ struct rtable
 	struct in_device	*idev;
 	
 	unsigned		rt_flags;
-	unsigned		rt_type;
+	__u16			rt_type;
+	__u16			rt_multipath_alg;
 
 	__u32			rt_dst;	/* Path destination	*/
 	__u32			rt_src;	/* Path source		*/
@@ -73,11 +75,6 @@ struct rtable
 	/* Miscellaneous cached information */
 	__u32			rt_spec_dst; /* RFC1122 specific destination */
 	struct inet_peer	*peer; /* long-living peer info */
-
-#ifdef CONFIG_IP_ROUTE_NAT
-	__u32			rt_src_map;
-	__u32			rt_dst_map;
-#endif
 };
 
 struct ip_rt_acct
@@ -110,7 +107,7 @@ struct rt_cache_stat
 
 extern struct rt_cache_stat *rt_cache_stat;
 #define RT_CACHE_STAT_INC(field)					  \
-		(per_cpu_ptr(rt_cache_stat, smp_processor_id())->field++)
+		(per_cpu_ptr(rt_cache_stat, _smp_processor_id())->field++)
 
 extern struct ip_rt_acct *ip_rt_acct;
 

@@ -120,9 +120,13 @@ struct acct_v3
 struct super_block;
 extern void acct_auto_close(struct super_block *sb);
 extern void acct_process(long exitcode);
+extern void acct_update_integrals(struct task_struct *tsk);
+extern void acct_clear_integrals(struct task_struct *tsk);
 #else
 #define acct_auto_close(x)	do { } while (0)
 #define acct_process(x)		do { } while (0)
+#define acct_update_integrals(x)		do { } while (0)
+#define acct_clear_integrals(task)	do { } while (0)
 #endif
 
 /*
@@ -172,17 +176,24 @@ static inline u32 jiffies_to_AHZ(unsigned long x)
 #endif
 }
 
-static inline u64 jiffies_64_to_AHZ(u64 x)
+static inline u64 nsec_to_AHZ(u64 x)
 {
-#if (TICK_NSEC % (NSEC_PER_SEC / AHZ)) == 0
-#if HZ != AHZ
-	do_div(x, HZ / AHZ);
-#endif
-#else
-	x *= TICK_NSEC;
+#if (NSEC_PER_SEC % AHZ) == 0
 	do_div(x, (NSEC_PER_SEC / AHZ));
+#elif (AHZ % 512) == 0
+	x *= AHZ/512;
+	do_div(x, (NSEC_PER_SEC / 512));
+#else
+	/*
+         * max relative error 5.7e-8 (1.8s per year) for AHZ <= 1024,
+         * overflow after 64.99 years.
+         * exact for AHZ=60, 72, 90, 120, 144, 180, 300, 600, 900, ...
+         */
+	x *= 9;
+	do_div(x, (unsigned long)((9ull * NSEC_PER_SEC + (AHZ/2))
+	                          / AHZ));
 #endif
-       return x;
+	return x;
 }
 
 #endif  /* __KERNEL */

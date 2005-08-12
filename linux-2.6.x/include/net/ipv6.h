@@ -16,7 +16,7 @@
 #define _NET_IPV6_H
 
 #include <linux/ipv6.h>
-#include <asm/hardirq.h>
+#include <linux/hardirq.h>
 #include <net/ndisc.h>
 #include <net/flow.h>
 #include <net/snmp.h>
@@ -149,6 +149,8 @@ extern atomic_t			inet6_sock_nr;
 
 int snmp6_register_dev(struct inet6_dev *idev);
 int snmp6_unregister_dev(struct inet6_dev *idev);
+int snmp6_alloc_dev(struct inet6_dev *idev);
+int snmp6_free_dev(struct inet6_dev *idev);
 int snmp6_mib_init(void *ptr[2], size_t mibsize, size_t mibalign);
 void snmp6_mib_free(void *ptr[2]);
 
@@ -229,8 +231,6 @@ extern int 			ip6_ra_control(struct sock *sk, int sel,
 					       void (*destructor)(struct sock *));
 
 
-extern int			ip6_call_ra_chain(struct sk_buff *skb, int sel);
-
 extern int			ipv6_parse_hopopts(struct sk_buff *skb, int);
 
 extern struct ipv6_txoptions *  ipv6_dup_options(struct sock *sk, struct ipv6_txoptions *opt);
@@ -296,6 +296,41 @@ static inline void ipv6_addr_set(struct in6_addr *addr,
 }
 #endif
 
+static inline int ipv6_addr_equal(const struct in6_addr *a1,
+				  const struct in6_addr *a2)
+{
+	return (a1->s6_addr32[0] == a2->s6_addr32[0] &&
+		a1->s6_addr32[1] == a2->s6_addr32[1] &&
+		a1->s6_addr32[2] == a2->s6_addr32[2] &&
+		a1->s6_addr32[3] == a2->s6_addr32[3]);
+}
+
+static inline int __ipv6_prefix_equal(const u32 *a1, const u32 *a2,
+				      unsigned int prefixlen)
+{
+	unsigned pdw, pbi;
+
+	/* check complete u32 in prefix */
+	pdw = prefixlen >> 5;
+	if (pdw && memcmp(a1, a2, pdw << 2))
+		return 0;
+
+	/* check incomplete u32 in prefix */
+	pbi = prefixlen & 0x1f;
+	if (pbi && ((a1[pdw] ^ a2[pdw]) & htonl((0xffffffff) << (32 - pbi))))
+		return 0;
+
+	return 1;
+}
+
+static inline int ipv6_prefix_equal(const struct in6_addr *a1,
+				    const struct in6_addr *a2,
+				    unsigned int prefixlen)
+{
+	return __ipv6_prefix_equal(a1->s6_addr32, a2->s6_addr32,
+				   prefixlen);
+}
+
 static inline int ipv6_addr_any(const struct in6_addr *a)
 {
 	return ((a->s6_addr32[0] | a->s6_addr32[1] | 
@@ -355,7 +390,7 @@ extern int			ip6_dst_lookup(struct sock *sk,
  *	skb processing functions
  */
 
-extern int			ip6_output(struct sk_buff **pskb);
+extern int			ip6_output(struct sk_buff *skb);
 extern int			ip6_forward(struct sk_buff *skb);
 extern int			ip6_input(struct sk_buff *skb);
 extern int			ip6_mc_input(struct sk_buff *skb);
@@ -381,7 +416,7 @@ extern void			ipv6_push_frag_opts(struct sk_buff *skb,
 						    u8 *proto);
 
 extern int			ipv6_skip_exthdr(const struct sk_buff *, int start,
-					         u8 *nexthdrp, int len);
+					         u8 *nexthdrp);
 
 extern int 			ipv6_ext_hdr(u8 nexthdr);
 

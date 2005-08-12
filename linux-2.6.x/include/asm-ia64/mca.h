@@ -5,10 +5,13 @@
  * Copyright (C) 1999, 2004 Silicon Graphics, Inc.
  * Copyright (C) Vijay Chander (vijay@engr.sgi.com)
  * Copyright (C) Srinivasa Thirumalachar (sprasad@engr.sgi.com)
+ * Copyright (C) Russ Anderson (rja@sgi.com)
  */
 
 #ifndef _ASM_IA64_MCA_H
 #define _ASM_IA64_MCA_H
+
+#define IA64_MCA_STACK_SIZE	8192
 
 #if !defined(__ASSEMBLY__)
 
@@ -21,6 +24,11 @@
 #include <asm/mca_asm.h>
 
 #define IA64_MCA_RENDEZ_TIMEOUT		(20 * 1000)	/* value in milliseconds - 20 seconds */
+
+typedef struct ia64_fptr {
+	unsigned long fp;
+	unsigned long gp;
+} ia64_fptr_t;
 
 typedef union cmcv_reg_u {
 	u64	cmcv_regval;
@@ -42,17 +50,6 @@ enum {
 	IA64_MCA_RENDEZ_CHECKIN_NOTDONE	=	0x0,
 	IA64_MCA_RENDEZ_CHECKIN_DONE	=	0x1
 };
-
-/* the following data structure is used for TLB error recovery purposes */
-extern struct ia64_mca_tlb_info {
-	u64	cr_lid;
-	u64	percpu_paddr;
-	u64	ptce_base;
-	u32	ptce_count[2];
-	u32	ptce_stride[2];
-	u64	pal_paddr;
-	u64	pal_base;
-} ia64_mca_tlb_list[NR_CPUS];
 
 /* Information maintained by the MC infrastructure */
 typedef struct ia64_mc_info_s {
@@ -107,13 +104,29 @@ typedef struct ia64_mca_os_to_sal_state_s {
 						 */
 } ia64_mca_os_to_sal_state_t;
 
+/* Per-CPU MCA state that is too big for normal per-CPU variables.  */
+
+struct ia64_mca_cpu {
+	u64 stack[IA64_MCA_STACK_SIZE/8];	/* MCA memory-stack */
+	u64 proc_state_dump[512];
+	u64 stackframe[32];
+	u64 rbstore[IA64_MCA_STACK_SIZE/8];	/* MCA reg.-backing store */
+	u64 init_stack[KERNEL_STACK_SIZE/8];
+} __attribute__ ((aligned(16)));
+
+/* Array of physical addresses of each CPU's MCA area.  */
+extern unsigned long __per_cpu_mca[NR_CPUS];
+
 extern void ia64_mca_init(void);
+extern void ia64_mca_cpu_init(void *);
 extern void ia64_os_mca_dispatch(void);
 extern void ia64_os_mca_dispatch_end(void);
 extern void ia64_mca_ucmc_handler(void);
 extern void ia64_monarch_init_handler(void);
 extern void ia64_slave_init_handler(void);
 extern void ia64_mca_cmc_vector_setup(void);
+extern int  ia64_reg_MCA_extension(void*);
+extern void ia64_unreg_MCA_extension(void);
 
 #endif /* !__ASSEMBLY__ */
 #endif /* _ASM_IA64_MCA_H */

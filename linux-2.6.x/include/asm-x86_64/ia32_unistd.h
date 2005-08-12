@@ -289,7 +289,12 @@
 #define __NR_ia32_mq_notify		(__NR_ia32_mq_open+4)
 #define __NR_ia32_mq_getsetattr	(__NR_ia32_mq_open+5)
 #define __NR_ia32_kexec		283
+#define __NR_ia32_waitid		284
+/* #define __NR_sys_setaltroot	285 */
+#define __NR_ia32_add_key		286
+#define __NR_ia32_request_key	287
+#define __NR_ia32_keyctl		288
 
-#define IA32_NR_syscalls 287	/* must be > than biggest syscall! */
+#define IA32_NR_syscalls 290	/* must be > than biggest syscall! */
 
 #endif /* _ASM_X86_64_IA32_UNISTD_H_ */

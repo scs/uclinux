@@ -9,8 +9,6 @@
 
 #ifdef CONFIG_HIGHMEM
 
-extern struct page *highmem_start_page;
-
 #include <asm/highmem.h>
 
 /* declarations for linux/mm/highmem.c */
@@ -40,7 +38,22 @@ static inline void clear_user_highpage(struct page *page, unsigned long vaddr)
 	void *addr = kmap_atomic(page, KM_USER0);
 	clear_user_page(addr, vaddr, page);
 	kunmap_atomic(addr, KM_USER0);
+	/* Make sure this page is cleared on other CPU's too before using it */
+	smp_wmb();
 }
+
+#ifndef __HAVE_ARCH_ALLOC_ZEROED_USER_HIGHPAGE
+static inline struct page *
+alloc_zeroed_user_highpage(struct vm_area_struct *vma, unsigned long vaddr)
+{
+	struct page *page = alloc_page_vma(GFP_HIGHUSER, vma, vaddr);
+
+	if (page)
+		clear_user_highpage(page, vaddr);
+
+	return page;
+}
+#endif
 
 static inline void clear_highpage(struct page *page)
 {
@@ -73,6 +86,8 @@ static inline void copy_user_highpage(struct page *to, struct page *from, unsign
 	copy_user_page(vto, vfrom, vaddr, to);
 	kunmap_atomic(vfrom, KM_USER0);
 	kunmap_atomic(vto, KM_USER1);
+	/* Make sure this page is cleared on other CPU's too before using it */
+	smp_wmb();
 }
 
 static inline void copy_highpage(struct page *to, struct page *from)

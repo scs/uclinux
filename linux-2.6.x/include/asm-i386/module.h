@@ -40,6 +40,8 @@ struct mod_arch_specific
 #define MODULE_PROC_FAMILY "ELAN "
 #elif defined CONFIG_MCRUSOE
 #define MODULE_PROC_FAMILY "CRUSOE "
+#elif defined CONFIG_MEFFICEON
+#define MODULE_PROC_FAMILY "EFFICEON "
 #elif defined CONFIG_MWINCHIPC6
 #define MODULE_PROC_FAMILY "WINCHIPC6 "
 #elif defined CONFIG_MWINCHIP2
@@ -50,6 +52,8 @@ struct mod_arch_specific
 #define MODULE_PROC_FAMILY "CYRIXIII "
 #elif defined CONFIG_MVIAC3_2
 #define MODULE_PROC_FAMILY "VIAC3-2 "
+#elif CONFIG_MGEODEGX1
+#define MODULE_PROC_FAMILY "GEODEGX1 "
 #else
 #error unknown processor family
 #endif

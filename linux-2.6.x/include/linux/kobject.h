@@ -12,21 +12,30 @@
  * destructors. 
  */
 
-#if defined(__KERNEL__) && !defined(_KOBJECT_H_)
+#ifndef _KOBJECT_H_
 #define _KOBJECT_H_
+
+#ifdef __KERNEL__
 
 #include <linux/types.h>
 #include <linux/list.h>
 #include <linux/sysfs.h>
+#include <linux/spinlock.h>
 #include <linux/rwsem.h>
+#include <linux/kref.h>
+#include <linux/kobject_uevent.h>
+#include <linux/kernel.h>
 #include <asm/atomic.h>
 
 #define KOBJ_NAME_LEN	20
 
+/* counter to tag the hotplug event, read only except for the kobject core */
+extern u64 hotplug_seqnum;
+
 struct kobject {
 	char			* k_name;
 	char			name[KOBJ_NAME_LEN];
-	atomic_t		refcount;
+	struct kref		kref;
 	struct list_head	entry;
 	struct kobject		* parent;
 	struct kset		* kset;
@@ -56,7 +65,7 @@ extern void kobject_unregister(struct kobject *);
 extern struct kobject * kobject_get(struct kobject *);
 extern void kobject_put(struct kobject *);
 
-extern void kobject_hotplug(const char *action, struct kobject *);
+extern char * kobject_get_path(struct kobject *, int);
 
 struct kobj_type {
 	void (*release)(struct kobject *);
@@ -94,6 +103,7 @@ struct kset {
 	struct subsystem	* subsys;
 	struct kobj_type	* ktype;
 	struct list_head	list;
+	spinlock_t		list_lock;
 	struct kobject		kobj;
 	struct kset_hotplug_ops	* hotplug_ops;
 };
@@ -160,6 +170,8 @@ struct subsystem _varname##_subsys = { \
 	} \
 }
 
+/* The global /sys/kernel/ subsystem for people to chain off of */
+extern struct subsystem kernel_subsys;
 
 /**
  * Helpers for setting the kset of registered objects.
@@ -229,5 +241,19 @@ struct subsys_attribute {
 extern int subsys_create_file(struct subsystem * , struct subsys_attribute *);
 extern void subsys_remove_file(struct subsystem * , struct subsys_attribute *);
 
+#ifdef CONFIG_HOTPLUG
+void kobject_hotplug(struct kobject *kobj, enum kobject_action action);
+int add_hotplug_env_var(char **envp, int num_envp, int *cur_index,
+			char *buffer, int buffer_size, int *cur_len,
+			const char *format, ...)
+	__attribute__((format (printf, 7, 8)));
+#else
+static inline void kobject_hotplug(struct kobject *kobj, enum kobject_action action) { }
+static inline int add_hotplug_env_var(char **envp, int num_envp, int *cur_index, 
+				      char *buffer, int buffer_size, int *cur_len, 
+				      const char *format, ...)
+{ return 0; }
+#endif
 
+#endif /* __KERNEL__ */
 #endif /* _KOBJECT_H_ */

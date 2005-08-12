@@ -12,6 +12,7 @@
 
 #ifndef __ASSEMBLY__
 #include <linux/config.h>
+#include <linux/cache.h>
 #include <asm/processor.h>
 #include <asm/page.h>
 #include <linux/stringify.h>
@@ -22,12 +23,13 @@
 struct thread_info {
 	struct task_struct *task;		/* main task structure */
 	struct exec_domain *exec_domain;	/* execution domain */
-	unsigned long	flags;			/* low level flags */
 	int		cpu;			/* cpu we're on */
 	int		preempt_count;
 	struct restart_block restart_block;
 	/* set by force_successful_syscall_return */
 	unsigned char	syscall_noerror;
+	/* low level flags - has atomic operations done on it */
+	unsigned long	flags ____cacheline_aligned_in_smp;
 };
 
 /*
@@ -39,12 +41,12 @@ struct thread_info {
 {						\
 	.task =		&tsk,			\
 	.exec_domain =	&default_exec_domain,	\
-	.flags =	0,			\
 	.cpu =		0,			\
 	.preempt_count = 1,			\
 	.restart_block = {			\
 		.fn = do_no_restart_syscall,	\
 	},					\
+	.flags =	0,			\
 }
 
 #define init_thread_info	(init_thread_union.thread_info)
@@ -82,7 +84,7 @@ static inline struct thread_info *current_thread_info(void)
 
 #endif /* __ASSEMBLY__ */
 
-#define PREEMPT_ACTIVE		0x4000000
+#define PREEMPT_ACTIVE		0x10000000
 
 /*
  * thread information flag bit numbers
@@ -94,9 +96,12 @@ static inline struct thread_info *current_thread_info(void)
 #define TIF_POLLING_NRFLAG	4	/* true if poll_idle() is polling
 					   TIF_NEED_RESCHED */
 #define TIF_32BIT		5	/* 32 bit binary */
-#define TIF_RUN_LIGHT		6	/* iSeries run light */
+/* #define SPARE		6 */
 #define TIF_ABI_PENDING		7	/* 32/64 bit switch needed */
 #define TIF_SYSCALL_AUDIT	8	/* syscall auditing active */
+#define TIF_SINGLESTEP		9	/* singlestepping active */
+#define TIF_MEMDIE		10
+#define TIF_SECCOMP		11	/* secure computing */
 
 /* as above, but as bit values */
 #define _TIF_SYSCALL_TRACE	(1<<TIF_SYSCALL_TRACE)
@@ -105,10 +110,12 @@ static inline struct thread_info *current_thread_info(void)
 #define _TIF_NEED_RESCHED	(1<<TIF_NEED_RESCHED)
 #define _TIF_POLLING_NRFLAG	(1<<TIF_POLLING_NRFLAG)
 #define _TIF_32BIT		(1<<TIF_32BIT)
-#define _TIF_RUN_LIGHT		(1<<TIF_RUN_LIGHT)
+/* #define _SPARE		(1<<SPARE) */
 #define _TIF_ABI_PENDING	(1<<TIF_ABI_PENDING)
 #define _TIF_SYSCALL_AUDIT	(1<<TIF_SYSCALL_AUDIT)
-#define _TIF_SYSCALL_T_OR_A	(_TIF_SYSCALL_TRACE|_TIF_SYSCALL_AUDIT)
+#define _TIF_SINGLESTEP		(1<<TIF_SINGLESTEP)
+#define _TIF_SECCOMP		(1<<TIF_SECCOMP)
+#define _TIF_SYSCALL_T_OR_A	(_TIF_SYSCALL_TRACE|_TIF_SYSCALL_AUDIT|_TIF_SECCOMP)
 
 #define _TIF_USER_WORK_MASK	(_TIF_NOTIFY_RESUME | _TIF_SIGPENDING | \
 				 _TIF_NEED_RESCHED)

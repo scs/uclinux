@@ -213,7 +213,7 @@ unsigned long pdma_size;
 volatile int doing_pdma = 0;
 
 /* This is software state */
-char *pdma_base = 0;
+char *pdma_base = NULL;
 unsigned long pdma_areasize;
 
 /* Common routines to all controller types on the Sparc. */
@@ -227,7 +227,7 @@ static __inline__ void sun_fd_disable_dma(void)
 	doing_pdma = 0;
 	if (pdma_base) {
 		mmu_unlockarea(pdma_base, pdma_areasize);
-		pdma_base = 0;
+		pdma_base = NULL;
 	}
 }
 
@@ -264,7 +264,7 @@ static __inline__ void sun_fd_enable_dma(void)
 }
 
 /* Our low-level entry point in arch/sparc/kernel/entry.S */
-extern void floppy_hardint(int irq, void *unused, struct pt_regs *regs);
+irqreturn_t floppy_hardint(int irq, void *unused, struct pt_regs *regs);
 
 static int sun_fd_request_irq(void)
 {
@@ -312,8 +312,8 @@ static int sun_floppy_init(void)
 	}
 
 	/* The sun4m lets us know if the controller is actually usable. */
-	if(sparc_cpu_model == sun4m) {
-		prom_getproperty(fd_node, "status", state, sizeof(state));
+	if(sparc_cpu_model == sun4m &&
+	   prom_getproperty(fd_node, "status", state, sizeof(state)) != -1) {
 		if(!strcmp(state, "disabled")) {
 			goto no_sun_fdc;
 		}

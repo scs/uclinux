@@ -15,6 +15,12 @@
 
 #include <asm/types.h>
 
+#ifndef	__ARMEB__
+#define	REG_OFFSET	0
+#else
+#define	REG_OFFSET	3
+#endif
+
 /*
  * Expansion bus memory regions
  */
@@ -53,12 +59,15 @@ struct ixp4xx_i2c_pins {
 };
 
 
+struct sys_timer;
+
 /*
  * Functions used by platform-level setup code
  */
 extern void ixp4xx_map_io(void);
 extern void ixp4xx_init_irq(void);
-extern void ixp4xx_init_time(void);
+extern void ixp4xx_sys_init(void);
+extern struct sys_timer ixp4xx_timer;
 extern void ixp4xx_pci_preinit(void);
 struct pci_sys_data;
 extern int ixp4xx_setup(int nr, struct pci_sys_data *sys);

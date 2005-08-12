@@ -8,16 +8,13 @@
 
 #ifndef __ASSEMBLY__
 
-struct thread_info;
-
-#include "linux/config.h"
 #include "asm/page.h"
+#include "linux/thread_info.h"
 
-#define CURRENT_THREAD(dummy) (((unsigned long) &dummy) & \
-			        (PAGE_MASK << CONFIG_KERNEL_STACK_ORDER))
+#define current (current_thread_info()->task)
 
-#define current ({ int dummy; \
-                   ((struct thread_info *) CURRENT_THREAD(dummy))->task; })
+/*Backward compatibility - it's used inside arch/um.*/
+#define current_thread current_thread_info()
 
 #endif /* __ASSEMBLY__ */
 

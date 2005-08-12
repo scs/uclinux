@@ -26,32 +26,29 @@
 
 #include <asm/paca.h>
 
+extern int boot_cpuid;
+extern int boot_cpuid_phys;
+
+extern void cpu_die(void);
+
 #ifdef CONFIG_SMP
 
 extern void smp_send_debugger_break(int cpu);
 struct pt_regs;
 extern void smp_message_recv(int, struct pt_regs *);
 
+#ifdef CONFIG_HOTPLUG_CPU
+extern void fixup_irqs(cpumask_t map);
+int generic_cpu_disable(void);
+int generic_cpu_enable(unsigned int cpu);
+void generic_cpu_die(unsigned int cpu);
+void generic_mach_cpu_die(void);
+#endif
 
-#define smp_processor_id() (get_paca()->paca_index)
+#define __smp_processor_id() (get_paca()->paca_index)
 #define hard_smp_processor_id() (get_paca()->hw_cpu_id)
 
-/*
- * Retrieve the state of a CPU:
- * online:          CPU is in a normal run state
- * possible:        CPU is a candidate to be made online
- * available:       CPU is candidate for the 'possible' pool
- *                  Used to get SMT threads started at boot time.
- * present_at_boot: CPU was available at boot time.  Used in DLPAR
- *                  code to handle special cases for processor start up.
- */
-extern cpumask_t cpu_present_at_boot;
-extern cpumask_t cpu_online_map;
-extern cpumask_t cpu_possible_map;
-extern cpumask_t cpu_available_map;
-
-#define cpu_present_at_boot(cpu) cpu_isset(cpu, cpu_present_at_boot)
-#define cpu_available(cpu)       cpu_isset(cpu, cpu_available_map) 
+extern cpumask_t cpu_sibling_map[NR_CPUS];
 
 /* Since OpenPIC has only 4 IPIs, we use slightly different message numbers.
  *
@@ -65,19 +62,28 @@ extern cpumask_t cpu_available_map;
 #endif
 #define PPC_MSG_DEBUGGER_BREAK  3
 
-extern cpumask_t irq_affinity[];
-
 void smp_init_iSeries(void);
 void smp_init_pSeries(void);
 
 extern int __cpu_disable(void);
 extern void __cpu_die(unsigned int cpu);
-extern void cpu_die(void) __attribute__((noreturn));
-#endif /* !(CONFIG_SMP) */
+#endif /* CONFIG_SMP */
 
 #define get_hard_smp_processor_id(CPU) (paca[(CPU)].hw_cpu_id)
 #define set_hard_smp_processor_id(CPU, VAL) \
-	do { (paca[(CPU)].hw_proc_num = (VAL)); } while (0)
+	do { (paca[(CPU)].hw_cpu_id = (VAL)); } while (0)
+
+extern int smt_enabled_at_boot;
+
+extern int smp_mpic_probe(void);
+extern void smp_mpic_setup_cpu(int cpu);
+extern void smp_mpic_message_pass(int target, int msg);
+extern void smp_generic_kick_cpu(int nr);
+
+extern void smp_generic_give_timebase(void);
+extern void smp_generic_take_timebase(void);
+
+extern struct smp_ops_t *smp_ops;
 
 #endif /* __ASSEMBLY__ */
 

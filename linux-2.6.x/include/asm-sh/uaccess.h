@@ -146,7 +146,8 @@ static inline int access_ok(int type, const void __user *p, unsigned long size)
 	return __access_ok(addr, size);
 }
 
-static inline int verify_area(int type, const void __user * addr, unsigned long size)
+/* this function will go away soon - use access_ok() instead */
+static inline int __deprecated verify_area(int type, const void __user * addr, unsigned long size)
 {
 	return access_ok(type,addr,size) ? 0 : -EFAULT;
 }
@@ -445,6 +446,10 @@ __copy_res; })
 #define __copy_to_user(to,from,n)		\
 	__copy_user((void *)(to),		\
 		    (void *)(from), n)
+
+#define __copy_to_user_inatomic __copy_to_user
+#define __copy_from_user_inatomic __copy_from_user
+
 
 #define copy_from_user(to,from,n) ({ \
 void *__copy_to = (void *) (to); \

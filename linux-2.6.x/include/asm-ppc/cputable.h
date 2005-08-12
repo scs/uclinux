@@ -21,6 +21,9 @@
 #define PPC_FEATURE_HAS_MMU		0x04000000
 #define PPC_FEATURE_HAS_4xxMAC		0x02000000
 #define PPC_FEATURE_UNIFIED_CACHE	0x01000000
+#define PPC_FEATURE_HAS_SPE		0x00800000
+#define PPC_FEATURE_HAS_EFP_SINGLE	0x00400000
+#define PPC_FEATURE_HAS_EFP_DOUBLE	0x00200000
 
 #ifdef __KERNEL__
 
@@ -46,6 +49,9 @@ struct cpu_spec {
 	unsigned int	icache_bsize;
 	unsigned int	dcache_bsize;
 
+	/* number of performance monitor counters */
+	unsigned int	num_pmcs;
+
 	/* this is called to initialize various CPU bits like L1 cache,
 	 * BHT, SPD, etc... from head.S before branching to identify_machine
 	 */
@@ -54,6 +60,11 @@ struct cpu_spec {
 
 extern struct cpu_spec		cpu_specs[];
 extern struct cpu_spec		*cur_cpu_spec[];
+
+static inline unsigned int cpu_has_feature(unsigned int feature)
+{
+	return cur_cpu_spec[0]->cpu_features & feature;
+}
 
 #endif /* __ASSEMBLY__ */
 
@@ -75,8 +86,9 @@ extern struct cpu_spec		*cur_cpu_spec[];
 #define CPU_FTR_DUAL_PLL_750FX		0x00004000
 #define CPU_FTR_NO_DPM			0x00008000
 #define CPU_FTR_HAS_HIGH_BATS		0x00010000
-#define CPU_FTR_NEED_COHERENT           0x00020000
+#define CPU_FTR_NEED_COHERENT		0x00020000
 #define CPU_FTR_NO_BTIC			0x00040000
+#define CPU_FTR_BIG_PHYS		0x00080000
 
 #ifdef __ASSEMBLY__
 

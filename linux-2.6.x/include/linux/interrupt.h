@@ -8,8 +8,8 @@
 #include <linux/bitops.h>
 #include <linux/preempt.h>
 #include <linux/cpumask.h>
+#include <linux/hardirq.h>
 #include <asm/atomic.h>
-#include <asm/hardirq.h>
 #include <asm/ptrace.h>
 #include <asm/system.h>
 
@@ -40,6 +40,8 @@ struct irqaction {
 	const char *name;
 	void *dev_id;
 	struct irqaction *next;
+	int irq;
+	struct proc_dir_entry *dir;
 };
 
 extern irqreturn_t no_action(int cpl, void *dev_id, struct pt_regs *regs);
@@ -48,22 +50,47 @@ extern int request_irq(unsigned int,
 		       unsigned long, const char *, void *);
 extern void free_irq(unsigned int, void *);
 
+
+#ifdef CONFIG_GENERIC_HARDIRQS
+extern void disable_irq_nosync(unsigned int irq);
+extern void disable_irq(unsigned int irq);
+extern void enable_irq(unsigned int irq);
+#endif
+
 /*
  * Temporary defines for UP kernels, until all code gets fixed.
  */
 #ifndef CONFIG_SMP
-# define cli()			local_irq_disable()
-# define sti()			local_irq_enable()
-# define save_flags(x)		local_save_flags(x)
-# define restore_flags(x)	local_irq_restore(x)
-# define save_and_cli(x)	local_irq_save(x)
-#endif
+static inline void __deprecated cli(void)
+{
+	local_irq_disable();
+}
+static inline void __deprecated sti(void)
+{
+	local_irq_enable();
+}
+static inline void __deprecated save_flags(unsigned long *x)
+{
+	local_save_flags(*x);
+}
+#define save_flags(x) save_flags(&x);
+static inline void __deprecated restore_flags(unsigned long x)
+{
+	local_irq_restore(x);
+}
+
+static inline void __deprecated save_and_cli(unsigned long *x)
+{
+	local_irq_save(*x);
+}
+#define save_and_cli(x)	save_and_cli(&x)
+#endif /* CONFIG_SMP */
 
 /* SoftIRQ primitives.  */
 #define local_bh_disable() \
-		do { preempt_count() += SOFTIRQ_OFFSET; barrier(); } while (0)
+		do { add_preempt_count(SOFTIRQ_OFFSET); barrier(); } while (0)
 #define __local_bh_enable() \
-		do { barrier(); preempt_count() -= SOFTIRQ_OFFSET; } while (0)
+		do { barrier(); sub_preempt_count(SOFTIRQ_OFFSET); } while (0)
 
 extern void local_bh_enable(void);
 
@@ -99,10 +126,6 @@ extern void softirq_init(void);
 #define __raise_softirq_irqoff(nr) do { local_softirq_pending() |= 1UL << (nr); } while (0)
 extern void FASTCALL(raise_softirq_irqoff(unsigned int nr));
 extern void FASTCALL(raise_softirq(unsigned int nr));
-
-#ifndef invoke_softirq
-#define invoke_softirq() do_softirq()
-#endif
 
 
 /* Tasklets --- multithreaded analogue of BHs.
@@ -243,8 +266,24 @@ extern void tasklet_init(struct tasklet_struct *t,
  * or zero if none occurred, or a negative irq number
  * if more than one irq occurred.
  */
+
+#if defined(CONFIG_GENERIC_HARDIRQS) && !defined(CONFIG_GENERIC_IRQ_PROBE) 
+static inline unsigned long probe_irq_on(void)
+{
+	return 0;
+}
+static inline int probe_irq_off(unsigned long val)
+{
+	return 0;
+}
+static inline unsigned int probe_irq_mask(unsigned long val)
+{
+	return 0;
+}
+#else
 extern unsigned long probe_irq_on(void);	/* returns 0 on failure */
 extern int probe_irq_off(unsigned long);	/* returns 0 or negative on failure */
 extern unsigned int probe_irq_mask(unsigned long);	/* returns mask of ISA interrupts */
+#endif
 
 #endif

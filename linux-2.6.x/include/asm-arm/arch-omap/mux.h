@@ -43,9 +43,7 @@
 #define PU_PD_SEL_NA		0	/* No pu_pd reg available */
 #define PULL_DWN_CTRL_NA	0	/* No pull-down control needed */
 
-#define DEBUG_MUX
-
-#ifdef DEBUG_MUX
+#ifdef	CONFIG_OMAP_MUX_DEBUG
 #define MUX_REG(reg, mode_offset, mode) .mux_reg_name = "FUNC_MUX_CTRL_"#reg, \
 					.mux_reg = FUNC_MUX_CTRL_##reg, \
 					.mask_offset = mode_offset, \
@@ -73,7 +71,7 @@
 #define PU_PD_REG(reg, status)		.pu_pd_reg = PU_PD_SEL_##reg, \
 					.pu_pd_val = status,
 
-#endif // DEBUG_MUX
+#endif /* CONFIG_OMAP_MUX_DEBUG */
 
 #define MUX_CFG(desc, mux_reg, mode_offset, mode,	\
 		pull_reg, pull_bit, pull_status,	\
@@ -134,6 +132,11 @@ typedef enum {
 	UART3_RTS,
 	UART3_CLKREQ,
 	UART3_BCLK,	/* 12MHz clock out */
+	Y15_1610_UART3_RTS,
+
+	/* PWT & PWL */
+	PWT,
+	PWL,
 
 	/* USB master generic */
 	R18_USB_VBUS,
@@ -154,6 +157,7 @@ typedef enum {
 	USB1_RCV,
 	USB1_SPEED,
 	R13_1610_USB1_SPEED,
+	R13_1710_USB1_SE0,
 
 	/* USB2 master */
 	USB2_SUSP,
@@ -168,6 +172,16 @@ typedef enum {
 	R18_1510_GPIO0,
 	R19_1510_GPIO1,
 	M14_1510_GPIO2,
+
+	/* OMAP1610 GPIO */
+	P18_1610_GPIO3,
+	Y15_1610_GPIO17,
+
+	/* OMAP-1710 GPIO */
+	R18_1710_GPIO0,
+	V2_1710_GPIO10,
+	N21_1710_GPIO14,
+	W15_1710_GPIO40,
 
 	/* MPUIO */
 	MPUIO2,
@@ -225,6 +239,8 @@ typedef enum {
 	P10_1610_GPIO22,
 	V5_1610_GPIO24,
 	AA20_1610_GPIO_41,
+	W19_1610_GPIO48,
+	M7_1610_GPIO62,
 
 	/* OMAP-1610 uWire */
 	V19_1610_UWIRE_SCLK,
@@ -234,6 +250,10 @@ typedef enum {
 	P15_1610_UWIRE_CS0,
 	N15_1610_UWIRE_CS1,
 
+	/* OMAP-1610 Flash */
+	L3_1610_FLASH_CS2B_OE,
+	M8_1610_FLASH_CS2B_WE,
+
 	/* First MMC */
 	MMC_CMD,
 	MMC_DAT1,
@@ -241,6 +261,11 @@ typedef enum {
 	MMC_DAT0,
 	MMC_CLK,
 	MMC_DAT3,
+
+	/* OMAP-1710 MMC CMDDIR and DATDIR0 */
+	M15_1710_MMC_CLKI,
+	P19_1710_MMC_CMDDIR,
+	P20_1710_MMC_DATDIR0,
 
 	/* OMAP-1610 USB0 alternate pin configuration */
 	W9_USB0_TXEN,
@@ -287,6 +312,18 @@ typedef enum {
 	/* Power management */
 	T20_1610_LOW_PWR,
 
+	/* MCLK Settings */
+	V5_1710_MCLK_ON,
+	V5_1710_MCLK_OFF,
+	R10_1610_MCLK_ON,
+	R10_1610_MCLK_OFF,
+
+	/* CompactFlash controller */
+	P11_1610_CF_CD2,
+	R11_1610_CF_IOIS16,
+	V10_1610_CF_IREQ,
+	W10_1610_CF_RESET,
+	W11_1610_CF_CD1,
 } reg_cfg_t;
 
 #if defined(__MUX_C__) && defined(CONFIG_OMAP_MUX)
@@ -295,7 +332,8 @@ typedef enum {
  * Table of various FUNC_MUX and PULL_DWN combinations for each device.
  * See also reg_cfg_t above for the lookup table.
  */
-static reg_cfg_set reg_cfg_table[] = {
+static reg_cfg_set __initdata_or_module
+reg_cfg_table[] = {
 /*
  *	 description		mux  mode   mux	 pull pull  pull  pu_pd	 pu  dbg
  *				reg  offset mode reg  bit   ena	  reg
@@ -316,11 +354,17 @@ MUX_CFG("UART3_CTS",		 5,   12,    2,	  0,  24,   0,	 NA,	 0,  0)
 MUX_CFG("UART3_RTS",		 5,   15,    2,	  0,  25,   0,	 NA,	 0,  0)
 MUX_CFG("UART3_CLKREQ",		 9,   27,    0,	  2,   5,   0,	 NA,	 0,  0)
 MUX_CFG("UART3_BCLK",		 A,    0,    0,	  2,   6,   0,	 NA,	 0,  0)
+MUX_CFG("Y15_1610_UART3_RTS",	 A,    0,    1,	  2,   6,   0,	 NA,	 0,  0)
+
+/* PWT & PWL, conflicts with UART3 */
+MUX_CFG("PWT",		 	 6,    0,    2,	  0,  30,   0,	 NA,	 0,  0)
+MUX_CFG("PWL",		 	 6,    3,    1,	  0,  31,   1,	 NA,	 0,  0)
 
 /* USB internal master generic */
 MUX_CFG("R18_USB_VBUS",		 7,    9,    2,	  1,  11,   0,	 NA,	 0,  1)
 MUX_CFG("R18_1510_USB_GPIO0",	 7,    9,    0,	  1,  11,   1,	 NA,	 0,  1)
-MUX_CFG("W4_USB_PUEN",		 D,    3,    0,	  3,   5,   1,	 NA,	 0,  1)
+/* works around erratum:  W4_USB_PUEN and W4_USB_PUDIS are switched! */
+MUX_CFG("W4_USB_PUEN",		 D,    3,    3,	  3,   5,   1,	 NA,	 0,  1)
 MUX_CFG("W4_USB_CLKO",		 D,    3,    1,	  3,   5,   0,	 NA,	 0,  1)
 MUX_CFG("W4_USB_HIGHZ",		 D,    3,    4,	  3,   5,   0,	  3,	 0,  1)
 MUX_CFG("W4_GPIO58",		 D,    3,    7,	  3,   5,   0,	  3,	 0,  1)
@@ -336,6 +380,7 @@ MUX_CFG("USB1_VM",		 A,    6,    1,	  2,   8,   0,	 NA,	 0,  1)
 MUX_CFG("USB1_RCV",		 A,    9,    1,	  2,   9,   0,	 NA,	 0,  1)
 MUX_CFG("USB1_SPEED",		 A,   12,    2,	  2,  10,   0,	 NA,	 0,  1)
 MUX_CFG("R13_1610_USB1_SPEED",	 A,   12,    5,	  2,  10,   0,	 NA,	 0,  1)
+MUX_CFG("R13_1710_USB1_SEO",	 A,   12,    5,   2,  10,   0,   NA,     0,  1)
 
 /* USB2 master */
 MUX_CFG("USB2_SUSP",		 B,    3,    1,	  2,  17,   0,	 NA,	 0,  1)
@@ -347,9 +392,19 @@ MUX_CFG("USB2_SE0",		 C,   24,    2,	  3,   2,   0,	 NA,	 0,  1)
 MUX_CFG("USB2_TXD",		 C,   27,    2,	  3,   3,   0,	 NA,	 0,  1)
 
 /* OMAP-1510 GPIO */
-MUX_CFG("R18_1510_GPIO0",	 7,    9,   0,	  1,  11,   1,	  0,	 0,  1)
-MUX_CFG("R19_1510_GPIO1",	 7,    6,   0,	  1,  10,   1,	  0,	 0,  1)
-MUX_CFG("M14_1510_GPIO2",	 7,    3,   0,	  1,   9,   1,	  0,	 0,  1)
+MUX_CFG("R18_1510_GPIO0",	 7,    9,    0,   1,  11,   1,    0,     0,  1)
+MUX_CFG("R19_1510_GPIO1",	 7,    6,    0,   1,  10,   1,    0,     0,  1)
+MUX_CFG("M14_1510_GPIO2",	 7,    3,    0,   1,   9,   1,    0,     0,  1)
+
+/* OMAP1610 GPIO */
+MUX_CFG("P18_1610_GPIO3",	 7,    0,    0,   1,   8,   0,   NA,     0,  1)
+MUX_CFG("Y15_1610_GPIO17",	 A,    0,    7,   2,   6,   0,   NA,     0,  1)
+
+/* OMAP-1710 GPIO */
+MUX_CFG("R18_1710_GPIO0",        7,    9,    0,   1,  11,   1,    1,     1,  1)
+MUX_CFG("V2_1710_GPIO10",        F,   27,    1,   4,   3,   1,    4,     1,  1)
+MUX_CFG("N21_1710_GPIO14",       6,    9,    0,   1,   1,   1,    1,     1,  1)
+MUX_CFG("W15_1710_GPIO40",       9,   27,    7,   2,   5,   1,    2,     1,  1)
 
 /* MPUIO */
 MUX_CFG("MPUIO2",		 7,   18,    0,	  1,   1,   1,	 NA,	 0,  1)
@@ -408,6 +463,8 @@ MUX_CFG("N19_1610_GPIO13",	 6,   12,    0,	  1,   2,   0,	  1,	 1,  1)
 MUX_CFG("P10_1610_GPIO22",	 C,    0,    7,	  2,  26,   0,	  2,	 1,  1)
 MUX_CFG("V5_1610_GPIO24",	 B,   15,    7,	  2,  21,   0,	  2,	 1,  1)
 MUX_CFG("AA20_1610_GPIO_41",	 9,    9,    7,	  1,  31,   0,	  1,	 1,  1)
+MUX_CFG("W19_1610_GPIO48",	 8,   15,    7,   1,  23,   1,    1,     0,  1)
+MUX_CFG("M7_1610_GPIO62",	10,    0,    0,   4,  24,   0,    4,     0,  1)
 
 /* OMAP-1610 uWire */
 MUX_CFG("V19_1610_UWIRE_SCLK",	 8,    6,    0,	  1,  20,   0,	  1,	 1,  1)
@@ -417,13 +474,20 @@ MUX_CFG("N14_1610_UWIRE_CS0",	 8,    9,    1,	  1,  21,   0,	  1,	 1,  1)
 MUX_CFG("P15_1610_UWIRE_CS3",	 8,   12,    1,	  1,  22,   0,	  1,	 1,  1)
 MUX_CFG("N15_1610_UWIRE_CS1",	 7,   18,    2,	  1,  14,   0,	 NA,	 0,  1)
 
-/* First MMC interface, same on 1510 and 1610 */
+/* OMAP-1610 Flash */
+MUX_CFG("L3_1610_FLASH_CS2B_OE",10,    6,    1,	 NA,   0,   0,	 NA,	 0,  1)
+MUX_CFG("M8_1610_FLASH_CS2B_WE",10,    3,    1,	 NA,   0,   0,	 NA,	 0,  1)
+
+/* First MMC interface, same on 1510, 1610 and 1710 */
 MUX_CFG("MMC_CMD",		 A,   27,    0,	  2,  15,   1,	  2,	 1,  1)
 MUX_CFG("MMC_DAT1",		 A,   24,    0,	  2,  14,   1,	  2,	 1,  1)
 MUX_CFG("MMC_DAT2",		 A,   18,    0,	  2,  12,   1,	  2,	 1,  1)
 MUX_CFG("MMC_DAT0",		 B,    0,    0,	  2,  16,   1,	  2,	 1,  1)
 MUX_CFG("MMC_CLK",		 A,   21,    0,	 NA,   0,   0,	 NA,	 0,  1)
 MUX_CFG("MMC_DAT3",		10,   15,    0,	  3,   8,   1,	  3,	 1,  1)
+MUX_CFG("M15_1710_MMC_CLKI",	 6,   21,    2,   0,   0,   0,   NA,     0,  1)
+MUX_CFG("P19_1710_MMC_CMDDIR",	 6,   24,    6,   0,   0,   0,   NA,     0,  1)
+MUX_CFG("P20_1710_MMC_DATDIR0",	 6,   27,    5,   0,   0,   0,   NA,     0,  1)
 
 /* OMAP-1610 USB0 alternate configuration */
 MUX_CFG("W9_USB0_TXEN",		 B,   9,     5,	  2,  19,   0,	  2,	 0,  1)
@@ -469,10 +533,29 @@ MUX_CFG("N19_1610_KBR5",	 6,  12,     1,	  1,   2,   1,	  1,	 1,  0)
 
 /* Power management */
 MUX_CFG("T20_1610_LOW_PWR",	 7,   12,    1,	  NA,   0,   0,   NA,	 0,  0)
+
+/* MCLK Settings */
+MUX_CFG("V5_1710_MCLK_ON",	 B,   15,    0,	  NA,   0,   0,   NA,	 0,  0)
+MUX_CFG("V5_1710_MCLK_OFF",	 B,   15,    6,	  NA,   0,   0,   NA,	 0,  0)
+MUX_CFG("R10_1610_MCLK_ON",	 B,   18,    0,	  NA,  22,   0,	  NA,	 1,  0)
+MUX_CFG("R10_1610_MCLK_OFF",	 B,   18,    6,	  2,   22,   1,	  2,	 1,  1)
+
+/* CompactFlash controller, conflicts with MMC1 */
+MUX_CFG("P11_1610_CF_CD2",	 A,   27,    3,	  2,   15,   1,	  2,	 1,  1)
+MUX_CFG("R11_1610_CF_IOIS16",	 B,    0,    3,	  2,   16,   1,	  2,	 1,  1)
+MUX_CFG("V10_1610_CF_IREQ",	 A,   24,    3,	  2,   14,   0,	  2,	 0,  1)
+MUX_CFG("W10_1610_CF_RESET",	 A,   18,    3,	  2,   12,   1,	  2,	 1,  1)
+MUX_CFG("W11_1610_CF_CD1",	10,   15,    3,	  3,    8,   1,	  3,	 1,  1)
 };
 
 #endif	/* __MUX_C__ */
 
+#ifdef	CONFIG_OMAP_MUX
+/* setup pin muxing in Linux */
 extern int omap_cfg_reg(reg_cfg_t reg_cfg);
+#else
+/* boot loader does it all (no warnings from CONFIG_OMAP_MUX_WARNINGS) */
+static inline int omap_cfg_reg(reg_cfg_t reg_cfg) { return 0; }
+#endif
 
 #endif

@@ -1,8 +1,8 @@
 /*
  * include/asm-v850/io.h -- Misc I/O operations
  *
- *  Copyright (C) 2001,02,03  NEC Electronics Corporation
- *  Copyright (C) 2001,02,03  Miles Bader <miles@gnu.org>
+ *  Copyright (C) 2001,02,03,04  NEC Electronics Corporation
+ *  Copyright (C) 2001,02,03,04  Miles Bader <miles@gnu.org>
  *
  * This file is subject to the terms and conditions of the GNU General
  * Public License.  See the file COPYING in the main directory of this
@@ -102,6 +102,8 @@ outsl (unsigned long port, const void *src, unsigned long count)
 #define ioremap_writethrough(physaddr, size)	(physaddr)
 #define ioremap_fullcache(physaddr, size)	(physaddr)
 
+#define mmiowb()
+
 #define page_to_phys(page)      ((page - mem_map) << PAGE_SHIFT)
 #if 0
 /* This is really stupid; don't define it.  */
@@ -113,5 +115,19 @@ outsl (unsigned long port, const void *src, unsigned long count)
 #define mm_vtop(addr)		((unsigned long)__virt_to_phys (addr))
 #define phys_to_virt(addr)	((void *)__phys_to_virt (addr))
 #define virt_to_phys(addr)	((unsigned long)__virt_to_phys (addr))
+
+#define memcpy_fromio(dst, src, len) memcpy (dst, (void *)src, len)
+#define memcpy_toio(dst, src, len) memcpy ((void *)dst, src, len)
+
+/*
+ * Convert a physical pointer to a virtual kernel pointer for /dev/mem
+ * access
+ */
+#define xlate_dev_mem_ptr(p)	__va(p)
+
+/*
+ * Convert a virtual cached pointer to an uncached pointer
+ */
+#define xlate_dev_kmem_ptr(p)	p
 
 #endif /* __V850_IO_H__ */

@@ -2,132 +2,7 @@
 #define AMIGAFFS_H
 
 #include <linux/types.h>
-#include <linux/buffer_head.h>
-#include <linux/string.h>
 #include <asm/byteorder.h>
-
-/* AmigaOS allows file names with up to 30 characters length.
- * Names longer than that will be silently truncated. If you
- * want to disallow this, comment out the following #define.
- * Creating filesystem objects with longer names will then
- * result in an error (ENAMETOOLONG).
- */
-/*#define AFFS_NO_TRUNCATE */
-
-/* Ugly macros make the code more pretty. */
-
-#define GET_END_PTR(st,p,sz)		 ((st *)((char *)(p)+((sz)-sizeof(st))))
-#define AFFS_GET_HASHENTRY(data,hashkey) be32_to_cpu(((struct dir_front *)data)->hashtable[hashkey])
-#define AFFS_BLOCK(sb, bh, blk)		(AFFS_HEAD(bh)->table[AFFS_SB(sb)->s_hashsize-1-(blk)])
-
-static inline void
-affs_set_blocksize(struct super_block *sb, int size)
-{
-	sb_set_blocksize(sb, size);
-}
-static inline struct buffer_head *
-affs_bread(struct super_block *sb, int block)
-{
-	pr_debug("affs_bread: %d\n", block);
-	if (block >= AFFS_SB(sb)->s_reserved && block < AFFS_SB(sb)->s_partition_size)
-		return sb_bread(sb, block);
-	return NULL;
-}
-static inline struct buffer_head *
-affs_getblk(struct super_block *sb, int block)
-{
-	pr_debug("affs_getblk: %d\n", block);
-	if (block >= AFFS_SB(sb)->s_reserved && block < AFFS_SB(sb)->s_partition_size)
-		return sb_getblk(sb, block);
-	return NULL;
-}
-static inline struct buffer_head *
-affs_getzeroblk(struct super_block *sb, int block)
-{
-	struct buffer_head *bh;
-	pr_debug("affs_getzeroblk: %d\n", block);
-	if (block >= AFFS_SB(sb)->s_reserved && block < AFFS_SB(sb)->s_partition_size) {
-		bh = sb_getblk(sb, block);
-		lock_buffer(bh);
-		memset(bh->b_data, 0 , sb->s_blocksize);
-		set_buffer_uptodate(bh);
-		unlock_buffer(bh);
-		return bh;
-	}
-	return NULL;
-}
-static inline struct buffer_head *
-affs_getemptyblk(struct super_block *sb, int block)
-{
-	struct buffer_head *bh;
-	pr_debug("affs_getemptyblk: %d\n", block);
-	if (block >= AFFS_SB(sb)->s_reserved && block < AFFS_SB(sb)->s_partition_size) {
-		bh = sb_getblk(sb, block);
-		wait_on_buffer(bh);
-		set_buffer_uptodate(bh);
-		return bh;
-	}
-	return NULL;
-}
-static inline void
-affs_brelse(struct buffer_head *bh)
-{
-	if (bh)
-		pr_debug("affs_brelse: %lld\n", (long long) bh->b_blocknr);
-	brelse(bh);
-}
-
-static inline void
-affs_adjust_checksum(struct buffer_head *bh, u32 val)
-{
-	u32 tmp = be32_to_cpu(((u32 *)bh->b_data)[5]);
-	((u32 *)bh->b_data)[5] = cpu_to_be32(tmp - val);
-}
-static inline void
-affs_adjust_bitmapchecksum(struct buffer_head *bh, u32 val)
-{
-	u32 tmp = be32_to_cpu(((u32 *)bh->b_data)[0]);
-	((u32 *)bh->b_data)[0] = cpu_to_be32(tmp - val);
-}
-
-static inline void
-affs_lock_link(struct inode *inode)
-{
-	down(&AFFS_I(inode)->i_link_lock);
-}
-static inline void
-affs_unlock_link(struct inode *inode)
-{
-	up(&AFFS_I(inode)->i_link_lock);
-}
-static inline void
-affs_lock_dir(struct inode *inode)
-{
-	down(&AFFS_I(inode)->i_hash_lock);
-}
-static inline void
-affs_unlock_dir(struct inode *inode)
-{
-	up(&AFFS_I(inode)->i_hash_lock);
-}
-static inline void
-affs_lock_ext(struct inode *inode)
-{
-	down(&AFFS_I(inode)->i_ext_lock);
-}
-static inline void
-affs_unlock_ext(struct inode *inode)
-{
-	up(&AFFS_I(inode)->i_ext_lock);
-}
-
-#ifdef __LITTLE_ENDIAN
-#define BO_EXBITS	0x18UL
-#elif defined(__BIG_ENDIAN)
-#define BO_EXBITS	0x00UL
-#else
-#error Endianness must be known for affs to work.
-#endif
 
 #define FS_OFS		0x444F5300
 #define FS_FFS		0x444F5301
@@ -156,97 +31,90 @@ affs_unlock_ext(struct inode *inode)
 
 #define AFFS_ROOT_BMAPS		25
 
-#define AFFS_HEAD(bh)		((struct affs_head *)(bh)->b_data)
-#define AFFS_TAIL(sb, bh)	((struct affs_tail *)((bh)->b_data+(sb)->s_blocksize-sizeof(struct affs_tail)))
-#define AFFS_ROOT_HEAD(bh)	((struct affs_root_head *)(bh)->b_data)
-#define AFFS_ROOT_TAIL(sb, bh)	((struct affs_root_tail *)((bh)->b_data+(sb)->s_blocksize-sizeof(struct affs_root_tail)))
-#define AFFS_DATA_HEAD(bh)	((struct affs_data_head *)(bh)->b_data)
-#define AFFS_DATA(bh)		(((struct affs_data_head *)(bh)->b_data)->data)
-
 struct affs_date {
-	u32 days;
-	u32 mins;
-	u32 ticks;
+	__be32 days;
+	__be32 mins;
+	__be32 ticks;
 };
 
 struct affs_short_date {
-	u16 days;
-	u16 mins;
-	u16 ticks;
+	__be16 days;
+	__be16 mins;
+	__be16 ticks;
 };
 
 struct affs_root_head {
-	u32 ptype;
-	u32 spare1;
-	u32 spare2;
-	u32 hash_size;
-	u32 spare3;
-	u32 checksum;
-	u32 hashtable[1];
+	__be32 ptype;
+	__be32 spare1;
+	__be32 spare2;
+	__be32 hash_size;
+	__be32 spare3;
+	__be32 checksum;
+	__be32 hashtable[1];
 };
 
 struct affs_root_tail {
-	u32 bm_flag;
-	u32 bm_blk[AFFS_ROOT_BMAPS];
-	u32 bm_ext;
+	__be32 bm_flag;
+	__be32 bm_blk[AFFS_ROOT_BMAPS];
+	__be32 bm_ext;
 	struct affs_date root_change;
 	u8 disk_name[32];
-	u32 spare1;
-	u32 spare2;
+	__be32 spare1;
+	__be32 spare2;
 	struct affs_date disk_change;
 	struct affs_date disk_create;
-	u32 spare3;
-	u32 spare4;
-	u32 dcache;
-	u32 stype;
+	__be32 spare3;
+	__be32 spare4;
+	__be32 dcache;
+	__be32 stype;
 };
 
 struct affs_head {
-	u32 ptype;
-	u32 key;
-	u32 block_count;
-	u32 spare1;
-	u32 first_data;
-	u32 checksum;
-	u32 table[1];
+	__be32 ptype;
+	__be32 key;
+	__be32 block_count;
+	__be32 spare1;
+	__be32 first_data;
+	__be32 checksum;
+	__be32 table[1];
 };
 
 struct affs_tail {
-	u32 spare1;
-	u16 uid;
-	u16 gid;
-	u32 protect;
-	u32 size;
+	__be32 spare1;
+	__be16 uid;
+	__be16 gid;
+	__be32 protect;
+	__be32 size;
 	u8 comment[92];
 	struct affs_date change;
 	u8 name[32];
-	u32 spare2;
-	u32 original;
-	u32 link_chain;
-	u32 spare[5];
-	u32 hash_chain;
-	u32 parent;
-	u32 extension;
-	u32 stype;
+	__be32 spare2;
+	__be32 original;
+	__be32 link_chain;
+	__be32 spare[5];
+	__be32 hash_chain;
+	__be32 parent;
+	__be32 extension;
+	__be32 stype;
 };
 
 struct slink_front
 {
-	u32 ptype;
-	u32 key;
-	u32 spare1[3];
-	u32 checksum;
+	__be32 ptype;
+	__be32 key;
+	__be32 spare1[3];
+	__be32 checksum;
 	u8 symname[1];	/* depends on block size */
 };
 
 struct affs_data_head
 {
-	u32 ptype;
-	u32 key;
-	u32 sequence;
-	u32 size;
-	u32 next;
-	u32 checksum;
+	__be32 ptype;
+	__be32 key;
+	__be32 sequence;
+	__be32 size;
+	__be32 next;
+	__be32 checksum;
 	u8 data[1];	/* depends on block size */
 };
 

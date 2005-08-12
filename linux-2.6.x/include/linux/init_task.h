@@ -46,16 +46,19 @@
 
 #define INIT_SIGNALS(sig) {	\
 	.count		= ATOMIC_INIT(1), 		\
+	.wait_chldexit	= __WAIT_QUEUE_HEAD_INITIALIZER(sig.wait_chldexit),\
 	.shared_pending	= { 				\
 		.list = LIST_HEAD_INIT(sig.shared_pending.list),	\
 		.signal =  {{0}}}, \
 	.posix_timers	 = LIST_HEAD_INIT(sig.posix_timers),		\
+	.cpu_timers	= INIT_CPU_TIMERS(sig.cpu_timers),		\
+	.rlim		= INIT_RLIMITS,					\
 }
 
-#define INIT_SIGHAND(sighand) {	\
-	.count		= ATOMIC_INIT(1), 		\
-	.action		= { {{NULL,}}, },		\
-	.siglock	= SPIN_LOCK_UNLOCKED, 		\
+#define INIT_SIGHAND(sighand) {						\
+	.count		= ATOMIC_INIT(1), 				\
+	.action		= { { { .sa_handler = NULL, } }, },		\
+	.siglock	= SPIN_LOCK_UNLOCKED, 				\
 }
 
 extern struct group_info init_groups;
@@ -87,16 +90,11 @@ extern struct group_info init_groups;
 	.children	= LIST_HEAD_INIT(tsk.children),			\
 	.sibling	= LIST_HEAD_INIT(tsk.sibling),			\
 	.group_leader	= &tsk,						\
-	.wait_chldexit	= __WAIT_QUEUE_HEAD_INITIALIZER(tsk.wait_chldexit),\
-	.real_timer	= {						\
-		.function	= it_real_fn				\
-	},								\
 	.group_info	= &init_groups,					\
 	.cap_effective	= CAP_INIT_EFF_SET,				\
 	.cap_inheritable = CAP_INIT_INH_SET,				\
 	.cap_permitted	= CAP_FULL_SET,					\
 	.keep_capabilities = 0,						\
-	.rlim		= INIT_RLIMITS,					\
 	.user		= INIT_USER,					\
 	.comm		= "swapper",					\
 	.thread		= INIT_THREAD,					\
@@ -112,8 +110,16 @@ extern struct group_info init_groups;
 	.proc_lock	= SPIN_LOCK_UNLOCKED,				\
 	.switch_lock	= SPIN_LOCK_UNLOCKED,				\
 	.journal_info	= NULL,						\
+	.cpu_timers	= INIT_CPU_TIMERS(tsk.cpu_timers),		\
 }
 
+
+#define INIT_CPU_TIMERS(cpu_timers)					\
+{									\
+	LIST_HEAD_INIT(cpu_timers[0]),					\
+	LIST_HEAD_INIT(cpu_timers[1]),					\
+	LIST_HEAD_INIT(cpu_timers[2]),					\
+}
 
 
 #endif

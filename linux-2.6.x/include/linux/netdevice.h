@@ -7,7 +7,7 @@
  *
  * Version:	@(#)dev.h	1.0.10	08/12/93
  *
- * Authors:	Ross Biro, <bir7@leland.Stanford.Edu>
+ * Authors:	Ross Biro
  *		Fred N. van Kempen, <waltje@uWalt.NL.Mugnet.ORG>
  *		Corey Minyard <wf-rch!minyard@relay.EU.net>
  *		Donald J. Becker, <becker@cesdis.gsfc.nasa.gov>
@@ -41,7 +41,7 @@
 struct divert_blk;
 struct vlan_group;
 struct ethtool_ops;
-
+struct netpoll;
 					/* source back-compat hooks */
 #define SET_ETHTOOL_OPS(netdev,ops) \
 	( (netdev)->ethtool_ops = (ops) )
@@ -72,6 +72,11 @@ struct ethtool_ops;
 #endif
 
 #define MAX_ADDR_LEN	32		/* Largest hardware address length */
+
+/* Driver transmit return codes */
+#define NETDEV_TX_OK 0		/* driver took care of packet */
+#define NETDEV_TX_BUSY 1	/* driver tx path was busy*/
+#define NETDEV_TX_LOCKED -1	/* driver tx lock was already taken */
 
 /*
  *	Compute the worst case header length according to the protocols
@@ -199,7 +204,7 @@ struct hh_cache
 	/* cached hardware header; allow for machine alignment needs.        */
 #define HH_DATA_MOD	16
 #define HH_DATA_OFF(__len) \
-	(HH_DATA_MOD - ((__len) & (HH_DATA_MOD - 1)))
+	(HH_DATA_MOD - (((__len - 1) & (HH_DATA_MOD - 1)) + 1))
 #define HH_DATA_ALIGN(__len) \
 	(((__len)+(HH_DATA_MOD-1))&~(HH_DATA_MOD - 1))
 	unsigned long	hh_data[HH_DATA_ALIGN(LL_MAX_HEADER) / sizeof(long)];
@@ -304,7 +309,9 @@ struct net_device
 
 	/* List of functions to handle Wireless Extensions (instead of ioctl).
 	 * See <net/iw_handler.h> for details. Jean II */
-	struct iw_handler_def *	wireless_handlers;
+	const struct iw_handler_def *	wireless_handlers;
+	/* Instance data managed by the core of Wireless Extensions. */
+	struct iw_public_data *	wireless_data;
 
 	struct ethtool_ops *ethtool_ops;
 
@@ -321,9 +328,7 @@ struct net_device
 	unsigned short		flags;	/* interface flags (a la BSD)	*/
 	unsigned short		gflags;
         unsigned short          priv_flags; /* Like 'flags' but invisible to userspace. */
-        unsigned short          unused_alignment_fixer; /* Because we need priv_flags,
-                                                         * and we want to be 32-bit aligned.
-                                                         */
+	unsigned short		padded;	/* How much padding added by alloc_netdev() */
 
 	unsigned		mtu;	/* interface MTU value		*/
 	unsigned short		type;	/* interface hardware type	*/
@@ -338,6 +343,7 @@ struct net_device
 	unsigned char		broadcast[MAX_ADDR_LEN];	/* hw bcast add	*/
 	unsigned char		dev_addr[MAX_ADDR_LEN];	/* hw address	*/
 	unsigned char		addr_len;	/* hardware address length	*/
+	unsigned short          dev_id;		/* for shared network cards */
 
 	struct dev_mc_list	*mc_list;	/* Multicast mac addresses	*/
 	int			mc_count;	/* Number of installed mcasts	*/
@@ -395,7 +401,7 @@ struct net_device
 	} reg_state;
 
 	/* Net device features */
-	int			features;
+	unsigned long		features;
 #define NETIF_F_SG		1	/* Scatter/gather IO. */
 #define NETIF_F_IP_CSUM		2	/* Can checksum only TCP/UDP over IPv4. */
 #define NETIF_F_NO_CSUM		4	/* Does not require checksum. F.e. loopack. */
@@ -461,9 +467,8 @@ struct net_device
 	int			(*hard_header_parse)(struct sk_buff *skb,
 						     unsigned char *haddr);
 	int			(*neigh_setup)(struct net_device *dev, struct neigh_parms *);
-	int			(*accept_fastpath)(struct net_device *, struct dst_entry*);
-#ifdef CONFIG_NETPOLL_RX
-	int			netpoll_rx;
+#ifdef CONFIG_NETPOLL
+	struct netpoll		*np;
 #endif
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	void                    (*poll_controller)(struct net_device *dev);
@@ -479,9 +484,6 @@ struct net_device
 
 	/* class/net/name entry */
 	struct class_device	class_dev;
-	struct net_device_stats* (*last_stats)(struct net_device *);
-	/* how much padding had been added by alloc_netdev() */
-	int padded;
 };
 
 #define	NETDEV_ALIGN		32
@@ -501,7 +503,7 @@ static inline void *netdev_priv(struct net_device *dev)
 #define SET_NETDEV_DEV(net, pdev)	((net)->class_dev.dev = (pdev))
 
 struct packet_type {
-	unsigned short		type;	/* This is really htons(ether_type).	*/
+	__be16			type;	/* This is really htons(ether_type).	*/
 	struct net_device		*dev;	/* NULL is wildcarded here		*/
 	int			(*func) (struct sk_buff *, struct net_device *,
 					 struct packet_type *);
@@ -516,24 +518,16 @@ extern struct net_device		loopback_dev;		/* The loopback */
 extern struct net_device		*dev_base;		/* All devices */
 extern rwlock_t				dev_base_lock;		/* Device list lock */
 
-extern int			netdev_boot_setup_add(char *name, struct ifmap *map);
 extern int 			netdev_boot_setup_check(struct net_device *dev);
 extern unsigned long		netdev_boot_base(const char *prefix, int unit);
 extern struct net_device    *dev_getbyhwaddr(unsigned short type, char *hwaddr);
-extern struct net_device *__dev_getfirstbyhwtype(unsigned short type);
 extern struct net_device *dev_getfirstbyhwtype(unsigned short type);
 extern void		dev_add_pack(struct packet_type *pt);
 extern void		dev_remove_pack(struct packet_type *pt);
 extern void		__dev_remove_pack(struct packet_type *pt);
-extern int		__dev_get(const char *name);
-static inline int __deprecated dev_get(const char *name)
-{
-	return __dev_get(name);
-}
+
 extern struct net_device	*dev_get_by_flags(unsigned short flags,
 						  unsigned short mask);
-extern struct net_device	*__dev_get_by_flags(unsigned short flags,
-						    unsigned short mask);
 extern struct net_device	*dev_get_by_name(const char *name);
 extern struct net_device	*__dev_get_by_name(const char *name);
 extern int		dev_alloc_name(struct net_device *dev, const char *name);
@@ -547,7 +541,6 @@ extern void		synchronize_net(void);
 extern int 		register_netdevice_notifier(struct notifier_block *nb);
 extern int		unregister_netdevice_notifier(struct notifier_block *nb);
 extern int		call_netdevice_notifiers(unsigned long val, void *v);
-extern int		dev_new_index(void);
 extern struct net_device	*dev_get_by_index(int ifindex);
 extern struct net_device	*__dev_get_by_index(int ifindex);
 extern int		dev_restart(struct net_device *dev);
@@ -671,29 +664,22 @@ static inline void dev_kfree_skb_any(struct sk_buff *skb)
 
 #define HAVE_NETIF_RX 1
 extern int		netif_rx(struct sk_buff *skb);
+extern int		netif_rx_ni(struct sk_buff *skb);
 #define HAVE_NETIF_RECEIVE_SKB 1
 extern int		netif_receive_skb(struct sk_buff *skb);
 extern int		dev_ioctl(unsigned int cmd, void __user *);
 extern int		dev_ethtool(struct ifreq *);
 extern unsigned		dev_get_flags(const struct net_device *);
 extern int		dev_change_flags(struct net_device *, unsigned);
+extern int		dev_change_name(struct net_device *, char *);
 extern int		dev_set_mtu(struct net_device *, int);
+extern int		dev_set_mac_address(struct net_device *,
+					    struct sockaddr *);
 extern void		dev_queue_xmit_nit(struct sk_buff *skb, struct net_device *dev);
 
 extern void		dev_init(void);
 
 extern int		netdev_nit;
-
-/* Post buffer to the network code from _non interrupt_ context.
- * see net/core/dev.c for netif_rx description.
- */
-static inline int netif_rx_ni(struct sk_buff *skb)
-{
-       int err = netif_rx(skb);
-       if (softirq_pending(smp_processor_id()))
-               do_softirq();
-       return err;
-}
 
 /* Called by rtnetlink.c:rtnl_unlock() */
 extern void netdev_run_todo(void);
@@ -913,10 +899,7 @@ static inline void netif_tx_disable(struct net_device *dev)
 /* These functions live elsewhere (drivers/net/net_init.c, but related) */
 
 extern void		ether_setup(struct net_device *dev);
-extern void		fddi_setup(struct net_device *dev);
-extern void		tr_setup(struct net_device *dev);
-extern void		fc_setup(struct net_device *dev);
-extern void		fc_freedev(struct net_device *dev);
+
 /* Support for loadable net-drivers */
 extern struct net_device *alloc_netdev(int sizeof_priv, const char *name,
 				       void (*setup)(struct net_device *));
@@ -930,17 +913,17 @@ extern void		dev_mc_discard(struct net_device *dev);
 extern void		dev_set_promiscuity(struct net_device *dev, int inc);
 extern void		dev_set_allmulti(struct net_device *dev, int inc);
 extern void		netdev_state_change(struct net_device *dev);
+extern void		netdev_features_change(struct net_device *dev);
 /* Load a device via the kmod */
 extern void		dev_load(const char *name);
 extern void		dev_mcast_init(void);
-extern int		netdev_register_fc(struct net_device *dev, void (*stimul)(struct net_device *dev));
-extern void		netdev_unregister_fc(int bit);
 extern int		netdev_max_backlog;
 extern int		weight_p;
-extern unsigned long	netdev_fc_xoff;
-extern atomic_t netdev_dropping;
 extern int		netdev_set_master(struct net_device *dev, struct net_device *master);
-extern int skb_checksum_help(struct sk_buff **pskb, int inward);
+extern int skb_checksum_help(struct sk_buff *skb, int inward);
+/* rx skb timestamps */
+extern void		net_enable_timestamp(void);
+extern void		net_disable_timestamp(void);
 
 #ifdef CONFIG_SYSCTL
 extern char *net_sysctl_strdup(const char *s);

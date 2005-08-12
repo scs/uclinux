@@ -10,28 +10,36 @@
 
 #if defined(CONFIG_EV64260)
 #include <platforms/ev64260.h>
+#elif defined(CONFIG_CHESTNUT)
+#include <platforms/chestnut.h>
 #elif defined(CONFIG_GEMINI)
 #include <platforms/gemini_serial.h>
 #elif defined(CONFIG_POWERPMC250)
-#include <platforms/powerpmc250_serial.h>
+#include <platforms/powerpmc250.h>
 #elif defined(CONFIG_LOPEC)
-#include <platforms/lopec_serial.h>
+#include <platforms/lopec.h>
 #elif defined(CONFIG_MCPN765)
-#include <platforms/mcpn765_serial.h>
+#include <platforms/mcpn765.h>
 #elif defined(CONFIG_MVME5100)
-#include <platforms/mvme5100_serial.h>
+#include <platforms/mvme5100.h>
+#elif defined(CONFIG_PAL4)
+#include <platforms/pal4_serial.h>
 #elif defined(CONFIG_PRPMC750)
-#include <platforms/prpmc750_serial.h>
+#include <platforms/prpmc750.h>
 #elif defined(CONFIG_PRPMC800)
-#include <platforms/prpmc800_serial.h>
+#include <platforms/prpmc800.h>
 #elif defined(CONFIG_SANDPOINT)
 #include <platforms/sandpoint.h>
 #elif defined(CONFIG_SPRUCE)
 #include <platforms/spruce.h>
 #elif defined(CONFIG_4xx)
 #include <asm/ibm4xx.h>
+#elif defined(CONFIG_83xx)
+#include <asm/mpc83xx.h>
 #elif defined(CONFIG_85xx)
 #include <asm/mpc85xx.h>
+#elif defined(CONFIG_RADSTONE_PPC7D)
+#include <platforms/radstone_ppc7d.h>
 #else
 
 /*

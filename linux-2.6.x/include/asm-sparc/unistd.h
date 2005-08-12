@@ -79,7 +79,7 @@
 #define __NR_umask               60 /* Common                                      */
 #define __NR_chroot              61 /* Common                                      */
 #define __NR_fstat               62 /* Common                                      */
-#define __NR_fstat64		 63 /* Linux sparc32 Specific			   */
+#define __NR_fstat64		 63 /* Linux Specific			           */
 #define __NR_getpagesize         64 /* Common                                      */
 #define __NR_msync               65 /* Common in newer 1.3.x revs...               */
 #define __NR_vfork               66 /* Common                                      */
@@ -148,14 +148,14 @@
 #define __NR_truncate           129 /* Common                                      */
 #define __NR_ftruncate          130 /* Common                                      */
 #define __NR_flock              131 /* Common                                      */
-#define __NR_lstat64		132 /* Linux sparc32 Specific			   */
+#define __NR_lstat64		132 /* Linux Specific			           */
 #define __NR_sendto             133 /* Common                                      */
 #define __NR_shutdown           134 /* Common                                      */
 #define __NR_socketpair         135 /* Common                                      */
 #define __NR_mkdir              136 /* Common                                      */
 #define __NR_rmdir              137 /* Common                                      */
 #define __NR_utimes             138 /* SunOS Specific                              */
-#define __NR_stat64		139 /* Linux sparc32 Specific			   */
+#define __NR_stat64		139 /* Linux Specific			           */
 #define __NR_sendfile64         140 /* adjtime under SunOS                         */
 #define __NR_getpeername        141 /* Common                                      */
 #define __NR_futex              142 /* gethostid under SunOS                       */
@@ -290,13 +290,18 @@
 #define __NR_io_cancel		271
 #define __NR_io_getevents	272
 #define __NR_mq_open		273
-#define __NR_mq_unlink		(__NR_mq_open+1)
-#define __NR_mq_timedsend	(__NR_mq_open+2)
-#define __NR_mq_timedreceive	(__NR_mq_open+3)
-#define __NR_mq_notify		(__NR_mq_open+4)
-#define __NR_mq_getsetattr	(__NR_mq_open+5)
+#define __NR_mq_unlink		274
+#define __NR_mq_timedsend	275
+#define __NR_mq_timedreceive	276
+#define __NR_mq_notify		277
+#define __NR_mq_getsetattr	278
+#define __NR_waitid		279
+#define __NR_sys_setaltroot	280
+#define __NR_add_key		281
+#define __NR_request_key	282
+#define __NR_keyctl		283
 
-/* WARNING: You MAY NOT add syscall numbers larger than 282, since
+/* WARNING: You MAY NOT add syscall numbers larger than 283, since
  *          all of the syscall tables in the Sparc kernel are
  *          sized to have 283 entries (starting at zero).  Therefore
  *          find a free slot in the 0-282 range.
@@ -481,7 +486,6 @@ static __inline__ _syscall1(int,dup,int,fd)
 static __inline__ _syscall3(int,execve,__const__ char *,file,char **,argv,char **,envp)
 static __inline__ _syscall3(int,open,__const__ char *,file,int,flag,int,mode)
 static __inline__ _syscall1(int,close,int,fd)
-static __inline__ _syscall1(int,_exit,int,exitcode)
 static __inline__ _syscall3(pid_t,waitpid,pid_t,pid,int *,wait_stat,int,options)
 
 #include <linux/linkage.h>
@@ -509,6 +513,6 @@ asmlinkage long sys_rt_sigaction(int sig,
  * What we want is __attribute__((weak,alias("sys_ni_syscall"))),
  * but it doesn't work on all toolchains, so we just do it by hand
  */
-#define cond_syscall(x) asm(".weak\t" #x "\n\t.set\t" #x ",sys_ni_syscall");
+#define cond_syscall(x) asm(".weak\t" #x "\n\t.set\t" #x ",sys_ni_syscall")
 
 #endif /* _SPARC_UNISTD_H */

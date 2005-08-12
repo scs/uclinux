@@ -99,6 +99,8 @@
 #define MISCINIT1_2DBLOCK_DIS           BIT(15)
 #define DRAMINIT0_SGRAM_NUM             BIT(26)
 #define DRAMINIT0_SGRAM_TYPE            BIT(27)
+#define DRAMINIT0_SGRAM_TYPE_MASK       (BIT(27)|BIT(28)|BIT(29))
+#define DRAMINIT0_SGRAM_TYPE_SHIFT      27
 #define DRAMINIT1_MEM_SDRAM             BIT(30)
 #define VGAINIT0_VGA_DISABLE            BIT(0)
 #define VGAINIT0_EXT_TIMING             BIT(1)
@@ -114,6 +116,7 @@
 #define VGAINIT1_MASK                   0x1fffff
 #define VIDCFG_VIDPROC_ENABLE           BIT(0)
 #define VIDCFG_CURS_X11                 BIT(1)
+#define VIDCFG_INTERLACE                BIT(3)
 #define VIDCFG_HALF_MODE                BIT(4)
 #define VIDCFG_DESK_ENABLE              BIT(7)
 #define VIDCFG_CLUT_BYPASS              BIT(10)
@@ -172,7 +175,7 @@ struct banshee_reg {
 struct tdfx_par {
   u32 max_pixclock;
 
-  void *regbase_virt;
+  void __iomem *regbase_virt;
   unsigned long iobase;
   u32 baseline;
 

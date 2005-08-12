@@ -14,6 +14,15 @@
 #define _ASM_FIXMAP_H
 
 #include <linux/config.h>
+
+/* used by vmalloc.c, vsyscall.lds.S.
+ *
+ * Leave one empty page between vmalloc'ed areas and
+ * the start of the fixmap.
+ */
+#define __FIXADDR_TOP	0xfffff000
+
+#ifndef __ASSEMBLY__
 #include <linux/kernel.h>
 #include <asm/acpi.h>
 #include <asm/apicdef.h>
@@ -97,15 +106,12 @@ extern void __set_fixmap (enum fixed_addresses idx,
 #define clear_fixmap(idx) \
 		__set_fixmap(idx, 0, __pgprot(0))
 
-/*
- * used by vmalloc.c.
- *
- * Leave one empty page between vmalloc'ed areas and
- * the start of the fixmap.
- */
-#define FIXADDR_TOP	(0xfffff000UL)
+#define FIXADDR_TOP	((unsigned long)__FIXADDR_TOP)
+
 #define __FIXADDR_SIZE	(__end_of_permanent_fixed_addresses << PAGE_SHIFT)
-#define FIXADDR_START	(FIXADDR_TOP - __FIXADDR_SIZE)
+#define __FIXADDR_BOOT_SIZE	(__end_of_fixed_addresses << PAGE_SHIFT)
+#define FIXADDR_START		(FIXADDR_TOP - __FIXADDR_SIZE)
+#define FIXADDR_BOOT_START	(FIXADDR_TOP - __FIXADDR_BOOT_SIZE)
 
 #define __fix_to_virt(x)	(FIXADDR_TOP - ((x) << PAGE_SHIFT))
 #define __virt_to_fix(x)	((FIXADDR_TOP - ((x)&PAGE_MASK)) >> PAGE_SHIFT)
@@ -125,7 +131,7 @@ extern void __this_fixmap_does_not_exist(void);
  * directly without tranlation, we catch the bug with a NULL-deference
  * kernel oops. Illegal ranges of incoming indices are caught too.
  */
-static inline unsigned long fix_to_virt(const unsigned int idx)
+static __always_inline unsigned long fix_to_virt(const unsigned int idx)
 {
 	/*
 	 * this branch gets completely eliminated after inlining,
@@ -148,4 +154,5 @@ static inline unsigned long virt_to_fix(const unsigned long vaddr)
 	return __virt_to_fix(vaddr);
 }
 
+#endif /* !__ASSEMBLY__ */
 #endif

@@ -1,7 +1,6 @@
 #ifndef _CRIS_PGALLOC_H
 #define _CRIS_PGALLOC_H
 
-#include <asm/page.h>
 #include <linux/threads.h>
 #include <linux/mm.h>
 
@@ -24,18 +23,14 @@ extern inline void pgd_free (pgd_t *pgd)
 
 extern inline pte_t *pte_alloc_one_kernel(struct mm_struct *mm, unsigned long address)
 {
-  	pte_t *pte = (pte_t *)__get_free_page(GFP_KERNEL|__GFP_REPEAT);
-	if (pte)
-		clear_page(pte);
+  	pte_t *pte = (pte_t *)__get_free_page(GFP_KERNEL|__GFP_REPEAT|__GFP_ZERO);
  	return pte;
 }
 
 extern inline struct page *pte_alloc_one(struct mm_struct *mm, unsigned long address)
 {
 	struct page *pte;
-	pte = alloc_pages(GFP_KERNEL|__GFP_REPEAT, 0);
-	if (pte)
-		clear_page(page_address(pte));
+	pte = alloc_pages(GFP_KERNEL|__GFP_REPEAT|__GFP_ZERO, 0);
 	return pte;
 }
 

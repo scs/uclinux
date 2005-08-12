@@ -17,8 +17,12 @@
 #define PTRACE_GETFPREGS	14
 #define PTRACE_SETFPREGS	15
 
+#define PTRACE_GETWMMXREGS	18
+#define PTRACE_SETWMMXREGS	19
+
 #define PTRACE_OLDSETOPTIONS	21
 
+#define PTRACE_GET_THREAD_AREA	22
 /*
  * PSR bits
  */
@@ -131,12 +135,15 @@ static inline int valid_user_regs(struct pt_regs *regs)
 #define instruction_pointer(regs) \
 	(pc_pointer((regs)->ARM_pc))
 
+#ifdef CONFIG_SMP
+extern unsigned long profile_pc(struct pt_regs *regs);
+#else
+#define profile_pc(regs) instruction_pointer(regs)
+#endif
+
 #ifdef __KERNEL__
-extern void show_regs(struct pt_regs *);
-
-#define predicate(x)	(x & 0xf0000000)
+#define predicate(x)		((x) & 0xf0000000)
 #define PREDICATE_ALWAYS	0xe0000000
-
 #endif
 
 #endif /* __ASSEMBLY__ */

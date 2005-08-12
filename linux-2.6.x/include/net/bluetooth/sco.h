@@ -39,15 +39,16 @@ struct sockaddr_sco {
 	bdaddr_t	sco_bdaddr;
 };
 
-/* set/get sockopt defines */
-#define SCO_OPTIONS  0x01
+/* SCO socket options */
+#define SCO_OPTIONS	0x01
 struct sco_options {
 	__u16 mtu;
 };
 
-#define SCO_CONNINFO  0x02
+#define SCO_CONNINFO	0x02
 struct sco_conninfo {
 	__u16 hci_handle;
+	__u8  dev_class[3];
 };
 
 /* ---- SCO connections ---- */
@@ -67,9 +68,10 @@ struct sco_conn {
 #define sco_conn_unlock(c)	spin_unlock(&c->lock);
 
 /* ----- SCO socket info ----- */
-#define sco_pi(sk)   ((struct sco_pinfo *)sk->sk_protinfo)
+#define sco_pi(sk) ((struct sco_pinfo *) sk)
 
 struct sco_pinfo {
+	struct bt_sock	bt;
 	__u32		flags;
 	struct sco_conn	*conn;
 };

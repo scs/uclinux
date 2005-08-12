@@ -13,6 +13,7 @@
 
 #if !defined(CONFIG_ARCH_S390)
 
+#include <linux/linkage.h>
 #include <linux/cache.h>
 #include <linux/spinlock.h>
 #include <linux/cpumask.h>
@@ -58,9 +59,10 @@ typedef struct hw_interrupt_type  hw_irq_controller;
  * Pad this out to 32 bytes for cache and indexing reasons.
  */
 typedef struct irq_desc {
-	unsigned int status;		/* IRQ status */
 	hw_irq_controller *handler;
+	void *handler_data;
 	struct irqaction *action;	/* IRQ action list */
+	unsigned int status;		/* IRQ status */
 	unsigned int depth;		/* nested irq disables */
 	unsigned int irq_count;		/* For detecting broken interrupts */
 	unsigned int irqs_unhandled;
@@ -71,7 +73,22 @@ extern irq_desc_t irq_desc [NR_IRQS];
 
 #include <asm/hw_irq.h> /* the arch dependent stuff */
 
-extern int setup_irq(unsigned int , struct irqaction * );
+extern int setup_irq(unsigned int irq, struct irqaction * new);
+
+#ifdef CONFIG_GENERIC_HARDIRQS
+extern cpumask_t irq_affinity[NR_IRQS];
+extern int no_irq_affinity;
+extern int noirqdebug_setup(char *str);
+
+extern fastcall int handle_IRQ_event(unsigned int irq, struct pt_regs *regs,
+				       struct irqaction *action);
+extern fastcall unsigned int __do_IRQ(unsigned int irq, struct pt_regs *regs);
+extern void note_interrupt(unsigned int irq, irq_desc_t *desc, int action_ret);
+extern void report_bad_irq(unsigned int irq, irq_desc_t *desc, int action_ret);
+extern int can_request_irq(unsigned int irq, unsigned long irqflags);
+
+extern void init_irq_proc(void);
+#endif
 
 extern hw_irq_controller no_irq_type;  /* needed in every arch ? */
 

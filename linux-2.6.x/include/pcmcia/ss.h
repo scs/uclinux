@@ -1,30 +1,15 @@
 /*
- * ss.h 1.28 2000/06/12 21:55:40
+ * ss.h
  *
- * The contents of this file are subject to the Mozilla Public License
- * Version 1.1 (the "License"); you may not use this file except in
- * compliance with the License. You may obtain a copy of the License
- * at http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS"
- * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See
- * the License for the specific language governing rights and
- * limitations under the License. 
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
  *
  * The initial developer of the original code is David A. Hinds
  * <dahinds@users.sourceforge.net>.  Portions created by David A. Hinds
  * are Copyright (C) 1999 David A. Hinds.  All Rights Reserved.
  *
- * Alternatively, the contents of this file may be used under the
- * terms of the GNU General Public License version 2 (the "GPL"), in which
- * case the provisions of the GPL are applicable instead of the
- * above.  If you wish to allow the use of your version of this file
- * only under the terms of the GPL and not to allow others to use
- * your version of this file under the MPL, indicate your decision by
- * deleting the provisions above and replace them with the notice and
- * other provisions required by the GPL.  If you do not delete the
- * provisions above, a recipient may use your version of this file
- * under either the MPL or the GPL.
+ * (C) 1999             David A. Hinds
  */
 
 #ifndef _LINUX_SS_H
@@ -96,14 +81,14 @@ typedef struct pccard_io_map {
     u_char	map;
     u_char	flags;
     u_short	speed;
-    ioaddr_t	start, stop;
+    kio_addr_t	start, stop;
 } pccard_io_map;
 
 typedef struct pccard_mem_map {
     u_char	map;
     u_char	flags;
     u_short	speed;
-    u_long	sys_start, sys_stop;
+    u_long	static_start;
     u_int	card_start;
     struct resource *res;
 } pccard_mem_map;
@@ -130,22 +115,37 @@ struct pccard_operations {
 	int (*set_mem_map)(struct pcmcia_socket *sock, struct pccard_mem_map *mem);
 };
 
+struct pccard_resource_ops {
+	void	(*validate_mem)		(struct pcmcia_socket *s);
+	int	(*adjust_io_region)	(struct resource *res,
+					 unsigned long r_start,
+					 unsigned long r_end,
+					 struct pcmcia_socket *s);
+	struct resource* (*find_io)	(unsigned long base, int num,
+					 unsigned long align,
+					 struct pcmcia_socket *s);
+	struct resource* (*find_mem)	(unsigned long base, unsigned long num,
+					 unsigned long align, int low,
+					 struct pcmcia_socket *s);
+	int	(*adjust_resource)	(struct pcmcia_socket *s,
+					 adjust_t *adj);
+	int	(*init)			(struct pcmcia_socket *s);
+	void	(*exit)			(struct pcmcia_socket *s);
+};
+/* SS_CAP_STATIC_MAP */
+extern struct pccard_resource_ops pccard_static_ops;
+/* !SS_CAP_STATIC_MAP */
+extern struct pccard_resource_ops pccard_nonstatic_ops;
+
 /*
  *  Calls to set up low-level "Socket Services" drivers
  */
 struct pcmcia_socket;
 
-typedef struct erase_busy_t {
-	eraseq_entry_t		*erase;
-	client_handle_t		client;
-	struct timer_list	timeout;
-	struct erase_busy_t	*prev, *next;
-} erase_busy_t;
-
 typedef struct io_window_t {
 	u_int			Attributes;
-	ioaddr_t		BasePort, NumPorts;
-	ioaddr_t		InUse, Config;
+	kio_addr_t		BasePort, NumPorts;
+	kio_addr_t		InUse, Config;
 	struct resource		*res;
 } io_window_t;
 
@@ -165,7 +165,8 @@ typedef struct window_t {
 #define MAX_WIN 4
 
 struct config_t;
-struct region_t;
+struct pcmcia_callback;
+
 
 struct pcmcia_socket {
 	struct module			*owner;
@@ -174,9 +175,8 @@ struct pcmcia_socket {
 	u_int				state;
 	u_short				functions;
 	u_short				lock_count;
-	client_handle_t			clients;
 	pccard_mem_map			cis_mem;
-	u_char				*cis_virt;
+	void __iomem 			*cis_virt;
 	struct config_t			*config;
 	struct {
 		u_int			AssignedIRQ;
@@ -184,8 +184,6 @@ struct pcmcia_socket {
 	} irq;
 	io_window_t			io[MAX_IO_WIN];
 	window_t			win[MAX_WIN];
-	struct region_t			*c_region, *a_region;
-	erase_busy_t			erase_busy;
 	struct list_head		cis_cache;
 	u_int				fake_cis_len;
 	char				*fake_cis;
@@ -201,12 +199,25 @@ struct pcmcia_socket {
 	u_int				features;
 	u_int				irq_mask;
 	u_int				map_size;
-	ioaddr_t			io_offset;
+	kio_addr_t			io_offset;
 	u_char				pci_irq;
 	struct pci_dev *		cb_dev;
 
+
+	/* socket setup is done so resources should be able to be allocated. Only
+	 * if set to 1, calls to find_{io,mem}_region are handled, and insertion
+	 * events are actually managed by the PCMCIA layer.*/
+	u8				resource_setup_done:1;
+
+	/* is set to one if resource setup is done using adjust_resource_info() */
+	u8				resource_setup_old:1;
+
+	u8				reserved:6;
+
 	/* socket operations */
 	struct pccard_operations *	ops;
+	struct pccard_resource_ops *	resource_ops;
+	void *				resource_data;
 
 	/* Zoom video behaviour is so chip specific its not worth adding
 	   this to _ops */
@@ -223,11 +234,12 @@ struct pcmcia_socket {
 
 	/* pcmcia (16-bit) */
 	struct pcmcia_bus_socket	*pcmcia;
+	struct pcmcia_callback		*callback;
 
 	/* cardbus (32-bit) */
 #ifdef CONFIG_CARDBUS
 	struct resource *		cb_cis_res;
-	u_char				*cb_cis_virt;
+	void __iomem			*cb_cis_virt;
 #endif
 
 	/* socket device */
@@ -247,7 +259,7 @@ extern void pcmcia_unregister_socket(struct pcmcia_socket *socket);
 extern struct class pcmcia_socket_class;
 
 /* socket drivers are expected to use these callbacks in their .drv struct */
-extern int pcmcia_socket_dev_suspend(struct device *dev, u32 state);
+extern int pcmcia_socket_dev_suspend(struct device *dev, pm_message_t state);
 extern int pcmcia_socket_dev_resume(struct device *dev);
 
 #endif /* _LINUX_SS_H */

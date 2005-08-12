@@ -1,6 +1,7 @@
 #ifndef _SPARC_BUG_H
 #define _SPARC_BUG_H
 
+#ifdef CONFIG_BUG
 /* Only use the inline asm until a gcc release that can handle __builtin_trap
  * -rob 2003-06-25
  *
@@ -25,20 +26,9 @@ extern void do_BUG(const char *file, int line);
 #define BUG()		__bug_trap()
 #endif
 
-#define BUG_ON(condition) do { \
-	if (unlikely((condition)!=0)) \
-		BUG(); \
-} while(0)
+#define HAVE_ARCH_BUG
+#endif
 
-#define PAGE_BUG(page) do { \
-	BUG(); \
-} while (0)
-
-#define WARN_ON(condition) do { \
-	if (unlikely((condition)!=0)) { \
-		printk("Badness in %s at %s:%d\n", __FUNCTION__, __FILE__, __LINE__); \
-		dump_stack(); \
-	} \
-} while (0)
+#include <asm-generic/bug.h>
 
 #endif

@@ -42,12 +42,14 @@ struct dst_entry
 	int			__use;
 	struct dst_entry	*child;
 	struct net_device       *dev;
-	int			obsolete;
+	short			error;
+	short			obsolete;
 	int			flags;
 #define DST_HOST		1
 #define DST_NOXFRM		2
 #define DST_NOPOLICY		4
 #define DST_NOHASH		8
+#define DST_BALANCED            0x10
 	unsigned long		lastuse;
 	unsigned long		expires;
 
@@ -60,14 +62,12 @@ struct dst_entry
 	unsigned long		rate_last;	/* rate limiting for ICMP */
 	unsigned long		rate_tokens;
 
-	int			error;
-
 	struct neighbour	*neighbour;
 	struct hh_cache		*hh;
 	struct xfrm_state	*xfrm;
 
 	int			(*input)(struct sk_buff*);
-	int			(*output)(struct sk_buff**);
+	int			(*output)(struct sk_buff*);
 
 #ifdef CONFIG_NET_CLS_ROUTE
 	__u32			tclassid;
@@ -89,7 +89,8 @@ struct dst_ops
 	int			(*gc)(void);
 	struct dst_entry *	(*check)(struct dst_entry *, __u32 cookie);
 	void			(*destroy)(struct dst_entry *);
-	void			(*ifdown)(struct dst_entry *, int how);
+	void			(*ifdown)(struct dst_entry *,
+					  struct net_device *dev, int how);
 	struct dst_entry *	(*negative_advice)(struct dst_entry *);
 	void			(*link_failure)(struct sk_buff *);
 	void			(*update_pmtu)(struct dst_entry *dst, u32 mtu);
@@ -103,24 +104,28 @@ struct dst_ops
 #ifdef __KERNEL__
 
 static inline u32
-dst_metric(struct dst_entry *dst, int metric)
+dst_metric(const struct dst_entry *dst, int metric)
 {
 	return dst->metrics[metric-1];
 }
 
-static inline u32
-dst_path_metric(struct dst_entry *dst, int metric)
+static inline u32 dst_mtu(const struct dst_entry *dst)
 {
-	return dst->path->metrics[metric-1];
+	u32 mtu = dst_metric(dst, RTAX_MTU);
+	/*
+	 * Alexey put it here, so ask him about it :)
+	 */
+	barrier();
+	return mtu;
 }
 
 static inline u32
-dst_pmtu(struct dst_entry *dst)
+dst_allfrag(const struct dst_entry *dst)
 {
-	u32 mtu = dst_path_metric(dst, RTAX_MTU);
+	int ret = dst_metric(dst, RTAX_FEATURES) & RTAX_FEATURE_ALLFRAG;
 	/* Yes, _exactly_. This is paranoia. */
 	barrier();
-	return mtu;
+	return ret;
 }
 
 static inline int
@@ -142,16 +147,12 @@ struct dst_entry * dst_clone(struct dst_entry * dst)
 	return dst;
 }
 
-extern const char dst_underflow_bug_msg[];
-
 static inline
 void dst_release(struct dst_entry * dst)
 {
 	if (dst) {
-		if (atomic_read(&dst->__refcnt) < 1)
-			printk(dst_underflow_bug_msg, 
-			       atomic_read(&dst->__refcnt), 
-			       dst, current_text_addr());
+		WARN_ON(atomic_read(&dst->__refcnt) < 1);
+		smp_mb__before_atomic_dec();
 		atomic_dec(&dst->__refcnt);
 	}
 }
@@ -227,7 +228,7 @@ static inline int dst_output(struct sk_buff *skb)
 	int err;
 
 	for (;;) {
-		err = skb->dst->output(&skb);
+		err = skb->dst->output(skb);
 
 		if (likely(err == 0))
 			return err;
@@ -250,6 +251,13 @@ static inline int dst_input(struct sk_buff *skb)
 		if (unlikely(err != NET_XMIT_BYPASS))
 			return err;
 	}
+}
+
+static inline struct dst_entry *dst_check(struct dst_entry *dst, u32 cookie)
+{
+	if (dst->obsolete)
+		dst = dst->ops->check(dst, cookie);
+	return dst;
 }
 
 extern void		dst_init(void);

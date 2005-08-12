@@ -26,11 +26,13 @@
 #define	FLAT_VERSION			0x00000004L
 #endif
 
+
 #ifdef CONFIG_BINFMT_SHARED_FLAT
 #define MAX_SHARED_LIBS                 (4)
 #else
 #define MAX_SHARED_LIBS                 (1)
 #endif
+
  
 /*
  * To make everything easier to port and manage cross platform
@@ -56,7 +58,7 @@ struct flat_hdr {
 	                               beginning of file */
 	unsigned long reloc_count;  /* Number of relocation records */
 	unsigned long flags;       
-        unsigned long build_date; 
+	unsigned long build_date;   /* When the program/library was built */
 #ifdef CONFIG_BFIN 
 	unsigned long filler[6];    /* Reservered, set to zero */
 #else
@@ -251,12 +253,11 @@ typedef union
 #ifdef __KERNEL__ /* so systems without linux headers can compile the apps */
 /*
  * While it would be nice to keep this header clean,  users of older
- * still need this support in the kernel.  So this section is purely
- * for compatibility with old tool chains.
+ * tools still need this support in the kernel.  So this section is
+ * purely for compatibility with old tool chains.
  *
  * DO NOT make changes or enhancements to the old format please,  just work
- *        with the format above,  except to fix bugs in the old format
- *        support.
+ *        with the format above,  except to fix bugs with old format support.
  */
 
 #include <asm/byteorder.h>
@@ -267,24 +268,24 @@ typedef union
 #define OLD_FLAT_RELOC_TYPE_BSS		2
 
 typedef union {
-        unsigned long   value;
-        struct {
+	unsigned long	value;
+	struct {
 # if defined(mc68000) && !defined(CONFIG_COLDFIRE)
-                signed long offset : 30;
-                unsigned long type : 2;
-#       define OLD_FLAT_FLAG_RAM    0x1 /* load program entirely into RAM */
+		signed long offset : 30;
+		unsigned long type : 2;
+#   	define OLD_FLAT_FLAG_RAM    0x1 /* load program entirely into RAM */
 # elif defined(__BIG_ENDIAN_BITFIELD)
-                unsigned long type : 2;
-                signed long offset : 30;
-#       define OLD_FLAT_FLAG_RAM    0x1 /* load program entirely into RAM */
+		unsigned long type : 2;
+		signed long offset : 30;
+#   	define OLD_FLAT_FLAG_RAM    0x1 /* load program entirely into RAM */
 # elif defined(__LITTLE_ENDIAN_BITFIELD)
-                signed long offset : 30;
-                unsigned long type : 2;
-#       define OLD_FLAT_FLAG_RAM    0x1 /* load program entirely into RAM */
+		signed long offset : 30;
+		unsigned long type : 2;
+#   	define OLD_FLAT_FLAG_RAM    0x1 /* load program entirely into RAM */
 # else
-#       error "Unknown bitfield order for flat files."
+#   	error "Unknown bitfield order for flat files."
 # endif
-        } reloc;
+	} reloc;
 } flat_v2_reloc_t;
 
 #endif /* __KERNEL__ */

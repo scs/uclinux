@@ -60,7 +60,7 @@
  */
 #define MD_MAJOR_VERSION                0
 #define MD_MINOR_VERSION                90
-#define MD_PATCHLEVEL_VERSION           0
+#define MD_PATCHLEVEL_VERSION           1
 
 extern int register_md_personality (int p_num, mdk_personality_t *p);
 extern int unregister_md_personality (int p_num);
@@ -69,12 +69,10 @@ extern mdk_thread_t * md_register_thread (void (*run) (mddev_t *mddev),
 extern void md_unregister_thread (mdk_thread_t *thread);
 extern void md_wakeup_thread(mdk_thread_t *thread);
 extern void md_check_recovery(mddev_t *mddev);
-extern void md_interrupt_thread (mdk_thread_t *thread);
 extern void md_write_start(mddev_t *mddev);
 extern void md_write_end(mddev_t *mddev);
 extern void md_handle_safemode(mddev_t *mddev);
 extern void md_done_sync(mddev_t *mddev, int blocks, int ok);
-extern void md_sync_acct(mdk_rdev_t *rdev, unsigned long nr_sectors);
 extern void md_error (mddev_t *mddev, mdk_rdev_t *rdev);
 extern void md_unplug_mddev(mddev_t *mddev);
 

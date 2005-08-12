@@ -37,6 +37,8 @@ typedef enum {
 	FL_LOCKING,
 	FL_UNLOCKING,
 	FL_POINT,
+	FL_XIP_WHILE_ERASING,
+	FL_XIP_WHILE_WRITING,
 	FL_UNKNOWN
 } flstate_t;
 

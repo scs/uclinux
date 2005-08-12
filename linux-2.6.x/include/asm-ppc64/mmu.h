@@ -16,59 +16,59 @@
 #include <linux/config.h>
 #include <asm/page.h>
 
-#ifndef __ASSEMBLY__
+/*
+ * Segment table
+ */
 
-/* Time to allow for more things here */
-typedef unsigned long mm_context_id_t;
-typedef struct {
-	mm_context_id_t id;
-#ifdef CONFIG_HUGETLB_PAGE
-	u16 htlb_segs; /* bitmask */
-#endif
-} mm_context_t;
+#define STE_ESID_V	0x80
+#define STE_ESID_KS	0x20
+#define STE_ESID_KP	0x10
+#define STE_ESID_N	0x08
 
-#ifdef CONFIG_HUGETLB_PAGE
-#define KERNEL_LOW_HPAGES	.htlb_segs = 0,
-#else
-#define KERNEL_LOW_HPAGES
-#endif
+#define STE_VSID_SHIFT	12
 
-#define KERNEL_CONTEXT(ea) ({ \
-		mm_context_t ctx = { .id = REGION_ID(ea), KERNEL_LOW_HPAGES}; \
-		ctx; })
+/* Location of cpu0's segment table */
+#define STAB0_PAGE	0x9
+#define STAB0_PHYS_ADDR	(STAB0_PAGE<<PAGE_SHIFT)
+#define STAB0_VIRT_ADDR	(KERNELBASE+STAB0_PHYS_ADDR)
 
-typedef struct {
-	unsigned long esid: 36; /* Effective segment ID */
-	unsigned long resv0:20; /* Reserved */
-	unsigned long v:     1; /* Entry valid (v=1) or invalid */
-	unsigned long resv1: 1; /* Reserved */
-	unsigned long ks:    1; /* Supervisor (privileged) state storage key */
-	unsigned long kp:    1; /* Problem state storage key */
-	unsigned long n:     1; /* No-execute if n=1 */
-	unsigned long resv2: 3; /* padding to a 64b boundary */
-} ste_dword0;
+/*
+ * SLB
+ */
 
-typedef struct {
-	unsigned long vsid: 52; /* Virtual segment ID */
-	unsigned long resv0:12; /* Padding to a 64b boundary */
-} ste_dword1;
+#define SLB_NUM_BOLTED		3
+#define SLB_CACHE_ENTRIES	8
 
-typedef struct _STE {
-	union {
-		unsigned long dword0;
-		ste_dword0    dw0;
-	} dw0;
+/* Bits in the SLB ESID word */
+#define SLB_ESID_V		ASM_CONST(0x0000000008000000) /* valid */
 
-	union {
-		unsigned long dword1;
-		ste_dword1    dw1;
-	} dw1;
-} STE;
+/* Bits in the SLB VSID word */
+#define SLB_VSID_SHIFT		12
+#define SLB_VSID_KS		ASM_CONST(0x0000000000000800)
+#define SLB_VSID_KP		ASM_CONST(0x0000000000000400)
+#define SLB_VSID_N		ASM_CONST(0x0000000000000200) /* no-execute */
+#define SLB_VSID_L		ASM_CONST(0x0000000000000100) /* largepage 16M */
+#define SLB_VSID_C		ASM_CONST(0x0000000000000080) /* class */
 
-/* Hardware Page Table Entry */
+#define SLB_VSID_KERNEL		(SLB_VSID_KP|SLB_VSID_C)
+#define SLB_VSID_USER		(SLB_VSID_KP|SLB_VSID_KS)
+
+/*
+ * Hash table
+ */
 
 #define HPTES_PER_GROUP 8
 
+/* Values for PP (assumes Ks=0, Kp=1) */
+/* pp0 will always be 0 for linux     */
+#define PP_RWXX	0	/* Supervisor read/write, User none */
+#define PP_RWRX 1	/* Supervisor read/write, User read */
+#define PP_RWRW 2	/* Supervisor read/write, User read/write */
+#define PP_RXRX 3	/* Supervisor read,       User read */
+
+#ifndef __ASSEMBLY__
+
+/* Hardware Page Table Entry */
 typedef struct {
 	unsigned long avpn:57; /* vsid | api == avpn  */
 	unsigned long :     2; /* Software use */
@@ -114,37 +114,8 @@ typedef struct {
 	} dw1;
 } HPTE; 
 
-/* Values for PP (assumes Ks=0, Kp=1) */
-/* pp0 will always be 0 for linux     */
-#define PP_RWXX	0	/* Supervisor read/write, User none */
-#define PP_RWRX 1	/* Supervisor read/write, User read */
-#define PP_RWRW 2	/* Supervisor read/write, User read/write */
-#define PP_RXRX 3	/* Supervisor read,       User read */
-
-
-typedef struct {
-	HPTE *		htab;
-	unsigned long	htab_num_ptegs;
-	unsigned long	htab_hash_mask;
-	unsigned long	next_round_robin;
-	unsigned long   last_kernel_address;
-} HTAB;
-
-extern HTAB htab_data;
-
-void invalidate_hpte( unsigned long slot );
-long select_hpte_slot( unsigned long vpn );
-void create_valid_hpte( unsigned long slot, unsigned long vpn,
-			unsigned long prpn, unsigned hash,
-			void * ptep, unsigned hpteflags,
-			unsigned bolted );
-
-#define PD_SHIFT (10+12)		/* Page directory */
-#define PD_MASK  0x02FF
-#define PT_SHIFT (12)			/* Page Table */
-#define PT_MASK  0x02FF
-
-#define LARGE_PAGE_SHIFT 24
+extern HPTE *		htab_address;
+extern unsigned long	htab_hash_mask;
 
 static inline unsigned long hpt_hash(unsigned long vpn, int large)
 {
@@ -167,10 +138,13 @@ static inline void __tlbie(unsigned long va, int large)
 	/* clear top 16 bits, non SLS segment */
 	va &= ~(0xffffULL << 48);
 
-	if (large)
+	if (large) {
+		va &= HPAGE_MASK;
 		asm volatile("tlbie %0,1" : : "r"(va) : "memory");
-	else
+	} else {
+		va &= PAGE_MASK;
 		asm volatile("tlbie %0,0" : : "r"(va) : "memory");
+	}
 }
 
 static inline void tlbie(unsigned long va, int large)
@@ -184,6 +158,7 @@ static inline void __tlbiel(unsigned long va)
 {
 	/* clear top 16 bits, non SLS segment */
 	va &= ~(0xffffULL << 48);
+	va &= PAGE_MASK;
 
 	/* 
 	 * Thanks to Alan Modra we are now able to use machine specific 
@@ -215,182 +190,154 @@ extern int __hash_page(unsigned long ea, unsigned long access,
 
 extern void htab_finish_init(void);
 
+extern void hpte_init_native(void);
+extern void hpte_init_lpar(void);
+extern void hpte_init_iSeries(void);
+
+extern long pSeries_lpar_hpte_insert(unsigned long hpte_group,
+				     unsigned long va, unsigned long prpn,
+				     int secondary, unsigned long hpteflags,
+				     int bolted, int large);
+extern long native_hpte_insert(unsigned long hpte_group, unsigned long va,
+			       unsigned long prpn, int secondary,
+			       unsigned long hpteflags, int bolted, int large);
+
 #endif /* __ASSEMBLY__ */
 
 /*
- * Location of cpu0's segment table
+ * VSID allocation
+ *
+ * We first generate a 36-bit "proto-VSID".  For kernel addresses this
+ * is equal to the ESID, for user addresses it is:
+ *	(context << 15) | (esid & 0x7fff)
+ *
+ * The two forms are distinguishable because the top bit is 0 for user
+ * addresses, whereas the top two bits are 1 for kernel addresses.
+ * Proto-VSIDs with the top two bits equal to 0b10 are reserved for
+ * now.
+ *
+ * The proto-VSIDs are then scrambled into real VSIDs with the
+ * multiplicative hash:
+ *
+ *	VSID = (proto-VSID * VSID_MULTIPLIER) % VSID_MODULUS
+ *	where	VSID_MULTIPLIER = 268435399 = 0xFFFFFC7
+ *		VSID_MODULUS = 2^36-1 = 0xFFFFFFFFF
+ *
+ * This scramble is only well defined for proto-VSIDs below
+ * 0xFFFFFFFFF, so both proto-VSID and actual VSID 0xFFFFFFFFF are
+ * reserved.  VSID_MULTIPLIER is prime, so in particular it is
+ * co-prime to VSID_MODULUS, making this a 1:1 scrambling function.
+ * Because the modulus is 2^n-1 we can compute it efficiently without
+ * a divide or extra multiply (see below).
+ *
+ * This scheme has several advantages over older methods:
+ *
+ * 	- We have VSIDs allocated for every kernel address
+ * (i.e. everything above 0xC000000000000000), except the very top
+ * segment, which simplifies several things.
+ *
+ * 	- We allow for 15 significant bits of ESID and 20 bits of
+ * context for user addresses.  i.e. 8T (43 bits) of address space for
+ * up to 1M contexts (although the page table structure and context
+ * allocation will need changes to take advantage of this).
+ *
+ * 	- The scramble function gives robust scattering in the hash
+ * table (at least based on some initial results).  The previous
+ * method was more susceptible to pathological cases giving excessive
+ * hash collisions.
  */
-#define STAB0_PAGE	0x9
-#define STAB0_PHYS_ADDR	(STAB0_PAGE<<PAGE_SHIFT)
-#define STAB0_VIRT_ADDR	(KERNELBASE+STAB0_PHYS_ADDR)
-
-#define SLB_NUM_BOLTED		2
-#define SLB_CACHE_ENTRIES	8
-
-/* Bits in the SLB ESID word */
-#define SLB_ESID_V		0x0000000008000000	/* entry is valid */
-
-/* Bits in the SLB VSID word */
-#define SLB_VSID_SHIFT		12
-#define SLB_VSID_KS		0x0000000000000800
-#define SLB_VSID_KP		0x0000000000000400
-#define SLB_VSID_N		0x0000000000000200	/* no-execute */
-#define SLB_VSID_L		0x0000000000000100	/* largepage (4M) */
-#define SLB_VSID_C		0x0000000000000080	/* class */
-
-#define SLB_VSID_KERNEL		(SLB_VSID_KP|SLB_VSID_C)
-#define SLB_VSID_USER		(SLB_VSID_KP|SLB_VSID_KS)
-
-#define VSID_RANDOMIZER ASM_CONST(42470972311)
-#define VSID_MASK	0xfffffffffUL
-/* Because we never access addresses below KERNELBASE as kernel
- * addresses, this VSID is never used for anything real, and will
- * never have pages hashed into it */
-#define BAD_VSID	ASM_CONST(0)
-
-/* Block size masks */
-#define BL_128K	0x000
-#define BL_256K 0x001
-#define BL_512K 0x003
-#define BL_1M   0x007
-#define BL_2M   0x00F
-#define BL_4M   0x01F
-#define BL_8M   0x03F
-#define BL_16M  0x07F
-#define BL_32M  0x0FF
-#define BL_64M  0x1FF
-#define BL_128M 0x3FF
-#define BL_256M 0x7FF
-
-/* Used to set up SDR1 register */
-#define HASH_TABLE_SIZE_64K	0x00010000
-#define HASH_TABLE_SIZE_128K	0x00020000
-#define HASH_TABLE_SIZE_256K	0x00040000
-#define HASH_TABLE_SIZE_512K	0x00080000
-#define HASH_TABLE_SIZE_1M	0x00100000
-#define HASH_TABLE_SIZE_2M	0x00200000
-#define HASH_TABLE_SIZE_4M	0x00400000
-#define HASH_TABLE_MASK_64K	0x000   
-#define HASH_TABLE_MASK_128K	0x001   
-#define HASH_TABLE_MASK_256K	0x003   
-#define HASH_TABLE_MASK_512K	0x007
-#define HASH_TABLE_MASK_1M	0x00F   
-#define HASH_TABLE_MASK_2M	0x01F   
-#define HASH_TABLE_MASK_4M	0x03F   
-
-/* These are the Ks and Kp from the PowerPC books.  For proper operation,
- * Ks = 0, Kp = 1.
+/*
+ * WARNING - If you change these you must make sure the asm
+ * implementations in slb_allocate (slb_low.S), do_stab_bolted
+ * (head.S) and ASM_VSID_SCRAMBLE (below) are changed accordingly.
+ *
+ * You'll also need to change the precomputed VSID values in head.S
+ * which are used by the iSeries firmware.
  */
-#define MI_AP		786
-#define MI_Ks		0x80000000	/* Should not be set */
-#define MI_Kp		0x40000000	/* Should always be set */
 
-/* The effective page number register.  When read, contains the information
- * about the last instruction TLB miss.  When MI_RPN is written, bits in
- * this register are used to create the TLB entry.
+#define VSID_MULTIPLIER	ASM_CONST(200730139)	/* 28-bit prime */
+#define VSID_BITS	36
+#define VSID_MODULUS	((1UL<<VSID_BITS)-1)
+
+#define CONTEXT_BITS	20
+#define USER_ESID_BITS	15
+
+/*
+ * This macro generates asm code to compute the VSID scramble
+ * function.  Used in slb_allocate() and do_stab_bolted.  The function
+ * computed is: (protovsid*VSID_MULTIPLIER) % VSID_MODULUS
+ *
+ *	rt = register continaing the proto-VSID and into which the
+ *		VSID will be stored
+ *	rx = scratch register (clobbered)
+ *
+ * 	- rt and rx must be different registers
+ * 	- The answer will end up in the low 36 bits of rt.  The higher
+ * 	  bits may contain other garbage, so you may need to mask the
+ * 	  result.
  */
-#define MI_EPN		787
-#define MI_EPNMASK	0xfffff000	/* Effective page number for entry */
-#define MI_EVALID	0x00000200	/* Entry is valid */
-#define MI_ASIDMASK	0x0000000f	/* ASID match value */
-					/* Reset value is undefined */
-
-/* A "level 1" or "segment" or whatever you want to call it register.
- * For the instruction TLB, it contains bits that get loaded into the
- * TLB entry when the MI_RPN is written.
- */
-#define MI_TWC		789
-#define MI_APG		0x000001e0	/* Access protection group (0) */
-#define MI_GUARDED	0x00000010	/* Guarded storage */
-#define MI_PSMASK	0x0000000c	/* Mask of page size bits */
-#define MI_PS8MEG	0x0000000c	/* 8M page size */
-#define MI_PS512K	0x00000004	/* 512K page size */
-#define MI_PS4K_16K	0x00000000	/* 4K or 16K page size */
-#define MI_SVALID	0x00000001	/* Segment entry is valid */
-					/* Reset value is undefined */
-
-/* Real page number.  Defined by the pte.  Writing this register
- * causes a TLB entry to be created for the instruction TLB, using
- * additional information from the MI_EPN, and MI_TWC registers.
- */
-#define MI_RPN		790
-
-/* Define an RPN value for mapping kernel memory to large virtual
- * pages for boot initialization.  This has real page number of 0,
- * large page size, shared page, cache enabled, and valid.
- * Also mark all subpages valid and write access.
- */
-#define MI_BOOTINIT	0x000001fd
-
-#define MD_CTR		792	/* Data TLB control register */
-#define MD_GPM		0x80000000	/* Set domain manager mode */
-#define MD_PPM		0x40000000	/* Set subpage protection */
-#define MD_CIDEF	0x20000000	/* Set cache inhibit when MMU dis */
-#define MD_WTDEF	0x10000000	/* Set writethrough when MMU dis */
-#define MD_RSV4I	0x08000000	/* Reserve 4 TLB entries */
-#define MD_TWAM		0x04000000	/* Use 4K page hardware assist */
-#define MD_PPCS		0x02000000	/* Use MI_RPN prob/priv state */
-#define MD_IDXMASK	0x00001f00	/* TLB index to be loaded */
-#define MD_RESETVAL	0x04000000	/* Value of register at reset */
-
-#define M_CASID		793	/* Address space ID (context) to match */
-#define MC_ASIDMASK	0x0000000f	/* Bits used for ASID value */
+#define ASM_VSID_SCRAMBLE(rt, rx)	\
+	lis	rx,VSID_MULTIPLIER@h;					\
+	ori	rx,rx,VSID_MULTIPLIER@l;				\
+	mulld	rt,rt,rx;		/* rt = rt * MULTIPLIER */	\
+									\
+	srdi	rx,rt,VSID_BITS;					\
+	clrldi	rt,rt,(64-VSID_BITS);					\
+	add	rt,rt,rx;		/* add high and low bits */	\
+	/* Now, r3 == VSID (mod 2^36-1), and lies between 0 and		\
+	 * 2^36-1+2^28-1.  That in particular means that if r3 >=	\
+	 * 2^36-1, then r3+1 has the 2^36 bit set.  So, if r3+1 has	\
+	 * the bit clear, r3 already has the answer we want, if it	\
+	 * doesn't, the answer is the low 36 bits of r3+1.  So in all	\
+	 * cases the answer is the low 36 bits of (r3 + ((r3+1) >> 36))*/\
+	addi	rx,rt,1;						\
+	srdi	rx,rx,VSID_BITS;	/* extract 2^36 bit */		\
+	add	rt,rt,rx
 
 
-/* These are the Ks and Kp from the PowerPC books.  For proper operation,
- * Ks = 0, Kp = 1.
- */
-#define MD_AP		794
-#define MD_Ks		0x80000000	/* Should not be set */
-#define MD_Kp		0x40000000	/* Should always be set */
+#ifndef __ASSEMBLY__
 
-/* The effective page number register.  When read, contains the information
- * about the last instruction TLB miss.  When MD_RPN is written, bits in
- * this register are used to create the TLB entry.
- */
-#define MD_EPN		795
-#define MD_EPNMASK	0xfffff000	/* Effective page number for entry */
-#define MD_EVALID	0x00000200	/* Entry is valid */
-#define MD_ASIDMASK	0x0000000f	/* ASID match value */
-					/* Reset value is undefined */
+typedef unsigned long mm_context_id_t;
 
-/* The pointer to the base address of the first level page table.
- * During a software tablewalk, reading this register provides the address
- * of the entry associated with MD_EPN.
- */
-#define M_TWB		796
-#define	M_L1TB		0xfffff000	/* Level 1 table base address */
-#define M_L1INDX	0x00000ffc	/* Level 1 index, when read */
-					/* Reset value is undefined */
-
-/* A "level 1" or "segment" or whatever you want to call it register.
- * For the data TLB, it contains bits that get loaded into the TLB entry
- * when the MD_RPN is written.  It is also provides the hardware assist
- * for finding the PTE address during software tablewalk.
- */
-#define MD_TWC		797
-#define MD_L2TB		0xfffff000	/* Level 2 table base address */
-#define MD_L2INDX	0xfffffe00	/* Level 2 index (*pte), when read */
-#define MD_APG		0x000001e0	/* Access protection group (0) */
-#define MD_GUARDED	0x00000010	/* Guarded storage */
-#define MD_PSMASK	0x0000000c	/* Mask of page size bits */
-#define MD_PS8MEG	0x0000000c	/* 8M page size */
-#define MD_PS512K	0x00000004	/* 512K page size */
-#define MD_PS4K_16K	0x00000000	/* 4K or 16K page size */
-#define MD_WT		0x00000002	/* Use writethrough page attribute */
-#define MD_SVALID	0x00000001	/* Segment entry is valid */
-					/* Reset value is undefined */
+typedef struct {
+	mm_context_id_t id;
+#ifdef CONFIG_HUGETLB_PAGE
+	pgd_t *huge_pgdir;
+	u16 htlb_segs; /* bitmask */
+#endif
+} mm_context_t;
 
 
-/* Real page number.  Defined by the pte.  Writing this register
- * causes a TLB entry to be created for the data TLB, using
- * additional information from the MD_EPN, and MD_TWC registers.
- */
-#define MD_RPN		798
+static inline unsigned long vsid_scramble(unsigned long protovsid)
+{
+#if 0
+	/* The code below is equivalent to this function for arguments
+	 * < 2^VSID_BITS, which is all this should ever be called
+	 * with.  However gcc is not clever enough to compute the
+	 * modulus (2^n-1) without a second multiply. */
+	return ((protovsid * VSID_MULTIPLIER) % VSID_MODULUS);
+#else /* 1 */
+	unsigned long x;
 
-/* This is a temporary storage register that could be used to save
- * a processor working register during a tablewalk.
- */
-#define M_TW		799
+	x = protovsid * VSID_MULTIPLIER;
+	x = (x >> VSID_BITS) + (x & VSID_MODULUS);
+	return (x + ((x+1) >> VSID_BITS)) & VSID_MODULUS;
+#endif /* 1 */
+}
+
+/* This is only valid for addresses >= KERNELBASE */
+static inline unsigned long get_kernel_vsid(unsigned long ea)
+{
+	return vsid_scramble(ea >> SID_SHIFT);
+}
+
+/* This is only valid for user addresses (which are below 2^41) */
+static inline unsigned long get_vsid(unsigned long context, unsigned long ea)
+{
+	return vsid_scramble((context << USER_ESID_BITS)
+			     | (ea >> SID_SHIFT));
+}
+
+#endif /* __ASSEMBLY */
 
 #endif /* _PPC64_MMU_H_ */

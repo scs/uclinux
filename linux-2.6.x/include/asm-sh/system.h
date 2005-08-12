@@ -7,7 +7,6 @@
  */
 
 #include <linux/config.h>
-#include <linux/kernel.h>
 
 /*
  *	switch_to() should switch tasks to task nr n, first
@@ -259,5 +258,7 @@ static __inline__ unsigned long __xchg(unsigned long x, volatile void * ptr, int
 #define HAVE_DISABLE_HLT
 void disable_hlt(void);
 void enable_hlt(void);
+
+#define arch_align_stack(x) (x)
 
 #endif

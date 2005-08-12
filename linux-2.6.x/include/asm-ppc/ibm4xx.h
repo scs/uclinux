@@ -59,6 +59,10 @@
 #include <platforms/4xx/walnut.h>
 #endif
 
+#if defined(CONFIG_XILINX_ML300)
+#include <platforms/4xx/xilinx_ml300.h>
+#endif
+
 #ifndef __ASSEMBLY__
 
 #ifdef CONFIG_40x
@@ -95,6 +99,10 @@ void ppc4xx_init(unsigned long r3, unsigned long r4, unsigned long r5,
 
 #if defined(CONFIG_EBONY)
 #include <platforms/4xx/ebony.h>
+#endif
+
+#if defined(CONFIG_LUAN)
+#include <platforms/4xx/luan.h>
 #endif
 
 #if defined(CONFIG_OCOTEA)

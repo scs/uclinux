@@ -59,7 +59,6 @@ struct consw {
 extern const struct consw *conswitchp;
 
 extern const struct consw dummy_con;	/* dummy console buffer */
-extern const struct consw fb_con;	/* frame buffer based console */
 extern const struct consw vga_con;	/* VGA text console */
 extern const struct consw newport_con;	/* SGI Newport console  */
 extern const struct consw prom_con;	/* SPARC PROM console */
@@ -77,13 +76,17 @@ void give_up_console(const struct consw *sw);
 #define CM_MOVE     (3)
 
 /*
- *	The interface for a console, or any other device that
- *	wants to capture console messages (printer driver?)
+ * The interface for a console, or any other device that wants to capture
+ * console messages (printer driver?)
+ *
+ * If a console driver is marked CON_BOOT then it will be auto-unregistered
+ * when the first real console is registered.  This is for early-printk drivers.
  */
 
 #define CON_PRINTBUFFER	(1)
 #define CON_CONSDEV	(2) /* Last on the command line */
 #define CON_ENABLED	(4)
+#define CON_BOOT	(8)
 
 struct console
 {
@@ -105,6 +108,7 @@ extern void register_console(struct console *);
 extern int unregister_console(struct console *);
 extern struct console *console_drivers;
 extern void acquire_console_sem(void);
+extern int try_acquire_console_sem(void);
 extern void release_console_sem(void);
 extern void console_conditional_schedule(void);
 extern void console_unblank(void);

@@ -148,7 +148,7 @@ struct swap_list_t {
 #define vm_swap_full() (nr_swap_pages*2 < total_swap_pages)
 
 /* linux/mm/oom_kill.c */
-extern void out_of_memory(int gfp_mask);
+extern void out_of_memory(unsigned int __nocast gfp_mask);
 
 /* linux/mm/memory.c */
 extern void swapin_readahead(swp_entry_t, unsigned long, struct vm_area_struct *);
@@ -204,7 +204,6 @@ extern void free_pages_and_swap_cache(struct page **, int);
 extern struct page * lookup_swap_cache(swp_entry_t);
 extern struct page * read_swap_cache_async(swp_entry_t, struct vm_area_struct *vma,
 					   unsigned long addr);
-
 /* linux/mm/swapfile.c */
 extern long total_swap_pages;
 extern unsigned int nr_swapfiles;
@@ -228,6 +227,23 @@ extern spinlock_t swaplock;
 #define swap_list_unlock()	spin_unlock(&swaplock)
 #define swap_device_lock(p)	spin_lock(&p->sdev_lock)
 #define swap_device_unlock(p)	spin_unlock(&p->sdev_lock)
+
+/* linux/mm/thrash.c */
+extern struct mm_struct * swap_token_mm;
+extern unsigned long swap_token_default_timeout;
+extern void grab_swap_token(void);
+extern void __put_swap_token(struct mm_struct *);
+
+static inline int has_swap_token(struct mm_struct *mm)
+{
+	return (mm == swap_token_mm);
+}
+
+static inline void put_swap_token(struct mm_struct *mm)
+{
+	if (has_swap_token(mm))
+		__put_swap_token(mm);
+}
 
 #else /* CONFIG_SWAP */
 
@@ -253,6 +269,7 @@ extern spinlock_t swaplock;
 #define move_from_swap_cache(p, i, m)		1
 #define __delete_from_swap_cache(p)		/*NOTHING*/
 #define delete_from_swap_cache(p)		/*NOTHING*/
+#define swap_token_default_timeout		0
 
 static inline int remove_exclusive_swap_page(struct page *p)
 {
@@ -265,6 +282,11 @@ static inline swp_entry_t get_swap_page(void)
 	entry.val = 0;
 	return entry;
 }
+
+/* linux/mm/thrash.c */
+#define put_swap_token(x) do { } while(0)
+#define grab_swap_token()  do { } while(0)
+#define has_swap_token(x) 0
 
 #endif /* CONFIG_SWAP */
 #endif /* __KERNEL__*/

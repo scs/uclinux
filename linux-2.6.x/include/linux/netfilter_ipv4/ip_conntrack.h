@@ -3,13 +3,6 @@
 /* Connection state tracking for netfilter.  This is separated from,
    but required by, the NAT layer; it can also be used by an iptables
    extension. */
-
-#include <linux/config.h>
-#include <linux/netfilter_ipv4/ip_conntrack_tuple.h>
-#include <linux/bitops.h>
-#include <linux/compiler.h>
-#include <asm/atomic.h>
-
 enum ip_conntrack_info
 {
 	/* Part of an established connection (either direction). */
@@ -47,14 +40,48 @@ enum ip_conntrack_status {
 	/* Connection is confirmed: originating packet has left box */
 	IPS_CONFIRMED_BIT = 3,
 	IPS_CONFIRMED = (1 << IPS_CONFIRMED_BIT),
+
+	/* Connection needs src nat in orig dir.  This bit never changed. */
+	IPS_SRC_NAT_BIT = 4,
+	IPS_SRC_NAT = (1 << IPS_SRC_NAT_BIT),
+
+	/* Connection needs dst nat in orig dir.  This bit never changed. */
+	IPS_DST_NAT_BIT = 5,
+	IPS_DST_NAT = (1 << IPS_DST_NAT_BIT),
+
+	/* Both together. */
+	IPS_NAT_MASK = (IPS_DST_NAT | IPS_SRC_NAT),
+
+	/* Connection needs TCP sequence adjusted. */
+	IPS_SEQ_ADJUST_BIT = 6,
+	IPS_SEQ_ADJUST = (1 << IPS_SEQ_ADJUST_BIT),
+
+	/* NAT initialization bits. */
+	IPS_SRC_NAT_DONE_BIT = 7,
+	IPS_SRC_NAT_DONE = (1 << IPS_SRC_NAT_DONE_BIT),
+
+	IPS_DST_NAT_DONE_BIT = 8,
+	IPS_DST_NAT_DONE = (1 << IPS_DST_NAT_DONE_BIT),
+
+	/* Both together */
+	IPS_NAT_DONE_MASK = (IPS_DST_NAT_DONE | IPS_SRC_NAT_DONE),
 };
+
+#ifdef __KERNEL__
+#include <linux/config.h>
+#include <linux/netfilter_ipv4/ip_conntrack_tuple.h>
+#include <linux/bitops.h>
+#include <linux/compiler.h>
+#include <asm/atomic.h>
 
 #include <linux/netfilter_ipv4/ip_conntrack_tcp.h>
 #include <linux/netfilter_ipv4/ip_conntrack_icmp.h>
+#include <linux/netfilter_ipv4/ip_conntrack_sctp.h>
 
 /* per conntrack: protocol private data */
 union ip_conntrack_proto {
 	/* insert conntrack proto private data here */
+	struct ip_ct_sctp sctp;
 	struct ip_ct_tcp tcp;
 	struct ip_ct_icmp icmp;
 };
@@ -68,20 +95,6 @@ union ip_conntrack_expect_proto {
 #include <linux/netfilter_ipv4/ip_conntrack_ftp.h>
 #include <linux/netfilter_ipv4/ip_conntrack_irc.h>
 
-/* per expectation: application helper private data */
-union ip_conntrack_expect_help {
-	/* insert conntrack helper private data (expect) here */
-	struct ip_ct_amanda_expect exp_amanda_info;
-	struct ip_ct_ftp_expect exp_ftp_info;
-	struct ip_ct_irc_expect exp_irc_info;
-
-#ifdef CONFIG_IP_NF_NAT_NEEDED
-	union {
-		/* insert nat helper private data (expect) here */
-	} nat;
-#endif
-};
-
 /* per conntrack: application helper private data */
 union ip_conntrack_help {
 	/* insert conntrack helper private data (master) here */
@@ -91,14 +104,7 @@ union ip_conntrack_help {
 
 #ifdef CONFIG_IP_NF_NAT_NEEDED
 #include <linux/netfilter_ipv4/ip_nat.h>
-
-/* per conntrack: nat application helper private data */
-union ip_conntrack_nat_help {
-	/* insert nat helper private data here */
-};
 #endif
-
-#ifdef __KERNEL__
 
 #include <linux/types.h>
 #include <linux/skbuff.h>
@@ -116,44 +122,10 @@ do {									\
 #define IP_NF_ASSERT(x)
 #endif
 
-struct ip_conntrack_expect
+struct ip_conntrack_counter
 {
-	/* Internal linked list (global expectation list) */
-	struct list_head list;
-
-	/* reference count */
-	atomic_t use;
-
-	/* expectation list for this master */
-	struct list_head expected_list;
-
-	/* The conntrack of the master connection */
-	struct ip_conntrack *expectant;
-
-	/* The conntrack of the sibling connection, set after
-	 * expectation arrived */
-	struct ip_conntrack *sibling;
-
-	/* Tuple saved for conntrack */
-	struct ip_conntrack_tuple ct_tuple;
-
-	/* Timer function; deletes the expectation. */
-	struct timer_list timeout;
-
-	/* Data filled out by the conntrack helpers follow: */
-
-	/* We expect this tuple, with the following mask */
-	struct ip_conntrack_tuple tuple, mask;
-
-	/* Function to call after setup and insertion */
-	int (*expectfn)(struct ip_conntrack *new);
-
-	/* At which sequence number did this expectation occur */
-	u_int32_t seq;
-  
-	union ip_conntrack_expect_proto proto;
-
-	union ip_conntrack_expect_help help;
+	u_int64_t packets;
+	u_int64_t bytes;
 };
 
 struct ip_conntrack_helper;
@@ -164,34 +136,26 @@ struct ip_conntrack
            plus 1 for any connection(s) we are `master' for */
 	struct nf_conntrack ct_general;
 
-	/* These are my tuples; original and reply */
-	struct ip_conntrack_tuple_hash tuplehash[IP_CT_DIR_MAX];
-
 	/* Have we seen traffic both ways yet? (bitset) */
 	unsigned long status;
 
 	/* Timer function; drops refcnt when it goes off. */
 	struct timer_list timeout;
 
-	/* If we're expecting another related connection, this will be
-           in expected linked list */
-	struct list_head sibling_list;
-	
+#ifdef CONFIG_IP_NF_CT_ACCT
+	/* Accounting Information (same cache line as other written members) */
+	struct ip_conntrack_counter counters[IP_CT_DIR_MAX];
+#endif
+	/* If we were expected by an expectation, this will be it */
+	struct ip_conntrack *master;
+
 	/* Current number of expected connections */
 	unsigned int expecting;
-
-	/* If we were expected by an expectation, this will be it */
-	struct ip_conntrack_expect *master;
 
 	/* Helper, if any. */
 	struct ip_conntrack_helper *helper;
 
-	/* Our various nf_ct_info structs specify *what* relation this
-           packet has to the conntrack */
-	struct nf_ct_info infos[IP_CT_NUMBER];
-
 	/* Storage reserved for other modules: */
-
 	union ip_conntrack_proto proto;
 
 	union ip_conntrack_help help;
@@ -199,7 +163,6 @@ struct ip_conntrack
 #ifdef CONFIG_IP_NF_NAT_NEEDED
 	struct {
 		struct ip_nat_info info;
-		union ip_conntrack_nat_help help;
 #if defined(CONFIG_IP_NF_TARGET_MASQUERADE) || \
 	defined(CONFIG_IP_NF_TARGET_MASQUERADE_MODULE)
 		int masq_index;
@@ -207,14 +170,54 @@ struct ip_conntrack
 	} nat;
 #endif /* CONFIG_IP_NF_NAT_NEEDED */
 
+#if defined(CONFIG_IP_NF_CONNTRACK_MARK)
+	unsigned long mark;
+#endif
+
+	/* Traversed often, so hopefully in different cacheline to top */
+	/* These are my tuples; original and reply */
+	struct ip_conntrack_tuple_hash tuplehash[IP_CT_DIR_MAX];
 };
 
-/* get master conntrack via master expectation */
-#define master_ct(conntr) (conntr->master ? conntr->master->expectant : NULL)
+struct ip_conntrack_expect
+{
+	/* Internal linked list (global expectation list) */
+	struct list_head list;
 
-/* Alter reply tuple (maybe alter helper).  If it's already taken,
-   return 0 and don't do alteration. */
-extern int
+	/* We expect this tuple, with the following mask */
+	struct ip_conntrack_tuple tuple, mask;
+ 
+	/* Function to call after setup and insertion */
+	void (*expectfn)(struct ip_conntrack *new,
+			 struct ip_conntrack_expect *this);
+
+	/* The conntrack of the master connection */
+	struct ip_conntrack *master;
+
+	/* Timer function; deletes the expectation. */
+	struct timer_list timeout;
+
+#ifdef CONFIG_IP_NF_NAT_NEEDED
+	/* This is the original per-proto part, used to map the
+	 * expected connection the way the recipient expects. */
+	union ip_conntrack_manip_proto saved_proto;
+	/* Direction relative to the master connection. */
+	enum ip_conntrack_dir dir;
+#endif
+};
+
+static inline struct ip_conntrack *
+tuplehash_to_ctrack(const struct ip_conntrack_tuple_hash *hash)
+{
+	return container_of(hash, struct ip_conntrack,
+			    tuplehash[hash->tuple.dst.dir]);
+}
+
+/* get master conntrack via master expectation */
+#define master_ct(conntr) (conntr->master)
+
+/* Alter reply tuple (maybe alter helper). */
+extern void
 ip_conntrack_alter_reply(struct ip_conntrack *conntrack,
 			 const struct ip_conntrack_tuple *newreply);
 
@@ -225,18 +228,15 @@ ip_conntrack_tuple_taken(const struct ip_conntrack_tuple *tuple,
 			 const struct ip_conntrack *ignored_conntrack);
 
 /* Return conntrack_info and tuple hash for given skb. */
-extern struct ip_conntrack *
-ip_conntrack_get(struct sk_buff *skb, enum ip_conntrack_info *ctinfo);
+static inline struct ip_conntrack *
+ip_conntrack_get(const struct sk_buff *skb, enum ip_conntrack_info *ctinfo)
+{
+	*ctinfo = skb->nfctinfo;
+	return (struct ip_conntrack *)skb->nfct;
+}
 
 /* decrement reference count on a conntrack */
 extern inline void ip_conntrack_put(struct ip_conntrack *ct);
-
-/* find unconfirmed expectation based on tuple */
-struct ip_conntrack_expect *
-ip_conntrack_expect_find_get(const struct ip_conntrack_tuple *tuple);
-
-/* decrement reference count on an expectation */
-void ip_conntrack_expect_put(struct ip_conntrack_expect *exp);
 
 /* call to create an explicit dependency on ip_conntrack. */
 extern void need_ip_conntrack(void);
@@ -245,10 +245,17 @@ extern int invert_tuplepr(struct ip_conntrack_tuple *inverse,
 			  const struct ip_conntrack_tuple *orig);
 
 /* Refresh conntrack for this many jiffies */
-extern void ip_ct_refresh(struct ip_conntrack *ct,
-			  unsigned long extra_jiffies);
+extern void ip_ct_refresh_acct(struct ip_conntrack *ct,
+			       enum ip_conntrack_info ctinfo,
+			       const struct sk_buff *skb,
+			       unsigned long extra_jiffies);
 
 /* These are for NAT.  Icky. */
+/* Update TCP window tracking data when NAT mangles the packet */
+extern void ip_conntrack_tcp_update(struct sk_buff *skb,
+				    struct ip_conntrack *conntrack,
+				    enum ip_conntrack_dir dir);
+
 /* Call me when a conntrack is destroyed. */
 extern void (*ip_conntrack_destroyed)(struct ip_conntrack *conntrack);
 
@@ -257,12 +264,12 @@ extern struct ip_conntrack ip_conntrack_untracked;
 
 /* Returns new sk_buff, or NULL */
 struct sk_buff *
-ip_ct_gather_frags(struct sk_buff *skb);
+ip_ct_gather_frags(struct sk_buff *skb, u_int32_t user);
 
-/* Delete all conntracks which match. */
+/* Iterate over all conntracks: if iter returns true, it's deleted. */
 extern void
-ip_ct_selective_cleanup(int (*kill)(const struct ip_conntrack *i, void *data),
-			void *data);
+ip_ct_iterate_cleanup(int (*iter)(struct ip_conntrack *i, void *data),
+		      void *data);
 
 /* It's confirmed if it is, or has been in the hash table. */
 static inline int is_confirmed(struct ip_conntrack *ct)
@@ -271,16 +278,37 @@ static inline int is_confirmed(struct ip_conntrack *ct)
 }
 
 extern unsigned int ip_conntrack_htable_size;
+ 
+struct ip_conntrack_stat
+{
+	unsigned int searched;
+	unsigned int found;
+	unsigned int new;
+	unsigned int invalid;
+	unsigned int ignore;
+	unsigned int delete;
+	unsigned int delete_list;
+	unsigned int insert;
+	unsigned int insert_failed;
+	unsigned int drop;
+	unsigned int early_drop;
+	unsigned int error;
+	unsigned int expect_new;
+	unsigned int expect_create;
+	unsigned int expect_delete;
+};
 
-/* eg. PROVIDES_CONNTRACK(ftp); */
-#define PROVIDES_CONNTRACK(name)                        \
-        int needs_ip_conntrack_##name;                  \
-        EXPORT_SYMBOL(needs_ip_conntrack_##name)
+#define CONNTRACK_STAT_INC(count) (__get_cpu_var(ip_conntrack_stat).count++)
 
-/*. eg. NEEDS_CONNTRACK(ftp); */
-#define NEEDS_CONNTRACK(name)                                           \
-        extern int needs_ip_conntrack_##name;                           \
-        static int *need_ip_conntrack_##name __attribute_used__ = &needs_ip_conntrack_##name
+#ifdef CONFIG_IP_NF_NAT_NEEDED
+static inline int ip_nat_initialized(struct ip_conntrack *conntrack,
+				     enum ip_nat_manip_type manip)
+{
+	if (manip == IP_NAT_MANIP_SRC)
+		return test_bit(IPS_SRC_NAT_DONE_BIT, &conntrack->status);
+	return test_bit(IPS_DST_NAT_DONE_BIT, &conntrack->status);
+}
+#endif /* CONFIG_IP_NF_NAT_NEEDED */
 
 #endif /* __KERNEL__ */
 #endif /* _IP_CONNTRACK_H */

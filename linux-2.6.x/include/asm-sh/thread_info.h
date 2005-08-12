@@ -25,19 +25,9 @@ struct thread_info {
 	__u8			supervisor_stack[0];
 };
 
-#else /* !__ASSEMBLY__ */
-
-/* offsets into the thread_info struct for assembly code access */
-#define TI_TASK		0x00000000
-#define TI_EXEC_DOMAIN	0x00000004
-#define TI_FLAGS	0x00000008
-#define TI_CPU		0x0000000c
-#define TI_PRE_COUNT	0x00000010
-#define TI_RESTART_BLOCK 0x00000014
-
 #endif
 
-#define PREEMPT_ACTIVE		0x4000000
+#define PREEMPT_ACTIVE		0x10000000
 
 /*
  * macros/functions for gaining access to the thread information structure
@@ -93,6 +83,7 @@ static inline struct thread_info *current_thread_info(void)
 #define TIF_NEED_RESCHED	3	/* rescheduling necessary */
 #define TIF_USEDFPU		16	/* FPU was used by this task this quantum (SMP) */
 #define TIF_POLLING_NRFLAG	17	/* true if poll_idle() is polling TIF_NEED_RESCHED */
+#define TIF_MEMDIE		18
 #define TIF_USERSPACE		31	/* true if FS sets userspace */
 
 #define _TIF_SYSCALL_TRACE	(1<<TIF_SYSCALL_TRACE)

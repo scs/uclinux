@@ -16,6 +16,8 @@
 #define PAGE_SHIFT      12
 #define PAGE_SIZE       (1UL << PAGE_SHIFT)
 #define PAGE_MASK       (~(PAGE_SIZE-1))
+#define PAGE_DEFAULT_ACC	0
+#define PAGE_DEFAULT_KEY	(PAGE_DEFAULT_ACC << 4)
 
 #ifdef __KERNEL__
 #ifndef __ASSEMBLY__
@@ -106,6 +108,9 @@ static inline void copy_page(void *to, void *from)
 #define clear_user_page(page, vaddr, pg)	clear_page(page)
 #define copy_user_page(to, from, vaddr, pg)	copy_page(to, from)
 
+#define alloc_zeroed_user_highpage(vma, vaddr) alloc_page_vma(GFP_HIGHUSER | __GFP_ZERO, vma, vaddr)
+#define __HAVE_ARCH_ALLOC_ZEROED_USER_HIGHPAGE
+
 /* Pure 2^n version of get_order */
 extern __inline__ int get_order(unsigned long size)
 {
@@ -161,6 +166,25 @@ typedef struct { unsigned long pgd; } pgd_t;
 #define __pmd(x)        ((pmd_t) { (x) } )
 #define __pgd(x)        ((pgd_t) { (x) } )
 #define __pgprot(x)     ((pgprot_t) { (x) } )
+
+/* default storage key used for all pages */
+extern unsigned int default_storage_key;
+
+static inline void
+page_set_storage_key(unsigned long addr, unsigned int skey)
+{
+	asm volatile ( "sske %0,%1" : : "d" (skey), "a" (addr) );
+}
+
+static inline unsigned int
+page_get_storage_key(unsigned long addr)
+{
+	unsigned int skey;
+
+	asm volatile ( "iske %0,%1" : "=d" (skey) : "a" (addr), "0" (0) );
+
+	return skey;
+}
 
 #endif /* !__ASSEMBLY__ */
 

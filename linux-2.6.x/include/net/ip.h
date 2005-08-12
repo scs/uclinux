@@ -7,7 +7,7 @@
  *
  * Version:	@(#)ip.h	1.0.2	05/07/93
  *
- * Authors:	Ross Biro, <bir7@leland.Stanford.Edu>
+ * Authors:	Ross Biro
  *		Fred N. van Kempen, <waltje@uWalt.NL.Mugnet.ORG>
  *		Alan Cox, <gw4pts@gw4pts.ampr.org>
  *
@@ -89,8 +89,8 @@ extern int		ip_rcv(struct sk_buff *skb, struct net_device *dev,
 			       struct packet_type *pt);
 extern int		ip_local_deliver(struct sk_buff *skb);
 extern int		ip_mr_input(struct sk_buff *skb);
-extern int		ip_output(struct sk_buff **pskb);
-extern int		ip_mc_output(struct sk_buff **pskb);
+extern int		ip_output(struct sk_buff *skb);
+extern int		ip_mc_output(struct sk_buff *skb);
 extern int		ip_fragment(struct sk_buff *skb, int (*out)(struct sk_buff*));
 extern int		ip_do_nat(struct sk_buff *skb);
 extern void		ip_send_check(struct iphdr *ip);
@@ -163,6 +163,7 @@ DECLARE_SNMP_STAT(struct linux_mib, net_statistics);
 
 extern int sysctl_local_port_range[2];
 extern int sysctl_ip_default_ttl;
+extern int sysctl_ip_nonlocal_bind;
 
 #ifdef CONFIG_INET
 /* The function in 2.2 was invalid, producing wrong result for
@@ -229,6 +230,39 @@ static inline void ip_eth_mc_map(u32 addr, char *buf)
 	buf[3]=addr&0x7F;
 }
 
+/*
+ *	Map a multicast IP onto multicast MAC for type IP-over-InfiniBand.
+ *	Leave P_Key as 0 to be filled in by driver.
+ */
+
+static inline void ip_ib_mc_map(u32 addr, char *buf)
+{
+	buf[0]  = 0;		/* Reserved */
+	buf[1]  = 0xff;		/* Multicast QPN */
+	buf[2]  = 0xff;
+	buf[3]  = 0xff;
+	addr    = ntohl(addr);
+	buf[4]  = 0xff;
+	buf[5]  = 0x12;		/* link local scope */
+	buf[6]  = 0x40;		/* IPv4 signature */
+	buf[7]  = 0x1b;
+	buf[8]  = 0;		/* P_Key */
+	buf[9]  = 0;
+	buf[10] = 0;
+	buf[11] = 0;
+	buf[12] = 0;
+	buf[13] = 0;
+	buf[14] = 0;
+	buf[15] = 0;
+	buf[19] = addr & 0xff;
+	addr  >>= 8;
+	buf[18] = addr & 0xff;
+	addr  >>= 8;
+	buf[17] = addr & 0xff;
+	addr  >>= 8;
+	buf[16] = addr & 0x0f;
+}
+
 #if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
 #include <linux/ipv6.h>
 #endif
@@ -253,8 +287,20 @@ extern int	ip_call_ra_chain(struct sk_buff *skb);
 /*
  *	Functions provided by ip_fragment.o
  */
- 
-struct sk_buff *ip_defrag(struct sk_buff *skb);
+
+enum ip_defrag_users
+{
+	IP_DEFRAG_LOCAL_DELIVER,
+	IP_DEFRAG_CALL_RA_CHAIN,
+	IP_DEFRAG_CONNTRACK_IN,
+	IP_DEFRAG_CONNTRACK_OUT,
+	IP_DEFRAG_NAT_OUT,
+	IP_DEFRAG_VS_IN,
+	IP_DEFRAG_VS_OUT,
+	IP_DEFRAG_VS_FWD
+};
+
+struct sk_buff *ip_defrag(struct sk_buff *skb, u32 user);
 extern int ip_frag_nqueues;
 extern atomic_t ip_frag_mem;
 
@@ -293,8 +339,6 @@ extern void	ip_icmp_error(struct sock *sk, struct sk_buff *skb, int err,
 			      u16 port, u32 info, u8 *payload);
 extern void	ip_local_error(struct sock *sk, int err, u32 daddr, u16 dport,
 			       u32 info);
-
-extern int ipv4_proc_init(void);
 
 /* sysctl helpers - any sysctl which holds a value that ends up being
  * fed into the routing cache should use these handlers.

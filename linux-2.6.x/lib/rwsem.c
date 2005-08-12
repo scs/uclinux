@@ -74,7 +74,7 @@ __rwsem_do_wake(struct rw_semaphore *sem, int downgrading)
 	 */
 	list_del(&waiter->list);
 	tsk = waiter->task;
-	mb();
+	smp_mb();
 	waiter->task = NULL;
 	wake_up_process(tsk);
 	put_task_struct(tsk);
@@ -117,7 +117,7 @@ __rwsem_do_wake(struct rw_semaphore *sem, int downgrading)
 		waiter = list_entry(next, struct rwsem_waiter, list);
 		next = waiter->list.next;
 		tsk = waiter->task;
-		mb();
+		smp_mb();
 		waiter->task = NULL;
 		wake_up_process(tsk);
 		put_task_struct(tsk);
@@ -150,7 +150,7 @@ rwsem_down_failed_common(struct rw_semaphore *sem,
 	set_task_state(tsk, TASK_UNINTERRUPTIBLE);
 
 	/* set up my own style of waitqueue */
-	spin_lock(&sem->wait_lock);
+	spin_lock_irq(&sem->wait_lock);
 	waiter->task = tsk;
 	get_task_struct(tsk);
 
@@ -163,7 +163,7 @@ rwsem_down_failed_common(struct rw_semaphore *sem,
 	if (!(count & RWSEM_ACTIVE_MASK))
 		sem = __rwsem_do_wake(sem, 0);
 
-	spin_unlock(&sem->wait_lock);
+	spin_unlock_irq(&sem->wait_lock);
 
 	/* wait to be given the lock */
 	for (;;) {
@@ -219,15 +219,17 @@ rwsem_down_write_failed(struct rw_semaphore *sem)
  */
 struct rw_semaphore fastcall *rwsem_wake(struct rw_semaphore *sem)
 {
+	unsigned long flags;
+
 	rwsemtrace(sem, "Entering rwsem_wake");
 
-	spin_lock(&sem->wait_lock);
+	spin_lock_irqsave(&sem->wait_lock, flags);
 
 	/* do nothing if list empty */
 	if (!list_empty(&sem->wait_list))
 		sem = __rwsem_do_wake(sem, 0);
 
-	spin_unlock(&sem->wait_lock);
+	spin_unlock_irqrestore(&sem->wait_lock, flags);
 
 	rwsemtrace(sem, "Leaving rwsem_wake");
 
@@ -241,24 +243,26 @@ struct rw_semaphore fastcall *rwsem_wake(struct rw_semaphore *sem)
  */
 struct rw_semaphore fastcall *rwsem_downgrade_wake(struct rw_semaphore *sem)
 {
+	unsigned long flags;
+
 	rwsemtrace(sem, "Entering rwsem_downgrade_wake");
 
-	spin_lock(&sem->wait_lock);
+	spin_lock_irqsave(&sem->wait_lock, flags);
 
 	/* do nothing if list empty */
 	if (!list_empty(&sem->wait_list))
 		sem = __rwsem_do_wake(sem, 1);
 
-	spin_unlock(&sem->wait_lock);
+	spin_unlock_irqrestore(&sem->wait_lock, flags);
 
 	rwsemtrace(sem, "Leaving rwsem_downgrade_wake");
 	return sem;
 }
 
-EXPORT_SYMBOL_NOVERS(rwsem_down_read_failed);
-EXPORT_SYMBOL_NOVERS(rwsem_down_write_failed);
-EXPORT_SYMBOL_NOVERS(rwsem_wake);
-EXPORT_SYMBOL_NOVERS(rwsem_downgrade_wake);
+EXPORT_SYMBOL(rwsem_down_read_failed);
+EXPORT_SYMBOL(rwsem_down_write_failed);
+EXPORT_SYMBOL(rwsem_wake);
+EXPORT_SYMBOL(rwsem_downgrade_wake);
 #if RWSEM_DEBUG
 EXPORT_SYMBOL(rwsemtrace);
 #endif

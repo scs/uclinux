@@ -133,6 +133,9 @@ enum
 	KERN_NGROUPS_MAX=63,	/* int: NGROUPS_MAX */
 	KERN_SPARC_SCONS_PWROFF=64, /* int: serial console power-off halt */
 	KERN_HZ_TIMER=65,	/* int: hz timer on or off */
+	KERN_UNKNOWN_NMI_PANIC=66, /* int: unknown nmi panic flag */
+	KERN_BOOTLOADER_TYPE=67, /* int: boot loader type */
+	KERN_RANDOMIZE=68, /* int: randomize virtual address space */
 };
 
 
@@ -158,13 +161,15 @@ enum
 	VM_PAGEBUF=17,		/* struct: Control pagebuf parameters */
 	VM_HUGETLB_PAGES=18,	/* int: Number of available Huge Pages */
 	VM_SWAPPINESS=19,	/* Tendency to steal mapped memory */
-	VM_LOWER_ZONE_PROTECTION=20,/* Amount of protection of lower zones */
+	VM_LOWMEM_RESERVE_RATIO=20,/* reservation ratio for lower memory zones */
 	VM_MIN_FREE_KBYTES=21,	/* Minimum free kilobytes to maintain */
 	VM_MAX_MAP_COUNT=22,	/* int: Maximum number of mmaps/address-space */
 	VM_LAPTOP_MODE=23,	/* vm laptop mode */
 	VM_BLOCK_DUMP=24,	/* block dump mode */
 	VM_HUGETLB_GROUP=25,	/* permitted hugetlb group */
 	VM_VFS_CACHE_PRESSURE=26, /* dcache/icache reclaim pressure */
+	VM_LEGACY_VA_LAYOUT=27, /* legacy/compatibility virtual address space layout */
+	VM_SWAP_TOKEN_TIMEOUT=28, /* default time for token time out */
 };
 
 
@@ -339,6 +344,9 @@ enum
 	NET_TCP_BIC_LOW_WINDOW=104,
 	NET_TCP_DEFAULT_WIN_SCALE=105,
 	NET_TCP_MODERATE_RCVBUF=106,
+	NET_TCP_TSO_WIN_DIVISOR=107,
+	NET_TCP_BIC_BETA=108,
+	NET_IPV4_ICMP_ERRORS_USE_INBOUND_IFADDR=109,
 };
 
 enum {
@@ -360,6 +368,7 @@ enum {
 	NET_IPV4_ROUTE_MIN_PMTU=16,
 	NET_IPV4_ROUTE_MIN_ADVMSS=17,
 	NET_IPV4_ROUTE_SECRET_INTERVAL=18,
+	NET_IPV4_ROUTE_GC_MIN_INTERVAL_MS=19,
 };
 
 enum
@@ -391,6 +400,8 @@ enum
 	NET_IPV4_CONF_FORCE_IGMP_VERSION=17,
 	NET_IPV4_CONF_ARP_ANNOUNCE=18,
 	NET_IPV4_CONF_ARP_IGNORE=19,
+	NET_IPV4_CONF_PROMOTE_SECONDARIES=20,
+	__NET_IPV4_CONF_MAX
 };
 
 /* /proc/sys/net/ipv4/netfilter */
@@ -410,6 +421,19 @@ enum
 	NET_IPV4_NF_CONNTRACK_ICMP_TIMEOUT=12,
 	NET_IPV4_NF_CONNTRACK_GENERIC_TIMEOUT=13,
 	NET_IPV4_NF_CONNTRACK_BUCKETS=14,
+	NET_IPV4_NF_CONNTRACK_LOG_INVALID=15,
+	NET_IPV4_NF_CONNTRACK_TCP_TIMEOUT_MAX_RETRANS=16,
+	NET_IPV4_NF_CONNTRACK_TCP_LOOSE=17,
+	NET_IPV4_NF_CONNTRACK_TCP_BE_LIBERAL=18,
+	NET_IPV4_NF_CONNTRACK_TCP_MAX_RETRANS=19,
+ 	NET_IPV4_NF_CONNTRACK_SCTP_TIMEOUT_CLOSED=20,
+ 	NET_IPV4_NF_CONNTRACK_SCTP_TIMEOUT_COOKIE_WAIT=21,
+ 	NET_IPV4_NF_CONNTRACK_SCTP_TIMEOUT_COOKIE_ECHOED=22,
+ 	NET_IPV4_NF_CONNTRACK_SCTP_TIMEOUT_ESTABLISHED=23,
+ 	NET_IPV4_NF_CONNTRACK_SCTP_TIMEOUT_SHUTDOWN_SENT=24,
+ 	NET_IPV4_NF_CONNTRACK_SCTP_TIMEOUT_SHUTDOWN_RECD=25,
+ 	NET_IPV4_NF_CONNTRACK_SCTP_TIMEOUT_SHUTDOWN_ACK_SENT=26,
+	NET_IPV4_NF_CONNTRACK_COUNT=27,
 };
  
 /* /proc/sys/net/ipv6 */
@@ -435,7 +459,8 @@ enum {
 	NET_IPV6_ROUTE_GC_INTERVAL=6,
 	NET_IPV6_ROUTE_GC_ELASTICITY=7,
 	NET_IPV6_ROUTE_MTU_EXPIRES=8,
-	NET_IPV6_ROUTE_MIN_ADVMSS=9
+	NET_IPV6_ROUTE_MIN_ADVMSS=9,
+	NET_IPV6_ROUTE_GC_MIN_INTERVAL_MS=10
 };
 
 enum {
@@ -455,7 +480,8 @@ enum {
 	NET_IPV6_REGEN_MAX_RETRY=14,
 	NET_IPV6_MAX_DESYNC_FACTOR=15,
 	NET_IPV6_MAX_ADDRESSES=16,
-	NET_IPV6_FORCE_MLD_VERSION=17
+	NET_IPV6_FORCE_MLD_VERSION=17,
+	__NET_IPV6_MAX
 };
 
 /* /proc/sys/net/ipv6/icmp */
@@ -480,7 +506,10 @@ enum {
 	NET_NEIGH_GC_INTERVAL=13,
 	NET_NEIGH_GC_THRESH1=14,
 	NET_NEIGH_GC_THRESH2=15,
-	NET_NEIGH_GC_THRESH3=16
+	NET_NEIGH_GC_THRESH3=16,
+	NET_NEIGH_RETRANS_TIME_MS=17,
+	NET_NEIGH_REACHABLE_TIME_MS=18,
+	__NET_NEIGH_MAX
 };
 
 /* /proc/sys/net/ipx */
@@ -616,6 +645,7 @@ enum {
 	NET_SCTP_MAX_BURST               = 12,
 	NET_SCTP_ADDIP_ENABLE		 = 13,
 	NET_SCTP_PRSCTP_ENABLE		 = 14,
+	NET_SCTP_SNDBUF_POLICY		 = 15,
 };
 
 /* /proc/sys/net/bridge */
@@ -646,7 +676,7 @@ enum
 	FS_LEASES=13,	/* int: leases enabled */
 	FS_DIR_NOTIFY=14,	/* int: directory notification enabled */
 	FS_LEASE_TIME=15,	/* int: maximum time to wait for a lease break */
-	FS_DQSTATS=16,	/* disc quota usage statistics */
+	FS_DQSTATS=16,	/* disc quota usage statistics and control */
 	FS_XFS=17,	/* struct: control xfs parameters */
 	FS_AIO_NR=18,	/* current system-wide number of aio requests */
 	FS_AIO_MAX_NR=19,	/* system-wide maximum number of aio requests */
@@ -662,6 +692,7 @@ enum {
 	FS_DQ_ALLOCATED = 6,
 	FS_DQ_FREE = 7,
 	FS_DQ_SYNCS = 8,
+	FS_DQ_WARNINGS = 9,
 };
 
 /* CTL_DEBUG names: */
@@ -776,6 +807,8 @@ extern int proc_dointvec_jiffies(ctl_table *, int, struct file *,
 				 void __user *, size_t *, loff_t *);
 extern int proc_dointvec_userhz_jiffies(ctl_table *, int, struct file *,
 					void __user *, size_t *, loff_t *);
+extern int proc_dointvec_ms_jiffies(ctl_table *, int, struct file *,
+				    void __user *, size_t *, loff_t *);
 extern int proc_doulongvec_minmax(ctl_table *, int, struct file *,
 				  void __user *, size_t *, loff_t *);
 extern int proc_doulongvec_ms_jiffies_minmax(ctl_table *table, int,
@@ -793,6 +826,7 @@ extern int do_sysctl_strategy (ctl_table *table,
 extern ctl_handler sysctl_string;
 extern ctl_handler sysctl_intvec;
 extern ctl_handler sysctl_jiffies;
+extern ctl_handler sysctl_ms_jiffies;
 
 
 /*

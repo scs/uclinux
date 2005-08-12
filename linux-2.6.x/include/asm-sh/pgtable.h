@@ -1,6 +1,8 @@
 #ifndef __ASM_SH_PGTABLE_H
 #define __ASM_SH_PGTABLE_H
 
+#include <asm-generic/4level-fixup.h>
+
 /*
  * Copyright (C) 1999 Niibe Yutaka
  * Copyright (C) 2002, 2003, 2004 Paul Mundt
@@ -42,7 +44,7 @@ extern unsigned long empty_zero_page[1024];
 #define PGDIR_MASK	(~(PGDIR_SIZE-1))
 
 #define USER_PTRS_PER_PGD	(TASK_SIZE/PGDIR_SIZE)
-#define FIRST_USER_PGD_NR	0
+#define FIRST_USER_ADDRESS	0
 
 #define PTE_PHYS_MASK	0x1ffff000
 
@@ -162,7 +164,7 @@ extern unsigned long empty_zero_page[1024];
 
 #define pte_none(x)	(!pte_val(x))
 #define pte_present(x)	(pte_val(x) & (_PAGE_PRESENT | _PAGE_PROTNONE))
-#define pte_clear(xp)	do { set_pte(xp, __pte(0)); } while (0)
+#define pte_clear(mm,addr,xp)	do { set_pte_at(mm, addr, xp, __pte(0)); } while (0)
 
 #define pmd_none(x)	(!pmd_val(x))
 #define pmd_present(x)	(pmd_val(x) & _PAGE_PRESENT)
@@ -274,7 +276,15 @@ typedef pte_t *pte_addr_t;
 
 #define kern_addr_valid(addr)	(1)
 
-#define io_remap_page_range remap_page_range
+#define io_remap_page_range(vma, vaddr, paddr, size, prot)		\
+		remap_pfn_range(vma, vaddr, (paddr) >> PAGE_SHIFT, size, prot)
+
+#define io_remap_pfn_range(vma, vaddr, pfn, size, prot)		\
+		remap_pfn_range(vma, vaddr, pfn, size, prot)
+
+#define MK_IOSPACE_PFN(space, pfn)	(pfn)
+#define GET_IOSPACE(pfn)		0
+#define GET_PFN(pfn)			(pfn)
 
 /*
  * No page table caches to initialise
@@ -285,9 +295,9 @@ typedef pte_t *pte_addr_t;
 extern unsigned int kobjsize(const void *objp);
 #endif /* !CONFIG_MMU */
 
-#ifdef CONFIG_CPU_SH4
+#if defined(CONFIG_CPU_SH4) || defined(CONFIG_SH7705_CACHE_32KB)
 #define __HAVE_ARCH_PTEP_GET_AND_CLEAR
-extern inline pte_t ptep_get_and_clear(pte_t *ptep);
+extern pte_t ptep_get_and_clear(struct mm_struct *mm, unsigned long addr, pte_t *ptep);
 #endif
 
 #include <asm-generic/pgtable.h>

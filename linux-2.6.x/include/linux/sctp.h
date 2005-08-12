@@ -281,7 +281,11 @@ typedef struct sctp_ecn_capable_param {
 	sctp_paramhdr_t param_hdr;
 } __attribute__((packed)) sctp_ecn_capable_param_t;
 
-
+/* ADDIP Section 3.2.6 Adaption Layer Indication */
+typedef struct sctp_adaption_ind_param {
+	struct sctp_paramhdr param_hdr;
+	__u32 adaption_ind;
+} __attribute__((packed)) sctp_adaption_ind_param_t;
 
 /* RFC 2960.  Section 3.3.3 Initiation Acknowledgement (INIT ACK) (2):
  *   The INIT ACK chunk is used to acknowledge the initiation of an SCTP
@@ -360,7 +364,7 @@ typedef struct sctp_heartbeat_chunk {
  */
 typedef struct sctp_abort_chunk {
         sctp_chunkhdr_t uh;
-} __attribute__((packed)) sctp_abort_chunkt_t;
+} __attribute__((packed)) sctp_abort_chunk_t;
 
 
 /* For the graceful shutdown we must carry the tag (in common header)

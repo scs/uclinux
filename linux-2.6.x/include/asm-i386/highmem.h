@@ -33,23 +33,32 @@ extern pte_t *kmap_pte;
 extern pgprot_t kmap_prot;
 extern pte_t *pkmap_page_table;
 
-extern void kmap_init(void);
-
 /*
  * Right now we initialize only a single pte table. It can be extended
  * easily, subsequent pte tables have to be allocated in one physical
  * chunk of RAM.
  */
-#if NR_CPUS <= 32
-#define PKMAP_BASE (0xff800000UL)
-#else
-#define PKMAP_BASE (0xff600000UL)
-#endif
 #ifdef CONFIG_X86_PAE
 #define LAST_PKMAP 512
 #else
 #define LAST_PKMAP 1024
 #endif
+/*
+ * Ordering is:
+ *
+ * FIXADDR_TOP
+ * 			fixed_addresses
+ * FIXADDR_START
+ * 			temp fixed addresses
+ * FIXADDR_BOOT_START
+ * 			Persistent kmap area
+ * PKMAP_BASE
+ * VMALLOC_END
+ * 			Vmalloc area
+ * VMALLOC_START
+ * high_memory
+ */
+#define PKMAP_BASE ( (FIXADDR_BOOT_START - PAGE_SIZE*(LAST_PKMAP + 1)) & PMD_MASK )
 #define LAST_PKMAP_MASK (LAST_PKMAP-1)
 #define PKMAP_NR(virt)  ((virt-PKMAP_BASE) >> PAGE_SHIFT)
 #define PKMAP_ADDR(nr)  (PKMAP_BASE + ((nr) << PAGE_SHIFT))

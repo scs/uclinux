@@ -2,7 +2,7 @@
 #define _ASM_IA64_PTRACE_H
 
 /*
- * Copyright (C) 1998-2003 Hewlett-Packard Co
+ * Copyright (C) 1998-2004 Hewlett-Packard Co
  *	David Mosberger-Tang <davidm@hpl.hp.com>
  *	Stephane Eranian <eranian@hpl.hp.com>
  * Copyright (C) 2003 Intel Co
@@ -110,7 +110,11 @@ struct pt_regs {
 
 	unsigned long cr_ipsr;		/* interrupted task's psr */
 	unsigned long cr_iip;		/* interrupted task's instruction pointer */
-	unsigned long cr_ifs;		/* interrupted task's function state */
+	/*
+	 * interrupted task's function state; if bit 63 is cleared, it
+	 * contains syscall's ar.pfs.pfm:
+	 */
+	unsigned long cr_ifs;
 
 	unsigned long ar_unat;		/* interrupted task's NaT register (preserved) */
 	unsigned long ar_pfs;		/* prev function state  */
@@ -229,6 +233,15 @@ struct switch_stack {
  * the canonical representation by adding to instruction pointer.
  */
 # define instruction_pointer(regs) ((regs)->cr_iip + ia64_psr(regs)->ri)
+/* Conserve space in histogram by encoding slot bits in address
+ * bits 2 and 3 rather than bits 0 and 1.
+ */
+#define profile_pc(regs)						\
+({									\
+	unsigned long __ip = instruction_pointer(regs);			\
+	(__ip & ~3UL) + ((__ip & 3UL) << 2);				\
+})
+
   /* given a pointer to a task_struct, return the user's pt_regs */
 # define ia64_task_regs(t)		(((struct pt_regs *) ((char *) (t) + IA64_STK_OFFSET)) - 1)
 # define ia64_psr(regs)			((struct ia64_psr *) &(regs)->cr_ipsr)

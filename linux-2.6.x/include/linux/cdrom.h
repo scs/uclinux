@@ -452,6 +452,7 @@ struct cdrom_generic_command
 #define GPCMD_PREVENT_ALLOW_MEDIUM_REMOVAL  0x1e
 #define GPCMD_READ_10			    0x28
 #define GPCMD_READ_12			    0xa8
+#define GPCMD_READ_BUFFER_CAPACITY	    0x5c
 #define GPCMD_READ_CDVD_CAPACITY	    0x25
 #define GPCMD_READ_CD			    0xbe
 #define GPCMD_READ_CD_MSF		    0xb9
@@ -466,9 +467,10 @@ struct cdrom_generic_command
 #define GPCMD_REPORT_KEY		    0xa4
 #define GPCMD_REQUEST_SENSE		    0x03
 #define GPCMD_RESERVE_RZONE_TRACK	    0x53
+#define GPCMD_SEND_CUE_SHEET		    0x5d
 #define GPCMD_SCAN			    0xba
 #define GPCMD_SEEK			    0x2b
-#define GPCMD_SEND_DVD_STRUCTURE	    0xad
+#define GPCMD_SEND_DVD_STRUCTURE	    0xbf
 #define GPCMD_SEND_EVENT		    0xa2
 #define GPCMD_SEND_KEY			    0xa3
 #define GPCMD_SEND_OPC			    0x54
@@ -498,6 +500,7 @@ struct cdrom_generic_command
 #define GPMODE_VENDOR_PAGE		0x00
 #define GPMODE_R_W_ERROR_PAGE		0x01
 #define GPMODE_WRITE_PARMS_PAGE		0x05
+#define GPMODE_WCACHING_PAGE		0x08
 #define GPMODE_AUDIO_CTL_PAGE		0x0e
 #define GPMODE_POWER_PAGE		0x1a
 #define GPMODE_FAULT_FAIL_PAGE		0x1c
@@ -946,6 +949,8 @@ struct cdrom_device_info {
         __u8 reserved		: 6;	/* not used yet */
 	int cdda_method;		/* see flags */
 	__u8 last_sense;
+	__u8 media_written;		/* dirty flag, DVD+RW bookkeeping */
+	unsigned short mmc3_profile;	/* current MMC3 profile */
 	int for_data;
 	int (*exit)(struct cdrom_device_info *);
 	int mrw_mode_page;
@@ -1181,8 +1186,6 @@ struct media_event_desc {
 };
 
 extern int cdrom_get_media_event(struct cdrom_device_info *cdi, struct media_event_desc *med);
-extern int cdrom_is_mrw(struct cdrom_device_info *cdi, int *write);
-extern int cdrom_is_random_writable(struct cdrom_device_info *cdi, int *write);
 
 #endif  /* End of kernel only stuff */ 
 

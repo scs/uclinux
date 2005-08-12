@@ -24,10 +24,13 @@
 #define HSM               6UL
 #define MULTIPATH         7UL
 #define RAID6		  8UL
-#define MAX_PERSONALITY   9UL
+#define	RAID10		  9UL
+#define FAULTY		  10UL
+#define MAX_PERSONALITY   11UL
 
 #define	LEVEL_MULTIPATH		(-4)
 #define	LEVEL_LINEAR		(-1)
+#define	LEVEL_FAULTY		(-5)
 
 #define MaxSector (~(sector_t)0)
 #define MD_THREAD_NAME_MAX 14
@@ -35,6 +38,7 @@
 static inline int pers_to_level (int pers)
 {
 	switch (pers) {
+		case FAULTY:		return LEVEL_FAULTY;
 		case MULTIPATH:		return LEVEL_MULTIPATH;
 		case HSM:		return -3;
 		case TRANSLUCENT:	return -2;
@@ -43,6 +47,7 @@ static inline int pers_to_level (int pers)
 		case RAID1:		return 1;
 		case RAID5:		return 5;
 		case RAID6:		return 6;
+		case RAID10:		return 10;
 	}
 	BUG();
 	return MD_RESERVED;
@@ -51,6 +56,7 @@ static inline int pers_to_level (int pers)
 static inline int level_to_pers (int level)
 {
 	switch (level) {
+		case LEVEL_FAULTY: return FAULTY;
 		case LEVEL_MULTIPATH: return MULTIPATH;
 		case -3: return HSM;
 		case -2: return TRANSLUCENT;
@@ -60,6 +66,7 @@ static inline int level_to_pers (int level)
 		case 4:
 		case 5: return RAID5;
 		case 6: return RAID6;
+		case 10: return RAID10;
 	}
 	return MD_RESERVED;
 }
@@ -216,6 +223,7 @@ struct mddev_s
 	unsigned long			resync_mark;	/* a recent timestamp */
 	sector_t			resync_mark_cnt;/* blocks written at resync_mark */
 
+	sector_t			resync_max_sectors; /* may be set by personality */
 	/* recovery/resync flags 
 	 * NEEDED:   we might need to start a resync/recover
 	 * RUNNING:  a thread is running, or about to be started
@@ -263,6 +271,11 @@ static inline void rdev_dec_pending(mdk_rdev_t *rdev, mddev_t *mddev)
 		set_bit(MD_RECOVERY_NEEDED, &mddev->recovery);
 }
 
+static inline void md_sync_acct(struct block_device *bdev, unsigned long nr_sectors)
+{
+        atomic_add(nr_sectors, &bdev->bd_contains->bd_disk->sync_io);
+}
+
 struct mdk_personality_s
 {
 	char *name;
@@ -281,6 +294,7 @@ struct mdk_personality_s
 	int (*sync_request)(mddev_t *mddev, sector_t sector_nr, int go_faster);
 	int (*resize) (mddev_t *mddev, sector_t sectors);
 	int (*reshape) (mddev_t *mddev, int raid_disks);
+	int (*reconfig) (mddev_t *mddev, int layout, int chunk_size);
 };
 
 

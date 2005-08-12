@@ -19,12 +19,12 @@
 #include <asm/pal.h>
 #include <asm/percpu.h>
 
-#define GATE_ADDR		(0xa000000000000000)
+#define GATE_ADDR		__IA64_UL_CONST(0xa000000000000000)
 /*
  * 0xa000000000000000+2*PERCPU_PAGE_SIZE
  * - 0xa000000000000000+3*PERCPU_PAGE_SIZE remain unmapped (guard page)
  */
-#define KERNEL_START		 0xa000000100000000
+#define KERNEL_START		 __IA64_UL_CONST(0xa000000100000000)
 #define PERCPU_ADDR		(-PERCPU_PAGE_SIZE)
 
 #ifndef __ASSEMBLY__
@@ -283,6 +283,10 @@ do {						\
 #define task_running(rq, p) 		((rq)->curr == (p) || spin_is_locked(&(p)->switch_lock))
 
 #define ia64_platform_is(x) (strcmp(x, platform_name) == 0)
+
+void cpu_idle_wait(void);
+
+#define arch_align_stack(x) (x)
 
 #endif /* __KERNEL__ */
 

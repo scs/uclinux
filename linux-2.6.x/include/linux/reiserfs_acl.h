@@ -5,18 +5,18 @@
 #define REISERFS_ACL_VERSION	0x0001
 
 typedef struct {
-	__u16		e_tag;
-	__u16		e_perm;
-	__u32		e_id;
+	__le16		e_tag;
+	__le16		e_perm;
+	__le32		e_id;
 } reiserfs_acl_entry;
 
 typedef struct {
-	__u16		e_tag;
-	__u16		e_perm;
+	__le16		e_tag;
+	__le16		e_perm;
 } reiserfs_acl_entry_short;
 
 typedef struct {
-	__u32		a_version;
+	__le32		a_version;
 } reiserfs_acl_header;
 
 static inline size_t reiserfs_acl_size(int count)
@@ -50,7 +50,6 @@ static inline int reiserfs_acl_count(size_t size)
 
 #ifdef CONFIG_REISERFS_FS_POSIX_ACL
 struct posix_acl * reiserfs_get_acl(struct inode *inode, int type);
-int reiserfs_set_acl(struct inode *inode, int type, struct posix_acl *acl);
 int reiserfs_acl_chmod (struct inode *inode);
 int reiserfs_inherit_default_acl (struct inode *dir, struct dentry *dentry, struct inode *inode);
 int reiserfs_cache_default_acl (struct inode *dir);
@@ -60,7 +59,6 @@ extern struct reiserfs_xattr_handler posix_acl_default_handler;
 extern struct reiserfs_xattr_handler posix_acl_access_handler;
 #else
 
-#define reiserfs_set_acl NULL
 #define reiserfs_get_acl NULL
 #define reiserfs_cache_default_acl(inode) 0
 

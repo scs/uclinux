@@ -19,7 +19,7 @@ struct thread_info {
 
 	struct exec_domain	*exec_domain;	/* execution domain */
 	mm_segment_t		addr_limit;	/* thread address space */
-	long			cpu;		/* current CPU */
+	unsigned		cpu;		/* current CPU */
 	int			preempt_count; /* 0 => preemptable, <0 => BUG */
 
 	int bpt_nsaved;
@@ -77,6 +77,7 @@ register struct thread_info *__current_thread_info __asm__("$8");
 #define TIF_UAC_NOPRINT		6	/* see sysinfo.h */
 #define TIF_UAC_NOFIX		7
 #define TIF_UAC_SIGBUS		8
+#define TIF_MEMDIE		9
 
 #define _TIF_SYSCALL_TRACE	(1<<TIF_SYSCALL_TRACE)
 #define _TIF_NOTIFY_RESUME	(1<<TIF_NOTIFY_RESUME)

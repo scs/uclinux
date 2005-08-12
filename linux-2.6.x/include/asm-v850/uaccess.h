@@ -27,7 +27,8 @@ extern inline int access_ok (int type, const void *addr, unsigned long size)
 	return val >= (0x80 + NUM_CPU_IRQS*16) && val < 0xFFFFF000;
 }
 
-extern inline int verify_area (int type, const void *addr, unsigned long size)
+/* this function will go away soon - use access_ok() instead */
+extern inline int __deprecated verify_area (int type, const void *addr, unsigned long size)
 {
 	return access_ok (type, addr, size) ? 0 : -EFAULT;
 }
@@ -111,6 +112,9 @@ extern int bad_user_access_length (void);
 
 #define __copy_from_user(to, from, n)	(memcpy (to, from, n), 0)
 #define __copy_to_user(to, from, n)	(memcpy(to, from, n), 0)
+
+#define __copy_to_user_inatomic __copy_to_user
+#define __copy_from_user_inatomic __copy_from_user
 
 #define copy_from_user(to, from, n)	__copy_from_user (to, from, n)
 #define copy_to_user(to, from, n) 	__copy_to_user(to, from, n)

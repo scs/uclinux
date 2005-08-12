@@ -69,18 +69,16 @@ union tce_entry {
 
 struct iommu_table {
 	unsigned long  it_busno;     /* Bus number this table belongs to */
-	unsigned long  it_size;      /* Size in pages of iommu table */
+	unsigned long  it_size;      /* Size of iommu table in entries */
 	unsigned long  it_offset;    /* Offset into global table */
 	unsigned long  it_base;      /* mapped address of tce table */
 	unsigned long  it_index;     /* which iommu table this is */
 	unsigned long  it_type;      /* type: PCI or Virtual Bus */
-	unsigned long  it_entrysize; /* Size of an entry in bytes */
 	unsigned long  it_blocksize; /* Entries in each block (cacheline) */
 	unsigned long  it_hint;      /* Hint for next alloc */
 	unsigned long  it_largehint; /* Hint for large allocs */
 	unsigned long  it_halfpoint; /* Breaking point for small/large allocs */
 	spinlock_t     it_lock;      /* Protects it_map */
-	unsigned long  it_mapsize;   /* Size of map in # of entries (bits) */
 	unsigned long *it_map;       /* A simple allocation bitmap for now */
 };
 
@@ -104,16 +102,26 @@ extern struct iommu_table vio_tce_table;      /* Tce table for virtual bus */
 
 struct scatterlist;
 
-#ifdef CONFIG_PPC_PSERIES
+#ifdef CONFIG_PPC_MULTIPLATFORM
+
 /* Walks all buses and creates iommu tables */
 extern void iommu_setup_pSeries(void);
-extern void iommu_setup_pmac(void);
+extern void iommu_setup_u3(void);
+
+/* Frees table for an individual device node */
+extern void iommu_free_table(struct device_node *dn);
+
+#endif /* CONFIG_PPC_MULTIPLATFORM */
+
+#ifdef CONFIG_PPC_PSERIES
 
 /* Creates table for an individual device node */
-extern void iommu_devnode_init(struct device_node *dn);
+extern void iommu_devnode_init_pSeries(struct device_node *dn);
+
 #endif /* CONFIG_PPC_PSERIES */
 
 #ifdef CONFIG_PPC_ISERIES
+
 /* Walks all buses and creates iommu tables */
 extern void iommu_setup_iSeries(void);
 
@@ -122,9 +130,9 @@ extern void __init iommu_vio_init(void);
 
 struct iSeries_Device_Node;
 /* Creates table for an individual device node */
-extern void iommu_devnode_init(struct iSeries_Device_Node *dn);
-#endif /* CONFIG_PPC_ISERIES */
+extern void iommu_devnode_init_iSeries(struct iSeries_Device_Node *dn);
 
+#endif /* CONFIG_PPC_ISERIES */
 
 /* Initializes an iommu_table based in values set in the passed-in
  * structure
@@ -137,21 +145,22 @@ extern int iommu_map_sg(struct device *dev, struct iommu_table *tbl,
 extern void iommu_unmap_sg(struct iommu_table *tbl, struct scatterlist *sglist,
 		int nelems, enum dma_data_direction direction);
 
-extern void *iommu_alloc_consistent(struct iommu_table *tbl, size_t size,
-		dma_addr_t *dma_handle);
-extern void iommu_free_consistent(struct iommu_table *tbl, size_t size,
+extern void *iommu_alloc_coherent(struct iommu_table *tbl, size_t size,
+		dma_addr_t *dma_handle, unsigned int __nocast flag);
+extern void iommu_free_coherent(struct iommu_table *tbl, size_t size,
 		void *vaddr, dma_addr_t dma_handle);
 extern dma_addr_t iommu_map_single(struct iommu_table *tbl, void *vaddr,
 		size_t size, enum dma_data_direction direction);
 extern void iommu_unmap_single(struct iommu_table *tbl, dma_addr_t dma_handle,
 		size_t size, enum dma_data_direction direction);
 
-extern void tce_init_pSeries(void);
-extern void tce_init_iSeries(void);
+extern void iommu_init_early_pSeries(void);
+extern void iommu_init_early_iSeries(void);
+extern void iommu_init_early_u3(void);
 
 extern void pci_iommu_init(void);
-extern void pci_dma_init_direct(void);
+extern void pci_direct_iommu_init(void);
 
-extern int ppc64_iommu_off;
+extern void alloc_u3_dart_table(void);
 
 #endif /* _ASM_IOMMU_H */

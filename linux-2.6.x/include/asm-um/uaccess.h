@@ -6,6 +6,8 @@
 #ifndef __UM_UACCESS_H
 #define __UM_UACCESS_H
 
+#include "linux/sched.h"
+
 #define VERIFY_READ 0
 #define VERIFY_WRITE 1
 
@@ -34,6 +36,9 @@
 
 #define __copy_to_user(to, from, n) copy_to_user(to, from, n)
 
+#define __copy_to_user_inatomic __copy_to_user
+#define __copy_from_user_inatomic __copy_from_user
+
 #define __get_user(x, ptr) \
 ({ \
         const __typeof__(ptr) __private_ptr = ptr; \
@@ -50,7 +55,7 @@
 
 #define get_user(x, ptr) \
 ({ \
-        const __typeof__((*ptr)) *private_ptr = (ptr); \
+        const __typeof__((*(ptr))) __user *private_ptr = (ptr); \
         (access_ok(VERIFY_READ, private_ptr, sizeof(*private_ptr)) ? \
 	 __get_user(x, private_ptr) : ((x) = 0, -EFAULT)); \
 })
@@ -70,7 +75,7 @@
 
 #define put_user(x, ptr) \
 ({ \
-        __typeof__(*(ptr)) *private_ptr = (ptr); \
+        __typeof__(*(ptr)) __user *private_ptr = (ptr); \
         (access_ok(VERIFY_WRITE, private_ptr, sizeof(*private_ptr)) ? \
 	 __put_user(x, private_ptr) : -EFAULT); \
 })

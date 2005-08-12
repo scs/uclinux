@@ -8,7 +8,9 @@
 
 #ifndef __ASSEMBLY__
 
+#include <linux/config.h>
 #include <asm/processor.h>
+#include <asm/types.h>
 
 struct thread_info {
 	struct task_struct	*task;		/* main task structure */
@@ -39,25 +41,27 @@ struct thread_info {
 #define init_thread_info	(init_thread_union.thread_info)
 #define init_stack		(init_thread_union.stack)
 
+#define THREAD_SIZE ((1 << CONFIG_KERNEL_STACK_ORDER) * PAGE_SIZE)
 /* how to get the thread information struct from C */
 static inline struct thread_info *current_thread_info(void)
 {
 	struct thread_info *ti;
-	__asm__("andl %%esp,%0; ":"=r" (ti) : "0" (~16383UL));
+	unsigned long mask = THREAD_SIZE - 1;
+	ti = (struct thread_info *) (((unsigned long) &ti) & ~mask);
 	return ti;
 }
 
 /* thread information allocation */
-#define THREAD_SIZE (4*PAGE_SIZE)
-#define alloc_thread_info(tsk) ((struct thread_info *) \
-	__get_free_pages(GFP_KERNEL,2))
-#define free_thread_info(ti) free_pages((unsigned long) (ti), 2)
+#define alloc_thread_info(tsk) \
+	((struct thread_info *) kmalloc(THREAD_SIZE, GFP_KERNEL))
+#define free_thread_info(ti) kfree(ti)
+
 #define get_thread_info(ti) get_task_struct((ti)->task)
 #define put_thread_info(ti) put_task_struct((ti)->task)
 
 #endif
 
-#define PREEMPT_ACTIVE		0x4000000
+#define PREEMPT_ACTIVE		0x10000000
 
 #define TIF_SYSCALL_TRACE	0	/* syscall trace active */
 #define TIF_SIGPENDING		1	/* signal pending */
@@ -65,11 +69,16 @@ static inline struct thread_info *current_thread_info(void)
 #define TIF_POLLING_NRFLAG      3       /* true if poll_idle() is polling 
 					 * TIF_NEED_RESCHED 
 					 */
+#define TIF_RESTART_BLOCK 	4
+#define TIF_MEMDIE	 	5
+#define TIF_SYSCALL_AUDIT	6
 
 #define _TIF_SYSCALL_TRACE	(1 << TIF_SYSCALL_TRACE)
 #define _TIF_SIGPENDING		(1 << TIF_SIGPENDING)
 #define _TIF_NEED_RESCHED	(1 << TIF_NEED_RESCHED)
 #define _TIF_POLLING_NRFLAG     (1 << TIF_POLLING_NRFLAG)
+#define _TIF_MEMDIE		(1 << TIF_MEMDIE)
+#define _TIF_SYSCALL_AUDIT	(1 << TIF_SYSCALL_AUDIT)
 
 #endif
 

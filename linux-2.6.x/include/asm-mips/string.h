@@ -18,6 +18,8 @@
  */
 #ifdef CONFIG_MIPS32
 
+#ifndef IN_STRING_C
+
 #define __HAVE_ARCH_STRCPY
 static __inline__ char *strcpy(char *__dest, __const__ char *__src)
 {
@@ -96,6 +98,8 @@ static __inline__ int strcmp(__const__ char *__cs, __const__ char *__ct)
   return __res;
 }
 
+#endif /* !defined(IN_STRING_C) */
+
 #define __HAVE_ARCH_STRNCMP
 static __inline__ int
 strncmp(__const__ char *__cs, __const__ char *__ct, size_t __count)
@@ -136,9 +140,6 @@ extern void *memcpy(void *__to, __const__ void *__from, size_t __n);
 
 #define __HAVE_ARCH_MEMMOVE
 extern void *memmove(void *__dest, __const__ void *__src, size_t __n);
-
-/* Don't build bcopy at all ...  */
-#define __HAVE_ARCH_BCOPY
 
 #ifdef CONFIG_MIPS32
 #define __HAVE_ARCH_MEMSCAN

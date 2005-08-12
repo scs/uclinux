@@ -195,6 +195,21 @@ static inline void list_del_rcu(struct list_head *entry)
 	entry->prev = LIST_POISON2;
 }
 
+/*
+ * list_replace_rcu - replace old entry by new one
+ * @old : the element to be replaced
+ * @new : the new element to insert
+ *
+ * The old entry will be replaced with the new entry atomically.
+ */
+static inline void list_replace_rcu(struct list_head *old, struct list_head *new){
+	new->next = old->next;
+	new->prev = old->prev;
+	smp_wmb();
+	new->next->prev = new;
+	new->prev->next = new;
+}
+
 /**
  * list_del_init - deletes entry from list and reinitialize it.
  * @entry: the element to delete from the list.
@@ -311,8 +326,8 @@ static inline void list_splice_init(struct list_head *list,
  * @head:	the head for your list.
  */
 #define list_for_each(pos, head) \
-	for (pos = (head)->next, prefetch(pos->next); pos != (head); \
-        	pos = pos->next, prefetch(pos->next))
+	for (pos = (head)->next; prefetch(pos->next), pos != (head); \
+        	pos = pos->next)
 
 /**
  * __list_for_each	-	iterate over a list
@@ -333,8 +348,8 @@ static inline void list_splice_init(struct list_head *list,
  * @head:	the head for your list.
  */
 #define list_for_each_prev(pos, head) \
-	for (pos = (head)->prev, prefetch(pos->prev); pos != (head); \
-        	pos = pos->prev, prefetch(pos->prev))
+	for (pos = (head)->prev; prefetch(pos->prev), pos != (head); \
+        	pos = pos->prev)
 
 /**
  * list_for_each_safe	-	iterate over a list safe against removal of list entry
@@ -353,11 +368,9 @@ static inline void list_splice_init(struct list_head *list,
  * @member:	the name of the list_struct within the struct.
  */
 #define list_for_each_entry(pos, head, member)				\
-	for (pos = list_entry((head)->next, typeof(*pos), member),	\
-		     prefetch(pos->member.next);			\
-	     &pos->member != (head); 					\
-	     pos = list_entry(pos->member.next, typeof(*pos), member),	\
-		     prefetch(pos->member.next))
+	for (pos = list_entry((head)->next, typeof(*pos), member);	\
+	     prefetch(pos->member.next), &pos->member != (head); 	\
+	     pos = list_entry(pos->member.next, typeof(*pos), member))
 
 /**
  * list_for_each_entry_reverse - iterate backwards over list of given type.
@@ -366,11 +379,9 @@ static inline void list_splice_init(struct list_head *list,
  * @member:	the name of the list_struct within the struct.
  */
 #define list_for_each_entry_reverse(pos, head, member)			\
-	for (pos = list_entry((head)->prev, typeof(*pos), member),	\
-		     prefetch(pos->member.prev);			\
-	     &pos->member != (head); 					\
-	     pos = list_entry(pos->member.prev, typeof(*pos), member),	\
-		     prefetch(pos->member.prev))
+	for (pos = list_entry((head)->prev, typeof(*pos), member);	\
+	     prefetch(pos->member.prev), &pos->member != (head); 	\
+	     pos = list_entry(pos->member.prev, typeof(*pos), member))
 
 /**
  * list_prepare_entry - prepare a pos entry for use as a start point in
@@ -390,11 +401,9 @@ static inline void list_splice_init(struct list_head *list,
  * @member:	the name of the list_struct within the struct.
  */
 #define list_for_each_entry_continue(pos, head, member) 		\
-	for (pos = list_entry(pos->member.next, typeof(*pos), member),	\
-		     prefetch(pos->member.next);			\
-	     &pos->member != (head);					\
-	     pos = list_entry(pos->member.next, typeof(*pos), member),	\
-		     prefetch(pos->member.next))
+	for (pos = list_entry(pos->member.next, typeof(*pos), member);	\
+	     prefetch(pos->member.next), &pos->member != (head);	\
+	     pos = list_entry(pos->member.next, typeof(*pos), member))
 
 /**
  * list_for_each_entry_safe - iterate over list of given type safe against removal of list entry
@@ -419,12 +428,12 @@ static inline void list_splice_init(struct list_head *list,
  * as long as the traversal is guarded by rcu_read_lock().
  */
 #define list_for_each_rcu(pos, head) \
-	for (pos = (head)->next, prefetch(pos->next); pos != (head); \
-        	pos = pos->next, ({ smp_read_barrier_depends(); 0;}), prefetch(pos->next))
+	for (pos = (head)->next; prefetch(pos->next), pos != (head); \
+        	pos = rcu_dereference(pos->next))
 
 #define __list_for_each_rcu(pos, head) \
 	for (pos = (head)->next; pos != (head); \
-        	pos = pos->next, ({ smp_read_barrier_depends(); 0;}))
+        	pos = rcu_dereference(pos->next))
 
 /**
  * list_for_each_safe_rcu	-	iterate over an rcu-protected list safe
@@ -439,7 +448,7 @@ static inline void list_splice_init(struct list_head *list,
  */
 #define list_for_each_safe_rcu(pos, n, head) \
 	for (pos = (head)->next, n = pos->next; pos != (head); \
-		pos = n, ({ smp_read_barrier_depends(); 0;}), n = pos->next)
+		pos = rcu_dereference(n), n = pos->next)
 
 /**
  * list_for_each_entry_rcu	-	iterate over rcu list of given type
@@ -452,12 +461,10 @@ static inline void list_splice_init(struct list_head *list,
  * as long as the traversal is guarded by rcu_read_lock().
  */
 #define list_for_each_entry_rcu(pos, head, member)			\
-	for (pos = list_entry((head)->next, typeof(*pos), member),	\
-		     prefetch(pos->member.next);			\
-	     &pos->member != (head); 					\
-	     pos = list_entry(pos->member.next, typeof(*pos), member),	\
-		     ({ smp_read_barrier_depends(); 0;}),		\
-		     prefetch(pos->member.next))
+	for (pos = list_entry((head)->next, typeof(*pos), member);	\
+	     prefetch(pos->member.next), &pos->member != (head); 	\
+	     pos = rcu_dereference(list_entry(pos->member.next, 	\
+					typeof(*pos), member)))
 
 
 /**
@@ -471,8 +478,8 @@ static inline void list_splice_init(struct list_head *list,
  * as long as the traversal is guarded by rcu_read_lock().
  */
 #define list_for_each_continue_rcu(pos, head) \
-	for ((pos) = (pos)->next, prefetch((pos)->next); (pos) != (head); \
-        	(pos) = (pos)->next, ({ smp_read_barrier_depends(); 0;}), prefetch((pos)->next))
+	for ((pos) = (pos)->next; prefetch((pos)->next), (pos) != (head); \
+        	(pos) = rcu_dereference((pos)->next))
 
 /*
  * Double linked lists with a single pointer list head.
@@ -553,8 +560,6 @@ static inline void hlist_del_init(struct hlist_node *n)
 	}
 }
 
-#define hlist_del_rcu_init hlist_del_init
-
 static inline void hlist_add_head(struct hlist_node *n, struct hlist_head *h)
 {
 	struct hlist_node *first = h->first;
@@ -578,12 +583,9 @@ static inline void hlist_add_head(struct hlist_node *n, struct hlist_head *h)
  * or hlist_del_rcu(), running on this same list.
  * However, it is perfectly legal to run concurrently with
  * the _rcu list-traversal primitives, such as
- * hlist_for_each_entry(), but only if smp_read_barrier_depends()
- * is used to prevent memory-consistency problems on Alpha CPUs.
- * Regardless of the type of CPU, the list-traversal primitive
- * must be guarded by rcu_read_lock().
- *
- * OK, so why don't we have an hlist_for_each_entry_rcu()???
+ * hlist_for_each_rcu(), used to prevent memory-consistency
+ * problems on Alpha CPUs.  Regardless of the type of CPU, the
+ * list-traversal primitive must be guarded by rcu_read_lock().
  */
 static inline void hlist_add_head_rcu(struct hlist_node *n,
 					struct hlist_head *h)
@@ -627,6 +629,10 @@ static inline void hlist_add_after(struct hlist_node *n,
 #define hlist_for_each_safe(pos, n, head) \
 	for (pos = (head)->first; pos && ({ n = pos->next; 1; }); \
 	     pos = n)
+
+#define hlist_for_each_rcu(pos, head) \
+	for ((pos) = (head)->first; pos && ({ prefetch((pos)->next); 1; }); \
+		(pos) = rcu_dereference((pos)->next))
 
 /**
  * hlist_for_each_entry	- iterate over list of given type
@@ -686,14 +692,14 @@ static inline void hlist_add_after(struct hlist_node *n,
  * @member:	the name of the hlist_node within the struct.
  *
  * This list-traversal primitive may safely run concurrently with
- * the _rcu list-mutation primitives such as hlist_add_rcu()
+ * the _rcu list-mutation primitives such as hlist_add_head_rcu()
  * as long as the traversal is guarded by rcu_read_lock().
  */
 #define hlist_for_each_entry_rcu(tpos, pos, head, member)		 \
 	for (pos = (head)->first;					 \
 	     pos && ({ prefetch(pos->next); 1;}) &&			 \
 		({ tpos = hlist_entry(pos, typeof(*tpos), member); 1;}); \
-	     pos = pos->next, ({ smp_read_barrier_depends(); 0; }) )
+	     pos = rcu_dereference(pos->next))
 
 #else
 #warning "don't include kernel headers in userspace"

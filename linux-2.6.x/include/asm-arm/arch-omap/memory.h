@@ -25,8 +25,8 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * You should have received a copy of the  GNU General Public License along
- * with this program; if not, write  to the Free Software Foundation, Inc.,
+ * You should have received a copy of the GNU General Public License along
+ * with this program; if not, write to the Free Software Foundation, Inc.,
  * 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
@@ -59,12 +59,14 @@
  * OMAP-1510 bus address is translated into a Local Bus address if the
  * OMAP bus type is lbus. We do the address translation based on the
  * device overriding the defaults used in the dma-mapping API.
+ * Note that the is_lbus_device() test is not very efficient on 1510
+ * because of the strncmp().
  */
 #ifdef CONFIG_ARCH_OMAP1510
 
 #define virt_to_lbus(x)		((x) - PAGE_OFFSET + OMAP1510_LB_OFFSET)
 #define lbus_to_virt(x)		((x) - OMAP1510_LB_OFFSET + PAGE_OFFSET)
-#define is_lbus_device(dev)	(cpu_is_omap1510() && dev->coherent_dma_mask == 0x0fffffff)
+#define is_lbus_device(dev)	(cpu_is_omap1510() && dev && (strncmp(dev->bus_id, "ohci", 4) == 0))
 
 #define __arch_page_to_dma(dev, page)	({is_lbus_device(dev) ? \
 					(dma_addr_t)virt_to_lbus(page_address(page)) : \

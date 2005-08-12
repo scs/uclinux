@@ -1,24 +1,18 @@
 /*
  * linux/include/asm-arm/arch-iop3xx/timex.h
  *
- * IOP310 architecture timex specifications
+ * IOP3xx architecture timex specifications
  */
 #include <linux/config.h>
 
 
-#ifdef CONFIG_ARCH_IQ80310
+#if defined(CONFIG_ARCH_IQ80321) || defined(CONFIG_ARCH_IQ31244)
 
-#ifndef CONFIG_XSCALE_PMU_TIMER
-/* This is for the on-board timer */
-#define CLOCK_TICK_RATE 33000000 /* Underlying HZ */
-#else
-/* This is for the underlying xs80200 PMU clock. We run the core @ 733MHz */
-#define CLOCK_TICK_RATE	733000000
-#endif // IQ80310
+#define CLOCK_TICK_RATE IOP321_TICK_RATE
 
-#elif defined(CONFIG_ARCH_IQ80321)
+#elif defined(CONFIG_ARCH_IQ80331) || defined(CONFIG_MACH_IQ80332)
 
-#define CLOCK_TICK_RATE 200000000
+#define CLOCK_TICK_RATE IOP331_TICK_RATE
 
 #else
 

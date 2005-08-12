@@ -16,6 +16,22 @@
 		*(.rodata1)						\
 	}								\
 									\
+	/* PCI quirks */						\
+	.pci_fixup        : AT(ADDR(.pci_fixup) - LOAD_OFFSET) {	\
+		VMLINUX_SYMBOL(__start_pci_fixups_early) = .;		\
+		*(.pci_fixup_early)					\
+		VMLINUX_SYMBOL(__end_pci_fixups_early) = .;		\
+		VMLINUX_SYMBOL(__start_pci_fixups_header) = .;		\
+		*(.pci_fixup_header)					\
+		VMLINUX_SYMBOL(__end_pci_fixups_header) = .;		\
+		VMLINUX_SYMBOL(__start_pci_fixups_final) = .;		\
+		*(.pci_fixup_final)					\
+		VMLINUX_SYMBOL(__end_pci_fixups_final) = .;		\
+		VMLINUX_SYMBOL(__start_pci_fixups_enable) = .;		\
+		*(.pci_fixup_enable)					\
+		VMLINUX_SYMBOL(__end_pci_fixups_enable) = .;		\
+	}								\
+									\
 	/* Kernel symbol table: Normal symbols */			\
 	__ksymtab         : AT(ADDR(__ksymtab) - LOAD_OFFSET) {		\
 		VMLINUX_SYMBOL(__start___ksymtab) = .;			\
@@ -47,6 +63,13 @@
 	/* Kernel symbol table: strings */				\
         __ksymtab_strings : AT(ADDR(__ksymtab_strings) - LOAD_OFFSET) {	\
 		*(__ksymtab_strings)					\
+	}								\
+									\
+	/* Built-in module parameters. */				\
+	__param : AT(ADDR(__param) - LOAD_OFFSET) {			\
+		VMLINUX_SYMBOL(__start___param) = .;			\
+		*(__param)						\
+		VMLINUX_SYMBOL(__stop___param) = .;			\
 	}
 
 #define SECURITY_INIT							\
@@ -60,3 +83,8 @@
 		VMLINUX_SYMBOL(__sched_text_start) = .;			\
 		*(.sched.text)						\
 		VMLINUX_SYMBOL(__sched_text_end) = .;
+
+#define LOCK_TEXT							\
+		VMLINUX_SYMBOL(__lock_text_start) = .;			\
+		*(.spinlock.text)					\
+		VMLINUX_SYMBOL(__lock_text_end) = .;

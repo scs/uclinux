@@ -31,64 +31,108 @@
 
 #ifndef CONFIG_DEBUG_SPINLOCK
 
-typedef unsigned char spinlock_t;
-#define SPIN_LOCK_UNLOCKED	0
+typedef struct {
+	volatile unsigned char lock;
+#ifdef CONFIG_PREEMPT
+	unsigned int break_lock;
+#endif
+} spinlock_t;
+#define SPIN_LOCK_UNLOCKED	(spinlock_t) {0,}
 
-#define spin_lock_init(lock)	(*((unsigned char *)(lock)) = 0)
-#define spin_is_locked(lock)	(*((volatile unsigned char *)(lock)) != 0)
+#define spin_lock_init(lp)	do { *(lp)= SPIN_LOCK_UNLOCKED; } while(0)
+#define spin_is_locked(lp)  ((lp)->lock != 0)
 
-#define spin_unlock_wait(lock)	\
+#define spin_unlock_wait(lp)	\
 do {	membar("#LoadLoad");	\
-} while(*((volatile unsigned char *)lock))
+} while((lp)->lock)
 
-/* arch/sparc64/lib/spinlock.S */
-extern void _raw_spin_lock(spinlock_t *lock);
-
-static __inline__ int _raw_spin_trylock(spinlock_t *lock)
+static inline void _raw_spin_lock(spinlock_t *lock)
 {
-	unsigned int result;
-	__asm__ __volatile__("ldstub [%1], %0\n\t"
-			     "membar #StoreLoad | #StoreStore"
-			     : "=r" (result)
-			     : "r" (lock)
-			     : "memory");
-	return (result == 0);
+	unsigned long tmp;
+
+	__asm__ __volatile__(
+"1:	ldstub		[%1], %0\n"
+"	brnz,pn		%0, 2f\n"
+"	 membar		#StoreLoad | #StoreStore\n"
+"	.subsection	2\n"
+"2:	ldub		[%1], %0\n"
+"	brnz,pt		%0, 2b\n"
+"	 membar		#LoadLoad\n"
+"	ba,a,pt		%%xcc, 1b\n"
+"	.previous"
+	: "=&r" (tmp)
+	: "r" (lock)
+	: "memory");
 }
 
-static __inline__ void _raw_spin_unlock(spinlock_t *lock)
+static inline int _raw_spin_trylock(spinlock_t *lock)
 {
-	__asm__ __volatile__("membar	#StoreStore | #LoadStore\n\t"
-			     "stb	%%g0, [%0]"
-			     : /* No outputs */
-			     : "r" (lock)
-			     : "memory");
+	unsigned long result;
+
+	__asm__ __volatile__(
+"	ldstub		[%1], %0\n"
+"	membar		#StoreLoad | #StoreStore"
+	: "=r" (result)
+	: "r" (lock)
+	: "memory");
+
+	return (result == 0UL);
 }
 
-extern void _raw_spin_lock_flags(spinlock_t *lock, unsigned long flags);
+static inline void _raw_spin_unlock(spinlock_t *lock)
+{
+	__asm__ __volatile__(
+"	membar		#StoreStore | #LoadStore\n"
+"	stb		%%g0, [%0]"
+	: /* No outputs */
+	: "r" (lock)
+	: "memory");
+}
+
+static inline void _raw_spin_lock_flags(spinlock_t *lock, unsigned long flags)
+{
+	unsigned long tmp1, tmp2;
+
+	__asm__ __volatile__(
+"1:	ldstub		[%2], %0\n"
+"	brnz,pn		%0, 2f\n"
+"	membar		#StoreLoad | #StoreStore\n"
+"	.subsection	2\n"
+"2:	rdpr		%%pil, %1\n"
+"	wrpr		%3, %%pil\n"
+"3:	ldub		[%2], %0\n"
+"	brnz,pt		%0, 3b\n"
+"	membar		#LoadLoad\n"
+"	ba,pt		%%xcc, 1b\n"
+"	wrpr		%1, %%pil\n"
+"	.previous"
+	: "=&r" (tmp1), "=&r" (tmp2)
+	: "r"(lock), "r"(flags)
+	: "memory");
+}
 
 #else /* !(CONFIG_DEBUG_SPINLOCK) */
 
 typedef struct {
-	unsigned char lock;
+	volatile unsigned char lock;
 	unsigned int owner_pc, owner_cpu;
+#ifdef CONFIG_PREEMPT
+	unsigned int break_lock;
+#endif
 } spinlock_t;
 #define SPIN_LOCK_UNLOCKED (spinlock_t) { 0, 0, 0xff }
-#define spin_lock_init(__lock)	\
-do {	(__lock)->lock = 0; \
-	(__lock)->owner_pc = 0; \
-	(__lock)->owner_cpu = 0xff; \
-} while(0)
-#define spin_is_locked(__lock)	(*((volatile unsigned char *)(&((__lock)->lock))) != 0)
+#define spin_lock_init(lp)	do { *(lp)= SPIN_LOCK_UNLOCKED; } while(0)
+#define spin_is_locked(__lock)	((__lock)->lock != 0)
 #define spin_unlock_wait(__lock)	\
 do { \
 	membar("#LoadLoad"); \
-} while(*((volatile unsigned char *)(&((__lock)->lock))))
+} while((__lock)->lock)
 
 extern void _do_spin_lock (spinlock_t *lock, char *str);
 extern void _do_spin_unlock (spinlock_t *lock);
-extern int _spin_trylock (spinlock_t *lock);
+extern int _do_spin_trylock (spinlock_t *lock);
 
-#define _raw_spin_trylock(lp)	_spin_trylock(lp)
+#define _raw_spin_trylock(lp)	_do_spin_trylock(lp)
 #define _raw_spin_lock(lock)	_do_spin_lock(lock, "spin_lock")
 #define _raw_spin_unlock(lock)	_do_spin_unlock(lock)
 #define _raw_spin_lock_flags(lock, flags) _raw_spin_lock(lock)
@@ -99,16 +143,113 @@ extern int _spin_trylock (spinlock_t *lock);
 
 #ifndef CONFIG_DEBUG_SPINLOCK
 
-typedef unsigned int rwlock_t;
-#define RW_LOCK_UNLOCKED	0
+typedef struct {
+	volatile unsigned int lock;
+#ifdef CONFIG_PREEMPT
+	unsigned int break_lock;
+#endif
+} rwlock_t;
+#define RW_LOCK_UNLOCKED	(rwlock_t) {0,}
 #define rwlock_init(lp) do { *(lp) = RW_LOCK_UNLOCKED; } while(0)
-#define rwlock_is_locked(x) (*(x) != RW_LOCK_UNLOCKED)
 
-extern void __read_lock(rwlock_t *);
-extern void __read_unlock(rwlock_t *);
-extern void __write_lock(rwlock_t *);
-extern void __write_unlock(rwlock_t *);
-extern int __write_trylock(rwlock_t *);
+static void inline __read_lock(rwlock_t *lock)
+{
+	unsigned long tmp1, tmp2;
+
+	__asm__ __volatile__ (
+"1:	ldsw		[%2], %0\n"
+"	brlz,pn		%0, 2f\n"
+"4:	 add		%0, 1, %1\n"
+"	cas		[%2], %0, %1\n"
+"	cmp		%0, %1\n"
+"	bne,pn		%%icc, 1b\n"
+"	 membar		#StoreLoad | #StoreStore\n"
+"	.subsection	2\n"
+"2:	ldsw		[%2], %0\n"
+"	brlz,pt		%0, 2b\n"
+"	 membar		#LoadLoad\n"
+"	ba,a,pt		%%xcc, 4b\n"
+"	.previous"
+	: "=&r" (tmp1), "=&r" (tmp2)
+	: "r" (lock)
+	: "memory");
+}
+
+static void inline __read_unlock(rwlock_t *lock)
+{
+	unsigned long tmp1, tmp2;
+
+	__asm__ __volatile__(
+"	membar	#StoreLoad | #LoadLoad\n"
+"1:	lduw	[%2], %0\n"
+"	sub	%0, 1, %1\n"
+"	cas	[%2], %0, %1\n"
+"	cmp	%0, %1\n"
+"	bne,pn	%%xcc, 1b\n"
+"	 nop"
+	: "=&r" (tmp1), "=&r" (tmp2)
+	: "r" (lock)
+	: "memory");
+}
+
+static void inline __write_lock(rwlock_t *lock)
+{
+	unsigned long mask, tmp1, tmp2;
+
+	mask = 0x80000000UL;
+
+	__asm__ __volatile__(
+"1:	lduw		[%2], %0\n"
+"	brnz,pn		%0, 2f\n"
+"4:	 or		%0, %3, %1\n"
+"	cas		[%2], %0, %1\n"
+"	cmp		%0, %1\n"
+"	bne,pn		%%icc, 1b\n"
+"	 membar		#StoreLoad | #StoreStore\n"
+"	.subsection	2\n"
+"2:	lduw		[%2], %0\n"
+"	brnz,pt		%0, 2b\n"
+"	 membar		#LoadLoad\n"
+"	ba,a,pt		%%xcc, 4b\n"
+"	.previous"
+	: "=&r" (tmp1), "=&r" (tmp2)
+	: "r" (lock), "r" (mask)
+	: "memory");
+}
+
+static void inline __write_unlock(rwlock_t *lock)
+{
+	__asm__ __volatile__(
+"	membar		#LoadStore | #StoreStore\n"
+"	stw		%%g0, [%0]"
+	: /* no outputs */
+	: "r" (lock)
+	: "memory");
+}
+
+static int inline __write_trylock(rwlock_t *lock)
+{
+	unsigned long mask, tmp1, tmp2, result;
+
+	mask = 0x80000000UL;
+
+	__asm__ __volatile__(
+"	mov		0, %2\n"
+"1:	lduw		[%3], %0\n"
+"	brnz,pn		%0, 2f\n"
+"	 or		%0, %4, %1\n"
+"	cas		[%3], %0, %1\n"
+"	cmp		%0, %1\n"
+"	bne,pn		%%icc, 1b\n"
+"	 membar		#StoreLoad | #StoreStore\n"
+"	mov		1, %2\n"
+"2:"
+	: "=&r" (tmp1), "=&r" (tmp2), "=&r" (result)
+	: "r" (lock), "r" (mask)
+	: "memory");
+
+	return result;
+}
 
 #define _raw_read_lock(p)	__read_lock(p)
 #define _raw_read_unlock(p)	__read_unlock(p)
@@ -119,13 +260,15 @@ extern int __write_trylock(rwlock_t *);
 #else /* !(CONFIG_DEBUG_SPINLOCK) */
 
 typedef struct {
-	unsigned long lock;
+	volatile unsigned long lock;
 	unsigned int writer_pc, writer_cpu;
 	unsigned int reader_pc[NR_CPUS];
+#ifdef CONFIG_PREEMPT
+	unsigned int break_lock;
+#endif
 } rwlock_t;
 #define RW_LOCK_UNLOCKED	(rwlock_t) { 0, 0, 0xff, { } }
 #define rwlock_init(lp) do { *(lp) = RW_LOCK_UNLOCKED; } while(0)
-#define rwlock_is_locked(x) ((x)->lock != 0)
 
 extern void _do_read_lock(rwlock_t *rw, char *str);
 extern void _do_read_unlock(rwlock_t *rw, char *str);
@@ -171,6 +314,10 @@ do {	unsigned long flags; \
 })
 
 #endif /* CONFIG_DEBUG_SPINLOCK */
+
+#define _raw_read_trylock(lock) generic_raw_read_trylock(lock)
+#define read_can_lock(rw)	(!((rw)->lock & 0x80000000UL))
+#define write_can_lock(rw)	(!(rw)->lock)
 
 #endif /* !(__ASSEMBLY__) */
 

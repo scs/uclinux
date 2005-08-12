@@ -24,12 +24,6 @@
 #include <asm/page.h>
 
 /*
- * Bus types
- */
-#define MCA_bus 0
-#define MCA_bus__is_a_macro /* for versions in ksyms.c */
-
-/*
  * The sparc has no problems with write protection
  */
 #define wp_works_ok 1
@@ -43,10 +37,12 @@
 
 struct task_struct;
 
+#ifdef __KERNEL__
 struct fpq {
 	unsigned long *insn_addr;
 	unsigned long insn;
 };
+#endif
 
 typedef struct {
 	int seg;

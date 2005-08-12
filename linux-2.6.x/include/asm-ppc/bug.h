@@ -14,6 +14,7 @@ struct bug_entry {
  */
 #define BUG_WARNING_TRAP	0x1000000
 
+#ifdef CONFIG_BUG
 #define BUG() do {							 \
 	__asm__ __volatile__(						 \
 		"1:	twi 31,0,0\n"					 \
@@ -35,8 +36,6 @@ struct bug_entry {
 	}								\
 } while (0)
 
-#define PAGE_BUG(page)	BUG()
-
 #define WARN_ON(x) do {							\
 	if (!__builtin_constant_p(x) || (x)) {				\
 		__asm__ __volatile__(					\
@@ -48,5 +47,12 @@ struct bug_entry {
 			    "i" (__FILE__), "i" (__FUNCTION__));	\
 	}								\
 } while (0)
+
+#define HAVE_ARCH_BUG
+#define HAVE_ARCH_BUG_ON
+#define HAVE_ARCH_WARN_ON
+#endif
+
+#include <asm-generic/bug.h>
 
 #endif

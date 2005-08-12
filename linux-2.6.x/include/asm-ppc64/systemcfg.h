@@ -15,22 +15,18 @@
  * End Change Activity 
  */
 
-
-#ifndef __KERNEL__
-#include <unistd.h>
-#include <fcntl.h>
-#include <sys/mman.h>
-#include <linux/types.h>
-#endif
-
 /*
  * If the major version changes we are incompatible.
  * Minor version changes are a hint.
  */
 #define SYSTEMCFG_MAJOR 1
-#define SYSTEMCFG_MINOR 0
+#define SYSTEMCFG_MINOR 1
 
 #ifndef __ASSEMBLY__
+
+#include <linux/unistd.h>
+
+#define SYSCALL_MAP_SIZE      ((__NR_syscalls + 31) / 32)
 
 struct systemcfg {
 	__u8  eye_catcher[16];		/* Eyecatcher: SYSTEMCFG:PPC64	0x00 */
@@ -50,68 +46,19 @@ struct systemcfg {
 	__u64 tb_update_count;		/* Timebase atomicity ctr	0x50 */
 	__u32 tz_minuteswest;		/* Minutes west of Greenwich	0x58 */
 	__u32 tz_dsttime;		/* Type of dst correction	0x5C */
-	__u32 dCacheL1Size;		/* L1 d-cache size		0x60 */
-	__u32 dCacheL1LineSize;		/* L1 d-cache line size		0x64 */
-	__u32 iCacheL1Size;		/* L1 i-cache size		0x68 */
-	__u32 iCacheL1LineSize;		/* L1 i-cache line size		0x6C */
-	__u8  reserved0[3984];		/* Reserve rest of page		0x70 */
+	/* next four are no longer used except to be exported to /proc */
+	__u32 dcache_size;		/* L1 d-cache size		0x60 */
+	__u32 dcache_line_size;		/* L1 d-cache line size		0x64 */
+	__u32 icache_size;		/* L1 i-cache size		0x68 */
+	__u32 icache_line_size;		/* L1 i-cache line size		0x6C */
+   	__u32 syscall_map_64[SYSCALL_MAP_SIZE]; /* map of available syscalls 0x70 */
+   	__u32 syscall_map_32[SYSCALL_MAP_SIZE]; /* map of available syscalls */
 };
 
 #ifdef __KERNEL__
 extern struct systemcfg *systemcfg;
-#else
-
-/* Processor Version Register (PVR) field extraction */
-#define PVR_VER(pvr)  (((pvr) >>  16) & 0xFFFF) /* Version field */
-#define PVR_REV(pvr)  (((pvr) >>   0) & 0xFFFF) /* Revison field */
-
-/* Processor Version Numbers */
-#define PV_NORTHSTAR    0x0033
-#define PV_PULSAR       0x0034
-#define PV_POWER4       0x0035
-#define PV_ICESTAR      0x0036
-#define PV_SSTAR        0x0037
-#define PV_POWER4p      0x0038
-#define PV_GPUL		0x0039
-#define PV_POWER5	0x003a
-#define PV_970FX	0x003c
-#define PV_630          0x0040
-#define PV_630p         0x0041
-
-/* Platforms supported by PPC64 */
-#define PLATFORM_PSERIES      0x0100
-#define PLATFORM_PSERIES_LPAR 0x0101
-#define PLATFORM_ISERIES_LPAR 0x0201
-#define PLATFORM_POWERMAC     0x0400
-
-/* Compatibility with drivers coming from PPC32 world */
-#define _machine	(systemcfg->platform)
-#define _MACH_Pmac	PLATFORM_POWERMAC
-
-
-static inline volatile struct systemcfg *systemcfg_init(void)
-{
-	int fd = open("/proc/ppc64/systemcfg", O_RDONLY);
-	volatile struct systemcfg *ret;
-
-	if (fd == -1)
-		return 0;
-	ret = mmap(0, sizeof(struct systemcfg), PROT_READ, MAP_SHARED, fd, 0);
-	close(fd);
-	if (!ret)
-		return 0;
-	if (ret->version.major != SYSTEMCFG_MAJOR || ret->version.minor < SYSTEMCFG_MINOR) {
-		munmap((void *)ret, sizeof(struct systemcfg));
-		return 0;
-	}
-	return ret;
-}
-#endif /* __KERNEL__ */
+#endif
 
 #endif /* __ASSEMBLY__ */
-
-#define SYSTEMCFG_PAGE      0x5
-#define SYSTEMCFG_PHYS_ADDR (SYSTEMCFG_PAGE<<PAGE_SHIFT)
-#define SYSTEMCFG_VIRT_ADDR (KERNELBASE+SYSTEMCFG_PHYS_ADDR)
 
 #endif /* _SYSTEMCFG_H */

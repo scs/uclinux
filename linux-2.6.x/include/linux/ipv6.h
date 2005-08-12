@@ -182,8 +182,7 @@ enum {
    as offsets from skb->nh.
  */
 
-struct inet6_skb_parm
-{
+struct inet6_skb_parm {
 	int			iif;
 	__u16			ra;
 	__u16			hop;
@@ -194,6 +193,14 @@ struct inet6_skb_parm
 
 #define IP6CB(skb)	((struct inet6_skb_parm*)((skb)->cb))
 
+/**
+ * struct ipv6_pinfo - ipv6 private area
+ *
+ * In the struct sock hierarchy (tcp6_sock, upd6_sock, etc)
+ * this _must_ be the last member, so that inet6_sk_generic
+ * is able to calculate its offset from the base struct sock
+ * by using the struct proto->slab_obj_size member. -acme
+ */
 struct ipv6_pinfo {
 	struct in6_addr 	saddr;
 	struct in6_addr 	rcv_saddr;
@@ -202,8 +209,8 @@ struct ipv6_pinfo {
 
 	__u32			flow_label;
 	__u32			frag_size;
-	int			hop_limit;
-	int			mcast_hops;
+	__s16			hop_limit;
+	__s16			mcast_hops;
 	int			mcast_oif;
 
 	/* pktoption flags */
@@ -226,10 +233,11 @@ struct ipv6_pinfo {
 				pmtudisc:2,
 				ipv6only:1;
 
+	__u32			dst_cookie;
+
 	struct ipv6_mc_socklist	*ipv6_mc_list;
 	struct ipv6_ac_socklist	*ipv6_ac_list;
 	struct ipv6_fl_socklist *ipv6_fl_list;
-	__u32			dst_cookie;
 
 	struct ipv6_txoptions	*opt;
 	struct sk_buff		*pktoptions;
@@ -240,54 +248,67 @@ struct ipv6_pinfo {
 	} cork;
 };
 
-struct raw6_opt {
-	__u32			checksum;	/* perform checksum */
-	__u32			offset;		/* checksum offset  */
-
-	struct icmp6_filter	filter;
-};
-
 /* WARNING: don't change the layout of the members in {raw,udp,tcp}6_sock! */
 struct raw6_sock {
-	struct sock	  sk;
-	struct ipv6_pinfo *pinet6;
-	struct inet_opt   inet;
-	struct raw6_opt   raw6;
-	struct ipv6_pinfo inet6;
+	/* inet_sock has to be the first member of raw6_sock */
+	struct inet_sock	inet;
+	__u32			checksum;	/* perform checksum */
+	__u32			offset;		/* checksum offset  */
+	struct icmp6_filter	filter;
+	/* ipv6_pinfo has to be the last member of raw6_sock, see inet6_sk_generic */
+	struct ipv6_pinfo	inet6;
 };
 
 struct udp6_sock {
-	struct sock	  sk;
-	struct ipv6_pinfo *pinet6;
-	struct inet_opt   inet;
-	struct udp_opt	  udp;
+	struct udp_sock	  udp;
+	/* ipv6_pinfo has to be the last member of udp6_sock, see inet6_sk_generic */
 	struct ipv6_pinfo inet6;
 };
 
 struct tcp6_sock {
-	struct sock	  sk;
-	struct ipv6_pinfo *pinet6;
-	struct inet_opt   inet;
-	struct tcp_opt	  tcp;
+	struct tcp_sock	  tcp;
+	/* ipv6_pinfo has to be the last member of tcp6_sock, see inet6_sk_generic */
 	struct ipv6_pinfo inet6;
 };
 
+#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
 static inline struct ipv6_pinfo * inet6_sk(const struct sock *__sk)
 {
-	return ((struct raw6_sock *)__sk)->pinet6;
+	return inet_sk(__sk)->pinet6;
 }
 
-static inline struct raw6_opt * raw6_sk(const struct sock *__sk)
+static inline struct raw6_sock *raw6_sk(const struct sock *sk)
 {
-	return &((struct raw6_sock *)__sk)->raw6;
+	return (struct raw6_sock *)sk;
 }
 
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+static inline void inet_sk_copy_descendant(struct sock *sk_to,
+					   const struct sock *sk_from)
+{
+	int ancestor_size = sizeof(struct inet_sock);
+
+	if (sk_from->sk_family == PF_INET6)
+		ancestor_size += sizeof(struct ipv6_pinfo);
+
+	__inet_sk_copy_descendant(sk_to, sk_from, ancestor_size);
+}
+
 #define __ipv6_only_sock(sk)	(inet6_sk(sk)->ipv6only)
 #define ipv6_only_sock(sk)	((sk)->sk_family == PF_INET6 && __ipv6_only_sock(sk))
 #else
 #define __ipv6_only_sock(sk)	0
 #define ipv6_only_sock(sk)	0
+
+static inline struct ipv6_pinfo * inet6_sk(const struct sock *__sk)
+{
+	return NULL;
+}
+
+static inline struct raw6_sock *raw6_sk(const struct sock *sk)
+{
+	return NULL;
+}
+
 #endif
 
 #endif

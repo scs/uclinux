@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2001 Sistina Software (UK) Limited.
+ * Copyright (C) 2004 Red Hat, Inc. All rights reserved.
  *
  * This file is released under the LGPL.
  */
@@ -51,11 +52,14 @@ typedef int (*dm_endio_fn) (struct dm_target *ti,
 			    struct bio *bio, int error,
 			    union map_info *map_context);
 
-typedef void (*dm_suspend_fn) (struct dm_target *ti);
+typedef void (*dm_presuspend_fn) (struct dm_target *ti);
+typedef void (*dm_postsuspend_fn) (struct dm_target *ti);
 typedef void (*dm_resume_fn) (struct dm_target *ti);
 
 typedef int (*dm_status_fn) (struct dm_target *ti, status_type_t status_type,
 			     char *result, unsigned int maxlen);
+
+typedef int (*dm_message_fn) (struct dm_target *ti, unsigned argc, char **argv);
 
 void dm_error(const char *message);
 
@@ -79,9 +83,11 @@ struct target_type {
 	dm_dtr_fn dtr;
 	dm_map_fn map;
 	dm_endio_fn end_io;
-	dm_suspend_fn suspend;
+	dm_presuspend_fn presuspend;
+	dm_postsuspend_fn postsuspend;
 	dm_resume_fn resume;
 	dm_status_fn status;
+	dm_message_fn message;
 };
 
 struct io_restrictions {
@@ -102,6 +108,7 @@ struct dm_target {
 	sector_t len;
 
 	/* FIXME: turn this into a mask, and merge with io_restrictions */
+	/* Always a power of 2 */
 	sector_t split_io;
 
 	/*

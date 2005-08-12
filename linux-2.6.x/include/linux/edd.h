@@ -32,7 +32,7 @@
 
 #define EDDNR 0x1e9		/* addr of number of edd_info structs at EDDBUF
 				   in boot_params - treat this as 1 byte  */
-#define EDDBUF	0x600		/* addr of edd_info structs in boot_params */
+#define EDDBUF	0xd00		/* addr of edd_info structs in boot_params */
 #define EDDMAXNR 6		/* number of edd_info structs starting at EDDBUF  */
 #define EDDEXTSIZE 8		/* change these if you muck with the structures */
 #define EDDPARMSIZE 74
@@ -49,6 +49,10 @@
 #define EDD_MBR_SIG_MAX 16        /* max number of signatures to store */
 #define EDD_MBR_SIG_NR_BUF 0x1ea  /* addr of number of MBR signtaures at EDD_MBR_SIG_BUF
 				     in boot_params - treat this as 1 byte  */
+#define EDD_CL_EQUALS   0x3d646465     /* "edd=" */
+#define EDD_CL_OFF      0x666f         /* "of" for off  */
+#define EDD_CL_SKIP     0x6b73         /* "sk" for skipmbr */
+
 #ifndef __ASSEMBLY__
 
 #define EDD_EXT_FIXED_DISK_ACCESS           (1 << 0)

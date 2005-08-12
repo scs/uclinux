@@ -113,8 +113,7 @@ struct rb_root
 };
 
 #define RB_ROOT	(struct rb_root) { NULL, }
-#define	rb_entry(ptr, type, member)					\
-	((type *)((char *)(ptr)-(unsigned long)(&((type *)0)->member)))
+#define	rb_entry(ptr, type, member) container_of(ptr, type, member)
 
 extern void rb_insert_color(struct rb_node *, struct rb_root *);
 extern void rb_erase(struct rb_node *, struct rb_root *);
@@ -123,6 +122,7 @@ extern void rb_erase(struct rb_node *, struct rb_root *);
 extern struct rb_node *rb_next(struct rb_node *);
 extern struct rb_node *rb_prev(struct rb_node *);
 extern struct rb_node *rb_first(struct rb_root *);
+extern struct rb_node *rb_last(struct rb_root *);
 
 /* Fast replacement of a single node without remove/rebalance/add/rebalance */
 extern void rb_replace_node(struct rb_node *victim, struct rb_node *new, 

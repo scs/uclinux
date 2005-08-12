@@ -67,6 +67,10 @@
 #define	EREMOTEIO	181	/* Remote I/O error */
 #define	ENOMEDIUM	182	/* No medium found */
 #define	EMEDIUMTYPE	183	/* Wrong medium type */
+#define	ENOKEY		184	/* Required key not available */
+#define	EKEYEXPIRED	185	/* Key has expired */
+#define	EKEYREVOKED	186	/* Key has been revoked */
+#define	EKEYREJECTED	187	/* Key was rejected by service */
 
 /* We now return you to your regularly scheduled HPUX. */
 
@@ -110,6 +114,10 @@
 
 #define ENOTSUP		252	/* Function not implemented (POSIX.4 / HPUX) */
 #define ECANCELLED	253	/* aio request was canceled before complete (POSIX.4 / HPUX) */
+
+/* for robust mutexes */
+#define EOWNERDEAD	254	/* Owner died */
+#define ENOTRECOVERABLE	255	/* State not recoverable */
 
 
 #endif

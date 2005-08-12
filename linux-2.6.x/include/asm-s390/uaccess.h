@@ -65,7 +65,8 @@
 
 #define access_ok(type,addr,size) __access_ok(addr,size)
 
-extern inline int verify_area(int type, const void __user *addr,
+/* this function will go away soon - use access_ok() instead */
+extern inline int __deprecated verify_area(int type, const void __user *addr,
 						unsigned long size)
 {
 	return access_ok(type, addr, size) ? 0 : -EFAULT;
@@ -161,7 +162,7 @@ struct exception_table_entry
 		__put_user_asm(__x, ptr, __pu_err);		\
 		break;						\
 	default:						\
-		__pu_err = __put_user_bad();			\
+		__put_user_bad();				\
 		break;						\
 	 }							\
 	__pu_err;						\
@@ -182,7 +183,7 @@ struct exception_table_entry
 })
 
 
-extern int __put_user_bad(void);
+extern int __put_user_bad(void) __attribute__((noreturn));
 
 #if __GNUC__ > 3 || (__GNUC__ == 3 && __GNUC_MINOR__ > 2)
 #define __get_user_asm(x, ptr, err) \
@@ -225,8 +226,7 @@ extern int __put_user_bad(void);
 		__get_user_asm(__x, ptr, __gu_err);		\
 		break;						\
 	default:						\
-		__x = 0;					\
-		__gu_err = __get_user_bad();			\
+		__get_user_bad();				\
 		break;						\
 	}							\
 	(x) = __x;						\
@@ -248,7 +248,10 @@ extern int __put_user_bad(void);
 	__get_user(x, ptr);					\
 })
 
-extern int __get_user_bad(void);
+extern int __get_user_bad(void) __attribute__((noreturn));
+
+#define __put_user_unaligned __put_user
+#define __get_user_unaligned __get_user
 
 extern long __copy_to_user_asm(const void *from, long n, void __user *to);
 
@@ -271,6 +274,9 @@ __copy_to_user(void __user *to, const void *from, unsigned long n)
 {
 	return __copy_to_user_asm(from, n, to);
 }
+
+#define __copy_to_user_inatomic __copy_to_user
+#define __copy_from_user_inatomic __copy_from_user
 
 /**
  * copy_to_user: - Copy a block of data into user space.

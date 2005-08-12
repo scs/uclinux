@@ -67,12 +67,30 @@ extern void * __init __alloc_bootmem_node (pg_data_t *pgdat, unsigned long size,
 	__alloc_bootmem_node((pgdat), (x), PAGE_SIZE, 0)
 #endif /* !CONFIG_HAVE_ARCH_BOOTMEM_NODE */
 
+extern unsigned long __initdata nr_kernel_pages;
+extern unsigned long __initdata nr_all_pages;
+
 extern void *__init alloc_large_system_hash(const char *tablename,
 					    unsigned long bucketsize,
 					    unsigned long numentries,
 					    int scale,
-					    int consider_highmem,
+					    int flags,
 					    unsigned int *_hash_shift,
-					    unsigned int *_hash_mask);
+					    unsigned int *_hash_mask,
+					    unsigned long limit);
+
+#define HASH_HIGHMEM	0x00000001	/* Consider highmem? */
+#define HASH_EARLY	0x00000002	/* Allocating during early boot? */
+
+/* Only NUMA needs hash distribution.
+ * IA64 is known to have sufficient vmalloc space.
+ */
+#if defined(CONFIG_NUMA) && defined(CONFIG_IA64)
+#define HASHDIST_DEFAULT 1
+#else
+#define HASHDIST_DEFAULT 0
+#endif
+extern int __initdata hashdist;		/* Distribute hashes across NUMA nodes? */
+
 
 #endif /* _LINUX_BOOTMEM_H */

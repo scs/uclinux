@@ -24,6 +24,7 @@
  */
 
 #include "pcm.h"
+#include "pcm-indirect.h"
 #include "rawmidi.h"
 #include "ac97_codec.h"
 #include "cs46xx_dsp_spos.h"
@@ -1650,14 +1651,7 @@ typedef struct _snd_cs46xx_pcm_t {
   
 	unsigned int ctl;
 	unsigned int shift;	/* Shift count to trasform frames in bytes */
-	unsigned int sw_bufsize;
-	unsigned int sw_data;	/* Offset to next dst (or src) in sw ring buffer */
-	unsigned int sw_io;
-	int sw_ready;		/* Bytes ready to be transferred to/from hw */
-	unsigned int hw_data;	/* Offset to next dst (or src) in hw ring buffer */
-	unsigned int hw_io;	/* Ring buffer hw pointer */
-	int hw_ready;		/* Bytes ready for play (or captured) in hw ring buffer */
-	size_t appl_ptr;	/* Last seen appl_ptr */
+	snd_pcm_indirect_t pcm_rec;
 	snd_pcm_substream_t *substream;
 
 	pcm_channel_descriptor_t * pcm_channel;
@@ -1668,7 +1662,7 @@ typedef struct _snd_cs46xx_pcm_t {
 typedef struct {
 	char name[24];
 	unsigned long base;
-	unsigned long remap_addr;
+	void __iomem *remap_addr;
 	unsigned long size;
 	struct resource *resource;
 } snd_cs46xx_region_t;
@@ -1695,14 +1689,7 @@ struct _snd_cs46xx {
 
 		unsigned int ctl;
 		unsigned int shift;	/* Shift count to trasform frames in bytes */
-		unsigned int sw_bufsize;
-		unsigned int sw_data;	/* Offset to next dst (or src) in sw ring buffer */
-		unsigned int sw_io;
-		int sw_ready;		/* Bytes ready to be transferred to/from hw */
-		unsigned int hw_data;	/* Offset to next dst (or src) in hw ring buffer */
-		unsigned int hw_io;	/* Ring buffer hw pointer */
-		int hw_ready;		/* Bytes ready for play (or captured) in hw ring buffer */
-		size_t appl_ptr;	/* Last seen appl_ptr */
+		snd_pcm_indirect_t pcm_rec;
 		snd_pcm_substream_t *substream;
 	} capt;
 
@@ -1723,8 +1710,6 @@ struct _snd_cs46xx {
 	unsigned int midcr;
 	unsigned int uartm;
 
-	struct snd_dma_device dma_dev;
-
 	int amplifier;
 	void (*amplifier_ctrl)(cs46xx_t *, int);
 	void (*active_ctrl)(cs46xx_t *, int);
@@ -1735,7 +1720,7 @@ struct _snd_cs46xx {
 	snd_kcontrol_t *eapd_switch; /* for amplifier hack */
 	int accept_valid;	/* accept mmap valid (for OSS) */
 
-	struct snd_cs46xx_gameport *gameport;
+	struct gameport *gameport;
 
 #ifdef CONFIG_SND_CS46XX_DEBUG_GPIO
 	int current_gpio;
@@ -1766,6 +1751,6 @@ int snd_cs46xx_pcm_center_lfe(cs46xx_t *chip, int device, snd_pcm_t **rpcm);
 int snd_cs46xx_mixer(cs46xx_t *chip);
 int snd_cs46xx_midi(cs46xx_t *chip, int device, snd_rawmidi_t **rmidi);
 int snd_cs46xx_start_dsp(cs46xx_t *chip);
-void snd_cs46xx_gameport(cs46xx_t *chip);
+int snd_cs46xx_gameport(cs46xx_t *chip);
 
 #endif /* __SOUND_CS46XX_H */

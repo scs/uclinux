@@ -64,7 +64,6 @@ struct mtd_part_parser {
 	int (*parse_fn)(struct mtd_info *, struct mtd_partition **, unsigned long);
 };
 
-extern struct mtd_part_parser *get_partition_parser(const char *name);
 extern int register_mtd_parser(struct mtd_part_parser *parser);
 extern int deregister_mtd_parser(struct mtd_part_parser *parser);
 extern int parse_mtd_partitions(struct mtd_info *master, const char **types, 

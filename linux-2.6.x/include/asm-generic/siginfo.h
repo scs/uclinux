@@ -153,7 +153,6 @@ typedef struct siginfo {
 #define SI_FROMUSER(siptr)	((siptr)->si_code <= 0)
 #define SI_FROMKERNEL(siptr)	((siptr)->si_code > 0)
 
-#ifndef HAVE_ARCH_SI_CODES
 /*
  * SIGILL si_codes
  */
@@ -224,8 +223,6 @@ typedef struct siginfo {
 #define POLL_HUP	(__SI_POLL|6)	/* device disconnected */
 #define NSIGPOLL	6
 
-#endif
-
 /*
  * sigevent definitions
  * 
@@ -239,12 +236,17 @@ typedef struct siginfo {
 #define SIGEV_THREAD	2	/* deliver via thread creation */
 #define SIGEV_THREAD_ID 4	/* deliver to thread */
 
-#define SIGEV_MAX_SIZE	64
-#ifndef SIGEV_PAD_SIZE
-#define SIGEV_PAD_SIZE	((SIGEV_MAX_SIZE/sizeof(int)) - 3)
+/*
+ * This works because the alignment is ok on all current architectures
+ * but we leave open this being overridden in the future
+ */
+#ifndef __ARCH_SIGEV_PREAMBLE_SIZE
+#define __ARCH_SIGEV_PREAMBLE_SIZE	(sizeof(int) * 2 + sizeof(sigval_t))
 #endif
 
-#ifndef HAVE_ARCH_SIGEVENT_T
+#define SIGEV_MAX_SIZE	64
+#define SIGEV_PAD_SIZE	((SIGEV_MAX_SIZE - __ARCH_SIGEV_PREAMBLE_SIZE) \
+		/ sizeof(int))
 
 typedef struct sigevent {
 	sigval_t sigev_value;
@@ -260,8 +262,6 @@ typedef struct sigevent {
 		} _sigev_thread;
 	} _sigev_un;
 } sigevent_t;
-
-#endif
 
 #define sigev_notify_function	_sigev_un._sigev_thread._function
 #define sigev_notify_attributes	_sigev_un._sigev_thread._attribute

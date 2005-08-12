@@ -14,6 +14,10 @@
 
 #include <asm/fpstate.h>
 
+#define THREAD_SIZE_ORDER	1
+#define THREAD_SIZE		8192
+#define THREAD_START_SP		(THREAD_SIZE - 8)
+
 #ifndef __ASSEMBLY__
 
 struct task_struct;
@@ -53,6 +57,7 @@ struct thread_info {
 	__u32			cpu_domain;	/* cpu domain */
 	struct cpu_context_save	cpu_context;	/* cpu context */
 	__u8			used_cp[16];	/* thread used copro */
+	unsigned long		tp_value;
 	union fp_state		fpstate;
 	union vfp_state		vfpstate;
 	struct restart_block	restart_block;
@@ -84,10 +89,8 @@ static inline struct thread_info *current_thread_info(void) __attribute_const__;
 static inline struct thread_info *current_thread_info(void)
 {
 	register unsigned long sp asm ("sp");
-	return (struct thread_info *)(sp & ~0x1fff);
+	return (struct thread_info *)(sp & ~(THREAD_SIZE - 1));
 }
-
-#define THREAD_SIZE		(8192)
 
 extern struct thread_info *alloc_thread_info(struct task_struct *task);
 extern void free_thread_info(struct thread_info *);
@@ -100,23 +103,18 @@ extern void free_thread_info(struct thread_info *);
 #define thread_saved_fp(tsk)	\
 	((unsigned long)((tsk)->thread_info->cpu_context.fp))
 
-#else /* !__ASSEMBLY__ */
-
-#define TI_FLAGS	0
-#define TI_PREEMPT	4
-#define TI_ADDR_LIMIT	8
-#define TI_TASK		12
-#define TI_EXEC_DOMAIN	16
-#define TI_CPU		20
-#define TI_CPU_DOMAIN	24
-#define TI_CPU_SAVE	28
-#define TI_USED_CP	76
-#define TI_FPSTATE	(TI_USED_CP+16)
-#define TI_VFPSTATE	(TI_FPSTATE+FP_SIZE*4)
+extern void iwmmxt_task_disable(struct thread_info *);
+extern void iwmmxt_task_copy(struct thread_info *, void *);
+extern void iwmmxt_task_restore(struct thread_info *, void *);
+extern void iwmmxt_task_release(struct thread_info *);
 
 #endif
 
-#define PREEMPT_ACTIVE	0x04000000
+/*
+ * We use bit 30 of the preempt_count to indicate that kernel
+ * preemption is occuring.  See include/asm-arm/hardirq.h.
+ */
+#define PREEMPT_ACTIVE	0x40000000
 
 /*
  * thread information flags:
@@ -131,15 +129,16 @@ extern void free_thread_info(struct thread_info *);
 #define TIF_SIGPENDING		1
 #define TIF_NEED_RESCHED	2
 #define TIF_SYSCALL_TRACE	8
-#define TIF_USED_FPU		16
-#define TIF_POLLING_NRFLAG	17
+#define TIF_POLLING_NRFLAG	16
+#define TIF_USING_IWMMXT	17
+#define TIF_MEMDIE		18
 
 #define _TIF_NOTIFY_RESUME	(1 << TIF_NOTIFY_RESUME)
 #define _TIF_SIGPENDING		(1 << TIF_SIGPENDING)
 #define _TIF_NEED_RESCHED	(1 << TIF_NEED_RESCHED)
 #define _TIF_SYSCALL_TRACE	(1 << TIF_SYSCALL_TRACE)
-#define _TIF_USED_FPU		(1 << TIF_USED_FPU)
 #define _TIF_POLLING_NRFLAG	(1 << TIF_POLLING_NRFLAG)
+#define _TIF_USING_IWMMXT	(1 << TIF_USING_IWMMXT)
 
 /*
  * Change these and you break ASM code in entry-common.S

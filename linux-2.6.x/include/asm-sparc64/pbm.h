@@ -15,6 +15,7 @@
 #include <asm/io.h>
 #include <asm/page.h>
 #include <asm/oplib.h>
+#include <asm/iommu.h>
 
 /* The abstraction used here is that there are PCI controllers,
  * each with one (Sabre) or two (PSYCHO/SCHIZO) PCI bus modules
@@ -39,9 +40,6 @@ struct pci_iommu {
 	 * streaming buffers underneath.
 	 */
 	spinlock_t	lock;
-
-	/* Context allocator. */
-	unsigned int	iommu_cur_ctx;
 
 	/* IOMMU page table, a linear array of ioptes. */
 	iopte_t		*page_table;		/* The page table itself. */
@@ -70,6 +68,13 @@ struct pci_iommu {
 	 */
 	u32		lowest_consistent_map;
 
+	/* In order to deal with some buggy third-party PCI bridges that
+	 * do wrong prefetching, we never mark valid mappings as invalid.
+	 * Instead we point them at this dummy page.
+	 */
+	unsigned long	dummy_page;
+	unsigned long	dummy_page_pa;
+
 	/* If PBM_NCLUSTERS is ever decreased to 4 or lower,
 	 * or if largest supported page_table_sz * 8K goes above
 	 * 2GB, you must increase the size of the type of
@@ -79,6 +84,10 @@ struct pci_iommu {
 		u16	next;
 		u16	flush;
 	} alloc_info[PBM_NCLUSTERS];
+
+	/* CTX allocation. */
+	unsigned long ctx_lowest_free;
+	unsigned long ctx_bitmap[IOMMU_NUM_CTXS / (sizeof(unsigned long) * 8)];
 
 	/* Here a PCI controller driver describes the areas of
 	 * PCI memory space where DMA to/from physical memory
@@ -92,6 +101,8 @@ struct pci_iommu {
 	 */
 	u32 dma_addr_mask;
 };
+
+extern void pci_iommu_table_init(struct pci_iommu *, int);
 
 /* This describes a PCI bus module's streaming buffer. */
 struct pci_strbuf {

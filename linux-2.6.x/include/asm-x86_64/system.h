@@ -35,7 +35,7 @@
 		     "thread_return:\n\t"					    \
 		     "movq %%gs:%P[pda_pcurrent],%%rsi\n\t"			  \
 		     "movq %P[thread_info](%%rsi),%%r8\n\t"			  \
-		     "btr  %[tif_fork],%P[ti_flags](%%r8)\n\t"			  \
+		     LOCK "btr  %[tif_fork],%P[ti_flags](%%r8)\n\t"		  \
 		     "movq %%rax,%%rdi\n\t" 					  \
 		     "jc   ret_from_fork\n\t"					  \
 		     RESTORE_CONTEXT						    \
@@ -123,7 +123,7 @@ struct alt_instr {
  * If you use variable sized constraints like "m" or "g" in the 
  * replacement maake sure to pad to the worst case length.
  */
-#define alternative_input(oldinstr, newinstr, feature, input)		\
+#define alternative_input(oldinstr, newinstr, feature, input...)	\
 	asm volatile ("661:\n\t" oldinstr "\n662:\n"			\
 		      ".section .altinstructions,\"a\"\n"		\
 		      "  .align 8\n"					\
@@ -135,7 +135,7 @@ struct alt_instr {
 		      ".previous\n"					\
 		      ".section .altinstr_replacement,\"ax\"\n"		\
 		      "663:\n\t" newinstr "\n664:\n"   /* replacement */ \
-		      ".previous" :: "i" (feature), input)
+		      ".previous" :: "i" (feature), ##input)
 
 /*
  * Clear and set 'TS' bit respectively
@@ -297,11 +297,11 @@ static inline unsigned long __cmpxchg(volatile void *ptr, unsigned long old,
 #define mb() 	asm volatile("mfence":::"memory")
 #define rmb()	asm volatile("lfence":::"memory")
 
-/* could use SFENCE here, but it would be only needed for unordered SSE
-   store instructions and we always do an explicit sfence with them currently.
-   the ordering of normal stores is serialized enough. Just make it a compile
-   barrier. */
+#ifdef CONFIG_UNORDERED_IO
+#define wmb()	asm volatile("sfence" ::: "memory")
+#else
 #define wmb()	asm volatile("" ::: "memory")
+#endif
 #define read_barrier_depends()	do {} while(0)
 #define set_mb(var, value) do { xchg(&var, value); } while (0)
 #define set_wmb(var, value) do { var = value; wmb(); } while (0)
@@ -326,6 +326,8 @@ static inline unsigned long __cmpxchg(volatile void *ptr, unsigned long old,
 /* For spinlocks etc */
 #define local_irq_save(x) 	do { warn_if_not_ulong(x); __asm__ __volatile__("# local_irq_save \n\t pushfq ; popq %0 ; cli":"=g" (x): /* no input */ :"memory"); } while (0)
 
+void cpu_idle_wait(void);
+
 /*
  * disable hlt during certain critical i/o operations
  */
@@ -335,5 +337,7 @@ void enable_hlt(void);
 
 #define HAVE_EAT_KEY
 void eat_key(void);
+
+extern unsigned long arch_align_stack(unsigned long sp);
 
 #endif

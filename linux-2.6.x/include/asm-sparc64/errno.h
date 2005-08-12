@@ -101,5 +101,14 @@
 
 #define ENOMEDIUM       125     /* No medium found */
 #define EMEDIUMTYPE     126     /* Wrong medium type */
+#define	ECANCELED	127	/* Operation Cancelled */
+#define	ENOKEY		128	/* Required key not available */
+#define	EKEYEXPIRED	129	/* Key has expired */
+#define	EKEYREVOKED	130	/* Key has been revoked */
+#define	EKEYREJECTED	131	/* Key was rejected by service */
+
+/* for robust mutexes */
+#define	EOWNERDEAD	132	/* Owner died */
+#define	ENOTRECOVERABLE	133	/* State not recoverable */
 
 #endif /* !(_SPARC64_ERRNO_H) */

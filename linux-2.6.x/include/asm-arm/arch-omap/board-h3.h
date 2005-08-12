@@ -1,9 +1,8 @@
 /*
  * linux/include/asm-arm/arch-omap/board-h3.h
  *
- * Hardware definitions for TI OMAP1610 H3 board.
- *
- * Initial creation by Dirk Behme <dirk.behme@de.bosch.com>
+ * Copyright (C) 2001 RidgeRun, Inc.
+ * Copyright (C) 2004 Texas Instruments, Inc.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -25,11 +24,26 @@
  * with this program; if not, write  to the Free Software Foundation, Inc.,
  * 675 Mass Ave, Cambridge, MA 02139, USA.
  */
-
 #ifndef __ASM_ARCH_OMAP_H3_H
 #define __ASM_ARCH_OMAP_H3_H
 
-/* Placeholder for H3 specific defines */
+/* In OMAP1710 H3 the Ethernet is directly connected to CS1 */
+#define OMAP1710_ETHR_START		0x04000300
+
+/* Intel STRATA NOR flash at CS3 or CS2B(NAND Boot) */
+#define OMAP_NOR_FLASH_SIZE             SZ_32M
+#define OMAP_NOR_FLASH_START1 		0x0C000000 /* CS3 */
+#define OMAP_NOR_FLASH_START2 		0x0A000000 /* CS2B */
+
+/* Samsung NAND flash at CS2B or CS3(NAND Boot) */
+#define OMAP_NAND_FLASH_START1           0x0A000000 /* CS2B */
+#define OMAP_NAND_FLASH_START2           0x0C000000 /* CS3 */
+
+#define MAXIRQNUM			(IH_BOARD_BASE)
+#define MAXFIQNUM			MAXIRQNUM
+#define MAXSWINUM			MAXIRQNUM
+
+#define NR_IRQS				(MAXIRQNUM + 1)
+
 
 #endif /*  __ASM_ARCH_OMAP_H3_H */
-

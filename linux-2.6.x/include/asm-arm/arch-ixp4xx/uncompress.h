@@ -32,7 +32,7 @@ static __inline__ void putc(char c)
 /*
  * This does not append a newline
  */
-static void puts(const char *s)
+static void putstr(const char *s)
 {
 	while (*s)
 	{
@@ -46,9 +46,9 @@ static void puts(const char *s)
 static __inline__ void __arch_decomp_setup(unsigned long arch_id)
 {
 	/*
-	 * Coyote only has UART2 connected
+	 * Coyote and gtwx5715 only have UART2 connected
 	 */
-	if (machine_is_adi_coyote())
+	if (machine_is_adi_coyote() || machine_is_gtwx5715())
 		uart_base = (volatile u32*) IXP4XX_UART2_BASE_PHYS;
 	else
 		uart_base = (volatile u32*) IXP4XX_UART1_BASE_PHYS;
