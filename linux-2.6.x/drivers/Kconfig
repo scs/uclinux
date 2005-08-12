@@ -54,4 +54,8 @@ source "sound/Kconfig"
 
 source "drivers/usb/Kconfig"
 
+source "drivers/mmc/Kconfig"
+
+source "drivers/infiniband/Kconfig"
+
 endmenu
