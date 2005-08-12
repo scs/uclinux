@@ -19,6 +19,7 @@
 #include <linux/ptrace.h>
 #include <linux/user.h>
 #include <linux/config.h>
+#include <linux/signal.h>
 
 //#define DEBUG
 
@@ -372,7 +373,7 @@ printk("ptrace_cont\n");
 #endif
 
 			ret = -EIO;
-			if ((unsigned long) data > _NSIG)
+			if (!valid_signal(data))
 				goto out_tsk;
 			if (request == PTRACE_SYSCALL)
 				set_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
@@ -399,7 +400,7 @@ printk("before wake_up_process\n");
 		case PTRACE_KILL: {
 			long tmp;
 			ret = 0;
-			if (child->state == TASK_ZOMBIE) /* already dead */
+			if (child->exit_state == EXIT_ZOMBIE) /* already dead */
 				goto out_tsk;	
 			child->exit_code = SIGKILL;
 			/* make sure the single step bit is not set. */
@@ -415,7 +416,7 @@ printk("before wake_up_process\n");
 printk("single step\n");
 #endif
 			ret = -EIO;
-			if ((unsigned long) data > _NSIG)
+			if (!valid_signal(data))
 				goto out_tsk;
 			clear_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
 
@@ -469,12 +470,9 @@ asmlinkage void syscall_trace(void)
 		return;
 
 	if (!(current->ptrace & PT_PTRACED))
-		return;
-	
-	current->exit_code = SIGTRAP;
-	current->state = TASK_STOPPED;
-	notify_parent(current, SIGCHLD);
-	schedule();
+		return;	
+
+	ptrace_notify(SIGTRAP);
 	/*
 	 * this isn't the same as continuing with a signal, but it will do
 	 * for normal use.  strace only continues with a signal if the

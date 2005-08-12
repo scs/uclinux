@@ -118,8 +118,8 @@ unsigned long gettimeoffset (void)
 	offset = tick_usec * (clocks_per_jiffy - (*pTCOUNT + 1)) / clocks_per_jiffy;
 
 	/* Check if we just wrapped the counters and maybe missed a tick */
-	if ((*pILAT & (1<<IRQ_CORETMR)) && (offset < (100000 / HZ / 2)))
-	{
+	if ((*pILAT & (1<<IRQ_CORETMR)) && (offset < (100000 / HZ / 2))){
+		
 		offset += (1000000 / HZ); 
 	} 
 
@@ -133,7 +133,10 @@ static inline int set_rtc_mmss(unsigned long nowtime)
 
 static inline void do_profile (struct pt_regs * regs)
 {
-	unsigned long pc;
+/*
+ * temperary remove code to do profile, because the arch change of the profile in the kernel 2.6.12
+ */
+/*	unsigned long pc;
      
 	pc = regs->pc;
 	     
@@ -146,13 +149,14 @@ static inline void do_profile (struct pt_regs * regs)
 		if (pc < prof_len)
 			++prof_buffer[pc];
 		else
-		/*
+*/		/*
 		 * Don't ignore out-of-bounds PC values silently,
 		 * put them into the last histogram slot, so if
 		 * present, they will show up as a sharp peak.
 		 */
-			++prof_buffer[prof_len-1];
+/*			++prof_buffer[prof_len-1];
 	}
+*/
 }
 
 /*
@@ -168,9 +172,14 @@ irqreturn_t timer_interrupt(int irq, struct pt_regs * regs)
 
 	do_timer(regs);
 	do_leds();
-	
-	if (!user_mode(regs))
-		do_profile(regs);
+
+#ifndef CONFIG_SMP
+	local_irq_disable();        /* kernel requires irq_disabled during following function */
+	update_process_times(user_mode(regs));
+	local_irq_enable()
+#endif
+	profile_tick(CPU_PROFILING, regs);
+
 	/*
 	 * If we have an externally synchronized Linux clock, then update
 	 * CMOS clock accordingly every ~11 minutes. Set_rtc_mmss() has to be

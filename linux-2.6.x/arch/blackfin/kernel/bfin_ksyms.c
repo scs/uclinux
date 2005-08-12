@@ -30,12 +30,12 @@ EXPORT_SYMBOL(csum_partial_copy);
    explicitly (the C compiler generates them).  Fortunately,
    their interface isn't gonna change any time soon now, so
    it's OK to leave it out of version control.  */
-EXPORT_SYMBOL_NOVERS(memcpy);
-EXPORT_SYMBOL_NOVERS(memset);
-EXPORT_SYMBOL_NOVERS(memcmp);
-EXPORT_SYMBOL_NOVERS(memscan);
-EXPORT_SYMBOL_NOVERS(memmove);
-EXPORT_SYMBOL_NOVERS(memchr);
+EXPORT_SYMBOL(memcpy);
+EXPORT_SYMBOL(memset);
+EXPORT_SYMBOL(memcmp);
+EXPORT_SYMBOL(memscan);
+EXPORT_SYMBOL(memmove);
+EXPORT_SYMBOL(memchr);
 
 EXPORT_SYMBOL(get_wchan);
 
@@ -54,13 +54,13 @@ extern void __udivsi3(void);
 extern void __umodsi3(void);
 
 /* gcc lib functions */
-EXPORT_SYMBOL_NOVERS(__ashldi3);
-EXPORT_SYMBOL_NOVERS(__ashrdi3);
-EXPORT_SYMBOL_NOVERS(__divsi3);
-EXPORT_SYMBOL_NOVERS(__lshrdi3);
-EXPORT_SYMBOL_NOVERS(__modsi3);
-EXPORT_SYMBOL_NOVERS(__muldi3);
-EXPORT_SYMBOL_NOVERS(__udivsi3);
-EXPORT_SYMBOL_NOVERS(__umodsi3);
+EXPORT_SYMBOL(__ashldi3);
+EXPORT_SYMBOL(__ashrdi3);
+EXPORT_SYMBOL(__divsi3);
+EXPORT_SYMBOL(__lshrdi3);
+EXPORT_SYMBOL(__modsi3);
+EXPORT_SYMBOL(__muldi3);
+EXPORT_SYMBOL(__udivsi3);
+EXPORT_SYMBOL(__umodsi3);
 
-EXPORT_SYMBOL_NOVERS(is_in_rom);
+EXPORT_SYMBOL(is_in_rom);
