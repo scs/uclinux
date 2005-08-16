@@ -54,8 +54,6 @@ extern int rmdir __P ((__const char *__path));
 
 extern int access __P ((__const char *__name, int __type));
 
-extern int      reboot __P ((int __magic, int __magic_too, int __flag));
-
 extern int _clone __P ((int (*fn)(void *arg), void *child_stack, int flags, void *arg));
 extern long sysconf __P ((int name));
 extern pid_t getpid __P ((void));

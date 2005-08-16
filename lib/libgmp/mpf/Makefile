@@ -2,7 +2,7 @@
 .EXPORT_ALL_VARIABLES:
 
 # VPATH = $(ROOTDIR)/freeswan/gmp/mpf
-CFLAGS += -I../../$(LIBCDIR)/include
+# CFLAGS += -I../../$(LIBCDIR)/include
 srcdir = $(ROOTDIR)/lib/libgmp/mpf
 
 MPF_SRCS = init.c init2.c set.c set_ui.c set_si.c set_str.c set_d.c set_z.c \

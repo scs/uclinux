@@ -136,6 +136,27 @@ va_list ap;
 }
 #endif
 
+#ifdef L_vasprintf
+int vasprintf(strp, fmt, ap)
+char **strp;
+__const char *fmt;
+va_list ap;
+{
+        /* This implementation actually calls the printf machinery twice, but on
+ly
+         * only does one malloc.  This can be a problem though when custom print
+f
+         * specs or the %m specifier are involved because the results of the
+         * second call might be different from the first. */
+        int rv;
+
+        rv = vsnprintf(NULL, 0, fmt, ap);
+        return (((rv >= 0) && ((*strp = malloc(++rv)) != NULL))
+                        ? vsnprintf(*strp, rv, fmt, ap)
+                        : -1);
+}
+#endif
+
 #ifdef L_fprintf
 #ifdef __STDC__
 int fprintf(FILE * fp, const char * fmt, ...)

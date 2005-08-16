@@ -2,7 +2,7 @@
 .EXPORT_ALL_VARIABLES:
 
 # VPATH = $(ROOTDIR)/freeswan/gmp/mpn
-CFLAGS += -I../../$(LIBCDIR)/include
+# CFLAGS += -I../../$(LIBCDIR)/include
 srcdir = $(ROOTDIR)/lib/libgmp/mpn
 
 MPN_OBJECTS = add_n.o addmul_1.o addsub_n.o bdivmod.o bz_divrem_n.o cmp.o \

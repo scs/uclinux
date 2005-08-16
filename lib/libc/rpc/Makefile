@@ -4,8 +4,6 @@
 
 LIBC = ../libc.a
 
-CFLAGS += $(INCGCC)
-
 OBJS = auth_none.o auth_unix.o authunix_prot.o \
 	bindresvport.o clnt_generic.o clnt_perror.o \
 	clnt_raw.o clnt_simple.o clnt_tcp.o clnt_udp.o \

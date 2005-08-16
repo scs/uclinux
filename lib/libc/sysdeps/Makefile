@@ -3,7 +3,7 @@
 # under the GNU Library General Public License.
 
 LIBC=../libc.a
-CFLAGS += $(INCGCC) -I. -I$(MACHINE)
+CFLAGS += -I. -I$(MACHINE)
 
 .S.s:
 	$(CC) $(CFLAGS) -D__ASSEMBLY__ -traditional -E -o $*.s $<

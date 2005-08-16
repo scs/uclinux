@@ -65,25 +65,26 @@ host_alias = i686-pc-linux
 host_triplet = i686-pc-linux-gnu
 target_alias = i686-pc-linux
 target_triplet = i686-pc-linux-gnu
-AS = @AS@
-CC = gcc
-DLLTOOL = @DLLTOOL@
+#AS = @AS@
+#CC = gcc
+#DLLTOOL = @DLLTOOL@
 LEX = flex
-LIBTOOL = $(SHELL) $(top_builddir)/libtool
+#LIBTOOL = $(SHELL) $(top_builddir)/libtool
 LIBTOOL_DEPS = ./ltconfig ./ltmain.sh
 LIBVER_AGE = 0
 LIBVER_CURRENT = 1
 LIBVER_REVISION = 0
 LN_S = ln -s
 MAKEINFO = makeinfo
-OBJDUMP = @OBJDUMP@
+#OBJDUMP = @OBJDUMP@
 PACKAGE = linux-atm
 PERL = /usr/bin/perl
-RANLIB = ranlib
+#RANLIB = ranlib
 VERSION = 2.4.0
 YACC = bison -y -d
 
-lib_LTLIBRARIES = libatm.la
+#lib_LTLIBRARIES = libatm.la
+lib_LTLIBRARIES = libatm.a
 
 # ATMLIBS_VERSION comes from configure.in in the toplevel directory
 LDFLAGS = -version-info 1:0:0
@@ -103,10 +104,14 @@ DEFS = -DHAVE_CONFIG_H -I. -I$(srcdir) -I../..
 CPPFLAGS = 
 LIBS = 
 libatm_la_LDFLAGS = 
-libatm_la_OBJECTS =  text2atm.lo atm2text.lo atmequal.lo sdu2cell.lo \
+#libatm_la_OBJECTS =  text2atm.lo atm2text.lo atmequal.lo sdu2cell.lo \
 text2qos.lo qos2text.lo qosequal.lo sap2text.lo text2sap.lo sapequal.lo \
 misc.lo ans.lo common.lo diag.lo kptr.lo text2ip.lo timer.lo unix.lo
-CFLAGS = -I$(top_srcdir)/src/include -g -O2 -Wall -Wshadow -Wpointer-arith -Wwrite-strings -Wstrict-prototypes
+libatm_la_OBJECTS =  text2atm.o atm2text.o atmequal.o sdu2cell.o \
+text2qos.o qos2text.o qosequal.o sap2text.o text2sap.o sapequal.o \
+misc.o ans.o common.o diag.o kptr.o text2ip.o timer.o unix.o
+#CFLAGS = -I$(top_srcdir)/src/include -g -O2 -Wall -Wshadow -Wpointer-arith -Wwrite-strings -Wstrict-prototypes
+CFLAGS += -I$(top_srcdir)/src/include -Wpointer-arith -Wwrite-strings -Wstrict-prototypes
 COMPILE = $(CC) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
 LTCOMPILE = $(LIBTOOL) --mode=compile $(CC) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
 CCLD = $(CC)
@@ -195,8 +200,9 @@ distclean-libtool:
 
 maintainer-clean-libtool:
 
-libatm.la: $(libatm_la_OBJECTS) $(libatm_la_DEPENDENCIES)
-	$(LINK) -rpath $(libdir) $(libatm_la_LDFLAGS) $(libatm_la_OBJECTS) $(libatm_la_LIBADD) $(LIBS)
+libatm.a: $(libatm_la_OBJECTS) $(libatm_la_DEPENDENCIES)
+	#$(LINK) -rpath $(libdir) $(libatm_la_LDFLAGS) $(libatm_la_OBJECTS) $(libatm_la_LIBADD) $(LIBS)
+	$(AR) crvf libatm.a $(libatm_la_OBJECTS)
 
 tags: TAGS
 

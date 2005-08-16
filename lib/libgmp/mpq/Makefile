@@ -2,7 +2,7 @@
 .EXPORT_ALL_VARIABLES:
 
 # VPATH = $(ROOTDIR)/freeswan/gmp/mpq
-CFLAGS += -I../../$(LIBCDIR)/include
+# CFLAGS += -I../../$(LIBCDIR)/include
 srcdir = $(ROOTDIR)/lib/libgmp/mpq
 
 MPQ_SRCS = add.c canonicalize.c clear.c cmp.c cmp_ui.c div.c get_d.c \

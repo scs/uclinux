@@ -2,7 +2,6 @@
 
 #ifdef _BSD_SOURCE
 
-
 /*
  * Internal of an ICMP Router Advertisement
  */
@@ -97,5 +96,45 @@ struct icmp
 #define	ICMP_ADVLEN(p)	(8 + (IP_VHL_HL((p)->icmp_ip.ip_vhl) << 2) + 8)
 	/* N.B.: must separately check that header length >= 5 */
 #endif
+
+/* Definition of type and code fields. */
+/* defined above: ICMP_ECHOREPLY, ICMP_REDIRECT, ICMP_ECHO */
+#define	ICMP_UNREACH		3		/* dest unreachable, codes: */
+#define	ICMP_SOURCEQUENCH	4		/* packet lost, slow down */
+#define	ICMP_ROUTERADVERT	9		/* router advertisement */
+#define	ICMP_ROUTERSOLICIT	10		/* router solicitation */
+#define	ICMP_TIMXCEED		11		/* time exceeded, code: */
+#define	ICMP_PARAMPROB		12		/* ip header bad */
+#define	ICMP_TSTAMP		13		/* timestamp request */
+#define	ICMP_TSTAMPREPLY	14		/* timestamp reply */
+#define	ICMP_IREQ		15		/* information request */
+#define	ICMP_IREQREPLY		16		/* information reply */
+#define	ICMP_MASKREQ		17		/* address mask request */
+#define	ICMP_MASKREPLY		18		/* address mask reply */
+
+#define	ICMP_MAXTYPE		18
+
+
+/* UNREACH codes */
+#define	ICMP_UNREACH_NET	        0	/* bad net */
+#define	ICMP_UNREACH_HOST	        1	/* bad host */
+#define	ICMP_UNREACH_PROTOCOL	        2	/* bad protocol */
+#define	ICMP_UNREACH_PORT	        3	/* bad port */
+#define	ICMP_UNREACH_NEEDFRAG	        4	/* IP_DF caused drop */
+#define	ICMP_UNREACH_SRCFAIL	        5	/* src route failed */
+#define	ICMP_UNREACH_NET_UNKNOWN        6	/* unknown net */
+#define	ICMP_UNREACH_HOST_UNKNOWN       7	/* unknown host */
+#define	ICMP_UNREACH_ISOLATED	        8	/* src host isolated */
+#define	ICMP_UNREACH_NET_PROHIB	        9	/* net denied */
+#define	ICMP_UNREACH_HOST_PROHIB        10	/* host denied */
+#define	ICMP_UNREACH_TOSNET	        11	/* bad tos for net */
+#define	ICMP_UNREACH_TOSHOST	        12	/* bad tos for host */
+#define	ICMP_UNREACH_FILTER_PROHIB      13	/* admin prohib */
+#define	ICMP_UNREACH_HOST_PRECEDENCE    14	/* host prec vio. */
+#define	ICMP_UNREACH_PRECEDENCE_CUTOFF  15	/* prec cutoff */
+
+/* TIMEXCEED codes */
+#define	ICMP_TIMXCEED_INTRANS	0		/* ttl==0 in transit */
+#define	ICMP_TIMXCEED_REASS	1		/* ttl==0 in reass */
 
 #endif

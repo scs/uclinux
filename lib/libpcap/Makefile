@@ -41,8 +41,8 @@ srcdir = .
 
 #CC = gcc
 #CCOPT = -O2
-# INCLS = -I../libc/include -I.  -Ilinux-include $(INCGCC)
-INCLS = -I.  -Ilinux-include $(INCGCC)
+# INCLS = -I../libc/include -I.  -Ilinux-include
+INCLS = -I.  -Ilinux-include
 DEFS =  -DEMBED=1 -DHAVE_MALLOC_H=1 -DHAVE_STRERROR=1 -DHAVE_NET_IF_ARP_H=1 
 
 # Standard CFLAGS

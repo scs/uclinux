@@ -2,7 +2,7 @@
 .EXPORT_ALL_VARIABLES:
 
 #VPATH = $(ROOTDIR)/freeswan/gmp/mpz
-CFLAGS += -I../../$(LIBCDIR)/include
+# CFLAGS += -I../../$(LIBCDIR)/include
 srcdir = $(ROOTDIR)/lib/libgmp/mpz
 
 MPZ_SRCS = \

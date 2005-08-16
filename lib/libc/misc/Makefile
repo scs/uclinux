@@ -13,8 +13,8 @@ EOBJ=on_exit.o atexit.o __do_exit.o exit.o
 
 GOBJ=atoi.o atol.o atoll.o ltoa.o ltostr.o \
      qsort.o bsearch.o rand.o lsearch.o getopt.o \
-     itoa.o strtol.o sleep.o mkstemp.o mktemp.o \
-     random.o tmpnam.o tempnam.o getpass.o abort.o \
+     itoa.o strtol.o sleep.o mkstemp.o mktemp.o mkdtemp.o \
+     random.o tmpnam.o tempnam.o getpass.o getlogin.o gethostid.o abort.o \
      glob.o fnmatch.o insremque.o sysconf.o getdtablesize.o \
      mntent.o realpath.o scandir.o alphasort.o basename.o dirname.o \
      ftime.o

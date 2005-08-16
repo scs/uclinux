@@ -22,6 +22,8 @@ CFLAGS += -DTZ_FROM_FILE
 endif
 endif
 
+CFLAGS += -I$(ROOTDIR)/lib/libc/include
+
 
 all: headers subdirs .ranlib libcrypt.a libg.a $(SHARED_TARGET)
 

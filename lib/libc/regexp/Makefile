@@ -8,15 +8,11 @@ all: $(LIBC)
 
 $(LIBC): $(LIBC)($(OBJ))
 
-transfer:
-	-@rm -f ../include/regexp.h ../include/regmagic.h
-	cp -p regexp.h regmagic.h ../include/.
-
-$(LIBC)(regexp.o):	regexp.c regexp.h regmagic.h
+$(LIBC)(regexp.o):	regexp.c ../include/regexp.h regmagic.h
 	$(CC) $(CFLAGS) -DL_$* $< -c -o $*.o
 	$(AR) $(ARFLAGS) $@ $*.o
 
-$(LIBC)(regsub.o):	regsub.c regexp.h regmagic.h
+$(LIBC)(regsub.o):	regsub.c ../include/regexp.h regmagic.h
 	$(CC) $(CFLAGS) -DL_$* $< -c -o $*.o
 	$(AR) $(ARFLAGS) $@ $*.o
 
