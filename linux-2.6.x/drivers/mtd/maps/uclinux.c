@@ -139,7 +139,6 @@ int __init uclinux_mtd_init(void)
 	} else {
 	    /* fault ?? */
 	}
-	put_mtd_device(mtd);
 
 	return(0);
 }
@@ -157,7 +156,7 @@ void __exit uclinux_mtd_cleanup(void)
 		map_destroy(uclinux_ram_mtdinfo);
 		uclinux_ram_mtdinfo = NULL;
 	}
-	if (uclinux_ram_map.map_priv_1) {
+	if (uclinux_ram_map.virt) {
 		iounmap((void *) uclinux_ram_map.virt);
 		uclinux_ram_map.virt = 0;
 	}
