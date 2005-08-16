@@ -405,6 +405,7 @@ endmenu		# General setup
 
 config TINY_SHMEM
 	default !SHMEM
+	depends MMU
 	bool
 
 config BASE_SMALL
