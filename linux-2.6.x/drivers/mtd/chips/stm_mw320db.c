@@ -20,8 +20,6 @@
 
 #define MAX_SMT_CHIPS 8
 
-#define BE_QUIET
-
 #define DEVICE_TYPE_X8  (8 / 8)
 #define DEVICE_TYPE_X16 (16 / 8)
 #define DEVICE_TYPE_X32 (32 / 8)
@@ -442,10 +440,8 @@ retry:
 
 	if (chip->state != FL_READY)
 	{
-#ifndef BE_QUIET
 		printk(KERN_INFO "%s: waiting for chip to read, state = %d\n",
 			map->name, chip->state);
-#endif
 		set_current_state(TASK_UNINTERRUPTIBLE);
 		add_wait_queue(&chip->wq, &wait);
 
@@ -556,10 +552,8 @@ retry:
 
 	if (chip->state != FL_READY)
 	{
-#ifndef BE_QUIET
-		printk(KERN_INFO "%s: waiting for chip to write, state = %d\n",
+		printk("%s: waiting for chip to write, state = %d\n",
 				map->name, chip->state);
-#endif
 		set_current_state(TASK_UNINTERRUPTIBLE);
 		add_wait_queue(&chip->wq, &wait);
 
@@ -567,9 +561,7 @@ retry:
 
 		schedule();
 		remove_wait_queue(&chip->wq, &wait);
-#ifndef BE_QUIET
 		printk(KERN_INFO "%s: woke up to write\n", map->name);
-#endif
 		if (signal_pending(current))
 			return -EINTR;
 
@@ -813,10 +805,8 @@ retry:
 			add_wait_queue(&chip->wq, &wait);
 
 			spin_unlock_bh(chip->mutex);
-#ifndef BE_QUIET
 			printk(KERN_INFO "%s: erase suspended. Sleeping.\n",
 				map->name);
-#endif
 			schedule();
 			remove_wait_queue(&chip->wq, &wait);
 
