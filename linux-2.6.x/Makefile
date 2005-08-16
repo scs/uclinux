@@ -510,7 +510,7 @@ endif
 all: vmlinux
 
 ifdef CONFIG_CC_OPTIMIZE_FOR_SIZE
-CFLAGS		+= -Os
+CFLAGS		+= -O
 else
 CFLAGS		+= -O2
 endif
@@ -571,12 +571,12 @@ core-y		+= kernel/ mm/ fs/ ipc/ security/ crypto/
 
 vmlinux-dirs	:= $(patsubst %/,%,$(filter %/, $(init-y) $(init-m) \
 		     $(core-y) $(core-m) $(drivers-y) $(drivers-m) \
-		     $(net-y) $(net-m) $(libs-y) $(libs-m)))
+		     $(net-y) $(net-m) $(libs-y) $(libs-m) $(EXTRA_MODULE_DIRS)))
 
 vmlinux-alldirs	:= $(sort $(vmlinux-dirs) $(patsubst %/,%,$(filter %/, \
 		     $(init-n) $(init-) \
 		     $(core-n) $(core-) $(drivers-n) $(drivers-) \
-		     $(net-n)  $(net-)  $(libs-n)    $(libs-))))
+		     $(net-n)  $(net-)  $(libs-n)    $(libs-) $(EXTRA_MODULE_DIRS))))
 
 init-y		:= $(patsubst %/, %/built-in.o, $(init-y))
 core-y		:= $(patsubst %/, %/built-in.o, $(core-y))
@@ -900,7 +900,7 @@ _modinst_:
 ifeq "$(strip $(INSTALL_MOD_PATH))" ""
 depmod_opts	:=
 else
-depmod_opts	:= -b $(INSTALL_MOD_PATH) -r
+depmod_opts	:= -b $(INSTALL_MOD_PATH)/lib/modules -r
 endif
 .PHONY: _modinst_post
 _modinst_post: _modinst_

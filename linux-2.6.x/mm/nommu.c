@@ -57,6 +57,11 @@ DECLARE_RWSEM(nommu_vma_sem);
 struct vm_operations_struct generic_file_vm_ops = {
 };
 
+EXPORT_SYMBOL(vmalloc);
+EXPORT_SYMBOL(vfree);
+EXPORT_SYMBOL(vmalloc_to_page);
+EXPORT_SYMBOL(vmalloc_32);
+
 /*
  * Handle all mappings that got truncated by a "truncate()"
  * system call.
@@ -141,6 +146,8 @@ int get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
 	}
 	return(i);
 }
+
+EXPORT_SYMBOL(get_user_pages);
 
 DEFINE_RWLOCK(vmlist_lock);
 struct vm_struct *vmlist;
@@ -908,7 +915,7 @@ int do_munmap(struct mm_struct *mm, unsigned long addr, size_t len)
 #endif
 	for (parent = &mm->context.vmlist; *parent; parent = &(*parent)->next)
 	  if ((*parent)->vma->vm_start == addr &&
-	      (*parent)->vma->vm_end == end)
+	      ((len == 0) || ((*parent)->vma->vm_end == end)))
 	    goto found;
 
 
@@ -1054,7 +1061,8 @@ struct vm_area_struct *find_extend_vma(struct mm_struct *mm, unsigned long addr)
 int remap_pfn_range(struct vm_area_struct *vma, unsigned long from,
 		unsigned long to, unsigned long size, pgprot_t prot)
 {
-	return -EPERM;
+       vma->vm_start = vma->vm_pgoff << PAGE_SHIFT;	
+       return 0;
 }
 
 void swap_unplug_io_fn(struct backing_dev_info *bdi, struct page *page)
