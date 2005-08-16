@@ -1,5 +1,7 @@
 ftp	21/tcp
 ftp	21/udp
+ssh	22/tcp
+ssh	22/udp
 telnet	23/tcp
 telnet	23/udp
 nameserver	42/tcp	name

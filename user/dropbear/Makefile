@@ -60,8 +60,8 @@ dropbearkey-host:
 		export CC="$(CC) $(CFLAGS)"; \
 		export LDFLAGS="$(LDFLAGS)"; \
 		export LIBS="$(LDLIBS)"; \
-		./configure --host $(CROSS_COMPILE:-=) --prefix= \
-				--disable-zlib --disable-wtmp \
+		./configure --host=$(CROSS_COMPILE:-=) --prefix= \
+				--disable-zlib --disable-wtmp --disable-openpty\
 				--disable-wtmpx --disable-syslog --disable-shadow \
 				--disable-lastlog --disable-utmp --disable-utmpx ; \
 	fi
