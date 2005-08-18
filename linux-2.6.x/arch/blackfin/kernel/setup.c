@@ -242,7 +242,7 @@ static void __init generate_cpl_tables(void)
 {
 
   unsigned short pos;
-  unsigned long avail, dcplb_avail,icplb_avail;
+  unsigned long avail, dcplb_avail;
   
 
   if (RAM_END % SIZE_4M) panic("SDRAM SIZE MUST BE MULTIBLE OF 4MB\n");
