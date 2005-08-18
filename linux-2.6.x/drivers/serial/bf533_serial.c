@@ -41,7 +41,7 @@
 #undef SERIAL_DEBUG_TERMIOS
 
 #if defined(CONFIG_BF534) || defined(CONFIG_BF536) || defined(CONFIG_BF537)
-#define SIC_UART_MASK ((1<<(IRQ_UART_RX - IVG7)) | (1<<(IRQ_UART_TX - IVG7)) | (1<<(IRQ_UART1_RX - IVG7)) | (1<<(IRQ_UART1_TX - IVG7)) | (1<<(IRQ_UART_ERROR - IVG7)))
+#define SIC_UART_MASK ((1<<(IRQ_UART_RX - IVG7)) | (1<<(IRQ_UART_TX - IVG7)) | (1<<(IRQ_UART1_RX - IVG7)) | (1<<(IRQ_UART1_TX - IVG7)))
 #else
 #define SIC_UART_MASK ((1<<(IRQ_UART_RX - IVG7)) | (1<<(IRQ_UART_TX - IVG7)) | (1<<(IRQ_UART_ERROR - IVG7)))
 #endif
@@ -566,7 +566,7 @@ irqreturn_t rs_interrupt(int irq, void *dev_id, struct pt_regs * regs)
 	CSYNC;
 	sic_status = *pSIC_ISR;
 	if (sic_status & SIC_UART_MASK) {
-		CSYNC;
+	        CSYNC;
 		iir = *(uart_regs->rpUART_IIR);
 
 		if (!(iir & NINT))
