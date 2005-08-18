@@ -1078,8 +1078,7 @@ static int spi_open (struct inode *inode, struct file *filp)
 	     set_dma_callback(CH_SPI, (void*) spiadc_irq,filp->private_data);
 	
 
-    /* Incremetn the usage count */
-    MOD_INC_USE_COUNT;
+
 
     DPRINTK("spi_open: return \n");
     
@@ -1124,8 +1123,7 @@ static int spi_release (struct inode *inode, struct file *filp)
     pdev->opened = 0; 
     
     spi_fasync(-1, filp, 0);
-    /* Decrement the usage count */
-    MOD_DEC_USE_COUNT;
+
 
     DPRINTK("spi_release: close() return \n");
     return 0;

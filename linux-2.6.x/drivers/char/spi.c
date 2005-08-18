@@ -1053,8 +1053,7 @@ static int spi_open (struct inode *inode, struct file *filp)
         return -EFAULT;
     }
 
-    /* Incremetn the usage count */
-    MOD_INC_USE_COUNT;
+
 
     return 0;
 }
@@ -1093,8 +1092,7 @@ static int spi_release (struct inode *inode, struct file *filp)
     pdev->opened = 0; 
     
     spi_fasync(-1, filp, 0);
-    /* Decrement the usage count */
-    MOD_DEC_USE_COUNT;
+
 
     return 0;
 }

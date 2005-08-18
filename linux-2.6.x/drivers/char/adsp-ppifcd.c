@@ -581,8 +581,7 @@ static int ppi_open (struct inode *inode, struct file *filp)
     request_irq(IRQ_PPI_ERROR,(void *) ppifcd_irq_error,SA_INTERRUPT,"PPI ERROR" ,filp->private_data);
 
 
-    /* Incremetn the usage count */
-    MOD_INC_USE_COUNT;
+
 
     DPRINTK("ppi_open: return \n");
 
@@ -627,8 +626,7 @@ static int ppi_release (struct inode *inode, struct file *filp)
     pdev->opened = 0;
 
     ppi_fasync(-1, filp, 0);
-    /* Decrement the usage count */
-    MOD_DEC_USE_COUNT;
+
 
     DPRINTK("ppi_release: close() return \n");
     return 0;
