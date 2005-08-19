@@ -141,7 +141,7 @@ endmenu
 endmenu
 
 config BFIN_HAVE_RTC
-	bool
+	bool "Enable built-in RTC"
 	depends on (BF537 || BF536 || BF534)
 	default y
 

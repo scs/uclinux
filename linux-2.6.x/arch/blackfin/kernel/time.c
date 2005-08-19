@@ -203,13 +203,16 @@ EXPORT_SYMBOL(timer_interrupt);
 
 void time_init(void)
 {
+#ifdef CONFIG_BFIN_HAVE_RTC
 	time_t secs_since_1970 = 0;
 
 	/* Initialize the RTC sub-system*/
         rtc_init();
 	/* Retrieve calendar time (secs since Jan 1970) */
 	rtc_get(&secs_since_1970);
-
+#else
+	time_t secs_since_1970 = (365 * 35 + 9) * 24 * 3600; /* 1 Jan 2005 */
+#endif
 	/* Initialize xtime. From now on, xtime is updated with timer interrupts */
         xtime.tv_sec = secs_since_1970;
 	xtime.tv_nsec = 0;
@@ -285,7 +288,9 @@ int do_settimeofday(struct timespec *tv)
 	 *  lock out the timer_interrupt() routine which also acquires
 	 *  xtime_lock.  Locking out timer_interrupt() loses ticks!
 	 */
+#ifdef CONFIG_BFIN_HAVE_RTC
 	rtc_set(sec);
+#endif
 	
 	return 0;
 }

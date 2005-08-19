@@ -93,11 +93,11 @@ config	WDTIMER
 
 endmenu
 
-endmenu
-
 config BFIN_HAVE_RTC
-	bool
+	bool "Enable built-in RTC"
 	depends on (BF533 || BF532 || BF531)
 	default y
+
+endmenu
 
 endif
