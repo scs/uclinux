@@ -85,8 +85,6 @@ asmlinkage void trap_c(struct pt_regs *fp)
 	/* send the appropriate signal to the user program */
 	switch (fp->seqstat & 0x3f) {
 	    case VEC_STEP:
-		if (fp->ipend != 8 || fp->retx == fp->pc)
-		  goto nsig;
 		info.si_code = TRAP_STEP;
 		fp->pc = fp->retx;      /* gdb wants the value of the pc*/
 		sig = SIGTRAP;
