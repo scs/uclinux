@@ -363,9 +363,10 @@ u_int get_dsp_rev_id()
 /*
  *	Get CPU information for use by the procfs.
  */
+extern char *bfin_board_name __attribute__((weak));
 static int show_cpuinfo(struct seq_file *m, void *v)
 {
-	char *cpu, *mmu, *fpu;
+	char *cpu, *mmu, *fpu, *name;
 #ifdef CONFIG_BLKFIN_CACHE_LOCK
 	int lock;
 #endif
@@ -376,6 +377,11 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	cpu = CPU;
 	mmu = "none";
 	fpu = "none";
+	if ( (int)bfin_board_name != 0x8000 ) {
+		name = bfin_board_name;
+	} else {
+		name = "Unknown";
+	}
 
 	cclk = get_cclk();
 	sclk = get_sclk();
@@ -393,15 +399,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		   sclk,
 		   (loops_per_jiffy*HZ)/500000,((loops_per_jiffy*HZ)/5000)%100,
 		   (loops_per_jiffy*HZ));
-#if defined CONFIG_BLKFIN_STAMP	
-	seq_printf(m, "BOARD:\t\tADSP-BF533 STAMP\n");
-#endif
-#if defined CONFIG_EZKIT
-	seq_printf(m, "BOARD:\t\tADSP-BF533 EZ-KIT LITE\n");
-#endif
-#if defined CONFIG_GENERIC_BOARD
-	seq_printf(m, "BOARD:\t\tADSP-%s Custom Generic Board\n",cpu);
-#endif
+	seq_printf(m, "BOARD Name  :\t%s\n",name);
 	seq_printf(m, "BOARD Memory:\t%d MB\n",CONFIG_MEM_SIZE);
         if((*(volatile unsigned long *)IMEM_CONTROL) & (ENICPLB | IMC))
 		seq_printf(m, "I-CACHE:\tON\n");
