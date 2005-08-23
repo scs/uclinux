@@ -377,7 +377,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	cpu = CPU;
 	mmu = "none";
 	fpu = "none";
-	if ( (int)bfin_board_name != 0x8000 ) {
+	if ( &bfin_board_name ) {
 		name = bfin_board_name;
 	} else {
 		name = "Unknown";
