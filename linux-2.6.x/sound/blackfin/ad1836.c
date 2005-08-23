@@ -55,7 +55,7 @@
  *  - this can also be used to control the volume directly through setting
  *       the registers directly, eg.  echo2 /proc/asound/card0/registers 0x3000
  *       silences DAC_1_left
- *  - the chan_mask facility may easily be split into separate masks for rx and tx
+ *  - the in_chan_mask and out_chan_mask facility is split into separate masks for rx and tx
  *       by duplicating it, and using the proper one in the hw_params callback
  *  - define/undef NOCONTROLS below to omit/include all the ALSA controls
  *    note that I have no idea if I chose the control names properly.
@@ -171,8 +171,10 @@ struct snd_ad1836 {
   snd_pcm_t* pcm;
 
   /* define correspondence of alsa channels to ad1836 channels */
-  unsigned int chan_mask[4];
-  char     chan_mask_str[5]; /* last one is \0 */
+  unsigned int out_chan_mask[4];
+  char     out_chan_mask_str[5]; /* last one is \0 */
+  unsigned int in_chan_mask[4];
+  char     in_chan_mask_str[5]; /* last one is \0 */
 
   wait_queue_head_t   spi_waitq;
   uint16_t chip_registers[16];
@@ -286,7 +288,7 @@ static void snd_ad1836_reset_spi_stats(ad1836_t *chip ){
 
 
 /* define correspondence between ALSA and ad1836 channels, default '0123' */
-static int ad1836_set_chan_masks(ad1836_t* chip, char* permutation){
+static int ad1836_set_chan_masks(ad1836_t* chip, char* permutation, int out){
 
   int i,j,m;
   
@@ -304,10 +306,17 @@ static int ad1836_set_chan_masks(ad1836_t* chip, char* permutation){
     for(j=i+1;j<4;++j)
       if( permutation[i] == permutation[j] )
 	return -EINVAL;
-  
-  for( i=0;i<4; ++i )
-    chip->chan_mask_str[i] = permutation[i];
-  chip->chan_mask_str[4] = 0;
+
+  if(out) {  
+    for( i=0;i<4; ++i )
+      chip->out_chan_mask_str[i] = permutation[i];
+    chip->out_chan_mask_str[4] = 0;
+  }
+  else {
+    for( i=0;i<4; ++i )
+      chip->in_chan_mask_str[i] = permutation[i];
+    chip->in_chan_mask_str[4] = 0;
+  }
 
   m = 0;
   for( i=0;i<4;++i ){
@@ -315,11 +324,18 @@ static int ad1836_set_chan_masks(ad1836_t* chip, char* permutation){
     int bit  = 1 << chan;             /* 0001b ... 1000b */
     int bits = bit | (bit << 4);      /* 0x11 .. 0x88 */
     m |= bits;                        /* 0x11 .. 0xff, in order of permutation */
-    chip->chan_mask[i] = m;
+    if(out)
+      chip->out_chan_mask[i] = m;
+    else
+      chip->in_chan_mask[i] = m;
   }
 
-  snd_printk( KERN_INFO "channel masks set to %s = { %02x %02x %02x %02x }\n", 
-	      permutation, chip->chan_mask[0], chip->chan_mask[1], chip->chan_mask[2], chip->chan_mask[3] );
+  if(out)
+    snd_printk( KERN_INFO "channel out masks set to %s = { %02x %02x %02x %02x }\n", 
+	      permutation, chip->out_chan_mask[0], chip->out_chan_mask[1], chip->out_chan_mask[2], chip->out_chan_mask[3] );
+  else
+    snd_printk( KERN_INFO "channel in masks set to %s = { %02x %02x %02x %02x }\n", 
+	      permutation, chip->in_chan_mask[0], chip->in_chan_mask[1], chip->in_chan_mask[2], chip->in_chan_mask[3] );
   return 0;
 
 }
@@ -507,17 +523,31 @@ static void snd_ad1836_proc_talktrough_write( snd_info_entry_t * entry, snd_info
   return;
 }
 
-static void snd_ad1836_proc_chanmask_read( snd_info_entry_t * entry, snd_info_buffer_t * buffer){
+static void snd_ad1836_proc_outchanmask_read( snd_info_entry_t * entry, snd_info_buffer_t * buffer){
   ad1836_t *chip = (ad1836_t*) entry->private_data;
-  snd_iprintf(buffer, "%s\n", chip->chan_mask_str );
+  snd_iprintf(buffer, "%s\n", chip->out_chan_mask_str );
   return;
 }
 
-static void snd_ad1836_proc_chanmask_write( snd_info_entry_t * entry, snd_info_buffer_t * buffer){
+static void snd_ad1836_proc_outchanmask_write( snd_info_entry_t * entry, snd_info_buffer_t * buffer){
   ad1836_t *chip = (ad1836_t*) entry->private_data;
   char line[5];
   if( snd_info_get_line(buffer, line, sizeof(line)) ) return;
-  ad1836_set_chan_masks(chip, line);
+  ad1836_set_chan_masks(chip, line, 1);
+  return;
+}
+
+static void snd_ad1836_proc_inchanmask_read( snd_info_entry_t * entry, snd_info_buffer_t * buffer){
+  ad1836_t *chip = (ad1836_t*) entry->private_data;
+  snd_iprintf(buffer, "%s\n", chip->in_chan_mask_str );
+  return;
+}
+
+static void snd_ad1836_proc_inchanmask_write( snd_info_entry_t * entry, snd_info_buffer_t * buffer){
+  ad1836_t *chip = (ad1836_t*) entry->private_data;
+  char line[5];
+  if( snd_info_get_line(buffer, line, sizeof(line)) ) return;
+  ad1836_set_chan_masks(chip, line, 0);
   return;
 }
 
@@ -820,81 +850,69 @@ static int snd_ad1836_diffip_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t 
   return change;
 }
 
+#define CAPTURE_SOURCE_NUMBER 2
 
 static int snd_ad1836_mux_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t *uinfo)
 {
-  uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
+  static char *texts[CAPTURE_SOURCE_NUMBER] = {
+	"Line", "Mic"
+  };
+
+  uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
   uinfo->count = 2;
-  uinfo->value.integer.min = 0;
-  uinfo->value.integer.max = 1;
+  uinfo->value.enumerated.items = CAPTURE_SOURCE_NUMBER;
+  if (uinfo->value.enumerated.item >= CAPTURE_SOURCE_NUMBER)
+	uinfo->value.enumerated.item = CAPTURE_SOURCE_NUMBER - 1;
+  strcpy(uinfo->value.enumerated.name, texts[uinfo->value.enumerated.item]);
   return 0;
 }
-
 
 static int snd_ad1836_mux_get(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
 {
   ad1836_t *chip = snd_kcontrol_chip(kcontrol);
-  ucontrol->value.integer.value[0] = (chip->chip_registers[ADC_CTRL_3] & ADC_LEFT_MUX ) ? 1:0;
-  ucontrol->value.integer.value[1] = (chip->chip_registers[ADC_CTRL_3] & ADC_RIGHT_MUX) ? 1:0;
+  unsigned long adc_ctrl_3;
+
+  if((chip->chip_registers[ADC_CTRL_2] & ADC_SOUT_MASK) == ADC_SOUT_PMAUX) {
+    ucontrol->value.integer.value[1] = ucontrol->value.integer.value[0] = chip->in_chan_mask_str[0]-48;
+  }
+  else {
+    adc_ctrl_3 = chip->chip_registers[ADC_CTRL_3];
+    ucontrol->value.integer.value[0] = (adc_ctrl_3 & ADC_LEFT_SEL ) ? 1:0;
+    ucontrol->value.integer.value[1] = (adc_ctrl_3 & ADC_RIGHT_SEL) ? 1:0;
+  }
   return 0;
 }
 
 static int snd_ad1836_mux_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
 {
   ad1836_t *chip = snd_kcontrol_chip(kcontrol);
-  int change = 0;
+  unsigned long adc_ctrl_3;
+  int i,j;
+  char mask[5] = "0123";
+  int val;
 
-  if( ucontrol->value.integer.value[0] != ((chip->chip_registers[ADC_CTRL_3] & ADC_LEFT_MUX ) ? 1:0) )
-    change = 1;
-  if( ucontrol->value.integer.value[0] != ((chip->chip_registers[ADC_CTRL_3] & ADC_RIGHT_MUX ) ? 1:0) )
-    change = 1;
-  if( change ){
-    int val  = ucontrol->value.integer.value[0] ? ADC_LEFT_MUX : 0;
-    val |= ucontrol->value.integer.value[1] ? ADC_RIGHT_MUX : 0;
-    snd_ad1836_set_register(chip, ADC_CTRL_3, ADC_LEFT_MUX|ADC_RIGHT_MUX, val );
+  if (ucontrol->value.enumerated.item[0] >= CAPTURE_SOURCE_NUMBER || 
+      ucontrol->value.enumerated.item[1] >= CAPTURE_SOURCE_NUMBER)
+    return -EINVAL;
+
+  if((chip->chip_registers[ADC_CTRL_2] & ADC_SOUT_MASK) == ADC_SOUT_PMAUX) {
+    i = ucontrol->value.integer.value[0];
+    j = mask[0];
+    mask[0] = mask[i];
+    mask[i] = j;
+    // set the chan mask of the input stream
+    ad1836_set_chan_masks(chip, mask, 0);
   }
-  return change;
-}
-
-
-
-static int snd_ad1836_ipsel_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t *uinfo)
-{
-  uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
-  uinfo->count = 2;
-  uinfo->value.integer.min = 0;
-  uinfo->value.integer.max = 1;
-  return 0;
-}
-
-static int snd_ad1836_ipsel_get(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
-{
-  ad1836_t *chip = snd_kcontrol_chip(kcontrol);
-  ucontrol->value.integer.value[0] = (chip->chip_registers[ADC_CTRL_3] & ADC_LEFT_SEL ) ? 1:0;
-  ucontrol->value.integer.value[1] = (chip->chip_registers[ADC_CTRL_3] & ADC_RIGHT_SEL) ? 1:0;
-  return 0;
-}
-
-static int snd_ad1836_ipsel_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
-{
-  ad1836_t *chip = snd_kcontrol_chip(kcontrol);
-  int change = 0;
-
-  if( ucontrol->value.integer.value[0] != ((chip->chip_registers[ADC_CTRL_3] & ADC_LEFT_SEL ) ? 1:0) )
-    change = 1;
-  if( ucontrol->value.integer.value[0] != ((chip->chip_registers[ADC_CTRL_3] & ADC_RIGHT_SEL ) ? 1:0) )
-    change = 1;
-  if( change ){
-    int val  = ucontrol->value.integer.value[0] ? ADC_LEFT_SEL : 0;
+  else {
+    adc_ctrl_3 = chip->chip_registers[ADC_CTRL_3];
+    val = ADC_LEFT_MUX|ADC_RIGHT_MUX|ADC_LEFT_SE|ADC_RIGHT_SE;
+    val |= ucontrol->value.integer.value[0] ? ADC_LEFT_SEL : 0;
     val |= ucontrol->value.integer.value[1] ? ADC_RIGHT_SEL : 0;
-    snd_ad1836_set_register(chip, ADC_CTRL_3, ADC_LEFT_SEL|ADC_RIGHT_SEL, val );
+    snd_ad1836_set_register(chip, ADC_CTRL_3, ADC_LEFT_MUX|ADC_RIGHT_MUX|ADC_LEFT_SE|ADC_RIGHT_SE|ADC_LEFT_SEL|ADC_RIGHT_SEL , val);
   }
-  return change;
+  
+  return 1;
 }
-
-
-
-
 
 
 static int snd_ad1836_vu_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t *uinfo)
@@ -937,8 +955,7 @@ static snd_kcontrol_new_t snd_ad1836_controls[] __devinitdata = {
   KTRLRW( MIXER, "Tone Contol DAC De-emphasis Switch", snd_ad1836_deemph ),
   KTRLRW( MIXER, "Tone Contol ADC High-pass Filter Switch", snd_ad1836_filter ),
   KTRLRW( MIXER, "PCM Capture Differential Switch", snd_ad1836_diffip ),  /* note: off = differential, on = single ended */
-  KTRLRW( MIXER, "PCM Capture MUX Switch",   snd_ad1836_mux ),
-  KTRLRW( MIXER, "PCM Capture i/p Switch",   snd_ad1836_ipsel ),
+  KTRLRW( MIXER, "Capture Source",   snd_ad1836_mux ),
   KTRLRO( PCM,   "PCM Capture VU",           snd_ad1836_vu ),
 
 
@@ -1261,7 +1278,7 @@ static int snd_ad1836_playback_copy(snd_pcm_substream_t *substream, int channel,
   ad1836_t *chip = _snd_pcm_substream_chip(substream);
   unsigned int *dst = (unsigned int *)substream->runtime->dma_area;
   unsigned int *isrc = (unsigned int *)src;
-  unsigned int chan_mask = chip->chan_mask[substream->runtime->channels/2 - 1];
+  unsigned int out_chan_mask = chip->out_chan_mask[substream->runtime->channels/2 - 1];
 
   //snd_printk(KERN_INFO "playback_copy: src %p, pos %x, count %x\n", src, (uint)pos, (uint)count);
 
@@ -1271,7 +1288,7 @@ static int snd_ad1836_playback_copy(snd_pcm_substream_t *substream, int channel,
   while(count--) {
     unsigned int c;
     for (c = 0; c < 8; c++) {
-      if (chan_mask & (1 << c)) {
+      if (out_chan_mask & (1 << c)) {
         *dst = *isrc++;
       }
       dst++;
@@ -1284,7 +1301,7 @@ static int snd_ad1836_capture_copy(snd_pcm_substream_t *substream, int channel, 
   ad1836_t *chip = _snd_pcm_substream_chip(substream);
   unsigned int *src = (unsigned int *)substream->runtime->dma_area;
   unsigned int *idst = (unsigned int *)dst;
-  unsigned int chan_mask = chip->chan_mask[substream->runtime->channels/2 - 1];
+  unsigned int in_chan_mask = chip->in_chan_mask[substream->runtime->channels/2 - 1];
 
   //snd_printk(KERN_INFO "capture_copy: dst %p, pos %x, count %x\n", dst, (uint)pos, (uint)count);
 
@@ -1292,7 +1309,7 @@ static int snd_ad1836_capture_copy(snd_pcm_substream_t *substream, int channel, 
   while(count--) {
     unsigned int c;
     for (c = 0; c < 8; c++) {
-      if (chan_mask & (1 << c)) {
+      if (in_chan_mask & (1 << c)) {
         *idst++ = *src;
       }
       src++;
@@ -1563,7 +1580,10 @@ static int __devinit snd_ad1836_create(snd_card_t *card,
     return -ENODEV;
   }
   
-  ad1836_set_chan_masks(chip, "0123");
+  // set the chan mask of the output stream
+  ad1836_set_chan_masks(chip, "0123", 1);
+  // set the chan mask of the input stream
+  ad1836_set_chan_masks(chip, "0123", 0);
 
   err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, chip, &snd_ad1836_ops);
 
@@ -1593,15 +1613,26 @@ static int __devinit snd_ad1836_create(snd_card_t *card,
 
   if(!err){
     snd_info_entry_t* proc_entry;
-    err = snd_card_proc_new(card, "chan_mask", &proc_entry); 
+    err = snd_card_proc_new(card, "out_chan_mask", &proc_entry); 
     if(!err){
-      snd_info_set_text_ops( proc_entry, chip, 1024, snd_ad1836_proc_chanmask_read);
+      snd_info_set_text_ops( proc_entry, chip, 1024, snd_ad1836_proc_outchanmask_read);
       proc_entry->mode = S_IFREG | S_IRUGO | S_IWUSR;
       proc_entry->c.text.write_size = 5;
-      proc_entry->c.text.write = snd_ad1836_proc_chanmask_write;
+      proc_entry->c.text.write = snd_ad1836_proc_outchanmask_write;
     }
   }
 
+  if(!err){
+    snd_info_entry_t* proc_entry;
+    err = snd_card_proc_new(card, "in_chan_mask", &proc_entry); 
+    if(!err){
+      snd_info_set_text_ops( proc_entry, chip, 1024, snd_ad1836_proc_inchanmask_read);
+      proc_entry->mode = S_IFREG | S_IRUGO | S_IWUSR;
+      proc_entry->c.text.write_size = 5;
+      proc_entry->c.text.write = snd_ad1836_proc_inchanmask_write;
+    }
+  }
+  
   if(!err){
     snd_info_entry_t* proc_entry;
     err = snd_card_proc_new(card, "talktrough", &proc_entry); 
