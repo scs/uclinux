@@ -134,7 +134,6 @@
 #undef CONFIG_SND_DEBUG_CURRPTR  /* causes output every frame! */
 
 /* assembly helpers */
-//extern void b4copy(unsigned int* src, unsigned int* dst, unsigned int count_bytes); /* in b4copy.S */
 extern void bf53x_cache_flush(void* start, unsigned int size_bytes);
 extern void bf53x_cache_flushinv(void* start, unsigned int size_bytes);
 
@@ -226,7 +225,7 @@ static int ad1836_spi_handler(struct bf53x_spi_channel* chan, void* buf, size_t 
   ad1836_t *chip = (ad1836_t*) private;
   unsigned int data = *(unsigned int*) buf;
   snd_assert( chip->spi_chan == chan, return -EINVAL);
-  // snd_printk( KERN_INFO "in ad1836 spi handler. polled: %x data = 0x%04x\n", chip->poll_reg, data );  
+  /* snd_printk( KERN_INFO "in ad1836 spi handler. polled: %x data = 0x%04x\n", chip->poll_reg, data );  */
   ++(chip->spi_irq_count);
 
   /* If we're running, we're issuing VU queries not configuring */
@@ -237,8 +236,9 @@ static int ad1836_spi_handler(struct bf53x_spi_channel* chan, void* buf, size_t 
 
   wake_up(&chip->spi_waitq);
 
-  // TODO: move received data to the register cache, make separate handler for set_register
-  // in the sport irq: send a register read cmd for the vu meters...
+  /* TODO: move received data to the register cache, make separate handler for set_register
+   * in the sport irq: send a register read cmd for the vu meters...
+   */
 
   return 0;
 }
@@ -249,14 +249,14 @@ static int snd_ad1836_set_register(ad1836_t *chip, unsigned int reg, unsigned in
   int stat;
   unsigned int data = (chip->chip_registers[reg] & ~mask) | (value & mask);
 
-  // snd_printk( KERN_INFO "spi set reg %d = 0x%04x\n", reg, data);  
+  /* snd_printk( KERN_INFO "spi set reg %d = 0x%04x\n", reg, data);  */
 
   /* the following will be much nicer if the wait stuff is moved into bf53x_spi.c */
   do {
     stat = bf53x_spi_transceive(chip->spi_chan, data, NULL, NULL);
   } while(stat != 0);
 
-  // snd_printk( KERN_INFO "waiting for spi set reg %d\n", reg);  
+  /* snd_printk( KERN_INFO "waiting for spi set reg %d\n", reg);  */
 
   if( bf53x_spi_busy(chip->spi) )
     if( !sleep_on_timeout(&chip->spi_waitq, HZ) ){
@@ -900,7 +900,7 @@ static int snd_ad1836_mux_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *uc
     j = mask[0];
     mask[0] = mask[i];
     mask[i] = j;
-    // set the chan mask of the input stream
+    /* set the chan mask of the input stream*/
     ad1836_set_chan_masks(chip, mask, 0);
   }
   else {
@@ -1045,7 +1045,7 @@ static snd_pcm_hardware_t snd_ad1836_capture_hw = {
 
 static int snd_ad1836_playback_open(snd_pcm_substream_t* substream){
 
-  ad1836_t* chip = _snd_pcm_substream_chip(substream);
+  ad1836_t* chip = snd_pcm_substream_chip(substream);
 
   snd_printk_marker();
 
@@ -1060,7 +1060,7 @@ static int snd_ad1836_playback_open(snd_pcm_substream_t* substream){
 }
 static int snd_ad1836_capture_open(snd_pcm_substream_t* substream){ 
 
-  ad1836_t* chip = _snd_pcm_substream_chip(substream);
+  ad1836_t* chip = snd_pcm_substream_chip(substream);
 
   snd_printk_marker();
 
@@ -1076,7 +1076,7 @@ static int snd_ad1836_capture_open(snd_pcm_substream_t* substream){
 
 static int snd_ad1836_playback_close(snd_pcm_substream_t* substream){
 
-  ad1836_t* chip = _snd_pcm_substream_chip(substream);
+  ad1836_t* chip = snd_pcm_substream_chip(substream);
 
   snd_printk_marker();
 
@@ -1088,7 +1088,7 @@ static int snd_ad1836_playback_close(snd_pcm_substream_t* substream){
 
 static int snd_ad1836_capture_close(snd_pcm_substream_t* substream){
 
-  ad1836_t* chip = _snd_pcm_substream_chip(substream);
+  ad1836_t* chip = snd_pcm_substream_chip(substream);
 
   snd_printk_marker();
 
@@ -1134,7 +1134,7 @@ static int snd_ad1836_hw_free(snd_pcm_substream_t * substream){
 
 static int snd_ad1836_prepare( snd_pcm_substream_t* substream ){
 
-  ad1836_t* chip = _snd_pcm_substream_chip(substream);
+  ad1836_t* chip = snd_pcm_substream_chip(substream);
   snd_pcm_runtime_t* runtime = substream->runtime;
 
   void* buf_addr      = (void*) runtime->dma_area;
@@ -1168,7 +1168,7 @@ static int snd_ad1836_prepare( snd_pcm_substream_t* substream ){
 
 static int snd_ad1836_trigger( snd_pcm_substream_t* substream, int cmd){
 
-  ad1836_t* chip = _snd_pcm_substream_chip(substream);
+  ad1836_t* chip = snd_pcm_substream_chip(substream);
 #ifdef CONFIG_SND_DEBUG
   snd_printk( KERN_INFO "%s(%d)\n", __FUNCTION__, cmd );
 #endif
@@ -1219,7 +1219,7 @@ printk("trigger: cmd=0x%x, runs=%d, runmode=0x%x\n", cmd, runs, chip->runmode);
 
 static snd_pcm_uframes_t snd_ad1836_playback_pointer( snd_pcm_substream_t* substream ){
 
-  ad1836_t* chip = _snd_pcm_substream_chip(substream);
+  ad1836_t* chip = snd_pcm_substream_chip(substream);
   snd_pcm_runtime_t* runtime = substream->runtime;
 
   char* buf  = (char*) runtime->dma_area;
@@ -1248,7 +1248,7 @@ static snd_pcm_uframes_t snd_ad1836_playback_pointer( snd_pcm_substream_t* subst
 
 static snd_pcm_uframes_t snd_ad1836_capture_pointer( snd_pcm_substream_t* substream ){
 
-  ad1836_t* chip = _snd_pcm_substream_chip(substream);
+  ad1836_t* chip = snd_pcm_substream_chip(substream);
   snd_pcm_runtime_t* runtime = substream->runtime;
 
   char* buf  = (char*) runtime->dma_area;
@@ -1275,12 +1275,12 @@ static snd_pcm_uframes_t snd_ad1836_capture_pointer( snd_pcm_substream_t* substr
 }
 
 static int snd_ad1836_playback_copy(snd_pcm_substream_t *substream, int channel, snd_pcm_uframes_t pos, void *src, snd_pcm_uframes_t count){
-  ad1836_t *chip = _snd_pcm_substream_chip(substream);
+  ad1836_t *chip = snd_pcm_substream_chip(substream);
   unsigned int *dst = (unsigned int *)substream->runtime->dma_area;
   unsigned int *isrc = (unsigned int *)src;
   unsigned int out_chan_mask = chip->out_chan_mask[substream->runtime->channels/2 - 1];
 
-  //snd_printk(KERN_INFO "playback_copy: src %p, pos %x, count %x\n", src, (uint)pos, (uint)count);
+  /*snd_printk(KERN_INFO "playback_copy: src %p, pos %x, count %x\n", src, (uint)pos, (uint)count);*/
 
   /* assumes tx DMA buffer initialised with zeros */
   dst += pos * 8;
@@ -1298,12 +1298,12 @@ static int snd_ad1836_playback_copy(snd_pcm_substream_t *substream, int channel,
 }
 
 static int snd_ad1836_capture_copy(snd_pcm_substream_t *substream, int channel, snd_pcm_uframes_t pos, void *dst, snd_pcm_uframes_t count){
-  ad1836_t *chip = _snd_pcm_substream_chip(substream);
+  ad1836_t *chip = snd_pcm_substream_chip(substream);
   unsigned int *src = (unsigned int *)substream->runtime->dma_area;
   unsigned int *idst = (unsigned int *)dst;
   unsigned int in_chan_mask = chip->in_chan_mask[substream->runtime->channels/2 - 1];
 
-  //snd_printk(KERN_INFO "capture_copy: dst %p, pos %x, count %x\n", dst, (uint)pos, (uint)count);
+  /*snd_printk(KERN_INFO "capture_copy: dst %p, pos %x, count %x\n", dst, (uint)pos, (uint)count);*/
 
   src += pos * 8;
   while(count--) {
@@ -1367,8 +1367,9 @@ static snd_pcm_ops_t snd_ad1836_capture_ops = {
  *************************************************************/
 
 
-// chip-specific destructor
-// (see "PCI Resource Managements")
+/* chip-specific destructor
+ * (see "PCI Resource Managements")
+ */
 static int snd_ad1836_free(ad1836_t *chip)
 {
   
@@ -1387,10 +1388,11 @@ static int snd_ad1836_free(ad1836_t *chip)
   return 0;
 }
 
-// component-destructor, wraps snd_ad1836_free for use in snd_device_ops_t
+/* component-destructor, wraps snd_ad1836_free for use in snd_device_ops_t
+ */
 static int snd_ad1836_dev_free(snd_device_t *device)
 {
-  ad1836_t *chip = snd_magic_cast(ad1836_t, device->device_data, return -ENXIO);
+  ad1836_t *chip = (ad1836_t *)device->device_data;
   return snd_ad1836_free(chip);
 }
 
@@ -1475,7 +1477,7 @@ static int __devinit snd_ad1836_create(snd_card_t *card,
   /* spi and sport availability have been ensured by caller (the module init) */
   
   /* allocate a chip-specific data with magic-alloc */
-  chip = snd_magic_kcalloc(ad1836_t, 0, GFP_KERNEL);
+  chip = (ad1836_t*)kcalloc(1, sizeof(ad1836_t), GFP_KERNEL);
   if (chip == NULL)
     return -ENOMEM;
   
@@ -1580,9 +1582,9 @@ static int __devinit snd_ad1836_create(snd_card_t *card,
     return -ENODEV;
   }
   
-  // set the chan mask of the output stream
+  /* set the chan mask of the output stream */
   ad1836_set_chan_masks(chip, "0123", 1);
-  // set the chan mask of the input stream
+  /* set the chan mask of the input stream */
   ad1836_set_chan_masks(chip, "0123", 0);
 
   err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, chip, &snd_ad1836_ops);
@@ -1858,13 +1860,13 @@ static irqreturn_t snd_adi1836_sport_handler_rx(ad1836_t* chip, int irq){
 #endif
     
   if( chip->rx_substream ) {
-    //square_fill(chip->rx_substream->runtime->dma_area, chip->rx_substream->runtime->dma_bytes);
-    //print_16x8(chip->rx_substream->runtime->dma_area);
+    /*square_fill(chip->rx_substream->runtime->dma_area, chip->rx_substream->runtime->dma_bytes);*/
+    /*print_16x8(chip->rx_substream->runtime->dma_area);*/
     snd_pcm_period_elapsed(chip->rx_substream);
   }
 
   if( chip->talktrough_mode == TALKTROUGH_SMART  ){
-    // copy last rx frag to next tx frag
+    /* copy last rx frag to next tx frag*/
     void* src;
     void* dst;
     int   cnt = (AD1836_BUFFER_SIZE/TALKTROUGH_FRAGMENTS);
@@ -1878,12 +1880,10 @@ static irqreturn_t snd_adi1836_sport_handler_rx(ad1836_t* chip, int irq){
     src = frag2addr( chip->rx_buf, src_frag, cnt );
     dst = frag2addr( chip->tx_buf, dst_frag, cnt );
     bf53x_cache_flushinv(src,cnt); 
-#if 0
-    b4copy(src,dst,cnt);    
-#else
+    
     memmove(dst,src,cnt);
-#endif
-    //print_16x8(chip->rx_buf);
+    
+    /*print_16x8(chip->rx_buf);*/
     bf53x_cache_flush(dst,cnt);
     
   }
@@ -1925,8 +1925,8 @@ static irqreturn_t snd_adi1836_sport_handler_tx(ad1836_t* chip, int irq){
 
   if( chip->tx_substream) {
     snd_pcm_period_elapsed(chip->tx_substream);
-    //square_fill(chip->tx_substream->runtime->dma_area, chip->tx_substream->runtime->dma_bytes);
-    //print_16x8(chip->tx_substream->runtime->dma_area);
+    /*square_fill(chip->tx_substream->runtime->dma_area, chip->tx_substream->runtime->dma_bytes);*/
+    /*print_16x8(chip->tx_substream->runtime->dma_area);*/
   }
 
   return IRQ_HANDLED;
@@ -1950,8 +1950,6 @@ static irqreturn_t snd_adi1836_sport_handler_tx(ad1836_t* chip, int irq){
 MODULE_AUTHOR("Luuk van Dijk <blackfin@mndmttr.nl>");
 MODULE_DESCRIPTION("BF53x/ADI 1836");
 MODULE_LICENSE("GPL");
-MODULE_CLASSES("{sound}");
-MODULE_DEVICES("{{Analog Devices,ADI1836}}");
 
 
 static struct bf53x_spi*   spi=NULL;
@@ -1961,20 +1959,20 @@ static snd_card_t*         card=NULL;
 
 
 static irqreturn_t spi_handler(int irq, void *dev_id, struct pt_regs *regs){
-  //  snd_printk( KERN_INFO "in module spi handler\n" );  
+  /*  snd_printk( KERN_INFO "in module spi handler\n" );  */
   if(spi) return bf53x_spi_irq_handler(spi, irq); 
   return IRQ_NONE;
 }
 
 static irqreturn_t sport_handler_rx(int irq, void *dev_id, struct pt_regs *regs){
-  //  snd_printk( KERN_INFO "in module sport handler\n" );  
+  /*  snd_printk( KERN_INFO "in module sport handler\n" );  */
   if(card) 
     return snd_adi1836_sport_handler_rx( (ad1836_t*)(card->private_data), irq );
   return IRQ_NONE;
 }
 
 static irqreturn_t sport_handler_tx(int irq, void *dev_id, struct pt_regs *regs){
-  //  snd_printk( KERN_INFO "in module sport handler\n" );  
+  /*  snd_printk( KERN_INFO "in module sport handler\n" );  */
   if(card) 
     return snd_adi1836_sport_handler_tx( (ad1836_t*)(card->private_data), irq );
   return IRQ_NONE;
