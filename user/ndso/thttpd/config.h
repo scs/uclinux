@@ -71,7 +71,7 @@
 ** or whatever.  If you don't want any limit, comment this out, but that's
 ** probably a really bad idea.
 */
-#define CGI_TIMELIMIT 30
+#define CGI_TIMELIMIT 120
 
 /* CONFIGURE: How many seconds to allow for reading the initial request
 ** on a new connection.

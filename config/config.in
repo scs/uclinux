@@ -1573,6 +1573,7 @@ comment 'Blackfin app programs'
 
 bool    'gdbserver'  	    	        CONFIG_USER_BLACKFIN_GDB
 bool    'Networked Software Defined Storage Oscilloscope' CONFIG_USER_NDSO 
+bool    'Networked Arbitrary Waveform Genertor' CONFIG_USER_AWG 
 bool    'CGI based Test Application for the PPI Frame Capture Driver' CONFIG_USER_BLACKFIN_PPIFCDCGI
 bool    'Linphone, a SIP compatible VoIP phone'	CONFIG_USER_BLACKFIN_LINPHONE
 

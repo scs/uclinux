@@ -200,6 +200,7 @@ dir_$(CONFIG_USER_MSNTP_MSNTP)              += msntp
 dir_$(CONFIG_USER_MUSICBOX_MUSICBOX)        += musicbox
 dir_$(CONFIG_USER_MYSQL)                    += mysql
 dir_$(CONFIG_USER_NDSO)                     += ndso 
+dir_$(CONFIG_USER_AWG)                      += ndso
 dir_$(CONFIG_USER_NESSUS_NASL)              += nessus
 dir_$(CONFIG_USER_NETCAT_NETCAT)            += netcat
 dir_$(CONFIG_USER_NETFLASH_NETFLASH)        += netflash
