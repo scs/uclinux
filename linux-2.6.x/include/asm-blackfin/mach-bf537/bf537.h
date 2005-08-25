@@ -119,16 +119,6 @@
 		#error "VCO Multiplier should be greater than 0. Please select a different value"
 #endif
 
-#ifdef CONFIG_BLKFIN_STAMP
-#if(CONFIG_VCO_MULT > 56) && (CONFIG_CLKIN_HALF == 0)
-		#error "VCO Multiplier is more than 56 for STAMP. Please select a different value"
-#endif
-#endif
-#ifdef CONFIG_EZKIT
-#if(CONFIG_VCO_MULT > 22) && (CONFIG_CLKIN_HALF == 0)
-		#error "VCO Multiplier is more than 22 for EZKIT. Please select a different value"
-#endif
-#endif
 #if(CONFIG_VCO_MULT > 64)
 		#error "VCO Multiplier is more than 64. Please select a different value"
 #endif

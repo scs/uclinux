@@ -202,22 +202,6 @@
 		#error "VCO Multiplier should be greater than 0. Please select a different value"
 #endif
 
-#ifdef CONFIG_BLKFIN_STAMP
-#if(CONFIG_VCO_MULT > 56)
-		#error "VCO Multiplier is more than 56 for STAMP. Please select a different value"
-#endif
-#endif
-#ifdef CONFIG_EZKIT
-#if(CONFIG_VCO_MULT > 22)
-		#error "VCO Multiplier is more than 22 for EZKIT. Please select a different value"
-#endif
-#endif
-#ifdef CONFIG_HHBF
-#if(CONFIG_VCO_MULT > 22)
-		#error "VCO Multiplier is more than 22 for HHBF. Please select a different value"
-#endif
-#endif
-
 #if(CONFIG_CLKIN_HALF == 0)
 	#define CONFIG_VCO_HZ	(CONFIG_CLKIN_HZ * CONFIG_VCO_MULT)
 #else
