@@ -1176,14 +1176,14 @@ static int snd_ad1836_trigger( snd_pcm_substream_t* substream, int cmd){
   switch(cmd){
   case SNDRV_PCM_TRIGGER_START: 
     if( substream == chip->rx_substream ) {
-        chip->runmode |= RUN_RX;
-    bf53x_sport_hook_rx_desc(chip->sport);
+      chip->runmode |= RUN_RX;
+      bf53x_sport_hook_rx_desc(chip->sport);
 /*    printk("start rx\n");*/
       }
     else if( substream == chip->tx_substream ) {
-        chip->runmode |= RUN_TX;
-    bf53x_sport_hook_tx_desc(chip->sport);
-/*    printk("start tx\n");*/
+      chip->runmode |= RUN_TX;
+      bf53x_sport_hook_tx_desc(chip->sport);
+/*    printk("trigger tx\n");*/
       }
     else
       return -EINVAL;
@@ -1403,7 +1403,7 @@ static snd_device_ops_t snd_ad1836_ops = {
 
 static int snd_bf53x_adi1836_reset(ad1836_t *chip)
 {
-#ifdef CONFIG_EZKIT
+#if defined(CONFIG_EZKIT)&&defined(CONFIG_BF533)
   /*
    *  On the EZKIT, the reset pin of the adi1836 is connected
    *  to a programmable flag pin on one of the flash chips.
@@ -1491,7 +1491,7 @@ static int __devinit snd_ad1836_create(snd_card_t *card,
 					    1, /* master mode */
 					    16, /* baud rate SCK = HCLK/(2*SPIBAUD) SCK = 2MHz */
 					    1, /* word size = 16 bits */
-					    (1<<SND_CONFIG_BLACKFIN_PFBIT), /* pf4 bit enabled */
+					    (1<<CONFIG_SND_BLACKFIN_SPI_PFBIT), /* pf4 bit enabled */
 					    0x0, /* no special configs */
 					    &ad1836_spi_handler, chip);
   
@@ -1539,7 +1539,7 @@ static int __devinit snd_ad1836_create(snd_card_t *card,
 #if L1_DATA_A_LENGTH != 0
   if((dummy_buf_tx=(unsigned long *)l1_data_A_sram_alloc(DUMMY_BUF_LEN))==NULL) {
 #else
-  if((dummy_buf_tx=(unsigned long *)malloc(DUMMY_BUF_LEN))==NULL) {
+  if((dummy_buf_tx=(unsigned long *)kmalloc(DUMMY_BUF_LEN, GFP_KERNEL))==NULL) {
 #endif
     snd_printk( KERN_ERR "Unable to allocate dummy tx buffer\n");
     snd_ad1836_free(chip);
@@ -1548,13 +1548,13 @@ static int __devinit snd_ad1836_create(snd_card_t *card,
 #if L1_DATA_A_LENGTH != 0
   if((dummy_buf_rx=(unsigned long *)l1_data_A_sram_alloc(DUMMY_BUF_LEN))==NULL) {
 #else
-  if((dummy_buf_rx=(unsigned long *)malloc(DUMMY_BUF_LEN))==NULL) {
+  if((dummy_buf_rx=(unsigned long *)kmalloc(DUMMY_BUF_LEN, GFP_KERNEL))==NULL) {
 #endif
     snd_printk( KERN_ERR "Unable to allocate dummy rx buffer\n");
 #if L1_DATA_A_LENGTH != 0
     l1_data_A_sram_free((unsigned long)dummy_buf_tx);
 #else
-    free(dummy_buf_tx);
+    kfree(dummy_buf_tx);
 #endif
     snd_ad1836_free(chip);
     return -ENODEV;
@@ -1575,13 +1575,13 @@ static int __devinit snd_ad1836_create(snd_card_t *card,
     l1_data_A_sram_free((unsigned long)dummy_buf_tx);
     l1_data_A_sram_free((unsigned long)dummy_buf_rx);
 #else
-    free(dummy_buf_tx);
-    free(dummy_buf_rx);
+    kfree(dummy_buf_tx);
+    kfree(dummy_buf_rx);
 #endif
     snd_ad1836_free(chip);
     return -ENODEV;
   }
-  
+
   /* set the chan mask of the output stream */
   ad1836_set_chan_masks(chip, "0123", 1);
   /* set the chan mask of the input stream */
@@ -1686,8 +1686,8 @@ static int __devinit snd_ad1836_create(snd_card_t *card,
     l1_data_A_sram_free((unsigned long)dummy_buf_tx);
     l1_data_A_sram_free((unsigned long)dummy_buf_rx);
 #else
-    free(dummy_buf_tx);
-    free(dummy_buf_rx);
+    kfree(dummy_buf_tx);
+    kfree(dummy_buf_rx);
 #endif
     snd_ad1836_free(chip);
     return err;
@@ -1741,15 +1741,13 @@ static int __devinit snd_bf53x_adi1836_probe(struct bf53x_spi* spi,
 
   strcpy(card->driver, "adi1836");
   strcpy(card->shortname, CHIP_NAME);
-  sprintf(card->longname, "%s at SPI irq %d/%d, SPORT%d rx/tx dma %d/%d irq %d/%d/%d ", 
+  sprintf(card->longname, "%s at SPI irq %d/%d, SPORT%d rx/tx dma %d/%d err irq /%d ", 
 	  card->shortname,
 	  CONFIG_SND_BLACKFIN_SPI_IRQ_DATA,   /* we could get these from the spi and */
 	  CONFIG_SND_BLACKFIN_SPI_IRQ_ERR,    /* sport structs, but then we'd have to publish them */
 	  CONFIG_SND_BLACKFIN_SPORT,          /* and we set them ourselves below anyway */
 	  CONFIG_SND_BLACKFIN_SPORT_DMA_RX,
 	  CONFIG_SND_BLACKFIN_SPORT_DMA_TX,
-	  CONFIG_SND_BLACKFIN_SPORT_IRQ_RX,
-	  CONFIG_SND_BLACKFIN_SPORT_IRQ_TX,
 	  CONFIG_SND_BLACKFIN_SPORT_IRQ_ERR
 	  );
 

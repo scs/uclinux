@@ -29,5 +29,14 @@ config SND_BLACKFIN_SPORT
 	help
 	  Enter the Blackfin SPORT port to which your sound chip is connected
 	  acceptable values are 0 or 1
+
+config SND_BLACKFIN_SPI_PFBIT
+	int "Blackfin Audio SPI channel selection bit"
+	depends on SND_BLACKFIN_ADI1836
+	default 4
+	help
+	  Enter the Blackfin SPI channel to which your sound chip is connected
+	  acceptable values are 0 to 7
+
 endmenu
 

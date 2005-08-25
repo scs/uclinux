@@ -12,14 +12,8 @@
  */
 
 
-#ifndef SND_CONFIG_BLACKFIN_PFBIT
-#define SND_CONFIG_BLACKFIN_PFBIT 4    /* pf bit tied to ad1836 chip select */
-#endif
-
-#if 0 /* not used */
-#ifndef CONFIG_SND_BLACKFIN_SPI_DMA
-#define CONFIG_SND_BLACKFIN_SPI_DMA 5  /* bf53x default DMA channel for SPI */
-#endif
+#ifndef CONFIG_SND_BLACKFIN_SPI_PFBIT
+#define CONFIG_SND_BLACKFIN_SPI_PFBIT 4    /* pf bit tied to ad1836 chip select */
 #endif
 
 #ifndef CONFIG_SND_BLACKFIN_SPI_IRQ_DATA 
@@ -34,22 +28,19 @@
 #define CONFIG_SND_BLACKFIN_SPORT 0  /* bf53x default Sport channel for ad1836 */
 #endif
 
-#ifndef CONFIG_SND_BLACKFIN_SPORT_DMA_RX
-#define CONFIG_SND_BLACKFIN_SPORT_DMA_RX 1   /* bf53x default DMA channel for Sport0 rx  */
+#if 0 == CONFIG_SND_BLACKFIN_SPORT
+#define CONFIG_SND_BLACKFIN_SPORT_DMA_RX CH_SPORT0_RX
+#else
+#define CONFIG_SND_BLACKFIN_SPORT_DMA_RX CH_SPORT1_RX
 #endif
 
-#ifndef CONFIG_SND_BLACKFIN_SPORT_DMA_TX
-#define CONFIG_SND_BLACKFIN_SPORT_DMA_TX 2   /* bf53x default DMA channel for Sport0 tx  */
+#if 0 == CONFIG_SND_BLACKFIN_SPORT
+#define CONFIG_SND_BLACKFIN_SPORT_DMA_TX CH_SPORT0_TX
+#else
+#define CONFIG_SND_BLACKFIN_SPORT_DMA_TX CH_SPORT1_TX
 #endif
 
 #ifndef CONFIG_SND_BLACKFIN_SPORT_IRQ_ERR 
 #define CONFIG_SND_BLACKFIN_SPORT_IRQ_ERR IRQ_SPORT0_ERROR   /* periph irq 0 -> IVG 7 */
 #endif
 
-#ifndef CONFIG_SND_BLACKFIN_SPORT_IRQ_RX 
-#define CONFIG_SND_BLACKFIN_SPORT_IRQ_RX IRQ_SPORT0_RX   /* periph irq 2 -> IVG 9 */
-#endif
-
-#ifndef CONFIG_SND_BLACKFIN_SPORT_IRQ_TX 
-#define CONFIG_SND_BLACKFIN_SPORT_IRQ_TX IRQ_SPORT0_TX  /* periph irq 2 -> IVG 9 */
-#endif

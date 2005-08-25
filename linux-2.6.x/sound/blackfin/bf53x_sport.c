@@ -157,6 +157,22 @@ bf53x_sport_init(int sport_chan,
   sport->dma_rx_desc_changed = 0;
   sport->dma_tx_desc_changed = 0;
 
+#if defined(CONFIG_BF534)|defined(CONFIG_BF536)|defined(CONFIG_BF537)
+  if(sport->sport_chan) {
+    *pPORT_MUX |= PGTE|PGRE|PGSE;
+    SSYNC;
+/*    printk("sport: mux=0x%x\n", *pPORT_MUX);*/
+    *pPORTG_FER |= 0xFF00;
+    SSYNC;
+/*    printk("sport: gfer=0x%x\n", *pPORTG_FER);*/
+  }
+  else {
+    *pPORT_MUX &= ~(PJSE|PJCE(3));
+    SSYNC;
+/*    printk("sport: mux=0x%x\n", *pPORT_MUX);*/
+  }
+#endif
+  
   return sport;
 } 
 

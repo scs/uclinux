@@ -154,6 +154,15 @@ struct bf53x_spi* bf53x_spi_init(int dma_chan, int irq_data, int irq_err, int mu
   spi->callback = NULL;
   spi->private = NULL;
 
+#if defined(CONFIG_BF534)|defined(CONFIG_BF536)|defined(CONFIG_BF537)
+  *pPORT_MUX |= PFS4E;
+  SSYNC;
+/*  printk("spi: mux=0x%x\n", *pPORT_MUX);*/
+  *pPORTF_FER |= 0x7c40;
+  SSYNC;
+/*  printk("spi: ffer=0x%x\n", *pPORTF_FER);*/
+#endif
+  
   return spi;
 
 }
