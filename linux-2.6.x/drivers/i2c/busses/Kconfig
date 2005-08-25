@@ -26,6 +26,20 @@ config BFIN_SCL
 
 endmenu 
 
+config I2C_BFIN_TWI
+	tristate "Blackfin TWI I2C support"
+	depends on I2C && ( BF534 || BF536 || BF537)
+	help
+		This the TWI I2C device driver for blackfin 534/536/537.
+
+config TWICLK_KHZ
+	int "TWI clock (kHZ)"
+	depends on I2C_BFIN_TWI
+	default 400
+	help
+		The unit of the TWI clock is kilo HZ. Please divide the clock 
+		by 1024 if you count it in HZ. 
+
 config I2C_ALI1535
 	tristate "ALI 1535"
 	depends on I2C && PCI && EXPERIMENTAL
