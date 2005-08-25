@@ -121,10 +121,6 @@ MODULE_PARM_DESC(irq, "IRQ number");
 #endif  /* CONFIG_ISA */
 
 #if defined(CONFIG_BFIN)
-#include <asm/irq.h>
-#include <asm/blackfin.h>
-#include <asm/delay.h>
-
 /*
  *  irq_pfx comes from platform_device and tells us which flag pin is used
  *    IRQ_PF0 <= irq_pfx <= IRQ_PF15
@@ -329,39 +325,24 @@ static void smc_poll_controller(struct net_device* dev)
 }
 #endif /* CONFIG_NET_POLL_CONTROLLER */
 
-#if defined(CONFIG_BFIN)
-static void bfin_EBIU_AM_setup(void)
+#if defined(CONFIG_BLKFIN_STAMP)&&defined(CONFIG_BF533) /* TODO: change to CONFIG_BFIN_SHARED_FLASH_ENET */
+static void bfin_cplb_setup(void)
 {
-	unsigned int stmp = 0;
-    printk("EBIU Asynchronous memory setup.\n");
 
-	stmp = *pFIO_DIR;
 	__builtin_bfin_ssync();
-	*pFIO_DIR = stmp | 1;
+	*pFIO_DIR |= 0x1;
 	__builtin_bfin_ssync();
-	*pFIO_FLAG_S = 0x0001;
+	*pFIO_FLAG_S = 0x1;
 	__builtin_bfin_ssync();
 
-	*pEBIU_AMGCTL = AMGCTLVAL;      /*AMGCTL*/
-	__builtin_bfin_ssync();
-#ifdef CONFIG_EZKIT
-	*pEBIU_AMBCTL0 = AMBCTL0VAL;    /* AMBCTL0*/
-	__builtin_bfin_ssync();
-	*pEBIU_AMBCTL1 = AMBCTL1VAL;    /* AMBCTL1*/
-	__builtin_bfin_ssync();
-#endif
-#ifdef CONFIG_BLKFIN_STAMP
-	*pEBIU_AMBCTL0 = AMBCTL0VAL;    /* AMBCTL0*/
-	__builtin_bfin_ssync();
-	*pEBIU_AMBCTL1 = AMBCTL1VAL;    /* AMBCTL1*/
-	__builtin_bfin_ssync();
-#endif
 }
+#endif
 
+#if defined(CONFIG_BFIN)
 static void bfin_SMC_interrupt_setup(int irq)
 {
 #ifdef CONFIG_IRQCHIP_DEMUX_GPIO
-    printk("EZ-LAN interrupt setup: DEMUX_GPIO irq %d\n", irq);
+    printk("Blackfin SMC91x interrupt setup: DEMUX_GPIO irq %d\n", irq);
     set_irq_type(irq, IRQT_HIGH);
 #else
     unsigned short flag;
@@ -375,7 +356,7 @@ static void bfin_SMC_interrupt_setup(int irq)
     flag = irq_pfx - IRQ_PF0;
     LAN_FIO_PATTERN = (1 << flag);
 
-    printk("EZ-LAN interrupt setup: flag PF%d, irq %d\n", flag, irq);
+    printk("Blackfin SMC91x interrupt setup: flag PF%d, irq %d\n", flag, irq);
   /* 26 = IRQ_PROG_INTA => FIO_MASKA
      27 = IRQ_PROG_INTB => FIO_MASKB */
   if (irq == IRQ_PROG_INTA/*26*/ ||
@@ -1994,7 +1975,7 @@ static int __init smc_probe(struct net_device *dev, void __iomem *ioaddr)
 
 	/* Get the MAC address */
 	SMC_SELECT_BANK(1);
-#if defined(CONFIG_BFIN)
+
 	SMC_GET_MAC_ADDR(dev->dev_addr);
 	for (i = 0; i < 6; i++)
 		if ((dev->dev_addr[i] != 0x00) && (dev->dev_addr[i] != 0xff))
@@ -2006,7 +1987,7 @@ static int __init smc_probe(struct net_device *dev, void __iomem *ioaddr)
 		dev->dev_addr[4] = 0xc3; dev->dev_addr[4] = 0x01;
 		SMC_SET_MAC_ADDR(dev->dev_addr);
 	}
-#endif
+
 
 	SMC_GET_MAC_ADDR(dev->dev_addr);
 
@@ -2308,9 +2289,9 @@ static int smc_drv_probe(struct device *dev)
 		goto out_release_io;
 	}
 	SET_MODULE_OWNER(ndev);
-#if defined(CONFIG_BFIN)
-	/* setup asynchronous memory control registers*/
-	bfin_EBIU_AM_setup();
+#if defined(CONFIG_BLKFIN_STAMP)&&defined(CONFIG_BF533) /* TODO: change to CONFIG_BFIN_SHARED_FLASH_ENET */
+	/* setup BF533_STAMP CPLB to route AMS3 to Ethernet MAC */
+	bfin_cplb_setup();
 #endif
 	SET_NETDEV_DEV(ndev, dev);
 
