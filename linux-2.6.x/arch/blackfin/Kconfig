@@ -25,11 +25,11 @@ config RWSEM_XCHGADD_ALGORITHM
 	bool
 	default n
 
-config BFIN 
+config BFIN
 	bool
 	default y
 
-config UCLINUX 
+config UCLINUX
 	bool
 	default y
 
@@ -39,49 +39,50 @@ config FORCE_MAX_ZONEORDER
 
 source "init/Kconfig"
 
-menu "Processor type and features"
+menu "Blackfin Processor Options"
 
-comment "Processor"
-choice 
+comment "Processor and Board Settings"
+
+choice
 	prompt	"CPU"
-	default BF533 
+	default BF533
 
-config BF533 
+config BF533
 	bool "BF533"
 	help
 	 BF533 Processor Support.
 
-config BF532 
+config BF532
 	bool "BF532"
 	help
 	 BF532 Processor Support.
 
-config BF531 
+config BF531
 	bool "BF531"
 	help
 	 BF531 Processor Support.
 
-config BF534 
+config BF534
 	bool "BF534"
 	help
 	 Not Supported Yet - Work in progress - BF534 Processor Support.
 
-config BF535 
+config BF535
 	bool "BF535"
 	help
-	 Not Supported Yet - BF535 Processor Support.	 
+	 Not Supported - BF535 Processor Support.
 
-config BF536 
+config BF536
 	bool "BF536"
 	help
 	 Not Supported Yet - Work in progress - BF536 Processor Support.
 
-config BF537 
+config BF537
 	bool "BF537"
 	help
 	 Not Supported Yet - Work in progress - BF537 Processor Support.
 
-config BF561 
+config BF561
 	bool "BF561"
 	help
 	 Not Supported Yet - Work in progress - BF561 Processor Support.
@@ -103,70 +104,178 @@ config BFIN_DUAL_CORE
 	depends on (BF561)
 	default y
 
-comment "Platform"
-
-choice 
-	prompt	"Platform"
-	default STAMP 
-
-config EZKIT 
-	bool "EZKITLITE board support"
-	depends on (BF533 || BF537)
+choice
+	prompt	"Kernel is configured for"
+	default BFIN533_STAMP
 	help
-	 EZKITLITE board Support.
+	  Do NOT change the board here, please use the top level configuration to ensure all
+	  all the other settings are correct
 
-config MEM_MT48LC16M16A2TG_75
-	bool
-	depends on EZKIT
-	default y
-
-config  BLKFIN_STAMP
-	bool "STAMP board support"
+config BFIN533_EZKIT
+	bool "BF533-EZKIT"
 	depends on (BF533)
 	help
-	 STAMP board Support.
+	 BF533-EZKIT-LITE board Support.
 
-config MEM_MT48LC64M4A2FB_7E
-	bool
-	depends on BLKFIN_STAMP
-	default y
+config  BFIN533_STAMP
+	bool "BF533-STAMP"
+	depends on (BF533)
+	help
+	 BF533-STAMP board Support.
 
-config  GENERIC_BOARD
-	bool "Generic Custom board support"
+config BFIN537_STAMP
+	bool "BF537-STAMP"
+	depends on (BF537)
+	help
+	  BF537-STAMP board Support.
+
+config GENERIC_BOARD
+	bool "Custom"
 	depends on (BF537 || BF536 || BF534 || BF561 || BF535 || BF533 || BF532 || BF531)
 	help
-	 GENERIC board Support.
+	 GENERIC or Custom board Support.
 
 config MEM_GENERIC_BOARD
 	bool
 	depends on GENERIC_BOARD
 	default y
 
-config HAWK 
-	bool "Hawk Board support"
-	depends on BF535
-	help
-	  Support for Hawk Board.
+config MEM_MT48LC64M4A2FB_7E
+	bool
+	depends on (BFIN533_STAMP)
+	default y
 
-config EAGLE 
-	bool "Eagle Board support"
-	depends on BF535
-	help
-	  Support for Eagle Board.
+config MEM_MT48LC16M16A2TG_75
+	bool
+	depends on (BFIN533_EZKIT || BFIN537_STAMP)
+	default y
+
+config BFIN_SHARED_FLASH_ENET
+	bool
+	depends on (BFIN533_STAMP)
+	default y
 
 endchoice
 
+source "arch/bfinnommu/mach-bf533/Kconfig"
+source "arch/bfinnommu/mach-bf561/Kconfig"
+source "arch/bfinnommu/mach-bf537/Kconfig"
+
+menu 	'Board specific issues'
+
+comment 'Board Setup'
+
+config CLKIN_HZ
+	int "Crystal Frequency in Hz"
+	default "11059200" if BFIN533_STAMP
+	default "27000000" if BFIN533_EZKIT
+	default "25000000" if BFIN537_STAMP
+	help
+	  The frequency of CLKIN crystal oscillator on the board in Hz.
+
+config MEM_SIZE
+	int "SDRAM Memory Size in MBytes"
+	default  32 if BFIN533_EZKIT
+	default  64 if BFIN537_STAMP
+	default 128 if BFIN533_STAMP
+
+config MEM_ADD_WIDTH
+	int "SDRAM Memory Address Width"
+	default  9 if BFIN533_EZKIT
+	default 10 if BFIN537_STAMP
+	default 11 if BFIN533_STAMP
+
+comment	'LED Status Indicators'
+
+config BFIN_ALIVE_LED
+	bool "Enable Board Alive"
+	depends on BFIN533_STAMP
+	default n
+	help
+	  Blinks the LED you select when the kernel is running. Helps detect a hung kernel.
+
+config BFIN_ALIVE_LED_PIN
+	int "LED"
+	depends on BFIN_ALIVE_LED
+	range 1 3 if BFIN533_STAMP
+	default "3" if BFIN533_STAMP
+	help
+	  Select the LED (marked on the board) for you to blink.
+
+config BFIN_IDLE_LED
+	bool 'Enable System Load/Idle LED'
+	depends on BFIN533_STAMP
+	default n
+	help
+	  Blinks the LED you select when to determine kernel load.
+
+config BFIN_IDLE_LED_PIN2
+	int "LED"
+	depends on BFIN_IDLE_LED
+	default "2" if BFIN533_STAMP
+	help
+	  Select the LED (marked on the board) for you to blink.
+
+config BFIN_ALIVE_LED_PORT
+	hex
+	default 0xffff1234 if (BFIN533_STAMP)
+
+config BFIN_ALIVE_LED_pin
+	hex
+	default 0x01 if (BFIN533_STAMP &&  ( BFIN_ALIVE_LED_PIN = 1 ))
+	default 0x02 if (BFIN533_STAMP &&  ( BFIN_ALIVE_LED_PIN = 2 ))
+	default 0x04 if (BFIN533_STAMP &&  ( BFIN_ALIVE_LED_PIN = 3 ))
+
+
+comment 'Console UART Setup'
+
 choice
-	prompt	"Kernel executes from" 
+        prompt "Baud Rate"
+        default BAUD_57600
+config BAUD_9600
+        bool "9600"
+config BAUD_19200
+        bool "19200"
+config BAUD_38400
+        bool "38400"
+config BAUD_57600
+        bool "57600"
+config BAUD_115200
+        bool "115200"
+endchoice
+
+choice
+	prompt "Parity"
+	default BAUD_NO_PARITY
+config  BAUD_NO_PARITY
+	bool "No Parity"
+config  BAUD_PARITY
+	bool "Parity"
+endchoice
+
+choice
+	prompt "Stop Bits"
+	default BAUD_1_STOPBIT
+config  BAUD_1_STOPBIT
+	bool "1"
+config  BAUD_2_STOPBIT
+        bool "2"
+endchoice
+
+endmenu
+
+
+choice
+	prompt	"Kernel executes from"
 	---help---
 	  Choose the memory type that the kernel will be running in.
 
-config	RAMKERNEL 
+config	RAMKERNEL
 	bool "RAM"
 	help
 	  The kernel will be resident in RAM when running.
 
-config	ROMKERNEL 
+config	ROMKERNEL
 	bool "ROM"
 	help
 	  The kernel will be resident in FLASH/ROM when running.
@@ -179,7 +288,7 @@ config ROOTFS_TIED_TO_KERNEL
 	default y
 	help
 	  When using the vmlinux image only this option should be disabled.
-	  It prevents that the memory start location of the kernel is adjusted 
+	  It prevents that the memory start location of the kernel is adjusted
 	  by the RAM RootFS size.
 
 config LARGE_ALLOCS
@@ -188,7 +297,7 @@ config LARGE_ALLOCS
 	  Allow the slab memory allocator to keep chains for very large
 	  memory sizes - upto 32MB. You may need this if your system has
 	  a lot of RAM, and you need to able to allocate very large
-	  contiguous chunks. If unsure, say N. 
+	  contiguous chunks. If unsure, say N.
 
 config IRQCHIP_DEMUX_GPIO
 	bool "Enable GPIO IRQ Demultiplexing"
@@ -204,22 +313,22 @@ choice
 	  Choose DMA driver implemntation
 
 config NO_DMA
-	bool 'Disable DMA Support' 
+	bool 'Disable DMA Support'
 	help
 	  Disable DMA driver
-	
+
 config BLKFIN_SIMPLE_DMA
-	bool 'Enable Simple DMA Support' 
-	depends on (BF533 || BF532 || BF531 || BF537 || BF536 || BF534) 
+	bool 'Enable Simple DMA Support'
+	depends on (BF533 || BF532 || BF531 || BF537 || BF536 || BF534)
 	help
 	  Simple DMA driver
 endchoice
 
 comment 'Cache Support'
-config	BLKFIN_CACHE 
-	bool "Enable ICACHE" 
-config	BLKFIN_DCACHE 
-	bool "Enable DCACHE" 
+config	BLKFIN_CACHE
+	bool "Enable ICACHE"
+config	BLKFIN_DCACHE
+	bool "Enable DCACHE"
 config 	BLKFIN_CACHE_LOCK
 	bool "Enable Cache Locking"
 
@@ -230,7 +339,7 @@ choice
 config 	BLKFIN_WB
 	bool "Write back"
 config	BLKFIN_WT
-	bool "Write through"	
+	bool "Write through"
 endchoice
 
 comment 'Uncached memory region'
@@ -245,35 +354,31 @@ config UNCACHED_1M
 
 endchoice
 
-comment 'Crystal Frequency'
-
-config CLKIN_HZ
-	int "Crystal"
-	default "11059200" if BLKFIN_STAMP
-	default "27000000" if EZKIT
-	help
-	  The frequency of CLKIN crystal oscillator on the board in Hz.
+menu	"Clock Settings"
 
 comment 'VCO Multiplier'
 
 config VCO_MULT
-	int "VCO Multiplier" 	
-	default "22" if EZKIT
-	default "45" if BLKFIN_STAMP
+	int "VCO Multiplier"
+	default "22" if BFIN533_EZKIT
+	default "45" if BFIN533_STAMP
+	default "45" if BFIN537_STAMP
 
 comment 'Core Clock Divider'
 
 config CCLK_DIV
 	int "Core Clock Divider"
-	default 1 if EZKIT
-	default 1 if BLKFIN_STAMP
+	default 1 if BFIN533_EZKIT
+	default 1 if BFIN533_STAMP
+	default 1 if BFIN537_STAMP
 
 comment 'System Clock Divider'
 
 config SCLK_DIV
 	int "System Clock Divider"
-	default 5 if EZKIT
-	default 5 if BLKFIN_STAMP
+	default 5 if BFIN533_EZKIT
+	default 5 if BFIN533_STAMP
+	default 5 if BFIN537_STAMP
 
 comment 'Half clockin'
 
@@ -285,33 +390,21 @@ comment 'Bypass PLL'
 config PLL_BYPASS
 	bool "Bypass PLL"
 
-comment 'SDRAM Memory Size'
-
-config MEM_SIZE
-	int "SDRAM Memory Size"
-	default 32 if EZKIT
-	default 128 if BLKFIN_STAMP
-
-comment 'Memory Address Width'
-
-config MEM_ADD_WIDTH
-	int "SDRAM Memory Address Width"
-	default 9 if EZKIT
-	default 11 if BLKFIN_STAMP
+endmenu
 
 comment'Asynchonous Memory Configuration'
 
-menu'EBIU_AMBCTL Global Control' 
+menu'EBIU_AMBCTL Global Control'
 config C_AMCKEN
 	bool "Enable CLKOUT"
-	default y 
+	default y
 
 config C_CDPRIO
 	bool "DMA has priority over core for ext. accesses"
-	default n 
-choice 
+	default n
+choice
 	prompt"Enable Asynchonous Memory Banks"
-	default C_AMBEN_ALL 
+	default C_AMBEN_ALL
 
 config C_AMBEN
 	bool "Disable All Banks"
@@ -330,10 +423,10 @@ config C_AMBEN_ALL
 endchoice
 endmenu
 
-menu'EBIU_AMBCTL Control' 
+menu'EBIU_AMBCTL Control'
 config BANK_0
 	hex "Bank 0"
-	default 0x7BB0 
+	default 0x7BB0
 
 config BANK_1
 	hex "Bank 1"
@@ -347,42 +440,6 @@ config BANK_3
 	hex "Bank 3"
 	default 0x99B3
 endmenu
-
-comment 'Baud Rate'
-
-choice
-	prompt "Baud Rate"
-	default BAUD_57600 
-config BAUD_9600
-	bool "9600"
-config BAUD_19200
-	bool "19200"
-config BAUD_38400
-	bool "38400"
-config BAUD_57600
-	bool "57600"
-config BAUD_115200
-	bool "115200"
-endchoice
-
-comment'STAMP Board features '
-menu	'LED Board Status Indication'
-
-config STAMP_BOARD_ALIVE_LED
-	bool 'Enable Board Alive LED3'
-	depends on BLKFIN_STAMP
-	default n
-
-config STAMP_BOARD_IDLE_LED
-	bool 'Enable System Load/Idle LED2'
-	depends on BLKFIN_STAMP
-	default n
-
-endmenu 
-
-source "arch/bfinnommu/mach-bf533/Kconfig" 
-source "arch/bfinnommu/mach-bf561/Kconfig"
-source "arch/bfinnommu/mach-bf537/Kconfig"
 
 endmenu
 
@@ -425,27 +482,26 @@ source	"fs/Kconfig.binfmt"
 endmenu
 
 menu "Power management options"
-
 config PM
 	bool "Power Management support for BF533"
 	help
-	  Support processor power management modes 
+	  Support processor power management modes
 endmenu
 
-if (BLKFIN_STAMP && BF533 )
+if (BFIN533_STAMP)
 
 menu "CPU Frequency scaling"
 
 source "drivers/cpufreq/Kconfig"
 
 config CPU_FREQ_BF533
-        bool
-        depends on CPU_FREQ && BF533 && BLKFIN_STAMP
-        default y
-
+	bool
+	depends on CPU_FREQ && BFIN533_STAMP
+	default y
 endmenu
 
 endif
+
 
 source "drivers/base/Kconfig"
 
@@ -537,7 +593,7 @@ config MAGIC_SYSRQ
 config BOOTPARAM
 	bool 'Compiled-in Kernel Boot Parameter'
 
-config BOOTPARAM_STRING 
+config BOOTPARAM_STRING
 	string 'Kernel Boot Parameter'
 	default 'console=ttyS0,19200'
 	depends on BOOTPARAM

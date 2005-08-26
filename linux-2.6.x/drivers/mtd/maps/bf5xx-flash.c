@@ -23,8 +23,6 @@
 #error This is for BlackFin BF5xx boards only
 #endif
 
-#define CONFIG_BFIN_SHARED_FLASH_ENET /* TODO: Remove this as soon a upper level kconfig option is available */
-
 #define BFIN_FLASH_AMBCTL0VAL	((CONFIG_BFIN_FLASH_BANK_1 << 16) | CONFIG_BFIN_FLASH_BANK_0)
 #define BFIN_FLASH_AMBCTL1VAL	((CONFIG_BFIN_FLASH_BANK_3 << 16) | CONFIG_BFIN_FLASH_BANK_2) 
 

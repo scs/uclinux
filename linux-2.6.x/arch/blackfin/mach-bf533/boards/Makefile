@@ -4,6 +4,6 @@
 
 # Object file lists.
 
-obj-$(CONFIG_BLKFIN_STAMP) += stamp.o
-obj-$(CONFIG_EZKIT) += ezkit.o
+obj-$(CONFIG_BFIN533_STAMP) += stamp.o
+obj-$(CONFIG_BFIN533_EZKIT) += ezkit.o
 obj-$(CONFIG_GENERIC_BOARD) += generic_board.o

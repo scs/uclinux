@@ -325,7 +325,7 @@ static void smc_poll_controller(struct net_device* dev)
 }
 #endif /* CONFIG_NET_POLL_CONTROLLER */
 
-#if defined(CONFIG_BLKFIN_STAMP)&&defined(CONFIG_BF533) /* TODO: change to CONFIG_BFIN_SHARED_FLASH_ENET */
+#if defined(CONFIG_BFIN_SHARED_FLASH_ENET)
 static void bfin_cplb_setup(void)
 {
 
@@ -2289,7 +2289,7 @@ static int smc_drv_probe(struct device *dev)
 		goto out_release_io;
 	}
 	SET_MODULE_OWNER(ndev);
-#if defined(CONFIG_BLKFIN_STAMP)&&defined(CONFIG_BF533) /* TODO: change to CONFIG_BFIN_SHARED_FLASH_ENET */
+#if defined(CONFIG_BFIN_SHARED_FLASH_ENET)
 	/* setup BF533_STAMP CPLB to route AMS3 to Ethernet MAC */
 	bfin_cplb_setup();
 #endif
