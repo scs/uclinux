@@ -175,19 +175,21 @@ static unsigned long bf5xx_max_flash_size = CONFIG_BFIN_FLASH_SIZE;
 
 static struct mtd_partition bf5xx_partitions[] = {
 	{
-		name: "bootloader",
-		size: 0x00080000,
+		name: "Bootloader",
+		size: 0x40000,
+		//size: 0x3FFFF,
 		offset: 0,
-		mask_flags: MTD_CAP_ROM
 	},{
-		name: "File system image",
+		name: "Kernel",
+		size: 0xC0000,
+		//size: 0xBFFFF,
+		offset: 0x40000,
+	},{
+		name: "JFFS2",
 		size: 0x300000,
-		offset: 0x80000
-	},{
-		name: "64K area ;)", 
-		size: 0x10000,
-		offset: 0x00380000,
-	}	
+		//size: 0x2fffff,
+		offset: 0x100000,
+	} 	
 };
 
 #define NB_OF(x)  (sizeof(x)/sizeof(x[0]))

@@ -25,7 +25,7 @@
 #define WINDOW_ADDR 0x20000000
 #define SSYNC __builtin_bfin_ssync()
 
-#ifdef CONFIG_BLKFIN_STAMP
+#ifdef CONFIG_BFIN533_STAMP
 struct flash_save {
     u16 dir;
     u16 maska_d;
@@ -94,7 +94,7 @@ static map_word bf533_read(struct map_info *map, unsigned long ofs)
 {
 	int nValue = 0x0;
 	map_word test;
-#ifdef CONFIG_BLKFIN_STAMP
+#ifdef CONFIG_BFIN533_STAMP
 	struct flash_save save;
 	unsigned long offaddr = (0x20000000 + ofs);
 
@@ -105,7 +105,7 @@ static map_word bf533_read(struct map_info *map, unsigned long ofs)
 	switch_back(&save);
 #endif
 
-#ifdef CONFIG_EZKIT
+#ifdef CONFIG_BFIN533_EZKIT
 	__asm__ __volatile__ (
 		"p2.l = 0x0000; \n\t"
 		"p2.h = 0x2000; \n\t"
@@ -153,14 +153,14 @@ static void bf533_write(struct map_info *map, map_word d1, unsigned long ofs)
 {
 
 	__u16 d;
-#ifdef CONFIG_BLKFIN_STAMP
+#ifdef CONFIG_BFIN533_STAMP
 	struct flash_save save;
 #endif
 
 	d = (__u16)d1.x[0];	
 
 
-#ifdef CONFIG_BLKFIN_STAMP
+#ifdef CONFIG_BFIN533_STAMP
 	switch_to_flash(&save);
 	/* SSYNC; */
 	if((ofs == 0x555) || (ofs == 0x2AA)) {
@@ -174,7 +174,7 @@ static void bf533_write(struct map_info *map, map_word d1, unsigned long ofs)
 	switch_back(&save);
 #endif
 
-#ifdef CONFIG_EZKIT
+#ifdef CONFIG_BFIN533_EZKIT
 
 	__asm__ __volatile__ (
 		"p2.l = 0x0000; \n\t"
@@ -200,12 +200,12 @@ static void bf533_write(struct map_info *map, map_word d1, unsigned long ofs)
 
 static void bf533_copy_to(struct map_info *map, unsigned long to, const void *from, ssize_t len)
 {
-#ifdef CONFIG_BLKFIN_STAMP
+#ifdef CONFIG_BFIN533_STAMP
 	struct flash_save save;
 	switch_to_flash(&save);
 #endif
 	memcpy((void *)(WINDOW_ADDR + to), from, len);
-#ifdef CONFIG_BLKFIN_STAMP
+#ifdef CONFIG_BFIN533_STAMP
 	switch_back(&save);
 #endif
 }
@@ -234,28 +234,30 @@ static struct map_info bf533_map = {
  * "struct map_desc *_io_desc" for the corresponding machine.
  */
 
-#ifdef CONFIG_EZKIT
+#ifdef CONFIG_BFIN533_EZKIT
 static unsigned long bf533_max_flash_size = 0x00200000;
 #endif
-#ifdef CONFIG_BLKFIN_STAMP
+#ifdef CONFIG_BFIN533_STAMP
 static unsigned long bf533_max_flash_size = 0x00400000;
 #endif
 
 static struct mtd_partition bf533_partitions[] = {
 	{
-		name: "bootloader",
-		size: 0x00080000,
+		name: "Bootloader",
+		size: 0x40000,
+		//size: 0x3FFFF,
 		offset: 0,
-		mask_flags: MTD_CAP_ROM
 	},{
-		name: "File system image",
+		name: "Kernel",
+		size: 0xC0000,
+		//size: 0xBFFFF,
+		offset: 0x40000,
+	},{
+		name: "JFFS2",
 		size: 0x300000,
-		offset: 0x80000
-	},{
-		name: "64K area ;)", 
-		size: 0x10000,
-		offset: 0x00380000,
-	}	
+		//size: 0x2fffff,
+		offset: 0x100000,
+	} 	
 };
 
 #define NB_OF(x)  (sizeof(x)/sizeof(x[0]))
