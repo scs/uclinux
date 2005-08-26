@@ -613,6 +613,45 @@ config MTD_BF533
 	help
 	  Flash Chip from ST Microelctronics
 
+config MTD_BF5xx
+	bool "Blackfin BF5xx Flash Chip Support" 
+	depends on (BFIN) && MTD_PARTITIONS
+	help
+	  Flash Chip from ST Microelctronics
+
+config BFIN_FLASH_SIZE
+	depends on MTD_BF5xx
+	hex "Size in bytes HEX"
+	default 0x400000 if BFIN533_STAMP || BFIN537_STAMP
+	default 0x200000 if BFIN533_EZKIT
+
+config EBIU_FLASH_BASE
+	depends on MTD_BF5xx
+	hex "Base Address in HEX"
+	default 0x20000000
+	
+menu'FLASH_EBIU_AMBCTL Control' 
+config BFIN_FLASH_BANK_0
+	depends on MTD_BF5xx
+	hex "Bank 0"
+	default 0x7BB0 
+
+config BFIN_FLASH_BANK_1
+	depends on MTD_BF5xx
+	hex "Bank 1"
+	default 0x7BB0
+
+config BFIN_FLASH_BANK_2
+	depends on MTD_BF5xx
+	hex "Bank 2"
+	default 0x7BB0
+
+config BFIN_FLASH_BANK_3
+	depends on MTD_BF5xx
+	hex "Bank 3"
+	default 0x7BB0
+endmenu
+
 config MTD_UCLINUX
 	tristate "Generic uClinux RAM/ROM filesystem support"
 	depends on MTD_PARTITIONS && !MMU

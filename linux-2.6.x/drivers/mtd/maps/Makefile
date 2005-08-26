@@ -13,6 +13,7 @@ obj-$(CONFIG_MTD_ARM_INTEGRATOR)+= integrator-flash.o
 obj-$(CONFIG_MTD_BAST)		+= bast-flash.o
 obj-$(CONFIG_MTD_CFI_FLAGADM)	+= cfi_flagadm.o
 obj-$(CONFIG_MTD_BF533)		+= bf533-flash.o
+obj-$(CONFIG_MTD_BF5xx)		+= bf5xx-flash.o
 obj-$(CONFIG_MTD_CSTM_MIPS_IXX)	+= cstm_mips_ixx.o
 obj-$(CONFIG_MTD_DC21285)	+= dc21285.o
 obj-$(CONFIG_MTD_DILNETPC)	+= dilnetpc.o
