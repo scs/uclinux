@@ -1403,7 +1403,7 @@ static snd_device_ops_t snd_ad1836_ops = {
 
 static int snd_bf53x_adi1836_reset(ad1836_t *chip)
 {
-#if defined(CONFIG_EZKIT)&&defined(CONFIG_BF533)
+#if defined(CONFIG_BFIN533_EZKIT)
   /*
    *  On the EZKIT, the reset pin of the adi1836 is connected
    *  to a programmable flag pin on one of the flash chips.
@@ -1450,7 +1450,7 @@ static int snd_bf53x_adi1836_reset(ad1836_t *chip)
   *pFlashA_PortA_Data = 0x1;	/* re-enable */
   udelay(400);			/* 4500 MCLK recovery time */
 
-#endif /* CONFIG_EZKIT */
+#endif /* CONFIG_BFIN533_EZKIT */
 
   return 0;
 }
