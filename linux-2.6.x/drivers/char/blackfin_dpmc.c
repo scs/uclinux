@@ -579,7 +579,11 @@ unsigned long change_frequency(unsigned long vco_mhz)	{
 }
 
 int calc_msel(int vco_hz)	{
-	return(vco_hz/(CONFIG_CLKIN_HZ));
+   	if(vco_hz%(CONFIG_CLKIN_HZ))
+                return(vco_hz/(CONFIG_CLKIN_HZ) + 1);
+        else
+                return(vco_hz/(CONFIG_CLKIN_HZ));
+
 }
 
 void fullon_mode(void)	{
@@ -729,7 +733,7 @@ static int dpmc_release(struct inode *inode, struct file *file)
 /*
  *  The various file operations we support.
  */
-static struct file_operations dpmc_fops = {
+struct file_operations dpmc_fops = {
     owner:      THIS_MODULE,
     llseek:     dpmc_llseek,
     read:       dpmc_read,
