@@ -432,6 +432,21 @@ config PM
 	  Support processor power management modes 
 endmenu
 
+if (BLKFIN_STAMP && BF533 )
+
+menu "CPU Frequency scaling"
+
+source "drivers/cpufreq/Kconfig"
+
+config CPU_FREQ_BF533
+        bool
+        depends on CPU_FREQ && BF533 && BLKFIN_STAMP
+        default y
+
+endmenu
+
+endif
+
 source "drivers/base/Kconfig"
 
 source "drivers/mtd/Kconfig"

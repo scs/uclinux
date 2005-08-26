@@ -12,10 +12,10 @@
 #include <linux/console.h>
 #include <linux/bootmem.h>
 #include <linux/seq_file.h>
+#include <linux/cpu.h>
 
 #include <asm/cacheflush.h>
 #include <asm/blackfin.h>
-
 
 #ifdef CONFIG_CONSOLE
 extern struct consw *conswitchp;
@@ -214,6 +214,12 @@ void __init setup_arch(char **cmdline_p)
 	bf53x_cache_init();
 }
 
+static struct cpu cpu[1];
+static __init topology_init(void)
+{
+      return register_cpu(cpu, 0, NULL);
+}
+subsys_initcall(topology_init);
 
 static unsigned short __init fill_cpl_tables(unsigned long * table, unsigned short pos, unsigned long start, unsigned long end, unsigned long block_size, unsigned long CPLB_data) 
 {
