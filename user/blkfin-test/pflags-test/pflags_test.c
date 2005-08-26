@@ -62,6 +62,7 @@ int main()
 
 
 	ret = ioctl(fd0, SET_FIO_DIR, OUTPUT);
+	ret = ioctl(fd0, SET_FIO_INEN, INPUT_DISABLE);
 
 	ret = ioctl(fd1, SET_FIO_DIR, INPUT);	
 	ret = ioctl(fd1, SET_FIO_INEN, INPUT_ENABLE);
