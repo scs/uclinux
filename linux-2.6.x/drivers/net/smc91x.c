@@ -316,15 +316,6 @@ static void PRINT_PKT(u_char *buf, int length)
 	}								\
 } while (0)
 
-#ifdef CONFIG_NET_POLL_CONTROLLER
-static void smc_poll_controller(struct net_device* dev)
-{
-	disable_irq(dev->irq);
-	smc_interrupt(dev->irq, dev, NULL);
-	enable_irq(dev->irq);
-}
-#endif /* CONFIG_NET_POLL_CONTROLLER */
-
 #if defined(CONFIG_BFIN_SHARED_FLASH_ENET)
 static void bfin_cplb_setup(void)
 {
