@@ -174,8 +174,8 @@ static struct mtd_partition bf533_partitions[] = {
 		size: 0x300000,
 		offset: 0x100000
 	},{
-		name: "64K area ;)", 
-		size: 0x10000,
+		name: "1M area ;)", 
+		size: 0x100000,
 		offset: 0x00400000,
 	}	
 };
