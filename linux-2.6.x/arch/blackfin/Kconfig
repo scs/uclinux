@@ -147,7 +147,12 @@ config MEM_MT48LC64M4A2FB_7E
 
 config MEM_MT48LC16M16A2TG_75
 	bool
-	depends on (BFIN533_EZKIT || BFIN537_STAMP)
+	depends on (BFIN533_EZKIT)
+	default y
+
+config MEM_MT48LC16M8A2TG_75
+	bool
+	depends on (BFIN537_STAMP)
 	default y
 
 config BFIN_SHARED_FLASH_ENET
