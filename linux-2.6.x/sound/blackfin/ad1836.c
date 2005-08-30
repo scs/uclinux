@@ -693,7 +693,7 @@ static int snd_ad1836_playback_mute_get(snd_kcontrol_t *kcontrol, snd_ctl_elem_v
   ad1836_t *chip = snd_kcontrol_chip(kcontrol);
   int i;
   for(i=0;i<6;++i)
-    ucontrol->value.integer.value[i] = (chip->chip_registers[DAC_CTRL_2] & ( 1 << i )) ? 1:0;
+    ucontrol->value.integer.value[i] = (chip->chip_registers[DAC_CTRL_2] & ( 1 << i )) ? 0:1;
   return 0;
 }
 
@@ -706,7 +706,7 @@ static int snd_ad1836_playback_mute_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_v
   int i;
 
   for(i=0;i<6;++i)
-    if( ucontrol->value.integer.value[i] )
+    if( !ucontrol->value.integer.value[i] )
       mute |= (1<<i);
 
   if( curr != mute ){
