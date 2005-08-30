@@ -618,52 +618,11 @@ retry:
 	spin_unlock_bh(chip->mutex);
 }
 
-static int read_one_chip(struct map_info *map, struct flchip *chip, 
-			loff_t addr, size_t len, unsigned char *buf)
-{
-	DECLARE_WAITQUEUE(wait, current);
-	unsigned long timeo = jiffies + HZ;
-
-retry:
-	spin_lock_bh(chip->mutex);
-
-	if (chip->state != FL_READY)
-	{
-		printk(KERN_INFO "%s: waiting for chip to read, state = %d\n",
-			map->name, chip->state);
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		add_wait_queue(&chip->wq, &wait);
-
-		spin_unlock_bh(chip->mutex);
-
-		schedule();
-		remove_wait_queue(&chip->wq, &wait);
-
-		if (signal_pending(current))
-			return -EINTR;
-
-		timeo = jiffies + HZ;
-
-		goto retry;
-	}
-
-	addr += chip->start;
-
-	chip->state = FL_READY;
-
-	map->copy_from(map, buf, addr, len);
-
-	wake_up(&chip->wq);
-	spin_unlock_bh(chip->mutex);
-
-	return 0;
-}
 
 static int stm_flash_read(struct mtd_info *mtd, loff_t from, size_t len,
 			  size_t *retlen, unsigned char *buf)
 {
 	struct map_info *map = mtd->priv;
-	struct stm_flash_private *private = map->fldrv_priv;
 	unsigned long offset;
 	int ret = 0;
 
@@ -677,8 +636,7 @@ static int stm_flash_read(struct mtd_info *mtd, loff_t from, size_t len,
 	offset = from;
 	*retlen = 0;
 
-	ret = read_one_chip(map, &private->chips, offset,
-				len, buf);
+	map->copy_from(map, buf, offset, len);
 
 	*retlen += len;
 
