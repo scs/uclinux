@@ -635,7 +635,7 @@ static int snd_ad1836_adc_gain_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_
   uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
   uinfo->count = 2;
   uinfo->value.integer.min = 0;
-  uinfo->value.integer.max = 8;
+  uinfo->value.integer.max = 4;
   return 0;
 }
 
@@ -746,7 +746,7 @@ static int snd_ad1836_capture_mute_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_va
   int mute = 0;
   int i;
 
-  for(i=0;i<64;++i)
+  for(i=0;i<4;++i)
     if( ucontrol->value.integer.value[i] )
       mute |= (1<<i);
 
@@ -949,7 +949,8 @@ static int snd_ad1836_vu_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *uco
 static snd_kcontrol_new_t snd_ad1836_controls[] __devinitdata = { 
   KTRLRW( CARD,  "Digital Loopback Switch",  snd_ad1836_loopback_control ),
   KTRLRW( MIXER, "Master Playback Volume",   snd_ad1836_volume ),
-  KTRLRW( MIXER, "Master Capture Volume",    snd_ad1836_adc_gain ),
+  KTRLRW( MIXER, "Mic Capture Volume",    snd_ad1836_adc_gain ),
+  KTRLRW( MIXER, "Line Capture Volume",    snd_ad1836_adc_gain ),
   KTRLRW( MIXER, "Master Playback Switch",   snd_ad1836_playback_mute ),
   KTRLRW( MIXER, "Master Capture Switch",    snd_ad1836_capture_mute ),
   KTRLRW( MIXER, "Tone Contol DAC De-emphasis Switch", snd_ad1836_deemph ),

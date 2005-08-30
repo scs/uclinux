@@ -580,6 +580,8 @@ static int snd_mixer_oss_get_volume1(snd_mixer_oss_file_t *fmixer,
 		snd_mixer_oss_get_volume1_vol(fmixer, pslot, slot->numid[SNDRV_MIXER_OSS_ITEM_PVOLUME], left, right);
 	} else if (slot->present & SNDRV_MIXER_OSS_PRESENT_GVOLUME) {
 		snd_mixer_oss_get_volume1_vol(fmixer, pslot, slot->numid[SNDRV_MIXER_OSS_ITEM_GVOLUME], left, right);
+	} else if (slot->present & SNDRV_MIXER_OSS_PRESENT_CVOLUME) {
+		snd_mixer_oss_get_volume1_vol(fmixer, pslot, slot->numid[SNDRV_MIXER_OSS_ITEM_CVOLUME], left, right);
 	} else if (slot->present & SNDRV_MIXER_OSS_PRESENT_GLOBAL) {
 		snd_mixer_oss_get_volume1_vol(fmixer, pslot, slot->numid[SNDRV_MIXER_OSS_ITEM_GLOBAL], left, right);
 	}
@@ -680,8 +682,8 @@ static int snd_mixer_oss_put_volume1(snd_mixer_oss_file_t *fmixer,
 	
 	if (slot->present & SNDRV_MIXER_OSS_PRESENT_PVOLUME) {
 		snd_mixer_oss_put_volume1_vol(fmixer, pslot, slot->numid[SNDRV_MIXER_OSS_ITEM_PVOLUME], left, right);
-		if (slot->present & SNDRV_MIXER_OSS_PRESENT_CVOLUME)
-			snd_mixer_oss_put_volume1_vol(fmixer, pslot, slot->numid[SNDRV_MIXER_OSS_ITEM_CVOLUME], left, right);
+	} else if (slot->present & SNDRV_MIXER_OSS_PRESENT_CVOLUME) {
+		snd_mixer_oss_put_volume1_vol(fmixer, pslot, slot->numid[SNDRV_MIXER_OSS_ITEM_CVOLUME], left, right);
 	} else if (slot->present & SNDRV_MIXER_OSS_PRESENT_GVOLUME) {
 		snd_mixer_oss_put_volume1_vol(fmixer, pslot, slot->numid[SNDRV_MIXER_OSS_ITEM_GVOLUME], left, right);
 	} else if (slot->present & SNDRV_MIXER_OSS_PRESENT_GLOBAL) {
