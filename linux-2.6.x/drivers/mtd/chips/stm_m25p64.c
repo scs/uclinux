@@ -44,6 +44,7 @@ struct stm_flash_info {
 #define	NUM_SECTORS 	128	/* number of sectors */
 #define SECTOR_SIZE		0x10000
 #define NOP_NUM		1000
+#define SF_PAGESIZE		256
 
 #define COMMON_SPI_SETTINGS (SPE|MSTR|CPHA|CPOL) /* Settings to the SPI_CTL */
 #define TIMOD01 (0x01)		/* stes the SPI to work with core instructions */
@@ -314,58 +315,66 @@ static void spi_write_flash ( unsigned long ulStartAddr, long lTransferCount, in
 	long lWTransferCount = 0;
 	int i,flags;
 	char iData;
+	unsigned int ctr = SF_PAGESIZE - ( ulStartAddr & (SF_PAGESIZE -1));
 	char *temp = (char *)iDataSource;
+	int n;
 
-	/* First, a Write Enable Command must be sent to the SPI. */
-	spi_command(SPI_WREN);
+	while(lTransferCount) {
+		if(lTransferCount < ctr)
+			n = lTransferCount;
+		else
+			n = ctr;
+		/* First, a Write Enable Command must be sent to the SPI. */
+		spi_command(SPI_WREN);
 	
-	/* Second, the SPI Status Register will be tested whether the 
-	   Write Enable Bit has been set. */
-	if(spi_wait_WEL()!=0)
-		{
-		printk(KERN_NOTICE "SPI Write Time Out\n");
-		return ;
-		}
-	local_irq_save(flags);
-	/* Third, the 24 bit address will be shifted out the SPI MOSI bytewise. */
-	spi_setup( (COMMON_SPI_SETTINGS|TIMOD01) ); 
-	*pSPI_TDBR = SPI_PP;
-	 __builtin_bfin_ssync();
-	spi_ready();							/* Wait until the instruction has been sent */
-	ulWAddr = (ulStartAddr >> 16);
-	*pSPI_TDBR = ulWAddr;
-	 __builtin_bfin_ssync();
-	spi_ready();							/* Wait until the instruction has been sent */
-	ulWAddr = (ulStartAddr >> 8);
-	*pSPI_TDBR = ulWAddr;
-	 __builtin_bfin_ssync();
-	spi_ready();							/* Wait until the instruction has been sent */
-	ulWAddr = ulStartAddr;
-	*pSPI_TDBR = ulWAddr;
-	 __builtin_bfin_ssync();
-	spi_ready();							/* Wait until the instruction has been sent */
-	/* Fourth, maximum number of 256 bytes will be taken from the Buffer
-	   and sent to the SPI device.*/
-	for (i=0; (i < lTransferCount) && (i < 256); i++, lWTransferCount++)
-	{
-		iData = *temp;
-		*pSPI_TDBR = iData;
-		__builtin_bfin_ssync();
+		/* Second, the SPI Status Register will be tested whether the 
+	  	 Write Enable Bit has been set. */
+		if(spi_wait_WEL()!=0)
+			{
+			printk(KERN_NOTICE "SPI Write Time Out\n");
+			return ;
+			}
+		local_irq_save(flags);
+		/* Third, the 24 bit address will be shifted out the SPI MOSI bytewise. */
+		spi_setup( (COMMON_SPI_SETTINGS|TIMOD01) ); 
+		*pSPI_TDBR = SPI_PP;
+	 	__builtin_bfin_ssync();
 		spi_ready();							/* Wait until the instruction has been sent */
-		temp++;
-	}
-		
-	spi_off(); 
-   local_irq_restore(flags);
-
-	/* Sixth, the SPI Write in Progress Bit must be toggled to ensure the 
-	   programming is done before start of next transfer. */
-	if(spi_wait_status(WIP)!=0)
-		{
-		printk(KERN_NOTICE "SPI Program Time out!\n");
-		return;
+		ulWAddr = (ulStartAddr >> 16);
+		*pSPI_TDBR = ulWAddr;
+	 	__builtin_bfin_ssync();
+		spi_ready();							/* Wait until the instruction has been sent */
+		ulWAddr = (ulStartAddr >> 8);
+		*pSPI_TDBR = ulWAddr;
+		 __builtin_bfin_ssync();
+		spi_ready();							/* Wait until the instruction has been sent */
+		ulWAddr = ulStartAddr;
+		*pSPI_TDBR = ulWAddr;
+		 __builtin_bfin_ssync();
+		spi_ready();							/* Wait until the instruction has been sent */
+		/* Fourth, maximum number of 256 bytes will be taken from the Buffer
+	   	and sent to the SPI device.*/
+		for (i=0; i < n; i++, lWTransferCount++) {
+			iData = *temp;
+			*pSPI_TDBR = iData;
+			__builtin_bfin_ssync();
+			spi_ready();							/* Wait until the instruction has been sent */
+			temp++;
 		}
-	
+		
+		spi_off(); 
+   		local_irq_restore(flags);
+
+		/* Sixth, the SPI Write in Progress Bit must be toggled to ensure the 
+	   	programming is done before start of next transfer. */
+		if(spi_wait_status(WIP)!=0){
+			printk(KERN_NOTICE "SPI Program Time out!\n");
+			return;
+			}
+		lTransferCount 	-= n;
+		ulStartAddr 		+= n;
+		ctr = (lTransferCount < SF_PAGESIZE)? lTransferCount : SF_PAGESIZE;
+	}
 	*lWriteCount = lWTransferCount;
 }
 
@@ -682,20 +691,11 @@ static int stm_flash_write(struct mtd_info *mtd, loff_t to, size_t len,
 	int i;
 	unsigned char temp;
 	unsigned char value;
+	int count = 0;
 	*retlen = 0;
 	if(!len)
 		return 0;
-	for(i=0;i<len;i++){
-again:
-		temp = buf[i];
-		spi_write_data((to+i), 1, (int *)&temp);
-		spi_read_data((to+i), 1, (int *)&value);
-		if(value != temp)
-			{
-			printk(KERN_NOTICE "Verify error, write again\n");
-			goto again;
-			}
-		}		
+	spi_write_data(to, len, (int *)buf);
 	*retlen += len;
 
 	return 0;
