@@ -14,7 +14,7 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <getopt.h>
-#include <mathf.h>
+#include <lib/libm/mathf.h>
 
 #include <linux/soundcard.h>
 
