@@ -347,17 +347,25 @@ config	BLKFIN_WT
 	bool "Write through"
 endchoice
 
-comment 'Uncached memory region'
-choice
-	prompt "Uncached memory region"
-	default UNCACHED_1M
-	---help---
-	  Size of the uncached memory region
+menu 'Uncached memory region'
 
 config UNCACHED_1M
-	bool '1M'
+	bool 'Disable cache for 1M SDRAM'
+	default y
+	---help---
+	  Size of the uncached SDRAM region
 
-endchoice
+config UNCACHED_ASYNCMEM_BLANK3
+	bool 'Disable data cache for blank 3 of asynchronous memory'
+	default y if BFIN533_EZKIT
+	default y if BFIN533_STAMP
+	default n if BFIN537_STAMP
+	---help---
+	  Disable the data cache From 0x20300000 to 0x203fffff.
+	  Some peripheral devices may put their registers in this region.
+	  Access to peripheral registers should not be cached.
+
+endmenu
 
 menu	"Clock Settings"
 
