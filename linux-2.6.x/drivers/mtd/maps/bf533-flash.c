@@ -87,8 +87,7 @@ static inline void switch_back(struct flash_save *save)
 }
 #endif
 
-volatile unsigned short *FLASH_Base = (unsigned short *) 0x20000000;
-unsigned volatile long *FB = (unsigned long *) 0x20000002;
+
 
 static map_word bf533_read(struct map_info *map, unsigned long ofs)
 {
@@ -163,13 +162,10 @@ static void bf533_write(struct map_info *map, map_word d1, unsigned long ofs)
 #ifdef CONFIG_BFIN533_STAMP
 	switch_to_flash(&save);
 	/* SSYNC; */
-	if((ofs == 0x555) || (ofs == 0x2AA)) {
-		FLASH_Base[ofs] = d;
-		SSYNC;
-	} else {
+
 		*(volatile unsigned short *) (0x20000000 + ofs) = d;		
 		SSYNC;
-	}
+
         /* SSYNC; */
 	switch_back(&save);
 #endif
