@@ -211,11 +211,11 @@ config MTD_PSD4256G
 
 config MTD_MW320D
 	tristate "ST MW320D compatible flash chip support"
-	depends on BLKFIN_STAMP && MTD_GEN_PROBE 
+	depends on BFIN && MTD_GEN_PROBE 
 
 config MTD_M25P64
 	tristate "ST M25P64 compatible flash chip support"
-	depends on BLKFIN_STAMP && MTD_GEN_PROBE
+	depends on BFIN533_STAMP && MTD_GEN_PROBE
 
 config MTD_CFI_UTIL
 	tristate

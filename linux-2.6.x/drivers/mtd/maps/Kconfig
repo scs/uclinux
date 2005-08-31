@@ -615,7 +615,7 @@ config MTD_BF533
 
 config MTD_BF533_SPI
 	bool "Blackfin BF533 SPI flash Chip Support"
-	depends on (EZKIT || BLKFIN_STAMP) && MTD_PARTITIONS
+	depends on BFIN533_STAMP && MTD_PARTITIONS
 	help
 	  SPI Chip from ST Microelectronics, the part num is M25P64
 
