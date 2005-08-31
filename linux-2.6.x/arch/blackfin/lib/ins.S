@@ -32,35 +32,43 @@ ENTRY(insl)
 	P0 = R0;	/* P0 = port */
 	P1 = R1;	/* P1 = address */
 	P2 = R2;	/* P2 = count */
-
+	cli R2;
+	NOP;
+	NOP;
+	
 	LSETUP( long_loop_s, long_loop_e) LC0 = P2;
-long_loop_s: cli R2;
-             R0 = [P0];
-             sti R2;
+long_loop_s: R0 = [P0];
 long_loop_e: [P1++] = R0;
+    
+    sti R2;
 	RTS;
 
 ENTRY(insw)
 	P0 = R0;	/* P0 = port */
 	P1 = R1;	/* P1 = address */
 	P2 = R2;	/* P2 = count */
-
+	cli R2;
+	NOP;
+	NOP;
+	
 	LSETUP( word_loop_s, word_loop_e) LC0 = P2;
-word_loop_s: cli R2;
-             R0 = W[P0];
-             sti R2;
+word_loop_s: R0 = W[P0];
 word_loop_e: W[P1++] = R0;
+
+    sti R2;
 	RTS;
 
 ENTRY(insb)
 	P0 = R0;	/* P0 = port */
 	P1 = R1;	/* P1 = address */
 	P2 = R2;	/* P2 = count */
+	cli R2;
+	NOP;
+	NOP;
 
 	LSETUP( byte_loop_s, byte_loop_e) LC0 = P2;
-byte_loop_s: cli R2;
-             R0 = B[P0];
-             sti R2;
+byte_loop_s: R0 = B[P0];
 byte_loop_e: B[P1++] = R0;
+    sti R2;
 	RTS;
 	
