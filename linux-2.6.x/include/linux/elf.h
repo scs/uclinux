@@ -93,6 +93,8 @@ typedef __s64	Elf64_Sxword;
 
 #define EM_H8_300       46      /* Renesas H8/300,300H,H8S */
 
+#define EM_BLACKFIN	106	/* ADI Blackfin Processor*/
+
 /*
  * This is an interim value that we will use until the committee comes
  * up with a final number.
