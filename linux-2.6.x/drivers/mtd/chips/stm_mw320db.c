@@ -17,6 +17,7 @@
 #include <linux/init.h>
 
 #include <linux/interrupt.h>
+#include <asm/unaligned.h>
 
 #define MAX_SMT_CHIPS 8
 
@@ -689,9 +690,9 @@ static int stm_flash_write(struct mtd_info *mtd, loff_t to, size_t len,
 		if (map->bankwidth == 1)
 			datum = *(unsigned char*)buf;
 		else if (map->bankwidth == 2)
-			datum = *(unsigned short*)buf;
+			datum = get_unaligned((__le16 *)buf);
 		else if (map->bankwidth == 4)
-			datum = *(unsigned long*)buf;
+			datum = get_unaligned((__le32 *)buf);
 		else
 			return -EINVAL;
 
