@@ -575,8 +575,6 @@ config DEBUG_SLAB
 	  allocation as well as poisoning memory on free to catch use of freed
 	  memory.
 
-source "kernel/Kconfig.kgdb"
-
 config FRAME_POINTER
 	bool "Compile the kernel with frame pointers"
 	help
