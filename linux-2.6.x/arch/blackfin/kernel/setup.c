@@ -211,7 +211,7 @@ void __init setup_arch(char **cmdline_p)
 }
 
 static struct cpu cpu[1];
-static __init topology_init(void)
+static int __init topology_init(void)
 {
       return register_cpu(cpu, 0, NULL);
 }
