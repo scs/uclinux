@@ -43,6 +43,7 @@ struct bfin_twi_iface
 	char			read_write;
 	u8			*transPtr;
 	int			result;
+	int			timeout_count;
 	struct timer_list	timeout_timer;
 	struct i2c_adapter	adap;
 	struct completion	complete;
@@ -73,14 +74,14 @@ static void bfin_twi_handle_interrupt(struct bfin_twi_iface *iface)
 		*pTWI_INT_STAT = MCOMP;
 		__builtin_bfin_ssync();
 		iface->result = 1;
-		complete(&iface->complete);
 	}
 	if( MERR & twi_int_stat ) {
 		*pTWI_INT_STAT = MERR;
 		__builtin_bfin_ssync();
 		iface->result = -1;
-		complete(&iface->complete);
 	}
+	if( twi_int_stat & (MERR|MCOMP))
+		complete(&iface->complete);
 }
 
 
@@ -105,8 +106,15 @@ static void bfin_twi_timeout(unsigned long data)
 	spin_lock_irqsave(&iface->lock, flags);
 	bfin_twi_handle_interrupt(iface);
 	if (iface->result == 0) {
-		iface->timeout_timer.expires = jiffies + POLL_TIMEOUT;
-		add_timer(&iface->timeout_timer);
+		iface->timeout_count--;
+		if(iface->timeout_count>0) {
+			iface->timeout_timer.expires = jiffies + POLL_TIMEOUT;
+			add_timer(&iface->timeout_timer);
+		}
+		else {
+			iface->result = -1;
+			complete(&iface->complete);
+		}
 	}
 	spin_unlock_irqrestore(&iface->lock, flags);
 }
@@ -138,6 +146,7 @@ static int bfin_twi_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int nu
 
 		iface->transPtr = pmsg->buf;
 		iface->result = 0;
+		iface->timeout_count = 10;
 		if (pmsg->flags & I2C_M_RD)
 			iface->read_write = I2C_SMBUS_READ;
 		else
@@ -162,6 +171,8 @@ static int bfin_twi_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int nu
 		rc = iface->result;
 		if (rc == 1)
 			ret++;
+		else if(rc == -1)
+			break;
 	}
 
 	/* Release sem */
