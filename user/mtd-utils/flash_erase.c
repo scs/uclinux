@@ -1,3 +1,7 @@
+/* 
+ * flash_erase.c -- erase parts of a MTD device
+*/
+
 #include <unistd.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -5,7 +9,7 @@
 #include <time.h>
 #include <sys/ioctl.h>
 #include <sys/mount.h>
-#include "mtd/mtd-user.h"
+#include <mtd/mtd-user.h>
 
 int region_erase(int Fd, int start, int count, int unlock, int regcount)
 {
@@ -62,7 +66,7 @@ int region_erase(int Fd, int start, int count, int unlock, int regcount)
 				return 8;
 			}
 		}
-		printf("\rPerforming Flash Erase of length %lu at offset 0x%lx",
+		printf("\rPerforming Flash Erase of length %u at offset 0x%x",
 				erase.length, erase.start);
 		fflush(stdout);
 		if(ioctl(Fd, MEMERASE, &erase) != 0)
@@ -97,17 +101,16 @@ int non_region_erase(int Fd, int start, int count, int unlock)
 		erase.start = start;
 
 		erase.length = meminfo.erasesize;
-		printf("Erase Unit Size 0x%lx, ", meminfo.erasesize);
 
 		for (; count > 0; count--) {
-			printf("\rPerforming Flash Erase of length %lu at offset 0x%lx",
+			printf("\rPerforming Flash Erase of length %u at offset 0x%x",
 					erase.length, erase.start);
 			fflush(stdout);
 
 			if(unlock != 0)
 			{
 				//Unlock the sector first.
-				printf("\rPerforming Flash unlock at offset 0x%lx",erase.start);
+				printf("\rPerforming Flash unlock at offset 0x%x",erase.start);
 				if(ioctl(Fd, MEMUNLOCK, &erase) != 0)
 				{
 					perror("\nMTD Unlock failure");

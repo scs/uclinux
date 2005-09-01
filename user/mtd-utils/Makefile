@@ -1,27 +1,26 @@
+
 # -*- sh -*-
 
 # $Id$
-
-#
-# These flags are used for build native versions of the tools for the
-# host system so it can generate images etc
-#
 MY_CFLAGS = -I/usr/include -I.
 BUILD_CFLAGS += $(MY_CFLAGS)
 BUILD_CC = gcc
 CFLAGS += -D__USE_BSD -I$(ROOTDIR)/lib/zlib -I.
 
-TARGETS = erase eraseall \
-	      nftl_format nftldump doc_loadbios doc_loadipl \
-	      ftl_format ftl_check \
-	      nanddump nandtest nandwrite \
-	      mkfs.jffs mkfs.jffs2 \
-	      lock unlock einfo mtd_debug fcp 
+TARGETS = ftl_format flash_erase flash_eraseall nanddump doc_loadbios \
+	mkfs.jffs ftl_check mkfs.jffs2 flash_lock flash_unlock flash_info \
+	flash_otp_info flash_otp_dump mtd_debug flashcp nandwrite \
+	jffs2dump \
+	nftldump nftl_format docfdisk \
+	rfddump rfdformat \
+	#jffs2reader 
 
 BUILD_TARGETS = $(patsubst %,build/%,$(TARGETS))
 
 SYMLINKS = 
-JFFS2_OBJS = crc32.o mkfs.jffs2.o compr_zlib.o compr_rtime.o
+JFFS2_OBJS = crc32.o mkfs.jffs2.o compr_zlib.o compr_rtime.o compr.o
+ERASEALL_OBJS = crc32.o flash_eraseall.o
+DUMP_OBJS = crc32.o jffs2dump.o
 
 ifeq ($(LINUXDIR),linux-2.2.x)
 SYMLINKS += compr_rubin.h compr_rubin.c compr.c histo_mips.h pushpull.h pushpull.c
@@ -29,6 +28,9 @@ JFFS2_OBJS += compr_rubin.o compr.o pushpull.o
 endif
 
 BUILD_JFFS2_OBJS = $(patsubst %,build/%,$(JFFS2_OBJS))
+BUILD_ERASEALL_OBJS = $(patsubst %,build/%,$(ERASEALL_OBJS))
+BUILD_DUMP_OBJS = $(patsubst %,build/%,$(DUMP_OBJS))
+
 
 all: build $(TARGETS) $(BUILD_TARGETS)
 
@@ -71,33 +73,21 @@ mkfs.jffs2: $(JFFS2_OBJS)
 build/mkfs.jffs2: $(BUILD_JFFS2_OBJS)
 	$(BUILD_CC) -o $@ $^ -lz
 
-doc_loadipl: doc_loadipl.o rsencode.o
-	$(CC) $(LDFLAGS) $(CFLAGS) -o $@ $^ $(LDPATH) $(LDLIBS)
+flash_eraseall: $(ERASEALL_OBJS)
+	$(CC) $(LDFLAGS) -o $@ $^
+build/flash_eraseall: $(BUILD_ERASEALL_OBJS)
+	$(BUILD_CC) -o $@ $^ 
 
-build/doc_loadipl: build/doc_loadipl.o build/rsencode.o
+jffs2reader: jffs2reader.o
+	$(CC) $(LDFLAGS) -o $@ $^ -lz 
+
+jffs2dump: $(DUMP_OBJS)
+	$(CC) $(LDFLAGS) -o $@ $^
+build/jffs2dump: $(BUILD_DUMP_OBJS)
 	$(BUILD_CC) -o $@ $^
-
-compr.o: compr.c
-	$(CC) $(CFLAGS) -Dprintk=printf -DKERN_NOTICE= -DKERN_WARNING= -c -o $@ $<
-
-build/compr.o: compr.c
-	$(BUILD_CC) $(BUILD_CFLAGS) -Dprintk=printf -DKERN_NOTICE= -DKERN_WARNING= -c -o $@ $<
-
-compr_zlib.o: compr_zlib.c
-	$(CC) $(CFLAGS) -c -o $@ $<
-
-build/compr_zlib.o: compr_zlib.c
-	$(BUILD_CC) $(BUILD_CFLAGS) -Dprintk=printf -DKERN_NOTICE= -DKERN_WARNING= -c -o $@ $<
-
-jffs2reader: jffs2reader.c
-	$(CC) $(LDFLAGS) $(CFLAGS) jffs2reader.c -o jffs2reader $(LDPATH) -lz $(LDLIBS)
-
-build/jffs2reader: jffs2reader.c
-	$(BUILD_CC) $(BUILD_CFLAGS) -o $@ $< -lz
 
 build/%.o: %.c
 	$(BUILD_CC) $(BUILD_CFLAGS) -c -o $@ $<
 
 build/%: %.c
 	$(BUILD_CC) $(BUILD_CFLAGS) -o $@ $<
-

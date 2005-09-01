@@ -33,8 +33,8 @@
   
   $Id$
   $Log$
-  Revision 1.2  2005/07/25 04:15:49  magicyang
-  New user folder check in
+  Revision 1.3  2005/09/01 09:09:32  aubrey
+  Fix bug 848: mkfs.jffs2 don't work properly
 
   Revision 1.7  2001/06/21 23:04:17  dwmw2
   Initial import to MTD CVS

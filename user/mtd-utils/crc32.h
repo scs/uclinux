@@ -3,14 +3,14 @@
 
 /* $Id$ */
 
-#include <linux/types.h>
+#include <stdint.h>
 
-extern const __u32 crc32_table[256];
+extern const uint32_t crc32_table[256];
 
 /* Return a 32-bit CRC of the contents of the buffer. */
 
-static inline __u32 
-crc32(__u32 val, const void *ss, int len)
+static inline uint32_t 
+crc32(uint32_t val, const void *ss, int len)
 {
 	const unsigned char *s = ss;
         while (--len >= 0)

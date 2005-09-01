@@ -23,6 +23,7 @@
  *	2. test, test, and test !!!
  */
 
+#define _XOPEN_SOURCE 500 /* for pread/pwrite */
 #include <unistd.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -33,11 +34,11 @@
 #include <sys/mount.h>
 #include <errno.h>
 #include <string.h>
-#include <libgen.h>
+
 #include <asm/types.h>
-#include "mtd/mtd-user.h"
-#include "mtd/nftl-user.h"
-#include "mtd/inftl-user.h"
+#include <mtd/mtd-user.h>
+#include <mtd/nftl-user.h>
+#include <mtd/inftl-user.h>
 
 #define swab16(x) \
         ((__u16)( \
@@ -57,8 +58,8 @@
 #define cpu_to_le16(x) (x)
 #define cpu_to_le32(x) (x)
 #endif
-
-extern ssize_t pread(), pwrite();
+#define le32_to_cpu(x) cpu_to_le32(x)
+#define le16_to_cpu(x) cpu_to_le16(x)
 
 unsigned char BadUnitTable[MAX_ERASE_ZONES];
 unsigned char *readbuf;
@@ -66,7 +67,6 @@ unsigned char *writebuf[4];
 
 mtd_info_t meminfo;
 erase_info_t erase;
-char *pname;
 int fd;
 struct NFTLMediaHeader *NFTLhdr;
 struct INFTLMediaHeader *INFTLhdr;
@@ -194,8 +194,8 @@ static int checkbbt(void)
 	int i, addr;
 
 	if (pread(fd, bbt, 512, 0x800) < 0) {
-		printf("%s: failed to read BBT, errno=%d\n", pname, errno);
-		return(-1);
+		printf("nftl_format: failed to read BBT, errno=%d\n", errno);
+		return (-1);
 	}
 
 
@@ -206,49 +206,44 @@ static int checkbbt(void)
 			BadUnitTable[i] = ZONE_BAD_ORIGINAL;
 		}
 	}
+
+	return (0);
 }
 
 void usage(int rc)
 {
-	fprintf(stderr, "Usage: %s [-inb] <mtddevice> [<start offset> [<size>]]\n", pname);
+	fprintf(stderr, "Usage: nftl_format [-ib] <mtddevice> [<start offset> [<size>]]\n");
 	exit(rc);
 }
 
 int main(int argc, char **argv)
 {
 	unsigned long startofs = 0, part_size = 0;
-	unsigned long ezones = 0, ezone = 0;
+	unsigned long ezones = 0, ezone = 0, bad_zones = 0;
 	unsigned char unit_factor = 0xFF;
 	long MediaUnit1 = -1, MediaUnit2 = -1;
 	long MediaUnitOff1 = 0, MediaUnitOff2 = 0;
 	unsigned char oobbuf[16];
 	struct mtd_oob_buf oob = {0, 16, oobbuf};
-	char *mtddevice, *nftl = "NFTL";
+	char *mtddevice, *nftl;
 	int c, do_inftl = 0, do_bbt = 0;
+
 
 	printf("$Id$\n");
 
-	pname = basename(argv[0]);
-	if (pname && (strcmp("inftl_format", pname) == 0)) {
-		nftl = "INFTL";
-		do_inftl = 1;
-	}
-
 	if (argc < 2)
-		usage(1);
+        	usage(1);
 
-	while ((c = getopt(argc, argv, "?hinb")) > 0) {
+	nftl = "NFTL";
+
+	while ((c = getopt(argc, argv, "?hib")) > 0) {
 		switch (c) {
-		case 'b':
-			do_bbt = 1;
-			break;
 		case 'i':
 			nftl = "INFTL";
 			do_inftl = 1;
 			break;
-		case 'n':
-			nftl = "NFTL";
-			do_inftl = 0;
+		case 'b':
+			do_bbt = 1;
 			break;
 		case 'h':
 		case '?':
@@ -343,11 +338,13 @@ int main(int argc, char **argv)
 			} else if (MediaUnit2 == -1) {
 				MediaUnit2 = ezone;
 			}
+		} else {
+			bad_zones++;
 		}
 	}
 	printf("\n");
 
-	/* N.B. form dump of M-System original chips, NumEraseUnits counts the 2 Erase Unit used
+	/* N.B. from dump of M-System original chips, NumEraseUnits counts the 2 Erase Unit used
 	   by MediaHeader and the FirstPhysicalEUN starts from the MediaHeader */
 	if (do_inftl) {
 		unsigned long maxzones, pezstart, pezend, numvunits;
@@ -361,7 +358,6 @@ int main(int argc, char **argv)
 		INFTLhdr->FormatFlags = cpu_to_le32(0);
 		INFTLhdr->OsakVersion = cpu_to_le32(OSAK_VERSION);
 		INFTLhdr->PercentUsed = cpu_to_le32(PERCENTUSED);
-
 		/*
 		 * Calculate number of virtual units we will have to work
 		 * with. I am calculating out the known bad units here, not
@@ -383,17 +379,19 @@ int main(int argc, char **argv)
 		INFTLhdr->Partitions[0].virtualUnits = cpu_to_le32(numvunits);
 		INFTLhdr->Partitions[0].firstUnit = cpu_to_le32(pezstart);
 		INFTLhdr->Partitions[0].lastUnit = cpu_to_le32(pezend);
-		INFTLhdr->Partitions[0].flags = cpu_to_le32(INFTL_BDTL|INFTL_LAST);
-		INFTLhdr->Partitions[0].spareUnits = cpu_to_le32(2);
+		INFTLhdr->Partitions[0].flags = cpu_to_le32(INFTL_BDTL);
+		INFTLhdr->Partitions[0].spareUnits = cpu_to_le32(0);
 		INFTLhdr->Partitions[0].Reserved0 = INFTLhdr->Partitions[0].firstUnit;
 		INFTLhdr->Partitions[0].Reserved1 = cpu_to_le32(0);
+		
 	} else {
+	
 		NFTLhdr = (struct NFTLMediaHeader *) (writebuf[0]);
 		strcpy(NFTLhdr->DataOrgID, "ANAND");
 		NFTLhdr->NumEraseUnits = cpu_to_le16(part_size / meminfo.erasesize);
 		NFTLhdr->FirstPhysicalEUN = cpu_to_le16(MediaUnit1);
 		/* N.B. we reserve 2 more Erase Units for "folding" of Virtual Unit Chain */
-		NFTLhdr->FormattedSize = cpu_to_le32(part_size - (4 * meminfo.erasesize));
+		NFTLhdr->FormattedSize = cpu_to_le32(part_size - ( (5+bad_zones) * meminfo.erasesize));
 		NFTLhdr->UnitSizeFactor = unit_factor;
 	}
 
@@ -402,14 +400,21 @@ int main(int argc, char **argv)
 	pwrite(fd, writebuf[0], 512, MediaUnit1 * meminfo.erasesize + MediaUnitOff1);
 	for (ezone = 0; ezone < (meminfo.size / meminfo.erasesize); ezone += 512) {
 		pwrite(fd, BadUnitTable + ezone, 512,
-		       (MediaUnit1 * meminfo.erasesize) + 512 * (1 + ezone / 512));
+			(MediaUnit1 * meminfo.erasesize) + 512 * (1 + ezone / 512));
 	}
 
+#if 0
+	printf("  MediaHeader contents:\n");
+	printf("    NumEraseUnits: %d\n", le16_to_cpu(NFTLhdr->NumEraseUnits));
+	printf("    FirstPhysicalEUN: %d\n", le16_to_cpu(NFTLhdr->FirstPhysicalEUN));
+	printf("    FormattedSize: %d (%d sectors)\n", le32_to_cpu(NFTLhdr->FormattedSize),
+	       le32_to_cpu(NFTLhdr->FormattedSize)/512);
+#endif
 	printf("Phase 2.b Writing Spare %s Media Header and Spare Bad Unit Table\n", nftl);
 	pwrite(fd, writebuf[0], 512, MediaUnit2 * meminfo.erasesize + MediaUnitOff2);
 	for (ezone = 0; ezone < (meminfo.size / meminfo.erasesize); ezone += 512) {
 		pwrite(fd, BadUnitTable + ezone, 512,
-		       (MediaUnit2 * meminfo.erasesize + MediaUnitOff2) + 512 * (1 + ezone / 512));
+			(MediaUnit2 * meminfo.erasesize + MediaUnitOff2) + 512 * (1 + ezone / 512));
 	}
 
 	/* UCI #1 for newly erased Erase Unit */
@@ -424,8 +429,7 @@ int main(int argc, char **argv)
 	   but their Block Status is BLOCK_USED (0x5555) in their Block Control Information */
 	/* Phase 3. Writing Unit Control Information for each Erase Unit */
 	printf("Phase 3. Writing Unit Control Information to each Erase Unit\n");
-	for (ezone = MediaUnit1;
-	     ezone < (ezones + startofs / meminfo.erasesize); ezone++) {
+	for (ezone = MediaUnit1; ezone < (ezones + startofs / meminfo.erasesize); ezone++) {
 		/* write UCI #1 to each Erase Unit */
 		if (BadUnitTable[ezone] != ZONE_GOOD)
 			continue;

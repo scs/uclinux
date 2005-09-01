@@ -1,5 +1,5 @@
 /*
- * FILE unlock.c
+ * FILE flash_unlock.c
  *
  * This utility unlock all sectors of flash device.
  *
@@ -13,7 +13,8 @@
 #include <sys/ioctl.h>
 #include <sys/mount.h>
 #include <string.h>
-#include "mtd/mtd-user.h"
+
+#include <mtd/mtd-user.h>
 
 int main(int argc, char *argv[])
 {

@@ -23,6 +23,8 @@
  *	2. test, test, and test !!!
  */
 
+#define _XOPEN_SOURCE 500 /* For pread */
+
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -31,12 +33,11 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <errno.h>
+
 #include <sys/ioctl.h>
 #include <asm/types.h>
-#include "mtd/mtd-user.h"
-#include "mtd/nftl-user.h"
-
-extern ssize_t pread();
+#include <mtd/mtd-user.h>
+#include <mtd/nftl-user.h>
 
 static struct NFTLMediaHeader MedHead[2];
 static mtd_info_t meminfo;
@@ -86,7 +87,7 @@ static unsigned short nextEUN(unsigned short curEUN)
 	return UCItable[curEUN][0].a.ReplUnitNum;
 }
 
-static unsigned int find_media_headers()
+static unsigned int find_media_headers(void)
 {
 	int i;
 	static unsigned long ofs = 0;
@@ -134,7 +135,7 @@ static unsigned int find_media_headers()
 	return NumMedHeads;
 }
 
-static void dump_erase_units()
+static void dump_erase_units(void)
 {
 	int i, j;
 	unsigned long ofs;
@@ -198,7 +199,7 @@ static void dump_erase_units()
 	}
 }
 
-static void dump_virtual_units()
+static void dump_virtual_units(void)
 {
 	int i, j;
 	char readbuf[512];

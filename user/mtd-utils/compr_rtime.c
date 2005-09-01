@@ -1,7 +1,7 @@
 /*
  * JFFS2 -- Journalling Flash File System, Version 2.
  *
- * Copyright (C) 2001, 2002 Red Hat, Inc.
+ * Copyright (C) 2001-2003 Red Hat, Inc.
  *
  * Created by Arjan van de Ven <arjanv@redhat.com>
  *
@@ -21,13 +21,13 @@
  *
  */
 
-#include <stdio.h>
-#include <string.h>
 #include <stdint.h>
+#include <string.h>
+#include "compr.h"
 
 /* _compress returns the compressed size, -1 if bigger */
-int jffs2_rtime_compress(unsigned char *data_in, unsigned char *cpage_out, 
-		   uint32_t *sourcelen, uint32_t *dstlen)
+static int jffs2_rtime_compress(unsigned char *data_in, unsigned char *cpage_out, 
+		   uint32_t *sourcelen, uint32_t *dstlen, void *model)
 {
 	short positions[256];
 	int outpos = 0;
@@ -35,7 +35,7 @@ int jffs2_rtime_compress(unsigned char *data_in, unsigned char *cpage_out,
 
 	memset(positions,0,sizeof(positions)); 
 	
-	while (pos < (*sourcelen) && outpos <= (*dstlen)-2) {
+ 	while (pos < (*sourcelen) && outpos <= (*dstlen)-2) {
 		int backpos, runlen=0;
 		unsigned char value;
 		
@@ -66,8 +66,8 @@ int jffs2_rtime_compress(unsigned char *data_in, unsigned char *cpage_out,
 }		   
 
 
-void jffs2_rtime_decompress(unsigned char *data_in, unsigned char *cpage_out,
-		      uint32_t srclen, uint32_t destlen)
+static int jffs2_rtime_decompress(unsigned char *data_in, unsigned char *cpage_out,
+		      uint32_t srclen, uint32_t destlen, void *model)
 {
 	short positions[256];
 	int outpos = 0;
@@ -97,7 +97,26 @@ void jffs2_rtime_decompress(unsigned char *data_in, unsigned char *cpage_out,
 				outpos+=repeat;		
 			}
 		}
-	}		
+	}
+        return 0;
 }		   
 
 
+static struct jffs2_compressor jffs2_rtime_comp = {
+    .priority = JFFS2_RTIME_PRIORITY,
+    .name = "rtime",
+    .disabled = 0,
+    .compr = JFFS2_COMPR_RTIME,
+    .compress = &jffs2_rtime_compress,
+    .decompress = &jffs2_rtime_decompress,
+};
+
+int jffs2_rtime_init(void)
+{
+    return jffs2_register_compressor(&jffs2_rtime_comp);
+}
+
+void jffs2_rtime_exit(void)
+{
+    jffs2_unregister_compressor(&jffs2_rtime_comp);
+}

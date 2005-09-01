@@ -1,3 +1,7 @@
+/* 
+ * flash_info.c -- print info about a MTD device
+*/
+
 #include <unistd.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -5,7 +9,8 @@
 #include <time.h>
 #include <sys/ioctl.h>
 #include <sys/mount.h>
-#include "mtd/mtd-user.h"
+
+#include <mtd/mtd-user.h>
 
 int main(int argc,char *argv[])
 {
@@ -14,12 +19,12 @@ int main(int argc,char *argv[])
 
 	if (1 >= argc)
 	{
-		fprintf(stderr,"You must specify a device\n");
+		fprintf(stderr,"Usage: flash_info device\n");
 		return 16;
 	}
    
 	// Open and size the device
-	if ((Fd = open(argv[1],O_RDWR)) < 0)
+	if ((Fd = open(argv[1],O_RDONLY)) < 0)
 	{
 		fprintf(stderr,"File open error\n");
 		return 8;

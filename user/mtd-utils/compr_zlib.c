@@ -35,36 +35,14 @@
  *
  */
 
-#include "zlib.h"
-
-#ifdef __KERNEL__
-#include <linux/kernel.h>
-#include <linux/slab.h>
-#include <linux/jffs2.h>
-#include "nodelist.h"
-
-static void *zalloc(void *opaque, unsigned nr, unsigned size)
-{
-	/* How much does it request? Should we use vmalloc? Or be dynamic? */
-	return kmalloc(nr * size, GFP_KERNEL);
-}
-
-static void zfree(void *opaque, void *addr)
-{
-	kfree(addr);
-}
-#else
-#define min(x,y) ((x)<(y)?(x):(y))
-#ifndef D1
-#define D1(x)
-#endif
-#define KERN_DEBUG
-#define KERN_NOTICE
-#define KERN_WARNING
-#define printk printf
+#include <stdint.h>
+#include <zlib.h>
 #include <stdio.h>
 #include <asm/types.h>
-#endif
+#include <linux/jffs2.h>
+#include "compr.h"
+
+#define min(x,y) ((x)<(y)?(x):(y))
 
 	/* Plan: call deflate() with avail_in == *sourcelen, 
 		avail_out = *dstlen - 12 and flush == Z_FINISH. 
@@ -75,8 +53,8 @@ static void zfree(void *opaque, void *addr)
 	*/
 #define STREAM_END_SPACE 12
 
-int zlib_compress(unsigned char *data_in, unsigned char *cpage_out, 
-		   __u32 *sourcelen, __u32 *dstlen)
+int jffs2_zlib_compress(unsigned char *data_in, unsigned char *cpage_out, 
+		   uint32_t *sourcelen, uint32_t *dstlen, void *model)
 {
 	z_stream strm;
 	int ret;
@@ -84,16 +62,10 @@ int zlib_compress(unsigned char *data_in, unsigned char *cpage_out,
 	if (*dstlen <= STREAM_END_SPACE)
 		return -1;
 
-#ifdef __KERNEL__
-	strm.zalloc = zalloc;
-	strm.zfree = zfree;
-#else
 	strm.zalloc = (void *)0;
 	strm.zfree = (void *)0;
-#endif
 
 	if (Z_OK != deflateInit(&strm, 3)) {
-		printk(KERN_WARNING "deflateInit failed\n");
 		return -1;
 	}
 	strm.next_in = data_in;
@@ -104,14 +76,9 @@ int zlib_compress(unsigned char *data_in, unsigned char *cpage_out,
 
 	while (strm.total_out < *dstlen - STREAM_END_SPACE && strm.total_in < *sourcelen) {
 		strm.avail_out = *dstlen - (strm.total_out + STREAM_END_SPACE);
-		strm.avail_in = min(*sourcelen-strm.total_in, strm.avail_out);
-		D1(printk(KERN_DEBUG "calling deflate with avail_in %d, avail_out %d\n",
-			  strm.avail_in, strm.avail_out));
+		strm.avail_in = min((unsigned)(*sourcelen-strm.total_in), strm.avail_out);
 		ret = deflate(&strm, Z_PARTIAL_FLUSH);
-		D1(printk(KERN_DEBUG "deflate returned with avail_in %d, avail_out %d, total_in %ld, total_out %ld\n", 
-			  strm.avail_in, strm.avail_out, strm.total_in, strm.total_out));
 		if (ret != Z_OK) {
-			D1(printk(KERN_DEBUG "deflate in loop returned %d\n", ret));
 			deflateEnd(&strm);
 			return -1;
 		}
@@ -120,13 +87,10 @@ int zlib_compress(unsigned char *data_in, unsigned char *cpage_out,
 	strm.avail_in = 0;
 	ret = deflate(&strm, Z_FINISH);
 	if (ret != Z_STREAM_END) {
-		D1(printk(KERN_DEBUG "final deflate returned %d\n", ret));
 		deflateEnd(&strm);
 		return -1;
 	}
 	deflateEnd(&strm);
-
-	D1(printk(KERN_DEBUG "zlib compressed %ld bytes into %ld\n", strm.total_in, strm.total_out));
 
 	if (strm.total_out >= strm.total_in)
 		return -1;
@@ -137,23 +101,17 @@ int zlib_compress(unsigned char *data_in, unsigned char *cpage_out,
 	return 0;
 }
 
-void zlib_decompress(unsigned char *data_in, unsigned char *cpage_out,
-		      __u32 srclen, __u32 destlen)
+int jffs2_zlib_decompress(unsigned char *data_in, unsigned char *cpage_out,
+		      uint32_t srclen, uint32_t destlen, void *model)
 {
 	z_stream strm;
 	int ret;
 
-#ifdef __KERNEL__
-	strm.zalloc = zalloc;
-	strm.zfree = zfree;
-#else
 	strm.zalloc = (void *)0;
 	strm.zfree = (void *)0;
-#endif
 
 	if (Z_OK != inflateInit(&strm)) {
-		printk(KERN_WARNING "inflateInit failed\n");
-		return;
+		return 1;
 	}
 	strm.next_in = data_in;
 	strm.avail_in = srclen;
@@ -165,8 +123,26 @@ void zlib_decompress(unsigned char *data_in, unsigned char *cpage_out,
 
 	while((ret = inflate(&strm, Z_FINISH)) == Z_OK)
 		;
-	if (ret != Z_STREAM_END) {
-		printk(KERN_NOTICE "inflate returned %d\n", ret);
-	}
+
 	inflateEnd(&strm);
+        return 0;
+}
+
+static struct jffs2_compressor jffs2_zlib_comp = {
+    .priority = JFFS2_ZLIB_PRIORITY,
+    .name = "zlib",
+    .disabled = 0,
+    .compr = JFFS2_COMPR_ZLIB,
+    .compress = &jffs2_zlib_compress,
+    .decompress = &jffs2_zlib_decompress,
+};
+
+int jffs2_zlib_init(void)
+{
+    return jffs2_register_compressor(&jffs2_zlib_comp);
+}
+
+void jffs2_zlib_exit(void)
+{
+    jffs2_unregister_compressor(&jffs2_zlib_comp);
 }

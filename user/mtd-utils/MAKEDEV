@@ -13,38 +13,27 @@ function mknftl () {
 		mknod /dev/nftl$1$a b 93 `expr $2 + $a`
 	done
 }
+function mkrfd () {
+	mknod /dev/rfd$1 b 95 $2
+	for a in `seq 1 15`; do
+		mknod /dev/rfd$1$a b 95 `expr $2 + $a`
+	done
+}
+function mkinftl () {
+	mknod /dev/inftl$1 b 96 $2
+	for a in `seq 1 15`; do
+		mknod /dev/inftl$1$a b 96 `expr $2 + $a`
+	done
+}
 
-mkftl a 0
-mkftl b 16
-mkftl c 32
-mkftl d 64
-mkftl e 80
-mkftl f 96
-mkftl g 112
-mkftl h 128
-mkftl i 144
-mkftl j 160
-mkftl k 176
-mkftl l 192
-mkftl m 208
-mkftl n 224
-mkftl o 240
-
-mknftl a 0
-mknftl b 16
-mknftl c 32
-mknftl d 64
-mknftl e 80
-mknftl f 96
-mknftl g 112
-mknftl h 128
-mknftl i 144
-mknftl j 160
-mknftl k 176
-mknftl l 192
-mknftl m 208
-mknftl n 224
-mknftl o 240
+M=0
+for C in a b c d e f g h i j k l m n o p; do
+    mkftl $C $M
+    mknftl $C $M
+    mkrfd $C $M
+    mkinftl $C $M
+    let M=M+16
+done
 
 for a in `seq 0 16` ; do
 	mknod /dev/mtd$a c 90 `expr $a + $a`

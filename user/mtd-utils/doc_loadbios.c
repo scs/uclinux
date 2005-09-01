@@ -7,7 +7,9 @@
 #include <sys/stat.h>
 #include <sys/ioctl.h>
 #include <sys/mount.h>
-#include "mtd/mtd-user.h"
+
+/* $Id$ */
+#include <mtd/mtd-user.h>
 
 unsigned char databuf[512];
 
@@ -17,12 +19,9 @@ int main(int argc,char **argv)
    int ifd,ofd;
    struct stat statbuf;
    erase_info_t erase;
-   unsigned long retlen, ofs, iplsize, ipltailsize, savebuflen;
-   unsigned char *iplbuf, *savebuf, *buf;
-
+   unsigned long retlen, ofs, iplsize, ipltailsize;
+   unsigned char *iplbuf;
    iplbuf = NULL;
-   savebuf = NULL;
-   savebuflen = 0;
 
    if (argc < 3) {
 	   fprintf(stderr,"You must specify a device,"
@@ -68,29 +67,6 @@ int main(int argc,char **argv)
 	   ipltailsize = iplsize % meminfo.erasesize;
    }
 
-   if ((iplsize + statbuf.st_size) % meminfo.erasesize) {
-	   /*
-		* preserve any partial eraseblocks - davidm@snapgear.com
-		*/
-	   savebuflen = meminfo.erasesize -
-		   ((iplsize + statbuf.st_size) % meminfo.erasesize);
-	   savebuf = (unsigned char *) malloc(savebuflen);
-	   if (!savebuf) {
-		   fprintf(stderr, "Not enough memory for preserve buffer of"
-				  " %lu bytes\n", savebuflen);
-		   goto error;
-	   }
-	   if (lseek(ofd, iplsize + statbuf.st_size, SEEK_SET) < 0) {
-		   perror("lseek");
-		   goto error;
-	   }
-	   if (read(ofd, savebuf, savebuflen) != savebuflen) {
-		   perror("read");
-		   goto error;
-	   }
-	   printf("Saving %lu bytes at end of last erase block\n", savebuflen);
-   }
-
    if (lseek(ofd, iplsize - ipltailsize, SEEK_SET) < 0) {
 	   perror("lseek");
 	   goto error;
@@ -127,6 +103,7 @@ int main(int argc,char **argv)
 		   goto error;
 	   }
    }
+
    if (lseek(ofd, iplsize - ipltailsize, SEEK_SET) < 0) {
 	   perror("lseek");
 	   goto error;
@@ -137,74 +114,26 @@ int main(int argc,char **argv)
 		(iplsize - ipltailsize) ? " tail" : "",
 		(long unsigned) ipltailsize,
 		(long unsigned) (iplsize - ipltailsize));
-
-	   for (buf = iplbuf; (ipltailsize > 0); ) {
-		retlen = (ipltailsize > 512) ? 512 : ipltailsize;
-		if (write(ofd, buf, retlen) != retlen) {
-		    perror("write");
-		    goto error;
-		}
-		ipltailsize -= retlen;
-		buf += retlen;
+	   if (write(ofd, iplbuf, ipltailsize) != ipltailsize) {
+		   perror("write");
+		   goto error;
 	   }
    }
-
-   ofs = 0; /* for save buffer processing */
 
    printf("Writing the firmware of length %lu at %lu... ", 
 		(unsigned long) statbuf.st_size,
 		(unsigned long) iplsize);
-
    do {
 	   retlen = read(ifd, databuf, 512);
-	   if (retlen == -1) {
-		   perror("read");
-		   goto error;
-	   }
-	   /*
-		* don't want to erase the next sector, esp if we are 512 byte
-		* aligned, who knows what is there ? - davidm@snapgear.com
-		*/
-	   if (retlen == 0)
-		   break;
-	   /*
-		* take care of partial 512 byte sectors
-		*/
-	   if (retlen < 512) {
-	     memset(databuf+retlen, 0xff, 512-retlen);
-		 if (savebuflen) {
-			 if (savebuflen < 512-retlen)
-				 ofs = savebuflen;
-			 else
-				 ofs = 512-retlen;
-			 memcpy(databuf+retlen, savebuf, ofs);
-		 }
-	   }
-	   if (write(ofd, databuf, 512) != 512) {
-		   perror("write");
-		   goto error;
-	   }
-   } while (retlen == 512);
-
-   while (ofs < savebuflen) {
-	   retlen = 512;
-	   if (savebuflen - ofs < 512)
-		   retlen = savebuflen - ofs;
-	   memcpy(databuf, &savebuf[ofs], retlen);
 	   if (retlen < 512)
 	     memset(databuf+retlen, 0xff, 512-retlen);
 	   if (write(ofd, databuf, 512) != 512) {
 		   perror("write");
 		   goto error;
 	   }
-	   ofs += retlen;
-   }
-   // printf("end=%lu, ofs=0x%x\n", iplsize+statbuf.st_size+ofs, ofs);
-
+   } while (retlen == 512);
    printf("Done.\n");
 
-   if (savebuf != NULL)
-	   free(savebuf);
    if (iplbuf != NULL)
 	   free(iplbuf);
    close(ifd);

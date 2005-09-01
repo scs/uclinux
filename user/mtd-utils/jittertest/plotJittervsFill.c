@@ -30,8 +30,8 @@
 
   $Id$
   $Log$
-  Revision 1.2  2005/07/25 04:15:49  magicyang
-  New user folder check in
+  Revision 1.3  2005/09/01 09:09:32  aubrey
+  Fix bug 848: mkfs.jffs2 don't work properly
 
   Revision 1.5  2001/08/10 19:23:11  vipin
   Ready to be released under GPL! Added proper headers etc.

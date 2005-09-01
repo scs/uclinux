@@ -14,49 +14,36 @@
 #include <string.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <sys/sysmacros.h>
 #include <dirent.h>
 #include <unistd.h>
 #include <linux/types.h>
-#include <endian.h>
+#include <asm/byteorder.h>
 #include <ctype.h>
 
-/* some byte swabbing stuff from include/linux/byteorder/ */
 #define swab16(x) \
-	((unsigned short)( \
-		(((unsigned short)(x) & (unsigned short)0x00ffU) << 8) | \
-		(((unsigned short)(x) & (unsigned short)0xff00U) >> 8) ))
+        ((__u16)( \
+                (((__u16)(x) & (__u16)0x00ffU) << 8) | \
+                (((__u16)(x) & (__u16)0xff00U) >> 8) ))
 #define swab32(x) \
-	((unsigned long)( \
-		(((unsigned long)(x) & (unsigned long)0x000000ffUL) << 24) | \
-		(((unsigned long)(x) & (unsigned long)0x0000ff00UL) <<  8) | \
-		(((unsigned long)(x) & (unsigned long)0x00ff0000UL) >>  8) | \
-		(((unsigned long)(x) & (unsigned long)0xff000000UL) >> 24) ))
+        ((__u32)( \
+                (((__u32)(x) & (__u32)0x000000ffUL) << 24) | \
+                (((__u32)(x) & (__u32)0x0000ff00UL) <<  8) | \
+                (((__u32)(x) & (__u32)0x00ff0000UL) >>  8) | \
+                (((__u32)(x) & (__u32)0xff000000UL) >> 24) ))
 
 #if __BYTE_ORDER == __BIG_ENDIAN
-
-#define mtd_cpu_to_be16(x) (x)
-#define mtd_cpu_to_be32(x) (x)
-#define mtd_be16_to_cpu(x) (x)
-#define mtd_be32_to_cpu(x) (x)
-#define mtd_cpu_to_le16(x) swab16(x)
-#define mtd_cpu_to_le32(x) swab32(x)
-#define mtd_le16_to_cpu(x) swab16(x)
-#define mtd_le32_to_cpu(x) swab32(x)
-
+#define cpu_to_le16(x) ({ __u16 _x = x; swab16(_x); })
+#define cpu_to_le32(x) ({ __u32 _x = x; swab32(_x); })
+#define cpu_to_be16(x) (x)
+#define cpu_to_be32(x) (x)
 #else
-
-#define mtd_cpu_to_be16(x) swab16(x)
-#define mtd_cpu_to_be32(x) swab32(x)
-#define mtd_be16_to_cpu(x) swab16(x)
-#define mtd_be32_to_cpu(x) swab32(x)
-#define mtd_cpu_to_le16(x) (x)
-#define mtd_cpu_to_le32(x) (x)
-#define mtd_le16_to_cpu(x) (x)
-#define mtd_le32_to_cpu(x) (x)
-
+#define cpu_to_le16(x) (x)
+#define cpu_to_le32(x) (x)
+#define cpu_to_be16(x) ({ __u16 _x = x; swab16(_x); })
+#define cpu_to_be32(x) ({ __u32 _x = x; swab32(_x); })
 #endif
-
+#define le32_to_cpu(x) cpu_to_le32(x)
+#define be32_to_cpu(x) cpu_to_be32(x)
 
 #define BLOCK_SIZE 1024
 #define JFFS_MAGIC 0x34383931 /* "1984" */
@@ -111,7 +98,6 @@ struct jffs_file
 char *root_directory_name = NULL;
 int fs_pos = 0;
 int verbose = 0;
-int squash = 0;
 
 #define ENDIAN_HOST   0
 #define ENDIAN_BIG    1
@@ -223,10 +209,10 @@ static void write_val32(__u32 *adr, __u32 val)
     *adr = val;
     break;
   case ENDIAN_LITTLE:
-    *adr = mtd_cpu_to_le32(val);
+    *adr = cpu_to_le32(val);
     break;
   case ENDIAN_BIG:
-    *adr = mtd_cpu_to_be32(val);
+    *adr = cpu_to_be32(val);
     break;
   }
 }
@@ -238,10 +224,10 @@ static void write_val16(__u16 *adr, __u16 val)
     *adr = val;
     break;
   case ENDIAN_LITTLE:
-    *adr = mtd_cpu_to_le16(val);
+    *adr = cpu_to_le16(val);
     break;
   case ENDIAN_BIG:
-    *adr = mtd_cpu_to_be16(val);
+    *adr = cpu_to_be16(val);
     break;
   }
 }
@@ -255,28 +241,10 @@ static __u32 read_val32(__u32 *adr)
     val = *adr;
     break;
   case ENDIAN_LITTLE:
-    val = mtd_le32_to_cpu(*adr);
+    val = le32_to_cpu(*adr);
     break;
   case ENDIAN_BIG:
-    val = mtd_be32_to_cpu(*adr);
-    break;
-  }
-  return val;
-}
-
-static __u16 read_val16(__u16 *adr) 
-{
-  __u16 val = 0;
-
-  switch(endian) {
-  case ENDIAN_HOST:
-    val = *adr;
-    break;
-  case ENDIAN_LITTLE:
-    val = mtd_le16_to_cpu(*adr);
-    break;
-  case ENDIAN_BIG:
-    val = mtd_be16_to_cpu(*adr);
+    val = be32_to_cpu(*adr);
     break;
   }
   return val;
@@ -379,10 +347,10 @@ write_file(struct jffs_file *f, FILE *fs, struct stat st)
           tmp = st.st_rdev;
           break;
         case ENDIAN_LITTLE:
-          tmp = mtd_cpu_to_le16(st.st_rdev);
+          tmp = cpu_to_le16(st.st_rdev);
           break;
         case ENDIAN_BIG:
-          tmp = mtd_cpu_to_be16(st.st_rdev);
+          tmp = cpu_to_be16(st.st_rdev);
           break;
       }
       fwrite((char *)&tmp, sizeof(st.st_rdev) / 4, 1, fs);
@@ -527,42 +495,6 @@ mkfs(FILE *fs, const char *path, int ino, int parent, int depth)
               filename, new_ino, parent);
     }
 
-    if (S_ISREG(st.st_mode) && st.st_size == 0)
-    {
-      char devname[32];
-      char type;
-      int major;
-      int minor;
-
-      if (sscanf(dir_entry->d_name, "@%31[-a-zA-Z0-9_+],%c,%d,%d",
-          devname, &type, &major, &minor) == 4)
-      {
-        strcpy(dir_entry->d_name, devname);
-        st.st_rdev = makedev(major, minor);
-        st.st_mode &= ~S_IFMT;
-        switch (type) {
-        case 'c':
-        case 'u':
-          st.st_mode |= S_IFCHR;
-          break;
-        case 'b':
-          st.st_mode |= S_IFBLK;
-          break;
-        case 'p':
-          st.st_mode |= S_IFIFO;
-          break;
-        default:
-          fprintf(stderr, "mkfs(): invalid special device type '%c' for file %s\n", type, filename);
-		  exit(1);
-        }
-      }
-    }
-
-    if (squash) {
-      st.st_uid = 0;
-      st.st_gid = 0;
-    }
-
     write_val32(&f.inode.magic, JFFS_MAGIC);
     write_val32(&f.inode.ino, new_ino);
     write_val32(&f.inode.pino, parent);
@@ -615,7 +547,7 @@ mkfs(FILE *fs, const char *path, int ino, int parent, int depth)
     else if (S_ISLNK(st.st_mode))
     {
       int linklen;
-      unsigned char *linkdata = (unsigned char *)malloc(1000);
+      char *linkdata = malloc(1000);
       if (!linkdata)
       {
         fprintf(stderr, "mkfs(): malloc() failed! (linkdata)\n");
@@ -630,7 +562,7 @@ mkfs(FILE *fs, const char *path, int ino, int parent, int depth)
       }
 
       write_val32(&f.inode.dsize, linklen);
-      f.data = linkdata;
+      f.data = (unsigned char *)linkdata;
       f.data[linklen] = '\0';
     }
     else if (S_ISBLK(st.st_mode) || S_ISCHR(st.st_mode))
@@ -710,7 +642,7 @@ mkfs(FILE *fs, const char *path, int ino, int parent, int depth)
 void
 usage(void)
 {
-  fprintf(stderr, "Usage: mkfs.jffs -d root_directory [-a little|big] [-e erase_size] [-o output_file] [-v[0-9]] [-q]\n");
+  fprintf(stderr, "Usage: mkfs.jffs -d root_directory [-a little|big] [-e erase_size] [-o output_file] [-v[0-9]]\n");
   fprintf(stderr, "       By default, the file system is built using the same endianness as the\n");
   fprintf(stderr, "       host.  If building for a different target, use the -a option.\n");
 }
@@ -728,7 +660,7 @@ main(int argc, char **argv)
 
   fs = stdout; /* Send constructed file system to stdout by default */
 
-  while ((ch = getopt(argc, argv, "qa:d:e:v::o:h?")) != -1) {
+  while ((ch = getopt(argc, argv, "a:d:e:v::o:h?")) != -1) {
     switch((char)ch) {
     case 'd':
       len = strlen(optarg);
@@ -774,9 +706,6 @@ main(int argc, char **argv)
       break;
     case 'e':
       MAX_CHUNK_SIZE = strtol(optarg, NULL, 0) / 2;
-      break;
-    case 'q':
-      squash = 1;
       break;
     case 'h':
     case '?':

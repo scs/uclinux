@@ -43,11 +43,28 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <errno.h>
-#include <sys/time.h>
+#include <time.h>
 #include <sys/ioctl.h>
 #include <sys/stat.h>
-#include "mtd/mtd-user.h"
+
+#include <mtd/mtd-user.h>
 #include <linux/mtd/ftl.h>
+
+#include <byteswap.h>
+#include <endian.h>
+
+#if __BYTE_ORDER == __LITTLE_ENDIAN
+# define TO_LE32(x) (x)
+# define TO_LE16(x) (x)
+#elif __BYTE_ORDER == __BIG_ENDIAN
+# define TO_LE32(x) (bswap_32(x))
+# define TO_LE16(x) (bswap_16(x))
+#else
+# error cannot detect endianess
+#endif
+
+#define FROM_LE32(x) TO_LE32(x)
+#define FROM_LE16(x) TO_LE16(x)
 
 /*====================================================================*/
 
@@ -74,7 +91,7 @@ static void build_header(erase_unit_header_t *hdr, u_int RegionSize,
 			 u_int BlockSize, u_int Spare, int Reserve,
 			 u_int BootSize)
 {
-    u_int i, BootUnits, nbam;
+    u_int i, BootUnits, nbam, __FormattedSize;
     
     /* Default everything to the erased state */
     memset(hdr, 0xff, sizeof(*hdr));
@@ -89,25 +106,28 @@ static void build_header(erase_unit_header_t *hdr, u_int RegionSize,
     hdr->EraseUnitSize = 0;
     for (i = BlockSize; i > 1; i >>= 1)
 	hdr->EraseUnitSize++;
-    hdr->EraseCount = 0;
-    hdr->FirstPhysicalEUN = BootUnits;
-    hdr->NumEraseUnits = (RegionSize - BootSize) >> hdr->EraseUnitSize;
+    hdr->EraseCount = TO_LE32(0);
+    hdr->FirstPhysicalEUN = TO_LE16(BootUnits);
+    hdr->NumEraseUnits = TO_LE16((RegionSize - BootSize) >> hdr->EraseUnitSize);
     hdr->NumTransferUnits = Spare;
-    hdr->FormattedSize =
-	RegionSize - ((Spare + BootUnits) << hdr->EraseUnitSize);
+    __FormattedSize = RegionSize - ((Spare + BootUnits) << hdr->EraseUnitSize);
     /* Leave a little bit of space between the CIS and BAM */
-    hdr->BAMOffset = 0x80;
+    hdr->BAMOffset = TO_LE32(0x80);
     /* Adjust size to account for BAM space */
     nbam = ((1 << (hdr->EraseUnitSize - hdr->BlockSize)) * sizeof(u_int)
-	    + hdr->BAMOffset + (1 << hdr->BlockSize) - 1) >> hdr->BlockSize;
-    hdr->FormattedSize -=
-	(hdr->NumEraseUnits - Spare) * (nbam << hdr->BlockSize);
-    hdr->FormattedSize -= ((hdr->FormattedSize * Reserve / 100) & ~0xfff);
-    hdr->FirstVMAddress = 0xffffffff;
-    hdr->NumVMPages = 0;
+	    + FROM_LE32(hdr->BAMOffset) + (1 << hdr->BlockSize) - 1) >> hdr->BlockSize;
+
+    __FormattedSize -=
+	(FROM_LE16(hdr->NumEraseUnits) - Spare) * (nbam << hdr->BlockSize);
+    __FormattedSize -= ((__FormattedSize * Reserve / 100) & ~0xfff);
+    
+    hdr->FormattedSize = TO_LE32(__FormattedSize);
+
+    /* hdr->FirstVMAddress defaults to erased state */
+    hdr->NumVMPages = TO_LE16(0);
     hdr->Flags = 0;
     /* hdr->Code defaults to erased state */
-    hdr->SerialNumber = time(NULL);
+    hdr->SerialNumber = TO_LE32(time(NULL));
     /* hdr->AltEUHOffset defaults to erased state */
 
 } /* build_header */
@@ -149,11 +169,11 @@ static int format_partition(int fd, int quiet, int interrogate,
 	print_size(mtd.erasesize);
 	printf(", %d transfer units\n", spare);
 	if (bootsize != 0) {
-	    print_size(hdr.FirstPhysicalEUN << hdr.EraseUnitSize);
+	    print_size(FROM_LE16(hdr.FirstPhysicalEUN) << hdr.EraseUnitSize);
 	    printf(" allocated for boot image\n");
 	}
 	printf("Reserved %d%%, formatted size = ", reserve);
-	print_size(hdr.FormattedSize);
+	print_size(FROM_LE32(hdr.FormattedSize));
 	printf("\n");
 	fflush(stdout);
     }
@@ -170,10 +190,10 @@ static int format_partition(int fd, int quiet, int interrogate,
     
     /* Create basic block allocation table for control blocks */
     nbam = ((mtd.erasesize >> hdr.BlockSize) * sizeof(u_int)
-	    + hdr.BAMOffset + (1 << hdr.BlockSize) - 1) >> hdr.BlockSize;
+	    + FROM_LE32(hdr.BAMOffset) + (1 << hdr.BlockSize) - 1) >> hdr.BlockSize;
     bam = malloc(nbam * sizeof(u_int));
     for (i = 0; i < nbam; i++)
-	bam[i] = BLOCK_CONTROL;
+	bam[i] = TO_LE32(BLOCK_CONTROL);
     
     /* Erase partition */
     if (!quiet) {
@@ -181,8 +201,8 @@ static int format_partition(int fd, int quiet, int interrogate,
 	fflush(stdout);
     }
     erase.length = mtd.erasesize;
-    erase.start = mtd.erasesize * hdr.FirstPhysicalEUN;
-    for (i = 0; i < hdr.NumEraseUnits; i++) {
+    erase.start = mtd.erasesize * FROM_LE16(hdr.FirstPhysicalEUN);
+    for (i = 0; i < FROM_LE16(hdr.NumEraseUnits); i++) {
 	if (ioctl(fd, MEMERASE, &erase) < 0) {
 	    if (!quiet) {
 		putchar('\n');
@@ -217,25 +237,25 @@ static int format_partition(int fd, int quiet, int interrogate,
     }
     lun = 0;
     /* Distribute transfer units over the entire region */
-    step = (spare) ? (hdr.NumEraseUnits/spare) : (hdr.NumEraseUnits+1);
-    for (i = 0; i < hdr.NumEraseUnits; i++) {
-	u_int ofs = (i + hdr.FirstPhysicalEUN) << hdr.EraseUnitSize;
+    step = (spare) ? (FROM_LE16(hdr.NumEraseUnits)/spare) : (FROM_LE16(hdr.NumEraseUnits)+1);
+    for (i = 0; i < FROM_LE16(hdr.NumEraseUnits); i++) {
+	u_int ofs = (i + FROM_LE16(hdr.FirstPhysicalEUN)) << hdr.EraseUnitSize;
 	if (lseek(fd, ofs, SEEK_SET) == -1) {
 	    perror("seek failed");
 	    break;
 	}
 	/* Is this a transfer unit? */
 	if (((i+1) % step) == 0)
-	    hdr.LogicalEUN = 0xffff;
+	    hdr.LogicalEUN = TO_LE16(0xffff);
 	else {
-	    hdr.LogicalEUN = lun;
+	    hdr.LogicalEUN = TO_LE16(lun);
 	    lun++;
 	}
 	if (write(fd, &hdr, sizeof(hdr)) == -1) {
 	    perror("write failed");
 	    break;
 	}
-	if (lseek(fd, ofs + hdr.BAMOffset, SEEK_SET) == -1) {
+	if (lseek(fd, ofs + FROM_LE32(hdr.BAMOffset), SEEK_SET) == -1) {
 	    perror("seek failed");
 	    break;
 	}
@@ -244,7 +264,7 @@ static int format_partition(int fd, int quiet, int interrogate,
 	    break;
 	}
     }
-    if (i < hdr.NumEraseUnits)
+    if (i < FROM_LE16(hdr.NumEraseUnits))
 	return -1;
     else
 	return 0;

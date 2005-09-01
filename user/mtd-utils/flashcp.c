@@ -6,6 +6,8 @@
  *
  * $Id$
  *
+ * Renamed to flashcp.c to avoid conflicts with fcp from fsh package
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -39,7 +41,8 @@
 #include <sys/ioctl.h>
 #include <fcntl.h>
 #include <unistd.h>
-#include "mtd/mtd-user.h"
+#include <mtd/mtd-user.h>
+#include <getopt.h>
 
 typedef int bool;
 #define true 1
@@ -167,7 +170,8 @@ int main (int argc,char *argv[])
 {
    const char *progname,*filename = NULL,*device = NULL;
    int i,flags = FLAG_NONE;
-   size_t result,size,written;
+   ssize_t result;
+   size_t size,written;
    struct mtd_info_user mtd;
    struct erase_info_user erase;
    struct stat filestat;
@@ -175,40 +179,49 @@ int main (int argc,char *argv[])
 
    (progname = strrchr (argv[0],'/')) ? progname++ : (progname = argv[0]);
 
-   /*************************************
-	* parse cmd-line args back to front *
-	*************************************/
+   /*********************
+	* parse cmd-line 
+	*****************/
 
-   while (--argc)
-	 {
-		if (device == NULL)
-		  {
-			 flags |= FLAG_DEVICE;
-			 device = argv[argc];
-			 DEBUG("Got device: %s\n",device);
-		  }
-		else if (filename == NULL)
-		  {
-			 flags |= FLAG_FILENAME;
-			 filename = argv[argc];
-			 DEBUG("Got filename: %s\n",filename);
-		  }
-		else if (!strcmp (argv[argc],"-v") || !strcmp (argv[argc],"--verbose"))
-		  {
-			 flags |= FLAG_VERBOSE;
-			 DEBUG("Got FLAG_VERBOSE\n");
-		  }
-		else if (!strcmp (argv[argc],"-h") || !strcmp (argv[argc],"--help"))
-		  {
-			 flags |= FLAG_HELP;
-			 DEBUG("Got FLAG_HELP\n");
-		  }
-		else
-		  {
-			 DEBUG("Unknown parameter: %s\n",argv[argc]);
-			 showusage (progname,true);
-		  }
-	 }
+   for (;;) {
+   	int option_index = 0;
+   	static const char *short_options = "hv";
+   	static const struct option long_options[] = {
+   		{"help", no_argument, 0, 'h'},
+   		{"verbose", no_argument, 0, 'v'},
+   		{0, 0, 0, 0},
+   	};
+
+   	int c = getopt_long(argc, argv, short_options,
+   			    long_options, &option_index);
+   	if (c == EOF) {
+   		break;
+   	}
+
+   	switch (c) {
+   	case 'h':
+		flags |= FLAG_HELP;
+		DEBUG("Got FLAG_HELP\n");
+   		break;
+   	case 'v':
+		flags |= FLAG_VERBOSE;
+		DEBUG("Got FLAG_VERBOSE\n");
+		break;
+	default:
+		DEBUG("Unknown parameter: %s\n",argv[option_index]);
+		showusage (progname,true);
+   	}
+   }
+   if (optind+2 == argc) {
+	flags |= FLAG_FILENAME;
+   	filename = argv[optind];
+	DEBUG("Got filename: %s\n",filename);
+
+	flags |= FLAG_DEVICE;
+   	device = argv[optind+1];
+	DEBUG("Got device: %s\n",device);
+   }
+
    if (flags & FLAG_HELP || progname == NULL || device == NULL)
 	 showusage (progname,flags != FLAG_HELP);
 

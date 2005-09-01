@@ -7,6 +7,11 @@
 #ifndef __MTD_ABI_H__
 #define __MTD_ABI_H__
 
+#ifndef __KERNEL__ /* Urgh. The whole point of splitting this out into
+		    separate files was to avoid #ifdef __KERNEL__ */
+#define __user
+#endif
+
 struct erase_info_user {
 	uint32_t start;
 	uint32_t length;
@@ -15,7 +20,7 @@ struct erase_info_user {
 struct mtd_oob_buf {
 	uint32_t start;
 	uint32_t length;
-	unsigned char *ptr;
+	unsigned char __user *ptr;
 };
 
 #define MTD_ABSENT		0
@@ -24,6 +29,7 @@ struct mtd_oob_buf {
 #define MTD_NORFLASH		3
 #define MTD_NANDFLASH		4
 #define MTD_PEROM		5
+#define MTD_DATAFLASH		6
 #define MTD_OTHER		14
 #define MTD_UNKNOWN		15
 
@@ -35,6 +41,7 @@ struct mtd_oob_buf {
 #define MTD_XIP			32	// eXecute-In-Place possible
 #define MTD_OOB			64	// Out-of-band data (NAND flash)
 #define MTD_ECC			128	// Device capable of automatic ECC
+#define MTD_NO_VIRTBLOCKS	256	// Virtual blocks not allowed
 
 // Some common devices / combinations of capabilities
 #define MTD_CAP_ROM		0
@@ -55,6 +62,11 @@ struct mtd_oob_buf {
 #define MTD_NANDECC_AUTOPLACE	2	// Use the default placement scheme
 #define MTD_NANDECC_PLACEONLY	3	// Use the given placement in the structure (Do not store ecc result on read)
 
+/* OTP mode selection */
+#define MTD_OTP_OFF		0
+#define MTD_OTP_FACTORY		1
+#define MTD_OTP_USER		2
+
 struct mtd_info_user {
 	uint8_t type;
 	uint32_t flags;
@@ -74,6 +86,12 @@ struct region_info_user {
 	uint32_t regionindex;
 };
 
+struct otp_info {
+	uint32_t start;
+	uint32_t length;
+	uint32_t locked;
+};
+
 #define MEMGETINFO              _IOR('M', 1, struct mtd_info_user)
 #define MEMERASE                _IOW('M', 2, struct erase_info_user)
 #define MEMWRITEOOB             _IOWR('M', 3, struct mtd_oob_buf)
@@ -86,13 +104,10 @@ struct region_info_user {
 #define MEMGETOOBSEL		_IOR('M', 10, struct nand_oobinfo)
 #define MEMGETBADBLOCK		_IOW('M', 11, loff_t)
 #define MEMSETBADBLOCK		_IOW('M', 12, loff_t)
-
-/*
- * until these are part of the linux kernel,  put them out of harms way
- */
-#define	MEMREADDATA             _IOWR('M', 64, struct mtd_oob_buf)
-#define	MEMWRITEDATA            _IOWR('M', 65, struct mtd_oob_buf)
-
+#define OTPSELECT		_IOR('M', 13, int)
+#define OTPGETREGIONCOUNT	_IOW('M', 14, int)
+#define OTPGETREGIONINFO	_IOW('M', 15, struct otp_info)
+#define OTPLOCK		_IOR('M', 16, struct otp_info)
 
 struct nand_oobinfo {
 	uint32_t useecc;

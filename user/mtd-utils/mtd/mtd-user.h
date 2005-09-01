@@ -10,7 +10,6 @@
 #include <stdint.h>
 
 /* This file is blessed for inclusion by userspace */
-#include <linux/compiler.h>
 #include <mtd/mtd-abi.h>
 
 typedef struct mtd_info_user mtd_info_t;

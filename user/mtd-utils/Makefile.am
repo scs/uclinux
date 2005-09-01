@@ -15,4 +15,4 @@ $(SYMLINKS):
 	ln -sf @CONFIG_KERNELDIR@/fs/jffs2/$@ $@
 
 compr.o: compr.c
-	$(COMPILE) $(CFLAGS) $(INCLUDES) -Dprintk=printf -DKERN_NOTICE= -c -o $@ $<
+	$(COMPILE) $(CFLAGS) $(INCLUDES) -Dprintk=printf -DKERN_NOTICE= -DKERN_WARNING= -c -o $@ $<
