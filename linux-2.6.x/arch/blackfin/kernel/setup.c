@@ -160,10 +160,6 @@ void __init setup_arch(char **cmdline_p)
 		(int)&_ebss,(int)memory_start,
 		(int)&init_thread_union,(int)(&init_thread_union) + 0x2000);
 
-	init_task.mm->start_code = (unsigned long) &_stext;
-	init_task.mm->end_code = (unsigned long) &_etext;
-	init_task.mm->end_data = (unsigned long) &_edata;
-	init_task.mm->brk = (unsigned long) &_end;
 
 	/* Keep a copy of command line */
 	*cmdline_p = &command_line[0];
