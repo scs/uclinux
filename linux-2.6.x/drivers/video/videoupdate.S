@@ -22,7 +22,7 @@ Purpose:		This videograph.asm file sets generates an NTSC color bar
 ******************************************************************************/
 
 
-#include <asm/board/defBF533.h>
+#include <asm/blackfin.h>
 
 #define NUM_OF_VOUT_FRAMES 2
 

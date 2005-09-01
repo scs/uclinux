@@ -27,7 +27,7 @@ Purpose:		Contains hardware specific Assembly functions. Description of each fun
 			 along with this program; if not, write to the Free Software
 			 Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *********************************************************************************************/ 
-#include <asm/board/defBF533.h>
+#include <asm/blackfin.h>
 
 #define NUM_OF_VOUT_FRAMES 2
 #define REAL_DATA 1

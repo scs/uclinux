@@ -907,7 +907,7 @@ fb_mmap(struct file *file, struct vm_area_struct * vma)
 		return res;
 	}
 
-#if defined(__sparc__) && !defined(__sparc_v9__)
+#if (defined(__sparc__) || defined(CONFIG_BFIN)) && !defined(__sparc_v9__)
 	/* Should never get here, all fb drivers should have their own
 	   mmap routines */
 	return -EINVAL;

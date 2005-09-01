@@ -39,12 +39,11 @@ Based on: 	 	Zoran zr36057/zr36067 PCI controller driver, for the
 #include <linux/types.h>
 #include <linux/interrupt.h>
 #include <linux/sched.h>
-#include <asm/board/cdefBF533.h>
 #include <asm/irq.h>
 #include <linux/timer.h>
 #include <asm/bf533_dma.h>
-#include <asm/board/cdefBF533.h>
-
+#include <asm/blackfin.h>
+ 
 #define CONFIG_VIDEO_BLACKFIN_PPI_IRQ IRQ_PPI
 #define CONFIG_VIDEO_BLACKFIN_PPI_IRQ_ERR IRQ_DMA_ERROR
 #define V4L2_YCRCB_FRAME_SIZE (1512000 * 4) 
@@ -56,7 +55,7 @@ char *ycrcb_buffer_out_1 ;
 char *ycrcb_buffer_out_2 ;
 #define YCRCB_BUFFER_1 0x5a00400
 #define YCRCB_BUFFER_2 0x7800000
-int id;
+int id2;
 
 /* Memory DMA status.
  * Needed as on the basis of these
@@ -142,7 +141,7 @@ bfin_v4l2_memdma1_interrupt_handler(int irq,
 }
 
 void
-init_device_bfin_v4l2()
+init_device_bfin_v4l2(void)
 {
 
 /* Very first of all lets aquire MEM DMA channels.
@@ -152,12 +151,12 @@ init_device_bfin_v4l2()
  * of the MEM DMA channels, each dedicated to even
  * and odd fields respectively.
  */
-        if( request_irq(IRQ_MEM_DMA0, &bfin_v4l2_memdma0_interrupt_handler, SA_SHIRQ, "PPI Data", &id) ){
+        if( request_irq(IRQ_MEM_DMA0, &bfin_v4l2_memdma0_interrupt_handler, SA_SHIRQ, "PPI Data", &id2) ){
                 printk( KERN_ERR "Unable to allocate mem dma IRQ %d\n", IRQ_MEM_DMA0);
                 return -ENODEV;
         }
 
-        if( request_irq(IRQ_MEM_DMA1, &bfin_v4l2_memdma1_interrupt_handler, SA_SHIRQ, "PPI Data", &id) ){
+        if( request_irq(IRQ_MEM_DMA1, &bfin_v4l2_memdma1_interrupt_handler, SA_SHIRQ, "PPI Data", &id2) ){
                 printk( KERN_ERR "Unable to allocate mem dma IRQ %d\n", IRQ_MEM_DMA1);
                 return -ENODEV;
         }
@@ -168,9 +167,9 @@ init_device_bfin_v4l2()
  * to use our own PPI interrupt 
  * handler
  */
-        if( request_irq(CONFIG_VIDEO_BLACKFIN_PPI_IRQ, &ppi_handler, SA_SHIRQ, "PPI Data", &id ) ){
+        if( request_irq(CONFIG_VIDEO_BLACKFIN_PPI_IRQ, &ppi_handler, SA_SHIRQ, "PPI Data", &id2 ) ){
                 printk( KERN_ERR "Unable to allocate ppi IRQ %d\n", CONFIG_VIDEO_BLACKFIN_PPI_IRQ);
-		freedma(CH_PPI);
+//		freedma(CH_PPI);
                 return -ENODEV;
         }
 #if CONFIG_MEM_SIZE <= 64
@@ -201,9 +200,9 @@ device_bfin_close()
 	*pPPI_CONTROL &= 0;
 	*pDMA0_CONFIG &= 0;
 	//Release the interrupt.
-	free_irq(CONFIG_VIDEO_BLACKFIN_PPI_IRQ, &id);
-	free_irq(IRQ_MEM_DMA0, &id);
-	free_irq(IRQ_MEM_DMA1, &id);
+	free_irq(CONFIG_VIDEO_BLACKFIN_PPI_IRQ, &id2);
+	free_irq(IRQ_MEM_DMA0, &id2);
+	free_irq(IRQ_MEM_DMA1, &id2);
 	printk(" bfin_ad7171 Realeased\n") ;
 }
 

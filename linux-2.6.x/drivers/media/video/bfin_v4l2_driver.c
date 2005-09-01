@@ -54,9 +54,9 @@ Based on 	 	Zoran zr36057/zr36067 PCI controller driver, for the
 #include "bfin_v4l2_driver.h"
 
 //Func to initialize encoder. Defined in bfin_v4l2_device.c file. 
-extern int init_device_bfin_v4l2();
+extern int init_device_bfin_v4l2(void);
 //Func to reset encoder. Defined in bfin_v4l2_device.c file. 
-extern int device_bfin_close();
+extern int device_bfin_close(void);
 
 //MEM DMA status values, Set by write(), 
 //Reset by Respective interrupt handlers.
@@ -250,7 +250,7 @@ bfin_v4l2_write (struct file *file,
 	for(;;) {
 		if((mem_dma0_status !=0) 
  		  | (mem_dma1_status !=0) 
-		    | (ycrcb_buffer_1_status != YCRCB_BUFFER_FREE_FOR_MDMA_WRITE & ycrcb_buffer_2_status != YCRCB_BUFFER_FREE_FOR_MDMA_WRITE)
+		    | (ycrcb_buffer_1_status != (YCRCB_BUFFER_FREE_FOR_MDMA_WRITE & ycrcb_buffer_2_status) != YCRCB_BUFFER_FREE_FOR_MDMA_WRITE)
 		) {
 //			interruptible_sleep_on(&bfin_v4l2_write_wait) ;
 		}
@@ -283,14 +283,13 @@ do_bfin_v4l2_ioctl (struct inode *inode,
 	        unsigned int  cmd,
 	        void         *arg)
 {
-	struct bfin_v4l2_fh *fh = file->private_data;
 
 /* This declartion is currently
  * useless, but once we ll start
  * working on capture this will
  * be needed.
  */
-	struct bfin_v4l2 *bfn = fh->bfn;
+
 
 	switch (cmd) {
 
@@ -592,7 +591,7 @@ bfin_v4l2_unregister_device(struct bfin_v4l2 *bfn)
 }
 
 static int __init
-init_bfin_v4l2()
+init_bfin_v4l2(void)
 {
 	int i, j ;
 	struct bfin_v4l2 *bfn ;
@@ -606,9 +605,9 @@ init_bfin_v4l2()
 	}
 	return 0;
 }
-
+ 
 static void __exit
-unload_bfin_v4l2_module()
+unload_bfin_v4l2_module(void)
 {
 	int i;
 	for(i=0; i<NO_OF_DEVICES;i++)

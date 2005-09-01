@@ -22,7 +22,7 @@ Purpose:		This config_dma.asm file sets up DMA0 (PPI DMA) for transmit,
 ******************************************************************************/
 
 
-#include <asm/board/defBF533.h>
+#include <asm/blackfin.h>
 
 #define INTR_PERIOD 400
 #define NUM_OF_VOUT_FRAMES 2

@@ -23,7 +23,7 @@
 #include <linux/types.h>
 #include <linux/interrupt.h>
 #include <linux/sched.h>
-#include <asm/board/cdefBF533.h>
+#include <asm/blackfin.h>
 #include <asm/irq.h>
 #include <linux/timer.h>
 
@@ -34,7 +34,7 @@
 #define CONFIG_VIDEO_BLACKFIN_PPI_IRQ_ERR IRQ_DMA_ERROR
 char *rgb_buffer = 0 ;
 char *ycrcb_buffer = 0 ;
-int id ;
+int id1 ;
 
 static int bfin_ad7171_fb_open(struct fb_info *info, int user);
 static int bfin_ad7171_fb_release(struct fb_info *info, int user);
@@ -224,7 +224,7 @@ timer_setup(void)
 
 static int bfin_ad7171_fb_open(struct fb_info *info, int user)
 {
-        if( request_irq(CONFIG_VIDEO_BLACKFIN_PPI_IRQ, &ppi_handler, SA_SHIRQ, "PPI Data", &id ) ){
+        if( request_irq(CONFIG_VIDEO_BLACKFIN_PPI_IRQ, &ppi_handler, SA_SHIRQ, "PPI Data", &id1 ) ){
                 printk( KERN_ERR "Unable to allocate ppi IRQ %d\n", CONFIG_VIDEO_BLACKFIN_PPI_IRQ);
                 return -ENODEV;
         }
