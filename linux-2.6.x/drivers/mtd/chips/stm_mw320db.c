@@ -21,6 +21,9 @@
 
 #define MAX_SMT_CHIPS 8
 
+
+#define BEQUIET     1
+
 /* Address Mapping A0 of Flash is connetcted to A1 of Blackfins EBIU */
 /* This requires a address adjustmet */
 
@@ -449,8 +452,10 @@ retry:
 
 	if (chip->state != FL_READY)
 	{
+#ifndef BEQUIET
 		printk(KERN_INFO "%s: waiting for chip to read, state = %d\n",
 			map->name, chip->state);
+#endif
 		set_current_state(TASK_UNINTERRUPTIBLE);
 		add_wait_queue(&chip->wq, &wait);
 
@@ -561,8 +566,10 @@ retry:
 
 	if (chip->state != FL_READY)
 	{
+#ifndef BEQUIET
 		printk("%s: waiting for chip to write, state = %d\n",
 				map->name, chip->state);
+#endif
 		set_current_state(TASK_UNINTERRUPTIBLE);
 		add_wait_queue(&chip->wq, &wait);
 
@@ -570,7 +577,9 @@ retry:
 
 		schedule();
 		remove_wait_queue(&chip->wq, &wait);
+#ifndef BEQUIET
 		printk(KERN_INFO "%s: woke up to write\n", map->name);
+#endif
 		if (signal_pending(current))
 			return -EINTR;
 
@@ -814,8 +823,10 @@ retry:
 			add_wait_queue(&chip->wq, &wait);
 
 			spin_unlock_bh(chip->mutex);
+#ifndef BEQUIET
 			printk(KERN_INFO "%s: erase suspended. Sleeping.\n",
 				map->name);
+#endif
 			schedule();
 			remove_wait_queue(&chip->wq, &wait);
 
