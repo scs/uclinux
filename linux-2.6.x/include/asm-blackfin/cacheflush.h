@@ -50,7 +50,10 @@ static inline void flush_icache_range(unsigned start, unsigned end)
 }
 
 
-#define copy_to_user_page(vma, page, vaddr, dst, src, len)	memcpy(dst, src, len)
+#define copy_to_user_page(vma, page, vaddr, dst, src, len) \
+do { memcpy(dst, src, len); \
+     flush_icache_range (vaddr, vaddr + len); \
+} while (0)
 #define copy_from_user_page(vma, page, vaddr, dst, src, len)	memcpy(dst, src, len)
 
 #if defined( CONFIG_BLKFIN_DCACHE )
