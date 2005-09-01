@@ -1736,7 +1736,6 @@ int rs_open(struct tty_struct *tty, struct file * filp)
 				return 0;
 			}
 		}
-		bfin_config_uart0(info);
 	}
 #if defined(CONFIG_BF534) || defined(CONFIG_BF536) || defined(CONFIG_BF537)
 	else if (strncmp(tty->name, "ttyS1", 6)==0) {
@@ -1749,7 +1748,6 @@ int rs_open(struct tty_struct *tty, struct file * filp)
 				return 0;
 			}
 		}
-		bfin_config_uart1(info);
 	}
 #endif
 	else
@@ -1928,12 +1926,6 @@ int bfin_console_setup(struct console *cp, char *arg)
 	}
 
 	info->is_cons = 1;
-	if(cp->index == 0)
-		bfin_config_uart0(info);
-#if defined(CONFIG_BF534) || defined(CONFIG_BF536) || defined(CONFIG_BF537)
-	else if(cp->index == 1)
-		bfin_config_uart1(info);
-#endif
 	
 	bfin_set_baud(info); /* make sure baud rate changes */
 	return 0;
@@ -1973,6 +1965,10 @@ static struct console bfin_driver = {
 
 static int bfin_console_init(void)
 {
+	bfin_config_uart0(&bfin_uart[0]);
+#if defined(CONFIG_BF534) || defined(CONFIG_BF536) || defined(CONFIG_BF537)
+	bfin_config_uart1(&bfin_uart[1]);
+#endif
 	register_console(&bfin_driver);
 	return 0;
 }
