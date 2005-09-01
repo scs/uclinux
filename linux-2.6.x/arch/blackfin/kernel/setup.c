@@ -276,12 +276,7 @@ static void __init generate_cpl_tables(void)
 	pos = fill_cpl_tables(dpdt_table, pos, SIZE_4M, RAM_END - SIZE_4M, SIZE_4M, SDRAM_DGENERIC);
 	pos = fill_cpl_tables(dpdt_table, pos, RAM_END - SIZE_4M, RAM_END - SIZE_1M, SIZE_1M, SDRAM_DGENERIC);
 	pos = fill_cpl_tables(dpdt_table, pos, RAM_END - SIZE_1M, RAM_END, SIZE_1M, SDRAM_DNON_CHBL);
-	pos = fill_cpl_tables(dpdt_table, pos, ASYNC_BANK0_BASE, ASYNC_BANK2_BASE + ASYNC_BANK2_SIZE, ASYNC_BANK0_SIZE, SDRAM_EBIU);
-#if defined(UNCACHED_ASYNCMEM_BLANK3)
-	pos = fill_cpl_tables(dpdt_table, pos, ASYNC_BANK3_BASE, ASYNC_BANK3_BASE + ASYNC_BANK3_SIZE, ASYNC_BANK3_SIZE, SDRAM_DNON_CHBL);
-#else
-	pos = fill_cpl_tables(dpdt_table, pos, ASYNC_BANK3_BASE, ASYNC_BANK3_BASE + ASYNC_BANK3_SIZE, ASYNC_BANK3_SIZE, SDRAM_EBIU);
-#endif
+	pos = fill_cpl_tables(dpdt_table, pos, ASYNC_BANK0_BASE, ASYNC_BANK3_BASE + ASYNC_BANK3_SIZE, ASYNC_BANK0_SIZE, SDRAM_EBIU);
 	pos = fill_cpl_tables(dpdt_table, pos, L1_DATA_A_START, L1_DATA_A_START + L1_DATA_A_LENGTH, SIZE_4K, L1_DMEMORY);
 #if !defined(CONFIG_BF531) 
 	pos = fill_cpl_tables(dpdt_table, pos, L1_DATA_B_START, L1_DATA_B_START + L1_DATA_B_LENGTH, SIZE_4K, L1_DMEMORY);

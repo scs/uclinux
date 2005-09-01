@@ -347,25 +347,11 @@ config	BLKFIN_WT
 	bool "Write through"
 endchoice
 
-menu 'Uncached memory region'
-
 config UNCACHED_1M
-	bool 'Disable cache for 1M SDRAM'
+	bool 'Enable 1M Uncached SDRAM region'
 	default y
 	---help---
 	  Size of the uncached SDRAM region
-
-config UNCACHED_ASYNCMEM_BLANK3
-	bool 'Disable data cache for blank 3 of asynchronous memory'
-	default y if BFIN533_EZKIT
-	default y if BFIN533_STAMP
-	default n if BFIN537_STAMP
-	---help---
-	  Disable the data cache From 0x20300000 to 0x203fffff.
-	  Some peripheral devices may put their registers in this region.
-	  Access to peripheral registers should not be cached.
-
-endmenu
 
 menu	"Clock Settings"
 
@@ -588,6 +574,8 @@ config DEBUG_SLAB
 	  Say Y here to have the kernel do limited verification on memory
 	  allocation as well as poisoning memory on free to catch use of freed
 	  memory.
+
+source "kernel/Kconfig.kgdb"
 
 config FRAME_POINTER
 	bool "Compile the kernel with frame pointers"
