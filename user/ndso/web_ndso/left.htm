@@ -1,0 +1,146 @@
+<html>
+<head>
+<meta http-equiv="Content-Language" content="en-us">
+<meta name="GENERATOR" content="Microsoft FrontPage 5.0">
+<meta name="ProgId" content="FrontPage.Editor.Document">
+<meta http-equiv="Content-Type" content="text/html; charset=windows-1252">
+<title>New Page 5</title>
+<base target="main">
+</head>
+
+<body vlink="#0000FF" bgcolor="#FFFFFF">
+
+<form method="POST" action="/cgi-bin/ndso.cgi" target="main">
+  <fieldset style="padding: 2; ">
+  <legend align="left"><font face="Tahoma" size="2">Trigger Options</font></legend>
+  <p style="margin-top: 5; margin-bottom: 5"><font face="Tahoma">
+  <font size="2">Trigger&nbsp; </font><font size="7"><select size="1" name="D3">
+  <option value="1">ON</option>
+  <option value="0" selected>OFF</option>
+  </select><select size="1" name="D1">
+  <option value="1">Edge</option>
+  <option value="0" selected>Level</option>
+  </select></font></font></p>
+  <p style="margin-top: 5; margin-bottom: 5"><font face="Tahoma">
+  <input type="radio" value="0" checked name="R1"><font size="2">Rising Edge&nbsp; </font></font><font face="Tahoma" size="2">
+  Level </font>
+  <font size="7" face="Tahoma">
+  <!--webbot bot="Validation" s-data-type="Integer" s-number-separators="x" s-validation-constraint="Greater than or equal to" s-validation-value="0" s-validation-constraint="Less than or equal to" s-validation-value="4096" --><input type="text" name="T1" size="3" value="1000"></font><font face="Tahoma" size="2">mV</font></p>
+  <p style="margin-top: 5; margin-bottom: 5"><font face="Tahoma">
+  <input type="radio" name="R1" value="1"><font size="2">Falling 
+  Edge</font></font></p>
+  </fieldset><fieldset style="padding: 2">
+  <legend><font face="Tahoma" size="2">Vertical</font></legend>
+  <font face="Tahoma"><select size="1" name="D5">
+  <option selected value="X">autoscale</option>
+  <option value="1">1 V/div</option>
+  <option value="0.5">500 mV/div</option>
+  <option value="0.25">250 mV/div</option>
+  <option value="0.1">100 mV/div</option>
+  <option value="0.05">50 mV/div</option>
+  <option value="0.025">25mV/div</option>
+  </select></font></fieldset><p style="margin-top: 0; margin-bottom: 0">
+  </p>
+  <fieldset style="padding: 2; ">
+  <legend><font face="Tahoma" size="2">Horizontal</font></legend>
+  <p style="margin-top: 0; margin-bottom: 0">
+  <font face="Tahoma">
+  <!--webbot bot="Validation" s-data-type="Integer" s-number-separators="x" b-value-required="TRUE" i-maximum-length="7" s-validation-constraint="Greater than or equal to" s-validation-value="0" s-validation-constraint="Less than or equal to" s-validation-value="1000000" --><input type="text" name="T2" size="7" value="100000" maxlength="7"><font size="2">SPS&nbsp;&nbsp; </font>
+  <!--webbot bot="Validation" s-data-type="Integer" s-number-separators="x" b-value-required="TRUE" i-maximum-length="4" s-validation-constraint="Greater than or equal to" s-validation-value="2" s-validation-constraint="Less than or equal to" s-validation-value="2000" --><input type="text" name="T3" size="4" value="500" maxlength="4"></font><font size="2" face="Tahoma">Depth</font><p style="margin-top: 0; margin-bottom: 0">
+  <font face="Tahoma">
+  <!--webbot bot="Validation" s-data-type="String" b-allow-letters="TRUE" b-allow-digits="TRUE" b-value-required="TRUE" i-maximum-length="6" s-validation-constraint="Greater than or equal to" s-validation-value="0" --><input type="text" name="xrangeS" size="5" maxlength="6" value="*"><font size="2">
+  </font>
+  <!--webbot bot="Validation" s-data-type="String" b-allow-letters="TRUE" b-allow-digits="TRUE" b-value-required="TRUE" i-maximum-length="6" --><input type="text" name="xrangeE" size="5" maxlength="6" value="*"></font><font face="Tahoma" size="2">Range 
+  [t1:t2] </font>
+  <font size="2" face="Tahoma">&nbsp;</font><font size="2"></p>
+  </font>
+  </fieldset></font><font size="2" face="Tahoma"></font></font></font><fieldset style="padding: 2; ">
+  <legend><font face="Tahoma" size="2">Display Options</font></legend>
+  <p style="margin-top: 0; margin-bottom: 0">
+  <font face="Tahoma">
+  <input type="checkbox" name="set_grid" value="ON"><font size="2">Show Grid&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </font></font>
+  <font face="Arial">
+  <font size="2" face="Tahoma"> Size Ratio </font>
+  <font face="Tahoma">
+  <!--webbot bot="Validation" s-data-type="Number" s-number-separators=".," s-validation-constraint="Greater than or equal to" s-validation-value="0" s-validation-constraint="Less than or equal to" s-validation-value="10" --><input type="text" name="size_ratio" size="2" value="1"></font></font><p style="margin-top: 0; margin-bottom: 0">
+  <font face="Tahoma">
+  <input type="checkbox" name="axis" value="ON"></font><font size="2" face="Tahoma">Highlight 
+  Zeroaxis&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </font>
+  <p style="margin-top: 0; margin-bottom: 0">
+  <font size="2" face="Tahoma"><input type="radio" value="1" name="R3" checked> 
+  Time Domain</font></p>
+  <p style="margin-top: 0; margin-bottom: 0">
+  <font size="2" face="Tahoma"><input type="radio" value="0" name="R3"> 
+  Frequency Domain&nbsp; </font></p>
+  <fieldset style="padding: 2">
+  <legend><font face="Tahoma" size="2">FFT</font></legend>
+  <p style="margin-top: 0; margin-bottom: 2">
+  <font size="2" face="Tahoma"> <select size="1" name="D8">
+  <option value="10" selected>1024p FFT</option>
+  <option value="9">512p FFT</option>
+  <option value="8">256p FFT</option>
+  <option value="7">128p FFT</option>
+  <option value="6">64p FFT</option>
+  <option value="5">32p FFT</option>
+  <option value="4">16p FFT</option>
+  </select> </font>
+  <p style="margin-top: 0; margin-bottom: 2"><font face="Tahoma">
+  <input type="checkbox" name="C8" value="ON" checked><font size="2">Scaled</font></font><font size="2" face="Tahoma">&nbsp;&nbsp;
+  <input type="checkbox" name="C7" value="ON" checked>Exclude F(0)</font></p>
+  </fieldset></fieldset><fieldset style="padding: 2">
+  <legend><font face="Tahoma" size="2">Plot Style</font></legend>
+  <p style="margin-top: 0; margin-bottom: 0">
+  <font face="Tahoma">
+  <select size="1" name="linestyle">
+  <option selected value="linespoints">lines points</option>
+  <option value="points">points</option>
+  <option value="dots">dots</option>
+  <option value="lines">lines</option>
+  <option value="impulses">impulses</option>
+  <option value="fsteps">fsteps</option>
+  <option value="histeps">histeps</option>
+  <option value="boxes">boxes</option>
+  <option value="steps">steps</option>
+  </select></font><font size="2" face="Tahoma"><select size="1" name="color">
+  <option selected value="1">Red</option>
+  <option value="2">Green</option>
+  <option value="3">Blue</option>
+  </select></font></fieldset></font><fieldset style="padding: 2">
+  <legend><font face="Tahoma" size="2">Scale</font></legend>
+  <font size="2" face="Tahoma">&nbsp;</font><font face="Arial"><font face="Tahoma"><select size="1" name="logscale">
+  <option selected value="nologscale">linear</option>
+  <option value="logscale x">logscale Hor</option>
+  <option value="logscale y">logscale Ver</option>
+  <option value="logscale xy">logscale Hor/Ver</option>
+  </select></font><font size="2" face="Tahoma"> </font>
+  </font></fieldset><fieldset style="padding: 2">
+  <legend><font face="Tahoma" size="2">Interpolate</font></legend>
+  <font face="Tahoma">&nbsp;<select size="1" name="smooth">
+  <option selected value="0">none</option>
+  <option value="unique">unique</option>
+  <option value="csplines">csplines</option>
+  <option value="bezier">bezier</option>
+  <option value="sbezier">sbezier</option>
+  </select></font></fieldset><fieldset style="padding: 2">
+  <legend><font face="Tahoma" size="2">Measurements</font></legend>
+  <font face="Tahoma"><input type="checkbox" name="C4" value="ON"><font size="2">Min&nbsp;&nbsp;
+  </font><input type="checkbox" name="C5" value="ON"><font size="2">Max&nbsp;&nbsp;
+  </font><input type="checkbox" name="C6" value="ON"><font size="2">Mean</font></font></fieldset><fieldset style="padding: 2">
+  <legend><font face="Tahoma" size="2">Input</font></legend>
+  <font face="Tahoma"><input type="radio" value="1" checked name="R2"><font size="2"> 
+  DC&nbsp;&nbsp;&nbsp; </font><input type="radio" name="R2" value="0"><font size="2"> 
+  AC&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <select size="1" name="D9">
+  <option selected value="0">AD7476</option>
+  <option value="1">AD7940</option>
+  </select></font></font></fieldset><p><input type="submit" value="Acquire" name="B1"><input type="submit" value="Replot" name="B5"><input type="submit" value="Multimeter" name="B3"><input type="submit" value="Show Samples" name="B4" style="font-size: 8pt"><input type="submit" value="  Files  " name="B6" style="font-size: 8pt"><input type="reset" value="  Default  " name="B2" style="font-size: 8pt"></p>
+</form>
+
+<p style="margin-top: 0; margin-bottom: 0">&nbsp;</p>
+
+<p style="margin-top: 0; margin-bottom: 0">&nbsp;</p>
+<p style="margin-top: 0; margin-bottom: 0">&nbsp;</p>
+
+</body>
+
+</html>
