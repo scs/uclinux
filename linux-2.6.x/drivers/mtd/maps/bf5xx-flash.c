@@ -18,6 +18,7 @@
 
 #include <asm/blackfin.h>
 #include <asm/io.h>
+#include <asm/unaligned.h>
 
 #ifndef CONFIG_BFIN
 #error This is for BlackFin BF5xx boards only
@@ -104,11 +105,24 @@ static void bf5xx_copy_from(struct map_info *map, void *to, unsigned long from, 
 	unsigned long i;
 	map_word test;
 
-	for (i = 0; i < len/2*2; i += 2)	{
 
-		test = bf5xx_read(map,from+i);
-		*((u16*)(to + i)) = test.x[0];
-	}
+  if( (unsigned long)&to[0] & 0x1 ) 
+	  {	 
+	   for (i = 0; i < len/2*2; i += 2)	
+		{
+			test = bf5xx_read(map,from+i);
+			put_unaligned(test.x[0], (__le16 *) (to + i)); 
+		}
+	  }
+	   else
+	  {
+	   for (i = 0; i < len/2*2; i += 2)	
+	 	{
+			test = bf5xx_read(map,from+i);
+			*((u16*)(to + i)) = test.x[0]; 
+		}
+	  }
+	
 	if (len & 0x01) {
 
 		test = bf5xx_read(map, from + i);
