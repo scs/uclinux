@@ -43,8 +43,8 @@ clean:
 	rm -rf build
 
 romfs:
-	$(ROMFSINST) -e CONFIG_USER_MTDUTILS_ERASE        /bin/erase
-	$(ROMFSINST) -e CONFIG_USER_MTDUTILS_ERASEALL     /bin/eraseall
+	$(ROMFSINST) -e CONFIG_USER_MTDUTILS_ERASE        /bin/flash_erase
+	$(ROMFSINST) -e CONFIG_USER_MTDUTILS_ERASEALL     /bin/flash_eraseall
 	$(ROMFSINST) -e CONFIG_USER_MTDUTILS_FTL_CHECK    /bin/ftl_check
 	$(ROMFSINST) -e CONFIG_USER_MTDUTILS_FTL_FORMAT   /bin/ftl_format
 	$(ROMFSINST) -e CONFIG_USER_MTDUTILS_MKFSJFFS     /bin/mkfs.jffs
