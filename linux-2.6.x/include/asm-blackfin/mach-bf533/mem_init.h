@@ -93,19 +93,6 @@
   #define SDRAM_NRA   8192     /* Number of row addresses in SDRAM */
   #define SDRAM_CL    CL_3
 #endif
-
-#if ( CONFIG_MEM_SIZE == 128 )
-        #define SDRAM_SIZE      EBSZ_128
-#endif
-#if ( CONFIG_MEM_SIZE == 64 )
-        #define SDRAM_SIZE      EBSZ_64
-#endif
-#if (  CONFIG_MEM_SIZE == 32 )
-        #define SDRAM_SIZE      EBSZ_32
-#endif
-#if ( CONFIG_MEM_SIZE == 16 )
-        #define SDRAM_SIZE      EBSZ_16
-#endif
 #if ( CONFIG_MEM_ADD_WIDTH == 11 )
         #define SDRAM_WIDTH     EBCAW_11
 #endif
@@ -119,7 +106,7 @@
         #define SDRAM_WIDTH     EBCAW_8
 #endif
 
-#define mem_SDBCTL      SDRAM_WIDTH | SDRAM_SIZE | EBE
+#define mem_SDBCTL      SDRAM_WIDTH | sdram_size | EBE
 
 /* Equation from section 17 (p17-46) of BF533 HRM */
 #define mem_SDRRC       ((( CONFIG_SCLK_HZ / 1000) * SDRAM_Tref)  / SDRAM_NRA) - (SDRAM_tRAS_num + SDRAM_tRP_num)

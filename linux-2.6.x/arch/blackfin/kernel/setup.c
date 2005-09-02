@@ -26,6 +26,8 @@ extern struct consw fb_con;
   
 unsigned long memory_start;
 unsigned long memory_end;
+unsigned int phys_mem_start,phys_memsize,sdram_size;
+#define RAM_END (phys_mem_start + phys_memsize)
 
 char command_line[COMMAND_LINE_SIZE];
 
@@ -107,6 +109,43 @@ void bf53x_relocate_l1_mem(void)
 
 }
 
+/*
+ * Initial parsing of the command line.The format of memsize defination is
+ * mem=xxx,the unit of size is M.
+ */
+static __init void early_parsemem(char *cmdline_p)
+{
+        char* to = cmdline_p;
+        char** to_p ;
+        for(;;) {
+                if(*to == 'm' && *(to+1) == 'e' && *(to+2) == 'm'){
+                        phys_memsize =  simple_strtoul(to+4,to_p,10);
+                 }
+                 if(to >= &cmdline_p[COMMAND_LINE_SIZE-1]){
+                        break;
+                }
+                 to++;
+        }
+         switch(phys_memsize){
+                case 128 :
+                        sdram_size = EBSZ_128;
+			break;
+                case 64:
+                        sdram_size = EBSZ_64;
+                        break;
+                case 32:
+                        sdram_size = EBSZ_32;
+                        break;
+                case 16:
+                        sdram_size = EBSZ_16;
+                        break;
+                default:
+                        sdram_size = EBSZ_16;
+                        break;
+        }
+}
+
+
 void __init setup_arch(char **cmdline_p)
 {
 	int bootmap_size, id;
@@ -118,6 +157,20 @@ void __init setup_arch(char **cmdline_p)
 	 */
 	flash_probe();
 #endif 
+#if defined(CONFIG_BOOTPARAM)
+	memset(command_line, 0, sizeof(command_line));
+	strncpy(&command_line[0], CONFIG_BOOTPARAM_STRING, sizeof(command_line));
+	command_line[sizeof(command_line)-1] = 0;
+#endif
+	/* Keep a copy of command line */
+	*cmdline_p = &command_line[0];
+	memcpy(saved_command_line, command_line, COMMAND_LINE_SIZE);
+	saved_command_line[COMMAND_LINE_SIZE-1] = 0;
+
+	 phys_memsize = CONFIG_MEM_SIZE;
+        early_parsemem(&command_line[0]);
+        _ramend = phys_memsize * 1024 * 1024;
+
 
 	memory_start = PAGE_ALIGN(_ramstart);
 	memory_end = _ramend; /* by now the stack is part of the init task */
@@ -142,17 +195,12 @@ void __init setup_arch(char **cmdline_p)
 	if(id < SUPPORTED_DSPID)
 		printk(KERN_INFO "Warning: Unsupported Chip Revision ADSP-%s Rev. 0.%d detected \n",CPU,id);
 
-#if defined(CONFIG_BOOTPARAM)
-	memset(command_line, 0, sizeof(command_line));
-	strncpy(&command_line[0], CONFIG_BOOTPARAM_STRING, sizeof(command_line));
-	command_line[sizeof(command_line)-1] = 0;
-#endif
 
 	printk(KERN_INFO "uClinux/" CPU "\n");
 
 	printk("Blackfin uClinux support by blackfin.uclinux.org \n");
 	printk("Processor Speed: %lu MHz core clock and %lu Mhz System Clock\n",get_cclk()/1000000,get_sclk()/1000000);
-	printk("Board Memory: %dMB\n",CONFIG_MEM_SIZE);
+	printk("Board Memory: %dMB\n",phys_memsize);
 
 	printk("Memory map:\n  text = 0x%06x-0x%06x\n  data = 0x%06x-0x%06x\n  bss  = 0x%06x-0x%06x\n  rootfs = 0x%06x-0x%06x\n  stack = 0x%06x-0x%06x\n",
 		(int)&_stext,(int)&_etext,(int)&_sdata,(int)&_edata,
@@ -161,10 +209,6 @@ void __init setup_arch(char **cmdline_p)
 		(int)&init_thread_union,(int)(&init_thread_union) + 0x2000);
 
 
-	/* Keep a copy of command line */
-	*cmdline_p = &command_line[0];
-	memcpy(saved_command_line, command_line, COMMAND_LINE_SIZE);
-	saved_command_line[COMMAND_LINE_SIZE-1] = 0;
 
 	if (strlen(*cmdline_p)) 
 		printk("Command line: '%s'\n", *cmdline_p);
@@ -402,7 +446,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		   (loops_per_jiffy*HZ)/500000,((loops_per_jiffy*HZ)/5000)%100,
 		   (loops_per_jiffy*HZ));
 	seq_printf(m, "BOARD Name  :\t%s\n",name);
-	seq_printf(m, "BOARD Memory:\t%d MB\n",CONFIG_MEM_SIZE);
+	seq_printf(m, "BOARD Memory:\t%d MB\n",phys_memsize);
         if((*(volatile unsigned long *)IMEM_CONTROL) & (ENICPLB | IMC))
 		seq_printf(m, "I-CACHE:\tON\n");
 	else
