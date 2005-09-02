@@ -778,9 +778,9 @@ static int startup(struct bfin_serial * info)
 	 * Finally, enable sequencing and interrupts
 	 */
 #ifdef CONFIG_SERIAL_BLACKFIN_DMA
-	*(regs->rpUART_IER) = ERBFI | ELSI | 0x8;
+	*(regs->rpUART_IER) = ERBFI | ELSI ;
 #else
-	*(regs->rpUART_IER) = ERBFI | ETBEI | ELSI | 0x8;
+	*(regs->rpUART_IER) = ERBFI | ETBEI | ELSI ;
 #endif
 	SSYNC;
 
