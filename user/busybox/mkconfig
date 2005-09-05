@@ -25,8 +25,14 @@ while read OPNAME
 do
 	cp $NEW $TMP
 	awk -v CNAME=CONFIG_$OPNAME -v FNAME=CONFIG_FEATURE_$OPNAME \
-		'{ if (($2 == CNAME) || ($2 == FNAME))
-			printf "%s=y\n", $2
+		'{ if (($2 == CNAME) || ($2 == FNAME)) {
+			if ($2 == "CONFIG_FEATURE_COMMAND_SAVEHISTORY") {
+				printf "%s=y\n", $2
+				printf "CONFIG_FEATURE_COMMAND_HISTORY=15\n"
+			}
+			else
+				printf "%s=y\n", $2
+		   }
 		   else
 			print $0
 		 }' < $TMP > $NEW
