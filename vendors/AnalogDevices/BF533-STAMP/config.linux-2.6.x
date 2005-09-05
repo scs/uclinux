@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
 # Linux kernel version: 2.6.12.1
-# Tue Aug 30 08:45:04 2005
+# Mon Sep  5 15:24:42 2005
 #
 # CONFIG_MMU is not set
 # CONFIG_FPU is not set
@@ -166,10 +166,6 @@ CONFIG_BLKFIN_DCACHE=y
 # CONFIG_BLKFIN_CACHE_LOCK is not set
 # CONFIG_BLKFIN_WB is not set
 CONFIG_BLKFIN_WT=y
-
-#
-# Uncached memory region
-#
 CONFIG_UNCACHED_1M=y
 
 #
@@ -306,7 +302,7 @@ CONFIG_MTD_RAM=y
 # Mapping drivers for chip access
 #
 # CONFIG_MTD_COMPLEX_MAPPINGS is not set
-# CONFIG_MTD_BF533 is not set
+# CONFIG_MTD_BF533_SPI is not set
 # CONFIG_MTD_BF5xx is not set
 
 #

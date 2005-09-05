@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
 # Linux kernel version: 2.6.12.1
-# Thu Aug 25 16:19:49 2005
+# Mon Sep  5 15:22:05 2005
 #
 # CONFIG_MMU is not set
 # CONFIG_FPU is not set
@@ -54,11 +54,11 @@ CONFIG_BASE_SMALL=0
 # CONFIG_MODULES is not set
 
 #
-# Processor type and features
+# Blackfin Processor Options
 #
 
 #
-# Processor
+# Processor and Board Settings
 #
 CONFIG_BF533=y
 # CONFIG_BF532 is not set
@@ -70,121 +70,14 @@ CONFIG_BF533=y
 # CONFIG_BF561 is not set
 CONFIG_BLACKFIN=y
 CONFIG_BFIN_SINGLE_CORE=y
-
-#
-# Platform
-#
-CONFIG_EZKIT=y
-CONFIG_MEM_MT48LC16M16A2TG_75=y
-# CONFIG_BLKFIN_STAMP is not set
+# CONFIG_BFIN533_EZKIT is not set
+CONFIG_BFIN533_STAMP=y
+# CONFIG_BFIN537_STAMP is not set
 # CONFIG_GENERIC_BOARD is not set
-# CONFIG_HAWK is not set
-# CONFIG_EAGLE is not set
-CONFIG_RAMKERNEL=y
-# CONFIG_ROMKERNEL is not set
-CONFIG_ROOTFS_TIED_TO_KERNEL=y
-CONFIG_LARGE_ALLOCS=y
-# CONFIG_IRQCHIP_DEMUX_GPIO is not set
-
-#
-# DMA Support
-#
-# CONFIG_NO_DMA is not set
-CONFIG_BLKFIN_SIMPLE_DMA=y
-
-#
-# Cache Support
-#
-CONFIG_BLKFIN_CACHE=y
-CONFIG_BLKFIN_DCACHE=y
-# CONFIG_BLKFIN_CACHE_LOCK is not set
-# CONFIG_BLKFIN_WB is not set
-CONFIG_BLKFIN_WT=y
-
-#
-# Uncached memory region
-#
-CONFIG_UNCACHED_1M=y
-
-#
-# Crystal Frequency
-#
-CONFIG_CLKIN_HZ=27000000
-
-#
-# VCO Multiplier
-#
-CONFIG_VCO_MULT=22
-
-#
-# Core Clock Divider
-#
-CONFIG_CCLK_DIV=1
-
-#
-# System Clock Divider
-#
-CONFIG_SCLK_DIV=5
-
-#
-# Half clockin
-#
-# CONFIG_CLKIN_HALF is not set
-
-#
-# Bypass PLL
-#
-# CONFIG_PLL_BYPASS is not set
-
-#
-# SDRAM Memory Size
-#
-CONFIG_MEM_SIZE=32
-
-#
-# Memory Address Width
-#
-CONFIG_MEM_ADD_WIDTH=9
-
-#
-# Asynchonous Memory Configuration
-#
-
-#
-# EBIU_AMBCTL Global Control
-#
-CONFIG_C_AMCKEN=y
-CONFIG_C_CDPRIO=y
-# CONFIG_C_AMBEN is not set
-# CONFIG_C_AMBEN_B0 is not set
-# CONFIG_C_AMBEN_B0_B1 is not set
-# CONFIG_C_AMBEN_B0_B1_B2 is not set
-CONFIG_C_AMBEN_ALL=y
-
-#
-# EBIU_AMBCTL Control
-#
-CONFIG_BANK_0=0x7BB0
-CONFIG_BANK_1=0x7BB0
-CONFIG_BANK_2=0x7BB0
-CONFIG_BANK_3=0x99B3
-
-#
-# Baud Rate
-#
-# CONFIG_BAUD_9600 is not set
-# CONFIG_BAUD_19200 is not set
-# CONFIG_BAUD_38400 is not set
-CONFIG_BAUD_57600=y
-# CONFIG_BAUD_115200 is not set
-
-#
-# STAMP Board features 
-#
-
-#
-# LED Board Status Indication
-#
+CONFIG_MEM_MT48LC64M4A2FB_7E=y
+# CONFIG_MEM_MT48LC16M16A2TG_75 is not set
+# CONFIG_MEM_MT48LC16M8A2TG_75 is not set
+CONFIG_BFIN_SHARED_FLASH_ENET=y
 
 #
 # BF533/2/1 Specific Configuration
@@ -224,6 +117,110 @@ CONFIG_WDTIMER=13
 CONFIG_BFIN_HAVE_RTC=y
 
 #
+# Board specific issues
+#
+
+#
+# Board Setup
+#
+CONFIG_CLKIN_HZ=27000000
+CONFIG_MEM_SIZE=32
+CONFIG_MEM_ADD_WIDTH=9
+
+#
+# LED Status Indicators
+#
+# CONFIG_BFIN_ALIVE_LED is not set
+# CONFIG_BFIN_IDLE_LED is not set
+CONFIG_BFIN_ALIVE_LED_PORT=0xffff1234
+
+#
+# Console UART Setup
+#
+# CONFIG_BAUD_9600 is not set
+# CONFIG_BAUD_19200 is not set
+# CONFIG_BAUD_38400 is not set
+CONFIG_BAUD_57600=y
+# CONFIG_BAUD_115200 is not set
+CONFIG_BAUD_NO_PARITY=y
+# CONFIG_BAUD_PARITY is not set
+CONFIG_BAUD_1_STOPBIT=y
+# CONFIG_BAUD_2_STOPBIT is not set
+CONFIG_RAMKERNEL=y
+# CONFIG_ROMKERNEL is not set
+CONFIG_ROOTFS_TIED_TO_KERNEL=y
+CONFIG_LARGE_ALLOCS=y
+# CONFIG_IRQCHIP_DEMUX_GPIO is not set
+
+#
+# DMA Support
+#
+# CONFIG_NO_DMA is not set
+CONFIG_BLKFIN_SIMPLE_DMA=y
+
+#
+# Cache Support
+#
+CONFIG_BLKFIN_CACHE=y
+CONFIG_BLKFIN_DCACHE=y
+# CONFIG_BLKFIN_CACHE_LOCK is not set
+# CONFIG_BLKFIN_WB is not set
+CONFIG_BLKFIN_WT=y
+CONFIG_UNCACHED_1M=y
+
+#
+# Clock Settings
+#
+
+#
+# VCO Multiplier
+#
+CONFIG_VCO_MULT=22
+
+#
+# Core Clock Divider
+#
+CONFIG_CCLK_DIV=1
+
+#
+# System Clock Divider
+#
+CONFIG_SCLK_DIV=5
+
+#
+# Half clockin
+#
+# CONFIG_CLKIN_HALF is not set
+
+#
+# Bypass PLL
+#
+# CONFIG_PLL_BYPASS is not set
+
+#
+# Asynchonous Memory Configuration
+#
+
+#
+# EBIU_AMBCTL Global Control
+#
+CONFIG_C_AMCKEN=y
+CONFIG_C_CDPRIO=y
+# CONFIG_C_AMBEN is not set
+# CONFIG_C_AMBEN_B0 is not set
+# CONFIG_C_AMBEN_B0_B1 is not set
+# CONFIG_C_AMBEN_B0_B1_B2 is not set
+CONFIG_C_AMBEN_ALL=y
+
+#
+# EBIU_AMBCTL Control
+#
+CONFIG_BANK_0=0x7BB0
+CONFIG_BANK_1=0x7BB0
+CONFIG_BANK_2=0x7BB0
+CONFIG_BANK_3=0x99B3
+
+#
 # Bus options (PCI, PCMCIA, EISA, MCA, ISA)
 #
 # CONFIG_PCI is not set
@@ -249,6 +246,11 @@ CONFIG_BINFMT_FLAT=y
 # Power management options
 #
 # CONFIG_PM is not set
+
+#
+# CPU Frequency scaling
+#
+# CONFIG_CPU_FREQ is not set
 
 #
 # Generic Driver Options
@@ -300,7 +302,12 @@ CONFIG_MTD_RAM=y
 # Mapping drivers for chip access
 #
 # CONFIG_MTD_COMPLEX_MAPPINGS is not set
-# CONFIG_MTD_BF533 is not set
+# CONFIG_MTD_BF533_SPI is not set
+# CONFIG_MTD_BF5xx is not set
+
+#
+# FLASH_EBIU_AMBCTL Control
+#
 CONFIG_MTD_UCLINUX=y
 
 #
