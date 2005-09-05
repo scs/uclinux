@@ -135,6 +135,8 @@ config GENERIC_BOARD
 	help
 	 GENERIC or Custom board Support.
 
+endchoice
+
 config MEM_GENERIC_BOARD
 	bool
 	depends on GENERIC_BOARD
@@ -159,8 +161,6 @@ config BFIN_SHARED_FLASH_ENET
 	bool
 	depends on (BFIN533_STAMP)
 	default y
-
-endchoice
 
 source "arch/bfinnommu/mach-bf533/Kconfig"
 source "arch/bfinnommu/mach-bf561/Kconfig"
