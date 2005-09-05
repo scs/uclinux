@@ -166,17 +166,17 @@ static unsigned long bf533_max_flash_size = 0x00800000;
 static struct mtd_partition bf533_partitions[] = {
 	{
 		name: "bootloader",
-		size: 0x00100000,
+		size: 0x00040000,
 		offset: 0,
 		mask_flags: MTD_CAP_ROM
 	},{
-		name: "File system image",
-		size: 0x300000,
-		offset: 0x100000
+		name: "kernel",
+		size: 0xc0000,
+		offset: 0x40000
 	},{
-		name: "1M area ;)", 
-		size: 0x100000,
-		offset: 0x00400000,
+		name: "file system", 
+		size: 0x300000,
+		offset: 0x00100000,
 	}	
 };
 
