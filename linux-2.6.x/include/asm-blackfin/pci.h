@@ -3,6 +3,8 @@
 #ifndef _ASM_BFIN_PCI_H
 #define _ASM_BFIN_PCI_H
 
+#include <asm/scatterlist.h>
+
 /*
  *
  * Written by Wout Klaren.

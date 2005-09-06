@@ -114,7 +114,7 @@ void bf53x_relocate_l1_mem(void)
 static __init void early_parsemem(char *cmdline_p)
 {
         char* to = cmdline_p;
-        char** to_p ;
+        char** to_p = NULL;
 	unsigned int memsize;
         for(;;) {
                 if(*to == 'm' && *(to+1) == 'e' && *(to+2) == 'm'){
