@@ -1081,7 +1081,7 @@ void arch_unmap_area(struct vm_area_struct *area)
 
 void update_mem_hiwater(struct task_struct *tsk)
 {
-	unsigned long rss
+	unsigned long rss;
 	
 	if (likely(tsk->mm)) {
 
