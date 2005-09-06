@@ -808,6 +808,17 @@ config SMC91X
 	  module, say M here and read <file:Documentation/modules.txt> as well
 	  as <file:Documentation/networking/net-modules.txt>.
 
+config BFIN_MAC
+        tristate "Blackfin 534/537 on-chip mac support"
+	depends on NET_ETHERNET && BFIN
+	select CRC32
+	help
+	  This is the driver for blackfin on-chip mac device. Say Y if you want it
+          compiled into the kernel. This driver is also available as a module 
+	  ( = code which can be inserted in and removed from the running kernel 
+	  whenever you want).
+
+
 config SMC9194
 	tristate "SMC 9194 support"
 	depends on NET_VENDOR_SMC && (ISA || MAC && BROKEN)
