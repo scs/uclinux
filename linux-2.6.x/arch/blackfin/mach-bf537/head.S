@@ -214,6 +214,21 @@ ENTRY(_real_start)
 _clear_bss:
 	B[p1++] = r0;
 
+	/* In case there is a NULL pointer reference
+	 * Zero out region before stext
+	 */
+
+	p1.l = 0x0;
+	p1.h = 0x0;
+	r0.l = _stext;
+	r0.h = _stext;
+	r0 = r0 >> 1;
+	p2 = r0;
+	r0 = 0;
+	lsetup (_clear_zero, _clear_zero ) lc0 = p2;
+_clear_zero:
+	W[p1++] = r0;
+
 /* pass the uboot arguments to the global value command line */
 	R0 = R7;
 	call cmdline_init;
