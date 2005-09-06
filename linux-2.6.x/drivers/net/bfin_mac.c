@@ -388,7 +388,8 @@ static int bf537mac_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
   unsigned short len;
   struct net_dma_desc *tail;
   struct bf537mac_local *lp = netdev_priv(dev);
-  
+  unsigned short *length;
+
   len = skb->len;
   tail = tx_list_tail;
 
@@ -397,34 +398,36 @@ static int bf537mac_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
   //if(!first_packet) { 
   //  while(tail->status.status_word == 0) ;
   //}
-
-  /* add the packet to tail */
-  *(tail->packet) = (unsigned short)len; 
-  memcpy((char *)(tail->packet + 2),skb->data,len);
   
-  /* change this packet's desc to DMA enabled */
-  tail->desc_a.config.b_DMA_EN = 1;
+  /* check send status here before another send*/
+  if(!first_packet)
+    while(tail->status.status_word == 0);
+  //while ((*pDMA2_IRQ_STATUS & 0x01) == 0);
+  
+  tail->status.status_word = 0;
 
+  length = (unsigned short *)(tail->packet);
+  /* add the packet to tail */
+  *length = (unsigned short)len; 
+  memcpy((char *)(tail->packet + 2),skb->data,len);
+
+  
   *pDMA2_NEXT_DESC_PTR = (&(tail->desc_a));
   *pDMA2_CONFIG  = *((unsigned short *)(&(tail->desc_a.config)));; // dma enabled, read from memory, size is 6
 
-  
-  //if (first_packet) {  
-    /* Turn on the EMAC tx */
+  /* Turn on the EMAC tx */
   *pEMAC_OPMODE |= TE;
-    //  first_packet = 0;
-    //}
-  //  while(tail->status.status_word == 0);
-  
-  while ((*pDMA2_IRQ_STATUS & 0x01) == 0);
+  first_packet = 0;
 
+  /* not wait here */
+  // while(tail->status.status_word == 0);
+  //while ((*pDMA2_IRQ_STATUS & 0x01) == 0);
+
+  /* no need to stop mac */
   //*pEMAC_OPMODE &= ~TE;
-  //tail->status.status_word = 0;
- 
-  /* if dma is running (transferring last packets), don't need to do anything. */
-
+    
   //tx_list_tail = tail->next;
-  //StatusWord = 0x00000000?
+  
   dev->trans_start = jiffies;
   lp->stats.tx_packets++;
   lp->stats.tx_bytes += len;
@@ -447,16 +450,30 @@ static void bf537mac_rx(struct net_device *dev, unsigned char *pkt, int len)
 {
   struct sk_buff *skb;
   struct bf537mac_local *lp = netdev_priv(dev);
-  
+  //int i;
+
   skb = dev_alloc_skb(len + 2);
   if (!skb) {
-    printk(KERN_NOTICE "snull rx: low on mem - packet dropped\n");
+    printk(KERN_NOTICE "bf537mac rx: low on mem - packet dropped\n");
     lp->stats.rx_dropped++;
     goto out;
   }
   skb_reserve(skb, 2);
-  memcpy(skb_put(skb, len), pkt+2, len);
   
+  /*
+  if (len >= 300) {
+    printk("going to copy the big packet\n");
+    for (i=0;i<len;i++){
+      printk("%.2x-",((unsigned char *)pkt)[i]);
+      if (((i%8)==0) && (i!=0)) printk("\n");
+    }
+    printk("\n");
+  }
+  */
+  
+
+  memcpy(skb_put(skb, len), pkt+2, len);
+
   dev->last_rx = jiffies;
   skb->dev = dev;
   skb->protocol = eth_type_trans(skb, dev);
@@ -485,14 +502,14 @@ static irqreturn_t bf537mac_interrupt(int irq, void *dev_id, struct pt_regs *reg
     return IRQ_HANDLED;
   }
   
-  while(((current_rx_ptr->status.status_word) & RX_COMP) != 0) {
-    len = (unsigned short)((current_rx_ptr->status.status_word) & RX_FRLEN);
-    bf537mac_rx(dev, (char *)(current_rx_ptr->packet), len);
-    
-    current_rx_ptr->status.status_word = 0x00000000;
-    current_rx_ptr = current_rx_ptr->next;
-  }
-
+  len = (unsigned short)((current_rx_ptr->status.status_word) & RX_FRLEN);
+  bf537mac_rx(dev, (char *)(current_rx_ptr->packet), len);
+  
+  /* doesn't need to clear status_word */
+  //current_rx_ptr->status.status_word = 0x00000000;
+  
+  current_rx_ptr = current_rx_ptr->next;
+  
   *pDMA1_IRQ_STATUS |= DMA_DONE|DMA_ERR;
   *pDMA1_CONFIG &= ~0x01;
   *pDMA1_CONFIG = *((unsigned short *)(&(current_rx_ptr->desc_a.config)));
