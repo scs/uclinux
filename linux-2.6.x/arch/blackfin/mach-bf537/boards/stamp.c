@@ -46,8 +46,16 @@ static struct platform_device smc91x_device = {
 	.resource	= smc91x_resources,
 };
 
+
+static struct platform_device bfin_mac_device = {
+  .name           = "bfin_mac",
+};
+
+
+
 static struct platform_device *stamp_devices[] __initdata = {
-        &smc91x_device,
+     &smc91x_device,
+	&bfin_mac_device,
 };
 
 static int __init stamp_init(void)
