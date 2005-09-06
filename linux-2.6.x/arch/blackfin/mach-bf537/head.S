@@ -338,6 +338,12 @@ check_again:
         w[p0] = r0.l;
         ssync;
 
+        p0.l = (EBIU_SDBCTL & 0xFFFF);
+        p0.h = (EBIU_SDBCTL >> 16);     /* SDRAM Memory Bank Control Register */
+        r0 = mem_SDBCTL;
+        w[p0] = r0.l;
+        ssync;
+
 	P2.H = hi(EBIU_SDGCTL);
         P2.L = lo(EBIU_SDGCTL);
         R0 = [P2];
