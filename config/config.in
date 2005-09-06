@@ -657,10 +657,8 @@ if [ "$CONFIG_USER_EXPAT_EXAMPLES" = "y" ]; then
 	define_bool CONFIG_LIB_EXPAT y
 fi
 bool 'frob-led'			CONFIG_USER_FROB_LED_FROB_LED
-bool 'gdbreplay'		CONFIG_USER_GDB_GDBREPLAY
-bool 'gdbserver'		CONFIG_USER_GDB_GDBSERVER
-bool 'gdbreplay (old)'		CONFIG_USER_GDBSERVER_GDBREPLAY
-bool 'gdbserver (old)'		CONFIG_USER_GDBSERVER_GDBSERVER
+bool 'gdbreplay'		CONFIG_USER_GDBSERVER_GDBREPLAY
+bool 'gdbserver'		CONFIG_USER_GDBSERVER_GDBSERVER
 bool 'grep'			CONFIG_USER_GREP_GREP
 bool 'hd'			CONFIG_USER_HD_HD
 bool 'lcd'			CONFIG_USER_LCD_LCD
