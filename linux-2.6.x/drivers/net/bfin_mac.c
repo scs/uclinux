@@ -433,6 +433,16 @@ static int bf537mac_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
   return 0;
 }
 
+#ifdef CONFIG_NET_POLL_CONTROLLER
+static void bf537mac_poll(struct net_device* dev)
+{
+  disable_irq(IRQ_MAC_RX);
+  bf537mac_interrupt(IRQ_MAC_RX, dev, NULL);
+  enable_irq(IRQ_MAC_RX);
+}
+#endif /* CONFIG_NET_POLL_CONTROLLER */
+
+
 static void bf537mac_rx(struct net_device *dev, unsigned char *pkt, int len)
 {
   struct sk_buff *skb;
@@ -464,12 +474,6 @@ static irqreturn_t bf537mac_interrupt(int irq, void *dev_id, struct pt_regs *reg
 {
   struct net_device *dev = dev_id;
   unsigned short len;
-  int pkt_status,mac_status, rx_status, dma_status;
-
-  pkt_status = current_rx_ptr->status.status_word;
-  mac_status = *pEMAC_SYSTAT;
-  rx_status  = *pEMAC_RX_STAT;
-  dma_status = *pDMA1_IRQ_STATUS;
   
   /*
   printk("next_dma_ptr reg is 0x%x, current_rx_ptr->desc_a is 0x%x, current_rx_ptr->next->desc_a is 0x%x \n", (unsigned int)(*pDMA1_NEXT_DESC_PTR), (unsigned int)&(current_rx_ptr->desc_a), (unsigned int)&(current_rx_ptr->next->desc_a));
@@ -477,8 +481,7 @@ static irqreturn_t bf537mac_interrupt(int irq, void *dev_id, struct pt_regs *reg
   printk("reg curr_dma_reg is 0x%x, curr start_add is 0x%x, next_dma_reg is 0x%x\n", (unsigned int)(*pDMA1_CURR_DESC_PTR), (unsigned int)(*pDMA1_CURR_ADDR), (unsigned int)(*pDMA1_NEXT_DESC_PTR));
   */
 
-  if ((pkt_status & RX_COMP) == 0) { // no packet received
-    printk("no packet received!, pkt_status is 0x%x, mac_status is 0x%x, rx_status is 0x%x, dma_staus 0x%x \n\n", pkt_status,mac_status,rx_status,dma_status);
+  if ((current_rx_ptr->status.status_word & RX_COMP) == 0) { // no packet received
     return IRQ_HANDLED;
   }
   
@@ -688,7 +691,7 @@ static int __init bf537mac_probe(struct net_device *dev)
   dev->set_multicast_list = bf537mac_set_multicast_list;
   //  dev->ethtool_ops = &bf537mac_ethtool_ops;
 #ifdef CONFIG_NET_POLL_CONTROLLER
-  dev->poll_controller = bf537mac_poll_controller;
+  dev->poll_controller = bf537mac_poll;
 #endif
 
   /* fill in some of the fields */
