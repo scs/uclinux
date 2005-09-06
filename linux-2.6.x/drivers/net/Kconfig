@@ -809,7 +809,7 @@ config SMC91X
 	  as <file:Documentation/networking/net-modules.txt>.
 
 config BFIN_MAC
-        tristate "Blackfin 534/537 on-chip mac support"
+        tristate "Blackfin 536/537 on-chip mac support"
 	depends on NET_ETHERNET && BFIN
 	select CRC32
 	help
