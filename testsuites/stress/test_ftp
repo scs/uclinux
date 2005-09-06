@@ -12,11 +12,11 @@ spawn /bin/sh
 while (1) {
 	send -s "ftp $targetip\r"
 	expect {
-		"root):" { }
+		"):" { }
 	        timeout { send_user "Failed first return\n"
 			break }
 	}
-	send -s "\r"
+	send -s "root\r"
 	expect {
 	        "Password:" { }
 	        timeout { send_user "Failed first return\n"
