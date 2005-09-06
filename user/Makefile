@@ -37,6 +37,7 @@ dir_$(CONFIG_USER_BLACKFIN_PPIFCDTEST)      += blkfin-test/ppifcd-test
 dir_$(CONFIG_USER_BLACKFIN_DPMC)            += blkfin-test/dpmc-test
 dir_$(CONFIG_USER_BLACKFIN_AUDIOTEST)       += blkfin-test/audio_test
 dir_$(CONFIG_USER_BLACKFIN_VIDEOTEST)       += blkfin-test/video_test
+dir_$(CONFIG_USER_BLACKFIN_TWI)             += blkfin-test/twi_test
 dir_y             			    += blkfin-apps
 
 # For now, comment this for blackfin

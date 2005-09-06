@@ -1562,6 +1562,7 @@ bool    'PPIFCD test program'           CONFIG_USER_BLACKFIN_PPIFCDTEST
 bool    'AUDIO test program'            CONFIG_USER_BLACKFIN_AUDIOTEST
 bool    'VIDEO test program'            CONFIG_USER_BLACKFIN_VIDEOTEST
 bool    'PFLAGS test program'           CONFIG_USER_BLACKFIN_PFLAGS
+bool    'TWI test program'              CONFIG_USER_BLACKFIN_TWI
 bool    'Still to write'                CONFIG_YET
 
 endmenu
