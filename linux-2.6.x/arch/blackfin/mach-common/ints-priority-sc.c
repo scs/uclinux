@@ -338,6 +338,8 @@ static void bf533_demux_gpio_irq(unsigned int intb_irq, struct irqdesc *intb_des
  * the BFin IRQ handling routines.
  */
 
+extern void _deferred_ret_from_exception(void);
+
 int __init  init_arch_irq(void)
 {
 	int irq;	
@@ -352,18 +354,18 @@ int __init  init_arch_irq(void)
 	*pEVT0 = evt_nmi;
 #endif
 	*pEVT2  = evt_evt2;
-	*pEVT3	= trap;	
+	*pEVT3	= trap;
 	*pEVT5 	= evt_ivhw;
-	*pEVT6 	= evt_timer;	 	
+	*pEVT6 	= evt_timer;
 	*pEVT7 	= evt_evt7;
-	*pEVT8	= evt_evt8;	
-	*pEVT9	= evt_evt9;		
-	*pEVT10	= evt_evt10;		
-	*pEVT11	= evt_evt11;		
-	*pEVT12	= evt_evt12;	
-	*pEVT13	= evt_evt13;	
-	*pEVT14 = evt_system_call;		
-	*pEVT15 = evt_soft_int1;	
+	*pEVT8	= evt_evt8;
+	*pEVT9	= evt_evt9;
+	*pEVT10	= evt_evt10;
+	*pEVT11	= evt_evt11;
+	*pEVT12	= evt_evt12;
+	*pEVT13	= evt_evt13;
+	*pEVT14 = _deferred_ret_from_exception;
+	*pEVT15 = evt_system_call;
 	__builtin_bfin_csync();
 
   	for (irq = 0; irq < SYS_IRQS; irq++) {

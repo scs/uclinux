@@ -121,7 +121,9 @@ pid_t kernel_thread(int (*fn)(void *), void *arg, unsigned long flags)
 	regs.p1 = (unsigned long)fn;
 	regs.pc = (unsigned long)kernel_thread_helper;
 	regs.orig_p0 = -1;
-	regs.ipend = 0x8000;
+	/* Set bit 2 to tell ret_from_fork we should be returning to kernel
+	   mode.  */
+	regs.ipend = 0x8002;
 	__asm__ __volatile__ ("%0 = syscfg;" : "=da" (regs.syscfg) : );
 	return do_fork(flags|CLONE_VM|CLONE_UNTRACED, 0, &regs, 0, NULL, NULL);
 }

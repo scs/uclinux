@@ -30,14 +30,16 @@ ENTRY(reschedule)
 
 ENTRY(ret_from_fork)
 	SP += -12;
-	call schedule_tail; 
+	call schedule_tail;
 	SP += 12;
 	r0 = [sp + PT_IPEND];
-	cc = bittst(r0,15);
+	cc = bittst(r0,1);
 	if cc jump in_kernel;
 	RESTORE_CONTEXT
 	rti; 
 in_kernel:
+	bitclr(r0,1);
+	[sp + PT_IPEND] = r0; 
 	/* do a 'fake' RTI by jumping to [RETI] */
         /* to avoid clearing supervisor mode in child */
 	RESTORE_ALL_SYS

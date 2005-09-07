@@ -53,7 +53,7 @@ ENTRY(trap) /* Exception: 4th entry into system event table(supervisor mode)*/
 	(R7:6) = [sp++];
 	if ! cc jump 1f;
 	ASTAT = [sp++];
-	raise 14;		/* invoked by TRAP #0, for sys call */
+	raise 15;		/* invoked by TRAP #0, for sys call */
 	rtx
 1:
 	ASTAT = [sp++];
@@ -293,13 +293,13 @@ ENTRY(ret_from_exception)
 	cc = BITTST(r7, TIF_SIGPENDING);
 	if !cc jump 4f;
 3:
-	p0.l = lo(EVT15);
-	p0.h = hi(EVT15);
+	p0.l = lo(EVT14);
+	p0.h = hi(EVT14);
 	p1.l = _deferred_ret_from_exception;	/*  set the handler of event 15 */
 	p1.h = _deferred_ret_from_exception;
 	[p0] = p1;
 	csync;
-	raise 15;		/* raise evt15 to do signal or reschedule */
+	raise 14;		/* raise evt14 to do signal or reschedule */
         r0 = syscfg;
         bitclr(r0, 0);
         syscfg = r0;
