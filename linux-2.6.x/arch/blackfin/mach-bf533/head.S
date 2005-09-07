@@ -344,6 +344,23 @@ ENTRY(reset)
 	CLI R6;
 	SSYNC;
 
+#if defined(CONFIG_BFIN_SHARED_FLASH_ENET)
+	p0.h = hi(FIO_INEN);
+	p0.l = lo(FIO_INEN);
+	r0.l = ~(PF1 | PF0);
+	w[p0] = r0.l;
+
+	p0.h = hi(FIO_DIR);
+	p0.l = lo(FIO_DIR);
+	r0.l = (PF1 | PF0);
+	w[p0] = r0.l;
+
+	p0.h = hi(FIO_FLAG_C);
+	p0.l = lo(FIO_FLAG_C);
+	r0.l = (PF1 | PF0);
+	w[p0] = r0.l;
+#endif
+
 	/* Clear the bits 13-15 in SWRST if they werent cleared */
 	p0.h = hi(SWRST);
 	p0.l = lo(SWRST);
