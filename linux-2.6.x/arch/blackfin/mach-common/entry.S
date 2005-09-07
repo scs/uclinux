@@ -177,35 +177,44 @@ ENTRY(system_call)
 	SP += 20;
 	[sp + PT_R0] = r0;
 
+resume_userspace:
 	r7 = sp;
 	r4.l = lo(ALIGN_PAGE_MASK);
 	r4.h = hi(ALIGN_PAGE_MASK);
 	r7 = r7 & r4;		/*thread_info->flags*/
 	p5 = r7;
+resume_userspace_1:
+	/* Disable interrupts.  */
+	[--sp] = reti;
+	reti = [sp++];
+
 	r7 = [p5 + TI_FLAGS];
 	r4 = _TIF_WORK_MASK;
 	r7 =  r7 & r4;
 
+syscall_resched:
+	cc = BITTST(r7, TIF_NEED_RESCHED);
+	if !cc jump syscall_sigpending; 
+	/* Reenable interrupts.  */
+	[--sp] = reti;
+	r0 = [sp++];
+	call schedule;
+	jump resume_userspace_1;
+
 syscall_sigpending:
 	cc = BITTST(r7, TIF_SIGPENDING);
-	if !cc jump syscall_resched;
+	if !cc jump syscall_really_exit;
 
 Lsignal_return:
-
 	r0 = 0;
 	r1 = sp;
 	SP += -12;
 	call do_signal; 
 	SP += 12;
 
-syscall_resched:
-	cc = BITTST(r7, TIF_NEED_RESCHED);
-	if !cc jump syscall_really_exit; 
-	call reschedule;
-
 syscall_really_exit:
-	r0 = [sp + PT_RESERVED];
-	rets = r0;
+	r5 = [sp + PT_RESERVED];
+	rets = r5;
 	rts;
 
 ENTRY(resume)
@@ -263,9 +272,6 @@ ENTRY(ret_from_exception)
 	r0 = [p2];
 	[sp + PT_IPEND] = r0;
 
-//	cc = bittst(r0, 3);
-//	if !cc jump 4f;		/* if not in exception, get out */
-	
 1:
 	r1 = 0x17(Z);
 	r2 = ~r1;
