@@ -32,6 +32,13 @@ dir_y += libm
 endif
 
 #
+# Add zlib if JFFS is needed
+#
+dir_$(CONFIG_JFFS_FS)          += zlib
+dir_$(CONFIG_JFFS2_FS)         += zlib
+
+#
+#
 # and build these if someone needs them
 #
 dir_$(CONFIG_LIB_FLEX)         += flex

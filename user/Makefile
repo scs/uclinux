@@ -40,9 +40,8 @@ dir_$(CONFIG_USER_BLACKFIN_VIDEOTEST)       += blkfin-test/video_test
 dir_$(CONFIG_USER_BLACKFIN_TWI)             += blkfin-test/twi_test
 dir_y             			    += blkfin-apps
 
-# For now, comment this for blackfin
-#dir_$(CONFIG_JFFS_FS)                       += mtd-utils
-#dir_$(CONFIG_JFFS2_FS)                      += mtd-utils
+dir_$(CONFIG_JFFS_FS)                       += mtd-utils
+dir_$(CONFIG_JFFS2_FS)                      += mtd-utils
 
 dir_$(CONFIG_USER_AGETTY_AGETTY)            += agetty
 dir_$(CONFIG_USER_APPWEB_APPWEB)            += appWeb
