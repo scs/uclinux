@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
 # Linux kernel version: 2.6.12.1
-# Tue Aug 30 11:58:48 2005
+# Wed Sep  7 10:41:14 2005
 #
 # CONFIG_MMU is not set
 # CONFIG_FPU is not set
@@ -74,10 +74,7 @@ CONFIG_BFIN_SINGLE_CORE=y
 # CONFIG_BFIN533_STAMP is not set
 CONFIG_BFIN537_STAMP=y
 # CONFIG_GENERIC_BOARD is not set
-# CONFIG_MEM_MT48LC64M4A2FB_7E is not set
-# CONFIG_MEM_MT48LC16M16A2TG_75 is not set
 CONFIG_MEM_MT48LC16M8A2TG_75=y
-# CONFIG_BFIN_SHARED_FLASH_ENET is not set
 CONFIG_BFIN_HAVE_RTC=y
 
 #
@@ -178,10 +175,6 @@ CONFIG_BLKFIN_DCACHE=y
 # CONFIG_BLKFIN_CACHE_LOCK is not set
 # CONFIG_BLKFIN_WB is not set
 CONFIG_BLKFIN_WT=y
-
-#
-# Uncached memory region
-#
 CONFIG_UNCACHED_1M=y
 
 #
@@ -473,6 +466,7 @@ CONFIG_NETDEVICES=y
 CONFIG_NET_ETHERNET=y
 CONFIG_MII=y
 CONFIG_SMC91X=y
+# CONFIG_BFIN_MAC is not set
 
 #
 # Ethernet (1000 Mbit)

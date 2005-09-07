@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
 # Linux kernel version: 2.6.12.1
-# Mon Sep  5 15:22:05 2005
+# Wed Sep  7 11:08:31 2005
 #
 # CONFIG_MMU is not set
 # CONFIG_FPU is not set
@@ -75,8 +75,6 @@ CONFIG_BFIN533_STAMP=y
 # CONFIG_BFIN537_STAMP is not set
 # CONFIG_GENERIC_BOARD is not set
 CONFIG_MEM_MT48LC64M4A2FB_7E=y
-# CONFIG_MEM_MT48LC16M16A2TG_75 is not set
-# CONFIG_MEM_MT48LC16M8A2TG_75 is not set
 CONFIG_BFIN_SHARED_FLASH_ENET=y
 
 #
@@ -463,6 +461,7 @@ CONFIG_NETDEVICES=y
 CONFIG_NET_ETHERNET=y
 CONFIG_MII=y
 CONFIG_SMC91X=y
+# CONFIG_BFIN_MAC is not set
 
 #
 # Ethernet (1000 Mbit)
