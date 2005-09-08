@@ -208,7 +208,7 @@ while 1 {
 
 while 1 {
 	incr case_num
-	send "target remote udp:10.100.4.2:6443\r"
+	send "target remote udp:$targetip:6443\r"
 	expect {
 		"breakpoint () at kernel" {
 			puts "\rCase $case_num ...PASS\r"
