@@ -1,19 +1,19 @@
 
 
 
-Release Notes for Uclinux-dist RC1
+Release Notes for uClinux for Blackfin Version 2005R3
  
 
 
 
 Version 
  
-uClinux_dist 
-Date: Jun 16, 2005 
+2005R3
+Date: Sep 15, 2005 
 Development Environments 
  
-Tool Chain: Beta Toolchain Release (Jun 1st 2005)
-	u-boot_1.1.3 (kernel will not boot with 1.1.1 u-boot)
+Tool Chain: Toolchain Release 2005R3
+	u-boot: uboot_1.1.3 Release 2005R3
 Host platform: Suse Linux 9.2
 Target board: STAMP Board 
   
@@ -23,7 +23,7 @@ But currently they are not tested
 
 Deliverables 
 
-uClinux_dist.tar.bz2
+uClinux_dist_2005R3.tar.bz2
 	Source files 
 
 	linux 
@@ -32,30 +32,93 @@ uClinux_dist.tar.bz2
 	uImage 
 		Compressed linux image that can be placed into flash
 	
-	release_notes.pdf
+	release_notes_2005R3.pdf
 		This document
 
-	test_results.tar.gz
-		compressed archive of test results
+	test_results_2005R3.tar.gz
+		Compressed archive of test results
 
-Fixes in RC1
+Fixes in release 2005R3
 See tracker at:
 http://blackfin.uclinux.org/tracker/index.php?group_id=17&atid=141
 
 
 Improvements
-1. Use bfin-uclinux toolchain and enable necessary bits for C++ support.
-2. Enable uncached memory allocation for DMA based drivers.
-3. Add 8 bytes operation into get_user() and put_user().
-4. Fixe 1836 audio driver for EZKIT board.
-5. Accept the arguments passed from u-boot
-6. Calculate more accurate tick_nsec and tick_usec values.
-7. Porting assembly string functions from VDSP to uClibc
-8. Enable kernel to read and write flash when ethernet device is working.
-9. Restructure Blackfin specific include and source folders, as well as device driver includes.
-10. Generate the CPLB table according to the actual memory size at the kernel booting stage instead of static coding.
-11. Walk around a cache flush issue, which fails to flush instruction cache at first address before increase the address.
-12. Many bug fixes and code clean up.
+1. Fix the wrong definition of NR_IRQS in the case IRQCHIP_DEMUX_GPIO used.
+
+2. Add Blackfin 537 specific boot code and default configurations into bf537 architecture dependant folders. Enable kernel to boot to console on bf537.
+
+3. Correct code to dynamically generated CPLB tables.
+   - don't encode page size in the page descriptor definitions;
+   - removed meaningless caching for SRAM pages;
+   - L1_IMEMORY CPLB added to ipdt;
+   - DCACHE mode is printed out at the startup and proc/cpuinfo.
+
+4. readX resp. inX and insX are used to access memory mapped devices. On the Blackfin architecture, ongoing reads form external memory can be interrupted anywhere during execution, and reissued later again. This can cause trouble in case the read is destructive. Therefore all reads must be made non-interruptible.
+
+5. Cleans up the interrupt path for the Core Timer and Non Maskable Interrupt. For these dedicated interrupt vectors it is not necessary to call do_irq. We can call asm_do_IRQ directly.
+
+6. Two subsequent calls to gettimeofday() may show time going backward. Core timer warp is now handled more properly. Calculate more accurate getttimeoffset - free of integer division rounding errors.
+
+7. Remove the core timer interrupt from the irqchip framework. The interrupt service routine is now called directly from Interrupt.S. Downside BFIN Timer Ticks are not longer counted in /proc/interrupts.
+
+8. Port simple DMA driver to BF537/6/4 - split DMA include files into arch dependent and independent sections.
+
+9. Enable kernel to boot from a JFFS2 root file system by returning correct metadata in the flash driver. 
+
+10. Add a rule in Makefile to make JFFS2 image. Use the mkfs.jffs2 tool in user application folder.
+
+11. Rewrite the blackfin DMA based UART dirver to support more than one ports. 
+    - The default UART port is ttyS0. User can change it in the kernel boot parameter line. 
+    - More than one UART ports can be opened concurrently, this dirver can deal with each port individually. 
+    - Fix a bug which cause system hang if you enter Ctrl+C when output a bunch of data on the console.
+    - Merge xmit timer and recv timer into one dma timer.
+    - Enable DMA channel for UART1 for blackfin 537 in simple DMA driver.
+
+12. Update the uClibc code in the root distribution folder to version 0.9.27. Update all user application to the latest testing version in uClinux distribution.
+
+13. Update kernel from 2.6.8 to 2.6.12.
+
+14. Replace all kinds of Xsync functions in kernel with gcc builtin Xsync functions, which walk around a hardware bug in blackfin53x chip.
+
+15. Inplement testandset operation by kernel exception handler. The semantics of the TESTSET instruction cannot be guaranteed. We cannot easily move all locks used by linux kernel to non-cacheable memory. EXCPT 0x4 is used to trap into kernel to do the atomic testandset.
+
+16. Add gcc flag -mlong-call into kernel Makefile to build kernel modules. With this flag, kernel modules can be inserted into kernel and run correctly on blackfin.
+
+17. Remove hard-coded Data Cache initialization (Enable both A and B data caches).
+Cleanup BF537 proc/cpuinfo and startup messages. Fix BF537/6/4 Memory Layout.
+
+18. Enable the adi1836 audio device to record and play individual streams concurrently. 
+    - Descriptor based DMA is used in this solution.
+    - Always enable DMA and SPORT in the audio driver in order to avoid breaks in one audio stream while the other is opened or closed. 
+    - Allocate the dummy buffer in L1 data sram instead of in the external sdram to reduce the utility rate to the system bus.
+   - Move some DMA operating code from adi1836.c to file bf53x_sport.c
+
+19.  Enable user to control the audio device by mixer.
+    - The correspondence between ALSA and ad1836 audio input channels should be changed when application asks to use microphone as the input stream. A new channel mask in_chan_mask is added to structure ad1836_t. 
+    - The name of mixer funtion snd_ad1836_mux is changed into "Capture Source" to enableapplication change the SOUND_MIXER_WRITE_RECSRC through ioctl().
+    - Adjust entry in sound common code mixer_oss.c is revised to invoke the correct volume control routine in adi1836 driver.
+
+20. Enable adi1836 audio driver on kernel 2.6.12 and bf537 STAMP board.
+
+21. Update the kgdb patch against kernel 2.6.12 and enable it over both Ethernet and UART. Lock the CPLB entry of the asynchronous memory region, which smc91x registers are in.
+
+22. Add a driver to support for various CMOS Camera Modules connected to Blackfin PPI port. (Tested with Micron Modules) Doing a character driver is unconventional, but it is sufficient to capture still images. Also add a CGI based Client Server test application for the PPI CMOS camera frame capture driver.
+
+23. Add GPIO I2C driver for Blackfin. 
+
+24. Add TWI I2C driver into kernel for bf534/6/7.
+
+25. Add CPUFreq support in kernel for bf533 and bf537.
+
+26. Add SPI Flash MTD driver into kernel. Optimize the reading and writing performance.
+
+27. Add support to set available memory size for kernel from boot parameters.
+
+28. Add Blackfin Ethernet driver for bf536/7.
+
+29. Port an internet phone Linphone to uClinux for Blackfin. It is put to the user application folder in the source tree.
+
 
 Known Issues 
 A full list of known issues can be found at:
@@ -63,30 +126,13 @@ http://blackfin.uclinux.org/tracker/index.php?group_id=17&atid=141
 
 
 No	Issue Title
-220	killing /bin/sh sometimes crashes the system.
-
-600	Module problem, insmod failure
-
-622	Makefile error - infinite loop occuring during a make clean 
-
-660	Audio driver still functions if audio card is not connected to system
-
-663	The kernel will crash if you aquire date through the networked scope (NDSO) while the audio driver is enabled
-
 674	Networking will randomly stops and gives error NETDEV WATCHDOG: eth0: transmit timed out
 
-706	ping -f doesn't respond correctly to control-C
-
-717	reboot after 2 minutes hangs the kernel.
-
+680	make image no longer works
 738	fail to mount a NFS partition on target board.
 
-753	MTD-UTILS won't compile
-
-761	Boa Crash
-
-765	Fail to play and record audio concurrently with audio driver.
-
+843	Dropbear now fails to work with 2.6.12 kernel
+	
 
 There are also some issues in the LTP test cases. They are recorded as bug 264, 532, 561, 562, 563, 567, 732, 733, 734, 735, 736, 737, 742, 743, 744, 745 and 747.
 
@@ -107,21 +153,23 @@ All test suites can be found in subfolder "testsuites" in CVS.
 
 7. Kernel passes the reboot test.
 
-8. LTP test is done. Total 255 cases, 232 cases pass, 13 cases fail, 4 cases not run, 1 cases is broken, 1 case crashes LTP, 5 cases are skipped. 
+8. TWI test
+
+9. LTP test is done. Total 255 cases, 232 cases pass, 13 cases fail, 4 cases not run, 1 cases is broken, 1 case crashes LTP, 5 cases are skipped. 
 
 Build Procedure 
  
-1. Install Beta Toolchain Release (March 3th 2005) toolchain
+1. Install Toolchain Release 2005R3 toolchain
 Go to http://blackfin.uclinux.org/frs/?group_id=18 for more information
 
-2. Download the source code of project "uclinux533"
+2. Download the source code of project uClinux for Blackfin release 2005R3
 Go to http://blackfin.uclinux.org/frs/?group_id=17
 
 3. Uncompress uclinux-dist.tar.bz to working directory
-a. cp uClinux-dist.tar.bz /(WORK_DIR)
+a. cp uClinux-dist_2005R3.tar.bz /(WORK_DIR)
 b. cd /(WORK_DIR)
-c. bunzip2 uClinux-dist.tar.bz
-d. tar -xvf uClinux-dist.tar
+c. bunzip2 uClinux-dist_2005R3.tar.bz
+d. tar -xvf uClinux-dist_2005R3.tar
 
 4. Compile the source using following commands  
 a. cd uClinux-dist
@@ -180,7 +228,7 @@ Building Compressed Linux Image
 
 1. Generate the binary file from the ELF file, using following command
 
-$ bfin-elf-objcopy -O binary linux linux.bin 
+$ bfin-uclinux-objcopy -O binary linux linux.bin 
 
 2. Compress the binary file obtained above, using following command 
 $ gzip -9 linux.bin  
@@ -213,14 +261,14 @@ STAMP> reset
 Build Customized uClinux
 
 Customize Kernel
-1. make menuconfig in uclinux533 project
+1. make menuconfig in uClinux for Blackfin project
 2. select option "Kernel/Library/Defaults Selection" -> "Customize Kernel Settings" and exit
 3. In kernel configuration, processor and board specific options can be changed in "Processor type and features", such as cache status, CPU, DMA, etc.
 4. Driver specific options are in respective menus. Such as Ethernet driver in "Networking supporting", sound card driver in "Sound", video driver in "Graphic Support", etc.
 5. Save and exit. Then make the image again as mentioned before. The changes of the kernel take effects after you load and run the new image.
 
 Customize Application and Lib
-1. make menuconfig in uclinux533 project
+1. make menuconfig in uClinux for Blackfin project
 2. select option "Kernel/Library/Defaults Selection" -> "Customize Vender/User Settings" and exit
 3. In user configuration, applications can be selected to build and debugging information can be enabled.
 4. In order to configure busybox 1.00, you should go into the folder "user/busybox-1.00-rc3/" and do menuconfig.
