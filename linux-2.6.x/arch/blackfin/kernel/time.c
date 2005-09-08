@@ -35,28 +35,45 @@ extern u_long get_cclk(void);
 
 
 
-#if (defined(CONFIG_STAMP_BOARD_ALIVE_LED) || defined(CONFIG_STAMP_BOARD_IDLE_LED))
+#if (defined(CONFIG_BFIN_ALIVE_LED) || defined(CONFIG_BFIN_IDLE_LED))
 void __init init_leds(void)
 {
 	unsigned int tmp = 0;
 
-	/* config PF2/3/4 as output. */
-	tmp = *pFIO_DIR;
+#if defined(CONFIG_BFIN_ALIVE_LED)
+	/* config pins as output. */
+	tmp = *(volatile unsigned short *)CONFIG_BFIN_ALIVE_LED_DPORT;
 	__builtin_bfin_ssync();
-	*pFIO_DIR = tmp | 0x1C;
+	*(volatile unsigned short *)CONFIG_BFIN_ALIVE_LED_DPORT = tmp | CONFIG_BFIN_ALIVE_LED_PIN;
 	__builtin_bfin_ssync();
 
 	/*	First set led be off */
-	tmp = *pFIO_FLAG_D;
+	tmp = *(volatile unsigned short *)CONFIG_BFIN_ALIVE_LED_PORT;
 	__builtin_bfin_ssync();
-	*pFIO_FLAG_D = tmp | 0x1C;	/* light off */
+	*(volatile unsigned short *)CONFIG_BFIN_ALIVE_LED_PORT = tmp | CONFIG_BFIN_ALIVE_LED_PIN;	/* light off */
 	__builtin_bfin_ssync();
+#endif
+
+#if defined(CONFIG_BFIN_IDLE_LED)
+        /* config pins as output. */
+        tmp = *(volatile unsigned short *)CONFIG_BFIN_IDLE_LED_DPORT;
+        __builtin_bfin_ssync();
+        *(volatile unsigned short *)CONFIG_BFIN_IDLE_LED_DPORT = tmp | CONFIG_BFIN_IDLE_LED_PIN;
+        __builtin_bfin_ssync();
+
+        /*      First set led be off */
+        tmp = *(volatile unsigned short *)CONFIG_BFIN_IDLE_LED_PORT;
+        __builtin_bfin_ssync();
+        *(volatile unsigned short *)CONFIG_BFIN_IDLE_LED_PORT = tmp | CONFIG_BFIN_IDLE_LED_PIN;       /* light off */
+        __builtin_bfin_ssync();
+#endif
+
 }
 #else 
 inline void  __init init_leds(void) {}
 #endif
 
-#if defined(CONFIG_STAMP_BOARD_ALIVE_LED)
+#if defined(CONFIG_BFIN_ALIVE_LED)
 inline static void do_leds(void)
 {
 	static unsigned int count = 50;
@@ -67,15 +84,15 @@ inline static void do_leds(void)
 		count = 50;
 		flag = ~flag;
 	}
-	tmp = *pFIO_FLAG_D;
+	tmp = *(volatile unsigned short *)CONFIG_BFIN_ALIVE_LED_PORT;
 	__builtin_bfin_ssync();
 
 	if( flag )
-		tmp &=~0x10;	/* light on */
+		tmp &=~CONFIG_BFIN_ALIVE_LED_PIN;	/* light on */
 	else
-		tmp |=0x10;	/* light off */
+		tmp |=CONFIG_BFIN_ALIVE_LED_PIN;	/* light off */
 
-	*pFIO_FLAG_D = tmp;
+	*(volatile unsigned short *)CONFIG_BFIN_ALIVE_LED_PORT = tmp;
 	__builtin_bfin_ssync();
 
 }

@@ -260,20 +260,20 @@ unsigned long get_wchan(struct task_struct *p)
 /*
  *	We are using a different LED from the one used to indicate timer interrupt.
  */
-#if defined(CONFIG_STAMP_BOARD_IDLE_LED)
+#if defined(CONFIG_BFIN_IDLE_LED)
 inline void static leds_switch(int flag)
 {
 	unsigned short tmp = 0;
 
-	tmp = *pFIO_FLAG_D;
+	tmp = *(volatile unsigned short *)CONFIG_BFIN_IDLE_LED_PORT;
 	__builtin_bfin_ssync();
 
-	if( flag== LED_ON )
-		tmp &=~0x8;	/* light on */
+	if( flag == LED_ON )
+		tmp &=~CONFIG_BFIN_IDLE_LED_PIN;	/* light on */
 	else
-		tmp |=0x8;	/* light off */
+		tmp |=CONFIG_BFIN_IDLE_LED_PIN;	/* light off */
 
-	*pFIO_FLAG_D = tmp;
+	*(volatile unsigned short *)CONFIG_BFIN_IDLE_LED_PORT = tmp;
 	__builtin_bfin_ssync();
 
 }	

@@ -199,7 +199,7 @@ config BFIN_ALIVE_LED
 	help
 	  Blinks the LED you select when the kernel is running. Helps detect a hung kernel.
 
-config BFIN_ALIVE_LED_PIN
+config BFIN_ALIVE_LED_NUM
 	int "LED"
 	depends on BFIN_ALIVE_LED
 	range 1 3 if BFIN533_STAMP
@@ -214,23 +214,48 @@ config BFIN_IDLE_LED
 	help
 	  Blinks the LED you select when to determine kernel load.
 
-config BFIN_IDLE_LED_PIN2
+config BFIN_IDLE_LED_NUM
 	int "LED"
 	depends on BFIN_IDLE_LED
+	range 1 3 if BFIN533_STAMP
 	default "2" if BFIN533_STAMP
 	help
 	  Select the LED (marked on the board) for you to blink.
 
+#
+# Sorry - but you need to put the hex address here - 
+#
+
+# Flag Data register
 config BFIN_ALIVE_LED_PORT
 	hex
-	default 0xffff1234 if (BFIN533_STAMP)
+	default 0xFFC00700 if (BFIN533_STAMP)
 
-config BFIN_ALIVE_LED_pin
+# Peripheral Flag Direction Register
+config BFIN_ALIVE_LED_DPORT
+        hex
+        default 0xFFC00730 if (BFIN533_STAMP)
+
+config BFIN_ALIVE_LED_PIN
 	hex
-	default 0x01 if (BFIN533_STAMP &&  ( BFIN_ALIVE_LED_PIN = 1 ))
-	default 0x02 if (BFIN533_STAMP &&  ( BFIN_ALIVE_LED_PIN = 2 ))
-	default 0x04 if (BFIN533_STAMP &&  ( BFIN_ALIVE_LED_PIN = 3 ))
+	default 0x04 if (BFIN533_STAMP && ( BFIN_ALIVE_LED_NUM = 1 ))
+	default 0x08 if (BFIN533_STAMP && ( BFIN_ALIVE_LED_NUM = 2 ))
+	default 0x10 if (BFIN533_STAMP && ( BFIN_ALIVE_LED_NUM = 3 ))
 
+config BFIN_IDLE_LED_PORT
+        hex
+        default 0xFFC00700 if (BFIN533_STAMP)
+
+# Peripheral Flag Direction Register
+config BFIN_IDLE_LED_DPORT
+        hex
+        default 0xFFC00730 if (BFIN533_STAMP)
+
+config BFIN_IDLE_LED_PIN
+        hex
+        default 0x04 if (BFIN533_STAMP && ( BFIN_IDLE_LED_NUM = 1 ))
+        default 0x08 if (BFIN533_STAMP && ( BFIN_IDLE_LED_NUM = 2 ))
+        default 0x10 if (BFIN533_STAMP && ( BFIN_IDLE_LED_NUM = 3 ))
 
 comment 'Console UART Setup'
 
