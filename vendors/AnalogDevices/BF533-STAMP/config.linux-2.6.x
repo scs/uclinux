@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
 # Linux kernel version: 2.6.12.1
-# Wed Sep  7 09:36:02 2005
+# Thu Sep  8 02:48:41 2005
 #
 # CONFIG_MMU is not set
 # CONFIG_FPU is not set
@@ -130,7 +130,10 @@ CONFIG_MEM_ADD_WIDTH=11
 #
 # CONFIG_BFIN_ALIVE_LED is not set
 # CONFIG_BFIN_IDLE_LED is not set
-CONFIG_BFIN_ALIVE_LED_PORT=0xffff1234
+CONFIG_BFIN_ALIVE_LED_PORT=0xFFC00700
+CONFIG_BFIN_ALIVE_LED_DPORT=0xFFC00730
+CONFIG_BFIN_IDLE_LED_PORT=0xFFC00700
+CONFIG_BFIN_IDLE_LED_DPORT=0xFFC00730
 
 #
 # Console UART Setup
