@@ -1,9 +1,0 @@
-   
-                    Usage of kernel-test.exp
-
-       Before using kernel-test.exp, please change the value of variable HOST_IP_BASE, HOST_IP_ADDR and the last bit of target_ip_addr to fit your environment.
-      
-       And the FTP client test also need  some change.It requires the host machine to have an ftp server set up (anonymous, no password, with write capability).  If security is a problem, you can set it up for a specific user and password (just change in  the .exp files ).  There is a directory  called "ftp-dir-contents" which should go onto the host machine's ~ftp directory.  Not "ftp-dir-contents" itself, but the files inside it.  There is an ASCII file and a binary file which are downloaded to the target using ftp "get".  On the target, the script checks the contents of the ASCII file and it executes the binary file which is just a printf statement.  
-
-       You can comment some manual test or just delete the auto test from the result_matrix to skip certain test cases.
-       You can also change the time period parameter LONG_TERM_STABILITY_TEST_MINUTES and LONG_TERM_STABILITY_RESUME_MINUTES for stability running.And give out the right path for random_number.
