@@ -67,6 +67,34 @@ ENTRY(_stext)
 	M2 = r0;
 	M3 = r0;
 
+/* Turn off the icache */
+	p0.l = (IMEM_CONTROL & 0xFFFF);
+	p0.h = (IMEM_CONTROL >> 16);
+	R1 = [p0];
+	R0 = ~ENICPLB;
+	R0 = R0 & R1;
+
+	/* Anamoly 05000125 */
+	CLI R2;
+	SSYNC;	                                                               
+	[p0] = R0;
+	SSYNC;
+	STI R2;
+
+    /* Turn off the dcache */
+    p0.l = (DMEM_CONTROL & 0xFFFF);
+    p0.h = (DMEM_CONTROL >> 16);
+    R1 = [p0];
+    R0 = ~ENDCPLB;
+    R0 = R0 & R1;
+             
+    /* Anamoly 05000125 */
+    CLI R2;
+    SSYNC;
+    [p0] = R0;
+    SSYNC;
+    STI R2;
+
 /*Initialise UART*/
 	p0.h = hi(UART_LCR);
 	p0.l = lo(UART_LCR);
