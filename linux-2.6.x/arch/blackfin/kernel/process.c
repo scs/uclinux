@@ -30,13 +30,16 @@ extern void reset(void);
  */
 inline static void default_idle(void)
 {
-	while(1) {
-		leds_switch(LED_OFF);
-		while (!need_resched())
-			__asm__("idle;\n\t" : : : "cc");
-		leds_switch(LED_ON);
-		schedule();
-	}
+    while(1) {
+        leds_switch(LED_OFF);
+        while (!need_resched())
+            __asm__("nop;\n\t \
+                     nop;\n\t \
+                     nop;\n\t \
+                     idle;\n\t" : : : "cc");
+        leds_switch(LED_ON);
+        schedule();
+    }
 }
 
 /*
