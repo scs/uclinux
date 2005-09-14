@@ -194,18 +194,26 @@ resume_userspace_1:
 
 syscall_resched:
 	cc = BITTST(r7, TIF_NEED_RESCHED);
-	if !cc jump syscall_sigpending; 
+	if !cc jump syscall_sigpending;
+
 	/* Reenable interrupts.  */
 	[--sp] = reti;
 	r0 = [sp++];
+
+	SP += -12;
 	call schedule;
+	SP += 12;
+
 	jump resume_userspace_1;
 
 syscall_sigpending:
 	cc = BITTST(r7, TIF_SIGPENDING);
 	if !cc jump syscall_really_exit;
 
-Lsignal_return:
+	/* Reenable interrupts.  */
+	[--sp] = reti;
+	r0 = [sp++];
+
 	r0 = 0;
 	r1 = sp;
 	SP += -12;
