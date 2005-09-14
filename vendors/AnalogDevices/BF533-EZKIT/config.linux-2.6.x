@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
 # Linux kernel version: 2.6.12.1
-# Wed Sep  7 11:08:31 2005
+# Wed Sep 14 20:05:50 2005
 #
 # CONFIG_MMU is not set
 # CONFIG_FPU is not set
@@ -70,12 +70,11 @@ CONFIG_BF533=y
 # CONFIG_BF561 is not set
 CONFIG_BLACKFIN=y
 CONFIG_BFIN_SINGLE_CORE=y
-# CONFIG_BFIN533_EZKIT is not set
-CONFIG_BFIN533_STAMP=y
+CONFIG_BFIN533_EZKIT=y
+# CONFIG_BFIN533_STAMP is not set
 # CONFIG_BFIN537_STAMP is not set
 # CONFIG_GENERIC_BOARD is not set
-CONFIG_MEM_MT48LC64M4A2FB_7E=y
-CONFIG_BFIN_SHARED_FLASH_ENET=y
+CONFIG_MEM_MT48LC16M16A2TG_75=y
 
 #
 # BF533/2/1 Specific Configuration
@@ -128,9 +127,6 @@ CONFIG_MEM_ADD_WIDTH=9
 #
 # LED Status Indicators
 #
-# CONFIG_BFIN_ALIVE_LED is not set
-# CONFIG_BFIN_IDLE_LED is not set
-CONFIG_BFIN_ALIVE_LED_PORT=0xffff1234
 
 #
 # Console UART Setup
@@ -246,11 +242,6 @@ CONFIG_BINFMT_FLAT=y
 # CONFIG_PM is not set
 
 #
-# CPU Frequency scaling
-#
-# CONFIG_CPU_FREQ is not set
-
-#
 # Generic Driver Options
 #
 CONFIG_STANDALONE=y
@@ -300,7 +291,6 @@ CONFIG_MTD_RAM=y
 # Mapping drivers for chip access
 #
 # CONFIG_MTD_COMPLEX_MAPPINGS is not set
-# CONFIG_MTD_BF533_SPI is not set
 # CONFIG_MTD_BF5xx is not set
 
 #
@@ -461,7 +451,6 @@ CONFIG_NETDEVICES=y
 CONFIG_NET_ETHERNET=y
 CONFIG_MII=y
 CONFIG_SMC91X=y
-# CONFIG_BFIN_MAC is not set
 
 #
 # Ethernet (1000 Mbit)
