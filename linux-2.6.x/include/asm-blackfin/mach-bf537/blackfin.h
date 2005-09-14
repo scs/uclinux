@@ -92,6 +92,24 @@
 #define pFIO_EDGE		pPORTFIO_EDGE
 #define pFIO_BOTH		pPORTFIO_BOTH
 #define pFIO_INEN		pPORTFIO_INEN
+
+#define FIO_FLAG_D		PORTFIO
+#define FIO_FLAG_C		PORTFIO_CLEAR
+#define FIO_FLAG_S		PORTFIO_SET
+#define FIO_FLAG_T		PORTFIO_TOGGLE
+#define FIO_MASKA_D	    PORTFIO_MASKA
+#define FIO_MASKA_C     PORTFIO_MASKA_CLEAR
+#define FIO_MASKA_S     PORTFIO_MASKA_SET
+#define FIO_MASKA_T     PORTFIO_MASKA_TOGGLE
+#define FIO_MASKB_D     PORTFIO_MASKB
+#define FIO_MASKB_C     PORTFIO_MASKB_CLEAR
+#define FIO_MASKB_S     PORTFIO_MASKB_SET
+#define FIO_MASKB_T     PORTFIO_MASKB_TOGGLE
+#define FIO_DIR		    PORTFIO_DIR
+#define FIO_POLAR		PORTFIO_POLAR
+#define FIO_EDGE		PORTFIO_EDGE
+#define FIO_BOTH		PORTFIO_BOTH
+#define FIO_INEN		PORTFIO_INEN
 #endif
 
 /* FIO USE PORT G*/
@@ -113,19 +131,38 @@
 #define pFIO_EDGE		pPORTGIO_EDGE
 #define pFIO_BOTH		pPORTGIO_BOTH
 #define pFIO_INEN		pPORTGIO_INEN
+
+#define FIO_FLAG_D		PORTGIO
+#define FIO_FLAG_C		PORTGIO_CLEAR
+#define FIO_FLAG_S		PORTGIO_SET
+#define FIO_FLAG_T		PORTGIO_TOGGLE
+#define FIO_MASKA_D	    PORTGIO_MASKA
+#define FIO_MASKA_C	    PORTGIO_MASKA_CLEAR
+#define FIO_MASKA_S	    PORTGIO_MASKA_SET
+#define FIO_MASKA_T	    PORTGIO_MASKA_TOGGLE
+#define FIO_MASKB_D	    PORTGIO_MASKB
+#define FIO_MASKB_C	    PORTGIO_MASKB_CLEAR
+#define FIO_MASKB_S	    PORTGIO_MASKB_SET
+#define FIO_MASKB_T	    PORTGIO_MASKB_TOGGLE
+#define FIO_DIR		    PORTGIO_DIR
+#define FIO_POLAR		PORTGIO_POLAR
+#define FIO_EDGE		PORTGIO_EDGE
+#define FIO_BOTH		PORTGIO_BOTH
+#define FIO_INEN		PORTGIO_INEN
+
 #endif
 
 
-/* RTC_ICTL and RTC_ISTAT Masks															    */                                                      
-#define	SWEF  STOPWATCH		  /* Stopwatch Interrupt Enable									*/      
-#define	AEF	  ALARM			  /* Alarm Interrupt Enable										*/      
+/* RTC_ICTL and RTC_ISTAT Masks															    */
+#define	SWEF  STOPWATCH		  /* Stopwatch Interrupt Enable									*/
+#define	AEF	  ALARM			  /* Alarm Interrupt Enable										*/
 #define	SEF	  SECOND		  /* Seconds (1 Hz) Interrupt Enable							*/
 #define	MEF	  MINUTE		  /* Minutes Interrupt Enable									*/
-#define	HEF	  HOUR			  /* Hours Interrupt Enable										*/      
+#define	HEF	  HOUR			  /* Hours Interrupt Enable										*/
 #define	DEF	  DAY			  /* 24 Hours (Days) Interrupt Enable							*/
-#define	DAEF  DAY_ALARM		  /* Day Alarm (Day, Hour, Minute, Second) Interrupt Enable		*/      
-#define	WPS	  WRITE_PENDING	  /* Write Pending Status										*/  
-#define	WCOM  WRITE_COMPLETE  /* Write Complete Interrupt Enable							*/  
+#define	DAEF  DAY_ALARM		  /* Day Alarm (Day, Hour, Minute, Second) Interrupt Enable		*/
+#define	WPS	  WRITE_PENDING	  /* Write Pending Status										*/
+#define	WCOM  WRITE_COMPLETE  /* Write Complete Interrupt Enable							*/
 
 
 /* PLL_DIV Masks													*/
