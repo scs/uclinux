@@ -21,10 +21,10 @@ static inline void wrusp(unsigned long usp) {
 }
 
 /*
- * User space process size: 3.75GB. This is hardcoded into a few places,
- * so don't change it unless you know what you are doing.
+ * User space process size: 1st byte beyond user address space.
  */
-#define TASK_SIZE	(0xF0000000UL)
+extern unsigned long memory_end;
+#define TASK_SIZE	(memory_end)
 
 #define TASK_UNMAPPED_BASE	0	
 
