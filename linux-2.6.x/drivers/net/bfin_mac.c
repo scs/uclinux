@@ -262,7 +262,7 @@ static int bf537mac_setphy(struct net_device *dev)
   u32 sysctl;
   struct bf537mac_local *lp = netdev_priv(dev);
   
-  printk("bf537_mac: start settting up phy\n");
+  //printk("bf537_mac: start settting up phy\n");
 
   //Program PHY registers
   phydat = 0;
@@ -523,7 +523,7 @@ static int bf537mac_enable(struct net_device *dev)
   u32 opmode;
   //u32 pkt_status;
 
-  printk("%s: %s\n", dev->name, __FUNCTION__);
+  //printk("%s: %s\n", dev->name, __FUNCTION__);
 
   /* Set RX DMA */
   *pDMA1_NEXT_DESC_PTR = &(rx_list_head->desc_a);
@@ -550,7 +550,7 @@ static int bf537mac_enable(struct net_device *dev)
 /* Our watchdog timed out. Called by the networking layer */
 static void bf537mac_timeout(struct net_device *dev)
 {
-  printk("%s: %s\n", dev->name, __FUNCTION__);
+  //printk("%s: %s\n", dev->name, __FUNCTION__);
 
   bf537mac_reset();
 
@@ -595,7 +595,7 @@ static void bf537mac_set_multicast_list(struct net_device *dev)
  */
 static void bf537mac_shutdown(struct net_device *dev)
 {
-  printk("Eth_shutdown: ......\n");
+  //printk("Eth_shutdown: ......\n");
   
   /* Turn off the EMAC */
   *pEMAC_OPMODE = 0x00000000;
@@ -612,7 +612,7 @@ static void bf537mac_shutdown(struct net_device *dev)
  */
 static int bf537mac_open(struct net_device *dev)
 {
-  printk("%s: %s\n", dev->name, __FUNCTION__);
+  //printk("%s: %s\n", dev->name, __FUNCTION__);
 
   /*
    * Check that the address is valid.  If its not, refuse
@@ -633,7 +633,7 @@ static int bf537mac_open(struct net_device *dev)
   bf537mac_reset(); 
   bf537mac_enable(dev); 
   
-  printk("bf537_mac: hardware init finished\n");
+  //printk("bf537_mac: hardware init finished\n");
   netif_start_queue(dev); 
   
   return 0;
@@ -647,7 +647,7 @@ static int bf537mac_open(struct net_device *dev)
  */
 static int bf537mac_close(struct net_device *dev)
 {
-  printk("%s: %s\n", dev->name, __FUNCTION__);
+  //printk("%s: %s\n", dev->name, __FUNCTION__);
 
   netif_stop_queue(dev);
   netif_carrier_off(dev);
@@ -670,7 +670,7 @@ static int __init bf537mac_probe(struct net_device *dev)
   *pEMAC_ADDRLO = 0x12345678;
   tmp = *pEMAC_ADDRLO;
   if (tmp != 0x12345678) {
-    printk("bf537_mac: can't detect bf537 mac!\n");
+    //printk("bf537_mac: can't detect bf537 mac!\n");
     retval = -ENODEV;
     goto err_out;
   }
@@ -741,7 +741,7 @@ static int __init bf537mac_probe(struct net_device *dev)
   retval = register_netdev(dev);
   if (retval == 0) {
     /* now, print out the card info, in a short format.. */
-    printk("Blackfin 537 mac net device registered.\n");
+    //printk("Blackfin 537 mac net device registered.\n");
   }
   
  err_out:
@@ -773,7 +773,7 @@ static int bf537mac_drv_probe(struct device *dev)
 
   dev_set_drvdata(dev, ndev);
 
-  printk("bf537_mac: probe finished\n");
+  //printk("bf537_mac: probe finished\n");
   return ret;
 }
 
