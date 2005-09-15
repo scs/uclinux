@@ -810,7 +810,7 @@ config SMC91X
 
 config BFIN_MAC
         tristate "Blackfin 536/537 on-chip mac support"
-	depends on NET_ETHERNET && BF537 && BF536
+	depends on NET_ETHERNET && (BF537 || BF536)
 	select CRC32
 	help
 	  This is the driver for blackfin on-chip mac device. Say Y if you want it
