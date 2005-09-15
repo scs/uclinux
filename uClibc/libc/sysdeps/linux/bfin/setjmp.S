@@ -13,8 +13,10 @@
 #define _SETJMP_H
 #include <bits/setjmp.h>
 
-.globl ___sigsetjmp;
+.text;
 .align 4;
+.globl ___sigsetjmp;
+.type ___sigsetjmp, STT_FUNC;
 
 ___sigsetjmp:
 	[--SP] = P0;	/* Save P0 */
@@ -96,14 +98,5 @@ ___sigsetjmp:
 	[P0 + 0x9C] = R0;
 
 	R0 = [P0 + 0x20];
-	CC = R1 == 1;
-	IF CC JUMP finished;
-	SP += -12;
-	[--SP] = RETS; 
-	CALL ___sigjmp_save; 
-	RETS = [SP++]; 
-	SP += 12;
-finished:
-	R0 = 0;
-	RTS;
-___sigsetjmp.end:
+	JUMP.L ___sigjmp_save; 
+.size ___sigsetjmp, .-___sigsetjmp

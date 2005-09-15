@@ -6,8 +6,10 @@
 #define _SETJMP_H
 #include <bits/setjmp.h>
 
-.globl __setjmp;
+.text;
 .align 4;
+.globl __setjmp;
+.type __setjmp, STT_FUNC;
 
 __setjmp:
 	[--SP] = P0;	// Save P0
@@ -88,10 +90,8 @@ __setjmp:
 	R0 = RETS;
 	[P0 + 0x9C] = R0;
 
-	R0 = [P0 + 0x20];
 	R0 = 0;
 
 	RTS;
-__setjmp.end:
-
+.size __setjmp, .-__setjmp
 
