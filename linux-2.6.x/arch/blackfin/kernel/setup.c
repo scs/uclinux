@@ -310,8 +310,6 @@ static void __init generate_cpl_tables(void)
 #if !defined(CONFIG_BF531) 
 	pos = fill_cpl_tables(dpdt_table, pos, L1_DATA_B_START, L1_DATA_B_START + L1_DATA_B_LENGTH, SIZE_4K, L1_DMEMORY);
 #endif
-	while (pos < 32)
-			pos = fill_cpl_tables(icplb_table, pos, 0, 1 , SIZE_4M, 0);
   *(dpdt_table + pos)= -1;
 #endif
 
@@ -327,6 +325,8 @@ static void __init generate_cpl_tables(void)
 	pos = fill_cpl_tables(icplb_table, pos, RAM_END - SIZE_1M, RAM_END, SIZE_1M, SDRAM_INON_CHBL);
 	pos = fill_cpl_tables(icplb_table, pos, ASYNC_BANK0_BASE, ASYNC_BANK0_BASE + ASYNC_BANK0_SIZE, ASYNC_BANK0_SIZE, SDRAM_EBIU);
 	pos = fill_cpl_tables(icplb_table, pos, SIZE_4M, SIZE_4M+(icplb_avail * SIZE_4M), SIZE_4M, SDRAM_IGENERIC);
+	while (pos < 32)
+			pos = fill_cpl_tables(icplb_table, pos, 0, 1 , SIZE_4M, 0);
   *(icplb_table + pos)= -1;
 
 /* Generarte ICPLB switch table */
