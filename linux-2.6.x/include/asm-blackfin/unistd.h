@@ -249,7 +249,7 @@
 #define __NR_fadvise64		250
 #define __NR_exit_group		252
 #define __NR_lookup_dcookie     253
-
+#define __NR_bfin_spinlock      254
 #define __NR_syscall		256
 #define NR_syscalls		__NR_syscall	
 

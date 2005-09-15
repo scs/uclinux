@@ -108,20 +108,39 @@ extable:
 	.long ex_trap_c
 .text
 
+ENTRY(ex_spinlock)
+	/* Transform this into a syscall - twiddle the syscall vector.  */
+	p5.l = lo(EVT15);
+	p5.h = hi(EVT15);
+	r7.l = spinlock_bh;
+	r7.h = spinlock_bh;
+	[p5] = r7;
+	csync;
+	/* Fall through.  */
+
 ENTRY(ex_syscall)
 	(R7:6,P5:4) = [sp++];
 	ASTAT = [sp++];
 	raise 15;		/* invoked by TRAP #0, for sys call */
 	rtx
 
-ENTRY(ex_spinlock)
-	P5 = R0;
-	R0 = [P5];
-	R7 = 1;
-	[P5] = R7;
-	(R7:6,P5:4) = [sp++];
-	ASTAT = [sp++];
-	rtx
+ENTRY(spinlock_bh)
+	SAVE_ALL_SYS
+	/* To end up here, vector 15 was changed - so we have to change it
+	   back.  */
+	p0.l = lo(EVT15);
+	p0.h = hi(EVT15);
+	p1.l = evt_system_call;
+	p1.h = evt_system_call;
+	[p0] = p1;
+	csync;
+	r0 = [sp + PT_R0];
+	sp += -12;
+	call sys_bfin_spinlock;
+	sp += 12;
+	[SP + PT_R0] = R0;
+	RESTORE_ALL_SYS
+	rti;
 
 ENTRY(ex_trap_c)
 	(R7:6,P5:4) = [sp++];
@@ -755,7 +774,7 @@ ENTRY(sys_call_table)
 	.long sys_ni_syscall	/* sys_freec_hugepages */
 	.long sys_exit_group
 	.long sys_lookup_dcookie
-
-	.rept 3
+	.long sys_bfin_spinlock
+	.rept 2
 	.long (sys_ni_syscall)
 	.endr

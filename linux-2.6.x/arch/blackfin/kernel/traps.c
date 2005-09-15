@@ -96,16 +96,7 @@ asmlinkage void trap_c(struct pt_regs *fp)
 		sig = SIGTRAP;
 		break;
 	    case VEC_EXCPT04:		/* Atomic test and set service */
-		{
-		  int *spinlock = (int *)fp->r0;
-		  if (*spinlock)
-		    fp->r0 = 1;
-		  else
-		    {
-		      *spinlock = 1;
-		      fp->r0 = 0;
-		    }
-		}
+		panic ("Exception 4");
 		goto nsig;
 	    case VEC_UNDEF_I:
 		info.si_code = ILL_ILLOPC;
@@ -273,11 +264,11 @@ void dump(struct pt_regs *fp)
 			(int) current->mm->start_stack);
 	}
 
-	printk("PC: %08lx; contents of [PC-16...PC+8[:\n", fp->pc);
+	printk("RETX: %08lx; contents of [RETX-16...RETX+8[:\n", fp->retx);
 	for (i = -16; i < 8; i++)
 	{
 		unsigned short x;
-		get_user (x, (unsigned short *)fp->pc + i);
+		get_user (x, (unsigned short *)fp->retx + i);
 		if (i == -8)
 			printk ("\n");
 		if (i == 0)
@@ -318,4 +309,12 @@ void dump(struct pt_regs *fp)
 		rdusp(), fp->astat);
 
 	printk("\n\n");
+}
+
+asmlinkage int sys_bfin_spinlock (int *spinlock)
+{
+    if (*spinlock)
+	return 1;
+    *spinlock = 1;
+    return 0;
 }
