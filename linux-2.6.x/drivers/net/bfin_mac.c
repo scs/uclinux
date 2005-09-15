@@ -51,7 +51,7 @@ MODULE_LICENSE("GPL");
 static void desc_list_free(void);
 
 /* transmit net_dma_desc numbers */
-#define  INIT_DESC_NUM 8
+#define  INIT_DESC_NUM 32
 #define  MAX_DESC_NUM 64
 #define  MAX_RX_DESC_NUM 8
 
@@ -61,35 +61,15 @@ struct net_dma_desc *tx_list_tail;
 struct net_dma_desc *rx_list_head;
 struct net_dma_desc *rx_list_tail;
 struct net_dma_desc *current_rx_ptr;
+struct net_dma_desc *current_tx_ptr;
 
 u8  SrcAddr[6] = {0x02,0x80,0xAD,0x20,0x31,0xB8};
 int current_desc_num;
-int first_packet = 1;
 
-/*
-static int adjust_tx_list(void) 
-{
-  struct net_dma_desc *tmp_ptr;
-  int freed_no;
 
-  tmp_ptr = tx_list_head;
-  freed_no = 0;
-  
-  do {
-    // go through the tx list, adjust head pointer 
-    for (tmp_ptr = tx_list_head; tmp_ptr != tx_list_tail; tmp_ptr = tmp_ptr->next) {
-      if (tmp_ptr->status.status_word & TX_COMP) { // this packet has been sent 
-	tx_list_head = tx_list_head->next;
-	freed_no++;
-      } else { // get to a packet which is not sent 
-	break;
-      }
-    }
-  } while (freed_no == 0);
 
-  return 0;
-}
-*/
+
+extern unsigned long l1_data_A_sram_alloc(unsigned long size);
 
 static int desc_list_init(void) 
 {
@@ -101,6 +81,7 @@ static int desc_list_init(void)
   if (current_desc_num == 0) {
     for (i=0;i < INIT_DESC_NUM;i++) {
       tmp_desc = (struct net_dma_desc *)dma_alloc_coherent(NULL, sizeof(struct net_dma_desc), &dma_handle , GFP_DMA);
+      //tmp_desc  =  (struct net_dma_desc *)l1_data_A_sram_alloc(sizeof(struct net_dma_desc));
       if (tmp_desc == NULL) {
 	goto error;
       }
@@ -112,7 +93,7 @@ static int desc_list_init(void)
 
       tmp_desc->desc_a.start_addr = (unsigned long)tmp_desc->packet;
       tmp_desc->desc_a.x_count = 0;
-      tmp_desc->desc_a.config.b_DMA_EN = 1;        //disabled
+      tmp_desc->desc_a.config.b_DMA_EN = 0;        //disabled
       tmp_desc->desc_a.config.b_WNR    = 0;        //read from memory
       tmp_desc->desc_a.config.b_WDSIZE = 2;        //wordsize is 32 bits
       tmp_desc->desc_a.config.b_NDSIZE = 6;        //6 half words is desc size.
@@ -124,8 +105,9 @@ static int desc_list_init(void)
       tmp_desc->desc_b.config.b_DMA_EN = 1;        //disabled
       tmp_desc->desc_b.config.b_WNR    = 1;        //write to memory
       tmp_desc->desc_b.config.b_WDSIZE = 2;        //wordsize is 32 bits
-      tmp_desc->desc_b.config.b_NDSIZE = 0;        
-      tmp_desc->desc_b.config.b_FLOW   = 0;        //stop mode
+      tmp_desc->desc_b.config.b_DI_EN  = 0;        //disable interrupt
+      tmp_desc->desc_b.config.b_NDSIZE = 6;        
+      tmp_desc->desc_b.config.b_FLOW   = 7;        //stop mode
       tx_list_tail->desc_b.next_dma_desc = &(tmp_desc->desc_a);      
       tx_list_tail->next = tmp_desc;
 
@@ -134,11 +116,13 @@ static int desc_list_init(void)
     tx_list_tail->next = tx_list_head;  /* tx_list is a circle */
     tx_list_tail->desc_b.next_dma_desc = &(tx_list_head->desc_a);
     current_desc_num = INIT_DESC_NUM;
+    current_tx_ptr = tx_list_head;
   }
 
   /* init rx_list */
   for (i = 0; i < MAX_RX_DESC_NUM; i++) {
-    tmp_desc = (struct net_dma_desc *)dma_alloc_coherent(NULL, sizeof(struct net_dma_desc), &dma_handle , GFP_DMA);
+    //tmp_desc = (struct net_dma_desc *)dma_alloc_coherent(NULL, sizeof(struct net_dma_desc), &dma_handle , GFP_DMA);
+    tmp_desc  =  (struct net_dma_desc *)l1_data_A_sram_alloc(sizeof(struct net_dma_desc));
     if (tmp_desc == NULL) {
       goto error;
     }
@@ -162,9 +146,9 @@ static int desc_list_init(void)
     tmp_desc->desc_b.config.b_DMA_EN = 1;        //enabled
     tmp_desc->desc_b.config.b_WNR    = 1;        //Write to memory
     tmp_desc->desc_b.config.b_WDSIZE = 2;        //wordsize is 32 bits
-    tmp_desc->desc_b.config.b_NDSIZE = 0;        
+    tmp_desc->desc_b.config.b_NDSIZE = 6;        
     tmp_desc->desc_b.config.b_DI_EN  = 1;        //enable interrupt
-    tmp_desc->desc_b.config.b_FLOW   = 0;        //stop
+    tmp_desc->desc_b.config.b_FLOW   = 7;        //stop
     rx_list_tail->desc_b.next_dma_desc = &(tmp_desc->desc_a);
   
     rx_list_tail->next = tmp_desc;
@@ -381,58 +365,69 @@ void SetupMacAddr(u8 *mac_addr)
   *pEMAC_ADDRHI = *(u16 *)&mac_addr[4];
 }
 
+static void adjust_tx_list(void)
+{
+  int i = 0;
 
+  /* current's next can not be the head, otherwise the dma will not stop as we want */
+  if (current_tx_ptr->next->next == tx_list_head) {
+    while (tx_list_head->status.status_word == 0) {
+      udelay(100);
+      i++;
+      if (i == 10) {
+	printk("tx list error!\n");
+	i = 0;
+	tx_list_head->desc_a.config.b_DMA_EN = 0;
+	tx_list_head = tx_list_head->next;
+	break;
+      }	
+    }      
+  }
+  
+  if ((tx_list_head->status.status_word != 0)) {
+    tx_list_head->status.status_word = 0;
+    tx_list_head->desc_a.config.b_DMA_EN = 0;
+    tx_list_head = tx_list_head->next;
+   }
+}
 
 static int bf537mac_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
-  unsigned short len;
-  struct net_dma_desc *tail;
   struct bf537mac_local *lp = netdev_priv(dev);
-  unsigned short *length;
+  unsigned int data;
+  /* warning: printk in this function may cause error */
 
-  len = skb->len;
-  tail = tx_list_tail;
-
-  /* adjust head and tail pointer */
-  //adjust_tx_list();
-  //if(!first_packet) { 
-  //  while(tail->status.status_word == 0) ;
-  //}
+  //move skb->data to current_tx_ptr payload 
+  data = (unsigned int)(skb->data);
+  data -= 2; 
+  *((unsigned short *)data) = (unsigned short)(skb->len); 
+  current_tx_ptr->desc_a.start_addr = (unsigned long)data; 
+  blackfin_dcache_invalidate_range(data, (data+(skb->len)));  //this is important!
   
-  /* check send status here before another send*/
-  if(!first_packet)
-    while(tail->status.status_word == 0);
-  //while ((*pDMA2_IRQ_STATUS & 0x01) == 0);
+  // Is skb->data always 16-bit aligned? Do we need to memcpy((char *)(tail->packet + 2),skb->data,len)? 
+  //if ( ((((unsigned int)(skb->data))/2) & 1) == 0 )  printk("skb data not aligned, 0x%x\n", (unsigned int)(skb->data)); 
+  //*((unsigned short *)(current_tx_ptr->packet)) = (unsigned short)(skb->len);
+  //memcpy((char *)(current_tx_ptr->packet + 2),skb->data,(skb->len));
   
-  tail->status.status_word = 0;
-
-  length = (unsigned short *)(tail->packet);
-  /* add the packet to tail */
-  *length = (unsigned short)len; 
-  memcpy((char *)(tail->packet + 2),skb->data,len);
-
+  current_tx_ptr->desc_a.config.b_DMA_EN = 1;   //enable this packet's dma
+  if (*pDMA2_IRQ_STATUS & 0x08) { //tx dma is running, just return
+    goto out;
+  } else {        //tx dma is not running 
+    *pDMA2_NEXT_DESC_PTR = (&(current_tx_ptr->desc_a));
+    *pDMA2_CONFIG  = *((unsigned short *)(&(current_tx_ptr->desc_a.config)));; // dma enabled, read from memory, size is 6
+    // Turn on the EMAC tx 
+    *pEMAC_OPMODE |= TE;
+  }
   
-  *pDMA2_NEXT_DESC_PTR = (&(tail->desc_a));
-  *pDMA2_CONFIG  = *((unsigned short *)(&(tail->desc_a.config)));; // dma enabled, read from memory, size is 6
+ out:   
+  adjust_tx_list();
+  current_tx_ptr = current_tx_ptr->next;
 
-  /* Turn on the EMAC tx */
-  *pEMAC_OPMODE |= TE;
-  first_packet = 0;
-
-  /* not wait here */
-  // while(tail->status.status_word == 0);
-  //while ((*pDMA2_IRQ_STATUS & 0x01) == 0);
-
-  /* no need to stop mac */
-  //*pEMAC_OPMODE &= ~TE;
-    
-  //tx_list_tail = tail->next;
-  
   dev->trans_start = jiffies;
   lp->stats.tx_packets++;
-  lp->stats.tx_bytes += len;
-
+  lp->stats.tx_bytes += (skb->len);
   dev_kfree_skb(skb);
+  //printk("sending one...\n");
   return 0;
 }
 
@@ -440,7 +435,12 @@ static int bf537mac_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 static void bf537mac_poll(struct net_device* dev)
 {
   disable_irq(IRQ_MAC_RX);
-  bf537mac_interrupt(IRQ_MAC_RX, dev, NULL);
+
+  len = (unsigned short)((current_rx_ptr->status.status_word) & RX_FRLEN);
+  bf537mac_rx(dev, (char *)(current_rx_ptr->packet), len);
+  current_rx_ptr->status.status_word = 0x00000000;
+  current_rx_ptr = current_rx_ptr->next;
+
   enable_irq(IRQ_MAC_RX);
 }
 #endif /* CONFIG_NET_POLL_CONTROLLER */
@@ -450,7 +450,6 @@ static void bf537mac_rx(struct net_device *dev, unsigned char *pkt, int len)
 {
   struct sk_buff *skb;
   struct bf537mac_local *lp = netdev_priv(dev);
-  //int i;
 
   skb = dev_alloc_skb(len + 2);
   if (!skb) {
@@ -470,8 +469,6 @@ static void bf537mac_rx(struct net_device *dev, unsigned char *pkt, int len)
     printk("\n");
   }
   */
-  
-
   memcpy(skb_put(skb, len), pkt+2, len);
 
   dev->last_rx = jiffies;
@@ -492,29 +489,18 @@ static irqreturn_t bf537mac_interrupt(int irq, void *dev_id, struct pt_regs *reg
   struct net_device *dev = dev_id;
   unsigned short len;
   
-  /*
-  printk("next_dma_ptr reg is 0x%x, current_rx_ptr->desc_a is 0x%x, current_rx_ptr->next->desc_a is 0x%x \n", (unsigned int)(*pDMA1_NEXT_DESC_PTR), (unsigned int)&(current_rx_ptr->desc_a), (unsigned int)&(current_rx_ptr->next->desc_a));
-  printk("next_dma_ptr reg is 0x%x, current_rx_ptr->desc_a is 0x%x, current_rx_ptr is 0x%x, current_rx_ptr->desc_b.startaddr is 0x%x \n", (unsigned int)(*pDMA1_NEXT_DESC_PTR), (unsigned int)&(current_rx_ptr->desc_b), (unsigned int)(current_rx_ptr->status.status_word), (unsigned int)(current_rx_ptr->desc_b.start_addr));
-  printk("reg curr_dma_reg is 0x%x, curr start_add is 0x%x, next_dma_reg is 0x%x\n", (unsigned int)(*pDMA1_CURR_DESC_PTR), (unsigned int)(*pDMA1_CURR_ADDR), (unsigned int)(*pDMA1_NEXT_DESC_PTR));
-  */
-
-  if ((current_rx_ptr->status.status_word & RX_COMP) == 0) { // no packet received
+ get_one_packet:
+  if (current_rx_ptr->status.status_word == 0) { // no more new packet received
+    *pDMA1_IRQ_STATUS |= DMA_DONE|DMA_ERR;
+    //printk("now return..\n");
     return IRQ_HANDLED;
   }
   
   len = (unsigned short)((current_rx_ptr->status.status_word) & RX_FRLEN);
   bf537mac_rx(dev, (char *)(current_rx_ptr->packet), len);
-  
-  /* doesn't need to clear status_word */
-  //current_rx_ptr->status.status_word = 0x00000000;
-  
+  current_rx_ptr->status.status_word = 0x00000000;
   current_rx_ptr = current_rx_ptr->next;
-  
-  *pDMA1_IRQ_STATUS |= DMA_DONE|DMA_ERR;
-  *pDMA1_CONFIG &= ~0x01;
-  *pDMA1_CONFIG = *((unsigned short *)(&(current_rx_ptr->desc_a.config)));
-  
-  return IRQ_HANDLED;
+  goto get_one_packet;
 }
 
 
@@ -691,9 +677,9 @@ static int __init bf537mac_probe(struct net_device *dev)
 
   //GET_MAC_ADDR(dev->dev_addr);
   {
-    dev->dev_addr[0] = 0x00; dev->dev_addr[1] = 0xcf;
-    dev->dev_addr[2] = 0x52; dev->dev_addr[3] = 0x49;
-    dev->dev_addr[4] = 0xc3; dev->dev_addr[4] = 0x01;
+    dev->dev_addr[0] = 0x02; dev->dev_addr[1] = 0x80;
+    dev->dev_addr[2] = 0xAD; dev->dev_addr[3] = 0x20;
+    dev->dev_addr[4] = 0x31; dev->dev_addr[4] = 0xB8;
   }
   SetupMacAddr(dev->dev_addr);
 
@@ -729,6 +715,19 @@ static int __init bf537mac_probe(struct net_device *dev)
     printk("Unable to attach BlackFin MAC RX interrupt\n");
     return -EBUSY;
   }
+
+  /*
+  if (request_irq(IRQ_MAC_ERROR, bf537mac_interrupt1, SA_INTERRUPT|SA_SHIRQ, "BFIN537_MAC_error",dev)) {
+    printk("Unable to attach BlackFin MAC RX interrupt\n");
+    return -EBUSY;
+  }
+
+ 
+  if (request_irq(IRQ_MAC_TX, bf537mac_interrupt2, SA_INTERRUPT|SA_SHIRQ, "BFIN537_MAC_tx",dev)) {
+    printk("Unable to attach BlackFin MAC RX interrupt\n");
+    return -EBUSY;
+  }
+  */
   
 
   /*
