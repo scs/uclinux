@@ -17,6 +17,7 @@
 .extern bf53x_relocate_l1_mem
 
 #define FILE_HEAD_START	0x00000404
+#define INITIAL_STACK	0xFFB01000
 
 .text
 
@@ -119,6 +120,15 @@ ENTRY(_stext)
 	r0 = 0x0(Z);
 	w[p0] = r0.L;	/* To enable UART clock */
 	ssync;
+
+	/* Initialize stack pointer */
+	sp.l = lo(INITIAL_STACK);
+        sp.h = hi(INITIAL_STACK);
+        fp = sp;
+        usp = sp;
+
+	
+
 
 	/*Put The Code for PLL Programming and SDRAM Programming in L1 ISRAM*/
 	call bf53x_relocate_l1_mem;

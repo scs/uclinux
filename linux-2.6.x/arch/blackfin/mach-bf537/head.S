@@ -20,6 +20,7 @@
 .extern bf53x_relocate_l1_mem
 
 #define FILE_HEAD_START	0x00000404
+#define INITIAL_STACK   0xFFB01000
 
 .text
 
@@ -152,6 +153,12 @@ ENTRY(_stext)
 	w[p0] = r0.L;	/* To enable UART clock */
 	ssync;
 
+        /* Initialize stack pointer */
+        sp.l = lo(INITIAL_STACK);
+        sp.h = hi(INITIAL_STACK);
+        fp = sp;
+        usp = sp;
+
 #ifndef CONFIG_LOADVDSP
 	/*Put The Code for PLL Programming and SDRAM Programming in L1 ISRAM*/
 	call bf53x_relocate_l1_mem;
@@ -185,15 +192,6 @@ ENTRY(_stext)
          * during kernel boot.  Switches to user mode at end of boot.
 	 * See page 3-9 of Hardware Reference manual for documentation.
 	 */
-
-#ifdef CONFIG_LOADVDSP
-        sp.l = (0xffb01000 & 0xFFFF);
-        sp.h = (0xffb01000 >> 16);
-        fp = sp;
-        usp = sp;
-#endif
-
-
 
 	/* EVT15 = _real_start */
 
