@@ -27,6 +27,7 @@
 
 extern long int testandset (int *spinlock);
 
+#include <asm/unistd.h>
 /* Spinlock implementation; required.  */
 /* The semantics of the TESTSET instruction cannot be guaranteed. We cannot
    easily move all locks used by linux kernel to non-cacheable memory.
@@ -38,10 +39,11 @@ PT_EI long int
 testandset (int *spinlock)
 {
   long int res;
-  asm volatile ("R0 = %2; EXCPT 0x4; %0 = R0;"
+  asm volatile ("R0 = %2; P0 = %4; EXCPT 0; %0 = R0;"
                 : "=d" (res), "=m" (*spinlock)
-                : "d" (spinlock), "m" (*spinlock)
-                :"R0", "cc");
+                : "d" (spinlock), "m" (*spinlock),
+		  "ida" (__NR_bfin_spinlock)
+                :"R0", "P0", "cc");
   return res;
 }
 
