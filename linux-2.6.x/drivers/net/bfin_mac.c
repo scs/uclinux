@@ -431,21 +431,6 @@ static int bf537mac_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
   return 0;
 }
 
-#ifdef CONFIG_NET_POLL_CONTROLLER
-static void bf537mac_poll(struct net_device* dev)
-{
-  disable_irq(IRQ_MAC_RX);
-
-  len = (unsigned short)((current_rx_ptr->status.status_word) & RX_FRLEN);
-  bf537mac_rx(dev, (char *)(current_rx_ptr->packet), len);
-  current_rx_ptr->status.status_word = 0x00000000;
-  current_rx_ptr = current_rx_ptr->next;
-
-  enable_irq(IRQ_MAC_RX);
-}
-#endif /* CONFIG_NET_POLL_CONTROLLER */
-
-
 static void bf537mac_rx(struct net_device *dev, unsigned char *pkt, int len)
 {
   struct sk_buff *skb;
@@ -481,6 +466,28 @@ static void bf537mac_rx(struct net_device *dev, unsigned char *pkt, int len)
  out:
   return;
 }
+
+#ifdef CONFIG_NET_POLL_CONTROLLER
+static void bf537mac_poll(struct net_device* dev)
+{
+  unsigned short len;
+
+  disable_irq(IRQ_MAC_RX);
+
+  if (current_rx_ptr->status.status_word == 0) { // no more new packet received
+    //printk("now return..\n");
+    enable_irq(IRQ_MAC_RX);
+    return;
+  }
+
+  len = (unsigned short)((current_rx_ptr->status.status_word) & RX_FRLEN);
+  bf537mac_rx(dev, (char *)(current_rx_ptr->packet), len);
+  current_rx_ptr->status.status_word = 0x00000000;
+  current_rx_ptr = current_rx_ptr->next;
+
+  enable_irq(IRQ_MAC_RX);
+}
+#endif /* CONFIG_NET_POLL_CONTROLLER */
 
 
 /* interrupt routine to handle rx and error signal */
