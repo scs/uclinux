@@ -52,7 +52,7 @@ static inline void switch_to_flash(struct flash_save *save)
 	__builtin_bfin_ssync();
 }
 #else
-static static inline void switch_to_flash(struct flash_save *save) {}
+static inline void switch_to_flash(struct flash_save *save) {}
 #endif
 
 #if defined(CONFIG_BFIN_SHARED_FLASH_ENET)
