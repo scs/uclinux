@@ -164,6 +164,9 @@ static inline long
 strncpy_from_user(char *dst, const char *src, long count)
 {
 	char *tmp;
+	if((unsigned long)src > memory_end){
+		return -EFAULT;
+	}
 	strncpy(dst, src, count);
 	for (tmp = dst; *tmp && count > 0; tmp++, count--)
 		;
