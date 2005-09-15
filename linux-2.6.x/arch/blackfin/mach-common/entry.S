@@ -39,26 +39,94 @@
 #include <asm/thread_info.h>  /* TIF_NEED_RESCHED */
 #include <asm/asm-offsets.h>
 
+.data
+ALIGN
+extable:
+	.long ex_syscall;
+	.long ex_trap_c
+	.long ex_trap_c
+	.long ex_trap_c
+	.long ex_spinlock
+	.long ex_trap_c
+	.long ex_trap_c
+	.long ex_trap_c
+	.long ex_trap_c
+	.long ex_trap_c
+	.long ex_trap_c
+	.long ex_trap_c
+	.long ex_trap_c
+	.long ex_trap_c
+	.long ex_trap_c
+	.long ex_trap_c
+	.long ex_trap_c
+	.long ex_trap_c
+	.long ex_trap_c
+	.long ex_trap_c
+	.long ex_trap_c
+	.long ex_trap_c
+	.long ex_trap_c
+	.long ex_trap_c
+	.long ex_trap_c
+	.long ex_trap_c
+	.long ex_trap_c
+	.long ex_trap_c
+	.long ex_trap_c
+	.long ex_trap_c
+	.long ex_trap_c
+	.long ex_trap_c
+	.long ex_trap_c
+	.long ex_trap_c
+	.long ex_trap_c
+	.long ex_trap_c
+	.long ex_trap_c
+	.long ex_trap_c
+	.long ex_trap_c
+	.long ex_trap_c
+	.long ex_trap_c
+	.long ex_trap_c
+	.long ex_trap_c
+	.long ex_trap_c
+	.long ex_trap_c
+	.long ex_trap_c
+	.long ex_trap_c
+	.long ex_trap_c
+	.long ex_trap_c
+	.long ex_trap_c
+	.long ex_trap_c
+	.long ex_trap_c
+	.long ex_trap_c
+	.long ex_trap_c
+	.long ex_trap_c
+	.long ex_trap_c
+	.long ex_trap_c
+	.long ex_trap_c
+	.long ex_trap_c
+	.long ex_trap_c
+	.long ex_trap_c
+	.long ex_trap_c
+	.long ex_trap_c
+	.long ex_trap_c
 .text
 
-ENTRY(trap) /* Exception: 4th entry into system event table(supervisor mode)*/
-	/* Try to deal with syscalls quickly.  */
-	[--sp] = ASTAT;
-	[--sp] = (R7:6);
-	r7 = SEQSTAT;	/* reason code is in bit 5:0 */
-	r6.l = lo(SEQSTAT_EXCAUSE);
-	r6.h = hi(SEQSTAT_EXCAUSE);
-	r7 = r7 & r6;
-	CC = r7 == 0;
-	(R7:6) = [sp++];
-	if ! cc jump 1f;
+ENTRY(ex_syscall)
+	(R7:6,P5:4) = [sp++];
 	ASTAT = [sp++];
 	raise 15;		/* invoked by TRAP #0, for sys call */
 	rtx
-1:
+
+ENTRY(ex_spinlock)
+	P5 = R0;
+	R0 = [P5];
+	R7 = 1;
+	[P5] = R7;
+	(R7:6,P5:4) = [sp++];
 	ASTAT = [sp++];
-	SAVE_ALL_SYS
-	
+	rtx
+
+ENTRY(ex_trap_c)
+	(R7:6,P5:4) = [sp++];
+	ASTAT = [sp++];
+	SAVE_ALL_SYS;
         p2.l = lo(IPEND);
         p2.h = hi(IPEND);
 	csync;
@@ -72,6 +140,21 @@ ENTRY(trap) /* Exception: 4th entry into system event table(supervisor mode)*/
 	call ret_from_exception;
 	RESTORE_ALL_SYS
 	rtx;
+	
+ENTRY(trap) /* Exception: 4th entry into system event table(supervisor mode)*/
+	/* Try to deal with syscalls quickly.  */
+	[--sp] = ASTAT;
+	[--sp] = (R7:6, P5:4);
+	r7 = SEQSTAT;	/* reason code is in bit 5:0 */
+	r6.l = lo(SEQSTAT_EXCAUSE);
+	r6.h = hi(SEQSTAT_EXCAUSE);
+	r7 = r7 & r6;
+	p5.h = extable;
+	p5.l = extable;
+	p4 = r7;
+	p5 = p5 + (p4 << 2);
+	p4 = [p5];
+	jump (p4);
 
 badsys:
 	r7 = -ENOSYS; 		/* signextending enough */
