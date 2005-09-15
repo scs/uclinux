@@ -18,7 +18,7 @@
 #include <asm/uaccess.h>
 #include <asm/traps.h>
 #include <asm/blackfin.h>
-
+#include <linux/interrupt.h>
 /*
 . EXCEPTION TRAPS DEBUGGING LEVELS
 .
@@ -313,8 +313,11 @@ void dump(struct pt_regs *fp)
 
 asmlinkage int sys_bfin_spinlock (int *spinlock)
 {
+    int ret = 0;
+    cli();
     if (*spinlock)
-	return 1;
+	ret = 1;
     *spinlock = 1;
-    return 0;
+    sti();
+    return ret;
 }
