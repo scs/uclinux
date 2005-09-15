@@ -96,7 +96,7 @@ void *dma_alloc_coherent(struct device *dev, size_t size,
 	{
 		memset(ret, 0, size);
 		dma_handle = (dma_addr_t*)virt_to_phys(ret);
-		printk("%s: allocated %d bytes at 0x%08lx(0x%p)\n", __FUNCTION__, size, (unsigned long)ret, dma_handle);
+		//printk("%s: allocated %d bytes at 0x%08lx(0x%p)\n", __FUNCTION__, size, (unsigned long)ret, dma_handle);
 	}
 
 	return ret;
