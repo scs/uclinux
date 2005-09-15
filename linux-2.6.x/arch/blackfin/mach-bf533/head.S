@@ -127,9 +127,6 @@ ENTRY(_stext)
         fp = sp;
         usp = sp;
 
-	
-
-
 	/*Put The Code for PLL Programming and SDRAM Programming in L1 ISRAM*/
 	call bf53x_relocate_l1_mem;
 	call start_dma_code;
