@@ -45,15 +45,14 @@ image:
 		$(MKFS_JFFS2) -d $(ROMFSDIR) -D device_table.txt -o $(JFFS2IMG); \
 	fi
 	./bfin-elf-genext2fs -i $(INODES) -b $(BLOCKS) -d $(ROMFSDIR) -D device_table.txt $(ROMFSIMG)
-	cp $(ROMFSIMG) $(ROOTDIR)/$(LINUXDIR)/
-	BSS=`set -- \`$(CROSS_COMPILE)objdump -h $(ROOTDIR)/$(LINUXDIR)/linux | grep .bss\` ; echo 0x$${4}` ; \
-	BSS_SIZE=`set -- \`$(CROSS_COMPILE)objdump -h $(ROOTDIR)/$(LINUXDIR)/linux | grep .bss\` ; echo 0x$${3}` ; \
+	cp $(ROOTDIR)/$(LINUXDIR)/linux $(IMAGEDIR)
+	BSS=`set -- \`$(CROSS_COMPILE)objdump -h $(IMAGEDIR)/linux | grep .bss\` ; echo 0x$${4}` ; \
+	BSS_SIZE=`set -- \`$(CROSS_COMPILE)objdump -h $(IMAGEDIR)/linux | grep .bss\` ; echo 0x$${3}` ; \
 	ADDR=$$(($$BSS + $$BSS_SIZE)) ; \
-	$(CROSS_COMPILE)objcopy --add-section .romfs=$(ROOTDIR)/$(LINUXDIR)/rootfs.img \
+	$(CROSS_COMPILE)objcopy --add-section .romfs=$(IMAGEDIR)/rootfs.img \
 	--adjust-section-vma .romfs=$${ADDR} --no-adjust-warnings \
 	--set-section-flags .romfs=alloc,load,data \
-	$(ROOTDIR)/$(LINUXDIR)/linux concat.dxe
-	cp concat.dxe $(IMAGE)
-	mv concat.dxe $(ROOTDIR)/$(LINUXDIR)/linux
+	$(IMAGEDIR)/linux concat.dxe
+	mv concat.dxe $(IMAGE)
 
 clean:
