@@ -257,7 +257,7 @@ config BFIN_ALIVE_LED_PIN
 	default 0x08 if (BFIN533_STAMP && ( BFIN_ALIVE_LED_NUM = 2 ))
 	default 0x10 if (BFIN533_STAMP && ( BFIN_ALIVE_LED_NUM = 3 ))
 	default 0x80 if (BFIN533_BLUETECHNIX_CM && ( BFIN_ALIVE_LED_NUM = 1 ))
-	defualt 0xC0 if (BFIN533_BLUETECHNIX_CM && ( BFIN_ALIVE_LED_NUM = 2 ))
+	default 0xC0 if (BFIN533_BLUETECHNIX_CM && ( BFIN_ALIVE_LED_NUM = 2 ))
 
 config BFIN_IDLE_LED_PORT
         hex
@@ -276,7 +276,7 @@ config BFIN_IDLE_LED_PIN
         default 0x08 if (BFIN533_STAMP && ( BFIN_IDLE_LED_NUM = 2 ))
         default 0x10 if (BFIN533_STAMP && ( BFIN_IDLE_LED_NUM = 3 ))
         default 0x80 if (BFIN533_BLUETECHNIX_CM && ( BFIN_IDLE_LED_NUM = 1 ))
-        defualt 0xC0 if (BFIN533_BLUETECHNIX_CM && ( BFIN_IDLE_LED_NUM = 2 ))
+        default 0xC0 if (BFIN533_BLUETECHNIX_CM && ( BFIN_IDLE_LED_NUM = 2 ))
 
 comment 'Console UART Setup'
 
