@@ -219,9 +219,7 @@ ifeq ($(strip $(UCLIBC_HAS_SOFT_FLOAT)),y)
 # Hmm... might need to revisit this for arm since it has 2 different
 # soft float encodings.
 # msoft-float changes m68k target arch, do not add it
-ifneq ($(strip $(TARGET_ARCH)),m68k)
-    CPU_CFLAGS += -msoft-float
-endif
+# CPU_CFLAGS += -msoft-float
 ifeq ($(strip $(TARGET_ARCH)),arm)
 # No longer needed with current toolchains, but leave it here for now.
 # If anyone is actually still using gcc 2.95 (say), they can uncomment it.
