@@ -75,19 +75,4 @@
 #define	_PATH_VARRUN	"/var/run/"
 #define	_PATH_VARTMP	"/var/tmp/"
 
-#ifdef CONFIG_USER_FLATFSD_FLATFSD
-#undef _PATH_SHADOW
-#undef _PATH_PASSWD
-#undef _PATH_GROUP
-#undef _PATH_TZ
-#undef _PATH_MNTTAB
-#undef _PATH_MOUNTED
-#define _PATH_SHADOW	"/etc/config/shadow"
-#define _PATH_PASSWD	"/etc/config/passwd"
-#define _PATH_GROUP	"/etc/config/group"
-#define _PATH_TZ		"/etc/config/TZ"
-#define	_PATH_MNTTAB	"/etc/config/fstab"
-#define	_PATH_MOUNTED	"/etc/config/mtab"
-#endif
-
 #endif /* !_PATHS_H_ */

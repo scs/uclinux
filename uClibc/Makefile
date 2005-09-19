@@ -40,7 +40,6 @@ all: headers pregen subdirs shared finished
 # In this section, we need .config
 -include .config.cmd
 
-.PHONY: $(SHARED_TARGET)
 shared: $(SHARED_TARGET)
 ifeq ($(strip $(HAVE_SHARED)),y)
 	@$(MAKE) -C libc shared
@@ -56,67 +55,18 @@ ifeq ($(strip $(UCLIBC_HAS_GETTEXT_AWARENESS)),y)
 	@$(MAKE) -C libintl shared
 endif
 else
-ifeq ($(SHARED_TARGET),)
 	@echo
 	@echo Not building shared libraries...
 	@echo
 endif
-endif
 
-ifneq ($(SHARED_TARGET),)
-
-lib/main.o: $(ROOTDIR)/lib/libc/main.c
-	$(CC) $(CFLAGS) $(ARCH_CFLAGS) -c -o $@ $(ROOTDIR)/lib/libc/main.c
-
-bogus $(SHARED_TARGET): lib/libc.a lib/main.o Makefile
-	make -C $(ROOTDIR) relink
-	$(CC) -nostartfiles -o $(SHARED_TARGET) $(ARCH_CFLAGS) -Wl,-elf2flt -nostdlib		\
-		-Wl,-shared-lib-id,${LIBID}				\
-		lib/main.o \
-		-Wl,--whole-archive,lib/libc.a,-lgcc,--no-whole-archive
-	$(OBJCOPY) -L _GLOBAL_OFFSET_TABLE_ -L main -L __main -L _start \
-		-L _main -L ___main					\
-		-L __uClibc_main -L __uClibc_start_main -L lib_main	\
-		-L ___uClibc_main -L ___uClibc_start_main		\
-		-L __exit_dummy_ref -L ___uClibc_init			\
-		-L __do_global_dtors -L __do_global_ctors		\
-		-L ___do_global_dtors -L ___do_global_ctors		\
-		-L __CTOR_LIST__ -L __DTOR_LIST_			\
-		-L ___CTOR_LIST__ -L ___DTOR_LIST__			\
-		-L _current_shared_library_a5_offset_			\
-		-L _current_shared_library_p5_offset_			\
-		$(SHARED_TARGET).gdb
-	$(LN) -sf $(SHARED_TARGET).gdb .
-endif
 
 finished: shared
 	@echo
 	@echo Finally finished compiling...
 	@echo
 
-#
-# Target for uClinux distro
-#
-.PHONY: romfs
-romfs:
-	@if [ "$(CONFIG_BINFMT_SHARED_FLAT)" = "y" ]; then \
-		[ -e $(ROMFSDIR)/lib ] || $(INSTALL) -d $(ROMFSDIR)/lib; \
-		$(ROMFSINST) $(SHARED_TARGET) /lib/lib$(LIBID).so; \
-	fi
-ifeq ($(strip $(HAVE_SHARED)),y)
-	$(INSTALL) -d $(ROMFSDIR)/lib
-	$(INSTALL) -m 644 lib/lib*-$(MAJOR_VERSION).$(MINOR_VERSION).$(SUBLEVEL).so \
-		$(ROMFSDIR)/lib
-	cp -fa lib/*.so.* $(ROMFSDIR)/lib/.
-	@if [ -x lib/ld-uClibc-$(MAJOR_VERSION).$(MINOR_VERSION).$(SUBLEVEL).so ] ; then \
-	    set -x -e; \
-	    $(INSTALL) -m 755 lib/ld-uClibc-$(MAJOR_VERSION).$(MINOR_VERSION).$(SUBLEVEL).so \
-	    		$(ROMFSDIR)/lib; \
-		$(ROMFSINST) -s \
-			/lib/ld-uClibc-$(MAJOR_VERSION).$(MINOR_VERSION).$(SUBLEVEL).so \
-			/lib/ld-linux.so.2; \
-	fi;
-endif
+UCLIBC_VERSION := $(MAJOR_VERSION).$(MINOR_VERSION).$(SUBLEVEL)
 
 include/bits/uClibc_config.h: .config
 	@if [ ! -x ./extra/config/conf ] ; then \
@@ -411,4 +361,45 @@ endif # ifeq ($(strip $(HAVE_DOT_CONFIG)),y)
 
 .PHONY: dummy subdirs release distclean clean config oldconfig menuconfig
 
+ifneq ($(SHARED_TARGET),)
+lib/main.o: $(ROOTDIR)/lib/libc/main.c
+	$(CC) $(CFLAGS) $(ARCH_CFLAGS) -c -o $@ $(ROOTDIR)/lib/libc/main.c
+
+bogus $(SHARED_TARGET): lib/libc.a lib/main.o Makefile
+	make -C $(ROOTDIR) relink
+	$(CC) -nostartfiles -o $(SHARED_TARGET) $(ARCH_CFLAGS)          \
+			-mid-shared-library -mshared-library-id=0               \
+			-Wl,-elf2flt -nostdlib -Wl,-shared-lib-id,${LIBID}      \
+			lib/main.o                                              \
+			-Wl,--whole-archive,lib/libc.a,-lgcc,--no-whole-archive
+	$(OBJCOPY) -L _GLOBAL_OFFSET_TABLE_ -L main -L __main -L _start \
+			-L __uClibc_main -L __uClibc_start_main -L lib_main     \
+			-L _exit_dummy_ref                                      \
+			-L __do_global_dtors -L __do_global_ctors               \
+			-L __CTOR_LIST__ -L __DTOR_LIST__                       \
+			-L _current_shared_library_a5_offset_                   \
+			$(SHARED_TARGET).gdb
+	$(LN) -sf $(SHARED_TARGET).gdb .
+endif
+
+#
+# Target for uClinux distro
+#
+.PHONY: romfs
+romfs:
+	[ -e $(ROMFSDIR)/lib ] || mkdir $(ROMFSDIR)/lib
+	@if [ "$(SHARED_TARGET)" ]; then \
+		$(ROMFSINST) $(SHARED_TARGET) /lib/lib$(LIBID).so; \
+	fi
+ifeq ($(strip $(HAVE_SHARED)),y)
+	@set -e; for i in lib/lib*-$(UCLIBC_VERSION).so lib/*.so.*; do \
+		$(ROMFSINST) -p 755 $$i /lib; \
+	done
+	@set -e; if [ -x lib/ld-uClibc-$(UCLIBC_VERSION).so ] ; then \
+	    $(ROMFSINST) -p 755 lib/ld-uClibc-$(UCLIBC_VERSION).so /lib; \
+		$(ROMFSINST) -s \
+			/lib/ld-uClibc-$(UCLIBC_VERSION).so \
+			/lib/ld-linux.so.2; \
+	fi;
+endif
 

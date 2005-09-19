@@ -365,6 +365,11 @@ uClibc was built without large file support enabled.
   extern __typeof (name) aliasname __attribute__ ((alias (#name)));
 /* This comes between the return type and function name in
  *    a function definition to make that definition weak.  */
+#if __GNUC__ == 2
+# define weak_decl(name)	__asm__(".weak " #name ";");
+#else
+# define weak_decl(name)
+#endif
 # define weak_function __attribute__ ((weak))
 # define weak_const_function __attribute__ ((weak, __const__))
 /* Tacking on "\n\t#" to the section name makes gcc put it's bogus

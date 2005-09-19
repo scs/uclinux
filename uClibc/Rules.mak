@@ -218,7 +218,10 @@ ifeq ($(strip $(UCLIBC_HAS_SOFT_FLOAT)),y)
 # If -msoft-float isn't supported, we want an error anyway.
 # Hmm... might need to revisit this for arm since it has 2 different
 # soft float encodings.
-#    CPU_CFLAGS += -msoft-float
+# msoft-float changes m68k target arch, do not add it
+ifneq ($(strip $(TARGET_ARCH)),m68k)
+    CPU_CFLAGS += -msoft-float
+endif
 ifeq ($(strip $(TARGET_ARCH)),arm)
 # No longer needed with current toolchains, but leave it here for now.
 # If anyone is actually still using gcc 2.95 (say), they can uncomment it.
@@ -303,11 +306,13 @@ LIBGCC_DIR:=$(dir $(LIBGCC))
 #
 
 ifeq ($(CONFIG_BINFMT_SHARED_FLAT),y)
-  # For the shared version of this, we specify no stack and its library ID
-  FLTFLAGS += -s 0
-  LIBID=1
-  export LIBID FLTFLAGS
-  SHARED_TARGET = lib/libc
+  ifndef DISABLE_SHARED_LIBS
+    # For the shared version of this, we specify no stack and its library ID
+    FLTFLAGS += -s 0
+    LIBID=1
+    export LIBID FLTFLAGS
+    SHARED_TARGET = lib/libc
+  endif
 endif
 
 TARGET_ARCH:=$(strip $(subst ",, $(strip $(TARGET_ARCH))))
