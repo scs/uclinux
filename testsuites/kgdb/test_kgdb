@@ -190,7 +190,7 @@ set timeout 10
 set case_num 0
 
 incr case_num
-spawn bfin-elf-gdb $srcdir/linux-2.6.x/vmlinux
+spawn bfin-uclinux-gdb $srcdir/linux-2.6.x/vmlinux
 set gdb_id $spawn_id
 while 1 {
       expect {
