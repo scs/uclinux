@@ -314,10 +314,10 @@ void dump(struct pt_regs *fp)
 asmlinkage int sys_bfin_spinlock (int *spinlock)
 {
     int ret = 0;
-    cli();
+    local_irq_disable();
     if (*spinlock)
 	ret = 1;
     *spinlock = 1;
-    sti();
+    local_irq_enable();
     return ret;
 }
