@@ -102,6 +102,7 @@ ENTRY(evt_evt7)
 	 SP += -12;	
 	 call do_irq;
 	 SP += 12;	
+	 call return_from_int;
 	 RESTORE_CONTEXT
 	 rti; 
 
@@ -113,6 +114,7 @@ ENTRY(evt_evt8)
 	 SP += -12;	
 	 call do_irq;
 	 SP += 12;	
+	 call return_from_int;
 	 RESTORE_CONTEXT
 	 rti; 
 
@@ -124,6 +126,7 @@ ENTRY(evt_evt9)
 	 SP += -12;	
 	 call do_irq;
 	 SP += 12;	
+	 call return_from_int;
 	 RESTORE_CONTEXT
 	 rti; 
 
@@ -135,6 +138,7 @@ ENTRY(evt_evt10)
 	 SP += -12;	
 	 call do_irq;
 	 SP += 12;
+	 call return_from_int;
 	 RESTORE_CONTEXT
 	 rti; 
 
@@ -146,6 +150,7 @@ ENTRY(evt_evt11)
 	 SP += -12;	
 	 call do_irq;
 	 SP += 12;	
+	 call return_from_int;
 	 RESTORE_CONTEXT
 	 rti; 
 
@@ -157,6 +162,7 @@ ENTRY(evt_evt12)
 	 SP += -12;	
 	 call do_irq;
 	 SP += 12;	
+	 call return_from_int;
 	 RESTORE_CONTEXT
 	 rti; 
 
@@ -168,10 +174,11 @@ ENTRY(evt_evt13)
 	 SP += -12;	
 	 call do_irq;
 	 SP += 12;	
+	 call return_from_int;
 	 RESTORE_CONTEXT
 	 rti; 
 
- /* interrupt routine for system_call - 14 */	 
+ /* interrupt routine for system_call - 15 */
 ENTRY(evt_system_call)
 	SAVE_CONTEXT
 	call system_call;
