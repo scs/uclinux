@@ -11,7 +11,7 @@
 /* but WITHOUT ANY WARRANTY; without even the implied warranty of       */
 /* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the        */
 /* GNU Library General Public License for more details.                 */
-
+ 
 #ifndef _INTERNALS_H
 #define _INTERNALS_H   1
 
@@ -259,7 +259,10 @@ extern pthread_descr __pthread_main_thread;
 extern char *__pthread_initial_thread_bos;
 #ifndef __ARCH_HAS_MMU__
 extern char *__pthread_initial_thread_tos;
-#define NOMMU_INITIAL_THREAD_BOUNDS(tos,bos) if ((tos)>=__pthread_initial_thread_bos && (bos)<=__pthread_initial_thread_tos) __pthread_initial_thread_bos = (tos)+1
+#define NOMMU_INITIAL_THREAD_BOUNDS(tos,bos) \
+    if ((tos)>=__pthread_initial_thread_bos \
+	&& (bos)<__pthread_initial_thread_tos) \
+	__pthread_initial_thread_bos = (tos)+1
 #else
 #define NOMMU_INITIAL_THREAD_BOUNDS(tos,bos) /* empty */
 #endif /* __ARCH_HAS_MMU__ */
