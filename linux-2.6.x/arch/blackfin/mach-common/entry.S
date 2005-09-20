@@ -391,76 +391,7 @@ ENTRY(ret_from_exception)
         r1 = r0 - r1;
         r2 = r0 & r1;
         cc = r2 == 0;
-        if !cc jump 4f;		/* if not return to kernelmode, get out */
-	
-	/* Set the stack for the current process */
-	r7 = sp;
-	r4.l = lo(ALIGN_PAGE_MASK);
-	r4.h = hi(ALIGN_PAGE_MASK);
-	r7 = r7 & r4;		/*thread_info->flags*/
-	p5 = r7;
-	r7 = [p5 + TI_FLAGS];
-	r4 = _TIF_WORK_MASK;
-	r7 =  r7 & r4;
-	cc = BITTST(r7, TIF_NEED_RESCHED);
-	if cc jump 3f; 
-2:
-	r7 = [p5 + TI_FLAGS];
-	cc = BITTST(r7, TIF_SIGPENDING);
-	if !cc jump 4f;
-3:
-	p0.l = lo(EVT14);
-	p0.h = hi(EVT14);
-	p1.l = _deferred_ret_from_exception;	/*  set the handler of event 15 */
-	p1.h = _deferred_ret_from_exception;
-	[p0] = p1;
-	csync;
-	raise 14;		/* raise evt14 to do signal or reschedule */
-        r0 = syscfg;
-        bitclr(r0, 0);
-        syscfg = r0;
-4:
-	rts;
-
-ENTRY(_deferred_ret_from_exception)
-	SAVE_CONTEXT
-        
-	r7 = sp;
-	r4.l = lo(ALIGN_PAGE_MASK);
-	r4.h = hi(ALIGN_PAGE_MASK);
-	r7 = r7 & r4;
-	p5 = r7;
-	r7 = [p5 + TI_FLAGS];
-	cc = BITTST(r7, TIF_SIGPENDING);
-	if !cc jump 1f; 
-	r0 = 0;
-	r1 = sp;
-	SP += -12;
-	call do_signal; 
-	SP += 12;
-	jump 2f;
-1:
-	r7 = [p5 + TI_FLAGS];
-	r4 = _TIF_WORK_MASK;
-	r7 =  r7 & r4;
-	cc = BITTST(r7, TIF_NEED_RESCHED);
-	if !cc jump 2f;
-	call reschedule;
-2:
-	RESTORE_CONTEXT
-	rti;
-
-ENTRY(return_from_int)
-	/* check whether current process is in user or kernel mode */
-        p2.l = lo(IPEND);
-        p2.h = hi(IPEND);
-        csync;
-        r0 = [p2];              /* Read current IPEND */
-        r1 = 1;
-        r1 = r0 - r1;
-        r2 = r0 & r1;
-        cc = r2 == 0 ;          /* if usermode set */
-        if !cc jump ret_to_int;
+        if !cc jump 4f;	/* if not return to user mode, get out */
 
 	/* Make sure any pending system call or deferred exception
 	 * return in ILAT for this process to get executed, otherwise
@@ -475,47 +406,102 @@ ENTRY(return_from_int)
 	r1 = (EVT_IVG14 | EVT_IVG15) (z);
         r0 = r0 & r1;
         cc = r0 == 0;
-        if !cc jump ret_to_int;
+        if !cc jump 5f;
 
-	r0 = -1 (x);
-	[sp + PT_ORIG_P0] = r0;
-	/* 
-	 * Current process in user mode 
-	 * Check to see scheduding is need for
-	 * any user processes
-	 */
-        r7 = sp;
-        r4.l = lo(ALIGN_PAGE_MASK);
-        r4.h = hi(ALIGN_PAGE_MASK);
-        r7 = r7 & r4;           /*thread_info->flags*/
-        p5 = r7;
-        r7 = [p5 + TI_FLAGS];
-        r4 = _TIF_WORK_MASK;
-        r7 =  r7 & r4;
-        cc = BITTST(r7, TIF_NEED_RESCHED);
-        if !cc jump skip_schedule;
-	[--sp] = rets;
-        call schedule;
-	rets = [sp++];
+	/* Set the stack for the current process */
+	r7 = sp;
+	r4.l = lo(ALIGN_PAGE_MASK);
+	r4.h = hi(ALIGN_PAGE_MASK);
+	r7 = r7 & r4;		/*thread_info->flags*/
+	p5 = r7;
+	r7 = [p5 + TI_FLAGS];
+	r4 = _TIF_WORK_MASK;
+	r7 =  r7 & r4;
+	cc = r7 == 0;
+	if cc jump 4f;
 
-skip_schedule:
-	/* check if any signals are pending */
-        r7 = [p5 + TI_FLAGS];
-        cc = BITTST(r7, TIF_SIGPENDING);
-        if !cc jump ret_to_int;
-
-	/* process pending signals */
-        r0 = 0;
-        r1 = sp;
-
-        [--sp] = rets;
-        SP += -12;
-        call do_signal;
-        SP += 12;
-        rets = [sp++];
-
-ret_to_int:
+	p0.l = lo(EVT15);
+	p0.h = hi(EVT15);
+	p1.l = _schedule_and_signal;
+	p1.h = _schedule_and_signal;
+	[p0] = p1;
+	csync;
+	raise 15;		/* raise evt14 to do signal or reschedule */
+4:
+        r0 = syscfg;
+        bitclr(r0, 0);
+        syscfg = r0;
+5:
 	rts;
+
+ENTRY(return_from_int)
+	/* If someone else already raised IRQ 15, do nothing.  */
+	csync;
+        p2.l = lo(ILAT);
+        p2.h = hi(ILAT);
+        r0 = [p2];
+	cc = bittst (r0, EVT_IVG15_P);
+        if cc jump 2f;
+
+	/* if not return to user mode, get out */
+        p2.l = lo(IPEND);
+        p2.h = hi(IPEND);
+        r0 = [p2];
+	r1 = 0x17(Z);
+	r2 = ~r1;
+	r2.h = 0;
+	r0 = r2 & r0;
+        r1 = 1;
+        r1 = r0 - r1;
+        r2 = r0 & r1;
+        cc = r2 == 0;
+        if !cc jump 2f;	
+
+	/* Lower the interrupt level to 15.  */
+	p0.l = lo(EVT15);
+	p0.h = hi(EVT15);
+	p1.l = schedule_and_signal_from_int;
+	p1.h = schedule_and_signal_from_int;
+	[p0] = p1;
+	csync;
+	raise 15;	/* raise evt15 to do signal or reschedule */
+	rti; 
+2:
+	rts;
+
+ENTRY(_evt14_softirq)
+	rti;
+
+schedule_and_signal_from_int:
+	/* To end up here, vector 15 was changed - so we have to change it
+	   back.  */
+	p0.l = lo(EVT15);
+	p0.h = hi(EVT15);
+	p1.l = evt_system_call;
+	p1.h = evt_system_call;
+	[p0] = p1;
+	csync;
+	p1 = rets;
+	[sp + PT_RESERVED] = p1;
+	jump.s resume_userspace;
+
+_schedule_and_signal:
+	SAVE_CONTEXT
+	/* To end up here, vector 15 was changed - so we have to change it
+	   back.  */
+	p0.l = lo(EVT15);
+	p0.h = hi(EVT15);
+	p1.l = evt_system_call;
+	p1.h = evt_system_call;
+	[p0] = p1;
+	csync;
+	p0.l = lo(1f);
+	p0.h = lo(1f);
+	[sp + PT_RESERVED] = P0;
+	call resume_userspace;
+1:
+	RESTORE_CONTEXT
+	rti;
 
 .data
 ALIGN
