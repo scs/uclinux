@@ -119,6 +119,11 @@ Cleanup BF537 proc/cpuinfo and startup messages. Fix BF537/6/4 Memory Layout.
 
 29. Port an internet phone Linphone to uClinux for Blackfin. It is put to the user application folder in the source tree.
 
+30. Move system call to interrupt 15 and move deferred_ret_from_exception to interrupt 14.
+
+31. Update LTP test suite to the latest version for uClinux
+
+32. Enable CPLB for system with less than 32 M SDRAM
 
 Known Issues 
 A full list of known issues can be found at:
@@ -126,36 +131,19 @@ http://blackfin.uclinux.org/tracker/index.php?group_id=17&atid=141
 
 
 No	Issue Title
-674	Networking will randomly stops and gives error NETDEV WATCHDOG: eth0: transmit timed out
-
-680	make image no longer works
+663	The kernel will crash if you aquire date through the networked scope (NDSO) while the audio driver is enabled
 738	fail to mount a NFS partition on target board.
 
 843	Dropbear now fails to work with 2.6.12 kernel
-	
+851	Badness in __put_task_struct at kernel/fork.c:110 while running Linphone
+854	Linphone dies after a long call
+860	dpmc test can't change voltage and do deepsleep test
+877	Kernel panic - not syncing: No CPLB Address Match
+883	Lumpy UDP packet transmission
+891	tcp stress testing echo service
+895	top and vmstat reports error user/sys/idle cpu load percentage
 
-There are also some issues in the LTP test cases. They are recorded as bug 264, 532, 561, 562, 563, 567, 732, 733, 734, 735, 736, 737, 742, 743, 744, 745 and 747.
-
-Test Status 
-All test suites can be found in subfolder "testsuites" in CVS.
-
-1. Test for DMA enabled serial driver is done. Run 7 cases, all pass. 
-
-2. Test for Ethernet driver by netperf is done. Run 2 cases. Fail to pass because of bug 647. If in linux-2.6.x/drivers/net/smc91x.c define THROTTLE_TX_PKTS as 1, both cases pass. 
-
-3. Test for Audio driver is done. Run 10 cases, 9 pass. Fail to pass case 10 which records and plays audio concurrently. Test script is not fully automated. Tester should check the results by ears. 
-
-4. Test for ADSPI driver is done. All cases pass. This is done manually. No test script.
-
-5. Kernel passes the stress test when build with default configuration.
-
-6. Test for the KGDB patch is done. Total 18 cases, all pass. 
-
-7. Kernel passes the reboot test.
-
-8. TWI test
-
-9. LTP test is done. Total 255 cases, 232 cases pass, 13 cases fail, 4 cases not run, 1 cases is broken, 1 case crashes LTP, 5 cases are skipped. 
+There are also some issues in the LTP test cases. They are recorded as bug 264, 532, 561, 562, 563, 567, 732, 733, 734, 735, 736, 737, 742, 743, 744, 745, 890 and 893.
 
 Build Procedure 
  
