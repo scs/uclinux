@@ -1,8 +1,10 @@
 #include <linux/module.h>
 #include <asm/irq.h>
 #include <asm/checksum.h>
+#include <asm/cacheflush.h>
 
 extern void dump_thread(struct pt_regs *, struct user *);
+
 
 /* platform dependent support */
 
@@ -70,5 +72,4 @@ EXPORT_SYMBOL(iounmap);
 EXPORT_SYMBOL(blackfin_dcache_invalidate_range);
 EXPORT_SYMBOL(blackfin_icache_dcache_flush_range);
 EXPORT_SYMBOL(blackfin_icache_flush_range);
-EXPORT_SYMBOL(invalidate_entire_icache);
 EXPORT_SYMBOL(blackfin_dcache_flush_range);
