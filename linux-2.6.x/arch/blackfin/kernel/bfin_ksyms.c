@@ -67,3 +67,8 @@ EXPORT_SYMBOL(outsw);
 EXPORT_SYMBOL(insw);
 EXPORT_SYMBOL(irq_flags);
 EXPORT_SYMBOL(iounmap);
+EXPORT_SYMBOL(blackfin_dcache_invalidate_range);
+EXPORT_SYMBOL(blackfin_icache_dcache_flush_range);
+EXPORT_SYMBOL(blackfin_icache_flush_range);
+EXPORT_SYMBOL(invalidate_entire_icache);
+EXPORT_SYMBOL(blackfin_dcache_flush_range);

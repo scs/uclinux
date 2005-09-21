@@ -107,3 +107,6 @@ void dma_free_coherent(struct device *dev, size_t size, void *vaddr,
 {
 	__free_dma_pages((unsigned long)vaddr, get_pages(size));
 }
+
+EXPORT_SYMBOL(dma_alloc_coherent);
+EXPORT_SYMBOL(dma_free_coherent);
