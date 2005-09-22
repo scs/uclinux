@@ -1179,6 +1179,12 @@ int __init spiadc_init(void)
         printk(KERN_WARNING "SPI: can't get minor %d\n", SPI_MAJOR);
         return result;
     }
+#if defined(CONFIG_BF534)|defined(CONFIG_BF536)|defined(CONFIG_BF537)
+  *pPORT_MUX |= PFS4E;
+  __builtin_bfin_ssync();
+  *pPORTF_FER |= 0x7c40;
+  __builtin_bfin_ssync();
+#endif
     printk("SPI: ADSP SPI-ADC Driver INIT IRQ:%d \n",SPI_IRQ_NUM);
     return 0;
 }   
