@@ -84,8 +84,8 @@ CONFIG_BFIN_HAVE_RTC=y
 #
 # PORT F/G Selection
 #
-# CONFIG_BF537_PORT_F is not set
-CONFIG_BF537_PORT_G=y
+CONFIG_BF537_PORT_F=y
+# CONFIG_BF537_PORT_G is not set
 # CONFIG_LOADVDSP is not set
 
 #

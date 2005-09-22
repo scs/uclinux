@@ -36,29 +36,45 @@
 #include <linux/ioctl.h>
 #include <errno.h>
 #include <unistd.h> 
+#include <string.h>
 #include "pflags.h"
 
-
-int main()
+int main(int argc, char *argv[])
 {
 	int fd0,fd1,ret;
 	char data_read[2];
+	char led[10], button[10];
 
+	if(argc<2) {
+		printf("usage: pflag_test < bf533 | bf537>\n");
+		return 0;
+	}
+	
+	if(strncmp(argv[1], "bf537", 6)==0) {
+		strcpy(led, "/dev/pf6");
+		strcpy(button, "/dev/pf2");
+		printf("bf537\n");
+	}
+	else {
+		strcpy(led, "/dev/pf2");
+		strcpy(button, "/dev/pf5");
+	}
+	
 	printf("########################## PFLAGS TEST ###############################\n");
 	
-	fd0 = open("/dev/pf2", O_RDWR,0);
+	fd0 = open(led, O_RDWR,0);
 	if (fd0 == -1) {
-		printf("/dev/PF2 open error %d\n",errno);
+		printf("%s open error %d\n", led, errno);
 		exit(1);
 	}
-	else printf("open success /dev/pf2 \n");
+	else printf("open success %s \n", led);
 
-	fd1 = open("/dev/pf5", O_RDWR,0);
+	fd1 = open(button, O_RDWR,0);
 	if (fd1 == -1) {
-		printf("/dev/PF5 open error %d\n",errno);
+		printf("%s open error %d\n", button, errno);
 		exit(1);
 	}
-	else printf("open success /dev/pf5 \n");
+	else printf("open success %s \n", button);
 
 
 	ret = ioctl(fd0, SET_FIO_DIR, OUTPUT);
@@ -74,9 +90,9 @@ int main()
   while(!ret) 
   {
 		write(fd0,"0",sizeof("0")); 
-		usleep(100);
+		usleep(1000);
 		write(fd0,"1",sizeof("1"));
-		usleep(100);
+		usleep(1000);
 
 		read(fd1,data_read,2);
 		if(data_read[0] == '1') 
