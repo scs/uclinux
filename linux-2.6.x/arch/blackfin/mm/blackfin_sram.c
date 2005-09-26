@@ -213,7 +213,7 @@ unsigned long l1_data_A_sram_alloc(unsigned long size)
 	/* add mutex operation*/
 	spin_unlock_irqrestore (&l1_data_A_sram_lock, flags);
 
-	printk ("Allocated address in l1sram_alloc is 0x%lx+0x%lx\n",addr,size);
+	//printk ("Allocated address in l1sram_alloc is 0x%lx+0x%lx\n",addr,size);
 	return addr;
 }
 
