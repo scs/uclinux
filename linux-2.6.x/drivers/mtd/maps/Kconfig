@@ -607,8 +607,8 @@ config MTD_PCMCIA
 	  cards are usually around 4-16MiB in size. This does not include
 	  Compact Flash cards which are treated as IDE devices.
 
-config MTD_BF533_SPI
-	bool "Blackfin BF533 SPI flash Chip Support"
+config MTD_BF5xx_SPI
+	bool "Blackfin BF5xx SPI flash Chip Support"
 	depends on BFIN && MTD_PARTITIONS
 	help
 	  SPI Chip from ST Microelectronics, the part num is M25P64
