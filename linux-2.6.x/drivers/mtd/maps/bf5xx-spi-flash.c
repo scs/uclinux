@@ -42,8 +42,15 @@ static void spi_setup( const int spi_setting )
 #if defined(CONFIG_BLKFIN_CACHE) || defined(CONFIG_BLKFIN_DCACHE)  
    udelay(CONFIG_CCLK_HZ/50000000);
 #endif
+#ifdef CONFIG_BF533
 	/*sets up the PF2 to be the slave select of the SPI */
 	*pSPI_FLG = 0xFB04;
+#endif
+#ifdef CONFIG_BF537
+	*pPORTF_FER |= (PF10 | PF11 | PF12 | PF13);
+	/*sets up the PF10 to be the slave select of the SPI */
+        *pSPI_FLG = 0xFD02;
+#endif
 	*pSPI_BAUD = BAUD_RATE_DIVISOR;
 	*pSPI_CTL = spi_setting;
 	 __builtin_bfin_ssync();
