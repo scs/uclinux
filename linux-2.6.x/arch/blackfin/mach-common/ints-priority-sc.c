@@ -443,23 +443,22 @@ int __init  init_arch_irq(void)
 extern asmlinkage void asm_do_IRQ(unsigned int irq, struct pt_regs *regs);
 void do_irq(int vec, struct pt_regs *fp)
 {
+	struct ivgx *ivg = ivg7_13[vec-IVG7].ifirst;
+	struct ivgx *ivg_stop = ivg7_13[vec-IVG7].istop;
+	unsigned long sic_status;
 
-          struct ivgx *ivg = ivg7_13[vec-IVG7].ifirst;
-          struct ivgx *ivg_stop = ivg7_13[vec-IVG7].istop;
-	  unsigned long sic_status;	
+	__builtin_bfin_ssync();
+	sic_status = *pSIC_IMASK & *pSIC_ISR;
 
-	  __builtin_bfin_ssync();
- 	  sic_status = *pSIC_IMASK & *pSIC_ISR;
-
-	  for(;; ivg++) {
-              if (ivg >= ivg_stop)  {
-		num_spurious++;
-                return;
-              }
-              else if (sic_status & ivg->isrflag)
-                break;
-         }
-	  vec = ivg->irqno;
+	for(;; ivg++) {
+		if (ivg >= ivg_stop) {
+			num_spurious++;
+			return;
+		}
+		else if (sic_status & ivg->isrflag)
+			break;
+	}
+	vec = ivg->irqno;
 
 	asm_do_IRQ(vec, fp);
 }
