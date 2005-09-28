@@ -464,6 +464,8 @@ ENTRY(return_from_int)
 	p1.h = schedule_and_signal_from_int;
 	[p0] = p1;
 	csync;
+	r0 = 0x801f (z);
+	STI r0;
 	raise 15;	/* raise evt15 to do signal or reschedule */
 	rti; 
 2:
@@ -483,6 +485,12 @@ schedule_and_signal_from_int:
 	csync;
 	p1 = rets;
 	[sp + PT_RESERVED] = p1;
+
+	p0.l = irq_flags;
+	p0.h = irq_flags;
+	r0 = [p0];
+	sti r0;
+
 	jump.s resume_userspace;
 
 _schedule_and_signal:
