@@ -256,8 +256,7 @@ __do_irq(unsigned int irq, struct irqaction *action, struct pt_regs *regs)
 {
 	unsigned int status;
 	int retval = 0;
-	unsigned long flags;
-	local_save_flags (flags);
+
 	spin_unlock(&irq_controller_lock);
 
 	if (!(action->flags & SA_INTERRUPT)) {
