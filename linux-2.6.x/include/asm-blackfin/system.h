@@ -46,31 +46,33 @@ asmlinkage void resume(void);
 
 extern volatile unsigned long irq_flags;
 			
-#define local_irq_enable() {		\
+#define local_irq_enable() do {		\
 	__asm__ __volatile__ (		\
 		"sti %0;"		\
 		::"d"(irq_flags));	\
-if (irq_flags == 0) printk("Whoops\n");	\
-}
+} while (0)
 
-#define local_irq_disable() {		\
+#define local_irq_disable() do {		\
 	int _tmp_dummy;			\
 	__asm__ __volatile__ (		\
 		"cli %0;"		\
 		:"=d" (_tmp_dummy):);		\
-}
+} while (0)
 
-#define __save_and_cli(x) {		\
+#define __save_and_cli(x) do {		\
 	__asm__ __volatile__ (          \
 		"cli %0;"		\
 		:"=d"(x):);         \
-}
+} while (0)
 
 #define local_save_flags(x) asm volatile ("cli %0;"     \
 					  "sti %0;"     \
 				    	  :"=d"(x):);    
-#define local_irq_restore(x) asm volatile ("sti %0;"	\
-				           ::"d"(x))
+#define local_irq_restore(x) do {			\
+	unsigned long _tmp = (x);			\
+	if (_tmp != 0x1f)				\
+		local_irq_enable ();			\
+} while (0)
 
 /* For spinlocks etc */
 #define local_irq_save(x) __save_and_cli(x)
