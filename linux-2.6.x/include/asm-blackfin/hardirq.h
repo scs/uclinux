@@ -35,4 +35,6 @@ typedef struct {
 # error HARDIRQ_BITS is too low!
 #endif
 
+#define __ARCH_IRQ_EXIT_IRQS_DISABLED	1
+
 #endif

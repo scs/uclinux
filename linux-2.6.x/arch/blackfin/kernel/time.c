@@ -192,9 +192,7 @@ irqreturn_t timer_interrupt(int irq, void *dummy, struct pt_regs * regs)
 	do_leds();
 
 #ifndef CONFIG_SMP
-	local_irq_disable();        /* kernel requires irq_disabled during following function */
 	update_process_times(user_mode(regs));
-	local_irq_enable();
 #endif
 	profile_tick(CPU_PROFILING, regs);
 

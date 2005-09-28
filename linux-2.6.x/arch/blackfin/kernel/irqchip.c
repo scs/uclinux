@@ -256,7 +256,8 @@ __do_irq(unsigned int irq, struct irqaction *action, struct pt_regs *regs)
 {
 	unsigned int status;
 	int retval = 0;
-
+	unsigned long flags;
+	local_save_flags (flags);
 	spin_unlock(&irq_controller_lock);
 
 	if (!(action->flags & SA_INTERRUPT)) {
@@ -395,7 +396,6 @@ do_level_IRQ(unsigned int irq, struct irqdesc *desc, struct pt_regs *regs)
 
 			if (ret != IRQ_HANDLED)
 				report_bad_irq(irq, regs, desc, ret);
-
 			if (likely(!desc->disable_depth &&
 				   !check_irq_lock(desc, irq, regs)))
 				desc->chip->unmask(irq);
@@ -454,7 +454,7 @@ asmlinkage void asm_do_IRQ(unsigned int irq, struct pt_regs *regs)
 		desc = &bad_irq_desc;
 
 	irq_enter();
-	spin_lock_irq(&irq_controller_lock);
+	spin_lock(&irq_controller_lock);
 	desc->handle(irq, desc, regs);
 
 	/*
@@ -463,7 +463,7 @@ asmlinkage void asm_do_IRQ(unsigned int irq, struct pt_regs *regs)
 	if (!list_empty(&irq_pending))
 		do_pending_irqs(regs);
 
-	spin_unlock_irq(&irq_controller_lock);
+	spin_unlock(&irq_controller_lock);
 	irq_exit();
 }
 
