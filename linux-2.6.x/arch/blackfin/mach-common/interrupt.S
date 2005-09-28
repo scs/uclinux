@@ -68,16 +68,10 @@ ENTRY(evt_ivhw)
 /* interrupt routine for core timer - 6 */
 ENTRY(evt_timer)
 	SAVE_CONTEXT
-	p2.l = lo(IPEND);
-	p2.h = hi(IPEND);
-	r0 = [p2];              /* Read current IPEND */
-	csync;
-	[sp + PT_IPEND] = r0;   /* Store IPEND */
-
-	r0 = IRQ_CORETMR;
-	r1 = sp;
+ 	r0 = EVT_IVTMR_P;
+	r1 =  sp;
 	SP += -12;
-	call asm_do_IRQ;
+	call do_irq;
 	SP += 12;
 	call return_from_int;
 	RESTORE_CONTEXT
