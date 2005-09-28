@@ -2,23 +2,20 @@
 *
 * Copyright (C) 2004, Analog Devices. All Rights Reserved
 *
-* FILE adsp-spiadc.c
+* FILE adsp-spidma.c
 * PROGRAMMER(S): Michael Hennerich (Analog Devices Inc.)
 *
 *
-* DATE OF CREATION: Sept. 10th 2004
+* DATE OF CREATION: Sept. 28th 2005
 *
 * SYNOPSIS:
 *
-* DESCRIPTION: SPI-ADC/DAC Driver for ADSP-BF533/2/1. It can
+* DESCRIPTION: SPI-DMA Driver for ADSP-BF533/2/1/7/6/4. It can
 *              only be used in linux.
 * CAUTION:     you may need use ioctl to change it's configuration.
 **************************************************************
 * MODIFICATION HISTORY:
-* Sept 10, 2004   adsp-spiadc.c Created. (Michael Hennerich)
-* May 24, 2005    Added waitqueue and interrupt for write (Michael Hennerich)
-*                 Removed obsolete code fragment form ioctl
-*                 Changed read / write count to always be in bytes
+* Sept 28, 2005   adsp-spidma.c Created based on adsp-spiadc.c. (Michael Hennerich)
 ************************************************************
 *
 * This program is free software; you can distribute it and/or modify it
@@ -66,12 +63,8 @@
 #define DPRINTK(x...)	do { } while (0)
 #endif 
 
-#define SKFS			   4  /* number of first samples to skip */
-
-#define TOL 		       5
-
-#define TIMEOUT		       50 
-
+#define TRANSMIT 1
+#define RECEIVE  0
 
 #define SPI_BUF_LEN        1024
 #define SPI_REGSIZE        16
@@ -99,19 +92,9 @@ typedef struct Spi_Device_t
                            1: Sending 0 if Txbuf Empty; */
     int     recvopt;    /* 0: Discard packet if Rxbuffer is full;
                            1: Flush Rxbuffer if it is full; */
-
-
-
-    unsigned char 	mode;
-    unsigned short  access_mode;
-    unsigned char 	sense;
-    unsigned char 	edge;
     unsigned char 	cont;
-    unsigned short 	level;
-    unsigned int     triggerpos;
-    unsigned int     actcount;
-    unsigned short   *buffer;
     unsigned short   done;
+    unsigned short   tmode;
     unsigned short 	 dma_config;
     int timeout;
     struct fasync_struct *fasyc;
@@ -240,7 +223,7 @@ static u_long spi_get_sclk(void)
 
 /***********************************************************
 *
-* FUNCTION NAME :spiadc_reg_reset
+* FUNCTION NAME :spidma_reg_reset
 *
 * INPUTS/OUTPUTS:
 * in_idev - device number , other unavailable.
@@ -259,7 +242,7 @@ static u_long spi_get_sclk(void)
 *************************************************************
 * MODIFICATION HISTORY :
 **************************************************************/
-void spiadc_reg_reset(spi_device_t *pdev)
+void spidma_reg_reset(spi_device_t *pdev)
 {
     unsigned short sdata = 0;
 
@@ -273,7 +256,7 @@ void spiadc_reg_reset(spi_device_t *pdev)
 
 /***********************************************************
 *
-* FUNCTION NAME :spiadc_irq
+* FUNCTION NAME :spidma_irq
 *
 * INPUTS/OUTPUTS:
 * in_irq - Interrupt vector number.
@@ -298,139 +281,46 @@ void spiadc_reg_reset(spi_device_t *pdev)
 
 
 
-static irqreturn_t spiadc_irq(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t spidma_irq(int irq, void *dev_id, struct pt_regs *regs)
 {
     unsigned short regdata;
-    unsigned short i;
     spi_device_t *pdev = (spi_device_t*)dev_id;
     
-    DPRINTK("spiadc_irq: \n");
+    DPRINTK("spidma_irq: \n");
 
-/* Acknowledge DMA Interrupt*/
-clear_dma_irqstat(CH_SPI);
+    /* Acknowledge DMA Interrupt*/
+    clear_dma_irqstat(CH_SPI);
 
-if (pdev->access_mode == SPI_WRITE) goto irq_done;
-
-pdev->triggerpos=0;
-
-if(pdev->mode) {
-	
-	/* Search for trigger condition */
-	
-		if(pdev->sense) {
-			
-			/* Edge sensitive */
-			
-				if(pdev->edge){
-					
-					/* Falling edge */ 
-			pdev->triggerpos=0;
-			for(i=1+SKFS;(i < pdev->actcount)&& !pdev->triggerpos;i++) {
-		
-				if ((pdev->buffer[i-1] > pdev->level)&&(pdev->buffer[i+1] < pdev->level)) {
-					pdev->triggerpos=i;
-					i=pdev->actcount; 
-				};
-			}
-							
-			    if(!pdev->triggerpos && pdev->timeout--) goto restartDMA;	
-					
-				} else {
-					
-					/* Rising edge */
-					
-			pdev->triggerpos=0;
-			for(i=1+SKFS;(i < pdev->actcount)&& !pdev->triggerpos;i++) {
-		
-				if ((pdev->buffer[i-1] < pdev->level)&&(pdev->buffer[i+1] > pdev->level)) {
-					pdev->triggerpos=i;
-					i=pdev->actcount; 
-				};
-			}
-				
-			    if(!pdev->triggerpos && pdev->timeout--) goto restartDMA;	
-					
-				};
-			
-		} else {
-			
-				if(pdev->edge){
-					
-					/* Falling edge */ 
-			pdev->triggerpos=0;
-			for(i=1+SKFS;(i < pdev->actcount)&& !pdev->triggerpos;i++) {
-		
-				if ((pdev->buffer[i-1] > pdev->level)&&(pdev->buffer[i+1] < pdev->level)) {
-					pdev->triggerpos=i;
-					i=pdev->actcount; 
-				};
-			}
-				
-			    if(!pdev->triggerpos && pdev->timeout--) goto restartDMA;	
-					
-				} else {
-					
-					/* Rising edge */
-					
-			pdev->triggerpos=0;
-			for(i=1+SKFS;(i < pdev->actcount)&& !pdev->triggerpos;i++) {
-		
-				if ((pdev->buffer[i-1] < pdev->level)&&(pdev->buffer[i+1] > pdev->level)) {
-					pdev->triggerpos=i;
-					i=pdev->actcount; 
-				};
-			}
-								
-			    if(!pdev->triggerpos && pdev->timeout--) goto restartDMA;	
-					
-				};
-		};
-	};
-
-
-irq_done:
-
-	// disable spi
-	get_spi_reg(SPI_CTL,&regdata);
-	set_spi_reg(SPI_CTL, regdata & ~BIT_CTL_ENABLE);
-
-
-
- 	pdev->done = 1; // Found trigger
+ 	pdev->done = 1; // Found
         
-
     /* Give a signal to user program. */
     if(pdev->fasyc)
         kill_fasync(&(pdev->fasyc), SIGIO, POLLIN);
     
-    DPRINTK("spiadc_irq: wake_up_interruptible pdev->done=%d\n",pdev->done);
+    DPRINTK("spidma_irq: wake_up_interruptible pdev->done=%d\n",pdev->done);
     /* wake up read/write block. */
 
     wake_up_interruptible(pdev->rx_avail);
-        
-    DPRINTK("spiadc_irq: return \n");
 
-    return IRQ_HANDLED;
-
-/* Restart DMA sequence */
-
-restartDMA:
-
-	// disable spi
+if(	pdev->tmode==TRANSMIT )
+  {	/* Make sure TX buffer is empty before disabling SPI */
+	while(*pSPI_STAT & TXS); 
+	while(*pSPI_STAT & TXS); 
+  } else
+  	{
+	while(*pSPI_STAT & RXS); 
+	while(*pSPI_STAT & RXS); 
+  };
+  
+	/* disable spi */
 	get_spi_reg(SPI_CTL,&regdata);
 	set_spi_reg(SPI_CTL, regdata & ~BIT_CTL_ENABLE);
 
-	/* start the DMA for desired channel */
+     
+    DPRINTK("spidma_irq: return \n");
 
-	enable_dma(CH_SPI);
+    return IRQ_HANDLED;
 
-	// enable spi
-	get_spi_reg(SPI_CTL,&regdata);
-	set_spi_reg(SPI_CTL, regdata | BIT_CTL_ENABLE);
-
-	DPRINTK("spiadc_irq: return Enable Dma Again\n");
-	
-	return IRQ_HANDLED;
 }
 
 
@@ -714,30 +604,6 @@ static int spi_ioctl(struct inode *inode, struct file *filp, uint cmd, unsigned 
             printk("Ctrl reg:0x%x.\n", usreg);
             break;
         }
-		case CMD_SPI_SET_TRIGGER_MODE:
-        {
-			DPRINTK("spi_ioctl: CMD_SPI_SET_TRIGGER_MODE \n");
-			pdev->mode = (unsigned char)arg;
-            break;
-        }        
-		case CMD_SPI_SET_TRIGGER_SENSE:
-        {
-			DPRINTK("spi_ioctl: CMD_SPI_SET_TRIGGER_SENSE \n");
-			pdev->sense = (unsigned char)arg;
-            break;
-        } 
-		case CMD_SPI_SET_TRIGGER_EDGE:
-        {
-			DPRINTK("spi_ioctl: CMD_SPI_SET_TRIGGER_EDGE \n");
-			pdev->edge = (unsigned char)arg;
-            break;
-        } 
-		case CMD_SPI_SET_TRIGGER_LEVEL:
-        {
-			DPRINTK("spi_ioctl: CMD_SPI_SET_TRIGGER_LEVEL \n");
-			pdev->level = (unsigned short)arg;
-            break;
-        } 
 		case CMD_SPI_GET_SYSTEMCLOCK:
 		{
 			value = spi_get_sclk();
@@ -838,17 +704,12 @@ static ssize_t spi_read (struct file *filp, char *buf, size_t count, loff_t *pos
     if(count <= 0)
         return 0;
 
-	    pdev->actcount = count;
-	    pdev->timeout = TIMEOUT;
-		pdev->done=0;
-
-	/* Allocate some memory */
-	pdev->buffer = kmalloc((count+SKFS*2)*2,GFP_KERNEL); // TODO: change GFP_KERNEL to GFP_DMA as soon as it is available
-
+	pdev->done=0;
+	pdev->tmode=RECEIVE;
 
     /* Invalidate allocated memory in Data Cache */ 
 	// TODO: remove this line as soon GFP_DMA memory allocation is in place 
-    blackfin_dcache_invalidate_range((unsigned long)pdev->buffer,((unsigned long) pdev->buffer)+(count+SKFS*2)*2); 
+    blackfin_dcache_invalidate_range(buf, buf+(count)*2); 
 
 	// configure spi port for DMA TIMOD RX
 
@@ -857,8 +718,8 @@ static ssize_t spi_read (struct file *filp, char *buf, size_t count, loff_t *pos
 
 	    pdev->dma_config |= ( WNR | RESTART | DI_EN );
 	    set_dma_config(CH_SPI, pdev->dma_config);
-		set_dma_start_addr(CH_SPI, (unsigned long) pdev->buffer);
-		set_dma_x_count(CH_SPI, (count+SKFS));
+		set_dma_start_addr(CH_SPI, buf);
+		set_dma_x_count(CH_SPI, (count));
 		
 		if(pdev->length == CFG_SPI_WORDSIZE16)
 			set_dma_x_modify(CH_SPI, 2);
@@ -894,20 +755,11 @@ static ssize_t spi_read (struct file *filp, char *buf, size_t count, loff_t *pos
 
 #ifdef DEBUG
 	int i;
-    for (i=0; i<count; i++) printk("Val: %d \n",pdev->buffer[i]);   
-    printk(" 1 = %d pdev->buffer = %x pdev->triggerpos = %x BOTH: %x \n",pdev->buffer[0],pdev->buffer,pdev->triggerpos, pdev->buffer + pdev->triggerpos);
+    for (i=0; i<count; i++) printk("Val: %d \n",buf[i]);   
 #endif 
 
-	if(!(pdev->timeout < 0) && (!pdev->triggerpos))
-		copy_to_user(buf, pdev->buffer + SKFS, count);
-	  else 
-		copy_to_user(buf, pdev->buffer + pdev->triggerpos, count);
 
-    kfree(pdev->buffer);
-    
-    DPRINTK(" timeout = %d \n",pdev->timeout);
     DPRINTK("spi_read: return \n");
-if(pdev->timeout < 0) return SPI_ERR_TRIG;
 
 return count;
 }
@@ -953,11 +805,10 @@ static ssize_t spi_write (struct file *filp, const char *buf, size_t count, loff
     if(count <= 0)
         return 0;
 
-    pdev->actcount = count;
-    pdev->timeout = TIMEOUT;
 	pdev->done=0;
+	pdev->tmode=TRANSMIT;
 
-    blackfin_dcache_flush_range((unsigned long)buf,((unsigned long)buf+(count)));
+    blackfin_dcache_flush_range(buf, buf+(count*2));
 		
 	// configure spi port for DMA TIMOD 
 		get_spi_reg(SPI_CTL,&regdata);
@@ -967,7 +818,7 @@ static ssize_t spi_write (struct file *filp, const char *buf, size_t count, loff
 		if(! pdev->cont)
 			pdev->dma_config |= ( DI_EN );
 	    set_dma_config(CH_SPI, pdev->dma_config);
-		set_dma_start_addr(CH_SPI, (unsigned long) buf);
+		set_dma_start_addr(CH_SPI, buf);
 		set_dma_x_count(CH_SPI, count);
 
 		if(pdev->length == CFG_SPI_WORDSIZE16)
@@ -1004,7 +855,6 @@ static ssize_t spi_write (struct file *filp, const char *buf, size_t count, loff
     DPRINTK("spi_write: return \n");
 
 return count;
-
 	
 }
 
@@ -1065,7 +915,7 @@ static int spi_open (struct inode *inode, struct file *filp)
 	        
 	    filp->private_data = &spiinfo;
 	    	
-	    spiadc_reg_reset(filp->private_data);
+	    spidma_reg_reset(filp->private_data);
 	    
 	/* Request DMA5 channel, and pass the interrupt handler */
 
@@ -1075,7 +925,7 @@ static int spi_open (struct inode *inode, struct file *filp)
 		return -EFAULT;
 		}	
 	else
-	     set_dma_callback(CH_SPI, (void*) spiadc_irq,filp->private_data);
+	     set_dma_callback(CH_SPI, (void*) spidma_irq,filp->private_data);
 	
 
 
@@ -1119,7 +969,7 @@ static int spi_release (struct inode *inode, struct file *filp)
     /* After finish DMA, release it. */
 	free_dma(CH_SPI);
     
-    spiadc_reg_reset(pdev);
+    spidma_reg_reset(pdev);
     pdev->opened = 0; 
     
     spi_fasync(-1, filp, 0);
@@ -1142,7 +992,7 @@ static struct file_operations spi_fops = {
 
 /***********************************************************
 *
-* FUNCTION NAME :spiadc_init / init_module
+* FUNCTION NAME :spidma_init / init_module
 *                
 * INPUTS/OUTPUTS:
 * 
@@ -1167,7 +1017,7 @@ static struct file_operations spi_fops = {
 //int init_module(void)
 //#else 
 
-int __init spiadc_init(void)
+int __init spidma_init(void)
 //#endif /* MODULE */
 {
     int result;
@@ -1189,12 +1039,12 @@ int __init spiadc_init(void)
     return 0;
 }   
 //#ifndef MODULE
-//__initcall(spiadc_init);
+//__initcall(spidma_init);
 //#endif
 
 /***********************************************************
 *
-* FUNCTION NAME :spiadc_uninit / cleanup_module
+* FUNCTION NAME :spidma_uninit / cleanup_module
 *                
 * INPUTS/OUTPUTS:
 * 
@@ -1217,7 +1067,7 @@ int __init spiadc_init(void)
 //#ifdef MODULE
 //void cleanup_module(void)
 //#else
-void spiadc_uninit(void)
+void spidma_uninit(void)
 //#endif /* MODULE */
 {
     unregister_chrdev(SPI_MAJOR, SPI_DEVNAME);
@@ -1225,8 +1075,8 @@ void spiadc_uninit(void)
 
 }
 
-module_init(spiadc_init);
-module_exit(spiadc_uninit);
+module_init(spidma_init);
+module_exit(spidma_uninit);
 
 MODULE_AUTHOR("Michael Hennerich");
 MODULE_LICENSE("GPL");

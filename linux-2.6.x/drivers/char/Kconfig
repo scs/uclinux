@@ -3,8 +3,8 @@
 #
 
 menu "Character devices"
-config SPI_BF533
-    bool "Blackfin BF53x SPI port support"
+config SPIDMA_BF53x
+    bool "Blackfin BF53x SPI port DMA support"
 	depends on BFIN
     default n
     ---help---
