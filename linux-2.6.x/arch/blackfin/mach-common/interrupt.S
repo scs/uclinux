@@ -68,6 +68,14 @@ ENTRY(evt_ivhw)
 /* interrupt routine for core timer - 6 */
 ENTRY(evt_timer)
 	SAVE_CONTEXT
+	/* SAVE_CONTEXT ignores IPEND; we need to save it since the user_mode
+	   macro accesses it to determine where to account time.  */
+	p2.l = lo(IPEND);
+	p2.h = hi(IPEND);
+	csync;
+	r0 = [p2];
+	[sp + PT_IPEND] = r0;
+
  	r0 = EVT_IVTMR_P;
 	r1 =  sp;
 	SP += -12;
