@@ -121,6 +121,13 @@ static void bf533_core_mask_irq(unsigned int irq)
 static void bf533_core_unmask_irq(unsigned int irq)
 {
 	irq_flags |= 1<<irq;
+	/* If interrupts are enabled, IMASK must contain the same value
+	   as irq_flags.  Make sure that invariant holds.  If interrupts
+	   are currently disabled we need not do anything; one of the
+	   callers will take care of setting IMASK to the proper value
+	   when reenabling interrupts.
+	   local_irq_enable just does "STI irq_flags", so it's exactly
+	   what we need.  */
 	if (! irqs_disabled ())
 		local_irq_enable();
 	return;
