@@ -35,7 +35,7 @@
 	/* gdb-stub set the evt itself */
 	/* save registers for post-mortem only */
 ENTRY(evt_emulation)
-	SAVE_CONTEXT
+	SAVE_ALL_SYS
 	r0 = IRQ_EMU;
 	r1 = sp;
 	SP += -12;
@@ -45,9 +45,9 @@ ENTRY(evt_emulation)
 	rte;
 #endif
 
-/* interrupt routine for nmi - 2 */
+/* interrupt routine for nmi - 2.  */
 ENTRY(evt_nmi)
-	SAVE_CONTEXT
+	SAVE_ALL_SYS
 	r0 = IRQ_NMI;
 	r1 = sp;	    /* get return address (but not going back)  */
 	SP += -12;
@@ -83,15 +83,15 @@ ENTRY(evt_timer)
 	RESTORE_CONTEXT
 	rti;
 
-/* interrupt routine for evt2 - 2 */
+/* interrupt routine for evt2 - 2.  This is NMI.  */
 ENTRY(evt_evt2)
-	SAVE_ALL_SYS
+	SAVE_CONTEXT
 	r0 = IRQ_NMI;
 	r1 =  sp;
 	SP += -12;
 	call asm_do_IRQ;
 	SP += 12;
-	RESTORE_ALL_SYS
+	RESTORE_CONTEXT
 	rtn;
 
 /* interrupt routine for evt7 - 7 */
@@ -180,7 +180,7 @@ ENTRY(evt_evt13)
 
  /* interrupt routine for system_call - 15 */
 ENTRY(evt_system_call)
-	SAVE_CONTEXT
+	SAVE_CONTEXT_SYSCALL
 	call system_call;
 	RESTORE_CONTEXT
 	rti;

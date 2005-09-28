@@ -18,11 +18,18 @@
 #define	PF_DTRACE_OFF	1
 #define	PF_DTRACE_BIT	5
 
-# define SAVE_ALL_SYS		save_context_no_interrupts
-# define SAVE_CONTEXT		save_context_with_interrupts
+/* This one is used for exceptions, emulation, and NMI.  It doesn't push
+   RETI and doesn't do cli.  */
+#define SAVE_ALL_SYS		save_context_no_interrupts
+/* This is used for all normal interrupts.  First we do CLI, then push
+   RETI, to keep interrupts disabled, but to allow this state to be changed
+   by local_bh_enable.  */
+#define SAVE_CONTEXT		save_context_with_interrupts
+/* This one pushes RETI without using CLI.  Interrupts are enabled.  */
+#define SAVE_CONTEXT_SYSCALL	save_context_syscall
 
-# define RESTORE_ALL_SYS	restore_context_no_interrupts
-# define RESTORE_CONTEXT	restore_context_with_interrupts
+#define RESTORE_ALL_SYS		restore_context_no_interrupts
+#define RESTORE_CONTEXT		restore_context_with_interrupts
 
 /*
  * Code to save processor context.
@@ -30,6 +37,68 @@
  *	 - r4, r5, r6, r7, p3, p4, p5
  */
 .macro save_context_with_interrupts
+	[--sp] = SYSCFG;
+
+	[--sp] = P0;	/*orig_p0*/
+	[--sp] = R0;	/*orig_r0*/
+	[--sp] = ( R7:0, P5:0 );
+	[--sp] = fp;
+	[--sp] = usp;
+
+	[--sp] = i0;
+	[--sp] = i1;
+	[--sp] = i2;
+	[--sp] = i3;
+
+	[--sp] = m0;
+	[--sp] = m1;
+	[--sp] = m2;
+	[--sp] = m3;
+
+	[--sp] = l0;
+	[--sp] = l1;
+	[--sp] = l2;
+	[--sp] = l3;
+
+	[--sp] = b0;
+	[--sp] = b1;
+	[--sp] = b2;
+	[--sp] = b3;
+	[--sp] = a0.x;
+	[--sp] = a0.w;
+	[--sp] = a1.x;
+	[--sp] = a1.w;
+
+	[--sp] = LC0;
+	[--sp] = LC1;
+	[--sp] = LT0;
+	[--sp] = LT1;
+	[--sp] = LB0;
+	[--sp] = LB1;
+
+	[--sp] = ASTAT;
+
+	[--sp] = r0;	/* Skip reserved */
+	[--sp] = RETS;
+	r0 = RETI;
+	[--sp] = r0;
+	[--sp] = RETX;
+	[--sp] = RETN;
+	[--sp] = RETE;
+	[--sp] = SEQSTAT;
+	[--sp] = r0;	/* Skip IPEND as well. */
+	/* Switch to other method of keeping interrupts disabled.  */
+	cli r0;
+	[--sp] = RETI;  /*orig_pc*/
+	/* Clear all L registers.  */
+	r0 = 0 (x);
+	l0 = r0;
+	l1 = r0;
+	l2 = r0;
+	l3 = r0;
+.endm
+
+.macro save_context_syscall
 	[--sp] = SYSCFG;
 
 	[--sp] = P0;	/*orig_p0*/
@@ -211,6 +280,11 @@
 	RETX = [sp++];
 	RETI = [sp++];
 	RETS = [sp++];
+
+	p0.h = irq_flags;
+	p0.l = irq_flags;
+	r0 = [p0];
+	sti r0;
 
 	sp += 4;	/* Skip Reserved */
 

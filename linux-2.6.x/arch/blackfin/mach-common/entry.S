@@ -494,7 +494,7 @@ schedule_and_signal_from_int:
 	jump.s resume_userspace;
 
 _schedule_and_signal:
-	SAVE_CONTEXT
+	SAVE_CONTEXT_SYSCALL
 	/* To end up here, vector 15 was changed - so we have to change it
 	   back.  */
 	p0.l = lo(EVT15);
