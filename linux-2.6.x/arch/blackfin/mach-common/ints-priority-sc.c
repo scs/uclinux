@@ -106,19 +106,23 @@ static void __init search_IAR(void)
  * This is for BF533 internal IRQs
  */
 
+static void ack_noop(unsigned int irq)
+{
+  //dummy function
+}
+
 static void bf533_core_mask_irq(unsigned int irq)
 {
-	local_irq_disable();
 	irq_flags &= ~(1<<irq);
-	local_irq_enable();
+	if (! irqs_disabled ())
+		local_irq_enable();
 }
 
 static void bf533_core_unmask_irq(unsigned int irq)
 {
-	/* enable the interrupt */
-	local_irq_disable();
 	irq_flags |= 1<<irq;
-	local_irq_enable();
+	if (! irqs_disabled ())
+		local_irq_enable();
 	return;
 }
 
@@ -130,21 +134,21 @@ static void bf533_internal_mask_irq(unsigned int irq)
 static void bf533_internal_unmask_irq(unsigned int irq)
 {
 	unsigned long irq_mask;
-	local_irq_disable();
+//	local_irq_disable();
 	irq_mask = (1<<(irq - (IRQ_CORETMR+1)));
    	*pSIC_IMASK |= irq_mask;
 	__builtin_bfin_ssync();
-	local_irq_enable();
+//	local_irq_enable();
 }
 
 static struct irqchip bf533_core_irqchip = {
-	.ack		= bf533_core_mask_irq,
+	.ack		= ack_noop,
 	.mask		= bf533_core_mask_irq,
 	.unmask		= bf533_core_unmask_irq,
 };
 
 static struct irqchip bf533_internal_irqchip = {
-	.ack		= bf533_internal_mask_irq,
+	.ack		= ack_noop,
 	.mask		= bf533_internal_mask_irq,
 	.unmask		= bf533_internal_unmask_irq,
 };
@@ -380,7 +384,7 @@ int __init  init_arch_irq(void)
 #ifdef CONFIG_IRQCHIP_DEMUX_GPIO
 		if (irq != IRQ_PROG_INTB) {
 #endif
-			set_irq_handler(irq, do_level_IRQ);
+			set_irq_handler(irq, do_simple_IRQ);
 			set_irq_flags(irq, IRQF_VALID);
 #ifdef CONFIG_IRQCHIP_DEMUX_GPIO
 		} else {
