@@ -444,6 +444,7 @@ static void do_pending_irqs(struct pt_regs *regs)
 asmlinkage void asm_do_IRQ(unsigned int irq, struct pt_regs *regs)
 {
 	struct irqdesc *desc = irq_desc + irq;
+	unsigned short pending, other_ints;
 
 	/*
 	 * Some hardware gives randomly wrong interrupts.  Rather
@@ -463,6 +464,16 @@ asmlinkage void asm_do_IRQ(unsigned int irq, struct pt_regs *regs)
 		do_pending_irqs(regs);
 
 	spin_unlock(&irq_controller_lock);
+
+	/* If we're the only interrupt running (ignoring IRQ15 which is for
+	   syscalls), lower our priority to IRQ14 so that softirqs run at
+	   that level.  If there's another, lower-level interrupt, irq_exit
+	   will defer softirqs to that.  */
+	__builtin_bfin_csync();
+	pending = *pIPEND & ~0x8000;
+	other_ints = pending & pending - 1;
+	if (other_ints == 0)
+		lower_to_irq14();
 	irq_exit();
 }
 

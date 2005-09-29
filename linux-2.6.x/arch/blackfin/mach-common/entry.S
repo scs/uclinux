@@ -471,8 +471,16 @@ ENTRY(return_from_int)
 2:
 	rts;
 
+ENTRY(lower_to_irq14)
+	r0 = 0x4000;
+	sti r0;
+	raise 14;
+	rti; 
 ENTRY(_evt14_softirq)
-	rti;
+	cli r0;
+	[--sp] = RETI;
+	SP += 4;
+	rts;
 
 schedule_and_signal_from_int:
 	/* To end up here, vector 15 was changed - so we have to change it
