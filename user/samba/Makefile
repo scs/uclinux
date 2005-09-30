@@ -4,4 +4,8 @@ clean:
 	$(MAKE) -C source clean
 romfs:
 	$(MAKE) -C source romfs
-	echo "[global]" > $(ROMFSDIR)/etc/default/smb.conf
+	if [ -d "$(ROMFSDIR)/etc/default/" ]; then \
+		echo "[global]" > $(ROMFSDIR)/etc/default/smb.conf ; \
+	else \
+		echo "[global]" > $(ROMFSDIR)/etc/smb.conf ; \
+	fi
