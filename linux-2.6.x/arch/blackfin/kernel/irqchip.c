@@ -32,7 +32,7 @@
 #define IRQ_DPRINTK(x...)	printk(x)
 #else
 #define IRQ_DPRINTK(x...)	do { } while (0)
-#endif 
+#endif
 
 /*
  * Maximum IRQ count.  Currently, this is arbitary.  However, it should
@@ -223,8 +223,8 @@ static int check_irq_lock(struct irqdesc *desc, int irq, struct pt_regs *regs)
 	return 0;
 }
 
-static void
-report_bad_irq(unsigned int irq, struct pt_regs *regs, struct irqdesc *desc, int ret)
+static void report_bad_irq(unsigned int irq, struct pt_regs *regs,
+			   struct irqdesc *desc, int ret)
 {
 	static int count = 100;
 	struct irqaction *action;
@@ -251,8 +251,8 @@ report_bad_irq(unsigned int irq, struct pt_regs *regs, struct irqdesc *desc, int
 	printk("\n");
 }
 
-static int
-__do_irq(unsigned int irq, struct irqaction *action, struct pt_regs *regs)
+static int __do_irq(unsigned int irq, struct irqaction *action,
+		    struct pt_regs *regs)
 {
 	unsigned int status;
 	int retval = 0;
@@ -282,8 +282,7 @@ __do_irq(unsigned int irq, struct irqaction *action, struct pt_regs *regs)
  * This is for software-decoded IRQs.  The caller is expected to
  * handle the ack, clear, mask and unmask issues.
  */
-void
-do_simple_IRQ(unsigned int irq, struct irqdesc *desc, struct pt_regs *regs)
+void do_simple_IRQ(unsigned int irq, struct irqdesc *desc, struct pt_regs *regs)
 {
 	struct irqaction *action;
 	const int cpu = smp_processor_id();
@@ -304,8 +303,7 @@ do_simple_IRQ(unsigned int irq, struct irqdesc *desc, struct pt_regs *regs)
  * Most edge-triggered IRQ implementations seem to take a broken
  * approach to this.  Hence the complexity.
  */
-void
-do_edge_IRQ(unsigned int irq, struct irqdesc *desc, struct pt_regs *regs)
+void do_edge_IRQ(unsigned int irq, struct irqdesc *desc, struct pt_regs *regs)
 {
 	const int cpu = smp_processor_id();
 
@@ -370,8 +368,7 @@ do_edge_IRQ(unsigned int irq, struct irqdesc *desc, struct pt_regs *regs)
 /*
  * Level-based IRQ handler.  Nice and simple.
  */
-void
-do_level_IRQ(unsigned int irq, struct irqdesc *desc, struct pt_regs *regs)
+void do_level_IRQ(unsigned int irq, struct irqdesc *desc, struct pt_regs *regs)
 {
 	struct irqaction *action;
 	const int cpu = smp_processor_id();
@@ -663,8 +660,9 @@ int setup_irq(unsigned int irq, struct irqaction *new)
  *	SA_SAMPLE_RANDOM	The interrupt can be used for entropy
  *
  */
-int request_irq(unsigned int irq, irqreturn_t (*handler)(int, void *, struct pt_regs *),
-		 unsigned long irq_flags, const char * devname, void *dev_id)
+int request_irq(unsigned int irq,
+		irqreturn_t (*handler)(int, void *, struct pt_regs *),
+		unsigned long irq_flags, const char * devname, void *dev_id)
 {
 	unsigned long retval;
 	struct irqaction *action;
