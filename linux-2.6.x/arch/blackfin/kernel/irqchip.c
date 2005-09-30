@@ -433,6 +433,8 @@ static void do_pending_irqs(struct pt_regs *regs)
 	} while (!list_empty(&irq_pending));
 }
 
+extern asmlinkage void lower_to_irq14(void);
+
 /*
  * do_IRQ handles all hardware IRQ's.  Decoded IRQs should not
  * come via this function.  Instead, they should provide their
@@ -468,7 +470,7 @@ asmlinkage void asm_do_IRQ(unsigned int irq, struct pt_regs *regs)
 	   will defer softirqs to that.  */
 	__builtin_bfin_csync();
 	pending = *pIPEND & ~0x8000;
-	other_ints = pending & pending - 1;
+	other_ints = pending & (pending - 1);
 	if (other_ints == 0)
 		lower_to_irq14();
 	irq_exit();
