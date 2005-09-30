@@ -42,7 +42,7 @@
 .data
 ALIGN
 extable:
-	.long ex_syscall;
+	.long ex_syscall;	/* 0 */
 	.long ex_trap_c
 	.long ex_trap_c
 	.long ex_trap_c
@@ -50,6 +50,7 @@ extable:
 	.long ex_trap_c
 	.long ex_trap_c
 	.long ex_trap_c
+	.long ex_trap_c		/* 8 */
 	.long ex_trap_c
 	.long ex_trap_c
 	.long ex_trap_c
@@ -57,6 +58,15 @@ extable:
 	.long ex_trap_c
 	.long ex_trap_c
 	.long ex_trap_c
+	.long ex_trap_c		/* 16 - STEP */
+	.long ex_trap_c		/* 17 - OVFLOW */
+	.long ex_trap_c		
+	.long ex_trap_c
+	.long ex_trap_c		
+	.long ex_trap_c
+	.long ex_trap_c
+	.long ex_trap_c
+	.long ex_trap_c		/* 24 */
 	.long ex_trap_c
 	.long ex_trap_c
 	.long ex_trap_c
@@ -64,6 +74,23 @@ extable:
 	.long ex_trap_c
 	.long ex_trap_c
 	.long ex_trap_c
+	.long ex_trap_c		/* 32 */
+	.long ex_trap_c		/* 33 - UNDEF_I */
+	.long ex_trap_c		/* 34 - ILGAL_I */
+	.long ex_trap_c		/* 35 - CPLB_VL */
+	.long ex_trap_c		/* 36 - MISALI_D */
+	.long ex_trap_c		/* 37 - UNCOV */
+	.long ex_cplb		/* 38 - CPLB_M */
+	.long ex_trap_c		/* 39 - CPLB_MHIT */
+	.long ex_trap_c		/* 40 - WATCH */
+	.long ex_trap_c		/* 41 - ISTRU_VL */
+	.long ex_trap_c		/* 42 - MISALI_I */
+	.long ex_trap_c		/* 43 - CPLB_I_VL */
+	.long ex_cplb		/* 44 - CPLB_I_M */
+	.long ex_trap_c		/* 45 - CPLB_I_MHIT */
+	.long ex_trap_c		/* 46 - ILL_RES */
+	.long ex_trap_c
+	.long ex_trap_c		/* 48 */
 	.long ex_trap_c
 	.long ex_trap_c
 	.long ex_trap_c
@@ -71,34 +98,7 @@ extable:
 	.long ex_trap_c
 	.long ex_trap_c
 	.long ex_trap_c
-	.long ex_trap_c
-	.long ex_trap_c
-	.long ex_trap_c
-	.long ex_trap_c
-	.long ex_trap_c
-	.long ex_trap_c
-	.long ex_trap_c
-	.long ex_trap_c
-	.long ex_trap_c
-	.long ex_trap_c
-	.long ex_trap_c
-	.long ex_trap_c
-	.long ex_trap_c
-	.long ex_trap_c
-	.long ex_trap_c
-	.long ex_trap_c
-	.long ex_trap_c
-	.long ex_trap_c
-	.long ex_trap_c
-	.long ex_trap_c
-	.long ex_trap_c
-	.long ex_trap_c
-	.long ex_trap_c
-	.long ex_trap_c
-	.long ex_trap_c
-	.long ex_trap_c
-	.long ex_trap_c
-	.long ex_trap_c
+	.long ex_trap_c		/* 56 */
 	.long ex_trap_c
 	.long ex_trap_c
 	.long ex_trap_c
@@ -107,6 +107,18 @@ extable:
 	.long ex_trap_c
 	.long ex_trap_c
 .text
+
+/* Slightly simplified and streamlined entry point for CPLB misses.
+   This one does not lower the level to IRQ5, and thus can be used to
+   patch up CPLB misses on the kernel stack.  */
+ENTRY(ex_cplb)
+	(R7:6,P5:4) = [sp++];
+	ASTAT = [sp++];
+	SAVE_ALL_SYS
+	call _cplb_hdr;
+	RESTORE_ALL_SYS
+	SP = RETN;
+	rtx;
 
 ENTRY(ex_spinlock)
 	/* Transform this into a syscall - twiddle the syscall vector.  */
@@ -122,6 +134,7 @@ ENTRY(ex_syscall)
 	(R7:6,P5:4) = [sp++];
 	ASTAT = [sp++];
 	raise 15;		/* invoked by TRAP #0, for sys call */
+	sp = retn;
 	rtx
 
 ENTRY(spinlock_bh)
@@ -143,9 +156,32 @@ ENTRY(spinlock_bh)
 	rti;
 
 ENTRY(ex_trap_c)
+	/* Call C code (trap_c) to handle the exception, which most
+	   likely involves sending a signal to the current process.
+	   To avoid double faults, lower our priority to IRQ5 first.  */
+	P5.h = exception_to_level5;
+	P5.l = exception_to_level5;
+	p4.l = lo(EVT5);
+	p4.h = hi(EVT5);
+	[p4] = p5;
+	csync;
 	(R7:6,P5:4) = [sp++];
 	ASTAT = [sp++];
-	SAVE_ALL_SYS;
+	SP = RETN;
+	raise 5;
+	rtx;
+
+ENTRY(exception_to_level5)
+	SAVE_ALL_SYS
+
+	/* Restore the hardware error vector.  */
+	P5.h = evt_ivhw;
+	P5.l = evt_ivhw;
+	p4.l = lo(EVT5);
+	p4.h = hi(EVT5);
+	[p4] = p5;
+	csync;
+
         p2.l = lo(IPEND);
         p2.h = hi(IPEND);
 	csync;
@@ -158,9 +194,15 @@ ENTRY(ex_trap_c)
 	SP += 12; 
 	call ret_from_exception;
 	RESTORE_ALL_SYS
-	rtx;
+	rti;
 	
 ENTRY(trap) /* Exception: 4th entry into system event table(supervisor mode)*/
+	/* Since the kernel stack can be anywhere, it's not guaranteed to be
+	   covered by a CPLB.  Switch to an exception stack; use RETN as a
+	   scratch register (for want of a better option).  */
+	retn = sp;
+	sp.l = exception_stack_top;
+	sp.h = exception_stack_top;
 	/* Try to deal with syscalls quickly.  */
 	[--sp] = ASTAT;
 	[--sp] = (R7:6, P5:4);
@@ -383,14 +425,11 @@ ENTRY(ret_from_exception)
 	[sp + PT_IPEND] = r0;
 
 1:
-	r1 = 0x17(Z);
+	r1 = 0x37(Z);
 	r2 = ~r1;
 	r2.h = 0;
 	r0 = r2 & r0;
-        r1 = 1;
-        r1 = r0 - r1;
-        r2 = r0 & r1;
-        cc = r2 == 0;
+        cc = r0 == 0;
         if !cc jump 4f;	/* if not return to user mode, get out */
 
 	/* Make sure any pending system call or deferred exception
@@ -780,3 +819,10 @@ ENTRY(sys_call_table)
 	.rept 2
 	.long (sys_ni_syscall)
 	.endr
+/* Put this in the kernel data section - that should always be covered by
+   a CPLB.  */
+exception_stack:
+	.rept 1024
+	.long 0;
+	.endr
+exception_stack_top:
