@@ -7,5 +7,9 @@ romfs:
 	if [ -d "$(ROMFSDIR)/etc/default/" ]; then \
 		echo "[global]" > $(ROMFSDIR)/etc/default/smb.conf ; \
 	else \
-		echo "[global]" > $(ROMFSDIR)/etc/smb.conf ; \
+		if [ -d "$(ROMFSDIR)/etc/config/" ] ; then \
+			echo "[global]" > $(ROMFSDIR)/etc/config/smb.conf ; \
+		else \
+			echo "[global]" > $(ROMFSDIR)/etc/smb.conf ; \
+		fi \
 	fi

@@ -88,7 +88,7 @@ static void daemonize(int argc, char **argv)
 	signal(SIGTERM, exit_parent);
 	pid = vfork();
 	if (pid == 0) { 
-		execv(oldname, argv);
+		execvp(oldname, argv);
 		fprintf(stderr, "Failed to exec %s:%s\n", oldname, strerror(errno));
 		exit(1);
 	} else if (pid == -1) {
