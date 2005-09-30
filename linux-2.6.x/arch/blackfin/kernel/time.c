@@ -2,7 +2,7 @@
  *  linux/arch/bfinnommu/kernel/time.c
  *
  *  Copyright (C) 1991, 1992, 1995  Linus Torvalds
- *  Copyright (C) 2004 LG Soft India. 
+ *  Copyright (C) 2004 LG Soft India.
  *
  * This file contains the bfin-specific time handling details.
  * Most of the stuff is located in the machine specific files.
@@ -10,18 +10,18 @@
  */
 
 #include <linux/module.h>
-#include <linux/profile.h> 
+#include <linux/profile.h>
 
 #include <asm/blackfin.h>
 #include <asm/irq.h>
 #include <asm/bf5xx_rtc.h>
 
-#define	TICK_SIZE (tick_nsec / 1000)	
+#define	TICK_SIZE (tick_nsec / 1000)
 
 u64 jiffies_64 = INITIAL_JIFFIES;
 
 EXPORT_SYMBOL(jiffies_64);
-	
+
 void time_sched_init(irqreturn_t (*timer_routine)(int, void *, struct pt_regs *));
 unsigned long gettimeoffset (void);
 extern unsigned long wall_jiffies;
@@ -69,7 +69,7 @@ void __init init_leds(void)
 #endif
 
 }
-#else 
+#else
 inline void  __init init_leds(void) {}
 #endif
 
@@ -80,14 +80,14 @@ inline static void do_leds(void)
 	static int	flag = 0;
 	unsigned short tmp = 0;
 
-	if( --count==0 ) {
+	if (--count == 0) {
 		count = 50;
 		flag = ~flag;
 	}
 	tmp = *(volatile unsigned short *)CONFIG_BFIN_ALIVE_LED_PORT;
 	__builtin_bfin_ssync();
 
-	if( flag )
+	if (flag)
 		tmp &=~CONFIG_BFIN_ALIVE_LED_PIN;	/* light on */
 	else
 		tmp |=CONFIG_BFIN_ALIVE_LED_PIN;	/* light off */
@@ -96,7 +96,7 @@ inline static void do_leds(void)
 	__builtin_bfin_ssync();
 
 }
-#else  
+#else
 inline static void do_leds(void) {}
 #endif
 
@@ -104,7 +104,7 @@ static struct irqaction bfin_timer_irq = {
 	.name    = "BFIN Timer Tick",
 	.flags   = SA_INTERRUPT
 };
- 
+
 void time_sched_init(irqreturn_t (*timer_routine)(int, void *, struct pt_regs *))
 {
 	/* power up the timer, but don't enable it just yet */
@@ -120,7 +120,7 @@ void time_sched_init(irqreturn_t (*timer_routine)(int, void *, struct pt_regs *)
 
 	/* now enable the timer */
 	__builtin_bfin_csync();
-	
+
 	*pTCNTL = 7;
 
 	bfin_timer_irq.handler = timer_routine;
@@ -136,17 +136,15 @@ unsigned long gettimeoffset (void)
 	offset = tick_usec * (clocks_per_jiffy - (*pTCOUNT + 1)) / clocks_per_jiffy;
 
 	/* Check if we just wrapped the counters and maybe missed a tick */
-	if ((*pILAT & (1<<IRQ_CORETMR)) && (offset < (100000 / HZ / 2))){
-		
-		offset += (1000000 / HZ); 
-	} 
+	if ((*pILAT & (1 << IRQ_CORETMR)) && (offset < (100000 / HZ / 2)))
+		offset += (1000000 / HZ);
 
 	return offset;
 }
 
 static inline int set_rtc_mmss(unsigned long nowtime)
 {
-    return 0;
+	return 0;
 }
 
 static inline void do_profile (struct pt_regs * regs)
@@ -154,12 +152,13 @@ static inline void do_profile (struct pt_regs * regs)
 /*
  * temperary remove code to do profile, because the arch change of the profile in the kernel 2.6.12
  */
-/*	unsigned long pc;
-     
+#if 0
+	unsigned long pc;
+
 	pc = regs->pc;
-	     
-	profile_hook(regs);     
-     
+
+	profile_hook(regs);
+
         if (prof_buffer && current->pid) {
 		extern int _stext;
 		pc -= (unsigned long) &_stext;
@@ -167,14 +166,14 @@ static inline void do_profile (struct pt_regs * regs)
 		if (pc < prof_len)
 			++prof_buffer[pc];
 		else
-*/		/*
+		/*
 		 * Don't ignore out-of-bounds PC values silently,
 		 * put them into the last histogram slot, so if
 		 * present, they will show up as a sharp peak.
 		 */
-/*			++prof_buffer[prof_len-1];
+			++prof_buffer[prof_len-1];
 	}
-*/
+#endif
 }
 
 /*
@@ -185,8 +184,8 @@ irqreturn_t timer_interrupt(int irq, void *dummy, struct pt_regs * regs)
 {
 	/* last time the cmos clock got updated */
 	static long last_rtc_update=0;
-	
-	write_seqlock(&xtime_lock); 
+
+	write_seqlock(&xtime_lock);
 
 	do_timer(regs);
 	do_leds();
@@ -201,15 +200,16 @@ irqreturn_t timer_interrupt(int irq, void *dummy, struct pt_regs * regs)
 	 * CMOS clock accordingly every ~11 minutes. Set_rtc_mmss() has to be
 	 * called as close as possible to 500 ms before the new second starts.
 	 */
-	
+
 	if ((time_status & STA_UNSYNC) == 0 &&
 	    xtime.tv_sec > last_rtc_update + 660 &&
 	    (xtime.tv_nsec / 1000) >= 500000 - ((unsigned) TICK_SIZE) / 2 &&
 	    (xtime.tv_nsec  / 1000) <= 500000 + ((unsigned) TICK_SIZE) / 2) {
-	  if (set_rtc_mmss(xtime.tv_sec) == 0)
-	    last_rtc_update = xtime.tv_sec;
-	  else
-	    last_rtc_update = xtime.tv_sec - 600; /* do it again in 60 s */
+		if (set_rtc_mmss(xtime.tv_sec) == 0)
+			last_rtc_update = xtime.tv_sec;
+		else
+			/* Do it again in 60s. */
+			last_rtc_update = xtime.tv_sec - 600;
 	}
 	write_sequnlock(&xtime_lock);
 	return IRQ_HANDLED;
@@ -230,8 +230,8 @@ void time_init(void)
 	/* Initialize xtime. From now on, xtime is updated with timer interrupts */
         xtime.tv_sec = secs_since_1970;
 	xtime.tv_nsec = 0;
-	
-	wall_to_monotonic.tv_sec = -xtime.tv_sec; 
+
+	wall_to_monotonic.tv_sec = -xtime.tv_sec;
 
 	time_sched_init(timer_interrupt);
 }
@@ -305,7 +305,7 @@ int do_settimeofday(struct timespec *tv)
 #ifdef CONFIG_BFIN_HAVE_RTC
 	rtc_set(sec);
 #endif
-	
+
 	return 0;
 }
 /*
