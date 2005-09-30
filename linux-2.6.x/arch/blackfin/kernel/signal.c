@@ -67,7 +67,7 @@ asmlinkage int do_sigsuspend(struct pt_regs *regs)
 	saveset = current->blocked;
 	siginitset(&current->blocked, mask);
 	recalc_sigpending();
-	spin_unlock_irq(&current->sighand->siglock); 
+	spin_unlock_irq(&current->sighand->siglock);
 
 	regs->r0 = -EINTR;
 	while (1) {
@@ -78,8 +78,7 @@ asmlinkage int do_sigsuspend(struct pt_regs *regs)
 	}
 }
 
-asmlinkage int
-do_rt_sigsuspend(struct pt_regs *regs)
+asmlinkage int do_rt_sigsuspend(struct pt_regs *regs)
 {
 	sigset_t *unewset = (sigset_t *)regs->r0;
 	size_t sigsetsize = (size_t)regs->r1;
@@ -93,10 +92,10 @@ do_rt_sigsuspend(struct pt_regs *regs)
 		return -EFAULT;
 	sigdelsetmask(&newset, ~_BLOCKABLE);
 
-	spin_lock_irq(&current->sighand->siglock); 
+	spin_lock_irq(&current->sighand->siglock);
 	saveset = current->blocked;
 	current->blocked = newset;
-	recalc_sigpending(); 
+	recalc_sigpending();
 	spin_unlock_irq(&current->sighand->siglock);
 
 	regs->r0 = -EINTR;
@@ -108,9 +107,8 @@ do_rt_sigsuspend(struct pt_regs *regs)
 	}
 }
 
-asmlinkage int 
-sys_sigaction(int sig, const struct old_sigaction *act,
-	      struct old_sigaction *oact)
+asmlinkage int sys_sigaction(int sig, const struct old_sigaction *act,
+			     struct old_sigaction *oact)
 {
 	struct k_sigaction new_ka, old_ka;
 	int ret;
@@ -140,8 +138,7 @@ sys_sigaction(int sig, const struct old_sigaction *act,
 	return ret;
 }
 
-asmlinkage int
-sys_sigaltstack(const stack_t *uss, stack_t *uoss)
+asmlinkage int sys_sigaltstack(const stack_t *uss, stack_t *uoss)
 {
 	return do_sigaltstack(uss, uoss, rdusp());
 }
@@ -184,8 +181,8 @@ badframe:
 	return 1;
 }
 
-static inline int
-rt_restore_ucontext(struct pt_regs *regs, struct ucontext *uc, int *pr0)
+static inline int rt_restore_ucontext(struct pt_regs *regs,
+				      struct ucontext *uc, int *pr0)
 {
 	int temp;
 	greg_t *gregs = uc->uc_mcontext.gregs;
@@ -220,7 +217,7 @@ rt_restore_ucontext(struct pt_regs *regs, struct ucontext *uc, int *pr0)
 	err |= __get_user(regs->rets, &gregs[20]);
 	err |= __get_user(regs->pc, &gregs[21]);
 	err |= __get_user(regs->retx, &gregs[22]);
-	
+
 	err |= __get_user(regs->fp, &gregs[23]);
 	err |= __get_user(regs->i0, &gregs[24]);
 	err |= __get_user(regs->i1, &gregs[25]);
@@ -276,9 +273,9 @@ asmlinkage int do_sigreturn(unsigned long __unused)
 		goto badframe;
 
 	sigdelsetmask(&set, ~_BLOCKABLE);
-	spin_lock_irq(&current->sighand->siglock); 
+	spin_lock_irq(&current->sighand->siglock);
 	current->blocked = set;
-	recalc_sigpending(); 
+	recalc_sigpending();
 	spin_unlock_irq(&current->sighand->siglock);
 
 	if (restore_sigcontext(regs, &frame->sc, &r0))
@@ -304,11 +301,11 @@ asmlinkage int do_rt_sigreturn(unsigned long __unused)
 		goto badframe;
 
 	sigdelsetmask(&set, ~_BLOCKABLE);
-	spin_lock_irq(&current->sighand->siglock); 
+	spin_lock_irq(&current->sighand->siglock);
 	current->blocked = set;
-	recalc_sigpending(); 
+	recalc_sigpending();
 	spin_unlock_irq(&current->sighand->siglock);
-	
+
 	if (rt_restore_ucontext(regs, &frame->uc, &r0))
 		goto badframe;
 	return r0;
@@ -367,7 +364,7 @@ static inline int rt_setup_ucontext(struct ucontext *uc, struct pt_regs *regs)
 	err |= __put_user(regs->rets, &gregs[20]);
 	err |= __put_user(regs->pc, &gregs[21]);
 	err |= __put_user(regs->retx, &gregs[22]);
-	
+
 	err |= __put_user(regs->fp, &gregs[23]);
 	err |= __put_user(regs->i0, &gregs[24]);
 	err |= __put_user(regs->i1, &gregs[25]);
@@ -400,8 +397,8 @@ static inline void push_cache (unsigned long vaddr, unsigned int len)
 	flush_icache_range(vaddr, vaddr + len);
 }
 
-static inline void *
-get_sigframe(struct k_sigaction *ka, struct pt_regs *regs, size_t frame_size)
+static inline void *get_sigframe(struct k_sigaction *ka, struct pt_regs *regs,
+				 size_t frame_size)
 {
 	unsigned long usp;
 
@@ -433,7 +430,7 @@ static void setup_frame (int sig, struct k_sigaction *ka,
 			  &frame->sig);
 
 	err |= __put_user(&frame->sc, &frame->psc);
-	
+
 	if (_NSIG_WORDS > 1)
 		err |= copy_to_user(frame->extramask, &set->sig[1],
 				    sizeof(frame->extramask));
@@ -486,7 +483,7 @@ static void setup_rt_frame (int sig, struct k_sigaction *ka, siginfo_t *info,
 			   && sig < 32
 			   ? current_thread_info()->exec_domain->signal_invmap[sig]
 			   : sig),
-			  &frame->sig); 
+			  &frame->sig);
 
 	err |= __put_user(&frame->info, &frame->pinfo);
 
@@ -540,8 +537,8 @@ give_sigsegv:
 	return;
 }
 
-static inline void
-handle_restart(struct pt_regs *regs, struct k_sigaction *ka, int has_handler)
+static inline void handle_restart(struct pt_regs *regs, struct k_sigaction *ka,
+				  int has_handler)
 {
 	switch (regs->r0) {
 	case -ERESTARTNOHAND:
@@ -568,9 +565,8 @@ handle_restart(struct pt_regs *regs, struct k_sigaction *ka, int has_handler)
 /*
  * OK, we're invoking a handler
  */
-static void
-handle_signal(int sig, struct k_sigaction *ka, siginfo_t *info,
-	      sigset_t *oldset, struct pt_regs *regs)
+static void handle_signal(int sig, struct k_sigaction *ka, siginfo_t *info,
+			  sigset_t *oldset, struct pt_regs *regs)
 {
 	/* are we from a system call? to see pt_regs->orig_p0 */
 	if (regs->orig_p0 >= 0)
@@ -590,7 +586,7 @@ handle_signal(int sig, struct k_sigaction *ka, siginfo_t *info,
 		spin_lock_irq(&current->sighand->siglock);
 		sigaddset(&current->blocked,sig);
 		sigorsets(&current->blocked,&current->blocked,&ka->sa.sa_mask);
-		recalc_sigpending(); 
+		recalc_sigpending();
 		spin_unlock_irq(&current->sighand->siglock);
 	}
 }
