@@ -236,6 +236,10 @@ void __init setup_arch(char **cmdline_p)
 		panic("L1 memory overflow\n");
 
 	bf53x_cache_init();
+
+	printk("Hardware Trace Enabled\n");
+	*pTBUFCTL = 0x03;
+	
 }
 
 static struct cpu cpu[1];

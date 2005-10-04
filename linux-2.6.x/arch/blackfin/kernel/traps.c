@@ -73,10 +73,40 @@ asmlinkage void trap_c(struct pt_regs *fp);
 
 int kstack_depth_to_print = 48;
 
+#ifdef CONFIG_KALLSYMS
+#include <linux/kallsyms.h>
+int printk_address(unsigned long address)
+{
+        unsigned long offset = 0, symsize;
+        const char *symname;
+        char *modname;
+        char *delim = ":";
+        char namebuf[128];
+
+        symname = kallsyms_lookup(address, &symsize, &offset, &modname, namebuf);
+        if (!symname)
+                return printk("[<%016lx>]", address);
+        if (!modname)
+                modname = delim = "";
+        return printk("<%016lx>{%s%s%s%s%+ld}",
+                      address,delim,modname,delim,symname,offset);
+}
+#else
+int printk_address(unsigned long address)
+{
+        return printk("[<%016lx>]", address);
+}
+#endif
+
+
 asmlinkage void trap_c(struct pt_regs *fp)
 {
-	int sig = 0;
+	int i, j, sig = 0;
 	siginfo_t info;
+
+        j = *pTBUFCTL;
+        *pTBUFCTL = j & 0x1D;
+
 
  	/* trap_c() will be called for exceptions. During exceptions
  	   processing, the pc value should be set with retx value.
@@ -192,8 +222,21 @@ asmlinkage void trap_c(struct pt_regs *fp)
 	if (sig != 0 && sig != SIGTRAP) {
         	dump(fp);
 	        dump_stack();
+
+        if ( *pTBUFSTAT ) {
+                printk(KERN_EMERG "Hardware Trace:\n");
+                for ( i = 0 ; i <= *pTBUFSTAT ; i++) {
+			printk(KERN_EMERG "%2i Target : ", i);
+			printk_address(*pTBUF);
+                        printk(KERN_EMERG "\n   Source : "  );
+			printk_address(*pTBUF);
+			printk(KERN_EMERG "\n");
+                }
+        }
+
 	}
 nsig:
+	*pTBUFCTL = j ;
 	return;
 }
 
