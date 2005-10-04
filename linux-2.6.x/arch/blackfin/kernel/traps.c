@@ -54,7 +54,7 @@ asmlinkage void evt_system_call(void);
 asmlinkage void evt_soft_int1(void);
 asmlinkage void trap(void);
 
-extern void dump(struct pt_regs *fp);
+extern void dump(struct pt_regs *fp, void *);
 extern void _cplb_hdr(void);
 
 /* Initiate the event table handler */
@@ -62,10 +62,6 @@ void __init trap_init (void)
 {
 	__builtin_bfin_csync();
 	*pEVT3= trap;
-	__builtin_bfin_csync();
-	*pEVT14 = evt_system_call;
-	__builtin_bfin_csync();
-	*pEVT15 = evt_soft_int1;
 	__builtin_bfin_csync();
 }
 
@@ -220,19 +216,8 @@ asmlinkage void trap_c(struct pt_regs *fp)
 	info.si_addr = (void *) fp->pc;
 	force_sig_info (sig, &info, current);
 	if (sig != 0 && sig != SIGTRAP) {
-        	dump(fp);
+	    dump(fp, fp->retx);
 	        dump_stack();
-
-        if ( *pTBUFSTAT ) {
-                printk(KERN_EMERG "Hardware Trace:\n");
-                for ( i = 0 ; i <= *pTBUFSTAT ; i++) {
-			printk(KERN_EMERG "%2i Target : ", i);
-			printk_address(*pTBUF);
-                        printk(KERN_EMERG "\n   Source : "  );
-			printk_address(*pTBUF);
-			printk(KERN_EMERG "\n");
-                }
-        }
 
 	}
 nsig:
@@ -292,7 +277,7 @@ void dump_stack(void)
 	show_stack(current, &stack);
 }
 
-void dump(struct pt_regs *fp)
+void dump(struct pt_regs *fp, void *retaddr)
 {
 	int i;
 
@@ -309,11 +294,10 @@ void dump(struct pt_regs *fp)
 		printk("USER-STACK=%08x\n\n",
 		       (int) current->mm->start_stack);
 	}
-
-	printk("RETX: %08lx; contents of [RETX-16...RETX+8[:\n", fp->retx);
+	printk("return address: %08lx; contents of [PC-16...PC+8[:\n", retaddr);
 	for (i = -16; i < 8; i++) {
 		unsigned short x;
-		get_user (x, (unsigned short *)fp->retx + i);
+		get_user (x, (unsigned short *)retaddr + i);
 		if (i == -8)
 			printk ("\n");
 		if (i == 0)
@@ -321,6 +305,7 @@ void dump(struct pt_regs *fp)
 		printk ("%04x ", x);
 	}
 	printk ("\n\n");
+
 	printk("RETE:  %08lx  RETN: %08lx  RETX: %08lx  RETS: %08lx\n",
 	       fp->rete, fp->retn, fp->retx, fp->rets);
 	printk("IPEND: %04lx  SYSCFG: %04lx\n", fp->ipend, fp->syscfg);
@@ -354,6 +339,16 @@ void dump(struct pt_regs *fp)
 	       rdusp(), fp->astat);
 
 	printk("\n\n");
+        if (*pTBUFSTAT) {
+                printk(KERN_EMERG "Hardware Trace:\n");
+                for ( i = 0 ; i <= *pTBUFSTAT ; i++) {
+			printk(KERN_EMERG "%2i Target : ", i);
+			printk_address(*pTBUF);
+                        printk(KERN_EMERG "\n   Source : "  );
+			printk_address(*pTBUF);
+			printk(KERN_EMERG "\n");
+                }
+        }
 }
 
 asmlinkage int sys_bfin_spinlock (int *spinlock)

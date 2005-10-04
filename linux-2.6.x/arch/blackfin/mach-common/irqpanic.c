@@ -11,7 +11,7 @@
 #include <asm/traps.h>
 #include <asm/blackfin.h>
 
-extern void dump(struct pt_regs * regs);
+extern void dump(struct pt_regs * regs, void *);
 
 /*********
  * irq_panic
@@ -55,7 +55,7 @@ asmlinkage void irq_panic( int reason, struct pt_regs * regs)
 	}
 
 	regs->ipend = *pIPEND;
-	dump(regs);
+	dump(regs, regs->pc);
 	if (0 == (info.si_signo = sig) || 
 	    0 == user_mode(regs)) /* in kernelspace */
 	    panic("Unhandled IRQ or exceptions!\n");
