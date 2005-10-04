@@ -58,6 +58,10 @@ ENTRY(evt_nmi)
 /* interrupt routine for ivhw - 5 */
 ENTRY(evt_ivhw)
 	SAVE_CONTEXT
+	p0.l = lo(TBUFCTL);
+	p0.h = hi(TBUFCTL);
+	r0 = 1;
+	[p0] = r0;
 	r0 = IRQ_HWERR;
 	r1 = sp;
 	SP += -12;
@@ -187,12 +191,3 @@ ENTRY(evt_system_call)
 	RESTORE_CONTEXT
 	rti;
 
-ENTRY(evt_soft_int1)
-	SAVE_CONTEXT
-	r0 = IRQ_SW_INT1;	/*Software Interrupt 1 */
-	r1 =  sp;
-	SP += -12;
-	call do_irq;
-	SP += 12;
-	RESTORE_CONTEXT
-	rti;
