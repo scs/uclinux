@@ -1,6 +1,7 @@
 #ifndef _ASM_BFINNOMMU_SIGCONTEXT_H
 #define _ASM_BFINNOMMU_SIGCONTEXT_H
 
+/* Add new entries at the end of the structure only.  */
 struct sigcontext {
 	unsigned long  sc_mask; 	/* old sigmask */
 	unsigned long  sc_usp;		/* old user stack pointer */
@@ -12,6 +13,9 @@ struct sigcontext {
 	unsigned long  sc_pc;
 	unsigned long  sc_retx;
 	unsigned long  sc_rets;
+	unsigned long  sc_r2;
+	unsigned long  sc_r3;
+	unsigned long  sc_r4;
 };
 
 #endif

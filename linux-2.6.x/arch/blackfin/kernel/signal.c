@@ -164,6 +164,9 @@ restore_sigcontext(struct pt_regs *regs, struct sigcontext *usc, int *pr0)
 	/* restore passed registers */
 	regs->r0 = context.sc_r0;
 	regs->r1 = context.sc_r1;
+	regs->r2 = context.sc_r2;
+	regs->r3 = context.sc_r3;
+	regs->r4 = context.sc_r4;
 	regs->p0 = context.sc_p0;
 	regs->p1 = context.sc_p1;
 	regs->seqstat = context.sc_seqstat;
@@ -322,6 +325,9 @@ static void setup_sigcontext(struct sigcontext *sc, struct pt_regs *regs,
 	sc->sc_usp = rdusp();
 	sc->sc_r0 = regs->r0;
 	sc->sc_r1 = regs->r1;
+	sc->sc_r2 = regs->r2;
+	sc->sc_r3 = regs->r3;
+	sc->sc_r4 = regs->r4;
 	sc->sc_p0 = regs->p0;
 	sc->sc_p1 = regs->p1;
 	sc->sc_seqstat = regs->seqstat;
