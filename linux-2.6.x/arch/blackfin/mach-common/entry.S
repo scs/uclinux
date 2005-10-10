@@ -314,6 +314,16 @@ ENTRY(system_call)
 	r2 = [sp + PT_R2];
 	p5 = [p5];
 
+   /* are we tracing syscalls?*/
+        r7 = sp;
+        r6.l = lo(ALIGN_PAGE_MASK);
+        r6.h = hi(ALIGN_PAGE_MASK);
+        r7 = r7 & r6;
+        p2 = r7;
+        r7 = [p2+TI_FLAGS];
+        CC = BITTST(r7,TIF_SYSCALL_TRACE);
+        if CC JUMP __sys_trace;
+
 	[--sp] = r4;
 	[--sp] = r3;
 	SP += -12;
@@ -368,6 +378,55 @@ syscall_really_exit:
 	r5 = [sp + PT_RESERVED];
 	rets = r5;
 	rts;
+
+__sys_trace:
+        [--sp] = r3;
+        [--sp] = r2;
+        [--sp] = r1;
+        [--sp] = r0;
+        [--sp] = p5;
+        [--sp] = p2;
+        [--sp] = p1;
+        [--sp] = p0;
+        r1 = 0;
+        call syscall_trace;
+        p0 = [sp++];
+        p1 = [sp++];
+        p2 = [sp++];
+        p5 = [sp++];
+        r0 = [sp++];
+        r1 = [sp++];
+        r2 = [sp++];
+        r3 = [sp++];
+
+
+        [--sp] = r4;
+        [--sp] = r3;
+         SP += -12;
+        call (p5);
+        SP += 20;
+        [sp + PT_R0] = r0;
+
+        [--sp] = r3;
+        [--sp] = r2;
+        [--sp] = r1;
+        [--sp] = r0;
+        [--sp] = p5;
+        [--sp] = p2;
+        [--sp] = p1;
+        [--sp] = p0;
+        r1 = 1;
+        call syscall_trace;
+        p0 = [sp++];
+        p1 = [sp++];
+        p2 = [sp++];
+        p5 = [sp++];
+        r0 = [sp++];
+        r1 = [sp++];
+        r2 = [sp++];
+        r3 = [sp++];
+
+        jump resume_userspace;
 
 ENTRY(resume)
 	/*

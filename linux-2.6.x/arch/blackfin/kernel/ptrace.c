@@ -47,6 +47,35 @@
 /* Find the stack offset for a register, relative to thread.esp0. */
 #define PT_REG(reg)	((long)&((struct pt_regs *)0)->reg)
 
+
+
+
+
+/*
+ * Get the address of the live pt_regs for the specified task.
+ * These are saved onto the top kernel stack when the process
+ * is not running.
+ *
+ * Note: if a user thread is execve'd from kernel space, the
+ * kernel stack will not be empty on entry to the kernel, so
+ * ptracing these tasks will fail.
+ */
+static inline struct pt_regs *
+get_user_regs(struct task_struct *task)
+{
+        return (struct pt_regs *)
+                ((unsigned long) task->thread_info +
+                        ( THREAD_SIZE - sizeof(struct pt_regs)));
+}
+/*
+ * Get all user integer registers.
+ */
+static inline int ptrace_getregs(struct task_struct *tsk, void __user *uregs)
+{
+        struct pt_regs *regs = get_user_regs(tsk);
+        return copy_to_user(uregs, regs, sizeof(struct pt_regs)) ? -EFAULT : 0;
+}
+
 /* Mapping from PT_xxx to the stack offset at which the register is
    saved.  Notice that usp has no stack-slot and needs to be treated
    specially (see get_reg/put_reg below). */
@@ -430,10 +459,9 @@ printk("single step\n");
 		}
 
 		case PTRACE_GETREGS: {
-printk("GETREGS : **** NOT IMPLEMENTED ***\n");
-
+			
 		 /* Get all gp regs from the child. */
-			ret = 0;
+			ret = ptrace_getregs(child, (void __user *)data);
 			goto out_tsk;	
 		}
 
