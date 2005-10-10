@@ -43,7 +43,7 @@
 ALIGN
 extable:
 	.long ex_syscall;	/* 0 */
-	.long ex_trap_c
+	.long ex_soft_bp
 	.long ex_trap_c
 	.long ex_trap_c
 	.long ex_spinlock
@@ -58,7 +58,7 @@ extable:
 	.long ex_trap_c
 	.long ex_trap_c
 	.long ex_trap_c
-	.long ex_trap_c		/* 16 - STEP */
+	.long ex_single_step	/* 16 - STEP */
 	.long ex_trap_c		/* 17 - OVFLOW */
 	.long ex_trap_c		
 	.long ex_trap_c
@@ -154,6 +154,32 @@ ENTRY(spinlock_bh)
 	[SP + PT_R0] = R0;
 	RESTORE_ALL_SYS
 	rti;
+
+ENTRY(ex_soft_bp)
+	r7 = retx;
+	r7 += -2;
+	retx = r7;
+	jump.s ex_trap_c;
+
+ENTRY(ex_single_step)
+	/* 1. Check if in interrupt handler.
+	   2. If not, call ex_trap_c.  */
+	p5.l = lo(IPEND);
+	p5.h = hi(IPEND);
+	csync;
+	r7 = [p5];
+	r6 = 0x8 (Z);
+	cc = r7 == r6;
+	if !cc jump 1f;
+	r7 = retx;
+	r6 = reti;
+	cc = r7 == r6;
+	if !cc jump ex_trap_c;
+1:
+	(R7:6,P5:4) = [sp++];
+	ASTAT = [sp++];
+	sp = retn;
+	rtx;
 
 ENTRY(ex_trap_c)
 	/* Call C code (trap_c) to handle the exception, which most
