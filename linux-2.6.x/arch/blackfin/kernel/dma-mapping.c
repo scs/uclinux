@@ -8,6 +8,8 @@
 #include <linux/bootmem.h>
 #include <linux/spinlock.h>
 #include <linux/device.h>
+#include <linux/dma-mapping.h>
+#include <asm/cacheflush.h>
 #include <asm/io.h>
 
 static spinlock_t dma_page_lock = SPIN_LOCK_UNLOCKED;
@@ -108,5 +110,39 @@ void dma_free_coherent(struct device *dev, size_t size, void *vaddr,
 	__free_dma_pages((unsigned long)vaddr, get_pages(size));
 }
 
+/*
+  Dummy functions defined for some existing drivers
+ */
+
+dma_addr_t dma_map_single(struct device *dev, void *ptr, size_t size,
+                          enum dma_data_direction direction)
+{
+  if (direction == DMA_NONE)
+    BUG();
+ 
+  blackfin_dcache_invalidate_range((unsigned long) ptr, (unsigned long) ptr + size);
+
+  return (dma_addr_t)ptr;
+}
+
+int dma_map_sg(struct device *dev, struct scatterlist *sg, int nents,
+               enum dma_data_direction direction)
+{
+  int i;
+
+  for (i=0; i<nents; i++)
+    invalidate_dcache_range(sg_dma_address(&sg[i]),
+			sg_dma_address(&sg[i]) + sg_dma_len(&sg[i]));
+
+  if (direction == DMA_NONE)
+    BUG();
+
+  return nents;
+}
+
 EXPORT_SYMBOL(dma_alloc_coherent);
 EXPORT_SYMBOL(dma_free_coherent);
+EXPORT_SYMBOL(dma_map_single);
+EXPORT_SYMBOL(dma_unmap_single);
+EXPORT_SYMBOL(dma_map_sg);
+EXPORT_SYMBOL(dma_unmap_sg);
