@@ -281,8 +281,8 @@
 	RETI = [sp++];
 	RETS = [sp++];
 
-	p0.h = irq_flags;
-	p0.l = irq_flags;
+	p0.h = _irq_flags;
+	p0.l = _irq_flags;
 	r0 = [p0];
 	sti r0;
 

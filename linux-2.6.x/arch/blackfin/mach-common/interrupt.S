@@ -34,29 +34,29 @@
 	/* Currently used only if GDB stub is not in - invalid */
 	/* gdb-stub set the evt itself */
 	/* save registers for post-mortem only */
-ENTRY(evt_emulation)
+ENTRY(_evt_emulation)
 	SAVE_ALL_SYS
 	r0 = IRQ_EMU;
 	r1 = sp;
 	SP += -12;
-	call irq_panic;
+	call _irq_panic;
 	SP += 12;
 	/* - GDB stub fills this in by itself (if defined) */
 	rte;
 #endif
 
 /* interrupt routine for nmi - 2.  */
-ENTRY(evt_nmi)
+ENTRY(_evt_nmi)
 	SAVE_ALL_SYS
 	r0 = IRQ_NMI;
 	r1 = sp;	    /* get return address (but not going back)  */
 	SP += -12;
-	call irq_panic;
+	call _irq_panic;
 	SP += 12;
 	rtn;
 
 /* interrupt routine for ivhw - 5 */
-ENTRY(evt_ivhw)
+ENTRY(_evt_ivhw)
 	SAVE_CONTEXT
 	p0.l = lo(TBUFCTL);
 	p0.h = hi(TBUFCTL);
@@ -65,12 +65,12 @@ ENTRY(evt_ivhw)
 	r0 = IRQ_HWERR;
 	r1 = sp;
 	SP += -12;
-	call irq_panic;
+	call _irq_panic;
 	SP += 12;
 	rti;
 
 /* interrupt routine for core timer - 6 */
-ENTRY(evt_timer)
+ENTRY(_evt_timer)
 	SAVE_CONTEXT
 	/* SAVE_CONTEXT ignores IPEND; we need to save it since the user_mode
 	   macro accesses it to determine where to account time.  */
@@ -83,109 +83,109 @@ ENTRY(evt_timer)
  	r0 = EVT_IVTMR_P;
 	r1 =  sp;
 	SP += -12;
-	call do_irq;
+	call _do_irq;
 	SP += 12;
 	call return_from_int;
 	RESTORE_CONTEXT
 	rti;
 
 /* interrupt routine for evt2 - 2.  This is NMI.  */
-ENTRY(evt_evt2)
+ENTRY(_evt_evt2)
 	SAVE_CONTEXT
 	r0 = IRQ_NMI;
 	r1 =  sp;
 	SP += -12;
-	call asm_do_IRQ;
+	call _asm_do_IRQ;
 	SP += 12;
 	RESTORE_CONTEXT
 	rtn;
 
 /* interrupt routine for evt7 - 7 */
-ENTRY(evt_evt7)
+ENTRY(_evt_evt7)
 	SAVE_CONTEXT
  	r0 = EVT_IVG7_P;
 	r1 =  sp;
 	SP += -12;
-	call do_irq;
+	call _do_irq;
 	SP += 12;
 	call return_from_int;
 	RESTORE_CONTEXT
 	rti;
 
 /* interrupt routine for evt8 - 8 */
-ENTRY(evt_evt8)
+ENTRY(_evt_evt8)
 	SAVE_CONTEXT
 	r0 = EVT_IVG8_P;
 	r1 =  sp;
 	SP += -12;
-	call do_irq;
+	call _do_irq;
 	SP += 12;
 	call return_from_int;
 	RESTORE_CONTEXT
 	rti;
 
 /* interrupt routine for evt9 - 9 */
-ENTRY(evt_evt9)
+ENTRY(_evt_evt9)
 	SAVE_CONTEXT
 	r0 = EVT_IVG9_P;
 	r1 =  sp;
 	SP += -12;
-	call do_irq;
+	call _do_irq;
 	SP += 12;
 	call return_from_int;
 	RESTORE_CONTEXT
 	rti;
 
 /* interrupt routine for evt10	- 10 */
-ENTRY(evt_evt10)
+ENTRY(_evt_evt10)
 	SAVE_CONTEXT
 	r0 = EVT_IVG10_P;
 	r1 =  sp;
 	SP += -12;
-	call do_irq;
+	call _do_irq;
 	SP += 12;
 	call return_from_int;
 	RESTORE_CONTEXT
 	rti;
 
 /* interrupt routine for evt11	- 11 */
-ENTRY(evt_evt11)
+ENTRY(_evt_evt11)
 	SAVE_CONTEXT
 	r0 = EVT_IVG11_P;
 	r1 =  sp;
 	SP += -12;
-	call do_irq;
+	call _do_irq;
 	SP += 12;
 	call return_from_int;
 	RESTORE_CONTEXT
 	rti;
 
 /* interrupt routine for evt12	- 12 */
-ENTRY(evt_evt12)
+ENTRY(_evt_evt12)
 	SAVE_CONTEXT
 	r0 = EVT_IVG12_P;
 	r1 =  sp;
 	SP += -12;
-	call do_irq;
+	call _do_irq;
 	SP += 12;
 	call return_from_int;
 	RESTORE_CONTEXT
 	rti;
 
  /* interrupt routine for evt13	- 13 */
-ENTRY(evt_evt13)
+ENTRY(_evt_evt13)
 	SAVE_CONTEXT
 	r0 = EVT_IVG13_P;
 	r1 =  sp;
 	SP += -12;
-	call do_irq;
+	call _do_irq;
 	SP += 12;
 	call return_from_int;
 	RESTORE_CONTEXT
 	rti;
 
  /* interrupt routine for system_call - 15 */
-ENTRY(evt_system_call)
+ENTRY(_evt_system_call)
 	SAVE_CONTEXT_SYSCALL
 	call system_call;
 	RESTORE_CONTEXT

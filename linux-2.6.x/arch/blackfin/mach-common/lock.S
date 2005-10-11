@@ -14,17 +14,17 @@
 
 #ifdef CONFIG_BLKFIN_CACHE_LOCK
 
-.global cache_grab_lock
-.type	cache_grab_lock, STT_FUNC;
+.global _cache_grab_lock
+.type	_cache_grab_lock, STT_FUNC;
 
-.global cache_lock
-.type	cache_lock, STT_FUNC;
+.global _cache_lock
+.type	_cache_lock, STT_FUNC;
 
 /* When you come here, it is assumed that 
  * R0 - Which way to be locked
  */	
 
-ENTRY(cache_grab_lock)
+ENTRY(_cache_grab_lock)
 	
 	[--SP]=( R7:0,P5:0 );
 	
@@ -43,7 +43,7 @@ ENTRY(cache_grab_lock)
 	
 	SP += -12;
 	[--SP] = RETS;
-	CALL invalidate_entire_icache;
+	CALL _invalidate_entire_icache;
 	RETS = [SP++];
 	SP += 12;
 
@@ -147,7 +147,7 @@ DONE4:	R4 = R7 << 3;
  * R0 - Which way to be locked
  */
 
-cache_lock: 
+_cache_lock: 
 	
 	[--SP]=( R7:0,P5:0 );
 
@@ -177,10 +177,10 @@ cache_lock:
 /* Return the ILOC bits of IMEM_CONTROL 
  */
 
-.global read_iloc
-.type read_iloc, STT_FUNC;
+.global _read_iloc
+.type _read_iloc, STT_FUNC;
 
-read_iloc:
+_read_iloc:
 
 	P1.H = (IMEM_CONTROL >> 16);
 	P1.L = (IMEM_CONTROL & 0xFFFF);

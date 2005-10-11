@@ -18,8 +18,8 @@
 
 .text
  
-.globl _cplb_hdr;
-.type _cplb_hdr, STT_FUNC;
+.globl __cplb_hdr;
+.type __cplb_hdr, STT_FUNC;
 .extern _cplb_mgr;
 .type _cplb_mgr, STT_FUNC;
 .extern __unknown_exception_occurred;
@@ -30,11 +30,11 @@
 .type __cplb_miss_without_replacement, STT_FUNC;
 .extern __cplb_protection_violation;
 .type __cplb_protection_violation, STT_FUNC;
-.extern panic_pv;
+.extern _panic_pv;
 
 .align 2;
 
-ENTRY(_cplb_hdr)
+ENTRY(__cplb_hdr)
 	SSYNC;
 	[--SP] = ASTAT;
 	[--SP] = SEQSTAT;
@@ -132,21 +132,21 @@ strange_return_from_cplb_mgr:
 __cplb_miss_all_locked:
 	sp += -12;
 	R0 = CPLB_NO_UNLOCKED;
-	call panic_bfin;
+	call _panic_bfin;
 	SP += 12;
 	RTS;
 
- __cplb_miss_without_replacement:
+__cplb_miss_without_replacement:
 	sp += -12;
 	R0 = CPLB_NO_ADDR_MATCH;
-	call panic_bfin;
+	call _panic_bfin;
 	SP += 12;
 	RTS;
 
 __cplb_protection_violation:
 	sp += -12;
 	R0 = CPLB_PROT_VIOL;
-	call panic_bfin;
+	call _panic_bfin;
 	SP += 12;
 	RTS;
 

@@ -19,7 +19,7 @@
  * in the instruction cache.
  */
 
-ENTRY(flush_instruction_cache)
+ENTRY(_flush_instruction_cache)
 	[--SP] = ( R7:6, P5:4 );
 	LINK 12;
 	SP += -12;
@@ -32,7 +32,7 @@ ENTRY(flush_instruction_cache)
 inext:	R0 = [P5++];
 	R1 = [P4++];
 	[--SP] =  RETS;
-	CALL icplb_flush;	/* R0 = page, R1 = data*/
+	CALL _icplb_flush;	/* R0 = page, R1 = data*/
 	RETS = [SP++];
 iskip:	R6 += -1;
 	CC = R6;
@@ -51,7 +51,7 @@ iskip:	R6 += -1;
  */
 
 .align 2
-ENTRY(icplb_flush)
+ENTRY(_icplb_flush)
 	[--SP] = ( R7:4, P5:3 );
 	
 	/* If it's a 1K or 4K page, then it's quickest to
@@ -178,7 +178,7 @@ ieall: NOP;
  * in the data cache.
  */
 
-ENTRY(flush_data_cache)
+ENTRY(_flush_data_cache)
 	[--SP] = ( R7:6, P5:4 );
 	LINK 12;
 	SP += -12;
@@ -196,7 +196,7 @@ next:	R0 = [P5++];
 	CC = R2;
 	IF !CC JUMP skip;	/* If not, ignore it.*/
 	[--SP] = RETS;
-	CALL dcplb_flush;	/* R0 = page, R1 = data*/
+	CALL _dcplb_flush;	/* R0 = page, R1 = data*/
 	RETS = [SP++];
 skip:	R6 += -1;
 	CC = R6;
@@ -215,7 +215,7 @@ skip:	R6 += -1;
  */
 
 .align 2
-ENTRY(dcplb_flush)
+ENTRY(_dcplb_flush)
 	[--SP] = ( R7:4, P5:3 );
 	
 	/* If it's a 1K or 4K page, then it's quickest to

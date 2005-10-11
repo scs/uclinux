@@ -12,7 +12,7 @@
 	   * Data may overlap
 	   */
 
-ENTRY(memmove)	
+ENTRY(_memmove)	
 		I1 = P3; 
 		P0 = R0;              /* P0 = To address */
 		P3 = R1;              /* P3 = From Address */ 

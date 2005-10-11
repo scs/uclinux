@@ -27,11 +27,11 @@ Special cases :
 
 **************************************************************/
 
-.global __modsi3;
-.type __modsi3, STT_FUNC;
-.extern __divsi3;
-.type __divsi3, STT_FUNC;
-__modsi3:
+.global ___modsi3;
+.type ___modsi3, STT_FUNC;
+.extern ___divsi3;
+.type ___divsi3, STT_FUNC;
+___modsi3:
 
 	CC=R0==0;
 	IF CC JUMP RETURN_R0;		/* Return 0, if numerator  == 0 */
@@ -52,7 +52,7 @@ __modsi3:
 	R7 = R0;			/* Copy of R0 */   
 	R6 = R1;			/* Save for later */
 	SP += -12;			/* Should always provide this space */
-	CALL __divsi3;			/* Compute signed quotient using ___divsi3()*/
+	CALL ___divsi3;			/* Compute signed quotient using ___divsi3()*/
 	SP += 12;
 	R0 *= R6;			/* Quotient * divisor */
 	R0 = R7 - R0;			/* Dividend - ( quotient *divisor) */

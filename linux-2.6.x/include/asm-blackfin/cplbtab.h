@@ -23,8 +23,8 @@
 
 .align 4;
 
-.global icplb_table
-icplb_table:
+.global _icplb_table
+_icplb_table:
 .byte4        0x00000000;
 .byte4        0x00000000;
 .byte4        0x00000000;
@@ -60,8 +60,8 @@ icplb_table:
 .byte4 0xffffffff;			/* end of section - termination*/
 
 .align 4;
-.global ipdt_table
-ipdt_table:
+.global _ipdt_table
+_ipdt_table:
 .byte4        0x00000000;
 .byte4        0x00000000;
 .byte4        0x00000000;
@@ -168,8 +168,8 @@ ipdt_table:
  *			DCPLB TABLE		
  ********************************************************************/
 
-.global dcplb_table
-dcplb_table:
+.global _dcplb_table
+_dcplb_table:
 .byte4        0x00000000;
 .byte4        0x00000000;
 .byte4        0x00000000;
@@ -217,8 +217,8 @@ dcplb_table:
  * 
  * This is how Page descriptor Table is implemented in uClinux/Blackfin.
  */   
-.global dpdt_table
-dpdt_table:
+.global _dpdt_table
+_dpdt_table:
 .byte4        0x00000000;
 .byte4        0x00000000;
 .byte4        0x00000000;
@@ -323,8 +323,8 @@ dpdt_table:
 .byte4	0xffffffff;		/*end of section - termination*/
 
 #ifdef CONFIG_CPLB_INFO
-.global ipdt_swapcount_table;	/* swapin count first, then swapout count*/
-ipdt_swapcount_table:
+.global _ipdt_swapcount_table;	/* swapin count first, then swapout count*/
+_ipdt_swapcount_table:
 .byte4        0x00000000;
 .byte4        0x00000000;
 .byte4        0x00000000;
@@ -426,8 +426,8 @@ ipdt_swapcount_table:
 .byte4        0x00000000;
 .byte4        0x00000000;	/* 100 */
 
-.global dpdt_swapcount_table;	/* swapin count first, then swapout count*/
-dpdt_swapcount_table:
+.global _dpdt_swapcount_table;	/* swapin count first, then swapout count*/
+_dpdt_swapcount_table:
 .byte4        0x00000000;
 .byte4        0x00000000;
 .byte4        0x00000000;

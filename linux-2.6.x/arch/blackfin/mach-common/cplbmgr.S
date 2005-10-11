@@ -56,8 +56,8 @@ ENTRY(_cplb_mgr)
 	P4.H = (ICPLB_FAULT_ADDR >> 16);
 
 	P1 = 16;
-	P5.L = page_size_table;
-	P5.H = page_size_table;
+	P5.L = _page_size_table;
+	P5.H = _page_size_table;
 
 	P0.L = (ICPLB_DATA0 & 0xFFFF);
 	P0.H = (ICPLB_DATA0 >> 16);
@@ -130,10 +130,10 @@ icheck_lock:
 ifound_victim:
 #ifdef CONFIG_CPLB_INFO
 	R7 = [P0 - 0x104];
-	P2.L = ipdt_table;
-	P2.H = ipdt_table;
-	P3.L = ipdt_swapcount_table;
-	P3.H = ipdt_swapcount_table;
+	P2.L = _ipdt_table;
+	P2.H = _ipdt_table;
+	P3.L = _ipdt_swapcount_table;
+	P3.H = _ipdt_swapcount_table;
 	P3 += -4;
 icount:
 	R2 = [P2];	/* address from config table */			
@@ -167,15 +167,15 @@ ie_move:P0+=4;
 	 * range.
  	 */
 	
-	P2.L = ipdt_table;
-	P2.H = ipdt_table;
+	P2.L = _ipdt_table;
+	P2.H = _ipdt_table;
 #ifdef	CONFIG_CPLB_INFO
-	P3.L = ipdt_swapcount_table;
-	P3.H = ipdt_swapcount_table;
+	P3.L = _ipdt_swapcount_table;
+	P3.H = _ipdt_swapcount_table;
 	P3 += -8;
 #endif
-	P0.L = page_size_table;
-	P0.H = page_size_table;
+	P0.L = _page_size_table;
+	P0.H = _page_size_table;
 
 	/* Retrieve our fault address (which may have been advanced
 	 * because the faulting instruction crossed a page boundary).
@@ -365,8 +365,8 @@ dcplb_miss_compare:
 	I1.H = (DCPLB_DATA0 >> 16);
 	P1 = 3;
 	P2 = 16;
-	I2.L = dcplb_preference;
-	I2.H = dcplb_preference;
+	I2.L = _dcplb_preference;
+	I2.H = _dcplb_preference;
 	LSETUP(sdsearch1, edsearch1) LC0 = P1;
 sdsearch1:
 	R0 = [I2++];		/* Get the bits we're interested in*/
@@ -379,8 +379,8 @@ sdsearch2:
 	IF !CC JUMP skip_stack_check;
 
 	R2 = [P0 - 0x104]; 	/* R2 - PageStart */
-	P3.L = page_size_table; /* retrive end address */
-	P3.H = page_size_table; /* retrive end address */
+	P3.L = _page_size_table; /* retrive end address */
+	P3.H = _page_size_table; /* retrive end address */
 	R3 = 0x2;		/* 0th - position, 2 bits -length */
 	nop;			/*Anamoly 05000209*/
 	R7 = EXTRACT(R1,R3.l);
@@ -414,10 +414,10 @@ dfound_victim:
 
 #ifdef CONFIG_CPLB_INFO
 	R1 = [P0 - 0x104];
-	P2.L = dpdt_table;
-	P2.H = dpdt_table;
-	P3.L = dpdt_swapcount_table;
-	P3.H = dpdt_swapcount_table;
+	P2.L = _dpdt_table;
+	P2.H = _dpdt_table;
+	P3.L = _dpdt_swapcount_table;
+	P3.H = _dpdt_swapcount_table;
 	P3 += -4;
 dicount:
 	R2 = [P2];
@@ -458,7 +458,7 @@ dicount_done:
 	/* Retrieve the page start address*/
     R0 = [P0 - 0x104];
 	[--sp] = rets;
-	CALL dcplb_flush;	/* R0==CPLB addr, R1==CPLB data*/
+	CALL _dcplb_flush;	/* R0==CPLB addr, R1==CPLB data*/
 	rets = [sp++];
 Ddoverwrite:
 
@@ -495,16 +495,16 @@ de_move: [P0-0x108] = R0;
 de_moved:NOP;
 	R0 = I0;		/* Our faulting address */
 
-	P2.L = dpdt_table;
-	P2.H = dpdt_table;
+	P2.L = _dpdt_table;
+	P2.H = _dpdt_table;
 #ifdef	CONFIG_CPLB_INFO
-	P3.L = dpdt_swapcount_table;
-	P3.H = dpdt_swapcount_table;
+	P3.L = _dpdt_swapcount_table;
+	P3.H = _dpdt_swapcount_table;
 	P3 += -8;
 #endif
 
-	P1.L = page_size_table;
-	P1.H = page_size_table;
+	P1.L = _page_size_table;
+	P1.H = _page_size_table;
 
 	/* An extraction pattern, to retrieve bits 17:16.*/
 
@@ -587,14 +587,14 @@ dnext:	R4 = [P2++];	/* address */
 
 .data
 .align 4;
-page_size_table:
+_page_size_table:
 .byte4	0x00000400;	/* 1K */
 .byte4	0x00001000;	/* 4K */
 .byte4	0x00100000;	/* 1M */
 .byte4	0x00400000;	/* 4M */
 
 .align 4;
-dcplb_preference:
+_dcplb_preference:
 .byte4	0x00000001;	/* valid bit */
 .byte4	0x00000082;	/* dirty+lock bits */
 .byte4	0x00000002;	/* lock bit */

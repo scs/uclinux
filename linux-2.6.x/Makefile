@@ -339,6 +339,7 @@ MODFLAGS	= -DMODULE
 CFLAGS_MODULE   = $(MODFLAGS)
 ifeq ($(ARCH), bfinnommu)
 CFLAGS_MODULE   += -mlong-calls
+KALLSYMS	+= --symbol-prefix=_
 endif
 AFLAGS_MODULE   = $(MODFLAGS)
 LDFLAGS_MODULE  = -r

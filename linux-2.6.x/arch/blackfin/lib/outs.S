@@ -27,7 +27,7 @@
 #include <linux/linkage.h>
 	.align 2;
 	   
-ENTRY(outsl)
+ENTRY(_outsl)
 	P0 = R0;	/* P0 = port */
 	P1 = R1;	/* P1 = address */
 	P2 = R2;	/* P2 = count */
@@ -37,7 +37,7 @@ long_loop_s: R0 = [P1++];
 long_loop_e: [P0] = R0;
 	RTS;
 
-ENTRY(outsw)
+ENTRY(_outsw)
 	P0 = R0;	/* P0 = port */
 	P1 = R1;	/* P1 = address */
 	P2 = R2;	/* P2 = count */
@@ -47,7 +47,7 @@ word_loop_s: R0 = W[P1++];
 word_loop_e: W[P0] = R0;
 	RTS;
 
-ENTRY(outsb)
+ENTRY(_outsb)
 	P0 = R0;	/* P0 = port */
 	P1 = R1;	/* P1 = address */
 	P2 = R2;	/* P2 = count */

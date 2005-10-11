@@ -11,8 +11,8 @@
  */
 
 	.text
-	.globl	__udivsi3
-__udivsi3:
+	.globl	___udivsi3
+___udivsi3:
      
 	/* Attempt to use divide primitive first; these will handle
         most cases, and they're quick - avoids stalls incurred by

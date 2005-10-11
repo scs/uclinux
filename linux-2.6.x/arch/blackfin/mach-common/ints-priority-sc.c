@@ -363,7 +363,7 @@ static void bf533_demux_gpio_irq(unsigned int intb_irq, struct irqdesc *intb_des
  * the BFin IRQ handling routines.
  */
 
-extern void _evt14_softirq(void);
+extern void evt14_softirq(void);
 
 int __init  init_arch_irq(void)
 {
@@ -389,7 +389,7 @@ int __init  init_arch_irq(void)
 	*pEVT11	= evt_evt11;
 	*pEVT12	= evt_evt12;
 	*pEVT13	= evt_evt13;
-	*pEVT14 = _evt14_softirq;
+	*pEVT14 = evt14_softirq;
 	*pEVT15 = evt_system_call;
 	__builtin_bfin_csync();
 

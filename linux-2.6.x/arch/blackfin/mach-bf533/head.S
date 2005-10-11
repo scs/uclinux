@@ -10,19 +10,19 @@
 #include <asm/blackfin.h>
 #include <asm/mach/mem_init.h>
 
-.global _rambase
-.global _ramstart
-.global _ramend
-.extern _ebss
-.extern bf53x_relocate_l1_mem
+.global __rambase
+.global __ramstart
+.global __ramend
+.extern __ebss
+.extern _bf53x_relocate_l1_mem
 
 #define FILE_HEAD_START	0x00000404
 #define INITIAL_STACK	0xFFB01000
 
 .text
 
-ENTRY(_start)
-ENTRY(_stext)
+ENTRY(__start)
+ENTRY(__stext)
 /*  R0: argument of command line string, passed from uboot, save it */
 	R7 = R0;
 	/* Set the SYSCFG register */
@@ -128,7 +128,7 @@ ENTRY(_stext)
         usp = sp;
 
 	/*Put The Code for PLL Programming and SDRAM Programming in L1 ISRAM*/
-	call bf53x_relocate_l1_mem;
+	call _bf53x_relocate_l1_mem;
 	call start_dma_code;
 
 	/* Code for initializing Async memory banks */
@@ -195,10 +195,10 @@ ENTRY(_real_start)
 	 * Zero out the bss region.
 	 */
 
-	p1.l = _sbss;
-	p1.h = _sbss;
-	p2.l = _ebss;
-	p2.h = _ebss;
+	p1.l = __sbss;
+	p1.h = __sbss;
+	p2.l = __ebss;
+	p2.h = __ebss;
 	r0 = 0;
 	p2 -= p1;
 	lsetup (_clear_bss, _clear_bss ) lc0 = p2;
@@ -211,8 +211,8 @@ _clear_bss:
 
 	p1.l = 0x0;
 	p1.h = 0x0;
-	r0.l = _stext;
-	r0.h = _stext;
+	r0.l = __stext;
+	r0.h = __stext;
 	r0 = r0 >> 1;
 	p2 = r0;
 	r0 = 0;
@@ -222,18 +222,18 @@ _clear_zero:
 
 /* pass the uboot arguments to the global value command line */
 	R0 = R7;
-	call cmdline_init;
+	call _cmdline_init;
 
-	p1.l = _rambase;
-	p1.h = _rambase;
-	r0.l = _sdata ;
-	r0.h = _sdata ;
+	p1.l = __rambase;
+	p1.h = __rambase;
+	r0.l = __sdata;
+	r0.h = __sdata;
 	[p1] = r0;
 
-	p1.l = _ramstart;
-	p1.h = _ramstart;
-	p3.l = _ebss;
-	p3.h = _ebss;
+	p1.l = __ramstart;
+	p1.h = __ramstart;
+	p3.l = __ebss;
+	p3.h = __ebss;
 #if defined(CONFIG_ROOTFS_TIED_TO_KERNEL)
 	r0 = p3;
 	r1.l = lo(FILE_HEAD_START);
@@ -243,8 +243,8 @@ _clear_zero:
 	r1 = [p2];
 	r0 = 1024;
 	r1 *= r0;
-	r0.l = _end;
-	r0.h = _end;
+	r0.l = __end;
+	r0.h = __end;
 	r1 = r0 + r1;
 	[p1] = r1;
 #else
@@ -254,15 +254,15 @@ _clear_zero:
 
 	r0.l = lo(RAM_END);
 	r0.h = hi(RAM_END);
-	p1.l = _ramend;
-	p1.h = _ramend;
+	p1.l = __ramend;
+	p1.h = __ramend;
 	[p1] = r0;
 
 	/*
 	 *  load the current thread pointer and stack
 	 */
-	r1.l = init_thread_union;
-	r1.h = init_thread_union;
+	r1.l = _init_thread_union;
+	r1.h = _init_thread_union;
 
 	r2.l = 0x2000; 
 	r2.h = 0x0000;
@@ -270,7 +270,7 @@ _clear_zero:
 	sp = r1;
 	usp = sp;
 	fp = sp;
-	call start_kernel;
+	call _start_kernel;
 _exit:
 	jump.s	_exit;
 	
@@ -374,7 +374,7 @@ skip:
 
 	RTS;
 
-ENTRY(reset)
+ENTRY(_reset)
 	/* No more interrupts to be handled*/
 	CLI R6;
 	SSYNC;
@@ -484,9 +484,9 @@ SKIP_WRITE:
  */
 
 .align 4
-_rambase:
+__rambase:
 .long   0
-_ramstart:
+__ramstart:
 .long   0
-_ramend:
+__ramend:
 .long   0

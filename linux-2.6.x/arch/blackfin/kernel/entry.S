@@ -26,11 +26,11 @@ ENTRY(reschedule)
 	p2 = r7; 
 	p2 = [p2];
 	[p2 + (TASK_THREAD + THREAD_KSP)] = sp;
-	call schedule; 
+	call _schedule; 
 
-ENTRY(ret_from_fork)
+ENTRY(_ret_from_fork)
 	SP += -12;
-	call schedule_tail;
+	call _schedule_tail;
 	SP += 12;
 	r0 = [sp + PT_IPEND];
 	cc = bittst(r0,1);
@@ -46,66 +46,66 @@ in_kernel:
 	p0 = reti;
 	jump (p0);
 
-ENTRY(sys_fork)
+ENTRY(_sys_fork)
 	r0 = -EINVAL;
 	rts;
 
-ENTRY(sys_vfork)
+ENTRY(_sys_vfork)
 	r0 = sp;
 	r0 += 20;
 	[--sp] = rets;
 	SP += -12;
-	call bfin_vfork; 
+	call _bfin_vfork; 
 	SP += 12;
 	rets = [sp++];
 	rts;
 
-ENTRY(sys_clone)
+ENTRY(_sys_clone)
 	r0 = sp;
 	r0 += 20;
 	[--sp] = rets;
 	SP += -12;
-	call bfin_clone; 
+	call _bfin_clone; 
 	SP += 12;
 	rets = [sp++];
 	rts;
 
-ENTRY(sys_sigsuspend)
+ENTRY(_sys_sigsuspend)
 	r0 = sp;
 	r0 += 20;
 	[--sp] = rets;
 	SP += -12;
-	call do_sigsuspend; 
+	call _do_sigsuspend; 
 	SP += 12;
 	rets = [sp++];
 	rts;
 
-ENTRY(sys_rt_sigsuspend)
+ENTRY(_sys_rt_sigsuspend)
 	r0 = sp;
 	r0 += 20;
 	[--sp] = rets;
 	SP += -12;
-	call do_rt_sigsuspend; 
+	call _do_rt_sigsuspend; 
 	SP += 12;
 	rets = [sp++];
 	rts;
 
-ENTRY(sys_sigreturn)
+ENTRY(_sys_sigreturn)
 	r0 = sp;
 	r0 += 20;
 	[--sp] = rets;
 	SP += -12;
-	call do_sigreturn; 
+	call _do_sigreturn; 
 	SP += 12;
 	rets = [sp++];
 	rts;
 
-ENTRY(sys_rt_sigreturn)
+ENTRY(_sys_rt_sigreturn)
 	r0 = sp;
 	r0 += 20;
 	[--sp] = rets;
 	SP += -12;
-	call do_rt_sigreturn; 
+	call _do_rt_sigreturn; 
 	SP += 12;
 	rets = [sp++];
 	rts;

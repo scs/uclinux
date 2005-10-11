@@ -17,7 +17,7 @@
 .text
 
 #if defined (CONFIG_BLKFIN_CACHE)
-ENTRY(icache_init)
+ENTRY(_icache_init)
 
 	/* Initialize Instruction CPLBS */
 	
@@ -27,8 +27,8 @@ ENTRY(icache_init)
 	I1.L = (ICPLB_DATA0 & 0xFFFF);
 	I1.H = (ICPLB_DATA0 >> 16);
 
-	I2.L = icplb_table;
-	I2.H = icplb_table;
+	I2.L = _icplb_table;
+	I2.H = _icplb_table;
 
 	r1 = -1;	/* end point comparison */
 	r3 = 15;	/* max counter */
@@ -67,7 +67,7 @@ idone:
 #endif
 
 #if defined (CONFIG_BLKFIN_DCACHE)
-ENTRY(dcache_init)
+ENTRY(_dcache_init)
 	
 	/* Initialize Data CPLBS */
 	
@@ -77,8 +77,8 @@ ENTRY(dcache_init)
 	I1.L = (DCPLB_DATA0 & 0xFFFF);
 	I1.H = (DCPLB_DATA0 >> 16);
 
-	I2.L = dcplb_table;
-	I2.H = dcplb_table;
+	I2.L = _dcplb_table;
+	I2.H = _dcplb_table;
 
 	R1 = -1;	/* end point comparison */
 	R3 = 15;	/* max counter */

@@ -4,6 +4,7 @@
  *	(C) Copyright 2004-2005 LG Soft India 
  *
  */
+#define VMLINUX_SYMBOL(_sym_) _##_sym_
 
 #include <asm-generic/vmlinux.lds.h>
 #include <linux/config.h>
@@ -11,8 +12,8 @@
 
 
 OUTPUT_FORMAT("elf32-bfin")
-ENTRY(_start) 
-jiffies = jiffies_64;
+ENTRY(__start) 
+_jiffies = _jiffies_64;
 MEMORY 
 	{
 	ram		: ORIGIN = RAM_START,       LENGTH = RAM_LENGTH
@@ -27,14 +28,14 @@ SECTIONS
 	. = RAM_START ;
 
 	.text  : {
-		 _stext = .;                     
+		 __stext = .;
 		*(.text)
 		SCHED_TEXT 
 		*(.text.lock)
 		. = ALIGN(16);
-		  __start___ex_table = .;
+		  ___start___ex_table = .;
 		*(__ex_table)
-		 __stop___ex_table = .;
+		 ___stop___ex_table = .;
 
 		  *($code)
         	  *(.rodata)
@@ -45,48 +46,48 @@ SECTIONS
 
 		/* Kernel symbol table: Normal symbols */
 		. = ALIGN(4);
-		__start___ksymtab = .;
+		___start___ksymtab = .;
 		*(__ksymtab)
-		__stop___ksymtab = .;
+		___stop___ksymtab = .;
 
 		/* Kernel symbol table: GPL-only symbols */
-		__start___ksymtab_gpl = .;
+		___start___ksymtab_gpl = .;
 		*(__ksymtab_gpl)
-		__stop___ksymtab_gpl = .;
+		___stop___ksymtab_gpl = .;
 
 		/* Kernel symbol table: Normal symbols */
-		__start___kcrctab = .;
+		___start___kcrctab = .;
 		*(__kcrctab)
-		__stop___kcrctab = .;
+		___stop___kcrctab = .;
 
 		/* Kernel symbol table: GPL-only symbols */
-		__start___kcrctab_gpl = .;
+		___start___kcrctab_gpl = .;
 		*(__kcrctab_gpl)
-		__stop___kcrctab_gpl = .;
+		___stop___kcrctab_gpl = .;
 
 		/* Kernel symbol table: strings */
 		*(__ksymtab_strings)
 
 		 . = ALIGN(4) ;
-	  	_etext = . ;
+	  	__etext = . ;
 	} > ram
    
 	.init : 
 	{
 		. = ALIGN(4096);
-		__init_begin = .;
-		_sinittext = .;
+		___init_begin = .;
+		__sinittext = .;
 		*(.init.text)
-		_einittext = .;
+		__einittext = .;
 		*(.init.data)
 		. = ALIGN(16);
-		__setup_start = .;
+		___setup_start = .;
 		*(.init.setup)
-		__setup_end = .;
-		__start___param = .;
+		___setup_end = .;
+		___start___param = .;
 		*(__param)
-		__stop___param = .;
-		__initcall_start = .;
+		___stop___param = .;
+		___initcall_start = .;
 		*(.initcall1.init)
 		*(.initcall2.init)
 		*(.initcall3.init)
@@ -94,57 +95,57 @@ SECTIONS
 		*(.initcall5.init)
 		*(.initcall6.init)
 		*(.initcall7.init)
-		__initcall_end = .;
-		__con_initcall_start = .;
+		___initcall_end = .;
+		___con_initcall_start = .;
 		*(.con_initcall.init)
-		__con_initcall_end = .;
-		__security_initcall_start = .;
+		___con_initcall_end = .;
+		___security_initcall_start = .;
 		*(.security_initcall.init)
-		__security_initcall_end = .;
+		___security_initcall_end = .;
 		. = ALIGN(4);
-		__initramfs_start = .;
+		___initramfs_start = .;
 		*(.init.ramfs)
-		__initramfs_end = .;
+		___initramfs_end = .;
 		. = ALIGN(4);
-		__init_end = .;
+		___init_end = .;
 	} > ram
 
-	 _l1_lma_start = .;                     
+	 __l1_lma_start = .;                     
 	.text_l1 L1_CODE_START : 
-		AT ( _l1_lma_start ) 
+		AT ( __l1_lma_start ) 
 	{
 		. = ALIGN(4) ;
-		 _stext_l1 = . ;
+		 __stext_l1 = . ;
 		*(.text.l1)
 	
 		. = ALIGN(4) ;
-		 _etext_l1 = . ;  
+		 __etext_l1 = . ;  
 	} 
 
 	.data_l1 L1_DATA_A_START :
-		AT ( _l1_lma_start + SIZEOF(.text_l1) )
+		AT ( __l1_lma_start + SIZEOF(.text_l1) )
 	{
 		. = ALIGN(4) ;
-		 _sdata_l1 = . ;
+		 __sdata_l1 = . ;
 		*(.data.l1)
-		 _edata_l1 = . ;  
+		 __edata_l1 = . ;  
 
 		. = ALIGN(4) ;
-		 _sbss_l1 = . ;
+		 __sbss_l1 = . ;
 		*(.bss.l1)
 
 		. = ALIGN(4) ;
-		 _ebss_l1 = . ;  
+		 __ebss_l1 = . ;  
 	} 
 
-	. = _l1_lma_start + SIZEOF(.text_l1) + SIZEOF(.data_l1) ;
-	.data (_l1_lma_start + SIZEOF(.text_l1) + SIZEOF(.data_l1)) :	AT ( _l1_lma_start + SIZEOF(.text_l1) + SIZEOF(.data_l1) )
+	. = __l1_lma_start + SIZEOF(.text_l1) + SIZEOF(.data_l1) ;
+	.data (__l1_lma_start + SIZEOF(.text_l1) + SIZEOF(.data_l1)) :	AT ( __l1_lma_start + SIZEOF(.text_l1) + SIZEOF(.data_l1) )
 	{
-		 _sdata = . ;
+		 __sdata = . ;
 		. = ALIGN(0x2000) ;
 		*(.data.init_task)
 		*(.data)
-		_edata = . ;
+		__edata = . ;
 	} > ram
 
 	/DISCARD/ : {			/* Exit code and data*/
@@ -154,16 +155,16 @@ SECTIONS
 	} > ram
 
 
-	.bss : AT ( _l1_lma_start + SIZEOF(.text_l1) + SIZEOF(.data_l1) + SIZEOF(.data) )
+	.bss : AT ( __l1_lma_start + SIZEOF(.text_l1) + SIZEOF(.data_l1) + SIZEOF(.data) )
 	{
 		. = ALIGN(4) ;
-		 _sbss = . ;
+		 __sbss = . ;
 		*(.bss)
 		*(COMMON)
 		. = ALIGN(4) ;
-		 _ebss = . ;	  
-		 _end = . ;	  
- 		_bss_end = . ;
+		 __ebss = . ;	  
+		 __end = . ;	  
+ 		__bss_end = . ;
     	} > ram
 
 

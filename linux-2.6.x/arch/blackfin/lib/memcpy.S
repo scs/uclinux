@@ -14,7 +14,7 @@
 #include <linux/linkage.h>
 
 	.align 2;
-ENTRY(memcpy)
+ENTRY(_memcpy)
 		CC = R2 <=  0;	/* length not positive?*/
 		P0 = R0 ;	/* dst*/
 		P1 = R1 ;	/* src*/

@@ -25,10 +25,10 @@
   Registers Used : R2-R7,P0-P2
 ******************************************************************************/
 
-.global   __divsi3;
+.global   ___divsi3;
 
 .align 8;
-__divsi3 :
+___divsi3 :
         /* Attempt to use divide primitives first; these will handle
            most cases, and they're quick - avoids stalls incurred by
            testing for identities. */

@@ -15,8 +15,8 @@
 
 /******************************************** Watchdog Timer APIs **************************/
 
-.global unmask_wdog_wakeup_evt
-unmask_wdog_wakeup_evt:
+.global _unmask_wdog_wakeup_evt
+_unmask_wdog_wakeup_evt:
 	[--SP] = ( R7:0, P5:0 );
 	
 	P0.h = (SIC_IWR >> 16);
@@ -38,8 +38,8 @@ WRITE_TO_STAT:
 	SSYNC;
 	JUMP SKIP_WRITE_TO_STAT;
 
-.global program_wdog_timer
-program_wdog_timer:	
+.global _program_wdog_timer
+_program_wdog_timer:	
 	[--SP] = ( R7:0, P5:0 );
 
 	P0.h = (WDOG_CNT >> 16);
@@ -73,8 +73,8 @@ SKIP_WRITE_TO_STAT:
 	( R7:0, P5:0 ) = [SP++];
 	RTS;
 
-.global clear_wdog_wakeup_evt
-clear_wdog_wakeup_evt:
+.global _clear_wdog_wakeup_evt
+_clear_wdog_wakeup_evt:
 	[--SP] = ( R7:0, P5:0 );
 
 	P0.h = (WDOG_CTL >> 16);
@@ -97,8 +97,8 @@ clear_wdog_wakeup_evt:
 	( R7:0, P5:0 ) = [SP++];
 	RTS;
 
-.global disable_wdog_timer
-disable_wdog_timer:
+.global _disable_wdog_timer
+_disable_wdog_timer:
 	[--SP] = ( R7:0, P5:0 );
 	P0.h = (WDOG_CTL >> 16);
 	P0.l = (WDOG_CTL & 0xFFFF);
@@ -108,8 +108,8 @@ disable_wdog_timer:
 	( R7:0, P5:0 ) = [SP++];
 	RTS;
 
-.global sleep_mode
-sleep_mode:
+.global _sleep_mode
+_sleep_mode:
 	[--SP] = ( R7:0, P5:0 );
 
         P0.H = hi(SIC_IWR);
@@ -153,8 +153,8 @@ CHECK_AGAIN1:
         ( R7:0, P5:0 ) = [SP++];
         RTS;
 
-.global deep_sleep
-deep_sleep:
+.global _deep_sleep
+_deep_sleep:
 	[--SP] = ( R7:0, P5:0 );
 
         P0.H = hi(SIC_IWR);
@@ -198,8 +198,8 @@ CHECK_AGAIN2:
         ( R7:0, P5:0 ) = [SP++];
         RTS;
 
-.global hibernate_mode
-hibernate_mode:
+.global _hibernate_mode
+_hibernate_mode:
 	[--SP] = ( R7:0, P5:0 );
 	
  	P0.H = hi(SIC_IWR);

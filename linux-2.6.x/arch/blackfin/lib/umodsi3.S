@@ -10,9 +10,9 @@
  */
 
 	.text
-	.extern __udivsi3;
-	.globl	__umodsi3
-__umodsi3:
+	.extern ___udivsi3;
+	.globl	___umodsi3
+___umodsi3:
 	
 	CC=R0==0;
 	IF CC JUMP RETURN_R0;		/* Return 0, if NR == 0 */
@@ -30,7 +30,7 @@ __umodsi3:
 	R7 = R0;			/* Copy of R0 */   
 	R6 = R1;
 	SP += -12;			/* Should always provide this space */
-	CALL __udivsi3;		/* Compute unsigned quotient using ___udiv32()*/
+	CALL ___udivsi3;		/* Compute unsigned quotient using ___udiv32()*/
 	SP += 12;
 	R0 *= R6;			/* Quotient * divisor */
 	R0 = R7 - R0;			/* Dividend - ( quotient *divisor) */

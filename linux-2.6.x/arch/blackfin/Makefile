@@ -13,7 +13,6 @@ LDFLAGS_BLOB	:=--format binary -elf32-bfin
 OBJCOPYFLAGS	:=-O binary -R .note -R .comment -S
 GZFLAGS		:=-9
 CFLAGS		+=-fno-builtin -D__linux__
-CPPFLAGS	+=-mno-underscore
 BFIN_TARGET 	= vmlinux
 
 

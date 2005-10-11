@@ -104,11 +104,11 @@ void show_regs(struct pt_regs * regs)
 extern void kernel_thread_helper(void);
 __asm__(".section .text\n"
 	".align 4\n"
-	"kernel_thread_helper:\n\t"
+	"_kernel_thread_helper:\n\t"
 	"\tsp += -12;\n\t"
 	"\tr0 = r1;\n\t"
 	"\tcall (p1);\n\t"
-	"\tcall do_exit;\n"
+	"\tcall _do_exit;\n"
 	".previous");
 
 /*

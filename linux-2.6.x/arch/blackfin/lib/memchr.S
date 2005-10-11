@@ -11,7 +11,7 @@
 	   * Returns pointer to located character.
 	   */
 	   
-ENTRY(memchr)
+ENTRY(_memchr)
 	     P0 = R0 ;             /* P0 = address */
              P2 = R2 ;             /* P2 = count */
              R1 = R1.B(Z); 

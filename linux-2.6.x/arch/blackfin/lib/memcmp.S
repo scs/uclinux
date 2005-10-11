@@ -3,7 +3,7 @@
  */
 
 .text 
-.global memcmp;
+.global _memcmp;
 
 	   .align 2;
 	   
@@ -17,7 +17,8 @@
 	    * Favours word aligned data.
 	    */	
 	   
-memcmp:  I1 = P3;
+_memcmp: 
+	     I1 = P3;
 	      P0 = R0;			/* P0 = s1 address */
 	      P3 = R1;			/* P3 = s2 Address  */
               P2 = R2 ;			/* P2 = count */

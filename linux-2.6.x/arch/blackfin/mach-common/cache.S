@@ -54,7 +54,7 @@ no_dcache_b:
  * disabling IMC bit
  */
 ENTRY(_icache_invalidate)
-ENTRY(invalidate_entire_icache)
+ENTRY(_invalidate_entire_icache)
 	[--SP] = ( R7:5);
 
 	P0.L = (IMEM_CONTROL & 0xFFFF);
@@ -94,7 +94,7 @@ ENTRY(invalidate_entire_icache)
  * start:	Start address
  * end:		End address
  */
-ENTRY(blackfin_icache_flush_range)
+ENTRY(_blackfin_icache_flush_range)
 	R2 = -L1_CACHE_BYTES;
 	R2 = R0 & R2;
 	P0 = R2;
@@ -118,7 +118,7 @@ ENTRY(blackfin_icache_flush_range)
  * end:		End address
  */
 
-ENTRY(blackfin_icache_dcache_flush_range)
+ENTRY(_blackfin_icache_dcache_flush_range)
 	R2 = -L1_CACHE_BYTES;
 	R2 = R0 & R2;
 	P0 = R2;
@@ -143,7 +143,7 @@ ENTRY(blackfin_icache_dcache_flush_range)
  *  end  : end address.
  */
 
-ENTRY(blackfin_dcache_invalidate_range)
+ENTRY(_blackfin_dcache_invalidate_range)
 	R2 = -L1_CACHE_BYTES;
 	R2 = R0 & R2;
 	P0 = R2;
@@ -166,7 +166,7 @@ ENTRY(blackfin_dcache_invalidate_range)
 /* Invalidate the Entire Data cache by
  * clearing DMC[1:0] bits
  */
-ENTRY(invalidate_entire_dcache)
+ENTRY(_invalidate_entire_dcache)
 ENTRY(_dcache_invalidate)
 	[--SP] = ( R7:6);
 
@@ -201,7 +201,7 @@ ENTRY(_dcache_invalidate)
 	( R7:6) = [SP++];
 	RTS;
 
-ENTRY(blackfin_dcache_flush_range)
+ENTRY(_blackfin_dcache_flush_range)
 	R2 = -L1_CACHE_BYTES;
 	R2 = R0 & R2;
 	P0 = R2;
@@ -221,12 +221,12 @@ ENTRY(blackfin_dcache_flush_range)
 	SSYNC;
 	RTS;
 
-ENTRY(blackfin_dflush_page)
+ENTRY(_blackfin_dflush_page)
 	P1 = 1 << (PAGE_SHIFT - L1_CACHE_SHIFT);
 	P0 = R0;
-    CSYNC;
+	CSYNC;
 	FLUSH[P0];
 	LSETUP (fl1, fl1) LC0 = P1;
-fl1:FLUSH [P0++];	
+fl1:	FLUSH [P0++];	
 	SSYNC;
 	RTS;

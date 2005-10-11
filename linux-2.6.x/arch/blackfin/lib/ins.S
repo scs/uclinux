@@ -28,7 +28,7 @@
 	.align 2;
 	   
 	   
-ENTRY(insl)
+ENTRY(_insl)
 	P0 = R0;	/* P0 = port */
 	P1 = R1;	/* P1 = address */
 	P2 = R2;	/* P2 = count */
@@ -43,7 +43,7 @@ long_loop_e: [P1++] = R0;
     sti R2;
 	RTS;
 
-ENTRY(insw)
+ENTRY(_insw)
 	P0 = R0;	/* P0 = port */
 	P1 = R1;	/* P1 = address */
 	P2 = R2;	/* P2 = count */
@@ -55,10 +55,10 @@ ENTRY(insw)
 word_loop_s: R0 = W[P0];
 word_loop_e: W[P1++] = R0;
 
-    sti R2;
+	sti R2;
 	RTS;
 
-ENTRY(insb)
+ENTRY(_insb)
 	P0 = R0;	/* P0 = port */
 	P1 = R1;	/* P1 = address */
 	P2 = R2;	/* P2 = count */
@@ -69,6 +69,6 @@ ENTRY(insb)
 	LSETUP( byte_loop_s, byte_loop_e) LC0 = P2;
 byte_loop_s: R0 = B[P0];
 byte_loop_e: B[P1++] = R0;
-    sti R2;
+	sti R2;
 	RTS;
 	
