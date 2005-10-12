@@ -77,16 +77,16 @@ extable:
 	.long ex_trap_c		/* 32 */
 	.long ex_trap_c		/* 33 - UNDEF_I */
 	.long ex_trap_c		/* 34 - ILGAL_I */
-	.long ex_trap_c		/* 35 - CPLB_VL */
+	.long ex_dcplb		/* 35 - CPLB_VL */
 	.long ex_trap_c		/* 36 - MISALI_D */
 	.long ex_trap_c		/* 37 - UNCOV */
-	.long ex_cplb		/* 38 - CPLB_M */
+	.long ex_dcplb		/* 38 - CPLB_M */
 	.long ex_trap_c		/* 39 - CPLB_MHIT */
 	.long ex_trap_c		/* 40 - WATCH */
 	.long ex_trap_c		/* 41 - ISTRU_VL */
 	.long ex_trap_c		/* 42 - MISALI_I */
-	.long ex_trap_c		/* 43 - CPLB_I_VL */
-	.long ex_cplb		/* 44 - CPLB_I_M */
+	.long ex_icplb		/* 43 - CPLB_I_VL */
+	.long ex_icplb		/* 44 - CPLB_I_M */
 	.long ex_trap_c		/* 45 - CPLB_I_MHIT */
 	.long ex_trap_c		/* 46 - ILL_RES */
 	.long ex_trap_c
@@ -111,7 +111,22 @@ extable:
 /* Slightly simplified and streamlined entry point for CPLB misses.
    This one does not lower the level to IRQ5, and thus can be used to
    patch up CPLB misses on the kernel stack.  */
-ENTRY(ex_cplb)
+ENTRY(ex_dcplb)
+	/*
+	 * Work around an anomaly: if we see a new DCPLB fault, return
+	 * without doing anything.  Then, if we get the same fault again,
+	 * handle it.
+ 	 */
+	p5.l = _last_cplb_fault_retx;
+	p5.h = _last_cplb_fault_retx;
+	r7 = [p5];
+	r6 = retx;
+	[p5] = r6;
+	cc = r6 == r7;
+	if !cc jump exception_do_nothing;
+	/* fall through */
+
+ENTRY(ex_icplb)
 	(R7:6,P5:4) = [sp++];
 	ASTAT = [sp++];
 	SAVE_ALL_SYS
@@ -170,12 +185,12 @@ ENTRY(ex_single_step)
 	r7 = [p5];
 	r6 = 0x8 (Z);
 	cc = r7 == r6;
-	if !cc jump 1f;
+	if !cc jump exception_do_nothing;
 	r7 = retx;
 	r6 = reti;
 	cc = r7 == r6;
 	if !cc jump ex_trap_c;
-1:
+exception_do_nothing:
 	(R7:6,P5:4) = [sp++];
 	ASTAT = [sp++];
 	sp = retn;
