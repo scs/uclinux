@@ -35,7 +35,7 @@ static const char version[] =
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/dma.h>
-#include <asm/dma-mapping.h>
+#include <linux/dma-mapping.h>
 
 #include "bfin_mac.h"
 #include <asm/blackfin.h>
@@ -375,7 +375,7 @@ static void adjust_tx_list(void)
       udelay(100);
       i++;
       if (i == 10) {
-	printk("tx list error!\n");
+	//printk("tx list error!\n");
 	i = 0;
 	tx_list_head->desc_a.config.b_DMA_EN = 0;
 	tx_list_head = tx_list_head->next;
@@ -406,7 +406,7 @@ static int bf537mac_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
     current_tx_ptr->desc_a.start_addr = (unsigned long)data;
     blackfin_dcache_invalidate_range(data, (data+(skb->len)));  //this is important!
   } else {
-    //printk("skb data not aligned, 0x%x, 0x%x\n", (unsigned int)(skb->data),(unsigned int)(current_tx_ptr->packet));
+    printk("skb data not aligned, 0x%x, 0x%x\n", (unsigned int)(skb->data),(unsigned int)(current_tx_ptr->packet));
     *((unsigned short *)(current_tx_ptr->packet)) = (unsigned short)(skb->len);
     memcpy((char *)(current_tx_ptr->packet + 2),skb->data,(skb->len));
     current_tx_ptr->desc_a.start_addr = (unsigned long)current_tx_ptr->packet;

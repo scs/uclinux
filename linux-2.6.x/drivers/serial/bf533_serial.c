@@ -29,7 +29,7 @@
 #ifdef CONFIG_SERIAL_BLACKFIN_DMA
 #include <asm/dma.h>
 #include <asm/cacheflush.h>
-#include <asm/dma-mapping.h>
+#include <linux/dma-mapping.h>
 #endif
 
 #include <asm/dpmc.h> /* get_sclk() */
