@@ -1,0 +1,82 @@
+#
+# YAFFS file system configurations
+#
+
+config YAFFS_FS
+	tristate "YAFFS2 file system support"
+	default n
+	select YAFFS_YAFFS1
+	select YAFFS_YAFFS2
+	help
+	  YAFFS2, or Yet Another Flash Filing System, is a filing system
+	  optimised for NAND Flash chips.
+
+	  To compile the YAFFS2 file system support as a module, choose M here:
+	  the module will be called yaffs2.
+
+	  If unsure, say N.
+
+	  Further information on YAFFS2 is available at
+	  <http://www.aleph1.co.uk/yaffs/>.
+
+config YAFFS_YAFFS1
+	bool "512 byte / page devices"
+	depends on YAFFS_FS
+	default y
+	help
+	  Enable YAFFS1 support -- yaffs for 512 byte / page devices
+
+	  If unsure, say Y.
+
+config YAFFS_DOES_ECC
+	bool "Lets Yaffs do its own ECC"
+	depends on YAFFS_FS && YAFFS_YAFFS1
+	default n
+	help
+	  This enables Yaffs to use its own ECC functions instead of using
+	  the ones from the generic MTD-NAND driver.
+
+	  If unsure, say N.
+
+config YAFFS_ECC_WRONG_ORDER
+	bool "Use the same ecc byte order as Steven Hill's nand_ecc.c"
+	depends on YAFFS_FS && YAFFS_DOES_ECC
+	default n
+	help
+	  This makes yaffs_ecc.c use the same ecc byte order as
+	  Steven Hill's nand_ecc.c. If not set, then you get the
+	  same ecc byte order as SmartMedia.
+
+	  If unsure, say N.
+
+config YAFFS_YAFFS2
+	bool "2048 byte (or larger) / page devices"
+	depends on YAFFS_FS
+	default y
+	help
+	  Enable YAFFS2 support -- yaffs for >= 2048 byte / page larger devices
+
+	  If unsure, say Y.
+
+config YAFFS_DISABLE_CHUNK_ERASED_CHECK
+	bool "Turn off debug chunk erase check"
+	depends on YAFFS_FS
+	default y
+	help
+	  Enabling this turns off the test that chunks are erased in flash
+	  before writing to them.  This is safe, since the write verification
+	  will fail.  Suggest enabling the test (ie. say N)
+	  during development to help debug things.
+
+	  If unsure, say Y.
+
+config YAFFS_SHORT_NAMES_IN_RAM
+	bool "Cache short names in RAM"
+	depends on YAFFS_FS
+	default y
+	help
+	  If this config is set, then short names are stored with the
+	  yaffs_Object.  This costs an extra 16 bytes of RAM per object,
+	  but makes look-ups faster.
+
+	  If unsure, say Y.
