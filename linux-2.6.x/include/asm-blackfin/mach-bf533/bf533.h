@@ -188,7 +188,7 @@
 		#error "Sclk value selected is less than minimum.Please select a proper value for SCLK multiplier"
 #endif
 
-#if (CONFIG_SCLK_HZ >= CONFIG_CCLK_HZ)
+#if (CONFIG_SCLK_HZ > CONFIG_CCLK_HZ)
 	#if(CONFIG_SCLK_HZ != CONFIG_CLKIN_HZ)
 		#if(CONFIG_CCLK_HZ != CONFIG_CLKIN_HZ)
 			#error "Please select sclk less than cclk"
