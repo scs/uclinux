@@ -1,6 +1,7 @@
 #ifndef _BFINNOMMU_BUG_H
 #define _BFINNOMMU_BUG_H
 
+extern void dump_stack (void);
 
 #define BUG() do { \
   printk("%s(%d): kernel BUG!\n", __FILE__, __LINE__); \

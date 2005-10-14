@@ -2,6 +2,7 @@
 #include <asm/irq.h>
 #include <asm/checksum.h>
 #include <asm/cacheflush.h>
+#include <asm/uaccess.h>
 
 extern void dump_thread(struct pt_regs *, struct user *);
 
@@ -24,6 +25,17 @@ EXPORT_SYMBOL(ip_fast_csum);
 EXPORT_SYMBOL(enable_irq);
 EXPORT_SYMBOL(disable_irq);
 EXPORT_SYMBOL(kernel_thread);
+
+EXPORT_SYMBOL(__up);
+EXPORT_SYMBOL(__down);
+EXPORT_SYMBOL(__down_trylock);
+EXPORT_SYMBOL(__down_interruptible);
+
+EXPORT_SYMBOL(memory_start);
+EXPORT_SYMBOL(memory_end);
+EXPORT_SYMBOL(is_in_rom);
+
+EXPORT_SYMBOL(dump_stack);
 
 /* Networking helper routines. */
 EXPORT_SYMBOL(csum_partial_copy);
