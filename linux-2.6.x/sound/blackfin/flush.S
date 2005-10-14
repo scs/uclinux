@@ -18,8 +18,8 @@
  */
 	
 .section .text;
-.global bf53x_cache_flush;
-.global bf53x_cache_flushinv;
+.global _bf53x_cache_flush;
+.global _bf53x_cache_flushinv;
 
 #define LOG_CACHE_LINE_SIZE 5  /* 1 cache line = 32 bytes */
 	
@@ -28,7 +28,7 @@
  */
 
 
-bf53x_cache_flush:
+_bf53x_cache_flush:
         R1 = R1 >> LOG_CACHE_LINE_SIZE;  /* count bytes->cache lines */
 	P1 = R1; 
         P0 = R0;  /* start */
@@ -37,11 +37,11 @@ bf53x_cache_flush:
 	[--SP] = LB0;
 	[--SP] = LT0;
 #endif
-        LSETUP (_flush_loop, _flush_loop_end) LC0 = P1;
-_flush_loop:
+        LSETUP (__flush_loop, __flush_loop_end) LC0 = P1;
+__flush_loop:
 	FLUSH[ P0++ ]; 
 	csync;    /* cf adsp-bf533-0.1 anomaly list 2003/06/12 13:52  #10 */
-_flush_loop_end:
+__flush_loop_end:
 	NOP; 
 #if 0
 	LT0 = [SP++]; 
@@ -56,7 +56,7 @@ _flush_loop_end:
  */
 
 
-bf53x_cache_flushinv:
+_bf53x_cache_flushinv:
         R1 = R1 >> LOG_CACHE_LINE_SIZE;  /* count bytes->cache lines */
 	P1 = R1; 
         P0 = R0;  /* start */
@@ -65,11 +65,11 @@ bf53x_cache_flushinv:
 	[--SP] = LB0;
 	[--SP] = LT0;	 
 #endif
-        LSETUP (_flushinv_loop, _flushinv_loop_end) LC0 = P1;
-_flushinv_loop:
+        LSETUP (__flushinv_loop, __flushinv_loop_end) LC0 = P1;
+__flushinv_loop:
 	FLUSHINV[ P0++ ];
 	csync;    /* cf adsp-bf533-0.1 anomaly list 2003/06/12 13:52  #10 */
-_flushinv_loop_end:	
+__flushinv_loop_end:	
 	NOP;
 #if 0
 	LT0 = [SP++]; 

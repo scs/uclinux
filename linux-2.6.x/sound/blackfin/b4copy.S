@@ -15,14 +15,14 @@
 
 
 .section .text;
-.global b4copy;
+.global _b4copy;
 
 /*
  * void b4copy(u32_t *src, u32_t *dst, u32_t count_bytes);
  */
 
 
-b4copy:
+_b4copy:
         P0 = R0;
         P1 = R1;
         P2 = R2;
@@ -30,11 +30,11 @@ b4copy:
 	[--SP] = LC0;
 	[--SP] = LB0;
 	[--SP] = LT0;	  
-        LSETUP (_b4copy_loop, _b4copy_loop_end) LC0 = P2;
-_b4copy_loop:
+        LSETUP (__b4copy_loop, __b4copy_loop_end) LC0 = P2;
+__b4copy_loop:
         R0 = [P0++];
         [P1++] = R0;
-_b4copy_loop_end:
+__b4copy_loop_end:
 	LT0 = [SP++]; 
 	LB0 = [SP++]; 
 	LC0 = [SP++]; 
