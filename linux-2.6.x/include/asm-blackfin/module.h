@@ -1,6 +1,8 @@
 #ifndef _ASM_BFIN_MODULE_H
 #define _ASM_BFIN_MODULE_H
 
+#define MODULE_SYMBOL_PREFIX "_"
+
 struct mod_arch_specific {};
 
 #define Elf_Shdr	Elf32_Shdr
