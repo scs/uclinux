@@ -1124,6 +1124,8 @@ static int load_flat_binary(struct linux_binprm * bprm, struct pt_regs * regs)
 
 	p = ((current->mm->context.end_brk + stack_len + 3) & ~3) - 4;
 	DBG_FLT("p=%x\n", (int)p);
+	if ( ntohl( ((struct flat_hdr *) bprm->buf)->flags) & FLAT_FLAG_KTRACE)
+		printk ("STACK=%x-%x\n", (int)(p - stack_len), (int)p );
 
 	/* copy the arg pages onto the stack, this could be more efficient :-) */
 	for (i = TOP_OF_ARGS - 1; i >= bprm->p; i--)
