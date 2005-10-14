@@ -8,7 +8,7 @@
 # Copyright (C) 2004 LG Soft India 
 
 CROSS_COMPILE	:= bfin-uclinux-
-LDFLAGS_vmlinux	:= -M -X
+LDFLAGS_vmlinux	:= -X
 LDFLAGS_BLOB	:=--format binary -elf32-bfin
 OBJCOPYFLAGS	:=-O binary -R .note -R .comment -S
 GZFLAGS		:=-9
