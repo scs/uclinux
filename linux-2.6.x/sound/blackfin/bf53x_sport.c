@@ -1,7 +1,7 @@
 /*
  * File:         bf53x_sport.c 
  * Description:  low level driver for sportX/dmaY on blackfin 53x
- *               this should be moved to arch/bfinnommu/
+ *               this should be moved to arch/blackfin/
  * Rev:          $Id$
  * Created:      Tue Sep 21 10:52:42 CEST 2004
  * Author:       Luuk van Dijk

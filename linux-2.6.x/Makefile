@@ -193,7 +193,7 @@ SUBARCH := $(shell uname -m | sed -e s/i.86/i386/ -e s/sun4u/sparc64/ \
 #ARCH		?= $(SUBARCH)
 #CROSS_COMPILE	?= 
 
-ARCH		?= bfinnommu
+ARCH		?= blackfin
 
 # Architecture as present in compile.h
 UTS_MACHINE := $(ARCH)
@@ -337,7 +337,7 @@ CHECK		= sparse
 CHECKFLAGS     := -D__linux__ -Dlinux -D__STDC__ -Dunix -D__unix__
 MODFLAGS	= -DMODULE
 CFLAGS_MODULE   = $(MODFLAGS)
-ifeq ($(ARCH), bfinnommu)
+ifeq ($(ARCH), blackfin)
 CFLAGS_MODULE   += -mlong-calls
 KALLSYMS	+= --symbol-prefix=_
 endif

@@ -7,7 +7,7 @@
  * peripheral DMA and IRQ assignments
  * see ADSP-BF533 page 4.30 - 4.32 for irq 
  * see ADSP-BF533 page 9.28 - 9.31 for dma 
- * see arch/bfinnommu/mach-bf533/ints-priority.c for 
+ * see arch/blackfin/mach-bf533/ints-priority.c for 
  *     peripheral interrupt mapping mechanism
  */
 

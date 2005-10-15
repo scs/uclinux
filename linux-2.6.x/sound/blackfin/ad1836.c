@@ -1941,7 +1941,7 @@ static irqreturn_t snd_adi1836_sport_handler_tx(ad1836_t* chip, int irq){
  * this assumes this sound driver is the only one 
  * using the SPI.  
  *
- * TODO: move the spi and sport api's to arch/bfinnommu
+ * TODO: move the spi and sport api's to arch/blackfin
  *
  *************************************************************/
 
@@ -2075,7 +2075,7 @@ static int __init snd_bf53x_adi1836_init(void){
 
   /* sport_init() requested the dma channel through the official api, 
    * but we override the irq, because 
-   * the implementation in bfinnommu/kernel/dma.c adds a lot of overhead, 
+   * the implementation in blackfin/kernel/dma.c adds a lot of overhead, 
    * without actually solving any problem for us.  
    */
 

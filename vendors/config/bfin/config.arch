@@ -17,7 +17,7 @@
 # ARCH = kernel,  TARGET_ARCH = uClibc
 
 MACHINE       = bfin
-ARCH          = bfinnommu
+ARCH          = blackfin
 ENDIAN        = little 
 CROSS_COMPILE = bfin-uclinux-
 CROSS         = $(CROSS_COMPILE)
