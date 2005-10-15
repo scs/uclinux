@@ -37,12 +37,12 @@ _bf53x_cache_flush:
 	[--SP] = LB0;
 	[--SP] = LT0;
 #endif
-        LSETUP (__flush_loop, __flush_loop_end) LC0 = P1;
+        LSETUP (__flush_loop, __flush_loop) LC0 = P1;
 __flush_loop:
 	FLUSH[ P0++ ]; 
-	csync;    /* cf adsp-bf533-0.1 anomaly list 2003/06/12 13:52  #10 */
-__flush_loop_end:
-	NOP; 
+	NOP;
+	CSYNC;
+	
 #if 0
 	LT0 = [SP++]; 
 	LB0 = [SP++]; 
@@ -65,12 +65,11 @@ _bf53x_cache_flushinv:
 	[--SP] = LB0;
 	[--SP] = LT0;	 
 #endif
-        LSETUP (__flushinv_loop, __flushinv_loop_end) LC0 = P1;
+        LSETUP (__flushinv_loop, __flushinv_loop) LC0 = P1;
 __flushinv_loop:
 	FLUSHINV[ P0++ ];
-	csync;    /* cf adsp-bf533-0.1 anomaly list 2003/06/12 13:52  #10 */
-__flushinv_loop_end:	
 	NOP;
+	CSYNC;
 #if 0
 	LT0 = [SP++]; 
 	LB0 = [SP++]; 
