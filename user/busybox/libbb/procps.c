@@ -13,6 +13,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <asm/page.h>
+#include <linux/version.h>
 
 #include "libbb.h"
 
@@ -91,7 +92,9 @@ extern procps_status_t * procps_scan(int save_user_arg0
 		"%*s %*s %*s "         /* cutime, cstime, priority */
 		"%ld "
 		"%*s %*s %*s "         /* timeout, it_real_value, start_time */
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
 		"%*s "                 /* vsize */
+#endif
 		"%ld",
 		curstatus.state, &curstatus.ppid,
 #ifdef CONFIG_FEATURE_CPU_USAGE_PERCENTAGE
@@ -117,10 +120,14 @@ extern procps_status_t * procps_scan(int save_user_arg0
 		else
 			curstatus.state[2] = ' ';
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
 #ifdef PAGE_SHIFT
 		curstatus.rss <<= (PAGE_SHIFT - 10);     /* 2**10 = 1kb */
 #else
 		curstatus.rss *= (getpagesize() >> 10);     /* 2**10 = 1kb */
+#endif
+#else
+		curstatus.rss >>= 10;	/* rss is in bytes, and we need KB */
 #endif
 
 		if(save_user_arg0) {
