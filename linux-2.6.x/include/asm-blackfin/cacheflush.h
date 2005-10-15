@@ -6,8 +6,8 @@
  * - Incorporating the cache flush routines.
  */
 
-#ifndef _BFINNOMMU_CACHEFLUSH_H
-#define _BFINNOMMU_CACHEFLUSH_H
+#ifndef _BLACKFIN_CACHEFLUSH_H
+#define _BLACKFIN_CACHEFLUSH_H
 
 #include <asm/cplb.h>
 
@@ -79,4 +79,4 @@ static inline void flush_cache_all(void)
 #endif
 }
 
-#endif /* _BFINNOMMU_CACHEFLUSH_H */
+#endif /* _BLACKFIN_CACHEFLUSH_H */

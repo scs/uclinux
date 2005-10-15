@@ -1,5 +1,5 @@
 /*
- * include/asm-bfinnommu/dma.h
+ * include/asm-blackfin/dma.h
  * Data structures and register support for DMA on Blackfin
  * 
  * Copyright (C) 2004 LG Soft India. 
@@ -11,8 +11,8 @@
  *
  */
 
-#ifndef _BFINNOMMU_DMA_H
-#define _BFINNOMMU_DMA_H 
+#ifndef _BLACKFIN_DMA_H
+#define _BLACKFIN_DMA_H 
 
 #include <linux/config.h>
 #include <linux/mm.h>  
@@ -28,5 +28,5 @@
 #include <asm/simple_bf533_dma.h>
 #endif
 
-#endif /* _BFINNOMMU_DMA_H */
+#endif /* _BLACKFIN_DMA_H */
 

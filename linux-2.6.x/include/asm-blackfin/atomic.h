@@ -1,5 +1,5 @@
-#ifndef __ARCH_BFINNOMMU_ATOMIC__
-#define __ARCH_BFINNOMMU_ATOMIC__
+#ifndef __ARCH_BLACKFIN_ATOMIC__
+#define __ARCH_BLACKFIN_ATOMIC__
 
 /*
  * Atomic operations that C can't guarantee us.  Useful for
@@ -158,4 +158,4 @@ static __inline__ void atomic_set_mask(unsigned int mask, atomic_t *v)
 #define atomic_sub_and_test(i,v) (atomic_sub_return((i), (v)) == 0)
 #define atomic_dec_and_test(v) (atomic_sub_return(1, (v)) == 0)
 
-#endif /* __ARCH_BFINNOMMU_ATOMIC __ */
+#endif /* __ARCH_BLACKFIN_ATOMIC __ */

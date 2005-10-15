@@ -1,5 +1,5 @@
-#ifndef __BFINNOMMU_MMU_CONTEXT_H
-#define __BFINNOMMU_MMU_CONTEXT_H
+#ifndef __BLACKFIN_MMU_CONTEXT_H
+#define __BLACKFIN_MMU_CONTEXT_H
 
 #include <linux/config.h>
 #include <asm/setup.h>

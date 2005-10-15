@@ -1,5 +1,5 @@
-#ifndef _BFINNOMMU_PARAM_H
-#define _BFINNOMMU_PARAM_H
+#ifndef _BLACKFIN_PARAM_H
+#define _BLACKFIN_PARAM_H
 
 #ifdef __KERNEL__
 #define HZ 		100
@@ -19,4 +19,4 @@
 
 #define MAXHOSTNAMELEN	64	/* max length of hostname */
 
-#endif /* _BFINNOMMU_PARAM_H */
+#endif /* _BLACKFIN_PARAM_H */

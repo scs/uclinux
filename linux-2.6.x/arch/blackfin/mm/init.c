@@ -1,5 +1,5 @@
 /*
- *  arch/bfinnommu/mm/init.c
+ *  arch/blackfin/mm/init.c
  *
  *  Copyright (C) 1998  D. Jeff Dionne <jeff@lineo.ca>,
  *                      Kenneth Albanowski <kjahds@kjahds.com>,

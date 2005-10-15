@@ -18,7 +18,7 @@
 */
 
 /*
- *  arch/bfinnommu/kernel/simple_dma.c
+ *  arch/blackfin/kernel/simple_dma.c
  *  This file contains the simple DMA Implementation for BF533
  *
  *  Copyright (C) 2004 LG Soft India

@@ -1,5 +1,5 @@
 /*
- *  linux/arch/bfinnommu/mach-bf533/generic_board.c
+ *  linux/arch/blackfin/mach-bf533/generic_board.c
  *
  *  Copyright 2004 Analog Devices Inc.
  *  Only SMSC91C1111 was registered, may do more later.

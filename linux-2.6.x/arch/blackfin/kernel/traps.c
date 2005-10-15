@@ -1,5 +1,5 @@
 /*
- *  linux/arch/bfinnommu/kernel/traps.c
+ *  linux/arch/blackfin/kernel/traps.c
  *
  *  Copyright (C) 1993, 1994 by Hamish Macdonald
  *

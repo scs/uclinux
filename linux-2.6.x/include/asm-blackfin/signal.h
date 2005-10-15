@@ -1,5 +1,5 @@
-#ifndef _BFINNOMMU_SIGNAL_H
-#define _BFINNOMMU_SIGNAL_H
+#ifndef _BLACKFIN_SIGNAL_H
+#define _BLACKFIN_SIGNAL_H
 
 #include <linux/types.h>
 
@@ -180,4 +180,4 @@ typedef struct sigaltstack {
 
 #endif /* __KERNEL__ */
 
-#endif /* _BFINNOMMU_SIGNAL_H */
+#endif /* _BLACKFIN_SIGNAL_H */

@@ -1,5 +1,5 @@
-#ifndef _BFINNOMMU_STRING_H_
-#define _BFINNOMMU_STRING_H_
+#ifndef _BLACKFIN_STRING_H_
+#define _BLACKFIN_STRING_H_
 
 #ifdef __KERNEL__ /* only set these up for kernel code */
 
@@ -101,4 +101,4 @@ extern void *memchr(const void *s, int c, size_t n);
 extern void * memmove(void * dest,const void *src,size_t count);
 
 #endif /*__KERNEL__*/
-#endif /* _BFIN_STRING_H_ */
+#endif /* _BLACKFIN_STRING_H_ */

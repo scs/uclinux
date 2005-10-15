@@ -1,5 +1,5 @@
-#ifndef _BFINNOMMU_SCATTERLIST_H
-#define _BFINNOMMU_SCATTERLIST_H
+#ifndef _BLACKFIN_SCATTERLIST_H
+#define _BLACKFIN_SCATTERLIST_H
 
 struct scatterlist {
 	struct page	*page;
@@ -11,4 +11,4 @@ struct scatterlist {
 #define ISA_DMA_THRESHOLD	(0xffffffff)
 
 
-#endif /* !(_BFINNOMMU_SCATTERLIST_H) */
+#endif /* !(_BLACKFIN_SCATTERLIST_H) */

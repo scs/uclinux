@@ -1,5 +1,5 @@
 /*
- *  linux/arch/bfinnommu/kernel/signal.c
+ *  linux/arch/blackfin/kernel/signal.c
  *
  *  Copyright (C) 1991, 1992  Linus Torvalds
  *

@@ -1,4 +1,4 @@
-/* linux/arch/bfinnommu/mach-bf533/interrupt.S 
+/* linux/arch/blackfin/mach-bf533/interrupt.S 
  *	 H/W interrupts
  *	 - assumes default interrupt configuration for the interrupts
  * 

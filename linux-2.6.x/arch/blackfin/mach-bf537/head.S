@@ -1,7 +1,7 @@
 /* 
  * File: $Id$
  *
- * arch/bfinnommu/mach-bf537/head.S
+ * arch/blackfin/mach-bf537/head.S
  * Startup code for Blackfin BF537
  *
  * Copyright (C) 1998  D. Jeff Dionne <jeff@uclinux.org>

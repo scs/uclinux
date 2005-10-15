@@ -3,8 +3,8 @@
  * Based on: include/asm-m68knommu/timex.h
  */
 
-#ifndef _ASMBFINNOMMU_TIMEX_H
-#define _ASMBFINNOMMU_TIMEX_H
+#ifndef _ASMBLACKFIN_TIMEX_H
+#define _ASMBLACKFIN_TIMEX_H
 
 #define CLOCK_TICK_RATE	1000000 	/* Underlying HZ */
 

@@ -1,5 +1,5 @@
 /*
- *  linux/arch/bfinnommu/kernel/irq.c
+ *  linux/arch/blackfin/kernel/irq.c
  *
  *  Copyright (C) 1992 Linus Torvalds
  *  Modifications for ARM processor Copyright (C) 1995-2000 Russell King.

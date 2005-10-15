@@ -1,11 +1,11 @@
 /*
- * arch/bfinommu/asm/dpmc.h -  Miscellaneous IOCTL commands for Dynamic Power
+ * include/asm-blackfin/dpmc.h -  Miscellaneous IOCTL commands for Dynamic Power
  *   			 	Management Controller Driver.	  
  * Copyright (C) 2004 LG Soft India.
  *
  */
-#ifndef _BFINNOMMU_DPMC_H_
-#define _BFINNOMMU_DPMC_H_
+#ifndef _BLACKFIN_DPMC_H_
+#define _BLACKFIN_DPMC_H_
 
 #define SLEEP_MODE		1
 #define DEEP_SLEEP_MODE		2
@@ -62,4 +62,4 @@ void disable_wdog_timer(void);
 extern unsigned long get_cclk(void);
 extern unsigned long get_sclk(void);
 
-#endif	/*_BFINNOMMU_DPMC_H_*/
+#endif	/*_BLACKFIN_DPMC_H_*/

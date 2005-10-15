@@ -1,11 +1,10 @@
 #
-# arch/bfinnommu/Makefile
+# arch/blackfin/Makefile
 #
 # This file is subject to the terms and conditions of the GNU General Public
 # License.  See the file "COPYING" in the main directory of this archive
 # for more details.
 #
-# Copyright (C) 2004 LG Soft India 
 
 CROSS_COMPILE	:= bfin-uclinux-
 LDFLAGS_vmlinux	:= -X
@@ -42,7 +41,7 @@ MACHINE  := $(machine-y)
 export	MACHINE PROCESSOR GZFLAGS CFLAGS_BOOT
 
 CLEAN_FILES := include/asm-$(ARCH)/asm-offsets.h \
-	       arch/$(ARCH)/kernel/asm-offsets.s include/asm-$(ARCH)/mach include/asm-bfinnommu/.mach
+	       arch/$(ARCH)/kernel/asm-offsets.s include/asm-$(ARCH)/mach include/asm-blackfin/.mach
 
 # The machine has its own head.S 
 
@@ -68,7 +67,7 @@ libs-y		+= arch/$(ARCH)/lib/
 #	them changed.  We use .arch to indicate when they were updated
 #	last, otherwise make uses the target directory mtime.
 
-include/asm-bfinnommu/.mach:
+include/asm-blackfin/.mach:
 	@echo '  SYMLINK include/asm-$(ARCH)/arch -> include/asm-$(ARCH)/$(INCDIR)'
 ifneq ($(KBUILD_SRC),)
 	$(Q)mkdir -p include/asm-$(ARCH)
@@ -78,11 +77,11 @@ else
 endif
 	@touch $@
 
-prepare: include/asm-bfinnommu/.mach include/asm-$(ARCH)/asm-offsets.h 
+prepare: include/asm-blackfin/.mach include/asm-$(ARCH)/asm-offsets.h 
 
 archclean:
 
-include/asm-bfinnommu/asm-offsets.h: arch/bfinnommu/kernel/asm-offsets.s \
+include/asm-blackfin/asm-offsets.h: arch/blackfin/kernel/asm-offsets.s \
 				   include/asm include/linux/version.h \
 				   include/config/MARKER
 	$(call filechk,gen-asm-offsets)

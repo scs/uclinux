@@ -1,9 +1,9 @@
 /*
- *  linux/arch/bfinnommu/mach-bf533/boards/cm_bf533.c
+ *  linux/arch/blackfin/mach-bf533/boards/cm_bf533.c
  *
  *  
  *
- *  based on linux/arch/bfinnommu/mach-bf533/boards/ezkit.c
+ *  based on linux/arch/blackfin/mach-bf533/boards/ezkit.c
  *  Copyright 2005 National ICT Australia (NICTA), Aidan Williams <aidan@nicta.com.au>
  *  Thanks to Jamey Hicks.
  *

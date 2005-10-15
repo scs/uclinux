@@ -1,5 +1,5 @@
 /*
- *  linux/arch/bfinnommu/kernel/init_task.c
+ *  linux/arch/blackfin/kernel/init_task.c
  */
 #include <linux/mm.h>
 #include <linux/module.h>

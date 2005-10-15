@@ -168,9 +168,9 @@ config BFIN_SHARED_FLASH_ENET
 	depends on (BFIN533_STAMP || BFIN533_BLUETECHNIX_CM)
 	default y
 
-source "arch/bfinnommu/mach-bf533/Kconfig"
-source "arch/bfinnommu/mach-bf561/Kconfig"
-source "arch/bfinnommu/mach-bf537/Kconfig"
+source "arch/blackfin/mach-bf533/Kconfig"
+source "arch/blackfin/mach-bf561/Kconfig"
+source "arch/blackfin/mach-bf537/Kconfig"
 
 menu 	'Board specific issues'
 
@@ -601,7 +601,7 @@ source "sound/Kconfig"
 
 source "drivers/usb/Kconfig"
 
-source "arch/bfinnommu/oprofile/Kconfig"
+source "arch/blackfin/oprofile/Kconfig"
 
 menu "Kernel hacking"
 

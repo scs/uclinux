@@ -1,5 +1,5 @@
-#ifndef _BFINNOMMU_SYSTEM_H
-#define _BFINNOMMU_SYSTEM_H
+#ifndef _BLACKFIN_SYSTEM_H
+#define _BLACKFIN_SYSTEM_H
 
 #include <linux/linkage.h>
 #include <asm/blackfin.h>	
@@ -195,4 +195,4 @@ static inline unsigned long __cmpxchg(volatile void *ptr, unsigned long old,
 #define cmpxchg(ptr,o,n)\
         ((__typeof__(*(ptr)))__cmpxchg((ptr),(unsigned long)(o),\
                                         (unsigned long)(n),sizeof(*(ptr))))
-#endif /* _BFINNOMMU_SYSTEM_H */
+#endif /* _BLACKFIN_SYSTEM_H */

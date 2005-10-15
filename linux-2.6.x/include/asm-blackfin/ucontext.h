@@ -3,8 +3,8 @@
  *  Based on: include/m68knommu/ucontext.h  
  */
 
-#ifndef _BFINNOMMU_UCONTEXT_H
-#define _BFINNOMMU_UCONTEXT_H
+#ifndef _BLACKFIN_UCONTEXT_H
+#define _BLACKFIN_UCONTEXT_H
 
 typedef int greg_t;
 #define NGREG 47 
@@ -27,4 +27,4 @@ struct ucontext {
 	sigset_t	  uc_sigmask;	/* mask last for extensibility */
 };
 
-#endif /* _BFINNOMMU_UCONTEXT_H */
+#endif /* _BLACKFIN_UCONTEXT_H */

@@ -1,7 +1,7 @@
 /*
  * $Id$
  *
- *arch/bfinnommu/mach-bf537/ints-priority.c
+ *arch/blackfin/mach-bf537/ints-priority.c
  *
  */
 

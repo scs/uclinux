@@ -1,5 +1,5 @@
-#ifndef _BFINNOMMU_PAGE_H
-#define _BFINNOMMU_PAGE_H
+#ifndef _BLACKFIN_PAGE_H
+#define _BLACKFIN_PAGE_H
 
 /* PAGE_SHIFT determines the page size */
 #define PAGE_SHIFT	(12)
@@ -86,4 +86,4 @@ extern unsigned long memory_end;
 #endif /* __ASSEMBLY__ */
 #endif /* __KERNEL__ */
 
-#endif /* _BFINNOMMU_PAGE_H */
+#endif /* _BLACKFIN_PAGE_H */

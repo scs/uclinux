@@ -1,5 +1,5 @@
-#ifndef _BFINNOMMU_BYTEORDER_H
-#define _BFINNOMMU_BYTEORDER_H
+#ifndef _BLACKFIN_BYTEORDER_H
+#define _BLACKFIN_BYTEORDER_H
 
 #include <asm/types.h>
 
@@ -10,5 +10,5 @@
 
 #include <linux/byteorder/little_endian.h>
 
-#endif /* _BFINNOMMU_BYTEORDER_H */
+#endif /* _BLACKFIN_BYTEORDER_H */
 

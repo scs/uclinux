@@ -1,5 +1,5 @@
 #
-# Makefile for bfinnommu specific library files..
+# Makefile for blackfin specific library files..
 #
 
 lib-y	:= ashldi3.o ashrdi3.o lshrdi3.o \

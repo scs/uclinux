@@ -1,5 +1,5 @@
-#ifndef _BFINNOMMU_DMA_MAPPING_H
-#define _BFINNOMMU_DMA_MAPPING_H
+#ifndef _BLACKFIN_DMA_MAPPING_H
+#define _BLACKFIN_DMA_MAPPING_H
 
 #include <linux/config.h>
 #include <asm/scatterlist.h>
@@ -76,4 +76,4 @@ void dma_unmap_sg(struct device *dev, struct scatterlist *sg, int nhwentries,
 }
 
 
-#endif /* _BFINNOMMU_DMA_MAPPING_H */
+#endif /* _BLACKFIN_DMA_MAPPING_H */

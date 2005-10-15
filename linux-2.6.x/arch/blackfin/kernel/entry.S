@@ -1,5 +1,5 @@
 /*
- *  linux/arch/bfinnommu/kernel/entry.S
+ *  linux/arch/blackfin/kernel/entry.S
  *
  *  Copyright (C) 1991, 1992  Linus Torvalds
  *  Copyright (C) 2004 LG Soft India.

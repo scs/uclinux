@@ -1,5 +1,5 @@
-#ifndef _BFINNOMMU_TLB_H
-#define _BFINNOMMU_TLB_H
+#ifndef _BLACKFIN_TLB_H
+#define _BLACKFIN_TLB_H
 
 #define tlb_start_vma(tlb, vma)	do { } while (0)
 #define tlb_end_vma(tlb, vma)	do { } while (0)
@@ -13,4 +13,4 @@
 
 #include <asm-generic/tlb.h>
 
-#endif /* _BFINNOMMU_TLB_H */
+#endif /* _BLACKFIN_TLB_H */

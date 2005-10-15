@@ -1,6 +1,6 @@
-#ifndef __ARCH_BFINNOMMU_PERCPU__
-#define __ARCH_BFINNOMMU_PERCPU__
+#ifndef __ARCH_BLACKFIN_PERCPU__
+#define __ARCH_BLACKFIN_PERCPU__
 
 #include <asm-generic/percpu.h>
 
-#endif /* __ARCH_BFINNOMMU_PERCPU__ */
+#endif /* __ARCH_BLACKFIN_PERCPU__ */

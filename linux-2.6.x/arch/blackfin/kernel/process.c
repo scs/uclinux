@@ -1,5 +1,5 @@
 /*
- *  linux/arch/bfinnommu/kernel/process.c
+ *  linux/arch/blackfin/kernel/process.c
  *
  *  Copyright (C) 2004 LG Soft India.
  *

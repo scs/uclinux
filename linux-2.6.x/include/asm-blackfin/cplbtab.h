@@ -10,8 +10,8 @@
  *	     : LG Soft India
  */
 
-#ifndef __ARCH_BFINNOMMU_CPLBTAB_H
-#define __ARCH_BFINNOMMU_CPLBTAB_H
+#ifndef __ARCH_BLACKFIN_CPLBTAB_H
+#define __ARCH_BLACKFIN_CPLBTAB_H
 
 /*************************************************************************
  *  			ICPLB TABLE					  	
@@ -551,4 +551,4 @@ _dpdt_swapcount_table:
 
 #endif
 
-#endif	/*__ARCH_BFINNOMMU_CPLBTAB_H*/
+#endif	/*__ARCH_BLACKFIN_CPLBTAB_H*/

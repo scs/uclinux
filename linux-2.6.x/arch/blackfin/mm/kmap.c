@@ -1,5 +1,5 @@
 /*
- *  linux/arch/bfinnommu/mm/kmap.c
+ *  linux/arch/blackfin/mm/kmap.c
  *
  *  Based: linux/arch/m68knommu/mm/kmap.c
  *

@@ -3,8 +3,8 @@
  * Based on: include/asm-m68knommu/uaccess.h
  */
 
-#ifndef __BFINNOMMU_UACCESS_H
-#define __BFINNOMMU_UACCESS_H
+#ifndef __BLACKFIN_UACCESS_H
+#define __BLACKFIN_UACCESS_H
 
 /*
  * User space memory access functions
@@ -196,4 +196,4 @@ clear_user(void *to, unsigned long n)
 	return(0);
 }
 
-#endif /* _BFINNOMMU_UACCESS_H */
+#endif /* _BLACKFIN_UACCESS_H */

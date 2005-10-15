@@ -1,5 +1,5 @@
-#ifndef _BFINNOMMU_DELAY_H
-#define _BFINNOMMU_DELAY_H
+#ifndef _BLACKFIN_DELAY_H
+#define _BLACKFIN_DELAY_H
 
 static __inline__ void __delay(unsigned long loops)
 {
@@ -39,4 +39,4 @@ static __inline__ void udelay(unsigned long usecs)
 }
 
 
-#endif /* defined(_BFINNOMMU_DELAY_H) */
+#endif /* defined(_BLACKFIN_DELAY_H) */

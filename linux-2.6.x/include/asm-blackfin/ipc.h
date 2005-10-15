@@ -4,7 +4,7 @@
 /* 
  * These are used to wrap system calls on bfin.
  *
- * See arch/bfinnommu/kernel/sys_bfin.c for ugly details..
+ * See arch/blackfin/kernel/sys_bfin.c for ugly details..
  */
 struct ipc_kludge {
 	struct msgbuf *msgp;

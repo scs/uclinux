@@ -1,4 +1,4 @@
-/* arch/bfinnommu/mach-bf533/head.S
+/* arch/blackfin/mach-bf533/head.S
  *
  * Startup code for Blackfin BF533
  *

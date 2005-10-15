@@ -1,5 +1,5 @@
 /*
- *  include/asm-bfinnommu/irq.h
+ *  include/asm-blackfin/irq.h
  *  Borrowed from linux/include/asm-arm/mach/irq.h
  *
  *  Copyright (C) 1995-2000 Russell King.

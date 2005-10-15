@@ -1,5 +1,5 @@
 /*
- *  include/asm-bfinnommu/bugs.h
+ *  include/asm-blackfin/bugs.h
  *
  *  Copyright (C) 1994  Linus Torvalds
  */

@@ -1,12 +1,12 @@
 /*
- * include/asm-bfinnommu/flat.h -- uClinux flat-format executables
+ * include/asm-blackfin/flat.h -- uClinux flat-format executables
  *
  * Copyright (C) 2003, 
  *
  */
 
-#ifndef __BFINNOMMU_FLAT_H__
-#define __BFINNOMMU_FLAT_H__
+#ifndef __BLACKFIN_FLAT_H__
+#define __BLACKFIN_FLAT_H__
 
 #define	flat_stack_align(sp)			/* nothing needed */
 #define	flat_argvp_envp_on_stack()		0
@@ -16,6 +16,6 @@
 #define	flat_put_addr_at_rp(rp, val, relval)	put_unaligned(val,rp)
 #define	flat_get_relocate_addr(rel)		(rel)
 
-#endif /* __BFINNOMMU_FLAT_H__ */
+#endif /* __BLACKFIN_FLAT_H__ */
 
 

@@ -1,5 +1,5 @@
-#ifndef _BFINNOMMU_PGTABLE_H
-#define _BFINNOMMU_PGTABLE_H
+#ifndef _BLACKFIN_PGTABLE_H
+#define _BLACKFIN_PGTABLE_H
 
 #include <asm-generic/4level-fixup.h>
 
@@ -60,4 +60,4 @@ extern unsigned int kobjsize(const void *objp);
 #define	VMALLOC_END	0xffffffff
 
 
-#endif /* _BFINNOMMU_PGTABLE_H */
+#endif /* _BLACKFIN_PGTABLE_H */

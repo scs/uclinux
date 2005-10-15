@@ -1,5 +1,5 @@
-#ifndef _BFINNOMMU_BUG_H
-#define _BFINNOMMU_BUG_H
+#ifndef _BLACKFIN_BUG_H
+#define _BLACKFIN_BUG_H
 
 extern void dump_stack (void);
 

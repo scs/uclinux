@@ -1,5 +1,5 @@
-#ifndef _BFINNOMMU_TLBFLUSH_H
-#define _BFINNOMMU_TLBFLUSH_H
+#ifndef _BLACKFIN_TLBFLUSH_H
+#define _BLACKFIN_TLBFLUSH_H
 
 /*
  * Copyright (C) 2000 Lineo, David McCullough <davidm@uclinux.org>

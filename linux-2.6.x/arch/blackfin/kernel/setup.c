@@ -1,5 +1,5 @@
 /*
- *  linux/arch/bfinnommu/kernel/setup.c
+ *  linux/arch/blackfin/kernel/setup.c
  *
  *  Copyleft  ()) 2000       James D. Schettine {james@telos-systems.com}
  *  Copyright (C) 1999,2000  Greg Ungerer (gerg@lineo.com)

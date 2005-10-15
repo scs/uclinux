@@ -1,5 +1,5 @@
 /*
- *  linux/arch/bfinnommu/kernel/time.c
+ *  linux/arch/blackfin/kernel/time.c
  *
  *  Copyright (C) 1991, 1992, 1995  Linus Torvalds
  *  Copyright (C) 2004 LG Soft India.

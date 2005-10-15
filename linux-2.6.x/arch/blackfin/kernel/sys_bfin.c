@@ -1,5 +1,5 @@
 /*
- * linux/arch/bfinnommu/kernel/sys_bfin.c
+ * linux/arch/blackfin/kernel/sys_bfin.c
  *
  * This file contains various random system calls that
  * have a non-standard calling sequence on the Linux/bfin

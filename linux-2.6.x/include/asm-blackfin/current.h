@@ -1,5 +1,5 @@
-#ifndef _BFINNOMMU_CURRENT_H
-#define _BFINNOMMU_CURRENT_H
+#ifndef _BLACKFIN_CURRENT_H
+#define _BLACKFIN_CURRENT_H
 /*
  *	current.h
  *	(C) Copyright 2000, Lineo, David McCullough <davidm@lineo.com>
@@ -20,4 +20,4 @@ static inline struct task_struct * get_current(void)
 
 #define	current	get_current()
 
-#endif /* _BFINNOMMU_CURRENT_H */
+#endif /* _BLACKFIN_CURRENT_H */

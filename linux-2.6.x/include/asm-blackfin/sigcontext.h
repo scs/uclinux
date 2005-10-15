@@ -1,5 +1,5 @@
-#ifndef _ASM_BFINNOMMU_SIGCONTEXT_H
-#define _ASM_BFINNOMMU_SIGCONTEXT_H
+#ifndef _ASM_BLACKFIN_SIGCONTEXT_H
+#define _ASM_BLACKFIN_SIGCONTEXT_H
 
 /* Add new entries at the end of the structure only.  */
 struct sigcontext {

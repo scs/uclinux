@@ -1,5 +1,5 @@
-#ifndef __ARCH_BFINNOMMU_CACHE_H
-#define __ARCH_BFINNOMMU_CACHE_H
+#ifndef __ARCH_BLACKFIN_CACHE_H
+#define __ARCH_BLACKFIN_CACHE_H
 
 /* bytes per L1 cache line */
 #define        L1_CACHE_SHIFT  5/* BlackFin loads 32 bytes for cache */

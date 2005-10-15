@@ -1,5 +1,5 @@
-#ifndef _BFINNOMMU_BITOPS_H
-#define _BFINNOMMU_BITOPS_H
+#ifndef _BLACKFIN_BITOPS_H
+#define _BLACKFIN_BITOPS_H
 
 /*
  * Copyright 1992, Linus Torvalds.
@@ -393,4 +393,4 @@ found_middle:
 
 #endif /* __KERNEL__ */
 
-#endif /* _BFINNOMMU_BITOPS_H */
+#endif /* _BLACKFIN_BITOPS_H */

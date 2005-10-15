@@ -1,4 +1,4 @@
-/* thread_info.h: bfinnommu low-level thread information
+/* thread_info.h: blackfin low-level thread information
  * adapted from the i386 and PPC versions by Greg Ungerer (gerg@snapgear.com)
  *
  * Copyright (C) 2002  David Howells (dhowells@redhat.com)

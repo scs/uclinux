@@ -1,5 +1,5 @@
-#ifndef _BFINNOMMU_SECTIONS_H
-#define _BFINNOMMU_SECTIONS_H
+#ifndef _BLACKFIN_SECTIONS_H
+#define _BLACKFIN_SECTIONS_H
 
 
 /* nothing to see, move along */

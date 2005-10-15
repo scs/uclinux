@@ -1,5 +1,5 @@
 /*
- *  linux/arch/bfinnommu/mach-bf533/ezkit.c
+ *  linux/arch/blackfin/mach-bf533/ezkit.c
  *
  *  Copyright 2005 National ICT Australia (NICTA), Aidan Williams <aidan@nicta.com.au>
  *  Thanks to Jamey Hicks.

@@ -1,5 +1,5 @@
 /*
- *  linux/arch/frionommu/kernel/ptrace.c
+ *  linux/arch/blackfin/kernel/ptrace.c
  *
  *  Copyright (C) 1994 by Hamish Macdonald
  *  Taken from linux/kernel/ptrace.c and modified for M680x0.
@@ -40,7 +40,7 @@
 
 /* determines which bits in the SYSCFG reg the user has access to. */
 /* 1 = access 0 = no access */
-#define SYSCFG_MASK 0x0007   /* FRIO SYSCFG reg */
+#define SYSCFG_MASK 0x0007   /* SYSCFG reg */
 /* sets the trace bits. */
 #define TRACE_BITS 0x0001
 
