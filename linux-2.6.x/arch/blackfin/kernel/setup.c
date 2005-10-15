@@ -300,8 +300,8 @@ static void __init generate_cpl_tables(void)
 	pos = fill_cpl_tables(dcplb_table, pos, ASYNC_BANK3_BASE, ASYNC_BANK3_BASE + ASYNC_BANK3_SIZE, ASYNC_BANK3_SIZE, SDRAM_EBIU);
 	pos = fill_cpl_tables(dcplb_table, pos, SIZE_4M, SIZE_4M+(dcplb_avail * SIZE_4M) , SIZE_4M, SDRAM_DGENERIC);
 	while (pos < 32)                                                   
-			pos = fill_cpl_tables(dcplb_table, pos, 0, 1 , SIZE_4M, 0);
-  *(dcplb_table + pos)= -1;
+	    pos = fill_cpl_tables(dcplb_table, pos, SIZE_4M+(dcplb_avail * SIZE_4M), 2*SIZE_4M+(dcplb_avail * SIZE_4M), SIZE_4M, 0);
+  *(dcplb_table + pos)= -1; 
 
 /* Generarte DCPLB switch table */
 	pos=0;
@@ -330,7 +330,7 @@ static void __init generate_cpl_tables(void)
 	pos = fill_cpl_tables(icplb_table, pos, ASYNC_BANK0_BASE, ASYNC_BANK0_BASE + ASYNC_BANK0_SIZE, ASYNC_BANK0_SIZE, SDRAM_EBIU);
 	pos = fill_cpl_tables(icplb_table, pos, SIZE_4M, SIZE_4M+(icplb_avail * SIZE_4M), SIZE_4M, SDRAM_IGENERIC);
 	while (pos < 32)
-			pos = fill_cpl_tables(icplb_table, pos, 0, 1 , SIZE_4M, 0);
+	    pos = fill_cpl_tables(dcplb_table, pos, SIZE_4M+(icplb_avail * SIZE_4M), 2*SIZE_4M+(icplb_avail * SIZE_4M), SIZE_4M, 0);
   *(icplb_table + pos)= -1;
 
 /* Generarte ICPLB switch table */
