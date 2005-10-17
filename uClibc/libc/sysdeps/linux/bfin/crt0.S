@@ -36,11 +36,11 @@ Cambridge, MA 02139, USA.  */
 
 .text
 .align 2
-.global _start;
-.type	_start,STT_FUNC;
+.global __start;
+.type	__start,STT_FUNC;
 #if defined L_crt1 && defined __UCLIBC_CTOR_DTOR__
-.weak	_init;
-.weak	_fini;
+.weak	__init;
+.weak	__fini;
 .global	___uClibc_start_main;
 .type	___uClibc_start_main,STT_FUNC;
 #else
@@ -54,7 +54,7 @@ Cambridge, MA 02139, USA.  */
 
 .type	_main,STT_FUNC;
 
-_start:
+__start:
 
 /*	clear the frame pointer and the L registers.  */
 	FP = 0;
@@ -79,11 +79,11 @@ _start:
 /*	Ok, now run uClibc's main() -- shouldn't return */
 #if defined L_crt1 && defined __UCLIBC_CTOR_DTOR__
 	SP += -20;
-	R3.H = _init;
-	R3.L = _init;
+	R3.H = __init;
+	R3.L = __init;
 	[SP+12] = R3;
-	R3.H = _fini;
-	R3.L = _fini;
+	R3.H = __fini;
+	R3.L = __fini;
 	[SP+16] = R3;
 	jump.l	___uClibc_start_main;
 #else
