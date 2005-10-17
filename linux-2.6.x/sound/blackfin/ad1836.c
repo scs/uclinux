@@ -114,6 +114,7 @@
 #include <sound/initval.h>
 
 #include <asm/blackfin.h>
+#include <asm/cacheflush.h>
 
 #include "bf53x_spi.h"
 #include "bf53x_sport.h"
@@ -132,10 +133,6 @@
 #endif
 
 #undef CONFIG_SND_DEBUG_CURRPTR  /* causes output every frame! */
-
-/* assembly helpers */
-extern void bf53x_cache_flush(void* start, unsigned int size_bytes);
-extern void bf53x_cache_flushinv(void* start, unsigned int size_bytes);
 
 #undef NOCONTROLS  /* define this to omit all the ALSA controls */
 
@@ -176,6 +173,7 @@ struct snd_ad1836 {
   char     in_chan_mask_str[5]; /* last one is \0 */
 
   wait_queue_head_t   spi_waitq;
+  int	spi_data_ready;
   uint16_t chip_registers[16];
   int      poll_reg;  /* index of the ad1836 register last queried */
 
@@ -234,6 +232,7 @@ static int ad1836_spi_handler(struct bf53x_spi_channel* chan, void* buf, size_t 
       (chip->poll_reg << 12) | ADC_READ | (data & ADC_PEAK_MASK);
   }
 
+  chip->spi_data_ready = 1;
   wake_up(&chip->spi_waitq);
 
   /* TODO: move received data to the register cache, make separate handler for set_register
@@ -259,12 +258,12 @@ static int snd_ad1836_set_register(ad1836_t *chip, unsigned int reg, unsigned in
   /* snd_printk( KERN_INFO "waiting for spi set reg %d\n", reg);  */
 
   if( bf53x_spi_busy(chip->spi) )
-    if( !sleep_on_timeout(&chip->spi_waitq, HZ) ){
+    if( !wait_event_timeout(chip->spi_waitq, chip->spi_data_ready!=0, HZ) ){
       snd_printk( KERN_INFO "timeout setting register %d\n", reg);  
       bf53x_spi_clear_channel(chip->spi);
       return -ENODEV;
     }
-
+  chip->spi_data_ready = 0;
   chip->chip_registers[reg] = data;
   snd_printk( KERN_INFO "set register %d to 0x%04x\n", reg, data);  
 
@@ -426,13 +425,29 @@ static int snd_ad1836_talktrough_mode(ad1836_t* chip, int mode){
   return 0;
 }
 
+static void snd_ad1836_read_registers(ad1836_t *chip)
+{
+	int i, result;
+	
+	for (i = ADC_PEAK_1L; i <= ADC_PEAK_2R; i++) { 
+		chip->poll_reg = i;
+		result = bf53x_spi_transceive(chip->spi_chan, (chip->poll_reg<<12) |ADC_READ, NULL, NULL);
+		if (result < 0) {
+			snd_printk(KERN_ERR"Faile to transceive result:%d\n", result);
+			return;
+		}
+		if (wait_event_interruptible(chip->spi_waitq, chip->spi_data_ready)) {
+			snd_printk( KERN_INFO "timeout get register %d\n", i);  
+      			bf53x_spi_clear_channel(chip->spi);
+			return ;
+		}
+		chip->spi_data_ready = 0;
+	}
+}
 
 /*************************************************************
  *                 proc and control stuff 
  *************************************************************/
-
-
-
 static void snd_ad1836_proc_registers_read( snd_info_entry_t * entry, snd_info_buffer_t * buffer){
   int i;
   ad1836_t *chip = (ad1836_t*) entry->private_data;
@@ -445,6 +460,8 @@ static void snd_ad1836_proc_registers_read( snd_info_entry_t * entry, snd_info_b
   for( i=DAC_CTRL_1; i<=DAC_VOL_3R;++i)
     snd_iprintf(buffer, "%s 0x%04x\n", reg_names[i], chip->chip_registers[i] );
 
+  snd_ad1836_read_registers(chip);
+  
   for( i=ADC_PEAK_1L; i <= ADC_PEAK_2R; ++i )
     snd_iprintf(buffer, "%s 0x%04x %d dBFS\n", reg_names[i], 
 		chip->chip_registers[i], ADC_PEAK_VALUE(chip->chip_registers[i]) );
@@ -1496,6 +1513,8 @@ static int __devinit snd_ad1836_create(snd_card_t *card,
 					    0x0, /* no special configs */
 					    &ad1836_spi_handler, chip);
   
+  chip->spi_data_ready = 0;
+
   if( !chip->spi_chan ){
     snd_printk( KERN_ERR "Unable to allocate spi channel\n");    
     snd_ad1836_free(chip);
@@ -1878,25 +1897,14 @@ static irqreturn_t snd_adi1836_sport_handler_rx(ad1836_t* chip, int irq){
     if( dst_frag >= TALKTROUGH_FRAGMENTS ) dst_frag -= TALKTROUGH_FRAGMENTS;
     src = frag2addr( chip->rx_buf, src_frag, cnt );
     dst = frag2addr( chip->tx_buf, dst_frag, cnt );
-    bf53x_cache_flushinv(src,cnt); 
+    invalidate_dcache_range((unsigned int)src, (unsigned int)(src+cnt));
     
     memmove(dst,src,cnt);
     
     /*print_16x8(chip->rx_buf);*/
-    bf53x_cache_flush(dst,cnt);
+    flush_dcache_range((unsigned int)src, (unsigned int)(src+cnt));
     
   }
- 
-  /* issue a query for a vu meter, one per frag */
-#if 1
-  {
-    ++(chip->poll_reg);
-    if( (chip->poll_reg < ADC_PEAK_1L) || ( chip->poll_reg > ADC_PEAK_2R ) )
-      chip->poll_reg = ADC_PEAK_1L;
-    
-    bf53x_spi_transceive(chip->spi_chan, (chip->poll_reg<<12) | ADC_READ , NULL, NULL);
-  }
-#endif
   
   return IRQ_HANDLED;
 
@@ -2054,9 +2062,6 @@ static int __init snd_bf53x_adi1836_init(void){
     return -ENODEV;
   }
 
-  enable_irq(CONFIG_SND_BLACKFIN_SPI_IRQ_DATA);
-  enable_irq(CONFIG_SND_BLACKFIN_SPI_IRQ_ERR);
-
   if( (sport = bf53x_sport_init(CONFIG_SND_BLACKFIN_SPORT,  
 				CONFIG_SND_BLACKFIN_SPORT_DMA_RX, sport_handler_rx,
 				CONFIG_SND_BLACKFIN_SPORT_DMA_TX, sport_handler_tx ) ) == NULL ){ 
@@ -2070,8 +2075,6 @@ static int __init snd_bf53x_adi1836_init(void){
     snd_bf53x_adi1836_exit();
     return -ENODEV;
   }
-
-  enable_irq(CONFIG_SND_BLACKFIN_SPORT_IRQ_ERR);
 
   /* sport_init() requested the dma channel through the official api, 
    * but we override the irq, because 
