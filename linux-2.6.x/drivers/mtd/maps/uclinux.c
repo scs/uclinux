@@ -88,8 +88,7 @@ int __init uclinux_mtd_init(void)
 	mapp->size = PAGE_ALIGN(*((unsigned long *)(addr + 8)));
 
 #if defined(CONFIG_EXT2_FS) || defined(CONFIG_EXT3_FS)
-	mapp->size = PAGE_ALIGN(*((unsigned long *)(addr + 0x404)));
-	mapp->size = (mapp->size * 1024);
+	mapp->size = *((unsigned long *)(addr + 0x404)) * 1024;
 #endif
 
 	mapp->bankwidth = 4;
@@ -120,10 +119,14 @@ int __init uclinux_mtd_init(void)
 
 	uclinux_ram_mtdinfo = mtd;
 #ifdef CONFIG_MTD_PARTITIONS
-	add_mtd_partitions(mtd, uclinux_romfs, NUM_PARTITIONS);
+	i = add_mtd_partitions(mtd, uclinux_romfs, NUM_PARTITIONS);
 #else
-        add_mtd_device(mtd);
+        i = add_mtd_device(mtd);
 #endif
+	if (i) {
+		printk("uclinux[mtd]: failed to add mtd device\n");
+		return i;
+	}
 
 	/* That sucks! any other way to find partition we just created? */
 	for (i=0; i < MAX_MTD_DEVICES; i++) {
