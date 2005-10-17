@@ -413,7 +413,7 @@ edsearch1: NOP;
 dfound_victim:
 
 #ifdef CONFIG_CPLB_INFO
-	R1 = [P0 - 0x104];
+	R7 = [P0 - 0x104];
 	P2.L = _dpdt_table;
 	P2.H = _dpdt_table;
 	P3.L = _dpdt_swapcount_table;
@@ -425,12 +425,11 @@ dicount:
 	P3 += 8;
 	CC = R2==-1;
 	IF CC JUMP dicount_done;
-	CC = R1==R2;
+	CC = R7==R2;
 	IF !CC JUMP dicount;
-	R1 = [P3];
-	R1 += 1;
-	[P3] = R1;
-	CSYNC;
+	R7 = [P3];
+	R7 += 1;
+	[P3] = R7;
 dicount_done:
 #endif
 

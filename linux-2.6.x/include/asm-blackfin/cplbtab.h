@@ -319,6 +319,26 @@ _dpdt_table:
 .byte4        0x00000000;
 .byte4        0x00000000;
 .byte4        0x00000000;	/* 100 */
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;	/* 110 */
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;	/* 120 */
 
 .byte4	0xffffffff;		/*end of section - termination*/
 
