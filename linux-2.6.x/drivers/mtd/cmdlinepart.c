@@ -239,7 +239,8 @@ static int mtdpart_setup_real(char *s)
 				&num_parts,	/* out: number of parts */
 				0,		/* first partition */
 				(unsigned char**)&this_mtd, /* out: extra mem */
-				mtd_id_len + 1 + sizeof(*this_mtd));
+				mtd_id_len + 1 + sizeof(*this_mtd) + 
+                                sizeof(void*)-1 /*alignment*/);
 		if(!parts)
 		{
 			/*
@@ -252,7 +253,10 @@ static int mtdpart_setup_real(char *s)
 			 return 0;
 		 }
 
-		/* enter results */	    
+		/* align this_mtd */
+                this_mtd = (struct cmdline_mtd_partition *) 
+                    ALIGN((unsigned long)this_mtd, sizeof(void*));
+		/* enter results */
 		this_mtd->parts = parts;
 		this_mtd->num_parts = num_parts;
 		this_mtd->mtd_id = (char*)(this_mtd + 1);
