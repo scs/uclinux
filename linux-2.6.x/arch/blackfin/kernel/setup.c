@@ -356,7 +356,7 @@ static void __init generate_cpl_tables(void)
 			    ASYNC_BANK3_BASE + ASYNC_BANK3_SIZE,
 			    SIZE_4M, SDRAM_EBIU);
 	pos =
-	    fill_cpl_tables(dpdt_table, pos, RAM_END - SIZE_1M, RAM_END,
+	    fill_cpl_tables(dcplb_table, pos, RAM_END - SIZE_1M, RAM_END,
 			    SIZE_1M, SDRAM_DNON_CHBL);
 	pos =
 	    fill_cpl_tables(dcplb_table, pos, SIZE_4M,
