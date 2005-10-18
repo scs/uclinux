@@ -69,13 +69,20 @@ int uclinux_point(struct mtd_info *mtd, loff_t from, size_t len,
 /****************************************************************************/
 
 extern struct mtd_info *mtd_table[];
+extern unsigned long memory_mtd_start;
+
 
 int __init uclinux_mtd_init(void)
 {
 	struct mtd_info *mtd, *root = NULL;
 	struct map_info *mapp;
 	extern char _ebss;
+
+#ifdef CONFIG_BFIN
+	unsigned long addr = (unsigned long) memory_mtd_start;
+#else
 	unsigned long addr = (unsigned long)&_ebss;
+#endif
 	int i;
 
 #ifdef CONFIG_PILOT
@@ -84,7 +91,12 @@ int __init uclinux_mtd_init(void)
 #endif
 
 	mapp = &uclinux_ram_map;
+#ifdef CONFIG_BFIN
+	mapp->phys = (unsigned long) memory_mtd_start;
+#else
 	mapp->phys = (unsigned long) &_ebss;
+#endif
+
 	mapp->size = PAGE_ALIGN(*((unsigned long *)(addr + 8)));
 
 #if defined(CONFIG_EXT2_FS) || defined(CONFIG_EXT3_FS)

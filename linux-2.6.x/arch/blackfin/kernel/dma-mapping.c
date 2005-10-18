@@ -46,6 +46,7 @@ static unsigned long dma_size;
 static unsigned int dma_initialized = 0;
 extern unsigned long _ramend;
 extern unsigned long memory_end;
+extern unsigned long memory_mtd_end;
 
 void dma_alloc_init(unsigned long start, unsigned long end)
 {
@@ -72,7 +73,7 @@ static unsigned long __alloc_dma_pages(unsigned int pages)
 	int i, count = 0;
 
 	if (dma_initialized == 0)
-		dma_alloc_init(memory_end, _ramend);
+		dma_alloc_init(memory_mtd_end, _ramend);
 
 	spin_lock_irqsave(&dma_page_lock, flags);
 
