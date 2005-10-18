@@ -1,31 +1,39 @@
-/***************************************************************************
-Copyright (c) 2000 Analog Devices Inc. All rights reserved.	
-
-****************************************************************************
-  This program computes 32 bit signed remainder. It calls div32 function  
-  for quotient estimation.
-
-  Registers used :
-  Numerator/ Denominator in  R0, R1 
-  R0  -  returns remainder.
-  R2-R7    
- 
-Special cases :
-			1)	If(numerator == 0) return 0 
-		    2)  If(denominator ==0) return 0
-          	3)  If(numerator == denominator) return 0
-		    4)  If(denominator ==(1||-1)) return 0
-
-	 BLACKFIN  hidden functions
-	 IPDC, Bangalore, 24 April 2000.
-	 Modified on 14th July 2000
-	 Modification include:
-	 Removed declaration of external call for ___div32 function. 
-    
-     Modified for new instruction set 
-	 and  tested using Dev13 toolset on    : 13 October 2000 
-
-**************************************************************/
+/*
+ * File:         arch/blackfin/lib/modsi3.S
+ * Based on:     
+ * Author:       
+ *               
+ * Created:      
+ * Description:  This program computes 32 bit signed remainder. It calls div32 function
+ *  		 for quotient estimation.
+ *
+ *		 Registers used :
+ *		 Numerator/ Denominator in  R0, R1
+ *		  R0  -  returns remainder.
+ *		  R2-R7
+ *               
+ * Rev:          $Id$
+ *
+ * Modified:     
+ *               Copyright 2004-2005 Analog Devices Inc.
+ *
+ * Bugs:         Enter bugs at http://blackfin.uclinux.org/
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2, or (at your option)
+ * any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; see the file COPYING.
+ * If not, write to the Free Software Foundation,
+ * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ */
 
 .global ___modsi3;
 .type ___modsi3, STT_FUNC;

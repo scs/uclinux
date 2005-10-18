@@ -1,39 +1,37 @@
 /*
- * INET		An implementation of the TCP/IP protocol suite for the LINUX
- *		operating system.  INET is implemented using the  BSD Socket
- *		interface as the means of communication with the user level.
+ * File:         arch/blackfin/lib/checksum.c
+ * Based on:     none - original work
+ * Author:       
+ *               
+ * Created:      
+ * Description:  An implementation of the TCP/IP protocol suite for the LINUX
+ *               operating system.  INET is implemented using the  BSD Socket
+ *               interface as the means of communication with the user level. 
+ *              
+ * Rev:          $Id$
  *
- *		IP/TCP/UDP checksumming routines
+ * Modified:     
+ *               Copyright 2004-2005 Analog Devices Inc.
  *
- * Authors:	Jorge Cwik, <jorge@laser.satlink.net>
- *		Arnt Gulbrandsen, <agulbra@nvg.unit.no>
- *		Tom May, <ftom@netcom.com>
- *		Andreas Schwab, <schwab@issan.informatik.uni-dortmund.de>
- *		Lots of code moved from tcp.c and ip.c; see those files
- *		for more names.
+ * Bugs:         Enter bugs at http://blackfin.uclinux.org/
  *
- * 03/02/96	Jes Sorensen, Andreas Schwab, Roman Hodek:
- *		Fixed some nasty bugs, causing some horrible crashes.
- *		A: At some points, the sum (%0) was used as
- *		length-counter instead of the length counter
- *		(%1). Thanks to Roman Hodek for pointing this out.
- *		B: GCC seems to mess up if one uses too many
- *		data-registers to hold input values and one tries to
- *		specify d0 and d1 as scratch registers. Letting gcc choose these
- *      registers itself solves the problem.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2, or (at your option)
+ * any later version.
  *
- *		This program is free software; you can redistribute it and/or
- *		modify it under the terms of the GNU General Public License
- *		as published by the Free Software Foundation; either version
- *		2 of the License, or (at your option) any later version.
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; see the file COPYING.
+ * If not, write to the Free Software Foundation,
+ * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
- 
-/* Revised by Kenneth Albanowski for m68knommu. Basic problem: unaligned access kills, so most
-   of the assembly has to go. */
-
 #include <net/checksum.h>
 #include <asm/checksum.h>
-
 
 static unsigned short do_csum(const unsigned char* buff, int len){
   
@@ -67,8 +65,6 @@ static unsigned short do_csum(const unsigned char* buff, int len){
 
 }
 
-
-
 /*
  *	This is a version of ip_compute_csum() optimized for IP headers,
  *	which always checksum on 4 octet boundaries.
@@ -93,13 +89,13 @@ unsigned short ip_fast_csum(unsigned char * iph, unsigned int ihl)
 unsigned int csum_partial(const unsigned char * buff, int len, unsigned int sum)
 {
 
-	// printk(KERN_INFO "csum_partial(%p, %i, %i)", buff, len, sum);
+	/* printk(KERN_INFO "csum_partial(%p, %i, %i)", buff, len, sum); */
 
 	sum += do_csum(buff,len);
 
 	sum = (sum & 0xffff) + (sum >> 16);
 
-	// printk(" = %04x\n", sum);
+	/* printk(" = %04x\n", sum); */
 
 	return sum;
 }
@@ -118,7 +114,8 @@ unsigned short ip_compute_csum(const unsigned char * buff, int len)
  */
 
 unsigned int
-csum_partial_copy_from_user(const unsigned char *src, unsigned char *dst, int len, int sum, int *csum_err)
+csum_partial_copy_from_user(const unsigned char *src, unsigned char *dst,
+					 int len, int sum, int *csum_err)
 {
 	if (csum_err) *csum_err = 0;
 	memcpy(dst, src, len);

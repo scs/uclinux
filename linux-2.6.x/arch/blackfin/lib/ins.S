@@ -27,7 +27,6 @@
 #include <linux/linkage.h>
 	.align 2;
 	   
-	   
 ENTRY(_insl)
 	P0 = R0;	/* P0 = port */
 	P1 = R1;	/* P1 = address */

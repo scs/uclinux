@@ -1,16 +1,39 @@
-/*Copyright (C) 2000 Analog Devices Inc., All Rights Reserved. 
-** This contains Analog Devices Background IP and Development IP as
-** defined in the ADI/Intel Collaboration Agreement.
-*/
+/*
+ * File:         arch/blackfin/lib/memcpy.S
+ * Based on:    
+ * Author:     
+ *            
+ * Created:  
+ * Description:  internal version of memcpy(), issued by the compiler
+ * 		 to copy blocks of data around.
+ *		 This is really memmove() - it has to be able to deal with
+ * 		 possible overlaps, because that ambiguity is when the compiler
+ * 		 gives up and calls a function. We have our own, internal version
+ *		 so that we get something we trust, even if the user has redefined
+ * 		 the normal symbol.
+ * Rev:          $Id$
+ *
+ * Modified:     
+ *               Copyright 2004-2005 Analog Devices Inc.
+ *
+ * Bugs:         Enter bugs at http://blackfin.uclinux.org/
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2, or (at your option)
+ * any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; see the file COPYING.
+ * If not, write to the Free Software Foundation,
+ * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ */
 
-/* _memcpy: internal version of memcpy(), issued by the compiler
-* to copy blocks of data around.
-* This is really memmove() - it has to be able to deal with
-* possible overlaps, because that ambiguity is when the compiler
-* gives up and calls a function. We have our own, internal version
-* so that we get something we trust, even if the user has redefined
-* the normal symbol. 
-*/
 #include <linux/linkage.h>
 
 	.align 2;
@@ -78,10 +101,11 @@ ENTRY(_memcpy)
 		RTS;
 
 .has_overlap:
-		/* Need to reverse the copying, because the
-		 dst would clobber the src.
-		 Don't bother to work out alignment for
-		 the reverse case. */
+/* Need to reverse the copying, because the
+ * dst would clobber the src.
+ * Don't bother to work out alignment for
+ * the reverse case. 
+ */
 		R0 = R1;	/* save src for later. */
 		P0 = P0 + P2;
 		P0 += -1;

@@ -1,15 +1,33 @@
-/* Copyright (C) 2003 Analog Devices, Inc. All Rights Reserved. 
+/*
+ * File:         arch/blackfin/lib/udivsi3.S
+ * Based on:
+ * Author:
  *
- * This file is subject to the terms and conditions of the GNU General Public
- * License. 
+ * Created:
+ * Description:
  *
- * Blackfin BF533/2.6 support : LG Soft India	
+ * Rev:          $Id$
  *
- * libgcc1 routines for Blackfin 533
- * Copyright (C) 2004-2005 LG Soft India. 
+ * Modified:
+ *               Copyright 2004-2005 Analog Devices Inc.
  *
+ * Bugs:         Enter bugs at http://blackfin.uclinux.org/
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2, or (at your option)
+ * any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; see the file COPYING.
+ * If not, write to the Free Software Foundation,
+ * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
-
 	.text
 	.globl	___udivsi3
 ___udivsi3:
@@ -23,9 +41,9 @@ ___udivsi3:
         R3 = R0 | R1;                   /* If either dividend or */
         R2 = R3 & R2;                   /* divisor have bits in */
         CC = R2;                        /* top half or low half's sign */
-        IF CC JUMP IDENTS;             /* bit, skip builtins. */
+        IF CC JUMP IDENTS;              /* bit, skip builtins. */
 
-     /* Can use the builtins. */
+        /* Can use the builtins. */
 
         AQ = CC;                        /* Clear AQ (CC==0) */
         DIVQ(R0, R1);
@@ -94,12 +112,10 @@ IDENTS:
         P3 = 32;                        /* Set loop counter */
         R4 = 0;                         /* Initialise quotient bit */ 
 
-        LSETUP( ULST,ULEND ) LC0 = P3;  /* Set loop counter */
-ULST:   R6 = R2 >> 31;                  /* R6 = sign bit of R2, for carry */
-//        R2 = R2 << 1;                   /* Shift 64 bit dividend up by 1 bit */
-//        R3 = R3 << 1;
-
-        R2 <<= 1;                   /* Shift 64 bit dividend up by 1 bit */
+        LSETUP(ULST, ULEND) LC0 = P3;   /* Set loop counter */
+ULST:
+	R6 = R2 >> 31;                  /* R6 = sign bit of R2, for carry */
+        R2 <<= 1;                   	/* Shift 64 bit dividend up by 1 bit */
         R3 <<= 1;
         R3 = R3 | R6;                   /* Include any carry */
         CC = R4 < 0;                    /* Check quotient(AQ) */
@@ -110,11 +126,11 @@ ULST:   R6 = R2 >> 31;                  /* R6 = sign bit of R2, for carry */
         BITCLR(R2,0);                   /* Assume AQ==1, so "shift in" 0 */
         R5 = R4 >> 31;                  /* Get AQ */
         BITTGL(R5, 0);                  /* Invert it, to get what we'll shift */
-ULEND:  R2 = R2 + R5;                   /* and "shift" it in. */
+ULEND:  
+	R2 = R2 + R5;                   /* and "shift" it in. */
 
         CC = P0 == 0;                   /* Check how many inputs we shifted */
         IF CC JUMP NO_MULT;             /* if none... */
-//      R6 = R2 << 1;
 	R2 <<= 0x1;
         R6 = R2;
         CC = P0 == 1;
@@ -130,7 +146,7 @@ ULEND:  R2 = R2 + R5;                   /* and "shift" it in. */
         R2 = R2 + R6;                   /* if yes, add one to quotient(Q) */  
 NO_MULT:
         P3 = [SP++];                    /* Pop register P3 */
-        ( R7:4) = [SP++];                /* Pop registers R4-R7 */
+        ( R7:4) = [SP++];               /* Pop registers R4-R7 */
         R0 = R2;                        /* Store quotient */
         RTS;
 
@@ -138,4 +154,3 @@ RETURN_IDENT:
         R0 = R2;
 RETURN_R0:
         RTS;
-

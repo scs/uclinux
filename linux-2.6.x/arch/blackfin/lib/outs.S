@@ -1,5 +1,5 @@
 /* 
- * File:	outs.S
+ * File:	arch/blackfin/lib/outs.S
  * Description:	Implementation of outs{bwl} for BlackFin processors using zero overhead loops.
  * Rev:		$Id$
  * Created:	Tue Mar 22 15:27:24 CEST 2005
