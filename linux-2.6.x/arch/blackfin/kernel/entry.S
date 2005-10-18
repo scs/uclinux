@@ -103,7 +103,7 @@ ENTRY(_sys_rt_sigsuspend)
 	r0 += 20;
 	[--sp] = rets;
 	SP += -12;
-	call _do_rt_sigsuspen;
+	call _do_rt_sigsuspend;
 	SP += 12;
 	rets = [sp++];
 	rts;
