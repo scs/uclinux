@@ -53,104 +53,104 @@ ___divsi3 :
  *  most cases, and they're quick - avoids stalls incurred by
  *  testing for identities. 
  */
-        R2.H = 0x8000;
-        R2 >>>= 16;                     /* R2 now 0xFFFF8000 */
-        R3 = R0 | R1;                   /* If either dividend or */
-        R2 = R3 & R2;                   /* divisor have bits in */
-        CC = R2;                        /* top half or low half's sign */
-        IF CC JUMP IDENTS;             /* bit, skip builtins. */
-        DIVS(R0, R1);
-        DIVQ(R0, R1);
-        DIVQ(R0, R1);
-        DIVQ(R0, R1);
-        DIVQ(R0, R1);
-        DIVQ(R0, R1);
-        DIVQ(R0, R1);
-        DIVQ(R0, R1);
-        DIVQ(R0, R1);
-        DIVQ(R0, R1);
-        DIVQ(R0, R1);
-        DIVQ(R0, R1);
-        DIVQ(R0, R1);
-        DIVQ(R0, R1);
-        DIVQ(R0, R1);
-        DIVQ(R0, R1);
-        DIVQ(R0, R1);
-        R0 = R0.L (X);
-        RTS;
+	R2.H = 0x8000;
+	R2 >>>= 16;                     /* R2 now 0xFFFF8000 */
+	R3 = R0 | R1;                   /* If either dividend or */
+	R2 = R3 & R2;                   /* divisor have bits in */
+	CC = R2;                        /* top half or low half's sign */
+	IF CC JUMP IDENTS;             /* bit, skip builtins. */
+	DIVS(R0, R1);
+	DIVQ(R0, R1);
+	DIVQ(R0, R1);
+	DIVQ(R0, R1);
+	DIVQ(R0, R1);
+	DIVQ(R0, R1);
+	DIVQ(R0, R1);
+	DIVQ(R0, R1);
+	DIVQ(R0, R1);
+	DIVQ(R0, R1);
+	DIVQ(R0, R1);
+	DIVQ(R0, R1);
+	DIVQ(R0, R1);
+	DIVQ(R0, R1);
+	DIVQ(R0, R1);
+	DIVQ(R0, R1);
+	DIVQ(R0, R1);
+	R0 = R0.L (X);
+	RTS;
 
-        /* Can't use the primitives. Test common identities. 
-         * If the identity is true, return the value in R2. 
-         */
+	/* Can't use the primitives. Test common identities. 
+	 * If the identity is true, return the value in R2. 
+	 */
 
 IDENTS:
-        CC = R0 == 0;                   /* NR==0 => 0 */
-        IF CC JUMP ZERO_RETURN;
+	CC = R0 == 0;                   /* NR==0 => 0 */
+	IF CC JUMP ZERO_RETURN;
 
-        R2.L = -1;                      /* DR==0 => 0x7FFFFFFF */
-        R2.H = 0x7FFF;
-        CC = R1 == 0;
-        IF CC JUMP IDENT_RETURN;
+	R2.L = -1;                      /* DR==0 => 0x7FFFFFFF */
+	R2.H = 0x7FFF;
+	CC = R1 == 0;
+	IF CC JUMP IDENT_RETURN;
 
-        R2 = 1 (Z);                     /* NR==DR => 1 */
-        CC = R0 == R1;
-        IF CC JUMP IDENT_RETURN;
+	R2 = 1 (Z);                     /* NR==DR => 1 */
+	CC = R0 == R1;
+	IF CC JUMP IDENT_RETURN;
 
-        R2 = R0;                        /* DR==1 => NR */
-        CC = R1 == 1;
-        IF CC JUMP IDENT_RETURN;
+	R2 = R0;                        /* DR==1 => NR */
+	CC = R1 == 1;
+	IF CC JUMP IDENT_RETURN;
 
-        R2 = -R0;                       /* DR==-1 => -NR */
-        CC = R1 == -1;
-        IF CC JUMP IDENT_RETURN;
+	R2 = -R0;                       /* DR==-1 => -NR */
+	CC = R1 == -1;
+	IF CC JUMP IDENT_RETURN;
 
-        /* Identities haven't helped either.
-         * Perform the full division process.  
-         */
+	/* Identities haven't helped either.
+	 * Perform the full division process.  
+	 */
 
-        P0 = R0;                        /* Copy R0,R1 */
-        P1 = R1;
-        R0 = ABS R0;                    /* Absolute of R0,R1 */
+	P0 = R0;                        /* Copy R0,R1 */
+	P1 = R1;
+	R0 = ABS R0;                    /* Absolute of R0,R1 */
 	CC = V;
-        [--SP] = (R7:4);                /* Push registers R4-R7 */
-        R7 = CC;
+	[--SP] = (R7:4);                /* Push registers R4-R7 */
+	R7 = CC;
 
-        R1 = ABS R1;
-        R3 = 0 ;                        /* Clear msw partial remainder */ 
-        R2 = R0<< 1;                    /* R2 lsw of dividend  */ 
-        R4 = R0^R1;                     /* Get sign */
-        R5 = R4 >> 31;                  /* Shift sign to LSB */
+	R1 = ABS R1;
+	R3 = 0 ;                        /* Clear msw partial remainder */ 
+	R2 = R0<< 1;                    /* R2 lsw of dividend  */ 
+	R4 = R0^R1;                     /* Get sign */
+	R5 = R4 >> 31;                  /* Shift sign to LSB */
 
-        R2 = R2|R5;                     /* Shift quotient bit */ 
-        P2 = 31;                        /* Set loop counter   */
-        R4 = R3^R1;                     /* Get new quotient bit */  
+	R2 = R2|R5;                     /* Shift quotient bit */ 
+	P2 = 31;                        /* Set loop counter   */
+	R4 = R3^R1;                     /* Get new quotient bit */  
 
-        LSETUP ( LST,LEND )  LC0 = P2;     /* Setup loop */
+	LSETUP ( LST,LEND )  LC0 = P2;     /* Setup loop */
 LST:    R5 = R2 >> 31;                  /* record copy of carry from R2 */
-        R2 = R2 << 1;                   /* Shift 64 bit dividend up by 1 bit */
-        R3 = R3 << 1;
-        R3 = R3|R5;                     /* and add carry */
-        CC = R4 < 0;                    /* Check quotient(AQ) */
-        R5 = -R1;                       /* we might be subtracting divisor (AQ==0) */
-        IF CC R5 = R1;                  /* or we might be adding divisor  (AQ==1)*/
-        R3 = R3 + R5;                   /* do add or subtract, as indicated by AQ */
-        R4 = R3^R1;                     /* Generate next quotient bit */
-        R5 = R4 >> 31;
-        BITCLR(R2,0);                   /* Assume AQ==1, shift in zero */
-        BITTGL(R5,0);                   /* tweak AQ to be what we want to shift in */
+	R2 = R2 << 1;                   /* Shift 64 bit dividend up by 1 bit */
+	R3 = R3 << 1;
+	R3 = R3|R5;                     /* and add carry */
+	CC = R4 < 0;                    /* Check quotient(AQ) */
+	R5 = -R1;                       /* we might be subtracting divisor (AQ==0) */
+	IF CC R5 = R1;                  /* or we might be adding divisor  (AQ==1)*/
+	R3 = R3 + R5;                   /* do add or subtract, as indicated by AQ */
+	R4 = R3^R1;                     /* Generate next quotient bit */
+	R5 = R4 >> 31;
+	BITCLR(R2,0);                   /* Assume AQ==1, shift in zero */
+	BITTGL(R5,0);                   /* tweak AQ to be what we want to shift in */
 LEND:   R2 = R2 + R5;                   /* and then set shifted-in value to tweaked AQ. */
 
-        R2 = R2 + R7;
-        R0 = P0;
-        R1 = P1;
-        R3 = R0^R1;
-        CC = R3<0;                      /* Check sign of R0 and R1 */
-        (R7:4)= [SP++];                 /* Pop registers R4-R7 */
-        R0 = -R2;                       /* If negative, return -R2 */
-        IF !CC R0 = R2;                 /* If positive, return R2 */
-        RTS;
+	R2 = R2 + R7;
+	R0 = P0;
+	R1 = P1;
+	R3 = R0^R1;
+	CC = R3<0;                      /* Check sign of R0 and R1 */
+	(R7:4)= [SP++];                 /* Pop registers R4-R7 */
+	R0 = -R2;                       /* If negative, return -R2 */
+	IF !CC R0 = R2;                 /* If positive, return R2 */
+	RTS;
 
 IDENT_RETURN:
-        R0 = R2;                        /* Return an identity value */
+	R0 = R2;                        /* Return an identity value */
 ZERO_RETURN:
-        RTS;                            /* ...including zero */
+	RTS;                            /* ...including zero */

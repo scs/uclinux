@@ -42,23 +42,23 @@
 	   
 ENTRY(_memchr)
 	     P0 = R0 ;             /* P0 = address */
-             P2 = R2 ;             /* P2 = count */
-             R1 = R1.B(Z); 
-             CC = R2 == 0;
-             IF CC JUMP failed;
-             		     
+	     P2 = R2 ;             /* P2 = count */
+	     R1 = R1.B(Z); 
+	     CC = R2 == 0;
+	     IF CC JUMP failed;
+			     
 bytes:       LSETUP (byte_loop_s , byte_loop_e) LC0=P2;
 
 byte_loop_s:    
 	     R3 = B[P0++](Z);
-             CC = R3 == R1;		
+	     CC = R3 == R1;		
 	     IF CC JUMP found;
 	     NOP;
 byte_loop_e:    
 
 failed:      R0=0;
-             RTS;
+	     RTS;
 
 found:       R0 = P0;
-             R0 += -1;
-             RTS;
+	     R0 += -1;
+	     RTS;
