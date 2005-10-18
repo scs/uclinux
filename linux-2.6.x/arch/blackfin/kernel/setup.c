@@ -661,11 +661,15 @@ void panic_bfin(int cplb_panic)
 /*copy from SRAM to L1RAM, DMAHandler routine*/
 int DmaMemCpy(char *dest_addr, char *source_addr, int size)
 {
+
+  if(!size) 
+  	 return 0;
+
      /* Setup destination start address */
         *pMDMA_D0_START_ADDR = dest_addr;
 
         /* Setup destination xcount */
-        *pMDMA_D0_X_COUNT = size ;
+        *pMDMA_D0_X_COUNT = (unsigned short)size;
 
         /* Setup destination xmodify */
         *pMDMA_D0_X_MODIFY = 1;
@@ -674,25 +678,24 @@ int DmaMemCpy(char *dest_addr, char *source_addr, int size)
         *pMDMA_S0_START_ADDR = source_addr;
 
         /* Setup Source xcount */
-        *pMDMA_S0_X_COUNT = size ;
+        *pMDMA_S0_X_COUNT = (unsigned short)size;
 
         /* Setup Source xmodify */
         *pMDMA_S0_X_MODIFY = 1;
 
-        *pSIC_IWR |= (1<<(IRQ_MEM_DMA0 - (IRQ_CORETMR+1)));
-
+        *pSIC_IWR = (1<<(IRQ_MEM_DMA0 - (IRQ_CORETMR+1)));
+        
     /* Set word size to 8, set to read, enable interrupt for wakeup
      Enable source DMA */
 
         *pMDMA_S0_CONFIG = (DMAEN) ;
         __builtin_bfin_ssync();
-
-        *pMDMA_D0_CONFIG = ( WNR | DMAEN | DI_EN );
-
+        
+        *pMDMA_D0_CONFIG = ( WNR | DMAEN | DI_EN);       
         asm("IDLE;\n"); /* go into idle and wait for wakeup */
 
         *pMDMA_D0_IRQ_STATUS = DMA_DONE;
-
+        
         *pMDMA_S0_CONFIG = 0;
         *pMDMA_D0_CONFIG = 0;
 
