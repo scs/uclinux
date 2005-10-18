@@ -96,7 +96,7 @@ void bf53x_cache_init(void)
 }
 
 
-int DmaMemCpy(char *dest_addr, char *source_addr, int size);
+int DmaMemCpy(char *dest_addr, char *source_addr, unsigned short size);
 
 extern char _stext, _etext, _sdata, _edata, _sbss, _ebss, _end;
 extern int _ramstart, _ramend;
@@ -125,9 +125,6 @@ void bf53x_relocate_l1_mem(void)
 	/* Copy _sdata_l1 to _ebss_l1 to L1 instruction SRAM */
 	DmaMemCpy(&_sdata_l1, &_l1_lma_start + (&_etext_l1 - &_stext_l1),
 		  l1_length);
-
-	//disable DMA
-	*pDMA0_CONFIG = 0;
 
 }
 
@@ -659,7 +656,7 @@ void panic_bfin(int cplb_panic)
 }
 
 /*copy from SRAM to L1RAM, DMAHandler routine*/
-int DmaMemCpy(char *dest_addr, char *source_addr, int size)
+int DmaMemCpy(char *dest_addr, char *source_addr, unsigned short size)
 {
 
   if(!size) 
@@ -669,7 +666,7 @@ int DmaMemCpy(char *dest_addr, char *source_addr, int size)
         *pMDMA_D0_START_ADDR = dest_addr;
 
         /* Setup destination xcount */
-        *pMDMA_D0_X_COUNT = (unsigned short)size;
+        *pMDMA_D0_X_COUNT = size;
 
         /* Setup destination xmodify */
         *pMDMA_D0_X_MODIFY = 1;
@@ -678,7 +675,7 @@ int DmaMemCpy(char *dest_addr, char *source_addr, int size)
         *pMDMA_S0_START_ADDR = source_addr;
 
         /* Setup Source xcount */
-        *pMDMA_S0_X_COUNT = (unsigned short)size;
+        *pMDMA_S0_X_COUNT = size;
 
         /* Setup Source xmodify */
         *pMDMA_S0_X_MODIFY = 1;
