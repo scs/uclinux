@@ -1,22 +1,34 @@
 /*
- *  linux/arch/blackfin/kernel/irq.c
+ * File:         arch/blackfin/kernel/irqchip.c
+ * Based on:
+ * Author:
  *
- *  Copyright (C) 1992 Linus Torvalds
- *  Modifications for ARM processor Copyright (C) 1995-2000 Russell King.
+ * Created:
+ * Description:  This file contains the simple DMA Implementation for Blackfin
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
+ * Rev:          $Id$
  *
- *  This file contains the code used by various IRQ handling routines:
- *  asking for different IRQ's should be done through these routines
- *  instead of just grabbing them. Thus setups with different IRQ numbers
- *  shouldn't result in any weird surprises, and installing new handlers
- *  should be easier.
+ * Modified:
+ *               Copyright 2004-2005 Analog Devices Inc.
  *
- *  IRQ's are in fact implemented a bit like signal handlers for the kernel.
- *  Naturally it's not a 1:1 relation, but there are similarities.
+ * Bugs:         Enter bugs at http:    //blackfin.uclinux.org/
+ *
+ * This program is free software ;  you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation ;  either version 2, or (at your option)
+ * any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY ;  without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program ;  see the file COPYING.
+ * If not, write to the Free Software Foundation,
+ * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
+
 #include <linux/kernel_stat.h>
 #include <linux/module.h>
 #include <linux/random.h>
@@ -25,7 +37,7 @@
 
 #include <asm/irqchip.h>
 
-//#define IRQ_DEBUG
+/*#define IRQ_DEBUG*/
 #undef IRQ_DEBUG
 
 #ifdef IRQ_DEBUG
@@ -35,8 +47,8 @@
 #endif
 
 /*
- * Maximum IRQ count.  Currently, this is arbitary.  However, it should
- * not be set too low to prevent false triggering.  Conversely, if it
+ * Maximum IRQ count.  Currently, this is arbitary. However, it should
+ * not be set too low to prevent false triggering. Conversely, if it
  * is set too high, then you could miss a stuck IRQ.
  *
  * Maybe we ought to set a timer and re-enable the IRQ at a later time?
@@ -69,24 +81,24 @@ void do_bad_IRQ(unsigned int irq, struct irqdesc *desc, struct pt_regs *regs)
 }
 
 static struct irqchip bad_chip = {
-	.ack	= dummy_mask_unmask_irq,
-	.mask	= dummy_mask_unmask_irq,
+	.ack = dummy_mask_unmask_irq,
+	.mask = dummy_mask_unmask_irq,
 	.unmask = dummy_mask_unmask_irq,
 };
 
 static struct irqdesc bad_irq_desc = {
-	.chip		= &bad_chip,
-	.handle		= do_bad_IRQ,
-	.pend		= LIST_HEAD_INIT(bad_irq_desc.pend),
-	.disable_depth	= 1,
+	.chip = &bad_chip,
+	.handle = do_bad_IRQ,
+	.pend = LIST_HEAD_INIT(bad_irq_desc.pend),
+	.disable_depth = 1,
 };
 
-/**
+/*
  *	disable_irq - disable an irq and wait for completion
  *	@irq: Interrupt to disable
  *
  *	Disable the selected interrupt line.  Enables and disables
- *	are nested.  We do this lazily.
+ *	are nested. We do this lazily.
  *
  *	This function may be called from IRQ context.
  */
@@ -100,9 +112,10 @@ void disable_irq(unsigned int irq)
 	list_del_init(&desc->pend);
 	spin_unlock_irqrestore(&irq_controller_lock, flags);
 }
+
 EXPORT_SYMBOL(disable_irq);
 
-/**
+/*
  *	enable_irq - enable interrupt handling on an irq
  *	@irq: Interrupt to enable
  *
@@ -120,26 +133,27 @@ void enable_irq(unsigned int irq)
 	spin_lock_irqsave(&irq_controller_lock, flags);
 	if (unlikely(!desc->disable_depth)) {
 		printk("enable_irq(%u) unbalanced from %p\n", irq,
-			__builtin_return_address(0));
+		       __builtin_return_address(0));
 	} else if (!--desc->disable_depth) {
 		desc->probing = 0;
 		desc->chip->unmask(irq);
 
 		/*
 		 * If the interrupt is waiting to be processed,
-		 * try to re-run it.  We can't directly run it
+		 * try to re-run it. We can't directly run it
 		 * from here since the caller might be in an
 		 * interrupt-protected region.
 		 */
 		if (desc->pending && list_empty(&desc->pend)) {
 			desc->pending = 0;
-			if (!desc->chip->retrigger ||
-			    desc->chip->retrigger(irq))
+			if (!desc->chip->retrigger
+			    || desc->chip->retrigger(irq))
 				list_add(&desc->pend, &irq_pending);
 		}
 	}
 	spin_unlock_irqrestore(&irq_controller_lock, flags);
 }
+
 EXPORT_SYMBOL(enable_irq);
 
 /*
@@ -155,6 +169,7 @@ void enable_irq_wake(unsigned int irq)
 		desc->chip->wake(irq, 1);
 	spin_unlock_irqrestore(&irq_controller_lock, flags);
 }
+
 EXPORT_SYMBOL(enable_irq_wake);
 
 void disable_irq_wake(unsigned int irq)
@@ -167,17 +182,18 @@ void disable_irq_wake(unsigned int irq)
 		desc->chip->wake(irq, 0);
 	spin_unlock_irqrestore(&irq_controller_lock, flags);
 }
+
 EXPORT_SYMBOL(disable_irq_wake);
 
 int show_interrupts(struct seq_file *p, void *v)
 {
-	int i = *(loff_t *) v;
-	struct irqaction * action;
+	int i = *(loff_t *)v;
+	struct irqaction *action;
 	unsigned long flags;
 
 	if (i < NR_IRQS) {
 		spin_lock_irqsave(&irq_controller_lock, flags);
-	    	action = irq_desc[i].action;
+		action = irq_desc[i].action;
 		if (!action)
 			goto unlock;
 
@@ -187,7 +203,7 @@ int show_interrupts(struct seq_file *p, void *v)
 			seq_printf(p, ", %s", action->name);
 
 		seq_putc(p, '\n');
-unlock:
+	      unlock:
 		spin_unlock_irqrestore(&irq_controller_lock, flags);
 	} else if (i == NR_IRQS) {
 		seq_printf(p, "Err: %10lu\n", irq_err_count);
@@ -212,19 +228,22 @@ static int check_irq_lock(struct irqdesc *desc, int irq, struct pt_regs *regs)
 		desc->lck_cnt += 1;
 
 		if (desc->lck_cnt > MAX_IRQ_CNT) {
-			printk(KERN_ERR "IRQ LOCK: IRQ%d is locking the system, disabled\n", irq);
+			printk(KERN_ERR
+			       "IRQ LOCK: IRQ%d is locking the system, disabled\n",
+			       irq);
 			return 1;
 		}
 	} else {
 		desc->lck_cnt = 0;
-		desc->lck_pc  = instruction_pointer(regs);
+		desc->lck_pc = instruction_pointer(regs);
 		desc->lck_jif = jiffies;
 	}
 	return 0;
 }
 
-static void report_bad_irq(unsigned int irq, struct pt_regs *regs,
-			   struct irqdesc *desc, int ret)
+static void
+report_bad_irq(unsigned int irq, struct pt_regs *regs,
+	       struct irqdesc *desc, int ret)
 {
 	static int count = 100;
 	struct irqaction *action;
@@ -235,9 +254,9 @@ static void report_bad_irq(unsigned int irq, struct pt_regs *regs,
 	count--;
 
 	if (ret != IRQ_HANDLED && ret != IRQ_NONE) {
-		printk("irq%u: bogus retval mask %x\n", irq, ret);
+		printk(KERN_WARNING "irq%u: bogus retval mask %x\n", irq, ret);
 	} else {
-		printk("irq%u: nobody cared\n", irq);
+		printk(KERN_WARNING "irq%u: nobody cared\n", irq);
 	}
 	show_regs(regs);
 	dump_stack();
@@ -247,12 +266,13 @@ static void report_bad_irq(unsigned int irq, struct pt_regs *regs,
 		printk("\n" KERN_ERR "[<%p>]", action->handler);
 		print_symbol(" (%s)", (unsigned long)action->handler);
 		action = action->next;
-	} while (action);
+	}
+	while (action);
 	printk("\n");
 }
 
-static int __do_irq(unsigned int irq, struct irqaction *action,
-		    struct pt_regs *regs)
+static int
+__do_irq(unsigned int irq, struct irqaction *action, struct pt_regs *regs)
 {
 	unsigned int status;
 	int retval = 0;
@@ -268,7 +288,8 @@ static int __do_irq(unsigned int irq, struct irqaction *action,
 		status |= action->flags;
 		retval |= action->handler(irq, action->dev_id, regs);
 		action = action->next;
-	} while (action);
+	}
+	while (action);
 
 	if (status & SA_SAMPLE_RANDOM)
 		add_interrupt_randomness(irq);
@@ -279,7 +300,7 @@ static int __do_irq(unsigned int irq, struct irqaction *action,
 }
 
 /*
- * This is for software-decoded IRQs.  The caller is expected to
+ * This is for software-decoded IRQs. The caller is expected to
  * handle the ack, clear, mask and unmask issues.
  */
 void do_simple_IRQ(unsigned int irq, struct irqdesc *desc, struct pt_regs *regs)
@@ -311,7 +332,7 @@ void do_edge_IRQ(unsigned int irq, struct irqdesc *desc, struct pt_regs *regs)
 
 	/*
 	 * If we're currently running this IRQ, or its disabled,
-	 * we shouldn't process the IRQ.  Instead, turn on the
+	 * we shouldn't process the IRQ. Instead, turn on the
 	 * hardware masks.
 	 */
 	if (unlikely(desc->running || desc->disable_depth))
@@ -345,7 +366,8 @@ void do_edge_IRQ(unsigned int irq, struct irqdesc *desc, struct pt_regs *regs)
 		ret = __do_irq(irq, action, regs);
 		if (ret != IRQ_HANDLED)
 			report_bad_irq(irq, regs, desc, ret);
-	} while (desc->pending && !desc->disable_depth);
+	}
+	while (desc->pending && !desc->disable_depth);
 
 	desc->running = 0;
 
@@ -355,10 +377,10 @@ void do_edge_IRQ(unsigned int irq, struct irqdesc *desc, struct pt_regs *regs)
 	if (likely(desc->action && !check_irq_lock(desc, irq, regs)))
 		return;
 
- running:
+      running:
 	/*
 	 * We got another IRQ while this one was masked or
-	 * currently running.  Delay it.
+	 * currently running. Delay it.
 	 */
 	desc->pending = 1;
 	desc->chip->mask(irq);
@@ -366,7 +388,7 @@ void do_edge_IRQ(unsigned int irq, struct irqdesc *desc, struct pt_regs *regs)
 }
 
 /*
- * Level-based IRQ handler.  Nice and simple.
+ * Level-based IRQ handler. Nice and simple.
  */
 void do_level_IRQ(unsigned int irq, struct irqdesc *desc, struct pt_regs *regs)
 {
@@ -430,7 +452,8 @@ static void do_pending_irqs(struct pt_regs *regs)
 		 * The list must be empty.
 		 */
 		BUG_ON(!list_empty(&head));
-	} while (!list_empty(&irq_pending));
+	}
+	while (!list_empty(&irq_pending));
 }
 
 extern asmlinkage void lower_to_irq14(void);
@@ -492,7 +515,8 @@ void __set_irq_handler(unsigned int irq, irq_handler_t handle, int is_chained)
 	desc = irq_desc + irq;
 
 	if (is_chained && desc->chip == &bad_chip)
-		printk(KERN_WARNING "Trying to install chained handler for IRQ%d\n", irq);
+		printk(KERN_WARNING
+		       "Trying to install chained handler for IRQ%d\n", irq);
 
 	spin_lock_irqsave(&irq_controller_lock, flags);
 	if (handle == do_bad_IRQ) {
@@ -549,6 +573,7 @@ int set_irq_type(unsigned int irq, unsigned int type)
 
 	return ret;
 }
+
 EXPORT_SYMBOL(set_irq_type);
 
 void set_irq_flags(unsigned int irq, unsigned int iflags)
@@ -590,7 +615,7 @@ int setup_irq(unsigned int irq, struct irqaction *new)
 		 * installing a new handler, but is this really a problem,
 		 * only the sysadmin is able to do this.
 		 */
-	        rand_initialize_irq(irq);
+		rand_initialize_irq(irq);
 	}
 
 	/*
@@ -610,14 +635,15 @@ int setup_irq(unsigned int irq, struct irqaction *new)
 		do {
 			p = &old->next;
 			old = *p;
-		} while (old);
+		}
+		while (old);
 		shared = 1;
 	}
 
 	*p = new;
 
 	if (!shared) {
- 		desc->probing = 0;
+		desc->probing = 0;
 		desc->running = 0;
 		desc->pending = 0;
 		desc->disable_depth = 1;
@@ -662,20 +688,22 @@ int setup_irq(unsigned int irq, struct irqaction *new)
  *	SA_SAMPLE_RANDOM	The interrupt can be used for entropy
  *
  */
-int request_irq(unsigned int irq,
-		irqreturn_t (*handler)(int, void *, struct pt_regs *),
-		unsigned long irq_flags, const char * devname, void *dev_id)
+int
+request_irq(unsigned int irq,
+	    irqreturn_t(*handler) (int, void *, struct pt_regs *),
+	    unsigned long irq_flags, const char *devname, void *dev_id)
 {
 	unsigned long retval;
 	struct irqaction *action;
 
-	IRQ_DPRINTK("request_irq: irq=%d handler=%p irq_flags=%#lx devname=%s devid=%p\n",
-	       irq, handler, irq_flags, devname, dev_id);
-	if (irq >= NR_IRQS || !irq_desc[irq].valid || !handler ||
-	    (irq_flags & SA_SHIRQ && !dev_id))
+	IRQ_DPRINTK
+	    ("request_irq: irq=%d handler=%p irq_flags=%#lx devname=%s devid=%p\n",
+	     irq, handler, irq_flags, devname, dev_id);
+	if (irq >= NR_IRQS || !irq_desc[irq].valid || !handler
+	    || (irq_flags & SA_SHIRQ && !dev_id))
 		return -EINVAL;
 
-	action = (struct irqaction *)kmalloc(sizeof(struct irqaction), GFP_KERNEL);
+	action = kmalloc(sizeof(struct irqaction), GFP_KERNEL);
 	if (!action)
 		return -ENOMEM;
 
@@ -695,7 +723,7 @@ int request_irq(unsigned int irq,
 
 EXPORT_SYMBOL(request_irq);
 
-/**
+/*
  *	free_irq - free an interrupt
  *	@irq: Interrupt line to free
  *	@dev_id: Device identity to free
@@ -709,28 +737,29 @@ EXPORT_SYMBOL(request_irq);
  */
 void free_irq(unsigned int irq, void *dev_id)
 {
-	struct irqaction * action, **p;
+	struct irqaction *action, **p;
 	unsigned long flags;
 
 	if (irq >= NR_IRQS || !irq_desc[irq].valid) {
-		printk(KERN_ERR "Trying to free IRQ%d\n",irq);
+		printk(KERN_ERR "Trying to free IRQ%d\n", irq);
 		dump_stack();
 		return;
 	}
 
 	spin_lock_irqsave(&irq_controller_lock, flags);
-	for (p = &irq_desc[irq].action; (action = *p) != NULL; p = &action->next) {
+	for (p = &irq_desc[irq].action; (action = *p) != NULL;
+	     p = &action->next) {
 		if (action->dev_id != dev_id)
 			continue;
 
-	    	/* Found it - now free it */
+		/* Found it - now free it */
 		*p = action->next;
 		break;
 	}
 	spin_unlock_irqrestore(&irq_controller_lock, flags);
 
 	if (!action) {
-		printk(KERN_ERR "Trying to free free IRQ%d\n",irq);
+		printk(KERN_ERR "Trying to already freed IRQ%d\n", irq);
 		dump_stack();
 	} else {
 		synchronize_irq(irq);
@@ -742,7 +771,7 @@ EXPORT_SYMBOL(free_irq);
 
 static DECLARE_MUTEX(probe_sem);
 
-/* Start the interrupt probing.  Unlike other architectures,
+/* Start the interrupt probing. Unlike other architectures,
  * we don't return a mask of interrupts from probe_irq_on,
  * but return the number of interrupts enabled for the probe.
  * The interrupts which have been enabled for probing is
@@ -756,8 +785,7 @@ unsigned long probe_irq_on(void)
 	down(&probe_sem);
 
 	/*
-	 * first snaffle up any unassigned but
-	 * probe-able interrupts
+	 * first snaffle up any unassigned but probe-able interrupts
 	 */
 	spin_lock_irq(&irq_controller_lock);
 	for (i = 0; i < NR_IRQS; i++) {
@@ -776,8 +804,8 @@ unsigned long probe_irq_on(void)
 	/*
 	 * wait for spurious interrupts to mask themselves out again
 	 */
-	for (delay = jiffies + HZ/10; time_before(jiffies, delay); )
-		/* min 100ms delay */;
+	for (delay = jiffies + HZ / 10; time_before(jiffies, delay);)
+		/* min 100ms delay */ ;
 
 	/*
 	 * now filter out any obviously spurious interrupts
@@ -786,7 +814,7 @@ unsigned long probe_irq_on(void)
 	for (i = 0; i < NR_IRQS; i++) {
 		if (irq_desc[i].probing && irq_desc[i].triggered) {
 			irq_desc[i].probing = 0;
-			irqs -= 1;
+			irqs--;
 		}
 	}
 	spin_unlock_irq(&irq_controller_lock);
@@ -810,6 +838,7 @@ unsigned int probe_irq_mask(unsigned long irqs)
 
 	return mask;
 }
+
 EXPORT_SYMBOL(probe_irq_mask);
 
 /*
@@ -828,8 +857,7 @@ int probe_irq_off(unsigned long irqs)
 	 */
 	spin_lock_irq(&irq_controller_lock);
 	for (i = 0; i < NR_IRQS; i++) {
-		if (irq_desc[i].probing &&
-		    irq_desc[i].triggered) {
+		if (irq_desc[i].probing && irq_desc[i].triggered) {
 			if (irq_found != NO_IRQ) {
 				irq_found = NO_IRQ;
 				goto out;
@@ -840,7 +868,7 @@ int probe_irq_off(unsigned long irqs)
 
 	if (irq_found == -1)
 		irq_found = NO_IRQ;
-out:
+      out:
 	spin_unlock_irq(&irq_controller_lock);
 
 	up(&probe_sem);

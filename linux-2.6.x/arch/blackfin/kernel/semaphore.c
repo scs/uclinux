@@ -1,10 +1,32 @@
 /*
- * Just taken from alpha implementation.
- * This can't work well, perhaps.
- */
-/*
- *  Generic semaphore code. Buyer beware. Do your own
- * specific changes in <asm/semaphore-helper.h>
+ * File:         arch/blackfin/kernel/semaphore.c
+ * Based on:     taken from alpha implementation
+ * Author:
+ *
+ * Created:
+ * Description:
+ *
+ * Rev:          $Id$
+ *
+ * Modified:
+ *               Copyright 2004-2005 Analog Devices Inc.
+ *
+ * Bugs:         Enter bugs at http:    //blackfin.uclinux.org/
+ *
+ * This program is free software ;  you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation ;  either version 2, or (at your option)
+ * any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY ;  without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program ;  see the file COPYING.
+ * If not, write to the Free Software Foundation,
+ * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
 #include <linux/sched.h>
@@ -92,38 +114,33 @@ void __up(struct semaphore *sem)
 	current->state = TASK_RUNNING;		\
 	remove_wait_queue(&sem->wait, &wait);
 
-void __sched __down(struct semaphore * sem)
+void __sched __down(struct semaphore *sem)
 {
 	DECLARE_WAITQUEUE(wait, current);
 
-	DOWN_HEAD(TASK_UNINTERRUPTIBLE)
-	if (waking_non_zero(sem))
+	DOWN_HEAD(TASK_UNINTERRUPTIBLE) if (waking_non_zero(sem))
 		break;
 	schedule();
-	DOWN_TAIL(TASK_UNINTERRUPTIBLE)
-}
+DOWN_TAIL(TASK_UNINTERRUPTIBLE)}
 
-int __sched __down_interruptible(struct semaphore * sem)
+int __sched __down_interruptible(struct semaphore *sem)
 {
 	DECLARE_WAITQUEUE(wait, current);
 	int ret = 0;
 
 	DOWN_HEAD(TASK_INTERRUPTIBLE)
-
-	ret = waking_non_zero_interruptible(sem, current);
-	if (ret)
-	{
+	    ret = waking_non_zero_interruptible(sem, current);
+	if (ret) {
 		if (ret == 1)
 			/* ret != 0 only if we get interrupted -arca */
 			ret = 0;
 		break;
 	}
 	schedule();
-	DOWN_TAIL(TASK_INTERRUPTIBLE)
-	return ret;
+	DOWN_TAIL(TASK_INTERRUPTIBLE) return ret;
 }
 
-int __down_trylock(struct semaphore * sem)
+int __down_trylock(struct semaphore *sem)
 {
 	return waking_non_zero_trylock(sem);
 }

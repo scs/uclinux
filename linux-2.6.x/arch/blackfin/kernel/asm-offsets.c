@@ -1,14 +1,32 @@
 /*
- * This program is used to generate definitions needed by
- * assembly language modules.
+ * File:         arch/blackfin/kernel/asm-offsets.c
+ * Based on:
+ * Author:
  *
- * We use the technique used in the OSF Mach kernel code:
- * generate asm statements containing #defines,
- * compile this file to assembler, and then extract the
- * #defines from the assembly-language output.
+ * Created:
+ * Description:  generate definitions needed by assembly language modules.
+ * Rev:          $Id$
+ *
+ * Modified:
+ *               Copyright 2004-2005 Analog Devices Inc.
+ *
+ * Bugs:         Enter bugs at http://blackfin.uclinux.org/
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2, or (at your option)
+ * any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; see the file COPYING.
+ * If not, write to the Free Software Foundation,
+ * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
-
-
 
 #include <linux/stddef.h>
 #include <linux/sched.h>
@@ -16,8 +34,7 @@
 #include <linux/ptrace.h>
 #include <linux/hardirq.h>
 #include <asm/irq.h>
-#include <asm/thread_info.h> 
-
+#include <asm/thread_info.h>
 
 #define DEFINE(sym, val) \
         asm volatile("\n->" #sym " %0 " #val : : "i" (val))
@@ -36,7 +53,8 @@ int main(void)
 	DEFINE(TASK_SIGPENDING, offsetof(struct task_struct, pending));
 
 	/* offsets into the irq_cpustat_t struct */
-	DEFINE(CPUSTAT_SOFTIRQ_PENDING, offsetof(irq_cpustat_t, __softirq_pending)); 
+	DEFINE(CPUSTAT_SOFTIRQ_PENDING,
+	       offsetof(irq_cpustat_t, __softirq_pending));
 
 	/* offsets into the thread struct */
 	DEFINE(THREAD_KSP, offsetof(struct thread_struct, ksp));
@@ -105,9 +123,9 @@ int main(void)
 	DEFINE(PT_SYSCFG, offsetof(struct pt_regs, syscfg));
 	DEFINE(PT_IPEND, offsetof(struct pt_regs, ipend));
 	DEFINE(SIZEOF_PTREGS, sizeof(struct pt_regs));
-      	DEFINE(PT_EXTRA1, sizeof(struct pt_regs));     /* Needed by gdb */
-        DEFINE(PT_EXTRA2, 4 + sizeof(struct pt_regs)); /* Needed by gdb */
-        DEFINE(PT_EXTRA3, 8 + sizeof(struct pt_regs)); /* Needed by gdb */
+	DEFINE(PT_EXTRA1, sizeof(struct pt_regs));	/* Needed by gdb */
+	DEFINE(PT_EXTRA2, 4 + sizeof(struct pt_regs));	/* Needed by gdb */
+	DEFINE(PT_EXTRA3, 8 + sizeof(struct pt_regs));	/* Needed by gdb */
 
 	/* signal defines */
 	DEFINE(SIGSEGV, SIGSEGV);

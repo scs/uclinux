@@ -1,18 +1,32 @@
 /*
- *  linux/arch/blackfin/kernel/traps.c
+ * File:         arch/blackfin/kernel/traps.c
+ * Based on:
+ * Author:       Hamish Macdonald
  *
- *  Copyright (C) 1993, 1994 by Hamish Macdonald
+ * Created:
+ * Description:  uses S/W interrupt 15 for the system calls
  *
- *  Copyright (c) 2002 Arcturus Networks Inc. (www.arcturusnetworks.com)
- *		-BlackFin/BFIN uses S/W interrupt 15 for the system calls
- *  Copyright (c) 2004 LG Soft India.
+ * Rev:          $Id$
  *
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file COPYING in the main directory of this archive
- * for more details.
+ * Modified:
+ *               Copyright 2004-2005 Analog Devices Inc.
  *
- * Sets up all exception vectors
+ * Bugs:         Enter bugs at http:    //blackfin.uclinux.org/
  *
+ * This program is free software ;  you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation ;  either version 2, or (at your option)
+ * any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY ;  without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program ;  see the file COPYING.
+ * If not, write to the Free Software Foundation,
+ * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
 #include <asm/uaccess.h>
@@ -29,7 +43,7 @@
  * >2 for various levels of hopefully increasingly useless information
  */
 
-#define TRAPS_DEBUG 1 /* Must be defined here or in in Makefile */
+#define TRAPS_DEBUG 1		/* Must be defined here or in in Makefile */
 
 #if (TRAPS_DEBUG > 2 )
 #define DPRINTK3(args...) printk(args)
@@ -58,10 +72,10 @@ extern void dump(struct pt_regs *fp, void *);
 extern void _cplb_hdr(void);
 
 /* Initiate the event table handler */
-void __init trap_init (void)
+void __init trap_init(void)
 {
 	__builtin_bfin_csync();
-	*pEVT3= trap;
+	*pEVT3 = trap;
 	__builtin_bfin_csync();
 }
 
@@ -73,24 +87,25 @@ int kstack_depth_to_print = 48;
 #include <linux/kallsyms.h>
 int printk_address(unsigned long address)
 {
-        unsigned long offset = 0, symsize;
-        const char *symname;
-        char *modname;
-        char *delim = ":";
-        char namebuf[128];
+	unsigned long offset = 0, symsize;
+	const char *symname;
+	char *modname;
+	char *delim = ":";
+	char namebuf[128];
 
-        symname = kallsyms_lookup(address, &symsize, &offset, &modname, namebuf);
-        if (!symname)
-                return printk("[<%016lx>]", address);
-        if (!modname)
-                modname = delim = "";
-        return printk("<%016lx>{%s%s%s%s%+ld}",
-                      address,delim,modname,delim,symname,offset);
+	symname =
+	    kallsyms_lookup(address, &symsize, &offset, &modname, namebuf);
+	if (!symname)
+		return printk("[<%016lx>]", address);
+	if (!modname)
+		modname = delim = "";
+	return printk("<%016lx>{%s%s%s%s%+ld}",
+		      address, delim, modname, delim, symname, offset);
 }
 #else
 int printk_address(unsigned long address)
 {
-        return printk("[<%016lx>]", address);
+	return printk("[<%016lx>]", address);
 }
 #endif
 
@@ -102,14 +117,13 @@ asmlinkage void trap_c(struct pt_regs *fp)
 	int i, j, sig = 0;
 	siginfo_t info;
 
-        j = *pTBUFCTL;
-        *pTBUFCTL = j & 0x1D;
+	j = *pTBUFCTL;
+	*pTBUFCTL = j & 0x1D;
 
-
- 	/* trap_c() will be called for exceptions. During exceptions
- 	   processing, the pc value should be set with retx value.
- 	   With this change we can cleanup some code in signal.c- TODO */
- 	fp->orig_pc = fp->retx;
+	/* trap_c() will be called for exceptions. During exceptions
+	   processing, the pc value should be set with retx value.
+	   With this change we can cleanup some code in signal.c- TODO */
+	fp->orig_pc = fp->retx;
 
 	/* send the appropriate signal to the user program */
 	switch (fp->seqstat & 0x3f) {
@@ -117,12 +131,12 @@ asmlinkage void trap_c(struct pt_regs *fp)
 		info.si_code = TRAP_STEP;
 		sig = SIGTRAP;
 		break;
-	case VEC_EXCPT01 :		 /* gdb breakpoint */
+	case VEC_EXCPT01:	/* gdb breakpoint */
 		info.si_code = TRAP_ILLTRAP;
 		sig = SIGTRAP;
 		break;
-	case VEC_EXCPT04:		/* Atomic test and set service */
-		panic ("Exception 4");
+	case VEC_EXCPT04:	/* Atomic test and set service */
+		panic("Exception 4");
 		goto nsig;
 	case VEC_UNDEF_I:
 		info.si_code = ILL_ILLOPC;
@@ -143,13 +157,13 @@ asmlinkage void trap_c(struct pt_regs *fp)
 		info.si_code = ILL_PRVOPC;
 		sig = SIGILL;
 		DPRINTK(EXC_0x2E);
-                break;
+		break;
 	case VEC_MISALI_D:
 		info.si_code = BUS_ADRALN;
 		sig = SIGBUS;
 		DPRINTK(EXC_0x24);
 		DPRINTK("DCPLB_FAULT_ADDR=%p\n", *pDCPLB_FAULT_ADDR);
-	    	break;
+		break;
 	case VEC_MISALI_I:
 		info.si_code = BUS_ADRALN;
 		sig = SIGBUS;
@@ -166,10 +180,10 @@ asmlinkage void trap_c(struct pt_regs *fp)
 		sig = SIGTRAP;
 		DPRINTK3(EXC_0x28);
 		break;
-	case VEC_ISTRU_VL:                /* ADSP-BF535 only (MH)*/
+	case VEC_ISTRU_VL:	/* ADSP-BF535 only (MH) */
 		info.si_code = BUS_OPFETCH;
 		sig = SIGBUS;
-                break;
+		break;
 	case VEC_CPLB_I_VL:
 		DPRINTK2(EXC_0x2B);
 		DPRINTK2("ICPLB_FAULT_ADDR: %p\n", *pICPLB_FAULT_ADDR);
@@ -180,7 +194,7 @@ asmlinkage void trap_c(struct pt_regs *fp)
 		_cplb_hdr();
 		goto nsig;
 		sig = SIGILL;
-                break;
+		break;
 	case VEC_CPLB_I_M:
 		DPRINTK3(EXC_0x2C);
 		DPRINTK3("ICPLB_FAULT_ADDR=%p\n", *pICPLB_FAULT_ADDR);
@@ -188,7 +202,7 @@ asmlinkage void trap_c(struct pt_regs *fp)
 		info.si_code = IlL_CPLB_MISS;
 		DPRINTK3(EXC_0x26);
 		DPRINTK3("DCPLB_FAULT_ADDR=%p\n", *pDCPLB_FAULT_ADDR);
-		/*Call the handler to replace the CPLB*/
+		/*Call the handler to replace the CPLB */
 		_cplb_hdr();
 		goto nsig;
 	case VEC_CPLB_I_MHIT:
@@ -210,15 +224,15 @@ asmlinkage void trap_c(struct pt_regs *fp)
 	}
 	info.si_signo = sig;
 	info.si_errno = 0;
-	info.si_addr = (void *) fp->pc;
-	force_sig_info (sig, &info, current);
+	info.si_addr = (void *)fp->pc;
+	force_sig_info(sig, &info, current);
 	if (sig != 0 && sig != SIGTRAP) {
-	    dump(fp, fp->retx);
-	        dump_stack();
+		dump(fp, fp->retx);
+		dump_stack();
 
 	}
-nsig:
-	*pTBUFCTL = j ;
+      nsig:
+	*pTBUFCTL = j;
 	return;
 }
 
@@ -230,11 +244,11 @@ void show_stack(struct task_struct *task, unsigned long *esp)
 	int i;
 
 	if (esp == NULL)
-		esp = (unsigned long *) &esp;
+		esp = (unsigned long *)&esp;
 
 	stack = esp;
-	addr = (unsigned long) esp;
-	endstack = (unsigned long *) PAGE_ALIGN(addr);
+	addr = (unsigned long)esp;
+	endstack = (unsigned long *)PAGE_ALIGN(addr);
 
 	printk(KERN_EMERG "Stack from %08lx:", (unsigned long)stack);
 	for (i = 0; i < kstack_depth_to_print; i++) {
@@ -257,8 +271,8 @@ void show_stack(struct task_struct *task, unsigned long *esp)
 		 * down the cause of the crash will be able to figure
 		 * out the call path that was taken.
 		 */
-		if (addr >= (unsigned long) &_start &&
-		    addr <= (unsigned long) &_etext) {
+		if (addr >= (unsigned long)&_start
+		    && addr <= (unsigned long)&_etext) {
 			if (i % 4 == 0)
 				printk(KERN_EMERG "\n       ");
 			printk(KERN_EMERG " [<%08lx>]", addr);
@@ -282,73 +296,68 @@ void dump(struct pt_regs *fp, void *retaddr)
 	printk("COMM=%s PID=%d\n", current->comm, current->pid);
 	if (current->mm) {
 		printk("TEXT=%08x-%08x DATA=%08x-%08x BSS=%08x-%08x\n",
-		       (int) current->mm->start_code,
-		       (int) current->mm->end_code,
-		       (int) current->mm->start_data,
-		       (int) current->mm->end_data,
-		       (int) current->mm->end_data,
-		       (int) current->mm->brk);
-		printk("USER-STACK=%08x\n\n",
-		       (int) current->mm->start_stack);
+		       (int)current->mm->start_code,
+		       (int)current->mm->end_code,
+		       (int)current->mm->start_data,
+		       (int)current->mm->end_data,
+		       (int)current->mm->end_data, (int)current->mm->brk);
+		printk("USER-STACK=%08x\n\n", (int)current->mm->start_stack);
 	}
 	printk("return address: %08lx; contents of [PC-16...PC+8[:\n", retaddr);
 	for (i = -16; i < 8; i++) {
 		unsigned short x;
-		get_user (x, (unsigned short *)retaddr + i);
+		get_user(x, (unsigned short *)retaddr + i);
 		if (i == -8)
-			printk ("\n");
+			printk("\n");
 		if (i == 0)
-			printk ("X\n");
-		printk ("%04x ", x);
+			printk("X\n");
+		printk("%04x ", x);
 	}
-	printk ("\n\n");
+	printk("\n\n");
 
 	printk("RETE:  %08lx  RETN: %08lx  RETX: %08lx  RETS: %08lx\n",
 	       fp->rete, fp->retn, fp->retx, fp->rets);
 	printk("IPEND: %04lx  SYSCFG: %04lx\n", fp->ipend, fp->syscfg);
-	printk("SEQSTAT: %08lx    SP: %08lx\n", (long) fp->seqstat, (long) fp);
+	printk("SEQSTAT: %08lx    SP: %08lx\n", (long)fp->seqstat, (long)fp);
 	printk("R0: %08lx    R1: %08lx    R2: %08lx    R3: %08lx\n",
 	       fp->r0, fp->r1, fp->r2, fp->r3);
 	printk("R4: %08lx    R5: %08lx    R6: %08lx    R7: %08lx\n",
 	       fp->r4, fp->r5, fp->r6, fp->r7);
 	printk("P0: %08lx    P1: %08lx    P2: %08lx    P3: %08lx\n",
 	       fp->p0, fp->p1, fp->p2, fp->p3);
-	printk("P4: %08lx    P5: %08lx    FP: %08lx\n",
-	       fp->p4, fp->p5, fp->fp);
+	printk("P4: %08lx    P5: %08lx    FP: %08lx\n", fp->p4, fp->p5, fp->fp);
 	printk("A0.w: %08lx    A0.x: %08lx    A1.w: %08lx    A1.x: %08lx\n",
 	       fp->a0w, fp->a0x, fp->a1w, fp->a1x);
 
-	printk("LB0: %08lx  LT0: %08lx  LC0: %08lx\n",
-	       fp->lb0, fp->lt0, fp->lc0);
-        printk("LB1: %08lx  LT1: %08lx  LC1: %08lx\n",
-	       fp->lb1, fp->lt1, fp->lc1);
-        printk("B0: %08lx  L0: %08lx  M0: %08lx  I0: %08lx\n",
-	       fp->b0, fp->l0, fp->m0, fp->i0);
-        printk("B1: %08lx  L1: %08lx  M1: %08lx  I1: %08lx\n",
-	       fp->b1, fp->l1, fp->m1, fp->i1);
-        printk("B2: %08lx  L2: %08lx  M2: %08lx  I2: %08lx\n",
-	       fp->b2, fp->l2, fp->m2, fp->i2);
-        printk("B3: %08lx  L3: %08lx  M3: %08lx  I3: %08lx\n",
-	       fp->b3, fp->l3, fp->m3, fp->i3);
+	printk("LB0: %08lx  LT0: %08lx  LC0: %08lx\n", fp->lb0, fp->lt0,
+	       fp->lc0);
+	printk("LB1: %08lx  LT1: %08lx  LC1: %08lx\n", fp->lb1, fp->lt1,
+	       fp->lc1);
+	printk("B0: %08lx  L0: %08lx  M0: %08lx  I0: %08lx\n", fp->b0, fp->l0,
+	       fp->m0, fp->i0);
+	printk("B1: %08lx  L1: %08lx  M1: %08lx  I1: %08lx\n", fp->b1, fp->l1,
+	       fp->m1, fp->i1);
+	printk("B2: %08lx  L2: %08lx  M2: %08lx  I2: %08lx\n", fp->b2, fp->l2,
+	       fp->m2, fp->i2);
+	printk("B3: %08lx  L3: %08lx  M3: %08lx  I3: %08lx\n", fp->b3, fp->l3,
+	       fp->m3, fp->i3);
 
-
-	printk("\nUSP: %08lx   ASTAT: %08lx\n",
-	       rdusp(), fp->astat);
+	printk("\nUSP: %08lx   ASTAT: %08lx\n", rdusp(), fp->astat);
 
 	printk("\n\n");
-        if (*pTBUFSTAT) {
-                printk(KERN_EMERG "Hardware Trace:\n");
-                for ( i = 0 ; i <= *pTBUFSTAT ; i++) {
+	if (*pTBUFSTAT) {
+		printk(KERN_EMERG "Hardware Trace:\n");
+		for (i = 0; i <= *pTBUFSTAT; i++) {
 			printk(KERN_EMERG "%2i Target : ", i);
 			printk_address(*pTBUF);
-                        printk(KERN_EMERG "\n   Source : "  );
+			printk(KERN_EMERG "\n   Source : ");
 			printk_address(*pTBUF);
 			printk(KERN_EMERG "\n");
-                }
-        }
+		}
+	}
 }
 
-asmlinkage int sys_bfin_spinlock (int *spinlock)
+asmlinkage int sys_bfin_spinlock(int *spinlock)
 {
 	int ret = 0;
 	local_irq_disable();

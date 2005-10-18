@@ -1,6 +1,34 @@
 /*
- *  linux/arch/blackfin/kernel/init_task.c
+ * File:         arch/blackfin/kernel/init_task.c
+ * Based on:
+ * Author:
+ *
+ * Created:
+ * Description:  This file contains the simple DMA Implementation for Blackfin
+ *
+ * Rev:          $Id$
+ *
+ * Modified:
+ *               Copyright 2004-2005 Analog Devices Inc.
+ *
+ * Bugs:         Enter bugs at http:    //blackfin.uclinux.org/
+ *
+ * This program is free software ;  you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation ;  either version 2, or (at your option)
+ * any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY ;  without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program ;  see the file COPYING.
+ * If not, write to the Free Software Foundation,
+ * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
+
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/init_task.h>
@@ -29,8 +57,8 @@ EXPORT_SYMBOL(init_task);
  *
  * We need to make sure that this is 8192-byte aligned due to the
  * way process stacks are handled. This is done by having a special
- * "init_task" linker map entry..
+ * "init_task" linker map entry.
  */
 union thread_union init_thread_union
-	__attribute__((__section__(".data.init_task"))) =
-		{ INIT_THREAD_INFO(init_task) };
+    __attribute__ ((__section__(".data.init_task"))) = {
+INIT_THREAD_INFO(init_task)};

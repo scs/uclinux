@@ -1,9 +1,34 @@
 /*
- *	vmlinux.lds.S - Master linker script for blackfin architecture
+ * File:	 arch/blackfin/kernel/vmlinux.lds.S
+ * Based on:	 none - original work
+ * Author:
  *
- *	(C) Copyright 2004-2005 LG Soft India 
+ * Created:	 Tue Sep 21 2004
+ * Description:	 Master linker script for blackfin architecture
  *
+ * Rev:	         $Id$
+ *
+ * Modified:
+ *               Copyright 2004-2005 Analog Devices Inc.
+ *
+ * Bugs:	 Enter bugs at http:	//blackfin.uclinux.org/
+ *
+ * This program is free software ;  you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation	;  either version 2, or (at your option)
+ * any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY ;  without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program ;  see the file COPYING.
+ * If not, write to the Free Software Foundation,
+ * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
+
 #define VMLINUX_SYMBOL(_sym_) _##_sym_
 
 #include <asm-generic/vmlinux.lds.h>
@@ -12,9 +37,9 @@
 
 
 OUTPUT_FORMAT("elf32-bfin")
-ENTRY(__start) 
+ENTRY(__start)
 _jiffies = _jiffies_64;
-MEMORY 
+MEMORY
 	{
 	ram		: ORIGIN = RAM_START,       LENGTH = RAM_LENGTH
 	l1_data_a	: ORIGIN = L1_DATA_A_START, LENGTH = L1_DATA_A_LENGTH
@@ -30,7 +55,7 @@ SECTIONS
 	.text  : {
 		 __stext = .;
 		*(.text)
-		SCHED_TEXT 
+		SCHED_TEXT
 		*(.text.lock)
 		. = ALIGN(16);
 		  ___start___ex_table = .;
@@ -42,7 +67,7 @@ SECTIONS
         	  *(.rodata.*)
 		  *(__vermagic)		/* Kernel version magic */
         	  *(.rodata1)
-	          *(.fixup)	
+	          *(.fixup)
 
 		/* Kernel symbol table: Normal symbols */
 		. = ALIGN(4);
@@ -71,8 +96,8 @@ SECTIONS
 		 . = ALIGN(4) ;
 	  	__etext = . ;
 	} > ram
-   
-	.init : 
+
+	.init :
 	{
 		. = ALIGN(4096);
 		___init_begin = .;
@@ -110,17 +135,17 @@ SECTIONS
 		___init_end = .;
 	} > ram
 
-	 __l1_lma_start = .;                     
-	.text_l1 L1_CODE_START : 
-		AT ( __l1_lma_start ) 
+	 __l1_lma_start = .;
+	.text_l1 L1_CODE_START :
+		AT ( __l1_lma_start )
 	{
 		. = ALIGN(4) ;
 		 __stext_l1 = . ;
 		*(.text.l1)
-	
+
 		. = ALIGN(4) ;
-		 __etext_l1 = . ;  
-	} 
+		 __etext_l1 = . ;
+	}
 
 	.data_l1 L1_DATA_A_START :
 		AT ( __l1_lma_start + SIZEOF(.text_l1) )
@@ -128,15 +153,15 @@ SECTIONS
 		. = ALIGN(4) ;
 		 __sdata_l1 = . ;
 		*(.data.l1)
-		 __edata_l1 = . ;  
+		 __edata_l1 = . ;
 
 		. = ALIGN(4) ;
 		 __sbss_l1 = . ;
 		*(.bss.l1)
 
 		. = ALIGN(4) ;
-		 __ebss_l1 = . ;  
-	} 
+		 __ebss_l1 = . ;
+	}
 
 	. = __l1_lma_start + SIZEOF(.text_l1) + SIZEOF(.data_l1) ;
 	.data (__l1_lma_start + SIZEOF(.text_l1) + SIZEOF(.data_l1)) :	AT ( __l1_lma_start + SIZEOF(.text_l1) + SIZEOF(.data_l1) )
@@ -162,8 +187,8 @@ SECTIONS
 		*(.bss)
 		*(COMMON)
 		. = ALIGN(4) ;
-		 __ebss = . ;	  
-		 __end = . ;	  
+		 __ebss = . 	;
+		 __end = .	; 
  		__bss_end = . ;
     	} > ram
 
