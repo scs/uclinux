@@ -95,7 +95,6 @@ void bf53x_cache_init(void)
 #endif
 }
 
-static volatile int mem_dma_status = 0;
 
 int DmaMemCpy(char *dest_addr, char *source_addr, int size);
 
@@ -662,39 +661,42 @@ void panic_bfin(int cplb_panic)
 /*copy from SRAM to L1RAM, DMAHandler routine*/
 int DmaMemCpy(char *dest_addr, char *source_addr, int size)
 {
+     /* Setup destination start address */
+        *pMDMA_D0_START_ADDR = dest_addr;
 
-	/* Setup destination start address */
-	*pMDMA_D0_START_ADDR = dest_addr;
+        /* Setup destination xcount */
+        *pMDMA_D0_X_COUNT = size ;
 
-	/* Setup destination xcount */
-	*pMDMA_D0_X_COUNT = size;
+        /* Setup destination xmodify */
+        *pMDMA_D0_X_MODIFY = 1;
 
-	/* Setup destination xmodify */
-	*pMDMA_D0_X_MODIFY = 1;
+    /* Setup Source start address */
+        *pMDMA_S0_START_ADDR = source_addr;
 
-	/* Setup Source start address */
-	*pMDMA_S0_START_ADDR = source_addr;
+        /* Setup Source xcount */
+        *pMDMA_S0_X_COUNT = size ;
 
-	/* Setup Source xcount */
-	*pMDMA_S0_X_COUNT = size;
+        /* Setup Source xmodify */
+        *pMDMA_S0_X_MODIFY = 1;
 
-	/* Setup Source xmodify */
-	*pMDMA_S0_X_MODIFY = 1;
+        *pSIC_IWR |= (1<<(IRQ_MEM_DMA0 - (IRQ_CORETMR+1)));
 
-	/* Set word size to 8, set to read, enable interrupt for wakeup
-	   Enable source DMA */
+    /* Set word size to 8, set to read, enable interrupt for wakeup
+     Enable source DMA */
 
-	*pMDMA_S0_CONFIG = (DMAEN);
-	__builtin_bfin_ssync();
-	mem_dma_status = 0;
-	*pMDMA_D0_CONFIG = (WNR | DMAEN);
+        *pMDMA_S0_CONFIG = (DMAEN) ;
+        __builtin_bfin_ssync();
 
-	//poll DMA Running  bit
-	while ((*pMDMA_D0_IRQ_STATUS & 0x8) != 0) {
-		asm("nop");
-	}
-	*pMDMA_D0_IRQ_STATUS = 0x1;
-	return 0;
+        *pMDMA_D0_CONFIG = ( WNR | DMAEN | DI_EN );
+
+        asm("IDLE;\n"); /* go into idle and wait for wakeup */
+
+        *pMDMA_D0_IRQ_STATUS = DMA_DONE;
+
+        *pMDMA_S0_CONFIG = 0;
+        *pMDMA_D0_CONFIG = 0;
+
+    return 0;
 }
 
 void cmdline_init(unsigned long r0)
