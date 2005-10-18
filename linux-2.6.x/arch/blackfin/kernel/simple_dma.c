@@ -49,28 +49,29 @@
  * Global Variables
 ***************************************************************************/
 
-static DMA_CHANNEL dma_ch[MAX_BLACKFIN_DMA_CHANNEL];
-
-static DMA_register *base_addr[MAX_BLACKFIN_DMA_CHANNEL] = {
-	(DMA_register *)DMA0_NEXT_DESC_PTR,
-	(DMA_register *)DMA1_NEXT_DESC_PTR,
-	(DMA_register *)DMA2_NEXT_DESC_PTR,
-	(DMA_register *)DMA3_NEXT_DESC_PTR,
-	(DMA_register *)DMA4_NEXT_DESC_PTR,
-	(DMA_register *)DMA5_NEXT_DESC_PTR,
-	(DMA_register *)DMA6_NEXT_DESC_PTR,
-	(DMA_register *)DMA7_NEXT_DESC_PTR,
-#if (defined(CONFIG_BF537) || defined(CONFIG_BF534) || defined(CONFIG_BF536))
-	(DMA_register *)DMA8_NEXT_DESC_PTR,
-	(DMA_register *)DMA9_NEXT_DESC_PTR,
-	(DMA_register *)DMA10_NEXT_DESC_PTR,
-	(DMA_register *)DMA11_NEXT_DESC_PTR,
-#endif
-	(DMA_register *)MDMA_D0_NEXT_DESC_PTR,
-	(DMA_register *)MDMA_S0_NEXT_DESC_PTR,
-	(DMA_register *)MDMA_D1_NEXT_DESC_PTR,
-	(DMA_register *)MDMA_S1_NEXT_DESC_PTR,
-};
+ static dma_channel_t 	dma_ch[MAX_BLACKFIN_DMA_CHANNEL];
+ 
+ static dma_register_t* 	base_addr[MAX_BLACKFIN_DMA_CHANNEL] =
+ {
+ 	(dma_register_t *) DMA0_NEXT_DESC_PTR,
+ 	(dma_register_t *) DMA1_NEXT_DESC_PTR,
+ 	(dma_register_t *) DMA2_NEXT_DESC_PTR,
+ 	(dma_register_t *) DMA3_NEXT_DESC_PTR,
+ 	(dma_register_t *) DMA4_NEXT_DESC_PTR,
+ 	(dma_register_t *) DMA5_NEXT_DESC_PTR,
+ 	(dma_register_t *) DMA6_NEXT_DESC_PTR,
+ 	(dma_register_t *) DMA7_NEXT_DESC_PTR,
+ #if (defined(CONFIG_BF537) || defined(CONFIG_BF534) || defined(CONFIG_BF536))
+ 	(dma_register_t *) DMA8_NEXT_DESC_PTR,
+ 	(dma_register_t *) DMA9_NEXT_DESC_PTR,
+ 	(dma_register_t *) DMA10_NEXT_DESC_PTR,
+ 	(dma_register_t *) DMA11_NEXT_DESC_PTR,
+ #endif
+ 	(dma_register_t *) MDMA_D0_NEXT_DESC_PTR,
+ 	(dma_register_t *) MDMA_S0_NEXT_DESC_PTR,
+ 	(dma_register_t *) MDMA_D1_NEXT_DESC_PTR,
+ 	(dma_register_t *) MDMA_S1_NEXT_DESC_PTR,
+ };
 
 /*------------------------------------------------------------------------------
  *       Set the Buffer Clear bit in the Configuration register of specific DMA
@@ -90,7 +91,7 @@ int __init blackfin_dma_init(void)
 
 	printk("Blackfin DMA Controller for BF533\n");
 	for (i = 0; i < MAX_BLACKFIN_DMA_CHANNEL; i++) {
-		dma_ch[i].dma_channel_status = DMA_CHANNEL_FREE;
+		dma_ch[i].chan_status = DMA_CHANNEL_FREE;
 		dma_ch[i].regs = base_addr[i];
 		init_MUTEX(&(dma_ch[i].dmalock));
 	}
@@ -181,13 +182,13 @@ int request_dma(unsigned int channel, char *device_id)
 	DMA_DBG("request_dma() : BEGIN \n");
 	down(&(dma_ch[channel].dmalock));
 
-	if ((dma_ch[channel].dma_channel_status == DMA_CHANNEL_REQUESTED)
-	    || (dma_ch[channel].dma_channel_status == DMA_CHANNEL_ENABLED)) {
+	if ((dma_ch[channel].chan_status == DMA_CHANNEL_REQUESTED)
+	    || (dma_ch[channel].chan_status == DMA_CHANNEL_ENABLED)) {
 		up(&(dma_ch[channel].dmalock));
 		DMA_DBG("DMA CHANNEL IN USE  \n");
 		return -EBUSY;
 	} else {
-		dma_ch[channel].dma_channel_status = DMA_CHANNEL_REQUESTED;
+		dma_ch[channel].chan_status = DMA_CHANNEL_REQUESTED;
 		DMA_DBG("DMA CHANNEL IS ALLOCATED  \n");
 	}
 
@@ -207,7 +208,7 @@ int set_dma_callback(unsigned int channel, dma_interrupt_t callback, void *data)
 {
 	int ret_irq = 0;
 
-	assert(dma_ch[channel].dma_channel_status != DMA_CHANNEL_FREE
+	assert(dma_ch[channel].chan_status != DMA_CHANNEL_FREE
 	       || channel < MAX_BLACKFIN_DMA_CHANNEL);
 
 	if (callback != NULL) {
@@ -233,7 +234,7 @@ void free_dma(unsigned int channel)
 
 	DMA_DBG("freedma() : BEGIN \n");
 
-	assert(dma_ch[channel].dma_channel_status != DMA_CHANNEL_FREE
+	assert(dma_ch[channel].chan_status != DMA_CHANNEL_FREE
 	       || channel < MAX_BLACKFIN_DMA_CHANNEL);
 
 	/* Halt the DMA */
@@ -244,7 +245,7 @@ void free_dma(unsigned int channel)
 
 	/* Clear the DMA Variable in the Channel */
 	down(&(dma_ch[channel].dmalock));
-	dma_ch[channel].dma_channel_status = DMA_CHANNEL_FREE;
+	dma_ch[channel].chan_status = DMA_CHANNEL_FREE;
 	up(&(dma_ch[channel].dmalock));
 
 	DMA_DBG("freedma() : END \n");
@@ -252,7 +253,7 @@ void free_dma(unsigned int channel)
 
 int dma_channel_active(unsigned int channel)
 {
-	if (dma_ch[channel].dma_channel_status == DMA_CHANNEL_FREE) {
+	if (dma_ch[channel].chan_status == DMA_CHANNEL_FREE) {
 		return 0;
 	} else {
 		return 1;
@@ -266,12 +267,12 @@ void disable_dma(unsigned int channel)
 {
 	DMA_DBG("stop_dma() : BEGIN \n");
 
-	assert(dma_ch[channel].dma_channel_status != DMA_CHANNEL_FREE
+	assert(dma_ch[channel].chan_status != DMA_CHANNEL_FREE
 	       && channel < MAX_BLACKFIN_DMA_CHANNEL);
 
 	dma_ch[channel].regs->cfg &= ~DMAEN;	/* Clean the enable bit */
 	SSYNC;
-	dma_ch[channel].dma_channel_status = DMA_CHANNEL_REQUESTED;
+	dma_ch[channel].chan_status = DMA_CHANNEL_REQUESTED;
 	/* Needs to be enabled Later */
 	DMA_DBG("stop_dma() : END \n");
 	return;
@@ -281,10 +282,10 @@ void enable_dma(unsigned int channel)
 {
 	DMA_DBG("enable_dma() : BEGIN \n");
 
-	assert(dma_ch[channel].dma_channel_status != DMA_CHANNEL_FREE
+	assert(dma_ch[channel].chan_status != DMA_CHANNEL_FREE
 	       && channel < MAX_BLACKFIN_DMA_CHANNEL);
 
-	dma_ch[channel].dma_channel_status = DMA_CHANNEL_ENABLED;
+	dma_ch[channel].chan_status = DMA_CHANNEL_ENABLED;
 	dma_ch[channel].regs->curr_x_count = 0;
 	dma_ch[channel].regs->curr_y_count = 0;
 
@@ -304,7 +305,7 @@ void set_dma_start_addr(unsigned int channel, unsigned long addr)
 {
 	DMA_DBG("set_dma_start_addr() : BEGIN \n");
 
-	assert(dma_ch[channel].dma_channel_status != DMA_CHANNEL_FREE
+	assert(dma_ch[channel].chan_status != DMA_CHANNEL_FREE
 	       && channel < MAX_BLACKFIN_DMA_CHANNEL);
 
 	dma_ch[channel].regs->start_addr = addr;
@@ -314,7 +315,7 @@ void set_dma_start_addr(unsigned int channel, unsigned long addr)
 
 void set_dma_x_count(unsigned int channel, unsigned short x_count)
 {
-	assert(dma_ch[channel].dma_channel_status != DMA_CHANNEL_FREE
+	assert(dma_ch[channel].chan_status != DMA_CHANNEL_FREE
 	       && channel < MAX_BLACKFIN_DMA_CHANNEL);
 
 	dma_ch[channel].regs->x_count = x_count;
@@ -323,7 +324,7 @@ void set_dma_x_count(unsigned int channel, unsigned short x_count)
 
 void set_dma_y_count(unsigned int channel, unsigned short y_count)
 {
-	assert(dma_ch[channel].dma_channel_status != DMA_CHANNEL_FREE
+	assert(dma_ch[channel].chan_status != DMA_CHANNEL_FREE
 	       && channel < MAX_BLACKFIN_DMA_CHANNEL);
 
 	dma_ch[channel].regs->y_count = y_count;
@@ -332,7 +333,7 @@ void set_dma_y_count(unsigned int channel, unsigned short y_count)
 
 void set_dma_x_modify(unsigned int channel, unsigned short x_modify)
 {
-	assert(dma_ch[channel].dma_channel_status != DMA_CHANNEL_FREE
+	assert(dma_ch[channel].chan_status != DMA_CHANNEL_FREE
 	       && channel < MAX_BLACKFIN_DMA_CHANNEL);
 
 	dma_ch[channel].regs->x_modify = x_modify;
@@ -341,7 +342,7 @@ void set_dma_x_modify(unsigned int channel, unsigned short x_modify)
 
 void set_dma_y_modify(unsigned int channel, unsigned short y_modify)
 {
-	assert(dma_ch[channel].dma_channel_status != DMA_CHANNEL_FREE
+	assert(dma_ch[channel].chan_status != DMA_CHANNEL_FREE
 	       && channel < MAX_BLACKFIN_DMA_CHANNEL);
 
 	dma_ch[channel].regs->y_modify = y_modify;
@@ -350,7 +351,7 @@ void set_dma_y_modify(unsigned int channel, unsigned short y_modify)
 
 void set_dma_config(unsigned int channel, unsigned short config)
 {
-	assert(dma_ch[channel].dma_channel_status != DMA_CHANNEL_FREE
+	assert(dma_ch[channel].chan_status != DMA_CHANNEL_FREE
 	       && channel < MAX_BLACKFIN_DMA_CHANNEL);
 
 	dma_ch[channel].regs->cfg = config;
@@ -371,7 +372,7 @@ set_bfin_dma_config(char direction, char flow_mode,
 
 void set_dma_sg(unsigned int channel, dmasg_t * sg, int nr_sg)
 {
-	assert(dma_ch[channel].dma_channel_status != DMA_CHANNEL_FREE
+	assert(dma_ch[channel].chan_status != DMA_CHANNEL_FREE
 	       && channel < MAX_BLACKFIN_DMA_CHANNEL);
 
 	dma_ch[channel].regs->cfg |= ((nr_sg & 0x0F) << 8);
@@ -386,7 +387,7 @@ void set_dma_sg(unsigned int channel, dmasg_t * sg, int nr_sg)
  *-----------------------------------------------------------------------------*/
 unsigned short get_dma_curr_irqstat(unsigned int channel)
 {
-	assert(dma_ch[channel].dma_channel_status != DMA_CHANNEL_FREE
+	assert(dma_ch[channel].chan_status != DMA_CHANNEL_FREE
 	       && channel < MAX_BLACKFIN_DMA_CHANNEL);
 
 	return dma_ch[channel].regs->irq_status;
@@ -397,7 +398,7 @@ unsigned short get_dma_curr_irqstat(unsigned int channel)
  *-----------------------------------------------------------------------------*/
 void clear_dma_irqstat(unsigned int channel)
 {
-	assert(dma_ch[channel].dma_channel_status != DMA_CHANNEL_FREE
+	assert(dma_ch[channel].chan_status != DMA_CHANNEL_FREE
 	       && channel < MAX_BLACKFIN_DMA_CHANNEL);
 	dma_ch[channel].regs->irq_status |= 3;
 }
@@ -407,7 +408,7 @@ void clear_dma_irqstat(unsigned int channel)
  *-----------------------------------------------------------------------------*/
 unsigned short get_dma_curr_xcount(unsigned int channel)
 {
-	assert(dma_ch[channel].dma_channel_status != DMA_CHANNEL_FREE
+	assert(dma_ch[channel].chan_status != DMA_CHANNEL_FREE
 	       && channel < MAX_BLACKFIN_DMA_CHANNEL);
 
 	return dma_ch[channel].regs->curr_x_count;
@@ -418,7 +419,7 @@ unsigned short get_dma_curr_xcount(unsigned int channel)
  *-----------------------------------------------------------------------------*/
 unsigned short get_dma_curr_ycount(unsigned int channel)
 {
-	assert(dma_ch[channel].dma_channel_status != DMA_CHANNEL_FREE
+	assert(dma_ch[channel].chan_status != DMA_CHANNEL_FREE
 	       && channel < MAX_BLACKFIN_DMA_CHANNEL);
 
 	return dma_ch[channel].regs->curr_y_count;
