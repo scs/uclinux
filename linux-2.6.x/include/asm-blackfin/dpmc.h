@@ -1,7 +1,7 @@
 /*
  * include/asm-blackfin/dpmc.h -  Miscellaneous IOCTL commands for Dynamic Power
  *   			 	Management Controller Driver.	  
- * Copyright (C) 2004 LG Soft India.
+ * Copyright (C) 2004 Analog Device Inc.
  *
  */
 #ifndef _BLACKFIN_DPMC_H_

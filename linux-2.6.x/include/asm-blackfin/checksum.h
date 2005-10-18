@@ -35,8 +35,8 @@ unsigned int csum_partial_copy(const char *src, char *dst, int len, int sum);
  * better 64-bit) boundary
  */
 
-extern unsigned int csum_partial_copy_from_user(const unsigned char *src, unsigned char *dst,
-						int len, int sum, int *csum_err);
+extern unsigned int csum_partial_copy_from_user(const unsigned char *src, 
+			unsigned char *dst, int len, int sum, int *csum_err);
 
 #define csum_partial_copy_nocheck(src, dst, len, sum)	\
 	csum_partial_copy((src), (dst), (len), (sum))

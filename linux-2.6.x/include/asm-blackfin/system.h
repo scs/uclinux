@@ -18,7 +18,7 @@
  * Adapted for BlackFin (ADI) by Ted Ma, Metrowerks, and Motorola GSG
  * Copyright (c) 2002 Arcturus Networks Inc. (www.arcturusnetworks.com)
  * Copyright (c) 2003 Metrowerks (www.metrowerks.com)
- * Copyright (c) 2004 LG Soft India (www.lgsoftindia.com)
+ * Copyright (c) 2004 Analog Device Inc.
  */
 
 /**************
