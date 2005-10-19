@@ -62,7 +62,7 @@ u_long get_cclk(void);
 u_long get_sclk(void);
 u_int get_dsp_rev_id(void);
 static void generate_cpl_tables(void);
-static unsigned short fill_cpl_tables(unsigned long *, unsigned short,
+static unsigned short fill_cpl_tables(unsigned long *, unsigned,
 				      unsigned long, unsigned long,
 				      unsigned long, unsigned long);
 
@@ -75,7 +75,7 @@ extern unsigned long dpdt_table[];
 extern unsigned long icplb_table[];
 extern unsigned long dcplb_table[];
 
-void bf53x_cache_init(void)
+void __init bf53x_cache_init(void)
 {
 
 #if defined(CONFIG_BLKFIN_CACHE) || defined(CONFIG_BLKFIN_DCACHE)
@@ -194,11 +194,10 @@ void __init setup_arch(char **cmdline_p)
 	mtd_size = PAGE_ALIGN(*((unsigned long *)(mtd_phys + 8)));
 
 #if defined(CONFIG_EXT2_FS) || defined(CONFIG_EXT3_FS)
-	mtd_size = PAGE_ALIGN(*((unsigned long *)(mtd_phys + 0x404)));
-	mtd_size = (mtd_size * 1024);
+	mtd_size = PAGE_ALIGN(*((unsigned long *)(mtd_phys + 0x404)) << 10);
 #endif
 
-    memory_end -= PAGE_ALIGN(mtd_size);
+    memory_end -= mtd_size;
 
     /* Relocate MTD image to the top of memory after the uncached memory area */
     DmaMemCpy16((char *)memory_end, &_ebss, mtd_size);
@@ -299,7 +298,7 @@ static int __init topology_init(void)
 subsys_initcall(topology_init);
 
 static unsigned short __init
-fill_cpl_tables(unsigned long *table, unsigned short pos,
+fill_cpl_tables(unsigned long *table, unsigned pos,
 		unsigned long start, unsigned long end,
 		unsigned long block_size, unsigned long CPLB_data)
 {
@@ -321,14 +320,11 @@ fill_cpl_tables(unsigned long *table, unsigned short pos,
 		break;
 	}
 
-  if(start + block_size > end)
-	return pos;
-
 	CPLB_data = (CPLB_data & ~(3 << 16)) | (i << 16);
 
-	for (i = start; i < end; i += block_size, pos += 2) {
-		*(table + pos) = start;
-		*(table + pos + 1) = CPLB_data;
+	while(start < end) {
+		table[pos++] = start;
+		table[pos++] = CPLB_data;
 		start += block_size;
 	}
 	return pos;
@@ -337,7 +333,7 @@ fill_cpl_tables(unsigned long *table, unsigned short pos,
 static void __init generate_cpl_tables(void)
 {
 
-	unsigned short pos;
+	unsigned pos;
 
 #ifdef CONFIG_BLKFIN_DCACHE
 
@@ -359,9 +355,15 @@ static void __init generate_cpl_tables(void)
 	    fill_cpl_tables(dcplb_table, pos, RAM_END - SIZE_1M, RAM_END,
 			    SIZE_1M, SDRAM_DNON_CHBL);
 	pos =
-	    fill_cpl_tables(dcplb_table, pos, SIZE_4M,
-			    SIZE_4M + ((32-pos/2) * SIZE_4M), SIZE_4M,
-			    0);
+	    fill_cpl_tables(dcplb_table, pos, RAM_END - SIZE_4M, 
+			    RAM_END - SIZE_1M, SIZE_1M, SDRAM_DGENERIC);
+	pos =
+	    fill_cpl_tables(dcplb_table, pos, SIZE_4M, 
+		    min((SIZE_4M + (16-pos/2) * SIZE_4M), RAM_END - SIZE_4M), 
+		    SIZE_4M, SDRAM_DGENERIC);
+	while(pos < 32)
+	    dcplb_table[pos++] = 0;
+
 	*(dcplb_table + pos) = -1;
 
 /* Generarte DCPLB switch table */
@@ -384,7 +386,7 @@ static void __init generate_cpl_tables(void)
 			    ASYNC_BANK3_BASE + ASYNC_BANK3_SIZE,
 			    SIZE_4M, SDRAM_EBIU);
 	pos =
-	    fill_cpl_tables(dpdt_table, pos, L1_DATA_B_START,
+	    fill_cpl_tables(dpdt_table, pos, L1_DATA_A_START,
 			    L1_DATA_B_START + L1_DATA_B_LENGTH, SIZE_4M,
 			    L1_DMEMORY);
 
@@ -392,7 +394,6 @@ static void __init generate_cpl_tables(void)
 #endif
 
 #ifdef CONFIG_BLKFIN_CACHE
-
 
 /* Generarte initial ICPLB table */
 	pos = 0;
@@ -404,8 +405,10 @@ static void __init generate_cpl_tables(void)
 			    SDRAM_IKERNEL);
 	pos =
 	    fill_cpl_tables(icplb_table, pos, SIZE_4M,
-			    SIZE_4M + ((32-pos/2) * SIZE_4M), SIZE_4M,
-			    SDRAM_IGENERIC);
+			    min(SIZE_4M + (16-pos/2) * SIZE_4M, RAM_END), 
+			    SIZE_4M, SDRAM_IGENERIC);
+	while(pos < 32)
+	    icplb_table[pos++] = 0;
 
 	*(icplb_table + pos) = -1;
 
@@ -628,6 +631,9 @@ struct seq_operations cpuinfo_op = {
 
 void panic_bfin(int cplb_panic)
 {
+	printk("DCPLB_FAULT_ADDR=%p\n", *pDCPLB_FAULT_ADDR);
+	printk("ICPLB_FAULT_ADDR=%p\n", *pICPLB_FAULT_ADDR);
+	dump_stack();
 	switch (cplb_panic) {
 
 	case CPLB_NO_UNLOCKED:
