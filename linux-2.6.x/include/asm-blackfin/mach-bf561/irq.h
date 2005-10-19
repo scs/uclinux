@@ -1,25 +1,36 @@
+
 /*
- * linux/arch/$(ARCH)/platform/$(PLATFORM)/irq.c
+ * File:         include/asm-blackfin/mach-bf561/irq.h
+ * Based on:
+ * Author:
  *
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file COPYING in the main directory of this archive
- * for more details.
+ * Created:
+ * Description:
  *
- * Changed by HuTao Apr18, 2003
+ * Rev:
  *
- * Copyright was missing when I got the code so took from MIPS arch ...MaTed---
- * Copyright (C) 1994 by Waldorf GMBH, written by Ralf Baechle
- * Copyright (C) 1995, 96, 97, 98, 99, 2000, 2001 by Ralf Baechle
+ * Modified:
  *
- * Adapted for BlackFin (ADI) by Ted Ma <mated@sympatico.ca>
- * Copyright (c) 2002 Arcturus Networks Inc. (www.arcturusnetworks.com)
- * Copyright (c) 2002 Lineo, Inc. <mattw@lineo.com>
  *
- * Adapted for BlackFin BF533 by Bas Vermeulen <bas@buyways.nl>
- * Copyright (c) 2003 BuyWays B.V. (www.buyways.nl)
- * Copyright (c) 2004 LG Soft India. 
- * Copyright (c) 2004 HHTech.
+ * Bugs:         Enter bugs at http://blackfin.uclinux.org/
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2, or (at your option)
+ * any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; see the file COPYING.
+ * If not, write to the Free Software Foundation,
+ * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
+
+
 
 #ifndef _BF561_IRQ_H_
 #define _BF561_IRQ_H_

@@ -1,28 +1,34 @@
 /*
- * File: $Id$
+ * file:         include/asm-blackfin/mach-bf537/irq.h
+ * based on:
+ * author:      
  *
- *This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file COPYING in the main directory of this archive
- * for more details.
+ * created:
+ * description: 
+ *	system mmr register map
+ * rev:
  *
- * Changed by HuTao Apr18, 2003
+ * modified:
  *
- * Copyright was missing when I got the code so took from MIPS arch ...MaTed---
- * Copyright (C) 1994 by Waldorf GMBH, written by Ralf Baechle
- * Copyright (C) 1995, 96, 97, 98, 99, 2000, 2001 by Ralf Baechle
  *
- * Adapted for BlackFin (ADI) by Ted Ma <mated@sympatico.ca>
- * Copyright (c) 2002 Arcturus Networks Inc. (www.arcturusnetworks.com)
- * Copyright (c) 2002 Lineo, Inc. <mattw@lineo.com>
+ * bugs:         enter bugs at http://blackfin.uclinux.org/
  *
- * Adapted for BlackFin BF533 by Bas Vermeulen <bas@buyways.nl>
- * Copyright (c) 2003 BuyWays B.V. (www.buyways.nl)
- * Copyright (c) 2004 LG Soft India.
+ * this program is free software; you can redistribute it and/or modify
+ * it under the terms of the gnu general public license as published by
+ * the free software foundation; either version 2, or (at your option)
+ * any later version.
  *
- * Adapted for BlackFin BF537 by Michael Hennerich <hennerich@blackfin.uclinux.org>
- * Copyright (c) 2005 Analog Devices Inc.
+ * this program is distributed in the hope that it will be useful,
+ * but without any warranty; without even the implied warranty of
+ * merchantability or fitness for a particular purpose.  see the
+ * gnu general public license for more details.
  *
+ * you should have received a copy of the gnu general public license
+ * along with this program; see the file copying.
+ * if not, write to the free software foundation,
+ * 59 temple place - suite 330, boston, ma 02111-1307, usa.
  */
+
 
 #ifndef _BF537_IRQ_H_
 #define _BF537_IRQ_H_

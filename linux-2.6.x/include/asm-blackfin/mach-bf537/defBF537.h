@@ -1,25 +1,34 @@
-/************************************************************************
+/*
+ * file:         include/asm-blackfin/mach-bf537/defbf537.h
+ * based on:
+ * author:      
  *
- * $Id$
+ * created:
+ * description: 
+ *	system mmr register map
+ * rev:
  *
- * This file is subject to the terms and conditions of the GNU Public 
- * License. See the file "COPYING" in the main directory of this archive
- * for more details.
+ * modified:
  *
- * Non-GPL License also available as part of VisualDSP++
- * http://www.analog.com/processors/resources/crosscore/visualDspDevSoftware.html
  *
- * (c) Copyright 2001-2005 Analog Devices, Inc. All rights reserved
+ * bugs:         enter bugs at http://blackfin.uclinux.org/
  *
- * This file under source code control, please send bugs or changes to:
- * dsptools.support@analog.com
+ * this program is free software; you can redistribute it and/or modify
+ * it under the terms of the gnu general public license as published by
+ * the free software foundation; either version 2, or (at your option)
+ * any later version.
  *
- ************************************************************************
-**
-** This include file contains a list of macro "defines" to enable the programmer
-** to use symbolic names for register-access and bit-manipulation.
-**  
-**/
+ * this program is distributed in the hope that it will be useful,
+ * but without any warranty; without even the implied warranty of
+ * merchantability or fitness for a particular purpose.  see the
+ * gnu general public license for more details.
+ *
+ * you should have received a copy of the gnu general public license
+ * along with this program; see the file copying.
+ * if not, write to the free software foundation,
+ * 59 temple place - suite 330, boston, ma 02111-1307, usa.
+ */
+
 #ifndef _DEF_BF537_H
 #define _DEF_BF537_H
 
