@@ -1,19 +1,13 @@
 /*
- * $Id$
- *
- *arch/blackfin/mach-bf537/ints-priority.c
- *
- */
-
- /*
  * File:         arch/blackfin/mach-bf537/ints-priority.c
- * Based on:
- * Author:      
+ * Based on:     arch/blackfin/mach-bf533/ints-priority.c
+ * Author:       Michael Hennerich
+ *               COPYRIGHT 2005 Analog Devices
  *
  * Created:
  * Description: 
  *
- * Rev:
+ * Rev:         $Id$
  *
  * Modified:
  *

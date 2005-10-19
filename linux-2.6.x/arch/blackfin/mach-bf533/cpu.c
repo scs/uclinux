@@ -1,19 +1,12 @@
-
 /*
- * cpu-bf533.c: clock scaling for the bf533
- *
- * Developers Manual" (available for free from Intel).
- *
- */
- /*
  * File:         arch/blackfin/mach-bf533/cpu.c
  * Based on:
  * Author:	michael.kang@analog.com
- *
+ *              COPYRIGHT 2005 Analog Devices Inc.
  * Created:
  * Description: clock scaling for the bf533
  *
- * Rev:
+ * Rev: $Id$
  *
  * Modified:
  *

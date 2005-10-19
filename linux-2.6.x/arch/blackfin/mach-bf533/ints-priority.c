@@ -1,18 +1,12 @@
-/*
- * $Id$
- *
- * arch/blackfin/mach-bf533/ints-priority.c
- *
- */
  /*
- * File:         arch/blackfin/mach-bf533/ints-priority.c
- * Based on:
- * Author:     
+ * File:        arch/blackfin/mach-bf533/ints-priority.c
+ * Based on:    
+ * Author:      Michael Hennerich
+ *              COPYRIGHT 2005 Analog Devices
+ * Created:     ?
+ * Description: Set up the interupt priorities
  *
- * Created:
- * Description: 
- *
- * Rev:
+ * Rev:          $Id$
  *
  * Modified:
  *

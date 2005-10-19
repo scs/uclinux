@@ -1,14 +1,16 @@
  /*
- * File:         arch/blackfin/mach-bf533/head.S
+ * File:        arch/blackfin/mach-bf533/head.S
  * Based on:     
- * Author:       
- *               
- * Created:      
+ * Author:      Jeff Dionne <jeff@uclinux.org> 
+ *              COPYRIGHT 1998 D. Jeff Dionne 
+ * Created:     1998
  * Description: bf533 startup file 
  *               
- * Rev:          
+ * Rev:         $Id$
  *
- * Modified:     
+ * Modified:    LG Soft India
+ *                Copyright 2004-2005 ANALOG DEVICES
+ * 
  *               
  *
  * Bugs:         Enter bugs at http://blackfin.uclinux.org/

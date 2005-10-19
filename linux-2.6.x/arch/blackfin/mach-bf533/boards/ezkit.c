@@ -1,25 +1,16 @@
 /*
- *  linux/arch/blackfin/mach-bf533/ezkit.c
- *
- *  Copyright 2005 National ICT Australia (NICTA), Aidan Williams <aidan@nicta.com.au>
- *  Thanks to Jamey Hicks.
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as
- *  published by the Free Software Foundation.
- */
-
- /*
- * File:         arch/blackfin/mach-bf533/ezkit.c
- * Based on:
- * Author:      
- *
- * Created:
+ * File:        arch/blackfin/mach-bf533/ezkit.c
+ * Based on:    Orginal Work
+ * Author:      Aidan Williams <aidan@nicta.com.au>
+ *               Copyright 2005 National ICT Australia (NICTA)
+ * Attribution: Thanks to Jamey Hicks
+ * Created:     2005
  * Description: 
  *
- * Rev:
+ * Rev:         $Id$
  *
- * Modified:
+ * Modified:    Robin Getz <rgetz@blackfin.uclinux.org> - Named the boards
+ *                Copyright 2005 Analog Devices
  *
  *
  * Bugs:         Enter bugs at http://blackfin.uclinux.org/

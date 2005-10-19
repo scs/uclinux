@@ -1,4 +1,3 @@
-
  /*
  * File:         arch/blackfin/mach-bf561/ezkit.c
  * Based on:
@@ -7,7 +6,7 @@
  * Created:
  * Description: 
  *
- * Rev:
+ * Rev:         $Id$
  *
  * Modified:
  *

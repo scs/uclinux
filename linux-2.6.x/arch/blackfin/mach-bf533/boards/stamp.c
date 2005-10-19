@@ -1,13 +1,12 @@
-
- /*
- * File:         arch/blackfin/mach-bf533/stamp.c
- * Based on:
- * Author:      michael.kang@analog.com
+/*
+ * File:        arch/blackfin/mach-bf533/stamp.c
+ * Based on:    arch/blackfin/mach-bf533/ezkit.c
+ * Author:      Aidan Williams <aidan@nicta.com.au>
+ *                Copyright 2005 National ICT Australia (NICTA)
+ * Created:     2005
+ * Description: Board Info File for the BF533-STAMP
  *
- * Created:
- * Description: clock scaling for the bf533
- *
- * Rev:
+ * Rev:         $Id$
  *
  * Modified:
  *

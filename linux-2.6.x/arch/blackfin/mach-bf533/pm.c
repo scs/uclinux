@@ -1,15 +1,21 @@
- /*
- * File:         arch/blackfin/mach-bf533/pm.c
- * Based on:
- * Author:      michael.kang@analog.com
- *
- * Created:
+/*
+ * File:        arch/blackfin/mach-bf533/pm.c
+ * Based on:    arm/mach-omap/pm.c
+ * Author:      Cliff Brake <cbrake@accelent.com>
+ *              Copyright (c) 2001
+ * Created:     2001
  * Description: Power management for the bf533
  *
- * Rev:
+ * Rev:         $Id$
  *
- * Modified:
- *
+ * Modified:    Nicolas Pitre - PXA250 support
+ *                Copyright (c) 2002 Monta Vista Software, Inc.
+ *              David Singleton - OMAP1510
+ *                Copyright (c) 2002 Monta Vista Software, Inc.
+ *              Dirk Behme <dirk.behme@de.bosch.com> - OMAP1510/1610
+ *                Copyright 2004
+ *              Michael.Kang@analog.com - Blackfin support
+ * Maintained:  Michael.Kang@analog.com
  *
  * Bugs:         Enter bugs at http://blackfin.uclinux.org/
  *

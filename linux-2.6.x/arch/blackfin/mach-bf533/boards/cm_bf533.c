@@ -1,15 +1,14 @@
  /*
- * File:         arch/blackfin/mach-bf533/boards/cm_bf533.c
+ * File:        arch/blackfin/mach-bf533/boards/cm_bf533.c
  * Based on:	arch/blackfin/mach-bf533/boards/ezkit.c
- * Author:      
+ * Author:      Aidan Williams <aidan@nicta.com.au>
+ *                Copright 2005
+ * Created:     2005
+ * Description: Board description file
  *
- * Created:
- * Description: 
+ * Rev:         $Id$
  *
- * Rev:
- *
- * Modified:
- *
+ * Modified:    
  *
  * Bugs:         Enter bugs at http://blackfin.uclinux.org/
  *
@@ -28,7 +27,6 @@
  * If not, write to the Free Software Foundation,
  * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
-
 
 #include <linux/device.h>
 #include <asm/irq.h>

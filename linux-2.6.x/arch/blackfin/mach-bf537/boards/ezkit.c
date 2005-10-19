@@ -1,23 +1,13 @@
 /*
- *  linux/arch/blackfin/mach-bf533/ezkit.c
- *
- *  Copyright 2005 National ICT Australia (NICTA), Aidan Williams <aidan@nicta.com.au>
- *  Thanks to Jamey Hicks.
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as
- *  published by the Free Software Foundation.
- */
-
- /*
  * File:         arch/blackfin/mach-bf537/ezkit.c
- * Based on:
- * Author:      
+ * Based on:     arch/blackfin/mach-bf533/ezkit.c
+ * Author:       Aidan Williams <aidan@nicta.com.au>
+ *                 Copyright 2005 National ICT Australia (NICTA)
  *
  * Created:
  * Description: 
  *
- * Rev:
+ * Rev:          $Id$
  *
  * Modified:
  *

@@ -1,22 +1,17 @@
-/* 
- * File: $Id$
- *
- * arch/blackfin/mach-bf537/head.S
- * Startup code for Blackfin BF537
- */
-
- /*
- * File:         arch/blackfin/mach-bf533/head.S
- * Based on:
- * Author:      
- *
- * Created:
+/*
+ * File:         arch/blackfin/mach-bf537/head.S
+ * Based on:     arch/blackfin/mach-bf533/head.S
+ * Author:      Jeff Dionne <jeff@uclinux.org>
+ *                COPYRIGHT 1998 D. Jeff Dionne
+ * Created:     1998
  * Description: Startup code for Blackfin BF537
  *
- * Rev:
+ * Rev:         $Id$
  *
- * Modified:
- *
+ * Modified:    LG Soft India
+ *                Copyright 2004-2005 ANALOG DEVICES
+ *              Michael Hennerich - BF537 Support
+ *                Copyright 2005 ANALOG DEVICES
  *
  * Bugs:         Enter bugs at http://blackfin.uclinux.org/
  *
