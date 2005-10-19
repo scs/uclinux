@@ -98,9 +98,9 @@ bf53x_sport_init(int sport_chan,
   sport->regs = (struct sport_register*) sport_iobase[sport_chan];
 
   sport->dma_rx_chan = dma_rx;
-  sport->dma_rx = (DMA_register*) dma_iobase[dma_rx];
+  sport->dma_rx = (dma_register_t*) dma_iobase[dma_rx];
   sport->dma_tx_chan = dma_tx;
-  sport->dma_tx = (DMA_register*) dma_iobase[dma_tx];
+  sport->dma_tx = (dma_register_t*) dma_iobase[dma_tx];
 
   sport_printd( KERN_INFO, "%p dma rx: %p tx: %p\n", 
 		sport->regs, sport->dma_rx, sport->dma_tx );
@@ -136,8 +136,8 @@ bf53x_sport_init(int sport_chan,
 
 #ifdef BF53X_SHADOW_REGISTERS
 
-  sport->dma_shadow_rx = (DMA_register*) malloc( sizeof(DMA_register) );
-  sport->dma_shadow_tx = (DMA_register*) malloc( sizeof(DMA_register) );
+  sport->dma_shadow_rx = (dma_register_t*) malloc( sizeof(dma_register_t) );
+  sport->dma_shadow_tx = (dma_register_t*) malloc( sizeof(dma_register_t) );
 
   if( !sport->dma_shadow_rx || !sport->dma_shadow_tx ){
     free( sport->dma_shadow_tx );
@@ -312,9 +312,9 @@ static void setup_desc(struct bf53x_dma_desc* desc, void* buf, int fragcount, si
 void bf53x_sport_hook_rx_desc( struct bf53x_sport* sport)
 {
 #ifdef BF53X_SHADOW_REGISTERS
-  DMA_register* dma = sport->dma_shadow_rx;
+  dma_register_t* dma = sport->dma_shadow_rx;
 #else
-  DMA_register* dma = sport->dma_rx;
+  dma_register_t* dma = sport->dma_rx;
 #endif
   struct bf53x_dma_desc *desc;
   
@@ -333,9 +333,9 @@ void bf53x_sport_hook_rx_desc( struct bf53x_sport* sport)
 void bf53x_sport_hook_tx_desc( struct bf53x_sport* sport)
 {
 #ifdef BF53X_SHADOW_REGISTERS
-  DMA_register* dma = sport->dma_shadow_tx;
+  dma_register_t* dma = sport->dma_shadow_tx;
 #else
-  DMA_register* dma = sport->dma_tx;
+  dma_register_t* dma = sport->dma_tx;
 #endif
   struct bf53x_dma_desc *desc;
   
@@ -356,9 +356,9 @@ int bf53x_sport_config_rx_dma( struct bf53x_sport* sport, void* buf,
 			       int fragcount, size_t fragsize_bytes)
 {
 #ifdef BF53X_SHADOW_REGISTERS
-  DMA_register* dma = sport->dma_shadow_rx;
+  dma_register_t* dma = sport->dma_shadow_rx;
 #else
-  DMA_register* dma = sport->dma_rx;
+  dma_register_t* dma = sport->dma_rx;
 #endif
   unsigned int x_count;
   unsigned int y_count;
@@ -441,7 +441,7 @@ int bf53x_sport_config_rx_dma( struct bf53x_sport* sport, void* buf,
 
 #ifdef BF53X_SHADOW_REGISTERS
   {
-    DMA_register* dma2 = sport->dma_rx;
+    dma_register_t* dma2 = sport->dma_rx;
     dma2->start_addr = dma->start_addr;
     dma2->next_desc_ptr = dma->next_desc_ptr;  
     dma2->cfg        = dma->cfg;
@@ -465,9 +465,9 @@ int bf53x_sport_config_tx_dma( struct bf53x_sport* sport, void* buf,
 {
   
 #ifdef BF53X_SHADOW_REGISTERS
-  DMA_register* dma = sport->dma_shadow_tx;
+  dma_register_t* dma = sport->dma_shadow_tx;
 #else
-  DMA_register* dma = sport->dma_tx;
+  dma_register_t* dma = sport->dma_tx;
 #endif
   unsigned int x_count;
   unsigned int y_count;
@@ -544,7 +544,7 @@ int bf53x_sport_config_tx_dma( struct bf53x_sport* sport, void* buf,
   
 #ifdef BF53X_SHADOW_REGISTERS
   {
-    DMA_register* dma2 = sport->dma_tx;
+    dma_register_t* dma2 = sport->dma_tx;
     dma2->start_addr = dma->start_addr;
     dma2->next_desc_ptr = dma->next_desc_ptr;  
     dma2->cfg        = dma->cfg;
@@ -611,9 +611,9 @@ int bf53x_sport_stop(struct bf53x_sport* sport){
 
 int bf53x_sport_is_rx_desc_changed(struct bf53x_sport* sport){
 #ifdef BF53X_SHADOW_REGISTERS
-  DMA_register* dma = sport->dma_shadow_rx;
+  dma_register_t* dma = sport->dma_shadow_rx;
 #else
-  DMA_register* dma = sport->dma_rx;
+  dma_register_t* dma = sport->dma_rx;
 #endif
   
   if( sport->dma_rx_desc_changed > 0) {
@@ -628,9 +628,9 @@ int bf53x_sport_is_rx_desc_changed(struct bf53x_sport* sport){
 
 int bf53x_sport_is_tx_desc_changed(struct bf53x_sport* sport){
 #ifdef BF53X_SHADOW_REGISTERS
-  DMA_register* dma = sport->dma_shadow_tx;
+  dma_register_t* dma = sport->dma_shadow_tx;
 #else
-  DMA_register* dma = sport->dma_tx;
+  dma_register_t* dma = sport->dma_tx;
 #endif
   
   if( sport->dma_tx_desc_changed > 0) {
@@ -671,9 +671,9 @@ int bf53x_sport_is_running(struct bf53x_sport* sport){
 /* for use in interrupt handler */
 void* bf53x_sport_curr_addr_rx( struct bf53x_sport* sport ){  
 #ifdef BF53X_SHADOW_REGISTERS 
-  DMA_register* dma = sport->dma_shadow_rx;
+  dma_register_t* dma = sport->dma_shadow_rx;
 #else
-  DMA_register* dma = sport->dma_rx;
+  dma_register_t* dma = sport->dma_rx;
 #endif
   void** curr = (void**) &(dma->curr_addr_ptr_lo);
   return *curr;
@@ -681,9 +681,9 @@ void* bf53x_sport_curr_addr_rx( struct bf53x_sport* sport ){
 
 void* bf53x_sport_curr_addr_tx( struct bf53x_sport* sport ){ 
 #ifdef BF53X_SHADOW_REGISTERS 
-  DMA_register* dma = sport->dma_shadow_tx;
+  dma_register_t* dma = sport->dma_shadow_tx;
 #else
-  DMA_register* dma = sport->dma_tx;
+  dma_register_t* dma = sport->dma_tx;
 #endif
   void** curr = (void**) &(dma->curr_addr_ptr_lo);
   return *curr;
@@ -691,9 +691,9 @@ void* bf53x_sport_curr_addr_tx( struct bf53x_sport* sport ){
 
 int bf53x_sport_curr_frag_rx( struct bf53x_sport* sport ){  
 #ifdef BF53X_SHADOW_REGISTERS 
-  DMA_register* dma = sport->dma_shadow_rx;
+  dma_register_t* dma = sport->dma_shadow_rx;
 #else
-  DMA_register* dma = sport->dma_rx;
+  dma_register_t* dma = sport->dma_rx;
 #endif
   /* use the fact that we use an contiguous array of descriptors */
   return ( (struct bf53x_dma_desc*)(dma->curr_desc_ptr) - sport->dma_rx_desc) / 
@@ -703,9 +703,9 @@ int bf53x_sport_curr_frag_rx( struct bf53x_sport* sport ){
 
 int bf53x_sport_curr_frag_tx( struct bf53x_sport* sport ){  
 #ifdef BF53X_SHADOW_REGISTERS 
-  DMA_register* dma = sport->dma_shadow_tx;
+  dma_register_t* dma = sport->dma_shadow_tx;
 #else
-  DMA_register* dma = sport->dma_tx;
+  dma_register_t* dma = sport->dma_tx;
 #endif
   /* use the fact that we use an contiguous array of descriptors */
   return ((struct bf53x_dma_desc*)(dma->curr_desc_ptr) - sport->dma_rx_desc) / 
@@ -733,7 +733,7 @@ int bf53x_sport_curr_frag_tx( struct bf53x_sport* sport ){
 
 void bf53x_sport_shadow_update_rx(struct bf53x_sport* sport){
 
-  DMA_register* dma = sport->dma_shadow_rx;
+  dma_register_t* dma = sport->dma_shadow_rx;
   char** addr = (char**) &(dma-> start_addr);
   char** curr = (char**) &(dma->curr_addr_ptr_lo);
 
@@ -748,7 +748,7 @@ void bf53x_sport_shadow_update_rx(struct bf53x_sport* sport){
 }
 
 void bf53x_sport_shadow_update_tx(struct bf53x_sport* sport){
-  DMA_register* dma = sport->dma_shadow_tx;
+  dma_register_t* dma = sport->dma_shadow_tx;
   char** addr = (char**) &(dma-> start_addr);
   char** curr = (char**) &(dma->curr_addr_ptr_lo);
 

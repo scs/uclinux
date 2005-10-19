@@ -95,12 +95,12 @@ struct bf53x_sport {
   int dma_tx_chan;
   struct sport_register* regs;
 
-  DMA_register* dma_rx;   /* a struct gratefully borrowed from asm/bf533_dma.h */
-  DMA_register* dma_tx;
+  dma_register_t* dma_rx;   /* a struct gratefully borrowed from asm/simple_bf533_dma.h */
+  dma_register_t* dma_tx;
 
 #ifdef BF53X_SHADOW_REGISTERS
-  DMA_register* dma_shadow_rx;   /* a struct gratefully borrowed from asm/bf533_dma.h */
-  DMA_register* dma_shadow_tx;
+  dma_register_t* dma_shadow_rx;   /* a struct gratefully borrowed from asm/simple_bf533_dma.h */
+  dma_register_t* dma_shadow_tx;
 #endif
 
   struct bf53x_dma_desc* dma_rx_desc;	/* DMA descriptor ring head of current audio stream*/
