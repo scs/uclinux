@@ -1,9 +1,34 @@
-/*
- * $Id$ 
+ /*
+ * File:        arch/blackfin/mach-common/bf5xx_rtc.c
+ * Based on:    
+ * Author:      unknown
+ *              COPYRIGHT 2005 Analog Devices
+ * Created:     ?
+ * Description: real time clock support
  *
- *BF5xx RTC support
- * 
+ * Rev:          $Id$ 
+ *
+ * Modified:
+ *
+ *
+ * Bugs:         Enter bugs at http://blackfin.uclinux.org/
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2, or (at your option)
+ * any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; see the file COPYING.
+ * If not, write to the Free Software Foundation,
+ * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
+
 
 #include <asm/blackfin.h>
 #include <asm/bf5xx_rtc.h>
@@ -45,7 +70,9 @@ int rtc_set(time_t time_in_secs)
 	/* Compute no. of days since 1970 */
 	n_days_1970 = (unsigned long) (time_in_secs / (NUM_SECS_IN_DAY));
 
-	/* From the remining secs, compute the hrs(0-23), mins(0-59) and secs(0-59) */
+	/* From the remining secs, compute the hrs(0-23), mins(0-59) 
+	 * and secs(0-59) 
+	 */
 	n_secs_rem = (unsigned long)(time_in_secs % (NUM_SECS_IN_DAY));
 	n_hrs 	= n_secs_rem / (NUM_SECS_IN_HOUR);
 	n_secs_rem = n_secs_rem % (NUM_SECS_IN_HOUR);
@@ -61,7 +88,9 @@ int rtc_set(time_t time_in_secs)
 	return 0;
 }
 
-/* Read the time from the RTC_STAT. time_in_seconds is seconds since Jan 1970 */
+/* Read the time from the RTC_STAT. 
+ * time_in_seconds is seconds since Jan 1970 
+ */
 int rtc_get(time_t *time_in_seconds)
 {
 	unsigned long cur_rtc_stat = 0;
@@ -75,7 +104,9 @@ int rtc_get(time_t *time_in_seconds)
 	/* Read the RTC_STAT register */
 	cur_rtc_stat = *(volatile unsigned long *) RTC_STAT;
 	
-	/* Get the secs (0-59), mins (0-59), hrs (0-23) and the days since Jan 1970 */
+	/* Get the secs (0-59), mins (0-59), hrs (0-23) and the days 
+	 * since Jan 1970
+	 */
 	tm_sec = (cur_rtc_stat >> SEC_BITS_OFF) & 0x3f;
 	tm_min = (cur_rtc_stat >> MIN_BITS_OFF) & 0x3f;
 	tm_hour = (cur_rtc_stat >> HOUR_BITS_OFF) & 0x1f;
@@ -87,12 +118,14 @@ int rtc_get(time_t *time_in_seconds)
 						HRS_TO_SECS(tm_hour) + 
 							DAYS_TO_SECS(tm_day);
 
-	/* a time_t greater than "7FFF FFFF" would be treated as negative manywhere,so we just reset it.*/
-	/* This will happen in following situations:
-	     1. No battery for RTC. The random time value will be reset to 0.
-	     2. On a system with battery, user sets time value to be greater than 7FFF FFFF.
-	     3. Many many years passed after user sets it!  
-	*/
+	/* a time_t greater than "7FFF FFFF" would be treated as negative 
+	 * manywhere,so we just reset it.
+	 * This will happen in following situations:
+	 *   1. No battery for RTC. The random time value will be reset to 0.
+	 *   2. On a system with battery, user sets time value to be greater 
+	 *   than 7FFF FFFF.
+	 *   3. Many many years passed after user sets it!  
+	 */
 	if ((unsigned long)(*(time_in_seconds)) >= 0x7FFFFFFF) {
 	  *(volatile unsigned long *) RTC_STAT = 0;
 	  *(time_in_seconds) = 0;

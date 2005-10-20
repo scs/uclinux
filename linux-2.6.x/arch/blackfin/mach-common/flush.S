@@ -1,10 +1,35 @@
-/* Copyright (C) 2003 Analog Devices, Inc. All Rights Reserved.
- * Copyright (C) 2004 LG SOft India. All Rights Reserved.
+ /*
+ * File:        arch/blackfin/mach-common/flush.S
+ * Based on:    
+ * Author:      LG SOft India
+ *              COPYRIGHT 2005 Analog Devices
+ * Created:     ?
+ * Description: This is an external function being called by the user
+ * application through __flush_cache_all. Currently this function
+ * serves the purpose of flushing all the pending writes in
+ * in the instruction cache.
  *
- * This file is subject to the terms and conditions of the GNU General Public
- * License.
+ * Rev:
  *
- * Blackfin BF533/2.6 support : LG Soft India
+ * Modified:
+ *
+ *
+ * Bugs:         Enter bugs at http://blackfin.uclinux.org/
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2, or (at your option)
+ * any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; see the file COPYING.
+ * If not, write to the Free Software Foundation,
+ * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
 #include <linux/linkage.h>
@@ -13,11 +38,6 @@
 
 .text
 
-/* This is an external function being called by the user
- * application through __flush_cache_all. Currently this function
- * serves the purpose of flushing all the pending writes in
- * in the instruction cache.
- */
 
 ENTRY(_flush_instruction_cache)
 	[--SP] = ( R7:6, P5:4 );
@@ -81,7 +101,9 @@ ENTRY(_icplb_flush)
 	R3 = ((12<<8)|2);		/* Extraction pattern */
 	nop;				/*Anamoly 05000209*/
 	R4 = EXTRACT(R0, R3.L) (Z);	/* Extract bits*/
-	R3.H = R4.L << 0 ;		/* Save in extraction pattern for later deposit.*/
+	R3.H = R4.L << 0 ;		/* Save in extraction pattern for 
+					 * later deposit.
+					 */
 
 	
 	/* So:
@@ -271,7 +293,9 @@ bank_chosen:
 	R3 = ((12<<8)|2);		/* Extraction pattern */
 	nop;				/*Anamoly 05000209*/
 	R4 = EXTRACT(R0, R3.L) (Z);	/* Extract bits*/
-	R3.H = R4.L << 0 ;		/* Save in extraction pattern for later deposit.*/
+	R3.H = R4.L << 0 ;		/* Save in extraction pattern for 
+					 * later deposit.
+					 */
 
 	/* So:
 	 * R0 = Page start

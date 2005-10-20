@@ -1,15 +1,37 @@
+ /*
+ * File:        arch/blackfin/mach-common/entry.S
+ * Based on:    
+ * Author:      Linus Torvalds
+ *              COPYRIGHT 2005 Analog Devices
+ * Created:     ?
+ * Description: contains the system-call and fault low-level handling routines.
+ * This also contains the timer-interrupt handler, as well as all interrupts
+ * and faults that can result in a task-switch.
+ *
+ * Rev:
+ *
+ * Modified:     LG Soft India
+ *
+ *
+ * Bugs:         Enter bugs at http://blackfin.uclinux.org/
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2, or (at your option)
+ * any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; see the file COPYING.
+ * If not, write to the Free Software Foundation,
+ * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ */
+
 /* 
- *  linux/arch/blackfin/mach-bf533/entry.S
- *
- *  Copyright (C) 1991, 1992  Linus Torvalds
- *  Copyright (C) 2004        LG Soft India
- *
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file README.legal in the main directory of this archive
- * for more details.
- *
- * Blackfin BF533/2.6 fixes : LG Soft India	
- *
  * 25-Dec-2004 - LG Soft India
  * 	1. Fix in return_from_int, to make sure any pending 
  *	system call in ILAT for this process to get 
@@ -23,10 +45,6 @@
  */
 
 /*
- * entry.S  contains the system-call and fault low-level handling routines.
- * This also contains the timer-interrupt handler, as well as all interrupts
- * and faults that can result in a task-switch.
- *
  * NOTE: This code handles signal-recognition, which happens every time
  * after a timer-interrupt and after each system call.
  */
@@ -109,8 +127,9 @@ extable:
 .text
 
 /* Slightly simplified and streamlined entry point for CPLB misses.
-   This one does not lower the level to IRQ5, and thus can be used to
-   patch up CPLB misses on the kernel stack.  */
+ * This one does not lower the level to IRQ5, and thus can be used to
+ * patch up CPLB misses on the kernel stack.  
+ */
 ENTRY(ex_dcplb)
 	/*
 	 * Work around an anomaly: if we see a new DCPLB fault, return
@@ -155,7 +174,8 @@ ENTRY(ex_syscall)
 ENTRY(spinlock_bh)
 	SAVE_ALL_SYS
 	/* To end up here, vector 15 was changed - so we have to change it
-	   back.  */
+	 * back.  
+	 */
 	p0.l = lo(EVT15);
 	p0.h = hi(EVT15);
 	p1.l = _evt_system_call;
@@ -178,7 +198,8 @@ ENTRY(ex_soft_bp)
 
 ENTRY(ex_single_step)
 	/* 1. Check if in interrupt handler.
-	   2. If not, call ex_trap_c.  */
+	 * 2. If not, call ex_trap_c.  
+	 */
 	p5.l = lo(IPEND);
 	p5.h = hi(IPEND);
 	csync;
@@ -198,8 +219,9 @@ exception_do_nothing:
 
 ENTRY(ex_trap_c)
 	/* Call C code (trap_c) to handle the exception, which most
-	   likely involves sending a signal to the current process.
-	   To avoid double faults, lower our priority to IRQ5 first.  */
+	 * likely involves sending a signal to the current process.
+	 * To avoid double faults, lower our priority to IRQ5 first.  
+	 */
 	P5.h = exception_to_level5;
 	P5.l = exception_to_level5;
 	p4.l = lo(EVT5);
@@ -229,7 +251,7 @@ ENTRY(exception_to_level5)
         r0 = [p2];              /* Read current IPEND */
         [sp + PT_IPEND] = r0;   /* Store IPEND */
 
-	r0 = sp; 		/* stack frame pt_regs pointer argument ==> r0 */
+	r0 = sp; 	/* stack frame pt_regs pointer argument ==> r0 */
 	SP += -12;
 	call _trap_c;
 	SP += 12; 
@@ -239,15 +261,16 @@ ENTRY(exception_to_level5)
 	
 ENTRY(_trap) /* Exception: 4th entry into system event table(supervisor mode)*/
 	/* Since the kernel stack can be anywhere, it's not guaranteed to be
-	   covered by a CPLB.  Switch to an exception stack; use RETN as a
-	   scratch register (for want of a better option).  */
+	 * covered by a CPLB.  Switch to an exception stack; use RETN as a
+	 * scratch register (for want of a better option).  
+	 */
 	retn = sp;
 	sp.l = exception_stack_top;
 	sp.h = exception_stack_top;
 	/* Try to deal with syscalls quickly.  */
 	[--sp] = ASTAT;
 	[--sp] = (R7:6, P5:4);
-	r7 = SEQSTAT;	/* reason code is in bit 5:0 */
+	r7 = SEQSTAT;		/* reason code is in bit 5:0 */
 	r6.l = lo(SEQSTAT_EXCAUSE);
 	r6.h = hi(SEQSTAT_EXCAUSE);
 	r7 = r7 & r6;
@@ -282,7 +305,8 @@ ENTRY(_execve)
 	cc = r0 == 0;
 	if ! cc jump 1f;
 	/* Success.  Copy our temporary pt_regs to the top of the kernel
-	   stack and do a normal exception return.  */
+	 * stack and do a normal exception return.  
+	 */
 	r1 = sp;
 	r0 = (-KERNEL_STACK_SIZE) (x);
 	r1 = r1 & r0;
@@ -623,7 +647,8 @@ ENTRY(_evt14_softirq)
 
 schedule_and_signal_from_int:
 	/* To end up here, vector 15 was changed - so we have to change it
-	   back.  */
+	 * back.  
+	 */
 	p0.l = lo(EVT15);
 	p0.h = hi(EVT15);
 	p1.l = _evt_system_call;
@@ -643,7 +668,8 @@ schedule_and_signal_from_int:
 _schedule_and_signal:
 	SAVE_CONTEXT_SYSCALL
 	/* To end up here, vector 15 was changed - so we have to change it
-	   back.  */
+	 * back.  
+	 */
 	p0.l = lo(EVT15);
 	p0.h = hi(EVT15);
 	p1.l = _evt_system_call;
@@ -920,7 +946,8 @@ ENTRY(sys_call_table)
 	.long _sys_ni_syscall
 	.endr
 /* Put this in the kernel data section - that should always be covered by
-   a CPLB.  */
+ * a CPLB.  
+ */
 exception_stack:
 	.rept 1024
 	.long 0;

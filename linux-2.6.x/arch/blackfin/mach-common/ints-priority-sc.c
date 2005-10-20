@@ -1,25 +1,39 @@
-/*
- * $Id$
+ /*
+ * File:        arch/blackfin/mach-common/ints-priority.c
+ * Based on:    
+ * Author:      unknown
+ *              COPYRIGHT 2005 Analog Devices
+ * Created:     ?
+ * Description: Set up the interupt priorities
  *
- *arch/blackfin/mach-common/ints-priority.c
+ * Rev:          $Id$ 
  *
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file COPYING in the main directory of this archive
- * for more details.
+ * Modified:
+ *              1996 Roman Zippel
+ *              1999 D. Jeff Dionne <jeff@uclinux.org>
+ *              2000-2001 Lineo, Inc. D. Jefff Dionne <jeff@lineo.ca>
+ *              2002 Arcturus Networks Inc. MaTed <mated@sympatico.ca>
+ *              2003 Metrowerks/Motorola
+ *              2003 Bas Vermeulen <bas@buyways.nl>,
+ *                   BuyWays B.V. (www.buyways.nl)
+ *              2004 LG Soft India
  *
- * Sep 2003, Changed to support BlackFin BF533.
+ * Bugs:         Enter bugs at http://blackfin.uclinux.org/
  *
- * June 2004, Support for Priority based Interrupt handling for Blackfin
- *		by LG Soft India.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2, or (at your option)
+ * any later version.
  *
- * Copyright 1996 Roman Zippel
- * Copyright 1999 D. Jeff Dionne <jeff@uclinux.org>
- * Copyright 2000-2001 Lineo, Inc. D. Jefff Dionne <jeff@lineo.ca>
- * Copyright 2002 Arcturus Networks Inc. MaTed <mated@sympatico.ca>
- * Copyright 2003 Metrowerks/Motorola
- * Copyright 2003 Bas Vermeulen <bas@buyways.nl>,
- *                BuyWays B.V. (www.buyways.nl)
- * Copyright 2004 LG Soft India
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; see the file COPYING.
+ * If not, write to the Free Software Foundation,
+ * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
 #include <linux/module.h>
@@ -254,11 +268,12 @@ static void bf533_gpio_ack_irq(unsigned int irq)
 	int gpionr = irq - IRQ_PF0;
 	int mask = (1L << gpionr);
 	*pFIO_FLAG_C = mask;
-//	if (gpio_edge_triggered & mask) {
-//		/* ack */
-//	} else {
-//		/* ack and mask */
-//	}
+/*	if (gpio_edge_triggered & mask) {
+		* ack *
+	} else {
+		* ack and mask *
+	}
+*/
 	__builtin_bfin_ssync();
 }
 
@@ -295,7 +310,8 @@ static int bf533_gpio_irq_type(unsigned int irq, unsigned int type)
 			return 0;
 		type = __IRQT_RISEDGE | __IRQT_FALEDGE;
 	}
-	if (type & (__IRQT_RISEDGE|__IRQT_FALEDGE|__IRQT_HIGHLVL|__IRQT_LOWLVL))
+	if (type & (__IRQT_RISEDGE|__IRQT_FALEDGE|
+			__IRQT_HIGHLVL|__IRQT_LOWLVL))
 		gpio_enabled |= mask;
 	else
 		gpio_enabled &= ~mask;
@@ -316,7 +332,9 @@ static int bf533_gpio_irq_type(unsigned int irq, unsigned int type)
 		*pFIO_BOTH &= ~mask;
 	__builtin_bfin_ssync();
 
-	if ((type & (__IRQT_FALEDGE|__IRQT_LOWLVL)) && ((type & (__IRQT_RISEDGE|__IRQT_FALEDGE)) != (__IRQT_RISEDGE|__IRQT_FALEDGE)))
+	if ((type & (__IRQT_FALEDGE|__IRQT_LOWLVL)) 
+			&& ((type & (__IRQT_RISEDGE|__IRQT_FALEDGE)) 
+				!= (__IRQT_RISEDGE|__IRQT_FALEDGE)))
 		*pFIO_POLAR |= mask;  /* low or falling edge denoted by one */
 	else
 		*pFIO_POLAR &= ~mask; /* high or rising edge denoted by zero */
@@ -410,7 +428,7 @@ int __init  init_arch_irq(void)
 #ifdef CONFIG_IRQCHIP_DEMUX_GPIO
 			} else {
 				set_irq_chained_handler(irq,
-							bf533_demux_gpio_irq);
+						bf533_demux_gpio_irq);
 			}
 #endif
 
@@ -439,7 +457,8 @@ int __init  init_arch_irq(void)
 #ifdef CONFIG_IRQCHIP_DEMUX_GPIO
   	for (irq = IRQ_PF0; irq <= IRQ_PF15; irq++) {
 		set_irq_chip(irq, &bf533_gpio_irqchip);
-		set_irq_handler(irq, do_level_IRQ); /* if configured as edge, then will be changed to do_edge_IRQ */
+		/* if configured as edge, then will be changed to do_edge_IRQ */
+		set_irq_handler(irq, do_level_IRQ); 
 		set_irq_flags(irq, IRQF_VALID|IRQF_PROBE);
 	}
 #endif
@@ -451,11 +470,16 @@ int __init  init_arch_irq(void)
 	__builtin_bfin_csync();
 
 	printk(KERN_INFO "Configuring Blackfin Priority Driven Interrupts\n");
-	program_IAR();   /* IMASK=xxx is equivalent to STI xx or irq_flags=xx, local_irq_enable() */
-	search_IAR();    /* Therefore it's better to setup IARs before interrupts enabled */
+	/* IMASK=xxx is equivalent to STI xx or irq_flags=xx, 
+	 * local_irq_enable() 
+	 */
+	program_IAR();   
+	/* Therefore it's better to setup IARs before interrupts enabled */
+	search_IAR();    
 
    	/* Enable interrupts IVG7-15 */
-	*pIMASK = irq_flags = irq_flags | IMASK_IVG15 | IMASK_IVG14 |IMASK_IVG13 |IMASK_IVG12 |IMASK_IVG11 |
+	*pIMASK = irq_flags = irq_flags | IMASK_IVG15 | 
+		IMASK_IVG14 |IMASK_IVG13 |IMASK_IVG12 |IMASK_IVG11 |
 		IMASK_IVG10 |IMASK_IVG9 |IMASK_IVG8 |IMASK_IVG7 |IMASK_IVGHW;
 	__builtin_bfin_csync();
 

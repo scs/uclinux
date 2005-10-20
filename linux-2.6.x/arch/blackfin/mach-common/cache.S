@@ -1,9 +1,32 @@
-/* Copyright (C) 2003 Analog Devices, Inc. All Rights Reserved.
+ /*
+ * File:        arch/blackfin/mach-common/cache.S
+ * Based on:    
+ * Author:      LG Soft India
+ *              COPYRIGHT 2005 Analog Devices
+ * Created:     ?
+ * Description: cache control support
  *
- * This file is subject to the terms and conditions of the GNU General Public
- * License.
+ * Rev:
  *
- * Blackfin BF533/2.6 support : LG Soft India
+ * Modified:
+ *
+ *
+ * Bugs:         Enter bugs at http://blackfin.uclinux.org/
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2, or (at your option)
+ * any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; see the file COPYING.
+ * If not, write to the Free Software Foundation,
+ * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
 #include <linux/linkage.h>
@@ -135,12 +158,12 @@ ENTRY(_blackfin_icache_dcache_flush_range)
 	SSYNC;
 	RTS;
 
-/* Throw away all D-cached data in specified region without any obligation to write
- * them back. However, we must clean the D-cached entries around the boundaries
- * of the start and/or end address is not cache aligned.
+/* Throw away all D-cached data in specified region without any obligation to
+ * write them back. However, we must clean the D-cached entries around the 
+ * boundaries of the start and/or end address is not cache aligned.
  *  
- *  Start: start address,
- *  end  : end address.
+ * Start: start address,
+ * end  : end address.
  */
 
 ENTRY(_blackfin_dcache_invalidate_range)
@@ -156,9 +179,9 @@ ENTRY(_blackfin_dcache_invalidate_range)
 	IF CC JUMP 1b (bp);
 
 	/* If the data crosses a cache line, then we'll be pointing to
-	** the last cache line, but won't have flushed/invalidated it yet, so do
-	** one more.
-	*/
+	 * the last cache line, but won't have flushed/invalidated it yet, 
+	 * so do one more.
+	 */
 	FLUSHINV[P0];
 	SSYNC;
 	RTS;
@@ -214,9 +237,9 @@ ENTRY(_blackfin_dcache_flush_range)
 	IF CC JUMP 1b (bp);
 
 	/* If the data crosses a cache line, then we'll be pointing to
-	** the last cache line, but won't have flushed it yet, so do
-	** one more.
-	*/
+	 * the last cache line, but won't have flushed it yet, so do
+	 * one more.
+	 */
 	FLUSH[P0];
 	SSYNC;
 	RTS;

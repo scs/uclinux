@@ -1,14 +1,32 @@
-/*This file is subject to the terms and conditions of the GNU General Public
- * License.
+ /*
+ * File:        arch/blackfin/mach-common/cplbmgtr.S
+ * Based on:    
+ * Author:      LG Soft India
+ *              COPYRIGHT 2005 Analog Devices
+ * Created:     ?
+ * Description: CPLB replacement routine for CPLB mismatch 
  *
- * Blackfin BF533/2.6 support : LG Soft India
- * Modification: Dec 07 2004
- *	1. Correction in icheck_lock.  Valid lock entries were 
- *	   geting victimized, for instruction cplb replacement.
- *	2. Setup loop's are modified as now toolchain support's P Indexed
- *	   addressing
- *	   :LG Soft India
+ * Rev:
  *
+ * Modified:    LG Soft India
+ *
+ *
+ * Bugs:         Enter bugs at http://blackfin.uclinux.org/
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2, or (at your option)
+ * any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; see the file COPYING.
+ * If not, write to the Free Software Foundation,
+ * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
 /* Usage: int _cplb_mgr(is_data_miss,int enable_cache)
@@ -18,16 +36,19 @@
  *
  * Returns:
  * CPLB_RELOADED	=> Successfully updated CPLB table.
- * CPLB_NO_UNLOCKED	=> All CPLBs are locked, so cannot be evicted.This indicates 
- *				that the CPLBs in the configuration tablei are badly 
- *				configured, as this should never occur.
- * CPLB_NO_ADDR_MATCH	=> The address being accessed, that triggered the exception, 
- *				is not covered by any of the CPLBs in the configuration 
- *				table. The application isi presumably misbehaving.
- * CPLB_PROT_VIOL	=> The address being accessed, that triggered thei exception, 
- *				was not a first-write to a clean Write Back Data page, 
- *				and so presumably is a genuine violation of the page's 
- *				protection attributes. The application is misbehaving.
+ * CPLB_NO_UNLOCKED	=> All CPLBs are locked, so cannot be evicted.
+ *			   This indicates that the CPLBs in the configuration 
+ *			   tablei are badly configured, as this should never 
+ *			   occur.
+ * CPLB_NO_ADDR_MATCH	=> The address being accessed, that triggered the 
+ *			   exception, is not covered by any of the CPLBs in 
+ *			   the configuration table. The application is 
+ *			   presumably misbehaving.
+ * CPLB_PROT_VIOL	=> The address being accessed, that triggered the 
+ *			   exception, was not a first-write to a clean Write 
+ *			   Back Data page, and so presumably is a genuine 
+ *			   violation of the page's protection attributes. 
+ *			   The application is misbehaving.
  */
 
 #include <linux/linkage.h>
@@ -395,8 +416,10 @@ sdsearch2:
 
 	CC = R7 < R4;		/* if PageEnd < SP */
 	IF CC JUMP dfound_victim;
-	R3 = 0x284;		/* stack length from start of trap till the point */
-				/* 20 stack locations for future modifications */
+	R3 = 0x284;		/* stack length from start of trap till 
+				 * the point.
+				 * 20 stack locations for future modifications
+				 */
 	R4 = R4 + R3;	
 	CC = R4 < R2;		/* if SP + stacklen < PageStart */
 	IF CC JUMP dfound_victim;

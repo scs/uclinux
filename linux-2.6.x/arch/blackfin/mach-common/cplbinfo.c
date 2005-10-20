@@ -1,3 +1,33 @@
+ /*
+ * File:        arch/blackfin/mach-common/cplbinfo.c
+ * Based on:    
+ * Author:      Sonic Zhang <sonic.zhang@analog.com>
+ *              COPYRIGHT 2005 Analog Devices
+ * Created:     Jan. 2005
+ * Description: Display CPLB status
+ *
+ * Rev:
+ *
+ * Modified:
+ *
+ *
+ * Bugs:         Enter bugs at http://blackfin.uclinux.org/
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2, or (at your option)
+ * any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; see the file COPYING.
+ * If not, write to the Free Software Foundation,
+ * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ */
 
 
 #include <linux/config.h>
@@ -93,7 +123,8 @@ static char *cplb_print_entry(char *buf, int type)
 		p_ocount = dpdt_swapcount_table + 1;
 	}
 	
-	buf += sprintf(buf, "Address\t\tData\tSize\tValid\tLocked\tSwapin\tiCount\toCount\n");
+	buf += sprintf(buf, "Address\t\tData\tSize\tValid\t\
+Locked\tSwapin\tiCount\toCount\n");
 	while(*p_addr != 0xffffffff) {
 		if(*p_data & CPLB_VALID)
 			valid='Y';
@@ -108,14 +139,18 @@ static char *cplb_print_entry(char *buf, int type)
 		else
 			swapin='N';
 
-		if(*p_addr<0x100000)
-			buf += sprintf(buf, "0x%lx\t\t0x%lx\t%s\t%c\t%c\t%c\t%ld\t%ld\n", *p_addr, *p_data, 
-				page_size_string_table[(*p_data&0x30000)>>16], valid, locked, swapin, 
-				*p_icount, *p_ocount);
-		else
-			buf += sprintf(buf, "0x%lx\t0x%lx\t%s\t%c\t%c\t%c\t%ld\t%ld\n", *p_addr, *p_data, 
-				page_size_string_table[(*p_data&0x30000)>>16], valid, locked, swapin,
-				*p_icount, *p_ocount);
+		if(*p_addr<0x100000) {
+			buf += sprintf(buf, "0x%lx\t\t0x%lx\t%s\t%c\t%c\t\
+%c\t%ld\t%ld\n", *p_addr, *p_data, 
+				page_size_string_table[(*p_data&0x30000)>>16], 
+				valid, locked, swapin, *p_icount, *p_ocount);
+		}
+		else {
+			buf += sprintf(buf, "0x%lx\t0x%lx\t%s\t%c\t%c\t%c\t\
+%ld\t%ld\n", *p_addr, *p_data, 
+				page_size_string_table[(*p_data&0x30000)>>16], 
+				valid, locked, swapin, *p_icount, *p_ocount);
+		}
 
 		p_addr += 2;
 		p_data += 2;
@@ -134,7 +169,8 @@ static int cplbinfo_proc_output (char *buf)
 
 	p = buf;
 
-	p += sprintf(p, "------------------ CPLB Information ------------------\n\n");
+	p += sprintf(p, "--------------\
+------------ CPLB Information --------------------------\n\n");
 
 	if( *pIMEM_CONTROL & ENICPLB)
 		p = cplb_print_entry(p, CPLB_I);

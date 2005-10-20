@@ -1,9 +1,32 @@
-/* Copyright (C) 2003 Analog Devices, Inc. All Rights Reserved.
+ /*
+ * File:        arch/blackfin/mach-common/dpmc.S
+ * Based on:    
+ * Author:      LG Soft India
+ *              COPYRIGHT 2005 Analog Devices
+ * Created:     ?
+ * Description: Watchdog Timer APIs
  *
- * This file is subject to the terms and conditions of the GNU General Public
- * License.
+ * Rev:
  *
- * Blackfin BF533/2.6 support : LG Soft India
+ * Modified:
+ *
+ *
+ * Bugs:         Enter bugs at http://blackfin.uclinux.org/
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2, or (at your option)
+ * any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; see the file COPYING.
+ * If not, write to the Free Software Foundation,
+ * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
 #include <asm/blackfin.h>
@@ -12,8 +35,6 @@
 #define ASSEMBLY 
 
 .text
-
-/******************************************** Watchdog Timer APIs **************************/
 
 .global _unmask_wdog_wakeup_evt
 _unmask_wdog_wakeup_evt:
@@ -30,7 +51,9 @@ _unmask_wdog_wakeup_evt:
 	RTS;
 
 WRITE_TO_STAT:
-	/* When watch dog timer is enabled, a write to STAT will load the contents of CNT to STAT */
+	/* When watch dog timer is enabled, a write to STAT will load the 
+	 * contents of CNT to STAT 
+	 */
 	R7 = 0x0000(z);
 	P0.h = (WDOG_STAT >> 16);
 	P0.l = (WDOG_STAT & 0xFFFF);
@@ -120,7 +143,8 @@ _sleep_mode:
 
         P0.H = hi(RTC_ISTAT);
         P0.L = lo(RTC_ISTAT);
-        R0 = (SWEF|AEF|SEF|MEF|HEF|DEF|DAEF|WCOM)(Z);	/* Clear all the interrupts,bits sticky */
+	/* Clear all the interrupts,bits sticky */
+        R0 = (SWEF|AEF|SEF|MEF|HEF|DEF|DAEF|WCOM)(Z);
         w[P0] = R0.L;
         SSYNC;        
 
@@ -165,7 +189,8 @@ _deep_sleep:
 
         P0.H = hi(RTC_ISTAT);
         P0.L = lo(RTC_ISTAT);
-        R0 = (SWEF|AEF|SEF|MEF|HEF|DEF|DAEF|WCOM)(Z);	/* Clear all the interrupts,bits sticky */
+	/* Clear all the interrupts,bits sticky */
+        R0 = (SWEF|AEF|SEF|MEF|HEF|DEF|DAEF|WCOM)(Z);
         w[P0] = R0;
         SSYNC;        
         
@@ -210,7 +235,8 @@ _hibernate_mode:
         
         P0.H = hi(RTC_ISTAT);
         P0.L = lo(RTC_ISTAT);
-        R0 = (SWEF|AEF|SEF|MEF|HEF|DEF|DAEF|WCOM)(Z);	/* Clear all the interrupts,bits sticky */
+	/* Clear all the interrupts,bits sticky */
+        R0 = (SWEF|AEF|SEF|MEF|HEF|DEF|DAEF|WCOM)(Z);
         w[P0] = R0;
         SSYNC;        
 
@@ -226,7 +252,9 @@ _hibernate_mode:
         CLI R2;
         IDLE;
 
-	/* Actually, adding anything may not be necessary...SDRAM contents are lost */
+	/* Actually, adding anything may not be necessary...SDRAM contents 
+	 * are lost 
+	 */
 
 	STI R2;
 

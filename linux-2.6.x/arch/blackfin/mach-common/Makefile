@@ -3,8 +3,8 @@
 #
 
 # Object file lists.
-obj-y		+= cache.o cacheinit.o cplbhdlr.o cplbmgr.o entry.o flush.o interrupt.o \
-			lock.o dpmc.o irqpanic.o
+obj-y		+= cache.o cacheinit.o cplbhdlr.o cplbmgr.o entry.o \
+			flush.o interrupt.o lock.o dpmc.o irqpanic.o
 
 # Object files - Kernel configuration dependend features
 obj-$(CONFIG_CPLB_INFO)		+= cplbinfo.o
