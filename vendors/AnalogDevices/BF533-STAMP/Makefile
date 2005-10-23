@@ -1,5 +1,5 @@
 #
-#	Makefile -- Build instructions for ADI/Blackfin
+#	Makefile -- Build instructions for the BF533-STAMP from ADI
 #
 
 ROMFSIMG = $(IMAGEDIR)/rootfs.img
