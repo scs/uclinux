@@ -1791,6 +1791,7 @@ done:
 
 extern void pnpide_init(void);
 extern void h8300_ide_init(void);
+extern void blackfin_ide_init(void);
 
 /*
  * probe_for_hwifs() finds/initializes "known" IDE interfaces
@@ -1854,6 +1855,9 @@ static void __init probe_for_hwifs (void)
 #endif
 #ifdef CONFIG_H8300
 	h8300_ide_init();
+#endif
+#ifdef CONFIG_BFIN
+	blackfin_ide_init();
 #endif
 }
 

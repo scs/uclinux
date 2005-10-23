@@ -563,6 +563,8 @@ source "drivers/block/Kconfig"
 
 source "drivers/ide/Kconfig"
 
+source "arch/blackfin/Kconfig.ide"
+
 source "drivers/scsi/Kconfig"
 
 source "drivers/cdrom/Kconfig"
