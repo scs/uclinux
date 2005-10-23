@@ -12,3 +12,4 @@ ifconfig lo 127.0.0.1
 inetd &
 #cat /etc/issue
 cat /etc/motd
+

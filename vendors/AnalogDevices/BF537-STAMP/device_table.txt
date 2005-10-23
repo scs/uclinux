@@ -90,8 +90,8 @@
 /dev/time	c	664	0	0	10	101	0	0	-
 
 # IDE Devices
-#/dev/hda	b	640	0	0	3	0	0	0	-
-#/dev/hda	b	640	0	0	3	1	1	1	15
+/dev/hda	b	640	0	0	3	0	0	0	-
+/dev/hda	b	640	0	0	3	1	1	1	15
 #/dev/hdb	b	640	0	0	3	64	0	0	-
 #/dev/hdb	b	640	0	0	3	65	1	1	15
 #/dev/hdc	b	640	0	0	22	0	0	0	-
