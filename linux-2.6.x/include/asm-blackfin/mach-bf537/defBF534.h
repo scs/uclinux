@@ -1730,6 +1730,8 @@
 #define NDSIZE_7		0x0700		/* Next Descriptor Size = 7						*/
 #define NDSIZE_8		0x0800		/* Next Descriptor Size = 8						*/
 #define NDSIZE_9		0x0900		/* Next Descriptor Size = 9						*/
+#define NDSIZE	        	0x0900  	/* Next Descriptor Size */
+#define FLOW	        	0x7000  	/* Flow Control */
 /* #define FLOW_STOP		0x0000		Stop Mode									*/
 /* #define FLOW_AUTO		0x1000		Autobuffer Mode								*/
 /* #define FLOW_ARRAY		0x4000		Descriptor Array Mode						*/
