@@ -77,18 +77,6 @@ struct sport_register {
 
 #define DESC_ELEMENT_COUNT 9
 
-/* (large mode) descriptor arrays */
-struct bf53x_dma_desc {
-  unsigned long          next_desc;
-  unsigned long          start_addr;
-  unsigned short         cfg;
-  unsigned short         xcount;
-  unsigned short         xmodify;
-  unsigned short         ycount;
-  unsigned short         ymodify;
-} __attribute__((packed));
-
-
 struct bf53x_sport {
   int sport_chan;
   int dma_rx_chan;
@@ -108,12 +96,12 @@ struct bf53x_sport {
   dma_register_t* dma_shadow_tx;
 #endif
 
-  struct bf53x_dma_desc* dma_rx_desc;	/* DMA descriptor ring head of current audio stream*/
-  struct bf53x_dma_desc* dma_tx_desc;
-  struct bf53x_dma_desc* dma_rx_expired_desc;  /* DMA descriptor ring head of last audio stream*/
-  struct bf53x_dma_desc* dma_tx_expired_desc;
-  struct bf53x_dma_desc* dma_rx_expired2_desc; /* DMA descriptor ring head of the one before last audio stream*/
-  struct bf53x_dma_desc* dma_tx_expired2_desc;
+  dmasg_t* dma_rx_desc;	/* DMA descriptor ring head of current audio stream*/
+  dmasg_t* dma_tx_desc;
+  dmasg_t* dma_rx_expired_desc;  /* DMA descriptor ring head of last audio stream*/
+  dmasg_t* dma_tx_expired_desc;
+  dmasg_t* dma_rx_expired2_desc; /* DMA descriptor ring head of the one before last audio stream*/
+  dmasg_t* dma_tx_expired2_desc;
   /* DMA descriptor state in change procedure.
    * 0: DMA is walking through current DMA descriptor ring.
    * 1: New DMA descritor ring is setup, but not hook into current DMA descriptor ring. 

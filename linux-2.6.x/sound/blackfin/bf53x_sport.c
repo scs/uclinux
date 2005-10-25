@@ -80,9 +80,30 @@
 #define SSYNC __builtin_bfin_ssync()
 
 
-static unsigned int sport_iobase[] = {0xffc00800, 0xffc00900 };
-static unsigned int dma_iobase[]   = {0xffc00c00, 0xffc00c40, 0xffc00c80, 0xffc00cc0, 
-				      0xffc00d00, 0xffc00d40, 0xffc00d80, 0xffc00dc0 }; 
+static unsigned int sport_iobase[] = {SPORT0_TCR1, SPORT1_TCR1 };
+
+static unsigned int dma_iobase[]   =
+{
+ 	DMA0_NEXT_DESC_PTR,
+ 	DMA1_NEXT_DESC_PTR,
+ 	DMA2_NEXT_DESC_PTR,
+ 	DMA3_NEXT_DESC_PTR,
+ 	DMA4_NEXT_DESC_PTR,
+ 	DMA5_NEXT_DESC_PTR,
+ 	DMA6_NEXT_DESC_PTR,
+ 	DMA7_NEXT_DESC_PTR,
+#if (defined(CONFIG_BF537) || defined(CONFIG_BF534) || defined(CONFIG_BF536))
+ 	DMA8_NEXT_DESC_PTR,
+ 	DMA9_NEXT_DESC_PTR,
+ 	DMA10_NEXT_DESC_PTR,
+ 	DMA11_NEXT_DESC_PTR,
+#endif
+ 	MDMA_D0_NEXT_DESC_PTR,
+ 	MDMA_S0_NEXT_DESC_PTR,
+ 	MDMA_D1_NEXT_DESC_PTR,
+ 	MDMA_S1_NEXT_DESC_PTR
+};
+
 struct bf53x_sport* 
 bf53x_sport_init(int sport_chan, 
 		int dma_rx, dma_interrupt_t rx_handler,
@@ -271,29 +292,29 @@ int bf53x_sport_config_tx( struct bf53x_sport* sport, unsigned int tcr1, unsigne
 
 
 
-static void setup_desc(struct bf53x_dma_desc* desc, void* buf, int fragcount, size_t fragsize_bytes,
-		unsigned int cfg, unsigned int xcount, unsigned int ycount){
+static void setup_desc(dmasg_t* desc, void* buf, int fragcount, size_t fragsize_bytes,
+		unsigned int cfg, unsigned int x_count, unsigned int ycount){
 
   int i;
 
   for( i=0; i<fragcount; ++i ){
-    desc[i].next_desc  = (unsigned long)&( desc[i + 1] );
+    desc[i].next_desc_addr  = (unsigned long)&( desc[i + 1] );
     desc[i].start_addr = (unsigned long)buf + i*fragsize_bytes;
     desc[i].cfg = cfg;
-    desc[i].xcount = xcount;
-    desc[i].xmodify = sizeof(long);
-    desc[i].ycount = ycount;
-    desc[i].ymodify = sizeof(long);
+    desc[i].x_count = x_count;
+    desc[i].x_modify = sizeof(long);
+    desc[i].y_count = ycount;
+    desc[i].y_modify = sizeof(long);
   }
 
-  desc[fragcount-1].next_desc = (unsigned long)desc; /* make circular */
+  desc[fragcount-1].next_desc_addr = (unsigned long)desc; /* make circular */
 
-/*  printk("setup desc: desc0=%x, next0=%x, desc1=%x, next1=%x\nxcount=%d,ycount=%d,addr=0x%x,cfs=0x%x\n", 
-  	&(desc[0]), desc[0].next_desc, 
-	&(desc[1]), desc[1].next_desc,
-	desc[0].xcount, desc[0].ycount, desc[0].start_addr,desc[0].cfg);
+/*  printk("setup desc: desc0=%x, next0=%x, desc1=%x, next1=%x\nx_count=%d,ycount=%d,addr=0x%x,cfs=0x%x\n", 
+  	&(desc[0]), desc[0].next_desc_addr, 
+	&(desc[1]), desc[1].next_desc_addr,
+	desc[0].x_count, desc[0].ycount, desc[0].start_addr,desc[0].cfg);
 */
-  flush_dcache_range(desc, desc + fragcount*sizeof(struct bf53x_dma_desc));
+  flush_dcache_range(desc, desc + fragcount*sizeof(dmasg_t));
 }
 
 
@@ -304,12 +325,12 @@ void bf53x_sport_hook_rx_desc( struct bf53x_sport* sport)
 #else
   dma_register_t* dma = sport->dma_rx;
 #endif
-  struct bf53x_dma_desc *desc;
+  dmasg_t *desc;
   
   if( sport->regs->rcr1 & RSPEN ) {
-    desc = (struct bf53x_dma_desc*)dma->next_desc_ptr;
-    desc->next_desc = (unsigned int)(sport->dma_rx_desc);
-    flush_dcache_range(desc, desc + sizeof(struct bf53x_dma_desc));
+    desc = (dmasg_t*)dma->next_desc_ptr;
+    desc->next_desc_addr = (unsigned int)(sport->dma_rx_desc);
+    flush_dcache_range(desc, desc + sizeof(dmasg_t));
     /* Change the state to current descriptor ring is hooked into DMA. */
     sport->dma_rx_desc_changed=2;
 /*    printk("rx: cur_desc=%x, xcount=%d, rx_desc=%x\n", dma->curr_desc_ptr, 
@@ -325,17 +346,17 @@ void bf53x_sport_hook_tx_desc( struct bf53x_sport* sport)
 #else
   dma_register_t* dma = sport->dma_tx;
 #endif
-  struct bf53x_dma_desc *desc;
+  dmasg_t *desc;
   
   if( sport->regs->tcr1 & TSPEN) {
-    desc = (struct bf53x_dma_desc*)dma->next_desc_ptr;
-    desc->next_desc = (unsigned int)(sport->dma_tx_desc);
-    flush_dcache_range(desc, desc + sizeof(struct bf53x_dma_desc));
+    desc = (dmasg_t*)dma->next_desc_ptr;
+    desc->next_desc_addr = (unsigned int)(sport->dma_tx_desc);
+    flush_dcache_range(desc, desc + sizeof(dmasg_t));
     /* Change the state to current descriptor ring is hooked into DMA. */
     sport->dma_tx_desc_changed=2;
 /*    printk("tx: dma=%x, desc=%x, next=%x\n oldaddr=0x%x, oldxcount=%d\n", 
-    	dma->next_desc_ptr, desc, desc->next_desc,
-	sport->dma_tx_desc->start_addr, sport->dma_tx_desc->xcount);
+    	dma->next_desc_ptr, desc, desc->next_desc_addr,
+	sport->dma_tx_desc->start_addr, sport->dma_tx_desc->x_count);
 */
   }
 }
@@ -399,7 +420,7 @@ int bf53x_sport_config_rx_dma( struct bf53x_sport* sport, void* buf,
   bf53x_sport_rx_desc_changed(sport);
 
   /* Allocate a new descritor ring as current one. */
-  sport->dma_rx_desc = malloc( fragcount * sizeof( struct bf53x_dma_desc ) );
+  sport->dma_rx_desc = malloc( fragcount * sizeof( dmasg_t ) );
   
   if( !sport->dma_rx_desc ) {
     sport->dma_rx_desc = sport->dma_rx_expired_desc;
@@ -511,7 +532,7 @@ int bf53x_sport_config_tx_dma( struct bf53x_sport* sport, void* buf,
 
   bf53x_sport_tx_desc_changed(sport);
 
-  sport->dma_tx_desc = malloc( fragcount * sizeof( struct bf53x_dma_desc ) );
+  sport->dma_tx_desc = malloc( fragcount * sizeof( dmasg_t ) );
   
   if( !sport->dma_tx_desc ) {
     sport->dma_tx_desc = sport->dma_tx_expired_desc;
@@ -572,7 +593,7 @@ int bf53x_sport_config_tx_dma( struct bf53x_sport* sport, void* buf,
 int sport_config_rx_dummy(struct bf53x_sport *sport)
 {
 	dma_register_t* dma;
-	struct bf53x_dma_desc *desc;
+	dmasg_t *desc;
 	unsigned config;
 
 	dma = sport->dma_rx;
@@ -581,14 +602,14 @@ int sport_config_rx_dummy(struct bf53x_sport *sport)
 	desc = kmalloc(sizeof(*desc), GFP_KERNEL);
 	memset(desc, 0, sizeof(*desc));
 
-	desc->next_desc = (unsigned long)desc;
+	desc->next_desc_addr = (unsigned long)desc;
 	desc->start_addr = sport->dummy_buf_rx;
 	config = FLOW | NDSIZE | WDSIZE_32 | WNR ;
 	desc->cfg = config | DMAEN;
-	desc->xcount = 0x8;
-	desc->xmodify = 0;
-	desc->ycount = 0;
-	desc->ymodify = 0;
+	desc->x_count = 0x8;
+	desc->x_modify = 0;
+	desc->y_count = 0;
+	desc->y_modify = 0;
 
 	sport->dma_rx_desc = desc;
 	if (sport->regs->rcr1 & RSPEN) {
@@ -608,7 +629,7 @@ int sport_config_rx_dummy(struct bf53x_sport *sport)
 int sport_config_tx_dummy(struct bf53x_sport *sport)
 {
 	dma_register_t* dma;
-	struct bf53x_dma_desc *desc;
+	dmasg_t *desc;
 	unsigned int config;
 
 	dma = sport->dma_tx;
@@ -617,14 +638,14 @@ int sport_config_tx_dummy(struct bf53x_sport *sport)
 	desc = kmalloc(sizeof(*desc), GFP_KERNEL);
 	memset(desc, 0, sizeof(*desc));
 	
-	desc->next_desc = (unsigned long)desc;
+	desc->next_desc_addr = (unsigned long)desc;
 	desc->start_addr = sport->dummy_buf_tx;
 	config = (FLOW) | NDSIZE |WDSIZE_32;
 	desc->cfg = config | DMAEN;
-	desc->xcount = 0x8;
-	desc->xmodify = 0;
-	desc->ycount = 0;
-	desc->ymodify = 0;
+	desc->x_count = 0x8;
+	desc->x_modify = 0;
+	desc->y_count = 0;
+	desc->y_modify = 0;
 	
 	sport->dma_tx_desc = desc;
 	if (sport->regs->tcr1 & TSPEN) {
@@ -796,8 +817,8 @@ int bf53x_sport_curr_frag_rx( struct bf53x_sport* sport ){
   dma_register_t* dma = sport->dma_rx;
 #endif
   /* use the fact that we use an contiguous array of descriptors */
-  return ( (struct bf53x_dma_desc*)(dma->curr_desc_ptr) - sport->dma_rx_desc) / 
-    sizeof( struct bf53x_dma_desc );
+  return ( (dmasg_t*)(dma->curr_desc_ptr) - sport->dma_rx_desc) / 
+    sizeof( dmasg_t );
 }
 
 
@@ -808,8 +829,8 @@ int bf53x_sport_curr_frag_tx( struct bf53x_sport* sport ){
   dma_register_t* dma = sport->dma_tx;
 #endif
   /* use the fact that we use an contiguous array of descriptors */
-  return ((struct bf53x_dma_desc*)(dma->curr_desc_ptr) - sport->dma_rx_desc) / 
-    sizeof( struct bf53x_dma_desc );
+  return ((dmasg_t*)(dma->curr_desc_ptr) - sport->dma_rx_desc) / 
+    sizeof( dmasg_t );
 }
 
 
