@@ -29,7 +29,6 @@
  * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
-
 #include <linux/config.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -43,28 +42,22 @@
 #include <asm/cplb.h>
 #include <asm/blackfin.h>
 
-
-#define BUFSIZE		256
-
-static char cmdline[BUFSIZE];
-static unsigned long len;
-
 #define CPLB_I 1
 #define CPLB_D 2
 
-#define SYNC_SYS do{__asm__ ("SSYNC;\n\t" : : : "CC");}while(0)
-#define SYNC_CORE do{__asm__ ("CSYNC;\n\t" : : : "CC");}while(0)
+#define SYNC_SYS    __builtin_bfin_ssync()
+#define SYNC_CORE   __builtin_bfin_csync()
 
 #define CPLB_BIT_PAGESIZE 0x30000
 
-static long page_size_table[4] = {
+static int page_size_table[4] = {
 0x00000400,	/* 1K */
 0x00001000,	/* 4K */
 0x00100000,	/* 1M */
 0x00400000	/* 4M */
 };
 
-static char *page_size_string_table[4] = {"1K", "4K", "1M", "4M"};
+static char page_size_string_table[][4] = {"1K", "4K", "1M", "4M"};
 
 extern unsigned long dpdt_table[];
 extern unsigned long ipdt_table[];
@@ -72,90 +65,76 @@ extern unsigned long ipdt_table[];
 extern unsigned long ipdt_swapcount_table[];
 extern unsigned long dpdt_swapcount_table[];
 
-static unsigned long * cplb_find_entry(int type, unsigned long addr)
+static int cplb_find_entry(unsigned long *cplb_addr, 
+			   unsigned long *cplb_data, 
+			   unsigned long addr)
 {
-	unsigned long* p_data = NULL;
-	unsigned long* p_addr = NULL;
-	int size;
-	int i;
+	int ii;
 
-	if(type==CPLB_I) {
-		p_data = (unsigned long*)ICPLB_DATA0;
-		p_addr = (unsigned long*)ICPLB_ADDR0;
-	}
-	else {
-		p_data = (unsigned long*)DCPLB_DATA0;
-		p_addr = (unsigned long*)DCPLB_ADDR0;
-	}
+	for(ii = 0; ii < 16; ii++)
+	    if (addr >= cplb_addr[ii] && addr < cplb_addr[ii] + 
+		    page_size_table[(cplb_data[ii] & CPLB_BIT_PAGESIZE) >> 16])
+			return ii;
 	
-	for(i=0;i<16;i++,p_data++,p_addr++) {
-		size = page_size_table[((*p_data)&CPLB_BIT_PAGESIZE)>>16];
-		if(addr>=*p_addr && addr<(*p_addr+size))
-			return p_data;
-	}
-	
-	return NULL;
+	return -1;
 }
 
 static char *cplb_print_entry(char *buf, int type)
 {
-	unsigned long* p_data = NULL;
-	unsigned long* p_addr = NULL;
-	unsigned long* p_icount = NULL;
-	unsigned long* p_ocount = NULL;
-	unsigned long* entry = NULL;
-	char locked;
-	char valid;
-	char swapin;
+	unsigned long *p_addr = dpdt_table;
+	unsigned long *p_data = dpdt_table + 1;
+	unsigned long *p_icount = dpdt_swapcount_table;
+	unsigned long *p_ocount = dpdt_swapcount_table + 1;
+	unsigned long *cplb_addr = (unsigned long *)DCPLB_ADDR0;
+	unsigned long *cplb_data = (unsigned long *)DCPLB_DATA0;
+	int entry, used_cplb = 0;
 
 	if(type==CPLB_I) {
 		buf += sprintf(buf, "Instrction CPLB entry:\n");
-		p_data = ipdt_table + 1;
 		p_addr = ipdt_table;
+		p_data = ipdt_table + 1;
 		p_icount = ipdt_swapcount_table;
 		p_ocount = ipdt_swapcount_table + 1;
+		cplb_addr = (unsigned long *)ICPLB_ADDR0;
+		cplb_data = (unsigned long *)ICPLB_DATA0;
 	}
-	else {
+	else 
 		buf += sprintf(buf, "Data CPLB entry:\n");
-		p_data = dpdt_table + 1;
-		p_addr = dpdt_table;
-		p_icount = dpdt_swapcount_table;
-		p_ocount = dpdt_swapcount_table + 1;
-	}
 	
-	buf += sprintf(buf, "Address\t\tData\tSize\tValid\t\
-Locked\tSwapin\tiCount\toCount\n");
-	while(*p_addr != 0xffffffff) {
-		if(*p_data & CPLB_VALID)
-			valid='Y';
-		else
-			valid='N';
-		if(*p_data & CPLB_LOCK)
-			locked='Y';
-		else
-			locked='N';
-		if((entry=cplb_find_entry(type, *p_addr))!=NULL)
-			swapin='Y';
-		else
-			swapin='N';
+	buf += sprintf(buf, "Address\t\tData\tSize\tValid\tLocked\tSwapin\
+\tiCount\toCount\n");
 
-		if(*p_addr<0x100000) {
-			buf += sprintf(buf, "0x%lx\t\t0x%lx\t%s\t%c\t%c\t\
-%c\t%ld\t%ld\n", *p_addr, *p_data, 
-				page_size_string_table[(*p_data&0x30000)>>16], 
-				valid, locked, swapin, *p_icount, *p_ocount);
-		}
-		else {
-			buf += sprintf(buf, "0x%lx\t0x%lx\t%s\t%c\t%c\t%c\t\
-%ld\t%ld\n", *p_addr, *p_data, 
-				page_size_string_table[(*p_data&0x30000)>>16], 
-				valid, locked, swapin, *p_icount, *p_ocount);
-		}
+	while(*p_addr != 0xffffffff) {		
+		entry = cplb_find_entry(cplb_addr, cplb_data, *p_addr);
+		if (entry >= 0 && *p_data == cplb_data[entry]) 
+		    used_cplb |= 1 << entry;
+
+		buf += sprintf(buf, "0x%08lx\t0x%05lx\t%s\t%c\t%c\t%2d\t%ld\t%ld\n", 
+			*p_addr, *p_data, 
+			page_size_string_table[(*p_data & 0x30000)>>16], 
+			(*p_data & CPLB_VALID)? 'Y': 'N',
+			(*p_data & CPLB_LOCK)? 'Y': 'N',
+			entry,
+			*p_icount, *p_ocount);
 
 		p_addr += 2;
 		p_data += 2;
 		p_icount +=2;
 		p_ocount +=2;
+	}
+
+	if (used_cplb != 0xffff) {
+	    buf += sprintf(buf, "Unused/mismatched CPLBs:\n");
+
+	    for(entry = 0; entry < 16; entry++)
+		if (0 == ((1 << entry) & used_cplb)) {
+		    int flags = cplb_data[entry];
+		    buf += sprintf(buf, "%2d: 0x%08lx\t0x%05x\t%s\t%c\t%c\n", 
+			entry, cplb_addr[entry], flags,
+			page_size_string_table[(flags & 0x30000) >> 16],
+			(flags & CPLB_VALID)? 'Y': 'N',
+			(flags & CPLB_LOCK)? 'Y': 'N');
+		}
 	}
 
 	buf += sprintf(buf, "\n");
@@ -169,8 +148,8 @@ static int cplbinfo_proc_output (char *buf)
 
 	p = buf;
 
-	p += sprintf(p, "--------------\
------------- CPLB Information --------------------------\n\n");
+	p += sprintf(p,
+"------------------ CPLB Information ------------------\n\n");
 
 	if( *pIMEM_CONTROL & ENICPLB)
 		p = cplb_print_entry(p, CPLB_I);
@@ -202,19 +181,11 @@ static int cplbinfo_read_proc(char *page, char **start, off_t off,
 static int cplbinfo_write_proc(struct file *file, const char *buffer,
 			   unsigned long count, void *data)
 {
-	if(count>=BUFSIZE)
-		len = BUFSIZE-1;
-	else
-		len = count;
-	
-	memcpy(cmdline, buffer, count);
-	cmdline[len] = 0;
-
 	printk("Reset the CPLB swap in/out counts.\n");
 	memset(ipdt_swapcount_table, 0, 100*sizeof(unsigned long));
 	memset(dpdt_swapcount_table, 0, 120*sizeof(unsigned long));
 
-        return len;
+        return count;
 }
 
 
@@ -229,7 +200,6 @@ static int __init cplbinfo_init(void)
 	entry->read_proc = cplbinfo_read_proc;
 	entry->write_proc = cplbinfo_write_proc;
 	entry->data = NULL;
-	cmdline[0] = 0;
 
 	return 0;
 }
