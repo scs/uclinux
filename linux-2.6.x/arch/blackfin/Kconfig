@@ -65,7 +65,7 @@ config BF531
 config BF534
 	bool "BF534"
 	help
-	 Not Supported Yet - Work in progress - BF534 Processor Support.
+	 BF534 Processor Support.
 
 config BF535
 	bool "BF535"
@@ -75,12 +75,12 @@ config BF535
 config BF536
 	bool "BF536"
 	help
-	 Not Supported Yet - Work in progress - BF536 Processor Support.
+	 BF536 Processor Support.
 
 config BF537
 	bool "BF537"
 	help
-	 Not Supported Yet - Work in progress - BF537 Processor Support.
+	 BF537 Processor Support.
 
 config BF561
 	bool "BF561"
@@ -333,14 +333,6 @@ config	ROMKERNEL
 
 endchoice
 
-config ROOTFS_TIED_TO_KERNEL
-	bool "Enable RAM RootFS attached to the Kernel image (linux)"
-	depends on BLACKFIN
-	default y
-	help
-	  When using the vmlinux image only this option should be disabled.
-	  It prevents that the memory start location of the kernel is adjusted
-	  by the RAM RootFS size.
 
 config LARGE_ALLOCS
 	bool "Allow allocating large blocks (> 1MB) of memory"

@@ -188,7 +188,7 @@ void __init setup_arch(char **cmdline_p)
 
     memory_mtd_end = memory_end;
 
-#if defined(CONFIG_MTD_UCLINUX) && defined(CONFIG_ROOTFS_TIED_TO_KERNEL)
+#if defined(CONFIG_MTD_UCLINUX)
 /* generic memory mapped MTD driver */
 	mtd_phys = (unsigned long) &_ebss;
 	mtd_size = PAGE_ALIGN(*((unsigned long *)(mtd_phys + 8)));
