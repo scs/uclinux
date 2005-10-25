@@ -88,7 +88,12 @@
 	[--sp] = SEQSTAT;
 	[--sp] = r0;	/* Skip IPEND as well. */
 	/* Switch to other method of keeping interrupts disabled.  */
+#ifdef CONFIG_DEBUG_HWERR
+	r0 = 0x3f;
+	sti r0;
+#else
 	cli r0;
+#endif
 	[--sp] = RETI;  /*orig_pc*/
 	/* Clear all L registers.  */
 	r0 = 0 (x);

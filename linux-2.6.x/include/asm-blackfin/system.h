@@ -59,29 +59,43 @@ extern volatile unsigned long irq_flags;
 		:"=d" (_tmp_dummy):);		\
 } while (0)
 
+#ifdef CONFIG_DEBUG_HWERR
+#define __save_and_cli(x) do {			\
+	__asm__ __volatile__ (			\
+		"cli %0;\n\tsti %1;"		\
+		:"=&d"(x): "d" (0x3F));		\
+} while (0)
+#else
 #define __save_and_cli(x) do {		\
 	__asm__ __volatile__ (          \
 		"cli %0;"		\
-		:"=d"(x):);         \
+		:"=&d"(x):);		\
 } while (0)
+#endif
 
 #define local_save_flags(x) asm volatile ("cli %0;"     \
 					  "sti %0;"     \
-				    	  :"=d"(x):);    
+				    	  :"=d"(x):);
+
+#ifdef CONFIG_DEBUG_HWERR
+#define irqs_enabled_from_flags(x) (((x) & ~0x3f) != 0)
+#else
+#define irqs_enabled_from_flags(x) ((x) != 0x1f)
+#endif
+
 #define local_irq_restore(x) do {			\
-	unsigned long _tmp = (x);			\
-	if (_tmp != 0x1f)				\
+	if (irqs_enabled_from_flags(x))			\
 		local_irq_enable ();			\
 } while (0)
 
 /* For spinlocks etc */
 #define local_irq_save(x) __save_and_cli(x)
 
-#define	irqs_disabled()			\
-({					\
-	unsigned long flags;		\
-	local_save_flags(flags);	\
-	(flags  == 0x1f);	\
+#define	irqs_disabled()				\
+({						\
+	unsigned long flags;			\
+	local_save_flags(flags);		\
+	!irqs_enabled_from_flags(flags);	\
 })
 
 /*

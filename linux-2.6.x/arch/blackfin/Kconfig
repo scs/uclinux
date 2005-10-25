@@ -610,6 +610,15 @@ config DEBUG_KERNEL
 	  Say Y here if you are developing drivers or trying to debug and
 	  identify kernel problems.
 
+config DEBUG_HWERR
+	bool "Hardware error interrupt debuggin"
+	help
+	  When enabled, the hardware error interrupt is never disabled, and
+	  will happen immediately when an error condition occurs.  This comes
+	  at a slight cost in code size, but is necessary if you are getting
+	  hardware error interrupts and need to know where they are coming
+	  from.
+
 config DEBUG_SLAB
 	bool "Debug memory allocations"
 	depends on DEBUG_KERNEL

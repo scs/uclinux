@@ -635,12 +635,17 @@ ENTRY(return_from_int)
 	rts;
 
 ENTRY(_lower_to_irq14)
-	r0 = 0x4000;
+	r0 = 0x401f;
 	sti r0;
 	raise 14;
 	rti; 
 ENTRY(_evt14_softirq)
+#ifdef CONFIG_DEBUG_HWERR
+	r0 = 0x3f;
+	sti r0;
+#else	
 	cli r0;
+#endif
 	[--sp] = RETI;
 	SP += 4;
 	rts;
