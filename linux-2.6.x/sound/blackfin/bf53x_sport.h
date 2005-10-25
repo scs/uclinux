@@ -98,6 +98,11 @@ struct bf53x_sport {
   dma_register_t* dma_rx;   /* a struct gratefully borrowed from asm/simple_bf533_dma.h */
   dma_register_t* dma_tx;
 
+#define DUMMY_BUF_LEN 4
+  /* for dummy dma transfer */
+  unsigned long	dummy_buf_rx;
+  unsigned long	dummy_buf_tx;
+
 #ifdef BF53X_SHADOW_REGISTERS
   dma_register_t* dma_shadow_rx;   /* a struct gratefully borrowed from asm/simple_bf533_dma.h */
   dma_register_t* dma_shadow_tx;
@@ -161,6 +166,9 @@ int bf53x_sport_config_rx_dma( struct bf53x_sport* sport, void* buf,
 
 int bf53x_sport_config_tx_dma( struct bf53x_sport* sport, void* buf, 
 			       int fragcount, size_t fragsize_bytes);
+			      
+int sport_config_rx_dummy(struct bf53x_sport* sport);
+int sport_config_tx_dummy(struct bf53x_sport* sport);
 
 void bf53x_sport_hook_tx_desc( struct bf53x_sport* sport);
 void bf53x_sport_hook_rx_desc( struct bf53x_sport* sport);

@@ -171,6 +171,7 @@ struct snd_ad1836 {
   char     out_chan_mask_str[5]; /* last one is \0 */
   unsigned int in_chan_mask[4];
   char     in_chan_mask_str[5]; /* last one is \0 */
+  int	 reference;
 
   wait_queue_head_t   spi_waitq;
   int	spi_data_ready;
@@ -202,17 +203,12 @@ struct snd_ad1836 {
   void* tx_buf; 
 
 };
-
+static int snd_ad1836_startup(ad1836_t *chip);
 
 #ifndef NOCONTROLS
 #define chip_t_magic ad1836_t_magic  /* move to include/sound/sndmagic.h in due time */
 typedef ad1836_t chip_t; /* used in alsa macro's */
 #endif
-
-
-#define DUMMY_BUF_LEN 256
-unsigned long *dummy_buf_rx; /* used for idle rx/tx channel */
-unsigned long *dummy_buf_tx; /* used for idle rx/tx channel */
 
 #if L1_DATA_A_LENGTH != 0
 extern unsigned long l1_data_A_sram_alloc(unsigned long size);
@@ -265,7 +261,7 @@ static int snd_ad1836_set_register(ad1836_t *chip, unsigned int reg, unsigned in
     }
   chip->spi_data_ready = 0;
   chip->chip_registers[reg] = data;
-  snd_printk( KERN_INFO "set register %d to 0x%04x\n", reg, data);  
+  snd_printd( KERN_INFO "set register %d to 0x%04x\n", reg, data);  
 
   return 0;
 
@@ -1072,6 +1068,12 @@ static int snd_ad1836_playback_open(snd_pcm_substream_t* substream){
 
   substream->runtime->hw = snd_ad1836_playback_hw;
   chip->tx_substream = substream;
+  if ((!chip->reference) && (snd_ad1836_startup(chip)!=0)) {
+	snd_printk(KERN_ERR"Failed to start up ad1836\n");
+	return -EFAULT;
+  }
+  chip->reference++;
+
 
   return 0;
 
@@ -1087,6 +1089,11 @@ static int snd_ad1836_capture_open(snd_pcm_substream_t* substream){
 
   substream->runtime->hw = snd_ad1836_capture_hw;
   chip->rx_substream = substream;
+  if ((!chip->reference) && (snd_ad1836_startup(chip)!=0)) {
+	snd_printk(KERN_ERR"Failed to start up ad1836\n");
+	return -EFAULT;
+  }
+  chip->reference++;
 
   return 0;
 }
@@ -1099,7 +1106,9 @@ static int snd_ad1836_playback_close(snd_pcm_substream_t* substream){
   snd_printk_marker();
 
   chip->tx_substream = NULL;
-  
+  if (!--chip->reference)
+	bf53x_sport_stop(chip->sport);
+ 
   return 0;
 }
 
@@ -1111,7 +1120,9 @@ static int snd_ad1836_capture_close(snd_pcm_substream_t* substream){
   snd_printk_marker();
 
   chip->rx_substream = NULL;
-  
+  if (!--chip->reference)
+	bf53x_sport_stop(chip->sport);
+ 
   return 0;
 }
 
@@ -1209,13 +1220,13 @@ static int snd_ad1836_trigger( snd_pcm_substream_t* substream, int cmd){
   case SNDRV_PCM_TRIGGER_STOP:
     if( substream == chip->rx_substream ) {
       chip->runmode &= ~RUN_RX;
-      bf53x_sport_config_rx_dma( chip->sport, dummy_buf_rx , 2, DUMMY_BUF_LEN/2);
+      sport_config_rx_dummy(chip->sport);
       bf53x_sport_hook_rx_desc(chip->sport);
 /*      printk("stop rx\n");*/
     }
     else if( substream == chip->tx_substream ) {
       chip->runmode &= ~RUN_TX;
-      bf53x_sport_config_tx_dma( chip->sport, dummy_buf_tx , 2, DUMMY_BUF_LEN/2);
+      sport_config_tx_dummy(chip->sport);
       bf53x_sport_hook_tx_desc(chip->sport);
 /*      printk("stop tx\n");*/
     }
@@ -1473,6 +1484,51 @@ static int snd_bf53x_adi1836_reset(ad1836_t *chip)
   return 0;
 }
 
+static int snd_ad1836_startup(ad1836_t *chip)
+{
+	int err;
+	struct bf53x_sport *sport= chip->sport;
+
+	snd_bf53x_adi1836_reset(chip);
+
+	/* see if we are connected by writing (preferably something useful)
+	 * to the chip, and see if we get an IRQ */
+
+	/* sport in aux/slave mode cf daughtercard schematics */
+	err = snd_ad1836_set_register(chip, ADC_CTRL_2, (ADC_AUX_MASTER|ADC_SOUT_MASK),  
+			( /*ADC_AUX_MASTER|*/ ADC_SOUT_PMAUX));  
+	err = err || snd_ad1836_set_register(chip, DAC_CTRL_1, DAC_PWRDWN, 0);  /* power-up DAC's */
+	err = err || snd_ad1836_set_register(chip, ADC_CTRL_1, ADC_PRWDWN, 0);  /* power-up ADC's */
+
+	/* set volume to full scale, (you might assume these won't fail anymore) */
+	err = err || snd_ad1836_set_register(chip, DAC_VOL_1L, DAC_VOL_MASK, DAC_VOL_MASK);
+	err = err || snd_ad1836_set_register(chip, DAC_VOL_1R, DAC_VOL_MASK, DAC_VOL_MASK);
+	err = err || snd_ad1836_set_register(chip, DAC_VOL_2L, DAC_VOL_MASK, DAC_VOL_MASK);
+	err = err || snd_ad1836_set_register(chip, DAC_VOL_2R, DAC_VOL_MASK, DAC_VOL_MASK);
+	err = err || snd_ad1836_set_register(chip, DAC_VOL_3L, DAC_VOL_MASK, DAC_VOL_MASK);
+	err = err || snd_ad1836_set_register(chip, DAC_VOL_3R, DAC_VOL_MASK, DAC_VOL_MASK);
+
+	if(err){
+		snd_printk( KERN_ERR "Unable to set chip registers.\n");    
+		snd_ad1836_free(chip);
+		return -ENODEV;
+	}
+	bf53x_sport_stop(sport);
+	err = err || bf53x_sport_config_rx(sport, RFSR, 0x1f /* 32 bit word len */, 0, 0 );
+	err = err || bf53x_sport_config_tx(sport, TFSR, 0x1f /* 32 bit word len */, 0, 0 );
+	err = err || bf53x_sport_set_multichannel(sport, 8 /* channels */, 1 /* packed */ );
+	err = err || sport_config_rx_dummy( sport);
+	err = err || sport_config_tx_dummy( sport );
+
+	if(err)
+		snd_printk( KERN_ERR "Unable to set sport configuration\n");
+	else
+		bf53x_sport_start(sport);
+
+	return err;
+}
+
+
 
 /* create the card struct, 
  *   add - low-level device, 
@@ -1502,6 +1558,7 @@ static int __devinit snd_ad1836_create(snd_card_t *card,
   chip->card  = card;
   chip->spi   = spi;
   chip->sport = sport;
+  chip->reference = 0;
   
   init_waitqueue_head(&chip->spi_waitq);
   
@@ -1529,78 +1586,19 @@ static int __devinit snd_ad1836_create(snd_card_t *card,
   for(i=ADC_PEAK_1L; i<=ADC_PEAK_2R; ++i)
     chip->chip_registers[i] |= ADC_READ;
   
-  snd_bf53x_adi1836_reset(chip);
-
-  /* see if we are connected by writing (preferably something useful)
-   * to the chip, and see if we get an IRQ */
-  
-  /* sport in aux/slave mode cf daughtercard schematics */
-  err = snd_ad1836_set_register(chip, ADC_CTRL_2, (ADC_AUX_MASTER|ADC_SOUT_MASK),  
-				                  ( /*ADC_AUX_MASTER|*/ ADC_SOUT_PMAUX));  
-  err = err || snd_ad1836_set_register(chip, DAC_CTRL_1, DAC_PWRDWN, 0);  /* power-up DAC's */
-  err = err || snd_ad1836_set_register(chip, ADC_CTRL_1, ADC_PRWDWN, 0);  /* power-up ADC's */
-  
-  /* set volume to full scale, (you might assume these won't fail anymore) */
-  err = err || snd_ad1836_set_register(chip, DAC_VOL_1L, DAC_VOL_MASK, DAC_VOL_MASK);
-  err = err || snd_ad1836_set_register(chip, DAC_VOL_1R, DAC_VOL_MASK, DAC_VOL_MASK);
-  err = err || snd_ad1836_set_register(chip, DAC_VOL_2L, DAC_VOL_MASK, DAC_VOL_MASK);
-  err = err || snd_ad1836_set_register(chip, DAC_VOL_2R, DAC_VOL_MASK, DAC_VOL_MASK);
-  err = err || snd_ad1836_set_register(chip, DAC_VOL_3L, DAC_VOL_MASK, DAC_VOL_MASK);
-  err = err || snd_ad1836_set_register(chip, DAC_VOL_3R, DAC_VOL_MASK, DAC_VOL_MASK);
-
-  chip->poll_reg = ADC_PEAK_1L;
-  
-  if(err){
-    snd_printk( KERN_ERR "Unable to set chip registers.\n");    
-    snd_ad1836_free(chip);
-    return -ENODEV;
-  }
-
 #if L1_DATA_A_LENGTH != 0
-  if((dummy_buf_tx=(unsigned long *)l1_data_A_sram_alloc(DUMMY_BUF_LEN))==NULL) {
+  if ((sport->dummy_buf_rx=l1_data_A_sram_alloc(DUMMY_BUF_LEN*2)) == 0) {
 #else
-  if((dummy_buf_tx=(unsigned long *)kmalloc(DUMMY_BUF_LEN, GFP_KERNEL))==NULL) {
+  if ((sport->dummy_buf_rx=(unsigned long)kmalloc(DUMMY_BUF_LEN*2, GFP_KERNEL)) == NULL) {
 #endif
-    snd_printk( KERN_ERR "Unable to allocate dummy tx buffer\n");
-    snd_ad1836_free(chip);
-    return -ENODEV;
+	snd_printk( KERN_ERR "Unable to allocate dummy buffer in sram\n");
+	snd_ad1836_free(chip);
+	return -ENODEV;
+  } else {
+	snd_printd(KERN_INFO "sport->dummy_buf:0x%lx\n", sport->dummy_buf_rx);
   }
-#if L1_DATA_A_LENGTH != 0
-  if((dummy_buf_rx=(unsigned long *)l1_data_A_sram_alloc(DUMMY_BUF_LEN))==NULL) {
-#else
-  if((dummy_buf_rx=(unsigned long *)kmalloc(DUMMY_BUF_LEN, GFP_KERNEL))==NULL) {
-#endif
-    snd_printk( KERN_ERR "Unable to allocate dummy rx buffer\n");
-#if L1_DATA_A_LENGTH != 0
-    l1_data_A_sram_free((unsigned long)dummy_buf_tx);
-#else
-    kfree(dummy_buf_tx);
-#endif
-    snd_ad1836_free(chip);
-    return -ENODEV;
-  }
-
-  memset(dummy_buf_tx, DUMMY_BUF_LEN, 0);
-  bf53x_sport_stop(sport);
-  err = 0;
-  err = err || bf53x_sport_config_rx(sport, RFSR, 0x1f /* 32 bit word len */, 0, 0 );
-  err = err || bf53x_sport_config_tx(sport, TFSR, 0x1f /* 32 bit word len */, 0, 0 );
-  err = err || bf53x_sport_set_multichannel(sport, 8 /* channels */, 1 /* packed */ );
-  err = err || bf53x_sport_config_rx_dma( sport, dummy_buf_rx , 2, DUMMY_BUF_LEN/2 );
-  err = err || bf53x_sport_config_tx_dma( sport, dummy_buf_tx , 2, DUMMY_BUF_LEN/2 );
-  
-  if(err){
-    snd_printk( KERN_ERR "Unable to set sport configuration\n");
-#if L1_DATA_A_LENGTH != 0
-    l1_data_A_sram_free((unsigned long)dummy_buf_tx);
-    l1_data_A_sram_free((unsigned long)dummy_buf_rx);
-#else
-    kfree(dummy_buf_tx);
-    kfree(dummy_buf_rx);
-#endif
-    snd_ad1836_free(chip);
-    return -ENODEV;
-  }
+  sport->dummy_buf_tx = sport->dummy_buf_rx + DUMMY_BUF_LEN;
+  memset((void*)sport->dummy_buf_rx, DUMMY_BUF_LEN * 2, 0);
 
   /* set the chan mask of the output stream */
   ad1836_set_chan_masks(chip, "0123", 1);
@@ -1703,10 +1701,8 @@ static int __devinit snd_ad1836_create(snd_card_t *card,
   if(err) {
     bf53x_sport_stop(sport);
 #if L1_DATA_A_LENGTH != 0
-    l1_data_A_sram_free((unsigned long)dummy_buf_tx);
-    l1_data_A_sram_free((unsigned long)dummy_buf_rx);
+    l1_data_A_sram_free((unsigned long)sport->dummy_buf_rx);
 #else
-    kfree(dummy_buf_tx);
     kfree(dummy_buf_rx);
 #endif
     snd_ad1836_free(chip);
