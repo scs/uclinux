@@ -35,7 +35,7 @@
 #define __ll_lowpart(t) ((usitype) (t) % __ll_b)
 #define __ll_highpart(t) ((usitype) (t) / __ll_b)
 #define BITS_PER_UNIT 8
-	
+
 #if !defined (umul_ppmm)
 #define umul_ppmm(w1, w0, u, v)						\
   do {									\
@@ -69,29 +69,28 @@
            __w.ll; })
 #endif
 
-typedef unsigned int usitype    __attribute__ ((mode (SI)));
-typedef		 int sitype     __attribute__ ((mode (SI)));
-typedef		 int ditype     __attribute__ ((mode (DI)));
-typedef		 int word_type  __attribute__ ((mode (__word__)));
+typedef unsigned int usitype __attribute__ ((mode(SI)));
+typedef int sitype __attribute__ ((mode(SI)));
+typedef int ditype __attribute__ ((mode(DI)));
+typedef int word_type __attribute__ ((mode(__word__)));
 
-struct distruct {sitype low, high;};
-typedef union
+struct distruct {
+	sitype low, high;
+};
+typedef union {
+	struct distruct s;
+	ditype ll;
+} diunion;
+
+ditype __muldi3(ditype u, ditype v)
 {
-  struct distruct s;
-  ditype ll;
-} diunion; 
+	diunion w;
+	diunion uu, vv;
 
-ditype __muldi3 (ditype u, ditype v)
-{
-  diunion w;
-  diunion uu, vv;
- 
-  uu.ll = u,
-  vv.ll = v;
-  w.ll = __umulsidi3 (uu.s.low, vv.s.low); 
-  w.s.high += ((usitype) uu.s.low * (usitype) vv.s.high
-             + (usitype) uu.s.high * (usitype) vv.s.low);
- 
-  return w.ll;
-} 
+	uu.ll = u, vv.ll = v;
+	w.ll = __umulsidi3(uu.s.low, vv.s.low);
+	w.s.high += ((usitype) uu.s.low * (usitype) vv.s.high
+		     + (usitype) uu.s.high * (usitype) vv.s.low);
 
+	return w.ll;
+}

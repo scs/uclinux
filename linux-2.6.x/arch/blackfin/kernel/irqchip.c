@@ -187,7 +187,7 @@ EXPORT_SYMBOL(disable_irq_wake);
 
 int show_interrupts(struct seq_file *p, void *v)
 {
-	int i = *(loff_t *)v;
+	int i = *(loff_t *) v;
 	struct irqaction *action;
 	unsigned long flags;
 

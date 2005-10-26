@@ -1,34 +1,33 @@
  /*
- * File:        arch/blackfin/mach-common/bf5xx_rtc.c
- * Based on:    
- * Author:      unknown
- *              COPYRIGHT 2005 Analog Devices
- * Created:     ?
- * Description: real time clock support
- *
- * Rev:          $Id$ 
- *
- * Modified:
- *
- *
- * Bugs:         Enter bugs at http://blackfin.uclinux.org/
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2, or (at your option)
- * any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; see the file COPYING.
- * If not, write to the Free Software Foundation,
- * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
- */
-
+  * File:        arch/blackfin/mach-common/bf5xx_rtc.c
+  * Based on:    
+  * Author:      unknown
+  *              COPYRIGHT 2005 Analog Devices
+  * Created:     ?
+  * Description: real time clock support
+  *
+  * Rev:          $Id$ 
+  *
+  * Modified:
+  *
+  *
+  * Bugs:         Enter bugs at http://blackfin.uclinux.org/
+  *
+  * This program is free software; you can redistribute it and/or modify
+  * it under the terms of the GNU General Public License as published by
+  * the Free Software Foundation; either version 2, or (at your option)
+  * any later version.
+  *
+  * This program is distributed in the hope that it will be useful,
+  * but WITHOUT ANY WARRANTY; without even the implied warranty of
+  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  * GNU General Public License for more details.
+  *
+  * You should have received a copy of the GNU General Public License
+  * along with this program; see the file COPYING.
+  * If not, write to the Free Software Foundation,
+  * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+  */
 
 #include <asm/blackfin.h>
 #include <asm/bf5xx_rtc.h>
@@ -47,13 +46,12 @@
 #define MIN_BITS_OFF    6
 #define SEC_BITS_OFF    0
 
-
 static void wait_for_complete(void);
 
 /* Initialize the RTC. Enable pre-scaler to scale RTC clock to 1Hz. */
 int rtc_init()
 {
-	*(volatile unsigned short *) RTC_PREN = 0x1;
+	*(volatile unsigned short *)RTC_PREN = 0x1;
 	wait_for_complete();
 	return 0;
 }
@@ -62,27 +60,27 @@ int rtc_init()
 int rtc_set(time_t time_in_secs)
 {
 	unsigned long n_days_1970 = 0;
-	unsigned long n_secs_rem  = 0;
-	unsigned long n_hrs	  = 0;
-	unsigned long n_mins	  = 0;
-	unsigned long n_secs	  = 0;
+	unsigned long n_secs_rem = 0;
+	unsigned long n_hrs = 0;
+	unsigned long n_mins = 0;
+	unsigned long n_secs = 0;
 
 	/* Compute no. of days since 1970 */
-	n_days_1970 = (unsigned long) (time_in_secs / (NUM_SECS_IN_DAY));
+	n_days_1970 = (unsigned long)(time_in_secs / (NUM_SECS_IN_DAY));
 
 	/* From the remining secs, compute the hrs(0-23), mins(0-59) 
 	 * and secs(0-59) 
 	 */
 	n_secs_rem = (unsigned long)(time_in_secs % (NUM_SECS_IN_DAY));
-	n_hrs 	= n_secs_rem / (NUM_SECS_IN_HOUR);
+	n_hrs = n_secs_rem / (NUM_SECS_IN_HOUR);
 	n_secs_rem = n_secs_rem % (NUM_SECS_IN_HOUR);
 	n_mins = n_secs_rem / (NUM_SECS_IN_MIN);
 	n_secs = n_secs_rem % (NUM_SECS_IN_MIN);
 
 	/* Store the new time in the RTC_STAT register */
-	*(volatile unsigned long *) RTC_STAT =
-		((n_days_1970 << DAY_BITS_OFF) | (n_hrs << HOUR_BITS_OFF) |
-		(n_mins << MIN_BITS_OFF) | (n_secs << SEC_BITS_OFF));
+	*(volatile unsigned long *)RTC_STAT =
+	    ((n_days_1970 << DAY_BITS_OFF) | (n_hrs << HOUR_BITS_OFF) |
+	     (n_mins << MIN_BITS_OFF) | (n_secs << SEC_BITS_OFF));
 
 	wait_for_complete();
 	return 0;
@@ -91,19 +89,18 @@ int rtc_set(time_t time_in_secs)
 /* Read the time from the RTC_STAT. 
  * time_in_seconds is seconds since Jan 1970 
  */
-int rtc_get(time_t *time_in_seconds)
+int rtc_get(time_t * time_in_seconds)
 {
 	unsigned long cur_rtc_stat = 0;
-	int tm_sec = 0, tm_min = 0, tm_hour = 0, tm_day = 0; 
+	int tm_sec = 0, tm_min = 0, tm_hour = 0, tm_day = 0;
 
-	if ( time_in_seconds == NULL )
-	{
+	if (time_in_seconds == NULL) {
 		return -1;
-	} 
-	
+	}
+
 	/* Read the RTC_STAT register */
-	cur_rtc_stat = *(volatile unsigned long *) RTC_STAT;
-	
+	cur_rtc_stat = *(volatile unsigned long *)RTC_STAT;
+
 	/* Get the secs (0-59), mins (0-59), hrs (0-23) and the days 
 	 * since Jan 1970
 	 */
@@ -113,10 +110,8 @@ int rtc_get(time_t *time_in_seconds)
 	tm_day = (cur_rtc_stat >> DAY_BITS_OFF) & 0x7fff;
 
 	/* Calculate the total number of seconds since Jan 1970 */
-	*(time_in_seconds) = 	(tm_sec) + 
-					MIN_TO_SECS(tm_min) + 
-						HRS_TO_SECS(tm_hour) + 
-							DAYS_TO_SECS(tm_day);
+	*(time_in_seconds) = (tm_sec) +
+	    MIN_TO_SECS(tm_min) + HRS_TO_SECS(tm_hour) + DAYS_TO_SECS(tm_day);
 
 	/* a time_t greater than "7FFF FFFF" would be treated as negative 
 	 * manywhere,so we just reset it.
@@ -127,19 +122,19 @@ int rtc_get(time_t *time_in_seconds)
 	 *   3. Many many years passed after user sets it!  
 	 */
 	if ((unsigned long)(*(time_in_seconds)) >= 0x7FFFFFFF) {
-	  *(volatile unsigned long *) RTC_STAT = 0;
-	  *(time_in_seconds) = 0;
-	  wait_for_complete();
+		*(volatile unsigned long *)RTC_STAT = 0;
+		*(time_in_seconds) = 0;
+		wait_for_complete();
 	}
-	
+
 	return 0;
 }
 
 /* Wait for the previous write to a RTC register to complete */
 static void wait_for_complete(void)
 {
-	while (!(*(volatile unsigned short *) RTC_ISTAT & 0x8000)) {
-		/*printk("");*/
+	while (!(*(volatile unsigned short *)RTC_ISTAT & 0x8000)) {
+		/*printk(""); */
 	}
-	*(volatile unsigned short *) RTC_ISTAT = 0x8000;
+	*(volatile unsigned short *)RTC_ISTAT = 0x8000;
 }

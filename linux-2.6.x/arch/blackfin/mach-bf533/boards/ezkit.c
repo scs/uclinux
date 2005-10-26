@@ -37,7 +37,7 @@
 /*
  * Name the Board for the /proc/cpuinfo
  */
-char * bfin_board_name = "ADDS-BF533-EZKIT";
+char *bfin_board_name = "ADDS-BF533-EZKIT";
 
 /*
  *  USB-LAN EzExtender board
@@ -45,39 +45,40 @@ char * bfin_board_name = "ADDS-BF533-EZKIT";
  */
 static struct resource smc91x_resources[] = {
 	[0] = {
-		.start	= 0x20310300,
-		.end	= 0x20310300 + 16,
-		.flags	= IORESOURCE_MEM,
-	},
+	       .start = 0x20310300,
+	       .end = 0x20310300 + 16,
+	       .flags = IORESOURCE_MEM,
+	       },
 	[1] = {
-		.start	= IRQ_PROG_INTB,
-		.end	= IRQ_PROG_INTB,
-		.flags	= IORESOURCE_IRQ|IORESOURCE_IRQ_HIGHLEVEL,
-	},
+	       .start = IRQ_PROG_INTB,
+	       .end = IRQ_PROG_INTB,
+	       .flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL,
+	       },
 	[2] = {
-		/*
-		 *  denotes the flag pin and is used directly if
-		 *  CONFIG_IRQCHIP_DEMUX_GPIO is defined.
-		 */
-		.start	= IRQ_PF9,
-		.end	= IRQ_PF9,
-		.flags	= IORESOURCE_IRQ|IORESOURCE_IRQ_HIGHLEVEL,
-	},
+	       /*
+	        *  denotes the flag pin and is used directly if
+	        *  CONFIG_IRQCHIP_DEMUX_GPIO is defined.
+	        */
+	       .start = IRQ_PF9,
+	       .end = IRQ_PF9,
+	       .flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL,
+	       },
 };
 static struct platform_device smc91x_device = {
-	.name		= "smc91x",
-	.id		= 0,
-	.num_resources	= ARRAY_SIZE(smc91x_resources),
-	.resource	= smc91x_resources,
+	.name = "smc91x",
+	.id = 0,
+	.num_resources = ARRAY_SIZE(smc91x_resources),
+	.resource = smc91x_resources,
 };
 
 static struct platform_device *ezkit_devices[] __initdata = {
-        &smc91x_device,
+	&smc91x_device,
 };
 
 static int __init ezkit_init(void)
 {
 	printk("%s(): registering device resources\n", __FUNCTION__);
-        return platform_add_devices(ezkit_devices, ARRAY_SIZE(ezkit_devices));
+	return platform_add_devices(ezkit_devices, ARRAY_SIZE(ezkit_devices));
 }
+
 arch_initcall(ezkit_init);

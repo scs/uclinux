@@ -1,13 +1,13 @@
 /*
  * File:         arch/blackfin/mm/init.c
- * Based on:    
- * Author:     
- *            
- * Created:  
- * Description:  
+ * Based on:
+ * Author:
+ *
+ * Created:
+ * Description:
  * Rev:          $Id$
  *
- * Modified:    
+ * Modified:
  *               Copyright 2004-2005 Analog Devices Inc.
  *
  * Bugs:         Enter bugs at http://blackfin.uclinux.org/
@@ -34,8 +34,8 @@
 #undef DEBUG
 
 extern void free_initmem(void);
-extern void l1sram_init(void);	
-extern void l1_data_A_sram_init(void);	
+extern void l1sram_init(void);
+extern void l1_data_A_sram_init(void);
 
 /*
  * BAD_PAGE is the page that is used for page faults when linux
@@ -58,29 +58,29 @@ unsigned long empty_zero_page;
 
 void show_mem(void)
 {
-    unsigned long i;
-    int free = 0, total = 0, reserved = 0, shared = 0;
+	unsigned long i;
+	int free = 0, total = 0, reserved = 0, shared = 0;
 
-    int cached = 0;
-    printk(KERN_INFO "\nMem-info:\n");
-    show_free_areas();
-        i = max_mapnr;
- 	while (i-- > 0) {
+	int cached = 0;
+	printk(KERN_INFO "\nMem-info:\n");
+	show_free_areas();
+	i = max_mapnr;
+	while (i-- > 0) {
 		total++;
-		if (PageReserved(mem_map+i))
-		    reserved++;
-		else if (PageSwapCache(mem_map+i))
-		    cached++;
-		else if (!page_count(mem_map+i))
-	    	    free++;
+		if (PageReserved(mem_map + i))
+			reserved++;
+		else if (PageSwapCache(mem_map + i))
+			cached++;
+		else if (!page_count(mem_map + i))
+			free++;
 		else
-	    	    shared += page_count(mem_map+i) - 1;
-    	}
-    	printk(KERN_INFO "%d pages of RAM\n",total);
-    	printk(KERN_INFO "%d free pages\n",free);
-    	printk(KERN_INFO "%d reserved pages\n",reserved);
-    	printk(KERN_INFO "%d pages shared\n",shared);
-    	printk(KERN_INFO "%d pages swap cached\n",cached);
+			shared += page_count(mem_map + i) - 1;
+	}
+	printk(KERN_INFO "%d pages of RAM\n", total);
+	printk(KERN_INFO "%d free pages\n", free);
+	printk(KERN_INFO "%d reserved pages\n", reserved);
+	printk(KERN_INFO "%d pages shared\n", shared);
+	printk(KERN_INFO "%d pages swap cached\n", cached);
 }
 
 extern unsigned long memory_start;
@@ -101,11 +101,10 @@ void paging_init(void)
 #ifdef DEBUG
 	unsigned long start_mem = PAGE_ALIGN(memory_start);
 #endif
-	unsigned long end_mem   = memory_end & PAGE_MASK;
+	unsigned long end_mem = memory_end & PAGE_MASK;
 
 #ifdef DEBUG
-	printk ("start_mem is %#lx\nvirtual_end is %#lx\n",
-		start_mem, end_mem);
+	printk("start_mem is %#lx\nvirtual_end is %#lx\n", start_mem, end_mem);
 #endif
 
 	/*
@@ -120,15 +119,16 @@ void paging_init(void)
 	/*
 	 * Set up SFC/DFC registers (user data space)
 	 */
-	set_fs (USER_DS);
+	set_fs(USER_DS);
 
 #ifdef DEBUG
-	printk (KERN_DEBUG "free_area_init -> start_mem is %#lx  virtual_end is %#lx\n",
-		start_mem, end_mem);
+	printk(KERN_DEBUG
+	       "free_area_init -> start_mem is %#lx  virtual_end is %#lx\n",
+	       start_mem, end_mem);
 #endif
 
 	{
-		unsigned long zones_size[MAX_NR_ZONES] = {0, 0, 0};
+		unsigned long zones_size[MAX_NR_ZONES] = { 0, 0, 0 };
 
 		zones_size[ZONE_DMA] = 0;
 		zones_size[ZONE_NORMAL] = (end_mem - PAGE_OFFSET) >> PAGE_SHIFT;
@@ -144,13 +144,13 @@ void mem_init(void)
 	unsigned int codek = 0, datak = 0, initk = 0;
 	unsigned long tmp;
 	extern char _etext, _stext, _sdata, _ebss, __init_begin, __init_end;
-	extern unsigned int _ramend, _rambase; 
-	unsigned int len = _ramend - _rambase; 
+	extern unsigned int _ramend, _rambase;
+	unsigned int len = _ramend - _rambase;
 	unsigned long start_mem = memory_start;
-	unsigned long end_mem   = memory_end;
+	unsigned long end_mem = memory_end;
 
 	end_mem &= PAGE_MASK;
-	high_memory = (void *) end_mem;
+	high_memory = (void *)end_mem;
 
 	start_mem = PAGE_ALIGN(start_mem);
 	max_mapnr = num_physpages = MAP_NR(high_memory);
@@ -164,17 +164,13 @@ void mem_init(void)
 	initk = (&__init_end - &__init_begin) >> 10;
 
 	tmp = nr_free_pages() << PAGE_SHIFT;
-	printk("Memory available: %luk/%uk RAM, (%uk init code, %uk kernel code, %uk data, %luk dma)\n",
-	       tmp >> 10,
-	       len >> 10,
-	       initk,
-	       codek,
-	       datak,
-	       (_ramend - memory_end) >> 10
-	       );
-	/*Initialize the blackfin L1 Memory*/
-	l1sram_init();	
-	l1_data_A_sram_init();	
+	printk
+	    ("Memory available: %luk/%uk RAM, (%uk init code, %uk kernel code, %uk data, %luk dma)\n",
+	     tmp >> 10, len >> 10, initk, codek, datak,
+	     (_ramend - memory_end) >> 10);
+	/*Initialize the blackfin L1 Memory */
+	l1sram_init();
+	l1_data_A_sram_init();
 }
 
 #ifdef CONFIG_BLK_DEV_INITRD
@@ -188,12 +184,11 @@ void free_initrd_mem(unsigned long start, unsigned long end)
 		totalram_pages++;
 		pages++;
 	}
-	printk (KERN_NOTICE "Freeing initrd memory: %dk freed\n", pages);
+	printk(KERN_NOTICE "Freeing initrd memory: %dk freed\n", pages);
 }
 #endif
 
-void
-free_initmem()
+void free_initmem()
 {
 #ifdef CONFIG_RAMKERNEL
 	unsigned long addr;
@@ -204,15 +199,17 @@ free_initmem()
  */
 	addr = PAGE_ALIGN((unsigned long)(&__init_begin));
 	/* next to check that the page we free is not a partial page */
-	for (; addr + PAGE_SIZE < (unsigned long)(&__init_end); addr +=PAGE_SIZE) {
+	for (; addr + PAGE_SIZE < (unsigned long)(&__init_end);
+	     addr += PAGE_SIZE) {
 		ClearPageReserved(virt_to_page(addr));
 		set_page_count(virt_to_page(addr), 1);
 		free_page(addr);
 		totalram_pages++;
 	}
-	printk(KERN_NOTICE "Freeing unused kernel memory: %ldk freed (0x%x - 0x%x)\n",
-			(addr - PAGE_ALIGN((long) &__init_begin)) >> 10,
-			(int)(PAGE_ALIGN((unsigned long)(&__init_begin))),
-			(int)(addr - PAGE_SIZE));
+	printk(KERN_NOTICE
+	       "Freeing unused kernel memory: %ldk freed (0x%x - 0x%x)\n",
+	       (addr - PAGE_ALIGN((long)&__init_begin)) >> 10,
+	       (int)(PAGE_ALIGN((unsigned long)(&__init_begin))),
+	       (int)(addr - PAGE_SIZE));
 #endif
 }

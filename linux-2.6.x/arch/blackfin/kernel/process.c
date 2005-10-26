@@ -89,13 +89,13 @@ void machine_restart(char *__unused)
 void machine_halt(void)
 {
 	for (;;)
-		/* nothing */;
+		/* nothing */ ;
 }
 
 void machine_power_off(void)
 {
 	for (;;)
-		/* nothing */;
+		/* nothing */ ;
 }
 
 void show_regs(struct pt_regs *regs)

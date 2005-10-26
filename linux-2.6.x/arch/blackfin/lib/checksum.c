@@ -1,16 +1,15 @@
 /*
  * File:         arch/blackfin/lib/checksum.c
  * Based on:     none - original work
- * Author:       
- *               
- * Created:      
+ * Author:
+ * Created:
  * Description:  An implementation of the TCP/IP protocol suite for the LINUX
  *               operating system.  INET is implemented using the  BSD Socket
- *               interface as the means of communication with the user level. 
- *              
+ *               interface as the means of communication with the user level.
+ *
  * Rev:          $Id$
  *
- * Modified:     
+ * Modified:
  *               Copyright 2004-2005 Analog Devices Inc.
  *
  * Bugs:         Enter bugs at http://blackfin.uclinux.org/
@@ -33,35 +32,36 @@
 #include <net/checksum.h>
 #include <asm/checksum.h>
 
-static unsigned short do_csum(const unsigned char* buff, int len){
-  
-  register unsigned long sum = 0;
-  int swappem=0;
+static unsigned short do_csum(const unsigned char *buff, int len)
+{
 
-  if( 1 & (unsigned long)buff ){
-    sum = *buff << 8;
-    buff++;
-    len--;
-    ++swappem;
-  }
+	register unsigned long sum = 0;
+	int swappem = 0;
 
-  while( len > 1 )  {
-    sum  += *(unsigned short*)buff;
-    buff += 2;
-    len  -= 2;
-  }
-  
-  if( len > 0 )
-    sum += *buff;
-  
-  /*  Fold 32-bit sum to 16 bits */
-  while (sum>>16)
-    sum = (sum & 0xffff) + (sum >> 16);
-  
-  if(swappem) 
-    sum = ((sum & 0xff00)>>8) + ((sum & 0x00ff)<<8);
+	if (1 & (unsigned long)buff) {
+		sum = *buff << 8;
+		buff++;
+		len--;
+		++swappem;
+	}
 
-  return sum;
+	while (len > 1) {
+		sum += *(unsigned short *)buff;
+		buff += 2;
+		len -= 2;
+	}
+
+	if (len > 0)
+		sum += *buff;
+
+	/*  Fold 32-bit sum to 16 bits */
+	while (sum >> 16)
+		sum = (sum & 0xffff) + (sum >> 16);
+
+	if (swappem)
+		sum = ((sum & 0xff00) >> 8) + ((sum & 0x00ff) << 8);
+
+	return sum;
 
 }
 
@@ -69,9 +69,9 @@ static unsigned short do_csum(const unsigned char* buff, int len){
  *	This is a version of ip_compute_csum() optimized for IP headers,
  *	which always checksum on 4 octet boundaries.
  */
-unsigned short ip_fast_csum(unsigned char * iph, unsigned int ihl)
+unsigned short ip_fast_csum(unsigned char *iph, unsigned int ihl)
 {
-	return ~do_csum(iph,ihl*4);
+	return ~do_csum(iph, ihl * 4);
 }
 
 /*
@@ -86,12 +86,12 @@ unsigned short ip_fast_csum(unsigned char * iph, unsigned int ihl)
  *
  * it's best to have buff aligned on a 32-bit boundary
  */
-unsigned int csum_partial(const unsigned char * buff, int len, unsigned int sum)
+unsigned int csum_partial(const unsigned char *buff, int len, unsigned int sum)
 {
 
 	/* printk(KERN_INFO "csum_partial(%p, %i, %i)", buff, len, sum); */
 
-	sum += do_csum(buff,len);
+	sum += do_csum(buff, len);
 
 	sum = (sum & 0xffff) + (sum >> 16);
 
@@ -104,9 +104,9 @@ unsigned int csum_partial(const unsigned char * buff, int len, unsigned int sum)
  * this routine is used for miscellaneous IP-like checksums, mainly
  * in icmp.c
  */
-unsigned short ip_compute_csum(const unsigned char * buff, int len)
+unsigned short ip_compute_csum(const unsigned char *buff, int len)
 {
-	return ~do_csum(buff,len);
+	return ~do_csum(buff, len);
 }
 
 /*
@@ -115,9 +115,10 @@ unsigned short ip_compute_csum(const unsigned char * buff, int len)
 
 unsigned int
 csum_partial_copy_from_user(const unsigned char *src, unsigned char *dst,
-					 int len, int sum, int *csum_err)
+			    int len, int sum, int *csum_err)
 {
-	if (csum_err) *csum_err = 0;
+	if (csum_err)
+		*csum_err = 0;
 	memcpy(dst, src, len);
 	return csum_partial(dst, len, sum);
 }
@@ -126,8 +127,7 @@ csum_partial_copy_from_user(const unsigned char *src, unsigned char *dst,
  * copy from ds while checksumming, otherwise like csum_partial
  */
 
-unsigned int
-csum_partial_copy(const char *src, char *dst, int len, int sum)
+unsigned int csum_partial_copy(const char *src, char *dst, int len, int sum)
 {
 	memcpy(dst, src, len);
 	return csum_partial(dst, len, sum);

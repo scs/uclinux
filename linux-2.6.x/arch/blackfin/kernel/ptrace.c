@@ -153,7 +153,7 @@ static inline long get_reg(struct task_struct *task, int regno)
 		return regs->syscfg;
 	case PT_SEQSTAT:
 		return regs->seqstat;
-		/*case PT_RETE : return task->mm->start_code + TEXT_OFFSET;*/
+		/*case PT_RETE : return task->mm->start_code + TEXT_OFFSET; */
 	case PT_RETE:
 		return regs->rete;
 	case PT_RETN:
@@ -245,10 +245,10 @@ put_reg(struct task_struct *task, int regno, unsigned long data)
 		regs->orig_pc = data;
 		break;
 	case PT_PC:
-                /*********************************************************************/
-                /* At this point the kernel is most likely in exception.             */
-                /* The RETX register will be used to populate the pc of the process. */
-                /*********************************************************************/
+		/*********************************************************************/
+		/* At this point the kernel is most likely in exception.             */
+		/* The RETX register will be used to populate the pc of the process. */
+		/*********************************************************************/
 		regs->retx = data;
 		regs->pc = data;
 		break;

@@ -29,7 +29,6 @@
  * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
-
 /*
  * ++roman (07/09/96): implemented signal stacks (specially for tosemu on
  * Atari :-) Current limitation: Only one sigstack can be active at one time.

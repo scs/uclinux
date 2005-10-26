@@ -98,7 +98,6 @@ void __init bf53x_cache_init(void)
 #endif
 }
 
-
 int DmaMemCpy(char *dest_addr, char *source_addr, unsigned short size);
 int DmaMemCpy16(char *dest_addr, char *source_addr, int size);
 
@@ -186,33 +185,33 @@ void __init setup_arch(char **cmdline_p)
 	memory_end -= (256 * 1024);
 #endif
 
-    memory_mtd_end = memory_end;
+	memory_mtd_end = memory_end;
 
 #if defined(CONFIG_MTD_UCLINUX)
 /* generic memory mapped MTD driver */
-	mtd_phys = (unsigned long) &_ebss;
+	mtd_phys = (unsigned long)&_ebss;
 	mtd_size = PAGE_ALIGN(*((unsigned long *)(mtd_phys + 8)));
 
 #if defined(CONFIG_EXT2_FS) || defined(CONFIG_EXT3_FS)
 	mtd_size = PAGE_ALIGN(*((unsigned long *)(mtd_phys + 0x404)) << 10);
 #endif
 
-    memory_end -= mtd_size;
+	memory_end -= mtd_size;
 
-    /* Relocate MTD image to the top of memory after the uncached memory area */
-    DmaMemCpy16((char *)memory_end, &_ebss, mtd_size);
+	/* Relocate MTD image to the top of memory after the uncached memory area */
+	DmaMemCpy16((char *)memory_end, &_ebss, mtd_size);
 
-    _ramstart = mtd_phys;
+	_ramstart = mtd_phys;
 
-#endif /*defined(CONFIG_MTD_UCLINUX) && defined(CONFIG_ROOTFS_TIED_TO_KERNEL)*/
+#endif				/*defined(CONFIG_MTD_UCLINUX) && defined(CONFIG_ROOTFS_TIED_TO_KERNEL) */
 
-    memory_mtd_start = memory_end;
-    memory_start = PAGE_ALIGN(_ramstart);
+	memory_mtd_start = memory_end;
+	memory_start = PAGE_ALIGN(_ramstart);
 
 #if defined(CONFIG_BLKFIN_CACHE)
 /* Due to a Hardware Anomaly we need to limit the size of usable instruction memory to max 60MB */
-   if (memory_end >= 60 * 1024 * 1024)
-     memory_end = 60 * 1024 * 1024;
+	if (memory_end >= 60 * 1024 * 1024)
+		memory_end = 60 * 1024 * 1024;
 #endif
 
 	init_mm.start_code = (unsigned long)&_stext;
@@ -240,8 +239,9 @@ void __init setup_arch(char **cmdline_p)
 	printk
 	    ("Memory map:\n  text = 0x%06x-0x%06x\n  data = 0x%06x-0x%06x\n  bss  = 0x%06x-0x%06x\n  rootfs = 0x%06x-0x%06x\n  stack = 0x%06x-0x%06x\n",
 	     (int)&_stext, (int)&_etext, (int)&_sdata, (int)&_edata,
-	     (int)&_sbss, (int)&_ebss, (int)memory_mtd_start, (int)memory_mtd_start+(int)mtd_size,
-	     (int)&init_thread_union, (int)(&init_thread_union) + 0x2000);
+	     (int)&_sbss, (int)&_ebss, (int)memory_mtd_start,
+	     (int)memory_mtd_start + (int)mtd_size, (int)&init_thread_union,
+	     (int)(&init_thread_union) + 0x2000);
 
 	if (strlen(*cmdline_p))
 		printk("Command line: '%s'\n", *cmdline_p);
@@ -322,7 +322,7 @@ fill_cpl_tables(unsigned long *table, unsigned pos,
 
 	CPLB_data = (CPLB_data & ~(3 << 16)) | (i << 16);
 
-	while(start < end) {
+	while (start < end) {
 		table[pos++] = start;
 		table[pos++] = CPLB_data;
 		start += block_size;
@@ -355,14 +355,14 @@ static void __init generate_cpl_tables(void)
 	    fill_cpl_tables(dcplb_table, pos, RAM_END - SIZE_1M, RAM_END,
 			    SIZE_1M, SDRAM_DNON_CHBL);
 	pos =
-	    fill_cpl_tables(dcplb_table, pos, RAM_END - SIZE_4M, 
+	    fill_cpl_tables(dcplb_table, pos, RAM_END - SIZE_4M,
 			    RAM_END - SIZE_1M, SIZE_1M, SDRAM_DGENERIC);
 	pos =
-	    fill_cpl_tables(dcplb_table, pos, SIZE_4M, 
-		    min((SIZE_4M + (16-pos/2) * SIZE_4M), RAM_END - SIZE_4M), 
-		    SIZE_4M, SDRAM_DGENERIC);
-	while(pos < 32)
-	    dcplb_table[pos++] = 0;
+	    fill_cpl_tables(dcplb_table, pos, SIZE_4M,
+			    min((SIZE_4M + (16 - pos / 2) * SIZE_4M),
+				RAM_END - SIZE_4M), SIZE_4M, SDRAM_DGENERIC);
+	while (pos < 32)
+		dcplb_table[pos++] = 0;
 
 	*(dcplb_table + pos) = -1;
 
@@ -405,10 +405,10 @@ static void __init generate_cpl_tables(void)
 			    SDRAM_IKERNEL);
 	pos =
 	    fill_cpl_tables(icplb_table, pos, SIZE_4M,
-			    min(SIZE_4M + (16-pos/2) * SIZE_4M, RAM_END), 
+			    min(SIZE_4M + (16 - pos / 2) * SIZE_4M, RAM_END),
 			    SIZE_4M, SDRAM_IGENERIC);
-	while(pos < 32)
-	    icplb_table[pos++] = 0;
+	while (pos < 32)
+		icplb_table[pos++] = 0;
 
 	*(icplb_table + pos) = -1;
 
@@ -651,87 +651,87 @@ void panic_bfin(int cplb_panic)
 int DmaMemCpy(char *dest_addr, char *source_addr, unsigned short size)
 {
 
-  if(!size) 
-  	 return 0;
+	if (!size)
+		return 0;
 
-     /* Setup destination start address */
-        *pMDMA_D0_START_ADDR = dest_addr;
+	/* Setup destination start address */
+	*pMDMA_D0_START_ADDR = dest_addr;
 
-        /* Setup destination xcount */
-        *pMDMA_D0_X_COUNT = size;
+	/* Setup destination xcount */
+	*pMDMA_D0_X_COUNT = size;
 
-        /* Setup destination xmodify */
-        *pMDMA_D0_X_MODIFY = 1;
+	/* Setup destination xmodify */
+	*pMDMA_D0_X_MODIFY = 1;
 
-    /* Setup Source start address */
-        *pMDMA_S0_START_ADDR = source_addr;
+	/* Setup Source start address */
+	*pMDMA_S0_START_ADDR = source_addr;
 
-        /* Setup Source xcount */
-        *pMDMA_S0_X_COUNT = size;
+	/* Setup Source xcount */
+	*pMDMA_S0_X_COUNT = size;
 
-        /* Setup Source xmodify */
-        *pMDMA_S0_X_MODIFY = 1;
+	/* Setup Source xmodify */
+	*pMDMA_S0_X_MODIFY = 1;
 
-        *pSIC_IWR = (1<<(IRQ_MEM_DMA0 - (IRQ_CORETMR+1)));
-        
-    /* Set word size to 8, set to read, enable interrupt for wakeup
-     Enable source DMA */
+	*pSIC_IWR = (1 << (IRQ_MEM_DMA0 - (IRQ_CORETMR + 1)));
 
-        *pMDMA_S0_CONFIG = (DMAEN) ;
-        __builtin_bfin_ssync();
-        
-        *pMDMA_D0_CONFIG = ( WNR | DMAEN | DI_EN);       
-        asm("IDLE;\n"); /* go into idle and wait for wakeup */
+	/* Set word size to 8, set to read, enable interrupt for wakeup
+	   Enable source DMA */
 
-        *pMDMA_D0_IRQ_STATUS = DMA_DONE;
-        
-        *pMDMA_S0_CONFIG = 0;
-        *pMDMA_D0_CONFIG = 0;
+	*pMDMA_S0_CONFIG = (DMAEN);
+	__builtin_bfin_ssync();
 
-    return 0;
+	*pMDMA_D0_CONFIG = (WNR | DMAEN | DI_EN);
+	asm("IDLE;\n");		/* go into idle and wait for wakeup */
+
+	*pMDMA_D0_IRQ_STATUS = DMA_DONE;
+
+	*pMDMA_S0_CONFIG = 0;
+	*pMDMA_D0_CONFIG = 0;
+
+	return 0;
 }
 
 int DmaMemCpy16(char *dest_addr, char *source_addr, int size)
 {
 
-	 /* Setup destination start address */
-        *pMDMA_D0_START_ADDR = dest_addr;
+	/* Setup destination start address */
+	*pMDMA_D0_START_ADDR = dest_addr;
 
-        /* Setup destination xcount */
-        *pMDMA_D0_X_COUNT = 1024/2 ;
-        *pMDMA_D0_Y_COUNT = size>>10 ; /* Divide by 1024 */
+	/* Setup destination xcount */
+	*pMDMA_D0_X_COUNT = 1024 / 2;
+	*pMDMA_D0_Y_COUNT = size >> 10;	/* Divide by 1024 */
 
-        /* Setup destination xmodify */
-        *pMDMA_D0_X_MODIFY = 2;
-        *pMDMA_D0_Y_MODIFY = 2;
+	/* Setup destination xmodify */
+	*pMDMA_D0_X_MODIFY = 2;
+	*pMDMA_D0_Y_MODIFY = 2;
 
 	/* Setup Source start address */
-        *pMDMA_S0_START_ADDR = source_addr;
+	*pMDMA_S0_START_ADDR = source_addr;
 
-        /* Setup Source xcount */
-        *pMDMA_S0_X_COUNT = 1024/2 ;
-        *pMDMA_S0_Y_COUNT = size>>10 ;
+	/* Setup Source xcount */
+	*pMDMA_S0_X_COUNT = 1024 / 2;
+	*pMDMA_S0_Y_COUNT = size >> 10;
 
-        /* Setup Source xmodify */
-        *pMDMA_S0_X_MODIFY = 2;
-        *pMDMA_S0_Y_MODIFY = 2;
+	/* Setup Source xmodify */
+	*pMDMA_S0_X_MODIFY = 2;
+	*pMDMA_S0_Y_MODIFY = 2;
 
-		*pSIC_IWR = (1<<(IRQ_MEM_DMA0 - (IRQ_CORETMR+1)));
+	*pSIC_IWR = (1 << (IRQ_MEM_DMA0 - (IRQ_CORETMR + 1)));
 
 	/* Set word size to 8, set to read, enable interrupt for wakeup
-	 Enable source DMA */
+	   Enable source DMA */
 
-        *pMDMA_S0_CONFIG = (DMAEN | DMA2D | WDSIZE_16) ;
-        __builtin_bfin_ssync();
-        *pMDMA_D0_CONFIG = ( WNR | DMAEN | DMA2D | WDSIZE_16 | DI_EN) ;
+	*pMDMA_S0_CONFIG = (DMAEN | DMA2D | WDSIZE_16);
+	__builtin_bfin_ssync();
+	*pMDMA_D0_CONFIG = (WNR | DMAEN | DMA2D | WDSIZE_16 | DI_EN);
 
-		asm("IDLE;\n"); /* go into idle and wait for wakeup */
+	asm("IDLE;\n");		/* go into idle and wait for wakeup */
 
-        *pMDMA_D0_IRQ_STATUS = DMA_DONE;
+	*pMDMA_D0_IRQ_STATUS = DMA_DONE;
 
-		*pMDMA_S0_CONFIG = 0;
-		*pMDMA_D0_CONFIG = 0;
-	
+	*pMDMA_S0_CONFIG = 0;
+	*pMDMA_D0_CONFIG = 0;
+
 	return 0;
 }
 

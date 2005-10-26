@@ -36,33 +36,33 @@ struct op_counter_config ctr[OP_MAX_COUNTER];
 static int op_bfin_setup(void)
 {
 	int ret;
-  
+
 	/* Pre-compute the values to stuff in the hardware registers.  */
 	spin_lock(&oprofilefs_lock);
-	ret = model->reg_setup(ctr);  
+	ret = model->reg_setup(ctr);
 	spin_unlock(&oprofilefs_lock);
- 
+
 	return ret;
 }
 
 static void op_bfin_shutdown(void)
 {
 #if 0
-     /* what is the difference between shutdown and stop? */
+	/* what is the difference between shutdown and stop? */
 #endif
 }
 
 static int op_bfin_start(void)
 {
 	int ret = -EBUSY;
- 
+
 	down(&pfmon_sem);
 	if (!pfmon_enabled) {
 		ret = model->start(ctr);
 		pfmon_enabled = !ret;
 	}
 	up(&pfmon_sem);
-  
+
 	return ret;
 }
 
@@ -73,7 +73,7 @@ static void op_bfin_stop(void)
 		model->stop();
 		pfmon_enabled = 0;
 	}
-	up(&pfmon_sem);    
+	up(&pfmon_sem);
 }
 
 static int op_bfin_create_files(struct super_block *sb, struct dentry *root)
@@ -84,10 +84,10 @@ static int op_bfin_create_files(struct super_block *sb, struct dentry *root)
 		struct dentry *dir;
 		char buf[3];
 		printk("Oprofile: creating files... \n");
-		
+
 		snprintf(buf, sizeof buf, "%d", i);
 		dir = oprofilefs_mkdir(sb, root, buf);
-		
+
 		oprofilefs_create_ulong(sb, dir, "enabled", &ctr[i].enabled);
 		oprofilefs_create_ulong(sb, dir, "event", &ctr[i].event);
 		oprofilefs_create_ulong(sb, dir, "count", &ctr[i].count);
@@ -95,21 +95,22 @@ static int op_bfin_create_files(struct super_block *sb, struct dentry *root)
 		 * We dont support per counter user/kernel selection, but
 		 * we leave the entries because userspace expects them
 		 */
-	oprofilefs_create_ulong(sb, dir, "kernel", &ctr[i].kernel);
-	oprofilefs_create_ulong(sb, dir, "user", &ctr[i].user);
-	oprofilefs_create_ulong(sb, dir, "unit_mask", &ctr[i].unit_mask);
+		oprofilefs_create_ulong(sb, dir, "kernel", &ctr[i].kernel);
+		oprofilefs_create_ulong(sb, dir, "user", &ctr[i].user);
+		oprofilefs_create_ulong(sb, dir, "unit_mask",
+					&ctr[i].unit_mask);
 	}
-	
+
 	return 0;
 }
 
 static struct oprofile_operations oprof_bfin_ops = {
-	.create_files= op_bfin_create_files,
-	.setup= op_bfin_setup,
-	.shutdown= op_bfin_shutdown,
-	.start= op_bfin_start,
-	.stop= op_bfin_stop,
-	.cpu_type= NULL/* To be filled in below. */
+	.create_files = op_bfin_create_files,
+	.setup = op_bfin_setup,
+	.shutdown = op_bfin_shutdown,
+	.start = op_bfin_start,
+	.stop = op_bfin_stop,
+	.cpu_type = NULL	/* To be filled in below. */
 };
 
 int __init oprofile_arch_init(struct oprofile_operations **ops)
@@ -120,22 +121,22 @@ int __init oprofile_arch_init(struct oprofile_operations **ops)
 
 	dspid = *pDSPID;
 
-        printk("Oprofile got the cpu id is 0x%x. \n", dspid);
+	printk("Oprofile got the cpu id is 0x%x. \n", dspid);
 
 	switch (dspid) {
-		case BFIN_533_ID:
-		     model = &op_model_bfin533;
-		     model->num_counters = 2;
-		     oprof_bfin_ops.cpu_type = model->name;
-		     break;
-		default:
-		     return -ENODEV;
-	}	
+	case BFIN_533_ID:
+		model = &op_model_bfin533;
+		model->num_counters = 2;
+		oprof_bfin_ops.cpu_type = model->name;
+		break;
+	default:
+		return -ENODEV;
+	}
 
 	*ops = &oprof_bfin_ops;
 
 	printk(KERN_INFO "oprofile: using %s performance monitoring.\n",
-        oprof_bfin_ops.cpu_type);
+	       oprof_bfin_ops.cpu_type);
 
 	return 0;
 }

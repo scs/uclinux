@@ -49,29 +49,28 @@
  * Global Variables
 ***************************************************************************/
 
- static dma_channel_t 	dma_ch[MAX_BLACKFIN_DMA_CHANNEL];
- 
- static dma_register_t* 	base_addr[MAX_BLACKFIN_DMA_CHANNEL] =
- {
- 	(dma_register_t *) DMA0_NEXT_DESC_PTR,
- 	(dma_register_t *) DMA1_NEXT_DESC_PTR,
- 	(dma_register_t *) DMA2_NEXT_DESC_PTR,
- 	(dma_register_t *) DMA3_NEXT_DESC_PTR,
- 	(dma_register_t *) DMA4_NEXT_DESC_PTR,
- 	(dma_register_t *) DMA5_NEXT_DESC_PTR,
- 	(dma_register_t *) DMA6_NEXT_DESC_PTR,
- 	(dma_register_t *) DMA7_NEXT_DESC_PTR,
- #if (defined(CONFIG_BF537) || defined(CONFIG_BF534) || defined(CONFIG_BF536))
- 	(dma_register_t *) DMA8_NEXT_DESC_PTR,
- 	(dma_register_t *) DMA9_NEXT_DESC_PTR,
- 	(dma_register_t *) DMA10_NEXT_DESC_PTR,
- 	(dma_register_t *) DMA11_NEXT_DESC_PTR,
- #endif
- 	(dma_register_t *) MDMA_D0_NEXT_DESC_PTR,
- 	(dma_register_t *) MDMA_S0_NEXT_DESC_PTR,
- 	(dma_register_t *) MDMA_D1_NEXT_DESC_PTR,
- 	(dma_register_t *) MDMA_S1_NEXT_DESC_PTR,
- };
+static dma_channel_t dma_ch[MAX_BLACKFIN_DMA_CHANNEL];
+
+static dma_register_t *base_addr[MAX_BLACKFIN_DMA_CHANNEL] = {
+	(dma_register_t *) DMA0_NEXT_DESC_PTR,
+	(dma_register_t *) DMA1_NEXT_DESC_PTR,
+	(dma_register_t *) DMA2_NEXT_DESC_PTR,
+	(dma_register_t *) DMA3_NEXT_DESC_PTR,
+	(dma_register_t *) DMA4_NEXT_DESC_PTR,
+	(dma_register_t *) DMA5_NEXT_DESC_PTR,
+	(dma_register_t *) DMA6_NEXT_DESC_PTR,
+	(dma_register_t *) DMA7_NEXT_DESC_PTR,
+#if (defined(CONFIG_BF537) || defined(CONFIG_BF534) || defined(CONFIG_BF536))
+	(dma_register_t *) DMA8_NEXT_DESC_PTR,
+	(dma_register_t *) DMA9_NEXT_DESC_PTR,
+	(dma_register_t *) DMA10_NEXT_DESC_PTR,
+	(dma_register_t *) DMA11_NEXT_DESC_PTR,
+#endif
+	(dma_register_t *) MDMA_D0_NEXT_DESC_PTR,
+	(dma_register_t *) MDMA_S0_NEXT_DESC_PTR,
+	(dma_register_t *) MDMA_D1_NEXT_DESC_PTR,
+	(dma_register_t *) MDMA_S1_NEXT_DESC_PTR,
+};
 
 /*------------------------------------------------------------------------------
  *       Set the Buffer Clear bit in the Configuration register of specific DMA

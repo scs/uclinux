@@ -45,8 +45,6 @@
 #include <asm/mach/cdefbf533.h>
 #include <asm/mach-types.h>
 
-
-
 /*
  * Let's power down on idle, but only if we are really
  * idle, because once we start down the path of
@@ -59,10 +57,8 @@ void bf533_pm_idle(void)
 
 void bf533_pm_suspend(void)
 {
-	dpmc_fops.ioctl(NULL,NULL,IOCTL_DEEP_SLEEP_MODE,0);	
+	dpmc_fops.ioctl(NULL, NULL, IOCTL_DEEP_SLEEP_MODE, 0);
 }
-
-
 
 /*
  *	bf533_pm_prepare - Do preliminary suspend work.
@@ -74,14 +70,11 @@ static int bf533_pm_prepare(suspend_state_t state)
 {
 	int error = 0;
 
-	switch (state)
-	{
+	switch (state) {
 	case PM_SUSPEND_STANDBY:
 		break;
 	case PM_SUSPEND_MEM:
-		return -ENOTSUPP
-
-	case PM_SUSPEND_DISK:
+	return -ENOTSUPP case PM_SUSPEND_DISK:
 		return -ENOTSUPP;
 
 	default:
@@ -91,7 +84,6 @@ static int bf533_pm_prepare(suspend_state_t state)
 	return error;
 }
 
-
 /*
  *	bf533_pm_enter - Actually enter a sleep state.
  *	@state:		State we're entering.
@@ -100,11 +92,10 @@ static int bf533_pm_prepare(suspend_state_t state)
 
 static int bf533_pm_enter(suspend_state_t state)
 {
-	switch (state)
-	{
+	switch (state) {
 	case PM_SUSPEND_STANDBY:
 		bf533_pm_suspend();
-                break;
+		break;
 
 	case PM_SUSPEND_MEM:
 		return -ENOTSUPP;
@@ -118,7 +109,6 @@ static int bf533_pm_enter(suspend_state_t state)
 
 	return 0;
 }
-
 
 /**
  *	bf533_pm_finish - Finish up suspend sequence.
@@ -133,12 +123,11 @@ static int bf533_pm_finish(suspend_state_t state)
 	return 0;
 }
 
-
-struct pm_ops bf533_pm_ops ={
+struct pm_ops bf533_pm_ops = {
 	.pm_disk_mode = PM_DISK_FIRMWARE,
-        .prepare        = bf533_pm_prepare,
-        .enter          = bf533_pm_enter,
-        .finish         = bf533_pm_finish,
+	.prepare = bf533_pm_prepare,
+	.enter = bf533_pm_enter,
+	.finish = bf533_pm_finish,
 };
 
 static int __init bf533_pm_init(void)
@@ -147,4 +136,5 @@ static int __init bf533_pm_init(void)
 	pm_set_ops(&bf533_pm_ops);
 	return 0;
 }
+
 __initcall(bf533_pm_init);
