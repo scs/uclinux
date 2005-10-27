@@ -13,6 +13,32 @@ config SND_BLACKFIN_ADI1836
 
 	  If unsure, say N.
 
+choice
+	prompt "Interface between Blackfin and ADI1836"
+	depends on SND_BLACKFIN_ADI1836
+	default SND_BLACKFIN_ADI1836_TDM
+	help
+	  There are two types of interface can be supportted on Blackfin 
+	  Stamp: TDM and I2S. TDM support 8 channels (DAC0,1,2 SPDIF)*(L+R)
+	  output and 8 channels input (ADC0,1, SPDIF, unused)*(L+R). I2S 
+	  only support stereo output on DAC0 and stereo input on ADC0.
+
+config SND_BLACKFIN_ADI1836_TDM
+	boolean "TDM interface"
+	help
+	  TDM support all 4 stereo outputs and 3 stereo inputs.
+	  
+	  If unsure, say Y.
+	
+config SND_BLACKFIN_ADI1836_I2S
+	boolean "I2S interface"
+	help
+	  I2S support 1 stereo output and 1 stereo input.
+
+	  If unsure, say N.
+		
+endchoice
+
 #config SND_BLACKFIN_ADI1981B
 #	bool "1981b Audio support for BF53x"
 #	depends on BFIN

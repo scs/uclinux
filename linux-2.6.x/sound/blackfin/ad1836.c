@@ -148,7 +148,31 @@ static int   enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE_PNP;
 
 /* Chip level */
 
+#ifdef CONFIG_SND_BLACKFIN_ADI1836_TDM
+
 #define AD1836_BUFFER_SIZE 0x40000 /* 256kb */
+/*In 2 channels mode, the buffer is quadrupled */
+#define PCM_BUFFER_MAX	(AD1836_BUFFER_SIZE / 4)
+#define CHANNELS_MAX	8
+#define CHANNELS_OUPUT	6
+#define CHANNELS_INPUT	4
+#define FRAGMENT_SIZE_MIN	(4*1024)
+#define FRAGMENTS_MIN	4
+
+#elif defined(CONFIG_SND_BLACKFIN_ADI1836_I2S)
+
+#define AD1836_BUFFER_SIZE 0x10000 /* 64kb */
+#define PCM_BUFFER_MAX	AD1836_BUFFER_SIZE
+#define CHANNELS_MAX	2
+#define CHANNELS_OUPUT	2
+#define CHANNELS_INPUT	2
+#define FRAGMENT_SIZE_MIN	(1024)
+#define FRAGMENTS_MIN	4
+
+#else
+#error "An transfer mode must be choosed for audio"
+#endif
+
 #define TALKTROUGH_FRAGMENTS 4
 #define TALKTROUGH_CHANS 8
 
@@ -166,11 +190,14 @@ struct snd_ad1836 {
 
   snd_pcm_t* pcm;
 
+#ifdef CONFIG_SND_BLACKFIN_ADI1836_TDM
   /* define correspondence of alsa channels to ad1836 channels */
   unsigned int out_chan_mask[4];
   char     out_chan_mask_str[5]; /* last one is \0 */
   unsigned int in_chan_mask[4];
   char     in_chan_mask_str[5]; /* last one is \0 */
+#endif
+
   int	 reference;
 
   wait_queue_head_t   spi_waitq;
@@ -204,6 +231,7 @@ struct snd_ad1836 {
 
 };
 static int snd_ad1836_startup(ad1836_t *chip);
+//static void print_32x4(void*);
 
 #ifndef NOCONTROLS
 #define chip_t_magic ad1836_t_magic  /* move to include/sound/sndmagic.h in due time */
@@ -281,7 +309,7 @@ static void snd_ad1836_reset_spi_stats(ad1836_t *chip ){
   chip->spi_irq_count = 0;
 }
 
-
+#ifdef CONFIG_SND_BLACKFIN_ADI1836_TDM
 /* define correspondence between ALSA and ad1836 channels, default '0123' */
 static int ad1836_set_chan_masks(ad1836_t* chip, char* permutation, int out){
 
@@ -334,10 +362,7 @@ static int ad1836_set_chan_masks(ad1836_t* chip, char* permutation, int out){
   return 0;
 
 }
-
-
-
-
+#endif // CONFIG_SND_BLACKFIN_ADI1836_TDM
 
 /* start/stop talktrough */
 static int snd_ad1836_talktrough_mode(ad1836_t* chip, int mode){
@@ -536,6 +561,7 @@ static void snd_ad1836_proc_talktrough_write( snd_info_entry_t * entry, snd_info
   return;
 }
 
+#ifdef CONFIG_SND_BLACKFIN_ADI1836_TDM
 static void snd_ad1836_proc_outchanmask_read( snd_info_entry_t * entry, snd_info_buffer_t * buffer){
   ad1836_t *chip = (ad1836_t*) entry->private_data;
   snd_iprintf(buffer, "%s\n", chip->out_chan_mask_str );
@@ -563,7 +589,7 @@ static void snd_ad1836_proc_inchanmask_write( snd_info_entry_t * entry, snd_info
   ad1836_set_chan_masks(chip, line, 0);
   return;
 }
-
+#endif //CONFIG_SND_BLACKFIN_ADI1836_TDM
 
 /*************************************************************
  *          controls 
@@ -863,6 +889,8 @@ static int snd_ad1836_diffip_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t 
   return change;
 }
 
+#ifdef CONFIG_SND_BLACKFIN_ADI1836_TDM
+
 #define CAPTURE_SOURCE_NUMBER 2
 
 static int snd_ad1836_mux_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t *uinfo)
@@ -926,7 +954,7 @@ static int snd_ad1836_mux_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *uc
   
   return 1;
 }
-
+#endif
 
 static int snd_ad1836_vu_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t *uinfo)
 {
@@ -962,14 +990,18 @@ static int snd_ad1836_vu_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *uco
 static snd_kcontrol_new_t snd_ad1836_controls[] __devinitdata = { 
   KTRLRW( CARD,  "Digital Loopback Switch",  snd_ad1836_loopback_control ),
   KTRLRW( MIXER, "Master Playback Volume",   snd_ad1836_volume ),
+#ifdef CONFIG_SND_BLACKFIN_ADI1836_TDM
   KTRLRW( MIXER, "Mic Capture Volume",    snd_ad1836_adc_gain ),
+#endif
   KTRLRW( MIXER, "Line Capture Volume",    snd_ad1836_adc_gain ),
   KTRLRW( MIXER, "Master Playback Switch",   snd_ad1836_playback_mute ),
   KTRLRW( MIXER, "Master Capture Switch",    snd_ad1836_capture_mute ),
   KTRLRW( MIXER, "Tone Contol DAC De-emphasis Switch", snd_ad1836_deemph ),
   KTRLRW( MIXER, "Tone Contol ADC High-pass Filter Switch", snd_ad1836_filter ),
   KTRLRW( MIXER, "PCM Capture Differential Switch", snd_ad1836_diffip ),  /* note: off = differential, on = single ended */
+#ifdef CONFIG_SND_BLACKFIN_ADI1836_TDM
   KTRLRW( MIXER, "Capture Source",   snd_ad1836_mux ),
+#endif
   KTRLRO( PCM,   "PCM Capture VU",           snd_ad1836_vu ),
 
 
@@ -998,11 +1030,11 @@ static snd_pcm_hardware_t snd_ad1836_playback_hw = {
   .rate_min =         48000,
   .rate_max =         48000,
   .channels_min =     2,
-  .channels_max =     8,
-  .buffer_bytes_max = AD1836_BUFFER_SIZE/4,	/* 2 chan mode, data quadruples */
-  .period_bytes_min = 4*1024, 
-  .period_bytes_max = AD1836_BUFFER_SIZE/4,
-  .periods_min =      2,
+  .channels_max =     CHANNELS_MAX,
+  .buffer_bytes_max = PCM_BUFFER_MAX,
+  .period_bytes_min = FRAGMENT_SIZE_MIN,
+  .period_bytes_max = PCM_BUFFER_MAX/2,
+  .periods_min =      FRAGMENTS_MIN,
   .periods_max =      32,
 };
 static snd_pcm_hardware_t snd_ad1836_capture_hw = {
@@ -1013,49 +1045,13 @@ static snd_pcm_hardware_t snd_ad1836_capture_hw = {
   .rate_min =         48000,
   .rate_max =         48000,
   .channels_min =     2,
-  .channels_max =     8,
-  .buffer_bytes_max = AD1836_BUFFER_SIZE/4,
-  .period_bytes_min = 4*1024, 
-  .period_bytes_max = AD1836_BUFFER_SIZE/4,
-  .periods_min =      2,
+  .channels_max =     CHANNELS_MAX,
+  .buffer_bytes_max = PCM_BUFFER_MAX,
+  .period_bytes_min = FRAGMENT_SIZE_MIN,
+  .period_bytes_max = PCM_BUFFER_MAX/2,
+  .periods_min =      FRAGMENTS_MIN,
   .periods_max =      32,
 };
-
-#if 0
-static snd_pcm_hardware_t snd_ad1836_playback_hw = {
-  .info = (SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
-	   SNDRV_PCM_INFO_BLOCK_TRANSFER | SNDRV_PCM_INFO_MMAP_VALID),
-  .formats =          SNDRV_PCM_FMTBIT_S32_LE,
-  .rates =            SNDRV_PCM_RATE_48000|SNDRV_PCM_RATE_96000,
-  .rate_min =         48000,
-  .rate_max =         96000,
-  .channels_min =     2,
-  .channels_max =     8,
-  .buffer_bytes_max = 128*1024,
-  .period_bytes_min = 4*1024, 
-  .period_bytes_max = 64*1024,
-  .periods_min =      2,
-  .periods_max =      32,
-};
-
-/* TODO: this is identical to the capture_hw, can we use just one? */
-static snd_pcm_hardware_t snd_ad1836_capture_hw = {
-  .info = (SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED | 
-	   SNDRV_PCM_INFO_BLOCK_TRANSFER |  SNDRV_PCM_INFO_MMAP_VALID),
-  .formats =          SNDRV_PCM_FMTBIT_S32_LE,
-  .rates =            SNDRV_PCM_RATE_48000|SNDRV_PCM_RATE_96000,
-  .rate_min =         48000,
-  .rate_max =         96000,
-  .channels_min =     2,
-  .channels_max =     8,
-  .buffer_bytes_max = 128*1024,
-  .period_bytes_min = 4*1024, 
-  .period_bytes_max = 64*1024,
-  .periods_min =      2,
-  .periods_max =      32,
-};
-#endif
-
 
 static int snd_ad1836_playback_open(snd_pcm_substream_t* substream){
 
@@ -1139,9 +1135,10 @@ static int snd_ad1836_hw_params( snd_pcm_substream_t* substream, snd_pcm_hw_para
    *  We're relying on the driver not supporting full duplex mode
    *  to allow us to grab all the memory.
    */
+#ifdef CONFIG_SND_BLACKFIN_ADI1836_TDM   
   if( snd_pcm_lib_malloc_pages(substream, AD1836_BUFFER_SIZE) < 0 )
     return -ENOMEM;
-#if 0
+#else
   if( snd_pcm_lib_malloc_pages(substream, params_buffer_bytes(hwparams)) < 0 )
     return -ENOMEM;
 #endif
@@ -1179,10 +1176,12 @@ static int snd_ad1836_prepare( snd_pcm_substream_t* substream ){
 	      ||(runtime->channels == 6)||(runtime->channels == 8),
 	      return -EINVAL);
 
+#ifdef CONFIG_SND_BLACKFIN_ADI1836_TDM
 /*  snd_printk(KERN_INFO "old: fragsize_bytes: %u\n", fragsize_bytes);*/
   fragsize_bytes /= runtime->channels;
   fragsize_bytes *= 8;				/* inflate the fragsize to match */
 /*  snd_printk(KERN_INFO "new: fragsize_bytes: %u\n", fragsize_bytes);*/
+#endif
 
   /* one of the following two must be true */
   if( substream == chip->rx_substream ) {
@@ -1254,9 +1253,10 @@ static snd_pcm_uframes_t snd_ad1836_playback_pointer( snd_pcm_substream_t* subst
   char* buf  = (char*) runtime->dma_area;
   char* curr = (char*) bf53x_sport_curr_addr_tx(chip->sport);
   unsigned long diff = curr - buf;
+#ifdef CONFIG_SND_BLACKFIN_ADI1836_TDM
   unsigned long bytes_per_frame = 8*4;	/* always 8 channels in the DMA frame */
-#if 0
-  unsigned long bytes_per_frame = runtime->channels*sizeof(long) ;
+#else
+  unsigned long bytes_per_frame = runtime->frame_bits/8;
 #endif
   size_t frames = diff / bytes_per_frame;
   
@@ -1283,9 +1283,10 @@ static snd_pcm_uframes_t snd_ad1836_capture_pointer( snd_pcm_substream_t* substr
   char* buf  = (char*) runtime->dma_area;
   char* curr = (char*) bf53x_sport_curr_addr_rx(chip->sport);
   unsigned long diff = curr - buf;
+#ifdef CONFIG_SND_BLACKFIN_ADI1836_TDM 
   unsigned long bytes_per_frame = 8*4;	/* always 8 channels in the DMA frame */
-#if 0
-  unsigned long bytes_per_frame = runtime->channels*sizeof(long) ;
+#else
+  unsigned long bytes_per_frame = runtime->frame_bits/8;
 #endif
   size_t frames = diff / bytes_per_frame;
   
@@ -1303,6 +1304,7 @@ static snd_pcm_uframes_t snd_ad1836_capture_pointer( snd_pcm_substream_t* substr
 
 }
 
+#ifdef CONFIG_SND_BLACKFIN_ADI1836_TDM
 static int snd_ad1836_playback_copy(snd_pcm_substream_t *substream, int channel, snd_pcm_uframes_t pos, void *src, snd_pcm_uframes_t count){
   ad1836_t *chip = snd_pcm_substream_chip(substream);
   unsigned int *dst = (unsigned int *)substream->runtime->dma_area;
@@ -1347,15 +1349,66 @@ static int snd_ad1836_capture_copy(snd_pcm_substream_t *substream, int channel, 
   return 0;
 }
 
+#elif defined(CONFIG_SND_BLACKFIN_ADI1836_I2S)
+
+static int snd_ad1836_playback_copy(snd_pcm_substream_t *substream, int channel, snd_pcm_uframes_t pos, void *src, snd_pcm_uframes_t count)
+{
+	int i, curr;
+	unsigned long *ldst, *lsrc;
+	
+	ldst = (unsigned long *)substream->runtime->dma_area;
+	lsrc = src;
+
+	snd_printd(KERN_INFO "playback_copy: src %p, pos %x, count %x\n", src, (uint)pos, (uint)count);
+	i = frames_to_bytes(substream->runtime, count) / sizeof(unsigned long);
+	curr = frames_to_bytes(substream->runtime, pos)/ sizeof(unsigned long);
+	/* assumes tx DMA buffer initialised with zeros */
+//	memcpy(ldst + frames_to_bytes(substream->runtime, pos), src, frames_to_bytes(substream->runtime, count));
+	while(i--) {
+		/* Hardware support only 24 bits, remove the lowest byte*/
+		*(ldst + curr + i) = *(lsrc + i)>>8;
+	}
+//	print_32x4((dst + frames_to_bytes(substream->runtime, pos)));
+	return 0;
+}
+
+static int snd_ad1836_capture_copy(snd_pcm_substream_t *substream, int channel, snd_pcm_uframes_t pos, void *dst, snd_pcm_uframes_t count)
+{
+	int i, curr;
+	unsigned long *lsrc , *ldst;
+	
+	lsrc = (unsigned long *)substream->runtime->dma_area;
+	ldst = dst;
+
+	snd_printd(KERN_INFO "capture_copy: dst %p, pos %x, count %x\n", dst, (uint)pos, (uint)count);
+	i = frames_to_bytes(substream->runtime, count) / sizeof(unsigned long);
+	curr = frames_to_bytes(substream->runtime, pos) / sizeof(unsigned long);
+
+//	print_32x4((lsrc + (frames_to_bytes(substream->runtime, pos)/4)));
+//	memcpy(ldst, lsrc + frames_to_bytes(substream->runtime, pos), frames_to_bytes(substream->runtime, count));
+	while(i--) {
+		/* The highest byte is invalid, remove it */
+		*(ldst + i) = *(lsrc + i + curr)<<8;
+	}
+
+	return 0;
+}
+
+#endif
+
 static int snd_ad1836_silence(snd_pcm_substream_t *substream, int channel, snd_pcm_uframes_t pos, snd_pcm_uframes_t count){
   unsigned char *buf = substream->runtime->dma_area;
 
 #ifdef CONFIG_SND_DEBUG
   snd_printk(KERN_INFO "silence: pos %x, count %x\n", (uint)pos, (uint)count);
 #endif
-
+#ifdef CONFIG_SND_BLACKFIN_ADI1836_TDM
   buf += pos * 8 * 4;
   memset(buf, '\0', count * 8 * 4);
+#else
+  memset(buf + frames_to_bytes(substream->runtime, pos), '\0', 
+  				frames_to_bytes(substream->runtime, count));
+#endif
 
   return 0;
 }
@@ -1484,6 +1537,7 @@ static int snd_bf53x_adi1836_reset(ad1836_t *chip)
   return 0;
 }
 
+#ifdef CONFIG_SND_BLACKFIN_ADI1836_TDM
 static int snd_ad1836_startup(ad1836_t *chip)
 {
 	int err;
@@ -1528,7 +1582,44 @@ static int snd_ad1836_startup(ad1836_t *chip)
 	return err;
 }
 
+#elif defined(CONFIG_SND_BLACKFIN_ADI1836_I2S)
+static int snd_ad1836_startup(ad1836_t *chip)
+{
+	int err;
+	struct bf53x_sport *sport= chip->sport;
 
+	snd_bf53x_adi1836_reset(chip);
+
+	/* sport in aux/slave mode cf daughtercard schematics */
+	err = snd_ad1836_set_register(chip, DAC_CTRL_1, (DAC_DATA_MASK), (DAC_DATA_24));
+	err = err || snd_ad1836_set_register(chip, DAC_CTRL_2, (DAC_MUTE_MASK), (DAC_MUTE_DAC2|DAC_MUTE_DAC3));
+	err = err || snd_ad1836_set_register(chip, ADC_CTRL_2, (ADC_AUX_MASTER|ADC_SOUT_MASK|ADC_MUTE_MASK|ADC_DATA_MASK),
+			(ADC_AUX_MASTER | ADC_SOUT_I2S | ADC_MUTE_ADC2 | ADC_DATA_24));  
+	err = err || snd_ad1836_set_register(chip, DAC_CTRL_1, DAC_PWRDWN, 0);  /* power-up DAC's */
+	err = err || snd_ad1836_set_register(chip, ADC_CTRL_1, ADC_PRWDWN, 0);  /* power-up ADC's */
+
+	/* set volume to full scale */
+	err = err || snd_ad1836_set_register(chip, DAC_VOL_1L, DAC_VOL_MASK, DAC_VOL_MASK);
+	err = err || snd_ad1836_set_register(chip, DAC_VOL_1R, DAC_VOL_MASK, DAC_VOL_MASK);
+	if(err){
+		snd_printk( KERN_ERR "Unable to set chip registers.\n");    
+		snd_ad1836_free(chip);
+		return -ENODEV;
+	}
+	bf53x_sport_stop(sport);
+	err = err || bf53x_sport_config_rx(sport, (RCKFE | RFSR), (RSFSE | 0x17) /* 24 bit word len */, 0, 0 );
+	err = err || bf53x_sport_config_tx(sport, (TCKFE | TFSR), (TSFSE | 0x17) /* 24 bit word len */, 0, 0 );	
+	err = err || sport_config_rx_dummy( sport);
+	err = err || sport_config_tx_dummy( sport );
+	if(err)
+		snd_printk( KERN_ERR "Unable to set sport configuration\n");
+	else
+		bf53x_sport_start(sport);
+
+	return err;
+}
+
+#endif
 
 /* create the card struct, 
  *   add - low-level device, 
@@ -1600,10 +1691,12 @@ static int __devinit snd_ad1836_create(snd_card_t *card,
   sport->dummy_buf_tx = sport->dummy_buf_rx + DUMMY_BUF_LEN;
   memset((void*)sport->dummy_buf_rx, DUMMY_BUF_LEN * 2, 0);
 
+#ifdef CONFIG_SND_BLACKFIN_ADI1836_TDM
   /* set the chan mask of the output stream */
   ad1836_set_chan_masks(chip, "0123", 1);
   /* set the chan mask of the input stream */
   ad1836_set_chan_masks(chip, "0123", 0);
+#endif
 
   err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, chip, &snd_ad1836_ops);
 
@@ -1631,6 +1724,7 @@ static int __devinit snd_ad1836_create(snd_card_t *card,
       snd_info_set_text_ops( proc_entry, chip, 1024, snd_ad1836_proc_sport_read);
   }
 
+#ifdef CONFIG_SND_BLACKFIN_ADI1836_TDM
   if(!err){
     snd_info_entry_t* proc_entry;
     err = snd_card_proc_new(card, "out_chan_mask", &proc_entry); 
@@ -1652,7 +1746,8 @@ static int __devinit snd_ad1836_create(snd_card_t *card,
       proc_entry->c.text.write = snd_ad1836_proc_inchanmask_write;
     }
   }
-  
+#endif
+
   if(!err){
     snd_info_entry_t* proc_entry;
     err = snd_card_proc_new(card, "talktrough", &proc_entry); 
@@ -1787,6 +1882,7 @@ static __devexit void snd_bf53x_adi1836_remove(snd_card_t* card){
   return;
 }
 
+#ifdef CONFIG_SND_DEBUG
 /*
  *  Print data byte by byte without endianness getting in the way
  */
@@ -1824,7 +1920,7 @@ void print_16x8(void *data)
 	p[26], p[27], p[30], p[31]
 	);
 }
-
+#endif //CONFIG_SND_DEBUG
 /*
  *  Square fill.
  *  Fill sequence: {256 max values, 256 min values}

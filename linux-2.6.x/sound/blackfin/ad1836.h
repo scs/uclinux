@@ -70,6 +70,9 @@
 /* DAC CTRL 2 */
 
 #define DAC_MUTE_MASK    0x003f
+#define DAC_MUTE_DAC1	 0x0003
+#define DAC_MUTE_DAC2	 0x000c
+#define DAC_MUTE_DAC3	 0x0030
 
 /* DAC VOL x */
 #define DAC_VOL_MASK     0x03ff
@@ -109,6 +112,8 @@
 #define ADC_DATA_16         0x0020
 
 #define ADC_MUTE_MASK       0x000f
+#define ADC_MUTE_ADC1	    0x0003
+#define ADC_MUTE_ADC2	    0x000c
 
 /* ADC CTRL 3 */
 
