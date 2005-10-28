@@ -1,6 +1,6 @@
  /*
  * File:        arch/blackfin/mach-common/interrupt.S
- * Based on:    
+ * Based on:
  * Author:      D. Jeff Dionne <jeff@ryeham.ee.ryerson.ca>
  *              Kenneth Albanowski <kjahds@kjahds.com>
  *              COPYRIGHT 2005 Analog Devices
@@ -46,7 +46,7 @@
  * initial interrupt handlers
  */
 
-#ifndef CONFIG_KGDB	
+#ifndef CONFIG_KGDB
  	/* interrupt routine for emulation - 0 */
 	/* Currently used only if GDB stub is not in - invalid */
 	/* gdb-stub set the evt itself */
@@ -207,4 +207,3 @@ ENTRY(_evt_system_call)
 	call system_call;
 	RESTORE_CONTEXT
 	rti;
-

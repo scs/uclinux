@@ -1,14 +1,14 @@
 /*
  * File:         arch/blackfin/lib/umodsi3.S
- * Based on:     
- * Author:       
- *               
- * Created:      
- * Description:  libgcc1 routines for Blackfin 5xx 
- *               
+ * Based on:
+ * Author:
+ *
+ * Created:
+ * Description:  libgcc1 routines for Blackfin 5xx
+ *
  * Rev:          $Id$
  *
- * Modified:    
+ * Modified:
  *               Copyright 2004-2005 Analog Devices Inc.
  *
  * Bugs:         Enter bugs at http://blackfin.uclinux.org/
@@ -32,12 +32,12 @@
 	.extern ___udivsi3;
 	.globl	___umodsi3
 ___umodsi3:
-	
+
 	CC=R0==0;
 	IF CC JUMP RETURN_R0;		/* Return 0, if NR == 0 */
 	CC= R1==0;
 	IF CC JUMP RETURN_ZERO_VAL;	/* Return 0, if DR == 0 */
-	CC=R0==R1;             
+	CC=R0==R1;
 	IF CC JUMP RETURN_ZERO_VAL;	/* Return 0, if NR == DR */
 	CC = R1 == 1;
 	IF CC JUMP RETURN_ZERO_VAL;	/* Return 0, if  DR == 1 */
@@ -46,7 +46,7 @@ ___umodsi3:
 
 	[--SP] = (R7:6);		/* Push registers and */
 	[--SP] = RETS;			/* Return address */
-	R7 = R0;			/* Copy of R0 */   
+	R7 = R0;			/* Copy of R0 */
 	R6 = R1;
 	SP += -12;			/* Should always provide this space */
 	CALL ___udivsi3;		/* Compute unsigned quotient using ___udiv32()*/
@@ -60,5 +60,3 @@ RETURN_ZERO_VAL:
 	R0 = 0;
 RETURN_R0:
 	RTS;
-
-

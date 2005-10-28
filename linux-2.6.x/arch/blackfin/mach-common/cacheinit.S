@@ -1,6 +1,6 @@
  /*
  * File:        arch/blackfin/mach-common/cacheinit.S
- * Based on:    
+ * Based on:
  * Author:      LG Soft India
  *              COPYRIGHT 2005 Analog Devices
  * Created:     ?
@@ -29,7 +29,7 @@
  * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
-/* This function sets up the data and instruction cache. The 
+/* This function sets up the data and instruction cache. The
  * tables like icplb table, dcplb table and Page Descriptor table
  * are defined in cplbtab.h. You can configure those tables for
  * your suitable requirements
@@ -45,7 +45,7 @@
 ENTRY(_icache_init)
 
 	/* Initialize Instruction CPLBS */
-	
+
 	I0.L = (ICPLB_ADDR0 & 0xFFFF);
 	I0.H = (ICPLB_ADDR0 >> 16);
 
@@ -72,7 +72,7 @@ read_idata:
 	R3 = R3 + R1;
 	CC = R3 == R1;
 	IF !CC JUMP read_iaddr;
-	
+
 idone:
 	/* Enable Instruction Cache */
 	P0.l = (IMEM_CONTROL & 0xFFFF);
@@ -80,7 +80,7 @@ idone:
 	R1 = [P0];
 	R0 = (IMC | ENICPLB);
 	R0 = R0 | R1;
-	
+
 	/*Anamoly 05000125 */
 	CLI R2;
 	SSYNC;		/* SSYNC required before writing to IMEM_CONTROL. */
@@ -93,9 +93,9 @@ idone:
 
 #if defined (CONFIG_BLKFIN_DCACHE)
 ENTRY(_dcache_init)
-	
+
 	/* Initialize Data CPLBS */
-	
+
 	I0.L = (DCPLB_ADDR0 & 0xFFFF);
 	I0.H = (DCPLB_ADDR0 >> 16);
 

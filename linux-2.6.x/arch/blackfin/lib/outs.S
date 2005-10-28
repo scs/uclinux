@@ -1,4 +1,4 @@
-/* 
+/*
  * File:	arch/blackfin/lib/outs.S
  * Description:	Implementation of outs{bwl} for BlackFin processors using zero overhead loops.
  * Rev:		$Id$
@@ -23,10 +23,10 @@
  * If not, write to the Free Software Foundation,
  * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
- 
+
 #include <linux/linkage.h>
 	.align 2;
-	   
+
 ENTRY(_outsl)
 	P0 = R0;	/* P0 = port */
 	P1 = R1;	/* P1 = address */

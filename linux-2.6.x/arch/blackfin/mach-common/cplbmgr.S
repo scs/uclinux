@@ -1,10 +1,10 @@
  /*
  * File:        arch/blackfin/mach-common/cplbmgtr.S
- * Based on:    
+ * Based on:
  * Author:      LG Soft India
  *              COPYRIGHT 2005 Analog Devices
  * Created:     ?
- * Description: CPLB replacement routine for CPLB mismatch 
+ * Description: CPLB replacement routine for CPLB mismatch
  *
  * Rev:
  *
@@ -37,26 +37,26 @@
  * Returns:
  * CPLB_RELOADED	=> Successfully updated CPLB table.
  * CPLB_NO_UNLOCKED	=> All CPLBs are locked, so cannot be evicted.
- *			   This indicates that the CPLBs in the configuration 
- *			   tablei are badly configured, as this should never 
+ *			   This indicates that the CPLBs in the configuration
+ *			   tablei are badly configured, as this should never
  *			   occur.
- * CPLB_NO_ADDR_MATCH	=> The address being accessed, that triggered the 
- *			   exception, is not covered by any of the CPLBs in 
- *			   the configuration table. The application is 
+ * CPLB_NO_ADDR_MATCH	=> The address being accessed, that triggered the
+ *			   exception, is not covered by any of the CPLBs in
+ *			   the configuration table. The application is
  *			   presumably misbehaving.
- * CPLB_PROT_VIOL	=> The address being accessed, that triggered the 
- *			   exception, was not a first-write to a clean Write 
- *			   Back Data page, and so presumably is a genuine 
- *			   violation of the page's protection attributes. 
+ * CPLB_PROT_VIOL	=> The address being accessed, that triggered the
+ *			   exception, was not a first-write to a clean Write
+ *			   Back Data page, and so presumably is a genuine
+ *			   violation of the page's protection attributes.
  *			   The application is misbehaving.
  */
 
 #include <linux/linkage.h>
 #include <asm/blackfin.h>
 #include <asm/cplb.h>
- 	
+
 .text
- 
+
 .align 2;
 ENTRY(_cplb_mgr)
 
@@ -70,7 +70,7 @@ ENTRY(_cplb_mgr)
 
 	/* ICPLB Miss Exception. We need to choose one of the
 	* currently-installed CPLBs, and replace it with one
-	* from the configuration table.	
+	* from the configuration table.
  	*/
 
 	P4.L = (ICPLB_FAULT_ADDR & 0xFFFF);
@@ -91,7 +91,7 @@ ENTRY(_cplb_mgr)
 isearch:
 
 	R1 = [P0-0x100];	/* Address for this CPLB */
-	
+
 	R0 = [P0++];		/* Info for this CPLB*/
 	CC = BITTST(R0,0);	/* Is the CPLB valid?*/
 	IF !CC JUMP nomatch;	/* Skip it, if not.*/
@@ -113,7 +113,7 @@ nomatch:
 
 isearch_done:
 	I0 = R4;		/* Fault address we'll search for*/
-	
+
 	/* set up pointers */
 	P0.L = (ICPLB_DATA0 & 0xFFFF);
 	P0.H = (ICPLB_DATA0 >> 16);
@@ -157,7 +157,7 @@ ifound_victim:
 	P3.H = _ipdt_swapcount_table;
 	P3 += -4;
 icount:
-	R2 = [P2];	/* address from config table */			
+	R2 = [P2];	/* address from config table */
 	P2 += 8;
 	P3 += 8;
 	CC = R2==-1;
@@ -172,13 +172,13 @@ icount_done:
 #endif
 	LC0=R3;
 	LSETUP(is_move,ie_move) LC0;
-is_move: 
+is_move:
 	R0 = [P0];
 	[P0 - 4] = R0;
 	R0 = [P0 - 0x100];
-	[P0-0x104] = R0; 
+	[P0-0x104] = R0;
 ie_move:P0+=4;
-	
+
 	/* We've made space in the ICPLB table, so that ICPLB15
 	 * is now free to be overwritten. Next, we have to determine
 	 * which CPLB we need to install, from the configuration
@@ -187,7 +187,7 @@ ie_move:P0+=4;
 	 * determining whether the fault address falls within that
 	 * range.
  	 */
-	
+
 	P2.L = _ipdt_table;
 	P2.H = _ipdt_table;
 #ifdef	CONFIG_CPLB_INFO
@@ -209,7 +209,7 @@ ie_move:P0+=4;
 	 */
 
 	R1 = ((16<<8)|2);
-inext:	R4 = [P2++];	/* address from config table */			
+inext:	R4 = [P2++];	/* address from config table */
 	R2 = [P2++];	/* data from config table */
 #ifdef	CONFIG_CPLB_INFO
 	P3 += 8;
@@ -294,7 +294,7 @@ dcplb_write:
 	P4.H = (DCPLB_STATUS >> 16);
 	P3.L = (DCPLB_DATA0 & 0xFFFF);
 	P3.H = (DCPLB_DATA0 >> 16);
-	R5 = [P4];	
+	R5 = [P4];
 
 	/* A protection violation can be caused by more than just writes
 	 * to a clean WB page, so we have to ensure that:
@@ -334,7 +334,7 @@ dcplb_write:
 	R2 <<= R5;		/* if was super, check write in super mode*/
 	R2 = R3 & R2;
 	CC = R2 == 0;
-	IF CC JUMP prot_violation;	
+	IF CC JUMP prot_violation;
 
 	/* It's a genuine write-to-clean-page.*/
 
@@ -353,7 +353,7 @@ dcplb_miss_compare:
 	 * config table, that covers the faulting address.
 	 */
 
-	P1.L = (DCPLB_DATA15 & 0xFFFF);	
+	P1.L = (DCPLB_DATA15 & 0xFFFF);
 	P1.H = (DCPLB_DATA15 >> 16);
 
 	P4.L = (DCPLB_FAULT_ADDR & 0xFFFF);
@@ -416,11 +416,11 @@ sdsearch2:
 
 	CC = R7 < R4;		/* if PageEnd < SP */
 	IF CC JUMP dfound_victim;
-	R3 = 0x284;		/* stack length from start of trap till 
+	R3 = 0x284;		/* stack length from start of trap till
 				 * the point.
 				 * 20 stack locations for future modifications
 				 */
-	R4 = R4 + R3;	
+	R4 = R4 + R3;
 	CC = R4 < R2;		/* if SP + stacklen < PageStart */
 	IF CC JUMP dfound_victim;
 skip_stack_check:
@@ -431,7 +431,7 @@ edsearch1: NOP;
 	/* If we got here, we didn't find a DCPLB we considered
 	 * replacable, which means all of them were locked.
 	 */
-	
+
 	JUMP all_locked;
 dfound_victim:
 
@@ -488,7 +488,7 @@ Ddoverwrite:
 	 * overwrite it by moving all the following CPLBs
 	 * one space closer to the start.
 	 */
-	
+
 	R1.L = (DCPLB_DATA16 & 0xFFFF);		/*DCPLB_DATA15+4*/
 	R1.H = (DCPLB_DATA16 >> 16);
 	R0 = P0;
@@ -531,7 +531,7 @@ de_moved:NOP;
 	/* An extraction pattern, to retrieve bits 17:16.*/
 
 	R1 = (16<<8)|2;
-dnext:	R4 = [P2++];	/* address */			
+dnext:	R4 = [P2++];	/* address */
 	R2 = [P2++];	/* data */
 #ifdef	CONFIG_CPLB_INFO
 	P3 += 8;

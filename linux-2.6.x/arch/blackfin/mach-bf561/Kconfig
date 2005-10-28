@@ -1,10 +1,10 @@
 if BF561
 
-menu "BF561 Specific Configuration" 
+menu "BF561 Specific Configuration"
 
 comment	'Interrupt Priority Assignment'
 
-menu	'Priority' 		
+menu	'Priority'
 	depends on (BF533 || BF561) # mhfan
 
 
@@ -192,8 +192,8 @@ config	WDTIMER
 	help
 	------------------------- GENERAL HELP -------------------------
 
-	Enter the priority numbers between 7-13 ONLY. Others are Reserved. 		
- 	This applies to all the above.It is not recommended to assign the 
+	Enter the priority numbers between 7-13 ONLY. Others are Reserved.
+ 	This applies to all the above.It is not recommended to assign the
 	highest priority no 7 to UART or any other device.
 
 endmenu

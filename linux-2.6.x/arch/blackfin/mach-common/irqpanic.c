@@ -1,12 +1,12 @@
  /*
   * File:        arch/blackfin/mach-common/irqpanic.c
-  * Based on:    
+  * Based on:
   * Author:      unknown
   *              COPYRIGHT 2005 Analog Devices
   * Created:     ?
   * Description: panic kernel with dump information
   *
-  * Rev:          $Id$ 
+  * Rev:          $Id$
   *
   * Modified:
   *
@@ -53,8 +53,8 @@ asmlinkage void irq_panic(int reason, struct pt_regs *regs)
 
 		printk("\n----------- HARDWARE ERROR -----------\n\n");
 
-		/* There is only need to check for Hardware Errors, since other 
-		 * EXCEPTIONS are handled in TRAPS.c (MH)  
+		/* There is only need to check for Hardware Errors, since other
+		 * EXCEPTIONS are handled in TRAPS.c (MH)
 		 */
 		switch (((unsigned int)regs->seqstat) >> 14) {
 		case (0x2):	/* System MMR Error */

@@ -4,7 +4,7 @@
  * Author:
  *
  * Created:
- * Description:  This file handles the architecture-dependent parts 
+ * Description:  This file handles the architecture-dependent parts
  *              of process handling.
  *
  * Rev:          $Id$

@@ -1,9 +1,9 @@
 /*
  * File:         arch/blackfin/lib/divsi3.S
- * Based on:     
- * Author:       
- *               
- * Created:      
+ * Based on:
+ * Author:
+ *
+ * Created:
  * Description:   16 / 32 bit signed division .
  *                 Special cases :
  *                      1)  If(numerator == 0)
@@ -23,7 +23,7 @@
  *			  	  Registers Used : R2-R7,P0-P2
  * Rev:          $Id$
  *
- * Modified:     
+ * Modified:
  *               Copyright 2004-2005 Analog Devices Inc.
  *
  * Bugs:         Enter bugs at http://blackfin.uclinux.org/
@@ -51,7 +51,7 @@ ___divsi3 :
 /*
  * Attempt to use divide primitives first; these will handle
  *  most cases, and they're quick - avoids stalls incurred by
- *  testing for identities. 
+ *  testing for identities.
  */
 	R2.H = 0x8000;
 	R2 >>>= 16;                     /* R2 now 0xFFFF8000 */
@@ -79,8 +79,8 @@ ___divsi3 :
 	R0 = R0.L (X);
 	RTS;
 
-	/* Can't use the primitives. Test common identities. 
-	 * If the identity is true, return the value in R2. 
+	/* Can't use the primitives. Test common identities.
+	 * If the identity is true, return the value in R2.
 	 */
 
 IDENTS:
@@ -105,7 +105,7 @@ IDENTS:
 	IF CC JUMP IDENT_RETURN;
 
 	/* Identities haven't helped either.
-	 * Perform the full division process.  
+	 * Perform the full division process.
 	 */
 
 	P0 = R0;                        /* Copy R0,R1 */
@@ -116,14 +116,14 @@ IDENTS:
 	R7 = CC;
 
 	R1 = ABS R1;
-	R3 = 0 ;                        /* Clear msw partial remainder */ 
-	R2 = R0<< 1;                    /* R2 lsw of dividend  */ 
+	R3 = 0 ;                        /* Clear msw partial remainder */
+	R2 = R0<< 1;                    /* R2 lsw of dividend  */
 	R4 = R0^R1;                     /* Get sign */
 	R5 = R4 >> 31;                  /* Shift sign to LSB */
 
-	R2 = R2|R5;                     /* Shift quotient bit */ 
+	R2 = R2|R5;                     /* Shift quotient bit */
 	P2 = 31;                        /* Set loop counter   */
-	R4 = R3^R1;                     /* Get new quotient bit */  
+	R4 = R3^R1;                     /* Get new quotient bit */
 
 	LSETUP ( LST,LEND )  LC0 = P2;     /* Setup loop */
 LST:    R5 = R2 >> 31;                  /* record copy of carry from R2 */

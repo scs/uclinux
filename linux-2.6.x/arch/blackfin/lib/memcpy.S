@@ -1,9 +1,9 @@
 /*
  * File:         arch/blackfin/lib/memcpy.S
- * Based on:    
- * Author:     
- *            
- * Created:  
+ * Based on:
+ * Author:
+ *
+ * Created:
  * Description:  internal version of memcpy(), issued by the compiler
  * 		 to copy blocks of data around.
  *		 This is really memmove() - it has to be able to deal with
@@ -13,7 +13,7 @@
  * 		 the normal symbol.
  * Rev:          $Id$
  *
- * Modified:     
+ * Modified:
  *               Copyright 2004-2005 Analog Devices Inc.
  *
  * Bugs:         Enter bugs at http://blackfin.uclinux.org/
@@ -111,7 +111,7 @@ ENTRY(_memcpy)
 /* Need to reverse the copying, because the
  * dst would clobber the src.
  * Don't bother to work out alignment for
- * the reverse case. 
+ * the reverse case.
  */
 	R0 = R1;	/* save src for later. */
 	P0 = P0 + P2;

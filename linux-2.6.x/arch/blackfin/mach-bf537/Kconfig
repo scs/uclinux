@@ -9,14 +9,14 @@ choice
 	  Quick Hack for BF537/6/4 default GPIO PFx PORTF
 
 config BF537_PORT_F
-	bool 'Select BF537/6/4 default GPIO PFx PORTF' 
-	depends on (BF537 || BF536 || BF534) 
+	bool 'Select BF537/6/4 default GPIO PFx PORTF'
+	depends on (BF537 || BF536 || BF534)
 	help
 	  Quick Hack for BF537/6/4 default GPIO PFx PORTF
-	
+
 config BF537_PORT_G
-	bool 'Select BF537/6/4 default GPIO PFx PORTG' 
-	depends on (BF537 || BF536 || BF534) 
+	bool 'Select BF537/6/4 default GPIO PFx PORTG'
+	depends on (BF537 || BF536 || BF534)
 	help
 	  Quick Hack for BF537/6/4 default GPIO PFx PORTG
 endchoice
@@ -26,12 +26,12 @@ config LOADVDSP
 	depends on BLACKFIN
 	default n
 	help
-	  Disable some startup code to load the kernel using VDSP 
+	  Disable some startup code to load the kernel using VDSP
 
 
 
 comment	'Interrupt Priority Assignment'
-menu	'Priority' 		
+menu	'Priority'
 
 config	IRQ_PLL_WAKEUP
 	int "IRQ_PLL_WAKEUP"
@@ -132,8 +132,8 @@ config	IRQ_WATCH
 
 	help
 	  ------------------------- GENERAL HELP -------------------------
-	  Enter the priority numbers between 7-13 ONLY. Others are Reserved. 		
- 	  This applies to all the above.It is not recommended to assign the 
+	  Enter the priority numbers between 7-13 ONLY. Others are Reserved.
+ 	  This applies to all the above.It is not recommended to assign the
 	  highest priority no 7 to UART or any other device.
 
 endmenu

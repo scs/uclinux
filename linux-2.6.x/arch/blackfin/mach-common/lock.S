@@ -1,12 +1,12 @@
  /*
  * File:        arch/blackfin/mach-common/lock.S
- * Based on:    
+ * Based on:
  * Author:      LG Soft India
  *              COPYRIGHT 2005 Analog Devices
  * Created:     ?
  * Description: kernel locks
  *
- * Rev:          $Id$ 
+ * Rev:          $Id$
  *
  * Modified:
  *
@@ -43,14 +43,14 @@
 .global _cache_lock
 .type	_cache_lock, STT_FUNC;
 
-/* When you come here, it is assumed that 
+/* When you come here, it is assumed that
  * R0 - Which way to be locked
- */	
+ */
 
 ENTRY(_cache_grab_lock)
-	
+
 	[--SP]=( R7:0,P5:0 );
-	
+
 	P1.H = (IMEM_CONTROL >> 16);
 	P1.L = (IMEM_CONTROL & 0xFFFF);
 	P5.H = (ICPLB_ADDR0 >> 16);
@@ -63,7 +63,7 @@ ENTRY(_cache_grab_lock)
 	 * invalidate the entire cache itself.
   	 * invalidate_entire_icache;
 	 */
-	
+
 	SP += -12;
 	[--SP] = RETS;
 	CALL _invalidate_entire_icache;
@@ -71,11 +71,11 @@ ENTRY(_cache_grab_lock)
 	SP += 12;
 
 	/* Disable the Interrupts*/
-	
+
 	CLI R3;
-	
-LOCK_WAY:					
-	
+
+LOCK_WAY:
+
 	/* Way0 - 0xFFA133E0
 	 * Way1 - 0xFFA137E0
 	 * Way2 - 0xFFA13BE0	Total Way Size = 4K
@@ -86,15 +86,15 @@ LOCK_WAY:
 	 * Only Way0 of the instruction cache can now be
 	 * replaced by a new code
 	 */
-	
+
 	R5 = R7;
 	CC = BITTST(R7,0);
-	IF CC JUMP CLEAR1;	
+	IF CC JUMP CLEAR1;
 	R7 = 0;
 	BITSET(R7,0);
 	JUMP DONE1;
-	
-CLEAR1:	
+
+CLEAR1:
 	R7 = 0;
 	BITCLR(R7,0);
 DONE1:	R4 = R7 << 3;
@@ -104,15 +104,15 @@ DONE1:	R4 = R7 << 3;
 	.align 8;
 	[P1] = R7;
 	SSYNC;
-	
+
 	R7 = R5;
 	CC = BITTST(R7,1);
 	IF CC JUMP CLEAR2;
 	R7 = 0;
 	BITSET(R7,1);
 	JUMP DONE2;
-	
-CLEAR2:	
+
+CLEAR2:
 	R7 = 0;
 	BITCLR(R7,1);
 DONE2:	R4 = R7 << 3;
@@ -121,7 +121,7 @@ DONE2:	R4 = R7 << 3;
 	SSYNC;		/* SSYNC required writing to IMEM_CONTROL. */
 	.align 8;
 	[P1] = R7;
-	SSYNC;	
+	SSYNC;
 
 	R7 = R5;
 	CC = BITTST(R7,2);
@@ -129,7 +129,7 @@ DONE2:	R4 = R7 << 3;
 	R7 = 0;
 	BITSET(R7,2);
 	JUMP DONE3;
-CLEAR3:	
+CLEAR3:
 	R7 = 0;
 	BITCLR(R7,2);
 DONE3:	R4 = R7 << 3;
@@ -138,16 +138,16 @@ DONE3:	R4 = R7 << 3;
 	SSYNC;		/* SSYNC required writing to IMEM_CONTROL. */
 	.align 8;
 	[P1] = R7;
-	SSYNC;	
-	
+	SSYNC;
+
 
 	R7 = R5;
 	CC = BITTST(R7,3);
-	IF CC JUMP CLEAR4;	
+	IF CC JUMP CLEAR4;
 	R7 = 0;
 	BITSET(R7,3);
 	JUMP DONE4;
-CLEAR4:	
+CLEAR4:
 	R7 = 0;
 	BITCLR(R7,3);
 DONE4:	R4 = R7 << 3;
@@ -156,27 +156,27 @@ DONE4:	R4 = R7 << 3;
 	SSYNC;		/* SSYNC required writing to IMEM_CONTROL. */
 	.align 8;
 	[P1] = R7;
-	SSYNC;	
+	SSYNC;
 
 	STI R3;
 
 	( R7:0,P5:0 ) = [SP++];
-	
+
 	RTS;
 
-/* After the execution of critical code, the code is now locked into 	  	
+/* After the execution of critical code, the code is now locked into
  * the cache way. Now we need to set ILOC.
- * 
+ *
  * R0 - Which way to be locked
  */
 
-_cache_lock: 
-	
+_cache_lock:
+
 	[--SP]=( R7:0,P5:0 );
 
 	P1.H = (IMEM_CONTROL >> 16);
 	P1.L = (IMEM_CONTROL & 0xFFFF);
-	
+
 	/* Disable the Interrupts*/
 	CLI R3;
 
@@ -197,7 +197,7 @@ _cache_lock:
 
 #endif	/*BLKFIN_CACHE_LOCK*/
 
-/* Return the ILOC bits of IMEM_CONTROL 
+/* Return the ILOC bits of IMEM_CONTROL
  */
 
 .global _read_iloc
@@ -211,6 +211,5 @@ _read_iloc:
 	R0 = [P1];
 	R0 = R0 >> 3;
 	R0 = R0 & R1;
-	
-	RTS;
 
+	RTS;

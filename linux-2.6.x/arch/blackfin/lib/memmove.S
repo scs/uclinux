@@ -1,14 +1,14 @@
 /*
  * File:         arch/blackfin/lib/memmove.S
- * Based on:     
- * Author:       
- *               
- * Created:      
- * Description:  
- *               
+ * Based on:
+ * Author:
+ *
+ * Created:
+ * Description:
+ *
  * Rev:          $Id$
  *
- * Modified:     
+ * Modified:
  *               Copyright 2004-2005 Analog Devices Inc.
  *
  * Bugs:         Enter bugs at http://blackfin.uclinux.org/
@@ -30,7 +30,7 @@
  */
 #include <linux/linkage.h>
 	   .align 2;
-	   
+
 /*
  * C Library function MEMMOVE
  * R0 = To Address ( leave unchanged to form result)
@@ -39,10 +39,10 @@
  * Data may overlap
  */
 
-ENTRY(_memmove)	
-		I1 = P3; 
+ENTRY(_memmove)
+		I1 = P3;
 		P0 = R0;              /* P0 = To address */
-		P3 = R1;              /* P3 = From Address */ 
+		P3 = R1;              /* P3 = From Address */
 		P2 = R2 ;             /* P2 = count */
 		CC = P2 == 0;           /* Check zero count*/
 		IF CC JUMP finished;    /* very unlikely */
@@ -54,8 +54,8 @@ ENTRY(_memmove)
 		IF CC JUMP overlap;
 no_overlap:
 		R3 = 11;
-		CC = R2 <= R3;       
-		IF CC JUMP  bytes;  
+		CC = R2 <= R3;
+		IF CC JUMP  bytes;
 		R3 = R1 | R0;         /* OR addresses together */
 		R3 <<= 30;            /* check bottom two bits */
 		CC =  AZ;             /* AZ set if zero.*/
@@ -71,7 +71,7 @@ no_overlap:
 
 		LSETUP (quad_loop , quad_loop) LC0=P1;
 quad_loop:	MNOP || [P0++] = R1 || R1 = [I0++];
-		[P0++] = R1; 
+		[P0++] = R1;
 
 		CC = P2 == 0;         /* any remaining bytes? */
 		P3 = I0;		  /* Ammend P3 to updated ptr. */

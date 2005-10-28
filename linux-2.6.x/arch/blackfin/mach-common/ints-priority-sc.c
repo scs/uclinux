@@ -1,12 +1,12 @@
  /*
   * File:        arch/blackfin/mach-common/ints-priority.c
-  * Based on:    
+  * Based on:
   * Author:      unknown
   *              COPYRIGHT 2005 Analog Devices
   * Created:     ?
   * Description: Set up the interupt priorities
   *
-  * Rev:          $Id$ 
+  * Rev:          $Id$
   *
   * Modified:
   *              1996 Roman Zippel
@@ -470,8 +470,8 @@ int __init init_arch_irq(void)
 	__builtin_bfin_csync();
 
 	printk(KERN_INFO "Configuring Blackfin Priority Driven Interrupts\n");
-	/* IMASK=xxx is equivalent to STI xx or irq_flags=xx, 
-	 * local_irq_enable() 
+	/* IMASK=xxx is equivalent to STI xx or irq_flags=xx,
+	 * local_irq_enable()
 	 */
 	program_IAR();
 	/* Therefore it's better to setup IARs before interrupts enabled */

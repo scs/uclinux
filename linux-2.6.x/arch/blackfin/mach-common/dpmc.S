@@ -1,6 +1,6 @@
  /*
  * File:        arch/blackfin/mach-common/dpmc.S
- * Based on:    
+ * Based on:
  * Author:      LG Soft India
  *              COPYRIGHT 2005 Analog Devices
  * Created:     ?
@@ -32,14 +32,14 @@
 #include <asm/blackfin.h>
 #include <asm/mach/irq.h>
 
-#define ASSEMBLY 
+#define ASSEMBLY
 
 .text
 
 .global _unmask_wdog_wakeup_evt
 _unmask_wdog_wakeup_evt:
 	[--SP] = ( R7:0, P5:0 );
-	
+
 	P0.h = (SIC_IWR >> 16);
 	P0.l = (SIC_IWR & 0xFFFF);
 	R7 = [P0];
@@ -47,12 +47,12 @@ _unmask_wdog_wakeup_evt:
 	[P0] = R7;
 	SSYNC;
 
-	( R7:0, P5:0 ) = [SP++];	
+	( R7:0, P5:0 ) = [SP++];
 	RTS;
 
 WRITE_TO_STAT:
-	/* When watch dog timer is enabled, a write to STAT will load the 
-	 * contents of CNT to STAT 
+	/* When watch dog timer is enabled, a write to STAT will load the
+	 * contents of CNT to STAT
 	 */
 	R7 = 0x0000(z);
 	P0.h = (WDOG_STAT >> 16);
@@ -62,7 +62,7 @@ WRITE_TO_STAT:
 	JUMP SKIP_WRITE_TO_STAT;
 
 .global _program_wdog_timer
-_program_wdog_timer:	
+_program_wdog_timer:
 	[--SP] = ( R7:0, P5:0 );
 
 	P0.h = (WDOG_CNT >> 16);
@@ -92,7 +92,7 @@ SKIP_WRITE_TO_STAT:
         BITCLR(R7,4);	/* Enable the wdog counter */
         W[P0] = R7.L;
         SSYNC;
-	
+
 	( R7:0, P5:0 ) = [SP++];
 	RTS;
 
@@ -146,7 +146,7 @@ _sleep_mode:
 	/* Clear all the interrupts,bits sticky */
         R0 = (SWEF|AEF|SEF|MEF|HEF|DEF|DAEF|WCOM)(Z);
         w[P0] = R0.L;
-        SSYNC;        
+        SSYNC;
 
 	P0.H = hi(PLL_CTL);
         P0.L = lo(PLL_CTL);
@@ -165,7 +165,7 @@ CHECK_AGAIN1:
 	R5 = W[P1] (Z);
 	CC = BITTST(R5,5);
 	IF !CC JUMP CHECK_AGAIN1;
-	
+
 	P0.H = hi(PLL_CTL);
 	P0.L = lo(PLL_CTL);
 	R7 = w[p0](z);
@@ -192,8 +192,8 @@ _deep_sleep:
 	/* Clear all the interrupts,bits sticky */
         R0 = (SWEF|AEF|SEF|MEF|HEF|DEF|DAEF|WCOM)(Z);
         w[P0] = R0;
-        SSYNC;        
-        
+        SSYNC;
+
         P0.H = hi(PLL_CTL);
         P0.L = lo(PLL_CTL);
         R1 = W[P0](z);
@@ -226,19 +226,19 @@ CHECK_AGAIN2:
 .global _hibernate_mode
 _hibernate_mode:
 	[--SP] = ( R7:0, P5:0 );
-	
+
  	P0.H = hi(SIC_IWR);
         P0.L = lo(SIC_IWR);
 	R0 = IWR_ENABLE(IRQ_RTC - IVG7)(Z);
         [P0] = R0;
         SSYNC;
-        
+
         P0.H = hi(RTC_ISTAT);
         P0.L = lo(RTC_ISTAT);
 	/* Clear all the interrupts,bits sticky */
         R0 = (SWEF|AEF|SEF|MEF|HEF|DEF|DAEF|WCOM)(Z);
         w[P0] = R0;
-        SSYNC;        
+        SSYNC;
 
 	P0.H = hi(VR_CTL);
         P0.L = lo(VR_CTL);
@@ -248,12 +248,12 @@ _hibernate_mode:
 	BITCLR (R1, 1);
 	W[P0] = R1.L;
 	SSYNC;
-	
+
         CLI R2;
         IDLE;
 
-	/* Actually, adding anything may not be necessary...SDRAM contents 
-	 * are lost 
+	/* Actually, adding anything may not be necessary...SDRAM contents
+	 * are lost
 	 */
 
 	STI R2;
@@ -266,7 +266,7 @@ _hibernate_mode:
         BITSET (R1, 1);
         W[P0] = R1.L;
         SSYNC;
-	
+
 	IDLE;
 
         ( R7:0, P5:0 ) = [SP++];

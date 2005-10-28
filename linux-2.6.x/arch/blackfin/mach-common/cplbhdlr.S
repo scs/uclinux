@@ -1,6 +1,6 @@
  /*
  * File:        arch/blackfin/mach-common/cplbhdlr.S
- * Based on:    
+ * Based on:
  * Author:      LG Soft India
  *              COPYRIGHT 2005 Analog Devices
  * Created:     ?
@@ -35,7 +35,7 @@
 
 
 .text
- 
+
 .globl __cplb_hdr;
 .type __cplb_hdr, STT_FUNC;
 .extern _cplb_mgr;
@@ -88,19 +88,19 @@ is_icplb_miss:
 
 #if ( defined (CONFIG_BLKFIN_CACHE) || defined (CONFIG_BLKFIN_DCACHE))
 #if ( defined (CONFIG_BLKFIN_CACHE) && !defined (CONFIG_BLKFIN_DCACHE))
-	R1 = CPLB_ENABLE_ICACHE; 
+	R1 = CPLB_ENABLE_ICACHE;
 #endif
 #if ( !defined (CONFIG_BLKFIN_CACHE) && defined (CONFIG_BLKFIN_DCACHE))
-	R1 = CPLB_ENABLE_DCACHE; 
+	R1 = CPLB_ENABLE_DCACHE;
 #endif
 #if ( defined (CONFIG_BLKFIN_CACHE) && defined (CONFIG_BLKFIN_DCACHE))
-	R1 = CPLB_ENABLE_DCACHE | CPLB_ENABLE_ICACHE; 
+	R1 = CPLB_ENABLE_DCACHE | CPLB_ENABLE_ICACHE;
 #endif
 #else
 	R1 = 0;
 #endif
 
-	[--SP] = RETS;			
+	[--SP] = RETS;
 	CALL _cplb_mgr;
 	RETS = [SP++];
 	CC = R0 == 0;
@@ -114,27 +114,27 @@ is_icplb_miss:
 	RTS;
 
 unknown:
-	[--SP] = RETS;			
+	[--SP] = RETS;
 	CALL __unknown_exception_occurred;
 	RETS = [SP++];
 	JUMP unknown;
 not_replaced:
 	CC = R0 == CPLB_NO_UNLOCKED;
 	IF !CC JUMP next_check;
-	[--SP] = RETS;			
+	[--SP] = RETS;
 	CALL __cplb_miss_all_locked;
 	RETS = [SP++];
 next_check:
 	CC = R0 == CPLB_NO_ADDR_MATCH;
 	IF !CC JUMP next_check2;
-	[--SP] = RETS;			
+	[--SP] = RETS;
 	CALL __cplb_miss_without_replacement;
 	RETS = [SP++];
 	JUMP not_replaced;
 next_check2:
 	CC = R0 == CPLB_PROT_VIOL;
 	IF !CC JUMP strange_return_from_cplb_mgr;
-	[--SP] = RETS;			
+	[--SP] = RETS;
 	CALL __cplb_protection_violation;
 	RETS = [SP++];
 	JUMP not_replaced;
@@ -144,8 +144,8 @@ strange_return_from_cplb_mgr:
 	JUMP strange_return_from_cplb_mgr;
 
 /************************************
- * Diagnostic exception handlers 
- */	
+ * Diagnostic exception handlers
+ */
 
 __cplb_miss_all_locked:
 	sp += -12;
@@ -179,11 +179,11 @@ __unknown_exception_occurred:
 	 * other kinds of exceptions, you must replace the
 	 * default handler with your own, that handles all the
 	 * exceptions you will use.
-	 * 
+	 *
 	 * Since there's nothing we can do, we just loop here
 	 * at what we hope is a suitably informative label.
 	 */
-	
+
 	IDLE;
 do_not_know_what_to_do:
 	NOP;

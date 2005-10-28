@@ -188,7 +188,7 @@ SECTIONS
 		*(COMMON)
 		. = ALIGN(4) ;
 		 __ebss = . 	;
-		 __end = .	; 
+		 __end = .	;
  		__bss_end = . ;
     	} > ram
 

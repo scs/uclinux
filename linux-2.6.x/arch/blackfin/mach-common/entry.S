@@ -1,6 +1,6 @@
  /*
  * File:        arch/blackfin/mach-common/entry.S
- * Based on:    
+ * Based on:
  * Author:      Linus Torvalds
  *              COPYRIGHT 2005 Analog Devices
  * Created:     ?
@@ -31,12 +31,12 @@
  * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
-/* 
+/*
  * 25-Dec-2004 - LG Soft India
- * 	1. Fix in return_from_int, to make sure any pending 
- *	system call in ILAT for this process to get 
- *	executed, otherwise in case context switch happens, 
- *	system call of first process (i.e in ILAT) will be 
+ * 	1. Fix in return_from_int, to make sure any pending
+ *	system call in ILAT for this process to get
+ *	executed, otherwise in case context switch happens,
+ *	system call of first process (i.e in ILAT) will be
  *	carried forward to the switched process.
  *	2. Removed Constant references for the following
  *		a.  IPEND
@@ -52,7 +52,7 @@
 
 #include <linux/linkage.h>
 #include <asm/blackfin.h>
-#include <asm/unistd.h>	
+#include <asm/unistd.h>
 #include <asm/errno.h>
 #include <asm/thread_info.h>  /* TIF_NEED_RESCHED */
 #include <asm/asm-offsets.h>
@@ -78,9 +78,9 @@ extable:
 	.long ex_trap_c
 	.long ex_single_step	/* 16 - STEP */
 	.long ex_trap_c		/* 17 - OVFLOW */
-	.long ex_trap_c		
 	.long ex_trap_c
-	.long ex_trap_c		
+	.long ex_trap_c
+	.long ex_trap_c
 	.long ex_trap_c
 	.long ex_trap_c
 	.long ex_trap_c
@@ -128,7 +128,7 @@ extable:
 
 /* Slightly simplified and streamlined entry point for CPLB misses.
  * This one does not lower the level to IRQ5, and thus can be used to
- * patch up CPLB misses on the kernel stack.  
+ * patch up CPLB misses on the kernel stack.
  */
 ENTRY(ex_dcplb)
 	/*
@@ -174,7 +174,7 @@ ENTRY(ex_syscall)
 ENTRY(spinlock_bh)
 	SAVE_ALL_SYS
 	/* To end up here, vector 15 was changed - so we have to change it
-	 * back.  
+	 * back.
 	 */
 	p0.l = lo(EVT15);
 	p0.h = hi(EVT15);
@@ -198,7 +198,7 @@ ENTRY(ex_soft_bp)
 
 ENTRY(ex_single_step)
 	/* 1. Check if in interrupt handler.
-	 * 2. If not, call ex_trap_c.  
+	 * 2. If not, call ex_trap_c.
 	 */
 	p5.l = lo(IPEND);
 	p5.h = hi(IPEND);
@@ -220,7 +220,7 @@ exception_do_nothing:
 ENTRY(ex_trap_c)
 	/* Call C code (trap_c) to handle the exception, which most
 	 * likely involves sending a signal to the current process.
-	 * To avoid double faults, lower our priority to IRQ5 first.  
+	 * To avoid double faults, lower our priority to IRQ5 first.
 	 */
 	P5.h = exception_to_level5;
 	P5.l = exception_to_level5;
@@ -254,15 +254,15 @@ ENTRY(exception_to_level5)
 	r0 = sp; 	/* stack frame pt_regs pointer argument ==> r0 */
 	SP += -12;
 	call _trap_c;
-	SP += 12; 
+	SP += 12;
 	call ret_from_exception;
 	RESTORE_ALL_SYS
 	rti;
-	
+
 ENTRY(_trap) /* Exception: 4th entry into system event table(supervisor mode)*/
 	/* Since the kernel stack can be anywhere, it's not guaranteed to be
 	 * covered by a CPLB.  Switch to an exception stack; use RETN as a
-	 * scratch register (for want of a better option).  
+	 * scratch register (for want of a better option).
 	 */
 	retn = sp;
 	sp.l = exception_stack_top;
@@ -284,7 +284,7 @@ ENTRY(_trap) /* Exception: 4th entry into system event table(supervisor mode)*/
 badsys:
 	r7 = -ENOSYS; 		/* signextending enough */
 	[sp + PT_R0] = r7;	/* return value from system call */
-	rti;	
+	rti;
 
 ENTRY(_execve)
 	link SIZEOF_PTREGS;
@@ -305,7 +305,7 @@ ENTRY(_execve)
 	cc = r0 == 0;
 	if ! cc jump 1f;
 	/* Success.  Copy our temporary pt_regs to the top of the kernel
-	 * stack and do a normal exception return.  
+	 * stack and do a normal exception return.
 	 */
 	r1 = sp;
 	r0 = (-KERNEL_STACK_SIZE) (x);
@@ -330,7 +330,7 @@ ENTRY(_execve)
 	p1 = r0;
 	p1 = p1 + p2;
 	sp = p1;
-	r0 = syscfg; 
+	r0 = syscfg;
 	[SP + PT_SYSCFG] = r0;
 	[p3 + (TASK_THREAD + THREAD_KSP)] = sp;
 
@@ -352,17 +352,17 @@ ENTRY(system_call)
 	r0 = rets;
 	[sp + PT_RESERVED] = r0;
 	/* Set the stack for the current process */
-	r7 = sp;  
+	r7 = sp;
 	r6.l = lo(ALIGN_PAGE_MASK);
 	r6.h = hi(ALIGN_PAGE_MASK);
 	r7 = r7 & r6;  		/*thread_info*/
-	p2 = r7; 
+	p2 = r7;
 	p2 = [p2];
 
 	[p2+(TASK_THREAD+THREAD_KSP)] = sp;
 
 	/* Check the System Call */
-	r7 = __NR_syscall; 
+	r7 = __NR_syscall;
 	/*System call number is passed in P0 */
 	r5 = p0;
 	cc = r5 < r7;
@@ -436,7 +436,7 @@ syscall_sigpending:
 	r0 = 0;
 	r1 = sp;
 	SP += -12;
-	call _do_signal; 
+	call _do_signal;
 	SP += 12;
 
 syscall_really_exit:
@@ -559,7 +559,7 @@ ENTRY(ret_from_exception)
 	/* Make sure any pending system call or deferred exception
 	 * return in ILAT for this process to get executed, otherwise
 	 * in case context switch happens, system call of
-	 * first process (i.e in ILAT) will be carried 
+	 * first process (i.e in ILAT) will be carried
 	 * forward to the switched process
 	 */
 
@@ -618,7 +618,7 @@ ENTRY(return_from_int)
         r1 = r0 - r1;
         r2 = r0 & r1;
         cc = r2 == 0;
-        if !cc jump 2f;	
+        if !cc jump 2f;
 
 	/* Lower the interrupt level to 15.  */
 	p0.l = lo(EVT15);
@@ -630,7 +630,7 @@ ENTRY(return_from_int)
 	r0 = 0x801f (z);
 	STI r0;
 	raise 15;	/* raise evt15 to do signal or reschedule */
-	rti; 
+	rti;
 2:
 	rts;
 
@@ -638,12 +638,12 @@ ENTRY(_lower_to_irq14)
 	r0 = 0x401f;
 	sti r0;
 	raise 14;
-	rti; 
+	rti;
 ENTRY(_evt14_softirq)
 #ifdef CONFIG_DEBUG_HWERR
 	r0 = 0x3f;
 	sti r0;
-#else	
+#else
 	cli r0;
 #endif
 	[--sp] = RETI;
@@ -652,7 +652,7 @@ ENTRY(_evt14_softirq)
 
 schedule_and_signal_from_int:
 	/* To end up here, vector 15 was changed - so we have to change it
-	 * back.  
+	 * back.
 	 */
 	p0.l = lo(EVT15);
 	p0.h = hi(EVT15);
@@ -673,7 +673,7 @@ schedule_and_signal_from_int:
 _schedule_and_signal:
 	SAVE_CONTEXT_SYSCALL
 	/* To end up here, vector 15 was changed - so we have to change it
-	 * back.  
+	 * back.
 	 */
 	p0.l = lo(EVT15);
 	p0.h = hi(EVT15);
@@ -691,7 +691,7 @@ _schedule_and_signal:
 
 .data
 ALIGN
-ENTRY(sys_call_table)	
+ENTRY(sys_call_table)
 	.long _sys_ni_syscall	/* 0  -  old "setup()" system call*/
 	.long _sys_exit
 	.long _sys_fork
@@ -951,7 +951,7 @@ ENTRY(sys_call_table)
 	.long _sys_ni_syscall
 	.endr
 /* Put this in the kernel data section - that should always be covered by
- * a CPLB.  
+ * a CPLB.
  */
 exception_stack:
 	.rept 1024

@@ -92,7 +92,7 @@ ENTRY(__stext)
 	M1 = r0;
 	M2 = r0;
 	M3 = r0;
-	
+
 	/* Turn off the icache */
 	p0.l = (IMEM_CONTROL & 0xFFFF);
 	p0.h = (IMEM_CONTROL >> 16);
@@ -102,7 +102,7 @@ ENTRY(__stext)
 
 	/* Anamoly 05000125 */
 	CLI R2;
-	SSYNC;	                                                               
+	SSYNC;
 	[p0] = R0;
 	SSYNC;
 	STI R2;
@@ -113,7 +113,7 @@ ENTRY(__stext)
     R1 = [p0];
     R0 = ~ENDCPLB;
     R0 = R0 & R1;
-             
+
     /* Anamoly 05000125 */
     CLI R2;
     SSYNC;
@@ -125,7 +125,7 @@ ENTRY(__stext)
 /* Rev 0.0 Anomaly 05000212 - PORTx_FER, PORT_MUX Registers Do Not accept "writes" correctly: */
 	p0.h = hi(PORT_MUX);
 	p0.l = lo(PORT_MUX);
-	R0.L = W[P0]; //Read	
+	R0.L = W[P0]; //Read
 	SSYNC;
 	R0 = (PGDE_UART | PFTE_UART)(Z);
 	W[P0] = R0.L; //Write
@@ -168,7 +168,7 @@ ENTRY(__stext)
 	r0 = 0x00(Z);
 	w[p0] = r0.L;
 	ssync;
-	
+
 	p0.h = hi(UART_GCTL);
 	p0.l = lo(UART_GCTL);
 	r0 = 0x0(Z);
@@ -207,7 +207,7 @@ ENTRY(__stext)
         r0 = AMGCTLVAL;
         w[p2] = r0;
         ssync;
-#ifndef CONFIG_LOADVDSP        
+#ifndef CONFIG_LOADVDSP
         call _real_start;
 #endif
 	/* This section keeps the processor in supervisor mode
@@ -236,7 +236,7 @@ ENTRY(__stext)
 	p0.h = WAIT_HERE;
 	reti = p0;
 	rti;
-	
+
 WAIT_HERE:
 	jump WAIT_HERE;
 
@@ -307,7 +307,7 @@ _clear_zero:
 	r1.l = _init_thread_union;
 	r1.h = _init_thread_union;
 
-	r2.l = 0x2000; 
+	r2.l = 0x2000;
 	r2.h = 0x0000;
 	r1 = r1 + r2;
 	sp = r1;
@@ -316,7 +316,7 @@ _clear_zero:
 	call _start_kernel;
 _exit:
 	jump.s	_exit;
-	
+
 .section .text.l1
 ENTRY(start_dma_code)
 	p0.h = hi(SIC_IWR);
@@ -324,7 +324,7 @@ ENTRY(start_dma_code)
 	r0.l = 0x1;
 	[p0] = r0;
 	SSYNC;
-	
+
 	/*
          *  Set PLL_CTL
          *   - [14:09] = MSEL[5:0] : CLKIN / VCO multiplication factors
@@ -337,7 +337,7 @@ ENTRY(start_dma_code)
          *   - [0]     = DF        : 1=Pass CLKIN/2 to PLL / 0=Pass CLKIN to PLL
          *   all other bits set to zero
          */
-	
+
 	p0.h = hi(PLL_LOCKCNT);
 	p0.l = lo(PLL_LOCKCNT);
 	r0 = 0x300(Z);
@@ -358,7 +358,7 @@ ENTRY(start_dma_code)
         r1 = PLL_BYPASS;         /* Bypass the PLL?                 */
         r1 = r1 << 8;                   /* Shift it over                   */
         r0 = r1 | r0;                   /* add them all together           */
-	
+
         p0.h = hi(PLL_CTL);
         p0.l = lo(PLL_CTL);      /* Load the address                */
         cli r2;                         /* Disable interrupts              */
@@ -440,15 +440,15 @@ ENTRY(_reset)
 	r0 = [p0];
 	[p0] = r0;
 	SSYNC;
-	
+
 	/* Disable the WDOG TIMER */
 	p0.h = hi(WDOG_CTL);
 	p0.l = lo(WDOG_CTL);
 	r0.l = 0xAD6;
 	w[p0] = r0.l;
 	SSYNC;
-	
-	/* Clear the sticky bit incase it is already set */	
+
+	/* Clear the sticky bit incase it is already set */
 	p0.h = hi(WDOG_CTL);
 	p0.l = lo(WDOG_CTL);
 	r0.l = 0x8AD6;
@@ -497,7 +497,7 @@ SKIP_WRITE:
         BITCLR(R0,4);
         W[P0] = R0.L;
         SSYNC;
-	
+
 	IDLE;
 
 	RTS;

@@ -4,7 +4,7 @@
   * Author:       Aidan Williams <aidan@nicta.com.au>
   *                 Copyright 2005 National ICT Australia (NICTA)
   * Created:
-  * Description: 
+  * Description:
   *
   * Rev:         $Id$
   *

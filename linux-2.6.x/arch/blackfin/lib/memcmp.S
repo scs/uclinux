@@ -1,14 +1,14 @@
 /*
  * File:         arch/blackfin/lib/memcmp.S
- * Based on:     
- * Author:       
- *               
- * Created:      
- * Description:  
- *               
+ * Based on:
+ * Author:
+ *
+ * Created:
+ * Description:
+ *
  * Rev:          $Id$
  *
- * Modified:     
+ * Modified:
  *               Copyright 2004-2005 Analog Devices Inc.
  *
  * Bugs:         Enter bugs at http://blackfin.uclinux.org/
@@ -29,12 +29,12 @@
  * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
-.text 
+.text
 .global _memcmp;
 	.align 2;
 /*
  * C Library function MEMCMP
- * R0 = First Address 
+ * R0 = First Address
  * R1 = Second Address
  * R2 = count
  * Favours word aligned data.
@@ -56,9 +56,9 @@ _memcmp:
 	R3 =  3;
 	R2 = R2 & R3;		/* remainder */
 	P2 = R2;			/* set remainder */
-		
+
 	LSETUP (quad_loop_s , quad_loop_e) LC0=P1;
-quad_loop_s:	 
+quad_loop_s:
 	NOP;
 	R0 = [P0++];
 	R1 = [I0++];
@@ -68,16 +68,16 @@ quad_loop_e:
 	NOP;
 
 	P3 = I0;			/* s2 */
-too_small:	  
+too_small:
 	CC = P2 == 0;		/* Check zero count*/
 	IF CC JUMP finished;	/* very unlikely*/
 
-bytes:        
+bytes:
 	LSETUP (byte_loop_s , byte_loop_e) LC0=P2;
-byte_loop_s:  	 
+byte_loop_s:
 	R1 = B[P3++](Z);	/* *s2 */
 	R0 = B[P0++](Z);	/* *s1 */
-	CC = R0 == R1; 
+	CC = R0 == R1;
 	IF !CC JUMP different;
 byte_loop_e:
 	NOP;
@@ -108,4 +108,3 @@ finished:
 	RTS;
 
 ._memcmp.end:
-

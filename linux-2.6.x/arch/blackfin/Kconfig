@@ -236,7 +236,7 @@ config BFIN_IDLE_LED_NUM
 	  Select the LED (marked on the board) for you to blink.
 
 #
-# Sorry - but you need to put the hex address here - 
+# Sorry - but you need to put the hex address here -
 #
 
 # Flag Data register
@@ -665,7 +665,3 @@ source "security/Kconfig"
 source "crypto/Kconfig"
 
 source "lib/Kconfig"
-
-
-
-

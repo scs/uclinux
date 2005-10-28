@@ -1,9 +1,9 @@
 /*
  * File:         arch/blackfin/lib/modsi3.S
- * Based on:     
- * Author:       
- *               
- * Created:      
+ * Based on:
+ * Author:
+ *
+ * Created:
  * Description:  This program computes 32 bit signed remainder. It calls div32 function
  *  		 for quotient estimation.
  *
@@ -11,10 +11,10 @@
  *		 Numerator/ Denominator in  R0, R1
  *		  R0  -  returns remainder.
  *		  R2-R7
- *               
+ *
  * Rev:          $Id$
  *
- * Modified:     
+ * Modified:
  *               Copyright 2004-2005 Analog Devices Inc.
  *
  * Bugs:         Enter bugs at http://blackfin.uclinux.org/
@@ -57,7 +57,7 @@ ___modsi3:
 
 	[--SP] = (R7:6);		/* Push  R7 and R6 */
 	[--SP] = RETS;			/* and return address */
-	R7 = R0;			/* Copy of R0 */   
+	R7 = R0;			/* Copy of R0 */
 	R6 = R1;			/* Save for later */
 	SP += -12;			/* Should always provide this space */
 	CALL ___divsi3;			/* Compute signed quotient using ___divsi3()*/

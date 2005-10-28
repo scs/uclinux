@@ -1,14 +1,14 @@
 /*
  * File:         arch/blackfin/lib/memset.S
- * Based on:     
- * Author:       
- *               
- * Created:      
- * Description:  
- *              
+ * Based on:
+ * Author:
+ *
+ * Created:
+ * Description:
+ *
  * Rev:          $Id$
  *
- * Modified:    
+ * Modified:
  *               Copyright 2004-2005 Analog Devices Inc.
  *
  * Bugs:         Enter bugs at http://blackfin.uclinux.org/
@@ -31,7 +31,7 @@
 	.global _memset;
 	.type _memset,STT_FUNC;
 	.align 2;
-	   
+
 /*
  * C Library function MEMSET
  * R0 = address ( leave unchanged to form result)
@@ -44,8 +44,8 @@ _memset:
 	P0 = R0 ;              /* P0 = address */
 	P2 = R2 ;              /* P2 = count   */
 	R3 = R0 + R2;          /* end          */
-	CC = R2 <= 7(IU);       
-	IF CC JUMP  too_small;  
+	CC = R2 <= 7(IU);
+	IF CC JUMP  too_small;
 	R1 = R1.B (Z);         /* R1 = fill char */
 	R2 =  3;
 	R2 = R0 & R2;          /* addr bottom two bits */
@@ -71,13 +71,13 @@ bytes_left:
 	R2 = R3;                /* end point */
 	R3 = P0;                /* current position */
 	R2 = R2 - R3;           /* bytes left */
-	P2 = R2;  
+	P2 = R2;
 
 too_small:
 	CC = P2 == 0;           /* Check zero count */
 	IF CC JUMP finished;    /* Unusual */
 
-bytes:  
+bytes:
 	LSETUP (byte_loop , byte_loop) LC0=P2;
 byte_loop:
 	B[P0++] = R1;
@@ -91,7 +91,7 @@ force_align:
 	R0 = R0 - R2;
 	P1 = R0;
 	R0 = P0;		    /* Recover return address */
-	IF !CC JUMP skip1; 
+	IF !CC JUMP skip1;
 	B[P0++] = R1;
 skip1:
 	CC = R2 <= 2;          /* 2 bytes */

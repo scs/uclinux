@@ -4,7 +4,7 @@
  * Author:
  *
  * Created:
- * Description:  
+ * Description:
  *
  * Rev:          $Id$
  *

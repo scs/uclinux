@@ -1,4 +1,4 @@
-/* 
+/*
  * File:	ins.S
  * Description:	Implementation of ins{bwl} for BlackFin processors using zero overhead loops.
  * Rev:		$Id$
@@ -23,10 +23,10 @@
  * If not, write to the Free Software Foundation,
  * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
- 
+
 #include <linux/linkage.h>
 	.align 2;
-	   
+
 ENTRY(_insl)
 	P0 = R0;	/* P0 = port */
 	P1 = R1;	/* P1 = address */
@@ -34,11 +34,11 @@ ENTRY(_insl)
 	cli R2;
 	NOP;
 	NOP;
-	
+
 	LSETUP( long_loop_s, long_loop_e) LC0 = P2;
 long_loop_s: R0 = [P0];
 long_loop_e: [P1++] = R0;
-    
+
     sti R2;
 	RTS;
 
@@ -49,7 +49,7 @@ ENTRY(_insw)
 	cli R2;
 	NOP;
 	NOP;
-	
+
 	LSETUP( word_loop_s, word_loop_e) LC0 = P2;
 word_loop_s: R0 = W[P0];
 word_loop_e: W[P1++] = R0;
@@ -70,4 +70,3 @@ byte_loop_s: R0 = B[P0];
 byte_loop_e: B[P1++] = R0;
 	sti R2;
 	RTS;
-	

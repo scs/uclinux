@@ -3,7 +3,7 @@
  * Based on:
  * Author:
  * Created:
- * Description:  SRAM driver for Blackfin ADSP-BF533 
+ * Description:  SRAM driver for Blackfin ADSP-BF533
  *
  * Rev:          $Id$
  *

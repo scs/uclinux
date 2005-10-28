@@ -1,6 +1,6 @@
  /*
   * File:        arch/blackfin/mach-common/cplbinfo.c
-  * Based on:    
+  * Based on:
   * Author:      Sonic Zhang <sonic.zhang@analog.com>
   *              COPYRIGHT 2005 Analog Devices
   * Created:     Jan. 2005

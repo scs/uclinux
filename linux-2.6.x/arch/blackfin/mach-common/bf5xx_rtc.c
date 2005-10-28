@@ -1,12 +1,12 @@
  /*
   * File:        arch/blackfin/mach-common/bf5xx_rtc.c
-  * Based on:    
+  * Based on:
   * Author:      unknown
   *              COPYRIGHT 2005 Analog Devices
   * Created:     ?
   * Description: real time clock support
   *
-  * Rev:          $Id$ 
+  * Rev:          $Id$
   *
   * Modified:
   *
@@ -68,8 +68,8 @@ int rtc_set(time_t time_in_secs)
 	/* Compute no. of days since 1970 */
 	n_days_1970 = (unsigned long)(time_in_secs / (NUM_SECS_IN_DAY));
 
-	/* From the remining secs, compute the hrs(0-23), mins(0-59) 
-	 * and secs(0-59) 
+	/* From the remining secs, compute the hrs(0-23), mins(0-59)
+	 * and secs(0-59)
 	 */
 	n_secs_rem = (unsigned long)(time_in_secs % (NUM_SECS_IN_DAY));
 	n_hrs = n_secs_rem / (NUM_SECS_IN_HOUR);
@@ -86,8 +86,8 @@ int rtc_set(time_t time_in_secs)
 	return 0;
 }
 
-/* Read the time from the RTC_STAT. 
- * time_in_seconds is seconds since Jan 1970 
+/* Read the time from the RTC_STAT.
+ * time_in_seconds is seconds since Jan 1970
  */
 int rtc_get(time_t * time_in_seconds)
 {
@@ -101,7 +101,7 @@ int rtc_get(time_t * time_in_seconds)
 	/* Read the RTC_STAT register */
 	cur_rtc_stat = *(volatile unsigned long *)RTC_STAT;
 
-	/* Get the secs (0-59), mins (0-59), hrs (0-23) and the days 
+	/* Get the secs (0-59), mins (0-59), hrs (0-23) and the days
 	 * since Jan 1970
 	 */
 	tm_sec = (cur_rtc_stat >> SEC_BITS_OFF) & 0x3f;
@@ -113,13 +113,13 @@ int rtc_get(time_t * time_in_seconds)
 	*(time_in_seconds) = (tm_sec) +
 	    MIN_TO_SECS(tm_min) + HRS_TO_SECS(tm_hour) + DAYS_TO_SECS(tm_day);
 
-	/* a time_t greater than "7FFF FFFF" would be treated as negative 
+	/* a time_t greater than "7FFF FFFF" would be treated as negative
 	 * manywhere,so we just reset it.
 	 * This will happen in following situations:
 	 *   1. No battery for RTC. The random time value will be reset to 0.
-	 *   2. On a system with battery, user sets time value to be greater 
+	 *   2. On a system with battery, user sets time value to be greater
 	 *   than 7FFF FFFF.
-	 *   3. Many many years passed after user sets it!  
+	 *   3. Many many years passed after user sets it!
 	 */
 	if ((unsigned long)(*(time_in_seconds)) >= 0x7FFFFFFF) {
 		*(volatile unsigned long *)RTC_STAT = 0;

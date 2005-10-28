@@ -1,14 +1,14 @@
 /*
  * File:         arch/blackfin/lib/ashrdi3.c
- * Based on:     
- * Author:      
- *             
- * Created:   
- * Description:  
- *              
+ * Based on:
+ * Author:
+ *
+ * Created:
+ * Description:
+ *
  * Rev:          $Id$
  *
- * Modified:    
+ * Modified:
  *               Copyright 2004-2005 Analog Devices Inc.
  *
  * Bugs:         Enter bugs at http://blackfin.uclinux.org/

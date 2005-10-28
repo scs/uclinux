@@ -1,6 +1,6 @@
  /*
  * File:        arch/blackfin/mach-common/cache.S
- * Based on:    
+ * Based on:
  * Author:      LG Soft India
  *              COPYRIGHT 2005 Analog Devices
  * Created:     ?
@@ -83,7 +83,7 @@ ENTRY(_invalidate_entire_icache)
 	P0.L = (IMEM_CONTROL & 0xFFFF);
 	P0.H = (IMEM_CONTROL >> 16);
 	R7 = [P0];
-	
+
 	/* Clear the IMC bit , All valid bits in the instruction
 	 * cache are set to the invalid state
 	 */
@@ -105,7 +105,7 @@ ENTRY(_invalidate_entire_icache)
 	[P0] = R7;
 	SSYNC;
 	STI R6;
-	
+
 	( R7:5) = [SP++];
 	RTS;
 
@@ -113,7 +113,7 @@ ENTRY(_invalidate_entire_icache)
  * blackfin_cache_flush_range(start, end)
  * Invalidate all cache lines assocoiated with this
  * area of memory.
- * 
+ *
  * start:	Start address
  * end:		End address
  */
@@ -136,7 +136,7 @@ ENTRY(_blackfin_icache_flush_range)
  * blackfin_icache_dcache_flush_range(start, end)
  * FLUSH all cache lines assocoiated with this
  * area of memory.
- * 
+ *
  * start:	Start address
  * end:		End address
  */
@@ -159,9 +159,9 @@ ENTRY(_blackfin_icache_dcache_flush_range)
 	RTS;
 
 /* Throw away all D-cached data in specified region without any obligation to
- * write them back. However, we must clean the D-cached entries around the 
+ * write them back. However, we must clean the D-cached entries around the
  * boundaries of the start and/or end address is not cache aligned.
- *  
+ *
  * Start: start address,
  * end  : end address.
  */
@@ -179,7 +179,7 @@ ENTRY(_blackfin_dcache_invalidate_range)
 	IF CC JUMP 1b (bp);
 
 	/* If the data crosses a cache line, then we'll be pointing to
-	 * the last cache line, but won't have flushed/invalidated it yet, 
+	 * the last cache line, but won't have flushed/invalidated it yet,
 	 * so do one more.
 	 */
 	FLUSHINV[P0];
@@ -196,10 +196,10 @@ ENTRY(_dcache_invalidate)
 	P0.L = (DMEM_CONTROL & 0xFFFF);
 	P0.H = (DMEM_CONTROL >> 16);
 	R7 = [P0];
-	
+
 	/* Clear the DMC[1:0] bits, All valid bits in the data
 	 * cache are set to the invalid state
-	 */		
+	 */
 	BITCLR(R7,DMC0_P);
 	BITCLR(R7,DMC1_P);
 	CLI R6;
@@ -213,14 +213,14 @@ ENTRY(_dcache_invalidate)
 
 	R6 = (ACACHE_BCACHE | ENDCPLB | PORT_PREF0);
 	R7 = R7 | R6;
-	
+
 	CLI R6;
 	SSYNC;		/* SSYNC required before writing to DMEM_CONTROL. */
 	.align 8;
 	[P0] = R7;
 	SSYNC;
 	STI R6;
-	
+
 	( R7:6) = [SP++];
 	RTS;
 
@@ -250,6 +250,6 @@ ENTRY(_blackfin_dflush_page)
 	CSYNC;
 	FLUSH[P0];
 	LSETUP (fl1, fl1) LC0 = P1;
-fl1:	FLUSH [P0++];	
+fl1:	FLUSH [P0++];
 	SSYNC;
 	RTS;
