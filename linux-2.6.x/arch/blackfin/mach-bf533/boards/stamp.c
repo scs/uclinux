@@ -32,7 +32,7 @@
 #include <linux/device.h>
 #include <asm/irq.h>
 
-/* 
+/*
  * Name the Board for the /proc/cpuinfo
  */
 char *bfin_board_name = "ADDS-BF533-STAMP";

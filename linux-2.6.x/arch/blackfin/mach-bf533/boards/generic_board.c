@@ -5,7 +5,7 @@
  *                 Copyright 2005 National ICT Australia (NICTA)
  * Created:      2005
  *
- * Description: 
+ * Description:
  *
  * Rev:          $Id$
  *

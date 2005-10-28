@@ -5,7 +5,7 @@
  *               Copyright 2005 National ICT Australia (NICTA)
  * Attribution: Thanks to Jamey Hicks
  * Created:     2005
- * Description: 
+ * Description:
  *
  * Rev:         $Id$
  *

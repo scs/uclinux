@@ -8,7 +8,7 @@
   *
   * Rev:         $Id$
   *
-  * Modified:    
+  * Modified:
   *
   * Bugs:         Enter bugs at http://blackfin.uclinux.org/
   *

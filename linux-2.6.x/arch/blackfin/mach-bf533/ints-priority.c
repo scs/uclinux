@@ -1,6 +1,6 @@
  /*
   * File:        arch/blackfin/mach-bf533/ints-priority.c
-  * Based on:    
+  * Based on:
   * Author:      Michael Hennerich
   *              COPYRIGHT 2005 Analog Devices
   * Created:     ?
