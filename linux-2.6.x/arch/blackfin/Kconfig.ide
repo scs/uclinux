@@ -33,5 +33,3 @@ config BFIN_IDE_IRQ_PFX
 
 endmenu
 endif
-
-
