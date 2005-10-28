@@ -12,12 +12,12 @@
 
 struct task_struct;
 
-static inline struct task_struct *get_current(void) __attribute__ (( __const__ ));
-static inline struct task_struct * get_current(void)
+static inline struct task_struct *get_current(void) __attribute__ ((__const__));
+static inline struct task_struct *get_current(void)
 {
-	return(current_thread_info()->task);
+	return (current_thread_info()->task);
 }
 
 #define	current	get_current()
 
-#endif /* _BLACKFIN_CURRENT_H */
+#endif				/* _BLACKFIN_CURRENT_H */

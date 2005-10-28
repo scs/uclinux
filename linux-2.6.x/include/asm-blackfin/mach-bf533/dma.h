@@ -38,7 +38,6 @@
 #ifndef _MACH_DMA_H_
 #define _MACH_DMA_H_
 
-
 #define MAX_BLACKFIN_DMA_CHANNEL 12
 
 #define CH_PPI          0
@@ -49,9 +48,9 @@
 #define CH_SPI          5
 #define CH_UART_RX      6
 #define CH_UART_TX      7
-#define CH_MEM_STREAM0_DEST     8   // TX
-#define CH_MEM_STREAM0_SRC      9   // RX
-#define CH_MEM_STREAM1_DEST     10  // TX
-#define CH_MEM_STREAM1_SRC      11  // RX
+#define CH_MEM_STREAM0_DEST     8	// TX
+#define CH_MEM_STREAM0_SRC      9	// RX
+#define CH_MEM_STREAM1_DEST     10	// TX
+#define CH_MEM_STREAM1_SRC      11	// RX
 
 #endif

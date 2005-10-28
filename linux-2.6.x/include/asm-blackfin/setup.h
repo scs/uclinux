@@ -14,4 +14,4 @@
 
 #define COMMAND_LINE_SIZE	512
 
-#endif /* _BFIN_SETUP_H */
+#endif				/* _BFIN_SETUP_H */

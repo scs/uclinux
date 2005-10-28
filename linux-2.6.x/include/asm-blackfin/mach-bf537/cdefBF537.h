@@ -124,4 +124,4 @@
 #define pEMAC_TXC_GE1024	((volatile unsigned long  *)EMAC_TXC_GE1024)
 #define pEMAC_TXC_ABORT		((volatile unsigned long  *)EMAC_TXC_ABORT)
 
-#endif /* _CDEF_BF537_H */
+#endif				/* _CDEF_BF537_H */

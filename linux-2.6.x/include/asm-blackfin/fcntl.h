@@ -76,12 +76,12 @@ struct flock {
 };
 
 struct flock64 {
-	short  l_type;
-	short  l_whence;
+	short l_type;
+	short l_whence;
 	loff_t l_start;
 	loff_t l_len;
-	pid_t  l_pid;
+	pid_t l_pid;
 };
 
 #define F_LINUX_SPECIFIC_BASE	1024
-#endif /* _BFIN_FCNTL_H */
+#endif				/* _BFIN_FCNTL_H */

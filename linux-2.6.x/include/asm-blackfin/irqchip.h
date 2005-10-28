@@ -15,8 +15,9 @@ struct irqdesc;
 struct pt_regs;
 struct seq_file;
 
-typedef void (*irq_handler_t)(unsigned int, struct irqdesc *, struct pt_regs *);
-typedef void (*irq_control_t)(unsigned int);
+typedef void (*irq_handler_t) (unsigned int, struct irqdesc *,
+			       struct pt_regs *);
+typedef void (*irq_control_t) (unsigned int);
 
 struct irqchip {
 	/*
@@ -24,56 +25,56 @@ struct irqchip {
 	 * If this is a level-based IRQ, then it is expected to mask the IRQ
 	 * as well.
 	 */
-	void (*ack)(unsigned int);
+	void (*ack) (unsigned int);
 	/*
 	 * Mask the IRQ in hardware.
 	 */
-	void (*mask)(unsigned int);
+	void (*mask) (unsigned int);
 	/*
 	 * Unmask the IRQ in hardware.
 	 */
-	void (*unmask)(unsigned int);
+	void (*unmask) (unsigned int);
 	/*
 	 * Ask the hardware to re-trigger the IRQ.
 	 * Note: This method _must_ _not_ call the interrupt handler.
 	 * If you are unable to retrigger the interrupt, do not
 	 * provide a function, or if you do, return non-zero.
 	 */
-	int (*retrigger)(unsigned int);
+	int (*retrigger) (unsigned int);
 	/*
 	 * Set the type of the IRQ.
 	 */
-	int (*type)(unsigned int, unsigned int);
+	int (*type) (unsigned int, unsigned int);
 	/*
 	 * Set wakeup-enable on the selected IRQ
 	 */
-	int (*wake)(unsigned int, unsigned int);
+	int (*wake) (unsigned int, unsigned int);
 };
 
 struct irqdesc {
-	irq_handler_t	handle;
-	struct irqchip	*chip;
+	irq_handler_t handle;
+	struct irqchip *chip;
 	struct irqaction *action;
 	struct list_head pend;
-	void		*chipdata;
-	void		*data;
-	unsigned int	disable_depth;
+	void *chipdata;
+	void *data;
+	unsigned int disable_depth;
 
-	unsigned int	triggered: 1;		/* IRQ has occurred	      */
-	unsigned int	running  : 1;		/* IRQ is running             */
-	unsigned int	pending  : 1;		/* IRQ is pending	      */
-	unsigned int	probing  : 1;		/* IRQ in use for a probe     */
-	unsigned int	probe_ok : 1;		/* IRQ can be used for probe  */
-	unsigned int	valid    : 1;		/* IRQ claimable	      */
-	unsigned int	noautoenable : 1;	/* don't automatically enable IRQ */
-	unsigned int	unused   :25;
+	unsigned int triggered:1;	/* IRQ has occurred           */
+	unsigned int running:1;	/* IRQ is running             */
+	unsigned int pending:1;	/* IRQ is pending             */
+	unsigned int probing:1;	/* IRQ in use for a probe     */
+	unsigned int probe_ok:1;	/* IRQ can be used for probe  */
+	unsigned int valid:1;	/* IRQ claimable              */
+	unsigned int noautoenable:1;	/* don't automatically enable IRQ */
+	unsigned int unused:25;
 
 	/*
 	 * IRQ lock detection
 	 */
-	unsigned int	lck_cnt;
-	unsigned int	lck_pc;
-	unsigned int	lck_jif;
+	unsigned int lck_cnt;
+	unsigned int lck_pc;
+	unsigned int lck_jif;
 };
 
 extern struct irqdesc irq_desc[];
@@ -123,7 +124,8 @@ static inline void call_irq(struct pt_regs *regs, unsigned int irq)
  */
 void do_level_IRQ(unsigned int irq, struct irqdesc *desc, struct pt_regs *regs);
 void do_edge_IRQ(unsigned int irq, struct irqdesc *desc, struct pt_regs *regs);
-void do_simple_IRQ(unsigned int irq, struct irqdesc *desc, struct pt_regs *regs);
+void do_simple_IRQ(unsigned int irq, struct irqdesc *desc,
+		   struct pt_regs *regs);
 void do_bad_IRQ(unsigned int irq, struct irqdesc *desc, struct pt_regs *regs);
 void dummy_mask_unmask_irq(unsigned int irq);
 

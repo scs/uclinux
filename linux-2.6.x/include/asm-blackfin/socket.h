@@ -44,6 +44,6 @@
 #define SCM_TIMESTAMP		SO_TIMESTAMP
 
 #define SO_ACCEPTCONN		30
-#define SO_PEERSEC             31  
+#define SO_PEERSEC             31
 
-#endif /* _ASM_SOCKET_H */
+#endif				/* _ASM_SOCKET_H */

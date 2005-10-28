@@ -9,15 +9,17 @@
 
 #include <asm/segment.h>
 
-static inline unsigned long rdusp(void) {
-  	unsigned long usp;
+static inline unsigned long rdusp(void)
+{
+	unsigned long usp;
 
-	__asm__ __volatile__("%0 = usp;\n\t" : "=da" (usp));
+	__asm__ __volatile__("%0 = usp;\n\t":"=da"(usp));
 	return usp;
 }
 
-static inline void wrusp(unsigned long usp) {
-	__asm__ __volatile__("usp = %0;\n\t" : : "da" (usp));
+static inline void wrusp(unsigned long usp)
+{
+	__asm__ __volatile__("usp = %0;\n\t"::"da"(usp));
 }
 
 /*
@@ -26,14 +28,14 @@ static inline void wrusp(unsigned long usp) {
 extern unsigned long memory_end;
 #define TASK_SIZE	(memory_end)
 
-#define TASK_UNMAPPED_BASE	0	
+#define TASK_UNMAPPED_BASE	0
 
 struct thread_struct {
-	unsigned long  ksp;		/* kernel stack pointer */
-	unsigned long  usp;		/* user stack pointer */
-	unsigned short seqstat;		/* saved status register */
-	unsigned long  esp0;		/* points to SR of stack frame pt_regs*/
-	unsigned long  pc;		/* instruction pointer */
+	unsigned long ksp;	/* kernel stack pointer */
+	unsigned long usp;	/* user stack pointer */
+	unsigned short seqstat;	/* saved status register */
+	unsigned long esp0;	/* points to SR of stack frame pt_regs */
+	unsigned long pc;	/* instruction pointer */
 };
 
 #define INIT_THREAD  {						\
@@ -65,7 +67,7 @@ static inline void release_thread(struct task_struct *dead_task)
 
 #define prepare_to_copy(tsk)	do { } while (0)
 
-extern int kernel_thread(int (*fn)(void *), void * arg, unsigned long flags);
+extern int kernel_thread(int (*fn) (void *), void *arg, unsigned long flags);
 
 /*
  * Free current thread data structures etc..

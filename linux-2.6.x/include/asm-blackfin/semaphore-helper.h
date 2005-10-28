@@ -11,13 +11,12 @@
  */
 
 #include <linux/config.h>
-#include <asm/errno.h>	
-
+#include <asm/errno.h>
 
 /*
  * These two _must_ execute atomically wrt each other.
  */
-static inline void wake_one_more(struct semaphore * sem)
+static inline void wake_one_more(struct semaphore *sem)
 {
 	atomic_inc(&sem->waking);
 }
@@ -81,4 +80,4 @@ static inline int waking_non_zero_trylock(struct semaphore *sem)
 	return ret;
 }
 
-#endif /* _BFIN_SEMAPHORE_HELPER_H */
+#endif				/* _BFIN_SEMAPHORE_HELPER_H */

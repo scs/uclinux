@@ -25,7 +25,7 @@
  * along with this program; see the file COPYING.
  * If not, write to the Free Software Foundation,
  * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
- */ 
+ */
 
 #ifndef _BLACKFIN_DMA_H_
 #define _BLACKFIN_DMA_H_
@@ -71,8 +71,6 @@ typedef enum {
 	DMA_CHANNEL_ENABLED,
 } dma_chan_status_t;
 
-
-
 /*-------------------------
  * config reg bits value 
  *-------------------------*/
@@ -86,20 +84,18 @@ typedef enum {
 #define FLOW_SMALL 		6
 #define FLOW_LARGE 		7
 
-
 #define DIMENSION_LINEAR    0
 #define DIMENSION_2D           1
 
 #define DIR_READ     0
 #define DIR_WRITE    1
 
-#define INTR_DISABLE   0   //00b
-#define INTR_ON_BUF    2   //10b
-#define INTR_ON_ROW   3   //11b
-
+#define INTR_DISABLE   0	//00b
+#define INTR_ON_BUF    2	//10b
+#define INTR_ON_ROW   3		//11b
 
 #pragma pack(2)
-typedef struct _dmasglarge_t{
+typedef struct _dmasglarge_t {
 	unsigned long next_desc_addr;
 	unsigned long start_addr;
 	unsigned short cfg;
@@ -111,32 +107,32 @@ typedef struct _dmasglarge_t{
 #pragma pack()
 
 typedef struct {
-	unsigned long  next_desc_ptr; /* DMA Next Descriptor Pointer register */
-	unsigned long  start_addr;	/* DMA Start address  register */
+	unsigned long next_desc_ptr;	/* DMA Next Descriptor Pointer register */
+	unsigned long start_addr;	/* DMA Start address  register */
 
-	unsigned short cfg;		/* DMA Configuration register */
-	unsigned short dummy1;		/* DMA Configuration register */
+	unsigned short cfg;	/* DMA Configuration register */
+	unsigned short dummy1;	/* DMA Configuration register */
 
 	unsigned long reserved;
 
-	unsigned short x_count;		/* DMA x_count register */
+	unsigned short x_count;	/* DMA x_count register */
 	unsigned short dummy2;
 
 	unsigned short x_modify;	/* DMA x_modify register */
 	unsigned short dummy3;
 
-	unsigned short y_count;		/* DMA y_count register */
+	unsigned short y_count;	/* DMA y_count register */
 	unsigned short dummy4;
 
-	unsigned short  y_modify;	/* DMA y_modify register */
+	unsigned short y_modify;	/* DMA y_modify register */
 	unsigned short dummy5;
 
-	unsigned long  curr_desc_ptr;	/* DMA Current Descriptor Pointer
+	unsigned long curr_desc_ptr;	/* DMA Current Descriptor Pointer
 					   register */
-	unsigned short curr_addr_ptr_lo;/* DMA Current Address Pointer
-					   register*/
-	unsigned short curr_addr_ptr_hi;/* DMA Current Address Pointer
-					   register */
+	unsigned short curr_addr_ptr_lo;	/* DMA Current Address Pointer
+						   register */
+	unsigned short curr_addr_ptr_hi;	/* DMA Current Address Pointer
+						   register */
 	unsigned short irq_status;	/* DMA irq status register */
 	unsigned short dummy6;
 
@@ -153,37 +149,36 @@ typedef struct {
 
 	unsigned long reserved3;
 
-}dma_register_t;
+} dma_register_t;
 
-typedef irqreturn_t (*dma_interrupt_t)(int irq, void *dev_id, struct pt_regs *pt_regs);
-
+typedef irqreturn_t(*dma_interrupt_t) (int irq, void *dev_id,
+				       struct pt_regs * pt_regs);
 
 typedef struct {
-	struct semaphore 	dmalock;
-	char                   *device_id;
-	dma_chan_status_t	chan_status;
-	dma_register_t 		*regs;
-	dmasg_t                 *sg;     /* large mode descriptor */
-	unsigned int		ctrl_num;/* controller number */
-	dma_interrupt_t		irq_callback;
-	void 			*data;
-	unsigned int		dma_enable_flag;
-	unsigned int		loopback_flag;
-}dma_channel_t;
+	struct semaphore dmalock;
+	char *device_id;
+	dma_chan_status_t chan_status;
+	dma_register_t *regs;
+	dmasg_t *sg;		/* large mode descriptor */
+	unsigned int ctrl_num;	/* controller number */
+	dma_interrupt_t irq_callback;
+	void *data;
+	unsigned int dma_enable_flag;
+	unsigned int loopback_flag;
+} dma_channel_t;
 
 /*******************************************************************************
 *	DMA API's 
 *******************************************************************************/
 //functions to set register mode
-void set_dma_start_addr (unsigned int channel, unsigned long addr);
-void set_dma_x_count	(unsigned int channel, unsigned short x_count);
-void set_dma_x_modify	(unsigned int channel, unsigned short x_modify);
-void set_dma_y_count	(unsigned int channel, unsigned short y_count);
-void set_dma_y_modify	(unsigned int channel, unsigned short y_modify);
-void set_dma_config(unsigned int channel,  unsigned short config);
+void set_dma_start_addr(unsigned int channel, unsigned long addr);
+void set_dma_x_count(unsigned int channel, unsigned short x_count);
+void set_dma_x_modify(unsigned int channel, unsigned short x_modify);
+void set_dma_y_count(unsigned int channel, unsigned short y_count);
+void set_dma_y_modify(unsigned int channel, unsigned short y_modify);
+void set_dma_config(unsigned int channel, unsigned short config);
 unsigned short set_bfin_dma_config(char direction, char flow_mode,
-                    char intr_mode, char dma_mode, char width);
-
+				   char intr_mode, char dma_mode, char width);
 
 // get curr status for polling
 unsigned short get_dma_curr_irqstat(unsigned int channel);
@@ -194,15 +189,16 @@ unsigned short get_dma_curr_ycount(unsigned int channel);
 void set_dma_sg(unsigned int channel, dmasg_t * sg, int nr_sg);
 
 //check if current channel is in use
-int dma_channel_active(unsigned int channel);  
+int dma_channel_active(unsigned int channel);
 
 //common functions must be called in any mode
-void free_dma (unsigned int channel);    //free resources
-int dma_channel_active(unsigned int channel);  //check if a channel is in use
-void disable_dma (unsigned int channel); //disable
-void enable_dma(unsigned int channel);   //enable
-int  request_dma(unsigned int channel, char *device_id);
-int  set_dma_callback(unsigned int channel, dma_interrupt_t callback, void *data);
-void  clear_dma_irqstat(unsigned int channel);
+void free_dma(unsigned int channel);	//free resources
+int dma_channel_active(unsigned int channel);	//check if a channel is in use
+void disable_dma(unsigned int channel);	//disable
+void enable_dma(unsigned int channel);	//enable
+int request_dma(unsigned int channel, char *device_id);
+int set_dma_callback(unsigned int channel, dma_interrupt_t callback,
+		     void *data);
+void clear_dma_irqstat(unsigned int channel);
 
 #endif

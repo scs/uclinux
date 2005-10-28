@@ -10,5 +10,4 @@
 
 #include <linux/byteorder/little_endian.h>
 
-#endif /* _BLACKFIN_BYTEORDER_H */
-
+#endif				/* _BLACKFIN_BYTEORDER_H */

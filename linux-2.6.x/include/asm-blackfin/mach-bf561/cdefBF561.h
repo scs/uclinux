@@ -43,7 +43,6 @@
 /*include core specific register pointer definitions*/
 #include <asm/mach-common/cdef_LPBlackfin.h>
 
-
 /*********************************************************************************** */
 /* System MMR Register Map */
 /*********************************************************************************** */
@@ -788,4 +787,4 @@
 #define pIMDMA_S1_CURR_Y_COUNT (volatile unsigned short *)IMDMA_S1_CURR_Y_COUNT
 #define pIMDMA_S1_IRQ_STATUS (volatile unsigned short *)IMDMA_S1_IRQ_STATUS
 
-#endif /* _CDEF_BF561_H */
+#endif				/* _CDEF_BF561_H */

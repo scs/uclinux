@@ -3,4 +3,4 @@
 
 #include <asm-generic/unaligned.h>
 
-#endif /* __BFIN_UNALIGNED_H */
+#endif				/* __BFIN_UNALIGNED_H */

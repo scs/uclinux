@@ -3,4 +3,4 @@
 
 #include <asm-generic/topology.h>
 
-#endif /* _ASM_BLACKFIN_TOPOLOGY_H */
+#endif				/* _ASM_BLACKFIN_TOPOLOGY_H */

@@ -2,8 +2,8 @@
 #define _BLACKFIN_SYSTEM_H
 
 #include <linux/linkage.h>
-#include <asm/blackfin.h>	
-#include <linux/compiler.h>	
+#include <asm/blackfin.h>
+#include <linux/compiler.h>
 
 #define prepare_to_switch()	do { } while(0)
 
@@ -45,7 +45,7 @@ asmlinkage void resume(void);
  */
 
 extern volatile unsigned long irq_flags;
-			
+
 #define local_irq_enable() do {		\
 	__asm__ __volatile__ (		\
 		"sti %0;"		\
@@ -115,49 +115,43 @@ extern volatile unsigned long irq_flags;
 #define smp_mb()	mb()
 #define smp_rmb()	rmb()
 #define smp_wmb()	wmb()
-#define smp_read_barrier_depends()	read_barrier_depends() 
+#define smp_read_barrier_depends()	read_barrier_depends()
 #else
 #define smp_mb()	barrier()
 #define smp_rmb()	barrier()
 #define smp_wmb()	barrier()
-#define smp_read_barrier_depends()	do { } while(0) 
+#define smp_read_barrier_depends()	do { } while(0)
 #endif
 
 #define xchg(ptr,x) ((__typeof__(*(ptr)))__xchg((unsigned long)(x),(ptr),sizeof(*(ptr))))
 #define tas(ptr) (xchg((ptr),1))
 
-struct __xchg_dummy { unsigned long a[100]; };
+struct __xchg_dummy {
+	unsigned long a[100];
+};
 #define __xg(x) ((volatile struct __xchg_dummy *)(x))
 
-static inline unsigned long __xchg(unsigned long x, volatile void * ptr, int size)
+static inline unsigned long __xchg(unsigned long x, volatile void *ptr,
+				   int size)
 {
-  unsigned long tmp=0;
-  unsigned long flags = 0;
+	unsigned long tmp = 0;
+	unsigned long flags = 0;
 
-  local_irq_save(flags);
+	local_irq_save(flags);
 
-  switch (size) {
-  case 1:
-    __asm__ __volatile__
-    ("%0 = b%2 (z);\n\t"
-     "b%2 = %1;\n\t"
-    : "=&d" (tmp) : "d" (x), "m" (*__xg(ptr)) : "memory");
-    break;
-  case 2:
-    __asm__ __volatile__
-    ("%0 = w%2 (z);\n\t"
-     "w%2 = %1;\n\t"
-    : "=&d" (tmp) : "d" (x), "m" (*__xg(ptr)) : "memory");
-    break;
-  case 4:
-    __asm__ __volatile__
-    ("%0 = %2;\n\t"
-     "%2 = %1;\n\t"
-    : "=&d" (tmp) : "d" (x), "m" (*__xg(ptr)) : "memory");
-    break;
-  }
-  local_irq_restore(flags);
-  return tmp;
+	switch (size) {
+	case 1:
+	      __asm__ __volatile__("%0 = b%2 (z);\n\t" "b%2 = %1;\n\t": "=&d"(tmp): "d"(x), "m"(*__xg(ptr)):"memory");
+		break;
+	case 2:
+	      __asm__ __volatile__("%0 = w%2 (z);\n\t" "w%2 = %1;\n\t": "=&d"(tmp): "d"(x), "m"(*__xg(ptr)):"memory");
+		break;
+	case 4:
+	      __asm__ __volatile__("%0 = %2;\n\t" "%2 = %1;\n\t": "=&d"(tmp): "d"(x), "m"(*__xg(ptr)):"memory");
+		break;
+	}
+	local_irq_restore(flags);
+	return tmp;
 }
 
 /*
@@ -166,47 +160,29 @@ static inline unsigned long __xchg(unsigned long x, volatile void * ptr, int siz
  * indicated by comparing RETURN with OLD.
  */
 static inline unsigned long __cmpxchg(volatile void *ptr, unsigned long old,
-                                      unsigned long new, int size)
+				      unsigned long new, int size)
 {
-  unsigned long tmp=0;
-  unsigned long flags = 0;
+	unsigned long tmp = 0;
+	unsigned long flags = 0;
 
-  local_irq_save(flags);
+	local_irq_save(flags);
 
-  switch (size) {
-  case 1:
-    __asm__ __volatile__
-    ("%0 = b%3 (z);\n\t"
-     "CC = %1 == %0;\n\t"
-     "IF !CC JUMP 1f;\n\t"
-     "b%3 = %2;\n\t"
-     "1:\n\t"
-    : "=&d" (tmp) : "d" (old), "d" (new), "m" (*__xg(ptr)) : "memory");
-    break;
-  case 2:
-    __asm__ __volatile__
-    ("%0 = w%3 (z);\n\t"
-     "CC = %1 == %0;\n\t"
-     "IF !CC JUMP 1f;\n\t"
-     "w%3 = %2;\n\t"
-     "1:\n\t"
-    : "=&d" (tmp) : "d" (old), "d" (new), "m" (*__xg(ptr)) : "memory");
-    break;
-  case 4:
-    __asm__ __volatile__
-    ("%0 = %3;\n\t"
-     "CC = %1 == %0;\n\t"
-     "IF !CC JUMP 1f;\n\t"
-     "%3 = %2;\n\t"
-     "1:\n\t"
-    : "=&d" (tmp) : "d" (old), "d" (new), "m" (*__xg(ptr)) : "memory");
-    break;
-  }
-  local_irq_restore(flags);
-  return tmp;
+	switch (size) {
+	case 1:
+	      __asm__ __volatile__("%0 = b%3 (z);\n\t" "CC = %1 == %0;\n\t" "IF !CC JUMP 1f;\n\t" "b%3 = %2;\n\t" "1:\n\t": "=&d"(tmp): "d"(old), "d"(new), "m"(*__xg(ptr)):"memory");
+		break;
+	case 2:
+	      __asm__ __volatile__("%0 = w%3 (z);\n\t" "CC = %1 == %0;\n\t" "IF !CC JUMP 1f;\n\t" "w%3 = %2;\n\t" "1:\n\t": "=&d"(tmp): "d"(old), "d"(new), "m"(*__xg(ptr)):"memory");
+		break;
+	case 4:
+	      __asm__ __volatile__("%0 = %3;\n\t" "CC = %1 == %0;\n\t" "IF !CC JUMP 1f;\n\t" "%3 = %2;\n\t" "1:\n\t": "=&d"(tmp): "d"(old), "d"(new), "m"(*__xg(ptr)):"memory");
+		break;
+	}
+	local_irq_restore(flags);
+	return tmp;
 }
 
 #define cmpxchg(ptr,o,n)\
         ((__typeof__(*(ptr)))__cmpxchg((ptr),(unsigned long)(o),\
                                         (unsigned long)(n),sizeof(*(ptr))))
-#endif /* _BLACKFIN_SYSTEM_H */
+#endif				/* _BLACKFIN_SYSTEM_H */

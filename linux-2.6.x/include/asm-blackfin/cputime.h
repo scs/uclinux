@@ -3,4 +3,4 @@
 
 #include <asm-generic/cputime.h>
 
-#endif /* __BLACKFIN_CPUTIME_H */
+#endif				/* __BLACKFIN_CPUTIME_H */

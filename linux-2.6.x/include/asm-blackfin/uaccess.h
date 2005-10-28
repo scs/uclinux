@@ -20,14 +20,14 @@ extern int is_in_rom(unsigned long);
 static inline int _access_ok(unsigned long addr, unsigned long size)
 {
 	extern unsigned long memory_end;
-	return (((addr >=memory_start) && (addr+size <= memory_end)) ||
-		(is_in_rom(addr) && is_in_rom(addr+size)));
+	return (((addr >= memory_start) && (addr + size <= memory_end)) ||
+		(is_in_rom(addr) && is_in_rom(addr + size)));
 
-} 
+}
 
-static inline int verify_area(int type, const void * addr, unsigned long size)
+static inline int verify_area(int type, const void *addr, unsigned long size)
 {
-	return access_ok(type,addr,size)?0:-EFAULT; 
+	return access_ok(type, addr, size) ? 0 : -EFAULT;
 }
 
 /*
@@ -43,8 +43,7 @@ static inline int verify_area(int type, const void * addr, unsigned long size)
  * on our cache or tlb entries.
  */
 
-struct exception_table_entry
-{
+struct exception_table_entry {
 	unsigned long insn, fixup;
 };
 
@@ -160,17 +159,15 @@ static inline int bad_user_access_length(void)
  * Copy a null terminated string from userspace.
  */
 
-static inline long
-strncpy_from_user(char *dst, const char *src, long count)
+static inline long strncpy_from_user(char *dst, const char *src, long count)
 {
 	char *tmp;
-	if((unsigned long)src > memory_end){
+	if ((unsigned long)src > memory_end) {
 		return -EFAULT;
 	}
 	strncpy(dst, src, count);
-	for (tmp = dst; *tmp && count > 0; tmp++, count--)
-		;
-	return(tmp - dst);
+	for (tmp = dst; *tmp && count > 0; tmp++, count--) ;
+	return (tmp - dst);
 }
 
 /*
@@ -180,7 +177,7 @@ strncpy_from_user(char *dst, const char *src, long count)
  */
 static inline long strnlen_user(const char *src, long n)
 {
-	return(strlen(src) + 1);
+	return (strlen(src) + 1);
 }
 
 #define strlen_user(str) strnlen_user(str, 32767)
@@ -189,11 +186,10 @@ static inline long strnlen_user(const char *src, long n)
  * Zero Userspace
  */
 
-static inline unsigned long
-clear_user(void *to, unsigned long n)
+static inline unsigned long clear_user(void *to, unsigned long n)
 {
 	memset(to, 0, n);
-	return(0);
+	return (0);
 }
 
-#endif /* _BLACKFIN_UACCESS_H */
+#endif				/* _BLACKFIN_UACCESS_H */

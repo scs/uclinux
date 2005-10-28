@@ -77,4 +77,4 @@
 #define IOCSIZE_MASK	(_IOC_SIZEMASK << _IOC_SIZESHIFT)
 #define IOCSIZE_SHIFT	(_IOC_SIZESHIFT)
 
-#endif /* _BFIN_IOCTL_H */
+#endif				/* _BFIN_IOCTL_H */

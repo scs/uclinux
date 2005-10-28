@@ -30,17 +30,15 @@
  * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
-
 #ifndef _MACH_BLACKFIN_H_
 #define _MACH_BLACKFIN_H_
 
-
-#include "bf535.h"	
+#include "bf535.h"
 #include "mem_map.h"
 #include "defBF535.h"
 
-#if !(defined(__ASSEMBLY__) || defined(ASSEMBLY)) 
+#if !(defined(__ASSEMBLY__) || defined(ASSEMBLY))
 #include "cdefBF535.h"
-#endif	
+#endif
 
-#endif /* _MACH_BLACKFIN_H_ */
+#endif				/* _MACH_BLACKFIN_H_ */

@@ -19,7 +19,7 @@
 #define __NR_mknod		 14
 #define __NR_chmod		 15
 #define __NR_chown		 16
-#define __NR_dump		 17    
+#define __NR_dump		 17
 #define __NR_oldstat		 18
 #define __NR_lseek		 19
 #define __NR_getpid		 20
@@ -136,7 +136,7 @@
 #define __NR_bdflush		134
 #define __NR_sysfs		135
 #define __NR_personality	136
-#define __NR_afs_syscall	137 /* Syscall for Andrew File System */
+#define __NR_afs_syscall	137	/* Syscall for Andrew File System */
 #define __NR_setfsuid		138
 #define __NR_setfsgid		139
 #define __NR__llseek		140
@@ -251,7 +251,7 @@
 #define __NR_lookup_dcookie     253
 #define __NR_bfin_spinlock      254
 #define __NR_syscall		256
-#define NR_syscalls		__NR_syscall	
+#define NR_syscalls		__NR_syscall
 
 #define __syscall_return(type, res)					\
 do {									\
@@ -306,7 +306,6 @@ type name(type1 arg1,type2 arg2) {					\
 	: "CC", "R0","R1", "P0");					\
 __syscall_return(type,__res);						\
 }
-
 
 #define _syscall3(type,name,type1,arg1,type2,arg2,type3,arg3)		\
 type name(type1 arg1,type2 arg2,type3 arg3) {				\
@@ -408,46 +407,47 @@ __syscall_return(type,__res);						\
 
 #define __NR__exit __NR_exit
 #if 0
-static inline _syscall0(int,pause)
-static inline _syscall0(int,sync)
-static inline _syscall0(pid_t,setsid)
-static inline _syscall3(int,write,int,fd,const char *,buf,off_t,count)
-static inline _syscall3(int,read,int,fd,char *,buf,off_t,count)
-static inline _syscall3(off_t,lseek,int,fd,off_t,offset,int,count)
-static inline _syscall1(int,dup,int,fd)
+static inline _syscall0(int, pause)
+static inline _syscall0(int, sync)
+static inline _syscall0(pid_t, setsid)
+static inline _syscall3(int, write, int, fd, const char *, buf, off_t, count)
+static inline _syscall3(int, read, int, fd, char *, buf, off_t, count)
+static inline _syscall3(off_t, lseek, int, fd, off_t, offset, int, count)
+static inline _syscall1(int, dup, int, fd)
 //static inline _syscall3(int,execve,const char *,file,char **,argv,char **,envp)
-static inline _syscall3(int,open,const char *,file,int,flag,int,mode)
-static inline _syscall1(int,close,int,fd)
-static inline _syscall1(int,_exit,int,exitcode)
-static inline _syscall3(pid_t,waitpid,pid_t,pid,int *,wait_stat,int,options)
-static inline _syscall1(int,delete_module,const char *,name)
+static inline _syscall3(int, open, const char *, file, int, flag, int, mode)
+static inline _syscall1(int, close, int, fd)
+static inline _syscall1(int, _exit, int, exitcode)
+static inline _syscall3(pid_t, waitpid, pid_t, pid, int *, wait_stat, int,
+			options)
+static inline _syscall1(int, delete_module, const char *, name)
 
-static inline pid_t wait(int * wait_stat)
+static inline pid_t wait(int *wait_stat)
 {
-	return waitpid(-1,wait_stat,0); 
+	return waitpid(-1, wait_stat, 0);
 }
 #endif
 
 asmlinkage long execve(char *, char **, char **);
 
 asmlinkage long sys_mmap2(unsigned long addr, unsigned long len,
-			unsigned long prot, unsigned long flags,
-			unsigned long fd, unsigned long pgoff);
+			  unsigned long prot, unsigned long flags,
+			  unsigned long fd, unsigned long pgoff);
 asmlinkage int sys_execve(char *name, char **argv, char **envp);
 asmlinkage int sys_pipe(unsigned long *fildes);
 asmlinkage int sys_ptrace(long request, long pid, long addr, long data);
 struct pt_regs;
 int sys_request_irq(unsigned int,
-			irqreturn_t (*)(int, void *, struct pt_regs *),
-			unsigned long, const char *, void *);
+		    irqreturn_t(*)(int, void *, struct pt_regs *),
+		    unsigned long, const char *, void *);
 void sys_free_irq(unsigned int, void *);
 struct sigaction;
 asmlinkage long sys_rt_sigaction(int sig,
-				const struct sigaction __user *act,
-				struct sigaction __user *oact,
-				size_t sigsetsize);
+				 const struct sigaction __user * act,
+				 struct sigaction __user * oact,
+				 size_t sigsetsize);
 
-#endif	/* __KERNEL_SYSCALLS__ */
+#endif				/* __KERNEL_SYSCALLS__ */
 /*
  * "Conditional" syscalls
  *
@@ -456,4 +456,4 @@ asmlinkage long sys_rt_sigaction(int sig,
  */
 #define cond_syscall(x) asm(".weak\t_" #x "\n\t.set\t_" #x ",_sys_ni_syscall");
 
-#endif  /* __ASM_BFIN_UNISTD_H */
+#endif				/* __ASM_BFIN_UNISTD_H */

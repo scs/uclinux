@@ -25,17 +25,17 @@
  * along with this program; see the file COPYING.
  * If not, write to the Free Software Foundation,
  * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
- */ 
+ */
 #ifndef _BLACKFIN_DMA_H
-#define _BLACKFIN_DMA_H 
+#define _BLACKFIN_DMA_H
 
 #include <linux/config.h>
-#include <linux/mm.h>  
+#include <linux/mm.h>
 #include <asm/blackfin.h>
 
 #define MAX_DMA_ADDRESS PAGE_OFFSET
 
-#if defined (CONFIG_BLKFIN_DMA) 
+#if defined (CONFIG_BLKFIN_DMA)
 #include <asm/bf533_dma.h>
 #endif
 
@@ -43,5 +43,4 @@
 #include <asm/simple_bf533_dma.h>
 #endif
 
-#endif /* _BLACKFIN_DMA_H */
-
+#endif				/* _BLACKFIN_DMA_H */

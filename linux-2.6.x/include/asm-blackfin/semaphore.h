@@ -34,25 +34,25 @@ struct semaphore {
 #define DECLARE_MUTEX(name)		__DECLARE_SEMAPHORE_GENERIC(name,1)
 #define DECLARE_MUTEX_LOCKED(name)	__DECLARE_SEMAPHORE_GENERIC(name,0)
 
-static inline void sema_init (struct semaphore *sem, int val)
+static inline void sema_init(struct semaphore *sem, int val)
 {
 	*sem = (struct semaphore)__SEMAPHORE_INITIALIZER(*sem, val);
 }
 
-static inline void init_MUTEX (struct semaphore *sem)
+static inline void init_MUTEX(struct semaphore *sem)
 {
 	sema_init(sem, 1);
 }
 
-static inline void init_MUTEX_LOCKED (struct semaphore *sem)
+static inline void init_MUTEX_LOCKED(struct semaphore *sem)
 {
 	sema_init(sem, 0);
 }
 
-asmlinkage void __down(struct semaphore * sem);
-asmlinkage int  __down_interruptible(struct semaphore * sem);
-asmlinkage int  __down_trylock(struct semaphore * sem);
-asmlinkage void __up(struct semaphore * sem);
+asmlinkage void __down(struct semaphore *sem);
+asmlinkage int __down_interruptible(struct semaphore *sem);
+asmlinkage int __down_trylock(struct semaphore *sem);
+asmlinkage void __up(struct semaphore *sem);
 
 extern spinlock_t semaphore_wake_lock;
 
@@ -61,29 +61,29 @@ extern spinlock_t semaphore_wake_lock;
  * "down_failed" is a special asm handler that calls the C
  * routine that actually waits.
  */
-static inline void down(struct semaphore * sem)
+static inline void down(struct semaphore *sem)
 {
 	might_sleep();
 	if (atomic_dec_return(&sem->count) < 0)
-		__down(sem);  
+		__down(sem);
 }
 
-static inline int down_interruptible(struct semaphore * sem)
+static inline int down_interruptible(struct semaphore *sem)
 {
 	int ret = 0;
 
 	might_sleep();
 	if (atomic_dec_return(&sem->count) < 0)
-		ret = __down_interruptible(sem); 
-	return(ret);
+		ret = __down_interruptible(sem);
+	return (ret);
 }
 
-static inline int down_trylock(struct semaphore * sem)
+static inline int down_trylock(struct semaphore *sem)
 {
 	int ret = 0;
- 
+
 	if (atomic_dec_return(&sem->count) < 0)
-		ret = __down_trylock(sem);  
+		ret = __down_trylock(sem);
 	return ret;
 }
 
@@ -93,11 +93,11 @@ static inline int down_trylock(struct semaphore * sem)
  * The default case (no contention) will result in NO
  * jumps for both down() and up().
  */
-static inline void up(struct semaphore * sem)
+static inline void up(struct semaphore *sem)
 {
 	if (atomic_inc_return(&sem->count) <= 0)
-		__up(sem);  
+		__up(sem);
 }
 
-#endif /* __ASSEMBLY__ */
-#endif /* _BFIN_SEMAPHORE_H */
+#endif				/* __ASSEMBLY__ */
+#endif				/* _BFIN_SEMAPHORE_H */

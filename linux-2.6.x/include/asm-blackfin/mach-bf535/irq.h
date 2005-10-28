@@ -81,13 +81,13 @@ Core        Emulation               **
 #define	IRQ_UNUSED		4	//  - unused interrupt
 #define	IRQ_HWERR		5	// Hardware Error
 #define	IRQ_CORETMR		6	// Core timer
-#define	IRQ_RTC			7	// Real Time Clock		
+#define	IRQ_RTC			7	// Real Time Clock
 #define	IRQ_USB			8	// Universal Serial Bus
 #define	IRQ_SPARE1		9	//  Spare ?? USB
 #define IRQ_PCI_INTA		9	// PCI INTA
 
 // Exchanged with IRQ_UART1. HuTao Apr18 2003
-#define	IRQ_PCI			10 	// Personal Computer Interface ??
+#define	IRQ_PCI			10	// Personal Computer Interface ??
 #define	IRQ_SPORT0		11	// Synchronous Serial Port 0
 #define	IRQ_SPARE2		12	//  Spare ?? split SPORT0
 #define IRQ_PCI_INTB		12	// PCI INTB
@@ -97,7 +97,7 @@ Core        Emulation               **
 #define IRQ_PCI_INTC		14
 
 #define	IRQ_SPI0		15	// Serial Peripheral Interface 0
-#define	IRQ_SPARE4		16	//  Spare 
+#define	IRQ_SPARE4		16	//  Spare
 #define IRQ_PCI_INTD		16
 
 #define	IRQ_SPI1		17	// Serial Peripheral Interface 1
@@ -106,7 +106,7 @@ Core        Emulation               **
 #define	IRQ_SPARE6		20	//  Spare
 
 // Changed to make UART driver work. HuTao Apr18 2003
-#define	IRQ_UART1		21 	// UART 1
+#define	IRQ_UART1		21	// UART 1
 
 #define	IRQ_SPARE7		22	//  Spare
 #define	IRQ_TMR0		23	// Timer 0
@@ -122,4 +122,4 @@ Core        Emulation               **
 
 #define SYS_IRQS		33	// Number of interrupt levels the kernel sees.
 
-#endif /* _BF535_IRQ_H_ */
+#endif				/* _BF535_IRQ_H_ */

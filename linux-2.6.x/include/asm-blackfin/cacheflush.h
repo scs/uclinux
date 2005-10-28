@@ -26,7 +26,7 @@
  * along with this program; see the file COPYING.
  * If not, write to the Free Software Foundation,
  * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
- */ 
+ */
 
 #ifndef _BLACKFIN_CACHEFLUSH_H
 #define _BLACKFIN_CACHEFLUSH_H
@@ -71,7 +71,6 @@ static inline void flush_icache_range(unsigned start, unsigned end)
 #endif
 }
 
-
 #define copy_to_user_page(vma, page, vaddr, dst, src, len) \
 do { memcpy(dst, src, len); \
      flush_icache_range (vaddr, vaddr + len); \
@@ -79,9 +78,9 @@ do { memcpy(dst, src, len); \
 #define copy_from_user_page(vma, page, vaddr, dst, src, len)	memcpy(dst, src, len)
 
 #if defined( CONFIG_BLKFIN_DCACHE )
-	#define invalidate_dcache_range(start,end)	blackfin_dcache_invalidate_range((start), (end))
+#define invalidate_dcache_range(start,end)	blackfin_dcache_invalidate_range((start), (end))
 #else
-	#define invalidate_dcache_range(start,end)	do { } while (0)
+#define invalidate_dcache_range(start,end)	do { } while (0)
 #endif
 #if defined( CONFIG_BLKFIN_DCACHE ) && defined( CONFIG_BLKFIN_WB )
 #	define flush_dcache_range(start,end)		blackfin_dcache_flush_range((start), (end))
@@ -101,4 +100,4 @@ static inline void flush_cache_all(void)
 #endif
 }
 
-#endif /* _BLACKFIN_CACHEFLUSH_H */
+#endif				/* _BLACKFIN_CACHEFLUSH_H */

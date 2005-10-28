@@ -1,7 +1,6 @@
 #ifndef _PUB_H_
 #define _PUB_H_
 
-
 /*
  * The PUB board uses the ADI21535 Rev0.2 silicon.
  *
@@ -16,4 +15,3 @@
 #define SIC_MASK_ALL	(~0x80000000)
 
 #endif
-

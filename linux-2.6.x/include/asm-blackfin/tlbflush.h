@@ -36,7 +36,8 @@ static inline void flush_tlb_mm(struct mm_struct *mm)
 	BUG();
 }
 
-static inline void flush_tlb_page(struct vm_area_struct *vma, unsigned long addr)
+static inline void flush_tlb_page(struct vm_area_struct *vma,
+				  unsigned long addr)
 {
 	BUG();
 }
@@ -58,4 +59,4 @@ extern inline void flush_tlb_pgtables(struct mm_struct *mm,
 	BUG();
 }
 
-#endif 
+#endif

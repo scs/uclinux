@@ -32,7 +32,7 @@ typedef __signed__ long long __s64;
 typedef unsigned long long __u64;
 #endif
 
-#endif /* __ASSEMBLY__ */
+#endif				/* __ASSEMBLY__ */
 /*
  * These aren't exported outside the kernel to avoid name space clashes
  */
@@ -59,8 +59,8 @@ typedef unsigned long long u64;
 typedef u32 dma_addr_t;
 typedef u32 dma64_addr_t;
 typedef unsigned short kmem_bufctl_t;
-#endif /* __ASSEMBLY__ */
+#endif				/* __ASSEMBLY__ */
 
-#endif /* __KERNEL__ */
+#endif				/* __KERNEL__ */
 
-#endif /* _BFIN_TYPES_H */
+#endif				/* _BFIN_TYPES_H */

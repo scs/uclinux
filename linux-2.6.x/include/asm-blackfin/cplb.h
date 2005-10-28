@@ -11,12 +11,12 @@
 #ifndef _CPLB_H
 #define _CPLB_H
 
-# include <asm/blackfin.h> 
+# include <asm/blackfin.h>
 
 #define CPLB_ENABLE_ICACHE_P	0
 #define CPLB_ENABLE_DCACHE_P	1
 #define CPLB_ENABLE_DCACHE2_P	2
-#define CPLB_ENABLE_CPLBS_P	3	/* Deprecated!*/
+#define CPLB_ENABLE_CPLBS_P	3	/* Deprecated! */
 #define CPLB_ENABLE_ICPLBS_P	4
 #define CPLB_ENABLE_DCPLBS_P	5
 
@@ -47,4 +47,4 @@
 #define CPLB_INOCACHE   	CPLB_USER_RD | CPLB_VALID
 #define CPLB_IDOCACHE   	CPLB_INOCACHE | CPLB_L1_CHBL
 
-#endif /* _CPLB_H */
+#endif				/* _CPLB_H */

@@ -3,5 +3,4 @@
 
 #include <asm-generic/resource.h>
 
-
-#endif /* _BFIN_RESOURCE_H */
+#endif				/* _BFIN_RESOURCE_H */

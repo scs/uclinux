@@ -29,7 +29,6 @@
  * 59 temple place - suite 330, boston, ma 02111-1307, usa.
  */
 
-
 #ifndef _BF537_IRQ_H_
 #define _BF537_IRQ_H_
 
@@ -52,64 +51,63 @@ Core        Emulation               **
                  (lowest priority)  IVG15       32 *
  */
 
-
 #define SYS_IRQS        41
 #define NR_PERI_INTS    32
 
 /* The ABSTRACT IRQ definitions */
 /** the first seven of the following are fixed, the rest you change if you need to **/
-#define IRQ_EMU             0   /*Emulation*/
-#define IRQ_RST             1   /*reset*/
-#define IRQ_NMI             2   /*Non Maskable*/
-#define IRQ_EVX             3   /*Exception*/
-#define IRQ_UNUSED          4   /*- unused interrupt*/
-#define IRQ_HWERR           5   /*Hardware Error*/
-#define IRQ_CORETMR         6   /*Core timer*/
+#define IRQ_EMU             0	/*Emulation */
+#define IRQ_RST             1	/*reset */
+#define IRQ_NMI             2	/*Non Maskable */
+#define IRQ_EVX             3	/*Exception */
+#define IRQ_UNUSED          4	/*- unused interrupt*/
+#define IRQ_HWERR           5	/*Hardware Error */
+#define IRQ_CORETMR         6	/*Core timer */
 
-#define IRQ_PLL_WAKEUP      7   /*PLL Wakeup Interrupt*/
-#define IRQ_DMA_ERROR       8   /*DMA Error (general)*/
-#define IRQ_GENERIC_ERROR   9   /*GENERIC Error Interrupt*/
-#define IRQ_RTC             10  /*RTC Interrupt*/
-#define IRQ_PPI             11  /*DMA0 Interrupt (PPI)*/
-#define IRQ_SPORT0_RX       12  /*DMA3 Interrupt (SPORT0 RX)*/
-#define IRQ_SPORT0_TX       13  /*DMA4 Interrupt (SPORT0 TX)*/
-#define IRQ_SPORT1_RX       14  /*DMA5 Interrupt (SPORT1 RX)*/
-#define IRQ_SPORT1_TX       15  /*DMA6 Interrupt (SPORT1 TX)*/
-#define IRQ_TWI             16  /*TWI Interrupt*/
-#define IRQ_SPI             17  /*DMA7 Interrupt (SPI)*/
-#define IRQ_UART0_RX        18  /*DMA8 Interrupt (UART0 RX)*/
-#define IRQ_UART0_TX        19  /*DMA9 Interrupt (UART0 TX)*/
-#define IRQ_UART1_RX        20  /*DMA10 Interrupt (UART1 RX)*/
-#define IRQ_UART1_TX        21  /*DMA11 Interrupt (UART1 TX)*/
-#define IRQ_CAN_RX          22  /*CAN Receive Interrupt*/
-#define IRQ_CAN_TX          23  /*CAN Transmit Interrupt*/
-#define IRQ_MAC_RX          24  /*DMA1 (Ethernet RX) Interrupt*/
-#define IRQ_MAC_TX          25  /*DMA2 (Ethernet TX) Interrupt*/
-#define IRQ_TMR0            26  /*Timer 0*/
-#define IRQ_TMR1            27  /*Timer 1*/
-#define IRQ_TMR2            28  /*Timer 2*/
-#define IRQ_TMR3            29  /*Timer 3*/
-#define IRQ_TMR4            30  /*Timer 4*/
-#define IRQ_TMR5            31  /*Timer 5*/
-#define IRQ_TMR6            32  /*Timer 6*/
-#define IRQ_TMR7            33  /*Timer 7*/
-#define IRQ_PROG_INTA       34  /* PF Ports F&G (PF31:0) Interrupt A*/
-#define IRQ_PROG_INTB       35  /* PF Port F (PF15:0) Interrupt B*/
-#define IRQ_MEM_DMA0        36  /*(Memory DMA Stream 0)*/
-#define IRQ_MEM_DMA1        37  /*(Memory DMA Stream 1)*/
-#define IRQ_WATCH           38  /*Watch Dog Timer*/
-#define IRQ_PFB_PORTG       39  /*PF Port G (PF31:16) Interrupt B   */
-#define IRQ_SW_INT1         40  /*Software Int 1*/
-#define IRQ_SW_INT2         41  /*Software Int 2 (reserved for SYSCALL)*/
+#define IRQ_PLL_WAKEUP      7	/*PLL Wakeup Interrupt */
+#define IRQ_DMA_ERROR       8	/*DMA Error (general) */
+#define IRQ_GENERIC_ERROR   9	/*GENERIC Error Interrupt */
+#define IRQ_RTC             10	/*RTC Interrupt */
+#define IRQ_PPI             11	/*DMA0 Interrupt (PPI) */
+#define IRQ_SPORT0_RX       12	/*DMA3 Interrupt (SPORT0 RX) */
+#define IRQ_SPORT0_TX       13	/*DMA4 Interrupt (SPORT0 TX) */
+#define IRQ_SPORT1_RX       14	/*DMA5 Interrupt (SPORT1 RX) */
+#define IRQ_SPORT1_TX       15	/*DMA6 Interrupt (SPORT1 TX) */
+#define IRQ_TWI             16	/*TWI Interrupt */
+#define IRQ_SPI             17	/*DMA7 Interrupt (SPI) */
+#define IRQ_UART0_RX        18	/*DMA8 Interrupt (UART0 RX) */
+#define IRQ_UART0_TX        19	/*DMA9 Interrupt (UART0 TX) */
+#define IRQ_UART1_RX        20	/*DMA10 Interrupt (UART1 RX) */
+#define IRQ_UART1_TX        21	/*DMA11 Interrupt (UART1 TX) */
+#define IRQ_CAN_RX          22	/*CAN Receive Interrupt */
+#define IRQ_CAN_TX          23	/*CAN Transmit Interrupt */
+#define IRQ_MAC_RX          24	/*DMA1 (Ethernet RX) Interrupt */
+#define IRQ_MAC_TX          25	/*DMA2 (Ethernet TX) Interrupt */
+#define IRQ_TMR0            26	/*Timer 0 */
+#define IRQ_TMR1            27	/*Timer 1 */
+#define IRQ_TMR2            28	/*Timer 2 */
+#define IRQ_TMR3            29	/*Timer 3 */
+#define IRQ_TMR4            30	/*Timer 4 */
+#define IRQ_TMR5            31	/*Timer 5 */
+#define IRQ_TMR6            32	/*Timer 6 */
+#define IRQ_TMR7            33	/*Timer 7 */
+#define IRQ_PROG_INTA       34	/* PF Ports F&G (PF31:0) Interrupt A */
+#define IRQ_PROG_INTB       35	/* PF Port F (PF15:0) Interrupt B */
+#define IRQ_MEM_DMA0        36	/*(Memory DMA Stream 0) */
+#define IRQ_MEM_DMA1        37	/*(Memory DMA Stream 1) */
+#define IRQ_WATCH           38	/*Watch Dog Timer */
+#define IRQ_PFB_PORTG       39	/*PF Port G (PF31:16) Interrupt B   */
+#define IRQ_SW_INT1         40	/*Software Int 1 */
+#define IRQ_SW_INT2         41	/*Software Int 2 (reserved for SYSCALL) */
 
-#define IRQ_PPI_ERROR       42  /*PPI Error Interrupt*/
-#define IRQ_CAN_ERROR       43  /*CAN Error Interrupt*/
-#define IRQ_MAC_ERROR       44  /*PPI Error Interrupt*/
-#define IRQ_SPORT0_ERROR    45  /*SPORT0 Error Interrupt*/
-#define IRQ_SPORT1_ERROR    46  /*SPORT1 Error Interrupt*/
-#define IRQ_SPI_ERROR       47  /*SPI Error Interrupt*/
-#define IRQ_UART0_ERROR     48  /*UART Error Interrupt*/
-#define IRQ_UART1_ERROR     49  /*UART Error Interrupt*/
+#define IRQ_PPI_ERROR       42	/*PPI Error Interrupt */
+#define IRQ_CAN_ERROR       43	/*CAN Error Interrupt */
+#define IRQ_MAC_ERROR       44	/*PPI Error Interrupt */
+#define IRQ_SPORT0_ERROR    45	/*SPORT0 Error Interrupt */
+#define IRQ_SPORT1_ERROR    46	/*SPORT1 Error Interrupt */
+#define IRQ_SPI_ERROR       47	/*SPI Error Interrupt */
+#define IRQ_UART0_ERROR     48	/*UART Error Interrupt */
+#define IRQ_UART1_ERROR     49	/*UART Error Interrupt */
 
 #define IRQ_PF0         50
 #define IRQ_PF1         51
@@ -184,4 +182,4 @@ Core        Emulation               **
 #define IRQ_MEM_DMA1_POS    24
 #define IRQ_WATCH_POS       28
 
-#endif /* _BF537_IRQ_H_ */
+#endif				/* _BF537_IRQ_H_ */

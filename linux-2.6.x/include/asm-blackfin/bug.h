@@ -1,12 +1,11 @@
 #ifndef _BLACKFIN_BUG_H
 #define _BLACKFIN_BUG_H
 
-extern void dump_stack (void);
+extern void dump_stack(void);
 
 #define BUG() do { \
   printk("%s(%d): kernel BUG!\n", __FILE__, __LINE__); \
 } while (0)
-
 
 #define BUG_ON(condition) do { \
 	if (unlikely((condition)!=0)) \

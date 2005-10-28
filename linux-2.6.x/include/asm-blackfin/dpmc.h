@@ -32,23 +32,22 @@
 #define IOCTL_PROGRAM_WDOG_TIMER _IOW('s',0xAF,unsigned long)
 #define IOCTL_CLEAR_WDOG_WAKEUP_EVENT _IO('s',0xB0)
 
-
 #define DPMC_MINOR		254
 
 #define ON	0
-#define OFF	1	
+#define OFF	1
 
 unsigned long calc_volt(void);
 int calc_vlev(int vlt);
 unsigned long change_voltage(unsigned long volt);
 int calc_msel(int vco_hz);
 unsigned long change_frequency(unsigned long vco_mhz);
-int set_pll_div(unsigned short sel,unsigned char flag);
+int set_pll_div(unsigned short sel, unsigned char flag);
 int get_vco(void);
 unsigned long change_system_clock(unsigned long clock);
 unsigned long change_core_clock(unsigned long clock);
 unsigned long get_pll_status(void);
-void change_baud(int baud);      
+void change_baud(int baud);
 void fullon_mode(void);
 void active_mode(void);
 void sleep_mode(void);
@@ -57,7 +56,7 @@ void hibernate_mode(void);
 void program_wdog_timer(unsigned long);
 void unmask_wdog_wakeup_evt(void);
 void clear_wdog_wakeup_evt(void);
-void disable_wdog_timer(void);  
+void disable_wdog_timer(void);
 
 extern unsigned long get_cclk(void);
 extern unsigned long get_sclk(void);

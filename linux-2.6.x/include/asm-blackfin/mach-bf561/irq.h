@@ -30,8 +30,6 @@
  * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
-
-
 #ifndef _BF561_IRQ_H_
 #define _BF561_IRQ_H_
 
@@ -132,91 +130,91 @@
  *  the rest you change if you need to.
  */
 /* IVG 0-6*/
-#define	IRQ_EMU			0		/* Emulation		    */
-#define	IRQ_RST			1		/* Reset		    */
-#define	IRQ_NMI			2		/* Non Maskable Interrupt   */
-#define	IRQ_EVX			3		/* Exception		    */
-#define	IRQ_UNUSED		4		/* Reserved interrupt	    */
-#define	IRQ_HWERR		5		/* Hardware Error	    */
-#define	IRQ_CORETMR		6		/* Core timer		    */
+#define	IRQ_EMU			0	/* Emulation                */
+#define	IRQ_RST			1	/* Reset                    */
+#define	IRQ_NMI			2	/* Non Maskable Interrupt   */
+#define	IRQ_EVX			3	/* Exception                */
+#define	IRQ_UNUSED		4	/* Reserved interrupt       */
+#define	IRQ_HWERR		5	/* Hardware Error           */
+#define	IRQ_CORETMR		6	/* Core timer               */
 
 #define IVG_BASE		7
 /* IVG 7  */
-#define	IRQ_PLL_WAKEUP		(IVG_BASE + 0)	/* PLL Wakeup Interrupt	    */
-#define	IRQ_DMA1_ERROR		(IVG_BASE + 1)	/* DMA1	  Error (general)   */
-#define	IRQ_DMA2_ERROR		(IVG_BASE + 2)	/* DMA2	  Error (general)   */
-#define IRQ_IMDMA_ERROR		(IVG_BASE + 3)	/* IMDMA  Error	Interrupt   */
-#define	IRQ_PPI1_ERROR		(IVG_BASE + 4)	/* PPI1	  Error Interrupt   */
-#define	IRQ_PPI2_ERROR		(IVG_BASE + 5)	/* PPI2	  Error Interrupt   */
-#define	IRQ_SPORT0_ERROR	(IVG_BASE + 6) 	/* SPORT0 Error Interrupt   */
+#define	IRQ_PLL_WAKEUP		(IVG_BASE + 0)	/* PLL Wakeup Interrupt     */
+#define	IRQ_DMA1_ERROR		(IVG_BASE + 1)	/* DMA1   Error (general)   */
+#define	IRQ_DMA2_ERROR		(IVG_BASE + 2)	/* DMA2   Error (general)   */
+#define IRQ_IMDMA_ERROR		(IVG_BASE + 3)	/* IMDMA  Error Interrupt   */
+#define	IRQ_PPI1_ERROR		(IVG_BASE + 4)	/* PPI1   Error Interrupt   */
+#define	IRQ_PPI2_ERROR		(IVG_BASE + 5)	/* PPI2   Error Interrupt   */
+#define	IRQ_SPORT0_ERROR	(IVG_BASE + 6)	/* SPORT0 Error Interrupt   */
 #define	IRQ_SPORT1_ERROR	(IVG_BASE + 7)	/* SPORT1 Error Interrupt   */
-#define	IRQ_SPI_ERROR		(IVG_BASE + 8)	/* SPI	  Error Interrupt   */
+#define	IRQ_SPI_ERROR		(IVG_BASE + 8)	/* SPI    Error Interrupt   */
 #define	IRQ_UART_ERROR		(IVG_BASE + 9)	/* UART   Error Interrupt   */
-#define IRQ_RESERVED_ERROR	(IVG_BASE + 10) /* Reversed	Interrupt   */
+#define IRQ_RESERVED_ERROR	(IVG_BASE + 10)	/* Reversed     Interrupt   */
 /* IVG 8  */
 #define	IRQ_DMA1_0		(IVG_BASE + 11)	/* DMA1 0  Interrupt(PPI1)  */
 #define	IRQ_DMA1_1		(IVG_BASE + 12)	/* DMA1 1  Interrupt(PPI2)  */
-#define	IRQ_DMA1_2		(IVG_BASE + 13)	/* DMA1 2  Interrupt	    */
-#define	IRQ_DMA1_3		(IVG_BASE + 14)	/* DMA1 3  Interrupt	    */
-#define	IRQ_DMA1_4		(IVG_BASE + 15)	/* DMA1 4  Interrupt	    */
-#define	IRQ_DMA1_5		(IVG_BASE + 16)	/* DMA1 5  Interrupt	    */
-#define	IRQ_DMA1_6		(IVG_BASE + 17)	/* DMA1 6  Interrupt	    */
-#define	IRQ_DMA1_7		(IVG_BASE + 18)	/* DMA1 7  Interrupt	    */
-#define	IRQ_DMA1_8		(IVG_BASE + 19)	/* DMA1 8  Interrupt	    */
-#define	IRQ_DMA1_9		(IVG_BASE + 20)	/* DMA1 9  Interrupt	    */
-#define	IRQ_DMA1_10		(IVG_BASE + 21)	/* DMA1 10 Interrupt	    */
-#define	IRQ_DMA1_11		(IVG_BASE + 22)	/* DMA1 11 Interrupt	    */
+#define	IRQ_DMA1_2		(IVG_BASE + 13)	/* DMA1 2  Interrupt        */
+#define	IRQ_DMA1_3		(IVG_BASE + 14)	/* DMA1 3  Interrupt        */
+#define	IRQ_DMA1_4		(IVG_BASE + 15)	/* DMA1 4  Interrupt        */
+#define	IRQ_DMA1_5		(IVG_BASE + 16)	/* DMA1 5  Interrupt        */
+#define	IRQ_DMA1_6		(IVG_BASE + 17)	/* DMA1 6  Interrupt        */
+#define	IRQ_DMA1_7		(IVG_BASE + 18)	/* DMA1 7  Interrupt        */
+#define	IRQ_DMA1_8		(IVG_BASE + 19)	/* DMA1 8  Interrupt        */
+#define	IRQ_DMA1_9		(IVG_BASE + 20)	/* DMA1 9  Interrupt        */
+#define	IRQ_DMA1_10		(IVG_BASE + 21)	/* DMA1 10 Interrupt        */
+#define	IRQ_DMA1_11		(IVG_BASE + 22)	/* DMA1 11 Interrupt        */
 /* IVG 9  */
-#define	IRQ_DMA2_0		(IVG_BASE + 23)	/* DMA2 0  (SPORT0 RX)	    */
-#define	IRQ_DMA2_1		(IVG_BASE + 24)	/* DMA2 1  (SPORT0 TX)	    */
-#define	IRQ_DMA2_2		(IVG_BASE + 25)	/* DMA2 2  (SPORT1 RX)	    */
-#define	IRQ_DMA2_3		(IVG_BASE + 26)	/* DMA2 3  (SPORT2 TX)	    */
-#define	IRQ_DMA2_4		(IVG_BASE + 27)	/* DMA2 4  (SPI)	    */
-#define	IRQ_DMA2_5		(IVG_BASE + 28)	/* DMA2 5  (UART RX)	    */
-#define	IRQ_DMA2_6		(IVG_BASE + 29)	/* DMA2 6  (UART TX)	    */
-#define	IRQ_DMA2_7		(IVG_BASE + 30)	/* DMA2 7  Interrupt	    */
-#define	IRQ_DMA2_8		(IVG_BASE + 31)	/* DMA2 8  Interrupt	    */
-#define	IRQ_DMA2_9		(IVG_BASE + 32)	/* DMA2 9  Interrupt	    */
-#define	IRQ_DMA2_10		(IVG_BASE + 33)	/* DMA2 10 Interrupt	    */
-#define	IRQ_DMA2_11		(IVG_BASE + 34)	/* DMA2 11 Interrupt	    */
+#define	IRQ_DMA2_0		(IVG_BASE + 23)	/* DMA2 0  (SPORT0 RX)      */
+#define	IRQ_DMA2_1		(IVG_BASE + 24)	/* DMA2 1  (SPORT0 TX)      */
+#define	IRQ_DMA2_2		(IVG_BASE + 25)	/* DMA2 2  (SPORT1 RX)      */
+#define	IRQ_DMA2_3		(IVG_BASE + 26)	/* DMA2 3  (SPORT2 TX)      */
+#define	IRQ_DMA2_4		(IVG_BASE + 27)	/* DMA2 4  (SPI)            */
+#define	IRQ_DMA2_5		(IVG_BASE + 28)	/* DMA2 5  (UART RX)        */
+#define	IRQ_DMA2_6		(IVG_BASE + 29)	/* DMA2 6  (UART TX)        */
+#define	IRQ_DMA2_7		(IVG_BASE + 30)	/* DMA2 7  Interrupt        */
+#define	IRQ_DMA2_8		(IVG_BASE + 31)	/* DMA2 8  Interrupt        */
+#define	IRQ_DMA2_9		(IVG_BASE + 32)	/* DMA2 9  Interrupt        */
+#define	IRQ_DMA2_10		(IVG_BASE + 33)	/* DMA2 10 Interrupt        */
+#define	IRQ_DMA2_11		(IVG_BASE + 34)	/* DMA2 11 Interrupt        */
 /* IVG 10 */
-#define IRQ_TIMER0		(IVG_BASE + 35)	/* TIMER 0  Interrupt	    */
-#define IRQ_TIMER1		(IVG_BASE + 36)	/* TIMER 1  Interrupt	    */
-#define IRQ_TIMER2		(IVG_BASE + 37)	/* TIMER 2  Interrupt	    */
-#define IRQ_TIMER3		(IVG_BASE + 38)	/* TIMER 3  Interrupt	    */
-#define IRQ_TIMER4		(IVG_BASE + 39)	/* TIMER 4  Interrupt	    */
-#define IRQ_TIMER5		(IVG_BASE + 40)	/* TIMER 5  Interrupt	    */
-#define IRQ_TIMER6		(IVG_BASE + 41)	/* TIMER 6  Interrupt	    */
-#define IRQ_TIMER7		(IVG_BASE + 42)	/* TIMER 7  Interrupt	    */
-#define IRQ_TIMER8		(IVG_BASE + 43)	/* TIMER 8  Interrupt	    */
-#define IRQ_TIMER9		(IVG_BASE + 44)	/* TIMER 9  Interrupt	    */
-#define IRQ_TIMER10		(IVG_BASE + 45)	/* TIMER 10 Interrupt	    */
-#define IRQ_TIMER11		(IVG_BASE + 46)	/* TIMER 11 Interrupt	    */
+#define IRQ_TIMER0		(IVG_BASE + 35)	/* TIMER 0  Interrupt       */
+#define IRQ_TIMER1		(IVG_BASE + 36)	/* TIMER 1  Interrupt       */
+#define IRQ_TIMER2		(IVG_BASE + 37)	/* TIMER 2  Interrupt       */
+#define IRQ_TIMER3		(IVG_BASE + 38)	/* TIMER 3  Interrupt       */
+#define IRQ_TIMER4		(IVG_BASE + 39)	/* TIMER 4  Interrupt       */
+#define IRQ_TIMER5		(IVG_BASE + 40)	/* TIMER 5  Interrupt       */
+#define IRQ_TIMER6		(IVG_BASE + 41)	/* TIMER 6  Interrupt       */
+#define IRQ_TIMER7		(IVG_BASE + 42)	/* TIMER 7  Interrupt       */
+#define IRQ_TIMER8		(IVG_BASE + 43)	/* TIMER 8  Interrupt       */
+#define IRQ_TIMER9		(IVG_BASE + 44)	/* TIMER 9  Interrupt       */
+#define IRQ_TIMER10		(IVG_BASE + 45)	/* TIMER 10 Interrupt       */
+#define IRQ_TIMER11		(IVG_BASE + 46)	/* TIMER 11 Interrupt       */
 /* IVG 11 */
-#define	IRQ_PROG0_INTA		(IVG_BASE + 47)	/* Programmable Flags0 A (8)*/
-#define	IRQ_PROG0_INTB		(IVG_BASE + 48)	/* Programmable Flags0 B (8)*/
-#define	IRQ_PROG1_INTA		(IVG_BASE + 49)	/* Programmable Flags1 A (8)*/
-#define	IRQ_PROG1_INTB		(IVG_BASE + 50)	/* Programmable Flags1 B (8)*/
-#define	IRQ_PROG2_INTA		(IVG_BASE + 51)	/* Programmable Flags2 A (8)*/
-#define	IRQ_PROG2_INTB		(IVG_BASE + 52)	/* Programmable Flags2 B (8)*/
+#define	IRQ_PROG0_INTA		(IVG_BASE + 47)	/* Programmable Flags0 A (8) */
+#define	IRQ_PROG0_INTB		(IVG_BASE + 48)	/* Programmable Flags0 B (8) */
+#define	IRQ_PROG1_INTA		(IVG_BASE + 49)	/* Programmable Flags1 A (8) */
+#define	IRQ_PROG1_INTB		(IVG_BASE + 50)	/* Programmable Flags1 B (8) */
+#define	IRQ_PROG2_INTA		(IVG_BASE + 51)	/* Programmable Flags2 A (8) */
+#define	IRQ_PROG2_INTB		(IVG_BASE + 52)	/* Programmable Flags2 B (8) */
 /* IVG 8  */
-#define IRQ_DMA1_WRRD0		(IVG_BASE + 53) /* MDMA1 0 write/read INT   */
-#define IRQ_DMA1_WRRD1		(IVG_BASE + 54) /* MDMA1 1 write/read INT   */
+#define IRQ_DMA1_WRRD0		(IVG_BASE + 53)	/* MDMA1 0 write/read INT   */
+#define IRQ_DMA1_WRRD1		(IVG_BASE + 54)	/* MDMA1 1 write/read INT   */
 /* IVG 9  */
-#define IRQ_DMA2_WRRD0		(IVG_BASE + 55) /* MDMA2 0 write/read INT   */
-#define IRQ_DMA2_WRRD1		(IVG_BASE + 56) /* MDMA2 1 write/read INT   */
+#define IRQ_DMA2_WRRD0		(IVG_BASE + 55)	/* MDMA2 0 write/read INT   */
+#define IRQ_DMA2_WRRD1		(IVG_BASE + 56)	/* MDMA2 1 write/read INT   */
 /* IVG 12 */
-#define IRQ_IMDMA_WRRD0		(IVG_BASE + 57) /* IMDMA 0 write/read INT   */
-#define IRQ_IMDMA_WRRD1		(IVG_BASE + 58) /* IMDMA 1 write/read INT   */
+#define IRQ_IMDMA_WRRD0		(IVG_BASE + 57)	/* IMDMA 0 write/read INT   */
+#define IRQ_IMDMA_WRRD1		(IVG_BASE + 58)	/* IMDMA 1 write/read INT   */
 /* IVG 13 */
-#define	IRQ_WATCH	   	(IVG_BASE + 59)	/* Watch Dog Timer	    */
+#define	IRQ_WATCH	   	(IVG_BASE + 59)	/* Watch Dog Timer          */
 /* IVG 7  */
-#define IRQ_RESERVED_1		(IVG_BASE + 60)	/* Reserved interrupt	    */
-#define IRQ_RESERVED_2		(IVG_BASE + 61)	/* Reserved interrupt	    */
-#define IRQ_SUPPLE_0		(IVG_BASE + 62) /* Supplemental interrupt 0 */
-#define IRQ_SUPPLE_1		(IVG_BASE + 63) /* supplemental interrupt 1 */
-#define	IRQ_SW_INT1		71		/* Software Interrupt 1	    */
-#define	IRQ_SW_INT2		72		/* Software Interrupt 2	    */
+#define IRQ_RESERVED_1		(IVG_BASE + 60)	/* Reserved interrupt       */
+#define IRQ_RESERVED_2		(IVG_BASE + 61)	/* Reserved interrupt       */
+#define IRQ_SUPPLE_0		(IVG_BASE + 62)	/* Supplemental interrupt 0 */
+#define IRQ_SUPPLE_1		(IVG_BASE + 63)	/* supplemental interrupt 1 */
+#define	IRQ_SW_INT1		71	/* Software Interrupt 1     */
+#define	IRQ_SW_INT2		72	/* Software Interrupt 2     */
 						/* reserved for SYSCALL */
 
 #define IVG7			7
@@ -229,7 +227,7 @@
 #define IVG14			14
 #define IVG15			15
 
-#define SYS_IRQS		72		/* Number of interrupts	    */
+#define SYS_IRQS		72	/* Number of interrupts     */
 
 /*
  * DEFAULT PRIORITIES:
@@ -373,23 +371,23 @@
 #define SUPPLE_0_POS			24
 #define SUPPLE_1_POS			28
 
-#if 1 	/* comment by mhfan */
-#define	IRQ_DMA_ERROR		(IVG_BASE + 1)	/* DMA1	  Error (general)   */
-#define	IRQ_PPI_ERROR		(IVG_BASE + 4)	/* PPI1	  Error Interrupt   */
+#if 1				/* comment by mhfan */
+#define	IRQ_DMA_ERROR		(IVG_BASE + 1)	/* DMA1   Error (general)   */
+#define	IRQ_PPI_ERROR		(IVG_BASE + 4)	/* PPI1   Error Interrupt   */
 #define	IRQ_PPI			(IVG_BASE + 11)	/* DMA1 0  Interrupt(PPI1)  */
 #define	IRQ_PPI1		(IVG_BASE + 11)	/* DMA1 0  Interrupt(PPI1)  */
 #define	IRQ_PPI2		(IVG_BASE + 12)	/* DMA1 1  Interrupt(PPI2)  */
-#define	IRQ_SPORT0_RX		(IVG_BASE + 23)	/* DMA2 0  (SPORT0 RX)	    */
-#define	IRQ_SPORT0_TX		(IVG_BASE + 24)	/* DMA2 1  (SPORT0 TX)	    */
-#define	IRQ_SPORT1_RX		(IVG_BASE + 25)	/* DMA2 2  (SPORT1 RX)	    */
-#define	IRQ_SPORT1_TX		(IVG_BASE + 26)	/* DMA2 3  (SPORT2 TX)	    */
-#define	IRQ_SPI			(IVG_BASE + 27)	/* DMA2 4  (SPI)	    */
-#define	IRQ_UART_RX		(IVG_BASE + 28)	/* DMA2 5  (UART RX)	    */
-#define	IRQ_UART_TX		(IVG_BASE + 29)	/* DMA2 6  (UART TX)	    */
-#define	IRQ_PROG_INTA		(IVG_BASE + 47)	/* Programmable Flags0 A (8)*/
-#define	IRQ_PROG_INTB		(IVG_BASE + 48)	/* Programmable Flags0 B (8)*/
-#define IRQ_DMA_WRRD0		(IVG_BASE + 53) /* MDMA1 0 write/read INT   */
-#define IRQ_DMA_WRRD1		(IVG_BASE + 54) /* MDMA1 1 write/read INT   */
-#endif	/* comment by mhfan */
+#define	IRQ_SPORT0_RX		(IVG_BASE + 23)	/* DMA2 0  (SPORT0 RX)      */
+#define	IRQ_SPORT0_TX		(IVG_BASE + 24)	/* DMA2 1  (SPORT0 TX)      */
+#define	IRQ_SPORT1_RX		(IVG_BASE + 25)	/* DMA2 2  (SPORT1 RX)      */
+#define	IRQ_SPORT1_TX		(IVG_BASE + 26)	/* DMA2 3  (SPORT2 TX)      */
+#define	IRQ_SPI			(IVG_BASE + 27)	/* DMA2 4  (SPI)            */
+#define	IRQ_UART_RX		(IVG_BASE + 28)	/* DMA2 5  (UART RX)        */
+#define	IRQ_UART_TX		(IVG_BASE + 29)	/* DMA2 6  (UART TX)        */
+#define	IRQ_PROG_INTA		(IVG_BASE + 47)	/* Programmable Flags0 A (8) */
+#define	IRQ_PROG_INTB		(IVG_BASE + 48)	/* Programmable Flags0 B (8) */
+#define IRQ_DMA_WRRD0		(IVG_BASE + 53)	/* MDMA1 0 write/read INT   */
+#define IRQ_DMA_WRRD1		(IVG_BASE + 54)	/* MDMA1 1 write/read INT   */
+#endif				/* comment by mhfan */
 
-#endif /* _BF561_IRQ_H_ */
+#endif				/* _BF561_IRQ_H_ */

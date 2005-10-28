@@ -1,7 +1,6 @@
 #ifndef _BFIN_PTRACE_H
 #define _BFIN_PTRACE_H
 
-
 /*
  * GCC defines register number like this:
  * -----------------------------
@@ -19,7 +18,6 @@
 
 #ifndef __ASSEMBLY__
 
-
 /* this struct defines the way the registers are stored on the
    stack during a system call. */
 
@@ -30,9 +28,9 @@ struct pt_regs {
 	long rete;
 	long retn;
 	long retx;
-	long pc;	/* PC == RETI*/
+	long pc;		/* PC == RETI */
 	long rets;
-	long reserved;	/* Used as scratch during system calls */
+	long reserved;		/* Used as scratch during system calls */
 	long astat;
 	long lb1;
 	long lb0;
@@ -85,12 +83,12 @@ struct pt_regs {
 #define PTRACE_GETREGS            12
 #define PTRACE_SETREGS            13	/* ptrace signal  */
 
-#define PS_S  (0x0002)  
+#define PS_S  (0x0002)
 
 #define user_mode(regs) (!((regs)->ipend & ((regs)->ipend -1)))
 #define instruction_pointer(regs) ((regs)->pc)
 #define profile_pc(regs) instruction_pointer(regs)
 extern void show_regs(struct pt_regs *);
 
-#endif /* __ASSEMBLY__ */
-#endif /* _BFIN_PTRACE_H */
+#endif				/* __ASSEMBLY__ */
+#endif				/* _BFIN_PTRACE_H */

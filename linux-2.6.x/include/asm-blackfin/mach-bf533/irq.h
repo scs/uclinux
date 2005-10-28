@@ -29,7 +29,6 @@
  * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
-
 #ifndef _BF533_IRQ_H_
 #define _BF533_IRQ_H_
 
@@ -77,41 +76,41 @@ Core        Emulation               **
 
 /* The ABSTRACT IRQ definitions */
 /** the first seven of the following are fixed, the rest you change if you need to **/
-#define	IRQ_EMU			0	/*Emulation*/
-#define	IRQ_RST			1	/*reset*/
-#define	IRQ_NMI			2	/*Non Maskable*/
-#define	IRQ_EVX			3	/*Exception*/
+#define	IRQ_EMU			0	/*Emulation */
+#define	IRQ_RST			1	/*reset */
+#define	IRQ_NMI			2	/*Non Maskable */
+#define	IRQ_EVX			3	/*Exception */
 #define	IRQ_UNUSED		4	/*- unused interrupt*/
-#define	IRQ_HWERR		5	/*Hardware Error*/
-#define	IRQ_CORETMR		6	/*Core timer*/
+#define	IRQ_HWERR		5	/*Hardware Error */
+#define	IRQ_CORETMR		6	/*Core timer */
 
-#define	IRQ_PLL_WAKEUP		7	/*PLL Wakeup Interrupt*/
-#define	IRQ_DMA_ERROR		8	/*DMA Error (general)*/
-#define	IRQ_PPI_ERROR		9	/*PPI Error Interrupt*/
-#define	IRQ_SPORT0_ERROR	10 	/*SPORT0 Error Interrupt*/
-#define	IRQ_SPORT1_ERROR	11	/*SPORT1 Error Interrupt*/
-#define	IRQ_SPI_ERROR		12	/*SPI Error Interrupt*/
-#define	IRQ_UART_ERROR		13	/*UART Error Interrupt*/
-#define	IRQ_RTC			14	/*RTC Interrupt*/
-#define	IRQ_PPI			15	/*DMA0 Interrupt (PPI)*/
-#define	IRQ_SPORT0_RX		16	/*DMA1 Interrupt (SPORT0 RX)*/
-#define	IRQ_SPORT0_TX		17	/*DMA2 Interrupt (SPORT0 TX)*/
-#define	IRQ_SPORT1_RX		18	/*DMA3 Interrupt (SPORT1 RX)*/
-#define	IRQ_SPORT1_TX		19	/*DMA4 Interrupt (SPORT1 TX)*/
-#define IRQ_SPI			20	/*DMA5 Interrupt (SPI)*/
-#define	IRQ_UART_RX		21	/*DMA6 Interrupt (UART RX)*/
-#define	IRQ_UART_TX		22	/*DMA7 Interrupt (UART TX)*/
-#define	IRQ_TMR0		23	/*Timer 0*/
-#define	IRQ_TMR1		24	/*Timer 1*/
-#define	IRQ_TMR2		25	/*Timer 2*/
-#define	IRQ_PROG_INTA		26	/*Programmable Flags A (8)*/
-#define	IRQ_PROG_INTB		27	/*Programmable Flags B (8)*/
-#define	IRQ_MEM_DMA0		28	/*DMA8/9 Interrupt (Memory DMA Stream 0)*/
-#define	IRQ_MEM_DMA1		29	/*DMA10/11 Interrupt (Memory DMA Stream 1)*/
-#define	IRQ_WATCH	   	30	/*Watch Dog Timer*/
+#define	IRQ_PLL_WAKEUP		7	/*PLL Wakeup Interrupt */
+#define	IRQ_DMA_ERROR		8	/*DMA Error (general) */
+#define	IRQ_PPI_ERROR		9	/*PPI Error Interrupt */
+#define	IRQ_SPORT0_ERROR	10	/*SPORT0 Error Interrupt */
+#define	IRQ_SPORT1_ERROR	11	/*SPORT1 Error Interrupt */
+#define	IRQ_SPI_ERROR		12	/*SPI Error Interrupt */
+#define	IRQ_UART_ERROR		13	/*UART Error Interrupt */
+#define	IRQ_RTC			14	/*RTC Interrupt */
+#define	IRQ_PPI			15	/*DMA0 Interrupt (PPI) */
+#define	IRQ_SPORT0_RX		16	/*DMA1 Interrupt (SPORT0 RX) */
+#define	IRQ_SPORT0_TX		17	/*DMA2 Interrupt (SPORT0 TX) */
+#define	IRQ_SPORT1_RX		18	/*DMA3 Interrupt (SPORT1 RX) */
+#define	IRQ_SPORT1_TX		19	/*DMA4 Interrupt (SPORT1 TX) */
+#define IRQ_SPI			20	/*DMA5 Interrupt (SPI) */
+#define	IRQ_UART_RX		21	/*DMA6 Interrupt (UART RX) */
+#define	IRQ_UART_TX		22	/*DMA7 Interrupt (UART TX) */
+#define	IRQ_TMR0		23	/*Timer 0 */
+#define	IRQ_TMR1		24	/*Timer 1 */
+#define	IRQ_TMR2		25	/*Timer 2 */
+#define	IRQ_PROG_INTA		26	/*Programmable Flags A (8) */
+#define	IRQ_PROG_INTB		27	/*Programmable Flags B (8) */
+#define	IRQ_MEM_DMA0		28	/*DMA8/9 Interrupt (Memory DMA Stream 0) */
+#define	IRQ_MEM_DMA1		29	/*DMA10/11 Interrupt (Memory DMA Stream 1) */
+#define	IRQ_WATCH	   	30	/*Watch Dog Timer */
 
-#define	IRQ_SW_INT1		31	/*Software Int 1*/
-#define	IRQ_SW_INT2		32	/*Software Int 2 (reserved for SYSCALL)*/
+#define	IRQ_SW_INT1		31	/*Software Int 1 */
+#define	IRQ_SW_INT2		32	/*Software Int 2 (reserved for SYSCALL) */
 
 #define IRQ_PF0			33
 #define IRQ_PF1			34
@@ -176,4 +175,4 @@ Core        Emulation               **
 #define TIMER1_POS			4
 #define TIMER0_POS			0
 
-#endif /* _BF533_IRQ_H_ */
+#endif				/* _BF533_IRQ_H_ */

@@ -13,4 +13,4 @@
 
 #include <asm-generic/tlb.h>
 
-#endif /* _BLACKFIN_TLB_H */
+#endif				/* _BLACKFIN_TLB_H */

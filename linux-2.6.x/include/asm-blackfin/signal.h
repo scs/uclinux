@@ -14,7 +14,7 @@ struct siginfo;
 #define _NSIG_BPW	32
 #define _NSIG_WORDS	(_NSIG / _NSIG_BPW)
 
-typedef unsigned long old_sigset_t;		/* at least 32 bits */
+typedef unsigned long old_sigset_t;	/* at least 32 bits */
 
 typedef struct {
 	unsigned long sig[_NSIG_WORDS];
@@ -26,7 +26,7 @@ typedef struct {
 #define NSIG		32
 typedef unsigned long sigset_t;
 
-#endif /* __KERNEL__ */
+#endif				/* __KERNEL__ */
 
 #define SIGHUP		 1
 #define SIGINT		 2
@@ -85,7 +85,7 @@ typedef unsigned long sigset_t;
  * Unix names RESETHAND and NODEFER respectively.
  */
 #define SA_NOCLDSTOP	0x00000001
-#define SA_NOCLDWAIT	0x00000002 /* not supported yet */
+#define SA_NOCLDWAIT	0x00000002	/* not supported yet */
 #define SA_SIGINFO	0x00000004
 #define SA_ONSTACK	0x08000000
 #define SA_RESTART	0x10000000
@@ -94,7 +94,7 @@ typedef unsigned long sigset_t;
 
 #define SA_NOMASK	SA_NODEFER
 #define SA_ONESHOT	SA_RESETHAND
-#define SA_INTERRUPT	0x20000000 /* dummy -- ignored */
+#define SA_INTERRUPT	0x20000000	/* dummy -- ignored */
 
 /* 
  * sigaltstack controls
@@ -123,7 +123,7 @@ typedef unsigned long sigset_t;
 #define SIG_SETMASK        2	/* for setting the signal mask */
 
 /* Type of a signal handler.  */
-typedef void (*__sighandler_t)(int);
+typedef void (*__sighandler_t) (int);
 
 #define SIG_DFL	((__sighandler_t)0)	/* default signal handling */
 #define SIG_IGN	((__sighandler_t)1)	/* ignore signal */
@@ -134,14 +134,14 @@ struct old_sigaction {
 	__sighandler_t sa_handler;
 	old_sigset_t sa_mask;
 	unsigned long sa_flags;
-	void (*sa_restorer)(void);
+	void (*sa_restorer) (void);
 };
 
 struct sigaction {
 	__sighandler_t sa_handler;
 	unsigned long sa_flags;
-	void (*sa_restorer)(void);
-	sigset_t sa_mask;		/* mask last for extensibility */
+	void (*sa_restorer) (void);
+	sigset_t sa_mask;	/* mask last for extensibility */
 };
 
 struct k_sigaction {
@@ -152,18 +152,18 @@ struct k_sigaction {
 
 struct sigaction {
 	union {
-	  __sighandler_t _sa_handler;
-	  void (*_sa_sigaction)(int, struct siginfo *, void *);
+		__sighandler_t _sa_handler;
+		void (*_sa_sigaction) (int, struct siginfo *, void *);
 	} _u;
 	sigset_t sa_mask;
 	unsigned long sa_flags;
-	void (*sa_restorer)(void);
+	void (*sa_restorer) (void);
 };
 
 #define sa_handler	_u._sa_handler
 #define sa_sigaction	_u._sa_sigaction
 
-#endif /* __KERNEL__ */
+#endif				/* __KERNEL__ */
 
 typedef struct sigaltstack {
 	void *ss_sp;
@@ -178,6 +178,6 @@ typedef struct sigaltstack {
 
 #define ptrace_signal_deliver(regs, cookie) do { } while (0)
 
-#endif /* __KERNEL__ */
+#endif				/* __KERNEL__ */
 
-#endif /* _BLACKFIN_SIGNAL_H */
+#endif				/* _BLACKFIN_SIGNAL_H */

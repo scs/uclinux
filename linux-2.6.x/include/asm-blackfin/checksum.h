@@ -15,7 +15,7 @@
  *
  * it's best to have buff aligned on a 32-bit boundary
  */
-unsigned int csum_partial(const unsigned char * buff, int len, unsigned int sum);
+unsigned int csum_partial(const unsigned char *buff, int len, unsigned int sum);
 
 /*
  * the same as csum_partial, but copies from src while it
@@ -27,7 +27,6 @@ unsigned int csum_partial(const unsigned char * buff, int len, unsigned int sum)
 
 unsigned int csum_partial_copy(const char *src, char *dst, int len, int sum);
 
-
 /*
  * the same as csum_partial_copy, but copies from user space.
  *
@@ -35,14 +34,14 @@ unsigned int csum_partial_copy(const char *src, char *dst, int len, int sum);
  * better 64-bit) boundary
  */
 
-extern unsigned int csum_partial_copy_from_user(const unsigned char *src, 
-			unsigned char *dst, int len, int sum, int *csum_err);
+extern unsigned int csum_partial_copy_from_user(const unsigned char *src,
+						unsigned char *dst, int len,
+						int sum, int *csum_err);
 
 #define csum_partial_copy_nocheck(src, dst, len, sum)	\
 	csum_partial_copy((src), (dst), (len), (sum))
 
 unsigned short ip_fast_csum(unsigned char *iph, unsigned int ihl);
-
 
 /*
  *	Fold a partial checksum
@@ -52,9 +51,8 @@ static inline unsigned int csum_fold(unsigned int sum)
 {
 	while (sum >> 16)
 		sum = (sum & 0xffff) + (sum >> 16);
-	return ((~(sum<<16))>>16);
+	return ((~(sum << 16)) >> 16);
 }
-
 
 /*
  * computes the checksum of the TCP/UDP pseudo-header
@@ -63,24 +61,12 @@ static inline unsigned int csum_fold(unsigned int sum)
 
 static inline unsigned int
 csum_tcpudp_nofold(unsigned long saddr, unsigned long daddr, unsigned short len,
-		  unsigned short proto, unsigned int sum)
+		   unsigned short proto, unsigned int sum)
 {
 
-	__asm__ ("%0 = %0 + %1;\n\t"
-		 "CC = AC0;\n\t"
-		 "if !CC jump 4;\n\t"
-		 "%0 = %0 + %4;\n\t"
-		 "%0 = %0 + %2;\n\t"
-		 "CC = AC0;\n\t"
-                 "if !CC jump 4;\n\t"
-                 "%0 = %0 + %4;\n\t"
- 		 "%0 = %0 + %3;\n\t"
-		 "CC = AC0;\n\t"
-                 "if !CC jump 4;\n\t"
-                 "%0 = %0 + %4;\n\t"
-                 "NOP;\n\t"
- 		 : "=d" (sum)
-		 : "d" (daddr), "d" (saddr), "d" ((ntohs(len)<<16)+proto*256), "d" (1), "0"(sum));
+      __asm__("%0 = %0 + %1;\n\t" "CC = AC0;\n\t" "if !CC jump 4;\n\t" "%0 = %0 + %4;\n\t" "%0 = %0 + %2;\n\t" "CC = AC0;\n\t" "if !CC jump 4;\n\t" "%0 = %0 + %4;\n\t" "%0 = %0 + %3;\n\t" "CC = AC0;\n\t" "if !CC jump 4;\n\t" "%0 = %0 + %4;\n\t" "NOP;\n\t":"=d"(sum)
+      :	"d"(daddr), "d"(saddr), "d"((ntohs(len) << 16) + proto * 256),
+		"d"(1), "0"(sum));
 
 	return (sum);
 }
@@ -89,7 +75,7 @@ static inline unsigned short int
 csum_tcpudp_magic(unsigned long saddr, unsigned long daddr, unsigned short len,
 		  unsigned short proto, unsigned int sum)
 {
-	return csum_fold(csum_tcpudp_nofold(saddr,daddr,len,proto,sum));
+	return csum_fold(csum_tcpudp_nofold(saddr, daddr, len, proto, sum));
 }
 
 /*
@@ -97,6 +83,6 @@ csum_tcpudp_magic(unsigned long saddr, unsigned long daddr, unsigned short len,
  * in icmp.c
  */
 
-extern unsigned short ip_compute_csum(const unsigned char * buff, int len);
+extern unsigned short ip_compute_csum(const unsigned char *buff, int len);
 
-#endif /* _BFIN_CHECKSUM_H */
+#endif				/* _BFIN_CHECKSUM_H */

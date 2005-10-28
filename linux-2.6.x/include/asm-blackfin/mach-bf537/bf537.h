@@ -1,34 +1,34 @@
 
  /*
- * File:         include/asm-blackfin/mach-bf537/bf537.h
- * Based on:
- * Author:      
- *
- * Created:
- * Description: 
- *
- * Rev:
- *
- * Modified:
- *
- *
- * Bugs:         Enter bugs at http://blackfin.uclinux.org/
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2, or (at your option)
- * any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; see the file COPYING.
- * If not, write to the Free Software Foundation,
- * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
- */
+  * File:         include/asm-blackfin/mach-bf537/bf537.h
+  * Based on:
+  * Author:      
+  *
+  * Created:
+  * Description: 
+  *
+  * Rev:
+  *
+  * Modified:
+  *
+  *
+  * Bugs:         Enter bugs at http://blackfin.uclinux.org/
+  *
+  * This program is free software; you can redistribute it and/or modify
+  * it under the terms of the GNU General Public License as published by
+  * the Free Software Foundation; either version 2, or (at your option)
+  * any later version.
+  *
+  * This program is distributed in the hope that it will be useful,
+  * but WITHOUT ANY WARRANTY; without even the implied warranty of
+  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  * GNU General Public License for more details.
+  *
+  * You should have received a copy of the GNU General Public License
+  * along with this program; see the file COPYING.
+  * If not, write to the Free Software Foundation,
+  * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+  */
 
 #ifndef _BLKFin_H_
 #define _BLKFin_H_
@@ -41,13 +41,13 @@
 
 #define SPI_ERR_MASK (TXCOL | RBSY | MODF | TXE)	/* SPI_STAT */
 #define SPORT_ERR_MASK (ROVF | RUVF | TOVF | TUVF)	/* SPORTx_STAT */
-#define PPI_ERR_MASK (0xFFFF & ~FLD)				/* PPI_STATUS */
-#define EMAC_ERR_MASK (PHYINT | MMCINT | RXFSINT | TXFSINT | WAKEDET | RXDMAERR | TXDMAERR | STMDONE) /* EMAC_SYSTAT */
-#define UART_ERR_MASK_STAT1 (0x4)					/* UARTx_IIR */
-#define UART_ERR_MASK_STAT0 (0x2)					/* UARTx_IIR */
-#define CAN_ERR_MASK  (EWTIF | EWRIF | EPIF | BOIF | WUIF | UIAIF | AAIF | RMLIF | UCEIF | EXTIF | ADIF) /* CAN_GIF */
+#define PPI_ERR_MASK (0xFFFF & ~FLD)	/* PPI_STATUS */
+#define EMAC_ERR_MASK (PHYINT | MMCINT | RXFSINT | TXFSINT | WAKEDET | RXDMAERR | TXDMAERR | STMDONE)	/* EMAC_SYSTAT */
+#define UART_ERR_MASK_STAT1 (0x4)	/* UARTx_IIR */
+#define UART_ERR_MASK_STAT0 (0x2)	/* UARTx_IIR */
+#define CAN_ERR_MASK  (EWTIF | EWRIF | EPIF | BOIF | WUIF | UIAIF | AAIF | RMLIF | UCEIF | EXTIF | ADIF)	/* CAN_GIF */
 
-#define OFFSET_( x ) ((x) & 0x0000FFFF) /* define macro for offset */
+#define OFFSET_( x ) ((x) & 0x0000FFFF)	/* define macro for offset */
 
 /*some misc defines*/
 #define IMASK_IVG15		0x8000
@@ -77,7 +77,7 @@
 #endif
 
 #define BLKFIN_DSUBBANKS	4
-#define BLKFIN_DWAYS		2	
+#define BLKFIN_DWAYS		2
 #define BLKFIN_DLINES		64
 #define BLKFIN_ISUBBANKS	4
 #define BLKFIN_IWAYS		4
@@ -95,14 +95,13 @@
 #define	WAY03_L			0x9
 #define	WAY13_L			0xA
 #define	WAY013_L		0xB
-					
+
 #define	WAY32_L			0xC
 #define	WAY320_L		0xD
 #define	WAY321_L		0xE
 #define	WAYALL_L		0xF
 
-#define DMC_ENABLE (2<<2)	/*yes, 2, not 1*/
-
+#define DMC_ENABLE (2<<2)	/*yes, 2, not 1 */
 
 #define ZERO		0x0
 
@@ -124,15 +123,15 @@
 #endif
 #if (CONFIG_C_AMBEN_B0_B1_B2)
 #define V_AMBEN AMBEN_B0_B1_B2
-#endif 
+#endif
 #if (CONFIG_C_AMCKEN)
-#define V_AMCKEN AMCKEN 
-#else    
+#define V_AMCKEN AMCKEN
+#else
 #define V_AMCKEN 0x0
 #endif
 #if (CONFIG_C_CDPRIO)
 #define V_CDPRIO 0x100
-#else    
+#else
 #define V_CDPRIO 0x0
 #endif
 
@@ -140,85 +139,85 @@
 
 /********************************PLL Settings **************************************/
 #if (CONFIG_VCO_MULT < 0)
-		#error "VCO Multiplier is less than 0. Please select a different value"
+#error "VCO Multiplier is less than 0. Please select a different value"
 #endif
 
 #if (CONFIG_VCO_MULT == 0)
-		#error "VCO Multiplier should be greater than 0. Please select a different value"
+#error "VCO Multiplier should be greater than 0. Please select a different value"
 #endif
 
 #if(CONFIG_VCO_MULT > 64)
-		#error "VCO Multiplier is more than 64. Please select a different value"
+#error "VCO Multiplier is more than 64. Please select a different value"
 #endif
 
 #if(CONFIG_CLKIN_HALF == 0)
-	#define CONFIG_VCO_HZ	(CONFIG_CLKIN_HZ * CONFIG_VCO_MULT)
+#define CONFIG_VCO_HZ	(CONFIG_CLKIN_HZ * CONFIG_VCO_MULT)
 #else
-	#define CONFIG_VCO_HZ	((CONFIG_CLKIN_HZ * CONFIG_VCO_MULT)/2)
+#define CONFIG_VCO_HZ	((CONFIG_CLKIN_HZ * CONFIG_VCO_MULT)/2)
 #endif
 
 #if(CONFIG_PLL_BYPASS == 0)
-	#define CONFIG_CCLK_HZ	(CONFIG_VCO_HZ/CONFIG_CCLK_DIV)
-	#define CONFIG_SCLK_HZ	(CONFIG_VCO_HZ/CONFIG_SCLK_DIV)
+#define CONFIG_CCLK_HZ	(CONFIG_VCO_HZ/CONFIG_CCLK_DIV)
+#define CONFIG_SCLK_HZ	(CONFIG_VCO_HZ/CONFIG_SCLK_DIV)
 #else
-	#define CONFIG_CCLK_HZ	CONFIG_CLKIN_HZ
-	#define CONFIG_SCLK_HZ	CONFIG_CLKIN_HZ
+#define CONFIG_CCLK_HZ	CONFIG_CLKIN_HZ
+#define CONFIG_SCLK_HZ	CONFIG_CLKIN_HZ
 #endif
 
 #if (CONFIG_SCLK_DIV < 1)
-		#error "SCLK DIV cannot be less than 1 or more than 15. Please select a proper value"
+#error "SCLK DIV cannot be less than 1 or more than 15. Please select a proper value"
 #endif
 
 #if (CONFIG_SCLK_DIV > 15)
-		#error "SCLK DIV cannot be less than 1 or more than 15. Please select a proper value"
+#error "SCLK DIV cannot be less than 1 or more than 15. Please select a proper value"
 #endif
 
 #if (CONFIG_CCLK_DIV != 1)
-	#if (CONFIG_CCLK_DIV != 2)
-		#if (CONFIG_CCLK_DIV != 4) 
-			#if (CONFIG_CCLK_DIV != 8)
-				#error "CCLK DIV can be 1,2,4 or 8 only.Please select a proper value"
-			#endif
-		#endif
-	#endif
+#if (CONFIG_CCLK_DIV != 2)
+#if (CONFIG_CCLK_DIV != 4)
+#if (CONFIG_CCLK_DIV != 8)
+#error "CCLK DIV can be 1,2,4 or 8 only.Please select a proper value"
+#endif
+#endif
+#endif
 #endif
 
 #define MAX_VC	650000000
 
 #if(CONFIG_VCO_HZ > MAX_VC)
-		#error "VCO selected is more than maximum value. Please change the VCO multipler"
-#endif	
+#error "VCO selected is more than maximum value. Please change the VCO multipler"
+#endif
 
 #if (CONFIG_SCLK_HZ > 133000000)
-		#error "Sclk value selected is more than maximum.Please select a proper value for SCLK multiplier"
+#error "Sclk value selected is more than maximum.Please select a proper value for SCLK multiplier"
 #endif
-	
+
 #if (CONFIG_SCLK_HZ < 27000000)
-		#error "Sclk value selected is less than minimum.Please select a proper value for SCLK multiplier"
+#error "Sclk value selected is less than minimum.Please select a proper value for SCLK multiplier"
 #endif
 
 #if (CONFIG_SCLK_HZ >= CONFIG_CCLK_HZ)
-	#if(CONFIG_SCLK_HZ != CONFIG_CLKIN_HZ)
-		#if(CONFIG_CCLK_HZ != CONFIG_CLKIN_HZ)
-			#error "Please select sclk less than cclk"
-		#endif
-	#endif
+#if(CONFIG_SCLK_HZ != CONFIG_CLKIN_HZ)
+#if(CONFIG_CCLK_HZ != CONFIG_CLKIN_HZ)
+#error "Please select sclk less than cclk"
+#endif
+#endif
 #endif
 
 #if (CONFIG_CCLK_DIV == 1)
-  #define CONFIG_CCLK_ACT_DIV   CCLK_DIV1
+#define CONFIG_CCLK_ACT_DIV   CCLK_DIV1
 #endif
 #if (CONFIG_CCLK_DIV == 2)
-  #define CONFIG_CCLK_ACT_DIV   CCLK_DIV2
+#define CONFIG_CCLK_ACT_DIV   CCLK_DIV2
 #endif
 #if (CONFIG_CCLK_DIV == 4)
-  #define CONFIG_CCLK_ACT_DIV   CCLK_DIV4
+#define CONFIG_CCLK_ACT_DIV   CCLK_DIV4
 #endif
 #if (CONFIG_CCLK_DIV == 8)
-  #define CONFIG_CCLK_ACT_DIV   CCLK_DIV8
+#define CONFIG_CCLK_ACT_DIV   CCLK_DIV8
 #endif
 #ifndef CONFIG_CCLK_ACT_DIV
-  #define CONFIG_CCLK_ACT_DIV   CONFIG_CCLK_DIV_not_defined_properly
+#define CONFIG_CCLK_ACT_DIV   CONFIG_CCLK_DIV_not_defined_properly
 #endif
 
 #ifdef CONFIG_BF537
@@ -234,12 +233,9 @@
 #define	CPU "UNKOWN"
 #endif
 
-
-
 #if (CONFIG_MEM_SIZE % 4)
-		#error "SDRAM mem size must be multible of 4MB"
+#error "SDRAM mem size must be multible of 4MB"
 #endif
-
 
 #define SDRAM_IGENERIC    (CPLB_L1_CHBL | CPLB_USER_RD | CPLB_VALID | CPLB_PORTPRIO)
 #define SDRAM_IKERNEL     (SDRAM_IGENERIC | CPLB_LOCK)
@@ -248,14 +244,14 @@
 
 /*Use the menuconfig cache policy here - CONFIG_BLKFIN_WT/CONFIG_BLKFIN_WB*/
 
-#define ANOMALY_05000158		0x200	
-#ifdef CONFIG_BLKFIN_WB 	/*Write Back Policy */
+#define ANOMALY_05000158		0x200
+#ifdef CONFIG_BLKFIN_WB		/*Write Back Policy */
 #define SDRAM_DGENERIC   (CPLB_L1_CHBL | CPLB_DIRTY \
 			| CPLB_SUPV_WR | CPLB_USER_WR | CPLB_USER_RD | CPLB_VALID | ANOMALY_05000158)
-#else  /*Write Through*/
+#else				/*Write Through */
 #define SDRAM_DGENERIC   (CPLB_L1_CHBL | CPLB_WT | CPLB_L1_AOW \
 			| CPLB_SUPV_WR | CPLB_USER_WR | CPLB_USER_RD | CPLB_VALID | ANOMALY_05000158)
-#endif 
+#endif
 #define SDRAM_DKERNEL    (SDRAM_DGENERIC | CPLB_LOCK)
 
 #define L1_DMEMORY       (CPLB_SUPV_WR | CPLB_USER_WR | CPLB_USER_RD | CPLB_VALID | ANOMALY_05000158)
@@ -263,10 +259,9 @@
 #define SDRAM_EBIU       (CPLB_SUPV_WR | CPLB_USER_WR | CPLB_USER_RD | CPLB_VALID | ANOMALY_05000158)
 #define SDRAM_OOPS  	 (CPLB_VALID | ANOMALY_05000158)
 
-
 #define SIZE_1K 0x00000400	/* 1K */
 #define SIZE_4K 0x00001000	/* 4K */
 #define SIZE_1M 0x00100000	/* 1M */
 #define SIZE_4M 0x00400000	/* 4M */
 
-#endif  /* _BLKFin_H_  */
+#endif				/* _BLKFin_H_  */

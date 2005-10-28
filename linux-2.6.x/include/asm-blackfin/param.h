@@ -19,4 +19,4 @@
 
 #define MAXHOSTNAMELEN	64	/* max length of hostname */
 
-#endif /* _BLACKFIN_PARAM_H */
+#endif				/* _BLACKFIN_PARAM_H */

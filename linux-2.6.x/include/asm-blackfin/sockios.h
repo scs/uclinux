@@ -7,6 +7,6 @@
 #define FIOGETOWN	0x8903
 #define SIOCGPGRP	0x8904
 #define SIOCATMARK	0x8905
-#define SIOCGSTAMP	0x8906		/* Get stamp */
+#define SIOCGSTAMP	0x8906	/* Get stamp */
 
-#endif /* __ARCH_BFIN_SOCKIOS__ */
+#endif				/* __ARCH_BFIN_SOCKIOS__ */

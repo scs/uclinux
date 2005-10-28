@@ -3,4 +3,4 @@
 
 #include <asm-generic/cpumask.h>
 
-#endif /* _ASM_BLACKFIN_CPUMASK_H */
+#endif				/* _ASM_BLACKFIN_CPUMASK_H */

@@ -6,7 +6,7 @@
 #include <linux/config.h>
 #include <asm/setup.h>
 
-typedef pte_t *pte_addr_t; 
+typedef pte_t *pte_addr_t;
 /*
 * Trivial page table functions.
 */
@@ -19,12 +19,11 @@ typedef pte_t *pte_addr_t;
 
 #define kern_addr_valid(addr) (1)
 
-#define PAGE_NONE		__pgprot(0)    /* these mean nothing to NO_MM */
-#define PAGE_SHARED		__pgprot(0)    /* these mean nothing to NO_MM */
-#define PAGE_COPY		__pgprot(0)    /* these mean nothing to NO_MM */
-#define PAGE_READONLY		__pgprot(0)    /* these mean nothing to NO_MM */
-#define PAGE_KERNEL		__pgprot(0)    /* these mean nothing to NO_MM */
-
+#define PAGE_NONE		__pgprot(0)	/* these mean nothing to NO_MM */
+#define PAGE_SHARED		__pgprot(0)	/* these mean nothing to NO_MM */
+#define PAGE_COPY		__pgprot(0)	/* these mean nothing to NO_MM */
+#define PAGE_READONLY		__pgprot(0)	/* these mean nothing to NO_MM */
+#define PAGE_KERNEL		__pgprot(0)	/* these mean nothing to NO_MM */
 
 extern void paging_init(void);
 
@@ -34,8 +33,10 @@ extern void paging_init(void);
 #define __pte_to_swp_entry(pte)	((swp_entry_t) { pte_val(pte) })
 #define __swp_entry_to_pte(x)	((pte_t) { (x).val })
 
-static inline int pte_file(pte_t pte) { return 0; } 
-
+static inline int pte_file(pte_t pte)
+{
+	return 0;
+}
 
 /*
  * ZERO_PAGE is a global shared page that is always zero: used
@@ -45,7 +46,7 @@ static inline int pte_file(pte_t pte) { return 0; }
 
 extern unsigned int kobjsize(const void *objp);
 
-#define swapper_pg_dir ((pgd_t *) 0) 
+#define swapper_pg_dir ((pgd_t *) 0)
 /*
  * No page table caches to initialise.
  */
@@ -59,5 +60,4 @@ extern unsigned int kobjsize(const void *objp);
 #define	VMALLOC_START	0
 #define	VMALLOC_END	0xffffffff
 
-
-#endif /* _BLACKFIN_PGTABLE_H */
+#endif				/* _BLACKFIN_PGTABLE_H */

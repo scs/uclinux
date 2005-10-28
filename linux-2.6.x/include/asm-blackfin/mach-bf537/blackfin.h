@@ -30,10 +30,8 @@
  * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
-
 #ifndef _MACH_BLACKFIN_H_
 #define _MACH_BLACKFIN_H_
-
 
 #include "bf537.h"
 #include "mem_map.h"
@@ -42,8 +40,6 @@
 #if CONFIG_BF537
 #include "defBF537.h"
 #endif
-
-
 
 #if !(defined(__ASSEMBLY__) || defined(ASSEMBLY))
 #include "cdefBF534.h"
@@ -96,7 +92,6 @@
 #define UART_LSR UART0_LSR
 #define UART_SCR  UART0_SCR
 #define UART_GCTL UART0_GCTL
-
 
 /* DPMC*/
 #define STOPCK_OFF STOPCK
@@ -182,23 +177,21 @@
 
 #endif
 
-
 /* RTC_ICTL and RTC_ISTAT Masks															    */
-#define	SWEF  STOPWATCH		  /* Stopwatch Interrupt Enable									*/
-#define	AEF	  ALARM			  /* Alarm Interrupt Enable										*/
-#define	SEF	  SECOND		  /* Seconds (1 Hz) Interrupt Enable							*/
-#define	MEF	  MINUTE		  /* Minutes Interrupt Enable									*/
-#define	HEF	  HOUR			  /* Hours Interrupt Enable										*/
-#define	DEF	  DAY			  /* 24 Hours (Days) Interrupt Enable							*/
-#define	DAEF  DAY_ALARM		  /* Day Alarm (Day, Hour, Minute, Second) Interrupt Enable		*/
-#define	WPS	  WRITE_PENDING	  /* Write Pending Status										*/
-#define	WCOM  WRITE_COMPLETE  /* Write Complete Interrupt Enable							*/
-
+#define	SWEF  STOPWATCH		/* Stopwatch Interrupt Enable                                                                 */
+#define	AEF	  ALARM		/* Alarm Interrupt Enable                                                                             */
+#define	SEF	  SECOND	/* Seconds (1 Hz) Interrupt Enable                                                    */
+#define	MEF	  MINUTE	/* Minutes Interrupt Enable                                                                   */
+#define	HEF	  HOUR		/* Hours Interrupt Enable                                                                             */
+#define	DEF	  DAY		/* 24 Hours (Days) Interrupt Enable                                                   */
+#define	DAEF  DAY_ALARM		/* Day Alarm (Day, Hour, Minute, Second) Interrupt Enable             */
+#define	WPS	  WRITE_PENDING	/* Write Pending Status                                                                               */
+#define	WCOM  WRITE_COMPLETE	/* Write Complete Interrupt Enable                                                        */
 
 /* PLL_DIV Masks													*/
-#define CCLK_DIV1 CSEL_DIV1 /* 		CCLK = VCO / 1					*/
-#define CCLK_DIV2 CSEL_DIV2 /* 		CCLK = VCO / 2					*/
-#define CCLK_DIV4 CSEL_DIV4 /* 		CCLK = VCO / 4					*/
-#define CCLK_DIV8 CSEL_DIV8 /* 		CCLK = VCO / 8					*/
+#define CCLK_DIV1 CSEL_DIV1	/*          CCLK = VCO / 1                                  */
+#define CCLK_DIV2 CSEL_DIV2	/*          CCLK = VCO / 2                                  */
+#define CCLK_DIV4 CSEL_DIV4	/*          CCLK = VCO / 4                                  */
+#define CCLK_DIV8 CSEL_DIV8	/*          CCLK = VCO / 8                                  */
 
 #endif

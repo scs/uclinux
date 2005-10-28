@@ -39,7 +39,7 @@
 #define VEC_CPLB_M	(38)
 #define VEC_CPLB_MHIT	(39)
 #define VEC_WATCH	(40)
-#define VEC_ISTRU_VL	(41) /*ADSP-BF535 only (MH)*/
+#define VEC_ISTRU_VL	(41)	/*ADSP-BF535 only (MH) */
 #define VEC_MISALI_I	(42)
 #define VEC_CPLB_I_VL	(43)
 #define VEC_CPLB_I_M	(44)
@@ -52,7 +52,7 @@
 #define HWC_x3 "External Memory Addressing Error\n"
 #define HWC_x12 "Performance Monitor Overflow\n"
 #define HWC_x18 "RAISE 5 instruction\n Software issued a RAISE 5 instruction to invoke the Hardware\n"
-#define HWC_default "Reserved\n" 
+#define HWC_default "Reserved\n"
 
 #define EXC_0x10 "Single step\n - When the processor is in single step mode, every instruction\n generates an exception. Primarily used for debugging.\n"
 #define EXC_0x11 "Exception caused by a trace buffer full condition\n - The processor takes this exception when the trace\n buffer overflows (only when enabled by the Trace Unit Control register).\n"
@@ -70,6 +70,5 @@
 #define EXC_0x2D "Instruction fetch multiple CPLB hits\n - More than one CPLB entry matches instruction fetch address.\n"
 #define EXC_0x2E "Illegal use of supervisor resource\n - Attempted to use a Supervisor register or instruction from User mode.\n Supervisor resources are registers and instructions that are reserved\n for Supervisor use: Supervisor only registers, all MMRs, and Supervisor\n only instructions.\n"
 
-#endif /* __ASSEMBLY__ */
-#endif /* _BFIN_TRAPS_H */
-
+#endif				/* __ASSEMBLY__ */
+#endif				/* _BFIN_TRAPS_H */

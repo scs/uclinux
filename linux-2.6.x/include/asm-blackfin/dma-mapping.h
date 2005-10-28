@@ -5,9 +5,10 @@
 #include <asm/scatterlist.h>
 
 void dma_alloc_init(unsigned long start, unsigned long end);
-void* dma_alloc_coherent(struct device* dev, size_t size, dma_addr_t *dma_handle, int gfp);
-void  dma_free_coherent(struct device* dev, size_t size, void *vaddr, dma_addr_t dma_handle);
-
+void *dma_alloc_coherent(struct device *dev, size_t size,
+			 dma_addr_t * dma_handle, int gfp);
+void dma_free_coherent(struct device *dev, size_t size, void *vaddr,
+		       dma_addr_t dma_handle);
 
 /*
  * These macros should be used after a pci_map_sg call has been done
@@ -38,8 +39,8 @@ extern dma_addr_t dma_map_single(struct device *dev, void *ptr, size_t size,
  * whatever the device wrote there.
  */
 static inline
-void dma_unmap_single(struct device *dev, dma_addr_t dma_addr, size_t size,
-		      enum dma_data_direction direction)
+    void dma_unmap_single(struct device *dev, dma_addr_t dma_addr, size_t size,
+			  enum dma_data_direction direction)
 {
 	BUG_ON(direction == DMA_NONE);
 }
@@ -69,11 +70,10 @@ extern int dma_map_sg(struct device *dev, struct scatterlist *sg, int nents,
  * pci_unmap_single() above.
  */
 static inline
-void dma_unmap_sg(struct device *dev, struct scatterlist *sg, int nhwentries,
-	     enum dma_data_direction direction)
+    void dma_unmap_sg(struct device *dev, struct scatterlist *sg,
+		      int nhwentries, enum dma_data_direction direction)
 {
 	BUG_ON(direction == DMA_NONE);
 }
 
-
-#endif /* _BLACKFIN_DMA_MAPPING_H */
+#endif				/* _BLACKFIN_DMA_MAPPING_H */

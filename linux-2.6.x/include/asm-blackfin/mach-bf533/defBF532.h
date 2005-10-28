@@ -14,8 +14,7 @@
  * This file under source code control, please send bugs or changes to:
  * dsptools.support@analog.com
  *
- ************************************************************************/
-
+ ************************************************************************/  
 /*
  * File:         include/asm-blackfin/mach-bf533/defBF532.h
  * Based on:
@@ -46,25 +45,24 @@
  * If not, write to the Free Software Foundation,
  * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
-
-/* SYSTEM & MM REGISTER BIT & ADDRESS DEFINITIONS FOR ADSP-BF532 */
-
+/* SYSTEM & MM REGISTER BIT & ADDRESS DEFINITIONS FOR ADSP-BF532 */ 
+    
 #ifndef _DEF_BF532_H
 #define _DEF_BF532_H
 /*
 #if !defined(__ADSPLPBLACKFIN__)
 #warning defBF532.h should only be included for 532 compatible chips
 #endif
-*/
-/* include all Core registers and bit definitions */
+*/ 
+/* include all Core registers and bit definitions */ 
 #include <asm/mach-common/def_LPBlackfin.h>
+    
 
-
-/*********************************************************************************** */
-/* System MMR Register Map */
-/*********************************************************************************** */
-/*// Clock and System Control (0xFFC00000 - 0xFFC000FF) */
-
+/*********************************************************************************** */ 
+/* System MMR Register Map */ 
+/*********************************************************************************** */ 
+/*// Clock and System Control (0xFFC00000 - 0xFFC000FF) */ 
+    
 #define PLL_CTL                0xFFC00000       /* PLL Control register (16-bit) */
 #define PLL_DIV			 0xFFC00004		/* PLL Divide Register (16-bit) */
 #define VR_CTL			 0xFFC00008		/* Voltage Regulator Control Register (16-bit) */
@@ -72,8 +70,8 @@
 #define PLL_LOCKCNT            0xFFC00010   	/* PLL Lock Count register (16-bit) */
 #define SWRST                  0xFFC00100       /* Software Reset Register (16-bit) */
 #define SYSCR                  0xFFC00104       /* System Configuration registe */
- 
-/* System Interrupt Controller (0xFFC00100 - 0xFFC001FF) */
+    
+/* System Interrupt Controller (0xFFC00100 - 0xFFC001FF) */ 
 #define SIC_RVECT             		0xFFC00108  /* Interrupt Reset Vector Address Register */
 #define SIC_IMASK             		0xFFC0010C  /* Interrupt Mask Register */
 #define SIC_IAR0               		0xFFC00110  /* Interrupt Assignment Register 0 */
@@ -81,13 +79,13 @@
 #define SIC_IAR2              		0xFFC00118  /* Interrupt Assignment Register 2 */
 #define SIC_ISR                		0xFFC00120  /* Interrupt Status Register */
 #define SIC_IWR                		0xFFC00124  /* Interrupt Wakeup Register */
-
-/*// Watchdog Timer (0xFFC00200 - 0xFFC002FF) */
+    
+/*// Watchdog Timer (0xFFC00200 - 0xFFC002FF) */ 
 #define WDOG_CTL                	0xFFC00200  /* Watchdog Control Register */
 #define WDOG_CNT                	0xFFC00204  /* Watchdog Count Register */
 #define WDOG_STAT               	0xFFC00208  /* Watchdog Status Register */
-
-/*// Real Time Clock (0xFFC00300 - 0xFFC003FF) */
+    
+/*// Real Time Clock (0xFFC00300 - 0xFFC003FF) */ 
 #define RTC_STAT                	0xFFC00300  /* RTC Status Register */
 #define RTC_ICTL                	0xFFC00304  /* RTC Interrupt Control Register */
 #define RTC_ISTAT               	0xFFC00308  /* RTC Interrupt Status Register */
@@ -95,8 +93,8 @@
 #define RTC_ALARM               	0xFFC00310  /* RTC Alarm Time Register */
 #define RTC_FAST                	0xFFC00314  /* RTC Prescaler Enable Register */
 #define RTC_PREN			0xFFC00314  /* RTC Prescaler Enable Register (alternate macro) */
-
-/* UART Controller (0xFFC00400 - 0xFFC004FF) */
+    
+/* UART Controller (0xFFC00400 - 0xFFC004FF) */ 
 #define UART_THR             		 0xFFC00400  /* Transmit Holding register */
 #define UART_RBR             		 0xFFC00400  /* Receive Buffer register */
 #define UART_DLL              		 0xFFC00400  /* Divisor Latch (Low-Byte) */
@@ -106,11 +104,11 @@
 #define UART_LCR              		 0xFFC0040C  /* Line Control Register */
 #define UART_MCR			 0xFFC00410  /* Modem Control Register */
 #define UART_LSR              		 0xFFC00414  /* Line Status Register */
-/*#define UART_MSR            		 0xFFC00418  // Modem Status Register //(UNUSED in ADSP-BF532) */
+/*#define UART_MSR            		 0xFFC00418  // Modem Status Register //(UNUSED in ADSP-BF532) */ 
 #define UART_SCR              		 0xFFC0041C  /* SCR Scratch Register */
 #define UART_GCTL      	      		 0xFFC00424  /* Global Control Register */
-
-/* SPI Controller (0xFFC00500 - 0xFFC005FF) */
+    
+/* SPI Controller (0xFFC00500 - 0xFFC005FF) */ 
 #define SPI_CTL               		0xFFC00500  /* SPI Control Register */
 #define SPI_FLG               		0xFFC00504  /* SPI Flag register */
 #define SPI_STAT              		0xFFC00508  /* SPI Status register */
@@ -118,30 +116,30 @@
 #define SPI_RDBR              		0xFFC00510  /* SPI Receive Data Buffer Register */
 #define SPI_BAUD              		0xFFC00514  /* SPI Baud rate Register */
 #define SPI_SHADOW            		0xFFC00518  /* SPI_RDBR Shadow Register */
-
-/* TIMER 0, 1, 2 Registers (0xFFC00600 - 0xFFC006FF) */
-
+    
+/* TIMER 0, 1, 2 Registers (0xFFC00600 - 0xFFC006FF) */ 
+    
 #define TIMER0_CONFIG          		0xFFC00600     /* Timer 0 Configuration Register */
 #define TIMER0_COUNTER			0xFFC00604     /* Timer 0 Counter Register */
 #define TIMER0_PERIOD       		0xFFC00608     /* Timer 0 Period Register */
 #define TIMER0_WIDTH        		0xFFC0060C     /* Timer 0 Width Register */
-
+    
 #define TIMER1_CONFIG          		0xFFC00610  	/*  Timer 1 Configuration Register   */
 #define TIMER1_COUNTER         		0xFFC00614   	/*  Timer 1 Counter Register         */
 #define TIMER1_PERIOD          		0xFFC00618      /*  Timer 1 Period Register          */
 #define TIMER1_WIDTH           		0xFFC0061C      /*  Timer 1 Width Register           */
-
+    
 #define TIMER2_CONFIG          		0xFFC00620  	/* Timer 2 Configuration Register   */
 #define TIMER2_COUNTER         		0xFFC00624      /* Timer 2 Counter Register         */
 #define TIMER2_PERIOD          		0xFFC00628      /* Timer 2 Period Register          */
 #define TIMER2_WIDTH           		0xFFC0062C      /* Timer 2 Width Register           */
-
+    
 #define TIMER_ENABLE			0xFFC00640   	/* Timer Enable Register */
 #define TIMER_DISABLE			0xFFC00644   	/* Timer Disable Register */
 #define TIMER_STATUS			0xFFC00648   	/* Timer Status Register */
-
-/*// General Purpose IO (0xFFC00700 - 0xFFC007FF) */
-
+    
+/*// General Purpose IO (0xFFC00700 - 0xFFC007FF) */ 
+    
 #define FIO_FLAG_D	       		0xFFC00700  /* Flag Mask to directly specify state of pins */
 #define FIO_FLAG_C             		0xFFC00704  /* Peripheral Interrupt Flag Register (clear) */
 #define FIO_FLAG_S             		0xFFC00708  /* Peripheral Interrupt Flag Register (set) */
@@ -159,8 +157,8 @@
 #define FIO_EDGE               		0xFFC00738  /* Flag Source Sensitivity Register */
 #define FIO_BOTH               		0xFFC0073C  /* Flag Set on BOTH Edges Register */
 #define FIO_INEN					0xFFC00740  /* Flag Input Enable Register  */
-
-/*// SPORT0 Controller (0xFFC00800 - 0xFFC008FF) */
+    
+/*// SPORT0 Controller (0xFFC00800 - 0xFFC008FF) */ 
 #define SPORT0_TCR1     	 	0xFFC00800  /* SPORT0 Transmit Configuration 1 Register */
 #define SPORT0_TCR2      	 	0xFFC00804  /* SPORT0 Transmit Configuration 2 Register */
 #define SPORT0_TCLKDIV        		0xFFC00808  /* SPORT0 Transmit Clock Divider */
@@ -183,9 +181,9 @@
 #define SPORT0_MRCS1           		0xFFC00854  /* SPORT0 Multi-Channel Receive Select Register 1 */
 #define SPORT0_MRCS2           		0xFFC00858  /* SPORT0 Multi-Channel Receive Select Register 2 */
 #define SPORT0_MRCS3           		0xFFC0085C  /* SPORT0 Multi-Channel Receive Select Register 3 */
+    
 
-
-/*// SPORT1 Controller (0xFFC00900 - 0xFFC009FF) */
+/*// SPORT1 Controller (0xFFC00900 - 0xFFC009FF) */ 
 #define SPORT1_TCR1     	 	0xFFC00900  /* SPORT1 Transmit Configuration 1 Register */
 #define SPORT1_TCR2      	 	0xFFC00904  /* SPORT1 Transmit Configuration 2 Register */
 #define SPORT1_TCLKDIV        		0xFFC00908  /* SPORT1 Transmit Clock Divider */
@@ -208,26 +206,26 @@
 #define SPORT1_MRCS1           		0xFFC00954  /* SPORT1 Multi-Channel Receive Select Register 1 */
 #define SPORT1_MRCS2           		0xFFC00958  /* SPORT1 Multi-Channel Receive Select Register 2 */
 #define SPORT1_MRCS3           		0xFFC0095C  /* SPORT1 Multi-Channel Receive Select Register 3 */
-
-/* Asynchronous Memory Controller - External Bus Interface Unit  */
+    
+/* Asynchronous Memory Controller - External Bus Interface Unit  */ 
 #define EBIU_AMGCTL			0xFFC00A00  /* Asynchronous Memory Global Control Register */
 #define EBIU_AMBCTL0			0xFFC00A04  /* Asynchronous Memory Bank Control Register 0 */
 #define EBIU_AMBCTL1			0xFFC00A08  /* Asynchronous Memory Bank Control Register 1 */
-
-/* SDRAM Controller External Bus Interface Unit (0xFFC00A00 - 0xFFC00AFF) */
-
+    
+/* SDRAM Controller External Bus Interface Unit (0xFFC00A00 - 0xFFC00AFF) */ 
+    
 #define EBIU_SDGCTL			0xFFC00A10  /* SDRAM Global Control Register */
 #define EBIU_SDBCTL			0xFFC00A14  /* SDRAM Bank Control Register */
 #define EBIU_SDRRC 			0xFFC00A18  /* SDRAM Refresh Rate Control Register */
 #define EBIU_SDSTAT			0xFFC00A1C  /* SDRAM Status Register */
-
-/* DMA Traffic controls */
+    
+/* DMA Traffic controls */ 
 #define DMA_TCPER 0xFFC00B0C	/* Traffic Control Periods Register */
 #define DMA_TCCNT 0xFFC00B10	/* Traffic Control Current Counts Register */
 #define DMA_TC_PER 0xFFC00B0C	/* Traffic Control Periods Register */
 #define DMA_TC_CNT 0xFFC00B10	/* Traffic Control Current Counts Register */
-
-/* DMA Controller (0xFFC00C00 - 0xFFC00FFF) */
+    
+/* DMA Controller (0xFFC00C00 - 0xFFC00FFF) */ 
 #define DMA0_CONFIG		0xFFC00C08	/* DMA Channel 0 Configuration Register */
 #define DMA0_NEXT_DESC_PTR	0xFFC00C00	/* DMA Channel 0 Next Descriptor Pointer Register */
 #define DMA0_START_ADDR		0xFFC00C04	/* DMA Channel 0 Start Address Register */
@@ -241,7 +239,7 @@
 #define DMA0_CURR_Y_COUNT	0xFFC00C38	/* DMA Channel 0 Current Y Count Register */
 #define DMA0_IRQ_STATUS		0xFFC00C28	/* DMA Channel 0 Interrupt/Status Register */
 #define DMA0_PERIPHERAL_MAP	0xFFC00C2C	/* DMA Channel 0 Peripheral Map Register */
-
+    
 #define DMA1_CONFIG		0xFFC00C48	/* DMA Channel 1 Configuration Register */
 #define DMA1_NEXT_DESC_PTR	0xFFC00C40	/* DMA Channel 1 Next Descriptor Pointer Register */
 #define DMA1_START_ADDR		0xFFC00C44	/* DMA Channel 1 Start Address Register */
@@ -255,7 +253,7 @@
 #define DMA1_CURR_Y_COUNT	0xFFC00C78	/* DMA Channel 1 Current Y Count Register */
 #define DMA1_IRQ_STATUS		0xFFC00C68	/* DMA Channel 1 Interrupt/Status Register */
 #define DMA1_PERIPHERAL_MAP	0xFFC00C6C	/* DMA Channel 1 Peripheral Map Register */
-
+    
 #define DMA2_CONFIG		0xFFC00C88	/* DMA Channel 2 Configuration Register */
 #define DMA2_NEXT_DESC_PTR	0xFFC00C80	/* DMA Channel 2 Next Descriptor Pointer Register */
 #define DMA2_START_ADDR		0xFFC00C84	/* DMA Channel 2 Start Address Register */
@@ -269,7 +267,7 @@
 #define DMA2_CURR_Y_COUNT	0xFFC00CB8	/* DMA Channel 2 Current Y Count Register */
 #define DMA2_IRQ_STATUS		0xFFC00CA8	/* DMA Channel 2 Interrupt/Status Register */
 #define DMA2_PERIPHERAL_MAP	0xFFC00CAC	/* DMA Channel 2 Peripheral Map Register */
-
+    
 #define DMA3_CONFIG		0xFFC00CC8	/* DMA Channel 3 Configuration Register */
 #define DMA3_NEXT_DESC_PTR	0xFFC00CC0	/* DMA Channel 3 Next Descriptor Pointer Register */
 #define DMA3_START_ADDR		0xFFC00CC4	/* DMA Channel 3 Start Address Register */
@@ -283,7 +281,7 @@
 #define DMA3_CURR_Y_COUNT	0xFFC00CF8	/* DMA Channel 3 Current Y Count Register */
 #define DMA3_IRQ_STATUS		0xFFC00CE8	/* DMA Channel 3 Interrupt/Status Register */
 #define DMA3_PERIPHERAL_MAP	0xFFC00CEC	/* DMA Channel 3 Peripheral Map Register */
-
+    
 #define DMA4_CONFIG		0xFFC00D08	/* DMA Channel 4 Configuration Register */
 #define DMA4_NEXT_DESC_PTR	0xFFC00D00	/* DMA Channel 4 Next Descriptor Pointer Register */
 #define DMA4_START_ADDR		0xFFC00D04	/* DMA Channel 4 Start Address Register */
@@ -297,7 +295,7 @@
 #define DMA4_CURR_Y_COUNT	0xFFC00D38	/* DMA Channel 4 Current Y Count Register */
 #define DMA4_IRQ_STATUS		0xFFC00D28	/* DMA Channel 4 Interrupt/Status Register */
 #define DMA4_PERIPHERAL_MAP	0xFFC00D2C	/* DMA Channel 4 Peripheral Map Register */
-
+    
 #define DMA5_CONFIG		0xFFC00D48	/* DMA Channel 5 Configuration Register */
 #define DMA5_NEXT_DESC_PTR	0xFFC00D40	/* DMA Channel 5 Next Descriptor Pointer Register */
 #define DMA5_START_ADDR		0xFFC00D44	/* DMA Channel 5 Start Address Register */
@@ -311,7 +309,7 @@
 #define DMA5_CURR_Y_COUNT	0xFFC00D78	/* DMA Channel 5 Current Y Count Register */
 #define DMA5_IRQ_STATUS		0xFFC00D68	/* DMA Channel 5 Interrupt/Status Register */
 #define DMA5_PERIPHERAL_MAP	0xFFC00D6C	/* DMA Channel 5 Peripheral Map Register */
-
+    
 #define DMA6_CONFIG		0xFFC00D88	/* DMA Channel 6 Configuration Register */
 #define DMA6_NEXT_DESC_PTR	0xFFC00D80	/* DMA Channel 6 Next Descriptor Pointer Register */
 #define DMA6_START_ADDR		0xFFC00D84	/* DMA Channel 6 Start Address Register */
@@ -325,7 +323,7 @@
 #define DMA6_CURR_Y_COUNT	0xFFC00DB8	/* DMA Channel 6 Current Y Count Register */
 #define DMA6_IRQ_STATUS		0xFFC00DA8	/* DMA Channel 6 Interrupt/Status Register */
 #define DMA6_PERIPHERAL_MAP	0xFFC00DAC	/* DMA Channel 6 Peripheral Map Register */
-                                
+    
 #define DMA7_CONFIG		0xFFC00DC8	/* DMA Channel 7 Configuration Register */
 #define DMA7_NEXT_DESC_PTR	0xFFC00DC0	/* DMA Channel 7 Next Descriptor Pointer Register */
 #define DMA7_START_ADDR		0xFFC00DC4	/* DMA Channel 7 Start Address Register */
@@ -339,7 +337,7 @@
 #define DMA7_CURR_Y_COUNT	0xFFC00DF8	/* DMA Channel 7 Current Y Count Register */
 #define DMA7_IRQ_STATUS		0xFFC00DE8	/* DMA Channel 7 Interrupt/Status Register */
 #define DMA7_PERIPHERAL_MAP	0xFFC00DEC	/* DMA Channel 7 Peripheral Map Register */
-                                          
+    
 #define MDMA_D1_CONFIG		0xFFC00E88	/* MemDMA Stream 1 Destination Configuration Register */
 #define MDMA_D1_NEXT_DESC_PTR	0xFFC00E80	/* MemDMA Stream 1 Destination Next Descriptor Pointer Register */
 #define MDMA_D1_START_ADDR	0xFFC00E84	/* MemDMA Stream 1 Destination Start Address Register */
@@ -353,7 +351,7 @@
 #define MDMA_D1_CURR_Y_COUNT	0xFFC00EB8	/* MemDMA Stream 1 Destination Current Y Count Register */
 #define MDMA_D1_IRQ_STATUS	0xFFC00EA8	/* MemDMA Stream 1 Destination Interrupt/Status Register */
 #define MDMA_D1_PERIPHERAL_MAP	0xFFC00EAC	/* MemDMA Stream 1 Destination Peripheral Map Register */
-
+    
 #define MDMA_S1_CONFIG		0xFFC00EC8	/* MemDMA Stream 1 Source Configuration Register */
 #define MDMA_S1_NEXT_DESC_PTR	0xFFC00EC0	/* MemDMA Stream 1 Source Next Descriptor Pointer Register */
 #define MDMA_S1_START_ADDR	0xFFC00EC4	/* MemDMA Stream 1 Source Start Address Register */
@@ -367,7 +365,7 @@
 #define MDMA_S1_CURR_Y_COUNT	0xFFC00EF8	/* MemDMA Stream 1 Source Current Y Count Register */
 #define MDMA_S1_IRQ_STATUS	0xFFC00EE8	/* MemDMA Stream 1 Source Interrupt/Status Register */
 #define MDMA_S1_PERIPHERAL_MAP	0xFFC00EEC	/* MemDMA Stream 1 Source Peripheral Map Register */
-                                          
+    
 #define MDMA_D0_CONFIG		0xFFC00E08	/* MemDMA Stream 0 Destination Configuration Register */
 #define MDMA_D0_NEXT_DESC_PTR	0xFFC00E00	/* MemDMA Stream 0 Destination Next Descriptor Pointer Register */
 #define MDMA_D0_START_ADDR	0xFFC00E04	/* MemDMA Stream 0 Destination Start Address Register */
@@ -381,7 +379,7 @@
 #define MDMA_D0_CURR_Y_COUNT	0xFFC00E38	/* MemDMA Stream 0 Destination Current Y Count Register */
 #define MDMA_D0_IRQ_STATUS	0xFFC00E28	/* MemDMA Stream 0 Destination Interrupt/Status Register */
 #define MDMA_D0_PERIPHERAL_MAP	0xFFC00E2C	/* MemDMA Stream 0 Destination Peripheral Map Register */
-                                          
+    
 #define MDMA_S0_CONFIG		0xFFC00E48	/* MemDMA Stream 0 Source Configuration Register */
 #define MDMA_S0_NEXT_DESC_PTR	0xFFC00E40	/* MemDMA Stream 0 Source Next Descriptor Pointer Register */
 #define MDMA_S0_START_ADDR	0xFFC00E44	/* MemDMA Stream 0 Source Start Address Register */
@@ -395,46 +393,46 @@
 #define MDMA_S0_CURR_Y_COUNT	0xFFC00E78	/* MemDMA Stream 0 Source Current Y Count Register */
 #define MDMA_S0_IRQ_STATUS	0xFFC00E68	/* MemDMA Stream 0 Source Interrupt/Status Register */
 #define MDMA_S0_PERIPHERAL_MAP	0xFFC00E6C	/* MemDMA Stream 0 Source Peripheral Map Register */
+    
 
-
-/*// Parallel Peripheral Interface (PPI) (0xFFC01000 - 0xFFC010FF) */
-	
+/*// Parallel Peripheral Interface (PPI) (0xFFC01000 - 0xFFC010FF) */ 
+    
 #define PPI_CONTROL			0xFFC01000	/* PPI Control Register */
 #define PPI_STATUS			0xFFC01004	/* PPI Status Register */
 #define PPI_COUNT			0xFFC01008	/* PPI Transfer Count Register */
 #define PPI_DELAY			0xFFC0100C	/* PPI Delay Count Register */
 #define PPI_FRAME			0xFFC01010	/* PPI Frame Length Register */
-
-/*********************************************************************************** */
-/* System MMR Register Bits */
-/******************************************************************************* */
-
-/* ********************* PLL AND RESET MASKS ************************ */
-
-/*// PLL_CTL Masks */
+    
+/*********************************************************************************** */ 
+/* System MMR Register Bits */ 
+/******************************************************************************* */ 
+    
+/* ********************* PLL AND RESET MASKS ************************ */ 
+    
+/*// PLL_CTL Masks */ 
 #define PLL_CLKIN              0x00000000  /* Pass CLKIN to PLL */
 #define PLL_CLKIN_DIV2         0x00000001  /* Pass CLKIN/2 to PLL */
 #define PLL_OFF                0x00000002  /* Shut off PLL clocks */
 #define STOPCK_OFF             0x00000008  /* Core clock off */
 #define PDWN                   0x00000020  /* Put the PLL in a Deep Sleep state */
 #define BYPASS                 0x00000100  /* Bypass the PLL */
-
-/*// PLL_DIV Masks */
-
+    
+/*// PLL_DIV Masks */ 
+    
 #define SCLK_DIV(x)  (x)		   /* SCLK = VCO / x */
-
+    
 #define CCLK_DIV1              0x00000000  /* CCLK = VCO / 1 */
 #define CCLK_DIV2              0x00000010  /* CCLK = VCO / 2 */
 #define CCLK_DIV4              0x00000020  /* CCLK = VCO / 4 */
 #define CCLK_DIV8              0x00000030  /* CCLK = VCO / 8 */
-
-/* SWRST Mask */
+    
+/* SWRST Mask */ 
 #define SYSTEM_RESET           0x00000007  /* Initiates a system software reset */
-
-/* *************  SYSTEM INTERRUPT CONTROLLER MASKS ***************** */
-
- /* SIC_IAR0 Masks */
-
+    
+/* *************  SYSTEM INTERRUPT CONTROLLER MASKS ***************** */ 
+    
+    /* SIC_IAR0 Masks */ 
+    
 #define P0_IVG(x)    ((x)-7)		   /* Peripheral #0 assigned IVG #x  */
 #define P1_IVG(x)    ((x)-7) << 0x4	   /* Peripheral #1 assigned IVG #x  */
 #define P2_IVG(x)    ((x)-7) << 0x8	   /* Peripheral #2 assigned IVG #x  */
@@ -443,10 +441,10 @@
 #define P5_IVG(x)    ((x)-7) << 0x14	   /* Peripheral #5 assigned IVG #x  */
 #define P6_IVG(x)    ((x)-7) << 0x18	   /* Peripheral #6 assigned IVG #x  */
 #define P7_IVG(x)    ((x)-7) << 0x1C	   /* Peripheral #7 assigned IVG #x  */
+    
 
-
-/* SIC_IAR1 Masks */
-
+/* SIC_IAR1 Masks */ 
+    
 #define P8_IVG(x)     ((x)-7)		   /* Peripheral #8 assigned IVG #x  */
 #define P9_IVG(x)     ((x)-7) << 0x4	   /* Peripheral #9 assigned IVG #x  */
 #define P10_IVG(x)    ((x)-7) << 0x8	   /* Peripheral #10 assigned IVG #x  */
@@ -455,9 +453,9 @@
 #define P13_IVG(x)    ((x)-7) << 0x14	   /* Peripheral #13 assigned IVG #x  */
 #define P14_IVG(x)    ((x)-7) << 0x18	   /* Peripheral #14 assigned IVG #x  */
 #define P15_IVG(x)    ((x)-7) << 0x1C	   /* Peripheral #15 assigned IVG #x  */
+    
 
-
-/* SIC_IAR2 Masks */
+/* SIC_IAR2 Masks */ 
 #define P16_IVG(x)    ((x)-7)		   /* Peripheral #16 assigned IVG #x  */
 #define P17_IVG(x)    ((x)-7) << 0x4	   /* Peripheral #17 assigned IVG #x  */
 #define P18_IVG(x)    ((x)-7) << 0x8	   /* Peripheral #18 assigned IVG #x  */
@@ -466,46 +464,46 @@
 #define P21_IVG(x)    ((x)-7) << 0x14	   /* Peripheral #21 assigned IVG #x  */
 #define P22_IVG(x)    ((x)-7) << 0x18	   /* Peripheral #22 assigned IVG #x  */
 #define P23_IVG(x)    ((x)-7) << 0x1C	   /* Peripheral #23 assigned IVG #x  */
+    
 
-
-/* SIC_IMASK Masks */
+/* SIC_IMASK Masks */ 
 #define SIC_UNMASK_ALL         0x00000000  /* Unmask all peripheral interrupts */
 #define SIC_MASK_ALL           0xFFFFFFFF  /* Mask all peripheral interrupts */
 #define SIC_MASK(x)	       (1 << (x))    /* Mask Peripheral #x interrupt */
 #define SIC_UNMASK(x) (0xFFFFFFFF ^ (1 << (x))) /* Unmask Peripheral #x interrupt */
-
-/* SIC_IWR Masks */
+    
+/* SIC_IWR Masks */ 
 #define IWR_DISABLE_ALL        0x00000000  /* Wakeup Disable all peripherals */
 #define IWR_ENABLE_ALL         0xFFFFFFFF  /* Wakeup Enable all peripherals */
 #define IWR_ENABLE(x)	       (1 << (x))    /* Wakeup Enable Peripheral #x */
 #define IWR_DISABLE(x) (0xFFFFFFFF ^ (1 << (x))) /* Wakeup Disable Peripheral #x */
+    
 
-
-/* *********  WATCHDOG TIMER MASKS  ********************8 */
-
-/* Watchdog Timer WDOG_CTL Register */
+/* *********  WATCHDOG TIMER MASKS  ********************8 */ 
+    
+/* Watchdog Timer WDOG_CTL Register */ 
 #define ICTL(x) ((x<<1) & 0x0006)
 #define ENABLE_RESET     0x00000000  /* Set Watchdog Timer to generate reset */
 #define ENABLE_NMI       0x00000002  /* Set Watchdog Timer to generate non-maskable interrupt */
 #define ENABLE_GPI       0x00000004  /* Set Watchdog Timer to generate general-purpose interrupt */
 #define DISABLE_EVT      0x00000006  /* Disable Watchdog Timer interrupts */
-
+    
 #define TMR_EN		0x0000
 #define TMR_DIS		0x0AD0
 #define TRO		0x8000
-
+    
 #define ICTL_P0		0x01
 #define ICTL_P1		0x02
 #define TRO_P		0x0F
+    
 
-
-/* RTC_STAT and RTC_ALARM register */
+/* RTC_STAT and RTC_ALARM register */ 
 #define	RTSEC		0x0000003F	/* Real-Time Clock Seconds */
 #define	RTMIN		0x00000FC0	/* Real-Time Clock Minutes */
 #define	RTHR		0x0001F000	/* Real-Time Clock Hours */
 #define	RTDAY		0xFFFE0000	/* Real-Time Clock Days */
-
-/* RTC_ICTL register */
+    
+/* RTC_ICTL register */ 
 #define	SWIE		0x0001		/* Stopwatch Interrupt Enable */
 #define	AIE		0x0002		/* Alarm Interrupt Enable */
 #define	SIE		0x0004		/* Seconds (1 Hz) Interrupt Enable */
@@ -514,8 +512,8 @@
 #define	DIE		0x0020		/* 24 Hours (Days) Interrupt Enable */
 #define	DAIE		0x0040		/* Day Alarm (Day, Hour, Minute, Second) Interrupt Enable */
 #define	WCIE		0x8000		/* Write Complete Interrupt Enable */
-
-/* RTC_ISTAT register */
+    
+/* RTC_ISTAT register */ 
 #define	SWEF		0x0001		/* Stopwatch Event Flag */
 #define	AEF		0x0002		/* Alarm Event Flag */
 #define	SEF		0x0004		/* Seconds (1 Hz) Event Flag */
@@ -525,16 +523,16 @@
 #define	DAEF		0x0040		/* Day Alarm (Day, Hour, Minute, Second) Event Flag */
 #define	WPS		0x4000		/* Write Pending Status (RO) */
 #define	WCOM		0x8000		/* Write Complete */
-
-/*// RTC_FAST Mask (RTC_PREN Mask) */
+    
+/*// RTC_FAST Mask (RTC_PREN Mask) */ 
 #define ENABLE_PRESCALE      0x00000001  /* Enable prescaler so RTC runs at 1 Hz */
 #define PREN                 0x00000001
-         	/* ** Must be set after power-up for proper operation of RTC */
-
-/* ***************************** UART CONTROLLER MASKS ********************** */
-
-/* UART_LCR Register */
-
+    /* ** Must be set after power-up for proper operation of RTC */ 
+    
+/* ***************************** UART CONTROLLER MASKS ********************** */ 
+    
+/* UART_LCR Register */ 
+    
 #define DLAB	0x80
 #define SB      0x40
 #define STP      0x20
@@ -542,7 +540,7 @@
 #define PEN	0x08
 #define STB	0x04
 #define WLS(x)	((x-5) & 0x03)
-
+    
 #define DLAB_P	0x07
 #define SB_P	0x06
 #define STP_P	0x05
@@ -551,12 +549,12 @@
 #define STB_P	0x02
 #define WLS_P1	0x01
 #define WLS_P0	0x00
-
-/* UART_MCR Register */
+    
+/* UART_MCR Register */ 
 #define LOOP_ENA	0x10
 #define LOOP_ENA_P	0x04
-
-/* UART_LSR Register */
+    
+/* UART_LSR Register */ 
 #define TEMT	0x40
 #define THRE	0x20
 #define BI	0x10
@@ -564,7 +562,7 @@
 #define PE	0x04
 #define OE	0x02
 #define DR	0x01
-
+    
 #define TEMP_P	0x06
 #define THRE_P	0x05
 #define BI_P	0x04
@@ -572,41 +570,41 @@
 #define PE_P	0x02
 #define OE_P	0x01
 #define DR_P	0x00
-
-/* UART_IER Register */
+    
+/* UART_IER Register */ 
 #define ELSI	0x04
 #define ETBEI	0x02
 #define ERBFI	0x01
-
+    
 #define ELSI_P	0x02
 #define ETBEI_P	0x01
 #define ERBFI_P	0x00
-
-/* UART_IIR Register */
+    
+/* UART_IIR Register */ 
 #define STATUS(x)	((x << 1) & 0x06)
 #define NINT		0x01
 #define STATUS_P1	0x02
 #define STATUS_P0	0x01
 #define NINT_P		0x00
-
-/* UART_GCTL Register */
+    
+/* UART_GCTL Register */ 
 #define FFE	0x20
 #define FPE	0x10
 #define RPOLC	0x08
 #define TPOLC	0x04
 #define IREN	0x02
 #define UCEN	0x01
-
+    
 #define FFE_P	0x05
 #define FPE_P	0x04
 #define RPOLC_P	0x03
 #define TPOLC_P	0x02
 #define IREN_P	0x01
 #define UCEN_P	0x00
-
-/* **********  SERIAL PORT MASKS  ********************** */
-          
-/* SPORTx_TCR1 Masks */
+    
+/* **********  SERIAL PORT MASKS  ********************** */ 
+    
+/* SPORTx_TCR1 Masks */ 
 #define TSPEN    0x0001  /* TX enable  */
 #define ITCLK    0x0002  /* Internal TX Clock Select  */
 #define TDTYPE   0x000C  /* TX Data Formatting Select */
@@ -617,14 +615,14 @@
 #define LTFS     0x1000  /* Low TX Frame Sync Select  */
 #define LATFS    0x2000  /* Late TX Frame Sync Select  */
 #define TCKFE    0x4000  /* TX Clock Falling Edge Select  */
-
-/* SPORTx_TCR2 Masks */
+    
+/* SPORTx_TCR2 Masks */ 
 #define SLEN	    0x001F  /*TX Word Length  */
 #define TXSE        0x0100  /*TX Secondary Enable */
 #define TSFSE       0x0200  /*TX Stereo Frame Sync Enable */
 #define TRFST       0x0400  /*TX Right-First Data Order  */
-
-/* SPORTx_RCR1 Masks */
+    
+/* SPORTx_RCR1 Masks */ 
 #define RSPEN    0x0001  /* RX enable  */
 #define IRCLK    0x0002  /* Internal RX Clock Select  */
 #define RDTYPE   0x000C  /* RX Data Formatting Select */
@@ -636,14 +634,14 @@
 #define LRFS     0x1000  /* Low RX Frame Sync Select  */
 #define LARFS    0x2000  /* Late RX Frame Sync Select  */
 #define RCKFE    0x4000  /* RX Clock Falling Edge Select  */
-
-/* SPORTx_RCR2 Masks */
+    
+/* SPORTx_RCR2 Masks */ 
 #define SLEN	    0x001F  /*RX Word Length  */
 #define RXSE        0x0100  /*RX Secondary Enable */
 #define RSFSE       0x0200  /*RX Stereo Frame Sync Enable */
 #define RRFST       0x0400  /*Right-First Data Order  */
-
-/*SPORTx_STAT Masks */
+    
+/*SPORTx_STAT Masks */ 
 #define RXNE		0x0001		/*RX FIFO Not Empty Status */
 #define RUVF	    	0x0002  	/*RX Underflow Status */
 #define ROVF		0x0004		/*RX Overflow Status */
@@ -651,22 +649,22 @@
 #define TUVF         	0x0010  	/*TX Underflow Status */
 #define TOVF         	0x0020  	/*TX Overflow Status */
 #define TXHRE        	0x0040  	/*TX Hold Register Empty */
-
-/*SPORTx_MCMC1 Masks */
+    
+/*SPORTx_MCMC1 Masks */ 
 #define SP_WSIZE		0x0000F000 	/*Multichannel Window Size Field */
 #define SP_WOFF		0x000003FF 	/*Multichannel Window Offset Field */
-
-/*SPORTx_MCMC2 Masks */
+    
+/*SPORTx_MCMC2 Masks */ 
 #define MCCRM		0x00000003 	/*Multichannel Clock Recovery Mode */
 #define MCDTXPE		0x00000004 	/*Multichannel DMA Transmit Packing */
 #define MCDRXPE		0x00000008 	/*Multichannel DMA Receive Packing */
 #define MCMEN		0x00000010 	/*Multichannel Frame Mode Enable */
 #define FSDR		0x00000080 	/*Multichannel Frame Sync to Data Relationship */
 #define MFD		0x0000F000 	/*Multichannel Frame Delay    */
-
-/*  *********  PARALLEL PERIPHERAL INTERFACE (PPI) MASKS ****************   */
-       
-/*//  PPI_CONTROL Masks         */
+    
+/*  *********  PARALLEL PERIPHERAL INTERFACE (PPI) MASKS ****************   */ 
+    
+/*//  PPI_CONTROL Masks         */ 
 #define PORT_EN              0x00000001  /* PPI Port Enable  */
 #define PORT_DIR             0x00000002  /* PPI Port Direction       */
 #define XFR_TYPE             0x0000000C  /* PPI Transfer Type  */
@@ -680,19 +678,19 @@
 #define DLEN_8		     0x0	     /* PPI Data Length mask for DLEN=8 */
 #define DLEN(x)	(((x-9) & 0x07) << 11)  /* PPI Data Length (only works for x=10-->x=16) */
 #define POL                  0x0000C000  /* PPI Signal Polarities       */
+    
 
-
-/*// PPI_STATUS Masks                                          */
+/*// PPI_STATUS Masks                                          */ 
 #define FLD	             0x00000400  /* Field Indicator   */
 #define FT_ERR	             0x00000800  /* Frame Track Error */
 #define OVR	             0x00001000  /* FIFO Overflow Error */
 #define UNDR	             0x00002000  /* FIFO Underrun Error */
 #define ERR_DET	      	     0x00004000  /* Error Detected Indicator */
 #define ERR_NCOR	     0x00008000  /* Error Not Corrected Indicator */
-
-/* **********  DMA CONTROLLER MASKS  *********************8 */
-
-/*//DMAx_CONFIG, MDMA_yy_CONFIG Masks */
+    
+/* **********  DMA CONTROLLER MASKS  *********************8 */ 
+    
+/*//DMAx_CONFIG, MDMA_yy_CONFIG Masks */ 
 #define DMAEN	        0x00000001  /* Channel Enable */
 #define WNR	   	0x00000002  /* Channel Direction (W/R*) */
 #define WDSIZE_8	0x00000000  /* Word Size 8 bits */
@@ -704,7 +702,7 @@
 #define DI_EN	        0x00000080  /* Data Interrupt Enable */
 #define NDSIZE	        0x00000900  /* Next Descriptor Size */
 #define FLOW	        0x00007000  /* Flow Control */
-
+    
 
 #define DMAEN_P	            	0  /* Channel Enable */
 #define WNR_P	            	1  /* Channel Direction (W/R*) */
@@ -712,21 +710,21 @@
 #define RESTART_P	      	5  /* Restart */
 #define DI_SEL_P	     	6  /* Data Interrupt Select */
 #define DI_EN_P	            	7  /* Data Interrupt Enable */
-
-/*//DMAx_IRQ_STATUS, MDMA_yy_IRQ_STATUS Masks */
-
+    
+/*//DMAx_IRQ_STATUS, MDMA_yy_IRQ_STATUS Masks */ 
+    
 #define DMA_DONE		0x00000001  /* DMA Done Indicator */
 #define DMA_ERR	        	0x00000002  /* DMA Error Indicator */
 #define DFETCH	            	0x00000004  /* Descriptor Fetch Indicator */
 #define DMA_RUN	            	0x00000008  /* DMA Running Indicator */
-
+    
 #define DMA_DONE_P	    	0  /* DMA Done Indicator */
 #define DMA_ERR_P     		1 /* DMA Error Indicator */
 #define DFETCH_P     		2  /* Descriptor Fetch Indicator */
 #define DMA_RUN_P     		3  /* DMA Running Indicator */
-
-/*//DMAx_PERIPHERAL_MAP, MDMA_yy_PERIPHERAL_MAP Masks */
-
+    
+/*//DMAx_PERIPHERAL_MAP, MDMA_yy_PERIPHERAL_MAP Masks */ 
+    
 #define CTYPE	            0x00000040  /* DMA Channel Type Indicator */
 #define CTYPE_P             6       /* DMA Channel Type Indicator BIT POSITION */
 #define PCAP8	            0x00000080  /* DMA 8-bit Operation Indicator   */
@@ -735,30 +733,30 @@
 #define PCAPWR	            0x00000400  /* DMA Write Operation Indicator */
 #define PCAPRD	            0x00000800  /* DMA Read Operation Indicator */
 #define PMAP	            0x00007000  /* DMA Peripheral Map Field */
-
-/*  *************  GENERAL PURPOSE TIMER MASKS  ******************** */
-
-/* PWM Timer bit definitions */
-
-/* TIMER_ENABLE Register */
+    
+/*  *************  GENERAL PURPOSE TIMER MASKS  ******************** */ 
+    
+/* PWM Timer bit definitions */ 
+    
+/* TIMER_ENABLE Register */ 
 #define TIMEN0	0x0001
 #define TIMEN1	0x0002
 #define TIMEN2	0x0004
-
+    
 #define TIMEN0_P	0x00
 #define TIMEN1_P	0x01
 #define TIMEN2_P	0x02
-
-/* TIMER_DISABLE Register */
+    
+/* TIMER_DISABLE Register */ 
 #define TIMDIS0	0x0001
 #define TIMDIS1	0x0002
 #define TIMDIS2	0x0004
-
+    
 #define TIMDIS0_P	0x00
 #define TIMDIS1_P	0x01
 #define TIMDIS2_P	0x02
-
-/* TIMER_STATUS Register */
+    
+/* TIMER_STATUS Register */ 
 #define TIMIL0		0x0001
 #define TIMIL1		0x0002
 #define TIMIL2		0x0004
@@ -768,7 +766,7 @@
 #define TRUN0		0x1000
 #define TRUN1		0x2000
 #define TRUN2		0x4000
-
+    
 #define TIMIL0_P	0x00
 #define TIMIL1_P	0x01
 #define TIMIL2_P	0x02
@@ -778,8 +776,8 @@
 #define TRUN0_P		0x0C
 #define TRUN1_P		0x0D
 #define TRUN2_P		0x0E
-
-/* TIMERx_CONFIG Registers */
+    
+/* TIMERx_CONFIG Registers */ 
 #define PWM_OUT		0x0001
 #define WDTH_CAP	0x0002
 #define EXT_CLK		0x0003
@@ -792,7 +790,7 @@
 #define TOGGLE_HI	0x0100
 #define EMU_RUN		0x0200
 #define ERR_TYP(x)	((x & 0x03) << 14)
-
+    
 #define TMODE_P0		0x00
 #define TMODE_P1		0x01
 #define PULSE_HI_P		0x02
@@ -805,11 +803,11 @@
 #define EMU_RUN_P		0x09
 #define ERR_TYP_P0		0x0E
 #define ERR_TYP_P1		0x0F
+    
 
-
-/*/ ******************   PROGRAMMABLE FLAG MASKS  ********************* */
-
-/*  General Purpose IO (0xFFC00700 - 0xFFC007FF)  Masks */
+/*/ ******************   PROGRAMMABLE FLAG MASKS  ********************* */ 
+    
+/*  General Purpose IO (0xFFC00700 - 0xFFC007FF)  Masks */ 
 #define PF0         0x0001
 #define PF1         0x0002
 #define PF2         0x0004
@@ -826,9 +824,9 @@
 #define PF13        0x2000
 #define PF14        0x4000
 #define PF15        0x8000
+    
 
-
-/*  General Purpose IO (0xFFC00700 - 0xFFC007FF)  BIT POSITIONS */
+/*  General Purpose IO (0xFFC00700 - 0xFFC007FF)  BIT POSITIONS */ 
 #define PF0_P         0
 #define PF1_P         1
 #define PF2_P         2
@@ -845,10 +843,10 @@
 #define PF13_P        13
 #define PF14_P        14
 #define PF15_P        15
-
-/* ***********  SERIAL PERIPHERAL INTERFACE (SPI) MASKS  **************** */
-
-/*// SPI_CTL Masks */
+    
+/* ***********  SERIAL PERIPHERAL INTERFACE (SPI) MASKS  **************** */ 
+    
+/*// SPI_CTL Masks */ 
 #define TIMOD                  0x00000003  /* Transfer initiation mode and interrupt generation */
 #define SZ                     0x00000004  /* Send Zero (=0) or last (=1) word when TDBR empty. */
 #define GM                     0x00000008  /* When RDBR full, get more (=1) data or discard (=0) incoming Data */
@@ -861,8 +859,8 @@
 #define MSTR                   0x00001000  /* Configures SPI as master (=1) or slave (=0) */
 #define WOM                    0x00002000  /* Open drain (=1) data output enable (for MOSI and MISO) */
 #define SPE                    0x00004000  /* SPI module enable (=1), disable (=0) */
-
-/*// SPI_FLG Masks */
+    
+/*// SPI_FLG Masks */ 
 #define FLS1                   0x00000002  /* Enables (=1) SPI_FLOUT1 as flag output for SPI Slave-select */
 #define FLS2                   0x00000004  /* Enables (=1) SPI_FLOUT2 as flag output for SPI Slave-select */
 #define FLS3                   0x00000008  /* Enables (=1) SPI_FLOUT3 as flag output for SPI Slave-select */
@@ -877,8 +875,8 @@
 #define FLG5                   0x00002000  /* Activates (=0) SPI_FLOUT5 as flag output for SPI Slave-select  */
 #define FLG6                   0x00004000  /* Activates (=0) SPI_FLOUT6 as flag output for SPI Slave-select  */
 #define FLG7                   0x00008000  /* Activates (=0) SPI_FLOUT7 as flag output for SPI Slave-select */
-
-/*// SPI_FLG Bit Positions */
+    
+/*// SPI_FLG Bit Positions */ 
 #define FLS1_P                 0x00000001  /* Enables (=1) SPI_FLOUT1 as flag output for SPI Slave-select */
 #define FLS2_P                 0x00000002  /* Enables (=1) SPI_FLOUT2 as flag output for SPI Slave-select */
 #define FLS3_P                 0x00000003  /* Enables (=1) SPI_FLOUT3 as flag output for SPI Slave-select */
@@ -893,8 +891,8 @@
 #define FLG5_P                 0x0000000D  /* Activates (=0) SPI_FLOUT5 as flag output for SPI Slave-select  */
 #define FLG6_P                 0x0000000E  /* Activates (=0) SPI_FLOUT6 as flag output for SPI Slave-select  */
 #define FLG7_P                 0x0000000F  /* Activates (=0) SPI_FLOUT7 as flag output for SPI Slave-select */
-
-/*// SPI_STAT Masks */
+    
+/*// SPI_STAT Masks */ 
 #define SPIF                   0x00000001  /* Set (=1) when SPI single-word transfer complete */
 #define MODF                   0x00000002  /* Set (=1) in a master device when some other device tries to become master */
 #define TXE                    0x00000004  /* Set (=1) when transmission occurs with no new data in SPI_TDBR */
@@ -902,23 +900,23 @@
 #define RBSY                   0x00000010  /* Set (=1) when data is received with RDBR full */
 #define RXS                    0x00000020  /* SPI_RDBR Data Buffer Status (0=Empty, 1=Full)  */
 #define TXCOL                  0x00000040  /* When set (=1), corrupt data may have been transmitted  */
-
-/* *********************  ASYNCHRONOUS MEMORY CONTROLLER MASKS  ************* */
-
-/* AMGCTL Masks */
+    
+/* *********************  ASYNCHRONOUS MEMORY CONTROLLER MASKS  ************* */ 
+    
+/* AMGCTL Masks */ 
 #define AMCKEN			0x00000001  /* Enable CLKOUT */
 #define AMBEN_B0		0x00000002  /* Enable Asynchronous Memory Bank 0 only */
 #define AMBEN_B0_B1		0x00000004  /* Enable Asynchronous Memory Banks 0 & 1 only */
 #define AMBEN_B0_B1_B2		0x00000006  /* Enable Asynchronous Memory Banks 0, 1, and 2 */
 #define AMBEN_ALL		0x00000008  /* Enable Asynchronous Memory Banks (all) 0, 1, 2, and 3 */
-
-/* AMGCTL Bit Positions */
+    
+/* AMGCTL Bit Positions */ 
 #define AMCKEN_P		0x00000000  /* Enable CLKOUT */
 #define AMBEN_P0		0x00000001  /* Asynchronous Memory Enable, 000 - banks 0-3 disabled, 001 - Bank 0 enabled */
 #define AMBEN_P1		0x00000002  /* Asynchronous Memory Enable, 010 - banks 0&1 enabled,  011 - banks 0-3 enabled */
 #define AMBEN_P2		0x00000003 /* Asynchronous Memory Enable, 1xx - All banks (bank 0, 1, 2, and 3) enabled */
-
-/* AMBCTL0 Masks */
+    
+/* AMBCTL0 Masks */ 
 #define B0RDYEN	0x00000001  /* Bank 0 RDY Enable, 0=disable, 1=enable */
 #define B0RDYPOL 0x00000002  /* Bank 0 RDY Active high, 0=active low, 1=active high */
 #define B0TT_1	0x00000004  /* Bank 0 Transition Time from Read to Write = 1 cycle */
@@ -1007,8 +1005,8 @@
 #define B1WAT_13		0xD0000000  /* Bank 1 Write Access Time = 13 cycles */
 #define B1WAT_14		0xE0000000  /* Bank 1 Write Access Time = 14 cycles */
 #define B1WAT_15		0xF0000000  /* Bank 1 Write Access Time = 15 cycles */
-
-/* AMBCTL1 Masks */
+    
+/* AMBCTL1 Masks */ 
 #define B2RDYEN			0x00000001  /* Bank 2 RDY Enable, 0=disable, 1=enable */
 #define B2RDYPOL		0x00000002  /* Bank 2 RDY Active high, 0=active low, 1=active high */
 #define B2TT_1			0x00000004  /* Bank 2 Transition Time from Read to Write = 1 cycle */
@@ -1097,11 +1095,11 @@
 #define B3WAT_13		0xD0000000  /* Bank 3 Write Access Time = 13 cycles */
 #define B3WAT_14		0xE0000000  /* Bank 3 Write Access Time = 14 cycles */
 #define B3WAT_15		0xF0000000  /* Bank 3 Write Access Time = 15 cycles */
+    
 
-
-/* **********************  SDRAM CONTROLLER MASKS  *************************** */
-
-/* SDGCTL Masks */
+/* **********************  SDRAM CONTROLLER MASKS  *************************** */ 
+    
+/* SDGCTL Masks */ 
 #define SCTLE			0x00000001 /* Enable SCLK[0], /SRAS, /SCAS, /SWE, SDQM[3:0] */
 #define CL_2			0x00000008 /* SDRAM CAS latency = 2 cycles */
 #define CL_3			0x0000000C /* SDRAM CAS latency = 3 cycles */
@@ -1148,8 +1146,8 @@
 #define EMREN			0x10000000 /* Extended mode register enable */
 #define TCSR			0x20000000 /* Temp compensated self refresh value 85 deg C */
 #define CDDBG			0x40000000 /* Tristate SDRAM controls during bus grant */
-
-/* EBIU_SDBCTL Masks */
+    
+/* EBIU_SDBCTL Masks */ 
 #define EBE			0x00000001 /* Enable SDRAM external bank */
 #define EBSZ_16			0x00000000 /* SDRAM external bank size = 16MB */
 #define EBSZ_32			0x00000002 /* SDRAM external bank size = 32MB */
@@ -1159,15 +1157,15 @@
 #define EBCAW_9			0x00000010 /* SDRAM external bank column address width = 9 bits */
 #define EBCAW_10			0x00000020 /* SDRAM external bank column address width = 9 bits */
 #define EBCAW_11			0x00000030 /* SDRAM external bank column address width = 9 bits */
-
-/* EBIU_SDSTAT Masks */
+    
+/* EBIU_SDSTAT Masks */ 
 #define SDCI			0x00000001 /* SDRAM controller is idle  */
 #define SDSRA			0x00000002 /* SDRAM SDRAM self refresh is active */
 #define SDPUA			0x00000004 /* SDRAM power up active  */
 #define SDRS			0x00000008 /* SDRAM is in reset state */
 #define SDEASE		      0x00000010 /* SDRAM EAB sticky error status - W1C */
 #define BGSTAT			0x00000020 /* Bus granted */
-
+    
 /*VR_CTL Masks*/
 #define WAKE                    0x100
 #define VLEV_6                  0x60
@@ -1181,5 +1179,5 @@
 #define VLEV_14                 0xE0
 #define VLEV_15                 0xF0
 #define FREQ_3                  0x03
-
-#endif /* _DEF_BF532_H */
+    
+#endif	/* _DEF_BF532_H */

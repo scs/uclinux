@@ -8,23 +8,31 @@
 
 #ifdef __KERNEL__
 #ifndef __ASSEMBLY__
- 
+
 #define get_user_page(vaddr)		__get_free_page(GFP_KERNEL)
 #define free_user_page(page, addr)	free_page(addr)
 
 #define clear_page(page)	memset((page), 0, PAGE_SIZE)
 #define copy_page(to,from)	memcpy((to), (from), PAGE_SIZE)
 
-#define clear_user_page(page, vaddr,pg)	clear_page(page) 
+#define clear_user_page(page, vaddr,pg)	clear_page(page)
 #define copy_user_page(to, from, vaddr,pg)	copy_page(to, from)
 
 /*
  * These are used to make use of C type-checking..
  */
-typedef struct { unsigned long pte; } pte_t;
-typedef struct { unsigned long pmd[16]; } pmd_t;
-typedef struct { unsigned long pgd; } pgd_t;
-typedef struct { unsigned long pgprot; } pgprot_t;
+typedef struct {
+	unsigned long pte;
+} pte_t;
+typedef struct {
+	unsigned long pmd[16];
+} pmd_t;
+typedef struct {
+	unsigned long pgd;
+} pgd_t;
+typedef struct {
+	unsigned long pgprot;
+} pgprot_t;
 
 #define pte_val(x)	((x).pte)
 #define pmd_val(x)	((&x)->pmd[0])
@@ -44,7 +52,7 @@ extern __inline__ int get_order(unsigned long size)
 {
 	int order;
 
-	size = (size-1) >> (PAGE_SHIFT-1);
+	size = (size - 1) >> (PAGE_SHIFT - 1);
 	order = -1;
 	do {
 		size >>= 1;
@@ -56,7 +64,7 @@ extern __inline__ int get_order(unsigned long size)
 extern unsigned long memory_start;
 extern unsigned long memory_end;
 
-#endif /* !__ASSEMBLY__ */
+#endif				/* !__ASSEMBLY__ */
 
 #include <asm/page_offset.h>
 #include <asm/io.h>
@@ -83,7 +91,7 @@ extern unsigned long memory_end;
 				((void *)(kaddr) < (void *)memory_end))
 #define pfn_valid(pfn)		virt_addr_valid(pfn_to_virt(pfn))
 
-#endif /* __ASSEMBLY__ */
-#endif /* __KERNEL__ */
+#endif				/* __ASSEMBLY__ */
+#endif				/* __KERNEL__ */
 
-#endif /* _BLACKFIN_PAGE_H */
+#endif				/* _BLACKFIN_PAGE_H */

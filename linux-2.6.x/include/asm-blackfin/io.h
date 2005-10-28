@@ -30,7 +30,6 @@
 	         			     				 "%0 = w [%2] (z);\n\t"\
                                              "sti %1;\n\t" \
   : "=d"(__v), "=d"(_tmp): "a"(addr)); (unsigned short)__v; })
-  
 
 #define readl(addr) ({ unsigned __v; \
 					   int _tmp; \
@@ -39,7 +38,7 @@
 	         			    				 "NOP;NOP;NOP;\n\t"\
                                             "%0 = [%2];\n\t"\
                                             "sti %1;\n\t" \
-  : "=d"(__v), "=d"(_tmp): "a"(addr)); __v; })  
+  : "=d"(__v), "=d"(_tmp): "a"(addr)); __v; })
 
 #define writeb(b,addr) (void)((*(volatile unsigned char *) (addr)) = (b))
 #define writew(b,addr) (void)((*(volatile unsigned short *) (addr)) = (b))
@@ -74,17 +73,18 @@
 /* Values for nocacheflag and cmode */
 #define IOMAP_NOCACHE_SER		1
 
-#ifndef __ASSEMBLY__	
+#ifndef __ASSEMBLY__
 
-extern void outsb(unsigned long port, const void* addr, unsigned long count);
-extern void outsw(unsigned long port, const void* addr, unsigned long count);
-extern void outsl(unsigned long port, const void* addr, unsigned long count);
+extern void outsb(unsigned long port, const void *addr, unsigned long count);
+extern void outsw(unsigned long port, const void *addr, unsigned long count);
+extern void outsl(unsigned long port, const void *addr, unsigned long count);
 
-extern void insb(unsigned long port, void* addr, unsigned long count);
-extern void insw(unsigned long port, void* addr, unsigned long count);
-extern void insl(unsigned long port, void* addr, unsigned long count);
+extern void insb(unsigned long port, void *addr, unsigned long count);
+extern void insw(unsigned long port, void *addr, unsigned long count);
+extern void insl(unsigned long port, void *addr, unsigned long count);
 
-extern void *__ioremap(unsigned long physaddr, unsigned long size, int cacheflag);
+extern void *__ioremap(unsigned long physaddr, unsigned long size,
+		       int cacheflag);
 extern void iounmap(void *addr);
 
 extern inline void *ioremap(unsigned long physaddr, unsigned long size)
@@ -104,7 +104,7 @@ extern void blkfin_inv_cache_all(void);
 #define dma_cache_wback(_start,_size) do { } while (0)
 #define dma_cache_wback_inv(_start,_size) do { blkfin_inv_cache_all();} while (0)
 
-/* Pages to physical address... */ 
+/* Pages to physical address... */
 #define page_to_phys(page)      ((page - mem_map) << PAGE_SHIFT)
 #define page_to_bus(page)       ((page - mem_map) << PAGE_SHIFT)
 
@@ -127,6 +127,6 @@ extern void blkfin_inv_cache_all(void);
  */
 #define xlate_dev_kmem_ptr(p)	p
 
-#endif /* __KERNEL__ */
+#endif				/* __KERNEL__ */
 
-#endif /* _BFIN_IO_H */
+#endif				/* _BFIN_IO_H */

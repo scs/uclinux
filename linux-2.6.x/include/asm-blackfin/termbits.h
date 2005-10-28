@@ -3,18 +3,18 @@
 
 #include <linux/posix_types.h>
 
-typedef unsigned char	cc_t;
-typedef unsigned int	speed_t;
-typedef unsigned int	tcflag_t;
+typedef unsigned char cc_t;
+typedef unsigned int speed_t;
+typedef unsigned int tcflag_t;
 
 #define NCCS 19
 struct termios {
-	tcflag_t c_iflag;		/* input mode flags */
-	tcflag_t c_oflag;		/* output mode flags */
-	tcflag_t c_cflag;		/* control mode flags */
-	tcflag_t c_lflag;		/* local mode flags */
-	cc_t c_line;			/* line discipline */
-	cc_t c_cc[NCCS];		/* control characters */
+	tcflag_t c_iflag;	/* input mode flags */
+	tcflag_t c_oflag;	/* output mode flags */
+	tcflag_t c_cflag;	/* control mode flags */
+	tcflag_t c_lflag;	/* local mode flags */
+	cc_t c_line;		/* line discipline */
+	cc_t c_cc[NCCS];	/* control characters */
 };
 
 /* c_cc characters */
@@ -35,7 +35,6 @@ struct termios {
 #define VWERASE 14
 #define VLNEXT 15
 #define VEOL2 16
-
 
 /* c_iflag bits */
 #define IGNBRK	0000001
@@ -135,8 +134,8 @@ struct termios {
 #define  B3500000 0010016
 #define  B4000000 0010017
 #define CIBAUD	  002003600000	/* input baud rate (not used) */
-#define CMSPAR	  010000000000		/* mark or space (stick) parity */
-#define CRTSCTS	  020000000000		/* flow control */
+#define CMSPAR	  010000000000	/* mark or space (stick) parity */
+#define CRTSCTS	  020000000000	/* flow control */
 
 /* c_lflag bits */
 #define ISIG	0000001
@@ -155,7 +154,6 @@ struct termios {
 #define PENDIN	0040000
 #define IEXTEN	0100000
 
-
 /* tcflow() and TCXONC use these */
 #define	TCOOFF		0
 #define	TCOON		1
@@ -172,4 +170,4 @@ struct termios {
 #define	TCSADRAIN	1
 #define	TCSAFLUSH	2
 
-#endif /* __ARCH_BFIN_TERMBITS_H__ */
+#endif				/* __ARCH_BFIN_TERMBITS_H__ */

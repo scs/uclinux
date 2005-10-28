@@ -20,4 +20,4 @@ struct pollfd {
 	short revents;
 };
 
-#endif	/* __BFIN_POLL_H */
+#endif				/* __BFIN_POLL_H */

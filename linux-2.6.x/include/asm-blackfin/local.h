@@ -3,4 +3,4 @@
 
 #include <asm-generic/local.h>
 
-#endif /* __BLACKFIN_LOCAL_H */
+#endif				/* __BLACKFIN_LOCAL_H */

@@ -29,7 +29,6 @@
  * 59 temple place - suite 330, boston, ma 02111-1307, usa.
  */
 
- 
 #ifndef _CDEF_BF534_H
 #define _CDEF_BF534_H
 
@@ -39,14 +38,12 @@
 /* Include core specific register pointer definitions 								*/
 #include <asm/mach-common/cdef_LPBlackfin.h>
 
-
 /* Clock and System Control	(0xFFC00000 - 0xFFC000FF)								*/
 #define pPLL_CTL 			((volatile unsigned short *)PLL_CTL)
 #define pPLL_DIV 			((volatile unsigned short *)PLL_DIV)
 #define pVR_CTL 			((volatile unsigned short *)VR_CTL)
 #define pPLL_STAT 			((volatile unsigned short *)PLL_STAT)
 #define pPLL_LOCKCNT 		((volatile unsigned short *)PLL_LOCKCNT)
-
 
 /* System Interrupt Controller (0xFFC00100 - 0xFFC001FF)							*/
 #define pSWRST 				((volatile unsigned short *)SWRST)
@@ -60,12 +57,10 @@
 #define pSIC_ISR 			((volatile unsigned long  *)SIC_ISR)
 #define pSIC_IWR 			((volatile unsigned long  *)SIC_IWR)
 
-
 /* Watchdog Timer		(0xFFC00200 - 0xFFC002FF)									*/
 #define pWDOG_CTL 			((volatile unsigned short *)WDOG_CTL)
 #define pWDOG_CNT 			((volatile unsigned long  *)WDOG_CNT)
 #define pWDOG_STAT 			((volatile unsigned long  *)WDOG_STAT)
-
 
 /* Real Time Clock		(0xFFC00300 - 0xFFC003FF)									*/
 #define pRTC_STAT 			((volatile unsigned long  *)RTC_STAT)
@@ -75,7 +70,6 @@
 #define pRTC_ALARM 			((volatile unsigned long  *)RTC_ALARM)
 #define pRTC_FAST 			((volatile unsigned short *)RTC_FAST)
 #define pRTC_PREN 			((volatile unsigned short *)RTC_PREN)
-
 
 /* UART0 Controller		(0xFFC00400 - 0xFFC004FF)									*/
 #define pUART0_THR 			((volatile unsigned short *)UART0_THR)
@@ -91,7 +85,6 @@
 #define pUART0_SCR 			((volatile unsigned short *)UART0_SCR)
 #define pUART0_GCTL 		((volatile unsigned short *)UART0_GCTL)
 
-
 /* SPI Controller		(0xFFC00500 - 0xFFC005FF)									*/
 #define pSPI_CTL 			((volatile unsigned short *)SPI_CTL)
 #define pSPI_FLG 			((volatile unsigned short *)SPI_FLG)
@@ -100,7 +93,6 @@
 #define pSPI_RDBR 			((volatile unsigned short *)SPI_RDBR)
 #define pSPI_BAUD 			((volatile unsigned short *)SPI_BAUD)
 #define pSPI_SHADOW 		((volatile unsigned short *)SPI_SHADOW)
-
 
 /* TIMER0-7 Registers		(0xFFC00600 - 0xFFC006FF)								*/
 #define pTIMER0_CONFIG 		((volatile unsigned short *)TIMER0_CONFIG)
@@ -147,7 +139,6 @@
 #define pTIMER_DISABLE 		((volatile unsigned short *)TIMER_DISABLE)
 #define pTIMER_STATUS		((volatile unsigned long  *)TIMER_STATUS)
 
-
 /* General Purpose I/O Port F (0xFFC00700 - 0xFFC007FF)								*/
 #define pPORTFIO	 			((volatile unsigned short *)PORTFIO)
 #define pPORTFIO_CLEAR	 		((volatile unsigned short *)PORTFIO_CLEAR)
@@ -166,7 +157,6 @@
 #define pPORTFIO_EDGE 			((volatile unsigned short *)PORTFIO_EDGE)
 #define pPORTFIO_BOTH 			((volatile unsigned short *)PORTFIO_BOTH)
 #define pPORTFIO_INEN 			((volatile unsigned short *)PORTFIO_INEN)
-
 
 /* SPORT0 Controller		(0xFFC00800 - 0xFFC008FF)								*/
 #define pSPORT0_TCR1 		((volatile unsigned short *)SPORT0_TCR1)
@@ -196,7 +186,6 @@
 #define pSPORT0_MRCS2 		((volatile unsigned long  *)SPORT0_MRCS2)
 #define pSPORT0_MRCS3 		((volatile unsigned long  *)SPORT0_MRCS3)
 
-
 /* SPORT1 Controller		(0xFFC00900 - 0xFFC009FF)								*/
 #define pSPORT1_TCR1 		((volatile unsigned short *)SPORT1_TCR1)
 #define pSPORT1_TCR2 		((volatile unsigned short *)SPORT1_TCR2)
@@ -225,7 +214,6 @@
 #define pSPORT1_MRCS2 		((volatile unsigned long  *)SPORT1_MRCS2)
 #define pSPORT1_MRCS3 		((volatile unsigned long  *)SPORT1_MRCS3)
 
-
 /* External Bus Interface Unit (0xFFC00A00 - 0xFFC00AFF)							*/
 #define pEBIU_AMGCTL 		((volatile unsigned short *)EBIU_AMGCTL)
 #define pEBIU_AMBCTL0 		((volatile unsigned long  *)EBIU_AMBCTL0)
@@ -234,7 +222,6 @@
 #define pEBIU_SDBCTL 		((volatile unsigned short *)EBIU_SDBCTL)
 #define pEBIU_SDRRC 		((volatile unsigned short *)EBIU_SDRRC)
 #define pEBIU_SDSTAT 		((volatile unsigned short *)EBIU_SDSTAT)
-
 
 /* DMA Traffic Control Registers													*/
 #define	pDMA_TCPER			((volatile unsigned short *)DMA_TCPER)
@@ -465,14 +452,12 @@
 #define pMDMA_S1_IRQ_STATUS 	((volatile unsigned short *)MDMA_S1_IRQ_STATUS)
 #define pMDMA_S1_PERIPHERAL_MAP ((volatile unsigned short *)MDMA_S1_PERIPHERAL_MAP)
 
-
 /* Parallel Peripheral Interface (0xFFC01000 - 0xFFC010FF)							*/
 #define pPPI_CONTROL 		((volatile unsigned short *)PPI_CONTROL)
 #define pPPI_STATUS 		((volatile unsigned short *)PPI_STATUS)
 #define pPPI_DELAY 			((volatile unsigned short *)PPI_DELAY)
 #define pPPI_COUNT 			((volatile unsigned short *)PPI_COUNT)
 #define pPPI_FRAME 			((volatile unsigned short *)PPI_FRAME)
-
 
 /* Two-Wire Interface		(0xFFC01400 - 0xFFC014FF)								*/
 #define pTWI_CLKDIV			((volatile unsigned short *)TWI_CLKDIV)
@@ -491,7 +476,6 @@
 #define pTWI_XMT_DATA16		((volatile unsigned short *)TWI_XMT_DATA16)
 #define pTWI_RCV_DATA8		((volatile unsigned short *)TWI_RCV_DATA8)
 #define pTWI_RCV_DATA16		((volatile unsigned short *)TWI_RCV_DATA16)
-
 
 /* General Purpose I/O Port G (0xFFC01500 - 0xFFC015FF)								*/
 #define pPORTGIO	 			((volatile unsigned short *)PORTGIO)
@@ -512,7 +496,6 @@
 #define pPORTGIO_BOTH 			((volatile unsigned short *)PORTGIO_BOTH)
 #define pPORTGIO_INEN 			((volatile unsigned short *)PORTGIO_INEN)
 
-
 /* General Purpose I/O Port H (0xFFC01700 - 0xFFC017FF)								*/
 #define pPORTHIO	 			((volatile unsigned short *)PORTHIO)
 #define pPORTHIO_CLEAR	 		((volatile unsigned short *)PORTHIO_CLEAR)
@@ -532,7 +515,6 @@
 #define pPORTHIO_BOTH 			((volatile unsigned short *)PORTHIO_BOTH)
 #define pPORTHIO_INEN 			((volatile unsigned short *)PORTHIO_INEN)
 
-
 /* UART1 Controller		(0xFFC02000 - 0xFFC020FF)								*/
 #define pUART1_THR 			((volatile unsigned short *)UART1_THR)
 #define pUART1_RBR 			((volatile unsigned short *)UART1_RBR)
@@ -546,7 +528,6 @@
 #define pUART1_MSR			((volatile unsigned short *)UART1_LSR)
 #define pUART1_SCR 			((volatile unsigned short *)UART1_SCR)
 #define pUART1_GCTL 		((volatile unsigned short *)UART1_GCTL)
-
 
 /* CAN Controller		(0xFFC02A00 - 0xFFC02FFF)								*/
 /* For Mailboxes 0-15 */
@@ -738,46 +719,46 @@
 #define pCAN_MB07_ID0		((volatile unsigned short *)CAN_MB07_ID0)
 #define pCAN_MB07_TIMESTAMP	((volatile unsigned short *)CAN_MB07_TIMESTAMP)
 #define pCAN_MB07_LENGTH	((volatile unsigned short *)CAN_MB07_LENGTH)
-#define pCAN_MB07_DATA3		((volatile unsigned short *)CAN_MB07_DATA3) 
+#define pCAN_MB07_DATA3		((volatile unsigned short *)CAN_MB07_DATA3)
 #define pCAN_MB07_DATA2		((volatile unsigned short *)CAN_MB07_DATA2)
 #define pCAN_MB07_DATA1		((volatile unsigned short *)CAN_MB07_DATA1)
 #define pCAN_MB07_DATA0		((volatile unsigned short *)CAN_MB07_DATA0)
 
-#define pCAN_MB08_ID1		((volatile unsigned short *)CAN_MB08_ID1)		
-#define pCAN_MB08_ID0		((volatile unsigned short *)CAN_MB08_ID0)		
-#define pCAN_MB08_TIMESTAMP	((volatile unsigned short *)CAN_MB08_TIMESTAMP)	
-#define pCAN_MB08_LENGTH	((volatile unsigned short *)CAN_MB08_LENGTH)	
-#define pCAN_MB08_DATA3		((volatile unsigned short *)CAN_MB08_DATA3)	
-#define pCAN_MB08_DATA2		((volatile unsigned short *)CAN_MB08_DATA2)	
-#define pCAN_MB08_DATA1		((volatile unsigned short *)CAN_MB08_DATA1)	
-#define pCAN_MB08_DATA0		((volatile unsigned short *)CAN_MB08_DATA0)	
+#define pCAN_MB08_ID1		((volatile unsigned short *)CAN_MB08_ID1)
+#define pCAN_MB08_ID0		((volatile unsigned short *)CAN_MB08_ID0)
+#define pCAN_MB08_TIMESTAMP	((volatile unsigned short *)CAN_MB08_TIMESTAMP)
+#define pCAN_MB08_LENGTH	((volatile unsigned short *)CAN_MB08_LENGTH)
+#define pCAN_MB08_DATA3		((volatile unsigned short *)CAN_MB08_DATA3)
+#define pCAN_MB08_DATA2		((volatile unsigned short *)CAN_MB08_DATA2)
+#define pCAN_MB08_DATA1		((volatile unsigned short *)CAN_MB08_DATA1)
+#define pCAN_MB08_DATA0		((volatile unsigned short *)CAN_MB08_DATA0)
 
-#define pCAN_MB09_ID1		((volatile unsigned short *)CAN_MB09_ID1)	
-#define pCAN_MB09_ID0		((volatile unsigned short *)CAN_MB09_ID0)	
-#define pCAN_MB09_TIMESTAMP	((volatile unsigned short *)CAN_MB09_TIMESTAMP)	
-#define pCAN_MB09_LENGTH	((volatile unsigned short *)CAN_MB09_LENGTH)	
-#define pCAN_MB09_DATA3		((volatile unsigned short *)CAN_MB09_DATA3)	
-#define pCAN_MB09_DATA2		((volatile unsigned short *)CAN_MB09_DATA2)	
-#define pCAN_MB09_DATA1		((volatile unsigned short *)CAN_MB09_DATA1)	
-#define pCAN_MB09_DATA0		((volatile unsigned short *)CAN_MB09_DATA0)	
+#define pCAN_MB09_ID1		((volatile unsigned short *)CAN_MB09_ID1)
+#define pCAN_MB09_ID0		((volatile unsigned short *)CAN_MB09_ID0)
+#define pCAN_MB09_TIMESTAMP	((volatile unsigned short *)CAN_MB09_TIMESTAMP)
+#define pCAN_MB09_LENGTH	((volatile unsigned short *)CAN_MB09_LENGTH)
+#define pCAN_MB09_DATA3		((volatile unsigned short *)CAN_MB09_DATA3)
+#define pCAN_MB09_DATA2		((volatile unsigned short *)CAN_MB09_DATA2)
+#define pCAN_MB09_DATA1		((volatile unsigned short *)CAN_MB09_DATA1)
+#define pCAN_MB09_DATA0		((volatile unsigned short *)CAN_MB09_DATA0)
 
-#define pCAN_MB10_ID1		((volatile unsigned short *)CAN_MB10_ID1)	
-#define pCAN_MB10_ID0		((volatile unsigned short *)CAN_MB10_ID0)	
-#define pCAN_MB10_TIMESTAMP	((volatile unsigned short *)CAN_MB10_TIMESTAMP)	
-#define pCAN_MB10_LENGTH	((volatile unsigned short *)CAN_MB10_LENGTH)	
-#define pCAN_MB10_DATA3		((volatile unsigned short *)CAN_MB10_DATA3)	
-#define pCAN_MB10_DATA2		((volatile unsigned short *)CAN_MB10_DATA2)	
-#define pCAN_MB10_DATA1		((volatile unsigned short *)CAN_MB10_DATA1)	
-#define pCAN_MB10_DATA0		((volatile unsigned short *)CAN_MB10_DATA0)	
+#define pCAN_MB10_ID1		((volatile unsigned short *)CAN_MB10_ID1)
+#define pCAN_MB10_ID0		((volatile unsigned short *)CAN_MB10_ID0)
+#define pCAN_MB10_TIMESTAMP	((volatile unsigned short *)CAN_MB10_TIMESTAMP)
+#define pCAN_MB10_LENGTH	((volatile unsigned short *)CAN_MB10_LENGTH)
+#define pCAN_MB10_DATA3		((volatile unsigned short *)CAN_MB10_DATA3)
+#define pCAN_MB10_DATA2		((volatile unsigned short *)CAN_MB10_DATA2)
+#define pCAN_MB10_DATA1		((volatile unsigned short *)CAN_MB10_DATA1)
+#define pCAN_MB10_DATA0		((volatile unsigned short *)CAN_MB10_DATA0)
 
-#define pCAN_MB11_ID1		((volatile unsigned short *)CAN_MB11_ID1)	
-#define pCAN_MB11_ID0		((volatile unsigned short *)CAN_MB11_ID0)	
-#define pCAN_MB11_TIMESTAMP	((volatile unsigned short *)CAN_MB11_TIMESTAMP)	
-#define pCAN_MB11_LENGTH	((volatile unsigned short *)CAN_MB11_LENGTH)	
-#define pCAN_MB11_DATA3		((volatile unsigned short *)CAN_MB11_DATA3)	
-#define pCAN_MB11_DATA2		((volatile unsigned short *)CAN_MB11_DATA2)	
-#define pCAN_MB11_DATA1		((volatile unsigned short *)CAN_MB11_DATA1)	
-#define pCAN_MB11_DATA0		((volatile unsigned short *)CAN_MB11_DATA0)	
+#define pCAN_MB11_ID1		((volatile unsigned short *)CAN_MB11_ID1)
+#define pCAN_MB11_ID0		((volatile unsigned short *)CAN_MB11_ID0)
+#define pCAN_MB11_TIMESTAMP	((volatile unsigned short *)CAN_MB11_TIMESTAMP)
+#define pCAN_MB11_LENGTH	((volatile unsigned short *)CAN_MB11_LENGTH)
+#define pCAN_MB11_DATA3		((volatile unsigned short *)CAN_MB11_DATA3)
+#define pCAN_MB11_DATA2		((volatile unsigned short *)CAN_MB11_DATA2)
+#define pCAN_MB11_DATA1		((volatile unsigned short *)CAN_MB11_DATA1)
+#define pCAN_MB11_DATA0		((volatile unsigned short *)CAN_MB11_DATA0)
 
 #define pCAN_MB12_ID1		((volatile unsigned short *)CAN_MB12_ID1)
 #define pCAN_MB12_ID0		((volatile unsigned short *)CAN_MB12_ID0)
@@ -969,13 +950,11 @@
 #define pCAN_MB_DATA1(x)		((volatile unsigned short *)CAN_MB_DATA1(x))
 #define pCAN_MB_DATA0(x)		((volatile unsigned short *)CAN_MB_DATA0(x))
 
-
 /* Pin Control Registers	(0xFFC03200 - 0xFFC032FF)								*/
 #define pPORTF_FER			((volatile unsigned short *)PORTF_FER)
 #define pPORTG_FER			((volatile unsigned short *)PORTG_FER)
 #define pPORTH_FER			((volatile unsigned short *)PORTH_FER)
 #define pPORT_MUX			((volatile unsigned short *)PORT_MUX)
-
 
 /* Handshake MDMA Registers	(0xFFC03300 - 0xFFC033FF)								*/
 #define pHMDMA0_CONTROL		((volatile unsigned short *)HMDMA0_CONTROL)
@@ -994,5 +973,4 @@
 #define pHMDMA1_ECOUNT		((volatile unsigned short *)HMDMA1_ECOUNT)
 #define pHMDMA1_BCOUNT		((volatile unsigned short *)HMDMA1_BCOUNT)
 
-#endif /* _CDEF_BF534_H */
-
+#endif				/* _CDEF_BF534_H */

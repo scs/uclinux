@@ -10,4 +10,4 @@
 #include <asm/macros.h>
 #include <asm/mach/blackfin.h>
 
-#endif /* _BLACKFIN_H_ */
+#endif				/* _BLACKFIN_H_ */

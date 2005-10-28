@@ -23,7 +23,7 @@
  * along with this program; see the file COPYING.
  * If not, write to the Free Software Foundation,
  * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
- */ 
+ */
 
 #ifndef _ASM_THREAD_INFO_H
 #define _ASM_THREAD_INFO_H
@@ -46,11 +46,11 @@
  */
 
 struct thread_info {
-	struct task_struct *task;		/* main task structure */
+	struct task_struct *task;	/* main task structure */
 	struct exec_domain *exec_domain;	/* execution domain */
-	unsigned long	   flags;		/* low level flags */
-	int		   cpu;			/* cpu we're on */
-	int		   preempt_count;	/* 0 => preemptable, <0 => BUG*/
+	unsigned long flags;	/* low level flags */
+	int cpu;		/* cpu we're on */
+	int preempt_count;	/* 0 => preemptable, <0 => BUG */
 	struct restart_block restart_block;
 };
 
@@ -71,7 +71,6 @@ struct thread_info {
 #define init_thread_info	(init_thread_union.thread_info)
 #define init_stack		(init_thread_union.stack)
 
-
 /*
  * Size of kernel stack for each process. This must be a power of 2...
  */
@@ -79,18 +78,18 @@ struct thread_info {
 
 /* How to get the thread information struct from C */
 
-static inline struct thread_info *current_thread_info(void) __attribute__ (( __const__ ));
+static inline struct thread_info *current_thread_info(void)
+    __attribute__ ((__const__));
 
 /* Given a task stack pointer, you can find it's task structure 
  * just by masking it to the 8K boundary.
- */ 	
+ */
 static inline struct thread_info *current_thread_info(void)
 {
 	struct thread_info *ti;
-	__asm__ ("%0 = sp;"
-	:"=&d"(ti) :
+      __asm__("%0 = sp;": "=&d"(ti):
 	);
-	return(struct thread_info *)((long)ti & ~8191UL);
+	return (struct thread_info *)((long)ti & ~8191UL);
 }
 
 /* thread information allocation */
@@ -99,7 +98,7 @@ static inline struct thread_info *current_thread_info(void)
 #define free_thread_info(ti)	free_pages((unsigned long) (ti), 1)
 #define get_thread_info(ti)	get_task_struct((ti)->task)
 #define put_thread_info(ti)	put_task_struct((ti)->task)
-#endif /* __ASSEMBLY__ */
+#endif				/* __ASSEMBLY__ */
 
 /*
  * Offsets in thread_info structure, used in assembly code
@@ -132,6 +131,6 @@ static inline struct thread_info *current_thread_info(void)
 
 #define _TIF_WORK_MASK		0x0000FFFE	/* work to do on interrupt/exception return */
 
-#endif /* __KERNEL__ */
+#endif				/* __KERNEL__ */
 
-#endif /* _ASM_THREAD_INFO_H */
+#endif				/* _ASM_THREAD_INFO_H */

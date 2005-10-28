@@ -50,7 +50,7 @@
 #define pSWRST ((volatile unsigned short *)SWRST)
 #define pSYSCR ((volatile unsigned short *)SYSCR)
 #define pPLL_IOCKR ((volatile unsigned short *)PLL_IOCKR)
- 
+
 // JTAG/Debug Communication Channel (0xFFC0 0800-0xFFC0 0BFF)
 #define pCHIPID ((volatile unsigned long *)CHIPID)
 
@@ -472,4 +472,4 @@
 #define pDB_ACOMP ((volatile void **)DB_ACOMP)
 #define pDB_CCOMP ((volatile unsigned long *)DB_CCOMP)
 
-#endif /* _CDEF_BF535_H */
+#endif				/* _CDEF_BF535_H */

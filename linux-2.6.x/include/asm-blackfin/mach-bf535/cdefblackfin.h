@@ -195,4 +195,4 @@
 #define pPFCNTR0 ((volatile unsigned long *)PFCNTR0)
 #define pPFCNTR1 ((volatile unsigned long *)PFCNTR1)
 
-#endif /* _CDEF_BLACKFIN_H */
+#endif				/* _CDEF_BLACKFIN_H */
