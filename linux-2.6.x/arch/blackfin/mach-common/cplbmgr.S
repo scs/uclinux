@@ -402,15 +402,14 @@ sdsearch2:
 	R2 = [P0 - 0x104]; 	/* R2 - PageStart */
 	P3.L = _page_size_table; /* retrive end address */
 	P3.H = _page_size_table; /* retrive end address */
-	R3 = 0x2;		/* 0th - position, 2 bits -length */
+	R3 = 0x1002;		/* 16th - position, 2 bits -length */
 	nop;			/*Anamoly 05000209*/
 	R7 = EXTRACT(R1,R3.l);
 	R7 = R7 << 2;		/* Page size index offset */
 	P5 = R7;
 	P3 = P3 + P5;
-	R7 = [P3];		/* page size in 1K bytes */
+	R7 = [P3];		/* page size in bytes */
 
-	R7 = R7 << 0xA;		/* in bytes * 1024*/
 	R7 = R2 + R7;		/* R7 - PageEnd */
 	R4 = SP; 		/* Test SP is in range */
 
