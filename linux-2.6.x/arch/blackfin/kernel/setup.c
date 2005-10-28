@@ -38,9 +38,6 @@
 #include <asm/cacheflush.h>
 #include <asm/blackfin.h>
 
-/* DEBUG only
-#define HUNT_ZERO_POINTERS 1 */
-
 #ifdef CONFIG_CONSOLE
 extern struct consw *conswitchp;
 #ifdef CONFIG_FRAMEBUFFER
@@ -339,7 +336,7 @@ static void __init generate_cpl_tables(void)
 
 /* Generarte initial DCPLB table */
 	pos = 0;
-#ifdef HUNT_ZERO_POINTERS
+#ifdef CONFIG_DEBUG_HUNT_FOR_ZERO
 	pos =
 	    fill_cpl_tables(dcplb_table, pos, 0x0, SIZE_4K, SIZE_4K,
 			    SDRAM_OOPS);
