@@ -1,10 +1,10 @@
 /*
  * File:         include/asm-blackfin/mach-bf533/defBF532.h
  * Based on:
- * Author:      
+ * Author:
  *
  * Created:
- * Description: 
+ * Description:
  *
  * Rev:
  *

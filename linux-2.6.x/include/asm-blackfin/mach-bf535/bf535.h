@@ -2,10 +2,10 @@
 /*
  * File:         include/asm-blackfin/mach-bf533/bf535.h
  * Based on:
- * Author:     
+ * Author:
  *
  * Created:
- * Description: 
+ * Description:
  *
  * Rev:
  *
@@ -443,7 +443,7 @@ typedef unsigned char UCHAR;
 /****************************
  *
  *  GENERAL PURPOSE IO REGISTERS  (0XFFC02400 - 0XFFC027FF)
- *       
+ *
  ****************************/
 
 #define FIO_DIR_C_ADDR		0xffc02400	/* Peripheral flag direction (clear) register 16 bit */
@@ -478,7 +478,7 @@ typedef unsigned char UCHAR;
 /****************************
  *
  *  SPORT 0 CONTROLLER REGISTERS  (0XFFC02800 - 0XFFC02BFF)
- *       
+ *
  ****************************/
 
 #define SPORT0_TX_CONFIG_ADDR	0xffc02800	/* SPORT 0 Transmit configuration register 16 bit */

@@ -1,7 +1,7 @@
 /*
  * include/asm-blackfin/flat.h -- uClinux flat-format executables
  *
- * Copyright (C) 2003, 
+ * Copyright (C) 2003,
  *
  */
 

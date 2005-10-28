@@ -1,6 +1,6 @@
 /** Changes made by Tony Kou   Lineo Inc.    May 2001
  *
- *  Based on: include/m68knommu/ucontext.h  
+ *  Based on: include/m68knommu/ucontext.h
  */
 
 #ifndef _BLACKFIN_UCONTEXT_H

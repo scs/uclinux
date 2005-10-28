@@ -3,9 +3,9 @@
  *
  * Blackfin BF533/2.6 support : LG Soft India
  * Updated : Ashutosh Singh / Jahid Khan : Rrap Software Pvt Ltd
- * Updated : 1. SDRAM_KERNEL, SDRAM_DKENEL are added as initial cplb's 
+ * Updated : 1. SDRAM_KERNEL, SDRAM_DKENEL are added as initial cplb's
  *	        shouldn't be victimized. cplbmgr.S search logic is corrected
- *	        to findout the appropriate victim.	
+ *	        to findout the appropriate victim.
  *	     2. SDRAM_IGENERIC in dpdt_table is replaced with SDRAM_DGENERIC
  *	     : LG Soft India
  */
@@ -14,7 +14,7 @@
 #define __ARCH_BLACKFIN_CPLBTAB_H
 
 /*************************************************************************
- *  			ICPLB TABLE					  	
+ *  			ICPLB TABLE
  *************************************************************************/
 
 .data
@@ -159,7 +159,7 @@
 .byte4 0xffffffff;		/* end of section - termination */
 
 /*********************************************************************
- *			DCPLB TABLE		
+ *			DCPLB TABLE
  ********************************************************************/
 
 .global _dcplb_table _dcplb_table:.byte4 0x00000000;
@@ -198,7 +198,7 @@
 
 /**********************************************************************
  *		PAGE DESCRIPTOR TABLE
- * 
+ *
  **********************************************************************/
 
 /* Till here we are discussing about the static memory management model.
@@ -206,7 +206,7 @@
  * descriptors to cover the entire addressable memory than will fit into
  * the available on-chip 16 CPLB MMRs. When this happens, the below table
  * will be used which will hold all the potentially required CPLB descriptors
- * 
+ *
  * This is how Page descriptor Table is implemented in uClinux/Blackfin.
  */
 .global _dpdt_table _dpdt_table:.byte4 0x00000000;

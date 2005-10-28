@@ -2,10 +2,10 @@
 /*
  * File:         include/asm-blackfin/mach-bf533/mem_map.h
  * Based on:
- * Author:      
+ * Author:
  *
  * Created:
- * Description: 
+ * Description:
  *
  * Rev:
  *

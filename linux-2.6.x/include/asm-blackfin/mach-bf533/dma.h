@@ -7,10 +7,10 @@
 /*
  * File:         include/asm-blackfin/mach-bf533/dma.h
  * Based on:
- * Author:      
+ * Author:
  *
  * Created:
- * Description: 
+ * Description:
  *
  * Rev:
  *

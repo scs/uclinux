@@ -2,10 +2,10 @@
  /*
   * File:         include/asm-blackfin/mach-bf537/bf537.h
   * Based on:
-  * Author:      
+  * Author:
   *
   * Created:
-  * Description: 
+  * Description:
   *
   * Rev:
   *

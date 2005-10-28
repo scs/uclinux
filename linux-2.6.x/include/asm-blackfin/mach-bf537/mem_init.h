@@ -1,10 +1,10 @@
 /*
  * file:         include/asm-blackfin/mach-bf537/mem_init.h
  * based on:
- * author:      
+ * author:
  *
  * created:
- * description: 
+ * description:
  *	Memory MAP
  * rev:
  *

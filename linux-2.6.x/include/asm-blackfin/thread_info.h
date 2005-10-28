@@ -6,7 +6,7 @@
  * Created:      Tue Sep 21 2004
  * Description:  Blackfin low-level thread information
  * Rev:          $Id$
- * Modified:     
+ * Modified:
  * Bugs:         Enter bugs at http://blackfin.uclinux.org/
  *
  * This program is free software; you can redistribute it and/or modify
@@ -34,7 +34,7 @@
 #ifdef __KERNEL__
 
 /* Thread Align Mask to reach to the top of the stack
- * for any process 
+ * for any process
  */
 #define ALIGN_PAGE_MASK         0xffffe000
 
@@ -81,7 +81,7 @@ struct thread_info {
 static inline struct thread_info *current_thread_info(void)
     __attribute__ ((__const__));
 
-/* Given a task stack pointer, you can find it's task structure 
+/* Given a task stack pointer, you can find it's task structure
  * just by masking it to the 8K boundary.
  */
 static inline struct thread_info *current_thread_info(void)

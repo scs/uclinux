@@ -1,10 +1,10 @@
 /*
  * File:         include/asm-blackfin/mach-bf535/cdefBF535.h
  * Based on:
- * Author:     
+ * Author:
  *
  * Created:
- * Description: 
+ * Description:
  *	include all Core registers and bit definition
  * Rev:
  *
@@ -32,7 +32,7 @@
 #ifndef _CDEF_BF535_H
 #define _CDEF_BF535_H
 
-// 
+//
 /*
 #if defined(__ADSPLPBLACKFIN__)
 #warning cdefBF535.h should only be included for 535 compatible chips.

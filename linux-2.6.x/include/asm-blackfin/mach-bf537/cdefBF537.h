@@ -1,10 +1,10 @@
 /*
  * File:         include/asm-blackfin/mach-bf537/cdefBF537.h
  * Based on:
- * Author:      
+ * Author:
  *
  * Created:
- * Description: 
+ * Description:
  *	System MMR Register Map
  * Rev:
  *

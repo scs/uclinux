@@ -1,10 +1,10 @@
 /*
  * File:         include/asm-blackfin/mach-bf535/defBF535.h
  * Based on:
- * Author:     
+ * Author:
  *
  * Created:
- * Description: 
+ * Description:
  *	Common header file for blackfin family of processors
  * Rev:
  *

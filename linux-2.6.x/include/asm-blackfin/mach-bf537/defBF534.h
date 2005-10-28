@@ -1,10 +1,10 @@
 /*
  * File:         include/asm-blackfin/mach-bf537/cdefBF537.h
  * Based on:
- * Author:      
+ * Author:
  *
  * Created:
- * Description: 
+ * Description:
  *
  * Rev:
  *
@@ -27,27 +27,25 @@
  * along with this program; see the file COPYING.
  * If not, write to the Free Software Foundation,
  * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
- */  
-    
+ */
 
 #ifndef _DEF_BF534_H
 #define _DEF_BF534_H
-    
-/* Include all Core registers and bit definitions */ 
+
+/* Include all Core registers and bit definitions */
 #include <asm/mach-common/def_LPBlackfin.h>
-    
+
 /************************************************************************************
 ** System MMR Register Map
-*************************************************************************************/ 
-/* Clock and System Control	(0xFFC00000 - 0xFFC000FF)								*/ 
+*************************************************************************************/
+/* Clock and System Control	(0xFFC00000 - 0xFFC000FF)								*/
 #define PLL_CTL				0xFFC00000	/* PLL Control Register						*/
 #define PLL_DIV				0xFFC00004	/* PLL Divide Register						*/
 #define VR_CTL				0xFFC00008	/* Voltage Regulator Control Register		*/
 #define PLL_STAT			0xFFC0000C	/* PLL Status Register						*/
 #define PLL_LOCKCNT			0xFFC00010	/* PLL Lock Count Register					*/
-    
 
-/* System Interrupt Controller (0xFFC00100 - 0xFFC001FF)							*/ 
+/* System Interrupt Controller (0xFFC00100 - 0xFFC001FF)							*/
 #define SWRST				0xFFC00100	/* Software Reset Register					*/
 #define SYSCR				0xFFC00104	/* System Configuration Register			*/
 #define SIC_RVECT			0xFFC00108	/* Interrupt Reset Vector Address Register	*/
@@ -58,15 +56,13 @@
 #define SIC_IAR3			0xFFC0011C	/* Interrupt Assignment Register 3			*/
 #define SIC_ISR				0xFFC00120	/* Interrupt Status Register				*/
 #define SIC_IWR				0xFFC00124	/* Interrupt Wakeup Register				*/
-    
 
-/* Watchdog Timer			(0xFFC00200 - 0xFFC002FF)								*/ 
+/* Watchdog Timer			(0xFFC00200 - 0xFFC002FF)								*/
 #define WDOG_CTL			0xFFC00200	/* Watchdog Control Register				*/
 #define WDOG_CNT			0xFFC00204	/* Watchdog Count Register					*/
 #define WDOG_STAT			0xFFC00208	/* Watchdog Status Register					*/
-    
 
-/* Real Time Clock		(0xFFC00300 - 0xFFC003FF)									*/ 
+/* Real Time Clock		(0xFFC00300 - 0xFFC003FF)									*/
 #define RTC_STAT			0xFFC00300	/* RTC Status Register						*/
 #define RTC_ICTL			0xFFC00304	/* RTC Interrupt Control Register			*/
 #define RTC_ISTAT			0xFFC00308	/* RTC Interrupt Status Register			*/
@@ -74,9 +70,8 @@
 #define RTC_ALARM			0xFFC00310	/* RTC Alarm Time Register					*/
 #define RTC_FAST			0xFFC00314	/* RTC Prescaler Enable Register			*/
 #define RTC_PREN			0xFFC00314	/* RTC Prescaler Enable Alternate Macro		*/
-    
 
-/* UART0 Controller		(0xFFC00400 - 0xFFC004FF)									*/ 
+/* UART0 Controller		(0xFFC00400 - 0xFFC004FF)									*/
 #define UART0_THR			0xFFC00400	/* Transmit Holding register				*/
 #define UART0_RBR			0xFFC00400	/* Receive Buffer register					*/
 #define UART0_DLL			0xFFC00400	/* Divisor Latch (Low-Byte)					*/
@@ -89,9 +84,8 @@
 #define UART0_MSR			0xFFC00418	/* Modem Status Register					*/
 #define UART0_SCR			0xFFC0041C	/* SCR Scratch Register						*/
 #define UART0_GCTL			0xFFC00424	/* Global Control Register					*/
-    
 
-/* SPI Controller			(0xFFC00500 - 0xFFC005FF)								*/ 
+/* SPI Controller			(0xFFC00500 - 0xFFC005FF)								*/
 #define SPI_CTL				0xFFC00500	/* SPI Control Register						*/
 #define SPI_FLG				0xFFC00504	/* SPI Flag register						*/
 #define SPI_STAT			0xFFC00508	/* SPI Status register						*/
@@ -99,55 +93,53 @@
 #define SPI_RDBR			0xFFC00510	/* SPI Receive Data Buffer Register			*/
 #define SPI_BAUD			0xFFC00514	/* SPI Baud rate Register					*/
 #define SPI_SHADOW			0xFFC00518	/* SPI_RDBR Shadow Register					*/
-    
 
-/* TIMER0-7 Registers		(0xFFC00600 - 0xFFC006FF)								*/ 
+/* TIMER0-7 Registers		(0xFFC00600 - 0xFFC006FF)								*/
 #define TIMER0_CONFIG		0xFFC00600	/* Timer 0 Configuration Register			*/
 #define TIMER0_COUNTER		0xFFC00604	/* Timer 0 Counter Register					*/
 #define TIMER0_PERIOD		0xFFC00608	/* Timer 0 Period Register					*/
 #define TIMER0_WIDTH		0xFFC0060C	/* Timer 0 Width Register					*/
-    
+
 #define TIMER1_CONFIG		0xFFC00610	/* Timer 1 Configuration Register  			*/
 #define TIMER1_COUNTER		0xFFC00614	/* Timer 1 Counter Register        			*/
 #define TIMER1_PERIOD		0xFFC00618	/* Timer 1 Period Register         			*/
 #define TIMER1_WIDTH		0xFFC0061C	/* Timer 1 Width Register          			*/
-    
+
 #define TIMER2_CONFIG		0xFFC00620	/* Timer 2 Configuration Register  			*/
 #define TIMER2_COUNTER		0xFFC00624	/* Timer 2 Counter Register        			*/
 #define TIMER2_PERIOD		0xFFC00628	/* Timer 2 Period Register         			*/
 #define TIMER2_WIDTH		0xFFC0062C	/* Timer 2 Width Register          			*/
-    
+
 #define TIMER3_CONFIG		0xFFC00630	/* Timer 3 Configuration Register			*/
 #define TIMER3_COUNTER		0xFFC00634	/* Timer 3 Counter Register					*/
 #define TIMER3_PERIOD		0xFFC00638	/* Timer 3 Period Register					*/
 #define TIMER3_WIDTH		0xFFC0063C	/* Timer 3 Width Register					*/
-    
+
 #define TIMER4_CONFIG		0xFFC00640	/* Timer 4 Configuration Register  			*/
 #define TIMER4_COUNTER		0xFFC00644	/* Timer 4 Counter Register        			*/
 #define TIMER4_PERIOD		0xFFC00648	/* Timer 4 Period Register         			*/
 #define TIMER4_WIDTH		0xFFC0064C	/* Timer 4 Width Register          			*/
-    
+
 #define TIMER5_CONFIG		0xFFC00650	/* Timer 5 Configuration Register  			*/
 #define TIMER5_COUNTER		0xFFC00654	/* Timer 5 Counter Register        			*/
 #define TIMER5_PERIOD		0xFFC00658	/* Timer 5 Period Register         			*/
 #define TIMER5_WIDTH		0xFFC0065C	/* Timer 5 Width Register          			*/
-    
+
 #define TIMER6_CONFIG		0xFFC00660	/* Timer 6 Configuration Register  			*/
 #define TIMER6_COUNTER		0xFFC00664	/* Timer 6 Counter Register        			*/
 #define TIMER6_PERIOD		0xFFC00668	/* Timer 6 Period Register         			*/
 #define TIMER6_WIDTH		0xFFC0066C	/* Timer 6 Width Register          			*/
-    
+
 #define TIMER7_CONFIG		0xFFC00670	/* Timer 7 Configuration Register  			*/
 #define TIMER7_COUNTER		0xFFC00674	/* Timer 7 Counter Register        			*/
 #define TIMER7_PERIOD		0xFFC00678	/* Timer 7 Period Register         			*/
-#define TIMER7_WIDTH		0xFFC0067C	/* Timer 7 Width Register       			*/   
-    
+#define TIMER7_WIDTH		0xFFC0067C	/* Timer 7 Width Register       			*/
+
 #define TIMER_ENABLE		0xFFC00680	/* Timer Enable Register					*/
 #define TIMER_DISABLE		0xFFC00684	/* Timer Disable Register					*/
 #define TIMER_STATUS		0xFFC00688	/* Timer Status Register					*/
-    
 
-/* General Purpose I/O Port F (0xFFC00700 - 0xFFC007FF)												*/ 
+/* General Purpose I/O Port F (0xFFC00700 - 0xFFC007FF)												*/
 #define PORTFIO					0xFFC00700	/* Port F I/O Pin State Specify Register				*/
 #define PORTFIO_CLEAR			0xFFC00704	/* Port F I/O Peripheral Interrupt Clear Register		*/
 #define PORTFIO_SET				0xFFC00708	/* Port F I/O Peripheral Interrupt Set Register			*/
@@ -165,9 +157,8 @@
 #define PORTFIO_EDGE			0xFFC00738	/* Port F I/O Source Sensitivity Register				*/
 #define PORTFIO_BOTH			0xFFC0073C	/* Port F I/O Set on BOTH Edges Register				*/
 #define PORTFIO_INEN			0xFFC00740	/* Port F I/O Input Enable Register 					*/
-    
 
-/* SPORT0 Controller		(0xFFC00800 - 0xFFC008FF)										*/ 
+/* SPORT0 Controller		(0xFFC00800 - 0xFFC008FF)										*/
 #define SPORT0_TCR1			0xFFC00800	/* SPORT0 Transmit Configuration 1 Register			*/
 #define SPORT0_TCR2			0xFFC00804	/* SPORT0 Transmit Configuration 2 Register			*/
 #define SPORT0_TCLKDIV		0xFFC00808	/* SPORT0 Transmit Clock Divider					*/
@@ -190,9 +181,8 @@
 #define SPORT0_MRCS1		0xFFC00854	/* SPORT0 Multi-Channel Receive Select Register 1	*/
 #define SPORT0_MRCS2		0xFFC00858	/* SPORT0 Multi-Channel Receive Select Register 2	*/
 #define SPORT0_MRCS3		0xFFC0085C	/* SPORT0 Multi-Channel Receive Select Register 3	*/
-    
 
-/* SPORT1 Controller		(0xFFC00900 - 0xFFC009FF)										*/ 
+/* SPORT1 Controller		(0xFFC00900 - 0xFFC009FF)										*/
 #define SPORT1_TCR1			0xFFC00900	/* SPORT1 Transmit Configuration 1 Register			*/
 #define SPORT1_TCR2			0xFFC00904	/* SPORT1 Transmit Configuration 2 Register			*/
 #define SPORT1_TCLKDIV		0xFFC00908	/* SPORT1 Transmit Clock Divider					*/
@@ -215,9 +205,8 @@
 #define SPORT1_MRCS1		0xFFC00954	/* SPORT1 Multi-Channel Receive Select Register 1	*/
 #define SPORT1_MRCS2		0xFFC00958	/* SPORT1 Multi-Channel Receive Select Register 2	*/
 #define SPORT1_MRCS3		0xFFC0095C	/* SPORT1 Multi-Channel Receive Select Register 3	*/
-    
 
-/* External Bus Interface Unit (0xFFC00A00 - 0xFFC00AFF)								*/ 
+/* External Bus Interface Unit (0xFFC00A00 - 0xFFC00AFF)								*/
 #define EBIU_AMGCTL			0xFFC00A00	/* Asynchronous Memory Global Control Register	*/
 #define EBIU_AMBCTL0		0xFFC00A04	/* Asynchronous Memory Bank Control Register 0	*/
 #define EBIU_AMBCTL1		0xFFC00A08	/* Asynchronous Memory Bank Control Register 1	*/
@@ -225,13 +214,12 @@
 #define EBIU_SDBCTL			0xFFC00A14	/* SDRAM Bank Control Register					*/
 #define EBIU_SDRRC			0xFFC00A18	/* SDRAM Refresh Rate Control Register			*/
 #define EBIU_SDSTAT			0xFFC00A1C	/* SDRAM Status Register						*/
-    
 
-/* DMA Traffic Control Registers													*/ 
+/* DMA Traffic Control Registers													*/
 #define DMA_TCPER			0xFFC00B0C	/* Traffic Control Periods Register			*/
 #define DMA_TCCNT			0xFFC00B10	/* Traffic Control Current Counts Register	*/
-    
-/* DMA Controller (0xFFC00C00 - 0xFFC00FFF)															*/ 
+
+/* DMA Controller (0xFFC00C00 - 0xFFC00FFF)															*/
 #define DMA0_NEXT_DESC_PTR		0xFFC00C00	/* DMA Channel 0 Next Descriptor Pointer Register		*/
 #define DMA0_START_ADDR			0xFFC00C04	/* DMA Channel 0 Start Address Register					*/
 #define DMA0_CONFIG				0xFFC00C08	/* DMA Channel 0 Configuration Register					*/
@@ -245,7 +233,7 @@
 #define DMA0_PERIPHERAL_MAP		0xFFC00C2C	/* DMA Channel 0 Peripheral Map Register				*/
 #define DMA0_CURR_X_COUNT		0xFFC00C30	/* DMA Channel 0 Current X Count Register				*/
 #define DMA0_CURR_Y_COUNT		0xFFC00C38	/* DMA Channel 0 Current Y Count Register				*/
-    
+
 #define DMA1_NEXT_DESC_PTR		0xFFC00C40	/* DMA Channel 1 Next Descriptor Pointer Register		*/
 #define DMA1_START_ADDR			0xFFC00C44	/* DMA Channel 1 Start Address Register					*/
 #define DMA1_CONFIG				0xFFC00C48	/* DMA Channel 1 Configuration Register					*/
@@ -259,7 +247,7 @@
 #define DMA1_PERIPHERAL_MAP		0xFFC00C6C	/* DMA Channel 1 Peripheral Map Register				*/
 #define DMA1_CURR_X_COUNT		0xFFC00C70	/* DMA Channel 1 Current X Count Register				*/
 #define DMA1_CURR_Y_COUNT		0xFFC00C78	/* DMA Channel 1 Current Y Count Register				*/
-    
+
 #define DMA2_NEXT_DESC_PTR		0xFFC00C80	/* DMA Channel 2 Next Descriptor Pointer Register		*/
 #define DMA2_START_ADDR			0xFFC00C84	/* DMA Channel 2 Start Address Register					*/
 #define DMA2_CONFIG				0xFFC00C88	/* DMA Channel 2 Configuration Register					*/
@@ -273,7 +261,7 @@
 #define DMA2_PERIPHERAL_MAP		0xFFC00CAC	/* DMA Channel 2 Peripheral Map Register				*/
 #define DMA2_CURR_X_COUNT		0xFFC00CB0	/* DMA Channel 2 Current X Count Register				*/
 #define DMA2_CURR_Y_COUNT		0xFFC00CB8	/* DMA Channel 2 Current Y Count Register				*/
-    
+
 #define DMA3_NEXT_DESC_PTR		0xFFC00CC0	/* DMA Channel 3 Next Descriptor Pointer Register		*/
 #define DMA3_START_ADDR			0xFFC00CC4	/* DMA Channel 3 Start Address Register					*/
 #define DMA3_CONFIG				0xFFC00CC8	/* DMA Channel 3 Configuration Register					*/
@@ -287,7 +275,7 @@
 #define DMA3_PERIPHERAL_MAP		0xFFC00CEC	/* DMA Channel 3 Peripheral Map Register				*/
 #define DMA3_CURR_X_COUNT		0xFFC00CF0	/* DMA Channel 3 Current X Count Register				*/
 #define DMA3_CURR_Y_COUNT		0xFFC00CF8	/* DMA Channel 3 Current Y Count Register				*/
-    
+
 #define DMA4_NEXT_DESC_PTR		0xFFC00D00	/* DMA Channel 4 Next Descriptor Pointer Register		*/
 #define DMA4_START_ADDR			0xFFC00D04	/* DMA Channel 4 Start Address Register					*/
 #define DMA4_CONFIG				0xFFC00D08	/* DMA Channel 4 Configuration Register					*/
@@ -301,7 +289,7 @@
 #define DMA4_PERIPHERAL_MAP		0xFFC00D2C	/* DMA Channel 4 Peripheral Map Register				*/
 #define DMA4_CURR_X_COUNT		0xFFC00D30	/* DMA Channel 4 Current X Count Register				*/
 #define DMA4_CURR_Y_COUNT		0xFFC00D38	/* DMA Channel 4 Current Y Count Register				*/
-    
+
 #define DMA5_NEXT_DESC_PTR		0xFFC00D40	/* DMA Channel 5 Next Descriptor Pointer Register		*/
 #define DMA5_START_ADDR			0xFFC00D44	/* DMA Channel 5 Start Address Register					*/
 #define DMA5_CONFIG				0xFFC00D48	/* DMA Channel 5 Configuration Register					*/
@@ -315,7 +303,7 @@
 #define DMA5_PERIPHERAL_MAP		0xFFC00D6C	/* DMA Channel 5 Peripheral Map Register				*/
 #define DMA5_CURR_X_COUNT		0xFFC00D70	/* DMA Channel 5 Current X Count Register				*/
 #define DMA5_CURR_Y_COUNT		0xFFC00D78	/* DMA Channel 5 Current Y Count Register				*/
-    
+
 #define DMA6_NEXT_DESC_PTR		0xFFC00D80	/* DMA Channel 6 Next Descriptor Pointer Register		*/
 #define DMA6_START_ADDR			0xFFC00D84	/* DMA Channel 6 Start Address Register					*/
 #define DMA6_CONFIG				0xFFC00D88	/* DMA Channel 6 Configuration Register					*/
@@ -329,7 +317,7 @@
 #define DMA6_PERIPHERAL_MAP		0xFFC00DAC	/* DMA Channel 6 Peripheral Map Register				*/
 #define DMA6_CURR_X_COUNT		0xFFC00DB0	/* DMA Channel 6 Current X Count Register				*/
 #define DMA6_CURR_Y_COUNT		0xFFC00DB8	/* DMA Channel 6 Current Y Count Register				*/
-    
+
 #define DMA7_NEXT_DESC_PTR		0xFFC00DC0	/* DMA Channel 7 Next Descriptor Pointer Register		*/
 #define DMA7_START_ADDR			0xFFC00DC4	/* DMA Channel 7 Start Address Register					*/
 #define DMA7_CONFIG				0xFFC00DC8	/* DMA Channel 7 Configuration Register					*/
@@ -343,7 +331,7 @@
 #define DMA7_PERIPHERAL_MAP		0xFFC00DEC	/* DMA Channel 7 Peripheral Map Register				*/
 #define DMA7_CURR_X_COUNT		0xFFC00DF0	/* DMA Channel 7 Current X Count Register				*/
 #define DMA7_CURR_Y_COUNT		0xFFC00DF8	/* DMA Channel 7 Current Y Count Register				*/
-    
+
 #define DMA8_NEXT_DESC_PTR		0xFFC00E00	/* DMA Channel 8 Next Descriptor Pointer Register		*/
 #define DMA8_START_ADDR			0xFFC00E04	/* DMA Channel 8 Start Address Register					*/
 #define DMA8_CONFIG				0xFFC00E08	/* DMA Channel 8 Configuration Register					*/
@@ -357,7 +345,7 @@
 #define DMA8_PERIPHERAL_MAP		0xFFC00E2C	/* DMA Channel 8 Peripheral Map Register				*/
 #define DMA8_CURR_X_COUNT		0xFFC00E30	/* DMA Channel 8 Current X Count Register				*/
 #define DMA8_CURR_Y_COUNT		0xFFC00E38	/* DMA Channel 8 Current Y Count Register				*/
-    
+
 #define DMA9_NEXT_DESC_PTR		0xFFC00E40	/* DMA Channel 9 Next Descriptor Pointer Register		*/
 #define DMA9_START_ADDR			0xFFC00E44	/* DMA Channel 9 Start Address Register					*/
 #define DMA9_CONFIG				0xFFC00E48	/* DMA Channel 9 Configuration Register					*/
@@ -371,7 +359,7 @@
 #define DMA9_PERIPHERAL_MAP		0xFFC00E6C	/* DMA Channel 9 Peripheral Map Register				*/
 #define DMA9_CURR_X_COUNT		0xFFC00E70	/* DMA Channel 9 Current X Count Register				*/
 #define DMA9_CURR_Y_COUNT		0xFFC00E78	/* DMA Channel 9 Current Y Count Register				*/
-    
+
 #define DMA10_NEXT_DESC_PTR		0xFFC00E80	/* DMA Channel 10 Next Descriptor Pointer Register		*/
 #define DMA10_START_ADDR		0xFFC00E84	/* DMA Channel 10 Start Address Register				*/
 #define DMA10_CONFIG			0xFFC00E88	/* DMA Channel 10 Configuration Register				*/
@@ -385,7 +373,7 @@
 #define DMA10_PERIPHERAL_MAP	0xFFC00EAC	/* DMA Channel 10 Peripheral Map Register				*/
 #define DMA10_CURR_X_COUNT		0xFFC00EB0	/* DMA Channel 10 Current X Count Register				*/
 #define DMA10_CURR_Y_COUNT		0xFFC00EB8	/* DMA Channel 10 Current Y Count Register				*/
-    
+
 #define DMA11_NEXT_DESC_PTR		0xFFC00EC0	/* DMA Channel 11 Next Descriptor Pointer Register		*/
 #define DMA11_START_ADDR		0xFFC00EC4	/* DMA Channel 11 Start Address Register				*/
 #define DMA11_CONFIG			0xFFC00EC8	/* DMA Channel 11 Configuration Register				*/
@@ -399,7 +387,7 @@
 #define DMA11_PERIPHERAL_MAP	0xFFC00EEC	/* DMA Channel 11 Peripheral Map Register				*/
 #define DMA11_CURR_X_COUNT		0xFFC00EF0	/* DMA Channel 11 Current X Count Register				*/
 #define DMA11_CURR_Y_COUNT		0xFFC00EF8	/* DMA Channel 11 Current Y Count Register				*/
-    
+
 #define MDMA_D0_NEXT_DESC_PTR	0xFFC00F00	/* MemDMA Stream 0 Destination Next Descriptor Pointer Register		*/
 #define MDMA_D0_START_ADDR		0xFFC00F04	/* MemDMA Stream 0 Destination Start Address Register				*/
 #define MDMA_D0_CONFIG			0xFFC00F08	/* MemDMA Stream 0 Destination Configuration Register				*/
@@ -413,7 +401,7 @@
 #define MDMA_D0_PERIPHERAL_MAP	0xFFC00F2C	/* MemDMA Stream 0 Destination Peripheral Map Register				*/
 #define MDMA_D0_CURR_X_COUNT	0xFFC00F30	/* MemDMA Stream 0 Destination Current X Count Register				*/
 #define MDMA_D0_CURR_Y_COUNT	0xFFC00F38	/* MemDMA Stream 0 Destination Current Y Count Register				*/
-    
+
 #define MDMA_S0_NEXT_DESC_PTR	0xFFC00F40	/* MemDMA Stream 0 Source Next Descriptor Pointer Register			*/
 #define MDMA_S0_START_ADDR		0xFFC00F44	/* MemDMA Stream 0 Source Start Address Register					*/
 #define MDMA_S0_CONFIG			0xFFC00F48	/* MemDMA Stream 0 Source Configuration Register					*/
@@ -427,7 +415,7 @@
 #define MDMA_S0_PERIPHERAL_MAP	0xFFC00F6C	/* MemDMA Stream 0 Source Peripheral Map Register					*/
 #define MDMA_S0_CURR_X_COUNT	0xFFC00F70	/* MemDMA Stream 0 Source Current X Count Register					*/
 #define MDMA_S0_CURR_Y_COUNT	0xFFC00F78	/* MemDMA Stream 0 Source Current Y Count Register					*/
-    
+
 #define MDMA_D1_NEXT_DESC_PTR	0xFFC00F80	/* MemDMA Stream 1 Destination Next Descriptor Pointer Register		*/
 #define MDMA_D1_START_ADDR		0xFFC00F84	/* MemDMA Stream 1 Destination Start Address Register				*/
 #define MDMA_D1_CONFIG			0xFFC00F88	/* MemDMA Stream 1 Destination Configuration Register				*/
@@ -441,7 +429,7 @@
 #define MDMA_D1_PERIPHERAL_MAP	0xFFC00FAC	/* MemDMA Stream 1 Destination Peripheral Map Register				*/
 #define MDMA_D1_CURR_X_COUNT	0xFFC00FB0	/* MemDMA Stream 1 Destination Current X Count Register				*/
 #define MDMA_D1_CURR_Y_COUNT	0xFFC00FB8	/* MemDMA Stream 1 Destination Current Y Count Register				*/
-    
+
 #define MDMA_S1_NEXT_DESC_PTR	0xFFC00FC0	/* MemDMA Stream 1 Source Next Descriptor Pointer Register			*/
 #define MDMA_S1_START_ADDR		0xFFC00FC4	/* MemDMA Stream 1 Source Start Address Register					*/
 #define MDMA_S1_CONFIG			0xFFC00FC8	/* MemDMA Stream 1 Source Configuration Register					*/
@@ -455,17 +443,15 @@
 #define MDMA_S1_PERIPHERAL_MAP	0xFFC00FEC	/* MemDMA Stream 1 Source Peripheral Map Register					*/
 #define MDMA_S1_CURR_X_COUNT	0xFFC00FF0	/* MemDMA Stream 1 Source Current X Count Register					*/
 #define MDMA_S1_CURR_Y_COUNT	0xFFC00FF8	/* MemDMA Stream 1 Source Current Y Count Register					*/
-    
 
-/* Parallel Peripheral Interface (0xFFC01000 - 0xFFC010FF)				*/ 
+/* Parallel Peripheral Interface (0xFFC01000 - 0xFFC010FF)				*/
 #define PPI_CONTROL			0xFFC01000	/* PPI Control Register			*/
 #define PPI_STATUS			0xFFC01004	/* PPI Status Register			*/
 #define PPI_COUNT			0xFFC01008	/* PPI Transfer Count Register	*/
 #define PPI_DELAY			0xFFC0100C	/* PPI Delay Count Register		*/
 #define PPI_FRAME			0xFFC01010	/* PPI Frame Length Register	*/
-    
 
-/* Two-Wire Interface		(0xFFC01400 - 0xFFC014FF)								*/ 
+/* Two-Wire Interface		(0xFFC01400 - 0xFFC014FF)								*/
 #define TWI_CLKDIV			0xFFC01400	/* Serial Clock Divider Register			*/
 #define TWI_CONTROL			0xFFC01404	/* TWI Control Register						*/
 #define TWI_SLAVE_CTL		0xFFC01408	/* Slave Mode Control Register				*/
@@ -482,9 +468,8 @@
 #define TWI_XMT_DATA16		0xFFC01484	/* FIFO Transmit Data Double Byte Register	*/
 #define TWI_RCV_DATA8		0xFFC01488	/* FIFO Receive Data Single Byte Register	*/
 #define TWI_RCV_DATA16		0xFFC0148C	/* FIFO Receive Data Double Byte Register	*/
-    
 
-/* General Purpose I/O Port G (0xFFC01500 - 0xFFC015FF)												*/ 
+/* General Purpose I/O Port G (0xFFC01500 - 0xFFC015FF)												*/
 #define PORTGIO					0xFFC01500	/* Port G I/O Pin State Specify Register				*/
 #define PORTGIO_CLEAR			0xFFC01504	/* Port G I/O Peripheral Interrupt Clear Register		*/
 #define PORTGIO_SET				0xFFC01508	/* Port G I/O Peripheral Interrupt Set Register			*/
@@ -502,9 +487,8 @@
 #define PORTGIO_EDGE			0xFFC01538	/* Port G I/O Source Sensitivity Register				*/
 #define PORTGIO_BOTH			0xFFC0153C	/* Port G I/O Set on BOTH Edges Register				*/
 #define PORTGIO_INEN			0xFFC01540	/* Port G I/O Input Enable Register						*/
-    
 
-/* General Purpose I/O Port H (0xFFC01700 - 0xFFC017FF)												*/ 
+/* General Purpose I/O Port H (0xFFC01700 - 0xFFC017FF)												*/
 #define PORTHIO					0xFFC01700	/* Port H I/O Pin State Specify Register				*/
 #define PORTHIO_CLEAR			0xFFC01704	/* Port H I/O Peripheral Interrupt Clear Register		*/
 #define PORTHIO_SET				0xFFC01708	/* Port H I/O Peripheral Interrupt Set Register			*/
@@ -522,9 +506,8 @@
 #define PORTHIO_EDGE			0xFFC01738	/* Port H I/O Source Sensitivity Register				*/
 #define PORTHIO_BOTH			0xFFC0173C	/* Port H I/O Set on BOTH Edges Register				*/
 #define PORTHIO_INEN			0xFFC01740	/* Port H I/O Input Enable Register						*/
-    
 
-/* UART1 Controller		(0xFFC02000 - 0xFFC020FF)								*/ 
+/* UART1 Controller		(0xFFC02000 - 0xFFC020FF)								*/
 #define UART1_THR			0xFFC02000	/* Transmit Holding register			*/
 #define UART1_RBR			0xFFC02000	/* Receive Buffer register				*/
 #define UART1_DLL			0xFFC02000	/* Divisor Latch (Low-Byte)				*/
@@ -537,10 +520,9 @@
 #define UART1_MSR			0xFFC02018	/* Modem Status Register				*/
 #define UART1_SCR			0xFFC0201C	/* SCR Scratch Register					*/
 #define UART1_GCTL			0xFFC02024	/* Global Control Register				*/
-    
 
-/* CAN Controller		(0xFFC02A00 - 0xFFC02FFF)										*/ 
-/* For Mailboxes 0-15																	*/ 
+/* CAN Controller		(0xFFC02A00 - 0xFFC02FFF)										*/
+/* For Mailboxes 0-15																	*/
 #define CAN_MC1				0xFFC02A00	/* Mailbox config reg 1							*/
 #define CAN_MD1				0xFFC02A04	/* Mailbox direction reg 1						*/
 #define CAN_TRS1			0xFFC02A08	/* Transmit Request Set reg 1					*/
@@ -554,8 +536,8 @@
 #define CAN_MBIM1			0xFFC02A28	/* Mailbox Interrupt Mask reg 1					*/
 #define CAN_RFH1			0xFFC02A2C	/* Remote Frame Handling reg 1					*/
 #define CAN_OPSS1			0xFFC02A30	/* Overwrite Protection Single Shot Xmit reg 1	*/
-    
-/* For Mailboxes 16-31   																*/ 
+
+/* For Mailboxes 16-31   																*/
 #define CAN_MC2				0xFFC02A40	/* Mailbox config reg 2							*/
 #define CAN_MD2				0xFFC02A44	/* Mailbox direction reg 2						*/
 #define CAN_TRS2			0xFFC02A48	/* Transmit Request Set reg 2					*/
@@ -569,8 +551,8 @@
 #define CAN_MBIM2			0xFFC02A68	/* Mailbox Interrupt Mask reg 2					*/
 #define CAN_RFH2			0xFFC02A6C	/* Remote Frame Handling reg 2					*/
 #define CAN_OPSS2			0xFFC02A70	/* Overwrite Protection Single Shot Xmit reg 2	*/
-    
-/* CAN Configuration, Control, and Status Registers										*/ 
+
+/* CAN Configuration, Control, and Status Registers										*/
 #define CAN_CLOCK			0xFFC02A80	/* Bit Timing Configuration register 0			*/
 #define CAN_TIMING			0xFFC02A84	/* Bit Timing Configuration register 1			*/
 #define CAN_DEBUG			0xFFC02A88	/* Debug Register								*/
@@ -589,8 +571,8 @@
 #define CAN_UCCNT			0xFFC02AC4	/* Universal Counter							*/
 #define CAN_UCRC			0xFFC02AC8	/* Universal Counter Force Reload Register		*/
 #define CAN_UCCNF			0xFFC02ACC	/* Universal Counter Configuration Register		*/
-    
-/* Mailbox Acceptance Masks 												*/ 
+
+/* Mailbox Acceptance Masks 												*/
 #define CAN_AM00L			0xFFC02B00	/* Mailbox 0 Low Acceptance Mask	*/
 #define CAN_AM00H			0xFFC02B04	/* Mailbox 0 High Acceptance Mask	*/
 #define CAN_AM01L			0xFFC02B08	/* Mailbox 1 Low Acceptance Mask 	*/
@@ -623,7 +605,7 @@
 #define CAN_AM14H			0xFFC02B74	/* Mailbox 14 High Acceptance Mask	*/
 #define CAN_AM15L			0xFFC02B78	/* Mailbox 15 Low Acceptance Mask 	*/
 #define CAN_AM15H			0xFFC02B7C	/* Mailbox 15 High Acceptance Mask	*/
-    
+
 #define CAN_AM16L			0xFFC02B80	/* Mailbox 16 Low Acceptance Mask 	*/
 #define CAN_AM16H			0xFFC02B84	/* Mailbox 16 High Acceptance Mask	*/
 #define CAN_AM17L			0xFFC02B88	/* Mailbox 17 Low Acceptance Mask 	*/
@@ -656,12 +638,12 @@
 #define CAN_AM30H			0xFFC02BF4	/* Mailbox 30 High Acceptance Mask	*/
 #define CAN_AM31L			0xFFC02BF8	/* Mailbox 31 Low Acceptance Mask 	*/
 #define CAN_AM31H			0xFFC02BFC	/* Mailbox 31 High Acceptance Mask	*/
-    
-/* CAN Acceptance Mask Macros				*/ 
+
+/* CAN Acceptance Mask Macros				*/
 #define CAN_AM_L(x)		(CAN_AM00L+((x)*0x8))
 #define CAN_AM_H(x)		(CAN_AM00H+((x)*0x8))
-    
-/* Mailbox Registers																*/ 
+
+/* Mailbox Registers																*/
 #define CAN_MB00_DATA0		0xFFC02C00	/* Mailbox 0 Data Word 0 [15:0] Register	*/
 #define CAN_MB00_DATA1		0xFFC02C04	/* Mailbox 0 Data Word 1 [31:16] Register	*/
 #define CAN_MB00_DATA2		0xFFC02C08	/* Mailbox 0 Data Word 2 [47:32] Register	*/
@@ -670,16 +652,16 @@
 #define CAN_MB00_TIMESTAMP	0xFFC02C14	/* Mailbox 0 Time Stamp Value Register		*/
 #define CAN_MB00_ID0		0xFFC02C18	/* Mailbox 0 Identifier Low Register		*/
 #define CAN_MB00_ID1		0xFFC02C1C	/* Mailbox 0 Identifier High Register		*/
-    
+
 #define CAN_MB01_DATA0		0xFFC02C20	/* Mailbox 1 Data Word 0 [15:0] Register 	*/
 #define CAN_MB01_DATA1		0xFFC02C24	/* Mailbox 1 Data Word 1 [31:16] Register	*/
 #define CAN_MB01_DATA2		0xFFC02C28	/* Mailbox 1 Data Word 2 [47:32] Register	*/
 #define CAN_MB01_DATA3		0xFFC02C2C	/* Mailbox 1 Data Word 3 [63:48] Register	*/
 #define CAN_MB01_LENGTH		0xFFC02C30	/* Mailbox 1 Data Length Code Register   	*/
 #define CAN_MB01_TIMESTAMP	0xFFC02C34	/* Mailbox 1 Time Stamp Value Register   	*/
-#define CAN_MB01_ID0		0xFFC02C38	/* Mailbox 1 Identifier Low Register    	*/ 
+#define CAN_MB01_ID0		0xFFC02C38	/* Mailbox 1 Identifier Low Register    	*/
 #define CAN_MB01_ID1		0xFFC02C3C	/* Mailbox 1 Identifier High Register    	*/
-    
+
 #define CAN_MB02_DATA0		0xFFC02C40	/* Mailbox 2 Data Word 0 [15:0] Register 	*/
 #define CAN_MB02_DATA1		0xFFC02C44	/* Mailbox 2 Data Word 1 [31:16] Register	*/
 #define CAN_MB02_DATA2		0xFFC02C48	/* Mailbox 2 Data Word 2 [47:32] Register	*/
@@ -688,7 +670,7 @@
 #define CAN_MB02_TIMESTAMP	0xFFC02C54	/* Mailbox 2 Time Stamp Value Register   	*/
 #define CAN_MB02_ID0		0xFFC02C58	/* Mailbox 2 Identifier Low Register     	*/
 #define CAN_MB02_ID1		0xFFC02C5C	/* Mailbox 2 Identifier High Register    	*/
-    
+
 #define CAN_MB03_DATA0		0xFFC02C60	/* Mailbox 3 Data Word 0 [15:0] Register 	*/
 #define CAN_MB03_DATA1		0xFFC02C64	/* Mailbox 3 Data Word 1 [31:16] Register	*/
 #define CAN_MB03_DATA2		0xFFC02C68	/* Mailbox 3 Data Word 2 [47:32] Register	*/
@@ -697,7 +679,7 @@
 #define CAN_MB03_TIMESTAMP	0xFFC02C74	/* Mailbox 3 Time Stamp Value Register   	*/
 #define CAN_MB03_ID0		0xFFC02C78	/* Mailbox 3 Identifier Low Register     	*/
 #define CAN_MB03_ID1		0xFFC02C7C	/* Mailbox 3 Identifier High Register    	*/
-    
+
 #define CAN_MB04_DATA0		0xFFC02C80	/* Mailbox 4 Data Word 0 [15:0] Register 	*/
 #define CAN_MB04_DATA1		0xFFC02C84	/* Mailbox 4 Data Word 1 [31:16] Register	*/
 #define CAN_MB04_DATA2		0xFFC02C88	/* Mailbox 4 Data Word 2 [47:32] Register	*/
@@ -706,7 +688,7 @@
 #define CAN_MB04_TIMESTAMP	0xFFC02C94	/* Mailbox 4 Time Stamp Value Register   	*/
 #define CAN_MB04_ID0		0xFFC02C98	/* Mailbox 4 Identifier Low Register     	*/
 #define CAN_MB04_ID1		0xFFC02C9C	/* Mailbox 4 Identifier High Register    	*/
-    
+
 #define CAN_MB05_DATA0		0xFFC02CA0	/* Mailbox 5 Data Word 0 [15:0] Register 	*/
 #define CAN_MB05_DATA1		0xFFC02CA4	/* Mailbox 5 Data Word 1 [31:16] Register	*/
 #define CAN_MB05_DATA2		0xFFC02CA8	/* Mailbox 5 Data Word 2 [47:32] Register	*/
@@ -715,7 +697,7 @@
 #define CAN_MB05_TIMESTAMP	0xFFC02CB4	/* Mailbox 5 Time Stamp Value Register   	*/
 #define CAN_MB05_ID0		0xFFC02CB8	/* Mailbox 5 Identifier Low Register     	*/
 #define CAN_MB05_ID1		0xFFC02CBC	/* Mailbox 5 Identifier High Register    	*/
-    
+
 #define CAN_MB06_DATA0		0xFFC02CC0	/* Mailbox 6 Data Word 0 [15:0] Register 	*/
 #define CAN_MB06_DATA1		0xFFC02CC4	/* Mailbox 6 Data Word 1 [31:16] Register	*/
 #define CAN_MB06_DATA2		0xFFC02CC8	/* Mailbox 6 Data Word 2 [47:32] Register	*/
@@ -724,7 +706,7 @@
 #define CAN_MB06_TIMESTAMP	0xFFC02CD4	/* Mailbox 6 Time Stamp Value Register   	*/
 #define CAN_MB06_ID0		0xFFC02CD8	/* Mailbox 6 Identifier Low Register     	*/
 #define CAN_MB06_ID1		0xFFC02CDC	/* Mailbox 6 Identifier High Register    	*/
-    
+
 #define CAN_MB07_DATA0		0xFFC02CE0	/* Mailbox 7 Data Word 0 [15:0] Register 	*/
 #define CAN_MB07_DATA1		0xFFC02CE4	/* Mailbox 7 Data Word 1 [31:16] Register	*/
 #define CAN_MB07_DATA2		0xFFC02CE8	/* Mailbox 7 Data Word 2 [47:32] Register	*/
@@ -733,7 +715,7 @@
 #define CAN_MB07_TIMESTAMP	0xFFC02CF4	/* Mailbox 7 Time Stamp Value Register   	*/
 #define CAN_MB07_ID0		0xFFC02CF8	/* Mailbox 7 Identifier Low Register     	*/
 #define CAN_MB07_ID1		0xFFC02CFC	/* Mailbox 7 Identifier High Register    	*/
-    
+
 #define CAN_MB08_DATA0		0xFFC02D00	/* Mailbox 8 Data Word 0 [15:0] Register 	*/
 #define CAN_MB08_DATA1		0xFFC02D04	/* Mailbox 8 Data Word 1 [31:16] Register	*/
 #define CAN_MB08_DATA2		0xFFC02D08	/* Mailbox 8 Data Word 2 [47:32] Register	*/
@@ -742,7 +724,7 @@
 #define CAN_MB08_TIMESTAMP	0xFFC02D14	/* Mailbox 8 Time Stamp Value Register   	*/
 #define CAN_MB08_ID0		0xFFC02D18	/* Mailbox 8 Identifier Low Register     	*/
 #define CAN_MB08_ID1		0xFFC02D1C	/* Mailbox 8 Identifier High Register    	*/
-    
+
 #define CAN_MB09_DATA0		0xFFC02D20	/* Mailbox 9 Data Word 0 [15:0] Register 	*/
 #define CAN_MB09_DATA1		0xFFC02D24	/* Mailbox 9 Data Word 1 [31:16] Register	*/
 #define CAN_MB09_DATA2		0xFFC02D28	/* Mailbox 9 Data Word 2 [47:32] Register	*/
@@ -751,7 +733,7 @@
 #define CAN_MB09_TIMESTAMP	0xFFC02D34	/* Mailbox 9 Time Stamp Value Register   	*/
 #define CAN_MB09_ID0		0xFFC02D38	/* Mailbox 9 Identifier Low Register     	*/
 #define CAN_MB09_ID1		0xFFC02D3C	/* Mailbox 9 Identifier High Register    	*/
-    
+
 #define CAN_MB10_DATA0		0xFFC02D40	/* Mailbox 10 Data Word 0 [15:0] Register 	*/
 #define CAN_MB10_DATA1		0xFFC02D44	/* Mailbox 10 Data Word 1 [31:16] Register	*/
 #define CAN_MB10_DATA2		0xFFC02D48	/* Mailbox 10 Data Word 2 [47:32] Register	*/
@@ -760,7 +742,7 @@
 #define CAN_MB10_TIMESTAMP	0xFFC02D54	/* Mailbox 10 Time Stamp Value Register   	*/
 #define CAN_MB10_ID0		0xFFC02D58	/* Mailbox 10 Identifier Low Register     	*/
 #define CAN_MB10_ID1		0xFFC02D5C	/* Mailbox 10 Identifier High Register    	*/
-    
+
 #define CAN_MB11_DATA0		0xFFC02D60	/* Mailbox 11 Data Word 0 [15:0] Register 	*/
 #define CAN_MB11_DATA1		0xFFC02D64	/* Mailbox 11 Data Word 1 [31:16] Register	*/
 #define CAN_MB11_DATA2		0xFFC02D68	/* Mailbox 11 Data Word 2 [47:32] Register	*/
@@ -769,7 +751,7 @@
 #define CAN_MB11_TIMESTAMP	0xFFC02D74	/* Mailbox 11 Time Stamp Value Register   	*/
 #define CAN_MB11_ID0		0xFFC02D78	/* Mailbox 11 Identifier Low Register     	*/
 #define CAN_MB11_ID1		0xFFC02D7C	/* Mailbox 11 Identifier High Register    	*/
-    
+
 #define CAN_MB12_DATA0		0xFFC02D80	/* Mailbox 12 Data Word 0 [15:0] Register 	*/
 #define CAN_MB12_DATA1		0xFFC02D84	/* Mailbox 12 Data Word 1 [31:16] Register	*/
 #define CAN_MB12_DATA2		0xFFC02D88	/* Mailbox 12 Data Word 2 [47:32] Register	*/
@@ -778,7 +760,7 @@
 #define CAN_MB12_TIMESTAMP	0xFFC02D94	/* Mailbox 12 Time Stamp Value Register   	*/
 #define CAN_MB12_ID0		0xFFC02D98	/* Mailbox 12 Identifier Low Register     	*/
 #define CAN_MB12_ID1		0xFFC02D9C	/* Mailbox 12 Identifier High Register    	*/
-    
+
 #define CAN_MB13_DATA0		0xFFC02DA0	/* Mailbox 13 Data Word 0 [15:0] Register 	*/
 #define CAN_MB13_DATA1		0xFFC02DA4	/* Mailbox 13 Data Word 1 [31:16] Register	*/
 #define CAN_MB13_DATA2		0xFFC02DA8	/* Mailbox 13 Data Word 2 [47:32] Register	*/
@@ -787,7 +769,7 @@
 #define CAN_MB13_TIMESTAMP	0xFFC02DB4	/* Mailbox 13 Time Stamp Value Register   	*/
 #define CAN_MB13_ID0		0xFFC02DB8	/* Mailbox 13 Identifier Low Register     	*/
 #define CAN_MB13_ID1		0xFFC02DBC	/* Mailbox 13 Identifier High Register    	*/
-    
+
 #define CAN_MB14_DATA0		0xFFC02DC0	/* Mailbox 14 Data Word 0 [15:0] Register 	*/
 #define CAN_MB14_DATA1		0xFFC02DC4	/* Mailbox 14 Data Word 1 [31:16] Register	*/
 #define CAN_MB14_DATA2		0xFFC02DC8	/* Mailbox 14 Data Word 2 [47:32] Register	*/
@@ -796,7 +778,7 @@
 #define CAN_MB14_TIMESTAMP	0xFFC02DD4	/* Mailbox 14 Time Stamp Value Register   	*/
 #define CAN_MB14_ID0		0xFFC02DD8	/* Mailbox 14 Identifier Low Register     	*/
 #define CAN_MB14_ID1		0xFFC02DDC	/* Mailbox 14 Identifier High Register    	*/
-    
+
 #define CAN_MB15_DATA0		0xFFC02DE0	/* Mailbox 15 Data Word 0 [15:0] Register 	*/
 #define CAN_MB15_DATA1		0xFFC02DE4	/* Mailbox 15 Data Word 1 [31:16] Register	*/
 #define CAN_MB15_DATA2		0xFFC02DE8	/* Mailbox 15 Data Word 2 [47:32] Register	*/
@@ -805,7 +787,7 @@
 #define CAN_MB15_TIMESTAMP	0xFFC02DF4	/* Mailbox 15 Time Stamp Value Register   	*/
 #define CAN_MB15_ID0		0xFFC02DF8	/* Mailbox 15 Identifier Low Register     	*/
 #define CAN_MB15_ID1		0xFFC02DFC	/* Mailbox 15 Identifier High Register    	*/
-    
+
 #define CAN_MB16_DATA0		0xFFC02E00	/* Mailbox 16 Data Word 0 [15:0] Register 	*/
 #define CAN_MB16_DATA1		0xFFC02E04	/* Mailbox 16 Data Word 1 [31:16] Register	*/
 #define CAN_MB16_DATA2		0xFFC02E08	/* Mailbox 16 Data Word 2 [47:32] Register	*/
@@ -814,7 +796,7 @@
 #define CAN_MB16_TIMESTAMP	0xFFC02E14	/* Mailbox 16 Time Stamp Value Register   	*/
 #define CAN_MB16_ID0		0xFFC02E18	/* Mailbox 16 Identifier Low Register     	*/
 #define CAN_MB16_ID1		0xFFC02E1C	/* Mailbox 16 Identifier High Register    	*/
-    
+
 #define CAN_MB17_DATA0		0xFFC02E20	/* Mailbox 17 Data Word 0 [15:0] Register 	*/
 #define CAN_MB17_DATA1		0xFFC02E24	/* Mailbox 17 Data Word 1 [31:16] Register	*/
 #define CAN_MB17_DATA2		0xFFC02E28	/* Mailbox 17 Data Word 2 [47:32] Register	*/
@@ -823,7 +805,7 @@
 #define CAN_MB17_TIMESTAMP	0xFFC02E34	/* Mailbox 17 Time Stamp Value Register   	*/
 #define CAN_MB17_ID0		0xFFC02E38	/* Mailbox 17 Identifier Low Register     	*/
 #define CAN_MB17_ID1		0xFFC02E3C	/* Mailbox 17 Identifier High Register    	*/
-    
+
 #define CAN_MB18_DATA0		0xFFC02E40	/* Mailbox 18 Data Word 0 [15:0] Register 	*/
 #define CAN_MB18_DATA1		0xFFC02E44	/* Mailbox 18 Data Word 1 [31:16] Register	*/
 #define CAN_MB18_DATA2		0xFFC02E48	/* Mailbox 18 Data Word 2 [47:32] Register	*/
@@ -832,7 +814,7 @@
 #define CAN_MB18_TIMESTAMP	0xFFC02E54	/* Mailbox 18 Time Stamp Value Register   	*/
 #define CAN_MB18_ID0		0xFFC02E58	/* Mailbox 18 Identifier Low Register     	*/
 #define CAN_MB18_ID1		0xFFC02E5C	/* Mailbox 18 Identifier High Register    	*/
-    
+
 #define CAN_MB19_DATA0		0xFFC02E60	/* Mailbox 19 Data Word 0 [15:0] Register 	*/
 #define CAN_MB19_DATA1		0xFFC02E64	/* Mailbox 19 Data Word 1 [31:16] Register	*/
 #define CAN_MB19_DATA2		0xFFC02E68	/* Mailbox 19 Data Word 2 [47:32] Register	*/
@@ -841,7 +823,7 @@
 #define CAN_MB19_TIMESTAMP	0xFFC02E74	/* Mailbox 19 Time Stamp Value Register   	*/
 #define CAN_MB19_ID0		0xFFC02E78	/* Mailbox 19 Identifier Low Register     	*/
 #define CAN_MB19_ID1		0xFFC02E7C	/* Mailbox 19 Identifier High Register    	*/
-    
+
 #define CAN_MB20_DATA0		0xFFC02E80	/* Mailbox 20 Data Word 0 [15:0] Register 	*/
 #define CAN_MB20_DATA1		0xFFC02E84	/* Mailbox 20 Data Word 1 [31:16] Register	*/
 #define CAN_MB20_DATA2		0xFFC02E88	/* Mailbox 20 Data Word 2 [47:32] Register	*/
@@ -850,7 +832,7 @@
 #define CAN_MB20_TIMESTAMP	0xFFC02E94	/* Mailbox 20 Time Stamp Value Register   	*/
 #define CAN_MB20_ID0		0xFFC02E98	/* Mailbox 20 Identifier Low Register     	*/
 #define CAN_MB20_ID1		0xFFC02E9C	/* Mailbox 20 Identifier High Register    	*/
-    
+
 #define CAN_MB21_DATA0		0xFFC02EA0	/* Mailbox 21 Data Word 0 [15:0] Register 	*/
 #define CAN_MB21_DATA1		0xFFC02EA4	/* Mailbox 21 Data Word 1 [31:16] Register	*/
 #define CAN_MB21_DATA2		0xFFC02EA8	/* Mailbox 21 Data Word 2 [47:32] Register	*/
@@ -859,7 +841,7 @@
 #define CAN_MB21_TIMESTAMP	0xFFC02EB4	/* Mailbox 21 Time Stamp Value Register   	*/
 #define CAN_MB21_ID0		0xFFC02EB8	/* Mailbox 21 Identifier Low Register     	*/
 #define CAN_MB21_ID1		0xFFC02EBC	/* Mailbox 21 Identifier High Register    	*/
-    
+
 #define CAN_MB22_DATA0		0xFFC02EC0	/* Mailbox 22 Data Word 0 [15:0] Register 	*/
 #define CAN_MB22_DATA1		0xFFC02EC4	/* Mailbox 22 Data Word 1 [31:16] Register	*/
 #define CAN_MB22_DATA2		0xFFC02EC8	/* Mailbox 22 Data Word 2 [47:32] Register	*/
@@ -868,7 +850,7 @@
 #define CAN_MB22_TIMESTAMP	0xFFC02ED4	/* Mailbox 22 Time Stamp Value Register   	*/
 #define CAN_MB22_ID0		0xFFC02ED8	/* Mailbox 22 Identifier Low Register     	*/
 #define CAN_MB22_ID1		0xFFC02EDC	/* Mailbox 22 Identifier High Register    	*/
-    
+
 #define CAN_MB23_DATA0		0xFFC02EE0	/* Mailbox 23 Data Word 0 [15:0] Register 	*/
 #define CAN_MB23_DATA1		0xFFC02EE4	/* Mailbox 23 Data Word 1 [31:16] Register	*/
 #define CAN_MB23_DATA2		0xFFC02EE8	/* Mailbox 23 Data Word 2 [47:32] Register	*/
@@ -877,7 +859,7 @@
 #define CAN_MB23_TIMESTAMP	0xFFC02EF4	/* Mailbox 23 Time Stamp Value Register   	*/
 #define CAN_MB23_ID0		0xFFC02EF8	/* Mailbox 23 Identifier Low Register     	*/
 #define CAN_MB23_ID1		0xFFC02EFC	/* Mailbox 23 Identifier High Register    	*/
-    
+
 #define CAN_MB24_DATA0		0xFFC02F00	/* Mailbox 24 Data Word 0 [15:0] Register 	*/
 #define CAN_MB24_DATA1		0xFFC02F04	/* Mailbox 24 Data Word 1 [31:16] Register	*/
 #define CAN_MB24_DATA2		0xFFC02F08	/* Mailbox 24 Data Word 2 [47:32] Register	*/
@@ -886,7 +868,7 @@
 #define CAN_MB24_TIMESTAMP	0xFFC02F14	/* Mailbox 24 Time Stamp Value Register   	*/
 #define CAN_MB24_ID0		0xFFC02F18	/* Mailbox 24 Identifier Low Register     	*/
 #define CAN_MB24_ID1		0xFFC02F1C	/* Mailbox 24 Identifier High Register    	*/
-    
+
 #define CAN_MB25_DATA0		0xFFC02F20	/* Mailbox 25 Data Word 0 [15:0] Register 	*/
 #define CAN_MB25_DATA1		0xFFC02F24	/* Mailbox 25 Data Word 1 [31:16] Register	*/
 #define CAN_MB25_DATA2		0xFFC02F28	/* Mailbox 25 Data Word 2 [47:32] Register	*/
@@ -895,7 +877,7 @@
 #define CAN_MB25_TIMESTAMP	0xFFC02F34	/* Mailbox 25 Time Stamp Value Register   	*/
 #define CAN_MB25_ID0		0xFFC02F38	/* Mailbox 25 Identifier Low Register     	*/
 #define CAN_MB25_ID1		0xFFC02F3C	/* Mailbox 25 Identifier High Register    	*/
-    
+
 #define CAN_MB26_DATA0		0xFFC02F40	/* Mailbox 26 Data Word 0 [15:0] Register 	*/
 #define CAN_MB26_DATA1		0xFFC02F44	/* Mailbox 26 Data Word 1 [31:16] Register	*/
 #define CAN_MB26_DATA2		0xFFC02F48	/* Mailbox 26 Data Word 2 [47:32] Register	*/
@@ -904,7 +886,7 @@
 #define CAN_MB26_TIMESTAMP	0xFFC02F54	/* Mailbox 26 Time Stamp Value Register   	*/
 #define CAN_MB26_ID0		0xFFC02F58	/* Mailbox 26 Identifier Low Register     	*/
 #define CAN_MB26_ID1		0xFFC02F5C	/* Mailbox 26 Identifier High Register    	*/
-    
+
 #define CAN_MB27_DATA0		0xFFC02F60	/* Mailbox 27 Data Word 0 [15:0] Register 	*/
 #define CAN_MB27_DATA1		0xFFC02F64	/* Mailbox 27 Data Word 1 [31:16] Register	*/
 #define CAN_MB27_DATA2		0xFFC02F68	/* Mailbox 27 Data Word 2 [47:32] Register	*/
@@ -913,7 +895,7 @@
 #define CAN_MB27_TIMESTAMP	0xFFC02F74	/* Mailbox 27 Time Stamp Value Register   	*/
 #define CAN_MB27_ID0		0xFFC02F78	/* Mailbox 27 Identifier Low Register     	*/
 #define CAN_MB27_ID1		0xFFC02F7C	/* Mailbox 27 Identifier High Register    	*/
-    
+
 #define CAN_MB28_DATA0		0xFFC02F80	/* Mailbox 28 Data Word 0 [15:0] Register 	*/
 #define CAN_MB28_DATA1		0xFFC02F84	/* Mailbox 28 Data Word 1 [31:16] Register	*/
 #define CAN_MB28_DATA2		0xFFC02F88	/* Mailbox 28 Data Word 2 [47:32] Register	*/
@@ -922,7 +904,7 @@
 #define CAN_MB28_TIMESTAMP	0xFFC02F94	/* Mailbox 28 Time Stamp Value Register   	*/
 #define CAN_MB28_ID0		0xFFC02F98	/* Mailbox 28 Identifier Low Register     	*/
 #define CAN_MB28_ID1		0xFFC02F9C	/* Mailbox 28 Identifier High Register    	*/
-    
+
 #define CAN_MB29_DATA0		0xFFC02FA0	/* Mailbox 29 Data Word 0 [15:0] Register 	*/
 #define CAN_MB29_DATA1		0xFFC02FA4	/* Mailbox 29 Data Word 1 [31:16] Register	*/
 #define CAN_MB29_DATA2		0xFFC02FA8	/* Mailbox 29 Data Word 2 [47:32] Register	*/
@@ -931,7 +913,7 @@
 #define CAN_MB29_TIMESTAMP	0xFFC02FB4	/* Mailbox 29 Time Stamp Value Register   	*/
 #define CAN_MB29_ID0		0xFFC02FB8	/* Mailbox 29 Identifier Low Register     	*/
 #define CAN_MB29_ID1		0xFFC02FBC	/* Mailbox 29 Identifier High Register    	*/
-    
+
 #define CAN_MB30_DATA0		0xFFC02FC0	/* Mailbox 30 Data Word 0 [15:0] Register 	*/
 #define CAN_MB30_DATA1		0xFFC02FC4	/* Mailbox 30 Data Word 1 [31:16] Register	*/
 #define CAN_MB30_DATA2		0xFFC02FC8	/* Mailbox 30 Data Word 2 [47:32] Register	*/
@@ -940,7 +922,7 @@
 #define CAN_MB30_TIMESTAMP	0xFFC02FD4	/* Mailbox 30 Time Stamp Value Register   	*/
 #define CAN_MB30_ID0		0xFFC02FD8	/* Mailbox 30 Identifier Low Register     	*/
 #define CAN_MB30_ID1		0xFFC02FDC	/* Mailbox 30 Identifier High Register    	*/
-    
+
 #define CAN_MB31_DATA0		0xFFC02FE0	/* Mailbox 31 Data Word 0 [15:0] Register 	*/
 #define CAN_MB31_DATA1		0xFFC02FE4	/* Mailbox 31 Data Word 1 [31:16] Register	*/
 #define CAN_MB31_DATA2		0xFFC02FE8	/* Mailbox 31 Data Word 2 [47:32] Register	*/
@@ -949,8 +931,8 @@
 #define CAN_MB31_TIMESTAMP	0xFFC02FF4	/* Mailbox 31 Time Stamp Value Register   	*/
 #define CAN_MB31_ID0		0xFFC02FF8	/* Mailbox 31 Identifier Low Register     	*/
 #define CAN_MB31_ID1		0xFFC02FFC	/* Mailbox 31 Identifier High Register    	*/
-    
-/* CAN Mailbox Area Macros				*/ 
+
+/* CAN Mailbox Area Macros				*/
 #define CAN_MB_ID1(x)		(CAN_MB00_ID1+((x)*0x20))
 #define CAN_MB_ID0(x)		(CAN_MB00_ID0+((x)*0x20))
 #define CAN_MB_TIMESTAMP(x)	(CAN_MB00_TIMESTAMP+((x)*0x20))
@@ -959,16 +941,14 @@
 #define CAN_MB_DATA2(x)		(CAN_MB00_DATA2+((x)*0x20))
 #define CAN_MB_DATA1(x)		(CAN_MB00_DATA1+((x)*0x20))
 #define CAN_MB_DATA0(x)		(CAN_MB00_DATA0+((x)*0x20))
-    
 
-/* Pin Control Registers	(0xFFC03200 - 0xFFC032FF)											*/ 
+/* Pin Control Registers	(0xFFC03200 - 0xFFC032FF)											*/
 #define PORTF_FER			0xFFC03200	/* Port F Function Enable Register (Alternate/Flag*)	*/
 #define PORTG_FER			0xFFC03204	/* Port G Function Enable Register (Alternate/Flag*)	*/
 #define PORTH_FER			0xFFC03208	/* Port H Function Enable Register (Alternate/Flag*)	*/
 #define PORT_MUX			0xFFC0320C	/* Port Multiplexer Control Register					*/
-    
 
-/* Handshake MDMA Registers	(0xFFC03300 - 0xFFC033FF)										*/ 
+/* Handshake MDMA Registers	(0xFFC03300 - 0xFFC033FF)										*/
 #define HMDMA0_CONTROL		0xFFC03300	/* Handshake MDMA0 Control Register					*/
 #define HMDMA0_ECINIT		0xFFC03304	/* HMDMA0 Initial Edge Count Register				*/
 #define HMDMA0_BCINIT		0xFFC03308	/* HMDMA0 Initial Block Count Register				*/
@@ -976,7 +956,7 @@
 #define HMDMA0_ECOVERFLOW	0xFFC03310	/* HMDMA0 Edge Count Overflow Interrupt Register	*/
 #define HMDMA0_ECOUNT		0xFFC03314	/* HMDMA0 Current Edge Count Register				*/
 #define HMDMA0_BCOUNT		0xFFC03318	/* HMDMA0 Current Block Count Register				*/
-    
+
 #define HMDMA1_CONTROL		0xFFC03340	/* Handshake MDMA1 Control Register					*/
 #define HMDMA1_ECINIT		0xFFC03344	/* HMDMA1 Initial Edge Count Register				*/
 #define HMDMA1_BCINIT		0xFFC03348	/* HMDMA1 Initial Block Count Register				*/
@@ -984,7 +964,6 @@
 #define HMDMA1_ECOVERFLOW	0xFFC03350	/* HMDMA1 Edge Count Overflow Interrupt Register	*/
 #define HMDMA1_ECOUNT		0xFFC03354	/* HMDMA1 Current Edge Count Register				*/
 #define HMDMA1_BCOUNT		0xFFC03358	/* HMDMA1 Current Block Count Register				*/
-    
 
 /***********************************************************************************
 ** System MMR Register Bits And Macros
@@ -996,10 +975,10 @@
 **				used as part of an OR to initialize a register and NOT as a dynamic
 **				modifier UNLESS the lower order bits are saved and ORed back in when
 **				the macro is used.
-*************************************************************************************/ 
+*************************************************************************************/
 /*
-** ********************* PLL AND RESET MASKS ****************************************/ 
-/* PLL_CTL Masks																	*/ 
+** ********************* PLL AND RESET MASKS ****************************************/
+/* PLL_CTL Masks																	*/
 #define DF				0x0001	/* 0: PLL = CLKIN, 1: PLL = CLKIN/2					*/
 #define PLL_OFF			0x0002	/* PLL Not Powered									*/
 #define STOPCK			0x0008	/* Core Clock Off									*/
@@ -1008,32 +987,32 @@
 #define	OUT_DELAY		0x0080	/* Add 200ps Delay To EBIU Output Signals			*/
 #define BYPASS			0x0100	/* Bypass the PLL									*/
 #define	MSEL			0x7E00	/* Multiplier Select For CCLK/VCO Factors			*/
-/* PLL_CTL Macros (Only Use With Logic OR While Setting Lower Order Bits)			*/ 
+/* PLL_CTL Macros (Only Use With Logic OR While Setting Lower Order Bits)			*/
 #define	SET_MSEL(x)		(((x)&0x3F) << 0x9)	/* Set MSEL = 0-63 --> VCO = CLKIN*MSEL		*/
-    
-/* PLL_DIV Masks														*/ 
+
+/* PLL_DIV Masks														*/
 #define SSEL			0x000F	/* System Select						*/
 #define	CSEL			0x0030	/* Core Select							*/
 #define CSEL_DIV1		0x0000	/* 		CCLK = VCO / 1					*/
 #define CSEL_DIV2		0x0010	/* 		CCLK = VCO / 2					*/
 #define	CSEL_DIV4		0x0020	/* 		CCLK = VCO / 4					*/
 #define	CSEL_DIV8		0x0030	/* 		CCLK = VCO / 8					*/
-/* PLL_DIV Macros														*/ 
+/* PLL_DIV Macros														*/
 #define SET_SSEL(x)		((x)&0xF)		/* Set SSEL = 0-15 --> SCLK = VCO/SSEL	*/
-    
-/* VR_CTL Masks																	*/ 
+
+/* VR_CTL Masks																	*/
 #define	FREQ			0x0003	/* Switching Oscillator Frequency For Regulator	*/
 #define	HIBERNATE		0x0000	/* 		Powerdown/Bypass On-Board Regulation	*/
 #define	FREQ_333		0x0001	/* 		Switching Frequency Is 333 kHz			*/
 #define	FREQ_667		0x0002	/* 		Switching Frequency Is 667 kHz			*/
 #define	FREQ_1000		0x0003	/* 		Switching Frequency Is 1 MHz			*/
-    
+
 #define GAIN			0x000C	/* Voltage Level Gain	*/
 #define	GAIN_5			0x0000	/* 		GAIN = 5		*/
 #define	GAIN_10			0x0004	/* 		GAIN = 10		*/
 #define	GAIN_20			0x0008	/* 		GAIN = 20		*/
 #define	GAIN_50			0x000C	/* 		GAIN = 50		*/
-    
+
 #define	VLEV			0x00F0	/* Internal Voltage Level					*/
 #define	VLEV_085 		0x0060	/* 		VLEV = 0.85 V (-5% - +10% Accuracy)	*/
 #define	VLEV_090		0x0070	/* 		VLEV = 0.90 V (-5% - +10% Accuracy)	*/
@@ -1045,34 +1024,33 @@
 #define	VLEV_120		0x00D0	/* 		VLEV = 1.20 V (-5% - +10% Accuracy)	*/
 #define	VLEV_125		0x00E0	/* 		VLEV = 1.25 V (-5% - +10% Accuracy)	*/
 #define	VLEV_130		0x00F0	/* 		VLEV = 1.30 V (-5% - +10% Accuracy)	*/
-    
+
 #define	WAKE			0x0100	/* Enable RTC/Reset Wakeup From Hibernate	*/
 #define PHYWE			0x0200	/* Enable PHY Wakeup From Hibernate			*/
 #define	CANWE			0x0400	/* Enable CAN Wakeup From Hibernate			*/
 #define	PHYCLKOE		0x4000	/* PHY Clock Output Enable					*/
 #define	CKELOW			0x8000	/* Enable Drive CKE Low During Reset		*/
-    
-/* PLL_STAT Masks																	*/ 
+
+/* PLL_STAT Masks																	*/
 #define ACTIVE_PLLENABLED	0x0001	/* Processor In Active Mode With PLL Enabled	*/
 #define	FULL_ON				0x0002	/* Processor In Full On Mode					*/
 #define ACTIVE_PLLDISABLED	0x0004	/* Processor In Active Mode With PLL Disabled	*/
 #define	PLL_LOCKED			0x0020	/* PLL_LOCKCNT Has Been Reached					*/
-    
-/* SWRST Masks																		*/ 
+
+/* SWRST Masks																		*/
 #define SYSTEM_RESET		0x0007	/* Initiates A System Software Reset			*/
 #define	DOUBLE_FAULT		0x0008	/* Core Double Fault Causes Reset				*/
 #define RESET_DOUBLE		0x2000	/* SW Reset Generated By Core Double-Fault		*/
 #define RESET_WDOG			0x4000	/* SW Reset Generated By Watchdog Timer			*/
 #define RESET_SOFTWARE		0x8000	/* SW Reset Occurred Since Last Read Of SWRST	*/
-    
-/* SYSCR Masks																				*/ 
+
+/* SYSCR Masks																				*/
 #define BMODE				0x0006	/* Boot Mode - Latched During HW Reset From Mode Pins	*/
 #define	NOBOOT				0x0010	/* Execute From L1 or ASYNC Bank 0 When BMODE = 0		*/
-    
 
-/* *************  SYSTEM INTERRUPT CONTROLLER MASKS *************************************/ 
-    
-/* SIC_IAR0 Macros															*/ 
+/* *************  SYSTEM INTERRUPT CONTROLLER MASKS *************************************/
+
+/* SIC_IAR0 Macros															*/
 #define P0_IVG(x)		(((x)&0xF)-7)			/* Peripheral #0 assigned IVG #x 	*/
 #define P1_IVG(x)		(((x)&0xF)-7) << 0x4	/* Peripheral #1 assigned IVG #x 	*/
 #define P2_IVG(x)		(((x)&0xF)-7) << 0x8	/* Peripheral #2 assigned IVG #x 	*/
@@ -1081,8 +1059,8 @@
 #define P5_IVG(x)		(((x)&0xF)-7) << 0x14	/* Peripheral #5 assigned IVG #x	*/
 #define P6_IVG(x)		(((x)&0xF)-7) << 0x18	/* Peripheral #6 assigned IVG #x	*/
 #define P7_IVG(x)		(((x)&0xF)-7) << 0x1C	/* Peripheral #7 assigned IVG #x	*/
-    
-/* SIC_IAR1 Macros															*/ 
+
+/* SIC_IAR1 Macros															*/
 #define P8_IVG(x)		(((x)&0xF)-7)			/* Peripheral #8 assigned IVG #x 	*/
 #define P9_IVG(x)		(((x)&0xF)-7) << 0x4	/* Peripheral #9 assigned IVG #x 	*/
 #define P10_IVG(x)		(((x)&0xF)-7) << 0x8	/* Peripheral #10 assigned IVG #x	*/
@@ -1091,8 +1069,8 @@
 #define P13_IVG(x)		(((x)&0xF)-7) << 0x14	/* Peripheral #13 assigned IVG #x	*/
 #define P14_IVG(x)		(((x)&0xF)-7) << 0x18	/* Peripheral #14 assigned IVG #x	*/
 #define P15_IVG(x)		(((x)&0xF)-7) << 0x1C	/* Peripheral #15 assigned IVG #x	*/
-    
-/* SIC_IAR2 Macros															*/ 
+
+/* SIC_IAR2 Macros															*/
 #define P16_IVG(x)		(((x)&0xF)-7)			/* Peripheral #16 assigned IVG #x	*/
 #define P17_IVG(x)		(((x)&0xF)-7) << 0x4	/* Peripheral #17 assigned IVG #x	*/
 #define P18_IVG(x)		(((x)&0xF)-7) << 0x8	/* Peripheral #18 assigned IVG #x	*/
@@ -1101,8 +1079,8 @@
 #define P21_IVG(x)		(((x)&0xF)-7) << 0x14	/* Peripheral #21 assigned IVG #x	*/
 #define P22_IVG(x)		(((x)&0xF)-7) << 0x18	/* Peripheral #22 assigned IVG #x	*/
 #define P23_IVG(x)		(((x)&0xF)-7) << 0x1C	/* Peripheral #23 assigned IVG #x	*/
-    
-/* SIC_IAR3 Macros															*/ 
+
+/* SIC_IAR3 Macros															*/
 #define P24_IVG(x)		(((x)&0xF)-7)			/* Peripheral #24 assigned IVG #x	*/
 #define P25_IVG(x)		(((x)&0xF)-7) << 0x4	/* Peripheral #25 assigned IVG #x	*/
 #define P26_IVG(x)		(((x)&0xF)-7) << 0x8	/* Peripheral #26 assigned IVG #x	*/
@@ -1111,23 +1089,21 @@
 #define P29_IVG(x)		(((x)&0xF)-7) << 0x14	/* Peripheral #29 assigned IVG #x	*/
 #define P30_IVG(x)		(((x)&0xF)-7) << 0x18	/* Peripheral #30 assigned IVG #x	*/
 #define P31_IVG(x)		(((x)&0xF)-7) << 0x1C	/* Peripheral #31 assigned IVG #x	*/
-    
 
-/* SIC_IMASK Masks																		*/ 
+/* SIC_IMASK Masks																		*/
 #define SIC_UNMASK_ALL	0x00000000					/* Unmask all peripheral interrupts	*/
 #define SIC_MASK_ALL	0xFFFFFFFF					/* Mask all peripheral interrupts	*/
 #define SIC_MASK(x)		(1 << ((x)&0x1F))					/* Mask Peripheral #x interrupt		*/
 #define SIC_UNMASK(x)	(0xFFFFFFFF ^ (1 << ((x)&0x1F)))	/* Unmask Peripheral #x interrupt	*/
-    
-/* SIC_IWR Masks																		*/ 
+
+/* SIC_IWR Masks																		*/
 #define IWR_DISABLE_ALL	0x00000000					/* Wakeup Disable all peripherals	*/
 #define IWR_ENABLE_ALL	0xFFFFFFFF					/* Wakeup Enable all peripherals	*/
 #define IWR_ENABLE(x)	(1 << ((x)&0x1F))					/* Wakeup Enable Peripheral #x		*/
 #define IWR_DISABLE(x)	(0xFFFFFFFF ^ (1 << ((x)&0x1F))) 	/* Wakeup Disable Peripheral #x		*/
-    
 
-/* ***************  WATCHDOG TIMER MASKS  *******************************************/ 
-/* WDOG_CTL Masks																	*/ 
+/* ***************  WATCHDOG TIMER MASKS  *******************************************/
+/* WDOG_CTL Masks																	*/
 #define WDOG_RESET		0x0000		/* Generate Reset Event							*/
 #define WDOG_NMI		0x0002		/* Generate Non-Maskable Interrupt (NMI) Event	*/
 #define WDOG_GPI		0x0004		/* Generate General Purpose (GP) Interrupt		*/
@@ -1135,19 +1111,18 @@
 #define TMR_EN			0x0FF0		/* Watchdog Counter Enable						*/
 #define	WDOG_DISABLE	0x0AD0		/* Watchdog Counter Disable						*/
 #define TRO				0x8000		/* Watchdog Expired								*/
-    
 
-/* ***************  REAL TIME CLOCK MASKS  **************************/ 
-/* RTC_STAT and RTC_ALARM Masks										*/ 
+/* ***************  REAL TIME CLOCK MASKS  **************************/
+/* RTC_STAT and RTC_ALARM Masks										*/
 #define	RTC_SEC				0x0000003F	/* Real-Time Clock Seconds	*/
 #define	RTC_MIN				0x00000FC0	/* Real-Time Clock Minutes	*/
 #define	RTC_HR				0x0001F000	/* Real-Time Clock Hours	*/
 #define	RTC_DAY				0xFFFE0000	/* Real-Time Clock Days		*/
-    
-/* RTC_ALARM Macro			z=day		y=hr	x=min	w=sec		*/ 
+
+/* RTC_ALARM Macro			z=day		y=hr	x=min	w=sec		*/
 #define SET_ALARM(z,y,x,w)	((((z)&0x7FFF)<<0x11)|(((y)&0x1F)<<0xC)|(((x)&0x3F)<<0x6)|((w)&0x3F))
-    
-/* RTC_ICTL and RTC_ISTAT Masks																		*/ 
+
+/* RTC_ICTL and RTC_ISTAT Masks																		*/
 #define	STOPWATCH			0x0001		/* Stopwatch Interrupt Enable								*/
 #define	ALARM				0x0002		/* Alarm Interrupt Enable									*/
 #define	SECOND				0x0004		/* Seconds (1 Hz) Interrupt Enable							*/
@@ -1157,13 +1132,12 @@
 #define	DAY_ALARM			0x0040		/* Day Alarm (Day, Hour, Minute, Second) Interrupt Enable	*/
 #define	WRITE_PENDING		0x4000		/* Write Pending Status										*/
 #define	WRITE_COMPLETE		0x8000		/* Write Complete Interrupt Enable							*/
-    
-/* RTC_FAST / RTC_PREN Mask												*/ 
-#define PREN				0x0001	/* Enable Prescaler, RTC Runs @1 Hz	*/
-    
 
-/* ************** UART CONTROLLER MASKS *************************/ 
-/* UARTx_LCR Masks												*/ 
+/* RTC_FAST / RTC_PREN Mask												*/
+#define PREN				0x0001	/* Enable Prescaler, RTC Runs @1 Hz	*/
+
+/* ************** UART CONTROLLER MASKS *************************/
+/* UARTx_LCR Masks												*/
 #define WLS(x)		((((x)&0x3)-5) & 0x03)	/* Word Length Select	*/
 #define STB			0x04				/* Stop Bits			*/
 #define PEN			0x08				/* Parity Enable		*/
@@ -1171,11 +1145,11 @@
 #define STP			0x20				/* Stick Parity			*/
 #define SB			0x40				/* Set Break			*/
 #define DLAB		0x80				/* Divisor Latch Access	*/
-    
-/* UARTx_MCR Mask										*/ 
+
+/* UARTx_MCR Mask										*/
 #define LOOP		0x10	/* Loopback Mode Enable		*/
-    
-/* UARTx_LSR Masks										*/ 
+
+/* UARTx_LSR Masks										*/
 #define DR			0x01	/* Data Ready				*/
 #define OE			0x02	/* Overrun Error			*/
 #define PE			0x04	/* Parity Error				*/
@@ -1183,27 +1157,26 @@
 #define BI			0x10	/* Break Interrupt			*/
 #define THRE		0x20	/* THR Empty				*/
 #define TEMT		0x40	/* TSR and UART_THR Empty	*/
-    
-/* UARTx_IER Masks															*/ 
+
+/* UARTx_IER Masks															*/
 #define ERBFI		0x01		/* Enable Receive Buffer Full Interrupt		*/
 #define ETBEI		0x02		/* Enable Transmit Buffer Empty Interrupt	*/
 #define ELSI		0x04		/* Enable RX Status Interrupt				*/
-    
-/* UARTx_IIR Masks														*/ 
+
+/* UARTx_IIR Masks														*/
 #define NINT		0x01		/* Pending Interrupt					*/
-/*#define STATUS		0x06		 Highest Priority Pending Interrupt	 Conflicting name  mh */ 
-    
-/* UARTx_GCTL Masks													*/ 
+/*#define STATUS		0x06		 Highest Priority Pending Interrupt	 Conflicting name  mh */
+
+/* UARTx_GCTL Masks													*/
 #define UCEN		0x01		/* Enable UARTx Clocks				*/
 #define IREN		0x02		/* Enable IrDA Mode					*/
 #define TPOLC		0x04		/* IrDA TX Polarity Change			*/
 #define RPOLC		0x08		/* IrDA RX Polarity Change			*/
 #define FPE			0x10		/* Force Parity Error On Transmit	*/
 #define FFE			0x20		/* Force Framing Error On Transmit	*/
-    
 
-/* ***********  SERIAL PERIPHERAL INTERFACE (SPI) MASKS  ****************************/ 
-/* SPI_CTL Masks																	*/ 
+/* ***********  SERIAL PERIPHERAL INTERFACE (SPI) MASKS  ****************************/
+/* SPI_CTL Masks																	*/
 #define	TIMOD		0x0003		/* Transfer Initiate Mode							*/
 #define RDBR_CORE	0x0000		/* 		RDBR Read Initiates, IRQ When RDBR Full		*/
 #define	TDBR_CORE	0x0001		/* 		TDBR Write Initiates, IRQ When TDBR Empty	*/
@@ -1220,8 +1193,8 @@
 #define MSTR		0x1000		/* Master/Slave*									*/
 #define WOM			0x2000		/* Write Open Drain Master							*/
 #define SPE			0x4000		/* SPI Enable										*/
-    
-/* SPI_FLG Masks																	*/ 
+
+/* SPI_FLG Masks																	*/
 #define FLS1		0x0002		/* Enables SPI_FLOUT1 as SPI Slave-Select Output	*/
 #define FLS2		0x0004		/* Enables SPI_FLOUT2 as SPI Slave-Select Output	*/
 #define FLS3		0x0008		/* Enables SPI_FLOUT3 as SPI Slave-Select Output	*/
@@ -1236,8 +1209,8 @@
 #define FLG5		0xDFFF		/* Activates SPI_FLOUT5								*/
 #define FLG6		0xBFFF		/* Activates SPI_FLOUT6								*/
 #define FLG7		0x7FFF		/* Activates SPI_FLOUT7								*/
-    
-/* SPI_STAT Masks																				*/ 
+
+/* SPI_STAT Masks																				*/
 #define SPIF		0x0001		/* SPI Finished (Single-Word Transfer Complete)					*/
 #define MODF		0x0002		/* Mode Fault Error (Another Device Tried To Become Master)		*/
 #define TXE			0x0004		/* Transmission Error (Data Sent With No New Data In TDBR)		*/
@@ -1245,10 +1218,9 @@
 #define RBSY		0x0010		/* Receive Error (Data Received With RDBR Full)					*/
 #define RXS			0x0020		/* SPI_RDBR Data Buffer Status (Full/Empty*)					*/
 #define TXCOL		0x0040		/* Transmit Collision Error (Corrupt Data May Have Been Sent)	*/
-    
 
-/*  ****************  GENERAL PURPOSE TIMER MASKS  **********************/ 
-/* TIMER_ENABLE Masks													*/ 
+/*  ****************  GENERAL PURPOSE TIMER MASKS  **********************/
+/* TIMER_ENABLE Masks													*/
 #define TIMEN0			0x0001		/* Enable Timer 0					*/
 #define TIMEN1			0x0002		/* Enable Timer 1					*/
 #define TIMEN2			0x0004		/* Enable Timer 2					*/
@@ -1257,8 +1229,8 @@
 #define TIMEN5			0x0020		/* Enable Timer 5					*/
 #define TIMEN6			0x0040		/* Enable Timer 6					*/
 #define TIMEN7			0x0080		/* Enable Timer 7					*/
-    
-/* TIMER_DISABLE Masks													*/ 
+
+/* TIMER_DISABLE Masks													*/
 #define TIMDIS0			TIMEN0		/* Disable Timer 0					*/
 #define TIMDIS1			TIMEN1		/* Disable Timer 1					*/
 #define TIMDIS2			TIMEN2		/* Disable Timer 2					*/
@@ -1267,8 +1239,8 @@
 #define TIMDIS5			TIMEN5		/* Disable Timer 5					*/
 #define TIMDIS6			TIMEN6		/* Disable Timer 6					*/
 #define TIMDIS7			TIMEN7		/* Disable Timer 7					*/
-    
-/* TIMER_STATUS Masks													*/ 
+
+/* TIMER_STATUS Masks													*/
 #define TIMIL0			0x00000001	/* Timer 0 Interrupt				*/
 #define TIMIL1			0x00000002	/* Timer 1 Interrupt				*/
 #define TIMIL2			0x00000004	/* Timer 2 Interrupt				*/
@@ -1293,8 +1265,8 @@
 #define TRUN5			0x20000000	/* Timer 5 Slave Enable Status		*/
 #define TRUN6			0x40000000	/* Timer 6 Slave Enable Status		*/
 #define TRUN7			0x80000000	/* Timer 7 Slave Enable Status		*/
-    
-/* TIMERx_CONFIG Masks													*/ 
+
+/* TIMERx_CONFIG Masks													*/
 #define PWM_OUT			0x0001	/* Pulse-Width Modulation Output Mode	*/
 #define WDTH_CAP		0x0002	/* Width Capture Input Mode				*/
 #define EXT_CLK			0x0003	/* External Clock Mode					*/
@@ -1307,11 +1279,10 @@
 #define TOGGLE_HI		0x0100	/* PWM_OUT PULSE_HI Toggle Mode			*/
 #define EMU_RUN			0x0200	/* Emulation Behavior Select			*/
 #define ERR_TYP			0xC000	/* Error Type							*/
-    
 
-/* ******************   GPIO PORTS F, G, H MASKS  ***********************/ 
-/*  General Purpose IO (0xFFC00700 - 0xFFC007FF)  Masks 				*/ 
-/* Port F Masks 														*/ 
+/* ******************   GPIO PORTS F, G, H MASKS  ***********************/
+/*  General Purpose IO (0xFFC00700 - 0xFFC007FF)  Masks 				*/
+/* Port F Masks 														*/
 #define PF0		0x0001
 #define PF1		0x0002
 #define PF2		0x0004
@@ -1328,8 +1299,8 @@
 #define PF13	0x2000
 #define PF14	0x4000
 #define PF15	0x8000
-    
-/* Port G Masks															*/ 
+
+/* Port G Masks															*/
 #define PG0		0x0001
 #define PG1		0x0002
 #define PG2		0x0004
@@ -1346,8 +1317,8 @@
 #define PG13	0x2000
 #define PG14	0x4000
 #define PG15	0x8000
-    
-/* Port H Masks															*/ 
+
+/* Port H Masks															*/
 #define PH0		0x0001
 #define PH1		0x0002
 #define PH2		0x0004
@@ -1364,10 +1335,9 @@
 #define PH13	0x2000
 #define PH14	0x4000
 #define PH15	0x8000
-    
 
-/* *******************  SERIAL PORT MASKS  **************************************/ 
-/* SPORTx_TCR1 Masks															*/ 
+/* *******************  SERIAL PORT MASKS  **************************************/
+/* SPORTx_TCR1 Masks															*/
 #define TSPEN		0x0001		/* Transmit Enable								*/
 #define ITCLK		0x0002		/* Internal Transmit Clock Select				*/
 #define DTYPE_NORM	0x0004		/* Data Format Normal							*/
@@ -1380,14 +1350,14 @@
 #define LTFS		0x1000		/* Low Transmit Frame Sync Select				*/
 #define LATFS		0x2000		/* Late Transmit Frame Sync Select				*/
 #define TCKFE		0x4000		/* Clock Falling Edge Select					*/
-    
-/* SPORTx_TCR2 Masks and Macro													*/ 
+
+/* SPORTx_TCR2 Masks and Macro													*/
 #define SLEN(x)		((x)&0x1F)	/* SPORT TX Word Length (2 - 31)				*/
 #define TXSE		0x0100		/* TX Secondary Enable							*/
 #define TSFSE		0x0200		/* Transmit Stereo Frame Sync Enable			*/
 #define TRFST		0x0400		/* Left/Right Order (1 = Right Channel 1st)		*/
-    
-/* SPORTx_RCR1 Masks															*/ 
+
+/* SPORTx_RCR1 Masks															*/
 #define RSPEN		0x0001		/* Receive Enable 								*/
 #define IRCLK		0x0002		/* Internal Receive Clock Select 				*/
 #define DTYPE_NORM	0x0004		/* Data Format Normal							*/
@@ -1399,14 +1369,14 @@
 #define LRFS		0x1000		/* Low Receive Frame Sync Select 				*/
 #define LARFS		0x2000		/* Late Receive Frame Sync Select 				*/
 #define RCKFE		0x4000		/* Clock Falling Edge Select 					*/
-    
-/* SPORTx_RCR2 Masks															*/ 
+
+/* SPORTx_RCR2 Masks															*/
 #define SLEN(x)		((x)&0x1F)	/* SPORT RX Word Length (2 - 31)				*/
 #define RXSE		0x0100		/* RX Secondary Enable							*/
 #define RSFSE		0x0200		/* RX Stereo Frame Sync Enable					*/
 #define RRFST		0x0400		/* Right-First Data Order 						*/
-    
-/* SPORTx_STAT Masks															*/ 
+
+/* SPORTx_STAT Masks															*/
 #define RXNE		0x0001		/* Receive FIFO Not Empty Status				*/
 #define RUVF		0x0002		/* Sticky Receive Underflow Status				*/
 #define ROVF		0x0004		/* Sticky Receive Overflow Status				*/
@@ -1414,14 +1384,14 @@
 #define TUVF		0x0010		/* Sticky Transmit Underflow Status				*/
 #define TOVF		0x0020		/* Sticky Transmit Overflow Status				*/
 #define TXHRE		0x0040		/* Transmit Hold Register Empty					*/
-    
-/* SPORTx_MCMC1 Macros															*/ 
+
+/* SPORTx_MCMC1 Macros															*/
 #define SP_WOFF(x)		((x) & 0x3FF) 	/* Multichannel Window Offset Field			*/
-    
-/* Only use WSIZE Macro With Logic OR While Setting Lower Order Bits						*/ 
+
+/* Only use WSIZE Macro With Logic OR While Setting Lower Order Bits						*/
 #define SP_WSIZE(x)	(((((x)>>0x3)-1)&0xF) << 0xC)	/* Multichannel Window Size = (x/8)-1	*/
-    
-/* SPORTx_MCMC2 Masks															*/ 
+
+/* SPORTx_MCMC2 Masks															*/
 #define REC_BYPASS	0x0000		/* Bypass Mode (No Clock Recovery)				*/
 #define REC_2FROM4	0x0002		/* Recover 2 MHz Clock from 4 MHz Clock			*/
 #define REC_8FROM16	0x0003		/* Recover 8 MHz Clock from 16 MHz Clock		*/
@@ -1445,18 +1415,17 @@
 #define MFD_13		0xD000		/* Multichannel Frame Delay = 13				*/
 #define MFD_14		0xE000		/* Multichannel Frame Delay = 14				*/
 #define MFD_15		0xF000		/* Multichannel Frame Delay = 15				*/
-    
 
-/* *********************  ASYNCHRONOUS MEMORY CONTROLLER MASKS  *************************/ 
-/* EBIU_AMGCTL Masks																	*/ 
+/* *********************  ASYNCHRONOUS MEMORY CONTROLLER MASKS  *************************/
+/* EBIU_AMGCTL Masks																	*/
 #define AMCKEN			0x0001		/* Enable CLKOUT									*/
 #define	AMBEN_NONE		0x0000		/* All Banks Disabled								*/
 #define AMBEN_B0		0x0002		/* Enable Async Memory Bank 0 only					*/
 #define AMBEN_B0_B1		0x0004		/* Enable Async Memory Banks 0 & 1 only				*/
 #define AMBEN_B0_B1_B2	0x0006		/* Enable Async Memory Banks 0, 1, and 2			*/
 #define AMBEN_ALL		0x0008		/* Enable Async Memory Banks (all) 0, 1, 2, and 3	*/
-    
-/* EBIU_AMBCTL0 Masks																	*/ 
+
+/* EBIU_AMBCTL0 Masks																	*/
 #define B0RDYEN			0x00000001  /* Bank 0 (B0) RDY Enable							*/
 #define B0RDYPOL		0x00000002  /* B0 RDY Active High								*/
 #define B0TT_1			0x00000004  /* B0 Transition Time (Read to Write) = 1 cycle		*/
@@ -1501,7 +1470,7 @@
 #define B0WAT_13		0x0000D000  /* B0 Write Access Time = 13 cycles					*/
 #define B0WAT_14		0x0000E000  /* B0 Write Access Time = 14 cycles					*/
 #define B0WAT_15		0x0000F000  /* B0 Write Access Time = 15 cycles					*/
-    
+
 #define B1RDYEN			0x00010000  /* Bank 1 (B1) RDY Enable                       	*/
 #define B1RDYPOL		0x00020000  /* B1 RDY Active High                           	*/
 #define B1TT_1			0x00040000  /* B1 Transition Time (Read to Write) = 1 cycle 	*/
@@ -1546,8 +1515,8 @@
 #define B1WAT_13		0xD0000000  /* B1 Write Access Time = 13 cycles					*/
 #define B1WAT_14		0xE0000000  /* B1 Write Access Time = 14 cycles					*/
 #define B1WAT_15		0xF0000000  /* B1 Write Access Time = 15 cycles					*/
-    
-/* EBIU_AMBCTL1 Masks																	*/ 
+
+/* EBIU_AMBCTL1 Masks																	*/
 #define B2RDYEN			0x00000001  /* Bank 2 (B2) RDY Enable							*/
 #define B2RDYPOL		0x00000002  /* B2 RDY Active High								*/
 #define B2TT_1			0x00000004  /* B2 Transition Time (Read to Write) = 1 cycle		*/
@@ -1592,7 +1561,7 @@
 #define B2WAT_13		0x0000D000  /* B2 Write Access Time = 13 cycles					*/
 #define B2WAT_14		0x0000E000  /* B2 Write Access Time = 14 cycles					*/
 #define B2WAT_15		0x0000F000  /* B2 Write Access Time = 15 cycles					*/
-    
+
 #define B3RDYEN			0x00010000  /* Bank 3 (B3) RDY Enable							*/
 #define B3RDYPOL		0x00020000  /* B3 RDY Active High								*/
 #define B3TT_1			0x00040000  /* B3 Transition Time (Read to Write) = 1 cycle		*/
@@ -1637,10 +1606,9 @@
 #define B3WAT_13		0xD0000000  /* B3 Write Access Time = 13 cycles					*/
 #define B3WAT_14		0xE0000000  /* B3 Write Access Time = 14 cycles					*/
 #define B3WAT_15		0xF0000000  /* B3 Write Access Time = 15 cycles					*/
-    
 
-/* **********************  SDRAM CONTROLLER MASKS  **********************************************/ 
-/* EBIU_SDGCTL Masks																			*/ 
+/* **********************  SDRAM CONTROLLER MASKS  **********************************************/
+/* EBIU_SDGCTL Masks																			*/
 #define SCTLE			0x00000001	/* Enable SDRAM Signals										*/
 #define CL_2			0x00000008	/* SDRAM CAS Latency = 2 cycles								*/
 #define CL_3			0x0000000C	/* SDRAM CAS Latency = 3 cycles								*/
@@ -1688,8 +1656,8 @@
 #define EMREN			0x10000000	/* Extended Mode Register Enable							*/
 #define TCSR			0x20000000	/* Temp-Compensated Self-Refresh Value (85/45* Deg C)		*/
 #define CDDBG			0x40000000	/* Tristate SDRAM Controls During Bus Grant					*/
-    
-/* EBIU_SDBCTL Masks																		*/ 
+
+/* EBIU_SDBCTL Masks																		*/
 #define EBE				0x0001		/* Enable SDRAM External Bank							*/
 #define EBSZ_16			0x0000		/* SDRAM External Bank Size = 16MB						*/
 #define EBSZ_32			0x0002		/* SDRAM External Bank Size = 32MB						*/
@@ -1699,18 +1667,17 @@
 #define EBCAW_9			0x0010		/* SDRAM External Bank Column Address Width = 9 Bits	*/
 #define EBCAW_10		0x0020		/* SDRAM External Bank Column Address Width = 10 Bits	*/
 #define EBCAW_11		0x0030		/* SDRAM External Bank Column Address Width = 11 Bits	*/
-    
-/* EBIU_SDSTAT Masks														*/ 
+
+/* EBIU_SDSTAT Masks														*/
 #define SDCI			0x0001		/* SDRAM Controller Idle 				*/
 #define SDSRA			0x0002		/* SDRAM Self-Refresh Active			*/
 #define SDPUA			0x0004		/* SDRAM Power-Up Active 				*/
 #define SDRS			0x0008		/* SDRAM Will Power-Up On Next Access	*/
 #define SDEASE			0x0010		/* SDRAM EAB Sticky Error Status		*/
 #define BGSTAT			0x0020		/* Bus Grant Status						*/
-    
 
-/* **************************  DMA CONTROLLER MASKS  ********************************/ 
-/* DMAx_CONFIG, MDMA_yy_CONFIG Masks												*/ 
+/* **************************  DMA CONTROLLER MASKS  ********************************/
+/* DMAx_CONFIG, MDMA_yy_CONFIG Masks												*/
 #define DMAEN			0x0001		/* DMA Channel Enable							*/
 #define WNR				0x0002		/* Channel Direction (W/R*)						*/
 #define WDSIZE_8		0x0000		/* Transfer Word Size = 8						*/
@@ -1732,13 +1699,13 @@
 #define NDSIZE_9		0x0900		/* Next Descriptor Size = 9						*/
 #define NDSIZE	        	0x0900  	/* Next Descriptor Size */
 #define FLOW	        	0x7000  	/* Flow Control */
-/* #define FLOW_STOP		0x0000		Stop Mode									*/ 
-/* #define FLOW_AUTO		0x1000		Autobuffer Mode								*/ 
-/* #define FLOW_ARRAY		0x4000		Descriptor Array Mode						*/ 
-/* #define FLOW_SMALL		0x6000		Small Model Descriptor List Mode				*/ 
-/* #define FLOW_LARGE		0x7000		Large Model Descriptor List Mode				*/ 
-    
-/* DMAx_PERIPHERAL_MAP, MDMA_yy_PERIPHERAL_MAP Masks								*/ 
+/* #define FLOW_STOP		0x0000		Stop Mode									*/
+/* #define FLOW_AUTO		0x1000		Autobuffer Mode								*/
+/* #define FLOW_ARRAY		0x4000		Descriptor Array Mode						*/
+/* #define FLOW_SMALL		0x6000		Small Model Descriptor List Mode				*/
+/* #define FLOW_LARGE		0x7000		Large Model Descriptor List Mode				*/
+
+/* DMAx_PERIPHERAL_MAP, MDMA_yy_PERIPHERAL_MAP Masks								*/
 #define CTYPE			0x0040	/* DMA Channel Type Indicator (Memory/Peripheral*)	*/
 #define PMAP			0xF000	/* Peripheral Mapped To This Channel				*/
 #define PMAP_PPI		0x0000	/* 		PPI Port DMA								*/
@@ -1753,16 +1720,15 @@
 #define PMAP_UART0TX	0x9000	/* 		UART0 Port Transmit DMA						*/
 #define	PMAP_UART1RX	0xA000	/* 		UART1 Port Receive DMA						*/
 #define	PMAP_UART1TX	0xB000	/* 		UART1 Port Transmit DMA						*/
-    
-/* DMAx_IRQ_STATUS, MDMA_yy_IRQ_STATUS Masks						*/ 
+
+/* DMAx_IRQ_STATUS, MDMA_yy_IRQ_STATUS Masks						*/
 #define DMA_DONE		0x0001	/* DMA Completion Interrupt Status	*/
 #define DMA_ERR			0x0002	/* DMA Error Interrupt Status		*/
 #define DFETCH			0x0004	/* DMA Descriptor Fetch Indicator	*/
 #define DMA_RUN			0x0008	/* DMA Channel Running Indicator	*/
-    
 
-/*  ************  PARALLEL PERIPHERAL INTERFACE (PPI) MASKS *************/ 
-/*  PPI_CONTROL Masks													*/ 
+/*  ************  PARALLEL PERIPHERAL INTERFACE (PPI) MASKS *************/
+/*  PPI_CONTROL Masks													*/
 #define PORT_EN			0x0001		/* PPI Port Enable					*/
 #define PORT_DIR		0x0002		/* PPI Port Direction				*/
 #define XFR_TYPE		0x000C		/* PPI Transfer Type				*/
@@ -1782,38 +1748,37 @@
 #define DLEN_16			0x3800		/* Data Length = 16 Bits			*/
 #define POLC			0x4000		/* PPI Clock Polarity				*/
 #define POLS			0x8000		/* PPI Frame Sync Polarity			*/
-    
-/* PPI_STATUS Masks														*/ 
+
+/* PPI_STATUS Masks														*/
 #define FLD				0x0400		/* Field Indicator					*/
 #define FT_ERR			0x0800		/* Frame Track Error				*/
 #define OVR				0x1000		/* FIFO Overflow Error				*/
 #define UNDR			0x2000		/* FIFO Underrun Error				*/
 #define ERR_DET			0x4000		/* Error Detected Indicator			*/
 #define ERR_NCOR		0x8000		/* Error Not Corrected Indicator	*/
-    
 
-/*  ********************  TWO-WIRE INTERFACE (TWI) MASKS  ***********************/ 
-/* TWI_CLKDIV Macros (Use: *pTWI_CLKDIV = CLKLOW(x)|CLKHI(y);  )				*/ 
+/*  ********************  TWO-WIRE INTERFACE (TWI) MASKS  ***********************/
+/* TWI_CLKDIV Macros (Use: *pTWI_CLKDIV = CLKLOW(x)|CLKHI(y);  )				*/
 #define	CLKLOW(x)	((x) & 0xFF)		/* Periods Clock Is Held Low			*/
 #define CLKHI(y)	(((y)&0xFF)<<0x8)	/* Periods Before New Clock Low			*/
-    
-/* TWI_PRESCALE Masks															*/ 
+
+/* TWI_PRESCALE Masks															*/
 #define	PRESCALE	0x007F		/* SCLKs Per Internal Time Reference (10MHz)	*/
 #define	TWI_ENA		0x0080		/* TWI Enable									*/
 #define	SCCB		0x0200		/* SCCB Compatibility Enable					*/
-    
-/* TWI_SLAVE_CTRL Masks															*/ 
+
+/* TWI_SLAVE_CTRL Masks															*/
 #define	SEN			0x0001		/* Slave Enable									*/
 #define	SADD_LEN	0x0002		/* Slave Address Length							*/
 #define	STDVAL		0x0004		/* Slave Transmit Data Valid					*/
 #define	NAK			0x0008		/* NAK/ACK* Generated At Conclusion Of Transfer */
 #define	GEN			0x0010		/* General Call Adrress Matching Enabled		*/
-    
-/* TWI_SLAVE_STAT Masks															*/ 
+
+/* TWI_SLAVE_STAT Masks															*/
 #define	SDIR		0x0001		/* Slave Transfer Direction (Transmit/Receive*)	*/
 #define GCALL		0x0002		/* General Call Indicator						*/
-    
-/* TWI_MASTER_CTRL Masks													*/ 
+
+/* TWI_MASTER_CTRL Masks													*/
 #define	MEN			0x0001		/* Master Mode Enable						*/
 #define	MADD_LEN	0x0002		/* Master Address Length					*/
 #define	MDIR		0x0004		/* Master Transmit Direction (RX/TX*)		*/
@@ -1823,8 +1788,8 @@
 #define	DCNT		0x3FC0		/* Data Bytes To Transfer					*/
 #define	SDAOVR		0x4000		/* Serial Data Override						*/
 #define	SCLOVR		0x8000		/* Serial Clock Override					*/
-    
-/* TWI_MASTER_STAT Masks														*/ 
+
+/* TWI_MASTER_STAT Masks														*/
 #define	MPROG		0x0001		/* Master Transfer In Progress					*/
 #define	LOSTARB		0x0002		/* Lost Arbitration Indicator (Xfer Aborted)	*/
 #define	ANAK		0x0004		/* Address Not Acknowledged						*/
@@ -1834,8 +1799,8 @@
 #define	SDASEN		0x0040		/* Serial Data Sense							*/
 #define	SCLSEN		0x0080		/* Serial Clock Sense							*/
 #define	BUSBUSY		0x0100		/* Bus Busy Indicator							*/
-    
-/* TWI_INT_SRC and TWI_INT_ENABLE Masks						*/ 
+
+/* TWI_INT_SRC and TWI_INT_ENABLE Masks						*/
 #define	SINIT		0x0001		/* Slave Transfer Initiated	*/
 #define	SCOMP		0x0002		/* Slave Transfer Complete	*/
 #define	SERR		0x0004		/* Slave Transfer Error		*/
@@ -1844,27 +1809,26 @@
 #define	MERR		0x0020		/* Master Transfer Error	*/
 #define	XMTSERV		0x0040		/* Transmit FIFO Service	*/
 #define	RCVSERV		0x0080		/* Receive FIFO Service		*/
-    
-/* TWI_FIFO_CTRL Masks												*/ 
+
+/* TWI_FIFO_CTRL Masks												*/
 #define	XMTFLUSH	0x0001		/* Transmit Buffer Flush			*/
 #define	RCVFLUSH	0x0002		/* Receive Buffer Flush				*/
 #define	XMTINTLEN	0x0004		/* Transmit Buffer Interrupt Length	*/
 #define	RCVINTLEN	0x0008		/* Receive Buffer Interrupt Length	*/
-    
-/* TWI_FIFO_STAT Masks															*/ 
+
+/* TWI_FIFO_STAT Masks															*/
 #define	XMTSTAT		0x0003		/* Transmit FIFO Status							*/
 #define	XMT_EMPTY	0x0000		/* 		Transmit FIFO Empty						*/
 #define	XMT_HALF	0x0001		/* 		Transmit FIFO Has 1 Byte To Write		*/
 #define	XMT_FULL	0x0003		/* 		Transmit FIFO Full (2 Bytes To Write)	*/
-    
+
 #define	RCVSTAT		0x000C		/* Receive FIFO Status							*/
 #define	RCV_EMPTY	0x0000		/* 		Receive FIFO Empty						*/
 #define	RCV_HALF	0x0004		/* 		Receive FIFO Has 1 Byte To Read			*/
 #define	RCV_FULL	0x000C		/* 		Receive FIFO Full (2 Bytes To Read)		*/
-    
 
-/* ************  CONTROLLER AREA NETWORK (CAN) MASKS  ***************/ 
-/* CAN_CONTROL Masks												*/ 
+/* ************  CONTROLLER AREA NETWORK (CAN) MASKS  ***************/
+/* CAN_CONTROL Masks												*/
 #define	SRS			0x0001	/* Software Reset						*/
 #define	DNM			0x0002	/* Device Net Mode						*/
 #define	ABO			0x0004	/* Auto-Bus On Enable					*/
@@ -1873,8 +1837,8 @@
 #define	SMR			0x0020	/* Sleep Mode Request					*/
 #define	CSR			0x0040	/* CAN Suspend Mode Request				*/
 #define	CCR			0x0080	/* CAN Configuration Mode Request		*/
-    
-/* CAN_STATUS Masks												*/ 
+
+/* CAN_STATUS Masks												*/
 #define	WT			0x0001	/* TX Warning Flag					*/
 #define	WR			0x0002	/* RX Warning Flag					*/
 #define	EP			0x0004	/* Error Passive Mode				*/
@@ -1885,17 +1849,17 @@
 #define	MBPTR		0x1F00	/* Mailbox Pointer					*/
 #define	TRM			0x4000	/* Transmit Mode					*/
 #define	REC			0x8000	/* Receive Mode						*/
-    
-/* CAN_CLOCK Masks									*/ 
+
+/* CAN_CLOCK Masks									*/
 #define	BRP			0x03FF	/* Bit-Rate Pre-Scaler	*/
-    
-/* CAN_TIMING Masks											*/ 
+
+/* CAN_TIMING Masks											*/
 #define	TSEG1		0x000F	/* Time Segment 1				*/
 #define	TSEG2		0x0070	/* Time Segment 2				*/
 #define	SAM			0x0080	/* Sampling						*/
 #define	SJW			0x0300	/* Synchronization Jump Width	*/
-    
-/* CAN_DEBUG Masks											*/ 
+
+/* CAN_DEBUG Masks											*/
 #define	DEC			0x0001	/* Disable CAN Error Counters	*/
 #define	DRI			0x0002	/* Disable CAN RX Input			*/
 #define	DTO			0x0004	/* Disable CAN TX Output		*/
@@ -1903,20 +1867,20 @@
 #define	MAA			0x0010	/* Mode Auto-Acknowledge Enable	*/
 #define	MRB			0x0020	/* Mode Read Back Enable		*/
 #define	CDE			0x8000	/* CAN Debug Enable				*/
-    
-/* CAN_CEC Masks										*/ 
+
+/* CAN_CEC Masks										*/
 #define	RXECNT		0x00FF	/* Receive Error Counter	*/
 #define	TXECNT		0xFF00	/* Transmit Error Counter	*/
-    
-/* CAN_INTR Masks											*/ 
+
+/* CAN_INTR Masks											*/
 #define	MBRIF		0x0001	/* Mailbox Receive Interrupt	*/
 #define	MBTIF		0x0002	/* Mailbox Transmit Interrupt	*/
 #define	GIRQ		0x0004	/* Global Interrupt				*/
 #define	SMACK		0x0008	/* Sleep Mode Acknowledge		*/
 #define	CANTX		0x0040	/* CAN TX Bus Value				*/
 #define	CANRX		0x0080	/* CAN RX Bus Value				*/
-    
-/* CAN_MBxx_ID1 and CAN_MBxx_ID0 Masks										*/ 
+
+/* CAN_MBxx_ID1 and CAN_MBxx_ID0 Masks										*/
 #define DFC			0xFFFF	/* Data Filtering Code (If Enabled) (ID0)		*/
 #define	EXTID_LO	0xFFFF	/* Lower 16 Bits of Extended Identifier (ID0)	*/
 #define	EXTID_HI	0x0003	/* Upper 2 Bits of Extended Identifier (ID1)	*/
@@ -1924,14 +1888,14 @@
 #define	IDE			0x2000	/* Identifier Extension							*/
 #define	RTR			0x4000	/* Remote Frame Transmission Request			*/
 #define	AME			0x8000	/* Acceptance Mask Enable						*/
-    
-/* CAN_MBxx_TIMESTAMP Masks					*/ 
+
+/* CAN_MBxx_TIMESTAMP Masks					*/
 #define TSV			0xFFFF	/* Timestamp	*/
-    
-/* CAN_MBxx_LENGTH Masks						*/ 
+
+/* CAN_MBxx_LENGTH Masks						*/
 #define DLC			0x000F	/* Data Length Code	*/
-    
-/* CAN_AMxxH and CAN_AMxxL Masks												*/ 
+
+/* CAN_AMxxH and CAN_AMxxL Masks												*/
 #define DFM			0xFFFF	/* Data Field Mask (If Enabled) (CAN_AMxxL)			*/
 #define	EXTID_LO	0xFFFF	/* Lower 16 Bits of Extended Identifier (CAN_AMxxL)	*/
 #define	EXTID_HI	0x0003	/* Upper 2 Bits of Extended Identifier (CAN_AMxxH)	*/
@@ -1939,8 +1903,8 @@
 #define	AMIDE		0x2000	/* Acceptance Mask ID Extension Enable				*/
 #define	FMD			0x4000	/* Full Mask Data Field Enable						*/
 #define	FDF			0x8000	/* Filter On Data Field Enable						*/
-    
-/* CAN_MC1 Masks									*/ 
+
+/* CAN_MC1 Masks									*/
 #define	MC0			0x0001	/* Enable Mailbox 0		*/
 #define	MC1			0x0002	/* Enable Mailbox 1		*/
 #define	MC2			0x0004	/* Enable Mailbox 2		*/
@@ -1957,8 +1921,8 @@
 #define	MC13		0x2000	/* Enable Mailbox 13	*/
 #define	MC14		0x4000	/* Enable Mailbox 14	*/
 #define	MC15		0x8000	/* Enable Mailbox 15	*/
-    
-/* CAN_MC2 Masks									*/ 
+
+/* CAN_MC2 Masks									*/
 #define	MC16		0x0001	/* Enable Mailbox 16	*/
 #define	MC17		0x0002	/* Enable Mailbox 17	*/
 #define	MC18		0x0004	/* Enable Mailbox 18	*/
@@ -1975,8 +1939,8 @@
 #define	MC29		0x2000	/* Enable Mailbox 29	*/
 #define	MC30		0x4000	/* Enable Mailbox 30	*/
 #define	MC31		0x8000	/* Enable Mailbox 31	*/
-    
-/* CAN_MD1 Masks												*/ 
+
+/* CAN_MD1 Masks												*/
 #define	MD0			0x0001	/* Enable Mailbox 0 For Receive		*/
 #define	MD1			0x0002	/* Enable Mailbox 1 For Receive		*/
 #define	MD2			0x0004	/* Enable Mailbox 2 For Receive		*/
@@ -1993,8 +1957,8 @@
 #define	MD13		0x2000	/* Enable Mailbox 13 For Receive	*/
 #define	MD14		0x4000	/* Enable Mailbox 14 For Receive	*/
 #define	MD15		0x8000	/* Enable Mailbox 15 For Receive	*/
-    
-/* CAN_MD2 Masks												*/ 
+
+/* CAN_MD2 Masks												*/
 #define	MD16		0x0001	/* Enable Mailbox 16 For Receive	*/
 #define	MD17		0x0002	/* Enable Mailbox 17 For Receive	*/
 #define	MD18		0x0004	/* Enable Mailbox 18 For Receive	*/
@@ -2011,8 +1975,8 @@
 #define	MD29		0x2000	/* Enable Mailbox 29 For Receive	*/
 #define	MD30		0x4000	/* Enable Mailbox 30 For Receive	*/
 #define	MD31		0x8000	/* Enable Mailbox 31 For Receive	*/
-    
-/* CAN_RMP1 Masks												*/ 
+
+/* CAN_RMP1 Masks												*/
 #define	RMP0		0x0001	/* RX Message Pending In Mailbox 0	*/
 #define	RMP1		0x0002	/* RX Message Pending In Mailbox 1	*/
 #define	RMP2		0x0004	/* RX Message Pending In Mailbox 2	*/
@@ -2029,8 +1993,8 @@
 #define	RMP13		0x2000	/* RX Message Pending In Mailbox 13	*/
 #define	RMP14		0x4000	/* RX Message Pending In Mailbox 14	*/
 #define	RMP15		0x8000	/* RX Message Pending In Mailbox 15	*/
-    
-/* CAN_RMP2 Masks												*/ 
+
+/* CAN_RMP2 Masks												*/
 #define	RMP16		0x0001	/* RX Message Pending In Mailbox 16	*/
 #define	RMP17		0x0002	/* RX Message Pending In Mailbox 17	*/
 #define	RMP18		0x0004	/* RX Message Pending In Mailbox 18	*/
@@ -2047,8 +2011,8 @@
 #define	RMP29		0x2000	/* RX Message Pending In Mailbox 29	*/
 #define	RMP30		0x4000	/* RX Message Pending In Mailbox 30	*/
 #define	RMP31		0x8000	/* RX Message Pending In Mailbox 31	*/
-    
-/* CAN_RML1 Masks												*/ 
+
+/* CAN_RML1 Masks												*/
 #define	RML0		0x0001	/* RX Message Lost In Mailbox 0		*/
 #define	RML1		0x0002	/* RX Message Lost In Mailbox 1		*/
 #define	RML2		0x0004	/* RX Message Lost In Mailbox 2		*/
@@ -2065,8 +2029,8 @@
 #define	RML13		0x2000	/* RX Message Lost In Mailbox 13	*/
 #define	RML14		0x4000	/* RX Message Lost In Mailbox 14	*/
 #define	RML15		0x8000	/* RX Message Lost In Mailbox 15	*/
-    
-/* CAN_RML2 Masks												*/ 
+
+/* CAN_RML2 Masks												*/
 #define	RML16		0x0001	/* RX Message Lost In Mailbox 16	*/
 #define	RML17		0x0002	/* RX Message Lost In Mailbox 17	*/
 #define	RML18		0x0004	/* RX Message Lost In Mailbox 18	*/
@@ -2083,8 +2047,8 @@
 #define	RML29		0x2000	/* RX Message Lost In Mailbox 29	*/
 #define	RML30		0x4000	/* RX Message Lost In Mailbox 30	*/
 #define	RML31		0x8000	/* RX Message Lost In Mailbox 31	*/
-    
-/* CAN_OPSS1 Masks																				*/ 
+
+/* CAN_OPSS1 Masks																				*/
 #define	OPSS0		0x0001	/* Enable RX Overwrite Protection or TX Single-Shot For Mailbox 0	*/
 #define	OPSS1		0x0002	/* Enable RX Overwrite Protection or TX Single-Shot For Mailbox 1	*/
 #define	OPSS2		0x0004	/* Enable RX Overwrite Protection or TX Single-Shot For Mailbox 2	*/
@@ -2101,8 +2065,8 @@
 #define	OPSS13		0x2000	/* Enable RX Overwrite Protection or TX Single-Shot For Mailbox 13	*/
 #define	OPSS14		0x4000	/* Enable RX Overwrite Protection or TX Single-Shot For Mailbox 14	*/
 #define	OPSS15		0x8000	/* Enable RX Overwrite Protection or TX Single-Shot For Mailbox 15	*/
-    
-/* CAN_OPSS2 Masks																				*/ 
+
+/* CAN_OPSS2 Masks																				*/
 #define	OPSS16		0x0001	/* Enable RX Overwrite Protection or TX Single-Shot For Mailbox 16	*/
 #define	OPSS17		0x0002	/* Enable RX Overwrite Protection or TX Single-Shot For Mailbox 17	*/
 #define	OPSS18		0x0004	/* Enable RX Overwrite Protection or TX Single-Shot For Mailbox 18	*/
@@ -2119,8 +2083,8 @@
 #define	OPSS29		0x2000	/* Enable RX Overwrite Protection or TX Single-Shot For Mailbox 29	*/
 #define	OPSS30		0x4000	/* Enable RX Overwrite Protection or TX Single-Shot For Mailbox 30	*/
 #define	OPSS31		0x8000	/* Enable RX Overwrite Protection or TX Single-Shot For Mailbox 31	*/
-    
-/* CAN_TRR1 Masks														*/ 
+
+/* CAN_TRR1 Masks														*/
 #define	TRR0		0x0001	/* Deny But Don't Lock Access To Mailbox 0	*/
 #define	TRR1		0x0002	/* Deny But Don't Lock Access To Mailbox 1	*/
 #define	TRR2		0x0004	/* Deny But Don't Lock Access To Mailbox 2	*/
@@ -2137,8 +2101,8 @@
 #define	TRR13		0x2000	/* Deny But Don't Lock Access To Mailbox 13	*/
 #define	TRR14		0x4000	/* Deny But Don't Lock Access To Mailbox 14	*/
 #define	TRR15		0x8000	/* Deny But Don't Lock Access To Mailbox 15	*/
-    
-/* CAN_TRR2 Masks														*/ 
+
+/* CAN_TRR2 Masks														*/
 #define	TRR16		0x0001	/* Deny But Don't Lock Access To Mailbox 16	*/
 #define	TRR17		0x0002	/* Deny But Don't Lock Access To Mailbox 17	*/
 #define	TRR18		0x0004	/* Deny But Don't Lock Access To Mailbox 18	*/
@@ -2155,8 +2119,8 @@
 #define	TRR29		0x2000	/* Deny But Don't Lock Access To Mailbox 29	*/
 #define	TRR30		0x4000	/* Deny But Don't Lock Access To Mailbox 30	*/
 #define	TRR31		0x8000	/* Deny But Don't Lock Access To Mailbox 31	*/
-    
-/* CAN_TRS1 Masks													*/ 
+
+/* CAN_TRS1 Masks													*/
 #define	TRS0		0x0001	/* Remote Frame Request For Mailbox 0	*/
 #define	TRS1		0x0002	/* Remote Frame Request For Mailbox 1	*/
 #define	TRS2		0x0004	/* Remote Frame Request For Mailbox 2	*/
@@ -2173,8 +2137,8 @@
 #define	TRS13		0x2000	/* Remote Frame Request For Mailbox 13	*/
 #define	TRS14		0x4000	/* Remote Frame Request For Mailbox 14	*/
 #define	TRS15		0x8000	/* Remote Frame Request For Mailbox 15	*/
-    
-/* CAN_TRS2 Masks													*/ 
+
+/* CAN_TRS2 Masks													*/
 #define	TRS16		0x0001	/* Remote Frame Request For Mailbox 16	*/
 #define	TRS17		0x0002	/* Remote Frame Request For Mailbox 17	*/
 #define	TRS18		0x0004	/* Remote Frame Request For Mailbox 18	*/
@@ -2191,8 +2155,8 @@
 #define	TRS29		0x2000	/* Remote Frame Request For Mailbox 29	*/
 #define	TRS30		0x4000	/* Remote Frame Request For Mailbox 30	*/
 #define	TRS31		0x8000	/* Remote Frame Request For Mailbox 31	*/
-    
-/* CAN_AA1 Masks												*/ 
+
+/* CAN_AA1 Masks												*/
 #define	AA0			0x0001	/* Aborted Message In Mailbox 0		*/
 #define	AA1			0x0002	/* Aborted Message In Mailbox 1		*/
 #define	AA2			0x0004	/* Aborted Message In Mailbox 2		*/
@@ -2209,8 +2173,8 @@
 #define	AA13		0x2000	/* Aborted Message In Mailbox 13	*/
 #define	AA14		0x4000	/* Aborted Message In Mailbox 14	*/
 #define	AA15		0x8000	/* Aborted Message In Mailbox 15	*/
-    
-/* CAN_AA2 Masks												*/ 
+
+/* CAN_AA2 Masks												*/
 #define	AA16		0x0001	/* Aborted Message In Mailbox 16	*/
 #define	AA17		0x0002	/* Aborted Message In Mailbox 17	*/
 #define	AA18		0x0004	/* Aborted Message In Mailbox 18	*/
@@ -2227,8 +2191,8 @@
 #define	AA29		0x2000	/* Aborted Message In Mailbox 29	*/
 #define	AA30		0x4000	/* Aborted Message In Mailbox 30	*/
 #define	AA31		0x8000	/* Aborted Message In Mailbox 31	*/
-    
-/* CAN_TA1 Masks													*/ 
+
+/* CAN_TA1 Masks													*/
 #define	TA0			0x0001	/* Transmit Successful From Mailbox 0	*/
 #define	TA1			0x0002	/* Transmit Successful From Mailbox 1	*/
 #define	TA2			0x0004	/* Transmit Successful From Mailbox 2	*/
@@ -2245,8 +2209,8 @@
 #define	TA13		0x2000	/* Transmit Successful From Mailbox 13	*/
 #define	TA14		0x4000	/* Transmit Successful From Mailbox 14	*/
 #define	TA15		0x8000	/* Transmit Successful From Mailbox 15	*/
-    
-/* CAN_TA2 Masks													*/ 
+
+/* CAN_TA2 Masks													*/
 #define	TA16		0x0001	/* Transmit Successful From Mailbox 16	*/
 #define	TA17		0x0002	/* Transmit Successful From Mailbox 17	*/
 #define	TA18		0x0004	/* Transmit Successful From Mailbox 18	*/
@@ -2263,13 +2227,13 @@
 #define	TA29		0x2000	/* Transmit Successful From Mailbox 29	*/
 #define	TA30		0x4000	/* Transmit Successful From Mailbox 30	*/
 #define	TA31		0x8000	/* Transmit Successful From Mailbox 31	*/
-    
-/* CAN_MBTD Masks												*/ 
+
+/* CAN_MBTD Masks												*/
 #define TDPTR		0x001F	/* Mailbox To Temporarily Disable	*/
 #define	TDA			0x0040	/* Temporary Disable Acknowledge	*/
 #define	TDR			0x0080	/* Temporary Disable Request		*/
-    
-/* CAN_RFH1 Masks																		*/ 
+
+/* CAN_RFH1 Masks																		*/
 #define	RFH0		0x0001	/* Enable Automatic Remote Frame Handling For Mailbox 0		*/
 #define	RFH1		0x0002	/* Enable Automatic Remote Frame Handling For Mailbox 1		*/
 #define	RFH2		0x0004	/* Enable Automatic Remote Frame Handling For Mailbox 2		*/
@@ -2286,8 +2250,8 @@
 #define	RFH13		0x2000	/* Enable Automatic Remote Frame Handling For Mailbox 13	*/
 #define	RFH14		0x4000	/* Enable Automatic Remote Frame Handling For Mailbox 14	*/
 #define	RFH15		0x8000	/* Enable Automatic Remote Frame Handling For Mailbox 15	*/
-    
-/* CAN_RFH2 Masks																		*/ 
+
+/* CAN_RFH2 Masks																		*/
 #define	RFH16		0x0001	/* Enable Automatic Remote Frame Handling For Mailbox 16	*/
 #define	RFH17		0x0002	/* Enable Automatic Remote Frame Handling For Mailbox 17	*/
 #define	RFH18		0x0004	/* Enable Automatic Remote Frame Handling For Mailbox 18	*/
@@ -2304,8 +2268,8 @@
 #define	RFH29		0x2000	/* Enable Automatic Remote Frame Handling For Mailbox 29	*/
 #define	RFH30		0x4000	/* Enable Automatic Remote Frame Handling For Mailbox 30	*/
 #define	RFH31		0x8000	/* Enable Automatic Remote Frame Handling For Mailbox 31	*/
-    
-/* CAN_MBTIF1 Masks													*/ 
+
+/* CAN_MBTIF1 Masks													*/
 #define	MBTIF0		0x0001	/* TX Interrupt Active In Mailbox 0		*/
 #define	MBTIF1		0x0002	/* TX Interrupt Active In Mailbox 1		*/
 #define	MBTIF2		0x0004	/* TX Interrupt Active In Mailbox 2		*/
@@ -2322,8 +2286,8 @@
 #define	MBTIF13		0x2000	/* TX Interrupt Active In Mailbox 13	*/
 #define	MBTIF14		0x4000	/* TX Interrupt Active In Mailbox 14	*/
 #define	MBTIF15		0x8000	/* TX Interrupt Active In Mailbox 15	*/
-    
-/* CAN_MBTIF2 Masks													*/ 
+
+/* CAN_MBTIF2 Masks													*/
 #define	MBTIF16		0x0001	/* TX Interrupt Active In Mailbox 16	*/
 #define	MBTIF17		0x0002	/* TX Interrupt Active In Mailbox 17	*/
 #define	MBTIF18		0x0004	/* TX Interrupt Active In Mailbox 18	*/
@@ -2340,8 +2304,8 @@
 #define	MBTIF29		0x2000	/* TX Interrupt Active In Mailbox 29	*/
 #define	MBTIF30		0x4000	/* TX Interrupt Active In Mailbox 30	*/
 #define	MBTIF31		0x8000	/* TX Interrupt Active In Mailbox 31	*/
-    
-/* CAN_MBRIF1 Masks													*/ 
+
+/* CAN_MBRIF1 Masks													*/
 #define	MBRIF0		0x0001	/* RX Interrupt Active In Mailbox 0		*/
 #define	MBRIF1		0x0002	/* RX Interrupt Active In Mailbox 1		*/
 #define	MBRIF2		0x0004	/* RX Interrupt Active In Mailbox 2		*/
@@ -2358,8 +2322,8 @@
 #define	MBRIF13		0x2000	/* RX Interrupt Active In Mailbox 13	*/
 #define	MBRIF14		0x4000	/* RX Interrupt Active In Mailbox 14	*/
 #define	MBRIF15		0x8000	/* RX Interrupt Active In Mailbox 15	*/
-    
-/* CAN_MBRIF2 Masks													*/ 
+
+/* CAN_MBRIF2 Masks													*/
 #define	MBRIF16		0x0001	/* RX Interrupt Active In Mailbox 16	*/
 #define	MBRIF17		0x0002	/* RX Interrupt Active In Mailbox 17	*/
 #define	MBRIF18		0x0004	/* RX Interrupt Active In Mailbox 18	*/
@@ -2376,8 +2340,8 @@
 #define	MBRIF29		0x2000	/* RX Interrupt Active In Mailbox 29	*/
 #define	MBRIF30		0x4000	/* RX Interrupt Active In Mailbox 30	*/
 #define	MBRIF31		0x8000	/* RX Interrupt Active In Mailbox 31	*/
-    
-/* CAN_MBIM1 Masks												*/ 
+
+/* CAN_MBIM1 Masks												*/
 #define	MBIM0		0x0001	/* Enable Interrupt For Mailbox 0	*/
 #define	MBIM1		0x0002	/* Enable Interrupt For Mailbox 1	*/
 #define	MBIM2		0x0004	/* Enable Interrupt For Mailbox 2	*/
@@ -2394,8 +2358,8 @@
 #define	MBIM13		0x2000	/* Enable Interrupt For Mailbox 13	*/
 #define	MBIM14		0x4000	/* Enable Interrupt For Mailbox 14	*/
 #define	MBIM15		0x8000	/* Enable Interrupt For Mailbox 15	*/
-    
-/* CAN_MBIM2 Masks												*/ 
+
+/* CAN_MBIM2 Masks												*/
 #define	MBIM16		0x0001	/* Enable Interrupt For Mailbox 16	*/
 #define	MBIM17		0x0002	/* Enable Interrupt For Mailbox 17	*/
 #define	MBIM18		0x0004	/* Enable Interrupt For Mailbox 18	*/
@@ -2412,8 +2376,8 @@
 #define	MBIM29		0x2000	/* Enable Interrupt For Mailbox 29	*/
 #define	MBIM30		0x4000	/* Enable Interrupt For Mailbox 30	*/
 #define	MBIM31		0x8000	/* Enable Interrupt For Mailbox 31	*/
-    
-/* CAN_GIM Masks																*/ 
+
+/* CAN_GIM Masks																*/
 #define	EWTIM		0x0001	/* Enable TX Error Count Interrupt					*/
 #define	EWRIM		0x0002	/* Enable RX Error Count Interrupt					*/
 #define	EPIM		0x0004	/* Enable Error-Passive Mode Interrupt				*/
@@ -2425,8 +2389,8 @@
 #define	UCEIM		0x0100	/* Enable Universal Counter Overflow Interrupt		*/
 #define	EXTIM		0x0200	/* Enable External Trigger Output Interrupt			*/
 #define	ADIM		0x0400	/* Enable Access Denied Interrupt					*/
-    
-/* CAN_GIS Masks															*/ 
+
+/* CAN_GIS Masks															*/
 #define	EWTIS		0x0001	/* TX Error Count IRQ Status					*/
 #define	EWRIS		0x0002	/* RX Error Count IRQ Status					*/
 #define	EPIS		0x0004	/* Error-Passive Mode IRQ Status				*/
@@ -2438,8 +2402,8 @@
 #define	UCEIS		0x0100	/* Universal Counter Overflow IRQ Status		*/
 #define	EXTIS		0x0200	/* External Trigger Output IRQ Status			*/
 #define	ADIS		0x0400	/* Access Denied IRQ Status						*/
-    
-/* CAN_GIF Masks															*/ 
+
+/* CAN_GIF Masks															*/
 #define	EWTIF		0x0001	/* TX Error Count IRQ Flag						*/
 #define	EWRIF		0x0002	/* RX Error Count IRQ Flag						*/
 #define	EPIF		0x0004	/* Error-Passive Mode IRQ Flag					*/
@@ -2451,8 +2415,8 @@
 #define	UCEIF		0x0100	/* Universal Counter Overflow IRQ Flag			*/
 #define	EXTIF		0x0200	/* External Trigger Output IRQ Flag				*/
 #define	ADIF		0x0400	/* Access Denied IRQ Flag						*/
-    
-/* CAN_UCCNF Masks															*/ 
+
+/* CAN_UCCNF Masks															*/
 #define	UCCNF		0x000F	/* Universal Counter Mode						*/
 #define UC_STAMP	0x0001	/* 		Timestamp Mode							*/
 #define UC_WDOG		0x0002	/* 		Watchdog Mode							*/
@@ -2470,70 +2434,68 @@
 #define	UCRC		0x0020	/* Universal Counter Reload/Clear				*/
 #define	UCCT		0x0040	/* Universal Counter CAN Trigger				*/
 #define	UCE			0x0080	/* Universal Counter Enable						*/
-    
-/* CAN_ESR Masks										*/ 
+
+/* CAN_ESR Masks										*/
 #define	ACKE		0x0004	/* Acknowledge Error		*/
 #define	SER			0x0008	/* Stuff Error				*/
 #define	CRCE		0x0010	/* CRC Error				*/
 #define	SA0			0x0020	/* Stuck At Dominant Error	*/
 #define	BEF			0x0040	/* Bit Error Flag			*/
 #define	FER			0x0080	/* Form Error Flag			*/
-    
-/* CAN_EWR Masks												*/ 
+
+/* CAN_EWR Masks												*/
 #define	EWLREC		0x00FF	/* RX Error Count Limit (For EWRIS)	*/
 #define	EWLTEC		0xFF00	/* TX Error Count Limit (For EWTIS)	*/
-    
 
-/*  *******************  PIN CONTROL REGISTER MASKS  ************************/ 
-/* PORT_MUX Masks															*/ 
+/*  *******************  PIN CONTROL REGISTER MASKS  ************************/
+/* PORT_MUX Masks															*/
 #define	PJSE			0x0001			/* Port J SPI/SPORT Enable			*/
 #define	PJSE_SPORT		0x0000			/* 		Enable TFS0/DT0PRI			*/
 #define	PJSE_SPI		0x0001			/* 		Enable SPI_SSEL3:2			*/
-    
+
 #define	PJCE(x)			(((x)&0x3)<<1)	/* Port J CAN/SPI/SPORT Enable		*/
 #define	PJCE_SPORT		0x0000			/* 		Enable DR0SEC/DT0SEC		*/
 #define	PJCE_CAN		0x0002			/* 		Enable CAN RX/TX			*/
 #define	PJCE_SPI		0x0004			/* 		Enable SPI_SSEL7			*/
-    
+
 #define	PFDE			0x0008			/* Port F DMA Request Enable		*/
 #define	PGDE_UART		0x0000			/* 		Enable UART0 RX/TX			*/
 #define	PGDE_DMA		0x0008			/* 		Enable DMAR1:0				*/
-    
+
 #define	PFTE			0x0010			/* Port F Timer Enable				*/
 #define	PFTE_UART		0x0000			/*		Enable UART1 RX/TX			*/
 #define	PFTE_TIMER		0x0010			/* 		Enable TMR7:6				*/
-    
+
 #define	PFS6E			0x0020			/* Port F SPI SSEL 6 Enable			*/
 #define	PFS6E_TIMER		0x0000			/*		Enable TMR5					*/
 #define	PFS6E_SPI		0x0020			/* 		Enable SPI_SSEL6			*/
-    
+
 #define	PFS5E			0x0040			/* Port F SPI SSEL 5 Enable			*/
 #define	PFS5E_TIMER		0x0000			/*		Enable TMR4					*/
 #define	PFS5E_SPI		0x0040			/* 		Enable SPI_SSEL5			*/
-    
+
 #define	PFS4E			0x0080			/* Port F SPI SSEL 4 Enable			*/
 #define	PFS4E_TIMER		0x0000			/*		Enable TMR3					*/
 #define	PFS4E_SPI		0x0080			/* 		Enable SPI_SSEL4			*/
-    
+
 #define	PFFE			0x0100			/* Port F PPI Frame Sync Enable		*/
 #define	PFFE_TIMER		0x0000			/* 		Enable TMR2					*/
 #define	PFFE_PPI		0x0100			/* 		Enable PPI FS3				*/
-    
+
 #define	PGSE			0x0200			/* Port G SPORT1 Secondary Enable	*/
 #define	PGSE_PPI		0x0000			/* 		Enable PPI D9:8				*/
 #define	PGSE_SPORT		0x0200			/* 		Enable DR1SEC/DT1SEC		*/
-    
+
 #define	PGRE			0x0400			/* Port G SPORT1 Receive Enable		*/
 #define	PGRE_PPI		0x0000			/* 		Enable PPI D12:10			*/
 #define	PGRE_SPORT		0x0400			/* 		Enable DR1PRI/RFS1/RSCLK1	*/
-    
+
 #define	PGTE			0x0800			/* Port G SPORT1 Transmit Enable	*/
 #define	PGTE_PPI		0x0000			/* 		Enable PPI D15:13			*/
 #define	PGTE_SPORT		0x0800			/* 		Enable DT1PRI/TFS1/TSCLK1	*/
-    
 
-/*  ******************  HANDSHAKE DMA (HDMA) MASKS  *********************/ 
-/* HDMAx_CTL Masks														*/ 
+/*  ******************  HANDSHAKE DMA (HDMA) MASKS  *********************/
+/* HDMAx_CTL Masks														*/
 #define	HMDMAEN		0x0001	/* Enable Handshake DMA 0/1					*/
 #define	REP			0x0002	/* HDMA Request Polarity					*/
 #define	UTE			0x0004	/* Urgency Threshold Enable					*/
@@ -2549,6 +2511,5 @@
 #define	PS			0x2000	/* HDMA Pin Status							*/
 #define	OI			0x4000	/* Overflow Interrupt Generated				*/
 #define	BDI			0x8000	/* Block Done Interrupt Generated			*/
-    
+
 #endif	/* _DEF_BF534_H */
-    

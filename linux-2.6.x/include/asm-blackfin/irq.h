@@ -27,7 +27,7 @@
  *   levels.
  * - I'm going to assume that the H/W level is going to stay at the default
  *   settings. If someone wants to go through and abstart this out, feel free
- *   to mod the interrupt numbering scheme. 
+ *   to mod the interrupt numbering scheme.
  * - I'm abstracting the interrupts so that uClinux does not know anything
  *   about the H/W levels. If you want to change the H/W AND keep the abstracted
  *   levels that uClinux sees, you should be able to do most of it here.
@@ -50,7 +50,7 @@
  * All interrupt handling is actually machine specific so it is better
  * to use function pointers, as used by the Sparc port, and select the
  * interrupt handling functions when initializing the kernel. This way
- * we save some unnecessary overhead at run-time. 
+ * we save some unnecessary overhead at run-time.
  *                                                      01/11/97 - Jes
  */
 

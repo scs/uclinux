@@ -7,7 +7,7 @@
  * Description:  Data structures and register support for DMA on Blackfin
  * Rev:          $Id$
  *
- * Modified:     
+ * Modified:
  *
  * Bugs:         Enter bugs at http://blackfin.uclinux.org/
  *

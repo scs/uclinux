@@ -1,7 +1,7 @@
 #ifndef __BFIN_IPC_H__
 #define __BFIN_IPC_H__
 
-/* 
+/*
  * These are used to wrap system calls on bfin.
  *
  * See arch/blackfin/kernel/sys_bfin.c for ugly details..

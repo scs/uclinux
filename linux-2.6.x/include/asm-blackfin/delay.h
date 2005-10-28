@@ -4,11 +4,11 @@
 static __inline__ void __delay(unsigned long loops)
 {
 
-/* FIXME: Currently the assembler doesn't recognize Loop Register Clobbers, 
+/* FIXME: Currently the assembler doesn't recognize Loop Register Clobbers,
    uncomment this as soon those are implemented */
 //      __asm__ __volatile__ (  "\t LSETUP (1,1) LC0= %0\n\t"
 //                              "l:\t NOP;\n\t"
-//                              : :"a" (loops) 
+//                              : :"a" (loops)
 //                              : "LT0","LB0","LC0");
 
 	__asm__ __volatile__("[--SP] = LC0;\n\t"
@@ -27,7 +27,7 @@ static __inline__ void __delay(unsigned long loops)
  * lookup table, really, as the multiplications take much too long with
  * short delays.  This is a "reasonable" implementation, though (and the
  * first constant multiplications gets optimized away if the delay is
- * a constant)  
+ * a constant)
  */
 static __inline__ void udelay(unsigned long usecs)
 {

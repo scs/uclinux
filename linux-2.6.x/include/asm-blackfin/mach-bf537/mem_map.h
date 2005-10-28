@@ -1,16 +1,16 @@
 /*
  * Memory MAP
  * Common header file for blackfin BF537/6/4 of processors.
- * 
+ *
  *
  */
 /*
  * file:         include/asm-blackfin/mach-bf537/mem_map.h
  * based on:
- * author:      
+ * author:
  *
  * created:
- * description: 
+ * description:
  *	Memory MAP
  * rev:
  *

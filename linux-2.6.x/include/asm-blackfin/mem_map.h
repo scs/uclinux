@@ -1,6 +1,6 @@
 /*
- * mem_map.h 
- * Common header file for blackfin family of processors. 
+ * mem_map.h
+ * Common header file for blackfin family of processors.
  *
  */
 

@@ -1,12 +1,12 @@
  /*
   * File:        include/asm-blackfin/mach-common/cdef_LPBlackfin.h
-  * Based on:    
+  * Based on:
   * Author:      unknown
   *              COPYRIGHT 2005 Analog Devices
   * Created:     ?
-  * Description: 
+  * Description:
   *
-  * Rev:        $Id$ 
+  * Rev:        $Id$
   *
   * Modified:
   *
@@ -44,7 +44,7 @@
 #define pDCPLB_STATUS ((volatile unsigned long *)DCPLB_STATUS)
 #define pDCPLB_FAULT_ADDR ((volatile void **)DCPLB_FAULT_ADDR)
 /*
-#define MMR_TIMEOUT            0xFFE00010 
+#define MMR_TIMEOUT            0xFFE00010
 */
 #define pDCPLB_ADDR0 ((volatile void **)DCPLB_ADDR0)
 #define pDCPLB_ADDR1 ((volatile void **)DCPLB_ADDR1)
@@ -80,13 +80,13 @@
 #define pDCPLB_DATA15 ((volatile unsigned long *)DCPLB_DATA15)
 #define pDTEST_COMMAND ((volatile unsigned long *)DTEST_COMMAND)
 /*
-#define DTEST_INDEX            0xFFE00304 
+#define DTEST_INDEX            0xFFE00304
 */
 #define pDTEST_DATA0 ((volatile unsigned long *)DTEST_DATA0)
 #define pDTEST_DATA1 ((volatile unsigned long *)DTEST_DATA1)
 /*
-#define DTEST_DATA2            0xFFE00408  
-#define DTEST_DATA3            0xFFE0040C  
+#define DTEST_DATA2            0xFFE00408
+#define DTEST_DATA3            0xFFE0040C
 */
 #define pIMEM_CONTROL ((volatile unsigned long *)IMEM_CONTROL)
 #define pICPLB_STATUS ((volatile unsigned long *)ICPLB_STATUS)
@@ -196,7 +196,7 @@
 #define pPFCNTR1 ((volatile unsigned long *)PFCNTR1)
 
 /*
-#define IPRIO                  0xFFE02110 
+#define IPRIO                  0xFFE02110
 */
 
 #endif				/* _CDEF_LPBLACKFIN_H */

@@ -2,10 +2,10 @@
  /*
   * File:         include/asm-blackfin/mach-bf535/bf535_serial.h
   * Based on:
-  * Author:     
+  * Author:
   *
   * Created:
-  * Description: 
+  * Description:
   *
   * Rev:
   *
@@ -37,11 +37,11 @@
 						   16 bit */
 #define UART_THR(idx)		HALFWORD_REF((UART0_THR_ADDR | (idx << 10)))
 
-#define UART0_RBR_ADDR		0xffc01800	/* UART 0 Receive buffer register  
+#define UART0_RBR_ADDR		0xffc01800	/* UART 0 Receive buffer register
 						   16 bit */
 #define UART_RBR(idx)		HALFWORD_REF((UART0_RBR_ADDR | (idx << 10)))
 
-#define UART0_DLL_ADDR		0xffc01800	/* UART 0 Divisor latch (low byte) 
+#define UART0_DLL_ADDR		0xffc01800	/* UART 0 Divisor latch (low byte)
 						   register  16 bit */
 #define UART_DLL(idx)		HALFWORD_REF((UART0_DLL_ADDR | (idx << 10)))
 
@@ -49,7 +49,7 @@
 #define UART_IER(idx)		HALFWORD_REF((UART0_IER_ADDR | (idx << 10)))
 #define UART_IER_ERBFI		0x01	/* Enable Receive Buffer Full Interrupt
 					   (DR bit) */
-#define UART_IER_ETBEI		0x02	/* Enable Transmit Buffer Empty 
+#define UART_IER_ETBEI		0x02	/* Enable Transmit Buffer Empty
 					   Interrupt(THRE bit) */
 #define UART_IER_ELSI		0x04	/* Enable RX Status Interrupt
 					   (gen if any of LSR[4:1] set) */
@@ -72,23 +72,23 @@
 #define UART_LCR_WLS6           0x01	/* word length 6 bits */
 #define UART_LCR_WLS7           0x02	/* word length 7 bits */
 #define UART_LCR_WLS8           0x03	/* word length 8 bits */
-#define UART_LCR_STB            0x04	/* StopBit: 1: 2 stop bits for 
-					   non-5-bit word length 1/2 stop bits 
-					   for 5-bit word length 0: 
+#define UART_LCR_STB            0x04	/* StopBit: 1: 2 stop bits for
+					   non-5-bit word length 1/2 stop bits
+					   for 5-bit word length 0:
 					   1 stop bit */
 #define UART_LCR_PEN            0x08	/* Parity Enable 1: for enable */
-#define UART_LCR_EPS            0x10	/* Parity Selection: 
+#define UART_LCR_EPS            0x10	/* Parity Selection:
 					   1: for even pariety
 					   0: odd parity when PEN =1 & SP =0 */
 #define UART_LCR_SP             0x20	/* Sticky Parity: */
 #define UART_LCR_SB             0x40	/* Set Break: force TX pin to 0 */
 #define UART_LCR_DLAB           0x80	/* Divisor Latch Access */
 
-#define UART0_MCR_ADDR          0xffc01808	/* UART 0 Module Control register  
+#define UART0_MCR_ADDR          0xffc01808	/* UART 0 Module Control register
 						   16 bit */
 #define UART_MCR(idx)           HALFWORD_REF((UART0_MCR_ADDR | (idx << 10)))
 
-#define UART0_LSR_ADDR          0xffc0180a	/* UART 0 Line status register  
+#define UART0_LSR_ADDR          0xffc0180a	/* UART 0 Line status register
 						   16 bit */
 #define UART_LSR(idx)           HALFWORD_REF((UART0_LSR_ADDR | (idx << 10)))
 #define UART_LSR_DR             0x01	/* Data Ready */

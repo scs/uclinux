@@ -7,7 +7,7 @@
  * Description:  This file contains the major Data structures and constants
  * 		 used for DMA Implementation in BF533
  * Rev:          $Id$
- * Modified:     
+ * Modified:
  *
  * Bugs:         Enter bugs at http://blackfin.uclinux.org/
  *
@@ -72,7 +72,7 @@ typedef enum {
 } dma_chan_status_t;
 
 /*-------------------------
- * config reg bits value 
+ * config reg bits value
  *-------------------------*/
 #define DATA_SIZE_8 		0
 #define DATA_SIZE_16 		1
@@ -168,7 +168,7 @@ typedef struct {
 } dma_channel_t;
 
 /*******************************************************************************
-*	DMA API's 
+*	DMA API's
 *******************************************************************************/
 //functions to set register mode
 void set_dma_start_addr(unsigned int channel, unsigned long addr);
