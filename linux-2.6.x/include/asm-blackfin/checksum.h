@@ -64,9 +64,21 @@ csum_tcpudp_nofold(unsigned long saddr, unsigned long daddr, unsigned short len,
 		   unsigned short proto, unsigned int sum)
 {
 
-      __asm__("%0 = %0 + %1;\n\t" "CC = AC0;\n\t" "if !CC jump 4;\n\t" "%0 = %0 + %4;\n\t" "%0 = %0 + %2;\n\t" "CC = AC0;\n\t" "if !CC jump 4;\n\t" "%0 = %0 + %4;\n\t" "%0 = %0 + %3;\n\t" "CC = AC0;\n\t" "if !CC jump 4;\n\t" "%0 = %0 + %4;\n\t" "NOP;\n\t":"=d"(sum)
-      :	"d"(daddr), "d"(saddr), "d"((ntohs(len) << 16) + proto * 256),
-		"d"(1), "0"(sum));
+	__asm__ ("%0 = %0 + %1;\n\t"
+		 "CC = AC0;\n\t"
+		 "if !CC jump 4;\n\t"
+		 "%0 = %0 + %4;\n\t"
+		 "%0 = %0 + %2;\n\t"
+		 "CC = AC0;\n\t"
+                 "if !CC jump 4;\n\t"
+                 "%0 = %0 + %4;\n\t"
+ 		 "%0 = %0 + %3;\n\t"
+		 "CC = AC0;\n\t"
+                 "if !CC jump 4;\n\t"
+                 "%0 = %0 + %4;\n\t"
+                 "NOP;\n\t"
+ 		 : "=d" (sum)
+		 : "d" (daddr), "d" (saddr), "d" ((ntohs(len)<<16)+proto*256), "d" (1), "0"(sum));
 
 	return (sum);
 }

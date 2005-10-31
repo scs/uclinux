@@ -17,7 +17,10 @@ static __inline__ void __delay(unsigned long loops)
 			     "LSETUP (1f,1f) LC0 = %0;\n\t"
 			     "1:\t NOP;\n\t"
 			     "LB0 = [SP++];\n\t"
-			     "LT0 = [SP++];\n\t" "LC0 = [SP++];\n"::"a"(loops));
+				"LT0 = [SP++];\n\t"
+				"LC0 = [SP++];\n"
+				: 
+				:"a" (loops));
 }
 
 #include <linux/param.h>	/* needed for HZ */

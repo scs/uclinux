@@ -22,11 +22,13 @@ typedef struct {
 static __inline__ void atomic_add(int i, atomic_t * v)
 {
 	int __temp = 0;
-	__asm__ __volatile__("cli R3;\n\t"
+	__asm__ __volatile__(
+		"cli R3;\n\t"
 			     "%0 = %1;\n\t"
 			     "%0 = %0 + %2;\n\t"
 			     "%1 = %0;\n\t"
-			     "sti R3;\n\t":"=d"(__temp), "=m"(v->counter)
+		"sti R3;\n\t"
+		: "=d" (__temp), "=m" (v->counter)
 			     :"d"(i), "m"(v->counter), "0"(__temp)
 			     :"R3");
 }
@@ -34,11 +36,13 @@ static __inline__ void atomic_add(int i, atomic_t * v)
 static __inline__ void atomic_sub(int i, atomic_t * v)
 {
 	int __temp = 0;
-	__asm__ __volatile__("cli R3;\n\t"
+	__asm__ __volatile__(
+		"cli R3;\n\t"
 			     "%0 = %1;\n\t"
 			     "%0 = %0 - %2;\n\t"
 			     "%1 = %0;\n\t"
-			     "sti R3;\n\t":"=d"(__temp), "=m"(v->counter)
+		"sti R3;\n\t"
+		: "=d" (__temp), "=m" (v->counter)
 			     :"d"(i), "m"(v->counter), "0"(__temp)
 			     :"R3");
 }
@@ -46,11 +50,13 @@ static __inline__ void atomic_sub(int i, atomic_t * v)
 static __inline__ int atomic_add_return(int i, atomic_t * v)
 {
 	int __temp = 0;
-	__asm__ __volatile__("cli R3;\n\t"
+	__asm__ __volatile__(
+		"cli R3;\n\t"
 			     "%0 = %1;\n\t"
 			     "%0 = %0 + %2;\n\t"
 			     "%1 = %0;\n\t"
-			     "sti R3;\n\t":"=d"(__temp), "=m"(v->counter)
+		"sti R3;\n\t"
+		: "=d" (__temp), "=m" (v->counter)
 			     :"d"(i), "m"(v->counter), "0"(__temp)
 			     :"R3");
 
@@ -61,11 +67,13 @@ static __inline__ int atomic_add_return(int i, atomic_t * v)
 static __inline__ int atomic_sub_return(int i, atomic_t * v)
 {
 	int __temp = 0;
-	__asm__ __volatile__("cli R3;\n\t"
+	__asm__ __volatile__(
+		"cli R3;\n\t"
 			     "%0 = %1;\n\t"
 			     "%0 = %0 - %2;\n\t"
 			     "%1 = %0;\n\t"
-			     "sti R3;\n\t":"=d"(__temp), "=m"(v->counter)
+		"sti R3;\n\t"
+		: "=d" (__temp), "=m" (v->counter)
 			     :"d"(i), "m"(v->counter), "0"(__temp)
 			     :"R3");
 
@@ -75,11 +83,13 @@ static __inline__ int atomic_sub_return(int i, atomic_t * v)
 static __inline__ void atomic_inc(volatile atomic_t * v)
 {
 	int __temp = 0;
-	__asm__ __volatile__("cli R3;\n\t"
+	__asm__ __volatile__(
+		"cli R3;\n\t"
 			     "%0 = %1;\n\t"
 			     "%0 += 1;\n\t"
 			     "%1 = %0;\n\t"
-			     "sti R3;\n\t":"=d"(__temp), "=m"(v->counter)
+		"sti R3;\n\t"
+		: "=d" (__temp), "=m" (v->counter)
 			     :"m"(v->counter), "0"(__temp)
 			     :"R3");
 }
@@ -87,11 +97,13 @@ static __inline__ void atomic_inc(volatile atomic_t * v)
 static __inline__ void atomic_dec(volatile atomic_t * v)
 {
 	int __temp = 0;
-	__asm__ __volatile__("cli R3;\n\t"
+	__asm__ __volatile__(
+		"cli R3;\n\t"
 			     "%0 = %1;\n\t"
 			     "%0 += -1;\n\t"
 			     "%1 = %0;\n\t"
-			     "sti R3;\n\t":"=d"(__temp), "=m"(v->counter)
+		"sti R3;\n\t"
+		: "=d" (__temp), "=m" (v->counter)
 			     :"m"(v->counter), "0"(__temp)
 			     :"R3");
 }
@@ -99,11 +111,13 @@ static __inline__ void atomic_dec(volatile atomic_t * v)
 static __inline__ void atomic_clear_mask(unsigned int mask, atomic_t * v)
 {
 	int __temp = 0;
-	__asm__ __volatile__("cli R3;\n\t"
+        __asm__ __volatile__(
+		"cli R3;\n\t"
 			     "%0 = %1;\n\t"
 			     "%0 = %0 & %2;\n\t"
 			     "%1 = %0;\n\t"
-			     "sti R3;\n\t":"=d"(__temp), "=m"(v->counter)
+		"sti R3;\n\t"
+		: "=d" (__temp), "=m" (v->counter)
 			     :"d"(~(mask)), "m"(v->counter), "0"(__temp)
 			     :"R3");
 }
@@ -111,11 +125,13 @@ static __inline__ void atomic_clear_mask(unsigned int mask, atomic_t * v)
 static __inline__ void atomic_set_mask(unsigned int mask, atomic_t * v)
 {
 	int __temp = 0;
-	__asm__ __volatile__("cli R3;\n\t"
+        __asm__ __volatile__(
+		"cli R3;\n\t"
 			     "%0 = %1;\n\t"
 			     "%0 = %0 | %2;\n\t"
 			     "%1 = %0;\n\t"
-			     "sti R3;\n\t":"=d"(__temp), "=m"(v->counter)
+		"sti R3;\n\t"
+		: "=d" (__temp), "=m" (v->counter)
 			     :"d"(mask), "m"(v->counter), "0"(__temp)
 			     :"R3");
 }

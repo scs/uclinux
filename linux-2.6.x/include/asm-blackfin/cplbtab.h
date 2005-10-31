@@ -21,7 +21,9 @@
 /* This table is configurable */
     .align 4;
 
-.global _icplb_table _icplb_table:.byte4 0x00000000;
+.global _icplb_table
+_icplb_table:
+.byte4        0x00000000;
 .byte4 0x00000000;
 .byte4 0x00000000;
 .byte4 0x00000000;
@@ -56,7 +58,9 @@
 .byte4 0xffffffff;		/* end of section - termination */
 
 .align 4;
-.global _ipdt_table _ipdt_table:.byte4 0x00000000;
+.global _ipdt_table
+_ipdt_table:
+.byte4        0x00000000;
 .byte4 0x00000000;
 .byte4 0x00000000;
 .byte4 0x00000000;
@@ -162,7 +166,9 @@
  *			DCPLB TABLE
  ********************************************************************/
 
-.global _dcplb_table _dcplb_table:.byte4 0x00000000;
+.global _dcplb_table
+_dcplb_table:
+.byte4        0x00000000;
 .byte4 0x00000000;
 .byte4 0x00000000;
 .byte4 0x00000000;
@@ -209,7 +215,9 @@
  *
  * This is how Page descriptor Table is implemented in uClinux/Blackfin.
  */
-.global _dpdt_table _dpdt_table:.byte4 0x00000000;
+.global _dpdt_table
+_dpdt_table:
+.byte4 0x00000000;
 .byte4 0x00000000;
 .byte4 0x00000000;
 .byte4 0x00000000;

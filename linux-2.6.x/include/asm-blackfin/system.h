@@ -141,13 +141,22 @@ static inline unsigned long __xchg(unsigned long x, volatile void *ptr,
 
 	switch (size) {
 	case 1:
-	      __asm__ __volatile__("%0 = b%2 (z);\n\t" "b%2 = %1;\n\t": "=&d"(tmp): "d"(x), "m"(*__xg(ptr)):"memory");
+    __asm__ __volatile__
+    ("%0 = b%2 (z);\n\t"
+     "b%2 = %1;\n\t"
+    : "=&d" (tmp) : "d" (x), "m" (*__xg(ptr)) : "memory");
 		break;
 	case 2:
-	      __asm__ __volatile__("%0 = w%2 (z);\n\t" "w%2 = %1;\n\t": "=&d"(tmp): "d"(x), "m"(*__xg(ptr)):"memory");
+    __asm__ __volatile__
+    ("%0 = w%2 (z);\n\t"
+     "w%2 = %1;\n\t"
+    : "=&d" (tmp) : "d" (x), "m" (*__xg(ptr)) : "memory");
 		break;
 	case 4:
-	      __asm__ __volatile__("%0 = %2;\n\t" "%2 = %1;\n\t": "=&d"(tmp): "d"(x), "m"(*__xg(ptr)):"memory");
+    __asm__ __volatile__
+    ("%0 = %2;\n\t"
+     "%2 = %1;\n\t"
+    : "=&d" (tmp) : "d" (x), "m" (*__xg(ptr)) : "memory");
 		break;
 	}
 	local_irq_restore(flags);
@@ -169,13 +178,31 @@ static inline unsigned long __cmpxchg(volatile void *ptr, unsigned long old,
 
 	switch (size) {
 	case 1:
-	      __asm__ __volatile__("%0 = b%3 (z);\n\t" "CC = %1 == %0;\n\t" "IF !CC JUMP 1f;\n\t" "b%3 = %2;\n\t" "1:\n\t": "=&d"(tmp): "d"(old), "d"(new), "m"(*__xg(ptr)):"memory");
+    __asm__ __volatile__
+    ("%0 = b%3 (z);\n\t"
+     "CC = %1 == %0;\n\t"
+     "IF !CC JUMP 1f;\n\t"
+     "b%3 = %2;\n\t"
+     "1:\n\t"
+    : "=&d" (tmp) : "d" (old), "d" (new), "m" (*__xg(ptr)) : "memory");
 		break;
 	case 2:
-	      __asm__ __volatile__("%0 = w%3 (z);\n\t" "CC = %1 == %0;\n\t" "IF !CC JUMP 1f;\n\t" "w%3 = %2;\n\t" "1:\n\t": "=&d"(tmp): "d"(old), "d"(new), "m"(*__xg(ptr)):"memory");
+    __asm__ __volatile__
+    ("%0 = w%3 (z);\n\t"
+     "CC = %1 == %0;\n\t"
+     "IF !CC JUMP 1f;\n\t"
+     "w%3 = %2;\n\t"
+     "1:\n\t"
+    : "=&d" (tmp) : "d" (old), "d" (new), "m" (*__xg(ptr)) : "memory");
 		break;
 	case 4:
-	      __asm__ __volatile__("%0 = %3;\n\t" "CC = %1 == %0;\n\t" "IF !CC JUMP 1f;\n\t" "%3 = %2;\n\t" "1:\n\t": "=&d"(tmp): "d"(old), "d"(new), "m"(*__xg(ptr)):"memory");
+    __asm__ __volatile__
+    ("%0 = %3;\n\t"
+     "CC = %1 == %0;\n\t"
+     "IF !CC JUMP 1f;\n\t"
+     "%3 = %2;\n\t"
+     "1:\n\t"
+    : "=&d" (tmp) : "d" (old), "d" (new), "m" (*__xg(ptr)) : "memory");
 		break;
 	}
 	local_irq_restore(flags);

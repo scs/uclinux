@@ -39,7 +39,7 @@
 #endif
 */
 
-#define MK_BMSK_( x ) (1<<x)	// Make a bit mask from a bit position
+#define MK_BMSK_( x ) (1<<x)    // Make a bit mask from a bit position
 
 /**************************************************
  * System Register Bits
@@ -50,6 +50,7 @@
  **************************************************/
 
 /* definitions of ASTAT bit positions*/
+
 
 /*Result of last ALU0 or shifter operation is zero*/
 #define ASTAT_AZ_P         0x00000000
@@ -138,25 +139,23 @@
 /* Masks */
 /* Exception cause */
 #define SEQSTAT_EXCAUSE        MK_BMSK_(SEQSTAT_EXCAUSE0_P ) | \
-    MK_BMSK_(SEQSTAT_EXCAUSE1_P) | \
-MK_BMSK_(SEQSTAT_EXCAUSE2_P) |
-    \
-MK_BMSK_(SEQSTAT_EXCAUSE3_P) | \
-MK_BMSK_(SEQSTAT_EXCAUSE4_P) |
-    \
-MK_BMSK_(SEQSTAT_EXCAUSE5_P) | \
-0
+                               MK_BMSK_(SEQSTAT_EXCAUSE1_P ) | \
+                               MK_BMSK_(SEQSTAT_EXCAUSE2_P ) | \
+                               MK_BMSK_(SEQSTAT_EXCAUSE3_P ) | \
+                               MK_BMSK_(SEQSTAT_EXCAUSE4_P ) | \
+                               MK_BMSK_(SEQSTAT_EXCAUSE5_P ) | \
+                               0
+
 /* Indicates whether the last reset was a software reset (=1) */
 #define SEQSTAT_SFTRESET       MK_BMSK_(SEQSTAT_SFTRESET_P )
 
 /* Last hw error cause */
 #define SEQSTAT_HWERRCAUSE     MK_BMSK_(SEQSTAT_HWERRCAUSE0_P ) | \
-    MK_BMSK_(SEQSTAT_HWERRCAUSE1_P) | \
-MK_BMSK_(SEQSTAT_HWERRCAUSE2_P) |
-    \
-MK_BMSK_(SEQSTAT_HWERRCAUSE3_P) | \
-MK_BMSK_(SEQSTAT_HWERRCAUSE4_P) | \
-0
+                               MK_BMSK_(SEQSTAT_HWERRCAUSE1_P ) | \
+                               MK_BMSK_(SEQSTAT_HWERRCAUSE2_P ) | \
+                               MK_BMSK_(SEQSTAT_HWERRCAUSE3_P ) | \
+                               MK_BMSK_(SEQSTAT_HWERRCAUSE4_P ) | \
+                               0
 
 /**************************************************
  *   SYSCFG register
@@ -380,6 +379,7 @@ MK_BMSK_(SEQSTAT_HWERRCAUSE4_P) | \
 					*/
 
 #define DBGSTAT            0xFFE05008  /* Debug Status Register */
+
 
 /* Trace Buffer Registers     (0xFFE06000 - 0xFFE06100) */
 
@@ -615,6 +615,8 @@ MK_BMSK_(SEQSTAT_HWERRCAUSE4_P) | \
 					* write-through writes.
 					*/
 #define CPLB_WT            0x00004000  /* 0=write-back, 1=write-through */
+
+
 
 /* ITEST_COMMAND and DTEST_COMMAND Registers */
 /* Masks */
