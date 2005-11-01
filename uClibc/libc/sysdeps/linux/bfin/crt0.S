@@ -79,11 +79,9 @@ __start:
 /*	Ok, now run uClibc's main() -- shouldn't return */
 #if defined L_crt1 && defined __UCLIBC_CTOR_DTOR__
 	SP += -20;
-	R3.H = __init;
-	R3.L = __init;
+	R3 = [P5 + __init@GOT];
 	[SP+12] = R3;
-	R3.H = __fini;
-	R3.L = __fini;
+	R3 = [P5 + __fini@GOT];
 	[SP+16] = R3;
 	jump.l	___uClibc_start_main;
 #else
