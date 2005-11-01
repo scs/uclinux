@@ -95,17 +95,27 @@ int printk_address(unsigned long address)
 
 	symname =
 	    kallsyms_lookup(address, &symsize, &offset, &modname, namebuf);
-	if (!symname)
-		return printk("[<%016lx>]", address);
+	if (!symname) {
+		if (current->mm) {
+			if ( (address > current->mm->start_code) && 
+				(address < current->mm->end_code)) {
+				 return printk("<%08lx>{%s+0x%x}",
+					address,
+					current->comm,
+					(int)(address - current->mm->start_code));
+			}
+		}
+		return printk("[<%08lx>]", address);
+	}
 	if (!modname)
 		modname = delim = "";
-	return printk("<%016lx>{%s%s%s%s%+ld}",
+	return printk("<%08lx>{%s%s%s%s%+ld}",
 		      address, delim, modname, delim, symname, offset);
 }
 #else
 int printk_address(unsigned long address)
 {
-	return printk("[<%016lx>]", address);
+	return printk("[<%08lx>]", address);
 }
 #endif
 
@@ -114,7 +124,7 @@ void *last_cplb_fault_retx;
 
 asmlinkage void trap_c(struct pt_regs *fp)
 {
-	int i, j, sig = 0;
+	int j, sig = 0;
 	siginfo_t info;
 
 	j = *pTBUFCTL;
@@ -227,7 +237,7 @@ asmlinkage void trap_c(struct pt_regs *fp)
 	info.si_addr = (void *)fp->pc;
 	force_sig_info(sig, &info, current);
 	if (sig != 0 && sig != SIGTRAP) {
-		dump(fp, fp->retx);
+		dump(fp, (void *)fp->retx);
 		dump_stack();
 
 	}
@@ -303,7 +313,7 @@ void dump(struct pt_regs *fp, void *retaddr)
 		       (int)current->mm->end_data, (int)current->mm->brk);
 		printk("USER-STACK=%08x\n\n", (int)current->mm->start_stack);
 	}
-	printk("return address: %08lx; contents of [PC-16...PC+8[:\n", retaddr);
+	printk("return address: %08lx; contents of [PC-16...PC+8[:\n", (long)retaddr);
 	for (i = -16; i < 8; i++) {
 		unsigned short x;
 		get_user(x, (unsigned short *)retaddr + i);
@@ -349,9 +359,9 @@ void dump(struct pt_regs *fp, void *retaddr)
 		printk(KERN_EMERG "Hardware Trace:\n");
 		for (i = 0; i <= *pTBUFSTAT; i++) {
 			printk(KERN_EMERG "%2i Target : ", i);
-			printk_address(*pTBUF);
+			printk_address((unsigned long)*pTBUF);
 			printk(KERN_EMERG "\n   Source : ");
-			printk_address(*pTBUF);
+			printk_address((unsigned long)*pTBUF);
 			printk(KERN_EMERG "\n");
 		}
 	}
