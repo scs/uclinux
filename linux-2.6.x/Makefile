@@ -337,10 +337,6 @@ CHECK		= sparse
 CHECKFLAGS     := -D__linux__ -Dlinux -D__STDC__ -Dunix -D__unix__
 MODFLAGS	= -DMODULE
 CFLAGS_MODULE   = $(MODFLAGS)
-ifeq ($(ARCH), blackfin)
-CFLAGS_MODULE   += -mlong-calls
-KALLSYMS	+= --symbol-prefix=_
-endif
 AFLAGS_MODULE   = $(MODFLAGS)
 LDFLAGS_MODULE  = -r
 CFLAGS_KERNEL	=

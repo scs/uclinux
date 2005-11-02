@@ -14,6 +14,8 @@ GZFLAGS		:=-9
 CFLAGS		+=-fno-builtin -D__linux__
 BFIN_TARGET 	= vmlinux
 
+CFLAGS_MODULE   += -mlong-calls
+KALLSYMS	+= --symbol-prefix=_
 
 ifeq ($(CONFIG_FRAME_POINTER),y)
 CFLAGS		+=-fno-omit-frame-pointer -mapcs -mno-sched-prolog
