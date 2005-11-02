@@ -26,7 +26,7 @@ endif
 
 ## Uncomment this to build without using libm (less efficient)
 ## This is mostly useful for embedded platforms
-# BUILD_NOLIBM = y
+BUILD_NOLIBM = y
 
 # ***************************************************************************
 # ***** Most users should not need to change anything beyond this point *****
@@ -87,9 +87,9 @@ endif
 #CFLAGS=-O2 -W -Wall -Wstrict-prototypes -Wmissing-prototypes -Werror
 #CFLAGS=-O2 -W -Wall -Wstrict-prototypes
 XCFLAGS=$(CFLAGS) $(WARN) $(HEADERS) $(WEXT_FLAG) $(WELIB_FLAG) $(KERNEL_INCLUDES)
-PICFLAG=-fPIC
+#PICFLAG=-fPIC
 
-all:: $(STATIC) $(DYNAMIC) $(PROGS)
+all:: $(STATIC) $(PROGS)
 
 %: %.o
 	$(CC) $(LDFLAGS) $(XCFLAGS) -o $@ $^ $(LIBS) $(LDLIBS$(LDLIBS_$@))
