@@ -155,7 +155,7 @@ config AIRO
 
 config HERMES
 	tristate "Hermes chipset 802.11b support (Orinoco/Prism2/Symbol)"
-	depends on NET_RADIO && (PPC_PMAC || PCI || PCMCIA)
+	depends on NET_RADIO && (PPC_PMAC || PCI || PCMCIA || BFIN)
 	---help---
 	  A driver for 802.11b wireless cards based based on the "Hermes" or
 	  Intersil HFA384x (Prism 2) MAC controller.  This includes the vast
@@ -251,6 +251,26 @@ comment "Wireless 802.11b Pcmcia/Cardbus cards support"
 config PCMCIA_HERMES
 	tristate "Hermes PCMCIA card support"
 	depends on NET_RADIO && PCMCIA && HERMES
+	---help---
+	  A driver for "Hermes" chipset based PCMCIA wireless adaptors, such
+	  as the Lucent WavelanIEEE/Orinoco cards and their OEM (Cabletron/
+	  EnteraSys RoamAbout 802.11, ELSA Airlancer, Melco Buffalo and
+	  others).  It should also be usable on various Prism II based cards
+	  such as the Linksys, D-Link and Farallon Skyline.  It should also
+	  work on Symbol cards such as the 3Com AirConnect and Ericsson WLAN.
+
+	  To use your PC-cards, you will need supporting software from David
+	  Hinds' pcmcia-cs package (see the file <file:Documentation/Changes>
+	  for location).  You also want to check out the PCMCIA-HOWTO,
+	  available from <http://www.tldp.org/docs.html#howto>.
+
+	  You will also very likely also need the Wireless Tools in order to
+	  configure your card and that /etc/pcmcia/wireless.opts works:
+	  <http://www.hpl.hp.com/personal/Jean_Tourrilhes/Linux/Tools.html>.
+
+config WLAN_BLACKFIN
+	tristate "Blackfin WLAN card support"
+	depends on NET_RADIO && BFIN && HERMES
 	---help---
 	  A driver for "Hermes" chipset based PCMCIA wireless adaptors, such
 	  as the Lucent WavelanIEEE/Orinoco cards and their OEM (Cabletron/
