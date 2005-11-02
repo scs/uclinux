@@ -1576,7 +1576,7 @@ bool    'Networked Software Defined Storage Oscilloscope' CONFIG_USER_NDSO
 bool    'Networked Arbitrary Waveform Genertor' CONFIG_USER_AWG 
 bool    'CGI based Test Application for the PPI Frame Capture Driver' CONFIG_USER_BLACKFIN_PPIFCDCGI
 bool    'Linphone, a SIP compatible VoIP phone'	CONFIG_USER_BLACKFIN_LINPHONE
-
+bool    'Sqlite, a light weight database' CONFIG_USER_SQLITE
 comment 'Inetutils'
 bool	'rsh'				CONFIG_USER_INETUTILS_RSH
 bool	'rcp'				CONFIG_USER_INETUTILS_RCP

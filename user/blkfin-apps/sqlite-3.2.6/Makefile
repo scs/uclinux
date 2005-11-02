@@ -221,6 +221,10 @@ VDBEHDR = \
 #
 all:	sqlite3.h libsqlite3.la sqlite3$(TEXE) $(HAVE_TCL:1=libtclsqlite3.la)
 
+romfs:
+	$(ROMFSINST) /bin/sqlite3
+
+
 Makefile: $(TOP)/Makefile.in
 	./config.status
 

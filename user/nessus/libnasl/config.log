@@ -2,15 +2,15 @@ This file contains any messages produced by compilers while
 running configure, to aid debugging if configure makes a mistake.
 
 configure:763: checking for gcc
-configure:876: checking whether the C compiler (bfin-uclinux-gcc -O2 -Wall -Dlinux -D__linux__ -Dunix -D__uClinux__ -DEMBED -I/merge/uClinux-dist-up2user_2005 -I/merge/uClinux-dist-up2user_2005/lib/uClibc/include -fno-builtin -Wl,-elf2flt) works
-configure:892: bfin-uclinux-gcc -o conftest -O2 -Wall -Dlinux -D__linux__ -Dunix -D__uClinux__ -DEMBED -I/merge/uClinux-dist-up2user_2005 -I/merge/uClinux-dist-up2user_2005/lib/uClibc/include -fno-builtin  -Wl,-elf2flt conftest.c  1>&5
+configure:876: checking whether the C compiler (bfin-uclinux-gcc -O2 -Wall -Dlinux -D__linux__ -Dunix -D__uClinux__ -DEMBED -I/home/blackfin/uClinux-newest/uClinux-dist -I/home/blackfin/uClinux-newest/uClinux-dist/lib/uClibc/include -fno-builtin -Wl,-elf2flt) works
+configure:892: bfin-uclinux-gcc -o conftest -O2 -Wall -Dlinux -D__linux__ -Dunix -D__uClinux__ -DEMBED -I/home/blackfin/uClinux-newest/uClinux-dist -I/home/blackfin/uClinux-newest/uClinux-dist/lib/uClibc/include -fno-builtin  -Wl,-elf2flt conftest.c  1>&5
 configure:889: warning: return type defaults to `int'
-configure:918: checking whether the C compiler (bfin-uclinux-gcc -O2 -Wall -Dlinux -D__linux__ -Dunix -D__uClinux__ -DEMBED -I/merge/uClinux-dist-up2user_2005 -I/merge/uClinux-dist-up2user_2005/lib/uClibc/include -fno-builtin -Wl,-elf2flt) is a cross-compiler
+configure:918: checking whether the C compiler (bfin-uclinux-gcc -O2 -Wall -Dlinux -D__linux__ -Dunix -D__uClinux__ -DEMBED -I/home/blackfin/uClinux-newest/uClinux-dist -I/home/blackfin/uClinux-newest/uClinux-dist/lib/uClibc/include -fno-builtin -Wl,-elf2flt) is a cross-compiler
 configure:923: checking whether we are using GNU C
 configure:932: bfin-uclinux-gcc -E conftest.c
 configure:951: checking whether bfin-uclinux-gcc accepts -g
 configure:1014: checking for Cygwin environment
-configure:1030: bfin-uclinux-gcc -c -O2 -Wall -Dlinux -D__linux__ -Dunix -D__uClinux__ -DEMBED -I/merge/uClinux-dist-up2user_2005 -I/merge/uClinux-dist-up2user_2005/lib/uClibc/include -fno-builtin  conftest.c 1>&5
+configure:1030: bfin-uclinux-gcc -c -O2 -Wall -Dlinux -D__linux__ -Dunix -D__uClinux__ -DEMBED -I/home/blackfin/uClinux-newest/uClinux-dist -I/home/blackfin/uClinux-newest/uClinux-dist/lib/uClibc/include -fno-builtin  conftest.c 1>&5
 configure: In function `main':
 configure:1026: error: `__CYGWIN32__' undeclared (first use in this function)
 configure:1026: error: (Each undeclared identifier is reported only once
@@ -27,7 +27,7 @@ int main() {
 return __CYGWIN__;
 ; return 0; }
 configure:1047: checking for mingw32 environment
-configure:1059: bfin-uclinux-gcc -c -O2 -Wall -Dlinux -D__linux__ -Dunix -D__uClinux__ -DEMBED -I/merge/uClinux-dist-up2user_2005 -I/merge/uClinux-dist-up2user_2005/lib/uClibc/include -fno-builtin  conftest.c 1>&5
+configure:1059: bfin-uclinux-gcc -c -O2 -Wall -Dlinux -D__linux__ -Dunix -D__uClinux__ -DEMBED -I/home/blackfin/uClinux-newest/uClinux-dist -I/home/blackfin/uClinux-newest/uClinux-dist/lib/uClibc/include -fno-builtin  conftest.c 1>&5
 configure: In function `main':
 configure:1055: error: `__MINGW32__' undeclared (first use in this function)
 configure:1055: error: (Each undeclared identifier is reported only once
@@ -51,16 +51,16 @@ configure:1378: checking for BSD-compatible nm
 configure:1416: checking whether ln -s works
 configure:1437: checking how to recognise dependant libraries
 configure:1620: checking for object suffix
-configure:1626: bfin-uclinux-gcc -c -O2 -Wall -Dlinux -D__linux__ -Dunix -D__uClinux__ -DEMBED -I/merge/uClinux-dist-up2user_2005 -I/merge/uClinux-dist-up2user_2005/lib/uClibc/include -fno-builtin  conftest.c 1>&5
+configure:1626: bfin-uclinux-gcc -c -O2 -Wall -Dlinux -D__linux__ -Dunix -D__uClinux__ -DEMBED -I/home/blackfin/uClinux-newest/uClinux-dist -I/home/blackfin/uClinux-newest/uClinux-dist/lib/uClibc/include -fno-builtin  conftest.c 1>&5
 configure:1646: checking for executable suffix
-configure:1656: bfin-uclinux-gcc -o conftest -O2 -Wall -Dlinux -D__linux__ -Dunix -D__uClinux__ -DEMBED -I/merge/uClinux-dist-up2user_2005 -I/merge/uClinux-dist-up2user_2005/lib/uClibc/include -fno-builtin  -Wl,-elf2flt conftest.c  1>&5
+configure:1656: bfin-uclinux-gcc -o conftest -O2 -Wall -Dlinux -D__linux__ -Dunix -D__uClinux__ -DEMBED -I/home/blackfin/uClinux-newest/uClinux-dist -I/home/blackfin/uClinux-newest/uClinux-dist/lib/uClibc/include -fno-builtin  -Wl,-elf2flt conftest.c  1>&5
 configure:1687: checking command to parse /usr/bin/nm -B output
-configure:1767: bfin-uclinux-gcc -c -O2 -Wall -Dlinux -D__linux__ -Dunix -D__uClinux__ -DEMBED -I/merge/uClinux-dist-up2user_2005 -I/merge/uClinux-dist-up2user_2005/lib/uClibc/include -fno-builtin  conftest.c 1>&5
+configure:1767: bfin-uclinux-gcc -c -O2 -Wall -Dlinux -D__linux__ -Dunix -D__uClinux__ -DEMBED -I/home/blackfin/uClinux-newest/uClinux-dist -I/home/blackfin/uClinux-newest/uClinux-dist/lib/uClibc/include -fno-builtin  conftest.c 1>&5
 configure:1770: /usr/bin/nm -B conftest.o | sed -n -e 's/^.*[ ]\([ABCDGISTW][ABCDGISTW]*\)[ ][ ]*\(\)\([_A-Za-z][_A-Za-z0-9]*\)$/\1 \2\3 \3/p' > conftest.nm
 cannot find nm_test_var in conftest.nm
-configure:1767: bfin-uclinux-gcc -c -O2 -Wall -Dlinux -D__linux__ -Dunix -D__uClinux__ -DEMBED -I/merge/uClinux-dist-up2user_2005 -I/merge/uClinux-dist-up2user_2005/lib/uClibc/include -fno-builtin  conftest.c 1>&5
+configure:1767: bfin-uclinux-gcc -c -O2 -Wall -Dlinux -D__linux__ -Dunix -D__uClinux__ -DEMBED -I/home/blackfin/uClinux-newest/uClinux-dist -I/home/blackfin/uClinux-newest/uClinux-dist/lib/uClibc/include -fno-builtin  conftest.c 1>&5
 configure:1770: /usr/bin/nm -B conftest.o | sed -n -e 's/^.*[ ]\([ABCDGISTW][ABCDGISTW]*\)[ ][ ]*\(_\)\([_A-Za-z][_A-Za-z0-9]*\)$/\1 \2\3 \3/p' > conftest.nm
-configure:1821: bfin-uclinux-gcc -o conftest.gdb -O2 -Wall -Dlinux -D__linux__ -Dunix -D__uClinux__ -DEMBED -I/merge/uClinux-dist-up2user_2005 -I/merge/uClinux-dist-up2user_2005/lib/uClibc/include -fno-builtin  -Wl,-elf2flt conftest.c conftstm.o 1>&5
+configure:1821: bfin-uclinux-gcc -o conftest.gdb -O2 -Wall -Dlinux -D__linux__ -Dunix -D__uClinux__ -DEMBED -I/home/blackfin/uClinux-newest/uClinux-dist -I/home/blackfin/uClinux-newest/uClinux-dist/lib/uClibc/include -fno-builtin  -Wl,-elf2flt conftest.c conftstm.o 1>&5
 conftest.c:6: warning: 'main' is usually a function
 configure:1870: checking for dlfcn.h
 configure:1880: bfin-uclinux-gcc -E  conftest.c >/dev/null 2>conftest.out
@@ -69,17 +69,17 @@ configure:2115: checking for strip
 configure:2630: checking for objdir
 configure:2657: checking for bfin-uclinux-gcc option to produce PIC
 configure:2809: checking if bfin-uclinux-gcc PIC flag -fPIC works
-configure:2823: bfin-uclinux-gcc -c -O2 -Wall -Dlinux -D__linux__ -Dunix -D__uClinux__ -DEMBED -I/merge/uClinux-dist-up2user_2005 -I/merge/uClinux-dist-up2user_2005/lib/uClibc/include -fno-builtin -fPIC -DPIC  conftest.c 1>&5
+configure:2823: bfin-uclinux-gcc -c -O2 -Wall -Dlinux -D__linux__ -Dunix -D__uClinux__ -DEMBED -I/home/blackfin/uClinux-newest/uClinux-dist -I/home/blackfin/uClinux-newest/uClinux-dist/lib/uClibc/include -fno-builtin -fPIC -DPIC  conftest.c 1>&5
 configure:2875: checking if bfin-uclinux-gcc static flag -static works
-configure:2890: bfin-uclinux-gcc -o conftest.gdb -O2 -Wall -Dlinux -D__linux__ -Dunix -D__uClinux__ -DEMBED -I/merge/uClinux-dist-up2user_2005 -I/merge/uClinux-dist-up2user_2005/lib/uClibc/include -fno-builtin  -Wl,-elf2flt -static conftest.c  1>&5
+configure:2890: bfin-uclinux-gcc -o conftest.gdb -O2 -Wall -Dlinux -D__linux__ -Dunix -D__uClinux__ -DEMBED -I/home/blackfin/uClinux-newest/uClinux-dist -I/home/blackfin/uClinux-newest/uClinux-dist/lib/uClibc/include -fno-builtin  -Wl,-elf2flt -static conftest.c  1>&5
 configure:2917: checking if bfin-uclinux-gcc supports -c -o file.o
-configure:2936: bfin-uclinux-gcc -c -O2 -Wall -Dlinux -D__linux__ -Dunix -D__uClinux__ -DEMBED -I/merge/uClinux-dist-up2user_2005 -I/merge/uClinux-dist-up2user_2005/lib/uClibc/include -fno-builtin -o out/conftest2.o  conftest.c 1>&5
+configure:2936: bfin-uclinux-gcc -c -O2 -Wall -Dlinux -D__linux__ -Dunix -D__uClinux__ -DEMBED -I/home/blackfin/uClinux-newest/uClinux-dist -I/home/blackfin/uClinux-newest/uClinux-dist/lib/uClibc/include -fno-builtin -o out/conftest2.o  conftest.c 1>&5
 configure:2965: checking if bfin-uclinux-gcc supports -c -o file.lo
-configure:2983: bfin-uclinux-gcc -c -O2 -Wall -Dlinux -D__linux__ -Dunix -D__uClinux__ -DEMBED -I/merge/uClinux-dist-up2user_2005 -I/merge/uClinux-dist-up2user_2005/lib/uClibc/include -fno-builtin -c -o conftest.lo  conftest.c 1>&5
+configure:2983: bfin-uclinux-gcc -c -O2 -Wall -Dlinux -D__linux__ -Dunix -D__uClinux__ -DEMBED -I/home/blackfin/uClinux-newest/uClinux-dist -I/home/blackfin/uClinux-newest/uClinux-dist/lib/uClibc/include -fno-builtin -c -o conftest.lo  conftest.c 1>&5
 configure: In function `main':
 configure:2979: warning: unused variable `some_variable'
 configure:3033: checking if bfin-uclinux-gcc supports -fno-rtti -fno-exceptions
-configure:3046: bfin-uclinux-gcc -c -O2 -Wall -Dlinux -D__linux__ -Dunix -D__uClinux__ -DEMBED -I/merge/uClinux-dist-up2user_2005 -I/merge/uClinux-dist-up2user_2005/lib/uClibc/include -fno-builtin -fno-rtti -fno-exceptions -c conftest.c  conftest.c 1>&5
+configure:3046: bfin-uclinux-gcc -c -O2 -Wall -Dlinux -D__linux__ -Dunix -D__uClinux__ -DEMBED -I/home/blackfin/uClinux-newest/uClinux-dist -I/home/blackfin/uClinux-newest/uClinux-dist/lib/uClibc/include -fno-builtin -fno-rtti -fno-exceptions -c conftest.c  conftest.c 1>&5
 cc1: warning: command line option "-fno-rtti" is valid for C++/ObjC++ but not for C
 configure: In function `main':
 configure:3042: warning: unused variable `some_variable'
@@ -94,11 +94,11 @@ configure:4196: checking if libtool supports shared libraries
 configure:4200: checking whether to build shared libraries
 configure:4223: checking whether to build static libraries
 configure:4759: checking whether -lc should be explicitly linked in
-configure:4766: bfin-uclinux-gcc -c -O2 -Wall -Dlinux -D__linux__ -Dunix -D__uClinux__ -DEMBED -I/merge/uClinux-dist-up2user_2005 -I/merge/uClinux-dist-up2user_2005/lib/uClibc/include -fno-builtin  conftest.c 1>&5
+configure:4766: bfin-uclinux-gcc -c -O2 -Wall -Dlinux -D__linux__ -Dunix -D__uClinux__ -DEMBED -I/home/blackfin/uClinux-newest/uClinux-dist -I/home/blackfin/uClinux-newest/uClinux-dist/lib/uClibc/include -fno-builtin  conftest.c 1>&5
 conftest.c:1: warning: 'dummy' defined but not used
 configure:4779: bfin-uclinux-gcc -shared conftest.o  -v -Wl,-soname -Wl,conftest -o conftest 2>&1 | grep  -lc  >/dev/null 2>&1
 configure:5361: checking whether make sets ${MAKE}
 configure:5399: checking for a BSD compatible install
 configure:5475: checking if the compiler understands -pipe
-configure:5485: bfin-uclinux-gcc -pipe -c -O2 -Wall -Dlinux -D__linux__ -Dunix -D__uClinux__ -DEMBED -I/merge/uClinux-dist-up2user_2005 -I/merge/uClinux-dist-up2user_2005/lib/uClibc/include -fno-builtin  conftest.c 1>&5
+configure:5485: bfin-uclinux-gcc -pipe -c -O2 -Wall -Dlinux -D__linux__ -Dunix -D__uClinux__ -DEMBED -I/home/blackfin/uClinux-newest/uClinux-dist -I/home/blackfin/uClinux-newest/uClinux-dist/lib/uClibc/include -fno-builtin  conftest.c 1>&5
 configure:5505: checking for nessus-config
