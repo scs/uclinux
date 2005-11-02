@@ -148,6 +148,7 @@ static unsigned long l1_sram_alloc(unsigned long size,
 		}
 	}
 
+	memset((void*)addr, 0, size);
 	return addr;
 }
 

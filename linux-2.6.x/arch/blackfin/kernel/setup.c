@@ -103,42 +103,6 @@ extern int _ramstart, _ramend;
 int id;
 extern char _stext_l1, _etext_l1, _sdata_l1, _edata_l1, _sbss_l1, _ebss_l1;
 
-void touch_l1_data(void)
-{
-
-        /* Setup destination start address */
-        *pMDMA_D0_START_ADDR = &_sdata_l1;
-
-        /* Setup destination xcount */
-        *pMDMA_D0_X_COUNT = 0x0 ;
-
-        /* Setup destination xmodify */
-        *pMDMA_D0_X_MODIFY = 1;
-
-	/* Setup Source start address */
-	*pMDMA_S0_START_ADDR = &_sdata;
-
-        /* Setup Source xcount */
-        *pMDMA_S0_X_COUNT = 0x0 ;
-
-        /* Setup Source xmodify */
-        *pMDMA_S0_X_MODIFY = 1;
-
-	/* Set word size to 8, set to read, enable interrupt for wakeup 
-	 Enable source DMA */
-
-        *pMDMA_S0_CONFIG = (DMAEN) ;
-        __builtin_bfin_ssync();
-
-        *pMDMA_D0_CONFIG = ( WNR | DMAEN) ;
-
-	//poll DMA Running  bit
-        while((*pMDMA_D0_IRQ_STATUS & 0x8) != 0) {
-	     asm("nop");	     
-	}
-        *pMDMA_D0_IRQ_STATUS = 0x1;
-}
-
 void bf53x_relocate_l1_mem(void)
 {
 	extern char _l1_lma_start;
@@ -150,9 +114,6 @@ void bf53x_relocate_l1_mem(void)
 	/* cannot complain as printk is not available as yet.
 	   But we can continue booting and complain later!
 	 */
-
-	/* workaround for L1 data memory anomly */
-	touch_l1_data();
 
 	/* Copy _stext_l1 to _etext_l1 to L1 instruction SRAM */
 	DmaMemCpy(&_stext_l1, &_l1_lma_start, l1_length);
