@@ -39,6 +39,7 @@ dir_$(CONFIG_USER_BLACKFIN_AUDIOTEST)       += blkfin-test/audio_test
 dir_$(CONFIG_USER_BLACKFIN_VIDEOTEST)       += blkfin-test/video_test
 dir_$(CONFIG_USER_BLACKFIN_TWI)             += blkfin-test/twi_test
 dir_$(CONFIG_USER_BLACKFIN_SPITEST)         += blkfin-test/spi-test
+dir_$(CONFIG_USER_SQLITE_TEST)		    += blkfin-test/sqlite_test
 dir_y             			    += blkfin-apps
 
 dir_$(CONFIG_JFFS_FS)                       += mtd-utils
