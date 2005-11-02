@@ -325,7 +325,7 @@ CONFIG_MSDOS_PARTITION=y
 #
 # Kernel hacking
 #
-# CONFIG_FULLDEBUG is not set
+# CONFIG_DEBUG_INFO is not set
 # CONFIG_DEBUG_KERNEL is not set
 # CONFIG_FRAME_POINTER is not set
 # CONFIG_MAGIC_SYSRQ is not set

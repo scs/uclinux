@@ -46,6 +46,7 @@ image:
 	fi
 	./bfin-elf-genext2fs -i $(INODES) -b $(BLOCKS) -d $(ROMFSDIR) -D device_table.txt $(ROMFSIMG)
 	cp $(ROOTDIR)/$(LINUXDIR)/linux $(IMAGEDIR)
+	$(CROSS_COMPILE)strip -g $(IMAGEDIR)/linux
 	BSS=`set -- \`$(CROSS_COMPILE)objdump -h $(IMAGEDIR)/linux | grep .bss\` ; echo 0x$${4}` ; \
 	BSS_SIZE=`set -- \`$(CROSS_COMPILE)objdump -h $(IMAGEDIR)/linux | grep .bss\` ; echo 0x$${3}` ; \
 	ADDR=$$(($$BSS + $$BSS_SIZE)) ; \

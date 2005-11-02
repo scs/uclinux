@@ -599,10 +599,12 @@ source "arch/blackfin/oprofile/Kconfig"
 
 menu "Kernel hacking"
 
-config FULLDEBUG
-	bool "Full Symbolic/Source Debugging support"
+config DEBUG_INFO
+	bool "Compile the kernel with debug info"
 	help
-	  Enable debuging symbols on kernel build.
+	  If you say Y here the resulting kernel image will include
+	  debugging info resulting in a larger kernel image.
+	  Say Y here only if you plan to debug the kernel.
 
 config DEBUG_KERNEL
 	bool "Kernel debugging"

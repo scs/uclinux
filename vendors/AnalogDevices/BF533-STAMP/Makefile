@@ -9,7 +9,7 @@ IMAGE    = $(IMAGEDIR)/linux
 MKFS_JFFS2 = $(ROOTDIR)/user/mtd-utils/build/mkfs.jffs2
 
 # Blocks must be a multiple of 256
-BLOCKS   = 4096
+BLOCKS   = 16384
 INODES   = 1024
 
 ROMFS_DIRS = bin dev etc etc/dhcpc home lib mnt proc usr var root home tmp home/httpd home/httpd/cgi-bin etc/boa /etc/config var/run var/lib/misc var/log/boa
@@ -46,6 +46,7 @@ image:
 	fi
 	./bfin-elf-genext2fs -i $(INODES) -b $(BLOCKS) -d $(ROMFSDIR) -D device_table.txt $(ROMFSIMG)
 	cp $(ROOTDIR)/$(LINUXDIR)/linux $(IMAGEDIR)
+	$(CROSS_COMPILE)strip -g $(IMAGEDIR)/linux
 	BSS=`set -- \`$(CROSS_COMPILE)objdump -h $(IMAGEDIR)/linux | grep .bss\` ; echo 0x$${4}` ; \
 	BSS_SIZE=`set -- \`$(CROSS_COMPILE)objdump -h $(IMAGEDIR)/linux | grep .bss\` ; echo 0x$${3}` ; \
 	ADDR=$$(($$BSS + $$BSS_SIZE)) ; \

@@ -17,10 +17,6 @@ BFIN_TARGET 	= vmlinux
 CFLAGS_MODULE   += -mlong-calls
 KALLSYMS	+= --symbol-prefix=_
 
-ifeq ($(CONFIG_FRAME_POINTER),y)
-CFLAGS		+=-fno-omit-frame-pointer -mapcs -mno-sched-prolog
-endif
-
 comma = ,
 
 # These are the default values for independt
