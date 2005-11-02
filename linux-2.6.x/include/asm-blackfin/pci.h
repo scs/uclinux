@@ -15,65 +15,45 @@
 #define PCIBIOS_MIN_MEM 0x10000000
 
 #define PCI_DMA_BUS_IS_PHYS       (1)
-    
-struct pci_ops;
+    struct pci_ops;
 
 /*
  * Structure with hardware dependent information and functions of the
  * PCI bus.
  */
-
-struct pci_bus_info 
- {
+struct pci_bus_info  {
 
 	    /*
 	     * Resources of the PCI bus.
 	     */
-	
-struct resource mem_space;
-	
-struct resource io_space;
+	struct resource mem_space;
+	struct resource io_space;
 
 	    /*
 	     * System dependent functions.
 	     */
-	
-struct pci_ops *bfin_pci_ops;
-	
-
-void (*fixup) (int pci_modify);
-	
-void (*conf_device) (unsigned char bus, unsigned char device_fn);
-
+	struct pci_ops *bfin_pci_ops;
+	void (*fixup) (int pci_modify);
+	void (*conf_device) (unsigned char bus, unsigned char device_fn);
 };
 
 #define pcibios_assign_all_busses()	0
-
 extern inline void pcibios_set_master(struct pci_dev *dev)
 {
 
 	    /* No special bus mastering setup handling */
-} 
-
-extern inline void pcibios_penalize_isa_irq(int irq)
+} extern inline void pcibios_penalize_isa_irq(int irq)
 {
 
 	    /* We don't do dynamic PCI IRQ allocation */
-} 
-
-
-extern inline dma_addr_t pci_map_single(struct pci_dev *hwdev, void *ptr,
-					     
-size_t size, int direction)
+} extern inline dma_addr_t pci_map_single(struct pci_dev *hwdev, void *ptr,
+					     size_t size, int direction)
 {
-	
-if (direction == PCI_DMA_NONE)
-		
-BUG();
+	if (direction == PCI_DMA_NONE)
+		BUG();
 
 	    // return virt_to_bus(ptr);
 	    return (dma_addr_t) ptr;
-
 }
 
 
@@ -85,13 +65,10 @@ BUG();
  * whatever the device wrote there.
  */
 extern inline void pci_unmap_single(struct pci_dev *hwdev, dma_addr_t dma_addr,
-				    
-size_t size, int direction)
+				    size_t size, int direction)
 {
-	
-if (direction == PCI_DMA_NONE)
-		
-BUG();
+	if (direction == PCI_DMA_NONE)
+		BUG();
 
 	    /* Nothing to do */
 }
@@ -113,16 +90,11 @@ BUG();
  * the same here.
  */
 extern inline int pci_map_sg(struct pci_dev *hwdev, struct scatterlist *sg,
-			     
-int nents, int direction)
+			     int nents, int direction)
 {
-	
-if (direction == PCI_DMA_NONE)
-		
-BUG();
-	
-return nents;
-
+	if (direction == PCI_DMA_NONE)
+		BUG();
+	return nents;
 }
 
 
@@ -131,13 +103,10 @@ return nents;
  * pci_unmap_single() above.
  */
 extern inline void pci_unmap_sg(struct pci_dev *hwdev, struct scatterlist *sg,
-				
-int nents, int direction)
+				int nents, int direction)
 {
-	
-if (direction == PCI_DMA_NONE)
-		
-BUG();
+	if (direction == PCI_DMA_NONE)
+		BUG();
 
 	    /* Nothing to do */
 }
@@ -153,15 +122,11 @@ BUG();
  * device again owns the buffer.
  */
 extern inline void pci_dma_sync_single(struct pci_dev *hwdev,
-				       
-dma_addr_t dma_handle, 
-size_t size,
+				       dma_addr_t dma_handle, size_t size,
 				       int direction)
 {
-	
-if (direction == PCI_DMA_NONE)
-		
-BUG();
+	if (direction == PCI_DMA_NONE)
+		BUG();
 
 	    /* Nothing to do */
 }
@@ -174,15 +139,11 @@ BUG();
  * same rules and usage.
  */
 extern inline void pci_dma_sync_sg(struct pci_dev *hwdev,
-				   
-struct scatterlist *sg, 
-int nelems,
+				   struct scatterlist *sg, int nelems,
 				   int direction)
 {
-	
-if (direction == PCI_DMA_NONE)
-		
-BUG();
+	if (direction == PCI_DMA_NONE)
+		BUG();
 
 	    /* Nothing to do */
 }
