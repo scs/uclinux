@@ -228,6 +228,16 @@ ENTRY(ex_trap_c)
 	p4.h = hi(EVT5);
 	[p4] = p5;
 	csync;
+
+	/* Disable all interrupts, but make sure level 5 is enabled so
+	   we can switch to that level.  Save the old mask.  */
+	cli r6;
+	p4.l = excpt_saved_imask; 
+	p4.h = excpt_saved_imask;
+	[p4] = r6;
+	r6 = 0x3f;
+	sti r6;
+
 	(R7:6,P5:4) = [sp++];
 	ASTAT = [sp++];
 	SP = RETN;
@@ -236,6 +246,13 @@ ENTRY(ex_trap_c)
 
 ENTRY(exception_to_level5)
 	SAVE_ALL_SYS
+
+	/* Restore interrupt mask.  We haven't pushed RETI, so this
+	   doesn't enable interrupts until we return from this handler.  */
+	p4.l = excpt_saved_imask; 
+	p4.h = excpt_saved_imask;
+	r6 = [p4];
+	sti r6;
 
 	/* Restore the hardware error vector.  */
 	P5.h = _evt_ivhw;
@@ -950,6 +967,8 @@ ENTRY(sys_call_table)
 	.rept 2
 	.long _sys_ni_syscall
 	.endr
+excpt_saved_imask:
+	.long 0;
 /* Put this in the kernel data section - that should always be covered by
  * a CPLB.
  */
