@@ -41,9 +41,6 @@
 #include <linux/pm.h>
 
 #include <asm/io.h>
-#include <asm/mach/cpu.h>
-#include <asm/mach/cdefbf533.h>
-#include <asm/mach-types.h>
 
 /*
  * Let's power down on idle, but only if we are really
@@ -57,7 +54,6 @@ void bf533_pm_idle(void)
 
 void bf533_pm_suspend(void)
 {
-	dpmc_fops.ioctl(NULL, NULL, IOCTL_DEEP_SLEEP_MODE, 0);
 }
 
 /*
@@ -74,7 +70,9 @@ static int bf533_pm_prepare(suspend_state_t state)
 	case PM_SUSPEND_STANDBY:
 		break;
 	case PM_SUSPEND_MEM:
-	return -ENOTSUPP case PM_SUSPEND_DISK:
+		return -ENOTSUPP;
+
+	case PM_SUSPEND_DISK:
 		return -ENOTSUPP;
 
 	default:
@@ -94,11 +92,11 @@ static int bf533_pm_enter(suspend_state_t state)
 {
 	switch (state) {
 	case PM_SUSPEND_STANDBY:
-		bf533_pm_suspend();
-		break;
+		return -ENOTSUPP;
 
 	case PM_SUSPEND_MEM:
-		return -ENOTSUPP;
+		bf533_pm_suspend();
+		break;
 
 	case PM_SUSPEND_DISK:
 		return -ENOTSUPP;
