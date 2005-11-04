@@ -52,8 +52,28 @@ void bf533_pm_idle(void)
 {
 }
 
+/*
+ * when we call pm_suspend, that code  enters into idle state and sdram enter self-refresh mode 
+ *  to save more energy.When there is any interrupt,the core will resume
+ */
 void bf533_pm_suspend(void)
 {
+	/*sdram enter self-refresh mode*/
+	 *pEBIU_SDGCTL = (*pEBIU_SDGCTL |SRFS);
+        __builtin_bfin_ssync();
+	/*any interrupt can cause CPU exit idle state*/
+        *pSIC_IWR = 0x00ffffff;
+        __builtin_bfin_ssync();
+        __asm__ (
+        "CLI R2;\n\t"
+        "SSYNC;\n\t"
+        "IDLE;\n\t"
+        "STI R2;\n\t"
+        );
+        /*sdram exit self-refresh mode*/
+        *pEBIU_SDGCTL = (*pEBIU_SDGCTL |SRFS);
+        __builtin_bfin_ssync();
+
 }
 
 /*
