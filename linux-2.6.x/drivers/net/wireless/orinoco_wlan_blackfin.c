@@ -65,9 +65,9 @@ static char dev_info[] = "orinoco_wlan_blackfin";
 #define WLAN_BLACKFIN_ATTR_ADDR		0x20301000
 #define WLAN_BLACKFIN_IO_ADDR		0x20300000
 
-#define BFIN_WLAN_IRQ_PFX 		61
+#define BFIN_WLAN_IRQ_PFX   		54
 
-#define WLAN_BLACKFIN_IRQ		35
+#define WLAN_BLACKFIN_IRQ		34
 #define WLAN_BLACKFIN_IRQ_VECTOR       (WLAN_BLACKFIN_IRQ)
 
 #define COR_OFFSET    (0x3e0)	/* COR attribute offset of Prism2 PC card */
@@ -205,8 +205,10 @@ static int orinoco_wlan_blackfin_init_one(void)
 
 
 	bfin_WLAN_interrupt_setup(dev->irq);
- 	err = request_irq(dev->irq, orinoco_interrupt, SA_SHIRQ, dev_info, dev); 
-//	err = request_irq(dev->irq, orinoco_interrupt, 0, dev_info, priv); /* not SA_SHIRQ */
+
+ 	err = request_irq(dev->irq, orinoco_interrupt, SA_SHIRQ, dev_info, dev);
+//	err = request_irq(dev->irq, orinoco_interrupt, 0, dev_info, dev); /* not SA_SHIRQ */
+
 	if (err) {
 		printk(KERN_ERR "orinoco_wlan_blackfin: Error allocating IRQ %d.\n", dev->irq);
 		err = -EBUSY;
