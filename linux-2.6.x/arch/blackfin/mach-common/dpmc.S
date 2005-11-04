@@ -181,6 +181,17 @@ CHECK_AGAIN1:
 _deep_sleep:
 	[--SP] = ( R7:0, P5:0 );
 
+	/*  set the sdram to self refresh mode */
+        P2.H = hi(EBIU_SDGCTL);
+        P2.L = lo(EBIU_SDGCTL);
+        R2 = [P2];
+        R3.H = hi(SRFS);
+        R3.L = lo(SRFS);
+        R2 = R2|R3;
+        [P2] = R2;
+        ssync;
+
+
         P0.H = hi(SIC_IWR);
         P0.L = lo(SIC_IWR);
 	R0 = IWR_ENABLE(IRQ_RTC - IVG7)(Z);
@@ -204,6 +215,18 @@ _deep_sleep:
         SSYNC;
         IDLE;
         STI R2;
+
+	/*  set the sdram out of self refresh mode */
+        P2.H = hi(EBIU_SDGCTL);
+        P2.L = lo(EBIU_SDGCTL);
+        R2 = [P2];
+        R3.H = hi(SRFS);
+        R3.L = lo(SRFS);
+        R3 = ~R3;
+        R2 = R2&R3;
+        [P2] = R2;
+        ssync;
+
 
 CHECK_AGAIN2:
 	P1.H = hi(PLL_STAT);
