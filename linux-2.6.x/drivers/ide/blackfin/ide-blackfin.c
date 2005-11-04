@@ -35,6 +35,22 @@
 
 #include <asm/io.h>
 #include <asm/irq.h>
+#include <asm/delay.h>
+
+
+#define CF_ATASEL_ENA	0x20310002
+#define CF_ATASEL_DIS	0x20310000
+
+
+#if defined(CONFIG_BFIN_IDE_ADDRESS_MAPPING_MODE0)
+  #define BFIN_IDE_GAP (2)
+  #define AX_BITMASK 0
+#endif
+
+#if defined(CONFIG_BFIN_IDE_ADDRESS_MAPPING_MODE1)
+  #define BFIN_IDE_GAP (1)
+  #define AX_BITMASK (1<<CONFIG_BFIN_IDE_ADDRESS_AX)
+#endif
 
 static void ide_outw(u16 d, unsigned long a)
 {
@@ -59,15 +75,24 @@ static void ide_insw(unsigned long addr, void *buf, u32 len)
 	insw(addr,buf,len);
 }
 
-#define BFIN_IDE_GAP (2)
 
 static inline void hw_setup(hw_regs_t *hw)
 {
-	int i;
+	int i,x;
 
 	memset(hw, 0, sizeof(hw_regs_t));
-	for (i = 0; i <= IDE_STATUS_OFFSET; i++)
-		hw->io_ports[i] = CONFIG_BFIN_IDE_BASE + BFIN_IDE_GAP*i;
+	for (i = 0; i <= IDE_STATUS_OFFSET; i++){
+#if defined(CONFIG_BFIN_IDE_ADDRESS_MAPPING_MODE1)
+	  if(i & 0x1){
+	    x = i & -2;
+	    x |= AX_BITMASK;
+	  }
+	  else
+#endif
+	  x=i;
+	  hw->io_ports[i] = CONFIG_BFIN_IDE_BASE + BFIN_IDE_GAP*x;
+	}
+
 	hw->io_ports[IDE_CONTROL_OFFSET] = CONFIG_BFIN_IDE_ALT;
 	hw->irq = CONFIG_BFIN_IDE_IRQ;
 	hw->dma = NO_DMA;
@@ -114,8 +139,8 @@ static void bfin_IDE_interrupt_setup(int irq)
 #endif
 
     printk("Blackfin IDE interrupt setup: flag PF%d, irq %d\n", flag, irq);
-  /* 26 = IRQ_PROG_INTA => FIO_MASKA
-     27 = IRQ_PROG_INTB => FIO_MASKB */
+  /* 26 = IRQ_PROG_INTA => FIO_MASKA (BF533)
+     27 = IRQ_PROG_INTB => FIO_MASKB (BF533)*/
   if (irq == IRQ_PROG_INTA/*26*/ ||
       irq == IRQ_PROG_INTB/*27*/)
     {
@@ -146,11 +171,15 @@ void __init blackfin_ide_init(void)
 	ide_hwif_t *hwif;
 	int idx;
 
+#if defined(CONFIG_BFIN_IDE_ADDRESS_MAPPING_MODE1)
+	  ide_outw(0, CF_ATASEL_ENA);
+	  udelay(5000);
+#endif
 
-	if (!request_region(CONFIG_BFIN_IDE_BASE, BFIN_IDE_GAP*8, "ide-blackfin"))
+	if (!request_region(CONFIG_BFIN_IDE_BASE, AX_BITMASK + BFIN_IDE_GAP*8, "ide-blackfin"))
 		goto out_busy;
 	if (!request_region(CONFIG_BFIN_IDE_ALT, BFIN_IDE_GAP, "ide-blackfin")) {
-		release_region(CONFIG_BFIN_IDE_BASE, BFIN_IDE_GAP*8);
+		release_region(CONFIG_BFIN_IDE_BASE, BFIN_IDE_GAP*2);
 		goto out_busy;
 	}
 
