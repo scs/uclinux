@@ -53,6 +53,10 @@ core-y		+= arch/$(ARCH)/kernel/ arch/$(ARCH)/mm/
 
 core-y		+= arch/$(ARCH)/mach-common/
 
+# must be linked after kernel/
+drivers-$(CONFIG_OPROFILE)              += arch/$(ARCH)/oprofile/
+
+
 # If we have a machine-specific directory, then include it in the build.
 ifneq ($(machine-y),)
 core-y		+= arch/$(ARCH)/mach-$(MACHINE)/
