@@ -138,6 +138,8 @@ distro:
 romfs:
 	$(ROMFSINST) /bin/pppoe
 	$(ROMFSINST) -e CONFIG_USER_RP_PPPOE_PPPOE_SERVER /bin/pppoe-server
+	mkdir -p ${ROMFSDIR}/etc/ppp
+	cp pppoe.conf ${ROMFSDIR}/etc/ppp/
 
 clean:
 	rm -f *.gdb *.elf *.o pppoe pppoe-sniff core *~

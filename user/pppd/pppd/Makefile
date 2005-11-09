@@ -64,6 +64,10 @@ endif
 ifeq ($(LIBCDIR),glibc/build)
 EXTRALIBS += -lutil
 endif
+ifeq ($(LIBCDIR),uClibc)
+EXTRALIBS += -lutil
+CFLAGS += -D__UC_LIBC__
+endif
 
 all:
 	[ "$(CONFIG_USER_PPPD_WITH_TACACS)" != "y" ] || make -C plugins tacacs
