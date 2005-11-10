@@ -371,7 +371,7 @@ bogus $(SHARED_TARGET): lib/libc.a lib/main.o Makefile
 			-mid-shared-library -mshared-library-id=0               \
 			-Wl,-elf2flt -nostdlib -Wl,-shared-lib-id,${LIBID}      \
 			lib/main.o                                              \
-			-Wl,--whole-archive,lib/libc.a,-lgcc,--no-whole-archive
+			-Wl,--whole-archive,lib/libc.a,--no-whole-archive,-lgcc
 	$(OBJCOPY) -L _GLOBAL_OFFSET_TABLE_ -L main -L __main -L _start 	\
 			-L _main -L ___main -L __start				\
 			-L __uClibc_main -L __uClibc_start_main -L lib_main     \
