@@ -9,8 +9,9 @@ all:
 romfs:
 	for i in $(DIRS) ; do make -C $$i romfs || exit $? ; done
 	mkdir -p ${ROMFSDIR}/etc/ppp
-	cp etc.ppp/options ${ROMFSDIR}/etc/ppp/
-	cp etc.ppp/pap-secrets etc.ppp/chap-secrets ${ROMFSDIR}/etc/ppp/
+	$(ROMFSINST) etc.ppp/options /etc/ppp/
+	$(ROMFSINST) etc.ppp/pap-secrets /etc/ppp/
+	$(ROMFSINST) etc.ppp/chap-secrets /etc/ppp/
 
 clean:
 	-for i in $(DIRS) ; do make -C $$i clean ; done

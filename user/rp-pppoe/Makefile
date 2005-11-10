@@ -139,12 +139,12 @@ romfs:
 	$(ROMFSINST) /bin/pppoe
 	$(ROMFSINST) -e CONFIG_USER_RP_PPPOE_PPPOE_SERVER /bin/pppoe-server
 	mkdir -p ${ROMFSDIR}/etc/ppp
-	cp pppoe.conf ${ROMFSDIR}/etc/ppp/
-	cp adsl-connect.in ${ROMFSDIR}/bin/adsl-connect
-	cp adsl-start.in ${ROMFSDIR}/bin/adsl-start
-	cp adsl-stop.in ${ROMFSDIR}/bin/adsl-stop
+	$(ROMFSINST) pppoe.conf /etc/ppp/
+	$(ROMFSINST) adsl-connect.in /bin/adsl-connect
+	$(ROMFSINST) adsl-start.in /bin/adsl-start
+	$(ROMFSINST) adsl-stop.in /bin/adsl-stop
 	chmod 755 ${ROMFSDIR}/bin/adsl-*
-	cp adsl-status ${ROMFSDIR}/bin
+	$(ROMFSINST) /bin/adsl-status
 	ln -s -f ../bin ${ROMFSDIR}/usr/bin
 
 clean:
