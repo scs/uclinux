@@ -140,8 +140,8 @@ romfs:
 	$(ROMFSINST) -e CONFIG_USER_RP_PPPOE_PPPOE_SERVER /bin/pppoe-server
 	mkdir -p ${ROMFSDIR}/etc/ppp
 	$(ROMFSINST) pppoe.conf /etc/ppp/
-	$(ROMFSINST) adsl-connect.in /bin/adsl-connect
-	$(ROMFSINST) adsl-start.in /bin/adsl-start
+	sed -e 's/@PPPD@/\/bin\/pppd/g' -e 's/@sbindir@/\/bin/g' -e 's/@SETSID@//g' adsl-connect.in > ${ROMFSDIR}/bin/adsl-connect
+	sed 's/@sbindir@/\/bin/g' adsl-start.in > ${ROMFSDIR}/bin/adsl-start
 	$(ROMFSINST) adsl-stop.in /bin/adsl-stop
 	chmod 755 ${ROMFSDIR}/bin/adsl-*
 	$(ROMFSINST) /bin/adsl-status
