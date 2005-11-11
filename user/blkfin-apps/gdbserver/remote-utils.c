@@ -1,6 +1,6 @@
 /* Remote utility routines for the remote server for GDB.
    Copyright 1986, 1989, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001,
-   2002, 2003, 2004
+   2002, 2003, 2004, 2005
    Free Software Foundation, Inc.
 
    This file is part of GDB.
@@ -36,6 +36,10 @@
 #include <sys/time.h>
 #include <unistd.h>
 #include <arpa/inet.h>
+
+#ifndef HAVE_SOCKLEN_T
+typedef int socklen_t;
+#endif
 
 /* A cache entry for a successfully looked-up symbol.  */
 struct sym_cache
@@ -122,7 +126,7 @@ remote_open (char *name)
       char *port_str;
       int port;
       struct sockaddr_in sockaddr;
-      int tmp;
+      socklen_t tmp;
       int tmp_desc;
 
       port_str = strchr (name, ':');
@@ -544,10 +548,10 @@ write_enn (char *buf)
 }
 
 void
-convert_int_to_ascii (char *from, char *to, int n)
+convert_int_to_ascii (unsigned char *from, char *to, int n)
 {
   int nib;
-  char ch;
+  int ch;
   while (n--)
     {
       ch = *from++;
@@ -561,7 +565,7 @@ convert_int_to_ascii (char *from, char *to, int n)
 
 
 void
-convert_ascii_to_int (char *from, char *to, int n)
+convert_ascii_to_int (char *from, unsigned char *to, int n)
 {
   int nib1, nib2;
   while (n--)
@@ -639,6 +643,28 @@ prepare_resume_reply (char *buf, char status, unsigned char signo)
   if (status == 'T')
     {
       const char **regp = gdbserver_expedite_regs;
+
+      if (the_target->stopped_by_watchpoint != NULL
+	  && (*the_target->stopped_by_watchpoint) ())
+	{
+	  CORE_ADDR addr;
+	  int i;
+
+	  strncpy (buf, "watch:", 6);
+	  buf += 6;
+
+	  addr = (*the_target->stopped_data_address) ();
+
+	  /* Convert each byte of the address into two hexadecimal chars.
+	     Note that we take sizeof (void *) instead of sizeof (addr);
+	     this is to avoid sending a 64-bit address to a 32-bit GDB.  */
+	  for (i = sizeof (void *) * 2; i > 0; i--)
+	    {
+	      *buf++ = tohex ((addr >> (i - 1) * 4) & 0xf);
+	    }
+	  *buf++ = ';';
+	}
+
       while (*regp)
 	{
 	  buf = outreg (find_regno (*regp), buf);
@@ -657,8 +683,10 @@ prepare_resume_reply (char *buf, char status, unsigned char signo)
 	{
 	  /* FIXME right place to set this? */
 	  thread_from_wait = ((struct inferior_list_entry *)current_inferior)->id;
+	  unsigned int gdb_id_from_wait = thread_to_gdb_id (current_inferior);
+
 	  if (debug_threads)
-	    fprintf (stderr, "Writing resume reply for %d\n\n", thread_from_wait);
+	    fprintf (stderr, "Writing resume reply for %ld\n\n", thread_from_wait);
 	  /* This if (1) ought to be unnecessary.  But remote_wait in GDB
 	     will claim this event belongs to inferior_ptid if we do not
 	     specify a thread, and there's no way for gdbserver to know
@@ -666,7 +694,7 @@ prepare_resume_reply (char *buf, char status, unsigned char signo)
 	  if (1 || old_thread_from_wait != thread_from_wait)
 	    {
 	      general_thread = thread_from_wait;
-	      sprintf (buf, "thread:%x;", thread_from_wait);
+	      sprintf (buf, "thread:%x;", gdb_id_from_wait);
 	      buf += strlen (buf);
 	      old_thread_from_wait = thread_from_wait;
 	    }
@@ -700,7 +728,7 @@ decode_m_packet (char *from, CORE_ADDR *mem_addr_ptr, unsigned int *len_ptr)
 
 void
 decode_M_packet (char *from, CORE_ADDR *mem_addr_ptr, unsigned int *len_ptr,
-		 char *to)
+		 unsigned char *to)
 {
   int i = 0;
   char ch;

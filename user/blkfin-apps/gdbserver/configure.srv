@@ -23,6 +23,22 @@ case "${target}" in
 			srv_linux_usrregs=yes
 			srv_linux_thread_db=yes
 			;;
+  bfin*-*-*)		srv_regobj=reg-bfin.o
+			srv_tgtobj="linux-low.o linux-bfin-low.o"
+			srv_linux_usrregs=yes
+			srv_linux_thread_db=yes
+			LDFLAGS=-Wl,-elf2flt
+			;;
+  crisv32-*-linux*)	srv_regobj=reg-crisv32.o
+			srv_tgtobj="linux-low.o linux-crisv32-low.o"
+			srv_linux_regsets=yes
+			srv_linux_thread_db=yes
+			;;
+  cris-*-linux*)	srv_regobj=reg-cris.o
+			srv_tgtobj="linux-low.o linux-cris-low.o"
+			srv_linux_usrregs=yes
+			srv_linux_thread_db=yes
+			;;
   i[34567]86-*-linux*)	srv_regobj=reg-i386-linux.o
 			srv_tgtobj="linux-low.o linux-i386-low.o i387-fp.o"
 			srv_linux_usrregs=yes
@@ -33,12 +49,11 @@ case "${target}" in
 			srv_tgtobj="linux-low.o linux-ia64-low.o"
 			srv_linux_usrregs=yes
 			;;
-  bfin*-*-*)            srv_regobj=reg-bfin.o
-                        srv_tgtobj="linux-low.o linux-bfin-low.o"
-                        srv_linux_usrregs=yes
-                        CC=bfin-elf-gcc
-                        LDFLAGS=-Wl,-elf2flt
-                        ;;
+  m32r*-*-linux*)	srv_regobj=reg-m32r.o
+			srv_tgtobj="linux-low.o linux-m32r-low.o"
+			srv_linux_usrregs=yes
+ 			srv_linux_thread_db=yes
+			;;
   m68*-*-linux*)	srv_regobj=reg-m68k.o
 			srv_tgtobj="linux-low.o linux-m68k-low.o"
 			srv_linux_usrregs=yes
@@ -50,9 +65,16 @@ case "${target}" in
 			srv_linux_usrregs=yes
 			srv_linux_thread_db=yes
 			;;
-  powerpc*-*-linux*)	srv_regobj=reg-ppc.o
+  powerpc64-*-linux*)	srv_regobj=reg-ppc64.o
+			srv_tgtobj="linux-low.o linux-ppc64-low.o"
+			srv_linux_usrregs=yes
+			srv_linux_regsets=yes
+			srv_linux_thread_db=yes
+			;;
+  powerpc-*-linux*)	srv_regobj=reg-ppc.o
 			srv_tgtobj="linux-low.o linux-ppc-low.o"
 			srv_linux_usrregs=yes
+			srv_linux_regsets=yes
 			srv_linux_thread_db=yes
 			;;
   s390-*-linux*)	srv_regobj=reg-s390.o

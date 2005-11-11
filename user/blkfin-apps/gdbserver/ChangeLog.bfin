@@ -1,0 +1,7 @@
+2005-11-11  Jie Zhang  <jie.zhang@analog.com>
+
+	Upgrade to lastest FSF GDB project CVS on 20051031.
+	And
+	* linux-bfin-low.c (bfin_regmap): Rearrange register map.
+	(bfin_cannot_fetch_register): Remove useless comment.
+	* mem-break.c (delete_breakpoint): Walk through all breakpoints.

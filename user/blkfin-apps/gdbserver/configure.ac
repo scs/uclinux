@@ -1,5 +1,5 @@
 dnl Autoconf configure script for GDB server.
-dnl Copyright 2000, 2002, 2003, 2004 Free Software Foundation, Inc.
+dnl Copyright 2000, 2002, 2003, 2004, 2005 Free Software Foundation, Inc.
 dnl
 dnl This file is part of GDB.
 dnl
@@ -19,6 +19,8 @@ dnl Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
 dnl Process this file with autoconf to produce a configure script.
 
+AC_PREREQ(2.59)dnl
+
 AC_INIT(server.c)
 AC_CONFIG_HEADER(config.h:config.in)
 
@@ -28,21 +30,32 @@ AC_CANONICAL_SYSTEM
 
 AC_PROG_INSTALL
 
+AC_ARG_PROGRAM
+
 AC_HEADER_STDC
 
 AC_CHECK_HEADERS(sgtty.h termio.h termios.h sys/reg.h string.h dnl
 		 proc_service.h sys/procfs.h thread_db.h linux/elf.h dnl
 		 stdlib.h unistd.h)
 
-BFD_NEED_DECLARATION(strerror)
+AC_CHECK_DECLS(strerror)
 
+AC_CHECK_TYPES(socklen_t, [], [],
+[#include <sys/types.h>
+#include <sys/socket.h>
+])
 . ${srcdir}/configure.srv
 
 if test "${srv_linux_usrregs}" = "yes"; then
-  AC_DEFINE(HAVE_LINUX_USRREGS)
+  AC_DEFINE(HAVE_LINUX_USRREGS, 1,
+	    [Define if the target supports PTRACE_PEEKUSR for register ]
+	    [access.])
 fi
 
 if test "${srv_linux_regsets}" = "yes"; then
+  AC_DEFINE(HAVE_LINUX_REGSETS, 1,
+	    [Define if the target supports register sets.])
+
   AC_MSG_CHECKING(for PTRACE_GETREGS)
   AC_CACHE_VAL(gdbsrv_cv_have_ptrace_getregs,
   [AC_TRY_COMPILE([#include <sys/ptrace.h>],
@@ -51,7 +64,9 @@ if test "${srv_linux_regsets}" = "yes"; then
 		  [gdbsrv_cv_have_ptrace_getregs=no])])
   AC_MSG_RESULT($gdbsrv_cv_have_ptrace_getregs)
   if test "${gdbsrv_cv_have_ptrace_getregs}" = "yes"; then
-    AC_DEFINE(HAVE_LINUX_REGSETS)
+    AC_DEFINE(HAVE_PTRACE_GETREGS, 1,
+	      [Define if the target supports PTRACE_GETREGS for register ]
+	      [access.])
   fi
 
   AC_MSG_CHECKING(for PTRACE_GETFPXREGS)
@@ -62,7 +77,9 @@ if test "${srv_linux_regsets}" = "yes"; then
 		  [gdbsrv_cv_have_ptrace_getfpxregs=no])])
   AC_MSG_RESULT($gdbsrv_cv_have_ptrace_getfpxregs)
   if test "${gdbsrv_cv_have_ptrace_getfpxregs}" = "yes"; then
-    AC_DEFINE(HAVE_PTRACE_GETFPXREGS)
+    AC_DEFINE(HAVE_PTRACE_GETFPXREGS, 1,
+	      [Define if the target supports PTRACE_GETFPXREGS for extended ]
+	      [register access.])
   fi
 fi
 
@@ -94,7 +111,8 @@ if test "$ac_cv_header_sys_procfs_h" = yes; then
        gdb_cv_prfpregset_t_broken=yes)])
     AC_MSG_RESULT($gdb_cv_prfpregset_t_broken)
     if test $gdb_cv_prfpregset_t_broken = yes; then
-      AC_DEFINE(PRFPREGSET_T_BROKEN)
+      AC_DEFINE(PRFPREGSET_T_BROKEN, 1,
+		[Define if the prfpregset_t type is broken.])
     fi
   fi
 
@@ -124,6 +142,13 @@ fi
 if test "$srv_linux_thread_db" = "yes"; then
   srv_thread_depfiles="thread-db.o proc-service.o"
   USE_THREAD_DB="-DUSE_THREAD_DB"
+  AC_CACHE_CHECK([for TD_VERSION], gdbsrv_cv_have_td_version,
+  [AC_TRY_COMPILE([#include <thread_db.h>], [TD_VERSION;],
+                  [gdbsrv_cv_have_td_version=yes],
+                  [gdbsrv_cv_have_td_version=no])])
+  if test $gdbsrv_cv_have_td_version = yes; then
+    AC_DEFINE(HAVE_TD_VERSION, 1, [Define if TD_VERSION is available.])
+  fi
 fi
 
 GDBSERVER_DEPFILES="$srv_regobj $srv_tgtobj $srv_thread_depfiles"

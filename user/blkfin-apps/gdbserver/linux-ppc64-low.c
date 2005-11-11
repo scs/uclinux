@@ -1,4 +1,4 @@
-/* GNU/Linux/PowerPC specific low level interface, for the remote server for
+/* GNU/Linux/PowerPC64 specific low level interface, for the remote server for
    GDB.
    Copyright 1995, 1996, 1998, 1999, 2000, 2001, 2002, 2005
    Free Software Foundation, Inc.
@@ -27,34 +27,31 @@
 
 #define ppc_num_regs 71
 
-/* Currently, don't check/send MQ.  */
+/* We use a constant for FPSCR instead of PT_FPSCR, because
+   many shipped PPC64 kernels had the wrong value in ptrace.h.  */
 static int ppc_regmap[] =
- {PT_R0 * 4,     PT_R1 * 4,     PT_R2 * 4,     PT_R3 * 4,
-  PT_R4 * 4,     PT_R5 * 4,     PT_R6 * 4,     PT_R7 * 4,
-  PT_R8 * 4,     PT_R9 * 4,     PT_R10 * 4,    PT_R11 * 4,
-  PT_R12 * 4,    PT_R13 * 4,    PT_R14 * 4,    PT_R15 * 4,
-  PT_R16 * 4,    PT_R17 * 4,    PT_R18 * 4,    PT_R19 * 4,
-  PT_R20 * 4,    PT_R21 * 4,    PT_R22 * 4,    PT_R23 * 4,
-  PT_R24 * 4,    PT_R25 * 4,    PT_R26 * 4,    PT_R27 * 4,
-  PT_R28 * 4,    PT_R29 * 4,    PT_R30 * 4,    PT_R31 * 4,
-  PT_FPR0*4,     PT_FPR0*4 + 8, PT_FPR0*4+16,  PT_FPR0*4+24,
-  PT_FPR0*4+32,  PT_FPR0*4+40,  PT_FPR0*4+48,  PT_FPR0*4+56,
-  PT_FPR0*4+64,  PT_FPR0*4+72,  PT_FPR0*4+80,  PT_FPR0*4+88,
-  PT_FPR0*4+96,  PT_FPR0*4+104,  PT_FPR0*4+112,  PT_FPR0*4+120,
-  PT_FPR0*4+128, PT_FPR0*4+136,  PT_FPR0*4+144,  PT_FPR0*4+152,
-  PT_FPR0*4+160,  PT_FPR0*4+168,  PT_FPR0*4+176,  PT_FPR0*4+184,
-  PT_FPR0*4+192,  PT_FPR0*4+200,  PT_FPR0*4+208,  PT_FPR0*4+216,
-  PT_FPR0*4+224,  PT_FPR0*4+232,  PT_FPR0*4+240,  PT_FPR0*4+248,
-  PT_NIP * 4,    PT_MSR * 4,    PT_CCR * 4,    PT_LNK * 4,
-  PT_CTR * 4,    PT_XER * 4,    PT_FPSCR * 4, };
+ {PT_R0 * 8,     PT_R1 * 8,     PT_R2 * 8,     PT_R3 * 8,
+  PT_R4 * 8,     PT_R5 * 8,     PT_R6 * 8,     PT_R7 * 8,
+  PT_R8 * 8,     PT_R9 * 8,     PT_R10 * 8,    PT_R11 * 8,
+  PT_R12 * 8,    PT_R13 * 8,    PT_R14 * 8,    PT_R15 * 8,
+  PT_R16 * 8,    PT_R17 * 8,    PT_R18 * 8,    PT_R19 * 8,
+  PT_R20 * 8,    PT_R21 * 8,    PT_R22 * 8,    PT_R23 * 8,
+  PT_R24 * 8,    PT_R25 * 8,    PT_R26 * 8,    PT_R27 * 8,
+  PT_R28 * 8,    PT_R29 * 8,    PT_R30 * 8,    PT_R31 * 8,
+  PT_FPR0*8,     PT_FPR0*8 + 8, PT_FPR0*8+16,  PT_FPR0*8+24,
+  PT_FPR0*8+32,  PT_FPR0*8+40,  PT_FPR0*8+48,  PT_FPR0*8+56,
+  PT_FPR0*8+64,  PT_FPR0*8+72,  PT_FPR0*8+80,  PT_FPR0*8+88,
+  PT_FPR0*8+96,  PT_FPR0*8+104,  PT_FPR0*8+112,  PT_FPR0*8+120,
+  PT_FPR0*8+128, PT_FPR0*8+136,  PT_FPR0*8+144,  PT_FPR0*8+152,
+  PT_FPR0*8+160,  PT_FPR0*8+168,  PT_FPR0*8+176,  PT_FPR0*8+184,
+  PT_FPR0*8+192,  PT_FPR0*8+200,  PT_FPR0*8+208,  PT_FPR0*8+216,
+  PT_FPR0*8+224,  PT_FPR0*8+232,  PT_FPR0*8+240,  PT_FPR0*8+248,
+  PT_NIP * 8,    PT_MSR * 8,    PT_CCR * 8,    PT_LNK * 8,
+  PT_CTR * 8,    PT_XER * 8,    PT_FPR0*8 + 256 };
 
 static int
 ppc_cannot_store_register (int regno)
 {
-  /* Some kernels do not allow us to store fpscr.  */
-  if (regno == find_regno ("fpscr"))
-    return 2;
-
   return 0;
 }
 
@@ -81,17 +78,16 @@ ppc_set_pc (CORE_ADDR pc)
   supply_register_by_name ("pc", &newpc);
 }
 
-/* Correct in either endianness.  Note that this file is
-   for PowerPC only, not PowerPC64.
+/* Correct in either endianness.
    This instruction is "twge r2, r2", which GDB uses as a software
    breakpoint.  */
-static const unsigned long ppc_breakpoint = 0x7d821008;
+static const unsigned int ppc_breakpoint = 0x7d821008;
 #define ppc_breakpoint_len 4
 
 static int
 ppc_breakpoint_at (CORE_ADDR where)
 {
-  unsigned long insn;
+  unsigned int insn;
 
   (*the_target->read_memory) (where, (unsigned char *) &insn, 4);
   if (insn == ppc_breakpoint)
@@ -132,4 +128,9 @@ struct linux_target_ops the_low_target = {
   NULL,
   0,
   ppc_breakpoint_at,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  1
 };

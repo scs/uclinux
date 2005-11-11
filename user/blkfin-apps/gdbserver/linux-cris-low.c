@@ -1,4 +1,4 @@
-/* GNU/Linux/ARM specific low level interface, for the remote server for GDB.
+/* GNU/Linux/CRIS specific low level interface, for the remote server for GDB.
    Copyright 1995, 1996, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005
    Free Software Foundation, Inc.
 
@@ -21,36 +21,47 @@
 
 #include "server.h"
 #include "linux-low.h"
+#include <sys/ptrace.h>
 
-#ifdef HAVE_SYS_REG_H
-#include <sys/reg.h>
-#endif
+/* CRISv10 */
+#define cris_num_regs 32
 
-#define arm_num_regs 26
+/* Locations need to match <include/asm/arch/ptrace.h>.  */
+static int cris_regmap[] = {
+  15*4, 14*4, 13*4, 12*4,
+  11*4, 10*4, 9*4, 8*4,
+  7*4, 6*4, 5*4, 4*4,
+  3*4, 2*4, 23*4, 19*4,
 
-static int arm_regmap[] = {
-  0, 4, 8, 12, 16, 20, 24, 28,
-  32, 36, 40, 44, 48, 52, 56, 60,
-  -1, -1, -1, -1, -1, -1, -1, -1, -1,
-  64
+  -1, -1, -1, -1,
+  -1, 17*4, -1, 16*4,
+  -1, -1, -1, 18*4,
+  -1, 17*4, -1, -1
+  
 };
 
 static int
-arm_cannot_store_register (int regno)
+cris_cannot_store_register (int regno)
 {
-  return (regno >= arm_num_regs);
+  if (cris_regmap[regno] == -1)
+    return 1;
+  
+  return (regno >= cris_num_regs);
 }
 
 static int
-arm_cannot_fetch_register (int regno)
+cris_cannot_fetch_register (int regno)
 {
-  return (regno >= arm_num_regs);
+  if (cris_regmap[regno] == -1)
+    return 1;
+
+  return (regno >= cris_num_regs);
 }
 
 extern int debug_threads;
 
 static CORE_ADDR
-arm_get_pc ()
+cris_get_pc (void)
 {
   unsigned long pc;
   collect_register_by_name ("pc", &pc);
@@ -60,23 +71,23 @@ arm_get_pc ()
 }
 
 static void
-arm_set_pc (CORE_ADDR pc)
+cris_set_pc (CORE_ADDR pc)
 {
   unsigned long newpc = pc;
   supply_register_by_name ("pc", &newpc);
 }
 
-/* Correct in either endianness.  We do not support Thumb yet.  */
-static const unsigned long arm_breakpoint = 0xef9f0001;
-#define arm_breakpoint_len 4
+static const unsigned short cris_breakpoint = 0xe938;
+#define cris_breakpoint_len 2
 
 static int
-arm_breakpoint_at (CORE_ADDR where)
+cris_breakpoint_at (CORE_ADDR where)
 {
-  unsigned long insn;
+  unsigned short insn;
 
-  (*the_target->read_memory) (where, (unsigned char *) &insn, 4);
-  if (insn == arm_breakpoint)
+  (*the_target->read_memory) (where, (unsigned char *) &insn,
+			      cris_breakpoint_len);
+  if (insn == cris_breakpoint)
     return 1;
 
   /* If necessary, recognize more trap instructions here.  GDB only uses the
@@ -88,23 +99,27 @@ arm_breakpoint_at (CORE_ADDR where)
    is outside of the function.  So rather than importing software single-step,
    we can just run until exit.  */
 static CORE_ADDR
-arm_reinsert_addr ()
+cris_reinsert_addr (void)
 {
   unsigned long pc;
-  collect_register_by_name ("lr", &pc);
+  collect_register_by_name ("srp", &pc);
   return pc;
 }
 
 struct linux_target_ops the_low_target = {
-  arm_num_regs,
-  arm_regmap,
-  arm_cannot_fetch_register,
-  arm_cannot_store_register,
-  arm_get_pc,
-  arm_set_pc,
-  (const unsigned char *) &arm_breakpoint,
-  arm_breakpoint_len,
-  arm_reinsert_addr,
+  cris_num_regs,
+  cris_regmap,
+  cris_cannot_fetch_register,
+  cris_cannot_store_register,
+  cris_get_pc,
+  cris_set_pc,
+  (const unsigned char *) &cris_breakpoint,
+  cris_breakpoint_len,
+  cris_reinsert_addr,
   0,
-  arm_breakpoint_at,
+  cris_breakpoint_at,
+  0,
+  0,
+  0,
+  0,
 };

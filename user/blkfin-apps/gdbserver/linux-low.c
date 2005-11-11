@@ -1,5 +1,5 @@
 /* Low level interface to ptrace, for the remote server for GDB.
-   Copyright 1995, 1996, 1998, 1999, 2000, 2001, 2002, 2003, 2004
+   Copyright 1995, 1996, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005
    Free Software Foundation, Inc.
 
    This file is part of GDB.
@@ -46,7 +46,6 @@
    the same as the LWP ID.  */
 
 struct inferior_list all_processes;
-static struct thread_resume *resume_ptr;
 
 /* FIXME this is a bit of a hack, and could be removed.  */
 int stopping_threads;
@@ -114,7 +113,7 @@ get_stop_pc (void)
 }
 
 static void *
-add_process (int pid)
+add_process (unsigned long pid)
 {
   struct process_info *process;
 
@@ -162,7 +161,7 @@ linux_create_inferior (char *program, char **allargs)
     }
 
   new_process = add_process (pid);
-  add_thread (pid, new_process);
+  add_thread (pid, new_process, pid);
 
   return pid;
 }
@@ -170,13 +169,13 @@ linux_create_inferior (char *program, char **allargs)
 /* Attach to an inferior process.  */
 
 void
-linux_attach_lwp (int pid, int tid)
+linux_attach_lwp (unsigned long pid, unsigned long tid)
 {
   struct process_info *new_process;
 
   if (ptrace (PTRACE_ATTACH, pid, 0, 0) != 0)
     {
-      fprintf (stderr, "Cannot attach to process %d: %s (%d)\n", pid,
+      fprintf (stderr, "Cannot attach to process %ld: %s (%d)\n", pid,
 	       strerror (errno), errno);
       fflush (stderr);
 
@@ -187,7 +186,7 @@ linux_attach_lwp (int pid, int tid)
     }
 
   new_process = (struct process_info *) add_process (pid);
-  add_thread (tid, new_process);
+  add_thread (tid, new_process, pid);
 
   /* The next time we wait for this LWP we'll see a SIGSTOP as PTRACE_ATTACH
      brings it to a halt.  We should ignore that SIGSTOP and resume the process
@@ -204,7 +203,7 @@ linux_attach_lwp (int pid, int tid)
 }
 
 int
-linux_attach (int pid)
+linux_attach (unsigned long pid)
 {
   struct process_info *process;
 
@@ -279,7 +278,7 @@ linux_detach (void)
 
 /* Return nonzero if the given thread is still alive.  */
 static int
-linux_thread_alive (int tid)
+linux_thread_alive (unsigned long tid)
 {
   if (find_inferior_id (&all_threads, tid) != NULL)
     return 1;
@@ -381,9 +380,7 @@ linux_wait_for_process (struct process_info **childp, int *wstatp)
 
   while (1)
     {
-      // bfin ... WNOHANG hangs 12.01.04
       ret = waitpid (to_wait_for, wstatp, WNOHANG);
-      // ret = waitpid (to_wait_for, wstatp, 0);
 
       if (ret == -1)
 	{
@@ -445,7 +442,7 @@ linux_wait_for_event (struct thread_info *child)
       event_child = (struct process_info *)
 	find_inferior (&all_processes, status_pending_p, NULL);
       if (debug_threads && event_child)
-	fprintf (stderr, "Got a pending child %d\n", event_child->lwpid);
+	fprintf (stderr, "Got a pending child %ld\n", event_child->lwpid);
     }
   else
     {
@@ -460,7 +457,7 @@ linux_wait_for_event (struct thread_info *child)
       if (event_child->status_pending_p)
 	{
 	  if (debug_threads)
-	    fprintf (stderr, "Got an event from pending child %d (%04x)\n",
+	    fprintf (stderr, "Got an event from pending child %ld (%04x)\n",
 		     event_child->lwpid, event_child->status_pending);
 	  wstat = event_child->status_pending;
 	  event_child->status_pending_p = 0;
@@ -495,7 +492,7 @@ linux_wait_for_event (struct thread_info *child)
 	  if (! WIFSTOPPED (wstat))
 	    {
 	      if (debug_threads)
-		fprintf (stderr, "Thread %d (LWP %d) exiting\n",
+		fprintf (stderr, "Thread %ld (LWP %ld) exiting\n",
 			 event_child->tid, event_child->head.id);
 
 	      /* If the last thread is exiting, just return.  */
@@ -537,7 +534,7 @@ linux_wait_for_event (struct thread_info *child)
 		  || WSTOPSIG (wstat) == __SIGRTMIN + 1))
 	    {
 	      if (debug_threads)
-		fprintf (stderr, "Ignored signal %d for %d (LWP %d).\n",
+		fprintf (stderr, "Ignored signal %d for %ld (LWP %ld).\n",
 			 WSTOPSIG (wstat), event_child->tid,
 			 event_child->head.id);
 	      linux_resume_one_process (&event_child->head,
@@ -671,7 +668,7 @@ retry:
      then we need to make sure we restart the other threads.  We could
      pick a thread at random or restart all; restarting all is less
      arbitrary.  */
-  if (cont_thread > 0)
+  if (cont_thread != 0 && cont_thread != -1)
     {
       child = (struct thread_info *) find_inferior_id (&all_threads,
 						       cont_thread);
@@ -739,7 +736,7 @@ retry:
    thread groups are in use, we need to use tkill.  */
 
 static int
-kill_lwp (int lwpid, int signo)
+kill_lwp (unsigned long lwpid, int signo)
 {
   static int tkill_failed;
 
@@ -776,7 +773,7 @@ send_sigstop (struct inferior_list_entry *entry)
     }
 
   if (debug_threads)
-    fprintf (stderr, "Sending sigstop to process %d\n", process->head.id);
+    fprintf (stderr, "Sending sigstop to process %ld\n", process->head.id);
 
   kill_lwp (process->head.id, SIGSTOP);
   process->sigstop_sent = 1;
@@ -787,7 +784,8 @@ wait_for_sigstop (struct inferior_list_entry *entry)
 {
   struct process_info *process = (struct process_info *) entry;
   struct thread_info *saved_inferior, *thread;
-  int wstat, saved_tid;
+  int wstat;
+  unsigned long saved_tid;
 
   if (process->stopped)
     return;
@@ -867,7 +865,7 @@ linux_resume_one_process (struct inferior_list_entry *entry,
   current_inferior = get_process_thread (process);
 
   if (debug_threads)
-    fprintf (stderr, "Resuming process %d (%s, signal %d, stop %s)\n", inferior_pid,
+    fprintf (stderr, "Resuming process %ld (%s, signal %d, stop %s)\n", inferior_pid,
 	     step ? "step" : "continue", signal,
 	     process->stop_expected ? "expected" : "not expected");
 
@@ -927,6 +925,8 @@ linux_resume_one_process (struct inferior_list_entry *entry,
   if (errno)
     perror_with_name ("ptrace");
 }
+
+static struct thread_resume *resume_ptr;
 
 /* This function is called once per thread.  We look up the thread
    in RESUME_PTR, and mark the thread with a pointer to the appropriate
@@ -1096,7 +1096,7 @@ static void
 fetch_register (int regno)
 {
   CORE_ADDR regaddr;
-  register int i;
+  int i, size;
   char *buf;
 
   if (regno >= the_low_target.num_regs)
@@ -1107,8 +1107,10 @@ fetch_register (int regno)
   regaddr = register_addr (regno);
   if (regaddr == -1)
     return;
-  buf = alloca (register_size (regno));
-  for (i = 0; i < register_size (regno); i += sizeof (PTRACE_XFER_TYPE))
+  size = (register_size (regno) + sizeof (PTRACE_XFER_TYPE) - 1)
+         & - sizeof (PTRACE_XFER_TYPE);
+  buf = alloca (size);
+  for (i = 0; i < size; i += sizeof (PTRACE_XFER_TYPE))
     {
       errno = 0;
       *(PTRACE_XFER_TYPE *) (buf + i) =
@@ -1125,7 +1127,12 @@ fetch_register (int regno)
 	  goto error_exit;
 	}
     }
-  supply_register (regno, buf);
+  if (the_low_target.left_pad_xfer
+      && register_size (regno) < sizeof (PTRACE_XFER_TYPE))
+    supply_register (regno, (buf + sizeof (PTRACE_XFER_TYPE)
+			     - register_size (regno)));
+  else
+    supply_register (regno, buf);
 
 error_exit:;
 }
@@ -1148,7 +1155,7 @@ static void
 usr_store_inferior_registers (int regno)
 {
   CORE_ADDR regaddr;
-  int i;
+  int i, size;
   char *buf;
 
   if (regno >= 0)
@@ -1163,9 +1170,17 @@ usr_store_inferior_registers (int regno)
       if (regaddr == -1)
 	return;
       errno = 0;
-      buf = alloca (register_size (regno));
-      collect_register (regno, buf);
-      for (i = 0; i < register_size (regno); i += sizeof (PTRACE_XFER_TYPE))
+      size = (register_size (regno) + sizeof (PTRACE_XFER_TYPE) - 1)
+	     & - sizeof (PTRACE_XFER_TYPE);
+      buf = alloca (size);
+      memset (buf, 0, size);
+      if (the_low_target.left_pad_xfer
+	  && register_size (regno) < sizeof (PTRACE_XFER_TYPE))
+	collect_register (regno, (buf + sizeof (PTRACE_XFER_TYPE)
+				  - register_size (regno)));
+      else
+	collect_register (regno, buf);
+      for (i = 0; i < size; i += sizeof (PTRACE_XFER_TYPE))
 	{
 	  errno = 0;
 	  ptrace (PTRACE_POKEUSER, inferior_pid, (PTRACE_ARG3_TYPE) regaddr,
@@ -1199,6 +1214,7 @@ static int
 regsets_fetch_inferior_registers ()
 {
   struct regset_info *regset;
+  int saw_general_regs = 0;
 
   regset = target_regsets;
 
@@ -1235,21 +1251,27 @@ regsets_fetch_inferior_registers ()
 	  else
 	    {
 	      char s[256];
-	      sprintf (s, "ptrace(regsets_fetch_inferior_registers) PID=%d",
+	      sprintf (s, "ptrace(regsets_fetch_inferior_registers) PID=%ld",
 		       inferior_pid);
 	      perror (s);
 	    }
 	}
+      else if (regset->type == GENERAL_REGS)
+	saw_general_regs = 1;
       regset->store_function (buf);
       regset ++;
     }
-  return 0;
+  if (saw_general_regs)
+    return 0;
+  else
+    return 1;
 }
 
 static int
 regsets_store_inferior_registers ()
 {
   struct regset_info *regset;
+  int saw_general_regs = 0;
 
   regset = target_regsets;
 
@@ -1289,9 +1311,15 @@ regsets_store_inferior_registers ()
 	      perror ("Warning: ptrace(regsets_store_inferior_registers)");
 	    }
 	}
+      else if (regset->type == GENERAL_REGS)
+	saw_general_regs = 1;
       regset ++;
       free (buf);
     }
+  if (saw_general_regs)
+    return 0;
+  else
+    return 1;
   return 0;
 }
 
@@ -1333,7 +1361,7 @@ linux_store_registers (int regno)
    to debugger memory starting at MYADDR.  */
 
 static int
-linux_read_memory (CORE_ADDR memaddr, char *myaddr, int len)
+linux_read_memory (CORE_ADDR memaddr, unsigned char *myaddr, int len)
 {
   register int i;
   /* Round starting address down to longword boundary.  */
@@ -1367,7 +1395,7 @@ linux_read_memory (CORE_ADDR memaddr, char *myaddr, int len)
    returns the value of errno.  */
 
 static int
-linux_write_memory (CORE_ADDR memaddr, const char *myaddr, int len)
+linux_write_memory (CORE_ADDR memaddr, const unsigned char *myaddr, int len)
 {
   register int i;
   /* Round starting address down to longword boundary.  */
@@ -1429,9 +1457,9 @@ linux_look_up_symbols (void)
 static void
 linux_send_signal (int signum)
 {
-  extern int signal_pid;
+  extern unsigned long signal_pid;
 
-  if (cont_thread > 0)
+  if (cont_thread != 0 && cont_thread != -1)
     {
       struct process_info *process;
 
@@ -1446,12 +1474,12 @@ linux_send_signal (int signum)
    to debugger memory starting at MYADDR.  */
 
 static int
-linux_read_auxv (CORE_ADDR offset, char *myaddr, unsigned int len)
+linux_read_auxv (CORE_ADDR offset, unsigned char *myaddr, unsigned int len)
 {
   char filename[PATH_MAX];
   int fd, n;
 
-  snprintf (filename, sizeof filename, "/proc/%d/auxv", inferior_pid);
+  snprintf (filename, sizeof filename, "/proc/%ld/auxv", inferior_pid);
 
   fd = open (filename, O_RDONLY);
   if (fd < 0)
@@ -1466,6 +1494,47 @@ linux_read_auxv (CORE_ADDR offset, char *myaddr, unsigned int len)
   close (fd);
 
   return n;
+}
+
+/* These watchpoint related wrapper functions simply pass on the function call
+   if the target has registered a corresponding function.  */
+
+static int
+linux_insert_watchpoint (char type, CORE_ADDR addr, int len)
+{
+  if (the_low_target.insert_watchpoint != NULL)
+    return the_low_target.insert_watchpoint (type, addr, len);
+  else
+    /* Unsupported (see target.h).  */
+    return 1;
+}
+
+static int
+linux_remove_watchpoint (char type, CORE_ADDR addr, int len)
+{
+  if (the_low_target.remove_watchpoint != NULL)
+    return the_low_target.remove_watchpoint (type, addr, len);
+  else
+    /* Unsupported (see target.h).  */
+    return 1;
+}
+
+static int
+linux_stopped_by_watchpoint (void)
+{
+  if (the_low_target.stopped_by_watchpoint != NULL)
+    return the_low_target.stopped_by_watchpoint ();
+  else
+    return 0;
+}
+
+static CORE_ADDR
+linux_stopped_data_address (void)
+{
+  if (the_low_target.stopped_data_address != NULL)
+    return the_low_target.stopped_data_address ();
+  else
+    return 0;
 }
 
 /* Create a text , data and bss offset string */
@@ -1483,7 +1552,6 @@ linux_get_offset(char *own_buf){
   sprintf(own_buf, "Text=%x;Data=%x;Bss=%x;", buffer[0], buffer[1], buffer[2]);
 }
 
-
 static struct target_ops linux_target_ops = {
   linux_create_inferior,
   linux_attach,
@@ -1499,6 +1567,10 @@ static struct target_ops linux_target_ops = {
   linux_look_up_symbols,
   linux_send_signal,
   linux_read_auxv,
+  linux_insert_watchpoint,
+  linux_remove_watchpoint,
+  linux_stopped_by_watchpoint,
+  linux_stopped_data_address,
   linux_get_offset,
 };
 

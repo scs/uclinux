@@ -30,16 +30,18 @@
 //#define bfin_num_regs 49
 
  
-/* This table must line up with REGISTER_NAMES in tm-bfin.h */
 static int bfin_regmap[] =
 {
-  PT_SYSCFG, /*PT_ORIG_R0,*/  PT_R0, PT_R1, PT_R2, PT_R3, PT_R4, PT_R5, PT_R6, PT_R7,
-  PT_P0, PT_P1, PT_P2, PT_P3, PT_P4, PT_P5, PT_FP, PT_USP,
+  PT_R0, PT_R1, PT_R2, PT_R3, PT_R4, PT_R5, PT_R6, PT_R7,
+  PT_P0, PT_P1, PT_P2, PT_P3, PT_P4, PT_P5, PT_USP, PT_FP,
   PT_I0, PT_I1, PT_I2, PT_I3, PT_M0, PT_M1, PT_M2, PT_M3,
-  PT_L0, PT_L1, PT_L2, PT_L3, PT_B0, PT_B1, PT_B2, PT_B3,
-  PT_A0X,   PT_A0W,   PT_A1X,   PT_A1W,   PT_LC0,   PT_LC1,   PT_LT0,   PT_LT1,
-  PT_LB0,   PT_LB1,   PT_ASTAT, PT_RESERVED, PT_RETS, PT_PC,  PT_RETX,  PT_RETN,
-  PT_RETE,  PT_SEQSTAT, PT_IPEND, PT_ORIG_PC, PT_EXTRA1, PT_EXTRA2, PT_EXTRA3
+  PT_B0, PT_B1, PT_B2, PT_B3, PT_L0, PT_L1, PT_L2, PT_L3,
+  PT_A0X, PT_A0W, PT_A1X, PT_A1W, PT_ASTAT, PT_RETS,
+  PT_LC0, PT_LT0, PT_LB0, PT_LC1, PT_LT1, PT_LB1,
+  -1 /* PT_CYCLES */, -1 /* PT_CYCLES2 */,
+  -1 /* PT_USP */, PT_SEQSTAT, PT_SYSCFG, PT_PC, PT_RETX, PT_RETN, PT_RETE,
+  PT_PC, -1 /* PT_CC */, PT_EXTRA1, PT_EXTRA2, PT_EXTRA3,
+  PT_IPEND
 };
 
 #define bfin_num_regs  (sizeof(bfin_regmap)/ sizeof(bfin_regmap[0]))
@@ -54,8 +56,8 @@ static int
 bfin_cannot_fetch_register (int regno)
 {
   return (regno >= bfin_num_regs);
-  //return (regno >= 3 && regno <= 13);
 }
+
 static CORE_ADDR
 bfin_get_pc ()
 {
@@ -73,6 +75,7 @@ bfin_set_pc (CORE_ADDR pc)
 
 #define bfin_breakpoint_len 2
 static const unsigned char bfin_breakpoint[bfin_breakpoint_len]={0xa1, 0x00};
+
 static int
 bfin_breakpoint_at (CORE_ADDR where)
 {
