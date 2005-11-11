@@ -613,7 +613,7 @@ config DEBUG_KERNEL
 	  identify kernel problems.
 
 config DEBUG_HWERR
-	bool "Hardware error interrupt debuggin"
+	bool "Hardware error interrupt debugging"
 	help
 	  When enabled, the hardware error interrupt is never disabled, and
 	  will happen immediately when an error condition occurs.  This comes
