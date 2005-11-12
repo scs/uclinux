@@ -1,3 +1,7 @@
+2005-11-12  Jie Zhang  <jie.zhang@analog.com>
+
+	* Makefile: Append '-s 32768' to FLTFLAGS.
+
 2005-11-11  Jie Zhang  <jie.zhang@analog.com>
 
 	Upgrade to lastest FSF GDB project CVS on 20051031.
