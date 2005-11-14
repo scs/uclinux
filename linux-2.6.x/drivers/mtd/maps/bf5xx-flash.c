@@ -40,7 +40,7 @@ static inline void switch_to_flash(struct flash_save *save)
 {
 	local_irq_save(save->flags);
 
-	*pFIO_FLAG_C	= (PF1 | PF0);
+	*pFIO_FLAG_C	= CONFIG_ENET_FLASH_PIN;
 
 	__builtin_bfin_ssync();
 
@@ -63,7 +63,7 @@ static inline void switch_back(struct flash_save *save)
 	*pEBIU_AMBCTL1	= save->ambctl1;
 	__builtin_bfin_ssync();
 
-	*pFIO_FLAG_S	= (PF1 | PF0);	
+	*pFIO_FLAG_S	= CONFIG_ENET_FLASH_PIN;	
 
 	local_irq_restore(save->flags);
 }
@@ -74,8 +74,8 @@ static inline void switch_back(struct flash_save *save) {}
 #if defined(CONFIG_BFIN_SHARED_FLASH_ENET)
 static inline void setup_pfpins(void)
 {
-	*pFIO_INEN		&= ~(PF1 | PF0);	
-	*pFIO_DIR 		|=  (PF1 | PF0);
+	*pFIO_INEN		&= ~CONFIG_ENET_FLASH_PIN;	
+	*pFIO_DIR 		|=  CONFIG_ENET_FLASH_PIN;
 }
 #else
 static inline void setup_pfpins(void) {}

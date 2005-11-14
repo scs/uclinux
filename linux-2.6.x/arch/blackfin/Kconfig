@@ -199,6 +199,15 @@ config MEM_ADD_WIDTH
 	default 10 if BFIN537_STAMP
 	default 11 if BFIN533_STAMP
 
+config ENET_FLASH_PIN
+	int "PF port/pin used for flash and ethernet sharing"
+	depends on (BFIN533_STAMP)
+	default  1
+	help
+	  PF port/pin used for flash and ethernet sharing to allow other PF 
+	  pins to be used on other platforms without having to touch common code.
+	  For example: PF0 --> 1,PF1 --> 2,PF2 --> 4, etc.
+
 comment	'LED Status Indicators'
 
 config BFIN_ALIVE_LED

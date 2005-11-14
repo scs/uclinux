@@ -317,13 +317,13 @@ static void PRINT_PKT(u_char *buf, int length)
 } while (0)
 
 #if defined(CONFIG_BFIN_SHARED_FLASH_ENET)
-static void bfin_cplb_setup(void)
+static void bfin_cpld_setup(void)
 {
 
 	__builtin_bfin_ssync();
-	*pFIO_DIR |= 0x1;
+	*pFIO_DIR |= CONFIG_ENET_FLASH_PIN;
 	__builtin_bfin_ssync();
-	*pFIO_FLAG_S = 0x1;
+	*pFIO_FLAG_S = CONFIG_ENET_FLASH_PIN;
 	__builtin_bfin_ssync();
 
 }
@@ -2281,8 +2281,8 @@ static int smc_drv_probe(struct device *dev)
 	}
 	SET_MODULE_OWNER(ndev);
 #if defined(CONFIG_BFIN_SHARED_FLASH_ENET)
-	/* setup BF533_STAMP CPLB to route AMS3 to Ethernet MAC */
-	bfin_cplb_setup();
+	/* setup BF533_STAMP CPLD to route AMS3 to Ethernet MAC */
+	bfin_cpld_setup();
 #endif
 	SET_NETDEV_DEV(ndev, dev);
 
