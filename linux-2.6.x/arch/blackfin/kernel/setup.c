@@ -668,8 +668,11 @@ int DmaMemCpy(char *dest_addr, char *source_addr, unsigned short size)
 
 	/* Setup Source xmodify */
 	*pMDMA_S0_X_MODIFY = 1;
-
+#if defined (CONFIG_BF561)
+	*pSICA_IWR1 = (1 << 21);
+#else
 	*pSIC_IWR = (1 << (IRQ_MEM_DMA0 - (IRQ_CORETMR + 1)));
+#endif
 
 	/* Set word size to 8, set to read, enable interrupt for wakeup
 	   Enable source DMA */
@@ -713,7 +716,11 @@ int DmaMemCpy16(char *dest_addr, char *source_addr, int size)
 	*pMDMA_S0_X_MODIFY = 2;
 	*pMDMA_S0_Y_MODIFY = 2;
 
+#if defined (CONFIG_BF561)
+	*pSICA_IWR1 = (1 << 21);
+#else
 	*pSIC_IWR = (1 << (IRQ_MEM_DMA0 - (IRQ_CORETMR + 1)));
+#endif
 
 	/* Set word size to 8, set to read, enable interrupt for wakeup
 	   Enable source DMA */

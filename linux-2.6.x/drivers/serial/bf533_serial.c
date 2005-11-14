@@ -42,7 +42,7 @@
 
 #if defined(CONFIG_BF534) || defined(CONFIG_BF536) || defined(CONFIG_BF537)
 #define SIC_UART_MASK ((1<<(IRQ_UART_RX - IVG7)) | (1<<(IRQ_UART_TX - IVG7)) | (1<<(IRQ_UART1_RX - IVG7)) | (1<<(IRQ_UART1_TX - IVG7)))
-#else
+#else /* BF531/2/3, BF561 */
 #define SIC_UART_MASK ((1<<(IRQ_UART_RX - IVG7)) | (1<<(IRQ_UART_TX - IVG7)) | (1<<(IRQ_UART_ERROR - IVG7)))
 #endif
 
@@ -199,7 +199,7 @@ static inline void bfin_rtsdtr(struct bfin_serial *info, int set)
         printk("%s(%d): bfin_rtsdtr(info=%x,set=%d)\n",
                 __FILE__, __LINE__, info, set);
 #endif
-
+#if !defined(CONFIG_BF561)
 	local_irq_save(flags);
 	if (set) {
 		/* set the RTS/CTS line */
@@ -211,6 +211,7 @@ static inline void bfin_rtsdtr(struct bfin_serial *info, int set)
 		SSYNC;
 	}
 	local_irq_restore(flags);
+#endif
 	return;
 }
 
@@ -564,7 +565,11 @@ irqreturn_t rs_interrupt(int irq, void *dev_id, struct pt_regs * regs)
 	unsigned short rx, lsr; 
 	unsigned int sic_status = 0;
 	CSYNC;
+#if defined(CONFIG_BF561)
+	sic_status = *pSICA_ISR1;
+#else
 	sic_status = *pSIC_ISR;
+#endif
 	if (sic_status & SIC_UART_MASK) {
 	        CSYNC;
 		iir = *(uart_regs->rpUART_IIR);

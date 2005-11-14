@@ -135,6 +135,12 @@ config BFIN533_BLUETECHNIX_CM
 	help
 	  CM-BF533 support for EVAL- and DEV-Board
 
+config BFIN561_EZKIT
+	bool "BF561-EZKIT"
+	depends on (BF561)
+	help
+	 BF561-EZKIT-LITE board Support.
+
 config GENERIC_BOARD
 	bool "Custom"
 	depends on (BF537 || BF536 || BF534 || BF561 || BF535 || BF533 || BF532 || BF531)
@@ -155,7 +161,7 @@ config MEM_MT48LC64M4A2FB_7E
 
 config MEM_MT48LC16M16A2TG_75
 	bool
-	depends on (BFIN533_EZKIT || BFIN533_BLUETECHNIX_CM)
+	depends on (BFIN533_EZKIT || BFIN561_EZKIT || BFIN533_BLUETECHNIX_CM)
 	default y
 
 config MEM_MT48LC16M8A2TG_75
@@ -182,6 +188,7 @@ config CLKIN_HZ
 	default "27000000" if BFIN533_EZKIT
 	default "25000000" if BFIN537_STAMP
 	default "27000000" if BFIN533_BLUETECHNIX_CM
+	default "30000000" if BFIN561_EZKIT
 	help
 	  The frequency of CLKIN crystal oscillator on the board in Hz.
 
@@ -190,11 +197,13 @@ config MEM_SIZE
 	default  32 if BFIN533_EZKIT
 	default  32 if BFIN533_BLUETECHNIX_CM
 	default  64 if BFIN537_STAMP
+	default  64 if BFIN561_EZKIT
 	default 128 if BFIN533_STAMP
 
 config MEM_ADD_WIDTH
 	int "SDRAM Memory Address Width"
 	default  9 if BFIN533_EZKIT
+	default  9 if BFIN561_EZKIT
 	default  9 if BFIN533_BLUETECHNIX_CM
 	default 10 if BFIN537_STAMP
 	default 11 if BFIN533_STAMP
@@ -371,7 +380,7 @@ config NO_DMA
 
 config BLKFIN_SIMPLE_DMA
 	bool 'Enable Simple DMA Support'
-	depends on (BF533 || BF532 || BF531 || BF537 || BF536 || BF534)
+	depends on (BF533 || BF532 || BF531 || BF537 || BF536 || BF534 || BF561)
 	help
 	  Simple DMA driver
 endchoice
@@ -410,6 +419,7 @@ config VCO_MULT
 	default "45" if BFIN533_STAMP
 	default "45" if BFIN537_STAMP
 	default "22" if BFIN533_BLUETECHNIX_CM
+	default "20" if BFIN561_EZKIT
 
 comment 'Core Clock Divider'
 
@@ -419,6 +429,7 @@ config CCLK_DIV
 	default 1 if BFIN533_STAMP
 	default 1 if BFIN537_STAMP
 	default 1 if BFIN533_BLUETECHNIX_CM
+	default 1 if BFIN561_EZKIT
 
 comment 'System Clock Divider'
 
@@ -428,6 +439,7 @@ config SCLK_DIV
 	default 5 if BFIN533_STAMP
 	default 5 if BFIN537_STAMP
 	default 5 if BFIN533_BLUETECHNIX_CM
+	default 5 if BFIN561_EZKIT
 
 comment 'Half clockin'
 
@@ -451,6 +463,27 @@ config C_AMCKEN
 config C_CDPRIO
 	bool "DMA has priority over core for ext. accesses"
 	default n
+
+config C_B0PEN
+	depends on BF561
+	bool "Bank 0 16 bit packing enable"
+	default y
+
+config C_B1PEN
+	depends on BF561
+	bool "Bank 1 16 bit packing enable"
+	default y
+
+config C_B2PEN
+	depends on BF561
+	bool "Bank 3 16 bit packing enable"
+	default y
+
+config C_B3PEN
+	depends on BF561
+	bool "Bank 3 16 bit packing enable"
+	default n
+
 choice
 	prompt"Enable Asynchonous Memory Banks"
 	default C_AMBEN_ALL

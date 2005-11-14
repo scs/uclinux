@@ -39,11 +39,19 @@
 .global _unmask_wdog_wakeup_evt
 _unmask_wdog_wakeup_evt:
 	[--SP] = ( R7:0, P5:0 );
-
+#if defined (CONFIG_BF561)
+	P0.H = hi(SICA_IWR1);
+	P0.L = lo(SICA_IWR1);
+#else
 	P0.h = (SIC_IWR >> 16);
 	P0.l = (SIC_IWR & 0xFFFF);
+#endif
 	R7 = [P0];
+#if defined (CONFIG_BF561)
+	BITSET(R7, 27);
+#else
 	BITSET(R7,(IRQ_WATCH - IVG7));
+#endif
 	[P0] = R7;
 	SSYNC;
 
@@ -55,8 +63,13 @@ WRITE_TO_STAT:
 	 * contents of CNT to STAT
 	 */
 	R7 = 0x0000(z);
+#if defined(CONFIG_BF561)
+	P0.h = (WDOGA_STAT >> 16);
+	P0.l = (WDOGA_STAT & 0xFFFF);
+#else
 	P0.h = (WDOG_STAT >> 16);
 	P0.l = (WDOG_STAT & 0xFFFF);
+#endif
 	[P0] = R7;
 	SSYNC;
 	JUMP SKIP_WRITE_TO_STAT;
@@ -64,14 +77,23 @@ WRITE_TO_STAT:
 .global _program_wdog_timer
 _program_wdog_timer:
 	[--SP] = ( R7:0, P5:0 );
-
+#if defined(CONFIG_BF561)
+	P0.h = (WDOGA_CNT >> 16);
+	P0.l = (WDOGA_CNT & 0xFFFF);
+#else
 	P0.h = (WDOG_CNT >> 16);
 	P0.l = (WDOG_CNT & 0xFFFF);
+#endif
 	[P0] = R0;
 	SSYNC;
 
+#if defined(CONFIG_BF561)
+	P0.h = (WDOGA_CTL >> 16);
+	P0.l = (WDOGA_CTL & 0xFFFF);
+#else
 	P0.h = (WDOG_CTL >> 16);
 	P0.l = (WDOG_CTL & 0xFFFF);
+#endif
 	R7 = W[P0](Z);
 	CC = BITTST(R7,1);
 	if !CC JUMP WRITE_TO_STAT;
@@ -79,8 +101,13 @@ _program_wdog_timer:
 	if !CC JUMP WRITE_TO_STAT;
 
 SKIP_WRITE_TO_STAT:
+#if defined(CONFIG_BF561)
+	P0.h = (WDOGA_CTL >> 16);
+        P0.l = (WDOGA_CTL & 0xFFFF);
+#else
 	P0.h = (WDOG_CTL >> 16);
         P0.l = (WDOG_CTL & 0xFFFF);
+#endif
         R7 = W[P0](Z);
         BITCLR(R7,1);	/* Enable GP event */
         BITSET(R7,2);
@@ -100,8 +127,13 @@ SKIP_WRITE_TO_STAT:
 _clear_wdog_wakeup_evt:
 	[--SP] = ( R7:0, P5:0 );
 
+#if defined(CONFIG_BF561)
+	P0.h = (WDOGA_CTL >> 16);
+	P0.l = (WDOGA_CTL & 0xFFFF);
+#else
 	P0.h = (WDOG_CTL >> 16);
 	P0.l = (WDOG_CTL & 0xFFFF);
+#endif
 	R7 = 0x0AD6(Z);
 	W[P0] = R7.L;
 	SSYNC;
@@ -123,14 +155,20 @@ _clear_wdog_wakeup_evt:
 .global _disable_wdog_timer
 _disable_wdog_timer:
 	[--SP] = ( R7:0, P5:0 );
+#if defined(CONFIG_BF561)
+	P0.h = (WDOGA_CTL >> 16);
+	P0.l = (WDOGA_CTL & 0xFFFF);
+#else
 	P0.h = (WDOG_CTL >> 16);
 	P0.l = (WDOG_CTL & 0xFFFF);
+#endif
 	R7 = 0xAD6(Z);
 	W[P0] = R7.L;
 	SSYNC;
 	( R7:0, P5:0 ) = [SP++];
 	RTS;
 
+#if !defined(CONFIG_BF561)
 .global _sleep_mode
 _sleep_mode:
 	[--SP] = ( R7:0, P5:0 );
@@ -249,7 +287,6 @@ CHECK_AGAIN2:
 .global _hibernate_mode
 _hibernate_mode:
 	[--SP] = ( R7:0, P5:0 );
-
  	P0.H = hi(SIC_IWR);
         P0.L = lo(SIC_IWR);
 	R0 = IWR_ENABLE(IRQ_RTC - IVG7)(Z);
@@ -294,3 +331,4 @@ _hibernate_mode:
 
         ( R7:0, P5:0 ) = [SP++];
         RTS;
+#endif

@@ -34,9 +34,11 @@
 #ifndef _CDEF_BF561_H
 #define _CDEF_BF561_H
 
+/*
 #if !defined(__ADSPBF561__)
 #warning cdefBF561.h should only be included for BF561 chip.
 #endif
+*/
 /* include all Core registers and bit definitions */
 #include "defBF561.h"
 
@@ -61,7 +63,7 @@
 #define pSICA_IMASK (volatile unsigned long *)SICA_IMASK
 #define pSICA_IMASK0 (volatile unsigned long *)SICA_IMASK0
 #define pSICA_IMASK1 (volatile unsigned long *)SICA_IMASK1
-#define pSICA_IAR0 (volatile unsigned long *)SICA_IAR0
+#define pSICA_IAR0 ((volatile unsigned long *)SICA_IAR0)
 #define pSICA_IAR1 (volatile unsigned long *)SICA_IAR1
 #define pSICA_IAR2 (volatile unsigned long *)SICA_IAR2
 #define pSICA_IAR3 (volatile unsigned long *)SICA_IAR3
@@ -787,4 +789,19 @@
 #define pIMDMA_S1_CURR_Y_COUNT (volatile unsigned short *)IMDMA_S1_CURR_Y_COUNT
 #define pIMDMA_S1_IRQ_STATUS (volatile unsigned short *)IMDMA_S1_IRQ_STATUS
 
-#endif				/* _CDEF_BF561_H */
+#define pMDMA_S0_CONFIG		pMDMA1_S0_CONFIG
+#define PMDMA_S0_IRQ_STATUS	pMDMA1_S0_IRQ_STATUS
+#define pMDMA_S0_X_MODIFY	pMDMA1_S0_X_MODIFY
+#define pMDMA_S0_Y_MODIFY	pMDMA1_S0_Y_MODIFY
+#define pMDMA_S0_X_COUNT	pMDMA1_S0_X_COUNT
+#define pMDMA_S0_Y_COUNT	pMDMA1_S0_Y_COUNT
+#define pMDMA_S0_START_ADDR	pMDMA1_S0_START_ADDR
+#define pMDMA_D0_CONFIG		pMDMA1_D0_CONFIG
+#define pMDMA_D0_IRQ_STATUS	pMDMA1_D0_IRQ_STATUS
+#define pMDMA_D0_X_MODIFY	pMDMA1_D0_X_MODIFY
+#define pMDMA_D0_Y_MODIFY	pMDMA1_D0_Y_MODIFY
+#define pMDMA_D0_X_COUNT	pMDMA1_D0_X_COUNT
+#define pMDMA_D0_Y_COUNT	pMDMA1_D0_Y_COUNT
+#define pMDMA_D0_START_ADDR	pMDMA1_D0_START_ADDR
+
+#endif /* _CDEF_BF561_H */

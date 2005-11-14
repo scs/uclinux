@@ -12,5 +12,5 @@ obj-$(CONFIG_CPLB_INFO)		+= cplbinfo.o
 # Object files - Machine dependend 
 obj-$(CONFIG_BFIN_HAVE_RTC)     += bf5xx_rtc.o
 obj-$(CONFIG_BFIN_SINGLE_CORE)	+= ints-priority-sc.o
-obj-$(CONFIG_BFIN_DUAL_CORE)	+=
+obj-$(CONFIG_BFIN_DUAL_CORE)	+= ints-priority-dc.o
 

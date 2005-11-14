@@ -34,7 +34,9 @@
 
 #include <linux/config.h>
 
-#define OFFSET_( x ) ((x) & 0x0000FFFF)	/* define macro for offset */
+#define SUPPORTED_DSPID		0
+
+#define OFFSET_( x ) ((x) & 0x0000FFFF) /* define macro for offset */
 #define L1_ISRAM		0xFFA00000
 #define L1_ISRAM_END		0xFFA04000
 #define DATA_BANKA_SRAM		0xFF800000
@@ -211,13 +213,33 @@
 #else
 #define V_AMCKEN 0x0
 #endif
+#if (CONFIG_C_B0PEN)
+#define V_B0PEN 0x10
+#else
+#define V_B0PEN 0x00
+#endif
+#if (CONFIG_C_B1PEN)
+#define V_B1PEN 0x20
+#else
+#define V_B1PEN 0x00
+#endif
+#if (CONFIG_C_B2PEN)
+#define V_B2PEN 0x40
+#else
+#define V_B2PEN 0x00
+#endif
+#if (CONFIG_C_B3PEN)
+#define V_B3PEN 0x80
+#else
+#define V_B3PEN 0x00
+#endif
 #if (CONFIG_C_CDPRIO)
 #define V_CDPRIO 0x100
 #else
 #define V_CDPRIO 0x0
 #endif
 
-#define AMGCTLVAL	(V_AMBEN | V_AMCKEN | V_CDPRIO | 0x00F2)
+#define AMGCTLVAL	(V_AMBEN | V_AMCKEN | V_CDPRIO | V_B0PEN | V_B1PEN | V_B2PEN | V_B3PEN | 0x0002)
 
 /******************************* PLL Settings ********************************/
 #if (CONFIG_VCO_MULT < 0)
@@ -298,7 +320,42 @@
 #define CONFIG_CCLK_ACT_DIV   CONFIG_CCLK_DIV_not_defined_properly
 #endif
 
-#if 1				/* comment by mhfan */
+#ifdef CONFIG_BF561
+#define CPU "BF561"
+#endif
+#ifndef CPU
+#define CPU "UNKOWN"
+#endif
+
+#if (CONFIG_MEM_SIZE % 4)
+	#error "SDRAM memory size must be a multiple of 4MB!"
+#endif
+
+
+#define SDRAM_IGENERIC	(CPLB_L1_CHBL | CPLB_USER_RD | CPLB_VALID | CPLB_PORTPRIO)
+#define SDRAM_IKERNEL	(SDRAM_IGENERIC | CPLB_LOCK)
+#define L1_IMEMORY	(CPLB_USER_RD | CPLB_VALID | CPLB_LOCK)
+#define SDRAM_INON_CHBL	(CPLB_USER_RD | CPLB_VALID)
+
+#define ANOMALY_05000158	0x200
+#ifdef CONFIG_BLKFIN_WB
+#define SDRAM_DGENERIC	(CPLB_L1_CHBL | CPLB_DIRTY | CPLB_SUPV_WR | CPLB_USER_WR | CPLB_USER_RD | CPLB_VALID | ANOMALY_05000158)
+#else
+#define SDRAM_DGENERIC	(CPLB_L1_CHBL | CPLB_WT | CPLB_L1_AOW | CPLB_SUPV_WR | CPLB_USER_WR | CPLB_USER_RD | CPLB_VALID | ANOMALY_05000158)
+#endif
+#define SDRAM_DKERNEL	(SDRAM_DGENERIC | CPLB_LOCK)
+
+#define L1_DMEMORY	(CPLB_SUPV_WR | CPLB_USER_WR | CPLB_USER_RD | CPLB_VALID | ANOMALY_05000158)
+#define SDRAM_DNON_CHBL	(CPLB_SUPV_WR | CPLB_USER_WR | CPLB_USER_RD | CPLB_VALID | ANOMALY_05000158)
+#define SDRAM_EBIU	(CPLB_SUPV_WR | CPLB_USER_WR | CPLB_USER_RD | CPLB_VALID | ANOMALY_05000158)
+#define SDRAM_OOPS	(CPLB_VALID | ANOMALY_05000158)
+
+#define SIZE_1K 0x00000400
+#define SIZE_4K	0x00001000
+#define SIZE_1M 0x00100000
+#define SIZE_4M 0x00400000
+
+#if 0 	/* comment by mhfan */
 /* Event Vector Table Address */
 #define EVT_EMULATION_ADDR      0xffe02000
 #define EVT_RESET_ADDR          0xffe02004

@@ -3,5 +3,5 @@
 #
 extra-y += head.o
 # Object file lists.
-obj-y:= 
+obj-y:= ints-priority.o
 
