@@ -1,4 +1,4 @@
-﻿#
+#
 # Character device configuration
 #
 
@@ -28,6 +28,12 @@ config BF5xx_PPIFCD
 	---help---
 	  If you say Y here, you will get support for various CMOS Camera Modules 
 	  connected to Balckfins PPI port. (Tested with Micron Modules)
+
+config BF5xx_PPI
+    bool "Blackfin BF5xx PPI Driver"
+	depends on BFIN
+	default n
+	---help---
 
 config VT
 	bool "Virtual terminal" if EMBEDDED

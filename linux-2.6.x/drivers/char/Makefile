@@ -52,6 +52,7 @@ obj-$(CONFIG_SPIDMA_BF53x) += adsp-spidma.o
 obj-$(CONFIG_SPI_ADC_BF533) += adsp-spiadc.o
 obj-$(CONFIG_BF533_PFLAGS) += pflags.o
 obj-$(CONFIG_BF5xx_PPIFCD) += adsp-ppifcd.o
+obj-$(CONFIG_BF5xx_PPI) += ppi.o bf533_timers.o
 
 obj-$(CONFIG_PRINTER) += lp.o
 obj-$(CONFIG_TIPAR) += tipar.o
