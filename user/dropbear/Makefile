@@ -51,7 +51,7 @@ romfs:
 	$(ROMFSINST) -e CONFIG_USER_DROPBEAR_DROPBEAR /etc/dropbear_dss_host_key
 	$(ROMFSINST) -e CONFIG_USER_DROPBEAR_DROPBEAR /etc/dropbear_rsa_host_key
 	$(ROMFSINST) -e CONFIG_USER_DROPBEAR_DROPBEAR \
-		-a "ssh     stream tcp nowait root /bin/staticdropbear -i" /etc/inetd.conf
+		-a "ssh     stream tcp nowait root /bin/staticdropbear -i 2 > /dev/null" /etc/inetd.conf
 
 dropbearkey-host:
 	@if [ ! -f dropbearkey-host ]; then \
@@ -62,7 +62,7 @@ dropbearkey-host:
 		export LIBS="$(LDLIBS)"; \
 		./configure --host=$(CROSS_COMPILE:-=) --prefix= \
 				--disable-zlib --disable-wtmp --disable-openpty\
-				--disable-wtmpx --disable-syslog --disable-shadow \
+				--disable-wtmpx --disable-shadow \
 				--disable-lastlog --disable-utmp --disable-utmpx ; \
 	fi
 	./dropbearkey-host -t rsa -f dropbear_rsa_host_key
