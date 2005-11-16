@@ -7,8 +7,9 @@
 #include <signal.h>
 #include <sys/types.h>
 
-int raise(int signo)
+int __raise(int signo)
 {
     return kill(getpid(), signo);
 }
 
+weak_alias(__raise,raise)

@@ -22,7 +22,7 @@
 #include <signal.h>
 #include <string.h>
 
-int sigwait (const sigset_t *set, int *sig)
+int __sigwait (const sigset_t *set, int *sig)
 {
     int ret = 1;
     if ((ret = sigwaitinfo(set, NULL)) != -1) {
@@ -31,3 +31,4 @@ int sigwait (const sigset_t *set, int *sig)
     }
     return 1;
 }
+weak_alias(__sigwait,sigwait)
