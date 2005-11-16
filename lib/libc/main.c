@@ -1,7 +1,5 @@
 
 int main() {
-	//extern char **environ;
-	//environ = envp;
 	return 0;
 }
 
@@ -12,6 +10,7 @@ int main() {
 asm(    ".global lib_main\n\t"
         ".type lib_main, STT_FUNC;\n"
         "lib_main:\n\t"
+	"call __init;\n\t"
         "rets = [sp++];\n\t"
         "jump.l _main;\n"
         ".size   libmain, .-libmain"
