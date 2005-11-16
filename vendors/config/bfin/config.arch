@@ -153,7 +153,7 @@ ifdef UCLINUX_BUILD_USER
 
 	CXXLIBS  = $(LIBSTDCPP) $(LIBIBERTY) $(LIBC) $(LIBGCC)
   ifdef BUILD_SHARED
-	LDFLAGS += -Wl,-shared-lib-id,0
+	LDFLAGS += -Wl,-shared-lib-id,0 -mid-shared-library
   	LDFLAGS += $(LDPATH)
 	LDLIBS         = $(LIBC)
 	LDLIBS_static  = $(SLIBC)
