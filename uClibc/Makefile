@@ -367,11 +367,11 @@ lib/main.o: $(ROOTDIR)/lib/libc/main.c
 
 bogus $(SHARED_TARGET): lib/libc.a lib/main.o Makefile
 	make -C $(ROOTDIR) relink
-	$(CC) -nostartfiles -o $(SHARED_TARGET) $(ARCH_CFLAGS)          \
+	$(CC) -o $(SHARED_TARGET) $(ARCH_CFLAGS)          \
 			-mid-shared-library -mshared-library-id=0               \
-			-Wl,-elf2flt -nostdlib -Wl,-shared-lib-id,${LIBID}      \
+			-Wl,-elf2flt -nodefaultlibs -Wl,-shared-lib-id,${LIBID}      \
 			lib/main.o                                              \
-			-Wl,--whole-archive,lib/libc.a,--no-whole-archive,-lgcc
+			-Wl,--whole-archive,lib/libc.a,-lgcc,--no-whole-archive
 	$(OBJCOPY) -L _GLOBAL_OFFSET_TABLE_ -L main -L __main -L _start 	\
 			-L _main -L ___main -L __start				\
 			-L __uClibc_main -L __uClibc_start_main -L lib_main     \
@@ -386,6 +386,25 @@ bogus $(SHARED_TARGET): lib/libc.a lib/main.o Makefile
 			-L _current_shared_library_p5_offset_                   \
 			$(SHARED_TARGET).gdb
 	$(LN) -sf $(SHARED_TARGET).gdb .
+	$(CC) -o $(SHARED_THREADED_TARGET) $(ARCH_CFLAGS)          \
+			-mid-shared-library -mshared-library-id=0               \
+			-Wl,-elf2flt -nodefaultlibs -Wl,-shared-lib-id,${THREADED_LIBID}      \
+			lib/main.o                                              \
+			-Wl,--whole-archive,lib/libc.a,-lgcc,lib/libpthread.a,--no-whole-archive
+	$(OBJCOPY) -L _GLOBAL_OFFSET_TABLE_ -L main -L __main -L _start 	\
+			-L _main -L ___main -L __start				\
+			-L __uClibc_main -L __uClibc_start_main -L lib_main     \
+			-L ___uClibc_main -L ___uClibc_start_main -L _lib_main  \
+			-L _exit_dummy_ref                                      \
+			-L __do_global_dtors -L __do_global_ctors               \
+			-L __CTOR_LIST__ -L __DTOR_LIST__                       \
+			-L __exit_dummy_ref                                     \
+			-L ___do_global_dtors -L ___do_global_ctors             \
+			-L ___CTOR_LIST__ -L ___DTOR_LIST__                     \
+			-L _current_shared_library_a5_offset_                   \
+			-L _current_shared_library_p5_offset_                   \
+			$(SHARED_THREADED_TARGET).gdb
+	$(LN) -sf $(SHARED_THREADED_TARGET).gdb .
 endif
 
 #
@@ -396,6 +415,7 @@ romfs:
 	[ -e $(ROMFSDIR)/lib ] || mkdir $(ROMFSDIR)/lib
 	@if [ "$(SHARED_TARGET)" ]; then \
 		$(ROMFSINST) $(SHARED_TARGET) /lib/lib$(LIBID).so; \
+		$(ROMFSINST) $(SHARED_THREADED_TARGET) /lib/lib$(THREADED_LIBID).so; \
 	fi
 ifeq ($(strip $(HAVE_SHARED)),y)
 	@set -e; for i in lib/lib*-$(UCLIBC_VERSION).so lib/*.so.*; do \

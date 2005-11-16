@@ -308,8 +308,10 @@ ifeq ($(CONFIG_BINFMT_SHARED_FLAT),y)
     # For the shared version of this, we specify no stack and its library ID
     FLTFLAGS += -s 0
     LIBID=1
-    export LIBID FLTFLAGS
+    THREADED_LIBID=2
+    export LIBID THREADED_LIBID FLTFLAGS
     SHARED_TARGET = lib/libc
+    SHARED_THREADED_TARGET = lib/libc_threaded
   endif
 endif
 
