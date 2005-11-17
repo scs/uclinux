@@ -118,9 +118,10 @@ config VIDEO_CPIA_USB
 	  It is also available as a module (cpia_usb).
 
 config BFIN_V4L2_DRIVER
-	tristate "V4L2 driver for BF533+AD7171
+	tristate "V4L2 driver for BF533+AD7171"
 	help
-	This is a Video For Linux 2 driver for Blackfin processors with AD7171 encoder IC and AD7183. Support for capture is in progress.
+	  This is a Video For Linux 2 driver for Blackfin processors with
+	  AD7171 encoder IC and AD7183. Support for capture is in progress.
 
 config VIDEO_SAA5246A
 	tristate "SAA5246A, SAA5281 Teletext processor"
