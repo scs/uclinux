@@ -145,6 +145,11 @@ asmlinkage void trap_c(struct pt_regs *fp)
 		info.si_code = TRAP_ILLTRAP;
 		sig = SIGTRAP;
 		break;
+	case VEC_EXCPT03:	/* Atomic test and set service */
+		info.si_code = SEGV_STACKFLOW;
+		sig = SIGSEGV;
+		DPRINTK(EXC_0x03);
+		break;
 	case VEC_EXCPT04:	/* Atomic test and set service */
 		panic("Exception 4");
 		goto nsig;

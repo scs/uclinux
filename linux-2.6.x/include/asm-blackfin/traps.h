@@ -54,6 +54,7 @@
 #define HWC_x18 "RAISE 5 instruction\n Software issued a RAISE 5 instruction to invoke the Hardware\n"
 #define HWC_default "Reserved\n"
 
+#define EXC_0x03 "Application stack overflow\n - Please increase the stack size of the application using elf2flt -s option,\n and/or reduce the stack use of the application.\n"
 #define EXC_0x10 "Single step\n - When the processor is in single step mode, every instruction\n generates an exception. Primarily used for debugging.\n"
 #define EXC_0x11 "Exception caused by a trace buffer full condition\n - The processor takes this exception when the trace\n buffer overflows (only when enabled by the Trace Unit Control register).\n"
 #define EXC_0x21 "Undefined instruction\n - May be used to emulate instructions that are not defined for\n a particular processor implementation.\n"
