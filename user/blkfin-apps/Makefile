@@ -9,6 +9,7 @@ dir_$(CONFIG_USER_INETUTILS_RSH)			+= inetutils
 dir_$(CONFIG_USER_INETUTILS_RSHD)			+= inetutils
 dir_$(CONFIG_USER_SQLITE)					+= sqlite-3.2.6
 dir_$(CONFIG_USER_LMBENCH)				+= lmbench3
+dir_$(CONFIG_USER_BLACKFIN_STRACE)			+= strace
 
 all:
 	for i in $(sort $(dir_y)) ; do  make -C $$i || exit $? ; done
