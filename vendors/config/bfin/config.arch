@@ -55,6 +55,9 @@ ifdef UCLINUX_BUILD_LIB
 	CFLAGS  :=  -O2
   endif
 	CFLAGS  += -fno-builtin 
+  ifdef CONFIG_BLACKFIN_CHECK_STACKFLOW
+	CFLAGS  += -fstack-limit-symbol=_stack_start
+  endif
 	CFLAGS  += -DEMBED
   ifdef BUILD_SHARED
 	CFLAGS  += -fpic -mid-shared-library 
@@ -141,6 +144,9 @@ ifdef UCLINUX_BUILD_USER
 	CFLAGS  += -Wall -Dlinux -D__linux__ -Dunix -D__uClinux__ -DEMBED
 	CFLAGS  += $(INCDIST) $(INCLIBC)
 	CFLAGS  += -fno-builtin
+  ifdef CONFIG_BLACKFIN_CHECK_STACKFLOW
+	CFLAGS  += -fstack-limit-symbol=_stack_start
+  endif
 
   ifdef BUILD_SHARED
 	CFLAGS  += -fpic -mid-shared-library -mshared-library-id=0

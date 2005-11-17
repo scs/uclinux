@@ -505,6 +505,9 @@ CONFIG_LIB_DEBUG
   debug symbols are still included, however the optimisation level is
   increased and this can lead to problematic debugging.
 
+CONFIG_BLACKFIN_CHECK_STACKFLOW
+  Build all libraries and applicaions with -fstack-limit-symbol=_stack_start.
+
 CONFIG_LIB_LIBDES_FORCE
   DESLite library.
   Only enable this if you want to force the library to be built.  The

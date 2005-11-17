@@ -1541,10 +1541,13 @@ comment 'Debug Builds'
 
 bool 'build debugable libraries'	CONFIG_LIB_DEBUG
 bool 'build debugable applications'	CONFIG_USER_DEBUG
+comment "Blackfin"
+bool 'build with stack overflow checking'	CONFIG_BLACKFIN_CHECK_STACKFLOW
 comment "Debug tools"
 bool 'tpt'				CONFIG_USER_TIMEPEG_TPT
 comment "Debug libraries"
 bool 'ccmalloc'				CONFIG_LIB_LIBCCMALLOC
+
 
 endmenu
 
