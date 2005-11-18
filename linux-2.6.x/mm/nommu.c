@@ -411,15 +411,6 @@ static int validate_mmap_request(struct file *file,
 		if (!file->f_op || !file->f_op->mmap)
 			return -ENODEV;
 
-		/* Most of the filesystem drivers don't implement the necessary callback function
-		 * and configuration. System call to mmap with MAP_SHARED flag will fails for blackfin.
-		 * Walk around it by change flag MAP_SHARED to MAP_PRIVATE,
-		 */
-#ifdef CONFIG_BFIN
-		flags |= MAP_PRIVATE;
-		flags &= !MAP_SHARED;
-#endif
-
 		/* work out if what we've got could possibly be shared
 		 * - we support chardevs that provide their own "memory"
 		 * - we support files/blockdevs that are memory backed
