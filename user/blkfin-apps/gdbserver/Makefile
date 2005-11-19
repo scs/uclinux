@@ -106,7 +106,7 @@ INTERNAL_CFLAGS =  $(WARN_CFLAGS) ${CFLAGS} ${GLOBAL_CFLAGS} \
 # LDFLAGS = -Wl,-elf2flt
 INTERNAL_LDFLAGS = $(LDFLAGS) -rdynamic
 
-FLTFLAGS += -s 32768
+FLTFLAGS += -s 65536
 
 # Perhaps should come from parent Makefile
 VERSION = gdbserver-4.12.3
