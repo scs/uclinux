@@ -1,7 +1,7 @@
 /*
  * Automatically generated C config: don't edit
  * Linux kernel version: 2.6.12.1
- * Wed Aug 10 14:25:47 2005
+ * Mon Nov 21 15:13:14 2005
  */
 #define AUTOCONF_INCLUDED
 #undef CONFIG_MMU
@@ -10,6 +10,7 @@
 #define CONFIG_RWSEM_GENERIC_SPINLOCK 1
 #undef CONFIG_RWSEM_XCHGADD_ALGORITHM
 #define CONFIG_BFIN 1
+#define CONFIG_UCLINUX 1
 #define CONFIG_FORCE_MAX_ZONEORDER 14
 
 /*
@@ -46,7 +47,6 @@
 #define CONFIG_CC_ALIGN_LABELS 0
 #define CONFIG_CC_ALIGN_LOOPS 0
 #define CONFIG_CC_ALIGN_JUMPS 0
-#define CONFIG_TINY_SHMEM 1
 #define CONFIG_BASE_SMALL 0
 
 /*
@@ -55,32 +55,108 @@
 #undef CONFIG_MODULES
 
 /*
- * Processor type and features
+ * Blackfin Processor Options
  */
 
 /*
- * Processor
+ * Processor and Board Settings
  */
-#define CONFIG_BF533 1
+#undef CONFIG_BF533
 #undef CONFIG_BF532
 #undef CONFIG_BF531
 #undef CONFIG_BF534
 #undef CONFIG_BF535
 #undef CONFIG_BF536
-#undef CONFIG_BF537
+#define CONFIG_BF537 1
 #undef CONFIG_BF561
 #define CONFIG_BLACKFIN 1
 #define CONFIG_BFIN_SINGLE_CORE 1
+#undef CONFIG_BFIN533_EZKIT
+#undef CONFIG_BFIN533_STAMP
+#define CONFIG_BFIN537_STAMP 1
+#undef CONFIG_BFIN533_BLUETECHNIX_CM
+#undef CONFIG_GENERIC_BOARD
+#define CONFIG_MEM_MT48LC16M8A2TG_75 1
+#define CONFIG_BFIN_HAVE_RTC 1
 
 /*
- * Platform
+ * BF537 Specific Configuration
  */
-#undef CONFIG_EZKIT
-#define CONFIG_BLKFIN_STAMP 1
-#define CONFIG_MEM_MT48LC64M4A2FB_7E 1
-#undef CONFIG_GENERIC_BOARD
-#undef CONFIG_HAWK
-#undef CONFIG_EAGLE
+
+/*
+ * PORT F/G Selection
+ */
+#define CONFIG_BF537_PORT_F 1
+#undef CONFIG_BF537_PORT_G
+#undef CONFIG_LOADVDSP
+
+/*
+ * Interrupt Priority Assignment
+ */
+
+/*
+ * Priority
+ */
+#define CONFIG_IRQ_PLL_WAKEUP 7
+#define CONFIG_IRQ_DMA_ERROR 7
+#define CONFIG_IRQ_ERROR 7
+#define CONFIG_IRQ_RTC 8
+#define CONFIG_IRQ_PPI 8
+#define CONFIG_IRQ_SPORT0_RX 9
+#define CONFIG_IRQ_SPORT0_TX 9
+#define CONFIG_IRQ_SPORT1_RX 9
+#define CONFIG_IRQ_SPORT1_TX 9
+#define CONFIG_IRQ_TWI 10
+#define CONFIG_IRQ_SPI 10
+#define CONFIG_IRQ_UART0_RX 10
+#define CONFIG_IRQ_UART0_TX 10
+#define CONFIG_IRQ_UART1_RX 10
+#define CONFIG_IRQ_UART1_TX 10
+#define CONFIG_IRQ_CAN_RX 11
+#define CONFIG_IRQ_CAN_TX 11
+#define CONFIG_IRQ_MAC_RX 11
+#define CONFIG_IRQ_MAC_TX 11
+#define CONFIG_IRQ_TMR0 12
+#define CONFIG_IRQ_TMR1 12
+#define CONFIG_IRQ_TMR2 12
+#define CONFIG_IRQ_TMR3 12
+#define CONFIG_IRQ_TMR4 12
+#define CONFIG_IRQ_TMR5 12
+#define CONFIG_IRQ_TMR6 12
+#define CONFIG_IRQ_TMR7 12
+#define CONFIG_IRQ_PROG_INTA 12
+#define CONFIG_IRQ_PROG_INTB 12
+#define CONFIG_IRQ_MEM_DMA0 13
+#define CONFIG_IRQ_MEM_DMA1 13
+#define CONFIG_IRQ_WATCH 13
+
+/*
+ * Board specific issues
+ */
+
+/*
+ * Board Setup
+ */
+#define CONFIG_CLKIN_HZ 25000000
+#define CONFIG_MEM_SIZE 64
+#define CONFIG_MEM_ADD_WIDTH 10
+
+/*
+ * LED Status Indicators
+ */
+
+/*
+ * Console UART Setup
+ */
+#undef CONFIG_BAUD_9600
+#undef CONFIG_BAUD_19200
+#undef CONFIG_BAUD_38400
+#define CONFIG_BAUD_57600 1
+#undef CONFIG_BAUD_115200
+#define CONFIG_BAUD_NO_PARITY 1
+#undef CONFIG_BAUD_PARITY
+#define CONFIG_BAUD_1_STOPBIT 1
+#undef CONFIG_BAUD_2_STOPBIT
 #define CONFIG_RAMKERNEL 1
 #undef CONFIG_ROMKERNEL
 #define CONFIG_LARGE_ALLOCS 1
@@ -90,7 +166,7 @@
  * DMA Support
  */
 #undef CONFIG_NO_DMA
-#define CONFIG_BLKFIN_SIMPLE_DMA 1
+#define CONFIG_BFIN_DMA_BF5XX 1
 
 /*
  * Cache Support
@@ -100,21 +176,16 @@
 #undef CONFIG_BLKFIN_CACHE_LOCK
 #undef CONFIG_BLKFIN_WB
 #define CONFIG_BLKFIN_WT 1
-
-/*
- * Uncached memory region
- */
 #define CONFIG_UNCACHED_1M 1
 
 /*
- * Crystal Frequency
+ * Clock Settings
  */
-#define CONFIG_CLKIN_HZ 11059200
 
 /*
  * VCO Multiplier
  */
-#define CONFIG_VCO_MULT 45
+#define CONFIG_VCO_MULT 20
 
 /*
  * Core Clock Divider
@@ -135,16 +206,6 @@
  * Bypass PLL
  */
 #undef CONFIG_PLL_BYPASS
-
-/*
- * SDRAM Memory Size
- */
-#define CONFIG_MEM_SIZE 128
-
-/*
- * Memory Address Width
- */
-#define CONFIG_MEM_ADD_WIDTH 11
 
 /*
  * Asynchonous Memory Configuration
@@ -168,62 +229,6 @@
 #define CONFIG_BANK_1 0x7BB0
 #define CONFIG_BANK_2 0x7BB0
 #define CONFIG_BANK_3 0x99B3
-
-/*
- * Baud Rate
- */
-#undef CONFIG_BAUD_9600
-#undef CONFIG_BAUD_19200
-#undef CONFIG_BAUD_38400
-#define CONFIG_BAUD_57600 1
-#undef CONFIG_BAUD_115200
-
-/*
- * STAMP Board features 
- */
-
-/*
- * LED Board Status Indication
- */
-#undef CONFIG_STAMP_BOARD_ALIVE_LED
-#undef CONFIG_STAMP_BOARD_IDLE_LED
-
-/*
- * BF533/2/1 Specific Configuration
- */
-
-/*
- * Interrupt Priority Assignment
- */
-
-/*
- * Priority
- */
-#define CONFIG_UART_ERROR 7
-#define CONFIG_SPORT0_ERROR 7
-#define CONFIG_SPI_ERROR 7
-#define CONFIG_SPORT1_ERROR 7
-#define CONFIG_PPI_ERROR 7
-#define CONFIG_DMA_ERROR 7
-#define CONFIG_PLLWAKE_ERROR 7
-#define CONFIG_RTC_ERROR 8
-#define CONFIG_DMA0_PPI 8
-#define CONFIG_DMA1_SPORT0RX 9
-#define CONFIG_DMA2_SPORT0TX 9
-#define CONFIG_DMA3_SPORT1RX 9
-#define CONFIG_DMA4_SPORT1TX 9
-#define CONFIG_DMA5_SPI 10
-#define CONFIG_DMA6_UARTRX 10
-#define CONFIG_DMA7_UARTTX 10
-#define CONFIG_TIMER0 11
-#define CONFIG_TIMER1 11
-#define CONFIG_TIMER2 11
-#define CONFIG_PFA 12
-#define CONFIG_PFB 12
-#define CONFIG_MEMDMA0 13
-#define CONFIG_MEMDMA1 13
-#define CONFIG_WDTIMER 13
-#define CONFIG_BFIN_HAVE_RTC 1
 
 /*
  * Bus options (PCI, PCMCIA, EISA, MCA, ISA)
@@ -302,7 +307,12 @@
  * Mapping drivers for chip access
  */
 #undef CONFIG_MTD_COMPLEX_MAPPINGS
-#undef CONFIG_MTD_BF533
+#undef CONFIG_MTD_BF5xx_SPI
+#undef CONFIG_MTD_BF5xx
+
+/*
+ * FLASH_EBIU_AMBCTL Control
+ */
 #define CONFIG_MTD_UCLINUX 1
 
 /*
@@ -362,6 +372,10 @@
  * ATA/ATAPI/MFM/RLL support
  */
 #undef CONFIG_IDE
+
+/*
+ * IDE Extra configuration
+ */
 
 /*
  * SCSI device support
@@ -457,7 +471,8 @@
  */
 #define CONFIG_NET_ETHERNET 1
 #define CONFIG_MII 1
-#define CONFIG_SMC91X 1
+#undef CONFIG_SMC91X
+#define CONFIG_BFIN_MAC 1
 
 /*
  * Ethernet (1000 Mbit)
@@ -514,9 +529,11 @@
 /*
  * Character devices
  */
-#undef CONFIG_SPI_BF533
-#undef CONFIG_SPI_ADC_BF533
+#undef CONFIG_SPIDMA_BF53x
+#define CONFIG_SPI_ADC_BF533 1
 #undef CONFIG_BF533_PFLAGS
+#undef CONFIG_BF5xx_PPIFCD
+#undef CONFIG_BF5xx_PPI
 #undef CONFIG_VT
 #undef CONFIG_SERIAL_NONSTANDARD
 
@@ -547,7 +564,7 @@
 #undef CONFIG_RTC
 #undef CONFIG_GEN_RTC
 #define CONFIG_BLACKFIN_RTC 1
-#define CONFIG_BLACKFIN_DPMC 1
+#undef CONFIG_BLACKFIN_DPMC
 #undef CONFIG_DTLK
 #undef CONFIG_R3964
 
@@ -629,6 +646,7 @@
 #undef CONFIG_BEFS_FS
 #undef CONFIG_BFS_FS
 #undef CONFIG_EFS_FS
+#undef CONFIG_YAFFS_FS
 #undef CONFIG_JFFS_FS
 #undef CONFIG_JFFS2_FS
 #undef CONFIG_CRAMFS
@@ -689,8 +707,9 @@
 /*
  * Kernel hacking
  */
-#undef CONFIG_FULLDEBUG
+#undef CONFIG_DEBUG_INFO
 #undef CONFIG_DEBUG_KERNEL
+#undef CONFIG_DEBUG_HWERR
 #undef CONFIG_FRAME_POINTER
 #undef CONFIG_MAGIC_SYSRQ
 #define CONFIG_BOOTPARAM 1
