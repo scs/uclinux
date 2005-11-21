@@ -27,6 +27,7 @@ clone (int (*fn)(void *arg), void *child_stack, int flags, void *arg)
 			"if !cc jump xxx;"	/* if (rval != 0) skip to parent */
 			"r0 = %4;"
 			"p0 = %5;"
+			"fp = 0;"
 			"call (p0);"	/* Call cloned function */
 			"p0 = %6;"
 			"excpt 0;"	/* Call sys_exit */
