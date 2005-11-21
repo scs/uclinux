@@ -378,11 +378,11 @@ config NO_DMA
 	help
 	  Disable DMA driver
 
-config BLKFIN_SIMPLE_DMA
-	bool 'Enable Simple DMA Support'
-	depends on (BF533 || BF532 || BF531 || BF537 || BF536 || BF534 || BF561)
+config BFIN_DMA_5XX
+	bool 'Enable DMA Support'
+	depends on (BF533 || BF532 || BF531 || BF537 || BF536 || BF534)
 	help
-	  Simple DMA driver
+	  DMA driver for BF5xx
 endchoice
 
 comment 'Cache Support'
