@@ -22,6 +22,7 @@
 #ifndef _SPI_CHANNEL_H_
 #define _SPI_CHANNEL_H_
 
+#include <linux/kernel.h>
 
 #define SPI0_REGBASE       0xffc00500
 
