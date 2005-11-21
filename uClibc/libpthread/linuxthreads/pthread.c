@@ -225,6 +225,8 @@ int __pthread_timedsuspend_new(pthread_descr self, const struct timespec *abstim
    the functions below.  */
 
 #if defined(__NR_rt_sigaction) && __SIGRTMAX - __SIGRTMIN >= 3
+static int current_rtmin = __SIGRTMIN + 3;
+static int current_rtmax = __SIGRTMAX;
 int __pthread_sig_restart = __SIGRTMIN;
 int __pthread_sig_cancel = __SIGRTMIN + 1;
 int __pthread_sig_debug = __SIGRTMIN + 2;
@@ -241,6 +243,29 @@ void (*__pthread_restart)(pthread_descr) = __pthread_restart_old;
 void (*__pthread_suspend)(pthread_descr) = __pthread_suspend_old;
 int (*__pthread_timedsuspend)(pthread_descr, const struct timespec *) = __pthread_timedsuspend_old;
 #endif
+
+/* Return number of available real-time signal with highest priority.  */
+int __libc_current_sigrtmin (void)
+{
+    return current_rtmin;
+}
+
+/* Return number of available real-time signal with lowest priority.  */
+int __libc_current_sigrtmax (void)
+{
+    return current_rtmax;
+}
+
+/* Allocate real-time signal with highest/lowest available
+   priority.  Please note that we don't use a lock since we assume
+   this function to be called at program start.  */
+int __libc_allocate_rtsig (int high)
+{
+    if (current_rtmin == -1 || current_rtmin > current_rtmax)
+	/* We don't have anymore signal available.  */
+	return -1;
+    return high ? current_rtmin++ : current_rtmax--;
+}
 
 /* Initialize the pthread library.
    Initialization is split in two functions:

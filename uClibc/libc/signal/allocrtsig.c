@@ -37,21 +37,23 @@ static int current_rtmax = __SIGRTMAX;
 #endif
 
 /* Return number of available real-time signal with highest priority.  */
-int __libc_current_sigrtmin (void)
+int __libc_current_sigrtmin_internal (void)
 {
   return current_rtmin;
 }
+weak_alias(__libc_current_sigrtmin_internal,__libc_current_sigrtmin)
 
 /* Return number of available real-time signal with lowest priority.  */
-int __libc_current_sigrtmax (void)
+int __libc_current_sigrtmax_internal (void)
 {
   return current_rtmax;
 }
+weak_alias(__libc_current_sigrtmax_internal,__libc_current_sigrtmax)
 
 /* Allocate real-time signal with highest/lowest available
    priority.  Please note that we don't use a lock since we assume
    this function to be called at program start.  */
-int __libc_allocate_rtsig (int high)
+int __libc_allocate_rtsig_internal (int high)
 {
   if (current_rtmin == -1 || current_rtmin > current_rtmax)
     /* We don't have anymore signal available.  */
@@ -59,3 +61,4 @@ int __libc_allocate_rtsig (int high)
 
   return high ? current_rtmin++ : current_rtmax--;
 }
+weak_alias(__libc_allocate_rtsig_internal,__libc_allocate_rtsig)
