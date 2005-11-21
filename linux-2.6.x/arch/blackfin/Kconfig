@@ -113,13 +113,13 @@ choice
 
 config BFIN533_EZKIT
 	bool "BF533-EZKIT"
-	depends on (BF533)
+	depends on (BF533 || BF532 || BF531)
 	help
 	 BF533-EZKIT-LITE board Support.
 
 config  BFIN533_STAMP
 	bool "BF533-STAMP"
-	depends on (BF533)
+	depends on (BF533 || BF532 || BF531)
 	help
 	 BF533-STAMP board Support.
 
