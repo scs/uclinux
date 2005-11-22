@@ -1772,17 +1772,10 @@ static int __devinit snd_ad1836_create(snd_card_t *card,
       snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, &snd_ad1836_playback_ops);
       snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE,  &snd_ad1836_capture_ops);
 
-#ifdef SNDRV_DMA_TYPE_BFIN
       /* uncached DMA buffers */
-      snd_pcm_lib_preallocate_pages_for_all(chip->pcm, SNDRV_DMA_TYPE_BFIN,
+      snd_pcm_lib_preallocate_pages_for_all(chip->pcm, SNDRV_DMA_TYPE_DEV,
 					    NULL,
 					    AD1836_BUFFER_SIZE, AD1836_BUFFER_SIZE);
-#else
-       snd_pcm_lib_preallocate_pages_for_all(chip->pcm, SNDRV_DMA_TYPE_CONTINUOUS,
-					    snd_dma_continuous_data(GFP_KERNEL),
-					    AD1836_BUFFER_SIZE, AD1836_BUFFER_SIZE);
-#endif
-
       snd_assert( ((ad1836_t*)(pcm->private_data))->pcm == pcm, panic("inconsistency") );
 
     }
