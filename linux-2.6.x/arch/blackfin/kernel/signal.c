@@ -188,6 +188,10 @@ restore_sigcontext(struct pt_regs *regs, struct sigcontext *usc, int *pr0)
 	regs->r4 = context.sc_r4;
 	regs->p0 = context.sc_p0;
 	regs->p1 = context.sc_p1;
+	regs->l0 = context.sc_l0;
+	regs->l1 = context.sc_l1;
+	regs->l2 = context.sc_l2;
+	regs->l3 = context.sc_l3;
 	regs->seqstat = context.sc_seqstat;
 	regs->pc = context.sc_pc;
 	regs->retx = context.sc_retx;
@@ -350,6 +354,10 @@ setup_sigcontext(struct sigcontext *sc, struct pt_regs *regs,
 	sc->sc_r4 = regs->r4;
 	sc->sc_p0 = regs->p0;
 	sc->sc_p1 = regs->p1;
+	sc->sc_l0 = regs->l0;
+	sc->sc_l1 = regs->l1;
+	sc->sc_l2 = regs->l2;
+	sc->sc_l3 = regs->l3;
 	sc->sc_seqstat = regs->seqstat;
 	sc->sc_pc = regs->pc;
 	sc->sc_rets = regs->rets;
@@ -483,6 +491,7 @@ setup_frame(int sig, struct k_sigaction *ka,
 	regs->pc = (unsigned long)ka->sa.sa_handler;
 	regs->rets = (unsigned long)(frame->retcode);
 	regs->r0 = frame->sig;
+	regs->l0 = regs->l1 = regs->l2 = regs->l3 = 0;
 
 	if (regs->seqstat)
 		regs->retx = (unsigned long)ka->sa.sa_handler;

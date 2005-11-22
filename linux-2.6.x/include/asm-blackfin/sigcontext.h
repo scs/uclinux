@@ -16,6 +16,10 @@ struct sigcontext {
 	unsigned long sc_r2;
 	unsigned long sc_r3;
 	unsigned long sc_r4;
+	unsigned long sc_l0;
+	unsigned long sc_l1;
+	unsigned long sc_l2;
+	unsigned long sc_l3;
 };
 
 #endif
