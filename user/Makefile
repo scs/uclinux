@@ -41,6 +41,7 @@ dir_$(CONFIG_USER_BLACKFIN_TWI)             += blkfin-test/twi_test
 dir_$(CONFIG_USER_BLACKFIN_SPITEST)         += blkfin-test/spi-test
 dir_$(CONFIG_USER_SQLITE_TEST)		    += blkfin-test/sqlite_test
 dir_$(CONFIG_USER_BLACKFIN_PPI)		    += blkfin-test/ppi-test
+dir_$(CONFIG_USER_BLACKFIN_PTHREADTEST)    += blkfin-test/pthread-test
 dir_y             			    += blkfin-apps
 
 dir_$(CONFIG_JFFS_FS)                       += mtd-utils
