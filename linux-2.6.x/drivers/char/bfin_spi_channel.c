@@ -160,7 +160,7 @@ int spi_channel_request(spi_device_t *spi_dev)
 	spi_set_ctl(spi_dev);
 
 	/* clear status reg */
-	*(unsigned short*)(SPI0_REGBASE + SPI_FLAG_OFF) = 0xFFFF;
+	*(unsigned short*)(SPI0_REGBASE + SPI_STAT_OFF) = 0xFFFF;
 
 	if (spi_dev->irq_handler != NULL) {
 		if (spi_dev->dma ) {
@@ -199,7 +199,7 @@ int spi_channel_release (spi_device_t *spi_dev)
 	}
     
 	/* clear status reg */
-	*(unsigned short*)(SPI0_REGBASE + SPI_FLAG_OFF) = 0xFFFF;
+	*(unsigned short*)(SPI0_REGBASE + SPI_STAT_OFF) = 0xFFFF;
 
 	up(&(spilock));
 	return 0;
