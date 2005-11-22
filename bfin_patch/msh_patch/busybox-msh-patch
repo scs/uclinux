@@ -1,0 +1,371 @@
+--- busybox-1.1.0-pre1/shell/msh.c	2005-11-01 07:55:25.000000000 +0800
++++ busybox-1.1.0-msh/shell/msh.c	2005-11-22 16:59:27.000000000 +0800
+@@ -54,10 +54,19 @@
+ 
+ 
+ /*#define MSHDEBUG 1*/
+-
++#define MSHDEBUG 1
+ #ifdef MSHDEBUG
++
+ int mshdbg = 0;
+ 
++#ifdef KSDBG
++	#define WHERE fprintf(stderr,"in %s\n",__FUNCTION__) 
++	#define DP(x) fprintf(stderr,"KSDBG:%s\n",x)
++#else
++	#define WHERE
++	#define DP(x)
++#endif 
++
+ #define DBGPRINTF(x)	if(mshdbg>0)printf x
+ #define DBGPRINTF0(x)	if(mshdbg>0)printf x
+ #define DBGPRINTF1(x)	if(mshdbg>1)printf x
+@@ -161,6 +170,10 @@
+ /* Added to support "." file expansion */
+ #define	TDOT	17
+ 
++#define TFUNC  18
++
++#define TRETURN 19
++
+ /* Strings for names to make debug easier */
+ #ifdef MSHDEBUG
+ static char *T_CMD_NAMES[] = {
+@@ -283,6 +296,9 @@
+ static char *elinep;
+ 
+ 
++static int func_return;
++
++
+ /*
+  * other functions
+  */
+@@ -374,6 +390,8 @@
+ #define	IN		272
+ /* Added for "." file expansion */
+ #define	DOT		273
++#define FUNC		274
++#define RETURN		275
+ 
+ #define	YYERRCODE 300
+ 
+@@ -766,6 +784,7 @@
+ static void *brktop;
+ static void *brkaddr;
+ 
++
+ static struct env e = {
+ 	line,						/* linep:  char ptr */
+ 	iostack,					/* iobase:  struct io ptr */
+@@ -826,7 +845,7 @@
+ 	int cflag;
+ 	char *name, **ap;
+ 	int (*iof) (struct ioarg *);
+-
++	//printf("in %s\n",__FUNCTION__);
+ 	DBGPRINTF(("MSH_MAIN: argc %d, environ 0x%x\n", argc, environ));
+ 
+ 	initarea();
+@@ -838,7 +857,6 @@
+ 	}
+ 	closeall();
+ 	areanum = 1;
+-
+ 	shell = lookup("SHELL");
+ 	if (shell->value == null)
+ 		setval(shell, (char *)DEFAULT_SHELL);
+@@ -859,7 +877,6 @@
+ 			setval(path, "/bin:/usr/bin");
+ 	}
+ 	export(path);
+-
+ 	ifs = lookup("IFS");
+ 	if (ifs->value == null)
+ 		setval(ifs, " \t\n");
+@@ -946,7 +963,6 @@
+ 				exit(1);		/* Exit on error */
+ 		}
+ 	}
+-
+ 	setdash();
+ 
+ 	/* This won't be true if PUSHIO has been called, say from newfile() above */
+@@ -1002,6 +1018,7 @@
+ 			prs(prompt->value);
+ #endif
+ 		}
++		//printf("command=%s\n")
+ 		onecommand();
+ 		/* Ensure that getenv("PATH") stays current */
+ 		setenv("PATH", path->value, 1);
+@@ -1910,6 +1927,7 @@
+ 	peeksym = 0;
+ }
+ 
++
+ static struct op *simple()
+ {
+ 	REGISTER struct op *t;
+@@ -1921,7 +1939,35 @@
+ 		case '>':
+ 			(void) synio(0);
+ 			break;
+-
++		case FUNC:
++		{
++			int c;
++                        while ((c = my_getc(0)) == ' ' || c == '\t'|| c == '\n')    /* Skip whitespace */
++                                ;
++                        int stop_flag = 1;
++                        int number_brace = 0;
++			int func_begin;
++			func_begin = e.iobase->argp->afpos;
++                        while(stop_flag){
++                                if(c == '{')
++                                        number_brace++;
++                                if(c == '}')
++                                        number_brace--;
++                                if(!number_brace) /*if we reach the brace of most outsite*/
++                                        stop_flag = 0;
++                                c = my_getc(0);
++                        }
++			int func_end;
++			func_end = e.iobase->argp->afpos;
++			register_func(func_begin,func_end);
++                        peeksym = 0;
++                        t = NULL;
++			return t;
++		}
++		case RETURN:
++		{	
++			func_return = 1;			
++		}
+ 		case WORD:
+ 			if (t == NULL) {
+ 				t = newtp();
+@@ -1930,7 +1976,7 @@
+ 			peeksym = 0;
+ 			word(yylval.cp);
+ 			break;
+-
++		
+ 		default:
+ 			return (t);
+ 		}
+@@ -2052,7 +2098,22 @@
+ 		word(NOWORD);			/* terminate  wdlist */
+ 		t->words = copyw();		/* dup wdlist */
+ 		break;
+-
++	case FUNC:
++		/*
++		t = newtp();
++                t->type = TFUNC;
++		t->str = yylval.cp;
++		*/
++		peeksym = c;
++                if ((t = simple()) == NULL) {
++                        if (iolist == NULL)
++                                return ((struct op *) NULL);
++                }
++		break;
++	case RETURN:
++		t = newtp();
++                t->type = TRETURN;
++		break;
+ 	}
+ 
+ 	while (synio(0));
+@@ -2466,8 +2527,14 @@
+ 	case ')':
+ 		startl = 1;
+ 		return (c);
++	case '{':
++		
++		if ((c = collect(c, '}')) != '\0')
++        	        return (c);
++		break;
++	case '}':
++		return RETURN;
+ 	}
+-
+ 	unget(c);
+ 
+   pack:
+@@ -2482,7 +2549,7 @@
+ 
+ 	if (any(c, "\"'`$"))
+ 		goto loop;
+-
++	
+ 	*e.linep++ = '\0';
+ 
+ 	if (atstart && (c = rlookup(line)) != 0) {
+@@ -2491,10 +2558,121 @@
+ 	}
+ 
+ 	yylval.cp = strsave(line, areanum);
++	/* To identify a subroutine */
++	if((c = my_getc(0)) && any(c,"(")){
++		if((c = my_getc(0)) && any(c,")"))
++			return (FUNC);
++		else
++			zzerr();
++	}
++	/*read the first char*/
++	/* To identify a function */
++	if(!(strcmp(yylval.cp,"function"))){
++		int ret;
++		/* read the function name after "function" */
++		if((ret = yylex(0)) == WORD)
++			return (FUNC);
++		else
++			zzerr();
++	}
++	struct func * f;
++	if((f = find_func(yylval.cp)) != NULL){
++		exec_func(f);		
++	}
+ 	return (WORD);
+ }
+ 
++/*try to find the current position in the opened file*/
++
++struct func{
++	char* name;
++	int begin_addr; /*pos in buffer of function */
++	int end_addr;
++	char** arg;
++};
++#define MAX_FUNCS 100
++
++static struct func funcs[MAX_FUNCS];
+ 
++static void register_func(int begin,int end){
++	struct func *p ;
++	int i;
++        for(i = 0; i < MAX_FUNCS; i++)
++		if(funcs[i].name == NULL){
++			p=&funcs[i];
++			break;
++		}
++	if( i == MAX_FUNCS){
++		fprintf(stderr,"Too much functions beyond limit\n");
++		leave();
++	}
++	p->name = malloc(strlen(yylval.cp));
++	strcpy(p->name,yylval.cp);
++	//fprintf(stderr,"register function,%d,%d,%s\n",begin,end,p->name);
++	WHERE;
++ /*io stream */
++	p->begin_addr = begin;
++	p->end_addr = end;
++	p->arg = NULL;
++}
++static struct func * find_func(char* name){
++	int i;
++	for(i = 0; i < MAX_FUNCS; i++){
++		if(funcs[i].name == NULL)
++			continue;
++		if(!strcmp(funcs[i].name,name))
++			return &funcs[i];
++	}
++	WHERE;
++	//fprintf(stderr,"not found the function %s\n",name);
++	return NULL;
++	//zzerr();
++}
++/* Begin to execute the function */
++static  void exec_func(struct func* f){
++	int fd = e.iop->argp->afile;
++	struct func * p = f;
++	char buf[1024];
++	int n;
++	
++	/*the file position is set to f->begin_addr */
++	int saved_addr = e.iop->argp->afpos;
++	struct iobuf *bp = e.iop->argp->afbuf;
++	bp->bufp =  &(bp->buf[f->begin_addr]);
++	e.iop->argp->afpos = f->begin_addr;
++	/*
++	lseek(fd, 65,SEEK_SET);
++	char buf[1024];
++	int n = read(fd,buf,100);
++	buf[n] = '\0';
++	fprintf(stderr,"##################\n%s\n",buf);
++	*/
++	int c;
++	 while ((c = my_getc(0)) == ' ' || c == '\t' || c == '\n')    /* Skip whitespace */
++                ;
++	unget(c);	
++	/*
++	c = my_getc(0);
++	if(c != '{'){
++		fprintf(stderr,"syntax error when parsing function,last char=%c\n",c);
++		zzerr();
++	}*/
++	//fprintf(stderr,"exec function %s\n",f->name);
++	WHERE;	
++	for(;;){
++		//fprintf(stderr,"afpos=%d,%s\n",e.iop->argp->afpos, yylval.cp);
++		if( e.iop->argp->afpos == p->end_addr)
++			break;
++		onecommand();
++		if(func_return)
++			break;
++	}
++	
++	//fprintf(stderr,"function is finished @%d!\n",e.iop->argp->afpos);
++	/*function is returned*/
++	e.iop->argp->afpos = saved_addr;
++	bp->bufp =  &(bp->buf[saved_addr]);
++}
+ static int collect(c, c1)
+ REGISTER int c, c1;
+ {
+@@ -2797,6 +2975,10 @@
+ 		if (rv >= 0 && (t1 = t->left))
+ 			rv = execute(t1, pin, pout, 0);
+ 		break;
++	case TFUNC:
++		break;
++	case TRETURN:
++		break;
+ 
+ 	};
+ 
+@@ -4841,7 +5023,6 @@
+ 		}
+ 
+ 	}							/* FOR */
+-
+ 	if (e.iop >= iostack) {
+ 		RCPRINTF(("READC: return 0, e.iop 0x%x\n", e.iop));
+ 		return (0);
+@@ -5047,11 +5228,13 @@
+ 	struct iobuf *bp = ap->afbuf;
+ 
+ 	if (ap->afid != AFID_NOBUF) {
++	/*judge the bufp equals end of buf ,means we reach end of buf ,so we create new buf 
++	  or (i = ap->afid != bp->id), we have to create new buf*/
+ 		if ((i = ap->afid != bp->id) || bp->bufp == bp->ebufp) {
+ 
+-			if (i)
++			if (i)/*first arrive the last read pos of file*/
+ 				lseek(ap->afile, ap->afpos, 0);
+-
++			/*read from file to buf*/
+ 			i = safe_read(ap->afile, bp->buf, sizeof(bp->buf));
+ 
+ 			if (i <= 0) {
+@@ -5062,7 +5245,7 @@
+ 			bp->id = ap->afid;
+ 			bp->ebufp = (bp->bufp = bp->buf) + i;
+ 		}
+-
++		/* move the pos to the first pos of new buf */
+ 		ap->afpos++;
+ 		return *bp->bufp++ & 0177;
+ 	}
