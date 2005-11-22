@@ -143,7 +143,7 @@ void spi_set_ctl(spi_device_t *spi_dev)
 
 void spi_get_stat(unsigned short *data)
 {
-	*data = *(unsigned short*)(SPI0_REGBASE + SPI_STAU_OFF);
+	*data = *(unsigned short*)(SPI0_REGBASE + SPI_STAT_OFF);
 }
 
 void spi_get_ctl(unsigned short *data)
