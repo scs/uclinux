@@ -1,10 +1,34 @@
 /*
- * SPI Flash memory access on BlackFin BF533 based devices
- * 
- * (C) 2005 Aubrey Li <aubrey.li@analog.com>
- * 
+ * File:         drivers/mtd/maps/bf5xx-spi-flash.c
+ * Based on:     drivers/mtd/maps/bf5xx-flash.c
+ * Author:	 Aubrey.li <aubrey.li@analog.com>
+ *
+ * Created:
+ * Description:  SPI Flash memory access on BlackFin BF5xx based devices
+ *		 So far the driver is desiged for STM25P64/STM25P32.
+ *
+ * Rev:          $Id$
+ *
+ * Modified:
+ *               Copyright 2004-2005 Analog Devices Inc.
+ *
+ * Bugs:         Enter bugs at http://blackfin.uclinux.org/
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2, or (at your option)
+ * any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; see the file COPYING.
+ * If not, write to the Free Software Foundation,
+ * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
-
 #include <linux/config.h>
 #include <linux/module.h>
 #include <linux/types.h>
@@ -17,108 +41,90 @@
 #include <linux/mtd/partitions.h>
 
 #include <asm/blackfin.h>
+#include <asm/bfin_spi_channel.h>
+
+spi_device_t spi_mtd_dev;
 
 #ifndef CONFIG_BFIN
 #error This is for BlackFin BF533 boards only
 #endif
 
-#define	 NUM_SECTORS 	128	/* number of sectors */
-#define SECTOR_SIZE		0x10000
-
-#define COMMON_SPI_SETTINGS (SPE|MSTR|CPHA|CPOL) /* Settings to the SPI_CTL */
-#define TIMOD01 (0x01)		/*  stes the SPI to work with core instructions */
 #define BAUD_RATE_DIVISOR 2
 #define SPI_READ            (0x03)  /* Read data from memory */
 #define SPI_RDSR            (0x05)  /* Read Status Register */
 
 static void spi_ready(void);
-static void spi_setup( const int spi_setting );
-static void spi_off(void);
-static void spi_read_data(  unsigned long ulStart, long lCount,int *pnData  );
+static void spi_setup(void);
+static void spi_read_data(unsigned long start, long count,int *pndata  );
 
-static void spi_setup( const int spi_setting )
+static void spi_setup(void)
 {
-	
-#if defined(CONFIG_BLKFIN_CACHE) || defined(CONFIG_BLKFIN_DCACHE)  
-   udelay(CONFIG_CCLK_HZ/50000000);
+#if defined(CONFIG_BLKFIN_CACHE) || defined(CONFIG_BLKFIN_DCACHE)
+	udelay(CONFIG_CCLK_HZ/50000000);
 #endif
+	spi_mtd_dev.bdrate = BAUD_RATE_DIVISOR;
+	spi_mtd_dev.phase = CFG_SPI_PHASESTART;
+	spi_mtd_dev.polar = CFG_SPI_ACTLOW;
+	spi_mtd_dev.master = CFG_SPI_MASTER;
 #ifdef CONFIG_BF533
-	/*sets up the PF2 to be the slave select of the SPI */
-	*pSPI_FLG = 0xFB04;
+	spi_mtd_dev.flag = 0xFB04;
 #endif
 #ifdef CONFIG_BF537
-	*pPORTF_FER |= (PF10 | PF11 | PF12 | PF13);
-	/*sets up the PF10 to be the slave select of the SPI */
-        *pSPI_FLG = 0xFD02;
+	spi_mtd_dev.flag = 0xFD02;
 #endif
-	*pSPI_BAUD = BAUD_RATE_DIVISOR;
-	*pSPI_CTL = spi_setting;
-	 __builtin_bfin_ssync();
-}
-
-static void spi_off(void)
-{
-	
-	*pSPI_CTL = 0x0400;	/* disable SPI*/
-	*pSPI_FLG = 0;
-	*pSPI_BAUD = 0;
-	 __builtin_bfin_ssync();
-	udelay(CONFIG_CCLK_HZ/50000000);
-	
+	spi_mtd_dev.dma  = 0;
+	spi_mtd_dev.ti_mod = BIT_CTL_TXMOD;
+	spi_channel_request(&spi_mtd_dev);
 }
 
 static void spi_ready(void)
 {
-	unsigned short dummyread;
-	while( (*pSPI_STAT&TXS));
-	while(!(*pSPI_STAT&SPIF));
-	while(!(*pSPI_STAT&RXS));
-	dummyread = *pSPI_RDBR;			/* Read dummy to empty the receive register	*/
-	
+        unsigned short data;
+	do{
+	spi_get_stat(&data);
+	} while( (data&TXS) || !(data&SPIF) || !(data&RXS));
+	/* Read dummy to empty rx register */
+	spi_receive_data();
 }
 
-static void spi_read_data(  unsigned long ulStart, long lCount,int *pnData  )
+static void spi_read_data(unsigned long start, long count,int *pndata  )
 {
-	unsigned long ShiftValue;
-	char *cnData;
-	int i;
-	int flags;
+	unsigned long shiftvalue;
+	char *cndata;
+	int i,flags;
 
-	cnData = (char *)pnData; /* Pointer cast to be able to increment byte wise */
-
+	cndata = (char *)pndata; /* Pointer cast to be able to increment byte wise */
+	/* Start SPI interface*/
+	spi_setup();
 	local_irq_save(flags);
-	/* Start SPI interface	*/
-	spi_setup( (COMMON_SPI_SETTINGS|TIMOD01) );
-
-	*pSPI_TDBR = SPI_READ;			/* Send the read command to SPI device */
-	 __builtin_bfin_ssync();
-	spi_ready();						/* Wait until the instruction has been sent */
-	ShiftValue = (ulStart >> 16);	/* Send the highest byte of the 24 bit address at first */
-	*pSPI_TDBR = ShiftValue;			/* Send the byte to the SPI device */
-	 __builtin_bfin_ssync();
-	spi_ready();						/* Wait until the instruction has been sent */
-	ShiftValue = (ulStart >> 8);		/* Send the middle byte of the 24 bit address  at second */
-	*pSPI_TDBR = ShiftValue;			/* Send the byte to the SPI device	*/
-	 __builtin_bfin_ssync();
-	spi_ready();						/* Wait until the instruction has been sent */
-	*pSPI_TDBR = ulStart;			/* Send the lowest byte of the 24 bit address finally */
-	 __builtin_bfin_ssync();
-	spi_ready();						/* Wait until the instruction has been sent */
-
+	spi_enable(&spi_mtd_dev);
+	/* Send the read command to SPI device */
+	spi_send_data(SPI_READ);
+	spi_ready();
+	/* Send the highest byte of the 24 bit address at first */
+	shiftvalue = (start >> 16);
+	spi_send_data(shiftvalue);
+	spi_ready();
+	/* Send the middle byte of the 24 bit address  at second */
+	shiftvalue = (start >> 8);
+	spi_send_data(shiftvalue);
+	spi_ready();
+	 /* Send the lowest byte of the 24 bit address finally */
+	spi_send_data(start);
+	spi_ready();
 
 	/* After the SPI device address has been placed on the MOSI pin the data can be
 	 received on the MISO pin. */
-	for (i=0; i<lCount; i++)
+	for (i=0; i<count; i++)
 	{
-		*pSPI_TDBR = 0;			/* send dummy */
-		 __builtin_bfin_ssync();
-		while(!(*pSPI_STAT&RXS));
-		*cnData++  = *pSPI_RDBR;	/* read */
-		
+		spi_send_data(0);		/* send dummy */
+		spi_ready();
+		*cndata++  = (unsigned char)spi_receive_data();
 	}
-	
-	spi_off();					/* Turn off the SPI */
+	spi_disable(&spi_mtd_dev);
 	local_irq_restore(flags);
+	udelay(CONFIG_CCLK_HZ/50000000);
+	spi_channel_release(&spi_mtd_dev);
 }
 static map_word bf533_read(struct map_info *map, unsigned long ofs)
 {

@@ -1,10 +1,33 @@
 /*
- * SPI Flash memory access on BlackFin BF533 based devices
- * 
- * Now the driver is written for the chip ST - M25P64 
+ * File:         drivers/mtd/chips/stm_m25p64.c
+ * Based on:     drivers/mtd/chips/stm_mw320db.c
+ * Author:	 Aubrey.Li <aubrey.li@analog.com>
  *
- * (C)	2005 Aubrey.Li@analog.com
- * 
+ * Created:
+ * Description:  SPI Flash memory access on Blackfin BF5xx based devices
+		 So far the driver is designed for STM25P64/STM25P32
+ *
+ * Rev:          $Id$
+ *
+ * Modified:
+ *               Copyright 2004-2005 Analog Devices Inc.
+ *
+ * Bugs:         Enter bugs at http://blackfin.uclinux.org/
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2, or (at your option)
+ * any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; see the file COPYING.
+ * If not, write to the Free Software Foundation,
+ * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 #include <linux/module.h>
 #include <linux/types.h>
@@ -19,6 +42,9 @@
 #include <linux/init.h>
 
 #include <linux/interrupt.h>
+#include <asm/bfin_spi_channel.h>
+
+spi_device_t spi_chip_dev;
 
 #define DEVICE_TYPE_X8  (8 / 8)
 #define DEVICE_TYPE_X16 (16 / 8)
@@ -49,95 +75,84 @@ struct stm_flash_info {
 #define COMMON_SPI_SETTINGS (SPE|MSTR|CPHA|CPOL) /* Settings to the SPI_CTL */
 #define TIMOD01 (0x01)		/* stes the SPI to work with core instructions */
 #define BAUD_RATE_DIVISOR 2
+#undef  SPI_READ
 
 /* Flash commands */
-#define SPI_WREN            (0x06)  /* Set Write Enable Latch */
-#define SPI_WRDI            (0x04)  /* Reset Write Enable Latch */
-#define SPI_RDSR            (0x05)  /* Read Status Register */
-#define SPI_RDID				 (0x9F)  /* Read Identification */
-#define SPI_WRSR            (0x01)  /* Write Status Register */
-#define SPI_READ            (0x03)  /* Read data from memory */
-#define SPI_PP              (0x02)  /* Program Data into memory */
-#define SPI_SE              (0xD8)  /* Erase one sector in memory */
-#define SPI_BE              (0xC7)  /* Erase all memory */
-#define WIP					(0x1)	  /* Check the write in progress bit of the SPI status register */
+#define SPI_WREN		(0x06)  /* Set Write Enable Latch */
+#define SPI_WRDI		(0x04)  /* Reset Write Enable Latch */
+#define SPI_RDSR		(0x05)  /* Read Status Register */
+#define SPI_RDID		(0x9F)  /* Read Identification */
+#define SPI_WRSR		(0x01)  /* Write Status Register */
+#define SPI_READ		(0x03)  /* Read data from memory */
+#define SPI_PP			(0x02)  /* Program Data into memory */
+#define SPI_SE			(0xD8)  /* Erase one sector in memory */
+#define SPI_BE			(0xC7)  /* Erase all memory */
+#define WIP			(0x1)	  /* Check the write in progress bit of the SPI status register */
 #define WEL					(0x2)	  /* Check the write enable bit of the SPI status register */
 
 #define TIMEOUT 350000000
 
 static char spi_read_status(void);
 static void spi_ready(void);
-static void spi_setup( const int spi_setting );
-static void spi_off(void);
-static void spi_command( const int iCommand );
+static void spi_setup(void);
+static void spi_command(const int command);
 
-static void spi_sector_number( unsigned long ulOffset, int *pnSector );
-static void spi_erase_block( int nBlock );
-static void spi_read_data(  unsigned long ulStart, long lCount,int *pnData  );
-static void spi_write_data( unsigned long ulStart, long lCount, int *pnData );
-static int spi_wait_status( char Statusbit );
+static void spi_sector_number(unsigned long offset, int *pnsector);
+static void spi_erase_block(int nblock );
+static void spi_write_data(unsigned long start, long count, int *pndata);
+static int spi_wait_status(char statusbit);
 static int spi_wait_WEL(void);
 
-static void spi_command( const int iCommand )
+static void spi_command(const int command)
 {
 	unsigned short dummy;
 
 	/*turns on the SPI in single write mode*/
-	spi_setup( (COMMON_SPI_SETTINGS|TIMOD01) );
+	spi_setup();
+	spi_enable(&spi_chip_dev);
 
 	/*sends the actual command to the SPI TX register*/
-	*pSPI_TDBR = iCommand;
-	 __builtin_bfin_ssync();
+	spi_send_data(command);
 
 	/*The SPI status register will be polled to check the SPIF bit*/
 	spi_ready();
 	
-	dummy = *pSPI_RDBR;
+	dummy = spi_receive_data();
 
 	/*The SPI will be turned off*/
-	spi_off();
-
+	spi_disable(&spi_chip_dev);
+	udelay(CONFIG_CCLK_HZ/50000000);
+        spi_channel_release(&spi_chip_dev);
 }
 
-static void spi_setup( const int spi_setting )
+static void spi_setup(void)
 {
-	
-#if defined(CONFIG_BLKFIN_CACHE) || defined(CONFIG_BLKFIN_DCACHE)  
-    udelay(CONFIG_CCLK_HZ/50000000);
+#if defined(CONFIG_BLKFIN_CACHE) || defined(CONFIG_BLKFIN_DCACHE)
+   udelay(CONFIG_CCLK_HZ/50000000);
 #endif
+        spi_chip_dev.bdrate = BAUD_RATE_DIVISOR;
+        spi_chip_dev.phase = CFG_SPI_PHASESTART;
+        spi_chip_dev.polar = CFG_SPI_ACTLOW;
+        spi_chip_dev.master = CFG_SPI_MASTER;
 #ifdef CONFIG_BF533
-	/*sets up the PF2 to be the slave select of the SPI */
-	*pSPI_FLG = 0xFB04;
+        spi_chip_dev.flag = 0xFB04;
 #endif
 #ifdef CONFIG_BF537
-	*pPORTF_FER |= (PF10 | PF11 | PF12 | PF13);
-        /*sets up the PF10 to be the slave select of the SPI */
-        *pSPI_FLG = 0xFD02;
+        spi_chip_dev.flag = 0xFD02;
 #endif
-	*pSPI_BAUD = BAUD_RATE_DIVISOR;
-	*pSPI_CTL = spi_setting;
-	 __builtin_bfin_ssync();
-}
-
-static void spi_off(void)
-{
-	
-	*pSPI_CTL = 0x0400;	/* disable SPI*/
-	*pSPI_FLG = 0;
-	*pSPI_BAUD = 0;
-	 __builtin_bfin_ssync();
-	udelay(CONFIG_CCLK_HZ/50000000);
-	
+        spi_chip_dev.dma  = 0;
+        spi_chip_dev.ti_mod = BIT_CTL_TXMOD;
+        spi_channel_request(&spi_chip_dev);
 }
 
 static void spi_ready(void)
 {
-	unsigned short dummyread;
-	while( (*pSPI_STAT&TXS));
-	while(!(*pSPI_STAT&SPIF));
-	while(!(*pSPI_STAT&RXS));
-	dummyread = *pSPI_RDBR;			
-	
+	unsigned short data;
+        do{
+        spi_get_stat(&data);
+        } while( (data&TXS) || !(data&SPIF) || !(data&RXS));
+        /* Read dummy to empty rx register */
+        spi_receive_data();
 }
 
 static int spi_wait_WEL(void)
@@ -183,54 +198,54 @@ static char spi_read_status(void)
 {
 	char status_register = 0;
 	int flags;
-
+	spi_setup();
 	local_irq_save(flags);
-	spi_setup( (COMMON_SPI_SETTINGS|TIMOD01) ); /* Turn on the SPI */
-
-	*pSPI_TDBR = SPI_RDSR;			/* send instruction to read status register */
-	 __builtin_bfin_ssync();
-	spi_ready();						/*wait until the instruction has been sent*/
-	*pSPI_TDBR = 0;					/*send dummy to receive the status register*/
-	 __builtin_bfin_ssync();
-	spi_ready();						/*wait until the data has been sent*/
-	status_register = *pSPI_RDBR;	/*read the status register*/
+	spi_enable(&spi_chip_dev); 
 	
-	spi_off();							/* Turn off the SPI */
+	spi_send_data(SPI_RDSR);			/* send instruction to read status register */
+	spi_ready();					/*wait until the instruction has been sent*/
+	spi_send_data(0);				/*send dummy to receive the status register*/
+	spi_ready();					/*wait until the data has been sent*/
+	status_register = spi_receive_data();
+	
+	spi_disable(&spi_chip_dev);
 	local_irq_restore(flags);
+	udelay(CONFIG_CCLK_HZ/50000000);
+	spi_channel_release(&spi_chip_dev);
 
 	return status_register;
 }
 
-static void spi_sector_number( unsigned long ulOffset, int *pnSector )
+static void spi_sector_number(unsigned long offset, int *pnsector )
 {
-	int nSector = 0;
+	int nsector = 0;
 	
-	if(ulOffset > (NUM_SECTORS*0x10000 -1)){
+	if(offset > (NUM_SECTORS*0x10000 -1)){
 		printk(KERN_NOTICE "SPI Flash Error: invalid sector number\n");
 		return;
 		}
 			
-	nSector = (int)ulOffset/0x10000;
-	*pnSector = nSector;
+	nsector = (int)offset/0x10000;
+	*pnsector = nsector;
 	
 }
 
-static void spi_erase_block( int nBlock )
+static void spi_erase_block( int nblock )
 {
-	unsigned long ulSectorOff = 0x0, ShiftValue;
+	unsigned long sectoroff = 0x0, shiftvalue;
 	int flags;
 
 	/* if the block is invalid just return */
-	if ( (nBlock < 0) || (nBlock > NUM_SECTORS) )
+	if ( (nblock < 0) || (nblock > NUM_SECTORS) )
 	{
 		printk(KERN_NOTICE "SPI Flash Error: invalid sector number\n");
 		return;
 	}
 	
 	/* figure out the offset of the block in flash */
-	if ( (nBlock >= 0) && (nBlock < NUM_SECTORS) )
+	if ( (nblock >= 0) && (nblock < NUM_SECTORS) )
 	{
-		ulSectorOff = (nBlock * SECTOR_SIZE);
+		sectoroff = (nblock * SECTOR_SIZE);
 		
 	}
 
@@ -242,93 +257,48 @@ static void spi_erase_block( int nBlock )
 		printk(KERN_NOTICE "SPI Erase block error\n");
 		return;
 		}
-
+	spi_setup();
 	local_irq_save(flags);
 	/* Turn on the SPI to send single commands */
-	spi_setup( (COMMON_SPI_SETTINGS|TIMOD01) );
+	spi_enable(&spi_chip_dev);
 
 	/* Send the erase block command to the flash followed by the 24 address 
 	 to point to the start of a sector. */
-	*pSPI_TDBR = SPI_SE;
-	 __builtin_bfin_ssync();
+	spi_send_data(SPI_SE);
 	spi_ready();
-	ShiftValue = (ulSectorOff >> 16);	/* Send the highest byte of the 24 bit address at first */
-	*pSPI_TDBR = ShiftValue;			
-	 __builtin_bfin_ssync();
-	spi_ready();							/* Wait until the instruction has been sent */
-	ShiftValue = (ulSectorOff >> 8);	/* Send the middle byte of the 24 bit address  at second */
-	*pSPI_TDBR = ShiftValue;
-	 __builtin_bfin_ssync();
-	spi_ready();							/* Wait until the instruction has been sent */
-	*pSPI_TDBR = ulSectorOff;			/* Send the lowest byte of the 24 bit address finally */
-	 __builtin_bfin_ssync();
+	shiftvalue = (sectoroff >> 16);	/* Send the highest byte of the 24 bit address at first */
+	spi_send_data(shiftvalue);
+	spi_ready();
+	shiftvalue = (sectoroff >> 8);	/* Send the middle byte of the 24 bit address  at second */
+	spi_send_data(shiftvalue);
+	spi_ready();
+	spi_send_data(sectoroff);
 	spi_ready();							/* Wait until the instruction has been sent */
 	
-	spi_off();
+	spi_disable(&spi_chip_dev);
 	local_irq_restore(flags);
+	udelay(CONFIG_CCLK_HZ/50000000);
+	spi_channel_release(&spi_chip_dev);
 	/* Poll the status register to check the Write in Progress bit
 	   Sector erase takes time */
 	spi_wait_status(WIP);
 	
 }
 
-static void spi_read_data(  unsigned long ulStart, long lCount,int *pnData  )
-{
-	unsigned long ShiftValue;
-	char *cnData;
-	int i,flags;
-
-	cnData = (char *)pnData; /* Pointer cast to be able to increment byte wise */
-
-	local_irq_save(flags);
-
-	spi_setup( (COMMON_SPI_SETTINGS|TIMOD01) );
-
-	*pSPI_TDBR = SPI_READ;			// Send the read command to SPI device
-	 __builtin_bfin_ssync();
-	spi_ready();							/* Wait until the instruction has been sent */
-	ShiftValue = (ulStart >> 16);	// Send the highest byte of the 24 bit address at first
-	*pSPI_TDBR = ShiftValue;		// Send the byte to the SPI device
-	 __builtin_bfin_ssync();
-	spi_ready();							/* Wait until the instruction has been sent */
-	ShiftValue = (ulStart >> 8);	// Send the middle byte of the 24 bit address  at second
-	*pSPI_TDBR = ShiftValue;		// Send the byte to the SPI device
-	 __builtin_bfin_ssync();
-	spi_ready();							/* Wait until the instruction has been sent */
-	*pSPI_TDBR = ulStart;			/* Send the lowest byte of the 24 bit address finally	 */
-	 __builtin_bfin_ssync();
-	spi_ready();							/* Wait until the instruction has been sent */
-
-	/* After the SPI device address has been placed on the MOSI pin the data can be
-	   received on the MISO pin. */
-	for (i=0; i<lCount; i++)
-	{
-		*pSPI_TDBR = 0;			/* send dummy */
-		 __builtin_bfin_ssync();
-		while(!(*pSPI_STAT&RXS));
-		*cnData++  = *pSPI_RDBR;	/* read */
-		
-	}
-	
-	spi_off();
-	local_irq_restore(flags);
-	
-}
-
-static void spi_write_flash ( unsigned long ulStartAddr, long lTransferCount, int *iDataSource, long *lWriteCount )
+static void spi_write_flash (unsigned long startaddr, long transfercount, int *datasource, long *writecount )
 {
 
-	unsigned long ulWAddr;
-	long lWTransferCount = 0;
+	unsigned long addr;
+	long lwtransfercount = 0;
 	int i,flags;
-	char iData;
-	unsigned int ctr = SF_PAGESIZE - ( ulStartAddr & (SF_PAGESIZE -1));
-	char *temp = (char *)iDataSource;
+	char data;
+	unsigned int ctr = SF_PAGESIZE - ( startaddr & (SF_PAGESIZE -1));
+	char *temp = (char *)datasource;
 	int n;
 
-	while(lTransferCount) {
-		if(lTransferCount < ctr)
-			n = lTransferCount;
+	while(transfercount) {
+		if(transfercount < ctr)
+			n = transfercount;
 		else
 			n = ctr;
 		/* First, a Write Enable Command must be sent to the SPI. */
@@ -341,36 +311,34 @@ static void spi_write_flash ( unsigned long ulStartAddr, long lTransferCount, in
 			printk(KERN_NOTICE "SPI Write Time Out\n");
 			return ;
 			}
+		spi_setup();
 		local_irq_save(flags);
 		/* Third, the 24 bit address will be shifted out the SPI MOSI bytewise. */
-		spi_setup( (COMMON_SPI_SETTINGS|TIMOD01) ); 
-		*pSPI_TDBR = SPI_PP;
-	 	__builtin_bfin_ssync();
-		spi_ready();							/* Wait until the instruction has been sent */
-		ulWAddr = (ulStartAddr >> 16);
-		*pSPI_TDBR = ulWAddr;
-	 	__builtin_bfin_ssync();
-		spi_ready();							/* Wait until the instruction has been sent */
-		ulWAddr = (ulStartAddr >> 8);
-		*pSPI_TDBR = ulWAddr;
-		 __builtin_bfin_ssync();
-		spi_ready();							/* Wait until the instruction has been sent */
-		ulWAddr = ulStartAddr;
-		*pSPI_TDBR = ulWAddr;
-		 __builtin_bfin_ssync();
-		spi_ready();							/* Wait until the instruction has been sent */
+		spi_enable(&spi_chip_dev); 
+		spi_send_data(SPI_PP);
+		spi_ready();
+		addr = (startaddr >> 16);
+		spi_send_data(addr);
+		spi_ready();
+		addr = (startaddr >> 8);
+		spi_send_data(addr);
+		spi_ready();
+		addr = startaddr;
+		spi_send_data(addr);
+		spi_ready();
 		/* Fourth, maximum number of 256 bytes will be taken from the Buffer
 	   	and sent to the SPI device.*/
-		for (i=0; i < n; i++, lWTransferCount++) {
-			iData = *temp;
-			*pSPI_TDBR = iData;
-			__builtin_bfin_ssync();
+		for (i=0; i < n; i++, lwtransfercount++) {
+			data = *temp;
+			spi_send_data(data);
 			spi_ready();							/* Wait until the instruction has been sent */
 			temp++;
 		}
 		
-		spi_off(); 
+		spi_disable(&spi_chip_dev); 
    		local_irq_restore(flags);
+		udelay(CONFIG_CCLK_HZ/50000000);
+	        spi_channel_release(&spi_chip_dev);
 
 		/* Sixth, the SPI Write in Progress Bit must be toggled to ensure the 
 	   	programming is done before start of next transfer. */
@@ -378,31 +346,31 @@ static void spi_write_flash ( unsigned long ulStartAddr, long lTransferCount, in
 			printk(KERN_NOTICE "SPI Program Time out!\n");
 			return;
 			}
-		lTransferCount 	-= n;
-		ulStartAddr 		+= n;
-		ctr = (lTransferCount < SF_PAGESIZE)? lTransferCount : SF_PAGESIZE;
+		transfercount 	-= n;
+		startaddr 		+= n;
+		ctr = (transfercount < SF_PAGESIZE)? transfercount : SF_PAGESIZE;
 	}
-	*lWriteCount = lWTransferCount;
+	*writecount = lwtransfercount;
 }
 
 
-static void spi_write_data( unsigned long ulStart, long lCount, int *pnData )
+static void spi_write_data( unsigned long ulstart, long lcount, int *pndata )
 {
 
-	unsigned long ulWStart = ulStart; 
-	long lWCount = lCount, lWriteCount;
-	long *pnWriteCount = &lWriteCount;
+	unsigned long ulwstart = ulstart; 
+	long lwcount = lcount, lwritecount;
+	long *pnwritecount = &lwritecount;
 	
-	while (lWCount != 0)
+	while (lwcount != 0)
 	{
-		spi_write_flash(ulWStart, lWCount, pnData, pnWriteCount);
+		spi_write_flash(ulwstart, lwcount, pndata, pnwritecount);
 		
 		/* After each function call of WriteFlash the counter must be adjusted */
-		lWCount -= *pnWriteCount;
+		lwcount -= *pnwritecount;
 		
 		/* Also, both address pointers must be recalculated. */
-		ulWStart += *pnWriteCount;
-		pnData += *pnWriteCount/4;
+		ulwstart += *pnwritecount;
+		pndata += *pnwritecount/4;
 	}
 
 }
@@ -436,20 +404,19 @@ static int probe_new_chip(struct mtd_info *mtd, __u32 base,
 	temp.device_type = DEVICE_TYPE_X8;
 	map->fldrv_priv = &temp;
 
-	spi_setup( (COMMON_SPI_SETTINGS|TIMOD01) ); /* Turn on the SPI */
-
-	*pSPI_TDBR = SPI_RDID;	/* send instruction to read status register */
-	 __builtin_bfin_ssync();
-	spi_ready();							/* Wait until the instruction has been sent */
-	*pSPI_TDBR = 0;			/*send dummy to receive the status register*/
-	 __builtin_bfin_ssync();
-	spi_ready();							/* Wait until the instruction has been sent */
-	mfr_id = *pSPI_RDBR;	/*read the status register*/
-	*pSPI_TDBR = 0;			/*send dummy to receive the status register*/
-	 __builtin_bfin_ssync();
-	spi_ready();							/* Wait until the instruction has been sent */
-	dev_id = *pSPI_RDBR;	/*read the status register*/
-	spi_off();		/* Turn off the SPI */
+	spi_setup(); 
+	spi_enable(&spi_chip_dev);
+	spi_send_data(SPI_RDID);
+	spi_ready();
+	spi_send_data(0);
+	spi_ready();
+	mfr_id = spi_receive_data();
+	spi_send_data(0);
+	spi_ready();
+	dev_id = *pSPI_RDBR;
+	spi_disable(&spi_chip_dev);
+	udelay(CONFIG_CCLK_HZ/50000000);
+        spi_channel_release(&spi_chip_dev);
 
 	if ((mfr_id == table->mfr_id) &&(dev_id == table->dev_id))
 		{
@@ -653,10 +620,6 @@ static int stm_flash_read(struct mtd_info *mtd, loff_t from, size_t len,
 static int stm_flash_write(struct mtd_info *mtd, loff_t to, size_t len,
 			   size_t *retlen, const unsigned char *buf)
 {
-	int i;
-	unsigned char temp;
-	unsigned char value;
-	int count = 0;
 	*retlen = 0;
 	if(!len)
 		return 0;
