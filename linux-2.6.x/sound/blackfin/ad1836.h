@@ -129,3 +129,37 @@
 #define ADC_RIGHT_MUX       0x0002
 #define ADC_RIGHT_SEL       0x0001
 
+/* Channel Location */
+#define DAC0_LEFT	0x0001
+#define DAC1_LEFT	0x0002
+#define DAC2_LEFT	0x0004
+#define DAC0_RIGHT	0x0010
+#define DAC1_RIGHT	0x0020
+#define DAC2_RIGHT	0x0040
+#define SPDIF_OUT_LEFT	0x0008
+#define SPDIF_OUT_RIGHT	0x0080
+
+/* Speaker location */
+#define SP_FL		DAC0_LEFT
+#define SP_FR		DAC0_RIGHT
+#define SP_FC		DAC1_LEFT
+#define SP_LFE		DAC1_RIGHT
+#define SP_BL		DAC2_LEFT
+#define SP_BR		DAC2_RIGHT
+
+#define SP_STEREO	(SP_FL | SP_FR)
+#define SP_2DOT1	(SP_FL | SP_FR | SP_LFE)
+#define SP_QUAD		(SP_FL | SP_FR | SP_BL | SP_BR)
+#define SP_5DOT1	(SP_FL | SP_FR | SP_FC | SP_LFE | SP_BL | SP_BR)
+
+/* In channels */
+#define ADC0_LEFT	0x0001
+#define ADC0_RIGHT	0x0010
+#define ADC1_LEFT	0x0002
+#define ADC1_RIGHT	0x0020
+#define SPDIF_IN_LEFT	0x0004
+#define SPDIF_IN_RIGHT	0x0040
+
+#define CAP_LINE	(ADC0_LEFT | ADC0_RIGHT)
+#define CAP_MIC		(ADC1_LEFT | ADC1_RIGHT)
+#define CAP_SPDIF	(SPDIF_IN_LEFT | SPDIF_IN_RIGHT)

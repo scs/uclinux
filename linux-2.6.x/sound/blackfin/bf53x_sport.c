@@ -42,6 +42,7 @@
 
 #include <linux/slab.h>
 #include <asm/bug.h>
+#include <asm/delay.h>
 #define malloc(x) kmalloc(x, GFP_KERNEL)
 #define free(x)   kfree(x)
 #define printf(format, arg...)  printk( format, ## arg)
@@ -328,6 +329,10 @@ void bf53x_sport_hook_rx_desc( struct bf53x_sport* sport)
   dmasg_t *desc;
   
   if( sport->regs->rcr1 & RSPEN ) {
+    /* Avoid changing descriptor when it's being loaded*/
+    while(dma->curr_x_count < 0x100)
+    	udelay(10);
+    
     desc = (dmasg_t*)dma->next_desc_ptr;
     desc->next_desc_addr = (unsigned int)(sport->dma_rx_desc);
     flush_dcache_range(desc, desc + sizeof(dmasg_t));
@@ -349,6 +354,10 @@ void bf53x_sport_hook_tx_desc( struct bf53x_sport* sport)
   dmasg_t *desc;
   
   if( sport->regs->tcr1 & TSPEN) {
+    /* Avoid changing descriptor when it's being loaded*/
+    while(dma->curr_x_count < 0x100)
+    	udelay(10);
+
     desc = (dmasg_t*)dma->next_desc_ptr;
     desc->next_desc_addr = (unsigned int)(sport->dma_tx_desc);
     flush_dcache_range(desc, desc + sizeof(dmasg_t));
@@ -606,7 +615,7 @@ int sport_config_rx_dummy(struct bf53x_sport *sport)
 	desc->start_addr = sport->dummy_buf_rx;
 	config = FLOW | NDSIZE | WDSIZE_32 | WNR ;
 	desc->cfg = config | DMAEN;
-	desc->x_count = 0x8;
+	desc->x_count = 0x800;
 	desc->x_modify = 0;
 	desc->y_count = 0;
 	desc->y_modify = 0;
@@ -642,7 +651,7 @@ int sport_config_tx_dummy(struct bf53x_sport *sport)
 	desc->start_addr = sport->dummy_buf_tx;
 	config = (FLOW) | NDSIZE |WDSIZE_32;
 	desc->cfg = config | DMAEN;
-	desc->x_count = 0x8;
+	desc->x_count = 0x800;
 	desc->x_modify = 0;
 	desc->y_count = 0;
 	desc->y_modify = 0;

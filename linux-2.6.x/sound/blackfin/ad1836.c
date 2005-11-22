@@ -99,6 +99,31 @@
  * TODO: rething _prepare() and _trigger() to keep rx and tx out of eachothers way
  */
 
+/* 1 AD1836 has 6 output channels, define them as 5.1 channels
+ *	INTERNAL DAC L0:        Front Left (FL)
+ *	INTERNAL DAC R0:        Front Right(FR)
+ *	INTERNAL DAC L1:        Front Center(FC)
+ *	INTERNAL DAC R1:        Low Frequency Effect(LFE)
+ *	INTERNAL DAC L2:        Back Left (BL)
+ *	INTERNAL DAC LR:        BACK Right(BR)
+ *
+ * 2 Assume multichannel wave data form
+ *
+ *	Channels 	  1    2     3   4    5   6
+ *	stereo		| L  | R  |
+ *
+ *	3 Channels	| FL | FR | LFE|
+ *	in 2.1
+ *
+ *	Quadraphonic	| FL | FR | BL | BR |
+
+ *	5.1		| FL | FR | FC | LFE| BL |BR |
+
+ *	out_chan_mask is also used to indicate location of audio.
+ *	For expample 0x33 indicate Quadraphonic. DAC0 and DAC2 will be used to decode.
+ *	when user play a 5.1 audio, the data will be put to DAC
+ *	according to our definition.
+ */
 
 #include <sound/driver.h>
 #include <linux/init.h>
@@ -180,6 +205,18 @@ static int   enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE_PNP;
 
 #define ad1836_t_magic  0xa15a4501
 
+static unsigned int out_chan_masks[] = {
+       SP_FL, /* Mono */
+       SP_STEREO, /* Stereo */
+       SP_2DOT1, /* 2.1*/
+       SP_QUAD,/*Quadraquic*/
+       SP_FL | SP_FR | SP_FC | SP_BL | SP_BR,/*5 channels */
+       SP_5DOT1, /* 5.1 */
+       0,
+       SPDIF_OUT_LEFT | SPDIF_OUT_RIGHT};
+
+static unsigned int in_chan_masks[] = {CAP_LINE, CAP_MIC|CAP_LINE, CAP_SPDIF};
+
 typedef struct snd_ad1836 ad1836_t;
 struct snd_ad1836 {
 
@@ -192,10 +229,8 @@ struct snd_ad1836 {
 
 #ifdef CONFIG_SND_BLACKFIN_ADI1836_TDM
   /* define correspondence of alsa channels to ad1836 channels */
-  unsigned int out_chan_mask[4];
-  char     out_chan_mask_str[5]; /* last one is \0 */
-  unsigned int in_chan_mask[4];
-  char     in_chan_mask_str[5]; /* last one is \0 */
+  unsigned int out_chan_mask;
+  unsigned int in_chan_mask;
 #endif
 
   int	 reference;
@@ -309,7 +344,8 @@ static void snd_ad1836_reset_spi_stats(ad1836_t *chip ){
   chip->spi_irq_count = 0;
 }
 
-#ifdef CONFIG_SND_BLACKFIN_ADI1836_TDM
+//#ifdef CONFIG_SND_BLACKFIN_ADI1836_TDM
+#if 0
 /* define correspondence between ALSA and ad1836 channels, default '0123' */
 static int ad1836_set_chan_masks(ad1836_t* chip, char* permutation, int out){
 
@@ -561,7 +597,8 @@ static void snd_ad1836_proc_talktrough_write( snd_info_entry_t * entry, snd_info
   return;
 }
 
-#ifdef CONFIG_SND_BLACKFIN_ADI1836_TDM
+//#ifdef CONFIG_SND_BLACKFIN_ADI1836_TDM
+#if 0
 static void snd_ad1836_proc_outchanmask_read( snd_info_entry_t * entry, snd_info_buffer_t * buffer){
   ad1836_t *chip = (ad1836_t*) entry->private_data;
   snd_iprintf(buffer, "%s\n", chip->out_chan_mask_str );
@@ -906,49 +943,84 @@ static int snd_ad1836_mux_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t *ui
 static int snd_ad1836_mux_get(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
 {
   ad1836_t *chip = snd_kcontrol_chip(kcontrol);
-  unsigned long adc_ctrl_3;
 
-  if((chip->chip_registers[ADC_CTRL_2] & ADC_SOUT_MASK) == ADC_SOUT_PMAUX) {
-    ucontrol->value.integer.value[1] = ucontrol->value.integer.value[0] = chip->in_chan_mask_str[0]-48;
-  }
-  else {
-    adc_ctrl_3 = chip->chip_registers[ADC_CTRL_3];
-    ucontrol->value.integer.value[0] = (adc_ctrl_3 & ADC_LEFT_SEL ) ? 1:0;
-    ucontrol->value.integer.value[1] = (adc_ctrl_3 & ADC_RIGHT_SEL) ? 1:0;
-  }
+  if (chip->in_chan_mask & CAP_LINE)
+    ucontrol->value.integer.value[0] = 1;
+  else
+    ucontrol->value.integer.value[0] = 0;
+
+  if (chip->in_chan_mask & CAP_MIC)
+    ucontrol->value.integer.value[1] = 1;
+  else
+    ucontrol->value.integer.value[1] = 0;
+
   return 0;
 }
 
 static int snd_ad1836_mux_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
 {
   ad1836_t *chip = snd_kcontrol_chip(kcontrol);
-  unsigned long adc_ctrl_3;
-  int i,j;
-  char mask[5] = "0123";
-  int val;
+  int i;
 
   if (ucontrol->value.enumerated.item[0] >= CAPTURE_SOURCE_NUMBER || 
       ucontrol->value.enumerated.item[1] >= CAPTURE_SOURCE_NUMBER)
     return -EINVAL;
 
-  if((chip->chip_registers[ADC_CTRL_2] & ADC_SOUT_MASK) == ADC_SOUT_PMAUX) {
-    i = ucontrol->value.integer.value[0];
-    j = mask[0];
-    mask[0] = mask[i];
-    mask[i] = j;
-    /* set the chan mask of the input stream*/
-    ad1836_set_chan_masks(chip, mask, 0);
-  }
-  else {
-    adc_ctrl_3 = chip->chip_registers[ADC_CTRL_3];
-    val = ADC_LEFT_MUX|ADC_RIGHT_MUX|ADC_LEFT_SE|ADC_RIGHT_SE;
-    val |= ucontrol->value.integer.value[0] ? ADC_LEFT_SEL : 0;
-    val |= ucontrol->value.integer.value[1] ? ADC_RIGHT_SEL : 0;
-    snd_ad1836_set_register(chip, ADC_CTRL_3, ADC_LEFT_MUX|ADC_RIGHT_MUX|ADC_LEFT_SE|ADC_RIGHT_SE|ADC_LEFT_SEL|ADC_RIGHT_SEL , val);
-  }
-  
+  i = ucontrol->value.integer.value[0];
+  if (i==0) /* Select Line */
+    chip->in_chan_mask = CAP_LINE;
+  else if(i==1) /* Select Mic */
+    chip->in_chan_mask = CAP_MIC;
+    
   return 1;
 }
+
+#define OUTPUT_NUMBER 3
+static int snd_ad1836_playback_sel_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t *uinfo)
+{
+  static char *texts[OUTPUT_NUMBER] = {"Line", "Black", "Orange"};
+
+  uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
+  uinfo->count = 1;
+  uinfo->value.enumerated.items = 3;
+  if (uinfo->value.enumerated.item >= OUTPUT_NUMBER)
+	uinfo->value.enumerated.item = OUTPUT_NUMBER - 1;
+  strcpy(uinfo->value.enumerated.name, texts[uinfo->value.enumerated.item]);
+  return 0;
+}
+
+static int snd_ad1836_playback_sel_get(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
+{
+  ad1836_t *chip = snd_kcontrol_chip(kcontrol);
+
+  if (chip->out_chan_mask & (DAC0_LEFT | DAC0_RIGHT))
+    ucontrol->value.enumerated.item[0] = 0;
+  if (chip->out_chan_mask & (DAC1_LEFT | DAC1_RIGHT))
+    ucontrol->value.enumerated.item[0] = 1;
+  if (chip->out_chan_mask & (DAC2_LEFT | DAC2_RIGHT))
+    ucontrol->value.enumerated.item[0] = 2;
+
+  return 0;
+}
+
+static int snd_ad1836_playback_sel_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
+{
+  ad1836_t *chip = snd_kcontrol_chip(kcontrol);
+
+  if (ucontrol->value.enumerated.item[0] >= OUTPUT_NUMBER )
+    return -EINVAL;
+
+  chip->out_chan_mask = 0;
+  if (ucontrol->value.enumerated.item[0] == 0)
+  	chip->out_chan_mask = (DAC0_LEFT | DAC0_RIGHT);
+  if (ucontrol->value.enumerated.item[0] == 1)
+  	chip->out_chan_mask = (DAC1_LEFT | DAC1_RIGHT);
+  if (ucontrol->value.enumerated.item[0] == 2)
+  	chip->out_chan_mask = (DAC2_LEFT | DAC2_RIGHT);
+
+  return 1;
+}
+
 #endif
 
 static int snd_ad1836_vu_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t *uinfo)
@@ -996,6 +1068,7 @@ static snd_kcontrol_new_t snd_ad1836_controls[] __devinitdata = {
   KTRLRW( MIXER, "PCM Capture Differential Switch", snd_ad1836_diffip ),  /* note: off = differential, on = single ended */
 #ifdef CONFIG_SND_BLACKFIN_ADI1836_TDM
   KTRLRW( MIXER, "Capture Source",   snd_ad1836_mux ),
+  KTRLRW( MIXER, "PCM Playback Route",   snd_ad1836_playback_sel ),
 #endif
   KTRLRO( PCM,   "PCM Capture VU",           snd_ad1836_vu ),
 
@@ -1167,10 +1240,7 @@ static int snd_ad1836_prepare( snd_pcm_substream_t* substream ){
 
   snd_assert( (substream == chip->rx_substream) || (substream == chip->tx_substream), return -EINVAL );
 
-  snd_assert( (runtime->channels == 2)||(runtime->channels == 4)
-	      ||(runtime->channels == 6)||(runtime->channels == 8),
-	      return -EINVAL);
-
+  snd_printd(KERN_INFO "%s channels:%d\n", __FUNCTION__, runtime->channels);
 #ifdef CONFIG_SND_BLACKFIN_ADI1836_TDM
 /*  snd_printk(KERN_INFO "old: fragsize_bytes: %u\n", fragsize_bytes);*/
   fragsize_bytes /= runtime->channels;
@@ -1232,7 +1302,7 @@ static int snd_ad1836_trigger( snd_pcm_substream_t* substream, int cmd){
   }
 
 #ifdef CONFIG_SND_DEBUG
-printk("trigger: cmd=0x%x, runs=%d, runmode=0x%x\n", cmd, runs, chip->runmode);
+printk("trigger: cmd=0x%x, runmode=0x%x\n", cmd, chip->runmode);
 #endif
   return 0;
 
@@ -1304,21 +1374,37 @@ static int snd_ad1836_playback_copy(snd_pcm_substream_t *substream, int channel,
   ad1836_t *chip = snd_pcm_substream_chip(substream);
   unsigned int *dst = (unsigned int *)substream->runtime->dma_area;
   unsigned int *isrc = (unsigned int *)src;
-  unsigned int out_chan_mask = chip->out_chan_mask[substream->runtime->channels/2 - 1];
+  unsigned int mask;
+  if (chip->out_chan_mask)
+  	mask = chip->out_chan_mask;
+  else
+  	mask = out_chan_masks[substream->runtime->channels - 1];
 
-  /*snd_printk(KERN_INFO "playback_copy: src %p, pos %x, count %x\n", src, (uint)pos, (uint)count);*/
-
+  snd_printd(KERN_INFO "playback_copy: src %p, pos %x, count %x\n", src, (uint)pos, (uint)count);
   /* assumes tx DMA buffer initialised with zeros */
   dst += pos * 8;
 
+  /* Copy in order of data stream */
   while(count--) {
-    unsigned int c;
-    for (c = 0; c < 8; c++) {
-      if (out_chan_mask & (1 << c)) {
-        *dst = *isrc++;
-      }
-      dst++;
-    }
+    if (mask & SP_FL)
+       *dst = *isrc++;
+       
+    if (mask & SP_FR)
+       *(dst+4) = *isrc++;
+
+    if (mask & SP_FC)
+       *(dst+1) = *isrc++;
+
+    if (mask & SP_LFE)
+        *(dst+5) = *isrc++;
+    
+    if (mask & SP_BL)
+        *(dst+2) = *isrc++;
+
+    if (mask & SP_BR)
+        *(dst+6) = *isrc++;
+
+    dst += 8;
   }
   return 0;
 }
@@ -1326,16 +1412,21 @@ static int snd_ad1836_playback_copy(snd_pcm_substream_t *substream, int channel,
 static int snd_ad1836_capture_copy(snd_pcm_substream_t *substream, int channel, snd_pcm_uframes_t pos, void *dst, snd_pcm_uframes_t count){
   ad1836_t *chip = snd_pcm_substream_chip(substream);
   unsigned int *src = (unsigned int *)substream->runtime->dma_area;
-  unsigned int *idst = (unsigned int *)dst;
-  unsigned int in_chan_mask = chip->in_chan_mask[substream->runtime->channels/2 - 1];
+  unsigned int *idst = dst;
+  unsigned int mask;
+  if (chip->in_chan_mask)
+  	mask = chip->in_chan_mask;
+  else
+  	mask = in_chan_masks[substream->runtime->channels/2 - 1];
 
-  /*snd_printk(KERN_INFO "capture_copy: dst %p, pos %x, count %x\n", dst, (uint)pos, (uint)count);*/
+  snd_printd(KERN_INFO "capture_copy: dst %p, pos %x, count %x\n", dst, (uint)pos, (uint)count);
 
   src += pos * 8;
+
   while(count--) {
     unsigned int c;
     for (c = 0; c < 8; c++) {
-      if (in_chan_mask & (1 << c)) {
+      if (mask & (1 << c)) {
         *idst++ = *src;
       }
       src++;
@@ -1686,7 +1777,8 @@ static int __devinit snd_ad1836_create(snd_card_t *card,
   sport->dummy_buf_tx = sport->dummy_buf_rx + DUMMY_BUF_LEN;
   memset((void*)sport->dummy_buf_rx, DUMMY_BUF_LEN * 2, 0);
 
-#ifdef CONFIG_SND_BLACKFIN_ADI1836_TDM
+//#ifdef CONFIG_SND_BLACKFIN_ADI1836_TDM
+#if 0
   /* set the chan mask of the output stream */
   ad1836_set_chan_masks(chip, "0123", 1);
   /* set the chan mask of the input stream */
@@ -1719,7 +1811,8 @@ static int __devinit snd_ad1836_create(snd_card_t *card,
       snd_info_set_text_ops( proc_entry, chip, 1024, snd_ad1836_proc_sport_read);
   }
 
-#ifdef CONFIG_SND_BLACKFIN_ADI1836_TDM
+//#ifdef CONFIG_SND_BLACKFIN_ADI1836_TDM
+#if 0
   if(!err){
     snd_info_entry_t* proc_entry;
     err = snd_card_proc_new(card, "out_chan_mask", &proc_entry); 
