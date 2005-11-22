@@ -157,7 +157,7 @@ CONFIG_LARGE_ALLOCS=y
 # DMA Support
 #
 # CONFIG_NO_DMA is not set
-CONFIG_BFIN_DMA_BF5XX=y
+CONFIG_BFIN_DMA_5XX=y
 
 #
 # Cache Support
