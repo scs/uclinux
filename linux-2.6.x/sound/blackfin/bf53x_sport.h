@@ -30,7 +30,7 @@
 #include <linux/types.h>
 #include <linux/wait.h>
 #include <linux/workqueue.h>
-#include <asm/simple_bf533_dma.h>
+#include <asm/dma.h>
 
 /* keep copies of the dma registers, updated by us in an irq callback 
  * to avoid queries back to this driver having to read them 

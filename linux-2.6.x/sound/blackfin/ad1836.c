@@ -122,7 +122,7 @@
 #include "adi1836.h"
 #include "adi1836_config.h"
 
-#ifndef CONFIG_BLKFIN_SIMPLE_DMA
+#ifndef CONFIG_BFIN_DMA_5XX
 #error "The sound driver requires the Blackfin Simple DMA"
 #endif
 
@@ -154,7 +154,7 @@ static int   enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE_PNP;
 /*In 2 channels mode, the buffer is quadrupled */
 #define PCM_BUFFER_MAX	(AD1836_BUFFER_SIZE / 4)
 #define CHANNELS_MAX	8
-#define CHANNELS_OUPUT	6
+#define CHANNELS_OUTPUT	6
 #define CHANNELS_INPUT	4
 #define FRAGMENT_SIZE_MIN	(4*1024)
 #define FRAGMENTS_MIN	4
@@ -633,7 +633,7 @@ static int snd_ad1836_loopback_control_put(snd_kcontrol_t *kcontrol, snd_ctl_ele
 static int snd_ad1836_volume_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t *uinfo)
 {
   uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
-  uinfo->count = 6;
+  uinfo->count = CHANNELS_OUTPUT;
   uinfo->value.integer.min = 0;
   uinfo->value.integer.max = 1023;
   return 0;
@@ -644,7 +644,7 @@ static int snd_ad1836_volume_get(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t 
 {
   ad1836_t *chip = snd_kcontrol_chip(kcontrol);
   int i;
-  for(i=0;i<6;++i)
+  for(i=0;i<CHANNELS_OUTPUT;++i)
     ucontrol->value.integer.value[i] = chip->chip_registers[DAC_VOL_1L+i] & DAC_VOL_MASK;
   return 0;
 }
@@ -657,7 +657,7 @@ static int snd_ad1836_volume_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t 
   int change=0;
   int i;
 
-  for(i=0;i<6;++i){
+  for(i=0;i<CHANNELS_OUTPUT;++i){
     int vol  = ucontrol->value.integer.value[i];
     if (vol < 0) vol = 0; if (vol > 1023) vol = 1023;
     if( (chip->chip_registers[DAC_VOL_1L+i]  & DAC_VOL_MASK) != vol ){
@@ -712,16 +712,12 @@ static int snd_ad1836_adc_gain_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_
     snd_ad1836_set_register(chip, ADC_CTRL_1, ADC_GAIN_LEFT_MASK|ADC_GAIN_RIGHT_MASK, curr);
 
   return change;
-  
 }
-
-
-
 
 static int snd_ad1836_playback_mute_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t *uinfo)
 {
   uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
-  uinfo->count = 6;
+  uinfo->count = CHANNELS_OUTPUT;
   uinfo->value.integer.min = 0;
   uinfo->value.integer.max = 1;
   return 0;
@@ -731,7 +727,7 @@ static int snd_ad1836_playback_mute_get(snd_kcontrol_t *kcontrol, snd_ctl_elem_v
 {
   ad1836_t *chip = snd_kcontrol_chip(kcontrol);
   int i;
-  for(i=0;i<6;++i)
+  for(i=0;i<CHANNELS_OUTPUT;++i)
     ucontrol->value.integer.value[i] = (chip->chip_registers[DAC_CTRL_2] & ( 1 << i )) ? 0:1;
   return 0;
 }
@@ -744,7 +740,7 @@ static int snd_ad1836_playback_mute_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_v
   int mute = 0;
   int i;
 
-  for(i=0;i<6;++i)
+  for(i=0;i<CHANNELS_OUTPUT;++i)
     if( !ucontrol->value.integer.value[i] )
       mute |= (1<<i);
 
@@ -758,11 +754,10 @@ static int snd_ad1836_playback_mute_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_v
 }
 
 
-
 static int snd_ad1836_capture_mute_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t *uinfo)
 {
   uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
-  uinfo->count = 4;
+  uinfo->count = CHANNELS_INPUT;
   uinfo->value.integer.min = 0;
   uinfo->value.integer.max = 1;
   return 0;
@@ -772,7 +767,7 @@ static int snd_ad1836_capture_mute_get(snd_kcontrol_t *kcontrol, snd_ctl_elem_va
 {
   ad1836_t *chip = snd_kcontrol_chip(kcontrol);
   int i;
-  for(i=0;i<4;++i)
+  for(i=0;i<CHANNELS_INPUT;++i)
     ucontrol->value.integer.value[i] = (chip->chip_registers[ADC_CTRL_2] & ( 1 << i )) ? 1:0;
   return 0;
 }
@@ -785,7 +780,7 @@ static int snd_ad1836_capture_mute_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_va
   int mute = 0;
   int i;
 
-  for(i=0;i<4;++i)
+  for(i=0;i<CHANNELS_INPUT;++i)
     if( ucontrol->value.integer.value[i] )
       mute |= (1<<i);
 
@@ -959,7 +954,7 @@ static int snd_ad1836_mux_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *uc
 static int snd_ad1836_vu_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t *uinfo)
 {
   uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
-  uinfo->count = 4;
+  uinfo->count = CHANNELS_INPUT;
   uinfo->value.integer.min = -60;
   uinfo->value.integer.max = 0;
   return 0;
@@ -970,7 +965,7 @@ static int snd_ad1836_vu_get(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *uco
 {
   ad1836_t *chip = snd_kcontrol_chip(kcontrol);
   int i;
-  for(i=0;i<4;++i)
+  for(i=0;i<CHANNELS_INPUT;++i)
     ucontrol->value.integer.value[i] = ADC_PEAK_VALUE( chip->chip_registers[ADC_PEAK_1L + i] );
   return 0;
 }
