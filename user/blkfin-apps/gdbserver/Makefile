@@ -216,14 +216,6 @@ maintainer-clean realclean distclean: clean
 STAGESTUFF=${OBS} ${TSOBS} ${NTSOBS} ${ADD_FILES} init.c init.o version.c gdb
 
 config.h: stamp-h ; @true
-stamp-h: config.in config.status
-	CONFIG_FILES="" CONFIG_HEADERS=config.h:config.in $(SHELL) ./config.status
-
-Makefile: Makefile.in config.status
-	CONFIG_HEADERS="" $(SHELL) ./config.status
-
-config.status: configure configure.srv
-	$(SHELL) ./config.status --recheck
 
 force:
 
