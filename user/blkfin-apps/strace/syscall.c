@@ -918,7 +918,6 @@ struct tcb *tcp;
 	 if (ptrace(PTRACE_GETREGS, pid, NULL, (void *)&regs) == -1)
                 return -1;
          scno = regs.p0;
-	return 0;
 #elif defined (I386)
 	if (upeek(pid, 4*ORIG_EAX, &scno) < 0)
 		return -1;
