@@ -165,7 +165,7 @@ static void bf561_internal_unmask_irq(unsigned int irq)
 		*pSICA_IMASK0 |= irq_mask;
 	} else {
 		irq_mask = (1 << (irq - (IRQ_CORETMR + 1) - 32));
-		*pSICA_IMASK1 = irq_mask;
+		*pSICA_IMASK1 |= irq_mask;
 	}
 	__builtin_bfin_ssync();
 }
