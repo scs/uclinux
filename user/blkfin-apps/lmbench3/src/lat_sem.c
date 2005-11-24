@@ -35,6 +35,10 @@ main(int ac, char **av)
 	int c;
 	char* usage = "[-P <parallelism>] [-W <warmup>] [-N <repetitions>]\n";
 
+#ifdef CONFIG_NOMMU
+	printf("Not supported in NOMMU architecture.\n");
+	return 0;
+#endif
 	while (( c = getopt(ac, av, "P:W:N:")) != EOF) {
 		switch(c) {
 		case 'P':
@@ -77,20 +81,12 @@ initialize(iter_t iterations, void* cookie)
 	semctl(state->semid, 1, SETVAL, 0);
 
 	handle_scheduler(benchmp_childid(), 0, 1);
-#ifdef CONFIG_NOMMU
-	switch (state->pid = vfork()) {
-#else
 	switch (state->pid = fork()) {
-#endif
 	    case 0:
 		signal(SIGTERM, exit);
 		handle_scheduler(benchmp_childid(), 1, 1);
 		writer(state->semid);
-#ifdef CONFIG_NOMMU
-		_exit(0);
-#else
 		return;
-#endif
 
 	    case -1:
 		perror("fork");
