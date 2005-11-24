@@ -149,7 +149,7 @@ benchmp_parent(int response,
 int
 sizeof_result(int repetitions);
 
-#ifdef CONFIG_BLACKFIN
+#ifdef CONFIG_NOMMU
 struct thread_data {
 	char		stack[STACK_SIZE];
 	benchmp_f	initialize;
@@ -222,7 +222,7 @@ benchmp(benchmp_f initialize,
 	fd_set		fds;
 	struct timeval	timeout;
 
-#ifdef CONFIG_BLACKFIN
+#ifdef CONFIG_NOMMU
 	struct thread_data *pthd = NULL;
 
 	pthd = (struct thread_data *)malloc(parallel * sizeof(struct thread_data));
@@ -288,7 +288,7 @@ benchmp(benchmp_f initialize,
 		fprintf(stderr, "benchmp(%p, %p, %p, %d, %d, %d, %d, %p): creating child %d\n", initialize, benchmark, cleanup, enough, parallel, warmup, repetitions, cookie, i);
 #endif
 
-#ifdef CONFIG_BLACKFIN
+#ifdef CONFIG_NOMMU
 		pthd[i].initialize = initialize;
 		pthd[i].benchmark = benchmark;
 		pthd[i].cleanup = cleanup;
@@ -399,7 +399,7 @@ cleanup_exit:
 	}
 
 	if (pids) free(pids);
-#ifdef CONFIG_BLACKFIN
+#ifdef CONFIG_NOMMU
 	if (pthd) free(pthd);
 #endif
 #ifdef _DEBUG

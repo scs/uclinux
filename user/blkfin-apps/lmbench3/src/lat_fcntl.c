@@ -137,7 +137,7 @@ initialize(iter_t iterations, void* cookie)
 		exit(1);
 	}
 	handle_scheduler(benchmp_childid(), 0, 1);
-#ifdef CONFIG_BLACKFIN
+#ifdef CONFIG_NOMMU
 	switch (state->pid = vfork()) {
 #else
 	switch (state->pid = fork()) {
@@ -150,7 +150,7 @@ initialize(iter_t iterations, void* cookie)
 		for ( ;; ) {
 			procB(state);
 		}
-#ifdef CONFIG_BLACKFIN
+#ifdef CONFIG_NOMMU
 		_exit(0);
 #else
 		exit(0);

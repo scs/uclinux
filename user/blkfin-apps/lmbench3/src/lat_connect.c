@@ -43,7 +43,7 @@ main(int ac, char **av)
 	while (( c = getopt(ac, av, "sSP:W:N:")) != EOF) {
 		switch(c) {
 		case 's': /* Server */
-#ifdef CONFIG_BLACKFIN
+#ifdef CONFIG_NOMMU
 			if (vfork() == 0) {
 				server_main();
 				_exit(0);

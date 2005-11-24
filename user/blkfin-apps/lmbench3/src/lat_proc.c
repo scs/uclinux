@@ -103,7 +103,7 @@ do_shell(iter_t iterations, void* cookie)
 	signal(SIGCHLD, SIG_DFL);
 	handle_scheduler(benchmp_childid(), 0, 1);
 	while (iterations-- > 0) {
-#ifdef CONFIG_BLACKFIN
+#ifdef CONFIG_NOMMU
 		switch (child_pid = vfork()) {
 #else
 		switch (child_pid = fork()) {
@@ -116,7 +116,7 @@ do_shell(iter_t iterations, void* cookie)
 			handle_scheduler(benchmp_childid(), 1, 1);
 			close(1);
 			execlp("/bin/sh", "sh", "-c", PROG, 0);
-#ifdef CONFIG_BLACKFIN
+#ifdef CONFIG_NOMMU
 			_exit(1);
 #else
 			exit(1);
@@ -139,7 +139,7 @@ do_forkexec(iter_t iterations, void* cookie)
 	while (iterations-- > 0) {
 		nav[0] = PROG;
 		nav[1] = 0;
-#ifdef CONFIG_BLACKFIN
+#ifdef CONFIG_NOMMU
 		switch (child_pid = vfork()) {
 #else
 		switch (child_pid = fork()) {
@@ -152,7 +152,7 @@ do_forkexec(iter_t iterations, void* cookie)
 			handle_scheduler(benchmp_childid(), 1, 1);
 			close(1);
 			execve(PROG, nav, 0);
-#ifdef CONFIG_BLACKFIN
+#ifdef CONFIG_NOMMU
 			_exit(1);
 #else
 			exit(1);
@@ -171,7 +171,7 @@ do_fork(iter_t iterations, void* cookie)
 	signal(SIGCHLD, SIG_DFL);
 	handle_scheduler(benchmp_childid(), 0, 1);
 	while (iterations-- > 0) {
-#ifdef CONFIG_BLACKFIN
+#ifdef CONFIG_NOMMU
 		switch (child_pid = vfork()) {
 #else
 		switch (child_pid = fork()) {
@@ -182,7 +182,7 @@ do_fork(iter_t iterations, void* cookie)
 	
 		case 0:	/* child */
 			handle_scheduler(benchmp_childid(), 1, 1);
-#ifdef CONFIG_BLACKFIN
+#ifdef CONFIG_NOMMU
 			_exit(1);
 #else
 			exit(1);

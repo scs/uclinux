@@ -69,7 +69,7 @@ typedef long long int64;
 #include	"lib_udp.h"
 #include	"lib_unix.h"
 
-#ifdef CONFIG_BLACKFIN
+#ifdef CONFIG_NOMMU
 #include <sched.h>
 #define STACK_SIZE 4096
 #endif

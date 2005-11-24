@@ -485,14 +485,14 @@ main(int ac, char **av)
 				if (pid) {
 					waitpid(pid, 0, 0);
 				}
-#ifdef CONFIG_BLACKFIN
+#ifdef CONFIG_NOMMU
 				if ((pid = vfork())) {
 #else
 				if ((pid = fork())) {
 #endif
 					off += moved;
 					int_count += (moved >> 2);
-#ifdef CONFIG_BLACKFIN
+#ifdef CONFIG_NOMMU
 					_exit(0);
 #else
 					continue;

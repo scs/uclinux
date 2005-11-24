@@ -51,7 +51,7 @@ main(int ac, char **av)
 	while (( c = getopt(ac, av, "sS:m:M:P:W:N:")) != EOF) {
 		switch(c) {
 		case 's': /* Server */
-#ifdef CONFIG_BLACKFIN
+#ifdef CONFIG_NOMMU
 			if (vfork() == 0) {
 				server_main();
 				_exit(0);
@@ -197,7 +197,7 @@ server_main()
 	signal(SIGCHLD, sigchld_wait_handler);
 	for ( ;; ) {
 		newdata = tcp_accept(data, SOCKOPT_WRITE);
-#ifdef CONFIG_BLACKFIN
+#ifdef CONFIG_NOMMU
 		switch (vfork()) {
 #else
 		switch (fork()) {
@@ -207,7 +207,7 @@ server_main()
 			break;
 		    case 0:
 			source(newdata);
-#ifdef CONFIG_BLACKFIN
+#ifdef CONFIG_NOMMU
 			_exit(0);
 #else
 			exit(0);

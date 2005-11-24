@@ -86,7 +86,7 @@ initialize(iter_t iterations, void* cookie)
 	}
 	handle_scheduler(benchmp_childid(), 0, 1);
 
-#ifdef CONFIG_BLACKFIN
+#ifdef CONFIG_NOMMU
 	if (pState->pid = vfork())
 		_exit(0);
 #else

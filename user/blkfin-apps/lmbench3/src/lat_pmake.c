@@ -110,14 +110,14 @@ bench(register iter_t iterations, void *cookie)
 	 */
 	while (iterations-- > 0) {
 		for (i = 0; i < state->jobs; ++i) {
-#ifdef CONFIG_BLACKFIN
+#ifdef CONFIG_NOMMU
 			if ((state->pids[i] = vfork()) == 0) {
 #else
 			if ((state->pids[i] = fork()) == 0) {
 #endif
 				handle_scheduler(benchmp_childid(), i+1, state->jobs);
 				work(state->iterations, state);
-#ifdef CONFIG_BLACKFIN
+#ifdef CONFIG_NOMMU
 				_exit(0);
 #else
 				exit(0);

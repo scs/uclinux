@@ -45,7 +45,7 @@ main(int ac, char **av)
 	while (( c = getopt(ac, av, "sS:m:P:W:N:")) != EOF) {
 		switch(c) {
 		case 's': /* Server */
-#ifdef CONFIG_BLACKFIN
+#ifdef CONFIG_NOMMU
 			if (vfork() == 0) {
 				server_main();
 				_exit(0);
@@ -143,7 +143,7 @@ server_main()
 	sock = tcp_server(TCP_XACT, SOCKOPT_REUSE);
 	for (;;) {
 		newsock = tcp_accept(sock, SOCKOPT_NONE);
-#ifdef CONFIG_BLACKFIN
+#ifdef CONFIG_NOMMU
 		switch (vfork()) {
 #else
 		switch (fork()) {
@@ -153,7 +153,7 @@ server_main()
 			break;
 		    case 0:
 			doserver(newsock);
-#ifdef CONFIG_BLACKFIN
+#ifdef CONFIG_NOMMU
 			_exit(0);
 #else
 			exit(0);

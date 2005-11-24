@@ -77,7 +77,7 @@ initialize(iter_t iterations, void* cookie)
 	semctl(state->semid, 1, SETVAL, 0);
 
 	handle_scheduler(benchmp_childid(), 0, 1);
-#ifdef CONFIG_BLACKFIN
+#ifdef CONFIG_NOMMU
 	switch (state->pid = vfork()) {
 #else
 	switch (state->pid = fork()) {
@@ -86,7 +86,7 @@ initialize(iter_t iterations, void* cookie)
 		signal(SIGTERM, exit);
 		handle_scheduler(benchmp_childid(), 1, 1);
 		writer(state->semid);
-#ifdef CONFIG_BLACKFIN
+#ifdef CONFIG_NOMMU
 		_exit(0);
 #else
 		return;

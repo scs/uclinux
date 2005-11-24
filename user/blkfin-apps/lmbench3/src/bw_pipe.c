@@ -45,7 +45,7 @@ initialize(iter_t iterations, void *cookie)
 		return;
 	}
 	handle_scheduler(benchmp_childid(), 0, 1);
-#ifdef CONFIG_BLACKFIN
+#ifdef CONFIG_NOMMU
 	switch (state->pid = vfork()) {
 #else
 	switch (state->pid = fork()) {
@@ -57,7 +57,7 @@ initialize(iter_t iterations, void *cookie)
 		if (state->buf == NULL) {
 			perror("child: no memory");
 			state->initerr = 4;
-#ifdef CONFIG_BLACKFIN
+#ifdef CONFIG_NOMMU
 		_exit(0);
 #else
 			return;
@@ -65,7 +65,7 @@ initialize(iter_t iterations, void *cookie)
 		}
 		touch(state->buf, state->xfer);
 		writer(pipes[1], state->buf, state->xfer);
-#ifdef CONFIG_BLACKFIN
+#ifdef CONFIG_NOMMU
 		_exit(0);
 #else
 		return;

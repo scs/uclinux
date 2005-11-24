@@ -216,7 +216,7 @@ initialize(iter_t iterations, void* cookie)
 	}
 }
 
-#ifdef CONFIG_BLACKFIN
+#ifdef CONFIG_NOMMU
 struct ctx_thread_data {
 	char		stack[STACK_SIZE];
 	int		**p;
@@ -266,7 +266,7 @@ cleanup(iter_t iterations, void* cookie)
 	}
 	if (pState->pids)
 		free(pState->pids);
-#ifdef CONFIG_BLACKFIN
+#ifdef CONFIG_NOMMU
 	if (pcthda) free(pcthda);
 #endif
 	pState->pids = NULL;
@@ -326,7 +326,7 @@ create_daemons(int **p, pid_t *pids, int procs, int process_size)
 {
 	int	i, j;
 	int	msg;
-#ifdef CONFIG_BLACKFIN
+#ifdef CONFIG_NOMMU
 	pcthda = NULL;
 	pcthda = (struct ctx_thread_data *)malloc(procs * sizeof(struct ctx_thread_data));
 	if (!pcthda) 
@@ -341,7 +341,7 @@ create_daemons(int **p, pid_t *pids, int procs, int process_size)
 	 */
 	handle_scheduler(benchmp_childid(), 0, procs-1);
      	for (i = 1; i < procs; ++i) {
-#ifdef CONFIG_BLACKFIN
+#ifdef CONFIG_NOMMU
 		pcthda[i].p = p;
 		pcthda[i].process_size = process_size;
 		pcthda[i].procs = procs;
@@ -376,7 +376,7 @@ create_daemons(int **p, pid_t *pids, int procs, int process_size)
 	if (write(p[0][1], &msg, sizeof(msg)) != sizeof(msg) ||
 	    read(p[procs-1][0], &msg, sizeof(msg)) != sizeof(msg)) {
 		/* perror("write/read/write on pipe"); */
-#ifdef CONFIG_BLACKFIN
+#ifdef CONFIG_NOMMU
 		if (pcthda) free(pcthda);
 #endif
 		exit(1);

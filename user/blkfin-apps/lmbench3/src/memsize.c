@@ -133,7 +133,7 @@ test_malloc(size_t size)
 		free(p);
 		return 1;
 	}
-#ifdef CONFIG_BLACKFIN
+#ifdef CONFIG_NOMMU
 	if (vfork() == 0) {
 #else
 	if (fork() == 0) {
@@ -144,7 +144,7 @@ test_malloc(size_t size)
 		write(fid[1], &result, sizeof(int));
 		close(fid[1]);
 		if (p) free(p);
-#ifdef CONFIG_BLACKFIN
+#ifdef CONFIG_NOMMU
 		_exit(0);
 #else
 		exit(0);

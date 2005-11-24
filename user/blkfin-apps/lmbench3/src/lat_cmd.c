@@ -86,7 +86,7 @@ bench(register iter_t iterations, void *cookie)
 
 	signal(SIGCHLD, SIG_DFL);
 	while (iterations-- > 0) {
-#ifdef CONFIG_BLACKFIN
+#ifdef CONFIG_NOMMU
 		switch (state->pid = vfork()) {
 #else
 		switch (state->pid = fork()) {

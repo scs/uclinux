@@ -75,7 +75,7 @@ usage:		fprintf(stderr,
 			printf("%s ", args[j]);
 		}
 		printf("\n");
-#ifdef CONFIG_BLACKFIN
+#ifdef CONFIG_NOMMU
 		if (vfork() == 0) {
 #else
 		if (fork() == 0) {
@@ -88,7 +88,7 @@ usage:		fprintf(stderr,
 			dup(1);
 			execvp(args[0], args);
 			perror(args[0]);
-#ifdef CONFIG_BLACKFIN
+#ifdef CONFIG_NOMMU
 			_exit(1);
 #else
 			exit(1);

@@ -126,7 +126,7 @@ server(void* cookie)
 	}
 
 	/* Start a server process to accept client connections */
-#ifdef CONFIG_BLACKFIN
+#ifdef CONFIG_NOMMU
 	switch(state->pid = vfork()) {
 #else
 	switch(state->pid = fork()) {
@@ -138,7 +138,7 @@ server(void* cookie)
 			read(newsock, &state->fid, 1);
 			close(newsock);
 		}
-#ifdef CONFIG_BLACKFIN
+#ifdef CONFIG_NOMMU
 		_exit(0);
 #else
 		exit(0);
