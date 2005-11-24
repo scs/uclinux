@@ -492,11 +492,7 @@ main(int ac, char **av)
 #endif
 					off += moved;
 					int_count += (moved >> 2);
-#ifdef CONFIG_NOMMU
-					_exit(0);
-#else
 					continue;
-#endif
 				}
 			}
 			if (outpat != -1) {
