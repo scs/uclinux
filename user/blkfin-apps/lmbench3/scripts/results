@@ -24,7 +24,7 @@ do      EXT=`expr $EXT + 1`
 done
 
 cd ../bin/$OS 
-PATH=.:../../scripts:${PATH}; export PATH
+PATH=./:../../scripts:${PATH}; export PATH
 export SYNC_MAX
 export OUTPUT
 lmbench $CONFIG 2>../${RESULTS}
