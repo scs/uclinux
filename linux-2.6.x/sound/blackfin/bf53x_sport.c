@@ -330,8 +330,8 @@ void bf53x_sport_hook_rx_desc( struct bf53x_sport* sport)
   
   if( sport->regs->rcr1 & RSPEN ) {
     /* Avoid changing descriptor when it's being loaded*/
-    while(dma->curr_x_count < 0x100)
-    	udelay(10);
+//    while(dma->curr_x_count < 0x100)
+//    	udelay(10);
     
     desc = (dmasg_t*)dma->next_desc_ptr;
     desc->next_desc_addr = (unsigned int)(sport->dma_rx_desc);
@@ -355,8 +355,8 @@ void bf53x_sport_hook_tx_desc( struct bf53x_sport* sport)
   
   if( sport->regs->tcr1 & TSPEN) {
     /* Avoid changing descriptor when it's being loaded*/
-    while(dma->curr_x_count < 0x100)
-    	udelay(10);
+//    while(dma->curr_x_count < 0x100)
+//    	udelay(10);
 
     desc = (dmasg_t*)dma->next_desc_ptr;
     desc->next_desc_addr = (unsigned int)(sport->dma_tx_desc);
