@@ -30,6 +30,33 @@ struct _state {
 	int	initerr;
 };
 
+#ifdef CONFIG_NOMMU
+struct bw_pipe_thread_data {
+	char		stack[STACK_SIZE];
+	int		pipes[2];
+	struct _state*	state;
+};
+
+static struct bw_pipe_thread_data thda;
+
+int
+bw_pipe_thread_function(void *t)
+{
+	struct bw_pipe_thread_data *pthd = (struct bw_pipe_thread_data *)t;
+	close(pthd->pipes[0]);
+	handle_scheduler(benchmp_childid(), 1, 1);
+	pthd->state->buf = valloc(pthd->state->xfer);
+	if (pthd->state->buf == NULL) {
+		perror("child: no memory");
+		pthd->state->initerr = 4;
+		return 0;
+	}
+	touch(pthd->state->buf, pthd->state->xfer);
+	writer(pthd->pipes[1], pthd->state->buf, pthd->state->xfer);
+	return 0;
+}
+#endif
+
 void
 initialize(iter_t iterations, void *cookie)
 {
@@ -46,10 +73,12 @@ initialize(iter_t iterations, void *cookie)
 	}
 	handle_scheduler(benchmp_childid(), 0, 1);
 #ifdef CONFIG_NOMMU
-	switch (state->pid = vfork()) {
+	thda.pipes[0] = pipes[0];
+	thda.pipes[1] = pipes[1];
+	thda.state = state;
+	state->pid = clone(bw_pipe_thread_function, thda.stack + STACK_SIZE - 4, CLONE_VM|SIGCHLD, &thda);
 #else
 	switch (state->pid = fork()) {
-#endif
 	    case 0:
 		close(pipes[0]);
 		handle_scheduler(benchmp_childid(), 1, 1);
@@ -57,19 +86,11 @@ initialize(iter_t iterations, void *cookie)
 		if (state->buf == NULL) {
 			perror("child: no memory");
 			state->initerr = 4;
-#ifdef CONFIG_NOMMU
-		_exit(0);
-#else
 			return;
-#endif
 		}
 		touch(state->buf, state->xfer);
 		writer(pipes[1], state->buf, state->xfer);
-#ifdef CONFIG_NOMMU
-		_exit(0);
-#else
 		return;
-#endif
 		/*NOTREACHED*/
 	    
 	    case -1:
@@ -81,6 +102,7 @@ initialize(iter_t iterations, void *cookie)
 	    default:
 		break;
 	}
+#endif
 	close(pipes[1]);
 	state->readfd = pipes[0];
 	state->buf = valloc(state->xfer + getpagesize());
