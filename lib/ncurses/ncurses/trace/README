@@ -1,0 +1,5 @@
+-- $Id$
+
+The files in this directory (trace) support both the terminfo and ncurses
+libraries.  Most of the functions are linked in only when the libraries
+are compiled with TRACE defined.
