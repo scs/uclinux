@@ -1,5 +1,5 @@
 --- busybox-1.1.0-pre1/shell/msh.c	2005-11-01 07:55:25.000000000 +0800
-+++ busybox-1.1.0-msh/shell/msh.c	2005-11-22 16:59:27.000000000 +0800
++++ busybox-1.1.0-msh/shell/msh.c	2005-11-24 16:54:13.000000000 +0800
 @@ -54,10 +54,19 @@
  
  
@@ -92,7 +92,15 @@
  	setdash();
  
  	/* This won't be true if PUSHIO has been called, say from newfile() above */
-@@ -1002,6 +1018,7 @@
+@@ -990,6 +1006,7 @@
+ 			}
+ 		}
+ 	}
++	fprintf(stderr,"KSDBG:%s,%s\n",dolv[0],dolv[1]);
+ 	setval(lookup("#"), putn((--dolc < 0) ? (dolc = 0) : dolc));
+ 
+ 	DBGPRINTF(("MSH_MAIN: begin FOR loop, interactive %d, e.iop 0x%x, iostack 0x%x\n", interactive, e.iop, iostack));
+@@ -1002,6 +1019,7 @@
  			prs(prompt->value);
  #endif
  		}
@@ -100,7 +108,7 @@
  		onecommand();
  		/* Ensure that getenv("PATH") stays current */
  		setenv("PATH", path->value, 1);
-@@ -1910,6 +1927,7 @@
+@@ -1910,6 +1928,7 @@
  	peeksym = 0;
  }
  
@@ -108,7 +116,7 @@
  static struct op *simple()
  {
  	REGISTER struct op *t;
-@@ -1921,7 +1939,35 @@
+@@ -1921,7 +1940,35 @@
  		case '>':
  			(void) synio(0);
  			break;
@@ -145,7 +153,7 @@
  		case WORD:
  			if (t == NULL) {
  				t = newtp();
-@@ -1930,7 +1976,7 @@
+@@ -1930,7 +1977,7 @@
  			peeksym = 0;
  			word(yylval.cp);
  			break;
@@ -154,31 +162,15 @@
  		default:
  			return (t);
  		}
-@@ -2052,7 +2098,22 @@
+@@ -2052,7 +2099,6 @@
  		word(NOWORD);			/* terminate  wdlist */
  		t->words = copyw();		/* dup wdlist */
  		break;
 -
-+	case FUNC:
-+		/*
-+		t = newtp();
-+                t->type = TFUNC;
-+		t->str = yylval.cp;
-+		*/
-+		peeksym = c;
-+                if ((t = simple()) == NULL) {
-+                        if (iolist == NULL)
-+                                return ((struct op *) NULL);
-+                }
-+		break;
-+	case RETURN:
-+		t = newtp();
-+                t->type = TRETURN;
-+		break;
  	}
  
  	while (synio(0));
-@@ -2466,8 +2527,14 @@
+@@ -2466,8 +2512,14 @@
  	case ')':
  		startl = 1;
  		return (c);
@@ -194,7 +186,7 @@
  	unget(c);
  
    pack:
-@@ -2482,7 +2549,7 @@
+@@ -2482,7 +2534,7 @@
  
  	if (any(c, "\"'`$"))
  		goto loop;
@@ -203,7 +195,7 @@
  	*e.linep++ = '\0';
  
  	if (atstart && (c = rlookup(line)) != 0) {
-@@ -2491,10 +2558,121 @@
+@@ -2491,10 +2543,138 @@
  	}
  
  	yylval.cp = strsave(line, areanum);
@@ -228,6 +220,9 @@
 +	if((f = find_func(yylval.cp)) != NULL){
 +		exec_func(f);		
 +	}
++	if(yylval.cp != NULL && !(strcmp(yylval.cp,"return"))){
++		return RETURN;
++	}
  	return (WORD);
  }
  
@@ -237,12 +232,13 @@
 +	char* name;
 +	int begin_addr; /*pos in buffer of function */
 +	int end_addr;
-+	char** arg;
++	char** argv;
++	int argc;
 +};
 +#define MAX_FUNCS 100
 +
 +static struct func funcs[MAX_FUNCS];
- 
++
 +static void register_func(int begin,int end){
 +	struct func *p ;
 +	int i;
@@ -262,7 +258,7 @@
 + /*io stream */
 +	p->begin_addr = begin;
 +	p->end_addr = end;
-+	p->arg = NULL;
++	p->argv = NULL;
 +}
 +static struct func * find_func(char* name){
 +	int i;
@@ -283,29 +279,36 @@
 +	struct func * p = f;
 +	char buf[1024];
 +	int n;
++	int c;
+ 
++	/*save the argument of last function frame*/
++	int i;
++	f->argc = dolc;
++	f->argv = dolv;
++	/*do some argment parse and set arguments*/
++	dolv = (char *)malloc(sizeof(char *));
++	dolv[0] = f->name;
++	dolc = 0;	
++	while((c = yylex(0)) != '\n'){
++		dolc++;
++		dolv = realloc(dolv,sizeof(char *));
++		dolv[dolc] = (char *)malloc(strlen(yylval.cp));
++		strcpy(dolv[dolc],yylval.cp);
++		fprintf(stderr,"ARG:%s\n",yylval.cp);
++	}
 +	
 +	/*the file position is set to f->begin_addr */
 +	int saved_addr = e.iop->argp->afpos;
 +	struct iobuf *bp = e.iop->argp->afbuf;
 +	bp->bufp =  &(bp->buf[f->begin_addr]);
 +	e.iop->argp->afpos = f->begin_addr;
-+	/*
-+	lseek(fd, 65,SEEK_SET);
-+	char buf[1024];
-+	int n = read(fd,buf,100);
-+	buf[n] = '\0';
-+	fprintf(stderr,"##################\n%s\n",buf);
-+	*/
-+	int c;
++
++	/*func_retunr means we are in a function*/
++	func_return = 0;
++
 +	 while ((c = my_getc(0)) == ' ' || c == '\t' || c == '\n')    /* Skip whitespace */
 +                ;
 +	unget(c);	
-+	/*
-+	c = my_getc(0);
-+	if(c != '{'){
-+		fprintf(stderr,"syntax error when parsing function,last char=%c\n",c);
-+		zzerr();
-+	}*/
 +	//fprintf(stderr,"exec function %s\n",f->name);
 +	WHERE;	
 +	for(;;){
@@ -318,6 +321,12 @@
 +	}
 +	
 +	//fprintf(stderr,"function is finished @%d!\n",e.iop->argp->afpos);
++	/*recover argument for last function*/
++	while(dolc--)
++		free(dolv[dolc]);
++	free(dolv);
++	dolv = f->argv;	
++	dolc = f->argc;
 +	/*function is returned*/
 +	e.iop->argp->afpos = saved_addr;
 +	bp->bufp =  &(bp->buf[saved_addr]);
@@ -325,7 +334,7 @@
  static int collect(c, c1)
  REGISTER int c, c1;
  {
-@@ -2797,6 +2975,10 @@
+@@ -2797,6 +2977,10 @@
  		if (rv >= 0 && (t1 = t->left))
  			rv = execute(t1, pin, pout, 0);
  		break;
@@ -336,7 +345,7 @@
  
  	};
  
-@@ -4841,7 +5023,6 @@
+@@ -4841,7 +5025,6 @@
  		}
  
  	}							/* FOR */
@@ -344,7 +353,7 @@
  	if (e.iop >= iostack) {
  		RCPRINTF(("READC: return 0, e.iop 0x%x\n", e.iop));
  		return (0);
-@@ -5047,11 +5228,13 @@
+@@ -5047,11 +5230,13 @@
  	struct iobuf *bp = ap->afbuf;
  
  	if (ap->afid != AFID_NOBUF) {
@@ -360,7 +369,7 @@
  			i = safe_read(ap->afile, bp->buf, sizeof(bp->buf));
  
  			if (i <= 0) {
-@@ -5062,7 +5245,7 @@
+@@ -5062,7 +5247,7 @@
  			bp->id = ap->afid;
  			bp->ebufp = (bp->bufp = bp->buf) + i;
  		}
