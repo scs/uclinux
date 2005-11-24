@@ -215,8 +215,6 @@ maintainer-clean realclean distclean: clean
 
 STAGESTUFF=${OBS} ${TSOBS} ${NTSOBS} ${ADD_FILES} init.c init.o version.c gdb
 
-config.h: stamp-h ; @true
-
 force:
 
 version.c: Makefile

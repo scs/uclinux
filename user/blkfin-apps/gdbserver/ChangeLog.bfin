@@ -1,3 +1,7 @@
+2005-11-24  Jie Zhang  <jie.zhang@analog.com>
+
+	* Makefile: Remove rule for config.h, too.
+
 2005-11-23  Jie Zhang  <jie.zhang@analog.com>
 
 	* Makefile: Remove rules for stamp-h, Makefile, config.status.
