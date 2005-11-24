@@ -94,6 +94,21 @@ procB(struct _state *state)
 	}
 }
 
+#ifdef CONFIG_NOMMU
+static char	thd_stack[STACK_SIZE];
+
+int
+fcntl_thread_function(void *t)
+{
+	struct _state*	state = (struct _state*)t;
+	handle_scheduler(benchmp_childid(), 1, 1);
+	for ( ;; ) {
+		procB(state);
+	}
+	return 0;
+}
+#endif
+
 void 
 initialize(iter_t iterations, void* cookie)
 {
@@ -138,10 +153,9 @@ initialize(iter_t iterations, void* cookie)
 	}
 	handle_scheduler(benchmp_childid(), 0, 1);
 #ifdef CONFIG_NOMMU
-	switch (state->pid = vfork()) {
+	state->pid = clone(fcntl_thread_function, thd_stack + STACK_SIZE - 4, CLONE_VM|SIGCHLD, state);
 #else
 	switch (state->pid = fork()) {
-#endif
 	case -1:
 		perror("fork");
 		exit(1);
@@ -150,14 +164,11 @@ initialize(iter_t iterations, void* cookie)
 		for ( ;; ) {
 			procB(state);
 		}
-#ifdef CONFIG_NOMMU
-		_exit(0);
-#else
 		exit(0);
-#endif
 	default:
 		break;
 	}
+#endif
 }
 
 void
