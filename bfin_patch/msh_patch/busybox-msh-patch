@@ -1,5 +1,5 @@
 --- busybox-1.1.0-pre1/shell/msh.c	2005-11-01 07:55:25.000000000 +0800
-+++ busybox-1.1.0-msh/shell/msh.c	2005-11-24 16:54:13.000000000 +0800
++++ busybox-1.1.0-msh/shell/msh.c	2005-11-25 12:01:16.000000000 +0800
 @@ -54,10 +54,19 @@
  
  
@@ -36,7 +36,7 @@
  static char *elinep;
  
  
-+static int func_return;
++static int func_finished;
 +
 +
  /*
@@ -116,7 +116,7 @@
  static struct op *simple()
  {
  	REGISTER struct op *t;
-@@ -1921,7 +1940,35 @@
+@@ -1921,7 +1940,38 @@
  		case '>':
  			(void) synio(0);
  			break;
@@ -148,12 +148,15 @@
 +		}
 +		case RETURN:
 +		{	
-+			func_return = 1;			
++			func_finished = 1;		
++			peeksym = 0;
++			t = NULL;
++			return t;
 +		}
  		case WORD:
  			if (t == NULL) {
  				t = newtp();
-@@ -1930,7 +1977,7 @@
+@@ -1930,7 +1980,7 @@
  			peeksym = 0;
  			word(yylval.cp);
  			break;
@@ -162,7 +165,7 @@
  		default:
  			return (t);
  		}
-@@ -2052,7 +2099,6 @@
+@@ -2052,7 +2102,6 @@
  		word(NOWORD);			/* terminate  wdlist */
  		t->words = copyw();		/* dup wdlist */
  		break;
@@ -170,7 +173,7 @@
  	}
  
  	while (synio(0));
-@@ -2466,8 +2512,14 @@
+@@ -2466,8 +2515,14 @@
  	case ')':
  		startl = 1;
  		return (c);
@@ -186,7 +189,7 @@
  	unget(c);
  
    pack:
-@@ -2482,7 +2534,7 @@
+@@ -2482,7 +2537,7 @@
  
  	if (any(c, "\"'`$"))
  		goto loop;
@@ -195,7 +198,7 @@
  	*e.linep++ = '\0';
  
  	if (atstart && (c = rlookup(line)) != 0) {
-@@ -2491,10 +2543,138 @@
+@@ -2491,10 +2546,158 @@
  	}
  
  	yylval.cp = strsave(line, areanum);
@@ -219,6 +222,7 @@
 +	struct func * f;
 +	if((f = find_func(yylval.cp)) != NULL){
 +		exec_func(f);		
++		return RETURN;
 +	}
 +	if(yylval.cp != NULL && !(strcmp(yylval.cp,"return"))){
 +		return RETURN;
@@ -232,12 +236,18 @@
 +	char* name;
 +	int begin_addr; /*pos in buffer of function */
 +	int end_addr;
-+	char** argv;
-+	int argc;
 +};
 +#define MAX_FUNCS 100
 +
 +static struct func funcs[MAX_FUNCS];
++
++/* the max DEPTH of function call */
++#define MAX_DEPTH 100
++static struct _frame_s{
++	int argc;
++	char **argv;
++	int saved_return_addr;
++}frame[MAX_DEPTH];
 +
 +static void register_func(int begin,int end){
 +	struct func *p ;
@@ -258,7 +268,6 @@
 + /*io stream */
 +	p->begin_addr = begin;
 +	p->end_addr = end;
-+	p->argv = NULL;
 +}
 +static struct func * find_func(char* name){
 +	int i;
@@ -274,67 +283,81 @@
 +	//zzerr();
 +}
 +/* Begin to execute the function */
++static int cur_frame = 0;
 +static  void exec_func(struct func* f){
 +	int fd = e.iop->argp->afile;
-+	struct func * p = f;
 +	char buf[1024];
-+	int n;
 +	int c;
  
-+	/*save the argument of last function frame*/
-+	int i;
-+	f->argc = dolc;
-+	f->argv = dolv;
++	/*create a new frame,save the argument and return address to this frame*/
++	cur_frame++;
++	frame[cur_frame].argc = dolc;
++	frame[cur_frame].argv = dolv;
++	
 +	/*do some argment parse and set arguments*/
 +	dolv = (char *)malloc(sizeof(char *));
-+	dolv[0] = f->name;
++	dolv[0] = (char *)malloc(strlen(f->name));
++	strcpy(dolv[0],f->name);
 +	dolc = 0;	
-+	while((c = yylex(0)) != '\n'){
++	while(((c = yylex(0)) != '\n') && (yylval.cp != NULL)){
 +		dolc++;
 +		dolv = realloc(dolv,sizeof(char *));
 +		dolv[dolc] = (char *)malloc(strlen(yylval.cp));
 +		strcpy(dolv[dolc],yylval.cp);
 +		fprintf(stderr,"ARG:%s\n",yylval.cp);
 +	}
-+	
-+	/*the file position is set to f->begin_addr */
-+	int saved_addr = e.iop->argp->afpos;
++	unget(c);	
++	while ((c = my_getc(0)) == ' ' || c == '\t')    /* Skip whitespace */
++                ;
++	unget(c);	
++	frame[cur_frame].saved_return_addr = e.iop->argp->afpos;
++
++	/*get function begin address and execute this function */
++
 +	struct iobuf *bp = e.iop->argp->afbuf;
 +	bp->bufp =  &(bp->buf[f->begin_addr]);
 +	e.iop->argp->afpos = f->begin_addr;
 +
-+	/*func_retunr means we are in a function*/
-+	func_return = 0;
++	
++	/*func_finished=0 means we are in a function and func_finished=1 means we are executing a function*/
++	func_finished = 0;
 +
-+	 while ((c = my_getc(0)) == ' ' || c == '\t' || c == '\n')    /* Skip whitespace */
-+                ;
-+	unget(c);	
 +	//fprintf(stderr,"exec function %s\n",f->name);
 +	WHERE;	
 +	for(;;){
 +		//fprintf(stderr,"afpos=%d,%s\n",e.iop->argp->afpos, yylval.cp);
-+		if( e.iop->argp->afpos == p->end_addr)
++		if( e.iop->argp->afpos == f->end_addr)
 +			break;
 +		onecommand();
-+		if(func_return)
++		/* we return from a function ,when func_finished = 1*/
++		if(func_finished)
 +			break;
 +	}
 +	
-+	//fprintf(stderr,"function is finished @%d!\n",e.iop->argp->afpos);
-+	/*recover argument for last function*/
++	fprintf(stderr,"%s is finished @%d!\n",f->name,e.iop->argp->afpos);
++	/*free some space occupied by argument*/
 +	while(dolc--)
 +		free(dolv[dolc]);
 +	free(dolv);
-+	dolv = f->argv;	
-+	dolc = f->argc;
-+	/*function is returned*/
-+	e.iop->argp->afpos = saved_addr;
-+	bp->bufp =  &(bp->buf[saved_addr]);
++	/*recover argument for last function*/
++	dolv = frame[cur_frame].argv;	
++	dolc = frame[cur_frame].argc;
++
++	/*get return address from current frame and jump to */
++	int ret = frame[cur_frame].saved_return_addr;
++	e.iop->argp->afpos = ret;
++	bp->bufp =  &(bp->buf[ret]);
++
++	/*we return to previous frame*/
++	cur_frame--;
++	/*If we are not in the outest frame, we should set func_finished to 0 that means we still in some function*/
++	if(cur_frame != 0)
++		func_finished = 0;
 +}
  static int collect(c, c1)
  REGISTER int c, c1;
  {
-@@ -2797,6 +2977,10 @@
+@@ -2797,6 +3000,10 @@
  		if (rv >= 0 && (t1 = t->left))
  			rv = execute(t1, pin, pout, 0);
  		break;
@@ -345,7 +368,7 @@
  
  	};
  
-@@ -4841,7 +5025,6 @@
+@@ -4841,7 +5048,6 @@
  		}
  
  	}							/* FOR */
@@ -353,7 +376,7 @@
  	if (e.iop >= iostack) {
  		RCPRINTF(("READC: return 0, e.iop 0x%x\n", e.iop));
  		return (0);
-@@ -5047,11 +5230,13 @@
+@@ -5047,11 +5253,13 @@
  	struct iobuf *bp = ap->afbuf;
  
  	if (ap->afid != AFID_NOBUF) {
@@ -369,7 +392,7 @@
  			i = safe_read(ap->afile, bp->buf, sizeof(bp->buf));
  
  			if (i <= 0) {
-@@ -5062,7 +5247,7 @@
+@@ -5062,7 +5270,7 @@
  			bp->id = ap->afid;
  			bp->ebufp = (bp->bufp = bp->buf) + i;
  		}
