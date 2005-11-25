@@ -239,7 +239,6 @@ read subset
 BENCHMARK_HARDWARE=NO
 BENCHMARK_OS=NO
 BENCHMARK_DEVELOPMENT=NO
-LOCAL=YES;
 case "$subset" in
 	[hH]*)	BENCHMARK_HARDWARE=YES;;
 	[oO]*)	BENCHMARK_OS=YES;;
@@ -314,13 +313,6 @@ if [ X$BENCHMARK_DEVELOPMENT = XYES ]; then
 	    *)		BENCHMARK_UNIX=YES;;
 	esac
 
-	echo $ECHON "LOCAL NETWORK [default yes] $ECHOC"
-	read bench
-	case "$bench" in
-	    [nN]*)	LOCAL=NO;;
-	    *)		LOCAL=YES;;
-	esac
-	
 	echo $ECHON "UDP [default yes] $ECHOC"
 	read bench
 	case "$bench" in
@@ -757,7 +749,6 @@ echo MOTHERBOARD=\"$MOTHERBOARD\" >> $C
 echo NETWORKS=\"$NETWORKS\" >> $C
 echo OS=\"$OS\" >> $C
 echo PROCESSORS=\"$PROCESSORS\" >> $C
-echo LOCAL=\"$LOCAL\" >> $C
 echo REMOTE=\"$REMOTE\" >> $C
 echo SLOWFS=\"$SLOWFS\" >> $C
 echo SYNC_MAX=\"$SYNC_MAX\" >> $C

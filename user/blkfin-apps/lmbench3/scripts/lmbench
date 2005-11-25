@@ -208,6 +208,9 @@ if [ X$BENCHMARK_OS = XYES -o X$BENCHMARK_MMAP = XYES ]; then
 	done
 	echo "" 1>&2
 fi
+
+rm -f $FILE
+
 if [ X$BENCHMARK_OS = XYES -o X$BENCHMARK_FILE = XYES ]; then
 	if [ X$SLOWFS != XYES ]
 	then	date >> ${OUTPUT}
@@ -235,8 +238,6 @@ fi
 
 date >> ${OUTPUT}
 
-if [ X$LOCAL = XYES ]; then
-
 echo Local networking >> ${OUTPUT}
 if [ ! -d ../../src/webpage-lm ]
 then	(cd ../../src && tar xf webpage-lm.tar)
@@ -244,7 +245,7 @@ then	(cd ../../src && tar xf webpage-lm.tar)
 	sleep 1
 fi
 SERVERS="lat_udp lat_tcp lat_rpc lat_connect bw_tcp"
-for server in $SERVERS; do $server -s; done
+for server in $SERVERS; do "$server -s &"; done
 DOCROOT=../../src/webpage-lm lmhttp 8008 &
 sleep 2;
 
@@ -285,8 +286,6 @@ if [ X$BENCHMARK_OS = XYES -o X$BENCHMARK_HTTP = XYES ]; then
 	lat_http localhost 8008 < ../../src/webpage-lm/URLS
 fi
 lat_http -S localhost 8008
-
-fi
 
 for remote in $REMOTE 
 do

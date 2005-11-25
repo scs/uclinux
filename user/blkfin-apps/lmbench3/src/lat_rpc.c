@@ -110,10 +110,7 @@ main(int ac, char **av)
 		switch(c) {
 		case 's': /* Server */
 #ifdef CONFIG_NOMMU
-			if (vfork() == 0) {
-				server_main();
-				_exit(0);
-			}
+			server_main();
 #else
 			if (fork() == 0) {
 				server_main();
