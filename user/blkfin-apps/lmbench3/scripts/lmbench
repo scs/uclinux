@@ -245,7 +245,10 @@ then	(cd ../../src && tar xf webpage-lm.tar)
 	sleep 1
 fi
 SERVERS="lat_udp lat_tcp lat_rpc lat_connect bw_tcp"
-for server in $SERVERS; do "$server -s &"; done
+for server in $SERVERS
+do
+$server -s &
+done
 DOCROOT=../../src/webpage-lm lmhttp 8008 &
 sleep 2;
 
