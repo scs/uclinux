@@ -70,6 +70,7 @@ int current_desc_num;
 
 
 extern unsigned long l1_data_A_sram_alloc(unsigned long size);
+extern unsigned long l1_data_A_sram_free(unsigned long size);
 
 static int desc_list_init(void) 
 {
@@ -172,14 +173,17 @@ static void desc_list_free(void)
   int i;
   dma_addr_t dma_handle = 0;
 
-  for (tmp_desc = tx_list_head; tmp_desc->next != tx_list_head; tmp_desc = tmp_desc->next)
+  tmp_desc = tx_list_head;
+  for (i = 0; i < INIT_DESC_NUM; i++) {
     if (tmp_desc != NULL) 
       dma_free_coherent(NULL, sizeof(struct net_dma_desc), tmp_desc, dma_handle);
+    tmp_desc = tmp_desc->next;
+  }
 
   tmp_desc = rx_list_head;
   for (i = 0; i < MAX_RX_DESC_NUM; i++) {
     if (tmp_desc != NULL)
-      dma_free_coherent(NULL, sizeof(struct net_dma_desc), tmp_desc, dma_handle);
+      l1_data_A_sram_free((unsigned long)tmp_desc);
     tmp_desc = tmp_desc->next;
   }
 }
@@ -786,7 +790,9 @@ static int bf537mac_drv_remove(struct device *dev)
   unregister_netdev(ndev);
 
   free_irq(IRQ_MAC_RX, ndev);
-  free_irq(IRQ_MAC_ERROR, ndev);
+
+  /* free the rx/tx buffers */
+  desc_list_free();
 
   free_netdev(ndev);
 
