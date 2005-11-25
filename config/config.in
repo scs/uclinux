@@ -1590,5 +1590,7 @@ comment 'Inetutils'
 bool	'rsh'				CONFIG_USER_INETUTILS_RSH
 bool	'rcp'				CONFIG_USER_INETUTILS_RCP
 bool	'rshd'				CONFIG_USER_INETUTILS_RSHD
+comment 'FLAT binary format tools'
+bool    'flthdr'                        CONFIG_USER_FLTHDR
 
 endmenu

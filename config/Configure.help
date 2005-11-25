@@ -2213,6 +2213,8 @@ CONFIG_USER_INETUTILS_RSHD
   RSH server. Part of the InetUtils packge.
   Approx. binary size: 53k
 
+CONFIG_USER_FLTHDR
+  FLAT binary format header manipulation program.
 #
 # END of user config help
 #
