@@ -17,6 +17,8 @@ CFLAGS += -DPATH_WTMP=\"/etc/wtmp\"
 CFLAGS += -DHAVE_ERR
 endif
 
+FLTFLAGS += -s 8192
+
 CFLAGS += -DKEEP_OPEN=1
 
 EXTRALIBS = $(LIBCRYPT)
