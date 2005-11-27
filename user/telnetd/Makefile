@@ -9,6 +9,8 @@ ifdef CONFIG_DEFAULTS_LIBC_UCLIBC
 LDLIBS := -lutil $(LDLIBS)
 endif
 
+FLTFLAGS += -s 6144
+
 all: $(EXEC)
 
 $(EXEC): $(OBJS)
