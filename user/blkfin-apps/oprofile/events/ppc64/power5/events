@@ -1,0 +1,145 @@
+# ppc64 POWER5 events
+#
+#  Within each group the event names must be unique.  Each event in a group is
+#  assigned to a unique counter.  The groups are from the groups defined in the
+#  power5.evs and power5.gps files.
+#
+#  Only events within the same group can be selected simultaneously
+#  Each event is given a unique event number.  The event number is used by the
+#  Oprofile code to resolve event names for the postprocessing.  This is done to 
+#  preserve compatibility with the rest of the Oprofile code.  The event
+#  number format group_num followed by the counter number for the event within
+#  the group.
+#
+#  The maximum event number is 0x100.  Oprofile numbers the counters 0-5.
+
+#Group Default
+event:0x001 counters:2 um:zero minimum:10000 name:CYCLES : Processor cycles
+
+#Group 9 LSU SRQ and LMQ events
+event:0x010 counters:0 um:zero minimum:1000 name:PM_DTLB_MISS_GP9 : A TLB miss for a data request occurred 
+event:0x011 counters:1 um:zero minimum:1000 name:PM_DC_PREF_L2_CLONE_L3_GP9 : L2 prefetch cloned with L3
+event:0x012 counters:2 um:zero minimum:1000 name:PM_LSU_LMQ_LHR_MERGE_GP9 : Dcache miss occured for the same real cache line as earlier req, merged into LMQ
+event:0x013 counters:3 um:zero minimum:1000 name:PM_LSU_SRQ_EMPTY_CYC_GP9 : Cycles Store Req Queue empty
+event:0x014 counters:4 um:zero minimum:10000 name:PM_INST_CMPL_GP9 : Number of PPC inst completed
+event:0x015 counters:5 um:zero minimum:10000 name:PM_RUN_CYC_GP9 : Proc cycles gated by the run latch
+ 
+#Group 13 Misc prefetch and reject events
+event:0x01a counters:0 um:zero minimum:1000 name:PM_LSU0_REJECT_SRQ_LHS_G13 : LSU0 reject due to load hit store
+event:0x01b counters:1 um:zero minimum:1000 name:PM_DATA_FROM_L25_MOD_G13 : DL1 reloaded with modified data from L2 within this MCM
+event:0x01c counters:2 um:zero minimum:1000 name:PM_DC_PREF_L2_CLONE_L3_G13 : L2 prefetch cloned with L3
+event:0x01d counters:3 um:zero minimum:1000 name:PM_L2_PREF_G13 : L2 cacahe prefetchs
+event:0x01e counters:4 um:zero minimum:10000 name:PM_INST_CMPL_G13 : Number of PPC instructions completed
+event:0x01f counters:5 um:zero minimum:10000 name:PM_RUN_CYC_G13 : Processor cycles gated by run latch
+
+#Group 14 LSU reject events
+event:0x020 counters:0 um:zero minimum:1000 name:PM_DATA_FROM_L35_MOD_G14 : Data loaded from l3.5 modified
+event:0x021 counters:1 um:zero minimum:1000 name:PM_EE_OFF_EXT_INT_G14 : Cycles MSR (EE) bit off and external interupt pending 
+event:0x022 counters:2 um:zero minimum:1000 name:PM_FLUSH_IMBAL_G14 : Flush caused by thread GCT imbalance
+event:0x023 counters:3 um:zero minimum:1000 name:PM_MRK_LSU_FLUSH_SRQ_G14 : Marked SRQ flushes
+event:0x024 counters:4 um:zero minimum:10000 name:PM_INST_CMPL_G14 : Instructions completed
+event:0x025 counters:5 um:zero minimum:10000 name:PM_RUN_CYCLES_G14 : Processor cycles gated by run latch
+
+#Group 43 L1 load and TLB misses
+event:0x02b counters:1 um:zero minimum:1000 name:PM_DTLB_MISS_G43 : Data TLB miss occurred
+event:0x02c counters:2 um:zero minimum:1000 name:PM_LD_MISS_L1_G43 : L1 D cache load miss
+event:0x02d counters:3 um:zero minimum:1000 name:PM_LD_REF_L1_G43 : L1 D cache load references
+event:0x02e counters:4 um:zero minimum:10000 name:PM_INST_CMPL_G43 : PPC instructions completed
+event:0x02f counters:5 um:zero minimum:10000 name:PM_RUN_CYC_G43 : Processor cycles gated by run latch
+
+#Group 44 L1 store and DERAT misses
+event:0x030 counters:0 um:zero minimum:1000 name:PM_DATA_FROM_L2_G44 : Data loaded from L2
+event:0x031 counters:1 um:zero minimum:1000 name:PM_DATA_FROM_L35_G44 : Data loaded from L3.5 modified
+event:0x033 counters:3 um:zero minimum:1000 name:PM_ST_MISS_L1_G44 : L1 D cache store misses
+event:0x034 counters:4 um:zero minimum:10000 name:PM_PM_INST_CMPL_G44 : PPC instructions completed
+event:0x035 counters:5 um:zero minimum:10000 name:PM_RUN_CYC_G44 : Processor cycles gated by the run latch
+
+#group 45 L1 load and SLB misses
+event:0x03a counters:0 um:zero minimum:1000 name:PM_DSLB_MISS_G45 : Data SLB misses
+event:0x03b counters:1 um:zero minimum:1000 name:PM_ISLB_MISS_G45 : Instruction SLB misses
+event:0x03c counters:2 um:zero minimum:1000 name:PM_LD_MISS_L1_LSU0_G45 : LSU0 L1 D cache load misses
+event:0x03d counters:3 um:zero minimum:1000 name:PM_LD_MISS_L1_LSU1_G45 : LSU1 L1 D cache load misses
+event:0x03e counters:4 um:zero minimum:10000 name:PM_INST_CMPL_G45 : PPC instructions completed
+event:0x03f counters:5 um:zero minimum:10000 name:PM_RUN_CYC_G45 : Processor cycles gated by the run latch
+
+#Group 46 L1 load references and 4k Data TLB references and misses
+event:0x040 counters:0 um:zero minimum:1000 name:PM_DTLB_REF_4K_G46 : Data TLB reference for 4K page
+event:0x041 counters:1 um:zero minimum:1000 name:PM_DTLB_MISS_4K_G46 : Data TLB miss for 4K page
+event:0x042 counters:2 um:zero minimum:1000 name:PM_LD_REF_L1_LSU0_G46 : LSU0 L1 D cache load references
+event:0x043 counters:3 um:zero minimum:1000 name:PM_LD_REF_L1_LSU1_G46 : LSU1 L1 D cache load references
+event:0x044 counters:4 um:zero minimum:10000 name:PM_INST_CMPL_G46 : PPC instructions completed
+event:0x045 counters:5 um:zero minimum:10000 name:PM_RUN_CYC_G46 : Processor cycles gated by the run latch
+
+#Group 47 L1 store references and 16M Data TLB references and misses
+event:0x04a counters:0 um:zero minimum:1000 name:PM_DTLB_REF_G47 : Data TLB reference for 16M page
+event:0x04b counters:1 um:zero minimum:1000 name:PM_DTLB_MISS_G47 : Data TLB miss for 16M page
+event:0x04c counters:2 um:zero minimum:1000 name:PM_FPU0_FRSP_FCONV_G47 : FPU0 executed FRSP or FCONV instructions
+event:0x04d counters:3 um:zero minimum:1000 name:PM_ST_REF_L1_LSU1_G47 : LSU1 L1 Dcache store references
+event:0x04e counters:4 um:zero minimum:10000 name:PM_INST_CMPL_G47 : PPC instructions completed
+event:0x04f counters:5 um:zero minimum:10000 name:PM_RUN_CYC_G47 : Processor cycles gated by the run latch
+
+#Group 48 L3 cache and memory data access
+event:0x050 counters:0 um:zero minimum:1000 name:PM_DATA_FROM_L3_G48 : Data loaded from L3
+event:0x051 counters:1 um:zero minimum:1000 name:PM_DATA_FROM_LMEM_G48 : Data loaded from local memory
+event:0x052 counters:2 um:zero minimum:1000 name:PM_FLUSH_G48 : Flushes
+event:0x053 counters:3 um:zero minimum:1000 name:PM_EINST_CMPL_G48 : Eligible instructions that completed
+event:0x054 counters:4 um:zero minimum:10000 name:PM_INST_CMPL_G48 : PPC instructiions completed
+event:0x055 counters:5 um:zero minimum:10000 name:PM_RUN_CYC_G48 : Processor cycles gated by the run latch
+
+#Group 49 L3 cacahe and memory data access
+event:0x05a counters:0 um:zero minimum:1000 name:PM_DATA_FROM_L3_G49 : Data loaded from L3
+event:0x05b counters:1 um:zero minimum:1000 name:PM_DATA_FROM_LMEM_G49 : Data loaded from Memory
+event:0x05c counters:2 um:zero minimum:1000 name:PM_EINST_CMPL_G49 : Eligible instructions completed
+event:0x05d counters:3 um:zero minimum:1000 name:PM_DATA_FROM_RMEM_G49 : Data loaded from remote memory
+event:0x05e counters:4 um:zero minimum:10000 name:PM_INST_CMPL_G49 : PPC instructions compled
+event:0x05f counters:5 um:zero minimum:10000 name:PM_RUN_CYC_G49 : Processor cycles gated by run latch
+
+#Group 50 L2 cache data access
+event:0x060 counters:0 um:zero minimum:1000 name:PM_DATA_FROM_L25_SHR_G50 : Data loaded from L2.5 shared
+event:0x061 counters:1 um:zero minimum:1000 name:PM_DATA_FROM_L25_MOD_G50 : Data loaded from L2.5 modified
+event:0x062 counters:2 um:zero minimum:1000 name:PM_DATA_FROM_L275_SHR_G50 : Data loaded from L2.75 shared
+event:0x063 counters:3 um:zero minimum:1000 name:PM_DATA_FROM_L275_MOD_G50 : Data loaded from L2.75 modified
+event:0x064 counters:4 um:zero minimum:10000 name:PM_INST_CMPL_G50 : PPC instructions completed
+event:0x065 counters:5 um:zero minimum:10000 name:PM_RUN_CYC_G50 : Processor cycles gated by run latch
+
+#Group 51 L3 cache data access
+event:0x06a counters:0 um:zero minimum:1000 name:PM_DATA_FROM_L35_SHR_G51 : Data loaded from L3.5 shared
+event:0x06b counters:1 um:zero minimum:1000 name:PM_DATA_FROM_L35_MOD_G51 : Data loaded from L3.5 modified
+event:0x06c counters:2 um:zero minimum:1000 name:PM_DATA_FROM_L375_SHR_G51 : Data loaded from L3.75 shared
+event:0x06d counters:3 um:zero minimum:1000 name:PM_DATA_FROM_L375_MOD_G51 : Data loaded from L3.75 modified
+event:0x06e counters:4 um:zero minimum:10000 name:PM_INST_CMPL_G51 : PPC instructions completed
+event:0x06f counters:5 um:zero minimum:10000 name:PM_RUN_CYC_G51 : Processor cycles gated by run latch
+
+#Group 52 Instruction source information
+event:0x070 counters:0 um:zero minimum:1000 name:PM_INST_FROM_L3_G52 : Instruction fetrched from L3
+event:0x071 counters:1 um:zero minimum:1000 name:PM_INST_FROM_L1_G52 : Instruction fetched from L1
+event:0x072 counters:2 um:zero minimum:1000 name:PM_INST_FROM_PREF_G52 : Instructions fetched from prefetch
+event:0x073 counters:3 um:zero minimum:1000 name:PM_INST_FROM_RMEM_G52 : Instruction fetched from remote memory
+event:0x074 counters:4 um:zero minimum:10000 name:PM_INST_CMPL_G52 : PPC instructions completed
+event:0x075 counters:5 um:zero minimum:10000 name:PM_RUN_CYC_G52 : Processor Cycles gated by the run latch
+
+#Group 54 L2 instruction source information
+event:0x07a counters:0 um:zero minimum:1000 name:PM_INST_FROM_L25_SHR_G54 : Instruction fetched from L2.5 shared
+event:0x07b counters:1 um:zero minimum:1000 name:PM_INST_FROM_L25_MOD_G54 : Instruction fetched from L2.5 modified
+event:0x07c counters:2 um:zero minimum:1000 name:PM_INST_FROM_L275_SHR_G54 : Instruction fetched from L2.75 shared
+event:0x07d counters:3 um:zero minimum:1000 name:PM_INST_FROM_L275_MOD_G54 : Instruction fetched from L2.75 modified
+event:0x07e counters:4 um:zero minimum:10000 name:PM_INST_CMPL_G54 : PPC instructions completed
+event:0x07f counters:5 um:zero minimum:10000 name:PM_RUN_CYC_G54 : Processor cycles gated by the run latch
+
+#Group 55 L3 instruction source information
+event:0x080 counters:0 um:zero minimum:1000 name:PM_INST_FROM_L35_SHR_G55 : Instruction fetched from L3.5 shared
+event:0x081 counters:1 um:zero minimum:1000 name:PM_INST_FROM_L35_MOD_G55 : Instruction fetched from L3.5 modified
+event:0x082 counters:2 um:zero minimum:1000 name:PM_INST_FROM_L375_SHR_G55 : Instruction fetched from L3.75 shared
+event:0x083 counters:3 um:zero minimum:1000 name:PM_INST_FROM_L375_MOD_G55 : Instruction fetched from L3.75 modified
+event:0x084 counters:4 um:zero minimum:10000 name:PM_INST_CMPL_G55 : PPC instructions completed
+event:0x085 counters:5 um:zero minimum:10000 name:PM_RUN_CYC_G55 : Processor cycles gated by the run latch
+
+#Group 123 Marked TLB and SLB Misses
+event:0x08d counters:3 um:zero minimum:1000 name:PM_MRK_DSLB_MISS_G123 : Marked Data SLB misses
+event:0x08e counters:4 um:zero minimum:10000 name:PM_INST_CMPL_G123 : Instructions completed
+event:0x08f counters:5 um:zero minimum:10000 name:PM_RUN_CYC_G123 : Processor cycles gated by run latch
+
+#Group 126 Mark unaligned load and store flushes
+event:0x093 counters:3 um:zero minimum:1000 name:PM_MRK_LSU_FLUSH_ULD_G126 : A marked load was flushed because it was unaligned (crossed a 64byte boundary or 32 byte if it missed the L1)
+event:0x094 counters:4 um:zero minimum:10000 name:PM_INST_CMPL_G126 : Instructions completed
+event:0x095 counters:5 um:zero minimum:10000 name:PM_RUN_CYC_G126 : Processor cycles gated by run latch

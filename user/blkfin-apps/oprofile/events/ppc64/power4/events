@@ -1,0 +1,89 @@
+# ppc64 POWER4 events
+#
+#  Within each group the event names must be unique.  Each event in a group is
+#  assigned to a unique counter.  The groups are from the groups defined in the
+#  power 4 manual.
+#
+#  Only events within the same group can be selected simultaneously
+#  Each event is given a unique event number.  The event number is used by the
+#  Oprofile code to resolve event names for the postprocessing.  This is done
+#  to preserve compatibility with the rest of the Oprofile code.  The event 
+#  number format group_num followed by the counter number for the event within
+#  the group.  The event number must be between 0 and 255.
+
+#Group Default
+event:0x1 counters:1 um:zero minimum:10000 name:CYCLES : Processor Cycles
+
+#Group 1 pm_slice0
+event:0x10 counters:0 um:zero minimum:10000 name:PM_RUN_CYC_GRP1 : (Group 1 pm_slice0) Processor Cycles gated by the run latch
+event:0x11 counters:1 um:zero minimum:10000 name:PM_CYC_GRP1 : (Group 1 pm_slice0) Processor Cycles
+event:0x13 counters:3 um:zero minimum:10000 name:PM_INST_CMPL_GRP1 : (Group 1 pm_slice0) Number of eligible instructions that completed
+
+#Group 2 pm_basic
+event:0x20 counters:0 um:zero minimum:10000 name:PM_INST_CMPL_GRP2 : (Group 2 pm_basic) Instrucitons completed
+event:0x21 counters:1 um:zero minimum:10000 name:PM_CYC_GRP2 : (Group 2 pm_basic) Processor cycles
+event:0x22 counters:2 um:zero minimum:5000 name:PM_LD_MISS_1_GRP2 : (Group 2 pm_basic) Total DL1 load references that miss the DL1
+event:0x23 counters:3 um:zero minimum:5000 name:PM_DC_INV_L2_GRP2 : (Group 2 pm_basic) A Dcache invalidated was received from the L2 because a line in L2 was castout
+event:0x24 counters:4 um:zero minimum:5000 name:PM_INST_DISP_GRP2 : (Group 2 pm_basic) The ISU sends the number of instructions dispatched
+event:0x25 counters:6 um:zero minimum:5000 name:PM_ST_REF_L1_GRP2 : (Group 2 pm_basic) Total DL1 store references
+event:0x26 counters:7 um:zero minimum:5000 name:PM_LD_REF_L1_GRP2 : (Group 2 pm_basic) Total DL1 load references
+
+#Group 3 pm_lsource
+event:0x30 counters:0 um:zero minimum:1000 name:PM_DATA_FROM_L3_GRP3 : (Group 3 pm_lsource) Data loaded from L3 due to a demand load
+event:0x31 counters:1 um:zero minimum:1000 name:PM_DATA_FROM_MEM_GRP3 : (Group 3 pm_lsource) Data loaded from MEM due to a demand load
+event:0x32 counters:2 um:zero minimum:1000 name:PM_DATA_FROM_L3.5_GRP3 : (Group 3 pm_lsource) Data loaded from L3 of another MCM due to a demand load
+event:0x33 counters:3 um:zero minimum:1000 name:PM_DATA_FROM_L2_GRP3 : (Group 3 pm_lsource) Data loaded from L2 due to a demand load
+event:0x34 counters:4 um:zero minimum:1000 name:PM_DATA_FROM_L25_SHR_GRP3 : (Group 3 pm_lsource) Data reloaded with shared (T) data from the L2 of a chip on this MCM due to a demand load
+event:0x35 counters:5 um:zero minimum:1000 name:PM_DATA_FROM_L275_SHR_GRP3 : (Group 3 pm_lsource) Data reloaded with shared (T) data from the another MCM due to a demand load
+event:0x36 counters:6 um:zero minimum:1000 name:PM_DATA_FROM_L275_MOD_GRP3 : (Group 3 pm_lsource) Data reloaded with modified (M) data from the another MCM due to a demand load
+event:0x37 counters:7 um:zero minimum:1000 name:PM_DATA_FROM_L25_MOD_GRP3 : (Group 3 pm_lsource) Data reloaded with modified (M) data from the L2 of a chip on this MCM due to a demand load
+
+#Group 4 pm_lsource2
+event:0x40 counters:0 um:zero minimum:10000 name:PM_INST_CMPL_GRP4 : (Group 4 pm_lsource2) Number of Eligible Instructions that completed
+event:0x41 counters:1 um:zero minimum:1000 name:PM_L2_DCACHE_RELOAD_VALID_GRP4 : (Group 4 pm_lsource2) The data source information is valid
+event:0x42 counters:2 um:zero minimum:10000 name:PM_CYC_GRP4 : (Group 4 pm_lsource2) Processor Cycles
+event:0x43 counters:3 um:zero minimum:1000 name:PM_DATA_FROM_L2_GRP4 : (Group 4 pm_lsource2) DL1 was reloaded from the local L2 due to a demand load
+event:0x44 counters:4 um:zero minimum:1000 name:PM_DATA_FROM_L25_SH_GRP4 : (Group 4 pm_lsource2) Data reloaded with shared (T) data from the L2 of a chip on this MCM due to a demand load
+event:0x45 counters:5 um:zero minimum:1000 name:PM_DATA_FROM_L275_SHR_GRP4 : (Group 4 pm_lsource2) Data reloaded with shared (T) data from the another MCM due to a demand load
+event:0x46 counters:6 um:zero minimum:1000 name:PM_DATA_FROM_L275_MOD_GRP4 : (Group 4 pm_lsource2) Data reloaded with modified (M) data from the another MCM due to a demand load
+event:0x47 counters:7 um:zero minimum:1000 name:PM_DATA_FROM_L25_MOD_GRP4 : (Group 4 pm_lsource2) Data reloaded with modified (M) data from the L2 of a chip on this MCM due to a demand load
+
+#Group 5 pm_lsource3
+event:0x50 counters:0 um:zero minimum:1000 name:PM_DATA_FROM_L3_GRP5 : (Group 5 pm_lsource3) Data loaded from L3
+event:0x51 counters:1 um:zero minimum:1000 name:PM_DATA_FROM_MEM_GRP5 : (Group 5 pm_lsource3) Data loaded from memory
+event:0x52 counters:2 um:zero minimum:1000 name:PM_DATA_FROM_L35_GRP5 : (Group 5 pm_lsource3) Data loaded from L3 of another MCM
+event:0x53 counters:3 um:zero minimum:1000 name:PM_DATA_FROM_L2_GRP5 : (Group 5 pm_lsource3) Data loaded from L2
+event:0x54 counters:4 um:zero minimum:1000 name:PM_L1_DCACHE_RELOAD_GRP5 : (Group 5 pm_lsource3) L1 reloaded data source valid
+event:0x55 counters:5 um:zero minimum:10000 name:PM_CYC_GRP5 : (Group 5 pm_lsource3) Processor Cycles
+event:0x56 counters:6 um:zero minimum:1000 name:PM_DATA_FROM_L275_MOD_GRP5 : (Group 5 pm_lsource3) Data loaded from L2 of another MCM
+event:0x57 counters:7 um:zero minimum:10000 name:PM_INST_CMPL_GRP5 : (Group 5 pm_lsource3) Instructions completed
+
+#Group 6 pm_isource
+event:0x60 counters:0 um:zero minimum:1000 name:PM_INST_FROM_MEM_GRP6 : (Group 6 pm_isource) Instruction fetched from memory
+event:0x61 counters:1 um:zero minimum:1000 name:PM_INST_FROM_L25_L275_GRP6 : (Group 6 pm_isource) Instruction fetched from L2 of another chip
+event:0x62 counters:2 um:zero minimum:1000 name:PM_INST_FROM_L2_GRP6 : (Group 6 pm_isource) Instructions fetched from L2
+event:0x63 counters:3 um:zero minimum:1000 name:PM_INST_FROM_L35_GRP6 : (Group 6 pm_isource) Instructions fetched from L3 of another module
+event:0x64 counters:4 um:zero minimum:1000 name:PM_INST_FROM_L3_GRP6 : (Group 6 pm_isource) Instructions fetched from L3
+event:0x65 counters:5 um:zero minimum:1000 name:PM_INST_FROM_L1_GRP6 : (Group 6 pm_isource) Instructions fetched from L1
+event:0x66 counters:6 um:zero minimum:1000 name:PM_INST_FROM_PREF_GRP6 : (Group 6 pm_isource) Instructions fetched from prefetch
+event:0x67 counters:7 um:zero minimum:1000 name:PM_0INST_FETCH_GRP6 : (Group 6 pm_isource) No instructions fetched
+
+#Group 7 pm_isource2
+event:0x70 counters:0 um:zero minimum:10000 name:PM_INST_CMPL_GRP7 : (Group 7 pm_isource) Instructions completed
+event:0x71 counters:1 um:zero minimum:10000 name:PM_CYC_GRP7 : (Group 7 pm_isource) Processor cycles
+event:0x72 counters:2 um:zero minimum:1000 name:PM_INST_FROM_L2_GRP7 : (Group 7 pm_isource) Instructions fetched from L2
+event:0x73 counters:3 um:zero minimum:1000 name:PM_INST_FROM_L35_GRP7 : (Group 7 pm_isource) Instructions fetched from L3 of another module
+event:0x74 counters:4 um:zero minimum:1000 name:PM_INST_FROM_L3_GRP7 : (Group 7 pm_isource) Instructions fetched from L3
+event:0x75 counters:5 um:zero minimum:1000 name:PM_INST_FROM_L1_GRP7 : (Group 7 pm_isource) Instructions fetched from L1
+event:0x76 counters:6 um:zero minimum:1000 name:PM_INST_FROM_PREF_GRP7 : (Group 7 pm_isource) Instructions fetched from prefetch
+event:0x77 counters:7 um:zero minimum:1000 name:PM_0INST_FETCH_GRP7 : (Group 7 pm_isource) No instructions fetched
+
+#Group 8 pm_isource3
+event:0x80 counters:0 um:zero minimum:1000 name:PM_INST_FROM_MEM_GRP8 : (Group 8 pm_isource) Instruction fetched from memory
+event:0x81 counters:1 um:zero minimum:1000 name:PM_INST_FROM_L25_L275_GRP8 : (Group 8 pm_isource) Instruction fetched from L2 of another chip
+event:0x82 counters:2 um:zero minimum:1000 name:PM_INST_FROM_L2_GRP8 : (Group 8 pm_isource) Instructions fetched from L2
+event:0x83 counters:3 um:zero minimum:1000 name:PM_INST_FROM_L35_GRP8 : (Group 8 pm_isource) Instructions fetched from L3 of another module
+event:0x84 counters:4 um:zero minimum:1000 name:PM_INST_FROM_L3_GRP8 : (Group 8 pm_isource) Instructions fetched from L3
+event:0x85 counters:5 um:zero minimum:1000 name:PM_INST_FROM_L1_GRP8 : (Group 8 pm_isource) Instructions fetched from L1
+event:0x86 counters:6 um:zero minimum:10000 name:PM_CYC_GRP8 : (Group 8 pm_isource) Processor cycles
+event:0x87 counters:7 um:zero minimum:10000 name:PM_INST_CMPL_GRP8 : (Group 8 pm_isource) Instructions completed
