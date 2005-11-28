@@ -47,7 +47,6 @@ EXPORT_SYMBOL(init_mm);
  *
  * All other task structs will be allocated on slabs in fork.c
  */
-__asm__(".align 4");
 struct task_struct init_task = INIT_TASK(init_task);
 
 EXPORT_SYMBOL(init_task);
