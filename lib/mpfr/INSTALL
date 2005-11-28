@@ -1,0 +1,127 @@
+			Installing MPFR
+			===============
+
+0. You first need to install GMP. See <http://www.swox.com/gmp/>.
+   MPFR requires GMP version 4.1 or later.
+
+1. In the MPFR build directory, to detect your system, type:
+     ./configure 
+
+2. To build the library, type:
+     make
+
+3. To check the built library (runs the test files), type:
+     make check
+
+4. To install it (default `/usr/local` | see `--prefix` option), type:
+     make install
+
+
+Building the documentation
+==========================
+
+To build the documentation in various formats, you may first need to
+install recent versions of some utilities such as texinfo.
+
+* Type "make info" to produce the documentation in the info format.
+
+* Type "make dvi" to produce the documentation in the DVI format.
+
+* Type "make mpfr.ps" to produce the documentation in the Postscript format.
+
+
+Building MPFR with internal GMP header files
+============================================
+
+   MPFR built with internal GMP header files is a bit faster,
+   so you may want to build it with them. Just do this in step 1:
+
+     ./configure --with-gmp-build=GMPBUILD
+
+   where GMPBUILD is the GMP build directory.
+   The needed header files are:
+     gmp-impl.h, longlong.h and all the necessary headers to use them.
+
+./configure options
+===================
+
+--prefix=DIR            installs MPFR headers and library in DIR/include
+                        and DIR/lib respectively (The default is `/usr/local`).
+
+--with-gmp-include=DIR  assumes that DIR contains gmp.h [, gmp-impl.h, ...]
+--with-gmp-lib=DIR      assumes that DIR contains libgmp.a
+--with-gmp-build=DIR	assumes that DIR contains the source of GMP.    
+			same as --with-gmp-lib=DIR/.libs
+			and     --with-gmp-include=DIR
+--with-gmp=DIR        	assumes that DIR is where you have installed GMP.
+			same as --with-gmp-lib=DIR/lib
+                        and     --with-gmp-include=DIR/include
+
+--enable-assert		Build MPFR with assertions.
+--with-irix64           Irix64 support.
+
+Run "./configure --help" to see the other options (`autoconf` default options).
+
+
+In case of problem
+==================
+
+   If the `configure` fails, please check that the C compiler and
+   its options are the same as those for the GMP build (specially the ABI).
+   You can see the latter with the following:
+     grep "^CC\|^CFLAGS" GMPBUILD/Makefile
+
+   Then type (for example, under a sh-compatible shell):
+     CC=<C compiler> CFLAGS=<compiler options> ./configure \
+       --with-gmp-include=GMPBUILD --with-gmp-lib=GMPINSTALL/lib
+   And continue the install.
+
+   On some architectures, you should provide further options to match
+   those used by GMP, for example, on powerpc-aix:
+     make AR="ar -X64"
+
+   On some architectures, try with `gmake` instead of `make`.
+
+   Try to build MPFR with/without GMP internal files.
+
+   If you can't solve your problem, you could contact us at mpfr@loria.fr,
+   indicating the machine and operating system used (uname -a), the compiler
+   and version used (gcc -v if you use gcc), the compile options used if any,
+   the version of GMP and MPFR used and a description of the problem 
+   encountered. Please send us also a log of the installation.
+
+   Note that even if you can build MPFR with a C++ compiler you can't run
+   the test suite: C and C++ are not the same language!
+   You should use a C compiler instead.
+
+Notes on Windows 32
+===================
+
+1 - we advise to use mingw (http://www.mingw.org/), which is simpler and
+    less demanding than cygwin. Contrary to Cygwin, it also provides native
+    windows code. The binaries compiled with Cygwin require a dynamic
+    library (cygwin.dll) to work; there is a Cygwin option -mno-cygwin to
+    build native code, but it may require some non-portable tricks.
+
+2 - if you just want to make a binary with gcc, there is nothing to do:
+    gmp, mpfr and the program compile exactly as under Linux.
+
+3 - if you want to make libraries to work under another Windows compiler
+    like Visual C / C++, the "trick" is that the unix-like *.a files created
+    by gcc are entirely compatible with the Windows *.lib files. So you just
+    have to rename the *.a files into *.lib.
+
+    With gmp-4.1.3, the only remaining problem seems to be the "alloca" calls
+    in gmp. Configuring gmp and mpfr with --enable-alloca=malloc-reentrant
+    should work (If you build MPFR with gmp internal files).
+    
+    Or you could add the library 
+     "$MINGWIN$/lib/gcc-lib/mingw32/$VERSION$/libgcc.a"
+    to your project: it contains all the extra-functions needed by a program
+    compiled by GCC (Division of 64 bits integer, bcopy, alloca, ...).
+    Of course, include it iff your compiler is not GCC.
+
+Notes on Windows 64
+===================
+ 
+ MPFR has not been tested on Windows 64.
