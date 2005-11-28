@@ -38,6 +38,33 @@ config SND_BLACKFIN_ADI1836_I2S
 	  If unsure, say N.
 		
 endchoice
+choice
+	prompt "5.1 Channels or 3 seperate Stereos"
+	depends on SND_BLACKFIN_ADI1836_TDM
+	default SND_BLACKFIN_ADI1836_MULSUB
+	help
+	  There are 6 output channels (expcept S/PDIF), they can work in
+	  5.1 channels mode or 3 seperate stereos.
+	  
+	  When in 3 seperate stereos mode, 3 substreams are supported. 
+	  The /dev/dsp device can be opened 3 times, every susbstream used 
+	  different channels pairs.
+	  
+config SND_BLACKFIN_ADI1836_MULSUB
+	boolean "3 Stereos"
+	help
+	  Support 3 seperate stereos
+	  
+	  If unsure, say Y.
+	
+config SND_BLACKFIN_ADI1836_5P1
+	boolean "5.1 Channels"
+	help
+	  Support 5.1 Channels.
+
+	  If unsure, say N.
+
+endchoice
 
 #config SND_BLACKFIN_ADI1981B
 #	bool "1981b Audio support for BF53x"

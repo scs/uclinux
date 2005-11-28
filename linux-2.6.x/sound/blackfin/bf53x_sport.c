@@ -615,7 +615,7 @@ int sport_config_rx_dummy(struct bf53x_sport *sport)
 	desc->start_addr = sport->dummy_buf_rx;
 	config = FLOW | NDSIZE | WDSIZE_32 | WNR ;
 	desc->cfg = config | DMAEN;
-	desc->x_count = 0x800;
+	desc->x_count = 0x80;
 	desc->x_modify = 0;
 	desc->y_count = 0;
 	desc->y_modify = 0;
@@ -651,7 +651,7 @@ int sport_config_tx_dummy(struct bf53x_sport *sport)
 	desc->start_addr = sport->dummy_buf_tx;
 	config = (FLOW) | NDSIZE |WDSIZE_32;
 	desc->cfg = config | DMAEN;
-	desc->x_count = 0x800;
+	desc->x_count = 0x80;
 	desc->x_modify = 0;
 	desc->y_count = 0;
 	desc->y_modify = 0;
