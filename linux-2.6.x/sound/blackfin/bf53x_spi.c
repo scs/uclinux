@@ -25,154 +25,14 @@
  * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
-
-/*
- * theory of operation: 
- *
- * This file defines a low-level functional interface for the bf53x
- * on-chip SPI port.
- * 
- * It has no (well, hardly any) knowledge of the kernel and of
- * scheduling and locking, but contains some functions that make it
- * easy to use the SPI in kernel context, e.g. in a sound driver.
- * For now, please don't pollute this file with linux kernel internals.
- *
- * the spi struct contains the per-system fixed settings of DMA and
- * IRQ assignments and keeps a list of 'channels', of which only one
- * at a time may be the 'active' channel, i.e. have a transmit/receive
- * in progress.  per channel, master/slave etc settings are determined
- * and loaded into the SPI_ registers at the start of a transceive.
- *
- * the kernel IRQ handler should call the spi_irq_handler below when
- * an error or data interrup occurs, and this code will find the
- * user-defined callback associated with the channel/transceive.
- *
- */
-
-
-#undef BF53X_SPI_DEBUG
-
-#include "bf53x_spi.h"
-
-#ifdef __linux__
-
 #include <linux/interrupt.h>
 #include <linux/slab.h>
 #include <asm/bug.h>
-#define malloc(x) kmalloc(x, GFP_KERNEL)
-#define free(x)   kfree(x)
-#define printf(format, arg...)  printk( format, ## arg)
-#define assert(x) BUG_ON(!(x))
-
-#else
-
-#include <assert.h>
-#include <stdio.h>
-
-#define IRQ_NONE
-#define IRQ_HANDLED
-
-#endif
-
-
-#define spi_printf(level, format, arg...)  printf(level "spi: " format, ## arg)
-
-#ifdef  BF53X_SPI_DEBUG
-#define spi_printd(level, format, arg...)  printf(level "spi: " format, ## arg)
-#define SPI_ASSERT( x ) assert(x)
-#else
-#define spi_printd(level, format, arg...)  
-#define SPI_ASSERT( x ) 
-#endif
-
 #include <asm/blackfin.h>
 
+#include "bf53x_spi.h"
+
 #define SSYNC __builtin_bfin_ssync()
-
-struct bf53x_spi_channel {
-
-  struct bf53x_spi* spi; /* my owner */
-  int idx;               /* my idx in struct spi, -1 for unalloc'd */
-
-  /* per channel settings */
-  int master;
-  unsigned int baud;
-  int wordsize; /* 1 = 16 bits, 0 = 8 bits */
-  unsigned int slave_flags; /* mask of FLSx flags */
-  unsigned int config_flags; /* see note below */
-  spi_callback callback; void* private; /* default callback */
-
-};
-
-
-#define BF53X_SPI_MAX_CHANNELS 4
-
-struct bf53x_spi {
-  /* config fields */
-  int dma_chan;
-  int irq_data;
-  int irq_err;
-  int multimaster;
-
-  /* runtime fields */
-  struct bf53x_spi_channel channel[BF53X_SPI_MAX_CHANNELS];
-
-  /* per transceive settings */
-  int active; /* current active channel, -1 for none */
-  spi_callback callback; void* private; /* callback for active transfer */
-
-  int dma_mode;
-  unsigned int rx_data;
-  void* buf;
-  size_t len;
-
-};
-
-
-/* initialize the spi port */
-
-/* dma channel, and data and error irq's should match the settings in the SIC_IARx registers */
-struct bf53x_spi* bf53x_spi_init(int dma_chan, int irq_data, int irq_err, int multimaster ){
-
-  int i;
-
-  struct bf53x_spi* spi = (struct bf53x_spi*) malloc( sizeof(struct bf53x_spi) );
-
-  if( !spi ) return NULL;
-
-  spi->dma_chan = dma_chan;
-  spi->irq_data = irq_data;
-  spi->irq_err  = irq_err;
-  spi->multimaster = multimaster;
-
-  for( i=0; i<BF53X_SPI_MAX_CHANNELS; ++i ){
-    spi->channel[i].spi = spi;
-    spi->channel[i].idx = -1;
-  }
-
-  spi->active = -1;
-  spi->callback = NULL;
-  spi->private = NULL;
-
-#if defined(CONFIG_BF534)|defined(CONFIG_BF536)|defined(CONFIG_BF537)
-  *pPORT_MUX |= PFS4E;
-  SSYNC;
-/*  printk("spi: mux=0x%x\n", *pPORT_MUX);*/
-  *pPORTF_FER |= 0x7c40;
-  SSYNC;
-/*  printk("spi: ffer=0x%x\n", *pPORTF_FER);*/
-#endif
-  
-  return spi;
-
-}
-
-
-void bf53x_spi_done(struct bf53x_spi* spi){
-  free(spi);
-  return;
-}
-
 
 /* this should be called by the kernel from the data irq for the SPI.
  * it will handle the callbacks. irq should contain the irq that triggered this, 
@@ -181,175 +41,72 @@ void bf53x_spi_done(struct bf53x_spi* spi){
  * so it can be called safely in shared irq environments
  */
 
-int bf53x_spi_irq_handler(struct bf53x_spi* spi, int irq){
+irqreturn_t bf53x_spi_irq_handler(int irq, void *dev_id, struct pt_regs *regs )
+{
+	unsigned short status;
+	struct bf53x_spi *spi = dev_id;
 
-  int handled = IRQ_NONE;
+//	printk(KERN_INFO "%s enter\n", __FUNCTION__);
+	spi_get_stat(&status);
+	if( status & RXS ){
+		spi_disable(&spi->spi_ad1836_dev);	
+		spi->rx_data = spi_receive_data();
+		if( spi->callback )
+			spi->callback( spi, spi->private );
+	}
+	spi_channel_release(&spi->spi_ad1836_dev);
 
-  int status = *pSPI_STAT;
-  int active = spi->active;
-
-  SPI_ASSERT( (irq == spi->irq_data) || (irq == spi->irq_err) );
-
-  if( irq == spi->irq_data ){
-    
-    if( status & RXS ){
-
-      *pSPI_CTL = 0x0; /* switch it off */
-
-      spi->rx_data = *pSPI_RDBR;
-
-      if( spi->active != -1 ){
-	spi->active = -1;
-	if( spi->callback )
-	  spi->callback( spi->channel + active, &spi->rx_data, sizeof(spi->rx_data), spi->private );
-      }
-
-      handled = IRQ_HANDLED;
-      
-    }
-
-  }
-
-
-  if( irq == spi->irq_err ){
-  
-    if( status & (TXCOL|RBSY|TXE|MODF) ){ /* we have an error */
-      spi_printf( KERN_WARNING, "status error:%s%s%s%s", 
-		  status & TXCOL ? " TXCOL" : "", 
-		  status & RBSY  ? " RBSY"  : "", 
-		  status & TXE   ? " TXE"   : "", 
-		  status & MODF  ? " MODF"  : "" );
-      *pSPI_STAT = status & (TXCOL|RBSY|TXE|MODF); /* clear the error bits */
-      handled = IRQ_HANDLED;
-    }
-
-  }
-
-  return handled;
-
+  	return IRQ_HANDLED;
 }
 
 
-int bf53x_spi_busy(struct bf53x_spi* spi){
-  int status = *pSPI_STAT;
-  return !(status & SPIF);
-}
+/* initialize the spi port */
 
-int bf53x_spi_clear_channel(struct bf53x_spi* spi){
-  spi->active = -1;
-  return 0;
-}
+/* dma channel, and data and error irq's should match the settings in the SIC_IARx registers */
+struct bf53x_spi* bf53x_spi_init(spi_callback callback, void *priv)
+{
+  struct bf53x_spi* spi = (struct bf53x_spi*) kmalloc( sizeof(struct bf53x_spi) , GFP_KERNEL);
 
-/* create a channel */
-/* note: config flags may contain SZ, GM, CPHA and CPOL, the other flags
-   in SPI_CTL are controlled by the master/multimaster logic 
-*/
-struct bf53x_spi_channel* bf53x_spi_create_channel(struct bf53x_spi* spi,
-						   int master,
-						   unsigned int baud,
-						   int wordsize, /* 1 = 16 bits, 0 = 8 bits */
-						   unsigned int slave_flags, /* mask of FLSx flags */
-						   unsigned int config_flags, /* see note above */
-						   spi_callback callback, 
-						   void* private /* default callback */
-						   ){
+  if( !spi ) return NULL;
 
-  int i;
-  struct bf53x_spi_channel* chan=NULL;
+  spi->callback = callback;
+  spi->private = priv;
 
-  for( i=0; i<BF53X_SPI_MAX_CHANNELS; ++i )
-    if( spi->channel[i].idx == -1 )
-      break;
-  
-  if( i==BF53X_SPI_MAX_CHANNELS ) 
-    return NULL;
-
-  spi->channel[i].idx = i;
-  chan = spi->channel + i;
-
-  chan->master = master;
-  chan->baud = baud;
-  chan->wordsize = wordsize;
-  chan->slave_flags = slave_flags;
-  chan->config_flags = config_flags;
-  chan->callback = callback; 
-  chan->private = private;
-
-  return chan;
+  memset(&spi->spi_ad1836_dev, 0, sizeof(spi_device_t)); 
+  spi->spi_ad1836_dev.dev_name ="ad1386 spi";
+  spi->spi_ad1836_dev.bdrate = 16;
+  spi->spi_ad1836_dev.dma = 0;
+  spi->spi_ad1836_dev.flag = (1 << CONFIG_SND_BLACKFIN_SPI_PFBIT);
+  spi->spi_ad1836_dev.irq_handler = bf53x_spi_irq_handler;
+  spi->spi_ad1836_dev.priv_data = spi;
+ 
+  spi->spi_ad1836_dev.size = CFG_SPI_WORDSIZE16;
+  spi->spi_ad1836_dev.master = CFG_SPI_MASTER;
+  spi->spi_ad1836_dev.enable = CFG_SPI_ENABLE;
+  return spi;
 
 }
 
-
-void bf53x_spi_destroy_channel(struct bf53x_spi_channel* chan){
-  chan->idx = -1;
+void bf53x_spi_done(struct bf53x_spi* spi){
+  kfree(spi);
   return;
 }
 
-
-
-
-
 /* transmit/receive a single byte or word over a channel */
-int bf53x_spi_transceive(struct bf53x_spi_channel* chan, short data,
-			 spi_callback callback, void* private ){
+int bf53x_spi_transceive(struct bf53x_spi* spi, unsigned short data)
+{
+	unsigned long flags;
+	
+	local_irq_save(flags);
+	spi_channel_request(&spi->spi_ad1836_dev);
 
-  unsigned int spictl;
+	spi_enable(&spi->spi_ad1836_dev);
+	spi_send_data(data);
+	
+	/* Initial the read operation */
+	spi_receive_data();
+	
+	local_irq_restore(flags);
 
-  if( chan->spi->active != -1 ) 
-    return -1; /* busy */
-
-  SPI_ASSERT( ((chan->spi->channel + chan->idx) == chan) );
-
-  chan->spi->active = chan->idx;
-
-  *pSPI_FLG = chan->slave_flags;
-  *pSPI_BAUD = chan->baud;
-  
-  spictl = chan->config_flags | SPE; /* TIMOD = 0: start with read, non DMA */;
-
-  if( chan->master ){
-    spictl |= MSTR;                 
-    if( chan->spi->multimaster ) spictl |= WOM;
-  } else {
-    if( !chan->spi->multimaster ) spictl |= EMISO;
-  }
-
-  if( chan->wordsize ) spictl |= SIZE;
-  
-  if( callback ){
-    chan->spi->callback = callback;
-    chan->spi->private  = private;
-  } else {
-    chan->spi->callback = chan->callback;
-    chan->spi->private  = chan->private;
-  }
-  
-  spi_printd(KERN_INFO, "spi ctl: 0x%04x\n", spictl);
-
-  *pSPI_CTL = spictl;
-
-  *pSPI_TDBR = data;
-
-  SSYNC;
-
-  spi_printd(KERN_INFO, "sent spi data 0x%04x\n", data);
-  
-  chan->spi->rx_data = *pSPI_RDBR; /* read initiates transfer */
-
-  spi_printd(KERN_INFO, "read spi data 0x%04x\n", chan->spi->rx_data);
-  
-  return 0;
-  
+	return 0;
 }
- 
-
-
-#if 0
-/* transmit/receive a packet over a channel. len is in bytes */
- 
- int bf53x_spi_dma_xmit(struct bf53x_spi_channel* chan, void* buf, size_t len, 
-		       spi_callback callback, void* private){}
- 
- int bf53x_spi_dma_recv(struct bf53x_spi_channel* chan, void* buf, size_t len, 
-			spi_callback callback, void* private){}
-#endif

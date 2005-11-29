@@ -242,7 +242,6 @@ struct snd_ad1836 {
 
   snd_card_t*         card;
   struct bf53x_spi*   spi;
-  struct bf53x_spi_channel* spi_chan;
   struct bf53x_sport* sport;
 
   snd_pcm_t* pcm;
@@ -330,11 +329,11 @@ static inline int find_substream(ad1836_t *chip, snd_pcm_substream_t *substream)
 	
 }
 #endif
-static int ad1836_spi_handler(struct bf53x_spi_channel* chan, void* buf, size_t len, void* private){
+int ad1836_spi_handler(struct bf53x_spi* spi, void* private)
+{
   ad1836_t *chip = (ad1836_t*) private;
-  unsigned int data = *(unsigned int*) buf;
-  snd_assert( chip->spi_chan == chan, return -EINVAL);
-  /* snd_printk( KERN_INFO "in ad1836 spi handler. polled: %x data = 0x%04x\n", chip->poll_reg, data );  */
+  unsigned int data = spi->rx_data;
+  /*snd_printk( KERN_INFO "in ad1836 spi handler. polled: %x data = 0x%04x\n", chip->poll_reg, data ); */
   ++(chip->spi_irq_count);
 
   /* If we're running, we're issuing VU queries not configuring */
@@ -363,17 +362,15 @@ static int snd_ad1836_set_register(ad1836_t *chip, unsigned int reg, unsigned in
 
   /* the following will be much nicer if the wait stuff is moved into bf53x_spi.c */
   do {
-    stat = bf53x_spi_transceive(chip->spi_chan, data, NULL, NULL);
+    stat = bf53x_spi_transceive(chip->spi, data);
   } while(stat != 0);
 
   /* snd_printk( KERN_INFO "waiting for spi set reg %d\n", reg);  */
 
-  if( bf53x_spi_busy(chip->spi) )
-    if( !wait_event_timeout(chip->spi_waitq, chip->spi_data_ready!=0, HZ) ){
+  if( wait_event_interruptible(chip->spi_waitq, chip->spi_data_ready) ){
       snd_printk( KERN_INFO "timeout setting register %d\n", reg);  
-      bf53x_spi_clear_channel(chip->spi);
       return -ENODEV;
-    }
+  }
   chip->spi_data_ready = 0;
   chip->chip_registers[reg] = data;
   snd_printd( KERN_INFO "set register %d to 0x%04x\n", reg, data);  
@@ -540,14 +537,13 @@ static void snd_ad1836_read_registers(ad1836_t *chip)
 	
 	for (i = ADC_PEAK_1L; i <= ADC_PEAK_2R; i++) { 
 		chip->poll_reg = i;
-		result = bf53x_spi_transceive(chip->spi_chan, (chip->poll_reg<<12) |ADC_READ, NULL, NULL);
+		result = bf53x_spi_transceive(chip->spi, (chip->poll_reg<<12) |ADC_READ);
 		if (result < 0) {
 			snd_printk(KERN_ERR"Faile to transceive result:%d\n", result);
 			return;
 		}
 		if (wait_event_interruptible(chip->spi_waitq, chip->spi_data_ready)) {
 			snd_printk( KERN_INFO "timeout get register %d\n", i);  
-      			bf53x_spi_clear_channel(chip->spi);
 			return ;
 		}
 		chip->spi_data_ready = 0;
@@ -1722,12 +1718,11 @@ static snd_pcm_ops_t snd_ad1836_capture_ops = {
 static int snd_ad1836_free(ad1836_t *chip)
 {
   
-  if( chip->spi_chan ) {
+  if( chip->spi ) {
     snd_ad1836_set_register(chip, DAC_CTRL_2, DAC_MUTE_MASK, DAC_MUTE_MASK);  /* mute DAC's */
     snd_ad1836_set_register(chip, ADC_CTRL_2, ADC_MUTE_MASK, ADC_MUTE_MASK);  /* mute ADC's */
     snd_ad1836_set_register(chip, DAC_CTRL_1, DAC_PWRDWN, DAC_PWRDWN);  /* power-down DAC's */
     snd_ad1836_set_register(chip, ADC_CTRL_1, ADC_PRWDWN, ADC_PRWDWN);  /* power-down ADC's */
-    bf53x_spi_destroy_channel( chip->spi_chan );
   }
   
   if( chip->talktrough_mode != TALKTROUGH_OFF) 
@@ -1937,22 +1932,8 @@ static int __devinit snd_ad1836_create(snd_card_t *card,
   
   init_waitqueue_head(&chip->spi_waitq);
   
-  chip->spi_chan = bf53x_spi_create_channel(chip->spi, 
-					    1, /* master mode */
-					    16, /* baud rate SCK = HCLK/(2*SPIBAUD) SCK = 2MHz */
-					    1, /* word size = 16 bits */
-					    (1<<CONFIG_SND_BLACKFIN_SPI_PFBIT), /* pf4 bit enabled */
-					    0x0, /* no special configs */
-					    &ad1836_spi_handler, chip);
-  
   chip->spi_data_ready = 0;
 
-  if( !chip->spi_chan ){
-    snd_printk( KERN_ERR "Unable to allocate spi channel\n");    
-    snd_ad1836_free(chip);
-    return -ENODEV;
-  }
-  
   snd_ad1836_reset_spi_stats(chip);
 
   for(i=0; i<16; ++i)
@@ -2140,6 +2121,13 @@ static int __devinit snd_bf53x_adi1836_probe(struct bf53x_spi* spi,
     snd_card_free(card);
     return err;
   }
+
+  if( !(spi = bf53x_spi_init(ad1836_spi_handler, chip))) {
+    snd_card_free(card);
+    return err;
+  }
+
+  chip->spi = spi;
 
   card->private_data = (void*) chip;
 
@@ -2367,12 +2355,6 @@ static snd_card_t*         card=NULL;
 
 
 
-static irqreturn_t spi_handler(int irq, void *dev_id, struct pt_regs *regs){
-  /*  snd_printk( KERN_INFO "in module spi handler\n" );  */
-  if(spi) return bf53x_spi_irq_handler(spi, irq); 
-  return IRQ_NONE;
-}
-
 static irqreturn_t sport_handler_rx(int irq, void *dev_id, struct pt_regs *regs){
   /*  snd_printk( KERN_INFO "in module sport handler\n" );  */
   if(card) 
@@ -2445,24 +2427,6 @@ static int __init snd_bf53x_adi1836_init(void){
   
   int err;
   static int id3 ;
-  static int id7;
-  static int id8;
-
-  if( (spi = bf53x_spi_init(/* CONFIG_SND_BLACKFIN_SPI_DMA */ -1, 
-			     CONFIG_SND_BLACKFIN_SPI_IRQ_DATA, 
-			     CONFIG_SND_BLACKFIN_SPI_IRQ_ERR, 0) ) == NULL ) 
-    return -ENOMEM;
-  if( request_irq(CONFIG_SND_BLACKFIN_SPI_IRQ_DATA, &spi_handler, SA_SHIRQ, "SPI Data", &id7 ) ){
-    snd_printk( KERN_ERR "Unable to allocate spi data IRQ %d\n", CONFIG_SND_BLACKFIN_SPI_IRQ_DATA);
-    snd_bf53x_adi1836_exit();
-    return -ENODEV;
-  }
-
-  if( request_irq(CONFIG_SND_BLACKFIN_SPI_IRQ_ERR, &spi_handler, SA_SHIRQ, "SPI Error", &id8 ) ){
-    snd_printk( KERN_ERR "Unable to allocate spi error IRQ %d\n", CONFIG_SND_BLACKFIN_SPI_IRQ_ERR);
-    snd_bf53x_adi1836_exit();
-    return -ENODEV;
-  }
 
   if( (sport = bf53x_sport_init(CONFIG_SND_BLACKFIN_SPORT,  
 				CONFIG_SND_BLACKFIN_SPORT_DMA_RX, sport_handler_rx,
@@ -2485,18 +2449,13 @@ static int __init snd_bf53x_adi1836_init(void){
    */
 
 
-  err = snd_bf53x_adi1836_probe(spi, sport, &card);
+  err = snd_bf53x_adi1836_probe(NULL, sport, &card);
 
   if(err)
     snd_bf53x_adi1836_exit();
 
 #ifdef INIT_TALKTROUGH
   snd_ad1836_talktrough_mode( (ad1836_t*) (card->private_data) , TALKTROUGH_SMART );
-#endif
-
-#if 0
-  /* get a perfectly working talktrough.... */
-  panic("see if this works....\n");
 #endif
 
   return err;
