@@ -58,7 +58,7 @@ typedef struct Spi_Device_t
 
 #define SPI_CTRL_OFF            0x0
 #define SPI_FLAG_OFF            0x4
-#define SPI_STAU_OFF            0x8
+#define SPI_STAT_OFF            0x8
 #define SPI_TXBUFF_OFF          0xc
 #define SPI_RXBUFF_OFF          0x10
 #define SPI_BAUD_OFF            0x14
@@ -97,7 +97,7 @@ typedef struct Spi_Device_t
 
 #define SPI_DEFAULT_BARD    0x0100
 
-#define SPI0_IRQ_NUM        20
+#define SPI0_IRQ_NUM        IRQ_SPI 
 #define SPI_ERR_TRIG	   -1
 
 #define BIT_CTL_ENABLE      0x4000

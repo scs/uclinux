@@ -3,7 +3,7 @@
 #
 
 menu "Character devices"
-config SPI_CHANNEL_BF5XX
+config BFIN_SPI_CHANNEL
     bool "Blackfin BF53x SPI port support"
 	depends on BFIN
     default n
@@ -12,7 +12,7 @@ config SPI_CHANNEL_BF5XX
 config SPI_ADC_BF533    
     bool "Blackfin BF53x ADSP SPI ADC support"
 	depends on BFIN
-	select SPI_CHANNEL_BF5XX
+	select BFIN_SPI_CHANNEL
 	default n
 	---help---
 	 
