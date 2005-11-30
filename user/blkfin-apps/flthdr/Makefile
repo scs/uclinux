@@ -14,5 +14,5 @@ romfs:
 clean:
 	-rm -f $(EXEC) *.elf *.gdb *.o
 
-rcp.o: flthdr.c flat.h
+flthdr.o: flthdr.c flat.h
 
