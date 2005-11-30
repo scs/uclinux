@@ -610,7 +610,7 @@ config MTD_PCMCIA
 config MTD_BF5xx_SPI
 	bool "Blackfin BF5xx SPI flash Chip Support"
 	depends on BFIN && MTD_PARTITIONS
-	select SPI_CHANNEL_BF5XX
+	select BFIN_SPI_CHANNEL
 	help
 	  SPI Chip from ST Microelectronics, the part num is M25P64
 
