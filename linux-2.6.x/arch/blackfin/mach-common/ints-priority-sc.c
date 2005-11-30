@@ -153,14 +153,13 @@ static void bf533_core_unmask_irq(unsigned int irq)
 
 static void bf533_internal_mask_irq(unsigned int irq)
 {
-	/* Dummy function.  */
+	*pSIC_IMASK &= ~(1<<(irq - (IRQ_CORETMR+1)));
+	__builtin_bfin_ssync();
 }
 
 static void bf533_internal_unmask_irq(unsigned int irq)
 {
-	unsigned long irq_mask;
-	irq_mask = (1 << (irq - (IRQ_CORETMR + 1)));
-	*pSIC_IMASK |= irq_mask;
+	*pSIC_IMASK |= (1<<(irq - (IRQ_CORETMR+1)));
 	__builtin_bfin_ssync();
 }
 

@@ -106,9 +106,9 @@ void disable_irq(unsigned int irq)
 {
 	struct irqdesc *desc = irq_desc + irq;
 	unsigned long flags;
-
 	spin_lock_irqsave(&irq_controller_lock, flags);
-	desc->disable_depth++;
+	if (!desc->disable_depth++) 
+		desc->chip->mask(irq);
 	list_del_init(&desc->pend);
 	spin_unlock_irqrestore(&irq_controller_lock, flags);
 }
@@ -737,6 +737,7 @@ EXPORT_SYMBOL(request_irq);
  */
 void free_irq(unsigned int irq, void *dev_id)
 {
+	struct irqdesc *desc = irq_desc + irq;
 	struct irqaction *action, **p;
 	unsigned long flags;
 
@@ -747,13 +748,15 @@ void free_irq(unsigned int irq, void *dev_id)
 	}
 
 	spin_lock_irqsave(&irq_controller_lock, flags);
-	for (p = &irq_desc[irq].action; (action = *p) != NULL;
+	for (p = &desc->action; (action = *p) != NULL;
 	     p = &action->next) {
 		if (action->dev_id != dev_id)
 			continue;
 
 		/* Found it - now free it */
 		*p = action->next;
+		if (!desc->action)
+			desc->chip->mask(irq);
 		break;
 	}
 	spin_unlock_irqrestore(&irq_controller_lock, flags);
