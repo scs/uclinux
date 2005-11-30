@@ -110,6 +110,14 @@ if [ "$CONFIG_LIB_UC_LIBC_TIMEZONE" = "y" ]; then
 	bool '  Always load from file'	CONFIG_LIB_UC_LIBC_TZ_FROM_FILE
 fi
 
+bool 'Build faad2'		CONFIG_LIB_FAAD2_FORCE
+bool 'Build flac'		CONFIG_LIB_FLAC_FORCE
+bool 'Build tremor'		CONFIG_LIB_TREMOR_FORCE
+bool 'Build libao-0.8.6'	CONFIG_LIB_LIBAO_FORCE
+bool 'Build libaudio'		CONFIG_LIB_LIBAUDIO_FORCE
+bool 'Build libmad'		CONFIG_LIB_LIBMAD_FORCE
+bool 'Build libid3tag'		CONFIG_LIB_LIBID3TAG_FORCE
+
 endmenu
 
 #############################################################################
@@ -1590,6 +1598,7 @@ comment 'Inetutils'
 bool	'rsh'				CONFIG_USER_INETUTILS_RSH
 bool	'rcp'				CONFIG_USER_INETUTILS_RCP
 bool	'rshd'				CONFIG_USER_INETUTILS_RSHD
+bool	'NetAudio'			CONFIG_USER_NET_AUDIO
 comment 'FLAT binary format tools'
 bool    'flthdr'                        CONFIG_USER_FLTHDR
 

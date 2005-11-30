@@ -373,6 +373,9 @@ dir_$(CONFIG_USER_ZEBRA_OSPFD_OSPFD)        += zebra
 dir_$(CONFIG_USER_ZEBRA_RIPD_RIPD)          += zebra
 dir_$(CONFIG_USER_ZEBRA_ZEBRA_ZEBRA)        += zebra
 
+dir_$(CONFIG_USER_NET_AUDIO)		    +=net_audio
+dir_$(CONFIG_USER_NET_AUDIO)		    +=net_audio
+
 dir_y += games
 
 all: config

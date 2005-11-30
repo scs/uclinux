@@ -38,6 +38,24 @@ dir_$(CONFIG_JFFS_FS)          += zlib
 dir_$(CONFIG_JFFS2_FS)         += zlib
 
 #
+#add network audio player if needed
+#
+dir_$(CONFIG_LIB_FAAD2)			+=faad2
+dir_$(CONFIG_LIB_FAAD2_FORCE)		+=faad2
+dir_$(CONFIG_LIB_FLAC)			+=flac
+dir_$(CONFIG_LIB_FLAC_FORCE)		+=flac
+dir_$(CONFIG_LIB_TREMOR)		+=tremor
+dir_$(CONFIG_LIB_TREMOR_FORCE)		+=tremor
+dir_$(CONFIG_LIB_LIBAO)			+=libao-0.8.6
+dir_$(CONFIG_LIB_LIBAO_FORCE)		+=libao-0.8.6
+dir_$(CONFIG_LIB_LIBAUDIO)		+=libaudio
+dir_$(CONFIG_LIB_LIBAUDIO_FORCE)	+=libaudio
+dir_$(CONFIG_LIB_LIBMAD)		+=libmad
+dir_$(CONFIG_LIB_LIBMAD_FORCE)		+=libmad
+dir_$(CONFIG_LIB_LIBID3TAG)		+=libid3tag
+dir_$(CONFIG_LIB_LIBID3TAG_FORCE)	+=libid3tag
+
+#
 #
 # and build these if someone needs them
 #
