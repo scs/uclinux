@@ -1,0 +1,39 @@
+0.12
+----
+*) Abstract audio stuff into a plugin oriented thing
+	*) audio_ao & audio_oss & audio_shout
+	*) allow for sending to multiple audio devices
+
+*) Rewrite replaygain stuff:
+	*) If replaygain tag info present, average the replaygain gain's
+		and peak's on the fly
+	*) If NULL replaygain struct, then use the average replaygain gains
+		and peak's to compute the the scale for files missing
+		replaygain tags (make this a config file option)
+
+*) Add libshout && vorbis encoding support
+
+*) add command
+	*) command that takes file/url's (no directory's) and returns the songid
+	*) allow to specify position in playlist where to insert song(s)
+
+*) rewrite saved playlist code
+	*) abstract out saved playlists from playlist.c
+	*) command for displaying playlist contents
+	*) command for appending to playlist
+
+*) have listallinfo return directories
+
+*) allow find/search commands take arbitrary search pairs
+
+*) abstract out input buffering from inputStream_http to inputStream
+
+Post-1.0
+--------
+1) crosslink "list" stuff, for example, artists are crosslinked to alubms and 
+vice versa, this way you can do list album artists or list artist albums, this 
+will make life easier when we add genre and other metadata
+
+2) rewrite linked list impelmentation to be more flexible
+	a) remove "key" stuff
+	b) allow assigning a compare function for a list
