@@ -145,32 +145,30 @@ static int rs_write(struct tty_struct * tty, const unsigned char *buf, int count
  */
 
 static int baud_table[] = {0, 50, 75, 110, 134, 150, 200, 300, 600, 1200, 1800, 2400, 4800,
-			   9600, 19200, 38400, 57600, 115200};
+			   9600, 19200, 38400, 57600, 115200, 230400};
 
 static int unix_baud_table[] = {B0, B50, B75, B110, B134, B150, B200, B300, B600, B1200, B1800, B2400, B4800,
-	B9600, B19200, B38400, B57600, B115200};
+	B9600, B19200, B38400, B57600, B115200, B230400};
 
 #define BAUD_TABLE_SIZE (sizeof(baud_table)/sizeof(baud_table[0]))
-
-struct {
-        unsigned char dl_high;
-        unsigned char dl_low;
-} hw_baud_table[BAUD_TABLE_SIZE];
-
 
 /* Forward declarations.... */
 static void bfin_change_speed(struct bfin_serial *info);
 static void bfin_set_baud(struct bfin_serial *info);
 
-void calc_baud(void)
+static unsigned short calc_divisor(int baud)
 {
-	unsigned int sclk = get_sclk();
-        int i;
+        unsigned long divisor = (get_sclk() / 8 + baud) / 2;
+                                                /* accurate rounding */
+        if (baud)
+          divisor /= baud;
 
-        for(i = 0; i < BAUD_TABLE_SIZE; i++) {
-                hw_baud_table[i].dl_high = ((sclk/(baud_table[i]*16)) >> 8)& 0xFF;
-                hw_baud_table[i].dl_low = (sclk/(baud_table[i]*16)) & 0xFF;
-        }
+        if (divisor > 0xffff) 
+          divisor = 0x10000; /* 0 is wrapped 0x10000 */
+        else if (divisor < 1)
+          divisor = 1;
+
+	return (unsigned short)divisor;
 }
 
 static inline int serial_paranoia_check(struct bfin_serial *info,char *name, const char *routine)
@@ -861,7 +859,7 @@ static void shutdown(struct bfin_serial * info)
  */
 static void bfin_change_speed(struct bfin_serial *info)
 {
-	unsigned short uart_dll, uart_dlh;
+	unsigned short uart_dl;
 	unsigned cflag, flags, cval;
 	struct uart_registers *regs = &(info->regs);
 
@@ -870,8 +868,6 @@ static void bfin_change_speed(struct bfin_serial *info)
 
 	if (!info->tty || !info->tty->termios)
 		return;
-
-	calc_baud();
 
 	cflag = info->tty->termios->c_cflag;
 
@@ -906,14 +902,13 @@ static void bfin_change_speed(struct bfin_serial *info)
 	
 	info->baud = baud_table[i];
 
-	uart_dll = hw_baud_table[i].dl_low;
-	uart_dlh = hw_baud_table[i].dl_high;
+	uart_dl = calc_divisor(baud_table[i]);
 
 	local_irq_save(flags);
 	ACCESS_LATCH(regs) /*Set to access divisor latch*/
-	*(regs->rpUART_DLL) = hw_baud_table[i].dl_low;
+	*(regs->rpUART_DLL) = uart_dl;
 	SSYNC;
-	*(regs->rpUART_DLH) = hw_baud_table[i].dl_high;
+	*(regs->rpUART_DLH) = uart_dl >> 8;
 	SSYNC;
 
 	*(regs->rpUART_LCR) = cval;
@@ -1862,6 +1857,7 @@ static void bfin_set_baud(struct bfin_serial *info)
 {
 	struct uart_registers *regs=&(info->regs);
 	int	i;
+	unsigned short uart_dl;
 
 	FUNC_ENTER();
 
@@ -1870,20 +1866,12 @@ static void bfin_set_baud(struct bfin_serial *info)
 	*(regs->rpUART_IER) &= ~ETBEI;
 	SSYNC;
 
-	calc_baud();
-again:
-	for (i = 0; i < sizeof(baud_table) / sizeof(baud_table[0]); i++)
-		if (baud_table[i] == bfin_console_baud)
-			break;
-	if (i >= sizeof(baud_table) / sizeof(baud_table[0])) {
-		bfin_console_baud = 9600;
-		goto again;
-	}
+	uart_dl = calc_divisor(bfin_console_baud);
 
 	ACCESS_LATCH(regs) /*Set to access divisor latch*/
-	*(regs->rpUART_DLL) = hw_baud_table[i].dl_low;
+	*(regs->rpUART_DLL) = uart_dl;
 	SSYNC;
-	*(regs->rpUART_DLH) = hw_baud_table[i].dl_high;
+	*(regs->rpUART_DLH) = uart_dl >> 8;
 	SSYNC;
 
 	*(regs->rpUART_LCR) |= WLS(8);
@@ -1968,8 +1956,13 @@ static struct console bfin_driver = {
 	.index		-1,
 };
 
-static int bfin_console_init(void)
+int bfin_console_init(void)
 {
+	static int initialized = 0;
+	if (initialized) /* this allow us to call bf533_console_init() more than once */
+		return 0;
+	else initialized = 1;
+
 	bfin_config_uart0(&bfin_uart[0]);
 #if defined(CONFIG_BF534) || defined(CONFIG_BF536) || defined(CONFIG_BF537)
 	bfin_config_uart1(&bfin_uart[1]);
