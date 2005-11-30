@@ -38,13 +38,13 @@
  */
 static struct resource smc91x_resources[] = {
 	[0] = {
-	       .start = 0x20310300,
-	       .end = 0x20310300 + 16,
+	       .start = 0x2C010300,
+	       .end = 0x2C010300 + 16,
 	       .flags = IORESOURCE_MEM,
 	       },
 	[1] = {
-	       .start = IRQ_PROG_INTB,
-	       .end = IRQ_PROG_INTB,
+	       .start = IRQ_PROG0_INTB,
+	       .end = IRQ_PROG0_INTB,
 	       .flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL,
 	       },
 	[2] = {

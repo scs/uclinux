@@ -152,7 +152,14 @@ static void bf561_core_unmask_irq(unsigned int irq)
 
 static void bf561_internal_mask_irq(unsigned int irq)
 {
-	/* Dummy function.  */
+	if ((irq - (IRQ_CORETMR + 1)) < 32)
+	{
+		irq_mask = (1 << (irq - (IRQ_CORETMR + 1)));
+		*pSICA_IMASK0 &= ~irq_mask;
+	} else {
+		irq_mask = (1 << (irq - (IRQ_CORETMR + 1) - 32));
+		*pSICA_IMASK1 &= ~irq_mask;
+	}
 }
 
 static void bf561_internal_unmask_irq(unsigned int irq)
@@ -375,7 +382,7 @@ static void bf561_demux_gpio_irq(unsigned int intb_irq,
 		do {
 			int irq = IRQ_PF0;
 			int flag_d = *pFIO0_FLAG_D;
-			int mask = flag_d & (gpio_enabled[0] & *pFIO0_MASKB_C);
+			int mask = flag_d & (gpio_enabled[0] & *pFIO0_MASKB_D);
 			loop = mask;
 			do {
 				if (mask & 1) {
@@ -390,7 +397,7 @@ static void bf561_demux_gpio_irq(unsigned int intb_irq,
 		do {
 			int irq = IRQ_PF16;
 			int flag_d = *pFIO1_FLAG_D;
-			int mask = flag_d & (gpio_enabled[1] & *pFIO1_MASKB_C);
+			int mask = flag_d & (gpio_enabled[1] & *pFIO1_MASKB_D);
 			loop = mask;
 			do {
 				if (mask & 1) {
@@ -405,7 +412,7 @@ static void bf561_demux_gpio_irq(unsigned int intb_irq,
 		do {
 			int irq = IRQ_PF32;
 			int flag_d = *pFIO2_FLAG_D;
-			int mask = flag_d & (gpio_enabled[2] & *pFIO2_MASKB_C);
+			int mask = flag_d & (gpio_enabled[2] & *pFIO2_MASKB_D);
 			loop = mask;
 			do {
 				if (mask & 1) {

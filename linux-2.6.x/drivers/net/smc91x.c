@@ -333,9 +333,45 @@ static void bfin_cpld_setup(void)
 static void bfin_SMC_interrupt_setup(int irq)
 {
 #ifdef CONFIG_IRQCHIP_DEMUX_GPIO
-    printk("Blackfin SMC91x interrupt setup: DEMUX_GPIO irq %d\n", irq);
-    set_irq_type(irq, IRQT_HIGH);
+	/* fix a floating input on the USB-LAN EZ-Extender */
+	*pFIO0_DIR |= (1 << 12);
+	printk("Blackfin SMC91x interrupt setup: DEMUX_GPIO irq %d\n", irq);
+	set_irq_type(irq, IRQT_HIGH);
 #else
+# if defined (CONFIG_BF561)
+	unsigned short flag;
+	unsigned short LAN_FIO_PATTERN;
+
+	if (irq_pfx < IRQ_PF0 || irq_pfx > IRQ_PF15) {
+		printk(CARDNAME "irq_pfx out of range: %d\n", irq_pfx);
+		return;
+	}
+
+	flag = irq_pfx - IRQ_PF0;
+	LAN_FIO_PATTERN = (1 << flag);
+
+	printk("Blackfin BF561 SMC91x interrupt setup: flag PF%d, irq %d\n", flag, irq);
+	if (irq == IRQ_PROG0_INTA || irq == IRQ_PROG0_INTB)
+	{
+		int ixab = (irq - IRQ_PROG0_INTA) * (pFIO0_MASKB_D - pFIO0_MASKA_D);
+
+		__builtin_bfin_csync();
+		pFIO0_MASKA_C[ixab] = LAN_FIO_PATTERN; /* disable int */
+		__builtin_bfin_ssync();
+
+		*pFIO0_POLAR	&= ~LAN_FIO_PATTERN; /* active high (input) */
+		*pFIO0_EDGE	&= ~LAN_FIO_PATTERN; /* by level (input) */
+		*pFIO0_BOTH	&= ~LAN_FIO_PATTERN;
+
+		*pFIO0_DIR	&= ~LAN_FIO_PATTERN; /* input */
+		*pFIO0_DIR	|= (1 << 12);	     /* fix a floating input */
+		*pFIO0_FLAG_C	=   LAN_FIO_PATTERN; /* clear output */
+		*pFIO0_INEN	|=  LAN_FIO_PATTERN; /* enable pin */
+
+		__builtin_bfin_ssync();
+		pFIO0_MASKA_S[ixab] = LAN_FIO_PATTERN; /* enable int */
+	}
+# else
     unsigned short flag;
     unsigned short LAN_FIO_PATTERN;
 
@@ -370,6 +406,7 @@ static void bfin_SMC_interrupt_setup(int irq)
       __builtin_bfin_ssync();
       pFIO_MASKA_S[ixab] = LAN_FIO_PATTERN; /* enable int */
     }
+# endif /* defined(CONFIG_BF561) */
 #endif /*CONFIG_IRQCHIP_DEMUX_GPIO*/
 }
 #endif

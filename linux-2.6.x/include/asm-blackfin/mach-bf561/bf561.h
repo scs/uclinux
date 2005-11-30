@@ -34,7 +34,7 @@
 
 #include <linux/config.h>
 
-#define SUPPORTED_DSPID		0
+#define SUPPORTED_DSPID		0x300
 
 #define OFFSET_( x ) ((x) & 0x0000FFFF) /* define macro for offset */
 #define L1_ISRAM		0xFFA00000

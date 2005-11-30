@@ -191,8 +191,8 @@
 #define pFIO0_FLAG_S (volatile unsigned short *)FIO0_FLAG_S
 #define pFIO0_FLAG_T (volatile unsigned short *)FIO0_FLAG_T
 #define pFIO0_MASKA_D (volatile unsigned short *)FIO0_MASKA_D
-#define pFIO0_MASKA_C (volatile unsigned short *)FIO0_MASKA_C
-#define pFIO0_MASKA_S (volatile unsigned short *)FIO0_MASKA_S
+#define pFIO0_MASKA_C ((volatile unsigned short *)FIO0_MASKA_C)
+#define pFIO0_MASKA_S ((volatile unsigned short *)FIO0_MASKA_S)
 #define pFIO0_MASKA_T (volatile unsigned short *)FIO0_MASKA_T
 #define pFIO0_MASKB_D (volatile unsigned short *)FIO0_MASKB_D
 #define pFIO0_MASKB_C (volatile unsigned short *)FIO0_MASKB_C
