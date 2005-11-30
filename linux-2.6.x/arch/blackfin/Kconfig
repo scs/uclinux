@@ -380,7 +380,7 @@ config NO_DMA
 
 config BFIN_DMA_5XX
 	bool 'Enable DMA Support'
-	depends on (BF533 || BF532 || BF531 || BF537 || BF536 || BF534)
+	depends on (BF533 || BF532 || BF531 || BF537 || BF536 || BF534 || BF561)
 	help
 	  DMA driver for BF5xx
 endchoice
