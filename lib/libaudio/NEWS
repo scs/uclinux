@@ -1,0 +1,5 @@
+News for Audio File Library version 0.2.6
+
+Added support for AVR, IFF/8SVX, and NIST SPHERE file formats.
+
+Added example program demonstrating audio file playback on Mac OS X.

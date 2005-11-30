@@ -1,0 +1,24 @@
+Thanks to all who've contributed patches for the Audio File Library,
+especially Michael Krause, Jean-Francois Panisset, Simon Kagedal, Eric
+Mitchell, Bruce Forsberg, Julien Boulnois, Axel Roebel, Mark Murnane,
+Chris Wolf, Davy Durham, and Fabrizio Gennari.
+
+Thanks to Douglas Scott of SGI for helping me understand the tricky
+parts of the Audio File Library API.  Thanks to Chris Pirazzi, Scott
+Porter, and SGI for creating the Audio File Library in the first
+place.
+
+Thanks to Axel Roebel for answering all my questions regarding the
+IRCAM file format.
+
+Thanks to Chris Wolf for porting the library to Windows.
+
+Thanks also to all who have reported bugs.
+
+Thanks to Linus and the Linux community for keeping it real.
+
+Thanks to Apple for the Audio Interchange File Format.
+
+Thanks to Apple and SGI for handling audio really well.
+
+No thanks to Microsoft.

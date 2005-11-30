@@ -1,0 +1,11 @@
+prefix=/usr/local
+exec_prefix=${prefix}
+libdir=${exec_prefix}/lib
+includedir=${prefix}/include
+
+Name: audiofile
+Description: audiofile
+Requires:
+Version: 0.2.6
+Libs: -L${libdir} -laudiofile -lm
+Cflags: -I${includedir}
