@@ -152,6 +152,7 @@ static void bf561_core_unmask_irq(unsigned int irq)
 
 static void bf561_internal_mask_irq(unsigned int irq)
 {
+	unsigned long irq_mask;
 	if ((irq - (IRQ_CORETMR + 1)) < 32)
 	{
 		irq_mask = (1 << (irq - (IRQ_CORETMR + 1)));
