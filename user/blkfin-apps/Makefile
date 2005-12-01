@@ -10,6 +10,8 @@ dir_$(CONFIG_USER_INETUTILS_RSHD)			+= inetutils
 dir_$(CONFIG_USER_SQLITE)				+= sqlite-3.2.6
 dir_$(CONFIG_USER_LMBENCH)				+= lmbench3
 dir_$(CONFIG_USER_BLACKFIN_STRACE)			+= strace
+dir_$(CONFIG_USER_MPFR)					+= mpfr
+dir_$(CONFIG_USER_OPROFILE)				+= oprofile
 dir_$(CONFIG_USER_FLTHDR)				+= flthdr
 
 all:
