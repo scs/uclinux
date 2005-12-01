@@ -1,0 +1,171 @@
+This file contains any messages produced by compilers while
+running configure, to aid debugging if configure makes a mistake.
+
+configure:564: checking for a BSD compatible install
+configure:620: checking how to run the C preprocessor
+configure:641: bfin-uclinux-gcc -E  conftest.c >/dev/null 2>conftest.out
+configure:700: checking whether make sets ${MAKE}
+configure:729: checking for gcc
+configure:842: checking whether the C compiler (bfin-uclinux-gcc  ) works
+configure:858: bfin-uclinux-gcc -o conftest    conftest.c  1>&5
+configure:884: checking whether the C compiler (bfin-uclinux-gcc  ) is a cross-compiler
+configure:889: checking whether we are using GNU C
+configure:898: bfin-uclinux-gcc -E conftest.c
+configure:917: checking whether bfin-uclinux-gcc accepts -g
+configure:951: checking for ranlib
+configure:979: checking for POSIXized ISC
+configure:1000: checking for ANSI C header files
+configure:1013: bfin-uclinux-gcc -E  conftest.c >/dev/null 2>conftest.out
+configure:1104: checking for working const
+configure:1158: bfin-uclinux-gcc -c -g -O2  conftest.c 1>&5
+configure:1179: checking for inline
+configure:1193: bfin-uclinux-gcc -c -g -O2  conftest.c 1>&5
+configure:1219: checking for off_t
+configure:1252: checking for size_t
+configure:1287: checking for working alloca.h
+configure:1299: bfin-uclinux-gcc -o conftest -g -O2   conftest.c  1>&5
+configure:1320: checking for alloca
+configure:1353: bfin-uclinux-gcc -o conftest -g -O2   conftest.c  1>&5
+configure:1522: checking for unistd.h
+configure:1532: bfin-uclinux-gcc -E  conftest.c >/dev/null 2>conftest.out
+configure:1561: checking for getpagesize
+configure:1589: bfin-uclinux-gcc -o conftest -g -O2   conftest.c  1>&5
+configure:1614: checking for working mmap
+configure:1790: checking for argz.h
+configure:1800: bfin-uclinux-gcc -E  conftest.c >/dev/null 2>conftest.out
+configure:1796:18: argz.h: No such file or directory
+configure: failed program was:
+#line 1795 "configure"
+#include "confdefs.h"
+#include <argz.h>
+configure:1790: checking for limits.h
+configure:1800: bfin-uclinux-gcc -E  conftest.c >/dev/null 2>conftest.out
+configure:1790: checking for locale.h
+configure:1800: bfin-uclinux-gcc -E  conftest.c >/dev/null 2>conftest.out
+configure:1790: checking for nl_types.h
+configure:1800: bfin-uclinux-gcc -E  conftest.c >/dev/null 2>conftest.out
+configure:1790: checking for malloc.h
+configure:1800: bfin-uclinux-gcc -E  conftest.c >/dev/null 2>conftest.out
+configure:1790: checking for string.h
+configure:1800: bfin-uclinux-gcc -E  conftest.c >/dev/null 2>conftest.out
+configure:1790: checking for unistd.h
+configure:1790: checking for values.h
+configure:1800: bfin-uclinux-gcc -E  conftest.c >/dev/null 2>conftest.out
+configure:1790: checking for sys/param.h
+configure:1800: bfin-uclinux-gcc -E  conftest.c >/dev/null 2>conftest.out
+configure:1830: checking for getcwd
+configure:1858: bfin-uclinux-gcc -o conftest -g -O2   conftest.c  1>&5
+configure:1830: checking for munmap
+configure:1858: bfin-uclinux-gcc -o conftest -g -O2   conftest.c  1>&5
+configure:1830: checking for putenv
+configure:1858: bfin-uclinux-gcc -o conftest -g -O2   conftest.c  1>&5
+configure:1830: checking for setenv
+configure:1858: bfin-uclinux-gcc -o conftest -g -O2   conftest.c  1>&5
+configure:1830: checking for setlocale
+configure:1858: bfin-uclinux-gcc -o conftest -g -O2   conftest.c  1>&5
+configure:1830: checking for strchr
+configure:1858: bfin-uclinux-gcc -o conftest -g -O2   conftest.c  1>&5
+configure:1842: warning: conflicting types for built-in function 'strchr'
+configure:1830: checking for strcasecmp
+configure:1858: bfin-uclinux-gcc -o conftest -g -O2   conftest.c  1>&5
+configure:1830: checking for __argz_count
+configure:1858: bfin-uclinux-gcc -o conftest -g -O2   conftest.c  1>&5
+/tmp/ccYsloMc.o(.text+0x6): In function `main':
+/home/ksh/cvs/commit/11-23/uClinux-dist/lib/intl/configure:1852: undefined reference to `___argz_count'
+collect2: ld returned 1 exit status
+configure: failed program was:
+#line 1835 "configure"
+#include "confdefs.h"
+/* System header to define __stub macros and hopefully few prototypes,
+    which can conflict with char __argz_count(); below.  */
+#include <assert.h>
+/* Override any gcc2 internal prototype to avoid an error.  */
+/* We use char because int might match the return type of a gcc2
+    builtin and then its argument prototype would still apply.  */
+char __argz_count();
+
+int main() {
+
+/* The GNU C library defines this for functions which it implements
+    to always fail with ENOSYS.  Some functions are actually named
+    something starting with __ and the normal name is an alias.  */
+#if defined (__stub___argz_count) || defined (__stub_____argz_count)
+choke me
+#else
+__argz_count();
+#endif
+
+; return 0; }
+configure:1830: checking for __argz_stringify
+configure:1858: bfin-uclinux-gcc -o conftest -g -O2   conftest.c  1>&5
+/tmp/cccUvwUj.o(.text+0x6): In function `main':
+/home/ksh/cvs/commit/11-23/uClinux-dist/lib/intl/configure:1852: undefined reference to `___argz_stringify'
+collect2: ld returned 1 exit status
+configure: failed program was:
+#line 1835 "configure"
+#include "confdefs.h"
+/* System header to define __stub macros and hopefully few prototypes,
+    which can conflict with char __argz_stringify(); below.  */
+#include <assert.h>
+/* Override any gcc2 internal prototype to avoid an error.  */
+/* We use char because int might match the return type of a gcc2
+    builtin and then its argument prototype would still apply.  */
+char __argz_stringify();
+
+int main() {
+
+/* The GNU C library defines this for functions which it implements
+    to always fail with ENOSYS.  Some functions are actually named
+    something starting with __ and the normal name is an alias.  */
+#if defined (__stub___argz_stringify) || defined (__stub_____argz_stringify)
+choke me
+#else
+__argz_stringify();
+#endif
+
+; return 0; }
+configure:1830: checking for __argz_next
+configure:1858: bfin-uclinux-gcc -o conftest -g -O2   conftest.c  1>&5
+/tmp/ccSFJqVq.o(.text+0x6): In function `main':
+/home/ksh/cvs/commit/11-23/uClinux-dist/lib/intl/configure:1852: undefined reference to `___argz_next'
+collect2: ld returned 1 exit status
+configure: failed program was:
+#line 1835 "configure"
+#include "confdefs.h"
+/* System header to define __stub macros and hopefully few prototypes,
+    which can conflict with char __argz_next(); below.  */
+#include <assert.h>
+/* Override any gcc2 internal prototype to avoid an error.  */
+/* We use char because int might match the return type of a gcc2
+    builtin and then its argument prototype would still apply.  */
+char __argz_next();
+
+int main() {
+
+/* The GNU C library defines this for functions which it implements
+    to always fail with ENOSYS.  Some functions are actually named
+    something starting with __ and the normal name is an alias.  */
+#if defined (__stub___argz_next) || defined (__stub_____argz_next)
+choke me
+#else
+__argz_next();
+#endif
+
+; return 0; }
+configure:1887: checking for stpcpy
+configure:1915: bfin-uclinux-gcc -o conftest -g -O2   conftest.c  1>&5
+configure:1899: warning: conflicting types for built-in function 'stpcpy'
+configure:1949: checking for LC_MESSAGES
+configure:1961: bfin-uclinux-gcc -o conftest -g -O2   conftest.c  1>&5
+configure:1982: checking whether NLS is requested
+configure:2002: checking whether included gettext is requested
+configure:2021: checking for libintl.h
+configure:2031: bfin-uclinux-gcc -E  conftest.c >/dev/null 2>conftest.out
+configure:2027:21: libintl.h: No such file or directory
+configure: failed program was:
+#line 2026 "configure"
+#include "confdefs.h"
+#include <libintl.h>
+configure:2348: checking for msgfmt
+configure:2382: checking for gmsgfmt
+configure:2418: checking for xgettext
