@@ -980,7 +980,7 @@ static int snd_ad1836_mux_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t *ui
   };
 
   uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-  uinfo->count = 2;
+  uinfo->count = 1;
   uinfo->value.enumerated.items = CAPTURE_SOURCE_NUMBER;
   if (uinfo->value.enumerated.item >= CAPTURE_SOURCE_NUMBER)
 	uinfo->value.enumerated.item = CAPTURE_SOURCE_NUMBER - 1;
@@ -992,15 +992,10 @@ static int snd_ad1836_mux_get(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *uc
 {
   ad1836_t *chip = snd_kcontrol_chip(kcontrol);
 
-  if (chip->in_chan_mask & CAP_LINE)
+  if (chip->in_chan_mask & CAP_MIC)
     ucontrol->value.integer.value[0] = 1;
   else
     ucontrol->value.integer.value[0] = 0;
-
-  if (chip->in_chan_mask & CAP_MIC)
-    ucontrol->value.integer.value[1] = 1;
-  else
-    ucontrol->value.integer.value[1] = 0;
 
   return 0;
 }
@@ -1009,10 +1004,6 @@ static int snd_ad1836_mux_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *uc
 {
   ad1836_t *chip = snd_kcontrol_chip(kcontrol);
   int i;
-
-  if (ucontrol->value.enumerated.item[0] >= CAPTURE_SOURCE_NUMBER || 
-      ucontrol->value.enumerated.item[1] >= CAPTURE_SOURCE_NUMBER)
-    return -EINVAL;
 
   i = ucontrol->value.integer.value[0];
   if (i==0) /* Select Line */
