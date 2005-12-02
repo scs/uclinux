@@ -223,7 +223,8 @@ static int   enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE_PNP;
 
 #define ad1836_t_magic  0xa15a4501
 
-#ifndef MULTI_SUBSTREAM
+#ifdef CONFIG_SND_BLACKFIN_ADI1836_TDM
+#ifdef CONFIG_SND_BLACKFIN_ADI1836_5P1
 static unsigned int out_chan_masks[] = {
        SP_FL, /* Mono */
        SP_STEREO, /* Stereo */
@@ -236,6 +237,7 @@ static unsigned int out_chan_masks[] = {
 #endif
 
 static unsigned int in_chan_masks[] = {CAP_LINE, CAP_MIC|CAP_LINE, CAP_SPDIF};
+#endif
 
 typedef struct snd_ad1836 ad1836_t;
 struct snd_ad1836 {
@@ -1449,11 +1451,7 @@ static int snd_ad1836_trigger( snd_pcm_substream_t* substream, int cmd){
     return -EINVAL;
   }
 
-#ifdef CONFIG_SND_DEBUG
-printk("trigger: index=%d, dma_pos:0x%lx, cmd=0x%x, runmode=0x%x\n", index, chip->dma_pos, cmd, chip->runmode);
-#endif
   return 0;
-
 }
 
 /* we might as well merge the following too...*/
