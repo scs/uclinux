@@ -197,6 +197,9 @@ ENTRY(ex_soft_bp)
 	jump.s ex_trap_c;
 
 ENTRY(ex_single_step)
+	r7 = syscfg;
+	bitclr (r7, 0);
+	syscfg = R7;
 	/* 1. Check if in interrupt handler.
 	 * 2. If not, call ex_trap_c.
 	 */
