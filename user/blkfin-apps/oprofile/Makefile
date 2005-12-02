@@ -201,7 +201,7 @@ localstatedir = ${prefix}/var
 mandir = ${prefix}/man
 mkdir_p = mkdir -p --
 oldincludedir = /usr/include
-prefix = /usr/local
+prefix = $(ROOTDIR)/romfs/usr/local
 program_transform_name = s,x,x,
 sbindir = ${exec_prefix}/sbin
 sharedstatedir = ${prefix}/com
@@ -737,3 +737,8 @@ uninstall-info: uninstall-info-recursive
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.
 .NOEXPORT:
+romfs:
+	cp daemon/oprofiled $(ROOTDIR)/romfs/sbin/
+	cp pp/opannotate pp/opgprof pp/opreport pp/oparchive $(ROOTDIR)/romfs/sbin
+	cp utils/ophelp utils/opcontrol $(ROOTDIR)/romfs/sbin
+	chmod +x $(ROOTDIR)/romfs/sbin/opcontrol
