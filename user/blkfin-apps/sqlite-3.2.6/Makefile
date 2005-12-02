@@ -110,6 +110,8 @@ LTINSTALL = $(LIBTOOL) --mode=install $(INSTALL)
 OPTS += -DSQLITE_OMIT_CURSOR -DSQLITE_DISABLE_LFS  # Cursors do not work at this time
 TCC += -DSQLITE_OMIT_CURSOR 
 
+FLTFLAGS += -s 60000
+
 # Object files for the SQLite library.
 #
 LIBOBJ = alter.lo analyze.lo attach.lo auth.lo btree.lo build.lo \
