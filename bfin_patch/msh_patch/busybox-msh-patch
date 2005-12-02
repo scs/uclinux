@@ -1,5 +1,5 @@
 --- busybox-1.1.0-pre1/shell/msh.c	2005-11-01 07:55:25.000000000 +0800
-+++ busybox-1.1.0-msh/shell/msh.c	2005-11-25 12:01:16.000000000 +0800
++++ busybox-1.1.0-msh/shell/msh.c	2005-12-02 20:35:22.000000000 +0800
 @@ -54,10 +54,19 @@
  
  
@@ -96,7 +96,7 @@
  			}
  		}
  	}
-+	fprintf(stderr,"KSDBG:%s,%s\n",dolv[0],dolv[1]);
++	//fprintf(stderr,"KSDBG:%s,%s\n",dolv[0],dolv[1]);
  	setval(lookup("#"), putn((--dolc < 0) ? (dolc = 0) : dolc));
  
  	DBGPRINTF(("MSH_MAIN: begin FOR loop, interactive %d, e.iop 0x%x, iostack 0x%x\n", interactive, e.iop, iostack));
@@ -116,7 +116,7 @@
  static struct op *simple()
  {
  	REGISTER struct op *t;
-@@ -1921,7 +1940,38 @@
+@@ -1921,7 +1940,40 @@
  		case '>':
  			(void) synio(0);
  			break;
@@ -139,6 +139,8 @@
 +                                        stop_flag = 0;
 +                                c = my_getc(0);
 +                        }
++			unget(c);
++			unget(c);
 +			int func_end;
 +			func_end = e.iobase->argp->afpos;
 +			register_func(func_begin,func_end);
@@ -156,7 +158,7 @@
  		case WORD:
  			if (t == NULL) {
  				t = newtp();
-@@ -1930,7 +1980,7 @@
+@@ -1930,7 +1982,7 @@
  			peeksym = 0;
  			word(yylval.cp);
  			break;
@@ -165,7 +167,7 @@
  		default:
  			return (t);
  		}
-@@ -2052,7 +2102,6 @@
+@@ -2052,7 +2104,6 @@
  		word(NOWORD);			/* terminate  wdlist */
  		t->words = copyw();		/* dup wdlist */
  		break;
@@ -173,7 +175,7 @@
  	}
  
  	while (synio(0));
-@@ -2466,8 +2515,14 @@
+@@ -2466,8 +2517,14 @@
  	case ')':
  		startl = 1;
  		return (c);
@@ -189,7 +191,7 @@
  	unget(c);
  
    pack:
-@@ -2482,7 +2537,7 @@
+@@ -2482,7 +2539,7 @@
  
  	if (any(c, "\"'`$"))
  		goto loop;
@@ -198,7 +200,7 @@
  	*e.linep++ = '\0';
  
  	if (atstart && (c = rlookup(line)) != 0) {
-@@ -2491,10 +2546,158 @@
+@@ -2491,10 +2548,188 @@
  	}
  
  	yylval.cp = strsave(line, areanum);
@@ -209,6 +211,8 @@
 +		else
 +			zzerr();
 +	}
++	else
++		unget(c);
 +	/*read the first char*/
 +	/* To identify a function */
 +	if(!(strcmp(yylval.cp,"function"))){
@@ -285,31 +289,52 @@
 +/* Begin to execute the function */
 +static int cur_frame = 0;
 +static  void exec_func(struct func* f){
-+	int fd = e.iop->argp->afile;
-+	char buf[1024];
 +	int c;
- 
++	int temp_argc;
++	char** temp_argv;
++
 +	/*create a new frame,save the argument and return address to this frame*/
-+	cur_frame++;
 +	frame[cur_frame].argc = dolc;
 +	frame[cur_frame].argv = dolv;
 +	
++	cur_frame++;
 +	/*do some argment parse and set arguments*/
-+	dolv = (char *)malloc(sizeof(char *));
-+	dolv[0] = (char *)malloc(strlen(f->name));
-+	strcpy(dolv[0],f->name);
-+	dolc = 0;	
++	temp_argv = (char *)malloc(sizeof(char *));
++	temp_argv[0] = (char *)malloc(strlen(f->name));
++	strcpy(temp_argv[0],f->name);
++	temp_argc = 0;	
++	e.iop->argp->afpos--;
++	e.iop->argp->afbuf->bufp--;
++//	unget(c);
 +	while(((c = yylex(0)) != '\n') && (yylval.cp != NULL)){
-+		dolc++;
-+		dolv = realloc(dolv,sizeof(char *));
-+		dolv[dolc] = (char *)malloc(strlen(yylval.cp));
-+		strcpy(dolv[dolc],yylval.cp);
-+		fprintf(stderr,"ARG:%s\n",yylval.cp);
++		temp_argc++;
++		/*parse $ var if passed argument is a variable*/
++		if(yylval.cp[0] == '$'){
++			struct var *arg = lookup(&yylval.cp[1]);
++			temp_argv = realloc(temp_argv,sizeof(char *));
++			
++	                temp_argv[temp_argc] = (char *)malloc(strlen(arg->value));
++        	        strcpy(temp_argv[temp_argc],arg->value);
++			//fprintf(stderr,"arg->value=%s\n",arg->value);
++		}
++		else{
++			temp_argv = realloc(temp_argv,sizeof(char *));
++			temp_argv[temp_argc] = (char *)malloc(strlen(yylval.cp));
++			strcpy(temp_argv[temp_argc],yylval.cp);
++			//fprintf(stderr,"ARG:%s\n",yylval.cp);
++		}
+ 
 +	}
-+	unget(c);	
-+	while ((c = my_getc(0)) == ' ' || c == '\t')    /* Skip whitespace */
-+                ;
-+	unget(c);	
++	/*
++	e.iop->argp->afpos--;
++        e.iop->argp->afbuf->bufp--;
++	*/
++	dolc = temp_argc;
++	dolv = temp_argv;
++	//unget(c);	
++	//while ((c = my_getc(0)) == ' ' || c == '\t')    /* Skip whitespace */
++          //      ;
++	//unget(c);	
 +	frame[cur_frame].saved_return_addr = e.iop->argp->afpos;
 +
 +	/*get function begin address and execute this function */
@@ -333,23 +358,30 @@
 +		if(func_finished)
 +			break;
 +	}
-+	
-+	fprintf(stderr,"%s is finished @%d!\n",f->name,e.iop->argp->afpos);
++	//fprintf(stderr,"%s is finished @%d!\n",f->name,e.iop->argp->afpos);
++	int ret = frame[cur_frame].saved_return_addr;
++	/*workaround code for \n */
++	if(dolc)
++		ret--;	
++
++	/*get return address from current frame and jump to */
++	e.iop->argp->afpos = ret;
++	e.iop->argp->afbuf->bufp =  &(e.iop->argp->afbuf->buf[ret]);
++	/*	
++	fprintf(stderr,"******** after execution ********************\n");
++	fprintf(stderr," %s \n############# %d\n",e.iop->argp->afbuf->bufp,ret);
++	fprintf(stderr,"*******************************\n");
++	*/
++	/*we return to previous frame*/
++	cur_frame--;
 +	/*free some space occupied by argument*/
 +	while(dolc--)
 +		free(dolv[dolc]);
 +	free(dolv);
++
 +	/*recover argument for last function*/
 +	dolv = frame[cur_frame].argv;	
 +	dolc = frame[cur_frame].argc;
-+
-+	/*get return address from current frame and jump to */
-+	int ret = frame[cur_frame].saved_return_addr;
-+	e.iop->argp->afpos = ret;
-+	bp->bufp =  &(bp->buf[ret]);
-+
-+	/*we return to previous frame*/
-+	cur_frame--;
 +	/*If we are not in the outest frame, we should set func_finished to 0 that means we still in some function*/
 +	if(cur_frame != 0)
 +		func_finished = 0;
@@ -357,7 +389,7 @@
  static int collect(c, c1)
  REGISTER int c, c1;
  {
-@@ -2797,6 +3000,10 @@
+@@ -2797,6 +3032,10 @@
  		if (rv >= 0 && (t1 = t->left))
  			rv = execute(t1, pin, pout, 0);
  		break;
@@ -368,7 +400,7 @@
  
  	};
  
-@@ -4841,7 +5048,6 @@
+@@ -4841,7 +5080,6 @@
  		}
  
  	}							/* FOR */
@@ -376,7 +408,7 @@
  	if (e.iop >= iostack) {
  		RCPRINTF(("READC: return 0, e.iop 0x%x\n", e.iop));
  		return (0);
-@@ -5047,11 +5253,13 @@
+@@ -5047,11 +5285,13 @@
  	struct iobuf *bp = ap->afbuf;
  
  	if (ap->afid != AFID_NOBUF) {
@@ -392,7 +424,7 @@
  			i = safe_read(ap->afile, bp->buf, sizeof(bp->buf));
  
  			if (i <= 0) {
-@@ -5062,7 +5270,7 @@
+@@ -5062,7 +5302,7 @@
  			bp->id = ap->afid;
  			bp->ebufp = (bp->bufp = bp->buf) + i;
  		}
