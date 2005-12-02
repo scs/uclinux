@@ -53,6 +53,9 @@
 	/* save registers for post-mortem only */
 ENTRY(_evt_emulation)
 	SAVE_ALL_SYS
+#ifdef CONFIG_FRAME_POINTER
+	fp = 0;
+#endif
 	r0 = IRQ_EMU;
 	r1 = sp;
 	SP += -12;
@@ -65,6 +68,9 @@ ENTRY(_evt_emulation)
 /* interrupt routine for nmi - 2.  */
 ENTRY(_evt_nmi)
 	SAVE_ALL_SYS
+#ifdef CONFIG_FRAME_POINTER
+	fp = 0;
+#endif
 	r0 = IRQ_NMI;
 	r1 = sp;	    /* get return address (but not going back)  */
 	SP += -12;
@@ -75,6 +81,9 @@ ENTRY(_evt_nmi)
 /* interrupt routine for ivhw - 5 */
 ENTRY(_evt_ivhw)
 	SAVE_CONTEXT
+#ifdef CONFIG_FRAME_POINTER
+	fp = 0;
+#endif
 	p0.l = lo(TBUFCTL);
 	p0.h = hi(TBUFCTL);
 	r0 = 1;
@@ -89,6 +98,9 @@ ENTRY(_evt_ivhw)
 /* interrupt routine for core timer - 6 */
 ENTRY(_evt_timer)
 	SAVE_CONTEXT
+#ifdef CONFIG_FRAME_POINTER
+	fp = 0;
+#endif
 	/* SAVE_CONTEXT ignores IPEND; we need to save it since the user_mode
 	   macro accesses it to determine where to account time.  */
 	p2.l = lo(IPEND);
@@ -109,6 +121,9 @@ ENTRY(_evt_timer)
 /* interrupt routine for evt2 - 2.  This is NMI.  */
 ENTRY(_evt_evt2)
 	SAVE_CONTEXT
+#ifdef CONFIG_FRAME_POINTER
+	fp = 0;
+#endif
 	r0 = IRQ_NMI;
 	r1 =  sp;
 	SP += -12;
@@ -120,6 +135,9 @@ ENTRY(_evt_evt2)
 /* interrupt routine for evt7 - 7 */
 ENTRY(_evt_evt7)
 	SAVE_CONTEXT
+#ifdef CONFIG_FRAME_POINTER
+	fp = 0;
+#endif
  	r0 = EVT_IVG7_P;
 	r1 =  sp;
 	SP += -12;
@@ -132,6 +150,9 @@ ENTRY(_evt_evt7)
 /* interrupt routine for evt8 - 8 */
 ENTRY(_evt_evt8)
 	SAVE_CONTEXT
+#ifdef CONFIG_FRAME_POINTER
+	fp = 0;
+#endif
 	r0 = EVT_IVG8_P;
 	r1 =  sp;
 	SP += -12;
@@ -144,6 +165,9 @@ ENTRY(_evt_evt8)
 /* interrupt routine for evt9 - 9 */
 ENTRY(_evt_evt9)
 	SAVE_CONTEXT
+#ifdef CONFIG_FRAME_POINTER
+	fp = 0;
+#endif
 	r0 = EVT_IVG9_P;
 	r1 =  sp;
 	SP += -12;
@@ -156,6 +180,9 @@ ENTRY(_evt_evt9)
 /* interrupt routine for evt10	- 10 */
 ENTRY(_evt_evt10)
 	SAVE_CONTEXT
+#ifdef CONFIG_FRAME_POINTER
+	fp = 0;
+#endif
 	r0 = EVT_IVG10_P;
 	r1 =  sp;
 	SP += -12;
@@ -168,6 +195,9 @@ ENTRY(_evt_evt10)
 /* interrupt routine for evt11	- 11 */
 ENTRY(_evt_evt11)
 	SAVE_CONTEXT
+#ifdef CONFIG_FRAME_POINTER
+	fp = 0;
+#endif
 	r0 = EVT_IVG11_P;
 	r1 =  sp;
 	SP += -12;
@@ -180,6 +210,9 @@ ENTRY(_evt_evt11)
 /* interrupt routine for evt12	- 12 */
 ENTRY(_evt_evt12)
 	SAVE_CONTEXT
+#ifdef CONFIG_FRAME_POINTER
+	fp = 0;
+#endif
 	r0 = EVT_IVG12_P;
 	r1 =  sp;
 	SP += -12;
@@ -192,6 +225,9 @@ ENTRY(_evt_evt12)
  /* interrupt routine for evt13	- 13 */
 ENTRY(_evt_evt13)
 	SAVE_CONTEXT
+#ifdef CONFIG_FRAME_POINTER
+	fp = 0;
+#endif
 	r0 = EVT_IVG13_P;
 	r1 =  sp;
 	SP += -12;
@@ -204,6 +240,9 @@ ENTRY(_evt_evt13)
  /* interrupt routine for system_call - 15 */
 ENTRY(_evt_system_call)
 	SAVE_CONTEXT_SYSCALL
+#ifdef CONFIG_FRAME_POINTER
+	fp = 0;
+#endif
 	call system_call;
 	RESTORE_CONTEXT
 	rti;
