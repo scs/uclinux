@@ -10,4 +10,12 @@ CREATE TABLE user (
   password char(32) not null,
   email varchar(60) not null
 );
+
+INSERT INTO user VALUES (
+  0,
+  "foo",
+  "123",
+  "foo@test"
+);
+
 CREATE INDEX item_user on item (user_id);

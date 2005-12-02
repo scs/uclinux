@@ -175,9 +175,6 @@ void print_wishlist(struct user* u, struct item* w) {
       print_center("* * *");
   }
 
-  printf("%c", (char)12);
-  fflush(stdout);
-
 }
 
 struct user* user_populate(sqlite3_stmt* s) {
