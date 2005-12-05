@@ -260,7 +260,7 @@ static int bf561_channel2irq(unsigned int channel)
 		break;
 	case CH_MEM_STREAM2_SRC:
 	case CH_MEM_STREAM2_DEST:
-		ret_irq = IRQ_MEM_DMA3;
+		ret_irq = IRQ_MEM_DMA2;
 		break;
 	case CH_MEM_STREAM3_SRC:
 	case CH_MEM_STREAM3_DEST:
