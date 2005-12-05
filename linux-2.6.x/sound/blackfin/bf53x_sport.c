@@ -205,6 +205,27 @@ void bf53x_sport_done(struct bf53x_sport* sport){
     free( sport->dma_shadow_tx );
     free( sport->dma_shadow_rx );
 #endif
+    if( sport->dma_rx_desc ) 
+        free(sport->dma_rx_desc);
+    if( sport->dma_tx_desc ) 
+        free(sport->dma_tx_desc);
+    if( sport->dma_rx_expired_desc ) 
+        free(sport->dma_rx_expired_desc);
+    if( sport->dma_tx_expired_desc ) 
+        free(sport->dma_tx_expired_desc);
+    if( sport->dma_rx_expired2_desc ) 
+        free(sport->dma_rx_expired2_desc);
+    if( sport->dma_tx_expired2_desc ) 
+        free(sport->dma_tx_expired2_desc);
+      
+    sport->dma_rx_desc = NULL;
+    sport->dma_tx_desc = NULL;
+    sport->dma_rx_expired_desc = NULL;
+    sport->dma_tx_expired_desc = NULL;
+    sport->dma_rx_expired2_desc = NULL;
+    sport->dma_tx_expired2_desc = NULL;
+    sport->dma_rx_desc_changed = 0;
+    sport->dma_tx_desc_changed = 0;
   }
   free(sport);
 }
@@ -708,28 +729,6 @@ int bf53x_sport_stop(struct bf53x_sport* sport){
 
   disable_dma(sport->dma_rx_chan);
   disable_dma(sport->dma_tx_chan);
-
-  if( sport->dma_rx_desc ) 
-      free(sport->dma_rx_desc);
-  if( sport->dma_tx_desc ) 
-      free(sport->dma_tx_desc);
-  if( sport->dma_rx_expired_desc ) 
-      free(sport->dma_rx_expired_desc);
-  if( sport->dma_tx_expired_desc ) 
-      free(sport->dma_tx_expired_desc);
-  if( sport->dma_rx_expired2_desc ) 
-      free(sport->dma_rx_expired2_desc);
-  if( sport->dma_tx_expired2_desc ) 
-      free(sport->dma_tx_expired2_desc);
-      
-  sport->dma_rx_desc = NULL;
-  sport->dma_tx_desc = NULL;
-  sport->dma_rx_expired_desc = NULL;
-  sport->dma_tx_expired_desc = NULL;
-  sport->dma_rx_expired2_desc = NULL;
-  sport->dma_tx_expired2_desc = NULL;
-  sport->dma_rx_desc_changed = 0;
-  sport->dma_tx_desc_changed = 0;
 
 #ifdef BF53X_ANOMALY_29
   sport->is_running = 0;

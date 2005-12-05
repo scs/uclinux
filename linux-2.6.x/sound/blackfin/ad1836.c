@@ -163,6 +163,17 @@
 #define snd_printk_marker() 
 #endif
 
+/* When ADC2 works for Microphone, setting ADC2 in MUX/PGA mode.
+ * Setting J12 on AD1836 daughter card to 1-3 & 2-4. If undefine 
+ * ADC2_IS_MIC, setting J9 and J10  to 1-3 & 2-4, adc2 will work
+ * as line in, just the same as ADC1.
+ */
+#define ADC2_IS_MIC
+
+#ifdef CONFIG_SND_BLACKFIN_ADI1836_I2S
+#undef ADC2_IS_MIC
+#endif
+
 #undef CONFIG_SND_DEBUG_CURRPTR  /* causes output every frame! */
 
 #undef NOCONTROLS  /* define this to omit all the ALSA controls */
@@ -756,6 +767,7 @@ static int snd_ad1836_volume_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t 
   
 }
 
+#ifdef ADC2_IS_MIC
 static int snd_ad1836_adc_gain_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t *uinfo)
 {
   uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
@@ -800,6 +812,7 @@ static int snd_ad1836_adc_gain_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_
 
   return change;
 }
+#endif
 
 static int snd_ad1836_playback_mute_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t *uinfo)
 {
@@ -1098,10 +1111,9 @@ static int snd_ad1836_vu_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *uco
 static snd_kcontrol_new_t snd_ad1836_controls[] __devinitdata = { 
   KTRLRW( CARD,  "Digital Loopback Switch",  snd_ad1836_loopback_control ),
   KTRLRW( MIXER, "Master Playback Volume",   snd_ad1836_volume ),
-#ifdef CONFIG_SND_BLACKFIN_ADI1836_TDM
+#ifdef ADC2_IS_MIC
   KTRLRW( MIXER, "Mic Capture Volume",    snd_ad1836_adc_gain ),
 #endif
-  KTRLRW( MIXER, "Line Capture Volume",    snd_ad1836_adc_gain ),
   KTRLRW( MIXER, "Master Playback Switch",   snd_ad1836_playback_mute ),
   KTRLRW( MIXER, "Master Capture Switch",    snd_ad1836_capture_mute ),
   KTRLRW( MIXER, "Tone Contol DAC De-emphasis Switch", snd_ad1836_deemph ),
@@ -1200,7 +1212,7 @@ static int snd_ad1836_playback_open(snd_pcm_substream_t* substream){
   chip->tx_substream = substream;
 #endif
   substream->runtime->hw = snd_ad1836_playback_hw;
-  if ((!chip->reference) && (snd_ad1836_startup(chip)!=0)) {
+  if ((!chip->reference) && (bf53x_sport_start(chip->sport)!=0)) {
 	snd_printk(KERN_ERR"Failed to start up ad1836\n");
 	return -EFAULT;
   }
@@ -1221,7 +1233,7 @@ static int snd_ad1836_capture_open(snd_pcm_substream_t* substream){
 
   substream->runtime->hw = snd_ad1836_capture_hw;
   chip->rx_substream = substream;
-  if ((!chip->reference) && (snd_ad1836_startup(chip)!=0)) {
+  if ((!chip->reference) && (bf53x_sport_start(chip->sport)!=0)) {
 	snd_printk(KERN_ERR"Failed to start up ad1836\n");
 	return -EFAULT;
   }
@@ -1807,7 +1819,12 @@ static int snd_ad1836_startup(ad1836_t *chip)
 	/* sport in aux/slave mode cf daughtercard schematics */
 	err = snd_ad1836_set_register(chip, ADC_CTRL_2, (ADC_AUX_MASTER|ADC_SOUT_MASK),  
 			( /*ADC_AUX_MASTER|*/ ADC_SOUT_PMAUX));  
+#ifdef ADC2_IS_MIC
+	err = err || snd_ad1836_set_register(chip, ADC_CTRL_3, ADC_MODE_MASK, \
+			ADC_LEFT_SE | ADC_RIGHT_SE | ADC_LEFT_MUX | ADC_RIGHT_MUX);
+#endif
 	err = err || snd_ad1836_set_register(chip, DAC_CTRL_1, DAC_PWRDWN, 0);  /* power-up DAC's */
+
 	err = err || snd_ad1836_set_register(chip, ADC_CTRL_1, ADC_PRWDWN, 0);  /* power-up ADC's */
 
 	/* set volume to full scale, (you might assume these won't fail anymore) */
@@ -1832,8 +1849,12 @@ static int snd_ad1836_startup(ad1836_t *chip)
 
 	if(err)
 		snd_printk( KERN_ERR "Unable to set sport configuration\n");
-	else
-		bf53x_sport_start(sport);
+
+#ifdef MULTI_SUBSTREAM		
+	chip->dma_pos = 0;
+	chip->dma_offset[0] = chip->dma_offset[1] = 0;
+	chip->dma_offset[2] = 0;
+#endif
 
 	return err;
 }
@@ -1869,13 +1890,6 @@ static int snd_ad1836_startup(ad1836_t *chip)
 	err = err || sport_config_tx_dummy( sport );
 	if(err)
 		snd_printk( KERN_ERR "Unable to set sport configuration\n");
-	else
-		bf53x_sport_start(sport);
-#ifdef MULTI_SUBSTREAM		
-	chip->dma_pos = 0;
-	chip->dma_offset[0] = chip->dma_offset[1] = 0;
-	chip->dma_offset[2] = 0;
-#endif
 
 	return err;
 }
@@ -2122,6 +2136,10 @@ static int __devinit snd_bf53x_adi1836_probe(struct bf53x_spi* spi,
 
   snd_assert( ((ad1836_t*)(card->private_data))->card == card, panic("inconsistency") );
 
+  if ((err= snd_ad1836_startup(chip))<0) {
+    snd_card_free(card);
+    return err;
+  }
   strcpy(card->driver, "adi1836");
   strcpy(card->shortname, CHIP_NAME);
   sprintf(card->longname, "%s at SPI irq %d/%d, SPORT%d rx/tx dma %d/%d err irq /%d ", 
@@ -2228,8 +2246,10 @@ static irqreturn_t snd_adi1836_sport_handler_rx(ad1836_t* chip, int irq){
   
   bf53x_sport_check_status( chip->sport, NULL, &rx_stat, NULL );  
     
-  if( !(rx_stat & DMA_DONE) )
-    return IRQ_NONE;
+  if( !(rx_stat & DMA_DONE) ) {
+    snd_printk(KERN_ERR"Error - Receive DMA is already stopped\n");
+    return IRQ_HANDLED;
+  }
 
   if( bf53x_sport_is_rx_desc_changed(chip->sport) )
     return IRQ_HANDLED;
@@ -2281,8 +2301,10 @@ static irqreturn_t snd_adi1836_sport_handler_tx(ad1836_t* chip, int irq){
   
   bf53x_sport_check_status( chip->sport, NULL, NULL, &tx_stat );  
   
-  if( !(tx_stat & DMA_DONE))
-    return IRQ_NONE;
+  if( !(tx_stat & DMA_DONE)) {
+    snd_printk(KERN_ERR"Error - Transfer DMA is already stopped\n");
+    return IRQ_HANDLED;
+  }
 
   if( bf53x_sport_is_tx_desc_changed(chip->sport) )
     return IRQ_HANDLED;

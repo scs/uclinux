@@ -122,6 +122,7 @@
 #define ADC_CLOCK_512       0x0040
 #define ADC_CLOCK_768       0x0080
 
+#define ADC_MODE_MASK	    0x003F
 #define ADC_LEFT_SE         0x0020
 #define ADC_RIGHT_SE        0x0010
 #define ADC_LEFT_MUX        0x0008
