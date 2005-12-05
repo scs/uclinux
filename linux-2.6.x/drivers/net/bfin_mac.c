@@ -38,7 +38,6 @@ static const char version[] =
 #include <linux/dma-mapping.h>
 
 #include "bfin_mac.h"
-#include <asm/blackfin.h>
 
 #include <asm/irq.h>
 #include <asm/blackfin.h>
@@ -410,7 +409,6 @@ static int bf537mac_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
     current_tx_ptr->desc_a.start_addr = (unsigned long)data;
     blackfin_dcache_invalidate_range(data, (data+(skb->len)));  //this is important!
   } else {
-    printk("skb data not aligned, 0x%x, 0x%x\n", (unsigned int)(skb->data),(unsigned int)(current_tx_ptr->packet));
     *((unsigned short *)(current_tx_ptr->packet)) = (unsigned short)(skb->len);
     memcpy((char *)(current_tx_ptr->packet + 2),skb->data,(skb->len));
     current_tx_ptr->desc_a.start_addr = (unsigned long)current_tx_ptr->packet;
@@ -588,7 +586,26 @@ static struct net_device_stats *bf537mac_query_statistics(struct net_device *dev
  */
 static void bf537mac_set_multicast_list(struct net_device *dev)
 {
+	u32 sysctl;
 
+	if (dev->flags & IFF_PROMISC) {
+		printk(KERN_INFO "%s: set to promisc mode\n", dev->name);
+		sysctl = *pEMAC_OPMODE;
+		sysctl |= RAF;
+		*pEMAC_OPMODE  = sysctl;
+	} else if (dev->flags & IFF_ALLMULTI || dev->mc_count > 16) {
+		/* accept all multicast */
+		sysctl = *pEMAC_OPMODE;
+		sysctl |= PAM;
+		*pEMAC_OPMODE  = sysctl;
+	} else if (dev->mc_count) {
+		/* set multicast */
+	} else {
+		/* clear promisc or multicast mode */
+		sysctl = *pEMAC_OPMODE;
+		sysctl &= ~(RAF | PAM);		
+		*pEMAC_OPMODE  = sysctl;
+	}	
 }
 
 
@@ -598,8 +615,6 @@ static void bf537mac_set_multicast_list(struct net_device *dev)
  */
 static void bf537mac_shutdown(struct net_device *dev)
 {
-  //printk("Eth_shutdown: ......\n");
-  
   /* Turn off the EMAC */
   *pEMAC_OPMODE = 0x00000000;
   /* Turn off the EMAC RX DMA */
@@ -668,6 +683,9 @@ static int __init bf537mac_probe(struct net_device *dev)
   unsigned long tmp;
   int retval;
 
+  *(u32 *)(&(dev->dev_addr[0])) = *pEMAC_ADDRLO;
+  *(u16 *)(&dev->dev_addr[4]) = (u16)*pEMAC_ADDRHI;
+
   /* probe mac */
   //todo: how to proble? which is revision_register
   *pEMAC_ADDRLO = 0x12345678;
@@ -678,12 +696,6 @@ static int __init bf537mac_probe(struct net_device *dev)
     goto err_out;
   }
 
-  //GET_MAC_ADDR(dev->dev_addr);
-  {
-    dev->dev_addr[0] = 0x02; dev->dev_addr[1] = 0x80;
-    dev->dev_addr[2] = 0xAD; dev->dev_addr[3] = 0x20;
-    dev->dev_addr[4] = 0x31; dev->dev_addr[4] = 0xB8;
-  }
   SetupMacAddr(dev->dev_addr);
 
   /* Fill in the fields of the device structure with ethernet values. */
@@ -719,32 +731,10 @@ static int __init bf537mac_probe(struct net_device *dev)
     return -EBUSY;
   }
 
-  /*
-  if (request_irq(IRQ_MAC_ERROR, bf537mac_interrupt1, SA_INTERRUPT|SA_SHIRQ, "BFIN537_MAC_error",dev)) {
-    printk("Unable to attach BlackFin MAC RX interrupt\n");
-    return -EBUSY;
-  }
-
- 
-  if (request_irq(IRQ_MAC_TX, bf537mac_interrupt2, SA_INTERRUPT|SA_SHIRQ, "BFIN537_MAC_tx",dev)) {
-    printk("Unable to attach BlackFin MAC RX interrupt\n");
-    return -EBUSY;
-  }
-  */
-  
-
-  /*
-  if (request_irq(IRQ_MAC_ERROR, bf537mac_interrupt, SA_INTERRUPT|SA_SHIRQ, "BFIN537_MAC_ERROR",lp)) {
-    printk("Unable to attach BlackFin MAC error interrupt\n"); 
-    return -EBUSY; 
-  }
-  */
-
-
   retval = register_netdev(dev);
   if (retval == 0) {
     /* now, print out the card info, in a short format.. */
-    //printk("Blackfin 537 mac net device registered.\n");
+    printk(KERN_INFO "Blackfin 537 mac net device registered.\n");
   }
   
  err_out:
