@@ -411,45 +411,50 @@ config UNCACHED_1M
 
 menu	"Clock Settings"
 
-comment 'VCO Multiplier'
+config BFIN_KERNEL_CLOCK
+	bool "Re-program Clocks while Kernel boots?"
+	default n
+	help
+	  This option decides if kernel clocks are re-programed from the bootloader
+	  settings. If the clocks are not set, the SDRAM settings are also not
+	  changed, and the Bootloader does 100% of the hardware configuration.
 
 config VCO_MULT
 	int "VCO Multiplier"
+	depends on BFIN_KERNEL_CLOCK
 	default "22" if BFIN533_EZKIT
 	default "45" if BFIN533_STAMP
-	default "45" if BFIN537_STAMP
+	default "20" if BFIN537_STAMP
 	default "22" if BFIN533_BLUETECHNIX_CM
 	default "20" if BFIN561_EZKIT
 
-comment 'Core Clock Divider'
-
 config CCLK_DIV
 	int "Core Clock Divider"
+	depends on BFIN_KERNEL_CLOCK
 	default 1 if BFIN533_EZKIT
 	default 1 if BFIN533_STAMP
 	default 1 if BFIN537_STAMP
 	default 1 if BFIN533_BLUETECHNIX_CM
 	default 1 if BFIN561_EZKIT
 
-comment 'System Clock Divider'
-
 config SCLK_DIV
 	int "System Clock Divider"
+	depends on BFIN_KERNEL_CLOCK
 	default 5 if BFIN533_EZKIT
 	default 5 if BFIN533_STAMP
-	default 5 if BFIN537_STAMP
+	default 4 if BFIN537_STAMP
 	default 5 if BFIN533_BLUETECHNIX_CM
 	default 5 if BFIN561_EZKIT
 
-comment 'Half clockin'
-
 config CLKIN_HALF
 	bool "Half ClockIn"
-
-comment 'Bypass PLL'
+	depends on BFIN_KERNEL_CLOCK
+	default n
 
 config PLL_BYPASS
 	bool "Bypass PLL"
+	depends on BFIN_KERNEL_CLOCK
+	default n
 
 endmenu
 

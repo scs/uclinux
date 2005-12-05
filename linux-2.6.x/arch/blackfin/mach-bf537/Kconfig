@@ -21,15 +21,6 @@ config BF537_PORT_G
 	  Quick Hack for BF537/6/4 default GPIO PFx PORTG
 endchoice
 
-config LOADVDSP
-	bool 'Disable some startup code to load the kernel using VDSP'
-	depends on BLACKFIN
-	default n
-	help
-	  Disable some startup code to load the kernel using VDSP
-
-
-
 comment	'Interrupt Priority Assignment'
 menu	'Priority'
 

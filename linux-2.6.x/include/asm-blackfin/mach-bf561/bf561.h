@@ -242,6 +242,7 @@
 #define AMGCTLVAL	(V_AMBEN | V_AMCKEN | V_CDPRIO | V_B0PEN | V_B1PEN | V_B2PEN | V_B3PEN | 0x0002)
 
 /******************************* PLL Settings ********************************/
+#if CONFIG_BFIN_KERNEL_CLOCK
 #if (CONFIG_VCO_MULT < 0)
 #error "VCO Multiplier is less than 0. Please select a different value"
 #endif
@@ -319,6 +320,8 @@
 #ifndef CONFIG_CCLK_ACT_DIV
 #define CONFIG_CCLK_ACT_DIV   CONFIG_CCLK_DIV_not_defined_properly
 #endif
+
+#endif /* CONFIG_BFIN_KERNEL_CLOCK */
 
 #ifdef CONFIG_BF561
 #define CPU "BF561"

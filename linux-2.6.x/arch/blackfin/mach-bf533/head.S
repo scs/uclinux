@@ -186,7 +186,9 @@ fill_temp_vector_table:
 
 	/*Put The Code for PLL Programming and SDRAM Programming in L1 ISRAM*/
 	call _bf53x_relocate_l1_mem;
+#if CONFIG_BFIN_KERNEL_CLOCK
 	call start_dma_code;
+#endif
 
 	/* Code for initializing Async memory banks */
 
@@ -319,6 +321,7 @@ _exit:
 	
 .section .text.l1
 ENTRY(start_dma_code)
+#if CONFIG_BFIN_KERNEL_CLOCK
 	p0.h = hi(SIC_IWR);
 	p0.l = lo(SIC_IWR);
 	r0.l = 0x1;
@@ -416,6 +419,7 @@ skip:
         SSYNC;
 
 	RTS;
+#endif /* CONFIG_BFIN_KERNEL_CLOCK */
 
 ENTRY(_reset)
 	/* No more interrupts to be handled*/

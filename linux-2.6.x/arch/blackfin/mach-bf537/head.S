@@ -181,9 +181,9 @@ ENTRY(__stext)
         fp = sp;
         usp = sp;
 
-#ifndef CONFIG_LOADVDSP
 	/*Put The Code for PLL Programming and SDRAM Programming in L1 ISRAM*/
 	call _bf53x_relocate_l1_mem;
+#if CONFIG_BFIN_KERNEL_CLOCK
 	call start_dma_code;
 #endif
 	/* Code for initializing Async memory banks */
@@ -207,9 +207,8 @@ ENTRY(__stext)
         r0 = AMGCTLVAL;
         w[p2] = r0;
         ssync;
-#ifndef CONFIG_LOADVDSP
         call _real_start;
-#endif
+
 	/* This section keeps the processor in supervisor mode
          * during kernel boot.  Switches to user mode at end of boot.
 	 * See page 3-9 of Hardware Reference manual for documentation.
@@ -319,6 +318,7 @@ _exit:
 
 .section .text.l1
 ENTRY(start_dma_code)
+#if CONFIG_BFIN_KERNEL_CLOCK
 	p0.h = hi(SIC_IWR);
 	p0.l = lo(SIC_IWR);
 	r0.l = 0x1;
@@ -416,6 +416,7 @@ skip:
         SSYNC;
 
 	RTS;
+#endif /* CONFIG_BFIN_KERNEL_CLOCK */
 
 ENTRY(_reset)
 	/* No more interrupts to be handled*/
