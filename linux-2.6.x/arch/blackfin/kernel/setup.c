@@ -291,10 +291,20 @@ void __init setup_arch(char **cmdline_p)
 
 }
 
+#if defined (CONFIG_BF561)
+static struct cpu cpu[2];
+#else
 static struct cpu cpu[1];
+#endif
 static int __init topology_init(void)
 {
+#if defined (CONFIG_BF561)
+	register_cpu(&cpu[0], 0, NULL);
+	register_cpu(&cpu[1], 1, NULL);
+	return 0;
+#else
 	return register_cpu(cpu, 0, NULL);
+#endif
 }
 
 subsys_initcall(topology_init);
