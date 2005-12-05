@@ -1,0 +1,60 @@
+add1sp.o add1sp.o: add1sp.c \
+  /home/ksh/new_toolchain-uclinux/lib/gcc/bfin-uclinux/3.4.4/../../../../bfin-uclinux/include/stdio.h \
+  /home/ksh/new_toolchain-uclinux/lib/gcc/bfin-uclinux/3.4.4/../../../../bfin-uclinux/include/features.h \
+  /home/ksh/new_toolchain-uclinux/lib/gcc/bfin-uclinux/3.4.4/../../../../bfin-uclinux/include/bits/uClibc_config.h \
+  /home/ksh/new_toolchain-uclinux/lib/gcc/bfin-uclinux/3.4.4/../../../../bfin-uclinux/include/sys/cdefs.h \
+  /home/ksh/new_toolchain-uclinux/lib/gcc/bfin-uclinux/3.4.4/include/stddef.h \
+  /home/ksh/new_toolchain-uclinux/lib/gcc/bfin-uclinux/3.4.4/../../../../bfin-uclinux/include/bits/types.h \
+  /home/ksh/new_toolchain-uclinux/lib/gcc/bfin-uclinux/3.4.4/../../../../bfin-uclinux/include/bits/kernel_types.h \
+  /home/ksh/new_toolchain-uclinux/lib/gcc/bfin-uclinux/3.4.4/../../../../bfin-uclinux/include/bits/pthreadtypes.h \
+  /home/ksh/new_toolchain-uclinux/lib/gcc/bfin-uclinux/3.4.4/../../../../bfin-uclinux/include/bits/sched.h \
+  /home/ksh/new_toolchain-uclinux/lib/gcc/bfin-uclinux/3.4.4/../../../../bfin-uclinux/include/bits/uClibc_stdio.h \
+  /home/ksh/new_toolchain-uclinux/lib/gcc/bfin-uclinux/3.4.4/../../../../bfin-uclinux/include/wchar.h \
+  /home/ksh/new_toolchain-uclinux/lib/gcc/bfin-uclinux/3.4.4/../../../../bfin-uclinux/include/bits/wchar.h \
+  /home/ksh/new_toolchain-uclinux/lib/gcc/bfin-uclinux/3.4.4/include/stdarg.h \
+  /home/ksh/new_toolchain-uclinux/lib/gcc/bfin-uclinux/3.4.4/../../../../bfin-uclinux/include/bits/stdio_lim.h \
+  mpfr-impl.h ../../../lib/gmp/gmp.h ../../../lib/gmp/gmp-impl.h \
+  ../../../lib/gmp/config.h ../../../lib/gmp/gmp-mparam.h \
+  ../../../lib/gmp/longlong.h mpfr.h
+
+/home/ksh/new_toolchain-uclinux/lib/gcc/bfin-uclinux/3.4.4/../../../../bfin-uclinux/include/stdio.h:
+
+/home/ksh/new_toolchain-uclinux/lib/gcc/bfin-uclinux/3.4.4/../../../../bfin-uclinux/include/features.h:
+
+/home/ksh/new_toolchain-uclinux/lib/gcc/bfin-uclinux/3.4.4/../../../../bfin-uclinux/include/bits/uClibc_config.h:
+
+/home/ksh/new_toolchain-uclinux/lib/gcc/bfin-uclinux/3.4.4/../../../../bfin-uclinux/include/sys/cdefs.h:
+
+/home/ksh/new_toolchain-uclinux/lib/gcc/bfin-uclinux/3.4.4/include/stddef.h:
+
+/home/ksh/new_toolchain-uclinux/lib/gcc/bfin-uclinux/3.4.4/../../../../bfin-uclinux/include/bits/types.h:
+
+/home/ksh/new_toolchain-uclinux/lib/gcc/bfin-uclinux/3.4.4/../../../../bfin-uclinux/include/bits/kernel_types.h:
+
+/home/ksh/new_toolchain-uclinux/lib/gcc/bfin-uclinux/3.4.4/../../../../bfin-uclinux/include/bits/pthreadtypes.h:
+
+/home/ksh/new_toolchain-uclinux/lib/gcc/bfin-uclinux/3.4.4/../../../../bfin-uclinux/include/bits/sched.h:
+
+/home/ksh/new_toolchain-uclinux/lib/gcc/bfin-uclinux/3.4.4/../../../../bfin-uclinux/include/bits/uClibc_stdio.h:
+
+/home/ksh/new_toolchain-uclinux/lib/gcc/bfin-uclinux/3.4.4/../../../../bfin-uclinux/include/wchar.h:
+
+/home/ksh/new_toolchain-uclinux/lib/gcc/bfin-uclinux/3.4.4/../../../../bfin-uclinux/include/bits/wchar.h:
+
+/home/ksh/new_toolchain-uclinux/lib/gcc/bfin-uclinux/3.4.4/include/stdarg.h:
+
+/home/ksh/new_toolchain-uclinux/lib/gcc/bfin-uclinux/3.4.4/../../../../bfin-uclinux/include/bits/stdio_lim.h:
+
+mpfr-impl.h:
+
+../../../lib/gmp/gmp.h:
+
+../../../lib/gmp/gmp-impl.h:
+
+../../../lib/gmp/config.h:
+
+../../../lib/gmp/gmp-mparam.h:
+
+../../../lib/gmp/longlong.h:
+
+mpfr.h:

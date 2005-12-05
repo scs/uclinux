@@ -1,0 +1,18 @@
+dim.o dim.o: dim.c mpfr-impl.h ../../../lib/gmp/gmp.h \
+  /home/ksh/new_toolchain-uclinux/lib/gcc/bfin-uclinux/3.4.4/include/stddef.h \
+  ../../../lib/gmp/gmp-impl.h ../../../lib/gmp/config.h \
+  ../../../lib/gmp/gmp-mparam.h mpfr.h
+
+mpfr-impl.h:
+
+../../../lib/gmp/gmp.h:
+
+/home/ksh/new_toolchain-uclinux/lib/gcc/bfin-uclinux/3.4.4/include/stddef.h:
+
+../../../lib/gmp/gmp-impl.h:
+
+../../../lib/gmp/config.h:
+
+../../../lib/gmp/gmp-mparam.h:
+
+mpfr.h:

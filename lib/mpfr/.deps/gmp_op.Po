@@ -1,0 +1,18 @@
+gmp_op.o gmp_op.o: gmp_op.c \
+  /home/ksh/new_toolchain-uclinux/lib/gcc/bfin-uclinux/3.4.4/include/stddef.h \
+  mpfr-impl.h ../../../lib/gmp/gmp.h ../../../lib/gmp/gmp-impl.h \
+  ../../../lib/gmp/config.h ../../../lib/gmp/gmp-mparam.h mpfr.h
+
+/home/ksh/new_toolchain-uclinux/lib/gcc/bfin-uclinux/3.4.4/include/stddef.h:
+
+mpfr-impl.h:
+
+../../../lib/gmp/gmp.h:
+
+../../../lib/gmp/gmp-impl.h:
+
+../../../lib/gmp/config.h:
+
+../../../lib/gmp/gmp-mparam.h:
+
+mpfr.h:

@@ -1,0 +1,45 @@
+set_uj.o set_uj.o: set_uj.c \
+  /home/ksh/new_toolchain-uclinux/lib/gcc/bfin-uclinux/3.4.4/../../../../bfin-uclinux/include/stdint.h \
+  /home/ksh/new_toolchain-uclinux/lib/gcc/bfin-uclinux/3.4.4/../../../../bfin-uclinux/include/features.h \
+  /home/ksh/new_toolchain-uclinux/lib/gcc/bfin-uclinux/3.4.4/../../../../bfin-uclinux/include/bits/uClibc_config.h \
+  /home/ksh/new_toolchain-uclinux/lib/gcc/bfin-uclinux/3.4.4/../../../../bfin-uclinux/include/sys/cdefs.h \
+  /home/ksh/new_toolchain-uclinux/lib/gcc/bfin-uclinux/3.4.4/../../../../bfin-uclinux/include/bits/wchar.h \
+  /home/ksh/new_toolchain-uclinux/lib/gcc/bfin-uclinux/3.4.4/../../../../bfin-uclinux/include/bits/wordsize.h \
+  /home/ksh/new_toolchain-uclinux/lib/gcc/bfin-uclinux/3.4.4/../../../../bfin-uclinux/include/inttypes.h \
+  /home/ksh/new_toolchain-uclinux/lib/gcc/bfin-uclinux/3.4.4/include/limits.h \
+  mpfr-impl.h ../../../lib/gmp/gmp.h \
+  /home/ksh/new_toolchain-uclinux/lib/gcc/bfin-uclinux/3.4.4/include/stddef.h \
+  ../../../lib/gmp/gmp-impl.h ../../../lib/gmp/config.h \
+  ../../../lib/gmp/gmp-mparam.h ../../../lib/gmp/longlong.h mpfr.h
+
+/home/ksh/new_toolchain-uclinux/lib/gcc/bfin-uclinux/3.4.4/../../../../bfin-uclinux/include/stdint.h:
+
+/home/ksh/new_toolchain-uclinux/lib/gcc/bfin-uclinux/3.4.4/../../../../bfin-uclinux/include/features.h:
+
+/home/ksh/new_toolchain-uclinux/lib/gcc/bfin-uclinux/3.4.4/../../../../bfin-uclinux/include/bits/uClibc_config.h:
+
+/home/ksh/new_toolchain-uclinux/lib/gcc/bfin-uclinux/3.4.4/../../../../bfin-uclinux/include/sys/cdefs.h:
+
+/home/ksh/new_toolchain-uclinux/lib/gcc/bfin-uclinux/3.4.4/../../../../bfin-uclinux/include/bits/wchar.h:
+
+/home/ksh/new_toolchain-uclinux/lib/gcc/bfin-uclinux/3.4.4/../../../../bfin-uclinux/include/bits/wordsize.h:
+
+/home/ksh/new_toolchain-uclinux/lib/gcc/bfin-uclinux/3.4.4/../../../../bfin-uclinux/include/inttypes.h:
+
+/home/ksh/new_toolchain-uclinux/lib/gcc/bfin-uclinux/3.4.4/include/limits.h:
+
+mpfr-impl.h:
+
+../../../lib/gmp/gmp.h:
+
+/home/ksh/new_toolchain-uclinux/lib/gcc/bfin-uclinux/3.4.4/include/stddef.h:
+
+../../../lib/gmp/gmp-impl.h:
+
+../../../lib/gmp/config.h:
+
+../../../lib/gmp/gmp-mparam.h:
+
+../../../lib/gmp/longlong.h:
+
+mpfr.h:
