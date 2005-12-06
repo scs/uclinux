@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
 # Linux kernel version: 2.6.12.1
-# Tue Dec  6 17:35:00 2005
+# Tue Dec  6 18:13:27 2005
 #
 # CONFIG_MMU is not set
 # CONFIG_FPU is not set
@@ -55,7 +55,7 @@ CONFIG_BASE_SMALL=0
 CONFIG_MODULES=y
 CONFIG_MODULE_UNLOAD=y
 # CONFIG_MODULE_FORCE_UNLOAD is not set
-# CONFIG_OBSOLETE_MODPARM=y
+CONFIG_OBSOLETE_MODPARM=y
 # CONFIG_MODVERSIONS is not set
 # CONFIG_MODULE_SRCVERSION_ALL is not set
 CONFIG_KMOD=y
@@ -450,30 +450,15 @@ CONFIG_INET=y
 # CONFIG_NET_IPIP is not set
 # CONFIG_NET_IPGRE is not set
 # CONFIG_ARPD is not set
-# CONFIG_SYN_COOKIES is not set
+CONFIG_SYN_COOKIES=y
 # CONFIG_INET_AH is not set
 # CONFIG_INET_ESP is not set
 # CONFIG_INET_IPCOMP is not set
 # CONFIG_INET_TUNNEL is not set
-# CONFIG_IP_TCPDIAG is not set
+CONFIG_IP_TCPDIAG=y
 # CONFIG_IP_TCPDIAG_IPV6 is not set
-
-#
-# IP: Virtual Server Configuration
-#
-# CONFIG_IP_VS is not set
 # CONFIG_IPV6 is not set
-CONFIG_NETFILTER=y
-# CONFIG_NETFILTER_DEBUG is not set
-
-#
-# IP: Netfilter Configuration
-#
-# CONFIG_IP_NF_CONNTRACK is not set
-# CONFIG_IP_NF_CONNTRACK_MARK is not set
-# CONFIG_IP_NF_QUEUE is not set
-# CONFIG_IP_NF_IPTABLES is not set
-# CONFIG_IP_NF_ARPTABLES is not set
+# CONFIG_NETFILTER is not set
 
 #
 # SCTP Configuration (EXPERIMENTAL)
@@ -644,9 +629,12 @@ CONFIG_BLACKFIN_RTC=y
 # File systems
 #
 CONFIG_EXT2_FS=y
-# CONFIG_EXT2_FS_XATTR is not set
+CONFIG_EXT2_FS_XATTR=y
+# CONFIG_EXT2_FS_POSIX_ACL is not set
+# CONFIG_EXT2_FS_SECURITY is not set
 # CONFIG_EXT3_FS is not set
 # CONFIG_JBD is not set
+CONFIG_FS_MBCACHE=y
 # CONFIG_REISERFS_FS is not set
 # CONFIG_JFS_FS is not set
 
@@ -657,7 +645,7 @@ CONFIG_EXT2_FS=y
 # CONFIG_MINIX_FS is not set
 # CONFIG_ROMFS_FS is not set
 # CONFIG_QUOTA is not set
-# CONFIG_DNOTIFY is not set
+CONFIG_DNOTIFY=y
 # CONFIG_AUTOFS_FS is not set
 # CONFIG_AUTOFS4_FS is not set
 
@@ -812,14 +800,14 @@ CONFIG_NLS_DEFAULT="iso8859-1"
 #
 # Kernel hacking
 #
-CONFIG_DEBUG_INFO=y
+# CONFIG_DEBUG_INFO is not set
 # CONFIG_DEBUG_KERNEL is not set
 # CONFIG_DEBUG_HWERR is not set
 # CONFIG_FRAME_POINTER is not set
 # CONFIG_MAGIC_SYSRQ is not set
 # CONFIG_BOOTPARAM is not set
 # CONFIG_NO_KERNEL_MSG is not set
-# CONFIG_CPLB_INFO is not set
+CONFIG_CPLB_INFO=y
 
 #
 # Security options
