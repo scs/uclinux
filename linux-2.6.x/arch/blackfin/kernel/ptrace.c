@@ -467,7 +467,9 @@ asmlinkage int sys_ptrace(long request, long pid, long addr, long data)
 	switch (request) {
 		/* when I and D space are separate, these will need to be fixed. */
 	case PTRACE_PEEKDATA:
+#ifdef DEBUG
 		printk("PTRACE_PEEKDATA\n");
+#endif
 		add = MAX_SHARED_LIBS * 4;	/* space between text and data */
 		/* fall through */
 	case PTRACE_PEEKTEXT:	/* read word at location addr. */
