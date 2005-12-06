@@ -681,6 +681,7 @@ bool 'lilo'			CONFIG_USER_LILO_LILO
 bool 'lissa'			CONFIG_USER_LISSA_LISSA
 bool 'devtest'			CONFIG_USER_BLKFIN_APPS_DEVFBAPP_DEVTEST
 bool 'devout'			CONFIG_USER_BLKFIN_APPS_DEVVOUT_DEVOUT
+bool 'corebld'			CONFIG_USER_BF561_COREBLD
 bool 'lpr'				CONFIG_USER_LPR
 bool 'mcf5272 cbi client'       CONFIG_USER_USBCBI_USBCBI
 bool 'mcf5272 iso client'       CONFIG_USER_USBISO_USBISO
