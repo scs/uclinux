@@ -35,6 +35,7 @@ static irqreturn_t coreb_dma_interrupt(int irq, void *dev_id, struct pt_regs *re
 {
 	clear_dma_irqstat(CH_MEM_STREAM2_DEST);
 	wake_up(&coreb_dma_wait);
+	return IRQ_HANDLED;
 }
 
 static ssize_t coreb_write(struct file *file, const char *buf, size_t count, loff_t *ppos)
