@@ -265,8 +265,6 @@ struct snd_ad1836 {
   unsigned int in_chan_mask;
 #endif
 
-  int	 reference;
-
   wait_queue_head_t   spi_waitq;
   int	spi_data_ready;
   uint16_t chip_registers[16];
@@ -1212,12 +1210,6 @@ static int snd_ad1836_playback_open(snd_pcm_substream_t* substream){
   chip->tx_substream = substream;
 #endif
   substream->runtime->hw = snd_ad1836_playback_hw;
-  if ((!chip->reference) && (bf53x_sport_start(chip->sport)!=0)) {
-	snd_printk(KERN_ERR"Failed to start up ad1836\n");
-	return -EFAULT;
-  }
-  chip->reference++;
-
 
   return 0;
 
@@ -1233,11 +1225,6 @@ static int snd_ad1836_capture_open(snd_pcm_substream_t* substream){
 
   substream->runtime->hw = snd_ad1836_capture_hw;
   chip->rx_substream = substream;
-  if ((!chip->reference) && (bf53x_sport_start(chip->sport)!=0)) {
-	snd_printk(KERN_ERR"Failed to start up ad1836\n");
-	return -EFAULT;
-  }
-  chip->reference++;
 
   return 0;
 }
@@ -1262,8 +1249,6 @@ static int snd_ad1836_playback_close(snd_pcm_substream_t* substream){
 #else
   chip->tx_substream = NULL;
 #endif
-  if (!--chip->reference)
-	bf53x_sport_stop(chip->sport);
  
   return 0;
 }
@@ -1276,8 +1261,6 @@ static int snd_ad1836_capture_close(snd_pcm_substream_t* substream){
   snd_printk_marker();
 
   chip->rx_substream = NULL;
-  if (!--chip->reference)
-	bf53x_sport_stop(chip->sport);
  
   return 0;
 }
@@ -1924,7 +1907,6 @@ static int __devinit snd_ad1836_create(snd_card_t *card,
   chip->card  = card;
   chip->spi   = spi;
   chip->sport = sport;
-  chip->reference = 0;  
 #ifdef MULTI_SUBSTREAM
   chip->tx_substream[0] = NULL;
   chip->tx_substream[1] = chip->tx_substream[2] = NULL;
