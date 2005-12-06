@@ -507,7 +507,7 @@ endif
 all: vmlinux
 
 ifdef CONFIG_CC_OPTIMIZE_FOR_SIZE
-CFLAGS		+= -O
+CFLAGS		+= -Os
 else
 CFLAGS		+= -O2
 endif
