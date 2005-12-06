@@ -55,6 +55,7 @@ dir_$(CONFIG_USER_AT_ATD)                   += at
 dir_$(CONFIG_USER_AT_ATRUN)                 += at
 dir_$(CONFIG_USER_BASH_BASH)                += bash
 dir_$(CONFIG_USER_BOA_SRC_BOA)              += boa
+dir_$(CONFIG_USER_BOA_LATEST_VER)	    += boa-0.94.14
 dir_$(CONFIG_USER_BOA_SRC_BOA_NEW)          += boa-new
 dir_$(CONFIG_USER_BOOTTOOLS_FLASHLOADER)    += boottools
 dir_$(CONFIG_USER_BOOTTOOLS_HIMEMLOADER)    += boottools
@@ -374,7 +375,7 @@ dir_$(CONFIG_USER_ZEBRA_RIPD_RIPD)          += zebra
 dir_$(CONFIG_USER_ZEBRA_ZEBRA_ZEBRA)        += zebra
 
 dir_$(CONFIG_USER_NET_AUDIO)		    +=net_audio
-dir_$(CONFIG_USER_NET_AUDIO)		    +=net_audio
+dir_$(CONFIG_USER_NET_AUDIO)		    +=musicpd
 
 dir_y += games
 
