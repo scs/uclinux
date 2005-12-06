@@ -23,6 +23,13 @@ config MTD_NAND_VERIFY_WRITE
 	  device thinks the write was successful, a bit could have been
 	  flipped accidentaly due to device wear or something else.
 
+ config MTD_NAND_BFIN
+	tristate "NAND Flash device for BF537 STAMP board"
+	depends on BFIN537_STAMP && MTD_NAND && MTD_PARTITIONS
+	help
+	  This enables the driver for the NAND flash ST-NAND123W3A 
+	  on BF537 stamp board
+
 config MTD_NAND_AUTCPU12
 	tristate "SmartMediaCard on autronix autcpu12 board"
 	depends on ARM && MTD_NAND && ARCH_AUTCPU12
