@@ -156,20 +156,6 @@ bf53x_sport_init(int sport_chan,
   sport->is_running = 0;
 #endif
 
-#ifdef BF53X_SHADOW_REGISTERS
-
-  sport->dma_shadow_rx = (dma_register_t*) malloc( sizeof(dma_register_t) );
-  sport->dma_shadow_tx = (dma_register_t*) malloc( sizeof(dma_register_t) );
-
-  if( !sport->dma_shadow_rx || !sport->dma_shadow_tx ){
-    free( sport->dma_shadow_tx );
-    free( sport->dma_shadow_rx );
-    free( sport );
-    return NULL;
-  } 
-
-#endif
-
   sport->dma_rx_desc = NULL;
   sport->dma_tx_desc = NULL;
   sport->dma_rx_expired_desc = NULL;
@@ -201,10 +187,6 @@ bf53x_sport_init(int sport_chan,
 void bf53x_sport_done(struct bf53x_sport* sport){
   if(sport) {
     bf53x_sport_stop(sport);
-#ifdef BF53X_SHADOW_REGISTERS
-    free( sport->dma_shadow_tx );
-    free( sport->dma_shadow_rx );
-#endif
     if( sport->dma_rx_desc ) 
         free(sport->dma_rx_desc);
     if( sport->dma_tx_desc ) 
@@ -342,11 +324,7 @@ static void setup_desc(dmasg_t* desc, void* buf, int fragcount, size_t fragsize_
 
 void bf53x_sport_hook_rx_desc( struct bf53x_sport* sport)
 {
-#ifdef BF53X_SHADOW_REGISTERS
-  dma_register_t* dma = sport->dma_shadow_rx;
-#else
   dma_register_t* dma = sport->dma_rx;
-#endif
   dmasg_t *desc;
   
   if( sport->regs->rcr1 & RSPEN ) {
@@ -367,11 +345,7 @@ void bf53x_sport_hook_rx_desc( struct bf53x_sport* sport)
 
 void bf53x_sport_hook_tx_desc( struct bf53x_sport* sport)
 {
-#ifdef BF53X_SHADOW_REGISTERS
-  dma_register_t* dma = sport->dma_shadow_tx;
-#else
   dma_register_t* dma = sport->dma_tx;
-#endif
   dmasg_t *desc;
   
   if( sport->regs->tcr1 & TSPEN) {
@@ -427,11 +401,8 @@ static int bf53x_sport_rx_desc_changed (struct bf53x_sport* sport)
 int bf53x_sport_config_rx_dma( struct bf53x_sport* sport, void* buf, 
 			       int fragcount, size_t fragsize_bytes)
 {
-#ifdef BF53X_SHADOW_REGISTERS
-  dma_register_t* dma = sport->dma_shadow_rx;
-#else
   dma_register_t* dma = sport->dma_rx;
-#endif
+
   unsigned int x_count;
   unsigned int y_count;
   unsigned int cfg;
@@ -485,24 +456,6 @@ int bf53x_sport_config_rx_dma( struct bf53x_sport* sport, void* buf,
     SSYNC;
   }
   
-
-#ifdef BF53X_SHADOW_REGISTERS
-  {
-    dma_register_t* dma2 = sport->dma_rx;
-    dma2->start_addr = dma->start_addr;
-    dma2->next_desc_ptr = dma->next_desc_ptr;  
-    dma2->cfg        = dma->cfg;
-    dma2->x_count    = dma->x_count;
-    dma2->x_modify   = dma->x_modify;
-    dma2->y_count    = dma->y_count;
-    dma2->y_modify   = dma->y_modify; 
-
-    dma->curr_y_count = dma->y_count;
-    dma->curr_addr_ptr_lo = dma->start_addr & 0xffff;
-    dma->curr_addr_ptr_hi = dma->start_addr >> 16 ;
-  }
-#endif
-
   return 0;
 
 }
@@ -544,11 +497,7 @@ int bf53x_sport_config_tx_dma( struct bf53x_sport* sport, void* buf,
 			       int fragcount, size_t fragsize_bytes)
 {
   
-#ifdef BF53X_SHADOW_REGISTERS
-  dma_register_t* dma = sport->dma_shadow_tx;
-#else
   dma_register_t* dma = sport->dma_tx;
-#endif
   unsigned int x_count;
   unsigned int y_count;
   unsigned int cfg;
@@ -597,23 +546,6 @@ int bf53x_sport_config_tx_dma( struct bf53x_sport* sport, void* buf,
     SSYNC;
   }
   
-#ifdef BF53X_SHADOW_REGISTERS
-  {
-    dma_register_t* dma2 = sport->dma_tx;
-    dma2->start_addr = dma->start_addr;
-    dma2->next_desc_ptr = dma->next_desc_ptr;  
-    dma2->cfg        = dma->cfg;
-    dma2->x_count    = dma->x_count;
-    dma2->x_modify   = dma->x_modify;
-    dma2->y_count    = dma->y_count;
-    dma2->y_modify   = dma->y_modify; 
-
-    dma->curr_y_count = dma->y_count;
-    dma->curr_addr_ptr_lo = dma->start_addr & 0xffff;
-    dma->curr_addr_ptr_hi = dma->start_addr >> 16 ;
-  }
-#endif
-
   return 0;
 
 }
@@ -738,12 +670,9 @@ int bf53x_sport_stop(struct bf53x_sport* sport){
 
 }
 
-int bf53x_sport_is_rx_desc_changed(struct bf53x_sport* sport){
-#ifdef BF53X_SHADOW_REGISTERS
-  dma_register_t* dma = sport->dma_shadow_rx;
-#else
+int bf53x_sport_is_rx_desc_changed(struct bf53x_sport* sport)
+{
   dma_register_t* dma = sport->dma_rx;
-#endif
   
   if( sport->dma_rx_desc_changed > 0) {
     if(dma->next_desc_ptr==(unsigned long)sport->dma_rx_desc) {
@@ -756,11 +685,7 @@ int bf53x_sport_is_rx_desc_changed(struct bf53x_sport* sport){
 }
 
 int bf53x_sport_is_tx_desc_changed(struct bf53x_sport* sport){
-#ifdef BF53X_SHADOW_REGISTERS
-  dma_register_t* dma = sport->dma_shadow_tx;
-#else
   dma_register_t* dma = sport->dma_tx;
-#endif
   
   if( sport->dma_tx_desc_changed > 0) {
     if(dma->next_desc_ptr==(unsigned long)sport->dma_tx_desc) {
@@ -799,31 +724,19 @@ int bf53x_sport_is_running(struct bf53x_sport* sport){
 
 /* for use in interrupt handler */
 void* bf53x_sport_curr_addr_rx( struct bf53x_sport* sport ){  
-#ifdef BF53X_SHADOW_REGISTERS 
-  dma_register_t* dma = sport->dma_shadow_rx;
-#else
   dma_register_t* dma = sport->dma_rx;
-#endif
   void** curr = (void**) &(dma->curr_addr_ptr_lo);
   return *curr;
 }
 
 void* bf53x_sport_curr_addr_tx( struct bf53x_sport* sport ){ 
-#ifdef BF53X_SHADOW_REGISTERS 
-  dma_register_t* dma = sport->dma_shadow_tx;
-#else
   dma_register_t* dma = sport->dma_tx;
-#endif
   void** curr = (void**) &(dma->curr_addr_ptr_lo);
   return *curr;
 }
 
 int bf53x_sport_curr_frag_rx( struct bf53x_sport* sport ){  
-#ifdef BF53X_SHADOW_REGISTERS 
-  dma_register_t* dma = sport->dma_shadow_rx;
-#else
   dma_register_t* dma = sport->dma_rx;
-#endif
   /* use the fact that we use an contiguous array of descriptors */
   return ( (dmasg_t*)(dma->curr_desc_ptr) - sport->dma_rx_desc) / 
     sizeof( dmasg_t );
@@ -831,65 +744,12 @@ int bf53x_sport_curr_frag_rx( struct bf53x_sport* sport ){
 
 
 int bf53x_sport_curr_frag_tx( struct bf53x_sport* sport ){  
-#ifdef BF53X_SHADOW_REGISTERS 
-  dma_register_t* dma = sport->dma_shadow_tx;
-#else
   dma_register_t* dma = sport->dma_tx;
-#endif
   /* use the fact that we use an contiguous array of descriptors */
   return ((dmasg_t*)(dma->curr_desc_ptr) - sport->dma_rx_desc) / 
     sizeof( dmasg_t );
 }
 
-
-/*
- * call these once per irq to update the relevant shadow registers
- * currently we only update curr_addr and 
- */
-
-
-#ifdef BF53X_SHADOW_REGISTERS 
-
-/*
- * currently, the registers below operate on the assumption
- * that we work on 2d dma with irq's on the inner loop.
- */
-
-
-#ifndef BF53X_AUTOBUFFER_MODE
-#error "Todo: update shadow registers in descriptor list mode"
-#endif
-
-void bf53x_sport_shadow_update_rx(struct bf53x_sport* sport){
-
-  dma_register_t* dma = sport->dma_shadow_rx;
-  char** addr = (char**) &(dma-> start_addr);
-  char** curr = (char**) &(dma->curr_addr_ptr_lo);
-
-  if( --(dma->curr_y_count) == 0 )
-    dma->curr_y_count = dma->y_count;
-  
-  /* assert( dma->cfg & WDSIZE_32 ) */
-
-  *curr = *addr + (dma->y_count - dma->curr_y_count) * dma->x_count * sizeof(long);
-
-  return;
-}
-
-void bf53x_sport_shadow_update_tx(struct bf53x_sport* sport){
-  dma_register_t* dma = sport->dma_shadow_tx;
-  char** addr = (char**) &(dma-> start_addr);
-  char** curr = (char**) &(dma->curr_addr_ptr_lo);
-
-  if( --(dma->curr_y_count) == 0 )
-    dma->curr_y_count = dma->y_count;
-  
-  /* assert( dma->cfg & WDSIZE_32 ) */
-
-  *curr = *addr + (dma->y_count - dma->curr_y_count) * dma->x_count * sizeof(long);
-}
-
-#endif
 
 int bf53x_sport_check_status( struct bf53x_sport* sport, 
 			      unsigned int* sport_stat, 
@@ -934,26 +794,10 @@ int  bf53x_sport_dump_stat(struct bf53x_sport* sport, char* buf, size_t len){
   return snprintf( buf, len, 
 		   "sport  %d sts: 0x%04x\n"
 		   "rx dma %d cfg: 0x%04x sts: 0x%04x\n"
-		   "tx dma %d cfg: 0x%04x sts: 0x%04x\n"
-#ifdef BF53X_SHADOW_REGISTERS 
-		   "tx curr y cnt: %d  shadow: %d\n"
-		   "rx curr y cnt: %d  shadow: %d\n"
-		   "tx curr addr : %p  shadow: %p\n"
-		   "rx curr addr : %p  shadow: %p\n"
-#endif
-		   , 
+		   "tx dma %d cfg: 0x%04x sts: 0x%04x\n", 
 		   sport->sport_chan,  sport->regs->stat,
 		   sport->dma_rx_chan, sport->dma_rx->cfg, sport->dma_rx->irq_status,
 		   sport->dma_tx_chan, sport->dma_tx->cfg, sport->dma_tx->irq_status
-#ifdef BF53X_SHADOW_REGISTERS 
-		   ,
-		   sport->dma_rx->curr_y_count, sport->dma_shadow_rx->curr_y_count, 
-		   sport->dma_tx->curr_y_count, sport->dma_shadow_tx->curr_y_count, 
-		   *((void**)&(sport->dma_rx->curr_addr_ptr_lo)), 
-		   *((void**)&(sport->dma_shadow_rx->curr_addr_ptr_lo)), 
-		   *((void**)&(sport->dma_tx->curr_addr_ptr_lo)), 
-		   *((void**)&(sport->dma_shadow_tx->curr_addr_ptr_lo))
-#endif
 		   );
 
 }

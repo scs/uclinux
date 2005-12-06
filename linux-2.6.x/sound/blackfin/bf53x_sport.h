@@ -32,14 +32,6 @@
 #include <linux/workqueue.h>
 #include <asm/dma.h>
 
-/* keep copies of the dma registers, updated by us in an irq callback 
- * to avoid queries back to this driver having to read them 
- * this has to be in the header file, because ad1836.c needs this to decide
- * wether to call bf53x_sport_shadow_update_XX()
- */
-
-/* #define BF53X_SHADOW_REGISTERS */
-
 #define BF53X_ANOMALY_29  /* don't use the DMA_RUN bit, keep track of running status ourselves */
 
 
@@ -90,11 +82,6 @@ struct bf53x_sport {
   /* for dummy dma transfer */
   unsigned long	dummy_buf_rx;
   unsigned long	dummy_buf_tx;
-
-#ifdef BF53X_SHADOW_REGISTERS
-  dma_register_t* dma_shadow_rx;   /* a struct gratefully borrowed from asm/simple_bf533_dma.h */
-  dma_register_t* dma_shadow_tx;
-#endif
 
   dmasg_t* dma_rx_desc;	/* DMA descriptor ring head of current audio stream*/
   dmasg_t* dma_tx_desc;
@@ -191,12 +178,5 @@ int bf53x_sport_check_status(struct bf53x_sport* sport, unsigned int* sport_stat
 
 /* for use in diagnostics */
 int  bf53x_sport_dump_stat(struct bf53x_sport* sport, char* buf, size_t len);
-
-
-#ifdef BF53X_SHADOW_REGISTERS 
-void bf53x_sport_shadow_update_rx(struct bf53x_sport* sport);
-void bf53x_sport_shadow_update_tx(struct bf53x_sport* sport);
-#endif
-
 
 #endif /* BF53X_SPORT_H */

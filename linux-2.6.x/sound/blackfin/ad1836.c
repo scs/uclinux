@@ -2238,10 +2238,6 @@ static irqreturn_t snd_adi1836_sport_handler_rx(ad1836_t* chip, int irq){
         
   ++(chip->sport_irq_count_rx);
   
-#ifdef  BF53X_SHADOW_REGISTERS 
-  bf53x_sport_shadow_update_rx( chip->sport );  
-#endif
-    
   if( chip->rx_substream ) {
     /*square_fill(chip->rx_substream->runtime->dma_area, chip->rx_substream->runtime->dma_bytes);*/
     /*print_16x8(chip->rx_substream->runtime->dma_area);*/
@@ -2292,10 +2288,6 @@ static irqreturn_t snd_adi1836_sport_handler_tx(ad1836_t* chip, int irq){
     return IRQ_HANDLED;
     
   ++(chip->sport_irq_count_tx);
-
-#ifdef  BF53X_SHADOW_REGISTERS 
-  bf53x_sport_shadow_update_tx( chip->sport );  
-#endif
 
 #ifdef MULTI_SUBSTREAM
 {
