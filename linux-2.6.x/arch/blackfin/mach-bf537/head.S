@@ -34,7 +34,9 @@
 
 #include <linux/linkage.h>
 #include <asm/blackfin.h>
+#if CONFIG_BFIN_KERNEL_CLOCK
 #include <asm/mach/mem_init.h>
+#endif
 
 .global __rambase
 .global __ramstart

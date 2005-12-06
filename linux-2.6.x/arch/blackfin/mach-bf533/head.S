@@ -33,7 +33,9 @@
 
 #include <linux/linkage.h>
 #include <asm/blackfin.h>
+#if CONFIG_BFIN_KERNEL_CLOCK
 #include <asm/mach/mem_init.h>
+#endif
 #if CONFIG_DEBUG_KERNEL_START
 #include <asm/mach-common/def_LPBlackfin.h>
 #endif
