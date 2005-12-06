@@ -9,7 +9,7 @@ IMAGE    = $(IMAGEDIR)/linux
 MKFS_JFFS2 = $(ROOTDIR)/user/mtd-utils/build/mkfs.jffs2
 
 # Blocks must be a multiple of 256
-BLOCKS   = 8092
+BLOCKS   = 8192
 INODES   = 1024
 
 ROMFS_DIRS = bin dev etc etc/dhcpc home lib mnt proc usr var root home tmp home/httpd home/httpd/cgi-bin etc/boa /etc/config var/run var/lib/misc var/log/boa
