@@ -56,4 +56,25 @@ image:
 	$(IMAGEDIR)/linux concat.dxe
 	mv concat.dxe $(IMAGE)
 
+#
+# make a compressed image
+#
+	if [ -f  $(IMAGE) ] ; then \
+		$(CROSS_COMPILE)objcopy -O binary -S $(IMAGE) $(IMAGE).bin; \
+		gzip -f9 $(IMAGE).bin; \
+		$(CROSS_COMPILE)mkimage -A blackfin -O linux -T kernel \
+			-C gzip -a 0x1000 -e 0x1000 -n "uClinux Kernel and Filesystem Image" \
+			-d $(IMAGE).bin.gz $(IMAGEDIR)/uImage; \
+		rm $(IMAGE).bin.gz; \
+		if [ -x $(MKFS_JFFS2) ]; then \
+			$(CROSS_COMPILE)objcopy -O binary -S $(ROOTDIR)/$(LINUXDIR)/vmlinux \
+				$(IMAGEDIR)/vmlinux.bin; \
+			gzip -f9 $(IMAGEDIR)/vmlinux.bin; \
+			$(CROSS_COMPILE)mkimage -A blackfin -O linux -T kernel \
+				-C gzip -a 0x1000 -e 0x1000 -n "uClinux Kernel Only Image" \
+				-d $(IMAGEDIR)/vmlinux.bin.gz  $(IMAGEDIR)/vmImage; \
+			rm  $(IMAGEDIR)/vmlinux.bin.gz; \
+		fi ; \
+	fi
+
 clean:
