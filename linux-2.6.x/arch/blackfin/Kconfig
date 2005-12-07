@@ -570,20 +570,19 @@ endmenu
 
 menu "Power management options"
 config PM
-	bool "Power Management support for BF533"
+	bool "Power Management support for BF533/BF537"
 	help
 	  Support processor power management modes
 endmenu
 
-if (BFIN533_STAMP)
+if (BF537 || BF533)
 
 menu "CPU Frequency scaling"
 
 source "drivers/cpufreq/Kconfig"
 
-config CPU_FREQ_BF533
+config CPU_FREQ
 	bool
-	depends on CPU_FREQ && BFIN533_STAMP
 	default y
 endmenu
 
