@@ -328,7 +328,8 @@ CONFIG_MTD_UCLINUX=y
 #
 # NAND Flash Device Drivers
 #
-# CONFIG_MTD_NAND is not set
+CONFIG_MTD_NAND=y
+CONFIG_MTD_NAND_BFIN=m
 
 #
 # Parallel port support
@@ -643,7 +644,7 @@ CONFIG_RAMFS=y
 # CONFIG_BEFS_FS is not set
 # CONFIG_BFS_FS is not set
 # CONFIG_EFS_FS is not set
-# CONFIG_YAFFS_FS is not set
+CONFIG_YAFFS_FS=m
 # CONFIG_JFFS_FS is not set
 CONFIG_JFFS2_FS=m
 CONFIG_JFFS2_FS_DEBUG=0
