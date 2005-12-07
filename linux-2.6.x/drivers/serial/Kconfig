@@ -659,7 +659,7 @@ config SERIAL_CPM
 	depends on CPM2 || 8xx
 	select SERIAL_CORE
 	help
-	  This driver supports the SCC and SMC serial ports on Motorola 
+	  This driver supports the SCC and SMC serial ports on Motorola
 	  embedded PowerPC that contain a CPM1 (8xx) or CPM2 (8xxx)
 
 config SERIAL_CPM_CONSOLE
@@ -846,7 +846,7 @@ config SERIAL_JSM
 config SERIAL_BLACKFIN
 	bool 'Blackfin Serial Driver'
 	depends on BFIN
-	
+
 choice
 	prompt	"Mode"
 	depends on SERIAL_BLACKFIN
@@ -858,9 +858,9 @@ config SERIAL_BLACKFIN_DMA
 	bool 'DMA on RX and TX'
 	help
 	  This driver works under DMA mode. If this option is selected, the blackfin simple dma driver is also enabled.
-	
+
 config SERIAL_BLACKFIN_PIO
-	bool 'PIO on RX and TX' 
+	bool 'PIO on RX and TX'
 	help
 	  This driver works under PIO mode.
 endchoice
