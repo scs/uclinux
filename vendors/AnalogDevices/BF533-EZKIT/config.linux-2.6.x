@@ -245,8 +245,8 @@ CONFIG_MTD_PARTITIONS=y
 # User Modules And Translation Layers
 #
 CONFIG_MTD_CHAR=m
-CONFIG_MTD_BLOCK=m
-CONFIG_MTD_BLOCK_RO=y
+CONFIG_MTD_BLOCK=y
+# CONFIG_MTD_BLOCK_RO is not set
 # CONFIG_FTL is not set
 # CONFIG_NFTL is not set
 # CONFIG_INFTL is not set
