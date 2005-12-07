@@ -320,6 +320,15 @@ _exit:
 
 .section .text.l1
 ENTRY(start_dma_code)
+	
+	/* Enable PHY CLK buffer output */
+        p0.h = hi(VR_CTL);
+        p0.l = lo(VR_CTL);
+        r0.l = w[p0];
+        bitset(r0, 14);
+        w[p0] = r0.l;
+        ssync;
+	
 #if CONFIG_BFIN_KERNEL_CLOCK
 	p0.h = hi(SIC_IWR);
 	p0.l = lo(SIC_IWR);
