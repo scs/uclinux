@@ -256,3 +256,5 @@ static void __exit bf5xx_mtd_cleanup(void)
 
 module_init(bf5xx_mtd_init);
 module_exit(bf5xx_mtd_cleanup);
+
+MODULE_LICENSE("GPL");

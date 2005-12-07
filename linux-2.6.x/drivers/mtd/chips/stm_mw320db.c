@@ -1018,3 +1018,5 @@ void __exit stm_flash_exit(void)
 
 module_init(stm_flash_init);
 module_exit(stm_flash_exit);
+
+MODULE_LICENSE("GPL");
