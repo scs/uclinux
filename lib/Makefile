@@ -69,6 +69,11 @@ dir_$(CONFIG_LIB_LIBSSL)       += libssl
 dir_$(CONFIG_LIB_LIBSSL_FORCE) += libssl
 dir_$(CONFIG_LIB_LIBGMP)       += libgmp
 dir_$(CONFIG_LIB_LIBGMP_FORCE) += libgmp
+dir_$(CONFIG_LIB_GMP)		+= gmp
+dir_$(CONFIG_LIB_BFD)		+= bfd
+dir_$(CONFIG_LIB_POPT)		+= popt
+dir_$(CONFIG_LIB_INTL)		+= intl
+dir_$(CONFIG_LIB_LIBIBERTY)	+= libiberty
 dir_$(CONFIG_LIB_LIBG)         += libg
 dir_$(CONFIG_LIB_LIBG_FORCE)   += libg
 dir_$(CONFIG_LIB_LIBPAM)       += libpam
@@ -96,6 +101,7 @@ dir_$(CONFIG_LIB_LIBCCMALLOC)  += libccmalloc
 dir_$(CONFIG_LIB_ADNS_FORCE)   += adns
 dir_$(CONFIG_LIB_LIBCRYPT_OLD) += libcrypt_old
 dir_$(CONFIG_LIB_LIBCRYPT_OLD_FORCE) += libcrypt_old
+dir_$(CONFIG_LIB_NCURSES_FORCE) += ncurses
 
 # And build libraries in the prop directory last
 dir_y += $(ROOTDIR)/prop
