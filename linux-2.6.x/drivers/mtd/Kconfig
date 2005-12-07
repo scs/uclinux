@@ -165,7 +165,7 @@ config MTD_CHAR
 	  the device, or to erase parts of it.
 
 config MTD_BLOCK
-	tristate "Caching block device access to MTD devices"
+	bool "Caching block device access to MTD devices"
 	depends on MTD
 	---help---
 	  Although most flash chips have an erase size too large to be useful
