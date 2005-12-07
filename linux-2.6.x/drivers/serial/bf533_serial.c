@@ -1972,3 +1972,5 @@ int bfin_console_init(void)
 }
 
 console_initcall(bfin_console_init); 
+
+MODULE_LICENSE("GPL");
