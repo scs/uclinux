@@ -65,19 +65,6 @@ ENTRY(_evt_emulation)
 	rte;
 #endif
 
-/* interrupt routine for nmi - 2.  */
-ENTRY(_evt_nmi)
-	SAVE_ALL_SYS
-#ifdef CONFIG_FRAME_POINTER
-	fp = 0;
-#endif
-	r0 = IRQ_NMI;
-	r1 = sp;	    /* get return address (but not going back)  */
-	SP += -12;
-	call _irq_panic;
-	SP += 12;
-	rtn;
-
 /* interrupt routine for ivhw - 5 */
 ENTRY(_evt_ivhw)
 	SAVE_CONTEXT
