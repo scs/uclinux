@@ -52,4 +52,4 @@ obj-$(CONFIG_SERIAL_JSM) += jsm/
 obj-$(CONFIG_SERIAL_TXX9) += serial_txx9.o
 obj-$(CONFIG_SERIAL_VR41XX) += vr41xx_siu.o
 obj-$(CONFIG_BLK_DEV_SGIIOC4) += ioc4_serial.o
-obj-$(CONFIG_SERIAL_BLACKFIN) += bf533_serial.o
+obj-$(CONFIG_SERIAL_BLACKFIN) += bfin_serial_5xx.o
