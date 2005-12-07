@@ -570,7 +570,7 @@ endmenu
 
 menu "Power management options"
 config PM
-	tristate "Power Management support for BF533/BF537"
+	bool "Power Management support for BF533/BF537"
 	help
 	  Support processor power management modes
 endmenu
