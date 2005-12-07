@@ -114,3 +114,5 @@ EXPORT_SYMBOL(blackfin_dcache_invalidate_range);
 EXPORT_SYMBOL(blackfin_icache_dcache_flush_range);
 EXPORT_SYMBOL(blackfin_icache_flush_range);
 EXPORT_SYMBOL(blackfin_dcache_flush_range);
+
+EXPORT_SYMBOL(csum_partial);
