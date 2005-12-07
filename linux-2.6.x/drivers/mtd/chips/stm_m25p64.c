@@ -121,14 +121,14 @@ static void spi_command(const int command)
 
 	/*The SPI will be turned off*/
 	spi_disable(&spi_chip_dev);
-	udelay(CONFIG_CCLK_HZ/50000000);
+	udelay(get_cclk()/50000000);
         spi_channel_release(&spi_chip_dev);
 }
 
 static void spi_setup(void)
 {
 #if defined(CONFIG_BLKFIN_CACHE) || defined(CONFIG_BLKFIN_DCACHE)
-   udelay(CONFIG_CCLK_HZ/50000000);
+   udelay(get_cclk()/50000000);
 #endif
         spi_chip_dev.bdrate = BAUD_RATE_DIVISOR;
         spi_chip_dev.phase = CFG_SPI_PHASESTART;
@@ -210,7 +210,7 @@ static char spi_read_status(void)
 	
 	spi_disable(&spi_chip_dev);
 	local_irq_restore(flags);
-	udelay(CONFIG_CCLK_HZ/50000000);
+	udelay(get_cclk()/50000000);
 	spi_channel_release(&spi_chip_dev);
 
 	return status_register;
@@ -277,7 +277,7 @@ static void spi_erase_block( int nblock )
 	
 	spi_disable(&spi_chip_dev);
 	local_irq_restore(flags);
-	udelay(CONFIG_CCLK_HZ/50000000);
+	udelay(get_cclk()/50000000);
 	spi_channel_release(&spi_chip_dev);
 	/* Poll the status register to check the Write in Progress bit
 	   Sector erase takes time */
@@ -337,7 +337,7 @@ static void spi_write_flash (unsigned long startaddr, long transfercount, int *d
 		
 		spi_disable(&spi_chip_dev); 
    		local_irq_restore(flags);
-		udelay(CONFIG_CCLK_HZ/50000000);
+		udelay(get_cclk()/50000000);
 	        spi_channel_release(&spi_chip_dev);
 
 		/* Sixth, the SPI Write in Progress Bit must be toggled to ensure the 
@@ -415,7 +415,7 @@ static int probe_new_chip(struct mtd_info *mtd, __u32 base,
 	spi_ready();
 	dev_id = *pSPI_RDBR;
 	spi_disable(&spi_chip_dev);
-	udelay(CONFIG_CCLK_HZ/50000000);
+	udelay(get_cclk()/50000000);
         spi_channel_release(&spi_chip_dev);
 
 	if ((mfr_id == table->mfr_id) &&(dev_id == table->dev_id))

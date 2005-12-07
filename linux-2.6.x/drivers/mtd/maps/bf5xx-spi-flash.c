@@ -60,7 +60,7 @@ static void spi_read_data(unsigned long start, long count,int *pndata  );
 static void spi_setup(void)
 {
 #if defined(CONFIG_BLKFIN_CACHE) || defined(CONFIG_BLKFIN_DCACHE)
-	udelay(CONFIG_CCLK_HZ/50000000);
+	udelay(get_cclk()/50000000);
 #endif
 	spi_mtd_dev.bdrate = BAUD_RATE_DIVISOR;
 	spi_mtd_dev.phase = CFG_SPI_PHASESTART;
@@ -123,7 +123,7 @@ static void spi_read_data(unsigned long start, long count,int *pndata  )
 	}
 	spi_disable(&spi_mtd_dev);
 	local_irq_restore(flags);
-	udelay(CONFIG_CCLK_HZ/50000000);
+	udelay(get_cclk()/50000000);
 	spi_channel_release(&spi_mtd_dev);
 }
 static map_word bf533_read(struct map_info *map, unsigned long ofs)
