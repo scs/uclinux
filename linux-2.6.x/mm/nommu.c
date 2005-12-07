@@ -49,6 +49,8 @@ EXPORT_SYMBOL(sysctl_overcommit_memory);
 EXPORT_SYMBOL(sysctl_overcommit_ratio);
 EXPORT_SYMBOL(vm_committed_space);
 EXPORT_SYMBOL(__vm_enough_memory);
+EXPORT_SYMBOL(vmap);
+EXPORT_SYMBOL(vunmap);
 
 /* list of shareable VMAs */
 struct rb_root nommu_vma_tree = RB_ROOT;
