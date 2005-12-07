@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
 # Linux kernel version: 2.6.12.1
-# Tue Dec  6 18:13:27 2005
+# Wed Dec  7 11:05:16 2005
 #
 # CONFIG_MMU is not set
 # CONFIG_FPU is not set
@@ -565,7 +565,7 @@ CONFIG_SMC91X=y
 #
 # Character devices
 #
-CONFIG_BFIN_SPI_CHANNEL=y
+# CONFIG_BFIN_SPI_CHANNEL is not set
 # CONFIG_SPI_ADC_BF533 is not set
 # CONFIG_BF533_PFLAGS is not set
 # CONFIG_BF5xx_PPIFCD is not set
@@ -600,7 +600,6 @@ CONFIG_LEGACY_PTY_COUNT=256
 # CONFIG_WATCHDOG is not set
 # CONFIG_RTC is not set
 # CONFIG_GEN_RTC is not set
-CONFIG_BLACKFIN_RTC=y
 # CONFIG_BLACKFIN_DPMC is not set
 # CONFIG_DTLK is not set
 # CONFIG_R3964 is not set
