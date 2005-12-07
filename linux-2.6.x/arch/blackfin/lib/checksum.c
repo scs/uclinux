@@ -132,3 +132,5 @@ unsigned int csum_partial_copy(const char *src, char *dst, int len, int sum)
 	memcpy(dst, src, len);
 	return csum_partial(dst, len, sum);
 }
+
+EXPORT_SYMBOL(csum_partial);
