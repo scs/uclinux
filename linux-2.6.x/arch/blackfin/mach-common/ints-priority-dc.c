@@ -71,7 +71,7 @@ struct ivg_slice {
 } ivg7_13[IVG13 - IVG7 + 1];
 
 /* BASE LEVEL interrupt handler routines */
-asmlinkage void evt_nmi(void);
+asmlinkage void evt_emulation(void);
 asmlinkage void evt_exception(void);
 asmlinkage void trap(void);
 asmlinkage void evt_ivhw(void);
@@ -447,7 +447,7 @@ int __init init_arch_irq(void)
 	local_irq_disable();
 
 #ifndef CONFIG_KGDB
-	*pEVT0 = evt_nmi;
+	*pEVT0 = evt_emulation;
 #endif
 	*pEVT2 = evt_evt2;
 	*pEVT3 = trap;
