@@ -474,6 +474,7 @@ u_long get_cclk()
 		return get_vco() / ssel;
 	return get_vco() >> csel;
 }
+EXPORT_SYMBOL(get_cclk);
 
 /* Get the System clock */
 u_long get_sclk()
