@@ -34,7 +34,7 @@
 
 #include <asm/dpmc.h>		/* get_sclk() */
 
-#include "bf533_serial.h"
+#include "bfin_serial_5xx.h"
 
 #undef SERIAL_DEBUG_OPEN
 #undef SERIAL_DEBUG_CALLTRACE
