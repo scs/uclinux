@@ -1,9 +1,9 @@
 /*
  *  Boa, an http server
  *  Copyright (C) 1995 Paul Phillips <paulp@go2net.com>
- *  Some changes Copyright (C) 1996,97 Larry Doolittle <ldoolitt@boa.org>
  *  Some changes Copyright (C) 1996 Charles F. Randall <crandall@goldsys.com>
- *  Some changes Copyright (C) 1997-2002 Jon Nelson <jnelson@boa.org>
+ *  Copyright (C) 1996-1999 Larry Doolittle <ldoolitt@boa.org>
+ *  Copyright (C) 1997-2004 Jon Nelson <jnelson@boa.org>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -25,11 +25,15 @@
 
 #include "boa.h"
 
-static char *env_gen_extra(const char *key, const char *value, int extra);
+static char *env_gen_extra(const char *key, const char *value,
+                           unsigned int extra);
+static void create_argv(request * req, char **aargv);
+static int complete_env(request * req);
 
 int verbose_cgi_logs = 0;
 /* The +1 is for the the NULL in complete_env */
-static char *common_cgi_env[COMMON_CGI_COUNT + 1];
+static char **common_cgi_env = NULL;
+short common_cgi_env_count = 0;
 
 /*
  * Name: create_common_env
@@ -38,10 +42,15 @@ static char *common_cgi_env[COMMON_CGI_COUNT + 1];
  * all CGI scripts
  */
 
-void create_common_env()
+void create_common_env(void)
 {
-    int index = 0, i;
+    int i;
+    common_cgi_env = calloc((COMMON_CGI_COUNT + 1),sizeof(char *));
+    common_cgi_env_count = 0;
 
+    if (common_cgi_env == NULL) {
+        DIE("unable to allocate memory for common_cgi_env");
+    }
 
     /* NOTE NOTE NOTE:
        If you (the reader) someday modify this chunk of code to
@@ -57,38 +66,67 @@ void create_common_env()
        "In all cases, a missing environment variable is
        equivalent to a zero-length (NULL) value, and vice versa."
      */
-    common_cgi_env[index++] = env_gen_extra("PATH",
-                                            ((cgi_path != NULL) ? cgi_path : DEFAULT_PATH), 0);
-    common_cgi_env[index++] = env_gen_extra("SERVER_SOFTWARE", SERVER_VERSION, 0);
-    common_cgi_env[index++] = env_gen_extra("SERVER_NAME", server_name, 0);
-    common_cgi_env[index++] = env_gen_extra("GATEWAY_INTERFACE", CGI_VERSION, 0);
+    common_cgi_env[common_cgi_env_count++] = env_gen_extra("PATH",
+                                         ((cgi_path !=
+                                           NULL) ? cgi_path :
+                                          DEFAULT_PATH), 0);
+    common_cgi_env[common_cgi_env_count++] =
+        env_gen_extra("SERVER_SOFTWARE", SERVER_VERSION, 0);
+    common_cgi_env[common_cgi_env_count++] = env_gen_extra("SERVER_NAME", server_name, 0);
+    common_cgi_env[common_cgi_env_count++] =
+        env_gen_extra("GATEWAY_INTERFACE", CGI_VERSION, 0);
 
-    common_cgi_env[index++] =
+    common_cgi_env[common_cgi_env_count++] =
         env_gen_extra("SERVER_PORT", simple_itoa(server_port), 0);
 
     /* NCSA and APACHE added -- not in CGI spec */
-    /* common_cgi_env[index++] = env_gen_extra("DOCUMENT_ROOT", document_root); */
+#ifdef USE_NCSA_CGI_ENV
+    common_cgi_env[common_cgi_env_count++] =
+        env_gen_extra("DOCUMENT_ROOT", document_root, 0);
 
     /* NCSA added */
-    /* common_cgi_env[index++] = env_gen_extra("SERVER_ROOT", server_root); */
+    common_cgi_env[common_cgi_env_count++] = env_gen_extra("SERVER_ROOT", server_root, 0);
+#endif
 
     /* APACHE added */
-    common_cgi_env[index++] = env_gen_extra("SERVER_ADMIN", server_admin, 0);
-    common_cgi_env[index] = NULL;
+    common_cgi_env[common_cgi_env_count++] = env_gen_extra("SERVER_ADMIN", server_admin, 0);
+    common_cgi_env[common_cgi_env_count] = NULL;
 
     /* Sanity checking -- make *sure* the memory got allocated */
-    if (index > COMMON_CGI_COUNT) {
+    if (common_cgi_env_count != COMMON_CGI_COUNT) {
         log_error_time();
         fprintf(stderr, "COMMON_CGI_COUNT not high enough.\n");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 
-    for(i = 0;i < index;++i) {
+    for (i = 0; i < common_cgi_env_count; ++i) {
         if (common_cgi_env[i] == NULL) {
             log_error_time();
-            fprintf(stderr, "Unable to allocate a component of common_cgi_env - out of memory.\n");
-            exit(1);
+            fprintf(stderr,
+                    "Unable to allocate a component of common_cgi_env - out of memory.\n");
+            exit(EXIT_FAILURE);
         }
+    }
+}
+
+void add_to_common_env(char *key, char *value)
+{
+    common_cgi_env = realloc(common_cgi_env, (common_cgi_env_count + 2) * (sizeof(char *)));
+    if (common_cgi_env== NULL) {
+        DIE("Unable to allocate memory for common CGI environment variable.");
+    }
+    common_cgi_env[common_cgi_env_count] = env_gen_extra(key,value, 0);
+    if (common_cgi_env[common_cgi_env_count] == NULL) {
+        /* errors already reported */
+        DIE("memory allocation failure in add_to_common_env");
+    }
+    common_cgi_env[++common_cgi_env_count] = NULL;
+    /* I find it hard to believe that somebody would actually
+     * make 90+ *common* CGI variables, but it's always better
+     * to be safe.
+     */
+    if (common_cgi_env_count > CGI_ENV_MAX) {
+        DIE("far too many common CGI environment variables added.");
     }
 }
 
@@ -96,7 +134,7 @@ void clear_common_env(void)
 {
     int i;
 
-    for(i = 0;i <= COMMON_CGI_COUNT;++i) {
+    for (i = 0; i <= COMMON_CGI_COUNT; ++i) {
         if (common_cgi_env[i] != NULL) {
             free(common_cgi_env[i]);
             common_cgi_env[i] = NULL;
@@ -109,10 +147,11 @@ void clear_common_env(void)
  *       (and via a not-so-tricky #define, env_gen)
  * This routine calls malloc: please free the memory when you are done
  */
-static char *env_gen_extra(const char *key, const char *value, int extra)
+static char *env_gen_extra(const char *key, const char *value,
+                           unsigned int extra)
 {
     char *result;
-    int key_len, value_len;
+    unsigned int key_len, value_len;
 
     if (value == NULL)          /* ServerAdmin may not be defined, eg */
         value = "";
@@ -129,8 +168,7 @@ static char *env_gen_extra(const char *key, const char *value, int extra)
         log_error_time();
         perror("malloc");
         log_error_time();
-        fprintf(stderr,
-                "tried to allocate (key=value) extra=%d: %s=%s\n",
+        fprintf(stderr, "tried to allocate (key=value) extra=%u: %s=%s\n",
                 extra, key, value);
     }
     return result;
@@ -143,10 +181,11 @@ static char *env_gen_extra(const char *key, const char *value, int extra)
  * Used for HTTP_ headers
  */
 
-int add_cgi_env(request * req, char *key, char *value, int http_prefix)
+int add_cgi_env(request * req, const char *key, const char *value,
+                int http_prefix)
 {
     char *p;
-    int prefix_len;
+    unsigned int prefix_len;
 
     if (http_prefix) {
         prefix_len = 5;
@@ -157,19 +196,21 @@ int add_cgi_env(request * req, char *key, char *value, int http_prefix)
     if (req->cgi_env_index < CGI_ENV_MAX) {
         p = env_gen_extra(key, value, prefix_len);
         if (!p) {
-            log_error_time();
-            fprintf(stderr, "Unable to generate additional CGI Environment"
+            log_error_doc(req);
+            fprintf(stderr,
+                    "Unable to generate additional CGI environment "
                     "variable -- ran out of memory!\n");
+            return 0;
         }
         if (prefix_len)
             memcpy(p, "HTTP_", 5);
         req->cgi_env[req->cgi_env_index++] = p;
         return 1;
-    } else {
-        log_error_time();
-        fprintf(stderr, "Unable to generate additional CGI Environment"
-                "variable -- not enough space!\n");
     }
+    log_error_doc(req);
+    fprintf(stderr, "Unable to generate additional CGI Environment "
+            "variable \"%s%s=%s\" -- not enough space!\n",
+            (prefix_len ? "HTTP_" : ""), key, value);
     return 0;
 }
 
@@ -185,7 +226,7 @@ int add_cgi_env(request * req, char *key, char *value, int http_prefix)
  * and terminates the environment array
  */
 
-int complete_env(request * req)
+static int complete_env(request * req)
 {
     int i;
 
@@ -193,7 +234,7 @@ int complete_env(request * req)
         req->cgi_env[i] = common_cgi_env[i];
 
     {
-        char *w;
+        const char *w;
         switch (req->method) {
         case M_POST:
             w = "POST";
@@ -211,8 +252,11 @@ int complete_env(request * req)
         my_add_cgi_env(req, "REQUEST_METHOD", w);
     }
 
+    if (req->header_host)
+        my_add_cgi_env(req, "HTTP_HOST", req->header_host);
     my_add_cgi_env(req, "SERVER_ADDR", req->local_ip_addr);
-    my_add_cgi_env(req, "SERVER_PROTOCOL", req->http_version);
+    my_add_cgi_env(req, "SERVER_PROTOCOL",
+                   http_ver_string(req->http_version));
     my_add_cgi_env(req, "REQUEST_URI", req->request_uri);
 
     if (req->path_info)
@@ -233,15 +277,15 @@ int complete_env(request * req)
     my_add_cgi_env(req, "REMOTE_PORT", simple_itoa(req->remote_port));
 
     if (req->method == M_POST) {
-            if (req->content_type) {
-                my_add_cgi_env(req, "CONTENT_TYPE", req->content_type);
-            } else {
-                my_add_cgi_env(req, "CONTENT_TYPE", default_type);
-            }
-            if (req->content_length) {
-                my_add_cgi_env(req, "CONTENT_LENGTH", req->content_length);
-            }
+        if (req->content_type) {
+            my_add_cgi_env(req, "CONTENT_TYPE", req->content_type);
+        } else {
+            my_add_cgi_env(req, "CONTENT_TYPE", default_type);
         }
+        if (req->content_length) {
+            my_add_cgi_env(req, "CONTENT_LENGTH", req->content_length);
+        }
+    }
 #ifdef ACCEPT_ON
     if (req->accept[0])
         my_add_cgi_env(req, "HTTP_ACCEPT", req->accept);
@@ -251,8 +295,8 @@ int complete_env(request * req)
         req->cgi_env[req->cgi_env_index] = NULL; /* terminate */
         return 1;
     }
-    log_error_time();
-    fprintf(stderr, "Not enough space in CGI environment for remainder"\
+    log_error_doc(req);
+    fprintf(stderr, "Not enough space in CGI environment for remainder"
             " of variables.\n");
     return 0;
 }
@@ -264,7 +308,7 @@ int complete_env(request * req)
  *
  */
 
-void create_argv(request * req, char **aargv)
+static void create_argv(request * req, char **aargv)
 {
     char *p, *q, *r;
     int aargc;
@@ -279,51 +323,53 @@ void create_argv(request * req, char **aargv)
      * For such a request, I'm supposed to parse the search string
      * into words, according to the following rules:
 
-       search-string = search-word *( "+" search-word )
-       search-word   = 1*schar
-       schar         = xunreserved | escaped | xreserved
-       xunreserved   = alpha | digit | xsafe | extra
-       xsafe         = "$" | "-" | "_" | "."
-       xreserved     = ";" | "/" | "?" | ":" | "@" | "&"
+     search-string = search-word *( "+" search-word )
+     search-word   = 1*schar
+     schar         = xunreserved | escaped | xreserved
+     xunreserved   = alpha | digit | xsafe | extra
+     xsafe         = "$" | "-" | "_" | "."
+     xreserved     = ";" | "/" | "?" | ":" | "@" | "&"
 
-       After parsing, each word is URL-decoded, optionally encoded in a system
-       defined manner, and then the argument list
-       is set to the list of words.
+     After parsing, each word is URL-decoded, optionally encoded in a system
+     defined manner, and then the argument list
+     is set to the list of words.
 
 
-      Thus, schar is alpha|digit|"$"|"-"|"_"|"."|";"|"/"|"?"|":"|"@"|"&"
+     Thus, schar is alpha|digit|"$"|"-"|"_"|"."|";"|"/"|"?"|":"|"@"|"&"
 
-      As of this writing, escape.pl escapes the following chars:
+     As of this writing, escape.pl escapes the following chars:
 
-       "-", "_", ".", "!", "~", "*", "'", "(", ")",
-       "0".."9", "A".."Z", "a".."z",
-       ";", "/", "?", ":", "@", "&", "=", "+", "\$", ","
+     "-", "_", ".", "!", "~", "*", "'", "(", ")",
+     "0".."9", "A".."Z", "a".."z",
+     ";", "/", "?", ":", "@", "&", "=", "+", "\$", ","
 
-      Which therefore means
-       "=", "+", "~", "!", "*", "'", "(", ")", ","
-       are *not* escaped and should be?
-      Wait, we don't do any escaping, and nor should we.
-      According to the RFC draft, we unescape and then re-escape
-      in a "system defined manner" (here: none).
+     Which therefore means
+     "=", "+", "~", "!", "*", "'", "(", ")", ","
+     are *not* escaped and should be?
+     Wait, we don't do any escaping, and nor should we.
+     According to the RFC draft, we unescape and then re-escape
+     in a "system defined manner" (here: none).
 
-      The CGI/1.1 draft (03, latest is 1999???) is very unclear here.
+     The CGI/1.1 draft (03, latest is 1999???) is very unclear here.
 
-      I am using the latest published RFC, 2396, for what does and does
-      not need escaping.
+     I am using the latest published RFC, 2396, for what does and does
+     not need escaping.
 
-      Since boa builds the argument list and does not call /bin/sh,
-      (boa uses execve for CGI)
+     Since boa builds the argument list and does not call /bin/sh,
+     (boa uses execve for CGI)
      */
 
     if (q && !strchr(q, '=')) {
         /* we have an 'index' style */
         q = strdup(q);
         if (!q) {
-            WARN("unable to strdup 'q' in create_argv!");
+            log_error_doc(req);
+            fputs("unable to strdup 'q' in create_argv!\n", stderr);
+            _exit(EXIT_FAILURE);
         }
         for (aargc = 1; q && (aargc < CGI_ARGC_MAX);) {
             r = q;
-            /* for an index-style CGI, + is used to seperate arguments
+            /* for an index-style CGI, + is used to separate arguments
              * an escaped '+' is of no concern to us
              */
             if ((p = strchr(q, '+'))) {
@@ -360,149 +406,138 @@ int init_cgi(request * req)
 {
     int child_pid;
     int pipes[2];
-    //int use_pipes = 0;//sivaraman
-    int use_pipes = 1;
-	fprintf(stderr,"error %d[%s]\n",errno,strerror(errno));
+    int use_pipes = 0;
+
     SQUASH_KA(req);
-    if (req->is_cgi) {
+
+    if (req->cgi_type) {
         if (complete_env(req) == 0) {
             return 0;
         }
     }
-#ifdef FASCIST_LOGGING
-    {
+    DEBUG(DEBUG_CGI_ENV) {
         int i;
         for (i = 0; i < req->cgi_env_index; ++i)
+            log_error_time();
             fprintf(stderr, "%s - environment variable for cgi: \"%s\"\n",
                     __FILE__, req->cgi_env[i]);
     }
-#endif
 
-    /*if (req->is_cgi == CGI && use_pipes) {*/
-    if (req->is_cgi == CGI || 1) {
+    /* we want to use pipes whenever it's a CGI or directory */
+    /* otherwise (NPH, gunzip) we want no pipes */
+    if (req->cgi_type == CGI ||
+        (!req->cgi_type &&
+         (req->pathname[strlen(req->pathname) - 1] == '/'))) {
+        use_pipes = 1;
         if (pipe(pipes) == -1) {
-            log_error_time();
+            log_error_doc(req);
             perror("pipe");
             return 0;
         }
 
         /* set the read end of the socket to non-blocking */
         if (set_nonblock_fd(pipes[0]) == -1) {
-            log_error_time();
+            log_error_doc(req);
             perror("cgi-fcntl");
             close(pipes[0]);
             close(pipes[1]);
             return 0;
         }
     }
-#ifdef EMBED
+
     child_pid = vfork();
-#else
-    child_pid = fork();
-#endif
-    switch(child_pid) {
+    switch (child_pid) {
     case -1:
         /* fork unsuccessful */
-        log_error_time();
-        perror("fork");
-
-	fprintf (stderr, "Ananth : Fork is failed - Child \n");
-	fflush (stderr);
-
+        /* FIXME: There is a problem here. send_r_error (called by
+         * boa_perror) would work for NPH and CGI, but not for GUNZIP.  
+         * Fix that. 
+         */
+        boa_perror(req, "fork failed");
         if (use_pipes) {
             close(pipes[0]);
             close(pipes[1]);
         }
-        send_r_error(req);
-        /* FIXME: There is aproblem here. send_r_error would work
-           for NPH and CGI, but not for GUNZIP.  Fix that. */
-        /* i'd like to send_r_error, but.... */
         return 0;
         break;
     case 0:
         /* child */
-	fprintf (stderr, "Ananth : Fork is Success - Child \n");
-	fflush (stderr);
+        reset_signals();
 
-        if (req->is_cgi == CGI || req->is_cgi == NPH) {
-            char *foo = strdup(req->pathname);
+        if (req->cgi_type == CGI || req->cgi_type == NPH) {
             char *c;
+            unsigned int l;
+            char *newpath, *oldpath;
 
-            if (!foo) {
-			fprintf (stderr, "Ananth : Path is Failed - Child \n");
-			fflush (stderr);
-                WARN("unable to strdup pathname for req->pathname");
-                _exit(1);
+            c = strrchr(req->pathname, '/');
+            if (!c) {
+                /* there will always be a '.' */
+                log_error_doc(req);
+                fprintf(stderr,
+                        "unable to find '/' in req->pathname: \"%s\"\n",
+                        req->pathname);
+                if (use_pipes)
+                    close(pipes[1]);
+                _exit(EXIT_FAILURE);
             }
-            c = strrchr(foo, '/');
-            if (c) {
-                ++c;
-                *c = '\0';
-            } else {
-                /* we have a serious problem */
-		fprintf (stderr, "Ananth : Invalid Path - Child \n");
-		fflush (stderr);
-                log_error_time();
+
+            *c = '\0';
+
+            if (chdir(req->pathname) != 0) {
+                int saved_errno = errno;
+                log_error_doc(req);
+                fprintf(stderr, "Could not chdir to \"%s\":",
+                        req->pathname);
+                errno = saved_errno;
                 perror("chdir");
                 if (use_pipes)
                     close(pipes[1]);
-                _exit(1);
+                _exit(EXIT_FAILURE);
             }
-            if (chdir(foo) != 0) {
-		fprintf (stderr, "Ananth : Wrong Path - Child \n");
-		fflush (stderr);
-                log_error_time();
-                perror("chdir");
+
+            oldpath = req->pathname;
+            req->pathname = ++c;
+            l = strlen(req->pathname) + 3;
+            /* prefix './' */
+            newpath = malloc(sizeof (char) * l);
+            if (!newpath) {
+                /* there will always be a '.' */
+                log_error_doc(req);
+                perror("unable to malloc for newpath");
                 if (use_pipes)
                     close(pipes[1]);
-                _exit(1);
+                _exit(EXIT_FAILURE);
             }
+            newpath[0] = '.';
+            newpath[1] = '/';
+            memcpy(&newpath[2], req->pathname, l - 2); /* includes the trailing '\0' */
+            free(oldpath);
+            req->pathname = newpath;
         }
         if (use_pipes) {
-		fprintf (stderr, "Ananth : Inside use_pipes - Child \n");
-		fflush (stderr);
+            /* close the 'read' end of the pipes[] */
             close(pipes[0]);
-		fprintf (stderr, "Ananth : Closed the pipes 0 - Child \n");
-		fflush (stderr);
-            /* tie cgi's STDOUT to it's write end of pipe */
+            /* tie CGI's STDOUT to our write end of pipe */
             if (dup2(pipes[1], STDOUT_FILENO) == -1) {
-		fprintf (stderr, "Ananth : Inside dup2 pipes - Child \n");
-		fflush (stderr);
-                log_error_time();
+                log_error_doc(req);
                 perror("dup2 - pipes");
-                close(pipes[1]);
-                _exit(1);
+                _exit(EXIT_FAILURE);
             }
             close(pipes[1]);
-		fprintf (stderr, "Ananth : Closed the pipes 1 - Child \n");
-		fflush (stderr);
-            if (set_block_fd(STDOUT_FILENO) == -1) {
-		fprintf (stderr, "Ananth : Inside set_block_fd - Child \n");
-		fflush (stderr);
-                log_error_time();
-                perror("cgi-fcntl");
-                _exit(1);
-            }
         } else {
             /* tie stdout to socket */
-		fprintf (stderr, "Ananth : Inside Sockets - Child \n");
-		fflush (stderr);
             if (dup2(req->fd, STDOUT_FILENO) == -1) {
-		fprintf (stderr, "Ananth : Inside dup2 fd - Child \n");
-		fflush (stderr);
-                log_error_time();
+                log_error_doc(req);
                 perror("dup2 - fd");
-                _exit(1);
+                _exit(EXIT_FAILURE);
             }
-            /* Switch socket flags back to blocking */
-            if (set_block_fd(req->fd) == -1) {
-		fprintf (stderr, "Ananth : Inside set_block_fd - Child \n");
-		fflush (stderr);
-		fprintf(stderr,"set_block_fd\n");
-                log_error_time();
-                perror("cgi-fcntl");
-                _exit(1);
-            }
+            close(req->fd);
+        }
+        /* Switch socket flags back to blocking */
+        if (set_block_fd(STDOUT_FILENO) == -1) {
+            log_error_doc(req);
+            perror("cgi-fcntl");
+            _exit(EXIT_FAILURE);
         }
         /* tie post_data_fd to POST stdin */
         if (req->method == M_POST) { /* tie stdin to file */
@@ -510,99 +545,132 @@ int init_cgi(request * req)
             dup2(req->post_data_fd, STDIN_FILENO);
             close(req->post_data_fd);
         }
-        /* Close access log, so CGI program can't scribble
-         * where it shouldn't
+
+#ifdef USE_SETRLIMIT
+        /* setrlimit stuff.
+         * This is neat!
+         * RLIMIT_STACK    max stack size
+         * RLIMIT_CORE     max core file size
+         * RLIMIT_RSS      max resident set size
+         * RLIMIT_NPROC    max number of processes
+         * RLIMIT_NOFILE   max number of open files
+         * RLIMIT_MEMLOCK  max locked-in-memory address space
+         * RLIMIT_AS       address space (virtual memory) limit
+         *
+         * RLIMIT_CPU      CPU time in seconds
+         * RLIMIT_DATA     max data size
+         *
+         * Currently, we only limit the CPU time and the DATA segment
+         * We also "nice" the process.
+         *
+         * This section of code adapted from patches sent in by Steve Thompson
+         * (no email available)
          */
-		fprintf (stderr, "Ananth : Closing the access log - Child \n");
-		fflush (stderr);
-        close_access_log();
-		fprintf (stderr, "Ananth : Closed the access log - Child \n");
-		fflush (stderr);
+
+        {
+            struct rlimit rl;
+            int retval;
+
+            if (cgi_rlimit_cpu) {
+                rl.rlim_cur = rl.rlim_max = cgi_rlimit_cpu;
+                retval = setrlimit(RLIMIT_CPU, &rl);
+                if (retval == -1) {
+                    log_error_time();
+                    fprintf(stderr,
+                            "setrlimit(RLIMIT_CPU,%d): %s\n",
+                            rlimit_cpu, strerror(errno));
+                    _exit(EXIT_FAILURE);
+                }
+            }
+
+            if (cgi_limit_data) {
+                rl.rlim_cur = rl.rlim_max = cgi_rlimit_data;
+                retval = setrlimit(RLIMIT_DATA, &rl);
+                if (retval == -1) {
+                    log_error_time();
+                    fprintf(stderr,
+                            "setrlimit(RLIMIT_DATA,%d): %s\n",
+                            rlimit_data, strerror(errno));
+                    _exit(EXIT_FAILURE);
+                }
+            }
+
+            if (cgi_nice) {
+                retval = nice(cgi_nice);
+                if (retval == -1) {
+                    log_error_time();
+                    perror("nice");
+                    _exit(EXIT_FAILURE);
+                }
+            }
+        }
+#endif
+
+        umask(cgi_umask);       /* change umask *again* u=rwx,g=rxw,o= */
 
         /*
          * tie STDERR to cgi_log_fd
          * cgi_log_fd will automatically close, close-on-exec rocks!
-         * if we don't tied STDERR (current log_error) to cgi_log_fd,
-         *  then we ought to close it.
+         * if we don't tie STDERR (current log_error) to cgi_log_fd,
+         *  then we ought to tie it to /dev/null
+         *  FIXME: we currently don't tie it to /dev/null, we leave it
+         *  tied to whatever 'error_log' points to.  This means CGIs can
+         *  scribble on the error_log, probably a bad thing.
          */
-
-        if (!cgi_log_fd)
-            dup2(devnullfd, STDERR_FILENO);
-        else
+        if (cgi_log_fd) {
             dup2(cgi_log_fd, STDERR_FILENO);
+        }
 
-        if (req->is_cgi) {
-		fprintf (stderr, "Ananth : Inside is_cgi - Child \n");
-		fflush (stderr);
+        if (req->cgi_type) {
             char *aargv[CGI_ARGC_MAX + 1];
             create_argv(req, aargv);
-		fprintf (stderr, "Ananth : Before execve - Child \n");
-		fflush (stderr);
             execve(req->pathname, aargv, req->cgi_env);
-		fprintf (stderr, "Ananth : After execve - Child \n");
-		fflush (stderr);
         } else {
-		fprintf (stderr, "Ananth : Not a cgi - Child \n");
-		fflush (stderr);
             if (req->pathname[strlen(req->pathname) - 1] == '/')
                 execl(dirmaker, dirmaker, req->pathname, req->request_uri,
-                      NULL);
+                      (void *) NULL);
 #ifdef GUNZIP
             else
                 execl(GUNZIP, GUNZIP, "--stdout", "--decompress",
-                      req->pathname, NULL);
+                      req->pathname, (void *) NULL);
 #endif
         }
-	fprintf (stderr, "Ananth : execve is failed  - Child \n");
-	fflush (stderr);
         /* execve failed */
-        WARN(req->pathname);
-        _exit(0);
+        log_error_doc(req);
+        fprintf(stderr, "Unable to execve/execl pathname: \"%s\"",
+                req->pathname);
+        perror("");
+        _exit(EXIT_FAILURE);
         break;
 
     default:
         /* parent */
         /* if here, fork was successful */
-	fprintf (stderr, "Ananth : Parent \n");
-	fflush (stderr);
         if (verbose_cgi_logs) {
             log_error_time();
             fprintf(stderr, "Forked child \"%s\" pid %d\n",
                     req->pathname, child_pid);
         }
 
-	fprintf (stderr, "Ananth After verbose_cgi_logs: Parent \n");
-	fflush (stderr);
-
         if (req->method == M_POST) {
-	fprintf (stderr, "Ananth Inside close check: Parent \n");
-	fflush (stderr);
             close(req->post_data_fd); /* child closed it too */
             req->post_data_fd = 0;
         }
 
-	fprintf (stderr, "Ananth After close check: Parent \n");
-	fflush (stderr);
         /* NPH, GUNZIP, etc... all go straight to the fd */
         if (!use_pipes)
             return 0;
 
-	fprintf (stderr, "Ananth before pipe close: Parent \n");
-	fflush (stderr);
         close(pipes[1]);
         req->data_fd = pipes[0];
 
         req->status = PIPE_READ;
-        if (req->is_cgi == CGI) {
-	fprintf (stderr, "Ananth Parsing CGI: Parent \n");
-	fflush (stderr);
+        if (req->cgi_type == CGI) {
             req->cgi_status = CGI_PARSE; /* got to parse cgi header */
             /* for cgi_header... I get half the buffer! */
             req->header_line = req->header_end =
                 (req->buffer + BUFFER_SIZE / 2);
         } else {
-	fprintf (stderr, "Ananth Else: Parent \n");
-	fflush (stderr);
             req->cgi_status = CGI_BUFFER;
             /* I get all the buffer! */
             req->header_line = req->header_end = req->buffer;
@@ -614,7 +682,5 @@ int init_cgi(request * req)
         break;
     }
 
-	fprintf (stderr, "Returning : Parent \n");
-	fflush (stderr);
     return 1;
 }

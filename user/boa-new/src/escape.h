@@ -28,7 +28,7 @@
 #define NEEDS_ESCAPE_BITS 128
 
 #ifndef NEEDS_ESCAPE_SHIFT
-#define NEEDS_ESCAPE_SHIFT 5     /* 1 << 5 is 32 bits */
+#define NEEDS_ESCAPE_SHIFT 5    /* 1 << 5 is 32 bits */
 #endif
 
 #define NEEDS_ESCAPE_WORD_LENGTH (1<<NEEDS_ESCAPE_SHIFT)
@@ -43,5 +43,7 @@
  */
 #define needs_escape(c) ((c)>=NEEDS_ESCAPE_BITS || _needs_escape[NEEDS_ESCAPE_INDEX(c)]&NEEDS_ESCAPE_MASK(c))
 
-extern unsigned long _needs_escape[(NEEDS_ESCAPE_BITS+NEEDS_ESCAPE_WORD_LENGTH-1)/NEEDS_ESCAPE_WORD_LENGTH];
+extern unsigned long
+    _needs_escape[(NEEDS_ESCAPE_BITS + NEEDS_ESCAPE_WORD_LENGTH -
+                   1) / NEEDS_ESCAPE_WORD_LENGTH];
 void build_needs_escape(void);

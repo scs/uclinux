@@ -1,6 +1,7 @@
 /*
  *  Boa, an http server
  *  Copyright (C) 1999 Larry Doolittle <ldoolitt@boa.org>
+ *  Copyright (C) 2000-2005 Jon Nelson <jnelson@boa.org>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -32,13 +33,14 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include "compat.h"
 
-int open_pipe_fd(char *command);
-int open_net_fd(char *spec);
-int open_gen_fd(char *spec);
+int open_pipe_fd(const char *command);
+int open_net_fd(const char *spec);
+int open_gen_fd(const char *spec);
 
 /* Like popen, but gives fd instead of FILE * */
-int open_pipe_fd(char *command)
+int open_pipe_fd(const char *command)
 {
     int pipe_fds[2];
     int pid;
@@ -46,7 +48,7 @@ int open_pipe_fd(char *command)
      * filedes[1] is for writing. */
     if (pipe(pipe_fds) == -1)
         return -1;
-    pid = fork();
+    pid = vfork();
     if (pid == 0) {             /* child */
         close(pipe_fds[1]);
         if (pipe_fds[0] != 0) {
@@ -54,7 +56,7 @@ int open_pipe_fd(char *command)
             close(pipe_fds[0]);
         }
         execl("/bin/sh", "sh", "-c", command, (char *) 0);
-        exit(127);
+        exit(EXIT_FAILURE);
     }
     close(pipe_fds[0]);
     if (pid < 0) {
@@ -64,7 +66,7 @@ int open_pipe_fd(char *command)
     return pipe_fds[1];
 }
 
-int open_net_fd(char *spec)
+int open_net_fd(const char *spec)
 {
     char *p;
     int fd, port;
@@ -76,16 +78,18 @@ int open_net_fd(char *spec)
     *p++ = '\0';
     port = strtol(p, NULL, 10);
     /* printf("Host %s, port %d\n",spec,port); */
-    sa.sin_family = AF_INET;
+    sa.sin_family = PF_INET;
     sa.sin_port = htons(port);
     he = gethostbyname(spec);
     if (!he) {
+#ifdef HAVE_HERROR
         herror("open_net_fd");
+#endif
         return -1;
     }
     memcpy(&sa.sin_addr, he->h_addr, he->h_length);
     /* printf("using ip %s\n",inet_ntoa(sa.sin_addr)); */
-    fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    fd = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
     if (fd < 0)
         return fd;
     if (connect(fd, (struct sockaddr *) &sa, sizeof (sa)) < 0)
@@ -93,7 +97,7 @@ int open_net_fd(char *spec)
     return fd;
 }
 
-int open_gen_fd(char *spec)
+int open_gen_fd(const char *spec)
 {
     int fd;
     if (*spec == '|') {
@@ -123,19 +127,19 @@ int main(int argc, char *argv[])
     fd = open_gen_fd(argv[1]);
     if (fd < 0) {
         perror("open_gen_fd");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
     while ((nr = read(0, buff, sizeof (buff))) != 0) {
         if (nr < 0) {
             if (errno == EINTR)
                 continue;
             perror("read");
-            exit(1);
+            exit(EXIT_FAILURE);
         }
         nw = write(fd, buff, nr);
         if (nw < 0) {
             perror("write");
-            exit(1);
+            exit(EXIT_FAILURE);
         }
     }
     return 0;

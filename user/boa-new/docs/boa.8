@@ -85,6 +85,13 @@ ServerAdmin <email address>
 The email address where server problems should be sent.
 Note: this is not currently used. 
 .TP
+PidFile <filename>
+Where to put the pid of the process.
+Comment out to write no pid file.
+Note: Because Boa drops privileges at startup, and the
+pid file is written by the UID/GID before doing so, Boa
+does not attempt removal of the pid file.
+.TP
 ErrorLog <filename>
 The location of the error log file.  If this does not start with
 /, it is considered relative to the server root.
@@ -99,16 +106,47 @@ VerboseCGILogs
 This is a logical switch and does not take any parameters.
 Comment out to disable.
 .TP
+CGILog <filename>
+The location of the CGI error log file.  If this does not start with /, it 
+is considered relative to the server root. If specified, this is the file 
+that the stderr of CGIs is tied to, *instead* of to the ErrorLog.
+.TP
+CGIumask <umask>
+The CGIumask is set immediately before execution of the CGI.
+The default value is 027. The number must be interpretable
+unambiguously by the C function strtol. No base is specified,
+so one may use a hexadecimal, decimal, or octal number if 
+it is prefixed accordingly.
+.TP
 ServerName <server_name>
 The name of this server that should be sent back to
 clients if different than that returned by gethostname.
-.Tp
+.TP
 VirtualHost
 This is a logical switch and does not take any parameters.
 Comment out to disable.
 Given DocumentRoot /var/www, requests on interface 'A' or IP 'IP-A'
 become /var/www/IP-A.
 Example: http://localhost/ becomes /var/www/127.0.0.1 
+.TP
+VHostRoot <directory>
+The root location for all virtually hosted data
+Comment out to disable.
+Incompatible with 'Virtualhost' and 'DocumentRoot'!!
+Given VHostRoot /var/www, requests to host foo.bar.com,
+where foo.bar.com is ip a.b.c.d,
+become /var/www/a.b.c.d/foo.bar.com 
+Hostnames are "cleaned", and must conform to the rules
+specified in rfc1034, which are be summarized here:
+
+Hostnames must start with a letter, end with a letter or digit, 
+and have as interior characters only letters, digits, and hyphen.
+Hostnames must not exceed 63 characters in length.
+.TP
+DefaultVHost <hostname>
+Define this in order to have a default hostname when the client does not
+specify one, if using VirtualHostName. If not specified, the word
+"default" will be used for compatibility with older clients.
 .TP
 DocumentRoot <directory>
 The root directory of the HTML documents. If this does not start with
@@ -183,10 +221,9 @@ Version 0.94 was released 22 Jan 2000.
 .SH BUGS
 There are probably bugs, but we are not aware of any at this time.
 .SH AUTHOR
-Boa was created by Paul Phillips <paulp@go2net.com>. It is now being maintained and
-enhanced by Larry Doolittle
-<ldoolitt@boa.org> and
-Jon Nelson <jnelson@boa.org>.
+Boa was created by Paul Phillips <paulp@go2net.com>. 
+It is now being maintained and enhanced by Larry Doolittle
+<ldoolitt@boa.org> and Jon Nelson <jnelson@boa.org>.
 .PP
 Linux is the development platform at the moment, other
 OS's are known to work. If you'd like to

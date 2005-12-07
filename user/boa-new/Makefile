@@ -1,6 +1,6 @@
 
 .EXPORT_ALL_VARIABLES:
-
+CFLAGS += -g
 DIRS = src
 
 all romfs:

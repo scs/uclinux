@@ -1,7 +1,7 @@
 /*
  *  Boa, an http server
  *  Copyright (C) 1995 Paul Phillips <paulp@go2net.com>
- *  Some changes Copyright (C) 1997 Jon Nelson <jnelson@boa.org>
+ *  Copyright (C) 1997-2002 Jon Nelson <jnelson@boa.org>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -39,22 +39,29 @@ void block_request(request * req)
     enqueue(&request_block, req);
 
     if (req->buffer_end) {
-        BOA_FD_SET(req->fd, &block_write_fdset);
+        BOA_FD_SET(req, req->fd, BOA_WRITE);
     } else {
         switch (req->status) {
+        case IOSHUFFLE:
+#ifndef HAVE_SENDFILE
+            if (req->buffer_end - req->buffer_start == 0) {
+                BOA_FD_SET(req, req->data_fd, BOA_READ);
+                break;
+            }
+#endif
         case WRITE:
         case PIPE_WRITE:
         case DONE:
-            BOA_FD_SET(req->fd, &block_write_fdset);
+            BOA_FD_SET(req, req->fd, BOA_WRITE);
             break;
         case PIPE_READ:
-            BOA_FD_SET(req->data_fd, &block_read_fdset);
+            BOA_FD_SET(req, req->data_fd, BOA_READ);
             break;
         case BODY_WRITE:
-            BOA_FD_SET(req->post_data_fd, &block_write_fdset);
+            BOA_FD_SET(req, req->post_data_fd, BOA_WRITE);
             break;
         default:
-            BOA_FD_SET(req->fd, &block_read_fdset);
+            BOA_FD_SET(req, req->fd, BOA_READ);
             break;
         }
     }
@@ -72,22 +79,29 @@ void ready_request(request * req)
     enqueue(&request_ready, req);
 
     if (req->buffer_end) {
-        FD_CLR(req->fd, &block_write_fdset);
+        BOA_FD_CLR(req, req->fd, BOA_WRITE);
     } else {
         switch (req->status) {
+        case IOSHUFFLE:
+#ifndef HAVE_SENDFILE
+            if (req->buffer_end - req->buffer_start == 0) {
+                BOA_FD_CLR(req, req->data_fd, BOA_READ);
+                break;
+            }
+#endif
         case WRITE:
         case PIPE_WRITE:
         case DONE:
-            FD_CLR(req->fd, &block_write_fdset);
+            BOA_FD_CLR(req, req->fd, BOA_WRITE);
             break;
         case PIPE_READ:
-            FD_CLR(req->data_fd, &block_read_fdset);
+            BOA_FD_CLR(req, req->data_fd, BOA_READ);
             break;
         case BODY_WRITE:
-            FD_CLR(req->post_data_fd, &block_write_fdset);
+            BOA_FD_CLR(req, req->post_data_fd, BOA_WRITE);
             break;
         default:
-            FD_CLR(req->fd, &block_read_fdset);
+            BOA_FD_CLR(req, req->fd, BOA_READ);
         }
     }
 }

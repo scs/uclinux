@@ -1,24 +1,19 @@
 
 EXEC = boa
-#OBJS = alias.o boa.o cgi.o cgi_header.o config.o get.o hash.o \
-	log.o pipe.o queue.o read.o request.o response.o signals.o \
-	timestamp.o util.o
-
 OBJS = alias.o boa.o buffer.o cgi.o cgi_header.o config.o escape.o \
-	get.o hash.o ip.o log.o mmap_cache.o pipe.o queue.o read.o \
-	request.o response.o select.o signals.o util.o sublog.o \
-	y.tab.o lex.yy.o timestamp.o
-
+       get.o hash.o ip.o log.o mmap_cache.o pipe.o queue.o range.o \
+       read.o request.o response.o signals.o util.o sublog.o select.o timestamp.o
+       
 FLTFLAGS += -s 8192
 
 EXTRALIBS = $(LIBCRYPT)
 
-ifeq ($(CONFIG_PRODUCT),AmazonSME550)
-CFLAGS += -DCONFIG_AMAZON
+ifdef CONFIG_PROP_BOA_SECURITY_COUNT
+CFLAGS += -DSECURITY_COUNTS
 endif
 
 ifdef CONFIG_USER_BOA_WITH_SSL
-CFLAGS += $(INCSSL) -DSERVER_SSL=1
+CFLAGS += -DSERVER_SSL=1
 EXTRALIBS += $(LIBSSL) $(LIBCRYPTO)
 endif
 
@@ -35,12 +30,13 @@ CFLAGS += -DOLD_CONFIG_PASSWORDS
 endif
 
 ifdef CONFIG_PROP_AMAZON_BOA_LDAP
-CFLAGS += -DLDAP_HACK $(INCLDAP) $(INCSG)
-EXTRALIBS += -lldap -llber -static $(LIBSNAPGEAR)
+CFLAGS += -DLDAP_HACK
+EXTRALIBS += -lldap -llber -static $(LIBSNAPGEAR) $(LIBCONFIG)
 endif
 
-#CFLAGS+=-DEMBED
-#CFLAGS+=-O0
+ifdef CONFIG_USER_BOA_EMERG
+FLAGS += -DSYSLOGS_AT_EMERG
+endif
 
 all: $(EXEC)
 
@@ -48,7 +44,7 @@ $(EXEC): $(OBJS)
 	$(CC) $(LDFLAGS) -o $@ $(OBJS) $(EXTRALIBS) $(LDLIBS)
 
 romfs:
-	$(ROMFSINST) /bin/$(EXEC)
+	 $(ROMFSINST) /bin/$(EXEC)
 
 clean:
 	-rm -f $(EXEC) *.gdb *.elf *.o

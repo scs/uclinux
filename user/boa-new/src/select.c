@@ -2,8 +2,8 @@
  *  Boa, an http server
  *  Copyright (C) 1995 Paul Phillips <paulp@go2net.com>
  *  Some changes Copyright (C) 1996 Charles F. Randall <crandall@goldsys.com>
- *  Some changes Copyright (C) 1996 Larry Doolittle <ldoolitt@boa.org>
- *  Some changes Copyright (C) 1996-2002 Jon Nelson <jnelson@boa.org>
+ *  Copyright (C) 1996-1999 Larry Doolittle <ldoolitt@boa.org>
+ *  Copyright (C) 1996-2003 Jon Nelson <jnelson@boa.org>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -23,25 +23,35 @@
 
 /* $Id$*/
 
+/* algorithm:
+ * handle any signals
+ * if we still want to accept new connections, add the server to the
+ * list.
+ * if there are any blocked requests or the we are still accepting new
+ * connections, determine appropriate timeout and select, then move
+ * blocked requests back into the active list.
+ * handle active connections
+ * repeat
+ */
+
+
+
 #include "boa.h"
 
 static void fdset_update(void);
 fd_set block_read_fdset;
 fd_set block_write_fdset;
-static struct timeval req_timeout;     /* timeval for select */
+int max_fd = 0;
 
-void select_loop(int server_s)
+void loop(int server_s)
 {
-    int s=0;
-    FD_ZERO(&block_read_fdset);
-    FD_ZERO(&block_write_fdset);
-    /* set server_s and req_timeout */
-    req_timeout.tv_sec = (ka_timeout ? ka_timeout : REQUEST_TIMEOUT);
-    req_timeout.tv_usec = 0l;   /* reset timeout */
+    FD_ZERO(BOA_READ);
+    FD_ZERO(BOA_WRITE);
 
-    /* preset max_fd */
     max_fd = -1;
+
     while (1) {
+        /* handle signals here */
         if (sighup_flag)
             sighup_run();
         if (sigchld_flag)
@@ -50,43 +60,76 @@ void select_loop(int server_s)
             sigalrm_run();
 
         if (sigterm_flag) {
-            if (sigterm_flag == 1)
-                sigterm_stage1_run(server_s);
-            if (sigterm_flag == 2 && !request_ready && !request_block) {
-                sigterm_stage2_run();
+            /* sigterm_flag:
+             * 1. caught, unprocessed.
+             * 2. caught, stage 1 processed
+             */
+            if (sigterm_flag == 1) {
+                sigterm_stage1_run();
+                BOA_FD_CLR(req, server_s, BOA_READ);
+                close(server_s);
+                /* make sure the server isn't in the block list */
+                server_s = -1;
             }
+            if (sigterm_flag == 2 && !request_ready && !request_block) {
+                sigterm_stage2_run(); /* terminal */
+            }
+        } else {
+            if (total_connections > max_connections) {
+                /* FIXME: for poll we don't subtract 20. why? */
+                BOA_FD_CLR(req, server_s, BOA_READ);
+            } else {
+                BOA_FD_SET(req, server_s, BOA_READ); /* server always set */
+            }
+        }
+
+        pending_requests = 0;
+        /* max_fd is > 0 when something is blocked */
+
+        if (max_fd) {
+            struct timeval req_timeout; /* timeval for select */
+
+            req_timeout.tv_sec = (request_ready ? 0 : default_timeout);
+            req_timeout.tv_usec = 0l; /* reset timeout */
+
+            if (select(max_fd + 1, BOA_READ,
+                       BOA_WRITE, NULL,
+                       (request_ready || request_block ?
+                        &req_timeout : NULL)) == -1) {
+                /* what is the appropriate thing to do here on EBADF */
+                if (errno == EINTR)
+                    continue;       /* while(1) */
+                else if (errno != EBADF) {
+                    DIE("select");
+                }
+            }
+            /* FIXME: optimize for when select returns 0 (timeout).
+             * Thus avoiding many operations in fdset_update
+             * and others.
+             */
+            if (!sigterm_flag && FD_ISSET(server_s, BOA_READ)) {
+                pending_requests = 1;
+            }
+            time(&current_time); /* for "new" requests if we've been in
+            * select too long */
+            /* if we skip this section (for example, if max_fd == 0),
+             * then we aren't listening anyway, so we can't accept
+             * new conns.  Don't worry about it.
+             */
         }
 
         /* reset max_fd */
         max_fd = -1;
 
-        if (request_block)
+        if (request_block) {
             /* move selected req's from request_block to request_ready */
             fdset_update();
+        }
+
         /* any blocked req's move from request_ready to request_block */
-        process_requests(server_s);
-
-        if (!sigterm_flag && total_connections < (max_connections - 10)) {
-            BOA_FD_SET(server_s, &block_read_fdset); /* server always set */
+        if (pending_requests || request_ready) {
+            process_requests(server_s);
         }
-
-        req_timeout.tv_sec = (request_ready ? 0 :
-                              (ka_timeout ? ka_timeout : REQUEST_TIMEOUT));
-        req_timeout.tv_usec = 0l;   /* reset timeout */
-        
-	if ((s=select(max_fd + 1, &block_read_fdset,
-                   &block_write_fdset, NULL,
-                   (request_ready || request_block ? &req_timeout : NULL))) == -1) {
-            /* what is the appropriate thing to do here on EBADF */
-            if (errno == EINTR)
-                continue;   /* while(1) */
-            else if (errno != EBADF) {
-                DIE("select");
-            }
-        }
-        time(&current_time);
-        if (FD_ISSET(server_s, &block_read_fdset))
-            pending_requests = 1;
     }
 }
 
@@ -110,7 +153,8 @@ static void fdset_update(void)
 {
     request *current, *next;
 
-    for(current = request_block;current;current = next) {
+    time(&current_time);
+    for (current = request_block; current; current = next) {
         time_t time_since = current_time - current->time_last;
         next = current->next;
 
@@ -119,58 +163,72 @@ static void fdset_update(void)
          * has been read via header position, etc... */
         if (current->kacount < ka_max && /* we *are* in a keepalive */
             (time_since >= ka_timeout) && /* ka timeout */
-            !current->logline)  /* haven't read anything yet */
-            current->status = DEAD; /* connection keepalive timed out */
-        else if (time_since > REQUEST_TIMEOUT) {
+            !current->logline) { /* haven't read anything yet */
             log_error_doc(current);
             fputs("connection timed out\n", stderr);
-            current->status = DEAD;
+            current->status = TIMED_OUT; /* connection timed out */
+        } else if (time_since > REQUEST_TIMEOUT) {
+            log_error_doc(current);
+            fputs("connection timed out\n", stderr);
+            current->status = TIMED_OUT; /* connection timed out */
         }
-        if (current->buffer_end && current->status < DEAD) {
-            if (FD_ISSET(current->fd, &block_write_fdset))
+        if (current->buffer_end && /* there is data to write */
+            current->status < DONE) {
+            if (FD_ISSET(current->fd, BOA_WRITE))
                 ready_request(current);
             else {
-                BOA_FD_SET(current->fd, &block_write_fdset);
+                BOA_FD_SET(current, current->fd, BOA_WRITE);
             }
         } else {
             switch (current->status) {
+            case IOSHUFFLE:
+#ifndef HAVE_SENDFILE
+                if (current->buffer_end - current->buffer_start == 0) {
+                    if (FD_ISSET(current->data_fd, BOA_READ))
+                        ready_request(current);
+                    break;
+                }
+#endif
             case WRITE:
             case PIPE_WRITE:
-                if (FD_ISSET(current->fd, &block_write_fdset))
+                if (FD_ISSET(current->fd, BOA_WRITE))
                     ready_request(current);
                 else {
-                    BOA_FD_SET(current->fd, &block_write_fdset);
+                    BOA_FD_SET(current, current->fd, BOA_WRITE);
                 }
                 break;
             case BODY_WRITE:
-                if (FD_ISSET(current->post_data_fd, &block_write_fdset))
+                if (FD_ISSET(current->post_data_fd, BOA_WRITE))
                     ready_request(current);
                 else {
-                    BOA_FD_SET(current->post_data_fd, &block_write_fdset);
+                    BOA_FD_SET(current, current->post_data_fd,
+                               BOA_WRITE);
                 }
                 break;
             case PIPE_READ:
-                if (FD_ISSET(current->data_fd, &block_read_fdset))
+                if (FD_ISSET(current->data_fd, BOA_READ))
                     ready_request(current);
                 else {
-                    BOA_FD_SET(current->data_fd, &block_read_fdset);
+                    BOA_FD_SET(current, current->data_fd,
+                               BOA_READ);
                 }
                 break;
             case DONE:
-                if (FD_ISSET(current->fd, &block_write_fdset))
+                if (FD_ISSET(current->fd, BOA_WRITE))
                     ready_request(current);
                 else {
-                    BOA_FD_SET(current->fd, &block_write_fdset);
+                    BOA_FD_SET(current, current->fd, BOA_WRITE);
                 }
                 break;
+            case TIMED_OUT:
             case DEAD:
                 ready_request(current);
                 break;
             default:
-                if (FD_ISSET(current->fd, &block_read_fdset))
+                if (FD_ISSET(current->fd, BOA_READ))
                     ready_request(current);
                 else {
-                    BOA_FD_SET(current->fd, &block_read_fdset);
+                    BOA_FD_SET(current, current->fd, BOA_READ);
                 }
                 break;
             }
@@ -178,4 +236,3 @@ static void fdset_update(void)
         current = next;
     }
 }
-

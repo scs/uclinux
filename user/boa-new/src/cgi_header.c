@@ -1,7 +1,7 @@
 /*
  *  Boa, an http server
  *  cgi_header.c - cgi header parsing and control
- *  Copyright (C) 1997-99 Jon Nelson <jnelson@boa.org>
+ *  Copyright (C) 1997-2003 Jon Nelson <jnelson@boa.org>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -62,7 +62,7 @@ int process_cgi_header(request * req)
     if (c == NULL) {
         c = strstr(buf, "\n\n");
         if (c == NULL) {
-            log_error_time();
+            log_error_doc(req);
             fputs("cgi_header: unable to find LFLF\n", stderr);
 #ifdef FASCIST_LOGGING
             log_error_time();
@@ -72,7 +72,7 @@ int process_cgi_header(request * req)
             return 0;
         }
     }
-    if (req->simple) {
+    if (req->http_version == HTTP09) {
         if (*(c + 1) == '\r')
             req->header_line = c + 2;
         else
@@ -92,9 +92,9 @@ int process_cgi_header(request * req)
 
 
         if (buf[10] == '/') {   /* virtual path */
-            log_error_time();
+            log_error_doc(req);
             fprintf(stderr,
-                    "server does not support internal redirection: " \
+                    "server does not support internal redirection: "
                     "\"%s\"\n", buf + 10);
             send_r_bad_request(req);
 
@@ -135,7 +135,7 @@ int process_cgi_header(request * req)
         return 1;
     } else {                    /* not location and not status */
         char *dest;
-        int howmuch;
+        unsigned int howmuch;
         send_r_request_ok(req); /* does not terminate */
         /* got to do special things because
            a) we have a single buffer divided into 2 pieces
@@ -155,7 +155,7 @@ int process_cgi_header(request * req)
 
         if (dest + howmuch > req->buffer + BUFFER_SIZE) {
             /* big problem */
-            log_error_time();
+            log_error_doc(req);
             fprintf(stderr, "Too much data to move! Aborting! %s %d\n",
                     __FILE__, __LINE__);
             /* reset buffer pointers because we already called

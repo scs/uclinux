@@ -1,6 +1,6 @@
 /*
  *  Boa, an http server
- *  Copyright (C) 1998 Jon Nelson <jnelson@boa.org>
+ *  Copyright (C) 1998-2002 Jon Nelson <jnelson@boa.org>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
