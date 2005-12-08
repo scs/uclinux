@@ -359,10 +359,29 @@ static void __init generate_cpl_tables(void)
 	pos =
 	    fill_cpl_tables(dcplb_table, pos, ZERO, SIZE_4M, SIZE_4M,
 			    SDRAM_DKERNEL);
+#if defined (CONFIG_BF561)
+	pos =
+	    fill_cpl_tables(dcplb_table, pos, ASYNC_BANK0_BASE,
+			    ASYNC_BANK0_BASE + ASYNC_BANK0_SIZE,
+			    SIZE_4M, SDRAM_EBIU);
+	pos =
+	    fill_cpl_tables(dcplb_table, pos, ASYNC_BANK1_BASE,
+			    ASYNC_BANK1_BASE + ASYNC_BANK1_SIZE,
+			    SIZE_4M, SDRAM_EBIU);
+	pos =
+	    fill_cpl_tables(dcplb_table, pos, ASYNC_BANK2_BASE,
+			    ASYNC_BANK2_BASE + ASYNC_BANK2_SIZE,
+			    SIZE_4M, SDRAM_EBIU);
+	pos =
+	    fill_cpl_tables(dcplb_table, pos, ASYNC_BANK3_BASE,
+			    ASYNC_BANK3_BASE + ASYNC_BANK3_SIZE,
+			    SIZE_4M, SDRAM_EBIU);
+#else
 	pos =
 	    fill_cpl_tables(dcplb_table, pos, ASYNC_BANK0_BASE,
 			    ASYNC_BANK3_BASE + ASYNC_BANK3_SIZE,
 			    SIZE_4M, SDRAM_EBIU);
+#endif
 	pos =
 	    fill_cpl_tables(dcplb_table, pos, RAM_END - SIZE_1M, RAM_END,
 			    SIZE_1M, SDRAM_DNON_CHBL);
