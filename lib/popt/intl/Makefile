@@ -47,7 +47,7 @@ l =
 AR = ar
 CC = bfin-uclinux-gcc
 LIBTOOL = $(SHELL) $(top_builddir)/libtool
-RANLIB = ranlib
+RANLIB = bfin-uclinux-ranlib
 YACC = bison -y -d
 YFLAGS = --name-prefix=__gettext
 
@@ -128,7 +128,7 @@ libintl.h: libgnuintl.h
 	cp $(srcdir)/libgnuintl.h libintl.h
 
 charset.alias: config.charset
-	$(SHELL) $(srcdir)/config.charset 'i386-pc-none' > t-$@
+	$(SHELL) $(srcdir)/config.charset 'bfin-unknown-uclinux' > t-$@
 	mv t-$@ $@
 
 check: all

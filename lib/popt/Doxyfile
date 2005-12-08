@@ -105,7 +105,7 @@ FULL_PATH_NAMES      = YES
 # only done if one of the specified strings matches the left-hand part of
 # the path.
 
-STRIP_FROM_PATH      = /home/ksh/cvs/commit/11-23/uClinux-dist/lib/popt/
+STRIP_FROM_PATH      = /home/ksh/Documents/source/popt-1.7/
 
 # The INTERNAL_DOCS tag determines if documentation
 # that is typed after a \internal command is included. If the tag is set 

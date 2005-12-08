@@ -227,6 +227,7 @@ case $basic_machine in
 	| a29k \
 	| alpha | alphaev[4-8] | alphaev56 | alphaev6[78] | alphapca5[67] \
 	| arc | arm | arm[bl]e | arme[lb] | armv[2345] | armv[345][lb] | avr \
+	| bfin \
 	| c4x | clipper \
 	| d10v | d30v | dsp16xx \
 	| fr30 \
@@ -1040,6 +1041,9 @@ case $os in
 		;;
 	-svr4*)
 		os=-sysv4
+		;;
+	-uclinux*)
+		os=-uclinux
 		;;
 	-unixware*)
 		os=-sysv4.2uw

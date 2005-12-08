@@ -64,7 +64,7 @@
 #define HAVE_GETUID 1
 
 /* Define if you have the iconv() function. */
-/* #undef HAVE_ICONV */
+#define HAVE_ICONV 1
 
 /* Define if <inttypes.h> exists and doesn't clash with <sys/types.h>. */
 #define HAVE_INTTYPES_H 1
@@ -183,7 +183,7 @@
 /* #undef HAVE___ARGZ_STRINGIFY */
 
 /* Define as const if the declaration of iconv() needs const. */
-/* #undef ICONV_CONST */
+#define ICONV_CONST 
 
 /* Define if integer division by zero raises signal SIGFPE. */
 #define INTDIV0_RAISES_SIGFPE 0
@@ -207,7 +207,7 @@
 #define PACKAGE_VERSION ""
 
 /* Full path to popt top_sourcedir. */
-#define POPT_SOURCE_PATH "/home/ksh/cvs/commit/11-23/uClinux-dist/lib/popt"
+#define POPT_SOURCE_PATH "/home/ksh/Documents/source/popt-1.7"
 
 /* Define if <inttypes.h> exists and defines unusable PRI* macros. */
 /* #undef PRI_MACROS_BROKEN */
@@ -218,9 +218,9 @@
 /* If using the C implementation of alloca, define if you know the
    direction of stack growth for your system; otherwise it will be
    automatically deduced at run-time.
-	STACK_DIRECTION > 0 => grows toward higher addresses
-	STACK_DIRECTION < 0 => grows toward lower addresses
-	STACK_DIRECTION = 0 => direction of growth unknown */
+        STACK_DIRECTION > 0 => grows toward higher addresses
+        STACK_DIRECTION < 0 => grows toward lower addresses
+        STACK_DIRECTION = 0 => direction of growth unknown */
 /* #undef STACK_DIRECTION */
 
 /* Define to 1 if you have the ANSI C header files. */
@@ -232,11 +232,9 @@
 /* Define to empty if `const' does not conform to ANSI C. */
 /* #undef const */
 
-/* Define to `__inline__' or `__inline' if that's what the C compiler
-   calls it, or to nothing if 'inline' is not supported under any name.  */
-#ifndef __cplusplus
+/* Define as `__inline' if that's what the C compiler calls it, or to nothing
+   if it is not supported. */
 /* #undef inline */
-#endif
 
 /* Define to `long' if <sys/types.h> does not define. */
 /* #undef off_t */
