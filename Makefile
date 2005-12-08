@@ -179,9 +179,11 @@ modules:
 modules_install:
 	. $(LINUXDIR)/.config; if [ "$$CONFIG_MODULES" = "y" ]; then \
 		[ -d $(ROMFSDIR)/lib/modules ] || mkdir -p $(ROMFSDIR)/lib/modules; \
+		rm -f $(ROMFSDIR)/lib/modules/modules.dep; \
 		$(MAKEARCH_KERNEL) -C $(LINUXDIR) INSTALL_MOD_PATH=$(ROMFSDIR) DEPMOD=true modules_install; \
 		rm -f $(ROMFSDIR)/lib/modules/*/build; \
 		find $(ROMFSDIR)/lib/modules -type f | xargs -r $(STRIP) -g; \
+		$(ROOTDIR)/user/busybox/examples/depmod.pl -b $(ROMFSDIR)/lib/modules/ -k $(ROOTDIR)/$(LINUXDIR)/vmlinux; \
 	fi
 
 linux_xconfig:
