@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
 # Linux kernel version: 2.6.12.1
-# Tue Dec  6 17:17:31 2005
+# Thu Dec  8 15:01:03 2005
 #
 # CONFIG_MMU is not set
 # CONFIG_FPU is not set
@@ -239,6 +239,11 @@ CONFIG_BINFMT_FLAT=y
 # CONFIG_PM is not set
 
 #
+# CPU Frequency scaling
+#
+# CONFIG_CPU_FREQ is not set
+
+#
 # Generic Driver Options
 #
 CONFIG_STANDALONE=y
@@ -260,7 +265,6 @@ CONFIG_MTD_PARTITIONS=y
 #
 CONFIG_MTD_CHAR=m
 CONFIG_MTD_BLOCK=y
-# CONFIG_MTD_BLOCK_RO is not set
 # CONFIG_FTL is not set
 # CONFIG_NFTL is not set
 # CONFIG_INFTL is not set
@@ -328,8 +332,12 @@ CONFIG_MTD_UCLINUX=y
 #
 # NAND Flash Device Drivers
 #
-CONFIG_MTD_NAND=y
+CONFIG_MTD_NAND=m
+# CONFIG_MTD_NAND_VERIFY_WRITE is not set
 CONFIG_MTD_NAND_BFIN=m
+CONFIG_MTD_NAND_IDS=m
+# CONFIG_MTD_NAND_DISKONCHIP is not set
+# CONFIG_MTD_NAND_NANDSIM is not set
 
 #
 # Parallel port support
@@ -645,6 +653,11 @@ CONFIG_RAMFS=y
 # CONFIG_BFS_FS is not set
 # CONFIG_EFS_FS is not set
 CONFIG_YAFFS_FS=m
+CONFIG_YAFFS_YAFFS1=y
+# CONFIG_YAFFS_DOES_ECC is not set
+CONFIG_YAFFS_YAFFS2=y
+CONFIG_YAFFS_DISABLE_CHUNK_ERASED_CHECK=y
+CONFIG_YAFFS_SHORT_NAMES_IN_RAM=y
 # CONFIG_JFFS_FS is not set
 CONFIG_JFFS2_FS=m
 CONFIG_JFFS2_FS_DEBUG=0

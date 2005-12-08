@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
 # Linux kernel version: 2.6.12.1
-# Wed Dec  7 11:05:16 2005
+# Thu Dec  8 15:02:46 2005
 #
 # CONFIG_MMU is not set
 # CONFIG_FPU is not set
@@ -294,7 +294,6 @@ CONFIG_MTD_PARTITIONS=y
 #
 CONFIG_MTD_CHAR=m
 CONFIG_MTD_BLOCK=y
-# CONFIG_MTD_BLOCK_RO is not set
 # CONFIG_FTL is not set
 # CONFIG_NFTL is not set
 # CONFIG_INFTL is not set
@@ -600,6 +599,7 @@ CONFIG_LEGACY_PTY_COUNT=256
 # CONFIG_WATCHDOG is not set
 # CONFIG_RTC is not set
 # CONFIG_GEN_RTC is not set
+# CONFIG_BLACKFIN_RTC is not set
 # CONFIG_BLACKFIN_DPMC is not set
 # CONFIG_DTLK is not set
 # CONFIG_R3964 is not set

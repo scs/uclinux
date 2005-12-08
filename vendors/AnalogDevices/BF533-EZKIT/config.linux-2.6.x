@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
 # Linux kernel version: 2.6.12.1
-# Tue Dec  6 18:07:16 2005
+# Thu Dec  8 14:54:11 2005
 #
 # CONFIG_MMU is not set
 # CONFIG_FPU is not set
@@ -225,6 +225,13 @@ CONFIG_BINFMT_FLAT=y
 # CONFIG_PM is not set
 
 #
+# CPU Frequency scaling
+#
+# CONFIG_CPU_FREQ is not set
+# CONFIG_CPU_FREQ_DEFAULT_GOV_PERFORMANCE is not set
+# CONFIG_CPU_FREQ_DEFAULT_GOV_USERSPACE is not set
+
+#
 # Generic Driver Options
 #
 CONFIG_STANDALONE=y
@@ -246,7 +253,6 @@ CONFIG_MTD_PARTITIONS=y
 #
 CONFIG_MTD_CHAR=m
 CONFIG_MTD_BLOCK=y
-# CONFIG_MTD_BLOCK_RO is not set
 # CONFIG_FTL is not set
 # CONFIG_NFTL is not set
 # CONFIG_INFTL is not set
