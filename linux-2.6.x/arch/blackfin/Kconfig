@@ -583,7 +583,9 @@ source "drivers/cpufreq/Kconfig"
 
 config CPU_FREQ
 	bool
-	default y
+	default n
+	help 
+		If you want to enable this option, you should select DPMC driver from Character Devices 
 endmenu
 
 endif
