@@ -412,10 +412,29 @@ static void __init generate_cpl_tables(void)
 	pos =
 	    fill_cpl_tables(dpdt_table, pos, RAM_END - SIZE_1M, RAM_END,
 			    SIZE_1M, SDRAM_DNON_CHBL);
+#if defined (CONFIG_BF561)
+	pos =
+	    fill_cpl_tables(dpdt_table, pos, ASYNC_BANK0_BASE,
+			    ASYNC_BANK0_BASE + ASYNC_BANK0_SIZE,
+			    SIZE_4M, SDRAM_EBIU);
+	pos =
+	    fill_cpl_tables(dpdt_table, pos, ASYNC_BANK1_BASE,
+			    ASYNC_BANK1_BASE + ASYNC_BANK1_SIZE,
+			    SIZE_4M, SDRAM_EBIU);
+	pos =
+	    fill_cpl_tables(dpdt_table, pos, ASYNC_BANK2_BASE,
+			    ASYNC_BANK2_BASE + ASYNC_BANK2_SIZE,
+			    SIZE_4M, SDRAM_EBIU);
+	pos =
+	    fill_cpl_tables(dpdt_table, pos, ASYNC_BANK3_BASE,
+			    ASYNC_BANK3_BASE + ASYNC_BANK3_SIZE,
+			    SIZE_4M, SDRAM_EBIU);
+#else
 	pos =
 	    fill_cpl_tables(dpdt_table, pos, ASYNC_BANK0_BASE,
 			    ASYNC_BANK3_BASE + ASYNC_BANK3_SIZE,
 			    SIZE_4M, SDRAM_EBIU);
+#endif
 	pos =
 	    fill_cpl_tables(dpdt_table, pos, L1_DATA_A_START,
 			    L1_DATA_B_START + L1_DATA_B_LENGTH, SIZE_4M,
@@ -452,10 +471,29 @@ static void __init generate_cpl_tables(void)
 	pos =
 	    fill_cpl_tables(ipdt_table, pos, SIZE_4M, RAM_END,
 			    SIZE_4M, SDRAM_IGENERIC);
+#if defined (CONFIG_BF561)
+	pos =
+	    fill_cpl_tables(ipdt_table, pos, ASYNC_BANK0_BASE,
+			    ASYNC_BANK0_BASE + ASYNC_BANK0_SIZE,
+			    SIZE_4M, SDRAM_EBIU);
+	pos =
+	    fill_cpl_tables(ipdt_table, pos, ASYNC_BANK1_BASE,
+			    ASYNC_BANK1_BASE + ASYNC_BANK1_SIZE,
+			    SIZE_4M, SDRAM_EBIU);
+	pos =
+	    fill_cpl_tables(ipdt_table, pos, ASYNC_BANK2_BASE,
+			    ASYNC_BANK2_BASE + ASYNC_BANK2_SIZE,
+			    SIZE_4M, SDRAM_EBIU);
+	pos =
+	    fill_cpl_tables(ipdt_table, pos, ASYNC_BANK3_BASE,
+			    ASYNC_BANK3_BASE + ASYNC_BANK3_SIZE,
+			    SIZE_4M, SDRAM_EBIU);
+#else
 	pos =
 	    fill_cpl_tables(ipdt_table, pos, ASYNC_BANK0_BASE,
 			    ASYNC_BANK3_BASE + ASYNC_BANK3_SIZE,
 			    SIZE_4M, SDRAM_EBIU);
+#endif
 	pos =
 	    fill_cpl_tables(ipdt_table, pos, L1_CODE_START,
 			    L1_CODE_START + SIZE_1M, SIZE_1M, L1_IMEMORY);
