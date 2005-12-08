@@ -362,7 +362,7 @@ void dump(struct pt_regs *fp, void *retaddr)
 	printk("\n\n");
 	if (*pTBUFSTAT) {
 		printk(KERN_EMERG "Hardware Trace:\n");
-		for (i = 0; i <= *pTBUFSTAT; i++) {
+		for (i = 0; (*pTBUFSTAT) & 0x1f; i++) {
 			printk(KERN_EMERG "%2i Target : ", i);
 			printk_address((unsigned long)*pTBUF);
 			printk(KERN_EMERG "\n   Source : ");
