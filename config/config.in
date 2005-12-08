@@ -289,6 +289,7 @@ bool 'fnord web server'		CONFIG_USER_FNORD_HTTPD
 if [ "$CONFIG_USER_FNORD_HTTPD" = "y" ]; then
 	bool '  fnord does not do auth'		CONFIG_USER_FNORD_NOAUTH
 else
+	bool 'boa-new(ver 0.94.14)'	CONFIG_USER_BOA_SRC_BOA_NEW
 	bool 'boa'			CONFIG_USER_BOA_SRC_BOA
 	if [ "$CONFIG_USER_BOA_SRC_BOA" = "y" ]; then
 		bool '  boa uses SSL'	CONFIG_USER_BOA_WITH_SSL
@@ -1610,5 +1611,4 @@ bool	'oprofile'			CONFIG_USER_OPROFILE
 bool	'NetAudio'			CONFIG_USER_NET_AUDIO
 comment 'FLAT binary format tools'
 bool    'flthdr'                        CONFIG_USER_FLTHDR
-
 endmenu
