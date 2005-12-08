@@ -205,5 +205,3 @@ distclean ::
 	rm -f config.cache config.log config.status Makefile include/ncurses_cfg.h
 	rm -f headers.sh headers.sed
 	rm -rf $(DIRS_TO_MAKE)
-romfs:
-	cp lib/libncurses* $(ROOTDIR)/romfs/lib
