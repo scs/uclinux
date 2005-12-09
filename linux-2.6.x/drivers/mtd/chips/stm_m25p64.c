@@ -716,13 +716,13 @@ static void stm_flash_resume(struct mtd_info *mtd)
 	printk("stm_flash_resume(): not implemented!\n");
 }
 
-int __init stm_flash_init(void)
+static int __init stm_flash_init(void)
 {
 	register_mtd_chip_driver(&stm_flash_chipdrv);
 	return 0;
 }
 
-void __exit stm_flash_exit(void)
+static void __exit stm_flash_exit(void)
 {
 	unregister_mtd_chip_driver(&stm_flash_chipdrv);
 }
