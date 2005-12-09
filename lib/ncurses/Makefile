@@ -206,4 +206,3 @@ distclean ::
 	rm -f headers.sh headers.sed
 	rm -rf $(DIRS_TO_MAKE)
 romfs:
-	cp lib/libncurses* $(ROOTDIR)/romfs/lib
