@@ -29,19 +29,19 @@ static void put_region(char *dst, const char *src, size_t count)
 		}
 	} else if (((unsigned long)dst >= 0xff610000) &&
 	           ((unsigned long)dst <  0xff614000)) {
-		if ((unsigned long)dst + count < 0xff6140000) {
+		if ((unsigned long)dst + count < 0xff614000) {
 			index = 1;
 			seek = (unsigned long)dst & 0x3fff;
 		}
 	} else if (((unsigned long)dst >= 0xff500000) &&
 	           ((unsigned long)dst <  0xff508000)) {
-		if ((unsigned long)dst + count < 0xff5080000) {
+		if ((unsigned long)dst + count < 0xff508000) {
 			index = 2;
 			seek = (unsigned long)dst & 0x7fff;
 		}
 	} else if (((unsigned long)dst >= 0xff400000) &&
 	           ((unsigned long)dst <  0xff408000)) {
-		if ((unsigned long)dst + count < 0xff4080000) {
+		if ((unsigned long)dst + count < 0xff408000) {
 			index = 3;
 			seek = (unsigned long)dst & 0x7fff;
 		}
@@ -89,7 +89,7 @@ int elf_load(const char* buf)
 
 			if ((shdr->sh_flags & 0x0003) == 0x0003) {
 				printf("Write %d bytes to 0x%08lx\n", size, addr);
-				put_region(addr, buf + shdr->sh_offset, size);
+				put_region((char*)addr, buf + shdr->sh_offset, size);
 			}
 		}
 	}
@@ -127,7 +127,7 @@ int dxe_load(const char* buf)
 			unsigned long size = shdr->sh_size;
 			if ((shdr->sh_flags & 0x408000) == 0x8000) {
 				printf("Write %d bytes to 0x%08lx\n", size, addr);
-				put_region(addr, buf + shdr->sh_offset, size);
+				put_region((char*)addr, buf + shdr->sh_offset, size);
 			}
 		}
 	}
@@ -166,7 +166,7 @@ int main(int argc, char* argv[])
 
 	fclose(f);
 
-	if (!dxe_load(buf, stat.st_size, NULL, 0))
+	if (!dxe_load(buf))
 		StartCoreB();
 	else if (!elf_load(buf))
 		StartCoreB();
