@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
 # Linux kernel version: 2.6.12.1
-# Thu Dec  8 15:01:03 2005
+# Mon Dec 12 14:44:05 2005
 #
 # CONFIG_MMU is not set
 # CONFIG_FPU is not set
@@ -760,12 +760,10 @@ CONFIG_SOUND=m
 CONFIG_SND=m
 CONFIG_SND_TIMER=m
 CONFIG_SND_PCM=m
-CONFIG_SND_SEQUENCER=m
-# CONFIG_SND_SEQ_DUMMY is not set
+# CONFIG_SND_SEQUENCER is not set
 CONFIG_SND_OSSEMUL=y
 CONFIG_SND_MIXER_OSS=m
 CONFIG_SND_PCM_OSS=m
-CONFIG_SND_SEQUENCER_OSS=y
 # CONFIG_SND_VERBOSE_PRINTK is not set
 # CONFIG_SND_DEBUG is not set
 
@@ -773,7 +771,6 @@ CONFIG_SND_SEQUENCER_OSS=y
 # Generic devices
 #
 # CONFIG_SND_DUMMY is not set
-# CONFIG_SND_VIRMIDI is not set
 # CONFIG_SND_MTPAV is not set
 # CONFIG_SND_SERIAL_U16550 is not set
 # CONFIG_SND_MPU401 is not set
