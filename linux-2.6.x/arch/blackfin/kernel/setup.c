@@ -34,6 +34,7 @@
 #include <linux/bootmem.h>
 #include <linux/seq_file.h>
 #include <linux/cpu.h>
+#include <linux/module.h>
 
 #include <asm/cacheflush.h>
 #include <asm/blackfin.h>
