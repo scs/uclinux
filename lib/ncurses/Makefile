@@ -208,4 +208,5 @@ distclean ::
 	rm -f headers.sh headers.sed
 	rm -rf $(DIRS_TO_MAKE)
 romfs:
+	mkdir -p $(ROMFSDIR)/usr/share/terminfo
 	tic -x -s -e '$(INSTALL_TERMINFO_TYPE)' -o $(ROMFSDIR)/usr/share/terminfo/ misc/terminfo.src	
