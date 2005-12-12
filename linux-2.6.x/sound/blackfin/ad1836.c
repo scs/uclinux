@@ -1223,7 +1223,7 @@ static int snd_ad1836_capture_open(snd_pcm_substream_t* substream){
   if( chip->talktrough_mode != TALKTROUGH_OFF ) 
     return -EBUSY;
  
-#if  1
+#if  MULTI_SUBSTREAM
   snd_ad1836_playback_hw.channels_max = FIXED_CHANNELS;
   snd_ad1836_playback_hw.period_bytes_min = PCM_BUFFER_MAX / FIXED_FRAGMENTS;
   snd_ad1836_playback_hw.period_bytes_max = PCM_BUFFER_MAX / FIXED_FRAGMENTS;
