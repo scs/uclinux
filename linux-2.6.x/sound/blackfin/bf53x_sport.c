@@ -300,7 +300,7 @@ static void setup_desc(dmasg_t* desc, void* buf, int fragcount, size_t fragsize_
 	desc[0].x_count, desc[0].y_count, desc[0].start_addr,desc[0].cfg);
  */
 
-  flush_dcache_range(desc, desc + fragcount*sizeof(dmasg_t));
+  flush_dcache_range((unsigned int)desc, (unsigned int)desc + fragcount*sizeof(dmasg_t));
 }
 
 /* Stupid function for waiting, udelay make while does break, msleep crash system */
@@ -327,16 +327,19 @@ void bf53x_sport_hook_rx_desc( struct bf53x_sport* sport, int dummy)
     	if (sport->curr_rx_desc != sport->dummy_rx_desc) {
 		/* Copy the dummy buffer descriptor from backup */
 		*sport->dummy_rx_desc = *sport->dummy_rx_desc2;
+		flush_dcache_range((unsigned int)sport->dummy_rx_desc, 
+			(unsigned int)sport->dummy_rx_desc + sizeof(dmasg_t));
 		local_irq_save(flags);
 		desc = (dmasg_t*)dma->next_desc_ptr;
 		desc->x_count=0x10;
 		desc->y_count=0;
 		desc->next_desc_addr = (unsigned int)(sport->dummy_rx_desc);
+		flush_dcache_range((unsigned int)desc, (unsigned int)desc + sizeof(*desc));
 		local_irq_restore(flags);
 		/* Waiting for dummy buffer descriptor is already hooked*/
 		while(dma->curr_desc_ptr - sizeof(dmasg_t) != (unsigned long)sport->dummy_rx_desc) {
 //			printk(KERN_INFO"curr_rx:0x%lx\n", dma->curr_desc_ptr);
-//			udelay(1); /* DMA doesn't going on*/
+//			udelay(1); /* DMA doesn't going on, cannot break loop*/
 //			msleep(1);
 			waiting(flags);
 		}
@@ -347,6 +350,8 @@ void bf53x_sport_hook_rx_desc( struct bf53x_sport* sport, int dummy)
 	if(sport->curr_rx_desc != sport->dma_rx_desc) {
 		local_irq_save(flags);
 		sport->dummy_rx_desc->next_desc_addr = (unsigned int)(sport->dma_rx_desc);
+		flush_dcache_range((unsigned int)sport->dummy_rx_desc, 
+			(unsigned int)sport->dummy_rx_desc + sizeof(dmasg_t));
 		local_irq_restore(flags);
 		sport->curr_rx_desc = sport->dma_rx_desc;
 	}
@@ -391,18 +396,21 @@ void bf53x_sport_hook_tx_desc( struct bf53x_sport* sport, int dummy)
     	SPORT_ASSERT(sport->dummy_tx_desc != NULL);
     	if (sport->curr_tx_desc != sport->dummy_tx_desc) {
 		*sport->dummy_tx_desc = *sport->dummy_tx_desc2;
+		flush_dcache_range((unsigned int)sport->dummy_tx_desc, 
+			(unsigned int)sport->dummy_tx_desc + sizeof(dmasg_t));
 		/* Shorten the time on last normal descriptor */
   		local_irq_save(flags);
 	   	desc = (dmasg_t*)dma->next_desc_ptr;
 		desc->x_count = 0x10;
 		desc->y_count = 0;
 		desc->next_desc_addr = (unsigned int)(sport->dummy_tx_desc);
+		flush_dcache_range((unsigned int)desc, (unsigned int)desc + sizeof(*desc));
 		local_irq_restore(flags);
 		/* Waiting for dummy buffer descriptor is already hooked*/
 //		printk(KERN_ERR"desc:0x%p, sport->dummy_tx_desc:0x%p\n", desc, sport->dummy_tx_desc);
 		while((dma->curr_desc_ptr-sizeof(dmasg_t)) != (unsigned long)sport->dummy_tx_desc){
 //			printk(KERN_ERR"curr_desc:0x%lx\n", dma->curr_desc_ptr);/*Work*/
-//			udelay(1);/*DMA doesn't going on, cannot break loop */
+//			udelay(1);/*DMA doesn't going on, cannot break the loop */
 //			msleep(1); /* System crash */
 			waiting(flags);
 		}
@@ -413,13 +421,15 @@ void bf53x_sport_hook_tx_desc( struct bf53x_sport* sport, int dummy)
 	if(sport->curr_tx_desc != sport->dma_tx_desc) {
 		local_irq_save(flags);
 		sport->dummy_tx_desc->next_desc_addr = (unsigned int)(sport->dma_tx_desc);
+		flush_dcache_range((unsigned int)sport->dummy_tx_desc, 
+			(unsigned int)sport->dummy_tx_desc + sizeof(dmasg_t));
 		local_irq_restore(flags);
 		sport->curr_tx_desc = sport->dma_tx_desc;
 	}
     }
   } else {
   	printk(KERN_ERR"Error - DMA's tx state is incorrect, try to restart it\n");
-
+    
 	if(dummy)
 		sport->curr_tx_desc = sport->dummy_tx_desc;
 	else
@@ -487,7 +497,6 @@ int bf53x_sport_config_rx_dma( struct bf53x_sport* sport, void* buf,
 
   setup_desc( sport->dma_rx_desc, buf, fragcount, fragsize_bytes , cfg|DMAEN, x_count, y_count);
 
- 
   return 0;
 
 }
@@ -562,6 +571,8 @@ int sport_config_rx_dummy(struct bf53x_sport *sport)
 	desc->y_count = 0;
 	desc->y_modify = 0;
 	*sport->dummy_rx_desc2 = *sport->dummy_rx_desc;
+	flush_dcache_range((unsigned int)sport->dummy_rx_desc, 
+		(unsigned int)sport->dummy_rx_desc + 2*sizeof(dmasg_t));
 
 	if (!(sport->regs->rcr1 & RSPEN)) {
 		sport->curr_rx_desc = sport->dummy_rx_desc;
@@ -602,6 +613,8 @@ int sport_config_tx_dummy(struct bf53x_sport *sport)
 	desc->y_count = 0;
 	desc->y_modify = 0;
 	*sport->dummy_tx_desc2 = *sport->dummy_tx_desc;
+	flush_dcache_range((unsigned int)sport->dummy_tx_desc, 
+		(unsigned int)sport->dummy_tx_desc + 2*sizeof(dmasg_t));
 	
 	if (!(sport->regs->tcr1 & TSPEN)) {
 		sport->curr_tx_desc = sport->dummy_tx_desc;
