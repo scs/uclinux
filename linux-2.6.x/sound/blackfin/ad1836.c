@@ -326,6 +326,13 @@ extern unsigned long l1_data_A_sram_alloc(unsigned long size);
 extern int l1_data_A_sram_free(unsigned long addr);
 #endif
 
+#ifdef CONFIG_BF533
+#if L1_DATA_B_LENGTH != 0
+extern unsigned long l1_data_B_sram_alloc(unsigned long size);
+extern int l1_data_B_sram_free(unsigned long addr);
+#endif
+#endif
+
 #ifdef MULTI_SUBSTREAM
 static inline int find_substream(ad1836_t *chip, snd_pcm_substream_t *substream)
 {
@@ -1945,13 +1952,27 @@ static int __devinit snd_ad1836_create(snd_card_t *card,
 	snd_printk( KERN_ERR "Unable to allocate dummy buffer in sram\n");
 	snd_ad1836_free(chip);
 	return -ENODEV;
-  } else {
-	snd_printd(KERN_INFO "sport->dummy_buf:0x%lx\n", sport->dummy_buf_rx);
   }
   
-  memset((void*)sport->dummy_buf_rx, DUMMY_BUF_LEN * 2, 0);
+  memset(sport->dummy_buf_rx, 0, DUMMY_BUF_LEN * 2);
+/*When both dummy buffer from l1 A data sram, sometime tx DMA doesn't work on 533*/
+#ifdef CONFIG_BF533
+#if L1_DATA_B_LENGTH !=0
+  sport->dummy_buf_tx = l1_data_B_sram_alloc(DUMMY_BUF_LEN);
+#else
+  sport->dummy_buf_tx = (unsigned long)kmalloc(DUMMY_BUF_LEN, GFP_KERNEL);
+#endif
+
+  if(!sport->dummy_buf_tx) {
+  	snd_printk(KERN_ERR"Unable to allocat dummy buffer for tx\n");
+	snd_ad1836_free(chip);
+	return -ENODEV;
+  }
+  memset(sport->dummy_buf_tx, 0, DUMMY_BUF_LEN);
+#else
   sport->dummy_buf_tx = sport->dummy_buf_rx + DUMMY_BUF_LEN;
-  printk(KERN_INFO"dummy_buf_rx:0x%lx, dummy_buf_tx:0x%lx\n", 
+#endif
+  snd_printk(KERN_INFO"dummy_buf_rx:0x%lx, dummy_buf_tx:0x%lx\n", 
   		sport->dummy_buf_rx, sport->dummy_buf_tx);
 #ifdef MULTI_SUBSTREAM
 {
@@ -2072,6 +2093,14 @@ static int __devinit snd_ad1836_create(snd_card_t *card,
     l1_data_A_sram_free((unsigned long)sport->dummy_buf_rx);
 #else
     kfree(dummy_buf_rx);
+#endif
+
+#ifdef CONFIG_BF533
+#if L1_DATA_B_LENGTH != 0
+    l1_data_B_sram_free((unsigned long)sport->dummy_buf_tx);
+#else
+    kfree(dummy_buf_tx);
+#endif
 #endif
     snd_ad1836_free(chip);
     return err;
