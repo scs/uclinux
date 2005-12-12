@@ -198,12 +198,22 @@ static struct mtd_partition bf5xx_partitions[] = {
 		size: 0xC0000,
 		//size: 0xBFFFF,
 		offset: 0x40000,
-	},{
+	},
+#ifdef CONFIG_BF537
+	{
 		name: "JFFS2",
-		size: 0x300000,
-		//size: 0x2fffff,
+		size: 0x2f0000,
+		//size: 0x2effff,
 		offset: 0x100000,
 	} 	
+#else
+	{
+                name: "JFFS2",
+                size: 0x300000,
+                //size: 0x2fffff,
+                offset: 0x100000,
+        }
+#endif	
 };
 
 #define NB_OF(x)  (sizeof(x)/sizeof(x[0]))
