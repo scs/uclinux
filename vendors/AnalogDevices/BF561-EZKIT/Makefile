@@ -62,7 +62,7 @@ image:
 		$(CROSS_COMPILE)objcopy -O binary -S $(IMAGE) $(IMAGE).bin; \
 		gzip -f9 $(IMAGE).bin; \
 		$(CROSS_COMPILE)mkimage -A blackfin -O linux -T kernel \
-			-C gzip -a 0x1000 -e 0x1000 -n "uClinux Kernel and Filesystem Image" \
+			-C gzip -a 0x1000 -e 0x1000 -n "uClinux Kernel and Filesystem" \
 			-d $(IMAGE).bin.gz $(IMAGEDIR)/uImage; \
 		rm $(IMAGE).bin.gz; \
 		if [ -x $(MKFS_JFFS2) ]; then \
