@@ -1,3 +1,4 @@
+
 /*
  * File:         bf53x_sport.c 
  * Description:  low level driver for sportX/dmaY on blackfin 53x
@@ -35,41 +36,27 @@
  */
 
 
-#include "bf53x_sport.h"
-
-
-#ifdef __linux__
-
 #include <linux/slab.h>
+#include <linux/delay.h>
 #include <asm/bug.h>
-#include <asm/delay.h>
-#define malloc(x) kmalloc(x, GFP_KERNEL)
-#define free(x)   kfree(x)
-#define printf(format, arg...)  printk( format, ## arg)
-#define assert_(x) BUG_ON(!(x))
-
 #include <asm/dma.h>
 
-#else
-
-#error "This is not gonna work..."
-
-#include <assert.h>
-#include <stdio.h>
-
-#endif
-
+#include "bf53x_sport.h"
 
 /*#define BF53X_SPORT_DEBUG*/
 
-#define sport_printf(level, format, arg...)  printf(level "sport: " format, ## arg)
+#define sport_printf(level, format, arg...)  printk(level "sport: " format, ## arg)
 
 #ifdef  BF53X_SPORT_DEBUG
-#define sport_printd(level, format, arg...)  printf(level "sport: " format, ## arg)
-#define SPORT_ASSERT( x ) assert(x)
+#define sport_printd(level, format, arg...)  printk(level "sport: " format, ## arg)
+#define SPORT_ASSERT(expr) do {\
+		if(unlikely(!(expr))) { \
+			printk(KERN_ERR "%s: %d, bug\n", __FUNCTION__, __LINE__); \
+		} \
+	} while(0)
 #else
 #define sport_printd(level, format, arg...)  
-#define SPORT_ASSERT( x ) 
+#define SPORT_ASSERT( expr ) 
 #endif
 
 #include <asm/blackfin.h>
@@ -110,7 +97,7 @@ bf53x_sport_init(int sport_chan,
 		int dma_rx, dma_interrupt_t rx_handler,
 		int dma_tx, dma_interrupt_t tx_handler){
 
-  struct bf53x_sport* sport = (struct bf53x_sport*) malloc( sizeof(struct bf53x_sport) );
+  struct bf53x_sport* sport = (struct bf53x_sport*) kmalloc( sizeof(struct bf53x_sport), GFP_KERNEL );
  
   if( !sport ) return NULL;
 
@@ -129,27 +116,27 @@ bf53x_sport_init(int sport_chan,
 
   if(request_dma(dma_rx, "SPORT RX Data") == -EBUSY){
      sport_printf( KERN_ERR, "Unable to allocate sport RX dma %d\n", dma_rx);
-     free(sport);
+     kfree(sport);
      return NULL ;
   }
 
   if( set_dma_callback(dma_rx, rx_handler, NULL) != 0){
      sport_printf( KERN_ERR, "Unable to allocate sport RX dma %d\n", dma_rx);
      free_dma(dma_rx);
-     free(sport);
+     kfree(sport);
      return NULL ;
    }  
 
   if(request_dma(dma_tx, "SPORT TX Data") == -EBUSY){
      sport_printf( KERN_ERR, "Unable to allocate sport TX dma %d\n", dma_tx);
-     free(sport);
+     kfree(sport);
      return NULL ;
   }
 
   if( set_dma_callback(dma_tx, tx_handler, NULL) != 0){
      sport_printf( KERN_ERR, "Unable to allocate sport TX dma %d\n", dma_tx);
      free_dma(dma_tx);
-     free(sport);
+     kfree(sport);
      return NULL ;
    }  
 #ifdef BF53X_ANOMALY_29
@@ -158,12 +145,13 @@ bf53x_sport_init(int sport_chan,
 
   sport->dma_rx_desc = NULL;
   sport->dma_tx_desc = NULL;
-  sport->dma_rx_expired_desc = NULL;
-  sport->dma_tx_expired_desc = NULL;
-  sport->dma_rx_expired2_desc = NULL;
-  sport->dma_tx_expired2_desc = NULL;
-  sport->dma_rx_desc_changed = 0;
-  sport->dma_tx_desc_changed = 0;
+  sport->dummy_rx_desc = NULL;
+  sport->dummy_tx_desc = NULL;
+  sport->dummy_rx_desc2 = NULL;
+  sport->dummy_tx_desc2 = NULL;
+
+  sport->curr_rx_desc = NULL;
+  sport->curr_tx_desc = NULL;
 
 #if defined(CONFIG_BF534)|defined(CONFIG_BF536)|defined(CONFIG_BF537)
   if(sport->sport_chan) {
@@ -188,30 +176,23 @@ void bf53x_sport_done(struct bf53x_sport* sport){
   if(sport) {
     bf53x_sport_stop(sport);
     if( sport->dma_rx_desc ) 
-        free(sport->dma_rx_desc);
+        kfree(sport->dma_rx_desc);
     if( sport->dma_tx_desc ) 
-        free(sport->dma_tx_desc);
-    if( sport->dma_rx_expired_desc ) 
-        free(sport->dma_rx_expired_desc);
-    if( sport->dma_tx_expired_desc ) 
-        free(sport->dma_tx_expired_desc);
-    if( sport->dma_rx_expired2_desc ) 
-        free(sport->dma_rx_expired2_desc);
-    if( sport->dma_tx_expired2_desc ) 
-        free(sport->dma_tx_expired2_desc);
-      
+        kfree(sport->dma_tx_desc);
+    if( sport->dummy_rx_desc)
+    	kfree(sport->dummy_rx_desc);
+    if( sport->dummy_tx_desc)
+    	kfree(sport->dummy_tx_desc);
+
     sport->dma_rx_desc = NULL;
     sport->dma_tx_desc = NULL;
-    sport->dma_rx_expired_desc = NULL;
-    sport->dma_tx_expired_desc = NULL;
-    sport->dma_rx_expired2_desc = NULL;
-    sport->dma_tx_expired2_desc = NULL;
-    sport->dma_rx_desc_changed = 0;
-    sport->dma_tx_desc_changed = 0;
+    sport->dummy_rx_desc = NULL;
+    sport->dummy_tx_desc = NULL;
+    sport->dummy_rx_desc2 = NULL;
+    sport->dummy_tx_desc2 = NULL;
   }
-  free(sport);
+  kfree(sport);
 }
-
 
 /* note: multichannel is in units of 8 channels, tdm_count is # channels NOT / 8 ! */
 int bf53x_sport_set_multichannel( struct bf53x_sport* sport, int tdm_count, int packed){
@@ -313,119 +294,184 @@ static void setup_desc(dmasg_t* desc, void* buf, int fragcount, size_t fragsize_
 
   desc[fragcount-1].next_desc_addr = (unsigned long)desc; /* make circular */
 
-/*  printk("setup desc: desc0=%x, next0=%x, desc1=%x, next1=%x\nx_count=%d,ycount=%d,addr=0x%x,cfs=0x%x\n", 
+/*  printk(KERN_ERR"setup desc: desc0=%p, next0=%lx, desc1=%p, next1=%lx\nx_count=%x,y_count=%x,addr=0x%lx,cfs=0x%x\n", 
   	&(desc[0]), desc[0].next_desc_addr, 
 	&(desc[1]), desc[1].next_desc_addr,
-	desc[0].x_count, desc[0].ycount, desc[0].start_addr,desc[0].cfg);
-*/
+	desc[0].x_count, desc[0].y_count, desc[0].start_addr,desc[0].cfg);
+ */
+
   flush_dcache_range(desc, desc + fragcount*sizeof(dmasg_t));
 }
 
+/* Stupid function for waiting, udelay make while does break, msleep crash system */
+void waiting(unsigned long flags)
+{
+	unsigned long i, t;
+	for(i=0; i<1000; i++) {
+		t = flags;
+	}
+}	
 
-void bf53x_sport_hook_rx_desc( struct bf53x_sport* sport)
+void bf53x_sport_hook_rx_desc( struct bf53x_sport* sport, int dummy)
 {
   dma_register_t* dma = sport->dma_rx;
   dmasg_t *desc;
+  unsigned long flags;
   
+  sport_printd(KERN_INFO, "%s entered, dummy:%d\n", __FUNCTION__, dummy);
+  SPORT_ASSERT(sport->curr_rx_desc != NULL);
   if( sport->regs->rcr1 & RSPEN ) {
-    /* Avoid changing descriptor when it's being loaded*/
-//    while(dma->curr_x_count < 0x100)
-//    	udelay(10);
-    
-    desc = (dmasg_t*)dma->next_desc_ptr;
-    desc->next_desc_addr = (unsigned int)(sport->dma_rx_desc);
-    flush_dcache_range(desc, desc + sizeof(dmasg_t));
-    /* Change the state to current descriptor ring is hooked into DMA. */
-    sport->dma_rx_desc_changed=2;
-/*    printk("rx: cur_desc=%x, xcount=%d, rx_desc=%x\n", dma->curr_desc_ptr, 
-		dma->curr_x_count, sport->dma_rx_desc);
-*/
+    /* Hook the dummy buffer descriptor */
+    if (dummy) {
+    	SPORT_ASSERT(sport->dummy_rx_desc != NULL );
+    	if (sport->curr_rx_desc != sport->dummy_rx_desc) {
+		/* Copy the dummy buffer descriptor from backup */
+		*sport->dummy_rx_desc = *sport->dummy_rx_desc2;
+		local_irq_save(flags);
+		desc = (dmasg_t*)dma->next_desc_ptr;
+		desc->x_count=0x10;
+		desc->y_count=0;
+		desc->next_desc_addr = (unsigned int)(sport->dummy_rx_desc);
+		local_irq_restore(flags);
+		/* Waiting for dummy buffer descriptor is already hooked*/
+		while(dma->curr_desc_ptr - sizeof(dmasg_t) != (unsigned long)sport->dummy_rx_desc) {
+//			printk(KERN_INFO"curr_rx:0x%lx\n", dma->curr_desc_ptr);
+//			udelay(1); /* DMA doesn't going on*/
+//			msleep(1);
+			waiting(flags);
+		}
+		sport->curr_rx_desc = sport->dummy_rx_desc;
+	}
+    } else { /* Hook the normal buffer descriptor */
+   	SPORT_ASSERT(sport->dma_rx_desc != NULL);
+	if(sport->curr_rx_desc != sport->dma_rx_desc) {
+		local_irq_save(flags);
+		sport->dummy_rx_desc->next_desc_addr = (unsigned int)(sport->dma_rx_desc);
+		local_irq_restore(flags);
+		sport->curr_rx_desc = sport->dma_rx_desc;
+	}
+    }
+  } else {
+  	printk(KERN_ERR"Error - DMA's rx state is incorrect, try to restart it\n");
+
+	if(dummy)
+		sport->curr_rx_desc = sport->dummy_rx_desc;
+	else
+		sport->curr_rx_desc = sport->dma_rx_desc;
+	dma->next_desc_ptr = (unsigned int)(sport->curr_rx_desc);
+	dma->cfg           = FLOW | NDSIZE | WDSIZE_32 | WNR;
+	dma->x_count       = 0;
+	dma->x_modify      = 0;
+	dma->y_count       = 0;
+	dma->y_modify      = 0;
+
+	SSYNC;
+
+	enable_dma(sport->dma_rx_chan);
+	sport->regs->rcr1 |= RSPEN;
+	if(!(sport->regs->tcr1 & TSPEN))
+		bf53x_sport_hook_tx_desc(sport, 1);
+	
+	SSYNC;
   }
+ 
 }
 
-void bf53x_sport_hook_tx_desc( struct bf53x_sport* sport)
+void bf53x_sport_hook_tx_desc( struct bf53x_sport* sport, int dummy)
 {
   dma_register_t* dma = sport->dma_tx;
   dmasg_t *desc;
-  
+  unsigned long flags;
+ 
+  sport_printd(KERN_INFO, "%s entered, dummy:%d\n", __FUNCTION__, dummy);
+  SPORT_ASSERT(sport->curr_tx_desc != NULL);
+
   if( sport->regs->tcr1 & TSPEN) {
-    /* Avoid changing descriptor when it's being loaded*/
-//    while(dma->curr_x_count < 0x100)
-//    	udelay(10);
-
-    desc = (dmasg_t*)dma->next_desc_ptr;
-    desc->next_desc_addr = (unsigned int)(sport->dma_tx_desc);
-    flush_dcache_range(desc, desc + sizeof(dmasg_t));
-    /* Change the state to current descriptor ring is hooked into DMA. */
-    sport->dma_tx_desc_changed=2;
-/*    printk("tx: dma=%x, desc=%x, next=%x\n oldaddr=0x%x, oldxcount=%d\n", 
-    	dma->next_desc_ptr, desc, desc->next_desc_addr,
-	sport->dma_tx_desc->start_addr, sport->dma_tx_desc->x_count);
-*/
-  }
-}
-
-
-static int bf53x_sport_rx_desc_changed (struct bf53x_sport* sport)
-{
-
-  if(sport->dma_rx_desc_changed==1)
-    /* If current descriptor ring hasn't been hooked into DMA, free current descriptor ring.*/
-    free(sport->dma_rx_desc);
-  else {
-    if( sport->dma_rx_expired_desc) {
-      if(sport->dma_rx_desc_changed==0) 
-        /* Only free last descriptor ring when DMA is walking through current descriptor ring.*/
-        free(sport->dma_rx_expired_desc);
-      else {
-        /* If current descriptor ring has been hooked into DMA, back up last one as the one before last one. */
-        if( sport->dma_rx_expired2_desc)
-          free(sport->dma_rx_expired2_desc);
-        sport->dma_rx_expired2_desc = sport->dma_rx_expired_desc;
-      }
+    if (dummy) {
+    	SPORT_ASSERT(sport->dummy_tx_desc != NULL);
+    	if (sport->curr_tx_desc != sport->dummy_tx_desc) {
+		*sport->dummy_tx_desc = *sport->dummy_tx_desc2;
+		/* Shorten the time on last normal descriptor */
+  		local_irq_save(flags);
+	   	desc = (dmasg_t*)dma->next_desc_ptr;
+		desc->x_count = 0x10;
+		desc->y_count = 0;
+		desc->next_desc_addr = (unsigned int)(sport->dummy_tx_desc);
+		local_irq_restore(flags);
+		/* Waiting for dummy buffer descriptor is already hooked*/
+//		printk(KERN_ERR"desc:0x%p, sport->dummy_tx_desc:0x%p\n", desc, sport->dummy_tx_desc);
+		while((dma->curr_desc_ptr-sizeof(dmasg_t)) != (unsigned long)sport->dummy_tx_desc){
+//			printk(KERN_ERR"curr_desc:0x%lx\n", dma->curr_desc_ptr);/*Work*/
+//			udelay(1);/*DMA doesn't going on, cannot break loop */
+//			msleep(1); /* System crash */
+			waiting(flags);
+		}
+		sport->curr_tx_desc = sport->dummy_tx_desc;
+	}
+    } else { /* Hook the normal buffer descriptor */
+   	SPORT_ASSERT(sport->dma_tx_desc != NULL);
+	if(sport->curr_tx_desc != sport->dma_tx_desc) {
+		local_irq_save(flags);
+		sport->dummy_tx_desc->next_desc_addr = (unsigned int)(sport->dma_tx_desc);
+		local_irq_restore(flags);
+		sport->curr_tx_desc = sport->dma_tx_desc;
+	}
     }
-      
-    if( sport->dma_rx_desc ) 
-      /* Back up current descritor ring as last one. */
-      sport->dma_rx_expired_desc = sport->dma_rx_desc;
-      
-    if( sport->dma_rx_desc_changed==2)
-      /* If current descriptor ring has been hooked into DMA, change the state to 
-       * current descriptor ring is not hooked into DMA.
-       */
-      sport->dma_rx_desc_changed=1;
+  } else {
+  	printk(KERN_ERR"Error - DMA's tx state is incorrect, try to restart it\n");
+
+	if(dummy)
+		sport->curr_tx_desc = sport->dummy_tx_desc;
+	else
+		sport->curr_tx_desc = sport->dma_tx_desc;
+ 
+	dma->next_desc_ptr = (unsigned int)(sport->curr_tx_desc);
+	dma->cfg           = FLOW | NDSIZE |WDSIZE_32 ;
+	dma->x_count       = 0;
+	dma->x_modify      = 0;
+	dma->y_count       = 0;
+	dma->y_modify      = 0;
+  
+	SSYNC;
+	if(!(sport->regs->rcr1 & RSPEN))
+		bf53x_sport_hook_rx_desc(sport, 1);
+//	bf53x_sport_start(sport);
+	enable_dma(sport->dma_tx_chan);
+	sport->regs->tcr1 |= TSPEN;
+	SSYNC;
   }
-  return 0;
 }
+
 
 int bf53x_sport_config_rx_dma( struct bf53x_sport* sport, void* buf, 
 			       int fragcount, size_t fragsize_bytes)
 {
-  dma_register_t* dma = sport->dma_rx;
+//  dma_register_t* dma = sport->dma_rx;
 
   unsigned int x_count;
   unsigned int y_count;
   unsigned int cfg;
 
-/*  printk( "%s( %p, %d, %d )\n", __FUNCTION__, buf, fragcount,fragsize_bytes );*/
+  sport_printd(KERN_INFO, "%s( %p, %d, %d )\n", __FUNCTION__, buf, fragcount,fragsize_bytes );
 
   /* for fragments larger than 32k words we use 2d dma, with the outer loop counting
      the number of 32k blocks. it follows that then
      fragsize must be a power of two (and hence a multiple of 32k
      the line below is the cheapest test I could think of :-) 
   */
+
   if( fragsize_bytes > 0x8000*sizeof(long) )
     if( (fragsize_bytes | (fragsize_bytes-1) ) != (2*fragsize_bytes - 1) )
       return -EINVAL;
 
-  bf53x_sport_rx_desc_changed(sport);
-
+  if (sport->dma_rx_desc) {
+  	kfree(sport->dma_rx_desc);
+  }
+ 
   /* Allocate a new descritor ring as current one. */
-  sport->dma_rx_desc = malloc( fragcount * sizeof( dmasg_t ) );
+  sport->dma_rx_desc = kcalloc(1, fragcount * sizeof( dmasg_t ), GFP_KERNEL );
   
   if( !sport->dma_rx_desc ) {
-    sport->dma_rx_desc = sport->dma_rx_expired_desc;
-    sport->dma_rx_expired_desc = NULL;
     return -ENOMEM;
   }
 
@@ -441,81 +487,35 @@ int bf53x_sport_config_rx_dma( struct bf53x_sport* sport, void* buf,
 
   setup_desc( sport->dma_rx_desc, buf, fragcount, fragsize_bytes , cfg|DMAEN, x_count, y_count);
 
-  if( sport->regs->rcr1 & RSPEN ) {
-     /* Change the state to current descriptor ring is not hooked into DMA. */
-    sport->dma_rx_desc_changed=1;
-  }
-  else {  
-    dma->next_desc_ptr = (unsigned int)(sport->dma_rx_desc);
-    dma->cfg           = cfg;
-    dma->x_count       = 0;
-    dma->x_modify      = 0;
-    dma->y_count       = 0;
-    dma->y_modify      = 0;
-
-    SSYNC;
-  }
-  
+ 
   return 0;
 
-}
-
-static int bf53x_sport_tx_desc_changed (struct bf53x_sport* sport)
-{
-
-  if(sport->dma_tx_desc_changed==1)
-    /* If dma is asked to configure before the last configure takes effect, free last one.*/
-     free(sport->dma_tx_desc);
-  else {
-    if( sport->dma_tx_expired_desc) {
-      if(sport->dma_tx_desc_changed==0)
-        /* Only free last descriptor ring when DMA is walking through current descriptor ring.*/
-        free(sport->dma_tx_expired_desc);
-      else {
-        /* If current descriptor ring has been hooked into DMA, back up last one as the one before last one. */
-        if( sport->dma_tx_expired2_desc)
-          free(sport->dma_tx_expired2_desc);
-        sport->dma_tx_expired2_desc = sport->dma_tx_expired_desc;
-      }
-    }
-    
-    if( sport->dma_tx_desc )
-      /* Back up current descritor ring as last one. */
-      sport->dma_tx_expired_desc = sport->dma_tx_desc;
-
-    if( sport->dma_tx_desc_changed==2)
-      /* If current descriptor ring has been hooked into DMA, change the state to 
-       * current descriptor ring is not hooked into DMA.
-       */
-      sport->dma_tx_desc_changed=1;
-  }
-  
-  return 0;
 }
 
 int bf53x_sport_config_tx_dma( struct bf53x_sport* sport, void* buf, 
 			       int fragcount, size_t fragsize_bytes)
 {
+//  dma_register_t* dma = sport->dma_tx;
   
-  dma_register_t* dma = sport->dma_tx;
   unsigned int x_count;
   unsigned int y_count;
   unsigned int cfg;
 
-/*  printk("%s( %p, %d, %d )\n", __FUNCTION__, buf, fragcount,fragsize_bytes );*/
+  sport_printd(KERN_INFO, "%s( %p, %d, %d )\n", __FUNCTION__, buf, fragcount,fragsize_bytes );
 
   /* fragsize must be a power of two (line below is the cheapest test I could think of :-) */
+
   if( fragsize_bytes > 0x8000*sizeof(long) )
     if( (fragsize_bytes | (fragsize_bytes-1) ) != (2*fragsize_bytes - 1) )
       return -EINVAL;
 
-  bf53x_sport_tx_desc_changed(sport);
+  if( sport->dma_tx_desc) {
+  	kfree(sport->dma_tx_desc);
+  }
 
-  sport->dma_tx_desc = malloc( fragcount * sizeof( dmasg_t ) );
+  sport->dma_tx_desc = kcalloc(1, fragcount * sizeof( dmasg_t ), GFP_KERNEL );
   
   if( !sport->dma_tx_desc ) {
-    sport->dma_tx_desc = sport->dma_tx_expired_desc;
-    sport->dma_tx_expired_desc = NULL;
     return -ENOMEM;
   }
 
@@ -530,22 +530,7 @@ int bf53x_sport_config_tx_dma( struct bf53x_sport* sport, void* buf,
   }
 
   setup_desc( sport->dma_tx_desc, buf, fragcount, fragsize_bytes, cfg|DMAEN, x_count, y_count);
-    
-  if( sport->regs->tcr1 & TSPEN ) {
-     /* Change the state to current descriptor ring is not hooked into DMA. */
-    sport->dma_tx_desc_changed=1;
-  }
-  else {
-    dma->next_desc_ptr = (unsigned int)(sport->dma_tx_desc);
-    dma->cfg           = cfg;
-    dma->x_count       = 0;
-    dma->x_modify      = 0;
-    dma->y_count       = 0;
-    dma->y_modify      = 0;
-  
-    SSYNC;
-  }
-  
+
   return 0;
 
 }
@@ -557,12 +542,16 @@ int sport_config_rx_dummy(struct bf53x_sport *sport)
 	dma_register_t* dma;
 	dmasg_t *desc;
 	unsigned config;
-
+	
+	sport_printd(KERN_INFO, "%s entered\n", __FUNCTION__);
 	dma = sport->dma_rx;
-	bf53x_sport_rx_desc_changed(sport);
 
-	desc = kmalloc(sizeof(*desc), GFP_KERNEL);
-	memset(desc, 0, sizeof(*desc));
+	desc = kcalloc(2, sizeof(*desc), GFP_KERNEL);
+	if (desc ==NULL)
+		return -ENOMEM;
+
+	sport->dummy_rx_desc = desc;
+	sport->dummy_rx_desc2 = desc+1;
 
 	desc->next_desc_addr = (unsigned long)desc;
 	desc->start_addr = sport->dummy_buf_rx;
@@ -572,12 +561,11 @@ int sport_config_rx_dummy(struct bf53x_sport *sport)
 	desc->x_modify = 0;
 	desc->y_count = 0;
 	desc->y_modify = 0;
+	*sport->dummy_rx_desc2 = *sport->dummy_rx_desc;
 
-	sport->dma_rx_desc = desc;
-	if (sport->regs->rcr1 & RSPEN) {
-	sport->dma_rx_desc_changed = 1;
-	} else {
-		dma->next_desc_ptr = (unsigned long)sport->dma_rx_desc;
+	if (!(sport->regs->rcr1 & RSPEN)) {
+		sport->curr_rx_desc = sport->dummy_rx_desc;
+		dma->next_desc_ptr = (unsigned long)sport->dummy_rx_desc;
 		dma->cfg = config;
 		dma->x_count = 0;
 		dma->x_modify = 0;
@@ -585,6 +573,7 @@ int sport_config_rx_dummy(struct bf53x_sport *sport)
 		dma->y_modify = 0;
 		SSYNC;
 	}
+
 	return 0;
 }
 
@@ -594,32 +583,36 @@ int sport_config_tx_dummy(struct bf53x_sport *sport)
 	dmasg_t *desc;
 	unsigned int config;
 
+	sport_printd(KERN_INFO, "%s entered\n", __FUNCTION__);
 	dma = sport->dma_tx;
-	bf53x_sport_tx_desc_changed(sport);
-	
-	desc = kmalloc(sizeof(*desc), GFP_KERNEL);
-	memset(desc, 0, sizeof(*desc));
-	
+
+	desc = kcalloc(2, sizeof(*desc), GFP_KERNEL);
+	if (!desc)
+		return -ENOMEM;
+
+	sport->dummy_tx_desc = desc;
+	sport->dummy_tx_desc2 = desc+1;
+
 	desc->next_desc_addr = (unsigned long)desc;
 	desc->start_addr = sport->dummy_buf_tx;
-	config = (FLOW) | NDSIZE |WDSIZE_32;
+	config = FLOW | NDSIZE |WDSIZE_32;
 	desc->cfg = config | DMAEN;
 	desc->x_count = 0x80;
 	desc->x_modify = 0;
 	desc->y_count = 0;
 	desc->y_modify = 0;
+	*sport->dummy_tx_desc2 = *sport->dummy_tx_desc;
 	
-	sport->dma_tx_desc = desc;
-	if (sport->regs->tcr1 & TSPEN) {
-		sport->dma_tx_desc_changed = 1;
-	} else {
-		dma->next_desc_ptr = (unsigned long)sport->dma_tx_desc;
+	if (!(sport->regs->tcr1 & TSPEN)) {
+		sport->curr_tx_desc = sport->dummy_tx_desc;
+		dma->next_desc_ptr = (unsigned long)sport->dummy_tx_desc;
 		dma->cfg = config;
 		dma->x_count = 0;
 		dma->x_modify = 0;
 		dma->y_modify = 0;
 		dma->y_count = 0;
-	}	
+		SSYNC;
+	}
 	
 	return 0;
 }
@@ -653,8 +646,7 @@ int bf53x_sport_start(struct bf53x_sport* sport){
 }
 
 
-int bf53x_sport_stop(struct bf53x_sport* sport){ 
-
+int bf53x_sport_stop(struct bf53x_sport* sport){
   sport->regs->tcr1 &= ~TSPEN;
   sport->regs->rcr1 &= ~RSPEN;
   SSYNC;
@@ -669,34 +661,6 @@ int bf53x_sport_stop(struct bf53x_sport* sport){
   return 0;
 
 }
-
-int bf53x_sport_is_rx_desc_changed(struct bf53x_sport* sport)
-{
-  dma_register_t* dma = sport->dma_rx;
-  
-  if( sport->dma_rx_desc_changed > 0) {
-    if(dma->next_desc_ptr==(unsigned long)sport->dma_rx_desc) {
-/*      printk("rx dma equal\n");*/
-      sport->dma_rx_desc_changed = 0;
-    }
-    return 1;
-  }
-  return 0;
-}
-
-int bf53x_sport_is_tx_desc_changed(struct bf53x_sport* sport){
-  dma_register_t* dma = sport->dma_tx;
-  
-  if( sport->dma_tx_desc_changed > 0) {
-    if(dma->next_desc_ptr==(unsigned long)sport->dma_tx_desc) {
-/*    printk("tx dma equal\n");*/
-      sport->dma_tx_desc_changed = 0;
-    }
-    return 1;
-  }
-  return 0;
-}
-
 
 int bf53x_sport_is_running(struct bf53x_sport* sport){
 
@@ -790,14 +754,27 @@ int bf53x_sport_check_status( struct bf53x_sport* sport,
 
 }
 
-int  bf53x_sport_dump_stat(struct bf53x_sport* sport, char* buf, size_t len){
-  return snprintf( buf, len, 
+int  bf53x_sport_dump_stat(struct bf53x_sport* sport, char* buf, size_t len)
+{
+	int ret;
+	
+	ret = snprintf( buf, len, 
 		   "sport  %d sts: 0x%04x\n"
 		   "rx dma %d cfg: 0x%04x sts: 0x%04x\n"
 		   "tx dma %d cfg: 0x%04x sts: 0x%04x\n", 
 		   sport->sport_chan,  sport->regs->stat,
 		   sport->dma_rx_chan, sport->dma_rx->cfg, sport->dma_rx->irq_status,
-		   sport->dma_tx_chan, sport->dma_tx->cfg, sport->dma_tx->irq_status
-		   );
+		   sport->dma_tx_chan, sport->dma_tx->cfg, sport->dma_tx->irq_status);
+	buf += ret;
+	len -= ret;
+	
+	ret += snprintf(buf, len,
+		   "curr_rx_desc:0x%p, curr_tx_desc:0x%p\n"
+		   "dma_rx_desc:0x%p, dma_tx_desc:0x%p\n"
+		   "dummy_rx_desc:0x%p, dummy_tx_desc:0x%p\n",
+		   sport->curr_rx_desc, sport->curr_tx_desc, 
+		   sport->dma_rx_desc, sport->dma_tx_desc,
+		   sport->dummy_rx_desc, sport->dummy_tx_desc);
 
+	return ret;
 }

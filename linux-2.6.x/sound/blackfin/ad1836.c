@@ -220,7 +220,7 @@ static int   enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE_PNP;
 
 #ifdef MULTI_SUBSTREAM
 #define FIXED_CHANNELS	2
-#define FIXED_FRAGMENTS 8
+#define FIXED_FRAGMENTS 4
 #define SAMPLE_SIZE	4
 #define SAMPLE_FRAME	(SAMPLE_SIZE * FIXED_CHANNELS)
 #define FIXED_BUFFER_SIZE	(PCM_BUFFER_MAX/ SAMPLE_FRAME)
@@ -1222,6 +1222,14 @@ static int snd_ad1836_capture_open(snd_pcm_substream_t* substream){
 
   if( chip->talktrough_mode != TALKTROUGH_OFF ) 
     return -EBUSY;
+ 
+#if  1
+  snd_ad1836_playback_hw.channels_max = FIXED_CHANNELS;
+  snd_ad1836_playback_hw.period_bytes_min = PCM_BUFFER_MAX / FIXED_FRAGMENTS;
+  snd_ad1836_playback_hw.period_bytes_max = PCM_BUFFER_MAX / FIXED_FRAGMENTS;
+  snd_ad1836_playback_hw.periods_min = FIXED_FRAGMENTS;
+  snd_ad1836_playback_hw.periods_max = FIXED_FRAGMENTS;
+#endif
 
   substream->runtime->hw = snd_ad1836_capture_hw;
   chip->rx_substream = substream;
@@ -1392,7 +1400,7 @@ static int snd_ad1836_trigger( snd_pcm_substream_t* substream, int cmd){
   case SNDRV_PCM_TRIGGER_START: 
     if( substream == chip->rx_substream ) {
       chip->runmode |= RUN_RX;
-      bf53x_sport_hook_rx_desc(chip->sport);
+      bf53x_sport_hook_rx_desc(chip->sport, 0);
 /*    printk("start rx\n");*/
       }
 #ifdef MULTI_SUBSTREAM
@@ -1403,13 +1411,14 @@ static int snd_ad1836_trigger( snd_pcm_substream_t* substream, int cmd){
           chip->out_buf_used = 1;
 	  chip->dma_offset[index] = 0;
 	  chip->dma_pos = 0;
-	  bf53x_sport_hook_tx_desc(chip->sport);
+	  bf53x_sport_hook_tx_desc(chip->sport, 0);
+//	  printk("start tx\n"); 
 	}
     }
 #else    
     else if( substream == chip->tx_substream ) {
       chip->runmode |= RUN_TX;
-      bf53x_sport_hook_tx_desc(chip->sport);
+      bf53x_sport_hook_tx_desc(chip->sport, 0);
       }
 #endif
     else
@@ -1418,8 +1427,7 @@ static int snd_ad1836_trigger( snd_pcm_substream_t* substream, int cmd){
   case SNDRV_PCM_TRIGGER_STOP:
     if( substream == chip->rx_substream ) {
       chip->runmode &= ~RUN_RX;
-      sport_config_rx_dummy(chip->sport);
-      bf53x_sport_hook_rx_desc(chip->sport);
+      bf53x_sport_hook_rx_desc(chip->sport, 1);
 /*      printk("stop rx\n");*/
     }
 #ifdef MULTI_SUBSTREAM
@@ -1427,15 +1435,16 @@ static int snd_ad1836_trigger( snd_pcm_substream_t* substream, int cmd){
       chip->runmode &= ~ (1 << (index +1));
       if (!(chip->runmode & RUN_TX_ALL)) {
         chip->out_buf_used = 0;
-        sport_config_tx_dummy(chip->sport);
-	bf53x_sport_hook_tx_desc(chip->sport);
+	bf53x_sport_hook_tx_desc(chip->sport, 1);
+
+//	printk("stop tx\n"); 
       }
     }
 #else
     else if( substream == chip->tx_substream ) {
       chip->runmode &= ~RUN_TX;
-      sport_config_tx_dummy(chip->sport);
-      bf53x_sport_hook_tx_desc(chip->sport);
+//      sport_config_tx_dummy(chip->sport);
+      bf53x_sport_hook_tx_desc(chip->sport, 1);
 /*      printk("stop tx\n");*/
     }
 #endif
@@ -1469,18 +1478,18 @@ static snd_pcm_uframes_t snd_ad1836_playback_pointer( snd_pcm_substream_t* subst
 #endif
   size_t frames = diff / bytes_per_frame;
   
+// printk(KERN_ERR" curr:0x%p\n", curr);
 #ifdef MULTI_SUBSTREAM
   frames = (frames+ runtime->buffer_size - chip->dma_offset[index]) % runtime->buffer_size;
-#else
 
   /* the loose syncing used here is accurate enough for alsa, but 
      due to latency in the dma, the following may happen occasionally, 
      and pcm_lib shouldn't complain */
-  if( frames == runtime->buffer_size ) 
+  if( frames >= runtime->buffer_size ) 
     frames = 0;
 #endif
 //  snd_printd( KERN_INFO " play pos: 0x%04lx / %lx\n", frames, runtime->buffer_size);
-//  printk(KERN_INFO "pos: %d,0x%x\n", index,frames);
+//  printk(KERN_INFO "pos: 0x%x\n", frames);
   return frames;
 
 }
@@ -1508,7 +1517,7 @@ static snd_pcm_uframes_t snd_ad1836_capture_pointer( snd_pcm_substream_t* substr
   /* the loose syncing used here is accurate enough for alsa, but 
      due to latency in the dma, the following may happen occasionally, 
      and pcm_lib shouldn't complain */
-  if( frames == runtime->buffer_size ) 
+  if( frames >= runtime->buffer_size ) 
     frames = 0;
 
   return frames;
@@ -1579,8 +1588,9 @@ static int snd_ad1836_capture_copy(snd_pcm_substream_t *substream, int channel, 
   	mask = chip->in_chan_mask;
   else
   	mask = in_chan_masks[substream->runtime->channels/2 - 1];
-
+#ifdef CONFIG_SND_DEBUG_CURRPTR
   snd_printd(KERN_INFO "capture_copy: dst %p, pos %x, count %x\n", dst, (uint)pos, (uint)count);
+#endif
 
   src += pos * 8;
 
@@ -1938,9 +1948,11 @@ static int __devinit snd_ad1836_create(snd_card_t *card,
   } else {
 	snd_printd(KERN_INFO "sport->dummy_buf:0x%lx\n", sport->dummy_buf_rx);
   }
-  sport->dummy_buf_tx = sport->dummy_buf_rx + DUMMY_BUF_LEN;
+  
   memset((void*)sport->dummy_buf_rx, DUMMY_BUF_LEN * 2, 0);
-
+  sport->dummy_buf_tx = sport->dummy_buf_rx + DUMMY_BUF_LEN;
+  printk(KERN_INFO"dummy_buf_rx:0x%lx, dummy_buf_tx:0x%lx\n", 
+  		sport->dummy_buf_rx, sport->dummy_buf_tx);
 #ifdef MULTI_SUBSTREAM
 {
 	dma_addr_t addr;
@@ -2232,13 +2244,10 @@ static irqreturn_t snd_adi1836_sport_handler_rx(ad1836_t* chip, int irq){
     snd_printk(KERN_ERR"Error - Receive DMA is already stopped\n");
     return IRQ_HANDLED;
   }
-
-  if( bf53x_sport_is_rx_desc_changed(chip->sport) )
-    return IRQ_HANDLED;
         
   ++(chip->sport_irq_count_rx);
   
-  if( chip->rx_substream ) {
+  if( (chip->rx_substream) && (chip->runmode & RUN_RX )) {
     /*square_fill(chip->rx_substream->runtime->dma_area, chip->rx_substream->runtime->dma_bytes);*/
     /*print_16x8(chip->rx_substream->runtime->dma_area);*/
     snd_pcm_period_elapsed(chip->rx_substream);
@@ -2284,9 +2293,6 @@ static irqreturn_t snd_adi1836_sport_handler_tx(ad1836_t* chip, int irq){
     return IRQ_HANDLED;
   }
 
-  if( bf53x_sport_is_tx_desc_changed(chip->sport) )
-    return IRQ_HANDLED;
-    
   ++(chip->sport_irq_count_tx);
 
 #ifdef MULTI_SUBSTREAM
@@ -2297,14 +2303,14 @@ static irqreturn_t snd_adi1836_sport_handler_tx(ad1836_t* chip, int irq){
   chip->dma_pos = (chip->dma_pos + FIXED_FRAGMENT_SIZE) % FIXED_BUFFER_SIZE;
   for(index = 0; index < 3; index++) {
   	sub = chip->tx_substream[index];
-  	if (sub){
+  	if (sub && (chip->runmode & (1<<(index+1)))){
 		snd_pcm_period_elapsed(sub);
 	}
   }
 //  printk(KERN_INFO"dma_pos:0x%lx\n",chip->dma_pos);
 }
 #else
-  if( chip->tx_substream) {
+  if( (chip->tx_substream) && (chip->runmode & RUN_TX)) {
     snd_pcm_period_elapsed(chip->tx_substream);
     /*square_fill(chip->tx_substream->runtime->dma_area, chip->tx_substream->runtime->dma_bytes);*/
     /*print_16x8(chip->tx_substream->runtime->dma_area);*/

@@ -85,17 +85,19 @@ struct bf53x_sport {
 
   dmasg_t* dma_rx_desc;	/* DMA descriptor ring head of current audio stream*/
   dmasg_t* dma_tx_desc;
-  dmasg_t* dma_rx_expired_desc;  /* DMA descriptor ring head of last audio stream*/
-  dmasg_t* dma_tx_expired_desc;
-  dmasg_t* dma_rx_expired2_desc; /* DMA descriptor ring head of the one before last audio stream*/
-  dmasg_t* dma_tx_expired2_desc;
+
+  dmasg_t* dummy_rx_desc;
+  dmasg_t* dummy_tx_desc;
+  dmasg_t* dummy_rx_desc2; /* Backup of dummy_rx_desc */
+  dmasg_t* dummy_tx_desc2; /* Backup of dummy_tx_desc */
+
+  dmasg_t* curr_rx_desc;
+  dmasg_t* curr_tx_desc;
   /* DMA descriptor state in change procedure.
    * 0: DMA is walking through current DMA descriptor ring.
    * 1: New DMA descritor ring is setup, but not hook into current DMA descriptor ring. 
    * 2: The new DMA descriptor ring is hooked into current DMA descriptor ring, but it hasn't been loaded into DMA.
    */
-  int dma_rx_desc_changed;
-  int dma_tx_desc_changed;
 
   unsigned int rcr1;
   unsigned int rcr2;
@@ -145,10 +147,8 @@ int bf53x_sport_config_tx_dma( struct bf53x_sport* sport, void* buf,
 int sport_config_rx_dummy(struct bf53x_sport* sport);
 int sport_config_tx_dummy(struct bf53x_sport* sport);
 
-void bf53x_sport_hook_tx_desc( struct bf53x_sport* sport);
-void bf53x_sport_hook_rx_desc( struct bf53x_sport* sport);
-int bf53x_sport_is_tx_desc_changed(struct bf53x_sport* sport);
-int bf53x_sport_is_rx_desc_changed(struct bf53x_sport* sport);
+void bf53x_sport_hook_tx_desc( struct bf53x_sport* sport, int dummy);
+void bf53x_sport_hook_rx_desc( struct bf53x_sport* sport, int dummy);
 
 /* rx and tx can only run simultanously, use a dummy buffer to have one
    of them disabled, and disable their irq's with the following */
