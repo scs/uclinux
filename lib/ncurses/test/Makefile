@@ -56,7 +56,7 @@ LIBTOOL_LINK	=
 CC		= bfin-uclinux-gcc
 CPP		= bfin-uclinux-gcc -E
 
-CFLAGS		= -O2
+CFLAGS		= -O2  -Wl,-elf2flt
 CPPFLAGS	=  -I../test -I$(srcdir) -DHAVE_CONFIG_H -I. -I../include  -D_GNU_SOURCE -DNDEBUG
 
 CCFLAGS		= $(CPPFLAGS) $(CFLAGS)

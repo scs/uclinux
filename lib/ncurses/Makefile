@@ -56,6 +56,8 @@ INSTALL_DATA	= ${INSTALL} -m 644
 
 DIRS_TO_MAKE	= lib objects obj_g
 
+INSTALL_TERMINFO_TYPE= linux,vt100
+
 all ::	$(DIRS_TO_MAKE)
 
 $(DIRS_TO_MAKE) :
@@ -206,3 +208,4 @@ distclean ::
 	rm -f headers.sh headers.sed
 	rm -rf $(DIRS_TO_MAKE)
 romfs:
+	tic -x -s -e '$(INSTALL_TERMINFO_TYPE)' -o $(ROMFSDIR)/usr/share/terminfo/ misc/terminfo.src	
