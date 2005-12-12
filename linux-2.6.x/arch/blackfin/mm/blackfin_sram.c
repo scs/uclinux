@@ -221,6 +221,7 @@ unsigned long l1_data_A_sram_alloc(unsigned long size)
 	return addr;
 }
 
+
 int l1_data_A_sram_free(unsigned long addr)
 {
 	unsigned flags;
@@ -243,6 +244,41 @@ int l1_data_A_sram_free(unsigned long addr)
 
 	return ret;
 }
+
+#if 0 != L1_DATA_B_LENGTH
+unsigned long l1_data_B_sram_alloc(unsigned long size)
+{
+	unsigned flags;
+	unsigned long addr;
+
+	/* add mutex operation */
+	spin_lock_irqsave(&l1_data_A_sram_lock, flags);
+
+	addr = l1_sram_alloc(size, l1_data_B_sram, ARRAY_SIZE(l1_data_B_sram));
+
+	/* add mutex operation */
+	spin_unlock_irqrestore(&l1_data_A_sram_lock, flags);
+
+	//printk ("Allocated address in l1sram_alloc is 0x%lx+0x%lx\n",addr,size);
+	return addr;
+}
+
+int l1_data_B_sram_free(unsigned long addr)
+{
+	unsigned flags;
+	int ret;
+
+	/* add mutex operation */
+	spin_lock_irqsave(&l1_data_A_sram_lock, flags);
+
+	ret = l1_sram_free(addr, l1_data_B_sram, ARRAY_SIZE(l1_data_B_sram));
+
+	/* add mutex operation */
+	spin_unlock_irqrestore(&l1_data_A_sram_lock, flags);
+
+	return ret;
+}
+#endif
 
 /* L1 Scratchpad memory allocate function */
 unsigned long l1sram_alloc(unsigned long size)
