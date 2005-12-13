@@ -768,6 +768,8 @@ int DmaMemCpy(char *dest_addr, char *source_addr, unsigned short size)
 int DmaMemCpy16(char *dest_addr, char *source_addr, int size)
 {
 
+	if (!size)
+                return 0;
 	/* Setup destination start address */
 	*pMDMA_D0_START_ADDR = dest_addr;
 
