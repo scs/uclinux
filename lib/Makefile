@@ -74,6 +74,7 @@ dir_$(CONFIG_LIB_BFD)		+= bfd
 dir_$(CONFIG_LIB_POPT)		+= popt
 dir_$(CONFIG_LIB_INTL)		+= intl
 dir_$(CONFIG_LIB_LIBIBERTY)	+= libiberty
+dir-$(COFNIG_LIB_MPFR)		+= mpfr
 dir_$(CONFIG_LIB_LIBG)         += libg
 dir_$(CONFIG_LIB_LIBG_FORCE)   += libg
 dir_$(CONFIG_LIB_LIBPAM)       += libpam
