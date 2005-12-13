@@ -133,6 +133,7 @@
 #include <sound/driver.h>
 #include <linux/init.h>
 #include <linux/slab.h>
+#include <linux/spinlock.h>
 #include <asm/irq.h>
 #include <asm/delay.h>
 
@@ -256,6 +257,7 @@ struct snd_ad1836 {
   snd_card_t*         card;
   struct bf53x_spi*   spi;
   struct bf53x_sport* sport;
+  spinlock_t    ad1836_lock;
 
   snd_pcm_t* pcm;
 
@@ -324,13 +326,6 @@ typedef ad1836_t chip_t; /* used in alsa macro's */
 #if L1_DATA_A_LENGTH != 0
 extern unsigned long l1_data_A_sram_alloc(unsigned long size);
 extern int l1_data_A_sram_free(unsigned long addr);
-#endif
-
-#ifdef CONFIG_BF533
-#if L1_DATA_B_LENGTH != 0
-extern unsigned long l1_data_B_sram_alloc(unsigned long size);
-extern int l1_data_B_sram_free(unsigned long addr);
-#endif
 #endif
 
 #ifdef MULTI_SUBSTREAM
@@ -1396,72 +1391,103 @@ static int snd_ad1836_prepare( snd_pcm_substream_t* substream ){
 
 }
 
-static int snd_ad1836_trigger( snd_pcm_substream_t* substream, int cmd){
+static int snd_ad1836_playback_trigger( snd_pcm_substream_t* substream, int cmd)
+{
 
   ad1836_t* chip = snd_pcm_substream_chip(substream);
 #ifdef MULTI_SUBSTREAM
   int index = find_substream(chip, substream);
+  snd_assert(index >= 0 && index <= 3, return -EINVAL);
 #endif
 
+  spin_lock(&chip->ad1836_lock);
   switch(cmd){
   case SNDRV_PCM_TRIGGER_START: 
-    if( substream == chip->rx_substream ) {
-      chip->runmode |= RUN_RX;
-      bf53x_sport_hook_rx_desc(chip->sport, 0);
-/*    printk("start rx\n");*/
-      }
 #ifdef MULTI_SUBSTREAM
-    else if ( index >=0 ) {
       chip->dma_offset[index] = chip->dma_pos;
-      chip->runmode |= 1 << (index + 1);
       if (!chip->out_buf_used) {
           chip->out_buf_used = 1;
 	  chip->dma_offset[index] = 0;
 	  chip->dma_pos = 0;
 	  bf53x_sport_hook_tx_desc(chip->sport, 0);
+	  if (!chip->runmode) {
+	  	bf53x_sport_hook_rx_desc(chip->sport, 1);
+		bf53x_sport_start(chip->sport);
+	  }
 //	  printk("start tx\n"); 
-	}
-    }
-#else    
-    else if( substream == chip->tx_substream ) {
-      chip->runmode |= RUN_TX;
-      bf53x_sport_hook_tx_desc(chip->sport, 0);
       }
+      chip->runmode |= 1 << (index + 1);
+#else    
+      bf53x_sport_hook_tx_desc(chip->sport, 0);
+      if(!chip->runmode) {
+      	 bf53x_sport_hook_rx_desc(chip->sport, 1);
+	 bf53x_sport_start(chip->sport);
+      }
+      chip->runmode |= RUN_TX;
 #endif
-    else
-      return -EINVAL;
     break;
   case SNDRV_PCM_TRIGGER_STOP:
-    if( substream == chip->rx_substream ) {
-      chip->runmode &= ~RUN_RX;
-      bf53x_sport_hook_rx_desc(chip->sport, 1);
-/*      printk("stop rx\n");*/
-    }
 #ifdef MULTI_SUBSTREAM
-    else if ( index >=0 ) {
       chip->runmode &= ~ (1 << (index +1));
       if (!(chip->runmode & RUN_TX_ALL)) {
         chip->out_buf_used = 0;
-	bf53x_sport_hook_tx_desc(chip->sport, 1);
-
+	if (!chip->runmode)
+		bf53x_sport_stop(chip->sport);
+	else
+		bf53x_sport_hook_tx_desc(chip->sport, 1);
 //	printk("stop tx\n"); 
       }
-    }
 #else
-    else if( substream == chip->tx_substream ) {
       chip->runmode &= ~RUN_TX;
-//      sport_config_tx_dummy(chip->sport);
-      bf53x_sport_hook_tx_desc(chip->sport, 1);
+      if (!chip->runmode)
+      	bf53x_sport_stop(chip->sport);
+      else
+        bf53x_sport_hook_tx_desc(chip->sport, 1);
 /*      printk("stop tx\n");*/
-    }
 #endif
-    else
-      return -EINVAL;
     break;
   default:
+    spin_unlock(&chip->ad1836_lock);
     return -EINVAL;
   }
+  spin_unlock(&chip->ad1836_lock);
+  
+//  printk(KERN_ERR"cmd:%s,runmode:0x%x\n", cmd?"start":"stop", chip->runmode);
+  return 0;
+}
 
+static int snd_ad1836_capture_trigger( snd_pcm_substream_t* substream, int cmd)
+{
+
+  ad1836_t* chip = snd_pcm_substream_chip(substream);
+
+  spin_lock(&chip->ad1836_lock);
+  snd_assert(substream == chip->rx_substream, return -EINVAL);
+  switch(cmd){
+  case SNDRV_PCM_TRIGGER_START: 
+      bf53x_sport_hook_rx_desc(chip->sport, 0);
+      if (!chip->runmode) { /* Sport isn't running  */
+	bf53x_sport_hook_tx_desc(chip->sport, 1);
+	bf53x_sport_start(chip->sport);
+      }
+      chip->runmode |= RUN_RX;
+//    printk("start rx\n");
+    break;
+  case SNDRV_PCM_TRIGGER_STOP:
+      chip->runmode &= ~RUN_RX;
+      if (!chip->runmode) {
+      	bf53x_sport_stop(chip->sport);
+      } else 
+	bf53x_sport_hook_rx_desc(chip->sport, 1);
+//      printk("stop rx\n");
+    break;
+  default:
+    spin_unlock(&chip->ad1836_lock);
+    return -EINVAL;
+  }
+  spin_unlock(&chip->ad1836_lock);
+
+//  printk(KERN_ERR"cmd:%s,runmode:0x%x\n", cmd?"start":"stop", chip->runmode); 
   return 0;
 }
 
@@ -1556,8 +1582,9 @@ static int snd_ad1836_playback_copy(snd_pcm_substream_t *substream, int channel,
   	mask = chip->out_chan_mask;
   else
   	mask = out_chan_masks[substream->runtime->channels - 1];
-
+#ifdef CONFIG_SND_DEBUG_CURRPTR
   snd_printd(KERN_INFO "playback_copy: src %p, pos %x, count %x\n", src, (uint)pos, (uint)count);
+#endif
   /* assumes tx DMA buffer initialised with zeros */
   dst += pos * 8;
   /* Copy in order of data stream */
@@ -1687,7 +1714,7 @@ static snd_pcm_ops_t snd_ad1836_playback_ops = {
   .hw_params = snd_ad1836_hw_params,
   .hw_free   = snd_ad1836_hw_free,
   .prepare   = snd_ad1836_prepare,
-  .trigger   = snd_ad1836_trigger,
+  .trigger   = snd_ad1836_playback_trigger,
   .pointer   = snd_ad1836_playback_pointer,
   .copy      = snd_ad1836_playback_copy,
   .silence   = snd_ad1836_silence,
@@ -1701,7 +1728,7 @@ static snd_pcm_ops_t snd_ad1836_capture_ops = {
   .hw_params = snd_ad1836_hw_params,
   .hw_free   = snd_ad1836_hw_free,
   .prepare   = snd_ad1836_prepare,
-  .trigger   = snd_ad1836_trigger,
+  .trigger   = snd_ad1836_capture_trigger,
   .pointer   = snd_ad1836_capture_pointer,
   .copy      = snd_ad1836_capture_copy,
   .silence   = snd_ad1836_silence,
@@ -1924,6 +1951,7 @@ static int __devinit snd_ad1836_create(snd_card_t *card,
   chip->card  = card;
   chip->spi   = spi;
   chip->sport = sport;
+  spin_lock(&chip->ad1836_lock);
 #ifdef MULTI_SUBSTREAM
   chip->tx_substream[0] = NULL;
   chip->tx_substream[1] = chip->tx_substream[2] = NULL;
@@ -1945,35 +1973,17 @@ static int __devinit snd_ad1836_create(snd_card_t *card,
     chip->chip_registers[i] |= ADC_READ;
   
 #if L1_DATA_A_LENGTH != 0
-  if ((sport->dummy_buf_rx=l1_data_A_sram_alloc(DUMMY_BUF_LEN*2)) == 0) {
+  if ((sport->dummy_buf=l1_data_A_sram_alloc(DUMMY_BUF_LEN)) == 0) {
 #else
-  if ((sport->dummy_buf_rx=(unsigned long)kmalloc(DUMMY_BUF_LEN*2, GFP_KERNEL)) == NULL) {
+  if ((sport->dummy_buf=(unsigned long)kmalloc(DUMMY_BUF_LEN, GFP_KERNEL)) == NULL) {
 #endif
 	snd_printk( KERN_ERR "Unable to allocate dummy buffer in sram\n");
 	snd_ad1836_free(chip);
 	return -ENODEV;
   }
   
-  memset(sport->dummy_buf_rx, 0, DUMMY_BUF_LEN * 2);
-/*When both dummy buffer from l1 A data sram, sometime tx DMA doesn't work on 533*/
-#ifdef CONFIG_BF533
-#if L1_DATA_B_LENGTH !=0
-  sport->dummy_buf_tx = l1_data_B_sram_alloc(DUMMY_BUF_LEN);
-#else
-  sport->dummy_buf_tx = (unsigned long)kmalloc(DUMMY_BUF_LEN, GFP_KERNEL);
-#endif
-
-  if(!sport->dummy_buf_tx) {
-  	snd_printk(KERN_ERR"Unable to allocat dummy buffer for tx\n");
-	snd_ad1836_free(chip);
-	return -ENODEV;
-  }
-  memset(sport->dummy_buf_tx, 0, DUMMY_BUF_LEN);
-#else
-  sport->dummy_buf_tx = sport->dummy_buf_rx + DUMMY_BUF_LEN;
-#endif
-  snd_printk(KERN_INFO"dummy_buf_rx:0x%lx, dummy_buf_tx:0x%lx\n", 
-  		sport->dummy_buf_rx, sport->dummy_buf_tx);
+  memset((void*)sport->dummy_buf, 0, DUMMY_BUF_LEN);
+  snd_printk(KERN_INFO "dummy_buf:0x%lx\n", sport->dummy_buf);
 #ifdef MULTI_SUBSTREAM
 {
 	dma_addr_t addr;
@@ -2090,18 +2100,13 @@ static int __devinit snd_ad1836_create(snd_card_t *card,
   if(err) {
     bf53x_sport_stop(sport);
 #if L1_DATA_A_LENGTH != 0
-    l1_data_A_sram_free((unsigned long)sport->dummy_buf_rx);
+//    l1_data_A_sram_free((unsigned long)sport->dummy_buf_rx);
+    l1_data_A_sram_free((unsigned long)sport->dummy_buf);
 #else
-    kfree(dummy_buf_rx);
+//    kfree(dummy_buf_rx);
+    kfree(dummy_buf);
 #endif
 
-#ifdef CONFIG_BF533
-#if L1_DATA_B_LENGTH != 0
-    l1_data_B_sram_free((unsigned long)sport->dummy_buf_tx);
-#else
-    kfree(dummy_buf_tx);
-#endif
-#endif
     snd_ad1836_free(chip);
     return err;
   }
@@ -2182,7 +2187,6 @@ static int __devinit snd_bf53x_adi1836_probe(struct bf53x_spi* spi,
 
   *the_card = card;
   ++dev;
-  bf53x_sport_start(sport);
 
   return 0;
 }

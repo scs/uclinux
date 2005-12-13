@@ -319,7 +319,14 @@ void bf53x_sport_hook_rx_desc( struct bf53x_sport* sport, int dummy)
   unsigned long flags;
   
   sport_printd(KERN_INFO, "%s entered, dummy:%d\n", __FUNCTION__, dummy);
-  SPORT_ASSERT(sport->curr_rx_desc != NULL);
+
+  if (dummy) {
+    	/* Copy the dummy buffer descriptor from backup */
+	*sport->dummy_rx_desc = *sport->dummy_rx_desc2;
+	flush_dcache_range((unsigned int)sport->dummy_rx_desc, 
+			(unsigned int)sport->dummy_rx_desc + sizeof(dmasg_t));
+  }
+
   if( sport->regs->rcr1 & RSPEN ) {
     /* Hook the dummy buffer descriptor */
     if (dummy) {
@@ -357,8 +364,6 @@ void bf53x_sport_hook_rx_desc( struct bf53x_sport* sport, int dummy)
 	}
     }
   } else {
-  	printk(KERN_ERR"Error - DMA's rx state is incorrect, try to restart it\n");
-
 	if(dummy)
 		sport->curr_rx_desc = sport->dummy_rx_desc;
 	else
@@ -371,15 +376,7 @@ void bf53x_sport_hook_rx_desc( struct bf53x_sport* sport, int dummy)
 	dma->y_modify      = 0;
 
 	SSYNC;
-
-	enable_dma(sport->dma_rx_chan);
-	sport->regs->rcr1 |= RSPEN;
-	if(!(sport->regs->tcr1 & TSPEN))
-		bf53x_sport_hook_tx_desc(sport, 1);
-	
-	SSYNC;
   }
- 
 }
 
 void bf53x_sport_hook_tx_desc( struct bf53x_sport* sport, int dummy)
@@ -389,15 +386,17 @@ void bf53x_sport_hook_tx_desc( struct bf53x_sport* sport, int dummy)
   unsigned long flags;
  
   sport_printd(KERN_INFO, "%s entered, dummy:%d\n", __FUNCTION__, dummy);
-  SPORT_ASSERT(sport->curr_tx_desc != NULL);
+
+  if (dummy) {
+  	*sport->dummy_tx_desc = *sport->dummy_tx_desc2;
+	flush_dcache_range((unsigned int)sport->dummy_tx_desc, 
+			(unsigned int)sport->dummy_tx_desc + sizeof(dmasg_t));
+  }
 
   if( sport->regs->tcr1 & TSPEN) {
     if (dummy) {
     	SPORT_ASSERT(sport->dummy_tx_desc != NULL);
     	if (sport->curr_tx_desc != sport->dummy_tx_desc) {
-		*sport->dummy_tx_desc = *sport->dummy_tx_desc2;
-		flush_dcache_range((unsigned int)sport->dummy_tx_desc, 
-			(unsigned int)sport->dummy_tx_desc + sizeof(dmasg_t));
 		/* Shorten the time on last normal descriptor */
   		local_irq_save(flags);
 	   	desc = (dmasg_t*)dma->next_desc_ptr;
@@ -428,8 +427,6 @@ void bf53x_sport_hook_tx_desc( struct bf53x_sport* sport, int dummy)
 	}
     }
   } else {
-  	printk(KERN_ERR"Error - DMA's tx state is incorrect, try to restart it\n");
-    
 	if(dummy)
 		sport->curr_tx_desc = sport->dummy_tx_desc;
 	else
@@ -442,12 +439,6 @@ void bf53x_sport_hook_tx_desc( struct bf53x_sport* sport, int dummy)
 	dma->y_count       = 0;
 	dma->y_modify      = 0;
   
-	SSYNC;
-	if(!(sport->regs->rcr1 & RSPEN))
-		bf53x_sport_hook_rx_desc(sport, 1);
-//	bf53x_sport_start(sport);
-	enable_dma(sport->dma_tx_chan);
-	sport->regs->tcr1 |= TSPEN;
 	SSYNC;
   }
 }
@@ -563,7 +554,7 @@ int sport_config_rx_dummy(struct bf53x_sport *sport)
 	sport->dummy_rx_desc2 = desc+1;
 
 	desc->next_desc_addr = (unsigned long)desc;
-	desc->start_addr = sport->dummy_buf_rx;
+	desc->start_addr = sport->dummy_buf;
 	config = FLOW | NDSIZE | WDSIZE_32 | WNR ;
 	desc->cfg = config | DMAEN;
 	desc->x_count = 0x80;
@@ -573,17 +564,6 @@ int sport_config_rx_dummy(struct bf53x_sport *sport)
 	*sport->dummy_rx_desc2 = *sport->dummy_rx_desc;
 	flush_dcache_range((unsigned int)sport->dummy_rx_desc, 
 		(unsigned int)sport->dummy_rx_desc + 2*sizeof(dmasg_t));
-
-	if (!(sport->regs->rcr1 & RSPEN)) {
-		sport->curr_rx_desc = sport->dummy_rx_desc;
-		dma->next_desc_ptr = (unsigned long)sport->dummy_rx_desc;
-		dma->cfg = config;
-		dma->x_count = 0;
-		dma->x_modify = 0;
-		dma->y_count = 0;
-		dma->y_modify = 0;
-		SSYNC;
-	}
 
 	return 0;
 }
@@ -605,7 +585,7 @@ int sport_config_tx_dummy(struct bf53x_sport *sport)
 	sport->dummy_tx_desc2 = desc+1;
 
 	desc->next_desc_addr = (unsigned long)desc;
-	desc->start_addr = sport->dummy_buf_tx;
+	desc->start_addr = sport->dummy_buf;
 	config = FLOW | NDSIZE |WDSIZE_32;
 	desc->cfg = config | DMAEN;
 	desc->x_count = 0x80;
@@ -615,17 +595,6 @@ int sport_config_tx_dummy(struct bf53x_sport *sport)
 	*sport->dummy_tx_desc2 = *sport->dummy_tx_desc;
 	flush_dcache_range((unsigned int)sport->dummy_tx_desc, 
 		(unsigned int)sport->dummy_tx_desc + 2*sizeof(dmasg_t));
-	
-	if (!(sport->regs->tcr1 & TSPEN)) {
-		sport->curr_tx_desc = sport->dummy_tx_desc;
-		dma->next_desc_ptr = (unsigned long)sport->dummy_tx_desc;
-		dma->cfg = config;
-		dma->x_count = 0;
-		dma->x_modify = 0;
-		dma->y_modify = 0;
-		dma->y_count = 0;
-		SSYNC;
-	}
 	
 	return 0;
 }
