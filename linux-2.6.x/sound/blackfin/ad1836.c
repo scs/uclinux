@@ -203,7 +203,8 @@ static int   enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE_PNP;
 #define CHANNELS_OUTPUT	6
 #define CHANNELS_INPUT	4
 #define FRAGMENT_SIZE_MIN	(4*1024)
-#define FRAGMENTS_MIN	4
+#define FRAGMENTS_MIN	2	
+#define FRAGMENTS_MAX	32
 
 #elif defined(CONFIG_SND_BLACKFIN_ADI1836_I2S)
 
@@ -217,15 +218,6 @@ static int   enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE_PNP;
 
 #else
 #error "An transfer mode must be choosed for audio"
-#endif
-
-#ifdef MULTI_SUBSTREAM
-#define FIXED_CHANNELS	2
-#define FIXED_FRAGMENTS 4
-#define SAMPLE_SIZE	4
-#define SAMPLE_FRAME	(SAMPLE_SIZE * FIXED_CHANNELS)
-#define FIXED_BUFFER_SIZE	(PCM_BUFFER_MAX/ SAMPLE_FRAME)
-#define FIXED_FRAGMENT_SIZE	(FIXED_BUFFER_SIZE/FIXED_FRAGMENTS )
 #endif
 
 #define TALKTROUGH_FRAGMENTS 4
@@ -282,6 +274,10 @@ struct snd_ad1836 {
   unsigned char* tx_dma_buf;
   snd_pcm_uframes_t	dma_pos;
   snd_pcm_uframes_t	dma_offset[3];
+  snd_pcm_uframes_t	buffer_size;
+  snd_pcm_uframes_t	period_size;
+  unsigned int		periods;
+  unsigned int		frame_bytes;
 #else
   snd_pcm_substream_t* tx_substream;  /* if non-null, current subtream running */
 #endif
@@ -1199,14 +1195,13 @@ static int snd_ad1836_playback_open(snd_pcm_substream_t* substream){
   		chip->tx_substream[index] = substream;
 	} else
 		return -EFAULT;
-
-	snd_ad1836_playback_hw.channels_max = FIXED_CHANNELS;
-	snd_ad1836_playback_hw.period_bytes_min = PCM_BUFFER_MAX / FIXED_FRAGMENTS;
-	snd_ad1836_playback_hw.period_bytes_max = PCM_BUFFER_MAX / FIXED_FRAGMENTS;
-	snd_ad1836_playback_hw.periods_min = FIXED_FRAGMENTS;
-	snd_ad1836_playback_hw.periods_max = FIXED_FRAGMENTS;
-//  	printk(KERN_INFO "%s, index:%d, periods:%d, periods_bytes:%d\n", __FUNCTION__, 
-//		index, FIXED_FRAGMENTS, (PCM_BUFFER_MAX/FIXED_FRAGMENTS));
+	if (index > 0) {
+		snd_ad1836_playback_hw.channels_max = 2;
+		snd_ad1836_playback_hw.period_bytes_min = chip->period_size * chip->frame_bytes;
+		snd_ad1836_playback_hw.period_bytes_max = chip->period_size * chip->frame_bytes;
+		snd_ad1836_playback_hw.periods_min = chip->periods;
+		snd_ad1836_playback_hw.periods_max = chip->periods;
+	}
   }
 #else
   chip->tx_substream = substream;
@@ -1225,14 +1220,6 @@ static int snd_ad1836_capture_open(snd_pcm_substream_t* substream){
   if( chip->talktrough_mode != TALKTROUGH_OFF ) 
     return -EBUSY;
  
-#ifdef  MULTI_SUBSTREAM
-  snd_ad1836_playback_hw.channels_max = FIXED_CHANNELS;
-  snd_ad1836_playback_hw.period_bytes_min = PCM_BUFFER_MAX / FIXED_FRAGMENTS;
-  snd_ad1836_playback_hw.period_bytes_max = PCM_BUFFER_MAX / FIXED_FRAGMENTS;
-  snd_ad1836_playback_hw.periods_min = FIXED_FRAGMENTS;
-  snd_ad1836_playback_hw.periods_max = FIXED_FRAGMENTS;
-#endif
-
   substream->runtime->hw = snd_ad1836_capture_hw;
   chip->rx_substream = substream;
 
@@ -1251,7 +1238,7 @@ static int snd_ad1836_playback_close(snd_pcm_substream_t* substream){
   snd_printd("%s, index:%d\n", __FUNCTION__, index);
   if ( index>= 0 ) {
 	chip->tx_substream[index] = NULL;
-	for (i=0; i < FIXED_BUFFER_SIZE; i++) {
+	for (i=0; i < chip->buffer_size * chip->frame_bytes/4; i++) {
 		*((unsigned int*)chip->tx_dma_buf+i*8 + index) = 0;
 		*((unsigned int*)chip->tx_dma_buf+i*8 + index + 4) = 0;
 	}
@@ -1359,7 +1346,11 @@ static int snd_ad1836_prepare( snd_pcm_substream_t* substream ){
     	return 0;
     }
   }
-
+  
+  chip->buffer_size = runtime->buffer_size;
+  chip->period_size = runtime->period_size;
+  chip->periods = runtime->periods;
+  chip->frame_bytes = runtime->frame_bits / 8;
 #else
   snd_printk_marker();
   snd_assert( (substream == chip->rx_substream) || (substream == chip->tx_substream), return -EINVAL );
@@ -2333,7 +2324,7 @@ static irqreturn_t snd_adi1836_sport_handler_tx(ad1836_t* chip, int irq){
   int index;
   snd_pcm_substream_t *sub;
   
-  chip->dma_pos = (chip->dma_pos + FIXED_FRAGMENT_SIZE) % FIXED_BUFFER_SIZE;
+  chip->dma_pos = (chip->dma_pos + chip->period_size) % chip->buffer_size;
   for(index = 0; index < 3; index++) {
   	sub = chip->tx_substream[index];
   	if (sub && (chip->runmode & (1<<(index+1)))){
