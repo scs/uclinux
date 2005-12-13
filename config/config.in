@@ -90,6 +90,7 @@ bool 'Build bfd'		CONFIG_LIB_BFD
 bool 'Build popt'		CONFIG_LIB_POPT
 bool 'Build intl'		CONFIG_LIB_INTL
 bool 'Build libiberty'		CONFIG_LIB_LIBIBERTY
+bool 'Build mpfr'			CONFIG_USER_MPFR
 bool 'Build libG'		CONFIG_LIB_LIBG_FORCE
 bool 'Build libldap'		CONFIG_LIB_LIBLDAP_FORCE
 bool 'Build libnet'		CONFIG_LIB_LIBNET_FORCE
@@ -1604,8 +1605,6 @@ comment 'Inetutils'
 bool	'rsh'				CONFIG_USER_INETUTILS_RSH
 bool	'rcp'				CONFIG_USER_INETUTILS_RCP
 bool	'rshd'				CONFIG_USER_INETUTILS_RSHD
-comment 'oprofile related lib'
-bool	'mpfr'				CONFIG_USER_MPFR
 bool	'oprofile'			CONFIG_USER_OPROFILE
 bool	'NetAudio'			CONFIG_USER_NET_AUDIO
 comment 'FLAT binary format tools'
