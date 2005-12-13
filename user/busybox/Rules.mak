@@ -47,7 +47,7 @@ CPP            = $(CC) -E
 # MAKEFILES      = $(TOPDIR).config
 endif
 
-FLTFLAGS       += -s 20000
+FLTFLAGS       += -s 65536
 
 # What OS are you compiling busybox for?  This allows you to include
 # OS specific things, syscall overrides, etc.
