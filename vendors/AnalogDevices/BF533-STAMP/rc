@@ -2,6 +2,7 @@ hostname blackfin
 #/bin/expand /etc/ramfs.img /dev/ram0
 mount -t proc none /proc
 mount -t ramfs /dev/ram0 /var
+mount -t sysfs none /sys
 mkdir /var/tmp
 mkdir /var/log
 mkdir /var/run
