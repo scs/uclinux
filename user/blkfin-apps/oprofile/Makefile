@@ -86,28 +86,28 @@ DIST_ARCHIVES = $(distdir).tar.gz
 GZIP_ENV = --best
 distuninstallcheck_listfiles = find . -type f -print
 distcleancheck_listfiles = find . -type f -print
-ACLOCAL = ${SHELL} /home/ksh/cvs/commit/11-23/uClinux-dist/user/blkfin-apps/oprofile/missing --run aclocal-1.9
+ACLOCAL = ${SHELL} ${ROODIR}/user/blkfin-apps/oprofile/missing --run aclocal-1.9
 AMDEP_FALSE = #
 AMDEP_TRUE = 
-AMTAR = ${SHELL} /home/ksh/cvs/commit/11-23/uClinux-dist/user/blkfin-apps/oprofile/missing --run tar
-AUTOCONF = ${SHELL} /home/ksh/cvs/commit/11-23/uClinux-dist/user/blkfin-apps/oprofile/missing --run autoconf
-AUTOHEADER = ${SHELL} /home/ksh/cvs/commit/11-23/uClinux-dist/user/blkfin-apps/oprofile/missing --run autoheader
-AUTOMAKE = ${SHELL} /home/ksh/cvs/commit/11-23/uClinux-dist/user/blkfin-apps/oprofile/missing --run automake-1.9
+AMTAR = ${SHELL} ${ROODIR}/user/blkfin-apps/oprofile/missing --run tar
+AUTOCONF = ${SHELL} ${ROODIR}/user/blkfin-apps/oprofile/missing --run autoconf
+AUTOHEADER = ${SHELL} ${ROODIR}/user/blkfin-apps/oprofile/missing --run autoheader
+AUTOMAKE = ${SHELL} ${ROODIR}/user/blkfin-apps/oprofile/missing --run automake-1.9
 AWK = gawk
 BFD_LIBS = -lbfd -liberty  -lintl
 CAT_ENTRY_END = -->
 CAT_ENTRY_START = <!--
 CC = bfin-uclinux-gcc
 CCDEPMODE = depmode=gcc3
-CFLAGS = -I$(ROOTDIR)/lib/bfd -I$(ROOTDIR)/lib/popt -Wl,-elf2flt -L$(ROOTDIR)/lib/bfd -L$(ROOTDIR)/lib/popt
+CFLAGS = -I${ROODIR}/lib/bfd -I${ROODIR}/lib/popt -L${ROODIR}/lib/popt/.libs/ -I${ROODIR}/lib/libiberty/binutils/include/ -L${ROODIR}/lib/libiberty/ -L${ROODIR}/lib/bfd/ -L${ROODIR}/lib/intl -lintl -liberty -Wl,-elf2flt 
 CPP = bfin-uclinux-gcc -E
 CPPFLAGS = 
 CXX = bfin-uclinux-g++
 CXXCPP = bfin-uclinux-g++ -E
 CXXDEPMODE = depmode=gcc3
-CXXFLAGS =  -I$(ROOTDIR)/lib/bfd -I$(ROOTDIR)/lib/popt -Wl,-elf2flt -L$(ROOTDIR)/lib/bfd -L$(ROOTDIR)/lib/popt
+CXXFLAGS = -I${ROODIR}/lib/popt -I${ROODIR}/lib/bfd -I../../../lib/popt -I${ROODIR}/lib/bfd/binutils/include/ -liberty -L${ROODIR}/libiberty/ -L${ROODIR}/lib/bfd/ -L${ROODIR}/lib/intl -L${ROODIR}/lib/popt/.libs -lintl  -Wl,-elf2flt
 CYGPATH_W = echo
-DATE = Thu 01 December 2005
+DATE = Tue 13 December 2005
 DEFS = -DHAVE_CONFIG_H
 DEPDIR = .deps
 DOCBOOK_ROOT = 
@@ -130,14 +130,14 @@ LIBERTY_LIBS = -liberty  -lintl
 LIBOBJS = 
 LIBS = 
 LTLIBOBJS = 
-MAKEINFO = ${SHELL} /home/ksh/cvs/commit/11-23/uClinux-dist/user/blkfin-apps/oprofile/missing --run makeinfo
+MAKEINFO = ${SHELL} ${ROODIR}/user/blkfin-apps/oprofile/missing --run makeinfo
 MOC = /usr/lib/qt3/bin/moc
 MODINSTALLDIR = 
 OBJEXT = o
-OPROFILE_DIR = /home/ksh/cvs/commit/11-23/uClinux-dist/user/blkfin-apps/oprofile
+OPROFILE_DIR = ${ROODIR}/user/blkfin-apps/oprofile
 OPROFILE_MODULE_ARCH = 
 OP_CFLAGS =  -W -Wall -fno-common -Wdeclaration-after-statement
-OP_CXXFLAGS =  -W -Wall -fno-common -ftemplate-depth-50
+OP_CXXFLAGS =  -I${top_srcdir}/include -W -Wall -fno-common -ftemplate-depth-50
 OP_DOCDIR = /usr/local/share/doc/oprofile/
 PACKAGE = oprofile
 PACKAGE_BUGREPORT = 
@@ -192,7 +192,7 @@ have_xsltproc_TRUE = #
 host_alias = bfin-uclinux
 includedir = ${prefix}/include
 infodir = ${prefix}/info
-install_sh = /home/ksh/cvs/commit/11-23/uClinux-dist/user/blkfin-apps/oprofile/install-sh
+install_sh = ${ROODIR}/user/blkfin-apps/oprofile/install-sh
 kernel_support_FALSE = #
 kernel_support_TRUE = 
 libdir = ${exec_prefix}/lib
@@ -201,13 +201,13 @@ localstatedir = ${prefix}/var
 mandir = ${prefix}/man
 mkdir_p = mkdir -p --
 oldincludedir = /usr/include
-prefix = $(ROOTDIR)/romfs/usr/local
+prefix = /usr/local
 program_transform_name = s,x,x,
 sbindir = ${exec_prefix}/sbin
 sharedstatedir = ${prefix}/com
 sysconfdir = ${prefix}/etc
 target_alias = 
-topdir = /home/ksh/cvs/commit/11-23/uClinux-dist/user/blkfin-apps/oprofile
+topdir = ${ROODIR}/user/blkfin-apps/oprofile
 SUBDIRS = \
 	. \
 	m4 \
@@ -737,8 +737,3 @@ uninstall-info: uninstall-info-recursive
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.
 .NOEXPORT:
-romfs:
-	cp daemon/oprofiled $(ROOTDIR)/romfs/sbin/
-	cp pp/opannotate pp/opgprof pp/opreport pp/oparchive $(ROOTDIR)/romfs/sbin
-	cp utils/ophelp utils/opcontrol $(ROOTDIR)/romfs/sbin
-	chmod +x $(ROOTDIR)/romfs/sbin/opcontrol
