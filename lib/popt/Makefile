@@ -40,10 +40,10 @@ pkglibdir = $(libdir)/popt
 pkgincludedir = $(includedir)/popt
 top_builddir = .
 
-ACLOCAL = ${SHELL} /home/ksh/Documents/source/popt-1.7/missing --run aclocal-1.6
-AUTOCONF = ${SHELL} /home/ksh/Documents/source/popt-1.7/missing --run autoconf
-AUTOMAKE = ${SHELL} /home/ksh/Documents/source/popt-1.7/missing --run automake-1.6
-AUTOHEADER = ${SHELL} /home/ksh/Documents/source/popt-1.7/missing --run autoheader
+ACLOCAL = ${SHELL} /home/ksh/cvs/commit/12-13/uClinux-dist/lib/popt/missing --run aclocal-1.6
+AUTOCONF = ${SHELL} /home/ksh/cvs/commit/12-13/uClinux-dist/lib/popt/missing --run autoconf
+AUTOMAKE = ${SHELL} /home/ksh/cvs/commit/12-13/uClinux-dist/lib/popt/missing --run automake-1.6
+AUTOHEADER = ${SHELL} /home/ksh/cvs/commit/12-13/uClinux-dist/lib/popt/missing --run autoheader
 
 am__cd = CDPATH="$${ZSH_VERSION+.}$(PATH_SEPARATOR)" && cd
 INSTALL = /usr/bin/install -c
@@ -71,7 +71,7 @@ target_triplet = bfin-unknown-uclinux
 EXEEXT = 
 OBJEXT = o
 PATH_SEPARATOR = :
-AMTAR = ${SHELL} /home/ksh/Documents/source/popt-1.7/missing --run tar
+AMTAR = ${SHELL} /home/ksh/cvs/commit/12-13/uClinux-dist/lib/popt/missing --run tar
 AS = @AS@
 AWK = gawk
 BUILD_INCLUDED_LIBINTL = yes
@@ -103,7 +103,7 @@ LTLIBINTL = ${top_builddir}/intl/libintl.a
 MKINSTALLDIRS = ./mkinstalldirs
 OBJDUMP = @OBJDUMP@
 PACKAGE = popt
-POPT_SOURCE_PATH = /home/ksh/Documents/source/popt-1.7
+POPT_SOURCE_PATH = /home/ksh/cvs/commit/12-13/uClinux-dist/lib/popt
 POSUB = po
 RANLIB = bfin-uclinux-ranlib
 STRIP = bfin-uclinux-strip
@@ -114,7 +114,7 @@ USE_NLS = yes
 VERSION = 1.7
 am__include = include
 am__quote = 
-install_sh = /home/ksh/Documents/source/popt-1.7/install-sh
+install_sh = /home/ksh/cvs/commit/12-13/uClinux-dist/lib/popt/install-sh
 
 AUTOMAKE_OPTIONS = 1.4 foreign
 
@@ -810,3 +810,4 @@ doxygen: Doxyfile
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.
 .NOEXPORT:
+romfs:
