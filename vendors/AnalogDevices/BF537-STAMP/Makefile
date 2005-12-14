@@ -2,6 +2,8 @@
 #	Makefile -- Build instructions for ADI/Blackfin
 #
 
+include $(LINUX_CONFIG)
+
 ROMFSIMG = $(IMAGEDIR)/rootfs.img
 JFFS2IMG = $(IMAGEDIR)/jffs2.img
 IMAGE    = $(IMAGEDIR)/linux
@@ -66,7 +68,7 @@ image:
 			-C gzip -a 0x1000 -e 0x1000 -n "uClinux Kernel and Filesystem" \
 			-d $(IMAGE).bin.gz $(IMAGEDIR)/uImage; \
 		rm $(IMAGE).bin.gz; \
-		if [ -x $(MKFS_JFFS2) ]; then \
+		if [ -z "$(CONFIG_MTD_UCLINUX)" ]; then \
 			 $(CROSS_COMPILE)objcopy -O binary -S $(ROOTDIR)/$(LINUXDIR)/vmlinux \
 				 $(IMAGEDIR)/vmlinux.bin; \
 			gzip -f9 $(IMAGEDIR)/vmlinux.bin; \
