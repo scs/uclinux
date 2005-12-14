@@ -1,0 +1,7 @@
+		README for hacked msh
+
+		Mickael.Kang (blackfin.kang@gmail.com)
+
+			Dec. 13th 2005
+
+This patch is to support Dynamic Power Management on blackfin platform .You can refer to official website or testcase in blackfin uClinux-dist package to know about what is it and how it works.
