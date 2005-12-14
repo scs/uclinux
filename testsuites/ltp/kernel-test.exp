@@ -1,0 +1,2304 @@
+#!/usr/bin/expect
+#
+# Copyright (C) 2004 Bruce Giese
+# This program is free software; you can redistribute it and/or modify it
+# under the terms of the GNU General Public License as published by the
+# Free Software Foundation; either version 2, or (at your option) any
+# later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, 59 Temple Place - Suite 330,
+# Boston, MA 02111-1307, USA.
+#
+# Revision history
+# 1/5/05  Bruce Giese     version used in initial automated tests
+# 1/27/05 Bruce Giese     snapshot during major re-write
+#
+#
+#  This program performs substantial u-boot functional testing.
+#
+
+source /home/test/test_scripts/config.exp
+source /home/test/test_scripts/kernel/kernel-config.exp
+
+#
+#
+proc usage {} {
+   global argv0
+
+   send_error "\nUsage:  $argv0  /dev/port  \[various options]\n"
+   send_error "Options:  --stability      run stability test\n"
+   send_error "          --net-hosts      run network hosts test\n"
+   send_error "          --reboots        run repeated reboots test\n"
+   send_error "          --pin <pin>      use hacked printer cable\n"
+   send_error "          --logfile <logfile>\n"
+   send_error "          --summary <summary-logfile>\n"
+   send_error "          --compare-file <filename>\n"
+   send_error "\n"
+   send_error "NOTE: pin is the parallel port pin to use to reset board\n"
+   send_error "      if you don't use this method (see reset_board proc\n"
+   send_error "      then pick any number between 2 and 254 (it's used\n"
+   send_error "      for the last number in the IP address).\n"
+   send_error "NOTE: compare-file is the file used for comparison with\n"
+   send_error "      previous executions of the test. It is optional.\n\n"
+   exit
+}
+
+#
+#  Step
+#
+#  This procedure delineates steps in the testing within the
+#  log file and screen output.
+#
+
+proc step { message } {
+  
+  global step_sequence_number
+
+  puts "\n*******************************************************************"
+  puts "STEP $step_sequence_number: $message\n\n"
+  send_log "\n************** STEP $step_sequence_number: $message\n\n"
+  incr step_sequence_number 
+}
+
+#
+#  These are equivalent to the tee command. Send a message to both
+#      to the console
+#      to the log file
+#
+proc report { message } {
+#   puts \n$message
+   send_log "\n$message\n"
+}
+
+#  This simply doesn't add line feeds.
+proc send_both {message} {
+   send_log $message
+ #  puts -nonewline $message
+}
+
+#
+#  This procedure resets the board to boot into the kernel.
+#  If you remove resistor R58 on the stamp board and solder
+#  a wire onto the side going into the U24 chip and connect
+#  this to a parallel port pin on the host PC, then use the
+#  reset_board_as_root function below.  Otherwise, use the
+#  send "reboot\r" option instead.
+#
+#
+proc reset_board {} {
+   global output_pin
+   global kermit_spawn_id
+   global spawn_id
+   global timeout
+
+   if { $output_pin == 0 } {
+      send "reboot\r"
+      return
+   } else {
+      set timeout 10
+      if [catch {spawn sudo /home/test/test_scripts/kernel/reset_board $output_pin}] {
+         report "ERROR: You don't have the reset_board_as_root script."
+         report "       You should not specify --pin unless you're using"
+         report "       a hacked up printer cable to power cycle the board."
+         exit
+      }
+      while 1 {
+         expect {
+            timeout {
+               report "ERROR: Failed to reset target board with reset script"
+               all_done
+            }
+            eof {
+               break
+            }
+         }
+      }
+      set spawn_id $kermit_spawn_id
+   }
+}
+
+
+
+
+#
+#  This procedure recovers from all sorts of kernel problems.
+#  Return value:
+#     0 == there was nothing to recover, the kernel was ok
+#     1 == had to reboot to get back to the kernel
+#     -1 == not able to recover
+#
+proc recover {} {
+   global timeout
+   global password
+
+   set MAX_ATTEMPTS  2
+
+   report "!!!! recovering"
+
+   # First, try to get kernel prompt without rebooting.
+   set fail_count 0
+    
+   for {set failcount 0} {$failcount<$MAX_ATTEMPTS} {incr failcount} {
+      if {$failcount<1} {
+         # First three times, try to send a command.
+         set timeout 1
+         send "cd /bin\r"
+         report "!!!! hit ENTER"	
+      } else {
+         # After that doesn't work, try Control-C
+         set timeout 1
+         send "\3"
+         report "!!!! hit Control-C"	 
+      }     
+      set timeout 1
+      while 1 {
+         expect {
+
+            "Kernel panic" {	    
+               set failcount $MAX_ATTEMPTS
+               break
+            }
+
+            "/bin> " {	    
+               return 0
+            }
+
+            "root:~>" {	    
+                return 0
+            }
+
+            timeout {	    
+               break
+            }
+         }
+      }
+   }
+
+  
+   set state_variable 0
+   for {set failcount 0} {$failcount<3} {incr failcount} {
+   
+     
+      report "!!!! reboot"
+      reset_board
+      set timeout 180
+      set state_variable 0
+
+      while 1 {
+         expect {
+
+            "Kernel panic" {
+               set state_variable 1
+               break
+            }
+
+            -re "Sash command shell" {
+               set state_variable 2
+               break
+            }
+	    
+	     "root:~>" {
+               set state_variable 2
+	       send "\r"
+               break
+            }
+
+            timeout {
+               break
+            }
+         }
+      }
+
+#
+# Using a state variable for all of this helps
+# when we need to expand the functionality.
+#
+      if { $state_variable == 2 } {
+         set timeout 3
+         expect {
+            "> " {
+               set state_variable 3
+            }
+         }
+      }
+      if { $state_variable == 3 } {
+         send "cd /bin\r"
+         set timeout 6
+         while 1 {
+            expect {
+
+               "No such file or directory" {
+                  report "!!!! error changing dir"
+               }
+
+               "/bin> " {
+                  report "!!!! changed to test directory"
+                  set state_variable 4
+                  break
+               }
+
+               timeout {
+                  report "!!!! cannot seem to cd to test dir"
+                  break
+               }
+            }
+         }
+      }
+      if { $state_variable == 4 } {
+         catch {exec rcp /home/test/auto-kernel/passwd root@10.100.4.50:/etc}
+	 catch {exec rcp /home/test/auto-kernel/group root@10.100.4.50:/etc}
+	 sleep 5
+	 catch {exec rcp /home/test/ltp-cvs/ltp/testcases/bin/symlink01 root@10.100.4.50:/bin}
+	 catch {exec rcp /home/test/ltp-cvs/ltp/testcases/bin/creat_slink root@10.100.4.50:/bin}
+	 catch {exec rcp /home/test/ltp-cvs/ltp/testcases/bin/sig_rev root@10.100.4.50:/bin}
+        
+	send "export PATH=\$PATH:/bin\r"
+	expect "root:~>"
+	send "export TMP=/tmp\r"
+	expect "root:~>"
+	send "echo \$PATH\r"
+	expect "root:~>"
+#	sleep 5
+         send -s "chmod 777 /tmp\r"
+         set timeout 14
+         set flag 0
+         while 1 {
+            expect {
+
+               "No such file or directory" { 
+                  set flag 1
+               }
+
+               "bin> " {
+                  if { $flag==0} {
+                     sleep 3
+                     report "!!!! executed chmod 777 /tmp"
+                     report "!!!! recovered ok"
+		     send -s "ls -l /\r"
+		    
+		     while 1 {
+				expect {
+				"tmp" {
+			#	puts "2222222"
+                                sleep 2
+				break
+				}
+								
+				timeout {
+					report "timeout during chmod 777 /tmp"					
+					break
+				}
+				}
+			}
+                     return 1
+                  } else {
+                     report "!!!! problem with chmod 777 /tmp"
+                     return 1
+                  }
+               }
+
+               timeout {
+                  report "!!!! timeout during chmod 777 /tmp"
+                  break
+               }
+            }
+         }
+ 
+
+	
+      }
+   }
+   report "!!!! Not able to recover"
+   return -1
+}
+
+
+
+
+#
+#  This waits for a kernel prompt and then continues on.
+#
+#
+proc wait_for_kernel_prompt {} {
+   global timeout
+
+   report "waiting for kernel prompt"
+   set timeout 30
+   while 1 {
+      expect {
+
+         "Kernel panic" {
+            report "ERROR: kernel panic, will attempt to recover"
+            recover
+            break
+         }
+
+         ">" {
+            break
+         }
+
+         timeout {
+            report "ERROR: Never got kernel prompt, will attempt to recover"
+            recover
+            break
+         }
+      }
+   }
+}
+
+
+
+
+#
+#  Call this procedure to record the result of a test
+#
+#
+proc record_test_result { test_num result } {
+   global result_matrix
+# Get the row associated with test_num.
+   set temp_2_element_matrix [lindex $result_matrix $test_num]
+# Set the 2nd element to result.
+   set temp_2_element_matrix [lreplace $temp_2_element_matrix 2 2 $result]
+# Write it back into the matrix.
+   set result_matrix [lreplace $result_matrix $test_num $test_num $temp_2_element_matrix]
+
+   set x [lindex $result_matrix $test_num]
+   set y [lindex $x 0]
+   set z [lindex $x 2]
+   report "===== Recording result: $y is $z"
+}
+
+
+#
+#  Call this procedure to record a test measurement
+#    These two procedures are exactly the same, but can't
+#    be collapsed due to how params are passed (by value only).
+#
+proc record_test_measurement { test_num result } {
+   global measurement_matrix
+# Get the row associated with test_num.
+   set temp_2_element_matrix [lindex $measurement_matrix $test_num]
+# Set the 2nd element to result.
+   set temp_2_element_matrix [lreplace $temp_2_element_matrix 1 1 $result]
+# Write it back into the matrix.
+   set measurement_matrix [lreplace $measurement_matrix $test_num $test_num $temp_2_element_matrix]
+
+   set x [lindex $measurement_matrix $test_num]
+   set y [lindex $x 0]
+   set z [lindex $x 1]
+   report "===== Recording measurement: $y is $z"
+}
+
+
+#
+#  Call this procedure instead of doing an exit so we can
+#  do any cleanup needed.  Note that we use a temporary
+#  logfile for bulk data and a summary logfile which is
+#  never overwritten.
+#
+proc all_done { } {
+   global result_matrix
+   global measurement_matrix
+   global summary_logfile
+   global compare_file
+   global TEST_PASS
+   global TEST_FAIL
+   global TEST_INFO
+   global LTP_NOT_RUN
+   global LTP_PASS
+   global LTP_INFO
+   global LTP_WARN
+   global LTP_BROKEN
+   global LTP_FAIL
+   global LTP_CRASH
+   global ttydev
+   global output_pin
+   global test_started
+
+# Capture the information into a special logfile for an email
+   log_file
+   log_file -noappend $summary_logfile
+   #puts "\nsending summary results to $summary_logfile\n"
+
+   set total_tests 0
+   set passed_tests 0
+   set failed_tests 0
+   set crashing_tests 0
+   set broken_tests 0
+   set warning_tests 0
+   set tests_not_run 0
+
+   send_both "\ntest started $test_started\n\n"
+   send_both "Test Results\n"
+   send_both "=====================================\n"
+
+   for {set i 0} {$i< [llength $result_matrix]} {incr i} {
+
+      incr total_tests
+      set x [lindex $result_matrix $i]
+      if {$TEST_PASS == [lindex $x 2] || $LTP_PASS == [lindex $x 2]} {
+         incr passed_tests
+      }
+      if {$TEST_FAIL == [lindex $x 2] || $LTP_FAIL == [lindex $x 2]} {
+         incr failed_tests
+      }
+      if {$TEST_INFO == [lindex $x 2] || $LTP_NOT_RUN == [lindex $x 2]} {
+         incr tests_not_run
+      }
+      if {$LTP_WARN == [lindex $x 2] || $LTP_INFO == [lindex $x 2]} {
+         incr warning_tests
+      }
+      if {$LTP_CRASH == [lindex $x 2]} {
+         incr crashing_tests
+      }
+      if {$LTP_BROKEN == [lindex $x 2]} {
+         incr broken_tests
+      }
+   }
+   send_both "  Total Tests        :  $total_tests\n"
+   send_both "  Passed Tests       :  $passed_tests\n"
+   send_both "  Failed Tests       :  $failed_tests\n"
+   send_both "  Broken Tests       :  $broken_tests\n"
+   send_both "  Warning Tests      :  $warning_tests\n"
+   send_both "  Crashing Tests     :  $crashing_tests\n"    
+   send_both "  Skipped Tests     :  $tests_not_run\n"
+   send_both "\n"
+   send_both "Failed Tests List\n"
+   send_both "=====================================\n"
+
+   for {set i 0} {$i < [llength $result_matrix]} {incr i} {
+      set x [lindex $result_matrix $i]
+      if {$TEST_FAIL == [lindex $x 2] || $LTP_FAIL == [lindex $x 2]} {
+         send_both "  -  [lindex $x 0]\n"
+      }
+   }
+
+   send_both "\n"
+   send_both "Broken Tests List\n"
+   send_both "=====================================\n"
+   for {set i 0} {$i < [llength $result_matrix]} {incr i} {
+      set x [lindex $result_matrix $i]
+      if {$LTP_BROKEN == [lindex $x 2]} {
+         send_both "  -  [lindex $x 0]\n"
+      }
+   }
+
+   send_both "\n"
+   send_both "Warning Tests List\n"
+   send_both "=====================================\n"
+   for {set i 0} {$i < [llength $result_matrix]} {incr i} {
+      set x [lindex $result_matrix $i]
+      if {$LTP_WARN == [lindex $x 2] } {
+         send_both "  -  [lindex $x 0]\n"
+      }
+   }
+
+   send_both "\n"
+   send_both "Crashing Tests List(Causing Crashes or Lockups)!\n"
+   send_both "=====================================\n"
+   for {set i 0} {$i < [llength $result_matrix]} {incr i} {
+      set x [lindex $result_matrix $i]
+      if {$LTP_CRASH == [lindex $x 2]} {
+         send_both "  -  [lindex $x 0]\n"
+      }
+   }
+
+   send_both "\n"
+   send_both "Passed Tests List\n"
+   send_both "=====================================\n"
+   for {set i 0} {$i < [llength $result_matrix]} {incr i} {
+      set x [lindex $result_matrix $i]
+      if {$TEST_PASS == [lindex $x 2] || $LTP_PASS == [lindex $x 2]} {
+         send_both "  -  [lindex $x 0]\n"
+      }
+   }
+
+   send_both "\n"
+   send_both "Skipped Tests List(Tests Not Run)\n"
+   send_both "=====================================\n"
+   for {set i 0} {$i < [llength $result_matrix]} {incr i} {
+      set x [lindex $result_matrix $i]
+      if {$TEST_INFO == [lindex $x 2] || $LTP_NOT_RUN == [lindex $x 2]} {
+         send_both "  -  [lindex $x 0]\n"
+      }
+   }
+
+   send_both "\n"
+   send_both "Measurement Tests\n"
+   send_both "=====================================\n"
+
+   for {set i 0} {$i < [llength $measurement_matrix]} {incr i} {
+      set x [lindex $measurement_matrix $i]
+      set y [lindex $x 0]
+      if {$TEST_INFO == [lindex $x 1]} {
+         set z "not measured"
+      } else {
+         set z [lindex $x 1]
+      }
+      send_both "  $y = $z\n"
+   }
+
+   send_both "\n"
+   send_both "Test Setup\n"
+   send_both "=====================================\n"
+   send_both "  tty = $ttydev\n"
+   send_both "  output pin = $output_pin\n"
+
+    log_file
+    exec /home/test/auto-kernel/summary.sh $summary_logfile
+
+   # We never return back to the main program.
+   exit
+}
+
+
+
+#
+#  Do any cleanup needed before running the next test.  This is
+#  where to put workarounds for a number of problems and to
+#  verify that the script is in sync with the output of the kernel.
+#
+#
+proc test_cleanup { } {
+   global timeout
+
+   set old_timeout $timeout
+   set crash_flag 0
+
+   # get a unique identifier.
+   set x [timestamp]
+   set flag 0
+   report "sending marker"
+   send "echo $x\r"
+   set timeout 20
+
+   while 1 {
+      expect {
+
+         "$x" {
+	    report "got marker back"
+            set flag 1
+         }
+
+         "> " {
+            if { $flag==1} {
+	       report "got kernel prompt"
+               break
+            }
+         }
+
+         timeout {
+            report "=== test_cleanup: seems to be lost"
+            set x [recover]
+            if {$x!=0} {
+               set crash_flag -1
+            }
+            break
+         }
+      }
+   }
+   
+
+   # get any leftover prompt
+   set timeout 1
+   expect "> "
+
+   if { $flag==0 } {
+      set x [recover]
+      if {$x!=0} {
+         set crash_flag -1
+      }
+   }
+   set timeout $old_timeout
+   return $crash_flag
+}
+
+
+
+#
+#  Execute an LTP test and return the result.
+#    The result is equal to the worst of all the
+#    individual sub-results.
+#
+#    The timeout value should be set by the calling routine.
+#
+#    mode: ==0  normal functional testing
+#          !=0  stability testing
+#
+proc run_LTP_test { filename command mode} {
+   global timeout
+   global LTP_NOT_RUN
+   global LTP_PASS
+   global LTP_INFO
+   global LTP_WARN
+   global LTP_BROKEN
+   global LTP_FAIL
+   global LTP_CRASH
+   global TESTCASES_DIR
+
+   set old_timeout $timeout
+   set result_flag $LTP_NOT_RUN
+   set timeout 10
+   catch {exec rcp /home/test/ltp-cvs/ltp/testcases/bin/$filename root@10.100.4.50:/bin}
+  #catch {exec rcp /home/test/ltp-cvs/ltp/testcases/bin/getgroups01 root@10.100.4.50:/bin}
+   expect ">" 
+   send  "\r"
+   expect  ">"
+   send "$command\r"
+   #send "getgroups01\r"
+   set timeout 200
+#   report "---sent $filename"
+
+   
+   while 1 {
+   	
+      expect {
+
+         "CURRENT PROCESS" {	
+            report "---crash"
+            set result_flag $LTP_CRASH
+          #  reset_board
+            break
+         }
+       
+
+         "/bin> " {
+#	 report "qqqqqqqqqqqqqqqqwwwwwwwwww77"
+            report "---done"
+            sleep .5
+            break
+         }
+
+         # Some testcases leave the current directory in root
+         "root:~> " {
+#	 report "qqqqqqqqqqqqqqqqwwwwwwwwww88"
+            report "---done"
+            sleep .5
+            break
+         }
+
+         $LTP_PASS {
+#	 report "qqqqqqqqqqqqqqqqwwwwwwwwww99"
+            if {$result_flag == $LTP_NOT_RUN} {
+               report "---pass"
+               set result_flag $LTP_PASS
+            }
+         }
+
+         # Someone wrote sigprocmask2 with a non-standard passing response.
+         "sigprocmask passed" {
+            if {$result_flag == $LTP_NOT_RUN} {
+               report "---pass"
+               set result_flag $LTP_PASS
+            }
+         }
+	 
+	   "ftruncate03" {
+	   		set timeout 10
+	    		while 1 {
+      				expect {
+         			-re  "Test Passed.*Test Passed.*Test Passed" {	
+				      if {$result_flag == $LTP_NOT_RUN} {
+							report "---pass"
+							set result_flag $LTP_PASS
+							}				    
+           		 	 	break	          			  
+        			 }   
+				 timeout {
+				  report "---fail"
+				  set result_flag $LTP_FAIL				 
+           		 	  break				 
+				}    
+     			 	}
+   			}
+			break             
+         	}
+     
+	  "getgroups01" {
+	       set timeout 10
+#	       report "qqqqqqqqqqqqqqqqwwwwwwwwww10"
+#	       report "qqqqqqqqqqqqqqqqwwwwwwwwww"
+	       while 1 {
+                 expect { 
+         	"Kernel panic " {
+		 	report "---crash"
+            		set result_flag $LTP_CRASH
+           		 break          		 
+        		 }
+			 
+		 "CURRENT PROCESS" {
+#	        report "qqqqqqqqqqqqqqqqwwwwwwwwww552"
+               report "---crash"
+               set result_flag $LTP_CRASH
+               break
+               }
+	       
+		 "Unknown relocation type" {
+		 	report "---locks up"
+            		set result_flag $LTP_CRASH
+           		 break 
+		 
+		 }
+		  $LTP_PASS {
+#		 report "qqqqqqqqqqqqqqqqwwwwwwwwww992"
+          	  if {$result_flag == $LTP_NOT_RUN} {
+           	    report "---pass"
+           	    set result_flag $LTP_PASS
+           	 }
+        	 }
+		   $LTP_FAIL {
+           	 report "---fail"
+#		 report "qqqqqqqqqqqqqqqqwwwwwwwwww99222"
+            	set result_flag $LTP_FAIL
+         	}
+        	timeout { 
+			
+		        send "\r"
+			set timeout 20
+			 while 1 {
+      				expect {       
+
+         			"> " {	
+				     send "ls \r"
+				     report "---locks up"
+            			 	set result_flag $LTP_CRASH
+					reset_board
+           		 	 	break	  
+          			    
+          			  
+        			 }   
+				 timeout {
+				 report "---locks up"
+            			 set result_flag $LTP_CRASH
+           		 	 break				 
+				 }    
+     			 	}
+   			}         
+             		break
+         		}
+      		}
+   		}      
+		break    
+         }
+
+
+	  -re "\[^o-q]read03" {
+#	 		report "qqqqqqqqqqqqqqqqwwwwwwwwww^^^"
+	 		
+	   		set timeout 5
+	    		while 1 {
+      				expect {
+         			  "succeded" {	
+				      if {$result_flag == $LTP_NOT_RUN} {
+							report "---pass"
+							set result_flag $LTP_PASS
+							}				    
+           		 	 	break	          			  
+        			 }   
+				 timeout {
+				  report "---fail"
+				  set result_flag $LTP_FAIL				 
+           		 	  break				 
+				}    
+     			 	}
+   			}   
+			break          
+         	}
+		
+	"setgroups03" {
+	       set timeout 10
+#	       report "qqqqqqqqqqqqqqqqwwwwwwwwww10"
+#	       report "qqqqqqqqqqqqqqqqwwwwwwwwww"
+	       while 1 {
+                 expect { 
+         	"Kernel panic " {
+		 	report "---crash"
+            		set result_flag $LTP_CRASH
+           		 break          		 
+        		 }
+			 
+		 "CURRENT PROCESS" {
+#	        report "qqqqqqqqqqqqqqqqwwwwwwwwww552"
+               report "---crash"
+               set result_flag $LTP_CRASH
+	       reset_board
+               break
+               }
+	       
+		 "Unknown relocation type" {
+		 	report "---locks up"
+            		set result_flag $LTP_CRASH
+           		 break 
+		 
+		 }
+		  $LTP_PASS {
+#		 report "qqqqqqqqqqqqqqqqwwwwwwwwww992"
+          	  if {$result_flag == $LTP_NOT_RUN} {
+           	    report "---pass"
+           	    set result_flag $LTP_PASS
+           	 }
+        	 }
+		   $LTP_FAIL {
+           	 report "---fail"
+#		 report "qqqqqqqqqqqqqqqqwwwwwwwwww99222"
+            	set result_flag $LTP_FAIL
+         	}
+        	timeout { 
+			
+		        send "\r"
+			set timeout 20
+			 while 1 {
+      				expect {       
+
+         			"> " {	
+				     send "ls \r"
+				     report "---locks up"
+            			 	set result_flag $LTP_CRASH
+					reset_board
+           		 	 	break	  
+          			    
+          			  
+        			 }   
+				 timeout {
+				 report "---locks up"
+            			 set result_flag $LTP_CRASH
+           		 	 break				 
+				 }    
+     			 	}
+   			}         
+             		break
+         		}
+      		}
+   		}      
+		break    
+         }
+
+
+	 
+         # Someone wrote signal with non-standard passing response.
+         "No errors." {
+            if {$result_flag == $LTP_NOT_RUN} {
+               report "---pass"
+               set result_flag $LTP_PASS
+            }
+         }
+
+     
+         # sigset tests pass when SIGCHLD is still handled by myhandler.
+         "SIGCHLD called. Inside handler" {
+            if {$result_flag == $LTP_NOT_RUN} {
+               report "---pass"
+               set result_flag $LTP_PASS
+            }
+         }
+
+         $LTP_WARN {
+            if {$result_flag != $LTP_BROKEN && $result_flag != $LTP_FAIL} {
+               report "---warn"
+               set result_flag $LTP_WARN
+            }
+         }
+
+         $LTP_BROKEN {
+            if {$result_flag != $LTP_FAIL} {
+               report "---brok"
+               set result_flag $LTP_BROKEN
+               if {$filename == "pause03"} { 
+                      set result_flag $LTP_CRASH
+                      reset_board
+                      break 
+                }
+
+            }
+         }
+
+         $LTP_FAIL {
+            report "---fail"
+            set result_flag $LTP_FAIL
+         }
+
+         timeout {
+	    report "---timeout"
+            set result_flag $LTP_CRASH
+            break
+         }
+      }
+   }
+
+   
+   if {$result_flag == $LTP_CRASH} {
+      set x [recover]
+      if {$x==0} {
+         # if the kernel didn't really crash, downgrade to failure.
+         set result_flag $LTP_FAIL
+      }
+   }
+
+   sleep .5
+   set x [test_cleanup]
+   if {$x!=0} {
+      set result_flag $LTP_CRASH
+   }
+
+
+   send "rm /bin/$filename\r"
+  
+   return $result_flag
+}
+
+
+#
+#
+#   Main Program
+#
+#   kernel test script
+#
+#
+
+set BOARD                   "ADSP-BF533 STAMP"
+
+# There are rational reasons for defining these things like this.
+# It avoids SUBTLE errors with misspelling in favor of big, obvious errors.
+set SUCCESS                 "success"
+set FAILURE                 "failure"
+set WARNING                 "warning"
+set TEST_PASS               "pass"
+set TEST_FAIL               "fail"
+
+set LTP_NOT_RUN             "LTP test never ran"
+set LTP_PASS                "PASS"
+set LTP_INFO                "INFO"
+set LTP_WARN                "WARN"
+set LTP_BROKEN              "BROK"
+set LTP_FAIL                "FAIL"
+set LTP_CRASH               "LTP crashed!"
+
+# Note that the TEST_INFO value must match the tables below. Sorry.
+set TEST_INFO               "notrun"
+set CACHE_ENABLED           "enabled"
+set CACHE_DISABLED          "disabled"
+
+set ON                      "ON"
+set OFF                     "OFF"
+set UNKNOWN                 "UNKNOWN"
+set ULIMIT                ulimit
+#
+#  This matrix contains all the tests which are run.  Note that
+#  The second column must match the value of TEST_INFO above.  Also,
+#  The indexes below must align with the location of the test.
+#  Don't thank me for that; nothing in curly brackets gets
+#  evaluated in expect so there appears to be no other way.
+#
+#  We only need the ..._loc names for manual tests, not LTP style tests.
+#
+set i 0
+set cpu_info_loc                        $i
+
+set result_matrix1 {   
+       { pause03     	     {pause03}                     	 notrun }
+       { setgroups04     	     {setgroups04}                     	 notrun } 
+       { write01     	     {write01}                     	 notrun } 
+       { write02     	     {write02}                     	 notrun } 
+       { write03     	     {write03}                     	 notrun } 
+       { write04     	     {write04}                     	 notrun } 
+       { write05     	     {write05}                     	 notrun } 
+       { writev01     	     {writev01}                     	 notrun } 
+       { writev02     	     {writev02}                     	 notrun } 
+       { writev03     	     {writev03}                     	 notrun } 
+       { writev04     	     {writev04}                     	 notrun } 
+       { writev05     	     {writev05}                     	 notrun } 
+                    							}
+
+#                user friendly name          command             status
+#                ==================          =======             ======
+set result_matrix {   
+       { abort01     	     {ulimit -c 1024;abort01}                     	 notrun } 
+       { accept01     	     {accept01}                     	 notrun } 
+       { access01     	     {access01}                     	 notrun } 
+       { access02     	     {access02}                     	 notrun } 
+       { access03     	     {access03}                     	 notrun } 
+       { access04     	     {access04}                     	 notrun } 
+       { access05     	     {access05}                     	 notrun } 
+       { acct01     	     {acct01}                     	 notrun } 
+       { acct02     	     {acct02}                     	 notrun } 
+       { adjtimex01     	     {adjtimex01}                     	 notrun } 
+       { adjtimex02     	     {adjtimex02}                     	 notrun } 
+       { alarm01     	     {alarm01}                     	 notrun } 
+       { alarm02     	     {alarm02}                     	 notrun } 
+       { alarm03     	     {alarm03}                     	 notrun } 
+       { alarm04     	     {cp -f /bin/sig_rev /tmp;alarm04}                     	 notrun } 
+       { alarm05     	     {alarm05}                     	 notrun } 
+       { alarm06     	     {alarm06}                     	 notrun } 
+       { alarm07     	     {alarm07}                     	 notrun } 
+       { asyncio02     	     {asyncio02}                     	 notrun } 
+       { bind01     	     {bind01}                     	 notrun } 
+       { bind02     	     {bind02}                     	 notrun } 
+       { brk01     	     {brk01}                     	 notrun } 
+       { capget01     	     {capget01}                     	 notrun } 
+       { capget02     	     {capget02}                     	 notrun } 
+       { capset01     	     {capset01}                     	 notrun } 
+       { capset02     	     {capset02}                     	 notrun } 
+       { chdir01     	     {chdir01}                     	 notrun } 
+       { chdir01A     	     {symlink01 -T chdir01}                     	 notrun } 
+       { chdir02     	     {chdir02}                     	 notrun } 
+       { chdir03     	     {chdir03}                     	 notrun } 
+       { chdir04     	     {chdir04}                     	 notrun } 
+       { chmod01     	     {chmod01}                     	 notrun } 
+       { chmod01A     	     {symlink01 -T chmod01}                     	 notrun } 
+       { chmod02     	     {chmod02}                     	 notrun } 
+       { chmod03     	     {chmod03}                     	 notrun } 
+       { chmod04     	     {chmod04}                     	 notrun } 
+       { chmod05     	     {cp -p /bin/change_owner /tmp;chmod05 }                     	 notrun } 
+       { chmod06     	     {cp -p /bin/change_owner /tmp;chmod06}                     	 notrun } 
+       { chmod07     	     {chmod07}                     	 notrun } 
+       { chown01     	     {chown01}                     	 notrun } 
+       { chown02     	     {chown02}                     	 notrun } 
+       { chown03     	     {export change_owner=/bin/change_owner;chown03}                     	 notrun } 
+       { chown04     	     {cp -p /bin/change_owner /tmp;chown04}                     	 notrun } 
+       { chown05     	     {chown05}                     	 notrun } 
+       { chroot01     	     {chroot01}                     	 notrun } 
+       { chroot02     	     {chroot02}                     	 notrun } 
+       { chroot03     	     {chroot03}                     	 notrun } 
+       { chroot04     	     {chroot04}                     	 notrun } 
+       { clone01     	     {clone01}                     	 notrun } 
+       { clone02     	     {clone02}                     	 notrun } 
+       { clone03     	     {clone03}                     	 notrun } 
+       { clone04     	     {clone04}                     	 notrun } 
+       { clone05     	     {clone05}                     	 notrun } 
+       { clone06     	     {clone06}                     	 notrun } 
+       { clone07     	     {clone07}                     	 notrun } 
+       { close01     	     {close01}                     	 notrun } 
+       { close02     	     {close02}                     	 notrun } 
+       { close08     	     {close08}                     	 notrun } 
+       { confstr01     	     {confstr01}                     	 notrun } 
+       { connect01     	     {connect01}                     	 notrun } 
+       { creat01     	     {creat01}                     	 notrun } 
+       { creat03     	     {creat03}                     	 notrun } 
+       { creat04     	     {creat04}                     	 notrun } 
+       { creat05     	     {creat05}                     	 notrun } 
+       { creat06     	     {creat06}                     	 notrun } 
+       { creat07     	     {creat07 -F /bin/test1}                     	 notrun } 
+       { creat08     	     {creat08}                     	 notrun } 
+       { creat09     	     {creat09}                     	 notrun } 
+       { dup01     	     {dup01}                     	 notrun } 
+       { dup02     	     {dup02}                     	 notrun } 
+       { dup03     	     {dup03}                     	 notrun } 
+       { dup04     	     {dup04}                     	 notrun } 
+       { dup05     	     {dup05}                     	 notrun } 
+       { dup06     	     {dup06}                     	 notrun } 
+       { dup07     	     {dup07}                     	 notrun } 
+       { dup201     	     {dup201}                     	 notrun } 
+       { dup202     	     {dup202}                     	 notrun } 
+       { dup203     	     {dup203}                     	 notrun } 
+       { dup204     	     {dup204}                     	 notrun } 
+       { dup205     	     {dup205}                     	 notrun } 
+       { execl01     	     {execl01}                     	 notrun } 
+       { execle01     	     {execle01}                     	 notrun } 
+       { execlp01     	     {execlp01}                     	 notrun } 
+       { execv01     	     {execv01}                     	 notrun } 
+       { execve01     	     {execve01}                     	 notrun } 
+       { execve02     	     {execve02 -F /bin/test3}                     	 notrun } 
+       { execve03     	     {execve03}                     	 notrun } 
+       { execve04     	     {cp -f /bin/test3 /tmp; execve04 -F test3}                     	 notrun } 
+       { execve05     	     {execve05 -F /bin/test3}                     	 notrun } 
+       { execve06     	     {execve06 20 /bin/execve06 /bin/execve06 4}                     	 notrun } 
+       { execvp01     	     {execvp01}                     	 notrun } 
+       { exit01     	     {exit01}                     	 notrun } 
+       { exit02     	     {exit02}                     	 notrun } 
+       { fchdir01     	     {fchdir01}                     	 notrun } 
+       { fchdir02     	     {fchdir02}                     	 notrun } 
+       { fchdir03     	     {fchdir03}                     	 notrun } 
+       { fchmod01     	     {fchmod01}                     	 notrun } 
+       { fchmod02     	     {fchmod02}                     	 notrun } 
+       { fchmod03     	     {fchmod03}                     	 notrun } 
+       { fchmod04     	     {fchmod04}                     	 notrun } 
+       { fchmod05     	     {cp -p /bin/change_owner /tmp;fchmod05 }                     	 notrun } 
+       { fchmod06     	     {cp -p /bin/change_owner /tmp;fchmod06}                     	 notrun } 
+       { fchmod07     	     {fchmod07}                     	 notrun } 
+       { fchown01     	     {fchown01}                     	 notrun } 
+       { fchown02     	     {fchown02}                     	 notrun } 
+       { fchown03     	     {cp -p /bin/change_owner /tmp;fchown03}                     	 notrun } 
+       { fchown04     	     {export change_owner=/bin/change_owner;fchown04}                     	 notrun } 
+       { fchown05     	     {fchown05}                     	 notrun } 
+       { fcntl01     	     {fcntl01}                     	 notrun } 
+       { fcntl02     	     {fcntl02}                     	 notrun } 
+       { fcntl03     	     {fcntl03}                     	 notrun } 
+       { fcntl04     	     {fcntl04}                     	 notrun } 
+       { fcntl05     	     {fcntl05}                     	 notrun } 
+       { fcntl06     	     {fcntl06}                     	 notrun } 
+       { fcntl07     	     {fcntl07}                     	 notrun } 
+       { fcntl07B     	     {fcntl07B}                     	 notrun } 
+       { fcntl08     	     {fcntl08}                     	 notrun } 
+       { fcntl09     	     {fcntl09}                     	 notrun } 
+       { fcntl10     	     {fcntl10}                     	 notrun } 
+       { fcntl11     	     {fcntl11}                     	 notrun } 
+       { fcntl12     	     {fcntl12}                     	 notrun } 
+       { fcntl13     	     {fcntl13}                     	 notrun } 
+       { fcntl14     	     {fcntl14}                     	 notrun } 
+       { fcntl15     	     {fcntl15}                     	 notrun } 
+       { fcntl17     	     {fcntl17}                     	 notrun } 
+       { fcntl18     	     {fcntl18}                     	 notrun } 
+       { fcntl19     	     {fcntl19}                     	 notrun } 
+       { fcntl20     	     {fcntl20}                     	 notrun } 
+       { fcntl21     	     {fcntl21}                     	 notrun } 
+       { fcntl22     	     {fcntl22}                     	 notrun } 
+       { fcntl23     	     {fcntl23}                     	 notrun } 
+       { fcntl24     	     {fcntl24}                     	 notrun } 
+       { fcntl25     	     {fcntl25}                     	 notrun } 
+       { fcntl26     	     {fcntl26}                     	 notrun } 
+       { fcntl27     	     {fcntl27}                     	 notrun } 
+       { fdatasync01     	     {fdatasync01}                     	 notrun } 
+       { fdatasync02     	     {fdatasync02}                     	 notrun } 
+       { flock01     	     {flock01}                     	 notrun } 
+       { flock02     	     {flock02}                     	 notrun } 
+       { flock03     	     {flock03}                     	 notrun } 
+       { flock04     	     {flock04}                     	 notrun } 
+       { flock05     	     {flock05}                     	 notrun } 
+       { flock06     	     {flock06}                     	 notrun } 
+       { fmtmsg01     	     {fmtmsg01}                     	 notrun } 
+       { fork01     	     {fork01}                     	 notrun } 
+       { fork02     	     {fork02}                     	 notrun } 
+       { fork03     	     {fork03}                     	 notrun } 
+       { fork04     	     {fork04}                     	 notrun } 
+       { fork05     	     {fork05}                     	 notrun } 
+       { fork06     	     {fork06}                     	 notrun } 
+       { fork07     	     {fork07}                     	 notrun } 
+       { fork08     	     {fork08}                     	 notrun } 
+       { fork09     	     {fork09}                     	 notrun } 
+       { fork10     	     {fork10}                     	 notrun } 
+       { fork11     	     {fork11}                     	 notrun } 
+       { fpathconf01     	     {fpathconf01}                     	 notrun } 
+       { fstat01     	     {fstat01}                     	 notrun } 
+       { fstat02     	     {fstat02}                     	 notrun } 
+       { fstat03     	     {fstat03}                     	 notrun } 
+       { fstat04     	     {fstat04}                     	 notrun } 
+       { fstat05     	     {fstat05}                     	 notrun } 
+       { fstatfs01     	     {fstatfs01}                     	 notrun } 
+       { fstatfs02     	     {fstatfs02}                     	 notrun } 
+       { fsync01     	     {fsync01}                     	 notrun } 
+       { fsync02     	     {fsync02}                     	 notrun } 
+       { fsync03     	     {fsync03}                     	 notrun } 
+       { ftruncate01     	     {ftruncate01}                     	 notrun } 
+       { ftruncate02     	     {ftruncate02}                     	 notrun } 
+       { ftruncate03     	     {ftruncate03}                     	 notrun } 
+       { ftruncate04     	     {ftruncate04}                     	 notrun } 
+       { getcontext01     	     {getcontext01}                     	 notrun } 
+       { getcwd01     	     {getcwd01}                     	 notrun } 
+       { getcwd02     	     {getcwd02}                     	 notrun } 
+       { getcwd03     	     {getcwd03}                     	 notrun } 
+       { getdents01     	     {getdents01}                     	 notrun } 
+       { getdents02     	     {getdents02}                     	 notrun } 
+       { getdents03     	     {getdents03}                     	 notrun } 
+       { getdents04     	     {getdents04}                     	 notrun } 
+       { getdomainname01     	     {getdomainname01}                     	 notrun } 
+       { getdtablesize01     	     {getdtablesize01}                     	 notrun } 
+       { getegid01     	     {getegid01}                     	 notrun } 
+       { geteuid01     	     {geteuid01}                     	 notrun } 
+       { getgid01     	     {getgid01}                     	 notrun } 
+       { getgid02     	     {getgid02}                     	 notrun } 
+       { getgid03     	     {getgid03}                     	 notrun } 
+       { getgroups01     	     {getgroups01}                     	 notrun } 
+       { getgroups02     	     {getgroups02}                     	 notrun } 
+       { getgroups03     	     {getgroups03}                     	 notrun } 
+       { getgroups04     	     {getgroups04}                     	 notrun } 
+       { gethostid01     	     {gethostid01}                     	 notrun } 
+       { gethostname01     	     {gethostname01}                     	 notrun } 
+       { getitimer01     	     {getitimer01}                     	 notrun } 
+       { getitimer02     	     {getitimer02}                     	 notrun } 
+       { getitimer03     	     {getitimer03}                     	 notrun } 
+       { getpagesize01     	     {getpagesize01}                     	 notrun } 
+       { getpeername01     	     {getpeername01}                     	 notrun } 
+       { getpgid01     	     {getpgid01}                     	 notrun } 
+       { getpgid02     	     {getpgid02}                     	 notrun } 
+       { getpgrp01     	     {getpgrp01}                     	 notrun } 
+       { getpid01     	     {getpid01}                     	 notrun } 
+       { getpid02     	     {getpid02}                     	 notrun } 
+       { getppid01     	     {getppid01}                     	 notrun } 
+       { getppid02     	     {getppid02}                     	 notrun } 
+       { getpriority01     	     {getpriority01}                     	 notrun } 
+       { getpriority02     	     {getpriority02}                     	 notrun } 
+       { getresgid01     	     {getresgid01}                     	 notrun } 
+       { getresgid02     	     {getresgid02}                     	 notrun } 
+       { getresgid03     	     {getresgid03}                     	 notrun } 
+       { getresuid01     	     {getresuid01}                     	 notrun } 
+       { getresuid02     	     {getresuid02}                     	 notrun } 
+       { getresuid03     	     {getresuid03}                     	 notrun } 
+       { getrlimit01     	     {getrlimit01}                     	 notrun } 
+       { getrlimit02     	     {getrlimit02}                     	 notrun } 
+       { getrusage01     	     {getrusage01}                     	 notrun } 
+       { getrusage02     	     {getrusage02}                     	 notrun } 
+       { getsid01     	     {getsid01}                     	 notrun } 
+       { getsid02     	     {getsid02}                     	 notrun } 
+       { getsockname01     	     {getsockname01}                     	 notrun } 
+       { getsockopt01     	     {getsockopt01}                     	 notrun } 
+       { gettimeofday01     	     {gettimeofday01}                     	 notrun } 
+       { gettimeofday02     	     {gettimeofday02}                     	 notrun } 
+       { getuid01     	     {getuid01}                     	 notrun } 
+       { getuid02     	     {getuid02}                     	 notrun } 
+       { getuid03     	     {getuid03}                     	 notrun } 
+       { ioperm01     	     {ioperm01}                     	 notrun } 
+       { ioperm02     	     {ioperm02}                     	 notrun } 
+       { iopl01     	     {iopl01}                     	 notrun } 
+       { iopl02     	     {iopl02}                     	 notrun } 
+       { kill01     	     {kill01}                     	 notrun } 
+       { kill02     	     {kill02}                     	 notrun } 
+       { kill03     	     {kill03}                     	 notrun } 
+       { kill04     	     {kill04}                     	 notrun } 
+       { kill05     	     {kill05}                     	 notrun } 
+       { kill06     	     {kill06}                     	 notrun } 
+       { kill07     	     {kill07}                     	 notrun } 
+       { kill08     	     {kill08}                     	 notrun } 
+       { kill09     	     {kill09}                     	 notrun } 
+       { kill10     	     {kill10}                     	 notrun } 
+       { kill11     	     {ulimit -c 1024;kill11}                     	 notrun } 
+       { kill12     	     {kill12}                     	 notrun } 
+       { lchown01     	     {lchown01}                     	 notrun } 
+       { lchown02     	     {cp -p /bin/create_link /tmp; lchown02}                     	 notrun } 
+       { link01     	     {symlink01 -T link01}                     	 notrun } 
+       { link02     	     {link02}                     	 notrun } 
+       { link03     	     {link03}                     	 notrun } 
+       { link04     	     {link04}                     	 notrun } 
+       { link05     	     {link05}                     	 notrun } 
+       { link06     	     {link06}                     	 notrun } 
+       { link07     	     {link07}                     	 notrun } 
+       { listen01     	     {listen01}                     	 notrun } 
+       { llseek01     	     {llseek01}                     	 notrun } 
+       { llseek02     	     {llseek02}                     	 notrun } 
+       { lseek01     	     {lseek01}                     	 notrun } 
+       { lseek02     	     {lseek02}                     	 notrun } 
+       { lseek03     	     {lseek03}                     	 notrun } 
+       { lseek04     	     {lseek04}                     	 notrun } 
+       { lseek05     	     {lseek05}                     	 notrun } 
+       { lseek06     	     {lseek06}                     	 notrun } 
+       { lseek07     	     {lseek07}                     	 notrun } 
+       { lseek08     	     {lseek08}                     	 notrun } 
+       { lseek09     	     {lseek09}                     	 notrun } 
+       { lseek10     	     {lseek10}                     	 notrun } 
+       { lstat01A     	     {symlink01 -T lstat01}                     	 notrun } 
+       { lstat01     	     {lstat01}                     	 notrun } 
+       { lstat02     	     {lstat02}                     	 notrun } 
+       { lstat03     	     {lstat03}                     	 notrun } 
+       { mallopt01     	     {mallopt01}                     	 notrun } 
+       { memset01     	     {memset01}                     	 notrun } 
+       { memcmp01     	     {memcmp01}                     	 notrun } 
+       { memcpy01     	     {memcpy01}                     	 notrun } 
+       { mlockall01     	     {mlockall01}                     	 notrun } 
+       { mlockall02     	     {mlockall02}                     	 notrun } 
+       { mlockall03     	     {mlockall03}                     	 notrun } 
+       { mkdir01     	     {mkdir01}                     	 notrun } 
+       { mkdir02     	     {mkdir02}                     	 notrun } 
+       { mkdir03     	     {mkdir03}                     	 notrun } 
+       { mkdir04     	     {mkdir04}                     	 notrun } 
+       { mkdir05     	     {mkdir05}                     	 notrun } 
+       { mkdir05A     	     {symlink01 -T mkdir05}                     	 notrun } 
+       { mkdir08     	     {mkdir08}                     	 notrun } 
+       { mkdir09     	     {mkdir09}                     	 notrun } 
+       { mknod01     	     {mknod01}                     	 notrun } 
+       { mknod02     	     {mknod02}                     	 notrun } 
+       { mknod03     	     {mknod03}                     	 notrun } 
+       { mknod04     	     {mknod04}                     	 notrun } 
+       { mknod05     	     {mknod05}                     	 notrun } 
+       { mknod06     	     {mknod06}                     	 notrun } 
+       { mknod07     	     {mknod07}                     	 notrun } 
+       { mknod08     	     {mknod08}                     	 notrun } 
+       { mknod09     	     {mknod09}                     	 notrun } 
+       { mlock01     	     {mlock01}                     	 notrun } 
+       { mlock02     	     {mlock02}                     	 notrun } 
+       { qmm01     	     {mmap001 -m 1}                     	 notrun } 
+       { mmap01     	     {mmap01}                     	 notrun } 
+       { mmap02     	     {mmap02}                     	 notrun } 
+       { mmap03     	     {mmap03}                     	 notrun } 
+       { mmap04     	     {mmap04}                     	 notrun } 
+       { mmap05     	     {mmap05}                     	 notrun } 
+       { mmap06     	     {mmap06}                     	 notrun } 
+       { mmap07     	     {mmap07}                     	 notrun } 
+       { mmap08     	     {mmap08}                     	 notrun } 
+       { mmap09     	     {mmap09}                     	 notrun } 
+       { modify_ldt01     	     {modify_ldt01}                     	 notrun } 
+       { modify_ldt02     	     {modify_ldt02}                     	 notrun } 
+       { mprotect01     	     {mprotect01}                     	 notrun } 
+       { mprotect02     	     {mprotect02}                     	 notrun } 
+       { mprotect03     	     {mprotect03}                     	 notrun } 
+       { mremap01     	     {mremap01}                     	 notrun } 
+       { mremap02     	     {mremap02}                     	 notrun } 
+       { mremap03     	     {mremap03}                     	 notrun } 
+       { mremap04     	     {mremap04}                     	 notrun } 
+       { msgctl01     	     {msgctl01}                     	 notrun } 
+       { msgctl02     	     {msgctl02}                     	 notrun } 
+       { msgctl03     	     {msgctl03}                     	 notrun } 
+       { msgctl04     	     {msgctl04}                     	 notrun } 
+       { msgctl05     	     {msgctl05}                     	 notrun } 
+       { msgctl06     	     {msgctl06}                     	 notrun } 
+       { msgctl07     	     {msgctl07}                     	 notrun } 
+       { msgctl08     	     {msgctl08}                     	 notrun } 
+       { msgctl09     	     {msgctl09}                     	 notrun } 
+       { msgget01     	     {msgget01}                     	 notrun } 
+       { msgget02     	     {msgget02}                     	 notrun } 
+       { msgget03     	     {msgget03}                     	 notrun } 
+       { msgget04     	     {msgget04}                     	 notrun } 
+       { msgrcv01     	     {msgrcv01}                     	 notrun } 
+       { msgrcv02     	     {msgrcv02}                     	 notrun } 
+       { msgrcv03     	     {msgrcv03}                     	 notrun } 
+       { msgrcv04     	     {msgrcv04}                     	 notrun } 
+       { msgrcv05     	     {msgrcv05}                     	 notrun } 
+       { msgrcv06     	     {msgrcv06}                     	 notrun } 
+       { msgsnd01     	     {msgsnd01}                     	 notrun } 
+       { msgsnd02     	     {msgsnd02}                     	 notrun } 
+       { msgsnd03     	     {msgsnd03}                     	 notrun } 
+       { msgsnd04     	     {msgsnd04}                     	 notrun } 
+       { msgsnd05     	     {msgsnd05}                     	 notrun } 
+       { msgsnd06     	     {msgsnd06}                     	 notrun } 
+       { msync01     	     {msync01}                     	 notrun } 
+       { msync02     	     {msync02}                     	 notrun } 
+       { msync03     	     {msync03}                     	 notrun } 
+       { msync04     	     {msync04}                     	 notrun } 
+       { msync05     	     {msync05}                     	 notrun } 
+       { munlock01     	     {munlock01}                     	 notrun } 
+       { munlock02     	     {munlock02}                     	 notrun } 
+       { munlockall01     	     {munlockall01}                     	 notrun } 
+       { munlockall02     	     {munlockall02}                     	 notrun } 
+       { munmap01     	     {munmap01}                     	 notrun } 
+       { munmap02     	     {munmap02}                     	 notrun } 
+       { munmap03     	     {munmap03}                     	 notrun } 
+       { nanosleep01     	     {nanosleep01}                     	 notrun } 
+       { nanosleep02     	     {nanosleep02}                     	 notrun } 
+       { nanosleep03     	     {nanosleep03}                     	 notrun } 
+       { nanosleep04     	     {nanosleep04}                     	 notrun } 
+       { nftw01     	     {nftw01}                     	 notrun } 
+       { nftw6401     	     {nftw6401}                     	 notrun } 
+       { nice01     	     {nice01}                     	 notrun } 
+       { nice02     	     {nice02}                     	 notrun } 
+       { nice03     	     {nice03}                     	 notrun } 
+       { nice04     	     {nice04}                     	 notrun } 
+       { nice05     	     {nice05}                     	 notrun } 
+       { open01     	     {open01}                     	 notrun } 
+       { open01A     	     {symlink01 -T open01}                     	 notrun } 
+       { open02     	     {open02}                     	 notrun } 
+       { open03     	     {open03}                     	 notrun } 
+       { open04     	     {open04}                     	 notrun } 
+       { open05     	     {open05}                     	 notrun } 
+       { open06     	     {open06}                     	 notrun } 
+       { open07     	     {open07}                     	 notrun } 
+       { open08     	     {open08}                     	 notrun } 
+       { open09     	     {open09}                     	 notrun } 
+       { open10     	     {open10}                     	 notrun } 
+       { mincore01     	     {mincore01}                     	 notrun } 
+       { madvise01     	     {madvise01}                     	 notrun } 
+       { madvise02     	     {madvise02}                     	 notrun } 
+       { pathconf01     	     {pathconf01}                     	 notrun } 
+       { pause01     	     {pause01}                     	 notrun } 
+       { pause02     	     {pause02}                     	 notrun } 
+       { pause03     	     {pause03}                     	 notrun } 
+       { pipe01     	     {pipe01}                     	 notrun } 
+       { pipe02     	     {pipe02}                     	 notrun } 
+       { pipe03     	     {pipe03}                     	 notrun } 
+       { pipe04     	     {pipe04}                     	 notrun } 
+       { pipe05     	     {pipe05}                     	 notrun } 
+       { pipe06     	     {pipe06}                     	 notrun } 
+       { pipe07     	     {pipe07}                     	 notrun } 
+       { pipe08     	     {pipe08}                     	 notrun } 
+       { pipe09     	     {pipe09}                     	 notrun } 
+       { pipe10     	     {pipe10}                     	 notrun } 
+       { pipe11     	     {pipe11}                     	 notrun } 
+       { poll01     	     {poll01}                     	 notrun } 
+       { prctl01     	     {prctl01}                     	 notrun } 
+       { prctl02     	     {prctl02}                     	 notrun } 
+       { pread01     	     {pread01}                     	 notrun } 
+       { pread02     	     {pread02}                     	 notrun } 
+       { pread03     	     {pread03}                     	 notrun } 
+       { profil01     	     {profil01}                     	 notrun } 
+       { pselect01     	     {pselect01}                     	 notrun } 
+       { ptrace01     	     {ptrace01}                     	 notrun } 
+       { ptrace02     	     {ptrace02}                     	 notrun } 
+       { ptrace03     	     {ptrace03}                     	 notrun } 
+       { pwrite01     	     {pwrite01}                     	 notrun } 
+       { pwrite02     	     {pwrite02}                     	 notrun } 
+       { pwrite03     	     {pwrite03}                     	 notrun } 
+       { pwrite04     	     {pwrite04}                     	 notrun } 
+       { read01     	     {read01}                     	 notrun } 
+       { read02     	     {read02}                     	 notrun } 
+       { read03     	     {read03}                     	 notrun } 
+       { read04     	     {read04}                     	 notrun } 
+       { readdir01     	     {readdir01}                     	 notrun } 
+       { readdir02     	     {readdir02}                     	 notrun } 
+       { readlink01A     	     {symlink01 -T readlink01}                     	 notrun } 
+       { readlink01     	     {readlink01}                     	 notrun } 
+       { readlink02     	     {readlink02}                     	 notrun } 
+       { readlink03     	     {readlink03}                     	 notrun } 
+       { readlink04     	     {cp -f /bin/creat_slink /tmp; readlink04}                     	 notrun } 
+       { readv01     	     {readv01}                     	 notrun } 
+       { readv02     	     {readv02}                     	 notrun } 
+       { readv03     	     {readv03}                     	 notrun } 
+       { reboot01     	     {reboot01}                     	 notrun } 
+       { reboot02     	     {reboot02}                     	 notrun } 
+       { recv01     	     {recv01}                     	 notrun } 
+       { recvfrom01     	     {recvfrom01}                     	 notrun } 
+       { recvmsg01     	     {recvmsg01}                     	 notrun } 
+       { rename01     	     {rename01}                     	 notrun } 
+       { rename01A     	     {symlink01 -T rename01}                     	 notrun } 
+       { rename02     	     {rename02}                     	 notrun } 
+       { rename03     	     {rename03}                     	 notrun } 
+       { rename04     	     {rename04}                     	 notrun } 
+       { rename05     	     {rename05}                     	 notrun } 
+       { rename06     	     {rename06}                     	 notrun } 
+       { rename07     	     {rename07}                     	 notrun } 
+       { rename08     	     {rename08}                     	 notrun } 
+       { rename09     	     {rename09}                     	 notrun } 
+       { rename10     	     {rename10}                     	 notrun } 
+       { rename12     	     {rename12}                     	 notrun } 
+       { rename13     	     {rename13}                     	 notrun } 
+       { rename14     	     {rename14}                     	 notrun } 
+       { rmdir01     	     {rmdir01}                     	 notrun } 
+       { rmdir02     	     {rmdir02}                     	 notrun } 
+       { rmdir03     	     {rmdir03}                     	 notrun } 
+       { rmdir03A     	     {symlink01 -T rmdir03}                     	 notrun } 
+       { rmdir04     	     {rmdir04}                     	 notrun } 
+       { rmdir05     	     {rmdir05}                     	 notrun } 
+       { sbrk01     	     {sbrk01}                     	 notrun } 
+       { sched_get_priority_max01     	     {sched_get_priority_max01}                     	 notrun } 
+       { sched_get_priority_max02     	     {sched_get_priority_max02}                     	 notrun } 
+       { sched_get_priority_min01     	     {sched_get_priority_min01}                     	 notrun } 
+       { sched_get_priority_min02     	     {sched_get_priority_min02}                     	 notrun } 
+       { sched_getparam01     	     {sched_getparam01}                     	 notrun } 
+       { sched_getparam02     	     {sched_getparam02}                     	 notrun } 
+       { sched_getparam03     	     {sched_getparam03}                     	 notrun } 
+       { sched_rr_get_interval01     	     {sched_rr_get_interval01}                     	 notrun } 
+       { sched_rr_get_interval02     	     {sched_rr_get_interval02}                     	 notrun } 
+       { sched_rr_get_interval03     	     {sched_rr_get_interval03}                     	 notrun } 
+       { sched_setparam01     	     {sched_setparam01}                     	 notrun } 
+       { sched_setparam02     	     {sched_setparam02}                     	 notrun } 
+       { sched_setparam03     	     {sched_setparam03}                     	 notrun } 
+       { sched_setparam04     	     {sched_setparam04}                     	 notrun } 
+       { sched_setparam05     	     {sched_setparam05}                     	 notrun } 
+       { sched_getscheduler01     	     {sched_getscheduler01}                     	 notrun } 
+       { sched_getscheduler02     	     {sched_getscheduler02}                     	 notrun } 
+       { sched_setscheduler01     	     {sched_setscheduler01}                     	 notrun } 
+       { sched_setscheduler02     	     {sched_setscheduler02}                     	 notrun } 
+       { sched_yield01     	     {sched_yield01}                     	 notrun } 
+       { select01     	     {select01}                     	 notrun } 
+       { select02     	     {select02}                     	 notrun } 
+       { select03     	     {select03}                     	 notrun } 
+       { semctl01     	     {semctl01}                     	 notrun } 
+       { semctl02     	     {semctl02}                     	 notrun } 
+       { semctl03     	     {semctl03}                     	 notrun } 
+       { semctl04     	     {semctl04}                     	 notrun } 
+       { semctl05     	     {semctl05}                     	 notrun } 
+       { semctl06     	     {semctl06}                     	 notrun } 
+       { semctl07     	     {semctl07}                     	 notrun } 
+       { semget01     	     {semget01}                     	 notrun } 
+       { semget02     	     {semget02}                     	 notrun } 
+       { semget03     	     {semget03}                     	 notrun } 
+       { semget05     	     {semget05}                     	 notrun } 
+       { semget06     	     {semget06}                     	 notrun } 
+       { semop01     	     {semop01}                     	 notrun } 
+       { semop02     	     {semop02}                     	 notrun } 
+       { semop03     	     {semop03}                     	 notrun } 
+       { semop04     	     {semop04}                     	 notrun } 
+       { semop05     	     {semop05}                     	 notrun } 
+       { send01     	     {send01}                     	 notrun } 
+       { sendfile02     	     {sendfile02}                     	 notrun } 
+       { sendfile03     	     {sendfile03}                     	 notrun } 
+       { sendmsg01     	     {sendmsg01}                     	 notrun } 
+       { sendto01     	     {sendto01}                     	 notrun } 
+       { setdomainname01    	     {	setdomainname01}                     	 notrun } 
+       { setdomainname02    	     {	setdomainname02}                     	 notrun } 
+       { setdomainname03    	     {	setdomainname03}                     	 notrun } 
+       { setfsgid01     	     {setfsgid01}                     	 notrun } 
+       { setfsgid02     	     {setfsgid02}                     	 notrun } 
+       { setfsgid03     	     {setfsgid03}                     	 notrun } 
+       { setfsuid01     	     {setfsuid01}                     	 notrun } 
+       { setfsuid02     	     {setfsuid02}                     	 notrun } 
+       { setfsuid03     	     {setfsuid03}                     	 notrun } 
+       { setgid01     	     {setgid01}                     	 notrun } 
+       { setgid02     	     {setgid02}                     	 notrun } 
+       { setgid03     	     {setgid03}                     	 notrun } 
+       { setegid01     	     {setegid01}                     	 notrun } 
+       { setgroups01     	     {setgroups01}                     	 notrun } 
+       { setgroups02     	     {setgroups02}                     	 notrun } 
+       { setgroups03     	     {setgroups03}                     	 notrun } 
+       { setgroups04     	     {setgroups04}                     	 notrun } 
+       { sethostname01     	     {sethostname01}                     	 notrun } 
+       { sethostname02     	     {sethostname02}                     	 notrun } 
+       { sethostname03     	     {sethostname03}                     	 notrun } 
+       { setitimer01     	     {setitimer01}                     	 notrun } 
+       { setitimer02     	     {setitimer02}                     	 notrun } 
+       { setitimer03     	     {setitimer03}                     	 notrun } 
+       { setpgid01     	     {setpgid01}                     	 notrun } 
+       { setpgid02     	     {setpgid02}                     	 notrun } 
+       { setpgid03     	     {setpgid03}                     	 notrun } 
+       { setpgrp01     	     {setpgrp01}                     	 notrun } 
+       { setpgrp02     	     {setpgrp02}                     	 notrun } 
+       { setpriority01     	     {setpriority01}                     	 notrun } 
+       { setpriority02     	     {setpriority02}                     	 notrun } 
+       { setpriority03     	     {setpriority03}                     	 notrun } 
+       { setpriority04     	     {setpriority04}                     	 notrun } 
+       { setpriority05     	     {setpriority05}                     	 notrun } 
+       { setregid01     	     {setregid01}                     	 notrun } 
+       { setregid02     	     {setregid02}                     	 notrun } 
+       { setregid03     	     {setregid03}                     	 notrun } 
+       { setregid04     	     {setregid04}                     	 notrun } 
+       { setresgid01     	     {setresgid01}                     	 notrun } 
+       { setresgid02     	     {setresgid02}                     	 notrun } 
+       { setresgid03     	     {setresgid03}                     	 notrun } 
+       { setresuid01     	     {setresuid01}                     	 notrun } 
+       { setresuid02     	     {setresuid02}                     	 notrun } 
+       { setresuid03     	     {setresuid03}                     	 notrun } 
+       { setreuid01     	     {setreuid01}                     	 notrun } 
+       { setreuid02     	     {setreuid02}                     	 notrun } 
+       { setreuid03     	     {setreuid03}                     	 notrun } 
+       { setreuid04     	     {setreuid04}                     	 notrun } 
+       { setreuid05     	     {setreuid05}                     	 notrun } 
+       { setreuid06     	     {setreuid06}                     	 notrun } 
+       { setrlimit01     	     {setrlimit01}                     	 notrun } 
+       { setrlimit02     	     {setrlimit02}                     	 notrun } 
+       { setrlimit03     	     {setrlimit03}                     	 notrun } 
+       { setsid01     	     {setsid01}                     	 notrun } 
+       { setsockopt01     	     {setsockopt01}                     	 notrun } 
+       { settimeofday01     	     {settimeofday01}                     	 notrun } 
+       { settimeofday02     	     {settimeofday02}                     	 notrun } 
+       { setuid01     	     {setuid01}                     	 notrun } 
+       { setuid02     	     {setuid02}                     	 notrun } 
+       { setuid03     	     {setuid03}                     	 notrun } 
+       { shmat01     	     {shmat01}                     	 notrun } 
+       { shmat02     	     {shmat02}                     	 notrun } 
+       { shmat03     	     {shmat03}                     	 notrun } 
+       { shmctl01     	     {shmctl01}                     	 notrun } 
+       { shmctl02     	     {shmctl02}                     	 notrun } 
+       { shmctl03     	     {shmctl03}                     	 notrun } 
+       { shmctl04     	     {shmctl04}                     	 notrun } 
+       { shmdt01     	     {shmdt01}                     	 notrun } 
+       { shmdt02     	     {shmdt02}                     	 notrun } 
+       { shmget01     	     {shmget01}                     	 notrun } 
+       { shmget02     	     {shmget02}                     	 notrun } 
+       { shmget03     	     {shmget03}                     	 notrun } 
+       { shmget04     	     {shmget04}                     	 notrun } 
+       { shmget05     	     {shmget05}                     	 notrun } 
+       { sigaction01     	     {sigaction01}                     	 notrun } 
+       { sigaction02     	     {sigaction02}                     	 notrun } 
+       { sigaltstack01     	     {sigaltstack01}                     	 notrun } 
+       { sigaltstack02     	     {sigaltstack02}                     	 notrun } 
+       { sighold02     	     {sighold02}                     	 notrun } 
+       { signal01     	     {signal01}                     	 notrun } 
+       { signal02     	     {signal02}                     	 notrun } 
+       { signal03     	     {signal03}                     	 notrun } 
+       { signal04     	     {signal04}                     	 notrun } 
+       { signal05     	     {signal05}                     	 notrun } 
+       { sigpending02     	     {sigpending02}                     	 notrun } 
+       { sigprocmask01     	     {sigprocmask01}                     	 notrun } 
+       { sigrelse01     	     {sigrelse01}                     	 notrun } 
+       { sigsuspend01     	     {sigsuspend01}                     	 notrun } 
+       { socket01     	     {socket01}                     	 notrun } 
+       { socketcall01     	     {socketcall01}                     	 notrun } 
+       { socketcall02     	     {socketcall02}                     	 notrun } 
+       { socketcall03     	     {socketcall03}                     	 notrun } 
+       { socketcall04     	     {socketcall04}                     	 notrun } 
+       { socketpair01     	     {socketpair01}                     	 notrun } 
+       { sockioctl01     	     {sockioctl01}                     	 notrun } 
+       { stat01     	     {stat01}                     	 notrun } 
+       { stat02     	     {stat02}                     	 notrun } 
+       { stat03     	     {stat03}                     	 notrun } 
+       { stat04     	     {symlink01 -T stat04}                     	 notrun } 
+       { stat05     	     {stat05}                     	 notrun } 
+       { stat06     	     {stat06}                     	 notrun } 
+       { statfs01     	     {statfs01}                     	 notrun } 
+       { statfs02     	     {statfs02}                     	 notrun } 
+       { statfs03     	     {statfs03}                     	 notrun } 
+       { string01     	     {string01}                     	 notrun } 
+       { swapoff01     	     {swapoff01}                     	 notrun } 
+       { swapoff02     	     {swapoff02}                     	 notrun } 
+       { swapon01     	     {swapon01}                     	 notrun } 
+       { swapon02     	     {swapon02}                     	 notrun } 
+       { symlink01     	     {symlink01}                     	 notrun } 
+       { symlink02     	     {symlink02}                     	 notrun } 
+       { symlink03     	     {symlink03}                     	 notrun } 
+       { symlink04     	     {symlink04}                     	 notrun } 
+       { symlink05     	     {symlink05}                     	 notrun } 
+       { sync01     	     {sync01}                     	 notrun } 
+       { sync02     	     {sync02}                     	 notrun } 
+       { syscall01     	     {syscall01}                     	 notrun } 
+       { sysconf01     	     {sysconf01}                     	 notrun } 
+       { sysctl01     	     {sysctl01}                     	 notrun } 
+       { sysctl03     	     {sysctl03}                     	 notrun } 
+       { sysctl04     	     {sysctl04}                     	 notrun } 
+       { sysctl05     	     {sysctl05}                     	 notrun } 
+       { sysfs01     	     {sysfs01}                     	 notrun } 
+       { sysfs02     	     {sysfs02}                     	 notrun } 
+       { sysfs03     	     {sysfs03}                     	 notrun } 
+       { sysfs04     	     {sysfs04}                     	 notrun } 
+       { sysfs05     	     {sysfs05}                     	 notrun } 
+       { sysfs06     	     {sysfs06}                     	 notrun } 
+       { sysinfo01     	     {sysinfo01}                     	 notrun } 
+       { sysinfo02     	     {sysinfo02}                     	 notrun } 
+       { syslog01     	     {syslog01}                     	 notrun } 
+       { syslog02     	     {syslog02}                     	 notrun } 
+       { syslog03     	     {syslog03}                     	 notrun } 
+       { syslog04     	     {syslog04}                     	 notrun } 
+       { syslog05     	     {syslog05}                     	 notrun } 
+       { syslog06     	     {syslog06}                     	 notrun } 
+       { syslog07     	     {syslog07}                     	 notrun } 
+       { syslog08     	     {syslog08}                     	 notrun } 
+       { syslog09     	     {syslog09}                     	 notrun } 
+       { syslog10     	     {syslog10}                     	 notrun } 
+       { syslog11     	     {syslog11}                     	 notrun } 
+       { syslog12     	     {syslog12}                     	 notrun } 
+       { times01     	     {times01}                     	 notrun } 
+       { times02     	     {times02}                     	 notrun } 
+       { times03     	     {times03}                     	 notrun } 
+       { truncate01     	     {truncate01}                     	 notrun } 
+       { truncate02     	     {truncate02}                     	 notrun } 
+       { truncate03     	     {truncate03}                     	 notrun } 
+       { truncate04     	     {truncate04}                     	 notrun } 
+       { umask01     	     {umask01}                     	 notrun } 
+       { umask02     	     {umask02}                     	 notrun } 
+       { umask03     	     {umask03}                     	 notrun } 
+       { uname01     	     {uname01}                     	 notrun } 
+       { uname02     	     {uname02}                     	 notrun } 
+       { uname03     	     {uname03}                     	 notrun } 
+       { unlink01     	     {symlink01 -T unlink01}                     	 notrun } 
+       { unlink05     	     {unlink05}                     	 notrun } 
+       { unlink06     	     {unlink06}                     	 notrun } 
+       { unlink07     	     {unlink07}                     	 notrun } 
+       { unlink08     	     {unlink08}                     	 notrun } 
+       { ustat01     	     {ustat01}                     	 notrun } 
+       { ustat02     	     {ustat02}                     	 notrun } 
+       { utime01     	     {utime01}                     	 notrun } 
+       { utime01A     	     {symlink01 -T utime01}                     	 notrun } 
+       { utime02     	     {utime02}                     	 notrun } 
+       { utime03     	     {utime03}                     	 notrun } 
+       { utime04     	     {utime04}                     	 notrun } 
+       { utime05     	     {utime05}                     	 notrun } 
+       { utime06     	     {utime06}                     	 notrun } 
+       { vfork01     	     {vfork01}                     	 notrun } 
+       { vfork02     	     {vfork02}                     	 notrun } 
+       { vhangup01     	     {vhangup01}                     	 notrun } 
+       { vhangup02     	     {vhangup02}                     	 notrun } 
+       { wait02     	     {wait02}                     	 notrun } 
+       { wait401     	     {wait401}                     	 notrun } 
+       { wait402     	     {wait402}                     	 notrun } 
+       { waitpid01     	     {waitpid01}                     	 notrun } 
+       { waitpid02     	     {waitpid02}                     	 notrun } 
+       { waitpid03     	     {waitpid03}                     	 notrun } 
+       { waitpid04     	     {waitpid04}                     	 notrun } 
+       { waitpid05     	     {waitpid05}                     	 notrun } 
+       { waitpid06     	     {waitpid06}                     	 notrun } 
+       { waitpid07     	     {waitpid07}                     	 notrun } 
+       { waitpid08     	     {waitpid08}                     	 notrun } 
+       { waitpid09     	     {waitpid09}                     	 notrun } 
+       { waitpid10     	     {waitpid10 5}                     	 notrun } 
+       { waitpid11     	     {waitpid11}                     	 notrun } 
+       { waitpid12     	     {waitpid12}                     	 notrun } 
+       { waitpid13     	     {waitpid13}                     	 notrun } 
+       { write01     	     {write01}                     	 notrun } 
+       { write02     	     {write02}                     	 notrun } 
+       { write03     	     {write03}                     	 notrun } 
+       { write04     	     {write04}                     	 notrun } 
+       { write05     	     {write05}                     	 notrun } 
+       { writev01     	     {writev01}                     	 notrun } 
+       { writev02     	     {writev02}                     	 notrun } 
+       { writev03     	     {writev03}                     	 notrun } 
+       { writev04     	     {writev04}                     	 notrun } 
+       { writev05     	     {writev05}                     	 notrun } 
+
+                    							}
+
+
+
+
+#
+#  This matrix is similar to the one above, but it contains
+#  measurements rather than pass/fail results.
+#
+set linux_version_loc             0
+set gcc_version_loc               1
+set bogo_mips_loc                 2
+set dhrystone_loc                 3
+set system_clock_loc              4
+set core_clock_loc                5
+set i_cache_size_loc              6
+set d_cache_size_loc              7
+set i_cache_enable_loc            8
+set d_cache_enable_loc            9
+set map_text_loc                  10
+set map_rootfs_loc                11
+set map_data_loc                  12
+set map_stack_loc                 13
+set map_bss_loc                   14
+set boots_loc                     15
+set stability_crashes_loc         16
+set stability_failures_loc        17
+set stability_warnings_loc        18
+set stability_brokens_loc         19
+
+set measurement_matrix { \
+       {{linux version           }              notrun} \
+       {{gcc version             }              notrun} \
+       {{BogoMips                }              notrun} \
+       {{Dhrystones per second   }              notrun} \
+       {{system clock            }              notrun} \
+       {{core clock              }              notrun} \
+       {{I cache size            }              notrun} \
+       {{D cache size            }              notrun} \
+       {{I cache enable/disable  }              notrun} \
+       {{D cache enable/disable  }              notrun} \
+       {{text map                }              notrun} \
+       {{rootfs map              }              notrun} \
+       {{data map                }              notrun} \
+       {{stack map               }              notrun} \
+       {{bss map                 }              notrun} \
+       {{crashes during stability test              }  notrun} \
+       {{failures during stability test             }  notrun} \
+       {{warnings during stability test             }  notrun} \
+       {{broken tests during stability test         }  notrun}}
+
+# The number of boots above is hardcoded because this location
+# cant handle variables.  You must change this number in two
+# places: here and below.
+
+
+set LOG_DIR                 "/home/test/logs"
+set SCRIPT_DIR              "/home/test/auto-kernel"
+set TESTCASES_DIR           "/home/test/ltp-cvs/ltp/testcases/bin"
+
+# we use the output pin number in the target IP address which is set below.
+# this is to support a board farm with lots of stamp boards.
+set HOST_IP_BASE            "10.100.4"
+set HOST_IP_ADDR            "$HOST_IP_BASE.174"
+set TARGET_IP_ADDR          "$HOST_IP_BASE.50"
+set PING_ITERATIONS         10
+set TFTP_LOAD_ADDR          "0x1000000"
+set SERIAL_PORT_BAUD_RATE   "57600"
+# When output_pin is zero, it means we are not using a hacked printer cable.
+set output_pin      2
+set send_slow      {1 .1}
+
+
+set LONG_TERM_STABILITY_TEST_MINUTES  20
+set LONG_TERM_STABILITY_PAUSE_MINUTES 5
+set LONG_TERM_STABILITY_RESUME_MINUTES 10
+
+
+set PARAM_ON        "run the test"
+set PARAM_OFF       "turned off"
+set stability       $PARAM_OFF
+set net_hosts       $PARAM_OFF
+set reboots         $PARAM_OFF
+set skip_manual     $PARAM_OFF
+set logfile         "$LOG_DIR/$argv0-[exec date +%b-%d-%G-%H-%M]-detailed-log"
+set summary_logfile "$LOG_DIR/$argv0-[exec date +%b-%d-%G-%H-%M]-summary-log"
+set compare_file    "/dev/null"
+
+set step_sequence_number    1
+set test_started "test not started"
+
+puts "\nThis program is used to test the uClinux kernel on a target board."
+
+cd $SCRIPT_DIR
+
+set argc [llength $argv]
+if { $argc < 1} {
+   usage
+}
+# grab the user selections.
+set ttydev         [lindex $argv 0]
+
+for {set i 1} {$i < $argc} {incr i} {
+
+   switch -exact -- [lindex $argv $i] \
+      "--stability" {
+         lappend result "stability test is enabled"
+         set stability $PARAM_ON
+      } "--net-hosts" {
+         lappend result "nethosts tests are enabled"
+         set net_hosts $PARAM_ON
+      } "--reboots" {
+         lappend result "multiple reboot test is enabled"
+         set reboots $PARAM_ON
+      } "--no-manual" {
+         # an un-advertised feature for debugging
+         set skip_manual $PARAM_ON
+      } "--pin" {
+          if { $argc < [expr $i + 2]} {
+            usage
+         }
+         incr i
+         set output_pin [lindex $argv $i]
+	 puts "output_pin is $output_pin"
+      } "--logfile" {
+         if { $argc < [expr $i + 2]} {
+            usage
+         }
+         incr i
+         set logfile [lindex $argv $i]
+      } "--summary" {
+         if { $argc < [expr $i + 2]} {
+            usage
+         }
+         incr i
+         set summary_logfile [lindex $argv $i]
+      } "--compare-file" {
+         if { $argc < [expr $i + 2]} {
+            usage
+         }
+         incr i
+         set compare_file [lindex $argv $i]
+      }
+}
+
+
+
+set test_started [exec date +%b-%d-%G-%I:%M%P]
+log_file $logfile
+
+report "Running kernel testing on $test_started"
+report "ttydev=$ttydev"
+report "output pin=$output_pin"
+report "stability: $stability"
+report "net-hosts: $net_hosts"
+report "reboots: $reboots"
+report "logfile=$logfile"
+report "target ip addr=$TARGET_IP_ADDR"
+
+
+
+step "Start up kermit on port $ttydev"
+# Now set up the kermit parameters.
+#  I want these all contained in this file to make it easier for users.
+#  This just builds up a list of commands which are sent to kermit.
+#
+set kparams     [list "set line $ttydev\r"]
+lappend kparams "set speed $SERIAL_PORT_BAUD_RATE\r"
+lappend kparams "set carrier-watch off\r"
+lappend kparams "set handshake none\r"
+lappend kparams "set flow-control none\r"
+lappend kparams "robust\r"
+lappend kparams "set file type bin\r"
+lappend kparams "set file name lit\r"
+lappend kparams "set rec pack 1000\r"
+lappend kparams "set send pack 1000\r"
+lappend kparams "set window 5\r"
+lappend kparams "set escape 255\r"
+set nkparams [llength $kparams]
+
+set timeout 5
+spawn kermit
+# We need to save the id because resetting the board will overwrite it.
+set kermit_spawn_id $spawn_id
+
+while 1 {
+	expect {
+	        "Type ?" { }
+		"ermit>" { break }
+		"not found" {
+                   report "ERROR: Failed to start up kermit"
+                   all_done
+		}
+		timeout {
+                   report "ERROR: Time out starting up kermit"
+                   all_done
+		}
+	}
+}
+
+for {set i 0} {$i < $nkparams} {incr i} {
+   send [lindex $kparams $i]
+
+   while 1 {
+      expect {
+         "ermit>" { break }
+
+         "\\?\[A-Z]" {
+            report "ERROR: Failed to set up kermit parameters"
+            all_done
+         }
+
+         timeout {
+            report "ERROR: Time out setting up kermit parameters"
+            all_done
+         }
+      }
+   }
+}
+
+send "connect\r"
+while 1 {
+   expect {
+      "ype the escape character*" {
+         break
+      }
+
+      timeout {
+         puts "\nERROR: Can't connect to serial port\n"
+         exit
+      }
+   }
+}
+
+
+
+if { $skip_manual == $PARAM_OFF } {
+
+# Ok, so I'm too lazy to indent all of this stuff.
+
+set successful_boots 0
+
+set linux_version "not found"
+set gcc_version "not found"
+set map_text "not found"
+set map_data "not found"
+set map_bss "not found"
+set map_rootfs "not found"
+set map_stack "not found"
+set instruction_cache_boot_flag "not found"
+set data_cache_boot_flag "not found"
+
+
+
+#
+# The reason why the number of boot attempts is hard-coded is
+# because the measurement matrix above cant handle variables inside
+# of curly brackets.  So you need to change it in two places.
+#
+# Even if we haven't selected to do the reboot test, we still
+# need to do one reboot.
+#
+for {set i 0} {$i < 50} {incr i} {
+   if { $reboots == $PARAM_OFF} {
+      step "need to reboot the system to read the boot messages"
+   } else {
+      step "reboot attempt number $i"
+   }
+
+   if { $i==0 } {
+      # The board could be in any state, possibly even in u-boot.
+      report "On the first reboot, call reset_board to force it."
+      reset_board
+   } else {
+      report "reboot the board by issuing the reboot command"
+      send "reboot\r"
+   }
+
+   set timeout 180
+   while 1 {
+      expect {
+
+         -re "Kernel panic" {
+            report "kernel panic detected... trying to recover from it"
+            recover
+            break
+         }
+
+         -re "Sash command shell.*/> " {
+            report "successful boot attempt"
+            incr successful_boots
+            break
+         }
+	 
+	  "root:~> " {
+            report "successful boot attempt"
+            incr successful_boots
+            break
+         }
+
+         -re "Linux version (.*) " {
+            set linux_version $expect_out(1,string)
+         }
+
+         # Look for gcc version N.N[.N[.N]]
+         -re "gcc version (\[0-9](\.\[0-9]+)+)" {
+            set gcc_version [lindex $expect_out(0,string) 2]
+         }
+
+         # Look for text followed by 1 or more spaces or tabs
+         # followed by = followed by 1 or more spaces or tabs
+         # followed by (0xNNNNNN-0xNNNNNN)
+         -re "text\[\x20\t]+=\[\x20\t]+(0x\[0-9a-fA-F]+-0x.....\[0-9a-fA-F]+)" {
+            set map_text $expect_out(1,string)
+         }
+
+         -re "data\[\x20\t]+=\[\x20\t]+(0x\[0-9a-fA-F]+-0x.....\[0-9a-fA-F]+)" {
+            set map_data $expect_out(1,string)
+         }
+
+         -re "bss\[\x20\t]+=\[\x20\t]+(0x\[0-9a-fA-F]+-0x.....\[0-9a-fA-F]+)" {
+            set map_bss $expect_out(1,string)
+         }
+         -re "rootfs\[\x20\t]+=\[\x20\t]+(0x\[0-9a-fA-F]+-0x.....\[0-9a-fA-F]+)" {
+            set map_rootfs $expect_out(1,string)
+         }
+
+         # Note that here we're looking for zero or 1 space. Doh!
+         -re "stack\[\x20\t]?=\[\x20\t]+(0x\[0-9a-fA-F]+-0x.....\[0-9a-fA-F]+)" {
+            set map_stack $expect_out(1,string)
+         }
+
+         -re "\[Ii]nstruction \[Cc]ache \[Ee]nabled" {
+            set instruction_cache_boot_flag $CACHE_ENABLED
+         }
+
+         -re "\[Ii]nstruction \[Cc]ache \[Dd]isabled" {
+            set instruction_cache_boot_flag $CACHE_DISABLED
+         }
+
+         -re "\[Dd]ata \[Cc]ache \[Ee]nabled" {
+            set data_cache_boot_flag $CACHE_ENABLED
+         }
+
+         -re "\[Dd]ata \[Cc]ache \[Dd]isabled" {
+            set data_cache_boot_flag $CACHE_DISABLED
+         }
+
+         timeout {
+            report "failed boot attempt"
+	    recover
+            break
+         }
+      }
+   }
+
+   if { $reboots == $PARAM_OFF} {
+      break
+   }
+}
+if { $reboots == $PARAM_ON} {
+   record_test_measurement $boots_loc $successful_boots
+}
+record_test_measurement $linux_version_loc $linux_version
+record_test_measurement $gcc_version_loc $gcc_version
+record_test_measurement $map_text_loc $map_text
+record_test_measurement $map_data_loc $map_data
+record_test_measurement $map_bss_loc $map_bss
+record_test_measurement $map_rootfs_loc $map_rootfs
+record_test_measurement $map_stack_loc $map_stack
+
+test_cleanup
+
+#
+# Before going on, many of the tests require some setup.
+#
+step "additional setup for tests"
+catch {exec rcp $SCRIPT_DIR/passwd root@10.100.4.50:/etc}
+catch {exec rcp $SCRIPT_DIR/group root@10.100.4.50:/etc}
+sleep 5
+catch {exec rcp $TESTCASES_DIR/symlink01 root@10.100.4.50:/bin}
+catch {exec rcp $TESTCASES_DIR/creat_slink root@10.100.4.50:/bin}
+catch {exec rcp $TESTCASES_DIR/sig_rev root@10.100.4.50:/bin}
+
+send "export PATH=\$PATH:/bin\r"
+expect "root:~>"
+send "export TMP=/tmp\r"
+expect "root:~>"
+send "echo \$PATH\r"
+expect "root:~>"
+send -s "chmod 777 /tmp\r"
+
+set timeout 4
+set flag 0
+while 1 {
+   expect {
+
+      "No such file or directory" { 
+         set flag 1
+      }
+
+      "> " {
+         if { $flag==0} {
+            report "executed chmod 777 /tmp"
+	   # puts "1111111111"
+	    send "\r"
+         } else {
+            report "problem with chmod 777 /tmp"
+	    send "\r"
+         }
+         break
+      }
+
+      timeout {
+          report "timeout during chmod 777 /tmp"
+          recover
+          break
+      }
+   }
+}
+sleep 2
+send -s "ls -l /\r"
+set timeout 4
+set flag 0
+while 1 {
+   expect {
+       "tmp" {
+      # puts "2222222"
+       break
+       }
+      
+
+      timeout {
+          report "timeout during chmod 777 /tmp"
+         
+          break
+      }
+   }
+}
+
+# End of skip_manual if statement way above.
+}
+
+
+
+#
+#  LTP test cases
+#    These are the standard automated tests for Linux.
+#
+#
+# The timeout for each of the LTP commands
+set timeout 60
+set i 0
+# Walk through the result_matrix
+
+for {set i 0} {$i < [llength $result_matrix]} {incr i} {
+   # get the next row of the matrix
+   set x [lindex $result_matrix $i]
+  
+   
+   # execute the command associated with that row: element 1
+   sleep 2
+   set result [run_LTP_test [lindex $x 0] [lindex $x 1] 0]
+   record_test_result $i $result
+}
+
+
+
+#
+# The long term stability test takes all of the LTP
+# tests which passed and then runs them over and over
+# in random order for several hours.  It then stops
+# and leaves the system idle for a very long time,
+# then it runs the stability test again for a shorter
+# time period.
+#
+
+if { $stability == $PARAM_OFF } {
+   all_done
+}
+
+step "starting long term stability test"
+
+set iteration_count 0
+set timeout 60
+
+set crash_count    0
+set fail_count     0
+set warning_count  0
+set broken_count   0
+
+set phase 1
+
+log_user 0
+while {$phase < 4} {
+
+   if {$phase == 2} {
+      step "phase 2 of stability test"
+      report "The time is now [exec date]"
+      report "going to sleep now for $LONG_TERM_STABILITY_PAUSE_MINUTES minutes"
+      set pause_time [expr $LONG_TERM_STABILITY_PAUSE_MINUTES * 60]
+      sleep $pause_time
+      report "completed sleeping at [exec date]"
+      incr phase
+   }
+
+   if {$phase == 1 || $phase==3} {
+      if {$phase == 1} {
+         step "phase 1 of stability test"
+         set seconds_length [expr $LONG_TERM_STABILITY_TEST_MINUTES * 60]
+      }
+      if {$phase == 3} {
+         step "phase 3 of stability test"
+         set seconds_length [expr $LONG_TERM_STABILITY_RESUME_MINUTES * 60]
+      }
+      set start_time [timestamp]
+      set ending_time [expr $start_time + $seconds_length]
+
+      while 1 {
+         incr iteration_count
+
+         set time_left [expr $ending_time - [timestamp]]
+         if {$time_left < 0} {
+            incr phase
+            break
+         }
+         puts "\n\n[expr $time_left/60] minutes remaining"
+         set line_print_counter 0
+
+         for {set i 0} {$i < 100} {incr i} {
+
+            set random [exec /home/test/Documents/bin2/kernel/random_number]
+            set random_element [expr $random % [llength $result_matrix]-1]
+
+            set x [lindex $result_matrix $random_element]
+            if { [lindex $x 1] == "manual"} {
+               # We are only running LTP tests here
+               continue
+            }
+            if { [lindex $x 0] == "mount01"} {
+               # We can only run the mount01 test once, do don't do it here.
+               continue
+            }
+
+            if { [lindex $x 2] != $LTP_PASS} {
+               # We only want LTP tests which pass.
+               continue
+            }
+
+            # execute the command associated with that row: element 1
+            set result [run_LTP_test [lindex $x 0] [lindex $x 1] 1]
+
+            if {$result == $LTP_CRASH} {
+               report "[lindex $x 0] crashed!"
+               incr crash_count
+               set line_print_counter 0
+            }
+
+            if {$result == $LTP_FAIL} {
+               report "[lindex $x 0] failed!"
+               incr fail_count
+               set line_print_counter 0
+            }
+
+            if {$result == $LTP_WARN} {
+               report "[lindex $x 0] caused a warning"
+               incr warning_count
+               set line_print_counter 0
+            }
+
+            if {$result == $LTP_BROKEN} {
+               report "[lindex $x 0] reports as broken"
+               incr broken_count
+               set line_print_counter 0
+            }
+
+            if {$result == $LTP_PASS} {
+               puts -nonewline "[lindex $x 0]  "
+            }
+ 
+            incr line_print_counter
+            if {$line_print_counter > 6} {
+               puts ""
+               set line_print_counter 0
+            }
+         }
+      }
+   }
+}
+
+record_test_measurement $stability_crashes_loc $crash_count
+record_test_measurement $stability_failures_loc $fail_count
+record_test_measurement $stability_warnings_loc $warning_count
+record_test_measurement $stability_brokens_loc $broken_count
+
+all_done
