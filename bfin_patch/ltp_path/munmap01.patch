@@ -1,0 +1,39 @@
+--- testcases/kernel/syscalls/munmap/munmap01.c	2005-12-14 13:56:28.000000000 +0800
++++ ltp-full-20051205.org/testcases/kernel/syscalls/munmap/munmap01.c	2005-12-13 11:46:38.000000000 +0800
+@@ -124,13 +124,6 @@
+ 			continue;
+ 		}
+ 
+-#ifdef UCLINUX
+-		/*
+-		 * No SIGSEGV on uClinux since
+-		 * MMU not implemented on uClinux
+-		 */
+-		tst_resm(TPASS, "call succedded");
+-#else
+ 		/*
+ 		 * Perform functional verification if test
+ 		 * executed without (-f) option.
+@@ -150,7 +143,6 @@
+ 		} else {
+ 			tst_resm(TPASS, "call succeeded");
+ 		}
+-#endif
+ 
+ 		/* Call cleanup() to undo setup done for the test. */
+ 		cleanup();
+@@ -235,14 +227,8 @@
+ 	 * into the calling process's address space at the system choosen
+ 	 * with read/write permissions to the the mapped region.
+ 	 */
+-#ifdef UCLINUX
+-	/* MAP_SHARED is not implemented on uClinux */
+-	addr = mmap(0, map_len, PROT_READ | PROT_WRITE, \
+-		    MAP_FILE | MAP_PRIVATE, fildes, 0);
+-#else
+ 	addr = mmap(0, map_len, PROT_READ | PROT_WRITE, \
+ 		    MAP_FILE | MAP_SHARED, fildes, 0);
+-#endif
+ 
+ 	/* check for the return value of mmap system call */
+ 	if (addr == (char *)MAP_FAILED) {
