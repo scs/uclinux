@@ -175,7 +175,7 @@ AUTOMAKE = ${SHELL} /home/ksh/cvs/commit/12-7/uClinux-dist/user/blkfin-apps/mpfr
 AWK = gawk
 CC = bfin-uclinux-gcc
 CCDEPMODE = depmode=gcc3
-CFLAGS = -I../../../lib/gmp -ffloat-store
+CFLAGS = -I../gmp -ffloat-store
 CPP = bfin-uclinux-gcc -E
 CPPFLAGS = 
 CYGPATH_W = echo
