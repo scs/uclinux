@@ -326,7 +326,12 @@ CONFIG_MTD_UCLINUX=y
 #
 # NAND Flash Device Drivers
 #
-# CONFIG_MTD_NAND is not set
+CONFIG_MTD_NAND=m
+# CONFIG_MTD_NAND_VERIFY_WRITE is not set
+CONFIG_MTD_NAND_BFIN=m
+CONFIG_MTD_NAND_IDS=m
+# CONFIG_MTD_NAND_DISKONCHIP is not set
+# CONFIG_MTD_NAND_NANDSIM is not set
 
 #
 # Parallel port support
