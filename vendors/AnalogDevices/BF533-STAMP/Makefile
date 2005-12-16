@@ -16,7 +16,7 @@ INODES   = 1024
 ROMFS_DIRS = bin dev etc etc/dhcpc home lib mnt proc sys usr var root home tmp home/httpd home/httpd/cgi-bin etc/boa /etc/config var/run var/lib/misc var/log/boa
 
 romfs:
-	[ -d $(ROMFSDIR)/$$i ] || mkdir -p $(ROMFSDIR)
+	[ -d $(ROMFSDIR) ] || mkdir -p $(ROMFSDIR)
 	for i in $(ROMFS_DIRS); do \
 		[ -d $(ROMFSDIR)/$$i ] || mkdir -p $(ROMFSDIR)/$$i; \
 	done
