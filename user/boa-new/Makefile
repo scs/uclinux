@@ -1,7 +1,7 @@
 
 .EXPORT_ALL_VARIABLES:
 CFLAGS += -g
-DIRS = src
+DIRS = src examples
 
 all romfs:
 	for i in $(DIRS) ; do make -C $$i $@ || exit $?; done
