@@ -31,6 +31,7 @@ static const char version[] =
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
+#include <linux/random.h>
 
 #include <asm/io.h>
 #include <asm/irq.h>
@@ -694,6 +695,12 @@ static int __init bf537mac_probe(struct net_device *dev)
     //printk("bf537_mac: can't detect bf537 mac!\n");
     retval = -ENODEV;
     goto err_out;
+  }
+
+  /* check if the mac already in reg is valid */
+  if (dev->dev_addr[0] == 0xFFFFFFFF) {
+	  dev->dev_addr[0] = 0x56341200;
+	  dev->dev_addr[4] = (u16) get_random_int();
   }
 
   SetupMacAddr(dev->dev_addr);
