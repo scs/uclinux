@@ -1,0 +1,3 @@
+<response cycle="001" cvus="000" thread="001" suite="Simple" name="test_simple" step="001" number="001" type="get" result="Successful" url="/index.html" code="200" description="Get /index.html" time="1134628065.03" duration="0.00373101234436" />
+<response cycle="001" cvus="000" thread="001" suite="Simple" name="test_simple" step="001" number="002" type="link" result="Successful" url="/mpd.css" code="200" description="" time="1134628065.04" duration="0.00509095191956" />
+<testResult cycle="001" cvus="000" thread="001" suite="Simple" name="test_simple"  time="1134628065.03" result="Successful" steps="1" duration="1.01734209061" connection_duration="0.00882196426392" requests="2" pages="1" xmlrpc="0" redirects="0" images="0" links="1" />

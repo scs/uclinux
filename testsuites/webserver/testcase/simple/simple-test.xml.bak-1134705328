@@ -1,0 +1,6 @@
+<testResult cycle="001" cvus="000" thread="001" suite="Simple" name="test_simple"  time="1134705295.26" result="Error" steps="0" duration="0.00213098526001" connection_duration="0.0" requests="0" pages="0" xmlrpc="0" redirects="0" images="0" links="0" traceback="Traceback (most recent call last):
+   File &quot;/usr/lib/python2.4/site-packages/funkload-1.4.0-py2.4.egg/funkload/FunkLoadTestCase.py&quot;, line 772, in __call__
+   File &quot;/home/jzeng/boa-test-client/simple/test_Simple.py&quot;, line 30, in test_simple
+    print 'Try %d' % page
+ TypeError: int argument required
+" />
