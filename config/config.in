@@ -1485,7 +1485,7 @@ if [ "$CONFIG_USER_MICROWIN" = "y" ]; then
 	comment 'Keyboard'
 	bool 'TTY Keyboard'    CONFIG_USER_MICROWIN_TTYKBD
 	bool 'Scan Keyboard'   CONFIG_USER_MICROWIN_SCANKBD
-	bool 'Pipe Keyboard'   CONFIG_USER_MICROWIN_PIPEKBD
+	bool 'Pipere Keyboard'   CONFIG_USER_MICROWIN_PIPEKBD
 	bool 'Cleopatra Keyboard'   CONFIG_USER_MICROWIN_CLEOKBD
 	bool 'No Keyboard'     CONFIG_USER_MICROWIN_NOKBD
 	comment 'Install These Applications'
@@ -1585,6 +1585,7 @@ bool    'PPI test program'              CONFIG_USER_BLACKFIN_PPI
 bool    'Sqlite test program'           CONFIG_USER_SQLITE_TEST
 bool    'Pthread lib test'              CONFIG_USER_BLACKFIN_PTHREADTEST
 bool    'Still to write'                CONFIG_YET
+bool	'Boa webserver test '	 	CONFIG_USER_BOA_NEW_TEST	
 
 endmenu
 
