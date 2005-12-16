@@ -43,7 +43,7 @@
 
 #include "bf53x_sport.h"
 
-/*#define BF53X_SPORT_DEBUG*/
+//#define BF53X_SPORT_DEBUG
 
 #define sport_printf(level, format, arg...)  printk(level "sport: " format, ## arg)
 
@@ -179,6 +179,7 @@ void bf53x_sport_done(struct bf53x_sport* sport){
         kfree(sport->dma_rx_desc);
     if( sport->dma_tx_desc ) 
         kfree(sport->dma_tx_desc);
+
     if( sport->dummy_rx_desc)
     	kfree(sport->dummy_rx_desc);
     if( sport->dummy_tx_desc)
@@ -315,7 +316,7 @@ void waiting(unsigned long flags)
 void bf53x_sport_hook_rx_desc( struct bf53x_sport* sport, int dummy)
 {
   dma_register_t* dma = sport->dma_rx;
-  dmasg_t *desc;
+  dmasg_t *desc, temp_desc;
   unsigned long flags;
   
   sport_printd(KERN_INFO, "%s entered, dummy:%d\n", __FUNCTION__, dummy);
@@ -338,6 +339,8 @@ void bf53x_sport_hook_rx_desc( struct bf53x_sport* sport, int dummy)
 			(unsigned int)sport->dummy_rx_desc + sizeof(dmasg_t));
 		local_irq_save(flags);
 		desc = (dmasg_t*)dma->next_desc_ptr;
+		/* Copy the descriptor which will be damaged to backup */
+		temp_desc = *desc;
 		desc->x_count=0x10;
 		desc->y_count=0;
 		desc->next_desc_addr = (unsigned int)(sport->dummy_rx_desc);
@@ -351,6 +354,9 @@ void bf53x_sport_hook_rx_desc( struct bf53x_sport* sport, int dummy)
 			waiting(flags);
 		}
 		sport->curr_rx_desc = sport->dummy_rx_desc;
+		/* Restore the damaged descriptor */
+		*desc = temp_desc;
+		flush_dcache_range((unsigned int)desc, (unsigned int)desc + sizeof(*desc));
 	}
     } else { /* Hook the normal buffer descriptor */
    	SPORT_ASSERT(sport->dma_rx_desc != NULL);
@@ -382,7 +388,7 @@ void bf53x_sport_hook_rx_desc( struct bf53x_sport* sport, int dummy)
 void bf53x_sport_hook_tx_desc( struct bf53x_sport* sport, int dummy)
 {
   dma_register_t* dma = sport->dma_tx;
-  dmasg_t *desc;
+  dmasg_t *desc, temp_desc;
   unsigned long flags;
  
   sport_printd(KERN_INFO, "%s entered, dummy:%d\n", __FUNCTION__, dummy);
@@ -400,6 +406,8 @@ void bf53x_sport_hook_tx_desc( struct bf53x_sport* sport, int dummy)
 		/* Shorten the time on last normal descriptor */
   		local_irq_save(flags);
 	   	desc = (dmasg_t*)dma->next_desc_ptr;
+		/* Store the descriptor which will be damaged */
+		temp_desc = *desc;
 		desc->x_count = 0x10;
 		desc->y_count = 0;
 		desc->next_desc_addr = (unsigned int)(sport->dummy_tx_desc);
@@ -414,6 +422,9 @@ void bf53x_sport_hook_tx_desc( struct bf53x_sport* sport, int dummy)
 			waiting(flags);
 		}
 		sport->curr_tx_desc = sport->dummy_tx_desc;
+		/* Restore the damaged descriptor */
+		*desc = temp_desc;
+		flush_dcache_range((unsigned int)desc, (unsigned int)desc + sizeof(*desc));
 	}
     } else { /* Hook the normal buffer descriptor */
    	SPORT_ASSERT(sport->dma_tx_desc != NULL);

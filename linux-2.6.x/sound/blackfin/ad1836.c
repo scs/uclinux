@@ -215,9 +215,21 @@ static int   enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE_PNP;
 #define CHANNELS_INPUT	2
 #define FRAGMENT_SIZE_MIN	(1024)
 #define FRAGMENTS_MIN	4
+#define FRAGMENTS_MAX	32
 
 #else
 #error "An transfer mode must be choosed for audio"
+#endif
+
+#ifdef MULTI_SUBSTREAM
+#define DMA_BUFFER_BYTES	AD1836_BUFFER_SIZE
+#define DMA_PERIOD_BYTES	(FRAGMENT_SIZE_MIN * 4)
+#define DMA_PERIODS		(DMA_BUFFER_BYTES / DMA_PERIOD_BYTES)
+#define DMA_FRAME_BYTES		32
+#define DMA_BUFFER_FRAMES	(DMA_BUFFER_BYTES/DMA_FRAME_BYTES)
+#define DMA_PERIOD_FRAMES	(DMA_PERIOD_BYTES/DMA_FRAME_BYTES)
+#undef  CHANNELS_MAX
+#define CHANNELS_MAX	2
 #endif
 
 #define TALKTROUGH_FRAGMENTS 4
@@ -243,6 +255,26 @@ static unsigned int out_chan_masks[] = {
 static unsigned int in_chan_masks[] = {CAP_LINE, CAP_MIC|CAP_LINE, CAP_SPDIF};
 #endif
 
+#ifdef MULTI_SUBSTREAM
+typedef struct {
+	snd_pcm_substream_t*	substream;
+	snd_pcm_uframes_t	dma_offset;
+	snd_pcm_uframes_t	buffer_frames;
+	snd_pcm_uframes_t	period_frames;
+	unsigned int		periods;
+	unsigned int		frame_bytes;
+	/* Information about DMA */
+	snd_pcm_uframes_t	dma_inter_pos;
+	snd_pcm_uframes_t	dma_last_pos;
+	snd_pcm_uframes_t	dma_pos_base;
+	/* Information on virtual buffer */
+	snd_pcm_uframes_t	next_inter_pos;
+	snd_pcm_uframes_t	data_count;
+	snd_pcm_uframes_t	data_pos_base;
+	snd_pcm_uframes_t	boundary;
+} substream_info_t;
+#endif
+
 typedef struct snd_ad1836 ad1836_t;
 struct snd_ad1836 {
 
@@ -266,18 +298,14 @@ struct snd_ad1836 {
 
   snd_pcm_substream_t* rx_substream;  /* if non-null, current subtream running */
 #ifdef MULTI_SUBSTREAM
-  snd_pcm_substream_t* tx_substream[3];
-  int	out_buf_used;
+  int	tx_dma_started;
 
 /* Allocate dma buffer by driver instead of ALSA */
   unsigned char* rx_dma_buf;
   unsigned char* tx_dma_buf;
   snd_pcm_uframes_t	dma_pos;
   snd_pcm_uframes_t	dma_offset[3];
-  snd_pcm_uframes_t	buffer_size;
-  snd_pcm_uframes_t	period_size;
-  unsigned int		periods;
-  unsigned int		frame_bytes;
+  substream_info_t	tx_substreams[3];
 #else
   snd_pcm_substream_t* tx_substream;  /* if non-null, current subtream running */
 #endif
@@ -325,19 +353,24 @@ extern int l1_data_A_sram_free(unsigned long addr);
 #endif
 
 #ifdef MULTI_SUBSTREAM
-static inline int find_substream(ad1836_t *chip, snd_pcm_substream_t *substream)
+static inline int find_substream(ad1836_t *chip, snd_pcm_substream_t *substream, substream_info_t **info)
 {
-	if (chip->tx_substream[0] == substream)
+	if (chip->tx_substreams[0].substream == substream) {
+		*info = &chip->tx_substreams[0];
 		return 0;
-	else if (chip->tx_substream[1] == substream)
+	} else if (chip->tx_substreams[1].substream == substream) {
+		*info = &chip->tx_substreams[1];
 		return 1;
-	else if (chip->tx_substream[2] == substream)
+	} else if (chip->tx_substreams[2].substream == substream) {
+		*info = &chip->tx_substreams[2];
 		return 2;
-	else
+	} else {
+		*info = NULL;
 		return -1;
-	
+	}
 }
 #endif
+
 int ad1836_spi_handler(struct bf53x_spi* spi, void* private)
 {
   ad1836_t *chip = (ad1836_t*) private;
@@ -487,9 +520,11 @@ static int snd_ad1836_talktrough_mode(ad1836_t* chip, int mode){
 
     if( chip->talktrough_mode !=  TALKTROUGH_OFF ) 
       return -EBUSY;
-
+      
+#ifndef MULTI_SUBSTREAM
     if( chip->tx_substream || chip->rx_substream )
       return -EBUSY;
+#endif
     
     chip->rx_buf = kmalloc(AD1836_BUFFER_SIZE, GFP_KERNEL);
 
@@ -1152,7 +1187,7 @@ static snd_pcm_hardware_t snd_ad1836_playback_hw = {
   .period_bytes_min = FRAGMENT_SIZE_MIN,
   .period_bytes_max = PCM_BUFFER_MAX/2,
   .periods_min =      FRAGMENTS_MIN,
-  .periods_max =      32,
+  .periods_max =      FRAGMENTS_MAX,
 };
 static snd_pcm_hardware_t snd_ad1836_capture_hw = {
   .info = (SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED | 
@@ -1167,47 +1202,33 @@ static snd_pcm_hardware_t snd_ad1836_capture_hw = {
   .period_bytes_min = FRAGMENT_SIZE_MIN,
   .period_bytes_max = PCM_BUFFER_MAX/2,
   .periods_min =      FRAGMENTS_MIN,
-  .periods_max =      32,
+  .periods_max =      FRAGMENTS_MAX,
 };
 
 static int snd_ad1836_playback_open(snd_pcm_substream_t* substream){
 
   ad1836_t* chip = snd_pcm_substream_chip(substream);
 
-//  snd_printk_marker();
+  snd_printk_marker();
 
   if( chip->talktrough_mode != TALKTROUGH_OFF ) 
     return -EBUSY;
 
 #ifdef MULTI_SUBSTREAM
   {
-  	int index = find_substream(chip, NULL) ;
-	if ((index == 1) || (index == 2)) {
-		if (chip->tx_substream[0]->runtime->channels > 2)
-			return -EFAULT;	
-	}
-	if (index == 2) {
-		if (chip->tx_substream[1]->runtime->channels > 2)
-			return -EFAULT;
-	}
+  	substream_info_t *sub_info = NULL;
+	int index = find_substream(chip, NULL, &sub_info);
 	
-	if (index >= 0) {
-  		chip->tx_substream[index] = substream;
+	if (index >= 0 && index <= 2 && sub_info) {
+  		sub_info->substream = substream;
 	} else
-		return -EFAULT;
-	if (index > 0) {
-		snd_ad1836_playback_hw.channels_max = 2;
-		snd_ad1836_playback_hw.period_bytes_min = chip->period_size * chip->frame_bytes;
-		snd_ad1836_playback_hw.period_bytes_max = chip->period_size * chip->frame_bytes;
-		snd_ad1836_playback_hw.periods_min = chip->periods;
-		snd_ad1836_playback_hw.periods_max = chip->periods;
-	}
+		return -EBUSY;
   }
 #else
   chip->tx_substream = substream;
 #endif
   substream->runtime->hw = snd_ad1836_playback_hw;
-
+  
   return 0;
 
 }
@@ -1232,13 +1253,14 @@ static int snd_ad1836_playback_close(snd_pcm_substream_t* substream){
   ad1836_t* chip = snd_pcm_substream_chip(substream);
 
 #ifdef MULTI_SUBSTREAM
-  int index = find_substream(chip, substream);
+  substream_info_t *sub_info = NULL;
+  int index = find_substream(chip, substream, &sub_info);
   int i;
  
   snd_printd("%s, index:%d\n", __FUNCTION__, index);
-  if ( index>= 0 ) {
-	chip->tx_substream[index] = NULL;
-	for (i=0; i < chip->buffer_size * chip->frame_bytes/4; i++) {
+  if ( index>= 0 && index <= 2) {
+	sub_info->substream = NULL;
+	for (i=0; i < DMA_BUFFER_FRAMES; i++) {
 		*((unsigned int*)chip->tx_dma_buf+i*8 + index) = 0;
 		*((unsigned int*)chip->tx_dma_buf+i*8 + index + 4) = 0;
 	}
@@ -1276,8 +1298,9 @@ static int snd_ad1836_hw_params( snd_pcm_substream_t* substream, snd_pcm_hw_para
 #ifdef CONFIG_SND_BLACKFIN_ADI1836_TDM   
 
 #ifdef MULTI_SUBSTREAM
+  substream_info_t *sub_info = NULL;
   ad1836_t *chip = snd_pcm_substream_chip(substream);
-  int index = find_substream(chip, substream);
+  int index = find_substream(chip, substream, &sub_info);
 
   if (chip->rx_substream == substream) {
   	substream->runtime->dma_area = chip->rx_dma_buf;
@@ -1315,11 +1338,63 @@ static int snd_ad1836_hw_free(snd_pcm_substream_t * substream){
   return 0;
 }
 
+static int snd_ad1836_playback_prepare( snd_pcm_substream_t* substream )
+{
 
-/* the following works for rx and tx alike, 
-   we compare substream with chip->subsream->[tr]x */
+  ad1836_t* chip = snd_pcm_substream_chip(substream);
+  snd_pcm_runtime_t* runtime = substream->runtime;
 
-static int snd_ad1836_prepare( snd_pcm_substream_t* substream ){
+#ifndef MULTI_SUBSTREAM
+  int  fragsize_bytes = frames_to_bytes(runtime, runtime->period_size);
+#endif
+  int err=0;
+
+#ifdef MULTI_SUBSTREAM
+  substream_info_t *sub_info = NULL;
+  int index = find_substream(chip, substream, &sub_info);
+
+  snd_assert((index >= 0 && index <=2 && sub_info), return -EINVAL);
+  
+  sub_info->period_frames = runtime->period_size;
+  sub_info->periods = runtime->periods;
+  sub_info->buffer_frames = runtime->buffer_size;
+  sub_info->frame_bytes = runtime->frame_bits / 8;
+  sub_info->dma_inter_pos = 0;
+  sub_info->dma_last_pos = 0;
+  sub_info->dma_pos_base = 0;
+
+  sub_info->next_inter_pos = sub_info->period_frames;
+  sub_info->data_count = 0;
+  sub_info->data_pos_base = 0;
+  sub_info->boundary = DMA_BUFFER_FRAMES * sub_info->buffer_frames;
+ 
+  while(sub_info->boundary * 2 <= (LONG_MAX - DMA_BUFFER_FRAMES * sub_info->buffer_frames)) {
+  	sub_info->boundary *= 2;
+  }
+  sub_info->dma_offset = 0;
+#else
+  snd_assert( (substream == chip->tx_substream), return -EINVAL );
+#endif
+
+  snd_printk_marker();
+  snd_printd(KERN_INFO "%s channels:%d, period_bytes:0x%x, periods:%d\n",
+  		__FUNCTION__, runtime->channels, frames_to_bytes(runtime, runtime->period_size)
+		, runtime->periods);
+#ifndef MULTI_SUBSTREAM
+#ifdef CONFIG_SND_BLACKFIN_ADI1836_TDM
+  fragsize_bytes /= runtime->channels;
+  fragsize_bytes *= 8;				/* inflate the fragsize to match */
+#endif
+
+  err = bf53x_sport_config_tx_dma( chip->sport, runtime->dma_area, 
+  		runtime->periods, fragsize_bytes);
+#endif
+
+  return err;
+}
+
+static int snd_ad1836_capture_prepare( snd_pcm_substream_t* substream )
+{
 
   ad1836_t* chip = snd_pcm_substream_chip(substream);
   snd_pcm_runtime_t* runtime = substream->runtime;
@@ -1329,85 +1404,48 @@ static int snd_ad1836_prepare( snd_pcm_substream_t* substream ){
   int  fragsize_bytes = frames_to_bytes(runtime, runtime->period_size);
   int err=0;
 
-#ifdef MULTI_SUBSTREAM
-
-  int index = find_substream(chip, substream);
-  snd_assert( (substream == chip->rx_substream ) || (index >= 0));
-  if (index > 0) {
-    if ( (chip->tx_substream[0]->runtime->channels !=2) || (runtime->channels != 2) || \
-          (runtime->periods != chip->tx_substream[0]->runtime->periods) ||\
-          (runtime->period_size != chip->tx_substream[0]->runtime->period_size)) {
-        printk(KERN_ERR"two stream in differrent format cannot be played at the same time\n");
-        return -1;
-    } else {
-        chip->dma_offset[index] = chip->dma_pos;
-//    	printk(KERN_INFO "%s channels:%d, fragsize_bytes:%d, frag_count:%d\n", __FUNCTION__,
-//		runtime->channels, fragsize_bytes, fragcount);
-    	return 0;
-    }
-  }
-  
-  chip->buffer_size = runtime->buffer_size;
-  chip->period_size = runtime->period_size;
-  chip->periods = runtime->periods;
-  chip->frame_bytes = runtime->frame_bits / 8;
-#else
   snd_printk_marker();
-  snd_assert( (substream == chip->rx_substream) || (substream == chip->tx_substream), return -EINVAL );
-#endif
+  snd_assert( (substream == chip->rx_substream), return -EINVAL );
 
-  snd_printd(KERN_INFO "%s channels:%d, fragsize_bytes:%d, frag_count:%d\n", __FUNCTION__, \
-  			runtime->channels, fragsize_bytes, fragcount);
+  snd_printd(KERN_INFO "%s channels:%d, fragsize_bytes:%d, frag_count:%d\n",
+  		__FUNCTION__, runtime->channels, fragsize_bytes, fragcount);
 #ifdef CONFIG_SND_BLACKFIN_ADI1836_TDM
-/*  snd_printk(KERN_INFO "old: fragsize_bytes: %u\n", fragsize_bytes);*/
   fragsize_bytes /= runtime->channels;
   fragsize_bytes *= 8;				/* inflate the fragsize to match */
-/*  snd_printk(KERN_INFO "new: fragsize_bytes: %u\n", fragsize_bytes);*/
 #endif
 
-  /* one of the following two must be true */
-  if( substream == chip->rx_substream ) {
     err = bf53x_sport_config_rx_dma( chip->sport, buf_addr , fragcount, fragsize_bytes);
-  }
-#ifdef MULTI_SUBSTREAM
-//  printk(KERN_INFO"%s, index:%d\n", __FUNCTION__, index);
-  
-  if (index == 0) {
-#else
-  if( substream == chip->tx_substream ) {
-#endif
-    err = bf53x_sport_config_tx_dma( chip->sport, buf_addr , fragcount, fragsize_bytes);
-  }
   return err;
 
 }
+
 
 static int snd_ad1836_playback_trigger( snd_pcm_substream_t* substream, int cmd)
 {
 
   ad1836_t* chip = snd_pcm_substream_chip(substream);
 #ifdef MULTI_SUBSTREAM
-  int index = find_substream(chip, substream);
-  snd_assert(index >= 0 && index <= 3, return -EINVAL);
+  substream_info_t *sub_info = NULL;
+  int index = find_substream(chip, substream, &sub_info);
+  snd_assert((index >= 0 && index <= 2 && sub_info), return -EINVAL);
 #endif
 
   spin_lock(&chip->ad1836_lock);
   switch(cmd){
   case SNDRV_PCM_TRIGGER_START: 
 #ifdef MULTI_SUBSTREAM
-      chip->dma_offset[index] = chip->dma_pos;
-      if (!chip->out_buf_used) {
-          chip->out_buf_used = 1;
-	  chip->dma_offset[index] = 0;
+      if (!chip->tx_dma_started) {
 	  chip->dma_pos = 0;
 	  bf53x_sport_hook_tx_desc(chip->sport, 0);
 	  if (!chip->runmode) {
 	  	bf53x_sport_hook_rx_desc(chip->sport, 1);
 		bf53x_sport_start(chip->sport);
 	  }
-//	  printk("start tx\n"); 
+          chip->tx_dma_started = 1;
       }
       chip->runmode |= 1 << (index + 1);
+      sub_info->dma_offset = chip->dma_pos;
+//      printk("start tx:%d,%lx\n", index, sub_info->dma_offset); 
 #else    
       bf53x_sport_hook_tx_desc(chip->sport, 0);
       if(!chip->runmode) {
@@ -1421,7 +1459,7 @@ static int snd_ad1836_playback_trigger( snd_pcm_substream_t* substream, int cmd)
 #ifdef MULTI_SUBSTREAM
       chip->runmode &= ~ (1 << (index +1));
       if (!(chip->runmode & RUN_TX_ALL)) {
-        chip->out_buf_used = 0;
+        chip->tx_dma_started = 0;
 	if (!chip->runmode)
 		bf53x_sport_stop(chip->sport);
 	else
@@ -1443,7 +1481,7 @@ static int snd_ad1836_playback_trigger( snd_pcm_substream_t* substream, int cmd)
   }
   spin_unlock(&chip->ad1836_lock);
   
-//  printk(KERN_ERR"cmd:%s,runmode:0x%x\n", cmd?"start":"stop", chip->runmode);
+  snd_printd(KERN_INFO"cmd:%s,runmode:0x%x\n", cmd?"start":"stop", chip->runmode);
   return 0;
 }
 
@@ -1482,16 +1520,11 @@ static int snd_ad1836_capture_trigger( snd_pcm_substream_t* substream, int cmd)
   return 0;
 }
 
-/* we might as well merge the following too...*/
-
-static snd_pcm_uframes_t snd_ad1836_playback_pointer( snd_pcm_substream_t* substream ){
-
+static snd_pcm_uframes_t snd_ad1836_playback_pointer( snd_pcm_substream_t* substream )
+{
   ad1836_t* chip = snd_pcm_substream_chip(substream);
   snd_pcm_runtime_t* runtime = substream->runtime;
 
-#ifdef MULTI_SUBSTREAM
-  int index = find_substream(chip, substream);
-#endif
   char* buf  = (char*) runtime->dma_area;
   char* curr = (char*) bf53x_sport_curr_addr_tx(chip->sport);
   unsigned long diff = curr - buf;
@@ -1502,9 +1535,19 @@ static snd_pcm_uframes_t snd_ad1836_playback_pointer( snd_pcm_substream_t* subst
 #endif
   size_t frames = diff / bytes_per_frame;
   
-// printk(KERN_ERR" curr:0x%p\n", curr);
 #ifdef MULTI_SUBSTREAM
-  frames = (frames+ runtime->buffer_size - chip->dma_offset[index]) % runtime->buffer_size;
+  substream_info_t *sub_info = NULL;
+  find_substream(chip, substream, &sub_info);
+  frames = (frames + DMA_BUFFER_FRAMES - sub_info->dma_offset) % DMA_BUFFER_FRAMES;
+
+  if (sub_info->dma_last_pos > frames) {
+  	sub_info->dma_pos_base += DMA_BUFFER_FRAMES;
+	if (sub_info->dma_pos_base >= sub_info->boundary)
+		sub_info->dma_pos_base -= sub_info->boundary;
+  }
+  sub_info->dma_last_pos = frames;
+  frames = (frames + sub_info->dma_pos_base) % sub_info->buffer_frames;
+#else
 
   /* the loose syncing used here is accurate enough for alsa, but 
      due to latency in the dma, the following may happen occasionally, 
@@ -1512,10 +1555,8 @@ static snd_pcm_uframes_t snd_ad1836_playback_pointer( snd_pcm_substream_t* subst
   if( frames >= runtime->buffer_size ) 
     frames = 0;
 #endif
-//  snd_printd( KERN_INFO " play pos: 0x%04lx / %lx\n", frames, runtime->buffer_size);
-//  printk(KERN_INFO "pos: 0x%x\n", frames);
-  return frames;
 
+  return frames;
 }
 
 
@@ -1550,21 +1591,55 @@ static snd_pcm_uframes_t snd_ad1836_capture_pointer( snd_pcm_substream_t* substr
 
 #ifdef CONFIG_SND_BLACKFIN_ADI1836_TDM
 
-static int snd_ad1836_playback_copy(snd_pcm_substream_t *substream, int channel, snd_pcm_uframes_t pos, void *src, snd_pcm_uframes_t count){
+static int snd_ad1836_playback_copy(snd_pcm_substream_t *substream, int channel, 
+		snd_pcm_uframes_t pos, void *src, snd_pcm_uframes_t count)
+{
   ad1836_t *chip = snd_pcm_substream_chip(substream);
   unsigned int *isrc = (unsigned int *)src;
 #ifdef MULTI_SUBSTREAM
   unsigned int *dst = (unsigned int*)chip->tx_dma_buf;
-  int index = find_substream(chip, substream);
-	
-  snd_assert( (index>=0), return -EINVAL);
-  dst += ((pos + chip->dma_offset[index])% substream->runtime->buffer_size) * 8;
-//  printk(KERN_INFO "copy: %d, %x,  %x\n", index, (uint)pos, (uint)count);
+  substream_info_t *sub_info = NULL;
+  int index = find_substream(chip, substream, &sub_info);
+  snd_pcm_uframes_t start, temp_count, temp2_count;
+ 
+  snd_assert( (index >= 0 && index <=2 && sub_info), return -EINVAL);
+  
+  if (index > 0 && index <=2 && !(chip->runmode & (1<<(index+1)))) {
+	sub_info->data_count += count;
+	return 0;
+  }
+  
+  start = (sub_info->data_pos_base + pos + sub_info->dma_offset) % DMA_BUFFER_FRAMES;
+  if( start + count > DMA_BUFFER_FRAMES) {
+  	temp_count = DMA_BUFFER_FRAMES - start;
+	temp2_count = start + count - DMA_BUFFER_FRAMES;
+  } else {
+  	temp_count = count;
+	temp2_count = 0;
+  }
 
-  while(count--) {
-  	*(dst + index) = *isrc++;
+  dst += start * 8;
+  while(temp_count--) {
+	*(dst + index) = *isrc++;
 	*(dst + index + 4) = *isrc++;
 	dst += 8;
+  }
+ 
+  if (temp2_count) {
+	dst = (unsigned int*)chip->tx_dma_buf;
+	while(temp2_count--) {
+		*(dst + index) = *isrc++;
+		*(dst + index + 4) = *isrc++;
+		dst += 8;
+	}
+  }
+
+  sub_info->data_count += count;
+  if (sub_info->data_count >= sub_info->buffer_frames) {
+  	sub_info->data_count -= sub_info->buffer_frames;
+	sub_info->data_pos_base += sub_info->buffer_frames;
+	if (sub_info->data_pos_base >= sub_info->boundary)
+		sub_info->data_pos_base -= sub_info->boundary;
   }
 #else
   unsigned int *dst = (unsigned int *)substream->runtime->dma_area;
@@ -1675,10 +1750,30 @@ static int snd_ad1836_capture_copy(snd_pcm_substream_t *substream, int channel, 
 
 	return 0;
 }
-
 #endif
 
-static int snd_ad1836_silence(snd_pcm_substream_t *substream, int channel, snd_pcm_uframes_t pos, snd_pcm_uframes_t count){
+static int snd_ad1836_playback_silence(snd_pcm_substream_t *substream, int channel, snd_pcm_uframes_t pos, snd_pcm_uframes_t count){
+
+#ifdef CONFIG_SND_BLACKFIN_ADI1836_TDM
+#ifndef MULTI_SUBSTREAM
+  unsigned char *buf = substream->runtime->dma_area;
+  buf += pos * 8 * 4;
+  memset(buf, '\0', count * 8 * 4);
+#endif
+#else
+  unsigned char *buf = substream->runtime->dma_area;
+  memset(buf + frames_to_bytes(substream->runtime, pos), '\0', 
+  				frames_to_bytes(substream->runtime, count));
+#endif
+#ifdef CONFIG_SND_DEBUG_CURRPTR
+  snd_printk(KERN_INFO "silence: pos %x, count %x\n", (uint)pos, (uint)count);
+#endif
+
+  return 0;
+}
+
+
+static int snd_ad1836_capture_silence(snd_pcm_substream_t *substream, int channel, snd_pcm_uframes_t pos, snd_pcm_uframes_t count){
   unsigned char *buf = substream->runtime->dma_area;
 
 #ifdef CONFIG_SND_DEBUG
@@ -1704,11 +1799,11 @@ static snd_pcm_ops_t snd_ad1836_playback_ops = {
   .ioctl     = snd_pcm_lib_ioctl,
   .hw_params = snd_ad1836_hw_params,
   .hw_free   = snd_ad1836_hw_free,
-  .prepare   = snd_ad1836_prepare,
+  .prepare   = snd_ad1836_playback_prepare,
   .trigger   = snd_ad1836_playback_trigger,
   .pointer   = snd_ad1836_playback_pointer,
   .copy      = snd_ad1836_playback_copy,
-  .silence   = snd_ad1836_silence,
+  .silence   = snd_ad1836_playback_silence,
 };
 
 
@@ -1718,11 +1813,11 @@ static snd_pcm_ops_t snd_ad1836_capture_ops = {
   .ioctl = snd_pcm_lib_ioctl,  
   .hw_params = snd_ad1836_hw_params,
   .hw_free   = snd_ad1836_hw_free,
-  .prepare   = snd_ad1836_prepare,
+  .prepare   = snd_ad1836_capture_prepare,
   .trigger   = snd_ad1836_capture_trigger,
   .pointer   = snd_ad1836_capture_pointer,
   .copy      = snd_ad1836_capture_copy,
-  .silence   = snd_ad1836_silence,
+  .silence   = snd_ad1836_capture_silence,
 };
 
 
@@ -1868,10 +1963,8 @@ static int snd_ad1836_startup(ad1836_t *chip)
 	if(err)
 		snd_printk( KERN_ERR "Unable to set sport configuration\n");
 
-#ifdef MULTI_SUBSTREAM		
-	chip->dma_pos = 0;
-	chip->dma_offset[0] = chip->dma_offset[1] = 0;
-	chip->dma_offset[2] = 0;
+#ifdef MULTI_SUBSTREAM
+	err = bf53x_sport_config_tx_dma(chip->sport, chip->tx_dma_buf, DMA_PERIODS, DMA_PERIOD_BYTES);
 #endif
 
 	return err;
@@ -1944,9 +2037,9 @@ static int __devinit snd_ad1836_create(snd_card_t *card,
   chip->sport = sport;
   spin_lock(&chip->ad1836_lock);
 #ifdef MULTI_SUBSTREAM
-  chip->tx_substream[0] = NULL;
-  chip->tx_substream[1] = chip->tx_substream[2] = NULL;
-  chip->out_buf_used = 0;
+  memset(chip->tx_substreams, 0, 3*sizeof(substream_info_t));
+  chip->dma_pos = 0;
+  chip->tx_dma_started = 0;
   chip->rx_dma_buf = NULL;
   chip->tx_dma_buf = NULL;
 #endif
@@ -2322,16 +2415,24 @@ static irqreturn_t snd_adi1836_sport_handler_tx(ad1836_t* chip, int irq){
 #ifdef MULTI_SUBSTREAM
 {
   int index;
-  snd_pcm_substream_t *sub;
+  substream_info_t *sub_info = NULL;
   
-  chip->dma_pos = (chip->dma_pos + chip->period_size) % chip->buffer_size;
+  chip->dma_pos = (chip->dma_pos + DMA_PERIOD_FRAMES) % DMA_BUFFER_FRAMES;
   for(index = 0; index < 3; index++) {
-  	sub = chip->tx_substream[index];
-  	if (sub && (chip->runmode & (1<<(index+1)))){
-		snd_pcm_period_elapsed(sub);
+  	sub_info = &chip->tx_substreams[index];
+  	if (sub_info->substream && chip->runmode & (1<<(index+1))) {
+		sub_info->dma_inter_pos += DMA_PERIOD_FRAMES;
+		if (sub_info->dma_inter_pos >= sub_info->boundary)
+			sub_info->dma_inter_pos -= sub_info->boundary;
+	
+		if(sub_info->dma_inter_pos >= sub_info->next_inter_pos) {
+			snd_pcm_period_elapsed(sub_info->substream);
+			sub_info->next_inter_pos += sub_info->period_frames;
+			if (sub_info->next_inter_pos >= sub_info->boundary)
+				sub_info->next_inter_pos -= sub_info->boundary;
+		}
 	}
   }
-//  printk(KERN_INFO"dma_pos:0x%lx\n",chip->dma_pos);
 }
 #else
   if( (chip->tx_substream) && (chip->runmode & RUN_TX)) {
