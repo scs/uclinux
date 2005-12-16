@@ -2100,16 +2100,16 @@ static int __init smc_probe(struct net_device *dev, void __iomem *ioaddr)
 		lp->ctl_rspeed = 100;
 	}
 
-	/* Grab the IRQ */
-      	retval = request_irq(dev->irq, &smc_interrupt, 0, dev->name, dev);
-      	if (retval)
-      		goto err_out;
-
 #ifdef CONFIG_BFIN
         bfin_SMC_interrupt_setup(dev->irq);
 #else
 	set_irq_type(dev->irq, IRQT_RISING);
 #endif
+
+	/* Grab the IRQ */
+      	retval = request_irq(dev->irq, &smc_interrupt, 0, dev->name, dev);
+      	if (retval)
+      		goto err_out;
 
 #ifdef SMC_USE_PXA_DMA
 	{
