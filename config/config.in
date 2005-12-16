@@ -90,7 +90,7 @@ bool 'Build bfd'		CONFIG_LIB_BFD
 bool 'Build popt'		CONFIG_LIB_POPT
 bool 'Build intl'		CONFIG_LIB_INTL
 bool 'Build libiberty'		CONFIG_LIB_LIBIBERTY
-bool 'Build mpfr'			CONFIG_USER_MPFR
+bool 'Build mpfr'		CONFIG_LIB_MPFR
 bool 'Build libG'		CONFIG_LIB_LIBG_FORCE
 bool 'Build libldap'		CONFIG_LIB_LIBLDAP_FORCE
 bool 'Build libnet'		CONFIG_LIB_LIBNET_FORCE
@@ -1606,6 +1606,17 @@ bool	'rsh'				CONFIG_USER_INETUTILS_RSH
 bool	'rcp'				CONFIG_USER_INETUTILS_RCP
 bool	'rshd'				CONFIG_USER_INETUTILS_RSHD
 bool	'oprofile'			CONFIG_USER_OPROFILE
+if [ "$CONFIG_USER_OPROFILE" = "y" ]; then
+	define_bool CONFIG_USER_BUSYBOX_KILLALL y
+	define_bool  CONFIG_LIB_GMP y
+	define_bool CONFIG_LIB_BFD y
+	define_bool CONFIG_LIB_POPT y
+	define_bool  CONFIG_LIB_INTL y
+	define_bool CONFIG_LIB_LIBIBERTY y
+	define_bool CONFIG_LIB_MPFR y
+fi
+
+	
 bool	'NetAudio'			CONFIG_USER_NET_AUDIO
 comment 'FLAT binary format tools'
 bool    'flthdr'                        CONFIG_USER_FLTHDR
