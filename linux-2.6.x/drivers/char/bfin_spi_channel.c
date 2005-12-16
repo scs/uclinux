@@ -11,8 +11,7 @@
 #include <asm/irq.h>
 #include <asm/blackfin.h>
 #include <asm/dma.h>
-
-#include "bfin_spi_channel.h"
+#include <asm/bfin_spi_channel.h>
 
 
 struct semaphore spilock;
