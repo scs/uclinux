@@ -22,7 +22,13 @@ int setgroups(size_t n, const gid_t * groups)
 		return -1;
 	} else {
 		size_t i;
-		__kernel_gid_t kernel_groups[n];
+		int ngids;
+		__kernel_gid_t *kernel_groups;
+
+		if(kernel_groups=(__kernel_gid_t *)malloc(sizeof(__kernel_gid_t)*n) == NULL){
+			__set_errno(EINVAL);
+			return -1;
+		}
 
 		for (i = 0; i < n; i++) {
 			kernel_groups[i] = (groups)[i];
@@ -31,6 +37,8 @@ int setgroups(size_t n, const gid_t * groups)
 				return -1;
 			}
 		}
-		return (__syscall_setgroups(n, kernel_groups));
+		ngids = __syscall_setgroups(n, kernel_groups);
+		free(kernel_groups);
+		return ngids;
 	}
 }

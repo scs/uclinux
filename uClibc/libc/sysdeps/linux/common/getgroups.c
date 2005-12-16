@@ -23,14 +23,21 @@ int getgroups(int n, gid_t * groups)
 		return -1;
 	} else {
 		int i, ngids;
-		__kernel_gid_t kernel_groups[n = MIN(n, sysconf(_SC_NGROUPS_MAX))];
+		__kernel_gid_t *kernel_groups;
 
+		n = MIN(n, sysconf(_SC_NGROUPS_MAX));
+		if(kernel_groups=(__kernel_gid_t *)malloc(sizeof(__kernel_gid_t)*n) == NULL){
+			__set_errno(EINVAL);
+			return -1;
+		}
+			
 		ngids = __syscall_getgroups(n, kernel_groups);
 		if (n != 0 && ngids > 0) {
 			for (i = 0; i < ngids; i++) {
 				groups[i] = kernel_groups[i];
 			}
 		}
+		free(kernel_groups);
 		return ngids;
 	}
 }
