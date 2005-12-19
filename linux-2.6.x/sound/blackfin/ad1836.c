@@ -2067,7 +2067,7 @@ static int __devinit snd_ad1836_create(snd_card_t *card,
   }
   
   memset((void*)sport->dummy_buf, 0, DUMMY_BUF_LEN);
-  snd_printk(KERN_INFO "dummy_buf:0x%lx\n", sport->dummy_buf);
+//  snd_printk(KERN_INFO "dummy_buf:0x%lx\n", sport->dummy_buf);
 #ifdef MULTI_SUBSTREAM
 {
 	dma_addr_t addr;
