@@ -1,0 +1,566 @@
+﻿<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<!-- saved from url=(0055)http://blackfin.uclinux.org/forum/forum.php?forum_id=51 -->
+<?xml version="1.0" encoding="UTF-8"?><HTML lang=zh-cn xml:lang="en" 
+xmlns="http://www.w3.org/1999/xhtml"><HEAD><TITLE>Blackfin:Uboot for the Blackfin processor: help</TITLE>
+<META http-equiv=Content-Type content="text/html; charset=UTF-8"><LINK 
+href="BlackfinUboot help_files/gforge.css" type=text/css rel=stylesheet>
+<SCRIPT language=JavaScript type=text/javascript>
+	<!--
+	function admin_window(adminurl) {
+		AdminWin = window.open( adminurl, 'AdminWindow','scrollbars=yes,resizable=yes, toolbar=yes, height=400, width=400, top=2, left=2');
+		AdminWin.focus();
+	}
+	function help_window(helpurl) {
+		HelpWin = window.open( helpurl,'HelpWindow','scrollbars=yes,resizable=yes,toolbar=no,height=400,width=400');
+	}
+	// -->
+		</SCRIPT>
+
+<STYLE type=text/css>OL {
+	FONT-SIZE: 13px; COLOR: #202020; FONT-FAMILY: arialverdana,arial,helvetica,sans-serif
+}
+UL {
+	FONT-SIZE: 13px; COLOR: #202020; FONT-FAMILY: arialverdana,arial,helvetica,sans-serif
+}
+P {
+	FONT-SIZE: 13px; COLOR: #202020; FONT-FAMILY: arialverdana,arial,helvetica,sans-serif
+}
+BODY {
+	FONT-SIZE: 13px; COLOR: #202020; FONT-FAMILY: arialverdana,arial,helvetica,sans-serif
+}
+TR {
+	FONT-SIZE: 13px; COLOR: #202020; FONT-FAMILY: arialverdana,arial,helvetica,sans-serif
+}
+TD {
+	FONT-SIZE: 13px; COLOR: #202020; FONT-FAMILY: arialverdana,arial,helvetica,sans-serif
+}
+TH {
+	FONT-SIZE: 13px; COLOR: #202020; FONT-FAMILY: arialverdana,arial,helvetica,sans-serif
+}
+FORM {
+	FONT-SIZE: 13px; COLOR: #202020; FONT-FAMILY: arialverdana,arial,helvetica,sans-serif
+}
+H1 {
+	FONT-SIZE: 13px; FONT-FAMILY: arialverdana,arial,helvetica,sans-serif
+}
+H2 {
+	FONT-SIZE: 13px; FONT-FAMILY: arialverdana,arial,helvetica,sans-serif
+}
+H3 {
+	FONT-SIZE: 13px; FONT-FAMILY: arialverdana,arial,helvetica,sans-serif
+}
+H4 {
+	FONT-SIZE: 13px; FONT-FAMILY: arialverdana,arial,helvetica,sans-serif
+}
+H5 {
+	FONT-SIZE: 13px; FONT-FAMILY: arialverdana,arial,helvetica,sans-serif
+}
+H6 {
+	FONT-SIZE: 13px; FONT-FAMILY: arialverdana,arial,helvetica,sans-serif
+}
+P {
+	FONT-SIZE: 13px; COLOR: #535c5f; FONT-FAMILY: arialverdana,arial,helvetica,sans-serif
+}
+PRE {
+	FONT-FAMILY: courier,sans-serif
+}
+TT {
+	FONT-FAMILY: courier,sans-serif
+}
+.titlebar {
+	FONT-WEIGHT: bold; FONT-SIZE: 13px; COLOR: #000000; TEXT-DECORATION: none
+}
+.develtitle {
+	FONT-SIZE: 13px; COLOR: #535c5f; FONT-FAMILY: arial
+}
+.commitlist DT {
+	FLOAT: left; MARGIN: 0px; WIDTH: 10em; TEXT-ALIGN: right
+}
+.commitlist .date {
+	FONT-WEIGHT: normal; WHITE-SPACE: nowrap
+}
+.commitlist DD {
+	MARGIN: 0px 0px 2em 11em
+}
+.comment {
+	PADDING-RIGHT: 1em; PADDING-LEFT: 1em; PADDING-BOTTOM: 1em; MARGIN: 0px 0px 1em; COLOR: #000; PADDING-TOP: 1em; BACKGROUND-COLOR: #dfdfc6
+}
+.commitdetails {
+	FONT-SIZE: 85%; MARGIN: 0px
+}
+UL.commitdetails {
+	MARGIN-TOP: 0.5em
+}
+.commitdetails LI {
+	MARGIN: 0px 0px 0px 5em; TEXT-INDENT: -5em; LIST-STYLE-TYPE: none
+}
+</STYLE>
+
+<META content="MSHTML 6.00.2900.2769" name=GENERATOR></HEAD>
+<BODY>
+<TABLE cellSpacing=0 cellPadding=0 width="100%" 
+background="BlackfinUboot help_files/bg_head.gif" border=0>
+  <TBODY>
+  <TR>
+    <TD width="50%" height=61 rowSpan=2><A 
+      href="http://blackfin.uclinux.org/"><IMG height=61 alt="" 
+      src="BlackfinUboot help_files/logo.jpg" width=202 border=0></A></TD>
+    <TD align=right width="50%" height=30><A class=lnkutility 
+      href="http://blackfin.uclinux.org/account/logout.php">Log 
+      Out</A>&nbsp;&nbsp;<SPAN class=txtutility>|</SPAN>&nbsp;&nbsp;<A 
+      class=lnkutility href="http://blackfin.uclinux.org/account/">My 
+      Account</A> &nbsp;&nbsp;</TD>
+  <TR>
+    <TD align=right height=31>
+      <FORM action=/search/ method=get>
+      <TABLE cellSpacing=0 cellPadding=0 border=0>
+        <TBODY>
+        <TR>
+          <TD>
+            <DIV style="FONT-SIZE: smaller" align=center><SELECT 
+            name=type_of_search><OPTION value=forum selected>This 
+              forum</OPTION> <OPTION value=full>Search the entire 
+              project</OPTION> <OPTION value=trackers>This project's 
+              trackers</OPTION> <OPTION value=forums>This project's 
+              forums</OPTION> <OPTION value=tasks>This project's tasks</OPTION> 
+              <OPTION value=frs>This project's releases</OPTION> <OPTION 
+              value=docs>This project's documents</OPTION> <OPTION 
+              value=news>This project's news</OPTION> <OPTION 
+              value=soft>Software/Group</OPTION> <OPTION 
+              value=people>People</OPTION> <OPTION 
+            value=skill>Skill</OPTION></SELECT></DIV></TD>
+          <TD>&nbsp;<INPUT type=hidden value=20 name=group_id><INPUT 
+            type=hidden value=51 name=forum_id></TD>
+          <TD><INPUT size=12 name=words></TD>
+          <TD>&nbsp;</TD>
+          <TD><INPUT type=submit value=Search name=Search></TD>
+          <TD width=10>&nbsp;</TD>
+          <TD><B><A style="COLOR: #ffffff" 
+            href="http://blackfin.uclinux.org/search/advanced_search.php?group_id=20">Advanced 
+            search</A></B></TD></TR></TBODY></TABLE></FORM></TD></TR></TBODY></TABLE><!-- start tabs -->
+<TABLE height=30 cellSpacing=0 cellPadding=0 width="100%" bgColor=white 
+border=0>
+  <TBODY>
+  <TR>
+    <TD align=middle width="16%" 
+    background="BlackfinUboot help_files/theme-toptab-notselected-bg.gif"><A 
+      class=lnkutility href="http://blackfin.uclinux.org/">首页</A></TD>
+    <TD width=2><IMG src="BlackfinUboot help_files/theme-toptab-div.gif"></TD>
+    <TD align=middle width="16%" 
+    background="BlackfinUboot help_files/theme-toptab-notselected-bg.gif"><A 
+      class=lnkutility href="http://blackfin.uclinux.org/my/">我的首页</A></TD>
+    <TD width=2><IMG src="BlackfinUboot help_files/theme-toptab-div.gif"></TD>
+    <TD align=middle width="16%" 
+    background="BlackfinUboot help_files/theme-toptab-notselected-bg.gif"><A 
+      class=lnkutility 
+href="http://blackfin.uclinux.org/softwaremap/">项目树</A></TD>
+    <TD width=2><IMG src="BlackfinUboot help_files/theme-toptab-div.gif"></TD>
+    <TD align=middle width="16%" 
+    background="BlackfinUboot help_files/theme-toptab-notselected-bg.gif"><A 
+      class=lnkutility href="http://blackfin.uclinux.org/snippet/">代码片断</A></TD>
+    <TD width=2><IMG src="BlackfinUboot help_files/theme-toptab-div.gif"></TD>
+    <TD align=middle width="16%" 
+    background="BlackfinUboot help_files/theme-toptab-notselected-bg.gif"><A 
+      class=lnkutility href="http://blackfin.uclinux.org/people/">寻求帮助的项目</A></TD>
+    <TD width=2><IMG src="BlackfinUboot help_files/theme-toptab-div.gif"></TD>
+    <TD align=middle width="20%" 
+    background="BlackfinUboot help_files/theme-toptab-selected-bg.gif"><IMG 
+      hspace=5 src="BlackfinUboot help_files/theme-toptab-bullet.gif"><A 
+      class=lnkutilitydark 
+      href="http://blackfin.uclinux.org/projects/uboot533/">UBOOT FOR THE 
+      BLACKFIN PROCESSOR</A></TD></TR></TR></TBODY></TABLE><!-- end tabs --><!-- New Table for next tab set -->
+<TABLE cellSpacing=0 cellPadding=0 width="100%" border=0><!-- Outer body row -->
+  <TBODY>
+  <TR>
+    <TD vAlign=top align=right bgColor=white></TD>
+    <TD vAlign=top width="99%" bgColor=#e0e0e0 colSpan=3><!-- Inner Tabs / Shell -->
+      <TABLE cellSpacing=0 cellPadding=0 width="100%" bgColor=white border=0>
+        <TBODY>
+        <TR>
+          <TD vAlign=top><IMG src="BlackfinUboot help_files/bottom_l.gif"></TD>
+          <TD><!-- start tabs -->
+            <TABLE height=30 cellSpacing=0 cellPadding=0 width="100%" 
+            bgColor=white border=0>
+              <TBODY>
+              <TR>
+                <TD bgColor=white height=5></TD>
+              <TR>
+                <TD vAlign=top width=2><IMG 
+                  src="BlackfinUboot help_files/off_l_end.gif"></TD>
+                <TD align=middle width="9%" 
+                background="BlackfinUboot help_files/off_c.gif"><A 
+                  class=lnkutilitydark 
+                  href="http://blackfin.uclinux.org/projects/uboot533/">摘要</A></TD>
+                <TD width=2><IMG 
+                src="BlackfinUboot help_files/on_l_off.gif"></TD>
+                <TD align=middle background="BlackfinUboot help_files/on_c.gif" 
+                bgColor=white><A class=lnkutilitydark 
+                  href="http://blackfin.uclinux.org/forum/?group_id=20">论坛</A></TD>
+                <TD vAlign=top width=2><IMG 
+                  src="BlackfinUboot help_files/on_r_off.gif"></TD>
+                <TD align=middle background="BlackfinUboot help_files/off_c.gif" 
+                bgColor=white><A class=lnkutilitydark 
+                  href="http://blackfin.uclinux.org/tracker/?group_id=20">跟踪</A></TD>
+                <TD vAlign=top width=2><IMG 
+                  src="BlackfinUboot help_files/off_r_off.gif"></TD>
+                <TD align=middle background="BlackfinUboot help_files/off_c.gif" 
+                bgColor=white><A class=lnkutilitydark 
+                  href="http://blackfin.uclinux.org/mail/?group_id=20">邮件列表</A></TD>
+                <TD vAlign=top width=2><IMG 
+                  src="BlackfinUboot help_files/off_r_off.gif"></TD>
+                <TD align=middle background="BlackfinUboot help_files/off_c.gif" 
+                bgColor=white><A class=lnkutilitydark 
+                  href="http://blackfin.uclinux.org/pm/?group_id=20">任务</A></TD>
+                <TD vAlign=top width=2><IMG 
+                  src="BlackfinUboot help_files/off_r_off.gif"></TD>
+                <TD align=middle background="BlackfinUboot help_files/off_c.gif" 
+                bgColor=white><A class=lnkutilitydark 
+                  href="http://blackfin.uclinux.org/docman/?group_id=20">文档</A></TD>
+                <TD vAlign=top width=2><IMG 
+                  src="BlackfinUboot help_files/off_r_off.gif"></TD>
+                <TD align=middle background="BlackfinUboot help_files/off_c.gif" 
+                bgColor=white><A class=lnkutilitydark 
+                  href="http://blackfin.uclinux.org/survey/?group_id=20">调查</A></TD>
+                <TD vAlign=top width=2><IMG 
+                  src="BlackfinUboot help_files/off_r_off.gif"></TD>
+                <TD align=middle background="BlackfinUboot help_files/off_c.gif" 
+                bgColor=white><A class=lnkutilitydark 
+                  href="http://blackfin.uclinux.org/news/?group_id=20">新闻</A></TD>
+                <TD vAlign=top width=2><IMG 
+                  src="BlackfinUboot help_files/off_r_off.gif"></TD>
+                <TD align=middle background="BlackfinUboot help_files/off_c.gif" 
+                bgColor=white><A class=lnkutilitydark 
+                  href="http://blackfin.uclinux.org/scm/?group_id=20">SCM</A></TD>
+                <TD vAlign=top width=2><IMG 
+                  src="BlackfinUboot help_files/off_r_off.gif"></TD>
+                <TD align=middle background="BlackfinUboot help_files/off_c.gif" 
+                bgColor=white><A class=lnkutilitydark 
+                  href="http://blackfin.uclinux.org/frs/?group_id=20">文件</A></TD>
+                <TD vAlign=top width=2><IMG 
+                  src="BlackfinUboot help_files/off_r_off.gif"></TD>
+                <TD align=middle width="9%" 
+                background="BlackfinUboot help_files/off_c.gif"><A 
+                  class=lnkutilitydark 
+                  href="http://blackfin.uclinux.org/plugins/tinderbox/index.php?group_id=20">TINDERBOX</A></TD>
+                <TD width=2><IMG 
+                  src="BlackfinUboot help_files/theme-off_r_end.gif"></TD></TR></TR></TBODY></TABLE><!-- end tabs --></TD>
+          <TD><IMG src="BlackfinUboot help_files/bottom_r.gif"></TD></TR>
+        <TR>
+          <TD align=left width=5 bgColor=#ffffff height=10></TD>
+          <TD bgColor=#ffffff><IMG height=1 alt="" 
+            src="BlackfinUboot help_files/clear.png" width=1></TD>
+          <TD align=right width=9 bgColor=#ffffff></TD></TR>
+        <TR>
+          <TD width=5 bgColor=#ffffff></TD>
+          <TD vAlign=top width="99%" bgColor=white>
+            <P><STRONG><A 
+            href="http://blackfin.uclinux.org/forum/forum.php?forum_id=51">讨论版： 
+            help</A></STRONG></P><A 
+            href="http://blackfin.uclinux.org/forum/monitor.php?forum_id=51&amp;group_id=20&amp;stop=1"><IMG 
+            height=20 alt="" src="BlackfinUboot help_files/xmail16w.png" 
+            width=20 border=0> 停止监视</A> | <A 
+            href="http://blackfin.uclinux.org/forum/save.php?forum_id=51&amp;group_id=20"><IMG 
+            height=24 alt="" src="BlackfinUboot help_files/save.png" width=24 
+            border=0> 保存位置</A> | <A 
+            href="http://blackfin.uclinux.org/forum/new.php?forum_id=51&amp;group_id=20"><IMG 
+            height=20 alt=创建新主题 src="BlackfinUboot help_files/write16w.png" 
+            width=20 border=0> 创建新主题</A> 
+            <FORM action=/forum/forum.php method=get><INPUT type=hidden 
+            value=custom name=set> <INPUT type=hidden value=51 name=forum_id> 
+            <TABLE width="33%" border=0>
+              <TBODY>
+              <TR>
+                <TD><SPAN><SELECT name=style> <OPTION 
+                    value=nested>嵌套</OPTION> <OPTION value=flat>平板</OPTION> 
+                    <OPTION value=threaded>主题</OPTION> <OPTION value=ultimate 
+                    selected>基本</OPTION></SELECT></SPAN></TD>
+                <TD><SPAN><SELECT name=max_rows> <OPTION value=25 
+                    selected>显示 25</OPTION> <OPTION value=50>显示 50</OPTION> 
+                    <OPTION value=75>显示 75</OPTION> <OPTION value=100>显示 
+                    100</OPTION></SELECT></SPAN></TD>
+                <TD><SPAN><INPUT type=submit value=改变视图 name=submit> 
+              </SPAN></TD></TR></TBODY></TABLE></FORM>
+            <P>&nbsp;</P>
+            <TABLE cellSpacing=0 cellPadding=0 width="100%" border=0>
+              <TBODY>
+              <TR align=middle><!--		<td valign="top" align="right" width="10" background="/themes/gforgegroup/images/box-grad.png"><img src="/themes/gforgegroup/images/box-topleft.png" width="10" height="75"></td> -->
+                <TD background="BlackfinUboot help_files/box-grad.png">
+                  <TABLE cellSpacing=1 cellPadding=2 width="100%" border=0>
+                    <TBODY>
+                    <TR>
+                      <TD align=middle><SPAN 
+                        style="COLOR: #000000"><STRONG>主题</STRONG></SPAN></TD>
+                      <TD align=middle><SPAN 
+                        style="COLOR: #000000"><STRONG>主题发起人</STRONG></SPAN></TD>
+                      <TD align=middle><SPAN 
+                        style="COLOR: #000000"><STRONG>回复</STRONG></SPAN></TD>
+                      <TD align=middle><SPAN 
+                        style="COLOR: #000000"><STRONG>最后发表时间</STRONG></SPAN></TD></TR>
+                    <TR background="/themes/gforgegroup/images/vert-grad.png">
+                      <TD><A 
+                        href="http://blackfin.uclinux.org/forum/forum.php?thread_id=1228&amp;forum_id=51"><IMG 
+                        height=13 alt="" 
+                        src="BlackfinUboot help_files/cfolder15.png" width=15 
+                        border=0> &nbsp; <STRONG>Initial SPI programming of 
+                        uBoot</STRONG></A></TD>
+                      <TD>Paul Gruszka</TD>
+                      <TD>4</TD>
+                      <TD>2005-12-16 00:35</TD></TR>
+                    <TR background="/themes/gforgegroup/images/box-grad.png">
+                      <TD><A 
+                        href="http://blackfin.uclinux.org/forum/forum.php?thread_id=1230&amp;forum_id=51"><IMG 
+                        height=13 alt="" 
+                        src="BlackfinUboot help_files/cfolder15.png" width=15 
+                        border=0> &nbsp; <STRONG>Boot mode switch (SW16) 
+                        Configuration</STRONG></A></TD>
+                      <TD>Manav Kataria</TD>
+                      <TD>3</TD>
+                      <TD>2005-12-15 11:59</TD></TR>
+                    <TR background="/themes/gforgegroup/images/vert-grad.png">
+                      <TD><A 
+                        href="http://blackfin.uclinux.org/forum/forum.php?thread_id=1229&amp;forum_id=51"><IMG 
+                        height=13 alt="" 
+                        src="BlackfinUboot help_files/cfolder15.png" width=15 
+                        border=0> &nbsp; <STRONG>Flash Write Verification 
+                        Error</STRONG></A></TD>
+                      <TD>Manav Kataria</TD>
+                      <TD>1</TD>
+                      <TD>2005-12-15 09:50</TD></TR>
+                    <TR background="/themes/gforgegroup/images/box-grad.png">
+                      <TD><A 
+                        href="http://blackfin.uclinux.org/forum/forum.php?thread_id=1222&amp;forum_id=51"><IMG 
+                        height=13 alt="" 
+                        src="BlackfinUboot help_files/cfolder15.png" width=15 
+                        border=0> &nbsp; <STRONG>how to use VDSP DXE file in 
+                        u-boot?</STRONG></A></TD>
+                      <TD>LING yun</TD>
+                      <TD>5</TD>
+                      <TD>2005-12-15 09:14</TD></TR>
+                    <TR background="/themes/gforgegroup/images/vert-grad.png">
+                      <TD><A 
+                        href="http://blackfin.uclinux.org/forum/forum.php?thread_id=1226&amp;forum_id=51"><IMG 
+                        height=13 alt="" 
+                        src="BlackfinUboot help_files/cfolder15.png" width=15 
+                        border=0> &nbsp; <STRONG>spi flash</STRONG></A></TD>
+                      <TD>istvan nagy</TD>
+                      <TD>4</TD>
+                      <TD>2005-12-14 16:27</TD></TR>
+                    <TR background="/themes/gforgegroup/images/box-grad.png">
+                      <TD><A 
+                        href="http://blackfin.uclinux.org/forum/forum.php?thread_id=1195&amp;forum_id=51"><IMG 
+                        height=13 alt="" 
+                        src="BlackfinUboot help_files/cfolder15.png" width=15 
+                        border=0> &nbsp; <STRONG>DMA problem in 
+                        start.s</STRONG></A></TD>
+                      <TD>Wang Wang</TD>
+                      <TD>2</TD>
+                      <TD>2005-12-10 03:30</TD></TR>
+                    <TR background="/themes/gforgegroup/images/vert-grad.png">
+                      <TD><A 
+                        href="http://blackfin.uclinux.org/forum/forum.php?thread_id=1185&amp;forum_id=51"><IMG 
+                        height=13 alt="" 
+                        src="BlackfinUboot help_files/cfolder15.png" width=15 
+                        border=0> &nbsp; <STRONG>when does the code be executed 
+                        in SDRAM?</STRONG></A></TD>
+                      <TD>LING yun</TD>
+                      <TD>1</TD>
+                      <TD>2005-12-09 11:29</TD></TR>
+                    <TR background="/themes/gforgegroup/images/box-grad.png">
+                      <TD><A 
+                        href="http://blackfin.uclinux.org/forum/forum.php?thread_id=1171&amp;forum_id=51"><IMG 
+                        height=13 alt="" 
+                        src="BlackfinUboot help_files/cfolder15.png" width=15 
+                        border=0> &nbsp; <STRONG>how port u-boot to my 
+                        board?</STRONG></A></TD>
+                      <TD>LING yun</TD>
+                      <TD>1</TD>
+                      <TD>2005-12-09 08:57</TD></TR>
+                    <TR background="/themes/gforgegroup/images/vert-grad.png">
+                      <TD><A 
+                        href="http://blackfin.uclinux.org/forum/forum.php?thread_id=1212&amp;forum_id=51"><IMG 
+                        height=13 alt="" 
+                        src="BlackfinUboot help_files/cfolder15.png" width=15 
+                        border=0> &nbsp; <STRONG>about u-boot 
+                      update</STRONG></A></TD>
+                      <TD>Alexander Antonenko</TD>
+                      <TD>1</TD>
+                      <TD>2005-12-09 08:13</TD></TR>
+                    <TR background="/themes/gforgegroup/images/box-grad.png">
+                      <TD><A 
+                        href="http://blackfin.uclinux.org/forum/forum.php?thread_id=1203&amp;forum_id=51"><IMG 
+                        height=13 alt="" 
+                        src="BlackfinUboot help_files/cfolder15.png" width=15 
+                        border=0> &nbsp; <STRONG>u-boot dm9000 driver 
+                        problem</STRONG></A></TD>
+                      <TD>david wang</TD>
+                      <TD>3</TD>
+                      <TD>2005-12-09 04:16</TD></TR>
+                    <TR background="/themes/gforgegroup/images/vert-grad.png">
+                      <TD><A 
+                        href="http://blackfin.uclinux.org/forum/forum.php?thread_id=1208&amp;forum_id=51"><IMG 
+                        height=13 alt="" 
+                        src="BlackfinUboot help_files/cfolder15.png" width=15 
+                        border=0> &nbsp; Updating U-BOOT - help pleasure</A></TD>
+                      <TD>Alexander Antonenko</TD>
+                      <TD>3</TD>
+                      <TD>2005-12-08 19:04</TD></TR>
+                    <TR background="/themes/gforgegroup/images/box-grad.png">
+                      <TD><A 
+                        href="http://blackfin.uclinux.org/forum/forum.php?thread_id=1138&amp;forum_id=51"><IMG 
+                        height=13 alt="" 
+                        src="BlackfinUboot help_files/cfolder15.png" width=15 
+                        border=0> &nbsp; Problem upgrading u-boot on 
+STAMP</A></TD>
+                      <TD>Marko Cvetkovic</TD>
+                      <TD>9</TD>
+                      <TD>2005-12-08 18:58</TD></TR>
+                    <TR background="/themes/gforgegroup/images/vert-grad.png">
+                      <TD><A 
+                        href="http://blackfin.uclinux.org/forum/forum.php?thread_id=1191&amp;forum_id=51"><IMG 
+                        height=13 alt="" 
+                        src="BlackfinUboot help_files/cfolder15.png" width=15 
+                        border=0> &nbsp; where the u-boot is executed at 
+                        startup? </A></TD>
+                      <TD>LING yun</TD>
+                      <TD>1</TD>
+                      <TD>2005-12-08 16:15</TD></TR>
+                    <TR background="/themes/gforgegroup/images/box-grad.png">
+                      <TD><A 
+                        href="http://blackfin.uclinux.org/forum/forum.php?thread_id=1199&amp;forum_id=51"><IMG 
+                        height=13 alt="" 
+                        src="BlackfinUboot help_files/cfolder15.png" width=15 
+                        border=0> &nbsp; bf-537 serial transfer errors</A></TD>
+                      <TD>Mircea Hossu</TD>
+                      <TD>2</TD>
+                      <TD>2005-12-07 15:39</TD></TR>
+                    <TR background="/themes/gforgegroup/images/vert-grad.png">
+                      <TD><A 
+                        href="http://blackfin.uclinux.org/forum/forum.php?thread_id=1183&amp;forum_id=51"><IMG 
+                        height=13 alt="" 
+                        src="BlackfinUboot help_files/cfolder15.png" width=15 
+                        border=0> &nbsp; bf537 ez-kit lite networking 
+                      problem</A></TD>
+                      <TD>Mircea Hossu</TD>
+                      <TD>4</TD>
+                      <TD>2005-12-06 16:13</TD></TR>
+                    <TR background="/themes/gforgegroup/images/box-grad.png">
+                      <TD><A 
+                        href="http://blackfin.uclinux.org/forum/forum.php?thread_id=1194&amp;forum_id=51"><IMG 
+                        height=13 alt="" 
+                        src="BlackfinUboot help_files/cfolder15.png" width=15 
+                        border=0> &nbsp; DMA problem in start.s</A></TD>
+                      <TD>Wang Wang</TD>
+                      <TD>0</TD>
+                      <TD>2005-12-06 02:21</TD></TR>
+                    <TR background="/themes/gforgegroup/images/vert-grad.png">
+                      <TD><A 
+                        href="http://blackfin.uclinux.org/forum/forum.php?thread_id=1187&amp;forum_id=51"><IMG 
+                        height=13 alt="" 
+                        src="BlackfinUboot help_files/cfolder15.png" width=15 
+                        border=0> &nbsp; A qusetion in 
+                      cup/bf533/interrupt.S</A></TD>
+                      <TD>LING yun</TD>
+                      <TD>0</TD>
+                      <TD>2005-12-02 09:22</TD></TR>
+                    <TR background="/themes/gforgegroup/images/box-grad.png">
+                      <TD><A 
+                        href="http://blackfin.uclinux.org/forum/forum.php?thread_id=1175&amp;forum_id=51"><IMG 
+                        height=13 alt="" 
+                        src="BlackfinUboot help_files/cfolder15.png" width=15 
+                        border=0> &nbsp; How to make bf533.dex for my ezkit lite 
+                        board</A></TD>
+                      <TD>LING yun</TD>
+                      <TD>2</TD>
+                      <TD>2005-11-30 08:57</TD></TR>
+                    <TR background="/themes/gforgegroup/images/vert-grad.png">
+                      <TD><A 
+                        href="http://blackfin.uclinux.org/forum/forum.php?thread_id=1173&amp;forum_id=51"><IMG 
+                        height=13 alt="" 
+                        src="BlackfinUboot help_files/cfolder15.png" width=15 
+                        border=0> &nbsp; u-boot_1.1.3 build problem</A></TD>
+                      <TD>lor jae</TD>
+                      <TD>2</TD>
+                      <TD>2005-11-29 17:42</TD></TR>
+                    <TR background="/themes/gforgegroup/images/box-grad.png">
+                      <TD><A 
+                        href="http://blackfin.uclinux.org/forum/forum.php?thread_id=1164&amp;forum_id=51"><IMG 
+                        height=13 alt="" 
+                        src="BlackfinUboot help_files/cfolder15.png" width=15 
+                        border=0> &nbsp; Using uBoot with VDSP DXE files</A></TD>
+                      <TD>Timothy Pearson</TD>
+                      <TD>1</TD>
+                      <TD>2005-11-25 07:52</TD></TR>
+                    <TR background="/themes/gforgegroup/images/vert-grad.png">
+                      <TD><A 
+                        href="http://blackfin.uclinux.org/forum/forum.php?thread_id=1163&amp;forum_id=51"><IMG 
+                        height=13 alt="" 
+                        src="BlackfinUboot help_files/cfolder15.png" width=15 
+                        border=0> &nbsp; the problem of burning U-boot into 
+                        BF533EZKIT</A></TD>
+                      <TD>li liu</TD>
+                      <TD>1</TD>
+                      <TD>2005-11-24 13:48</TD></TR>
+                    <TR background="/themes/gforgegroup/images/box-grad.png">
+                      <TD><A 
+                        href="http://blackfin.uclinux.org/forum/forum.php?thread_id=1162&amp;forum_id=51"><IMG 
+                        height=13 alt="" 
+                        src="BlackfinUboot help_files/cfolder15.png" width=15 
+                        border=0> &nbsp; problem with ip address</A></TD>
+                      <TD>chytali be</TD>
+                      <TD>1</TD>
+                      <TD>2005-11-24 07:20</TD></TR>
+                    <TR background="/themes/gforgegroup/images/vert-grad.png">
+                      <TD><A 
+                        href="http://blackfin.uclinux.org/forum/forum.php?thread_id=1153&amp;forum_id=51"><IMG 
+                        height=13 alt="" 
+                        src="BlackfinUboot help_files/cfolder15.png" width=15 
+                        border=0> &nbsp; run update for SPI flash</A></TD>
+                      <TD>Paul Gruszka</TD>
+                      <TD>4</TD>
+                      <TD>2005-11-23 13:09</TD></TR>
+                    <TR background="/themes/gforgegroup/images/box-grad.png">
+                      <TD><A 
+                        href="http://blackfin.uclinux.org/forum/forum.php?thread_id=1143&amp;forum_id=51"><IMG 
+                        height=13 alt="" 
+                        src="BlackfinUboot help_files/cfolder15.png" width=15 
+                        border=0> &nbsp; BF533 SPI flash driver problem</A></TD>
+                      <TD>Paul Gruszka</TD>
+                      <TD>1</TD>
+                      <TD>2005-11-17 18:07</TD></TR>
+                    <TR background="/themes/gforgegroup/images/vert-grad.png">
+                      <TD><A 
+                        href="http://blackfin.uclinux.org/forum/forum.php?thread_id=1124&amp;forum_id=51"><IMG 
+                        height=13 alt="" 
+                        src="BlackfinUboot help_files/cfolder15.png" width=15 
+                        border=0> &nbsp; How to debug u-boot ?</A></TD>
+                      <TD>Frank Lee</TD>
+                      <TD>3</TD>
+                      <TD>2005-11-12 03:24</TD></TR></TBODY></TABLE></TD><!-- <td valign="top" align="right" width="10" background="/themes/gforgegroup/images/box-grad.png"><img src="/themes/gforgegroup/images/box-topright.png" width="10" height="75"></td> --></TR></TBODY></TABLE>
+            <TABLE width="100%" border=0>
+              <TBODY>
+              <TR bgColor=#dddddd>
+                <TD width="50%">&nbsp;</TD>
+                <TD>&nbsp;</TD>
+                <TD align=right width="50%"><SPAN 
+                  style="FONT-SIZE: small; FONT-FAMILY: arial,helvetica; TEXT-DECORATION: none"><A 
+                  href="http://blackfin.uclinux.org/forum/forum.php?max_rows=25&amp;style=ultimate&amp;offset=25&amp;forum_id=51"><STRONG>后一页<IMG 
+                  height=15 alt="" src="BlackfinUboot help_files/t.png" width=15 
+                  align=middle border=0></STRONG></A></SPAN></TD></TR></TBODY></TABLE><!-- end main body row --></TD>
+          <TD width=10 bgColor=#ffffff><IMG height=1 alt="" 
+            src="BlackfinUboot help_files/clear.png" width=2></TD></TR>
+        <TR>
+          <TD bgColor=#ffffff colSpan=3><BR><!-- PLEASE LEAVE "Powered By GForge" on your site -->
+            <CENTER><A href="http://gforge.org/"><IMG 
+            alt="Powered By GForge Collaborative Development Environment" 
+            src="BlackfinUboot help_files/pow-gforge.png" border=0></A> 
+          </CENTER></TD></TR>
+        <TR>
+          <TD align=left width=1 bgColor=white></TD>
+          <TD bgColor=#ffffff></TD>
+          <TD align=right width=9 bgColor=white></TD></TR></TBODY></TABLE><!-- end inner body row --></TD>
+    <TD width=10 bgColor=white><IMG height=1 alt="" 
+      src="BlackfinUboot help_files/clear.png" width=2></TD></TR>
+  <TR>
+    <TD align=left width=9 bgColor=white></TD>
+    <TD bgColor=white colSpan=3></TD>
+    <TD align=right width=9 bgColor=white></TD></TR></TBODY></TABLE></BODY></HTML>
