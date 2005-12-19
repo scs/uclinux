@@ -98,7 +98,7 @@ typedef struct Spi_Device_t
 
 #define SPI_DEFAULT_BARD    0x0100
 
-#define SPI0_IRQ_NUM        20
+#define SPI0_IRQ_NUM        IRQ_SPI
 #define SPI_ERR_TRIG	   -1
 
 #define BIT_CTL_ENABLE      0x4000
