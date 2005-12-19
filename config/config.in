@@ -290,7 +290,15 @@ bool 'fnord web server'		CONFIG_USER_FNORD_HTTPD
 if [ "$CONFIG_USER_FNORD_HTTPD" = "y" ]; then
 	bool '  fnord does not do auth'		CONFIG_USER_FNORD_NOAUTH
 else
-	bool 'boa(ver 0.94.14)'	CONFIG_USER_BOA_SRC_BOA_NEW
+	bool 'boa-new(ver 0.94.14)'	CONFIG_USER_BOA_SRC_BOA_NEW
+	bool 'boa'			CONFIG_USER_BOA_SRC_BOA
+	if [ "$CONFIG_USER_BOA_SRC_BOA" = "y" ]; then
+		bool '  boa uses SSL'	CONFIG_USER_BOA_WITH_SSL
+		if [ "$CONFIG_USER_BOA_WITH_SSL" = "y" ]; then
+			define_bool	CONFIG_LIB_LIBSSL y
+		fi
+		bool '  emergency syslog' CONFIG_USER_BOA_EMERG
+	fi
 fi
 bool 'bpalogin'			CONFIG_USER_BPALOGIN_BPALOGIN
 bool 'br2684ctl'		CONFIG_USER_BR2684CTL_BR2684CTL
