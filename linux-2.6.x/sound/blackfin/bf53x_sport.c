@@ -67,6 +67,10 @@
 
 #define SSYNC __builtin_bfin_ssync()
 
+#if L1_DATA_A_LENGTH != 0
+extern unsigned long l1_data_A_sram_alloc(unsigned long size);
+extern int l1_data_A_sram_free(unsigned long addr);
+#endif
 
 static unsigned int sport_iobase[] = {SPORT0_TCR1, SPORT1_TCR1 };
 
@@ -181,9 +185,17 @@ void bf53x_sport_done(struct bf53x_sport* sport){
         kfree(sport->dma_tx_desc);
 
     if( sport->dummy_rx_desc)
+#if L1_DATA_A_LENGTH != 0
+	l1_data_A_sram_free((unsigned long)sport->dummy_rx_desc);
+#else
     	kfree(sport->dummy_rx_desc);
+#endif
     if( sport->dummy_tx_desc)
+#if L1_DATA_A_LENGTH != 0
+	l1_data_A_sram_free((unsigned long)sport->dummy_tx_desc);
+#else
     	kfree(sport->dummy_tx_desc);
+#endif
 
     sport->dma_rx_desc = NULL;
     sport->dma_tx_desc = NULL;
@@ -556,8 +568,11 @@ int sport_config_rx_dummy(struct bf53x_sport *sport)
 	
 	sport_printd(KERN_INFO, "%s entered\n", __FUNCTION__);
 	dma = sport->dma_rx;
-
+#if L1_DATA_A_LENGTH != 0
+	desc = (dmasg_t*)l1_data_A_sram_alloc(2* sizeof(*desc));
+#else
 	desc = kcalloc(2, sizeof(*desc), GFP_KERNEL);
+#endif
 	if (desc ==NULL)
 		return -ENOMEM;
 
@@ -588,7 +603,11 @@ int sport_config_tx_dummy(struct bf53x_sport *sport)
 	sport_printd(KERN_INFO, "%s entered\n", __FUNCTION__);
 	dma = sport->dma_tx;
 
+#if L1_DATA_A_LENGTH != 0
+	desc = (dmasg_t*)l1_data_A_sram_alloc(2* sizeof(*desc));
+#else
 	desc = kcalloc(2, sizeof(*desc), GFP_KERNEL);
+#endif
 	if (!desc)
 		return -ENOMEM;
 
