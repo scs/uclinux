@@ -1585,7 +1585,6 @@ bool    'PPI test program'              CONFIG_USER_BLACKFIN_PPI
 bool    'Sqlite test program'           CONFIG_USER_SQLITE_TEST
 bool    'Pthread lib test'              CONFIG_USER_BLACKFIN_PTHREADTEST
 bool    'Still to write'                CONFIG_YET
-bool	'Boa webserver test '	 	CONFIG_USER_BOA_NEW_TEST	
 
 endmenu
 
