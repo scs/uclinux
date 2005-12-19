@@ -4,6 +4,7 @@
 $Id$
 """
 import unittest
+import os
 from random import random
 from funkload.FunkLoadTestCase import FunkLoadTestCase
 
@@ -16,7 +17,16 @@ class Simple(FunkLoadTestCase):
         self.logd("setUp")
         self.server_url = self.conf_get('main', 'url')
 	print self.server_url
-
+	serverip = self.conf_get('main','serverip')
+	#print serverip
+	rcp_cmd='rcp -rp ../test root@'+serverip+':/home/httpd/'
+	print rcp_cmd
+	rcp_result = os.system(rcp_cmd)
+	if not rcp_result:
+		print 'rcp ok! Start webserver test.'
+	else:
+		print 'rcp error! Please confirm your server IP and destination directory!'
+	
     def test_simple(self):
         # The description should be set in the configuration file
         server_url = self.server_url
