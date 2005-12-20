@@ -19,7 +19,11 @@ CONFIGURE_SETTINGS := --with-kernel-support --build=i386-pc-linux-gnu --host=bfi
 silly_thingy: Makefile
 	
 	make -f Makefile
-Makefile: $(BINUTILS_PATH)/Makefile $(BINUTILS_PATH)/bfd/Makefile $(BINUTILS_PATH)/intl/Makefile $(BINUTILS_PATH)/libiberty/Makefile
+Makefile:
+	cd $(BINUTILS_PATH);CFLAGS=$(BINUTILS_LO_CFLAGS) ./configure $(BINUTILS_CONFIG_ARG); cd $(OPROFILE_PATH);
+	cd $(BINUTILS_PATH)/bfd; CFLAGS=$(BINUTILS_LO_CFLAGS) ./configure $(BINUTILS_CONFIG_ARG); cd $(OPROFILE_PATH)
+	cd $(BINUTILS_PATH)/intl;  CFLAGS=$(BINUTILS_LO_CFLAGS) ./configure $(BINUTILS_CONFIG_ARG); cd $(OPROFILE_PATH)
+	cd $(BINUTILS_PATH)/libiberty; CFLAGS=$(BINUTILS_LO_CFLAGS) ./configure $(BINUTILS_CONFIG_ARG); cd $(OPROFILE_PATH)
 	make -C $(BINUTILS_PATH)/bfd/
 	make -C $(BINUTILS_PATH)/intl/
 	make -C $(BINUTILS_PATH)/libiberty/
@@ -33,13 +37,5 @@ clean:
 	make -f Makefile distclean
 %: Makefile
 	make -f Makefile $@
-$(BINUTILS_PATH)/Makefile:
-	cd $(BINUTILS_PATH);CFLAGS=$(BINUTILS_LO_CFLAGS) ./configure $(BINUTILS_CONFIG_ARG); cd $(OPROFILE_PATH)
-$(BINUTILS_PATH)/bfd/Makefile:
-	 cd $(BINUTILS_PATH)/bfd; CFLAGS=$(BINUTILS_LO_CFLAGS) ./configure $(BINUTILS_CONFIG_ARG); cd $(OPROFILE_PATH)
-$(BINUTILS_PATH)/intl/Makefile:
-	 cd $(BINUTILS_PATH)/intl;  CFLAGS=$(BINUTILS_LO_CFLAGS) ./configure $(BINUTILS_CONFIG_ARG); cd $(OPROFILE_PATH)
-$(BINUTILS_PATH)/libiberty/Makefile:
-	cd $(BINUTILS_PATH)/libiberty; CFLAGS=$(BINUTILS_LO_CFLAGS) ./configure $(BINUTILS_CONFIG_ARG); cd $(OPROFILE_PATH)
 
 
