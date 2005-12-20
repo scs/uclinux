@@ -34,6 +34,7 @@ config BFIN_IDE_IRQ_PFX
 
 choice
 	prompt	"IDE Interface Address Mapping (see help)"
+	depends on IDE
 	default BFIN_IDE_ADDRESS_MAPPING_MODE0
 
 config BFIN_IDE_ADDRESS_MAPPING_MODE0
