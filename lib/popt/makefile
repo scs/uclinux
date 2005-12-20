@@ -13,11 +13,10 @@ Makefile:
 			CFLAGS="$(LO_CFLAGS)" CXXFLAGS="$(LO_CXXFLAGS)" ./configure $(CONFIGURE_SETTINGS)
 
 romfs:
-	make -f Makefile install
+	echo "nothing for romfs"
 
 clean:
 	make -f Makefile distclean
 
 %: Makefile
 	make -f Makefile $@
-
