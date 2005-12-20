@@ -110,7 +110,8 @@ void opd_open_logfile(void)
  */
 static void opd_fork(void)
 {
-	switch (fork()) {
+	switch(vfork()){
+	//switch (fork()) {
 		case -1:
 			perror("oprofiled: fork() failed: ");
 			exit(EXIT_FAILURE);
@@ -380,6 +381,7 @@ static void opd_options(int argc, char const * argv[])
 
 	cpu_type = op_get_cpu_type();
 	op_nr_counters = op_get_nr_counters(cpu_type);
+	printf("KSDBG:get cputype=%s,counts=%d\n",cpu_type,op_nr_counters);
 
 	if (!no_vmlinux) {
 		if (!vmlinux || !strcmp("", vmlinux)) {
