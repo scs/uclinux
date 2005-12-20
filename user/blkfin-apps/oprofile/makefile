@@ -19,8 +19,10 @@ CONFIGURE_SETTINGS := --with-kernel-support --build=i386-pc-linux-gnu --host=bfi
 silly_thingy: Makefile
 	
 	make -f Makefile
-Makefile:
-	make -f makefile binutils
+Makefile: $(BINUTILS_PATH)/Makefile $(BINUTILS_PATH)/bfd/Makefile $(BINUTILS_PATH)/intl/Makefile $(BINUTILS_PATH)/libiberty/Makefile
+	make -C $(BINUTILS_PATH)/bfd/
+	make -C $(BINUTILS_PATH)/intl/
+	make -C $(BINUTILS_PATH)/libiberty/
 	unset LDFLAGS CC CFLAGS && \
 			CFLAGS="$(LO_CFLAGS)" CXXFLAGS="$(LO_CXXFLAGS)" LDFLAGS="$(LO_LDFLAGS)" ./configure $(CONFIGURE_SETTINGS)
 
@@ -31,10 +33,6 @@ clean:
 	make -f Makefile distclean
 %: Makefile
 	make -f Makefile $@
-binutils:$(BINUTILS_PATH)/Makefile $(BINUTILS_PATH)/bfd/Makefile $(BINUTILS_PATH)/intl/Makefile $(BINUTILS_PATH)/libiberty/Makefile
-	make -C $(BINUTILS_PATH)/bfd/
-	make -C $(BINUTILS_PATH)/intl/
-	make -C $(BINUTILS_PATH)/libiberty/
 $(BINUTILS_PATH)/Makefile:
 	cd $(BINUTILS_PATH);CFLAGS=$(BINUTILS_LO_CFLAGS) ./configure $(BINUTILS_CONFIG_ARG); cd $(OPROFILE_PATH)
 $(BINUTILS_PATH)/bfd/Makefile:
