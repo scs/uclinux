@@ -86,10 +86,7 @@ bool 'Build libDES'		CONFIG_LIB_LIBDES_FORCE
 bool 'Build libSSL'		CONFIG_LIB_LIBSSL_FORCE
 bool 'Build libGMP'		CONFIG_LIB_LIBGMP_FORCE
 bool 'Build libGMP4'		CONFIG_LIB_GMP
-bool 'Build bfd'		CONFIG_LIB_BFD
 bool 'Build popt'		CONFIG_LIB_POPT
-bool 'Build intl'		CONFIG_LIB_INTL
-bool 'Build libiberty'		CONFIG_LIB_LIBIBERTY
 bool 'Build mpfr'		CONFIG_LIB_MPFR
 bool 'Build libG'		CONFIG_LIB_LIBG_FORCE
 bool 'Build libldap'		CONFIG_LIB_LIBLDAP_FORCE
