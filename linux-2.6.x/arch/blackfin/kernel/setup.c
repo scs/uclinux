@@ -361,22 +361,18 @@ static void __init generate_cpl_tables(void)
 	    fill_cpl_tables(dcplb_table, pos, ZERO, SIZE_4M, SIZE_4M,
 			    SDRAM_DKERNEL);
 #if defined (CONFIG_BF561)
+# if defined (CONFIG_BFIN561_EZKIT)
 	pos =
 	    fill_cpl_tables(dcplb_table, pos, ASYNC_BANK0_BASE,
-			    ASYNC_BANK0_BASE + ASYNC_BANK0_SIZE,
-			    SIZE_4M, SDRAM_EBIU);
-	pos =
-	    fill_cpl_tables(dcplb_table, pos, ASYNC_BANK1_BASE,
-			    ASYNC_BANK1_BASE + ASYNC_BANK1_SIZE,
-			    SIZE_4M, SDRAM_EBIU);
-	pos =
-	    fill_cpl_tables(dcplb_table, pos, ASYNC_BANK2_BASE,
-			    ASYNC_BANK2_BASE + ASYNC_BANK2_SIZE,
+			    ASYNC_BANK0_BASE + 0x800000,
 			    SIZE_4M, SDRAM_EBIU);
 	pos =
 	    fill_cpl_tables(dcplb_table, pos, ASYNC_BANK3_BASE,
-			    ASYNC_BANK3_BASE + ASYNC_BANK3_SIZE,
+			    ASYNC_BANK3_BASE + 0x400000,
 			    SIZE_4M, SDRAM_EBIU);
+# else
+#  error "Check the CPLB entries for your BF561 platform in arch/blackfin/kernel/setup.c"
+# endif
 #else
 	pos =
 	    fill_cpl_tables(dcplb_table, pos, ASYNC_BANK0_BASE,
@@ -414,22 +410,18 @@ static void __init generate_cpl_tables(void)
 	    fill_cpl_tables(dpdt_table, pos, RAM_END - SIZE_1M, RAM_END,
 			    SIZE_1M, SDRAM_DNON_CHBL);
 #if defined (CONFIG_BF561)
+# if defined (CONFIG_BFIN561_EZKIT)
 	pos =
 	    fill_cpl_tables(dpdt_table, pos, ASYNC_BANK0_BASE,
-			    ASYNC_BANK0_BASE + ASYNC_BANK0_SIZE,
-			    SIZE_4M, SDRAM_EBIU);
-	pos =
-	    fill_cpl_tables(dpdt_table, pos, ASYNC_BANK1_BASE,
-			    ASYNC_BANK1_BASE + ASYNC_BANK1_SIZE,
-			    SIZE_4M, SDRAM_EBIU);
-	pos =
-	    fill_cpl_tables(dpdt_table, pos, ASYNC_BANK2_BASE,
-			    ASYNC_BANK2_BASE + ASYNC_BANK2_SIZE,
+			    ASYNC_BANK0_BASE + 0x800000,
 			    SIZE_4M, SDRAM_EBIU);
 	pos =
 	    fill_cpl_tables(dpdt_table, pos, ASYNC_BANK3_BASE,
-			    ASYNC_BANK3_BASE + ASYNC_BANK3_SIZE,
+			    ASYNC_BANK3_BASE + 0x400000,
 			    SIZE_4M, SDRAM_EBIU);
+# else
+#  error "Check the CPLB entries for your BF561 platform in arch/blackfin/kernel/setup.c"
+# endif
 #else
 	pos =
 	    fill_cpl_tables(dpdt_table, pos, ASYNC_BANK0_BASE,
@@ -473,22 +465,18 @@ static void __init generate_cpl_tables(void)
 	    fill_cpl_tables(ipdt_table, pos, SIZE_4M, RAM_END,
 			    SIZE_4M, SDRAM_IGENERIC);
 #if defined (CONFIG_BF561)
+# if defined (CONFIG_BFIN561_EZKIT)
 	pos =
 	    fill_cpl_tables(ipdt_table, pos, ASYNC_BANK0_BASE,
-			    ASYNC_BANK0_BASE + ASYNC_BANK0_SIZE,
-			    SIZE_4M, SDRAM_EBIU);
-	pos =
-	    fill_cpl_tables(ipdt_table, pos, ASYNC_BANK1_BASE,
-			    ASYNC_BANK1_BASE + ASYNC_BANK1_SIZE,
-			    SIZE_4M, SDRAM_EBIU);
-	pos =
-	    fill_cpl_tables(ipdt_table, pos, ASYNC_BANK2_BASE,
-			    ASYNC_BANK2_BASE + ASYNC_BANK2_SIZE,
+			    ASYNC_BANK0_BASE + 0x800000,
 			    SIZE_4M, SDRAM_EBIU);
 	pos =
 	    fill_cpl_tables(ipdt_table, pos, ASYNC_BANK3_BASE,
-			    ASYNC_BANK3_BASE + ASYNC_BANK3_SIZE,
+			    ASYNC_BANK3_BASE + 0x400000,
 			    SIZE_4M, SDRAM_EBIU);
+# else
+#  error "Check the CPLB entries for your BF561 platform in arch/blackfin/kernel/setup.c"
+# endif
 #else
 	pos =
 	    fill_cpl_tables(ipdt_table, pos, ASYNC_BANK0_BASE,
