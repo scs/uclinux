@@ -498,6 +498,8 @@ static int pthread_handle_create(pthread_t *thread, const pthread_attr_t *attr,
                                  &new_thread, &new_thread_bottom,
                                  &guardaddr, &guardsize) == 0)
         break;
+      else
+	return EAGAIN;
     }
   __pthread_handles_num++;
   /* Allocate new thread identifier */
