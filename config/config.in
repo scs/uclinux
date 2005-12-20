@@ -1607,13 +1607,10 @@ bool	'rcp'				CONFIG_USER_INETUTILS_RCP
 bool	'rshd'				CONFIG_USER_INETUTILS_RSHD
 bool	'oprofile'			CONFIG_USER_OPROFILE
 if [ "$CONFIG_USER_OPROFILE" = "y" ]; then
-	define_bool CONFIG_USER_BUSYBOX_KILLALL y
 	define_bool  CONFIG_LIB_GMP y
-	define_bool CONFIG_LIB_BFD y
 	define_bool CONFIG_LIB_POPT y
-	define_bool  CONFIG_LIB_INTL y
-	define_bool CONFIG_LIB_LIBIBERTY y
 	define_bool CONFIG_LIB_MPFR y
+	string 'binutils path'		CONFIG_USER_BINUTILS
 fi
 
 	
