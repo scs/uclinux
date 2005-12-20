@@ -79,11 +79,12 @@ ENTRY(_evt_ivhw)
 	r1 = sp;
 
 	r7 = SEQSTAT;           /* reason code is in bit 5:0 */
-        r6.l = lo(SEQSTAT_HWERRCAUSE);
-        r6.h = hi(SEQSTAT_HWERRCAUSE);
-        r7 = r7 & r6;
-	cc = r7 == 0x12;
-        if cc jump call_do_ovf; /*deal with performance counter overflow*/
+	r6.l = lo(SEQSTAT_HWERRCAUSE);
+	r6.h = hi(SEQSTAT_HWERRCAUSE);
+	r7 = r7 & r6;
+	r5 = 0x12;
+	cc = r7 == r5;
+	if cc jump call_do_ovf; /*deal with performance counter overflow*/
 
 	SP += -12;
 	call _irq_panic; 
@@ -91,9 +92,14 @@ ENTRY(_evt_ivhw)
 	rti;
 
 call_do_ovf:
+	
 	SP += -12;
 	call _do_irq;
 	SP += 12;
+	call return_from_int;
+
+        RESTORE_CONTEXT
+
 	rti;
 /* interrupt routine for core timer - 6 */
 ENTRY(_evt_timer)
