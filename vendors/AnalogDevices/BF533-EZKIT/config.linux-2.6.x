@@ -521,6 +521,7 @@ CONFIG_SMC91X=y
 # CONFIG_BF533_PFLAGS is not set
 # CONFIG_BF5xx_PPIFCD is not set
 # CONFIG_BF5xx_PPI is not set
+# CONFIG_BFIN_SPORT is not set
 # CONFIG_BFIN_TIMER_LATENCY is not set
 # CONFIG_VT is not set
 # CONFIG_SERIAL_NONSTANDARD is not set
