@@ -1,5 +1,5 @@
---- busybox-1.1.0-pre1/shell/msh.c	2005-11-01 07:55:25.000000000 +0800
-+++ busybox-1.1.0-msh/shell/msh.c	2005-12-02 20:35:22.000000000 +0800
+--- msh.c	2005-12-21 14:46:40.000000000 +0800
++++ msh_function.c	2005-12-21 14:46:10.000000000 +0800
 @@ -54,10 +54,19 @@
  
  
@@ -21,7 +21,7 @@
  #define DBGPRINTF(x)	if(mshdbg>0)printf x
  #define DBGPRINTF0(x)	if(mshdbg>0)printf x
  #define DBGPRINTF1(x)	if(mshdbg>1)printf x
-@@ -161,6 +170,10 @@
+@@ -161,8 +170,13 @@
  /* Added to support "." file expansion */
  #define	TDOT	17
  
@@ -30,19 +30,51 @@
 +#define TRETURN 19
 +
  /* Strings for names to make debug easier */
- #ifdef MSHDEBUG
- static char *T_CMD_NAMES[] = {
-@@ -283,6 +296,9 @@
+-char *T_CMD_NAMES[] = {
++#ifdef MSHDEBUG
++static char *T_CMD_NAMES[] = {
+ 	"PLACEHOLDER",
+ 	"TCOM",
+ 	"TPAREN",
+@@ -182,7 +196,7 @@
+ 	"TASYNC",
+ 	"TDOT",
+ };
+-
++#endif
+ 
+ /*
+  * actions determining the environment of a process
+@@ -282,6 +296,28 @@
  static char *elinep;
  
  
 +static int func_finished;
++struct func{
++	char* name;
++	int begin_addr; /*pos in buffer of function */
++	int end_addr;
++};
++#define MAX_FUNCS 100
 +
++static struct func funcs[MAX_FUNCS];
++
++/* the max DEPTH of function call */
++#define MAX_DEPTH 100
++static struct _frame_s{
++	int argc;
++	char **argv;
++	int saved_return_addr;
++}frame[MAX_DEPTH];
++
++static void register_func(int begin,int end);
++static struct func * find_func(char* name);
++static  void exec_func(struct func* f);
 +
  /*
   * other functions
   */
-@@ -374,6 +390,8 @@
+@@ -373,6 +409,8 @@
  #define	IN		272
  /* Added for "." file expansion */
  #define	DOT		273
@@ -51,7 +83,56 @@
  
  #define	YYERRCODE 300
  
-@@ -766,6 +784,7 @@
+@@ -513,7 +551,7 @@
+ static int readc(void);
+ static void unget(int c);
+ static void ioecho(int c);
+-static void prs(char *s);
++static void prs(const char *s);
+ static void prn(unsigned u);
+ static void closef(int i);
+ static void closeall(void);
+@@ -621,7 +659,7 @@
+ 	struct here *h_next;
+ };
+ 
+-static char *signame[] = {
++static const char * const signame[] = {
+ 	"Signal 0",
+ 	"Hangup",
+ 	(char *) NULL,				/* interrupt */
+@@ -643,10 +681,10 @@
+ #define	NSIGNAL (sizeof(signame)/sizeof(signame[0]))
+ 
+ struct res {
+-	char *r_name;
++	const char *r_name;
+ 	int r_val;
+ };
+-static struct res restab[] = {
++static const struct res restab[] = {
+ 	{"for", FOR},
+ 	{"case", CASE},
+ 	{"esac", ESAC},
+@@ -698,7 +736,7 @@
+ 	{0, 0}
+ };
+ 
+-struct op *scantree(struct op *);
++static struct op *scantree(struct op *);
+ static struct op *dowholefile(int, int);
+ 
+ /* Globals */
+@@ -708,7 +746,7 @@
+ static int dolc;
+ static int exstat;
+ static char gflg;
+-static int interactive = 0;		/* Is this an interactive shell */
++static int interactive;			/* Is this an interactive shell */
+ static int execflg;
+ static int multiline;			/* \n changed to ; */
+ static struct op *outtree;		/* result from parser */
+@@ -765,6 +803,7 @@
  static void *brktop;
  static void *brkaddr;
  
@@ -59,7 +140,7 @@
  static struct env e = {
  	line,						/* linep:  char ptr */
  	iostack,					/* iobase:  struct io ptr */
-@@ -826,7 +845,7 @@
+@@ -825,7 +864,7 @@
  	int cflag;
  	char *name, **ap;
  	int (*iof) (struct ioarg *);
@@ -68,7 +149,7 @@
  	DBGPRINTF(("MSH_MAIN: argc %d, environ 0x%x\n", argc, environ));
  
  	initarea();
-@@ -838,7 +857,6 @@
+@@ -837,7 +876,6 @@
  	}
  	closeall();
  	areanum = 1;
@@ -76,7 +157,7 @@
  	shell = lookup("SHELL");
  	if (shell->value == null)
  		setval(shell, (char *)DEFAULT_SHELL);
-@@ -859,7 +877,6 @@
+@@ -858,7 +896,6 @@
  			setval(path, "/bin:/usr/bin");
  	}
  	export(path);
@@ -84,7 +165,19 @@
  	ifs = lookup("IFS");
  	if (ifs->value == null)
  		setval(ifs, " \t\n");
-@@ -946,7 +963,6 @@
+@@ -874,9 +911,9 @@
+ #ifdef CONFIG_FEATURE_SH_FANCY_PROMPT
+ 	if (prompt->value == null)
+ #endif
+-		setval(prompt, "\\u:\\w$ ");
++		setval(prompt, "$ ");
+ 	if (geteuid() == 0) {
+-		setval(prompt, "\\u:\\w> ");
++		setval(prompt, "# ");
+ 		prompt->status &= ~EXPORT;
+ 	}
+ 	cprompt = lookup("PS2");
+@@ -945,7 +982,6 @@
  				exit(1);		/* Exit on error */
  		}
  	}
@@ -92,7 +185,7 @@
  	setdash();
  
  	/* This won't be true if PUSHIO has been called, say from newfile() above */
-@@ -990,6 +1006,7 @@
+@@ -989,6 +1025,7 @@
  			}
  		}
  	}
@@ -100,7 +193,7 @@
  	setval(lookup("#"), putn((--dolc < 0) ? (dolc = 0) : dolc));
  
  	DBGPRINTF(("MSH_MAIN: begin FOR loop, interactive %d, e.iop 0x%x, iostack 0x%x\n", interactive, e.iop, iostack));
-@@ -1002,6 +1019,7 @@
+@@ -1001,6 +1038,7 @@
  			prs(prompt->value);
  #endif
  		}
@@ -108,7 +201,7 @@
  		onecommand();
  		/* Ensure that getenv("PATH") stays current */
  		setenv("PATH", path->value, 1);
-@@ -1910,6 +1928,7 @@
+@@ -1909,6 +1947,7 @@
  	peeksym = 0;
  }
  
@@ -116,7 +209,7 @@
  static struct op *simple()
  {
  	REGISTER struct op *t;
-@@ -1921,7 +1940,40 @@
+@@ -1920,7 +1959,40 @@
  		case '>':
  			(void) synio(0);
  			break;
@@ -158,7 +251,7 @@
  		case WORD:
  			if (t == NULL) {
  				t = newtp();
-@@ -1930,7 +1982,7 @@
+@@ -1929,7 +2001,7 @@
  			peeksym = 0;
  			word(yylval.cp);
  			break;
@@ -167,7 +260,7 @@
  		default:
  			return (t);
  		}
-@@ -2052,7 +2104,6 @@
+@@ -2051,7 +2123,6 @@
  		word(NOWORD);			/* terminate  wdlist */
  		t->words = copyw();		/* dup wdlist */
  		break;
@@ -175,7 +268,16 @@
  	}
  
  	while (synio(0));
-@@ -2466,8 +2517,14 @@
+@@ -2244,7 +2315,7 @@
+ static int rlookup(n)
+ REGISTER char *n;
+ {
+-	REGISTER struct res *rp;
++	REGISTER const struct res *rp;
+ 
+ 	DBGPRINTF7(("RLOOKUP: enter, n is %s\n", n));
+ 
+@@ -2465,8 +2536,14 @@
  	case ')':
  		startl = 1;
  		return (c);
@@ -191,7 +293,7 @@
  	unget(c);
  
    pack:
-@@ -2482,7 +2539,7 @@
+@@ -2481,7 +2558,7 @@
  
  	if (any(c, "\"'`$"))
  		goto loop;
@@ -200,7 +302,7 @@
  	*e.linep++ = '\0';
  
  	if (atstart && (c = rlookup(line)) != 0) {
-@@ -2491,10 +2548,188 @@
+@@ -2490,10 +2567,169 @@
  	}
  
  	yylval.cp = strsave(line, areanum);
@@ -234,25 +336,6 @@
  	return (WORD);
  }
  
-+/*try to find the current position in the opened file*/
-+
-+struct func{
-+	char* name;
-+	int begin_addr; /*pos in buffer of function */
-+	int end_addr;
-+};
-+#define MAX_FUNCS 100
-+
-+static struct func funcs[MAX_FUNCS];
-+
-+/* the max DEPTH of function call */
-+#define MAX_DEPTH 100
-+static struct _frame_s{
-+	int argc;
-+	char **argv;
-+	int saved_return_addr;
-+}frame[MAX_DEPTH];
-+
 +static void register_func(int begin,int end){
 +	struct func *p ;
 +	int i;
@@ -389,7 +472,7 @@
  static int collect(c, c1)
  REGISTER int c, c1;
  {
-@@ -2797,6 +3032,10 @@
+@@ -2796,6 +3032,10 @@
  		if (rv >= 0 && (t1 = t->left))
  			rv = execute(t1, pin, pout, 0);
  		break;
@@ -400,7 +483,27 @@
  
  	};
  
-@@ -4841,7 +5080,6 @@
+@@ -4290,7 +4530,7 @@
+ 			}
+ 
+ 			var_name[var_index++] = *src++;
+-			while (isalnum(*src))
++			while (isalnum(*src) || *src=='_')
+ 				var_name[var_index++] = *src++;
+ 			var_name[var_index] = 0;
+ 
+@@ -4638,8 +4878,8 @@
+ 	return (wd);
+ }
+ 
+-int (*func) (char *, char *);
+-int globv;
++static int (*func) (char *, char *);
++static int globv;
+ 
+ static void glob0(a0, a1, a2, a3)
+ char *a0;
+@@ -4840,7 +5080,6 @@
  		}
  
  	}							/* FOR */
@@ -408,7 +511,7 @@
  	if (e.iop >= iostack) {
  		RCPRINTF(("READC: return 0, e.iop 0x%x\n", e.iop));
  		return (0);
-@@ -5047,11 +5285,13 @@
+@@ -5046,11 +5285,13 @@
  	struct iobuf *bp = ap->afbuf;
  
  	if (ap->afid != AFID_NOBUF) {
@@ -424,7 +527,7 @@
  			i = safe_read(ap->afile, bp->buf, sizeof(bp->buf));
  
  			if (i <= 0) {
-@@ -5062,7 +5302,7 @@
+@@ -5061,7 +5302,7 @@
  			bp->id = ap->afid;
  			bp->ebufp = (bp->bufp = bp->buf) + i;
  		}
@@ -433,3 +536,12 @@
  		ap->afpos++;
  		return *bp->bufp++ & 0177;
  	}
+@@ -5165,7 +5406,7 @@
+ }
+ 
+ static void prs(s)
+-REGISTER char *s;
++REGISTER const char *s;
+ {
+ 	if (*s)
+ 		write(2, s, strlen(s));
