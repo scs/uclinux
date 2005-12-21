@@ -32,6 +32,7 @@ Makefile:
 
 romfs:
 	make -f Makefile install
+	cp ./bfin_opcontrol $(ROMFSDIR)/usr/bin
 
 clean:
 	make -f Makefile distclean
