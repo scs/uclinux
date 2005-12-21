@@ -1,0 +1,11 @@
+                                               Readme
+
+   The IDE test is written for testing the IDE card on STAMP 537 board.
+
+   The required board setting can be found at wiki link: http://docs.blackfin.uclinux.org/doku.php?id=compactflash_ide_ata_nand_flash_-_interface_card.
+
+   In the testing, the IDE card is partitioned, formatted, read and written. It also checks the ide driver info, filesystem info, throughput,and data integrity.
+
+   To run this expect script,just type ./test_ide in shell prompt which should already be executable .   
+
+    
