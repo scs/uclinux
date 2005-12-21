@@ -18,8 +18,11 @@
 #include <asm/io.h>
 
 #include "op_blackfin.h"
-
+#ifdef PM_DEBUG
 #define dbg(args...) printk(args)
+#else
+#define dbg(args...) 
+#endif
 #define PM_ENABLE 0x01;
 #define PM_CTL1_ENABLE  0x18
 #define PM_CTL0_ENABLE  0xC000
@@ -28,8 +31,6 @@
 static int oprofile_running;
 
 unsigned curr_pfctl,curr_count[2];
-
-static int bfin533_handle_interrupt(int irq, void *dummy, struct pt_regs * regs);
 
 static int bfin533_reg_setup(struct op_counter_config *ctr)
 {
@@ -40,17 +41,18 @@ static int bfin533_reg_setup(struct op_counter_config *ctr)
 	if (ctr[0].enabled ){
 		pfctl |= (PM_CTL0_ENABLE | ((char)ctr[0].event << 5));
 		count[0] = 0xFFFFFFFF - ctr[0].count;
-		//curr_count[0] = count[0] = 0xFFFFFF00;       
+		curr_count[0] = count[0] ;       
 	}
 	if (ctr[1].enabled){
 		pfctl |= (PM_CTL1_ENABLE | ((char)ctr[1].event << 16));
 		count[1] = 0xFFFFFFFF - ctr[1].count;
-		//curr_count[1] = count[1] = 0xFFFFFF00;       
+		curr_count[1] = count[1] ;       
 	}
  	dbg("ctr[0].enabled=%d,ctr[1].enabled=%d,ctr[0].event<<5=0x%x,ctr[1].event<<16=0x%x\n",ctr[0].enabled,ctr[1].enabled,ctr[0].event << 5,ctr[1].event << 16); 
 	pfctl |= COUNT_EDGE_ONLY;
 	curr_pfctl = pfctl;
-   
+  
+	dbg("write 0x%x to pfctl\n",pfctl); 
 	ctr_write(pfctl);
 	count_write(count);  
      
@@ -60,7 +62,6 @@ static int bfin533_reg_setup(struct op_counter_config *ctr)
 
 static int bfin533_start(struct op_counter_config *ctr)
 {
-	int ret;
 	unsigned int pfctl = ctr_read();
      
      
