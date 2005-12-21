@@ -498,8 +498,10 @@ static int pthread_handle_create(pthread_t *thread, const pthread_attr_t *attr,
                                  &new_thread, &new_thread_bottom,
                                  &guardaddr, &guardsize) == 0)
         break;
+#ifndef __ARCH_HAS_MMU__
       else
 	return EAGAIN;
+#endif
     }
   __pthread_handles_num++;
   /* Allocate new thread identifier */
