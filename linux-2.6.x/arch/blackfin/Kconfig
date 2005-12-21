@@ -528,6 +528,11 @@ config BANK_3
 	default 0x99B3
 endmenu
 
+config BFIN_SPORT
+	bool "Enable sport"
+	depends on BLACKFIN
+	default n
+
 endmenu
 
 #############################################################################
