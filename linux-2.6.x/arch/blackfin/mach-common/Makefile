@@ -13,4 +13,3 @@ obj-$(CONFIG_CPLB_INFO)		+= cplbinfo.o
 obj-$(CONFIG_BFIN_HAVE_RTC)     += bf5xx_rtc.o
 obj-$(CONFIG_BFIN_SINGLE_CORE)	+= ints-priority-sc.o
 obj-$(CONFIG_BFIN_DUAL_CORE)	+= ints-priority-dc.o
-obj-$(CONFIG_BFIN_SPORT)	+= bfin_sport.o

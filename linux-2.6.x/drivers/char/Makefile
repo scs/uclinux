@@ -55,6 +55,7 @@ obj-$(CONFIG_BFIN_TIMER_LATENCY) += bfin_timer_latency.o
 obj-$(CONFIG_BF533_PFLAGS) += pflags.o
 obj-$(CONFIG_BF5xx_PPIFCD) += adsp-ppifcd.o
 obj-$(CONFIG_BF5xx_PPI) += ppi.o bf533_timers.o
+obj-$(CONFIG_BFIN_SPORT)  += bfin_sport.o
 
 obj-$(CONFIG_PRINTER) += lp.o
 obj-$(CONFIG_TIPAR) += tipar.o
