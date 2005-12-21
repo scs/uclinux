@@ -215,7 +215,7 @@ static int __init i2c_bfin_twi_init(void)
 	}
 
 	/* Set TWI internal clock as 10MHz */
-	*pTWI_CONTROL = (CONFIG_SCLK_HZ / 10 / 1024 / 1024 ) & 0x7F;
+	*pTWI_CONTROL = (get_sclk() / 10 / 1024 / 1024 ) & 0x7F;
 
 	/* Set Twi interface clock as specified */
 	*pTWI_CLKDIV = (( 5*1024 / CONFIG_TWICLK_KHZ ) << 8) | (( 5*1024 / CONFIG_TWICLK_KHZ ) & 0xFF);

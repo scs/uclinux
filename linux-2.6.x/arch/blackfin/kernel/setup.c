@@ -538,6 +538,7 @@ u_long get_sclk()
 
 	return get_vco() / ssel;
 }
+EXPORT_SYMBOL(get_sclk);
 
 /*Get the DSP Revision ID*/
 u_int get_dsp_rev_id()
