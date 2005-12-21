@@ -37,17 +37,17 @@ static int bfin533_reg_setup(struct op_counter_config *ctr)
 	unsigned int count[2];
  
 	/* set Blackfin perf monitor regs with ctr */
-	if (ctr[0].enabled){
+	if (ctr[0].enabled ){
 		pfctl |= (PM_CTL0_ENABLE | ((char)ctr[0].event << 5));
 		count[0] = 0xFFFFFFFF - ctr[0].count;
-		curr_count[0] = count[0];       
+		//curr_count[0] = count[0] = 0xFFFFFF00;       
 	}
 	if (ctr[1].enabled){
 		pfctl |= (PM_CTL1_ENABLE | ((char)ctr[1].event << 16));
 		count[1] = 0xFFFFFFFF - ctr[1].count;
-		curr_count[1] = count[1];       
+		//curr_count[1] = count[1] = 0xFFFFFF00;       
 	}
-  
+ 	dbg("ctr[0].enabled=%d,ctr[1].enabled=%d,ctr[0].event<<5=0x%x,ctr[1].event<<16=0x%x\n",ctr[0].enabled,ctr[1].enabled,ctr[0].event << 5,ctr[1].event << 16); 
 	pfctl |= COUNT_EDGE_ONLY;
 	curr_pfctl = pfctl;
    
@@ -63,16 +63,6 @@ static int bfin533_start(struct op_counter_config *ctr)
 	int ret;
 	unsigned int pfctl = ctr_read();
      
-	/* Install our interrupt handler into the existing hook.  */
-	ret = request_irq(IRQ_HWERR, bfin533_handle_interrupt, SA_INTERRUPT|SA_SHIRQ,
-       "Blackfin Perfmon", NULL);
-	if (ret < 0) 
-	{     
-		dbg(KERN_ERR "oprofile: unable to request IRQ for perfmon.\n");
-		return ret;
-	} else {
-		dbg("requested hardware errorr IRQ. \n");
-	}
      
 	pfctl |= PM_ENABLE;     
 	curr_pfctl = pfctl;
@@ -82,8 +72,6 @@ static int bfin533_start(struct op_counter_config *ctr)
 	oprofile_running = 1;
 	dbg("start oprofile counter \n");
      
-	enable_irq(IRQ_HWERR);
-
 	return 0;     
 }
 
@@ -97,7 +85,6 @@ static void bfin533_stop(void)
 	ctr_write(pfctl);
      
 	oprofile_running = 0;
-	free_irq(IRQ_HWERR,NULL);
 	dbg("stop oprofile counter \n");
 }
 
@@ -113,45 +100,43 @@ static int get_kernel(void)
      return is_kernel;
 }
 
-static int bfin533_handle_interrupt(int irq, void *dummy, struct pt_regs * regs)
-{
+int pm_overflow_handler(int irq, struct pt_regs * regs){
 	int is_kernel;
-	int i,cpu;
+        int i,cpu;
         unsigned int pc,pfctl;
-	unsigned int count[2];
+        unsigned int count[2];
+
+        dbg("get interrupt in %s\n",__FUNCTION__);
+        if (oprofile_running == 0){
+             dbg("error: entering interrupt when oprofile is stopped.\n\r");
+                return -1;
+        }
 
 
-	if (oprofile_running == 0){
-	     dbg("error: entering interrupt when oprofile is stopped.\n\r");
-	return -1;     
-	}
+        is_kernel = get_kernel();
+        cpu = smp_processor_id();
+        pc = regs->pc;
+        pfctl = ctr_read();
 
+        /* read the two event counter regs */
+        count_read(count);
 
-	is_kernel = get_kernel();
-	cpu = smp_processor_id();
-	pc = regs->pc;
-	pfctl = ctr_read();
+        /* if the counter overflows, add sample to oprofile buffer */
+        for (i = 0; i < 2; ++i) {
+             if (oprofile_running ) {
+                 oprofile_add_sample(regs, i);
+            }
+        }
 
-	/* read the two event counter regs */
-	count_read(count);
-
-	/* if the counter overflows, add sample to oprofile buffer */
-	for (i = 0; i < 2; ++i) {
-	     if (oprofile_running && (count[i] == 0xFFFFFFFF)) {
-		 oprofile_add_sample(regs, i);
-	    }
-	}
-       
        /* reset the perfmon counter */
-	ctr_write(curr_pfctl);
-	count_write(curr_count);
-	return 0;
+        ctr_write(curr_pfctl);
+        count_write(curr_count);
+        return 0;
 }
-
 struct op_bfin533_model  op_model_bfin533 = {
 	.reg_setup= bfin533_reg_setup,
 	.start= bfin533_start,
 	.stop= bfin533_stop,
 	.num_counters           = 2,
-	.name                   = "Blackfin 533"
+	.name                   = "blackfin/bf533"
 };

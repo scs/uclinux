@@ -40,6 +40,7 @@
 #include <asm/asm-offsets.h>
 
 .text
+
 .align 4 	/* just in case */
 
 /*
@@ -78,29 +79,30 @@ ENTRY(_evt_ivhw)
 	r0 = IRQ_HWERR;
 	r1 = sp;
 
-	r7 = SEQSTAT;           /* reason code is in bit 5:0 */
-	r6.l = lo(SEQSTAT_HWERRCAUSE);
-	r6.h = hi(SEQSTAT_HWERRCAUSE);
+#ifdef CONFIG_PROFILING
+	r7 = SEQSTAT;           
+	r7 = r7 >>> 0xe;
+	r6 = 0x1F;
 	r7 = r7 & r6;
 	r5 = 0x12;
 	cc = r7 == r5;
 	if cc jump call_do_ovf; /*deal with performance counter overflow*/
+#endif
 
 	SP += -12;
-	call _irq_panic; 
+	call _irq_panic;
 	SP += 12;
 	rti;
-
+#ifdef CONFIG_PROFILING
 call_do_ovf:
-	
+
 	SP += -12;
-	call _do_irq;
+	call _pm_overflow;
 	SP += 12;
-	call return_from_int;
 
-        RESTORE_CONTEXT
-
+	RESTORE_CONTEXT
 	rti;
+#endif
 /* interrupt routine for core timer - 6 */
 ENTRY(_evt_timer)
 	SAVE_CONTEXT
