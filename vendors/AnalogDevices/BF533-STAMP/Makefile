@@ -1,5 +1,5 @@
 #
-#	Makefile -- Build instructions for the BF533-STAMP from ADI
+#	Makefile -- Build instructions for the BF533-STAMP from Analog Devices
 #
 include $(LINUX_CONFIG)
 
