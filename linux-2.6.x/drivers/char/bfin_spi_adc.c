@@ -51,7 +51,7 @@
 #include <asm/cacheflush.h>
 
 #include <asm/dma.h>
-#include "bfin_spi_channel.h"
+#include <asm/bfin_spi_channel.h>
 
 /* definitions */
 
