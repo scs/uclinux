@@ -1,0 +1,15 @@
+Index: git/linux-2.6/Makefile
+===================================================================
+--- git.orig/linux-2.6/Makefile	2005-12-06 17:02:05.000000000 +0800
++++ git/linux-2.6/Makefile	2005-12-13 12:51:45.000000000 +0800
+@@ -190,8 +190,8 @@
+ # Default value for CROSS_COMPILE is not to prefix executables
+ # Note: Some architectures assign CROSS_COMPILE in their arch/*/Makefile
+ 
+-ARCH		?= $(SUBARCH)
+-CROSS_COMPILE	?=
++ARCH		?= blackfin
++CROSS_COMPILE	?= bfin-uclinux-
+ 
+ # Architecture as present in compile.h
+ UTS_MACHINE := $(ARCH)

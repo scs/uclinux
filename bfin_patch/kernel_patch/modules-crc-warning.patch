@@ -1,0 +1,15 @@
+Index: git/linux-2.6/scripts/mod/modpost.c
+===================================================================
+--- git.orig/linux-2.6/scripts/mod/modpost.c	2005-12-15 11:37:20.000000000 +0800
++++ git/linux-2.6/scripts/mod/modpost.c	2005-12-15 11:49:30.000000000 +0800
+@@ -326,8 +326,8 @@
+ 	release_file(info->hdr, info->size);
+ }
+ 
+-#define CRC_PFX     MODULE_SYMBOL_PREFIX "__crc_"
+-#define KSYMTAB_PFX MODULE_SYMBOL_PREFIX "__ksymtab_"
++#define CRC_PFX     "__crc_"
++#define KSYMTAB_PFX "__ksymtab_"
+ 
+ void
+ handle_modversions(struct module *mod, struct elf_info *info,
