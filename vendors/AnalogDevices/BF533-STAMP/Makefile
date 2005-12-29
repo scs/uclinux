@@ -38,6 +38,7 @@ romfs:
 	$(ROMFSINST) /etc/index.html
 	$(ROMFSINST) /etc/tux-wink.gif
 	$(ROMFSINST) /etc/tuxsit_small.gif
+	$(ROMFSINST) /etc/modprobe.conf
 	echo "$(VERSIONSTR) -- " `date` > $(ROMFSDIR)/etc/version
 
 image:
