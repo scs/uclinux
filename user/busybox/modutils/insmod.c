@@ -289,6 +289,15 @@ extern int insmod_ng_main( int argc, char **argv);
 #define ELFCLASSM	ELFCLASS64
 #endif
 
+/* blackfin */
+#if defined(BFIN)
+#define MATCH_MACHINE(x) (x == EM_68K)
+#define SHT_RELM	SHT_RELA
+#define Elf32_RelM	Elf32_Rela
+#define ELFCLASSM	ELFCLASS32
+#endif
+
+
 #ifndef SHT_RELM
 #error Sorry, but insmod.c does not yet support this architecture...
 #endif
