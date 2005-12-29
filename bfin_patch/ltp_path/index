@@ -1,7 +1,4 @@
 systemcalls.patch
-munmap01.patch
-munmap02.patch
-munmap03.patch
-getpeername01.patch
-getsockname01.patch
-readv02.patch
+munmap01-01.patch
+munmap02-01.patch
+munmap03-01.patch
