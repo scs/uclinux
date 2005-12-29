@@ -197,22 +197,25 @@ ENTRY(ex_soft_bp)
 	jump.s ex_trap_c;
 
 ENTRY(ex_single_step)
-	r7 = syscfg;
-	bitclr (r7, 0);
-	syscfg = R7;
-	/* 1. Check if in interrupt handler.
-	 * 2. If not, call ex_trap_c.
-	 */
-	p5.l = lo(IPEND);
-	p5.h = hi(IPEND);
-	csync;
-	r7 = [p5];
-	r6 = 0x8 (Z);
-	cc = r7 == r6;
-	if !cc jump exception_do_nothing;
 	r7 = retx;
 	r6 = reti;
 	cc = r7 == r6;
+	if cc jump exception_do_nothing;
+	r7 = syscfg;
+	bitclr (r7, 0);
+	syscfg = R7;
+	
+	p5.l = lo(IPEND);
+	p5.h = hi(IPEND);
+	r6 = [p5];
+	cc = bittst(r6, 5);
+	if !cc jump ex_trap_c;
+	p4.l = lo(EVT5);
+	p4.h = hi(EVT5);
+	r6.h = exception_to_level5;
+	r6.l = exception_to_level5;
+	r7 = [p4];
+	cc = r6 == r7;
 	if !cc jump ex_trap_c;
 exception_do_nothing:
 	(R7:6,P5:4) = [sp++];

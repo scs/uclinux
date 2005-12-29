@@ -140,11 +140,19 @@ asmlinkage void trap_c(struct pt_regs *fp)
 	case VEC_STEP:
 		info.si_code = TRAP_STEP;
 		sig = SIGTRAP;
-		break;
+		/* Check if this is a single step in kernel space */
+		if(fp->ipend & 0xffc0)
+			return;
+		else
+			break;
 	case VEC_EXCPT01:	/* gdb breakpoint */
 		info.si_code = TRAP_ILLTRAP;
 		sig = SIGTRAP;
-		break;
+		/* Check if this is a breakpoint in kernel space */
+		if(fp->ipend & 0xffc0)
+			return;
+		else
+			break;
 	case VEC_EXCPT03:	/* Atomic test and set service */
 		info.si_code = SEGV_STACKFLOW;
 		sig = SIGSEGV;
@@ -194,7 +202,11 @@ asmlinkage void trap_c(struct pt_regs *fp)
 		info.si_code = TRAP_WATCHPT;
 		sig = SIGTRAP;
 		DPRINTK3(EXC_0x28);
-		break;
+		/* Check if this is a watchpoint in kernel space */
+		if(fp->ipend & 0xffc0)
+			return;
+		else
+			break;
 	case VEC_ISTRU_VL:	/* ADSP-BF535 only (MH) */
 		info.si_code = BUS_OPFETCH;
 		sig = SIGBUS;
