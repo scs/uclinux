@@ -82,10 +82,11 @@ static int desc_list_init(void)
     for (i=0;i < INIT_DESC_NUM;i++) {
       tmp_desc = (struct net_dma_desc *)dma_alloc_coherent(NULL, sizeof(struct net_dma_desc), &dma_handle , GFP_DMA);
       //tmp_desc  =  (struct net_dma_desc *)l1_data_A_sram_alloc(sizeof(struct net_dma_desc));
-      if (tmp_desc == NULL) {
-	goto error;
-      }
-
+      if (tmp_desc == NULL)
+	  goto error;
+      else
+	  memset(tmp_desc,0,sizeof(tmp_desc));
+      
       if (i == 0) {
 	tx_list_head = tmp_desc;
 	tx_list_tail = tmp_desc;
@@ -123,9 +124,10 @@ static int desc_list_init(void)
   for (i = 0; i < MAX_RX_DESC_NUM; i++) {
     //tmp_desc = (struct net_dma_desc *)dma_alloc_coherent(NULL, sizeof(struct net_dma_desc), &dma_handle , GFP_DMA);
     tmp_desc  =  (struct net_dma_desc *)l1_data_A_sram_alloc(sizeof(struct net_dma_desc));
-    if (tmp_desc == NULL) {
+    if (tmp_desc == NULL)
       goto error;
-    }
+    else
+	memset(tmp_desc,0,sizeof(tmp_desc));
 
     if (i == 0) {
       rx_list_head = tmp_desc;
@@ -651,8 +653,9 @@ static int bf537mac_open(struct net_device *dev)
   bf537mac_reset(); 
   bf537mac_enable(dev); 
   
-  //printk("bf537_mac: hardware init finished\n");
+  printk("bf537_mac: hardware init finished\n");
   netif_start_queue(dev); 
+  netif_carrier_on(dev);
   
   return 0;
 }
@@ -672,6 +675,9 @@ static int bf537mac_close(struct net_device *dev)
 
   /* clear everything */
   bf537mac_shutdown(dev);
+
+  /* free the rx/tx buffers */
+  desc_list_free();
 
   return 0;
 }
@@ -785,9 +791,6 @@ static int bf537mac_drv_remove(struct device *dev)
   unregister_netdev(ndev);
 
   free_irq(IRQ_MAC_RX, ndev);
-
-  /* free the rx/tx buffers */
-  desc_list_free();
 
   free_netdev(ndev);
 
