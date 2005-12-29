@@ -1,6 +1,6 @@
-diff -urN linux-2.6.x.old/Documentation/blackfin/kgdb_bfin.txt linux-2.6.x/Documentation/blackfin/kgdb_bfin.txt
---- linux-2.6.x.old/Documentation/blackfin/kgdb_bfin.txt	1970-01-01 08:00:00.000000000 +0800
-+++ linux-2.6.x/Documentation/blackfin/kgdb_bfin.txt	2005-12-14 11:52:45.602335952 +0800
+diff -urN linux-2.6.x/Documentation/blackfin/kgdb_bfin.txt linux-2.6.x-kgdb/Documentation/blackfin/kgdb_bfin.txt
+--- linux-2.6.x/Documentation/blackfin/kgdb_bfin.txt	1970-01-01 08:00:00.000000000 +0800
++++ linux-2.6.x-kgdb/Documentation/blackfin/kgdb_bfin.txt	2005-12-27 14:07:31.667946968 +0800
 @@ -0,0 +1,123 @@
 +			A Simple Guide to Configure KGDB
 +
@@ -125,9 +125,9 @@ diff -urN linux-2.6.x.old/Documentation/blackfin/kgdb_bfin.txt linux-2.6.x/Docum
 +
 +13. All other operations are the same as that in KGDB over Ethernet. 
 +
-diff -urN linux-2.6.x.old/arch/blackfin/Kconfig linux-2.6.x/arch/blackfin/Kconfig
---- linux-2.6.x.old/arch/blackfin/Kconfig	2005-12-13 12:01:38.000000000 +0800
-+++ linux-2.6.x/arch/blackfin/Kconfig	2005-12-14 11:52:45.628332000 +0800
+diff -urN linux-2.6.x/arch/blackfin/Kconfig linux-2.6.x-kgdb/arch/blackfin/Kconfig
+--- linux-2.6.x/arch/blackfin/Kconfig	2005-12-27 14:10:37.345719656 +0800
++++ linux-2.6.x-kgdb/arch/blackfin/Kconfig	2005-12-27 14:07:31.682944688 +0800
 @@ -693,6 +693,8 @@
  	  allocation as well as poisoning memory on free to catch use of freed
  	  memory.
@@ -137,18 +137,18 @@ diff -urN linux-2.6.x.old/arch/blackfin/Kconfig linux-2.6.x/arch/blackfin/Kconfi
  config FRAME_POINTER
  	bool "Compile the kernel with frame pointers"
  	help
-diff -urN linux-2.6.x.old/arch/blackfin/kernel/Makefile linux-2.6.x/arch/blackfin/kernel/Makefile
---- linux-2.6.x.old/arch/blackfin/kernel/Makefile	2005-12-13 12:01:38.000000000 +0800
-+++ linux-2.6.x/arch/blackfin/kernel/Makefile	2005-12-14 11:52:45.636330784 +0800
+diff -urN linux-2.6.x/arch/blackfin/kernel/Makefile linux-2.6.x-kgdb/arch/blackfin/kernel/Makefile
+--- linux-2.6.x/arch/blackfin/kernel/Makefile	2005-12-27 14:10:37.346719504 +0800
++++ linux-2.6.x-kgdb/arch/blackfin/kernel/Makefile	2005-12-27 14:07:31.682944688 +0800
 @@ -7,3 +7,5 @@
  
  obj-$(CONFIG_MODULES)		+= module.o
  obj-$(CONFIG_BFIN_DMA_5XX)	+= bfin_dma_5xx.o
 +obj-$(CONFIG_KGDB)		+= kgdb.o
 +obj-$(CONFIG_KGDB_TEST)		+= kgdb_test.o
-diff -urN linux-2.6.x.old/arch/blackfin/kernel/kgdb.c linux-2.6.x/arch/blackfin/kernel/kgdb.c
---- linux-2.6.x.old/arch/blackfin/kernel/kgdb.c	1970-01-01 08:00:00.000000000 +0800
-+++ linux-2.6.x/arch/blackfin/kernel/kgdb.c	2005-12-14 11:52:45.637330632 +0800
+diff -urN linux-2.6.x/arch/blackfin/kernel/kgdb.c linux-2.6.x-kgdb/arch/blackfin/kernel/kgdb.c
+--- linux-2.6.x/arch/blackfin/kernel/kgdb.c	1970-01-01 08:00:00.000000000 +0800
++++ linux-2.6.x-kgdb/arch/blackfin/kernel/kgdb.c	2005-12-27 14:07:31.698942256 +0800
 @@ -0,0 +1,435 @@
 +/*
 + *
@@ -585,9 +585,9 @@ diff -urN linux-2.6.x.old/arch/blackfin/kernel/kgdb.c linux-2.6.x/arch/blackfin/
 +	.gdb_bpt_instr = {0xa1},
 +	.flags = KGDB_HW_BREAKPOINT,
 +};
-diff -urN linux-2.6.x.old/arch/blackfin/kernel/kgdb_test.c linux-2.6.x/arch/blackfin/kernel/kgdb_test.c
---- linux-2.6.x.old/arch/blackfin/kernel/kgdb_test.c	1970-01-01 08:00:00.000000000 +0800
-+++ linux-2.6.x/arch/blackfin/kernel/kgdb_test.c	2005-12-14 11:53:25.208314928 +0800
+diff -urN linux-2.6.x/arch/blackfin/kernel/kgdb_test.c linux-2.6.x-kgdb/arch/blackfin/kernel/kgdb_test.c
+--- linux-2.6.x/arch/blackfin/kernel/kgdb_test.c	1970-01-01 08:00:00.000000000 +0800
++++ linux-2.6.x-kgdb/arch/blackfin/kernel/kgdb_test.c	2005-12-27 14:07:31.698942256 +0800
 @@ -0,0 +1,84 @@
 +
 +
@@ -673,82 +673,22 @@ diff -urN linux-2.6.x.old/arch/blackfin/kernel/kgdb_test.c linux-2.6.x/arch/blac
 +module_init(cplbtest_init);
 +module_exit(cplbtest_exit);
 +MODULE_LICENSE("GPL");
-diff -urN linux-2.6.x.old/arch/blackfin/kernel/setup.c linux-2.6.x/arch/blackfin/kernel/setup.c
---- linux-2.6.x.old/arch/blackfin/kernel/setup.c	2005-12-13 12:01:38.000000000 +0800
-+++ linux-2.6.x/arch/blackfin/kernel/setup.c	2005-12-14 11:52:45.645329416 +0800
-@@ -373,16 +373,29 @@
- 	    fill_cpl_tables(dcplb_table, pos, ASYNC_BANK2_BASE,
- 			    ASYNC_BANK2_BASE + ASYNC_BANK2_SIZE,
- 			    SIZE_4M, SDRAM_EBIU);
-+#if defined(CONFIG_KGDB_ETH)&&defined(CONFIG_SMC91X)
-+	pos =
-+	    fill_cpl_tables(dcplb_table, pos, ASYNC_BANK3_BASE,
-+			    ASYNC_BANK3_BASE + ASYNC_BANK3_SIZE,
-+			    SIZE_4M, SDRAM_EBIU|CPLB_LOCK);
-+#else
- 	pos =
- 	    fill_cpl_tables(dcplb_table, pos, ASYNC_BANK3_BASE,
- 			    ASYNC_BANK3_BASE + ASYNC_BANK3_SIZE,
- 			    SIZE_4M, SDRAM_EBIU);
-+#endif
-+#if defined(CONFIG_KGDB_ETH)&&defined(CONFIG_SMC91X)
-+	pos = 
-+	    fill_cpl_tables(dcplb_table, pos, ASYNC_BANK0_BASE, 
-+			    ASYNC_BANK3_BASE + ASYNC_BANK3_SIZE, 
-+			    SIZE_4M, SDRAM_EBIU|CPLB_LOCK);
- #else
- 	pos =
- 	    fill_cpl_tables(dcplb_table, pos, ASYNC_BANK0_BASE,
- 			    ASYNC_BANK3_BASE + ASYNC_BANK3_SIZE,
- 			    SIZE_4M, SDRAM_EBIU);
- #endif
-+#endif
- 	pos =
- 	    fill_cpl_tables(dcplb_table, pos, RAM_END - SIZE_1M, RAM_END,
- 			    SIZE_1M, SDRAM_DNON_CHBL);
-@@ -426,16 +439,30 @@
- 	    fill_cpl_tables(dpdt_table, pos, ASYNC_BANK2_BASE,
- 			    ASYNC_BANK2_BASE + ASYNC_BANK2_SIZE,
- 			    SIZE_4M, SDRAM_EBIU);
-+#if defined(CONFIG_KGDB_ETH)&&defined(CONFIG_SMC91X)
-+	pos =
-+	    fill_cpl_tables(dpdt_table, pos, ASYNC_BANK3_BASE,
-+			    ASYNC_BANK3_BASE + ASYNC_BANK3_SIZE,
-+			    SIZE_4M, SDRAM_EBIU|CPLB_LOCK);
-+#else
- 	pos =
- 	    fill_cpl_tables(dpdt_table, pos, ASYNC_BANK3_BASE,
- 			    ASYNC_BANK3_BASE + ASYNC_BANK3_SIZE,
- 			    SIZE_4M, SDRAM_EBIU);
-+#endif
-+#else
-+#if defined(CONFIG_KGDB_ETH)&&defined(CONFIG_SMC91X)
-+	pos =
-+	    fill_cpl_tables(dpdt_table, pos, ASYNC_BANK0_BASE,
-+			    ASYNC_BANK3_BASE + ASYNC_BANK3_SIZE,
-+			    SIZE_4M, SDRAM_EBIU|CPLB_LOCK);
- #else
- 	pos =
- 	    fill_cpl_tables(dpdt_table, pos, ASYNC_BANK0_BASE,
- 			    ASYNC_BANK3_BASE + ASYNC_BANK3_SIZE,
- 			    SIZE_4M, SDRAM_EBIU);
- #endif
-+#endif
- 	pos =
- 	    fill_cpl_tables(dpdt_table, pos, L1_DATA_A_START,
- 			    L1_DATA_B_START + L1_DATA_B_LENGTH, SIZE_4M,
-diff -urN linux-2.6.x.old/arch/blackfin/kernel/traps.c linux-2.6.x/arch/blackfin/kernel/traps.c
---- linux-2.6.x.old/arch/blackfin/kernel/traps.c	2005-12-13 12:01:38.000000000 +0800
-+++ linux-2.6.x/arch/blackfin/kernel/traps.c	2005-12-14 11:52:45.646329264 +0800
-@@ -32,6 +32,7 @@
+diff -urN linux-2.6.x/arch/blackfin/kernel/traps.c linux-2.6.x-kgdb/arch/blackfin/kernel/traps.c
+--- linux-2.6.x/arch/blackfin/kernel/traps.c	2005-12-27 14:17:17.688858248 +0800
++++ linux-2.6.x-kgdb/arch/blackfin/kernel/traps.c	2005-12-27 14:18:33.208377536 +0800
+@@ -32,7 +32,11 @@
  #include <asm/uaccess.h>
  #include <asm/traps.h>
  #include <asm/blackfin.h>
 +#include <linux/debugger.h>
  #include <linux/interrupt.h>
++#ifdef CONFIG_KGDB
++#include <linux/kgdb.h>
++#endif
  
  /*
-@@ -126,6 +127,7 @@
+  *  . EXCEPTION TRAPS DEBUGGING LEVELS
+@@ -126,6 +130,7 @@
  {
  	int j, sig = 0;
  	siginfo_t info;
@@ -756,11 +696,12 @@ diff -urN linux-2.6.x.old/arch/blackfin/kernel/traps.c linux-2.6.x/arch/blackfin
  
  	j = *pTBUFCTL;
  	*pTBUFCTL = j & 0x1D;
-@@ -134,17 +136,41 @@
+@@ -134,12 +139,18 @@
  	   processing, the pc value should be set with retx value.
  	   With this change we can cleanup some code in signal.c- TODO */
  	fp->orig_pc = fp->retx;
-+	/* printk("exception: 0x%x, reti=%x, retx=%x\n", trapnr, fp->pc, fp->retx); */
++	/* printk("exception: 0x%x, ipend=%x, reti=%x, retx=%x\n", 
++		trapnr, fp->ipend, fp->pc, fp->retx); */
  
  	/* send the appropriate signal to the user program */
 -	switch (fp->seqstat & 0x3f) {
@@ -769,26 +710,25 @@ diff -urN linux-2.6.x.old/arch/blackfin/kernel/traps.c linux-2.6.x/arch/blackfin
  		info.si_code = TRAP_STEP;
  		sig = SIGTRAP;
 +#ifdef CONFIG_KGDB
-+		CHK_DEBUGGER(trapnr,SIGTRAP,info.si_code,fp,)
-+		if(fp->ipend)
-+			return;
-+		else
-+			break;
-+#else
- 		break;
++		if (kgdb_connected)
++			CHK_DEBUGGER(trapnr,SIGTRAP,info.si_code,fp,)
 +#endif
+ 		/* Check if this is a single step in kernel space */
+ 		if(fp->ipend & 0xffc0)
+ 			return;
+@@ -148,11 +159,22 @@
  	case VEC_EXCPT01:	/* gdb breakpoint */
  		info.si_code = TRAP_ILLTRAP;
  		sig = SIGTRAP;
 +#ifdef CONFIG_KGDB
-+		CHK_DEBUGGER(trapnr,SIGTRAP,info.si_code,fp,)
-+		if(fp->ipend)
-+			return;
-+		else
-+			break;
-+#else
- 		break;
++		if (kgdb_connected)
++			CHK_DEBUGGER(trapnr,SIGTRAP,info.si_code,fp,)
 +#endif
+ 		/* Check if this is a breakpoint in kernel space */
+ 		if(fp->ipend & 0xffc0)
+ 			return;
+ 		else
+ 			break;
 +#ifdef CONFIG_KGDB
 +	case VEC_EXCPT02 :		 /* gdb connection */
 +		info.si_code = TRAP_ILLTRAP;
@@ -799,7 +739,7 @@ diff -urN linux-2.6.x.old/arch/blackfin/kernel/traps.c linux-2.6.x/arch/blackfin
  	case VEC_EXCPT03:	/* Atomic test and set service */
  		info.si_code = SEGV_STACKFLOW;
  		sig = SIGSEGV;
-@@ -157,6 +183,9 @@
+@@ -165,6 +187,9 @@
  		info.si_code = ILL_ILLOPC;
  		sig = SIGILL;
  		DPRINTK(EXC_0x21);
@@ -809,7 +749,7 @@ diff -urN linux-2.6.x.old/arch/blackfin/kernel/traps.c linux-2.6.x/arch/blackfin
  		break;
  	case VEC_OVFLOW:
  		info.si_code = TRAP_TRACEFLOW;
-@@ -167,33 +196,55 @@
+@@ -175,33 +200,52 @@
  		info.si_code = ILL_ILLPARAOP;
  		sig = SIGILL;
  		DPRINTK(EXC_0x22);
@@ -856,50 +796,25 @@ diff -urN linux-2.6.x.old/arch/blackfin/kernel/traps.c linux-2.6.x/arch/blackfin
  		sig = SIGTRAP;
  		DPRINTK3(EXC_0x28);
 +#ifdef CONFIG_KGDB
-+		CHK_DEBUGGER(trapnr,sig,info.si_code,fp,)
-+		if(fp->ipend)
-+			return;
-+		else
-+			break;
++		if (kgdb_connected)
++			CHK_DEBUGGER(trapnr,sig,info.si_code,fp,)
 +#endif
- 		break;
- 	case VEC_ISTRU_VL:	/* ADSP-BF535 only (MH) */
- 		info.si_code = BUS_OPFETCH;
-@@ -235,7 +286,12 @@
+ 		/* Check if this is a watchpoint in kernel space */
+ 		if(fp->ipend & 0xffc0)
+ 			return;
+@@ -247,6 +291,9 @@
  	default:
  		info.si_code = TRAP_ILLTRAP;
  		sig = SIGTRAP;
 +#ifdef CONFIG_KGDB
 +		CHK_DEBUGGER(trapnr,sig,info.si_code,fp,);
-+		return;
-+#else
- 		break;
 +#endif
+ 		break;
  	}
  	info.si_signo = sig;
- 	info.si_errno = 0;
-diff -urN linux-2.6.x.old/arch/blackfin/mach-common/entry.S linux-2.6.x/arch/blackfin/mach-common/entry.S
---- linux-2.6.x.old/arch/blackfin/mach-common/entry.S	2005-12-13 12:01:38.000000000 +0800
-+++ linux-2.6.x/arch/blackfin/mach-common/entry.S	2005-12-14 11:52:45.654328048 +0800
-@@ -200,6 +200,7 @@
- 	r7 = syscfg;
- 	bitclr (r7, 0);
- 	syscfg = R7;
-+#ifndef CONFIG_KGDB
- 	/* 1. Check if in interrupt handler.
- 	 * 2. If not, call ex_trap_c.
- 	 */
-@@ -210,6 +211,7 @@
- 	r6 = 0x8 (Z);
- 	cc = r7 == r6;
- 	if !cc jump exception_do_nothing;
-+#endif
- 	r7 = retx;
- 	r6 = reti;
- 	cc = r7 == r6;
-diff -urN linux-2.6.x.old/arch/blackfin/mach-common/ints-priority-sc.c linux-2.6.x/arch/blackfin/mach-common/ints-priority-sc.c
---- linux-2.6.x.old/arch/blackfin/mach-common/ints-priority-sc.c	2005-12-13 12:01:38.000000000 +0800
-+++ linux-2.6.x/arch/blackfin/mach-common/ints-priority-sc.c	2005-12-14 11:52:45.660327136 +0800
+diff -urN linux-2.6.x/arch/blackfin/mach-common/ints-priority-sc.c linux-2.6.x-kgdb/arch/blackfin/mach-common/ints-priority-sc.c
+--- linux-2.6.x/arch/blackfin/mach-common/ints-priority-sc.c	2005-12-27 14:10:37.441705064 +0800
++++ linux-2.6.x-kgdb/arch/blackfin/mach-common/ints-priority-sc.c	2005-12-27 14:07:31.737936328 +0800
 @@ -39,6 +39,9 @@
  #include <linux/module.h>
  #include <linux/kernel_stat.h>
@@ -919,17 +834,17 @@ diff -urN linux-2.6.x.old/arch/blackfin/mach-common/ints-priority-sc.c linux-2.6
 +	kgdb_process_breakpoint();
 +#endif
  }
-diff -urN linux-2.6.x.old/drivers/net/Makefile linux-2.6.x/drivers/net/Makefile
---- linux-2.6.x.old/drivers/net/Makefile	2005-12-13 12:02:03.000000000 +0800
-+++ linux-2.6.x/drivers/net/Makefile	2005-12-14 11:52:45.660327136 +0800
+diff -urN linux-2.6.x/drivers/net/Makefile linux-2.6.x-kgdb/drivers/net/Makefile
+--- linux-2.6.x/drivers/net/Makefile	2005-12-27 14:10:46.269363056 +0800
++++ linux-2.6.x-kgdb/drivers/net/Makefile	2005-12-27 14:07:31.737936328 +0800
 @@ -196,3 +196,4 @@
  obj-$(CONFIG_ETRAX_ETHERNET) += cris/
  
  obj-$(CONFIG_NETCONSOLE) += netconsole.o
 +obj-$(CONFIG_KGDB_ETH) += kgdb_eth.o
-diff -urN linux-2.6.x.old/drivers/net/kgdb_eth.c linux-2.6.x/drivers/net/kgdb_eth.c
---- linux-2.6.x.old/drivers/net/kgdb_eth.c	1970-01-01 08:00:00.000000000 +0800
-+++ linux-2.6.x/drivers/net/kgdb_eth.c	2005-12-14 11:52:45.661326984 +0800
+diff -urN linux-2.6.x/drivers/net/kgdb_eth.c linux-2.6.x-kgdb/drivers/net/kgdb_eth.c
+--- linux-2.6.x/drivers/net/kgdb_eth.c	1970-01-01 08:00:00.000000000 +0800
++++ linux-2.6.x-kgdb/drivers/net/kgdb_eth.c	2005-12-27 14:07:31.738936176 +0800
 @@ -0,0 +1,160 @@
 +/*
 + * drivers/net/kgdb_eth.c
@@ -1091,9 +1006,9 @@ diff -urN linux-2.6.x.old/drivers/net/kgdb_eth.c linux-2.6.x/drivers/net/kgdb_et
 +	return 0;
 +}
 +module_init(init_kgdboe);
-diff -urN linux-2.6.x.old/drivers/serial/Makefile linux-2.6.x/drivers/serial/Makefile
---- linux-2.6.x.old/drivers/serial/Makefile	2005-12-13 12:02:19.000000000 +0800
-+++ linux-2.6.x/drivers/serial/Makefile	2005-12-14 11:52:45.661326984 +0800
+diff -urN linux-2.6.x/drivers/serial/Makefile linux-2.6.x-kgdb/drivers/serial/Makefile
+--- linux-2.6.x/drivers/serial/Makefile	2005-12-27 14:10:51.460573872 +0800
++++ linux-2.6.x-kgdb/drivers/serial/Makefile	2005-12-27 14:07:31.738936176 +0800
 @@ -52,4 +52,5 @@
  obj-$(CONFIG_SERIAL_TXX9) += serial_txx9.o
  obj-$(CONFIG_SERIAL_VR41XX) += vr41xx_siu.o
@@ -1102,9 +1017,9 @@ diff -urN linux-2.6.x.old/drivers/serial/Makefile linux-2.6.x/drivers/serial/Mak
 \ No newline at end of file
 +obj-$(CONFIG_SERIAL_BLACKFIN) += bfin_serial_5xx.o
 +obj-$(CONFIG_KGDB_BLACKFIN_UART) += kgdb_bfin_uart.o
-diff -urN linux-2.6.x.old/drivers/serial/bfin_serial_5xx.c linux-2.6.x/drivers/serial/bfin_serial_5xx.c
---- linux-2.6.x.old/drivers/serial/bfin_serial_5xx.c	2005-12-13 12:02:19.000000000 +0800
-+++ linux-2.6.x/drivers/serial/bfin_serial_5xx.c	2005-12-14 11:52:45.671325464 +0800
+diff -urN linux-2.6.x/drivers/serial/bfin_serial_5xx.c linux-2.6.x-kgdb/drivers/serial/bfin_serial_5xx.c
+--- linux-2.6.x/drivers/serial/bfin_serial_5xx.c	2005-12-27 14:10:51.460573872 +0800
++++ linux-2.6.x-kgdb/drivers/serial/bfin_serial_5xx.c	2005-12-27 14:07:31.739936024 +0800
 @@ -459,6 +459,48 @@
  }
  #endif
@@ -1178,9 +1093,9 @@ diff -urN linux-2.6.x.old/drivers/serial/bfin_serial_5xx.c linux-2.6.x/drivers/s
  	return 0;
  }
  
-diff -urN linux-2.6.x.old/drivers/serial/kgdb_bfin_uart.c linux-2.6.x/drivers/serial/kgdb_bfin_uart.c
---- linux-2.6.x.old/drivers/serial/kgdb_bfin_uart.c	1970-01-01 08:00:00.000000000 +0800
-+++ linux-2.6.x/drivers/serial/kgdb_bfin_uart.c	2005-12-14 11:52:45.672325312 +0800
+diff -urN linux-2.6.x/drivers/serial/kgdb_bfin_uart.c linux-2.6.x-kgdb/drivers/serial/kgdb_bfin_uart.c
+--- linux-2.6.x/drivers/serial/kgdb_bfin_uart.c	1970-01-01 08:00:00.000000000 +0800
++++ linux-2.6.x-kgdb/drivers/serial/kgdb_bfin_uart.c	2005-12-27 14:07:31.740935872 +0800
 @@ -0,0 +1,71 @@
 +/*
 + * uart interface for kgdb.
@@ -1253,9 +1168,9 @@ diff -urN linux-2.6.x.old/drivers/serial/kgdb_bfin_uart.c linux-2.6.x/drivers/se
 +	kgdb_schedule_breakpoint();
 +#endif
 +}
-diff -urN linux-2.6.x.old/include/asm-blackfin/entry.h linux-2.6.x/include/asm-blackfin/entry.h
---- linux-2.6.x.old/include/asm-blackfin/entry.h	2005-12-13 12:02:28.000000000 +0800
-+++ linux-2.6.x/include/asm-blackfin/entry.h	2005-12-14 11:52:45.672325312 +0800
+diff -urN linux-2.6.x/include/asm-blackfin/entry.h linux-2.6.x-kgdb/include/asm-blackfin/entry.h
+--- linux-2.6.x/include/asm-blackfin/entry.h	2005-12-27 14:10:52.221458200 +0800
++++ linux-2.6.x-kgdb/include/asm-blackfin/entry.h	2005-12-27 14:07:31.740935872 +0800
 @@ -204,7 +204,16 @@
  
  	[--sp] = ASTAT;
@@ -1287,9 +1202,9 @@ diff -urN linux-2.6.x.old/include/asm-blackfin/entry.h linux-2.6.x/include/asm-b
  	[--sp] = r0;  /*orig_pc*/
  	/* Clear all L registers.  */
  	r0 = 0 (x);
-diff -urN linux-2.6.x.old/include/asm-blackfin/kgdb.h linux-2.6.x/include/asm-blackfin/kgdb.h
---- linux-2.6.x.old/include/asm-blackfin/kgdb.h	1970-01-01 08:00:00.000000000 +0800
-+++ linux-2.6.x/include/asm-blackfin/kgdb.h	2005-12-14 11:52:45.672325312 +0800
+diff -urN linux-2.6.x/include/asm-blackfin/kgdb.h linux-2.6.x-kgdb/include/asm-blackfin/kgdb.h
+--- linux-2.6.x/include/asm-blackfin/kgdb.h	1970-01-01 08:00:00.000000000 +0800
++++ linux-2.6.x-kgdb/include/asm-blackfin/kgdb.h	2005-12-27 14:07:31.741935720 +0800
 @@ -0,0 +1,150 @@
 +#ifndef _ASM_KGDB_H_
 +#define _ASM_KGDB_H_
@@ -1441,9 +1356,9 @@ diff -urN linux-2.6.x.old/include/asm-blackfin/kgdb.h linux-2.6.x/include/asm-bl
 +extern void kgdb_print(const char *fmt, ...);
 +
 +#endif				/* _ASM_KGDB_H_ */
-diff -urN linux-2.6.x.old/include/asm-blackfin/processor.h linux-2.6.x/include/asm-blackfin/processor.h
---- linux-2.6.x.old/include/asm-blackfin/processor.h	2005-12-13 12:02:28.000000000 +0800
-+++ linux-2.6.x/include/asm-blackfin/processor.h	2005-12-14 11:52:45.684323488 +0800
+diff -urN linux-2.6.x/include/asm-blackfin/processor.h linux-2.6.x-kgdb/include/asm-blackfin/processor.h
+--- linux-2.6.x/include/asm-blackfin/processor.h	2005-12-27 14:10:52.224457744 +0800
++++ linux-2.6.x-kgdb/include/asm-blackfin/processor.h	2005-12-27 14:07:31.741935720 +0800
 @@ -36,6 +36,7 @@
  	unsigned short seqstat;	/* saved status register */
  	unsigned long esp0;	/* points to SR of stack frame pt_regs */
@@ -1452,9 +1367,9 @@ diff -urN linux-2.6.x.old/include/asm-blackfin/processor.h linux-2.6.x/include/a
  };
  
  #define INIT_THREAD  {						\
-diff -urN linux-2.6.x.old/include/linux/debugger.h linux-2.6.x/include/linux/debugger.h
---- linux-2.6.x.old/include/linux/debugger.h	1970-01-01 08:00:00.000000000 +0800
-+++ linux-2.6.x/include/linux/debugger.h	2005-12-14 11:52:45.684323488 +0800
+diff -urN linux-2.6.x/include/linux/debugger.h linux-2.6.x-kgdb/include/linux/debugger.h
+--- linux-2.6.x/include/linux/debugger.h	1970-01-01 08:00:00.000000000 +0800
++++ linux-2.6.x-kgdb/include/linux/debugger.h	2005-12-27 14:07:31.741935720 +0800
 @@ -0,0 +1,59 @@
 +#ifndef _DEBUGGER_H_
 +#define _DEBUGGER_H_
@@ -1515,9 +1430,9 @@ diff -urN linux-2.6.x.old/include/linux/debugger.h linux-2.6.x/include/linux/deb
 +#endif
 +
 +#endif				/* _DEBUGGER_H_ */
-diff -urN linux-2.6.x.old/include/linux/kgdb.h linux-2.6.x/include/linux/kgdb.h
---- linux-2.6.x.old/include/linux/kgdb.h	1970-01-01 08:00:00.000000000 +0800
-+++ linux-2.6.x/include/linux/kgdb.h	2005-12-14 11:52:45.685323336 +0800
+diff -urN linux-2.6.x/include/linux/kgdb.h linux-2.6.x-kgdb/include/linux/kgdb.h
+--- linux-2.6.x/include/linux/kgdb.h	1970-01-01 08:00:00.000000000 +0800
++++ linux-2.6.x-kgdb/include/linux/kgdb.h	2005-12-27 14:07:31.742935568 +0800
 @@ -0,0 +1,180 @@
 +#ifndef _KGDB_H_
 +#define _KGDB_H_
@@ -1699,9 +1614,9 @@ diff -urN linux-2.6.x.old/include/linux/kgdb.h linux-2.6.x/include/linux/kgdb.h
 +#define kgdb_process_breakpoint()      do {} while(0)
 +#endif /* KGDB && !__ASSEMBLY__ */
 +#endif				/* _KGDB_H_ */
-diff -urN linux-2.6.x.old/kernel/Kconfig.kgdb linux-2.6.x/kernel/Kconfig.kgdb
---- linux-2.6.x.old/kernel/Kconfig.kgdb	1970-01-01 08:00:00.000000000 +0800
-+++ linux-2.6.x/kernel/Kconfig.kgdb	2005-12-14 11:53:00.633050936 +0800
+diff -urN linux-2.6.x/kernel/Kconfig.kgdb linux-2.6.x-kgdb/kernel/Kconfig.kgdb
+--- linux-2.6.x/kernel/Kconfig.kgdb	1970-01-01 08:00:00.000000000 +0800
++++ linux-2.6.x-kgdb/kernel/Kconfig.kgdb	2005-12-27 14:07:31.742935568 +0800
 @@ -0,0 +1,59 @@
 +config KGDB
 +	bool "KGDB: kernel debugging with remote gdb"
@@ -1762,9 +1677,9 @@ diff -urN linux-2.6.x.old/kernel/Kconfig.kgdb linux-2.6.x/kernel/Kconfig.kgdb
 +	tristate "KGDB: test"
 +	depends on KGDB
 +	help
-diff -urN linux-2.6.x.old/kernel/Makefile linux-2.6.x/kernel/Makefile
---- linux-2.6.x.old/kernel/Makefile	2005-12-13 12:02:38.000000000 +0800
-+++ linux-2.6.x/kernel/Makefile	2005-12-14 11:52:45.686323184 +0800
+diff -urN linux-2.6.x/kernel/Makefile linux-2.6.x-kgdb/kernel/Makefile
+--- linux-2.6.x/kernel/Makefile	2005-12-27 14:10:55.287992016 +0800
++++ linux-2.6.x-kgdb/kernel/Makefile	2005-12-27 14:07:31.743935416 +0800
 @@ -28,6 +28,7 @@
  obj-$(CONFIG_SYSFS) += ksysfs.o
  obj-$(CONFIG_GENERIC_HARDIRQS) += irq/
@@ -1773,9 +1688,9 @@ diff -urN linux-2.6.x.old/kernel/Makefile linux-2.6.x/kernel/Makefile
  
  ifneq ($(CONFIG_SCHED_NO_NO_OMIT_FRAME_POINTER),y)
  # According to Alan Modra <alan@linuxcare.com.au>, the -fno-omit-frame-pointer is
-diff -urN linux-2.6.x.old/kernel/kgdb.c linux-2.6.x/kernel/kgdb.c
---- linux-2.6.x.old/kernel/kgdb.c	1970-01-01 08:00:00.000000000 +0800
-+++ linux-2.6.x/kernel/kgdb.c	2005-12-14 11:52:45.688322880 +0800
+diff -urN linux-2.6.x/kernel/kgdb.c linux-2.6.x-kgdb/kernel/kgdb.c
+--- linux-2.6.x/kernel/kgdb.c	1970-01-01 08:00:00.000000000 +0800
++++ linux-2.6.x-kgdb/kernel/kgdb.c	2005-12-27 14:07:31.744935264 +0800
 @@ -0,0 +1,1352 @@
 +/*
 + * This program is free software; you can redistribute it and/or modify it
@@ -3129,9 +3044,9 @@ diff -urN linux-2.6.x.old/kernel/kgdb.c linux-2.6.x/kernel/kgdb.c
 +#endif
 +__setup("gdb", opt_gdb);
 +__setup("kgdbwait", opt_kgdb_enter);
-diff -urN linux-2.6.x.old/kernel/sched.c linux-2.6.x/kernel/sched.c
---- linux-2.6.x.old/kernel/sched.c	2005-12-13 12:02:38.000000000 +0800
-+++ linux-2.6.x/kernel/sched.c	2005-12-14 11:52:45.690322576 +0800
+diff -urN linux-2.6.x/kernel/sched.c linux-2.6.x-kgdb/kernel/sched.c
+--- linux-2.6.x/kernel/sched.c	2005-12-27 14:10:56.732772376 +0800
++++ linux-2.6.x-kgdb/kernel/sched.c	2005-12-27 14:07:31.746934960 +0800
 @@ -43,6 +43,7 @@
  #include <linux/cpuset.h>
  #include <linux/percpu.h>
@@ -3150,9 +3065,9 @@ diff -urN linux-2.6.x.old/kernel/sched.c linux-2.6.x/kernel/sched.c
  	if ((in_atomic() || irqs_disabled()) &&
  	    system_state == SYSTEM_RUNNING && !oops_in_progress) {
  		if (time_before(jiffies, prev_jiffy + HZ) && prev_jiffy)
-diff -urN linux-2.6.x.old/net/core/netpoll.c linux-2.6.x/net/core/netpoll.c
---- linux-2.6.x.old/net/core/netpoll.c	2005-12-13 12:02:39.000000000 +0800
-+++ linux-2.6.x/net/core/netpoll.c	2005-12-14 11:52:45.696321664 +0800
+diff -urN linux-2.6.x/net/core/netpoll.c linux-2.6.x-kgdb/net/core/netpoll.c
+--- linux-2.6.x/net/core/netpoll.c	2005-12-27 14:10:56.908745624 +0800
++++ linux-2.6.x-kgdb/net/core/netpoll.c	2005-12-27 14:07:31.747934808 +0800
 @@ -304,6 +304,7 @@
  	if (!skb)
  		return;
