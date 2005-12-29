@@ -38,6 +38,17 @@
  * for the credentials.
  */
 
+#define sysconf __sysconf
+#define getegid __getegid
+#define geteuid __geteuid
+#define getgroups __getgroups
+#define gethostname __gethostname
+#define xdrmem_create __xdrmem_create
+#define xdr_authunix_parms __xdr_authunix_parms
+#define xdr_opaque_auth __xdr_opaque_auth
+#define gettimeofday __gettimeofday
+#define fputs __fputs
+
 #define __FORCE_GLIBC
 #include <features.h>
 
@@ -92,8 +103,8 @@ static bool_t marshal_new_auth (AUTH *) internal_function;
  * Create a unix style authenticator.
  * Returns an auth handle with the given stuff in it.
  */
-AUTH *
-authunix_create (char *machname, uid_t uid, gid_t gid, int len,
+AUTH attribute_hidden *
+__authunix_create (char *machname, uid_t uid, gid_t gid, int len,
 		 gid_t *aup_gids)
 {
   struct authunix_parms aup;
@@ -149,7 +160,7 @@ no_memory:
   au->au_origcred.oa_base = mem_alloc ((u_int) len);
   if (au->au_origcred.oa_base == NULL)
     goto no_memory;
-  memcpy(au->au_origcred.oa_base, mymem, (u_int) len);
+  __memcpy(au->au_origcred.oa_base, mymem, (u_int) len);
 
   /*
    * set auth handle to reflect new cred.
@@ -158,24 +169,28 @@ no_memory:
   marshal_new_auth (auth);
   return auth;
 }
+strong_alias(__authunix_create,authunix_create)
 
 /*
  * Returns an auth handle with parameters determined by doing lots of
  * syscalls.
  */
-AUTH *
-authunix_create_default (void)
+AUTH attribute_hidden *
+__authunix_create_default (void)
 {
   int len;
   char machname[MAX_MACHINE_NAME + 1];
   uid_t uid;
   gid_t gid;
   int max_nr_groups = sysconf (_SC_NGROUPS_MAX);
-  gid_t *gids;
-  AUTH *auth;
+  gid_t *gids = NULL;
+  AUTH *ret_auth;
 
-  if(gids=(gid_t *)malloc(sizeof(gid_t)*max_nr_groups) == NULL)
-	return NULL;
+  if (max_nr_groups) {
+    gids = (gid_t*)malloc(sizeof(*gids) * max_nr_groups);
+    if (gids == NULL)
+      abort ();
+  }
 
   if (gethostname (machname, MAX_MACHINE_NAME) == -1)
     abort ();
@@ -188,17 +203,19 @@ authunix_create_default (void)
   /* This braindamaged Sun code forces us here to truncate the
      list of groups to NGRPS members since the code in
      authuxprot.c transforms a fixed array.  Grrr.  */
-  auth = authunix_create (machname, uid, gid, MIN (NGRPS, len), gids);
-  free(gids);
-  return auth;
+  ret_auth = __authunix_create (machname, uid, gid, MIN (NGRPS, len), gids);
+  if (gids)
+    free (gids);
+  return ret_auth;
 }
+strong_alias(__authunix_create_default,authunix_create_default)
 
 /*
  * authunix operations
  */
 
 static void
-authunix_nextverf (AUTH *auth)
+authunix_nextverf (AUTH *auth attribute_unused)
 {
   /* no action necessary */
 }
@@ -321,7 +338,7 @@ marshal_new_auth (AUTH *auth)
   xdrmem_create (xdrs, au->au_marshed, MAX_AUTH_BYTES, XDR_ENCODE);
   if ((!xdr_opaque_auth (xdrs, &(auth->ah_cred))) ||
       (!xdr_opaque_auth (xdrs, &(auth->ah_verf))))
-    perror (_("auth_none.c - Fatal marshalling problem"));
+    __perror (_("auth_none.c - Fatal marshalling problem"));
   else
     au->au_mpos = XDR_GETPOS (xdrs);
 
