@@ -150,7 +150,7 @@ static void *snd_dma_hack_alloc_coherent(struct device *dev, size_t size,
 
 #endif /* arch */
 
-#if ! defined(__arm__)
+#if ! defined(__arm__) && ! defined(BFIN)
 #define NEED_RESERVE_PAGES
 #endif
 
