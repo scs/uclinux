@@ -678,8 +678,6 @@ bool 'lcd'			CONFIG_USER_LCD_LCD
 bool 'ledcon'			CONFIG_USER_LEDCON_LEDCON
 bool 'lilo'			CONFIG_USER_LILO_LILO
 bool 'lissa'			CONFIG_USER_LISSA_LISSA
-bool 'devtest'			CONFIG_USER_BLKFIN_APPS_DEVFBAPP_DEVTEST
-bool 'devout'			CONFIG_USER_BLKFIN_APPS_DEVVOUT_DEVOUT
 bool 'lpr'				CONFIG_USER_LPR
 bool 'mcf5272 cbi client'       CONFIG_USER_USBCBI_USBCBI
 bool 'mcf5272 iso client'       CONFIG_USER_USBISO_USBISO
@@ -1598,6 +1596,9 @@ bool    'Linphone, a SIP compatible VoIP phone'	CONFIG_USER_BLACKFIN_LINPHONE
 bool    'Sqlite, a light weight database' CONFIG_USER_SQLITE
 bool	'lmbench'			CONFIG_USER_LMBENCH
 bool	'strace'			CONFIG_USER_BLACKFIN_STRACE
+bool	'devtest'			CONFIG_USER_BLKFIN_APPS_DEVFBAPP_DEVTEST
+bool	'devout'			CONFIG_USER_BLKFIN_APPS_DEVVOUT_DEVOUT
+bool	'corebld'			CONFIG_USER_BF561_COREBLD
 comment 'Inetutils'
 bool	'rsh'				CONFIG_USER_INETUTILS_RSH
 bool	'rcp'				CONFIG_USER_INETUTILS_RCP
@@ -1609,8 +1610,6 @@ if [ "$CONFIG_USER_OPROFILE" = "y" ]; then
 	define_bool CONFIG_LIB_MPFR y
 	string 'binutils path'		CONFIG_USER_BINUTILS
 fi
-
-	
 bool	'NetAudio'			CONFIG_USER_NET_AUDIO
 comment 'FLAT binary format tools'
 bool    'flthdr'                        CONFIG_USER_FLTHDR
