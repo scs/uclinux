@@ -189,10 +189,10 @@ puts "*********************************\r"
 set timeout 10
 set case_num 0
 
-spawn rcp ./script.sh root@$targetip:/
-send -s "chmod +x /script.sh"
+spawn rcp ./msh_testcase root@$targetip:/
+send -s "chmod +x /msh_testcase"
 incr case_num
-send -s "sh /script.sh\r"
+send -s "sh /msh_testcase\r"
 expect {
 	"executed" {
 		puts "\rCase $case_num ...PASS\r"
