@@ -41,6 +41,7 @@ CC= $(CROSS)gcc
 AR= $(CROSS)ar
 LD= $(CROSS)ld
 NM= $(CROSS)nm
+RANLIB= $(CROSS)ranlib
 STRIPTOOL= $(CROSS)strip
 
 INSTALL= install

@@ -133,7 +133,7 @@ endif
 
 subdirs: $(patsubst %, _dir_%, $(DIRS))
 
-$(patsubst %, _dir_%, $(DIRS)) : dummy
+$(patsubst %, _dir_%, $(DIRS)) : pregen
 	$(MAKE) -C $(patsubst _dir_%, %, $@)
 
 tags:
@@ -321,6 +321,7 @@ defconfig: extra/config/conf
 clean:
 	- find . \( -name \*.o -o -name \*.a -o -name \*.so -o -name core -o -name .\#\* \) -exec $(RM) {} \;
 	@$(RM) -r tmp lib include/bits libc/tmp _install
+	$(RM) libc/obj.*
 	$(MAKE) -C test clean
 	$(MAKE) -C ldso clean
 	$(MAKE) -C libc/misc/internals clean
