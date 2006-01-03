@@ -291,7 +291,7 @@ extern int insmod_ng_main( int argc, char **argv);
 
 /* blackfin */
 #if defined(BFIN)
-#define MATCH_MACHINE(x) (x == EM_68K)
+#define MATCH_MACHINE(x) (x == EM_BLACKFIN)
 #define SHT_RELM	SHT_RELA
 #define Elf32_RelM	Elf32_Rela
 #define ELFCLASSM	ELFCLASS32
