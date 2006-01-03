@@ -21,7 +21,7 @@ static void put_region(char *dst, const char *src, size_t count)
 	int index = 0, ret = 0;
 	unsigned long seek = 0;
 
-	if (((unsigned long)dst >= 0xff600000) && 
+	if (((unsigned long)dst >= 0xff600000) &&
 	    ((unsigned long)dst <  0xff604000)) {
 		if ((unsigned long)dst + count < 0xff604000) {
 			index = 0;
@@ -45,7 +45,7 @@ static void put_region(char *dst, const char *src, size_t count)
 			index = 3;
 			seek = (unsigned long)dst & 0x7fff;
 		}
-	} 
+	}
 	if (ret = ioctl(f, 1, &index))
 		printf("ioctl return %d\n", ret);
 	if (seek)
@@ -57,22 +57,25 @@ static void put_region(char *dst, const char *src, size_t count)
 	printf("wrote %d bytes to 0x%08lx\n", count, (unsigned long)dst);
 }
 
+#define COMPILER_VDSP	0
+#define COMPILER_GCC	1
+
 int elf_load(const char* buf)
 {
 	Elf32_Ehdr *ehdr = (Elf32_Ehdr*)buf;
+	int compiler;
 
 	if (!IS_ELF(*ehdr)) {
 		printf("File is not an ELF file.\n");
 		return -1;
 	}
 
-	if (ehdr->e_type != 2) /* bfin-elf */ {
-		printf("File is not an bfin-elf file\n");
-		return -1;
-	}
-
-	if (ehdr->e_machine != 0x6a) /* blackfin */ {
-		printf("Machine type is not blackfin!\n");
+	if (ehdr->e_type == 8 && ehdr->e_machine == 0x22)
+		compiler = COMPILER_VDSP;
+	else if (ehdr->e_type == 2 && ehdr->e_machine == 0x6a)
+		compiler = COMPILER_GCC;
+	else {
+		printf("File is not a Blackfin ELF file\n");
 		return -1;
 	}
 
@@ -87,45 +90,10 @@ int elf_load(const char* buf)
 			unsigned long addr = shdr->sh_addr;
 			unsigned long size = shdr->sh_size;
 
-			if ((shdr->sh_flags & 0x0003) == 0x0003) {
-				printf("Write %d bytes to 0x%08lx\n", size, addr);
-				put_region((char*)addr, buf + shdr->sh_offset, size);
-			}
-		}
-	}
-	return 0;
-}
-
-int dxe_load(const char* buf)
-{
-	Elf32_Ehdr* ehdr = (Elf32_Ehdr*)buf;
-
-	if (!IS_ELF(*ehdr)) {
-		printf("File is not an ELF file.\n");
-		return -1;
-	}
-
-	if (ehdr->e_type != 8) /* blackfin .dxe */ {
-		printf("File is not a VisualDSP dxe (%d)\n", ehdr->e_type);
-		return -1;
-	}
-
-	if (ehdr->e_machine != 0x22) /* blackfin */ {
-		printf("Machine type is not blackfin!\n");
-		return -1;
-	}
-
-	{
-		unsigned int section_ptr = (unsigned int)buf + ehdr->e_shoff;
-		unsigned int section_cnt = ehdr->e_shnum;
-		unsigned int section_sz  = ehdr->e_shentsize;
-		int i;
-
-		for (i = 0; i < section_cnt; ++i) {
-			Elf32_Shdr *shdr = (Elf32_Shdr*)((char*)section_ptr + i*section_sz);
-			unsigned long addr = shdr->sh_addr;
-			unsigned long size = shdr->sh_size;
-			if ((shdr->sh_flags & 0x408000) == 0x8000) {
+			if ((compiler == COMPILER_VDSP
+			     && (shdr->sh_flags & 0x408000) == 0x8000)
+			    || (compiler == COMPILER_GCC
+				&& (shdr->sh_flags & 0x0003) == 0x0003)) {
 				printf("Write %d bytes to 0x%08lx\n", size, addr);
 				put_region((char*)addr, buf + shdr->sh_offset, size);
 			}
@@ -166,9 +134,7 @@ int main(int argc, char* argv[])
 
 	fclose(f);
 
-	if (!dxe_load(buf))
-		StartCoreB();
-	else if (!elf_load(buf))
+	if (!elf_load(buf))
 		StartCoreB();
 
 	free(buf);
