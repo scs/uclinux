@@ -27,7 +27,7 @@ case "$1" in
 		;;	
 	--start-daemon)
 		cd /usr/bin/
-		./oprofiled --events=TOTAL_BRANCH:0x09:1:500:1:1:1, --vmlinux=${kernel_image} --kernel-range=0x1000,0x10000 &
+		./oprofiled --events=TOTAL_BRANCH:0x09:0:500:1:1:1, --vmlinux=${kernel_image} --kernel-range=0x1000,0x10000 &
 		;;
 	--start)
 		echo 1 > /dev/oprofile/enable
