@@ -53,11 +53,6 @@
 #include <asm/dma.h>
 #include <asm/bfin_spi_channel.h>
 
-/* definitions */
-
-//#define MODULE
-
-#undef	DEBUG
 //#define DEBUG
 
 #ifdef DEBUG
@@ -104,7 +99,6 @@ typedef struct Spi_Info_t
 	wait_queue_head_t* rx_avail;
 }spi_info_t;
 
-
 /* Globals */
 /* We must declare queue structure by the following macro. 
  * firstly declare 'wait_queue_head_t' and then 'init_waitqueue_head' 
@@ -113,7 +107,6 @@ static DECLARE_WAIT_QUEUE_HEAD(spirxq0);
 
 static spi_info_t spiinfo;
 static u_long spi_get_sclk(void);
-
 
 static u_long spi_get_sclk(void)
 {
@@ -132,7 +125,6 @@ static u_long spi_get_sclk(void)
 	return (sclk);
 }
 
-
 static irqreturn_t spiadc_irq(int irq, void *dev_id, struct pt_regs *regs)
 {
 	unsigned short i;
@@ -142,11 +134,11 @@ static irqreturn_t spiadc_irq(int irq, void *dev_id, struct pt_regs *regs)
 	
         /* Acknowledge DMA Interrupt*/
 	spi_clear_irqstat(&(pdev->spi_dev));
-	
+
 	if (pdev->access_mode == SPI_WRITE) goto irq_done;
-	
+
 	pdev->triggerpos=0;
-	
+
 	if(pdev->mode) {
 		/* Search for trigger condition */
 		if(pdev->sense) {
@@ -155,14 +147,14 @@ static irqreturn_t spiadc_irq(int irq, void *dev_id, struct pt_regs *regs)
 				/* Falling edge */ 
 				pdev->triggerpos=0;
 				for(i=1+SKFS;(i < pdev->actcount)&& !pdev->triggerpos;i++) {
-					
+
 					if ((pdev->buffer[i-1] > pdev->level)&&(pdev->buffer[i+1] < pdev->level)) {
 						pdev->triggerpos=i;
 						i=pdev->actcount; 
 					};
 				}
 				if(!pdev->triggerpos && pdev->timeout--) goto restartDMA;	
-				
+
 			} else {
 				/* Rising edge */
 				pdev->triggerpos=0;
@@ -214,9 +206,7 @@ static irqreturn_t spiadc_irq(int irq, void *dev_id, struct pt_regs *regs)
 	
 	DPRINTK("spiadc_irq: wake_up_interruptible pdev->done=%d\n",pdev->done);
 	/* wake up read/write block. */
-	
 	wake_up_interruptible(pdev->rx_avail);
-        
 	DPRINTK("spiadc_irq: return \n");
 	return IRQ_HANDLED;
 	
@@ -538,7 +528,6 @@ static ssize_t spi_read (struct file *filp, char *buf, size_t count, loff_t *pos
 	blackfin_dcache_invalidate_range((unsigned long)pdev->buffer,((unsigned long) pdev->buffer)+(count+SKFS*2)*2); 
 
 	spi_dma_read(&(pdev->spi_dev), pdev->buffer, (count+SKFS));
-
 	/* Wait for data available */
 	if(1)
 	{
@@ -569,7 +558,7 @@ static ssize_t spi_read (struct file *filp, char *buf, size_t count, loff_t *pos
 		copy_to_user(buf, pdev->buffer + SKFS, count);
 	else 
 		copy_to_user(buf, pdev->buffer + pdev->triggerpos, count);
-
+	
 	kfree(pdev->buffer);
 	
 	DPRINTK(" timeout = %d \n",pdev->timeout);
@@ -655,9 +644,11 @@ static int spi_open (struct inode *inode, struct file *filp)
     spiinfo.spi_dev.out_opendrain = CFG_SPI_OUTENABLE;
     spiinfo.spi_dev.phase = CFG_SPI_PHASESTART;
     spiinfo.spi_dev.flag = 0xff00;
+    spiinfo.spi_dev.ti_mod = BIT_CTL_TIMOD_DMA_RX;
     spiinfo.spi_dev.dma = 1;
     spiinfo.spi_dev.irq_handler = spiadc_irq;
    
+    spiinfo.spi_dev.priv_data = &spiinfo;
     filp->private_data = &spiinfo;
     
     /* request spi channel and set spi control regs */
@@ -711,7 +702,7 @@ int __init spiadc_init(void)
         return result;
     }
 
-    printk("SPI: ADSP SPI-ADC Driver INIT IRQ:%d \n",SPI0_IRQ_NUM);
+    DPRINTK("SPI: ADSP SPI-ADC Driver INIT IRQ:%d \n",SPI0_IRQ_NUM);
     return 0;
 }   
 //#ifndef MODULE
