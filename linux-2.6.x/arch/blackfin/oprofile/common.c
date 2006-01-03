@@ -55,7 +55,7 @@ static void op_bfin_shutdown(void)
 static int op_bfin_start(void)
 {
 	int ret = -EBUSY;
- 
+	printk("KSDBG:in %s\n",__FUNCTION__); 
 	down(&pfmon_sem);
 	if (!pfmon_enabled) {
 		ret = model->start(ctr);
@@ -102,16 +102,6 @@ static int op_bfin_create_files(struct super_block *sb, struct dentry *root)
 	
 	return 0;
 }
-
-static struct oprofile_operations oprof_bfin_ops = {
-	.create_files= op_bfin_create_files,
-	.setup= op_bfin_setup,
-	.shutdown= op_bfin_shutdown,
-	.start= op_bfin_start,
-	.stop= op_bfin_stop,
-	.cpu_type= NULL/* To be filled in below. */
-};
-
 int __init oprofile_arch_init(struct oprofile_operations *ops)
 {
 	unsigned int dspid;
@@ -126,16 +116,21 @@ int __init oprofile_arch_init(struct oprofile_operations *ops)
 		case BFIN_533_ID:
 		     model = &op_model_bfin533;
 		     model->num_counters = 2;
-		     oprof_bfin_ops.cpu_type = model->name;
 		     break;
 		default:
 		     return -ENODEV;
 	}	
 
-	ops = &oprof_bfin_ops;
+	ops->cpu_type = model->name;
+	ops->create_files = op_bfin_create_files;
+	ops->setup = op_bfin_setup;
+	ops->shutdown = op_bfin_shutdown;
+	ops->start = op_bfin_start;
+	ops->stop = op_bfin_stop;
+	
 
 	printk(KERN_INFO "oprofile: using %s performance monitoring.\n",
-        oprof_bfin_ops.cpu_type);
+        ops->cpu_type);
 
 	return 0;
 }
