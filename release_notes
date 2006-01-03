@@ -185,7 +185,7 @@ No 	Issue Title
 1012	After running dpmc to_deepsleep testcase, the kernel would panic after a while
 1014	kernel built with audio configuration sometimes would fail to boot up and hangs
 
-There are also some issues in the LTP test cases. They are recorded as bug 532, 561, 567, 732, 735, 742, 744, 745, 890 and 1002.
+There are also some issues in the LTP test cases. They are recorded as bug 532, 561, 567, 732, 735, 742, 744, 745, 890 and 1010.
 Build Procedure
 
 1. Install Toolchain Release 2005R4
