@@ -25,15 +25,23 @@
 #include <linux/sched.h>
 #include <asm/blackfin.h>
 #include <asm/irq.h>
-#include <linux/timer.h>
+#include <asm/dma.h>
+#include <linux/dma-mapping.h>
 
-#define BFIN_FB_PHYS rgb_buffer
-#define BFIN_FB_PHYS_LEN 756000
-#define BFIN_FB_YCRCB_LEN 1512000
+#include "bfin_ad7171fb.h"
+#define RGB_WIDTH	720
+#define RGB_HEIGHT	480
+#define YCBCR_WIDTH	1716
+#define YCBCR_HEIGHT	525
+#define LEFT_MARGIN	276
+#define UPPER_MARGIN	22
+#define BFIN_FB_PHYS_LEN (RGB_WIDTH*RGB_HEIGHT*sizeof(struct rgb_t))
+#define BFIN_FB_YCRCB_LEN (YCBCR_WIDTH*YCBCR_HEIGHT)
 #define CONFIG_VIDEO_BLACKFIN_PPI_IRQ IRQ_PPI
 #define CONFIG_VIDEO_BLACKFIN_PPI_IRQ_ERR IRQ_DMA_ERROR
-char *rgb_buffer = 0 ;
-char *ycrcb_buffer = 0 ;
+struct rgb_t *rgb_buffer = 0 ;
+struct ycrcb_t *ycrcb_buffer = 0 ;
+struct timer_list bfin_framebuffer_timer;
 int id1 ;
 
 static int bfin_ad7171_fb_open(struct fb_info *info, int user);
@@ -46,13 +54,17 @@ static int bfin_ad7171_fb_pan_display(struct fb_var_screeninfo *var,
 static void bfin_ad7171_fb_fillrect(struct fb_info *info, const struct fb_fillrect *rect);
 static void bfin_ad7171_fb_imageblit(struct fb_info *info, const struct fb_image *image);
 static int bfin_ad7171_fb_blank(int blank, struct fb_info *info);
-static int bfin_mmap(struct fb_info *info, struct file *file, struct vm_area_struct * vma);
+static int bfin_fb_mmap(struct fb_info *info, struct file *file, struct vm_area_struct * vma);
 
-extern void _NtscVideoOutFrameBuffInit(void *, void *);
-extern void _NtscVideoOutBuffUpdate(void *, void *);
-extern void _Flash_Setup_ADV_Reset(void);
-extern void _config_dma(void *buffer);
-extern void _config_ppi(void);
+static void bfin_config_ppi(void);
+static void bfin_config_dma(void *ycrcb_buffer);
+static void bfin_enable_ppi(void);
+static void bfin_framebuffer_init(void *ycrcb_buffer);
+static void bfin_framebuffer_logo(void *ycrcb_buffer);
+static void bfin_framebuffer_update(struct ycrcb_t *ycrcb_buffer, struct rgb_t *rgb_buffer);
+static void bfin_framebuffer_timer_setup(void);
+static void bfin_framebuffer_timerfn(unsigned long data);
+
 
 /* --------------------------------------------------------------------- */
 
@@ -74,18 +86,18 @@ static struct bfin_ad7171_fb_par {
 /* --------------------------------------------------------------------- */
 
 static struct fb_var_screeninfo bfin_ad7171_fb_defined = {
-	.xres		= 360,
-	.yres		= 524,
-	.xres_virtual	= 360,
-	.yres_virtual	= 524,
-	.bits_per_pixel	= 32,	
+	.xres		= RGB_WIDTH,
+	.yres		= RGB_HEIGHT,
+	.xres_virtual	= RGB_WIDTH,
+	.yres_virtual	= RGB_HEIGHT,
+	.bits_per_pixel	= 24,	
 	.activate	= FB_ACTIVATE_TEST,
 	.height		= -1,
 	.width		= -1,
-	.left_margin	= 16,
-	.right_margin	= 22,
-	.upper_margin	= 25,
-	.lower_margin	= 64,
+	.left_margin	= LEFT_MARGIN,
+	.right_margin	= 0,
+	.upper_margin	= UPPER_MARGIN,
+	.lower_margin	= 0,
 	.vmode		= FB_VMODE_INTERLACED,
 };
 
@@ -96,7 +108,7 @@ static struct fb_fix_screeninfo bfin_ad7171_fb_fix __initdata = {
 	.visual		= FB_VISUAL_DIRECTCOLOR,
 	.xpanstep	= 0,
 	.ypanstep	= 0,
-	.line_length	= 1440,
+	.line_length	= RGB_WIDTH*3,
 	.accel		= FB_ACCEL_NONE
 };
 
@@ -111,72 +123,241 @@ static struct fb_ops bfin_ad7171_fb_ops = {
 	.fb_fillrect	= bfin_ad7171_fb_fillrect,
 	.fb_imageblit	= bfin_ad7171_fb_imageblit,
 	.fb_cursor      = soft_cursor,
-	.fb_mmap	= bfin_mmap,
+	.fb_mmap	= bfin_fb_mmap,
 };
 
-struct timer_list buffer_swapping_timer ;
-
-irqreturn_t __attribute((section(".text.l1")))
-ppi_handler(int irq,
-            void *dev_id,
-            struct pt_regs *regs)
+static void bfin_framebuffer_timer_setup(void)
 {
-  *pDMA0_IRQ_STATUS |= 1;
-  return IRQ_HANDLED;
+	init_timer(&bfin_framebuffer_timer) ;
+        bfin_framebuffer_timer.function = bfin_framebuffer_timerfn ;
+        bfin_framebuffer_timer.expires = jiffies + 10 ;
+	add_timer(&bfin_framebuffer_timer);
 }
 
-void 
-rgbsetup(int *rgb)			//This function sets up colour patter in ycrcb buffer
-{ 
-	int i=0 , j, black =0, yellow = 0x00ff00ff, red = 0x000000ff, blue = 0xff00ff00, green = 0x00ff0000, offset = 37800;
+static void bfin_framebuffer_timerfn(unsigned long data)
+{
+	bfin_framebuffer_update(ycrcb_buffer, rgb_buffer);
+	bfin_framebuffer_timer_setup();
+}
+	
 
-	for(i=0; i<188640; i++)
-		rgb[i] = 0xffffffff;
-	for(j=1; j<=105;){
-		for(i=0; i<360; i++)
-		{
-			rgb[offset * 0 + i + j * 360] = yellow;		// j = line no., i = pixel no. in that particular line
-			rgb[offset * 1 + i + j * 360] = black;			
-			rgb[offset * 2 + i + j * 360] = red;
-			rgb[offset * 3 + i + j * 360] = blue;
-			rgb[offset * 4 + i + j * 360] = green;
-		}
-		j += 1;
- 	}                 
-}                                                                               
-
-static int 
-bfin_mmap(struct fb_info *info, struct file *file, struct vm_area_struct * vma)
+static int bfin_fb_mmap(struct fb_info *info, struct file *file, struct vm_area_struct * vma)
 {
   /* we really dont need any map ... not sure how the smem_start will
      end up in the kernel
   */
-	return((int)rgb_buffer) ;
+	vma->vm_start  = (int)rgb_buffer;
+	return (int)rgb_buffer;
 }
 
-/* copied from vga16, do nothing setup! */
-int bfin_ad7171_fb_setup(char *options)
+static int bfin_blank_line( const int line )
 {
-	char *this_opt;
-	
-	if (!options || !*options)
-		return 0;
-	
-	while ((this_opt = strsep(&options, ",")) != NULL) {
-		if (!*this_opt) continue;
-	}
-	return 0;
+        /* This array contains a single bit for each line in
+           an NTSC frame. */
+        if (    ( line <= 18 ) ||
+                        ( line >=264 && line <= 281 ) ||
+                        ( line == 528 ) )
+                return true;
+                                                                                                                                                             
+        return false;
 }
 
-static void timerfunction(unsigned long ptr);
-static void timer_setup(void);
+static void pixel_rgb_to_ycrcb(struct ycrcb_t *ycrcb_ptr, struct rgb_t *rgb_ptr)
+{
+	int r,g,b;
+	int y,cb,cr;
+#if 0
+	r = rgb_ptr->r * 100 / 255;
+        g = rgb_ptr->g * 100 / 255;
+        b = rgb_ptr->b * 100 / 255;
+        /* Calculate YCrCb values (0-255) from RGB beetween 0-100 */
+        ycrcb_ptr->y1 = ycrcb_ptr->y2     = 209 * (r + g + b) / 300 + 16  ;
+        ycrcb_ptr->Cb                      = b - (r/4)   - (g*3/4)   + 128 ;
+        ycrcb_ptr->Cr                      = r - (g*3/4) - (b/4)     + 128 ;
+#endif
+#if 1
+	r = rgb_ptr->r;
+	g = rgb_ptr->g;
+	b = rgb_ptr->b;
+	ycrcb_ptr->y1 =ycrcb_ptr->y2  = (306*r + 592*g + 117*b) >> 10;
+	ycrcb_ptr->Cb = (512*r - 429*g - 83*b + 128*1024) >> 10;
+	ycrcb_ptr->Cr = (-173*r - 339*g + 512*b +128*1024) >> 10;
+#endif
+}
+
+static void bfin_framebuffer_init(void *ycrcb_buffer)
+{
+        const int nNumNTSCVoutFrames = 1;  // changed from 2 to 1 (dkl)
+        const int nNumNTSCLines = 525;
+        char *dest = (void *)ycrcb_buffer;
+                                                                                                                                                             
+        int nFrameNum, nLineNum;
+                                                                                                                                                             
+        for ( nFrameNum = 0; nFrameNum < nNumNTSCVoutFrames; ++nFrameNum )
+        {
+                for ( nLineNum = 1; nLineNum <= nNumNTSCLines; ++nLineNum )
+                {
+                        int offset = 0;
+			unsigned int code;
+                        int i;
+                                                                                                                                                             
+                        if ( bfin_blank_line ( nLineNum ) )
+                                offset ++;
+                                                                                                                                                             
+                        if ( nLineNum > 266 || nLineNum < 3 )
+                                offset += 2;
+                                                                                                                                                             
+                        /* Output EAV code */
+                        code = system_code_map[ offset ].eav;
+                        WriteDestByte ( (char) (code >> 24) & 0xff );
+                        WriteDestByte ( (char) (code >> 16) & 0xff );
+                        WriteDestByte ( (char) (code >> 8) & 0xff );
+                        WriteDestByte ( (char) (code) & 0xff );
+                                                                                                                                                             
+                        /* Output horizontal blanking */
+                        for ( i = 0; i < 67*2; ++i )
+                        {
+                                WriteDestByte ( 0x80 );
+                                WriteDestByte ( 0x10 );
+                        }
+                                                                                                                                                             
+                        /* Output SAV */
+                        code = system_code_map[ offset ].sav;
+                        WriteDestByte ( (char) (code >> 24) & 0xff );
+                        WriteDestByte ( (char) (code >> 16) & 0xff );
+                        WriteDestByte ( (char) (code >> 8) & 0xff );
+                        WriteDestByte ( (char) (code) & 0xff );
+                                                                                                                                                             
+                        /* Output empty horizontal data */
+                        for ( i = 0; i < 360*2; ++i )
+                        {
+                                WriteDestByte ( 0x80 );
+                                WriteDestByte ( 0x10 );
+                        }
+                }
+        }
+}
+
+static void bfin_framebuffer_logo(void *ycrcb_buffer) 
+{
+        int *OddPtr32;
+        int OddLine;
+        int *EvenPtr32;
+        int EvenLine;
+        int i;
+
+        /* fill odd and even frames */
+        for (OddLine = 22, EvenLine = 285; OddLine < 263; OddLine++, EvenLine++) {
+                OddPtr32 = (int *)((ycrcb_buffer + (OddLine * 1716)) + 276);
+                EvenPtr32 = (int *)((ycrcb_buffer + (EvenLine * 1716)) + 276);
+                for (i = 0; i < 360; i++, OddPtr32++, EvenPtr32++) {
+                        *OddPtr32 = BLUE;
+                        *EvenPtr32 = BLUE;
+                        }
+        }
+}
+
+static void bfin_framebuffer_update(struct ycrcb_t *ycrcb_buffer, struct rgb_t *rgb_buffer)
+{
+	struct ycrcb_t ycrcb_pixel1,ycrcb_pixel2; 
+	unsigned int ycrcb_data;
+	struct rgb_t *rgb_ptr  = rgb_buffer;
+	unsigned char *ycrcb_base = (unsigned char *)ycrcb_buffer;
+	int *OddPtr32;
+        int OddLine;
+        int *EvenPtr32;
+        int EvenLine;
+	int i;
+
+        for(OddLine = 22, EvenLine = 285; OddLine < 22+RGB_HEIGHT/2; OddLine ++, EvenLine ++){
+                OddPtr32 = (int *)((ycrcb_base + ((OddLine) * 1716)) + 276);
+                EvenPtr32 = (int *)((ycrcb_base + ((EvenLine) * 1716)) + 276);
+                for(i=0;i<RGB_WIDTH/2;i++){
+			pixel_rgb_to_ycrcb(&ycrcb_pixel1, rgb_ptr++);
+			memcpy((void *)&ycrcb_data, ((void *)&ycrcb_pixel1), sizeof(short));
+			pixel_rgb_to_ycrcb(&ycrcb_pixel2, rgb_ptr++);
+			memcpy((void *)&ycrcb_data +2, (void *)&ycrcb_pixel2 +2, sizeof(short));
+                        *OddPtr32++ = ycrcb_data;
+		}
+                for(i=0;i<RGB_WIDTH/2;i++){
+			pixel_rgb_to_ycrcb(&ycrcb_pixel1, rgb_ptr++);
+                        memcpy((void *)&ycrcb_data, ((void *)&ycrcb_pixel1), sizeof(short));
+                        pixel_rgb_to_ycrcb(&ycrcb_pixel2, rgb_ptr++);
+                        memcpy((void *)&ycrcb_data +2, (void *)&ycrcb_pixel2 +2, sizeof(short));
+                        *EvenPtr32++ = ycrcb_data;
+		}
+        }
+}
+
+static void bfin_rgb_buffer_init(struct rgb_t *rgb_buffer, int width, int height)
+{
+	struct rgb_t *rgb_ptr = rgb_buffer;
+	int i;
+	/* the first block */
+	for(i=0;i<width*height/4;i++){
+		rgb_ptr->r = 0xff;
+                rgb_ptr->g = 0x00;
+                rgb_ptr->b = 0x00;
+                rgb_ptr++;
+	}
+	/* the second block */
+        for(;i<width*height/2;i++){
+                rgb_ptr->r = 0x00;
+                rgb_ptr->g = 0xff;
+                rgb_ptr->b = 0x00;
+                rgb_ptr++;
+        }
+	
+	/* the third block */
+        for(;i<width*height*3/4;i++){
+                rgb_ptr->r = 0x00;
+                rgb_ptr->g = 0x00;
+                rgb_ptr->b = 0xff;
+                rgb_ptr++;
+        }
+	
+	/* the fourth block */
+	for(;i<width*height;i++){
+		rgb_ptr->r = 0xff;
+		rgb_ptr->g = 0x00;
+		rgb_ptr->b = 0xff;
+		rgb_ptr++;
+	}
+}
+	 
+	
+static void bfin_config_dma(void *ycrcb_buffer)
+{	
+        *pDMA0_START_ADDR       = ycrcb_buffer;
+        *pDMA0_X_COUNT          = 0x035A;
+        *pDMA0_X_MODIFY         = 0x0002;
+        *pDMA0_Y_COUNT          = 0x020D;
+        *pDMA0_Y_MODIFY         = 0x0002;
+        *pDMA0_CONFIG           = 0x1015;
+}
+
+static void bfin_config_ppi(void)
+{
+        *pPPI_CONTROL = 0x0082;
+        *pPPI_FRAME   = 0x020D;
+}
+
+static void bfin_enable_ppi(void)
+{
+	*pPPI_CONTROL		|= PORT_EN;
+}
+
 int __init bfin_ad7171_fb_init(void)
 {
 	int ret = 0;
+/*	dma_addr_t dma_handle;		*/
 
-	printk("bfin_ad7171_fb: initializing:\n");
-	ycrcb_buffer = (char *)kmalloc(BFIN_FB_YCRCB_LEN, GFP_KERNEL);
-	rgb_buffer = (char *)kmalloc(BFIN_FB_PHYS_LEN , GFP_KERNEL);
+	printk(KERN_NOTICE "bfin_ad7171_fb: initializing:\n");
+/*	ycrcb_buffer = (struct yuyv_t *)dma_alloc_coherent(NULL,BFIN_FB_YCRCB_LEN, &dma_handle, GFP_DMA);*/
+	ycrcb_buffer = (struct ycrcb_t *)kmalloc(BFIN_FB_YCRCB_LEN, GFP_KERNEL);
+	memset(ycrcb_buffer, 0, BFIN_FB_YCRCB_LEN);
+	rgb_buffer = (struct rgb_t *)kmalloc(BFIN_FB_PHYS_LEN , GFP_KERNEL);
+	memset(rgb_buffer, 0, BFIN_FB_PHYS_LEN);
 
 	bfin_ad7171_fb.screen_base = (void *)rgb_buffer;
 	bfin_ad7171_fb_fix.smem_start = (int)rgb_buffer;
@@ -191,7 +372,7 @@ int __init bfin_ad7171_fb_init(void)
 	bfin_ad7171_fb.fbops = &bfin_ad7171_fb_ops;
 	bfin_ad7171_fb.var = bfin_ad7171_fb_defined;
 	/* our physical memory is dynamically allocated */
-	bfin_ad7171_fb_fix.smem_start	= (int)BFIN_FB_PHYS;
+	bfin_ad7171_fb_fix.smem_start	= (int)rgb_buffer;
 	bfin_ad7171_fb.fix = bfin_ad7171_fb_fix;
 	bfin_ad7171_fb.par = &bfin_par;
 	bfin_ad7171_fb.flags = FBINFO_DEFAULT;
@@ -202,72 +383,32 @@ int __init bfin_ad7171_fb_init(void)
 	}
 	printk(KERN_INFO "fb%d: %s frame buffer device\n",
 	       bfin_ad7171_fb.node, bfin_ad7171_fb.fix.id);
+	printk(KERN_INFO "fb memory address : 0x%p\n",rgb_buffer);
 	return ret;
-}
-static void __attribute((section(".text.l1")))
-timerfunction(unsigned long ptr)
-{
-	_NtscVideoOutBuffUpdate(ycrcb_buffer, rgb_buffer);
-	timer_setup();
-        add_timer(&buffer_swapping_timer) ;
-}
-
-void
-timer_setup(void)
-{
-        /*** Initialize the timer structure***/
-        init_timer(&buffer_swapping_timer) ;
-        buffer_swapping_timer.function = timerfunction ;
-        buffer_swapping_timer.expires = jiffies + HZ*1 ;
-        /***Initialisation ends***/
 }
 
 static int bfin_ad7171_fb_open(struct fb_info *info, int user)
 {
-        if( request_irq(CONFIG_VIDEO_BLACKFIN_PPI_IRQ, &ppi_handler, SA_SHIRQ, "PPI Data", &id1 ) ){
-                printk( KERN_ERR "Unable to allocate ppi IRQ %d\n", CONFIG_VIDEO_BLACKFIN_PPI_IRQ);
-                return -ENODEV;
-        }
 	bfin_ad7171_fb.screen_base = (void *)rgb_buffer;
 	bfin_ad7171_fb_fix.smem_start = (int)rgb_buffer;
 	if (!bfin_ad7171_fb.screen_base) {
 		printk("bfin_ad7171_fb: unable to map device\n");
 		return -ENOMEM;
 	}
-	_Flash_Setup_ADV_Reset() ;
-	_config_ppi() ;
-	_config_dma(ycrcb_buffer) ;
-	rgbsetup((int *)rgb_buffer);
-	printk("ycrcb_buffer = %p\n",ycrcb_buffer);
-	printk("rgb_buffer = %p\n",rgb_buffer) ;
 
-	_NtscVideoOutFrameBuffInit(ycrcb_buffer, rgb_buffer);
-	timer_setup() ;
-	enable_irq(CONFIG_VIDEO_BLACKFIN_PPI_IRQ);
-        // enable the dma
-        *pDMA0_CONFIG |= 1;
-        *pPPI_CONTROL |= 1;
-printk("PPI transfer initialized\n");
-	add_timer(&buffer_swapping_timer) ;
+        bfin_framebuffer_init(ycrcb_buffer);
+        bfin_framebuffer_logo(ycrcb_buffer);
+	bfin_rgb_buffer_init(rgb_buffer,RGB_WIDTH,RGB_HEIGHT);
+	bfin_framebuffer_timer_setup();
+ 	bfin_config_ppi();
+	bfin_config_dma(ycrcb_buffer);
+	bfin_enable_ppi();
 	return 0;
 }
 
 static int bfin_ad7171_fb_release(struct fb_info *info, int user)
 {
-	//disable PPI 
-	*pPPI_CONTROL &= 0xfffe;
-	//Reset PPI
-	*pPPI_CONTROL &= 0x0000;
-	//Disable DMA
-	*pDMA0_CONFIG &= 0xfffe;
-	//Reset DMA0
-	*pDMA0_CONFIG &= 0x0000;
-
-	//Reset DMA0
-	//Release the interrupt.
-	disable_irq(CONFIG_VIDEO_BLACKFIN_PPI_IRQ);
-	del_timer_sync(&buffer_swapping_timer) ;
-	printk(" bfin_ad7171_fb Realeased\n") ;
+	del_timer(&bfin_framebuffer_timer);
 	return 0;
 }
 
@@ -314,18 +455,6 @@ static void __exit bfin_ad7171_fb_exit(void)
     unregister_framebuffer(&bfin_ad7171_fb);
 }
 
-#ifdef MODULE
 MODULE_LICENSE("GPL");
 module_init(bfin_ad7171_fb_init);
-#endif
 module_exit(bfin_ad7171_fb_exit);
-
-
-/*
- * Overrides for Emacs so that we follow Linus's tabbing style.
- * ---------------------------------------------------------------------------
- * Local variables:
- * c-basic-offset: 8
- * End:
- */
-
