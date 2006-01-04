@@ -31,11 +31,14 @@ int bits_per_pixel;
 inline void draw_pixel(int x, int y, int color)
 {
 	int mask = 1 << (7-(x % 8));
-	unsigned int * loc = screen_ptr + ((y - 1) * screen_width *(bits_per_pixel/8)) + (x * (bits_per_pixel/8));
+	unsigned char * loc = screen_ptr + (y * screen_width *(bits_per_pixel/8)) + (x * (bits_per_pixel/8));
 	
 	if ((x<0) || (x>=screen_width) || (y<0) || (y>=screen_height))
 		return;
-	*loc = color;
+	*loc ++ = (color & 0x00FF0000) >> 16; 	/* R */
+	*loc ++ = (color & 0x0000FF00) >>  8; 	/* G */
+	*loc    = (color & 0x000000FF);		/* B */
+	
 //	fprintf(stderr,"%x %x,",loc,(*loc));
 }
 
@@ -278,15 +281,18 @@ int main(int argc, char *argv[])
 	screen_height = screeninfo.yres_virtual;
 	bits_per_pixel = screeninfo.bits_per_pixel;
 	
-	screen_ptr = mmap(0, screen_height * screen_width * (bits_per_pixel/ 8), PROT_READ|PROT_WRITE, 0, screen_fd, 0);
+	screen_ptr = mmap(0, screen_height * screen_width * (bits_per_pixel/ 8), PROT_READ|PROT_WRITE, MAP_FILE|MAP_PRIVATE, screen_fd, 0);
 	
 	if (screen_ptr==MAP_FAILED) {
 		perror("Unable to mmap frame buffer\n");
 	}
 	
 /*First we need to refresh the rgb_buffer*/
-//	for(i=0;i<756000;i++)
-//	*(screen_ptr+i) = 0xff ;
+	for(i=0;i<screen_height*screen_width*(bits_per_pixel/8);i+=3){
+		*(screen_ptr+i) 	= 0xff;
+		*(screen_ptr+i+1)	= 0x00;
+		*(screen_ptr+i+2)	= 0x00;
+	}
 	draw_filled_rectangle(0,0, screen_width-1, screen_height-1, 0xff0000);
 	draw_filled_rectangle(1,1, screen_width-2, screen_height-2, 0xffffff);
 	draw_lissajous();
