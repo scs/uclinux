@@ -297,7 +297,7 @@ static void bfin_hwcontrol(struct mtd_info *mtd, int cmd)
 
 int bfin_device_ready(struct mtd_info *mtd)
 {
-	int ret = (*pPORTFIO & BFIN_NAND_READY) ? 0 : 1;
+	int ret = (*pPORTFIO & BFIN_NAND_READY) ? 1 : 0 ;
 	__builtin_bfin_ssync();
 	return ret;
 }
