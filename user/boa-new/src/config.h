@@ -60,7 +60,7 @@
 #define HAVE_LIMITS_H 1
 
 /* Define to 1 if you have the `madvise' function. */
-#define HAVE_MADVISE 1
+/*#define HAVE_MADVISE 1*/
 
 /* Define to 1 if you have the <memory.h> header file. */
 #define HAVE_MEMORY_H 1
