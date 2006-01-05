@@ -1,7 +1,7 @@
 #!/bin/sh
 #
 #select event type ,default is 0xb
-	event_type=0xb
+	event_type=0x9
 	counter_enable=0x1
 	counter_count=10000
 	kernel_image=./vmlinux
@@ -22,8 +22,8 @@ case "$1" in
 		echo $counter_count > /dev/oprofile/1/count
 		echo $counter_enable > /dev/oprofile/0/enabled
 		echo $counter_enable > /dev/oprofile/1/enabled
-		echo $event_enable > /dev/oprofile/1/event
-		echo $event_enable > /dev/oprofile/0/event
+		echo $event_type > /dev/oprofile/1/event
+		echo $event_type > /dev/oprofile/0/event
 		;;	
 	--start-daemon)
 		cd /usr/bin/

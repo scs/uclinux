@@ -3,6 +3,7 @@
 ./bfin_opcontrol --init
 ./bfin_opcontrol --setup
 ./bfin_opcontrol --start-daemon
+sleep 3
 ./bfin_opcontrol --start
 sleep 1500
 ./bfin_opcontrol --dump
