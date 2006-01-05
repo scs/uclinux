@@ -4,7 +4,7 @@
 # Makefile -- Top level uClinux makefile.
 #
 # Copyright (c) 2001-2004, SnapGear (www.snapgear.com)
-# Copyright (c) 2001, Lineo
+# Copyright (c) 2001,  Lineo
 #
 
 VERSIONPKG = 3.1.0
