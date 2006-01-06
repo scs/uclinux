@@ -689,8 +689,11 @@ static int __init bf537mac_probe(struct net_device *dev)
   unsigned long tmp;
   int retval;
 
-  *(u32 *)(&(dev->dev_addr[0])) = *pEMAC_ADDRLO;
-  *(u16 *)(&dev->dev_addr[4]) = (u16)*pEMAC_ADDRHI;
+  /* currently the mac addr is saved in flash */
+  int flash_mac = 0x203f0000; 
+  *(u32 *)(&(dev->dev_addr[0])) = *(int *)flash_mac;
+  flash_mac += 4;
+  *(u16 *)(&dev->dev_addr[4]) = (u16)*(int *)flash_mac;
 
   /* probe mac */
   //todo: how to proble? which is revision_register
