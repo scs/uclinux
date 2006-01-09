@@ -24,6 +24,7 @@
 #include "op_blackfin.h"
 
 #define BFIN_533_ID  0xE5040003
+#define BFIN_537_ID  0xE5040002 
 
 static int pfmon_enabled;
 static struct semaphore pfmon_sem;
@@ -116,6 +117,10 @@ int __init oprofile_arch_init(struct oprofile_operations *ops)
 		case BFIN_533_ID:
 		     model = &op_model_bfin533;
 		     model->num_counters = 2;
+		     break;
+		case BFIN_537_ID:
+		     model = &op_model_bfin533;
+                     model->num_counters = 2;
 		     break;
 		default:
 		     return -ENODEV;
