@@ -13,6 +13,7 @@ dir_$(CONFIG_USER_BLACKFIN_STRACE)			+= strace
 dir_$(CONFIG_USER_BF561_COREBLD)			+= corebld
 dir_$(CONFIG_USER_OPROFILE)				+= oprofile
 dir_$(CONFIG_USER_FLTHDR)				+= flthdr
+dir_$(CONFIG_USER_YAFFS_UTILS)				+= yaffs-utils
 
 all:
 	for i in $(sort $(dir_y)) ; do  make -C $$i || exit $? ; done

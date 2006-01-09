@@ -1613,6 +1613,8 @@ fi
 bool	'NetAudio'			CONFIG_USER_NET_AUDIO
 comment 'FLAT binary format tools'
 bool    'flthdr'                        CONFIG_USER_FLTHDR
+comment 'YAFFS tools'
+bool	'yaffs-utils'			CONFIG_USER_YAFFS_UTILS
 comment 'BF561 Core B support tools'
 bool	'corebld'			CONFIG_USER_BF561_COREBLD
 endmenu
