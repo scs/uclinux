@@ -75,7 +75,7 @@ int spi_dma_read(spi_device_t *spi_dev, void *buffer, unsigned int count)
 	spi_dev->dma_config |= ( WNR | RESTART | DI_EN );
 	set_dma_config(CH_SPI, spi_dev->dma_config);
 	set_dma_start_addr(CH_SPI, (unsigned long)buffer);
-;		
+		
 	if(spi_dev->size == CFG_SPI_WORDSIZE16){
 		set_dma_x_count(CH_SPI, (count>>1));
 		set_dma_x_modify(CH_SPI, 2);
