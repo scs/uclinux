@@ -1608,7 +1608,7 @@ if [ "$CONFIG_USER_OPROFILE" = "y" ]; then
 	define_bool  CONFIG_LIB_GMP y
 	define_bool CONFIG_LIB_POPT y
 	define_bool CONFIG_LIB_MPFR y
-	string 'binutils path'		CONFIG_USER_BINUTILS
+	string 'binutils path'		CONFIG_USER_BINUTILS	''
 fi
 bool	'NetAudio'			CONFIG_USER_NET_AUDIO
 comment 'FLAT binary format tools'
