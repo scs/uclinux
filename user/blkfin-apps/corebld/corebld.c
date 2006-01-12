@@ -45,7 +45,14 @@ static void put_region(char *dst, const char *src, size_t count)
 			index = 3;
 			seek = (unsigned long)dst & 0x7fff;
 		}
+	} else {
+		printf("Cowardly refusing to load an incorrectly linked binary.\n"
+			"Please make sure the binary you are trying to load is linked for BF561 Core B.\n"
+			"You will need a specially crafted linker definition file to do this for you.\n");
+		close(f);
+		return;
 	}
+
 	if (ret = ioctl(f, 1, &index))
 		printf("ioctl return %d\n", ret);
 	if (seek)
