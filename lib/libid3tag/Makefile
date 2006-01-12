@@ -17,7 +17,9 @@
 # 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
 
 TOPDIR=../
-include $(TOPDIR)Rules.mak
+# include $(TOPDIR)Rules.mak
+INSTALL=install
+export INSTALL
 
 LIBIDTAG=libidtag.a
 LIBIDTAG_SHARED=libidtag.so

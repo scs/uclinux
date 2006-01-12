@@ -17,7 +17,8 @@
 # 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
 
 TOPDIR=../../
-include $(TOPDIR)Rules.mak
+# include $(TOPDIR)Rules.mak
+INSTALL=install
 
 LIBFAAD=libfaad.a
 LIBFAAD_SHARED=libfaad.so
@@ -38,7 +39,7 @@ sbr_dct.c sbr_e_nf.c sbr_fbt.c sbr_hfadj.c sbr_hfgen.c \
 sbr_huff.c sbr_qmf.c sbr_syntax.c sbr_tf_grid.c sbr_dec.c 
 
 DEFS = -DHAVE_CONFIG_H
-DEFAULT_INCLUDES =  -I. -I$(srcdir) -I$(top_builddir)
+DEFAULT_INCLUDES =  -I. -I$(top_srcdir) -I$(top_builddir)
 CFLAGS +=  -O2
 
 

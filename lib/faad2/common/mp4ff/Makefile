@@ -17,7 +17,8 @@
 # 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
 
 TOPDIR=../../../
-include $(TOPDIR)Rules.mak
+# include $(TOPDIR)Rules.mak
+INSTALL=install
 
 LIBMP4FF=libmp4ff.a
 LIBMP4FF_SHARED=libmp4ff.so
