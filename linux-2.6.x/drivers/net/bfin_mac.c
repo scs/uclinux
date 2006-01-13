@@ -62,14 +62,12 @@ struct net_dma_desc *rx_list_tail;
 struct net_dma_desc *current_rx_ptr;
 struct net_dma_desc *current_tx_ptr;
 
-u8  SrcAddr[6] = {0x02,0x80,0xAD,0x20,0x31,0xB8};
 int current_desc_num;
-
-
 
 
 extern unsigned long l1_data_A_sram_alloc(unsigned long size);
 extern unsigned long l1_data_A_sram_free(unsigned long size);
+extern void get_bf537_ether_addr(char *addr);
 
 static int desc_list_init(void) 
 {
@@ -682,31 +680,33 @@ static int bf537mac_close(struct net_device *dev)
   return 0;
 }
 
-
 static int __init bf537mac_probe(struct net_device *dev)
 {
-  struct bf537mac_local *lp = netdev_priv(dev);
-  unsigned long tmp;
+	struct bf537mac_local *lp = netdev_priv(dev);
   int retval;
 
-  /* currently the mac addr is saved in flash */
-  int flash_mac = 0x203f0000; 
-  *(u32 *)(&(dev->dev_addr[0])) = *(int *)flash_mac;
-  flash_mac += 4;
-  *(u16 *)(&dev->dev_addr[4]) = (u16)*(int *)flash_mac;
+  /* Grab the MAC address in the MAC */
+  *(u32 *)(&(dev->dev_addr[0])) = *pEMAC_ADDRLO;
+  *(u16 *)(&(dev->dev_addr[4])) = (u16)*pEMAC_ADDRHI;
 
-  /* probe mac */
-  //todo: how to proble? which is revision_register
+/* probe mac */
+   /*todo: how to proble? which is revision_register */
   *pEMAC_ADDRLO = 0x12345678;
-  tmp = *pEMAC_ADDRLO;
-  if (tmp != 0x12345678) {
-    //printk("bf537_mac: can't detect bf537 mac!\n");
-    retval = -ENODEV;
-    goto err_out;
+  if (*pEMAC_ADDRLO != 0x12345678) {
+	  //printk("bf537_mac: can't detect bf537 mac!\n");
+	  retval = -ENODEV;
+	  goto err_out;
   }
 
-  /* check if the mac already in reg is valid */
-  if (*(u32 *)(&dev->dev_addr[0]) == 0xFFFFFFFF) {
+  /*Is it valid? (Did bootloader initialize it?)*/
+  if (!is_valid_ether_addr(dev->dev_addr))  {
+	   /* Grab the MAC from the board somehow - this is done in the
+	      arch/blackfin/boards/bf537/boardname.c */
+	   get_bf537_ether_addr(dev->dev_addr);
+  }
+
+  /* If still not valid, get a random one */
+  if (is_valid_ether_addr(dev->dev_addr)) {
 	  random_ether_addr(dev->dev_addr);
   }
 
