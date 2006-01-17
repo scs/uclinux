@@ -168,7 +168,7 @@ _ipdt_table:
 
 .global _dcplb_table
 _dcplb_table:
-.byte4        0x00000000;
+.byte4 0x00000000;
 .byte4 0x00000000;
 .byte4 0x00000000;
 .byte4 0x00000000;
