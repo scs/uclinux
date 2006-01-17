@@ -432,7 +432,11 @@ static void __init generate_cpl_tables(void)
 	    fill_cpl_tables(dpdt_table, pos, L1_DATA_A_START,
 			    L1_DATA_B_START + L1_DATA_B_LENGTH, SIZE_4M,
 			    L1_DMEMORY);
-
+#if defined (CONFIG_BF561)
+	pos =
+	    fill_cpl_tables(dpdt_table, pos, L2_SRAM,
+			    L2_SRAM_END, SIZE_1M, L2_MEMORY);
+#endif
 	*(dpdt_table + pos) = -1;
 #endif
 
@@ -486,6 +490,11 @@ static void __init generate_cpl_tables(void)
 	pos =
 	    fill_cpl_tables(ipdt_table, pos, L1_CODE_START,
 			    L1_CODE_START + SIZE_1M, SIZE_1M, L1_IMEMORY);
+#if defined (CONFIG_BF561)
+	pos =
+	    fill_cpl_tables(ipdt_table, pos, L2_SRAM,
+			    L2_SRAM_END, SIZE_1M, L2_MEMORY);
+#endif
 	*(ipdt_table + pos) = -1;
 #endif
 	return;
