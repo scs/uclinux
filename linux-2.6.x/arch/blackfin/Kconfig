@@ -213,7 +213,7 @@ config ENET_FLASH_PIN
 	depends on (BFIN533_STAMP)
 	default  1
 	help
-	  PF port/pin used for flash and ethernet sharing to allow other PF 
+	  PF port/pin used for flash and ethernet sharing to allow other PF
 	  pins to be used on other platforms without having to touch common code.
 	  For example: PF0 --> 1,PF1 --> 2,PF2 --> 4, etc.
 
@@ -254,7 +254,7 @@ config BFIN_IDLE_LED_NUM
 	  Select the LED (marked on the board) for you to blink.
 
 #
-# Sorry - but you need to put the hex address here - 
+# Sorry - but you need to put the hex address here -
 #
 
 # Flag Data register

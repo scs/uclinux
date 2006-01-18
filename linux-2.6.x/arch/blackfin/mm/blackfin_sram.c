@@ -148,7 +148,7 @@ static unsigned long l1_sram_alloc(unsigned long size,
 		}
 	}
 
-	memset((void*)addr, 0, size);
+	memset((void *)addr, 0, size);
 	return addr;
 }
 
@@ -220,7 +220,6 @@ unsigned long l1_data_A_sram_alloc(unsigned long size)
 	//printk ("Allocated address in l1sram_alloc is 0x%lx+0x%lx\n",addr,size);
 	return addr;
 }
-
 
 int l1_data_A_sram_free(unsigned long addr)
 {

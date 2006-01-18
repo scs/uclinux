@@ -32,11 +32,11 @@
 		csync;\
 		(R7:6) = [SP++]
 
-/* 
- * Clear the corresponding bits in a System Register (SR); 
- * All bits set in "mask" will be cleared in the SR 
- * specified by "sys_reg" bitclr_SR(sys_reg, mask), where 
- * sys_reg is the SR and mask are the bits to be cleared. 
+/*
+ * Clear the corresponding bits in a System Register (SR);
+ * All bits set in "mask" will be cleared in the SR
+ * specified by "sys_reg" bitclr_SR(sys_reg, mask), where
+ * sys_reg is the SR and mask are the bits to be cleared.
  */
 #define bitclr_SR(sys_reg, mask)\
 		[--SP] = (R7:6);\
@@ -50,8 +50,8 @@
 		csync;\
 		(R7:6) = [SP++]
 
-/* 
- * Set the corresponding bits in a Memory Mapped Register (MMR); 
+/*
+ * Set the corresponding bits in a Memory Mapped Register (MMR);
  * All bits set in "mask" will be set in the MMR specified by "mmr_reg"
  * bitset_MMR(mmr_reg, mask), where mmr_reg is the MMR and mask are
  * the bits to be set.
@@ -70,8 +70,8 @@
 		p5 = [SP++];\
 		(R7:6) = [SP++]
 
-/* 
- * Clear the corresponding bits in a Memory Mapped Register (MMR); 
+/*
+ * Clear the corresponding bits in a Memory Mapped Register (MMR);
  * All bits set in "mask" will be cleared in the MMR specified by "mmr_reg"
  * bitclr_MMRreg(mmr_reg, mask), where sys_reg is the MMR and mask are
  * the bits to be cleared.

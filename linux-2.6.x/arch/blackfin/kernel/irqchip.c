@@ -34,6 +34,7 @@
 #include <linux/random.h>
 #include <linux/seq_file.h>
 #include <linux/kallsyms.h>
+#include <linux/interrupt.h>
 
 #include <asm/irqchip.h>
 
@@ -107,7 +108,7 @@ void disable_irq(unsigned int irq)
 	struct irqdesc *desc = irq_desc + irq;
 	unsigned long flags;
 	spin_lock_irqsave(&irq_controller_lock, flags);
-	if (!desc->disable_depth++) 
+	if (!desc->disable_depth++)
 		desc->chip->mask(irq);
 	list_del_init(&desc->pend);
 	spin_unlock_irqrestore(&irq_controller_lock, flags);
@@ -748,8 +749,7 @@ void free_irq(unsigned int irq, void *dev_id)
 	}
 
 	spin_lock_irqsave(&irq_controller_lock, flags);
-	for (p = &desc->action; (action = *p) != NULL;
-	     p = &action->next) {
+	for (p = &desc->action; (action = *p) != NULL; p = &action->next) {
 		if (action->dev_id != dev_id)
 			continue;
 

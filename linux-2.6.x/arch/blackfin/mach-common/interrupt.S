@@ -40,7 +40,6 @@
 #include <asm/asm-offsets.h>
 
 .text
-
 .align 4 	/* just in case */
 
 /*
@@ -100,7 +99,8 @@ call_do_ovf:
 	call _pm_overflow;
 	SP += 12;
 
-	RESTORE_CONTEXT
+        RESTORE_CONTEXT
+
 	rti;
 #endif
 /* interrupt routine for core timer - 6 */

@@ -51,7 +51,7 @@ config BFIN_IDE_ADDRESS_MAPPING_MODE0
 	  PFx	  <--	/INTRQ
 	  /RESET	  -->	/RESET
 	  D[0..15]  <->	D[0..15]
-	
+
 	  For CF Cards in TRUE IDE MODE only
 	  VCC	  <--	/REG
 	  VCC	  <--	/WE
@@ -71,7 +71,7 @@ config BFIN_IDE_ADDRESS_MAPPING_MODE1
 	  PFx	  <--	/INTRQ
 	  /RESET	  -->	/RESET
 	  D[0..15]  <->	D[0..15]
-	
+
 	  For CF Cards in TRUE IDE MODE only
 	  VCC	  <--	/REG
 	  VCC	  <--	/WE

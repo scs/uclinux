@@ -37,7 +37,7 @@
 #include "mem_map.h"
 #include "defBF534.h"
 
-#if CONFIG_BF537
+#ifdef CONFIG_BF537
 #include "defBF537.h"
 #endif
 
@@ -57,7 +57,7 @@
 #define pUART_SCR  pUART0_SCR
 #define pUART_GCTL pUART0_GCTL
 
-#if CONFIG_BF537
+#ifdef CONFIG_BF537
 #include "cdefBF537.h"
 #endif
 #endif
@@ -97,7 +97,7 @@
 #define STOPCK_OFF STOPCK
 
 /* FIO USE PORT F*/
-#if CONFIG_BF537_PORT_F
+#ifdef CONFIG_BF537_PORT_F
 #define pPORT_FER		pPORTF_FER
 #define pFIO_FLAG_D		pPORTFIO
 #define pFIO_FLAG_C		pPORTFIO_CLEAR
@@ -137,7 +137,7 @@
 #endif
 
 /* FIO USE PORT G*/
-#if CONFIG_BF537_PORT_G
+#ifdef CONFIG_BF537_PORT_G
 #define pPORT_FER		pPORTG_FER
 #define pFIO_FLAG_D		pPORTGIO
 #define pFIO_FLAG_C		pPORTGIO_CLEAR

@@ -106,10 +106,10 @@ static void __init search_IAR(void)
 			int iar_shift = (irqn & 7) * 4;
 			if (ivg == (0xf & pSICA_IAR0[irqn >> 3] >> iar_shift)) {
 				ivg_table[irq_pos].irqno = IVG7 + irqn;
-				ivg_table[irq_pos].isrflag0 = 
-					(irqn < 32 ? (1 << irqn) : 0);
-				ivg_table[irq_pos].isrflag1 = 
-					(irqn < 32 ? 0 : (1 << (irqn - 32)));
+				ivg_table[irq_pos].isrflag0 =
+				    (irqn < 32 ? (1 << irqn) : 0);
+				ivg_table[irq_pos].isrflag1 =
+				    (irqn < 32 ? 0 : (1 << (irqn - 32)));
 				ivg7_13[ivg].istop++;
 				irq_pos++;
 			}
@@ -153,8 +153,7 @@ static void bf561_core_unmask_irq(unsigned int irq)
 static void bf561_internal_mask_irq(unsigned int irq)
 {
 	unsigned long irq_mask;
-	if ((irq - (IRQ_CORETMR + 1)) < 32)
-	{
+	if ((irq - (IRQ_CORETMR + 1)) < 32) {
 		irq_mask = (1 << (irq - (IRQ_CORETMR + 1)));
 		*pSICA_IMASK0 &= ~irq_mask;
 	} else {
@@ -166,9 +165,8 @@ static void bf561_internal_mask_irq(unsigned int irq)
 static void bf561_internal_unmask_irq(unsigned int irq)
 {
 	unsigned long irq_mask;
-	
-	if ((irq - (IRQ_CORETMR +1)) < 32)
-	{
+
+	if ((irq - (IRQ_CORETMR + 1)) < 32) {
 		irq_mask = (1 << (irq - (IRQ_CORETMR + 1)));
 		*pSICA_IMASK0 |= irq_mask;
 	} else {
@@ -319,8 +317,7 @@ static int bf561_gpio_irq_type(unsigned int irq, unsigned int type)
 	__builtin_bfin_ssync();
 
 	if ((type & (__IRQT_RISEDGE | __IRQT_FALEDGE))
-	    == (__IRQT_RISEDGE | __IRQT_FALEDGE))
-	{
+	    == (__IRQT_RISEDGE | __IRQT_FALEDGE)) {
 		if (gpionr < 16)
 			*pFIO0_BOTH |= mask;
 		else if (gpionr < 32)
@@ -339,8 +336,7 @@ static int bf561_gpio_irq_type(unsigned int irq, unsigned int type)
 
 	if ((type & (__IRQT_FALEDGE | __IRQT_LOWLVL))
 	    && ((type & (__IRQT_RISEDGE | __IRQT_FALEDGE))
-		!= (__IRQT_RISEDGE | __IRQT_FALEDGE)))
-	{
+		!= (__IRQT_RISEDGE | __IRQT_FALEDGE))) {
 		/* low or falling edge denoted by one */
 		if (gpionr < 16)
 			*pFIO0_POLAR |= mask;
@@ -471,15 +467,13 @@ int __init init_arch_irq(void)
 			set_irq_chip(irq, &bf561_internal_irqchip);
 #ifdef CONFIG_IRQCHIP_DEMUX_GPIO
 		if ((irq != IRQ_PROG0_INTB) &&
-		    (irq != IRQ_PROG1_INTB) &&
-		    (irq != IRQ_PROG2_INTB)) {
+		    (irq != IRQ_PROG1_INTB) && (irq != IRQ_PROG2_INTB)) {
 #endif
 			set_irq_handler(irq, do_simple_IRQ);
 			set_irq_flags(irq, IRQF_VALID);
 #ifdef CONFIG_IRQCHIP_DEMUX_GPIO
 		} else {
-			set_irq_chained_handler(irq,
-						bf561_demux_gpio_irq);
+			set_irq_chained_handler(irq, bf561_demux_gpio_irq);
 		}
 #endif
 

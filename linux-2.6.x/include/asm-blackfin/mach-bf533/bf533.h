@@ -129,27 +129,27 @@
 #define AMBCTL0VAL	((CONFIG_BANK_1 << 16) | CONFIG_BANK_0)
 #define AMBCTL1VAL	((CONFIG_BANK_3 << 16) | CONFIG_BANK_2)
 
-#if (CONFIG_C_AMBEN_ALL)
+#ifdef CONFIG_C_AMBEN_ALL
 #define V_AMBEN AMBEN_ALL
 #endif
-#if (CONFIG_C_AMBEN)
+#ifdef CONFIG_C_AMBEN
 #define V_AMBEN 0x0
 #endif
-#if (CONFIG_C_AMBEN_B0)
+#ifdef CONFIG_C_AMBEN_B0
 #define V_AMBEN AMBEN_B0
 #endif
-#if (CONFIG_C_AMBEN_B0_B1)
+#ifdef CONFIG_C_AMBEN_B0_B1
 #define V_AMBEN AMBEN_B0_B1
 #endif
-#if (CONFIG_C_AMBEN_B0_B1_B2)
+#ifdef CONFIG_C_AMBEN_B0_B1_B2
 #define V_AMBEN AMBEN_B0_B1_B2
 #endif
-#if (CONFIG_C_AMCKEN)
+#ifdef CONFIG_C_AMCKEN
 #define V_AMCKEN AMCKEN
 #else
 #define V_AMCKEN 0x0
 #endif
-#if (CONFIG_C_CDPRIO)
+#ifdef CONFIG_C_CDPRIO
 #define V_CDPRIO 0x100
 #else
 #define V_CDPRIO 0x0
@@ -157,7 +157,7 @@
 
 #define AMGCTLVAL	(V_AMBEN | V_AMCKEN | V_CDPRIO)
 
-#if CONFIG_BFIN_KERNEL_CLOCK
+#ifdef CONFIG_BFIN_KERNEL_CLOCK
 /********************************PLL Settings **************************************/
 #if (CONFIG_VCO_MULT < 0)
 #error "VCO Multiplier is less than 0. Please select a different value"

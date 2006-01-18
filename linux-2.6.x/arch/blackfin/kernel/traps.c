@@ -97,12 +97,13 @@ int printk_address(unsigned long address)
 	    kallsyms_lookup(address, &symsize, &offset, &modname, namebuf);
 	if (!symname) {
 		if (current->mm) {
-			if ( (address > current->mm->start_code) && 
-				(address < current->mm->end_code)) {
-				 return printk("<%08lx>{%s+0x%x}",
-					address,
-					current->comm,
-					(int)(address - current->mm->start_code));
+			if ((address > current->mm->start_code) &&
+			    (address < current->mm->end_code)) {
+				return printk("<%08lx>{%s+0x%x}",
+					      address,
+					      current->comm,
+					      (int)(address -
+						    current->mm->start_code));
 			}
 		}
 		return printk("[<%08lx>]", address);
@@ -330,7 +331,8 @@ void dump(struct pt_regs *fp, void *retaddr)
 		       (int)current->mm->end_data, (int)current->mm->brk);
 		printk("USER-STACK=%08x\n\n", (int)current->mm->start_stack);
 	}
-	printk("return address: %08lx; contents of [PC-16...PC+8[:\n", (long)retaddr);
+	printk("return address: %08lx; contents of [PC-16...PC+8[:\n",
+	       (long)retaddr);
 	for (i = -16; i < 8; i++) {
 		unsigned short x;
 		get_user(x, (unsigned short *)retaddr + i);

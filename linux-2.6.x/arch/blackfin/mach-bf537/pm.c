@@ -52,7 +52,7 @@ void bf537_pm_idle(void)
 }
 
 /*
- * when we call pm_suspend, that code  enters into idle state and sdram enter self-refresh mode 
+ * when we call pm_suspend, that code  enters into idle state and sdram enter self-refresh mode
  *  to save more energy.When there is any interrupt,the core will resume
  */
 void bf537_pm_suspend(void)

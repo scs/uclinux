@@ -25,30 +25,37 @@ static unsigned long coreb_base = 0xff600000;
 static unsigned long coreb_size = 0x4000;
 
 static loff_t coreb_lseek(struct file *file, loff_t offset, int origin);
-static ssize_t coreb_read(struct file *file, char *buf, size_t count, loff_t *ppos);
-static ssize_t coreb_write(struct file *file, const char *buf, size_t count, loff_t *ppos);
-static int coreb_ioctl(struct inode *inode, struct file *file, unsigned int cmd, unsigned long arg);
+static ssize_t coreb_read(struct file *file, char *buf, size_t count,
+			  loff_t * ppos);
+static ssize_t coreb_write(struct file *file, const char *buf, size_t count,
+			   loff_t * ppos);
+static int coreb_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
+		       unsigned long arg);
 static int coreb_open(struct inode *inode, struct file *file);
 static int coreb_release(struct inode *inode, struct file *file);
 
-static irqreturn_t coreb_dma_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t coreb_dma_interrupt(int irq, void *dev_id,
+				       struct pt_regs *regs)
 {
 	clear_dma_irqstat(CH_MEM_STREAM2_DEST);
 	wake_up(&coreb_dma_wait);
 	return IRQ_HANDLED;
 }
 
-static ssize_t coreb_write(struct file *file, const char *buf, size_t count, loff_t *ppos)
+static ssize_t coreb_write(struct file *file, const char *buf, size_t count,
+			   loff_t * ppos)
 {
 	unsigned long p = *ppos;
 	ssize_t wrote = 0;
 
-	if (p + count > coreb_size) return -EFAULT;
+	if (p + count > coreb_size)
+		return -EFAULT;
 
 	while (count > 0) {
 		int len = count;
 
-		if (len > PAGE_SIZE) len = PAGE_SIZE;
+		if (len > PAGE_SIZE)
+			len = PAGE_SIZE;
 
 		/* Source Channel */
 		set_dma_start_addr(CH_MEM_STREAM2_SRC, (unsigned long)buf);
@@ -60,7 +67,7 @@ static ssize_t coreb_write(struct file *file, const char *buf, size_t count, lof
 		set_dma_x_count(CH_MEM_STREAM2_DEST, len);
 		set_dma_x_modify(CH_MEM_STREAM2_DEST, sizeof(char));
 		set_dma_config(CH_MEM_STREAM2_DEST, WNR | RESTART | DI_EN);
-	
+
 		enable_dma(CH_MEM_STREAM2_SRC);
 		enable_dma(CH_MEM_STREAM2_DEST);
 
@@ -78,17 +85,19 @@ static ssize_t coreb_write(struct file *file, const char *buf, size_t count, lof
 	return wrote;
 }
 
-static ssize_t coreb_read(struct file *file, char * buf, size_t count, loff_t *ppos)
+static ssize_t coreb_read(struct file *file, char *buf, size_t count,
+			  loff_t * ppos)
 {
 	unsigned long p = *ppos;
 	ssize_t read = 0;
 
-	if ((p + count) > coreb_size) return -EFAULT;
+	if ((p + count) > coreb_size)
+		return -EFAULT;
 
-	while (count > 0)
-	{
+	while (count > 0) {
 		int len = count;
-		if (len > PAGE_SIZE) len = PAGE_SIZE;
+		if (len > PAGE_SIZE)
+			len = PAGE_SIZE;
 
 		/* Source Channel */
 		set_dma_start_addr(CH_MEM_STREAM2_SRC, coreb_base + p);
@@ -100,7 +109,7 @@ static ssize_t coreb_read(struct file *file, char * buf, size_t count, loff_t *p
 		set_dma_x_count(CH_MEM_STREAM2_DEST, len);
 		set_dma_x_modify(CH_MEM_STREAM2_DEST, sizeof(char));
 		set_dma_config(CH_MEM_STREAM2_DEST, WNR | RESTART | DI_EN);
-	
+
 		enable_dma(CH_MEM_STREAM2_SRC);
 		enable_dma(CH_MEM_STREAM2_DEST);
 
@@ -113,7 +122,7 @@ static ssize_t coreb_read(struct file *file, char * buf, size_t count, loff_t *p
 		read += len;
 		buf += len;
 		p += len;
-	} 
+	}
 
 	return read;
 }
@@ -125,14 +134,14 @@ static loff_t coreb_lseek(struct file *file, loff_t offset, int origin)
 	down(&file->f_dentry->d_inode->i_sem);
 
 	switch (origin) {
-	case 0 /* SEEK_SET */:
+	case 0 /* SEEK_SET */ :
 		if (offset < coreb_size) {
 			file->f_pos = offset;
 			ret = file->f_pos;
-		} else 
+		} else
 			ret = -EINVAL;
 		break;
-	case 1 /* SEEK_CUR */:
+	case 1 /* SEEK_CUR */ :
 		if ((offset + file->f_pos) < coreb_size) {
 			file->f_pos += offset;
 			ret = file->f_pos;
@@ -157,7 +166,7 @@ static int coreb_open(struct inode *inode, struct file *file)
 	spin_unlock_irq(&coreb_lock);
 	return 0;
 
-out_busy:
+      out_busy:
 	spin_unlock_irq(&coreb_lock);
 	return -EBUSY;
 }
@@ -170,18 +179,17 @@ static int coreb_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int coreb_ioctl(struct inode *inode, struct file *file, 
-			unsigned int cmd, unsigned long arg)
+static int coreb_ioctl(struct inode *inode, struct file *file,
+		       unsigned int cmd, unsigned long arg)
 {
 	int retval = 0;
 	int coreb_index = 0;
 
 	spin_lock_irq(&coreb_lock);
 
-	switch (cmd)
-	{
+	switch (cmd) {
 	case CMD_COREB_INDEX:
-		if (copy_from_user(&coreb_index, (int*)arg, sizeof(int))) {
+		if (copy_from_user(&coreb_index, (int *)arg, sizeof(int))) {
 			retval - -EFAULT;
 			break;
 		}
@@ -240,13 +248,13 @@ static int coreb_ioctl(struct inode *inode, struct file *file,
 }
 
 static struct file_operations coreb_fops = {
-	owner:		THIS_MODULE,
-	llseek:		coreb_lseek,
-	read:		coreb_read,
-	write:		coreb_write,
-	ioctl:		coreb_ioctl,
-	open:		coreb_open,
-	release:	coreb_release
+      owner:THIS_MODULE,
+      llseek:coreb_lseek,
+      read:coreb_read,
+      write:coreb_write,
+      ioctl:coreb_ioctl,
+      open:coreb_open,
+      release:coreb_release
 };
 
 static struct miscdevice coreb_dev = {
@@ -255,34 +263,36 @@ static struct miscdevice coreb_dev = {
 	&coreb_fops
 };
 
-static int coreb_read_status(char *page, char **start, off_t off, int count, int *eof, void *data)
+static int coreb_read_status(char *page, char **start, off_t off, int count,
+			     int *eof, void *data)
 {
 	int len = 0;
 
-	if (off) return 0;
+	if (off)
+		return 0;
 
 	len += sprintf(page,
-		"Base Address:\t0x%08x\n"
-		"Core B is %s\n"
-		"SICA_SYSCR:\t%04x\n"
-		"SICB_SYSCR:\t%04x\n"
-		"\n"
-		"IRQ Status:\tCore A\t\tCore B\n"
-		"ISR0:\t\t%08lx\t\t%08lx\n"
-		"ISR1:\t\t%08lx\t\t%08lx\n"
-		"IMASK0:\t\t%08lx\t\t%08lx\n"
-		"IMASK1:\t\t%08lx\t\t%08lx\n",
-		coreb_base,
-		coreb_status & COREB_IS_RUNNING ? "running" : "stalled",
-		*pSICA_SYSCR, *pSICB_SYSCR,
-		*pSICA_ISR0, *pSICB_ISR0,
-		*pSICA_ISR1, *pSICB_ISR0,
-		*pSICA_IMASK0, *pSICB_IMASK0,
-		*pSICA_IMASK1, *pSICB_IMASK1);
+		       "Base Address:\t0x%08x\n"
+		       "Core B is %s\n"
+		       "SICA_SYSCR:\t%04x\n"
+		       "SICB_SYSCR:\t%04x\n"
+		       "\n"
+		       "IRQ Status:\tCore A\t\tCore B\n"
+		       "ISR0:\t\t%08lx\t\t%08lx\n"
+		       "ISR1:\t\t%08lx\t\t%08lx\n"
+		       "IMASK0:\t\t%08lx\t\t%08lx\n"
+		       "IMASK1:\t\t%08lx\t\t%08lx\n",
+		       coreb_base,
+		       coreb_status & COREB_IS_RUNNING ? "running" : "stalled",
+		       *pSICA_SYSCR, *pSICB_SYSCR,
+		       *pSICA_ISR0, *pSICB_ISR0,
+		       *pSICA_ISR1, *pSICB_ISR0,
+		       *pSICA_IMASK0, *pSICB_IMASK0,
+		       *pSICA_IMASK1, *pSICB_IMASK1);
 	return len;
 }
 
-static struct proc_dir_entry* coreb_proc_entry = NULL;
+static struct proc_dir_entry *coreb_proc_entry = NULL;
 
 int __init bf561_coreb_init(void)
 {
@@ -291,19 +301,19 @@ int __init bf561_coreb_init(void)
 
 	/* Request the core memory regions for Core B */
 	if (request_mem_region(0xff600000, 0x4000,
-		"Core B - Instruction SRAM") == NULL)
+			       "Core B - Instruction SRAM") == NULL)
 		goto exit;
 
-	if (request_mem_region(0xFF610000, 0x4000, 
-		"Core B - Instruction SRAM") == NULL)
+	if (request_mem_region(0xFF610000, 0x4000,
+			       "Core B - Instruction SRAM") == NULL)
 		goto release_instruction_a_sram;
 
 	if (request_mem_region(0xFF500000, 0x8000,
-		"Core B - Data Bank B SRAM") == NULL)
+			       "Core B - Data Bank B SRAM") == NULL)
 		goto release_instruction_b_sram;
 
 	if (request_mem_region(0xff400000, 0x8000,
-		"Core B - Data Bank A SRAM") == NULL)
+			       "Core B - Data Bank A SRAM") == NULL)
 		goto release_data_b_sram;
 
 	if (request_dma(CH_MEM_STREAM2_DEST, "Core B - DMA Destination") < 0)
@@ -318,8 +328,7 @@ int __init bf561_coreb_init(void)
 
 	printk(KERN_INFO "Core B: Initializing /proc\n");
 	coreb_proc_entry = create_proc_entry("coreb", 0, NULL);
-	if (coreb_proc_entry)
-	{
+	if (coreb_proc_entry) {
 		coreb_proc_entry->owner = THIS_MODULE;
 		coreb_proc_entry->read_proc = coreb_read_status;
 	} else {
@@ -329,19 +338,19 @@ int __init bf561_coreb_init(void)
 	printk(KERN_INFO "BF561 Core B driver %s initialized.\n", MODULE_VER);
 	return 0;
 
-release_dma_src:
+      release_dma_src:
 	free_dma(CH_MEM_STREAM2_SRC);
-release_dma_dest:
+      release_dma_dest:
 	free_dma(CH_MEM_STREAM2_DEST);
-release_data_a_sram:
+      release_data_a_sram:
 	release_mem_region(0xff400000, 0x8000);
-release_data_b_sram:
+      release_data_b_sram:
 	release_mem_region(0xff500000, 0x8000);
-release_instruction_b_sram:
+      release_instruction_b_sram:
 	release_mem_region(0xff610000, 0x4000);
-release_instruction_a_sram:
+      release_instruction_a_sram:
 	release_mem_region(0xff600000, 0x4000);
-exit:
+      exit:
 	return -ENOMEM;
 }
 

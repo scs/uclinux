@@ -12,7 +12,7 @@
 *
 * DESCRIPTION: It's driver of SPI in ADSP25535(ADI's DSP). It can
 *              only be used in unix or linux.
-* CAUTION:     User should use 'ioctl' to change it's 
+* CAUTION:     User should use 'ioctl' to change it's
                configuration just after openning device.
 **************************************************************
 * MODIFICATION HISTORY:
@@ -27,7 +27,7 @@
 #define SPI0_REGBASE       0xffc00500
 
 #define SPI_READ              0
-#define SPI_WRITE             1   
+#define SPI_WRITE             1
 
 typedef struct Spi_Device_t
 {
@@ -35,10 +35,10 @@ typedef struct Spi_Device_t
 
 	unsigned short     flag;
 	unsigned short     bdrate;
-	
+
 	unsigned short     enable;
 	unsigned short     master;
-	unsigned short     out_opendrain; 
+	unsigned short     out_opendrain;
 	unsigned short     polar;
 	unsigned short     phase;
 	unsigned short     byteorder;  /* 0: MSB first; 1: LSB first; */
@@ -51,7 +51,7 @@ typedef struct Spi_Device_t
 
 	unsigned short     dma;         /* use dma mode or not */
 	unsigned short     dma_config;  /* only valid if dma enabled */
-	
+
 	irqreturn_t        (*irq_handler)(int irq, void *dev_id, struct pt_regs *regs);
 	void               *priv_data;
 }spi_device_t;
@@ -70,8 +70,8 @@ typedef struct Spi_Device_t
 #define CMD_SPI_SET_POLAR     3
 #define CMD_SPI_SET_PHASE     4
 #define CMD_SPI_SET_MASTER    5
-#define CMD_SPI_SET_SENDOPT   6  
-#define CMD_SPI_SET_RECVOPT   7   
+#define CMD_SPI_SET_SENDOPT   6
+#define CMD_SPI_SET_RECVOPT   7
 #define CMD_SPI_SET_ORDER     8
 #define CMD_SPI_SET_LENGTH16  9
 #define CMD_SPI_GET_STAT      11
@@ -83,14 +83,14 @@ typedef struct Spi_Device_t
 #define CMD_SPI_SET_CSENABLE  17
 #define CMD_SPI_SET_CSDISABLE 18
 
-#define CMD_SPI_SET_TRIGGER_MODE  19		
-#define CMD_SPI_SET_TRIGGER_SENSE 20		
-#define CMD_SPI_SET_TRIGGER_EDGE  21		
-#define CMD_SPI_SET_TRIGGER_LEVEL 22		
-                                  		
-#define CMD_SPI_SET_TIME_SPS 	  23		
-#define CMD_SPI_SET_TIME_SAMPLES  24		
-#define CMD_SPI_GET_SYSTEMCLOCK   25		
+#define CMD_SPI_SET_TRIGGER_MODE  19
+#define CMD_SPI_SET_TRIGGER_SENSE 20
+#define CMD_SPI_SET_TRIGGER_EDGE  21
+#define CMD_SPI_SET_TRIGGER_LEVEL 22
+
+#define CMD_SPI_SET_TIME_SPS 	  23
+#define CMD_SPI_SET_TIME_SAMPLES  24
+#define CMD_SPI_GET_SYSTEMCLOCK   25
 
 #define CMD_SPI_SET_WRITECONTINUOUS     26
 

@@ -1,7 +1,7 @@
 /*
  * Memory MAP
  * Common header file for blackfin BF561 of processors.
- * 
+ *
  *
  */
 
@@ -12,9 +12,9 @@
 #define COREMMR_BASE           0xFFE00000     // Core MMRs
 #define SYSMMR_BASE            0xFFC00000     // System MMRs
 
-/* Level 3 SDRAM Memory */ 
+/* Level 3 SDRAM Memory */
 #define RAM_START		0x1000
-#define RAM_LENGTH		(CONFIG_MEM_SIZE * 1024 * 1024) 
+#define RAM_LENGTH		(CONFIG_MEM_SIZE * 1024 * 1024)
 #define RAM_END 		(CONFIG_MEM_SIZE * 1024 * 1024)
 
 /* Async Memory Banks */
@@ -25,7 +25,7 @@
 #define ASYNC_BANK1_BASE	0x24000000	// Async Bank 1
 #define ASYNC_BANK1_SIZE	0x04000000	/* 1M */
 #define ASYNC_BANK0_BASE	0x20000000	// Async Bank 0
-#define ASYNC_BANK0_SIZE	0x04000000	/* 1M */ 
+#define ASYNC_BANK0_SIZE	0x04000000	/* 1M */
 
 /* Level 1 Memory */
 

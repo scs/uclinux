@@ -71,7 +71,7 @@
         #define SDRAM_tRCD      TRCD_1
         #define SDRAM_tWR       TWR_2
   #endif
-#endif	
+#endif
 
 #if (CONFIG_MEM_MT48LC16M16A2TG_75)
   /*SDRAM INFORMATION: */

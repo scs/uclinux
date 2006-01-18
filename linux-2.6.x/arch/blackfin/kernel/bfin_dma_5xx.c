@@ -220,8 +220,7 @@ static int bf561_channel2irq(unsigned int channel)
 {
 	int ret_irq = -1;
 
-	switch (channel)
-	{
+	switch (channel) {
 	case CH_PPI0:
 		ret_irq = IRQ_PPI0;
 		break;

@@ -238,7 +238,7 @@ ENTRY(ex_trap_c)
 	/* Disable all interrupts, but make sure level 5 is enabled so
 	   we can switch to that level.  Save the old mask.  */
 	cli r6;
-	p4.l = excpt_saved_imask; 
+	p4.l = excpt_saved_imask;
 	p4.h = excpt_saved_imask;
 	[p4] = r6;
 	r6 = 0x3f;
@@ -255,7 +255,7 @@ ENTRY(exception_to_level5)
 
 	/* Restore interrupt mask.  We haven't pushed RETI, so this
 	   doesn't enable interrupts until we return from this handler.  */
-	p4.l = excpt_saved_imask; 
+	p4.l = excpt_saved_imask;
 	p4.h = excpt_saved_imask;
 	r6 = [p4];
 	sti r6;

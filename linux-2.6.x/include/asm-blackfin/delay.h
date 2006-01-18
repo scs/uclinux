@@ -19,7 +19,7 @@ static __inline__ void __delay(unsigned long loops)
 			     "LB0 = [SP++];\n\t"
 				"LT0 = [SP++];\n\t"
 				"LC0 = [SP++];\n"
-				: 
+				:
 				:"a" (loops));
 }
 

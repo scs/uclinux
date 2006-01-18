@@ -20,7 +20,7 @@ KALLSYMS	+= --symbol-prefix=_
 comma = ,
 
 # These are the default values for independt
-PROCESSOR	:= bf5xx 
+PROCESSOR	:= bf5xx
 
 # setup the machine name and the machine dependent settings
 
@@ -35,15 +35,15 @@ machine-$(CONFIG_BF561) := bf561
 
 # set the environment variables and export
 MACHINE  := $(machine-y)
-  
+
 export	MACHINE PROCESSOR GZFLAGS CFLAGS_BOOT
 
 CLEAN_FILES := include/asm-$(ARCH)/asm-offsets.h \
 	       arch/$(ARCH)/kernel/asm-offsets.s include/asm-$(ARCH)/mach include/asm-blackfin/.mach
 
-# The machine has its own head.S 
+# The machine has its own head.S
 
-head-y	:= arch/$(ARCH)/mach-$(MACHINE)/head.o 
+head-y	:= arch/$(ARCH)/mach-$(MACHINE)/head.o
 
 # add the init_task to head
 
@@ -60,7 +60,7 @@ drivers-$(CONFIG_OPROFILE)              += arch/$(ARCH)/oprofile/
 # If we have a machine-specific directory, then include it in the build.
 ifneq ($(machine-y),)
 core-y		+= arch/$(ARCH)/mach-$(MACHINE)/
-core-y		+= arch/$(ARCH)/mach-$(MACHINE)/boards/ 
+core-y		+= arch/$(ARCH)/mach-$(MACHINE)/boards/
 endif
 
 libs-y		+= arch/$(ARCH)/lib/

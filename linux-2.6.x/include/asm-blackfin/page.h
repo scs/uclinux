@@ -73,8 +73,8 @@ extern unsigned long memory_end;
 
 #ifndef __ASSEMBLY__
 
-#define __pa(vaddr)		virt_to_phys((void *)vaddr)
-#define __va(paddr)		phys_to_virt((unsigned long)paddr)
+#define __pa(vaddr)		virt_to_phys((void *)(vaddr))
+#define __va(paddr)		phys_to_virt((unsigned long)(paddr))
 
 #define MAP_NR(addr)		(((unsigned long)(addr)-PAGE_OFFSET) >> PAGE_SHIFT)
 

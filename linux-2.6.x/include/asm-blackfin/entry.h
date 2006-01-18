@@ -221,7 +221,7 @@
 	l2 = r0;
 	l3 = r0;
 .endm
-	 
+
 .macro restore_context_no_interrupts
 	sp += 4;	/* Skip orig_pc */
 	sp += 4;	/* Skip IPEND */
