@@ -1082,7 +1082,7 @@
 #define DI_SEL	        0x00000040  /* Data Interrupt Select */
 #define DI_EN	        0x00000080  /* Data Interrupt Enable */
 #define NDSIZE	        0x00000900  /* Next Descriptor Size */
-#define FLOW	        0x00007000  /* Flow Control */
+#define DMAFLOW	        0x00007000  /* Flow Control */
 
 #define DMAEN_P	            	0  /* Channel Enable */
 #define WNR_P	            	1  /* Channel Direction (W/R*) */
