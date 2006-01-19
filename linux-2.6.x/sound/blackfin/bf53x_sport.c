@@ -387,7 +387,7 @@ void bf53x_sport_hook_rx_desc( struct bf53x_sport* sport, int dummy)
 	else
 		sport->curr_rx_desc = sport->dma_rx_desc;
 	dma->next_desc_ptr = (unsigned int)(sport->curr_rx_desc);
-	dma->cfg           = FLOW | NDSIZE | WDSIZE_32 | WNR;
+	dma->cfg           = DMAFLOW | NDSIZE | WDSIZE_32 | WNR;
 	dma->x_count       = 0;
 	dma->x_modify      = 0;
 	dma->y_count       = 0;
@@ -456,7 +456,7 @@ void bf53x_sport_hook_tx_desc( struct bf53x_sport* sport, int dummy)
 		sport->curr_tx_desc = sport->dma_tx_desc;
  
 	dma->next_desc_ptr = (unsigned int)(sport->curr_tx_desc);
-	dma->cfg           = FLOW | NDSIZE |WDSIZE_32 ;
+	dma->cfg           = DMAFLOW | NDSIZE |WDSIZE_32 ;
 	dma->x_count       = 0;
 	dma->x_modify      = 0;
 	dma->y_count       = 0;
@@ -581,7 +581,7 @@ int sport_config_rx_dummy(struct bf53x_sport *sport)
 
 	desc->next_desc_addr = (unsigned long)desc;
 	desc->start_addr = sport->dummy_buf;
-	config = FLOW | NDSIZE | WDSIZE_32 | WNR ;
+	config = DMAFLOW | NDSIZE | WDSIZE_32 | WNR ;
 	desc->cfg = config | DMAEN;
 	desc->x_count = 0x80;
 	desc->x_modify = 0;
@@ -616,7 +616,7 @@ int sport_config_tx_dummy(struct bf53x_sport *sport)
 
 	desc->next_desc_addr = (unsigned long)desc;
 	desc->start_addr = sport->dummy_buf;
-	config = FLOW | NDSIZE |WDSIZE_32;
+	config = DMAFLOW | NDSIZE |WDSIZE_32;
 	desc->cfg = config | DMAEN;
 	desc->x_count = 0x80;
 	desc->x_modify = 0;
