@@ -407,13 +407,13 @@ static int bf537mac_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
     data -= 2;
     *((unsigned short *)data) = (unsigned short)(skb->len);
     current_tx_ptr->desc_a.start_addr = (unsigned long)data;
-    blackfin_dcache_invalidate_range(data, (data+(skb->len)));  //this is important!
+    blackfin_dcache_invalidate_range(data, (data+(skb->len)) + 2);  //this is important!
   } else {
     *((unsigned short *)(current_tx_ptr->packet)) = (unsigned short)(skb->len);
     memcpy((char *)(current_tx_ptr->packet + 2),skb->data,(skb->len));
     current_tx_ptr->desc_a.start_addr = (unsigned long)current_tx_ptr->packet;
     /*why we need to invalidate uncached memory? */
-    blackfin_dcache_invalidate_range((unsigned int)current_tx_ptr->packet, (unsigned int)(current_tx_ptr->packet + skb->len));
+    blackfin_dcache_invalidate_range((unsigned int)current_tx_ptr->packet, (unsigned int)(current_tx_ptr->packet + skb->len) + 2);
   }
   
   current_tx_ptr->desc_a.config.b_DMA_EN = 1;   //enable this packet's dma
