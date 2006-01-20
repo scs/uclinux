@@ -431,7 +431,8 @@ resume_userspace_1:
 	reti = [sp++];
 
 	r7 = [p5 + TI_FLAGS];
-	r4 = _TIF_WORK_MASK;
+	r4.l = lo(_TIF_WORK_MASK);
+	r4.h = hi(_TIF_WORK_MASK);
 	r7 =  r7 & r4;
 
 syscall_resched:
@@ -601,7 +602,8 @@ ENTRY(ret_from_exception)
 	r7 = r7 & r4;		/*thread_info->flags*/
 	p5 = r7;
 	r7 = [p5 + TI_FLAGS];
-	r4 = _TIF_WORK_MASK;
+	r4.l = lo(_TIF_WORK_MASK);
+	r4.h = hi(_TIF_WORK_MASK);
 	r7 =  r7 & r4;
 	cc = r7 == 0;
 	if cc jump 4f;
