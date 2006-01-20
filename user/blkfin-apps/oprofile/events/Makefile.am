@@ -29,7 +29,8 @@ event_files = \
 	mips/r12000/events mips/r12000/unit_masks \
 	mips/vr5432/events mips/vr5432/unit_masks \
 	mips/vr5500/events mips/vr5500/unit_masks \
-	ppc/e500/events ppc/e500/unit_masks
+	ppc/e500/events ppc/e500/unit_masks \
+	blackfin/bf533/events blackfin/bf533/unit_masks
 
 install-data-local:
 	for i in ${event_files} ; do \

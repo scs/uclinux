@@ -34,6 +34,6 @@ event:0x9B counters:1,2 um:zero minimum:500 name:DATA_FILL_BANK_B : Data memory 
 event:0x9C counters:1,2 um:zero minimum:500 name:DATA_VICTIMS_BANK_A : Data memory cache victims delivered from Bank A
 event:0x9D counters:1,2 um:zero minimum:500 name:DATA_VICTIMS_BANK_B : Data memory cache victims delivered from Bank B
 event:0x9E counters:1,2 um:zero minimum:500 name:DATA_HIGH_FILL : Data memory cache high priority fills requested
-event:0x9F counters:1,2 um:zero minimum:500 name:DATA_LOW_FILL: Data memory cache low priority
+event:0x9F counters:1,2 um:zero minimum:500 name:DATA_LOW_FILL : Data memory cache low priority
 #0x10 through 0x17 Defined by ASSP. See the Intel® XScale" core implementation option section of the ASSP
 #architecture specification for more details.
