@@ -97,13 +97,13 @@ static int sr_nop(const proc_t* a, const proc_t* b){
 
 #define CMP_STR(NAME) \
 static int sr_ ## NAME(const proc_t* P, const proc_t* Q) { \
-    return strcmp(P-> ## NAME, Q-> ## NAME); \
+    return strcmp(P->NAME, Q->NAME); \
 }
 
 #define CMP_INT(NAME) \
 static int sr_ ## NAME (const proc_t* P, const proc_t* Q) { \
-    if (P-> ## NAME < Q-> ## NAME) return -1; \
-    if (P-> ## NAME > Q-> ## NAME) return  1; \
+	if (P->NAME < Q->NAME) return -1;	    \
+    if (P->NAME > Q->NAME) return  1; \
     return 0; \
 }
 

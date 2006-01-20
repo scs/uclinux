@@ -321,6 +321,7 @@ static void show_forest(const int n){
     }
     show_tree(i,n,0,0);
 not_root:
+    if (0) {};
   }
   /* don't free the array because it takes time and ps will exit anyway */
 }
@@ -378,6 +379,7 @@ int main(int argc, char *argv[]){
     case SIGSEGV: /* I want core dumps to debug if I don't get a backtrace */
 #endif
     case SIGWINCH: /* we aren't going to change output line length later... */
+      if (0) {};
     }
   } while (0);
 #endif

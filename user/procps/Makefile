@@ -120,7 +120,7 @@ W_SHOWFROM =  -DW_SHOWFROM# show remote host users are logged in from.
 BUILD = $(BPROG) $(UPROG) $(PPROG) $(SPROG) $(SUBDIRS) $(DESKTOP)
 
 # BUILD LIBRARIES + PROGRAMS
-all: $(BUILD)
+all: proc/libproc.a $(BUILD)
 
 # INSTALL PROGRAMS + DOCS
 install: $(patsubst %,install_%,$(BUILD) $(XSCPT) $(MAN1) $(MAN5) $(MAN8))
