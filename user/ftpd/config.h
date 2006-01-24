@@ -915,3 +915,6 @@ extern void *memmove __P ((void *to, const void *from, size_t sz));
 /* Declare our own silly version.  */
 extern void memset __P ((void *mem, int val, size_t sz));
 #endif
+
+/* Enlarge the buffer size from default in uClibc to 4096 */
+#define BUFSIZ 4096
