@@ -223,9 +223,11 @@ int odb_open(odb_t * odb, char const * filename, enum odb_rw rw,
 		nr_node = (stat_buf.st_size - data->offset_node) /
 			((sizeof(odb_index_t) * BUCKET_FACTOR) + sizeof(odb_node_t));
 	}
-
+	/*fixme, wordaround for uclinux*/
+	/*data->base_memory = mmap(0, tables_size(data, nr_node), mmflags,
+				MAP_SHARED, data->fd, 0);*/
 	data->base_memory = mmap(0, tables_size(data, nr_node), mmflags,
-				MAP_SHARED, data->fd, 0);
+                                MAP_PRIVATE, data->fd, 0);
 
 	if (data->base_memory == MAP_FAILED) {
 		err = errno;
