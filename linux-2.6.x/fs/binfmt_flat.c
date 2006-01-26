@@ -14,6 +14,7 @@
  *	    Copyright (C) 1998  Kenneth Albanowski <kjahds@kjahds.com>
  *	JAN/99 -- coded full program relocation (gerg@snapgear.com)
  */
+//#define DEBUG_BFIN_RELOC
 
 #include <linux/module.h>
 #include <linux/config.h>
@@ -62,9 +63,6 @@ struct lib_info {
 	struct {
 		unsigned long start_code;		/* Start of text segment */
 		unsigned long start_data;		/* Start of data segment */
-#ifdef CONFIG_BFIN
-		unsigned long end_data;			/* Start of bss */
-#endif
 		unsigned long start_brk;		/* End of data segment */
 		unsigned long text_len;			/* Length of text segment */
 		unsigned long entry;			/* Start address for this module */
@@ -373,273 +371,6 @@ failed:
 }
 
 /****************************************************************************/
-#ifdef CONFIG_BFIN
-#ifdef CONFIG_BINFMT_SHARED_FLAT
-static int
-load_library(int curid, int id, struct lib_info *p, flat_v5_reloc_t *r)
-{
-	if ( ! p->lib_list[id].loaded &&
-		   load_flat_shared_library(id, p) > (unsigned long) -4096) {
-		printk("BINFMT_FLAT: failed to load library %d", id);
-		return 0;
-	}
-	/* Check versioning information (i.e. time stamps) */
-	if (p->lib_list[id].build_date && p->lib_list[curid].build_date &&
-			p->lib_list[curid].build_date < p->lib_list[id].build_date) {
-		printk("BINFMT_FLAT: library %d is younger than %d", id, curid);
-		return 0;
-	}
-	return 1;
-}
-#endif
-
-int calc_v5_reloc(int i, unsigned long *rlp, struct lib_info *p, int curid, int internalp)
-{
-	/*
-	 * This was flat_reloc_t, but since it changes based on version, and this
-	 * routine is for version 5 only.  This is now flat_v5_reloc_t.
-	 * Faisal Akber 2001-11-28
-	 */
-	flat_v5_reloc_t r;
-	unsigned long rl = ntohl (*(rlp + i));
-	unsigned long *ptr;
-	unsigned short *usptr;
-	unsigned long offset=0;
-	unsigned long start_brk;
-	unsigned long start_data;
-	unsigned long end_data;
-	unsigned long text_len;
-	unsigned long start_code;
-	int id;
-
-	r.value = rl;
-#ifdef CONFIG_BINFMT_SHARED_FLAT
-	if (r.reloc.offset == 0)
-		id = curid;	/* Relocs of 0 are always self referring */
-	else {
-		id = (r.reloc.offset >> 24) & 0x03;	/* Find ID for this reloc */
-		r.reloc.offset &= 0x00ffffff;	/* Trim ID off here */
-	}
-	if (id >= MAX_SHARED_LIBS) {
-		printk("BINFMT_FLAT: reference 0x%x to shared library %d",
-				(unsigned) r.reloc.offset, id);
-		goto failed;
-	}
-	if (curid != id) {
-		if (internalp) {
-			printk("BINFMT_FLAT: reloc address 0x%x not in same module "
-					"(%d != %d)", (unsigned) r.reloc.offset, curid, id);
-			goto failed;
-		} else if ( ! p->lib_list[id].loaded &&
-				load_flat_shared_library(id, p) > (unsigned long) -4096) {
-			printk("BINFMT_FLAT: failed to load library %d", id);
-			goto failed;
-		}
-		/* Check versioning information (i.e. time stamps) */
-		if (p->lib_list[id].build_date && p->lib_list[curid].build_date &&
-				p->lib_list[curid].build_date < p->lib_list[id].build_date) {
-			printk("BINFMT_FLAT: library %d is younger than %d", id, curid);
-			goto failed;
-		}
-	}
-#else
-	id = 0;
-#endif
-
-	start_brk = p->lib_list[id].start_brk;
-	start_data = p->lib_list[id].start_data;
-	end_data = p->lib_list[id].end_data;
-	start_code = p->lib_list[id].start_code;
-	text_len = p->lib_list[id].text_len;
-
-        ptr = (unsigned long *) (r.reloc.offset);
-
-        if (r.reloc.offset < text_len)                     /* In text segment */
-                ptr = (unsigned long *)(r.reloc.offset + start_code);
-        else                                    /* In data segment */
-                ptr = (unsigned long *)(r.reloc.offset - text_len + start_data);
-
-
-#ifdef DEBUG_BFIN_RELOC
-	printk("reloc %d reloc.offset=%x", i, r.reloc.offset);
-	printk(" type = %x sp = %d", r.reloc.type, r.reloc.sp);
-#endif
-
-	switch (r.reloc.sp) {
-	case FLAT_BFIN_RELOC_SP_TYPE_16_BIT:
-		usptr = (unsigned short *) ptr;
-#ifdef DEBUG_BFIN_RELOC
-		printk(" sp = 16 bit *usptr = %x", get_unaligned (usptr));
-#endif
-
-		switch (r.reloc.type) {
-		  case FLAT_RELOC_TYPE_TEXT:
-			  offset = start_code;
-			  break;
-		  case FLAT_RELOC_TYPE_DATA:
-			  offset = start_data;
-			  break;
-		  case FLAT_RELOC_TYPE_BSS:
-			  offset = end_data;
-			  break;
-		  case FLAT_RELOC_TYPE_STACK:
-			  offset = current->mm->context.end_brk;
-			  break;
-		  default:
-			  printk("BINFMT_FLAT: Unknown relocation type=%x\n",
-			       r.reloc.type);
-			  break;
-		}
-
-
-		offset += get_unaligned (usptr);
-		if (r.reloc.hi_lo) {
-#ifdef DEBUG_BFIN_RELOC
-			printk(" hi ");
-#endif
-			offset >>= 16;
-		}
-		else{
-#ifdef DEBUG_BFIN_RELOC
-			printk(" lo ");
-#endif
-			offset &= 0xFFFF;
-		}
-		put_unaligned (offset, usptr);
-#ifdef DEBUG_BFIN_RELOC
-		printk(" new value %x", get_unaligned (usptr));
-#endif
-
-		i++;
-		break;
-
-	case FLAT_BFIN_RELOC_SP_TYPE_16H_BIT:
-		usptr = (unsigned short *) ptr;
-#ifdef DEBUG_BFIN_RELOC
-		printk(" sp = 16 bit *offset = %x", ntohl (rlp[i + 1]));
-#endif
-
-		switch (r.reloc.type) {
-		  case FLAT_RELOC_TYPE_TEXT:
-			  offset = start_code;
-			  break;
-		  case FLAT_RELOC_TYPE_DATA:
-			  offset = start_data;
-			  break;
-		  case FLAT_RELOC_TYPE_BSS:
-			  offset = end_data;
-			  break;
-		  case FLAT_RELOC_TYPE_STACK:
-			  offset = current->mm->context.end_brk;
-			  break;
-		  default:
-			  printk("BINFMT_FLAT: Unknown relocation type=%x\n",
-			       r.reloc.type);
-			  break;
-		}
-		if (get_unaligned (usptr) == 0) {
-			offset += ntohl (rlp[i + 1]);
-			i += 2;
-		}
-		else {
-			offset += ntohl (rlp[get_unaligned (usptr)]);
-			i++;
-		}
-		if (r.reloc.hi_lo) {
-#ifdef DEBUG_BFIN_RELOC
-			printk(" hi");
-#endif
-			offset >>= 16;
-			
-		} else {
-#ifdef DEBUG_BFIN_RELOC
-			printk(" lo");
-#endif
-		}
-		put_unaligned (offset, usptr);
-#ifdef DEBUG_BFIN_RELOC
-		printk(" new value %x", get_unaligned (usptr));
-#endif
-		break;
-
-	case FLAT_BFIN_RELOC_SP_TYPE_32_BIT:
-
-#ifdef DEBUG_BFIN_RELOC
-		printk(" ptr =%x", get_unaligned ((unsigned short *)ptr));
-#endif
-		offset = get_unaligned (ptr);
-
-#ifdef CONFIG_BINFMT_SHARED_FLAT
-		/* relocation of R_byte4_data in another library.
-                   The value we have is absolute relative to the library.
-		*/
-
-		int new_id = (offset >> 24) & 0x03;	/* Find ID for this reloc */
-
-		// new_id = 0 indicates local relocation.
-		if (new_id !=0 && new_id != curid) {
-			/* this symbol is in a different library */
-			/* verify if it is loaded */
-			if(!load_library(curid, new_id, p, &r))
-				goto failed;
-			offset = offset & 0x00ffffff;
-			if(offset < p->lib_list[new_id].text_len)
-				offset +=  p->lib_list[new_id].start_code;
-			else
-				offset = offset - p->lib_list[new_id].text_len + p->lib_list[new_id].start_data;
-		}
-		else
-#endif
-		{
-			switch (r.reloc.type) {
-			case FLAT_RELOC_TYPE_TEXT:
-				offset += start_code;
-				break;
-			case FLAT_RELOC_TYPE_DATA:
-				offset += start_data;
-				break;
-			case FLAT_RELOC_TYPE_BSS:
-				offset += end_data;
-				break;
-			case FLAT_RELOC_TYPE_STACK:
-				offset = current->mm->context.end_brk;
-				break;
-			default:
-				printk
-			    		("BINFMT_FLAT: offset= %x,Unknown relocation type=%x\n",
-			     		r.reloc.offset, r.reloc.type);
-				break;
-			}
-		}
-
-		put_unaligned (offset, ptr);
-#ifdef DEBUG_BFIN_RELOC
-		printk(" new ptr =%x", get_unaligned (ptr));
-#endif
-		i++;
-		break;
-
-	default:
-		printk("BINFMT_FLAT: Unknown relocation type %x\n",
-		       r.reloc.sp);
-		break;
-	}
-#ifdef DEBUG_BFIN_RELOC
-	printk("\n");
-#endif
-	return i;
-
-#ifdef CONFIG_BINFMT_SHARED_FLAT
-failed:
-	printk(", killing %s!\n", current->comm);
-	send_sig(SIGSEGV, current, 0);
-
-	return RELOC_FAILED;
-#endif
-
-}
-
-#endif
 
 void old_reloc(unsigned long rl)
 {
@@ -714,6 +445,10 @@ static int load_flat_file(struct linux_binprm * bprm,
 	flags     = ntohl(hdr->flags);
 	rev       = ntohl(hdr->rev);
 
+#ifdef DEBUG
+	flags |= FLAT_FLAG_KTRACE;
+#endif
+	    
 	if (flags & FLAT_FLAG_KTRACE)
 		printk("BINFMT_FLAT: Loading file: %s\n", bprm->filename);
 
@@ -937,9 +672,6 @@ static int load_flat_file(struct linux_binprm * bprm,
 	/* Store the current module values into the global library structure */
 	libinfo->lib_list[id].start_code = start_code;
 	libinfo->lib_list[id].start_data = datapos;
-#ifdef CONFIG_BFIN
-	libinfo->lib_list[id].end_data = datapos + data_len;
-#endif
 	libinfo->lib_list[id].start_brk = datapos + data_len + bss_len;
 	libinfo->lib_list[id].text_len = text_len;
 	libinfo->lib_list[id].loaded = 1;
@@ -981,16 +713,8 @@ static int load_flat_file(struct linux_binprm * bprm,
 	 * reference to be statically initialised to _stext (I've moved
 	 * __start to address 4 so that is okay).
 	 */
-#ifdef CONFIG_BFIN
-DBG_FLT("rev= %d\n", rev);
-#ifdef DEBUG_BFIN_RELOC
-	printk("start_code=%x start_data=%x end_data=%x\n",current->mm->start_code,
-	current->mm->start_data, current->mm->end_data);
-#endif
-				 for(i = 0; i < relocs;)
-					 i = calc_v5_reloc(i, reloc, libinfo, id, 1);
-#else
 	if (rev > OLD_FLAT_VERSION) {
+		unsigned long persistent = 0;
 		for (i=0; i < relocs; i++) {
 			unsigned long addr, relval;
 
@@ -998,14 +722,18 @@ DBG_FLT("rev= %d\n", rev);
 			   relocated (of course, the address has to be
 			   relocated first).  */
 			relval = ntohl(reloc[i]);
+			if (flat_set_persistent (relval, &persistent))
+				continue;
 			addr = flat_get_relocate_addr(relval);
 			rp = (unsigned long *) calc_reloc(addr, libinfo, id, 1);
 			if (rp == (unsigned long *)RELOC_FAILED)
 				return -ENOEXEC;
 
 			/* Get the pointer's value.  */
-			addr = flat_get_addr_from_rp(rp, relval, flags);
-			if (addr != 0) {
+			addr = flat_get_addr_from_rp(rp, relval, flags, &persistent);
+			if (addr == 0)
+				continue;
+			if (! flat_addr_absolute (relval)) {
 				/*
 				 * Do the relocation.  PIC relocs in the data section are
 				 * already in target order
@@ -1015,16 +743,15 @@ DBG_FLT("rev= %d\n", rev);
 				addr = calc_reloc(addr, libinfo, id, 0);
 				if (addr == RELOC_FAILED)
 					return -ENOEXEC;
-
-				/* Write back the relocated pointer.  */
-				flat_put_addr_at_rp(rp, addr, relval);
 			}
+			/* Write back the relocated pointer.  */
+			flat_put_addr_at_rp(rp, addr, relval);
 		}
 	} else {
 		for (i=0; i < relocs; i++)
 			old_reloc(ntohl(reloc[i]));
 	}
-#endif	
+
 	flush_icache_range(start_code, end_code);
 
 	/* zero the BSS,  BRK and stack areas */
