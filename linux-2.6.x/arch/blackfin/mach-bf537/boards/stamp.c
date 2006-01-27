@@ -63,12 +63,46 @@ static struct platform_device smc91x_device = {
 	.resource = smc91x_resources,
 };
 
+static struct resource sl811_hcd_resources[] = {
+	[0] = {
+	       .start = 0x20300000,
+	       .end = 0x20300000,
+	       .flags = IORESOURCE_MEM,
+	       },
+	[1] = {
+	       .start = 0x20300004,
+	       .end = 0x20300004,
+	       .flags = IORESOURCE_MEM,
+	       },
+	[2] = {
+	       .start = IRQ_PROG_INTA,
+	       .end = IRQ_PROG_INTA,
+	       .flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL,
+	       },
+	[3] = {
+	       /*
+	        *  denotes the flag pin and is used directly if
+	        *  CONFIG_IRQCHIP_DEMUX_GPIO is defined.
+	        */
+	       .start = IRQ_PF7,
+	       .end = IRQ_PF7,
+	       .flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL,
+	       },
+};
+static struct platform_device sl811_hcd_device = {
+	.name = "sl811-hcd",
+	.id = 0,
+	.num_resources = ARRAY_SIZE(sl811_hcd_resources),
+	.resource = sl811_hcd_resources,
+};
+
 static struct platform_device bfin_mac_device = {
 	.name = "bfin_mac",
 };
 
 static struct platform_device *stamp_devices[] __initdata = {
 	&smc91x_device,
+	&sl811_hcd_device,
 	&bfin_mac_device,
 };
 
