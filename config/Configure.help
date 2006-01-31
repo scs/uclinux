@@ -2215,6 +2215,13 @@ CONFIG_USER_INETUTILS_RSHD
 
 CONFIG_USER_FLTHDR
   FLAT binary format header manipulation program.
+
+CONFIG_USER_CAN_EXAMPLES
+  some example and test applications for the can4linux CAN driver.
+
+CONFIG_USER_CAN_HORCH
+  advanced CAN bus analyzer
+
 #
 # END of user config help
 #

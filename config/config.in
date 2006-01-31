@@ -756,6 +756,10 @@ if [ "$CONFIG_USER_W3CAM_VIDCAT" = "y" -o \
 	define_bool CONFIG_LIB_LIBJPEG y
 fi
 
+comment 'CAN tools'
+bool 'can4linux examples'	CONFIG_USER_CAN_EXAMPLES
+bool 'horch'			CONFIG_USER_CAN_HORCH
+
 comment 'Fileutils tools'
 bool 'cat'			CONFIG_USER_FILEUTILS_CAT
 bool 'chgrp'			CONFIG_USER_FILEUTILS_CHGRP
