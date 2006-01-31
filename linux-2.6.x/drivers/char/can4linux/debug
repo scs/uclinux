@@ -1,0 +1,10 @@
+#!/bin/sh
+# set Can debug level
+
+if [ ! -d /proc/sys/Can/ ]; then
+  echo "** ERROR: Driver not present !"
+  exit 1
+fi
+
+echo $1 > /proc/sys/Can/dbgMask
+grep . /proc/sys/Can/*

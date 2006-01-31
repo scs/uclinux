@@ -1,0 +1,85 @@
+#
+# CAN interface boards configuration
+#
+
+menu "CAN, the car bus and industrial fieldbus"
+
+config CAN4LINUX
+	bool "can4linux support, the car bus and industrial fieldbus"
+	---help---
+	  can4linux is a special driver for the CAN chips of different
+	  manufacturers. It currently supports the stand-alone
+	  Philips SJA1000, Intel 82527 and Infineon TwinCAN (SAK82C900).
+	  On Motorola ColdFire the integrated FlexCAN is supported.
+	  On Analog Devices BlackFin the integrated CAN is supported.
+  
+	  If you have one of the mentioned controllers and want to have
+	  driver support for CAN, say Y here.
+
+
+#
+# ISA-based CAN Cards
+#
+
+comment "ISA-based CAN Cards"
+	depends on CAN4LINUX && ISA
+
+config CAN_ATCANMINI
+	tristate "port GmbH ISA AT-CAN-MINI 1 channel CAN high speed interface"
+	depends on CAN4LINUX && ISA
+	---help---
+	  Simply say Y to enable support for this board.
+	  Driver supports the SJA1000 PeliCAN mode
+
+#
+# PCI-based CAN Cards
+#
+
+comment "PCI-based CAN Cards"
+	depends on CAN4LINUX && PCI
+
+config CAN_CPC_PCI
+	tristate "EMS Wuensche CPC-PCI 2 channel CAN high speed interface"
+	depends on CAN4LINUX && PCI
+	---help---
+	  Simply say Y to enable support for this board.
+	  Driver supports the SJA1000 PeliCAN mode
+
+#
+# USB-based CAN Cards
+#
+
+comment "USB-based CAN Cards"
+	depends on CAN4LINUX && USB
+
+#
+# USB-based CAN Cards
+#
+
+#
+# special CAN drivers found on embedded hardware (microcontrollers)
+#
+
+comment "linux embedded drivers"
+	depends on CAN4LINUX && EMBEDDED
+
+config CAN_MCF5282
+	tristate "Motorola ColdFire MFC5282 FlexCAN driver"
+	depends on CAN4LINUX && EMBEDDED
+	---help---
+	  help text
+
+config CAN_UNCTWINCAN
+	tristate "Infineon TwinCAN SAK82c900 on Flesch UNC20"
+	depends on CAN4LINUX && EMBEDDED
+	---help---
+	  help text
+
+config CAN_BLACKFIN
+	tristate "Analog Devices BlackFin CAN Controller"
+	depends on CAN4LINUX && EMBEDDED
+	---help---
+	  This is can4linux support for the integrated CAN controller
+	  found on Analog Devices BlackFin processors.
+
+endmenu
