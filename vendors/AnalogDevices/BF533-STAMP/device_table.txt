@@ -33,6 +33,7 @@
 
 #<name>		<type>	<mode>	<uid>	<gid>	<major>	<minor>	<start>	<inc>	<count>
 /dev		d	755	0	0	-	-	-	-	-
+/dev/input	d	755	0	0	-	-	-	-	-
 
 /dev/mtd0	c	640	0	0	90	0	0	0	-
 /dev/mtd1	c	640	0	0	90	2	0	0	-
@@ -87,6 +88,7 @@
 /dev/spi	c	664	0	0	252	0	0	0	-
 /dev/pf		c	664	0	0	253	2	2	1	7
 /dev/pf		c	664	0	0	253	8	8	1	16
+/dev/input/event c	664	0	0	13	64	0	1	1
 /dev/ppi	c	664	0	0	241	0	0	1	1
 #/dev/sport	c	664	0	0	251	0	0	1	-
 /dev/time	c	664	0	0	10	101	0	0	-

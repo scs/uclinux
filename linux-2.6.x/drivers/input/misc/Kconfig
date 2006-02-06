@@ -57,4 +57,13 @@ config HP_SDC_RTC
 	  Say Y here if you want to support the built-in real time clock
 	  of the HP SDC controller.
 
+config BF53X_PFBUTTONS
+	tristate "PF buttons input device"
+	help
+	  Say Y here if you want to support buttons by PF for input
+	  subsystem. Proc interface (read only) - /proc/driver/bf53xPFbuttons.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called bf53xPFbuttons.
+
 endif

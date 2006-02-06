@@ -33,6 +33,7 @@ dir_  =
 
 dir_$(CONFIG_USER_BLACKFIN_RTC)             += blkfin-test/rtc-test
 dir_$(CONFIG_USER_BLACKFIN_PFLAGS)          += blkfin-test/pflags-test
+dir_$(CONFIG_USER_BLACKFIN_PFBUTTONS)       += blkfin-test/pfbuttons-test
 dir_$(CONFIG_USER_BLACKFIN_PPIFCDTEST)      += blkfin-test/ppifcd-test
 dir_$(CONFIG_USER_BLACKFIN_DPMC)            += blkfin-test/dpmc-test
 dir_$(CONFIG_USER_BLACKFIN_AUDIOTEST)       += blkfin-test/audio_test

@@ -1578,6 +1578,7 @@ bool    'PPIFCD test program'           CONFIG_USER_BLACKFIN_PPIFCDTEST
 bool    'AUDIO test program'            CONFIG_USER_BLACKFIN_AUDIOTEST
 bool    'VIDEO test program'            CONFIG_USER_BLACKFIN_VIDEOTEST
 bool    'PFLAGS test program'           CONFIG_USER_BLACKFIN_PFLAGS
+bool    'PFBUTTONS test program'        CONFIG_USER_BLACKFIN_PFBUTTONS
 bool    'TWI test program'              CONFIG_USER_BLACKFIN_TWI
 bool    'SPI test program'              CONFIG_USER_BLACKFIN_SPITEST
 bool    'PPI test program'              CONFIG_USER_BLACKFIN_PPI
