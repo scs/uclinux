@@ -276,6 +276,10 @@ void odb_close(odb_t * odb)
 		if (data->ref_count == 0) {
 			size_t size = tables_size(data, data->descr->size);
 			list_del(&data->list);
+
+			/*workaround by ksh*/
+                        write(data->fd,data->base_memory,size);
+
 			munmap(data->base_memory, size);
 			if (data->fd >= 0)
 				close(data->fd);
