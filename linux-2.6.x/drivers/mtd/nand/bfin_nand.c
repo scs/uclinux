@@ -52,10 +52,15 @@ static int nand_width = 1; /* default x8*/
  */
 const static struct mtd_partition partition_info[] = {
 	{ 
-		.name = "BFIN NAND MTD Partition",
+		.name = "linux kernel",
 	  	.offset = 0,
-	  	.size = 16*1024*1024 
+	  	.size = 0x400000, 
 	},
+	{
+		.name = "file system",
+		.offset = 0x400000,
+		.size = 0xC00000,
+	}
 };
 
 
