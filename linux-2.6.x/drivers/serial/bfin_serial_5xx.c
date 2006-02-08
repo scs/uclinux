@@ -681,7 +681,7 @@ static void dma_start_recv(struct bfin_serial *info)
 	if (((get_dma_curr_irqstat(info->rx_DMA_channel) & DMA_RUN) == 0)
 	    || get_dma_curr_irqstat(info->rx_DMA_channel) & DMA_DONE) {
 		set_dma_config(info->rx_DMA_channel,
-			       set_bfin_dma_config(DIR_WRITE, FLOW_AUTO,
+			       set_bfin_dma_config(DIR_WRITE, DMA_FLOW_AUTO,
 						   INTR_ON_ROW, DIMENSION_2D,
 						   DATA_SIZE_8));
 		set_dma_x_count(info->rx_DMA_channel, RX_XCOUNT);

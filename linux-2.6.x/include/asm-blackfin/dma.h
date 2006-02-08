@@ -83,10 +83,10 @@ typedef enum {
 #define DATA_SIZE_32 		2
 
 #define DMA_FLOW_STOP 		0
-#define FLOW_AUTO 		1
-#define FLOW_ARRAY 		4
-#define FLOW_SMALL 		6
-#define FLOW_LARGE 		7
+#define DMA_FLOW_AUTO 		1
+#define DMA_FLOW_ARRAY 		4
+#define DMA_FLOW_SMALL 		6
+#define DMA_FLOW_LARGE 		7
 
 #define DIMENSION_LINEAR    0
 #define DIMENSION_2D           1
