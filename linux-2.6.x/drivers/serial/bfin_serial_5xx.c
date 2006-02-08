@@ -427,7 +427,7 @@ static void dma_transmit_chars(struct bfin_serial *info)
 	 */
 	if (info->tx_xcount > 4) {
 		set_dma_config(info->tx_DMA_channel,
-			       set_bfin_dma_config(DIR_READ, FLOW_STOP,
+			       set_bfin_dma_config(DIR_READ, DMA_FLOW_STOP,
 						   INTR_ON_BUF,
 						   DIMENSION_LINEAR,
 						   DATA_SIZE_8));
