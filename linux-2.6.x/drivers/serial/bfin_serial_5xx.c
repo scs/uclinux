@@ -22,6 +22,7 @@
 #include <linux/serialP.h>
 #include <linux/console.h>
 #include <linux/reboot.h>
+#include <linux/delay.h>
 
 #include <asm/uaccess.h>
 #include <asm/blackfin.h>
@@ -771,12 +772,6 @@ static int startup(struct bfin_serial *info)
 		clear_bit(TTY_IO_ERROR, &info->tty->flags);
 	info->xmit_cnt = info->xmit_head = info->xmit_tail = 0;
 
-	/*
-	 * and set the speed of the serial port
-	 */
-
-	bfin_change_speed(info);
-
 #ifdef CONFIG_SERIAL_BLACKFIN_DMA
 
 	set_dma_x_modify(info->tx_DMA_channel, 1);
@@ -798,14 +793,10 @@ static int startup(struct bfin_serial *info)
 #endif
 
 	/*
-	 * Finally, enable sequencing and interrupts
+	 * and set the speed of the serial port
 	 */
-#ifdef CONFIG_SERIAL_BLACKFIN_DMA
-	*(regs->rpUART_IER) = ERBFI | ELSI;
-#else
-	*(regs->rpUART_IER) = ERBFI | ETBEI | ELSI;
-#endif
-	SSYNC;
+
+	bfin_change_speed(info);
 
 	info->flags |= S_INITIALIZED;
 	local_irq_restore(flags);
@@ -828,17 +819,22 @@ static void shutdown(struct bfin_serial *info)
 
 	local_irq_save(flags);
 
-	*(regs->rpUART_LCR) = 0;
-	SSYNC;
-	ACCESS_PORT_IER(regs)	/* Change access to IER & data port */
-	    *(regs->rpUART_IER) = 0;
-	SSYNC;
+#ifdef CONFIG_SERIAL_BLACKFIN_DMA
+	del_timer(&info->dma_timer);
+#endif
 
+	while(!(*(regs->rpUART_LSR)&TEMT) || info->xmit_cnt>0)
+		msleep(50);
+	
+	ACCESS_PORT_IER(regs)	/* Change access to IER & data port */
+	*(regs->rpUART_IER) = 0;
+	SSYNC;
 	*(regs->rpUART_GCTL) &= ~UCEN;
+	SSYNC;
+	*(regs->rpUART_LCR) = 0;
 	SSYNC;
 
 #ifdef CONFIG_SERIAL_BLACKFIN_DMA
-	del_timer(&info->dma_timer);
 	disable_dma(info->rx_DMA_channel);
 	disable_dma(info->tx_DMA_channel);
 #endif
@@ -934,8 +930,13 @@ static void bfin_change_speed(struct bfin_serial *info)
 	uart_dl = calc_divisor(baud_table[i]);
 
 	local_irq_save(flags);
+	/* Disable interrupts */
+	ACCESS_PORT_IER(regs)
+	* (regs->rpUART_IER) &= ~(ETBEI | ERBFI);
+	SSYNC;
+	
 	ACCESS_LATCH(regs)	/*Set to access divisor latch */
-	    *(regs->rpUART_DLL) = uart_dl;
+	*(regs->rpUART_DLL) = uart_dl;
 	SSYNC;
 	*(regs->rpUART_DLH) = uart_dl >> 8;
 	SSYNC;
@@ -943,10 +944,15 @@ static void bfin_change_speed(struct bfin_serial *info)
 	*(regs->rpUART_LCR) = cval;
 	SSYNC;
 
-	/* Change access to IER & data port */
+	/* Enable interrupts */
 	ACCESS_PORT_IER(regs)
-	    * (regs->rpUART_IER) |= ELSI;
+#ifdef CONFIG_SERIAL_BLACKFIN_DMA
+	*(regs->rpUART_IER) = ERBFI | ELSI;
+#else
+	*(regs->rpUART_IER) = ERBFI | ETBEI | ELSI;
+#endif
 	SSYNC;
+
 	/* Enable the UART */
 	*(regs->rpUART_GCTL) |= UCEN;
 	SSYNC;
@@ -1347,7 +1353,6 @@ static void rs_set_termios(struct tty_struct *tty, struct termios *old_termios)
 static void rs_close(struct tty_struct *tty, struct file *filp)
 {
 	struct bfin_serial *info = (struct bfin_serial *)tty->driver_data;
-	struct uart_registers *regs = &(info->regs);
 	unsigned long flags = 0;
 
 	FUNC_ENTER();
@@ -1403,11 +1408,6 @@ static void rs_close(struct tty_struct *tty, struct file *filp)
 	 * interrupt driver to stop checking the data ready bit in the
 	 * line status register.
 	 */
-
-	ACCESS_PORT_IER(regs)	/* Change access to IER & data port */
-	    *(regs->rpUART_IER) = 0;
-	SSYNC;
-
 	shutdown(info);
 	if (tty->driver->flush_buffer)
 		tty->driver->flush_buffer(tty);
@@ -1879,14 +1879,13 @@ module_init(rs_bfin_init);
 static void bfin_set_baud(struct bfin_serial *info)
 {
 	struct uart_registers *regs = &(info->regs);
-	int i;
 	unsigned short uart_dl;
 
 	FUNC_ENTER();
 
 	/* Change access to IER & data port */
 	ACCESS_PORT_IER(regs)
-	    * (regs->rpUART_IER) &= ~ETBEI;
+	* (regs->rpUART_IER) &= ~(ETBEI | ERBFI);
 	SSYNC;
 
 	uart_dl = calc_divisor(bfin_console_baud);
@@ -1905,9 +1904,9 @@ static void bfin_set_baud(struct bfin_serial *info)
 	/* Change access to IER & data port */
 	ACCESS_PORT_IER(regs)
 #ifdef CONFIG_SERIAL_BLACKFIN_DMA
-	    * (regs->rpUART_IER) |= ELSI;
+	*(regs->rpUART_IER) |= ELSI;
 #else
-	    * (regs->rpUART_IER) |= (ETBEI | ELSI);
+	*(regs->rpUART_IER) |= (ETBEI | ELSI);
 #endif
 	SSYNC;
 	/* Enable the UART */
@@ -1943,6 +1942,7 @@ int bfin_console_setup(struct console *cp, char *arg)
 	info->is_cons = 1;
 
 	bfin_set_baud(info);	/* make sure baud rate changes */
+	
 	return 0;
 }
 
@@ -1988,6 +1988,11 @@ int bfin_console_init(void)
 	bfin_config_uart0(&bfin_uart[0]);
 #if defined(CONFIG_BF534) || defined(CONFIG_BF536) || defined(CONFIG_BF537)
 	bfin_config_uart1(&bfin_uart[1]);
+
+	*pPORT_MUX &= ~(PFDE|PFTE);
+	__builtin_bfin_ssync();
+	*pPORTF_FER |= 0xF;
+	__builtin_bfin_ssync();
 #endif
 	register_console(&bfin_driver);
 	return 0;
