@@ -221,7 +221,7 @@ static int __init i2c_bfin_twi_init(void)
 	*pTWI_CLKDIV = (( 5*1024 / CONFIG_TWICLK_KHZ ) << 8) | (( 5*1024 / CONFIG_TWICLK_KHZ ) & 0xFF);
 
 	/* FIFO Initiation */
-	*pTWI_FIFO_CTL = XMTFLUSH | RCVFLUSH;
+	*pTWI_FIFO_CTL = 0;
 	
 	/* Interrupt mask . Enable XMT, RCV interrupt */
 	*pTWI_INT_MASK = RCVSERV | XMTSERV | MCOMP | MERR;
