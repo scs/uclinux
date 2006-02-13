@@ -43,7 +43,7 @@
 */
 #define RELOC_STACK_SIZE 100
 static uint32_t reloc_stack[RELOC_STACK_SIZE];
-static unsigned int reloc_stack_tos = 0;
+static unsigned int reloc_stack_tos;
 
 #define is_reloc_stack_empty() ((reloc_stack_tos > 0)?0:1)
 

@@ -43,9 +43,9 @@ u64 jiffies_64 = INITIAL_JIFFIES;
 
 EXPORT_SYMBOL(jiffies_64);
 
-void time_sched_init(irqreturn_t(*timer_routine)
+static void time_sched_init(irqreturn_t(*timer_routine)
 		      (int, void *, struct pt_regs *));
-unsigned long gettimeoffset(void);
+static unsigned long gettimeoffset(void);
 extern unsigned long wall_jiffies;
 extern int setup_irq(unsigned int, struct irqaction *);
 inline static void do_leds(void);
@@ -131,7 +131,7 @@ static struct irqaction bfin_timer_irq = {
 	.flags = SA_INTERRUPT
 };
 
-void
+static void
 time_sched_init(irqreturn_t(*timer_routine) (int, void *, struct pt_regs *))
 {
 	/* power up the timer, but don't enable it just yet */
@@ -155,7 +155,7 @@ time_sched_init(irqreturn_t(*timer_routine) (int, void *, struct pt_regs *))
 	setup_irq(IRQ_CORETMR, &bfin_timer_irq);
 }
 
-unsigned long gettimeoffset(void)
+static unsigned long gettimeoffset(void)
 {
 	unsigned long offset;
 	unsigned long clocks_per_jiffy = CLOCKS_PER_JIFFY;	/* call get_cclk() only once */

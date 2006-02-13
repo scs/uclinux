@@ -38,18 +38,21 @@
 #include <asm/cacheflush.h>
 #include <asm/io.h>
 
-static spinlock_t dma_page_lock = SPIN_LOCK_UNLOCKED;
+static spinlock_t dma_page_lock;
 static unsigned int *dma_page;
 static unsigned int dma_pages;
 static unsigned long dma_base;
 static unsigned long dma_size;
-static unsigned int dma_initialized = 0;
+static unsigned int dma_initialized;
 extern unsigned long _ramend;
 extern unsigned long memory_end;
 extern unsigned long memory_mtd_end;
 
 void dma_alloc_init(unsigned long start, unsigned long end)
 {
+	spin_lock_init(&dma_page_lock);
+	dma_initialized = 0;
+
 	dma_page = (unsigned int *)__get_free_page(GFP_KERNEL);
 	memset(dma_page, 0, PAGE_SIZE);
 	dma_base = PAGE_ALIGN(start);

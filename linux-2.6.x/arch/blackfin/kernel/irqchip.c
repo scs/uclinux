@@ -57,7 +57,7 @@
 #define MAX_IRQ_CNT	100000
 
 static volatile unsigned long irq_err_count;
-static spinlock_t irq_controller_lock = SPIN_LOCK_UNLOCKED;
+static spinlock_t irq_controller_lock;
 static LIST_HEAD(irq_pending);
 
 struct irqdesc irq_desc[NR_IRQS];
@@ -891,6 +891,7 @@ void __init init_IRQ(void)
 	extern void init_dma(void);
 	int irq;
 
+	spin_lock_init(&irq_controller_lock);
 	for (irq = 0, desc = irq_desc; irq < NR_IRQS; irq++, desc++) {
 		*desc = bad_irq_desc;
 		INIT_LIST_HEAD(&desc->pend);

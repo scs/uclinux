@@ -9,7 +9,7 @@
 
 #define MODULE_VER		"v0.1"
 
-static spinlock_t coreb_lock = SPIN_LOCK_UNLOCKED;
+static spinlock_t coreb_lock;
 static wait_queue_head_t coreb_dma_wait;
 
 #define COREB_IS_OPEN		0x00000001
@@ -299,6 +299,7 @@ int __init bf561_coreb_init(void)
 	struct proc_dir_entry *proc_entry;
 	init_waitqueue_head(&coreb_dma_wait);
 
+	spin_lock_init(&coreb_lock);
 	/* Request the core memory regions for Core B */
 	if (request_mem_region(0xff600000, 0x4000,
 			       "Core B - Instruction SRAM") == NULL)

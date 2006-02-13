@@ -96,8 +96,8 @@ void __init bf53x_cache_init(void)
 #endif
 }
 
-int DmaMemCpy(char *dest_addr, char *source_addr, unsigned short size);
-int DmaMemCpy16(char *dest_addr, char *source_addr, int size);
+static int DmaMemCpy(char *dest_addr, char *source_addr, unsigned short size);
+static int DmaMemCpy16(char *dest_addr, char *source_addr, int size);
 
 extern char _stext, _etext, _sdata, _edata, _sbss, _ebss, _end;
 extern int _ramstart, _ramend;
@@ -723,7 +723,7 @@ void panic_bfin(int cplb_panic)
 }
 
 /*copy from SRAM to L1RAM, DMAHandler routine*/
-int DmaMemCpy(char *dest_addr, char *source_addr, unsigned short size)
+static int DmaMemCpy(char *dest_addr, char *source_addr, unsigned short size)
 {
 
 	if (!size)
@@ -769,7 +769,7 @@ int DmaMemCpy(char *dest_addr, char *source_addr, unsigned short size)
 	return 0;
 }
 
-int DmaMemCpy16(char *dest_addr, char *source_addr, int size)
+static int DmaMemCpy16(char *dest_addr, char *source_addr, int size)
 {
 
 	if (!size)
