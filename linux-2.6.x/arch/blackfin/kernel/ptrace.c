@@ -100,135 +100,24 @@ static inline int ptrace_getregs(struct task_struct *tsk, void __user * uregs)
 static inline long get_reg(struct task_struct *task, int regno)
 {
 	unsigned long *addr;
+	unsigned char *reg_ptr;
 
 	struct pt_regs *regs =
 	    (struct pt_regs *)((unsigned long)task->thread_info +
 			       (THREAD_SIZE - sizeof(struct pt_regs)));
+	reg_ptr = (char *)regs;
+
 	switch (regno) {
-	case PT_ORIG_PC:
-		return regs->orig_pc;
-	case PT_PC:
-		return regs->pc;
-	case PT_R0:
-		return regs->r0;
-	case PT_ORIG_P0:
-		return regs->orig_p0;
-	case PT_R1:
-		return regs->r1;
-	case PT_R2:
-		return regs->r2;
-	case PT_R3:
-		return regs->r3;
-	case PT_R4:
-		return regs->r4;
-	case PT_R5:
-		return regs->r5;
-	case PT_R6:
-		return regs->r6;
-	case PT_R7:
-		return regs->r7;
-	case PT_P0:
-		return regs->p0;
-	case PT_P1:
-		return regs->p1;
-	case PT_P2:
-		return regs->p2;
-	case PT_P3:
-		return regs->p3;
-	case PT_P4:
-		return regs->p4;
-	case PT_P5:
-		return regs->p5;
-	case PT_A0W:
-		return regs->a0w;
-	case PT_A1W:
-		return regs->a1w;
-	case PT_A0X:
-		return regs->a0x;
-	case PT_A1X:
-		return regs->a1x;
-	case PT_IPEND:
-		return regs->ipend;
-	case PT_SYSCFG:
-		return regs->syscfg;
-	case PT_SEQSTAT:
-		return regs->seqstat;
-		/*case PT_RETE : return task->mm->start_code + TEXT_OFFSET; */
-	case PT_RETE:
-		return regs->rete;
-	case PT_RETN:
-		return regs->retn;
-	case PT_RETX:
-		return regs->retx;
-	case PT_RETS:
-		return regs->rets;
-	case PT_RESERVED:
-		return regs->reserved;
-	case PT_ASTAT:
-		return regs->astat;
-	case PT_LB0:
-		return regs->lb0;
-	case PT_LB1:
-		return regs->lb1;
-	case PT_LT0:
-		return regs->lt0;
-	case PT_LT1:
-		return regs->lt1;
-	case PT_LC0:
-		return regs->lc0;
-	case PT_LC1:
-		return regs->lc1;
-	case PT_B0:
-		return regs->b0;
-	case PT_B1:
-		return regs->b1;
-	case PT_B2:
-		return regs->b2;
-	case PT_B3:
-		return regs->b3;
-	case PT_L0:
-		return regs->l0;
-	case PT_L1:
-		return regs->l1;
-	case PT_L2:
-		return regs->l2;
-	case PT_L3:
-		return regs->l3;
-	case PT_M0:
-		return regs->m0;
-	case PT_M1:
-		return regs->m1;
-	case PT_M2:
-		return regs->m2;
-	case PT_M3:
-		return regs->m3;
-	case PT_I0:
-		return regs->i0;
-	case PT_I1:
-		return regs->i1;
-	case PT_I2:
-		return regs->i2;
-	case PT_I3:
-		return regs->i3;
 	case PT_USP:
 		return task->thread.usp;
-	case PT_FP:
-		return regs->fp;
-		//case PT_VECTOR : return regs->pc;
+	default:
+		if (regno <= 216)
+			return *(long *)(reg_ptr + regno);
 	}
 	/* slight mystery ... never seems to come here but kernel misbehaves without this code! */
 
-	printk("did not return for %d\n", regno);
-	if (regno == PT_USP) {
-		addr = &task->thread.usp;
-	} else if (regno < 208) {
-		addr = (unsigned long *)(task->thread.esp0 + regno);
-	} else {
-		printk("Request to get for unknown register\n");
-		return 0;
-	}
-	return *addr;
-
+	printk("Request to get for unknown register %d\n", regno);
+	return 0;
 }
 
 /*
@@ -237,13 +126,14 @@ static inline long get_reg(struct task_struct *task, int regno)
 static inline int
 put_reg(struct task_struct *task, int regno, unsigned long data)
 {
+	char * reg_ptr;
+
 	struct pt_regs *regs =
 	    (struct pt_regs *)((unsigned long)task->thread_info +
 			       (THREAD_SIZE - sizeof(struct pt_regs)));
+	reg_ptr = (char *)regs;
+
 	switch (regno) {
-	case PT_ORIG_PC:
-		regs->orig_pc = data;
-		break;
 	case PT_PC:
 		/*********************************************************************/
 		/* At this point the kernel is most likely in exception.             */
@@ -252,163 +142,15 @@ put_reg(struct task_struct *task, int regno, unsigned long data)
 		regs->retx = data;
 		regs->pc = data;
 		break;
-	case PT_R0:
-		regs->r0 = data;
-		break;
-	case PT_ORIG_P0:
-		regs->orig_p0 = data;
-		break;
-	case PT_R1:
-		regs->r1 = data;
-		break;
-	case PT_R2:
-		regs->r2 = data;
-		break;
-	case PT_R3:
-		regs->r3 = data;
-		break;
-	case PT_R4:
-		regs->r4 = data;
-		break;
-	case PT_R5:
-		regs->r5 = data;
-		break;
-	case PT_R6:
-		regs->r6 = data;
-		break;
-	case PT_R7:
-		regs->r7 = data;
-		break;
-	case PT_P0:
-		regs->p0 = data;
-		break;
-	case PT_P1:
-		regs->p1 = data;
-		break;
-	case PT_P2:
-		regs->p2 = data;
-		break;
-	case PT_P3:
-		regs->p3 = data;
-		break;
-	case PT_P4:
-		regs->p4 = data;
-		break;
-	case PT_P5:
-		regs->p5 = data;
-		break;
-	case PT_A0W:
-		regs->a0w = data;
-		break;
-	case PT_A1W:
-		regs->a1w = data;
-		break;
-	case PT_A0X:
-		regs->a0x = data;
-		break;
-	case PT_A1X:
-		regs->a1x = data;
-		break;
-	case PT_IPEND:
-		regs->ipend = data;
-		break;
-	case PT_SYSCFG:
-		regs->syscfg = data;
-		break;
-	case PT_SEQSTAT:
-		regs->seqstat = data;
-		break;
-	case PT_RETE:
-		regs->rete = data;
-		break;
-	case PT_RETN:
-		regs->retn = data;
-		break;
 	case PT_RETX:
-		break;		//regs->retx = data; break;
-	case PT_RETS:
-		regs->rets = data;
-		break;
-	case PT_RESERVED:
-		regs->reserved = data;
-		break;
-	case PT_ASTAT:
-		regs->astat = data;
-		break;
-	case PT_LB0:
-		regs->lb0 = data;
-		break;
-	case PT_LB1:
-		regs->lb1 = data;
-		break;
-	case PT_LT0:
-		regs->lt0 = data;
-		break;
-	case PT_LT1:
-		regs->lt1 = data;
-		break;
-	case PT_LC0:
-		regs->lc0 = data;
-		break;
-	case PT_LC1:
-		regs->lc1 = data;
-		break;
-	case PT_B0:
-		regs->b0 = data;
-		break;
-	case PT_B1:
-		regs->b1 = data;
-		break;
-	case PT_B2:
-		regs->b2 = data;
-		break;
-	case PT_B3:
-		regs->b3 = data;
-		break;
-	case PT_L0:
-		regs->l0 = data;
-		break;
-	case PT_L1:
-		regs->l1 = data;
-		break;
-	case PT_L2:
-		regs->l2 = data;
-		break;
-	case PT_L3:
-		regs->l3 = data;
-		break;
-	case PT_M0:
-		regs->m0 = data;
-		break;
-	case PT_M1:
-		regs->m1 = data;
-		break;
-	case PT_M2:
-		regs->m2 = data;
-		break;
-	case PT_M3:
-		regs->m3 = data;
-		break;
-	case PT_I0:
-		regs->i0 = data;
-		break;
-	case PT_I1:
-		regs->i1 = data;
-		break;
-	case PT_I2:
-		regs->i2 = data;
-		break;
-	case PT_I3:
-		regs->i3 = data;
-		break;
+		break;		/* regs->retx = data; break; */
 	case PT_USP:
 		regs->usp = data;
 		task->thread.usp = data;
 		break;
-	case PT_FP:
-		regs->fp = data;
-		break;
-		//case PT_VECTOR : regs->pc = data; break;
+	default:
+		if (regno <= 216)
+		        *(long *)(reg_ptr + regno) = data;
 	}
 	return 0;
 }
