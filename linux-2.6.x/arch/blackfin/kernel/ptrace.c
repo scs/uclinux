@@ -99,7 +99,6 @@ static inline int ptrace_getregs(struct task_struct *tsk, void __user * uregs)
  */
 static inline long get_reg(struct task_struct *task, int regno)
 {
-	unsigned long *addr;
 	unsigned char *reg_ptr;
 
 	struct pt_regs *regs =
