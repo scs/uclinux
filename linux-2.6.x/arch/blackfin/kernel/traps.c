@@ -32,6 +32,7 @@
 #include <asm/uaccess.h>
 #include <asm/traps.h>
 #include <asm/blackfin.h>
+#include <asm/uaccess.h>
 #include <linux/interrupt.h>
 
 /*
@@ -389,10 +390,14 @@ void dump(struct pt_regs *fp, void *retaddr)
 asmlinkage int sys_bfin_spinlock(int *spinlock)
 {
 	int ret = 0;
+	int tmp;
+
 	local_irq_disable();
-	if (*spinlock)
+	get_user(tmp, spinlock);
+	if (tmp)
 		ret = 1;
-	*spinlock = 1;
+	tmp = 1;
+	put_user(tmp, spinlock);
 	local_irq_enable();
 	return ret;
 }
