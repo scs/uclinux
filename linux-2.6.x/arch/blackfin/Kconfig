@@ -674,6 +674,17 @@ config DEBUG_HWERR
 	  hardware error interrupts and need to know where they are coming
 	  from.
 
+config DEBUG_ICACHE_CHECK
+	bool "Check Instruction cache coherancy"
+	depends on DEBUG_KERNEL
+	depends on DEBUG_HWERR
+	help
+	  Say Y here if you are getting wierd unexplained errors. This will
+	  ensure that icache is what SDRAM says it should be, by doing a
+	  byte wise comparision between SDRAM and instruction cache. This
+	  also relocates the irq_panic() function to L1 memory, (which is
+	  un-cached).
+
 config DEBUG_KERNEL_START
 	bool "Debug Kernel Startup"
 	depends on DEBUG_KERNEL
