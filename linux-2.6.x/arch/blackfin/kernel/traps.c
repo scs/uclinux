@@ -86,7 +86,7 @@ int kstack_depth_to_print = 48;
 
 #ifdef CONFIG_KALLSYMS
 #include <linux/kallsyms.h>
-int printk_address(unsigned long address)
+static int printk_address(unsigned long address)
 {
 	unsigned long offset = 0, symsize;
 	const char *symname;
@@ -115,7 +115,7 @@ int printk_address(unsigned long address)
 		      address, delim, modname, delim, symname, offset);
 }
 #else
-int printk_address(unsigned long address)
+static int printk_address(unsigned long address)
 {
 	return printk("[<%08lx>]", address);
 }

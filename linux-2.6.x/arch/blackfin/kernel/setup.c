@@ -58,7 +58,7 @@ void init_leds(void);
 void bf53x_cache_init(void);
 u_long get_cclk(void);
 u_long get_sclk(void);
-u_int get_dsp_rev_id(void);
+static u_int get_dsp_rev_id(void);
 static void generate_cpl_tables(void);
 static unsigned short fill_cpl_tables(unsigned long *, unsigned,
 				      unsigned long, unsigned long,
@@ -556,7 +556,7 @@ u_long get_sclk()
 EXPORT_SYMBOL(get_sclk);
 
 /*Get the DSP Revision ID*/
-u_int get_dsp_rev_id()
+static u_int get_dsp_rev_id()
 {
 	u_int id;
 	id = *pDSPID & 0xffff;
