@@ -150,22 +150,9 @@ static int bfin_fb_mmap(struct fb_info *info, struct file *file, struct vm_area_
 	return (int)rgb_buffer;
 }
 
-static int bfin_blank_line( const int line )
-{
-        /* This array contains a single bit for each line in
-           an NTSC frame. */
-        if (    ( line <= 18 ) ||
-                        ( line >=264 && line <= 281 ) ||
-                        ( line == 528 ) )
-                return true;
-                                                                                                                                                             
-        return false;
-}
-
 static void pixel_rgb_to_ycrcb(struct ycrcb_t *ycrcb_ptr, struct rgb_t *rgb_ptr)
 {
 	int r,g,b;
-	int y,cb,cr;
 #if 0
 	r = rgb_ptr->r * 100 / 255;
         g = rgb_ptr->g * 100 / 255;
@@ -191,48 +178,51 @@ static void bfin_framebuffer_init(void *ycrcb_buffer)
         const int nNumNTSCLines = 525;
         char *dest = (void *)ycrcb_buffer;
                                                                                                                                                              
-        int nFrameNum, nLineNum;
+        int nFrameNum, lines;
                                                                                                                                                              
         for ( nFrameNum = 0; nFrameNum < nNumNTSCVoutFrames; ++nFrameNum )
         {
-                for ( nLineNum = 1; nLineNum <= nNumNTSCLines; ++nLineNum )
+                for ( lines = 1; lines <= nNumNTSCLines; lines++ )
                 {
                         int offset = 0;
 			unsigned int code;
                         int i;
-                                                                                                                                                             
-                        if ( bfin_blank_line ( nLineNum ) )
-                                offset ++;
-                                                                                                                                                             
-                        if ( nLineNum > 266 || nLineNum < 3 )
-                                offset += 2;
+
+			if(lines<=3 || (lines>=266 && lines <=282))
+				offset = 0;
+			if((lines>=4 && lines<=19) || (lines>=264 && lines<=265))
+				offset = 1;
+			if(lines>=20 && lines<=263)
+				offset = 2;
+			if(lines>=283 && lines<=525)
+				offset = 3;
                                                                                                                                                              
                         /* Output EAV code */
                         code = system_code_map[ offset ].eav;
-                        WriteDestByte ( (char) (code >> 24) & 0xff );
-                        WriteDestByte ( (char) (code >> 16) & 0xff );
-                        WriteDestByte ( (char) (code >> 8) & 0xff );
-                        WriteDestByte ( (char) (code) & 0xff );
+                        *dest++ = (char) (code >> 24) & 0xff;
+                        *dest++ = (char) (code >> 16) & 0xff;
+                        *dest++ = (char) (code >> 8) & 0xff;
+                        *dest++ = (char) (code) & 0xff;
                                                                                                                                                              
                         /* Output horizontal blanking */
                         for ( i = 0; i < 67*2; ++i )
                         {
-                                WriteDestByte ( 0x80 );
-                                WriteDestByte ( 0x10 );
+                                *dest++ = 0x80;
+                                *dest++ = 0x10;
                         }
                                                                                                                                                              
                         /* Output SAV */
                         code = system_code_map[ offset ].sav;
-                        WriteDestByte ( (char) (code >> 24) & 0xff );
-                        WriteDestByte ( (char) (code >> 16) & 0xff );
-                        WriteDestByte ( (char) (code >> 8) & 0xff );
-                        WriteDestByte ( (char) (code) & 0xff );
+                        *dest++ = (char) (code >> 24) & 0xff;
+                        *dest++ = (char) (code >> 16) & 0xff;
+                        *dest++ = (char) (code >> 8) & 0xff;
+                        *dest++ = (char) (code) & 0xff;
                                                                                                                                                              
                         /* Output empty horizontal data */
                         for ( i = 0; i < 360*2; ++i )
                         {
-                                WriteDestByte ( 0x80 );
-                                WriteDestByte ( 0x10 );
+                                *dest++ = 0x80;
+                                *dest++ = 0x10;
                         }
                 }
         }

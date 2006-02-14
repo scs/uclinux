@@ -1,4 +1,3 @@
-#define WriteDestByte(val) {*dest++=val;}
 #define BLACK   (0x01800180)            /* black pixel pattern	*/
 #define BLUE    (0x296E29F0)		/* blue pixel pattern	*/
 #define RED     (0x51F0515A)		/* red pixel pattern	*/
@@ -20,10 +19,10 @@ struct system_code_type
                                                                                                                                                              
 const struct system_code_type system_code_map[4] =
 {
-        { 0xFF000080, 0xFF00009D },
+        { 0xFF0000EC, 0xFF0000F1 },
         { 0xFF0000AB, 0xFF0000B6 },
-        { 0xFF0000C7, 0xFF0000DA },
-        { 0xFF0000EC, 0xFF0000F1 }
+        { 0xFF000080, 0xFF00009D },
+        { 0xFF0000C7, 0xFF0000DA }
 };
 
 struct rgb_t{
