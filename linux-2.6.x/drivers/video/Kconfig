@@ -427,7 +427,7 @@ config FB_VGA16
 	  module will be called vga16fb.
 
 config FB_BFIN_7171
-	bool "Blackfin ADI7171 video encoder on uClinux"
+	tristate "Blackfin ADI7171 video encoder on uClinux"
 	depends on FB && BFIN
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
