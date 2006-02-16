@@ -64,6 +64,7 @@ static void bfin_framebuffer_logo(void *ycrcb_buffer);
 static void bfin_framebuffer_update(struct ycrcb_t *ycrcb_buffer, struct rgb_t *rgb_buffer);
 static void bfin_framebuffer_timer_setup(void);
 static void bfin_framebuffer_timerfn(unsigned long data);
+extern void rgb2yuv(unsigned char rgb[], unsigned char yuv[], int n);
 
 
 /* --------------------------------------------------------------------- */
@@ -150,28 +151,6 @@ static int bfin_fb_mmap(struct fb_info *info, struct file *file, struct vm_area_
 	return (int)rgb_buffer;
 }
 
-static void pixel_rgb_to_ycrcb(struct ycrcb_t *ycrcb_ptr, struct rgb_t *rgb_ptr)
-{
-	int r,g,b;
-#if 0
-	r = rgb_ptr->r * 100 / 255;
-        g = rgb_ptr->g * 100 / 255;
-        b = rgb_ptr->b * 100 / 255;
-        /* Calculate YCrCb values (0-255) from RGB beetween 0-100 */
-        ycrcb_ptr->y1 = ycrcb_ptr->y2     = 209 * (r + g + b) / 300 + 16  ;
-        ycrcb_ptr->Cb                      = b - (r/4)   - (g*3/4)   + 128 ;
-        ycrcb_ptr->Cr                      = r - (g*3/4) - (b/4)     + 128 ;
-#endif
-#if 1
-	r = rgb_ptr->r;
-	g = rgb_ptr->g;
-	b = rgb_ptr->b;
-	ycrcb_ptr->y1 =ycrcb_ptr->y2  = (306*r + 592*g + 117*b) >> 10;
-	ycrcb_ptr->Cb = (512*r - 429*g - 83*b + 128*1024) >> 10;
-	ycrcb_ptr->Cr = (-173*r - 339*g + 512*b +128*1024) >> 10;
-#endif
-}
-
 static void bfin_framebuffer_init(void *ycrcb_buffer)
 {
         const int nNumNTSCVoutFrames = 1;  // changed from 2 to 1 (dkl)
@@ -249,34 +228,22 @@ static void bfin_framebuffer_logo(void *ycrcb_buffer)
 
 static void bfin_framebuffer_update(struct ycrcb_t *ycrcb_buffer, struct rgb_t *rgb_buffer)
 {
-	struct ycrcb_t ycrcb_pixel1,ycrcb_pixel2; 
-	unsigned int ycrcb_data;
-	struct rgb_t *rgb_ptr  = rgb_buffer;
+	unsigned char *rgb_base  = (unsigned char *)rgb_buffer;
 	unsigned char *ycrcb_base = (unsigned char *)ycrcb_buffer;
-	int *OddPtr32;
-        int OddLine;
-        int *EvenPtr32;
-        int EvenLine;
-	int i;
-
-        for(OddLine = 22, EvenLine = 285; OddLine < 22+RGB_HEIGHT/2; OddLine ++, EvenLine ++){
-                OddPtr32 = (int *)((ycrcb_base + ((OddLine) * 1716)) + 276);
-                EvenPtr32 = (int *)((ycrcb_base + ((EvenLine) * 1716)) + 276);
-                for(i=0;i<RGB_WIDTH/2;i++){
-			pixel_rgb_to_ycrcb(&ycrcb_pixel1, rgb_ptr++);
-			memcpy((void *)&ycrcb_data, ((void *)&ycrcb_pixel1), sizeof(short));
-			pixel_rgb_to_ycrcb(&ycrcb_pixel2, rgb_ptr++);
-			memcpy((void *)&ycrcb_data +2, (void *)&ycrcb_pixel2 +2, sizeof(short));
-                        *OddPtr32++ = ycrcb_data;
-		}
-                for(i=0;i<RGB_WIDTH/2;i++){
-			pixel_rgb_to_ycrcb(&ycrcb_pixel1, rgb_ptr++);
-                        memcpy((void *)&ycrcb_data, ((void *)&ycrcb_pixel1), sizeof(short));
-                        pixel_rgb_to_ycrcb(&ycrcb_pixel2, rgb_ptr++);
-                        memcpy((void *)&ycrcb_data +2, (void *)&ycrcb_pixel2 +2, sizeof(short));
-                        *EvenPtr32++ = ycrcb_data;
-		}
-        }
+	unsigned char *odd_yuv;
+	unsigned char *even_yuv;
+	unsigned char *rgb_ptr;
+	int oddline, evenline,rgbline;
+	
+        for(oddline = 22, evenline = 285, rgbline = 0; 
+		oddline < 22+RGB_HEIGHT/2; oddline ++, evenline ++){
+		odd_yuv= (unsigned char *)((ycrcb_base + (oddline * 1716))+276);
+		rgb_ptr = (unsigned char *)(rgb_base + (rgbline++)*RGB_WIDTH*3);
+		rgb2yuv(rgb_ptr,odd_yuv,RGB_WIDTH);
+		even_yuv = (unsigned char *)((ycrcb_base + (evenline * 1716))+276);
+		rgb_ptr = (unsigned char *)(rgb_base + (rgbline++)*RGB_WIDTH*3);
+		rgb2yuv(rgb_ptr,even_yuv,RGB_WIDTH);
+	}
 }
 
 static void bfin_rgb_buffer_init(struct rgb_t *rgb_buffer, int width, int height)
@@ -314,7 +281,6 @@ static void bfin_rgb_buffer_init(struct rgb_t *rgb_buffer, int width, int height
 		rgb_ptr++;
 	}
 }
-	 
 	
 static void bfin_config_dma(void *ycrcb_buffer)
 {	
