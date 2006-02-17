@@ -22,7 +22,7 @@
 #ifdef PM_DEBUG
 #define dbg(args...) printk(args)
 #else
-#define dbg(args...) 
+#define dbg(args...)
 #endif
 #define PM_ENABLE 0x01;
 #define PM_CTL1_ENABLE  0x18
@@ -50,11 +50,11 @@ static int bfin533_reg_setup(struct op_counter_config *ctr)
 		curr_count[1] = count[1];
 	}
 
- 	dbg("ctr[0].enabled=%d,ctr[1].enabled=%d,ctr[0].event<<5=0x%x,ctr[1].event<<16=0x%x\n",ctr[0].enabled,ctr[1].enabled,ctr[0].event << 5,ctr[1].event << 16); 
+ 	dbg("ctr[0].enabled=%d,ctr[1].enabled=%d,ctr[0].event<<5=0x%x,ctr[1].event<<16=0x%x\n",ctr[0].enabled,ctr[1].enabled,ctr[0].event << 5,ctr[1].event << 16);
 	pfctl |= COUNT_EDGE_ONLY;
 	curr_pfctl = pfctl;
 
-	dbg("write 0x%x to pfctl\n",pfctl); 
+	dbg("write 0x%x to pfctl\n",pfctl);
 	ctr_write(pfctl);
 	count_write(count);
 
@@ -134,6 +134,7 @@ int pm_overflow_handler(int irq, struct pt_regs * regs){
         count_write(curr_count);
         return 0;
 }
+
 struct op_bfin533_model op_model_bfin533 = {
 	.reg_setup = bfin533_reg_setup,
 	.start = bfin533_start,

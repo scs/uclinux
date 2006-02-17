@@ -204,7 +204,7 @@ ENTRY(ex_single_step)
 	r7 = syscfg;
 	bitclr (r7, 0);
 	syscfg = R7;
-	
+
 	p5.l = lo(IPEND);
 	p5.h = hi(IPEND);
 	r6 = [p5];

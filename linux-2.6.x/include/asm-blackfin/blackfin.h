@@ -9,5 +9,6 @@
 #include <linux/config.h>
 #include <asm/macros.h>
 #include <asm/mach/blackfin.h>
+#include <asm/bfin-global.h>
 
 #endif				/* _BLACKFIN_H_ */

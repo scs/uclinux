@@ -52,12 +52,13 @@ unsigned long memory_mtd_end;
 unsigned long memory_mtd_start;
 unsigned long mtd_phys, mtd_size;
 
+EXPORT_SYMBOL(memory_start);
+EXPORT_SYMBOL(memory_end);
+
 char command_line[COMMAND_LINE_SIZE];
 
 void init_leds(void);
 void bf53x_cache_init(void);
-u_long get_cclk(void);
-u_long get_sclk(void);
 static u_int get_dsp_rev_id(void);
 static void generate_cpl_tables(void);
 static unsigned short fill_cpl_tables(unsigned long *, unsigned,
@@ -157,8 +158,8 @@ void __init setup_arch(char **cmdline_p)
 	int bootmap_size, id;
 	unsigned long l1_length;
 
-        bfin_console_init(); /* early console registration */
-        /* this give a chance to get printk() working before crash. */
+	bfin_console_init();	/* early console registration */
+	/* this give a chance to get printk() working before crash. */
 
 #if defined(CONFIG_CHR_DEV_FLASH) || defined(CONFIG_BLK_DEV_FLASH)
 	/* we need to initialize the Flashrom device here since we might
@@ -535,6 +536,7 @@ u_long get_cclk()
 		return get_vco() / ssel;
 	return get_vco() >> csel;
 }
+
 EXPORT_SYMBOL(get_cclk);
 
 /* Get the System clock */

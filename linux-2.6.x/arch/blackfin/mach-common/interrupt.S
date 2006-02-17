@@ -79,7 +79,7 @@ ENTRY(_evt_ivhw)
 	r1 = sp;
 
 #ifdef CONFIG_PROFILING
-	r7 = SEQSTAT;           
+	r7 = SEQSTAT;
 	r7 = r7 >>> 0xe;
 	r6 = 0x1F;
 	r7 = r7 & r6;

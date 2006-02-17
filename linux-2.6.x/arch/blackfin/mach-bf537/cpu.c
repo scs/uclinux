@@ -35,6 +35,7 @@
 #include <linux/cpufreq.h>
 #include <asm/dpmc.h>
 #include <linux/fs.h>
+#include <asm/bfin-global.h>
 
 #undef BF533_CPU_DEBUG
 
@@ -63,7 +64,6 @@ extern struct file_operations dpmc_fops;
  * static int dpmc_ioctl(struct inode *inode, struct file *file, unsigned int cmd, unsigned long arg)
  */
 
-extern unsigned long get_cclk();
 static int bf537_getfreq(unsigned int cpu)
 {
 	unsigned long cclk_mhz, vco_mhz;

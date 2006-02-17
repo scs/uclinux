@@ -24,7 +24,7 @@
 #include "op_blackfin.h"
 
 #define BFIN_533_ID  0xE5040003
-#define BFIN_537_ID  0xE5040002 
+#define BFIN_537_ID  0xE5040002
 
 static int pfmon_enabled;
 static struct semaphore pfmon_sem;
@@ -57,7 +57,7 @@ static int op_bfin_start(void)
 {
 	int ret = -EBUSY;
 
-	printk("KSDBG:in %s\n",__FUNCTION__); 
+	printk("KSDBG:in %s\n",__FUNCTION__);
 	down(&pfmon_sem);
 	if (!pfmon_enabled) {
 		ret = model->start(ctr);
@@ -126,7 +126,7 @@ int __init oprofile_arch_init(struct oprofile_operations *ops)
 		     break;
 		default:
 		     return -ENODEV;
-	}	
+	}
 
 	ops->cpu_type = model->name;
 	ops->create_files = op_bfin_create_files;
@@ -134,7 +134,7 @@ int __init oprofile_arch_init(struct oprofile_operations *ops)
 	ops->shutdown = op_bfin_shutdown;
 	ops->start = op_bfin_start;
 	ops->stop = op_bfin_stop;
-	
+
 
 	printk(KERN_INFO "oprofile: using %s performance monitoring.\n",
         ops->cpu_type);

@@ -317,6 +317,8 @@ void dump_stack(void)
 	show_stack(current, &stack);
 }
 
+EXPORT_SYMBOL(dump_stack);
+
 void dump(struct pt_regs *fp, void *retaddr)
 {
 	int i;

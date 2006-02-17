@@ -50,8 +50,6 @@ extern unsigned long wall_jiffies;
 extern int setup_irq(unsigned int, struct irqaction *);
 inline static void do_leds(void);
 
-extern u_long get_cclk(void);
-
 #define TIME_SCALE 100
 #define CLOCKS_PER_JIFFY (get_cclk() / HZ / TIME_SCALE)
 
