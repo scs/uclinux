@@ -69,7 +69,7 @@ L1_STRT:
         R1 = B[P0++] (Z);       /* fetch G to R1.L                      */
         R1 = R1 << 16;          /* shift G to R1.H                      */
         R0 = R0 | R1;           /* store G to R0.H                      */
-        IF CC JUMP PIXEL_CR;
+        IF !CC JUMP PIXEL_CR;
 PIXEL_CB:
 	/* -0.169 * R, -0.331 * G, and fetch B to R1.L */
 	A0 = R0.L * R3.L, A1 = R0.H * R3.H || R1 = B[P0++] (Z);
