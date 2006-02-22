@@ -91,12 +91,12 @@ Core        Emulation               **
 #define IRQ_TMR5            31	/*Timer 5 */
 #define IRQ_TMR6            32	/*Timer 6 */
 #define IRQ_TMR7            33	/*Timer 7 */
-#define IRQ_PROG_INTA       34	/* PF Ports F&G (PF31:0) Interrupt A */
-#define IRQ_PROG_INTB       35	/* PF Port F (PF15:0) Interrupt B */
+#define IRQ_PROG_INTA       34	/* PF Ports F&G (PF15:0) Interrupt A */
+#define IRQ_PORTG_INTB      35	/* PF Port G (PF15:0) Interrupt B */
 #define IRQ_MEM_DMA0        36	/*(Memory DMA Stream 0) */
 #define IRQ_MEM_DMA1        37	/*(Memory DMA Stream 1) */
+#define IRQ_PROG_INTB	    38  /* PF Ports F (PF15:0) Interrupt B */
 #define IRQ_WATCH           38	/*Watch Dog Timer */
-#define IRQ_PFB_PORTG       39	/*PF Port G (PF31:16) Interrupt B   */
 #define IRQ_SW_INT1         40	/*Software Int 1 */
 #define IRQ_SW_INT2         41	/*Software Int 2 (reserved for SYSCALL) */
 
@@ -177,7 +177,7 @@ Core        Emulation               **
 #define IRQ_TMR6_POS        4
 #define IRQ_TMR7_POS        8
 #define IRQ_PROG_INTA_POS   12
-#define IRQ_PROG_INTB_POS   16
+#define IRQ_PORTG_INTB_POS   16
 #define IRQ_MEM_DMA0_POS    20
 #define IRQ_MEM_DMA1_POS    24
 #define IRQ_WATCH_POS       28

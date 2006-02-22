@@ -108,8 +108,8 @@ config	IRQ_TMR7
 config	IRQ_PROG_INTA
     int "IRQ_PROG_INTA"
     default 12
-config	IRQ_PROG_INTB
-    int "IRQ_PROG_INTB"
+config	IRQ_PORTG_INTB
+    int "IRQ_PORTG_INTB"
     default 12
 config	IRQ_MEM_DMA0
     int "IRQ_MEM_DMA0"
