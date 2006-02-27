@@ -665,6 +665,16 @@ config DEBUG_KERNEL
 	  Say Y here if you are developing drivers or trying to debug and
 	  identify kernel problems.
 
+config DEBUG_SERIAL_EARLY_INIT
+	bool 'Initialize serial driver early'
+	default n
+	depends on SERIAL_BLACKFIN
+	help
+	  Say Y here if you want to get kernel output early when kernel
+	  crashes before the normal console initialization. If this option
+	  is enable, console output will always go to the ttyS0, no matter
+	  what kernel boot paramters you set.
+
 config DEBUG_HWERR
 	bool "Hardware error interrupt debugging"
 	help
