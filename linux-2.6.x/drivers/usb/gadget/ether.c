@@ -219,6 +219,10 @@ MODULE_PARM_DESC(host_addr, "Host Ethernet Address");
 
 /* Include CDC support if we could run on CDC-capable hardware. */
 
+#ifdef CONFIG_USB_GADGET_NET2272
+#define DEV_CONFIG_CDC
+#endif
+
 #ifdef CONFIG_USB_GADGET_NET2280
 #define	DEV_CONFIG_CDC
 #endif
@@ -584,7 +588,7 @@ static const struct usb_cdc_ether_desc ether_desc = {
 #define LOG2_STATUS_INTERVAL_MSEC	5	/* 1 << 5 == 32 msec */
 #define STATUS_BYTECOUNT		16	/* 8 byte header + data */
 
-static struct usb_endpoint_descriptor
+static struct usb_endpoint_descriptor __attribute__ ((aligned(4)))
 fs_status_desc = {
 	.bLength =		USB_DT_ENDPOINT_SIZE,
 	.bDescriptorType =	USB_DT_ENDPOINT,
@@ -675,7 +679,7 @@ subset_data_intf = {
 #endif	/* SUBSET */
 
 
-static struct usb_endpoint_descriptor
+static struct usb_endpoint_descriptor  __attribute__ ((aligned(4)))
 fs_source_desc = {
 	.bLength =		USB_DT_ENDPOINT_SIZE,
 	.bDescriptorType =	USB_DT_ENDPOINT,
@@ -684,7 +688,7 @@ fs_source_desc = {
 	.bmAttributes =		USB_ENDPOINT_XFER_BULK,
 };
 
-static struct usb_endpoint_descriptor
+static struct usb_endpoint_descriptor __attribute__ ((aligned(4)))
 fs_sink_desc = {
 	.bLength =		USB_DT_ENDPOINT_SIZE,
 	.bDescriptorType =	USB_DT_ENDPOINT,
@@ -2303,6 +2307,8 @@ eth_bind (struct usb_gadget *gadget)
 		device_desc.bcdDevice = __constant_cpu_to_le16 (0x0212);
 	} else if (gadget_is_at91(gadget)) {
 		device_desc.bcdDevice = __constant_cpu_to_le16 (0x0213);
+	} else if (gadget_is_net2272(gadget)) {
+		device_desc.bcdDevice = __constant_cpu_to_le16 (0x0214);
 	} else {
 		/* can't assume CDC works.  don't want to default to
 		 * anything less functional on CDC-capable hardware,

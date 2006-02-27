@@ -35,34 +35,7 @@
 /*
  *  Driver needs to know address, irq and flag pin.
  */
-static struct resource smc91x_resources[] = {
-	[0] = {
-	       .start = 0x20300300,
-	       .end = 0x20300300 + 16,
-	       .flags = IORESOURCE_MEM,
-	       },
-	[1] = {
-	       .start = IRQ_PROG_INTB,
-	       .end = IRQ_PROG_INTB,
-	       .flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL,
-	       },
-	[2] = {
-	       /*
-	        *  denotes the flag pin and is used directly if
-	        *  CONFIG_IRQCHIP_DEMUX_GPIO is defined.
-	        */
-	       .start = IRQ_PF7,
-	       .end = IRQ_PF7,
-	       .flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL,
-	       },
-};
-static struct platform_device smc91x_device = {
-	.name = "smc91x",
-	.id = 0,
-	.num_resources = ARRAY_SIZE(smc91x_resources),
-	.resource = smc91x_resources,
-};
-
+#ifdef CONFIG_USB_SL811_HCD 
 static struct resource sl811_hcd_resources[] = {
 	[0] = {
 	       .start = 0x20300000,
@@ -95,16 +68,44 @@ static struct platform_device sl811_hcd_device = {
 	.num_resources = ARRAY_SIZE(sl811_hcd_resources),
 	.resource = sl811_hcd_resources,
 };
+#endif
 
 static struct platform_device bfin_mac_device = {
 	.name = "bfin_mac",
 };
 
-static struct platform_device *stamp_devices[] __initdata = {
-	&smc91x_device,
-	&sl811_hcd_device,
-	&bfin_mac_device,
+#ifdef CONFIG_USB_NET2272
+static struct resource net2272_bfin_resources[] = {
+	[0] = 	{
+		.start = 0x20300000,
+		.end = 0x20300000 + 0x100,
+		.flags = IORESOURCE_MEM,
+		},
+	[1] =	{
+		.start = IRQ_PF7,
+		.end = IRQ_PF7,
+		.flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL,
+		},
 };
+
+static struct platform_device net2272_bfin_device = {
+	.name = "net2272",
+	.id = -1,
+	.num_resources = ARRAY_SIZE(net2272_bfin_resources),
+	.resource = net2272_bfin_resources,
+};
+#endif
+
+static struct platform_device *stamp_devices[] __initdata = {
+#ifdef CONFIG_USB_SL811_HCD
+	&sl811_hcd_device,
+#endif
+	&bfin_mac_device,
+#ifdef CONFIG_USB_NET2272
+	&net2272_bfin_device,
+#endif
+};
+
 
 static int __init stamp_init(void)
 {

@@ -156,7 +156,7 @@ do {									\
 
 #define GS_CLOSE_TIMEOUT		15
 
-#define GS_DEFAULT_USE_ACM		0
+#define GS_DEFAULT_USE_ACM		1
 
 #define GS_DEFAULT_DTE_RATE		9600
 #define GS_DEFAULT_DATA_BITS		8
@@ -514,7 +514,7 @@ static const struct usb_cdc_union_desc gs_union_desc = {
 	.bSlaveInterface0 =	1,	/* index of data interface */
 };
  
-static struct usb_endpoint_descriptor gs_fullspeed_notify_desc = {
+static struct usb_endpoint_descriptor __attribute__ ((aligned(4))) gs_fullspeed_notify_desc = {
 	.bLength =		USB_DT_ENDPOINT_SIZE,
 	.bDescriptorType =	USB_DT_ENDPOINT,
 	.bEndpointAddress =	USB_DIR_IN,
@@ -523,14 +523,14 @@ static struct usb_endpoint_descriptor gs_fullspeed_notify_desc = {
 	.bInterval =		1 << GS_LOG2_NOTIFY_INTERVAL,
 };
 
-static struct usb_endpoint_descriptor gs_fullspeed_in_desc = {
+static struct usb_endpoint_descriptor __attribute__ ((aligned(4))) gs_fullspeed_in_desc = {
 	.bLength =		USB_DT_ENDPOINT_SIZE,
 	.bDescriptorType =	USB_DT_ENDPOINT,
 	.bEndpointAddress =	USB_DIR_IN,
 	.bmAttributes =		USB_ENDPOINT_XFER_BULK,
 };
 
-static struct usb_endpoint_descriptor gs_fullspeed_out_desc = {
+static struct usb_endpoint_descriptor __attribute__ ((aligned(4))) gs_fullspeed_out_desc = {
 	.bLength =		USB_DT_ENDPOINT_SIZE,
 	.bDescriptorType =	USB_DT_ENDPOINT,
 	.bEndpointAddress =	USB_DIR_OUT,
@@ -560,7 +560,7 @@ static const struct usb_descriptor_header *gs_acm_fullspeed_function[] = {
 };
 
 #ifdef CONFIG_USB_GADGET_DUALSPEED
-static struct usb_endpoint_descriptor gs_highspeed_notify_desc = {
+static struct usb_endpoint_descriptor __attribute__ ((aligned(4))) gs_highspeed_notify_desc = {
 	.bLength =		USB_DT_ENDPOINT_SIZE,
 	.bDescriptorType =	USB_DT_ENDPOINT,
 	.bEndpointAddress =	USB_DIR_IN,
@@ -569,14 +569,14 @@ static struct usb_endpoint_descriptor gs_highspeed_notify_desc = {
 	.bInterval =		GS_LOG2_NOTIFY_INTERVAL+4,
 };
 
-static struct usb_endpoint_descriptor gs_highspeed_in_desc = {
+static struct usb_endpoint_descriptor __attribute__ ((aligned(4))) gs_highspeed_in_desc = {
 	.bLength =		USB_DT_ENDPOINT_SIZE,
 	.bDescriptorType =	USB_DT_ENDPOINT,
 	.bmAttributes =		USB_ENDPOINT_XFER_BULK,
 	.wMaxPacketSize =	__constant_cpu_to_le16(512),
 };
 
-static struct usb_endpoint_descriptor gs_highspeed_out_desc = {
+static struct usb_endpoint_descriptor __attribute__ ((aligned(4))) gs_highspeed_out_desc = {
 	.bLength =		USB_DT_ENDPOINT_SIZE,
 	.bDescriptorType =	USB_DT_ENDPOINT,
 	.bmAttributes =		USB_ENDPOINT_XFER_BULK,
@@ -1464,6 +1464,9 @@ static int gs_bind(struct usb_gadget *gadget)
 	} else if (gadget_is_at91(gadget)) {
 		gs_device_desc.bcdDevice =
 			__constant_cpu_to_le16(GS_VERSION_NUM|0x0013);
+	} else if (gadget_is_net2272(gadget)) {
+		gs_device_desc.bcdDevice =
+			__constant_cpu_to_le16(GS_VERSION_NUM|0x0014);
 	} else {
 		printk(KERN_WARNING "gs_bind: controller '%s' not recognized\n",
 			gadget->name);
