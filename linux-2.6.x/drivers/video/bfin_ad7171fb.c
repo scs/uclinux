@@ -41,6 +41,8 @@
 #define CONFIG_VIDEO_BLACKFIN_PPI_IRQ_ERR IRQ_DMA_ERROR
 struct rgb_t *rgb_buffer = 0 ;
 struct ycrcb_t *ycrcb_buffer = 0 ;
+unsigned char *rgb_l1;
+unsigned char *yuv_l1;
 struct timer_list bfin_framebuffer_timer;
 int id1 ;
 
@@ -61,11 +63,13 @@ static void bfin_config_dma(void *ycrcb_buffer);
 static void bfin_enable_ppi(void);
 static void bfin_framebuffer_init(void *ycrcb_buffer);
 static void bfin_framebuffer_logo(void *ycrcb_buffer);
-static void bfin_framebuffer_update(struct ycrcb_t *ycrcb_buffer, struct rgb_t *rgb_buffer);
+extern void bfin_framebuffer_update(struct ycrcb_t *ycrcb_buffer, struct rgb_t *rgb_buffer)__attribute((section(".text.l1")));
 static void bfin_framebuffer_timer_setup(void);
 static void bfin_framebuffer_timerfn(unsigned long data);
-extern void rgb2yuv(unsigned char rgb[], unsigned char yuv[], int n);
-
+extern void rgb2yuv(unsigned char rgb[], unsigned char yuv[], int n)__attribute((section(".text.l1")));
+extern void dma_memcpy(void * dest,const void *src,size_t count)__attribute((section(".text.l1")));
+extern unsigned long l1_data_A_sram_alloc(unsigned long size);
+extern int l1_data_A_sram_free(unsigned long addr);
 
 /* --------------------------------------------------------------------- */
 
@@ -226,7 +230,7 @@ static void bfin_framebuffer_logo(void *ycrcb_buffer)
         }
 }
 
-static void bfin_framebuffer_update(struct ycrcb_t *ycrcb_buffer, struct rgb_t *rgb_buffer)
+void bfin_framebuffer_update(struct ycrcb_t *ycrcb_buffer, struct rgb_t *rgb_buffer)
 {
 	unsigned char *rgb_base  = (unsigned char *)rgb_buffer;
 	unsigned char *ycrcb_base = (unsigned char *)ycrcb_buffer;
@@ -239,10 +243,15 @@ static void bfin_framebuffer_update(struct ycrcb_t *ycrcb_buffer, struct rgb_t *
 		oddline < 22+RGB_HEIGHT/2; oddline ++, evenline ++){
 		odd_yuv= (unsigned char *)((ycrcb_base + (oddline * 1716))+276);
 		rgb_ptr = (unsigned char *)(rgb_base + (rgbline++)*RGB_WIDTH*3);
-		rgb2yuv(rgb_ptr,odd_yuv,RGB_WIDTH);
+		dma_memcpy(rgb_l1,rgb_ptr,RGB_WIDTH*3);
+		rgb2yuv(rgb_l1,yuv_l1,RGB_WIDTH);
+		dma_memcpy(odd_yuv, yuv_l1, RGB_WIDTH*2);
+
 		even_yuv = (unsigned char *)((ycrcb_base + (evenline * 1716))+276);
 		rgb_ptr = (unsigned char *)(rgb_base + (rgbline++)*RGB_WIDTH*3);
-		rgb2yuv(rgb_ptr,even_yuv,RGB_WIDTH);
+		dma_memcpy(rgb_l1,rgb_ptr,RGB_WIDTH*3);
+                rgb2yuv(rgb_l1,yuv_l1,RGB_WIDTH);
+                dma_memcpy(even_yuv, yuv_l1, RGB_WIDTH*2);
 	}
 }
 
@@ -252,7 +261,7 @@ static void bfin_rgb_buffer_init(struct rgb_t *rgb_buffer, int width, int height
 	int i;
 	/* the first block */
 	for(i=0;i<width*height/4;i++){
-		rgb_ptr->r = 0xff;
+		rgb_ptr->r = 0x00;
                 rgb_ptr->g = 0x00;
                 rgb_ptr->b = 0x00;
                 rgb_ptr++;
@@ -260,7 +269,7 @@ static void bfin_rgb_buffer_init(struct rgb_t *rgb_buffer, int width, int height
 	/* the second block */
         for(;i<width*height/2;i++){
                 rgb_ptr->r = 0x00;
-                rgb_ptr->g = 0xff;
+                rgb_ptr->g = 0x00;
                 rgb_ptr->b = 0x00;
                 rgb_ptr++;
         }
@@ -269,15 +278,15 @@ static void bfin_rgb_buffer_init(struct rgb_t *rgb_buffer, int width, int height
         for(;i<width*height*3/4;i++){
                 rgb_ptr->r = 0x00;
                 rgb_ptr->g = 0x00;
-                rgb_ptr->b = 0xff;
+                rgb_ptr->b = 0x00;
                 rgb_ptr++;
         }
 	
 	/* the fourth block */
 	for(;i<width*height;i++){
-		rgb_ptr->r = 0xff;
+		rgb_ptr->r = 0x00;
 		rgb_ptr->g = 0x00;
-		rgb_ptr->b = 0xff;
+		rgb_ptr->b = 0x00;
 		rgb_ptr++;
 	}
 }
@@ -292,8 +301,49 @@ static void bfin_config_dma(void *ycrcb_buffer)
         *pDMA0_CONFIG           = 0x1015;
 }
 
+void dma_memcpy(void * dest,const void *src,size_t count)
+{
+
+                while(*pMDMA_D0_IRQ_STATUS & DMA_RUN);
+		
+		*pMDMA_D0_IRQ_STATUS = DMA_DONE | DMA_ERR;
+
+                /* Copy sram functions from sdram to sram */
+                /* Setup destination start address */
+                *pMDMA_D0_START_ADDR = (volatile void **)dest;
+                /* Setup destination xcount */
+                *pMDMA_D0_X_COUNT = count ;
+                /* Setup destination xmodify */
+                *pMDMA_D0_X_MODIFY = 1;
+
+                /* Setup Source start address */
+                *pMDMA_S0_START_ADDR = (volatile void **)src;
+                /* Setup Source xcount */
+                *pMDMA_S0_X_COUNT = count;
+                /* Setup Source xmodify */
+                *pMDMA_S0_X_MODIFY = 1;
+
+                /* Enable source DMA */
+                *pMDMA_S0_CONFIG = (DMAEN);
+		__builtin_bfin_ssync();
+
+                *pMDMA_D0_CONFIG = ( WNR | DMAEN);
+
+                while(*pMDMA_D0_IRQ_STATUS & DMA_RUN){
+                        *pMDMA_D0_IRQ_STATUS |= (DMA_DONE | DMA_ERR);
+                }
+                *pMDMA_D0_IRQ_STATUS |= (DMA_DONE | DMA_ERR);
+}
+
+
 static void bfin_config_ppi(void)
 {
+#ifdef CONFIG_BF537
+        *pPORTG_FER   = 0xFFFF; /* PPI[15:0]    */
+        *pPORTF_FER  |= 0x8380; /* PF.15 - PPI_CLK */
+        *pPORT_MUX   &= ~0x0E00;
+        *pPORT_MUX   |= 0x0100;
+#endif
         *pPPI_CONTROL = 0x0082;
         *pPPI_FRAME   = 0x020D;
 }
@@ -345,6 +395,17 @@ int __init bfin_ad7171_fb_init(void)
 
 static int bfin_ad7171_fb_open(struct fb_info *info, int user)
 {
+	rgb_l1 = (unsigned char *)l1_data_A_sram_alloc(RGB_WIDTH*3);
+	if(!rgb_l1){
+		printk("alloc rgb l1 buffer failed\n");
+		return -ENOMEM;
+	}
+        yuv_l1 = (unsigned char *)l1_data_A_sram_alloc(RGB_WIDTH*2);
+	if(!yuv_l1){
+		printk("alloc YCbCr l1 buffer failed\n");
+		return -ENOMEM;
+	}
+
 	bfin_ad7171_fb.screen_base = (void *)rgb_buffer;
 	bfin_ad7171_fb_fix.smem_start = (int)rgb_buffer;
 	if (!bfin_ad7171_fb.screen_base) {
@@ -364,6 +425,10 @@ static int bfin_ad7171_fb_open(struct fb_info *info, int user)
 
 static int bfin_ad7171_fb_release(struct fb_info *info, int user)
 {
+	if(rgb_l1)
+		l1_data_A_sram_free((unsigned long)rgb_l1);
+	if(yuv_l1)
+		l1_data_A_sram_free((unsigned long)yuv_l1);
 	del_timer(&bfin_framebuffer_timer);
 	return 0;
 }
