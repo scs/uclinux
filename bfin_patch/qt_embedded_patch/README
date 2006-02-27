@@ -1,0 +1,6 @@
+		QT Embedded Free 3.3.5 patch for blackfin/uClinux
+			Sonic Zhang <sonic.zhang@analog.com>
+				Feb 27th, 2006
+
+This is a QT embedded free 3.3.5 patch for blackfin/uCLinux. After you apply this patch to the source tree of the QT embedded free library version 3.3.5, you can build to run on blackfin/uCLinux. The QT embedded free source tarball can be downloaded from ftp://ftp.trolltech.com/qt/source. Please look at the documents at http://docs.blackfin.uclinux.org/doku.php?id=qt_library for details to configure and build.
+
