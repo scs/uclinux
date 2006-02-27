@@ -169,6 +169,7 @@ romfs: $(INSTALLER) busybox.links
 	fi
 	$(COPYPROG) $(PROG) $(ROMFSDIR)/bin/$(PROG)
 	$(SHELL) $< $(TARGETDIR)
+	chmod 755 $$ROMFSDIR/bin/busybox
 
 check: busybox
 	bindir=$(top_builddir) srcdir=$(top_srcdir)/testsuite \
