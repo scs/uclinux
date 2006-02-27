@@ -21,6 +21,7 @@ romfs:
 	for i in $(ROMFS_DIRS); do \
 		[ -d $(ROMFSDIR)/$$i ] || mkdir -p $(ROMFSDIR)/$$i; \
 	done
+	chmod 777 $(ROMFSDIR)/tmp
 	$(ROMFSINST) -s bin /sbin
 	$(ROMFSINST) /etc/rc
 	$(ROMFSINST) /etc/inittab
