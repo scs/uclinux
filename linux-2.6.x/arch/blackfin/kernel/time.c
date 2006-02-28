@@ -46,7 +46,6 @@ EXPORT_SYMBOL(jiffies_64);
 static void time_sched_init(irqreturn_t(*timer_routine)
 		      (int, void *, struct pt_regs *));
 static unsigned long gettimeoffset(void);
-extern unsigned long wall_jiffies;
 extern int setup_irq(unsigned int, struct irqaction *);
 inline static void do_leds(void);
 
@@ -171,35 +170,6 @@ static unsigned long gettimeoffset(void)
 static inline int set_rtc_mmss(unsigned long nowtime)
 {
 	return 0;
-}
-
-static inline void do_profile(struct pt_regs *regs)
-{
-/*
- * temperary remove code to do profile, because the arch change of the profile in the kernel 2.6.12
- */
-#if 0
-	unsigned long pc;
-
-	pc = regs->pc;
-
-	profile_hook(regs);
-
-	if (prof_buffer && current->pid) {
-		extern int _stext;
-		pc -= (unsigned long)&_stext;
-		pc >>= prof_shift;
-		if (pc < prof_len)
-			++prof_buffer[pc];
-		else
-			/*
-			 * Don't ignore out-of-bounds PC values silently,
-			 * put them into the last histogram slot, so if
-			 * present, they will show up as a sharp peak.
-			 */
-			++prof_buffer[prof_len - 1];
-	}
-#endif
 }
 
 /*

@@ -28,6 +28,7 @@
  * If not, write to the Free Software Foundation,
  * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
+#include <asm/bfin-global.h>
 
 #undef DEBUG
 
@@ -67,7 +68,6 @@ void kernel_set_cachemode(void *addr, unsigned long size, int cmode)
 
 int is_in_rom(unsigned long addr)
 {
-	extern unsigned long _ramstart, _ramend;
 
 	/*
 	 *      What we are really trying to do is determine if addr is

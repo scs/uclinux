@@ -91,7 +91,6 @@ asmlinkage void evt_evt13(void);
 asmlinkage void evt_soft_int1(void);
 asmlinkage void evt_system_call(void);
 
-extern void program_IAR(void);
 static void search_IAR(void);
 
 /*
@@ -379,9 +378,6 @@ static void bf533_demux_gpio_irq(unsigned int intb_irq,
  * This function should be called during kernel startup to initialize
  * the BFin IRQ handling routines.
  */
-
-extern void evt14_softirq(void);
-
 int __init init_arch_irq(void)
 {
 	int irq;
@@ -486,7 +482,6 @@ int __init init_arch_irq(void)
 	return 0;
 }
 
-extern asmlinkage void asm_do_IRQ(unsigned int irq, struct pt_regs *regs);
 void do_irq(int vec, struct pt_regs *fp)
 {
 	if (vec == EVT_IVTMR_P) {

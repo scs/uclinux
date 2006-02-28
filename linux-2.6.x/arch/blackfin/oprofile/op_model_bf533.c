@@ -19,6 +19,7 @@
 #include <asm/io.h>
 
 #include "op_blackfin.h"
+
 #ifdef PM_DEBUG
 #define dbg(args...) printk(args)
 #else

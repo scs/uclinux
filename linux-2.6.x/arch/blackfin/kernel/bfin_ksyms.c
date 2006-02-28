@@ -34,7 +34,6 @@
 #include <asm/cacheflush.h>
 #include <asm/uaccess.h>
 
-extern void dump_thread(struct pt_regs *, struct user *);
 
 /* platform dependent support */
 

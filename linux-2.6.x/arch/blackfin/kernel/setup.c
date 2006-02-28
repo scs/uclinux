@@ -35,14 +35,15 @@
 #include <linux/seq_file.h>
 #include <linux/cpu.h>
 #include <linux/module.h>
+#include <linux/console.h>
 
 #include <asm/cacheflush.h>
 #include <asm/blackfin.h>
 
 #ifdef CONFIG_CONSOLE
-extern struct consw *conswitchp;
+struct consw *conswitchp;
 #ifdef CONFIG_FRAMEBUFFER
-extern struct consw fb_con;
+struct consw fb_con;
 #endif
 #endif
 
@@ -65,14 +66,6 @@ static unsigned short fill_cpl_tables(unsigned long *, unsigned,
 				      unsigned long, unsigned long,
 				      unsigned long, unsigned long);
 
-/* Blackfin cache functions */
-extern void icache_init(void);
-extern void dcache_init(void);
-extern int read_iloc(void);
-extern unsigned long ipdt_table[];
-extern unsigned long dpdt_table[];
-extern unsigned long icplb_table[];
-extern unsigned long dcplb_table[];
 
 void __init bf53x_cache_init(void)
 {
@@ -82,11 +75,11 @@ void __init bf53x_cache_init(void)
 #endif
 
 #ifdef CONFIG_BLKFIN_CACHE
-	icache_init();
+	bfin_icache_init();
 	printk(KERN_INFO "Instruction Cache Enabled\n");
 #endif
 #ifdef CONFIG_BLKFIN_DCACHE
-	dcache_init();
+	bfin_dcache_init();
 #if defined CONFIG_BLKFIN_WB
 	printk(KERN_INFO "Data Cache Enabled (write-back)\n");
 #elif defined CONFIG_BLKFIN_WT
@@ -100,17 +93,13 @@ void __init bf53x_cache_init(void)
 static int DmaMemCpy(char *dest_addr, char *source_addr, unsigned short size);
 static int DmaMemCpy16(char *dest_addr, char *source_addr, int size);
 
-extern char _stext, _etext, _sdata, _edata, _sbss, _ebss, _end;
-extern int _ramstart, _ramend;
-int id;
-extern char _stext_l1, _etext_l1, _sdata_l1, _edata_l1, _sbss_l1, _ebss_l1;
+
 
 void bf53x_relocate_l1_mem(void)
 {
-	extern char _l1_lma_start;
 	unsigned long l1_length;
 
-	l1_length = &_etext_l1 - &_stext_l1;
+	l1_length = _etext_l1 - _stext_l1;
 	if (l1_length > L1_CODE_LENGTH)
 		l1_length = L1_CODE_LENGTH;
 	/* cannot complain as printk is not available as yet.
@@ -118,14 +107,14 @@ void bf53x_relocate_l1_mem(void)
 	 */
 
 	/* Copy _stext_l1 to _etext_l1 to L1 instruction SRAM */
-	DmaMemCpy(&_stext_l1, &_l1_lma_start, l1_length);
+	DmaMemCpy(_stext_l1, _l1_lma_start, l1_length);
 
-	l1_length = &_ebss_l1 - &_sdata_l1;
+	l1_length = _ebss_l1 - _sdata_l1;
 	if (l1_length > L1_DATA_A_LENGTH)
 		l1_length = L1_DATA_A_LENGTH;
 
 	/* Copy _sdata_l1 to _ebss_l1 to L1 instruction SRAM */
-	DmaMemCpy(&_sdata_l1, &_l1_lma_start + (&_etext_l1 - &_stext_l1),
+	DmaMemCpy(_sdata_l1, _l1_lma_start + (_etext_l1 - _stext_l1),
 		  l1_length);
 
 }
@@ -151,19 +140,13 @@ static __init void early_parsemem(char *cmdline_p)
 	}
 }
 
-#ifdef CONFIG_DEBUG_SERIAL_EARLY_INIT
-extern int bfin_console_init(void);
-#endif
-
 void __init setup_arch(char **cmdline_p)
 {
 	int bootmap_size, id;
 	unsigned long l1_length;
 
-#ifdef CONFIG_DEBUG_SERIAL_EARLY_INIT
 	bfin_console_init();	/* early console registration */
 	/* this give a chance to get printk() working before crash. */
-#endif
 
 #if defined(CONFIG_CHR_DEV_FLASH) || defined(CONFIG_BLK_DEV_FLASH)
 	/* we need to initialize the Flashrom device here since we might
@@ -197,7 +180,7 @@ void __init setup_arch(char **cmdline_p)
 
 #if defined(CONFIG_MTD_UCLINUX)
 /* generic memory mapped MTD driver */
-	mtd_phys = (unsigned long)&_ebss;
+	mtd_phys = (unsigned long)__bss_stop;
 	mtd_size = PAGE_ALIGN(*((unsigned long *)(mtd_phys + 8)));
 
 #if defined(CONFIG_EXT2_FS) || defined(CONFIG_EXT3_FS)
@@ -207,7 +190,7 @@ void __init setup_arch(char **cmdline_p)
 	memory_end -= mtd_size;
 
 	/* Relocate MTD image to the top of memory after the uncached memory area */
-	DmaMemCpy16((char *)memory_end, &_ebss, mtd_size);
+	DmaMemCpy16((char *)memory_end, __bss_stop, mtd_size);
 
 	_ramstart = mtd_phys;
 
@@ -222,9 +205,9 @@ void __init setup_arch(char **cmdline_p)
 		memory_end = 60 * 1024 * 1024;
 #endif
 
-	init_mm.start_code = (unsigned long)&_stext;
-	init_mm.end_code = (unsigned long)&_etext;
-	init_mm.end_data = (unsigned long)&_edata;
+	init_mm.start_code = (unsigned long)_stext;
+	init_mm.end_code = (unsigned long)_etext;
+	init_mm.end_data = (unsigned long)_edata;
 	init_mm.brk = (unsigned long)0;
 
 	init_leds();
@@ -246,8 +229,8 @@ void __init setup_arch(char **cmdline_p)
 
 	printk
 	    ("Memory map:\n  text = 0x%06x-0x%06x\n  data = 0x%06x-0x%06x\n  bss  = 0x%06x-0x%06x\n  rootfs = 0x%06x-0x%06x\n  stack = 0x%06x-0x%06x\n",
-	     (int)&_stext, (int)&_etext, (int)&_sdata, (int)&_edata,
-	     (int)&_sbss, (int)&_ebss, (int)memory_mtd_start,
+	     (int)_stext, (int)_etext, (int)_sdata, (int)_edata,
+	     (int)__bss_start, (int)__bss_stop, (int)memory_mtd_start,
 	     (int)memory_mtd_start + (int)mtd_size, (int)&init_thread_union,
 	     (int)(&init_thread_union) + 0x2000);
 
@@ -282,11 +265,11 @@ void __init setup_arch(char **cmdline_p)
 	paging_init();
 
 	/* check the size of the l1 area */
-	l1_length = &_etext_l1 - &_stext_l1;
+	l1_length = _etext_l1 - _stext_l1;
 	if (l1_length > L1_CODE_LENGTH)
 		panic("L1 memory overflow\n");
 
-	l1_length = &_ebss_l1 - &_sdata_l1;
+	l1_length = _ebss_l1 - _sdata_l1;
 	if (l1_length > L1_DATA_A_LENGTH)
 		panic("L1 memory overflow\n");
 
@@ -572,7 +555,6 @@ static u_int get_dsp_rev_id()
 /*
  *	Get CPU information for use by the procfs.
  */
-extern char *bfin_board_name __attribute__ ((weak));
 static int show_cpuinfo(struct seq_file *m, void *v)
 {
 	char *cpu, *mmu, *fpu, *name;

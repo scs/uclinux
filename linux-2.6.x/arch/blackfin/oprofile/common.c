@@ -29,7 +29,6 @@
 static int pfmon_enabled;
 static struct semaphore pfmon_sem;
 
-extern struct op_bfin533_model op_model_bfin533;
 struct op_bfin533_model *model;
 
 struct op_counter_config ctr[OP_MAX_COUNTER];

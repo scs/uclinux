@@ -37,6 +37,7 @@
 #include <linux/dma-mapping.h>
 #include <asm/cacheflush.h>
 #include <asm/io.h>
+#include <asm/bfin-global.h>
 
 static spinlock_t dma_page_lock;
 static unsigned int *dma_page;
@@ -44,9 +45,6 @@ static unsigned int dma_pages;
 static unsigned long dma_base;
 static unsigned long dma_size;
 static unsigned int dma_initialized;
-extern unsigned long _ramend;
-extern unsigned long memory_end;
-extern unsigned long memory_mtd_end;
 
 void dma_alloc_init(unsigned long start, unsigned long end)
 {

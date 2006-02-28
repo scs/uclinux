@@ -57,8 +57,6 @@ static struct cpufreq_frequency_table bf537_freq_table[] = {
 	{0, CPUFREQ_TABLE_END},
 };
 
-extern struct file_operations dpmc_fops;
-
 /*
  * dpmc_fops->ioctl()
  * static int dpmc_ioctl(struct inode *inode, struct file *file, unsigned int cmd, unsigned long arg)

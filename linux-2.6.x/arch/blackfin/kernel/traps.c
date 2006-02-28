@@ -34,6 +34,7 @@
 #include <asm/blackfin.h>
 #include <asm/uaccess.h>
 #include <linux/interrupt.h>
+#include <linux/module.h>
 
 /*
  *  . EXCEPTION TRAPS DEBUGGING LEVELS
@@ -68,9 +69,6 @@
 asmlinkage void evt_system_call(void);
 asmlinkage void evt_soft_int1(void);
 asmlinkage void trap(void);
-
-extern void dump(struct pt_regs *fp, void *);
-extern void _cplb_hdr(void);
 
 /* Initiate the event table handler */
 void __init trap_init(void)
@@ -269,7 +267,6 @@ asmlinkage void trap_c(struct pt_regs *fp)
 void show_stack(struct task_struct *task, unsigned long *esp)
 {
 	unsigned long *stack, *endstack, addr;
-	extern char _start, _etext;
 	int i;
 
 	if (esp == NULL)
@@ -301,7 +298,7 @@ void show_stack(struct task_struct *task, unsigned long *esp)
 		 * out the call path that was taken.
 		 */
 		if (addr >= (unsigned long)&_start
-		    && addr <= (unsigned long)&_etext) {
+		    && addr <= (unsigned long)_etext) {
 			if (i % 4 == 0)
 				printk(KERN_EMERG "\n       ");
 			printk(KERN_EMERG " [<%08lx>]", addr);

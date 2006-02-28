@@ -42,6 +42,8 @@ struct op_bfin533_model {
 	char *name;
 };
 
+extern struct op_bfin533_model op_model_bfin533;
+
 static inline unsigned int ctr_read(void)
 {
 	unsigned int tmp;
@@ -71,5 +73,7 @@ static inline void count_write(unsigned int *count)
 	*pPFCNTR1 = count[1];
 	__builtin_bfin_csync();
 }
+
+extern int pm_overflow_handler(int irq, struct pt_regs * regs);
 
 #endif

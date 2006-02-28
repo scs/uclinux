@@ -52,7 +52,6 @@ spinlock_t l1sram_lock, l1_data_A_sram_lock;
 
 void l1sram_init(void);
 void l1_data_A_sram_init(void);
-extern unsigned long table_start, table_end;
 
 /* the data structure for L1 scratchpad and DATA SRAM */
 struct l1_sram_piece {
@@ -86,14 +85,12 @@ void l1sram_init(void)
 
 void l1_data_A_sram_init(void)
 {
-	extern char _sdata_l1, _ebss_l1;
-
 	memset((void *)&l1_data_A_sram, 0, sizeof(l1_data_A_sram));
 #if 0 != L1_DATA_A_LENGTH
 	printk("Blackfin DATA_A SRAM: %d KB\n", L1_DATA_A_LENGTH >> 10);
 
-	l1_data_A_sram[0].paddr = L1_DATA_A_START + (&_ebss_l1 - &_sdata_l1);
-	l1_data_A_sram[0].size = L1_DATA_A_LENGTH - (&_ebss_l1 - &_sdata_l1);
+	l1_data_A_sram[0].paddr = L1_DATA_A_START + (_ebss_l1 - _sdata_l1);
+	l1_data_A_sram[0].size = L1_DATA_A_LENGTH - (_ebss_l1 - _sdata_l1);
 	l1_data_A_sram[0].flag = SRAM_SLT_FREE;
 #endif
 #if 0 != L1_DATA_B_LENGTH

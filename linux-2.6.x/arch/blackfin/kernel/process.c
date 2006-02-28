@@ -43,7 +43,6 @@
 
 inline void static leds_switch(int flag);
 asmlinkage void ret_from_fork(void);
-extern void reset(void);
 
 /*
  * The idle loop on BFIN
@@ -124,7 +123,7 @@ void show_regs(struct pt_regs *regs)
  * function to call, and R1 containing
  * the "args".  Note P0 is clobbered on the way here.
  */
-extern void kernel_thread_helper(void);
+void kernel_thread_helper(void);
 __asm__(".section .text\n"
 	".align 4\n"
 	"_kernel_thread_helper:\n\t"

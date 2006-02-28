@@ -42,7 +42,7 @@
 .text
 
 #if defined (CONFIG_BLKFIN_CACHE)
-ENTRY(_icache_init)
+ENTRY(_bfin_icache_init)
 
 	/* Initialize Instruction CPLBS */
 
@@ -92,7 +92,7 @@ idone:
 #endif
 
 #if defined (CONFIG_BLKFIN_DCACHE)
-ENTRY(_dcache_init)
+ENTRY(_bfin_dcache_init)
 
 	/* Initialize Data CPLBS */
 

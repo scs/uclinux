@@ -34,11 +34,10 @@
 #include <asm/traps.h>
 #include <asm/blackfin.h>
 
-extern void dump(struct pt_regs *regs, void *);
+#include "../oprofile/op_blackfin.h"
 
 /*********
- * irq_panic
- * - calls panic with string setup
+ * irq_panic - calls panic with string setup
  *********/
 #ifdef CONFIG_DEBUG_ICACHE_CHECK
 #define L1_ICACHE_START 0xffa10000
@@ -97,8 +96,8 @@ asmlinkage void irq_panic(int reason, struct pt_regs *regs)
 
 				pa = ((unsigned int *)((tag & 0xffffcc00)  | ((ca+j) & ~(0xffffcc00))));
 
-				/* 
-				 * Debugging this, enable 
+				/*
+				 * Debugging this, enable
 				 *
 				 * printk("addr: %08x %08x%08x | %08x%08x\n",
 				 *  ((unsigned int *)((tag & 0xffffcc00)  | ((ca+j) & ~(0xffffcc00)))),
@@ -177,7 +176,6 @@ asmlinkage void irq_panic(int reason, struct pt_regs *regs)
 }
 
 #ifdef CONFIG_PROFILING
-extern int pm_overflow_handler(int irq, struct pt_regs * regs);
 /****
  *
  *   call the handler of Performance overflow

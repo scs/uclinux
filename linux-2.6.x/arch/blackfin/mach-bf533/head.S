@@ -43,7 +43,8 @@
 .global __rambase
 .global __ramstart
 .global __ramend
-.extern __ebss
+.extern ___bss_stop
+.extern ___bss_start
 .extern _bf53x_relocate_l1_mem
 
 #define INITIAL_STACK	0xFFB01000
@@ -256,10 +257,10 @@ ENTRY(_real_start)
 	 * Zero out the bss region.
 	 */
 
-	p1.l = __sbss;
-	p1.h = __sbss;
-	p2.l = __ebss;
-	p2.h = __ebss;
+	p1.l = ___bss_start;
+	p1.h = ___bss_start;
+	p2.l = ___bss_stop;
+	p2.h = ___bss_stop;
 	r0 = 0;
 	p2 -= p1;
 	lsetup (_clear_bss, _clear_bss ) lc0 = p2;
@@ -293,8 +294,8 @@ _clear_zero:
 
 	p1.l = __ramstart;
 	p1.h = __ramstart;
-	p3.l = __ebss;
-	p3.h = __ebss;
+	p3.l = ___bss_stop;
+	p3.h = ___bss_stop;
 
 	r1 = p3;
 	[p1] = r1;

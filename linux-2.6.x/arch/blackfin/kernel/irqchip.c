@@ -62,7 +62,6 @@ static LIST_HEAD(irq_pending);
 
 struct irqdesc irq_desc[NR_IRQS];
 
-extern int init_arch_irq(void);
 /*
  * Dummy mask/unmask handler
  */
@@ -457,7 +456,6 @@ static void do_pending_irqs(struct pt_regs *regs)
 	while (!list_empty(&irq_pending));
 }
 
-extern asmlinkage void lower_to_irq14(void);
 
 /*
  * do_IRQ handles all hardware IRQ's.  Decoded IRQs should not
@@ -888,7 +886,6 @@ void __init init_irq_proc(void)
 void __init init_IRQ(void)
 {
 	struct irqdesc *desc;
-	extern void init_dma(void);
 	int irq;
 
 	spin_lock_init(&irq_controller_lock);

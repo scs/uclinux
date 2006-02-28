@@ -59,12 +59,6 @@ static int page_size_table[4] = {
 
 static char page_size_string_table[][4] = { "1K", "4K", "1M", "4M" };
 
-extern unsigned long dpdt_table[];
-extern unsigned long ipdt_table[];
-
-extern unsigned long ipdt_swapcount_table[];
-extern unsigned long dpdt_swapcount_table[];
-
 static int cplb_find_entry(unsigned long *cplb_addr,
 			   unsigned long *cplb_data, unsigned long addr)
 {

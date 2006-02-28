@@ -183,12 +183,11 @@ SECTIONS
 	.bss : AT ( __l1_lma_start + SIZEOF(.text_l1) + SIZEOF(.data_l1) + SIZEOF(.data) )
 	{
 		. = ALIGN(4) ;
-		 __sbss = . ;
+		 ___bss_start = . ;
 		*(.bss)
 		*(COMMON)
 		. = ALIGN(4) ;
-		 __ebss = . 	;
+		 ___bss_stop = . 	;
 		 __end = .	;
- 		__bss_end = . ;
     	} > ram
 }
