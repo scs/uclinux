@@ -2492,6 +2492,15 @@ static int net2272_probe (struct device *_dev)
 		iomem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 		if (iomem)
 			base = iomem->start;
+#ifdef CONFIG_BF533
+		/* Set PF0 to 0, PF1 to 1 make ASM3 work properly */
+		__builtin_bfin_ssync();
+		*pFIO_DIR |= 3;
+		__builtin_bfin_ssync();
+		*pFIO_FLAG_C |= 1;
+		*pFIO_FLAG_S |= 2;
+		__builtin_bfin_ssync();
+#endif
 	}
 #endif
 	

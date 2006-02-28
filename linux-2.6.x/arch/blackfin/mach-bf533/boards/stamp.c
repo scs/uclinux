@@ -68,8 +68,33 @@ static struct platform_device smc91x_device = {
 	.resource = smc91x_resources,
 };
 
+#ifdef CONFIG_USB_NET2272
+static struct resource net2272_bfin_resources[] = {
+	[0] = 	{
+		.start = 0x20300000,
+		.end = 0x20300000 + 0x100,
+		.flags = IORESOURCE_MEM,
+		},
+	[1] =	{
+		.start = IRQ_PF10,
+		.end = IRQ_PF10,
+		.flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL,
+		},
+};
+
+static struct platform_device net2272_bfin_device = {
+	.name = "net2272",
+	.id = -1,
+	.num_resources = ARRAY_SIZE(net2272_bfin_resources),
+	.resource = net2272_bfin_resources,
+};
+#endif
+
 static struct platform_device *stamp_devices[] __initdata = {
 	&smc91x_device,
+#ifdef CONFIG_USB_NET2272
+	&net2272_bfin_device,
+#endif
 };
 
 static int __init stamp_init(void)
