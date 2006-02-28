@@ -1219,6 +1219,7 @@ void rndis_add_hdr (struct sk_buff *skb)
 	header->DataOffset = __constant_cpu_to_le32 (36);
 	header->DataLength = cpu_to_le32(skb->len - sizeof *header);
 }
+#endif
 
 void rndis_free_response (int configNr, u8 *buf)
 {
