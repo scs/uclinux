@@ -6,7 +6,7 @@
 /*
  * These are for ISA/PCI shared memory _only_ and should never be used
  * on any other type of memory, including Zorro memory. They are meant to
- * access the bus in the bus byte order which is little-endian !.
+ * access the bus in the bus byte order which is little-endian!.
  *
  * readX/writeX() are used to access memory mapped devices. On some
  * architectures the memory mapped IO stuff needs to be accessed
