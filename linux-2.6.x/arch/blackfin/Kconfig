@@ -85,7 +85,7 @@ config BF537
 config BF561
 	bool "BF561"
 	help
-	 Not Supported Yet - Work in progress - BF561 Processor Support.
+	 BF561 Processor Support.
 
 endchoice
 
@@ -607,6 +607,11 @@ source "drivers/pnp/Kconfig"
 source "drivers/block/Kconfig"
 
 source "drivers/ide/Kconfig"
+
+config IDE_BFIN
+	bool
+	depends on (IDE)
+	default y
 
 source "arch/blackfin/Kconfig.ide"
 
