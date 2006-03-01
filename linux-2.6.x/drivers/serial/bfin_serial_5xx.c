@@ -240,7 +240,7 @@ static void rs_stop(struct tty_struct *tty)
 
 	local_irq_save(flags);
 	ACCESS_PORT_IER(regs)	/* Change access to IER & data port */
-	    *(regs->rpUART_IER) = 0;
+	*(regs->rpUART_IER) &= ~ETBEI;
 	SSYNC;
 	local_irq_restore(flags);
 }
