@@ -1,0 +1,16 @@
+                                                 Read me
+  This patch is used to apply to openssl-0.9.8.tar.gz, which can be downloaded from:http://www.openssl.org.Please use the exact package name, otherwise it is possible the patch can be some problem.
+
+  After unzip the tarball:
+
+  tar zxf openssl-0.9.8.tar.gz
+
+  patch -p0 < libssl_bfin_patch
+
+  rm -rf /your/uClinux/path/lib/libssl
+
+  mv openssl-0.9.8 /your/uClinux/path/lib/libssl
+
+
+
+  
