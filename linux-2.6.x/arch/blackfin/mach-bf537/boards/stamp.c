@@ -68,13 +68,13 @@ static struct platform_device smc91x_device = {
 #ifdef CONFIG_USB_SL811_HCD 
 static struct resource sl811_hcd_resources[] = {
 	[0] = {
-	       .start = 0x20300000,
-	       .end = 0x20300000,
+	       .start = 0x20340000,
+	       .end = 0x20340000,
 	       .flags = IORESOURCE_MEM,
 	       },
 	[1] = {
-	       .start = 0x20300004,
-	       .end = 0x20300004,
+	       .start = 0x20340004,
+	       .end = 0x20340004,
 	       .flags = IORESOURCE_MEM,
 	       },
 	[2] = {
