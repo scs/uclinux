@@ -1,0 +1,11 @@
+To do cross compile for uclinux, need to append the following options to ./configure,
+
+	CC		C compiler command
+	CPPFLAGS	C/C++ preprocessor flags, e.g. -I<include dir> if you have
+			headers in a nonstandard directory <include dir>
+	CFLAGS="-elf2flt -static"
+
+	--host=bfin-linux
+	--build=bfin
+	--prefix=[installation directory]
+	--with-bluez=[bluez lib directory]

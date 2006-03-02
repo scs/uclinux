@@ -1,0 +1,8 @@
+To do cross compile for uclinux, you need to append the following options to ./configure,
+
+	CC=[C compiler command]
+	--prefix=[installtion directory]
+	--host=bfin-linux
+	--build=bfin
+	--enable-shared=no
+	--enable-static=yes
