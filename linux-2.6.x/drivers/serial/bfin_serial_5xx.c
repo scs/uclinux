@@ -952,7 +952,16 @@ static void bfin_change_speed(struct bfin_serial *info)
 	*(regs->rpUART_IER) = ERBFI | ETBEI | ELSI;
 #endif
 	SSYNC;
-
+#ifdef CONFIG_IRTTY_SIR
+	/* enable irda function*/
+        if(cflag & TIOCM_RI){
+                *(regs->rpUART_GCTL) |= IREN;
+                SSYNC;
+                *(regs->rpUART_GCTL) |= RPOLC;
+                SSYNC;
+                printk("KSDBG:irda enabled,rpolc changed\n");
+        }
+#endif
 	/* Enable the UART */
 	*(regs->rpUART_GCTL) |= UCEN;
 	SSYNC;
