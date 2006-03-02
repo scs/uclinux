@@ -1,0 +1,174 @@
+bnep.o bnep.o: bnep.c ../config.h \
+  /home/user/cvsoutput-uclinux/lib/gcc/bfin-uclinux/3.4.5/../../../../bfin-uclinux/include/stdio.h \
+  /home/user/cvsoutput-uclinux/lib/gcc/bfin-uclinux/3.4.5/../../../../bfin-uclinux/include/features.h \
+  /home/user/cvsoutput-uclinux/lib/gcc/bfin-uclinux/3.4.5/../../../../bfin-uclinux/include/bits/uClibc_config.h \
+  /home/user/cvsoutput-uclinux/lib/gcc/bfin-uclinux/3.4.5/../../../../bfin-uclinux/include/sys/cdefs.h \
+  /home/user/cvsoutput-uclinux/lib/gcc/bfin-uclinux/3.4.5/include/stddef.h \
+  /home/user/cvsoutput-uclinux/lib/gcc/bfin-uclinux/3.4.5/../../../../bfin-uclinux/include/bits/types.h \
+  /home/user/cvsoutput-uclinux/lib/gcc/bfin-uclinux/3.4.5/../../../../bfin-uclinux/include/bits/kernel_types.h \
+  /home/user/cvsoutput-uclinux/lib/gcc/bfin-uclinux/3.4.5/../../../../bfin-uclinux/include/bits/pthreadtypes.h \
+  /home/user/cvsoutput-uclinux/lib/gcc/bfin-uclinux/3.4.5/../../../../bfin-uclinux/include/bits/sched.h \
+  /home/user/cvsoutput-uclinux/lib/gcc/bfin-uclinux/3.4.5/../../../../bfin-uclinux/include/bits/uClibc_stdio.h \
+  /home/user/cvsoutput-uclinux/lib/gcc/bfin-uclinux/3.4.5/include/stdarg.h \
+  /home/user/cvsoutput-uclinux/lib/gcc/bfin-uclinux/3.4.5/../../../../bfin-uclinux/include/bits/stdio_lim.h \
+  /home/user/cvsoutput-uclinux/lib/gcc/bfin-uclinux/3.4.5/../../../../bfin-uclinux/include/errno.h \
+  /home/user/cvsoutput-uclinux/lib/gcc/bfin-uclinux/3.4.5/../../../../bfin-uclinux/include/bits/errno.h \
+  /home/user/cvsoutput-uclinux/lib/gcc/bfin-uclinux/3.4.5/../../../../bfin-uclinux/include/bits/errno_values.h \
+  /home/user/cvsoutput-uclinux/lib/gcc/bfin-uclinux/3.4.5/../../../../bfin-uclinux/include/unistd.h \
+  /home/user/cvsoutput-uclinux/lib/gcc/bfin-uclinux/3.4.5/../../../../bfin-uclinux/include/bits/posix_opt.h \
+  /home/user/cvsoutput-uclinux/lib/gcc/bfin-uclinux/3.4.5/../../../../bfin-uclinux/include/bits/confname.h \
+  /home/user/cvsoutput-uclinux/lib/gcc/bfin-uclinux/3.4.5/../../../../bfin-uclinux/include/bits/getopt.h \
+  /home/user/cvsoutput-uclinux/lib/gcc/bfin-uclinux/3.4.5/../../../../bfin-uclinux/include/stdlib.h \
+  /home/user/cvsoutput-uclinux/lib/gcc/bfin-uclinux/3.4.5/../../../../bfin-uclinux/include/sys/types.h \
+  /home/user/cvsoutput-uclinux/lib/gcc/bfin-uclinux/3.4.5/../../../../bfin-uclinux/include/time.h \
+  /home/user/cvsoutput-uclinux/lib/gcc/bfin-uclinux/3.4.5/../../../../bfin-uclinux/include/endian.h \
+  /home/user/cvsoutput-uclinux/lib/gcc/bfin-uclinux/3.4.5/../../../../bfin-uclinux/include/bits/endian.h \
+  /home/user/cvsoutput-uclinux/lib/gcc/bfin-uclinux/3.4.5/../../../../bfin-uclinux/include/sys/select.h \
+  /home/user/cvsoutput-uclinux/lib/gcc/bfin-uclinux/3.4.5/../../../../bfin-uclinux/include/bits/select.h \
+  /home/user/cvsoutput-uclinux/lib/gcc/bfin-uclinux/3.4.5/../../../../bfin-uclinux/include/bits/sigset.h \
+  /home/user/cvsoutput-uclinux/lib/gcc/bfin-uclinux/3.4.5/../../../../bfin-uclinux/include/bits/time.h \
+  /home/user/cvsoutput-uclinux/lib/gcc/bfin-uclinux/3.4.5/../../../../bfin-uclinux/include/sys/sysmacros.h \
+  /home/user/cvsoutput-uclinux/lib/gcc/bfin-uclinux/3.4.5/../../../../bfin-uclinux/include/alloca.h \
+  /home/user/cvsoutput-uclinux/lib/gcc/bfin-uclinux/3.4.5/../../../../bfin-uclinux/include/sys/socket.h \
+  /home/user/cvsoutput-uclinux/lib/gcc/bfin-uclinux/3.4.5/../../../../bfin-uclinux/include/sys/uio.h \
+  /home/user/cvsoutput-uclinux/lib/gcc/bfin-uclinux/3.4.5/../../../../bfin-uclinux/include/bits/uio.h \
+  /home/user/cvsoutput-uclinux/lib/gcc/bfin-uclinux/3.4.5/../../../../bfin-uclinux/include/bits/socket.h \
+  /home/user/cvsoutput-uclinux/lib/gcc/bfin-uclinux/3.4.5/include/limits.h \
+  /home/user/cvsoutput-uclinux/lib/gcc/bfin-uclinux/3.4.5/../../../../bfin-uclinux/include/bits/sockaddr.h \
+  /home/user/checkouts/kernel/uClinux-dist/linux-2.6.x/include/asm/socket.h \
+  /home/user/checkouts/kernel/uClinux-dist/linux-2.6.x/include/asm/sockios.h \
+  /home/user/cvsoutput-uclinux/lib/gcc/bfin-uclinux/3.4.5/../../../../bfin-uclinux/include/sys/ioctl.h \
+  /home/user/cvsoutput-uclinux/lib/gcc/bfin-uclinux/3.4.5/../../../../bfin-uclinux/include/bits/ioctls.h \
+  /home/user/checkouts/kernel/uClinux-dist/linux-2.6.x/include/asm/ioctls.h \
+  /home/user/checkouts/kernel/uClinux-dist/linux-2.6.x/include/asm/ioctl.h \
+  /home/user/cvsoutput-uclinux/lib/gcc/bfin-uclinux/3.4.5/../../../../bfin-uclinux/include/bits/ioctl-types.h \
+  /home/user/cvsoutput-uclinux/lib/gcc/bfin-uclinux/3.4.5/../../../../bfin-uclinux/include/sys/ttydefaults.h \
+  /temp/testcases/bluez/bluez-output/lib/include/bluetooth/bluetooth.h \
+  /home/user/cvsoutput-uclinux/lib/gcc/bfin-uclinux/3.4.5/../../../../bfin-uclinux/include/stdint.h \
+  /home/user/cvsoutput-uclinux/lib/gcc/bfin-uclinux/3.4.5/../../../../bfin-uclinux/include/bits/wordsize.h \
+  /home/user/cvsoutput-uclinux/lib/gcc/bfin-uclinux/3.4.5/../../../../bfin-uclinux/include/string.h \
+  /home/user/cvsoutput-uclinux/lib/gcc/bfin-uclinux/3.4.5/../../../../bfin-uclinux/include/byteswap.h \
+  /home/user/cvsoutput-uclinux/lib/gcc/bfin-uclinux/3.4.5/../../../../bfin-uclinux/include/bits/byteswap.h \
+  /temp/testcases/bluez/bluez-output/lib/include/bluetooth/l2cap.h \
+  /temp/testcases/bluez/bluez-output/lib/include/bluetooth/bnep.h \
+  /home/user/cvsoutput-uclinux/lib/gcc/bfin-uclinux/3.4.5/../../../../bfin-uclinux/include/net/ethernet.h \
+  /home/user/checkouts/kernel/uClinux-dist/linux-2.6.x/include/linux/if_ether.h \
+  /home/user/cvsoutput-uclinux/lib/gcc/bfin-uclinux/3.4.5/../../../../bfin-uclinux/include/netinet/in.h \
+  /home/user/cvsoutput-uclinux/lib/gcc/bfin-uclinux/3.4.5/../../../../bfin-uclinux/include/bits/in.h \
+  pand.h
+
+../config.h:
+
+/home/user/cvsoutput-uclinux/lib/gcc/bfin-uclinux/3.4.5/../../../../bfin-uclinux/include/stdio.h:
+
+/home/user/cvsoutput-uclinux/lib/gcc/bfin-uclinux/3.4.5/../../../../bfin-uclinux/include/features.h:
+
+/home/user/cvsoutput-uclinux/lib/gcc/bfin-uclinux/3.4.5/../../../../bfin-uclinux/include/bits/uClibc_config.h:
+
+/home/user/cvsoutput-uclinux/lib/gcc/bfin-uclinux/3.4.5/../../../../bfin-uclinux/include/sys/cdefs.h:
+
+/home/user/cvsoutput-uclinux/lib/gcc/bfin-uclinux/3.4.5/include/stddef.h:
+
+/home/user/cvsoutput-uclinux/lib/gcc/bfin-uclinux/3.4.5/../../../../bfin-uclinux/include/bits/types.h:
+
+/home/user/cvsoutput-uclinux/lib/gcc/bfin-uclinux/3.4.5/../../../../bfin-uclinux/include/bits/kernel_types.h:
+
+/home/user/cvsoutput-uclinux/lib/gcc/bfin-uclinux/3.4.5/../../../../bfin-uclinux/include/bits/pthreadtypes.h:
+
+/home/user/cvsoutput-uclinux/lib/gcc/bfin-uclinux/3.4.5/../../../../bfin-uclinux/include/bits/sched.h:
+
+/home/user/cvsoutput-uclinux/lib/gcc/bfin-uclinux/3.4.5/../../../../bfin-uclinux/include/bits/uClibc_stdio.h:
+
+/home/user/cvsoutput-uclinux/lib/gcc/bfin-uclinux/3.4.5/include/stdarg.h:
+
+/home/user/cvsoutput-uclinux/lib/gcc/bfin-uclinux/3.4.5/../../../../bfin-uclinux/include/bits/stdio_lim.h:
+
+/home/user/cvsoutput-uclinux/lib/gcc/bfin-uclinux/3.4.5/../../../../bfin-uclinux/include/errno.h:
+
+/home/user/cvsoutput-uclinux/lib/gcc/bfin-uclinux/3.4.5/../../../../bfin-uclinux/include/bits/errno.h:
+
+/home/user/cvsoutput-uclinux/lib/gcc/bfin-uclinux/3.4.5/../../../../bfin-uclinux/include/bits/errno_values.h:
+
+/home/user/cvsoutput-uclinux/lib/gcc/bfin-uclinux/3.4.5/../../../../bfin-uclinux/include/unistd.h:
+
+/home/user/cvsoutput-uclinux/lib/gcc/bfin-uclinux/3.4.5/../../../../bfin-uclinux/include/bits/posix_opt.h:
+
+/home/user/cvsoutput-uclinux/lib/gcc/bfin-uclinux/3.4.5/../../../../bfin-uclinux/include/bits/confname.h:
+
+/home/user/cvsoutput-uclinux/lib/gcc/bfin-uclinux/3.4.5/../../../../bfin-uclinux/include/bits/getopt.h:
+
+/home/user/cvsoutput-uclinux/lib/gcc/bfin-uclinux/3.4.5/../../../../bfin-uclinux/include/stdlib.h:
+
+/home/user/cvsoutput-uclinux/lib/gcc/bfin-uclinux/3.4.5/../../../../bfin-uclinux/include/sys/types.h:
+
+/home/user/cvsoutput-uclinux/lib/gcc/bfin-uclinux/3.4.5/../../../../bfin-uclinux/include/time.h:
+
+/home/user/cvsoutput-uclinux/lib/gcc/bfin-uclinux/3.4.5/../../../../bfin-uclinux/include/endian.h:
+
+/home/user/cvsoutput-uclinux/lib/gcc/bfin-uclinux/3.4.5/../../../../bfin-uclinux/include/bits/endian.h:
+
+/home/user/cvsoutput-uclinux/lib/gcc/bfin-uclinux/3.4.5/../../../../bfin-uclinux/include/sys/select.h:
+
+/home/user/cvsoutput-uclinux/lib/gcc/bfin-uclinux/3.4.5/../../../../bfin-uclinux/include/bits/select.h:
+
+/home/user/cvsoutput-uclinux/lib/gcc/bfin-uclinux/3.4.5/../../../../bfin-uclinux/include/bits/sigset.h:
+
+/home/user/cvsoutput-uclinux/lib/gcc/bfin-uclinux/3.4.5/../../../../bfin-uclinux/include/bits/time.h:
+
+/home/user/cvsoutput-uclinux/lib/gcc/bfin-uclinux/3.4.5/../../../../bfin-uclinux/include/sys/sysmacros.h:
+
+/home/user/cvsoutput-uclinux/lib/gcc/bfin-uclinux/3.4.5/../../../../bfin-uclinux/include/alloca.h:
+
+/home/user/cvsoutput-uclinux/lib/gcc/bfin-uclinux/3.4.5/../../../../bfin-uclinux/include/sys/socket.h:
+
+/home/user/cvsoutput-uclinux/lib/gcc/bfin-uclinux/3.4.5/../../../../bfin-uclinux/include/sys/uio.h:
+
+/home/user/cvsoutput-uclinux/lib/gcc/bfin-uclinux/3.4.5/../../../../bfin-uclinux/include/bits/uio.h:
+
+/home/user/cvsoutput-uclinux/lib/gcc/bfin-uclinux/3.4.5/../../../../bfin-uclinux/include/bits/socket.h:
+
+/home/user/cvsoutput-uclinux/lib/gcc/bfin-uclinux/3.4.5/include/limits.h:
+
+/home/user/cvsoutput-uclinux/lib/gcc/bfin-uclinux/3.4.5/../../../../bfin-uclinux/include/bits/sockaddr.h:
+
+/home/user/checkouts/kernel/uClinux-dist/linux-2.6.x/include/asm/socket.h:
+
+/home/user/checkouts/kernel/uClinux-dist/linux-2.6.x/include/asm/sockios.h:
+
+/home/user/cvsoutput-uclinux/lib/gcc/bfin-uclinux/3.4.5/../../../../bfin-uclinux/include/sys/ioctl.h:
+
+/home/user/cvsoutput-uclinux/lib/gcc/bfin-uclinux/3.4.5/../../../../bfin-uclinux/include/bits/ioctls.h:
+
+/home/user/checkouts/kernel/uClinux-dist/linux-2.6.x/include/asm/ioctls.h:
+
+/home/user/checkouts/kernel/uClinux-dist/linux-2.6.x/include/asm/ioctl.h:
+
+/home/user/cvsoutput-uclinux/lib/gcc/bfin-uclinux/3.4.5/../../../../bfin-uclinux/include/bits/ioctl-types.h:
+
+/home/user/cvsoutput-uclinux/lib/gcc/bfin-uclinux/3.4.5/../../../../bfin-uclinux/include/sys/ttydefaults.h:
+
+/temp/testcases/bluez/bluez-output/lib/include/bluetooth/bluetooth.h:
+
+/home/user/cvsoutput-uclinux/lib/gcc/bfin-uclinux/3.4.5/../../../../bfin-uclinux/include/stdint.h:
+
+/home/user/cvsoutput-uclinux/lib/gcc/bfin-uclinux/3.4.5/../../../../bfin-uclinux/include/bits/wordsize.h:
+
+/home/user/cvsoutput-uclinux/lib/gcc/bfin-uclinux/3.4.5/../../../../bfin-uclinux/include/string.h:
+
+/home/user/cvsoutput-uclinux/lib/gcc/bfin-uclinux/3.4.5/../../../../bfin-uclinux/include/byteswap.h:
+
+/home/user/cvsoutput-uclinux/lib/gcc/bfin-uclinux/3.4.5/../../../../bfin-uclinux/include/bits/byteswap.h:
+
+/temp/testcases/bluez/bluez-output/lib/include/bluetooth/l2cap.h:
+
+/temp/testcases/bluez/bluez-output/lib/include/bluetooth/bnep.h:
+
+/home/user/cvsoutput-uclinux/lib/gcc/bfin-uclinux/3.4.5/../../../../bfin-uclinux/include/net/ethernet.h:
+
+/home/user/checkouts/kernel/uClinux-dist/linux-2.6.x/include/linux/if_ether.h:
+
+/home/user/cvsoutput-uclinux/lib/gcc/bfin-uclinux/3.4.5/../../../../bfin-uclinux/include/netinet/in.h:
+
+/home/user/cvsoutput-uclinux/lib/gcc/bfin-uclinux/3.4.5/../../../../bfin-uclinux/include/bits/in.h:
+
+pand.h:

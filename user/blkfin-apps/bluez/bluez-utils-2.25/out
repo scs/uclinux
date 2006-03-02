@@ -1,0 +1,170 @@
+Making install in common
+make[1]: Entering directory `/temp/testcases/bluez/bluez-utils-2.25/common'
+make[2]: Entering directory `/temp/testcases/bluez/bluez-utils-2.25/common'
+make[2]: Nothing to be done for `install-exec-am'.
+make[2]: Nothing to be done for `install-data-am'.
+make[2]: Leaving directory `/temp/testcases/bluez/bluez-utils-2.25/common'
+make[1]: Leaving directory `/temp/testcases/bluez/bluez-utils-2.25/common'
+Making install in daemon
+make[1]: Entering directory `/temp/testcases/bluez/bluez-utils-2.25/daemon'
+make[2]: Entering directory `/temp/testcases/bluez/bluez-utils-2.25/daemon'
+make[2]: Nothing to be done for `install-exec-am'.
+make[2]: Nothing to be done for `install-data-am'.
+make[2]: Leaving directory `/temp/testcases/bluez/bluez-utils-2.25/daemon'
+make[1]: Leaving directory `/temp/testcases/bluez/bluez-utils-2.25/daemon'
+Making install in tools
+make[1]: Entering directory `/temp/testcases/bluez/bluez-utils-2.25/tools'
+make[2]: Entering directory `/temp/testcases/bluez/bluez-utils-2.25/tools'
+/bin/sh ../mkinstalldirs /temp/testcases/bluez/bluez-output/utils/exec/bin
+  /bin/sh ../libtool --mode=install /usr/bin/install -c hcitool /temp/testcases/bluez/bluez-output/utils/exec/bin/hcitool
+/usr/bin/install -c hcitool /temp/testcases/bluez/bluez-output/utils/exec/bin/hcitool
+  /bin/sh ../libtool --mode=install /usr/bin/install -c l2ping /temp/testcases/bluez/bluez-output/utils/exec/bin/l2ping
+/usr/bin/install -c l2ping /temp/testcases/bluez/bluez-output/utils/exec/bin/l2ping
+  /bin/sh ../libtool --mode=install /usr/bin/install -c sdptool /temp/testcases/bluez/bluez-output/utils/exec/bin/sdptool
+/usr/bin/install -c sdptool /temp/testcases/bluez/bluez-output/utils/exec/bin/sdptool
+  /bin/sh ../libtool --mode=install /usr/bin/install -c ciptool /temp/testcases/bluez/bluez-output/utils/exec/bin/ciptool
+/usr/bin/install -c ciptool /temp/testcases/bluez/bluez-output/utils/exec/bin/ciptool
+/bin/sh ../mkinstalldirs /temp/testcases/bluez/bluez-output/utils/exec/sbin
+  /bin/sh ../libtool --mode=install /usr/bin/install -c hciattach /temp/testcases/bluez/bluez-output/utils/exec/sbin/hciattach
+/usr/bin/install -c hciattach /temp/testcases/bluez/bluez-output/utils/exec/sbin/hciattach
+  /bin/sh ../libtool --mode=install /usr/bin/install -c hciconfig /temp/testcases/bluez/bluez-output/utils/exec/sbin/hciconfig
+/usr/bin/install -c hciconfig /temp/testcases/bluez/bluez-output/utils/exec/sbin/hciconfig
+/bin/sh ../mkinstalldirs /temp/testcases/bluez/bluez-output/utils/man/man1
+ /usr/bin/install -c -m 644 ./hcitool.1 /temp/testcases/bluez/bluez-output/utils/man/man1/hcitool.1
+ /usr/bin/install -c -m 644 ./l2ping.1 /temp/testcases/bluez/bluez-output/utils/man/man1/l2ping.1
+ /usr/bin/install -c -m 644 ./sdptool.1 /temp/testcases/bluez/bluez-output/utils/man/man1/sdptool.1
+ /usr/bin/install -c -m 644 ./ciptool.1 /temp/testcases/bluez/bluez-output/utils/man/man1/ciptool.1
+/bin/sh ../mkinstalldirs /temp/testcases/bluez/bluez-output/utils/man/man8
+ /usr/bin/install -c -m 644 ./hciattach.8 /temp/testcases/bluez/bluez-output/utils/man/man8/hciattach.8
+ /usr/bin/install -c -m 644 ./hciconfig.8 /temp/testcases/bluez/bluez-output/utils/man/man8/hciconfig.8
+make[2]: Leaving directory `/temp/testcases/bluez/bluez-utils-2.25/tools'
+make[1]: Leaving directory `/temp/testcases/bluez/bluez-utils-2.25/tools'
+Making install in rfcomm
+make[1]: Entering directory `/temp/testcases/bluez/bluez-utils-2.25/rfcomm'
+make[2]: Entering directory `/temp/testcases/bluez/bluez-utils-2.25/rfcomm'
+/bin/sh ../mkinstalldirs /temp/testcases/bluez/bluez-output/utils/exec/bin
+  /bin/sh ../libtool --mode=install /usr/bin/install -c rfcomm /temp/testcases/bluez/bluez-output/utils/exec/bin/rfcomm
+/usr/bin/install -c rfcomm /temp/testcases/bluez/bluez-output/utils/exec/bin/rfcomm
+/bin/sh ../mkinstalldirs /temp/testcases/bluez/bluez-output/utils/etc/bluetooth
+ /usr/bin/install -c -m 644 rfcomm.conf /temp/testcases/bluez/bluez-output/utils/etc/bluetooth/rfcomm.conf
+/bin/sh ../mkinstalldirs /temp/testcases/bluez/bluez-output/utils/man/man1
+ /usr/bin/install -c -m 644 ./rfcomm.1 /temp/testcases/bluez/bluez-output/utils/man/man1/rfcomm.1
+make[2]: Leaving directory `/temp/testcases/bluez/bluez-utils-2.25/rfcomm'
+make[1]: Leaving directory `/temp/testcases/bluez/bluez-utils-2.25/rfcomm'
+Making install in hcid
+make[1]: Entering directory `/temp/testcases/bluez/bluez-utils-2.25/hcid'
+make[2]: Entering directory `/temp/testcases/bluez/bluez-utils-2.25/hcid'
+/bin/sh ../mkinstalldirs /temp/testcases/bluez/bluez-output/utils/exec/sbin
+  /bin/sh ../libtool --mode=install /usr/bin/install -c hcid /temp/testcases/bluez/bluez-output/utils/exec/sbin/hcid
+/usr/bin/install -c hcid /temp/testcases/bluez/bluez-output/utils/exec/sbin/hcid
+/bin/sh ../mkinstalldirs /temp/testcases/bluez/bluez-output/utils/etc/bluetooth
+ /usr/bin/install -c -m 644 hcid.conf /temp/testcases/bluez/bluez-output/utils/etc/bluetooth/hcid.conf
+[ -f /temp/testcases/bluez/bluez-output/utils/etc/bluetooth/pin ] || \
+	echo "BlueZ" > /temp/testcases/bluez/bluez-output/utils/etc/bluetooth/pin; \
+	chmod 600 /temp/testcases/bluez/bluez-output/utils/etc/bluetooth/pin
+/bin/sh ../mkinstalldirs 
+/bin/sh ../mkinstalldirs /temp/testcases/bluez/bluez-output/utils/man/man5
+ /usr/bin/install -c -m 644 ./hcid.conf.5 /temp/testcases/bluez/bluez-output/utils/man/man5/hcid.conf.5
+/bin/sh ../mkinstalldirs /temp/testcases/bluez/bluez-output/utils/man/man8
+ /usr/bin/install -c -m 644 ./hcid.8 /temp/testcases/bluez/bluez-output/utils/man/man8/hcid.8
+/bin/sh ../mkinstalldirs /temp/testcases/bluez/bluez-output/utils/var/lib/bluetooth
+make[2]: Leaving directory `/temp/testcases/bluez/bluez-utils-2.25/hcid'
+make[1]: Leaving directory `/temp/testcases/bluez/bluez-utils-2.25/hcid'
+Making install in sdpd
+make[1]: Entering directory `/temp/testcases/bluez/bluez-utils-2.25/sdpd'
+make[2]: Entering directory `/temp/testcases/bluez/bluez-utils-2.25/sdpd'
+/bin/sh ../mkinstalldirs /temp/testcases/bluez/bluez-output/utils/exec/sbin
+  /bin/sh ../libtool --mode=install /usr/bin/install -c sdpd /temp/testcases/bluez/bluez-output/utils/exec/sbin/sdpd
+/usr/bin/install -c sdpd /temp/testcases/bluez/bluez-output/utils/exec/sbin/sdpd
+/bin/sh ../mkinstalldirs /temp/testcases/bluez/bluez-output/utils/man/man8
+ /usr/bin/install -c -m 644 ./sdpd.8 /temp/testcases/bluez/bluez-output/utils/man/man8/sdpd.8
+make[2]: Leaving directory `/temp/testcases/bluez/bluez-utils-2.25/sdpd'
+make[1]: Leaving directory `/temp/testcases/bluez/bluez-utils-2.25/sdpd'
+Making install in dund
+make[1]: Entering directory `/temp/testcases/bluez/bluez-utils-2.25/dund'
+make[2]: Entering directory `/temp/testcases/bluez/bluez-utils-2.25/dund'
+/bin/sh ../mkinstalldirs /temp/testcases/bluez/bluez-output/utils/exec/bin
+  /bin/sh ../libtool --mode=install /usr/bin/install -c dund /temp/testcases/bluez/bluez-output/utils/exec/bin/dund
+/usr/bin/install -c dund /temp/testcases/bluez/bluez-output/utils/exec/bin/dund
+/bin/sh ../mkinstalldirs /temp/testcases/bluez/bluez-output/utils/man/man1
+ /usr/bin/install -c -m 644 ./dund.1 /temp/testcases/bluez/bluez-output/utils/man/man1/dund.1
+make[2]: Leaving directory `/temp/testcases/bluez/bluez-utils-2.25/dund'
+make[1]: Leaving directory `/temp/testcases/bluez/bluez-utils-2.25/dund'
+Making install in pand
+make[1]: Entering directory `/temp/testcases/bluez/bluez-utils-2.25/pand'
+make[2]: Entering directory `/temp/testcases/bluez/bluez-utils-2.25/pand'
+/bin/sh ../mkinstalldirs /temp/testcases/bluez/bluez-output/utils/exec/bin
+  /bin/sh ../libtool --mode=install /usr/bin/install -c pand /temp/testcases/bluez/bluez-output/utils/exec/bin/pand
+/usr/bin/install -c pand /temp/testcases/bluez/bluez-output/utils/exec/bin/pand
+/bin/sh ../mkinstalldirs /temp/testcases/bluez/bluez-output/utils/man/man1
+ /usr/bin/install -c -m 644 ./pand.1 /temp/testcases/bluez/bluez-output/utils/man/man1/pand.1
+make[2]: Leaving directory `/temp/testcases/bluez/bluez-utils-2.25/pand'
+make[1]: Leaving directory `/temp/testcases/bluez/bluez-utils-2.25/pand'
+Making install in hidd
+make[1]: Entering directory `/temp/testcases/bluez/bluez-utils-2.25/hidd'
+make[2]: Entering directory `/temp/testcases/bluez/bluez-utils-2.25/hidd'
+/bin/sh ../mkinstalldirs /temp/testcases/bluez/bluez-output/utils/exec/bin
+  /bin/sh ../libtool --mode=install /usr/bin/install -c hidd /temp/testcases/bluez/bluez-output/utils/exec/bin/hidd
+/usr/bin/install -c hidd /temp/testcases/bluez/bluez-output/utils/exec/bin/hidd
+/bin/sh ../mkinstalldirs /temp/testcases/bluez/bluez-output/utils/man/man1
+ /usr/bin/install -c -m 644 ./hidd.1 /temp/testcases/bluez/bluez-output/utils/man/man1/hidd.1
+make[2]: Leaving directory `/temp/testcases/bluez/bluez-utils-2.25/hidd'
+make[1]: Leaving directory `/temp/testcases/bluez/bluez-utils-2.25/hidd'
+Making install in cups
+make[1]: Entering directory `/temp/testcases/bluez/bluez-utils-2.25/cups'
+make[2]: Entering directory `/temp/testcases/bluez/bluez-utils-2.25/cups'
+make[2]: Nothing to be done for `install-exec-am'.
+/bin/sh ../mkinstalldirs 
+make[2]: Leaving directory `/temp/testcases/bluez/bluez-utils-2.25/cups'
+make[1]: Leaving directory `/temp/testcases/bluez/bluez-utils-2.25/cups'
+Making install in fuse
+make[1]: Entering directory `/temp/testcases/bluez/bluez-utils-2.25/fuse'
+make[2]: Entering directory `/temp/testcases/bluez/bluez-utils-2.25/fuse'
+make[2]: Nothing to be done for `install-exec-am'.
+make[2]: Nothing to be done for `install-data-am'.
+make[2]: Leaving directory `/temp/testcases/bluez/bluez-utils-2.25/fuse'
+make[1]: Leaving directory `/temp/testcases/bluez/bluez-utils-2.25/fuse'
+Making install in alsa
+make[1]: Entering directory `/temp/testcases/bluez/bluez-utils-2.25/alsa'
+make[2]: Entering directory `/temp/testcases/bluez/bluez-utils-2.25/alsa'
+make[2]: Nothing to be done for `install-exec-am'.
+/bin/sh ../mkinstalldirs 
+make[2]: Leaving directory `/temp/testcases/bluez/bluez-utils-2.25/alsa'
+make[1]: Leaving directory `/temp/testcases/bluez/bluez-utils-2.25/alsa'
+Making install in test
+make[1]: Entering directory `/temp/testcases/bluez/bluez-utils-2.25/test'
+make[2]: Entering directory `/temp/testcases/bluez/bluez-utils-2.25/test'
+/bin/sh ../mkinstalldirs /temp/testcases/bluez/bluez-output/utils/exec/bin
+/bin/sh ../mkinstalldirs /temp/testcases/bluez/bluez-output/utils/exec/sbin
+make[2]: Nothing to be done for `install-data-am'.
+make[2]: Leaving directory `/temp/testcases/bluez/bluez-utils-2.25/test'
+make[1]: Leaving directory `/temp/testcases/bluez/bluez-utils-2.25/test'
+Making install in scripts
+make[1]: Entering directory `/temp/testcases/bluez/bluez-utils-2.25/scripts'
+make[2]: Entering directory `/temp/testcases/bluez/bluez-utils-2.25/scripts'
+/bin/sh ../mkinstalldirs /temp/testcases/bluez/bluez-output/utils/exec/bin
+ /usr/bin/install -c bluepin /temp/testcases/bluez/bluez-output/utils/exec/bin/bluepin
+make[2]: Nothing to be done for `install-data-am'.
+make[2]: Leaving directory `/temp/testcases/bluez/bluez-utils-2.25/scripts'
+make[1]: Leaving directory `/temp/testcases/bluez/bluez-utils-2.25/scripts'
+Making install in pcmcia
+make[1]: Entering directory `/temp/testcases/bluez/bluez-utils-2.25/pcmcia'
+make[2]: Entering directory `/temp/testcases/bluez/bluez-utils-2.25/pcmcia'
+make[2]: Nothing to be done for `install-exec-am'.
+/bin/sh ../mkinstalldirs 
+make[2]: Leaving directory `/temp/testcases/bluez/bluez-utils-2.25/pcmcia'
+make[1]: Leaving directory `/temp/testcases/bluez/bluez-utils-2.25/pcmcia'
+Making install in extra
+make[1]: Entering directory `/temp/testcases/bluez/bluez-utils-2.25/extra'
+make[2]: Entering directory `/temp/testcases/bluez/bluez-utils-2.25/extra'
+make[2]: Nothing to be done for `install-exec-am'.
+/bin/sh ../mkinstalldirs 
+/bin/sh ../mkinstalldirs 
+make[2]: Leaving directory `/temp/testcases/bluez/bluez-utils-2.25/extra'
+make[1]: Leaving directory `/temp/testcases/bluez/bluez-utils-2.25/extra'
+make[1]: Entering directory `/temp/testcases/bluez/bluez-utils-2.25'
+make[2]: Entering directory `/temp/testcases/bluez/bluez-utils-2.25'
+make[2]: Nothing to be done for `install-exec-am'.
+make[2]: Nothing to be done for `install-data-am'.
+make[2]: Leaving directory `/temp/testcases/bluez/bluez-utils-2.25'
+make[1]: Leaving directory `/temp/testcases/bluez/bluez-utils-2.25'

@@ -1,0 +1,34 @@
+AC_PREREQ(2.50)
+AC_INIT()
+
+AM_INIT_AUTOMAKE(bluez-utils, 2.25)
+AM_CONFIG_HEADER(config.h)
+
+AM_MAINTAINER_MODE
+
+AC_INIT_BLUEZ
+
+AC_LANG_C
+
+AC_PROG_CC
+AC_PROG_CC_PIE
+AC_PROG_INSTALL
+AC_PROG_YACC
+AM_PROG_LEX
+
+m4_define([_LT_AC_TAGCONFIG], [])
+m4_ifdef([AC_LIBTOOL_TAGS], [AC_LIBTOOL_TAGS([])])
+
+AC_DISABLE_STATIC
+AC_PROG_LIBTOOL
+
+AC_PATH_BLUEZ
+AC_PATH_OPENOBEX
+AC_PATH_DBUS
+AC_PATH_FUSE
+AC_PATH_ALSA
+AC_PATH_USB
+
+AC_ARG_BLUEZ
+
+AC_OUTPUT(Makefile common/Makefile daemon/Makefile tools/Makefile rfcomm/Makefile hcid/Makefile sdpd/Makefile dund/Makefile pand/Makefile hidd/Makefile cups/Makefile fuse/Makefile alsa/Makefile test/Makefile scripts/Makefile pcmcia/Makefile extra/Makefile)
