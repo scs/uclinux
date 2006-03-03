@@ -87,8 +87,8 @@ static struct resource sl811_hcd_resources[] = {
 	        *  denotes the flag pin and is used directly if
 	        *  CONFIG_IRQCHIP_DEMUX_GPIO is defined.
 	        */
-	       .start = IRQ_PF7,
-	       .end = IRQ_PF7,
+	       .start = IRQ_PF5,
+	       .end = IRQ_PF5,
 	       .flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL,
 	       },
 };
