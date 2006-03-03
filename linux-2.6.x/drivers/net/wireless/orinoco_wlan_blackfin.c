@@ -47,6 +47,7 @@
 #include <asm/io.h>
 #include <asm/system.h>
 #include <asm/irq.h>
+#include <asm/blackfin.h>
 #include <linux/netdevice.h>
 #include <linux/if_arp.h>
 #include <linux/etherdevice.h>
@@ -78,57 +79,6 @@ static const u8 cis_magic[] = {
 	0x01, 0x03, 0x00, 0x00, 0xff, 0x17, 0x04, 0x67
 };
 
-
-static void bfin_WLAN_interrupt_setup(int irq)
-{
-
-#ifdef CONFIG_IRQCHIP_DEMUX_GPIO
-    printk("Blackfin IDE interrupt setup: DEMUX_GPIO irq %d\n", irq);
-    set_irq_type(irq, IRQT_HIGH);
-#else
-    unsigned short flag,portx_fer;
-    unsigned short WLAN_FIO_PATTERN;
-
-    if (BFIN_WLAN_IRQ_PFX < IRQ_PF0 || BFIN_WLAN_IRQ_PFX > IRQ_PF15) {
-	printk(KERN_ERR "irq_pfx out of range: %d\n", BFIN_WLAN_IRQ_PFX);
-	return;
-    }
-
-    flag = BFIN_WLAN_IRQ_PFX - IRQ_PF0;
-    WLAN_FIO_PATTERN = (1 << flag);
-
-#if defined(CONFIG_BF534)|defined(CONFIG_BF536)|defined(CONFIG_BF537)
-  portx_fer = *pPORT_FER;
-  *pPORT_FER = portx_fer & ~WLAN_FIO_PATTERN;
-  __builtin_bfin_ssync();
-#endif
-
-    printk("Blackfin WLAN interrupt setup: flag PF%d, irq %d\n", flag, irq);
-  /* 26 = IRQ_PROG_INTA => FIO_MASKA
-     27 = IRQ_PROG_INTB => FIO_MASKB */
-  if (irq == IRQ_PROG_INTA/*26*/ ||
-      irq == IRQ_PROG_INTB/*27*/)
-    {
-      int ixab = (irq - IRQ_PROG_INTA) * (pFIO_MASKB_D - pFIO_MASKA_D);
-
-      __builtin_bfin_csync();
-      pFIO_MASKA_C[ixab] = WLAN_FIO_PATTERN; /* disable int */
-      __builtin_bfin_ssync();
-
-      *pFIO_POLAR |=  WLAN_FIO_PATTERN; /* active low (input) */
-      *pFIO_EDGE  &= ~WLAN_FIO_PATTERN; /* by level (input) */
-      *pFIO_BOTH  &= ~WLAN_FIO_PATTERN;
-
-      *pFIO_DIR  &= ~WLAN_FIO_PATTERN;   /* input */
-      *pFIO_FLAG_C = WLAN_FIO_PATTERN;   /* clear output */
-      *pFIO_INEN |=  WLAN_FIO_PATTERN;   /* enable pin */
-
-      __builtin_bfin_ssync();
-      pFIO_MASKA_S[ixab] = WLAN_FIO_PATTERN; /* enable int */
-    }
-#endif /*CONFIG_IRQCHIP_DEMUX_GPIO*/
-
-}
 
 static int orinoco_wlan_blackfin_init_one(void)
 /* 	struct pci_dev *pdev, */
@@ -204,7 +154,7 @@ static int orinoco_wlan_blackfin_init_one(void)
 	hermes_struct_init(&(priv->hw), dev->base_addr, HERMES_16BIT_REGSPACING);
 
 
-	bfin_WLAN_interrupt_setup(dev->irq);
+	bfin_gpio_interrupt_setup(dev->irq, BFIN_WLAN_IRQ_PFX, IRQT_LOW);
 
  	err = request_irq(dev->irq, orinoco_interrupt, SA_SHIRQ, dev_info, dev);
 //	err = request_irq(dev->irq, orinoco_interrupt, 0, dev_info, dev); /* not SA_SHIRQ */

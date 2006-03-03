@@ -36,7 +36,7 @@
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/delay.h>
-
+#include <asm/blackfin.h>
 
 #define CF_ATASEL_ENA	0x20310002
 #define CF_ATASEL_DIS	0x20310000
@@ -114,56 +114,6 @@ static inline void hwif_setup(ide_hwif_t *hwif)
 	hwif->INSL  = NULL;
 }
 
-static void bfin_IDE_interrupt_setup(int irq)
-{
-
-#ifdef CONFIG_IRQCHIP_DEMUX_GPIO
-    printk("Blackfin IDE interrupt setup: DEMUX_GPIO irq %d\n", irq);
-    set_irq_type(irq, IRQT_HIGH);
-#else
-    unsigned short flag,portx_fer;
-    unsigned short IDE_FIO_PATTERN;
-
-    if (CONFIG_BFIN_IDE_IRQ_PFX < IRQ_PF0 || CONFIG_BFIN_IDE_IRQ_PFX > IRQ_PF15) {
-	printk(KERN_ERR "irq_pfx out of range: %d\n", CONFIG_BFIN_IDE_IRQ_PFX);
-	return;
-    }
-
-    flag = CONFIG_BFIN_IDE_IRQ_PFX - IRQ_PF0;
-    IDE_FIO_PATTERN = (1 << flag);
-
-#if defined(CONFIG_BF534)|defined(CONFIG_BF536)|defined(CONFIG_BF537)
-  portx_fer = *pPORT_FER;
-  *pPORT_FER = portx_fer & ~IDE_FIO_PATTERN;
-  __builtin_bfin_ssync();
-#endif
-
-    printk("Blackfin IDE interrupt setup: flag PF%d, irq %d\n", flag, irq);
-  /* 26 = IRQ_PROG_INTA => FIO_MASKA (BF533)
-     27 = IRQ_PROG_INTB => FIO_MASKB (BF533)*/
-  if (irq == IRQ_PROG_INTA/*26*/ ||
-      irq == IRQ_PROG_INTB/*27*/)
-    {
-      int ixab = (irq - IRQ_PROG_INTA) * (pFIO_MASKB_D - pFIO_MASKA_D);
-
-      __builtin_bfin_csync();
-      pFIO_MASKA_C[ixab] = IDE_FIO_PATTERN; /* disable int */
-      __builtin_bfin_ssync();
-
-      *pFIO_POLAR &= ~IDE_FIO_PATTERN; /* active high (input) */
-      *pFIO_EDGE  &= ~IDE_FIO_PATTERN; /* by level (input) */
-      *pFIO_BOTH  &= ~IDE_FIO_PATTERN; 
-
-      *pFIO_DIR  &= ~IDE_FIO_PATTERN;   /* input */
-      *pFIO_FLAG_C = IDE_FIO_PATTERN;   /* clear output */
-      *pFIO_INEN |=  IDE_FIO_PATTERN;   /* enable pin */
-
-      __builtin_bfin_ssync();
-      pFIO_MASKA_S[ixab] = IDE_FIO_PATTERN; /* enable int */
-    }
-#endif /*CONFIG_IRQCHIP_DEMUX_GPIO*/
-
-}
 
 void __init blackfin_ide_init(void)
 {
@@ -185,7 +135,7 @@ void __init blackfin_ide_init(void)
 
 	hw_setup(&hw);
 
-	bfin_IDE_interrupt_setup(CONFIG_BFIN_IDE_IRQ);
+	bfin_gpio_interrupt_setup(CONFIG_BFIN_IDE_IRQ, CONFIG_BFIN_IDE_IRQ_PFX, IRQT_HIGH);
 
 	/* register if */
 	idx = ide_register_hw(&hw, &hwif);
