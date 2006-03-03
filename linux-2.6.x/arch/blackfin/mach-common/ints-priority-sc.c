@@ -505,3 +505,64 @@ void do_irq(int vec, struct pt_regs *fp)
 	}
 	asm_do_IRQ(vec, fp);
 }
+
+void bfin_gpio_interrupt_setup(int irq, int irq_pfx, int type)
+{
+
+#ifdef CONFIG_IRQCHIP_DEMUX_GPIO
+    printk("Blackfin GPIO interrupt setup: DEMUX_GPIO irq %d\n", irq);
+    set_irq_type(irq_pfx, type);
+#else
+    unsigned short flag,portx_fer;
+    unsigned short FIO_PATTERN;
+
+    if (irq_pfx < IRQ_PF0 || irq_pfx > IRQ_PF15) {
+	printk(KERN_ERR "irq_pfx out of range: %d\n", irq_pfx);
+	return;
+    }
+
+    flag = irq_pfx - IRQ_PF0;
+    FIO_PATTERN = (1 << flag);
+
+#if defined(CONFIG_BF534)|defined(CONFIG_BF536)|defined(CONFIG_BF537)
+  portx_fer = *pPORT_FER;
+  *pPORT_FER = portx_fer & ~FIO_PATTERN;
+  __builtin_bfin_ssync();
+#endif
+
+    printk("Blackfin GPIO interrupt setup: flag PF%d, irq %d\n", flag, irq);
+
+  if (irq == IRQ_PROG_INTA/*26*/ ||
+      irq == IRQ_PROG_INTB/*27*/)
+    {
+      int ixab = (irq - IRQ_PROG_INTA) * (pFIO_MASKB_D - pFIO_MASKA_D);
+
+      __builtin_bfin_ssync();
+      pFIO_MASKA_C[ixab] = FIO_PATTERN; /* disable int */
+      __builtin_bfin_ssync();
+
+  if (type==IRQT_HIGH || type == IRQT_RISING)
+     *pFIO_POLAR &= ~FIO_PATTERN; /* active high */
+   else
+     *pFIO_POLAR |=  FIO_PATTERN; /* active low  */
+
+  if (type==IRQT_HIGH || type == IRQT_LOW)
+     *pFIO_EDGE  &= ~FIO_PATTERN; /* by level (input) */
+   else
+     *pFIO_EDGE  &= ~FIO_PATTERN; /* by edge */
+
+  if (type==IRQT_BOTHEDGE)
+      *pFIO_BOTH  |=  FIO_PATTERN;
+   else
+      *pFIO_BOTH  &= ~FIO_PATTERN;
+
+      *pFIO_DIR  &= ~FIO_PATTERN;   /* input */
+      *pFIO_FLAG_C = FIO_PATTERN;   /* clear output */
+      *pFIO_INEN |=  FIO_PATTERN;   /* enable pin */
+
+      __builtin_bfin_ssync();
+      pFIO_MASKA_S[ixab] = FIO_PATTERN; /* enable int */
+    }
+#endif /*CONFIG_IRQCHIP_DEMUX_GPIO*/
+
+}
