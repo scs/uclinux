@@ -722,7 +722,7 @@ int bf53x_sport_curr_frag_rx( struct bf53x_sport* sport ){
 int bf53x_sport_curr_frag_tx( struct bf53x_sport* sport ){  
   dma_register_t* dma = sport->dma_tx;
   /* use the fact that we use an contiguous array of descriptors */
-  return ((dmasg_t*)(dma->curr_desc_ptr) - sport->dma_rx_desc) / 
+  return ((dmasg_t*)(dma->curr_desc_ptr) - sport->dma_tx_desc) / 
     sizeof( dmasg_t );
 }
 
