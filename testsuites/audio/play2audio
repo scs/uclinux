@@ -193,7 +193,7 @@ set timeout 4
 send "cd /var\r"
 expect	"> "
 
-while 0 {
+while 1 {
    set timeout 15 
    incr case_num
    send -s "vrec -w -S -b 8 -s 44100 -t 6 a; vrec -w -S -b 16 -s 8000 -t 6 b\r"
