@@ -181,10 +181,23 @@ static int bfin_twi_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int nu
 	return ret;
 }
 
+/*
+ * Return what the adapter supports
+ */
+static u32 bfin_twi_functionality(struct i2c_adapter *adap)
+{
+	if(adap->id == I2C_BFIN_TWI)
+		return I2C_FUNC_SMBUS_EMUL;
+	return 0;
+}
+
+
 static struct i2c_algorithm bfin_twi_algorithm = {
 	.name		= "BFIN TWI I2C",
 	.id		= I2C_BFIN_TWI,
 	.master_xfer	= bfin_twi_xfer,
+	.smbus_xfer     = NULL,
+	.functionality  = bfin_twi_functionality,
 };
 
 static int __init i2c_bfin_twi_init(void)
