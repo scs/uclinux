@@ -706,8 +706,8 @@ _schedule_and_signal:
 	p1.h = _evt_system_call;
 	[p0] = p1;
 	csync;
-	p0.l = lo(1f);
-	p0.h = lo(1f);
+	p0.l = 1f;
+	p0.h = 1f;
 	[sp + PT_RESERVED] = P0;
 	call resume_userspace;
 1:
