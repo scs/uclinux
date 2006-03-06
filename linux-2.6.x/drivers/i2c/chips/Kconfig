@@ -365,6 +365,17 @@ endmenu
 menu "Other I2C Chip support"
 	depends on I2C
 
+config SENSORS_AD5252
+	tristate "Analog Devices AD5252 and AD5251 Digital Potentiometers"
+	depends on I2C && EXPERIMENTAL
+	select I2C_SENSOR
+	help
+	  If you say yes here you get support for Analog Devices and AD5252
+	  AD5251 chips.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called ad5252.
+
 config SENSORS_DS1337
 	tristate "Dallas Semiconductor DS1337 Real Time Clock"
 	depends on I2C && EXPERIMENTAL
