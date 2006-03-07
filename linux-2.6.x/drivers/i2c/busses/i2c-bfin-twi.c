@@ -42,6 +42,7 @@ struct bfin_twi_iface
 	spinlock_t		lock;
 	char			read_write;
 	u8			*transPtr;
+	int			transNum;
 	int			result;
 	int			timeout_count;
 	struct timer_list	timeout_timer;
@@ -57,26 +58,38 @@ static void bfin_twi_handle_interrupt(struct bfin_twi_iface *iface)
 	twi_int_stat = *pTWI_INT_STAT;
 	 
 	if ( RCVSERV & twi_int_stat ){
-		/* Receive next data */
-		*(iface->transPtr++) = *pTWI_RCV_DATA8;
 		/* Clear interrupt source */
 		*pTWI_INT_STAT = RCVSERV;
 		__builtin_bfin_ssync();
+		if(iface->transNum>0) {
+			/* Receive next data */
+			*(iface->transPtr++) = *pTWI_RCV_DATA8;
+			iface->transNum--;
+		}
+		if(iface->transNum<=0)
+			*pTWI_MASTER_CTL |= STOP;
 	}
 	if ( XMTSERV & twi_int_stat ){
-		/* Transmit next data */
-		*pTWI_XMT_DATA8 = *(iface->transPtr++);
 		/* Clear status */
 		*pTWI_INT_STAT = XMTSERV;
 		__builtin_bfin_ssync();
+		/* Transmit next data */
+		if(iface->transNum>0) {
+			*pTWI_XMT_DATA8 = *(iface->transPtr++);
+			iface->transNum--;
+		}
+		if(iface->transNum<=0)
+			*pTWI_MASTER_CTL |= STOP;
 	}
 	if ( MCOMP & twi_int_stat ){
 		*pTWI_INT_STAT = MCOMP;
+		*pTWI_INT_MASK = 0;
 		__builtin_bfin_ssync();
 		iface->result = 1;
 	}
 	if( MERR & twi_int_stat ) {
 		*pTWI_INT_STAT = MERR;
+		*pTWI_INT_MASK = 0;
 		__builtin_bfin_ssync();
 		iface->result = -1;
 	}
@@ -145,25 +158,44 @@ static int bfin_twi_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int nu
 		}
 
 		iface->transPtr = pmsg->buf;
+		iface->transNum = pmsg->len;
 		iface->result = 0;
 		iface->timeout_count = 10;
+		/* Set Transmit device address */
+		*pTWI_MASTER_ADDR = pmsg->addr;
+
+		iface->timeout_timer.expires = jiffies + POLL_TIMEOUT;
+		add_timer(&iface->timeout_timer);
+
 		if (pmsg->flags & I2C_M_RD)
 			iface->read_write = I2C_SMBUS_READ;
-		else
+		else {
 			iface->read_write = I2C_SMBUS_WRITE;
+			/* Transmit first data */
+			*pTWI_XMT_DATA8 = *(iface->transPtr++);
+			iface->transNum--;
+			__builtin_bfin_ssync();
+		}
+	
+		/* FIFO Initiation */
+		*pTWI_FIFO_CTL = 0;
 
-		/* Set Transmit device address */
-		*pTWI_MASTER_ADDR = (pmsg->addr)>>1;
+		/* clear int stat */
+		*pTWI_INT_STAT = MERR|MCOMP|XMTSERV|RCVSERV;
 
-		/* Set Transmit device address */
-		*pTWI_XMT_DATA8 = *(iface->transPtr++);
+		/* Interrupt mask . Enable XMT, RCV interrupt */
+		*pTWI_INT_MASK = MCOMP | MERR | ((iface->read_write == I2C_SMBUS_READ)? RCVSERV : XMTSERV);
 		__builtin_bfin_ssync();
 
 		iface->timeout_timer.expires = jiffies + POLL_TIMEOUT;
 		add_timer(&iface->timeout_timer);
 
-		/* Master enable, Issue Tx */
-		*pTWI_MASTER_CTL = MEN | ( pmsg->len << 6 ) | ((iface->read_write == I2C_SMBUS_READ) ? MDIR : 0);
+		if(pmsg->len<=256)
+			*pTWI_MASTER_CTL = ( pmsg->len << 6 );
+		else
+			*pTWI_MASTER_CTL = ( 0xff << 6 );
+		/* Master enable */
+		*pTWI_MASTER_CTL |= MEN | ((iface->read_write == I2C_SMBUS_READ) ? MDIR : 0);
 		__builtin_bfin_ssync();
 
 		wait_for_completion(&iface->complete);	
@@ -232,13 +264,6 @@ static int __init i2c_bfin_twi_init(void)
 
 	/* Set Twi interface clock as specified */
 	*pTWI_CLKDIV = (( 5*1024 / CONFIG_TWICLK_KHZ ) << 8) | (( 5*1024 / CONFIG_TWICLK_KHZ ) & 0xFF);
-
-	/* FIFO Initiation */
-	*pTWI_FIFO_CTL = 0;
-	
-	/* Interrupt mask . Enable XMT, RCV interrupt */
-	*pTWI_INT_MASK = RCVSERV | XMTSERV | MCOMP | MERR;
-	__builtin_bfin_ssync();
 
 	/* Enable TWI */
 	*pTWI_CONTROL |= TWI_ENA;
