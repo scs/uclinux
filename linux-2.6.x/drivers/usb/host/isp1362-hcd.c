@@ -2946,7 +2946,7 @@ static int __init isp1362_probe(struct device *dev)
 	INIT_LIST_HEAD(&isp1362_hcd->remove_list);
 	INIT_WORK(&isp1362_hcd->rh_resume, isp1362_rh_resume, hcd);
 	isp1362_hcd->board = dev->platform_data;
-#ifdef USE_PLATFORM_DELAY
+#if USE_PLATFORM_DELAY
 	if (!isp1362_hcd->board->delay) {
 		dev_err(hcd->self.controller, "No platform delay function given\n");
 		retval = -ENODEV;
@@ -2963,7 +2963,9 @@ static int __init isp1362_probe(struct device *dev)
 	if (retval != 0) {
 		goto err6;
 	}
-
+#ifdef	CONFIG_BFIN
+	bfin_gpio_interrupt_setup(irq, platform_get_irq(pdev, 1), IRQT_LOW);
+#endif
 	INFO("%s, irq %d\n", hcd->product_desc, irq);
 
 	create_debug_file(isp1362_hcd);

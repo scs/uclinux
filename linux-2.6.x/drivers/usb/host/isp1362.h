@@ -15,11 +15,11 @@
 #include <asm/arch/pxa-regs.h>
 #include <asm/arch/karo.h>
 
-#define USE_32BIT		1
+#define USE_32BIT  1
 
 // These options are mutually eclusive
-#define USE_PLATFORM_DELAY	1
-#define USE_NDELAY		0
+#define USE_PLATFORM_DELAY 1
+#define USE_NDELAY  0
 /*
  * MAX_ROOT_PORTS: Number of downstream ports
  *
@@ -36,8 +36,8 @@
 #include <asm/io.h>
 #define USE_32BIT		0
 #define MAX_ROOT_PORTS		2
-#define USE_PLATFORM_DELAY	0
-#define USE_NDELAY		1
+#define USE_PLATFORM_DELAY 	0
+#define USE_NDELAY  		1
 
 #else
 

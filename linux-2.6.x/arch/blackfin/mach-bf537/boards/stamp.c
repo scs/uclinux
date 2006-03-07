@@ -30,6 +30,7 @@
  */
 
 #include <linux/device.h>
+#include <linux/usb_isp1362.h>
 #include <asm/irq.h>
 
 /*
@@ -113,6 +114,11 @@ static struct resource isp1362_hcd_resources[] = {
 	       .end = 0x20360004,
 	       .flags = IORESOURCE_MEM,
 	       },
+	[2] = {
+	       .start = IRQ_PROG_INTA,
+	       .end = IRQ_PROG_INTA,
+	       .flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL,
+	       },
 	[4] = {
 	       .start = IRQ_PF0 + CONFIG_USB_ISP1362_BFIN_GPIO,
 	       .end = IRQ_PF0 + CONFIG_USB_ISP1362_BFIN_GPIO,
@@ -121,15 +127,15 @@ static struct resource isp1362_hcd_resources[] = {
 };
 
 static struct isp1362_platform_data isp1362_priv = {
-	.sel15kKres	= 1,
-	.clknotstop	= 0,
+	.sel15Kres	= 0,
+	.clknotstop	= 1,
 	.oc_enable	= 0,
 	.int_act_high	= 0,
 	.int_edge_triggered	= 0,
 	.remote_wakeup_connected	= 0,
-	.no_power_switching	= 1,
-	.power_switching_mode	= 0,
-}
+	.no_power_switching	= 0,
+	.power_switching_mode	= 1,
+};
 
 static struct platform_device isp1362_hcd_device = {
 	.name = "isp1362-hcd",
