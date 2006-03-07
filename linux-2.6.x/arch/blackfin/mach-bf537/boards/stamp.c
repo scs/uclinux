@@ -92,11 +92,53 @@ static struct resource sl811_hcd_resources[] = {
 	       .flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL,
 	       },
 };
+
 static struct platform_device sl811_hcd_device = {
 	.name = "sl811-hcd",
 	.id = 0,
 	.num_resources = ARRAY_SIZE(sl811_hcd_resources),
 	.resource = sl811_hcd_resources,
+};
+#endif
+
+#ifdef CONFIG_USB_ISP1362_HCD
+static struct resource isp1362_hcd_resources[] = {
+	[0] = {
+	       .start = 0x20360000,
+	       .end = 0x20360000,
+	       .flags = IORESOURCE_MEM,
+	       },
+	[1] = {
+	       .start = 0x20360004,
+	       .end = 0x20360004,
+	       .flags = IORESOURCE_MEM,
+	       },
+	[4] = {
+	       .start = IRQ_PF0 + CONFIG_USB_ISP1362_BFIN_GPIO,
+	       .end = IRQ_PF0 + CONFIG_USB_ISP1362_BFIN_GPIO,
+	       .flags = IORESOURCE_IRQ,
+	       },
+};
+
+static struct isp1362_platform_data isp1362_priv = {
+	.sel15kKres	= 1,
+	.clknotstop	= 0,
+	.oc_enable	= 0,
+	.int_act_high	= 0,
+	.int_edge_triggered	= 0,
+	.remote_wakeup_connected	= 0,
+	.no_power_switching	= 1,
+	.power_switching_mode	= 0,
+}
+
+static struct platform_device isp1362_hcd_device = {
+	.name = "isp1362-hcd",
+	.id = 0,
+	.dev = {
+		.platform_data = &isp1362_priv,
+	},
+	.num_resources = ARRAY_SIZE(isp1362_hcd_resources),
+	.resource = isp1362_hcd_resources,
 };
 #endif
 
@@ -130,6 +172,9 @@ static struct platform_device *stamp_devices[] __initdata = {
 #ifdef CONFIG_USB_SL811_HCD
 	&sl811_hcd_device,
 #endif
+#ifdef CONFIG_USB_ISP1362_HCD
+	&isp1362_hcd_device,
+#endif
 #ifdef CONFIG_SMC91X
 	&smc91x_device,
 #endif
@@ -138,7 +183,6 @@ static struct platform_device *stamp_devices[] __initdata = {
 	&net2272_bfin_device,
 #endif
 };
-
 
 static int __init stamp_init(void)
 {

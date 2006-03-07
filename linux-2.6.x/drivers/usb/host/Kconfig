@@ -49,6 +49,66 @@ config USB_EHCI_ROOT_HUB_TT
 
 	  This supports the EHCI implementation from TransDimension Inc.
 
+config USB_ISP1362_HCD
+	tristate "ISP1362 HCD support"
+	depends on USB
+	default N
+	---help---
+	  Supports the Philips ISP1362 chip as a host controller
+
+	  This driver does not support isochronous transfers.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called isp1362-hcd.
+
+choice 
+	prompt "GPIO for Interrupt"
+	depends on (BF533 && USB_ISP1362_HCD)
+	default USB_ISP1362_BFIN_PF4
+	help
+	  Choose an GPIO as isp1362's interrupt. This must corresponds to the JP3 on usb 
+	  daughter card.
+
+config  USB_ISP1362_BFIN_PF4
+	bool "PF4"
+	depends on BF533
+
+config  USB_ISP1362_BFIN_PF8
+	bool "PF8"
+	depends on BF533
+
+config  USB_ISP1362_BFIN_PF9
+	bool "PF9"
+	depends on BF533
+
+config  USB_ISP1362_BFIN_PF14
+	bool "PF14"
+	depends on BF533
+
+config  USB_ISP1362_BFIN_PF15
+	bool "PF15"
+	depends on BF533
+
+endchoice
+
+config USB_ISP1362_BFIN_GPIO
+	int
+	depends on (BF533 && USB_ISP1362_HCD)
+	default 4 if (USB_ISP1362_BFIN_PF4 = y)
+	default 8 if (USB_ISP1362_BFIN_PF8 = y)
+	default 9 if (USB_ISP1362_BFIN_PF9 = y)
+	default 14 if (USB_ISP1362_BFIN_PF14 = y)
+	default 15 if (USB_ISP1362_BFIN_PF15 = y)
+
+config USB_ISP1362_BFIN_GPIO
+	int "GPIO for Interrupt"
+	depends on (BF537 && USB_ISP1362_HCD)
+	range 3 7
+	default 3
+	help
+	  Choose an GPIO as isp1362's interrupt. This must corresponds to the JP3 on usb 
+	  daughter card. The available value is from 3 to 7.
+
 config USB_OHCI_HCD
 	tristate "OHCI HCD support"
 	depends on USB && USB_ARCH_HAS_OHCI
