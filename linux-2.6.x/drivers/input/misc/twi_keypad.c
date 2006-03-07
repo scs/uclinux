@@ -51,7 +51,7 @@ MODULE_AUTHOR ("Michael Hennerich <hennerich@blackfin.uclinux.org>");
 MODULE_DESCRIPTION ("TWI Keypad input driver");
 MODULE_LICENSE ("GPL");
 
-#define SENDASCII
+#undef SENDASCII
 #undef	DEBUG
 //#define DEBUG
 
@@ -65,43 +65,43 @@ MODULE_LICENSE ("GPL");
 
 #ifdef SENDASCII
 static unsigned char twi_keypad_btncode[BUTTONS + 1] = {
-  [0] = (unsigned short) KEY_RESERVED,
-  [1] = (unsigned short) 'D',
-  [2] = (unsigned short) '#',
-  [3] = (unsigned short) '0',
-  [4] = (unsigned short) '*',
-  [5] = (unsigned short) 'C',
-  [6] = (unsigned short) '9',
-  [7] = (unsigned short) '8',
-  [8] = (unsigned short) '7',
-  [9] = (unsigned short) 'B',
-  [10] = (unsigned short) '6',
-  [11] = (unsigned short) '5',
-  [12] = (unsigned short) '4',
-  [13] = (unsigned short) 'A',
-  [14] = (unsigned short) '3',
-  [15] = (unsigned short) '2',
-  [16] = (unsigned short) '1'
+  [0] =  KEY_RESERVED,
+  [1] =  'd',
+  [2] =  '#',
+  [3] =  '0',
+  [4] =  '*',
+  [5] =  'c',
+  [6] =  '9',
+  [7] =  '8',
+  [8] =  '7',
+  [9] =  'b',
+  [10] =  '6',
+  [11] =  '5',
+  [12] =  '4',
+  [13] =  'a',
+  [14] =  '3',
+  [15] =  '2',
+  [16] =  '1'
 };
 #else
 static unsigned char twi_keypad_btncode[BUTTONS + 1] = {
-  [0] = (unsigned short) KEY_RESERVED,
-  [1] = (unsigned short) KEY_D,
-  [2] = (unsigned short) KEY_F13,
-  [3] = (unsigned short) KEY_0,
-  [4] = (unsigned short) KEY_KPASTERISK,
-  [5] = (unsigned short) KEY_C,
-  [6] = (unsigned short) KEY_9,
-  [7] = (unsigned short) KEY_8,
-  [8] = (unsigned short) KEY_7,
-  [9] = (unsigned short) KEY_B,
-  [10] = (unsigned short) KEY_6,
-  [11] = (unsigned short) KEY_5,
-  [12] = (unsigned short) KEY_4,
-  [13] = (unsigned short) KEY_A,
-  [14] = (unsigned short) KEY_3,
-  [15] = (unsigned short) KEY_2,
-  [16] = (unsigned short) KEY_1
+  [0] =  KEY_RESERVED,
+  [1] =  KEY_ENTER,
+  [2] =  KEY_BACKSLASH,
+  [3] =  KEY_0,
+  [4] =  KEY_RIGHTBRACE,
+  [5] =  KEY_C,
+  [6] =  KEY_9,
+  [7] =  KEY_8,
+  [8] =  KEY_7,
+  [9] =  KEY_B,
+  [10] =  KEY_6,
+  [11] =  KEY_5,
+  [12] =  KEY_4,
+  [13] =  KEY_A,
+  [14] =  KEY_3,
+  [15] =  KEY_2,
+  [16] =  KEY_1
 };
 
 #endif
