@@ -389,7 +389,7 @@ skip:
 	RTS;
 #endif /* CONFIG_BFIN_KERNEL_CLOCK */
 
-ENTRY(_reset)
+ENTRY(_bfin_reset)
 	/* No more interrupts to be handled*/
 	CLI R6;
 	SSYNC;

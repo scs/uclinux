@@ -16,7 +16,7 @@ extern unsigned long get_cclk(void);
 extern unsigned long get_sclk(void);
 extern void dump_thread(struct pt_regs *, struct user *);
 extern int init_arch_irq(void);
-extern void reset(void);
+extern void bfin_reset(void);
 extern void dump(struct pt_regs *fp, void *);
 extern void dump_thread(struct pt_regs *regs, struct user *dump);
 extern void _cplb_hdr(void);

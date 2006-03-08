@@ -78,7 +78,7 @@ void machine_restart(char *__unused)
 	*pIMEM_CONTROL = 0x01;
 	__builtin_bfin_ssync();
 #endif
-	reset();
+	bfin_reset();
 	/* Dont do anything till the reset occurs */
 	while (1) {
 		__builtin_bfin_ssync();
