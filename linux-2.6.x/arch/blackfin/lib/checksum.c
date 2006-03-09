@@ -88,14 +88,16 @@ unsigned short ip_fast_csum(unsigned char *iph, unsigned int ihl)
  */
 unsigned int csum_partial(const unsigned char *buff, int len, unsigned int sum)
 {
-
-	/* printk(KERN_INFO "csum_partial(%p, %i, %i)", buff, len, sum); */
+	/*
+	 * Just in case we get nasty checksum data...
+	 * Like 0xffff6ec3 in the case of our IPv6 multicast header.
+	 * We fold to begin with, as well as at the end.
+	 */
+	sum = (sum & 0xffff) + (sum >> 16);
 
 	sum += do_csum(buff, len);
 
 	sum = (sum & 0xffff) + (sum >> 16);
-
-	/* printk(" = %04x\n", sum); */
 
 	return sum;
 }
