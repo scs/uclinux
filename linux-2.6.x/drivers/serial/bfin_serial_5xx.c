@@ -1978,12 +1978,12 @@ void bfin_console_write(struct console *co, const char *str, unsigned int count)
 }
 
 static struct console bfin_driver = {
-	.name "ttyS",
-	.write bfin_console_write,
-	.device bfin_console_device,
-	.setup bfin_console_setup,
-	.flags CON_PRINTBUFFER,
-	.index - 1,
+	.name = "ttyS",
+	.write = bfin_console_write,
+	.device = bfin_console_device,
+	.setup = bfin_console_setup,
+	.flags = CON_PRINTBUFFER,
+	.index = - 1,
 };
 
 int bfin_console_init(void)

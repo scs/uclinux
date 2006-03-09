@@ -107,30 +107,28 @@ static inline int bad_user_access_length(void)
 #define get_user(x, ptr)				\
 ({							\
     int __gu_err = 0;					\
-    typeof(*(ptr)) __gu_val = 0;			\
     switch (sizeof(*(ptr))) {				\
     case 1:						\
-	__get_user_asm(__gu_val, ptr, B,(Z));		\
+	__get_user_asm(x, ptr, B,(Z));			\
 	break;						\
     case 2:						\
-	__get_user_asm(__gu_val, ptr, W,(Z));		\
+	__get_user_asm(x, ptr, W,(Z));			\
 	break;						\
     case 4:						\
-	__get_user_asm(__gu_val, ptr,  , );		\
+	__get_user_asm(x, ptr,  , );			\
 	break;						\
-    case 8: { long __gu_vall, __gu_valh;		\
-	__get_user_asm(__gu_vall, ((long *)ptr)+0,  , );	\
-	__get_user_asm(__gu_valh, ((long *)ptr)+1,  , );	\
-        ((long *)&__gu_val)[0] = __gu_vall; \
-        ((long *)&__gu_val)[1] = __gu_valh; \
+    case 8: { unsigned long __gu_vall, __gu_valh;	\
+	__get_user_asm(__gu_vall, ((unsigned long *)ptr)+0,  , );	\
+	__get_user_asm(__gu_valh, ((unsigned long *)ptr)+1,  , );	\
+        ((unsigned long *)&x)[0] = __gu_vall;		\
+        ((unsigned long *)&x)[1] = __gu_valh;		\
     } break;						\
     default:						\
-	__gu_val = 0;					\
+	x = 0;						\
         printk("get_user_bad: %s:%d %s\n", __FILE__, __LINE__, __FUNCTION__); \
 	__gu_err = __get_user_bad();			\
 	break;						\
     }							\
-    (x) = __gu_val;					\
     __gu_err;						\
 })
 
@@ -139,9 +137,13 @@ static inline int bad_user_access_length(void)
 #define __get_user_bad() (bad_user_access_length(), (-EFAULT))
 
 #define __get_user_asm(x,ptr,bhw,option)		\
+{							\
+	unsigned long __gu_tmp;				\
 	__asm__ ("%0 =" #bhw "[%1]"#option";\n\t"	\
-		 : "=d" (x)				\
-		 : "a" (__ptr(ptr)))
+		 : "=d" (__gu_tmp)			\
+		 : "a" (__ptr(ptr)));			\
+	(x) = (__typeof__(*(ptr))) __gu_tmp;		\
+}
 
 #define copy_from_user(to, from, n)		(memcpy(to, from, n), 0)
 #define copy_to_user(to, from, n)		(memcpy(to, from, n), 0)
