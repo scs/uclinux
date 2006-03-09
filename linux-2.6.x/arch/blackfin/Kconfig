@@ -689,6 +689,12 @@ config DEBUG_HWERR
 	  hardware error interrupts and need to know where they are coming
 	  from.
 
+config DUAL_CORE_TEST_MODULE
+	bool "Dual Core Test Module"
+	default n
+	help
+	  Say Y here to build-in dual core test module for dual core test.
+
 config DEBUG_ICACHE_CHECK
 	bool "Check Instruction cache coherancy"
 	depends on DEBUG_KERNEL
