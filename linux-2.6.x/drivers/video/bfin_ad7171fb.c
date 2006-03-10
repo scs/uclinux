@@ -29,12 +29,6 @@
 #include <linux/dma-mapping.h>
 
 #include "bfin_ad7171fb.h"
-#define RGB_WIDTH	720
-#define RGB_HEIGHT	480
-#define YCBCR_WIDTH	1716
-#define YCBCR_HEIGHT	525
-#define LEFT_MARGIN	276
-#define UPPER_MARGIN	22
 #define BFIN_FB_PHYS_LEN (RGB_WIDTH*RGB_HEIGHT*sizeof(struct rgb_t))
 #define BFIN_FB_YCRCB_LEN (YCBCR_WIDTH*YCBCR_HEIGHT)
 #define CONFIG_VIDEO_BLACKFIN_PPI_IRQ IRQ_PPI
@@ -62,12 +56,11 @@ static void bfin_config_ppi(void);
 static void bfin_config_dma(void *ycrcb_buffer);
 static void bfin_enable_ppi(void);
 static void bfin_framebuffer_init(void *ycrcb_buffer);
-static void bfin_framebuffer_logo(void *ycrcb_buffer);
 extern void bfin_framebuffer_update(struct ycrcb_t *ycrcb_buffer, struct rgb_t *rgb_buffer)__attribute((section(".text.l1")));
 static void bfin_framebuffer_timer_setup(void);
 static void bfin_framebuffer_timerfn(unsigned long data);
 extern void rgb2yuv(unsigned char rgb[], unsigned char yuv[], int n)__attribute((section(".text.l1")));
-extern void dma_memcpy(void * dest,const void *src,size_t count)__attribute((section(".text.l1")));
+extern void fb_memcpy(unsigned int * dest,unsigned int *src,size_t count)__attribute((section(".text.l1")));
 extern unsigned long l1_data_A_sram_alloc(unsigned long size);
 extern int l1_data_A_sram_free(unsigned long addr);
 
@@ -99,9 +92,9 @@ static struct fb_var_screeninfo bfin_ad7171_fb_defined = {
 	.activate	= FB_ACTIVATE_TEST,
 	.height		= -1,
 	.width		= -1,
-	.left_margin	= LEFT_MARGIN,
+	.left_margin	= 0,
 	.right_margin	= 0,
-	.upper_margin	= UPPER_MARGIN,
+	.upper_margin	= 0,
 	.lower_margin	= 0,
 	.vmode		= FB_VMODE_INTERLACED,
 };
@@ -157,76 +150,63 @@ static int bfin_fb_mmap(struct fb_info *info, struct file *file, struct vm_area_
 
 static void bfin_framebuffer_init(void *ycrcb_buffer)
 {
-        const int nNumNTSCVoutFrames = 1;  // changed from 2 to 1 (dkl)
-        const int nNumNTSCLines = 525;
         char *dest = (void *)ycrcb_buffer;
+        int lines;
                                                                                                                                                              
-        int nFrameNum, lines;
-                                                                                                                                                             
-        for ( nFrameNum = 0; nFrameNum < nNumNTSCVoutFrames; ++nFrameNum )
-        {
-                for ( lines = 1; lines <= nNumNTSCLines; lines++ )
-                {
-                        int offset = 0;
-			unsigned int code;
-                        int i;
-
-			if(lines<=3 || (lines>=266 && lines <=282))
-				offset = 0;
-			if((lines>=4 && lines<=19) || (lines>=264 && lines<=265))
-				offset = 1;
-			if(lines>=20 && lines<=263)
-				offset = 2;
-			if(lines>=283 && lines<=525)
-				offset = 3;
-                                                                                                                                                             
-                        /* Output EAV code */
-                        code = system_code_map[ offset ].eav;
-                        *dest++ = (char) (code >> 24) & 0xff;
-                        *dest++ = (char) (code >> 16) & 0xff;
-                        *dest++ = (char) (code >> 8) & 0xff;
-                        *dest++ = (char) (code) & 0xff;
-                                                                                                                                                             
-                        /* Output horizontal blanking */
-                        for ( i = 0; i < 67*2; ++i )
-                        {
-                                *dest++ = 0x80;
-                                *dest++ = 0x10;
-                        }
-                                                                                                                                                             
-                        /* Output SAV */
-                        code = system_code_map[ offset ].sav;
-                        *dest++ = (char) (code >> 24) & 0xff;
-                        *dest++ = (char) (code >> 16) & 0xff;
-                        *dest++ = (char) (code >> 8) & 0xff;
-                        *dest++ = (char) (code) & 0xff;
-                                                                                                                                                             
-                        /* Output empty horizontal data */
-                        for ( i = 0; i < 360*2; ++i )
-                        {
-                                *dest++ = 0x80;
-                                *dest++ = 0x10;
-                        }
-                }
-        }
-}
-
-static void bfin_framebuffer_logo(void *ycrcb_buffer) 
-{
-        int *OddPtr32;
-        int OddLine;
-        int *EvenPtr32;
-        int EvenLine;
-        int i;
-
-        /* fill odd and even frames */
-        for (OddLine = 22, EvenLine = 285; OddLine < 263; OddLine++, EvenLine++) {
-                OddPtr32 = (int *)((ycrcb_buffer + (OddLine * 1716)) + 276);
-                EvenPtr32 = (int *)((ycrcb_buffer + (EvenLine * 1716)) + 276);
-                for (i = 0; i < 360; i++, OddPtr32++, EvenPtr32++) {
-                        *OddPtr32 = BLUE;
-                        *EvenPtr32 = BLUE;
-                        }
+	for ( lines = 1; lines <= YCBCR_HEIGHT; lines++ )
+	{
+	        int offset = 0;
+		unsigned int code;
+	        int i;
+#ifdef CONFIG_NTSC
+		if((lines>=1 && lines<=3) || (lines>=266 && lines <=282))
+			offset = 0;
+		else if((lines>=4 && lines<=19) || (lines>=264 && lines<=265))
+			offset = 1;
+		else if(lines>=20 && lines<=263)
+			offset = 2;
+		else if(lines>=283 && lines<=525)
+			offset = 3;
+#else /* CONFIG_PAL */
+		if((lines>=1 && lines<=22) || (lines>=311 && lines<=312))
+			offset = 0;
+		else if(lines>=23 && lines<=310)
+			offset = 1;
+		else if((lines>=313 && lines<=335) || (lines>=624 && lines <=625))
+			offset = 2;
+		else if(lines>=336 && lines<=623)
+			offset = 3;
+#endif
+		else	
+			printk("Frame buffer init error\n");	
+	                                                                                                                                             
+	        /* Output EAV code */
+	        code = system_code_map[ offset ].eav;
+	        *dest++ = (char) (code >> 24) & 0xff;
+	        *dest++ = (char) (code >> 16) & 0xff;
+	        *dest++ = (char) (code >> 8) & 0xff;
+	        *dest++ = (char) (code) & 0xff;
+	                                                                                                                                             
+	        /* Output horizontal blanking */
+	        for ( i = 0; i < HB_LENGTH/2; ++i )
+	        {
+	                *dest++ = 0x80;
+	                *dest++ = 0x10;
+	        }
+	                                                                                                                                             
+	        /* Output SAV */
+	        code = system_code_map[ offset ].sav;
+	        *dest++ = (char) (code >> 24) & 0xff;
+	        *dest++ = (char) (code >> 16) & 0xff;
+	        *dest++ = (char) (code >> 8) & 0xff;
+	        *dest++ = (char) (code) & 0xff;
+	                                                                                                                                             
+	        /* Output empty horizontal data */
+	        for ( i = 0; i <RGB_WIDTH; ++i )
+	        {
+	                *dest++ = 0x80;
+	                *dest++ = 0x10;
+	        }
         }
 }
 
@@ -239,19 +219,19 @@ void bfin_framebuffer_update(struct ycrcb_t *ycrcb_buffer, struct rgb_t *rgb_buf
 	unsigned char *rgb_ptr;
 	int oddline, evenline,rgbline;
 	
-        for(oddline = 22, evenline = 285, rgbline = 0; 
-		oddline < 22+RGB_HEIGHT/2; oddline ++, evenline ++){
-		odd_yuv= (unsigned char *)((ycrcb_base + (oddline * 1716))+276);
+        for(oddline = FIELD1_AV_START, evenline = FIELD2_AV_START, rgbline = 0; 
+		oddline <= FIELD1_AV_END; oddline ++, evenline ++){
+		odd_yuv= (unsigned char *)((ycrcb_base + (oddline * YCBCR_WIDTH))+HB_LENGTH+8);
 		rgb_ptr = (unsigned char *)(rgb_base + (rgbline++)*RGB_WIDTH*3);
-		dma_memcpy(rgb_l1,rgb_ptr,RGB_WIDTH*3);
+		fb_memcpy((u32 *)rgb_l1,(u32 *)rgb_ptr,RGB_WIDTH*3/4);
 		rgb2yuv(rgb_l1,yuv_l1,RGB_WIDTH);
-		dma_memcpy(odd_yuv, yuv_l1, RGB_WIDTH*2);
+		fb_memcpy((u32 *)odd_yuv, (u32 *)yuv_l1, RGB_WIDTH/2);
 
-		even_yuv = (unsigned char *)((ycrcb_base + (evenline * 1716))+276);
+		even_yuv = (unsigned char *)((ycrcb_base + (evenline * YCBCR_WIDTH))+HB_LENGTH+8);
 		rgb_ptr = (unsigned char *)(rgb_base + (rgbline++)*RGB_WIDTH*3);
-		dma_memcpy(rgb_l1,rgb_ptr,RGB_WIDTH*3);
+		fb_memcpy((u32 *)rgb_l1,(u32 *)rgb_ptr,RGB_WIDTH*3/4);
                 rgb2yuv(rgb_l1,yuv_l1,RGB_WIDTH);
-                dma_memcpy(even_yuv, yuv_l1, RGB_WIDTH*2);
+                fb_memcpy((u32 *)even_yuv, (u32 *)yuv_l1, RGB_WIDTH/2);
 	}
 }
 
@@ -261,7 +241,7 @@ static void bfin_rgb_buffer_init(struct rgb_t *rgb_buffer, int width, int height
 	int i;
 	/* the first block */
 	for(i=0;i<width*height/4;i++){
-		rgb_ptr->r = 0x00;
+		rgb_ptr->r = 0xfe;
                 rgb_ptr->g = 0x00;
                 rgb_ptr->b = 0x00;
                 rgb_ptr++;
@@ -269,7 +249,7 @@ static void bfin_rgb_buffer_init(struct rgb_t *rgb_buffer, int width, int height
 	/* the second block */
         for(;i<width*height/2;i++){
                 rgb_ptr->r = 0x00;
-                rgb_ptr->g = 0x00;
+                rgb_ptr->g = 0xfe;
                 rgb_ptr->b = 0x00;
                 rgb_ptr++;
         }
@@ -278,15 +258,15 @@ static void bfin_rgb_buffer_init(struct rgb_t *rgb_buffer, int width, int height
         for(;i<width*height*3/4;i++){
                 rgb_ptr->r = 0x00;
                 rgb_ptr->g = 0x00;
-                rgb_ptr->b = 0x00;
+                rgb_ptr->b = 0xfe;
                 rgb_ptr++;
         }
 	
 	/* the fourth block */
 	for(;i<width*height;i++){
-		rgb_ptr->r = 0x00;
+		rgb_ptr->r = 0xfe;
 		rgb_ptr->g = 0x00;
-		rgb_ptr->b = 0x00;
+		rgb_ptr->b = 0xfe;
 		rgb_ptr++;
 	}
 }
@@ -294,47 +274,19 @@ static void bfin_rgb_buffer_init(struct rgb_t *rgb_buffer, int width, int height
 static void bfin_config_dma(void *ycrcb_buffer)
 {	
         *pDMA0_START_ADDR       = ycrcb_buffer;
-        *pDMA0_X_COUNT          = 0x035A;
+        *pDMA0_X_COUNT          = YCBCR_WIDTH/2;
         *pDMA0_X_MODIFY         = 0x0002;
-        *pDMA0_Y_COUNT          = 0x020D;
+        *pDMA0_Y_COUNT          = YCBCR_HEIGHT;
         *pDMA0_Y_MODIFY         = 0x0002;
         *pDMA0_CONFIG           = 0x1015;
 }
 
-void dma_memcpy(void * dest,const void *src,size_t count)
+void fb_memcpy(unsigned int * dest,unsigned int *src,size_t count)
 {
 
-                while(*pMDMA_D0_IRQ_STATUS & DMA_RUN);
-		
-		*pMDMA_D0_IRQ_STATUS = DMA_DONE | DMA_ERR;
-
-                /* Copy sram functions from sdram to sram */
-                /* Setup destination start address */
-                *pMDMA_D0_START_ADDR = (volatile void **)dest;
-                /* Setup destination xcount */
-                *pMDMA_D0_X_COUNT = count ;
-                /* Setup destination xmodify */
-                *pMDMA_D0_X_MODIFY = 1;
-
-                /* Setup Source start address */
-                *pMDMA_S0_START_ADDR = (volatile void **)src;
-                /* Setup Source xcount */
-                *pMDMA_S0_X_COUNT = count;
-                /* Setup Source xmodify */
-                *pMDMA_S0_X_MODIFY = 1;
-
-                /* Enable source DMA */
-                *pMDMA_S0_CONFIG = (DMAEN);
-		__builtin_bfin_ssync();
-
-                *pMDMA_D0_CONFIG = ( WNR | DMAEN);
-
-                while(*pMDMA_D0_IRQ_STATUS & DMA_RUN){
-                        *pMDMA_D0_IRQ_STATUS |= (DMA_DONE | DMA_ERR);
-                }
-                *pMDMA_D0_IRQ_STATUS |= (DMA_DONE | DMA_ERR);
+		while(count--)
+			*dest++ = *src++;	
 }
-
 
 static void bfin_config_ppi(void)
 {
@@ -345,7 +297,7 @@ static void bfin_config_ppi(void)
         *pPORT_MUX   |= 0x0100;
 #endif
         *pPPI_CONTROL = 0x0082;
-        *pPPI_FRAME   = 0x020D;
+        *pPPI_FRAME   = YCBCR_HEIGHT;
 }
 
 static void bfin_enable_ppi(void)
@@ -356,10 +308,8 @@ static void bfin_enable_ppi(void)
 int __init bfin_ad7171_fb_init(void)
 {
 	int ret = 0;
-/*	dma_addr_t dma_handle;		*/
 
 	printk(KERN_NOTICE "bfin_ad7171_fb: initializing:\n");
-/*	ycrcb_buffer = (struct yuyv_t *)dma_alloc_coherent(NULL,BFIN_FB_YCRCB_LEN, &dma_handle, GFP_DMA);*/
 	ycrcb_buffer = (struct ycrcb_t *)kmalloc(BFIN_FB_YCRCB_LEN, GFP_KERNEL);
 	memset(ycrcb_buffer, 0, BFIN_FB_YCRCB_LEN);
 	rgb_buffer = (struct rgb_t *)kmalloc(BFIN_FB_PHYS_LEN , GFP_KERNEL);
@@ -414,7 +364,6 @@ static int bfin_ad7171_fb_open(struct fb_info *info, int user)
 	}
 
         bfin_framebuffer_init(ycrcb_buffer);
-        bfin_framebuffer_logo(ycrcb_buffer);
 	bfin_rgb_buffer_init(rgb_buffer,RGB_WIDTH,RGB_HEIGHT);
 	bfin_framebuffer_timer_setup();
  	bfin_config_ppi();

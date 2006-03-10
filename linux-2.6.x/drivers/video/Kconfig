@@ -437,6 +437,18 @@ config FB_BFIN_7171
 	  This is the framebuffer device for a AD7171 video encoder
 	  attached to a Blackfin on the PPI port.
 	  If your Blackfin board has a 7171 select Y.
+choice
+        prompt  "Video mode support"
+	depends on FB_BFIN_7171
+	default NTSC
+
+config NTSC
+        bool 'NTSC'
+
+config PAL
+        bool 'PAL'
+endchoice
+
 
 config FB_STI
 	tristate "HP STI frame buffer device support"

@@ -16,7 +16,8 @@ struct system_code_type
         unsigned int sav;	/* Start of Active Video */
         unsigned int eav;	/* End of Active Video */
 };
-                                                                                                                                                             
+
+#ifdef CONFIG_NTSC
 const struct system_code_type system_code_map[4] =
 {
         { 0xFF0000EC, 0xFF0000F1 },
@@ -24,6 +25,46 @@ const struct system_code_type system_code_map[4] =
         { 0xFF000080, 0xFF00009D },
         { 0xFF0000C7, 0xFF0000DA }
 };
+#define FIELD1_VB_START		1
+#define FIELD1_VB_END  		23
+#define FIELD1_AV_START		24
+#define FIELD1_AV_END  		263
+#define FIELD2_VB_START		264
+#define FIELD2_VB_END  		285
+#define FIELD2_AV_START		286
+#define FIELD2_AV_END  		585
+#define HB_LENGTH		268
+
+#define RGB_WIDTH      		720
+#define RGB_HEIGHT     		480
+#define YCBCR_WIDTH    		1716
+#define YCBCR_HEIGHT   		525
+
+#else /* CONFIG_PAL */
+const struct system_code_type system_code_map[4] =
+{
+	{ 0xFF0000AB, 0xFF0000B6 },
+	{ 0xFF000080, 0xFF00009D },
+	{ 0xFF0000EC, 0xFF0000F1 },
+	{ 0xFF0000C7, 0xFF0000DA }
+};
+#define FIELD1_VB_START		1
+#define FIELD1_VB_END		22
+#define FIELD1_AV_START		23
+#define FIELD1_AV_END		310
+#define FIELD2_VB_START 	311
+#define FIELD2_VB_END		335
+#define FIELD2_AV_START		336
+#define FIELD2_AV_END		623
+#define FIELD2_VB2_START 	624
+#define FIELD2_VB2_END		625
+#define HB_LENGTH		280
+
+#define RGB_WIDTH       	720
+#define RGB_HEIGHT      	576
+#define YCBCR_WIDTH     	1728
+#define YCBCR_HEIGHT    	625
+#endif /* CONFIG_NTSL */
 
 struct rgb_t{
         unsigned char r,g,b;
