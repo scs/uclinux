@@ -5,14 +5,14 @@
  *
  * Created:	
  * Description:  In this function the range of R, G and B is 0 to 255 and the
- *               output range of Y, Cb and Cr is also 0 to 255. 
+ *               output range of Y, Cb and Cr is also 0 to 250. 
  *		 Input format: RGBRGB..., Output format: CbYCrYCbYCrY...
  *               The formula implemented is as below:
- *                  Y  = 0.299R  +  0.587G  +  0.114B
- *                  Cb = -0.169R -  0.331G  +  0.500B + 128
- *                  Cr = 0.500R  -  0.419G  -  0.081B + 128
+ *                  Y  = (0.299R  +  0.587G  +  0.114B)*250/255
+ *                  Cb = (-0.169R -  0.331G  +  0.500B + 128)*250/255
+ *                  Cr = (0.500R  -  0.419G  -  0.081B + 128)*250/255
  *                128 is added to Cb and Cr to get the output in the range 0 to
- *                255.
+ *                250.
  * Prototype: void rgb2yuv(unsigned char rgb[], unsigned char yuv[], int n);
  *
  * Rev:          $Id$
@@ -49,16 +49,16 @@ _rgb2yuv:
 	P0 = R0;		/* Address of input RGB array		*/
 	
 	/* Store the coefficients to the register */ 
-	R3.L = 0xEA5F;		/* 	-0.169				*/
-	R3.H = 0xCA5F;		/* 	-0.331				*/
-	R4.L = 0x4000;		/* 	0.5				*/
-	R4.H = 0xF5A2;		/* 	-0.081				*/
-	R5.L = 0x4000;		/* 	0.5				*/
-	R5.H = 0xD5A2;		/* 	-0.419				*/
-	R6.L = 0x2645;		/* 	0.299				*/
-	R6.H = 0x4B22;		/* 	0.587				*/
-	R7.H = 0x0E97;		/* 	0.114				*/
-	R2.L = 0x80;  		/* 	128				*/
+	R3.L = 0xEACB;		/* 	-0.169				*/
+	R3.H = 0xD677;		/* 	-0.331				*/
+	R4.L = 0x3EBE;		/* 	0.5				*/
+	R4.H = 0xF5D6;		/* 	-0.081				*/
+	R5.L = 0x3EBE;		/* 	0.5				*/
+	R5.H = 0xCB6C;		/* 	-0.419				*/
+	R6.L = 0x2585;		/* 	0.299				*/
+	R6.H = 0x49A8;		/* 	0.587				*/
+	R7.H = 0x0E4D;		/* 	0.114				*/
+	R2.L = 0x7D;  		/* 	128				*/
 	R2.H = 0x7FFF;		/* 	1.0				*/
 
 	LSETUP(L1_STRT, L1_END) LC0=P1;
