@@ -46,10 +46,16 @@ headers: include/dl-progname.h
 	$(LN) -fs $(TOPDIR)../include/elf.h include/
 	$(LN) -fs ../ldso/$(TARGET_ARCH)/dl-startup.h include/
 	$(LN) -fs ../ldso/$(TARGET_ARCH)/dl-syscalls.h include/
+	if test -f ldso/$(TARGET_ARCH)/dl-inlines.h; then \
+	  $(LN) -fs ../ldso/$(TARGET_ARCH)/dl-inlines.h include/ ; \
+	else rm -f include/dl-inlines.h || : ; \
+	     echo > include/dl-inlines.h ; \
+	fi
 	$(LN) -fs ../ldso/$(TARGET_ARCH)/dl-sysdep.h include/
 
 clean:
 	set -e ; for d in $(ALL_SUBDIRS) ; do $(MAKE) -C $$d $@ ; done
 	-find . -name '*~' | xargs $(RM)
 	$(RM) include/elf.h include/dl-startup.h include/dl-syscalls.h \
+		include/dl-inlines.h \
 		include/dl-sysdep.h include/dl-progname.h

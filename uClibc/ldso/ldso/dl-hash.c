@@ -92,8 +92,8 @@ struct elf_resolve *_dl_check_hashed_files(const char *libname)
  * externals properly.
  */
 struct elf_resolve *_dl_add_elf_hash_table(const char *libname,
-	char *loadaddr, unsigned long *dynamic_info, unsigned long dynamic_addr,
-	unsigned long dynamic_size)
+	DL_LOADADDR_TYPE loadaddr, unsigned long *dynamic_info,
+	unsigned long dynamic_addr, unsigned long dynamic_size)
 {
 	unsigned long *hash_addr;
 	struct elf_resolve *tpnt;
@@ -119,14 +119,18 @@ struct elf_resolve *_dl_add_elf_hash_table(const char *libname,
 	tpnt->libtype = loaded_file;
 
 	if (dynamic_info[DT_HASH] != 0) {
-		hash_addr = (unsigned long *) (intptr_t)(dynamic_info[DT_HASH] + loadaddr);
+		hash_addr = (unsigned long *) (intptr_t)
+		  DL_RELOC_ADDR (dynamic_info[DT_HASH], loadaddr);
 		tpnt->nbucket = *hash_addr++;
 		tpnt->nchain = *hash_addr++;
 		tpnt->elf_buckets = hash_addr;
 		hash_addr += tpnt->nbucket;
 		tpnt->chains = hash_addr;
 	}
-	tpnt->loadaddr = (ElfW(Addr))loadaddr;
+#if defined (__SUPPORT_LD_DEBUG__)
+	else _dl_dprintf(2, "no hash table for tpnt %x\n", tpnt);
+#endif
+	tpnt->loadaddr = loadaddr;
 	for (i = 0; i < DYNAMIC_SIZE; i++)
 		tpnt->dynamic_info[i] = dynamic_info[i];
 	return tpnt;
@@ -137,15 +141,18 @@ struct elf_resolve *_dl_add_elf_hash_table(const char *libname,
  * This function resolves externals, and this is either called when we process
  * relocations or when we call an entry in the PLT table for the first time.
  */
-char *_dl_find_hash(const char *name, struct dyn_elf *rpnt, struct elf_resolve *mytpnt, int type_class)
+char *_dl_find_hash_mod(const char *name, struct dyn_elf *rpnt,
+			struct elf_resolve *mytpnt, int type_class,
+			struct elf_resolve **tpntp)
 {
 	struct elf_resolve *tpnt;
 	int si;
 	char *strtab;
 	Elf32_Sym *symtab;
 	unsigned long elf_hash_number, hn;
+	const ElfW(Sym) *weak_sym = 0;
+	struct elf_resolve *weak_tpnt = 0;
 	const ElfW(Sym) *sym;
-	char *weak_result = NULL;
 
 	elf_hash_number = _dl_elf_hash(name);
 	   
@@ -172,8 +179,8 @@ char *_dl_find_hash(const char *name, struct dyn_elf *rpnt, struct elf_resolve *
 
 		/* Avoid calling .urem here. */
 		do_rem(hn, elf_hash_number, tpnt->nbucket);
-		symtab = (Elf32_Sym *) (intptr_t) (tpnt->dynamic_info[DT_SYMTAB] + tpnt->loadaddr);
-		strtab = (char *) (tpnt->dynamic_info[DT_STRTAB] + tpnt->loadaddr);
+		symtab = (Elf32_Sym *) (intptr_t) DL_RELOC_ADDR (tpnt->dynamic_info[DT_SYMTAB], tpnt->loadaddr);
+		strtab = (char *) DL_RELOC_ADDR (tpnt->dynamic_info[DT_STRTAB], tpnt->loadaddr);
 
 		for (si = tpnt->elf_buckets[hn]; si != STN_UNDEF; si = tpnt->chains[si]) {
 			sym = &symtab[si];
@@ -187,21 +194,53 @@ char *_dl_find_hash(const char *name, struct dyn_elf *rpnt, struct elf_resolve *
 			if (ELF32_ST_TYPE(sym->st_info) > STT_FUNC)
 				continue;
 
+#if defined (__SUPPORT_LD_DEBUG__)
+			if (tpnt->nbucket == 0) {
+				_dl_dprintf(2, "tpnt %x has nbucket == 0\n", tpnt);
+#if 0
+				_dl_dprintf(2, "while resolving %s in scope %x\n",
+					    name, rpnt);
+				_dl_dprintf(2, "(looking at tpnt %s at %x)\n",
+					    tpnt->libname,
+					    DL_LOADADDR_BASE(tpnt->loadaddr));
+#endif
+				_dl_exit(17);
+			}
+#endif
+
 			switch (ELF32_ST_BIND(sym->st_info)) {
 			case STB_WEAK:
 #if 0
 /* Perhaps we should support old style weak symbol handling
  * per what glibc does when you export LD_DYNAMIC_WEAK */
-				if (!weak_result)
-					weak_result = (char *)tpnt->loadaddr + sym->st_value;
+				if (!weak_sym) {
+					weak_tpnt = tpnt;
+					weak_sym = sym;
+				}
 				break;
 #endif
 			case STB_GLOBAL:
-				return (char*)tpnt->loadaddr + sym->st_value;
+				if (tpntp)
+					*tpntp = tpnt;
+				return DL_FIND_HASH_VALUE
+				  (tpnt, type_class, sym);
 			default:	/* Local symbols not handled here */
 				break;
 			}
 		}
 	}
-	return weak_result;
+	if (weak_sym) {
+		if (tpntp)
+			*tpntp = weak_tpnt;
+		return DL_FIND_HASH_VALUE (weak_tpnt, type_class, weak_sym);
+	}
+	if (*tpntp)
+		*tpntp = NULL;
+	return NULL;
+}
+
+char *_dl_find_hash(const char *name, struct dyn_elf *rpnt,
+		    struct elf_resolve *mytpnt, int type_class)
+{
+  return _dl_find_hash_mod(name, rpnt, mytpnt, type_class, NULL);
 }

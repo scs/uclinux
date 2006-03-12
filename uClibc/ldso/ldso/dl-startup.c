@@ -113,7 +113,7 @@ DL_BOOT(unsigned long args)
 {
 	unsigned int argc;
 	char **argv, **envp;
-	unsigned long load_addr;
+	DL_LOADADDR_TYPE load_addr;
 	unsigned long *got;
 	unsigned long *aux_dat;
 	int goof = 0;
@@ -167,7 +167,7 @@ DL_BOOT(unsigned long args)
 
 	/* locate the ELF header.   We need this done as soon as possible
 	 * (esp since SEND_STDERR() needs this on some platforms... */
-	load_addr = auxvt[AT_BASE].a_un.a_val;
+	DL_INIT_LOADADDR_BOOT(load_addr, auxvt[AT_BASE].a_un.a_val);
 	header = (ElfW(Ehdr) *) auxvt[AT_BASE].a_un.a_ptr;
 
 	/* Check the ELF header to make sure everything looks ok.  */
@@ -181,12 +181,12 @@ DL_BOOT(unsigned long args)
 			|| header->e_ident[EI_MAG2] != ELFMAG2
 			|| header->e_ident[EI_MAG3] != ELFMAG3)
 	{
-		SEND_STDERR("Invalid ELF header\n");
+		SEND_EARLY_STDERR("Invalid ELF header\n");
 		_dl_exit(0);
 	}
 #ifdef __SUPPORT_LD_DEBUG_EARLY__
-	SEND_STDERR("ELF header=");
-	SEND_ADDRESS_STDERR(load_addr, 1);
+	SEND_EARLY_STDERR("ELF header=");
+	SEND_ADDRESS_STDERR(DL_LOADADDR_BASE (load_addr), 1);
 #endif
 
 
@@ -194,7 +194,9 @@ DL_BOOT(unsigned long args)
 	 * we can take advantage of the magic offset register, if we
 	 * happen to know what that is for this architecture.  If not,
 	 * we can always read stuff out of the ELF file to find it... */
-#if defined(__i386__)
+#if defined(DL_BOOT_COMPUTE_GOT)
+	DL_BOOT_COMPUTE_GOT(got);
+#elif defined(__i386__)
 	__asm__("\tmovl %%ebx,%0\n\t":"=a"(got));
 #elif defined(__m68k__)
 	__asm__("movel %%a5,%0":"=g"(got));
@@ -226,7 +228,7 @@ DL_BOOT(unsigned long args)
 		Elf32_Phdr *pt_load;
 
 #ifdef __SUPPORT_LD_DEBUG_EARLY__
-		SEND_STDERR("Finding the GOT using C code to read the ELF file\n");
+		SEND_EARLY_STDERR("Finding the GOT using C code to read the ELF file\n");
 #endif
 		/* Find where the dynamic linking information section is hiding */
 		shdr = (Elf32_Shdr *) (header->e_shoff + (char *) header);
@@ -235,7 +237,7 @@ DL_BOOT(unsigned long args)
 				goto found_dynamic;
 			}
 		}
-		SEND_STDERR("missing dynamic linking information section \n");
+		SEND_EARLY_STDERR("missing dynamic linking information section \n");
 		_dl_exit(0);
 
 found_dynamic:
@@ -248,7 +250,7 @@ found_dynamic:
 				goto found_pt_load;
 			}
 		}
-		SEND_STDERR("missing loadable program segment\n");
+		SEND_EARLY_STDERR("missing loadable program segment\n");
 		_dl_exit(0);
 
 found_pt_load:
@@ -259,7 +261,7 @@ found_pt_load:
 				goto found_got;
 			}
 		}
-		SEND_STDERR("missing global offset table\n");
+		SEND_EARLY_STDERR("missing global offset table\n");
 		_dl_exit(0);
 
 found_got:
@@ -269,9 +271,13 @@ found_got:
 #endif
 
 	/* Now, finally, fix up the location of the dynamic stuff */
-	dpnt = (Elf32_Dyn *) (*got + load_addr);
+#ifdef DL_BOOT_COMPUTE_DYN
+	DL_BOOT_COMPUTE_DYN (dpnt, got, load_addr);
+#else
+	dpnt = (Elf32_Dyn *) DL_RELOC_ADDR (*got, load_addr);
+#endif
 #ifdef __SUPPORT_LD_DEBUG_EARLY__
-	SEND_STDERR("First Dynamic section entry=");
+	SEND_EARLY_STDERR("First Dynamic section entry=");
 	SEND_ADDRESS_STDERR(dpnt, 1);
 #endif
 	_dl_memset(tpnt, 0, sizeof(struct elf_resolve));
@@ -279,7 +285,7 @@ found_got:
 	/* OK, that was easy.  Next scan the DYNAMIC section of the image.
 	   We are only doing ourself right now - we will have to do the rest later */
 #ifdef __SUPPORT_LD_DEBUG_EARLY__
-	SEND_STDERR("scanning DYNAMIC section\n");
+	SEND_EARLY_STDERR("scanning DYNAMIC section\n");
 #endif
 	tpnt->dynamic_addr = dpnt;
 #if defined(__mips__) || defined(__sh__)
@@ -290,7 +296,7 @@ found_got:
 #endif
 
 #ifdef __SUPPORT_LD_DEBUG_EARLY__
-	SEND_STDERR("done scanning DYNAMIC section\n");
+	SEND_EARLY_STDERR("done scanning DYNAMIC section\n");
 #endif
 
 #ifndef __FORCE_SHAREABLE_TEXT_SEGMENTS__
@@ -303,7 +309,7 @@ found_got:
 		int i;
 
 #ifdef __SUPPORT_LD_DEBUG_EARLY__
-		SEND_STDERR("calling mprotect on the shared library/dynamic linker\n");
+		SEND_EARLY_STDERR("calling mprotect on the shared library/dynamic linker\n");
 #endif
 
 		/* First cover the shared library/dynamic linker. */
@@ -313,7 +319,7 @@ found_got:
 					header->e_phoff);
 			for (i = 0; i < header->e_phnum; i++, ppnt++) {
 				if (ppnt->p_type == PT_LOAD && !(ppnt->p_flags & PF_W)) {
-					_dl_mprotect((void *) (load_addr + (ppnt->p_vaddr & PAGE_ALIGN)),
+					_dl_mprotect((void *) (DL_RELOC_ADDR ((ppnt->p_vaddr & PAGE_ALIGN), load_addr)),
 							(ppnt->p_vaddr & ADDR_ALIGN) + (unsigned long) ppnt->p_filesz,
 							PROT_READ | PROT_WRITE | PROT_EXEC);
 				}
@@ -323,7 +329,7 @@ found_got:
 #endif
 #if defined(__mips__)
 #ifdef __SUPPORT_LD_DEBUG_EARLY__
-	SEND_STDERR("About to do MIPS specific GOT bootstrap\n");
+	SEND_EARLY_STDERR("About to do MIPS specific GOT bootstrap\n");
 #endif
 	/* For MIPS we have to do stuff to the GOT before we do relocations.  */
 	PERFORM_BOOTSTRAP_GOT(got, tpnt);
@@ -332,7 +338,7 @@ found_got:
 	/* OK, now do the relocations.  We do not do a lazy binding here, so
 	   that once we are done, we have considerably more flexibility. */
 #ifdef __SUPPORT_LD_DEBUG_EARLY__
-	SEND_STDERR("About to do library loader relocations\n");
+	SEND_EARLY_STDERR("About to do library loader relocations\n");
 #endif
 #ifdef  ELF_MACHINE_PLTREL_OVERLAP
 # define INDX_MAX 1
@@ -358,9 +364,9 @@ found_got:
 			continue;
 
 		/* Now parse the relocation information */
-		rpnt = (ELF_RELOC *) (rel_addr + load_addr);
+		rpnt = (ELF_RELOC *) DL_RELOC_ADDR (rel_addr, load_addr);
 		for (i = 0; i < rel_size; i += sizeof(ELF_RELOC), rpnt++) {
-			reloc_addr = (unsigned long *) (load_addr + (unsigned long) rpnt->r_offset);
+			reloc_addr = (unsigned long *) DL_RELOC_ADDR ((unsigned long) rpnt->r_offset, load_addr);
 			symtab_index = ELF32_R_SYM(rpnt->r_info);
 			symbol_addr = 0;
 			sym = NULL;
@@ -368,15 +374,15 @@ found_got:
 				char *strtab;
 				Elf32_Sym *symtab;
 
-				symtab = (Elf32_Sym *) (tpnt->dynamic_info[DT_SYMTAB] + load_addr);
-				strtab = (char *) (tpnt->dynamic_info[DT_STRTAB] + load_addr);
+				symtab = (Elf32_Sym *) DL_RELOC_ADDR (tpnt->dynamic_info[DT_SYMTAB], load_addr);
+				strtab = (char *) DL_RELOC_ADDR (tpnt->dynamic_info[DT_STRTAB], load_addr);
 				sym = &symtab[symtab_index];
-				symbol_addr = load_addr + sym->st_value;
+				symbol_addr = (unsigned long) DL_RELOC_ADDR (sym->st_value, load_addr);
 
 #ifdef __SUPPORT_LD_DEBUG_EARLY__
-				SEND_STDERR("relocating symbol: ");
+				SEND_EARLY_STDERR("relocating symbol: ");
 				SEND_STDERR(strtab + sym->st_name);
-				SEND_STDERR("\n");
+				SEND_EARLY_STDERR("\n");
 #endif
 			}
 			/* Use this machine-specific macro to perform the actual relocation.  */
@@ -398,7 +404,8 @@ found_got:
 	   free to start using global variables, since these things have all been
 	   fixed up by now.  Still no function calls outside of this library ,
 	   since the dynamic resolver is not yet ready. */
-	_dl_get_ready_to_run(tpnt, load_addr, auxvt, envp, argv);
+	_dl_get_ready_to_run(tpnt, load_addr, auxvt, envp, argv
+			     DL_GET_READY_TO_RUN_EXTRA_ARGS);
 
 
 	/* Transfer control to the application.  */

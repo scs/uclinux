@@ -46,6 +46,7 @@ int _dl_errno                  = 0;	/* We can't use the real errno in ldso */
 size_t _dl_pagesize            = 0;	/* Store the page size for use later */
 struct r_debug *_dl_debug_addr = NULL;	/* Used to communicate with the gdb debugger */
 void *(*_dl_malloc_function) (size_t size) = NULL;
+void (*_dl_free_function) (void *p) = NULL;
 
 #ifdef __SUPPORT_LD_DEBUG__
 char *_dl_debug           = 0;
@@ -62,6 +63,14 @@ int   _dl_debug_file      = 2;
 /* Forward function declarations */
 static int _dl_suid_ok(void);
 
+void _dl_debug_state(void) __attribute__((noinline,visibility("protected")));
+/* We use this symbol to compute the address of _dl_debug_state,
+   because we can't afford to need dynamic resolution for this symbol.
+   In general it won't make a difference, but for platforms that use
+   function descriptors created by ld.so, it is.  */
+void __dl_debug_state(void) __attribute__((noinline,visibility("hidden"),
+					   alias("_dl_debug_state")));
+
 /*
  * This stub function is used by some debuggers.  The idea is that they
  * can set an internal breakpoint on it, so that we are notified when the
@@ -69,6 +78,9 @@ static int _dl_suid_ok(void);
  */
 void _dl_debug_state(void)
 {
+	/* Make sure GCC doesn't recognize this function as pure, to avoid
+	   having the calls optimized away.  */
+	asm ("");
 }
 
 static unsigned char *_dl_malloc_addr = 0;	/* Lets _dl_malloc use the already allocated memory page */
@@ -82,9 +94,10 @@ static void debug_fini (int status, void *arg)
 }
 #endif
 
-void _dl_get_ready_to_run(struct elf_resolve *tpnt, unsigned long load_addr,
+void _dl_get_ready_to_run(struct elf_resolve *tpnt, DL_LOADADDR_TYPE load_addr, 
 			  Elf32_auxv_t auxvt[AT_EGID + 1], char **envp,
-			  char **argv)
+			  char **argv
+			  DL_GET_READY_TO_RUN_EXTRA_PARMS)
 {
 	ElfW(Phdr) *ppnt;
 	Elf32_Dyn *dpnt;
@@ -98,17 +111,20 @@ void _dl_get_ready_to_run(struct elf_resolve *tpnt, unsigned long load_addr,
 	struct elf_resolve *app_tpnt = &app_tpnt_tmp;
 	struct r_debug *debug_addr;
 	unsigned long *lpnt;
-	int (*_dl_atexit) (void *);
+	unsigned long exec_base;
+	intptr_t _dl_atexit;
+	struct elf_resolve *_dl_atexit_tpnt;
 	unsigned long *_dl_envp;		/* The environment address */
 	ElfW(Addr) relro_addr = 0;
 	size_t relro_size = 0;
 #if defined (__SUPPORT_LD_DEBUG__)
-	int (*_dl_on_exit) (void (*FUNCTION)(int STATUS, void *ARG),void*);
+	intptr_t _dl_on_exit;
+	struct elf_resolve *_dl_on_exit_tpnt;
 #endif
 
 #ifdef __SUPPORT_LD_DEBUG_EARLY__
 	/* Wahoo!!! */
-	SEND_STDERR("Cool, we managed to make a function call.\n");
+	SEND_EARLY_STDERR("Cool, we managed to make a function call.\n");
 #endif
 
 	/* Store the page size for later use */
@@ -134,6 +150,7 @@ void _dl_get_ready_to_run(struct elf_resolve *tpnt, unsigned long load_addr,
 	 * go from there.  Eventually we will run across ourself, and we
 	 * will need to properly deal with that as well.
 	 */
+
 	rpnt = NULL;
 	if (_dl_getenv("LD_BIND_NOW", envp))
 		unlazy = RTLD_NOW;
@@ -153,14 +170,14 @@ void _dl_get_ready_to_run(struct elf_resolve *tpnt, unsigned long load_addr,
 
 		for (i = 0; i < auxvt[AT_PHNUM].a_un.a_val; i++, ppnt++)
 			if (ppnt->p_type == PT_PHDR) {
-				app_tpnt->loadaddr = (ElfW(Addr)) (auxvt[AT_PHDR].a_un.a_val - ppnt->p_vaddr);
+				DL_INIT_LOADADDR_PROG (app_tpnt->loadaddr, (ElfW(Addr)) (auxvt[AT_PHDR].a_un.a_val - ppnt->p_vaddr));
 				break;
 			}
 
 #ifdef __SUPPORT_LD_DEBUG_EARLY__
-		if (app_tpnt->loadaddr) {
-			SEND_STDERR("Position Independent Executable: app_tpnt->loadaddr=");
-			SEND_ADDRESS_STDERR(app_tpnt->loadaddr, 1);
+		if (DL_LOADADDR_BASE (app_tpnt->loadaddr)) {
+			SEND_EARLY_STDERR("Position Independent Executable: app_tpnt->loadaddr=");
+			SEND_ADDRESS_STDERR(DL_LOADADDR_BASE (app_tpnt->loadaddr), 1);
 		}
 #endif
 	}
@@ -173,13 +190,26 @@ void _dl_get_ready_to_run(struct elf_resolve *tpnt, unsigned long load_addr,
 	_dl_memset(debug_addr, 0, sizeof(struct r_debug));
 
 	ppnt = (ElfW(Phdr) *) auxvt[AT_PHDR].a_un.a_ptr;
+
+	/* Locate the equivalent of AT_BASE for the main program.  We
+	   need it to compute the address of the PT_INTERP string
+	   later.  It would be nice if PT_PHDR was known to occur
+	   before PT_INTERP, but there's no such guarantee.  Not such
+	   a big deal: PT_PHDR is generally the first entry
+	   anyway...  */
+	exec_base = 0;
+	for (i = 0; i < auxvt[AT_PHNUM].a_un.a_val; i++)
+		if (ppnt[i].p_type == PT_PHDR) {
+			exec_base = (unsigned long)ppnt - ppnt[i].p_offset;
+			break;
+		}
 	for (i = 0; i < auxvt[AT_PHNUM].a_un.a_val; i++, ppnt++) {
 		if (ppnt->p_type == PT_GNU_RELRO) {
 			relro_addr = ppnt->p_vaddr;
 			relro_size = ppnt->p_memsz;
 		}
 		if (ppnt->p_type == PT_DYNAMIC) {
-			dpnt = (Elf32_Dyn *) (ppnt->p_vaddr + app_tpnt->loadaddr);
+			dpnt = (Elf32_Dyn *) DL_RELOC_ADDR (ppnt->p_vaddr, app_tpnt->loadaddr);
 			_dl_parse_dynamic_info(dpnt, app_tpnt->dynamic_info, debug_addr);
 #ifndef __FORCE_SHAREABLE_TEXT_SEGMENTS__
 			/* Ugly, ugly.  We need to call mprotect to change the
@@ -209,8 +239,8 @@ void _dl_get_ready_to_run(struct elf_resolve *tpnt, unsigned long load_addr,
 				continue;
 #endif
 			/* OK, we have what we need - slip this one into the list. */
-			app_tpnt = _dl_add_elf_hash_table(_dl_progname, (char *)app_tpnt->loadaddr,
-					app_tpnt->dynamic_info, ppnt->p_vaddr + app_tpnt->loadaddr, ppnt->p_filesz);
+			app_tpnt = _dl_add_elf_hash_table(_dl_progname, app_tpnt->loadaddr,
+					app_tpnt->dynamic_info, (unsigned long) DL_RELOC_ADDR (ppnt->p_vaddr, app_tpnt->loadaddr), ppnt->p_filesz);
 			_dl_loaded_modules->libtype = elf_executable;
 			_dl_loaded_modules->ppnt = (ElfW(Phdr) *) auxvt[AT_PHDR].a_un.a_ptr;
 			_dl_loaded_modules->n_phent = auxvt[AT_PHNUM].a_un.a_val;
@@ -220,7 +250,7 @@ void _dl_get_ready_to_run(struct elf_resolve *tpnt, unsigned long load_addr,
 			app_tpnt->rtld_flags = unlazy | RTLD_GLOBAL;
 			app_tpnt->usage_count++;
 			app_tpnt->symbol_scope = _dl_symbol_tables;
-			lpnt = (unsigned long *) (app_tpnt->dynamic_info[DT_PLTGOT] + app_tpnt->loadaddr);
+			lpnt = (unsigned long *) DL_RELOC_ADDR (app_tpnt->dynamic_info[DT_PLTGOT], app_tpnt->loadaddr);
 #ifdef ALLOW_ZERO_PLTGOT
 			if (lpnt)
 #endif
@@ -233,7 +263,7 @@ void _dl_get_ready_to_run(struct elf_resolve *tpnt, unsigned long load_addr,
 			char *pnt, *pnt1, buf[1024];
 
 			tpnt->libname = _dl_strdup((char *) ppnt->p_offset +
-					(auxvt[AT_PHDR].a_un.a_val & PAGE_ALIGN));
+						   exec_base);
 
 			/* Determine if the shared lib loader is a symlink */
 			_dl_memset(buf, 0, sizeof(buf));
@@ -263,7 +293,7 @@ void _dl_get_ready_to_run(struct elf_resolve *tpnt, unsigned long load_addr,
 			}
 #ifdef __SUPPORT_LD_DEBUG_EARLY__
 			_dl_dprintf(_dl_debug_file, "Lib Loader:\t(%x) %s\n",
-				    tpnt->loadaddr, tpnt->libname);
+				    (unsigned) DL_LOADADDR_BASE (tpnt->loadaddr), tpnt->libname);
 #endif
 		}
 	}
@@ -366,8 +396,8 @@ void _dl_get_ready_to_run(struct elf_resolve *tpnt, unsigned long load_addr,
 	 */
 	debug_addr->r_map = (struct link_map *) _dl_loaded_modules;
 	debug_addr->r_version = 1;
-	debug_addr->r_ldbase = load_addr;
-	debug_addr->r_brk = (unsigned long) &_dl_debug_state;
+	debug_addr->r_ldbase = (ElfW(Addr)) DL_LOADADDR_BASE (load_addr);
+	debug_addr->r_brk = (unsigned long) &__dl_debug_state;
 	_dl_debug_addr = debug_addr;
 
 	/* Notify the debugger we are in a consistant state */
@@ -426,7 +456,7 @@ void _dl_get_ready_to_run(struct elf_resolve *tpnt, unsigned long load_addr,
 #ifdef __SUPPORT_LD_DEBUG_EARLY__
 					_dl_dprintf(_dl_debug_file,
 						    "Loading:\t(%x) %s\n",
-						    tpnt1->loadaddr,
+						    (unsigned) DL_LOADADDR_BASE (tpnt1->loadaddr),
 						    tpnt1->libname);
 #endif
 
@@ -440,7 +470,7 @@ void _dl_get_ready_to_run(struct elf_resolve *tpnt, unsigned long load_addr,
 						 */
 						if (_dl_strcmp(_dl_progname, str) != 0)
 							_dl_dprintf(1, "\t%s => %s (%x)\n", str, tpnt1->libname,
-								    (unsigned)tpnt1->loadaddr);
+								    (unsigned) DL_LOADADDR_BASE (tpnt1->loadaddr));
 					}
 #endif
 				}
@@ -533,7 +563,7 @@ next_lib:
 #ifdef __SUPPORT_LD_DEBUG_EARLY__
 				_dl_dprintf(_dl_debug_file,
 					    "Loading:\t(%x) %s\n",
-					    tpnt1->loadaddr, tpnt1->libname);
+					    (unsigned) DL_LOADADDR_BASE (tpnt1->loadaddr), tpnt1->libname);
 #endif
 
 #ifdef __LDSO_LDD_SUPPORT__
@@ -541,7 +571,7 @@ next_lib:
 				    tpnt1->usage_count == 1) {
 					_dl_dprintf(1, "\t%s => %s (%x)\n",
 						    cp2, tpnt1->libname,
-						    (unsigned)tpnt1->loadaddr);
+						    (unsigned) DL_LOADADDR_BASE (tpnt1->loadaddr));
 				}
 #endif
 			}
@@ -567,7 +597,7 @@ next_lib2:
 				char *name;
 				struct init_fini_list *tmp;
 
-				lpntstr = (char*) (tcurr->loadaddr + tcurr->dynamic_info[DT_STRTAB] + dpnt->d_un.d_val);
+				lpntstr = (char *) DL_RELOC_ADDR (tcurr->dynamic_info[DT_STRTAB] + dpnt->d_un.d_val, tcurr->loadaddr);
 				name = _dl_get_last_path_component(lpntstr);
 
 				if ((tpnt1 = _dl_check_if_named_library_is_loaded(name, trace_loaded_objects)))	{
@@ -606,7 +636,7 @@ next_lib2:
 #ifdef __SUPPORT_LD_DEBUG_EARLY__
 				_dl_dprintf(_dl_debug_file,
 					    "Loading:\t(%x) %s\n",
-					    tpnt1->loadaddr, tpnt1->libname);
+					    (unsigned) DL_LOADADDR_BASE (tpnt1->loadaddr), tpnt1->libname);
 #endif
 
 #ifdef __LDSO_LDD_SUPPORT__
@@ -614,7 +644,7 @@ next_lib2:
 				    tpnt1->usage_count == 1) {
 					_dl_dprintf(1, "\t%s => %s (%x)\n",
 						    lpntstr, tpnt1->libname,
-						    (unsigned)tpnt1->loadaddr);
+						    (unsigned) DL_LOADADDR_BASE (tpnt1->loadaddr));
 				}
 #endif
 			}
@@ -683,10 +713,10 @@ next_lib2:
 	 */
 	if (tpnt) {
 		ElfW(Ehdr) *epnt = (ElfW(Ehdr) *) auxvt[AT_BASE].a_un.a_ptr;
-		ElfW(Phdr) *myppnt = (ElfW(Phdr) *) (load_addr + epnt->e_phoff);
+		ElfW(Phdr) *myppnt = (ElfW(Phdr) *) DL_RELOC_ADDR (epnt->e_phoff, load_addr);
 		int j;
 		
-		tpnt = _dl_add_elf_hash_table(tpnt->libname, (char *)load_addr,
+		tpnt = _dl_add_elf_hash_table(tpnt->libname, load_addr,
 					      tpnt->dynamic_info,
 					      (unsigned long)tpnt->dynamic_addr,
 					      0);
@@ -717,7 +747,7 @@ next_lib2:
 #ifdef RERELOCATE_LDSO
 		/* Only rerelocate functions for now. */
 		tpnt->init_flag = RELOCS_DONE;
-		lpnt = (unsigned long *) (tpnt->dynamic_info[DT_PLTGOT] + load_addr);
+		lpnt = (unsigned long *) DL_RELOC_ADDR (tpnt->dynamic_info[DT_PLTGOT], load_addr);
 # ifdef ALLOW_ZERO_PLTGOT
 		if (tpnt->dynamic_info[DT_PLTGOT])
 # endif
@@ -733,7 +763,7 @@ next_lib2:
 	if (trace_loaded_objects) {
 		_dl_dprintf(1, "\t%s => %s (%x)\n",
 			    rpnt->dyn->libname + _dl_strlen(_dl_ldsopath) + 1,
-			    rpnt->dyn->libname, rpnt->dyn->loadaddr);
+			    rpnt->dyn->libname, (unsigned) DL_LOADADDR_BASE (rpnt->dyn->loadaddr));
 		_dl_exit(0);
 	}
 #endif
@@ -789,7 +819,7 @@ next_lib2:
 		for (tpnt = _dl_loaded_modules; tpnt; tpnt = tpnt->next) {
 			for (myppnt = tpnt->ppnt, j = 0; j < tpnt->n_phent; j++, myppnt++) {
 				if (myppnt->p_type == PT_LOAD && !(myppnt->p_flags & PF_W) && tpnt->dynamic_info[DT_TEXTREL]) {
-					_dl_mprotect((void *) (tpnt->loadaddr + (myppnt->p_vaddr & PAGE_ALIGN)),
+					_dl_mprotect((void *) (DL_RELOC_ADDR ((myppnt->p_vaddr & PAGE_ALIGN), tpnt->loadaddr),
 							(myppnt->p_vaddr & ADDR_ALIGN) + (unsigned long) myppnt->p_filesz, LXFLAGS(myppnt->p_flags));
 				}
 			}
@@ -797,11 +827,14 @@ next_lib2:
 
 	}
 #endif
-
-	_dl_atexit = (int (*)(void *)) (intptr_t) _dl_find_hash("atexit", _dl_symbol_tables, NULL, ELF_RTYPE_CLASS_PLT);
+	_dl_atexit = (intptr_t) _dl_find_hash_mod("atexit", _dl_symbol_tables,
+						  NULL, ELF_RTYPE_CLASS_PLT,
+						  &_dl_atexit_tpnt);
 #if defined (__SUPPORT_LD_DEBUG__)
-	_dl_on_exit = (int (*)(void (*)(int, void *),void*))
-		(intptr_t) _dl_find_hash("on_exit", _dl_symbol_tables, NULL, ELF_RTYPE_CLASS_PLT);
+	_dl_on_exit = (intptr_t) _dl_find_hash_mod("on_exit",
+						   _dl_symbol_tables,
+						   NULL, ELF_RTYPE_CLASS_PLT,
+						   &_dl_on_exit_tpnt);
 #endif
 
 	/* Notify the debugger we have added some objects. */
@@ -815,9 +848,8 @@ next_lib2:
 		tpnt->init_flag |= INIT_FUNCS_CALLED;
 
 		if (tpnt->dynamic_info[DT_INIT]) {
-			void (*dl_elf_func) (void);
-
-			dl_elf_func = (void (*)(void)) (intptr_t) (tpnt->loadaddr + tpnt->dynamic_info[DT_INIT]);
+			intptr_t dl_elf_func;
+			dl_elf_func = (intptr_t) DL_RELOC_ADDR (tpnt->dynamic_info[DT_INIT], tpnt->loadaddr);
 
 #if defined (__SUPPORT_LD_DEBUG__)
 			if(_dl_debug)
@@ -825,18 +857,16 @@ next_lib2:
 					    "\ncalling init: %s\n\n",
 					    tpnt->libname);
 #endif
-
-			(*dl_elf_func) ();
+			DL_CALL_FUNC_AT_ADDR (dl_elf_func, tpnt->loadaddr, (void(*)(void)));
 		}
 		tpnt->init_flag |= FINI_FUNCS_CALLED;
 		if (_dl_atexit && tpnt->dynamic_info[DT_FINI]) {
 			void (*dl_elf_func) (void);
-
-			dl_elf_func = (void (*)(void)) (intptr_t) (tpnt->loadaddr + tpnt->dynamic_info[DT_FINI]);
-			(*_dl_atexit) (dl_elf_func);
+			dl_elf_func = DL_ADDR_TO_FUNC_PTR ((intptr_t) DL_RELOC_ADDR (tpnt->dynamic_info[DT_FINI], tpnt->loadaddr), tpnt->loadaddr);
+			DL_CALL_FUNC_AT_ADDR (_dl_atexit, _dl_atexit_tpnt->loadaddr, (void(*)(void *)), dl_elf_func);
 #if defined (__SUPPORT_LD_DEBUG__)
 			if(_dl_debug && _dl_on_exit) {
-				(*_dl_on_exit)(debug_fini, tpnt->libname);
+				DL_CALL_FUNC_AT_ADDR (_dl_on_exit, _dl_on_exit_tpnt->loadaddr, (void(*)(void (*)(int, void *),void*)), debug_fini, tpnt->libname);
 			}
 #endif
 		}
@@ -905,7 +935,15 @@ static int _dl_suid_ok(void)
 	return 0;
 }
 
-void *_dl_malloc(int size)
+union __align_type
+{
+  long long ll;
+  double d;
+  void *p;
+  void (*fp)(void);
+};
+
+void *_dl_malloc(size_t size)
 {
 	void *retval;
 
@@ -918,11 +956,28 @@ void *_dl_malloc(int size)
 	if (_dl_malloc_function)
 		return (*_dl_malloc_function) (size);
 
-	if (_dl_malloc_addr - _dl_mmap_zero + (unsigned)size > _dl_pagesize) {
+	if (_dl_malloc_addr - _dl_mmap_zero + size > _dl_pagesize) {
+		size_t rounded_size;
+
+		/* Since the above assumes we get a full page even if
+		   we request less than that, make sure we request a
+		   full page, since uClinux may give us less than than
+		   a full page.  We might round even
+		   larger-than-a-page sizes, but we end up never
+		   reusing _dl_mmap_zero/_dl_malloc_addr in that case,
+		   so we don't do it.
+
+		   The actual page size doesn't really matter; as long
+		   as we're self-consistent here, we're safe.  */
+		if (size < _dl_pagesize)
+			rounded_size = (size + _dl_pagesize - 1) & _dl_pagesize;
+		else
+			rounded_size = size;
+
 #ifdef __SUPPORT_LD_DEBUG_EARLY__
 		_dl_dprintf(2, "malloc: mmapping more memory\n");
 #endif
-		_dl_mmap_zero = _dl_malloc_addr = _dl_mmap((void *) 0, size,
+		_dl_mmap_zero = _dl_malloc_addr = _dl_mmap((void *) 0, rounded_size,
 				PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 		if (_dl_mmap_check_error(_dl_mmap_zero)) {
 			_dl_dprintf(2, "%s: mmap of a spare page failed!\n", _dl_progname);
@@ -933,12 +988,23 @@ void *_dl_malloc(int size)
 	_dl_malloc_addr += size;
 
 	/*
-	 * Align memory to 4 byte boundary.  Some platforms require this,
+	 * Align memory to the maximum alignment required for any type
+	 * in the target platform.  Some platforms require this,
 	 * others simply get better performance.
 	 */
-	_dl_malloc_addr = (unsigned char *) (((unsigned long) _dl_malloc_addr + 3) & ~(3));
+	_dl_malloc_addr = (unsigned char *)
+	  (((unsigned long) _dl_malloc_addr +
+	    __alignof__(union __align_type) - 1)
+	   & ~(__alignof__(union __align_type) - 1));
 	return retval;
 }
+
+void
+_dl_free (void *p) {
+	if (_dl_free_function)
+		(*_dl_free_function) (p);
+}
+
 
 #include "dl-hash.c"
 #include "dl-elf.c"

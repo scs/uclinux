@@ -193,6 +193,7 @@ ifeq ($(strip $(TARGET_ARCH)),frv)
 	CPU_LDFLAGS-$(CONFIG_FRV)+=-melf32frvfd
 	CPU_CFLAGS-$(CONFIG_FRV)+=-mfdpic
 	PICFLAG=-fPIC -DPIC
+	PIEFLAG=-fpie
 	# Using -pie causes the program to have an interpreter, which is
 	# forbidden, so we must make do with -shared.  Unfortunately,
 	# -shared by itself would get us global function descriptors
