@@ -11,6 +11,10 @@
 #include <asm/ptrace.h>
 #include <asm/user.h>
 
+/* Processor specific flags for the ELF header e_flags field.  */
+#define EF_BFIN_PIC		0x00000001	/* -fpic */
+#define EF_BFIN_FDPIC		0x00000002      /* -mfdpic */
+
 typedef unsigned long elf_greg_t;
 
 #define ELF_NGREG (sizeof(struct user_regs_struct) / sizeof(elf_greg_t))
@@ -22,6 +26,9 @@ typedef struct user_bfinfp_struct elf_fpregset_t;
  */
 #define elf_check_arch(x) ((x)->e_machine == EM_BLACKFIN)
 
+#define elf_check_fdpic(x) ((x)->e_flags & EF_BFIN_FDPIC /* && !((x)->e_flags & EF_FRV_NON_PIC_RELOCS) */)
+#define elf_check_const_displacement(x) ((x)->e_flags & EF_BFIN_PIC)
+
 /* EM_BLACKFIN defined in linux/elf.h	*/
 
 /*
@@ -32,6 +39,13 @@ typedef struct user_bfinfp_struct elf_fpregset_t;
 #define ELF_ARCH	EM_BLACKFIN
 
 #define ELF_PLAT_INIT(_r)	_r->p1 = 0
+
+#define ELF_FDPIC_PLAT_INIT(_regs, _exec_map_addr, _interp_map_addr, _dynamic_addr)	\
+do {											\
+	_regs->p0	= _exec_map_addr;				\
+	_regs->p1	= _interp_map_addr;				\
+	_regs->p2	= _dynamic_addr;				\
+} while(0)
 
 #define USE_ELF_CORE_DUMP
 #define ELF_EXEC_PAGESIZE	4096
