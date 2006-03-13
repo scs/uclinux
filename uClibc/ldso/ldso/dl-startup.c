@@ -127,8 +127,6 @@ DL_BOOT(unsigned long args)
 	int status = 0;
 #endif
 
-
-
 	/* WARNING! -- we cannot make _any_ funtion calls until we have
 	 * taken care of fixing up our own relocations.  Making static
 	 * inline calls is ok, but _no_ function calls.  Not yet
@@ -137,7 +135,7 @@ DL_BOOT(unsigned long args)
 	/* First obtain the information on the stack that tells us more about
 	   what binary is loaded, where it is loaded, etc, etc */
 	GET_ARGV(aux_dat, args);
-#if defined (__arm__) || defined (__mips__) || defined (__cris__)
+#if defined (__arm__) || defined (__mips__) || defined (__cris__) || defined (__bfin__)
 	aux_dat += 1;
 #endif
 	argc = *(aux_dat - 1);
@@ -368,6 +366,14 @@ found_got:
 		for (i = 0; i < rel_size; i += sizeof(ELF_RELOC), rpnt++) {
 			reloc_addr = (unsigned long *) DL_RELOC_ADDR ((unsigned long) rpnt->r_offset, load_addr);
 			symtab_index = ELF32_R_SYM(rpnt->r_info);
+#if 0 
+			SEND_EARLY_STDERR("one symbol, offset: ");
+			SEND_ADDRESS_STDERR (rpnt->r_offset, 0);
+			SEND_EARLY_STDERR(" info: ");
+			SEND_ADDRESS_STDERR (rpnt->r_info, 0);
+			SEND_EARLY_STDERR(" that's an index of: ");
+			SEND_ADDRESS_STDERR (symtab_index, 1);
+#endif
 			symbol_addr = 0;
 			sym = NULL;
 			if (symtab_index) {
@@ -379,7 +385,7 @@ found_got:
 				sym = &symtab[symtab_index];
 				symbol_addr = (unsigned long) DL_RELOC_ADDR (sym->st_value, load_addr);
 
-#ifdef __SUPPORT_LD_DEBUG_EARLY__
+#if 0 && defined __SUPPORT_LD_DEBUG_EARLY__
 				SEND_EARLY_STDERR("relocating symbol: ");
 				SEND_STDERR(strtab + sym->st_name);
 				SEND_EARLY_STDERR("\n");
