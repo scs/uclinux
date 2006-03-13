@@ -1,4 +1,5 @@
 #! /bin/sh
+
 # This script computes a relative pathname from $1 to $2
 # They are assumed to not contain . or .. pathname components,
 # but if both directories exist and cd/pwd canonicalizes pathnames,
