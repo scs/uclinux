@@ -1147,6 +1147,46 @@ typedef struct
 /* Keep this the last entry.  */
 #define R_386_NUM	   38
 
+/* Blackfin specific definitions.  */
+#define R_BFIN_unused0 0x00 /* relocation type 0 is not defined*/
+#define R_BFIN_pcrel5m2 0x01 /*LSETUP part a*/
+#define R_BFIN_unused1 0x02 /* relocation type 2 is not defined*/
+#define R_BFIN_pcrel10 0x03 /* type 3, 0x00) if cc jump <target>  */
+#define R_BFIN_pcrel12_jump 0x04 /* type 4, 0x00) jump <target> */
+#define R_BFIN_rimm16 0x05    /* type 0x5, 0x00) rN = <target> */
+#define R_BFIN_luimm16 0x06  /* # 0x6, 0x00) preg.l=<target> Load imm 16 to lower half */
+#define R_BFIN_huimm16 0x07  /* # 0x7, 0x00) preg.h=<target> Load imm 16 to upper half*/
+#define R_BFIN_pcrel12_jump_s 0x08 /* # 0x8 jump.s <target> */
+#define R_BFIN_pcrel24_jump_x 0x09 /* # 0x9 jump.x <target> */
+#define R_BFIN_pcrel24 0x0a        /* # 0xa call <target> , 0x00) not expandable*/
+#define R_BFIN_unusedb 0x0b         /* # 0xb not generated */
+#define R_BFIN_unusedc 0x0c       /* # 0xc  not used */
+#define R_BFIN_pcrel24_jump_l 0x0d /*0xd jump.l <target>*/
+#define R_BFIN_pcrel24_call_x 0x0e /* 0xE, 0x00) call.x <target> if <target> is above 24 bit limit call through P1 */
+#define R_BFIN_var_eq_symb 0x0f    /* 0xf, 0x00) linker should treat it same as 0x12 */
+#define R_BFIN_byte_data 0x10      /* 0x10, 0x00) .byte var = symbol */
+#define R_BFIN_byte2_data 0x11     /* 0x11, 0x00) .byte2 var = symbol */
+#define R_BFIN_byte4_data 0x12     /* 0x12, 0x00) .byte4 var = symbol and .var var=symbol */
+#define R_BFIN_pcrel11 0x13        /* 0x13, 0x00) lsetup part b */
+
+#define R_BFIN_GOT17M4 0x14
+#define R_BFIN_GOTHI 0x15
+#define R_BFIN_GOTLO 0x16
+#define R_BFIN_FUNCDESC 0x17
+#define R_BFIN_FUNCDESC_GOT17M4 0x18
+#define R_BFIN_FUNCDESC_GOTHI 0x19
+#define R_BFIN_FUNCDESC_GOTLO 0x1a
+#define R_BFIN_FUNCDESC_VALUE 0x1b
+#define R_BFIN_FUNCDESC_GOTOFF17M4 0x1c
+#define R_BFIN_FUNCDESC_GOTOFFHI 0x1d
+#define R_BFIN_FUNCDESC_GOTOFFLO 0x1e
+#define R_BFIN_GOTOFF17M4 0x1f
+#define R_BFIN_GOTOFFHI 0x20
+#define R_BFIN_GOTOFFLO 0x21
+
+#define EF_BFIN_PIC		0x00000001	/* -fpic */
+#define EF_BFIN_FDPIC		0x00000002      /* -mfdpic */
+
 /* FR-V specific definitions.  */
 #define R_FRV_NONE		0	/* No reloc.  */
 #define R_FRV_32		1	/* Direct 32 bit.  */
