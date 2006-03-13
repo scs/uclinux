@@ -63,8 +63,87 @@ extern void rgb2yuv(unsigned char rgb[], unsigned char yuv[], int n)__attribute(
 extern void fb_memcpy(unsigned int * dest,unsigned int *src,size_t count)__attribute((section(".text.l1")));
 extern unsigned long l1_data_A_sram_alloc(unsigned long size);
 extern int l1_data_A_sram_free(unsigned long addr);
+/*
+ * I2C driver
+ */
+#include <linux/i2c.h>
+#include <linux/i2c-dev.h>
 
-/* --------------------------------------------------------------------- */
+#define I2C_NAME(x) (x)->name
+
+#include <linux/video_encoder.h>
+#include <linux/videodev.h>
+
+static inline int adv7171_write (struct i2c_client *client,u8 reg,u8 value);
+static inline int adv7171_read (struct i2c_client *client,u8 reg);
+static int adv7171_write_block (struct i2c_client *client, const u8 *data,
+                                unsigned int len);
+static int adv7171_command (struct i2c_client *client,unsigned int cmd,
+                                void * arg);
+static char adv7171_name[] = "adv7171";
+
+static char *norms[] = { "PAL", "NTSC" };
+
+#define TR0MODE     0x00
+#define TR0RST      0x80
+
+static const unsigned char init_NTSC[] = {
+        0x00, 0x00,             /* MR0				*/
+        0x01, 0x58,             /* MR1				*/
+        0x02, 0x00,             /* MR2 RTC control: bits 2 and 1*/
+        0x03, 0x00,             /* MR3				*/
+        0x04, 0x10,             /* MR4				*/
+        0x05, 0x00,             /* Reserved			*/
+        0x06, 0x00,             /* Reserved			*/
+        0x07, 0x00,             /* TM0				*/
+        0x08, 0x00,             /* TM1				*/
+        0x09, 0x16,             /* Fsc0				*/
+        0x0a, 0x7c,             /* Fsc1				*/
+        0x0b, 0xf0,             /* Fsc2				*/
+        0x0c, 0x21,             /* Fsc3				*/
+        0x0d, 0x00,             /* Subcarrier Phase		*/
+        0x0e, 0x00,             /* Closed Capt. Ext 0		*/
+        0x0f, 0x00,             /* Closed Capt. Ext 1		*/
+        0x10, 0x00,             /* Closed Capt. 0		*/
+        0x11, 0x00,             /* Closed Capt. 1		*/
+        0x12, 0x00,             /* Pedestal Ctl 0		*/
+        0x13, 0x00,             /* Pedestal Ctl 1		*/
+        0x14, 0x00,             /* Pedestal Ctl 2		*/
+        0x15, 0x00,             /* Pedestal Ctl 3		*/
+        0x16, 0x00,             /* CGMS_WSS_0			*/
+        0x17, 0x00,             /* CGMS_WSS_1			*/
+        0x18, 0x00,             /* CGMS_WSS_2			*/
+        0x19, 0x00,             /* Teletext Ctl			*/
+};
+
+static const unsigned char init_PAL[] = {
+        0x00, 0x05,             /* MR0				*/
+        0x01, 0x00,             /* MR1				*/
+        0x02, 0x00,             /* MR2 RTC control: bits 2 and 1*/
+        0x03, 0x00,             /* MR3				*/
+        0x04, 0x00,             /* MR4				*/
+        0x05, 0x00,             /* Reserved			*/
+        0x06, 0x00,             /* Reserved			*/
+        0x07, 0x00,             /* TM0				*/
+        0x08, 0x00,             /* TM1				*/
+        0x09, 0xcb,             /* Fsc0				*/
+        0x0a, 0x8a,             /* Fsc1				*/
+        0x0b, 0x09,             /* Fsc2				*/
+        0x0c, 0x2a,             /* Fsc3				*/
+        0x0d, 0x00,             /* Subcarrier Phase		*/
+        0x0e, 0x00,             /* Closed Capt. Ext 0		*/
+        0x0f, 0x00,             /* Closed Capt. Ext 1		*/
+        0x10, 0x00,             /* Closed Capt. 0		*/
+        0x11, 0x00,             /* Closed Capt. 1		*/
+        0x12, 0x00,             /* Pedestal Ctl 0		*/
+        0x13, 0x00,             /* Pedestal Ctl 1		*/
+        0x14, 0x00,             /* Pedestal Ctl 2		*/
+        0x15, 0x00,             /* Pedestal Ctl 3		*/
+        0x16, 0x00,             /* CGMS_WSS_0			*/
+        0x17, 0x00,             /* CGMS_WSS_1			*/
+        0x18, 0x00,             /* CGMS_WSS_2			*/
+        0x19, 0x00,             /* Teletext Ctl			*/
+};
 
 /*
  * card parameters
@@ -305,6 +384,248 @@ static void bfin_enable_ppi(void)
 	*pPPI_CONTROL		|= PORT_EN;
 }
 
+static inline int
+adv7171_write (struct i2c_client *client,
+               u8                 reg,
+               u8                 value)
+{
+        struct adv7171 *encoder = i2c_get_clientdata(client);
+
+        encoder->reg[reg] = value;
+        return i2c_smbus_write_byte_data(client, reg, value);
+}
+
+static inline int
+adv7171_read (struct i2c_client *client,
+              u8                 reg)
+{
+        return i2c_smbus_read_byte_data(client, reg);
+}
+
+static int
+adv7171_write_block (struct i2c_client *client,
+                     const u8          *data,
+                     unsigned int       len)
+{
+        int ret = -1;
+        u8 reg;
+
+	while (len >= 2) {
+		reg = *data++;
+		if ((ret = adv7171_write(client, reg, *data++)) < 0)
+                                break;
+		len -= 2;
+        }
+        return ret;
+}
+
+static int
+adv7171_command (struct i2c_client *client,
+                 unsigned int       cmd,
+                 void *             arg)
+{
+        struct adv7171 *encoder = i2c_get_clientdata(client);
+
+        switch (cmd) {
+
+        case ENCODER_GET_CAPABILITIES:
+        {
+                struct video_encoder_capability *cap = arg;
+
+                cap->flags = VIDEO_ENCODER_PAL |
+                             VIDEO_ENCODER_NTSC;
+                cap->inputs = 2;
+                cap->outputs = 1;
+        }
+                break;
+
+        case ENCODER_SET_NORM:
+        {
+                int iarg = *(int *) arg;
+
+                printk(KERN_DEBUG "%s_command: set norm %d",
+                        I2C_NAME(client), iarg);
+
+                switch (iarg) {
+
+                case VIDEO_MODE_NTSC:
+                        adv7171_write_block(client, init_NTSC,
+                                            sizeof(init_NTSC));
+                        if (encoder->input == 0)
+                                adv7171_write(client, 0x02, 0x0e);
+                        adv7171_write(client, 0x07, TR0MODE | TR0RST);
+                        adv7171_write(client, 0x07, TR0MODE);
+                        break;
+                case VIDEO_MODE_PAL:
+                        adv7171_write_block(client, init_PAL,
+                                            sizeof(init_PAL));
+                        if (encoder->input == 0)
+                                adv7171_write(client, 0x02, 0x0e);
+                        adv7171_write(client, 0x07, TR0MODE | TR0RST);
+                        adv7171_write(client, 0x07, TR0MODE);
+                        break;
+
+                default:
+                        printk(KERN_ERR "%s: illegal norm: %d\n",
+                               I2C_NAME(client), iarg);
+                        return -EINVAL;
+
+                }
+                printk(KERN_DEBUG "%s: switched to %s\n", I2C_NAME(client),
+                        norms[iarg]);
+                encoder->norm = iarg;
+        }
+                break;
+	default:
+                return -EINVAL;
+        }
+        return 0;
+}
+
+/*
+ * Generic i2c probe
+ * concerning the addresses: i2c wants 7 bit (without the r/w bit), so '>>1'
+ */
+static unsigned short normal_i2c[] =
+    { I2C_ADV7171 >> 1, (I2C_ADV7171 >> 1) + 1,
+        I2C_CLIENT_END
+};
+static unsigned short normal_i2c_range[] = { I2C_CLIENT_END };
+
+static unsigned short probe[2] = { I2C_CLIENT_END, I2C_CLIENT_END };
+static unsigned short probe_range[2] = { I2C_CLIENT_END, I2C_CLIENT_END };
+static unsigned short ignore[2] = { I2C_CLIENT_END, I2C_CLIENT_END };
+static unsigned short ignore_range[2] = { I2C_CLIENT_END, I2C_CLIENT_END };
+static unsigned short force[2] = { I2C_CLIENT_END , I2C_CLIENT_END };
+
+static struct i2c_client_address_data addr_data = {
+        .normal_i2c             = normal_i2c,
+        .normal_i2c_range       = normal_i2c_range,
+        .probe                  = probe,
+        .probe_range            = probe_range,
+        .ignore                 = ignore,
+        .ignore_range           = ignore_range,
+        .force                  = force
+};
+
+static struct i2c_driver i2c_driver_adv7171;
+
+static int
+adv7171_detect_client (struct i2c_adapter *adapter,
+                       int                 address,
+                       int                 kind)
+{
+        int i;
+        struct i2c_client *client;
+        struct adv7171 *encoder;
+        char *dname;
+
+        printk(KERN_INFO
+                "adv7171.c: detecting adv7171 client on address 0x%x\n",
+                address << 1);
+
+        /* Check if the adapter supports the needed features */
+        if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
+                return 0;
+
+        client = kmalloc(sizeof(struct i2c_client), GFP_KERNEL);
+        if (client == 0)
+                return -ENOMEM;
+        memset(client, 0, sizeof(struct i2c_client));
+        client->addr = address;
+        client->adapter = adapter;
+        client->driver = &i2c_driver_adv7171;
+        client->flags = I2C_CLIENT_ALLOW_USE;
+        if ((client->addr == I2C_ADV7171 >> 1) ||
+            (client->addr == (I2C_ADV7171 >> 1) + 1)) {
+                dname = adv7171_name;
+        } else {
+                /* We should never get here!!! */
+                kfree(client);
+                return 0;
+        }
+        strlcpy(I2C_NAME(client), dname, sizeof(I2C_NAME(client)));
+
+        encoder = kmalloc(sizeof(struct adv7171), GFP_KERNEL);
+        if (encoder == NULL) {
+                kfree(client);
+                return -ENOMEM;
+        }
+        memset(encoder, 0, sizeof(struct adv7171));
+#ifdef CONFIG_NTSC
+        encoder->norm = VIDEO_MODE_NTSC;
+#else /* CONFIG_PAL */
+        encoder->norm = VIDEO_MODE_PAL;
+#endif
+        encoder->input = 0;
+        encoder->enable = 1;
+        i2c_set_clientdata(client, encoder);
+
+        i = i2c_attach_client(client);
+        if (i) {
+                kfree(client);
+                kfree(encoder);
+                return i;
+        }
+#ifdef CONFIG_NTSC
+        i = adv7171_write_block(client, init_NTSC, sizeof(init_NTSC));
+#else /* CONFIG_PAL */
+        i = adv7171_write_block(client, init_PAL, sizeof(init_PAL));
+#endif
+        if (i >= 0) {
+                i = adv7171_write(client, 0x07, TR0MODE | TR0RST);
+                i = adv7171_write(client, 0x07, TR0MODE);
+                i = adv7171_read(client, 0x12);
+                printk(KERN_INFO "%s_attach: rev. %d at 0x%02x\n",
+                        I2C_NAME(client), i & 1, client->addr << 1);
+
+        }
+        if (i < 0) {
+                printk(KERN_ERR "%s_attach: init error 0x%x\n",
+                       I2C_NAME(client), i);
+        }
+        return 0;
+}
+
+static int
+adv7171_attach_adapter (struct i2c_adapter *adapter)
+{
+        printk(KERN_INFO
+                "adv7171.c: starting probe for adapter %s (0x%x)\n",
+                I2C_NAME(adapter), adapter->id);
+        return i2c_probe(adapter, &addr_data, &adv7171_detect_client);
+}
+
+static int
+adv7171_detach_client (struct i2c_client *client)
+{
+        struct adv7171 *encoder = i2c_get_clientdata(client);
+        int err;
+
+        err = i2c_detach_client(client);
+        if (err) {
+                return err;
+        }
+        kfree(encoder);
+        kfree(client);
+
+        return 0;
+}
+
+/* ----------------------------------------------------------------------- */
+
+static struct i2c_driver i2c_driver_adv7171 = {
+        .owner = THIS_MODULE,
+        .name = "adv7171",      /* name */
+
+        .id = I2C_DRIVERID_ADV7170,
+        .flags = I2C_DF_NOTIFY,
+
+        .attach_adapter = adv7171_attach_adapter,
+        .detach_client = adv7171_detach_client,
+        .command = adv7171_command,
+};
+
 int __init bfin_ad7171_fb_init(void)
 {
 	int ret = 0;
@@ -340,6 +661,7 @@ int __init bfin_ad7171_fb_init(void)
 	printk(KERN_INFO "fb%d: %s frame buffer device\n",
 	       bfin_ad7171_fb.node, bfin_ad7171_fb.fix.id);
 	printk(KERN_INFO "fb memory address : 0x%p\n",rgb_buffer);
+	i2c_add_driver(&i2c_driver_adv7171);
 	return ret;
 }
 
@@ -379,6 +701,7 @@ static int bfin_ad7171_fb_release(struct fb_info *info, int user)
 	if(yuv_l1)
 		l1_data_A_sram_free((unsigned long)yuv_l1);
 	del_timer(&bfin_framebuffer_timer);
+	i2c_del_driver(&i2c_driver_adv7171);
 	return 0;
 }
 

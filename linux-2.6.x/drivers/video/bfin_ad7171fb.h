@@ -73,3 +73,17 @@ struct rgb_t{
 struct ycrcb_t{
         unsigned char   Cb,y1,Cr,y2;
 };
+
+struct adv7171 {
+        unsigned char reg[128];
+
+        int norm;
+        int input;
+        int enable;
+        int bright;
+        int contrast;
+        int hue;
+        int sat;
+};
+
+#define   I2C_ADV7171        0x54
