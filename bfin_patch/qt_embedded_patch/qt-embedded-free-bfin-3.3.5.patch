@@ -325,3 +325,28 @@ diff -urN -x Makefile qt-embedded-free-3.3.5/src/tools/qlocale.cpp qt-embedded-f
  
      return s;
  }
+--- qt-embedded-free-3.3.5/src/embedded/qmousepc_qws.cpp	2005-09-02 20:42:57.000000000 +0800
++++ qt-embedded-free-3.3.5.bfin/src/embedded/qmousepc_qws.cpp	2006-03-13 14:14:39.044121512 +0800
+@@ -110,12 +110,16 @@
+     UsageResult useData()
+     {
+ 	int pbstate = bstate;
+-	int n = tryData();
+-	if ( n > 0 ) {
+-	    if ( n<nbuf )
+-		memmove( buffer, buffer+n, nbuf-n );
+-	    nbuf -= n;
+-	    return pbstate == bstate ? Motion : Button;
++	int n;
++
++	if( nbuf > 0 ) {
++		n = tryData();
++		if ( n > 0 ) {
++		    if ( n<nbuf )
++			memmove( buffer, buffer+n, nbuf-n );
++		    nbuf -= n;
++		    return pbstate == bstate ? Motion : Button;
++		}
+ 	}
+ 	return Insufficient;
+     }
