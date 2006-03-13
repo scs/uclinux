@@ -188,6 +188,7 @@ restore_sigcontext(struct pt_regs *regs, struct sigcontext *usc, int *pr0)
 	regs->r4 = context.sc_r4;
 	regs->p0 = context.sc_p0;
 	regs->p1 = context.sc_p1;
+	regs->p2 = context.sc_p2;
 	regs->l0 = context.sc_l0;
 	regs->l1 = context.sc_l1;
 	regs->l2 = context.sc_l2;
@@ -354,6 +355,7 @@ setup_sigcontext(struct sigcontext *sc, struct pt_regs *regs,
 	sc->sc_r4 = regs->r4;
 	sc->sc_p0 = regs->p0;
 	sc->sc_p1 = regs->p1;
+	sc->sc_p2 = regs->p2;
 	sc->sc_l0 = regs->l0;
 	sc->sc_l1 = regs->l1;
 	sc->sc_l2 = regs->l2;
@@ -625,6 +627,7 @@ handle_signal(int sig, struct k_sigaction *ka, siginfo_t * info,
 		recalc_sigpending();
 		spin_unlock_irq(&current->sighand->siglock);
 	}
+
 }
 
 /*
@@ -643,7 +646,6 @@ asmlinkage int do_signal(sigset_t * oldset, struct pt_regs *regs)
 	int signr;
 
 	current->thread.esp0 = (unsigned long)regs;
-
 	if (!oldset)
 		oldset = &current->blocked;
 
