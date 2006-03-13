@@ -142,13 +142,14 @@ tags:
 install: install_runtime install_dev finished2
 
 
-RUNTIME_PREFIX_LIB_FROM_DEVEL_PREFIX_LIB=$(shell extra/scripts/relative_path.sh $(DEVEL_PREFIX)lib $(RUNTIME_PREFIX)lib)
+RUNTIME_PREFIX_LIB_FROM_DEVEL_PREFIX_LIB=$(shell /bin/sh extra/scripts/relative_path.sh $(DEVEL_PREFIX)lib/$(MULTILIB) $(RUNTIME_PREFIX)lib)
 
 # Installs header files and development library links.
 install_dev:
 	$(INSTALL) -d $(PREFIX)$(DEVEL_PREFIX)lib
+	$(INSTALL) -d $(PREFIX)$(DEVEL_PREFIX)lib/$(MULTILIB)
 	$(INSTALL) -d $(PREFIX)$(DEVEL_PREFIX)include
-	-$(INSTALL) -m 644 lib/*.[ao] $(PREFIX)$(DEVEL_PREFIX)lib/
+	-$(INSTALL) -m 644 lib/*.[ao] $(PREFIX)$(DEVEL_PREFIX)lib/$(MULTILIB)/
 	tar -chf - include | tar -xf - -C $(PREFIX)$(DEVEL_PREFIX);
 ifneq ($(strip $(UCLIBC_HAS_FLOATS)),y)
 	# Remove floating point related headers since float support is disabled.
@@ -213,11 +214,11 @@ ifeq ($(strip $(HAVE_SHARED)),y)
 	for i in `find lib/ -type l -name 'lib[a-zA-Z]*.so' | \
 	sed -e 's/lib\///'` ; do \
 		$(LN) -sf $(RUNTIME_PREFIX_LIB_FROM_DEVEL_PREFIX_LIB)$$i.$(MAJOR_VERSION) \
-		$(PREFIX)$(DEVEL_PREFIX)lib/$$i; \
+		$(PREFIX)$(DEVEL_PREFIX)lib/$(MULTILIB)/$$i; \
 	done;
 ifeq ($(strip $(PTHREADS_DEBUG_SUPPORT)),y)
 	ln -sf $(RUNTIME_PREFIX_LIB_FROM_DEVEL_PREFIX_LIB)libthread_db.so.1 \
-		$(PREFIX)$(DEVEL_PREFIX)lib/libthread_db.so
+		$(PREFIX)$(DEVEL_PREFIX)lib/$(MULTILIB)/libthread_db.so
 endif
 #	# If we build shared libraries then the static libs are PIC...
 #	# Make _pic.a symlinks to make mklibs.py and similar tools happy.

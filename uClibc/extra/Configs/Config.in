@@ -1074,6 +1074,13 @@ config DEVEL_PREFIX
 	  For a typical target system this should be set to "/usr", such that
 	  'make install' will install /usr/include/<header files>.
 
+config MULTILIB
+	string "Subdirectory of $(DEVEL_PREFIX)/lib where files will be installed."
+	default ""
+	help
+	  Set this to install the libraries in such a way that they will only
+	  get used when certain compiler switches are in use.  Usually, this
+	  option should be set to the empty string.
 endmenu
 
 
