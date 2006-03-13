@@ -50,6 +50,11 @@
 
 #define _BLOCKABLE (~(sigmask(SIGKILL) | sigmask(SIGSTOP)))
 
+struct fdpic_func_descriptor {
+	unsigned long	text;
+	unsigned long	GOT;
+};
+
 asmlinkage int do_signal(sigset_t * oldset, struct pt_regs *regs);
 
 struct sigframe {
@@ -193,6 +198,7 @@ restore_sigcontext(struct pt_regs *regs, struct sigcontext *usc, int *pr0)
 	regs->l1 = context.sc_l1;
 	regs->l2 = context.sc_l2;
 	regs->l3 = context.sc_l3;
+	regs->p3 = context.sc_p3;
 	regs->seqstat = context.sc_seqstat;
 	regs->pc = context.sc_pc;
 	regs->retx = context.sc_retx;
@@ -360,6 +366,7 @@ setup_sigcontext(struct sigcontext *sc, struct pt_regs *regs,
 	sc->sc_l1 = regs->l1;
 	sc->sc_l2 = regs->l2;
 	sc->sc_l3 = regs->l3;
+	sc->sc_p3 = regs->p3;
 	sc->sc_seqstat = regs->seqstat;
 	sc->sc_pc = regs->pc;
 	sc->sc_rets = regs->rets;
@@ -490,7 +497,13 @@ setup_frame(int sig, struct k_sigaction *ka,
 
 	/* Set up registers for signal handler */
 	wrusp((unsigned long)frame);
-	regs->pc = (unsigned long)ka->sa.sa_handler;
+	if (get_personality & FDPIC_FUNCPTRS) {
+		struct fdpic_func_descriptor __user *funcptr =
+			(struct fdpic_func_descriptor *) ka->sa.sa_handler;
+		__get_user(regs->pc, &funcptr->text);
+		__get_user(regs->p3, &funcptr->GOT);
+	} else
+		regs->pc = (unsigned long)ka->sa.sa_handler;
 	regs->rets = (unsigned long)(frame->retcode);
 	regs->r0 = frame->sig;
 	regs->l0 = regs->l1 = regs->l2 = regs->l3 = 0;
@@ -554,7 +567,13 @@ setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t * info,
 
 	/* Set up registers for signal handler */
 	wrusp((unsigned long)frame);
-	regs->pc = (unsigned long)ka->sa.sa_handler;
+	if (get_personality & FDPIC_FUNCPTRS) {
+		struct fdpic_func_descriptor __user *funcptr =
+			(struct fdpic_func_descriptor *) ka->sa.sa_handler;
+		__get_user(regs->pc, &funcptr->text);
+		__get_user(regs->p3, &funcptr->GOT);
+	} else
+		regs->pc = (unsigned long)ka->sa.sa_handler;
 	regs->rets = (unsigned long)(frame->retcode);
 
 	regs->r0 = frame->sig;
