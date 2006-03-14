@@ -82,6 +82,7 @@ check_gcc=$(shell if $(CC) $(1) -S -o /dev/null -xc /dev/null > /dev/null 2>&1; 
 
 # Make certain these contain a final "/", but no "//"s.
 TARGET_ARCH:=$(strip $(subst ",, $(strip $(TARGET_ARCH))))
+TARGET_SUBARCH:=$(strip $(subst ",, $(strip $(TARGET_SUBARCH))))
 RUNTIME_PREFIX:=$(strip $(subst //,/, $(subst ,/, $(subst ",, $(strip $(RUNTIME_PREFIX))))))
 DEVEL_PREFIX:=$(strip $(subst //,/, $(subst ,/, $(subst ",, $(strip $(DEVEL_PREFIX))))))
 export RUNTIME_PREFIX DEVEL_PREFIX
@@ -201,6 +202,22 @@ ifeq ($(strip $(TARGET_ARCH)),frv)
 	# which would break as well, but -Bsymbolic comes to the rescue.
 	LDPIEFLAG=-shared -Bsymbolic
 	UCLIBC_LDSO=ld.so.1
+endif
+
+ifeq ($(strip $(TARGET_ARCH)),bfin)
+ifeq ($(strip $(TARGET_SUBARCH)),bfinfdpic)
+	CPU_LDFLAGS-y+=-melf32bfinfd
+	CPU_CFLAGS-y+=-mfdpic -D__BFIN_FDPIC__
+	PICFLAG=-fPIC -DPIC
+	# Using -pie causes the program to have an interpreter, which is
+	# forbidden, so we must make do with -shared.  Unfortunately,
+	# -shared by itself would get us global function descriptors
+	# and calls through PLTs, dynamic resolution of symbols, etc,
+	# which would break as well, but -Bsymbolic comes to the rescue.
+	LDPIEFLAG=-shared -Bsymbolic
+	UCLIBC_LDSO=ld.so.1
+	PICFLAG:=-fpic
+endif
 endif
 
 # Use '-Os' optimization if available, else use -O2, allow Config to override
