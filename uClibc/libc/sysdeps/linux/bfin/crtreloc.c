@@ -26,6 +26,8 @@ License along with the GNU C Library; see the file COPYING.LIB.  If
 not, write to the Free Software Foundation, Inc., 675 Mass Ave,
 Cambridge, MA 02139, USA.  */
 
+#ifdef __BFIN_FDPIC__
+
 #define _GNU_SOURCE 1
 #include <sys/types.h>
 #include <link.h>
@@ -139,3 +141,5 @@ __reloc_range_indirect (const struct elf32_fdpic_loadmap *map,
   return reloc_range_indirect (p, e, map);
 }
 #endif
+
+#endif /* __BFIN_FDPIC__ */

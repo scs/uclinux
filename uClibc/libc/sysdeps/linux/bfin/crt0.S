@@ -102,11 +102,19 @@ __start:
 /*	Ok, now run uClibc's main() -- shouldn't return */
 #if defined L_crt1 && defined __UCLIBC_CTOR_DTOR__
 	SP += -20;
+#ifdef __BFIN_FDPIC__
+	R3 = [P3 + __init@FUNCDESC_GOT17M4];
+#else
 	R3.H = __init;
 	R3.L = __init;
+#endif
 	[SP+12] = R3;
+#ifdef __BFIN_FDPIC__
+	R3 = [P3 + __fini@FUNCDESC_GOT17M4];
+#else
 	R3.H = __fini;
 	R3.L = __fini;
+#endif
 	[SP+16] = R3;
 	jump.l	___uClibc_start_main;
 #else

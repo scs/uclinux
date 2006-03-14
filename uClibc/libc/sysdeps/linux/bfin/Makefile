@@ -22,7 +22,8 @@ ASFLAGS=$(CFLAGS)
 
 CRT0_SRC = crt0.S
 CRT0_OBJ = crt0.o crt1.o
-CTOR_TARGETS=
+SCRT0_OBJ = $(patsubst %,S%, $(CRT0_OBJ))
+CTOR_TARGETS = crti.o crtn.o
 
 SSRC= __longjmp.S setjmp.S bsd-_setjmp.S vfork.S
 SOBJS=$(patsubst %.S,%.o, $(SSRC))
@@ -39,11 +40,21 @@ all: $(OBJ_LIST)
 $(OBJ_LIST): $(OBJS) $(CRT0_OBJ) $(CTOR_TARGETS)
 	echo $(patsubst %, sysdeps/linux/$(TARGET_ARCH)/%, $(OBJS)) > $(OBJ_LIST)
 	$(INSTALL) -d $(TOPDIR)lib/
-	cp $(CRT0_OBJ) $(TOPDIR)lib/
+	cp $(CRT0_OBJ) $(CTOR_TARGETS) $(TOPDIR)lib/
 
-$(CRT0_OBJ): $(CRT0_SRC)
-	$(CC) $(CFLAGS) -DL_$* $< -c -o $*.o
+$(CRT0_OBJ): $(CRT0_SRC) crtreloc.o
+	$(CC) $(ASFLAGS) -DL_$* -r -nostdlib $< crtreloc.o -o $*.o
 	$(STRIPTOOL) -x -R .note -R .comment $*.o
+
+crtreloc.o: crtreloc.c
+	$(CC) $(CFLAGS) -c $< -o $@
+
+$(SCRT0_OBJ): $(CRT0_SRC) Scrtreloc.o
+	$(CC) $(ASFLAGS) $(PIEFLAG) -DL_$* -r -nostdlib $< Scrtreloc.o -o $*.o
+	$(STRIPTOOL) -x -R .note -R .comment $*.o
+
+Scrtreloc.o: crtreloc.c
+	$(CC) $(CFLAGS) $(PIEFLAG) -c $< -o $@
 
 $(SOBJS): %.o : %.S
 	$(CC) $(CFLAGS) -c $< -o $@
