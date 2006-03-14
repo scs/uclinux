@@ -1,6 +1,6 @@
 # Makefile for uClibc
 #
-# Copyright (C) 2005 Analog Devices, Inc. All Rights Reserved.
+# Copyright (C) 2005, 2006 Analog Devices, Inc. All Rights Reserved.
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU Library General Public License as published by the Free
@@ -21,16 +21,17 @@ include $(TOPDIR)Rules.mak
 
 SSRC=memchr.S memcmp.S memcpy.S memmove.S memset.S strcmp.S
 SOBJS=$(patsubst %.S,%.o, $(SSRC))
+OBJS=$(SOBJS)
 
-all: $(SOBJS) $(LIBC)
+OBJ_LIST=../../obj.string.$(TARGET_ARCH)
 
-$(LIBC): ar-target
+all: $(OBJ_LIST)
 
-ar-target: $(SOBJS)
-	$(AR) $(ARFLAGS) $(LIBC) $(SOBJS)
+$(OBJ_LIST): $(OBJS)
+	echo $(patsubst %, string/$(TARGET_ARCH)/%, $(OBJS)) > $(OBJ_LIST)
 
 $(SOBJS): %.o : %.S
-	$(CC) $(CFLAGS) -c $< -o $@
+	$(CC) $(ASFLAGS) -c $< -o $@
 	$(STRIPTOOL) -x -R .note -R .comment $*.o
 
 clean:
