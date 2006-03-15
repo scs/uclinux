@@ -169,7 +169,7 @@ static int do_listen(void)
 			continue;
 		}
 
-		switch (fork()) {
+		switch (vfork()) {
 		case 0:
 			break;
 		case -1:
@@ -600,7 +600,7 @@ int main(int argc, char **argv)
 	if (detach) {
 		int fd;
 
-		if (fork()) exit(0);
+		if (vfork()) exit(0);
 
 		/* Direct stdin,stdout,stderr to '/dev/null' */
 		fd = open("/dev/null", O_RDWR);

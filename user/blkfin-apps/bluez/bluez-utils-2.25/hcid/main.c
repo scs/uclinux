@@ -157,7 +157,7 @@ static void configure_device(int hdev)
 	int s;
 
 	/* Do configuration in the separate process */
-	switch (fork()) {
+	switch (vfork()) {
 		case 0:
 			break;
 		case -1:
@@ -305,7 +305,7 @@ static void init_device(int hdev)
 	int s;
 
 	/* Do initialization in the separate process */
-	switch (fork()) {
+	switch (vfork()) {
 		case 0:
 			break;
 		case -1:

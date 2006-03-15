@@ -1238,7 +1238,7 @@ int main(int argc, char *argv[], char *env[])
 	}
 
 	if (daemon) {
-		if (dofork && fork())
+		if (dofork && vfork())
 			exit(0);
 
 		/* Direct stdin,stdout,stderr to '/dev/null' */

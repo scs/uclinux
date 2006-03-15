@@ -372,7 +372,7 @@ static void do_listen(void (*handler)(int sk))
 							strerror(errno), errno);
 			goto error;
 		}
-		if (fork()) {
+		if (vfork()) {
 			/* Parent */
 			close(nsk);
 			continue;
@@ -648,7 +648,7 @@ static void multi_connect_mode(char *svr)
 	while (1) {
 		int i, s;
 		for (i = 0; i < 10; i++) {
-			if (fork()) continue;
+			if (vfork()) continue;
 
 			/* Child */
 			s = do_connect(svr);

@@ -307,7 +307,7 @@ static void call_pin_helper(int dev, bdaddr_t *sba, struct hci_conn_info *ci)
 	int i, ret, len;
 
 	/* Run PIN helper in the separate process */
-	switch (fork()) {
+	switch (vfork()) {
 		case 0:
 			break;
 		case -1:

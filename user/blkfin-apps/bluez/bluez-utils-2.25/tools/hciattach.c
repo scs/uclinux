@@ -1084,7 +1084,7 @@ int main(int argc, char *argv[])
 	alarm(0);
 
 	if (detach) {
-		if ((pid = fork())) {
+		if ((pid = vfork())) {
 			if (printpid)
 				printf("%d\n", pid);
 			return 0;

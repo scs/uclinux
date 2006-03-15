@@ -149,7 +149,7 @@ static int find_pppd(int id, pid_t *pid)
 
 static int dun_exec(char *tty, char *prog, char **args)
 {
-	int pid = fork();
+	int pid = vfork();
 	int fd;
 	
 	switch (pid) {
