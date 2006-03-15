@@ -229,6 +229,7 @@ CONFIG_BANK_3=0x99B3
 # Executable File Formats
 #
 CONFIG_BINFMT_FLAT=y
+# CONFIG_BINFMT_ELF_FDPIC is not set
 # CONFIG_BINFMT_ZFLAT is not set
 # CONFIG_BINFMT_SHARED_FLAT is not set
 # CONFIG_BINFMT_MISC is not set
