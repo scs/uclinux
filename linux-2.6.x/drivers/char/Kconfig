@@ -1,4 +1,4 @@
-#
+﻿#
 # Character device configuration
 #
 
@@ -46,6 +46,18 @@ config BFIN_TIMER_LATENCY
     bool "Blackfin 5xx interrupt latency test"
         depends on BFIN
 	default n
+	---help---
+
+config TWI_LCD
+    bool "TWI/I2C LCD support for HD44780 based LCD modules"
+	depends on I2C && EXPERIMENTAL 
+	default n
+	---help---
+
+config TWI_LCD_SLAVE_ADDR
+	int "I2C Slave Address"
+	depends on TWI_LCD
+	default 34
 	---help---
 
 config VT
