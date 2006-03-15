@@ -1582,6 +1582,7 @@ bool    'PFBUTTONS test program'        CONFIG_USER_BLACKFIN_PFBUTTONS
 bool    'TWI test program'              CONFIG_USER_BLACKFIN_TWI
 bool    'SPI test program'              CONFIG_USER_BLACKFIN_SPITEST
 bool    'PPI test program'              CONFIG_USER_BLACKFIN_PPI
+bool    'TWI LCD test program'          CONFIG_USER_BLACKFIN_TWILCDTEST
 bool    'Sqlite test program'           CONFIG_USER_SQLITE_TEST
 bool    'Pthread lib test'              CONFIG_USER_BLACKFIN_PTHREADTEST
 bool    'Still to write'                CONFIG_YET
