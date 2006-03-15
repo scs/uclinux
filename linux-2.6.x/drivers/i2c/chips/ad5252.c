@@ -36,6 +36,7 @@
 #include <linux/slab.h>
 #include <linux/i2c.h>
 #include <linux/i2c-sensor.h>
+#include <linux/delay.h>
 
 /* Addresses to scan */
 static unsigned short normal_i2c[] = { 0x2c, 0x2d, 0x2e, 0x2f, I2C_CLIENT_END };
@@ -180,6 +181,10 @@ int ad5252_detect(struct i2c_adapter *adapter, int address, int kind)
 	strlcpy(new_client->name, client_name, I2C_NAME_SIZE);
 
 	/* Tell the I2C layer a new client has arrived */
+
+	/*FIXME: Don't know why there needs to be a delay !!!*/
+	udelay(100);
+	
 	if ((err = i2c_attach_client(new_client)))
 		goto exit_free;
 	
@@ -191,6 +196,7 @@ int ad5252_detect(struct i2c_adapter *adapter, int address, int kind)
 	device_create_file(&new_client->dev, &dev_attr_read_w3);
 	device_create_file(&new_client->dev, &dev_attr_write_w1);
 	device_create_file(&new_client->dev, &dev_attr_write_w3);
+	printk(KERN_INFO "AD5252 Attached\n");
 	return 0;
 
 /* OK, this is not exactly good programming practice, usually. But it is
@@ -199,6 +205,7 @@ int ad5252_detect(struct i2c_adapter *adapter, int address, int kind)
       exit_free:
 	kfree(data);
       exit:
+	printk(KERN_INFO "AD5252 attaching failed\n");
 	return err;
 }
 
