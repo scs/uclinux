@@ -549,7 +549,7 @@ void bfin_gpio_interrupt_setup(int irq, int irq_pfx, int type)
   if (type==IRQT_HIGH || type == IRQT_LOW)
      *pFIO_EDGE  &= ~FIO_PATTERN; /* by level (input) */
    else
-     *pFIO_EDGE  &= ~FIO_PATTERN; /* by edge */
+     *pFIO_EDGE  |= FIO_PATTERN; /* by edge */
 
   if (type==IRQT_BOTHEDGE)
       *pFIO_BOTH  |=  FIO_PATTERN;
