@@ -46,7 +46,7 @@
  */
 
 #define T_INIT1 4100		/* first init sequence:  4.1 msec */
-#define T_INIT2  100		/* second init sequence: 100 usec */
+#define T_INIT2  150		/* second init sequence: 100 usec */
 #define T_EXEC    80		/* normal execution time */
 #define T_WRCG   120		/* CG RAM Write */
 #define T_CLEAR 2250		/* Clear Display */

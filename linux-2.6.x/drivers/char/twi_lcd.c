@@ -157,6 +157,7 @@ lcd_ioctl (struct inode *inode, struct file *file,
       udelay (T_EXEC);
       BusyCheck ();
       drv_HD_I2C_command (currController, 0x01);
+      udelay (T_CLEAR);
       break;
 
     case LCD_Cursor_Left:
@@ -261,7 +262,7 @@ static ssize_t
 lcd_write (struct file *filp, const char *buf, size_t count, loff_t * f_pos)
 {
 
-  drv_HD_I2C_data (0x2, buf, count);
+  drv_HD_I2C_data (currController, buf, count);
 
   return count;
 
@@ -366,7 +367,6 @@ static int
 drv_HD_I2C_load (void)
 {
 
-
   /* initialize display */
   drv_HD_I2C_nibble (CONTROLLER_BOTH, 0x03);
   udelay (T_INIT1);		/* 4 Bit mode, wait 4.1 ms */
@@ -392,9 +392,12 @@ drv_HD_I2C_load (void)
   drv_HD_I2C_command (CONTROLLER_BOTH, 0x80);
   udelay (T_INIT2);
   drv_HD_I2C_command (CONTROLLER_BOTH, 0x02);
+  udelay (T_INIT2);
   drv_HD_I2C_command (CONTROLLER_BOTH, 0x0C);
   udelay (T_INIT2);
   drv_HD_I2C_command (CONTROLLER_BOTH, 0x01);
+  udelay (T_INIT2);
+
 
   return 0;
 }
