@@ -532,8 +532,8 @@ void bfin_gpio_interrupt_setup(int irq, int irq_pfx, int type)
 
     printk("Blackfin GPIO interrupt setup: flag PF%d, irq %d\n", flag, irq);
 
-  if (irq == IRQ_PROG_INTA/*26*/ ||
-      irq == IRQ_PROG_INTB/*27*/)
+  if (irq == IRQ_PROG_INTA ||
+      irq == IRQ_PROG_INTB)
     {
       int ixab = (irq - IRQ_PROG_INTA) * (pFIO_MASKB_D - pFIO_MASKA_D);
 
