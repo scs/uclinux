@@ -35,10 +35,10 @@ config I2C_BFIN_TWI
 config TWICLK_KHZ
 	int "TWI clock (kHZ)"
 	depends on I2C_BFIN_TWI
-	default 400
+	default 50
 	help
 		The unit of the TWI clock is kilo HZ. Please divide the clock 
-		by 1024 if you count it in HZ. 
+		by 1024 if you count it in HZ. The value should be less than 400.
 
 config I2C_ALI1535
 	tristate "ALI 1535"

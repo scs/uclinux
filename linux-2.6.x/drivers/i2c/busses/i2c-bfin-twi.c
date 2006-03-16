@@ -260,7 +260,8 @@ static int bfin_twi_master_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[],
 		else
 			*pTWI_MASTER_CTL = ( 0xff << 6 );
 		/* Master enable */
-		*pTWI_MASTER_CTL |= MEN | ((iface->read_write == I2C_SMBUS_READ) ? MDIR : 0);
+		*pTWI_MASTER_CTL |= MEN | ((iface->read_write == I2C_SMBUS_READ) ? MDIR : 0)
+			 | ((CONFIG_TWICLK_KHZ>100) ? FAST : 0);
 		__builtin_bfin_ssync();
 
 		wait_for_completion(&iface->complete);	
@@ -392,7 +393,7 @@ int bfin_twi_smbus_xfer(struct i2c_adapter *adap, u16 addr,
 			iface->manual_stop = 1;
 		}
 		/* Master enable */
-		*pTWI_MASTER_CTL |= MEN;
+		*pTWI_MASTER_CTL |= MEN | ((CONFIG_TWICLK_KHZ>100) ? FAST : 0);
 		break;
 	case TWI_I2C_MODE_COMBINED:
 		*pTWI_XMT_DATA8 = iface->command;
@@ -404,7 +405,7 @@ int bfin_twi_smbus_xfer(struct i2c_adapter *adap, u16 addr,
 		else
 			*pTWI_MASTER_CTL = ( 0x1 << 6 );
 		/* Master enable */
-		*pTWI_MASTER_CTL |= MEN;
+		*pTWI_MASTER_CTL |= MEN | ((CONFIG_TWICLK_KHZ>100) ? FAST : 0);
 		break;
 	default:
 		*pTWI_MASTER_CTL = 0;
@@ -430,7 +431,8 @@ int bfin_twi_smbus_xfer(struct i2c_adapter *adap, u16 addr,
 		__builtin_bfin_ssync();
 
 		/* Master enable */
-		*pTWI_MASTER_CTL |= MEN | ((iface->read_write == I2C_SMBUS_READ) ? MDIR : 0);
+		*pTWI_MASTER_CTL |= MEN | ((iface->read_write == I2C_SMBUS_READ) ? MDIR : 0) 
+			| ((CONFIG_TWICLK_KHZ>100) ? FAST : 0);
 		break;
 	}
 	__builtin_bfin_ssync();
@@ -496,7 +498,10 @@ static int __init i2c_bfin_twi_init(void)
 	*pTWI_CONTROL = ((get_sclk() / 1024 / 1024 + 5) / 10) & 0x7F;
 
 	/* Set Twi interface clock as specified */
-	*pTWI_CLKDIV = (( 5*1024 / CONFIG_TWICLK_KHZ ) << 8) | (( 5*1024 / CONFIG_TWICLK_KHZ ) & 0xFF);
+	if(CONFIG_TWICLK_KHZ>400)
+		*pTWI_CLKDIV = (( 5*1024 / 400 ) << 8) | (( 5*1024 / 400 ) & 0xFF);
+	else
+		*pTWI_CLKDIV = (( 5*1024 / CONFIG_TWICLK_KHZ ) << 8) | (( 5*1024 / CONFIG_TWICLK_KHZ ) & 0xFF);
 
 	/* Enable TWI */
 	*pTWI_CONTROL |= TWI_ENA;
