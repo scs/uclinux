@@ -145,7 +145,6 @@ static inline int bad_user_access_length(void)
 	(x) = (__typeof__(*(ptr))) __gu_tmp;		\
 }
 
-#define copy_from_user(to, from, n)		(memcpy(to, from, n), 0)
 #define copy_to_user(to, from, n)		(memcpy(to, from, n), 0)
 
 #define __copy_from_user(to, from, n) copy_from_user(to, from, n)
@@ -157,6 +156,14 @@ static inline int bad_user_access_length(void)
 
 #define copy_from_user_ret(to,from,n,retval) ({ if (copy_from_user(to,from,n)) return retval; })
 
+static inline long copy_from_user(void *to, const void __user *from, unsigned long n)
+{
+        if((unsigned long)from < (unsigned long)_stext)
+                return n;
+        else
+                memcpy(to, from, n);
+        return 0;
+}
 /*
  * Copy a null terminated string from userspace.
  */
