@@ -526,6 +526,7 @@ ENTRY(resume)
 	p1 = r1;
 	[--sp] = rets;
 	[--sp] = fp;
+	[--sp] = (r7:4, p5:3);
 
 	/* save usp */
 	p2 = usp;
@@ -555,6 +556,7 @@ ENTRY(resume)
 	 */
 
 new_old_task:
+	(r7:4, p5:3) = [sp++];
 	fp = [sp++];
 	rets = [sp++];
 

@@ -25,20 +25,10 @@
 MACRO definitions
 ***************/
 
-asmlinkage void resume(void);
-#define switch_to(prev,next,last) { \
-	void *_last;							\
-	__asm__ __volatile__(						\
-  			"r0 = %1;\n\t"					\
-			"r1 = %2;\n\t"					\
-			"call resume;\n\t" 				\
-			"%0 = r0;\n\t"					\
-		       : "=d" (_last)					\
-		       : "d" (prev),					\
-			 "d" (next)					\
-		       : "CC", "R0", "R1", "P0", "P1");			\
-	(last) = _last; 						\
-}
+asmlinkage struct task_struct *resume(struct task_struct *prev, struct task_struct *next) asm ("resume");
+#define switch_to(prev,next,last) do {	\
+	(last) = resume (prev, next);	\
+} while (0)
 
 /*
  * Interrupt configuring macros.
