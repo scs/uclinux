@@ -171,7 +171,7 @@ static inline long copy_from_user(void *to, const void __user *from, unsigned lo
 static inline long strncpy_from_user(char *dst, const char *src, long count)
 {
 	char *tmp;
-	if ((unsigned long)src > memory_end || ((unsigned long)src < _stext)) {
+	if ((unsigned long)src > (unsigned long)memory_end || ((unsigned long)src < (unsigned long)_stext)) {
 		return -EFAULT;
 	}
 	strncpy(dst, src, count);
