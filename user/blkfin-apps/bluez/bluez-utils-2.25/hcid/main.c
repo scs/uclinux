@@ -49,6 +49,10 @@
 #include "hcid.h"
 #include "lib.h"
 
+#ifdef UCLINUX
+static char cstack[STACK_SIZE];
+#endif
+
 struct hcid_opts hcid;
 struct device_opts default_device;
 struct device_opts *parser_device;
@@ -149,15 +153,159 @@ static struct device_opts *get_device_opts(int sock, int hdev)
 	return device_opts;
 }
 
-static void configure_device(int hdev)
+#ifdef UCLINUX
+int
+do_configure_device(int hdev)
 {
 	struct device_opts *device_opts;
 	struct hci_dev_req dr;
 	struct hci_dev_info di;
 	int s;
 
+	set_title("hci%d config", hdev);
+
+	if ((s = hci_open_dev(hdev)) < 0) {
+		syslog(LOG_ERR, "Can't open device hci%d: %s (%d)",
+						hdev, strerror(errno), errno);
+		exit(1);
+	}
+
+	di.dev_id = hdev;
+	if (ioctl(s, HCIGETDEVINFO, (void *) &di) < 0)
+		exit(1);
+
+	if (hci_test_bit(HCI_RAW, &di.flags))
+		exit(0);
+
+	dr.dev_id   = hdev;
+	device_opts = get_device_opts(s, hdev);
+
+	/* Set scan mode */
+	dr.dev_opt = device_opts->scan;
+	if (ioctl(s, HCISETSCAN, (unsigned long) &dr) < 0) {
+		syslog(LOG_ERR, "Can't set scan mode on hci%d: %s (%d)",
+						hdev, strerror(errno), errno);
+	}
+
+	/* Set authentication */
+	if (device_opts->auth)
+		dr.dev_opt = AUTH_ENABLED;
+	else
+		dr.dev_opt = AUTH_DISABLED;
+
+	if (ioctl(s, HCISETAUTH, (unsigned long) &dr) < 0) {
+		syslog(LOG_ERR, "Can't set auth on hci%d: %s (%d)",
+						hdev, strerror(errno), errno);
+	}
+
+	/* Set encryption */
+	if (device_opts->encrypt)
+		dr.dev_opt = ENCRYPT_P2P;
+	else
+		dr.dev_opt = ENCRYPT_DISABLED;
+
+	if (ioctl(s, HCISETENCRYPT, (unsigned long) &dr) < 0) {
+		syslog(LOG_ERR, "Can't set encrypt on hci%d: %s (%d)",
+						hdev, strerror(errno), errno);
+	}
+
+	/* Set device name */
+	if ((device_opts->flags & (1 << HCID_SET_NAME)) && device_opts->name) {
+		change_local_name_cp cp;
+		write_ext_inquiry_response_cp ip;
+		uint8_t len;
+
+		memset(cp.name, 0, sizeof(cp.name));
+		expand_name((char *) cp.name, sizeof(cp.name), device_opts->name, hdev);
+
+		ip.fec = 0x00;
+		memset(ip.data, 0, sizeof(ip.data));
+		len = strlen((char *) cp.name);
+		if (len > 48) {
+			len = 48;
+			ip.data[1] = 0x08;
+		} else
+			ip.data[1] = 0x09;
+		ip.data[0] = len + 1;
+		memcpy(ip.data + 2, cp.name, len);
+
+		hci_send_cmd(s, OGF_HOST_CTL, OCF_CHANGE_LOCAL_NAME,
+					CHANGE_LOCAL_NAME_CP_SIZE, &cp);
+
+		if (di.features[6] & LMP_EXT_INQ)
+			hci_send_cmd(s, OGF_HOST_CTL, OCF_WRITE_EXT_INQUIRY_RESPONSE,
+					WRITE_EXT_INQUIRY_RESPONSE_CP_SIZE, &ip);
+	}
+
+	/* Set device class */
+	if ((device_opts->flags & (1 << HCID_SET_CLASS))) {
+		uint32_t class = htobl(device_opts->class);
+		write_class_of_dev_cp cp;
+
+		memcpy(cp.dev_class, &class, 3);
+		hci_send_cmd(s, OGF_HOST_CTL, OCF_WRITE_CLASS_OF_DEV,
+					WRITE_CLASS_OF_DEV_CP_SIZE, &cp);
+	}
+
+	/* Set voice setting */
+	if ((device_opts->flags & (1 << HCID_SET_VOICE))) {
+		write_voice_setting_cp cp;
+
+		cp.voice_setting = htobl(device_opts->voice);
+		hci_send_cmd(s, OGF_HOST_CTL, OCF_WRITE_VOICE_SETTING,
+					WRITE_VOICE_SETTING_CP_SIZE, &cp);
+	}
+
+	/* Set inquiry mode */
+	if ((device_opts->flags & (1 << HCID_SET_INQMODE))) {
+		write_inquiry_mode_cp cp;
+
+		switch (device_opts->inqmode) {
+		case 2:
+			if (di.features[6] & LMP_EXT_INQ) {
+				cp.mode = 2;
+				break;
+			}
+		case 1:
+			if (di.features[3] & LMP_RSSI_INQ) {
+				cp.mode = 1;
+				break;
+			}
+		default:
+			cp.mode = 0;
+			break;
+		}
+
+		hci_send_cmd(s, OGF_HOST_CTL, OCF_WRITE_INQUIRY_MODE,
+					WRITE_INQUIRY_MODE_CP_SIZE, &cp);
+	}
+
+	/* Set page timeout */
+	if ((device_opts->flags & (1 << HCID_SET_PAGETO))) {
+		write_page_timeout_cp cp;
+
+		cp.timeout = htobs(device_opts->pageto);
+		hci_send_cmd(s, OGF_HOST_CTL, OCF_WRITE_PAGE_TIMEOUT,
+					WRITE_PAGE_TIMEOUT_CP_SIZE, &cp);
+	}
+
+	exit(0);
+
+}
+#endif
+
+static void configure_device(int hdev)
+{
+#ifdef UCLINUX
+	clone(do_configure_device, cstack + STACK_SIZE - 4, CLONE_VM|SIGCHLD, hdev);	
+#else
+	struct device_opts *device_opts;
+	struct hci_dev_req dr;
+	struct hci_dev_info di;
+	int s;
+
 	/* Do configuration in the separate process */
-	switch (vfork()) {
+	switch (fork()) {
 		case 0:
 			break;
 		case -1:
@@ -295,17 +443,89 @@ static void configure_device(int hdev)
 	}
 
 	exit(0);
+#endif
 }
 
-static void init_device(int hdev)
+#ifdef UCLINUX
+
+int do_init_device(int hdev)
 {
 	struct device_opts *device_opts;
 	struct hci_dev_req dr;
 	struct hci_dev_info di;
 	int s;
 
+	printf("hdev=%d\n", hdev);
+
+	set_title("hci%d init", hdev);
+
+	if ((s = hci_open_dev(hdev)) < 0) {
+		syslog(LOG_ERR, "Can't open device hci%d: %s (%d)",
+						hdev, strerror(errno), errno);
+		exit(1);
+	}
+
+	/* Start HCI device */
+	if (ioctl(s, HCIDEVUP, hdev) < 0 && errno != EALREADY) {
+		syslog(LOG_ERR, "Can't init device hci%d: %s (%d)",
+						hdev, strerror(errno), errno);
+		exit(1);
+	}
+
+	di.dev_id = hdev;
+	if (ioctl(s, HCIGETDEVINFO, (void *) &di) < 0)
+		exit(1);
+
+	if (hci_test_bit(HCI_RAW, &di.flags))
+		exit(0);
+
+	dr.dev_id   = hdev;
+	device_opts = get_device_opts(s, hdev);
+
+	/* Set packet type */
+	if ((device_opts->flags & (1 << HCID_SET_PTYPE))) {
+		dr.dev_opt = device_opts->pkt_type;
+		if (ioctl(s, HCISETPTYPE, (unsigned long) &dr) < 0) {
+			syslog(LOG_ERR, "Can't set packet type on hci%d: %s (%d)",
+						hdev, strerror(errno), errno);
+		}
+	}
+
+	/* Set link mode */
+	if ((device_opts->flags & (1 << HCID_SET_LM))) {
+		dr.dev_opt = device_opts->link_mode;
+		if (ioctl(s, HCISETLINKMODE, (unsigned long) &dr) < 0) {
+			syslog(LOG_ERR, "Can't set link mode on hci%d: %s (%d)",
+						hdev, strerror(errno), errno);
+		}
+	}
+
+	/* Set link policy */
+	if ((device_opts->flags & (1 << HCID_SET_LP))) {
+		dr.dev_opt = device_opts->link_policy;
+		if (ioctl(s, HCISETLINKPOL, (unsigned long) &dr) < 0) {
+			syslog(LOG_ERR, "Can't set link policy on hci%d: %s (%d)",
+						hdev, strerror(errno), errno);
+		}
+	}
+
+	exit(0);
+
+}
+#endif
+
+static void init_device(int hdev)
+{
+#ifdef UCLINUX
+	clone(do_init_device, cstack + STACK_SIZE - 4, CLONE_VM|SIGCHLD, hdev);	
+#else
+	struct device_opts *device_opts;
+	struct hci_dev_req dr;
+	struct hci_dev_info di;
+	int s;
+
 	/* Do initialization in the separate process */
-	switch (vfork()) {
+	switch (fork()) {
 		case 0:
 			break;
 		case -1:
@@ -368,6 +588,7 @@ static void init_device(int hdev)
 	}
 
 	exit(0);
+#endif
 }
 
 static void init_all_devices(int ctl)
@@ -574,7 +795,7 @@ int main(int argc, char *argv[], char *env[])
 		}
 	}
 
-	if (daemon) {
+	if (daemon & !UCLINUX) {
 		if (dofork && fork())
 			exit(0);
 
