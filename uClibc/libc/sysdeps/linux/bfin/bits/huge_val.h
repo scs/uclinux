@@ -26,20 +26,9 @@
 
 /* IEEE positive infinity (-HUGE_VAL is negative infinity).  */
 
-#ifdef	__GNUC__
+#if __GNUC_PREREQ(3,3)
 
-# if __GNUC_PREREQ(2,96)
-
-#  define HUGE_VAL (__extension__ 0x1.0p2047)
-
-# else
-
-#  define HUGE_VAL \
-  (__extension__							      \
-   ((union { unsigned __l __attribute__((__mode__(__DI__))); double __d; })   \
-    { __l: 0x000000007ff00000ULL }).__d)
-
-# endif
+# define HUGE_VAL (__builtin_huge_val())
 
 #else /* not GCC */
 
@@ -64,20 +53,9 @@ static __huge_val_t __huge_val = { __HUGE_VAL_bytes };
 
 #ifdef __USE_ISOC99
 
-# ifdef __GNUC__
+# if __GNUC_PREREQ(3,3)
 
-#  if __GNUC_PREREQ(2,96)
-
-#   define HUGE_VALF (__extension__ 0x1.0p255f)
-
-#  else
-
-#   define HUGE_VALF \
-  (__extension__							      \
-   ((union { unsigned __l __attribute__((__mode__(__SI__))); float __d; })    \
-    { __l: 0x7f800000UL }).__d)
-
-#  endif
+#  define HUGE_VALF (__builtin_huge_valf())
 
 # else /* not GCC */
 
