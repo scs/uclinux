@@ -24,13 +24,13 @@ int main()
 /*******************************Open the dpmc device ***********************************/
 	fd = open("/dev/dpmc", O_RDONLY,0);
 	if (fd == -1) {
-		printf("/dev/dpmc open error %d\n",errno);
+		fprintf(stderr, "/dev/dpmc open error: %s\n", strerror(errno));
 		exit(1);
 	}
 
 	rtc_fd = open("/dev/rtc", O_RDONLY,0);
 	if (rtc_fd == -1) {
-		printf("/dev/rtc open error %d\n",errno);
+		fprintf(stderr, "/dev/rtc open error: %s\n", strerror(errno));	
 		exit(1);
 		
 	}
