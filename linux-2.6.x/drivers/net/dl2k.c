@@ -50,8 +50,8 @@
 
 */
 #define DRV_NAME	"D-Link DL2000-based linux driver"
-#define DRV_VERSION	"v1.17a"
-#define DRV_RELDATE	"2002/10/04"
+#define DRV_VERSION	"v1.17b"
+#define DRV_RELDATE	"2006/03/10"
 #include "dl2k.h"
 
 static char version[] __devinitdata =
@@ -547,7 +547,7 @@ rio_timer (unsigned long data)
 				skb_reserve (skb, 2);
 				np->rx_ring[entry].fraginfo =
 				    cpu_to_le64 (pci_map_single
-					 (np->pdev, skb->tail, np->rx_buf_sz,
+					 (np->pdev, skb->data, np->rx_buf_sz,
 					  PCI_DMA_FROMDEVICE));
 			}
 			np->rx_ring[entry].fraginfo |=
@@ -618,7 +618,7 @@ alloc_list (struct net_device *dev)
 		/* Rubicon now supports 40 bits of addressing space. */
 		np->rx_ring[i].fraginfo =
 		    cpu_to_le64 ( pci_map_single (
-			 	  np->pdev, skb->tail, np->rx_buf_sz,
+			 	  np->pdev, skb->data, np->rx_buf_sz,
 				  PCI_DMA_FROMDEVICE));
 		np->rx_ring[i].fraginfo |= cpu_to_le64 (np->rx_buf_sz) << 48;
 	}
@@ -765,7 +765,7 @@ rio_free_tx (struct net_device *dev, int irq)
 			break;
 		skb = np->tx_skbuff[entry];
 		pci_unmap_single (np->pdev,
-				  np->tx_ring[entry].fraginfo,
+				  np->tx_ring[entry].fraginfo & 0xffffffffffff,
 				  skb->len, PCI_DMA_TODEVICE);
 		if (irq)
 			dev_kfree_skb_irq (skb);
@@ -892,25 +892,28 @@ receive_packet (struct net_device *dev)
 
 			/* Small skbuffs for short packets */
 			if (pkt_len > copy_thresh) {
-				pci_unmap_single (np->pdev, desc->fraginfo,
+				pci_unmap_single (np->pdev,
+						  desc->fraginfo & 0xffffffffffff,
 						  np->rx_buf_sz,
 						  PCI_DMA_FROMDEVICE);
 				skb_put (skb = np->rx_skbuff[entry], pkt_len);
 				np->rx_skbuff[entry] = NULL;
 			} else if ((skb = dev_alloc_skb (pkt_len + 2)) != NULL) {
 				pci_dma_sync_single_for_cpu(np->pdev,
-							    desc->fraginfo,
+				  			    desc->fraginfo & 
+							    	0xffffffffffff,
 							    np->rx_buf_sz,
 							    PCI_DMA_FROMDEVICE);
 				skb->dev = dev;
 				/* 16 byte align the IP header */
 				skb_reserve (skb, 2);
 				eth_copy_and_sum (skb,
-						  np->rx_skbuff[entry]->tail,
+						  np->rx_skbuff[entry]->data,
 						  pkt_len, 0);
 				skb_put (skb, pkt_len);
 				pci_dma_sync_single_for_device(np->pdev,
-							       desc->fraginfo,
+				  			       desc->fraginfo &
+							       	 0xffffffffffff,
 							       np->rx_buf_sz,
 							       PCI_DMA_FROMDEVICE);
 			}
@@ -950,7 +953,7 @@ receive_packet (struct net_device *dev)
 			skb_reserve (skb, 2);
 			np->rx_ring[entry].fraginfo =
 			    cpu_to_le64 (pci_map_single
-					 (np->pdev, skb->tail, np->rx_buf_sz,
+					 (np->pdev, skb->data, np->rx_buf_sz,
 					  PCI_DMA_FROMDEVICE));
 		}
 		np->rx_ring[entry].fraginfo |=
@@ -1796,8 +1799,9 @@ rio_close (struct net_device *dev)
 		np->rx_ring[i].fraginfo = 0;
 		skb = np->rx_skbuff[i];
 		if (skb) {
-			pci_unmap_single (np->pdev, np->rx_ring[i].fraginfo,
-					  skb->len, PCI_DMA_FROMDEVICE);
+			pci_unmap_single(np->pdev, 
+					 np->rx_ring[i].fraginfo & 0xffffffffffff,
+					 skb->len, PCI_DMA_FROMDEVICE);
 			dev_kfree_skb (skb);
 			np->rx_skbuff[i] = NULL;
 		}
@@ -1805,8 +1809,9 @@ rio_close (struct net_device *dev)
 	for (i = 0; i < TX_RING_SIZE; i++) {
 		skb = np->tx_skbuff[i];
 		if (skb) {
-			pci_unmap_single (np->pdev, np->tx_ring[i].fraginfo,
-					  skb->len, PCI_DMA_TODEVICE);
+			pci_unmap_single(np->pdev, 
+					 np->tx_ring[i].fraginfo & 0xffffffffffff,
+					 skb->len, PCI_DMA_TODEVICE);
 			dev_kfree_skb (skb);
 			np->tx_skbuff[i] = NULL;
 		}

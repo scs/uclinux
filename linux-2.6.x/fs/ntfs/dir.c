@@ -1,7 +1,7 @@
 /**
  * dir.c - NTFS kernel directory operations. Part of the Linux-NTFS project.
  *
- * Copyright (c) 2001-2004 Anton Altaparmakov
+ * Copyright (c) 2001-2005 Anton Altaparmakov
  * Copyright (c) 2002 Richard Russon
  *
  * This program/include file is free software; you can redistribute it and/or
@@ -69,7 +69,7 @@ ntfschar I30[5] = { const_cpu_to_le16('$'), const_cpu_to_le16('I'),
  * work but we don't care for how quickly one can access them. This also fixes
  * the dcache aliasing issues.
  *
- * Locking:  - Caller must hold i_sem on the directory.
+ * Locking:  - Caller must hold i_mutex on the directory.
  *	     - Each page cache page in the index allocation mapping must be
  *	       locked whilst being accessed otherwise we may find a corrupt
  *	       page due to it being under ->writepage at the moment which
@@ -183,8 +183,7 @@ found_it:
 				name->len = 0;
 				*res = name;
 			} else {
-				if (name)
-					kfree(name);
+				kfree(name);
 				*res = NULL;
 			}
 			mref = le64_to_cpu(ie->data.dir.indexed_file);
@@ -444,8 +443,7 @@ found_it2:
 				name->len = 0;
 				*res = name;
 			} else {
-				if (name)
-					kfree(name);
+				kfree(name);
 				*res = NULL;
 			}
 			mref = le64_to_cpu(ie->data.dir.indexed_file);
@@ -610,7 +608,7 @@ dir_err_out:
 // TODO: (AIA)
 // The algorithm embedded in this code will be required for the time when we
 // want to support adding of entries to directories, where we require correct
-// collation of file names in order not to cause corruption of the file system.
+// collation of file names in order not to cause corruption of the filesystem.
 
 /**
  * ntfs_lookup_inode_by_name - find an inode in a directory given its name
@@ -1053,7 +1051,8 @@ static inline int ntfs_filldir(ntfs_volume *vol, loff_t fpos,
 			ie->key.file_name.file_name_length, &name,
 			NTFS_MAX_NAME_LEN * NLS_MAX_CHARSET_SIZE + 1);
 	if (name_len <= 0) {
-		ntfs_debug("Skipping unrepresentable file.");
+		ntfs_warning(vol->sb, "Skipping unrepresentable inode 0x%llx.",
+				(long long)MREF_LE(ie->data.dir.indexed_file));
 		return 0;
 	}
 	if (ie->key.file_name.file_attributes &
@@ -1086,11 +1085,11 @@ static inline int ntfs_filldir(ntfs_volume *vol, loff_t fpos,
  * While this will return the names in random order this doesn't matter for
  * ->readdir but OTOH results in a faster ->readdir.
  *
- * VFS calls ->readdir without BKL but with i_sem held. This protects the VFS
+ * VFS calls ->readdir without BKL but with i_mutex held. This protects the VFS
  * parts (e.g. ->f_pos and ->i_size, and it also protects against directory
  * modifications).
  *
- * Locking:  - Caller must hold i_sem on the directory.
+ * Locking:  - Caller must hold i_mutex on the directory.
  *	     - Each page cache page in the index allocation mapping must be
  *	       locked whilst being accessed otherwise we may find a corrupt
  *	       page due to it being under ->writepage at the moment which
@@ -1101,7 +1100,7 @@ static inline int ntfs_filldir(ntfs_volume *vol, loff_t fpos,
 static int ntfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 {
 	s64 ia_pos, ia_start, prev_ia_pos, bmp_pos;
-	loff_t fpos;
+	loff_t fpos, i_size;
 	struct inode *bmp_vi, *vdir = filp->f_dentry->d_inode;
 	struct super_block *sb = vdir->i_sb;
 	ntfs_inode *ndir = NTFS_I(vdir);
@@ -1122,7 +1121,8 @@ static int ntfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 			vdir->i_ino, fpos);
 	rc = err = 0;
 	/* Are we at end of dir yet? */
-	if (fpos >= vdir->i_size + vol->mft_record_size)
+	i_size = i_size_read(vdir);
+	if (fpos >= i_size + vol->mft_record_size)
 		goto done;
 	/* Emulate . and .. for all directories. */
 	if (!fpos) {
@@ -1264,7 +1264,7 @@ skip_index_root:
 	bmp_mapping = bmp_vi->i_mapping;
 	/* Get the starting bitmap bit position and sanity check it. */
 	bmp_pos = ia_pos >> ndir->itype.index.block_size_bits;
-	if (unlikely(bmp_pos >> 3 >= bmp_vi->i_size)) {
+	if (unlikely(bmp_pos >> 3 >= i_size_read(bmp_vi))) {
 		ntfs_error(sb, "Current index allocation position exceeds "
 				"index bitmap size.");
 		goto err_out;
@@ -1301,7 +1301,7 @@ find_next_index_buffer:
 			goto get_next_bmp_page;
 		}
 		/* If we have reached the end of the bitmap, we are done. */
-		if (unlikely(((bmp_pos + cur_bmp_pos) >> 3) >= vdir->i_size))
+		if (unlikely(((bmp_pos + cur_bmp_pos) >> 3) >= i_size))
 			goto unm_EOD;
 		ia_pos = (bmp_pos + cur_bmp_pos) <<
 				ndir->itype.index.block_size_bits;
@@ -1309,7 +1309,8 @@ find_next_index_buffer:
 	ntfs_debug("Handling index buffer 0x%llx.",
 			(unsigned long long)bmp_pos + cur_bmp_pos);
 	/* If the current index buffer is in the same page we reuse the page. */
-	if ((prev_ia_pos & PAGE_CACHE_MASK) != (ia_pos & PAGE_CACHE_MASK)) {
+	if ((prev_ia_pos & (s64)PAGE_CACHE_MASK) !=
+			(ia_pos & (s64)PAGE_CACHE_MASK)) {
 		prev_ia_pos = ia_pos;
 		if (likely(ia_page != NULL)) {
 			unlock_page(ia_page);
@@ -1441,7 +1442,7 @@ unm_EOD:
 	ntfs_unmap_page(bmp_page);
 EOD:
 	/* We are finished, set fpos to EOD. */
-	fpos = vdir->i_size + vol->mft_record_size;
+	fpos = i_size + vol->mft_record_size;
 abort:
 	kfree(name);
 done:
@@ -1461,10 +1462,8 @@ err_out:
 		unlock_page(ia_page);
 		ntfs_unmap_page(ia_page);
 	}
-	if (ir)
-		kfree(ir);
-	if (name)
-		kfree(name);
+	kfree(ir);
+	kfree(name);
 	if (ctx)
 		ntfs_attr_put_search_ctx(ctx);
 	if (m)
@@ -1495,7 +1494,7 @@ err_out:
 static int ntfs_dir_open(struct inode *vi, struct file *filp)
 {
 	if (sizeof(unsigned long) < 8) {
-		if (vi->i_size > MAX_LFS_FILESIZE)
+		if (i_size_read(vi) > MAX_LFS_FILESIZE)
 			return -EFBIG;
 	}
 	return 0;
@@ -1521,7 +1520,7 @@ static int ntfs_dir_open(struct inode *vi, struct file *filp)
  * Note: In the past @filp could be NULL so we ignore it as we don't need it
  * anyway.
  *
- * Locking: Caller must hold i_sem on the inode.
+ * Locking: Caller must hold i_mutex on the inode.
  *
  * TODO: We should probably also write all attribute/index inodes associated
  * with this inode but since we have no simple way of getting to them we ignore

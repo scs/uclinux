@@ -29,8 +29,8 @@
 
 /*
  * $Log$
- * Revision 1.4  2005/08/12 06:42:36  magicyang
- *  Update kernel 2.6.8 to 2.6.12
+ * Revision 1.5  2006/03/22 06:16:34  magicyang
+ * update kernel to 2.6.16
  *
  * Revision 1.2  1996/04/11 17:51:52  guru
  * Added one-line eql_remove_slave patch.
@@ -135,7 +135,7 @@ static struct net_device_stats *eql_get_stats(struct net_device *dev);
 #define eql_is_slave(dev)	((dev->flags & IFF_SLAVE) == IFF_SLAVE)
 #define eql_is_master(dev)	((dev->flags & IFF_MASTER) == IFF_MASTER)
 
-static void eql_kill_one_slave(slave_t *slave);
+static void eql_kill_one_slave(slave_queue_t *queue, slave_t *slave);
 
 static void eql_timer(unsigned long param)
 {
@@ -152,7 +152,7 @@ static void eql_timer(unsigned long param)
 			if (slave->bytes_queued < 0)
 				slave->bytes_queued = 0;
 		} else {
-			eql_kill_one_slave(slave);
+			eql_kill_one_slave(&eql->queue, slave);
 		}
 
 	}
@@ -217,9 +217,10 @@ static int eql_open(struct net_device *dev)
 	return 0;
 }
 
-static void eql_kill_one_slave(slave_t *slave)
+static void eql_kill_one_slave(slave_queue_t *queue, slave_t *slave)
 {
 	list_del(&slave->list);
+	queue->num_slaves--;
 	slave->dev->flags &= ~IFF_SLAVE;
 	dev_put(slave->dev);
 	kfree(slave);
@@ -235,8 +236,7 @@ static void eql_kill_slave_queue(slave_queue_t *queue)
 	list_for_each_safe(this, tmp, head) {
 		slave_t *s = list_entry(this, slave_t, list);
 
-		eql_kill_one_slave(s);
-		queue->num_slaves--;
+		eql_kill_one_slave(queue, s);
 	}
 
 	spin_unlock_bh(&queue->lock);
@@ -321,7 +321,7 @@ static slave_t *__eql_schedule_slaves(slave_queue_t *queue)
 			}
 		} else {
 			/* We found a dead slave, kill it. */
-			eql_kill_one_slave(slave);
+			eql_kill_one_slave(queue, slave);
 		}
 	}
 	return best_slave;
@@ -396,7 +396,7 @@ static int __eql_insert_slave(slave_queue_t *queue, slave_t *slave)
 
 		duplicate_slave = __eql_find_slave_dev(queue, slave->dev);
 		if (duplicate_slave != 0)
-			eql_kill_one_slave(duplicate_slave);
+			eql_kill_one_slave(queue, duplicate_slave);
 
 		list_add(&slave->list, &queue->all_slaves);
 		queue->num_slaves++;
@@ -474,7 +474,7 @@ static int eql_emancipate(struct net_device *master_dev, slaving_request_t __use
 							      slave_dev);
 
 			if (slave) {
-				eql_kill_one_slave(slave);
+				eql_kill_one_slave(&eql->queue, slave);
 				ret = 0;
 			}
 		}

@@ -7,8 +7,8 @@
  *  Authors:  Bjorn Wesen (bjornw@axis.com)
  *
  *  $Log$
- *  Revision 1.5  2005/08/12 03:32:53  magicyang
- *    Update kernel 2.6.8 to 2.6.12
+ *  Revision 1.6  2006/03/22 06:14:57  magicyang
+ *  update kernel to 2.6.16
  *
  *  Revision 1.11  2004/05/28 09:28:56  starvik
  *  Calculation of loops_per_usec moved because initalization order has changed

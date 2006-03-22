@@ -230,7 +230,6 @@ __sync_single_inode(struct inode *inode, struct writeback_control *wbc)
 			 * The inode is clean, unused
 			 */
 			list_move(&inode->i_list, &inode_unused);
-			inodes_stat.nr_unused++;
 		}
 	}
 	wake_up_inode(inode);
@@ -238,13 +237,19 @@ __sync_single_inode(struct inode *inode, struct writeback_control *wbc)
 }
 
 /*
- * Write out an inode's dirty pages.  Called under inode_lock.
+ * Write out an inode's dirty pages.  Called under inode_lock.  Either the
+ * caller has ref on the inode (either via __iget or via syscall against an fd)
+ * or the inode has I_WILL_FREE set (via generic_forget_inode)
  */
 static int
-__writeback_single_inode(struct inode *inode,
-			struct writeback_control *wbc)
+__writeback_single_inode(struct inode *inode, struct writeback_control *wbc)
 {
 	wait_queue_head_t *wqh;
+
+	if (!atomic_read(&inode->i_count))
+		WARN_ON(!(inode->i_state & (I_WILL_FREE|I_FREEING)));
+	else
+		WARN_ON(inode->i_state & I_WILL_FREE);
 
 	if ((wbc->sync_mode != WB_SYNC_ALL) && (inode->i_state & I_LOCK)) {
 		list_move(&inode->i_list, &inode->i_sb->s_dirty);
@@ -259,11 +264,9 @@ __writeback_single_inode(struct inode *inode,
 
 		wqh = bit_waitqueue(&inode->i_state, __I_LOCK);
 		do {
-			__iget(inode);
 			spin_unlock(&inode_lock);
 			__wait_on_bit(wqh, &wq, inode_wait,
 							TASK_UNINTERRUPTIBLE);
-			iput(inode);
 			spin_lock(&inode_lock);
 		} while (inode->i_state & I_LOCK);
 	}
@@ -485,32 +488,6 @@ static void set_sb_syncing(int val)
 	spin_unlock(&sb_lock);
 }
 
-/*
- * Find a superblock with inodes that need to be synced
- */
-static struct super_block *get_super_to_sync(void)
-{
-	struct super_block *sb;
-restart:
-	spin_lock(&sb_lock);
-	sb = sb_entry(super_blocks.prev);
-	for (; sb != sb_entry(&super_blocks); sb = sb_entry(sb->s_list.prev)) {
-		if (sb->s_syncing)
-			continue;
-		sb->s_syncing = 1;
-		sb->s_count++;
-		spin_unlock(&sb_lock);
-		down_read(&sb->s_umount);
-		if (!sb->s_root) {
-			drop_super(sb);
-			goto restart;
-		}
-		return sb;
-	}
-	spin_unlock(&sb_lock);
-	return NULL;
-}
-
 /**
  * sync_inodes - writes all inodes to disk
  * @wait: wait for completion
@@ -530,35 +507,52 @@ restart:
  * outstanding dirty inodes, the writeback goes block-at-a-time within the
  * filesystem's write_inode().  This is extremely slow.
  */
-void sync_inodes(int wait)
+static void __sync_inodes(int wait)
 {
 	struct super_block *sb;
 
-	set_sb_syncing(0);
-	while ((sb = get_super_to_sync()) != NULL) {
-		sync_inodes_sb(sb, 0);
-		sync_blockdev(sb->s_bdev);
-		drop_super(sb);
+	spin_lock(&sb_lock);
+restart:
+	list_for_each_entry(sb, &super_blocks, s_list) {
+		if (sb->s_syncing)
+			continue;
+		sb->s_syncing = 1;
+		sb->s_count++;
+		spin_unlock(&sb_lock);
+		down_read(&sb->s_umount);
+		if (sb->s_root) {
+			sync_inodes_sb(sb, wait);
+			sync_blockdev(sb->s_bdev);
+		}
+		up_read(&sb->s_umount);
+		spin_lock(&sb_lock);
+		if (__put_super_and_need_restart(sb))
+			goto restart;
 	}
+	spin_unlock(&sb_lock);
+}
+
+void sync_inodes(int wait)
+{
+	set_sb_syncing(0);
+	__sync_inodes(0);
+
 	if (wait) {
 		set_sb_syncing(0);
-		while ((sb = get_super_to_sync()) != NULL) {
-			sync_inodes_sb(sb, 1);
-			sync_blockdev(sb->s_bdev);
-			drop_super(sb);
-		}
+		__sync_inodes(1);
 	}
 }
 
 /**
- *	write_inode_now	-	write an inode to disk
- *	@inode: inode to write to disk
- *	@sync: whether the write should be synchronous or not
+ * write_inode_now	-	write an inode to disk
+ * @inode: inode to write to disk
+ * @sync: whether the write should be synchronous or not
  *
- *	This function commits an inode to disk immediately if it is
- *	dirty. This is primarily needed by knfsd.
+ * This function commits an inode to disk immediately if it is dirty. This is
+ * primarily needed by knfsd.
+ *
+ * The caller must either have a ref on the inode or must have set I_WILL_FREE.
  */
- 
 int write_inode_now(struct inode *inode, int sync)
 {
 	int ret;
@@ -568,7 +562,7 @@ int write_inode_now(struct inode *inode, int sync)
 	};
 
 	if (!mapping_cap_writeback_dirty(inode->i_mapping))
-		return 0;
+		wbc.nr_to_write = 0;
 
 	might_sleep();
 	spin_lock(&inode_lock);
@@ -612,7 +606,7 @@ EXPORT_SYMBOL(sync_inode);
  * O_SYNC flag set, to flush dirty writes to disk.
  *
  * @what is a bitmask, specifying which part of the inode's data should be
- * written and waited upon:
+ * written and waited upon.
  *
  *    OSYNC_DATA:     i_mapping's dirty data
  *    OSYNC_METADATA: the buffers at i_mapping->private_list
@@ -678,8 +672,9 @@ int writeback_acquire(struct backing_dev_info *bdi)
 
 /**
  * writeback_in_progress: determine whether there is writeback in progress
- *                        against a backing device.
  * @bdi: the device's backing_dev_info structure.
+ *
+ * Determine whether there is writeback in progress against a backing device.
  */
 int writeback_in_progress(struct backing_dev_info *bdi)
 {

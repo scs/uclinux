@@ -120,7 +120,7 @@
 			__l--;						\
 		}							\
 	} while (0)
-#define set_irq_type(irq, type)
+#define SMC_IRQ_FLAGS		(0)
 
 #elif defined(CONFIG_SA1100_PLEB)
 /* We can only do 16-bit reads and writes in the static memory space. */
@@ -130,16 +130,16 @@
 #define SMC_IO_SHIFT		0
 #define SMC_NOWAIT		1
 
-#define SMC_inb(a, r)		inb((a) + (r))
-#define SMC_insb(a, r, p, l)	insb((a) + (r), p, (l))
-#define SMC_inw(a, r)		inw((a) + (r))
-#define SMC_insw(a, r, p, l)	insw((a) + (r), p, l)
-#define SMC_outb(v, a, r)	outb(v, (a) + (r))
-#define SMC_outsb(a, r, p, l)	outsb((a) + (r), p, (l))
-#define SMC_outw(v, a, r)	outw(v, (a) + (r))
-#define SMC_outsw(a, r, p, l)	outsw((a) + (r), p, l)
+#define SMC_inb(a, r)		readb((a) + (r))
+#define SMC_insb(a, r, p, l)	readsb((a) + (r), p, (l))
+#define SMC_inw(a, r)		readw((a) + (r))
+#define SMC_insw(a, r, p, l)	readsw((a) + (r), p, l)
+#define SMC_outb(v, a, r)	writeb(v, (a) + (r))
+#define SMC_outsb(a, r, p, l)	writesb((a) + (r), p, (l))
+#define SMC_outw(v, a, r)	writew(v, (a) + (r))
+#define SMC_outsw(a, r, p, l)	writesw((a) + (r), p, l)
 
-#define set_irq_type(irq, type) do {} while (0)
+#define SMC_IRQ_FLAGS		(0)
 
 #elif defined(CONFIG_SA1100_ASSABET)
 
@@ -181,7 +181,7 @@
 
 /* We actually can't write halfwords properly if not word aligned */
 static inline void
-SMC_outw(u16 val, unsigned long ioaddr, int reg)
+SMC_outw(u16 val, void __iomem *ioaddr, int reg)
 {
 	if (reg & 2) {
 		unsigned int v = val << 16;
@@ -212,6 +212,16 @@ SMC_outw(u16 val, unsigned long ioaddr, int reg)
 #define SMC_insl(a, r, p, l)	readsl((a) + (r), p, l)
 #define SMC_outsl(a, r, p, l)	writesl((a) + (r), p, l)
 
+#include <asm/mach-types.h>
+#include <asm/arch/cpu.h>
+
+#define	SMC_IRQ_FLAGS (( \
+		   machine_is_omap_h2() \
+		|| machine_is_omap_h3() \
+		|| (machine_is_omap_innovator() && !cpu_is_omap1510()) \
+	) ? SA_TRIGGER_FALLING : SA_TRIGGER_RISING)
+
+
 #elif	defined(CONFIG_SH_SH4202_MICRODEV)
 
 #define SMC_CAN_USE_8BIT	0
@@ -229,7 +239,7 @@ SMC_outw(u16 val, unsigned long ioaddr, int reg)
 #define SMC_insw(a, r, p, l)	insw((a) + (r) - 0xa0000000, p, l)
 #define SMC_outsw(a, r, p, l)	outsw((a) + (r) - 0xa0000000, p, l)
 
-#define set_irq_type(irq, type)	do {} while(0)
+#define SMC_IRQ_FLAGS		(0)
 
 #elif	defined(CONFIG_ISA)
 
@@ -250,14 +260,14 @@ SMC_outw(u16 val, unsigned long ioaddr, int reg)
 #define SMC_CAN_USE_16BIT	1
 #define SMC_CAN_USE_32BIT	0
 
-#define SMC_inb(a, r)		inb((a) + (r) - 0xa0000000)
-#define SMC_inw(a, r)		inw((a) + (r) - 0xa0000000)
-#define SMC_outb(v, a, r)	outb(v, (a) + (r) - 0xa0000000)
-#define SMC_outw(v, a, r)	outw(v, (a) + (r) - 0xa0000000)
-#define SMC_insw(a, r, p, l)	insw((a) + (r) - 0xa0000000, p, l)
-#define SMC_outsw(a, r, p, l)	outsw((a) + (r) - 0xa0000000, p, l)
+#define SMC_inb(a, r)		inb((u32)a) + (r))
+#define SMC_inw(a, r)		inw(((u32)a) + (r))
+#define SMC_outb(v, a, r)	outb(v, ((u32)a) + (r))
+#define SMC_outw(v, a, r)	outw(v, ((u32)a) + (r))
+#define SMC_insw(a, r, p, l)	insw(((u32)a) + (r), p, l)
+#define SMC_outsw(a, r, p, l)	outsw(((u32)a) + (r), p, l)
 
-#define set_irq_type(irq, type)	do {} while(0)
+#define SMC_IRQ_FLAGS		(0)
 
 #define RPC_LSA_DEFAULT		RPC_LED_TX_RX
 #define RPC_LSB_DEFAULT		RPC_LED_100_10
@@ -309,6 +319,38 @@ static inline void SMC_outsw (unsigned long a, int r, unsigned char* p, int l)
 #define RPC_LSA_DEFAULT		RPC_LED_TX_RX
 #define RPC_LSB_DEFAULT		RPC_LED_100_10
 
+#elif defined(CONFIG_SOC_AU1X00)
+
+#include <au1xxx.h>
+
+/* We can only do 16-bit reads and writes in the static memory space. */
+#define SMC_CAN_USE_8BIT	0
+#define SMC_CAN_USE_16BIT	1
+#define SMC_CAN_USE_32BIT	0
+#define SMC_IO_SHIFT		0
+#define SMC_NOWAIT		1
+
+#define SMC_inw(a, r)		au_readw((unsigned long)((a) + (r)))
+#define SMC_insw(a, r, p, l)	\
+	do {	\
+		unsigned long _a = (unsigned long)((a) + (r)); \
+		int _l = (l); \
+		u16 *_p = (u16 *)(p); \
+		while (_l-- > 0) \
+			*_p++ = au_readw(_a); \
+	} while(0)
+#define SMC_outw(v, a, r)	au_writew(v, (unsigned long)((a) + (r)))
+#define SMC_outsw(a, r, p, l)	\
+	do {	\
+		unsigned long _a = (unsigned long)((a) + (r)); \
+		int _l = (l); \
+		const u16 *_p = (const u16 *)(p); \
+		while (_l-- > 0) \
+			au_writew(*_p++ , _a); \
+	} while(0)
+
+#define SMC_IRQ_FLAGS		(0)
+
 #else
 
 #define SMC_CAN_USE_8BIT	1
@@ -330,6 +372,9 @@ static inline void SMC_outsw (unsigned long a, int r, unsigned char* p, int l)
 
 #endif
 
+#ifndef	SMC_IRQ_FLAGS
+#define	SMC_IRQ_FLAGS		SA_TRIGGER_RISING
+#endif
 
 #ifdef SMC_USE_PXA_DMA
 /*
@@ -347,7 +392,7 @@ static inline void SMC_outsw (unsigned long a, int r, unsigned char* p, int l)
 #define SMC_insl(a, r, p, l) \
 	smc_pxa_dma_insl(a, lp->physaddr, r, dev->dma, p, l)
 static inline void
-smc_pxa_dma_insl(u_long ioaddr, u_long physaddr, int reg, int dma,
+smc_pxa_dma_insl(void __iomem *ioaddr, u_long physaddr, int reg, int dma,
 		 u_char *buf, int len)
 {
 	dma_addr_t dmabuf;
@@ -385,7 +430,7 @@ smc_pxa_dma_insl(u_long ioaddr, u_long physaddr, int reg, int dma,
 #define SMC_insw(a, r, p, l) \
 	smc_pxa_dma_insw(a, lp->physaddr, r, dev->dma, p, l)
 static inline void
-smc_pxa_dma_insw(u_long ioaddr, u_long physaddr, int reg, int dma,
+smc_pxa_dma_insw(void __iomem *ioaddr, u_long physaddr, int reg, int dma,
 		 u_char *buf, int len)
 {
 	dma_addr_t dmabuf;
@@ -711,14 +756,6 @@ static const char * chip_ids[ 16 ] =  {
 
 
 /*
- . Transmit status bits
-*/
-#define TS_SUCCESS 0x0001
-#define TS_LOSTCAR 0x0400
-#define TS_LATCOL  0x0200
-#define TS_16COL   0x0010
-
-/*
  . Receive status bits
 */
 #define RS_ALGNERR	0x8000
@@ -875,6 +912,7 @@ static const char * chip_ids[ 16 ] =  {
 #define SMC_GET_FIFO()		SMC_inw( ioaddr, FIFO_REG )
 #define SMC_GET_PTR()		SMC_inw( ioaddr, PTR_REG )
 #define SMC_SET_PTR(x)		SMC_outw( x, ioaddr, PTR_REG )
+#define SMC_GET_EPH_STATUS()	SMC_inw( ioaddr, EPH_STATUS_REG )
 #define SMC_GET_RCR()		SMC_inw( ioaddr, RCR_REG )
 #define SMC_SET_RCR(x)		SMC_outw( x, ioaddr, RCR_REG )
 #define SMC_GET_REV()		SMC_inw( ioaddr, REV_REG )
@@ -1010,7 +1048,7 @@ static const char * chip_ids[ 16 ] =  {
 	})
 #endif
 
-#if SMC_CAN_USE_DATACS
+#ifdef SMC_CAN_USE_DATACS
 #define SMC_PUSH_DATA(p, l)						\
 	if ( lp->datacs ) {						\
 		unsigned char *__ptr = (p);				\

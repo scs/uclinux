@@ -10,6 +10,7 @@ obj-y   := process.o traps.o irq.o ptrace.o setup.o \
 
 obj-$(CONFIG_MODULES)    += crisksyms.o
 obj-$(CONFIG_MODULES)	 += module.o
+obj-$(CONFIG_SYSTEM_PROFILER)   += profile.o
 
 clean:
 

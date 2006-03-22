@@ -51,6 +51,7 @@ unsigned long memory_start;
 unsigned long memory_end;
 unsigned long memory_mtd_end;
 unsigned long memory_mtd_start;
+unsigned long _ebss;
 unsigned long mtd_phys, mtd_size;
 
 EXPORT_SYMBOL(memory_start);
@@ -145,10 +146,8 @@ void __init setup_arch(char **cmdline_p)
 	int bootmap_size, id;
 	unsigned long l1_length;
 
-#ifdef CONFIG_DEBUG_SERIAL_EARLY_INIT
 	bfin_console_init();	/* early console registration */
 	/* this give a chance to get printk() working before crash. */
-#endif
 
 #if defined(CONFIG_CHR_DEV_FLASH) || defined(CONFIG_BLK_DEV_FLASH)
 	/* we need to initialize the Flashrom device here since we might
@@ -199,6 +198,7 @@ void __init setup_arch(char **cmdline_p)
 #endif				/*defined(CONFIG_MTD_UCLINUX) && defined(CONFIG_ROOTFS_TIED_TO_KERNEL) */
 
 	memory_mtd_start = memory_end;
+	_ebss = memory_mtd_start;       /* define _ebss for compatible */
 	memory_start = PAGE_ALIGN(_ramstart);
 
 #if defined(CONFIG_BLKFIN_CACHE)

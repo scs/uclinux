@@ -56,7 +56,7 @@ static int op_bfin_start(void)
 {
 	int ret = -EBUSY;
 
-	printk("KSDBG:in %s\n",__FUNCTION__);
+	printk("KSDBG:in %s\n", __FUNCTION__);
 	down(&pfmon_sem);
 	if (!pfmon_enabled) {
 		ret = model->start(ctr);
@@ -115,16 +115,16 @@ int __init oprofile_arch_init(struct oprofile_operations *ops)
 	printk("Oprofile got the cpu id is 0x%x. \n", dspid);
 
 	switch (dspid) {
-		case BFIN_533_ID:
-		     model = &op_model_bfin533;
-		     model->num_counters = 2;
-		     break;
-		case BFIN_537_ID:
-		     model = &op_model_bfin533;
-                     model->num_counters = 2;
-		     break;
-		default:
-		     return -ENODEV;
+	case BFIN_533_ID:
+		model = &op_model_bfin533;
+		model->num_counters = 2;
+		break;
+	case BFIN_537_ID:
+		model = &op_model_bfin533;
+		model->num_counters = 2;
+		break;
+	default:
+		return -ENODEV;
 	}
 
 	ops->cpu_type = model->name;
@@ -134,9 +134,8 @@ int __init oprofile_arch_init(struct oprofile_operations *ops)
 	ops->start = op_bfin_start;
 	ops->stop = op_bfin_stop;
 
-
 	printk(KERN_INFO "oprofile: using %s performance monitoring.\n",
-        ops->cpu_type);
+	       ops->cpu_type);
 
 	return 0;
 }

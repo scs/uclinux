@@ -32,6 +32,7 @@
  */
 
 #include <linux/smp_lock.h>
+#include <linux/spinlock.h>
 #include <linux/sem.h>
 #include <linux/msg.h>
 #include <linux/shm.h>

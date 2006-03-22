@@ -20,8 +20,14 @@
 *!                                  in the spin-lock.
 *!
 *!  $Log$
-*!  Revision 1.5  2005/08/12 03:32:52  magicyang
-*!    Update kernel 2.6.8 to 2.6.12
+*!  Revision 1.6  2006/03/22 06:14:52  magicyang
+*!  update kernel to 2.6.16
+*!
+*!  Revision 1.12  2005/06/19 17:06:46  starvik
+*!  Merge of Linux 2.6.12.
+*!
+*!  Revision 1.11  2005/01/26 07:14:46  starvik
+*!  Applied diff from kernel janitors (Nish Aravamudan).
 *!
 *!  Revision 1.10  2003/09/11 07:29:48  starvik
 *!  Merge of Linux 2.6.0-test5
@@ -97,6 +103,7 @@
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
+#include <linux/wait.h>
 #include <asm/uaccess.h>
 #include "i2c.h"
 
@@ -529,15 +536,10 @@ static ssize_t eeprom_read(struct file * file, char * buf, size_t count, loff_t 
     return -EFAULT;
   }
   
-  while(eeprom.busy)
-  {
-    interruptible_sleep_on(&eeprom.wait_q);
+  wait_event_interruptible(eeprom.wait_q, !eeprom.busy);
+  if (signal_pending(current))
+    return -EINTR;
 
-    /* bail out if we get interrupted */
-    if (signal_pending(current))
-      return -EINTR;
-    
-  }
   eeprom.busy++;
 
   page = (unsigned char) (p >> 8);
@@ -607,13 +609,10 @@ static ssize_t eeprom_write(struct file * file, const char * buf, size_t count,
     return -EFAULT;
   }
 
-  while(eeprom.busy)
-  {
-    interruptible_sleep_on(&eeprom.wait_q);
-    /* bail out if we get interrupted */
-    if (signal_pending(current))
-      return -EINTR;
-  }
+  wait_event_interruptible(eeprom.wait_q, !eeprom.busy);
+  /* bail out if we get interrupted */
+  if (signal_pending(current))
+    return -EINTR;
   eeprom.busy++;
   for(i = 0; (i < EEPROM_RETRIES) && (restart > 0); i++)
   {

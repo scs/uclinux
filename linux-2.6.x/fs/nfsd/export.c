@@ -26,6 +26,7 @@
 #include <linux/namei.h>
 #include <linux/mount.h>
 #include <linux/hash.h>
+#include <linux/module.h>
 
 #include <linux/sunrpc/svc.h>
 #include <linux/nfsd/nfsd.h>
@@ -189,8 +190,7 @@ static int expkey_parse(struct cache_detail *cd, char *mesg, int mlen)
  out:
 	if (dom)
 		auth_domain_put(dom);
-	if (buf)
-		kfree(buf);
+	kfree(buf);
 	return err;
 }
 
@@ -221,6 +221,7 @@ static int expkey_show(struct seq_file *m,
 }
 	
 struct cache_detail svc_expkey_cache = {
+	.owner		= THIS_MODULE,
 	.hash_size	= EXPKEY_HASHMAX,
 	.hash_table	= expkey_table,
 	.name		= "nfsd.fh",
@@ -426,8 +427,7 @@ static int svc_export_parse(struct cache_detail *cd, char *mesg, int mlen)
 		path_release(&nd);
 	if (dom)
 		auth_domain_put(dom);
-	if (buf)
-		kfree(buf);
+	kfree(buf);
 	return err;
 }
 
@@ -456,6 +456,7 @@ static int svc_export_show(struct seq_file *m,
 	return 0;
 }
 struct cache_detail svc_export_cache = {
+	.owner		= THIS_MODULE,
 	.hash_size	= EXPORT_HASHMAX,
 	.hash_table	= export_table,
 	.name		= "nfsd.export",

@@ -31,23 +31,30 @@
 #include "jfs_acl.h"
 #include "jfs_debug.h"
 
-extern struct inode_operations jfs_file_inode_operations;
-extern struct inode_operations jfs_symlink_inode_operations;
-extern struct file_operations jfs_file_operations;
-extern struct address_space_operations jfs_aops;
-
-extern int jfs_fsync(struct file *, struct dentry *, int);
-extern void jfs_truncate_nolock(struct inode *, loff_t);
-extern int jfs_init_acl(struct inode *, struct inode *);
-
 /*
  * forward references
  */
-struct inode_operations jfs_dir_inode_operations;
-struct file_operations jfs_dir_operations;
 struct dentry_operations jfs_ci_dentry_operations;
 
 static s64 commitZeroLink(tid_t, struct inode *);
+
+/*
+ * NAME:	free_ea_wmap(inode)
+ *
+ * FUNCTION:	free uncommitted extended attributes from working map 
+ *
+ */
+static inline void free_ea_wmap(struct inode *inode)
+{
+	dxd_t *ea = &JFS_IP(inode)->ea;
+
+	if (ea->flag & DXD_EXTENT) {
+		/* free EA pages from cache */
+		invalidate_dxd_metapages(inode, *ea);
+		dbFree(inode, addressDXD(ea), lengthDXD(ea));
+	}
+	ea->flag = 0;
+}
 
 /*
  * NAME:	jfs_create(dip, dentry, mode)
@@ -100,8 +107,19 @@ static int jfs_create(struct inode *dip, struct dentry *dentry, int mode,
 	down(&JFS_IP(dip)->commit_sem);
 	down(&JFS_IP(ip)->commit_sem);
 
+	rc = jfs_init_acl(tid, ip, dip);
+	if (rc)
+		goto out3;
+
+	rc = jfs_init_security(tid, ip, dip);
+	if (rc) {
+		txAbort(tid, 0);
+		goto out3;
+	}
+
 	if ((rc = dtSearch(dip, &dname, &ino, &btstack, JFS_CREATE))) {
 		jfs_err("jfs_create: dtSearch returned %d", rc);
+		txAbort(tid, 0);
 		goto out3;
 	}
 
@@ -150,6 +168,7 @@ static int jfs_create(struct inode *dip, struct dentry *dentry, int mode,
 	up(&JFS_IP(dip)->commit_sem);
 	up(&JFS_IP(ip)->commit_sem);
 	if (rc) {
+		free_ea_wmap(ip);
 		ip->i_nlink = 0;
 		iput(ip);
 	} else
@@ -157,11 +176,6 @@ static int jfs_create(struct inode *dip, struct dentry *dentry, int mode,
 
       out2:
 	free_UCSname(&dname);
-
-#ifdef CONFIG_JFS_POSIX_ACL
-	if (rc == 0)
-		jfs_init_acl(ip, dip);
-#endif
 
       out1:
 
@@ -227,8 +241,19 @@ static int jfs_mkdir(struct inode *dip, struct dentry *dentry, int mode)
 	down(&JFS_IP(dip)->commit_sem);
 	down(&JFS_IP(ip)->commit_sem);
 
+	rc = jfs_init_acl(tid, ip, dip);
+	if (rc)
+		goto out3;
+
+	rc = jfs_init_security(tid, ip, dip);
+	if (rc) {
+		txAbort(tid, 0);
+		goto out3;
+	}
+
 	if ((rc = dtSearch(dip, &dname, &ino, &btstack, JFS_CREATE))) {
 		jfs_err("jfs_mkdir: dtSearch returned %d", rc);
+		txAbort(tid, 0);
 		goto out3;
 	}
 
@@ -278,6 +303,7 @@ static int jfs_mkdir(struct inode *dip, struct dentry *dentry, int mode)
 	up(&JFS_IP(dip)->commit_sem);
 	up(&JFS_IP(ip)->commit_sem);
 	if (rc) {
+		free_ea_wmap(ip);
 		ip->i_nlink = 0;
 		iput(ip);
 	} else
@@ -286,10 +312,6 @@ static int jfs_mkdir(struct inode *dip, struct dentry *dentry, int mode)
       out2:
 	free_UCSname(&dname);
 
-#ifdef CONFIG_JFS_POSIX_ACL
-	if (rc == 0)
-		jfs_init_acl(ip, dip);
-#endif
 
       out1:
 
@@ -655,7 +677,7 @@ static s64 commitZeroLink(tid_t tid, struct inode *ip)
 
 
 /*
- * NAME:	freeZeroLink()
+ * NAME:	jfs_free_zero_link()
  *
  * FUNCTION:    for non-directory, called by iClose(),
  *		free resources of a file from cache and WORKING map 
@@ -663,15 +685,12 @@ static s64 commitZeroLink(tid_t tid, struct inode *ip)
  *		while associated with a pager object,
  *
  * PARAMETER:	ip	- pointer to inode of file.
- *
- * RETURN:	0 -ok
  */
-int freeZeroLink(struct inode *ip)
+void jfs_free_zero_link(struct inode *ip)
 {
-	int rc = 0;
 	int type;
 
-	jfs_info("freeZeroLink: ip = 0x%p", ip);
+	jfs_info("jfs_free_zero_link: ip = 0x%p", ip);
 
 	/* return if not reg or symbolic link or if size is
 	 * already ok.
@@ -684,10 +703,10 @@ int freeZeroLink(struct inode *ip)
 	case S_IFLNK:
 		/* if its contained in inode nothing to do */
 		if (ip->i_size < IDATASIZE)
-			return 0;
+			return;
 		break;
 	default:
-		return 0;
+		return;
 	}
 
 	/*
@@ -737,9 +756,7 @@ int freeZeroLink(struct inode *ip)
 	 * free xtree/data blocks from working block map;
 	 */
 	if (ip->i_size)
-		rc = xtTruncate(0, ip, 0, COMMIT_WMAP);
-
-	return rc;
+		xtTruncate(0, ip, 0, COMMIT_WMAP);
 }
 
 /*
@@ -810,6 +827,7 @@ static int jfs_link(struct dentry *old_dentry,
 	/* update object inode */
 	ip->i_nlink++;		/* for new link */
 	ip->i_ctime = CURRENT_TIME;
+	dir->i_ctime = dir->i_mtime = CURRENT_TIME;
 	mark_inode_dirty(dir);
 	atomic_inc(&ip->i_count);
 
@@ -900,6 +918,10 @@ static int jfs_symlink(struct inode *dip, struct dentry *dentry,
 
 	down(&JFS_IP(dip)->commit_sem);
 	down(&JFS_IP(ip)->commit_sem);
+
+	rc = jfs_init_security(tid, ip, dip);
+	if (rc)
+		goto out3;
 
 	tblk = tid_to_tblock(tid);
 	tblk->xflag |= COMMIT_CREATE;
@@ -1003,6 +1025,8 @@ static int jfs_symlink(struct inode *dip, struct dentry *dentry,
 	insert_inode_hash(ip);
 	mark_inode_dirty(ip);
 
+	dip->i_ctime = dip->i_mtime = CURRENT_TIME;
+	mark_inode_dirty(dip);
 	/*
 	 * commit update of parent directory and link object
 	 */
@@ -1016,6 +1040,7 @@ static int jfs_symlink(struct inode *dip, struct dentry *dentry,
 	up(&JFS_IP(dip)->commit_sem);
 	up(&JFS_IP(ip)->commit_sem);
 	if (rc) {
+		free_ea_wmap(ip);
 		ip->i_nlink = 0;
 		iput(ip);
 	} else
@@ -1023,11 +1048,6 @@ static int jfs_symlink(struct inode *dip, struct dentry *dentry,
 
       out2:
 	free_UCSname(&dname);
-
-#ifdef CONFIG_JFS_POSIX_ACL
-	if (rc == 0)
-		jfs_init_acl(ip, dip);
-#endif
 
       out1:
 	jfs_info("jfs_symlink: rc:%d", rc);
@@ -1344,8 +1364,20 @@ static int jfs_mknod(struct inode *dir, struct dentry *dentry,
 	down(&JFS_IP(dir)->commit_sem);
 	down(&JFS_IP(ip)->commit_sem);
 
-	if ((rc = dtSearch(dir, &dname, &ino, &btstack, JFS_CREATE)))
+	rc = jfs_init_acl(tid, ip, dir);
+	if (rc)
 		goto out3;
+
+	rc = jfs_init_security(tid, ip, dir);
+	if (rc) {
+		txAbort(tid, 0);
+		goto out3;
+	}
+
+	if ((rc = dtSearch(dir, &dname, &ino, &btstack, JFS_CREATE))) {
+		txAbort(tid, 0);
+		goto out3;
+	}
 
 	tblk = tid_to_tblock(tid);
 	tblk->xflag |= COMMIT_CREATE;
@@ -1353,8 +1385,10 @@ static int jfs_mknod(struct inode *dir, struct dentry *dentry,
 	tblk->u.ixpxd = JFS_IP(ip)->ixpxd;
 
 	ino = ip->i_ino;
-	if ((rc = dtInsert(tid, dir, &dname, &ino, &btstack)))
+	if ((rc = dtInsert(tid, dir, &dname, &ino, &btstack))) {
+		txAbort(tid, 0);
 		goto out3;
+	}
 
 	ip->i_op = &jfs_file_inode_operations;
 	jfs_ip->dev = new_encode_dev(rdev);
@@ -1376,6 +1410,7 @@ static int jfs_mknod(struct inode *dir, struct dentry *dentry,
 	up(&JFS_IP(ip)->commit_sem);
 	up(&JFS_IP(dir)->commit_sem);
 	if (rc) {
+		free_ea_wmap(ip);
 		ip->i_nlink = 0;
 		iput(ip);
 	} else
@@ -1383,11 +1418,6 @@ static int jfs_mknod(struct inode *dir, struct dentry *dentry,
 
       out1:
 	free_UCSname(&dname);
-
-#ifdef CONFIG_JFS_POSIX_ACL
-	if (rc == 0)
-		jfs_init_acl(ip, dir);
-#endif
 
       out:
 	jfs_info("jfs_mknod: returning %d", rc);
@@ -1406,6 +1436,8 @@ static struct dentry *jfs_lookup(struct inode *dip, struct dentry *dentry, struc
 
 	jfs_info("jfs_lookup: name = %s", name);
 
+	if (JFS_SBI(dip->i_sb)->mntflag & JFS_OS2)
+		dentry->d_op = &jfs_ci_dentry_operations;
 
 	if ((name[0] == '.') && (len == 1))
 		inum = dip->i_ino;
@@ -1432,9 +1464,6 @@ static struct dentry *jfs_lookup(struct inode *dip, struct dentry *dentry, struc
 			iput(ip);
 		return ERR_PTR(-EACCES);
 	}
-
-	if (JFS_SBI(dip->i_sb)->mntflag & JFS_OS2)
-		dentry->d_op = &jfs_ci_dentry_operations;
 
 	dentry = d_splice_alias(ip, dentry);
 

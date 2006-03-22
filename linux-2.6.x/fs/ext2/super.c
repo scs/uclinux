@@ -19,6 +19,7 @@
 #include <linux/config.h>
 #include <linux/module.h>
 #include <linux/string.h>
+#include <linux/fs.h>
 #include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/blkdev.h>
@@ -27,10 +28,13 @@
 #include <linux/buffer_head.h>
 #include <linux/smp_lock.h>
 #include <linux/vfs.h>
+#include <linux/seq_file.h>
+#include <linux/mount.h>
 #include <asm/uaccess.h>
 #include "ext2.h"
 #include "xattr.h"
 #include "acl.h"
+#include "xip.h"
 
 static void ext2_sync_super(struct super_block *sb,
 			    struct ext2_super_block *es);
@@ -200,6 +204,31 @@ static void ext2_clear_inode(struct inode *inode)
 #endif
 }
 
+static int ext2_show_options(struct seq_file *seq, struct vfsmount *vfs)
+{
+	struct ext2_sb_info *sbi = EXT2_SB(vfs->mnt_sb);
+
+	if (sbi->s_mount_opt & EXT2_MOUNT_GRPID)
+		seq_puts(seq, ",grpid");
+	else
+		seq_puts(seq, ",nogrpid");
+
+#if defined(CONFIG_QUOTA)
+	if (sbi->s_mount_opt & EXT2_MOUNT_USRQUOTA)
+		seq_puts(seq, ",usrquota");
+
+	if (sbi->s_mount_opt & EXT2_MOUNT_GRPQUOTA)
+		seq_puts(seq, ",grpquota");
+#endif
+
+#if defined(CONFIG_EXT2_FS_XIP)
+	if (sbi->s_mount_opt & EXT2_MOUNT_XIP)
+		seq_puts(seq, ",xip");
+#endif
+
+	return 0;
+}
+
 #ifdef CONFIG_QUOTA
 static ssize_t ext2_quota_read(struct super_block *sb, int type, char *data, size_t len, loff_t off);
 static ssize_t ext2_quota_write(struct super_block *sb, int type, const char *data, size_t len, loff_t off);
@@ -217,6 +246,7 @@ static struct super_operations ext2_sops = {
 	.statfs		= ext2_statfs,
 	.remount_fs	= ext2_remount,
 	.clear_inode	= ext2_clear_inode,
+	.show_options	= ext2_show_options,
 #ifdef CONFIG_QUOTA
 	.quota_read	= ext2_quota_read,
 	.quota_write	= ext2_quota_write,
@@ -255,10 +285,11 @@ static unsigned long get_sb_block(void **data)
 
 enum {
 	Opt_bsd_df, Opt_minix_df, Opt_grpid, Opt_nogrpid,
-	Opt_resgid, Opt_resuid, Opt_sb, Opt_err_cont, Opt_err_panic, Opt_err_ro,
-	Opt_nouid32, Opt_check, Opt_nocheck, Opt_debug, Opt_oldalloc, Opt_orlov, Opt_nobh,
-	Opt_user_xattr, Opt_nouser_xattr, Opt_acl, Opt_noacl,
-	Opt_ignore, Opt_err,
+	Opt_resgid, Opt_resuid, Opt_sb, Opt_err_cont, Opt_err_panic,
+	Opt_err_ro, Opt_nouid32, Opt_nocheck, Opt_debug,
+	Opt_oldalloc, Opt_orlov, Opt_nobh, Opt_user_xattr, Opt_nouser_xattr,
+	Opt_acl, Opt_noacl, Opt_xip, Opt_ignore, Opt_err, Opt_quota,
+	Opt_usrquota, Opt_grpquota
 };
 
 static match_table_t tokens = {
@@ -277,7 +308,6 @@ static match_table_t tokens = {
 	{Opt_nouid32, "nouid32"},
 	{Opt_nocheck, "check=none"},
 	{Opt_nocheck, "nocheck"},
-	{Opt_check, "check"},
 	{Opt_debug, "debug"},
 	{Opt_oldalloc, "oldalloc"},
 	{Opt_orlov, "orlov"},
@@ -286,10 +316,11 @@ static match_table_t tokens = {
 	{Opt_nouser_xattr, "nouser_xattr"},
 	{Opt_acl, "acl"},
 	{Opt_noacl, "noacl"},
-	{Opt_ignore, "grpquota"},
+	{Opt_xip, "xip"},
+	{Opt_grpquota, "grpquota"},
 	{Opt_ignore, "noquota"},
-	{Opt_ignore, "quota"},
-	{Opt_ignore, "usrquota"},
+	{Opt_quota, "quota"},
+	{Opt_usrquota, "usrquota"},
 	{Opt_err, NULL}
 };
 
@@ -349,13 +380,6 @@ static int parse_options (char * options,
 		case Opt_nouid32:
 			set_opt (sbi->s_mount_opt, NO_UID32);
 			break;
-		case Opt_check:
-#ifdef CONFIG_EXT2_CHECK
-			set_opt (sbi->s_mount_opt, CHECK);
-#else
-			printk("EXT2 Check option not supported\n");
-#endif
-			break;
 		case Opt_nocheck:
 			clear_opt (sbi->s_mount_opt, CHECK);
 			break;
@@ -397,6 +421,33 @@ static int parse_options (char * options,
 			printk("EXT2 (no)acl options not supported\n");
 			break;
 #endif
+		case Opt_xip:
+#ifdef CONFIG_EXT2_FS_XIP
+			set_opt (sbi->s_mount_opt, XIP);
+#else
+			printk("EXT2 xip option not supported\n");
+#endif
+			break;
+
+#if defined(CONFIG_QUOTA)
+		case Opt_quota:
+		case Opt_usrquota:
+			set_opt(sbi->s_mount_opt, USRQUOTA);
+			break;
+
+		case Opt_grpquota:
+			set_opt(sbi->s_mount_opt, GRPQUOTA);
+			break;
+#else
+		case Opt_quota:
+		case Opt_usrquota:
+		case Opt_grpquota:
+			printk(KERN_ERR
+				"EXT2-fs: quota operations not supported.\n");
+
+			break;
+#endif
+
 		case Opt_ignore:
 			break;
 		default:
@@ -449,12 +500,6 @@ static int ext2_setup_super (struct super_block * sb,
 			EXT2_BLOCKS_PER_GROUP(sb),
 			EXT2_INODES_PER_GROUP(sb),
 			sbi->s_mount_opt);
-#ifdef CONFIG_EXT2_CHECK
-	if (test_opt (sb, CHECK)) {
-		ext2_check_blocks_bitmap (sb);
-		ext2_check_inodes_bitmap (sb);
-	}
-#endif
 	return res;
 }
 
@@ -640,6 +685,9 @@ static int ext2_fill_super(struct super_block *sb, void *data, int silent)
 		((EXT2_SB(sb)->s_mount_opt & EXT2_MOUNT_POSIX_ACL) ?
 		 MS_POSIXACL : 0);
 
+	ext2_xip_verify_sb(sb); /* see if bdev supports xip, unset
+				    EXT2_MOUNT_XIP if not */
+
 	if (le32_to_cpu(es->s_rev_level) == EXT2_GOOD_OLD_REV &&
 	    (EXT2_HAS_COMPAT_FEATURE(sb, ~0U) ||
 	     EXT2_HAS_RO_COMPAT_FEATURE(sb, ~0U) ||
@@ -667,6 +715,13 @@ static int ext2_fill_super(struct super_block *sb, void *data, int silent)
 	}
 
 	blocksize = BLOCK_SIZE << le32_to_cpu(sbi->s_es->s_log_block_size);
+
+	if ((ext2_use_xip(sb)) && ((blocksize != PAGE_SIZE) ||
+				  (sb->s_blocksize != blocksize))) {
+		if (!silent)
+			printk("XIP: Unsupported blocksize\n");
+		goto failed_mount;
+	}
 
 	/* If the blocksize doesn't match, re-read the thing.. */
 	if (sb->s_blocksize != blocksize) {
@@ -831,7 +886,7 @@ static int ext2_fill_super(struct super_block *sb, void *data, int silent)
 	}
 	if (EXT2_HAS_COMPAT_FEATURE(sb, EXT3_FEATURE_COMPAT_HAS_JOURNAL))
 		ext2_warning(sb, __FUNCTION__,
-			"mounting ext3 filesystem as ext2\n");
+			"mounting ext3 filesystem as ext2");
 	ext2_setup_super (sb, es, sb->s_flags & MS_RDONLY);
 	percpu_counter_mod(&sbi->s_freeblocks_counter,
 				ext2_count_free_blocks(sb));
@@ -916,17 +971,34 @@ static int ext2_remount (struct super_block * sb, int * flags, char * data)
 {
 	struct ext2_sb_info * sbi = EXT2_SB(sb);
 	struct ext2_super_block * es;
+	unsigned long old_mount_opt = sbi->s_mount_opt;
+	struct ext2_mount_options old_opts;
+	unsigned long old_sb_flags;
+	int err;
+
+	/* Store the old options */
+	old_sb_flags = sb->s_flags;
+	old_opts.s_mount_opt = sbi->s_mount_opt;
+	old_opts.s_resuid = sbi->s_resuid;
+	old_opts.s_resgid = sbi->s_resgid;
 
 	/*
 	 * Allow the "check" option to be passed as a remount option.
 	 */
-	if (!parse_options (data, sbi))
-		return -EINVAL;
+	if (!parse_options (data, sbi)) {
+		err = -EINVAL;
+		goto restore_opts;
+	}
 
 	sb->s_flags = (sb->s_flags & ~MS_POSIXACL) |
 		((sbi->s_mount_opt & EXT2_MOUNT_POSIX_ACL) ? MS_POSIXACL : 0);
 
 	es = sbi->s_es;
+	if (((sbi->s_mount_opt & EXT2_MOUNT_XIP) !=
+	    (old_mount_opt & EXT2_MOUNT_XIP)) &&
+	    invalidate_inodes(sb))
+		ext2_warning(sb, __FUNCTION__, "busy inodes while remounting "\
+			     "xip remain in cache (no functional problem)");
 	if ((*flags & MS_RDONLY) == (sb->s_flags & MS_RDONLY))
 		return 0;
 	if (*flags & MS_RDONLY) {
@@ -946,7 +1018,8 @@ static int ext2_remount (struct super_block * sb, int * flags, char * data)
 			printk("EXT2-fs: %s: couldn't remount RDWR because of "
 			       "unsupported optional features (%x).\n",
 			       sb->s_id, le32_to_cpu(ret));
-			return -EROFS;
+			err = -EROFS;
+			goto restore_opts;
 		}
 		/*
 		 * Mounting a RDONLY partition read-write, so reread and
@@ -959,6 +1032,12 @@ static int ext2_remount (struct super_block * sb, int * flags, char * data)
 	}
 	ext2_sync_super(sb, es);
 	return 0;
+restore_opts:
+	sbi->s_mount_opt = old_opts.s_mount_opt;
+	sbi->s_resuid = old_opts.s_resuid;
+	sbi->s_resgid = old_opts.s_resgid;
+	sb->s_flags = old_sb_flags;
+	return err;
 }
 
 static int ext2_statfs (struct super_block * sb, struct kstatfs * buf)
@@ -1078,7 +1157,7 @@ static ssize_t ext2_quota_write(struct super_block *sb, int type,
 	struct buffer_head tmp_bh;
 	struct buffer_head *bh;
 
-	down(&inode->i_sem);
+	mutex_lock(&inode->i_mutex);
 	while (towrite > 0) {
 		tocopy = sb->s_blocksize - offset < towrite ?
 				sb->s_blocksize - offset : towrite;
@@ -1115,7 +1194,7 @@ out:
 	inode->i_version++;
 	inode->i_mtime = inode->i_ctime = CURRENT_TIME;
 	mark_inode_dirty(inode);
-	up(&inode->i_sem);
+	mutex_unlock(&inode->i_mutex);
 	return len - towrite;
 }
 

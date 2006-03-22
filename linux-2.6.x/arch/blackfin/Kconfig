@@ -13,10 +13,6 @@ config FPU
 	bool
 	default n
 
-config UID16
-	bool
-	default y
-
 config RWSEM_GENERIC_SPINLOCK
 	bool
 	default y
@@ -29,6 +25,10 @@ config BFIN
 	bool
 	default y
 
+config SEMAPHORE_SLEEPERS
+	bool
+	default y
+
 config UCLINUX
 	bool
 	default y
@@ -36,6 +36,10 @@ config UCLINUX
 config FORCE_MAX_ZONEORDER
 	int
 	default "14"
+
+config GENERIC_CALIBRATE_DELAY
+	bool
+	default y
 
 source "init/Kconfig"
 
@@ -85,7 +89,7 @@ config BF537
 config BF561
 	bool "BF561"
 	help
-	 BF561 Processor Support.
+	 Not Supported Yet - Work in progress - BF561 Processor Support.
 
 endchoice
 
@@ -351,6 +355,8 @@ config	ROMKERNEL
 
 endchoice
 
+source "mm/Kconfig"
+
 
 config LARGE_ALLOCS
 	bool "Allow allocating large blocks (> 1MB) of memory"
@@ -569,8 +575,10 @@ source "drivers/pci/hotplug/Kconfig"
 
 endmenu
 
-menu	"Executable File Formats"
-source	"fs/Kconfig.binfmt"
+menu "Executable file formats"
+
+source "fs/Kconfig.binfmt"
+
 endmenu
 
 menu "Power management options"
@@ -589,73 +597,23 @@ source "drivers/cpufreq/Kconfig"
 config CPU_FREQ
 	bool
 	default n
-	help 
-		If you want to enable this option, you should select DPMC driver from Character Devices 
+	help
+	If you want to enable this option, you should select DPMC driver from Character Devices
 endmenu
 
 endif
 
-
-source "drivers/base/Kconfig"
-
-source "drivers/mtd/Kconfig"
-
-source "drivers/parport/Kconfig"
-
-source "drivers/pnp/Kconfig"
-
-source "drivers/block/Kconfig"
-
-source "drivers/ide/Kconfig"
-
-config IDE_BFIN
-	bool
-	depends on (IDE)
-	default y
-
-source "arch/blackfin/Kconfig.ide"
-
-source "drivers/scsi/Kconfig"
-
-source "drivers/cdrom/Kconfig"
-
-source "drivers/md/Kconfig"
-
-source "drivers/message/fusion/Kconfig"
-
-source "drivers/ieee1394/Kconfig"
-
-source "drivers/message/i2o/Kconfig"
-
 source "net/Kconfig"
 
-source "drivers/isdn/Kconfig"
-
-source "drivers/telephony/Kconfig"
-
-#
-# input before char - char/joystick depends on it. As does USB.
-#
-source "drivers/input/Kconfig"
-
-source "drivers/i2c/Kconfig"
-
-source "drivers/char/Kconfig"
-
-#source drivers/misc/Config.in
-source "drivers/media/Kconfig"
+source "drivers/Kconfig"
 
 source "fs/Kconfig"
-
-source "drivers/video/Kconfig"
-
-source "sound/Kconfig"
-
-source "drivers/usb/Kconfig"
 
 source "arch/blackfin/oprofile/Kconfig"
 
 menu "Kernel hacking"
+
+source "lib/Kconfig.debug"
 
 config DEBUG_INFO
 	bool "Compile the kernel with debug info"
@@ -663,12 +621,6 @@ config DEBUG_INFO
 	  If you say Y here the resulting kernel image will include
 	  debugging info resulting in a larger kernel image.
 	  Say Y here only if you plan to debug the kernel.
-
-config DEBUG_KERNEL
-	bool "Kernel debugging"
-	help
-	  Say Y here if you are developing drivers or trying to debug and
-	  identify kernel problems.
 
 config DEBUG_SERIAL_EARLY_INIT
 	bool 'Initialize serial driver early'
@@ -721,28 +673,6 @@ config DEBUG_HUNT_FOR_ZERO
 	  Say Y here to crash the kernel on reads/writes to anywhere in the
 	  memory range from 0x0000 - 0x0FFF (the first 4k) of memory. This
 	  can make null pointers easier to find.
-
-config DEBUG_SLAB
-	bool "Debug memory allocations"
-	depends on DEBUG_KERNEL
-	help
-	  Say Y here to have the kernel do limited verification on memory
-	  allocation as well as poisoning memory on free to catch use of freed
-	  memory.
-
-config FRAME_POINTER
-	bool "Compile the kernel with frame pointers"
-	help
-	  If you say Y here the resulting kernel image will be slightly larger
-	  and slower, but it will give very useful debugging information.
-	  If you don't debug the kernel, you can say N, but we may not be able
-	  to solve problems without frame pointers.
-
-config MAGIC_SYSRQ
-	bool "Magic SysRq key"
-	help
-	  Enables console device to interpret special characters as
-	  commands to dump state information.
 
 config BOOTPARAM
 	bool 'Compiled-in Kernel Boot Parameter'

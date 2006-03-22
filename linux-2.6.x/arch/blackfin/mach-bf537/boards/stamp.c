@@ -30,7 +30,7 @@
  */
 
 #include <linux/device.h>
-#include <linux/usb_isp1362.h>
+#include <linux/platform_device.h>
 #include <asm/irq.h>
 
 /*
@@ -66,7 +66,7 @@ static struct platform_device smc91x_device = {
 };
 #endif
 
-#ifdef CONFIG_USB_SL811_HCD 
+#ifdef CONFIG_USB_SL811_HCD
 static struct resource sl811_hcd_resources[] = {
 	[0] = {
 	       .start = 0x20340000,
@@ -84,7 +84,7 @@ static struct resource sl811_hcd_resources[] = {
 	       .flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL,
 	       },
 	[3] = {
-	       /*
+		/*
 	        *  denotes the flag pin and is used directly if
 	        *  CONFIG_IRQCHIP_DEMUX_GPIO is defined.
 	        */
@@ -114,11 +114,6 @@ static struct resource isp1362_hcd_resources[] = {
 	       .end = 0x20360004,
 	       .flags = IORESOURCE_MEM,
 	       },
-	[2] = {
-	       .start = IRQ_PROG_INTA,
-	       .end = IRQ_PROG_INTA,
-	       .flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL,
-	       },
 	[4] = {
 	       .start = IRQ_PF0 + CONFIG_USB_ISP1362_BFIN_GPIO,
 	       .end = IRQ_PF0 + CONFIG_USB_ISP1362_BFIN_GPIO,
@@ -127,15 +122,15 @@ static struct resource isp1362_hcd_resources[] = {
 };
 
 static struct isp1362_platform_data isp1362_priv = {
-	.sel15Kres	= 0,
-	.clknotstop	= 1,
+	.sel15kKres	= 1,
+	.clknotstop	= 0,
 	.oc_enable	= 0,
 	.int_act_high	= 0,
 	.int_edge_triggered	= 0,
 	.remote_wakeup_connected	= 0,
-	.no_power_switching	= 0,
-	.power_switching_mode	= 1,
-};
+	.no_power_switching	= 1,
+	.power_switching_mode	= 0,
+}
 
 static struct platform_device isp1362_hcd_device = {
 	.name = "isp1362-hcd",
@@ -190,6 +185,7 @@ static struct platform_device *stamp_devices[] __initdata = {
 #endif
 };
 
+
 static int __init stamp_init(void)
 {
 	printk("%s(): registering device resources\n", __FUNCTION__);
@@ -198,11 +194,11 @@ static int __init stamp_init(void)
 
 void get_bf537_ether_addr(char *addr)
 {
-	  /* currently the mac addr is saved in flash */
-  int flash_mac = 0x203f0000;
-  *(u32 *)(&(addr[0])) = *(int *)flash_mac;
-  flash_mac += 4;
-  *(u16 *)(&(addr[4])) = (u16)*(int *)flash_mac;
+	/* currently the mac addr is saved in flash */
+	int flash_mac = 0x203f0000;
+	*(u32 *)(&(addr[0])) = *(int *)flash_mac;
+	flash_mac += 4;
+	*(u16 *)(&(addr[4])) = (u16)*(int *)flash_mac;
 }
 
 EXPORT_SYMBOL(get_bf537_ether_addr);

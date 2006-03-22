@@ -415,6 +415,10 @@ static int rx_ring_size = RX_RING_SIZE;
 static int ticks_limit = 100;
 static int max_cmd_backlog = TX_RING_SIZE-1;
 
+#ifdef CONFIG_NET_POLL_CONTROLLER
+static void i596_poll_controller(struct net_device *dev);
+#endif
+
 
 static inline void CA(struct net_device *dev)
 {
@@ -553,14 +557,14 @@ static inline void init_rx_bufs(struct net_device *dev)
 		if (skb == NULL)
 			panic("%s: alloc_skb() failed", __FILE__);
 		skb_reserve(skb, 2);
-		dma_addr = dma_map_single(lp->dev, skb->tail,PKT_BUF_SZ,
+		dma_addr = dma_map_single(lp->dev, skb->data,PKT_BUF_SZ,
 					  DMA_FROM_DEVICE);
 		skb->dev = dev;
 		rbd->v_next = rbd+1;
 		rbd->b_next = WSWAPrbd(virt_to_dma(lp,rbd+1));
 		rbd->b_addr = WSWAPrbd(virt_to_dma(lp,rbd));
 		rbd->skb = skb;
-		rbd->v_data = skb->tail;
+		rbd->v_data = skb->data;
 		rbd->b_data = WSWAPchar(dma_addr);
 		rbd->size = PKT_BUF_SZ;
 	}
@@ -636,11 +640,11 @@ static int init_i596_mem(struct net_device *dev)
 
 	disable_irq(dev->irq);	/* disable IRQs from LAN */
 	DEB(DEB_INIT,
-		printk("RESET 82596 port: %p (with IRQ %d disabled)\n",
-		       (void*)(dev->base_addr + PA_I82596_RESET),
+		printk("RESET 82596 port: %lx (with IRQ %d disabled)\n",
+		       (dev->base_addr + PA_I82596_RESET),
 		       dev->irq));
 	
-	gsc_writel(0, (void*)(dev->base_addr + PA_I82596_RESET)); /* Hard Reset */
+	gsc_writel(0, (dev->base_addr + PA_I82596_RESET)); /* Hard Reset */
 	udelay(100);			/* Wait 100us - seems to help */
 
 	/* change the scp address */
@@ -783,8 +787,8 @@ static inline int i596_rx(struct net_device *dev)
 				rx_in_place = 1;
 				rbd->skb = newskb;
 				newskb->dev = dev;
-				dma_addr = dma_map_single(lp->dev, newskb->tail, PKT_BUF_SZ, DMA_FROM_DEVICE);
-				rbd->v_data = newskb->tail;
+				dma_addr = dma_map_single(lp->dev, newskb->data, PKT_BUF_SZ, DMA_FROM_DEVICE);
+				rbd->v_data = newskb->data;
 				rbd->b_data = WSWAPchar(dma_addr);
 				CHECK_WBACK_INV(rbd, sizeof(struct i596_rbd));
 			}
@@ -1209,6 +1213,9 @@ static int __devinit i82596_probe(struct net_device *dev,
 	dev->set_multicast_list = set_multicast_list;
 	dev->tx_timeout = i596_tx_timeout;
 	dev->watchdog_timeo = TX_TIMEOUT;
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	dev->poll_controller = i596_poll_controller;
+#endif
 
 	dev->priv = (void *)(dev->mem_start);
 
@@ -1242,6 +1249,14 @@ static int __devinit i82596_probe(struct net_device *dev,
 	return 0;
 }
 
+#ifdef CONFIG_NET_POLL_CONTROLLER
+static void i596_poll_controller(struct net_device *dev)
+{
+	disable_irq(dev->irq);
+	i596_interrupt(dev->irq, dev, NULL);
+	enable_irq(dev->irq);
+}
+#endif
 
 static irqreturn_t i596_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 {
@@ -1528,17 +1543,18 @@ lan_init_chip(struct parisc_device *dev)
 	
 	if (!dev->irq) {
 		printk(KERN_ERR "%s: IRQ not found for i82596 at 0x%lx\n",
-			__FILE__, dev->hpa);
+			__FILE__, dev->hpa.start);
 		return -ENODEV;
 	}
 
-	printk(KERN_INFO "Found i82596 at 0x%lx, IRQ %d\n", dev->hpa, dev->irq);
+	printk(KERN_INFO "Found i82596 at 0x%lx, IRQ %d\n", dev->hpa.start,
+			dev->irq);
 
 	netdevice = alloc_etherdev(0);
 	if (!netdevice)
 		return -ENOMEM;
 
-	netdevice->base_addr = dev->hpa;
+	netdevice->base_addr = dev->hpa.start;
 	netdevice->irq = dev->irq;
 
 	retval = i82596_probe(netdevice, &dev->dev);
@@ -1566,7 +1582,7 @@ static struct parisc_device_id lan_tbl[] = {
 MODULE_DEVICE_TABLE(parisc, lan_tbl);
 
 static struct parisc_driver lan_driver = {
-	.name		= "Apricot",
+	.name		= "lasi_82596",
 	.id_table	= lan_tbl,
 	.probe		= lan_init_chip,
 };

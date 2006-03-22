@@ -110,16 +110,6 @@ static int debug_fill_super(struct super_block *sb, void *data, int silent)
 	return simple_fill_super(sb, DEBUGFS_MAGIC, debug_files);
 }
 
-static struct dentry * get_dentry(struct dentry *parent, const char *name)
-{               
-	struct qstr qstr;
-
-	qstr.name = name;
-	qstr.len = strlen(name);
-	qstr.hash = full_name_hash(name,qstr.len);
-	return lookup_hash(&qstr,parent);
-}               
-
 static struct super_block *debug_get_sb(struct file_system_type *fs_type,
 				        int flags, const char *dev_name,
 					void *data)
@@ -156,8 +146,8 @@ static int debugfs_create_by_name(const char *name, mode_t mode,
 	}
 
 	*dentry = NULL;
-	down(&parent->d_inode->i_sem);
-	*dentry = get_dentry (parent, name);
+	mutex_lock(&parent->d_inode->i_mutex);
+	*dentry = lookup_one_len(name, parent, strlen(name));
 	if (!IS_ERR(dentry)) {
 		if ((mode & S_IFMT) == S_IFDIR)
 			error = debugfs_mkdir(parent->d_inode, *dentry, mode);
@@ -165,7 +155,7 @@ static int debugfs_create_by_name(const char *name, mode_t mode,
 			error = debugfs_create(parent->d_inode, *dentry, mode);
 	} else
 		error = PTR_ERR(dentry);
-	up(&parent->d_inode->i_sem);
+	mutex_unlock(&parent->d_inode->i_mutex);
 
 	return error;
 }
@@ -283,7 +273,7 @@ void debugfs_remove(struct dentry *dentry)
 	if (!parent || !parent->d_inode)
 		return;
 
-	down(&parent->d_inode->i_sem);
+	mutex_lock(&parent->d_inode->i_mutex);
 	if (debugfs_positive(dentry)) {
 		if (dentry->d_inode) {
 			if (S_ISDIR(dentry->d_inode->i_mode))
@@ -293,7 +283,7 @@ void debugfs_remove(struct dentry *dentry)
 		dput(dentry);
 		}
 	}
-	up(&parent->d_inode->i_sem);
+	mutex_unlock(&parent->d_inode->i_mutex);
 	simple_release_fs(&debugfs_mount, &debugfs_mount_count);
 }
 EXPORT_SYMBOL_GPL(debugfs_remove);

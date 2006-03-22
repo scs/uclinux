@@ -17,9 +17,12 @@
  *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
+#include <linux/capability.h>
 #include <linux/fs.h>
 #include <linux/xattr.h>
+#include <linux/posix_acl_xattr.h>
 #include <linux/quotaops.h>
+#include <linux/security.h>
 #include "jfs_incore.h"
 #include "jfs_superblock.h"
 #include "jfs_dmap.h"
@@ -81,21 +84,6 @@ struct ea_buffer {
 #define EA_NEW		0x0004
 #define EA_MALLOC	0x0008
 
-/* Namespaces */
-#define XATTR_SYSTEM_PREFIX "system."
-#define XATTR_SYSTEM_PREFIX_LEN (sizeof (XATTR_SYSTEM_PREFIX) - 1)
-
-#define XATTR_USER_PREFIX "user."
-#define XATTR_USER_PREFIX_LEN (sizeof (XATTR_USER_PREFIX) - 1)
-
-#define XATTR_OS2_PREFIX "os2."
-#define XATTR_OS2_PREFIX_LEN (sizeof (XATTR_OS2_PREFIX) - 1)
-
-/* XATTR_SECURITY_PREFIX is defined in include/linux/xattr.h */
-#define XATTR_SECURITY_PREFIX_LEN (sizeof (XATTR_SECURITY_PREFIX) - 1)
-
-#define XATTR_TRUSTED_PREFIX "trusted."
-#define XATTR_TRUSTED_PREFIX_LEN (sizeof (XATTR_TRUSTED_PREFIX) - 1)
 
 /*
  * These three routines are used to recognize on-disk extended attributes
@@ -632,12 +620,12 @@ static void ea_release(struct inode *inode, struct ea_buffer *ea_buf)
 	}
 }
 
-static int ea_put(struct inode *inode, struct ea_buffer *ea_buf, int new_size)
+static int ea_put(tid_t tid, struct inode *inode, struct ea_buffer *ea_buf,
+		  int new_size)
 {
 	struct jfs_inode_info *ji = JFS_IP(inode);
 	unsigned long old_blocks, new_blocks;
 	int rc = 0;
-	tid_t tid;
 
 	if (new_size == 0) {
 		ea_release(inode, ea_buf);
@@ -662,9 +650,6 @@ static int ea_put(struct inode *inode, struct ea_buffer *ea_buf, int new_size)
 	}
 	if (rc)
 		return rc;
-
-	tid = txBegin(inode->i_sb, 0);
-	down(&ji->commit_sem);
 
 	old_blocks = new_blocks = 0;
 
@@ -694,11 +679,8 @@ static int ea_put(struct inode *inode, struct ea_buffer *ea_buf, int new_size)
 		DQUOT_FREE_BLOCK(inode, old_blocks);
 
 	inode->i_ctime = CURRENT_TIME;
-	rc = txCommit(tid, 1, &inode, 0);
-	txEnd(tid);
-	up(&ji->commit_sem);
 
-	return rc;
+	return 0;
 }
 
 /*
@@ -718,9 +700,9 @@ static int can_set_system_xattr(struct inode *inode, const char *name,
 		return -EPERM;
 
 	/*
-	 * XATTR_NAME_ACL_ACCESS is tied to i_mode
+	 * POSIX_ACL_XATTR_ACCESS is tied to i_mode
 	 */
-	if (strcmp(name, XATTR_NAME_ACL_ACCESS) == 0) {
+	if (strcmp(name, POSIX_ACL_XATTR_ACCESS) == 0) {
 		acl = posix_acl_from_xattr(value, value_len);
 		if (IS_ERR(acl)) {
 			rc = PTR_ERR(acl);
@@ -750,7 +732,7 @@ static int can_set_system_xattr(struct inode *inode, const char *name,
 		JFS_IP(inode)->i_acl = JFS_ACL_NOT_CACHED;
 
 		return 0;
-	} else if (strcmp(name, XATTR_NAME_ACL_DEFAULT) == 0) {
+	} else if (strcmp(name, POSIX_ACL_XATTR_DEFAULT) == 0) {
 		acl = posix_acl_from_xattr(value, value_len);
 		if (IS_ERR(acl)) {
 			rc = PTR_ERR(acl);
@@ -777,40 +759,27 @@ static int can_set_system_xattr(struct inode *inode, const char *name,
 static int can_set_xattr(struct inode *inode, const char *name,
 			 const void *value, size_t value_len)
 {
-	if (IS_RDONLY(inode))
-		return -EROFS;
-
-	if (IS_IMMUTABLE(inode) || IS_APPEND(inode) || S_ISLNK(inode->i_mode))
-		return -EPERM;
-
-	if(strncmp(name, XATTR_SYSTEM_PREFIX, XATTR_SYSTEM_PREFIX_LEN) == 0)
-		/*
-		 * "system.*"
-		 */
+	if (!strncmp(name, XATTR_SYSTEM_PREFIX, XATTR_SYSTEM_PREFIX_LEN))
 		return can_set_system_xattr(inode, name, value, value_len);
 
-	if(strncmp(name, XATTR_TRUSTED_PREFIX, XATTR_TRUSTED_PREFIX_LEN) != 0)
-		return (capable(CAP_SYS_ADMIN) ? 0 : -EPERM);
-
-#ifdef CONFIG_JFS_SECURITY
-	if (strncmp(name, XATTR_SECURITY_PREFIX, XATTR_SECURITY_PREFIX_LEN)
-	    != 0)
-		return 0;	/* Leave it to the security module */
-#endif
-		
-	if((strncmp(name, XATTR_USER_PREFIX, XATTR_USER_PREFIX_LEN) != 0) &&
-	   (strncmp(name, XATTR_OS2_PREFIX, XATTR_OS2_PREFIX_LEN) != 0))
+	/*
+	 * Don't allow setting an attribute in an unknown namespace.
+	 */
+	if (strncmp(name, XATTR_TRUSTED_PREFIX, XATTR_TRUSTED_PREFIX_LEN) &&
+	    strncmp(name, XATTR_SECURITY_PREFIX, XATTR_SECURITY_PREFIX_LEN) &&
+	    strncmp(name, XATTR_USER_PREFIX, XATTR_USER_PREFIX_LEN) &&
+	    strncmp(name, XATTR_OS2_PREFIX, XATTR_OS2_PREFIX_LEN))
 		return -EOPNOTSUPP;
 
 	if (!S_ISREG(inode->i_mode) &&
 	    (!S_ISDIR(inode->i_mode) || inode->i_mode &S_ISVTX))
 		return -EPERM;
 
-	return permission(inode, MAY_WRITE, NULL);
+	return 0;
 }
 
-int __jfs_setxattr(struct inode *inode, const char *name, const void *value,
-		   size_t value_len, int flags)
+int __jfs_setxattr(tid_t tid, struct inode *inode, const char *name,
+		   const void *value, size_t value_len, int flags)
 {
 	struct jfs_ea_list *ealist;
 	struct jfs_ea *ea, *old_ea = NULL, *next_ea = NULL;
@@ -823,9 +792,6 @@ int __jfs_setxattr(struct inode *inode, const char *name, const void *value,
 	int found = 0;
 	int rc;
 	int length;
-
-	if ((rc = can_set_xattr(inode, name, value, value_len)))
-		return rc;
 
 	if (strncmp(name, XATTR_OS2_PREFIX, XATTR_OS2_PREFIX_LEN) == 0) {
 		os2name = kmalloc(namelen - XATTR_OS2_PREFIX_LEN + 1,
@@ -938,7 +904,7 @@ int __jfs_setxattr(struct inode *inode, const char *name, const void *value,
 
 	ealist->size = cpu_to_le32(new_size);
 
-	rc = ea_put(inode, &ea_buf, new_size);
+	rc = ea_put(tid, inode, &ea_buf, new_size);
 
 	goto out;
       release:
@@ -946,8 +912,7 @@ int __jfs_setxattr(struct inode *inode, const char *name, const void *value,
       out:
 	up_write(&JFS_IP(inode)->xattr_sem);
 
-	if (os2name)
-		kfree(os2name);
+	kfree(os2name);
 
 	return rc;
 }
@@ -955,28 +920,29 @@ int __jfs_setxattr(struct inode *inode, const char *name, const void *value,
 int jfs_setxattr(struct dentry *dentry, const char *name, const void *value,
 		 size_t value_len, int flags)
 {
+	struct inode *inode = dentry->d_inode;
+	struct jfs_inode_info *ji = JFS_IP(inode);
+	int rc;
+	tid_t tid;
+
+	if ((rc = can_set_xattr(inode, name, value, value_len)))
+		return rc;
+
 	if (value == NULL) {	/* empty EA, do not remove */
 		value = "";
 		value_len = 0;
 	}
 
-	return __jfs_setxattr(dentry->d_inode, name, value, value_len, flags);
-}
+	tid = txBegin(inode->i_sb, 0);
+	down(&ji->commit_sem);
+	rc = __jfs_setxattr(tid, dentry->d_inode, name, value, value_len,
+			    flags);
+	if (!rc)
+		rc = txCommit(tid, 1, &inode, 0);
+	txEnd(tid);
+	up(&ji->commit_sem);
 
-static int can_get_xattr(struct inode *inode, const char *name)
-{
-#ifdef CONFIG_JFS_SECURITY
-	if(strncmp(name, XATTR_SECURITY_PREFIX, XATTR_SECURITY_PREFIX_LEN) == 0)
-		return 0;
-#endif
-
-	if(strncmp(name, XATTR_TRUSTED_PREFIX, XATTR_TRUSTED_PREFIX_LEN) == 0)
-		return (capable(CAP_SYS_ADMIN) ? 0 : -EPERM);
-
-	if(strncmp(name, XATTR_SYSTEM_PREFIX, XATTR_SYSTEM_PREFIX_LEN) == 0)
-		return 0;
-
-	return permission(inode, MAY_READ, NULL);
+	return rc;
 }
 
 ssize_t __jfs_getxattr(struct inode *inode, const char *name, void *data,
@@ -989,11 +955,7 @@ ssize_t __jfs_getxattr(struct inode *inode, const char *name, void *data,
 	ssize_t size;
 	int namelen = strlen(name);
 	char *os2name = NULL;
-	int rc;
 	char *value;
-
-	if ((rc = can_get_xattr(inode, name)))
-		return rc;
 
 	if (strncmp(name, XATTR_OS2_PREFIX, XATTR_OS2_PREFIX_LEN) == 0) {
 		os2name = kmalloc(namelen - XATTR_OS2_PREFIX_LEN + 1,
@@ -1042,8 +1004,7 @@ ssize_t __jfs_getxattr(struct inode *inode, const char *name, void *data,
       out:
 	up_read(&JFS_IP(inode)->xattr_sem);
 
-	if (os2name)
-		kfree(os2name);
+	kfree(os2name);
 
 	return size;
 }
@@ -1123,5 +1084,56 @@ ssize_t jfs_listxattr(struct dentry * dentry, char *data, size_t buf_size)
 
 int jfs_removexattr(struct dentry *dentry, const char *name)
 {
-	return __jfs_setxattr(dentry->d_inode, name, NULL, 0, XATTR_REPLACE);
+	struct inode *inode = dentry->d_inode;
+	struct jfs_inode_info *ji = JFS_IP(inode);
+	int rc;
+	tid_t tid;
+
+	if ((rc = can_set_xattr(inode, name, NULL, 0)))
+		return rc;
+
+	tid = txBegin(inode->i_sb, 0);
+	down(&ji->commit_sem);
+	rc = __jfs_setxattr(tid, dentry->d_inode, name, NULL, 0, XATTR_REPLACE);
+	if (!rc)
+		rc = txCommit(tid, 1, &inode, 0);
+	txEnd(tid);
+	up(&ji->commit_sem);
+
+	return rc;
 }
+
+#ifdef CONFIG_JFS_SECURITY
+int jfs_init_security(tid_t tid, struct inode *inode, struct inode *dir)
+{
+	int rc;
+	size_t len;
+	void *value;
+	char *suffix;
+	char *name;
+
+	rc = security_inode_init_security(inode, dir, &suffix, &value, &len);
+	if (rc) {
+		if (rc == -EOPNOTSUPP)
+			return 0;
+		return rc;
+	}
+	name = kmalloc(XATTR_SECURITY_PREFIX_LEN + 1 + strlen(suffix),
+		       GFP_NOFS);
+	if (!name) {
+		rc = -ENOMEM;
+		goto kmalloc_failed;
+	}
+	strcpy(name, XATTR_SECURITY_PREFIX);
+	strcpy(name + XATTR_SECURITY_PREFIX_LEN, suffix);
+
+	rc = __jfs_setxattr(tid, inode, name, value, len, 0);
+
+	kfree(name);
+kmalloc_failed:
+	kfree(suffix);
+	kfree(value);
+
+	return rc;
+}
+#endif

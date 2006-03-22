@@ -264,16 +264,19 @@ asmlinkage void trap_c(struct pt_regs *fp)
 }
 
 /* Typical exception handling routines	*/
-void show_stack(struct task_struct *task, unsigned long *esp)
+void show_stack(struct task_struct *task, unsigned long *stack)
 {
-	unsigned long *stack, *endstack, addr;
+	unsigned long *endstack, addr;
 	int i;
 
-	if (esp == NULL)
-		esp = (unsigned long *)&esp;
+	if (!stack) {
+		if (task)
+			stack = (unsigned long *)task->thread.ksp;
+		else
+			stack = (unsigned long *)&stack;
+	}
 
-	stack = esp;
-	addr = (unsigned long)esp;
+	addr = (unsigned long)stack;
 	endstack = (unsigned long *)PAGE_ALIGN(addr);
 
 	printk(KERN_EMERG "Stack from %08lx:", (unsigned long)stack);

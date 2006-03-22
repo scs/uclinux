@@ -69,7 +69,13 @@ VERSION 2.2LK	<2005/01/25>
 #include <asm/io.h>
 #include <asm/irq.h>
 
-#define RTL8169_VERSION "2.2LK"
+#ifdef CONFIG_R8169_NAPI
+#define NAPI_SUFFIX	"-NAPI"
+#else
+#define NAPI_SUFFIX	""
+#endif
+
+#define RTL8169_VERSION "2.2LK" NAPI_SUFFIX
 #define MODULENAME "r8169"
 #define PFX MODULENAME ": "
 
@@ -85,16 +91,19 @@ VERSION 2.2LK	<2005/01/25>
 #define dprintk(fmt, args...)	do {} while (0)
 #endif /* RTL8169_DEBUG */
 
+#define R8169_MSG_DEFAULT \
+	(NETIF_MSG_DRV | NETIF_MSG_PROBE | NETIF_MSG_IFUP | NETIF_MSG_IFDOWN)
+
 #define TX_BUFFS_AVAIL(tp) \
 	(tp->dirty_tx + NUM_TX_DESC - tp->cur_tx - 1)
 
 #ifdef CONFIG_R8169_NAPI
 #define rtl8169_rx_skb			netif_receive_skb
-#define rtl8169_rx_hwaccel_skb		vlan_hwaccel_rx
+#define rtl8169_rx_hwaccel_skb		vlan_hwaccel_receive_skb
 #define rtl8169_rx_quota(count, quota)	min(count, quota)
 #else
 #define rtl8169_rx_skb			netif_rx
-#define rtl8169_rx_hwaccel_skb		vlan_hwaccel_receive_skb
+#define rtl8169_rx_hwaccel_skb		vlan_hwaccel_rx
 #define rtl8169_rx_quota(count, quota)	count
 #endif
 
@@ -161,7 +170,7 @@ enum phy_version {
 #define _R(NAME,MAC,MASK) \
 	{ .name = NAME, .mac_version = MAC, .RxConfigMask = MASK }
 
-const static struct {
+static const struct {
 	const char *name;
 	u8 mac_version;
 	u32 RxConfigMask;	/* Clears the bits supported by this chip */
@@ -174,8 +183,10 @@ const static struct {
 #undef _R
 
 static struct pci_device_id rtl8169_pci_tbl[] = {
-	{0x10ec, 0x8169, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{0x1186, 0x4300, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
+	{ PCI_DEVICE(PCI_VENDOR_ID_REALTEK,	0x8169), },
+	{ PCI_DEVICE(PCI_VENDOR_ID_DLINK,	0x4300), },
+	{ PCI_DEVICE(0x16ec,			0x0116), },
+	{ PCI_VENDOR_ID_LINKSYS,		0x1032, PCI_ANY_ID, 0x0024, },
 	{0,},
 };
 
@@ -183,10 +194,15 @@ MODULE_DEVICE_TABLE(pci, rtl8169_pci_tbl);
 
 static int rx_copybreak = 200;
 static int use_dac;
+static struct {
+	u32 msg_enable;
+} debug = { -1 };
 
 enum RTL8169_registers {
 	MAC0 = 0,		/* Ethernet hardware address. */
 	MAR0 = 8,		/* Multicast filter. */
+	CounterAddrLow = 0x10,
+	CounterAddrHigh = 0x14,
 	TxDescStartAddrLow = 0x20,
 	TxDescStartAddrHigh = 0x24,
 	TxHDescStartAddrLow = 0x28,
@@ -271,6 +287,20 @@ enum RTL8169_register_content {
 	TxInterFrameGapShift = 24,
 	TxDMAShift = 8,	/* DMA burst value (0-7) is shift this many bits */
 
+	/* Config1 register p.24 */
+	PMEnable	= (1 << 0),	/* Power Management Enable */
+
+	/* Config3 register p.25 */
+	MagicPacket	= (1 << 5),	/* Wake up when receives a Magic Packet */
+	LinkUp		= (1 << 4),	/* Wake up when the cable connection is re-established */
+
+	/* Config5 register p.27 */
+	BWF		= (1 << 6),	/* Accept Broadcast wakeup frame */
+	MWF		= (1 << 5),	/* Accept Multicast wakeup frame */
+	UWF		= (1 << 4),	/* Accept Unicast wakeup frame */
+	LanWake		= (1 << 1),	/* LanWake enable/disable */
+	PMEStatus	= (1 << 0),	/* PME status can be reset by PCI RST# */
+
 	/* TBICSR p.28 */
 	TBIReset	= 0x80000000,
 	TBILoopback	= 0x40000000,
@@ -328,6 +358,9 @@ enum RTL8169_register_content {
 
 	/* _TBICSRBit */
 	TBILinkOK = 0x02000000,
+
+	/* DumpCounterCommand */
+	CounterDump = 0x8,
 };
 
 enum _DescStatusBit {
@@ -385,6 +418,7 @@ struct rtl8169_private {
 	struct pci_dev *pci_dev;	/* Index of PCI device */
 	struct net_device_stats stats;	/* statistics of net device */
 	spinlock_t lock;		/* spin lock flag */
+	u32 msg_enable;
 	int chipset;
 	int mac_version;
 	int phy_version;
@@ -413,14 +447,19 @@ struct rtl8169_private {
 	unsigned int (*phy_reset_pending)(void __iomem *);
 	unsigned int (*link_ok)(void __iomem *);
 	struct work_struct task;
+	unsigned wol_enabled : 1;
 };
 
 MODULE_AUTHOR("Realtek and the Linux r8169 crew <netdev@vger.kernel.org>");
 MODULE_DESCRIPTION("RealTek RTL-8169 Gigabit Ethernet driver");
 module_param_array(media, int, &num_media, 0);
+MODULE_PARM_DESC(media, "force phy operation. Deprecated by ethtool (8).");
 module_param(rx_copybreak, int, 0);
+MODULE_PARM_DESC(rx_copybreak, "Copy breakpoint for copy-only-tiny-frames");
 module_param(use_dac, int, 0);
 MODULE_PARM_DESC(use_dac, "Enable PCI DAC. Unsafe on 32 bit PCI slot.");
+module_param_named(debug, debug.msg_enable, int, 0);
+MODULE_PARM_DESC(debug, "Debug verbosity level (0=none, ..., 16=all)");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(RTL8169_VERSION);
 
@@ -433,10 +472,10 @@ static void rtl8169_hw_start(struct net_device *dev);
 static int rtl8169_close(struct net_device *dev);
 static void rtl8169_set_rx_mode(struct net_device *dev);
 static void rtl8169_tx_timeout(struct net_device *dev);
-static struct net_device_stats *rtl8169_get_stats(struct net_device *netdev);
+static struct net_device_stats *rtl8169_get_stats(struct net_device *dev);
 static int rtl8169_rx_interrupt(struct net_device *, struct rtl8169_private *,
 				void __iomem *);
-static int rtl8169_change_mtu(struct net_device *netdev, int new_mtu);
+static int rtl8169_change_mtu(struct net_device *dev, int new_mtu);
 static void rtl8169_down(struct net_device *dev);
 
 #ifdef CONFIG_R8169_NAPI
@@ -460,13 +499,12 @@ static void mdio_write(void __iomem *ioaddr, int RegAddr, int value)
 	int i;
 
 	RTL_W32(PHYAR, 0x80000000 | (RegAddr & 0xFF) << 16 | value);
-	udelay(1000);
 
-	for (i = 2000; i > 0; i--) {
+	for (i = 20; i > 0; i--) {
 		/* Check if the RTL8169 has completed writing to the specified MII register */
 		if (!(RTL_R32(PHYAR) & 0x80000000)) 
 			break;
-		udelay(100);
+		udelay(25);
 	}
 }
 
@@ -475,15 +513,14 @@ static int mdio_read(void __iomem *ioaddr, int RegAddr)
 	int i, value = -1;
 
 	RTL_W32(PHYAR, 0x0 | (RegAddr & 0xFF) << 16);
-	udelay(1000);
 
-	for (i = 2000; i > 0; i--) {
+	for (i = 20; i > 0; i--) {
 		/* Check if the RTL8169 has completed retrieving data from the specified MII register */
 		if (RTL_R32(PHYAR) & 0x80000000) {
 			value = (int) (RTL_R32(PHYAR) & 0xFFFF);
 			break;
 		}
-		udelay(100);
+		udelay(25);
 	}
 	return value;
 }
@@ -543,9 +580,13 @@ static void rtl8169_check_link_status(struct net_device *dev,
 	spin_lock_irqsave(&tp->lock, flags);
 	if (tp->link_ok(ioaddr)) {
 		netif_carrier_on(dev);
-		printk(KERN_INFO PFX "%s: link up\n", dev->name);
-	} else
+		if (netif_msg_ifup(tp))
+			printk(KERN_INFO PFX "%s: link up\n", dev->name);
+	} else {
+		if (netif_msg_ifdown(tp))
+			printk(KERN_INFO PFX "%s: link down\n", dev->name);
 		netif_carrier_off(dev);
+	}
 	spin_unlock_irqrestore(&tp->lock, flags);
 }
 
@@ -569,7 +610,7 @@ static void rtl8169_link_option(int idx, u8 *autoneg, u16 *speed, u8 *duplex)
 	
 	option = ((idx < MAX_UNITS) && (idx >= 0)) ? media[idx] : 0xff;
 
-	if ((option != 0xff) && !idx)
+	if ((option != 0xff) && !idx && netif_msg_drv(&debug))
 		printk(KERN_WARNING PFX "media option is deprecated.\n");
 
 	for (p = link_settings; p->media != 0xff; p++) {
@@ -579,6 +620,80 @@ static void rtl8169_link_option(int idx, u8 *autoneg, u16 *speed, u8 *duplex)
 	*autoneg = p->autoneg;
 	*speed = p->speed;
 	*duplex = p->duplex;
+}
+
+static void rtl8169_get_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
+{
+	struct rtl8169_private *tp = netdev_priv(dev);
+	void __iomem *ioaddr = tp->mmio_addr;
+	u8 options;
+
+	wol->wolopts = 0;
+
+#define WAKE_ANY (WAKE_PHY | WAKE_MAGIC | WAKE_UCAST | WAKE_BCAST | WAKE_MCAST)
+	wol->supported = WAKE_ANY;
+
+	spin_lock_irq(&tp->lock);
+
+	options = RTL_R8(Config1);
+	if (!(options & PMEnable))
+		goto out_unlock;
+
+	options = RTL_R8(Config3);
+	if (options & LinkUp)
+		wol->wolopts |= WAKE_PHY;
+	if (options & MagicPacket)
+		wol->wolopts |= WAKE_MAGIC;
+
+	options = RTL_R8(Config5);
+	if (options & UWF)
+		wol->wolopts |= WAKE_UCAST;
+	if (options & BWF)
+	        wol->wolopts |= WAKE_BCAST;
+	if (options & MWF)
+	        wol->wolopts |= WAKE_MCAST;
+
+out_unlock:
+	spin_unlock_irq(&tp->lock);
+}
+
+static int rtl8169_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
+{
+	struct rtl8169_private *tp = netdev_priv(dev);
+	void __iomem *ioaddr = tp->mmio_addr;
+	int i;
+	static struct {
+		u32 opt;
+		u16 reg;
+		u8  mask;
+	} cfg[] = {
+		{ WAKE_ANY,   Config1, PMEnable },
+		{ WAKE_PHY,   Config3, LinkUp },
+		{ WAKE_MAGIC, Config3, MagicPacket },
+		{ WAKE_UCAST, Config5, UWF },
+		{ WAKE_BCAST, Config5, BWF },
+		{ WAKE_MCAST, Config5, MWF },
+		{ WAKE_ANY,   Config5, LanWake }
+	};
+
+	spin_lock_irq(&tp->lock);
+
+	RTL_W8(Cfg9346, Cfg9346_Unlock);
+
+	for (i = 0; i < ARRAY_SIZE(cfg); i++) {
+		u8 options = RTL_R8(cfg[i].reg) & ~cfg[i].mask;
+		if (wol->wolopts & cfg[i].opt)
+			options |= cfg[i].mask;
+		RTL_W8(cfg[i].reg, options);
+	}
+
+	RTL_W8(Cfg9346, Cfg9346_Lock);
+
+	tp->wol_enabled = (wol->wolopts) ? 1 : 0;
+
+	spin_unlock_irq(&tp->lock);
+
+	return 0;
 }
 
 static void rtl8169_get_drvinfo(struct net_device *dev,
@@ -611,9 +726,11 @@ static int rtl8169_set_speed_tbi(struct net_device *dev,
 	} else if (autoneg == AUTONEG_ENABLE)
 		RTL_W32(TBICSR, reg | TBINwEnable | TBINwRestart);
 	else {
-		printk(KERN_WARNING PFX
-		       "%s: incorrect speed setting refused in TBI mode\n",
-		       dev->name);
+		if (netif_msg_link(tp)) {
+			printk(KERN_WARNING "%s: "
+			       "incorrect speed setting refused in TBI mode\n",
+			       dev->name);
+		}
 		ret = -EOPNOTSUPP;
 	}
 
@@ -647,6 +764,9 @@ static int rtl8169_set_speed_xmii(struct net_device *dev,
 
 		if (duplex == DUPLEX_HALF)
 			auto_nego &= ~(PHY_Cap_10_Full | PHY_Cap_100_Full);
+
+		if (duplex == DUPLEX_FULL)
+			auto_nego &= ~(PHY_Cap_10_Half | PHY_Cap_100_Half);
 	}
 
 	tp->phy_auto_nego_reg = auto_nego;
@@ -871,12 +991,120 @@ static void rtl8169_get_regs(struct net_device *dev, struct ethtool_regs *regs,
         spin_unlock_irqrestore(&tp->lock, flags);
 }
 
+static u32 rtl8169_get_msglevel(struct net_device *dev)
+{
+	struct rtl8169_private *tp = netdev_priv(dev);
+
+	return tp->msg_enable;
+}
+
+static void rtl8169_set_msglevel(struct net_device *dev, u32 value)
+{
+	struct rtl8169_private *tp = netdev_priv(dev);
+
+	tp->msg_enable = value;
+}
+
+static const char rtl8169_gstrings[][ETH_GSTRING_LEN] = {
+	"tx_packets",
+	"rx_packets",
+	"tx_errors",
+	"rx_errors",
+	"rx_missed",
+	"align_errors",
+	"tx_single_collisions",
+	"tx_multi_collisions",
+	"unicast",
+	"broadcast",
+	"multicast",
+	"tx_aborted",
+	"tx_underrun",
+};
+
+struct rtl8169_counters {
+	u64	tx_packets;
+	u64	rx_packets;
+	u64	tx_errors;
+	u32	rx_errors;
+	u16	rx_missed;
+	u16	align_errors;
+	u32	tx_one_collision;
+	u32	tx_multi_collision;
+	u64	rx_unicast;
+	u64	rx_broadcast;
+	u32	rx_multicast;
+	u16	tx_aborted;
+	u16	tx_underun;
+};
+
+static int rtl8169_get_stats_count(struct net_device *dev)
+{
+	return ARRAY_SIZE(rtl8169_gstrings);
+}
+
+static void rtl8169_get_ethtool_stats(struct net_device *dev,
+				      struct ethtool_stats *stats, u64 *data)
+{
+	struct rtl8169_private *tp = netdev_priv(dev);
+	void __iomem *ioaddr = tp->mmio_addr;
+	struct rtl8169_counters *counters;
+	dma_addr_t paddr;
+	u32 cmd;
+
+	ASSERT_RTNL();
+
+	counters = pci_alloc_consistent(tp->pci_dev, sizeof(*counters), &paddr);
+	if (!counters)
+		return;
+
+	RTL_W32(CounterAddrHigh, (u64)paddr >> 32);
+	cmd = (u64)paddr & DMA_32BIT_MASK;
+	RTL_W32(CounterAddrLow, cmd);
+	RTL_W32(CounterAddrLow, cmd | CounterDump);
+
+	while (RTL_R32(CounterAddrLow) & CounterDump) {
+		if (msleep_interruptible(1))
+			break;
+	}
+
+	RTL_W32(CounterAddrLow, 0);
+	RTL_W32(CounterAddrHigh, 0);
+
+	data[0]	= le64_to_cpu(counters->tx_packets);
+	data[1] = le64_to_cpu(counters->rx_packets);
+	data[2] = le64_to_cpu(counters->tx_errors);
+	data[3] = le32_to_cpu(counters->rx_errors);
+	data[4] = le16_to_cpu(counters->rx_missed);
+	data[5] = le16_to_cpu(counters->align_errors);
+	data[6] = le32_to_cpu(counters->tx_one_collision);
+	data[7] = le32_to_cpu(counters->tx_multi_collision);
+	data[8] = le64_to_cpu(counters->rx_unicast);
+	data[9] = le64_to_cpu(counters->rx_broadcast);
+	data[10] = le32_to_cpu(counters->rx_multicast);
+	data[11] = le16_to_cpu(counters->tx_aborted);
+	data[12] = le16_to_cpu(counters->tx_underun);
+
+	pci_free_consistent(tp->pci_dev, sizeof(*counters), counters, paddr);
+}
+
+static void rtl8169_get_strings(struct net_device *dev, u32 stringset, u8 *data)
+{
+	switch(stringset) {
+	case ETH_SS_STATS:
+		memcpy(data, *rtl8169_gstrings, sizeof(rtl8169_gstrings));
+		break;
+	}
+}
+
+
 static struct ethtool_ops rtl8169_ethtool_ops = {
 	.get_drvinfo		= rtl8169_get_drvinfo,
 	.get_regs_len		= rtl8169_get_regs_len,
 	.get_link		= ethtool_op_get_link,
 	.get_settings		= rtl8169_get_settings,
 	.set_settings		= rtl8169_set_settings,
+	.get_msglevel		= rtl8169_get_msglevel,
+	.set_msglevel		= rtl8169_set_msglevel,
 	.get_rx_csum		= rtl8169_get_rx_csum,
 	.set_rx_csum		= rtl8169_set_rx_csum,
 	.get_tx_csum		= ethtool_op_get_tx_csum,
@@ -886,6 +1114,12 @@ static struct ethtool_ops rtl8169_ethtool_ops = {
 	.get_tso		= ethtool_op_get_tso,
 	.set_tso		= ethtool_op_set_tso,
 	.get_regs		= rtl8169_get_regs,
+	.get_wol		= rtl8169_get_wol,
+	.set_wol		= rtl8169_set_wol,
+	.get_strings		= rtl8169_get_strings,
+	.get_stats_count	= rtl8169_get_stats_count,
+	.get_ethtool_stats	= rtl8169_get_ethtool_stats,
+	.get_perm_addr		= ethtool_op_get_perm_addr,
 };
 
 static void rtl8169_write_gmii_reg_bit(void __iomem *ioaddr, int reg, int bitnum,
@@ -1091,7 +1325,8 @@ static void rtl8169_phy_timer(unsigned long __opaque)
 	if (tp->link_ok(ioaddr))
 		goto out_unlock;
 
-	printk(KERN_WARNING PFX "%s: PHY reset until link up\n", dev->name);
+	if (netif_msg_link(tp))
+		printk(KERN_WARNING "%s: PHY reset until link up\n", dev->name);
 
 	tp->phy_reset_enable(ioaddr);
 
@@ -1169,18 +1404,23 @@ rtl8169_init_board(struct pci_dev *pdev, struct net_device **dev_out,
 	/* dev zeroed in alloc_etherdev */
 	dev = alloc_etherdev(sizeof (*tp));
 	if (dev == NULL) {
-		printk(KERN_ERR PFX "unable to alloc new ethernet\n");
+		if (netif_msg_drv(&debug))
+			printk(KERN_ERR PFX "unable to alloc new ethernet\n");
 		goto err_out;
 	}
 
 	SET_MODULE_OWNER(dev);
 	SET_NETDEV_DEV(dev, &pdev->dev);
 	tp = netdev_priv(dev);
+	tp->msg_enable = netif_msg_init(debug.msg_enable, R8169_MSG_DEFAULT);
 
 	/* enable device (incl. PCI PM wakeup and hotplug setup) */
 	rc = pci_enable_device(pdev);
-	if (rc) {
-		printk(KERN_ERR PFX "%s: enable failure\n", pci_name(pdev));
+	if (rc < 0) {
+		if (netif_msg_probe(tp)) {
+			printk(KERN_ERR PFX "%s: enable failure\n",
+			       pci_name(pdev));
+		}
 		goto err_out_free_dev;
 	}
 
@@ -1196,29 +1436,37 @@ rtl8169_init_board(struct pci_dev *pdev, struct net_device **dev_out,
 		pci_read_config_word(pdev, pm_cap + PCI_PM_CTRL, &pwr_command);
 		acpi_idle_state = pwr_command & PCI_PM_CTRL_STATE_MASK;
 	} else {
-		printk(KERN_ERR PFX
-		       "Cannot find PowerManagement capability, aborting.\n");
-		goto err_out_mwi;
+		if (netif_msg_probe(tp)) {
+			printk(KERN_ERR PFX
+			       "PowerManagement capability not found.\n");
+		}
 	}
 
 	/* make sure PCI base addr 1 is MMIO */
 	if (!(pci_resource_flags(pdev, 1) & IORESOURCE_MEM)) {
-		printk(KERN_ERR PFX
-		       "region #1 not an MMIO resource, aborting\n");
+		if (netif_msg_probe(tp)) {
+			printk(KERN_ERR PFX
+			       "region #1 not an MMIO resource, aborting\n");
+		}
 		rc = -ENODEV;
 		goto err_out_mwi;
 	}
 	/* check for weird/broken PCI region reporting */
 	if (pci_resource_len(pdev, 1) < R8169_REGS_SIZE) {
-		printk(KERN_ERR PFX "Invalid PCI region size(s), aborting\n");
+		if (netif_msg_probe(tp)) {
+			printk(KERN_ERR PFX
+			       "Invalid PCI region size(s), aborting\n");
+		}
 		rc = -ENODEV;
 		goto err_out_mwi;
 	}
 
 	rc = pci_request_regions(pdev, MODULENAME);
-	if (rc) {
-		printk(KERN_ERR PFX "%s: could not request regions.\n",
-		       pci_name(pdev));
+	if (rc < 0) {
+		if (netif_msg_probe(tp)) {
+			printk(KERN_ERR PFX "%s: could not request regions.\n",
+			       pci_name(pdev));
+		}
 		goto err_out_mwi;
 	}
 
@@ -1231,7 +1479,10 @@ rtl8169_init_board(struct pci_dev *pdev, struct net_device **dev_out,
 	} else {
 		rc = pci_set_dma_mask(pdev, DMA_32BIT_MASK);
 		if (rc < 0) {
-			printk(KERN_ERR PFX "DMA configuration failed.\n");
+			if (netif_msg_probe(tp)) {
+				printk(KERN_ERR PFX
+				       "DMA configuration failed.\n");
+			}
 			goto err_out_free_res;
 		}
 	}
@@ -1241,7 +1492,8 @@ rtl8169_init_board(struct pci_dev *pdev, struct net_device **dev_out,
 	/* ioremap MMIO region */
 	ioaddr = ioremap(pci_resource_start(pdev, 1), R8169_REGS_SIZE);
 	if (ioaddr == NULL) {
-		printk(KERN_ERR PFX "cannot remap MMIO, aborting\n");
+		if (netif_msg_probe(tp))
+			printk(KERN_ERR PFX "cannot remap MMIO, aborting\n");
 		rc = -EIO;
 		goto err_out_free_res;
 	}
@@ -1272,12 +1524,19 @@ rtl8169_init_board(struct pci_dev *pdev, struct net_device **dev_out,
 	}
 	if (i < 0) {
 		/* Unknown chip: assume array element #0, original RTL-8169 */
-		printk(KERN_DEBUG PFX
-		       "PCI device %s: unknown chip version, assuming %s\n",
-		       pci_name(pdev), rtl_chip_info[0].name);
+		if (netif_msg_probe(tp)) {
+			printk(KERN_DEBUG PFX "PCI device %s: "
+			       "unknown chip version, assuming %s\n",
+			       pci_name(pdev), rtl_chip_info[0].name);
+		}
 		i++;
 	}
 	tp->chipset = i;
+
+	RTL_W8(Cfg9346, Cfg9346_Unlock);
+	RTL_W8(Config1, RTL_R8(Config1) | PMEnable);
+	RTL_W8(Config5, RTL_R8(Config5) & PMEStatus);
+	RTL_W8(Cfg9346, Cfg9346_Lock);
 
 	*ioaddr_out = ioaddr;
 	*dev_out = dev;
@@ -1308,7 +1567,6 @@ rtl8169_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct rtl8169_private *tp;
 	void __iomem *ioaddr = NULL;
 	static int board_idx = -1;
-	static int printed_version = 0;
 	u8 autoneg, duplex;
 	u16 speed;
 	int i, rc;
@@ -1318,10 +1576,9 @@ rtl8169_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	board_idx++;
 
-	if (!printed_version) {
+	if (netif_msg_drv(&debug)) {
 		printk(KERN_INFO "%s Gigabit Ethernet driver %s loaded\n",
 		       MODULENAME, RTL8169_VERSION);
-		printed_version = 1;
 	}
 
 	rc = rtl8169_init_board(pdev, &dev, &ioaddr);
@@ -1350,6 +1607,7 @@ rtl8169_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* Get MAC address.  FIXME: read EEPROM */
 	for (i = 0; i < MAC_ADDR_LEN; i++)
 		dev->dev_addr[i] = RTL_R8(MAC0 + i);
+	memcpy(dev->perm_addr, dev->dev_addr, dev->addr_len);
 
 	dev->open = rtl8169_open;
 	dev->hard_start_xmit = rtl8169_start_xmit;
@@ -1366,7 +1624,6 @@ rtl8169_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 #ifdef CONFIG_R8169_NAPI
 	dev->poll = rtl8169_poll;
 	dev->weight = R8169_NAPI_WEIGHT;
-	printk(KERN_INFO PFX "NAPI enabled\n");
 #endif
 
 #ifdef CONFIG_R8169_VLAN
@@ -1391,20 +1648,24 @@ rtl8169_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		return rc;
 	}
 
-	printk(KERN_DEBUG "%s: Identified chip type is '%s'.\n", dev->name,
-	       rtl_chip_info[tp->chipset].name);
+	if (netif_msg_probe(tp)) {
+		printk(KERN_DEBUG "%s: Identified chip type is '%s'.\n",
+		       dev->name, rtl_chip_info[tp->chipset].name);
+	}
 
 	pci_set_drvdata(pdev, dev);
 
-	printk(KERN_INFO "%s: %s at 0x%lx, "
-	       "%2.2x:%2.2x:%2.2x:%2.2x:%2.2x:%2.2x, "
-	       "IRQ %d\n",
-	       dev->name,
-	       rtl_chip_info[ent->driver_data].name,
-	       dev->base_addr,
-	       dev->dev_addr[0], dev->dev_addr[1],
-	       dev->dev_addr[2], dev->dev_addr[3],
-	       dev->dev_addr[4], dev->dev_addr[5], dev->irq);
+	if (netif_msg_probe(tp)) {
+		printk(KERN_INFO "%s: %s at 0x%lx, "
+		       "%2.2x:%2.2x:%2.2x:%2.2x:%2.2x:%2.2x, "
+		       "IRQ %d\n",
+		       dev->name,
+		       rtl_chip_info[ent->driver_data].name,
+		       dev->base_addr,
+		       dev->dev_addr[0], dev->dev_addr[1],
+		       dev->dev_addr[2], dev->dev_addr[3],
+		       dev->dev_addr[4], dev->dev_addr[5], dev->irq);
+	}
 
 	rtl8169_hw_phy_config(dev);
 
@@ -1427,7 +1688,7 @@ rtl8169_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	rtl8169_set_speed(dev, autoneg, speed, duplex);
 	
-	if (RTL_R8(PHYstatus) & TBI_Enable)
+	if ((RTL_R8(PHYstatus) & TBI_Enable) && netif_msg_link(tp))
 		printk(KERN_INFO PFX "%s: TBI auto-negotiating\n", dev->name);
 
 	return 0;
@@ -1446,49 +1707,6 @@ rtl8169_remove_one(struct pci_dev *pdev)
 	rtl8169_release_board(pdev, dev, tp->mmio_addr);
 	pci_set_drvdata(pdev, NULL);
 }
-
-#ifdef CONFIG_PM
-
-static int rtl8169_suspend(struct pci_dev *pdev, pm_message_t state)
-{
-	struct net_device *dev = pci_get_drvdata(pdev);
-	struct rtl8169_private *tp = netdev_priv(dev);
-	void __iomem *ioaddr = tp->mmio_addr;
-	unsigned long flags;
-
-	if (!netif_running(dev))
-		return 0;
-	
-	netif_device_detach(dev);
-	netif_stop_queue(dev);
-	spin_lock_irqsave(&tp->lock, flags);
-
-	/* Disable interrupts, stop Rx and Tx */
-	RTL_W16(IntrMask, 0);
-	RTL_W8(ChipCmd, 0);
-		
-	/* Update the error counts. */
-	tp->stats.rx_missed_errors += RTL_R32(RxMissed);
-	RTL_W32(RxMissed, 0);
-	spin_unlock_irqrestore(&tp->lock, flags);
-	
-	return 0;
-}
-
-static int rtl8169_resume(struct pci_dev *pdev)
-{
-	struct net_device *dev = pci_get_drvdata(pdev);
-
-	if (!netif_running(dev))
-	    return 0;
-
-	netif_device_attach(dev);
-	rtl8169_hw_start(dev);
-
-	return 0;
-}
-                                                                                
-#endif /* CONFIG_PM */
 
 static void rtl8169_set_rxbufsize(struct rtl8169_private *tp,
 				  struct net_device *dev)
@@ -1712,7 +1930,7 @@ static int rtl8169_alloc_rx_skb(struct pci_dev *pdev, struct sk_buff **sk_buff,
 	skb_reserve(skb, NET_IP_ALIGN);
 	*sk_buff = skb;
 
-	mapping = pci_map_single(pdev, skb->tail, rx_buf_sz,
+	mapping = pci_map_single(pdev, skb->data, rx_buf_sz,
 				 PCI_DMA_FROMDEVICE);
 
 	rtl8169_map_to_asic(desc, mapping, rx_buf_sz);
@@ -1860,8 +2078,13 @@ static void rtl8169_reinit_task(void *_data)
 	ret = rtl8169_open(dev);
 	if (unlikely(ret < 0)) {
 		if (net_ratelimit()) {
-			printk(PFX KERN_ERR "%s: reinit failure (status = %d)."
-			       " Rescheduling.\n", dev->name, ret);
+			struct rtl8169_private *tp = netdev_priv(dev);
+
+			if (netif_msg_drv(tp)) {
+				printk(PFX KERN_ERR
+				       "%s: reinit failure (status = %d)."
+				       " Rescheduling.\n", dev->name, ret);
+			}
 		}
 		rtl8169_schedule_work(dev, rtl8169_reinit_task);
 	}
@@ -1886,8 +2109,12 @@ static void rtl8169_reset_task(void *_data)
 		netif_wake_queue(dev);
 	} else {
 		if (net_ratelimit()) {
-			printk(PFX KERN_EMERG "%s: Rx buffers shortage\n",
-			       dev->name);
+			struct rtl8169_private *tp = netdev_priv(dev);
+
+			if (netif_msg_intr(tp)) {
+				printk(PFX KERN_EMERG
+				       "%s: Rx buffers shortage\n", dev->name);
+			}
 		}
 		rtl8169_schedule_work(dev, rtl8169_reset_task);
 	}
@@ -1973,8 +2200,11 @@ static int rtl8169_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	int ret = 0;
 	
 	if (unlikely(TX_BUFFS_AVAIL(tp) < skb_shinfo(skb)->nr_frags)) {
-		printk(KERN_ERR PFX "%s: BUG! Tx Ring full when queue awake!\n",
-		       dev->name);
+		if (netif_msg_drv(tp)) {
+			printk(KERN_ERR
+			       "%s: BUG! Tx Ring full when queue awake!\n",
+			       dev->name);
+		}
 		goto err_stop;
 	}
 
@@ -2049,8 +2279,11 @@ static void rtl8169_pcierr_interrupt(struct net_device *dev)
 	pci_read_config_word(pdev, PCI_COMMAND, &pci_cmd);
 	pci_read_config_word(pdev, PCI_STATUS, &pci_status);
 
-	printk(KERN_ERR PFX "%s: PCI error (cmd = 0x%04x, status = 0x%04x).\n",
-	       dev->name, pci_cmd, pci_status);
+	if (netif_msg_intr(tp)) {
+		printk(KERN_ERR
+		       "%s: PCI error (cmd = 0x%04x, status = 0x%04x).\n",
+		       dev->name, pci_cmd, pci_status);
+	}
 
 	/*
 	 * The recovery sequence below admits a very elaborated explanation:
@@ -2069,7 +2302,8 @@ static void rtl8169_pcierr_interrupt(struct net_device *dev)
 
 	/* The infamous DAC f*ckup only happens at boot time */
 	if ((tp->cp_cmd & PCIDAC) && !tp->dirty_rx && !tp->cur_rx) {
-		printk(KERN_INFO PFX "%s: disabling PCI DAC.\n", dev->name);
+		if (netif_msg_intr(tp))
+			printk(KERN_INFO "%s: disabling PCI DAC.\n", dev->name);
 		tp->cp_cmd &= ~PCIDAC;
 		RTL_W16(CPlusCmd, tp->cp_cmd);
 		dev->features &= ~NETIF_F_HIGHDMA;
@@ -2156,7 +2390,7 @@ static inline int rtl8169_try_rx_copy(struct sk_buff **sk_buff, int pkt_size,
 		skb = dev_alloc_skb(pkt_size + NET_IP_ALIGN);
 		if (skb) {
 			skb_reserve(skb, NET_IP_ALIGN);
-			eth_copy_and_sum(skb, sk_buff[0]->tail, pkt_size, 0);
+			eth_copy_and_sum(skb, sk_buff[0]->data, pkt_size, 0);
 			*sk_buff = skb;
 			rtl8169_mark_to_asic(desc, rx_buf_sz);
 			ret = 0;
@@ -2180,7 +2414,7 @@ rtl8169_rx_interrupt(struct net_device *dev, struct rtl8169_private *tp,
 	rx_left = NUM_RX_DESC + tp->dirty_rx - cur_rx;
 	rx_left = rtl8169_rx_quota(rx_left, (u32) dev->quota);
 
-	while (rx_left > 0) {
+	for (; rx_left > 0; rx_left--, cur_rx++) {
 		unsigned int entry = cur_rx % NUM_RX_DESC;
 		struct RxDesc *desc = tp->RxDescArray + entry;
 		u32 status;
@@ -2190,9 +2424,12 @@ rtl8169_rx_interrupt(struct net_device *dev, struct rtl8169_private *tp,
 
 		if (status & DescOwn)
 			break;
-		if (status & RxRES) {
-			printk(KERN_INFO "%s: Rx ERROR. status = %08x\n",
-			       dev->name, status);
+		if (unlikely(status & RxRES)) {
+			if (netif_msg_rx_err(tp)) {
+				printk(KERN_INFO
+				       "%s: Rx ERROR. status = %08x\n",
+				       dev->name, status);
+			}
 			tp->stats.rx_errors++;
 			if (status & (RxRWT | RxRUNT))
 				tp->stats.rx_length_errors++;
@@ -2214,7 +2451,7 @@ rtl8169_rx_interrupt(struct net_device *dev, struct rtl8169_private *tp,
 				tp->stats.rx_dropped++;
 				tp->stats.rx_length_errors++;
 				rtl8169_mark_to_asic(desc, tp->rx_buf_sz);
-				goto move_on;
+				continue;
 			}
 
 			rtl8169_rx_csum(skb, desc);
@@ -2243,16 +2480,13 @@ rtl8169_rx_interrupt(struct net_device *dev, struct rtl8169_private *tp,
 			tp->stats.rx_bytes += pkt_size;
 			tp->stats.rx_packets++;
 		}
-move_on:		
-		cur_rx++; 
-		rx_left--;
 	}
 
 	count = cur_rx - tp->cur_rx;
 	tp->cur_rx = cur_rx;
 
 	delta = rtl8169_rx_fill(tp, dev, tp->dirty_rx, tp->cur_rx);
-	if (!delta && count)
+	if (!delta && count && netif_msg_intr(tp))
 		printk(KERN_INFO "%s: no Rx buffer allocated\n", dev->name);
 	tp->dirty_rx += delta;
 
@@ -2263,7 +2497,7 @@ move_on:
 	 *   after refill ?
 	 * - how do others driver handle this condition (Uh oh...).
 	 */
-	if (tp->dirty_rx + NUM_RX_DESC == tp->cur_rx)
+	if ((tp->dirty_rx + NUM_RX_DESC == tp->cur_rx) && netif_msg_intr(tp))
 		printk(KERN_EMERG "%s: Rx buffers exhausted\n", dev->name);
 
 	return count;
@@ -2315,7 +2549,7 @@ rtl8169_interrupt(int irq, void *dev_instance, struct pt_regs *regs)
 
 		if (likely(netif_rx_schedule_prep(dev)))
 			__netif_rx_schedule(dev);
-		else {
+		else if (netif_msg_intr(tp)) {
 			printk(KERN_INFO "%s: interrupt %04x taken in poll\n",
 			       dev->name, status);	
 		}
@@ -2334,8 +2568,10 @@ rtl8169_interrupt(int irq, void *dev_instance, struct pt_regs *regs)
 	} while (boguscnt > 0);
 
 	if (boguscnt <= 0) {
-		printk(KERN_WARNING "%s: Too much work at interrupt!\n",
-		       dev->name);
+		if (netif_msg_intr(tp) && net_ratelimit() ) {
+			printk(KERN_WARNING
+			       "%s: Too much work at interrupt!\n", dev->name);
+		}
 		/* Clear all interrupt sources. */
 		RTL_W16(IntrStatus, 0xffff);
 	}
@@ -2458,8 +2694,10 @@ rtl8169_set_rx_mode(struct net_device *dev)
 
 	if (dev->flags & IFF_PROMISC) {
 		/* Unconditionally log net taps. */
-		printk(KERN_NOTICE "%s: Promiscuous mode enabled.\n",
-		       dev->name);
+		if (netif_msg_link(tp)) {
+			printk(KERN_NOTICE "%s: Promiscuous mode enabled.\n",
+			       dev->name);
+		}
 		rx_mode =
 		    AcceptBroadcast | AcceptMulticast | AcceptMyPhys |
 		    AcceptAllPhys;
@@ -2514,6 +2752,56 @@ static struct net_device_stats *rtl8169_get_stats(struct net_device *dev)
 		
 	return &tp->stats;
 }
+
+#ifdef CONFIG_PM
+
+static int rtl8169_suspend(struct pci_dev *pdev, pm_message_t state)
+{
+	struct net_device *dev = pci_get_drvdata(pdev);
+	struct rtl8169_private *tp = netdev_priv(dev);
+	void __iomem *ioaddr = tp->mmio_addr;
+
+	if (!netif_running(dev))
+		goto out;
+
+	netif_device_detach(dev);
+	netif_stop_queue(dev);
+
+	spin_lock_irq(&tp->lock);
+
+	rtl8169_asic_down(ioaddr);
+
+	tp->stats.rx_missed_errors += RTL_R32(RxMissed);
+	RTL_W32(RxMissed, 0);
+
+	spin_unlock_irq(&tp->lock);
+
+	pci_save_state(pdev);
+	pci_enable_wake(pdev, pci_choose_state(pdev, state), tp->wol_enabled);
+	pci_set_power_state(pdev, pci_choose_state(pdev, state));
+out:
+	return 0;
+}
+
+static int rtl8169_resume(struct pci_dev *pdev)
+{
+	struct net_device *dev = pci_get_drvdata(pdev);
+
+	if (!netif_running(dev))
+		goto out;
+
+	netif_device_attach(dev);
+
+	pci_set_power_state(pdev, PCI_D0);
+	pci_restore_state(pdev);
+	pci_enable_wake(pdev, PCI_D0, 0);
+
+	rtl8169_schedule_work(dev, rtl8169_reset_task);
+out:
+	return 0;
+}
+
+#endif /* CONFIG_PM */
 
 static struct pci_driver rtl8169_pci_driver = {
 	.name		= MODULENAME,

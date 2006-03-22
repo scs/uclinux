@@ -51,7 +51,7 @@ static void jffs2_i_init_once(void * foo, kmem_cache_t * cachep, unsigned long f
 
 	if ((flags & (SLAB_CTOR_VERIFY|SLAB_CTOR_CONSTRUCTOR)) ==
 	    SLAB_CTOR_CONSTRUCTOR) {
-		init_MUTEX_LOCKED(&ei->sem);
+		init_MUTEX(&ei->sem);
 		inode_init_once(&ei->vfs_inode);
 	}
 }
@@ -62,7 +62,7 @@ static int jffs2_sync_fs(struct super_block *sb, int wait)
 
 	down(&c->alloc_sem);
 	jffs2_flush_wbuf_pad(c);
-	up(&c->alloc_sem);	
+	up(&c->alloc_sem);
 	return 0;
 }
 
@@ -112,7 +112,7 @@ static int jffs2_sb_set(struct super_block *sb, void *data)
 }
 
 static struct super_block *jffs2_get_sb_mtd(struct file_system_type *fs_type,
-					      int flags, const char *dev_name, 
+					      int flags, const char *dev_name,
 					      void *data, struct mtd_info *mtd)
 {
 	struct super_block *sb;
@@ -140,6 +140,15 @@ static struct super_block *jffs2_get_sb_mtd(struct file_system_type *fs_type,
 	D1(printk(KERN_DEBUG "jffs2_get_sb_mtd(): New superblock for device %d (\"%s\")\n",
 		  mtd->index, mtd->name));
 
+	/* Initialize JFFS2 superblock locks, the further initialization will be
+	 * done later */
+	init_MUTEX(&c->alloc_sem);
+	init_MUTEX(&c->erase_free_sem);
+	init_waitqueue_head(&c->erase_wait);
+	init_waitqueue_head(&c->inocache_wq);
+	spin_lock_init(&c->erase_completion_lock);
+	spin_lock_init(&c->inocache_lock);
+
 	sb->s_op = &jffs2_super_operations;
 	sb->s_flags = flags | MS_NOATIME;
 
@@ -163,7 +172,7 @@ static struct super_block *jffs2_get_sb_mtd(struct file_system_type *fs_type,
 }
 
 static struct super_block *jffs2_get_sb_mtdnr(struct file_system_type *fs_type,
-					      int flags, const char *dev_name, 
+					      int flags, const char *dev_name,
 					      void *data, int mtdnr)
 {
 	struct mtd_info *mtd;
@@ -192,7 +201,7 @@ static struct super_block *jffs2_get_sb(struct file_system_type *fs_type,
 
 	/* The preferred way of mounting in future; especially when
 	   CONFIG_BLK_DEV is implemented - we specify the underlying
-	   MTD device by number or by name, so that we don't require 
+	   MTD device by number or by name, so that we don't require
 	   block device support to be present in the kernel. */
 
 	/* FIXME: How to do the root fs this way? */
@@ -216,7 +225,7 @@ static struct super_block *jffs2_get_sb(struct file_system_type *fs_type,
 		} else if (isdigit(dev_name[3])) {
 			/* Mount by MTD device number name */
 			char *endptr;
-			
+
 			mtdnr = simple_strtoul(dev_name+3, &endptr, 0);
 			if (!*endptr) {
 				/* It was a valid number */
@@ -226,7 +235,7 @@ static struct super_block *jffs2_get_sb(struct file_system_type *fs_type,
 		}
 	}
 
-	/* Try the old way - the hack where we allowed users to mount 
+	/* Try the old way - the hack where we allowed users to mount
 	   /dev/mtdblock$(n) but didn't actually _use_ the blkdev */
 
 	err = path_lookup(dev_name, LOOKUP_FOLLOW, &nd);
@@ -270,14 +279,15 @@ static void jffs2_put_super (struct super_block *sb)
 
 	D2(printk(KERN_DEBUG "jffs2: jffs2_put_super()\n"));
 
-	if (!(sb->s_flags & MS_RDONLY))
-		jffs2_stop_garbage_collect_thread(c);
 	down(&c->alloc_sem);
 	jffs2_flush_wbuf_pad(c);
 	up(&c->alloc_sem);
+
+	jffs2_sum_exit(c);
+
 	jffs2_free_ino_caches(c);
 	jffs2_free_raw_node_refs(c);
-	if (c->mtd->flags & MTD_NO_VIRTBLOCKS)
+	if (jffs2_blocks_use_vmalloc(c))
 		vfree(c->blocks);
 	else
 		kfree(c->blocks);
@@ -292,6 +302,8 @@ static void jffs2_put_super (struct super_block *sb)
 static void jffs2_kill_sb(struct super_block *sb)
 {
 	struct jffs2_sb_info *c = JFFS2_SB_INFO(sb);
+	if (!(sb->s_flags & MS_RDONLY))
+		jffs2_stop_garbage_collect_thread(c);
 	generic_shutdown_super(sb);
 	put_mtd_device(c->mtd);
 	kfree(c);
@@ -309,8 +321,11 @@ static int __init init_jffs2_fs(void)
 	int ret;
 
 	printk(KERN_INFO "JFFS2 version 2.2."
-#ifdef CONFIG_JFFS2_FS_NAND
+#ifdef CONFIG_JFFS2_FS_WRITEBUFFER
 	       " (NAND)"
+#endif
+#ifdef CONFIG_JFFS2_SUMMARY
+	       " (SUMMARY) "
 #endif
 	       " (C) 2001-2003 Red Hat, Inc.\n");
 
@@ -361,5 +376,5 @@ module_exit(exit_jffs2_fs);
 
 MODULE_DESCRIPTION("The Journalling Flash File System, v2");
 MODULE_AUTHOR("Red Hat, Inc.");
-MODULE_LICENSE("GPL"); // Actually dual-licensed, but it doesn't matter for 
+MODULE_LICENSE("GPL"); // Actually dual-licensed, but it doesn't matter for
 		       // the sake of this tag. It's Free Software.

@@ -8,14 +8,12 @@
 
 #include <linux/stddef.h>
 #include <linux/fs.h>
-#include <linux/version.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/pagemap.h>
 #include <linux/blkdev.h>
 #include <linux/list.h>
-#include <linux/root_dev.h>
 #include <linux/statfs.h>
 #include <linux/kdev_t.h>
 #include <asm/uaccess.h>
@@ -160,8 +158,6 @@ static int read_name(struct inode *ino, char *name)
 	ino->i_size = i_size;
 	ino->i_blksize = i_blksize;
 	ino->i_blocks = i_blocks;
-	if((ino->i_sb->s_dev == ROOT_DEV) && (ino->i_uid == getuid()))
-		ino->i_uid = 0;
 	return(0);
 }
 
@@ -287,6 +283,7 @@ static struct inode *hostfs_alloc_inode(struct super_block *sb)
 
 static void hostfs_delete_inode(struct inode *inode)
 {
+	truncate_inode_pages(&inode->i_data, 0);
 	if(HOSTFS_I(inode)->fd != -1) {
 		close_file(&HOSTFS_I(inode)->fd);
 		HOSTFS_I(inode)->fd = -1;
@@ -296,8 +293,7 @@ static void hostfs_delete_inode(struct inode *inode)
 
 static void hostfs_destroy_inode(struct inode *inode)
 {
-	if(HOSTFS_I(inode)->host_filename)
-		kfree(HOSTFS_I(inode)->host_filename);
+	kfree(HOSTFS_I(inode)->host_filename);
 
 	/*XXX: This should not happen, probably. The check is here for
 	 * additional safety.*/
@@ -385,7 +381,7 @@ int hostfs_file_open(struct inode *ino, struct file *file)
 
 int hostfs_fsync(struct file *file, struct dentry *dentry, int datasync)
 {
-	return(0);
+	return fsync_file(HOSTFS_I(dentry->d_inode)->fd, datasync);
 }
 
 static struct file_operations hostfs_file_fops = {
@@ -505,11 +501,16 @@ int hostfs_commit_write(struct file *file, struct page *page, unsigned from,
 	long long start;
 	int err = 0;
 
-	start = (long long) (page->index << PAGE_CACHE_SHIFT) + from;
+	start = (((long long) page->index) << PAGE_CACHE_SHIFT) + from;
 	buffer = kmap(page);
 	err = write_file(FILE_HOSTFS_I(file)->fd, &start, buffer + from,
 			 to - from);
 	if(err > 0) err = 0;
+
+	/* Actually, if !err, write_file has added to-from to start, so, despite
+	 * the appearance, we are comparing i_size against the _last_ written
+	 * location, as we should. */
+
 	if(!err && (start > inode->i_size))
 		inode->i_size = start;
 
@@ -795,11 +796,6 @@ int hostfs_rename(struct inode *from_ino, struct dentry *from,
 	return(err);
 }
 
-void hostfs_truncate(struct inode *ino)
-{
-	not_implemented();
-}
-
 int hostfs_permission(struct inode *ino, int desired, struct nameidata *nd)
 {
 	char *name;
@@ -841,16 +837,10 @@ int hostfs_setattr(struct dentry *dentry, struct iattr *attr)
 		attrs.ia_mode = attr->ia_mode;
 	}
 	if(attr->ia_valid & ATTR_UID){
-		if((dentry->d_inode->i_sb->s_dev == ROOT_DEV) &&
-		   (attr->ia_uid == 0))
-			attr->ia_uid = getuid();
 		attrs.ia_valid |= HOSTFS_ATTR_UID;
 		attrs.ia_uid = attr->ia_uid;
 	}
 	if(attr->ia_valid & ATTR_GID){
-		if((dentry->d_inode->i_sb->s_dev == ROOT_DEV) &&
-		   (attr->ia_gid == 0))
-			attr->ia_gid = getgid();
 		attrs.ia_valid |= HOSTFS_ATTR_GID;
 		attrs.ia_gid = attr->ia_gid;
 	}
@@ -902,7 +892,6 @@ static struct inode_operations hostfs_iops = {
 	.rmdir		= hostfs_rmdir,
 	.mknod		= hostfs_mknod,
 	.rename		= hostfs_rename,
-	.truncate	= hostfs_truncate,
 	.permission	= hostfs_permission,
 	.setattr	= hostfs_setattr,
 	.getattr	= hostfs_getattr,
@@ -918,7 +907,6 @@ static struct inode_operations hostfs_dir_iops = {
 	.rmdir		= hostfs_rmdir,
 	.mknod		= hostfs_mknod,
 	.rename		= hostfs_rename,
-	.truncate	= hostfs_truncate,
 	.permission	= hostfs_permission,
 	.setattr	= hostfs_setattr,
 	.getattr	= hostfs_getattr,
@@ -927,10 +915,8 @@ static struct inode_operations hostfs_dir_iops = {
 int hostfs_link_readpage(struct file *file, struct page *page)
 {
 	char *buffer, *name;
-	long long start;
 	int err;
 
-	start = page->index << PAGE_CACHE_SHIFT;
 	buffer = kmap(page);
 	name = inode_name(page->mapping->host, 0);
 	if(name == NULL) return(-ENOMEM);

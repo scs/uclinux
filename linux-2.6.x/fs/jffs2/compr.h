@@ -4,7 +4,7 @@
  * Copyright (C) 2004 Ferenc Havasi <havasi@inf.u-szeged.hu>,
  *                    University of Szeged, Hungary
  *
- * For licensing information, see the file 'LICENCE' in the 
+ * For licensing information, see the file 'LICENCE' in the
  * jffs2 directory.
  *
  * $Id$
@@ -102,14 +102,6 @@ void jffs2_rtime_exit(void);
 #ifdef CONFIG_JFFS2_ZLIB
 int jffs2_zlib_init(void);
 void jffs2_zlib_exit(void);
-#endif
-#ifdef CONFIG_JFFS2_LZARI
-int jffs2_lzari_init(void);
-void jffs2_lzari_exit(void);
-#endif
-#ifdef CONFIG_JFFS2_LZO
-int jffs2_lzo_init(void);
-void jffs2_lzo_exit(void);
 #endif
 
 #endif /* __JFFS2_COMPR_H__ */

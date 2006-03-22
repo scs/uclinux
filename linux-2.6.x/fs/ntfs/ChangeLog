@@ -1,21 +1,15 @@
 ToDo/Notes:
 	- Find and fix bugs.
-	- Checkpoint or disable the user space journal ($UsnJrnl).
-	- In between ntfs_prepare/commit_write, need exclusion between
-	  simultaneous file extensions. Need perhaps an NInoResizeUnderway()
-	  flag which we can set in ntfs_prepare_write() and clear again in
-	  ntfs_commit_write(). Just have to be careful in readpage/writepage,
-	  as well as in truncate, that we play nice... We might need to have
-	  a data_size field in the ntfs_inode to store the real attribute
-	  length. Also need to be careful with initialized_size extention in
-	  ntfs_prepare_write. Basically, just be _very_ careful in this code...
-	  OTOH, perhaps i_sem, which is held accross generic_file_write is
-	  sufficient for synchronisation here. We then just need to make sure
-	  ntfs_readpage/writepage/truncate interoperate properly with us.
-	  UPDATE: The above is all ok as it is due to i_sem held.  The only
-	  thing that needs to be checked is ntfs_writepage() which does not
-	  hold i_sem.  It cannot change i_size but it needs to cope with a
-	  concurrent i_size change.
+	- The only places in the kernel where a file is resized are
+	  ntfs_file_write*() and ntfs_truncate() for both of which i_mutex is
+	  held.  Just have to be careful in read-/writepage and other helpers
+	  not running under i_mutex that we play nice.  Also need to be careful
+	  with initialized_size extension in ntfs_file_write*() and writepage.
+	  UPDATE: The only things that need to be checked are the compressed
+	  write and the other attribute resize/write cases like index
+	  attributes, etc.  For now none of these are implemented so are safe.
+	- Implement filling in of holes in aops.c::ntfs_writepage() and its
+	  helpers.
 	- Implement mft.c::sync_mft_mirror_umount().  We currently will just
 	  leave the volume dirty on umount if the final iput(vol->mft_ino)
 	  causes a write of any mirrored mft records due to the mft mirror
@@ -25,12 +19,325 @@ ToDo/Notes:
 	- Enable the code for setting the NT4 compatibility flag when we start
 	  making NTFS 1.2 specific modifications.
 
-2.1.23-WIP
+2.1.26 - Minor bug fixes and updates.
+
+	- Fix a potential overflow in file.c where a cast to s64 was missing in
+	  a left shift of a page index.
+	- The struct inode has had its i_sem semaphore changed to a mutex named
+	  i_mutex.
+	- We have struct kmem_cache now so use it instead of the typedef
+	  kmem_cache_t.  (Pekka Enberg)
+	- Implement support for sector sizes above 512 bytes (up to the maximum
+	  supported by NTFS which is 4096 bytes).
+	- Do more detailed reporting of why we cannot mount read-write by
+	  special casing the VOLUME_MODIFIED_BY_CHKDSK flag.
+	- Miscellaneous updates to layout.h.
+	- Cope with attribute list attribute having invalid flags.  Windows
+	  copes with this and even chkdsk does not detect or fix this so we
+	  have to cope with it, too.  Thanks to Pawel Kot for reporting the
+	  problem.
+
+2.1.25 - (Almost) fully implement write(2) and truncate(2).
+
+	- Change ntfs_map_runlist_nolock(), ntfs_attr_find_vcn_nolock() and
+	  {__,}ntfs_cluster_free() to also take an optional attribute search
+	  context as argument.  This allows calling these functions with the
+	  mft record mapped.  Update all callers.
+	- Fix potential deadlock in ntfs_mft_data_extend_allocation_nolock()
+	  error handling by passing in the active search context when calling
+	  ntfs_cluster_free().
+	- Change ntfs_cluster_alloc() to take an extra boolean parameter
+	  specifying whether the cluster are being allocated to extend an
+	  attribute or to fill a hole.
+	- Change ntfs_attr_make_non_resident() to call ntfs_cluster_alloc()
+	  with @is_extension set to TRUE and remove the runlist terminator
+	  fixup code as this is now done by ntfs_cluster_alloc().
+	- Change ntfs_attr_make_non_resident to take the attribute value size
+	  as an extra parameter.  This is needed since we need to know the size
+	  before we can map the mft record and our callers always know it.  The
+	  reason we cannot simply read the size from the vfs inode i_size is
+	  that this is not necessarily uptodate.  This happens when
+	  ntfs_attr_make_non_resident() is called in the ->truncate call path.
+	- Fix ntfs_attr_make_non_resident() to update the vfs inode i_blocks
+	  which is zero for a resident attribute but should no longer be zero
+	  once the attribute is non-resident as it then has real clusters
+	  allocated.
+	- Add fs/ntfs/attrib.[hc]::ntfs_attr_extend_allocation(), a function to
+	  extend the allocation of an attributes.  Optionally, the data size,
+	  but not the initialized size can be extended, too.
+	- Implement fs/ntfs/inode.[hc]::ntfs_truncate().  It only supports
+	  uncompressed and unencrypted files and it never creates sparse files
+	  at least for the moment (making a file sparse requires us to modify
+	  its directory entries and we do not support directory operations at
+	  the moment).  Also, support for highly fragmented files, i.e. ones
+	  whose data attribute is split across multiple extents, is severly
+	  limited.  When such a case is encountered, EOPNOTSUPP is returned.
+	- Enable ATTR_SIZE attribute changes in ntfs_setattr().  This completes
+	  the initial implementation of file truncation.  Now both open(2)ing
+	  a file with the O_TRUNC flag and the {,f}truncate(2) system calls
+	  will resize a file appropriately.  The limitations are that only
+	  uncompressed and unencrypted files are supported.  Also, there is
+	  only very limited support for highly fragmented files (the ones whose
+	  $DATA attribute is split into multiple attribute extents).
+	- In attrib.c::ntfs_attr_set() call balance_dirty_pages_ratelimited()
+	  and cond_resched() in the main loop as we could be dirtying a lot of
+	  pages and this ensures we play nice with the VM and the system as a
+	  whole.
+	- Implement file operations ->write, ->aio_write, ->writev for regular
+	  files.  This replaces the old use of generic_file_write(), et al and
+	  the address space operations ->prepare_write and ->commit_write.
+	  This means that both sparse and non-sparse (unencrypted and
+	  uncompressed) files can now be extended using the normal write(2)
+	  code path.  There are two limitations at present and these are that
+	  we never create sparse files and that we only have limited support
+	  for highly fragmented files, i.e. ones whose data attribute is split
+	  across multiple extents.   When such a case is encountered,
+	  EOPNOTSUPP is returned.
+	- $EA attributes can be both resident and non-resident.
+	- Use %z for size_t to fix compilation warnings.  (Andrew Morton)
+	- Fix compilation warnings with gcc-4.0.2 on SUSE 10.0.
+	- Document extended attribute ($EA) NEED_EA flag.  (Based on libntfs
+	  patch by Yura Pakhuchiy.)
+
+2.1.24 - Lots of bug fixes and support more clean journal states.
+
+	- Support journals ($LogFile) which have been modified by chkdsk.  This
+	  means users can boot into Windows after we marked the volume dirty.
+	  The Windows boot will run chkdsk and then reboot.  The user can then
+	  immediately boot into Linux rather than having to do a full Windows
+	  boot first before rebooting into Linux and we will recognize such a
+	  journal and empty it as it is clean by definition.  Note, this only
+	  works if chkdsk left the journal in an obviously clean state.
+	- Support journals ($LogFile) with only one restart page as well as
+	  journals with two different restart pages.  We sanity check both and
+	  either use the only sane one or the more recent one of the two in the
+	  case that both are valid.
+	- Add fs/ntfs/malloc.h::ntfs_malloc_nofs_nofail() which is analogous to
+	  ntfs_malloc_nofs() but it performs allocations with __GFP_NOFAIL and
+	  hence cannot fail.
+	- Use ntfs_malloc_nofs_nofail() in the two critical regions in
+	  fs/ntfs/runlist.c::ntfs_runlists_merge().  This means we no longer
+	  need to panic() if the allocation fails as it now cannot fail.
+	- Fix two nasty runlist merging bugs that had gone unnoticed so far.
+	  Thanks to Stefano Picerno for the bug report.
+	- Remove two bogus BUG_ON()s from fs/ntfs/mft.c.
+	- Fix handling of valid but empty mapping pairs array in
+	  fs/ntfs/runlist.c::ntfs_mapping_pairs_decompress().
+	- Report unrepresentable inodes during ntfs_readdir() as KERN_WARNING
+	  messages and include the inode number.  Thanks to Yura Pakhuchiy for
+	  pointing this out.
+	- Change ntfs_rl_truncate_nolock() to throw away the runlist if the new
+	  length is zero.
+	- Add runlist.[hc]::ntfs_rl_punch_nolock() which punches a caller
+	  specified hole into a runlist.
+	- Fix a bug in fs/ntfs/index.c::ntfs_index_lookup().  When the returned
+	  index entry is in the index root, we forgot to set the @ir pointer in
+	  the index context.  Thanks to Yura Pakhuchiy for finding this bug.
+	- Remove bogus setting of PageError in ntfs_read_compressed_block().
+	- Add fs/ntfs/attrib.[hc]::ntfs_resident_attr_value_resize().
+	- Fix a bug in ntfs_map_runlist_nolock() where we forgot to protect
+	  access to the allocated size in the ntfs inode with the size lock.
+	- Fix ntfs_attr_vcn_to_lcn_nolock() and ntfs_attr_find_vcn_nolock() to
+	  return LCN_ENOENT when there is no runlist and the allocated size is
+	  zero.
+	- Fix load_attribute_list() to handle the case of a NULL runlist.
+	- Fix handling of sparse attributes in ntfs_attr_make_non_resident().
+	- Add BUG() checks to ntfs_attr_make_non_resident() and ntfs_attr_set()
+	  to ensure that these functions are never called for compressed or
+	  encrypted attributes.
+	- Fix cluster (de)allocators to work when the runlist is NULL and more
+	  importantly to take a locked runlist rather than them locking it
+	  which leads to lock reversal.
+	- Truncate {a,c,m}time to the ntfs supported time granularity when
+	  updating the times in the inode in ntfs_setattr().
+	- Fixup handling of sparse, compressed, and encrypted attributes in
+	  fs/ntfs/inode.c::ntfs_read_locked_{,attr_,index_}inode(),
+	  fs/ntfs/aops.c::ntfs_{read,write}page().
+	- Make ntfs_write_block() not instantiate sparse blocks if they contain
+	  only zeroes.
+	- Optimize fs/ntfs/aops.c::ntfs_write_block() by extending the page
+	  lock protection over the buffer submission for i/o which allows the
+	  removal of the get_bh()/put_bh() pairs for each buffer.
+	- Fix fs/ntfs/aops.c::ntfs_{read,write}_block() to handle the case
+	  where a concurrent truncate has truncated the runlist under our feet.
+	- Fix page_has_buffers()/page_buffers() handling in fs/ntfs/aops.c.
+	- In fs/ntfs/aops.c::ntfs_end_buffer_async_read(), use a bit spin lock
+	  in the first buffer head instead of a driver global spin lock to
+	  improve scalability.
+	- Minor fix to error handling and error message display in
+	  fs/ntfs/aops.c::ntfs_prepare_nonresident_write().
+	- Change the mount options {u,f,d}mask to always parse the number as
+	  an octal number to conform to how chmod(1) works, too.  Thanks to
+	  Giuseppe Bilotta and Horst von Brand for pointing out the errors of
+	  my ways.
+	- Fix various bugs in the runlist merging code.  (Based on libntfs
+	  changes by Richard Russon.)
+	- Fix sparse warnings that have crept in over time.
+	- Change ntfs_cluster_free() to require a write locked runlist on entry
+	  since we otherwise get into a lock reversal deadlock if a read locked
+	  runlist is passed in. In the process also change it to take an ntfs
+	  inode instead of a vfs inode as parameter.
+	- Fix the definition of the CHKD ntfs record magic.  It had an off by
+	  two error causing it to be CHKB instead of CHKD.
+	- Fix a stupid bug in __ntfs_bitmap_set_bits_in_run() which caused the
+	  count to become negative and hence we had a wild memset() scribbling
+	  all over the system's ram.
+
+2.1.23 - Implement extension of resident files and make writing safe as well as
+	 many bug fixes, cleanups, and enhancements...
 
 	- Add printk rate limiting for ntfs_warning() and ntfs_error() when
 	  compiled without debug.  This avoids a possible denial of service
 	  attack.  Thanks to Carl-Daniel Hailfinger from SuSE for pointing this
 	  out.
+	- Fix compilation warnings on ia64.  (Randy Dunlap)
+	- Use i_size_{read,write}() instead of reading i_size by hand and cache
+	  the value where apropriate.
+	- Add size_lock to the ntfs_inode structure.  This is an rw spinlock
+	  and it locks against access to the inode sizes.  Note, ->size_lock
+	  is also accessed from irq context so you must use the _irqsave and
+	  _irqrestore lock and unlock functions, respectively.  Protect all
+	  accesses to allocated_size, initialized_size, and compressed_size.
+	- Minor optimization to fs/ntfs/super.c::ntfs_statfs() and its helpers.
+	- Implement extension of resident files in the regular file write code
+	  paths (fs/ntfs/aops.c::ntfs_{prepare,commit}_write()).  At present
+	  this only works until the data attribute becomes too big for the mft
+	  record after which we abort the write returning -EOPNOTSUPP from
+	  ntfs_prepare_write().
+	- Add disable_sparse mount option together with a per volume sparse
+	  enable bit which is set appropriately and a per inode sparse disable
+	  bit which is preset on some system file inodes as appropriate.
+	- Enforce that sparse support is disabled on NTFS volumes pre 3.0.
+	- Fix a bug in fs/ntfs/runlist.c::ntfs_mapping_pairs_decompress() in
+	  the creation of the unmapped runlist element for the base attribute
+	  extent.
+	- Split ntfs_map_runlist() into ntfs_map_runlist() and a non-locking
+	  helper ntfs_map_runlist_nolock() which is used by ntfs_map_runlist().
+	  This allows us to map runlist fragments with the runlist lock already
+	  held without having to drop and reacquire it around the call.  Adapt
+	  all callers.
+	- Change ntfs_find_vcn() to ntfs_find_vcn_nolock() which takes a locked
+	  runlist.  This allows us to find runlist elements with the runlist
+	  lock already held without having to drop and reacquire it around the
+	  call.  Adapt all callers.
+	- Change time to u64 in time.h::ntfs2utc() as it otherwise generates a
+	  warning in the do_div() call on sparc32.  Thanks to Meelis Roos for
+	  the report and analysis of the warning.
+	- Fix a nasty runlist merge bug when merging two holes.
+	- Set the ntfs_inode->allocated_size to the real allocated size in the
+	  mft record for resident attributes (fs/ntfs/inode.c).
+	- Small readability cleanup to use "a" instead of "ctx->attr"
+	  everywhere (fs/ntfs/inode.c).
+	- Make fs/ntfs/namei.c::ntfs_get_{parent,dentry} static and move the
+	  definition of ntfs_export_ops from fs/ntfs/super.c to namei.c.  Also,
+	  declare ntfs_export_ops in fs/ntfs/ntfs.h.
+	- Correct sparse file handling.  The compressed values need to be
+	  checked and set in the ntfs inode as done for compressed files and
+	  the compressed size needs to be used for vfs inode->i_blocks instead
+	  of the allocated size, again, as done for compressed files.
+	- Add AT_EA in addition to AT_DATA to whitelist for being allowed to be
+	  non-resident in fs/ntfs/attrib.c::ntfs_attr_can_be_non_resident().
+	- Add fs/ntfs/attrib.c::ntfs_attr_vcn_to_lcn_nolock() used by the new
+	  write code.
+	- Fix bug in fs/ntfs/attrib.c::ntfs_find_vcn_nolock() where after
+	  dropping the read lock and taking the write lock we were not checking
+	  whether someone else did not already do the work we wanted to do.
+	- Rename fs/ntfs/attrib.c::ntfs_find_vcn_nolock() to
+	  ntfs_attr_find_vcn_nolock() and update all callers.
+	- Add fs/ntfs/attrib.[hc]::ntfs_attr_make_non_resident().
+	- Fix sign of various error return values to be negative in
+	  fs/ntfs/lcnalloc.c.
+	- Modify ->readpage and ->writepage (fs/ntfs/aops.c) so they detect and
+	  handle the case where an attribute is converted from resident to
+	  non-resident by a concurrent file write.
+	- Remove checks for NULL before calling kfree() since kfree() does the
+	  checking itself.  (Jesper Juhl)
+	- Some utilities modify the boot sector but do not update the checksum.
+	  Thus, relax the checking in fs/ntfs/super.c::is_boot_sector_ntfs() to
+	  only emit a warning when the checksum is incorrect rather than
+	  refusing the mount.  Thanks to Bernd Casimir for pointing this
+	  problem out.
+	- Update attribute definition handling.
+	- Add NTFS_MAX_CLUSTER_SIZE and NTFS_MAX_PAGES_PER_CLUSTER constants.
+	- Use NTFS_MAX_CLUSTER_SIZE in super.c instead of hard coding 0x10000.
+	- Use MAX_BUF_PER_PAGE instead of variable sized array allocation for
+	  better code generation and one less sparse warning in fs/ntfs/aops.c.
+	- Remove spurious void pointer casts from fs/ntfs/.  (Pekka Enberg)
+	- Use C99 style structure initialization after memory allocation where
+	  possible (fs/ntfs/{attrib.c,index.c,super.c}).  Thanks to Al Viro and
+	  Pekka Enberg.
+	- Stamp the transaction log ($UsnJrnl), aka user space journal, if it
+	  is active on the volume and we are mounting read-write or remounting
+	  from read-only to read-write.
+	- Fix a bug in address space operations error recovery code paths where
+	  if the runlist was not mapped at all and a mapping error occured we
+	  would leave the runlist locked on exit to the function so that the
+	  next access to the same file would try to take the lock and deadlock.
+	- Detect the case when Windows has been suspended to disk on the volume
+	  to be mounted and if this is the case do not allow (re)mounting
+	  read-write.  This is done by parsing hiberfil.sys if present.
+	- Fix several occurences of a bug where we would perform 'var & ~const'
+	  with a 64-bit variable and a int, i.e. 32-bit, constant.  This causes
+	  the higher order 32-bits of the 64-bit variable to be zeroed.  To fix
+	  this cast the 'const' to the same 64-bit type as 'var'.
+	- Change the runlist terminator of the newly allocated cluster(s) to
+	  LCN_ENOENT in ntfs_attr_make_non_resident().  Otherwise the runlist
+	  code gets confused.
+	- Add an extra parameter @last_vcn to ntfs_get_size_for_mapping_pairs()
+	  and ntfs_mapping_pairs_build() to allow the runlist encoding to be
+	  partial which is desirable when filling holes in sparse attributes.
+	  Update all callers.
+	- Change ntfs_map_runlist_nolock() to only decompress the mapping pairs
+	  if the requested vcn is inside it.  Otherwise we get into problems
+	  when we try to map an out of bounds vcn because we then try to map
+	  the already mapped runlist fragment which causes
+	  ntfs_mapping_pairs_decompress() to fail and return error.  Update
+	  ntfs_attr_find_vcn_nolock() accordingly.
+	- Fix a nasty deadlock that appeared in recent kernels.
+	  The situation: VFS inode X on a mounted ntfs volume is dirty.  For
+	  same inode X, the ntfs_inode is dirty and thus corresponding on-disk
+	  inode, i.e. mft record, which is in a dirty PAGE_CACHE_PAGE belonging
+	  to the table of inodes, i.e. $MFT, inode 0.
+	  What happens:
+	  Process 1: sys_sync()/umount()/whatever...  calls
+	  __sync_single_inode() for $MFT -> do_writepages() -> write_page for
+	  the dirty page containing the on-disk inode X, the page is now locked
+	  -> ntfs_write_mst_block() which clears PageUptodate() on the page to
+	  prevent anyone else getting hold of it whilst it does the write out.
+	  This is necessary as the on-disk inode needs "fixups" applied before
+	  the write to disk which are removed again after the write and
+	  PageUptodate is then set again.  It then analyses the page looking
+	  for dirty on-disk inodes and when it finds one it calls
+	  ntfs_may_write_mft_record() to see if it is safe to write this
+	  on-disk inode.  This then calls ilookup5() to check if the
+	  corresponding VFS inode is in icache().  This in turn calls ifind()
+	  which waits on the inode lock via wait_on_inode whilst holding the
+	  global inode_lock.
+	  Process 2: pdflush results in a call to __sync_single_inode for the
+	  same VFS inode X on the ntfs volume.  This locks the inode (I_LOCK)
+	  then calls write-inode -> ntfs_write_inode -> map_mft_record() ->
+	  read_cache_page() for the page (in page cache of table of inodes
+	  $MFT, inode 0) containing the on-disk inode.  This page has
+	  PageUptodate() clear because of Process 1 (see above) so
+	  read_cache_page() blocks when it tries to take the page lock for the
+	  page so it can call ntfs_read_page().
+	  Thus Process 1 is holding the page lock on the page containing the
+	  on-disk inode X and it is waiting on the inode X to be unlocked in
+	  ifind() so it can write the page out and then unlock the page.
+	  And Process 2 is holding the inode lock on inode X and is waiting for
+	  the page to be unlocked so it can call ntfs_readpage() or discover
+	  that Process 1 set PageUptodate() again and use the page.
+	  Thus we have a deadlock due to ifind() waiting on the inode lock.
+	  The solution: The fix is to use the newly introduced
+	  ilookup5_nowait() which does not wait on the inode's lock and hence
+	  avoids the deadlock.  This is safe as we do not care about the VFS
+	  inode and only use the fact that it is in the VFS inode cache and the
+	  fact that the vfs and ntfs inodes are one struct in memory to find
+	  the ntfs inode in memory if present.  Also, the ntfs inode has its
+	  own locking so it does not matter if the vfs inode is locked.
+	- Fix bug in mft record writing where we forgot to set the device in
+	  the buffers when mapping them after the VM had discarded them.
+	  Thanks to Martin MOKREJŠ for the bug report.
 
 2.1.22 - Many bug and race fixes and error handling improvements.
 
@@ -84,7 +391,7 @@ ToDo/Notes:
 	  single one of them had an mst error.  (Thanks to Ken MacFerrin for
 	  the bug report.)
 	- Fix error handling in fs/ntfs/quota.c::ntfs_mark_quotas_out_of_date()
-	  where we failed to release i_sem on the $Quota/$Q attribute inode.
+	  where we failed to release i_mutex on the $Quota/$Q attribute inode.
 	- Fix bug in handling of bad inodes in fs/ntfs/namei.c::ntfs_lookup().
 	- Add mapping of unmapped buffers to all remaining code paths, i.e.
 	  fs/ntfs/aops.c::ntfs_write_mst_block(), mft.c::ntfs_sync_mft_mirror(),
@@ -585,7 +892,7 @@ ToDo/Notes:
 	  clusters. (Philipp Thomas)
 	- attrib.c::load_attribute_list(): Fix bug when initialized_size is a
 	  multiple of the block_size but not the cluster size. (Szabolcs
-	  Szakacsits <szaka@sienet.hu>)
+	  Szakacsits)
 
 2.1.2 - Important bug fixes aleviating the hangs in statfs.
 
@@ -595,7 +902,7 @@ ToDo/Notes:
 
 	- Add handling for initialized_size != data_size in compressed files.
 	- Reduce function local stack usage from 0x3d4 bytes to just noise in
-	  fs/ntfs/upcase.c. (Randy Dunlap <rddunlap@osdl.ord>)
+	  fs/ntfs/upcase.c. (Randy Dunlap)
 	- Remove compiler warnings for newer gcc.
 	- Pages are no longer kmapped by mm/filemap.c::generic_file_write()
 	  around calls to ->{prepare,commit}_write.  Adapt NTFS appropriately
@@ -912,11 +1219,11 @@ ToDo/Notes:
 	  the kernel. We probably want a kernel generic init_address_space()
 	  function...
 	- Drop BKL from ntfs_readdir() after consultation with Al Viro. The
-	  only caller of ->readdir() is vfs_readdir() which holds i_sem during
-	  the call, and i_sem is sufficient protection against changes in the
-	  directory inode (including ->i_size).
+	  only caller of ->readdir() is vfs_readdir() which holds i_mutex
+	  during the call, and i_mutex is sufficient protection against changes
+	  in the directory inode (including ->i_size).
 	- Use generic_file_llseek() for directories (as opposed to
-	  default_llseek()) as this downs i_sem instead of the BKL which is
+	  default_llseek()) as this downs i_mutex instead of the BKL which is
 	  what we now need for exclusion against ->f_pos changes considering we
 	  no longer take the BKL in ntfs_readdir().
 
@@ -1037,7 +1344,7 @@ tng-0.0.8 - 08/03/2002 - Now using BitKeeper, http://linux-ntfs.bkbits.net/
 	- Further runlist merging work. (Richard Russon)
 	- Backwards compatibility for gcc-2.95. (Richard Russon)
 	- Update to kernel 2.5.5-pre1 and rediff the now tiny patch.
-	- Convert to new file system declaration using ->ntfs_get_sb() and
+	- Convert to new filesystem declaration using ->ntfs_get_sb() and
 	  replacing ntfs_read_super() with ntfs_fill_super().
 	- Set s_maxbytes to MAX_LFS_FILESIZE to avoid page cache page index
 	  overflow on 32-bit architectures.
@@ -1333,7 +1640,7 @@ tng-0.0.1 - The first useful version.
 	The driver is now actually useful! Yey. (-: It undoubtedly has got bugs
 	though and it doesn't implement accesssing compressed files yet. Also,
 	accessing files with attribute list attributes is not implemented yet
-	either. But for small or simple file systems it should work and allow
+	either. But for small or simple filesystems it should work and allow
 	you to list directories, use stat on directory entries and the file
 	system, open, read, mmap and llseek around in files. A big mile stone
 	has been reached!
@@ -1341,7 +1648,7 @@ tng-0.0.1 - The first useful version.
 tng-0.0.0 - Initial version tag.
 
 	Initial driver implementation. The driver can mount and umount simple
-	NTFS file systems (i.e. ones without attribute lists in the system
+	NTFS filesystems (i.e. ones without attribute lists in the system
 	files). If the mount fails there might be problems in the error handling
 	code paths, so be warned. Otherwise it seems to be loading the system
 	files nicely and the mft record read mapping/unmapping seems to be

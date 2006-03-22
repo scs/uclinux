@@ -10,10 +10,11 @@
 #include <linux/file.h>
 #include <linux/uio.h>
 #include <linux/smp_lock.h>
-#include <linux/dnotify.h>
+#include <linux/fsnotify.h>
 #include <linux/security.h>
 #include <linux/module.h>
 #include <linux/syscalls.h>
+#include <linux/pagemap.h>
 
 #include <asm/uaccess.h>
 #include <asm/unistd.h>
@@ -32,7 +33,7 @@ loff_t generic_file_llseek(struct file *file, loff_t offset, int origin)
 	long long retval;
 	struct inode *inode = file->f_mapping->host;
 
-	down(&inode->i_sem);
+	mutex_lock(&inode->i_mutex);
 	switch (origin) {
 		case 2:
 			offset += inode->i_size;
@@ -48,7 +49,7 @@ loff_t generic_file_llseek(struct file *file, loff_t offset, int origin)
 		}
 		retval = offset;
 	}
-	up(&inode->i_sem);
+	mutex_unlock(&inode->i_mutex);
 	return retval;
 }
 
@@ -182,25 +183,46 @@ bad:
 }
 #endif
 
+/*
+ * rw_verify_area doesn't like huge counts. We limit
+ * them to something that fits in "int" so that others
+ * won't have to do range checks all the time.
+ */
+#define MAX_RW_COUNT (INT_MAX & PAGE_CACHE_MASK)
 
 int rw_verify_area(int read_write, struct file *file, loff_t *ppos, size_t count)
 {
 	struct inode *inode;
 	loff_t pos;
 
-	if (unlikely(count > file->f_maxcount))
+	if (unlikely((ssize_t) count < 0))
 		goto Einval;
 	pos = *ppos;
 	if (unlikely((pos < 0) || (loff_t) (pos + count) < 0))
 		goto Einval;
 
 	inode = file->f_dentry->d_inode;
-	if (inode->i_flock && MANDATORY_LOCK(inode))
-		return locks_mandatory_area(read_write == READ ? FLOCK_VERIFY_READ : FLOCK_VERIFY_WRITE, inode, file, pos, count);
-	return 0;
+	if (inode->i_flock && MANDATORY_LOCK(inode)) {
+		int retval = locks_mandatory_area(
+			read_write == READ ? FLOCK_VERIFY_READ : FLOCK_VERIFY_WRITE,
+			inode, file, pos, count);
+		if (retval < 0)
+			return retval;
+	}
+	return count > MAX_RW_COUNT ? MAX_RW_COUNT : count;
 
 Einval:
 	return -EINVAL;
+}
+
+static void wait_on_retry_sync_kiocb(struct kiocb *iocb)
+{
+	set_current_state(TASK_UNINTERRUPTIBLE);
+	if (!kiocbIsKicked(iocb))
+		schedule();
+	else
+		kiocbClearKicked(iocb);
+	__set_current_state(TASK_RUNNING);
 }
 
 ssize_t do_sync_read(struct file *filp, char __user *buf, size_t len, loff_t *ppos)
@@ -210,7 +232,10 @@ ssize_t do_sync_read(struct file *filp, char __user *buf, size_t len, loff_t *pp
 
 	init_sync_kiocb(&kiocb, filp);
 	kiocb.ki_pos = *ppos;
-	ret = filp->f_op->aio_read(&kiocb, buf, len, kiocb.ki_pos);
+	while (-EIOCBRETRY ==
+		(ret = filp->f_op->aio_read(&kiocb, buf, len, kiocb.ki_pos)))
+		wait_on_retry_sync_kiocb(&kiocb);
+
 	if (-EIOCBQUEUED == ret)
 		ret = wait_on_sync_kiocb(&kiocb);
 	*ppos = kiocb.ki_pos;
@@ -231,7 +256,8 @@ ssize_t vfs_read(struct file *file, char __user *buf, size_t count, loff_t *pos)
 		return -EFAULT;
 
 	ret = rw_verify_area(READ, file, pos, count);
-	if (!ret) {
+	if (ret >= 0) {
+		count = ret;
 		ret = security_file_permission (file, MAY_READ);
 		if (!ret) {
 			if (file->f_op->read)
@@ -239,7 +265,7 @@ ssize_t vfs_read(struct file *file, char __user *buf, size_t count, loff_t *pos)
 			else
 				ret = do_sync_read(file, buf, count, pos);
 			if (ret > 0) {
-				dnotify_parent(file->f_dentry, DN_ACCESS);
+				fsnotify_access(file->f_dentry);
 				current->rchar += ret;
 			}
 			current->syscr++;
@@ -258,7 +284,10 @@ ssize_t do_sync_write(struct file *filp, const char __user *buf, size_t len, lof
 
 	init_sync_kiocb(&kiocb, filp);
 	kiocb.ki_pos = *ppos;
-	ret = filp->f_op->aio_write(&kiocb, buf, len, kiocb.ki_pos);
+	while (-EIOCBRETRY ==
+	       (ret = filp->f_op->aio_write(&kiocb, buf, len, kiocb.ki_pos)))
+		wait_on_retry_sync_kiocb(&kiocb);
+
 	if (-EIOCBQUEUED == ret)
 		ret = wait_on_sync_kiocb(&kiocb);
 	*ppos = kiocb.ki_pos;
@@ -279,7 +308,8 @@ ssize_t vfs_write(struct file *file, const char __user *buf, size_t count, loff_
 		return -EFAULT;
 
 	ret = rw_verify_area(WRITE, file, pos, count);
-	if (!ret) {
+	if (ret >= 0) {
+		count = ret;
 		ret = security_file_permission (file, MAY_WRITE);
 		if (!ret) {
 			if (file->f_op->write)
@@ -287,7 +317,7 @@ ssize_t vfs_write(struct file *file, const char __user *buf, size_t count, loff_
 			else
 				ret = do_sync_write(file, buf, count, pos);
 			if (ret > 0) {
-				dnotify_parent(file->f_dentry, DN_MODIFY);
+				fsnotify_modify(file->f_dentry);
 				current->wchar += ret;
 			}
 			current->syscw++;
@@ -481,6 +511,9 @@ static ssize_t do_readv_writev(int type, struct file *file,
 	}
 
 	ret = rw_verify_area(type, file, pos, tot_len);
+	if (ret < 0)
+		goto out;
+	ret = security_file_permission(file, type == READ ? MAY_READ : MAY_WRITE);
 	if (ret)
 		goto out;
 
@@ -523,9 +556,12 @@ static ssize_t do_readv_writev(int type, struct file *file,
 out:
 	if (iov != iovstack)
 		kfree(iov);
-	if ((ret + (type == READ)) > 0)
-		dnotify_parent(file->f_dentry,
-				(type == READ) ? DN_ACCESS : DN_MODIFY);
+	if ((ret + (type == READ)) > 0) {
+		if (type == READ)
+			fsnotify_access(file->f_dentry);
+		else
+			fsnotify_modify(file->f_dentry);
+	}
 	return ret;
 Efault:
 	ret = -EFAULT;
@@ -631,8 +667,9 @@ static ssize_t do_sendfile(int out_fd, int in_fd, loff_t *ppos,
 		if (!(in_file->f_mode & FMODE_PREAD))
 			goto fput_in;
 	retval = rw_verify_area(READ, in_file, ppos, count);
-	if (retval)
+	if (retval < 0)
 		goto fput_in;
+	count = retval;
 
 	retval = security_file_permission (in_file, MAY_READ);
 	if (retval)
@@ -652,8 +689,9 @@ static ssize_t do_sendfile(int out_fd, int in_fd, loff_t *ppos,
 		goto fput_out;
 	out_inode = out_file->f_dentry->d_inode;
 	retval = rw_verify_area(WRITE, out_file, &out_file->f_pos, count);
-	if (retval)
+	if (retval < 0)
 		goto fput_out;
+	count = retval;
 
 	retval = security_file_permission (out_file, MAY_WRITE);
 	if (retval)

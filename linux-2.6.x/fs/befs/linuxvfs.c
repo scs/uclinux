@@ -41,8 +41,8 @@ static struct inode *befs_alloc_inode(struct super_block *sb);
 static void befs_destroy_inode(struct inode *inode);
 static int befs_init_inodecache(void);
 static void befs_destroy_inodecache(void);
-static int befs_follow_link(struct dentry *, struct nameidata *);
-static void befs_put_link(struct dentry *, struct nameidata *);
+static void *befs_follow_link(struct dentry *, struct nameidata *);
+static void befs_put_link(struct dentry *, struct nameidata *, void *);
 static int befs_utf2nls(struct super_block *sb, const char *in, int in_len,
 			char **out, int *out_len);
 static int befs_nls2utf(struct super_block *sb, const char *in, int in_len,
@@ -71,12 +71,6 @@ static struct file_operations befs_dir_operations = {
 
 static struct inode_operations befs_dir_inode_operations = {
 	.lookup		= befs_lookup,
-};
-
-static struct file_operations befs_file_operations = {
-	.llseek		= default_llseek,
-	.read		= generic_file_read,
-	.mmap		= generic_file_readonly_mmap,
 };
 
 static struct address_space_operations befs_aops = {
@@ -398,7 +392,7 @@ befs_read_inode(struct inode *inode)
 	inode->i_mapping->a_ops = &befs_aops;
 
 	if (S_ISREG(inode->i_mode)) {
-		inode->i_fop = &befs_file_operations;
+		inode->i_fop = &generic_ro_fops;
 	} else if (S_ISDIR(inode->i_mode)) {
 		inode->i_op = &befs_dir_inode_operations;
 		inode->i_fop = &befs_dir_operations;
@@ -461,7 +455,7 @@ befs_destroy_inodecache(void)
  * The data stream become link name. Unless the LONG_SYMLINK
  * flag is set.
  */
-static int
+static void *
 befs_follow_link(struct dentry *dentry, struct nameidata *nd)
 {
 	befs_inode_info *befs_ino = BEFS_I(dentry->d_inode);
@@ -487,10 +481,10 @@ befs_follow_link(struct dentry *dentry, struct nameidata *nd)
 	}
 
 	nd_set_link(nd, link);
-	return 0;
+	return NULL;
 }
 
-static void befs_put_link(struct dentry *dentry, struct nameidata *nd)
+static void befs_put_link(struct dentry *dentry, struct nameidata *nd, void *p)
 {
 	befs_inode_info *befs_ino = BEFS_I(dentry->d_inode);
 	if (befs_ino->i_flags & BEFS_LONG_SYMLINK) {
@@ -731,20 +725,16 @@ parse_options(char *options, befs_mount_options * opts)
 static void
 befs_put_super(struct super_block *sb)
 {
-	if (BEFS_SB(sb)->mount_opts.iocharset) {
-		kfree(BEFS_SB(sb)->mount_opts.iocharset);
-		BEFS_SB(sb)->mount_opts.iocharset = NULL;
-	}
+	kfree(BEFS_SB(sb)->mount_opts.iocharset);
+	BEFS_SB(sb)->mount_opts.iocharset = NULL;
 
 	if (BEFS_SB(sb)->nls) {
 		unload_nls(BEFS_SB(sb)->nls);
 		BEFS_SB(sb)->nls = NULL;
 	}
 
-	if (sb->s_fs_info) {
-		kfree(sb->s_fs_info);
-		sb->s_fs_info = NULL;
-	}
+	kfree(sb->s_fs_info);
+	sb->s_fs_info = NULL;
 	return;
 }
 

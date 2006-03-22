@@ -30,6 +30,7 @@
  * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
+#include <linux/module.h>
 #include <linux/smp_lock.h>
 #include <linux/unistd.h>
 #include <linux/user.h>
@@ -45,21 +46,30 @@ inline void static leds_switch(int flag);
 asmlinkage void ret_from_fork(void);
 
 /*
+ * Powermanagement idle function, if any..
+ */
+void (*pm_idle)(void) = NULL;
+EXPORT_SYMBOL(pm_idle);
+
+void (*pm_power_off)(void) = NULL;
+EXPORT_SYMBOL(pm_power_off);
+
+/*
  * The idle loop on BFIN
  */
 inline static void default_idle(void)
 {
-	while (1) {
+	while (!need_resched()) {
 		leds_switch(LED_OFF);
-		while (!need_resched())
-		      __asm__("nop;\n\t \
-                     nop;\n\t \
-                     nop;\n\t \
-                     idle;\n\t": : :"cc");
+	      __asm__("nop;\n\t \
+                         nop;\n\t \
+                         nop;\n\t \
+                         idle;\n\t": : :"cc");
 		leds_switch(LED_ON);
-		schedule();
 	}
 }
+
+void (*idle)(void) = default_idle;
 
 /*
  * The idle thread. There's no useful work to be
@@ -69,7 +79,13 @@ inline static void default_idle(void)
  */
 void cpu_idle(void)
 {
-	default_idle();
+	/* endless idle loop with no priority at all */
+	while (1) {
+		idle();
+		preempt_enable_no_resched();
+		schedule();
+		preempt_disable();
+	}
 }
 
 void machine_restart(char *__unused)
@@ -180,12 +196,8 @@ copy_thread(int nr, unsigned long clone_flags,
 	    struct task_struct *p, struct pt_regs *regs)
 {
 	struct pt_regs *childregs;
-	unsigned long stack_offset;
 
-	stack_offset = THREAD_SIZE - sizeof(struct pt_regs);
-	childregs =
-	    (struct pt_regs *)((unsigned long)p->thread_info + stack_offset);
-
+	childregs = (struct pt_regs *) (task_stack_page(p) + THREAD_SIZE) - 1;
 	*childregs = *regs;
 	childregs->r0 = 0;
 

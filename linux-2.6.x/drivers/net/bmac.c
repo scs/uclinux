@@ -218,7 +218,7 @@ void bmwrite(struct net_device *dev, unsigned long reg_offset, unsigned data )
 
 
 static inline
-volatile unsigned short bmread(struct net_device *dev, unsigned long reg_offset )
+unsigned short bmread(struct net_device *dev, unsigned long reg_offset )
 {
 	return in_le16((void __iomem *)dev->base_addr + reg_offset);
 }
@@ -1261,7 +1261,7 @@ static void bmac_reset_and_enable(struct net_device *dev)
 	spin_unlock_irqrestore(&bp->lock, flags);
 }
 
-static int __devinit bmac_probe(struct macio_dev *mdev, const struct of_match *match)
+static int __devinit bmac_probe(struct macio_dev *mdev, const struct of_device_id *match)
 {
 	int j, rev, ret;
 	struct bmac_data *bp;
@@ -1412,7 +1412,6 @@ static int bmac_open(struct net_device *dev)
 	bp->opened = 1;
 	bmac_reset_and_enable(dev);
 	enable_irq(dev->irq);
-	dev->flags |= IFF_RUNNING;
 	return 0;
 }
 
@@ -1425,7 +1424,6 @@ static int bmac_close(struct net_device *dev)
 	int i;
 
 	bp->sleeping = 1;
-	dev->flags &= ~(IFF_UP | IFF_RUNNING);
 
 	/* disable rx and tx */
 	config = bmread(dev, RXCFG);
@@ -1647,22 +1645,20 @@ static int __devexit bmac_remove(struct macio_dev *mdev)
 	return 0;
 }
 
-static struct of_match bmac_match[] = 
+static struct of_device_id bmac_match[] = 
 {
 	{
 	.name 		= "bmac",
-	.type		= OF_ANY_MATCH,
-	.compatible	= OF_ANY_MATCH,
 	.data		= (void *)0,
 	},
 	{
-	.name 		= OF_ANY_MATCH,
 	.type		= "network",
 	.compatible	= "bmac+",
 	.data		= (void *)1,
 	},
 	{},
 };
+MODULE_DEVICE_TABLE (of, bmac_match);
 
 static struct macio_driver bmac_driver = 
 {
@@ -1694,10 +1690,8 @@ static void __exit bmac_exit(void)
 {
 	macio_unregister_driver(&bmac_driver);
 
-	if (bmac_emergency_rxbuf != NULL) {
-		kfree(bmac_emergency_rxbuf);
-		bmac_emergency_rxbuf = NULL;
-	}
+	kfree(bmac_emergency_rxbuf);
+	bmac_emergency_rxbuf = NULL;
 }
 
 MODULE_AUTHOR("Randy Gobbel/Paul Mackerras");

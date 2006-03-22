@@ -162,7 +162,7 @@ struct lance_private {
 #define	MEM	lp->mem
 #define	DREG	lp->iobase[0]
 #define	AREG	lp->iobase[1]
-#define	REGA(a)	( AREG = (a), DREG )
+#define	REGA(a)	(*( AREG = (a), &DREG ))
 
 /* Definitions for the Lance */
 
@@ -389,7 +389,7 @@ static int __init lance_probe( struct net_device *dev)
 	dev->stop = &lance_close;
 	dev->get_stats = &lance_get_stats;
 	dev->set_multicast_list = &set_multicast_list;
-	dev->set_mac_address = 0;
+	dev->set_mac_address = NULL;
 //	KLUDGE -- REMOVE ME
 	set_bit(__LINK_STATE_PRESENT, &dev->state);
 

@@ -277,7 +277,7 @@ static void myri_init_rings(struct myri_eth *mp, int from_irq)
 	struct recvq __iomem *rq = mp->rq;
 	struct myri_rxd __iomem *rxd = &rq->myri_rxd[0];
 	struct net_device *dev = mp->dev;
-	int gfp_flags = GFP_KERNEL;
+	gfp_t gfp_flags = GFP_KERNEL;
 	int i;
 
 	if (from_irq || in_interrupt())
@@ -369,7 +369,7 @@ static void myri_tx(struct myri_eth *mp, struct net_device *dev)
  * assume 802.3 if the type field is short enough to be a length.
  * This is normal practice and works for any 'now in use' protocol.
  */
-static unsigned short myri_type_trans(struct sk_buff *skb, struct net_device *dev)
+static __be16 myri_type_trans(struct sk_buff *skb, struct net_device *dev)
 {
 	struct ethhdr *eth;
 	unsigned char *rawp;

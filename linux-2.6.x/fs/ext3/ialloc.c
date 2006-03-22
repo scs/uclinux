@@ -597,20 +597,22 @@ got:
 
 	ret = inode;
 	if(DQUOT_ALLOC_INODE(inode)) {
-		DQUOT_DROP(inode);
 		err = -EDQUOT;
-		goto fail2;
+		goto fail_drop;
 	}
+
 	err = ext3_init_acl(handle, inode, dir);
-	if (err) {
-		DQUOT_FREE_INODE(inode);
-		goto fail2;
-  	}
+	if (err)
+		goto fail_free_drop;
+
+	err = ext3_init_security(handle,inode, dir);
+	if (err)
+		goto fail_free_drop;
+
 	err = ext3_mark_inode_dirty(handle, inode);
 	if (err) {
 		ext3_std_error(sb, err);
-		DQUOT_FREE_INODE(inode);
-		goto fail2;
+		goto fail_free_drop;
 	}
 
 	ext3_debug("allocating inode %lu\n", inode->i_ino);
@@ -624,7 +626,11 @@ really_out:
 	brelse(bitmap_bh);
 	return ret;
 
-fail2:
+fail_free_drop:
+	DQUOT_FREE_INODE(inode);
+
+fail_drop:
+	DQUOT_DROP(inode);
 	inode->i_flags |= S_NOQUOTA;
 	inode->i_nlink = 0;
 	iput(inode);
@@ -644,7 +650,7 @@ struct inode *ext3_orphan_get(struct super_block *sb, unsigned long ino)
 	/* Error cases - e2fsck has already cleaned up for us */
 	if (ino > max_ino) {
 		ext3_warning(sb, __FUNCTION__,
-			     "bad orphan ino %lu!  e2fsck was run?\n", ino);
+			     "bad orphan ino %lu!  e2fsck was run?", ino);
 		goto out;
 	}
 
@@ -653,7 +659,7 @@ struct inode *ext3_orphan_get(struct super_block *sb, unsigned long ino)
 	bitmap_bh = read_inode_bitmap(sb, block_group);
 	if (!bitmap_bh) {
 		ext3_warning(sb, __FUNCTION__,
-			     "inode bitmap error for orphan %lu\n", ino);
+			     "inode bitmap error for orphan %lu", ino);
 		goto out;
 	}
 
@@ -665,7 +671,7 @@ struct inode *ext3_orphan_get(struct super_block *sb, unsigned long ino)
 			!(inode = iget(sb, ino)) || is_bad_inode(inode) ||
 			NEXT_ORPHAN(inode) > max_ino) {
 		ext3_warning(sb, __FUNCTION__,
-			     "bad orphan inode %lu!  e2fsck was run?\n", ino);
+			     "bad orphan inode %lu!  e2fsck was run?", ino);
 		printk(KERN_NOTICE "ext3_test_bit(bit=%d, block=%llu) = %d\n",
 		       bit, (unsigned long long)bitmap_bh->b_blocknr,
 		       ext3_test_bit(bit, bitmap_bh->b_data));
@@ -698,7 +704,6 @@ unsigned long ext3_count_free_inodes (struct super_block * sb)
 	unsigned long bitmap_count, x;
 	struct buffer_head *bitmap_bh = NULL;
 
-	lock_super (sb);
 	es = EXT3_SB(sb)->s_es;
 	desc_count = 0;
 	bitmap_count = 0;
@@ -721,7 +726,6 @@ unsigned long ext3_count_free_inodes (struct super_block * sb)
 	brelse(bitmap_bh);
 	printk("ext3_count_free_inodes: stored = %u, computed = %lu, %lu\n",
 		le32_to_cpu(es->s_free_inodes_count), desc_count, bitmap_count);
-	unlock_super(sb);
 	return desc_count;
 #else
 	desc_count = 0;
@@ -751,44 +755,3 @@ unsigned long ext3_count_dirs (struct super_block * sb)
 	return count;
 }
 
-#ifdef CONFIG_EXT3_CHECK
-/* Called at mount-time, super-block is locked */
-void ext3_check_inodes_bitmap (struct super_block * sb)
-{
-	struct ext3_super_block * es;
-	unsigned long desc_count, bitmap_count, x;
-	struct buffer_head *bitmap_bh = NULL;
-	struct ext3_group_desc * gdp;
-	int i;
-
-	es = EXT3_SB(sb)->s_es;
-	desc_count = 0;
-	bitmap_count = 0;
-	gdp = NULL;
-	for (i = 0; i < EXT3_SB(sb)->s_groups_count; i++) {
-		gdp = ext3_get_group_desc (sb, i, NULL);
-		if (!gdp)
-			continue;
-		desc_count += le16_to_cpu(gdp->bg_free_inodes_count);
-		brelse(bitmap_bh);
-		bitmap_bh = read_inode_bitmap(sb, i);
-		if (!bitmap_bh)
-			continue;
-
-		x = ext3_count_free(bitmap_bh, EXT3_INODES_PER_GROUP(sb) / 8);
-		if (le16_to_cpu(gdp->bg_free_inodes_count) != x)
-			ext3_error (sb, "ext3_check_inodes_bitmap",
-				    "Wrong free inodes count in group %d, "
-				    "stored = %d, counted = %lu", i,
-				    le16_to_cpu(gdp->bg_free_inodes_count), x);
-		bitmap_count += x;
-	}
-	brelse(bitmap_bh);
-	if (le32_to_cpu(es->s_free_inodes_count) != bitmap_count)
-		ext3_error (sb, "ext3_check_inodes_bitmap",
-			    "Wrong free inodes count in super block, "
-			    "stored = %lu, counted = %lu",
-			    (unsigned long)le32_to_cpu(es->s_free_inodes_count),
-			    bitmap_count);
-}
-#endif

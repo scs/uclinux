@@ -18,6 +18,7 @@
 #include <linux/slab.h>
 #include <linux/list.h>
 #include <linux/mount.h>
+#include <linux/capability.h>
 #include <linux/dcache.h>
 #include <linux/mm.h>
 #include <linux/errno.h>
@@ -94,12 +95,10 @@ static struct dcookie_struct * alloc_dcookie(struct dentry * dentry,
 	if (!dcs)
 		return NULL;
 
-	atomic_inc(&dentry->d_count);
-	atomic_inc(&vfsmnt->mnt_count);
 	dentry->d_cookie = dcs;
 
-	dcs->dentry = dentry;
-	dcs->vfsmnt = vfsmnt;
+	dcs->dentry = dget(dentry);
+	dcs->vfsmnt = mntget(vfsmnt);
 	hash_dcookie(dcs);
 
 	return dcs;

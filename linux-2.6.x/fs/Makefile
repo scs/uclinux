@@ -10,9 +10,11 @@ obj-y :=	open.o read_write.o file_table.o buffer.o  bio.o super.o \
 		ioctl.o readdir.o select.o fifo.o locks.o dcache.o inode.o \
 		attr.o bad_inode.o file.o filesystems.o namespace.o aio.o \
 		seq_file.o xattr.o libfs.o fs-writeback.o mpage.o direct-io.o \
+		ioprio.o pnode.o drop_caches.o
 
+obj-$(CONFIG_INOTIFY)		+= inotify.o
 obj-$(CONFIG_EPOLL)		+= eventpoll.o
-obj-$(CONFIG_COMPAT)		+= compat.o
+obj-$(CONFIG_COMPAT)		+= compat.o compat_ioctl.o
 
 nfsd-$(CONFIG_NFSD)		:= nfsctl.o
 obj-y				+= $(nfsd-y) $(nfsd-m)
@@ -31,6 +33,7 @@ obj-$(CONFIG_BINFMT_FLAT)	+= binfmt_flat.o
 
 obj-$(CONFIG_FS_MBCACHE)	+= mbcache.o
 obj-$(CONFIG_FS_POSIX_ACL)	+= posix_acl.o xattr_acl.o
+obj-$(CONFIG_NFS_COMMON)	+= nfs_common/
 
 obj-$(CONFIG_QUOTA)		+= dquot.o
 obj-$(CONFIG_QFMT_V1)		+= quota_v1.o
@@ -86,15 +89,17 @@ obj-$(CONFIG_QNX4FS_FS)		+= qnx4/
 obj-$(CONFIG_AUTOFS_FS)		+= autofs/
 obj-$(CONFIG_AUTOFS4_FS)	+= autofs4/
 obj-$(CONFIG_ADFS_FS)		+= adfs/
+obj-$(CONFIG_FUSE_FS)		+= fuse/
 obj-$(CONFIG_UDF_FS)		+= udf/
+obj-$(CONFIG_RELAYFS_FS)	+= relayfs/
 obj-$(CONFIG_SUN_OPENPROMFS)	+= openpromfs/
 obj-$(CONFIG_JFS_FS)		+= jfs/
 obj-$(CONFIG_XFS_FS)		+= xfs/
+obj-$(CONFIG_9P_FS)		+= 9p/
 obj-$(CONFIG_AFS_FS)		+= afs/
 obj-$(CONFIG_BEFS_FS)		+= befs/
 obj-$(CONFIG_HOSTFS)		+= hostfs/
 obj-$(CONFIG_HPPFS)		+= hppfs/
 obj-$(CONFIG_DEBUG_FS)		+= debugfs/
-
-# Patched by YAFFS
-obj-$(CONFIG_YAFFS_FS)		+= yaffs2/
+obj-$(CONFIG_CONFIGFS_FS)	+= configfs/
+obj-$(CONFIG_OCFS2_FS)		+= ocfs2/

@@ -15,6 +15,8 @@
 #include <linux/security.h>
 #include <linux/syscalls.h>
 #include <linux/buffer_head.h>
+#include <linux/capability.h>
+#include <linux/quotaops.h>
 
 /* Check validity of generic quotactl commands */
 static int generic_quotactl_valid(struct super_block *sb, int type, int cmd, qid_t id)
@@ -118,6 +120,10 @@ static int xqm_quotactl_valid(struct super_block *sb, int type, int cmd, qid_t i
 			if (!sb->s_qcop->get_xquota)
 				return -ENOSYS;
 			break;
+		case Q_XQUOTASYNC:
+			if (!sb->s_qcop->quota_sync)
+				return -ENOSYS;
+			break;
 		default:
 			return -EINVAL;
 	}
@@ -128,7 +134,7 @@ static int xqm_quotactl_valid(struct super_block *sb, int type, int cmd, qid_t i
 		     (type == XQM_GRPQUOTA && !in_egroup_p(id))) &&
 		     !capable(CAP_SYS_ADMIN))
 			return -EPERM;
-	} else if (cmd != Q_XGETQSTAT) {
+	} else if (cmd != Q_XGETQSTAT && cmd != Q_XQUOTASYNC) {
 		if (!capable(CAP_SYS_ADMIN))
 			return -EPERM;
 	}
@@ -149,36 +155,6 @@ static int check_quotactl_valid(struct super_block *sb, int type, int cmd, qid_t
 	return error;
 }
 
-static struct super_block *get_super_to_sync(int type)
-{
-	struct list_head *head;
-	int cnt, dirty;
-
-restart:
-	spin_lock(&sb_lock);
-	list_for_each(head, &super_blocks) {
-		struct super_block *sb = list_entry(head, struct super_block, s_list);
-
-		/* This test just improves performance so it needn't be reliable... */
-		for (cnt = 0, dirty = 0; cnt < MAXQUOTAS; cnt++)
-			if ((type == cnt || type == -1) && sb_has_quota_enabled(sb, cnt)
-			    && info_any_dirty(&sb_dqopt(sb)->info[cnt]))
-				dirty = 1;
-		if (!dirty)
-			continue;
-		sb->s_count++;
-		spin_unlock(&sb_lock);
-		down_read(&sb->s_umount);
-		if (!sb->s_root) {
-			drop_super(sb);
-			goto restart;
-		}
-		return sb;
-	}
-	spin_unlock(&sb_lock);
-	return NULL;
-}
-
 static void quota_sync_sb(struct super_block *sb, int type)
 {
 	int cnt;
@@ -193,7 +169,7 @@ static void quota_sync_sb(struct super_block *sb, int type)
 	sync_blockdev(sb->s_bdev);
 
 	/* Now when everything is written we can discard the pagecache so
-	 * that userspace sees the changes. We need i_sem and so we could
+	 * that userspace sees the changes. We need i_mutex and so we could
 	 * not do it inside dqonoff_sem. Moreover we need to be carefull
 	 * about races with quotaoff() (that is the reason why we have own
 	 * reference to inode). */
@@ -209,9 +185,9 @@ static void quota_sync_sb(struct super_block *sb, int type)
 	up(&sb_dqopt(sb)->dqonoff_sem);
 	for (cnt = 0; cnt < MAXQUOTAS; cnt++) {
 		if (discard[cnt]) {
-			down(&discard[cnt]->i_sem);
+			mutex_lock(&discard[cnt]->i_mutex);
 			truncate_inode_pages(&discard[cnt]->i_data, 0);
-			up(&discard[cnt]->i_sem);
+			mutex_unlock(&discard[cnt]->i_mutex);
 			iput(discard[cnt]);
 		}
 	}
@@ -219,17 +195,35 @@ static void quota_sync_sb(struct super_block *sb, int type)
 
 void sync_dquots(struct super_block *sb, int type)
 {
+	int cnt, dirty;
+
 	if (sb) {
 		if (sb->s_qcop->quota_sync)
 			quota_sync_sb(sb, type);
+		return;
 	}
-	else {
-		while ((sb = get_super_to_sync(type)) != NULL) {
-			if (sb->s_qcop->quota_sync)
-				quota_sync_sb(sb, type);
-			drop_super(sb);
-		}
+
+	spin_lock(&sb_lock);
+restart:
+	list_for_each_entry(sb, &super_blocks, s_list) {
+		/* This test just improves performance so it needn't be reliable... */
+		for (cnt = 0, dirty = 0; cnt < MAXQUOTAS; cnt++)
+			if ((type == cnt || type == -1) && sb_has_quota_enabled(sb, cnt)
+			    && info_any_dirty(&sb_dqopt(sb)->info[cnt]))
+				dirty = 1;
+		if (!dirty)
+			continue;
+		sb->s_count++;
+		spin_unlock(&sb_lock);
+		down_read(&sb->s_umount);
+		if (sb->s_root && sb->s_qcop->quota_sync)
+			quota_sync_sb(sb, type);
+		up_read(&sb->s_umount);
+		spin_lock(&sb_lock);
+		if (__put_super_and_need_restart(sb))
+			goto restart;
 	}
+	spin_unlock(&sb_lock);
 }
 
 /* Copy parameters and call proper function */
@@ -334,6 +328,8 @@ static int do_quotactl(struct super_block *sb, int type, int cmd, qid_t id, void
 				return -EFAULT;
 			return 0;
 		}
+		case Q_XQUOTASYNC:
+			return sb->s_qcop->quota_sync(sb, type);
 		/* We never reach here unless validity check is broken */
 		default:
 			BUG();

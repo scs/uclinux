@@ -2,7 +2,7 @@
 /*
 	Written 1998-2000 by Donald Becker.
 
-	Current maintainer is Ion Badulescu <ionut@cs.columbia.edu>. Please
+	Current maintainer is Ion Badulescu <ionut ta badula tod org>. Please
 	send all bug reports to me, and not to Donald Becker, as this code
 	has been heavily modified from Donald's original version.
 
@@ -129,15 +129,24 @@
 	- put the chip to a D3 slumber on driver unload
 	- added config option to enable/disable NAPI
 
-TODO:	bugfixes (no bugs known as of right now)
+	LK1.4.2 (Ion Badulescu)
+	- finally added firmware (GPL'ed by Adaptec)
+	- removed compatibility code for 2.2.x
+
+	LK1.4.2.1 (Ion Badulescu)
+	- fixed 32/64 bit issues on i386 + CONFIG_HIGHMEM
+	- added 32-bit padding to outgoing skb's, removed previous workaround
+
+TODO:	- fix forced speed/duplexing code (broken a long time ago, when
+	somebody converted the driver to use the generic MII code)
+	- fix VLAN support
 */
 
 #define DRV_NAME	"starfire"
-#define DRV_VERSION	"1.03+LK1.4.1"
-#define DRV_RELDATE	"February 10, 2002"
+#define DRV_VERSION	"1.03+LK1.4.2.1"
+#define DRV_RELDATE	"October 3, 2005"
 
 #include <linux/config.h>
-#include <linux/version.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/pci.h>
@@ -145,40 +154,32 @@ TODO:	bugfixes (no bugs known as of right now)
 #include <linux/etherdevice.h>
 #include <linux/init.h>
 #include <linux/delay.h>
+#include <linux/crc32.h>
+#include <linux/ethtool.h>
+#include <linux/mii.h>
+#include <linux/if_vlan.h>
 #include <asm/processor.h>		/* Processor type for cache alignment. */
 #include <asm/uaccess.h>
 #include <asm/io.h>
 
-/*
- * Adaptec's license for their drivers (which is where I got the
- * firmware files) does not allow one to redistribute them. Thus, we can't
- * include the firmware with this driver.
- *
- * However, should a legal-to-distribute firmware become available,
- * the driver developer would need only to obtain the firmware in the
- * form of a C header file.
- * Once that's done, the #undef below must be changed into a #define
- * for this driver to really use the firmware. Note that Rx/Tx
- * hardware TCP checksumming is not possible without the firmware.
- *
- * WANTED: legal firmware to include with this GPL'd driver.
- */
-#undef HAS_FIRMWARE
+#include "starfire_firmware.h"
 /*
  * The current frame processor firmware fails to checksum a fragment
  * of length 1. If and when this is fixed, the #define below can be removed.
  */
 #define HAS_BROKEN_FIRMWARE
+
+/*
+ * If using the broken firmware, data must be padded to the next 32-bit boundary.
+ */
+#ifdef HAS_BROKEN_FIRMWARE
+#define PADDING_MASK 3
+#endif
+
 /*
  * Define this if using the driver with the zero-copy patch
  */
-#if defined(HAS_FIRMWARE) && defined(MAX_SKB_FRAGS)
 #define ZEROCOPY
-#endif
-
-#ifdef HAS_FIRMWARE
-#include "starfire_firmware.h"
-#endif /* HAS_FIRMWARE */
 
 #if defined(CONFIG_VLAN_8021Q) || defined(CONFIG_VLAN_8021Q_MODULE)
 #define VLAN_SUPPORT
@@ -202,11 +203,7 @@ static int mtu;
    The Starfire has a 512 element hash table based on the Ethernet CRC. */
 static int multicast_filter_limit = 512;
 /* Whether to do TCP/UDP checksums in hardware */
-#ifdef HAS_FIRMWARE
 static int enable_hw_cksum = 1;
-#else
-static int enable_hw_cksum = 0;
-#endif
 
 #define PKT_BUF_SZ	1536		/* Size of each temporary Rx buffer.*/
 /*
@@ -271,9 +268,10 @@ static int full_duplex[MAX_UNITS] = {0, };
  * This SUCKS.
  * We need a much better method to determine if dma_addr_t is 64-bit.
  */
-#if (defined(__i386__) && defined(CONFIG_HIGHMEM) && (LINUX_VERSION_CODE > 0x20500 || defined(CONFIG_HIGHMEM64G))) || defined(__x86_64__) || defined (__ia64__) || defined(__mips64__) || (defined(__mips__) && defined(CONFIG_HIGHMEM) && defined(CONFIG_64BIT_PHYS_ADDR))
+#if (defined(__i386__) && defined(CONFIG_HIGHMEM64G)) || defined(__x86_64__) || defined (__ia64__) || defined(__mips64__) || (defined(__mips__) && defined(CONFIG_HIGHMEM) && defined(CONFIG_64BIT_PHYS_ADDR))
 /* 64-bit dma_addr_t */
 #define ADDR_64BITS	/* This chip uses 64 bit addresses. */
+#define netdrv_addr_t u64
 #define cpu_to_dma(x) cpu_to_le64(x)
 #define dma_to_cpu(x) le64_to_cpu(x)
 #define RX_DESC_Q_ADDR_SIZE RxDescQAddr64bit
@@ -282,6 +280,7 @@ static int full_duplex[MAX_UNITS] = {0, };
 #define TX_COMPL_Q_ADDR_SIZE TxComplQAddr64bit
 #define RX_DESC_ADDR_SIZE RxDescAddr64bit
 #else  /* 32-bit dma_addr_t */
+#define netdrv_addr_t u32
 #define cpu_to_dma(x) cpu_to_le32(x)
 #define dma_to_cpu(x) le32_to_cpu(x)
 #define RX_DESC_Q_ADDR_SIZE RxDescQAddr32bit
@@ -291,43 +290,15 @@ static int full_duplex[MAX_UNITS] = {0, };
 #define RX_DESC_ADDR_SIZE RxDescAddr32bit
 #endif
 
-#ifdef MAX_SKB_FRAGS
 #define skb_first_frag_len(skb)	skb_headlen(skb)
 #define skb_num_frags(skb) (skb_shinfo(skb)->nr_frags + 1)
-#else  /* not MAX_SKB_FRAGS */
-#define skb_first_frag_len(skb)	(skb->len)
-#define skb_num_frags(skb) 1
-#endif /* not MAX_SKB_FRAGS */
-
-/* 2.2.x compatibility code */
-#if LINUX_VERSION_CODE < 0x20300
-
-#include "starfire-kcomp22.h"
-
-#else  /* LINUX_VERSION_CODE > 0x20300 */
-
-#include <linux/crc32.h>
-#include <linux/ethtool.h>
-#include <linux/mii.h>
-
-#include <linux/if_vlan.h>
-
-#define init_tx_timer(dev, func, timeout) \
-	dev->tx_timeout = func; \
-	dev->watchdog_timeo = timeout;
-#define kick_tx_timer(dev, func, timeout)
-
-#define netif_start_if(dev)
-#define netif_stop_if(dev)
-
-#define PCI_SLOT_NAME(pci_dev)	pci_name(pci_dev)
-
-#endif /* LINUX_VERSION_CODE > 0x20300 */
 
 #ifdef HAVE_NETDEV_POLL
 #define init_poll(dev) \
+do { \
 	dev->poll = &netdev_poll; \
-	dev->weight = max_interrupt_work;
+	dev->weight = max_interrupt_work; \
+} while (0)
 #define netdev_rx(dev, ioaddr) \
 do { \
 	u32 intr_enable; \
@@ -341,7 +312,7 @@ do { \
 		/* Paranoia check */ \
 		intr_enable = readl(ioaddr + IntrEnable); \
 		if (intr_enable & (IntrRxDone | IntrRxEmpty)) { \
-			printk("%s: interrupt while in polling mode!\n", dev->name); \
+			printk(KERN_INFO "%s: interrupt while in polling mode!\n", dev->name); \
 			intr_enable &= ~(IntrRxDone | IntrRxEmpty); \
 			writel(intr_enable, ioaddr + IntrEnable); \
 		} \
@@ -371,6 +342,7 @@ KERN_INFO " (unofficial 2.2/2.4 kernel port, version " DRV_VERSION ", " DRV_RELD
 MODULE_AUTHOR("Donald Becker <becker@scyld.com>");
 MODULE_DESCRIPTION("Adaptec Starfire Ethernet driver");
 MODULE_LICENSE("GPL");
+MODULE_VERSION(DRV_VERSION);
 
 module_param(max_interrupt_work, int, 0);
 module_param(mtu, int, 0);
@@ -425,7 +397,7 @@ on the 32/64 bitness of the architecture), and relies on automatic
 minimum-length padding.  It does not use the completion queue
 consumer index, but instead checks for non-zero status entries.
 
-For receive this driver uses type 0/1/2/3 receive descriptors.  The driver
+For receive this driver uses type 2/3 receive descriptors.  The driver
 allocates full frame size skbuffs for the Rx ring buffers, so all frames
 should fit in a single descriptor.  The driver does not use the completion
 queue consumer index, but instead checks for non-zero status entries.
@@ -476,7 +448,7 @@ IVc. Errata
 
 */
 
-
+
 
 enum chip_capability_flags {CanHaveMII=1, };
 
@@ -670,7 +642,6 @@ struct full_rx_done_desc {
 	u32 timestamp;
 };
 /* XXX: this is ugly and I'm not sure it's worth the trouble -Ion */
-#ifdef HAS_FIRMWARE
 #ifdef VLAN_SUPPORT
 typedef struct full_rx_done_desc rx_done_desc;
 #define RxComplType RxComplType3
@@ -678,15 +649,6 @@ typedef struct full_rx_done_desc rx_done_desc;
 typedef struct csum_rx_done_desc rx_done_desc;
 #define RxComplType RxComplType2
 #endif /* not VLAN_SUPPORT */
-#else  /* not HAS_FIRMWARE */
-#ifdef VLAN_SUPPORT
-typedef struct basic_rx_done_desc rx_done_desc;
-#define RxComplType RxComplType1
-#else  /* not VLAN_SUPPORT */
-typedef struct short_rx_done_desc rx_done_desc;
-#define RxComplType RxComplType0
-#endif /* not VLAN_SUPPORT */
-#endif /* not HAS_FIRMWARE */
 
 enum rx_done_bits {
 	RxOK=0x20000000, RxFIFOErr=0x10000000, RxBufQ2=0x08000000,
@@ -898,13 +860,10 @@ static int __devinit starfire_init_one(struct pci_dev *pdev,
 	/* enable MWI -- it vastly improves Rx performance on sparc64 */
 	pci_set_mwi(pdev);
 
-#ifdef MAX_SKB_FRAGS
-	dev->features |= NETIF_F_SG;
-#endif /* MAX_SKB_FRAGS */
 #ifdef ZEROCOPY
 	/* Starfire can do TCP/UDP checksumming */
 	if (enable_hw_cksum)
-		dev->features |= NETIF_F_IP_CSUM;
+		dev->features |= NETIF_F_IP_CSUM | NETIF_F_SG;
 #endif /* ZEROCOPY */
 #ifdef VLAN_SUPPORT
 	dev->features |= NETIF_F_HW_VLAN_RX | NETIF_F_HW_VLAN_FILTER;
@@ -1008,7 +967,8 @@ static int __devinit starfire_init_one(struct pci_dev *pdev,
 	/* The chip-specific entries in the device structure. */
 	dev->open = &netdev_open;
 	dev->hard_start_xmit = &start_tx;
-	init_tx_timer(dev, tx_timeout, TX_TIMEOUT);
+	dev->tx_timeout = tx_timeout;
+	dev->watchdog_timeo = TX_TIMEOUT;
 	init_poll(dev);
 	dev->stop = &netdev_close;
 	dev->get_stats = &get_stats;
@@ -1039,7 +999,7 @@ static int __devinit starfire_init_one(struct pci_dev *pdev,
 				if ((mdio_read(dev, phy, MII_BMCR) & BMCR_RESET) == 0)
 					break;
 			if (boguscnt == 0) {
-				printk("%s: PHY reset never completed!\n", dev->name);
+				printk("%s: PHY#%d reset never completed!\n", dev->name, phy);
 				continue;
 			}
 			mii_status = mdio_read(dev, phy, MII_BMSR);
@@ -1110,6 +1070,7 @@ static int netdev_open(struct net_device *dev)
 	size_t tx_done_q_size, rx_done_q_size, tx_ring_size, rx_ring_size;
 
 	/* Do we ever need to reset the chip??? */
+
 	retval = request_irq(dev->irq, &intr_handler, SA_SHIRQ, dev->name, dev);
 	if (retval)
 		return retval;
@@ -1129,8 +1090,10 @@ static int netdev_open(struct net_device *dev)
 		rx_ring_size = sizeof(struct starfire_rx_desc) * RX_RING_SIZE;
 		np->queue_mem_size = tx_done_q_size + rx_done_q_size + tx_ring_size + rx_ring_size;
 		np->queue_mem = pci_alloc_consistent(np->pci_dev, np->queue_mem_size, &np->queue_mem_dma);
-		if (np->queue_mem == 0)
+		if (np->queue_mem == NULL) {
+			free_irq(dev->irq, dev);
 			return -ENOMEM;
+		}
 
 		np->tx_done_q     = np->queue_mem;
 		np->tx_done_q_dma = np->queue_mem_dma;
@@ -1211,7 +1174,6 @@ static int netdev_open(struct net_device *dev)
 
 	writel(np->intr_timer_ctrl, ioaddr + IntrTimerCtrl);
 
-	netif_start_if(dev);
 	netif_start_queue(dev);
 
 	if (debug > 1)
@@ -1238,13 +1200,11 @@ static int netdev_open(struct net_device *dev)
 	writel(ETH_P_8021Q, ioaddr + VlanType);
 #endif /* VLAN_SUPPORT */
 
-#ifdef HAS_FIRMWARE
 	/* Load Rx/Tx firmware into the frame processors */
 	for (i = 0; i < FIRMWARE_RX_SIZE * 2; i++)
 		writel(firmware_rx[i], ioaddr + RxGfpMem + i * 4);
 	for (i = 0; i < FIRMWARE_TX_SIZE * 2; i++)
 		writel(firmware_tx[i], ioaddr + TxGfpMem + i * 4);
-#endif /* HAS_FIRMWARE */
 	if (enable_hw_cksum)
 		/* Enable the Rx and Tx units, and the Rx/Tx frame processors. */
 		writel(TxEnable|TxGFPEnable|RxEnable|RxGFPEnable, ioaddr + GenCtrl);
@@ -1341,7 +1301,7 @@ static void init_ring(struct net_device *dev)
 		np->rx_info[i].skb = skb;
 		if (skb == NULL)
 			break;
-		np->rx_info[i].mapping = pci_map_single(np->pci_dev, skb->tail, np->rx_buf_sz, PCI_DMA_FROMDEVICE);
+		np->rx_info[i].mapping = pci_map_single(np->pci_dev, skb->data, np->rx_buf_sz, PCI_DMA_FROMDEVICE);
 		skb->dev = dev;			/* Mark as being used by this device. */
 		/* Grrr, we cannot offset to correctly align the IP header. */
 		np->rx_ring[i].rxaddr = cpu_to_dma(np->rx_info[i].mapping | RxDescValid);
@@ -1378,8 +1338,6 @@ static int start_tx(struct sk_buff *skb, struct net_device *dev)
 	u32 status;
 	int i;
 
-	kick_tx_timer(dev, tx_timeout, TX_TIMEOUT);
-
 	/*
 	 * be cautious here, wrapping the queue has weird semantics
 	 * and we may not have enough slots even when it seems we do.
@@ -1390,21 +1348,10 @@ static int start_tx(struct sk_buff *skb, struct net_device *dev)
 	}
 
 #if defined(ZEROCOPY) && defined(HAS_BROKEN_FIRMWARE)
-	{
-		int has_bad_length = 0;
-
-		if (skb_first_frag_len(skb) == 1)
-			has_bad_length = 1;
-		else {
-			for (i = 0; i < skb_shinfo(skb)->nr_frags; i++)
-				if (skb_shinfo(skb)->frags[i].size == 1) {
-					has_bad_length = 1;
-					break;
-				}
-		}
-
-		if (has_bad_length)
-			skb_checksum_help(skb);
+	if (skb->ip_summed == CHECKSUM_HW) {
+		skb = skb_padto(skb, (skb->len + PADDING_MASK) & ~PADDING_MASK);
+		if (skb == NULL)
+			return NETDEV_TX_OK;
 	}
 #endif /* ZEROCOPY && HAS_BROKEN_FIRMWARE */
 
@@ -1433,12 +1380,10 @@ static int start_tx(struct sk_buff *skb, struct net_device *dev)
 			np->tx_info[entry].mapping =
 				pci_map_single(np->pci_dev, skb->data, skb_first_frag_len(skb), PCI_DMA_TODEVICE);
 		} else {
-#ifdef MAX_SKB_FRAGS
 			skb_frag_t *this_frag = &skb_shinfo(skb)->frags[i - 1];
 			status |= this_frag->size;
 			np->tx_info[entry].mapping =
 				pci_map_single(np->pci_dev, page_address(this_frag->page) + this_frag->page_offset, this_frag->size, PCI_DMA_TODEVICE);
-#endif /* MAX_SKB_FRAGS */
 		}
 
 		np->tx_ring[entry].addr = cpu_to_dma(np->tx_info[entry].mapping);
@@ -1531,7 +1476,6 @@ static irqreturn_t intr_handler(int irq, void *dev_instance, struct pt_regs *rgs
 				np->tx_info[entry].mapping = 0;
 				np->dirty_tx += np->tx_info[entry].used_slots;
 				entry = (entry + np->tx_info[entry].used_slots) % TX_RING_SIZE;
-#ifdef MAX_SKB_FRAGS
 				{
 					int i;
 					for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
@@ -1543,7 +1487,7 @@ static irqreturn_t intr_handler(int irq, void *dev_instance, struct pt_regs *rgs
 						entry++;
 					}
 				}
-#endif /* MAX_SKB_FRAGS */
+
 				dev_kfree_skb_irq(skb);
 			}
 			np->tx_done_q[np->tx_done].status = 0;
@@ -1603,7 +1547,7 @@ static int __netdev_rx(struct net_device *dev, int *quota)
 		if (debug > 4)
 			printk(KERN_DEBUG "  netdev_rx() status of %d was %#8.8x.\n", np->rx_done, desc_status);
 		if (!(desc_status & RxOK)) {
-			/* There was a error. */
+			/* There was an error. */
 			if (debug > 2)
 				printk(KERN_DEBUG "  netdev_rx() Rx error was %#8.8x.\n", desc_status);
 			np->stats.rx_errors++;
@@ -1632,7 +1576,7 @@ static int __netdev_rx(struct net_device *dev, int *quota)
 			pci_dma_sync_single_for_cpu(np->pci_dev,
 						    np->rx_info[entry].mapping,
 						    pkt_len, PCI_DMA_FROMDEVICE);
-			eth_copy_and_sum(skb, np->rx_info[entry].skb->tail, pkt_len, 0);
+			eth_copy_and_sum(skb, np->rx_info[entry].skb->data, pkt_len, 0);
 			pci_dma_sync_single_for_device(np->pci_dev,
 						       np->rx_info[entry].mapping,
 						       pkt_len, PCI_DMA_FROMDEVICE);
@@ -1656,11 +1600,10 @@ static int __netdev_rx(struct net_device *dev, int *quota)
 #endif
 
 		skb->protocol = eth_type_trans(skb, dev);
-#if defined(HAS_FIRMWARE) || defined(VLAN_SUPPORT)
+#ifdef VLAN_SUPPORT
 		if (debug > 4)
 			printk(KERN_DEBUG "  netdev_rx() status2 of %d was %#4.4x.\n", np->rx_done, le16_to_cpu(desc->status2));
 #endif
-#ifdef HAS_FIRMWARE
 		if (le16_to_cpu(desc->status2) & 0x0100) {
 			skb->ip_summed = CHECKSUM_UNNECESSARY;
 			np->stats.rx_compressed++;
@@ -1679,7 +1622,6 @@ static int __netdev_rx(struct net_device *dev, int *quota)
 			skb->csum = le16_to_cpu(desc->csum);
 			printk(KERN_DEBUG "%s: checksum_hw, status2 = %#x\n", dev->name, le16_to_cpu(desc->status2));
 		}
-#endif /* HAS_FIRMWARE */
 #ifdef VLAN_SUPPORT
 		if (np->vlgrp && le16_to_cpu(desc->status2) & 0x0200) {
 			if (debug > 4)
@@ -1758,7 +1700,7 @@ static void refill_rx_ring(struct net_device *dev)
 			if (skb == NULL)
 				break;	/* Better luck next round. */
 			np->rx_info[entry].mapping =
-				pci_map_single(np->pci_dev, skb->tail, np->rx_buf_sz, PCI_DMA_FROMDEVICE);
+				pci_map_single(np->pci_dev, skb->data, np->rx_buf_sz, PCI_DMA_FROMDEVICE);
 			skb->dev = dev;	/* Mark as being used by this device. */
 			np->rx_ring[entry].rxaddr =
 				cpu_to_dma(np->rx_info[entry].mapping | RxDescValid);
@@ -1900,9 +1842,6 @@ static struct net_device_stats *get_stats(struct net_device *dev)
 }
 
 
-/* Chips may use the upper or lower CRC bits, and may reverse and/or invert
-   them.  Select the endian-ness that results in minimal calculations.
-*/
 static void set_rx_mode(struct net_device *dev)
 {
 	struct netdev_private *np = netdev_priv(dev);
@@ -1969,6 +1908,8 @@ static void set_rx_mode(struct net_device *dev)
 		memset(mc_filter, 0, sizeof(mc_filter));
 		for (i = 0, mclist = dev->mc_list; mclist && i < dev->mc_count;
 		     i++, mclist = mclist->next) {
+			/* The chip uses the upper 9 CRC bits
+			   as index into the hash table */
 			int bit_nr = ether_crc_le(ETH_ALEN, mclist->dmi_addr) >> 23;
 			__u32 *fptr = (__u32 *) &mc_filter[(bit_nr >> 4) & ~1];
 
@@ -2001,7 +1942,7 @@ static void get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 	struct netdev_private *np = netdev_priv(dev);
 	strcpy(info->driver, DRV_NAME);
 	strcpy(info->version, DRV_VERSION);
-	strcpy(info->bus_info, PCI_SLOT_NAME(np->pci_dev));
+	strcpy(info->bus_info, pci_name(np->pci_dev));
 }
 
 static int get_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
@@ -2083,7 +2024,6 @@ static int netdev_close(struct net_device *dev)
 	int i;
 
 	netif_stop_queue(dev);
-	netif_stop_if(dev);
 
 	if (debug > 1) {
 		printk(KERN_DEBUG "%s: Shutting down ethercard, Intr status %#8.8x.\n",
@@ -2184,18 +2124,19 @@ static int __init starfire_init (void)
 /* when a module, this is printed whether or not devices are found in probe */
 #ifdef MODULE
 	printk(version);
+#ifdef HAVE_NETDEV_POLL
+	printk(KERN_INFO DRV_NAME ": polling (NAPI) enabled\n");
+#else
+	printk(KERN_INFO DRV_NAME ": polling (NAPI) disabled\n");
 #endif
-#ifndef ADDR_64BITS
+#endif
+
 	/* we can do this test only at run-time... sigh */
-	if (sizeof(dma_addr_t) == sizeof(u64)) {
-		printk("This driver has not been ported to this 64-bit architecture yet\n");
+	if (sizeof(dma_addr_t) != sizeof(netdrv_addr_t)) {
+		printk("This driver has dma_addr_t issues, please send email to maintainer\n");
 		return -ENODEV;
 	}
-#endif /* not ADDR_64BITS */
-#ifndef HAS_FIRMWARE
-	/* unconditionally disable hw cksums if firmware is not present */
-	enable_hw_cksum = 0;
-#endif /* not HAS_FIRMWARE */
+
 	return pci_module_init (&starfire_driver);
 }
 

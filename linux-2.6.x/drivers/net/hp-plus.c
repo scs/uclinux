@@ -138,12 +138,6 @@ static int __init do_hpp_probe(struct net_device *dev)
 	return -ENODEV;
 }
 
-static void cleanup_card(struct net_device *dev)
-{
-	/* NB: hpp_close() handles free_irq */
-	release_region(dev->base_addr - NIC_OFFSET, HP_IO_EXTENT);
-}
-
 #ifndef MODULE
 struct net_device * __init hp_plus_probe(int unit)
 {
@@ -159,12 +153,7 @@ struct net_device * __init hp_plus_probe(int unit)
 	err = do_hpp_probe(dev);
 	if (err)
 		goto out;
-	err = register_netdev(dev);
-	if (err)
-		goto out1;
 	return dev;
-out1:
-	cleanup_card(dev);
 out:
 	free_netdev(dev);
 	return ERR_PTR(err);
@@ -271,6 +260,9 @@ static int __init hpp_probe1(struct net_device *dev, int ioaddr)
 	/* Leave the 8390 and HP chip reset. */
 	outw(inw(ioaddr + HPP_OPTION) & ~EnableIRQ, ioaddr + HPP_OPTION);
 
+	retval = register_netdev(dev);
+	if (retval)
+		goto out;
 	return 0;
 out:
 	release_region(ioaddr, HP_IO_EXTENT);
@@ -463,11 +455,8 @@ init_module(void)
 		dev->irq = irq[this_dev];
 		dev->base_addr = io[this_dev];
 		if (do_hpp_probe(dev) == 0) {
-			if (register_netdev(dev) == 0) {
-				dev_hpp[found++] = dev;
-				continue;
-			}
-			cleanup_card(dev);
+			dev_hpp[found++] = dev;
+			continue;
 		}
 		free_netdev(dev);
 		printk(KERN_WARNING "hp-plus.c: No HP-Plus card found (i/o = 0x%x).\n", io[this_dev]);
@@ -476,6 +465,12 @@ init_module(void)
 	if (found)
 		return 0;
 	return -ENXIO;
+}
+
+static void cleanup_card(struct net_device *dev)
+{
+	/* NB: hpp_close() handles free_irq */
+	release_region(dev->base_addr - NIC_OFFSET, HP_IO_EXTENT);
 }
 
 void

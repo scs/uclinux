@@ -51,11 +51,11 @@ static int bfin533_reg_setup(struct op_counter_config *ctr)
 		curr_count[1] = count[1];
 	}
 
- 	dbg("ctr[0].enabled=%d,ctr[1].enabled=%d,ctr[0].event<<5=0x%x,ctr[1].event<<16=0x%x\n",ctr[0].enabled,ctr[1].enabled,ctr[0].event << 5,ctr[1].event << 16);
+	dbg("ctr[0].enabled=%d,ctr[1].enabled=%d,ctr[0].event<<5=0x%x,ctr[1].event<<16=0x%x\n", ctr[0].enabled, ctr[1].enabled, ctr[0].event << 5, ctr[1].event << 16);
 	pfctl |= COUNT_EDGE_ONLY;
 	curr_pfctl = pfctl;
 
-	dbg("write 0x%x to pfctl\n",pfctl);
+	dbg("write 0x%x to pfctl\n", pfctl);
 	ctr_write(pfctl);
 	count_write(count);
 
@@ -102,38 +102,38 @@ static int get_kernel(void)
 	return is_kernel;
 }
 
-int pm_overflow_handler(int irq, struct pt_regs * regs){
+int pm_overflow_handler(int irq, struct pt_regs *regs)
+{
 	int is_kernel;
-        int i,cpu;
-        unsigned int pc,pfctl;
-        unsigned int count[2];
+	int i, cpu;
+	unsigned int pc, pfctl;
+	unsigned int count[2];
 
-        dbg("get interrupt in %s\n",__FUNCTION__);
-        if (oprofile_running == 0){
-             dbg("error: entering interrupt when oprofile is stopped.\n\r");
-                return -1;
-        }
+	dbg("get interrupt in %s\n", __FUNCTION__);
+	if (oprofile_running == 0) {
+		dbg("error: entering interrupt when oprofile is stopped.\n\r");
+		return -1;
+	}
 
+	is_kernel = get_kernel();
+	cpu = smp_processor_id();
+	pc = regs->pc;
+	pfctl = ctr_read();
 
-        is_kernel = get_kernel();
-        cpu = smp_processor_id();
-        pc = regs->pc;
-        pfctl = ctr_read();
+	/* read the two event counter regs */
+	count_read(count);
 
-        /* read the two event counter regs */
-        count_read(count);
+	/* if the counter overflows, add sample to oprofile buffer */
+	for (i = 0; i < 2; ++i) {
+		if (oprofile_running) {
+			oprofile_add_sample(regs, i);
+		}
+	}
 
-        /* if the counter overflows, add sample to oprofile buffer */
-        for (i = 0; i < 2; ++i) {
-             if (oprofile_running ) {
-                 oprofile_add_sample(regs, i);
-            }
-        }
-
-       /* reset the perfmon counter */
-        ctr_write(curr_pfctl);
-        count_write(curr_count);
-        return 0;
+	/* reset the perfmon counter */
+	ctr_write(curr_pfctl);
+	count_write(curr_count);
+	return 0;
 }
 
 struct op_bfin533_model op_model_bfin533 = {

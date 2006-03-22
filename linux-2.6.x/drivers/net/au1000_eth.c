@@ -32,6 +32,7 @@
  * 
  */
 
+#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
@@ -150,13 +151,6 @@ struct au1000_private *au_macs[NUM_ETH_INTERFACES];
 	SUPPORTED_10baseT_Half | SUPPORTED_10baseT_Full | \
 	SUPPORTED_100baseT_Half | SUPPORTED_100baseT_Full | \
 	SUPPORTED_Autoneg
-
-static char *phy_link[] = 
-{	"unknown", 
-	"10Base2", "10BaseT", 
-	"AUI",
-	"100BaseT", "100BaseTX", "100BaseFX"
-};
 
 int bcm_5201_init(struct net_device *dev, int phy_addr)
 {
@@ -785,6 +779,7 @@ static struct mii_chip_info {
 	{"Broadcom BCM5201 10/100 BaseT PHY",0x0040,0x6212, &bcm_5201_ops,0},
 	{"Broadcom BCM5221 10/100 BaseT PHY",0x0040,0x61e4, &bcm_5201_ops,0},
 	{"Broadcom BCM5222 10/100 BaseT PHY",0x0040,0x6322, &bcm_5201_ops,1},
+	{"NS DP83847 PHY", 0x2000, 0x5c30, &bcm_5201_ops ,0},
 	{"AMD 79C901 HomePNA PHY",0x0000,0x35c8, &am79c901_ops,0},
 	{"AMD 79C874 10/100 BaseT PHY",0x0022,0x561b, &am79c874_ops,0},
 	{"LSI 80227 10/100 BaseT PHY",0x0016,0xf840, &lsi_80227_ops,0},
@@ -1045,7 +1040,7 @@ found:
 #endif
 
 	if (aup->mii->chip_info == NULL) {
-		printk(KERN_ERR "%s: Au1x No MII transceivers found!\n",
+		printk(KERN_ERR "%s: Au1x No known MII transceivers found!\n",
 				dev->name);
 		return -1;
 	}
@@ -1546,6 +1541,9 @@ au1000_probe(u32 ioaddr, int irq, int port_num)
 		printk(KERN_ERR "%s: out of memory\n", dev->name);
 		goto err_out;
 	}
+	aup->mii->next = NULL;
+	aup->mii->chip_info = NULL;
+	aup->mii->status = 0;
 	aup->mii->mii_control_reg = 0;
 	aup->mii->mii_data_reg = 0;
 
@@ -1609,8 +1607,7 @@ err_out:
 	/* here we should have a valid dev plus aup-> register addresses
 	 * so we can reset the mac properly.*/
 	reset_mac(dev);
-	if (aup->mii)
-		kfree(aup->mii);
+	kfree(aup->mii);
 	for (i = 0; i < NUM_RX_DMA; i++) {
 		if (aup->rx_db_inuse[i])
 			ReleaseDB(aup, aup->rx_db_inuse[i]);
@@ -1681,10 +1678,6 @@ static int au1000_init(struct net_device *dev)
 		control |= MAC_FULL_DUPLEX;
 	}
 
-	/* fix for startup without cable */
-	if (!link) 
-		dev->flags &= ~IFF_RUNNING;
-
 	aup->mac->control = control;
 	aup->mac->vlan1_tag = 0x8100; /* activate vlan support */
 	au_sync();
@@ -1709,16 +1702,14 @@ static void au1000_timer(unsigned long data)
 	if_port = dev->if_port;
 	if (aup->phy_ops->phy_status(dev, aup->phy_addr, &link, &speed) == 0) {
 		if (link) {
-			if (!(dev->flags & IFF_RUNNING)) {
+			if (!netif_carrier_ok(dev)) {
 				netif_carrier_on(dev);
-				dev->flags |= IFF_RUNNING;
 				printk(KERN_INFO "%s: link up\n", dev->name);
 			}
 		}
 		else {
-			if (dev->flags & IFF_RUNNING) {
+			if (netif_carrier_ok(dev)) {
 				netif_carrier_off(dev);
-				dev->flags &= ~IFF_RUNNING;
 				dev->if_port = 0;
 				printk(KERN_INFO "%s: link down\n", dev->name);
 			}
@@ -1815,8 +1806,7 @@ static void __exit au1000_cleanup_module(void)
 		if (dev) {
 			aup = (struct au1000_private *) dev->priv;
 			unregister_netdev(dev);
-			if (aup->mii)
-				kfree(aup->mii);
+			kfree(aup->mii);
 			for (j = 0; j < NUM_RX_DMA; j++) {
 				if (aup->rx_db_inuse[j])
 					ReleaseDB(aup, aup->rx_db_inuse[j]);

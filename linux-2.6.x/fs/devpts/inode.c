@@ -18,27 +18,8 @@
 #include <linux/mount.h>
 #include <linux/tty.h>
 #include <linux/devpts_fs.h>
-#include <linux/xattr.h>
 
 #define DEVPTS_SUPER_MAGIC 0x1cd1
-
-extern struct xattr_handler devpts_xattr_security_handler;
-
-static struct xattr_handler *devpts_xattr_handlers[] = {
-#ifdef CONFIG_DEVPTS_FS_SECURITY
-	&devpts_xattr_security_handler,
-#endif
-	NULL
-};
-
-static struct inode_operations devpts_file_inode_operations = {
-#ifdef CONFIG_DEVPTS_FS_XATTR
-	.setxattr	= generic_setxattr,
-	.getxattr	= generic_getxattr,
-	.listxattr	= generic_listxattr,
-	.removexattr	= generic_removexattr,
-#endif
-};
 
 static struct vfsmount *devpts_mnt;
 static struct dentry *devpts_root;
@@ -102,7 +83,6 @@ devpts_fill_super(struct super_block *s, void *data, int silent)
 	s->s_blocksize_bits = 10;
 	s->s_magic = DEVPTS_SUPER_MAGIC;
 	s->s_op = &devpts_sops;
-	s->s_xattr = devpts_xattr_handlers;
 	s->s_time_gran = 1;
 
 	inode = new_inode(s);
@@ -150,7 +130,7 @@ static struct dentry *get_node(int num)
 {
 	char s[12];
 	struct dentry *root = devpts_root;
-	down(&root->d_inode->i_sem);
+	mutex_lock(&root->d_inode->i_mutex);
 	return lookup_one_len(s, root, sprintf(s, "%d", num));
 }
 
@@ -175,14 +155,13 @@ int devpts_pty_new(struct tty_struct *tty)
 	inode->i_gid = config.setgid ? config.gid : current->fsgid;
 	inode->i_mtime = inode->i_atime = inode->i_ctime = CURRENT_TIME;
 	init_special_inode(inode, S_IFCHR|config.mode, device);
-	inode->i_op = &devpts_file_inode_operations;
 	inode->u.generic_ip = tty;
 
 	dentry = get_node(number);
 	if (!IS_ERR(dentry) && !dentry->d_inode)
 		d_instantiate(dentry, inode);
 
-	up(&devpts_root->d_inode->i_sem);
+	mutex_unlock(&devpts_root->d_inode->i_mutex);
 
 	return 0;
 }
@@ -199,7 +178,7 @@ struct tty_struct *devpts_get_tty(int number)
 		dput(dentry);
 	}
 
-	up(&devpts_root->d_inode->i_sem);
+	mutex_unlock(&devpts_root->d_inode->i_mutex);
 
 	return tty;
 }
@@ -217,7 +196,7 @@ void devpts_pty_kill(int number)
 		}
 		dput(dentry);
 	}
-	up(&devpts_root->d_inode->i_sem);
+	mutex_unlock(&devpts_root->d_inode->i_mutex);
 }
 
 static int __init init_devpts_fs(void)

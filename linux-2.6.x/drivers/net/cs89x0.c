@@ -87,6 +87,15 @@
   Deepak Saxena     : dsaxena@plexity.net
                     : Intel IXDP2x01 (XScale ixp2x00 NPU) platform support
 
+  Dmitry Pervushin  : dpervushin@ru.mvista.com
+                    : PNX010X platform support
+
+  Deepak Saxena     : dsaxena@plexity.net
+                    : Intel IXDP2351 platform support
+
+  Dmitry Pervushin  : dpervushin@ru.mvista.com
+                    : PNX010X platform support
+
 */
 
 /* Always include 'config.h' first in case the user wants to turn on
@@ -100,7 +109,7 @@
  * Note that even if DMA is turned off we still support the 'dma' and  'use_dma'
  * module options so we don't break any startup scripts.
  */
-#ifndef CONFIG_ARCH_IXDP2X01
+#ifndef CONFIG_ISA_DMA_API
 #define ALLOW_DMA	0
 #else
 #define ALLOW_DMA	1
@@ -140,6 +149,7 @@
 
 #include <asm/system.h>
 #include <asm/io.h>
+#include <asm/irq.h>
 #if ALLOW_DMA
 #include <asm/dma.h>
 #endif
@@ -170,10 +180,21 @@ static unsigned int cs8900_irq_map[] = {12,0,0,0};
 static unsigned int netcard_portlist[] __initdata =
    { 0x0300, 0};
 static unsigned int cs8900_irq_map[] = {1,0,0,0};
+#elif defined(CONFIG_MACH_IXDP2351)
+static unsigned int netcard_portlist[] __initdata = {IXDP2351_VIRT_CS8900_BASE, 0};
+static unsigned int cs8900_irq_map[] = {IRQ_IXDP2351_CS8900, 0, 0, 0};
+#include <asm/irq.h>
 #elif defined(CONFIG_ARCH_IXDP2X01)
 #include <asm/irq.h>
 static unsigned int netcard_portlist[] __initdata = {IXDP2X01_CS8900_VIRT_BASE, 0};
 static unsigned int cs8900_irq_map[] = {IRQ_IXDP2X01_CS8900, 0, 0, 0};
+#elif defined(CONFIG_ARCH_PNX010X)
+#include <asm/irq.h>
+#include <asm/arch/gpio.h>
+#define CIRRUS_DEFAULT_BASE	IO_ADDRESS(EXT_STATIC2_s0_BASE + 0x200000)	/* = Physical address 0x48200000 */
+#define CIRRUS_DEFAULT_IRQ	VH_INTC_INT_NUM_CASCADED_INTERRUPT_1 /* Event inputs bank 1 - ID 35/bit 3 */
+static unsigned int netcard_portlist[] __initdata = {CIRRUS_DEFAULT_BASE, 0};
+static unsigned int cs8900_irq_map[] = {CIRRUS_DEFAULT_IRQ, 0, 0, 0};
 #else
 static unsigned int netcard_portlist[] __initdata =
    { 0x300, 0x320, 0x340, 0x360, 0x200, 0x220, 0x240, 0x260, 0x280, 0x2a0, 0x2c0, 0x2e0, 0};
@@ -240,6 +261,9 @@ static int get_eeprom_data(struct net_device *dev, int off, int len, int *buffer
 static int get_eeprom_cksum(int off, int len, int *buffer);
 static int set_mac_address(struct net_device *dev, void *addr);
 static void count_rx_errors(int status, struct net_local *lp);
+#ifdef CONFIG_NET_POLL_CONTROLLER
+static void net_poll_controller(struct net_device *dev);
+#endif
 #if ALLOW_DMA
 static void get_dma_channel(struct net_device *dev);
 static void release_dma_buff(struct net_local *lp);
@@ -319,13 +343,7 @@ struct net_device * __init cs89x0_probe(int unit)
 	}
 	if (err)
 		goto out;
-	err = register_netdev(dev);
-	if (err)
-		goto out1;
 	return dev;
-out1:
-	outw(PP_ChipID, dev->base_addr + ADD_PORT);
-	release_region(dev->base_addr, NETCARD_IO_EXTENT);
 out:
 	free_netdev(dev);
 	printk(KERN_WARNING "cs89x0: no cs8900 or cs8920 detected.  Be sure to disable PnP with SETUP\n");
@@ -333,30 +351,96 @@ out:
 }
 #endif
 
-static int
-readreg(struct net_device *dev, int portno)
+#if defined(CONFIG_MACH_IXDP2351)
+static u16
+readword(unsigned long base_addr, int portno)
 {
-	outw(portno, dev->base_addr + ADD_PORT);
-	return inw(dev->base_addr + DATA_PORT);
+	return __raw_readw(base_addr + (portno << 1));
 }
 
 static void
-writereg(struct net_device *dev, int portno, int value)
+writeword(unsigned long base_addr, int portno, u16 value)
 {
-	outw(portno, dev->base_addr + ADD_PORT);
-	outw(value, dev->base_addr + DATA_PORT);
+	__raw_writew(value, base_addr + (portno << 1));
 }
-
-static int
-readword(struct net_device *dev, int portno)
+#elif defined(CONFIG_ARCH_IXDP2X01)
+static u16
+readword(unsigned long base_addr, int portno)
 {
-	return inw(dev->base_addr + portno);
+	return __raw_readl(base_addr + (portno << 1));
 }
 
 static void
-writeword(struct net_device *dev, int portno, int value)
+writeword(unsigned long base_addr, int portno, u16 value)
 {
-	outw(value, dev->base_addr + portno);
+	__raw_writel(value, base_addr + (portno << 1));
+}
+#elif defined(CONFIG_ARCH_PNX010X)
+static u16
+readword(unsigned long base_addr, int portno)
+{
+	return inw(base_addr + (portno << 1));
+}
+
+static void
+writeword(unsigned long base_addr, int portno, u16 value)
+{
+	outw(value, base_addr + (portno << 1));
+}
+#else
+static u16
+readword(unsigned long base_addr, int portno)
+{
+	return inw(base_addr + portno);
+}
+
+static void
+writeword(unsigned long base_addr, int portno, u16 value)
+{
+	outw(value, base_addr + portno);
+}
+#endif
+
+static void
+readwords(unsigned long base_addr, int portno, void *buf, int length)
+{
+	u8 *buf8 = (u8 *)buf;
+
+	do {
+		u16 tmp16;
+
+		tmp16 = readword(base_addr, portno);
+		*buf8++ = (u8)tmp16;
+		*buf8++ = (u8)(tmp16 >> 8);
+	} while (--length);
+}
+
+static void
+writewords(unsigned long base_addr, int portno, void *buf, int length)
+{
+	u8 *buf8 = (u8 *)buf;
+
+	do {
+		u16 tmp16;
+
+		tmp16 = *buf8++;
+		tmp16 |= (*buf8++) << 8;
+		writeword(base_addr, portno, tmp16);
+	} while (--length);
+}
+
+static u16
+readreg(struct net_device *dev, u16 regno)
+{
+	writeword(dev->base_addr, ADD_PORT, regno);
+	return readword(dev->base_addr, DATA_PORT);
+}
+
+static void
+writereg(struct net_device *dev, u16 regno, u16 value)
+{
+	writeword(dev->base_addr, ADD_PORT, regno);
+	writeword(dev->base_addr, DATA_PORT, value);
 }
 
 static int __init
@@ -404,6 +488,19 @@ get_eeprom_cksum(int off, int len, int *buffer)
 	return -1;
 }
 
+#ifdef CONFIG_NET_POLL_CONTROLLER
+/*
+ * Polling receive - used by netconsole and other diagnostic tools
+ * to allow network i/o with interrupts disabled.
+ */
+static void net_poll_controller(struct net_device *dev)
+{
+	disable_irq(dev->irq);
+	net_interrupt(dev->irq, dev, NULL);
+	enable_irq(dev->irq);
+}
+#endif
+
 /* This is the real probe routine.  Linux has a history of friendly device
    probes on the ISA bus.  A good device probes avoids doing writes, and
    verifies that the correct device exists and functions.
@@ -416,6 +513,7 @@ cs89x0_probe1(struct net_device *dev, int ioaddr, int modular)
 	struct net_local *lp = netdev_priv(dev);
 	static unsigned version_printed;
 	int i;
+	int tmp;
 	unsigned rev_type = 0;
 	int eeprom_buff[CHKSUM_LEN];
 	int retval;
@@ -437,6 +535,30 @@ cs89x0_probe1(struct net_device *dev, int ioaddr, int modular)
 #endif
         }
 
+#ifdef CONFIG_ARCH_PNX010X
+	initialize_ebi();
+
+	/* Map GPIO registers for the pins connected to the CS8900a. */
+	if (map_cirrus_gpio() < 0)
+		return -ENODEV;
+
+	reset_cirrus();
+
+	/* Map event-router registers. */
+	if (map_event_router() < 0)
+		return -ENODEV;
+
+	enable_cirrus_irq();
+
+	unmap_cirrus_gpio();
+	unmap_event_router();
+
+	dev->base_addr = ioaddr;
+
+	for (i = 0 ; i < 3 ; i++)
+		readreg(dev, 0);
+#endif
+
 	/* Grab the region so we can find another board if autoIRQ fails. */
 	/* WTF is going on here? */
 	if (!request_region(ioaddr & ~3, NETCARD_IO_EXTENT, DRV_NAME)) {
@@ -448,8 +570,8 @@ cs89x0_probe1(struct net_device *dev, int ioaddr, int modular)
 
 #ifdef CONFIG_SH_HICOSH4
 	/* truely reset the chip */
-	outw(0x0114, ioaddr + ADD_PORT);
-	outw(0x0040, ioaddr + DATA_PORT);
+	writeword(ioaddr, ADD_PORT, 0x0114);
+	writeword(ioaddr, DATA_PORT, 0x0040);
 #endif
 
 	/* if they give us an odd I/O address, then do ONE write to
@@ -460,21 +582,24 @@ cs89x0_probe1(struct net_device *dev, int ioaddr, int modular)
 		if (net_debug > 1)
 			printk(KERN_INFO "%s: odd ioaddr 0x%x\n", dev->name, ioaddr);
 	        if ((ioaddr & 2) != 2)
-	        	if ((inw((ioaddr & ~3)+ ADD_PORT) & ADD_MASK) != ADD_SIG) {
+	        	if ((readword(ioaddr & ~3, ADD_PORT) & ADD_MASK) != ADD_SIG) {
 				printk(KERN_ERR "%s: bad signature 0x%x\n",
-					dev->name, inw((ioaddr & ~3)+ ADD_PORT));
+					dev->name, readword(ioaddr & ~3, ADD_PORT));
 		        	retval = -ENODEV;
 				goto out2;
 			}
 	}
-printk("PP_addr=0x%x\n", inw(ioaddr + ADD_PORT));
+	printk(KERN_DEBUG "PP_addr at %x[%x]: 0x%x\n",
+			ioaddr, ADD_PORT, readword(ioaddr, ADD_PORT));
 
 	ioaddr &= ~3;
-	outw(PP_ChipID, ioaddr + ADD_PORT);
+	writeword(ioaddr, ADD_PORT, PP_ChipID);
 
-	if (inw(ioaddr + DATA_PORT) != CHIP_EISA_ID_SIG) {
-		printk(KERN_ERR "%s: incorrect signature 0x%x\n",
-			dev->name, inw(ioaddr + DATA_PORT));
+	tmp = readword(ioaddr, DATA_PORT);
+	if (tmp != CHIP_EISA_ID_SIG) {
+		printk(KERN_DEBUG "%s: incorrect signature at %x[%x]: 0x%x!="
+			CHIP_EISA_ID_SIG_STR "\n",
+			dev->name, ioaddr, DATA_PORT, tmp);
   		retval = -ENODEV;
   		goto out2;
 	}
@@ -678,7 +803,7 @@ printk("PP_addr=0x%x\n", inw(ioaddr + ADD_PORT));
 	} else {
 		i = lp->isa_config & INT_NO_MASK;
 		if (lp->chip_type == CS8900) {
-#ifdef CONFIG_ARCH_IXDP2X01
+#if defined(CONFIG_MACH_IXDP2351) || defined(CONFIG_ARCH_IXDP2X01) || defined(CONFIG_ARCH_PNX010X)
 		        i = cs8900_irq_map[0];
 #else
 			/* Translate the IRQ using the IRQ mapping table. */
@@ -731,11 +856,20 @@ printk("PP_addr=0x%x\n", inw(ioaddr + ADD_PORT));
 	dev->get_stats		= net_get_stats;
 	dev->set_multicast_list = set_multicast_list;
 	dev->set_mac_address 	= set_mac_address;
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	dev->poll_controller	= net_poll_controller;
+#endif
 
 	printk("\n");
 	if (net_debug)
 		printk("cs89x0_probe1() successful\n");
+
+	retval = register_netdev(dev);
+	if (retval)
+		goto out3;
 	return 0;
+out3:
+	writeword(dev->base_addr, ADD_PORT, PP_ChipID);
 out2:
 	release_region(ioaddr & ~3, NETCARD_IO_EXTENT);
 out1:
@@ -901,7 +1035,7 @@ skip_this_frame:
 
 void  __init reset_chip(struct net_device *dev)
 {
-#ifndef CONFIG_ARCH_IXDP2X01
+#if !defined(CONFIG_MACH_IXDP2351) && !defined(CONFIG_ARCH_IXDP2X01)
 	struct net_local *lp = netdev_priv(dev);
 	int ioaddr = dev->base_addr;
 #endif
@@ -912,14 +1046,14 @@ void  __init reset_chip(struct net_device *dev)
 	/* wait 30 ms */
 	msleep(30);
 
-#ifndef CONFIG_ARCH_IXDP2X01
+#if !defined(CONFIG_MACH_IXDP2351) && !defined(CONFIG_ARCH_IXDP2X01)
 	if (lp->chip_type != CS8900) {
 		/* Hardware problem requires PNP registers to be reconfigured after a reset */
-		outw(PP_CS8920_ISAINT, ioaddr + ADD_PORT);
+		writeword(ioaddr, ADD_PORT, PP_CS8920_ISAINT);
 		outb(dev->irq, ioaddr + DATA_PORT);
 		outb(0,      ioaddr + DATA_PORT + 1);
 
-		outw(PP_CS8920_ISAMemB, ioaddr + ADD_PORT);
+		writeword(ioaddr, ADD_PORT, PP_CS8920_ISAMemB);
 		outb((dev->mem_start >> 16) & 0xff, ioaddr + DATA_PORT);
 		outb((dev->mem_start >> 8) & 0xff,   ioaddr + DATA_PORT + 1);
 	}
@@ -1049,8 +1183,8 @@ send_test_pkt(struct net_device *dev)
 	memcpy(test_packet,          dev->dev_addr, ETH_ALEN);
 	memcpy(test_packet+ETH_ALEN, dev->dev_addr, ETH_ALEN);
 
-        writeword(dev, TX_CMD_PORT, TX_AFTER_ALL);
-        writeword(dev, TX_LEN_PORT, ETH_ZLEN);
+        writeword(dev->base_addr, TX_CMD_PORT, TX_AFTER_ALL);
+        writeword(dev->base_addr, TX_LEN_PORT, ETH_ZLEN);
 
 	/* Test to see if the chip has allocated memory for the packet */
 	while (jiffies - timenow < 5)
@@ -1060,7 +1194,7 @@ send_test_pkt(struct net_device *dev)
 		return 0;	/* this shouldn't happen */
 
 	/* Write the contents of the packet */
-	outsw(dev->base_addr + TX_FRAME_PORT,test_packet,(ETH_ZLEN+1) >>1);
+	writewords(dev->base_addr, TX_FRAME_PORT,test_packet,(ETH_ZLEN+1) >>1);
 
 	if (net_debug > 1) printk("Sending test packet ");
 	/* wait a couple of jiffies for packet to be received */
@@ -1145,7 +1279,7 @@ net_open(struct net_device *dev)
 	int i;
 	int ret;
 
-#ifndef CONFIG_SH_HICOSH4 /* uses irq#1, so this won't work */
+#if !defined(CONFIG_SH_HICOSH4) && !defined(CONFIG_ARCH_PNX010X) /* uses irq#1, so this won't work */
 	if (dev->irq < 2) {
 		/* Allow interrupts to be generated by the chip */
 /* Cirrus' release had this: */
@@ -1176,7 +1310,7 @@ net_open(struct net_device *dev)
 	else
 #endif
 	{
-#ifndef CONFIG_ARCH_IXDP2X01
+#if !defined(CONFIG_MACH_IXDP2351) && !defined(CONFIG_ARCH_IXDP2X01) && !defined(CONFIG_ARCH_PNX010X)
 		if (((1 << dev->irq) & lp->irq_map) == 0) {
 			printk(KERN_ERR "%s: IRQ %d is not in our map of allowable IRQs, which is %x\n",
                                dev->name, dev->irq, lp->irq_map);
@@ -1261,6 +1395,9 @@ net_open(struct net_device *dev)
 	case A_CNF_MEDIA_10B_2: result = lp->adapter_cnf & A_CNF_10B_2; break;
         default: result = lp->adapter_cnf & (A_CNF_10B_T | A_CNF_AUI | A_CNF_10B_2);
         }
+#ifdef CONFIG_ARCH_PNX010X
+	result = A_CNF_10B_T;
+#endif
         if (!result) {
                 printk(KERN_ERR "%s: EEPROM is configured for unavailable media\n", dev->name);
         release_irq:
@@ -1399,8 +1536,8 @@ static int net_send_packet(struct sk_buff *skb, struct net_device *dev)
 	netif_stop_queue(dev);
 
 	/* initiate a transmit sequence */
-	writeword(dev, TX_CMD_PORT, lp->send_cmd);
-	writeword(dev, TX_LEN_PORT, skb->len);
+	writeword(dev->base_addr, TX_CMD_PORT, lp->send_cmd);
+	writeword(dev->base_addr, TX_LEN_PORT, skb->len);
 
 	/* Test to see if the chip has allocated memory for the packet */
 	if ((readreg(dev, PP_BusST) & READY_FOR_TX_NOW) == 0) {
@@ -1414,8 +1551,9 @@ static int net_send_packet(struct sk_buff *skb, struct net_device *dev)
 		return 1;
 	}
 	/* Write the contents of the packet */
-	outsw(dev->base_addr + TX_FRAME_PORT,skb->data,(skb->len+1) >>1);
+	writewords(dev->base_addr, TX_FRAME_PORT,skb->data,(skb->len+1) >>1);
 	spin_unlock_irq(&lp->lock);
+	lp->stats.tx_bytes += skb->len;
 	dev->trans_start = jiffies;
 	dev_kfree_skb (skb);
 
@@ -1453,7 +1591,7 @@ static irqreturn_t net_interrupt(int irq, void *dev_id, struct pt_regs * regs)
            course, if you're on a slow machine, and packets are arriving
            faster than you can read them off, you're screwed.  Hasta la
            vista, baby!  */
-	while ((status = readword(dev, ISQ_PORT))) {
+	while ((status = readword(dev->base_addr, ISQ_PORT))) {
 		if (net_debug > 4)printk("%s: event=%04x\n", dev->name, status);
 		handled = 1;
 		switch(status & ISQ_EVENT_MASK) {
@@ -1547,8 +1685,8 @@ net_rx(struct net_device *dev)
 	int status, length;
 
 	int ioaddr = dev->base_addr;
-	status = inw(ioaddr + RX_FRAME_PORT);
-	length = inw(ioaddr + RX_FRAME_PORT);
+	status = readword(ioaddr, RX_FRAME_PORT);
+	length = readword(ioaddr, RX_FRAME_PORT);
 
 	if ((status & RX_OK) == 0) {
 		count_rx_errors(status, lp);
@@ -1567,9 +1705,9 @@ net_rx(struct net_device *dev)
 	skb_reserve(skb, 2);	/* longword align L3 header */
 	skb->dev = dev;
 
-	insw(ioaddr + RX_FRAME_PORT, skb_put(skb, length), length >> 1);
+	readwords(ioaddr, RX_FRAME_PORT, skb_put(skb, length), length >> 1);
 	if (length & 1)
-		skb->data[length-1] = inw(ioaddr + RX_FRAME_PORT);
+		skb->data[length-1] = readword(ioaddr, RX_FRAME_PORT);
 
 	if (net_debug > 3) {
 		printk(	"%s: received %d byte packet of type %x\n",
@@ -1831,13 +1969,6 @@ init_module(void)
 	if (ret)
 		goto out;
 
-        if (register_netdev(dev) != 0) {
-                printk(KERN_ERR "cs89x0.c: No card found at 0x%x\n", io);
-                ret = -ENXIO;
-		outw(PP_ChipID, dev->base_addr + ADD_PORT);
-		release_region(dev->base_addr, NETCARD_IO_EXTENT);
-		goto out;
-        }
 	dev_cs89x0 = dev;
 	return 0;
 out:
@@ -1849,7 +1980,7 @@ void
 cleanup_module(void)
 {
 	unregister_netdev(dev_cs89x0);
-	outw(PP_ChipID, dev_cs89x0->base_addr + ADD_PORT);
+	writeword(dev_cs89x0->base_addr, ADD_PORT, PP_ChipID);
 	release_region(dev_cs89x0->base_addr, NETCARD_IO_EXTENT);
 	free_netdev(dev_cs89x0);
 }

@@ -298,7 +298,7 @@ enum {OLD_LANCE = 0, PCNET_ISA=1, PCNET_ISAP=2, PCNET_PCI=3, PCNET_VLB=4, PCNET_
 static unsigned char lance_need_isa_bounce_buffers = 1;
 
 static int lance_open(struct net_device *dev);
-static void lance_init_ring(struct net_device *dev, int mode);
+static void lance_init_ring(struct net_device *dev, gfp_t mode);
 static int lance_start_xmit(struct sk_buff *skb, struct net_device *dev);
 static int lance_rx(struct net_device *dev);
 static irqreturn_t lance_interrupt(int irq, void *dev_id, struct pt_regs *regs);
@@ -308,17 +308,6 @@ static void set_multicast_list(struct net_device *dev);
 static void lance_tx_timeout (struct net_device *dev);
 
 
-
-static void cleanup_card(struct net_device *dev)
-{
-	struct lance_private *lp = dev->priv;
-	if (dev->dma != 4)
-		free_dma(dev->dma);
-	release_region(dev->base_addr, LANCE_TOTAL_SIZE);
-	kfree(lp->tx_bounce_buffs);
-	kfree((void*)lp->rx_buffs);
-	kfree(lp);
-}
 
 #ifdef MODULE
 #define MAX_CARDS		8	/* Max number of interfaces (cards) per module */
@@ -356,11 +345,8 @@ int init_module(void)
 		dev->base_addr = io[this_dev];
 		dev->dma = dma[this_dev];
 		if (do_lance_probe(dev) == 0) {
-			if (register_netdev(dev) == 0) {
-				dev_lance[found++] = dev;
-				continue;
-			}
-			cleanup_card(dev);
+			dev_lance[found++] = dev;
+			continue;
 		}
 		free_netdev(dev);
 		break;
@@ -368,6 +354,17 @@ int init_module(void)
 	if (found != 0)
 		return 0;
 	return -ENXIO;
+}
+
+static void cleanup_card(struct net_device *dev)
+{
+	struct lance_private *lp = dev->priv;
+	if (dev->dma != 4)
+		free_dma(dev->dma);
+	release_region(dev->base_addr, LANCE_TOTAL_SIZE);
+	kfree(lp->tx_bounce_buffs);
+	kfree((void*)lp->rx_buffs);
+	kfree(lp);
 }
 
 void cleanup_module(void)
@@ -448,12 +445,7 @@ struct net_device * __init lance_probe(int unit)
 	err = do_lance_probe(dev);
 	if (err)
 		goto out;
-	err = register_netdev(dev);
-	if (err)
-		goto out1;
 	return dev;
-out1:
-	cleanup_card(dev);
 out:
 	free_netdev(dev);
 	return ERR_PTR(err);
@@ -724,6 +716,9 @@ static int __init lance_probe1(struct net_device *dev, int ioaddr, int irq, int 
 	dev->tx_timeout = lance_tx_timeout;
 	dev->watchdog_timeo = TX_TIMEOUT;
 
+	err = register_netdev(dev);
+	if (err)
+		goto out_dma;
 	return 0;
 out_dma:
 	if (dev->dma != 4)
@@ -851,7 +846,7 @@ lance_purge_ring(struct net_device *dev)
 
 /* Initialize the LANCE Rx and Tx rings. */
 static void
-lance_init_ring(struct net_device *dev, int gfp)
+lance_init_ring(struct net_device *dev, gfp_t gfp)
 {
 	struct lance_private *lp = dev->priv;
 	int i;
@@ -867,7 +862,7 @@ lance_init_ring(struct net_device *dev, int gfp)
 		lp->rx_skbuff[i] = skb;
 		if (skb) {
 			skb->dev = dev;
-			rx_buff = skb->tail;
+			rx_buff = skb->data;
 		} else
 			rx_buff = kmalloc(PKT_BUF_SZ, GFP_DMA | gfp);
 		if (rx_buff == NULL)

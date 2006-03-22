@@ -757,7 +757,7 @@ jffs_do_readpage_nolock(struct file *file, struct page *page)
 
 	read_len = 0;
 	result = 0;
-	offset = page->index << PAGE_CACHE_SHIFT;
+	offset = page_offset(page);
 
 	kmap(page);
 	buf = page_address(page);
@@ -1415,7 +1415,7 @@ jffs_file_write(struct file *filp, const char *buf, size_t count,
 	 * This will never trigger with sane page sizes.  leave it in
 	 * anyway, since I'm thinking about how to merge larger writes
 	 * (the current idea is to poke a thread that does the actual
-	 * I/O and starts by doing a down(&inode->i_sem).  then we
+	 * I/O and starts by doing a mutex_lock(&inode->i_mutex).  then we
 	 * would need to get the page cache pages and have a list of
 	 * I/O requests and do write-merging here.
 	 * -- prumpf
@@ -1545,7 +1545,7 @@ jffs_commit_write(struct file *filp, struct page *page,
 {
        void *addr = page_address(page) + from;
        /* XXX: PAGE_CACHE_SHIFT or PAGE_SHIFT */
-       loff_t pos = (page->index<<PAGE_CACHE_SHIFT) + from;
+       loff_t pos = page_offset(page) + from;
 
        return jffs_file_write(filp, addr, to-from, &pos);
 } /* jffs_commit_write() */
@@ -1628,9 +1628,6 @@ static int jffs_fsync(struct file *f, struct dentry *d, int datasync)
 	return 0;
 }
 
-
-extern int generic_file_open(struct inode *, struct file *) __attribute__((weak));
-extern loff_t generic_file_llseek(struct file *, loff_t, int) __attribute__((weak));
 
 static struct file_operations jffs_file_operations =
 {
@@ -1747,6 +1744,7 @@ jffs_delete_inode(struct inode *inode)
 	D3(printk("jffs_delete_inode(): inode->i_ino == %lu\n",
 		  inode->i_ino));
 
+	truncate_inode_pages(&inode->i_data, 0);
 	lock_kernel();
 	inode->i_size = 0;
 	inode->i_blocks = 0;

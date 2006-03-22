@@ -278,14 +278,6 @@ static int __init do_ne2_probe(struct net_device *dev)
 	return -ENODEV;
 }
 
-static void cleanup_card(struct net_device *dev)
-{
-	mca_mark_as_unused(ei_status.priv);
-	mca_set_adapter_procfn( ei_status.priv, NULL, NULL);
-	free_irq(dev->irq, dev);
-	release_region(dev->base_addr, NE_IO_EXTENT);
-}
-
 #ifndef MODULE
 struct net_device * __init ne2_probe(int unit)
 {
@@ -301,12 +293,7 @@ struct net_device * __init ne2_probe(int unit)
 	err = do_ne2_probe(dev);
 	if (err)
 		goto out;
-	err = register_netdev(dev);
-	if (err)
-		goto out1;
 	return dev;
-out1:
-	cleanup_card(dev);
 out:
 	free_netdev(dev);
 	return ERR_PTR(err);
@@ -517,7 +504,14 @@ static int __init ne2_probe1(struct net_device *dev, int slot)
 	dev->poll_controller = ei_poll;
 #endif
 	NS8390_init(dev, 0);
+
+	retval = register_netdev(dev);
+	if (retval)
+		goto out1;
 	return 0;
+out1:
+	mca_set_adapter_procfn( ei_status.priv, NULL, NULL);
+	free_irq(dev->irq, dev);
 out:
 	release_region(base_addr, NE_IO_EXTENT);
 	return retval;
@@ -798,11 +792,8 @@ int init_module(void)
 		dev->mem_end = bad[this_dev];
 		dev->base_addr = io[this_dev];
 		if (do_ne2_probe(dev) == 0) {
-			if (register_netdev(dev) == 0) {
-				dev_ne[found++] = dev;
-				continue;
-			}
-			cleanup_card(dev);
+			dev_ne[found++] = dev;
+			continue;
 		}
 		free_netdev(dev);
 		break;
@@ -811,6 +802,14 @@ int init_module(void)
 		return 0;
 	printk(KERN_WARNING "ne2.c: No NE/2 card found\n");
 	return -ENXIO;
+}
+
+static void cleanup_card(struct net_device *dev)
+{
+	mca_mark_as_unused(ei_status.priv);
+	mca_set_adapter_procfn( ei_status.priv, NULL, NULL);
+	free_irq(dev->irq, dev);
+	release_region(dev->base_addr, NE_IO_EXTENT);
 }
 
 void cleanup_module(void)

@@ -68,6 +68,7 @@ static const char version[] =
 #include <linux/etherdevice.h>
 
 #include <asm/io.h>
+#include <asm/irq.h>
 #include <asm/system.h>
 
 #include "8390.h"
@@ -167,18 +168,6 @@ static int __init do_ultra_probe(struct net_device *dev)
 	return -ENODEV;
 }
 
-static void cleanup_card(struct net_device *dev)
-{
-	/* NB: ultra_close_card() does free_irq */
-#ifdef __ISAPNP__
-	struct pnp_dev *idev = (struct pnp_dev *)ei_status.priv;
-	if (idev)
-		pnp_device_detach(idev);
-#endif
-	release_region(dev->base_addr - ULTRA_NIC_OFFSET, ULTRA_IO_EXTENT);
-	iounmap(ei_status.mem);
-}
-
 #ifndef MODULE
 struct net_device * __init ultra_probe(int unit)
 {
@@ -194,12 +183,7 @@ struct net_device * __init ultra_probe(int unit)
 	err = do_ultra_probe(dev);
 	if (err)
 		goto out;
-	err = register_netdev(dev);
-	if (err)
-		goto out1;
 	return dev;
-out1:
-	cleanup_card(dev);
 out:
 	free_netdev(dev);
 	return ERR_PTR(err);
@@ -325,6 +309,9 @@ static int __init ultra_probe1(struct net_device *dev, int ioaddr)
 #endif
 	NS8390_init(dev, 0);
 
+	retval = register_netdev(dev);
+	if (retval)
+		goto out;
 	return 0;
 out:
 	release_region(ioaddr, ULTRA_IO_EXTENT);
@@ -583,11 +570,8 @@ init_module(void)
 		dev->irq = irq[this_dev];
 		dev->base_addr = io[this_dev];
 		if (do_ultra_probe(dev) == 0) {
-			if (register_netdev(dev) == 0) {
-				dev_ultra[found++] = dev;
-				continue;
-			}
-			cleanup_card(dev);
+			dev_ultra[found++] = dev;
+			continue;
 		}
 		free_netdev(dev);
 		printk(KERN_WARNING "smc-ultra.c: No SMC Ultra card found (i/o = 0x%x).\n", io[this_dev]);
@@ -596,6 +580,18 @@ init_module(void)
 	if (found)
 		return 0;
 	return -ENXIO;
+}
+
+static void cleanup_card(struct net_device *dev)
+{
+	/* NB: ultra_close_card() does free_irq */
+#ifdef __ISAPNP__
+	struct pnp_dev *idev = (struct pnp_dev *)ei_status.priv;
+	if (idev)
+		pnp_device_detach(idev);
+#endif
+	release_region(dev->base_addr - ULTRA_NIC_OFFSET, ULTRA_IO_EXTENT);
+	iounmap(ei_status.mem);
 }
 
 void

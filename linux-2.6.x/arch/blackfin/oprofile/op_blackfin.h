@@ -74,6 +74,6 @@ static inline void count_write(unsigned int *count)
 	__builtin_bfin_csync();
 }
 
-extern int pm_overflow_handler(int irq, struct pt_regs * regs);
+extern int pm_overflow_handler(int irq, struct pt_regs *regs);
 
 #endif

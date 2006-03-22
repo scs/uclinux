@@ -2,6 +2,15 @@
 #include <linux/ext2_fs.h>
 
 /*
+ * ext2 mount options
+ */
+struct ext2_mount_options {
+	unsigned long s_mount_opt;
+	uid_t s_resuid;
+	gid_t s_resgid;
+};
+
+/*
  * second extended file system inode data in memory
  */
 struct ext2_inode_info {
@@ -44,7 +53,7 @@ struct ext2_inode_info {
 #ifdef CONFIG_EXT2_FS_XATTR
 	/*
 	 * Extended attributes can be read independently of the main file
-	 * data. Taking i_sem even when reading would cause contention
+	 * data. Taking i_mutex even when reading would cause contention
 	 * between readers of EAs and writers of regular file data, so
 	 * instead we synchronize on xattr_sem when reading or changing
 	 * EAs.
@@ -147,9 +156,11 @@ extern struct file_operations ext2_dir_operations;
 /* file.c */
 extern struct inode_operations ext2_file_inode_operations;
 extern struct file_operations ext2_file_operations;
+extern struct file_operations ext2_xip_file_operations;
 
 /* inode.c */
 extern struct address_space_operations ext2_aops;
+extern struct address_space_operations ext2_aops_xip;
 extern struct address_space_operations ext2_nobh_aops;
 
 /* namei.c */

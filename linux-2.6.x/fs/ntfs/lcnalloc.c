@@ -1,7 +1,7 @@
 /*
  * lcnalloc.c - Cluster (de)allocation code.  Part of the Linux-NTFS project.
  *
- * Copyright (c) 2004 Anton Altaparmakov
+ * Copyright (c) 2004-2005 Anton Altaparmakov
  *
  * This program/include file is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as published
@@ -54,13 +54,15 @@ int ntfs_cluster_free_from_rl_nolock(ntfs_volume *vol,
 	int ret = 0;
 
 	ntfs_debug("Entering.");
+	if (!rl)
+		return 0;
 	for (; rl->length; rl++) {
 		int err;
 
 		if (rl->lcn < 0)
 			continue;
 		err = ntfs_bitmap_clear_run(lcnbmp_vi, rl->lcn, rl->length);
-		if (unlikely(err && (!ret || ret == ENOMEM) && ret != err))
+		if (unlikely(err && (!ret || ret == -ENOMEM) && ret != err))
 			ret = err;
 	}
 	ntfs_debug("Done.");
@@ -74,6 +76,7 @@ int ntfs_cluster_free_from_rl_nolock(ntfs_volume *vol,
  * @count:	number of clusters to allocate
  * @start_lcn:	starting lcn at which to allocate the clusters (or -1 if none)
  * @zone:	zone from which to allocate the clusters
+ * @is_extension:	if TRUE, this is an attribute extension
  *
  * Allocate @count clusters preferably starting at cluster @start_lcn or at the
  * current allocator position if @start_lcn is -1, on the mounted ntfs volume
@@ -83,6 +86,13 @@ int ntfs_cluster_free_from_rl_nolock(ntfs_volume *vol,
  *
  * @start_vcn specifies the vcn of the first allocated cluster.  This makes
  * merging the resulting runlist with the old runlist easier.
+ *
+ * If @is_extension is TRUE, the caller is allocating clusters to extend an
+ * attribute and if it is FALSE, the caller is allocating clusters to fill a
+ * hole in an attribute.  Practically the difference is that if @is_extension
+ * is TRUE the returned runlist will be terminated with LCN_ENOENT and if
+ * @is_extension is FALSE the runlist will be terminated with
+ * LCN_RL_NOT_MAPPED.
  *
  * You need to check the return value with IS_ERR().  If this is false, the
  * function was successful and the return value is a runlist describing the
@@ -135,11 +145,13 @@ int ntfs_cluster_free_from_rl_nolock(ntfs_volume *vol,
  */
 runlist_element *ntfs_cluster_alloc(ntfs_volume *vol, const VCN start_vcn,
 		const s64 count, const LCN start_lcn,
-		const NTFS_CLUSTER_ALLOCATION_ZONES zone)
+		const NTFS_CLUSTER_ALLOCATION_ZONES zone,
+		const BOOL is_extension)
 {
 	LCN zone_start, zone_end, bmp_pos, bmp_initial_pos, last_read_pos, lcn;
 	LCN prev_lcn = 0, prev_run_len = 0, mft_zone_size;
 	s64 clusters;
+	loff_t i_size;
 	struct inode *lcnbmp_vi;
 	runlist_element *rl = NULL;
 	struct address_space *mapping;
@@ -162,17 +174,9 @@ runlist_element *ntfs_cluster_alloc(ntfs_volume *vol, const VCN start_vcn,
 	BUG_ON(zone < FIRST_ZONE);
 	BUG_ON(zone > LAST_ZONE);
 
-	/* Return empty runlist if @count == 0 */
-	// FIXME: Do we want to just return NULL instead? (AIA)
-	if (!count) {
-		rl = ntfs_malloc_nofs(PAGE_SIZE);
-		if (!rl)
-			return ERR_PTR(-ENOMEM);
-		rl[0].vcn = start_vcn;
-		rl[0].lcn = LCN_RL_NOT_MAPPED;
-		rl[0].length = 0;
-		return rl;
-	}
+	/* Return NULL if @count is zero. */
+	if (!count)
+		return NULL;
 	/* Take the lcnbmp lock for writing. */
 	down_write(&vol->lcnbmp_lock);
 	/*
@@ -249,6 +253,7 @@ runlist_element *ntfs_cluster_alloc(ntfs_volume *vol, const VCN start_vcn,
 	clusters = count;
 	rlpos = rlsize = 0;
 	mapping = lcnbmp_vi->i_mapping;
+	i_size = i_size_read(lcnbmp_vi);
 	while (1) {
 		ntfs_debug("Start of outer while loop: done_zones 0x%x, "
 				"search_zone %i, pass %i, zone_start 0x%llx, "
@@ -263,7 +268,7 @@ runlist_element *ntfs_cluster_alloc(ntfs_volume *vol, const VCN start_vcn,
 		last_read_pos = bmp_pos >> 3;
 		ntfs_debug("last_read_pos 0x%llx.",
 				(unsigned long long)last_read_pos);
-		if (last_read_pos > lcnbmp_vi->i_size) {
+		if (last_read_pos > i_size) {
 			ntfs_debug("End of attribute reached.  "
 					"Skipping to zone_pass_done.");
 			goto zone_pass_done;
@@ -287,11 +292,11 @@ runlist_element *ntfs_cluster_alloc(ntfs_volume *vol, const VCN start_vcn,
 		buf_size = last_read_pos & ~PAGE_CACHE_MASK;
 		buf = page_address(page) + buf_size;
 		buf_size = PAGE_CACHE_SIZE - buf_size;
-		if (unlikely(last_read_pos + buf_size > lcnbmp_vi->i_size))
-			buf_size = lcnbmp_vi->i_size - last_read_pos;
+		if (unlikely(last_read_pos + buf_size > i_size))
+			buf_size = i_size - last_read_pos;
 		buf_size <<= 3;
 		lcn = bmp_pos & 7;
-		bmp_pos &= ~7;
+		bmp_pos &= ~(LCN)7;
 		ntfs_debug("Before inner while loop: buf_size %i, lcn 0x%llx, "
 				"bmp_pos 0x%llx, need_writeback %i.", buf_size,
 				(unsigned long long)lcn,
@@ -309,12 +314,12 @@ runlist_element *ntfs_cluster_alloc(ntfs_volume *vol, const VCN start_vcn,
 					(unsigned int)*byte);
 			/* Skip full bytes. */
 			if (*byte == 0xff) {
-				lcn = (lcn + 8) & ~7;
+				lcn = (lcn + 8) & ~(LCN)7;
 				ntfs_debug("Continuing while loop 1.");
 				continue;
 			}
 			bit = 1 << (lcn & 7);
-			ntfs_debug("bit %i.", bit);
+			ntfs_debug("bit 0x%x.", bit);
 			/* If the bit is already set, go onto the next one. */
 			if (*byte & bit) {
 				lcn++;
@@ -691,7 +696,7 @@ switch_to_data1_zone:		search_zone = 2;
 		if (zone == MFT_ZONE || mft_zone_size <= 0) {
 			ntfs_debug("No free clusters left, going to out.");
 			/* Really no more space left on device. */
-			err = ENOSPC;
+			err = -ENOSPC;
 			goto out;
 		} /* zone == DATA_ZONE && mft_zone_size > 0 */
 		ntfs_debug("Shrinking mft zone.");
@@ -733,7 +738,7 @@ out:
 	/* Add runlist terminator element. */
 	if (likely(rl)) {
 		rl[rlpos].vcn = rl[rlpos - 1].vcn + rl[rlpos - 1].length;
-		rl[rlpos].lcn = LCN_RL_NOT_MAPPED;
+		rl[rlpos].lcn = is_extension ? LCN_ENOENT : LCN_RL_NOT_MAPPED;
 		rl[rlpos].length = 0;
 	}
 	if (likely(page && !IS_ERR(page))) {
@@ -755,13 +760,13 @@ out:
 	if (rl) {
 		int err2;
 
-		if (err == ENOSPC)
+		if (err == -ENOSPC)
 			ntfs_debug("Not enough space to complete allocation, "
-					"err ENOSPC, first free lcn 0x%llx, "
+					"err -ENOSPC, first free lcn 0x%llx, "
 					"could allocate up to 0x%llx "
 					"clusters.",
 					(unsigned long long)rl[0].lcn,
-					(unsigned long long)count - clusters);
+					(unsigned long long)(count - clusters));
 		/* Deallocate all allocated clusters. */
 		ntfs_debug("Attempting rollback...");
 		err2 = ntfs_cluster_free_from_rl_nolock(vol, rl);
@@ -773,62 +778,88 @@ out:
 		}
 		/* Free the runlist. */
 		ntfs_free(rl);
-	} else if (err == ENOSPC)
-		ntfs_debug("No space left at all, err = ENOSPC, "
-				"first free lcn = 0x%llx.",
-				(unsigned long long)vol->data1_zone_pos);
+	} else if (err == -ENOSPC)
+		ntfs_debug("No space left at all, err = -ENOSPC, first free "
+				"lcn = 0x%llx.",
+				(long long)vol->data1_zone_pos);
 	up_write(&vol->lcnbmp_lock);
 	return ERR_PTR(err);
 }
 
 /**
  * __ntfs_cluster_free - free clusters on an ntfs volume
- * @vi:		vfs inode whose runlist describes the clusters to free
- * @start_vcn:	vcn in the runlist of @vi at which to start freeing clusters
+ * @ni:		ntfs inode whose runlist describes the clusters to free
+ * @start_vcn:	vcn in the runlist of @ni at which to start freeing clusters
  * @count:	number of clusters to free or -1 for all clusters
- * @is_rollback:	if TRUE this is a rollback operation
+ * @ctx:	active attribute search context if present or NULL if not
+ * @is_rollback:	true if this is a rollback operation
  *
  * Free @count clusters starting at the cluster @start_vcn in the runlist
- * described by the vfs inode @vi.
+ * described by the vfs inode @ni.
  *
  * If @count is -1, all clusters from @start_vcn to the end of the runlist are
  * deallocated.  Thus, to completely free all clusters in a runlist, use
  * @start_vcn = 0 and @count = -1.
  *
+ * If @ctx is specified, it is an active search context of @ni and its base mft
+ * record.  This is needed when __ntfs_cluster_free() encounters unmapped
+ * runlist fragments and allows their mapping.  If you do not have the mft
+ * record mapped, you can specify @ctx as NULL and __ntfs_cluster_free() will
+ * perform the necessary mapping and unmapping.
+ *
+ * Note, __ntfs_cluster_free() saves the state of @ctx on entry and restores it
+ * before returning.  Thus, @ctx will be left pointing to the same attribute on
+ * return as on entry.  However, the actual pointers in @ctx may point to
+ * different memory locations on return, so you must remember to reset any
+ * cached pointers from the @ctx, i.e. after the call to __ntfs_cluster_free(),
+ * you will probably want to do:
+ *	m = ctx->mrec;
+ *	a = ctx->attr;
+ * Assuming you cache ctx->attr in a variable @a of type ATTR_RECORD * and that
+ * you cache ctx->mrec in a variable @m of type MFT_RECORD *.
+ *
  * @is_rollback should always be FALSE, it is for internal use to rollback
  * errors.  You probably want to use ntfs_cluster_free() instead.
  *
- * Note, ntfs_cluster_free() does not modify the runlist at all, so the caller
- * has to deal with it later.
+ * Note, __ntfs_cluster_free() does not modify the runlist, so you have to
+ * remove from the runlist or mark sparse the freed runs later.
  *
  * Return the number of deallocated clusters (not counting sparse ones) on
  * success and -errno on error.
  *
- * Locking: - The runlist described by @vi must be unlocked on entry and is
- *	      unlocked on return.
- *	    - This function takes the runlist lock of @vi for reading and
- *	      sometimes for writing and sometimes modifies the runlist.
+ * WARNING: If @ctx is supplied, regardless of whether success or failure is
+ *	    returned, you need to check IS_ERR(@ctx->mrec) and if TRUE the @ctx
+ *	    is no longer valid, i.e. you need to either call
+ *	    ntfs_attr_reinit_search_ctx() or ntfs_attr_put_search_ctx() on it.
+ *	    In that case PTR_ERR(@ctx->mrec) will give you the error code for
+ *	    why the mapping of the old inode failed.
+ *
+ * Locking: - The runlist described by @ni must be locked for writing on entry
+ *	      and is locked on return.  Note the runlist may be modified when
+ *	      needed runlist fragments need to be mapped.
  *	    - The volume lcn bitmap must be unlocked on entry and is unlocked
  *	      on return.
  *	    - This function takes the volume lcn bitmap lock for writing and
  *	      modifies the bitmap contents.
+ *	    - If @ctx is NULL, the base mft record of @ni must not be mapped on
+ *	      entry and it will be left unmapped on return.
+ *	    - If @ctx is not NULL, the base mft record must be mapped on entry
+ *	      and it will be left mapped on return.
  */
-s64 __ntfs_cluster_free(struct inode *vi, const VCN start_vcn, s64 count,
-		const BOOL is_rollback)
+s64 __ntfs_cluster_free(ntfs_inode *ni, const VCN start_vcn, s64 count,
+		ntfs_attr_search_ctx *ctx, const BOOL is_rollback)
 {
 	s64 delta, to_free, total_freed, real_freed;
-	ntfs_inode *ni;
 	ntfs_volume *vol;
 	struct inode *lcnbmp_vi;
 	runlist_element *rl;
 	int err;
 
-	BUG_ON(!vi);
+	BUG_ON(!ni);
 	ntfs_debug("Entering for i_ino 0x%lx, start_vcn 0x%llx, count "
-			"0x%llx.%s", vi->i_ino, (unsigned long long)start_vcn,
+			"0x%llx.%s", ni->mft_no, (unsigned long long)start_vcn,
 			(unsigned long long)count,
 			is_rollback ? " (rollback)" : "");
-	ni = NTFS_I(vi);
 	vol = ni->vol;
 	lcnbmp_vi = vol->lcnbmp_ino;
 	BUG_ON(!lcnbmp_vi);
@@ -846,8 +877,7 @@ s64 __ntfs_cluster_free(struct inode *vi, const VCN start_vcn, s64 count,
 
 	total_freed = real_freed = 0;
 
-	/* This returns with ni->runlist locked for reading on success. */
-	rl = ntfs_find_vcn(ni, start_vcn, FALSE);
+	rl = ntfs_attr_find_vcn_nolock(ni, start_vcn, ctx);
 	if (IS_ERR(rl)) {
 		if (!is_rollback)
 			ntfs_error(vol->sb, "Failed to find first runlist "
@@ -861,7 +891,7 @@ s64 __ntfs_cluster_free(struct inode *vi, const VCN start_vcn, s64 count,
 			ntfs_error(vol->sb, "First runlist element has "
 					"invalid lcn, aborting.");
 		err = -EIO;
-		goto unl_err_out;
+		goto err_out;
 	}
 	/* Find the starting cluster inside the run that needs freeing. */
 	delta = start_vcn - rl->vcn;
@@ -879,7 +909,7 @@ s64 __ntfs_cluster_free(struct inode *vi, const VCN start_vcn, s64 count,
 			if (!is_rollback)
 				ntfs_error(vol->sb, "Failed to clear first run "
 						"(error %i), aborting.", err);
-			goto unl_err_out;
+			goto err_out;
 		}
 		/* We have freed @to_free real clusters. */
 		real_freed = to_free;
@@ -899,30 +929,15 @@ s64 __ntfs_cluster_free(struct inode *vi, const VCN start_vcn, s64 count,
 		if (unlikely(rl->lcn < LCN_HOLE)) {
 			VCN vcn;
 
-			/*
-			 * Attempt to map runlist, dropping runlist lock for
-			 * the duration.
-			 */
+			/* Attempt to map runlist. */
 			vcn = rl->vcn;
-			up_read(&ni->runlist.lock);
-			err = ntfs_map_runlist(ni, vcn);
-			if (err) {
-				if (!is_rollback)
-					ntfs_error(vol->sb, "Failed to map "
-							"runlist fragment.");
-				if (err == -EINVAL || err == -ENOENT)
-					err = -EIO;
-				goto err_out;
-			}
-			/*
-			 * This returns with ni->runlist locked for reading on
-			 * success.
-			 */
-			rl = ntfs_find_vcn(ni, vcn, FALSE);
+			rl = ntfs_attr_find_vcn_nolock(ni, vcn, ctx);
 			if (IS_ERR(rl)) {
 				err = PTR_ERR(rl);
 				if (!is_rollback)
-					ntfs_error(vol->sb, "Failed to find "
+					ntfs_error(vol->sb, "Failed to map "
+							"runlist fragment or "
+							"failed to find "
 							"subsequent runlist "
 							"element.");
 				goto err_out;
@@ -935,7 +950,7 @@ s64 __ntfs_cluster_free(struct inode *vi, const VCN start_vcn, s64 count,
 							(unsigned long long)
 							rl->lcn);
 				err = -EIO;
-				goto unl_err_out;
+				goto err_out;
 			}
 		}
 		/* The number of clusters in this run that need freeing. */
@@ -951,7 +966,7 @@ s64 __ntfs_cluster_free(struct inode *vi, const VCN start_vcn, s64 count,
 				if (!is_rollback)
 					ntfs_error(vol->sb, "Failed to clear "
 							"subsequent run.");
-				goto unl_err_out;
+				goto err_out;
 			}
 			/* We have freed @to_free real clusters. */
 			real_freed += to_free;
@@ -963,7 +978,6 @@ s64 __ntfs_cluster_free(struct inode *vi, const VCN start_vcn, s64 count,
 		/* Update the total done clusters. */
 		total_freed += to_free;
 	}
-	up_read(&ni->runlist.lock);
 	if (likely(!is_rollback))
 		up_write(&vol->lcnbmp_lock);
 
@@ -972,8 +986,6 @@ s64 __ntfs_cluster_free(struct inode *vi, const VCN start_vcn, s64 count,
 	/* We are done.  Return the number of actually freed clusters. */
 	ntfs_debug("Done.");
 	return real_freed;
-unl_err_out:
-	up_read(&ni->runlist.lock);
 err_out:
 	if (is_rollback)
 		return err;
@@ -987,7 +999,7 @@ err_out:
 	 * If rollback fails, set the volume errors flag, emit an error
 	 * message, and return the error code.
 	 */
-	delta = __ntfs_cluster_free(vi, start_vcn, total_freed, TRUE);
+	delta = __ntfs_cluster_free(ni, start_vcn, total_freed, ctx, TRUE);
 	if (delta < 0) {
 		ntfs_error(vol->sb, "Failed to rollback (error %i).  Leaving "
 				"inconsistent metadata!  Unmount and run "

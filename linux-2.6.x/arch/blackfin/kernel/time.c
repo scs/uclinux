@@ -32,6 +32,7 @@
 
 #include <linux/module.h>
 #include <linux/profile.h>
+#include <linux/interrupt.h>
 
 #include <asm/blackfin.h>
 #include <asm/irq.h>
@@ -39,11 +40,7 @@
 
 #define	TICK_SIZE (tick_nsec / 1000)
 
-u64 jiffies_64 = INITIAL_JIFFIES;
-
-EXPORT_SYMBOL(jiffies_64);
-
-static void time_sched_init(irqreturn_t(*timer_routine)
+static void time_sched_init(irqreturn_t (*timer_routine)
 		      (int, void *, struct pt_regs *));
 static unsigned long gettimeoffset(void);
 extern int setup_irq(unsigned int, struct irqaction *);
@@ -197,7 +194,7 @@ irqreturn_t timer_interrupt(int irq, void *dummy, struct pt_regs *regs)
 	 * called as close as possible to 500 ms before the new second starts.
 	 */
 
-	if ((time_status & STA_UNSYNC) == 0 &&
+	if (ntp_synced() &&
 	    xtime.tv_sec > last_rtc_update + 660 &&
 	    (xtime.tv_nsec / 1000) >= 500000 - ((unsigned)TICK_SIZE) / 2 &&
 	    (xtime.tv_nsec / 1000) <= 500000 + ((unsigned)TICK_SIZE) / 2) {
@@ -284,10 +281,7 @@ int do_settimeofday(struct timespec *tv)
 	set_normalized_timespec(&xtime, sec, nsec);
 	set_normalized_timespec(&wall_to_monotonic, wtm_sec, wtm_nsec);
 
-	time_adjust = 0;	/* stop active adjtime() */
-	time_status |= STA_UNSYNC;
-	time_maxerror = NTP_PHASE_LIMIT;
-	time_esterror = NTP_PHASE_LIMIT;
+	ntp_clear();
 
 	write_sequnlock_irq(&xtime_lock);
 	clock_was_set();

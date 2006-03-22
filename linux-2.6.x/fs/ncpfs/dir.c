@@ -365,7 +365,7 @@ ncp_dget_fpos(struct dentry *dentry, struct dentry *parent, unsigned long fpos)
 	spin_lock(&dcache_lock);
 	next = parent->d_subdirs.next;
 	while (next != &parent->d_subdirs) {
-		dent = list_entry(next, struct dentry, d_child);
+		dent = list_entry(next, struct dentry, d_u.d_child);
 		if ((unsigned long)dent->d_fsdata == fpos) {
 			if (dent->d_inode)
 				dget_locked(dent);
@@ -705,18 +705,6 @@ ncp_do_readdir(struct file *filp, void *dirent, filldir_t filldir,
 		DPRINTK("ncp_do_readdir: init failed, err=%d\n", err);
 		return;
 	}
-#ifdef USE_OLD_SLOW_DIRECTORY_LISTING
-	for (;;) {
-		err = ncp_search_for_file_or_subdir(server, &seq, &entry.i);
-		if (err) {
-			DPRINTK("ncp_do_readdir: search failed, err=%d\n", err);
-			break;
-		}
-		entry.volume = entry.i.volNumber;
-		if (!ncp_fill_cache(filp, dirent, filldir, ctl, &entry))
-			break;
-	}
-#else
 	/* We MUST NOT use server->buffer_size handshaked with server if we are
 	   using UDP, as for UDP server uses max. buffer size determined by
 	   MTU, and for TCP server uses hardwired value 65KB (== 66560 bytes). 
@@ -754,7 +742,6 @@ ncp_do_readdir(struct file *filp, void *dirent, filldir_t filldir,
 		}
 	} while (more);
 	vfree(buf);
-#endif
 	return;
 }
 

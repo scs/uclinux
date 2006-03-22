@@ -129,7 +129,8 @@ csum_partial_copy_from_user(const unsigned char *src, unsigned char *dst,
  * copy from ds while checksumming, otherwise like csum_partial
  */
 
-unsigned int csum_partial_copy(const char *src, char *dst, int len, int sum)
+unsigned int csum_partial_copy(const unsigned char *src, unsigned char *dst,
+			       int len, int sum)
 {
 	memcpy(dst, src, len);
 	return csum_partial(dst, len, sum);

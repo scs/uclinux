@@ -16,7 +16,151 @@
 #include <linux/security.h>
 #include <linux/syscalls.h>
 #include <linux/module.h>
+#include <linux/fsnotify.h>
 #include <asm/uaccess.h>
+
+
+/*
+ * Check permissions for extended attribute access.  This is a bit complicated
+ * because different namespaces have very different rules.
+ */
+static int
+xattr_permission(struct inode *inode, const char *name, int mask)
+{
+	/*
+	 * We can never set or remove an extended attribute on a read-only
+	 * filesystem  or on an immutable / append-only inode.
+	 */
+	if (mask & MAY_WRITE) {
+		if (IS_RDONLY(inode))
+			return -EROFS;
+		if (IS_IMMUTABLE(inode) || IS_APPEND(inode))
+			return -EPERM;
+	}
+
+	/*
+	 * No restriction for security.* and system.* from the VFS.  Decision
+	 * on these is left to the underlying filesystem / security module.
+	 */
+	if (!strncmp(name, XATTR_SECURITY_PREFIX, XATTR_SECURITY_PREFIX_LEN) ||
+	    !strncmp(name, XATTR_SYSTEM_PREFIX, XATTR_SYSTEM_PREFIX_LEN))
+		return 0;
+
+	/*
+	 * The trusted.* namespace can only accessed by a privilegued user.
+	 */
+	if (!strncmp(name, XATTR_TRUSTED_PREFIX, XATTR_TRUSTED_PREFIX_LEN))
+		return (capable(CAP_SYS_ADMIN) ? 0 : -EPERM);
+
+	if (!strncmp(name, XATTR_USER_PREFIX, XATTR_USER_PREFIX_LEN)) {
+		if (!S_ISREG(inode->i_mode) &&
+		    (!S_ISDIR(inode->i_mode) || inode->i_mode & S_ISVTX))
+			return -EPERM;
+	}
+
+	return permission(inode, mask, NULL);
+}
+
+int
+vfs_setxattr(struct dentry *dentry, char *name, void *value,
+		size_t size, int flags)
+{
+	struct inode *inode = dentry->d_inode;
+	int error;
+
+	error = xattr_permission(inode, name, MAY_WRITE);
+	if (error)
+		return error;
+
+	mutex_lock(&inode->i_mutex);
+	error = security_inode_setxattr(dentry, name, value, size, flags);
+	if (error)
+		goto out;
+	error = -EOPNOTSUPP;
+	if (inode->i_op->setxattr) {
+		error = inode->i_op->setxattr(dentry, name, value, size, flags);
+		if (!error) {
+			fsnotify_xattr(dentry);
+			security_inode_post_setxattr(dentry, name, value,
+						     size, flags);
+		}
+	} else if (!strncmp(name, XATTR_SECURITY_PREFIX,
+				XATTR_SECURITY_PREFIX_LEN)) {
+		const char *suffix = name + XATTR_SECURITY_PREFIX_LEN;
+		error = security_inode_setsecurity(inode, suffix, value,
+						   size, flags);
+		if (!error)
+			fsnotify_xattr(dentry);
+	}
+out:
+	mutex_unlock(&inode->i_mutex);
+	return error;
+}
+EXPORT_SYMBOL_GPL(vfs_setxattr);
+
+ssize_t
+vfs_getxattr(struct dentry *dentry, char *name, void *value, size_t size)
+{
+	struct inode *inode = dentry->d_inode;
+	int error;
+
+	error = xattr_permission(inode, name, MAY_READ);
+	if (error)
+		return error;
+
+	error = security_inode_getxattr(dentry, name);
+	if (error)
+		return error;
+
+	if (inode->i_op->getxattr)
+		error = inode->i_op->getxattr(dentry, name, value, size);
+	else
+		error = -EOPNOTSUPP;
+
+	if (!strncmp(name, XATTR_SECURITY_PREFIX,
+				XATTR_SECURITY_PREFIX_LEN)) {
+		const char *suffix = name + XATTR_SECURITY_PREFIX_LEN;
+		int ret = security_inode_getsecurity(inode, suffix, value,
+						     size, error);
+		/*
+		 * Only overwrite the return value if a security module
+		 * is actually active.
+		 */
+		if (ret != -EOPNOTSUPP)
+			error = ret;
+	}
+
+	return error;
+}
+EXPORT_SYMBOL_GPL(vfs_getxattr);
+
+int
+vfs_removexattr(struct dentry *dentry, char *name)
+{
+	struct inode *inode = dentry->d_inode;
+	int error;
+
+	if (!inode->i_op->removexattr)
+		return -EOPNOTSUPP;
+
+	error = xattr_permission(inode, name, MAY_WRITE);
+	if (error)
+		return error;
+
+	error = security_inode_removexattr(dentry, name);
+	if (error)
+		return error;
+
+	mutex_lock(&inode->i_mutex);
+	error = inode->i_op->removexattr(dentry, name);
+	mutex_unlock(&inode->i_mutex);
+
+	if (!error)
+		fsnotify_xattr(dentry);
+	return error;
+}
+EXPORT_SYMBOL_GPL(vfs_removexattr);
+
 
 /*
  * Extended attribute SET operations
@@ -50,20 +194,8 @@ setxattr(struct dentry *d, char __user *name, void __user *value,
 		}
 	}
 
-	error = -EOPNOTSUPP;
-	if (d->d_inode->i_op && d->d_inode->i_op->setxattr) {
-		down(&d->d_inode->i_sem);
-		error = security_inode_setxattr(d, kname, kvalue, size, flags);
-		if (error)
-			goto out;
-		error = d->d_inode->i_op->setxattr(d, kname, kvalue, size, flags);
-		if (!error)
-			security_inode_post_setxattr(d, kname, kvalue, size, flags);
-out:
-		up(&d->d_inode->i_sem);
-	}
-	if (kvalue)
-		kfree(kvalue);
+	error = vfs_setxattr(d, kname, kvalue, size, flags);
+	kfree(kvalue);
 	return error;
 }
 
@@ -131,29 +263,21 @@ getxattr(struct dentry *d, char __user *name, void __user *value, size_t size)
 	if (size) {
 		if (size > XATTR_SIZE_MAX)
 			size = XATTR_SIZE_MAX;
-		kvalue = kmalloc(size, GFP_KERNEL);
+		kvalue = kzalloc(size, GFP_KERNEL);
 		if (!kvalue)
 			return -ENOMEM;
 	}
 
-	error = -EOPNOTSUPP;
-	if (d->d_inode->i_op && d->d_inode->i_op->getxattr) {
-		error = security_inode_getxattr(d, kname);
-		if (error)
-			goto out;
-		error = d->d_inode->i_op->getxattr(d, kname, kvalue, size);
-		if (error > 0) {
-			if (size && copy_to_user(value, kvalue, error))
-				error = -EFAULT;
-		} else if (error == -ERANGE && size >= XATTR_SIZE_MAX) {
-			/* The file system tried to returned a value bigger
-			   than XATTR_SIZE_MAX bytes. Not possible. */
-			error = -E2BIG;
-		}
+	error = vfs_getxattr(d, kname, kvalue, size);
+	if (error > 0) {
+		if (size && copy_to_user(value, kvalue, error))
+			error = -EFAULT;
+	} else if (error == -ERANGE && size >= XATTR_SIZE_MAX) {
+		/* The file system tried to returned a value bigger
+		   than XATTR_SIZE_MAX bytes. Not possible. */
+		error = -E2BIG;
 	}
-out:
-	if (kvalue)
-		kfree(kvalue);
+	kfree(kvalue);
 	return error;
 }
 
@@ -218,24 +342,27 @@ listxattr(struct dentry *d, char __user *list, size_t size)
 			return -ENOMEM;
 	}
 
+	error = security_inode_listxattr(d);
+	if (error)
+		goto out;
 	error = -EOPNOTSUPP;
 	if (d->d_inode->i_op && d->d_inode->i_op->listxattr) {
-		error = security_inode_listxattr(d);
-		if (error)
-			goto out;
 		error = d->d_inode->i_op->listxattr(d, klist, size);
-		if (error > 0) {
-			if (size && copy_to_user(list, klist, error))
-				error = -EFAULT;
-		} else if (error == -ERANGE && size >= XATTR_LIST_MAX) {
-			/* The file system tried to returned a list bigger
-			   than XATTR_LIST_MAX bytes. Not possible. */
-			error = -E2BIG;
-		}
+	} else {
+		error = security_inode_listsecurity(d->d_inode, klist, size);
+		if (size && error > size)
+			error = -ERANGE;
+	}
+	if (error > 0) {
+		if (size && copy_to_user(list, klist, error))
+			error = -EFAULT;
+	} else if (error == -ERANGE && size >= XATTR_LIST_MAX) {
+		/* The file system tried to returned a list bigger
+		   than XATTR_LIST_MAX bytes. Not possible. */
+		error = -E2BIG;
 	}
 out:
-	if (klist)
-		kfree(klist);
+	kfree(klist);
 	return error;
 }
 
@@ -296,17 +423,7 @@ removexattr(struct dentry *d, char __user *name)
 	if (error < 0)
 		return error;
 
-	error = -EOPNOTSUPP;
-	if (d->d_inode->i_op && d->d_inode->i_op->removexattr) {
-		error = security_inode_removexattr(d, kname);
-		if (error)
-			goto out;
-		down(&d->d_inode->i_sem);
-		error = d->d_inode->i_op->removexattr(d, kname);
-		up(&d->d_inode->i_sem);
-	}
-out:
-	return error;
+	return vfs_removexattr(d, kname);
 }
 
 asmlinkage long

@@ -175,7 +175,63 @@ jffs_hexdump(struct mtd_info *mtd, loff_t pos, int size)
 	}
 }
 
+/* Print the contents of a node.  */
+static void
+jffs_print_node(struct jffs_node *n)
+{
+	D(printk("jffs_node: 0x%p\n", n));
+	D(printk("{\n"));
+	D(printk("        0x%08x, /* version  */\n", n->version));
+	D(printk("        0x%08x, /* data_offset  */\n", n->data_offset));
+	D(printk("        0x%08x, /* data_size  */\n", n->data_size));
+	D(printk("        0x%08x, /* removed_size  */\n", n->removed_size));
+	D(printk("        0x%08x, /* fm_offset  */\n", n->fm_offset));
+	D(printk("        0x%02x,       /* name_size  */\n", n->name_size));
+	D(printk("        0x%p, /* fm,  fm->offset: %u  */\n",
+		 n->fm, (n->fm ? n->fm->offset : 0)));
+	D(printk("        0x%p, /* version_prev  */\n", n->version_prev));
+	D(printk("        0x%p, /* version_next  */\n", n->version_next));
+	D(printk("        0x%p, /* range_prev  */\n", n->range_prev));
+	D(printk("        0x%p, /* range_next  */\n", n->range_next));
+	D(printk("}\n"));
+}
+
 #endif
+
+/* Print the contents of a raw inode.  */
+static void
+jffs_print_raw_inode(struct jffs_raw_inode *raw_inode)
+{
+	D(printk("jffs_raw_inode: inode number: %u\n", raw_inode->ino));
+	D(printk("{\n"));
+	D(printk("        0x%08x, /* magic  */\n", raw_inode->magic));
+	D(printk("        0x%08x, /* ino  */\n", raw_inode->ino));
+	D(printk("        0x%08x, /* pino  */\n", raw_inode->pino));
+	D(printk("        0x%08x, /* version  */\n", raw_inode->version));
+	D(printk("        0x%08x, /* mode  */\n", raw_inode->mode));
+	D(printk("        0x%04x,     /* uid  */\n", raw_inode->uid));
+	D(printk("        0x%04x,     /* gid  */\n", raw_inode->gid));
+	D(printk("        0x%08x, /* atime  */\n", raw_inode->atime));
+	D(printk("        0x%08x, /* mtime  */\n", raw_inode->mtime));
+	D(printk("        0x%08x, /* ctime  */\n", raw_inode->ctime));
+	D(printk("        0x%08x, /* offset  */\n", raw_inode->offset));
+	D(printk("        0x%08x, /* dsize  */\n", raw_inode->dsize));
+	D(printk("        0x%08x, /* rsize  */\n", raw_inode->rsize));
+	D(printk("        0x%02x,       /* nsize  */\n", raw_inode->nsize));
+	D(printk("        0x%02x,       /* nlink  */\n", raw_inode->nlink));
+	D(printk("        0x%02x,       /* spare  */\n",
+		 raw_inode->spare));
+	D(printk("        %u,          /* rename  */\n",
+		 raw_inode->rename));
+	D(printk("        %u,          /* deleted  */\n",
+		 raw_inode->deleted));
+	D(printk("        0x%02x,       /* accurate  */\n",
+		 raw_inode->accurate));
+	D(printk("        0x%08x, /* dchksum  */\n", raw_inode->dchksum));
+	D(printk("        0x%04x,     /* nchksum  */\n", raw_inode->nchksum));
+	D(printk("        0x%04x,     /* chksum  */\n", raw_inode->chksum));
+	D(printk("}\n"));
+}
 
 #define flash_safe_acquire(arg)
 #define flash_safe_release(arg)
@@ -406,7 +462,7 @@ jffs_checksum_flash(struct mtd_info *mtd, loff_t start, int size, __u32 *result)
 	}
 
 	/* Free read buffer */
-	kfree (read_buf);
+	kfree(read_buf);
 
 	/* Return result */
 	D3(printk("checksum result: 0x%08x\n", sum));
@@ -955,12 +1011,12 @@ jffs_scan_flash(struct jffs_control *c)
 						       offset , fmc->sector_size);
 
 						flash_safe_release(fmc->mtd);
-						kfree (read_buf);
+						kfree(read_buf);
 						return -1; /* bad, bad, bad! */
 
 					}
 					flash_safe_release(fmc->mtd);
-					kfree (read_buf);
+					kfree(read_buf);
 
 					return -EAGAIN; /* erased offending sector. Try mount one more time please. */
 				}
@@ -1056,7 +1112,7 @@ jffs_scan_flash(struct jffs_control *c)
 		if (!node) {
 			if (!(node = jffs_alloc_node())) {
 				/* Free read buffer */
-				kfree (read_buf);
+				kfree(read_buf);
 
 				/* Release the flash device */
 				flash_safe_release(fmc->mtd);
@@ -1213,7 +1269,7 @@ jffs_scan_flash(struct jffs_control *c)
 				DJM(no_jffs_node--);
 
 				/* Free read buffer */
-				kfree (read_buf);
+				kfree(read_buf);
 
 				/* Release the flash device */
 				flash_safe_release(fmc->mtd);
@@ -1240,7 +1296,7 @@ jffs_scan_flash(struct jffs_control *c)
 					flash_safe_release(fmc->flash_part);
 
 					/* Free read buffer */
-					kfree (read_buf);
+					kfree(read_buf);
 
 					return -ENOMEM;
 				}
@@ -1268,7 +1324,7 @@ jffs_scan_flash(struct jffs_control *c)
 	jffs_build_end(fmc);
 
 	/* Free read buffer */
-	kfree (read_buf);
+	kfree(read_buf);
 
 	if(!num_free_space){
 	        printk(KERN_WARNING "jffs_scan_flash(): Did not find even a single "
@@ -1645,12 +1701,10 @@ jffs_find_file(struct jffs_control *c, __u32 ino)
 {
 	struct jffs_file *f;
 	int i = ino % c->hash_len;
-	struct list_head *tmp;
 
 	D3(printk("jffs_find_file(): ino: %u\n", ino));
 
-	for (tmp = c->hash[i].next; tmp != &c->hash[i]; tmp = tmp->next) {
-		f = list_entry(tmp, struct jffs_file, hash);
+	list_for_each_entry(f, &c->hash[i], hash) {
 		if (ino != f->ino)
 			continue;
 		D3(printk("jffs_find_file(): Found file with ino "
@@ -1693,9 +1747,7 @@ jffs_find_child(struct jffs_file *dir, const char *name, int len)
 		}
 		printk("jffs_find_child(): Didn't find the file \"%s\".\n",
 		       (copy ? copy : ""));
-		if (copy) {
-			kfree(copy);
-		}
+		kfree(copy);
 	});
 
 	return f;
@@ -1913,7 +1965,7 @@ retry:
 		iovec_cnt++;
 
 		if (JFFS_GET_PAD_BYTES(raw_inode->nsize)) {
-			static char allff[3]={255,255,255};
+			static unsigned char allff[3]={255,255,255};
 			/* Add some extra padding if necessary */
 			node_iovec[iovec_cnt].iov_base = allff;
 			node_iovec[iovec_cnt].iov_len =
@@ -2046,13 +2098,12 @@ jffs_foreach_file(struct jffs_control *c, int (*func)(struct jffs_file *))
 	int result = 0;
 
 	for (pos = 0; pos < c->hash_len; pos++) {
-		struct list_head *p, *next;
-		for (p = c->hash[pos].next; p != &c->hash[pos]; p = next) {
-			/* We need a reference to the next file in the
-			   list because `func' might remove the current
-			   file `f'.  */
-			next = p->next;
-			r = func(list_entry(p, struct jffs_file, hash));
+		struct jffs_file *f, *next;
+
+		/* We must do _safe, because 'func' might remove the
+		   current file 'f' from the list.  */
+		list_for_each_entry_safe(f, next, &c->hash[pos], hash) {
+			r = func(f);
 			if (r < 0)
 				return r;
 			result += r;
@@ -2507,64 +2558,6 @@ jffs_update_file(struct jffs_file *f, struct jffs_node *node)
 	return 0;
 }
 
-/* Print the contents of a node.  */
-void
-jffs_print_node(struct jffs_node *n)
-{
-	D(printk("jffs_node: 0x%p\n", n));
-	D(printk("{\n"));
-	D(printk("        0x%08x, /* version  */\n", n->version));
-	D(printk("        0x%08x, /* data_offset  */\n", n->data_offset));
-	D(printk("        0x%08x, /* data_size  */\n", n->data_size));
-	D(printk("        0x%08x, /* removed_size  */\n", n->removed_size));
-	D(printk("        0x%08x, /* fm_offset  */\n", n->fm_offset));
-	D(printk("        0x%02x,       /* name_size  */\n", n->name_size));
-	D(printk("        0x%p, /* fm,  fm->offset: %u  */\n",
-		 n->fm, (n->fm ? n->fm->offset : 0)));
-	D(printk("        0x%p, /* version_prev  */\n", n->version_prev));
-	D(printk("        0x%p, /* version_next  */\n", n->version_next));
-	D(printk("        0x%p, /* range_prev  */\n", n->range_prev));
-	D(printk("        0x%p, /* range_next  */\n", n->range_next));
-	D(printk("}\n"));
-}
-
-
-/* Print the contents of a raw inode.  */
-void
-jffs_print_raw_inode(struct jffs_raw_inode *raw_inode)
-{
-	D(printk("jffs_raw_inode: inode number: %u\n", raw_inode->ino));
-	D(printk("{\n"));
-	D(printk("        0x%08x, /* magic  */\n", raw_inode->magic));
-	D(printk("        0x%08x, /* ino  */\n", raw_inode->ino));
-	D(printk("        0x%08x, /* pino  */\n", raw_inode->pino));
-	D(printk("        0x%08x, /* version  */\n", raw_inode->version));
-	D(printk("        0x%08x, /* mode  */\n", raw_inode->mode));
-	D(printk("        0x%04x,     /* uid  */\n", raw_inode->uid));
-	D(printk("        0x%04x,     /* gid  */\n", raw_inode->gid));
-	D(printk("        0x%08x, /* atime  */\n", raw_inode->atime));
-	D(printk("        0x%08x, /* mtime  */\n", raw_inode->mtime));
-	D(printk("        0x%08x, /* ctime  */\n", raw_inode->ctime));
-	D(printk("        0x%08x, /* offset  */\n", raw_inode->offset));
-	D(printk("        0x%08x, /* dsize  */\n", raw_inode->dsize));
-	D(printk("        0x%08x, /* rsize  */\n", raw_inode->rsize));
-	D(printk("        0x%02x,       /* nsize  */\n", raw_inode->nsize));
-	D(printk("        0x%02x,       /* nlink  */\n", raw_inode->nlink));
-	D(printk("        0x%02x,       /* spare  */\n",
-		 raw_inode->spare));
-	D(printk("        %u,          /* rename  */\n",
-		 raw_inode->rename));
-	D(printk("        %u,          /* deleted  */\n",
-		 raw_inode->deleted));
-	D(printk("        0x%02x,       /* accurate  */\n",
-		 raw_inode->accurate));
-	D(printk("        0x%08x, /* dchksum  */\n", raw_inode->dchksum));
-	D(printk("        0x%04x,     /* nchksum  */\n", raw_inode->nchksum));
-	D(printk("        0x%04x,     /* chksum  */\n", raw_inode->chksum));
-	D(printk("}\n"));
-}
-
-
 /* Print the contents of a file.  */
 #if 0
 int
@@ -2615,9 +2608,8 @@ jffs_print_hash_table(struct jffs_control *c)
 
 	printk("JFFS: Dumping the file system's hash table...\n");
 	for (i = 0; i < c->hash_len; i++) {
-		struct list_head *p;
-		for (p = c->hash[i].next; p != &c->hash[i]; p = p->next) {
-			struct jffs_file *f=list_entry(p,struct jffs_file,hash);
+		struct jffs_file *f;
+		list_for_each_entry(f, &c->hash[i], hash) {
 			printk("*** c->hash[%u]: \"%s\" "
 			       "(ino: %u, pino: %u)\n",
 			       i, (f->name ? f->name : ""),
@@ -3398,6 +3390,9 @@ jffs_garbage_collect_thread(void *ptr)
 		while (signal_pending(current)) {
 			siginfo_t info;
 			unsigned long signr = 0;
+
+			if (try_to_freeze())
+				continue;
 
 			spin_lock_irq(&current->sighand->siglock);
 			signr = dequeue_signal(current, &current->blocked, &info);

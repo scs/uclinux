@@ -90,12 +90,11 @@ static int sb1000_close(struct net_device *dev);
 
 
 /* SB1000 hardware routines to be used during open/configuration phases */
-static inline void nicedelay(unsigned long usecs);
 static inline int card_wait_for_busy_clear(const int ioaddr[],
 	const char* name);
 static inline int card_wait_for_ready(const int ioaddr[], const char* name,
 	unsigned char in[]);
-static inline int card_send_command(const int ioaddr[], const char* name,
+static int card_send_command(const int ioaddr[], const char* name,
 	const unsigned char out[], unsigned char in[]);
 
 /* SB1000 hardware routines to be used during frame rx interrupt */
@@ -254,13 +253,6 @@ static struct pnp_driver sb1000_driver = {
 
 static const int TimeOutJiffies = (875 * HZ) / 100;
 
-static inline void nicedelay(unsigned long usecs)
-{
-	current->state = TASK_INTERRUPTIBLE;
-	schedule_timeout(HZ);
-	return;
-}
-
 /* Card Wait For Busy Clear (cannot be used during an interrupt) */
 static inline int
 card_wait_for_busy_clear(const int ioaddr[], const char* name)
@@ -317,7 +309,7 @@ card_wait_for_ready(const int ioaddr[], const char* name, unsigned char in[])
 }
 
 /* Card Send Command (cannot be used during an interrupt) */
-static inline int
+static int
 card_send_command(const int ioaddr[], const char* name,
 	const unsigned char out[], unsigned char in[])
 {
@@ -475,7 +467,7 @@ sb1000_reset(const int ioaddr[], const char* name)
 	udelay(1000);
 	outb(0x0, port);
 	inb(port);
-	nicedelay(60000);
+	ssleep(1);
 	outb(0x4, port);
 	inb(port);
 	udelay(1000);
@@ -537,7 +529,7 @@ sb1000_activate(const int ioaddr[], const char* name)
 	const unsigned char Command0[6] = {0x80, 0x11, 0x00, 0x00, 0x00, 0x00};
 	const unsigned char Command1[6] = {0x80, 0x16, 0x00, 0x00, 0x00, 0x00};
 
-	nicedelay(50000);
+	ssleep(1);
 	if ((status = card_send_command(ioaddr, name, Command0, st)))
 		return status;
 	if ((status = card_send_command(ioaddr, name, Command1, st)))
@@ -944,7 +936,7 @@ sb1000_open(struct net_device *dev)
 	/* initialize sb1000 */
 	if ((status = sb1000_reset(ioaddr, name)))
 		return status;
-	nicedelay(200000);
+	ssleep(1);
 	if ((status = sb1000_check_CRC(ioaddr, name)))
 		return status;
 

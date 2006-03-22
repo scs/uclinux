@@ -33,8 +33,6 @@ static int load_aout_binary(struct linux_binprm *, struct pt_regs * regs);
 static int load_aout_library(struct file*);
 static int aout_core_dump(long signr, struct pt_regs * regs, struct file *file);
 
-extern void dump_thread(struct pt_regs *, struct user *);
-
 static struct linux_binfmt aout_format = {
 	.module		= THIS_MODULE,
 	.load_binary	= load_aout_binary,
@@ -316,8 +314,8 @@ static int load_aout_binary(struct linux_binprm * bprm, struct pt_regs * regs)
 	current->mm->brk = ex.a_bss +
 		(current->mm->start_brk = N_BSSADDR(ex));
 	current->mm->free_area_cache = current->mm->mmap_base;
+	current->mm->cached_hole_size = 0;
 
-	set_mm_counter(current->mm, rss, 0);
 	current->mm->mmap = NULL;
 	compute_creds(bprm);
  	current->flags &= ~PF_FORKNOEXEC;

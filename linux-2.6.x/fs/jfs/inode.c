@@ -23,20 +23,13 @@
 #include <linux/pagemap.h>
 #include <linux/quotaops.h>
 #include "jfs_incore.h"
+#include "jfs_inode.h"
 #include "jfs_filsys.h"
 #include "jfs_imap.h"
 #include "jfs_extent.h"
 #include "jfs_unicode.h"
 #include "jfs_debug.h"
 
-
-extern struct inode_operations jfs_dir_inode_operations;
-extern struct inode_operations jfs_file_inode_operations;
-extern struct inode_operations jfs_symlink_inode_operations;
-extern struct file_operations jfs_dir_operations;
-extern struct file_operations jfs_file_operations;
-struct address_space_operations jfs_aops;
-extern int freeZeroLink(struct inode *);
 
 void jfs_read_inode(struct inode *inode)
 {
@@ -135,17 +128,22 @@ void jfs_delete_inode(struct inode *inode)
 {
 	jfs_info("In jfs_delete_inode, inode = 0x%p", inode);
 
-	if (test_cflag(COMMIT_Freewmap, inode))
-		freeZeroLink(inode);
+	if (!is_bad_inode(inode) &&
+	    (JFS_IP(inode)->fileset == FILESYSTEM_I)) {
+		truncate_inode_pages(&inode->i_data, 0);
 
-	diFree(inode);
+		if (test_cflag(COMMIT_Freewmap, inode))
+			jfs_free_zero_link(inode);
 
-	/*
-	 * Free the inode from the quota allocation.
-	 */
-	DQUOT_INIT(inode);
-	DQUOT_FREE_INODE(inode);
-	DQUOT_DROP(inode);
+		diFree(inode);
+
+		/*
+		 * Free the inode from the quota allocation.
+		 */
+		DQUOT_INIT(inode);
+		DQUOT_FREE_INODE(inode);
+		DQUOT_DROP(inode);
+	}
 
 	clear_inode(inode);
 }

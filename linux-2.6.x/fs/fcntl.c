@@ -9,6 +9,7 @@
 #include <linux/mm.h>
 #include <linux/fs.h>
 #include <linux/file.h>
+#include <linux/capability.h>
 #include <linux/dnotify.h>
 #include <linux/smp_lock.h>
 #include <linux/slab.h>
@@ -16,6 +17,7 @@
 #include <linux/security.h>
 #include <linux/ptrace.h>
 #include <linux/signal.h>
+#include <linux/rcupdate.h>
 
 #include <asm/poll.h>
 #include <asm/siginfo.h>
@@ -24,21 +26,25 @@
 void fastcall set_close_on_exec(unsigned int fd, int flag)
 {
 	struct files_struct *files = current->files;
+	struct fdtable *fdt;
 	spin_lock(&files->file_lock);
+	fdt = files_fdtable(files);
 	if (flag)
-		FD_SET(fd, files->close_on_exec);
+		FD_SET(fd, fdt->close_on_exec);
 	else
-		FD_CLR(fd, files->close_on_exec);
+		FD_CLR(fd, fdt->close_on_exec);
 	spin_unlock(&files->file_lock);
 }
 
-static inline int get_close_on_exec(unsigned int fd)
+static int get_close_on_exec(unsigned int fd)
 {
 	struct files_struct *files = current->files;
+	struct fdtable *fdt;
 	int res;
-	spin_lock(&files->file_lock);
-	res = FD_ISSET(fd, files->close_on_exec);
-	spin_unlock(&files->file_lock);
+	rcu_read_lock();
+	fdt = files_fdtable(files);
+	res = FD_ISSET(fd, fdt->close_on_exec);
+	rcu_read_unlock();
 	return res;
 }
 
@@ -54,24 +60,26 @@ static int locate_fd(struct files_struct *files,
 	unsigned int newfd;
 	unsigned int start;
 	int error;
+	struct fdtable *fdt;
 
 	error = -EINVAL;
 	if (orig_start >= current->signal->rlim[RLIMIT_NOFILE].rlim_cur)
 		goto out;
 
 repeat:
+	fdt = files_fdtable(files);
 	/*
 	 * Someone might have closed fd's in the range
-	 * orig_start..files->next_fd
+	 * orig_start..fdt->next_fd
 	 */
 	start = orig_start;
-	if (start < files->next_fd)
-		start = files->next_fd;
+	if (start < fdt->next_fd)
+		start = fdt->next_fd;
 
 	newfd = start;
-	if (start < files->max_fdset) {
-		newfd = find_next_zero_bit(files->open_fds->fds_bits,
-			files->max_fdset, start);
+	if (start < fdt->max_fdset) {
+		newfd = find_next_zero_bit(fdt->open_fds->fds_bits,
+			fdt->max_fdset, start);
 	}
 	
 	error = -EMFILE;
@@ -89,9 +97,15 @@ repeat:
 	if (error)
 		goto repeat;
 
-	if (start <= files->next_fd)
-		files->next_fd = newfd + 1;
-	
+	/*
+	 * We reacquired files_lock, so we are safe as long as
+	 * we reacquire the fdtable pointer and use it while holding
+	 * the lock, no one can free it during that time.
+	 */
+	fdt = files_fdtable(files);
+	if (start <= fdt->next_fd)
+		fdt->next_fd = newfd + 1;
+
 	error = newfd;
 	
 out:
@@ -101,13 +115,16 @@ out:
 static int dupfd(struct file *file, unsigned int start)
 {
 	struct files_struct * files = current->files;
+	struct fdtable *fdt;
 	int fd;
 
 	spin_lock(&files->file_lock);
 	fd = locate_fd(files, file, start);
 	if (fd >= 0) {
-		FD_SET(fd, files->open_fds);
-		FD_CLR(fd, files->close_on_exec);
+		/* locate_fd() may have expanded fdtable, load the ptr */
+		fdt = files_fdtable(files);
+		FD_SET(fd, fdt->open_fds);
+		FD_CLR(fd, fdt->close_on_exec);
 		spin_unlock(&files->file_lock);
 		fd_install(fd, file);
 	} else {
@@ -123,6 +140,7 @@ asmlinkage long sys_dup2(unsigned int oldfd, unsigned int newfd)
 	int err = -EBADF;
 	struct file * file, *tofree;
 	struct files_struct * files = current->files;
+	struct fdtable *fdt;
 
 	spin_lock(&files->file_lock);
 	if (!(file = fcheck(oldfd)))
@@ -148,13 +166,14 @@ asmlinkage long sys_dup2(unsigned int oldfd, unsigned int newfd)
 
 	/* Yes. It's a race. In user space. Nothing sane to do */
 	err = -EBUSY;
-	tofree = files->fd[newfd];
-	if (!tofree && FD_ISSET(newfd, files->open_fds))
+	fdt = files_fdtable(files);
+	tofree = fdt->fd[newfd];
+	if (!tofree && FD_ISSET(newfd, fdt->open_fds))
 		goto out_fput;
 
-	files->fd[newfd] = file;
-	FD_SET(newfd, files->open_fds);
-	FD_CLR(newfd, files->close_on_exec);
+	rcu_assign_pointer(fdt->fd[newfd], file);
+	FD_SET(newfd, fdt->open_fds);
+	FD_CLR(newfd, fdt->close_on_exec);
 	spin_unlock(&files->file_lock);
 
 	if (tofree)
@@ -189,8 +208,11 @@ static int setfl(int fd, struct file * filp, unsigned long arg)
 	struct inode * inode = filp->f_dentry->d_inode;
 	int error = 0;
 
-	/* O_APPEND cannot be cleared if the file is marked as append-only */
-	if (!(arg & O_APPEND) && IS_APPEND(inode))
+	/*
+	 * O_APPEND cannot be cleared if the file is marked as append-only
+	 * and the file is open for write.
+	 */
+	if (((arg ^ filp->f_flags) & O_APPEND) && IS_APPEND(inode))
 		return -EPERM;
 
 	/* O_NOATIME can only be set by the owner or superuser */
@@ -288,7 +310,7 @@ static long do_fcntl(int fd, unsigned int cmd, unsigned long arg,
 		break;
 	case F_SETLK:
 	case F_SETLKW:
-		err = fcntl_setlk(filp, cmd, (struct flock __user *) arg);
+		err = fcntl_setlk(fd, filp, cmd, (struct flock __user *) arg);
 		break;
 	case F_GETOWN:
 		/*
@@ -376,7 +398,8 @@ asmlinkage long sys_fcntl64(unsigned int fd, unsigned int cmd, unsigned long arg
 			break;
 		case F_SETLK64:
 		case F_SETLKW64:
-			err = fcntl_setlk64(filp, cmd, (struct flock64 __user *) arg);
+			err = fcntl_setlk64(fd, filp, cmd,
+					(struct flock64 __user *) arg);
 			break;
 		default:
 			err = do_fcntl(fd, cmd, arg, filp);
@@ -438,11 +461,11 @@ static void send_sigio_to_task(struct task_struct *p,
 			else
 				si.si_band = band_table[reason - POLL_IN];
 			si.si_fd    = fd;
-			if (!send_group_sig_info(fown->signum, &si, p))
+			if (!group_send_sig_info(fown->signum, &si, p))
 				break;
 		/* fall-through: fall back on the old plain SIGIO signal */
 		case 0:
-			send_group_sig_info(SIGIO, SEND_SIG_PRIV, p);
+			group_send_sig_info(SIGIO, SEND_SIG_PRIV, p);
 	}
 }
 
@@ -476,7 +499,7 @@ static void send_sigurg_to_task(struct task_struct *p,
                                 struct fown_struct *fown)
 {
 	if (sigio_perm(p, fown, SIGURG))
-		send_group_sig_info(SIGURG, SEND_SIG_PRIV, p);
+		group_send_sig_info(SIGURG, SEND_SIG_PRIV, p);
 }
 
 int send_sigurg(struct fown_struct *fown)

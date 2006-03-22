@@ -11,8 +11,11 @@
  * partition split defined below.
  *
  * $Log$
- * Revision 1.5  2005/08/12 03:32:52  magicyang
- *   Update kernel 2.6.8 to 2.6.12
+ * Revision 1.6  2006/03/22 06:14:52  magicyang
+ * update kernel to 2.6.16
+ *
+ * Revision 1.11  2004/11/15 10:27:14  starvik
+ * Corrected typo (Thanks to Milton Miller <miltonm@bga.com>).
  *
  * Revision 1.10  2004/08/16 12:37:22  starvik
  * Merge of Linux 2.6.8
@@ -140,6 +143,7 @@
 #include <linux/kernel.h>
 #include <linux/config.h>
 #include <linux/init.h>
+#include <linux/slab.h>
 
 #include <linux/mtd/concat.h>
 #include <linux/mtd/map.h>
@@ -164,7 +168,7 @@
 #elif CONFIG_ETRAX_FLASH_BUSWIDTH==2
 #define flash_data __u16
 #elif CONFIG_ETRAX_FLASH_BUSWIDTH==4
-#define flash_data __u16
+#define flash_data __u32
 #endif
 
 /* From head.S */

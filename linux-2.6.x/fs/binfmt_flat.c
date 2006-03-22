@@ -14,7 +14,6 @@
  *	    Copyright (C) 1998  Kenneth Albanowski <kjahds@kjahds.com>
  *	JAN/99 -- coded full program relocation (gerg@snapgear.com)
  */
-//#define DEBUG_BFIN_RELOC
 
 #include <linux/module.h>
 #include <linux/config.h>
@@ -445,26 +444,25 @@ static int load_flat_file(struct linux_binprm * bprm,
 	flags     = ntohl(hdr->flags);
 	rev       = ntohl(hdr->rev);
 
-#ifdef DEBUG
-	flags |= FLAT_FLAG_KTRACE;
-#endif
-	    
-	if (flags & FLAT_FLAG_KTRACE)
-		printk("BINFMT_FLAT: Loading file: %s\n", bprm->filename);
-
-	if (strncmp(hdr->magic, "bFLT", 4) ||
-			(rev != FLAT_VERSION && rev != OLD_FLAT_VERSION)) {
+	if (strncmp(hdr->magic, "bFLT", 4)) {
 		/*
 		 * because a lot of people do not manage to produce good
 		 * flat binaries,  we leave this printk to help them realise
 		 * the problem.  We only print the error if its not a script file
 		 */
 		if (strncmp(hdr->magic, "#!", 2))
-			printk("BINFMT_FLAT: bad magic/rev (0x%x, need 0x%x)\n",
-					rev, (int) FLAT_VERSION);
+			printk("BINFMT_FLAT: bad header magic\n");
 		return -ENOEXEC;
 	}
-	
+
+	if (flags & FLAT_FLAG_KTRACE)
+		printk("BINFMT_FLAT: Loading file: %s\n", bprm->filename);
+
+	if (rev != FLAT_VERSION && rev != OLD_FLAT_VERSION) {
+		printk("BINFMT_FLAT: bad flat file version 0x%x (supported 0x%x and 0x%x)\n", rev, FLAT_VERSION, OLD_FLAT_VERSION);
+		return -ENOEXEC;
+	}
+
 	/* Don't allow old format executables to use shared libraries */
 	if (rev == OLD_FLAT_VERSION && id != 0) {
 		printk("BINFMT_FLAT: shared libraries are not available before rev 0x%x\n",
@@ -655,7 +653,6 @@ static int load_flat_file(struct linux_binprm * bprm,
 		current->mm->start_brk = datapos + data_len + bss_len;
 		current->mm->brk = (current->mm->start_brk + 3) & ~3;
 		current->mm->context.end_brk = memp + ksize((void *) memp) - stack_len;
-		set_mm_counter(current->mm, rss, 0);
 	}
 
 	if (flags & FLAT_FLAG_KTRACE)
@@ -677,7 +674,7 @@ static int load_flat_file(struct linux_binprm * bprm,
 	libinfo->lib_list[id].loaded = 1;
 	libinfo->lib_list[id].entry = (0x00ffffff & ntohl(hdr->entry)) + textpos;
 	libinfo->lib_list[id].build_date = ntohl(hdr->build_date);
-	
+
 	/*
 	 * We just load the allocations into some temporary memory to
 	 * help simplify all this mumbo jumbo
@@ -755,7 +752,7 @@ static int load_flat_file(struct linux_binprm * bprm,
 	flush_icache_range(start_code, end_code);
 
 	/* zero the BSS,  BRK and stack areas */
-	memset((void*)(datapos + data_len), 0, bss_len + 
+	memset((void*)(datapos + data_len), 0, bss_len +
 			(memp + ksize((void *) memp) - stack_len -	/* end brk */
 			libinfo->lib_list[id].start_brk) +		/* start brk */
 			stack_len);
@@ -831,11 +828,11 @@ static int load_flat_binary(struct linux_binprm * bprm, struct pt_regs * regs)
 	stack_len += (bprm->argc + 1) * sizeof(char *); /* the argv array */
 	stack_len += (bprm->envc + 1) * sizeof(char *); /* the envp array */
 
-	
+
 	res = load_flat_file(bprm, &libinfo, 0, &stack_len);
 	if (res > (unsigned long)-4096)
 		return res;
-	
+
 	/* Update data segment pointers for all libraries */
 	for (i=0; i<MAX_SHARED_LIBS; i++)
 		if (libinfo.lib_list[i].loaded)
@@ -851,8 +848,6 @@ static int load_flat_binary(struct linux_binprm * bprm, struct pt_regs * regs)
 
 	p = ((current->mm->context.end_brk + stack_len + 3) & ~3) - 4;
 	DBG_FLT("p=%x\n", (int)p);
-	if ( ntohl( ((struct flat_hdr *) bprm->buf)->flags) & FLAT_FLAG_KTRACE)
-		printk ("STACK=%x-%x\n", (int)(p - stack_len), (int)p );
 
 	/* copy the arg pages onto the stack, this could be more efficient :-) */
 	for (i = TOP_OF_ARGS - 1; i >= bprm->p; i--)
@@ -860,7 +855,7 @@ static int load_flat_binary(struct linux_binprm * bprm, struct pt_regs * regs)
 			((char *) page_address(bprm->page[i/PAGE_SIZE]))[i % PAGE_SIZE];
 
 	sp = (unsigned long *) create_flat_tables(p, bprm);
-	
+
 	/* Fake some return addresses to ensure the call chain will
 	 * initialise library in order for us.  We are required to call
 	 * lib 1 first, then 2, ... and finally the main program (id 0).
@@ -876,14 +871,14 @@ static int load_flat_binary(struct linux_binprm * bprm, struct pt_regs * regs)
 		}
 	}
 #endif
-	
+
 	/* Stash our initial stack pointer into the mm structure */
 	current->mm->start_stack = (unsigned long )sp;
 
-	
+
 	DBG_FLT("start_thread(regs=0x%x, entry=0x%x, start_stack=0x%x)\n",
 		(int)regs, (int)start_addr, (int)current->mm->start_stack);
-	
+
 	start_thread(regs, start_addr, current->mm->start_stack);
 
 	if (current->ptrace & PT_PTRACED)

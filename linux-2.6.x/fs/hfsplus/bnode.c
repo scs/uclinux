@@ -13,12 +13,9 @@
 #include <linux/pagemap.h>
 #include <linux/fs.h>
 #include <linux/swap.h>
-#include <linux/version.h>
 
 #include "hfsplus_fs.h"
 #include "hfsplus_raw.h"
-
-#define REF_PAGES	0
 
 /* Copy a specified range of bytes from the raw data of a node */
 void hfs_bnode_read(struct hfs_bnode *node, void *buf, int off, int len)
@@ -361,7 +358,7 @@ void hfs_bnode_unlink(struct hfs_bnode *node)
 
 	// move down?
 	if (!node->prev && !node->next) {
-		printk("hfs_btree_del_level\n");
+		printk(KERN_DEBUG "hfs_btree_del_level\n");
 	}
 	if (!node->parent) {
 		tree->root = 0;
@@ -382,7 +379,7 @@ struct hfs_bnode *hfs_bnode_findhash(struct hfs_btree *tree, u32 cnid)
 	struct hfs_bnode *node;
 
 	if (cnid >= tree->node_count) {
-		printk("HFS+-fs: request for non-existent node %d in B*Tree\n", cnid);
+		printk(KERN_ERR "hfs: request for non-existent node %d in B*Tree\n", cnid);
 		return NULL;
 	}
 
@@ -405,7 +402,7 @@ static struct hfs_bnode *__hfs_bnode_create(struct hfs_btree *tree, u32 cnid)
 	loff_t off;
 
 	if (cnid >= tree->node_count) {
-		printk("HFS+-fs: request for non-existent node %d in B*Tree\n", cnid);
+		printk(KERN_ERR "hfs: request for non-existent node %d in B*Tree\n", cnid);
 		return NULL;
 	}
 
@@ -450,9 +447,7 @@ static struct hfs_bnode *__hfs_bnode_create(struct hfs_btree *tree, u32 cnid)
 			page_cache_release(page);
 			goto fail;
 		}
-#if !REF_PAGES
 		page_cache_release(page);
-#endif
 		node->page[i] = page;
 	}
 
@@ -581,8 +576,9 @@ struct hfs_bnode *hfs_bnode_create(struct hfs_btree *tree, u32 num)
 	node = hfs_bnode_findhash(tree, num);
 	spin_unlock(&tree->hash_lock);
 	if (node) {
-		printk("new node %u already hashed?\n", num);
-		BUG();
+		printk(KERN_CRIT "new node %u already hashed?\n", num);
+		WARN_ON(1);
+		return node;
 	}
 	node = __hfs_bnode_create(tree, num);
 	if (!node)
@@ -612,13 +608,6 @@ void hfs_bnode_get(struct hfs_bnode *node)
 {
 	if (node) {
 		atomic_inc(&node->refcnt);
-#if REF_PAGES
-		{
-		int i;
-		for (i = 0; i < node->tree->pages_per_bnode; i++)
-			get_page(node->page[i]);
-		}
-#endif
 		dprint(DBG_BNODE_REFS, "get_node(%d:%d): %d\n",
 		       node->tree->cnid, node->this, atomic_read(&node->refcnt));
 	}
@@ -635,18 +624,12 @@ void hfs_bnode_put(struct hfs_bnode *node)
 		       node->tree->cnid, node->this, atomic_read(&node->refcnt));
 		if (!atomic_read(&node->refcnt))
 			BUG();
-		if (!atomic_dec_and_lock(&node->refcnt, &tree->hash_lock)) {
-#if REF_PAGES
-			for (i = 0; i < tree->pages_per_bnode; i++)
-				put_page(node->page[i]);
-#endif
+		if (!atomic_dec_and_lock(&node->refcnt, &tree->hash_lock))
 			return;
-		}
 		for (i = 0; i < tree->pages_per_bnode; i++) {
+			if (!node->page[i])
+				continue;
 			mark_page_accessed(node->page[i]);
-#if REF_PAGES
-			put_page(node->page[i]);
-#endif
 		}
 
 		if (test_bit(HFS_BNODE_DELETED, &node->flags)) {

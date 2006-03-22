@@ -79,7 +79,7 @@ void hard_reset_now (void)
  */
 unsigned long thread_saved_pc(struct task_struct *t)
 {
-	return (unsigned long)user_regs(t->thread_info)->irp;
+	return task_pt_regs(t)->irp;
 }
 
 static void kernel_thread_helper(void* dummy, int (*fn)(void *), void * arg)
@@ -101,6 +101,7 @@ int kernel_thread(int (*fn)(void *), void * arg, unsigned long flags)
 	regs.r11 = (unsigned long)fn;
 	regs.r12 = (unsigned long)arg;
 	regs.irp = (unsigned long)kernel_thread_helper;
+	regs.dccr = 1 << I_DCCR_BITNR;
 
 	/* Ok, create the new process.. */
         return do_fork(flags | CLONE_VM | CLONE_UNTRACED, 0, &regs, 0, NULL, NULL);
@@ -127,7 +128,7 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long usp,
 	 * remember that the task_struct doubles as the kernel stack for the task
 	 */
 
-	childregs = user_regs(p->thread_info);        
+	childregs = task_pt_regs(p);
         
 	*childregs = *regs;  /* struct copy of pt_regs */
         

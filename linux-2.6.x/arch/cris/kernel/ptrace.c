@@ -8,8 +8,14 @@
  * Authors:   Bjorn Wesen
  *
  * $Log$
- * Revision 1.5  2005/08/12 03:32:53  magicyang
- *   Update kernel 2.6.8 to 2.6.12
+ * Revision 1.6  2006/03/22 06:14:57  magicyang
+ * update kernel to 2.6.16
+ *
+ * Revision 1.10  2004/09/22 11:50:01  orjanf
+ * * Moved get_reg/put_reg to arch-specific files.
+ * * Added functions to access debug registers (CRISv32).
+ * * Added support for PTRACE_SINGLESTEP (CRISv32).
+ * * Added S flag to CCS_MASK (CRISv32).
  *
  * Revision 1.9  2003/07/04 12:56:11  tobiasa
  * Moved arch-specific code to arch-specific files.
@@ -75,37 +81,6 @@
 #include <asm/system.h>
 #include <asm/processor.h>
 
-/*
- * Get contents of register REGNO in task TASK.
- */
-inline long get_reg(struct task_struct *task, unsigned int regno)
-{
-	/* USP is a special case, it's not in the pt_regs struct but
-	 * in the tasks thread struct
-	 */
-
-	if (regno == PT_USP)
-		return task->thread.usp;
-	else if (regno < PT_MAX)
-		return ((unsigned long *)user_regs(task->thread_info))[regno];
-	else
-		return 0;
-}
-
-/*
- * Write contents of register REGNO in task TASK.
- */
-inline int put_reg(struct task_struct *task, unsigned int regno,
-			  unsigned long data)
-{
-	if (regno == PT_USP)
-		task->thread.usp = data;
-	else if (regno < PT_MAX)
-		((unsigned long *)user_regs(task->thread_info))[regno] = data;
-	else
-		return -1;
-	return 0;
-}
 
 /* notification of userspace execution resumption
  * - triggered by current->work.notify_resume

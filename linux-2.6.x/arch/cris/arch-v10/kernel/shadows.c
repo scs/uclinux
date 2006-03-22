@@ -6,6 +6,7 @@
 /* Shadows for internal Etrax-registers */
 
 unsigned long genconfig_shadow;
+unsigned long gen_config_ii_shadow;
 unsigned long port_g_data_shadow;
 unsigned char port_pa_dir_shadow;
 unsigned char port_pa_data_shadow;

@@ -11,7 +11,7 @@ LDFLAGS_vmlinux	:= -X
 LDFLAGS_BLOB	:=--format binary -elf32-bfin
 OBJCOPYFLAGS	:=-O binary -R .note -R .comment -S
 GZFLAGS		:=-9
-CFLAGS		+=-fno-builtin -D__linux__
+CFLAGS		+=-D__linux__
 BFIN_TARGET 	= vmlinux
 
 CFLAGS_MODULE   += -mlong-calls
@@ -79,11 +79,6 @@ else
 endif
 	@touch $@
 
-prepare: include/asm-blackfin/.mach include/asm-$(ARCH)/asm-offsets.h 
-
+archprepare: include/asm-blackfin/.mach
 archclean:
 
-include/asm-blackfin/asm-offsets.h: arch/blackfin/kernel/asm-offsets.s \
-				   include/asm include/linux/version.h \
-				   include/config/MARKER
-	$(call filechk,gen-asm-offsets)

@@ -36,6 +36,7 @@
 
 #include "vxfs.h"
 #include "vxfs_inode.h"
+#include "vxfs_extern.h"
 
 
 #ifdef DIAGNOSTIC
@@ -101,7 +102,7 @@ vxfs_bmap_ext4(struct inode *ip, long bn)
 	return 0;
 
 fail_size:
-	printk("vxfs: indirect extent to big!\n");
+	printk("vxfs: indirect extent too big!\n");
 fail_buf:
 	return 0;
 }

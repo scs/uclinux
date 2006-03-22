@@ -2,7 +2,7 @@
  * layout.h - All NTFS associated on-disk structures. Part of the Linux-NTFS
  *	      project.
  *
- * Copyright (c) 2001-2004 Anton Altaparmakov
+ * Copyright (c) 2001-2005 Anton Altaparmakov
  * Copyright (c) 2002 Richard Russon
  *
  * This program/include file is free software; you can redistribute it and/or
@@ -123,7 +123,7 @@ enum {
 	magic_RCRD = const_cpu_to_le32(0x44524352), /* Log record page. */
 
 	/* Found in $LogFile/$DATA.  (May be found in $MFT/$DATA, also?) */
-	magic_CHKD = const_cpu_to_le32(0x424b4843), /* Modified by chkdsk. */
+	magic_CHKD = const_cpu_to_le32(0x444b4843), /* Modified by chkdsk. */
 
 	/* Found in all ntfs record containing records. */
 	magic_BAAD = const_cpu_to_le32(0x44414142), /* Failed multi sector
@@ -308,10 +308,8 @@ typedef le16 MFT_RECORD_FLAGS;
  * The _LE versions are to be applied on little endian MFT_REFs.
  * Note: The _LE versions will return a CPU endian formatted value!
  */
-typedef enum {
-	MFT_REF_MASK_CPU	= 0x0000ffffffffffffULL,
-	MFT_REF_MASK_LE		= const_cpu_to_le64(0x0000ffffffffffffULL),
-} MFT_REF_CONSTS;
+#define MFT_REF_MASK_CPU 0x0000ffffffffffffULL
+#define MFT_REF_MASK_LE const_cpu_to_le64(MFT_REF_MASK_CPU)
 
 typedef u64 MFT_REF;
 typedef le64 leMFT_REF;
@@ -547,26 +545,44 @@ enum {
 	COLLATION_NTOFS_ULONG		= const_cpu_to_le32(0x10),
 	COLLATION_NTOFS_SID		= const_cpu_to_le32(0x11),
 	COLLATION_NTOFS_SECURITY_HASH	= const_cpu_to_le32(0x12),
-	COLLATION_NTOFS_ULONGS		= const_cpu_to_le32(0x13)
+	COLLATION_NTOFS_ULONGS		= const_cpu_to_le32(0x13),
 };
 
 typedef le32 COLLATION_RULE;
 
 /*
  * The flags (32-bit) describing attribute properties in the attribute
- * definition structure.  FIXME: This information is from Regis's information
- * and, according to him, it is not certain and probably incomplete.
- * The INDEXABLE flag is fairly certainly correct as only the file name
- * attribute has this flag set and this is the only attribute indexed in NT4.
+ * definition structure.  FIXME: This information is based on Regis's
+ * information and, according to him, it is not certain and probably
+ * incomplete.  The INDEXABLE flag is fairly certainly correct as only the file
+ * name attribute has this flag set and this is the only attribute indexed in
+ * NT4.
  */
 enum {
-	INDEXABLE	    = const_cpu_to_le32(0x02), /* Attribute can be
-							  indexed. */
-	NEED_TO_REGENERATE  = const_cpu_to_le32(0x40), /* Need to regenerate
-							  during regeneration
-							  phase. */
-	CAN_BE_NON_RESIDENT = const_cpu_to_le32(0x80), /* Attribute can be
-							  non-resident. */
+	ATTR_DEF_INDEXABLE	= const_cpu_to_le32(0x02), /* Attribute can be
+					indexed. */
+	ATTR_DEF_MULTIPLE	= const_cpu_to_le32(0x04), /* Attribute type
+					can be present multiple times in the
+					mft records of an inode. */
+	ATTR_DEF_NOT_ZERO	= const_cpu_to_le32(0x08), /* Attribute value
+					must contain at least one non-zero
+					byte. */
+	ATTR_DEF_INDEXED_UNIQUE	= const_cpu_to_le32(0x10), /* Attribute must be
+					indexed and the attribute value must be
+					unique for the attribute type in all of
+					the mft records of an inode. */
+	ATTR_DEF_NAMED_UNIQUE	= const_cpu_to_le32(0x20), /* Attribute must be
+					named and the name must be unique for
+					the attribute type in all of the mft
+					records of an inode. */
+	ATTR_DEF_RESIDENT	= const_cpu_to_le32(0x40), /* Attribute must be
+					resident. */
+	ATTR_DEF_ALWAYS_LOG	= const_cpu_to_le32(0x80), /* Always log
+					modifications to this attribute,
+					regardless of whether it is resident or
+					non-resident.  Without this, only log
+					modifications if the attribute is
+					resident. */
 };
 
 typedef le32 ATTR_DEF_FLAGS;
@@ -749,10 +765,11 @@ typedef struct {
 				record header aligned to 8-byte boundary. */
 /* 34*/			u8 compression_unit; /* The compression unit expressed
 				as the log to the base 2 of the number of
-				clusters in a compression unit. 0 means not
-				compressed. (This effectively limits the
+				clusters in a compression unit.  0 means not
+				compressed.  (This effectively limits the
 				compression unit size to be a power of two
-				clusters.) WinNT4 only uses a value of 4. */
+				clusters.)  WinNT4 only uses a value of 4.
+				Sparse files also have this set to 4. */
 /* 35*/			u8 reserved[5];		/* Align to 8-byte boundary. */
 /* The sizes below are only used when lowest_vcn is zero, as otherwise it would
    be difficult to keep them up-to-date.*/
@@ -772,10 +789,10 @@ typedef struct {
 				data_size. */
 /* sizeof(uncompressed attr) = 64*/
 /* 64*/			sle64 compressed_size;	/* Byte size of the attribute
-				value after compression. Only present when
-				compressed. Always is a multiple of the
-				cluster size. Represents the actual amount of
-				disk space being used on the disk. */
+				value after compression.  Only present when
+				compressed or sparse.  Always is a multiple of
+				the cluster size.  Represents the actual amount
+				of disk space being used on the disk. */
 /* sizeof(compressed attr) = 72*/
 		} __attribute__ ((__packed__)) non_resident;
 	} __attribute__ ((__packed__)) data;
@@ -821,20 +838,24 @@ enum {
 	   F_A_DEVICE, F_A_DIRECTORY, F_A_SPARSE_FILE, F_A_REPARSE_POINT,
 	   F_A_COMPRESSED, and F_A_ENCRYPTED and preserves the rest.  This mask
 	   is used to to obtain all flags that are valid for setting. */
-
 	/*
-	 * The following flags are only present in the FILE_NAME attribute (in
+	 * The following flag is only present in the FILE_NAME attribute (in
 	 * the field file_attributes).
 	 */
 	FILE_ATTR_DUP_FILE_NAME_INDEX_PRESENT	= const_cpu_to_le32(0x10000000),
 	/* Note, this is a copy of the corresponding bit from the mft record,
 	   telling us whether this is a directory or not, i.e. whether it has
 	   an index root attribute or not. */
+	/*
+	 * The following flag is present both in the STANDARD_INFORMATION
+	 * attribute and in the FILE_NAME attribute (in the field
+	 * file_attributes).
+	 */
 	FILE_ATTR_DUP_VIEW_INDEX_PRESENT	= const_cpu_to_le32(0x20000000),
 	/* Note, this is a copy of the corresponding bit from the mft record,
 	   telling us whether this file has a view index present (eg. object id
 	   index, quota index, one of the security indexes or the encrypting
-	   file system related indexes). */
+	   filesystem related indexes). */
 };
 
 typedef le32 FILE_ATTR_FLAGS;
@@ -917,20 +938,12 @@ typedef struct {
 		/* 56*/	le64 quota_charged;	/* Byte size of the charge to
 				the quota for all streams of the file. Note: Is
 				zero if quotas are disabled. */
-		/* 64*/	le64 usn;		/* Last update sequence number
-				of the file. This is a direct index into the
-				change (aka usn) journal file. It is zero if
-				the usn journal is disabled.
-				NOTE: To disable the journal need to delete
-				the journal file itself and to then walk the
-				whole mft and set all Usn entries in all mft
-				records to zero! (This can take a while!)
-				The journal is FILE_Extend/$UsnJrnl. Win2k
-				will recreate the journal and initiate
-				logging if necessary when mounting the
-				partition. This, in contrast to disabling the
-				journal is a very fast process, so the user
-				won't even notice it. */
+		/* 64*/	leUSN usn;		/* Last update sequence number
+				of the file.  This is a direct index into the
+				transaction log file ($UsnJrnl).  It is zero if
+				the usn journal is disabled or this file has
+				not been subject to logging yet.  See usnjrnl.h
+				for details. */
 		} __attribute__ ((__packed__)) v3;
 	/* sizeof() = 72 bytes (NTFS 3.x) */
 	} __attribute__ ((__packed__)) ver;
@@ -1012,10 +1025,17 @@ enum {
 	FILE_NAME_POSIX		= 0x00,
 	/* This is the largest namespace. It is case sensitive and allows all
 	   Unicode characters except for: '\0' and '/'.  Beware that in
-	   WinNT/2k files which eg have the same name except for their case
-	   will not be distinguished by the standard utilities and thus a "del
-	   filename" will delete both "filename" and "fileName" without
-	   warning. */
+	   WinNT/2k/2003 by default files which eg have the same name except
+	   for their case will not be distinguished by the standard utilities
+	   and thus a "del filename" will delete both "filename" and "fileName"
+	   without warning.  However if for example Services For Unix (SFU) are
+	   installed and the case sensitive option was enabled at installation
+	   time, then you can create/access/delete such files.
+	   Note that even SFU places restrictions on the filenames beyond the
+	   '\0' and '/' and in particular the following set of characters is
+	   not allowed: '"', '/', '<', '>', '\'.  All other characters,
+	   including the ones no allowed in WIN32 namespace are allowed.
+	   Tested with SFU 3.5 (this is now free) running on Windows XP. */
 	FILE_NAME_WIN32		= 0x01,
 	/* The standard WinNT/2k NTFS long filenames. Case insensitive.  All
 	   Unicode chars except: '\0', '"', '*', '/', ':', '<', '>', '?', '\',
@@ -1055,9 +1075,15 @@ typedef struct {
 					   modified. */
 /* 20*/	sle64 last_access_time;		/* Time this mft record was last
 					   accessed. */
-/* 28*/	sle64 allocated_size;		/* Byte size of allocated space for the
-					   data attribute. NOTE: Is a multiple
-					   of the cluster size. */
+/* 28*/	sle64 allocated_size;		/* Byte size of on-disk allocated space
+					   for the data attribute.  So for
+					   normal $DATA, this is the
+					   allocated_size from the unnamed
+					   $DATA attribute and for compressed
+					   and/or sparse $DATA, this is the
+					   compressed_size from the unnamed
+					   $DATA attribute.  NOTE: This is a
+					   multiple of the cluster size. */
 /* 30*/	sle64 data_size;		/* Byte size of actual data in data
 					   attribute. */
 /* 38*/	FILE_ATTR_FLAGS file_attributes;	/* Flags describing the file. */
@@ -1888,12 +1914,13 @@ enum {
 	VOLUME_DELETE_USN_UNDERWAY	= const_cpu_to_le16(0x0010),
 	VOLUME_REPAIR_OBJECT_ID		= const_cpu_to_le16(0x0020),
 
+	VOLUME_CHKDSK_UNDERWAY		= const_cpu_to_le16(0x4000),
 	VOLUME_MODIFIED_BY_CHKDSK	= const_cpu_to_le16(0x8000),
 
-	VOLUME_FLAGS_MASK		= const_cpu_to_le16(0x803f),
+	VOLUME_FLAGS_MASK		= const_cpu_to_le16(0xc03f),
 
 	/* To make our life easier when checking if we must mount read-only. */
-	VOLUME_MUST_MOUNT_RO_MASK	= const_cpu_to_le16(0x8037),
+	VOLUME_MUST_MOUNT_RO_MASK	= const_cpu_to_le16(0xc027),
 } __attribute__ ((__packed__));
 
 typedef le16 VOLUME_FLAGS;
@@ -2358,7 +2385,9 @@ typedef struct {
  * Extended attribute flags (8-bit).
  */
 enum {
-	NEED_EA	= 0x80
+	NEED_EA	= 0x80		/* If set the file to which the EA belongs
+				   cannot be interpreted without understanding
+				   the associates extended attributes. */
 } __attribute__ ((__packed__));
 
 typedef u8 EA_FLAGS;
@@ -2366,20 +2395,20 @@ typedef u8 EA_FLAGS;
 /*
  * Attribute: Extended attribute (EA) (0xe0).
  *
- * NOTE: Always non-resident. (Is this true?)
+ * NOTE: Can be resident or non-resident.
  *
  * Like the attribute list and the index buffer list, the EA attribute value is
  * a sequence of EA_ATTR variable length records.
- *
- * FIXME: It appears weird that the EA name is not unicode. Is it true?
  */
 typedef struct {
 	le32 next_entry_offset;	/* Offset to the next EA_ATTR. */
 	EA_FLAGS flags;		/* Flags describing the EA. */
-	u8 ea_name_length;	/* Length of the name of the EA in bytes. */
+	u8 ea_name_length;	/* Length of the name of the EA in bytes
+				   excluding the '\0' byte terminator. */
 	le16 ea_value_length;	/* Byte size of the EA's value. */
-	u8 ea_name[0];		/* Name of the EA. */
-	u8 ea_value[0];		/* The value of the EA. Immediately follows
+	u8 ea_name[0];		/* Name of the EA.  Note this is ASCII, not
+				   Unicode and it is zero terminated. */
+	u8 ea_value[0];		/* The value of the EA.  Immediately follows
 				   the name. */
 } __attribute__ ((__packed__)) EA_ATTR;
 

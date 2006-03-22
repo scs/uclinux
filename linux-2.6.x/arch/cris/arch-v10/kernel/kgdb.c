@@ -18,8 +18,12 @@
 *! Jul 21 1999  Bjorn Wesen     eLinux port
 *!
 *! $Log$
-*! Revision 1.5  2005/08/12 03:32:53  magicyang
-*!   Update kernel 2.6.8 to 2.6.12
+*! Revision 1.6  2006/03/22 06:14:52  magicyang
+*! update kernel to 2.6.16
+*!
+*! Revision 1.6  2005/01/14 10:12:17  starvik
+*! KGDB on separate port.
+*! Console fixes from 2.4.
 *!
 *! Revision 1.5  2004/10/07 13:59:08  starvik
 *! Corrected call to set_int_vector
@@ -228,6 +232,7 @@
 #include <linux/kernel.h>
 #include <linux/delay.h>
 #include <linux/linkage.h>
+#include <linux/reboot.h>
 
 #include <asm/setup.h>
 #include <asm/ptrace.h>
@@ -565,12 +570,6 @@ gdb_cris_strtol (const char *s, char **endptr, int base)
         }
         
 	return x;
-}
-
-int
-double_this(int x)
-{
-        return 2 * x;
 }
 
 /********************************* Register image ****************************/
@@ -1347,12 +1346,11 @@ handle_exception (int sigval)
 	}
 }
 
-/* The jump is to the address 0x00000002. Performs a complete re-start
-   from scratch. */
+/* Performs a complete re-start from scratch. */
 static void
 kill_restart ()
 {
-	__asm__ volatile ("jump 2");
+	machine_restart("");
 }
 
 /********************************** Breakpoint *******************************/
@@ -1507,6 +1505,11 @@ kgdb_handle_serial:
   jsr getDebugChar
   cmp.b 3, $r10
   bne goback
+  nop
+
+  move.d  [reg+0x5E], $r10		; Get DCCR
+  btstq	   8, $r10			; Test the U-flag.
+  bmi	   goback
   nop
 
 ;;

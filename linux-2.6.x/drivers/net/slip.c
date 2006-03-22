@@ -74,6 +74,7 @@
 #include <linux/rtnetlink.h>
 #include <linux/if_arp.h>
 #include <linux/if_slip.h>
+#include <linux/delay.h>
 #include <linux/init.h>
 #include "slip.h"
 #ifdef CONFIG_INET
@@ -198,18 +199,12 @@ err_exit:
 static void
 sl_free_bufs(struct slip *sl)
 {
-	void * tmp;
-
 	/* Free all SLIP frame buffers. */
-	tmp = xchg(&sl->rbuff, NULL);
-	kfree(tmp);
-	tmp = xchg(&sl->xbuff, NULL);
-	kfree(tmp);
+	kfree(xchg(&sl->rbuff, NULL));
+	kfree(xchg(&sl->xbuff, NULL));
 #ifdef SL_INCLUDE_CSLIP
-	tmp = xchg(&sl->cbuff, NULL);
-	kfree(tmp);
-	if ((tmp = xchg(&sl->slcomp, NULL)) != NULL)
-		slhc_free(tmp);
+	kfree(xchg(&sl->cbuff, NULL));
+	slhc_free(xchg(&sl->slcomp, NULL));
 #endif
 }
 
@@ -656,11 +651,6 @@ static void sl_setup(struct net_device *dev)
  ******************************************/
 
 
-static int slip_receive_room(struct tty_struct *tty)
-{
-	return 65536;  /* We can handle an infinite amount of data. :-) */
-}
-
 /*
  * Handle the 'receiver data ready' interrupt.
  * This function is called by the 'tty_io' module in the kernel when
@@ -874,10 +864,6 @@ static int slip_open(struct tty_struct *tty)
 	sl->line = tty_devnum(tty);
 	sl->pid = current->pid;
 	
-	/* FIXME: already done before we were called - seems this can go */
-	if (tty->driver->flush_buffer)
-		tty->driver->flush_buffer(tty);
-		
 	if (!test_bit(SLF_INUSE, &sl->flags)) {
 		/* Perform the low-level SLIP initialization. */
 		if ((err = sl_alloc_bufs(sl, SL_MTU)) != 0)
@@ -902,6 +888,7 @@ static int slip_open(struct tty_struct *tty)
 
 	/* Done.  We have linked the TTY line to a channel. */
 	rtnl_unlock();
+	tty->receive_room = 65536;	/* We don't flow control */
 	return sl->dev->base_addr;
 
 err_free_bufs:
@@ -1334,7 +1321,6 @@ static struct tty_ldisc	sl_ldisc = {
 	.close	 	= slip_close,
 	.ioctl		= slip_ioctl,
 	.receive_buf	= slip_receive_buf,
-	.receive_room	= slip_receive_room,
 	.write_wakeup	= slip_write_wakeup,
 };
 
@@ -1389,10 +1375,8 @@ static void __exit slip_exit(void)
 	/* First of all: check for active disciplines and hangup them.
 	 */
 	do {
-		if (busy) {
-			set_current_state(TASK_INTERRUPTIBLE);
-			schedule_timeout(HZ / 10);
-		}
+		if (busy)
+			msleep_interruptible(100);
 
 		busy = 0;
 		for (i = 0; i < slip_maxdev; i++) {
@@ -1430,7 +1414,7 @@ static void __exit slip_exit(void)
 	kfree(slip_devs);
 	slip_devs = NULL;
 
-	if ((i = tty_register_ldisc(N_SLIP, NULL)))
+	if ((i = tty_unregister_ldisc(N_SLIP)))
 	{
 		printk(KERN_ERR "SLIP: can't unregister line discipline (err = %d)\n", i);
 	}

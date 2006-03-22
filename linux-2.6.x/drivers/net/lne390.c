@@ -145,13 +145,6 @@ static int __init do_lne390_probe(struct net_device *dev)
 	return -ENODEV;
 }
 
-static void cleanup_card(struct net_device *dev)
-{
-	free_irq(dev->irq, dev);
-	release_region(dev->base_addr, LNE390_IO_EXTENT);
-	iounmap(ei_status.mem);
-}
-
 #ifndef MODULE
 struct net_device * __init lne390_probe(int unit)
 {
@@ -167,12 +160,7 @@ struct net_device * __init lne390_probe(int unit)
 	err = do_lne390_probe(dev);
 	if (err)
 		goto out;
-	err = register_netdev(dev);
-	if (err)
-		goto out1;
 	return dev;
-out1:
-	cleanup_card(dev);
 out:
 	free_netdev(dev);
 	return ERR_PTR(err);
@@ -296,7 +284,14 @@ static int __init lne390_probe1(struct net_device *dev, int ioaddr)
 	dev->poll_controller = ei_poll;
 #endif
 	NS8390_init(dev, 0);
+
+	ret = register_netdev(dev);
+	if (ret)
+		goto unmap;
 	return 0;
+unmap:
+	if (ei_status.reg0)
+		iounmap(ei_status.mem);
 cleanup:
 	free_irq(dev->irq, dev);
 	return ret;
@@ -426,11 +421,8 @@ int init_module(void)
 		dev->base_addr = io[this_dev];
 		dev->mem_start = mem[this_dev];
 		if (do_lne390_probe(dev) == 0) {
-			if (register_netdev(dev) == 0) {
-				dev_lne[found++] = dev;
-				continue;
-			}
-			cleanup_card(dev);
+			dev_lne[found++] = dev;
+			continue;
 		}
 		free_netdev(dev);
 		printk(KERN_WARNING "lne390.c: No LNE390 card found (i/o = 0x%x).\n", io[this_dev]);
@@ -439,6 +431,13 @@ int init_module(void)
 	if (found)
 		return 0;
 	return -ENXIO;
+}
+
+static void cleanup_card(struct net_device *dev)
+{
+	free_irq(dev->irq, dev);
+	release_region(dev->base_addr, LNE390_IO_EXTENT);
+	iounmap(ei_status.mem);
 }
 
 void cleanup_module(void)

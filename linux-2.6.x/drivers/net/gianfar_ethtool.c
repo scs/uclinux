@@ -6,7 +6,7 @@
  *  Based on e1000 ethtool support
  *
  *  Author: Andy Fleming
- *  Maintainer: Kumar Gala (kumar.gala@freescale.com)
+ *  Maintainer: Kumar Gala
  *
  *  Copyright (c) 2003,2004 Freescale Semiconductor, Inc.
  *
@@ -34,28 +34,30 @@
 #include <asm/irq.h>
 #include <asm/uaccess.h>
 #include <linux/module.h>
-#include <linux/version.h>
 #include <linux/crc32.h>
 #include <asm/types.h>
 #include <asm/uaccess.h>
 #include <linux/ethtool.h>
+#include <linux/mii.h>
+#include <linux/phy.h>
 
 #include "gianfar.h"
 
 #define is_power_of_2(x)        ((x) != 0 && (((x) & ((x) - 1)) == 0))
 
-extern int startup_gfar(struct net_device *dev);
-extern void stop_gfar(struct net_device *dev);
-extern void gfar_receive(int irq, void *dev_id, struct pt_regs *regs);
+extern void gfar_start(struct net_device *dev);
+extern int gfar_clean_rx_ring(struct net_device *dev, int rx_work_limit);
 
-void gfar_fill_stats(struct net_device *dev, struct ethtool_stats *dummy,
+#define GFAR_MAX_COAL_USECS 0xffff
+#define GFAR_MAX_COAL_FRAMES 0xff
+static void gfar_fill_stats(struct net_device *dev, struct ethtool_stats *dummy,
 		     u64 * buf);
-void gfar_gstrings(struct net_device *dev, u32 stringset, u8 * buf);
-int gfar_gcoalesce(struct net_device *dev, struct ethtool_coalesce *cvals);
-int gfar_scoalesce(struct net_device *dev, struct ethtool_coalesce *cvals);
-void gfar_gringparam(struct net_device *dev, struct ethtool_ringparam *rvals);
-int gfar_sringparam(struct net_device *dev, struct ethtool_ringparam *rvals);
-void gfar_gdrvinfo(struct net_device *dev, struct ethtool_drvinfo *drvinfo);
+static void gfar_gstrings(struct net_device *dev, u32 stringset, u8 * buf);
+static int gfar_gcoalesce(struct net_device *dev, struct ethtool_coalesce *cvals);
+static int gfar_scoalesce(struct net_device *dev, struct ethtool_coalesce *cvals);
+static void gfar_gringparam(struct net_device *dev, struct ethtool_ringparam *rvals);
+static int gfar_sringparam(struct net_device *dev, struct ethtool_ringparam *rvals);
+static void gfar_gdrvinfo(struct net_device *dev, struct ethtool_drvinfo *drvinfo);
 
 static char stat_gstrings[][ETH_GSTRING_LEN] = {
 	"rx-dropped-by-kernel",
@@ -118,57 +120,56 @@ static char stat_gstrings[][ETH_GSTRING_LEN] = {
 	"tx-fragmented-frames",
 };
 
+/* Fill in a buffer with the strings which correspond to the
+ * stats */
+static void gfar_gstrings(struct net_device *dev, u32 stringset, u8 * buf)
+{
+	struct gfar_private *priv = netdev_priv(dev);
+
+	if (priv->einfo->device_flags & FSL_GIANFAR_DEV_HAS_RMON)
+		memcpy(buf, stat_gstrings, GFAR_STATS_LEN * ETH_GSTRING_LEN);
+	else
+		memcpy(buf, stat_gstrings,
+				GFAR_EXTRA_STATS_LEN * ETH_GSTRING_LEN);
+}
+
 /* Fill in an array of 64-bit statistics from various sources.
  * This array will be appended to the end of the ethtool_stats
  * structure, and returned to user space
  */
-void gfar_fill_stats(struct net_device *dev, struct ethtool_stats *dummy, u64 * buf)
+static void gfar_fill_stats(struct net_device *dev, struct ethtool_stats *dummy, u64 * buf)
 {
 	int i;
 	struct gfar_private *priv = netdev_priv(dev);
-	u32 *rmon = (u32 *) & priv->regs->rmon;
 	u64 *extra = (u64 *) & priv->extra_stats;
-	struct gfar_stats *stats = (struct gfar_stats *) buf;
 
-	for (i = 0; i < GFAR_RMON_LEN; i++) {
-		stats->rmon[i] = (u64) (rmon[i]);
-	}
+	if (priv->einfo->device_flags & FSL_GIANFAR_DEV_HAS_RMON) {
+		u32 __iomem *rmon = (u32 __iomem *) & priv->regs->rmon;
+		struct gfar_stats *stats = (struct gfar_stats *) buf;
 
-	for (i = 0; i < GFAR_EXTRA_STATS_LEN; i++) {
-		stats->extra[i] = extra[i];
-	}
+		for (i = 0; i < GFAR_RMON_LEN; i++)
+			stats->rmon[i] = (u64) gfar_read(&rmon[i]);
+
+		for (i = 0; i < GFAR_EXTRA_STATS_LEN; i++)
+			stats->extra[i] = extra[i];
+	} else
+		for (i = 0; i < GFAR_EXTRA_STATS_LEN; i++)
+			buf[i] = extra[i];
 }
 
 /* Returns the number of stats (and their corresponding strings) */
-int gfar_stats_count(struct net_device *dev)
+static int gfar_stats_count(struct net_device *dev)
 {
-	return GFAR_STATS_LEN;
-}
-
-void gfar_gstrings_normon(struct net_device *dev, u32 stringset, u8 * buf)
-{
-	memcpy(buf, stat_gstrings, GFAR_EXTRA_STATS_LEN * ETH_GSTRING_LEN);
-}
-
-void gfar_fill_stats_normon(struct net_device *dev, 
-		struct ethtool_stats *dummy, u64 * buf)
-{
-	int i;
 	struct gfar_private *priv = netdev_priv(dev);
-	u64 *extra = (u64 *) & priv->extra_stats;
 
-	for (i = 0; i < GFAR_EXTRA_STATS_LEN; i++) {
-		buf[i] = extra[i];
-	}
+	if (priv->einfo->device_flags & FSL_GIANFAR_DEV_HAS_RMON)
+		return GFAR_STATS_LEN;
+	else
+		return GFAR_EXTRA_STATS_LEN;
 }
 
-
-int gfar_stats_count_normon(struct net_device *dev)
-{
-	return GFAR_EXTRA_STATS_LEN;
-}
 /* Fills in the drvinfo structure with some basic info */
-void gfar_gdrvinfo(struct net_device *dev, struct
+static void gfar_gdrvinfo(struct net_device *dev, struct
 	      ethtool_drvinfo *drvinfo)
 {
 	strncpy(drvinfo->driver, DRV_NAME, GFAR_INFOSTR_LEN);
@@ -181,63 +182,50 @@ void gfar_gdrvinfo(struct net_device *dev, struct
 	drvinfo->eedump_len = 0;
 }
 
-/* Return the current settings in the ethtool_cmd structure */
-int gfar_gsettings(struct net_device *dev, struct ethtool_cmd *cmd)
+
+static int gfar_ssettings(struct net_device *dev, struct ethtool_cmd *cmd)
 {
 	struct gfar_private *priv = netdev_priv(dev);
-	uint gigabit_support = 
-		priv->einfo->device_flags & FSL_GIANFAR_DEV_HAS_GIGABIT ?
-			SUPPORTED_1000baseT_Full : 0;
-	uint gigabit_advert = 
-		priv->einfo->device_flags & FSL_GIANFAR_DEV_HAS_GIGABIT ?
-			ADVERTISED_1000baseT_Full: 0;
+	struct phy_device *phydev = priv->phydev;
 
-	cmd->supported = (SUPPORTED_10baseT_Half
-			  | SUPPORTED_100baseT_Half
-			  | SUPPORTED_100baseT_Full
-			  | gigabit_support | SUPPORTED_Autoneg);
+	if (NULL == phydev)
+		return -ENODEV;
 
-	/* For now, we always advertise everything */
-	cmd->advertising = (ADVERTISED_10baseT_Half
-			    | ADVERTISED_100baseT_Half
-			    | ADVERTISED_100baseT_Full
-			    | gigabit_advert | ADVERTISED_Autoneg);
+	return phy_ethtool_sset(phydev, cmd);
+}
 
-	cmd->speed = priv->mii_info->speed;
-	cmd->duplex = priv->mii_info->duplex;
-	cmd->port = PORT_MII;
-	cmd->phy_address = priv->mii_info->mii_id;
-	cmd->transceiver = XCVR_EXTERNAL;
-	cmd->autoneg = AUTONEG_ENABLE;
+
+/* Return the current settings in the ethtool_cmd structure */
+static int gfar_gsettings(struct net_device *dev, struct ethtool_cmd *cmd)
+{
+	struct gfar_private *priv = netdev_priv(dev);
+	struct phy_device *phydev = priv->phydev;
+
+	if (NULL == phydev)
+		return -ENODEV;
+	
 	cmd->maxtxpkt = priv->txcount;
 	cmd->maxrxpkt = priv->rxcount;
 
-	return 0;
+	return phy_ethtool_gset(phydev, cmd);
 }
 
 /* Return the length of the register structure */
-int gfar_reglen(struct net_device *dev)
+static int gfar_reglen(struct net_device *dev)
 {
 	return sizeof (struct gfar);
 }
 
 /* Return a dump of the GFAR register space */
-void gfar_get_regs(struct net_device *dev, struct ethtool_regs *regs, void *regbuf)
+static void gfar_get_regs(struct net_device *dev, struct ethtool_regs *regs, void *regbuf)
 {
 	int i;
 	struct gfar_private *priv = netdev_priv(dev);
-	u32 *theregs = (u32 *) priv->regs;
+	u32 __iomem *theregs = (u32 __iomem *) priv->regs;
 	u32 *buf = (u32 *) regbuf;
 
 	for (i = 0; i < sizeof (struct gfar) / sizeof (u32); i++)
-		buf[i] = theregs[i];
-}
-
-/* Fill in a buffer with the strings which correspond to the
- * stats */
-void gfar_gstrings(struct net_device *dev, u32 stringset, u8 * buf)
-{
-	memcpy(buf, stat_gstrings, GFAR_STATS_LEN * ETH_GSTRING_LEN);
+		buf[i] = gfar_read(&theregs[i]);
 }
 
 /* Convert microseconds to ethernet clock ticks, which changes
@@ -247,14 +235,14 @@ static unsigned int gfar_usecs2ticks(struct gfar_private *priv, unsigned int use
 	unsigned int count;
 
 	/* The timer is different, depending on the interface speed */
-	switch (priv->mii_info->speed) {
-	case 1000:
+	switch (priv->phydev->speed) {
+	case SPEED_1000:
 		count = GFAR_GBIT_TIME;
 		break;
-	case 100:
+	case SPEED_100:
 		count = GFAR_100_TIME;
 		break;
-	case 10:
+	case SPEED_10:
 	default:
 		count = GFAR_10_TIME;
 		break;
@@ -271,14 +259,14 @@ static unsigned int gfar_ticks2usecs(struct gfar_private *priv, unsigned int tic
 	unsigned int count;
 
 	/* The timer is different, depending on the interface speed */
-	switch (priv->mii_info->speed) {
-	case 1000:
+	switch (priv->phydev->speed) {
+	case SPEED_1000:
 		count = GFAR_GBIT_TIME;
 		break;
-	case 100:
+	case SPEED_100:
 		count = GFAR_100_TIME;
 		break;
-	case 10:
+	case SPEED_10:
 	default:
 		count = GFAR_10_TIME;
 		break;
@@ -291,9 +279,15 @@ static unsigned int gfar_ticks2usecs(struct gfar_private *priv, unsigned int tic
 
 /* Get the coalescing parameters, and put them in the cvals
  * structure.  */
-int gfar_gcoalesce(struct net_device *dev, struct ethtool_coalesce *cvals)
+static int gfar_gcoalesce(struct net_device *dev, struct ethtool_coalesce *cvals)
 {
 	struct gfar_private *priv = netdev_priv(dev);
+	
+	if (!(priv->einfo->device_flags & FSL_GIANFAR_DEV_HAS_COALESCE))
+		return -EOPNOTSUPP;
+
+	if (NULL == priv->phydev)
+		return -ENODEV;
 
 	cvals->rx_coalesce_usecs = gfar_ticks2usecs(priv, priv->rxtime);
 	cvals->rx_max_coalesced_frames = priv->rxcount;
@@ -337,9 +331,12 @@ int gfar_gcoalesce(struct net_device *dev, struct ethtool_coalesce *cvals)
  * Both cvals->*_usecs and cvals->*_frames have to be > 0
  * in order for coalescing to be active
  */
-int gfar_scoalesce(struct net_device *dev, struct ethtool_coalesce *cvals)
+static int gfar_scoalesce(struct net_device *dev, struct ethtool_coalesce *cvals)
 {
 	struct gfar_private *priv = netdev_priv(dev);
+
+	if (!(priv->einfo->device_flags & FSL_GIANFAR_DEV_HAS_COALESCE))
+		return -EOPNOTSUPP;
 
 	/* Set up rx coalescing */
 	if ((cvals->rx_coalesce_usecs == 0) ||
@@ -347,6 +344,22 @@ int gfar_scoalesce(struct net_device *dev, struct ethtool_coalesce *cvals)
 		priv->rxcoalescing = 0;
 	else
 		priv->rxcoalescing = 1;
+
+	if (NULL == priv->phydev)
+		return -ENODEV;
+
+	/* Check the bounds of the values */
+	if (cvals->rx_coalesce_usecs > GFAR_MAX_COAL_USECS) {
+		pr_info("Coalescing is limited to %d microseconds\n",
+				GFAR_MAX_COAL_USECS);
+		return -EINVAL;
+	}
+
+	if (cvals->rx_max_coalesced_frames > GFAR_MAX_COAL_FRAMES) {
+		pr_info("Coalescing is limited to %d frames\n",
+				GFAR_MAX_COAL_FRAMES);
+		return -EINVAL;
+	}
 
 	priv->rxtime = gfar_usecs2ticks(priv, cvals->rx_coalesce_usecs);
 	priv->rxcount = cvals->rx_max_coalesced_frames;
@@ -357,6 +370,19 @@ int gfar_scoalesce(struct net_device *dev, struct ethtool_coalesce *cvals)
 		priv->txcoalescing = 0;
 	else
 		priv->txcoalescing = 1;
+
+	/* Check the bounds of the values */
+	if (cvals->tx_coalesce_usecs > GFAR_MAX_COAL_USECS) {
+		pr_info("Coalescing is limited to %d microseconds\n",
+				GFAR_MAX_COAL_USECS);
+		return -EINVAL;
+	}
+
+	if (cvals->tx_max_coalesced_frames > GFAR_MAX_COAL_FRAMES) {
+		pr_info("Coalescing is limited to %d frames\n",
+				GFAR_MAX_COAL_FRAMES);
+		return -EINVAL;
+	}
 
 	priv->txtime = gfar_usecs2ticks(priv, cvals->tx_coalesce_usecs);
 	priv->txcount = cvals->tx_max_coalesced_frames;
@@ -379,7 +405,7 @@ int gfar_scoalesce(struct net_device *dev, struct ethtool_coalesce *cvals)
 /* Fills in rvals with the current ring parameters.  Currently,
  * rx, rx_mini, and rx_jumbo rings are the same size, as mini and
  * jumbo are ignored by the driver */
-void gfar_gringparam(struct net_device *dev, struct ethtool_ringparam *rvals)
+static void gfar_gringparam(struct net_device *dev, struct ethtool_ringparam *rvals)
 {
 	struct gfar_private *priv = netdev_priv(dev);
 
@@ -401,9 +427,8 @@ void gfar_gringparam(struct net_device *dev, struct ethtool_ringparam *rvals)
  * necessary so that we don't mess things up while we're in
  * motion.  We wait for the ring to be clean before reallocating
  * the rings. */
-int gfar_sringparam(struct net_device *dev, struct ethtool_ringparam *rvals)
+static int gfar_sringparam(struct net_device *dev, struct ethtool_ringparam *rvals)
 {
-	u32 tempval;
 	struct gfar_private *priv = netdev_priv(dev);
 	int err = 0;
 
@@ -425,37 +450,54 @@ int gfar_sringparam(struct net_device *dev, struct ethtool_ringparam *rvals)
 		return -EINVAL;
 	}
 
-	/* Stop the controller so we don't rx any more frames */
-	/* But first, make sure we clear the bits */
-	tempval = gfar_read(&priv->regs->dmactrl);
-	tempval &= ~(DMACTRL_GRS | DMACTRL_GTS);
-	gfar_write(&priv->regs->dmactrl, tempval);
-
-	tempval = gfar_read(&priv->regs->dmactrl);
-	tempval |= (DMACTRL_GRS | DMACTRL_GTS);
-	gfar_write(&priv->regs->dmactrl, tempval);
-
-	while (!(gfar_read(&priv->regs->ievent) & (IEVENT_GRSC | IEVENT_GTSC)))
-		cpu_relax();
-
-	/* Note that rx is not clean right now */
-	priv->rxclean = 0;
-
 	if (dev->flags & IFF_UP) {
-		/* Tell the driver to process the rest of the frames */
-		gfar_receive(0, (void *) dev, NULL);
+		unsigned long flags;
 
-		/* Now wait for it to be done */
-		wait_event_interruptible(priv->rxcleanupq, priv->rxclean);
+		/* Halt TX and RX, and process the frames which
+		 * have already been received */
+		spin_lock_irqsave(&priv->lock, flags);
+		gfar_halt(dev);
+		gfar_clean_rx_ring(dev, priv->rx_ring_size);
+		spin_unlock_irqrestore(&priv->lock, flags);
 
-		/* Ok, all packets have been handled.  Now we bring it down,
-		 * change the ring size, and bring it up */
-
+		/* Now we take down the rings to rebuild them */
 		stop_gfar(dev);
 	}
 
+	/* Change the size */
 	priv->rx_ring_size = rvals->rx_pending;
 	priv->tx_ring_size = rvals->tx_pending;
+
+	/* Rebuild the rings with the new size */
+	if (dev->flags & IFF_UP)
+		err = startup_gfar(dev);
+
+	return err;
+}
+
+static int gfar_set_rx_csum(struct net_device *dev, uint32_t data)
+{
+	struct gfar_private *priv = netdev_priv(dev);
+	int err = 0;
+
+	if (!(priv->einfo->device_flags & FSL_GIANFAR_DEV_HAS_CSUM))
+		return -EOPNOTSUPP;
+
+	if (dev->flags & IFF_UP) {
+		unsigned long flags;
+
+		/* Halt TX and RX, and process the frames which
+		 * have already been received */
+		spin_lock_irqsave(&priv->lock, flags);
+		gfar_halt(dev);
+		gfar_clean_rx_ring(dev, priv->rx_ring_size);
+		spin_unlock_irqrestore(&priv->lock, flags);
+
+		/* Now we take down the rings to rebuild them */
+		stop_gfar(dev);
+	}
+
+	priv->rx_csum_enable = data;
 
 	if (dev->flags & IFF_UP)
 		err = startup_gfar(dev);
@@ -463,8 +505,64 @@ int gfar_sringparam(struct net_device *dev, struct ethtool_ringparam *rvals)
 	return err;
 }
 
+static uint32_t gfar_get_rx_csum(struct net_device *dev)
+{
+	struct gfar_private *priv = netdev_priv(dev);
+
+	if (!(priv->einfo->device_flags & FSL_GIANFAR_DEV_HAS_CSUM))
+		return 0;
+
+	return priv->rx_csum_enable;
+}
+
+static int gfar_set_tx_csum(struct net_device *dev, uint32_t data)
+{
+	unsigned long flags;
+	struct gfar_private *priv = netdev_priv(dev);
+
+	if (!(priv->einfo->device_flags & FSL_GIANFAR_DEV_HAS_CSUM))
+		return -EOPNOTSUPP;
+
+	spin_lock_irqsave(&priv->lock, flags);
+	gfar_halt(dev);
+
+	if (data)
+		dev->features |= NETIF_F_IP_CSUM;
+	else
+		dev->features &= ~NETIF_F_IP_CSUM;
+
+	gfar_start(dev);
+	spin_unlock_irqrestore(&priv->lock, flags);
+
+	return 0;
+}
+
+static uint32_t gfar_get_tx_csum(struct net_device *dev)
+{
+	struct gfar_private *priv = netdev_priv(dev);
+
+	if (!(priv->einfo->device_flags & FSL_GIANFAR_DEV_HAS_CSUM))
+		return 0;
+
+	return (dev->features & NETIF_F_IP_CSUM) != 0;
+}
+
+static uint32_t gfar_get_msglevel(struct net_device *dev)
+{       
+	struct gfar_private *priv = netdev_priv(dev);
+	return priv->msg_enable;
+}       
+        
+static void gfar_set_msglevel(struct net_device *dev, uint32_t data)
+{       
+	struct gfar_private *priv = netdev_priv(dev);
+	priv->msg_enable = data;
+}
+
+
 struct ethtool_ops gfar_ethtool_ops = {
 	.get_settings = gfar_gsettings,
+	.set_settings = gfar_ssettings,
 	.get_drvinfo = gfar_gdrvinfo,
 	.get_regs_len = gfar_reglen,
 	.get_regs = gfar_get_regs,
@@ -476,52 +574,10 @@ struct ethtool_ops gfar_ethtool_ops = {
 	.get_strings = gfar_gstrings,
 	.get_stats_count = gfar_stats_count,
 	.get_ethtool_stats = gfar_fill_stats,
-};
-
-struct ethtool_ops gfar_normon_nocoalesce_ethtool_ops = {
-	.get_settings = gfar_gsettings,
-	.get_drvinfo = gfar_gdrvinfo,
-	.get_regs_len = gfar_reglen,
-	.get_regs = gfar_get_regs,
-	.get_link = ethtool_op_get_link,
-	.get_ringparam = gfar_gringparam,
-	.set_ringparam = gfar_sringparam,
-	.get_strings = gfar_gstrings_normon,
-	.get_stats_count = gfar_stats_count_normon,
-	.get_ethtool_stats = gfar_fill_stats_normon,
-};
-
-struct ethtool_ops gfar_nocoalesce_ethtool_ops = {
-	.get_settings = gfar_gsettings,
-	.get_drvinfo = gfar_gdrvinfo,
-	.get_regs_len = gfar_reglen,
-	.get_regs = gfar_get_regs,
-	.get_link = ethtool_op_get_link,
-	.get_ringparam = gfar_gringparam,
-	.set_ringparam = gfar_sringparam,
-	.get_strings = gfar_gstrings,
-	.get_stats_count = gfar_stats_count,
-	.get_ethtool_stats = gfar_fill_stats,
-};
-
-struct ethtool_ops gfar_normon_ethtool_ops = {
-	.get_settings = gfar_gsettings,
-	.get_drvinfo = gfar_gdrvinfo,
-	.get_regs_len = gfar_reglen,
-	.get_regs = gfar_get_regs,
-	.get_link = ethtool_op_get_link,
-	.get_coalesce = gfar_gcoalesce,
-	.set_coalesce = gfar_scoalesce,
-	.get_ringparam = gfar_gringparam,
-	.set_ringparam = gfar_sringparam,
-	.get_strings = gfar_gstrings_normon,
-	.get_stats_count = gfar_stats_count_normon,
-	.get_ethtool_stats = gfar_fill_stats_normon,
-};
-
-struct ethtool_ops *gfar_op_array[] = {
-	&gfar_ethtool_ops,
-	&gfar_normon_ethtool_ops,
-	&gfar_nocoalesce_ethtool_ops,
-	&gfar_normon_nocoalesce_ethtool_ops
+	.get_rx_csum = gfar_get_rx_csum,
+	.get_tx_csum = gfar_get_tx_csum,
+	.set_rx_csum = gfar_set_rx_csum,
+	.set_tx_csum = gfar_set_tx_csum,
+	.get_msglevel = gfar_get_msglevel,
+	.set_msglevel = gfar_set_msglevel,
 };

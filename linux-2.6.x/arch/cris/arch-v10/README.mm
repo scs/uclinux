@@ -3,8 +3,8 @@ Memory management for CRIS/MMU
 HISTORY:
 
 $Log$
-Revision 1.5  2005/08/12 03:32:52  magicyang
-  Update kernel 2.6.8 to 2.6.12
+Revision 1.6  2006/03/22 06:14:50  magicyang
+update kernel to 2.6.16
 
 Revision 1.1  2001/12/17 13:59:27  bjornw
 Initial revision
@@ -180,7 +180,7 @@ The example address is 0xd004000c; in binary this is:
 Given the top-level Page Directory, the offset in that directory is calculated
 using the upper 8 bits:
 
-extern inline pgd_t * pgd_offset(struct mm_struct * mm, unsigned long address)
+static inline pgd_t * pgd_offset(struct mm_struct * mm, unsigned long address)
 {
 	return mm->pgd + (address >> PGDIR_SHIFT);
 }
@@ -193,14 +193,14 @@ The pgd_t from our example will therefore be the 208'th (0xd0) entry in mm->pgd.
 
 Since the Middle Directory does not exist, it is a unity mapping:
 
-extern inline pmd_t * pmd_offset(pgd_t * dir, unsigned long address)
+static inline pmd_t * pmd_offset(pgd_t * dir, unsigned long address)
 {
 	return (pmd_t *) dir;
 }
 
 The Page Table provides the final lookup by using bits 13 to 23 as index:
 
-extern inline pte_t * pte_offset(pmd_t * dir, unsigned long address)
+static inline pte_t * pte_offset(pmd_t * dir, unsigned long address)
 {
 	return (pte_t *) pmd_page(*dir) + ((address >> PAGE_SHIFT) &
 					   (PTRS_PER_PTE - 1));

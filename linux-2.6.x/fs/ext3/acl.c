@@ -7,6 +7,7 @@
 #include <linux/init.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
+#include <linux/capability.h>
 #include <linux/fs.h>
 #include <linux/ext3_jbd.h>
 #include <linux/ext3_fs.h>
@@ -152,7 +153,7 @@ ext3_iset_acl(struct inode *inode, struct posix_acl **i_acl,
 /*
  * Inode operation get_posix_acl().
  *
- * inode->i_sem: don't care
+ * inode->i_mutex: don't care
  */
 static struct posix_acl *
 ext3_get_acl(struct inode *inode, int type)
@@ -216,7 +217,7 @@ ext3_get_acl(struct inode *inode, int type)
 /*
  * Set the access or default ACL of an inode.
  *
- * inode->i_sem: down unless called from ext3_new_inode
+ * inode->i_mutex: down unless called from ext3_new_inode
  */
 static int
 ext3_set_acl(handle_t *handle, struct inode *inode, int type,
@@ -225,7 +226,7 @@ ext3_set_acl(handle_t *handle, struct inode *inode, int type,
 	struct ext3_inode_info *ei = EXT3_I(inode);
 	int name_index;
 	void *value = NULL;
-	size_t size;
+	size_t size = 0;
 	int error;
 
 	if (S_ISLNK(inode->i_mode))
@@ -306,8 +307,8 @@ ext3_permission(struct inode *inode, int mask, struct nameidata *nd)
 /*
  * Initialize the ACLs of a new inode. Called from ext3_new_inode.
  *
- * dir->i_sem: down
- * inode->i_sem: up (access to inode is still exclusive)
+ * dir->i_mutex: down
+ * inode->i_mutex: up (access to inode is still exclusive)
  */
 int
 ext3_init_acl(handle_t *handle, struct inode *inode, struct inode *dir)
@@ -368,7 +369,7 @@ cleanup:
  * for directories) are added. There are no more bits available in the
  * file mode.
  *
- * inode->i_sem: down
+ * inode->i_mutex: down
  */
 int
 ext3_acl_chmod(struct inode *inode)
@@ -393,7 +394,8 @@ ext3_acl_chmod(struct inode *inode)
 		int retries = 0;
 
 	retry:
-		handle = ext3_journal_start(inode, EXT3_DATA_TRANS_BLOCKS);
+		handle = ext3_journal_start(inode,
+				EXT3_DATA_TRANS_BLOCKS(inode->i_sb));
 		if (IS_ERR(handle)) {
 			error = PTR_ERR(handle);
 			ext3_std_error(inode->i_sb, error);
@@ -417,12 +419,12 @@ static size_t
 ext3_xattr_list_acl_access(struct inode *inode, char *list, size_t list_len,
 			   const char *name, size_t name_len)
 {
-	const size_t size = sizeof(XATTR_NAME_ACL_ACCESS);
+	const size_t size = sizeof(POSIX_ACL_XATTR_ACCESS);
 
 	if (!test_opt(inode->i_sb, POSIX_ACL))
 		return 0;
 	if (list && size <= list_len)
-		memcpy(list, XATTR_NAME_ACL_ACCESS, size);
+		memcpy(list, POSIX_ACL_XATTR_ACCESS, size);
 	return size;
 }
 
@@ -430,12 +432,12 @@ static size_t
 ext3_xattr_list_acl_default(struct inode *inode, char *list, size_t list_len,
 			    const char *name, size_t name_len)
 {
-	const size_t size = sizeof(XATTR_NAME_ACL_DEFAULT);
+	const size_t size = sizeof(POSIX_ACL_XATTR_DEFAULT);
 
 	if (!test_opt(inode->i_sb, POSIX_ACL))
 		return 0;
 	if (list && size <= list_len)
-		memcpy(list, XATTR_NAME_ACL_DEFAULT, size);
+		memcpy(list, POSIX_ACL_XATTR_DEFAULT, size);
 	return size;
 }
 
@@ -503,7 +505,7 @@ ext3_xattr_set_acl(struct inode *inode, int type, const void *value,
 		acl = NULL;
 
 retry:
-	handle = ext3_journal_start(inode, EXT3_DATA_TRANS_BLOCKS);
+	handle = ext3_journal_start(inode, EXT3_DATA_TRANS_BLOCKS(inode->i_sb));
 	if (IS_ERR(handle))
 		return PTR_ERR(handle);
 	error = ext3_set_acl(handle, inode, type, acl);
@@ -535,14 +537,14 @@ ext3_xattr_set_acl_default(struct inode *inode, const char *name,
 }
 
 struct xattr_handler ext3_xattr_acl_access_handler = {
-	.prefix	= XATTR_NAME_ACL_ACCESS,
+	.prefix	= POSIX_ACL_XATTR_ACCESS,
 	.list	= ext3_xattr_list_acl_access,
 	.get	= ext3_xattr_get_acl_access,
 	.set	= ext3_xattr_set_acl_access,
 };
 
 struct xattr_handler ext3_xattr_acl_default_handler = {
-	.prefix	= XATTR_NAME_ACL_DEFAULT,
+	.prefix	= POSIX_ACL_XATTR_DEFAULT,
 	.list	= ext3_xattr_list_acl_default,
 	.get	= ext3_xattr_get_acl_default,
 	.set	= ext3_xattr_set_acl_default,

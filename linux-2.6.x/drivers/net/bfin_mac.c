@@ -28,6 +28,7 @@ static const char version[] =
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
 
+#include <linux/platform_device.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>

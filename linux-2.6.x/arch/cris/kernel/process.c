@@ -8,8 +8,20 @@
  *  Authors:   Bjorn Wesen (bjornw@axis.com)
  *
  *  $Log$
- *  Revision 1.5  2005/08/12 03:32:53  magicyang
- *    Update kernel 2.6.8 to 2.6.12
+ *  Revision 1.6  2006/03/22 06:14:57  magicyang
+ *  update kernel to 2.6.16
+ *
+ *  Revision 1.21  2005/03/04 08:16:17  starvik
+ *  Merge of Linux 2.6.11.
+ *
+ *  Revision 1.20  2005/01/18 05:57:22  starvik
+ *  Renamed hlt_counter to cris_hlt_counter and made it global.
+ *
+ *  Revision 1.19  2004/10/19 13:07:43  starvik
+ *  Merge of Linux 2.6.9
+ *
+ *  Revision 1.18  2004/08/16 12:37:23  starvik
+ *  Merge of Linux 2.6.8
  *
  *  Revision 1.17  2004/04/05 13:53:48  starvik
  *  Merge of Linux 2.6.5
@@ -116,6 +128,7 @@
 #include <linux/user.h>
 #include <linux/elfcore.h>
 #include <linux/mqueue.h>
+#include <linux/reboot.h>
 
 //#define DEBUG
 
@@ -163,18 +176,18 @@ EXPORT_SYMBOL(init_task);
  * region by enable_hlt/disable_hlt.
  */
 
-static int hlt_counter=0;
+int cris_hlt_counter=0;
 
 void disable_hlt(void)
 {
-	hlt_counter++;
+	cris_hlt_counter++;
 }
 
 EXPORT_SYMBOL(disable_hlt);
 
 void enable_hlt(void)
 {
-	hlt_counter--;
+	cris_hlt_counter--;
 }
 
 EXPORT_SYMBOL(enable_hlt);
@@ -197,26 +210,29 @@ void cpu_idle (void)
 	/* endless idle loop with no priority at all */
 	while (1) {
 		while (!need_resched()) {
-			void (*idle)(void) = pm_idle;
-
+			void (*idle)(void);
+			/*
+			 * Mark this as an RCU critical section so that
+			 * synchronize_kernel() in the unload path waits
+			 * for our completion.
+			 */
+			idle = pm_idle;
 			if (!idle)
 				idle = default_idle;
-
 			idle();
 		}
+		preempt_enable_no_resched();
 		schedule();
+		preempt_disable();
 	}
-
 }
 
 void hard_reset_now (void);
 
-void machine_restart(void)
+void machine_restart(char *cmd)
 {
 	hard_reset_now();
 }
-
-EXPORT_SYMBOL(machine_restart);
 
 /*
  * Similar to machine_power_off, but don't shut off power.  Add code
@@ -228,15 +244,11 @@ void machine_halt(void)
 {
 }
 
-EXPORT_SYMBOL(machine_halt);
-
 /* If or when software power-off is implemented, add code here.  */
 
 void machine_power_off(void)
 {
 }
-
-EXPORT_SYMBOL(machine_power_off);
 
 /*
  * When a process does an "exec", machine state like FPU and debug
@@ -246,34 +258,6 @@ EXPORT_SYMBOL(machine_power_off);
 
 void flush_thread(void)
 {
-}
-
-/*
- * fill in the user structure for a core dump..
- */
-void dump_thread(struct pt_regs * regs, struct user * dump)
-{
-#if 0
-	int i;
-
-	/* changed the size calculations - should hopefully work better. lbt */
-	dump->magic = CMAGIC;
-	dump->start_code = 0;
-	dump->start_stack = regs->esp & ~(PAGE_SIZE - 1);
-	dump->u_tsize = ((unsigned long) current->mm->end_code) >> PAGE_SHIFT;
-	dump->u_dsize = ((unsigned long) (current->mm->brk + (PAGE_SIZE-1))) >> PAGE_SHIFT;
-	dump->u_dsize -= dump->u_tsize;
-	dump->u_ssize = 0;
-	for (i = 0; i < 8; i++)
-		dump->u_debugreg[i] = current->debugreg[i];  
-
-	if (dump->start_stack < TASK_SIZE)
-		dump->u_ssize = ((unsigned long) (TASK_SIZE - dump->start_stack)) >> PAGE_SHIFT;
-
-	dump->regs = *regs;
-
-	dump->u_fpvalid = dump_fpu (regs, &dump->i387);
-#endif 
 }
 
 /* Fill in the fpu structure for a core dump. */

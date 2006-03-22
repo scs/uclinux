@@ -74,7 +74,7 @@ int dcache_dir_close(struct inode *inode, struct file *file)
 
 loff_t dcache_dir_lseek(struct file *file, loff_t offset, int origin)
 {
-	down(&file->f_dentry->d_inode->i_sem);
+	mutex_lock(&file->f_dentry->d_inode->i_mutex);
 	switch (origin) {
 		case 1:
 			offset += file->f_pos;
@@ -82,7 +82,7 @@ loff_t dcache_dir_lseek(struct file *file, loff_t offset, int origin)
 			if (offset >= 0)
 				break;
 		default:
-			up(&file->f_dentry->d_inode->i_sem);
+			mutex_unlock(&file->f_dentry->d_inode->i_mutex);
 			return -EINVAL;
 	}
 	if (offset != file->f_pos) {
@@ -93,20 +93,20 @@ loff_t dcache_dir_lseek(struct file *file, loff_t offset, int origin)
 			loff_t n = file->f_pos - 2;
 
 			spin_lock(&dcache_lock);
-			list_del(&cursor->d_child);
+			list_del(&cursor->d_u.d_child);
 			p = file->f_dentry->d_subdirs.next;
 			while (n && p != &file->f_dentry->d_subdirs) {
 				struct dentry *next;
-				next = list_entry(p, struct dentry, d_child);
+				next = list_entry(p, struct dentry, d_u.d_child);
 				if (!d_unhashed(next) && next->d_inode)
 					n--;
 				p = p->next;
 			}
-			list_add_tail(&cursor->d_child, p);
+			list_add_tail(&cursor->d_u.d_child, p);
 			spin_unlock(&dcache_lock);
 		}
 	}
-	up(&file->f_dentry->d_inode->i_sem);
+	mutex_unlock(&file->f_dentry->d_inode->i_mutex);
 	return offset;
 }
 
@@ -126,7 +126,7 @@ int dcache_readdir(struct file * filp, void * dirent, filldir_t filldir)
 {
 	struct dentry *dentry = filp->f_dentry;
 	struct dentry *cursor = filp->private_data;
-	struct list_head *p, *q = &cursor->d_child;
+	struct list_head *p, *q = &cursor->d_u.d_child;
 	ino_t ino;
 	int i = filp->f_pos;
 
@@ -153,7 +153,7 @@ int dcache_readdir(struct file * filp, void * dirent, filldir_t filldir)
 			}
 			for (p=q->next; p != &dentry->d_subdirs; p=p->next) {
 				struct dentry *next;
-				next = list_entry(p, struct dentry, d_child);
+				next = list_entry(p, struct dentry, d_u.d_child);
 				if (d_unhashed(next) || !next->d_inode)
 					continue;
 
@@ -183,6 +183,7 @@ struct file_operations simple_dir_operations = {
 	.llseek		= dcache_dir_lseek,
 	.read		= generic_read_dir,
 	.readdir	= dcache_readdir,
+	.fsync		= simple_sync_file,
 };
 
 struct inode_operations simple_dir_inode_operations = {
@@ -260,7 +261,7 @@ int simple_empty(struct dentry *dentry)
 	int ret = 0;
 
 	spin_lock(&dcache_lock);
-	list_for_each_entry(child, &dentry->d_subdirs, d_child)
+	list_for_each_entry(child, &dentry->d_subdirs, d_u.d_child)
 		if (simple_positive(child))
 			goto out;
 	ret = 1;
@@ -355,7 +356,7 @@ int simple_commit_write(struct file *file, struct page *page,
 
 	/*
 	 * No need to use i_size_read() here, the i_size
-	 * cannot change under us because we hold the i_sem.
+	 * cannot change under us because we hold the i_mutex.
 	 */
 	if (pos > inode->i_size)
 		i_size_write(inode, pos);
@@ -387,6 +388,7 @@ int simple_fill_super(struct super_block *s, int magic, struct tree_descr *files
 	inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
 	inode->i_op = &simple_dir_inode_operations;
 	inode->i_fop = &simple_dir_operations;
+	inode->i_nlink = 2;
 	root = d_alloc_root(inode);
 	if (!root) {
 		iput(inode);
@@ -519,6 +521,102 @@ int simple_transaction_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
+/* Simple attribute files */
+
+struct simple_attr {
+	u64 (*get)(void *);
+	void (*set)(void *, u64);
+	char get_buf[24];	/* enough to store a u64 and "\n\0" */
+	char set_buf[24];
+	void *data;
+	const char *fmt;	/* format for read operation */
+	struct semaphore sem;	/* protects access to these buffers */
+};
+
+/* simple_attr_open is called by an actual attribute open file operation
+ * to set the attribute specific access operations. */
+int simple_attr_open(struct inode *inode, struct file *file,
+		     u64 (*get)(void *), void (*set)(void *, u64),
+		     const char *fmt)
+{
+	struct simple_attr *attr;
+
+	attr = kmalloc(sizeof(*attr), GFP_KERNEL);
+	if (!attr)
+		return -ENOMEM;
+
+	attr->get = get;
+	attr->set = set;
+	attr->data = inode->u.generic_ip;
+	attr->fmt = fmt;
+	init_MUTEX(&attr->sem);
+
+	file->private_data = attr;
+
+	return nonseekable_open(inode, file);
+}
+
+int simple_attr_close(struct inode *inode, struct file *file)
+{
+	kfree(file->private_data);
+	return 0;
+}
+
+/* read from the buffer that is filled with the get function */
+ssize_t simple_attr_read(struct file *file, char __user *buf,
+			 size_t len, loff_t *ppos)
+{
+	struct simple_attr *attr;
+	size_t size;
+	ssize_t ret;
+
+	attr = file->private_data;
+
+	if (!attr->get)
+		return -EACCES;
+
+	down(&attr->sem);
+	if (*ppos) /* continued read */
+		size = strlen(attr->get_buf);
+	else	  /* first read */
+		size = scnprintf(attr->get_buf, sizeof(attr->get_buf),
+				 attr->fmt,
+				 (unsigned long long)attr->get(attr->data));
+
+	ret = simple_read_from_buffer(buf, len, ppos, attr->get_buf, size);
+	up(&attr->sem);
+	return ret;
+}
+
+/* interpret the buffer as a number to call the set function with */
+ssize_t simple_attr_write(struct file *file, const char __user *buf,
+			  size_t len, loff_t *ppos)
+{
+	struct simple_attr *attr;
+	u64 val;
+	size_t size;
+	ssize_t ret;
+
+	attr = file->private_data;
+
+	if (!attr->set)
+		return -EACCES;
+
+	down(&attr->sem);
+	ret = -EFAULT;
+	size = min(sizeof(attr->set_buf) - 1, len);
+	if (copy_from_user(attr->set_buf, buf, size))
+		goto out;
+
+	ret = len; /* claim we got the whole input */
+	attr->set_buf[size] = '\0';
+	val = simple_strtol(attr->set_buf, NULL, 0);
+	attr->set(attr->data, val);
+out:
+	up(&attr->sem);
+	return ret;
+}
+
 EXPORT_SYMBOL(dcache_dir_close);
 EXPORT_SYMBOL(dcache_dir_lseek);
 EXPORT_SYMBOL(dcache_dir_open);
@@ -547,3 +645,7 @@ EXPORT_SYMBOL(simple_read_from_buffer);
 EXPORT_SYMBOL(simple_transaction_get);
 EXPORT_SYMBOL(simple_transaction_read);
 EXPORT_SYMBOL(simple_transaction_release);
+EXPORT_SYMBOL_GPL(simple_attr_open);
+EXPORT_SYMBOL_GPL(simple_attr_close);
+EXPORT_SYMBOL_GPL(simple_attr_read);
+EXPORT_SYMBOL_GPL(simple_attr_write);

@@ -21,6 +21,8 @@
 #include <linux/bitops.h>
 #include <asm/uaccess.h>
 
+#include "internal.h"
+
 static ssize_t proc_file_read(struct file *file, char __user *buf,
 			      size_t nbytes, loff_t *ppos);
 static ssize_t proc_file_write(struct file *file, const char __user *buffer,
@@ -54,6 +56,18 @@ proc_file_read(struct file *file, char __user *buf, size_t nbytes,
 	ssize_t	n, count;
 	char	*start;
 	struct proc_dir_entry * dp;
+	unsigned long long pos;
+
+	/*
+	 * Gaah, please just use "seq_file" instead. The legacy /proc
+	 * interfaces cut loff_t down to off_t for reads, and ignore
+	 * the offset entirely for writes..
+	 */
+	pos = *ppos;
+	if (pos > MAX_NON_LFS)
+		return 0;
+	if (nbytes > MAX_NON_LFS - pos)
+		nbytes = MAX_NON_LFS - pos;
 
 	dp = PDE(inode);
 	if (!(page = (char*) __get_free_page(GFP_KERNEL)))
@@ -202,30 +216,17 @@ proc_file_write(struct file *file, const char __user *buffer,
 static loff_t
 proc_file_lseek(struct file *file, loff_t offset, int orig)
 {
-    lock_kernel();
-
-    switch (orig) {
-    case 0:
-	if (offset < 0)
-	    goto out;
-	file->f_pos = offset;
-	unlock_kernel();
-	return(file->f_pos);
-    case 1:
-	if (offset + file->f_pos < 0)
-	    goto out;
-	file->f_pos += offset;
-	unlock_kernel();
-	return(file->f_pos);
-    case 2:
-	goto out;
-    default:
-	goto out;
-    }
-
-out:
-    unlock_kernel();
-    return -EINVAL;
+	loff_t retval = -EINVAL;
+	switch (orig) {
+	case 1:
+		offset += file->f_pos;
+	/* fallthrough */
+	case 0:
+		if (offset < 0 || offset > MAX_NON_LFS)
+			break;
+		file->f_pos = retval = offset;
+	}
+	return retval;
 }
 
 static int proc_notify_change(struct dentry *dentry, struct iattr *iattr)
@@ -247,6 +248,18 @@ static int proc_notify_change(struct dentry *dentry, struct iattr *iattr)
 	de->mode = inode->i_mode;
 out:
 	return error;
+}
+
+static int proc_getattr(struct vfsmount *mnt, struct dentry *dentry,
+			struct kstat *stat)
+{
+	struct inode *inode = dentry->d_inode;
+	struct proc_dir_entry *de = PROC_I(inode)->pde;
+	if (de && de->nlink)
+		inode->i_nlink = de->nlink;
+
+	generic_fillattr(inode, stat);
+	return 0;
 }
 
 static struct inode_operations proc_file_inode_operations = {
@@ -329,10 +342,10 @@ static void release_inode_number(unsigned int inum)
 	spin_unlock(&proc_inum_lock);
 }
 
-static int proc_follow_link(struct dentry *dentry, struct nameidata *nd)
+static void *proc_follow_link(struct dentry *dentry, struct nameidata *nd)
 {
 	nd_set_link(nd, PDE(dentry->d_inode)->data);
-	return 0;
+	return NULL;
 }
 
 static struct inode_operations proc_link_inode_operations = {
@@ -475,6 +488,7 @@ static struct file_operations proc_dir_operations = {
  */
 static struct inode_operations proc_dir_inode_operations = {
 	.lookup		= proc_lookup,
+	.getattr	= proc_getattr,
 	.setattr	= proc_notify_change,
 };
 
@@ -520,7 +534,7 @@ static void proc_kill_inodes(struct proc_dir_entry *de)
 	 */
 	file_list_lock();
 	list_for_each(p, &sb->s_files) {
-		struct file * filp = list_entry(p, struct file, f_list);
+		struct file * filp = list_entry(p, struct file, f_u.fu_list);
 		struct dentry * dentry = filp->f_dentry;
 		struct inode * inode;
 		struct file_operations *fops;

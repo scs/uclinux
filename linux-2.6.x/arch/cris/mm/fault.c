@@ -6,8 +6,40 @@
  *  Authors:  Bjorn Wesen 
  * 
  *  $Log$
- *  Revision 1.5  2005/08/12 03:32:53  magicyang
- *    Update kernel 2.6.8 to 2.6.12
+ *  Revision 1.6  2006/03/22 06:14:57  magicyang
+ *  update kernel to 2.6.16
+ *
+ *  Revision 1.20  2005/03/04 08:16:18  starvik
+ *  Merge of Linux 2.6.11.
+ *
+ *  Revision 1.19  2005/01/14 10:07:59  starvik
+ *  Fixed warning.
+ *
+ *  Revision 1.18  2005/01/12 08:10:14  starvik
+ *  Readded the change of frametype when handling kernel page fault fixup
+ *  for v10. This is necessary to avoid that the CPU remakes the faulting
+ *  access.
+ *
+ *  Revision 1.17  2005/01/11 13:53:05  starvik
+ *  Use raw_printk.
+ *
+ *  Revision 1.16  2004/12/17 11:39:41  starvik
+ *  SMP support.
+ *
+ *  Revision 1.15  2004/11/23 18:36:18  starvik
+ *  Stack is now non-executable.
+ *  Signal handler trampolines are placed in a reserved page mapped into all
+ *  processes.
+ *
+ *  Revision 1.14  2004/11/23 07:10:21  starvik
+ *  Moved find_fixup_code to generic code.
+ *
+ *  Revision 1.13  2004/11/23 07:00:54  starvik
+ *  Actually use the execute permission bit in the MMU. This makes it possible
+ *  to prevent e.g. attacks where executable code is put on the stack.
+ *
+ *  Revision 1.12  2004/09/29 06:16:04  starvik
+ *  Use instruction_pointer
  *
  *  Revision 1.11  2004/05/14 07:58:05  starvik
  *  Merge of changes from 2.4
@@ -106,6 +138,7 @@
 
 extern int find_fixup_code(struct pt_regs *);
 extern void die_if_kernel(const char *, struct pt_regs *, long);
+extern int raw_printk(const char *fmt, ...);
 
 /* debug of low-level TLB reload */
 #undef DEBUG
@@ -121,7 +154,8 @@ extern void die_if_kernel(const char *, struct pt_regs *, long);
 
 /* current active page directory */
 
-volatile pgd_t *current_pgd;
+volatile DEFINE_PER_CPU(pgd_t *,current_pgd);
+unsigned long cris_signal_return_page;
 
 /*
  * This routine handles page faults.  It determines the address,
@@ -149,8 +183,9 @@ do_page_fault(unsigned long address, struct pt_regs *regs,
 	struct vm_area_struct * vma;
 	siginfo_t info;
 
-        D(printk("Page fault for %X at %X, prot %d write %d\n",
-                 address, regs->erp, protection, writeaccess));
+        D(printk("Page fault for %lX on %X at %lX, prot %d write %d\n",
+                 address, smp_processor_id(), instruction_pointer(regs),
+                 protection, writeaccess));
 
 	tsk = current;
 
@@ -178,8 +213,19 @@ do_page_fault(unsigned long address, struct pt_regs *regs,
 	    !user_mode(regs))
 		goto vmalloc_fault;
 
+	/* When stack execution is not allowed we store the signal
+	 * trampolines in the reserved cris_signal_return_page.
+	 * Handle this in the exact same way as vmalloc (we know
+	 * that the mapping is there and is valid so no need to
+	 * call handle_mm_fault).
+	 */
+	if (cris_signal_return_page &&
+	    address == cris_signal_return_page &&
+	    !protection && user_mode(regs))
+		goto vmalloc_fault;
+
 	/* we can and should enable interrupts at this point */
-	sti();
+	local_irq_enable();
 
 	mm = tsk->mm;
 	info.si_code = SEGV_MAPERR;
@@ -223,7 +269,10 @@ do_page_fault(unsigned long address, struct pt_regs *regs,
 
 	/* first do some preliminary protection checks */
 
-	if (writeaccess) {
+	if (writeaccess == 2){
+		if (!(vma->vm_flags & VM_EXEC))
+			goto bad_area;
+	} else if (writeaccess == 1) {
 		if (!(vma->vm_flags & VM_WRITE))
 			goto bad_area;
 	} else {
@@ -237,14 +286,14 @@ do_page_fault(unsigned long address, struct pt_regs *regs,
 	 * the fault.
 	 */
 
-	switch (handle_mm_fault(mm, vma, address, writeaccess)) {
-	case 1:
+	switch (handle_mm_fault(mm, vma, address, writeaccess & 1)) {
+	case VM_FAULT_MINOR:
 		tsk->min_flt++;
 		break;
-	case 2:
+	case VM_FAULT_MAJOR:
 		tsk->maj_flt++;
 		break;
-	case 0:
+	case VM_FAULT_SIGBUS:
 		goto do_sigbus;
 	default:
 		goto out_of_memory;
@@ -295,10 +344,10 @@ do_page_fault(unsigned long address, struct pt_regs *regs,
 	 */
 
 	if ((unsigned long) (address) < PAGE_SIZE)
-		printk(KERN_ALERT "Unable to handle kernel NULL pointer dereference");
+		raw_printk(KERN_ALERT "Unable to handle kernel NULL pointer dereference");
 	else
-		printk(KERN_ALERT "Unable to handle kernel access");
-	printk(" at virtual address %08lx\n",address);
+		raw_printk(KERN_ALERT "Unable to handle kernel access");
+	raw_printk(" at virtual address %08lx\n",address);
 
 	die_if_kernel("Oops", regs, (writeaccess << 1) | protection);
 
@@ -349,10 +398,11 @@ vmalloc_fault:
 
 		int offset = pgd_index(address);
 		pgd_t *pgd, *pgd_k;
+		pud_t *pud, *pud_k;
 		pmd_t *pmd, *pmd_k;
 		pte_t *pte_k;
 
-		pgd = (pgd_t *)current_pgd + offset;
+		pgd = (pgd_t *)per_cpu(current_pgd, smp_processor_id()) + offset;
 		pgd_k = init_mm.pgd + offset;
 
 		/* Since we're two-level, we don't need to do both
@@ -367,8 +417,13 @@ vmalloc_fault:
 		 * it exists.
 		 */
 
-		pmd = pmd_offset(pgd, address);
-		pmd_k = pmd_offset(pgd_k, address);
+		pud = pud_offset(pgd, address);
+		pud_k = pud_offset(pgd_k, address);
+		if (!pud_present(*pud_k))
+			goto no_context;
+
+		pmd = pmd_offset(pud, address);
+		pmd_k = pmd_offset(pud_k, address);
 
 		if (!pmd_present(*pmd_k))
 			goto bad_area_nosemaphore;
@@ -387,4 +442,20 @@ vmalloc_fault:
 
 		return;
 	}
+}
+
+/* Find fixup code. */
+int
+find_fixup_code(struct pt_regs *regs)
+{
+	const struct exception_table_entry *fixup;
+
+	if ((fixup = search_exception_tables(instruction_pointer(regs))) != 0) {
+		/* Adjust the instruction pointer in the stackframe. */
+		instruction_pointer(regs) = fixup->fixup;
+		arch_fixup(regs);
+		return 1;
+	}
+
+	return 0;
 }

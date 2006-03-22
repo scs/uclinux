@@ -11,7 +11,6 @@
  *
  */
 
-#include <linux/version.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/fs.h>
@@ -21,9 +20,6 @@
 #include <linux/crc32.h>
 #include <linux/jffs2.h>
 #include "nodelist.h"
-
-extern int generic_file_open(struct inode *, struct file *) __attribute__((weak));
-extern loff_t generic_file_llseek(struct file *file, loff_t offset, int origin) __attribute__((weak));
 
 static int jffs2_commit_write (struct file *filp, struct page *pg,
 			       unsigned start, unsigned end);
@@ -38,8 +34,8 @@ int jffs2_fsync(struct file *filp, struct dentry *dentry, int datasync)
 
 	/* Trigger GC to flush any pending writes for this inode */
 	jffs2_flush_wbuf_gc(c, inode->i_ino);
-			
-	return 0;	
+
+	return 0;
 }
 
 struct file_operations jffs2_file_operations =
@@ -51,9 +47,7 @@ struct file_operations jffs2_file_operations =
 	.ioctl =	jffs2_ioctl,
 	.mmap =		generic_file_readonly_mmap,
 	.fsync =	jffs2_fsync,
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,5,29)
 	.sendfile =	generic_file_sendfile
-#endif
 };
 
 /* jffs2_file_inode_operations */
@@ -113,7 +107,7 @@ static int jffs2_readpage (struct file *filp, struct page *pg)
 {
 	struct jffs2_inode_info *f = JFFS2_INODE_INFO(pg->mapping->host);
 	int ret;
-	
+
 	down(&f->sem);
 	ret = jffs2_do_readpage_unlock(pg->mapping->host, pg);
 	up(&f->sem);
@@ -136,11 +130,12 @@ static int jffs2_prepare_write (struct file *filp, struct page *pg,
 		struct jffs2_raw_inode ri;
 		struct jffs2_full_dnode *fn;
 		uint32_t phys_ofs, alloc_len;
-		
+
 		D1(printk(KERN_DEBUG "Writing new hole frag 0x%x-0x%x between current EOF and new page\n",
 			  (unsigned int)inode->i_size, pageofs));
 
-		ret = jffs2_reserve_space(c, sizeof(ri), &phys_ofs, &alloc_len, ALLOC_NORMAL);
+		ret = jffs2_reserve_space(c, sizeof(ri), &phys_ofs, &alloc_len,
+					ALLOC_NORMAL, JFFS2_SUMMARY_INODE_SIZE);
 		if (ret)
 			return ret;
 
@@ -165,7 +160,7 @@ static int jffs2_prepare_write (struct file *filp, struct page *pg,
 		ri.compr = JFFS2_COMPR_ZERO;
 		ri.node_crc = cpu_to_je32(crc32(0, &ri, sizeof(ri)-8));
 		ri.data_crc = cpu_to_je32(0);
-		
+
 		fn = jffs2_write_dnode(c, f, &ri, NULL, 0, phys_ofs, ALLOC_NORMAL);
 
 		if (IS_ERR(fn)) {
@@ -192,7 +187,7 @@ static int jffs2_prepare_write (struct file *filp, struct page *pg,
 		inode->i_size = pageofs;
 		up(&f->sem);
 	}
-	
+
 	/* Read in the page if it wasn't already present, unless it's a whole page */
 	if (!PageUptodate(pg) && (start || end < PAGE_CACHE_SIZE)) {
 		down(&f->sem);
@@ -223,7 +218,7 @@ static int jffs2_commit_write (struct file *filp, struct page *pg,
 	if (!start && end == PAGE_CACHE_SIZE) {
 		/* We need to avoid deadlock with page_cache_read() in
 		   jffs2_garbage_collect_pass(). So we have to mark the
-		   page up to date, to prevent page_cache_read() from 
+		   page up to date, to prevent page_cache_read() from
 		   trying to re-lock it. */
 		SetPageUptodate(pg);
 	}
@@ -257,7 +252,7 @@ static int jffs2_commit_write (struct file *filp, struct page *pg,
 		/* There was an error writing. */
 		SetPageError(pg);
 	}
-	
+
 	/* Adjust writtenlen for the padding we did, so we don't confuse our caller */
 	if (writtenlen < (start&3))
 		writtenlen = 0;
@@ -268,7 +263,7 @@ static int jffs2_commit_write (struct file *filp, struct page *pg,
 		if (inode->i_size < (pg->index << PAGE_CACHE_SHIFT) + start + writtenlen) {
 			inode->i_size = (pg->index << PAGE_CACHE_SHIFT) + start + writtenlen;
 			inode->i_blocks = (inode->i_size + 511) >> 9;
-			
+
 			inode->i_ctime = inode->i_mtime = ITIME(je32_to_cpu(ri->ctime));
 		}
 	}
@@ -277,13 +272,13 @@ static int jffs2_commit_write (struct file *filp, struct page *pg,
 
 	if (start+writtenlen < end) {
 		/* generic_file_write has written more to the page cache than we've
-		   actually written to the medium. Mark the page !Uptodate so that 
+		   actually written to the medium. Mark the page !Uptodate so that
 		   it gets reread */
 		D1(printk(KERN_DEBUG "jffs2_commit_write(): Not all bytes written. Marking page !uptodate\n"));
 		SetPageError(pg);
 		ClearPageUptodate(pg);
 	}
 
-	D1(printk(KERN_DEBUG "jffs2_commit_write() returning %d\n",writtenlen?writtenlen:ret));
-	return writtenlen?writtenlen:ret;
+	D1(printk(KERN_DEBUG "jffs2_commit_write() returning %d\n",start+writtenlen==end?0:ret));
+	return start+writtenlen==end?0:ret;
 }

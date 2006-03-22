@@ -167,43 +167,10 @@ void ptrace_disable(struct task_struct *child)
 	put_reg(child, PT_SR, tmp);
 }
 
-asmlinkage int sys_ptrace(long request, long pid, long addr, long data)
+long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 {
-	struct task_struct *child;
 	int ret;
 	int add = 0;
-
-	lock_kernel();
-	ret = -EPERM;
-	if (request == PTRACE_TRACEME) {
-		/* are we already being traced? */
-		if (current->ptrace & PT_PTRACED)
-			goto out;
-		/* set the ptrace bit in the process flags. */
-		current->ptrace |= PT_PTRACED;
-		ret = 0;
-		goto out;
-	}
-	ret = -ESRCH;
-	read_lock(&tasklist_lock);
-	child = find_task_by_pid(pid);
-	if (child)
-		get_task_struct(child);
-	read_unlock(&tasklist_lock);	/* FIXME!!! */
-	if (!child)
-		goto out;
-	ret = -EPERM;
-	if (pid == 1)		/* you may not mess with init */
-		goto out_tsk;
-	if (request == PTRACE_ATTACH) {
-
-		ret = ptrace_attach(child);
-		goto out_tsk;
-	}
-
-	ret = ptrace_check_attach(child, request == PTRACE_KILL);
-	if (ret < 0)
-		goto out_tsk;
 
 	switch (request) {
 		/* when I and D space are separate, these will need to be fixed. */
@@ -230,9 +197,9 @@ asmlinkage int sys_ptrace(long request, long pid, long addr, long data)
 #endif
 			ret = -EIO;
 			if (copied != sizeof(tmp))
-				goto out_tsk;
+				break;
 			ret = put_user(tmp, (unsigned long *)data);
-			goto out_tsk;
+			break;
 		}
 
 		/* read the word at location addr in the USER area. */
@@ -245,7 +212,7 @@ asmlinkage int sys_ptrace(long request, long pid, long addr, long data)
 				printk
 				    ("ptrace error : PEEKUSR : temporarily returning 0 - %x sizeof(pt_regs) is %lx\n",
 				     (int)addr, sizeof(struct pt_regs));
-				goto out_tsk;
+				break;
 			}
 			if (addr == sizeof(struct pt_regs)) {
 				tmp = child->mm->start_code + TEXT_OFFSET;
@@ -267,7 +234,7 @@ asmlinkage int sys_ptrace(long request, long pid, long addr, long data)
 				tmp = get_reg(child, addr);
 			}
 			ret = put_user(tmp, (unsigned long *)data);
-			goto out_tsk;
+			break;
 		}
 
 		/* when I and D space are separate, this will have to be fixed. */
@@ -284,9 +251,9 @@ asmlinkage int sys_ptrace(long request, long pid, long addr, long data)
 			if (access_process_vm(child, addr + add,
 					      &data, sizeof(data),
 					      1) == sizeof(data))
-				goto out_tsk;
+				break;
 			ret = -EIO;
-			goto out_tsk;
+			break;
 		}
 
 	case PTRACE_POKEUSR:	/* write the word at location addr in the USER area */
@@ -294,7 +261,7 @@ asmlinkage int sys_ptrace(long request, long pid, long addr, long data)
 		if ((addr & 3) || (addr > (sizeof(struct pt_regs) + 8))) {
 			printk
 			    ("ptrace error : POKEUSR: temporarily returning 0\n");
-			goto out_tsk;
+			break;
 		}
 
 		if (addr == PT_SYSCFG) {
@@ -302,7 +269,7 @@ asmlinkage int sys_ptrace(long request, long pid, long addr, long data)
 			data |= get_reg(child, PT_SYSCFG);
 		}
 		ret = put_reg(child, addr, data);
-		goto out_tsk;
+		break;
 
 	case PTRACE_SYSCALL:	/* continue and stop at next (return from) syscall */
 	case PTRACE_CONT:
@@ -314,7 +281,7 @@ asmlinkage int sys_ptrace(long request, long pid, long addr, long data)
 
 			ret = -EIO;
 			if (!valid_signal(data))
-				goto out_tsk;
+				break;
 			if (request == PTRACE_SYSCALL)
 				set_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
 			else
@@ -329,7 +296,7 @@ asmlinkage int sys_ptrace(long request, long pid, long addr, long data)
 #endif
 			wake_up_process(child);
 			ret = 0;
-			goto out_tsk;
+			break;
 		}
 
 /*
@@ -342,13 +309,13 @@ asmlinkage int sys_ptrace(long request, long pid, long addr, long data)
 			long tmp;
 			ret = 0;
 			if (child->exit_state == EXIT_ZOMBIE)	/* already dead */
-				goto out_tsk;
+				break;
 			child->exit_code = SIGKILL;
 			/* make sure the single step bit is not set. */
 			tmp = get_reg(child, PT_SYSCFG) & ~(TRACE_BITS);
 			put_reg(child, PT_SYSCFG, tmp);
 			wake_up_process(child);
-			goto out_tsk;
+			break;
 		}
 
 	case PTRACE_SINGLESTEP:
@@ -359,7 +326,7 @@ asmlinkage int sys_ptrace(long request, long pid, long addr, long data)
 #endif
 			ret = -EIO;
 			if (!valid_signal(data))
-				goto out_tsk;
+				break;
 			clear_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
 
 			tmp = get_reg(child, PT_SYSCFG) | (TRACE_BITS);
@@ -369,7 +336,7 @@ asmlinkage int sys_ptrace(long request, long pid, long addr, long data)
 			/* give it a chance to run. */
 			wake_up_process(child);
 			ret = 0;
-			goto out;
+			break;
 		}
 
 	case PTRACE_DETACH:
@@ -383,7 +350,7 @@ asmlinkage int sys_ptrace(long request, long pid, long addr, long data)
 
 			/* Get all gp regs from the child. */
 			ret = ptrace_getregs(child, (void __user *)data);
-			goto out_tsk;
+			break;
 		}
 
 	case PTRACE_SETREGS:
@@ -392,18 +359,15 @@ asmlinkage int sys_ptrace(long request, long pid, long addr, long data)
 			printk("SETREGS : **** NOT IMPLEMENTED ***\n");
 			/* Set all gp regs in the child. */
 			ret = 0;
-			goto out_tsk;
+			break;
 		}
 
 	default:
 		printk("Ptrace :  *** Unhandled case **** %d\n", (int)request);
 		ret = -EIO;
-		goto out_tsk;
+		break;
 	}
-      out_tsk:
-	put_task_struct(child);
-      out:
-	unlock_kernel();
+
 	return ret;
 }
 

@@ -54,6 +54,10 @@ static const char version2[] =
 #include <asm/system.h>
 #include <asm/io.h>
 
+#if defined(CONFIG_TOSHIBA_RBTX4927) || defined(CONFIG_TOSHIBA_RBTX4938)
+#include <asm/tx4938/rbtx4938.h>
+#endif
+
 #include "8390.h"
 
 #define DRV_NAME "ne"
@@ -111,6 +115,9 @@ bad_clone_list[] __initdata = {
     {"E-LAN100", "E-LAN200", {0x00, 0x00, 0x5d}}, /* Broken ne1000 clones */
     {"PCM-4823", "PCM-4823", {0x00, 0xc0, 0x6c}}, /* Broken Advantech MoBo */
     {"REALTEK", "RTL8019", {0x00, 0x00, 0xe8}}, /* no-name with Realtek chip */
+#if defined(CONFIG_TOSHIBA_RBTX4927) || defined(CONFIG_TOSHIBA_RBTX4938)
+    {"RBHMA4X00-RTL8019", "RBHMA4X00/RTL8019", {0x00, 0x60, 0x0a}},  /* Toshiba built-in */
+#endif
     {"LCS-8834", "LCS-8836", {0x04, 0x04, 0x37}}, /* ShinyNet (SET) */
     {NULL,}
 };
@@ -129,9 +136,9 @@ bad_clone_list[] __initdata = {
 #define NESM_START_PG	0x40	/* First page of TX buffer */
 #define NESM_STOP_PG	0x80	/* Last page +1 of RX ring */
 
-#ifdef CONFIG_PLAT_MAPPI
+#if defined(CONFIG_PLAT_MAPPI)
 #  define DCR_VAL 0x4b
-#elif CONFIG_PLAT_OAKS32R
+#elif defined(CONFIG_PLAT_OAKS32R)
 #  define DCR_VAL 0x48
 #else
 #  define DCR_VAL 0x49
@@ -205,15 +212,6 @@ static int __init do_ne_probe(struct net_device *dev)
 	return -ENODEV;
 }
 
-static void cleanup_card(struct net_device *dev)
-{
-	struct pnp_dev *idev = (struct pnp_dev *)ei_status.priv;
-	if (idev)
-		pnp_device_detach(idev);
-	free_irq(dev->irq, dev);
-	release_region(dev->base_addr, NE_IO_EXTENT);
-}
-
 #ifndef MODULE
 struct net_device * __init ne_probe(int unit)
 {
@@ -226,15 +224,14 @@ struct net_device * __init ne_probe(int unit)
 	sprintf(dev->name, "eth%d", unit);
 	netdev_boot_setup_check(dev);
 
+#ifdef CONFIG_TOSHIBA_RBTX4938
+	dev->base_addr = 0x07f20280;
+	dev->irq = RBTX4938_RTL_8019_IRQ;
+#endif
 	err = do_ne_probe(dev);
 	if (err)
 		goto out;
-	err = register_netdev(dev);
-	if (err)
-		goto out1;
 	return dev;
-out1:
-	cleanup_card(dev);
 out:
 	free_netdev(dev);
 	return ERR_PTR(err);
@@ -511,6 +508,10 @@ static int __init ne_probe1(struct net_device *dev, int ioaddr)
 	ei_status.name = name;
 	ei_status.tx_start_page = start_page;
 	ei_status.stop_page = stop_page;
+#if defined(CONFIG_TOSHIBA_RBTX4927) || defined(CONFIG_TOSHIBA_RBTX4938)
+	wordlength = 1;
+#endif
+
 #ifdef CONFIG_PLAT_OAKS32R
 	ei_status.word16 = 0;
 #else
@@ -534,8 +535,14 @@ static int __init ne_probe1(struct net_device *dev, int ioaddr)
 	dev->poll_controller = ei_poll;
 #endif
 	NS8390_init(dev, 0);
+
+	ret = register_netdev(dev);
+	if (ret)
+		goto out_irq;
 	return 0;
 
+out_irq:
+	free_irq(dev->irq, dev);
 err_out:
 	release_region(ioaddr, NE_IO_EXTENT);
 	return ret;
@@ -826,11 +833,8 @@ int init_module(void)
 		dev->mem_end = bad[this_dev];
 		dev->base_addr = io[this_dev];
 		if (do_ne_probe(dev) == 0) {
-			if (register_netdev(dev) == 0) {
-				dev_ne[found++] = dev;
-				continue;
-			}
-			cleanup_card(dev);
+			dev_ne[found++] = dev;
+			continue;
 		}
 		free_netdev(dev);
 		if (found)
@@ -844,6 +848,15 @@ int init_module(void)
 	if (found)
 		return 0;
 	return -ENODEV;
+}
+
+static void cleanup_card(struct net_device *dev)
+{
+	struct pnp_dev *idev = (struct pnp_dev *)ei_status.priv;
+	if (idev)
+		pnp_device_detach(idev);
+	free_irq(dev->irq, dev);
+	release_region(dev->base_addr, NE_IO_EXTENT);
 }
 
 void cleanup_module(void)

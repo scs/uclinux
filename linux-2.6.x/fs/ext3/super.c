@@ -35,11 +35,16 @@
 #include <linux/mount.h>
 #include <linux/namei.h>
 #include <linux/quotaops.h>
+#include <linux/seq_file.h>
+
 #include <asm/uaccess.h>
+
 #include "xattr.h"
 #include "acl.h"
+#include "namei.h"
 
-static int ext3_load_journal(struct super_block *, struct ext3_super_block *);
+static int ext3_load_journal(struct super_block *, struct ext3_super_block *,
+			     unsigned long journal_devnum);
 static int ext3_create_journal(struct super_block *, struct ext3_super_block *,
 			       int);
 static void ext3_commit_super (struct super_block * sb,
@@ -509,8 +514,46 @@ static void ext3_clear_inode(struct inode *inode)
 	kfree(rsv);
 }
 
-#ifdef CONFIG_QUOTA
+static inline void ext3_show_quota_options(struct seq_file *seq, struct super_block *sb)
+{
+#if defined(CONFIG_QUOTA)
+	struct ext3_sb_info *sbi = EXT3_SB(sb);
 
+	if (sbi->s_jquota_fmt)
+		seq_printf(seq, ",jqfmt=%s",
+		(sbi->s_jquota_fmt == QFMT_VFS_OLD) ? "vfsold": "vfsv0");
+
+	if (sbi->s_qf_names[USRQUOTA])
+		seq_printf(seq, ",usrjquota=%s", sbi->s_qf_names[USRQUOTA]);
+
+	if (sbi->s_qf_names[GRPQUOTA])
+		seq_printf(seq, ",grpjquota=%s", sbi->s_qf_names[GRPQUOTA]);
+
+	if (sbi->s_mount_opt & EXT3_MOUNT_USRQUOTA)
+		seq_puts(seq, ",usrquota");
+
+	if (sbi->s_mount_opt & EXT3_MOUNT_GRPQUOTA)
+		seq_puts(seq, ",grpquota");
+#endif
+}
+
+static int ext3_show_options(struct seq_file *seq, struct vfsmount *vfs)
+{
+	struct super_block *sb = vfs->mnt_sb;
+
+	if (test_opt(sb, DATA_FLAGS) == EXT3_MOUNT_JOURNAL_DATA)
+		seq_puts(seq, ",data=journal");
+	else if (test_opt(sb, DATA_FLAGS) == EXT3_MOUNT_ORDERED_DATA)
+		seq_puts(seq, ",data=ordered");
+	else if (test_opt(sb, DATA_FLAGS) == EXT3_MOUNT_WRITEBACK_DATA)
+		seq_puts(seq, ",data=writeback");
+
+	ext3_show_quota_options(seq, sb);
+
+	return 0;
+}
+
+#ifdef CONFIG_QUOTA
 #define QTYPE2NAME(t) ((t)==USRQUOTA?"user":"group")
 #define QTYPE2MOPT(on, t) ((t)==USRQUOTA?((on)##USRJQUOTA):((on)##GRPJQUOTA))
 
@@ -569,13 +612,13 @@ static struct super_operations ext3_sops = {
 	.statfs		= ext3_statfs,
 	.remount_fs	= ext3_remount,
 	.clear_inode	= ext3_clear_inode,
+	.show_options	= ext3_show_options,
 #ifdef CONFIG_QUOTA
 	.quota_read	= ext3_quota_read,
 	.quota_write	= ext3_quota_write,
 #endif
 };
 
-struct dentry *ext3_get_parent(struct dentry *child);
 static struct export_operations ext3_export_ops = {
 	.get_parent = ext3_get_parent,
 };
@@ -583,14 +626,15 @@ static struct export_operations ext3_export_ops = {
 enum {
 	Opt_bsd_df, Opt_minix_df, Opt_grpid, Opt_nogrpid,
 	Opt_resgid, Opt_resuid, Opt_sb, Opt_err_cont, Opt_err_panic, Opt_err_ro,
-	Opt_nouid32, Opt_check, Opt_nocheck, Opt_debug, Opt_oldalloc, Opt_orlov,
+	Opt_nouid32, Opt_nocheck, Opt_debug, Opt_oldalloc, Opt_orlov,
 	Opt_user_xattr, Opt_nouser_xattr, Opt_acl, Opt_noacl,
 	Opt_reservation, Opt_noreservation, Opt_noload, Opt_nobh,
-	Opt_commit, Opt_journal_update, Opt_journal_inum,
+	Opt_commit, Opt_journal_update, Opt_journal_inum, Opt_journal_dev,
 	Opt_abort, Opt_data_journal, Opt_data_ordered, Opt_data_writeback,
 	Opt_usrjquota, Opt_grpjquota, Opt_offusrjquota, Opt_offgrpjquota,
-	Opt_jqfmt_vfsold, Opt_jqfmt_vfsv0,
-	Opt_ignore, Opt_barrier, Opt_err, Opt_resize,
+	Opt_jqfmt_vfsold, Opt_jqfmt_vfsv0, Opt_quota, Opt_noquota,
+	Opt_ignore, Opt_barrier, Opt_err, Opt_resize, Opt_usrquota,
+	Opt_grpquota
 };
 
 static match_table_t tokens = {
@@ -609,7 +653,6 @@ static match_table_t tokens = {
 	{Opt_nouid32, "nouid32"},
 	{Opt_nocheck, "nocheck"},
 	{Opt_nocheck, "check=none"},
-	{Opt_check, "check"},
 	{Opt_debug, "debug"},
 	{Opt_oldalloc, "oldalloc"},
 	{Opt_orlov, "orlov"},
@@ -624,6 +667,7 @@ static match_table_t tokens = {
 	{Opt_commit, "commit=%u"},
 	{Opt_journal_update, "journal=update"},
 	{Opt_journal_inum, "journal=%u"},
+	{Opt_journal_dev, "journal_dev=%u"},
 	{Opt_abort, "abort"},
 	{Opt_data_journal, "data=journal"},
 	{Opt_data_ordered, "data=ordered"},
@@ -634,10 +678,10 @@ static match_table_t tokens = {
 	{Opt_grpjquota, "grpjquota=%s"},
 	{Opt_jqfmt_vfsold, "jqfmt=vfsold"},
 	{Opt_jqfmt_vfsv0, "jqfmt=vfsv0"},
-	{Opt_ignore, "grpquota"},
-	{Opt_ignore, "noquota"},
-	{Opt_ignore, "quota"},
-	{Opt_ignore, "usrquota"},
+	{Opt_grpquota, "grpquota"},
+	{Opt_noquota, "noquota"},
+	{Opt_quota, "quota"},
+	{Opt_usrquota, "usrquota"},
 	{Opt_barrier, "barrier=%u"},
 	{Opt_err, NULL},
 	{Opt_resize, "resize"},
@@ -663,8 +707,9 @@ static unsigned long get_sb_block(void **data)
 	return sb_block;
 }
 
-static int parse_options (char * options, struct super_block *sb,
-			  unsigned long * inum, unsigned long *n_blocks_count, int is_remount)
+static int parse_options (char *options, struct super_block *sb,
+			  unsigned long *inum, unsigned long *journal_devnum,
+			  unsigned long *n_blocks_count, int is_remount)
 {
 	struct ext3_sb_info *sbi = EXT3_SB(sb);
 	char * p;
@@ -729,14 +774,6 @@ static int parse_options (char * options, struct super_block *sb,
 			break;
 		case Opt_nouid32:
 			set_opt (sbi->s_mount_opt, NO_UID32);
-			break;
-		case Opt_check:
-#ifdef CONFIG_EXT3_CHECK
-			set_opt (sbi->s_mount_opt, CHECK);
-#else
-			printk(KERN_ERR
-			       "EXT3 Check option not supported\n");
-#endif
 			break;
 		case Opt_nocheck:
 			clear_opt (sbi->s_mount_opt, CHECK);
@@ -804,6 +841,16 @@ static int parse_options (char * options, struct super_block *sb,
 			if (match_int(&args[0], &option))
 				return 0;
 			*inum = option;
+			break;
+		case Opt_journal_dev:
+			if (is_remount) {
+				printk(KERN_ERR "EXT3-fs: cannot specify "
+				       "journal on remount\n");
+				return 0;
+			}
+			if (match_int(&args[0], &option))
+				return 0;
+			*journal_devnum = option;
 			break;
 		case Opt_noload:
 			set_opt (sbi->s_mount_opt, NOLOAD);
@@ -876,6 +923,7 @@ set_qf_name:
 				sbi->s_qf_names[qtype] = NULL;
 				return 0;
 			}
+			set_opt(sbi->s_mount_opt, QUOTA);
 			break;
 		case Opt_offusrjquota:
 			qtype = USRQUOTA;
@@ -889,7 +937,10 @@ clear_qf_name:
 					"quota turned on.\n");
 				return 0;
 			}
-			kfree(sbi->s_qf_names[qtype]);
+			/*
+			 * The space will be released later when all options
+			 * are confirmed to be correct
+			 */
 			sbi->s_qf_names[qtype] = NULL;
 			break;
 		case Opt_jqfmt_vfsold:
@@ -898,7 +949,29 @@ clear_qf_name:
 		case Opt_jqfmt_vfsv0:
 			sbi->s_jquota_fmt = QFMT_VFS_V0;
 			break;
+		case Opt_quota:
+		case Opt_usrquota:
+			set_opt(sbi->s_mount_opt, QUOTA);
+			set_opt(sbi->s_mount_opt, USRQUOTA);
+			break;
+		case Opt_grpquota:
+			set_opt(sbi->s_mount_opt, QUOTA);
+			set_opt(sbi->s_mount_opt, GRPQUOTA);
+			break;
+		case Opt_noquota:
+			if (sb_any_quota_enabled(sb)) {
+				printk(KERN_ERR "EXT3-fs: Cannot change quota "
+					"options when quota turned on.\n");
+				return 0;
+			}
+			clear_opt(sbi->s_mount_opt, QUOTA);
+			clear_opt(sbi->s_mount_opt, USRQUOTA);
+			clear_opt(sbi->s_mount_opt, GRPQUOTA);
+			break;
 #else
+		case Opt_quota:
+		case Opt_usrquota:
+		case Opt_grpquota:
 		case Opt_usrjquota:
 		case Opt_grpjquota:
 		case Opt_offusrjquota:
@@ -908,6 +981,8 @@ clear_qf_name:
 			printk(KERN_ERR
 				"EXT3-fs: journalled quota options not "
 				"supported.\n");
+			break;
+		case Opt_noquota:
 			break;
 #endif
 		case Opt_abort:
@@ -924,12 +999,13 @@ clear_qf_name:
 		case Opt_ignore:
 			break;
 		case Opt_resize:
-			if (!n_blocks_count) {
+			if (!is_remount) {
 				printk("EXT3-fs: resize option only available "
 					"for remount\n");
 				return 0;
 			}
-			match_int(&args[0], &option);
+			if (match_int(&args[0], &option) != 0)
+				return 0;
 			*n_blocks_count = option;
 			break;
 		case Opt_nobh:
@@ -943,14 +1019,38 @@ clear_qf_name:
 		}
 	}
 #ifdef CONFIG_QUOTA
-	if (!sbi->s_jquota_fmt && (sbi->s_qf_names[USRQUOTA] ||
-	    sbi->s_qf_names[GRPQUOTA])) {
-		printk(KERN_ERR
-			"EXT3-fs: journalled quota format not specified.\n");
-		return 0;
+	if (sbi->s_qf_names[USRQUOTA] || sbi->s_qf_names[GRPQUOTA]) {
+		if ((sbi->s_mount_opt & EXT3_MOUNT_USRQUOTA) &&
+		     sbi->s_qf_names[USRQUOTA])
+			clear_opt(sbi->s_mount_opt, USRQUOTA);
+
+		if ((sbi->s_mount_opt & EXT3_MOUNT_GRPQUOTA) &&
+		     sbi->s_qf_names[GRPQUOTA])
+			clear_opt(sbi->s_mount_opt, GRPQUOTA);
+
+		if ((sbi->s_qf_names[USRQUOTA] &&
+				(sbi->s_mount_opt & EXT3_MOUNT_GRPQUOTA)) ||
+		    (sbi->s_qf_names[GRPQUOTA] &&
+				(sbi->s_mount_opt & EXT3_MOUNT_USRQUOTA))) {
+			printk(KERN_ERR "EXT3-fs: old and new quota "
+					"format mixing.\n");
+			return 0;
+		}
+
+		if (!sbi->s_jquota_fmt) {
+			printk(KERN_ERR "EXT3-fs: journalled quota format "
+					"not specified.\n");
+			return 0;
+		}
+	} else {
+		if (sbi->s_jquota_fmt) {
+			printk(KERN_ERR "EXT3-fs: journalled quota format "
+					"specified with no journalling "
+					"enabled.\n");
+			return 0;
+		}
 	}
 #endif
-
 	return 1;
 }
 
@@ -1019,12 +1119,6 @@ static int ext3_setup_super(struct super_block *sb, struct ext3_super_block *es,
 	} else {
 		printk("internal journal\n");
 	}
-#ifdef CONFIG_EXT3_CHECK
-	if (test_opt (sb, CHECK)) {
-		ext3_check_blocks_bitmap (sb);
-		ext3_check_inodes_bitmap (sb);
-	}
-#endif
 	return res;
 }
 
@@ -1250,6 +1344,7 @@ static int ext3_fill_super (struct super_block *sb, void *data, int silent)
 	unsigned long logic_sb_block;
 	unsigned long offset = 0;
 	unsigned long journal_inum = 0;
+	unsigned long journal_devnum = 0;
 	unsigned long def_mount_opts;
 	struct inode *root;
 	int blocksize;
@@ -1330,7 +1425,8 @@ static int ext3_fill_super (struct super_block *sb, void *data, int silent)
 
 	set_opt(sbi->s_mount_opt, RESERVATION);
 
-	if (!parse_options ((char *) data, sb, &journal_inum, NULL, 0))
+	if (!parse_options ((char *) data, sb, &journal_inum, &journal_devnum,
+			    NULL, 0))
 		goto failed_mount;
 
 	sb->s_flags = (sb->s_flags & ~MS_POSIXACL) |
@@ -1541,7 +1637,7 @@ static int ext3_fill_super (struct super_block *sb, void *data, int silent)
 	 */
 	if (!test_opt(sb, NOLOAD) &&
 	    EXT3_HAS_COMPAT_FEATURE(sb, EXT3_FEATURE_COMPAT_HAS_JOURNAL)) {
-		if (ext3_load_journal(sb, es))
+		if (ext3_load_journal(sb, es, journal_devnum))
 			goto failed_mount2;
 	} else if (journal_inum) {
 		if (ext3_create_journal(sb, es, journal_inum))
@@ -1821,14 +1917,23 @@ out_bdev:
 	return NULL;
 }
 
-static int ext3_load_journal(struct super_block * sb,
-			     struct ext3_super_block * es)
+static int ext3_load_journal(struct super_block *sb,
+			     struct ext3_super_block *es,
+			     unsigned long journal_devnum)
 {
 	journal_t *journal;
 	int journal_inum = le32_to_cpu(es->s_journal_inum);
-	dev_t journal_dev = new_decode_dev(le32_to_cpu(es->s_journal_dev));
+	dev_t journal_dev;
 	int err = 0;
 	int really_read_only;
+
+	if (journal_devnum &&
+	    journal_devnum != le32_to_cpu(es->s_journal_dev)) {
+		printk(KERN_INFO "EXT3-fs: external journal device major/minor "
+			"numbers have changed\n");
+		journal_dev = new_decode_dev(journal_devnum);
+	} else
+		journal_dev = new_decode_dev(le32_to_cpu(es->s_journal_dev));
 
 	really_read_only = bdev_read_only(sb->s_bdev);
 
@@ -1888,6 +1993,16 @@ static int ext3_load_journal(struct super_block * sb,
 
 	EXT3_SB(sb)->s_journal = journal;
 	ext3_clear_journal_err(sb, es);
+
+	if (journal_devnum &&
+	    journal_devnum != le32_to_cpu(es->s_journal_dev)) {
+		es->s_journal_dev = cpu_to_le32(journal_devnum);
+		sb->s_dirt = 1;
+
+		/* Make sure we flush the recovery flag to disk. */
+		ext3_commit_super(sb, es, 1);
+	}
+
 	return 0;
 }
 
@@ -2035,7 +2150,7 @@ int ext3_force_commit(struct super_block *sb)
 
 static void ext3_write_super (struct super_block * sb)
 {
-	if (down_trylock(&sb->s_lock) == 0)
+	if (mutex_trylock(&sb->s_lock) != 0)
 		BUG();
 	sb->s_dirt = 0;
 }
@@ -2093,14 +2208,33 @@ static int ext3_remount (struct super_block * sb, int * flags, char * data)
 {
 	struct ext3_super_block * es;
 	struct ext3_sb_info *sbi = EXT3_SB(sb);
-	unsigned long tmp;
 	unsigned long n_blocks_count = 0;
+	unsigned long old_sb_flags;
+	struct ext3_mount_options old_opts;
+	int err;
+#ifdef CONFIG_QUOTA
+	int i;
+#endif
+
+	/* Store the original options */
+	old_sb_flags = sb->s_flags;
+	old_opts.s_mount_opt = sbi->s_mount_opt;
+	old_opts.s_resuid = sbi->s_resuid;
+	old_opts.s_resgid = sbi->s_resgid;
+	old_opts.s_commit_interval = sbi->s_commit_interval;
+#ifdef CONFIG_QUOTA
+	old_opts.s_jquota_fmt = sbi->s_jquota_fmt;
+	for (i = 0; i < MAXQUOTAS; i++)
+		old_opts.s_qf_names[i] = sbi->s_qf_names[i];
+#endif
 
 	/*
 	 * Allow the "check" option to be passed as a remount option.
 	 */
-	if (!parse_options(data, sb, &tmp, &n_blocks_count, 1))
-		return -EINVAL;
+	if (!parse_options(data, sb, NULL, NULL, &n_blocks_count, 1)) {
+		err = -EINVAL;
+		goto restore_opts;
+	}
 
 	if (sbi->s_mount_opt & EXT3_MOUNT_ABORT)
 		ext3_abort(sb, __FUNCTION__, "Abort forced by user");
@@ -2114,8 +2248,10 @@ static int ext3_remount (struct super_block * sb, int * flags, char * data)
 
 	if ((*flags & MS_RDONLY) != (sb->s_flags & MS_RDONLY) ||
 		n_blocks_count > le32_to_cpu(es->s_blocks_count)) {
-		if (sbi->s_mount_opt & EXT3_MOUNT_ABORT)
-			return -EROFS;
+		if (sbi->s_mount_opt & EXT3_MOUNT_ABORT) {
+			err = -EROFS;
+			goto restore_opts;
+		}
 
 		if (*flags & MS_RDONLY) {
 			/*
@@ -2142,7 +2278,8 @@ static int ext3_remount (struct super_block * sb, int * flags, char * data)
 				       "remount RDWR because of unsupported "
 				       "optional features (%x).\n",
 				       sb->s_id, le32_to_cpu(ret));
-				return -EROFS;
+				err = -EROFS;
+				goto restore_opts;
 			}
 			/*
 			 * Mounting a RDONLY partition read-write, so reread
@@ -2152,13 +2289,38 @@ static int ext3_remount (struct super_block * sb, int * flags, char * data)
 			 */
 			ext3_clear_journal_err(sb, es);
 			sbi->s_mount_state = le16_to_cpu(es->s_state);
-			if ((ret = ext3_group_extend(sb, es, n_blocks_count)))
-				return ret;
+			if ((ret = ext3_group_extend(sb, es, n_blocks_count))) {
+				err = ret;
+				goto restore_opts;
+			}
 			if (!ext3_setup_super (sb, es, 0))
 				sb->s_flags &= ~MS_RDONLY;
 		}
 	}
+#ifdef CONFIG_QUOTA
+	/* Release old quota file names */
+	for (i = 0; i < MAXQUOTAS; i++)
+		if (old_opts.s_qf_names[i] &&
+		    old_opts.s_qf_names[i] != sbi->s_qf_names[i])
+			kfree(old_opts.s_qf_names[i]);
+#endif
 	return 0;
+restore_opts:
+	sb->s_flags = old_sb_flags;
+	sbi->s_mount_opt = old_opts.s_mount_opt;
+	sbi->s_resuid = old_opts.s_resuid;
+	sbi->s_resgid = old_opts.s_resgid;
+	sbi->s_commit_interval = old_opts.s_commit_interval;
+#ifdef CONFIG_QUOTA
+	sbi->s_jquota_fmt = old_opts.s_jquota_fmt;
+	for (i = 0; i < MAXQUOTAS; i++) {
+		if (sbi->s_qf_names[i] &&
+		    old_opts.s_qf_names[i] != sbi->s_qf_names[i])
+			kfree(sbi->s_qf_names[i]);
+		sbi->s_qf_names[i] = old_opts.s_qf_names[i];
+	}
+#endif
+	return err;
 }
 
 static int ext3_statfs (struct super_block * sb, struct kstatfs * buf)
@@ -2238,7 +2400,7 @@ static int ext3_dquot_initialize(struct inode *inode, int type)
 	int ret, err;
 
 	/* We may create quota structure so we need to reserve enough blocks */
-	handle = ext3_journal_start(inode, 2*EXT3_QUOTA_INIT_BLOCKS);
+	handle = ext3_journal_start(inode, 2*EXT3_QUOTA_INIT_BLOCKS(inode->i_sb));
 	if (IS_ERR(handle))
 		return PTR_ERR(handle);
 	ret = dquot_initialize(inode, type);
@@ -2254,7 +2416,7 @@ static int ext3_dquot_drop(struct inode *inode)
 	int ret, err;
 
 	/* We may delete quota structure so we need to reserve enough blocks */
-	handle = ext3_journal_start(inode, 2*EXT3_QUOTA_INIT_BLOCKS);
+	handle = ext3_journal_start(inode, 2*EXT3_QUOTA_DEL_BLOCKS(inode->i_sb));
 	if (IS_ERR(handle))
 		return PTR_ERR(handle);
 	ret = dquot_drop(inode);
@@ -2272,7 +2434,7 @@ static int ext3_write_dquot(struct dquot *dquot)
 
 	inode = dquot_to_inode(dquot);
 	handle = ext3_journal_start(inode,
-					EXT3_QUOTA_TRANS_BLOCKS);
+					EXT3_QUOTA_TRANS_BLOCKS(dquot->dq_sb));
 	if (IS_ERR(handle))
 		return PTR_ERR(handle);
 	ret = dquot_commit(dquot);
@@ -2288,7 +2450,7 @@ static int ext3_acquire_dquot(struct dquot *dquot)
 	handle_t *handle;
 
 	handle = ext3_journal_start(dquot_to_inode(dquot),
-					EXT3_QUOTA_INIT_BLOCKS);
+					EXT3_QUOTA_INIT_BLOCKS(dquot->dq_sb));
 	if (IS_ERR(handle))
 		return PTR_ERR(handle);
 	ret = dquot_acquire(dquot);
@@ -2304,7 +2466,7 @@ static int ext3_release_dquot(struct dquot *dquot)
 	handle_t *handle;
 
 	handle = ext3_journal_start(dquot_to_inode(dquot),
-					EXT3_QUOTA_INIT_BLOCKS);
+					EXT3_QUOTA_DEL_BLOCKS(dquot->dq_sb));
 	if (IS_ERR(handle))
 		return PTR_ERR(handle);
 	ret = dquot_release(dquot);
@@ -2348,22 +2510,8 @@ static int ext3_write_info(struct super_block *sb, int type)
  */
 static int ext3_quota_on_mount(struct super_block *sb, int type)
 {
-	int err;
-	struct dentry *dentry;
-	struct qstr name = { .name = EXT3_SB(sb)->s_qf_names[type],
-			     .hash = 0,
-			     .len = strlen(EXT3_SB(sb)->s_qf_names[type])};
-
-	dentry = lookup_hash(&name, sb->s_root);
-	if (IS_ERR(dentry))
-		return PTR_ERR(dentry);
-	err = vfs_quota_on_mount(type, EXT3_SB(sb)->s_jquota_fmt, dentry);
-	/* Now invalidate and put the dentry - quota got its own reference
-	 * to inode and dentry has at least wrong hash so we had better
-	 * throw it away */
-	d_invalidate(dentry);
-	dput(dentry);
-	return err;
+	return vfs_quota_on_mount(sb, EXT3_SB(sb)->s_qf_names[type],
+			EXT3_SB(sb)->s_jquota_fmt, type);
 }
 
 /*
@@ -2375,6 +2523,8 @@ static int ext3_quota_on(struct super_block *sb, int type, int format_id,
 	int err;
 	struct nameidata nd;
 
+	if (!test_opt(sb, QUOTA))
+		return -EINVAL;
 	/* Not journalling quota? */
 	if (!EXT3_SB(sb)->s_qf_names[USRQUOTA] &&
 	    !EXT3_SB(sb)->s_qf_names[GRPQUOTA])
@@ -2451,7 +2601,7 @@ static ssize_t ext3_quota_write(struct super_block *sb, int type,
 	struct buffer_head *bh;
 	handle_t *handle = journal_current_handle();
 
-	down(&inode->i_sem);
+	mutex_lock(&inode->i_mutex);
 	while (towrite > 0) {
 		tocopy = sb->s_blocksize - offset < towrite ?
 				sb->s_blocksize - offset : towrite;
@@ -2494,7 +2644,7 @@ out:
 	inode->i_version++;
 	inode->i_mtime = inode->i_ctime = CURRENT_TIME;
 	ext3_mark_inode_dirty(handle, inode);
-	up(&inode->i_sem);
+	mutex_unlock(&inode->i_mutex);
 	return len - towrite;
 }
 

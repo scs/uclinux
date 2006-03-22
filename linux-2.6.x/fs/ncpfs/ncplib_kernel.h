@@ -87,9 +87,6 @@ int ncp_open_create_file_or_subdir(struct ncp_server *, struct inode *, char *,
 
 int ncp_initialize_search(struct ncp_server *, struct inode *,
 		      struct nw_search_sequence *target);
-int ncp_search_for_file_or_subdir(struct ncp_server *server,
-			      struct nw_search_sequence *seq,
-			      struct nw_info_struct *target);
 int ncp_search_for_fileset(struct ncp_server *server,
 			   struct nw_search_sequence *seq,
 			   int* more, int* cnt,
@@ -199,7 +196,7 @@ ncp_renew_dentries(struct dentry *parent)
 	spin_lock(&dcache_lock);
 	next = parent->d_subdirs.next;
 	while (next != &parent->d_subdirs) {
-		dentry = list_entry(next, struct dentry, d_child);
+		dentry = list_entry(next, struct dentry, d_u.d_child);
 
 		if (dentry->d_fsdata == NULL)
 			ncp_age_dentry(server, dentry);
@@ -221,7 +218,7 @@ ncp_invalidate_dircache_entries(struct dentry *parent)
 	spin_lock(&dcache_lock);
 	next = parent->d_subdirs.next;
 	while (next != &parent->d_subdirs) {
-		dentry = list_entry(next, struct dentry, d_child);
+		dentry = list_entry(next, struct dentry, d_u.d_child);
 		dentry->d_fsdata = NULL;
 		ncp_age_dentry(server, dentry);
 		next = next->next;

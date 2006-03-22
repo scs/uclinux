@@ -5,8 +5,18 @@
  * This may be useful in other OS than Linux so use 2 space indentation...
  *
  * $Log$
- * Revision 1.5  2005/08/12 03:32:53  magicyang
- *   Update kernel 2.6.8 to 2.6.12
+ * Revision 1.6  2006/03/22 06:14:52  magicyang
+ * update kernel to 2.6.16
+ *
+ * Revision 1.9  2005/03/04 08:16:16  starvik
+ * Merge of Linux 2.6.11.
+ *
+ * Revision 1.8  2005/01/05 06:09:29  starvik
+ * cli()/sti() will be obsolete in 2.6.11.
+ *
+ * Revision 1.7  2005/01/03 13:35:46  starvik
+ * Removed obsolete stuff.
+ * Mark fast timer IRQ as not shared.
  *
  * Revision 1.6  2004/05/14 10:18:39  starvik
  * Export fast_timer_list
@@ -105,7 +115,6 @@
 #include <asm/rtc.h>
 
 #include <linux/config.h>
-#include <linux/version.h>
 
 #include <asm/arch/svinto.h>
 #include <asm/fasttimer.h>
@@ -151,8 +160,7 @@ static int debug_log_cnt_wrapped = 0;
 #define DEBUG_LOG(string, value) \
 { \
   unsigned long log_flags; \
-  save_flags(log_flags); \
-  cli(); \
+  local_irq_save(log_flags); \
   debug_log_string[debug_log_cnt] = (string); \
   debug_log_value[debug_log_cnt] = (unsigned long)(value); \
   if (++debug_log_cnt >= DEBUG_LOG_MAX) \
@@ -160,7 +168,7 @@ static int debug_log_cnt_wrapped = 0;
     debug_log_cnt = debug_log_cnt % DEBUG_LOG_MAX; \
     debug_log_cnt_wrapped = 1; \
   } \
-  restore_flags(log_flags); \
+  local_irq_restore(log_flags); \
 }
 #else
 #define DEBUG_LOG(string, value)
@@ -323,8 +331,7 @@ void start_one_shot_timer(struct fast_timer *t,
 
   D1(printk("sft %s %d us\n", name, delay_us));
 
-  save_flags(flags);
-  cli();
+  local_irq_save(flags);
 
   do_gettimeofday_fast(&t->tv_set);
   tmp = fast_timer_list;
@@ -398,7 +405,7 @@ void start_one_shot_timer(struct fast_timer *t,
 
   D2(printk("start_one_shot_timer: %d us done\n", delay_us));
 
-  restore_flags(flags);
+  local_irq_restore(flags);
 } /* start_one_shot_timer */
 
 static inline int fast_timer_pending (const struct fast_timer * t)
@@ -428,11 +435,10 @@ int del_fast_timer(struct fast_timer * t)
   unsigned long flags;
   int ret;
   
-  save_flags(flags);
-  cli();
+  local_irq_save(flags);
   ret = detach_fast_timer(t);
   t->next = t->prev = NULL;
-  restore_flags(flags);
+  local_irq_restore(flags);
   return ret;
 } /* del_fast_timer */
 
@@ -447,8 +453,7 @@ timer1_handler(int irq, void *dev_id, struct pt_regs *regs)
   struct fast_timer *t;
   unsigned long flags;
 
-  save_flags(flags);
-  cli();
+  local_irq_save(flags);
 
   /* Clear timer1 irq */
   *R_IRQ_MASK0_CLR = IO_STATE(R_IRQ_MASK0_CLR, timer1, clr);
@@ -465,7 +470,7 @@ timer1_handler(int irq, void *dev_id, struct pt_regs *regs)
   fast_timer_running = 0;
   fast_timer_ints++;
 
-  restore_flags(flags);
+  local_irq_restore(flags);
 
   t = fast_timer_list;
   while (t)
@@ -485,8 +490,7 @@ timer1_handler(int irq, void *dev_id, struct pt_regs *regs)
       fast_timers_expired++;
 
       /* Remove this timer before call, since it may reuse the timer */
-      save_flags(flags);
-      cli();
+      local_irq_save(flags);
       if (t->prev)
       {
         t->prev->next = t->next;
@@ -501,7 +505,7 @@ timer1_handler(int irq, void *dev_id, struct pt_regs *regs)
       }
       t->prev = NULL;
       t->next = NULL;
-      restore_flags(flags);
+      local_irq_restore(flags);
 
       if (t->function != NULL)
       {
@@ -518,8 +522,7 @@ timer1_handler(int irq, void *dev_id, struct pt_regs *regs)
       D1(printk(".\n"));
     }
 
-    save_flags(flags);
-    cli();
+    local_irq_save(flags);
     if ((t = fast_timer_list) != NULL)
     {
       /* Start next timer.. */
@@ -538,7 +541,7 @@ timer1_handler(int irq, void *dev_id, struct pt_regs *regs)
 #endif
           start_timer1(us);
         }
-        restore_flags(flags);
+        local_irq_restore(flags);
         break;
       }
       else
@@ -549,7 +552,7 @@ timer1_handler(int irq, void *dev_id, struct pt_regs *regs)
         D1(printk("e! %d\n", us));
       }
     }
-    restore_flags(flags);
+    local_irq_restore(flags);
   }
 
   if (!t)
@@ -751,13 +754,12 @@ static int proc_fasttimer_read(char *buf, char **start, off_t offset, int len
 #endif
 
     used += sprintf(bigbuf + used, "Active timers:\n");
-    save_flags(flags);
-    cli();
+    local_irq_save(flags);
     t = fast_timer_list;
     while (t != NULL && (used+100 < BIG_BUF_SIZE))
     {
       nextt = t->next;
-      restore_flags(flags);
+      local_irq_restore(flags);
       used += sprintf(bigbuf + used, "%-14s s: %6lu.%06lu e: %6lu.%06lu "
                       "d: %6li us data: 0x%08lX"
 /*                      " func: 0x%08lX" */
@@ -771,14 +773,14 @@ static int proc_fasttimer_read(char *buf, char **start, off_t offset, int len
                       t->data
 /*                      , t->function */
                       );
-      cli();
+      local_irq_disable();
       if (t->next != nextt)
       {
         printk(KERN_WARNING "timer removed!\n");
       }
       t = nextt;
     }
-    restore_flags(flags);
+    local_irq_restore(flags);
   }
 
   if (used - offset < len)
@@ -966,7 +968,7 @@ void fast_timer_init(void)
    if ((fasttimer_proc_entry = create_proc_entry( "fasttimer", 0, 0 )))
      fasttimer_proc_entry->read_proc = proc_fasttimer_read;
 #endif /* PROC_FS */
-    if(request_irq(TIMER1_IRQ_NBR, timer1_handler, SA_SHIRQ,
+    if(request_irq(TIMER1_IRQ_NBR, timer1_handler, 0,
                    "fast timer int", NULL))
     {
       printk("err: timer1 irq\n");
