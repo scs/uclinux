@@ -4,6 +4,8 @@ menu "Device Drivers"
 
 source "drivers/base/Kconfig"
 
+source "drivers/connector/Kconfig"
+
 source "drivers/mtd/Kconfig"
 
 source "drivers/parport/Kconfig"
@@ -28,7 +30,7 @@ source "drivers/message/i2o/Kconfig"
 
 source "drivers/macintosh/Kconfig"
 
-source "net/Kconfig"
+source "drivers/net/Kconfig"
 
 source "drivers/isdn/Kconfig"
 
@@ -42,9 +44,15 @@ source "drivers/char/Kconfig"
 
 source "drivers/i2c/Kconfig"
 
+source "drivers/spi/Kconfig"
+
 source "drivers/w1/Kconfig"
 
+source "drivers/hwmon/Kconfig"
+
 source "drivers/misc/Kconfig"
+
+source "drivers/mfd/Kconfig"
 
 source "drivers/media/Kconfig"
 
@@ -57,5 +65,9 @@ source "drivers/usb/Kconfig"
 source "drivers/mmc/Kconfig"
 
 source "drivers/infiniband/Kconfig"
+
+source "drivers/sn/Kconfig"
+
+source "drivers/edac/Kconfig"
 
 endmenu

@@ -43,7 +43,6 @@
 #include <asm/system.h>
 #include <asm/io.h>
 
-#include <pcmcia/version.h>
 #include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
@@ -90,14 +89,8 @@ typedef struct dtl1_info_t {
 
 static void dtl1_config(dev_link_t *link);
 static void dtl1_release(dev_link_t *link);
-static int dtl1_event(event_t event, int priority, event_callback_args_t *args);
 
-static dev_info_t dev_info = "dtl1_cs";
-
-static dev_link_t *dtl1_attach(void);
-static void dtl1_detach(dev_link_t *);
-
-static dev_link_t *dev_list = NULL;
+static void dtl1_detach(struct pcmcia_device *p_dev);
 
 
 /* Transmit states  */
@@ -252,7 +245,7 @@ static void dtl1_receive(dtl1_info_t *info)
 				info->rx_count = nsh->len + (nsh->len & 0x0001);
 				break;
 			case RECV_WAIT_DATA:
-				info->rx_skb->pkt_type = nsh->type;
+				bt_cb(info->rx_skb)->pkt_type = nsh->type;
 
 				/* remove PAD byte if it exists */
 				if (nsh->len & 0x0001) {
@@ -263,7 +256,7 @@ static void dtl1_receive(dtl1_info_t *info)
 				/* remove NSH */
 				skb_pull(info->rx_skb, NSHL);
 
-				switch (info->rx_skb->pkt_type) {
+				switch (bt_cb(info->rx_skb)->pkt_type) {
 				case 0x80:
 					/* control data for the Nokia Card */
 					dtl1_control(info, info->rx_skb);
@@ -273,12 +266,12 @@ static void dtl1_receive(dtl1_info_t *info)
 				case 0x84:
 					/* send frame to the HCI layer */
 					info->rx_skb->dev = (void *) info->hdev;
-					info->rx_skb->pkt_type &= 0x0f;
+					bt_cb(info->rx_skb)->pkt_type &= 0x0f;
 					hci_recv_frame(info->rx_skb);
 					break;
 				default:
 					/* unknown packet */
-					BT_ERR("Unknown HCI packet with type 0x%02x received", info->rx_skb->pkt_type);
+					BT_ERR("Unknown HCI packet with type 0x%02x received", bt_cb(info->rx_skb)->pkt_type);
 					kfree_skb(info->rx_skb);
 					break;
 				}
@@ -411,7 +404,7 @@ static int dtl1_hci_send_frame(struct sk_buff *skb)
 
 	info = (dtl1_info_t *)(hdev->driver_data);
 
-	switch (skb->pkt_type) {
+	switch (bt_cb(skb)->pkt_type) {
 	case HCI_COMMAND_PKT:
 		hdev->stat.cmd_tx++;
 		nsh.type = 0x81;
@@ -562,18 +555,15 @@ static int dtl1_close(dtl1_info_t *info)
 	return 0;
 }
 
-static dev_link_t *dtl1_attach(void)
+static int dtl1_attach(struct pcmcia_device *p_dev)
 {
 	dtl1_info_t *info;
-	client_reg_t client_reg;
 	dev_link_t *link;
-	int ret;
 
 	/* Create new info device */
-	info = kmalloc(sizeof(*info), GFP_KERNEL);
+	info = kzalloc(sizeof(*info), GFP_KERNEL);
 	if (!info)
-		return NULL;
-	memset(info, 0, sizeof(*info));
+		return -ENOMEM;
 
 	link = &info->link;
 	link->priv = info;
@@ -590,54 +580,23 @@ static dev_link_t *dtl1_attach(void)
 	link->conf.Vcc = 50;
 	link->conf.IntType = INT_MEMORY_AND_IO;
 
-	/* Register with Card Services */
-	link->next = dev_list;
-	dev_list = link;
-	client_reg.dev_info = &dev_info;
-	client_reg.EventMask =
-		CS_EVENT_CARD_INSERTION | CS_EVENT_CARD_REMOVAL |
-		CS_EVENT_RESET_PHYSICAL | CS_EVENT_CARD_RESET |
-		CS_EVENT_PM_SUSPEND | CS_EVENT_PM_RESUME;
-	client_reg.event_handler = &dtl1_event;
-	client_reg.Version = 0x0210;
-	client_reg.event_callback_args.client_data = link;
+	link->handle = p_dev;
+	p_dev->instance = link;
 
-	ret = pcmcia_register_client(&link->handle, &client_reg);
-	if (ret != CS_SUCCESS) {
-		cs_error(link->handle, RegisterClient, ret);
-		dtl1_detach(link);
-		return NULL;
-	}
+	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
+	dtl1_config(link);
 
-	return link;
+	return 0;
 }
 
 
-static void dtl1_detach(dev_link_t *link)
+static void dtl1_detach(struct pcmcia_device *p_dev)
 {
+	dev_link_t *link = dev_to_instance(p_dev);
 	dtl1_info_t *info = link->priv;
-	dev_link_t **linkp;
-	int ret;
-
-	/* Locate device structure */
-	for (linkp = &dev_list; *linkp; linkp = &(*linkp)->next)
-		if (*linkp == link)
-			break;
-
-	if (*linkp == NULL)
-		return;
 
 	if (link->state & DEV_CONFIG)
 		dtl1_release(link);
-
-	if (link->handle) {
-		ret = pcmcia_deregister_client(link->handle);
-		if (ret != CS_SUCCESS)
-			cs_error(link->handle, DeregisterClient, ret);
-	}
-
-	/* Unlink device structure, free bits */
-	*linkp = link->next;
 
 	kfree(info);
 }
@@ -770,50 +729,47 @@ static void dtl1_release(dev_link_t *link)
 	link->state &= ~DEV_CONFIG;
 }
 
-
-static int dtl1_event(event_t event, int priority, event_callback_args_t *args)
+static int dtl1_suspend(struct pcmcia_device *dev)
 {
-	dev_link_t *link = args->client_data;
-	dtl1_info_t *info = link->priv;
+	dev_link_t *link = dev_to_instance(dev);
 
-	switch (event) {
-	case CS_EVENT_CARD_REMOVAL:
-		link->state &= ~DEV_PRESENT;
-		if (link->state & DEV_CONFIG) {
-			dtl1_close(info);
-			dtl1_release(link);
-		}
-		break;
-	case CS_EVENT_CARD_INSERTION:
-		link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
-		dtl1_config(link);
-		break;
-	case CS_EVENT_PM_SUSPEND:
-		link->state |= DEV_SUSPEND;
-		/* Fall through... */
-	case CS_EVENT_RESET_PHYSICAL:
-		if (link->state & DEV_CONFIG)
-			pcmcia_release_configuration(link->handle);
-		break;
-	case CS_EVENT_PM_RESUME:
-		link->state &= ~DEV_SUSPEND;
-		/* Fall through... */
-	case CS_EVENT_CARD_RESET:
-		if (DEV_OK(link))
-			pcmcia_request_configuration(link->handle, &link->conf);
-		break;
-	}
+	link->state |= DEV_SUSPEND;
+	if (link->state & DEV_CONFIG)
+		pcmcia_release_configuration(link->handle);
 
 	return 0;
 }
+
+static int dtl1_resume(struct pcmcia_device *dev)
+{
+	dev_link_t *link = dev_to_instance(dev);
+
+	link->state &= ~DEV_SUSPEND;
+	if (DEV_OK(link))
+		pcmcia_request_configuration(link->handle, &link->conf);
+
+	return 0;
+}
+
+
+static struct pcmcia_device_id dtl1_ids[] = {
+	PCMCIA_DEVICE_PROD_ID12("Nokia Mobile Phones", "DTL-1", 0xe1bfdd64, 0xe168480d),
+	PCMCIA_DEVICE_PROD_ID12("Socket", "CF", 0xb38bcc2e, 0x44ebf863),
+	PCMCIA_DEVICE_PROD_ID12("Socket", "CF+ Personal Network Card", 0xb38bcc2e, 0xe732bae3),
+	PCMCIA_DEVICE_NULL
+};
+MODULE_DEVICE_TABLE(pcmcia, dtl1_ids);
 
 static struct pcmcia_driver dtl1_driver = {
 	.owner		= THIS_MODULE,
 	.drv		= {
 		.name	= "dtl1_cs",
 	},
-	.attach		= dtl1_attach,
-	.detach		= dtl1_detach,
+	.probe		= dtl1_attach,
+	.remove		= dtl1_detach,
+	.id_table	= dtl1_ids,
+	.suspend	= dtl1_suspend,
+	.resume		= dtl1_resume,
 };
 
 static int __init init_dtl1_cs(void)
@@ -825,7 +781,6 @@ static int __init init_dtl1_cs(void)
 static void __exit exit_dtl1_cs(void)
 {
 	pcmcia_unregister_driver(&dtl1_driver);
-	BUG_ON(dev_list != NULL);
 }
 
 module_init(init_dtl1_cs);

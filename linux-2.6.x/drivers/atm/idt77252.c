@@ -46,6 +46,7 @@ static char const rcsid[] =
 #include <linux/init.h>
 #include <linux/bitops.h>
 #include <linux/wait.h>
+#include <linux/jiffies.h>
 #include <asm/semaphore.h>
 #include <asm/io.h>
 #include <asm/uaccess.h>
@@ -780,7 +781,7 @@ push_on_scq(struct idt77252_dev *card, struct vc_map *vc, struct sk_buff *skb)
 	return 0;
 
 out:
-	if (jiffies - scq->trans_start > HZ) {
+	if (time_after(jiffies, scq->trans_start + HZ)) {
 		printk("%s: Error pushing TBD for %d.%d\n",
 		       card->name, vc->tx_vcc->vpi, vc->tx_vcc->vci);
 #ifdef CONFIG_ATM_IDT77252_DEBUG
@@ -1100,7 +1101,7 @@ dequeue_rx(struct idt77252_dev *card, struct rsq_entry *rsqe)
 			       cell, ATM_CELL_PAYLOAD);
 
 			ATM_SKB(sb)->vcc = vcc;
-			do_gettimeofday(&sb->stamp);
+			__net_timestamp(sb);
 			vcc->push(vcc, sb);
 			atomic_inc(&vcc->stats->rx);
 
@@ -1178,7 +1179,7 @@ dequeue_rx(struct idt77252_dev *card, struct rsq_entry *rsqe)
 
 			skb_trim(skb, len);
 			ATM_SKB(skb)->vcc = vcc;
-			do_gettimeofday(&skb->stamp);
+			__net_timestamp(skb);
 
 			vcc->push(vcc, skb);
 			atomic_inc(&vcc->stats->rx);
@@ -1200,7 +1201,7 @@ dequeue_rx(struct idt77252_dev *card, struct rsq_entry *rsqe)
 
 		skb_trim(skb, len);
 		ATM_SKB(skb)->vcc = vcc;
-		do_gettimeofday(&skb->stamp);
+		__net_timestamp(skb);
 
 		vcc->push(vcc, skb);
 		atomic_inc(&vcc->stats->rx);
@@ -1339,7 +1340,7 @@ idt77252_rx_raw(struct idt77252_dev *card)
 		       ATM_CELL_PAYLOAD);
 
 		ATM_SKB(sb)->vcc = vcc;
-		do_gettimeofday(&sb->stamp);
+		__net_timestamp(sb);
 		vcc->push(vcc, sb);
 		atomic_inc(&vcc->stats->rx);
 

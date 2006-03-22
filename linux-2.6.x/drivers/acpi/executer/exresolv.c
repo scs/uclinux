@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2005, R. Byron Moore
+ * Copyright (C) 2000 - 2006, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -42,7 +42,6 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-
 #include <acpi/acpi.h>
 #include <acpi/amlcode.h>
 #include <acpi/acdispat.h>
@@ -50,10 +49,13 @@
 #include <acpi/acnamesp.h>
 #include <acpi/acparser.h>
 
-
 #define _COMPONENT          ACPI_EXECUTER
-	 ACPI_MODULE_NAME    ("exresolv")
+ACPI_MODULE_NAME("exresolv")
 
+/* Local prototypes */
+static acpi_status
+acpi_ex_resolve_object_to_value(union acpi_operand_object **stack_ptr,
+				struct acpi_walk_state *walk_state);
 
 /*******************************************************************************
  *
@@ -71,19 +73,16 @@
  ******************************************************************************/
 
 acpi_status
-acpi_ex_resolve_to_value (
-	union acpi_operand_object       **stack_ptr,
-	struct acpi_walk_state          *walk_state)
+acpi_ex_resolve_to_value(union acpi_operand_object **stack_ptr,
+			 struct acpi_walk_state *walk_state)
 {
-	acpi_status                     status;
+	acpi_status status;
 
-
-	ACPI_FUNCTION_TRACE_PTR ("ex_resolve_to_value", stack_ptr);
-
+	ACPI_FUNCTION_TRACE_PTR("ex_resolve_to_value", stack_ptr);
 
 	if (!stack_ptr || !*stack_ptr) {
-		ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Internal - null pointer\n"));
-		return_ACPI_STATUS (AE_AML_NO_OPERAND);
+		ACPI_ERROR((AE_INFO, "Internal - null pointer"));
+		return_ACPI_STATUS(AE_AML_NO_OPERAND);
 	}
 
 	/*
@@ -91,10 +90,15 @@ acpi_ex_resolve_to_value (
 	 * 1) A valid union acpi_operand_object, or
 	 * 2) A struct acpi_namespace_node (named_obj)
 	 */
-	if (ACPI_GET_DESCRIPTOR_TYPE (*stack_ptr) == ACPI_DESC_TYPE_OPERAND) {
-		status = acpi_ex_resolve_object_to_value (stack_ptr, walk_state);
-		if (ACPI_FAILURE (status)) {
-			return_ACPI_STATUS (status);
+	if (ACPI_GET_DESCRIPTOR_TYPE(*stack_ptr) == ACPI_DESC_TYPE_OPERAND) {
+		status = acpi_ex_resolve_object_to_value(stack_ptr, walk_state);
+		if (ACPI_FAILURE(status)) {
+			return_ACPI_STATUS(status);
+		}
+
+		if (!*stack_ptr) {
+			ACPI_ERROR((AE_INFO, "Internal - null pointer"));
+			return_ACPI_STATUS(AE_AML_NO_OPERAND);
 		}
 	}
 
@@ -102,55 +106,51 @@ acpi_ex_resolve_to_value (
 	 * Object on the stack may have changed if acpi_ex_resolve_object_to_value()
 	 * was called (i.e., we can't use an _else_ here.)
 	 */
-	if (ACPI_GET_DESCRIPTOR_TYPE (*stack_ptr) == ACPI_DESC_TYPE_NAMED) {
-		status = acpi_ex_resolve_node_to_value (
-				  ACPI_CAST_INDIRECT_PTR (struct acpi_namespace_node, stack_ptr),
-				  walk_state);
-		if (ACPI_FAILURE (status)) {
-			return_ACPI_STATUS (status);
+	if (ACPI_GET_DESCRIPTOR_TYPE(*stack_ptr) == ACPI_DESC_TYPE_NAMED) {
+		status =
+		    acpi_ex_resolve_node_to_value(ACPI_CAST_INDIRECT_PTR
+						  (struct acpi_namespace_node,
+						   stack_ptr), walk_state);
+		if (ACPI_FAILURE(status)) {
+			return_ACPI_STATUS(status);
 		}
 	}
 
-	ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "Resolved object %p\n", *stack_ptr));
-	return_ACPI_STATUS (AE_OK);
+	ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "Resolved object %p\n", *stack_ptr));
+	return_ACPI_STATUS(AE_OK);
 }
-
 
 /*******************************************************************************
  *
  * FUNCTION:    acpi_ex_resolve_object_to_value
  *
- * PARAMETERS:  stack_ptr       - Pointer to a stack location that contains a
- *                                ptr to an internal object.
+ * PARAMETERS:  stack_ptr       - Pointer to an internal object
  *              walk_state      - Current method state
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Retrieve the value from an internal object.  The Reference type
+ * DESCRIPTION: Retrieve the value from an internal object. The Reference type
  *              uses the associated AML opcode to determine the value.
  *
  ******************************************************************************/
 
-acpi_status
-acpi_ex_resolve_object_to_value (
-	union acpi_operand_object       **stack_ptr,
-	struct acpi_walk_state          *walk_state)
+static acpi_status
+acpi_ex_resolve_object_to_value(union acpi_operand_object **stack_ptr,
+				struct acpi_walk_state *walk_state)
 {
-	acpi_status                     status = AE_OK;
-	union acpi_operand_object       *stack_desc;
-	void                            *temp_node;
-	union acpi_operand_object       *obj_desc;
-	u16                             opcode;
+	acpi_status status = AE_OK;
+	union acpi_operand_object *stack_desc;
+	void *temp_node;
+	union acpi_operand_object *obj_desc;
+	u16 opcode;
 
-
-	ACPI_FUNCTION_TRACE ("ex_resolve_object_to_value");
-
+	ACPI_FUNCTION_TRACE("ex_resolve_object_to_value");
 
 	stack_desc = *stack_ptr;
 
 	/* This is an union acpi_operand_object    */
 
-	switch (ACPI_GET_OBJECT_TYPE (stack_desc)) {
+	switch (ACPI_GET_OBJECT_TYPE(stack_desc)) {
 	case ACPI_TYPE_LOCAL_REFERENCE:
 
 		opcode = stack_desc->reference.opcode;
@@ -159,20 +159,19 @@ acpi_ex_resolve_object_to_value (
 		case AML_NAME_OP:
 
 			/*
-			 * Convert indirect name ptr to a direct name ptr.
+			 * Convert name reference to a namespace node
 			 * Then, acpi_ex_resolve_node_to_value can be used to get the value
 			 */
 			temp_node = stack_desc->reference.object;
 
 			/* Delete the Reference Object */
 
-			acpi_ut_remove_reference (stack_desc);
+			acpi_ut_remove_reference(stack_desc);
 
-			/* Put direct name pointer onto stack and exit */
+			/* Return the namespace node */
 
 			(*stack_ptr) = temp_node;
 			break;
-
 
 		case AML_LOCAL_OP:
 		case AML_ARG_OP:
@@ -181,23 +180,27 @@ acpi_ex_resolve_object_to_value (
 			 * Get the local from the method's state info
 			 * Note: this increments the local's object reference count
 			 */
-			status = acpi_ds_method_data_get_value (opcode,
-					  stack_desc->reference.offset, walk_state, &obj_desc);
-			if (ACPI_FAILURE (status)) {
-				return_ACPI_STATUS (status);
+			status = acpi_ds_method_data_get_value(opcode,
+							       stack_desc->
+							       reference.offset,
+							       walk_state,
+							       &obj_desc);
+			if (ACPI_FAILURE(status)) {
+				return_ACPI_STATUS(status);
 			}
 
-			ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "[Arg/Local %X] value_obj is %p\n",
-				stack_desc->reference.offset, obj_desc));
+			ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
+					  "[Arg/Local %X] value_obj is %p\n",
+					  stack_desc->reference.offset,
+					  obj_desc));
 
 			/*
 			 * Now we can delete the original Reference Object and
 			 * replace it with the resolved value
 			 */
-			acpi_ut_remove_reference (stack_desc);
+			acpi_ut_remove_reference(stack_desc);
 			*stack_ptr = obj_desc;
 			break;
-
 
 		case AML_INDEX_OP:
 
@@ -206,7 +209,6 @@ acpi_ex_resolve_object_to_value (
 
 				/* Just return - leave the Reference on the stack */
 				break;
-
 
 			case ACPI_TYPE_PACKAGE:
 
@@ -217,35 +219,33 @@ acpi_ex_resolve_object_to_value (
 					 * (i.e., dereference the package index)
 					 * Delete the ref object, increment the returned object
 					 */
-					acpi_ut_remove_reference (stack_desc);
-					acpi_ut_add_reference (obj_desc);
+					acpi_ut_remove_reference(stack_desc);
+					acpi_ut_add_reference(obj_desc);
 					*stack_ptr = obj_desc;
-				}
-				else {
+				} else {
 					/*
 					 * A NULL object descriptor means an unitialized element of
 					 * the package, can't dereference it
 					 */
-					ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
-						"Attempt to deref an Index to NULL pkg element Idx=%p\n",
-						stack_desc));
+					ACPI_ERROR((AE_INFO,
+						    "Attempt to deref an Index to NULL pkg element Idx=%p",
+						    stack_desc));
 					status = AE_AML_UNINITIALIZED_ELEMENT;
 				}
 				break;
-
 
 			default:
 
 				/* Invalid reference object */
 
-				ACPI_REPORT_ERROR ((
-					"During resolve, Unknown target_type %X in Index/Reference obj %p\n",
-					stack_desc->reference.target_type, stack_desc));
+				ACPI_ERROR((AE_INFO,
+					    "Unknown target_type %X in Index/Reference obj %p",
+					    stack_desc->reference.target_type,
+					    stack_desc));
 				status = AE_AML_INTERNAL;
 				break;
 			}
 			break;
-
 
 		case AML_REF_OF_OP:
 		case AML_DEBUG_OP:
@@ -255,51 +255,60 @@ acpi_ex_resolve_object_to_value (
 
 			break;
 
+		case AML_INT_NAMEPATH_OP:	/* Reference to a named object */
+
+			/* Get the object pointed to by the namespace node */
+
+			*stack_ptr = (stack_desc->reference.node)->object;
+			acpi_ut_add_reference(*stack_ptr);
+			acpi_ut_remove_reference(stack_desc);
+			break;
 
 		default:
 
-			ACPI_REPORT_ERROR (("During resolve, Unknown Reference opcode %X (%s) in %p\n",
-				opcode, acpi_ps_get_opcode_name (opcode), stack_desc));
+			ACPI_ERROR((AE_INFO,
+				    "Unknown Reference opcode %X (%s) in %p",
+				    opcode, acpi_ps_get_opcode_name(opcode),
+				    stack_desc));
 			status = AE_AML_INTERNAL;
 			break;
 		}
 		break;
 
-
 	case ACPI_TYPE_BUFFER:
 
-		status = acpi_ds_get_buffer_arguments (stack_desc);
+		status = acpi_ds_get_buffer_arguments(stack_desc);
 		break;
-
 
 	case ACPI_TYPE_PACKAGE:
 
-		status = acpi_ds_get_package_arguments (stack_desc);
+		status = acpi_ds_get_package_arguments(stack_desc);
 		break;
 
+		/* These cases may never happen here, but just in case.. */
 
-	/*
-	 * These cases may never happen here, but just in case..
-	 */
 	case ACPI_TYPE_BUFFER_FIELD:
 	case ACPI_TYPE_LOCAL_REGION_FIELD:
 	case ACPI_TYPE_LOCAL_BANK_FIELD:
 	case ACPI_TYPE_LOCAL_INDEX_FIELD:
 
-		ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "field_read source_desc=%p Type=%X\n",
-			stack_desc, ACPI_GET_OBJECT_TYPE (stack_desc)));
+		ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
+				  "field_read source_desc=%p Type=%X\n",
+				  stack_desc,
+				  ACPI_GET_OBJECT_TYPE(stack_desc)));
 
-		status = acpi_ex_read_data_from_field (walk_state, stack_desc, &obj_desc);
-		*stack_ptr = (void *) obj_desc;
+		status =
+		    acpi_ex_read_data_from_field(walk_state, stack_desc,
+						 &obj_desc);
+		*stack_ptr = (void *)obj_desc;
 		break;
 
 	default:
 		break;
 	}
 
-	return_ACPI_STATUS (status);
+	return_ACPI_STATUS(status);
 }
-
 
 /*******************************************************************************
  *
@@ -318,49 +327,48 @@ acpi_ex_resolve_object_to_value (
  ******************************************************************************/
 
 acpi_status
-acpi_ex_resolve_multiple (
-	struct acpi_walk_state          *walk_state,
-	union acpi_operand_object       *operand,
-	acpi_object_type                *return_type,
-	union acpi_operand_object       **return_desc)
+acpi_ex_resolve_multiple(struct acpi_walk_state *walk_state,
+			 union acpi_operand_object *operand,
+			 acpi_object_type * return_type,
+			 union acpi_operand_object **return_desc)
 {
-	union acpi_operand_object       *obj_desc = (void *) operand;
-	struct acpi_namespace_node      *node;
-	acpi_object_type                type;
-	acpi_status                     status;
+	union acpi_operand_object *obj_desc = (void *)operand;
+	struct acpi_namespace_node *node;
+	acpi_object_type type;
+	acpi_status status;
 
+	ACPI_FUNCTION_TRACE("acpi_ex_resolve_multiple");
 
-	ACPI_FUNCTION_TRACE ("acpi_ex_resolve_multiple");
+	/* Operand can be either a namespace node or an operand descriptor */
 
-
-	/*
-	 * Operand can be either a namespace node or an operand descriptor
-	 */
-	switch (ACPI_GET_DESCRIPTOR_TYPE (obj_desc)) {
+	switch (ACPI_GET_DESCRIPTOR_TYPE(obj_desc)) {
 	case ACPI_DESC_TYPE_OPERAND:
 		type = obj_desc->common.type;
 		break;
 
 	case ACPI_DESC_TYPE_NAMED:
-		type = ((struct acpi_namespace_node *) obj_desc)->type;
-		obj_desc = acpi_ns_get_attached_object ((struct acpi_namespace_node *) obj_desc);
+		type = ((struct acpi_namespace_node *)obj_desc)->type;
+		obj_desc =
+		    acpi_ns_get_attached_object((struct acpi_namespace_node *)
+						obj_desc);
 
 		/* If we had an Alias node, use the attached object for type info */
 
 		if (type == ACPI_TYPE_LOCAL_ALIAS) {
-			type = ((struct acpi_namespace_node *) obj_desc)->type;
-			obj_desc = acpi_ns_get_attached_object ((struct acpi_namespace_node *) obj_desc);
+			type = ((struct acpi_namespace_node *)obj_desc)->type;
+			obj_desc =
+			    acpi_ns_get_attached_object((struct
+							 acpi_namespace_node *)
+							obj_desc);
 		}
 		break;
 
 	default:
-		return_ACPI_STATUS (AE_AML_OPERAND_TYPE);
+		return_ACPI_STATUS(AE_AML_OPERAND_TYPE);
 	}
 
+	/* If type is anything other than a reference, we are done */
 
-	/*
-	 * If type is anything other than a reference, we are done
-	 */
 	if (type != ACPI_TYPE_LOCAL_REFERENCE) {
 		goto exit;
 	}
@@ -371,7 +379,7 @@ acpi_ex_resolve_multiple (
 	 * of the object_type and size_of operators). This means traversing
 	 * the list of possibly many nested references.
 	 */
-	while (ACPI_GET_OBJECT_TYPE (obj_desc) == ACPI_TYPE_LOCAL_REFERENCE) {
+	while (ACPI_GET_OBJECT_TYPE(obj_desc) == ACPI_TYPE_LOCAL_REFERENCE) {
 		switch (obj_desc->reference.opcode) {
 		case AML_REF_OF_OP:
 
@@ -381,29 +389,30 @@ acpi_ex_resolve_multiple (
 
 			/* All "References" point to a NS node */
 
-			if (ACPI_GET_DESCRIPTOR_TYPE (node) != ACPI_DESC_TYPE_NAMED) {
-				ACPI_REPORT_ERROR (("acpi_ex_resolve_multiple: Not a NS node %p [%s]\n",
-						node, acpi_ut_get_descriptor_name (node)));
-				return_ACPI_STATUS (AE_AML_INTERNAL);
+			if (ACPI_GET_DESCRIPTOR_TYPE(node) !=
+			    ACPI_DESC_TYPE_NAMED) {
+				ACPI_ERROR((AE_INFO, "Not a NS node %p [%s]",
+					    node,
+					    acpi_ut_get_descriptor_name(node)));
+				return_ACPI_STATUS(AE_AML_INTERNAL);
 			}
 
 			/* Get the attached object */
 
-			obj_desc = acpi_ns_get_attached_object (node);
+			obj_desc = acpi_ns_get_attached_object(node);
 			if (!obj_desc) {
 				/* No object, use the NS node type */
 
-				type = acpi_ns_get_type (node);
+				type = acpi_ns_get_type(node);
 				goto exit;
 			}
 
 			/* Check for circular references */
 
 			if (obj_desc == operand) {
-				return_ACPI_STATUS (AE_AML_CIRCULAR_REFERENCE);
+				return_ACPI_STATUS(AE_AML_CIRCULAR_REFERENCE);
 			}
 			break;
-
 
 		case AML_INDEX_OP:
 
@@ -425,11 +434,10 @@ acpi_ex_resolve_multiple (
 			if (!obj_desc) {
 				/* NULL package elements are allowed */
 
-				type = 0; /* Uninitialized */
+				type = 0;	/* Uninitialized */
 				goto exit;
 			}
 			break;
-
 
 		case AML_INT_NAMEPATH_OP:
 
@@ -439,56 +447,69 @@ acpi_ex_resolve_multiple (
 
 			/* All "References" point to a NS node */
 
-			if (ACPI_GET_DESCRIPTOR_TYPE (node) != ACPI_DESC_TYPE_NAMED) {
-				ACPI_REPORT_ERROR (("acpi_ex_resolve_multiple: Not a NS node %p [%s]\n",
-						node, acpi_ut_get_descriptor_name (node)));
-			   return_ACPI_STATUS (AE_AML_INTERNAL);
+			if (ACPI_GET_DESCRIPTOR_TYPE(node) !=
+			    ACPI_DESC_TYPE_NAMED) {
+				ACPI_ERROR((AE_INFO, "Not a NS node %p [%s]",
+					    node,
+					    acpi_ut_get_descriptor_name(node)));
+				return_ACPI_STATUS(AE_AML_INTERNAL);
 			}
 
 			/* Get the attached object */
 
-			obj_desc = acpi_ns_get_attached_object (node);
+			obj_desc = acpi_ns_get_attached_object(node);
 			if (!obj_desc) {
 				/* No object, use the NS node type */
 
-				type = acpi_ns_get_type (node);
+				type = acpi_ns_get_type(node);
 				goto exit;
 			}
 
 			/* Check for circular references */
 
 			if (obj_desc == operand) {
-				return_ACPI_STATUS (AE_AML_CIRCULAR_REFERENCE);
+				return_ACPI_STATUS(AE_AML_CIRCULAR_REFERENCE);
 			}
 			break;
-
 
 		case AML_LOCAL_OP:
 		case AML_ARG_OP:
 
 			if (return_desc) {
-				status = acpi_ds_method_data_get_value (obj_desc->reference.opcode,
-						  obj_desc->reference.offset, walk_state, &obj_desc);
-				if (ACPI_FAILURE (status)) {
-					return_ACPI_STATUS (status);
+				status =
+				    acpi_ds_method_data_get_value(obj_desc->
+								  reference.
+								  opcode,
+								  obj_desc->
+								  reference.
+								  offset,
+								  walk_state,
+								  &obj_desc);
+				if (ACPI_FAILURE(status)) {
+					return_ACPI_STATUS(status);
 				}
-				acpi_ut_remove_reference (obj_desc);
-			}
-			else {
-				status = acpi_ds_method_data_get_node (obj_desc->reference.opcode,
-						 obj_desc->reference.offset, walk_state, &node);
-				if (ACPI_FAILURE (status)) {
-					return_ACPI_STATUS (status);
+				acpi_ut_remove_reference(obj_desc);
+			} else {
+				status =
+				    acpi_ds_method_data_get_node(obj_desc->
+								 reference.
+								 opcode,
+								 obj_desc->
+								 reference.
+								 offset,
+								 walk_state,
+								 &node);
+				if (ACPI_FAILURE(status)) {
+					return_ACPI_STATUS(status);
 				}
 
-				obj_desc = acpi_ns_get_attached_object (node);
+				obj_desc = acpi_ns_get_attached_object(node);
 				if (!obj_desc) {
 					type = ACPI_TYPE_ANY;
 					goto exit;
 				}
 			}
 			break;
-
 
 		case AML_DEBUG_OP:
 
@@ -497,12 +518,12 @@ acpi_ex_resolve_multiple (
 			type = ACPI_TYPE_DEBUG_OBJECT;
 			goto exit;
 
-
 		default:
 
-			ACPI_REPORT_ERROR (("acpi_ex_resolve_multiple: Unknown Reference subtype %X\n",
-				obj_desc->reference.opcode));
-			return_ACPI_STATUS (AE_AML_INTERNAL);
+			ACPI_ERROR((AE_INFO,
+				    "Unknown Reference subtype %X",
+				    obj_desc->reference.opcode));
+			return_ACPI_STATUS(AE_AML_INTERNAL);
 		}
 	}
 
@@ -510,10 +531,9 @@ acpi_ex_resolve_multiple (
 	 * Now we are guaranteed to have an object that has not been created
 	 * via the ref_of or Index operators.
 	 */
-	type = ACPI_GET_OBJECT_TYPE (obj_desc);
+	type = ACPI_GET_OBJECT_TYPE(obj_desc);
 
-
-exit:
+      exit:
 	/* Convert internal types to external types */
 
 	switch (type) {
@@ -540,7 +560,5 @@ exit:
 	if (return_desc) {
 		*return_desc = obj_desc;
 	}
-	return_ACPI_STATUS (AE_OK);
+	return_ACPI_STATUS(AE_OK);
 }
-
-

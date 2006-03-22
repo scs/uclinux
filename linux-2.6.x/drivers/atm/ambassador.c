@@ -513,7 +513,7 @@ static void rx_complete (amb_dev * dev, rx_out * rx) {
 	  
 	  // VC layer stats
 	  atomic_inc(&atm_vcc->stats->rx);
-	  do_gettimeofday(&skb->stamp);
+	  __net_timestamp(skb);
 	  // end of our responsability
 	  atm_vcc->push (atm_vcc, skb);
 	  return;
@@ -794,7 +794,9 @@ static void drain_rx_pools (amb_dev * dev) {
     drain_rx_pool (dev, pool);
 }
 
-static inline void fill_rx_pool (amb_dev * dev, unsigned char pool, int priority) {
+static inline void fill_rx_pool (amb_dev * dev, unsigned char pool,
+                                 gfp_t priority)
+{
   rx_in rx;
   amb_rxq * rxq;
   

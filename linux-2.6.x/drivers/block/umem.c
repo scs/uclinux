@@ -34,6 +34,7 @@
  *			 - set initialised bit then.
  */
 
+//#define DEBUG /* uncomment if you want debugging info (pr_debug) */
 #include <linux/config.h>
 #include <linux/sched.h>
 #include <linux/fs.h>
@@ -57,10 +58,6 @@
 
 #include <asm/uaccess.h>
 #include <asm/io.h>
-
-#define PRINTK(x...) do {} while (0)
-#define dprintk(x...) do {} while (0)
-/*#define dprintk(x...) printk(x) */
 
 #define MM_MAXCARDS 4
 #define MM_RAHEAD 2      /* two sectors */
@@ -299,7 +296,7 @@ static void mm_start_io(struct cardinfo *card)
 
 	/* make the last descriptor end the chain */
 	page = &card->mm_pages[card->Active];
-	PRINTK("start_io: %d %d->%d\n", card->Active, page->headcnt, page->cnt-1);
+	pr_debug("start_io: %d %d->%d\n", card->Active, page->headcnt, page->cnt-1);
 	desc = &page->desc[page->cnt-1];
 
 	desc->control_bits |= cpu_to_le32(DMASCR_CHAIN_COMP_EN);
@@ -532,7 +529,7 @@ static void process_page(unsigned long data)
 		activate(card);
 	} else {
 		/* haven't finished with this one yet */
-		PRINTK("do some more\n");
+		pr_debug("do some more\n");
 		mm_start_io(card);
 	}
  out_unlock:
@@ -555,7 +552,7 @@ static void process_page(unsigned long data)
 static int mm_make_request(request_queue_t *q, struct bio *bio)
 {
 	struct cardinfo *card = q->queuedata;
-	PRINTK("mm_make_request %ld %d\n", bh->b_rsector, bh->b_size);
+	pr_debug("mm_make_request %ld %d\n", bh->b_rsector, bh->b_size);
 
 	bio->bi_phys_segments = bio->bi_idx; /* count of completed segments*/
 	spin_lock_irq(&card->lock);
@@ -812,34 +809,23 @@ static int mm_revalidate(struct gendisk *disk)
 	set_capacity(disk, card->mm_size << 1);
 	return 0;
 }
-/*
------------------------------------------------------------------------------------
---                            mm_ioctl
------------------------------------------------------------------------------------
-*/
-static int mm_ioctl(struct inode *i, struct file *f, unsigned int cmd, unsigned long arg)
+
+static int mm_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 {
-	if (cmd == HDIO_GETGEO) {
-		struct cardinfo *card = i->i_bdev->bd_disk->private_data;
-		int size = card->mm_size * (1024 / MM_HARDSECT);
-		struct hd_geometry geo;
-		/*
-		 * get geometry: we have to fake one...  trim the size to a
-		 * multiple of 2048 (1M): tell we have 32 sectors, 64 heads,
-		 * whatever cylinders.
-		 */
-		geo.heads     = 64;
-		geo.sectors   = 32;
-		geo.start     = get_start_sect(i->i_bdev);
-		geo.cylinders = size / (geo.heads * geo.sectors);
+	struct cardinfo *card = bdev->bd_disk->private_data;
+	int size = card->mm_size * (1024 / MM_HARDSECT);
 
-		if (copy_to_user((void __user *) arg, &geo, sizeof(geo)))
-			return -EFAULT;
-		return 0;
-	}
-
-	return -EINVAL;
+	/*
+	 * get geometry: we have to fake one...  trim the size to a
+	 * multiple of 2048 (1M): tell we have 32 sectors, 64 heads,
+	 * whatever cylinders.
+	 */
+	geo->heads     = 64;
+	geo->sectors   = 32;
+	geo->cylinders = size / (geo->heads * geo->sectors);
+	return 0;
 }
+
 /*
 -----------------------------------------------------------------------------------
 --                                mm_check_change
@@ -858,7 +844,7 @@ static int mm_check_change(struct gendisk *disk)
 */
 static struct block_device_operations mm_fops = {
 	.owner		= THIS_MODULE,
-	.ioctl		= mm_ioctl,
+	.getgeo		= mm_getgeo,
 	.revalidate_disk= mm_revalidate,
 	.media_changed	= mm_check_change,
 };
@@ -896,7 +882,7 @@ static int __devinit mm_pci_probe(struct pci_dev *dev, const struct pci_device_i
 	       card->card_number, dev->bus->number, dev->devfn);
 
 	if (pci_set_dma_mask(dev, 0xffffffffffffffffLL) &&
-	    !pci_set_dma_mask(dev, 0xffffffffLL)) {
+	    pci_set_dma_mask(dev, 0xffffffffLL)) {
 		printk(KERN_WARNING "MM%d: NO suitable DMA found\n",num_cards);
 		return  -ENOMEM;
 	}
@@ -1188,7 +1174,7 @@ static int __init mm_init(void)
 
 	printk(KERN_INFO DRIVER_VERSION " : " DRIVER_DESC "\n");
 
-	retval = pci_module_init(&mm_pci_driver);
+	retval = pci_register_driver(&mm_pci_driver);
 	if (retval)
 		return -ENOMEM;
 

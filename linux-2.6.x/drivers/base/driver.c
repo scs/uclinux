@@ -18,6 +18,79 @@
 #define to_dev(node) container_of(node, struct device, driver_list)
 #define to_drv(obj) container_of(obj, struct device_driver, kobj)
 
+
+static struct device * next_device(struct klist_iter * i)
+{
+	struct klist_node * n = klist_next(i);
+	return n ? container_of(n, struct device, knode_driver) : NULL;
+}
+
+/**
+ *	driver_for_each_device - Iterator for devices bound to a driver.
+ *	@drv:	Driver we're iterating.
+ *	@start: Device to begin with
+ *	@data:	Data to pass to the callback.
+ *	@fn:	Function to call for each device.
+ *
+ *	Iterate over the @drv's list of devices calling @fn for each one.
+ */
+
+int driver_for_each_device(struct device_driver * drv, struct device * start, 
+			   void * data, int (*fn)(struct device *, void *))
+{
+	struct klist_iter i;
+	struct device * dev;
+	int error = 0;
+
+	if (!drv)
+		return -EINVAL;
+
+	klist_iter_init_node(&drv->klist_devices, &i,
+			     start ? &start->knode_driver : NULL);
+	while ((dev = next_device(&i)) && !error)
+		error = fn(dev, data);
+	klist_iter_exit(&i);
+	return error;
+}
+
+EXPORT_SYMBOL_GPL(driver_for_each_device);
+
+
+/**
+ * driver_find_device - device iterator for locating a particular device.
+ * @drv: The device's driver
+ * @start: Device to begin with
+ * @data: Data to pass to match function
+ * @match: Callback function to check device
+ *
+ * This is similar to the driver_for_each_device() function above, but
+ * it returns a reference to a device that is 'found' for later use, as
+ * determined by the @match callback.
+ *
+ * The callback should return 0 if the device doesn't match and non-zero
+ * if it does.  If the callback returns non-zero, this function will
+ * return to the caller and not iterate over any more devices.
+ */
+struct device * driver_find_device(struct device_driver *drv,
+				   struct device * start, void * data,
+				   int (*match)(struct device *, void *))
+{
+	struct klist_iter i;
+	struct device *dev;
+
+	if (!drv)
+		return NULL;
+
+	klist_iter_init_node(&drv->klist_devices, &i,
+			     (start ? &start->knode_driver : NULL));
+	while ((dev = next_device(&i)))
+		if (match(dev, data) && get_device(dev))
+			break;
+	klist_iter_exit(&i);
+	return dev;
+}
+EXPORT_SYMBOL_GPL(driver_find_device);
+
 /**
  *	driver_create_file - create sysfs file for driver.
  *	@drv:	driver.
@@ -70,6 +143,19 @@ void put_driver(struct device_driver * drv)
 	kobject_put(&drv->kobj);
 }
 
+static void klist_devices_get(struct klist_node *n)
+{
+	struct device *dev = container_of(n, struct device, knode_driver);
+
+	get_device(dev);
+}
+
+static void klist_devices_put(struct klist_node *n)
+{
+	struct device *dev = container_of(n, struct device, knode_driver);
+
+	put_device(dev);
+}
 
 /**
  *	driver_register - register driver with bus
@@ -85,7 +171,12 @@ void put_driver(struct device_driver * drv)
  */
 int driver_register(struct device_driver * drv)
 {
-	INIT_LIST_HEAD(&drv->devices);
+	if ((drv->bus->probe && drv->probe) ||
+	    (drv->bus->remove && drv->remove) ||
+	    (drv->bus->shutdown && drv->shutdown)) {
+		printk(KERN_WARNING "Driver '%s' needs updating - please use bus_type methods\n", drv->name);
+	}
+	klist_init(&drv->klist_devices, klist_devices_get, klist_devices_put);
 	init_completion(&drv->unloaded);
 	return bus_add_driver(drv);
 }

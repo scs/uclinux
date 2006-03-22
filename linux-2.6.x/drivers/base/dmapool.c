@@ -41,7 +41,7 @@ struct dma_page {	/* cacheable header for 'allocation' bytes */
 static DECLARE_MUTEX (pools_lock);
 
 static ssize_t
-show_pools (struct device *dev, char *buf)
+show_pools (struct device *dev, struct device_attribute *attr, char *buf)
 {
 	unsigned temp;
 	unsigned size;
@@ -69,8 +69,8 @@ show_pools (struct device *dev, char *buf)
 		/* per-pool info, no real statistics yet */
 		temp = scnprintf(next, size, "%-16s %4u %4Zu %4Zu %2u\n",
 				pool->name,
-				blocks, (unsigned long) (pages * pool->blocks_per_page),
-				(unsigned long)pool->size, pages);
+				blocks, pages * pool->blocks_per_page,
+				pool->size, pages);
 		size -= temp;
 		next += temp;
 	}
@@ -156,7 +156,7 @@ dma_pool_create (const char *name, struct device *dev,
 
 
 static struct dma_page *
-pool_alloc_page (struct dma_pool *pool, unsigned int __nocast mem_flags)
+pool_alloc_page (struct dma_pool *pool, gfp_t mem_flags)
 {
 	struct dma_page	*page;
 	int		mapsize;
@@ -262,7 +262,7 @@ dma_pool_destroy (struct dma_pool *pool)
  * If such a memory block can't be allocated, null is returned.
  */
 void *
-dma_pool_alloc (struct dma_pool *pool, int mem_flags, dma_addr_t *handle)
+dma_pool_alloc (struct dma_pool *pool, gfp_t mem_flags, dma_addr_t *handle)
 {
 	unsigned long		flags;
 	struct dma_page		*page;

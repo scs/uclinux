@@ -39,12 +39,24 @@ static ssize_t node_read_meminfo(struct sys_device * dev, char * buf)
 	int n;
 	int nid = dev->id;
 	struct sysinfo i;
+	struct page_state ps;
 	unsigned long inactive;
 	unsigned long active;
 	unsigned long free;
 
 	si_meminfo_node(&i, nid);
+	get_page_state_node(&ps, nid);
 	__get_zone_counts(&active, &inactive, &free, NODE_DATA(nid));
+
+	/* Check for negative values in these approximate counters */
+	if ((long)ps.nr_dirty < 0)
+		ps.nr_dirty = 0;
+	if ((long)ps.nr_writeback < 0)
+		ps.nr_writeback = 0;
+	if ((long)ps.nr_mapped < 0)
+		ps.nr_mapped = 0;
+	if ((long)ps.nr_slab < 0)
+		ps.nr_slab = 0;
 
 	n = sprintf(buf, "\n"
 		       "Node %d MemTotal:     %8lu kB\n"
@@ -55,7 +67,11 @@ static ssize_t node_read_meminfo(struct sys_device * dev, char * buf)
 		       "Node %d HighTotal:    %8lu kB\n"
 		       "Node %d HighFree:     %8lu kB\n"
 		       "Node %d LowTotal:     %8lu kB\n"
-		       "Node %d LowFree:      %8lu kB\n",
+		       "Node %d LowFree:      %8lu kB\n"
+		       "Node %d Dirty:        %8lu kB\n"
+		       "Node %d Writeback:    %8lu kB\n"
+		       "Node %d Mapped:       %8lu kB\n"
+		       "Node %d Slab:         %8lu kB\n",
 		       nid, K(i.totalram),
 		       nid, K(i.freeram),
 		       nid, K(i.totalram - i.freeram),
@@ -64,7 +80,11 @@ static ssize_t node_read_meminfo(struct sys_device * dev, char * buf)
 		       nid, K(i.totalhigh),
 		       nid, K(i.freehigh),
 		       nid, K(i.totalram - i.totalhigh),
-		       nid, K(i.freeram - i.freehigh));
+		       nid, K(i.freeram - i.freehigh),
+		       nid, K(ps.nr_dirty),
+		       nid, K(ps.nr_writeback),
+		       nid, K(ps.nr_mapped),
+		       nid, K(ps.nr_slab));
 	n += hugetlb_report_node_meminfo(nid, buf + n);
 	return n;
 }
@@ -87,7 +107,7 @@ static ssize_t node_read_numastat(struct sys_device * dev, char * buf)
 	for (i = 0; i < MAX_NR_ZONES; i++) {
 		struct zone *z = &pg->node_zones[i];
 		for (cpu = 0; cpu < NR_CPUS; cpu++) {
-			struct per_cpu_pageset *ps = &z->pageset[cpu];
+			struct per_cpu_pageset *ps = zone_pcp(z,cpu);
 			numa_hit += ps->numa_hit;
 			numa_miss += ps->numa_miss;
 			numa_foreign += ps->numa_foreign;
@@ -136,7 +156,7 @@ static SYSDEV_ATTR(distance, S_IRUGO, node_read_distance, NULL);
  *
  * Initialize and register the node device.
  */
-int __init register_node(struct node *node, int num, struct node *parent)
+int register_node(struct node *node, int num, struct node *parent)
 {
 	int error;
 
@@ -153,8 +173,24 @@ int __init register_node(struct node *node, int num, struct node *parent)
 	return error;
 }
 
+/**
+ * unregister_node - unregister a node device
+ * @node: node going away
+ *
+ * Unregisters a node device @node.  All the devices on the node must be
+ * unregistered before calling this function.
+ */
+void unregister_node(struct node *node)
+{
+	sysdev_remove_file(&node->sysdev, &attr_cpumap);
+	sysdev_remove_file(&node->sysdev, &attr_meminfo);
+	sysdev_remove_file(&node->sysdev, &attr_numastat);
+	sysdev_remove_file(&node->sysdev, &attr_distance);
 
-int __init register_node_type(void)
+	sysdev_unregister(&node->sysdev);
+}
+
+static int __init register_node_type(void)
 {
 	return sysdev_class_register(&node_class);
 }

@@ -454,14 +454,13 @@ handle_signal(unsigned long sig, siginfo_t *info, sigset_t *oldset,
 		if (ka->sa.sa_flags & SA_ONESHOT)
 			ka->sa.sa_handler = SIG_DFL;
 
-		if (!(ka->sa.sa_flags & SA_NODEFER)) {
-			spin_lock_irq(&tsk->sighand->siglock);
-			sigorsets(&tsk->blocked, &tsk->blocked,
-				  &ka->sa.sa_mask);
+		spin_lock_irq(&tsk->sighand->siglock);
+		sigorsets(&tsk->blocked, &tsk->blocked,
+			  &ka->sa.sa_mask);
+		if (!(ka->sa.sa_flags & SA_NODEFER))
 			sigaddset(&tsk->blocked, sig);
-			recalc_sigpending();
-			spin_unlock_irq(&tsk->sighand->siglock);
-		}
+		recalc_sigpending();
+		spin_unlock_irq(&tsk->sighand->siglock);
 		return;
 	}
 
@@ -481,6 +480,7 @@ static int do_signal(sigset_t *oldset, struct pt_regs *regs, int syscall)
 {
 	siginfo_t info;
 	int signr;
+	struct k_sigaction ka;
 
 	/*
 	 * We want the common case to go fast, which
@@ -494,7 +494,7 @@ static int do_signal(sigset_t *oldset, struct pt_regs *regs, int syscall)
         if (current->ptrace & PT_SINGLESTEP)
                 ptrace_cancel_bpt(current);
 	
-        signr = get_signal_to_deliver(&info, regs, NULL);
+        signr = get_signal_to_deliver(&info, &ka, regs, NULL);
         if (signr > 0) {
                 handle_signal(signr, &info, oldset, regs, syscall);
                 if (current->ptrace & PT_SINGLESTEP)

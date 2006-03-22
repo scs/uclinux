@@ -16,9 +16,9 @@
 #include <linux/skbuff.h>
 #include <linux/netdevice.h>
 #include <linux/delay.h>
-#include <linux/ioport.h> /* for request_region */
 #include <linux/uio.h>
 #include <linux/init.h>
+#include <linux/dma-mapping.h>
 #include <linux/atm_zatm.h>
 #include <linux/capability.h>
 #include <linux/bitops.h>
@@ -400,7 +400,7 @@ unsigned long *x;
 EVENT("error code 0x%x/0x%x\n",(here[3] & uPD98401_AAL5_ES) >>
   uPD98401_AAL5_ES_SHIFT,error);
 		skb = ((struct rx_buffer_head *) bus_to_virt(here[2]))->skb;
-		do_gettimeofday(&skb->stamp);
+		__net_timestamp(skb);
 #if 0
 printk("[-3..0] 0x%08lx 0x%08lx 0x%08lx 0x%08lx\n",((unsigned *) skb->data)[-3],
   ((unsigned *) skb->data)[-2],((unsigned *) skb->data)[-1],
@@ -417,10 +417,12 @@ printk("dummy: 0x%08lx, 0x%08lx\n",dummy[0],dummy[1]);
 		chan = (here[3] & uPD98401_AAL5_CHAN) >>
 		    uPD98401_AAL5_CHAN_SHIFT;
 		if (chan < zatm_dev->chans && zatm_dev->rx_map[chan]) {
+			int pos;
 			vcc = zatm_dev->rx_map[chan];
-			if (skb == zatm_dev->last_free[ZATM_VCC(vcc)->pool])
-				zatm_dev->last_free[ZATM_VCC(vcc)->pool] = NULL;
-			skb_unlink(skb);
+			pos = ZATM_VCC(vcc)->pool;
+			if (skb == zatm_dev->last_free[pos])
+				zatm_dev->last_free[pos] = NULL;
+			skb_unlink(skb, zatm_dev->pool + pos);
 		}
 		else {
 			printk(KERN_ERR DEV_LABEL "(itf %d): RX indication "
@@ -667,11 +669,13 @@ printk("NONONONOO!!!!\n");
 		u32 *put;
 		int i;
 
-		dsc = (u32 *) kmalloc(uPD98401_TXPD_SIZE*2+
-		    uPD98401_TXBD_SIZE*ATM_SKB(skb)->iovcnt,GFP_ATOMIC);
+		dsc = kmalloc(uPD98401_TXPD_SIZE * 2 +
+			uPD98401_TXBD_SIZE * ATM_SKB(skb)->iovcnt, GFP_ATOMIC);
 		if (!dsc) {
-			if (vcc->pop) vcc->pop(vcc,skb);
-			else dev_kfree_skb_irq(skb);
+			if (vcc->pop)
+				vcc->pop(vcc, skb);
+			else
+				dev_kfree_skb_irq(skb);
 			return -EAGAIN;
 		}
 		/* @@@ should check alignment */
@@ -681,7 +685,7 @@ printk("NONONONOO!!!!\n");
 		    (ATM_SKB(skb)->atm_options & ATM_ATMOPT_CLP ?
 		    uPD98401_CLPM_1 : uPD98401_CLPM_0));
 		dsc[1] = 0;
-		dsc[2] = ATM_SKB(skb)->iovcnt*uPD98401_TXBD_SIZE;
+		dsc[2] = ATM_SKB(skb)->iovcnt * uPD98401_TXBD_SIZE;
 		dsc[3] = virt_to_bus(put);
 		for (i = 0; i < ATM_SKB(skb)->iovcnt; i++) {
 			*put++ = ((struct iovec *) skb->data)[i].iov_len;
@@ -1257,22 +1261,22 @@ static int __init zatm_init(struct atm_dev *dev)
 
 static int __init zatm_start(struct atm_dev *dev)
 {
-	struct zatm_dev *zatm_dev;
+	struct zatm_dev *zatm_dev = ZATM_DEV(dev);
+	struct pci_dev *pdev = zatm_dev->pci_dev;
 	unsigned long curr;
 	int pools,vccs,rx;
-	int error,i,ld;
+	int error, i, ld;
 
 	DPRINTK("zatm_start\n");
-	zatm_dev = ZATM_DEV(dev);
 	zatm_dev->rx_map = zatm_dev->tx_map = NULL;
-	for (i = 0; i < NR_MBX; i++)
-		zatm_dev->mbx_start[i] = 0;
-	if (request_irq(zatm_dev->irq,&zatm_int,SA_SHIRQ,DEV_LABEL,dev)) {
-		printk(KERN_ERR DEV_LABEL "(itf %d): IRQ%d is already in use\n",
-		    dev->number,zatm_dev->irq);
-		return -EAGAIN;
+ 	for (i = 0; i < NR_MBX; i++)
+ 		zatm_dev->mbx_start[i] = 0;
+ 	error = request_irq(zatm_dev->irq, zatm_int, SA_SHIRQ, DEV_LABEL, dev);
+	if (error < 0) {
+ 		printk(KERN_ERR DEV_LABEL "(itf %d): IRQ%d is already in use\n",
+ 		    dev->number,zatm_dev->irq);
+		goto done;
 	}
-	request_region(zatm_dev->base,uPD98401_PORTS,DEV_LABEL);
 	/* define memory regions */
 	pools = NR_POOLS;
 	if (NR_SHAPERS*SHAPER_SIZE > pools*POOL_SIZE)
@@ -1299,51 +1303,66 @@ static int __init zatm_start(struct atm_dev *dev)
 	    "%ld VCs\n",dev->number,NR_SHAPERS,pools,rx,
 	    (zatm_dev->mem-curr*4)/VC_SIZE);
 	/* create mailboxes */
-	for (i = 0; i < NR_MBX; i++)
-		if (mbx_entries[i]) {
-			unsigned long here;
+	for (i = 0; i < NR_MBX; i++) {
+		void *mbx;
+		dma_addr_t mbx_dma;
 
-			here = (unsigned long) kmalloc(2*MBX_SIZE(i),
-			    GFP_KERNEL);
-			if (!here) {
-				error = -ENOMEM;
-				goto out;
-			}
-			if ((here^(here+MBX_SIZE(i))) & ~0xffffUL)/* paranoia */
-				here = (here & ~0xffffUL)+0x10000;
-			zatm_dev->mbx_start[i] = here;
-			if ((here^virt_to_bus((void *) here)) & 0xffff) {
-				printk(KERN_ERR DEV_LABEL "(itf %d): system "
-				    "bus incompatible with driver\n",
-				    dev->number);
-				error = -ENODEV;
-				goto out;
-			}
-			DPRINTK("mbx@0x%08lx-0x%08lx\n",here,here+MBX_SIZE(i));
-			zatm_dev->mbx_end[i] = (here+MBX_SIZE(i)) & 0xffff;
-			zout(virt_to_bus((void *) here) >> 16,MSH(i));
-			zout(virt_to_bus((void *) here),MSL(i));
-			zout((here+MBX_SIZE(i)) & 0xffff,MBA(i));
-			zout(here & 0xffff,MTA(i));
-			zout(here & 0xffff,MWA(i));
+		if (!mbx_entries[i])
+			continue;
+		mbx = pci_alloc_consistent(pdev, 2*MBX_SIZE(i), &mbx_dma);
+		if (!mbx) {
+			error = -ENOMEM;
+			goto out;
 		}
+		/*
+		 * Alignment provided by pci_alloc_consistent() isn't enough
+		 * for this device.
+		 */
+		if (((unsigned long)mbx ^ mbx_dma) & 0xffff) {
+			printk(KERN_ERR DEV_LABEL "(itf %d): system "
+			       "bus incompatible with driver\n", dev->number);
+			pci_free_consistent(pdev, 2*MBX_SIZE(i), mbx, mbx_dma);
+			error = -ENODEV;
+			goto out;
+		}
+		DPRINTK("mbx@0x%08lx-0x%08lx\n", mbx, mbx + MBX_SIZE(i));
+		zatm_dev->mbx_start[i] = (unsigned long)mbx;
+		zatm_dev->mbx_dma[i] = mbx_dma;
+		zatm_dev->mbx_end[i] = (zatm_dev->mbx_start[i] + MBX_SIZE(i)) &
+					0xffff;
+		zout(mbx_dma >> 16, MSH(i));
+		zout(mbx_dma, MSL(i));
+		zout(zatm_dev->mbx_end[i], MBA(i));
+		zout((unsigned long)mbx & 0xffff, MTA(i));
+		zout((unsigned long)mbx & 0xffff, MWA(i));
+	}
 	error = start_tx(dev);
-	if (error) goto out;
+	if (error)
+		goto out;
 	error = start_rx(dev);
-	if (error) goto out;
+	if (error)
+		goto out_tx;
 	error = dev->phy->start(dev);
-	if (error) goto out;
+	if (error)
+		goto out_rx;
 	zout(0xffffffff,IMR); /* enable interrupts */
 	/* enable TX & RX */
 	zout(zin(GMR) | uPD98401_GMR_SE | uPD98401_GMR_RE,GMR);
-	return 0;
-    out:
-	for (i = 0; i < NR_MBX; i++)
-		kfree(zatm_dev->mbx_start[i]);
-	kfree(zatm_dev->rx_map);
-	kfree(zatm_dev->tx_map);
-	free_irq(zatm_dev->irq, dev);
+done:
 	return error;
+
+out_rx:
+	kfree(zatm_dev->rx_map);
+out_tx:
+	kfree(zatm_dev->tx_map);
+out:
+	while (i-- > 0) {
+		pci_free_consistent(pdev, 2*MBX_SIZE(i), 
+				    (void *)zatm_dev->mbx_start[i],
+				    zatm_dev->mbx_dma[i]);
+	}
+	free_irq(zatm_dev->irq, dev);
+	goto done;
 }
 
 

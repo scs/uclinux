@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2005, R. Byron Moore
+ * Copyright (C) 2000 - 2006, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -41,15 +41,12 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-
 #include <acpi/acpi.h>
 #include <acpi/acparser.h>
 #include <acpi/amlcode.h>
-#include <acpi/acnamesp.h>
 
 #define _COMPONENT          ACPI_PARSER
-	 ACPI_MODULE_NAME    ("psutils")
-
+ACPI_MODULE_NAME("psutils")
 
 /*******************************************************************************
  *
@@ -57,29 +54,23 @@
  *
  * PARAMETERS:  None
  *
- * RETURN:      scope_op
+ * RETURN:      A new Scope object, null on failure
  *
  * DESCRIPTION: Create a Scope and associated namepath op with the root name
  *
  ******************************************************************************/
-
-union acpi_parse_object *
-acpi_ps_create_scope_op (
-	void)
+union acpi_parse_object *acpi_ps_create_scope_op(void)
 {
-	union acpi_parse_object         *scope_op;
+	union acpi_parse_object *scope_op;
 
-
-	scope_op = acpi_ps_alloc_op (AML_SCOPE_OP);
+	scope_op = acpi_ps_alloc_op(AML_SCOPE_OP);
 	if (!scope_op) {
 		return (NULL);
 	}
 
-
 	scope_op->named.name = ACPI_ROOT_NAME;
 	return (scope_op);
 }
-
 
 /*******************************************************************************
  *
@@ -88,28 +79,24 @@ acpi_ps_create_scope_op (
  * PARAMETERS:  Op              - A newly allocated Op object
  *              Opcode          - Opcode to store in the Op
  *
- * RETURN:      Status
+ * RETURN:      None
  *
- * DESCRIPTION: Allocate an acpi_op, choose op type (and thus size) based on
- *              opcode
+ * DESCRIPTION: Initialize a parse (Op) object
  *
  ******************************************************************************/
 
-void
-acpi_ps_init_op (
-	union acpi_parse_object         *op,
-	u16                             opcode)
+void acpi_ps_init_op(union acpi_parse_object *op, u16 opcode)
 {
-	ACPI_FUNCTION_ENTRY ();
-
+	ACPI_FUNCTION_ENTRY();
 
 	op->common.data_type = ACPI_DESC_TYPE_PARSER;
 	op->common.aml_opcode = opcode;
 
-	ACPI_DISASM_ONLY_MEMBERS (ACPI_STRNCPY (op->common.aml_op_name,
-			(acpi_ps_get_opcode_info (opcode))->name, sizeof (op->common.aml_op_name)));
+	ACPI_DISASM_ONLY_MEMBERS(ACPI_STRNCPY(op->common.aml_op_name,
+					      (acpi_ps_get_opcode_info
+					       (opcode))->name,
+					      sizeof(op->common.aml_op_name)));
 }
-
 
 /*******************************************************************************
  *
@@ -117,7 +104,7 @@ acpi_ps_init_op (
  *
  * PARAMETERS:  Opcode          - Opcode that will be stored in the new Op
  *
- * RETURN:      Pointer to the new Op.
+ * RETURN:      Pointer to the new Op, null on failure
  *
  * DESCRIPTION: Allocate an acpi_op, choose op type (and thus size) based on
  *              opcode.  A cache of opcodes is available for the pure
@@ -125,29 +112,23 @@ acpi_ps_init_op (
  *
  ******************************************************************************/
 
-union acpi_parse_object*
-acpi_ps_alloc_op (
-	u16                             opcode)
+union acpi_parse_object *acpi_ps_alloc_op(u16 opcode)
 {
-	union acpi_parse_object         *op;
-	const struct acpi_opcode_info   *op_info;
-	u8                              flags = ACPI_PARSEOP_GENERIC;
+	union acpi_parse_object *op;
+	const struct acpi_opcode_info *op_info;
+	u8 flags = ACPI_PARSEOP_GENERIC;
 
+	ACPI_FUNCTION_ENTRY();
 
-	ACPI_FUNCTION_ENTRY ();
-
-
-	op_info = acpi_ps_get_opcode_info (opcode);
+	op_info = acpi_ps_get_opcode_info(opcode);
 
 	/* Determine type of parse_op required */
 
 	if (op_info->flags & AML_DEFER) {
 		flags = ACPI_PARSEOP_DEFERRED;
-	}
-	else if (op_info->flags & AML_NAMED) {
+	} else if (op_info->flags & AML_NAMED) {
 		flags = ACPI_PARSEOP_NAMED;
-	}
-	else if (opcode == AML_INT_BYTELIST_OP) {
+	} else if (opcode == AML_INT_BYTELIST_OP) {
 		flags = ACPI_PARSEOP_BYTELIST;
 	}
 
@@ -156,24 +137,24 @@ acpi_ps_alloc_op (
 	if (flags == ACPI_PARSEOP_GENERIC) {
 		/* The generic op (default) is by far the most common (16 to 1) */
 
-		op = acpi_ut_acquire_from_cache (ACPI_MEM_LIST_PSNODE);
-	}
-	else {
+		op = acpi_os_acquire_object(acpi_gbl_ps_node_cache);
+		memset(op, 0, sizeof(struct acpi_parse_obj_common));
+	} else {
 		/* Extended parseop */
 
-		op = acpi_ut_acquire_from_cache (ACPI_MEM_LIST_PSNODE_EXT);
+		op = acpi_os_acquire_object(acpi_gbl_ps_node_ext_cache);
+		memset(op, 0, sizeof(struct acpi_parse_obj_named));
 	}
 
 	/* Initialize the Op */
 
 	if (op) {
-		acpi_ps_init_op (op, opcode);
+		acpi_ps_init_op(op, opcode);
 		op->common.flags = flags;
 	}
 
 	return (op);
 }
-
 
 /*******************************************************************************
  *
@@ -188,52 +169,21 @@ acpi_ps_alloc_op (
  *
  ******************************************************************************/
 
-void
-acpi_ps_free_op (
-	union acpi_parse_object         *op)
+void acpi_ps_free_op(union acpi_parse_object *op)
 {
-	ACPI_FUNCTION_NAME ("ps_free_op");
-
+	ACPI_FUNCTION_NAME("ps_free_op");
 
 	if (op->common.aml_opcode == AML_INT_RETURN_VALUE_OP) {
-		ACPI_DEBUG_PRINT ((ACPI_DB_ALLOCATIONS, "Free retval op: %p\n", op));
+		ACPI_DEBUG_PRINT((ACPI_DB_ALLOCATIONS, "Free retval op: %p\n",
+				  op));
 	}
 
 	if (op->common.flags & ACPI_PARSEOP_GENERIC) {
-		acpi_ut_release_to_cache (ACPI_MEM_LIST_PSNODE, op);
-	}
-	else {
-		acpi_ut_release_to_cache (ACPI_MEM_LIST_PSNODE_EXT, op);
+		(void)acpi_os_release_object(acpi_gbl_ps_node_cache, op);
+	} else {
+		(void)acpi_os_release_object(acpi_gbl_ps_node_ext_cache, op);
 	}
 }
-
-
-#ifdef ACPI_ENABLE_OBJECT_CACHE
-/*******************************************************************************
- *
- * FUNCTION:    acpi_ps_delete_parse_cache
- *
- * PARAMETERS:  None
- *
- * RETURN:      None
- *
- * DESCRIPTION: Free all objects that are on the parse cache list.
- *
- ******************************************************************************/
-
-void
-acpi_ps_delete_parse_cache (
-	void)
-{
-	ACPI_FUNCTION_TRACE ("ps_delete_parse_cache");
-
-
-	acpi_ut_delete_generic_cache (ACPI_MEM_LIST_PSNODE);
-	acpi_ut_delete_generic_cache (ACPI_MEM_LIST_PSNODE_EXT);
-	return_VOID;
-}
-#endif
-
 
 /*******************************************************************************
  *
@@ -243,38 +193,28 @@ acpi_ps_delete_parse_cache (
  *
  ******************************************************************************/
 
-
 /*
  * Is "c" a namestring lead character?
  */
-u8
-acpi_ps_is_leading_char (
-	u32                             c)
+u8 acpi_ps_is_leading_char(u32 c)
 {
 	return ((u8) (c == '_' || (c >= 'A' && c <= 'Z')));
 }
 
-
 /*
  * Is "c" a namestring prefix character?
  */
-u8
-acpi_ps_is_prefix_char (
-	u32                             c)
+u8 acpi_ps_is_prefix_char(u32 c)
 {
 	return ((u8) (c == '\\' || c == '^'));
 }
-
 
 /*
  * Get op's name (4-byte name segment) or 0 if unnamed
  */
 #ifdef ACPI_FUTURE_USAGE
-u32
-acpi_ps_get_name (
-	union acpi_parse_object         *op)
+u32 acpi_ps_get_name(union acpi_parse_object * op)
 {
-
 
 	/* The "generic" object has no name associated with it */
 
@@ -286,16 +226,12 @@ acpi_ps_get_name (
 
 	return (op->named.name);
 }
-#endif  /*  ACPI_FUTURE_USAGE  */
-
+#endif				/*  ACPI_FUTURE_USAGE  */
 
 /*
  * Set op's name
  */
-void
-acpi_ps_set_name (
-	union acpi_parse_object         *op,
-	u32                             name)
+void acpi_ps_set_name(union acpi_parse_object *op, u32 name)
 {
 
 	/* The "generic" object has no name associated with it */
@@ -306,4 +242,3 @@ acpi_ps_set_name (
 
 	op->named.name = name;
 }
-

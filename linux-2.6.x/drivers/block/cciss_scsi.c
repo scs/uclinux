@@ -28,15 +28,22 @@
    through the array controller.  Note in particular, neither 
    physical nor logical disks are presented through the scsi layer. */
 
+#include <linux/timer.h>
+#include <linux/completion.h>
+#include <linux/slab.h>
+#include <linux/string.h>
+
+#include <asm/atomic.h>
+
 #include <scsi/scsi.h> 
 #include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_device.h>
 #include <scsi/scsi_host.h> 
-#include <asm/atomic.h>
-#include <linux/timer.h>
-#include <linux/completion.h>
 
 #include "cciss_scsi.h"
+
+#define CCISS_ABORT_MSG 0x00
+#define CCISS_RESET_MSG 0x01
 
 /* some prototypes... */ 
 static int sendcmd(
@@ -63,6 +70,8 @@ static int cciss_scsi_proc_info(
 
 static int cciss_scsi_queue_command (struct scsi_cmnd *cmd,
 		void (* done)(struct scsi_cmnd *));
+static int cciss_eh_device_reset_handler(struct scsi_cmnd *);
+static int cciss_eh_abort_handler(struct scsi_cmnd *);
 
 static struct cciss_scsi_hba_t ccissscsi[MAX_CTLR] = {
 	{ .name = "cciss0", .ndevices = 0 },
@@ -86,6 +95,9 @@ static struct scsi_host_template cciss_driver_template = {
 	.sg_tablesize		= MAXSGENTRIES,
 	.cmd_per_lun		= 1,
 	.use_clustering		= DISABLE_CLUSTERING,
+	/* Can't have eh_bus_reset_handler or eh_host_reset_handler for cciss */
+	.eh_device_reset_handler= cciss_eh_device_reset_handler,
+	.eh_abort_handler	= cciss_eh_abort_handler,
 };
 
 #pragma pack(1)
@@ -93,6 +105,7 @@ struct cciss_scsi_cmd_stack_elem_t {
 	CommandList_struct cmd;
 	ErrorInfo_struct Err;
 	__u32 busaddr;
+	__u32 pad;
 };
 
 #pragma pack()
@@ -701,7 +714,7 @@ cciss_scsi_detect(int ctlr)
 	((struct cciss_scsi_adapter_data_t *) 
 		hba[ctlr]->scsi_ctlr)->scsi_host = (void *) sh;
 	sh->hostdata[0] = (unsigned long) hba[ctlr];
-	sh->irq = hba[ctlr]->intr;
+	sh->irq = hba[ctlr]->intr[SIMPLE_MODE_INT];
 	sh->unique_id = sh->irq;
 	error = scsi_add_host(sh, &hba[ctlr]->pdev->dev);
 	if (error)
@@ -877,7 +890,7 @@ cciss_scsi_interpret_error(CommandList_struct *cp)
 
 static int
 cciss_scsi_do_inquiry(ctlr_info_t *c, unsigned char *scsi3addr, 
-		 InquiryData_struct *buf)
+		 unsigned char *buf, unsigned char bufsize)
 {
 	int rc;
 	CommandList_struct *cp;
@@ -900,11 +913,10 @@ cciss_scsi_do_inquiry(ctlr_info_t *c, unsigned char *scsi3addr,
 	cdb[1] = 0;
 	cdb[2] = 0;
 	cdb[3] = 0;
-	cdb[4] = sizeof(*buf) & 0xff;
+	cdb[4] = bufsize;
 	cdb[5] = 0;
 	rc = cciss_scsi_do_simple_cmd(c, cp, scsi3addr, cdb, 
-				6, (unsigned char *) buf, 
-				sizeof(*buf), XFER_READ);
+				6, buf, bufsize, XFER_READ);
 
 	if (rc != 0) return rc; /* something went wrong */
 
@@ -1000,9 +1012,10 @@ cciss_update_non_disk_devices(int cntl_num, int hostno)
 	   that though.  
 
 	 */
-
+#define OBDR_TAPE_INQ_SIZE 49
+#define OBDR_TAPE_SIG "$DR-10"
 	ReportLunData_struct *ld_buff;
-	InquiryData_struct *inq_buff;
+	unsigned char *inq_buff;
 	unsigned char scsi3addr[8];
 	ctlr_info_t *c;
 	__u32 num_luns=0;
@@ -1020,7 +1033,7 @@ cciss_update_non_disk_devices(int cntl_num, int hostno)
 		return;
 	}
 	memset(ld_buff, 0, reportlunsize);
-	inq_buff = kmalloc(sizeof( InquiryData_struct), GFP_KERNEL);
+	inq_buff = kmalloc(OBDR_TAPE_INQ_SIZE, GFP_KERNEL);
         if (inq_buff == NULL) {
                 printk(KERN_ERR "cciss: out of memory\n");
                 kfree(ld_buff);
@@ -1051,19 +1064,36 @@ cciss_update_non_disk_devices(int cntl_num, int hostno)
 
 		/* for each physical lun, do an inquiry */
 		if (ld_buff->LUN[i][3] & 0xC0) continue;
-		memset(inq_buff, 0, sizeof(InquiryData_struct));
+		memset(inq_buff, 0, OBDR_TAPE_INQ_SIZE);
 		memcpy(&scsi3addr[0], &ld_buff->LUN[i][0], 8);
 
-		if (cciss_scsi_do_inquiry(hba[cntl_num], 
-			scsi3addr, inq_buff) != 0)
-		{
+		if (cciss_scsi_do_inquiry(hba[cntl_num], scsi3addr, inq_buff,
+			(unsigned char) OBDR_TAPE_INQ_SIZE) != 0) {
 			/* Inquiry failed (msg printed already) */
 			devtype = 0; /* so we will skip this device. */
 		} else /* what kind of device is this? */
-			devtype = (inq_buff->data_byte[0] & 0x1f);
+			devtype = (inq_buff[0] & 0x1f);
 
 		switch (devtype)
 		{
+		  case 0x05: /* CD-ROM */ {
+
+			/* We don't *really* support actual CD-ROM devices,
+			 * just this "One Button Disaster Recovery" tape drive
+			 * which temporarily pretends to be a CD-ROM drive.
+			 * So we check that the device is really an OBDR tape
+			 * device by checking for "$DR-10" in bytes 43-48 of
+			 * the inquiry data.
+			 */
+				char obdr_sig[7];
+
+				strncpy(obdr_sig, &inq_buff[43], 6);
+				obdr_sig[6] = '\0';
+				if (strncmp(obdr_sig, OBDR_TAPE_SIG, 6) != 0)
+					/* Not OBDR device, ignore it. */
+					break;
+			}
+			/* fall through . . . */
 		  case 0x01: /* sequential access, (tape) */
 		  case 0x08: /* medium changer */
 			if (ncurrent >= CCISS_MAX_SCSI_DEVS_PER_HBA) {
@@ -1126,6 +1156,7 @@ cciss_scsi_proc_info(struct Scsi_Host *sh,
 
 	int buflen, datalen;
 	ctlr_info_t *ci;
+	int i;
 	int cntl_num;
 
 
@@ -1136,8 +1167,28 @@ cciss_scsi_proc_info(struct Scsi_Host *sh,
 	cntl_num = ci->ctlr;	/* Get our index into the hba[] array */
 
 	if (func == 0) {	/* User is reading from /proc/scsi/ciss*?/?*  */
-		buflen = sprintf(buffer, "hostnum=%d\n", sh->host_no); 	
+		buflen = sprintf(buffer, "cciss%d: SCSI host: %d\n",
+				cntl_num, sh->host_no);
 
+		/* this information is needed by apps to know which cciss
+		   device corresponds to which scsi host number without
+		   having to open a scsi target device node.  The device
+		   information is not a duplicate of /proc/scsi/scsi because
+		   the two may be out of sync due to scsi hotplug, rather
+		   this info is for an app to be able to use to know how to
+		   get them back in sync. */
+
+		for (i=0;i<ccissscsi[cntl_num].ndevices;i++) {
+			struct cciss_scsi_dev_t *sd = &ccissscsi[cntl_num].dev[i];
+			buflen += sprintf(&buffer[buflen], "c%db%dt%dl%d %02d "
+				"0x%02x%02x%02x%02x%02x%02x%02x%02x\n",
+				sh->host_no, sd->bus, sd->target, sd->lun,
+				sd->devtype,
+				sd->scsi3addr[0], sd->scsi3addr[1],
+				sd->scsi3addr[2], sd->scsi3addr[3],
+				sd->scsi3addr[4], sd->scsi3addr[5],
+				sd->scsi3addr[6], sd->scsi3addr[7]);
+		}
 		datalen = buflen - offset;
 		if (datalen < 0) { 	/* they're reading past EOF. */
 			datalen = 0;
@@ -1399,10 +1450,82 @@ cciss_proc_tape_report(int ctlr, unsigned char *buffer, off_t *pos, off_t *len)
 
 	CPQ_TAPE_LOCK(ctlr, flags);
 	size = sprintf(buffer + *len, 
-		"       Sequential access devices: %d\n\n",
+		"Sequential access devices: %d\n\n",
 			ccissscsi[ctlr].ndevices);
 	CPQ_TAPE_UNLOCK(ctlr, flags);
 	*pos += size; *len += size;
+}
+
+/* Need at least one of these error handlers to keep ../scsi/hosts.c from 
+ * complaining.  Doing a host- or bus-reset can't do anything good here. 
+ * Despite what it might say in scsi_error.c, there may well be commands
+ * on the controller, as the cciss driver registers twice, once as a block
+ * device for the logical drives, and once as a scsi device, for any tape
+ * drives.  So we know there are no commands out on the tape drives, but we
+ * don't know there are no commands on the controller, and it is likely 
+ * that there probably are, as the cciss block device is most commonly used
+ * as a boot device (embedded controller on HP/Compaq systems.)
+*/
+
+static int cciss_eh_device_reset_handler(struct scsi_cmnd *scsicmd)
+{
+	int rc;
+	CommandList_struct *cmd_in_trouble;
+	ctlr_info_t **c;
+	int ctlr;
+
+	/* find the controller to which the command to be aborted was sent */
+	c = (ctlr_info_t **) &scsicmd->device->host->hostdata[0];	
+	if (c == NULL) /* paranoia */
+		return FAILED;
+	ctlr = (*c)->ctlr;
+	printk(KERN_WARNING "cciss%d: resetting tape drive or medium changer.\n", ctlr);
+
+	/* find the command that's giving us trouble */
+	cmd_in_trouble = (CommandList_struct *) scsicmd->host_scribble;
+	if (cmd_in_trouble == NULL) { /* paranoia */
+		return FAILED;
+	}
+	/* send a reset to the SCSI LUN which the command was sent to */
+	rc = sendcmd(CCISS_RESET_MSG, ctlr, NULL, 0, 2, 0, 0, 
+		(unsigned char *) &cmd_in_trouble->Header.LUN.LunAddrBytes[0], 
+		TYPE_MSG);
+	/* sendcmd turned off interrputs on the board, turn 'em back on. */
+	(*c)->access.set_intr_mask(*c, CCISS_INTR_ON);
+	if (rc == 0)
+		return SUCCESS;
+	printk(KERN_WARNING "cciss%d: resetting device failed.\n", ctlr);
+	return FAILED;
+}
+
+static int  cciss_eh_abort_handler(struct scsi_cmnd *scsicmd)
+{
+	int rc;
+	CommandList_struct *cmd_to_abort;
+	ctlr_info_t **c;
+	int ctlr;
+
+	/* find the controller to which the command to be aborted was sent */
+	c = (ctlr_info_t **) &scsicmd->device->host->hostdata[0];	
+	if (c == NULL) /* paranoia */
+		return FAILED;
+	ctlr = (*c)->ctlr;
+	printk(KERN_WARNING "cciss%d: aborting tardy SCSI cmd\n", ctlr);
+
+	/* find the command to be aborted */
+	cmd_to_abort = (CommandList_struct *) scsicmd->host_scribble;
+	if (cmd_to_abort == NULL) /* paranoia */
+		return FAILED;
+	rc = sendcmd(CCISS_ABORT_MSG, ctlr, &cmd_to_abort->Header.Tag, 
+		0, 2, 0, 0, 
+		(unsigned char *) &cmd_to_abort->Header.LUN.LunAddrBytes[0], 
+		TYPE_MSG);
+	/* sendcmd turned off interrputs on the board, turn 'em back on. */
+	(*c)->access.set_intr_mask(*c, CCISS_INTR_ON);
+	if (rc == 0)
+		return SUCCESS;
+	return FAILED;
+
 }
 
 #else /* no CONFIG_CISS_SCSI_TAPE */

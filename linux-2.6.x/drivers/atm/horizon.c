@@ -1034,7 +1034,7 @@ static void rx_schedule (hrz_dev * dev, int irq) {
 	  struct atm_vcc * vcc = ATM_SKB(skb)->vcc;
 	  // VC layer stats
 	  atomic_inc(&vcc->stats->rx);
-	  do_gettimeofday(&skb->stamp);
+	  __net_timestamp(skb);
 	  // end of our responsability
 	  vcc->push (vcc, skb);
 	}
@@ -1511,8 +1511,8 @@ static inline short setup_idle_tx_channel (hrz_dev * dev, hrz_vcc * vcc) {
     // a.k.a. prepare the channel and remember that we have done so.
     
     tx_ch_desc * tx_desc = &memmap->tx_descs[tx_channel];
-    u16 rd_ptr;
-    u16 wr_ptr;
+    u32 rd_ptr;
+    u32 wr_ptr;
     u16 channel = vcc->channel;
     
     unsigned long flags;

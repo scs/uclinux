@@ -98,6 +98,10 @@
  */
 
 /*
+ * 1998/1/21 -- Richard Gooch <rgooch@atnf.csiro.au> -- devfs support
+ */
+
+/*
  * 1998/05/07 -- Russell King -- More portability cleanups; moved definition of
  * interrupt and dma channel to asm/floppy.h. Cleaned up some formatting &
  * use of '0' for NULL.
@@ -158,10 +162,6 @@ static int print_unex = 1;
 #define FDPATCHES
 #include <linux/fdreg.h>
 
-/*
- * 1998/1/21 -- Richard Gooch <rgooch@atnf.csiro.au> -- devfs support
- */
-
 #include <linux/fd.h>
 #include <linux/hdreg.h>
 
@@ -177,7 +177,7 @@ static int print_unex = 1;
 #include <linux/interrupt.h>
 #include <linux/init.h>
 #include <linux/devfs_fs_kernel.h>
-#include <linux/device.h>
+#include <linux/platform_device.h>
 #include <linux/buffer_head.h>	/* for invalidate_buffers() */
 
 /*
@@ -242,7 +242,6 @@ static int allowed_drive_mask = 0x33;
 
 static int irqdma_allocated;
 
-#define LOCAL_END_REQUEST
 #define DEVICE_NAME "floppy"
 
 #include <linux/blkdev.h>
@@ -479,7 +478,6 @@ static struct floppy_struct floppy_type[32] = {
 	{ 3200,20,2,80,0,0x1C,0x00,0xCF,0x2C,"H1600" }, /* 31 1.6MB 3.5"    */
 };
 
-#define	NUMBER(x)	(sizeof(x) / sizeof(*(x)))
 #define SECTSIZE (_FD_SECTSIZE(*floppy))
 
 /* Auto-detection: Disk type used until the next media change occurs. */
@@ -492,6 +490,8 @@ static struct floppy_struct *current_type[N_DRIVE];
 static struct floppy_struct user_params[N_DRIVE];
 
 static sector_t floppy_sizes[256];
+
+static char floppy_device_name[] = "floppy";
 
 /*
  * The driver is trying to determine the correct media format
@@ -626,7 +626,7 @@ static inline void debugt(const char *message) { }
 #endif /* DEBUGT */
 
 typedef void (*timeout_fn) (unsigned long);
-static struct timer_list fd_timeout = TIMER_INITIALIZER(floppy_shutdown, 0, 0);
+static DEFINE_TIMER(fd_timeout, floppy_shutdown, 0, 0);
 
 static const char *timeout_message;
 
@@ -1010,7 +1010,7 @@ static void schedule_bh(void (*handler) (void))
 	schedule_work(&floppy_work);
 }
 
-static struct timer_list fd_timer = TIMER_INITIALIZER(NULL, 0, 0);
+static DEFINE_TIMER(fd_timer, NULL, 0, 0);
 
 static void cancel_activity(void)
 {
@@ -2299,7 +2299,7 @@ static void floppy_end_request(struct request *req, int uptodate)
 	add_disk_randomness(req->rq_disk);
 	floppy_off((long)req->rq_disk->private_data);
 	blkdev_dequeue_request(req);
-	end_that_request_last(req);
+	end_that_request_last(req, uptodate);
 
 	/* We're done with the request */
 	current_req = NULL;
@@ -3443,6 +3443,23 @@ static int get_floppy_geometry(int drive, int type, struct floppy_struct **g)
 	return 0;
 }
 
+static int fd_getgeo(struct block_device *bdev, struct hd_geometry *geo)
+{
+	int drive = (long)bdev->bd_disk->private_data;
+	int type = ITYPE(drive_state[drive].fd_device);
+	struct floppy_struct *g;
+	int ret;
+
+	ret = get_floppy_geometry(drive, type, &g);
+	if (ret)
+		return ret;
+
+	geo->heads = g->head;
+	geo->sectors = g->sect;
+	geo->cylinders = g->track;
+	return 0;
+}
+
 static int fd_ioctl(struct inode *inode, struct file *filp, unsigned int cmd,
 		    unsigned long param)
 {
@@ -3470,23 +3487,6 @@ static int fd_ioctl(struct inode *inode, struct file *filp, unsigned int cmd,
 		DPRINT("obsolete eject ioctl\n");
 		DPRINT("please use floppycontrol --eject\n");
 		cmd = FDEJECT;
-	}
-
-	/* generic block device ioctls */
-	switch (cmd) {
-		/* the following have been inspired by the corresponding
-		 * code for other block devices. */
-		struct floppy_struct *g;
-	case HDIO_GETGEO:
-		{
-			struct hd_geometry loc;
-			ECALL(get_floppy_geometry(drive, type, &g));
-			loc.heads = g->head;
-			loc.sectors = g->sect;
-			loc.cylinders = g->track;
-			loc.start = 0;
-			return _COPYOUT(loc);
-		}
 	}
 
 	/* convert the old style command into a new style command */
@@ -3643,7 +3643,7 @@ static void __init config_types(void)
 		const char *name = NULL;
 		static char temparea[32];
 
-		if (type < NUMBER(default_drive_params)) {
+		if (type < ARRAY_SIZE(default_drive_params)) {
 			params = &default_drive_params[type].params;
 			if (type) {
 				name = default_drive_params[type].name;
@@ -3768,8 +3768,7 @@ static int floppy_open(struct inode *inode, struct file *filp)
 	/* Allow ioctls if we have write-permissions even if read-only open.
 	 * Needed so that programs such as fdrawcmd still can work on write
 	 * protected disks */
-	if (filp->f_mode & 2
-	    || permission(filp->f_dentry->d_inode, 2, NULL) == 0)
+	if ((filp->f_mode & FMODE_WRITE) || !file_permission(filp, MAY_WRITE))
 		filp->private_data = (void *)8;
 
 	if (UFDCS->rawcmd == 1)
@@ -3937,6 +3936,7 @@ static struct block_device_operations floppy_fops = {
 	.open		= floppy_open,
 	.release	= floppy_release,
 	.ioctl		= fd_ioctl,
+	.getgeo		= fd_getgeo,
 	.media_changed	= check_floppy_change,
 	.revalidate_disk = floppy_revalidate,
 };
@@ -3959,7 +3959,7 @@ static void __init register_devfs_entries(int drive)
 {
 	int base_minor = (drive < 4) ? drive : (124 + drive);
 
-	if (UDP->cmos < NUMBER(default_drive_params)) {
+	if (UDP->cmos < ARRAY_SIZE(default_drive_params)) {
 		int i = 0;
 		do {
 			int minor = base_minor + (table_sup[UDP->cmos][i] << 2);
@@ -4191,18 +4191,24 @@ static int __init floppy_setup(char *str)
 
 static int have_no_fdc = -ENODEV;
 
+static ssize_t floppy_cmos_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	struct platform_device *p;
+	int drive;
+
+	p = container_of(dev, struct platform_device,dev);
+	drive = p->id;
+	return sprintf(buf, "%X\n", UDP->cmos);
+}
+DEVICE_ATTR(cmos,S_IRUGO,floppy_cmos_show,NULL);
+
 static void floppy_device_release(struct device *dev)
 {
 	complete(&device_release);
 }
 
-static struct platform_device floppy_device = {
-	.name		= "floppy",
-	.id		= 0,
-	.dev		= {
-			.release = floppy_device_release,
-			}
-};
+static struct platform_device floppy_device[N_DRIVE];
 
 static struct kobject *floppy_find(dev_t dev, int *part, void *data)
 {
@@ -4211,7 +4217,7 @@ static struct kobject *floppy_find(dev_t dev, int *part, void *data)
 	    !(allowed_drive_mask & (1 << drive)) ||
 	    fdc_state[FDC(drive)].version == FDC_NONE)
 		return NULL;
-	if (((*part >> 2) & 0x1f) >= NUMBER(floppy_type))
+	if (((*part >> 2) & 0x1f) >= ARRAY_SIZE(floppy_type))
 		return NULL;
 	*part = 0;
 	return get_disk(disks[drive]);
@@ -4370,20 +4376,26 @@ static int __init floppy_init(void)
 		goto out_flush_work;
 	}
 
-	err = platform_device_register(&floppy_device);
-	if (err)
-		goto out_flush_work;
-
 	for (drive = 0; drive < N_DRIVE; drive++) {
 		if (!(allowed_drive_mask & (1 << drive)))
 			continue;
 		if (fdc_state[FDC(drive)].version == FDC_NONE)
 			continue;
+
+		floppy_device[drive].name = floppy_device_name;
+		floppy_device[drive].id = drive;
+		floppy_device[drive].dev.release = floppy_device_release;
+
+		err = platform_device_register(&floppy_device[drive]);
+		if (err)
+			goto out_flush_work;
+
+		device_create_file(&floppy_device[drive].dev,&dev_attr_cmos);
 		/* to be cleaned up... */
 		disks[drive]->private_data = (void *)(long)drive;
 		disks[drive]->queue = floppy_queue;
 		disks[drive]->flags |= GENHD_FL_REMOVABLE;
-		disks[drive]->driverfs_dev = &floppy_device.dev;
+		disks[drive]->driverfs_dev = &floppy_device[drive].dev;
 		add_disk(disks[drive]);
 	}
 
@@ -4557,7 +4569,7 @@ static void unregister_devfs_entries(int drive)
 {
 	int i;
 
-	if (UDP->cmos < NUMBER(default_drive_params)) {
+	if (UDP->cmos < ARRAY_SIZE(default_drive_params)) {
 		i = 0;
 		do {
 			devfs_remove("floppy/%d%s", drive,
@@ -4603,10 +4615,11 @@ void cleanup_module(void)
 		    fdc_state[FDC(drive)].version != FDC_NONE) {
 			del_gendisk(disks[drive]);
 			unregister_devfs_entries(drive);
+			device_remove_file(&floppy_device[drive].dev, &dev_attr_cmos);
+			platform_device_unregister(&floppy_device[drive]);
 		}
 		put_disk(disks[drive]);
 	}
-	platform_device_unregister(&floppy_device);
 	devfs_remove("floppy");
 
 	del_timer_sync(&fd_timeout);

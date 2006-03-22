@@ -9,9 +9,8 @@
  */
 
 #include <linux/device.h>
+#include "../base.h"
 #include "power.h"
-
-extern int sysdev_resume(void);
 
 
 /**
@@ -22,18 +21,22 @@ extern int sysdev_resume(void);
 
 int resume_device(struct device * dev)
 {
+	int error = 0;
+
+	down(&dev->sem);
 	if (dev->power.pm_parent
-			&& dev->power.pm_parent->power.power_state) {
+			&& dev->power.pm_parent->power.power_state.event) {
 		dev_err(dev, "PM: resume from %d, parent %s still %d\n",
-			dev->power.power_state,
+			dev->power.power_state.event,
 			dev->power.pm_parent->bus_id,
-			dev->power.pm_parent->power.power_state);
+			dev->power.pm_parent->power.power_state.event);
 	}
 	if (dev->bus && dev->bus->resume) {
 		dev_dbg(dev,"resuming\n");
-		return dev->bus->resume(dev);
+		error = dev->bus->resume(dev);
 	}
-	return 0;
+	up(&dev->sem);
+	return error;
 }
 
 
@@ -50,7 +53,7 @@ void dpm_resume(void)
 		list_add_tail(entry, &dpm_active);
 
 		up(&dpm_list_sem);
-		if (!dev->power.prev_state)
+		if (!dev->power.prev_state.event)
 			resume_device(dev);
 		down(&dpm_list_sem);
 		put_device(dev);

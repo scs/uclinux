@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2005, R. Byron Moore
+ * Copyright (C) 2000 - 2006, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -41,76 +41,31 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-
 #include <acpi/acpi.h>
 #include <acpi/acparser.h>
 #include <acpi/acdispat.h>
 #include <acpi/acnamesp.h>
 
 #define _COMPONENT          ACPI_DISPATCHER
-	 ACPI_MODULE_NAME    ("dswstate")
+ACPI_MODULE_NAME("dswstate")
 
+/* Local prototypes */
+#ifdef ACPI_OBSOLETE_FUNCTIONS
+acpi_status
+acpi_ds_result_insert(void *object,
+		      u32 index, struct acpi_walk_state *walk_state);
 
-#ifdef ACPI_FUTURE_USAGE
-
-/*******************************************************************************
- *
- * FUNCTION:    acpi_ds_result_insert
- *
- * PARAMETERS:  Object              - Object to push
- *              Index               - Where to insert the object
- *              walk_state          - Current Walk state
- *
- * RETURN:      Status
- *
- * DESCRIPTION: Insert an object onto this walk's result stack
- *
- ******************************************************************************/
+acpi_status acpi_ds_obj_stack_delete_all(struct acpi_walk_state *walk_state);
 
 acpi_status
-acpi_ds_result_insert (
-	void                            *object,
-	u32                             index,
-	struct acpi_walk_state          *walk_state)
-{
-	union acpi_generic_state        *state;
+acpi_ds_obj_stack_pop_object(union acpi_operand_object **object,
+			     struct acpi_walk_state *walk_state);
 
+void *acpi_ds_obj_stack_get_value(u32 index,
+				  struct acpi_walk_state *walk_state);
+#endif
 
-	ACPI_FUNCTION_NAME ("ds_result_insert");
-
-
-	state = walk_state->results;
-	if (!state) {
-		ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "No result object pushed! State=%p\n",
-			walk_state));
-		return (AE_NOT_EXIST);
-	}
-
-	if (index >= ACPI_OBJ_NUM_OPERANDS) {
-		ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
-			"Index out of range: %X Obj=%p State=%p Num=%X\n",
-			index, object, walk_state, state->results.num_results));
-		return (AE_BAD_PARAMETER);
-	}
-
-	if (!object) {
-		ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
-			"Null Object! Index=%X Obj=%p State=%p Num=%X\n",
-			index, object, walk_state, state->results.num_results));
-		return (AE_BAD_PARAMETER);
-	}
-
-	state->results.obj_desc [index] = object;
-	state->results.num_results++;
-
-	ACPI_DEBUG_PRINT ((ACPI_DB_EXEC,
-		"Obj=%p [%s] State=%p Num=%X Cur=%X\n",
-		object, object ? acpi_ut_get_object_type_name ((union acpi_operand_object *) object) : "NULL",
-		walk_state, state->results.num_results, walk_state->current_result));
-
-	return (AE_OK);
-}
-
+#ifdef ACPI_FUTURE_USAGE
 
 /*******************************************************************************
  *
@@ -128,36 +83,32 @@ acpi_ds_result_insert (
  ******************************************************************************/
 
 acpi_status
-acpi_ds_result_remove (
-	union acpi_operand_object       **object,
-	u32                             index,
-	struct acpi_walk_state          *walk_state)
+acpi_ds_result_remove(union acpi_operand_object **object,
+		      u32 index, struct acpi_walk_state *walk_state)
 {
-	union acpi_generic_state        *state;
+	union acpi_generic_state *state;
 
-
-	ACPI_FUNCTION_NAME ("ds_result_remove");
-
+	ACPI_FUNCTION_NAME("ds_result_remove");
 
 	state = walk_state->results;
 	if (!state) {
-		ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "No result object pushed! State=%p\n",
-			walk_state));
+		ACPI_ERROR((AE_INFO, "No result object pushed! State=%p",
+			    walk_state));
 		return (AE_NOT_EXIST);
 	}
 
 	if (index >= ACPI_OBJ_MAX_OPERAND) {
-		ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
-			"Index out of range: %X State=%p Num=%X\n",
-			index, walk_state, state->results.num_results));
+		ACPI_ERROR((AE_INFO,
+			    "Index out of range: %X State=%p Num=%X",
+			    index, walk_state, state->results.num_results));
 	}
 
 	/* Check for a valid result object */
 
-	if (!state->results.obj_desc [index]) {
-		ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
-			"Null operand! State=%p #Ops=%X, Index=%X\n",
-			walk_state, state->results.num_results, index));
+	if (!state->results.obj_desc[index]) {
+		ACPI_ERROR((AE_INFO,
+			    "Null operand! State=%p #Ops=%X, Index=%X",
+			    walk_state, state->results.num_results, index));
 		return (AE_AML_NO_RETURN_VALUE);
 	}
 
@@ -165,19 +116,20 @@ acpi_ds_result_remove (
 
 	state->results.num_results--;
 
-	*object = state->results.obj_desc [index];
-	state->results.obj_desc [index] = NULL;
+	*object = state->results.obj_desc[index];
+	state->results.obj_desc[index] = NULL;
 
-	ACPI_DEBUG_PRINT ((ACPI_DB_EXEC,
-		"Obj=%p [%s] Index=%X State=%p Num=%X\n",
-		*object, (*object) ? acpi_ut_get_object_type_name (*object) : "NULL",
-		index, walk_state, state->results.num_results));
+	ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
+			  "Obj=%p [%s] Index=%X State=%p Num=%X\n",
+			  *object,
+			  (*object) ? acpi_ut_get_object_type_name(*object) :
+			  "NULL", index, walk_state,
+			  state->results.num_results));
 
 	return (AE_OK);
 }
 
-#endif  /*  ACPI_FUTURE_USAGE  */
-
+#endif				/*  ACPI_FUTURE_USAGE  */
 
 /*******************************************************************************
  *
@@ -194,16 +146,13 @@ acpi_ds_result_remove (
  ******************************************************************************/
 
 acpi_status
-acpi_ds_result_pop (
-	union acpi_operand_object       **object,
-	struct acpi_walk_state          *walk_state)
+acpi_ds_result_pop(union acpi_operand_object ** object,
+		   struct acpi_walk_state * walk_state)
 {
-	acpi_native_uint                index;
-	union acpi_generic_state        *state;
+	acpi_native_uint index;
+	union acpi_generic_state *state;
 
-
-	ACPI_FUNCTION_NAME ("ds_result_pop");
-
+	ACPI_FUNCTION_NAME("ds_result_pop");
 
 	state = walk_state->results;
 	if (!state) {
@@ -211,8 +160,8 @@ acpi_ds_result_pop (
 	}
 
 	if (!state->results.num_results) {
-		ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Result stack is empty! State=%p\n",
-			walk_state));
+		ACPI_ERROR((AE_INFO, "Result stack is empty! State=%p",
+			    walk_state));
 		return (AE_AML_NO_RETURN_VALUE);
 	}
 
@@ -223,22 +172,25 @@ acpi_ds_result_pop (
 	for (index = ACPI_OBJ_NUM_OPERANDS; index; index--) {
 		/* Check for a valid result object */
 
-		if (state->results.obj_desc [index -1]) {
-			*object = state->results.obj_desc [index -1];
-			state->results.obj_desc [index -1] = NULL;
+		if (state->results.obj_desc[index - 1]) {
+			*object = state->results.obj_desc[index - 1];
+			state->results.obj_desc[index - 1] = NULL;
 
-			ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "Obj=%p [%s] Index=%X State=%p Num=%X\n",
-				*object, (*object) ? acpi_ut_get_object_type_name (*object) : "NULL",
-				(u32) index -1, walk_state, state->results.num_results));
+			ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
+					  "Obj=%p [%s] Index=%X State=%p Num=%X\n",
+					  *object,
+					  (*object) ?
+					  acpi_ut_get_object_type_name(*object)
+					  : "NULL", (u32) index - 1, walk_state,
+					  state->results.num_results));
 
 			return (AE_OK);
 		}
 	}
 
-	ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "No result objects! State=%p\n", walk_state));
+	ACPI_ERROR((AE_INFO, "No result objects! State=%p", walk_state));
 	return (AE_AML_NO_RETURN_VALUE);
 }
-
 
 /*******************************************************************************
  *
@@ -255,37 +207,36 @@ acpi_ds_result_pop (
  ******************************************************************************/
 
 acpi_status
-acpi_ds_result_pop_from_bottom (
-	union acpi_operand_object       **object,
-	struct acpi_walk_state          *walk_state)
+acpi_ds_result_pop_from_bottom(union acpi_operand_object ** object,
+			       struct acpi_walk_state * walk_state)
 {
-	acpi_native_uint                index;
-	union acpi_generic_state        *state;
+	acpi_native_uint index;
+	union acpi_generic_state *state;
 
-
-	ACPI_FUNCTION_NAME ("ds_result_pop_from_bottom");
-
+	ACPI_FUNCTION_NAME("ds_result_pop_from_bottom");
 
 	state = walk_state->results;
 	if (!state) {
-		ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
-			"Warning: No result object pushed! State=%p\n", walk_state));
+		ACPI_ERROR((AE_INFO,
+			    "No result object pushed! State=%p", walk_state));
 		return (AE_NOT_EXIST);
 	}
 
 	if (!state->results.num_results) {
-		ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "No result objects! State=%p\n", walk_state));
+		ACPI_ERROR((AE_INFO, "No result objects! State=%p",
+			    walk_state));
 		return (AE_AML_NO_RETURN_VALUE);
 	}
 
 	/* Remove Bottom element */
 
-	*object = state->results.obj_desc [0];
+	*object = state->results.obj_desc[0];
 
 	/* Push entire stack down one element */
 
 	for (index = 0; index < state->results.num_results; index++) {
-		state->results.obj_desc [index] = state->results.obj_desc [index + 1];
+		state->results.obj_desc[index] =
+		    state->results.obj_desc[index + 1];
 	}
 
 	state->results.num_results--;
@@ -293,18 +244,20 @@ acpi_ds_result_pop_from_bottom (
 	/* Check for a valid result object */
 
 	if (!*object) {
-		ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Null operand! State=%p #Ops=%X, Index=%X\n",
-			walk_state, state->results.num_results, (u32) index));
+		ACPI_ERROR((AE_INFO,
+			    "Null operand! State=%p #Ops=%X Index=%X",
+			    walk_state, state->results.num_results,
+			    (u32) index));
 		return (AE_AML_NO_RETURN_VALUE);
 	}
 
-	ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "Obj=%p [%s], Results=%p State=%p\n",
-		*object, (*object) ? acpi_ut_get_object_type_name (*object) : "NULL",
-		state, walk_state));
+	ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "Obj=%p [%s] Results=%p State=%p\n",
+			  *object,
+			  (*object) ? acpi_ut_get_object_type_name(*object) :
+			  "NULL", state, walk_state));
 
 	return (AE_OK);
 }
-
 
 /*******************************************************************************
  *
@@ -320,45 +273,47 @@ acpi_ds_result_pop_from_bottom (
  ******************************************************************************/
 
 acpi_status
-acpi_ds_result_push (
-	union acpi_operand_object       *object,
-	struct acpi_walk_state          *walk_state)
+acpi_ds_result_push(union acpi_operand_object * object,
+		    struct acpi_walk_state * walk_state)
 {
-	union acpi_generic_state        *state;
+	union acpi_generic_state *state;
 
-
-	ACPI_FUNCTION_NAME ("ds_result_push");
-
+	ACPI_FUNCTION_NAME("ds_result_push");
 
 	state = walk_state->results;
 	if (!state) {
-		ACPI_REPORT_ERROR (("No result stack frame during push\n"));
+		ACPI_ERROR((AE_INFO, "No result stack frame during push"));
 		return (AE_AML_INTERNAL);
 	}
 
 	if (state->results.num_results == ACPI_OBJ_NUM_OPERANDS) {
-		ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
-			"Result stack overflow: Obj=%p State=%p Num=%X\n",
-			object, walk_state, state->results.num_results));
+		ACPI_ERROR((AE_INFO,
+			    "Result stack overflow: Obj=%p State=%p Num=%X",
+			    object, walk_state, state->results.num_results));
 		return (AE_STACK_OVERFLOW);
 	}
 
 	if (!object) {
-		ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Null Object! Obj=%p State=%p Num=%X\n",
-			object, walk_state, state->results.num_results));
+		ACPI_ERROR((AE_INFO,
+			    "Null Object! Obj=%p State=%p Num=%X",
+			    object, walk_state, state->results.num_results));
 		return (AE_BAD_PARAMETER);
 	}
 
-	state->results.obj_desc [state->results.num_results] = object;
+	state->results.obj_desc[state->results.num_results] = object;
 	state->results.num_results++;
 
-	ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "Obj=%p [%s] State=%p Num=%X Cur=%X\n",
-		object, object ? acpi_ut_get_object_type_name ((union acpi_operand_object *) object) : "NULL",
-		walk_state, state->results.num_results, walk_state->current_result));
+	ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "Obj=%p [%s] State=%p Num=%X Cur=%X\n",
+			  object,
+			  object ?
+			  acpi_ut_get_object_type_name((union
+							acpi_operand_object *)
+						       object) : "NULL",
+			  walk_state, state->results.num_results,
+			  walk_state->current_result));
 
 	return (AE_OK);
 }
-
 
 /*******************************************************************************
  *
@@ -372,29 +327,25 @@ acpi_ds_result_push (
  *
  ******************************************************************************/
 
-acpi_status
-acpi_ds_result_stack_push (
-	struct acpi_walk_state          *walk_state)
+acpi_status acpi_ds_result_stack_push(struct acpi_walk_state * walk_state)
 {
-	union acpi_generic_state        *state;
+	union acpi_generic_state *state;
 
-	ACPI_FUNCTION_NAME ("ds_result_stack_push");
+	ACPI_FUNCTION_NAME("ds_result_stack_push");
 
-
-	state = acpi_ut_create_generic_state ();
+	state = acpi_ut_create_generic_state();
 	if (!state) {
 		return (AE_NO_MEMORY);
 	}
 
 	state->common.data_type = ACPI_DESC_TYPE_STATE_RESULT;
-	acpi_ut_push_generic_state (&walk_state->results, state);
+	acpi_ut_push_generic_state(&walk_state->results, state);
 
-	ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "Results=%p State=%p\n",
-		state, walk_state));
+	ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "Results=%p State=%p\n",
+			  state, walk_state));
 
 	return (AE_OK);
 }
-
 
 /*******************************************************************************
  *
@@ -408,71 +359,30 @@ acpi_ds_result_stack_push (
  *
  ******************************************************************************/
 
-acpi_status
-acpi_ds_result_stack_pop (
-	struct acpi_walk_state          *walk_state)
+acpi_status acpi_ds_result_stack_pop(struct acpi_walk_state * walk_state)
 {
-	union acpi_generic_state        *state;
+	union acpi_generic_state *state;
 
-	ACPI_FUNCTION_NAME ("ds_result_stack_pop");
-
+	ACPI_FUNCTION_NAME("ds_result_stack_pop");
 
 	/* Check for stack underflow */
 
 	if (walk_state->results == NULL) {
-		ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "Underflow - State=%p\n",
-			walk_state));
+		ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "Underflow - State=%p\n",
+				  walk_state));
 		return (AE_AML_NO_OPERAND);
 	}
 
-	state = acpi_ut_pop_generic_state (&walk_state->results);
+	state = acpi_ut_pop_generic_state(&walk_state->results);
 
-	ACPI_DEBUG_PRINT ((ACPI_DB_EXEC,
-		"Result=%p remaining_results=%X State=%p\n",
-		state, state->results.num_results, walk_state));
+	ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
+			  "Result=%p remaining_results=%X State=%p\n",
+			  state, state->results.num_results, walk_state));
 
-	acpi_ut_delete_generic_state (state);
+	acpi_ut_delete_generic_state(state);
 
 	return (AE_OK);
 }
-
-
-/*******************************************************************************
- *
- * FUNCTION:    acpi_ds_obj_stack_delete_all
- *
- * PARAMETERS:  walk_state          - Current Walk state
- *
- * RETURN:      Status
- *
- * DESCRIPTION: Clear the object stack by deleting all objects that are on it.
- *              Should be used with great care, if at all!
- *
- ******************************************************************************/
-#ifdef ACPI_FUTURE_USAGE
-acpi_status
-acpi_ds_obj_stack_delete_all (
-	struct acpi_walk_state          *walk_state)
-{
-	u32                             i;
-
-
-	ACPI_FUNCTION_TRACE_PTR ("ds_obj_stack_delete_all", walk_state);
-
-
-	/* The stack size is configurable, but fixed */
-
-	for (i = 0; i < ACPI_OBJ_NUM_OPERANDS; i++) {
-		if (walk_state->operands[i]) {
-			acpi_ut_remove_reference (walk_state->operands[i]);
-			walk_state->operands[i] = NULL;
-		}
-	}
-
-	return_ACPI_STATUS (AE_OK);
-}
-#endif  /*  ACPI_FUTURE_USAGE  */
-
 
 /*******************************************************************************
  *
@@ -488,95 +398,33 @@ acpi_ds_obj_stack_delete_all (
  ******************************************************************************/
 
 acpi_status
-acpi_ds_obj_stack_push (
-	void                            *object,
-	struct acpi_walk_state          *walk_state)
+acpi_ds_obj_stack_push(void *object, struct acpi_walk_state * walk_state)
 {
-	ACPI_FUNCTION_NAME ("ds_obj_stack_push");
-
+	ACPI_FUNCTION_NAME("ds_obj_stack_push");
 
 	/* Check for stack overflow */
 
 	if (walk_state->num_operands >= ACPI_OBJ_NUM_OPERANDS) {
-		ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
-			"overflow! Obj=%p State=%p #Ops=%X\n",
-			object, walk_state, walk_state->num_operands));
+		ACPI_ERROR((AE_INFO,
+			    "Object stack overflow! Obj=%p State=%p #Ops=%X",
+			    object, walk_state, walk_state->num_operands));
 		return (AE_STACK_OVERFLOW);
 	}
 
 	/* Put the object onto the stack */
 
-	walk_state->operands [walk_state->num_operands] = object;
+	walk_state->operands[walk_state->num_operands] = object;
 	walk_state->num_operands++;
 
-	ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "Obj=%p [%s] State=%p #Ops=%X\n",
-			  object, acpi_ut_get_object_type_name ((union acpi_operand_object *) object),
-			  walk_state, walk_state->num_operands));
+	ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "Obj=%p [%s] State=%p #Ops=%X\n",
+			  object,
+			  acpi_ut_get_object_type_name((union
+							acpi_operand_object *)
+						       object), walk_state,
+			  walk_state->num_operands));
 
 	return (AE_OK);
 }
-
-
-#if 0
-/*******************************************************************************
- *
- * FUNCTION:    acpi_ds_obj_stack_pop_object
- *
- * PARAMETERS:  pop_count           - Number of objects/entries to pop
- *              walk_state          - Current Walk state
- *
- * RETURN:      Status
- *
- * DESCRIPTION: Pop this walk's object stack.  Objects on the stack are NOT
- *              deleted by this routine.
- *
- ******************************************************************************/
-
-acpi_status
-acpi_ds_obj_stack_pop_object (
-	union acpi_operand_object       **object,
-	struct acpi_walk_state          *walk_state)
-{
-	ACPI_FUNCTION_NAME ("ds_obj_stack_pop_object");
-
-
-	/* Check for stack underflow */
-
-	if (walk_state->num_operands == 0) {
-		ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
-			"Missing operand/stack empty! State=%p #Ops=%X\n",
-			walk_state, walk_state->num_operands));
-		*object = NULL;
-		return (AE_AML_NO_OPERAND);
-	}
-
-	/* Pop the stack */
-
-	walk_state->num_operands--;
-
-	/* Check for a valid operand */
-
-	if (!walk_state->operands [walk_state->num_operands]) {
-		ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
-			"Null operand! State=%p #Ops=%X\n",
-			walk_state, walk_state->num_operands));
-		*object = NULL;
-		return (AE_AML_NO_OPERAND);
-	}
-
-	/* Get operand and set stack entry to null */
-
-	*object = walk_state->operands [walk_state->num_operands];
-	walk_state->operands [walk_state->num_operands] = NULL;
-
-	ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "Obj=%p [%s] State=%p #Ops=%X\n",
-			  *object, acpi_ut_get_object_type_name (*object),
-			  walk_state, walk_state->num_operands));
-
-	return (AE_OK);
-}
-#endif
-
 
 /*******************************************************************************
  *
@@ -593,37 +441,34 @@ acpi_ds_obj_stack_pop_object (
  ******************************************************************************/
 
 acpi_status
-acpi_ds_obj_stack_pop (
-	u32                             pop_count,
-	struct acpi_walk_state          *walk_state)
+acpi_ds_obj_stack_pop(u32 pop_count, struct acpi_walk_state * walk_state)
 {
-	u32                             i;
+	u32 i;
 
-	ACPI_FUNCTION_NAME ("ds_obj_stack_pop");
-
+	ACPI_FUNCTION_NAME("ds_obj_stack_pop");
 
 	for (i = 0; i < pop_count; i++) {
 		/* Check for stack underflow */
 
 		if (walk_state->num_operands == 0) {
-			ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
-				"Underflow! Count=%X State=%p #Ops=%X\n",
-				pop_count, walk_state, walk_state->num_operands));
+			ACPI_ERROR((AE_INFO,
+				    "Object stack underflow! Count=%X State=%p #Ops=%X",
+				    pop_count, walk_state,
+				    walk_state->num_operands));
 			return (AE_STACK_UNDERFLOW);
 		}
 
 		/* Just set the stack entry to null */
 
 		walk_state->num_operands--;
-		walk_state->operands [walk_state->num_operands] = NULL;
+		walk_state->operands[walk_state->num_operands] = NULL;
 	}
 
-	ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "Count=%X State=%p #Ops=%X\n",
+	ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "Count=%X State=%p #Ops=%X\n",
 			  pop_count, walk_state, walk_state->num_operands));
 
 	return (AE_OK);
 }
-
 
 /*******************************************************************************
  *
@@ -640,85 +485,42 @@ acpi_ds_obj_stack_pop (
  ******************************************************************************/
 
 acpi_status
-acpi_ds_obj_stack_pop_and_delete (
-	u32                             pop_count,
-	struct acpi_walk_state          *walk_state)
+acpi_ds_obj_stack_pop_and_delete(u32 pop_count,
+				 struct acpi_walk_state * walk_state)
 {
-	u32                             i;
-	union acpi_operand_object       *obj_desc;
+	u32 i;
+	union acpi_operand_object *obj_desc;
 
-
-	ACPI_FUNCTION_NAME ("ds_obj_stack_pop_and_delete");
-
+	ACPI_FUNCTION_NAME("ds_obj_stack_pop_and_delete");
 
 	for (i = 0; i < pop_count; i++) {
 		/* Check for stack underflow */
 
 		if (walk_state->num_operands == 0) {
-			ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
-				"Underflow! Count=%X State=%p #Ops=%X\n",
-				pop_count, walk_state, walk_state->num_operands));
+			ACPI_ERROR((AE_INFO,
+				    "Object stack underflow! Count=%X State=%p #Ops=%X",
+				    pop_count, walk_state,
+				    walk_state->num_operands));
 			return (AE_STACK_UNDERFLOW);
 		}
 
 		/* Pop the stack and delete an object if present in this stack entry */
 
 		walk_state->num_operands--;
-		obj_desc = walk_state->operands [walk_state->num_operands];
+		obj_desc = walk_state->operands[walk_state->num_operands];
 		if (obj_desc) {
-			acpi_ut_remove_reference (walk_state->operands [walk_state->num_operands]);
-			walk_state->operands [walk_state->num_operands] = NULL;
+			acpi_ut_remove_reference(walk_state->
+						 operands[walk_state->
+							  num_operands]);
+			walk_state->operands[walk_state->num_operands] = NULL;
 		}
 	}
 
-	ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "Count=%X State=%p #Ops=%X\n",
+	ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "Count=%X State=%p #Ops=%X\n",
 			  pop_count, walk_state, walk_state->num_operands));
 
 	return (AE_OK);
 }
-
-
-/*******************************************************************************
- *
- * FUNCTION:    acpi_ds_obj_stack_get_value
- *
- * PARAMETERS:  Index               - Stack index whose value is desired.  Based
- *                                    on the top of the stack (index=0 == top)
- *              walk_state          - Current Walk state
- *
- * RETURN:      Status
- *
- * DESCRIPTION: Retrieve an object from this walk's object stack.  Index must
- *              be within the range of the current stack pointer.
- *
- ******************************************************************************/
-#ifdef ACPI_FUTURE_USAGE
-void *
-acpi_ds_obj_stack_get_value (
-	u32                             index,
-	struct acpi_walk_state          *walk_state)
-{
-
-	ACPI_FUNCTION_TRACE_PTR ("ds_obj_stack_get_value", walk_state);
-
-
-	/* Can't do it if the stack is empty */
-
-	if (walk_state->num_operands == 0) {
-		return_PTR (NULL);
-	}
-
-	/* or if the index is past the top of the stack */
-
-	if (index > (walk_state->num_operands - (u32) 1)) {
-		return_PTR (NULL);
-	}
-
-	return_PTR (walk_state->operands[(acpi_native_uint)(walk_state->num_operands - 1) -
-			  index]);
-}
-#endif  /*  ACPI_FUTURE_USAGE  */
-
 
 /*******************************************************************************
  *
@@ -733,60 +535,53 @@ acpi_ds_obj_stack_get_value (
  *
  ******************************************************************************/
 
-struct acpi_walk_state *
-acpi_ds_get_current_walk_state (
-	struct acpi_thread_state        *thread)
-
+struct acpi_walk_state *acpi_ds_get_current_walk_state(struct acpi_thread_state
+						       *thread)
 {
-	ACPI_FUNCTION_NAME ("ds_get_current_walk_state");
-
+	ACPI_FUNCTION_NAME("ds_get_current_walk_state");
 
 	if (!thread) {
 		return (NULL);
 	}
 
-	ACPI_DEBUG_PRINT ((ACPI_DB_PARSE, "Current walk_state %p\n",
-		thread->walk_state_list));
+	ACPI_DEBUG_PRINT((ACPI_DB_PARSE, "Current walk_state %p\n",
+			  thread->walk_state_list));
 
 	return (thread->walk_state_list);
 }
-
 
 /*******************************************************************************
  *
  * FUNCTION:    acpi_ds_push_walk_state
  *
  * PARAMETERS:  walk_state      - State to push
- *              walk_list       - The list that owns the walk stack
+ *              Thread          - Thread state object
  *
  * RETURN:      None
  *
- * DESCRIPTION: Place the walk_state at the head of the state list.
+ * DESCRIPTION: Place the Thread state at the head of the state list.
  *
  ******************************************************************************/
 
 void
-acpi_ds_push_walk_state (
-	struct acpi_walk_state          *walk_state,
-	struct acpi_thread_state        *thread)
+acpi_ds_push_walk_state(struct acpi_walk_state *walk_state,
+			struct acpi_thread_state *thread)
 {
-	ACPI_FUNCTION_TRACE ("ds_push_walk_state");
+	ACPI_FUNCTION_TRACE("ds_push_walk_state");
 
-
-	walk_state->next      = thread->walk_state_list;
+	walk_state->next = thread->walk_state_list;
 	thread->walk_state_list = walk_state;
 
 	return_VOID;
 }
 
-
 /*******************************************************************************
  *
  * FUNCTION:    acpi_ds_pop_walk_state
  *
- * PARAMETERS:  walk_list       - The list that owns the walk stack
+ * PARAMETERS:  Thread      - Current thread state
  *
- * RETURN:      A walk_state object popped from the stack
+ * RETURN:      A walk_state object popped from the thread's stack
  *
  * DESCRIPTION: Remove and return the walkstate object that is at the head of
  *              the walk stack for the given walk list.  NULL indicates that
@@ -794,15 +589,11 @@ acpi_ds_push_walk_state (
  *
  ******************************************************************************/
 
-struct acpi_walk_state *
-acpi_ds_pop_walk_state (
-	struct acpi_thread_state        *thread)
+struct acpi_walk_state *acpi_ds_pop_walk_state(struct acpi_thread_state *thread)
 {
-	struct acpi_walk_state          *walk_state;
+	struct acpi_walk_state *walk_state;
 
-
-	ACPI_FUNCTION_TRACE ("ds_pop_walk_state");
-
+	ACPI_FUNCTION_TRACE("ds_pop_walk_state");
 
 	walk_state = thread->walk_state_list;
 
@@ -814,19 +605,20 @@ acpi_ds_pop_walk_state (
 		/*
 		 * Don't clear the NEXT field, this serves as an indicator
 		 * that there is a parent WALK STATE
-		 *     NO: walk_state->Next = NULL;
+		 * Do Not: walk_state->Next = NULL;
 		 */
 	}
 
-	return_PTR (walk_state);
+	return_PTR(walk_state);
 }
-
 
 /*******************************************************************************
  *
  * FUNCTION:    acpi_ds_create_walk_state
  *
- * PARAMETERS:  Origin          - Starting point for this walk
+ * PARAMETERS:  owner_id        - ID for object creation
+ *              Origin          - Starting point for this walk
+ *              mth_desc        - Method object
  *              Thread          - Current thread state
  *
  * RETURN:      Pointer to the new walk state.
@@ -836,56 +628,54 @@ acpi_ds_pop_walk_state (
  *
  ******************************************************************************/
 
-struct acpi_walk_state *
-acpi_ds_create_walk_state (
-	acpi_owner_id                   owner_id,
-	union acpi_parse_object         *origin,
-	union acpi_operand_object       *mth_desc,
-	struct acpi_thread_state        *thread)
+struct acpi_walk_state *acpi_ds_create_walk_state(acpi_owner_id owner_id,
+						  union acpi_parse_object
+						  *origin,
+						  union acpi_operand_object
+						  *mth_desc,
+						  struct acpi_thread_state
+						  *thread)
 {
-	struct acpi_walk_state          *walk_state;
-	acpi_status                     status;
+	struct acpi_walk_state *walk_state;
+	acpi_status status;
 
+	ACPI_FUNCTION_TRACE("ds_create_walk_state");
 
-	ACPI_FUNCTION_TRACE ("ds_create_walk_state");
-
-
-	walk_state = acpi_ut_acquire_from_cache (ACPI_MEM_LIST_WALK);
+	walk_state = ACPI_MEM_CALLOCATE(sizeof(struct acpi_walk_state));
 	if (!walk_state) {
-		return_PTR (NULL);
+		return_PTR(NULL);
 	}
 
-	walk_state->data_type       = ACPI_DESC_TYPE_WALK;
-	walk_state->owner_id        = owner_id;
-	walk_state->origin          = origin;
-	walk_state->method_desc     = mth_desc;
-	walk_state->thread          = thread;
+	walk_state->data_type = ACPI_DESC_TYPE_WALK;
+	walk_state->owner_id = owner_id;
+	walk_state->origin = origin;
+	walk_state->method_desc = mth_desc;
+	walk_state->thread = thread;
 
 	walk_state->parser_state.start_op = origin;
 
 	/* Init the method args/local */
 
 #if (!defined (ACPI_NO_METHOD_EXECUTION) && !defined (ACPI_CONSTANT_EVAL_ONLY))
-	acpi_ds_method_data_init (walk_state);
+	acpi_ds_method_data_init(walk_state);
 #endif
 
 	/* Create an initial result stack entry */
 
-	status = acpi_ds_result_stack_push (walk_state);
-	if (ACPI_FAILURE (status)) {
-		acpi_ut_release_to_cache (ACPI_MEM_LIST_WALK, walk_state);
-		return_PTR (NULL);
+	status = acpi_ds_result_stack_push(walk_state);
+	if (ACPI_FAILURE(status)) {
+		ACPI_MEM_FREE(walk_state);
+		return_PTR(NULL);
 	}
 
 	/* Put the new state at the head of the walk list */
 
 	if (thread) {
-		acpi_ds_push_walk_state (walk_state, thread);
+		acpi_ds_push_walk_state(walk_state, thread);
 	}
 
-	return_PTR (walk_state);
+	return_PTR(walk_state);
 }
-
 
 /*******************************************************************************
  *
@@ -896,8 +686,7 @@ acpi_ds_create_walk_state (
  *              method_node     - Control method NS node, if any
  *              aml_start       - Start of AML
  *              aml_length      - Length of AML
- *              Params          - Method args, if any
- *              return_obj_desc - Where to store a return object, if any
+ *              Info            - Method info block (params, etc.)
  *              pass_number     - 1, 2, or 3
  *
  * RETURN:      Status
@@ -907,69 +696,70 @@ acpi_ds_create_walk_state (
  ******************************************************************************/
 
 acpi_status
-acpi_ds_init_aml_walk (
-	struct acpi_walk_state          *walk_state,
-	union acpi_parse_object         *op,
-	struct acpi_namespace_node      *method_node,
-	u8                              *aml_start,
-	u32                             aml_length,
-	struct acpi_parameter_info      *info,
-	u32                             pass_number)
+acpi_ds_init_aml_walk(struct acpi_walk_state *walk_state,
+		      union acpi_parse_object *op,
+		      struct acpi_namespace_node *method_node,
+		      u8 * aml_start,
+		      u32 aml_length,
+		      struct acpi_parameter_info *info, u8 pass_number)
 {
-	acpi_status                     status;
-	struct acpi_parse_state         *parser_state = &walk_state->parser_state;
-	union acpi_parse_object         *extra_op;
+	acpi_status status;
+	struct acpi_parse_state *parser_state = &walk_state->parser_state;
+	union acpi_parse_object *extra_op;
 
+	ACPI_FUNCTION_TRACE("ds_init_aml_walk");
 
-	ACPI_FUNCTION_TRACE ("ds_init_aml_walk");
-
-
-	walk_state->parser_state.aml    =
-	walk_state->parser_state.aml_start = aml_start;
+	walk_state->parser_state.aml =
+	    walk_state->parser_state.aml_start = aml_start;
 	walk_state->parser_state.aml_end =
-	walk_state->parser_state.pkg_end = aml_start + aml_length;
+	    walk_state->parser_state.pkg_end = aml_start + aml_length;
 
 	/* The next_op of the next_walk will be the beginning of the method */
 
-	walk_state->next_op             = NULL;
+	walk_state->next_op = NULL;
+	walk_state->pass_number = pass_number;
 
 	if (info) {
 		if (info->parameter_type == ACPI_PARAM_GPE) {
-			walk_state->gpe_event_info = ACPI_CAST_PTR (struct acpi_gpe_event_info,
-					   info->parameters);
-		}
-		else {
-			walk_state->params              = info->parameters;
-			walk_state->caller_return_desc  = &info->return_object;
+			walk_state->gpe_event_info =
+			    ACPI_CAST_PTR(struct acpi_gpe_event_info,
+					  info->parameters);
+		} else {
+			walk_state->params = info->parameters;
+			walk_state->caller_return_desc = &info->return_object;
 		}
 	}
 
-	status = acpi_ps_init_scope (&walk_state->parser_state, op);
-	if (ACPI_FAILURE (status)) {
-		return_ACPI_STATUS (status);
+	status = acpi_ps_init_scope(&walk_state->parser_state, op);
+	if (ACPI_FAILURE(status)) {
+		return_ACPI_STATUS(status);
 	}
 
 	if (method_node) {
 		walk_state->parser_state.start_node = method_node;
-		walk_state->walk_type            = ACPI_WALK_METHOD;
-		walk_state->method_node          = method_node;
-		walk_state->method_desc          = acpi_ns_get_attached_object (method_node);
+		walk_state->walk_type = ACPI_WALK_METHOD;
+		walk_state->method_node = method_node;
+		walk_state->method_desc =
+		    acpi_ns_get_attached_object(method_node);
 
 		/* Push start scope on scope stack and make it current  */
 
-		status = acpi_ds_scope_stack_push (method_node, ACPI_TYPE_METHOD, walk_state);
-		if (ACPI_FAILURE (status)) {
-			return_ACPI_STATUS (status);
+		status =
+		    acpi_ds_scope_stack_push(method_node, ACPI_TYPE_METHOD,
+					     walk_state);
+		if (ACPI_FAILURE(status)) {
+			return_ACPI_STATUS(status);
 		}
 
 		/* Init the method arguments */
 
-		status = acpi_ds_method_data_init_args (walk_state->params, ACPI_METHOD_NUM_ARGS, walk_state);
-		if (ACPI_FAILURE (status)) {
-			return_ACPI_STATUS (status);
+		status = acpi_ds_method_data_init_args(walk_state->params,
+						       ACPI_METHOD_NUM_ARGS,
+						       walk_state);
+		if (ACPI_FAILURE(status)) {
+			return_ACPI_STATUS(status);
 		}
-	}
-	else {
+	} else {
 		/*
 		 * Setup the current scope.
 		 * Find a Named Op that has a namespace node associated with it.
@@ -983,26 +773,26 @@ acpi_ds_init_aml_walk (
 
 		if (!extra_op) {
 			parser_state->start_node = NULL;
-		}
-		else {
+		} else {
 			parser_state->start_node = extra_op->common.node;
 		}
 
 		if (parser_state->start_node) {
 			/* Push start scope on scope stack and make it current  */
 
-			status = acpi_ds_scope_stack_push (parser_state->start_node,
-					  parser_state->start_node->type, walk_state);
-			if (ACPI_FAILURE (status)) {
-				return_ACPI_STATUS (status);
+			status =
+			    acpi_ds_scope_stack_push(parser_state->start_node,
+						     parser_state->start_node->
+						     type, walk_state);
+			if (ACPI_FAILURE(status)) {
+				return_ACPI_STATUS(status);
 			}
 		}
 	}
 
-	status = acpi_ds_init_callbacks (walk_state, pass_number);
-	return_ACPI_STATUS (status);
+	status = acpi_ds_init_callbacks(walk_state, pass_number);
+	return_ACPI_STATUS(status);
 }
-
 
 /*******************************************************************************
  *
@@ -1016,27 +806,25 @@ acpi_ds_init_aml_walk (
  *
  ******************************************************************************/
 
-void
-acpi_ds_delete_walk_state (
-	struct acpi_walk_state          *walk_state)
+void acpi_ds_delete_walk_state(struct acpi_walk_state *walk_state)
 {
-	union acpi_generic_state        *state;
+	union acpi_generic_state *state;
 
-
-	ACPI_FUNCTION_TRACE_PTR ("ds_delete_walk_state", walk_state);
-
+	ACPI_FUNCTION_TRACE_PTR("ds_delete_walk_state", walk_state);
 
 	if (!walk_state) {
 		return;
 	}
 
 	if (walk_state->data_type != ACPI_DESC_TYPE_WALK) {
-		ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "%p is not a valid walk state\n", walk_state));
+		ACPI_ERROR((AE_INFO, "%p is not a valid walk state",
+			    walk_state));
 		return;
 	}
 
 	if (walk_state->parser_state.scope) {
-		ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "%p walk still has a scope list\n", walk_state));
+		ACPI_ERROR((AE_INFO, "%p walk still has a scope list",
+			    walk_state));
 	}
 
 	/* Always must free any linked control states */
@@ -1045,7 +833,7 @@ acpi_ds_delete_walk_state (
 		state = walk_state->control_state;
 		walk_state->control_state = state->common.next;
 
-		acpi_ut_delete_generic_state (state);
+		acpi_ut_delete_generic_state(state);
 	}
 
 	/* Always must free any linked parse states */
@@ -1054,7 +842,7 @@ acpi_ds_delete_walk_state (
 		state = walk_state->scope_info;
 		walk_state->scope_info = state->common.next;
 
-		acpi_ut_delete_generic_state (state);
+		acpi_ut_delete_generic_state(state);
 	}
 
 	/* Always must free any stacked result states */
@@ -1063,38 +851,196 @@ acpi_ds_delete_walk_state (
 		state = walk_state->results;
 		walk_state->results = state->common.next;
 
-		acpi_ut_delete_generic_state (state);
+		acpi_ut_delete_generic_state(state);
 	}
 
-	acpi_ut_release_to_cache (ACPI_MEM_LIST_WALK, walk_state);
+	ACPI_MEM_FREE(walk_state);
 	return_VOID;
 }
 
-
-#ifdef ACPI_ENABLE_OBJECT_CACHE
-/******************************************************************************
+#ifdef ACPI_OBSOLETE_FUNCTIONS
+/*******************************************************************************
  *
- * FUNCTION:    acpi_ds_delete_walk_state_cache
+ * FUNCTION:    acpi_ds_result_insert
  *
- * PARAMETERS:  None
+ * PARAMETERS:  Object              - Object to push
+ *              Index               - Where to insert the object
+ *              walk_state          - Current Walk state
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Purge the global state object cache.  Used during subsystem
- *              termination.
+ * DESCRIPTION: Insert an object onto this walk's result stack
  *
  ******************************************************************************/
 
-void
-acpi_ds_delete_walk_state_cache (
-	void)
+acpi_status
+acpi_ds_result_insert(void *object,
+		      u32 index, struct acpi_walk_state *walk_state)
 {
-	ACPI_FUNCTION_TRACE ("ds_delete_walk_state_cache");
+	union acpi_generic_state *state;
 
+	ACPI_FUNCTION_NAME("ds_result_insert");
 
-	acpi_ut_delete_generic_cache (ACPI_MEM_LIST_WALK);
-	return_VOID;
+	state = walk_state->results;
+	if (!state) {
+		ACPI_ERROR((AE_INFO, "No result object pushed! State=%p",
+			    walk_state));
+		return (AE_NOT_EXIST);
+	}
+
+	if (index >= ACPI_OBJ_NUM_OPERANDS) {
+		ACPI_ERROR((AE_INFO,
+			    "Index out of range: %X Obj=%p State=%p Num=%X",
+			    index, object, walk_state,
+			    state->results.num_results));
+		return (AE_BAD_PARAMETER);
+	}
+
+	if (!object) {
+		ACPI_ERROR((AE_INFO,
+			    "Null Object! Index=%X Obj=%p State=%p Num=%X",
+			    index, object, walk_state,
+			    state->results.num_results));
+		return (AE_BAD_PARAMETER);
+	}
+
+	state->results.obj_desc[index] = object;
+	state->results.num_results++;
+
+	ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
+			  "Obj=%p [%s] State=%p Num=%X Cur=%X\n",
+			  object,
+			  object ?
+			  acpi_ut_get_object_type_name((union
+							acpi_operand_object *)
+						       object) : "NULL",
+			  walk_state, state->results.num_results,
+			  walk_state->current_result));
+
+	return (AE_OK);
+}
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_ds_obj_stack_delete_all
+ *
+ * PARAMETERS:  walk_state          - Current Walk state
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Clear the object stack by deleting all objects that are on it.
+ *              Should be used with great care, if at all!
+ *
+ ******************************************************************************/
+
+acpi_status acpi_ds_obj_stack_delete_all(struct acpi_walk_state * walk_state)
+{
+	u32 i;
+
+	ACPI_FUNCTION_TRACE_PTR("ds_obj_stack_delete_all", walk_state);
+
+	/* The stack size is configurable, but fixed */
+
+	for (i = 0; i < ACPI_OBJ_NUM_OPERANDS; i++) {
+		if (walk_state->operands[i]) {
+			acpi_ut_remove_reference(walk_state->operands[i]);
+			walk_state->operands[i] = NULL;
+		}
+	}
+
+	return_ACPI_STATUS(AE_OK);
+}
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_ds_obj_stack_pop_object
+ *
+ * PARAMETERS:  Object              - Where to return the popped object
+ *              walk_state          - Current Walk state
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Pop this walk's object stack.  Objects on the stack are NOT
+ *              deleted by this routine.
+ *
+ ******************************************************************************/
+
+acpi_status
+acpi_ds_obj_stack_pop_object(union acpi_operand_object **object,
+			     struct acpi_walk_state *walk_state)
+{
+	ACPI_FUNCTION_NAME("ds_obj_stack_pop_object");
+
+	/* Check for stack underflow */
+
+	if (walk_state->num_operands == 0) {
+		ACPI_ERROR((AE_INFO,
+			    "Missing operand/stack empty! State=%p #Ops=%X",
+			    walk_state, walk_state->num_operands));
+		*object = NULL;
+		return (AE_AML_NO_OPERAND);
+	}
+
+	/* Pop the stack */
+
+	walk_state->num_operands--;
+
+	/* Check for a valid operand */
+
+	if (!walk_state->operands[walk_state->num_operands]) {
+		ACPI_ERROR((AE_INFO,
+			    "Null operand! State=%p #Ops=%X",
+			    walk_state, walk_state->num_operands));
+		*object = NULL;
+		return (AE_AML_NO_OPERAND);
+	}
+
+	/* Get operand and set stack entry to null */
+
+	*object = walk_state->operands[walk_state->num_operands];
+	walk_state->operands[walk_state->num_operands] = NULL;
+
+	ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "Obj=%p [%s] State=%p #Ops=%X\n",
+			  *object, acpi_ut_get_object_type_name(*object),
+			  walk_state, walk_state->num_operands));
+
+	return (AE_OK);
+}
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_ds_obj_stack_get_value
+ *
+ * PARAMETERS:  Index               - Stack index whose value is desired.  Based
+ *                                    on the top of the stack (index=0 == top)
+ *              walk_state          - Current Walk state
+ *
+ * RETURN:      Pointer to the requested operand
+ *
+ * DESCRIPTION: Retrieve an object from this walk's operand stack.  Index must
+ *              be within the range of the current stack pointer.
+ *
+ ******************************************************************************/
+
+void *acpi_ds_obj_stack_get_value(u32 index, struct acpi_walk_state *walk_state)
+{
+
+	ACPI_FUNCTION_TRACE_PTR("ds_obj_stack_get_value", walk_state);
+
+	/* Can't do it if the stack is empty */
+
+	if (walk_state->num_operands == 0) {
+		return_PTR(NULL);
+	}
+
+	/* or if the index is past the top of the stack */
+
+	if (index > (walk_state->num_operands - (u32) 1)) {
+		return_PTR(NULL);
+	}
+
+	return_PTR(walk_state->
+		   operands[(acpi_native_uint) (walk_state->num_operands - 1) -
+			    index]);
 }
 #endif
-
-

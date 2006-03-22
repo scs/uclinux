@@ -815,7 +815,7 @@ static void process_incoming (struct fs_dev *dev, struct queue *q)
 				skb_put (skb, qe->p1 & 0xffff); 
 				ATM_SKB(skb)->vcc = atm_vcc;
 				atomic_inc(&atm_vcc->stats->rx);
-				do_gettimeofday(&skb->stamp);
+				__net_timestamp(skb);
 				fs_dprintk (FS_DEBUG_ALLOC, "Free rec-skb: %p (pushed)\n", skb);
 				atm_vcc->push (atm_vcc, skb);
 				fs_dprintk (FS_DEBUG_ALLOC, "Free rec-d: %p\n", pe);
@@ -1374,7 +1374,7 @@ static void reset_chip (struct fs_dev *dev)
 	}
 }
 
-static void __devinit *aligned_kmalloc (int size, int flags, int alignment)
+static void __devinit *aligned_kmalloc (int size, gfp_t flags, int alignment)
 {
 	void  *t;
 
@@ -1464,7 +1464,8 @@ static inline int nr_buffers_in_freepool (struct fs_dev *dev, struct freepool *f
    does. I've seen "receive abort: no buffers" and things started
    working again after that...  -- REW */
 
-static void top_off_fp (struct fs_dev *dev, struct freepool *fp, int gfp_flags)
+static void top_off_fp (struct fs_dev *dev, struct freepool *fp,
+			gfp_t gfp_flags)
 {
 	struct FS_BPENTRY *qe, *ne;
 	struct sk_buff *skb;

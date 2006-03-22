@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2005, R. Byron Moore
+ * Copyright (C) 2000 - 2006, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -42,15 +42,13 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-
 #include <acpi/acpi.h>
 #include <acpi/acinterp.h>
 #include <acpi/amlcode.h>
-
+#include <acpi/amlresrc.h>
 
 #define _COMPONENT          ACPI_EXECUTER
-	 ACPI_MODULE_NAME    ("exmisc")
-
+ACPI_MODULE_NAME("exmisc")
 
 /*******************************************************************************
  *
@@ -66,27 +64,23 @@
  *              Common code for the ref_of_op and the cond_ref_of_op.
  *
  ******************************************************************************/
-
 acpi_status
-acpi_ex_get_object_reference (
-	union acpi_operand_object       *obj_desc,
-	union acpi_operand_object       **return_desc,
-	struct acpi_walk_state          *walk_state)
+acpi_ex_get_object_reference(union acpi_operand_object *obj_desc,
+			     union acpi_operand_object **return_desc,
+			     struct acpi_walk_state *walk_state)
 {
-	union acpi_operand_object       *reference_obj;
-	union acpi_operand_object       *referenced_obj;
+	union acpi_operand_object *reference_obj;
+	union acpi_operand_object *referenced_obj;
 
-
-	ACPI_FUNCTION_TRACE_PTR ("ex_get_object_reference", obj_desc);
-
+	ACPI_FUNCTION_TRACE_PTR("ex_get_object_reference", obj_desc);
 
 	*return_desc = NULL;
 
-	switch (ACPI_GET_DESCRIPTOR_TYPE (obj_desc)) {
+	switch (ACPI_GET_DESCRIPTOR_TYPE(obj_desc)) {
 	case ACPI_DESC_TYPE_OPERAND:
 
-		if (ACPI_GET_OBJECT_TYPE (obj_desc) != ACPI_TYPE_LOCAL_REFERENCE) {
-			return_ACPI_STATUS (AE_AML_OPERAND_TYPE);
+		if (ACPI_GET_OBJECT_TYPE(obj_desc) != ACPI_TYPE_LOCAL_REFERENCE) {
+			return_ACPI_STATUS(AE_AML_OPERAND_TYPE);
 		}
 
 		/*
@@ -104,12 +98,11 @@ acpi_ex_get_object_reference (
 
 		default:
 
-			ACPI_REPORT_ERROR (("Unknown Reference opcode in get_reference %X\n",
-				obj_desc->reference.opcode));
-			return_ACPI_STATUS (AE_AML_INTERNAL);
+			ACPI_ERROR((AE_INFO, "Unknown Reference opcode %X",
+				    obj_desc->reference.opcode));
+			return_ACPI_STATUS(AE_AML_INTERNAL);
 		}
 		break;
-
 
 	case ACPI_DESC_TYPE_NAMED:
 
@@ -119,32 +112,32 @@ acpi_ex_get_object_reference (
 		referenced_obj = obj_desc;
 		break;
 
-
 	default:
 
-		ACPI_REPORT_ERROR (("Invalid descriptor type in get_reference: %X\n",
-				ACPI_GET_DESCRIPTOR_TYPE (obj_desc)));
-		return_ACPI_STATUS (AE_TYPE);
+		ACPI_ERROR((AE_INFO, "Invalid descriptor type %X",
+			    ACPI_GET_DESCRIPTOR_TYPE(obj_desc)));
+		return_ACPI_STATUS(AE_TYPE);
 	}
-
 
 	/* Create a new reference object */
 
-	reference_obj = acpi_ut_create_internal_object (ACPI_TYPE_LOCAL_REFERENCE);
+	reference_obj =
+	    acpi_ut_create_internal_object(ACPI_TYPE_LOCAL_REFERENCE);
 	if (!reference_obj) {
-		return_ACPI_STATUS (AE_NO_MEMORY);
+		return_ACPI_STATUS(AE_NO_MEMORY);
 	}
 
 	reference_obj->reference.opcode = AML_REF_OF_OP;
 	reference_obj->reference.object = referenced_obj;
 	*return_desc = reference_obj;
 
-	ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "Object %p Type [%s], returning Reference %p\n",
-			obj_desc, acpi_ut_get_object_type_name (obj_desc), *return_desc));
+	ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
+			  "Object %p Type [%s], returning Reference %p\n",
+			  obj_desc, acpi_ut_get_object_type_name(obj_desc),
+			  *return_desc));
 
-	return_ACPI_STATUS (AE_OK);
+	return_ACPI_STATUS(AE_OK);
 }
-
 
 /*******************************************************************************
  *
@@ -162,62 +155,74 @@ acpi_ex_get_object_reference (
  ******************************************************************************/
 
 acpi_status
-acpi_ex_concat_template (
-	union acpi_operand_object       *operand0,
-	union acpi_operand_object       *operand1,
-	union acpi_operand_object       **actual_return_desc,
-	struct acpi_walk_state          *walk_state)
+acpi_ex_concat_template(union acpi_operand_object *operand0,
+			union acpi_operand_object *operand1,
+			union acpi_operand_object **actual_return_desc,
+			struct acpi_walk_state *walk_state)
 {
-	union acpi_operand_object       *return_desc;
-	u8                              *new_buf;
-	u8                              *end_tag1;
-	u8                              *end_tag2;
-	acpi_size                       length1;
-	acpi_size                       length2;
+	acpi_status status;
+	union acpi_operand_object *return_desc;
+	u8 *new_buf;
+	u8 *end_tag;
+	acpi_size length0;
+	acpi_size length1;
+	acpi_size new_length;
 
+	ACPI_FUNCTION_TRACE("ex_concat_template");
 
-	ACPI_FUNCTION_TRACE ("ex_concat_template");
+	/*
+	 * Find the end_tag descriptor in each resource template.
+	 * Note1: returned pointers point TO the end_tag, not past it.
+	 * Note2: zero-length buffers are allowed; treated like one end_tag
+	 */
 
+	/* Get the length of the first resource template */
 
-	/* Find the end_tags in each resource template */
-
-	end_tag1 = acpi_ut_get_resource_end_tag (operand0);
-	end_tag2 = acpi_ut_get_resource_end_tag (operand1);
-	if (!end_tag1 || !end_tag2) {
-		return_ACPI_STATUS (AE_AML_OPERAND_TYPE);
+	status = acpi_ut_get_resource_end_tag(operand0, &end_tag);
+	if (ACPI_FAILURE(status)) {
+		return_ACPI_STATUS(status);
 	}
 
-	/* Compute the length of each part */
+	length0 = ACPI_PTR_DIFF(end_tag, operand0->buffer.pointer);
 
-	length1 = ACPI_PTR_DIFF (end_tag1, operand0->buffer.pointer);
-	length2 = ACPI_PTR_DIFF (end_tag2, operand1->buffer.pointer) +
-			  2; /* Size of END_TAG */
+	/* Get the length of the second resource template */
 
-	/* Create a new buffer object for the result */
+	status = acpi_ut_get_resource_end_tag(operand1, &end_tag);
+	if (ACPI_FAILURE(status)) {
+		return_ACPI_STATUS(status);
+	}
 
-	return_desc = acpi_ut_create_buffer_object (length1 + length2);
+	length1 = ACPI_PTR_DIFF(end_tag, operand1->buffer.pointer);
+
+	/* Combine both lengths, minimum size will be 2 for end_tag */
+
+	new_length = length0 + length1 + sizeof(struct aml_resource_end_tag);
+
+	/* Create a new buffer object for the result (with one end_tag) */
+
+	return_desc = acpi_ut_create_buffer_object(new_length);
 	if (!return_desc) {
-		return_ACPI_STATUS (AE_NO_MEMORY);
+		return_ACPI_STATUS(AE_NO_MEMORY);
 	}
 
-	/* Copy the templates to the new descriptor */
-
+	/*
+	 * Copy the templates to the new buffer, 0 first, then 1 follows. One
+	 * end_tag descriptor is copied from Operand1.
+	 */
 	new_buf = return_desc->buffer.pointer;
-	ACPI_MEMCPY (new_buf, operand0->buffer.pointer, length1);
-	ACPI_MEMCPY (new_buf + length1, operand1->buffer.pointer, length2);
+	ACPI_MEMCPY(new_buf, operand0->buffer.pointer, length0);
+	ACPI_MEMCPY(new_buf + length0, operand1->buffer.pointer, length1);
 
-	/* Compute the new checksum */
+	/* Insert end_tag and set the checksum to zero, means "ignore checksum" */
 
-	new_buf[return_desc->buffer.length - 1] =
-			acpi_ut_generate_checksum (return_desc->buffer.pointer,
-					   (return_desc->buffer.length - 1));
+	new_buf[new_length - 1] = 0;
+	new_buf[new_length - 2] = ACPI_RESOURCE_NAME_END_TAG | 1;
 
-	/* Return the completed template descriptor */
+	/* Return the completed resource template */
 
 	*actual_return_desc = return_desc;
-	return_ACPI_STATUS (AE_OK);
+	return_ACPI_STATUS(AE_OK);
 }
-
 
 /*******************************************************************************
  *
@@ -235,21 +240,17 @@ acpi_ex_concat_template (
  ******************************************************************************/
 
 acpi_status
-acpi_ex_do_concatenate (
-	union acpi_operand_object       *operand0,
-	union acpi_operand_object       *operand1,
-	union acpi_operand_object       **actual_return_desc,
-	struct acpi_walk_state          *walk_state)
+acpi_ex_do_concatenate(union acpi_operand_object *operand0,
+		       union acpi_operand_object *operand1,
+		       union acpi_operand_object **actual_return_desc,
+		       struct acpi_walk_state *walk_state)
 {
-	union acpi_operand_object       *local_operand1 = operand1;
-	union acpi_operand_object       *return_desc;
-	char                            *new_buf;
-	acpi_status                     status;
-	acpi_size                       new_length;
+	union acpi_operand_object *local_operand1 = operand1;
+	union acpi_operand_object *return_desc;
+	char *new_buf;
+	acpi_status status;
 
-
-	ACPI_FUNCTION_TRACE ("ex_do_concatenate");
-
+	ACPI_FUNCTION_TRACE("ex_do_concatenate");
 
 	/*
 	 * Convert the second operand if necessary.  The first operand
@@ -258,27 +259,28 @@ acpi_ex_do_concatenate (
 	 * guaranteed to be either Integer/String/Buffer by the operand
 	 * resolution mechanism.
 	 */
-	switch (ACPI_GET_OBJECT_TYPE (operand0)) {
+	switch (ACPI_GET_OBJECT_TYPE(operand0)) {
 	case ACPI_TYPE_INTEGER:
-		status = acpi_ex_convert_to_integer (operand1, &local_operand1, 16);
+		status =
+		    acpi_ex_convert_to_integer(operand1, &local_operand1, 16);
 		break;
 
 	case ACPI_TYPE_STRING:
-		status = acpi_ex_convert_to_string (operand1, &local_operand1,
-				 ACPI_IMPLICIT_CONVERT_HEX);
+		status = acpi_ex_convert_to_string(operand1, &local_operand1,
+						   ACPI_IMPLICIT_CONVERT_HEX);
 		break;
 
 	case ACPI_TYPE_BUFFER:
-		status = acpi_ex_convert_to_buffer (operand1, &local_operand1);
+		status = acpi_ex_convert_to_buffer(operand1, &local_operand1);
 		break;
 
 	default:
-		ACPI_REPORT_ERROR (("Concat - invalid obj type: %X\n",
-				ACPI_GET_OBJECT_TYPE (operand0)));
+		ACPI_ERROR((AE_INFO, "Invalid object type: %X",
+			    ACPI_GET_OBJECT_TYPE(operand0)));
 		status = AE_AML_INTERNAL;
 	}
 
-	if (ACPI_FAILURE (status)) {
+	if (ACPI_FAILURE(status)) {
 		goto cleanup;
 	}
 
@@ -295,46 +297,43 @@ acpi_ex_do_concatenate (
 	 * 2) Two Strings concatenated to produce a new String
 	 * 3) Two Buffers concatenated to produce a new Buffer
 	 */
-	switch (ACPI_GET_OBJECT_TYPE (operand0)) {
+	switch (ACPI_GET_OBJECT_TYPE(operand0)) {
 	case ACPI_TYPE_INTEGER:
 
 		/* Result of two Integers is a Buffer */
 		/* Need enough buffer space for two integers */
 
-		return_desc = acpi_ut_create_buffer_object (
-				   ACPI_MUL_2 (acpi_gbl_integer_byte_width));
+		return_desc = acpi_ut_create_buffer_object((acpi_size)
+							   ACPI_MUL_2
+							   (acpi_gbl_integer_byte_width));
 		if (!return_desc) {
 			status = AE_NO_MEMORY;
 			goto cleanup;
 		}
 
-		new_buf = (char *) return_desc->buffer.pointer;
+		new_buf = (char *)return_desc->buffer.pointer;
 
 		/* Copy the first integer, LSB first */
 
-		ACPI_MEMCPY (new_buf,
-				  &operand0->integer.value,
-				  acpi_gbl_integer_byte_width);
+		ACPI_MEMCPY(new_buf, &operand0->integer.value,
+			    acpi_gbl_integer_byte_width);
 
 		/* Copy the second integer (LSB first) after the first */
 
-		ACPI_MEMCPY (new_buf + acpi_gbl_integer_byte_width,
-				  &local_operand1->integer.value,
-				  acpi_gbl_integer_byte_width);
+		ACPI_MEMCPY(new_buf + acpi_gbl_integer_byte_width,
+			    &local_operand1->integer.value,
+			    acpi_gbl_integer_byte_width);
 		break;
 
 	case ACPI_TYPE_STRING:
 
 		/* Result of two Strings is a String */
 
-		new_length = (acpi_size) operand0->string.length +
-				 (acpi_size) local_operand1->string.length;
-		if (new_length > ACPI_MAX_STRING_CONVERSION) {
-			status = AE_AML_STRING_LIMIT;
-			goto cleanup;
-		}
-
-		return_desc = acpi_ut_create_string_object (new_length);
+		return_desc = acpi_ut_create_string_object((acpi_size)
+							   (operand0->string.
+							    length +
+							    local_operand1->
+							    string.length));
 		if (!return_desc) {
 			status = AE_NO_MEMORY;
 			goto cleanup;
@@ -344,55 +343,54 @@ acpi_ex_do_concatenate (
 
 		/* Concatenate the strings */
 
-		ACPI_STRCPY (new_buf,
-				  operand0->string.pointer);
-		ACPI_STRCPY (new_buf + operand0->string.length,
-				  local_operand1->string.pointer);
+		ACPI_STRCPY(new_buf, operand0->string.pointer);
+		ACPI_STRCPY(new_buf + operand0->string.length,
+			    local_operand1->string.pointer);
 		break;
 
 	case ACPI_TYPE_BUFFER:
 
 		/* Result of two Buffers is a Buffer */
 
-		return_desc = acpi_ut_create_buffer_object (
-				   (acpi_size) operand0->buffer.length +
-				   (acpi_size) local_operand1->buffer.length);
+		return_desc = acpi_ut_create_buffer_object((acpi_size)
+							   (operand0->buffer.
+							    length +
+							    local_operand1->
+							    buffer.length));
 		if (!return_desc) {
 			status = AE_NO_MEMORY;
 			goto cleanup;
 		}
 
-		new_buf = (char *) return_desc->buffer.pointer;
+		new_buf = (char *)return_desc->buffer.pointer;
 
 		/* Concatenate the buffers */
 
-		ACPI_MEMCPY (new_buf,
-				  operand0->buffer.pointer,
-				  operand0->buffer.length);
-		ACPI_MEMCPY (new_buf + operand0->buffer.length,
-				  local_operand1->buffer.pointer,
-				  local_operand1->buffer.length);
+		ACPI_MEMCPY(new_buf, operand0->buffer.pointer,
+			    operand0->buffer.length);
+		ACPI_MEMCPY(new_buf + operand0->buffer.length,
+			    local_operand1->buffer.pointer,
+			    local_operand1->buffer.length);
 		break;
 
 	default:
 
 		/* Invalid object type, should not happen here */
 
-		ACPI_REPORT_ERROR (("Concatenate - Invalid object type: %X\n",
-				ACPI_GET_OBJECT_TYPE (operand0)));
-		status =AE_AML_INTERNAL;
+		ACPI_ERROR((AE_INFO, "Invalid object type: %X",
+			    ACPI_GET_OBJECT_TYPE(operand0)));
+		status = AE_AML_INTERNAL;
 		goto cleanup;
 	}
 
 	*actual_return_desc = return_desc;
 
-cleanup:
+      cleanup:
 	if (local_operand1 != operand1) {
-		acpi_ut_remove_reference (local_operand1);
+		acpi_ut_remove_reference(local_operand1);
 	}
-	return_ACPI_STATUS (status);
+	return_ACPI_STATUS(status);
 }
-
 
 /*******************************************************************************
  *
@@ -411,62 +409,49 @@ cleanup:
  ******************************************************************************/
 
 acpi_integer
-acpi_ex_do_math_op (
-	u16                             opcode,
-	acpi_integer                    integer0,
-	acpi_integer                    integer1)
+acpi_ex_do_math_op(u16 opcode, acpi_integer integer0, acpi_integer integer1)
 {
 
-	ACPI_FUNCTION_ENTRY ();
-
+	ACPI_FUNCTION_ENTRY();
 
 	switch (opcode) {
-	case AML_ADD_OP:                /* Add (Integer0, Integer1, Result) */
+	case AML_ADD_OP:	/* Add (Integer0, Integer1, Result) */
 
 		return (integer0 + integer1);
 
-
-	case AML_BIT_AND_OP:            /* And (Integer0, Integer1, Result) */
+	case AML_BIT_AND_OP:	/* And (Integer0, Integer1, Result) */
 
 		return (integer0 & integer1);
 
-
-	case AML_BIT_NAND_OP:           /* NAnd (Integer0, Integer1, Result) */
+	case AML_BIT_NAND_OP:	/* NAnd (Integer0, Integer1, Result) */
 
 		return (~(integer0 & integer1));
 
-
-	case AML_BIT_OR_OP:             /* Or (Integer0, Integer1, Result) */
+	case AML_BIT_OR_OP:	/* Or (Integer0, Integer1, Result) */
 
 		return (integer0 | integer1);
 
-
-	case AML_BIT_NOR_OP:            /* NOr (Integer0, Integer1, Result) */
+	case AML_BIT_NOR_OP:	/* NOr (Integer0, Integer1, Result) */
 
 		return (~(integer0 | integer1));
 
-
-	case AML_BIT_XOR_OP:            /* XOr (Integer0, Integer1, Result) */
+	case AML_BIT_XOR_OP:	/* XOr (Integer0, Integer1, Result) */
 
 		return (integer0 ^ integer1);
 
-
-	case AML_MULTIPLY_OP:           /* Multiply (Integer0, Integer1, Result) */
+	case AML_MULTIPLY_OP:	/* Multiply (Integer0, Integer1, Result) */
 
 		return (integer0 * integer1);
 
-
-	case AML_SHIFT_LEFT_OP:         /* shift_left (Operand, shift_count, Result) */
+	case AML_SHIFT_LEFT_OP:	/* shift_left (Operand, shift_count, Result) */
 
 		return (integer0 << integer1);
 
-
-	case AML_SHIFT_RIGHT_OP:        /* shift_right (Operand, shift_count, Result) */
+	case AML_SHIFT_RIGHT_OP:	/* shift_right (Operand, shift_count, Result) */
 
 		return (integer0 >> integer1);
 
-
-	case AML_SUBTRACT_OP:           /* Subtract (Integer0, Integer1, Result) */
+	case AML_SUBTRACT_OP:	/* Subtract (Integer0, Integer1, Result) */
 
 		return (integer0 - integer1);
 
@@ -475,7 +460,6 @@ acpi_ex_do_math_op (
 		return (0);
 	}
 }
-
 
 /*******************************************************************************
  *
@@ -498,28 +482,24 @@ acpi_ex_do_math_op (
  ******************************************************************************/
 
 acpi_status
-acpi_ex_do_logical_numeric_op (
-	u16                             opcode,
-	acpi_integer                    integer0,
-	acpi_integer                    integer1,
-	u8                              *logical_result)
+acpi_ex_do_logical_numeric_op(u16 opcode,
+			      acpi_integer integer0,
+			      acpi_integer integer1, u8 * logical_result)
 {
-	acpi_status                     status = AE_OK;
-	u8                              local_result = FALSE;
+	acpi_status status = AE_OK;
+	u8 local_result = FALSE;
 
-
-	ACPI_FUNCTION_TRACE ("ex_do_logical_numeric_op");
-
+	ACPI_FUNCTION_TRACE("ex_do_logical_numeric_op");
 
 	switch (opcode) {
-	case AML_LAND_OP:               /* LAnd (Integer0, Integer1) */
+	case AML_LAND_OP:	/* LAnd (Integer0, Integer1) */
 
 		if (integer0 && integer1) {
 			local_result = TRUE;
 		}
 		break;
 
-	case AML_LOR_OP:                /* LOr (Integer0, Integer1) */
+	case AML_LOR_OP:	/* LOr (Integer0, Integer1) */
 
 		if (integer0 || integer1) {
 			local_result = TRUE;
@@ -534,9 +514,8 @@ acpi_ex_do_logical_numeric_op (
 	/* Return the logical result and status */
 
 	*logical_result = local_result;
-	return_ACPI_STATUS (status);
+	return_ACPI_STATUS(status);
 }
-
 
 /*******************************************************************************
  *
@@ -565,24 +544,20 @@ acpi_ex_do_logical_numeric_op (
  ******************************************************************************/
 
 acpi_status
-acpi_ex_do_logical_op (
-	u16                             opcode,
-	union acpi_operand_object       *operand0,
-	union acpi_operand_object       *operand1,
-	u8                              *logical_result)
+acpi_ex_do_logical_op(u16 opcode,
+		      union acpi_operand_object *operand0,
+		      union acpi_operand_object *operand1, u8 * logical_result)
 {
-	union acpi_operand_object       *local_operand1 = operand1;
-	acpi_integer                    integer0;
-	acpi_integer                    integer1;
-	u32                             length0;
-	u32                             length1;
-	acpi_status                     status = AE_OK;
-	u8                              local_result = FALSE;
-	int                             compare;
+	union acpi_operand_object *local_operand1 = operand1;
+	acpi_integer integer0;
+	acpi_integer integer1;
+	u32 length0;
+	u32 length1;
+	acpi_status status = AE_OK;
+	u8 local_result = FALSE;
+	int compare;
 
-
-	ACPI_FUNCTION_TRACE ("ex_do_logical_op");
-
+	ACPI_FUNCTION_TRACE("ex_do_logical_op");
 
 	/*
 	 * Convert the second operand if necessary.  The first operand
@@ -591,18 +566,19 @@ acpi_ex_do_logical_op (
 	 * guaranteed to be either Integer/String/Buffer by the operand
 	 * resolution mechanism.
 	 */
-	switch (ACPI_GET_OBJECT_TYPE (operand0)) {
+	switch (ACPI_GET_OBJECT_TYPE(operand0)) {
 	case ACPI_TYPE_INTEGER:
-		status = acpi_ex_convert_to_integer (operand1, &local_operand1, 16);
+		status =
+		    acpi_ex_convert_to_integer(operand1, &local_operand1, 16);
 		break;
 
 	case ACPI_TYPE_STRING:
-		status = acpi_ex_convert_to_string (operand1, &local_operand1,
-				 ACPI_IMPLICIT_CONVERT_HEX);
+		status = acpi_ex_convert_to_string(operand1, &local_operand1,
+						   ACPI_IMPLICIT_CONVERT_HEX);
 		break;
 
 	case ACPI_TYPE_BUFFER:
-		status = acpi_ex_convert_to_buffer (operand1, &local_operand1);
+		status = acpi_ex_convert_to_buffer(operand1, &local_operand1);
 		break;
 
 	default:
@@ -610,14 +586,14 @@ acpi_ex_do_logical_op (
 		break;
 	}
 
-	if (ACPI_FAILURE (status)) {
+	if (ACPI_FAILURE(status)) {
 		goto cleanup;
 	}
 
 	/*
 	 * Two cases: 1) Both Integers, 2) Both Strings or Buffers
 	 */
-	if (ACPI_GET_OBJECT_TYPE (operand0) == ACPI_TYPE_INTEGER) {
+	if (ACPI_GET_OBJECT_TYPE(operand0) == ACPI_TYPE_INTEGER) {
 		/*
 		 * 1) Both operands are of type integer
 		 *    Note: local_operand1 may have changed above
@@ -626,21 +602,21 @@ acpi_ex_do_logical_op (
 		integer1 = local_operand1->integer.value;
 
 		switch (opcode) {
-		case AML_LEQUAL_OP:             /* LEqual (Operand0, Operand1) */
+		case AML_LEQUAL_OP:	/* LEqual (Operand0, Operand1) */
 
 			if (integer0 == integer1) {
 				local_result = TRUE;
 			}
 			break;
 
-		case AML_LGREATER_OP:           /* LGreater (Operand0, Operand1) */
+		case AML_LGREATER_OP:	/* LGreater (Operand0, Operand1) */
 
 			if (integer0 > integer1) {
 				local_result = TRUE;
 			}
 			break;
 
-		case AML_LLESS_OP:              /* LLess (Operand0, Operand1) */
+		case AML_LLESS_OP:	/* LLess (Operand0, Operand1) */
 
 			if (integer0 < integer1) {
 				local_result = TRUE;
@@ -651,8 +627,7 @@ acpi_ex_do_logical_op (
 			status = AE_AML_INTERNAL;
 			break;
 		}
-	}
-	else {
+	} else {
 		/*
 		 * 2) Both operands are Strings or both are Buffers
 		 *    Note: Code below takes advantage of common Buffer/String
@@ -664,31 +639,30 @@ acpi_ex_do_logical_op (
 
 		/* Lexicographic compare: compare the data bytes */
 
-		compare = ACPI_MEMCMP ((const char * ) operand0->buffer.pointer,
-				 (const char * ) local_operand1->buffer.pointer,
-				 (length0 > length1) ? length1 : length0);
+		compare = ACPI_MEMCMP(operand0->buffer.pointer,
+				      local_operand1->buffer.pointer,
+				      (length0 > length1) ? length1 : length0);
 
 		switch (opcode) {
-		case AML_LEQUAL_OP:             /* LEqual (Operand0, Operand1) */
+		case AML_LEQUAL_OP:	/* LEqual (Operand0, Operand1) */
 
 			/* Length and all bytes must be equal */
 
-			if ((length0 == length1) &&
-				(compare == 0)) {
+			if ((length0 == length1) && (compare == 0)) {
 				/* Length and all bytes match ==> TRUE */
 
 				local_result = TRUE;
 			}
 			break;
 
-		case AML_LGREATER_OP:           /* LGreater (Operand0, Operand1) */
+		case AML_LGREATER_OP:	/* LGreater (Operand0, Operand1) */
 
 			if (compare > 0) {
 				local_result = TRUE;
-				goto cleanup;   /* TRUE */
+				goto cleanup;	/* TRUE */
 			}
 			if (compare < 0) {
-				goto cleanup;   /* FALSE */
+				goto cleanup;	/* FALSE */
 			}
 
 			/* Bytes match (to shortest length), compare lengths */
@@ -698,14 +672,14 @@ acpi_ex_do_logical_op (
 			}
 			break;
 
-		case AML_LLESS_OP:              /* LLess (Operand0, Operand1) */
+		case AML_LLESS_OP:	/* LLess (Operand0, Operand1) */
 
 			if (compare > 0) {
-				goto cleanup;   /* FALSE */
+				goto cleanup;	/* FALSE */
 			}
 			if (compare < 0) {
 				local_result = TRUE;
-				goto cleanup;   /* TRUE */
+				goto cleanup;	/* TRUE */
 			}
 
 			/* Bytes match (to shortest length), compare lengths */
@@ -721,18 +695,16 @@ acpi_ex_do_logical_op (
 		}
 	}
 
-cleanup:
+      cleanup:
 
 	/* New object was created if implicit conversion performed - delete */
 
 	if (local_operand1 != operand1) {
-		acpi_ut_remove_reference (local_operand1);
+		acpi_ut_remove_reference(local_operand1);
 	}
 
 	/* Return the logical result and status */
 
 	*logical_result = local_result;
-	return_ACPI_STATUS (status);
+	return_ACPI_STATUS(status);
 }
-
-

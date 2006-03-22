@@ -213,9 +213,9 @@ static int do_lo_send_aops(struct loop_device *lo, struct bio_vec *bvec,
 	struct address_space_operations *aops = mapping->a_ops;
 	pgoff_t index;
 	unsigned offset, bv_offs;
-	int len, ret = 0;
+	int len, ret;
 
-	down(&mapping->host->i_sem);
+	mutex_lock(&mapping->host->i_mutex);
 	index = pos >> PAGE_CACHE_SHIFT;
 	offset = pos & ((pgoff_t)PAGE_CACHE_SIZE - 1);
 	bv_offs = bvec->bv_offset;
@@ -232,9 +232,15 @@ static int do_lo_send_aops(struct loop_device *lo, struct bio_vec *bvec,
 		page = grab_cache_page(mapping, index);
 		if (unlikely(!page))
 			goto fail;
-		if (unlikely(aops->prepare_write(file, page, offset,
-				offset + size)))
+		ret = aops->prepare_write(file, page, offset,
+					  offset + size);
+		if (unlikely(ret)) {
+			if (ret == AOP_TRUNCATED_PAGE) {
+				page_cache_release(page);
+				continue;
+			}
 			goto unlock;
+		}
 		transfer_result = lo_do_transfer(lo, WRITE, page, offset,
 				bvec->bv_page, bv_offs, size, IV);
 		if (unlikely(transfer_result)) {
@@ -251,9 +257,15 @@ static int do_lo_send_aops(struct loop_device *lo, struct bio_vec *bvec,
 			kunmap_atomic(kaddr, KM_USER0);
 		}
 		flush_dcache_page(page);
-		if (unlikely(aops->commit_write(file, page, offset,
-				offset + size)))
+		ret = aops->commit_write(file, page, offset,
+					 offset + size);
+		if (unlikely(ret)) {
+			if (ret == AOP_TRUNCATED_PAGE) {
+				page_cache_release(page);
+				continue;
+			}
 			goto unlock;
+		}
 		if (unlikely(transfer_result))
 			goto unlock;
 		bv_offs += size;
@@ -264,8 +276,9 @@ static int do_lo_send_aops(struct loop_device *lo, struct bio_vec *bvec,
 		unlock_page(page);
 		page_cache_release(page);
 	}
+	ret = 0;
 out:
-	up(&mapping->host->i_sem);
+	mutex_unlock(&mapping->host->i_mutex);
 	return ret;
 unlock:
 	unlock_page(page);
@@ -281,7 +294,7 @@ fail:
  * This helper just factors out common code between do_lo_send_direct_write()
  * and do_lo_send_write().
  */
-static inline int __do_lo_send_write(struct file *file,
+static int __do_lo_send_write(struct file *file,
 		u8 __user *buf, const int len, loff_t pos)
 {
 	ssize_t bw;
@@ -472,17 +485,11 @@ static int do_bio_filebacked(struct loop_device *lo, struct bio *bio)
  */
 static void loop_add_bio(struct loop_device *lo, struct bio *bio)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(&lo->lo_lock, flags);
 	if (lo->lo_biotail) {
 		lo->lo_biotail->bi_next = bio;
 		lo->lo_biotail = bio;
 	} else
 		lo->lo_bio = lo->lo_biotail = bio;
-	spin_unlock_irqrestore(&lo->lo_lock, flags);
-
-	up(&lo->lo_bh_mutex);
 }
 
 /*
@@ -492,14 +499,12 @@ static struct bio *loop_get_bio(struct loop_device *lo)
 {
 	struct bio *bio;
 
-	spin_lock_irq(&lo->lo_lock);
 	if ((bio = lo->lo_bio)) {
 		if (bio == lo->lo_biotail)
 			lo->lo_biotail = NULL;
 		lo->lo_bio = bio->bi_next;
 		bio->bi_next = NULL;
 	}
-	spin_unlock_irq(&lo->lo_lock);
 
 	return bio;
 }
@@ -509,35 +514,28 @@ static int loop_make_request(request_queue_t *q, struct bio *old_bio)
 	struct loop_device *lo = q->queuedata;
 	int rw = bio_rw(old_bio);
 
-	if (!lo)
-		goto out;
+	if (rw == READA)
+		rw = READ;
+
+	BUG_ON(!lo || (rw != READ && rw != WRITE));
 
 	spin_lock_irq(&lo->lo_lock);
 	if (lo->lo_state != Lo_bound)
-		goto inactive;
-	atomic_inc(&lo->lo_pending);
-	spin_unlock_irq(&lo->lo_lock);
-
-	if (rw == WRITE) {
-		if (lo->lo_flags & LO_FLAGS_READ_ONLY)
-			goto err;
-	} else if (rw == READA) {
-		rw = READ;
-	} else if (rw != READ) {
-		printk(KERN_ERR "loop: unknown command (%x)\n", rw);
-		goto err;
-	}
+		goto out;
+	if (unlikely(rw == WRITE && (lo->lo_flags & LO_FLAGS_READ_ONLY)))
+		goto out;
+	lo->lo_pending++;
 	loop_add_bio(lo, old_bio);
+	spin_unlock_irq(&lo->lo_lock);
+	complete(&lo->lo_bh_done);
 	return 0;
-err:
-	if (atomic_dec_and_test(&lo->lo_pending))
-		up(&lo->lo_bh_mutex);
+
 out:
+	if (lo->lo_pending == 0)
+		complete(&lo->lo_bh_done);
+	spin_unlock_irq(&lo->lo_lock);
 	bio_io_error(old_bio, old_bio->bi_size);
 	return 0;
-inactive:
-	spin_unlock_irq(&lo->lo_lock);
-	goto out;
 }
 
 /*
@@ -560,13 +558,11 @@ static void do_loop_switch(struct loop_device *, struct switch_request *);
 
 static inline void loop_handle_bio(struct loop_device *lo, struct bio *bio)
 {
-	int ret;
-
 	if (unlikely(!bio->bi_bdev)) {
 		do_loop_switch(lo, bio->bi_private);
 		bio_put(bio);
 	} else {
-		ret = do_bio_filebacked(lo, bio);
+		int ret = do_bio_filebacked(lo, bio);
 		bio_endio(bio, bio->bi_size, ret);
 	}
 }
@@ -594,38 +590,46 @@ static int loop_thread(void *data)
 	set_user_nice(current, -20);
 
 	lo->lo_state = Lo_bound;
-	atomic_inc(&lo->lo_pending);
+	lo->lo_pending = 1;
 
 	/*
-	 * up sem, we are running
+	 * complete it, we are running
 	 */
-	up(&lo->lo_sem);
+	complete(&lo->lo_done);
 
 	for (;;) {
-		down_interruptible(&lo->lo_bh_mutex);
+		int pending;
+
+		if (wait_for_completion_interruptible(&lo->lo_bh_done))
+			continue;
+
+		spin_lock_irq(&lo->lo_lock);
+
 		/*
-		 * could be upped because of tear-down, not because of
-		 * pending work
+		 * could be completed because of tear-down, not pending work
 		 */
-		if (!atomic_read(&lo->lo_pending))
+		if (unlikely(!lo->lo_pending)) {
+			spin_unlock_irq(&lo->lo_lock);
 			break;
+		}
 
 		bio = loop_get_bio(lo);
-		if (!bio) {
-			printk("loop: missing bio\n");
-			continue;
-		}
+		lo->lo_pending--;
+		pending = lo->lo_pending;
+		spin_unlock_irq(&lo->lo_lock);
+
+		BUG_ON(!bio);
 		loop_handle_bio(lo, bio);
 
 		/*
 		 * upped both for pending work and tear-down, lo_pending
 		 * will hit zero then
 		 */
-		if (atomic_dec_and_test(&lo->lo_pending))
+		if (unlikely(!pending))
 			break;
 	}
 
-	up(&lo->lo_sem);
+	complete(&lo->lo_done);
 	return 0;
 }
 
@@ -836,7 +840,7 @@ static int loop_set_fd(struct loop_device *lo, struct file *lo_file,
 	set_blocksize(bdev, lo_blocksize);
 
 	kernel_thread(loop_thread, lo, CLONE_KERNEL);
-	down(&lo->lo_sem);
+	wait_for_completion(&lo->lo_done);
 	return 0;
 
  out_putf:
@@ -887,7 +891,7 @@ loop_init_xfer(struct loop_device *lo, struct loop_func_table *xfer,
 static int loop_clr_fd(struct loop_device *lo, struct block_device *bdev)
 {
 	struct file *filp = lo->lo_backing_file;
-	int gfp = lo->old_gfp_mask;
+	gfp_t gfp = lo->old_gfp_mask;
 
 	if (lo->lo_state != Lo_bound)
 		return -ENXIO;
@@ -900,11 +904,12 @@ static int loop_clr_fd(struct loop_device *lo, struct block_device *bdev)
 
 	spin_lock_irq(&lo->lo_lock);
 	lo->lo_state = Lo_rundown;
-	if (atomic_dec_and_test(&lo->lo_pending))
-		up(&lo->lo_bh_mutex);
+	lo->lo_pending--;
+	if (!lo->lo_pending)
+		complete(&lo->lo_bh_done);
 	spin_unlock_irq(&lo->lo_lock);
 
-	down(&lo->lo_sem);
+	wait_for_completion(&lo->lo_done);
 
 	lo->lo_backing_file = NULL;
 
@@ -1281,8 +1286,8 @@ static int __init loop_init(void)
 		if (!lo->lo_queue)
 			goto out_mem4;
 		init_MUTEX(&lo->lo_ctl_mutex);
-		init_MUTEX_LOCKED(&lo->lo_sem);
-		init_MUTEX_LOCKED(&lo->lo_bh_mutex);
+		init_completion(&lo->lo_done);
+		init_completion(&lo->lo_bh_done);
 		lo->lo_number = i;
 		spin_lock_init(&lo->lo_lock);
 		disk->major = LOOP_MAJOR;

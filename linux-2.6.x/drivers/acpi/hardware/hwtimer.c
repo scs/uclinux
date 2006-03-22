@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2005, R. Byron Moore
+ * Copyright (C) 2000 - 2006, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -43,12 +43,10 @@
  */
 
 #include <linux/module.h>
-
 #include <acpi/acpi.h>
 
 #define _COMPONENT          ACPI_HARDWARE
-	 ACPI_MODULE_NAME    ("hwtimer")
-
+ACPI_MODULE_NAME("hwtimer")
 
 /******************************************************************************
  *
@@ -61,28 +59,22 @@
  * DESCRIPTION: Obtains resolution of the ACPI PM Timer (24 or 32 bits).
  *
  ******************************************************************************/
-
-acpi_status
-acpi_get_timer_resolution (
-	u32                             *resolution)
+acpi_status acpi_get_timer_resolution(u32 * resolution)
 {
-	ACPI_FUNCTION_TRACE ("acpi_get_timer_resolution");
-
+	ACPI_FUNCTION_TRACE("acpi_get_timer_resolution");
 
 	if (!resolution) {
-		return_ACPI_STATUS (AE_BAD_PARAMETER);
+		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
 	if (0 == acpi_gbl_FADT->tmr_val_ext) {
 		*resolution = 24;
-	}
-	else {
+	} else {
 		*resolution = 32;
 	}
 
-	return_ACPI_STATUS (AE_OK);
+	return_ACPI_STATUS(AE_OK);
 }
-
 
 /******************************************************************************
  *
@@ -90,32 +82,28 @@ acpi_get_timer_resolution (
  *
  * PARAMETERS:  Ticks               - Where the timer value is returned
  *
- * RETURN:      Status and current ticks
+ * RETURN:      Status and current timer value (ticks)
  *
  * DESCRIPTION: Obtains current value of ACPI PM Timer (in ticks).
  *
  ******************************************************************************/
 
-acpi_status
-acpi_get_timer (
-	u32                             *ticks)
+acpi_status acpi_get_timer(u32 * ticks)
 {
-	acpi_status                     status;
+	acpi_status status;
 
-
-	ACPI_FUNCTION_TRACE ("acpi_get_timer");
-
+	ACPI_FUNCTION_TRACE("acpi_get_timer");
 
 	if (!ticks) {
-		return_ACPI_STATUS (AE_BAD_PARAMETER);
+		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
-	status = acpi_hw_low_level_read (32, ticks, &acpi_gbl_FADT->xpm_tmr_blk);
+	status = acpi_hw_low_level_read(32, ticks, &acpi_gbl_FADT->xpm_tmr_blk);
 
-	return_ACPI_STATUS (status);
+	return_ACPI_STATUS(status);
 }
-EXPORT_SYMBOL(acpi_get_timer);
 
+EXPORT_SYMBOL(acpi_get_timer);
 
 /******************************************************************************
  *
@@ -147,21 +135,16 @@ EXPORT_SYMBOL(acpi_get_timer);
  ******************************************************************************/
 
 acpi_status
-acpi_get_timer_duration (
-	u32                             start_ticks,
-	u32                             end_ticks,
-	u32                             *time_elapsed)
+acpi_get_timer_duration(u32 start_ticks, u32 end_ticks, u32 * time_elapsed)
 {
-	acpi_status                     status;
-	u32                             delta_ticks;
-	acpi_integer                    quotient;
+	acpi_status status;
+	u32 delta_ticks;
+	acpi_integer quotient;
 
-
-	ACPI_FUNCTION_TRACE ("acpi_get_timer_duration");
-
+	ACPI_FUNCTION_TRACE("acpi_get_timer_duration");
 
 	if (!time_elapsed) {
-		return_ACPI_STATUS (AE_BAD_PARAMETER);
+		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
 	/*
@@ -170,22 +153,22 @@ acpi_get_timer_duration (
 	 */
 	if (start_ticks < end_ticks) {
 		delta_ticks = end_ticks - start_ticks;
-	}
-	else if (start_ticks > end_ticks) {
+	} else if (start_ticks > end_ticks) {
 		if (0 == acpi_gbl_FADT->tmr_val_ext) {
 			/* 24-bit Timer */
 
-			delta_ticks = (((0x00FFFFFF - start_ticks) + end_ticks) & 0x00FFFFFF);
-		}
-		else {
+			delta_ticks =
+			    (((0x00FFFFFF - start_ticks) +
+			      end_ticks) & 0x00FFFFFF);
+		} else {
 			/* 32-bit Timer */
 
 			delta_ticks = (0xFFFFFFFF - start_ticks) + end_ticks;
 		}
-	}
-	else /* start_ticks == end_ticks */ {
+	} else {		/* start_ticks == end_ticks */
+
 		*time_elapsed = 0;
-		return_ACPI_STATUS (AE_OK);
+		return_ACPI_STATUS(AE_OK);
 	}
 
 	/*
@@ -193,11 +176,11 @@ acpi_get_timer_duration (
 	 *
 	 * time_elapsed = (delta_ticks * 1000000) / PM_TIMER_FREQUENCY;
 	 */
-	status = acpi_ut_short_divide (((u64) delta_ticks) * 1000000,
-			 PM_TIMER_FREQUENCY, &quotient, NULL);
+	status = acpi_ut_short_divide(((u64) delta_ticks) * 1000000,
+				      PM_TIMER_FREQUENCY, &quotient, NULL);
 
 	*time_elapsed = (u32) quotient;
-	return_ACPI_STATUS (status);
+	return_ACPI_STATUS(status);
 }
-EXPORT_SYMBOL(acpi_get_timer_duration);
 
+EXPORT_SYMBOL(acpi_get_timer_duration);

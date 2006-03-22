@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2005, R. Byron Moore
+ * Copyright (C) 2000 - 2006, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -42,7 +42,6 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-
 /*
  * DEFINE_AML_GLOBALS is tested in amlcode.h
  * to determine whether certain global names should be "defined" or only
@@ -65,44 +64,46 @@
 #include <acpi/acevents.h>
 
 #define _COMPONENT          ACPI_EXECUTER
-	 ACPI_MODULE_NAME    ("exutils")
+ACPI_MODULE_NAME("exutils")
 
+/* Local prototypes */
+static u32 acpi_ex_digits_needed(acpi_integer value, u32 base);
 
 #ifndef ACPI_NO_METHOD_EXECUTION
-
 /*******************************************************************************
  *
  * FUNCTION:    acpi_ex_enter_interpreter
  *
  * PARAMETERS:  None
  *
+ * RETURN:      Status
+ *
  * DESCRIPTION: Enter the interpreter execution region.  Failure to enter
  *              the interpreter region is a fatal system error
  *
  ******************************************************************************/
 
-acpi_status
-acpi_ex_enter_interpreter (void)
+acpi_status acpi_ex_enter_interpreter(void)
 {
-	acpi_status                     status;
+	acpi_status status;
 
-	ACPI_FUNCTION_TRACE ("ex_enter_interpreter");
+	ACPI_FUNCTION_TRACE("ex_enter_interpreter");
 
-
-	status = acpi_ut_acquire_mutex (ACPI_MTX_EXECUTE);
-	if (ACPI_FAILURE (status)) {
-		ACPI_REPORT_ERROR (("Could not acquire interpreter mutex\n"));
+	status = acpi_ut_acquire_mutex(ACPI_MTX_EXECUTE);
+	if (ACPI_FAILURE(status)) {
+		ACPI_ERROR((AE_INFO, "Could not acquire interpreter mutex"));
 	}
 
-	return_ACPI_STATUS (status);
+	return_ACPI_STATUS(status);
 }
-
 
 /*******************************************************************************
  *
  * FUNCTION:    acpi_ex_exit_interpreter
  *
  * PARAMETERS:  None
+ *
+ * RETURN:      None
  *
  * DESCRIPTION: Exit the interpreter execution region
  *
@@ -118,23 +119,19 @@ acpi_ex_enter_interpreter (void)
  *
  ******************************************************************************/
 
-void
-acpi_ex_exit_interpreter (void)
+void acpi_ex_exit_interpreter(void)
 {
-	acpi_status                     status;
+	acpi_status status;
 
+	ACPI_FUNCTION_TRACE("ex_exit_interpreter");
 
-	ACPI_FUNCTION_TRACE ("ex_exit_interpreter");
-
-
-	status = acpi_ut_release_mutex (ACPI_MTX_EXECUTE);
-	if (ACPI_FAILURE (status)) {
-		ACPI_REPORT_ERROR (("Could not release interpreter mutex\n"));
+	status = acpi_ut_release_mutex(ACPI_MTX_EXECUTE);
+	if (ACPI_FAILURE(status)) {
+		ACPI_ERROR((AE_INFO, "Could not release interpreter mutex"));
 	}
 
 	return_VOID;
 }
-
 
 /*******************************************************************************
  *
@@ -149,20 +146,17 @@ acpi_ex_exit_interpreter (void)
  *
  ******************************************************************************/
 
-void
-acpi_ex_truncate_for32bit_table (
-	union acpi_operand_object       *obj_desc)
+void acpi_ex_truncate_for32bit_table(union acpi_operand_object *obj_desc)
 {
 
-	ACPI_FUNCTION_ENTRY ();
-
+	ACPI_FUNCTION_ENTRY();
 
 	/*
 	 * Object must be a valid number and we must be executing
 	 * a control method
 	 */
 	if ((!obj_desc) ||
-		(ACPI_GET_OBJECT_TYPE (obj_desc) != ACPI_TYPE_INTEGER)) {
+	    (ACPI_GET_OBJECT_TYPE(obj_desc) != ACPI_TYPE_INTEGER)) {
 		return;
 	}
 
@@ -174,7 +168,6 @@ acpi_ex_truncate_for32bit_table (
 		obj_desc->integer.value &= (acpi_integer) ACPI_UINT32_MAX;
 	}
 }
-
 
 /*******************************************************************************
  *
@@ -191,35 +184,29 @@ acpi_ex_truncate_for32bit_table (
  *
  ******************************************************************************/
 
-u8
-acpi_ex_acquire_global_lock (
-	u32                             field_flags)
+u8 acpi_ex_acquire_global_lock(u32 field_flags)
 {
-	u8                              locked = FALSE;
-	acpi_status                     status;
+	u8 locked = FALSE;
+	acpi_status status;
 
-
-	ACPI_FUNCTION_TRACE ("ex_acquire_global_lock");
-
+	ACPI_FUNCTION_TRACE("ex_acquire_global_lock");
 
 	/* Only attempt lock if the always_lock bit is set */
 
 	if (field_flags & AML_FIELD_LOCK_RULE_MASK) {
 		/* We should attempt to get the lock, wait forever */
 
-		status = acpi_ev_acquire_global_lock (ACPI_WAIT_FOREVER);
-		if (ACPI_SUCCESS (status)) {
+		status = acpi_ev_acquire_global_lock(ACPI_WAIT_FOREVER);
+		if (ACPI_SUCCESS(status)) {
 			locked = TRUE;
-		}
-		else {
-			ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Could not acquire Global Lock, %s\n",
-				acpi_format_exception (status)));
+		} else {
+			ACPI_EXCEPTION((AE_INFO, status,
+					"Could not acquire Global Lock"));
 		}
 	}
 
-	return_VALUE (locked);
+	return_UINT8(locked);
 }
-
 
 /*******************************************************************************
  *
@@ -228,39 +215,34 @@ acpi_ex_acquire_global_lock (
  * PARAMETERS:  locked_by_me    - Return value from corresponding call to
  *                                acquire_global_lock.
  *
- * RETURN:      Status
+ * RETURN:      None
  *
  * DESCRIPTION: Release the global lock if it is locked.
  *
  ******************************************************************************/
 
-void
-acpi_ex_release_global_lock (
-	u8                              locked_by_me)
+void acpi_ex_release_global_lock(u8 locked_by_me)
 {
-	acpi_status                     status;
+	acpi_status status;
 
-
-	ACPI_FUNCTION_TRACE ("ex_release_global_lock");
-
+	ACPI_FUNCTION_TRACE("ex_release_global_lock");
 
 	/* Only attempt unlock if the caller locked it */
 
 	if (locked_by_me) {
 		/* OK, now release the lock */
 
-		status = acpi_ev_release_global_lock ();
-		if (ACPI_FAILURE (status)) {
+		status = acpi_ev_release_global_lock();
+		if (ACPI_FAILURE(status)) {
 			/* Report the error, but there isn't much else we can do */
 
-			ACPI_REPORT_ERROR (("Could not release ACPI Global Lock, %s\n",
-				acpi_format_exception (status)));
+			ACPI_EXCEPTION((AE_INFO, status,
+					"Could not release ACPI Global Lock"));
 		}
 	}
 
 	return_VOID;
 }
-
 
 /*******************************************************************************
  *
@@ -269,26 +251,24 @@ acpi_ex_release_global_lock (
  * PARAMETERS:  Value           - Value to be represented
  *              Base            - Base of representation
  *
- * RETURN:      the number of digits needed to represent Value in Base
+ * RETURN:      The number of digits.
+ *
+ * DESCRIPTION: Calculate the number of digits needed to represent the Value
+ *              in the given Base (Radix)
  *
  ******************************************************************************/
 
-u32
-acpi_ex_digits_needed (
-	acpi_integer                    value,
-	u32                             base)
+static u32 acpi_ex_digits_needed(acpi_integer value, u32 base)
 {
-	u32                             num_digits;
-	acpi_integer                    current_value;
+	u32 num_digits;
+	acpi_integer current_value;
 
-
-	ACPI_FUNCTION_TRACE ("ex_digits_needed");
-
+	ACPI_FUNCTION_TRACE("ex_digits_needed");
 
 	/* acpi_integer is unsigned, so we don't worry about a '-' prefix */
 
 	if (value == 0) {
-		return_VALUE (1);
+		return_UINT32(1);
 	}
 
 	current_value = value;
@@ -297,13 +277,13 @@ acpi_ex_digits_needed (
 	/* Count the digits in the requested base */
 
 	while (current_value) {
-		(void) acpi_ut_short_divide (current_value, base, &current_value, NULL);
+		(void)acpi_ut_short_divide(current_value, base, &current_value,
+					   NULL);
 		num_digits++;
 	}
 
-	return_VALUE (num_digits);
+	return_UINT32(num_digits);
 }
-
 
 /*******************************************************************************
  *
@@ -312,35 +292,31 @@ acpi_ex_digits_needed (
  * PARAMETERS:  numeric_id      - EISA ID to be converted
  *              out_string      - Where to put the converted string (8 bytes)
  *
+ * RETURN:      None
+ *
  * DESCRIPTION: Convert a numeric EISA ID to string representation
  *
  ******************************************************************************/
 
-void
-acpi_ex_eisa_id_to_string (
-	u32                             numeric_id,
-	char                            *out_string)
+void acpi_ex_eisa_id_to_string(u32 numeric_id, char *out_string)
 {
-	u32                             eisa_id;
+	u32 eisa_id;
 
-
-	ACPI_FUNCTION_ENTRY ();
-
+	ACPI_FUNCTION_ENTRY();
 
 	/* Swap ID to big-endian to get contiguous bits */
 
-	eisa_id = acpi_ut_dword_byte_swap (numeric_id);
+	eisa_id = acpi_ut_dword_byte_swap(numeric_id);
 
-	out_string[0] = (char) ('@' + (((unsigned long) eisa_id >> 26) & 0x1f));
-	out_string[1] = (char) ('@' + ((eisa_id >> 21) & 0x1f));
-	out_string[2] = (char) ('@' + ((eisa_id >> 16) & 0x1f));
-	out_string[3] = acpi_ut_hex_to_ascii_char ((acpi_integer) eisa_id, 12);
-	out_string[4] = acpi_ut_hex_to_ascii_char ((acpi_integer) eisa_id, 8);
-	out_string[5] = acpi_ut_hex_to_ascii_char ((acpi_integer) eisa_id, 4);
-	out_string[6] = acpi_ut_hex_to_ascii_char ((acpi_integer) eisa_id, 0);
+	out_string[0] = (char)('@' + (((unsigned long)eisa_id >> 26) & 0x1f));
+	out_string[1] = (char)('@' + ((eisa_id >> 21) & 0x1f));
+	out_string[2] = (char)('@' + ((eisa_id >> 16) & 0x1f));
+	out_string[3] = acpi_ut_hex_to_ascii_char((acpi_integer) eisa_id, 12);
+	out_string[4] = acpi_ut_hex_to_ascii_char((acpi_integer) eisa_id, 8);
+	out_string[5] = acpi_ut_hex_to_ascii_char((acpi_integer) eisa_id, 4);
+	out_string[6] = acpi_ut_hex_to_ascii_char((acpi_integer) eisa_id, 0);
 	out_string[7] = 0;
 }
-
 
 /*******************************************************************************
  *
@@ -349,29 +325,27 @@ acpi_ex_eisa_id_to_string (
  * PARAMETERS:  Value           - Value to be converted
  *              out_string      - Where to put the converted string (8 bytes)
  *
- * RETURN:      Convert a number to string representation
+ * RETURN:      None, string
+ *
+ * DESCRIPTION: Convert a number to string representation. Assumes string
+ *              buffer is large enough to hold the string.
  *
  ******************************************************************************/
 
-void
-acpi_ex_unsigned_integer_to_string (
-	acpi_integer                    value,
-	char                            *out_string)
+void acpi_ex_unsigned_integer_to_string(acpi_integer value, char *out_string)
 {
-	u32                             count;
-	u32                             digits_needed;
-	u32                             remainder;
+	u32 count;
+	u32 digits_needed;
+	u32 remainder;
 
+	ACPI_FUNCTION_ENTRY();
 
-	ACPI_FUNCTION_ENTRY ();
-
-
-	digits_needed = acpi_ex_digits_needed (value, 10);
+	digits_needed = acpi_ex_digits_needed(value, 10);
 	out_string[digits_needed] = 0;
 
 	for (count = digits_needed; count > 0; count--) {
-		(void) acpi_ut_short_divide (value, 10, &value, &remainder);
-		out_string[count-1] = (char) ('0' + remainder);\
+		(void)acpi_ut_short_divide(value, 10, &value, &remainder);
+		out_string[count - 1] = (char)('0' + remainder);
 	}
 }
 

@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2005, R. Byron Moore
+ * Copyright (C) 2000 - 2006, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -41,17 +41,31 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-
 #include <acpi/acpi.h>
 #include <acpi/acdispat.h>
 #include <acpi/amlcode.h>
 #include <acpi/acnamesp.h>
 #include <acpi/acinterp.h>
 
-
 #define _COMPONENT          ACPI_DISPATCHER
-	 ACPI_MODULE_NAME    ("dsmthdat")
+ACPI_MODULE_NAME("dsmthdat")
 
+/* Local prototypes */
+static void
+acpi_ds_method_data_delete_value(u16 opcode,
+				 u32 index, struct acpi_walk_state *walk_state);
+
+static acpi_status
+acpi_ds_method_data_set_value(u16 opcode,
+			      u32 index,
+			      union acpi_operand_object *object,
+			      struct acpi_walk_state *walk_state);
+
+#ifdef ACPI_OBSOLETE_FUNCTIONS
+acpi_object_type
+acpi_ds_method_data_get_type(u16 opcode,
+			     u32 index, struct acpi_walk_state *walk_state);
+#endif
 
 /*******************************************************************************
  *
@@ -62,8 +76,8 @@
  * RETURN:      Status
  *
  * DESCRIPTION: Initialize the data structures that hold the method's arguments
- *              and locals.  The data struct is an array of NTEs for each.
- *              This allows ref_of and de_ref_of to work properly for these
+ *              and locals.  The data struct is an array of namespace nodes for
+ *              each - this allows ref_of and de_ref_of to work properly for these
  *              special data types.
  *
  * NOTES:       walk_state fields are initialized to zero by the
@@ -74,42 +88,40 @@
  *
  ******************************************************************************/
 
-void
-acpi_ds_method_data_init (
-	struct acpi_walk_state          *walk_state)
+void acpi_ds_method_data_init(struct acpi_walk_state *walk_state)
 {
-	u32                             i;
+	u32 i;
 
-
-	ACPI_FUNCTION_TRACE ("ds_method_data_init");
-
+	ACPI_FUNCTION_TRACE("ds_method_data_init");
 
 	/* Init the method arguments */
 
 	for (i = 0; i < ACPI_METHOD_NUM_ARGS; i++) {
-		ACPI_MOVE_32_TO_32 (&walk_state->arguments[i].name,
+		ACPI_MOVE_32_TO_32(&walk_state->arguments[i].name,
 				   NAMEOF_ARG_NTE);
 		walk_state->arguments[i].name.integer |= (i << 24);
-		walk_state->arguments[i].descriptor   = ACPI_DESC_TYPE_NAMED;
-		walk_state->arguments[i].type         = ACPI_TYPE_ANY;
-		walk_state->arguments[i].flags        = ANOBJ_END_OF_PEER_LIST | ANOBJ_METHOD_ARG;
+		walk_state->arguments[i].descriptor = ACPI_DESC_TYPE_NAMED;
+		walk_state->arguments[i].type = ACPI_TYPE_ANY;
+		walk_state->arguments[i].flags = ANOBJ_END_OF_PEER_LIST |
+		    ANOBJ_METHOD_ARG;
 	}
 
 	/* Init the method locals */
 
 	for (i = 0; i < ACPI_METHOD_NUM_LOCALS; i++) {
-		ACPI_MOVE_32_TO_32 (&walk_state->local_variables[i].name,
+		ACPI_MOVE_32_TO_32(&walk_state->local_variables[i].name,
 				   NAMEOF_LOCAL_NTE);
 
 		walk_state->local_variables[i].name.integer |= (i << 24);
-		walk_state->local_variables[i].descriptor  = ACPI_DESC_TYPE_NAMED;
-		walk_state->local_variables[i].type        = ACPI_TYPE_ANY;
-		walk_state->local_variables[i].flags       = ANOBJ_END_OF_PEER_LIST | ANOBJ_METHOD_LOCAL;
+		walk_state->local_variables[i].descriptor =
+		    ACPI_DESC_TYPE_NAMED;
+		walk_state->local_variables[i].type = ACPI_TYPE_ANY;
+		walk_state->local_variables[i].flags = ANOBJ_END_OF_PEER_LIST |
+		    ANOBJ_METHOD_LOCAL;
 	}
 
 	return_VOID;
 }
-
 
 /*******************************************************************************
  *
@@ -124,26 +136,25 @@ acpi_ds_method_data_init (
  *
  ******************************************************************************/
 
-void
-acpi_ds_method_data_delete_all (
-	struct acpi_walk_state          *walk_state)
+void acpi_ds_method_data_delete_all(struct acpi_walk_state *walk_state)
 {
-	u32                             index;
+	u32 index;
 
-
-	ACPI_FUNCTION_TRACE ("ds_method_data_delete_all");
-
+	ACPI_FUNCTION_TRACE("ds_method_data_delete_all");
 
 	/* Detach the locals */
 
 	for (index = 0; index < ACPI_METHOD_NUM_LOCALS; index++) {
 		if (walk_state->local_variables[index].object) {
-			ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "Deleting Local%d=%p\n",
-					index, walk_state->local_variables[index].object));
+			ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "Deleting Local%d=%p\n",
+					  index,
+					  walk_state->local_variables[index].
+					  object));
 
 			/* Detach object (if present) and remove a reference */
 
-			acpi_ns_detach_object (&walk_state->local_variables[index]);
+			acpi_ns_detach_object(&walk_state->
+					      local_variables[index]);
 		}
 	}
 
@@ -151,18 +162,18 @@ acpi_ds_method_data_delete_all (
 
 	for (index = 0; index < ACPI_METHOD_NUM_ARGS; index++) {
 		if (walk_state->arguments[index].object) {
-			ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "Deleting Arg%d=%p\n",
-					index, walk_state->arguments[index].object));
+			ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "Deleting Arg%d=%p\n",
+					  index,
+					  walk_state->arguments[index].object));
 
 			/* Detach object (if present) and remove a reference */
 
-			acpi_ns_detach_object (&walk_state->arguments[index]);
+			acpi_ns_detach_object(&walk_state->arguments[index]);
 		}
 	}
 
 	return_VOID;
 }
-
 
 /*******************************************************************************
  *
@@ -181,66 +192,66 @@ acpi_ds_method_data_delete_all (
  ******************************************************************************/
 
 acpi_status
-acpi_ds_method_data_init_args (
-	union acpi_operand_object       **params,
-	u32                             max_param_count,
-	struct acpi_walk_state          *walk_state)
+acpi_ds_method_data_init_args(union acpi_operand_object **params,
+			      u32 max_param_count,
+			      struct acpi_walk_state *walk_state)
 {
-	acpi_status                     status;
-	u32                             index = 0;
+	acpi_status status;
+	u32 index = 0;
 
-
-	ACPI_FUNCTION_TRACE_PTR ("ds_method_data_init_args", params);
-
+	ACPI_FUNCTION_TRACE_PTR("ds_method_data_init_args", params);
 
 	if (!params) {
-		ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "No param list passed to method\n"));
-		return_ACPI_STATUS (AE_OK);
+		ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
+				  "No param list passed to method\n"));
+		return_ACPI_STATUS(AE_OK);
 	}
 
-	/* Copy passed parameters into the new method stack frame  */
+	/* Copy passed parameters into the new method stack frame */
 
-	while ((index < ACPI_METHOD_NUM_ARGS) && (index < max_param_count) && params[index]) {
+	while ((index < ACPI_METHOD_NUM_ARGS) &&
+	       (index < max_param_count) && params[index]) {
 		/*
 		 * A valid parameter.
 		 * Store the argument in the method/walk descriptor.
 		 * Do not copy the arg in order to implement call by reference
 		 */
-		status = acpi_ds_method_data_set_value (AML_ARG_OP, index, params[index], walk_state);
-		if (ACPI_FAILURE (status)) {
-			return_ACPI_STATUS (status);
+		status = acpi_ds_method_data_set_value(AML_ARG_OP, index,
+						       params[index],
+						       walk_state);
+		if (ACPI_FAILURE(status)) {
+			return_ACPI_STATUS(status);
 		}
 
 		index++;
 	}
 
-	ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "%d args passed to method\n", index));
-	return_ACPI_STATUS (AE_OK);
+	ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "%d args passed to method\n", index));
+	return_ACPI_STATUS(AE_OK);
 }
-
 
 /*******************************************************************************
  *
  * FUNCTION:    acpi_ds_method_data_get_node
  *
  * PARAMETERS:  Opcode              - Either AML_LOCAL_OP or AML_ARG_OP
- *              Index               - which local_var or argument whose type
- *                                      to get
+ *              Index               - Which Local or Arg whose type to get
  *              walk_state          - Current walk state object
+ *              Node                - Where the node is returned.
  *
- * RETURN:      Get the Node associated with a local or arg.
+ * RETURN:      Status and node
+ *
+ * DESCRIPTION: Get the Node associated with a local or arg.
  *
  ******************************************************************************/
 
 acpi_status
-acpi_ds_method_data_get_node (
-	u16                             opcode,
-	u32                             index,
-	struct acpi_walk_state          *walk_state,
-	struct acpi_namespace_node      **node)
+acpi_ds_method_data_get_node(u16 opcode,
+			     u32 index,
+			     struct acpi_walk_state *walk_state,
+			     struct acpi_namespace_node **node)
 {
-	ACPI_FUNCTION_TRACE ("ds_method_data_get_node");
-
+	ACPI_FUNCTION_TRACE("ds_method_data_get_node");
 
 	/*
 	 * Method Locals and Arguments are supported
@@ -249,9 +260,10 @@ acpi_ds_method_data_get_node (
 	case AML_LOCAL_OP:
 
 		if (index > ACPI_METHOD_MAX_LOCAL) {
-			ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Local index %d is invalid (max %d)\n",
-				index, ACPI_METHOD_MAX_LOCAL));
-			return_ACPI_STATUS (AE_AML_INVALID_INDEX);
+			ACPI_ERROR((AE_INFO,
+				    "Local index %d is invalid (max %d)",
+				    index, ACPI_METHOD_MAX_LOCAL));
+			return_ACPI_STATUS(AE_AML_INVALID_INDEX);
 		}
 
 		/* Return a pointer to the pseudo-node */
@@ -262,9 +274,10 @@ acpi_ds_method_data_get_node (
 	case AML_ARG_OP:
 
 		if (index > ACPI_METHOD_MAX_ARG) {
-			ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Arg index %d is invalid (max %d)\n",
-				index, ACPI_METHOD_MAX_ARG));
-			return_ACPI_STATUS (AE_AML_INVALID_INDEX);
+			ACPI_ERROR((AE_INFO,
+				    "Arg index %d is invalid (max %d)",
+				    index, ACPI_METHOD_MAX_ARG));
+			return_ACPI_STATUS(AE_AML_INVALID_INDEX);
 		}
 
 		/* Return a pointer to the pseudo-node */
@@ -273,20 +286,19 @@ acpi_ds_method_data_get_node (
 		break;
 
 	default:
-		ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Opcode %d is invalid\n", opcode));
-		return_ACPI_STATUS (AE_AML_BAD_OPCODE);
+		ACPI_ERROR((AE_INFO, "Opcode %d is invalid", opcode));
+		return_ACPI_STATUS(AE_AML_BAD_OPCODE);
 	}
 
-	return_ACPI_STATUS (AE_OK);
+	return_ACPI_STATUS(AE_OK);
 }
-
 
 /*******************************************************************************
  *
  * FUNCTION:    acpi_ds_method_data_set_value
  *
  * PARAMETERS:  Opcode              - Either AML_LOCAL_OP or AML_ARG_OP
- *              Index               - which local_var or argument to get
+ *              Index               - Which Local or Arg to get
  *              Object              - Object to be inserted into the stack entry
  *              walk_state          - Current walk state object
  *
@@ -297,30 +309,27 @@ acpi_ds_method_data_get_node (
  *
  ******************************************************************************/
 
-acpi_status
-acpi_ds_method_data_set_value (
-	u16                             opcode,
-	u32                             index,
-	union acpi_operand_object       *object,
-	struct acpi_walk_state          *walk_state)
+static acpi_status
+acpi_ds_method_data_set_value(u16 opcode,
+			      u32 index,
+			      union acpi_operand_object *object,
+			      struct acpi_walk_state *walk_state)
 {
-	acpi_status                     status;
-	struct acpi_namespace_node      *node;
+	acpi_status status;
+	struct acpi_namespace_node *node;
 
+	ACPI_FUNCTION_TRACE("ds_method_data_set_value");
 
-	ACPI_FUNCTION_TRACE ("ds_method_data_set_value");
-
-
-	ACPI_DEBUG_PRINT ((ACPI_DB_EXEC,
-		"new_obj %p Opcode %X, Refs=%d [%s]\n", object,
-		opcode, object->common.reference_count,
-		acpi_ut_get_type_name (object->common.type)));
+	ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
+			  "new_obj %p Opcode %X, Refs=%d [%s]\n", object,
+			  opcode, object->common.reference_count,
+			  acpi_ut_get_type_name(object->common.type)));
 
 	/* Get the namespace node for the arg/local */
 
-	status = acpi_ds_method_data_get_node (opcode, index, walk_state, &node);
-	if (ACPI_FAILURE (status)) {
-		return_ACPI_STATUS (status);
+	status = acpi_ds_method_data_get_node(opcode, index, walk_state, &node);
+	if (ACPI_FAILURE(status)) {
+		return_ACPI_STATUS(status);
 	}
 
 	/*
@@ -329,64 +338,13 @@ acpi_ds_method_data_set_value (
 	 * reference semantics of ACPI Control Method invocation.
 	 * (See ACPI specification 2.0_c)
 	 */
-	acpi_ut_add_reference (object);
+	acpi_ut_add_reference(object);
 
 	/* Install the object */
 
 	node->object = object;
-	return_ACPI_STATUS (status);
+	return_ACPI_STATUS(status);
 }
-
-
-/*******************************************************************************
- *
- * FUNCTION:    acpi_ds_method_data_get_type
- *
- * PARAMETERS:  Opcode              - Either AML_LOCAL_OP or AML_ARG_OP
- *              Index               - which local_var or argument whose type
- *                                      to get
- *              walk_state          - Current walk state object
- *
- * RETURN:      Data type of current value of the selected Arg or Local
- *
- ******************************************************************************/
-#ifdef ACPI_FUTURE_USAGE
-acpi_object_type
-acpi_ds_method_data_get_type (
-	u16                             opcode,
-	u32                             index,
-	struct acpi_walk_state          *walk_state)
-{
-	acpi_status                     status;
-	struct acpi_namespace_node      *node;
-	union acpi_operand_object       *object;
-
-
-	ACPI_FUNCTION_TRACE ("ds_method_data_get_type");
-
-
-	/* Get the namespace node for the arg/local */
-
-	status = acpi_ds_method_data_get_node (opcode, index, walk_state, &node);
-	if (ACPI_FAILURE (status)) {
-		return_VALUE ((ACPI_TYPE_NOT_FOUND));
-	}
-
-	/* Get the object */
-
-	object = acpi_ns_get_attached_object (node);
-	if (!object) {
-		/* Uninitialized local/arg, return TYPE_ANY */
-
-		return_VALUE (ACPI_TYPE_ANY);
-	}
-
-	/* Get the object type */
-
-	return_VALUE (ACPI_GET_OBJECT_TYPE (object));
-}
-#endif  /*  ACPI_FUTURE_USAGE  */
-
 
 /*******************************************************************************
  *
@@ -395,44 +353,39 @@ acpi_ds_method_data_get_type (
  * PARAMETERS:  Opcode              - Either AML_LOCAL_OP or AML_ARG_OP
  *              Index               - which local_var or argument to get
  *              walk_state          - Current walk state object
- *              *dest_desc          - Ptr to Descriptor into which selected Arg
- *                                    or Local value should be copied
+ *              dest_desc           - Where Arg or Local value is returned
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Retrieve value of selected Arg or Local from the method frame
- *              at the current top of the method stack.
+ * DESCRIPTION: Retrieve value of selected Arg or Local for this method
  *              Used only in acpi_ex_resolve_to_value().
  *
  ******************************************************************************/
 
 acpi_status
-acpi_ds_method_data_get_value (
-	u16                             opcode,
-	u32                             index,
-	struct acpi_walk_state          *walk_state,
-	union acpi_operand_object       **dest_desc)
+acpi_ds_method_data_get_value(u16 opcode,
+			      u32 index,
+			      struct acpi_walk_state *walk_state,
+			      union acpi_operand_object **dest_desc)
 {
-	acpi_status                     status;
-	struct acpi_namespace_node      *node;
-	union acpi_operand_object       *object;
+	acpi_status status;
+	struct acpi_namespace_node *node;
+	union acpi_operand_object *object;
 
-
-	ACPI_FUNCTION_TRACE ("ds_method_data_get_value");
-
+	ACPI_FUNCTION_TRACE("ds_method_data_get_value");
 
 	/* Validate the object descriptor */
 
 	if (!dest_desc) {
-		ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Null object descriptor pointer\n"));
-		return_ACPI_STATUS (AE_BAD_PARAMETER);
+		ACPI_ERROR((AE_INFO, "Null object descriptor pointer"));
+		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
 	/* Get the namespace node for the arg/local */
 
-	status = acpi_ds_method_data_get_node (opcode, index, walk_state, &node);
-	if (ACPI_FAILURE (status)) {
-		return_ACPI_STATUS (status);
+	status = acpi_ds_method_data_get_node(opcode, index, walk_state, &node);
+	if (ACPI_FAILURE(status)) {
+		return_ACPI_STATUS(status);
 	}
 
 	/* Get the object from the node */
@@ -453,9 +406,10 @@ acpi_ds_method_data_get_value (
 		/* If slack enabled, init the local_x/arg_x to an Integer of value zero */
 
 		if (acpi_gbl_enable_interpreter_slack) {
-			object = acpi_ut_create_internal_object (ACPI_TYPE_INTEGER);
+			object =
+			    acpi_ut_create_internal_object(ACPI_TYPE_INTEGER);
 			if (!object) {
-				return_ACPI_STATUS (AE_NO_MEMORY);
+				return_ACPI_STATUS(AE_NO_MEMORY);
 			}
 
 			object->integer.value = 0;
@@ -464,25 +418,30 @@ acpi_ds_method_data_get_value (
 
 		/* Otherwise, return the error */
 
-		else switch (opcode) {
-		case AML_ARG_OP:
+		else
+			switch (opcode) {
+			case AML_ARG_OP:
 
-			ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Uninitialized Arg[%d] at node %p\n",
-				index, node));
+				ACPI_ERROR((AE_INFO,
+					    "Uninitialized Arg[%d] at node %p",
+					    index, node));
 
-			return_ACPI_STATUS (AE_AML_UNINITIALIZED_ARG);
+				return_ACPI_STATUS(AE_AML_UNINITIALIZED_ARG);
 
-		case AML_LOCAL_OP:
+			case AML_LOCAL_OP:
 
-			ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Uninitialized Local[%d] at node %p\n",
-				index, node));
+				ACPI_ERROR((AE_INFO,
+					    "Uninitialized Local[%d] at node %p",
+					    index, node));
 
-			return_ACPI_STATUS (AE_AML_UNINITIALIZED_LOCAL);
+				return_ACPI_STATUS(AE_AML_UNINITIALIZED_LOCAL);
 
-		default:
-			ACPI_REPORT_ERROR (("Not Arg/Local opcode: %X\n", opcode));
-			return_ACPI_STATUS (AE_AML_INTERNAL);
-		}
+			default:
+				ACPI_ERROR((AE_INFO,
+					    "Not a Arg/Local opcode: %X",
+					    opcode));
+				return_ACPI_STATUS(AE_AML_INTERNAL);
+			}
 	}
 
 	/*
@@ -490,11 +449,10 @@ acpi_ds_method_data_get_value (
 	 * Return an additional reference to the object
 	 */
 	*dest_desc = object;
-	acpi_ut_add_reference (object);
+	acpi_ut_add_reference(object);
 
-	return_ACPI_STATUS (AE_OK);
+	return_ACPI_STATUS(AE_OK);
 }
-
 
 /*******************************************************************************
  *
@@ -506,35 +464,31 @@ acpi_ds_method_data_get_value (
  *
  * RETURN:      None
  *
- * DESCRIPTION: Delete the entry at Opcode:Index on the method stack.  Inserts
+ * DESCRIPTION: Delete the entry at Opcode:Index.  Inserts
  *              a null into the stack slot after the object is deleted.
  *
  ******************************************************************************/
 
-void
-acpi_ds_method_data_delete_value (
-	u16                             opcode,
-	u32                             index,
-	struct acpi_walk_state          *walk_state)
+static void
+acpi_ds_method_data_delete_value(u16 opcode,
+				 u32 index, struct acpi_walk_state *walk_state)
 {
-	acpi_status                     status;
-	struct acpi_namespace_node      *node;
-	union acpi_operand_object       *object;
+	acpi_status status;
+	struct acpi_namespace_node *node;
+	union acpi_operand_object *object;
 
-
-	ACPI_FUNCTION_TRACE ("ds_method_data_delete_value");
-
+	ACPI_FUNCTION_TRACE("ds_method_data_delete_value");
 
 	/* Get the namespace node for the arg/local */
 
-	status = acpi_ds_method_data_get_node (opcode, index, walk_state, &node);
-	if (ACPI_FAILURE (status)) {
+	status = acpi_ds_method_data_get_node(opcode, index, walk_state, &node);
+	if (ACPI_FAILURE(status)) {
 		return_VOID;
 	}
 
 	/* Get the associated object */
 
-	object = acpi_ns_get_attached_object (node);
+	object = acpi_ns_get_attached_object(node);
 
 	/*
 	 * Undefine the Arg or Local by setting its descriptor
@@ -544,25 +498,24 @@ acpi_ds_method_data_delete_value (
 	node->object = NULL;
 
 	if ((object) &&
-		(ACPI_GET_DESCRIPTOR_TYPE (object) == ACPI_DESC_TYPE_OPERAND)) {
+	    (ACPI_GET_DESCRIPTOR_TYPE(object) == ACPI_DESC_TYPE_OPERAND)) {
 		/*
 		 * There is a valid object.
 		 * Decrement the reference count by one to balance the
 		 * increment when the object was stored.
 		 */
-		acpi_ut_remove_reference (object);
+		acpi_ut_remove_reference(object);
 	}
 
 	return_VOID;
 }
-
 
 /*******************************************************************************
  *
  * FUNCTION:    acpi_ds_store_object_to_local
  *
  * PARAMETERS:  Opcode              - Either AML_LOCAL_OP or AML_ARG_OP
- *              Index               - which local_var or argument to set
+ *              Index               - Which Local or Arg to set
  *              obj_desc            - Value to be stored
  *              walk_state          - Current walk state
  *
@@ -575,40 +528,38 @@ acpi_ds_method_data_delete_value (
  ******************************************************************************/
 
 acpi_status
-acpi_ds_store_object_to_local (
-	u16                             opcode,
-	u32                             index,
-	union acpi_operand_object       *obj_desc,
-	struct acpi_walk_state          *walk_state)
+acpi_ds_store_object_to_local(u16 opcode,
+			      u32 index,
+			      union acpi_operand_object *obj_desc,
+			      struct acpi_walk_state *walk_state)
 {
-	acpi_status                     status;
-	struct acpi_namespace_node      *node;
-	union acpi_operand_object       *current_obj_desc;
-	union acpi_operand_object       *new_obj_desc;
+	acpi_status status;
+	struct acpi_namespace_node *node;
+	union acpi_operand_object *current_obj_desc;
+	union acpi_operand_object *new_obj_desc;
 
-
-	ACPI_FUNCTION_TRACE ("ds_store_object_to_local");
-	ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "Opcode=%X Index=%d Obj=%p\n",
-		opcode, index, obj_desc));
+	ACPI_FUNCTION_TRACE("ds_store_object_to_local");
+	ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "Opcode=%X Index=%d Obj=%p\n",
+			  opcode, index, obj_desc));
 
 	/* Parameter validation */
 
 	if (!obj_desc) {
-		return_ACPI_STATUS (AE_BAD_PARAMETER);
+		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
 	/* Get the namespace node for the arg/local */
 
-	status = acpi_ds_method_data_get_node (opcode, index, walk_state, &node);
-	if (ACPI_FAILURE (status)) {
-		return_ACPI_STATUS (status);
+	status = acpi_ds_method_data_get_node(opcode, index, walk_state, &node);
+	if (ACPI_FAILURE(status)) {
+		return_ACPI_STATUS(status);
 	}
 
-	current_obj_desc = acpi_ns_get_attached_object (node);
+	current_obj_desc = acpi_ns_get_attached_object(node);
 	if (current_obj_desc == obj_desc) {
-		ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "Obj=%p already installed!\n",
-			obj_desc));
-		return_ACPI_STATUS (status);
+		ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "Obj=%p already installed!\n",
+				  obj_desc));
+		return_ACPI_STATUS(status);
 	}
 
 	/*
@@ -620,9 +571,11 @@ acpi_ds_store_object_to_local (
 	 */
 	new_obj_desc = obj_desc;
 	if (obj_desc->common.reference_count > 1) {
-		status = acpi_ut_copy_iobject_to_iobject (obj_desc, &new_obj_desc, walk_state);
-		if (ACPI_FAILURE (status)) {
-			return_ACPI_STATUS (status);
+		status =
+		    acpi_ut_copy_iobject_to_iobject(obj_desc, &new_obj_desc,
+						    walk_state);
+		if (ACPI_FAILURE(status)) {
+			return_ACPI_STATUS(status);
 		}
 	}
 
@@ -651,41 +604,39 @@ acpi_ds_store_object_to_local (
 		 */
 		if (opcode == AML_ARG_OP) {
 			/*
-			 * Make sure that the object is the correct type.  This may be overkill, but
-			 * it is here because references were NS nodes in the past.  Now they are
-			 * operand objects of type Reference.
+			 * If we have a valid reference object that came from ref_of(),
+			 * do the indirect store
 			 */
-			if (ACPI_GET_DESCRIPTOR_TYPE (current_obj_desc) != ACPI_DESC_TYPE_OPERAND) {
-				ACPI_REPORT_ERROR (("Invalid descriptor type while storing to method arg: [%s]\n",
-						acpi_ut_get_descriptor_name (current_obj_desc)));
-				return_ACPI_STATUS (AE_AML_INTERNAL);
-			}
-
-			/*
-			 * If we have a valid reference object that came from ref_of(), do the
-			 * indirect store
-			 */
-			if ((current_obj_desc->common.type == ACPI_TYPE_LOCAL_REFERENCE) &&
-				(current_obj_desc->reference.opcode == AML_REF_OF_OP)) {
-				ACPI_DEBUG_PRINT ((ACPI_DB_EXEC,
-						"Arg (%p) is an obj_ref(Node), storing in node %p\n",
-						new_obj_desc, current_obj_desc));
+			if ((ACPI_GET_DESCRIPTOR_TYPE(current_obj_desc) ==
+			     ACPI_DESC_TYPE_OPERAND)
+			    && (current_obj_desc->common.type ==
+				ACPI_TYPE_LOCAL_REFERENCE)
+			    && (current_obj_desc->reference.opcode ==
+				AML_REF_OF_OP)) {
+				ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
+						  "Arg (%p) is an obj_ref(Node), storing in node %p\n",
+						  new_obj_desc,
+						  current_obj_desc));
 
 				/*
 				 * Store this object to the Node (perform the indirect store)
 				 * NOTE: No implicit conversion is performed, as per the ACPI
 				 * specification rules on storing to Locals/Args.
 				 */
-				status = acpi_ex_store_object_to_node (new_obj_desc,
-						 current_obj_desc->reference.object, walk_state,
-						 ACPI_NO_IMPLICIT_CONVERSION);
+				status =
+				    acpi_ex_store_object_to_node(new_obj_desc,
+								 current_obj_desc->
+								 reference.
+								 object,
+								 walk_state,
+								 ACPI_NO_IMPLICIT_CONVERSION);
 
 				/* Remove local reference if we copied the object above */
 
 				if (new_obj_desc != obj_desc) {
-					acpi_ut_remove_reference (new_obj_desc);
+					acpi_ut_remove_reference(new_obj_desc);
 				}
-				return_ACPI_STATUS (status);
+				return_ACPI_STATUS(status);
 			}
 		}
 
@@ -693,7 +644,7 @@ acpi_ds_store_object_to_local (
 		 * Delete the existing object
 		 * before storing the new one
 		 */
-		acpi_ds_method_data_delete_value (opcode, index, walk_state);
+		acpi_ds_method_data_delete_value(opcode, index, walk_state);
 	}
 
 	/*
@@ -701,15 +652,62 @@ acpi_ds_store_object_to_local (
 	 * the descriptor for the Arg or Local.
 	 * (increments the object reference count by one)
 	 */
-	status = acpi_ds_method_data_set_value (opcode, index, new_obj_desc, walk_state);
+	status =
+	    acpi_ds_method_data_set_value(opcode, index, new_obj_desc,
+					  walk_state);
 
 	/* Remove local reference if we copied the object above */
 
 	if (new_obj_desc != obj_desc) {
-		acpi_ut_remove_reference (new_obj_desc);
+		acpi_ut_remove_reference(new_obj_desc);
 	}
 
-	return_ACPI_STATUS (status);
+	return_ACPI_STATUS(status);
 }
 
+#ifdef ACPI_OBSOLETE_FUNCTIONS
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_ds_method_data_get_type
+ *
+ * PARAMETERS:  Opcode              - Either AML_LOCAL_OP or AML_ARG_OP
+ *              Index               - Which Local or Arg whose type to get
+ *              walk_state          - Current walk state object
+ *
+ * RETURN:      Data type of current value of the selected Arg or Local
+ *
+ * DESCRIPTION: Get the type of the object stored in the Local or Arg
+ *
+ ******************************************************************************/
 
+acpi_object_type
+acpi_ds_method_data_get_type(u16 opcode,
+			     u32 index, struct acpi_walk_state *walk_state)
+{
+	acpi_status status;
+	struct acpi_namespace_node *node;
+	union acpi_operand_object *object;
+
+	ACPI_FUNCTION_TRACE("ds_method_data_get_type");
+
+	/* Get the namespace node for the arg/local */
+
+	status = acpi_ds_method_data_get_node(opcode, index, walk_state, &node);
+	if (ACPI_FAILURE(status)) {
+		return_VALUE((ACPI_TYPE_NOT_FOUND));
+	}
+
+	/* Get the object */
+
+	object = acpi_ns_get_attached_object(node);
+	if (!object) {
+		/* Uninitialized local/arg, return TYPE_ANY */
+
+		return_VALUE(ACPI_TYPE_ANY);
+	}
+
+	/* Get the object type */
+
+	return_VALUE(ACPI_GET_OBJECT_TYPE(object));
+}
+#endif

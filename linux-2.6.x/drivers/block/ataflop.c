@@ -181,7 +181,7 @@ static struct {
 	{  6, TYPE_HD },	/* 31: H1640    <- was H1600 == h1600 for PC */
 };
 
-#define NUM_DISK_MINORS (sizeof(minor2disktype)/sizeof(*minor2disktype))
+#define NUM_DISK_MINORS ARRAY_SIZE(minor2disktype)
 
 /*
  * Maximum disk size (in kilobytes). This default is used whenever the
@@ -371,16 +371,10 @@ static int floppy_release( struct inode * inode, struct file * filp );
 
 /************************* End of Prototypes **************************/
 
-static struct timer_list motor_off_timer =
-	TIMER_INITIALIZER(fd_motor_off_timer, 0, 0);
-static struct timer_list readtrack_timer =
-	TIMER_INITIALIZER(fd_readtrack_check, 0, 0);
-
-static struct timer_list timeout_timer =
-	TIMER_INITIALIZER(fd_times_out, 0, 0);
-
-static struct timer_list fd_timer =
-	TIMER_INITIALIZER(check_change, 0, 0);
+static DEFINE_TIMER(motor_off_timer, fd_motor_off_timer, 0, 0);
+static DEFINE_TIMER(readtrack_timer, fd_readtrack_check, 0, 0);
+static DEFINE_TIMER(timeout_timer, fd_times_out, 0, 0);
+static DEFINE_TIMER(fd_timer, check_change, 0, 0);
 	
 static inline void start_motor_off_timer(void)
 {
@@ -1367,7 +1361,7 @@ static int floppy_revalidate(struct gendisk *disk)
 		   formats, for 'permanent user-defined' parameter:
 		   restore default_params[] here if flagged valid! */
 		if (default_params[drive].blocks == 0)
-			UDT = 0;
+			UDT = NULL;
 		else
 			UDT = &default_params[drive];
 	}
@@ -1501,6 +1495,7 @@ static int fd_ioctl(struct inode *inode, struct file *filp,
 	struct floppy_struct getprm;
 	int settype;
 	struct floppy_struct setprm;
+	void __user *argp = (void __user *)param;
 
 	switch (cmd) {
 	case FDGETPRM:
@@ -1527,7 +1522,7 @@ static int fd_ioctl(struct inode *inode, struct file *filp,
 		getprm.head = 2;
 		getprm.track = dtp->blocks/dtp->spt/2;
 		getprm.stretch = dtp->stretch;
-		if (copy_to_user((void *)param, &getprm, sizeof(getprm)))
+		if (copy_to_user(argp, &getprm, sizeof(getprm)))
 			return -EFAULT;
 		return 0;
 	}
@@ -1546,7 +1541,7 @@ static int fd_ioctl(struct inode *inode, struct file *filp,
 		/* get the parameters from user space */
 		if (floppy->ref != 1 && floppy->ref != -1)
 			return -EBUSY;
-		if (copy_from_user(&setprm, (void *) param, sizeof(setprm)))
+		if (copy_from_user(&setprm, argp, sizeof(setprm)))
 			return -EFAULT;
 		/* 
 		 * first of all: check for floppy change and revalidate, 
@@ -1653,7 +1648,7 @@ static int fd_ioctl(struct inode *inode, struct file *filp,
 	case FDFMTTRK:
 		if (floppy->ref != 1 && floppy->ref != -1)
 			return -EBUSY;
-		if (copy_from_user(&fmt_desc, (void *) param, sizeof(fmt_desc)))
+		if (copy_from_user(&fmt_desc, argp, sizeof(fmt_desc)))
 			return -EFAULT;
 		return do_format(drive, type, &fmt_desc);
 	case FDCLRPRM:
@@ -1956,14 +1951,20 @@ Enomem:
 	return -ENOMEM;
 }
 
-
-void __init atari_floppy_setup( char *str, int *ints )
+#ifndef MODULE
+static int __init atari_floppy_setup(char *str)
 {
+	int ints[3 + FD_MAX_UNITS];
 	int i;
+
+	if (!MACH_IS_ATARI)
+		return 0;
+
+	str = get_options(str, 3 + FD_MAX_UNITS, ints);
 	
 	if (ints[0] < 1) {
 		printk(KERN_ERR "ataflop_setup: no arguments!\n" );
-		return;
+		return 0;
 	}
 	else if (ints[0] > 2+FD_MAX_UNITS) {
 		printk(KERN_ERR "ataflop_setup: too many arguments\n" );
@@ -1983,9 +1984,13 @@ void __init atari_floppy_setup( char *str, int *ints )
 		else
 			UserSteprate[i-3] = ints[i];
 	}
+	return 1;
 }
 
-static void atari_floppy_exit(void)
+__setup("floppy=", atari_floppy_setup);
+#endif
+
+static void __exit atari_floppy_exit(void)
 {
 	int i;
 	blk_unregister_region(MKDEV(FLOPPY_MAJOR, 0), 256);

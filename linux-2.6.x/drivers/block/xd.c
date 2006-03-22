@@ -47,6 +47,7 @@
 #include <linux/wait.h>
 #include <linux/blkdev.h>
 #include <linux/blkpg.h>
+#include <linux/delay.h>
 
 #include <asm/system.h>
 #include <asm/io.h>
@@ -62,7 +63,7 @@ static int xd[5] = { -1,-1,-1,-1, };
 
 #define XD_DONT_USE_DMA		0  /* Initial value. may be overriden using
 				      "nodma" module option */
-#define XD_INIT_DISK_DELAY	(30*HZ/1000)  /* 30 ms delay during disk initialization */
+#define XD_INIT_DISK_DELAY	(30)  /* 30 ms delay during disk initialization */
 
 /* Above may need to be increased if a problem with the 2nd drive detection
    (ST11M controller) or resetting a controller (WD) appears */
@@ -127,9 +128,12 @@ static DEFINE_SPINLOCK(xd_lock);
 
 static struct gendisk *xd_gendisk[2];
 
+static int xd_getgeo(struct block_device *bdev, struct hd_geometry *geo);
+
 static struct block_device_operations xd_fops = {
 	.owner	= THIS_MODULE,
 	.ioctl	= xd_ioctl,
+	.getgeo = xd_getgeo,
 };
 static DECLARE_WAIT_QUEUE_HEAD(xd_wait_int);
 static u_char xd_drives, xd_irq = 5, xd_dma = 3, xd_maxsectors;
@@ -275,11 +279,11 @@ static u_char __init xd_detect (u_char *controller, unsigned int *address)
 		return(1);
 	}
 
-	for (i = 0; i < (sizeof(xd_bases) / sizeof(xd_bases[0])); i++) {
+	for (i = 0; i < ARRAY_SIZE(xd_bases); i++) {
 		void __iomem *p = ioremap(xd_bases[i], 0x2000);
 		if (!p)
 			continue;
-		for (j = 1; j < (sizeof(xd_sigs) / sizeof(xd_sigs[0])); j++) {
+		for (j = 1; j < ARRAY_SIZE(xd_sigs); j++) {
 			const char *s = xd_sigs[j].string;
 			if (check_signature(p + xd_sigs[j].offset, s, strlen(s))) {
 				*controller = j;
@@ -329,22 +333,20 @@ static void do_xd_request (request_queue_t * q)
 	}
 }
 
+static int xd_getgeo(struct block_device *bdev, struct hd_geometry *geo)
+{
+	XD_INFO *p = bdev->bd_disk->private_data;
+
+	geo->heads = p->heads;
+	geo->sectors = p->sectors;
+	geo->cylinders = p->cylinders;
+	return 0;
+}
+
 /* xd_ioctl: handle device ioctl's */
 static int xd_ioctl (struct inode *inode,struct file *file,u_int cmd,u_long arg)
 {
-	XD_INFO *p = inode->i_bdev->bd_disk->private_data;
-
 	switch (cmd) {
-		case HDIO_GETGEO:
-		{
-			struct hd_geometry g;
-			struct hd_geometry __user *geom= (void __user *)arg;
-			g.heads = p->heads;
-			g.sectors = p->sectors;
-			g.cylinders = p->cylinders;
-			g.start = get_start_sect(inode->i_bdev);
-			return copy_to_user(geom, &g, sizeof(g)) ? -EFAULT : 0;
-		}
 		case HDIO_SET_DMA:
 			if (!capable(CAP_SYS_ADMIN)) return -EACCES;
 			if (xdc_busy) return -EBUSY;
@@ -529,10 +531,8 @@ static inline u_char xd_waitport (u_short port,u_char flags,u_char mask,u_long t
 	int success;
 
 	xdc_busy = 1;
-	while ((success = ((inb(port) & mask) != flags)) && time_before(jiffies, expiry)) {
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		schedule_timeout(1);
-	}
+	while ((success = ((inb(port) & mask) != flags)) && time_before(jiffies, expiry))
+		schedule_timeout_uninterruptible(1);
 	xdc_busy = 0;
 	return (success);
 }
@@ -633,14 +633,12 @@ static u_char __init xd_initdrives (void (*init_drive)(u_char drive))
 	for (i = 0; i < XD_MAXDRIVES; i++) {
 		xd_build(cmdblk,CMD_TESTREADY,i,0,0,0,0,0);
 		if (!xd_command(cmdblk,PIO_MODE,NULL,NULL,NULL,XD_TIMEOUT*8)) {
-			set_current_state(TASK_INTERRUPTIBLE);
-			schedule_timeout(XD_INIT_DISK_DELAY);
+			msleep_interruptible(XD_INIT_DISK_DELAY);
 
 			init_drive(count);
 			count++;
 
-			set_current_state(TASK_INTERRUPTIBLE);
-			schedule_timeout(XD_INIT_DISK_DELAY);
+			msleep_interruptible(XD_INIT_DISK_DELAY);
 		}
 	}
 	return (count);
@@ -761,8 +759,7 @@ static void __init xd_wd_init_controller (unsigned int address)
 
 	outb(0,XD_RESET);		/* reset the controller */
 
-	set_current_state(TASK_UNINTERRUPTIBLE);
-	schedule_timeout(XD_INIT_DISK_DELAY);
+	msleep(XD_INIT_DISK_DELAY);
 }
 
 static void __init xd_wd_init_drive (u_char drive)
@@ -936,8 +933,7 @@ If you need non-standard settings use the xd=... command */
 	xd_maxsectors = 0x01;
 	outb(0,XD_RESET);		/* reset the controller */
 
-	set_current_state(TASK_UNINTERRUPTIBLE);
-	schedule_timeout(XD_INIT_DISK_DELAY);
+	msleep(XD_INIT_DISK_DELAY);
 }
 
 static void __init xd_xebec_init_drive (u_char drive)
@@ -1022,7 +1018,7 @@ static void __init do_xd_setup (int *integers)
 		case 2: if ((integers[2] > 0) && (integers[2] < 16))
 				xd_irq = integers[2];
 		case 1: xd_override = 1;
-			if ((integers[1] >= 0) && (integers[1] < (sizeof(xd_sigs) / sizeof(xd_sigs[0]))))
+			if ((integers[1] >= 0) && (integers[1] < ARRAY_SIZE(xd_sigs)))
 				xd_type = integers[1];
 		case 0: break;
 		default:printk("xd: too many parameters for xd\n");

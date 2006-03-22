@@ -57,7 +57,6 @@
 
 #include <linux/config.h>
 #include <linux/module.h>
-#include <linux/version.h>
 #include <linux/kernel.h>
 #include <linux/skbuff.h>
 #include <linux/pci.h>
@@ -1887,7 +1886,7 @@ he_service_rbrq(struct he_dev *he_dev, int group)
 		if (rx_skb_reserve > 0)
 			skb_reserve(skb, rx_skb_reserve);
 
-		do_gettimeofday(&skb->stamp);
+		__net_timestamp(skb);
 
 		for (iov = he_vcc->iov_head;
 				iov < he_vcc->iov_tail; ++iov) {
