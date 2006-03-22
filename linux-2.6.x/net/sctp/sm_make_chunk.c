@@ -78,7 +78,7 @@ static sctp_cookie_param_t *sctp_pack_cookie(const struct sctp_endpoint *ep,
 static int sctp_process_param(struct sctp_association *asoc,
 			      union sctp_params param,
 			      const union sctp_addr *peer_addr,
-			      int gfp);
+			      gfp_t gfp);
 
 /* What was the inbound interface for this chunk? */
 int sctp_chunk_iif(const struct sctp_chunk *chunk)
@@ -174,7 +174,7 @@ void  sctp_init_cause(struct sctp_chunk *chunk, __u16 cause_code,
  */
 struct sctp_chunk *sctp_make_init(const struct sctp_association *asoc,
 			     const struct sctp_bind_addr *bp,
-			     int gfp, int vparam_len)
+			     gfp_t gfp, int vparam_len)
 {
 	sctp_inithdr_t init;
 	union sctp_params addrs;
@@ -254,14 +254,13 @@ struct sctp_chunk *sctp_make_init(const struct sctp_association *asoc,
 	aiparam.adaption_ind = htonl(sp->adaption_ind);
 	sctp_addto_chunk(retval, sizeof(aiparam), &aiparam);
 nodata:
-	if (addrs.v)
-		kfree(addrs.v);
+	kfree(addrs.v);
 	return retval;
 }
 
 struct sctp_chunk *sctp_make_init_ack(const struct sctp_association *asoc,
 				 const struct sctp_chunk *chunk,
-				 int gfp, int unkparam_len)
+				 gfp_t gfp, int unkparam_len)
 {
 	sctp_inithdr_t initack;
 	struct sctp_chunk *retval;
@@ -347,8 +346,7 @@ struct sctp_chunk *sctp_make_init_ack(const struct sctp_association *asoc,
 nomem_chunk:
 	kfree(cookie);
 nomem_cookie:
-	if (addrs.v)
-		kfree(addrs.v);
+	kfree(addrs.v);
 	return retval;
 }
 
@@ -554,7 +552,7 @@ struct sctp_chunk *sctp_make_datafrag_empty(struct sctp_association *asoc,
 	dp.ppid   = sinfo->sinfo_ppid;
 
 	/* Set the flags for an unordered send.  */
-	if (sinfo->sinfo_flags & MSG_UNORDERED) {
+	if (sinfo->sinfo_flags & SCTP_UNORDERED) {
 		flags |= SCTP_DATA_UNORDERED;
 		dp.ssn = 0;
 	} else
@@ -1003,6 +1001,7 @@ struct sctp_chunk *sctp_chunkify(struct sk_buff *skb,
 		SCTP_DEBUG_PRINTK("chunkifying skb %p w/o an sk\n", skb);
 	}
 
+	INIT_LIST_HEAD(&retval->list);
 	retval->skb		= skb;
 	retval->asoc		= (struct sctp_association *)asoc;
 	retval->resent  	= 0;
@@ -1116,8 +1115,7 @@ static void sctp_chunk_destroy(struct sctp_chunk *chunk)
 /* Possibly, free the chunk.  */
 void sctp_chunk_free(struct sctp_chunk *chunk)
 {
-	/* Make sure that we are not on any list.  */
-	skb_unlink((struct sk_buff *) chunk);
+	BUG_ON(!list_empty(&chunk->list));
 	list_del_init(&chunk->transmitted_list);
 
 	/* Release our reference on the message tracker. */
@@ -1233,7 +1231,8 @@ void sctp_chunk_assign_tsn(struct sctp_chunk *chunk)
 
 /* Create a CLOSED association to use with an incoming packet.  */
 struct sctp_association *sctp_make_temp_asoc(const struct sctp_endpoint *ep,
-					struct sctp_chunk *chunk, int gfp)
+					struct sctp_chunk *chunk,
+					gfp_t gfp)
 {
 	struct sctp_association *asoc;
 	struct sk_buff *skb;
@@ -1276,7 +1275,12 @@ static sctp_cookie_param_t *sctp_pack_cookie(const struct sctp_endpoint *ep,
 	unsigned int keylen;
 	char *key;
 
-	headersize = sizeof(sctp_paramhdr_t) + SCTP_SECRET_SIZE;
+	/* Header size is static data prior to the actual cookie, including
+	 * any padding.
+	 */
+	headersize = sizeof(sctp_paramhdr_t) + 
+		     (sizeof(struct sctp_signed_cookie) - 
+		      sizeof(struct sctp_cookie));
 	bodysize = sizeof(struct sctp_cookie)
 		+ ntohs(init_chunk->chunk_hdr->length) + addrs_len;
 
@@ -1288,7 +1292,7 @@ static sctp_cookie_param_t *sctp_pack_cookie(const struct sctp_endpoint *ep,
 			- (bodysize % SCTP_COOKIE_MULTIPLE);
 	*cookie_len = headersize + bodysize;
 
-	retval = (sctp_cookie_param_t *)kmalloc(*cookie_len, GFP_ATOMIC);
+	retval = kmalloc(*cookie_len, GFP_ATOMIC);
 
 	if (!retval) {
 		*cookie_len = 0;
@@ -1348,21 +1352,27 @@ nodata:
 struct sctp_association *sctp_unpack_cookie(
 	const struct sctp_endpoint *ep,
 	const struct sctp_association *asoc,
-	struct sctp_chunk *chunk, int gfp,
+	struct sctp_chunk *chunk, gfp_t gfp,
 	int *error, struct sctp_chunk **errp)
 {
 	struct sctp_association *retval = NULL;
 	struct sctp_signed_cookie *cookie;
 	struct sctp_cookie *bear_cookie;
 	int headersize, bodysize, fixed_size;
-	__u8 digest[SCTP_SIGNATURE_SIZE];
+	__u8 *digest = ep->digest;
 	struct scatterlist sg;
 	unsigned int keylen, len;
 	char *key;
 	sctp_scope_t scope;
 	struct sk_buff *skb = chunk->skb;
+	struct timeval tv;
 
-	headersize = sizeof(sctp_chunkhdr_t) + SCTP_SECRET_SIZE;
+	/* Header size is static data prior to the actual cookie, including
+	 * any padding.
+	 */
+	headersize = sizeof(sctp_chunkhdr_t) +
+		     (sizeof(struct sctp_signed_cookie) - 
+		      sizeof(struct sctp_cookie));
 	bodysize = ntohs(chunk->chunk_hdr->length) - headersize;
 	fixed_size = headersize + sizeof(struct sctp_cookie);
 
@@ -1433,7 +1443,8 @@ no_hmac:
 	 * an association, there is no need to check cookie's expiration
 	 * for init collision case of lost COOKIE ACK.
 	 */
-	if (!asoc && tv_lt(bear_cookie->expiration, skb->stamp)) {
+	skb_get_timestamp(skb, &tv);
+	if (!asoc && tv_lt(bear_cookie->expiration, tv)) {
 		__u16 len;
 		/*
 		 * Section 3.3.10.3 Stale Cookie Error (3)
@@ -1446,10 +1457,9 @@ no_hmac:
 		len = ntohs(chunk->chunk_hdr->length);
 		*errp = sctp_make_op_error_space(asoc, chunk, len);
 		if (*errp) {
-			suseconds_t usecs = (skb->stamp.tv_sec -
+			suseconds_t usecs = (tv.tv_sec -
 				bear_cookie->expiration.tv_sec) * 1000000L +
-				skb->stamp.tv_usec -
-				bear_cookie->expiration.tv_usec;
+				tv.tv_usec - bear_cookie->expiration.tv_usec;
 
 			usecs = htonl(usecs);
 			sctp_init_cause(*errp, SCTP_ERROR_STALE_COOKIE,
@@ -1812,7 +1822,7 @@ int sctp_verify_init(const struct sctp_association *asoc,
  */
 int sctp_process_init(struct sctp_association *asoc, sctp_cid_t cid,
 		      const union sctp_addr *peer_addr,
-		      sctp_init_chunk_t *peer_init, int gfp)
+		      sctp_init_chunk_t *peer_init, gfp_t gfp)
 {
 	union sctp_params param;
 	struct sctp_transport *transport;
@@ -1830,7 +1840,7 @@ int sctp_process_init(struct sctp_association *asoc, sctp_cid_t cid,
 	 * be a a better choice than any of the embedded addresses.
 	 */
 	if (peer_addr)
-		if(!sctp_assoc_add_peer(asoc, peer_addr, gfp))
+		if(!sctp_assoc_add_peer(asoc, peer_addr, gfp, SCTP_ACTIVE))
 			goto nomem;
 
 	/* Process the initialization parameters.  */
@@ -1839,6 +1849,14 @@ int sctp_process_init(struct sctp_association *asoc, sctp_cid_t cid,
 
 		if (!sctp_process_param(asoc, param, peer_addr, gfp))
                         goto clean_up;
+	}
+
+	/* Walk list of transports, removing transports in the UNKNOWN state. */
+	list_for_each_safe(pos, temp, &asoc->peer.transport_addr_list) {
+		transport = list_entry(pos, struct sctp_transport, transports);
+		if (transport->state == SCTP_UNKNOWN) {
+			sctp_assoc_rm_peer(asoc, transport);
+		}
 	}
 
 	/* The fixed INIT headers are always in network byte
@@ -1906,7 +1924,8 @@ int sctp_process_init(struct sctp_association *asoc, sctp_cid_t cid,
 	 * stream sequence number shall be set to 0.
 	 */
 
-	/* Allocate storage for the negotiated streams if it is not a temporary 	 * association.
+	/* Allocate storage for the negotiated streams if it is not a temporary
+ 	 * association.
 	 */
 	if (!asoc->temp) {
 		int assoc_id;
@@ -1952,6 +1971,9 @@ clean_up:
 		list_del_init(pos);
 		sctp_transport_free(transport);
 	}
+
+	asoc->peer.transport_count = 0;
+
 nomem:
 	return 0;
 }
@@ -1971,7 +1993,7 @@ nomem:
 static int sctp_process_param(struct sctp_association *asoc,
 			      union sctp_params param,
 			      const union sctp_addr *peer_addr,
-			      int gfp)
+			      gfp_t gfp)
 {
 	union sctp_addr addr;
 	int i;
@@ -1995,7 +2017,7 @@ static int sctp_process_param(struct sctp_association *asoc,
 		af->from_addr_param(&addr, param.addr, asoc->peer.port, 0);
 		scope = sctp_scope(peer_addr);
 		if (sctp_in_scope(&addr, scope))
-			if (!sctp_assoc_add_peer(asoc, &addr, gfp))
+			if (!sctp_assoc_add_peer(asoc, &addr, gfp, SCTP_ACTIVE))
 				return 0;
 		break;
 
@@ -2396,7 +2418,7 @@ static __u16 sctp_process_asconf_param(struct sctp_association *asoc,
 	 	 * Due to Resource Shortage'.
 	 	 */
 
-		peer = sctp_assoc_add_peer(asoc, &addr, GFP_ATOMIC);
+		peer = sctp_assoc_add_peer(asoc, &addr, GFP_ATOMIC, SCTP_ACTIVE);
 		if (!peer)
 			return SCTP_ERROR_RSRC_LOW;
 
@@ -2727,8 +2749,12 @@ int sctp_process_asconf_ack(struct sctp_association *asoc,
 	asoc->addip_last_asconf = NULL;
 
 	/* Send the next asconf chunk from the addip chunk queue. */
-	asconf = (struct sctp_chunk *)__skb_dequeue(&asoc->addip_chunks);
-	if (asconf) {
+	if (!list_empty(&asoc->addip_chunk_list)) {
+		struct list_head *entry = asoc->addip_chunk_list.next;
+		asconf = list_entry(entry, struct sctp_chunk, list);
+
+		list_del_init(entry);
+
 		/* Hold the chunk until an ASCONF_ACK is received. */
 		sctp_chunk_hold(asconf);
 		if (sctp_primitive_ASCONF(asoc, asconf))

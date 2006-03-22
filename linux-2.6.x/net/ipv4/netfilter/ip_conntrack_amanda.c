@@ -18,15 +18,16 @@
  *
  */
 
+#include <linux/in.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/netfilter.h>
 #include <linux/ip.h>
 #include <linux/moduleparam.h>
+#include <linux/udp.h>
 #include <net/checksum.h>
 #include <net/udp.h>
 
-#include <linux/netfilter_ipv4/lockhelp.h>
 #include <linux/netfilter_ipv4/ip_conntrack_helper.h>
 #include <linux/netfilter_ipv4/ip_conntrack_amanda.h>
 
@@ -35,14 +36,14 @@ static unsigned int master_timeout = 300;
 MODULE_AUTHOR("Brian J. Murrell <netfilter@interlinx.bc.ca>");
 MODULE_DESCRIPTION("Amanda connection tracking module");
 MODULE_LICENSE("GPL");
-module_param(master_timeout, int, 0600);
+module_param(master_timeout, uint, 0600);
 MODULE_PARM_DESC(master_timeout, "timeout for the master connection");
 
-static char *conns[] = { "DATA ", "MESG ", "INDEX " };
+static const char *conns[] = { "DATA ", "MESG ", "INDEX " };
 
 /* This is slow, but it's simple. --RR */
-static char amanda_buffer[65536];
-static DECLARE_LOCK(amanda_buffer_lock);
+static char *amanda_buffer;
+static DEFINE_SPINLOCK(amanda_buffer_lock);
 
 unsigned int (*ip_nat_amanda_hook)(struct sk_buff **pskb,
 				   enum ip_conntrack_info ctinfo,
@@ -66,7 +67,7 @@ static int help(struct sk_buff **pskb,
 
 	/* increase the UDP timeout of the master connection as replies from
 	 * Amanda clients to the server can be quite delayed */
-	ip_ct_refresh_acct(ct, ctinfo, NULL, master_timeout * HZ);
+	ip_ct_refresh(ct, *pskb, master_timeout * HZ);
 
 	/* No data? */
 	dataoff = (*pskb)->nh.iph->ihl*4 + sizeof(struct udphdr);
@@ -76,7 +77,7 @@ static int help(struct sk_buff **pskb,
 		return NF_ACCEPT;
 	}
 
-	LOCK_BH(&amanda_buffer_lock);
+	spin_lock_bh(&amanda_buffer_lock);
 	skb_copy_bits(*pskb, dataoff, amanda_buffer, (*pskb)->len - dataoff);
 	data = amanda_buffer;
 	data_limit = amanda_buffer + (*pskb)->len - dataoff;
@@ -102,14 +103,14 @@ static int help(struct sk_buff **pskb,
 		if (port == 0 || len > 5)
 			break;
 
-		exp = ip_conntrack_expect_alloc();
+		exp = ip_conntrack_expect_alloc(ct);
 		if (exp == NULL) {
 			ret = NF_DROP;
 			goto out;
 		}
 
 		exp->expectfn = NULL;
-		exp->master = ct;
+		exp->flags = 0;
 
 		exp->tuple.src.ip = ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.src.ip;
 		exp->tuple.src.u.tcp.port = 0;
@@ -127,14 +128,13 @@ static int help(struct sk_buff **pskb,
 			ret = ip_nat_amanda_hook(pskb, ctinfo,
 						 tmp - amanda_buffer,
 						 len, exp);
-		else if (ip_conntrack_expect_related(exp) != 0) {
-			ip_conntrack_expect_free(exp);
+		else if (ip_conntrack_expect_related(exp) != 0)
 			ret = NF_DROP;
-		}
+		ip_conntrack_expect_put(exp);
 	}
 
 out:
-	UNLOCK_BH(&amanda_buffer_lock);
+	spin_unlock_bh(&amanda_buffer_lock);
 	return ret;
 }
 
@@ -156,11 +156,25 @@ static struct ip_conntrack_helper amanda_helper = {
 static void __exit fini(void)
 {
 	ip_conntrack_helper_unregister(&amanda_helper);
+	kfree(amanda_buffer);
 }
 
 static int __init init(void)
 {
-	return ip_conntrack_helper_register(&amanda_helper);
+	int ret;
+
+	amanda_buffer = kmalloc(65536, GFP_KERNEL);
+	if (!amanda_buffer)
+		return -ENOMEM;
+
+	ret = ip_conntrack_helper_register(&amanda_helper);
+	if (ret < 0) {
+		kfree(amanda_buffer);
+		return ret;
+	}
+	return 0;
+
+
 }
 
 module_init(init);

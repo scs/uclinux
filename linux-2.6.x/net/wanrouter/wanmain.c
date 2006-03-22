@@ -44,6 +44,7 @@
 
 #include <linux/config.h>
 #include <linux/stddef.h>	/* offsetof(), etc. */
+#include <linux/capability.h>
 #include <linux/errno.h>	/* return codes */
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -358,10 +359,10 @@ int wanrouter_encapsulate(struct sk_buff *skb, struct net_device *dev,
  */
 
 
-unsigned short wanrouter_type_trans(struct sk_buff *skb, struct net_device *dev)
+__be16 wanrouter_type_trans(struct sk_buff *skb, struct net_device *dev)
 {
 	int cnt = skb->data[0] ? 0 : 1;	/* there may be a pad present */
-	unsigned short ethertype;
+	__be16 ethertype;
 
 	switch (skb->data[cnt]) {
 	case NLPID_IP:		/* IP datagramm */
@@ -379,7 +380,7 @@ unsigned short wanrouter_type_trans(struct sk_buff *skb, struct net_device *dev)
 				skb->data[cnt+3], dev->name);
 			return 0;
 		}
-		ethertype = *((unsigned short*)&skb->data[cnt+4]);
+		ethertype = *((__be16*)&skb->data[cnt+4]);
 		cnt += 6;
 		break;
 
@@ -714,10 +715,8 @@ static int wanrouter_device_new_if(struct wan_device *wandev,
 	}
 
 	/* This code has moved from del_if() function */
-	if (dev->priv) {
-		kfree(dev->priv);
-		dev->priv = NULL;
-	}
+	kfree(dev->priv);
+	dev->priv = NULL;
 
 #ifdef CONFIG_WANPIPE_MULTPPP
 	if (cnf->config_id == WANCONFIG_MPPP)
@@ -851,10 +850,8 @@ static int wanrouter_delete_interface(struct wan_device *wandev, char *name)
 
 	/* Due to new interface linking method using dev->priv,
 	 * this code has moved from del_if() function.*/
-	if (dev->priv){
-		kfree(dev->priv);
-		dev->priv=NULL;
-	}
+	kfree(dev->priv);
+	dev->priv=NULL;
 
 	unregister_netdev(dev);
 

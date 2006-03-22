@@ -108,7 +108,7 @@ struct sctp_packet *sctp_packet_init(struct sctp_packet *packet,
 	packet->transport = transport;
 	packet->source_port = sport;
 	packet->destination_port = dport;
-	skb_queue_head_init(&packet->chunks);
+	INIT_LIST_HEAD(&packet->chunk_list);
 	if (asoc) {
 		struct sctp_sock *sp = sctp_sk(asoc->base.sk);	
 		overhead = sp->pf->af->net_header_len; 
@@ -129,12 +129,14 @@ struct sctp_packet *sctp_packet_init(struct sctp_packet *packet,
 /* Free a packet.  */
 void sctp_packet_free(struct sctp_packet *packet)
 {
-	struct sctp_chunk *chunk;
+	struct sctp_chunk *chunk, *tmp;
 
 	SCTP_DEBUG_PRINTK("%s: packet:%p\n", __FUNCTION__, packet);
 
-        while ((chunk = (struct sctp_chunk *)__skb_dequeue(&packet->chunks)) != NULL)
+	list_for_each_entry_safe(chunk, tmp, &packet->chunk_list, list) {
+		list_del_init(&chunk->list);
 		sctp_chunk_free(chunk);
+	}
 
 	if (packet->malloced)
 		kfree(packet);
@@ -232,8 +234,8 @@ sctp_xmit_t sctp_packet_append_chunk(struct sctp_packet *packet,
 		goto finish;
 
 	pmtu  = ((packet->transport->asoc) ?
-		 (packet->transport->asoc->pmtu) :
-		 (packet->transport->pmtu));
+		 (packet->transport->asoc->pathmtu) :
+		 (packet->transport->pathmtu));
 
 	too_big = (psize + chunk_len > pmtu);
 
@@ -276,7 +278,7 @@ append:
 		packet->has_sack = 1;
 
 	/* It is OK to send this chunk.  */
-	__skb_queue_tail(&packet->chunks, (struct sk_buff *)chunk);
+	list_add_tail(&chunk->list, &packet->chunk_list);
 	packet->size += chunk_len;
 	chunk->transport = packet->transport;
 finish:
@@ -295,7 +297,7 @@ int sctp_packet_transmit(struct sctp_packet *packet)
 	struct sctphdr *sh;
 	__u32 crc32;
 	struct sk_buff *nskb;
-	struct sctp_chunk *chunk;
+	struct sctp_chunk *chunk, *tmp;
 	struct sock *sk;
 	int err = 0;
 	int padding;		/* How much padding do we need?  */
@@ -305,11 +307,11 @@ int sctp_packet_transmit(struct sctp_packet *packet)
 	SCTP_DEBUG_PRINTK("%s: packet:%p\n", __FUNCTION__, packet);
 
 	/* Do NOT generate a chunkless packet. */
-	chunk = (struct sctp_chunk *)skb_peek(&packet->chunks);
-	if (unlikely(!chunk))
+	if (list_empty(&packet->chunk_list))
 		return err;
 
 	/* Set up convenience variables... */
+	chunk = list_entry(packet->chunk_list.next, struct sctp_chunk, list);
 	sk = chunk->skb->sk;
 
 	/* Allocate the new skb.  */
@@ -370,7 +372,8 @@ int sctp_packet_transmit(struct sctp_packet *packet)
 	 * [This whole comment explains WORD_ROUND() below.]
 	 */
 	SCTP_DEBUG_PRINTK("***sctp_transmit_packet***\n");
-	while ((chunk = (struct sctp_chunk *)__skb_dequeue(&packet->chunks)) != NULL) {
+	list_for_each_entry_safe(chunk, tmp, &packet->chunk_list, list) {
+		list_del_init(&chunk->list);
 		if (sctp_chunk_is_data(chunk)) {
 
 			if (!chunk->has_tsn) {
@@ -479,7 +482,9 @@ int sctp_packet_transmit(struct sctp_packet *packet)
 	if (!dst || (dst->obsolete > 1)) {
 		dst_release(dst);
 		sctp_transport_route(tp, NULL, sctp_sk(sk));
-		sctp_assoc_sync_pmtu(asoc);
+		if (asoc->param_flags & SPP_PMTUD_ENABLE) {
+			sctp_assoc_sync_pmtu(asoc);
+		}
 	}
 
 	nskb->dst = dst_clone(tp->dst);
@@ -489,7 +494,10 @@ int sctp_packet_transmit(struct sctp_packet *packet)
 	SCTP_DEBUG_PRINTK("***sctp_transmit_packet*** skb len %d\n",
 			  nskb->len);
 
-	(*tp->af_specific->sctp_xmit)(nskb, tp, packet->ipfragok);
+	if (tp->param_flags & SPP_PMTUD_ENABLE)
+		(*tp->af_specific->sctp_xmit)(nskb, tp, packet->ipfragok);
+	else
+		(*tp->af_specific->sctp_xmit)(nskb, tp, 1);
 
 out:
 	packet->size = packet->overhead;
@@ -511,7 +519,8 @@ err:
 	 * will get resent or dropped later.
 	 */
 
-	while ((chunk = (struct sctp_chunk *)__skb_dequeue(&packet->chunks)) != NULL) {
+	list_for_each_entry_safe(chunk, tmp, &packet->chunk_list, list) {
+		list_del_init(&chunk->list);
 		if (!sctp_chunk_is_data(chunk))
     			sctp_chunk_free(chunk);
 	}
@@ -573,7 +582,7 @@ static sctp_xmit_t sctp_packet_append_data(struct sctp_packet *packet,
 	 * 	if ((flightsize + Max.Burst * MTU) < cwnd)
 	 *		cwnd = flightsize + Max.Burst * MTU
 	 */
-	max_burst_bytes = asoc->max_burst * asoc->pmtu;
+	max_burst_bytes = asoc->max_burst * asoc->pathmtu;
 	if ((transport->flight_size + max_burst_bytes) < transport->cwnd) {
 		transport->cwnd = transport->flight_size + max_burst_bytes;
 		SCTP_DEBUG_PRINTK("%s: cwnd limited by max_burst: "
@@ -599,7 +608,7 @@ static sctp_xmit_t sctp_packet_append_data(struct sctp_packet *packet,
 	 *    When a Fast Retransmit is being performed the sender SHOULD
 	 *    ignore the value of cwnd and SHOULD NOT delay retransmission.
 	 */
-	if (!chunk->fast_retransmit)
+	if (chunk->fast_retransmit <= 0)
 		if (transport->flight_size >= transport->cwnd) {
 			retval = SCTP_XMIT_RWND_FULL;
 			goto finish;
@@ -618,7 +627,7 @@ static sctp_xmit_t sctp_packet_append_data(struct sctp_packet *packet,
 		 * data will fit or delay in hopes of bundling a full
 		 * sized packet.
 		 */
-		if (len < asoc->pmtu - packet->overhead) {
+		if (len < asoc->pathmtu - packet->overhead) {
 			retval = SCTP_XMIT_NAGLE_DELAY;
 			goto finish;
 		}

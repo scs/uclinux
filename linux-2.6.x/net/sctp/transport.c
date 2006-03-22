@@ -57,7 +57,7 @@
 /* Initialize a new transport from provided memory.  */
 static struct sctp_transport *sctp_transport_init(struct sctp_transport *peer,
 						  const union sctp_addr *addr,
-						  int gfp)
+						  gfp_t gfp)
 {
 	/* Copy in the address.  */
 	peer->ipaddr = *addr;
@@ -83,11 +83,16 @@ static struct sctp_transport *sctp_transport_init(struct sctp_transport *peer,
 	peer->last_time_used = jiffies;
 	peer->last_time_ecne_reduced = jiffies;
 
-	peer->active = SCTP_ACTIVE;
-	peer->hb_allowed = 0;
+	peer->init_sent_count = 0;
+
+	peer->state = SCTP_ACTIVE;
+	peer->param_flags = SPP_HB_DISABLE |
+			    SPP_PMTUD_ENABLE |
+			    SPP_SACKDELAY_ENABLE;
+	peer->hbinterval  = 0;
 
 	/* Initialize the default path max_retrans.  */
-	peer->max_retrans = sctp_max_retrans_path;
+	peer->pathmaxrxt  = sctp_max_retrans_path;
 	peer->error_count = 0;
 
 	INIT_LIST_HEAD(&peer->transmitted);
@@ -101,7 +106,6 @@ static struct sctp_transport *sctp_transport_init(struct sctp_transport *peer,
 
 	/* Set up the heartbeat timer. */
 	init_timer(&peer->hb_timer);
-	peer->hb_interval = SCTP_DEFAULT_TIMEOUT_HEARTBEAT;
 	peer->hb_timer.function = sctp_generate_heartbeat_event;
 	peer->hb_timer.data = (unsigned long)peer;
 
@@ -120,7 +124,8 @@ static struct sctp_transport *sctp_transport_init(struct sctp_transport *peer,
 }
 
 /* Allocate and initialize a new transport.  */
-struct sctp_transport *sctp_transport_new(const union sctp_addr *addr, int gfp)
+struct sctp_transport *sctp_transport_new(const union sctp_addr *addr,
+					  gfp_t gfp)
 {
         struct sctp_transport *transport;
 
@@ -227,10 +232,10 @@ void sctp_transport_pmtu(struct sctp_transport *transport)
 	dst = transport->af_specific->get_dst(NULL, &transport->ipaddr, NULL);
 
 	if (dst) {
-		transport->pmtu = dst_mtu(dst);
+		transport->pathmtu = dst_mtu(dst);
 		dst_release(dst);
 	} else
-		transport->pmtu = SCTP_DEFAULT_MAXSEGMENT;
+		transport->pathmtu = SCTP_DEFAULT_MAXSEGMENT;
 }
 
 /* Caches the dst entry and source address for a transport's destination
@@ -252,16 +257,20 @@ void sctp_transport_route(struct sctp_transport *transport,
 		af->get_saddr(asoc, dst, daddr, &transport->saddr);
 
 	transport->dst = dst;
+	if ((transport->param_flags & SPP_PMTUD_DISABLE) && transport->pathmtu) {
+		return;
+	}
 	if (dst) {
-		transport->pmtu = dst_mtu(dst);
+		transport->pathmtu = dst_mtu(dst);
 
 		/* Initialize sk->sk_rcv_saddr, if the transport is the
 		 * association's active path for getsockname().
 		 */ 
 		if (asoc && (transport == asoc->peer.active_path))
-			af->to_sk_saddr(&transport->saddr, asoc->base.sk);
+			opt->pf->af->to_sk_saddr(&transport->saddr,
+						 asoc->base.sk);
 	} else
-		transport->pmtu = SCTP_DEFAULT_MAXSEGMENT;
+		transport->pathmtu = SCTP_DEFAULT_MAXSEGMENT;
 }
 
 /* Hold a reference to a transport.  */
@@ -341,7 +350,7 @@ void sctp_transport_update_rto(struct sctp_transport *tp, __u32 rtt)
 	tp->rto_pending = 0;
 
 	SCTP_DEBUG_PRINTK("%s: transport: %p, rtt: %d, srtt: %d "
-			  "rttvar: %d, rto: %d\n", __FUNCTION__,
+			  "rttvar: %d, rto: %ld\n", __FUNCTION__,
 			  tp, rtt, tp->srtt, tp->rttvar, tp->rto);
 }
 
@@ -366,7 +375,7 @@ void sctp_transport_raise_cwnd(struct sctp_transport *transport,
 
 	ssthresh = transport->ssthresh;
 	pba = transport->partial_bytes_acked;
-	pmtu = transport->asoc->pmtu;
+	pmtu = transport->asoc->pathmtu;
 
 	if (cwnd <= ssthresh) {
 		/* RFC 2960 7.2.1, sctpimpguide-05 2.14.2 When cwnd is less
@@ -438,8 +447,8 @@ void sctp_transport_lower_cwnd(struct sctp_transport *transport,
 		 *      partial_bytes_acked = 0
 		 */
 		transport->ssthresh = max(transport->cwnd/2,
-					  4*transport->asoc->pmtu);
-		transport->cwnd = transport->asoc->pmtu;
+					  4*transport->asoc->pathmtu);
+		transport->cwnd = transport->asoc->pathmtu;
 		break;
 
 	case SCTP_LOWER_CWND_FAST_RTX:
@@ -456,7 +465,7 @@ void sctp_transport_lower_cwnd(struct sctp_transport *transport,
 		 *      partial_bytes_acked = 0
 		 */
 		transport->ssthresh = max(transport->cwnd/2,
-					  4*transport->asoc->pmtu);
+					  4*transport->asoc->pathmtu);
 		transport->cwnd = transport->ssthresh;
 		break;
 
@@ -476,7 +485,7 @@ void sctp_transport_lower_cwnd(struct sctp_transport *transport,
 		if ((jiffies - transport->last_time_ecne_reduced) >
 		    transport->rtt) {
 			transport->ssthresh = max(transport->cwnd/2,
-					  	  4*transport->asoc->pmtu);
+					  	  4*transport->asoc->pathmtu);
 			transport->cwnd = transport->ssthresh;
 			transport->last_time_ecne_reduced = jiffies;
 		}
@@ -493,7 +502,7 @@ void sctp_transport_lower_cwnd(struct sctp_transport *transport,
 		 */
 		if ((jiffies - transport->last_time_used) > transport->rto)
 			transport->cwnd = max(transport->cwnd/2,
-						 4*transport->asoc->pmtu);
+						 4*transport->asoc->pathmtu);
 		break;
 	};
 
@@ -508,7 +517,7 @@ void sctp_transport_lower_cwnd(struct sctp_transport *transport,
 unsigned long sctp_transport_timeout(struct sctp_transport *t)
 {
 	unsigned long timeout;
-	timeout = t->hb_interval + t->rto + sctp_jitter(t->rto);
+	timeout = t->hbinterval + t->rto + sctp_jitter(t->rto);
 	timeout += jiffies;
 	return timeout;
 }

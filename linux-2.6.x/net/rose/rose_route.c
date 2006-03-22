@@ -24,7 +24,7 @@
 #include <linux/if_arp.h>
 #include <linux/skbuff.h>
 #include <net/sock.h>
-#include <net/tcp.h>
+#include <net/tcp_states.h>
 #include <asm/system.h>
 #include <asm/uaccess.h>
 #include <linux/fcntl.h>
@@ -240,8 +240,7 @@ static void rose_remove_neigh(struct rose_neigh *rose_neigh)
 	if ((s = rose_neigh_list) == rose_neigh) {
 		rose_neigh_list = rose_neigh->next;
 		spin_unlock_bh(&rose_neigh_list_lock);
-		if (rose_neigh->digipeat != NULL)
-			kfree(rose_neigh->digipeat);
+		kfree(rose_neigh->digipeat);
 		kfree(rose_neigh);
 		return;
 	}
@@ -250,8 +249,7 @@ static void rose_remove_neigh(struct rose_neigh *rose_neigh)
 		if (s->next == rose_neigh) {
 			s->next = rose_neigh->next;
 			spin_unlock_bh(&rose_neigh_list_lock);
-			if (rose_neigh->digipeat != NULL)
-				kfree(rose_neigh->digipeat);
+			kfree(rose_neigh->digipeat);
 			kfree(rose_neigh);
 			return;
 		}
@@ -727,7 +725,7 @@ int rose_rt_ioctl(unsigned int cmd, void __user *arg)
 		}
 		if (rose_route.mask > 10) /* Mask can't be more than 10 digits */
 			return -EINVAL;
-		if (rose_route.ndigis > 8) /* No more than 8 digipeats */
+		if (rose_route.ndigis > AX25_MAX_DIGIS)
 			return -EINVAL;
 		err = rose_add_node(&rose_route, dev);
 		dev_put(dev);
@@ -851,6 +849,7 @@ int rose_route_frame(struct sk_buff *skb, ax25_cb *ax25)
 	unsigned char cause, diagnostic;
 	struct net_device *dev;
 	int len, res = 0;
+	char buf[11];
 
 #if 0
 	if (call_in_firewall(PF_ROSE, skb->dev, skb->data, NULL, &skb) != FW_ACCEPT)
@@ -876,7 +875,7 @@ int rose_route_frame(struct sk_buff *skb, ax25_cb *ax25)
 
 	if (rose_neigh == NULL) {
 		printk("rose_route : unknown neighbour or device %s\n",
-		       ax2asc(&ax25->dest_addr));
+		       ax2asc(buf, &ax25->dest_addr));
 		goto out;
 	}
 
@@ -994,8 +993,10 @@ int rose_route_frame(struct sk_buff *skb, ax25_cb *ax25)
 	 *	1. The frame isn't for us,
 	 *	2. It isn't "owned" by any existing route.
 	 */
-	if (frametype != ROSE_CALL_REQUEST)	/* XXX */
-		return 0;
+	if (frametype != ROSE_CALL_REQUEST) {	/* XXX */
+		res = 0;
+		goto out;
+	}
 
 	len  = (((skb->data[3] >> 4) & 0x0F) + 1) / 2;
 	len += (((skb->data[3] >> 0) & 0x0F) + 1) / 2;
@@ -1176,6 +1177,7 @@ static void rose_neigh_stop(struct seq_file *seq, void *v)
 
 static int rose_neigh_show(struct seq_file *seq, void *v)
 {
+	char buf[11];
 	int i;
 
 	if (v == SEQ_START_TOKEN)
@@ -1187,7 +1189,7 @@ static int rose_neigh_show(struct seq_file *seq, void *v)
 		/* if (!rose_neigh->loopback) { */
 		seq_printf(seq, "%05d %-9s %-4s   %3d %3d  %3s     %3s %3lu %3lu",
 			   rose_neigh->number,
-			   (rose_neigh->loopback) ? "RSLOOP-0" : ax2asc(&rose_neigh->callsign),
+			   (rose_neigh->loopback) ? "RSLOOP-0" : ax2asc(buf, &rose_neigh->callsign),
 			   rose_neigh->dev ? rose_neigh->dev->name : "???",
 			   rose_neigh->count,
 			   rose_neigh->use,
@@ -1198,7 +1200,7 @@ static int rose_neigh_show(struct seq_file *seq, void *v)
 
 		if (rose_neigh->digipeat != NULL) {
 			for (i = 0; i < rose_neigh->digipeat->ndigi; i++)
-				seq_printf(seq, " %s", ax2asc(&rose_neigh->digipeat->calls[i]));
+				seq_printf(seq, " %s", ax2asc(buf, &rose_neigh->digipeat->calls[i]));
 		}
 
 		seq_puts(seq, "\n");
@@ -1258,6 +1260,8 @@ static void rose_route_stop(struct seq_file *seq, void *v)
 
 static int rose_route_show(struct seq_file *seq, void *v)
 {
+	char buf[11];
+
 	if (v == SEQ_START_TOKEN)
 		seq_puts(seq, 
 			 "lci  address     callsign   neigh  <-> lci  address     callsign   neigh\n");
@@ -1269,7 +1273,7 @@ static int rose_route_show(struct seq_file *seq, void *v)
 				   "%3.3X  %-10s  %-9s  %05d      ",
 				   rose_route->lci1,
 				   rose2asc(&rose_route->src_addr),
-				   ax2asc(&rose_route->src_call),
+				   ax2asc(buf, &rose_route->src_call),
 				   rose_route->neigh1->number);
 		else 
 			seq_puts(seq, 
@@ -1280,7 +1284,7 @@ static int rose_route_show(struct seq_file *seq, void *v)
 				   "%3.3X  %-10s  %-9s  %05d\n",
 				rose_route->lci2,
 				rose2asc(&rose_route->dest_addr),
-				ax2asc(&rose_route->dest_call),
+				ax2asc(buf, &rose_route->dest_call),
 				rose_route->neigh2->number);
 		 else 
 			 seq_puts(seq,

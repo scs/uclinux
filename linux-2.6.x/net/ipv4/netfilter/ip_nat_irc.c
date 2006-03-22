@@ -65,10 +65,8 @@ static unsigned int help(struct sk_buff **pskb,
 			break;
 	}
 
-	if (port == 0) {
-		ip_conntrack_expect_free(exp);
+	if (port == 0)
 		return NF_DROP;
-	}
 
 	/*      strlen("\1DCC CHAT chat AAAAAAAA P\1\n")=27
 	 *      strlen("\1DCC SCHAT chat AAAAAAAA P\1\n")=28
@@ -115,7 +113,7 @@ static int __init init(void)
 /* Prior to 2.6.11, we had a ports param.  No longer, but don't break users. */
 static int warn_set(const char *val, struct kernel_param *kp)
 {
-	printk(KERN_INFO __stringify(KBUILD_MODNAME)
+	printk(KERN_INFO KBUILD_MODNAME
 	       ": kernel >= 2.6.10 only uses 'ports' for conntrack modules\n");
 	return 0;
 }

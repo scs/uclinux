@@ -143,10 +143,8 @@ static unsigned int ip_nat_ftp(struct sk_buff **pskb,
 			break;
 	}
 
-	if (port == 0) {
-		ip_conntrack_expect_free(exp);
+	if (port == 0)
 		return NF_DROP;
-	}
 
 	if (!mangle[type](pskb, newip, port, matchoff, matchlen, ct, ctinfo,
 			  seq)) {
@@ -173,7 +171,7 @@ static int __init init(void)
 /* Prior to 2.6.11, we had a ports param.  No longer, but don't break users. */
 static int warn_set(const char *val, struct kernel_param *kp)
 {
-	printk(KERN_INFO __stringify(KBUILD_MODNAME)
+	printk(KERN_INFO KBUILD_MODNAME
 	       ": kernel >= 2.6.10 only uses 'ports' for conntrack modules\n");
 	return 0;
 }

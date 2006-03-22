@@ -35,6 +35,10 @@
  * each nlgroup you are using, so the total kernel memory usage increases
  * by that factor.
  *
+ * Actually you should use nlbufsiz a bit smaller than PAGE_SIZE, since
+ * nlbufsiz is used with alloc_skb, which adds another
+ * sizeof(struct skb_shared_info).  Use NLMSG_GOODSIZE instead.
+ *
  * flushtimeout:
  *   Specify, after how many hundredths of a second the queue should be
  *   flushed even if it is not full yet.
@@ -56,13 +60,13 @@
 #include <linux/netfilter.h>
 #include <linux/netfilter_ipv4/ip_tables.h>
 #include <linux/netfilter_ipv4/ipt_ULOG.h>
-#include <linux/netfilter_ipv4/lockhelp.h>
 #include <net/sock.h>
 #include <linux/bitops.h>
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Harald Welte <laforge@gnumonks.org>");
 MODULE_DESCRIPTION("iptables userspace logging module");
+MODULE_ALIAS_NET_PF_PROTO(PF_NETLINK, NETLINK_NFLOG);
 
 #define ULOG_NL_EVENT		111		/* Harald's favorite number */
 #define ULOG_MAXNLGROUPS	32		/* numer of nlgroups */
@@ -76,16 +80,16 @@ MODULE_DESCRIPTION("iptables userspace logging module");
 
 #define PRINTR(format, args...) do { if (net_ratelimit()) printk(format , ## args); } while (0)
 
-static unsigned int nlbufsiz = 4096;
-module_param(nlbufsiz, uint, 0600); /* FIXME: Check size < 128k --RR */
+static unsigned int nlbufsiz = NLMSG_GOODSIZE;
+module_param(nlbufsiz, uint, 0400);
 MODULE_PARM_DESC(nlbufsiz, "netlink buffer size");
 
 static unsigned int flushtimeout = 10;
-module_param(flushtimeout, int, 0600);
+module_param(flushtimeout, uint, 0600);
 MODULE_PARM_DESC(flushtimeout, "buffer flush timeout (hundredths of a second)");
 
-static unsigned int nflog = 1;
-module_param(nflog, int, 0400);
+static int nflog = 1;
+module_param(nflog, bool, 0400);
 MODULE_PARM_DESC(nflog, "register as internal netfilter logging module");
 
 /* global data structures */
@@ -99,8 +103,8 @@ typedef struct {
 
 static ulog_buff_t ulog_buffers[ULOG_MAXNLGROUPS];	/* array of buffers */
 
-static struct sock *nflognl;	/* our socket */
-static DECLARE_LOCK(ulog_lock);	/* spinlock */
+static struct sock *nflognl;		/* our socket */
+static DEFINE_SPINLOCK(ulog_lock);	/* spinlock */
 
 /* send one ulog_buff_t to userspace */
 static void ulog_send(unsigned int nlgroupnum)
@@ -116,10 +120,10 @@ static void ulog_send(unsigned int nlgroupnum)
 	if (ub->qlen > 1)
 		ub->lastnlh->nlmsg_type = NLMSG_DONE;
 
-	NETLINK_CB(ub->skb).dst_groups = (1 << nlgroupnum);
-	DEBUGP("ipt_ULOG: throwing %d packets to netlink mask %u\n",
-		ub->qlen, nlgroupnum);
-	netlink_broadcast(nflognl, ub->skb, 0, (1 << nlgroupnum), GFP_ATOMIC);
+	NETLINK_CB(ub->skb).dst_group = nlgroupnum + 1;
+	DEBUGP("ipt_ULOG: throwing %d packets to netlink group %u\n",
+		ub->qlen, nlgroupnum + 1);
+	netlink_broadcast(nflognl, ub->skb, 0, nlgroupnum + 1, GFP_ATOMIC);
 
 	ub->qlen = 0;
 	ub->skb = NULL;
@@ -135,30 +139,34 @@ static void ulog_timer(unsigned long data)
 
 	/* lock to protect against somebody modifying our structure
 	 * from ipt_ulog_target at the same time */
-	LOCK_BH(&ulog_lock);
+	spin_lock_bh(&ulog_lock);
 	ulog_send(data);
-	UNLOCK_BH(&ulog_lock);
+	spin_unlock_bh(&ulog_lock);
 }
 
 static struct sk_buff *ulog_alloc_skb(unsigned int size)
 {
 	struct sk_buff *skb;
+	unsigned int n;
 
 	/* alloc skb which should be big enough for a whole
 	 * multipart message. WARNING: has to be <= 131000
 	 * due to slab allocator restrictions */
 
-	skb = alloc_skb(nlbufsiz, GFP_ATOMIC);
+	n = max(size, nlbufsiz);
+	skb = alloc_skb(n, GFP_ATOMIC);
 	if (!skb) {
-		PRINTR("ipt_ULOG: can't alloc whole buffer %ub!\n",
-			nlbufsiz);
+		PRINTR("ipt_ULOG: can't alloc whole buffer %ub!\n", n);
 
-		/* try to allocate only as much as we need for 
-		 * current packet */
+		if (n > size) {
+			/* try to allocate only as much as we need for 
+			 * current packet */
 
-		skb = alloc_skb(size, GFP_ATOMIC);
-		if (!skb)
-			PRINTR("ipt_ULOG: can't even allocate %ub\n", size);
+			skb = alloc_skb(size, GFP_ATOMIC);
+			if (!skb)
+				PRINTR("ipt_ULOG: can't even allocate %ub\n",
+				       size);
+		}
 	}
 
 	return skb;
@@ -193,7 +201,7 @@ static void ipt_ulog_packet(unsigned int hooknum,
 
 	ub = &ulog_buffers[groupnum];
 	
-	LOCK_BH(&ulog_lock);
+	spin_lock_bh(&ulog_lock);
 
 	if (!ub->skb) {
 		if (!(ub->skb = ulog_alloc_skb(size)))
@@ -220,13 +228,13 @@ static void ipt_ulog_packet(unsigned int hooknum,
 	pm = NLMSG_DATA(nlh);
 
 	/* We might not have a timestamp, get one */
-	if (skb->stamp.tv_sec == 0)
-		do_gettimeofday((struct timeval *)&skb->stamp);
+	if (skb->tstamp.off_sec == 0)
+		__net_timestamp((struct sk_buff *)skb);
 
 	/* copy hook, prefix, timestamp, payload, etc. */
 	pm->data_len = copy_len;
-	pm->timestamp_sec = skb->stamp.tv_sec;
-	pm->timestamp_usec = skb->stamp.tv_usec;
+	pm->timestamp_sec = skb->tstamp.off_sec;
+	pm->timestamp_usec = skb->tstamp.off_usec;
 	pm->mark = skb->nfmark;
 	pm->hook = hooknum;
 	if (prefix != NULL)
@@ -278,7 +286,7 @@ static void ipt_ulog_packet(unsigned int hooknum,
 		ulog_send(groupnum);
 	}
 
-	UNLOCK_BH(&ulog_lock);
+	spin_unlock_bh(&ulog_lock);
 
 	return;
 
@@ -288,7 +296,7 @@ nlmsg_failure:
 alloc_failure:
 	PRINTR("ipt_ULOG: Error building netlink message\n");
 
-	UNLOCK_BH(&ulog_lock);
+	spin_unlock_bh(&ulog_lock);
 }
 
 static unsigned int ipt_ulog_target(struct sk_buff **pskb,
@@ -304,24 +312,33 @@ static unsigned int ipt_ulog_target(struct sk_buff **pskb,
  	return IPT_CONTINUE;
 }
  
-static void ipt_logfn(unsigned int hooknum,
+static void ipt_logfn(unsigned int pf,
+		      unsigned int hooknum,
 		      const struct sk_buff *skb,
 		      const struct net_device *in,
 		      const struct net_device *out,
+		      const struct nf_loginfo *li,
 		      const char *prefix)
 {
-	struct ipt_ulog_info loginfo = { 
-		.nl_group = ULOG_DEFAULT_NLGROUP,
-		.copy_range = 0,
-		.qthreshold = ULOG_DEFAULT_QTHRESHOLD,
-		.prefix = ""
-	};
+	struct ipt_ulog_info loginfo;
+
+	if (!li || li->type != NF_LOG_TYPE_ULOG) {
+		loginfo.nl_group = ULOG_DEFAULT_NLGROUP;
+		loginfo.copy_range = 0;
+		loginfo.qthreshold = ULOG_DEFAULT_QTHRESHOLD;
+		loginfo.prefix[0] = '\0';
+	} else {
+		loginfo.nl_group = li->u.ulog.group;
+		loginfo.copy_range = li->u.ulog.copy_len;
+		loginfo.qthreshold = li->u.ulog.qthreshold;
+		strlcpy(loginfo.prefix, prefix, sizeof(loginfo.prefix));
+	}
 
 	ipt_ulog_packet(hooknum, skb, in, out, &loginfo, prefix);
 }
 
 static int ipt_ulog_checkentry(const char *tablename,
-			       const struct ipt_entry *e,
+			       const void *e,
 			       void *targinfo,
 			       unsigned int targinfosize,
 			       unsigned int hookmask)
@@ -355,13 +372,19 @@ static struct ipt_target ipt_ulog_reg = {
 	.me		= THIS_MODULE,
 };
 
+static struct nf_logger ipt_ulog_logger = {
+	.name		= "ipt_ULOG",
+	.logfn		= &ipt_logfn,
+	.me		= THIS_MODULE,
+};
+
 static int __init init(void)
 {
 	int i;
 
 	DEBUGP("ipt_ULOG: init module\n");
 
-	if (nlbufsiz >= 128*1024) {
+	if (nlbufsiz > 128*1024) {
 		printk("Netlink buffer has to be <= 128kB\n");
 		return -EINVAL;
 	}
@@ -373,7 +396,8 @@ static int __init init(void)
 		ulog_buffers[i].timer.data = i;
 	}
 
-	nflognl = netlink_kernel_create(NETLINK_NFLOG, NULL);
+	nflognl = netlink_kernel_create(NETLINK_NFLOG, ULOG_MAXNLGROUPS, NULL,
+	                                THIS_MODULE);
 	if (!nflognl)
 		return -ENOMEM;
 
@@ -382,7 +406,7 @@ static int __init init(void)
 		return -EINVAL;
 	}
 	if (nflog)
-		nf_log_register(PF_INET, &ipt_logfn);
+		nf_log_register(PF_INET, &ipt_ulog_logger);
 	
 	return 0;
 }
@@ -395,7 +419,7 @@ static void __exit fini(void)
 	DEBUGP("ipt_ULOG: cleanup_module\n");
 
 	if (nflog)
-		nf_log_unregister(PF_INET, &ipt_logfn);
+		nf_log_unregister_logger(&ipt_ulog_logger);
 	ipt_unregister_target(&ipt_ulog_reg);
 	sock_release(nflognl->sk_socket);
 

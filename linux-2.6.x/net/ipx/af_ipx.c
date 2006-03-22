@@ -29,6 +29,7 @@
  */
 
 #include <linux/config.h>
+#include <linux/capability.h>
 #include <linux/errno.h>
 #include <linux/if_arp.h>
 #include <linux/if_ether.h>
@@ -44,7 +45,6 @@
 #include <linux/socket.h>
 #include <linux/sockios.h>
 #include <linux/string.h>
-#include <linux/tcp.h>
 #include <linux/types.h>
 #include <linux/termios.h>
 
@@ -52,6 +52,7 @@
 #include <net/p8022.h>
 #include <net/psnap.h>
 #include <net/sock.h>
+#include <net/tcp_states.h>
 
 #include <asm/uaccess.h>
 
@@ -75,7 +76,7 @@ static struct datalink_proto *pEII_datalink;
 static struct datalink_proto *p8023_datalink;
 static struct datalink_proto *pSNAP_datalink;
 
-static struct proto_ops ipx_dgram_ops;
+static const struct proto_ops ipx_dgram_ops;
 
 LIST_HEAD(ipx_interfaces);
 DEFINE_SPINLOCK(ipx_interfaces_lock);
@@ -1627,7 +1628,7 @@ out:
 	return rc;
 }
 
-static int ipx_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt)
+static int ipx_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt, struct net_device *orig_dev)
 {
 	/* NULL here for pt means the packet was looped back */
 	struct ipx_interface *intrfc;
@@ -1796,8 +1797,8 @@ static int ipx_recvmsg(struct kiocb *iocb, struct socket *sock,
 				     copied);
 	if (rc)
 		goto out_free;
-	if (skb->stamp.tv_sec)
-		sk->sk_stamp = skb->stamp;
+	if (skb->tstamp.off_sec)
+		skb_get_timestamp(skb, &sk->sk_stamp);
 
 	msg->msg_namelen = sizeof(*sipx);
 
@@ -1884,7 +1885,7 @@ static int ipx_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 		rc = -EINVAL;
 		break;
 	default:
-		rc = dev_ioctl(cmd, argp);
+		rc = -ENOIOCTLCMD;
 		break;
 	}
 
@@ -1901,7 +1902,7 @@ static struct net_proto_family ipx_family_ops = {
 	.owner		= THIS_MODULE,
 };
 
-static struct proto_ops SOCKOPS_WRAPPED(ipx_dgram_ops) = {
+static const struct proto_ops SOCKOPS_WRAPPED(ipx_dgram_ops) = {
 	.family		= PF_IPX,
 	.owner		= THIS_MODULE,
 	.release	= ipx_release,
@@ -1940,9 +1941,7 @@ static struct notifier_block ipx_dev_notifier = {
 };
 
 extern struct datalink_proto *make_EII_client(void);
-extern struct datalink_proto *make_8023_client(void);
 extern void destroy_EII_client(struct datalink_proto *);
-extern void destroy_8023_client(struct datalink_proto *);
 
 static unsigned char ipx_8022_type = 0xE0;
 static unsigned char ipx_snap_id[5] = { 0x0, 0x0, 0x0, 0x81, 0x37 };

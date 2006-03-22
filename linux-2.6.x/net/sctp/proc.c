@@ -57,6 +57,7 @@ static struct snmp_mib sctp_snmp_list[] = {
 	SNMP_MIB_ITEM("SctpReasmUsrMsgs", SCTP_MIB_REASMUSRMSGS),
 	SNMP_MIB_ITEM("SctpOutSCTPPacks", SCTP_MIB_OUTSCTPPACKS),
 	SNMP_MIB_ITEM("SctpInSCTPPacks", SCTP_MIB_INSCTPPACKS),
+	SNMP_MIB_SENTINEL
 };
 
 /* Return the current value of a particular entry in the mib by adding its
@@ -68,9 +69,7 @@ fold_field(void *mib[], int nr)
 	unsigned long res = 0;
 	int i;
 
-	for (i = 0; i < NR_CPUS; i++) {
-		if (!cpu_possible(i))
-			continue;
+	for_each_cpu(i) {
 		res +=
 		    *((unsigned long *) (((void *) per_cpu_ptr(mib[0], i)) +
 					 sizeof (unsigned long) * nr));
@@ -177,7 +176,7 @@ static void sctp_seq_dump_remote_addrs(struct seq_file *seq, struct sctp_associa
 
 static void * sctp_eps_seq_start(struct seq_file *seq, loff_t *pos)
 {
-	if (*pos > sctp_ep_hashsize)
+	if (*pos >= sctp_ep_hashsize)
 		return NULL;
 
 	if (*pos < 0)
@@ -185,8 +184,6 @@ static void * sctp_eps_seq_start(struct seq_file *seq, loff_t *pos)
 
 	if (*pos == 0)
 		seq_printf(seq, " ENDPT     SOCK   STY SST HBKT LPORT   UID INODE LADDRS\n");
-
-	++*pos;
 
 	return (void *)pos;
 }
@@ -199,10 +196,8 @@ static void sctp_eps_seq_stop(struct seq_file *seq, void *v)
 
 static void * sctp_eps_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 {
-	if (*pos > sctp_ep_hashsize)
+	if (++*pos >= sctp_ep_hashsize)
 		return NULL;
-
-	++*pos;
 
 	return pos;
 }
@@ -215,19 +210,19 @@ static int sctp_eps_seq_show(struct seq_file *seq, void *v)
 	struct sctp_ep_common *epb;
 	struct sctp_endpoint *ep;
 	struct sock *sk;
-	int    hash = *(int *)v;
+	int    hash = *(loff_t *)v;
 
-	if (hash > sctp_ep_hashsize)
+	if (hash >= sctp_ep_hashsize)
 		return -ENOMEM;
 
-	head = &sctp_ep_hashtable[hash-1];
+	head = &sctp_ep_hashtable[hash];
 	sctp_local_bh_disable();
 	read_lock(&head->lock);
 	for (epb = head->chain; epb; epb = epb->next) {
 		ep = sctp_ep(epb);
 		sk = epb->sk;
 		seq_printf(seq, "%8p %8p %-3d %-3d %-4d %-5d %5d %5lu ", ep, sk,
-			   sctp_sk(sk)->type, sk->sk_state, hash-1,
+			   sctp_sk(sk)->type, sk->sk_state, hash,
 			   epb->bind_addr.port,
 			   sock_i_uid(sk), sock_i_ino(sk));
 
@@ -284,7 +279,7 @@ void sctp_eps_proc_exit(void)
 
 static void * sctp_assocs_seq_start(struct seq_file *seq, loff_t *pos)
 {
-	if (*pos > sctp_assoc_hashsize)
+	if (*pos >= sctp_assoc_hashsize)
 		return NULL;
 
 	if (*pos < 0)
@@ -293,8 +288,6 @@ static void * sctp_assocs_seq_start(struct seq_file *seq, loff_t *pos)
 	if (*pos == 0)
 		seq_printf(seq, " ASSOC     SOCK   STY SST ST HBKT ASSOC-ID TX_QUEUE RX_QUEUE UID INODE LPORT "
 				"RPORT LADDRS <-> RADDRS\n");
-
-	++*pos;
 
 	return (void *)pos;
 }
@@ -307,10 +300,8 @@ static void sctp_assocs_seq_stop(struct seq_file *seq, void *v)
 
 static void * sctp_assocs_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 {
-	if (*pos > sctp_assoc_hashsize)
+	if (++*pos >= sctp_assoc_hashsize)
 		return NULL;
-
-	++*pos;
 
 	return pos;
 }
@@ -322,12 +313,12 @@ static int sctp_assocs_seq_show(struct seq_file *seq, void *v)
 	struct sctp_ep_common *epb;
 	struct sctp_association *assoc;
 	struct sock *sk;
-	int    hash = *(int *)v;
+	int    hash = *(loff_t *)v;
 
-	if (hash > sctp_assoc_hashsize)
+	if (hash >= sctp_assoc_hashsize)
 		return -ENOMEM;
 
-	head = &sctp_assoc_hashtable[hash-1];
+	head = &sctp_assoc_hashtable[hash];
 	sctp_local_bh_disable();
 	read_lock(&head->lock);
 	for (epb = head->chain; epb; epb = epb->next) {
@@ -336,7 +327,7 @@ static int sctp_assocs_seq_show(struct seq_file *seq, void *v)
 		seq_printf(seq,
 			   "%8p %8p %-3d %-3d %-2d %-4d %4d %8d %8d %7d %5lu %-5d %5d ",
 			   assoc, sk, sctp_sk(sk)->type, sk->sk_state,
-			   assoc->state, hash-1, assoc->assoc_id,
+			   assoc->state, hash, assoc->assoc_id,
 			   (sk->sk_rcvbuf - assoc->rwnd),
 			   assoc->sndbuf_used,
 			   sock_i_uid(sk), sock_i_ino(sk),

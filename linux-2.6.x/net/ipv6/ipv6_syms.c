@@ -7,7 +7,7 @@
 #include <net/ip6_route.h>
 #include <net/xfrm.h>
 
-EXPORT_SYMBOL(ipv6_addr_type);
+EXPORT_SYMBOL(__ipv6_addr_type);
 EXPORT_SYMBOL(icmpv6_send);
 EXPORT_SYMBOL(icmpv6_statistics);
 EXPORT_SYMBOL(icmpv6_err_convert);
@@ -15,9 +15,6 @@ EXPORT_SYMBOL(ndisc_mc_map);
 EXPORT_SYMBOL(register_inet6addr_notifier);
 EXPORT_SYMBOL(unregister_inet6addr_notifier);
 EXPORT_SYMBOL(ip6_route_output);
-#ifdef CONFIG_NETFILTER
-EXPORT_SYMBOL(ip6_route_me_harder);
-#endif
 EXPORT_SYMBOL(addrconf_lock);
 EXPORT_SYMBOL(ipv6_setsockopt);
 EXPORT_SYMBOL(ipv6_getsockopt);

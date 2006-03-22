@@ -8,6 +8,7 @@
 #include <linux/err.h>
 #include <linux/seq_file.h>
 #include <linux/hash.h>
+#include <linux/string.h>
 
 #define RPCDBG_FACILITY	RPCDBG_AUTH
 
@@ -19,14 +20,6 @@
  * AUTHNULL as for AUTHUNIX, and that is done here.
  */
 
-
-static char *strdup(char *s)
-{
-	char *rv = kmalloc(strlen(s)+1, GFP_KERNEL);
-	if (rv)
-		strcpy(rv, s);
-	return rv;
-}
 
 struct unix_domain {
 	struct auth_domain	h;
@@ -55,7 +48,7 @@ struct auth_domain *unix_domain_find(char *name)
 	if (new == NULL)
 		return NULL;
 	cache_init(&new->h.h);
-	new->h.name = strdup(name);
+	new->h.name = kstrdup(name, GFP_KERNEL);
 	new->h.flavour = RPC_AUTH_UNIX;
 	new->addr_changes = 0;
 	new->h.h.expiry_time = NEVER;
@@ -108,10 +101,22 @@ static void ip_map_put(struct cache_head *item, struct cache_detail *cd)
 	}
 }
 
+#if IP_HASHBITS == 8
+/* hash_long on a 64 bit machine is currently REALLY BAD for
+ * IP addresses in reverse-endian (i.e. on a little-endian machine).
+ * So use a trivial but reliable hash instead
+ */
+static inline int hash_ip(unsigned long ip)
+{
+	int hash = ip ^ (ip>>16);
+	return (hash ^ (hash>>8)) & 0xff;
+}
+#endif
+
 static inline int ip_map_hash(struct ip_map *item)
 {
 	return hash_str(item->m_class, IP_HASHBITS) ^ 
-		hash_long((unsigned long)item->m_addr.s_addr, IP_HASHBITS);
+		hash_ip((unsigned long)item->m_addr.s_addr);
 }
 static inline int ip_map_match(struct ip_map *item, struct ip_map *tmp)
 {
@@ -249,6 +254,7 @@ static int ip_map_show(struct seq_file *m,
 	
 
 struct cache_detail ip_map_cache = {
+	.owner		= THIS_MODULE,
 	.hash_size	= IP_HASHMAX,
 	.hash_table	= ip_table,
 	.name		= "auth.unix.ip",

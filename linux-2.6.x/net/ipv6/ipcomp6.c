@@ -47,6 +47,7 @@
 #include <linux/rtnetlink.h>
 #include <net/icmp.h>
 #include <net/ipv6.h>
+#include <net/protocol.h>
 #include <linux/ipv6.h>
 #include <linux/icmpv6.h>
 
@@ -130,8 +131,7 @@ static int ipcomp6_input(struct xfrm_state *x, struct xfrm_decap_state *decap, s
 out_put_cpu:
 	put_cpu();
 out:
-	if (tmp_hdr)
-		kfree(tmp_hdr);
+	kfree(tmp_hdr);
 	if (err)
 		goto error_out;
 	return nexthdr;
@@ -212,8 +212,7 @@ static void ipcomp6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 	if (!x)
 		return;
 
-	printk(KERN_DEBUG "pmtu discovery on SA IPCOMP/%08x/"
-			"%04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x\n",
+	printk(KERN_DEBUG "pmtu discovery on SA IPCOMP/%08x/" NIP6_FMT "\n",
 			spi, NIP6(iph->daddr));
 	xfrm_state_put(x);
 }
@@ -234,14 +233,9 @@ static struct xfrm_state *ipcomp6_tunnel_create(struct xfrm_state *x)
 	t->props.mode = 1;
 	memcpy(t->props.saddr.a6, x->props.saddr.a6, sizeof(struct in6_addr));
 
-	t->type = xfrm_get_type(IPPROTO_IPV6, t->props.family);
-	if (t->type == NULL)
+	if (xfrm_init_state(t))
 		goto error;
 
-	if (t->type->init_state(t, NULL))
-		goto error;
-
-	t->km.state = XFRM_STATE_VALID;
 	atomic_set(&t->tunnel_users, 1);
 
 out:
@@ -346,8 +340,7 @@ static void ipcomp6_free_tfms(struct crypto_tfm **tfms)
 
 	for_each_cpu(cpu) {
 		struct crypto_tfm *tfm = *per_cpu_ptr(tfms, cpu);
-		if (tfm)
-			crypto_free_tfm(tfm);
+		crypto_free_tfm(tfm);
 	}
 	free_percpu(tfms);
 }
@@ -359,7 +352,7 @@ static struct crypto_tfm **ipcomp6_alloc_tfms(const char *alg_name)
 	int cpu;
 
 	/* This can be any valid CPU ID so we don't need locking. */
-	cpu = smp_processor_id();
+	cpu = raw_smp_processor_id();
 
 	list_for_each_entry(pos, &ipcomp6_tfms_list, list) {
 		struct crypto_tfm *tfm;
@@ -420,7 +413,7 @@ static void ipcomp6_destroy(struct xfrm_state *x)
 	xfrm6_tunnel_free_spi((xfrm_address_t *)&x->props.saddr);
 }
 
-static int ipcomp6_init_state(struct xfrm_state *x, void *args)
+static int ipcomp6_init_state(struct xfrm_state *x)
 {
 	int err;
 	struct ipcomp_data *ipcd;

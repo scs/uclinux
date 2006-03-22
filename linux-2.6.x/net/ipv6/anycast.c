@@ -13,6 +13,7 @@
  *      2 of the License, or (at your option) any later version.
  */
 
+#include <linux/capability.h>
 #include <linux/config.h>
 #include <linux/module.h>
 #include <linux/errno.h>
@@ -337,7 +338,7 @@ int ipv6_dev_ac_inc(struct net_device *dev, struct in6_addr *addr)
 	write_unlock_bh(&idev->lock);
 
 	dst_hold(&rt->u.dst);
-	if (ip6_ins_rt(rt, NULL, NULL))
+	if (ip6_ins_rt(rt, NULL, NULL, NULL))
 		dst_release(&rt->u.dst);
 
 	addrconf_join_solict(dev, &aca->aca_addr);
@@ -380,7 +381,7 @@ int __ipv6_dev_ac_dec(struct inet6_dev *idev, struct in6_addr *addr)
 	addrconf_leave_solict(idev, &aca->aca_addr);
 
 	dst_hold(&aca->aca_rt->u.dst);
-	if (ip6_del_rt(aca->aca_rt, NULL, NULL))
+	if (ip6_del_rt(aca->aca_rt, NULL, NULL, NULL))
 		dst_free(&aca->aca_rt->u.dst);
 	else
 		dst_release(&aca->aca_rt->u.dst);
@@ -531,9 +532,7 @@ static int ac6_seq_show(struct seq_file *seq, void *v)
 	struct ac6_iter_state *state = ac6_seq_private(seq);
 
 	seq_printf(seq,
-		   "%-4d %-15s "
-		   "%04x%04x%04x%04x%04x%04x%04x%04x "
-		   "%5d\n",
+		   "%-4d %-15s " NIP6_SEQFMT " %5d\n",
 		   state->dev->ifindex, state->dev->name,
 		   NIP6(im->aca_addr),
 		   im->aca_users);

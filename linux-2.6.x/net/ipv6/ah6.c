@@ -33,6 +33,7 @@
 #include <linux/string.h>
 #include <net/icmp.h>
 #include <net/ipv6.h>
+#include <net/protocol.h>
 #include <net/xfrm.h>
 #include <asm/scatterlist.h>
 
@@ -131,10 +132,10 @@ static int ipv6_clear_mutable_options(struct ipv6hdr *iph, int len)
 		case NEXTHDR_HOP:
 		case NEXTHDR_DEST:
 			if (!zero_out_mutable_opts(exthdr.opth)) {
-				LIMIT_NETDEBUG(printk(
+				LIMIT_NETDEBUG(
 					KERN_WARNING "overrun %sopts\n",
 					nexthdr == NEXTHDR_HOP ?
-						"hop" : "dest"));
+						"hop" : "dest");
 				return -EINVAL;
 			}
 			break;
@@ -278,7 +279,7 @@ static int ah6_input(struct xfrm_state *x, struct xfrm_decap_state *decap, struc
 		goto out;
 	memcpy(tmp_hdr, skb->nh.raw, hdr_len);
 	if (ipv6_clear_mutable_options(skb->nh.ipv6h, hdr_len))
-		goto out;
+		goto free_out;
 	skb->nh.ipv6h->priority    = 0;
 	skb->nh.ipv6h->flow_lbl[0] = 0;
 	skb->nh.ipv6h->flow_lbl[1] = 0;
@@ -293,8 +294,7 @@ static int ah6_input(struct xfrm_state *x, struct xfrm_decap_state *decap, struc
 		skb_push(skb, skb->data - skb->nh.raw);
 		ahp->icv(ahp, skb, ah->auth_data);
 		if (memcmp(ah->auth_data, auth_data, ahp->icv_trunc_len)) {
-			LIMIT_NETDEBUG(
-				printk(KERN_WARNING "ipsec ah authentication error\n"));
+			LIMIT_NETDEBUG(KERN_WARNING "ipsec ah authentication error\n");
 			x->stats.integrity_failed++;
 			goto free_out;
 		}
@@ -332,14 +332,13 @@ static void ah6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 	if (!x)
 		return;
 
-	NETDEBUG(printk(KERN_DEBUG "pmtu discovery on SA AH/%08x/"
-			"%04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x\n",
-	       ntohl(ah->spi), NIP6(iph->daddr)));
+	NETDEBUG(KERN_DEBUG "pmtu discovery on SA AH/%08x/" NIP6_FMT "\n",
+		 ntohl(ah->spi), NIP6(iph->daddr));
 
 	xfrm_state_put(x);
 }
 
-static int ah6_init_state(struct xfrm_state *x, void *args)
+static int ah6_init_state(struct xfrm_state *x)
 {
 	struct ah_data *ahp = NULL;
 	struct xfrm_algo_desc *aalg_desc;
@@ -402,10 +401,8 @@ static int ah6_init_state(struct xfrm_state *x, void *args)
 
 error:
 	if (ahp) {
-		if (ahp->work_icv)
-			kfree(ahp->work_icv);
-		if (ahp->tfm)
-			crypto_free_tfm(ahp->tfm);
+		kfree(ahp->work_icv);
+		crypto_free_tfm(ahp->tfm);
 		kfree(ahp);
 	}
 	return -EINVAL;
@@ -418,14 +415,10 @@ static void ah6_destroy(struct xfrm_state *x)
 	if (!ahp)
 		return;
 
-	if (ahp->work_icv) {
-		kfree(ahp->work_icv);
-		ahp->work_icv = NULL;
-	}
-	if (ahp->tfm) {
-		crypto_free_tfm(ahp->tfm);
-		ahp->tfm = NULL;
-	}
+	kfree(ahp->work_icv);
+	ahp->work_icv = NULL;
+	crypto_free_tfm(ahp->tfm);
+	ahp->tfm = NULL;
 	kfree(ahp);
 }
 

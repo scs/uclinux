@@ -12,6 +12,7 @@
 #include <linux/ip.h>
 #include <linux/tcp.h>
 #include <linux/if.h>
+#include <linux/netfilter/nfnetlink_conntrack.h>
 #include <linux/netfilter_ipv4/ip_nat.h>
 #include <linux/netfilter_ipv4/ip_nat_rule.h>
 #include <linux/netfilter_ipv4/ip_nat_protocol.h>
@@ -40,7 +41,8 @@ tcp_unique_tuple(struct ip_conntrack_tuple *tuple,
 		 enum ip_nat_manip_type maniptype,
 		 const struct ip_conntrack *conntrack)
 {
-	static u_int16_t port, *portptr;
+	static u_int16_t port;
+	u_int16_t *portptr;
 	unsigned int range_size, min, i;
 
 	if (maniptype == IP_NAT_MANIP_SRC)
@@ -101,7 +103,7 @@ tcp_manip_pkt(struct sk_buff **pskb,
 	if ((*pskb)->len >= hdroff + sizeof(struct tcphdr))
 		hdrsize = sizeof(struct tcphdr);
 
-	if (!skb_ip_make_writable(pskb, hdroff + hdrsize))
+	if (!skb_make_writable(pskb, hdroff + hdrsize))
 		return 0;
 
 	iph = (struct iphdr *)((*pskb)->data + iphdroff);
@@ -134,45 +136,16 @@ tcp_manip_pkt(struct sk_buff **pskb,
 	return 1;
 }
 
-static unsigned int
-tcp_print(char *buffer,
-	  const struct ip_conntrack_tuple *match,
-	  const struct ip_conntrack_tuple *mask)
-{
-	unsigned int len = 0;
-
-	if (mask->src.u.tcp.port)
-		len += sprintf(buffer + len, "srcpt=%u ",
-			       ntohs(match->src.u.tcp.port));
-
-
-	if (mask->dst.u.tcp.port)
-		len += sprintf(buffer + len, "dstpt=%u ",
-			       ntohs(match->dst.u.tcp.port));
-
-	return len;
-}
-
-static unsigned int
-tcp_print_range(char *buffer, const struct ip_nat_range *range)
-{
-	if (range->min.tcp.port != 0 || range->max.tcp.port != 0xFFFF) {
-		if (range->min.tcp.port == range->max.tcp.port)
-			return sprintf(buffer, "port %u ",
-				       ntohs(range->min.tcp.port));
-		else
-			return sprintf(buffer, "ports %u-%u ",
-				       ntohs(range->min.tcp.port),
-				       ntohs(range->max.tcp.port));
-	}
-	else return 0;
-}
-
-struct ip_nat_protocol ip_nat_protocol_tcp
-= { "TCP", IPPROTO_TCP,
-    tcp_manip_pkt,
-    tcp_in_range,
-    tcp_unique_tuple,
-    tcp_print,
-    tcp_print_range
+struct ip_nat_protocol ip_nat_protocol_tcp = {
+	.name			= "TCP",
+	.protonum		= IPPROTO_TCP,
+	.me			= THIS_MODULE,
+	.manip_pkt		= tcp_manip_pkt,
+	.in_range		= tcp_in_range,
+	.unique_tuple		= tcp_unique_tuple,
+#if defined(CONFIG_IP_NF_CONNTRACK_NETLINK) || \
+    defined(CONFIG_IP_NF_CONNTRACK_NETLINK_MODULE)
+	.range_to_nfattr	= ip_nat_port_range_to_nfattr,
+	.nfattr_to_range	= ip_nat_port_nfattr_to_range,
+#endif
 };

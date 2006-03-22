@@ -34,7 +34,7 @@
 #include <net/sock.h>
 #include <net/checksum.h>
 #include <net/ip.h>
-#include <net/tcp.h>
+#include <net/tcp_states.h>
 #include <asm/uaccess.h>
 #include <asm/ioctls.h>
 
@@ -512,15 +512,14 @@ svc_sock_setbufsize(struct socket *sock, unsigned int snd, unsigned int rcv)
 static void
 svc_udp_data_ready(struct sock *sk, int count)
 {
-	struct svc_sock	*svsk = (struct svc_sock *)(sk->sk_user_data);
+	struct svc_sock	*svsk = (struct svc_sock *)sk->sk_user_data;
 
-	if (!svsk)
-		goto out;
-	dprintk("svc: socket %p(inet %p), count=%d, busy=%d\n",
-		svsk, sk, count, test_bit(SK_BUSY, &svsk->sk_flags));
-	set_bit(SK_DATA, &svsk->sk_flags);
-	svc_sock_enqueue(svsk);
- out:
+	if (svsk) {
+		dprintk("svc: socket %p(inet %p), count=%d, busy=%d\n",
+			svsk, sk, count, test_bit(SK_BUSY, &svsk->sk_flags));
+		set_bit(SK_DATA, &svsk->sk_flags);
+		svc_sock_enqueue(svsk);
+	}
 	if (sk->sk_sleep && waitqueue_active(sk->sk_sleep))
 		wake_up_interruptible(sk->sk_sleep);
 }
@@ -540,7 +539,7 @@ svc_write_space(struct sock *sk)
 	}
 
 	if (sk->sk_sleep && waitqueue_active(sk->sk_sleep)) {
-		printk(KERN_WARNING "RPC svc_write_space: some sleeping on %p\n",
+		dprintk("RPC svc_write_space: someone sleeping on %p\n",
 		       svsk);
 		wake_up_interruptible(sk->sk_sleep);
 	}
@@ -549,9 +548,6 @@ svc_write_space(struct sock *sk)
 /*
  * Receive a datagram from a UDP socket.
  */
-extern int
-csum_partial_copy_to_xdr(struct xdr_buf *xdr, struct sk_buff *skb);
-
 static int
 svc_udp_recvfrom(struct svc_rqst *rqstp)
 {
@@ -584,13 +580,16 @@ svc_udp_recvfrom(struct svc_rqst *rqstp)
 		/* possibly an icmp error */
 		dprintk("svc: recvfrom returned error %d\n", -err);
 	}
-	if (skb->stamp.tv_sec == 0) {
-		skb->stamp.tv_sec = xtime.tv_sec; 
-		skb->stamp.tv_usec = xtime.tv_nsec * 1000; 
+	if (skb->tstamp.off_sec == 0) {
+		struct timeval tv;
+
+		tv.tv_sec = xtime.tv_sec;
+		tv.tv_usec = xtime.tv_nsec / NSEC_PER_USEC;
+		skb_set_timestamp(skb, &tv);
 		/* Don't enable netstamp, sunrpc doesn't 
 		   need that much accuracy */
 	}
-	svsk->sk_sk->sk_stamp = skb->stamp;
+	skb_get_timestamp(skb, &svsk->sk_sk->sk_stamp);
 	set_bit(SK_DATA, &svsk->sk_flags); /* there may be more data... */
 
 	/*
@@ -624,12 +623,9 @@ svc_udp_recvfrom(struct svc_rqst *rqstp)
 		/* we can use it in-place */
 		rqstp->rq_arg.head[0].iov_base = skb->data + sizeof(struct udphdr);
 		rqstp->rq_arg.head[0].iov_len = len;
-		if (skb->ip_summed != CHECKSUM_UNNECESSARY) {
-			if ((unsigned short)csum_fold(skb_checksum(skb, 0, skb->len, skb->csum))) {
-				skb_free_datagram(svsk->sk_sk, skb);
-				return 0;
-			}
-			skb->ip_summed = CHECKSUM_UNNECESSARY;
+		if (skb_checksum_complete(skb)) {
+			skb_free_datagram(svsk->sk_sk, skb);
+			return 0;
 		}
 		rqstp->rq_skbuff = skb;
 	}
@@ -689,31 +685,29 @@ svc_udp_init(struct svc_sock *svsk)
 static void
 svc_tcp_listen_data_ready(struct sock *sk, int count_unused)
 {
-	struct svc_sock	*svsk;
+	struct svc_sock	*svsk = (struct svc_sock *)sk->sk_user_data;
 
 	dprintk("svc: socket %p TCP (listen) state change %d\n",
-			sk, sk->sk_state);
+		sk, sk->sk_state);
 
-	if  (sk->sk_state != TCP_LISTEN) {
-		/*
-		 * This callback may called twice when a new connection
-		 * is established as a child socket inherits everything
-		 * from a parent LISTEN socket.
-		 * 1) data_ready method of the parent socket will be called
-		 *    when one of child sockets become ESTABLISHED.
-		 * 2) data_ready method of the child socket may be called
-		 *    when it receives data before the socket is accepted.
-		 * In case of 2, we should ignore it silently.
-		 */
-		goto out;
+	/*
+	 * This callback may called twice when a new connection
+	 * is established as a child socket inherits everything
+	 * from a parent LISTEN socket.
+	 * 1) data_ready method of the parent socket will be called
+	 *    when one of child sockets become ESTABLISHED.
+	 * 2) data_ready method of the child socket may be called
+	 *    when it receives data before the socket is accepted.
+	 * In case of 2, we should ignore it silently.
+	 */
+	if (sk->sk_state == TCP_LISTEN) {
+		if (svsk) {
+			set_bit(SK_CONN, &svsk->sk_flags);
+			svc_sock_enqueue(svsk);
+		} else
+			printk("svc: socket %p: no user data\n", sk);
 	}
-	if (!(svsk = (struct svc_sock *) sk->sk_user_data)) {
-		printk("svc: socket %p: no user data\n", sk);
-		goto out;
-	}
-	set_bit(SK_CONN, &svsk->sk_flags);
-	svc_sock_enqueue(svsk);
- out:
+
 	if (sk->sk_sleep && waitqueue_active(sk->sk_sleep))
 		wake_up_interruptible_all(sk->sk_sleep);
 }
@@ -724,18 +718,17 @@ svc_tcp_listen_data_ready(struct sock *sk, int count_unused)
 static void
 svc_tcp_state_change(struct sock *sk)
 {
-	struct svc_sock	*svsk;
+	struct svc_sock	*svsk = (struct svc_sock *)sk->sk_user_data;
 
 	dprintk("svc: socket %p TCP (connected) state change %d (svsk %p)\n",
-			sk, sk->sk_state, sk->sk_user_data);
+		sk, sk->sk_state, sk->sk_user_data);
 
-	if (!(svsk = (struct svc_sock *) sk->sk_user_data)) {
+	if (!svsk)
 		printk("svc: socket %p: no user data\n", sk);
-		goto out;
+	else {
+		set_bit(SK_CLOSE, &svsk->sk_flags);
+		svc_sock_enqueue(svsk);
 	}
-	set_bit(SK_CLOSE, &svsk->sk_flags);
-	svc_sock_enqueue(svsk);
- out:
 	if (sk->sk_sleep && waitqueue_active(sk->sk_sleep))
 		wake_up_interruptible_all(sk->sk_sleep);
 }
@@ -743,15 +736,14 @@ svc_tcp_state_change(struct sock *sk)
 static void
 svc_tcp_data_ready(struct sock *sk, int count)
 {
-	struct svc_sock *	svsk;
+	struct svc_sock *svsk = (struct svc_sock *)sk->sk_user_data;
 
 	dprintk("svc: socket %p TCP data ready (svsk %p)\n",
-			sk, sk->sk_user_data);
-	if (!(svsk = (struct svc_sock *)(sk->sk_user_data)))
-		goto out;
-	set_bit(SK_DATA, &svsk->sk_flags);
-	svc_sock_enqueue(svsk);
- out:
+		sk, sk->sk_user_data);
+	if (svsk) {
+		set_bit(SK_DATA, &svsk->sk_flags);
+		svc_sock_enqueue(svsk);
+	}
 	if (sk->sk_sleep && waitqueue_active(sk->sk_sleep))
 		wake_up_interruptible(sk->sk_sleep);
 }
@@ -766,7 +758,7 @@ svc_tcp_accept(struct svc_sock *svsk)
 	struct svc_serv	*serv = svsk->sk_server;
 	struct socket	*sock = svsk->sk_sock;
 	struct socket	*newsock;
-	struct proto_ops *ops;
+	const struct proto_ops *ops;
 	struct svc_sock	*newsvsk;
 	int		err, slen;
 
@@ -1034,7 +1026,7 @@ svc_tcp_recvfrom(struct svc_rqst *rqstp)
 	} else {
 		printk(KERN_NOTICE "%s: recvfrom returned errno %d\n",
 					svsk->sk_server->sv_name, -len);
-		svc_sock_received(svsk);
+		goto err_delete;
 	}
 
 	return len;
@@ -1167,8 +1159,7 @@ svc_recv(struct svc_serv *serv, struct svc_rqst *rqstp, long timeout)
 	while (rqstp->rq_arghi < pages) {
 		struct page *p = alloc_page(GFP_KERNEL);
 		if (!p) {
-			set_current_state(TASK_UNINTERRUPTIBLE);
-			schedule_timeout(HZ/2);
+			schedule_timeout_uninterruptible(msecs_to_jiffies(500));
 			continue;
 		}
 		rqstp->rq_argpages[rqstp->rq_arghi++] = p;
@@ -1185,8 +1176,9 @@ svc_recv(struct svc_serv *serv, struct svc_rqst *rqstp, long timeout)
 	arg->page_len = (pages-2)*PAGE_SIZE;
 	arg->len = (pages-1)*PAGE_SIZE;
 	arg->tail[0].iov_len = 0;
-	
-	try_to_freeze(PF_FREEZE);
+
+	try_to_freeze();
+	cond_resched();
 	if (signalled())
 		return -EINTR;
 
@@ -1227,7 +1219,7 @@ svc_recv(struct svc_serv *serv, struct svc_rqst *rqstp, long timeout)
 
 		schedule_timeout(timeout);
 
-		try_to_freeze(PF_FREEZE);
+		try_to_freeze();
 
 		spin_lock_bh(&serv->sv_lock);
 		remove_wait_queue(&rqstp->rq_wait, &wait);
@@ -1535,6 +1527,7 @@ svc_defer(struct cache_req *req)
 		dr->handle.owner = rqstp->rq_server;
 		dr->prot = rqstp->rq_prot;
 		dr->addr = rqstp->rq_addr;
+		dr->daddr = rqstp->rq_daddr;
 		dr->argslen = rqstp->rq_arg.len >> 2;
 		memcpy(dr->args, rqstp->rq_arg.head[0].iov_base-skip, dr->argslen<<2);
 	}
@@ -1560,6 +1553,7 @@ static int svc_deferred_recv(struct svc_rqst *rqstp)
 	rqstp->rq_arg.len = dr->argslen<<2;
 	rqstp->rq_prot        = dr->prot;
 	rqstp->rq_addr        = dr->addr;
+	rqstp->rq_daddr       = dr->daddr;
 	return dr->argslen<<2;
 }
 

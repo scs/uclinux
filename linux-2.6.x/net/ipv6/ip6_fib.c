@@ -49,7 +49,7 @@
 
 struct rt6_statistics	rt6_stats;
 
-static kmem_cache_t * fib6_node_kmem;
+static kmem_cache_t * fib6_node_kmem __read_mostly;
 
 enum fib_walk_state_t
 {
@@ -92,7 +92,7 @@ static struct fib6_node * fib6_repair_tree(struct fib6_node *fn);
 
 static __u32 rt_sernum;
 
-static struct timer_list ip6_fib_timer = TIMER_INITIALIZER(fib6_run_gc, 0, 0);
+static DEFINE_TIMER(ip6_fib_timer, fib6_run_gc, 0, 0);
 
 struct fib6_walker_t fib6_walker_list = {
 	.prev	= &fib6_walker_list,
@@ -125,56 +125,6 @@ static __inline__ int addr_bit_set(void *token, int fn_bit)
 	__u32 *addr = token;
 
 	return htonl(1 << ((~fn_bit)&0x1F)) & addr[fn_bit>>5];
-}
-
-/*
- *	find the first different bit between two addresses
- *	length of address must be a multiple of 32bits
- */
-
-static __inline__ int addr_diff(void *token1, void *token2, int addrlen)
-{
-	__u32 *a1 = token1;
-	__u32 *a2 = token2;
-	int i;
-
-	addrlen >>= 2;
-
-	for (i = 0; i < addrlen; i++) {
-		__u32 xb;
-
-		xb = a1[i] ^ a2[i];
-
-		if (xb) {
-			int j = 31;
-
-			xb = ntohl(xb);
-
-			while ((xb & (1 << j)) == 0)
-				j--;
-
-			return (i * 32 + 31 - j);
-		}
-	}
-
-	/*
-	 *	we should *never* get to this point since that 
-	 *	would mean the addrs are equal
-	 *
-	 *	However, we do get to it 8) And exacly, when
-	 *	addresses are equal 8)
-	 *
-	 *	ip route add 1111::/128 via ...
-	 *	ip route add 1111::/64 via ...
-	 *	and we are here.
-	 *
-	 *	Ideally, this function should stop comparison
-	 *	at prefix length. It does not, but it is still OK,
-	 *	if returned value is greater than prefix length.
-	 *					--ANK (980803)
-	 */
-
-	return addrlen<<5;
 }
 
 static __inline__ struct fib6_node * node_alloc(void)
@@ -296,11 +246,11 @@ insert_above:
 
 	/* find 1st bit in difference between the 2 addrs.
 
-	   See comment in addr_diff: bit may be an invalid value,
+	   See comment in __ipv6_addr_diff: bit may be an invalid value,
 	   but if it is >= plen, the value is ignored in any case.
 	 */
 	
-	bit = addr_diff(addr, &key->addr, addrlen);
+	bit = __ipv6_addr_diff(addr, &key->addr, addrlen);
 
 	/* 
 	 *		(intermediate)[in]	
@@ -394,7 +344,7 @@ insert_above:
  */
 
 static int fib6_add_rt2node(struct fib6_node *fn, struct rt6_info *rt,
-    struct nlmsghdr *nlh)
+		struct nlmsghdr *nlh,  struct netlink_skb_parms *req)
 {
 	struct rt6_info *iter = NULL;
 	struct rt6_info **ins;
@@ -449,7 +399,7 @@ out:
 	*ins = rt;
 	rt->rt6i_node = fn;
 	atomic_inc(&rt->rt6i_ref);
-	inet6_rt_notify(RTM_NEWROUTE, rt, nlh);
+	inet6_rt_notify(RTM_NEWROUTE, rt, nlh, req);
 	rt6_stats.fib_rt_entries++;
 
 	if ((fn->fn_flags & RTN_RTINFO) == 0) {
@@ -479,7 +429,8 @@ void fib6_force_start_gc(void)
  *	with source addr info in sub-trees
  */
 
-int fib6_add(struct fib6_node *root, struct rt6_info *rt, struct nlmsghdr *nlh, void *_rtattr)
+int fib6_add(struct fib6_node *root, struct rt6_info *rt, 
+		struct nlmsghdr *nlh, void *_rtattr, struct netlink_skb_parms *req)
 {
 	struct fib6_node *fn;
 	int err = -ENOMEM;
@@ -552,7 +503,7 @@ int fib6_add(struct fib6_node *root, struct rt6_info *rt, struct nlmsghdr *nlh, 
 	}
 #endif
 
-	err = fib6_add_rt2node(fn, rt, nlh);
+	err = fib6_add_rt2node(fn, rt, nlh, req);
 
 	if (err == 0) {
 		fib6_start_gc(rt);
@@ -859,7 +810,7 @@ static struct fib6_node * fib6_repair_tree(struct fib6_node *fn)
 }
 
 static void fib6_del_route(struct fib6_node *fn, struct rt6_info **rtp,
-    struct nlmsghdr *nlh, void *_rtattr)
+    struct nlmsghdr *nlh, void *_rtattr, struct netlink_skb_parms *req)
 {
 	struct fib6_walker_t *w;
 	struct rt6_info *rt = *rtp;
@@ -915,11 +866,11 @@ static void fib6_del_route(struct fib6_node *fn, struct rt6_info **rtp,
 		if (atomic_read(&rt->rt6i_ref) != 1) BUG();
 	}
 
-	inet6_rt_notify(RTM_DELROUTE, rt, nlh);
+	inet6_rt_notify(RTM_DELROUTE, rt, nlh, req);
 	rt6_release(rt);
 }
 
-int fib6_del(struct rt6_info *rt, struct nlmsghdr *nlh, void *_rtattr)
+int fib6_del(struct rt6_info *rt, struct nlmsghdr *nlh, void *_rtattr, struct netlink_skb_parms *req)
 {
 	struct fib6_node *fn = rt->rt6i_node;
 	struct rt6_info **rtp;
@@ -944,7 +895,7 @@ int fib6_del(struct rt6_info *rt, struct nlmsghdr *nlh, void *_rtattr)
 
 	for (rtp = &fn->leaf; *rtp; rtp = &(*rtp)->u.next) {
 		if (*rtp == rt) {
-			fib6_del_route(fn, rtp, nlh, _rtattr);
+			fib6_del_route(fn, rtp, nlh, _rtattr, req);
 			return 0;
 		}
 	}
@@ -1073,7 +1024,7 @@ static int fib6_clean_node(struct fib6_walker_t *w)
 		res = c->func(rt, c->arg);
 		if (res < 0) {
 			w->leaf = rt;
-			res = fib6_del(rt, NULL, NULL);
+			res = fib6_del(rt, NULL, NULL, NULL);
 			if (res) {
 #if RT6_DEBUG >= 2
 				printk(KERN_DEBUG "fib6_clean_node: del failed: rt=%p@%p err=%d\n", rt, rt->rt6i_node, res);

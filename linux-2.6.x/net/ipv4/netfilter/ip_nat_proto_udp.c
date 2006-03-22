@@ -41,7 +41,8 @@ udp_unique_tuple(struct ip_conntrack_tuple *tuple,
 		 enum ip_nat_manip_type maniptype,
 		 const struct ip_conntrack *conntrack)
 {
-	static u_int16_t port, *portptr;
+	static u_int16_t port;
+	u_int16_t *portptr;
 	unsigned int range_size, min, i;
 
 	if (maniptype == IP_NAT_MANIP_SRC)
@@ -93,7 +94,7 @@ udp_manip_pkt(struct sk_buff **pskb,
 	u32 oldip, newip;
 	u16 *portptr, newport;
 
-	if (!skb_ip_make_writable(pskb, hdroff + sizeof(*hdr)))
+	if (!skb_make_writable(pskb, hdroff + sizeof(*hdr)))
 		return 0;
 
 	iph = (struct iphdr *)((*pskb)->data + iphdroff);
@@ -121,45 +122,16 @@ udp_manip_pkt(struct sk_buff **pskb,
 	return 1;
 }
 
-static unsigned int
-udp_print(char *buffer,
-	  const struct ip_conntrack_tuple *match,
-	  const struct ip_conntrack_tuple *mask)
-{
-	unsigned int len = 0;
-
-	if (mask->src.u.udp.port)
-		len += sprintf(buffer + len, "srcpt=%u ",
-			       ntohs(match->src.u.udp.port));
-
-
-	if (mask->dst.u.udp.port)
-		len += sprintf(buffer + len, "dstpt=%u ",
-			       ntohs(match->dst.u.udp.port));
-
-	return len;
-}
-
-static unsigned int
-udp_print_range(char *buffer, const struct ip_nat_range *range)
-{
-	if (range->min.udp.port != 0 || range->max.udp.port != 0xFFFF) {
-		if (range->min.udp.port == range->max.udp.port)
-			return sprintf(buffer, "port %u ",
-				       ntohs(range->min.udp.port));
-		else
-			return sprintf(buffer, "ports %u-%u ",
-				       ntohs(range->min.udp.port),
-				       ntohs(range->max.udp.port));
-	}
-	else return 0;
-}
-
-struct ip_nat_protocol ip_nat_protocol_udp
-= { "UDP", IPPROTO_UDP,
-    udp_manip_pkt,
-    udp_in_range,
-    udp_unique_tuple,
-    udp_print,
-    udp_print_range
+struct ip_nat_protocol ip_nat_protocol_udp = {
+	.name			= "UDP",
+	.protonum		= IPPROTO_UDP,
+	.me			= THIS_MODULE,
+	.manip_pkt		= udp_manip_pkt,
+	.in_range		= udp_in_range,
+	.unique_tuple		= udp_unique_tuple,
+#if defined(CONFIG_IP_NF_CONNTRACK_NETLINK) || \
+    defined(CONFIG_IP_NF_CONNTRACK_NETLINK_MODULE)
+	.range_to_nfattr	= ip_nat_port_range_to_nfattr,
+	.nfattr_to_range	= ip_nat_port_nfattr_to_range,
+#endif
 };

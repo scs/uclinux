@@ -67,9 +67,9 @@ static void sctp_endpoint_bh_rcv(struct sctp_endpoint *ep);
  * Initialize the base fields of the endpoint structure.
  */
 static struct sctp_endpoint *sctp_endpoint_init(struct sctp_endpoint *ep,
-						struct sock *sk, int gfp)
+						struct sock *sk,
+						gfp_t gfp)
 {
-	struct sctp_sock *sp = sctp_sk(sk);
 	memset(ep, 0, sizeof(struct sctp_endpoint));
 
 	/* Initialize the base structure. */
@@ -99,49 +99,26 @@ static struct sctp_endpoint *sctp_endpoint_init(struct sctp_endpoint *ep,
 	/* Create the lists of associations.  */
 	INIT_LIST_HEAD(&ep->asocs);
 
-	/* Set up the base timeout information.  */
-	ep->timeouts[SCTP_EVENT_TIMEOUT_NONE] = 0;
-	ep->timeouts[SCTP_EVENT_TIMEOUT_T1_COOKIE] =
-		SCTP_DEFAULT_TIMEOUT_T1_COOKIE;
-	ep->timeouts[SCTP_EVENT_TIMEOUT_T1_INIT] =
-		SCTP_DEFAULT_TIMEOUT_T1_INIT;
-	ep->timeouts[SCTP_EVENT_TIMEOUT_T2_SHUTDOWN] =
-		msecs_to_jiffies(sp->rtoinfo.srto_initial);
-	ep->timeouts[SCTP_EVENT_TIMEOUT_T3_RTX] = 0;
-	ep->timeouts[SCTP_EVENT_TIMEOUT_T4_RTO] = 0;
-
-	/* sctpimpguide-05 Section 2.12.2
-	 * If the 'T5-shutdown-guard' timer is used, it SHOULD be set to the
-	 * recommended value of 5 times 'RTO.Max'.
-	 */
-        ep->timeouts[SCTP_EVENT_TIMEOUT_T5_SHUTDOWN_GUARD]
-		= 5 * msecs_to_jiffies(sp->rtoinfo.srto_max);
-
-	ep->timeouts[SCTP_EVENT_TIMEOUT_HEARTBEAT] =
-		SCTP_DEFAULT_TIMEOUT_HEARTBEAT;
-	ep->timeouts[SCTP_EVENT_TIMEOUT_SACK] =
-		SCTP_DEFAULT_TIMEOUT_SACK;
-	ep->timeouts[SCTP_EVENT_TIMEOUT_AUTOCLOSE] =
-		sp->autoclose * HZ;
-
 	/* Use SCTP specific send buffer space queues.  */
 	ep->sndbuf_policy = sctp_sndbuf_policy;
 	sk->sk_write_space = sctp_write_space;
 	sock_set_flag(sk, SOCK_USE_WRITE_QUEUE);
+
+	/* Get the receive buffer policy for this endpoint */
+	ep->rcvbuf_policy = sctp_rcvbuf_policy;
 
 	/* Initialize the secret key used with cookie. */
 	get_random_bytes(&ep->secret_key[0], SCTP_SECRET_SIZE);
 	ep->last_key = ep->current_key = 0;
 	ep->key_changed_at = jiffies;
 
-	ep->debug_name = "unnamedEndpoint";
 	return ep;
 }
 
 /* Create a sctp_endpoint with all that boring stuff initialized.
  * Returns NULL if there isn't enough memory.
  */
-struct sctp_endpoint *sctp_endpoint_new(struct sock *sk, int gfp)
+struct sctp_endpoint *sctp_endpoint_new(struct sock *sk, gfp_t gfp)
 {
 	struct sctp_endpoint *ep;
 
@@ -195,8 +172,7 @@ static void sctp_endpoint_destroy(struct sctp_endpoint *ep)
 	sctp_unhash_endpoint(ep);
 
 	/* Free up the HMAC transform. */
-	if (sctp_sk(ep->base.sk)->hmac)
-		sctp_crypto_free_tfm(sctp_sk(ep->base.sk)->hmac);
+	sctp_crypto_free_tfm(sctp_sk(ep->base.sk)->hmac);
 
 	/* Cleanup. */
 	sctp_inq_free(&ep->base.inqueue);

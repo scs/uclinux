@@ -16,7 +16,6 @@
 #include <net/checksum.h>
 #include <net/tcp.h>
 
-#include <linux/netfilter_ipv4/lockhelp.h>
 #include <linux/netfilter_ipv4/ip_conntrack_helper.h>
 #include <linux/netfilter_ipv4/ip_conntrack_ftp.h>
 #include <linux/moduleparam.h>
@@ -26,17 +25,16 @@ MODULE_AUTHOR("Rusty Russell <rusty@rustcorp.com.au>");
 MODULE_DESCRIPTION("ftp connection tracking helper");
 
 /* This is slow, but it's simple. --RR */
-static char ftp_buffer[65536];
-
-static DECLARE_LOCK(ip_ftp_lock);
+static char *ftp_buffer;
+static DEFINE_SPINLOCK(ip_ftp_lock);
 
 #define MAX_PORTS 8
-static int ports[MAX_PORTS];
+static unsigned short ports[MAX_PORTS];
 static int ports_c;
-module_param_array(ports, int, &ports_c, 0400);
+module_param_array(ports, ushort, &ports_c, 0400);
 
 static int loose;
-module_param(loose, int, 0600);
+module_param(loose, bool, 0600);
 
 unsigned int (*ip_nat_ftp_hook)(struct sk_buff **pskb,
 				enum ip_conntrack_info ctinfo,
@@ -57,7 +55,7 @@ static int try_rfc959(const char *, size_t, u_int32_t [], char);
 static int try_eprt(const char *, size_t, u_int32_t [], char);
 static int try_epsv_response(const char *, size_t, u_int32_t [], char);
 
-static struct ftp_search {
+static const struct ftp_search {
 	enum ip_conntrack_dir dir;
 	const char *pattern;
 	size_t plen;
@@ -263,7 +261,8 @@ static int find_nl_seq(u32 seq, const struct ip_ct_ftp_master *info, int dir)
 }
 
 /* We don't update if it's older than what we have. */
-static void update_nl_seq(u32 nl_seq, struct ip_ct_ftp_master *info, int dir)
+static void update_nl_seq(u32 nl_seq, struct ip_ct_ftp_master *info, int dir,
+			  struct sk_buff *skb)
 {
 	unsigned int i, oldest = NUM_SEQ_TO_REMEMBER;
 
@@ -277,10 +276,13 @@ static void update_nl_seq(u32 nl_seq, struct ip_ct_ftp_master *info, int dir)
 			oldest = i;
 	}
 
-	if (info->seq_aft_nl_num[dir] < NUM_SEQ_TO_REMEMBER)
+	if (info->seq_aft_nl_num[dir] < NUM_SEQ_TO_REMEMBER) {
 		info->seq_aft_nl[dir][info->seq_aft_nl_num[dir]++] = nl_seq;
-	else if (oldest != NUM_SEQ_TO_REMEMBER)
+		ip_conntrack_event_cache(IPCT_HELPINFO_VOLATILE, skb);
+	} else if (oldest != NUM_SEQ_TO_REMEMBER) {
 		info->seq_aft_nl[dir][oldest] = nl_seq;
+		ip_conntrack_event_cache(IPCT_HELPINFO_VOLATILE, skb);
+	}
 }
 
 static int help(struct sk_buff **pskb,
@@ -319,7 +321,7 @@ static int help(struct sk_buff **pskb,
 	}
 	datalen = (*pskb)->len - dataoff;
 
-	LOCK_BH(&ip_ftp_lock);
+	spin_lock_bh(&ip_ftp_lock);
 	fb_ptr = skb_header_pointer(*pskb, dataoff,
 				    (*pskb)->len - dataoff, ftp_buffer);
 	BUG_ON(fb_ptr == NULL);
@@ -377,7 +379,7 @@ static int help(struct sk_buff **pskb,
 	       fb_ptr + matchoff, matchlen, ntohl(th->seq) + matchoff);
 			 
 	/* Allocate expectation which will be inserted */
-	exp = ip_conntrack_expect_alloc();
+	exp = ip_conntrack_expect_alloc(ct);
 	if (exp == NULL) {
 		ret = NF_DROP;
 		goto out;
@@ -404,8 +406,7 @@ static int help(struct sk_buff **pskb,
 		   networks, or the packet filter itself). */
 		if (!loose) {
 			ret = NF_ACCEPT;
-			ip_conntrack_expect_free(exp);
-			goto out_update_nl;
+			goto out_put_expect;
 		}
 		exp->tuple.dst.ip = htonl((array[0] << 24) | (array[1] << 16)
 					 | (array[2] << 8) | array[3]);
@@ -420,7 +421,7 @@ static int help(struct sk_buff **pskb,
 		  { 0xFFFFFFFF, { .tcp = { 0xFFFF } }, 0xFF }});
 
 	exp->expectfn = NULL;
-	exp->master = ct;
+	exp->flags = 0;
 
 	/* Now, NAT might want to mangle the packet, and register the
 	 * (possibly changed) expectation itself. */
@@ -429,25 +430,27 @@ static int help(struct sk_buff **pskb,
 				      matchoff, matchlen, exp, &seq);
 	else {
 		/* Can't expect this?  Best to drop packet now. */
-		if (ip_conntrack_expect_related(exp) != 0) {
-			ip_conntrack_expect_free(exp);
+		if (ip_conntrack_expect_related(exp) != 0)
 			ret = NF_DROP;
-		} else
+		else
 			ret = NF_ACCEPT;
 	}
+
+out_put_expect:
+	ip_conntrack_expect_put(exp);
 
 out_update_nl:
 	/* Now if this ends in \n, update ftp info.  Seq may have been
 	 * adjusted by NAT code. */
 	if (ends_in_nl)
-		update_nl_seq(seq, ct_ftp_info,dir);
+		update_nl_seq(seq, ct_ftp_info,dir, *pskb);
  out:
-	UNLOCK_BH(&ip_ftp_lock);
+	spin_unlock_bh(&ip_ftp_lock);
 	return ret;
 }
 
 static struct ip_conntrack_helper ftp[MAX_PORTS];
-static char ftp_names[MAX_PORTS][10];
+static char ftp_names[MAX_PORTS][sizeof("ftp-65535")];
 
 /* Not __exit: called from init() */
 static void fini(void)
@@ -458,12 +461,18 @@ static void fini(void)
 				ports[i]);
 		ip_conntrack_helper_unregister(&ftp[i]);
 	}
+
+	kfree(ftp_buffer);
 }
 
 static int __init init(void)
 {
 	int i, ret;
 	char *tmpname;
+
+	ftp_buffer = kmalloc(65536, GFP_KERNEL);
+	if (!ftp_buffer)
+		return -ENOMEM;
 
 	if (ports_c == 0)
 		ports[ports_c++] = FTP_PORT;

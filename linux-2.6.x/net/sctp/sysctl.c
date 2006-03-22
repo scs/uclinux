@@ -42,11 +42,14 @@
  */
 
 #include <net/sctp/structs.h>
+#include <net/sctp/sctp.h>
 #include <linux/sysctl.h>
 
 static ctl_handler sctp_sysctl_jiffies_ms;
 static long rto_timer_min = 1;
 static long rto_timer_max = 86400000; /* One day */
+static long sack_timer_min = 1;
+static long sack_timer_max = 500;
 
 static ctl_table sctp_table[] = {
 	{
@@ -118,6 +121,14 @@ static ctl_table sctp_table[] = {
 		.proc_handler	= &proc_dointvec
 	},
 	{
+		.ctl_name	= NET_SCTP_RCVBUF_POLICY,
+		.procname	= "rcvbuf_policy",
+		.data		= &sctp_rcvbuf_policy,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec
+	},
+	{
 		.ctl_name	= NET_SCTP_PATH_MAX_RETRANS,
 		.procname	= "path_max_retrans",
 		.data		= &sctp_max_retrans_path,
@@ -148,12 +159,9 @@ static ctl_table sctp_table[] = {
 		.ctl_name	= NET_SCTP_PRESERVE_ENABLE,
 		.procname	= "cookie_preserve_enable",
 		.data		= &sctp_cookie_preserve_enable,
-		.maxlen		= sizeof(long),
+		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_doulongvec_ms_jiffies_minmax,
-		.strategy	= &sctp_sysctl_jiffies_ms,
-		.extra1         = &rto_timer_min,
-		.extra2         = &rto_timer_max
+		.proc_handler	= &proc_dointvec
 	},
 	{
 		.ctl_name	= NET_SCTP_RTO_ALPHA,
@@ -186,6 +194,17 @@ static ctl_table sctp_table[] = {
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec
+	},
+	{
+		.ctl_name	= NET_SCTP_SACK_TIMEOUT,
+		.procname	= "sack_timeout",
+		.data		= &sctp_sack_timeout,
+		.maxlen		= sizeof(long),
+		.mode		= 0644,
+		.proc_handler	= &proc_doulongvec_ms_jiffies_minmax,
+		.strategy	= &sctp_sysctl_jiffies_ms,
+		.extra1         = &sack_timer_min,
+		.extra2         = &sack_timer_max,
 	},
 	{ .ctl_name = 0 }
 };

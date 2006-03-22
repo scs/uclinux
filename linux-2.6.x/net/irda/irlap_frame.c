@@ -988,9 +988,6 @@ void irlap_resend_rejected_frames(struct irlap_cb *self, int command)
 			IRDA_DEBUG(0, "%s(), unable to copy\n", __FUNCTION__);
 			return;
 		}
-		/* Unlink tx_skb from list */
-		tx_skb->next = tx_skb->prev = NULL;
-		tx_skb->list = NULL;
 
 		/* Clear old Nr field + poll bit */
 		tx_skb->data[1] &= 0x0f;
@@ -1018,11 +1015,10 @@ void irlap_resend_rejected_frames(struct irlap_cb *self, int command)
 	/*
 	 *  We can now fill the window with additional data frames
 	 */
-	while (skb_queue_len( &self->txq) > 0) {
+	while (!skb_queue_empty(&self->txq)) {
 
 		IRDA_DEBUG(0, "%s(), sending additional frames!\n", __FUNCTION__);
-		if ((skb_queue_len( &self->txq) > 0) &&
-		    (self->window > 0)) {
+		if (self->window > 0) {
 			skb = skb_dequeue( &self->txq);
 			IRDA_ASSERT(skb != NULL, return;);
 
@@ -1031,8 +1027,7 @@ void irlap_resend_rejected_frames(struct irlap_cb *self, int command)
 			 *  bit cleared
 			 */
 			if ((self->window > 1) &&
-			    skb_queue_len(&self->txq) > 0)
-			{
+			    !skb_queue_empty(&self->txq)) {
 				irlap_send_data_primary(self, skb);
 			} else {
 				irlap_send_data_primary_poll(self, skb);
@@ -1065,9 +1060,6 @@ void irlap_resend_rejected_frame(struct irlap_cb *self, int command)
 			IRDA_DEBUG(0, "%s(), unable to copy\n", __FUNCTION__);
 			return;
 		}
-		/* Unlink tx_skb from list */
-		tx_skb->next = tx_skb->prev = NULL;
-		tx_skb->list = NULL;
 
 		/* Clear old Nr field + poll bit */
 		tx_skb->data[1] &= 0x0f;
@@ -1311,7 +1303,7 @@ static void irlap_recv_test_frame(struct irlap_cb *self, struct sk_buff *skb,
  * Jean II
  */
 int irlap_driver_rcv(struct sk_buff *skb, struct net_device *dev,
-		     struct packet_type *ptype)
+		     struct packet_type *ptype, struct net_device *orig_dev)
 {
 	struct irlap_info info;
 	struct irlap_cb *self;

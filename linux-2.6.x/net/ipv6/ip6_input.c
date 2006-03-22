@@ -48,7 +48,7 @@
 
 
 
-static inline int ip6_rcv_finish( struct sk_buff *skb) 
+inline int ip6_rcv_finish( struct sk_buff *skb) 
 {
 	if (skb->dst == NULL)
 		ip6_route_input(skb);
@@ -56,7 +56,7 @@ static inline int ip6_rcv_finish( struct sk_buff *skb)
 	return dst_input(skb);
 }
 
-int ipv6_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt)
+int ipv6_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt, struct net_device *orig_dev)
 {
 	struct ipv6hdr *hdr;
 	u32 		pkt_len;
@@ -97,6 +97,9 @@ int ipv6_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt
 	if (hdr->version != 6)
 		goto err;
 
+	skb->h.raw = (u8 *)(hdr + 1);
+	IP6CB(skb)->nhoff = offsetof(struct ipv6hdr, nexthdr);
+
 	pkt_len = ntohs(hdr->payload_len);
 
 	/* pkt_len may be zero if Jumbo payload option is present */
@@ -111,8 +114,7 @@ int ipv6_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt
 	}
 
 	if (hdr->nexthdr == NEXTHDR_HOP) {
-		skb->h.raw = (u8*)(hdr+1);
-		if (ipv6_parse_hopopts(skb, offsetof(struct ipv6hdr, nexthdr)) < 0) {
+		if (ipv6_parse_hopopts(skb, IP6CB(skb)->nhoff) < 0) {
 			IP6_INC_STATS_BH(IPSTATS_MIB_INHDRERRORS);
 			return 0;
 		}
@@ -143,31 +145,20 @@ static inline int ip6_input_finish(struct sk_buff *skb)
 	int nexthdr;
 	u8 hash;
 
-	skb->h.raw = skb->nh.raw + sizeof(struct ipv6hdr);
-
 	/*
 	 *	Parse extension headers
 	 */
-
-	nexthdr = skb->nh.ipv6h->nexthdr;
-	nhoff = offsetof(struct ipv6hdr, nexthdr);
-
-	/* Skip hop-by-hop options, they are already parsed. */
-	if (nexthdr == NEXTHDR_HOP) {
-		nhoff = sizeof(struct ipv6hdr);
-		nexthdr = skb->h.raw[0];
-		skb->h.raw += (skb->h.raw[1]+1)<<3;
-	}
 
 	rcu_read_lock();
 resubmit:
 	if (!pskb_pull(skb, skb->h.raw - skb->data))
 		goto discard;
+	nhoff = IP6CB(skb)->nhoff;
 	nexthdr = skb->nh.raw[nhoff];
 
 	raw_sk = sk_head(&raw_v6_htable[nexthdr & (MAX_INET_PROTOS - 1)]);
-	if (raw_sk)
-		ipv6_raw_deliver(skb, nexthdr);
+	if (raw_sk && !ipv6_raw_deliver(skb, nexthdr))
+		raw_sk = NULL;
 
 	hash = nexthdr & (MAX_INET_PROTOS - 1);
 	if ((ipprot = rcu_dereference(inet6_protos[hash])) != NULL) {
@@ -175,6 +166,11 @@ resubmit:
 		
 		if (ipprot->flags & INET6_PROTO_FINAL) {
 			struct ipv6hdr *hdr;	
+
+			/* Free reference early: we don't need it any more,
+			   and it may hold ip_conntrack module loaded
+			   indefinitely. */
+			nf_reset(skb);
 
 			skb_postpull_rcsum(skb, skb->nh.raw,
 					   skb->h.raw - skb->nh.raw);
@@ -189,7 +185,7 @@ resubmit:
 		    !xfrm6_policy_check(NULL, XFRM_POLICY_IN, skb)) 
 			goto discard;
 		
-		ret = ipprot->handler(&skb, &nhoff);
+		ret = ipprot->handler(&skb);
 		if (ret > 0)
 			goto resubmit;
 		else if (ret == 0)
@@ -198,12 +194,13 @@ resubmit:
 		if (!raw_sk) {
 			if (xfrm6_policy_check(NULL, XFRM_POLICY_IN, skb)) {
 				IP6_INC_STATS_BH(IPSTATS_MIB_INUNKNOWNPROTOS);
-				icmpv6_param_prob(skb, ICMPV6_UNK_NEXTHDR, nhoff);
+				icmpv6_send(skb, ICMPV6_PARAMPROB,
+				            ICMPV6_UNK_NEXTHDR, nhoff,
+				            skb->dev);
 			}
-		} else {
+		} else
 			IP6_INC_STATS_BH(IPSTATS_MIB_INDELIVERS);
-			kfree_skb(skb);
-		}
+		kfree_skb(skb);
 	}
 	rcu_read_unlock();
 	return 0;

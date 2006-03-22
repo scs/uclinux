@@ -66,8 +66,8 @@
 #include <linux/seq_file.h>
 
 #include <net/protocol.h>
-#include <net/tcp.h>
 #include <net/ndisc.h>
+#include <net/ip.h>
 #include <net/ipv6.h>
 #include <net/transp_v6.h>
 #include <net/addrconf.h>
@@ -91,7 +91,6 @@ SCTP_STATIC void sctp_v6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 	struct ipv6hdr *iph = (struct ipv6hdr *)skb->data;
 	struct sctphdr *sh = (struct sctphdr *)(skb->data + offset);
 	struct sock *sk;
-	struct sctp_endpoint *ep;
 	struct sctp_association *asoc;
 	struct sctp_transport *transport;
 	struct ipv6_pinfo *np;
@@ -105,7 +104,7 @@ SCTP_STATIC void sctp_v6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 	savesctp  = skb->h.raw;
 	skb->nh.ipv6h = iph;
 	skb->h.raw = (char *)sh;
-	sk = sctp_err_lookup(AF_INET6, skb, sh, &ep, &asoc, &transport);
+	sk = sctp_err_lookup(AF_INET6, skb, sh, &asoc, &transport);
 	/* Put back, the original pointers. */
 	skb->nh.raw = saveip;
 	skb->h.raw = savesctp;
@@ -124,7 +123,7 @@ SCTP_STATIC void sctp_v6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 		goto out_unlock;
 	case ICMPV6_PARAMPROB:
 		if (ICMPV6_UNK_NEXTHDR == code) {
-			sctp_icmp_proto_unreachable(sk, ep, asoc, transport);
+			sctp_icmp_proto_unreachable(sk, asoc, transport);
 			goto out_unlock;
 		}
 		break;
@@ -142,7 +141,7 @@ SCTP_STATIC void sctp_v6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 	}
 
 out_unlock:
-	sctp_err_finish(sk, ep, asoc);
+	sctp_err_finish(sk, asoc);
 out:
 	if (likely(idev != NULL))
 		in6_dev_put(idev);
@@ -181,8 +180,7 @@ static int sctp_v6_xmit(struct sk_buff *skb, struct sctp_transport *transport,
 	}
 
 	SCTP_DEBUG_PRINTK("%s: skb:%p, len:%d, "
-			  "src:%04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x "
-			  "dst:%04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x\n",
+			  "src:" NIP6_FMT " dst:" NIP6_FMT "\n",
 			  __FUNCTION__, skb, skb->len,
 			  NIP6(fl.fl6_src), NIP6(fl.fl6_dst));
 
@@ -207,13 +205,13 @@ static struct dst_entry *sctp_v6_get_dst(struct sctp_association *asoc,
 		fl.oif = daddr->v6.sin6_scope_id;
 	
 
-	SCTP_DEBUG_PRINTK("%s: DST=%04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x ",
+	SCTP_DEBUG_PRINTK("%s: DST=" NIP6_FMT " ",
 			  __FUNCTION__, NIP6(fl.fl6_dst));
 
 	if (saddr) {
 		ipv6_addr_copy(&fl.fl6_src, &saddr->v6.sin6_addr);
 		SCTP_DEBUG_PRINTK(
-			"SRC=%04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x - ",
+			"SRC=" NIP6_FMT " - ",
 			NIP6(fl.fl6_src));
 	}
 
@@ -222,8 +220,7 @@ static struct dst_entry *sctp_v6_get_dst(struct sctp_association *asoc,
 		struct rt6_info *rt;
 		rt = (struct rt6_info *)dst;
 		SCTP_DEBUG_PRINTK(
-			"rt6_dst:%04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x "
-			"rt6_src:%04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x\n",
+			"rt6_dst:" NIP6_FMT " rt6_src:" NIP6_FMT "\n",
 			NIP6(rt->rt6i_dst.addr), NIP6(rt->rt6i_src.addr));
 	} else {
 		SCTP_DEBUG_PRINTK("NO ROUTE\n");
@@ -272,13 +269,12 @@ static void sctp_v6_get_saddr(struct sctp_association *asoc,
 	__u8 bmatchlen;
 
 	SCTP_DEBUG_PRINTK("%s: asoc:%p dst:%p "
-			  "daddr:%04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x ",
+			  "daddr:" NIP6_FMT " ",
 			  __FUNCTION__, asoc, dst, NIP6(daddr->v6.sin6_addr));
 
 	if (!asoc) {
 		ipv6_get_saddr(dst, &daddr->v6.sin6_addr,&saddr->v6.sin6_addr);
-		SCTP_DEBUG_PRINTK("saddr from ipv6_get_saddr: "
-				  "%04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x\n",
+		SCTP_DEBUG_PRINTK("saddr from ipv6_get_saddr: " NIP6_FMT "\n",
 				  NIP6(saddr->v6.sin6_addr));
 		return;
 	}
@@ -306,13 +302,11 @@ static void sctp_v6_get_saddr(struct sctp_association *asoc,
 
 	if (baddr) {
 		memcpy(saddr, baddr, sizeof(union sctp_addr));
-		SCTP_DEBUG_PRINTK("saddr: "
-				  "%04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x\n",
+		SCTP_DEBUG_PRINTK("saddr: " NIP6_FMT "\n",
 				  NIP6(saddr->v6.sin6_addr));
 	} else {
 		printk(KERN_ERR "%s: asoc:%p Could not find a valid source "
-		       "address for the "
-		       "dest:%04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x\n",
+		       "address for the dest:" NIP6_FMT "\n",
 		       __FUNCTION__, asoc, NIP6(daddr->v6.sin6_addr));
 	}
 
@@ -642,10 +636,7 @@ static struct sock *sctp_v6_create_accept_sk(struct sock *sk,
 	else
 		newinet->pmtudisc = IP_PMTUDISC_WANT;
 
-#ifdef INET_REFCNT_DEBUG
-	atomic_inc(&inet6_sock_nr);
-	atomic_inc(&inet_sock_nr);
-#endif
+	sk_refcnt_debug_inc(newsk);
 
 	if (newsk->sk_prot->init(newsk)) {
 		sk_common_release(newsk);
@@ -679,8 +670,7 @@ static int sctp_v6_is_ce(const struct sk_buff *skb)
 /* Dump the v6 addr to the seq file. */
 static void sctp_v6_seq_dump_addr(struct seq_file *seq, union sctp_addr *addr)
 {
-	seq_printf(seq, "%04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x ",
-		   NIP6(addr->v6.sin6_addr));
+	seq_printf(seq, NIP6_FMT " ", NIP6(addr->v6.sin6_addr));
 }
 
 /* Initialize a PF_INET6 socket msg_name. */
@@ -870,7 +860,7 @@ static int sctp_inet6_supported_addrs(const struct sctp_sock *opt,
 	return 2;
 }
 
-static struct proto_ops inet6_seqpacket_ops = {
+static const struct proto_ops inet6_seqpacket_ops = {
 	.family     = PF_INET6,
 	.owner      = THIS_MODULE,
 	.release    = inet6_release,
@@ -909,7 +899,7 @@ static struct inet_protosw sctpv6_stream_protosw = {
 	.flags         = SCTP_PROTOSW_FLAG,
 };
 
-static int sctp6_rcv(struct sk_buff **pskb, unsigned int *nhoffp)
+static int sctp6_rcv(struct sk_buff **pskb)
 {
 	return sctp_rcv(*pskb) ? -1 : 0;
 }

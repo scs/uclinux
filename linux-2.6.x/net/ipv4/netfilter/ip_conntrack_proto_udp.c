@@ -11,15 +11,15 @@
 #include <linux/timer.h>
 #include <linux/netfilter.h>
 #include <linux/in.h>
+#include <linux/ip.h>
 #include <linux/udp.h>
 #include <linux/seq_file.h>
 #include <net/checksum.h>
-#include <linux/netfilter.h>
 #include <linux/netfilter_ipv4.h>
 #include <linux/netfilter_ipv4/ip_conntrack_protocol.h>
 
-unsigned long ip_ct_udp_timeout = 30*HZ;
-unsigned long ip_ct_udp_timeout_stream = 180*HZ;
+unsigned int ip_ct_udp_timeout = 30*HZ;
+unsigned int ip_ct_udp_timeout_stream = 180*HZ;
 
 static int udp_pkt_to_tuple(const struct sk_buff *skb,
 			     unsigned int dataoff,
@@ -73,7 +73,8 @@ static int udp_packet(struct ip_conntrack *conntrack,
 		ip_ct_refresh_acct(conntrack, ctinfo, skb, 
 				   ip_ct_udp_timeout_stream);
 		/* Also, more likely to be important, and not a probe */
-		set_bit(IPS_ASSURED_BIT, &conntrack->status);
+		if (!test_and_set_bit(IPS_ASSURED_BIT, &conntrack->status))
+			ip_conntrack_event_cache(IPCT_STATUS, skb);
 	} else
 		ip_ct_refresh_acct(conntrack, ctinfo, skb, ip_ct_udp_timeout);
 
@@ -97,7 +98,7 @@ static int udp_error(struct sk_buff *skb, enum ip_conntrack_info *ctinfo,
 	hdr = skb_header_pointer(skb, iph->ihl*4, sizeof(_hdr), &_hdr);
 	if (hdr == NULL) {
 		if (LOG_INVALID(IPPROTO_UDP))
-			nf_log_packet(PF_INET, 0, skb, NULL, NULL, 
+			nf_log_packet(PF_INET, 0, skb, NULL, NULL, NULL,
 				  "ip_ct_udp: short packet ");
 		return -NF_ACCEPT;
 	}
@@ -105,7 +106,7 @@ static int udp_error(struct sk_buff *skb, enum ip_conntrack_info *ctinfo,
 	/* Truncated/malformed packets */
 	if (ntohs(hdr->len) > udplen || ntohs(hdr->len) < sizeof(*hdr)) {
 		if (LOG_INVALID(IPPROTO_UDP))
-			nf_log_packet(PF_INET, 0, skb, NULL, NULL, 
+			nf_log_packet(PF_INET, 0, skb, NULL, NULL, NULL,
 				  "ip_ct_udp: truncated/malformed packet ");
 		return -NF_ACCEPT;
 	}
@@ -120,11 +121,12 @@ static int udp_error(struct sk_buff *skb, enum ip_conntrack_info *ctinfo,
 	 * and moreover root might send raw packets.
 	 * FIXME: Source route IP option packets --RR */
 	if (hooknum == NF_IP_PRE_ROUTING
+	    && skb->ip_summed != CHECKSUM_UNNECESSARY
 	    && csum_tcpudp_magic(iph->saddr, iph->daddr, udplen, IPPROTO_UDP,
 			         skb->ip_summed == CHECKSUM_HW ? skb->csum
 			      	 : skb_checksum(skb, iph->ihl*4, udplen, 0))) {
 		if (LOG_INVALID(IPPROTO_UDP))
-			nf_log_packet(PF_INET, 0, skb, NULL, NULL, 
+			nf_log_packet(PF_INET, 0, skb, NULL, NULL, NULL,
 				  "ip_ct_udp: bad UDP checksum ");
 		return -NF_ACCEPT;
 	}
@@ -143,4 +145,9 @@ struct ip_conntrack_protocol ip_conntrack_protocol_udp =
 	.packet			= udp_packet,
 	.new			= udp_new,
 	.error			= udp_error,
+#if defined(CONFIG_IP_NF_CONNTRACK_NETLINK) || \
+    defined(CONFIG_IP_NF_CONNTRACK_NETLINK_MODULE)
+	.tuple_to_nfattr	= ip_ct_port_tuple_to_nfattr,
+	.nfattr_to_tuple	= ip_ct_port_nfattr_to_tuple,
+#endif
 };

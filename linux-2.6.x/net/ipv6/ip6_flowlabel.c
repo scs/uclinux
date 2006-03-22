@@ -9,6 +9,7 @@
  *	Authors:	Alexey Kuznetsov, <kuznet@ms2.inr.ac.ru>
  */
 
+#include <linux/capability.h>
 #include <linux/config.h>
 #include <linux/errno.h>
 #include <linux/types.h>
@@ -50,7 +51,7 @@ static atomic_t fl_size = ATOMIC_INIT(0);
 static struct ip6_flowlabel *fl_ht[FL_HASH_MASK+1];
 
 static void ip6_fl_gc(unsigned long dummy);
-static struct timer_list ip6_fl_gc_timer = TIMER_INITIALIZER(ip6_fl_gc, 0, 0);
+static DEFINE_TIMER(ip6_fl_gc_timer, ip6_fl_gc, 0, 0);
 
 /* FL hash table lock: it protects only of GC */
 
@@ -200,6 +201,8 @@ struct ip6_flowlabel * fl6_sock_lookup(struct sock *sk, u32 label)
 	return NULL;
 }
 
+EXPORT_SYMBOL_GPL(fl6_sock_lookup);
+
 void fl6_free_socklist(struct sock *sk)
 {
 	struct ipv6_pinfo *np = inet6_sk(sk);
@@ -226,10 +229,10 @@ struct ipv6_txoptions *fl6_merge_options(struct ipv6_txoptions * opt_space,
 					 struct ipv6_txoptions * fopt)
 {
 	struct ipv6_txoptions * fl_opt = fl->opt;
-
+	
 	if (fopt == NULL || fopt->opt_flen == 0)
 		return fl_opt;
-
+	
 	if (fl_opt != NULL) {
 		opt_space->hopopt = fl_opt->hopopt;
 		opt_space->dst0opt = fl_opt->dst0opt;
@@ -244,7 +247,6 @@ struct ipv6_txoptions *fl6_merge_options(struct ipv6_txoptions * opt_space,
 		opt_space->opt_nflen = 0;
 	}
 	opt_space->dst1opt = fopt->dst1opt;
-	opt_space->auth = fopt->auth;
 	opt_space->opt_flen = fopt->opt_flen;
 	return opt_space;
 }
@@ -311,7 +313,7 @@ fl_create(struct in6_flowlabel_req *freq, char __user *optval, int optlen, int *
 		msg.msg_control = (void*)(fl->opt+1);
 		flowi.oif = 0;
 
-		err = datagram_send_ctl(&msg, &flowi, fl->opt, &junk);
+		err = datagram_send_ctl(&msg, &flowi, fl->opt, &junk, &junk);
 		if (err)
 			goto done;
 		err = -EINVAL;
@@ -480,7 +482,7 @@ int ipv6_flowlabel_opt(struct sock *sk, char __user *optval, int optlen)
 						goto done;
 					}
 					fl1 = sfl->fl;
-					atomic_inc(&fl->users);
+					atomic_inc(&fl1->users);
 					break;
 				}
 			}
@@ -627,9 +629,7 @@ static void ip6fl_fl_seq_show(struct seq_file *seq, struct ip6_flowlabel *fl)
 {
 	while(fl) {
 		seq_printf(seq,
-			   "%05X %-1d %-6d %-6d %-6ld %-8ld "
-			   "%02x%02x%02x%02x%02x%02x%02x%02x "
-			   "%-4d\n",
+			   "%05X %-1d %-6d %-6d %-6ld %-8ld " NIP6_SEQFMT " %-4d\n",
 			   (unsigned)ntohl(fl->label),
 			   fl->share,
 			   (unsigned)fl->owner,
@@ -645,8 +645,8 @@ static void ip6fl_fl_seq_show(struct seq_file *seq, struct ip6_flowlabel *fl)
 static int ip6fl_seq_show(struct seq_file *seq, void *v)
 {
 	if (v == SEQ_START_TOKEN)
-		seq_puts(seq, "Label S Owner  Users  Linger Expires  "
-			      "Dst                              Opt\n");
+		seq_printf(seq, "%-5s %-1s %-6s %-6s %-6s %-8s %-32s %s\n",
+			   "Label", "S", "Owner", "Users", "Linger", "Expires", "Dst", "Opt");
 	else
 		ip6fl_fl_seq_show(seq, v);
 	return 0;

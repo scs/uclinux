@@ -35,16 +35,17 @@ icmp_unique_tuple(struct ip_conntrack_tuple *tuple,
 		  const struct ip_conntrack *conntrack)
 {
 	static u_int16_t id;
-	unsigned int range_size
-		= (unsigned int)range->max.icmp.id - range->min.icmp.id + 1;
+	unsigned int range_size;
 	unsigned int i;
 
+	range_size = ntohs(range->max.icmp.id) - ntohs(range->min.icmp.id) + 1;
 	/* If no range specified... */
 	if (!(range->flags & IP_NAT_RANGE_PROTO_SPECIFIED))
 		range_size = 0xFFFF;
 
 	for (i = 0; i < range_size; i++, id++) {
-		tuple->src.u.icmp.id = range->min.icmp.id + (id % range_size);
+		tuple->src.u.icmp.id = htons(ntohs(range->min.icmp.id) +
+		                             (id % range_size));
 		if (!ip_nat_used_tuple(tuple, conntrack))
 			return 1;
 	}
@@ -61,7 +62,7 @@ icmp_manip_pkt(struct sk_buff **pskb,
 	struct icmphdr *hdr;
 	unsigned int hdroff = iphdroff + iph->ihl*4;
 
-	if (!skb_ip_make_writable(pskb, hdroff + sizeof(*hdr)))
+	if (!skb_make_writable(pskb, hdroff + sizeof(*hdr)))
 		return 0;
 
 	hdr = (struct icmphdr *)((*pskb)->data + hdroff);
@@ -73,43 +74,16 @@ icmp_manip_pkt(struct sk_buff **pskb,
 	return 1;
 }
 
-static unsigned int
-icmp_print(char *buffer,
-	   const struct ip_conntrack_tuple *match,
-	   const struct ip_conntrack_tuple *mask)
-{
-	unsigned int len = 0;
-
-	if (mask->src.u.icmp.id)
-		len += sprintf(buffer + len, "id=%u ",
-			       ntohs(match->src.u.icmp.id));
-
-	if (mask->dst.u.icmp.type)
-		len += sprintf(buffer + len, "type=%u ",
-			       ntohs(match->dst.u.icmp.type));
-
-	if (mask->dst.u.icmp.code)
-		len += sprintf(buffer + len, "code=%u ",
-			       ntohs(match->dst.u.icmp.code));
-
-	return len;
-}
-
-static unsigned int
-icmp_print_range(char *buffer, const struct ip_nat_range *range)
-{
-	if (range->min.icmp.id != 0 || range->max.icmp.id != 0xFFFF)
-		return sprintf(buffer, "id %u-%u ",
-			       ntohs(range->min.icmp.id),
-			       ntohs(range->max.icmp.id));
-	else return 0;
-}
-
-struct ip_nat_protocol ip_nat_protocol_icmp
-= { "ICMP", IPPROTO_ICMP,
-    icmp_manip_pkt,
-    icmp_in_range,
-    icmp_unique_tuple,
-    icmp_print,
-    icmp_print_range
+struct ip_nat_protocol ip_nat_protocol_icmp = {
+	.name			= "ICMP",
+	.protonum		= IPPROTO_ICMP,
+	.me			= THIS_MODULE,
+	.manip_pkt		= icmp_manip_pkt,
+	.in_range		= icmp_in_range,
+	.unique_tuple		= icmp_unique_tuple,
+#if defined(CONFIG_IP_NF_CONNTRACK_NETLINK) || \
+    defined(CONFIG_IP_NF_CONNTRACK_NETLINK_MODULE)
+	.range_to_nfattr	= ip_nat_port_range_to_nfattr,
+	.nfattr_to_range	= ip_nat_port_nfattr_to_range,
+#endif
 };

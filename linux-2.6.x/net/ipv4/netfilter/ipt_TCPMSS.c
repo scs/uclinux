@@ -58,7 +58,11 @@ ipt_tcpmss_target(struct sk_buff **pskb,
 	unsigned int i;
 	u_int8_t *opt;
 
-	if (!skb_ip_make_writable(pskb, (*pskb)->len))
+	if (!skb_make_writable(pskb, (*pskb)->len))
+		return NF_DROP;
+
+	if ((*pskb)->ip_summed == CHECKSUM_HW &&
+	    skb_checksum_help(*pskb, out == NULL))
 		return NF_DROP;
 
 	iph = (*pskb)->nh.iph;
@@ -186,10 +190,6 @@ ipt_tcpmss_target(struct sk_buff **pskb,
 	       newmss);
 
  retmodified:
-	/* We never hw checksum SYN packets.  */
-	BUG_ON((*pskb)->ip_summed == CHECKSUM_HW);
-
-	(*pskb)->nfcache |= NFC_UNKNOWN | NFC_ALTERED;
 	return IPT_CONTINUE;
 }
 
@@ -210,12 +210,13 @@ static inline int find_syn_match(const struct ipt_entry_match *m)
 /* Must specify -p tcp --syn/--tcp-flags SYN */
 static int
 ipt_tcpmss_checkentry(const char *tablename,
-		      const struct ipt_entry *e,
+		      const void *e_void,
 		      void *targinfo,
 		      unsigned int targinfosize,
 		      unsigned int hook_mask)
 {
 	const struct ipt_tcpmss_info *tcpmssinfo = targinfo;
+	const struct ipt_entry *e = e_void;
 
 	if (targinfosize != IPT_ALIGN(sizeof(struct ipt_tcpmss_info))) {
 		DEBUGP("ipt_tcpmss_checkentry: targinfosize %u != %u\n",

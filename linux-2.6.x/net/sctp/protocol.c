@@ -54,6 +54,7 @@
 #include <net/protocol.h>
 #include <net/ip.h>
 #include <net/ipv6.h>
+#include <net/route.h>
 #include <net/sctp/sctp.h>
 #include <net/addrconf.h>
 #include <net/inet_common.h>
@@ -62,7 +63,7 @@
 /* Global data structures. */
 struct sctp_globals sctp_globals;
 struct proc_dir_entry	*proc_net_sctp;
-DEFINE_SNMP_STAT(struct sctp_mib, sctp_statistics);
+DEFINE_SNMP_STAT(struct sctp_mib, sctp_statistics) __read_mostly;
 
 struct idr sctp_assocs_id;
 DEFINE_SPINLOCK(sctp_assocs_id_lock);
@@ -78,8 +79,8 @@ static struct sctp_pf *sctp_pf_inet_specific;
 static struct sctp_af *sctp_af_v4_specific;
 static struct sctp_af *sctp_af_v6_specific;
 
-kmem_cache_t *sctp_chunk_cachep;
-kmem_cache_t *sctp_bucket_cachep;
+kmem_cache_t *sctp_chunk_cachep __read_mostly;
+kmem_cache_t *sctp_bucket_cachep __read_mostly;
 
 extern int sctp_snmp_proc_init(void);
 extern int sctp_snmp_proc_exit(void);
@@ -147,7 +148,7 @@ static void sctp_v4_copy_addrlist(struct list_head *addrlist,
 	struct sctp_sockaddr_entry *addr;
 
 	rcu_read_lock();
-	if ((in_dev = __in_dev_get(dev)) == NULL) {
+	if ((in_dev = __in_dev_get_rcu(dev)) == NULL) {
 		rcu_read_unlock();
 		return;
 	}
@@ -219,7 +220,7 @@ static void sctp_free_local_addr_list(void)
 
 /* Copy the local addresses which are valid for 'scope' into 'bp'.  */
 int sctp_copy_local_addr_list(struct sctp_bind_addr *bp, sctp_scope_t scope,
-			      int gfp, int copy_flags)
+			      gfp_t gfp, int copy_flags)
 {
 	struct sctp_sockaddr_entry *addr;
 	int error = 0;
@@ -530,6 +531,9 @@ static void sctp_v4_get_saddr(struct sctp_association *asoc,
 {
 	struct rtable *rt = (struct rtable *)dst;
 
+	if (!asoc)
+		return;
+
 	if (rt) {
 		saddr->v4.sin_family = AF_INET;
 		saddr->v4.sin_port = asoc->base.bind_addr.port;  
@@ -593,9 +597,7 @@ static struct sock *sctp_v4_create_accept_sk(struct sock *sk,
 	newinet->mc_index = 0;
 	newinet->mc_list = NULL;
 
-#ifdef INET_REFCNT_DEBUG
-	atomic_inc(&inet_sock_nr);
-#endif
+	sk_refcnt_debug_inc(newsk);
 
 	if (newsk->sk_prot->init(newsk)) {
 		sk_common_release(newsk);
@@ -828,7 +830,7 @@ static struct notifier_block sctp_inetaddr_notifier = {
 };
 
 /* Socket operations.  */
-static struct proto_ops inet_seqpacket_ops = {
+static const struct proto_ops inet_seqpacket_ops = {
 	.family      = PF_INET,
 	.owner       = THIS_MODULE,
 	.release     = inet_release,       /* Needs to be wrapped... */
@@ -1049,8 +1051,14 @@ SCTP_STATIC __init int sctp_init(void)
 	/* Sendbuffer growth	    - do per-socket accounting */
 	sctp_sndbuf_policy		= 0;
 
+	/* Rcvbuffer growth	    - do per-socket accounting */
+	sctp_rcvbuf_policy		= 0;
+
 	/* HB.interval              - 30 seconds */
-	sctp_hb_interval		= 30 * HZ;
+	sctp_hb_interval		= SCTP_DEFAULT_TIMEOUT_HEARTBEAT;
+
+	/* delayed SACK timeout */
+	sctp_sack_timeout		= SCTP_DEFAULT_TIMEOUT_SACK;
 
 	/* Implementation specific variables. */
 
@@ -1241,6 +1249,10 @@ SCTP_STATIC __exit void sctp_exit(void)
 module_init(sctp_init);
 module_exit(sctp_exit);
 
+/*
+ * __stringify doesn't likes enums, so use IPPROTO_SCTP value (132) directly.
+ */
+MODULE_ALIAS("net-pf-" __stringify(PF_INET) "-proto-132");
 MODULE_AUTHOR("Linux Kernel SCTP developers <lksctp-developers@lists.sourceforge.net>");
 MODULE_DESCRIPTION("Support for the SCTP protocol (RFC2960)");
 MODULE_LICENSE("GPL");

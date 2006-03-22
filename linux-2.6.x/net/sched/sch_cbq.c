@@ -257,7 +257,7 @@ cbq_classify(struct sk_buff *skb, struct Qdisc *sch, int *qerr)
 	    (cl = cbq_class_lookup(q, prio)) != NULL)
 		return cl;
 
-	*qerr = NET_XMIT_DROP;
+	*qerr = NET_XMIT_BYPASS;
 	for (;;) {
 		int result = 0;
 		defmap = head->defaults;
@@ -413,7 +413,7 @@ cbq_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 	q->rx_class = cl;
 #endif
 	if (cl == NULL) {
-		if (ret == NET_XMIT_DROP)
+		if (ret == NET_XMIT_BYPASS)
 			sch->qstats.drops++;
 		kfree_skb(skb);
 		return ret;
@@ -1528,6 +1528,7 @@ static __inline__ int cbq_dump_ovl(struct sk_buff *skb, struct cbq_class *cl)
 
 	opt.strategy = cl->ovl_strategy;
 	opt.priority2 = cl->priority2+1;
+	opt.pad = 0;
 	opt.penalty = (cl->penalty*1000)/HZ;
 	RTA_PUT(skb, TCA_CBQ_OVL_STRATEGY, sizeof(opt), &opt);
 	return skb->len;
@@ -1563,6 +1564,8 @@ static __inline__ int cbq_dump_police(struct sk_buff *skb, struct cbq_class *cl)
 
 	if (cl->police) {
 		opt.police = cl->police;
+		opt.__res1 = 0;
+		opt.__res2 = 0;
 		RTA_PUT(skb, TCA_CBQ_POLICE, sizeof(opt), &opt);
 	}
 	return skb->len;

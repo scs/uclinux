@@ -106,11 +106,12 @@ static struct
 	}
 };
 
-static struct ip6t_table packet_raw = { 
+static struct xt_table packet_raw = { 
 	.name = "raw", 
 	.valid_hooks = RAW_VALID_HOOKS, 
 	.lock = RW_LOCK_UNLOCKED, 
-	.me = THIS_MODULE
+	.me = THIS_MODULE,
+	.af = AF_INET6,
 };
 
 /* The work comes in here from netfilter.c. */
@@ -129,13 +130,15 @@ static struct nf_hook_ops ip6t_ops[] = {
 	  .hook = ip6t_hook, 
 	  .pf = PF_INET6,
 	  .hooknum = NF_IP6_PRE_ROUTING,
-	  .priority = NF_IP6_PRI_FIRST
+	  .priority = NF_IP6_PRI_FIRST,
+	  .owner = THIS_MODULE,
 	},
 	{
 	  .hook = ip6t_hook, 
 	  .pf = PF_INET6, 
 	  .hooknum = NF_IP6_LOCAL_OUT,
-	  .priority = NF_IP6_PRI_FIRST
+	  .priority = NF_IP6_PRI_FIRST,
+	  .owner = THIS_MODULE,
 	},
 };
 

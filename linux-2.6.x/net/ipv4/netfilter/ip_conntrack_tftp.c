@@ -26,9 +26,9 @@ MODULE_DESCRIPTION("tftp connection tracking helper");
 MODULE_LICENSE("GPL");
 
 #define MAX_PORTS 8
-static int ports[MAX_PORTS];
+static unsigned short ports[MAX_PORTS];
 static int ports_c;
-module_param_array(ports, int, &ports_c, 0400);
+module_param_array(ports, ushort, &ports_c, 0400);
 MODULE_PARM_DESC(ports, "port numbers of tftp servers");
 
 #if 0
@@ -65,27 +65,27 @@ static int tftp_help(struct sk_buff **pskb,
 		DUMP_TUPLE(&ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple);
 		DUMP_TUPLE(&ct->tuplehash[IP_CT_DIR_REPLY].tuple);
 
-		exp = ip_conntrack_expect_alloc();
+		exp = ip_conntrack_expect_alloc(ct);
 		if (exp == NULL)
 			return NF_DROP;
 
 		exp->tuple = ct->tuplehash[IP_CT_DIR_REPLY].tuple;
 		exp->mask.src.ip = 0xffffffff;
+		exp->mask.src.u.udp.port = 0;
 		exp->mask.dst.ip = 0xffffffff;
 		exp->mask.dst.u.udp.port = 0xffff;
 		exp->mask.dst.protonum = 0xff;
 		exp->expectfn = NULL;
-		exp->master = ct;
+		exp->flags = 0;
 
 		DEBUGP("expect: ");
 		DUMP_TUPLE(&exp->tuple);
 		DUMP_TUPLE(&exp->mask);
 		if (ip_nat_tftp_hook)
 			ret = ip_nat_tftp_hook(pskb, ctinfo, exp);
-		else if (ip_conntrack_expect_related(exp) != 0) {
-			ip_conntrack_expect_free(exp);
+		else if (ip_conntrack_expect_related(exp) != 0)
 			ret = NF_DROP;
-		}
+		ip_conntrack_expect_put(exp);
 		break;
 	case TFTP_OPCODE_DATA:
 	case TFTP_OPCODE_ACK:
@@ -101,7 +101,7 @@ static int tftp_help(struct sk_buff **pskb,
 }
 
 static struct ip_conntrack_helper tftp[MAX_PORTS];
-static char tftp_names[MAX_PORTS][10];
+static char tftp_names[MAX_PORTS][sizeof("tftp-65535")];
 
 static void fini(void)
 {

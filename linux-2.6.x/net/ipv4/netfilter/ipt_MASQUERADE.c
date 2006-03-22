@@ -11,6 +11,7 @@
 
 #include <linux/config.h>
 #include <linux/types.h>
+#include <linux/inetdevice.h>
 #include <linux/ip.h>
 #include <linux/timer.h>
 #include <linux/module.h>
@@ -18,6 +19,7 @@
 #include <net/protocol.h>
 #include <net/ip.h>
 #include <net/checksum.h>
+#include <net/route.h>
 #include <linux/netfilter_ipv4.h>
 #include <linux/netfilter_ipv4/ip_nat_rule.h>
 #include <linux/netfilter_ipv4/ip_tables.h>
@@ -33,12 +35,12 @@ MODULE_DESCRIPTION("iptables MASQUERADE target module");
 #endif
 
 /* Lock protects masq region inside conntrack */
-static DECLARE_RWLOCK(masq_lock);
+static DEFINE_RWLOCK(masq_lock);
 
 /* FIXME: Multiple targets. --RR */
 static int
 masquerade_check(const char *tablename,
-		 const struct ipt_entry *e,
+		 const void *e,
 		 void *targinfo,
 		 unsigned int targinfosize,
 		 unsigned int hook_mask)
@@ -86,14 +88,15 @@ masquerade_target(struct sk_buff **pskb,
 
 	IP_NF_ASSERT(hooknum == NF_IP_POST_ROUTING);
 
-	/* FIXME: For the moment, don't do local packets, breaks
-	   testsuite for 2.3.49 --RR */
-	if ((*pskb)->sk)
-		return NF_ACCEPT;
-
 	ct = ip_conntrack_get(*pskb, &ctinfo);
 	IP_NF_ASSERT(ct && (ctinfo == IP_CT_NEW || ctinfo == IP_CT_RELATED
 	                    || ctinfo == IP_CT_RELATED + IP_CT_IS_REPLY));
+
+	/* Source address is 0.0.0.0 - locally generated packet that is
+	 * probably not supposed to be masqueraded.
+	 */
+	if (ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.src.ip == 0)
+		return NF_ACCEPT;
 
 	mr = targinfo;
 	rt = (struct rtable *)(*pskb)->dst;
@@ -103,9 +106,9 @@ masquerade_target(struct sk_buff **pskb,
 		return NF_DROP;
 	}
 
-	WRITE_LOCK(&masq_lock);
+	write_lock_bh(&masq_lock);
 	ct->nat.masq_index = out->ifindex;
-	WRITE_UNLOCK(&masq_lock);
+	write_unlock_bh(&masq_lock);
 
 	/* Transfer from original range. */
 	newrange = ((struct ip_nat_range)
@@ -122,9 +125,9 @@ device_cmp(struct ip_conntrack *i, void *ifindex)
 {
 	int ret;
 
-	READ_LOCK(&masq_lock);
+	read_lock_bh(&masq_lock);
 	ret = (i->nat.masq_index == (int)(long)ifindex);
-	READ_UNLOCK(&masq_lock);
+	read_unlock_bh(&masq_lock);
 
 	return ret;
 }

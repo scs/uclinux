@@ -44,6 +44,7 @@
  *
  */
 #include <linux/config.h>
+#include <linux/in.h>
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
@@ -53,6 +54,7 @@
 #include <linux/netfilter_ipv4/ip_conntrack_helper.h>
 #include <linux/netfilter_ipv4/ip_nat_helper.h>
 #include <linux/ip.h>
+#include <linux/udp.h>
 #include <net/checksum.h>
 #include <net/udp.h>
 #include <asm/uaccess.h>
@@ -1161,8 +1163,7 @@ static int snmp_parse_mangle(unsigned char *msg,
 		
 		if (!snmp_object_decode(&ctx, obj)) {
 			if (*obj) {
-				if ((*obj)->id)
-					kfree((*obj)->id);
+				kfree((*obj)->id);
 				kfree(*obj);
 			}	
 			kfree(obj);
@@ -1275,7 +1276,7 @@ static int help(struct sk_buff **pskb,
 		 return NF_DROP;
 	}
 
-	if (!skb_ip_make_writable(pskb, (*pskb)->len))
+	if (!skb_make_writable(pskb, (*pskb)->len))
 		return NF_DROP;
 
 	spin_lock_bh(&snmp_lock);

@@ -36,6 +36,11 @@
  *	Michal Ostrowski        :       Module initialization cleanup.
  *         Ulises Alonso        :       Frame number limit removal and 
  *                                      packet_set_ring memory leak.
+ *		Eric Biederman	:	Allow for > 8 byte hardware addresses.
+ *					The convention is that longer addresses
+ *					will simply extend the hardware address
+ *					byte arrays at the end of sockaddr_ll 
+ *					and packet_mreq.
  *
  *		This program is free software; you can redistribute it and/or
  *		modify it under the terms of the GNU General Public License
@@ -48,6 +53,7 @@
 #include <linux/types.h>
 #include <linux/sched.h>
 #include <linux/mm.h>
+#include <linux/capability.h>
 #include <linux/fcntl.h>
 #include <linux/socket.h>
 #include <linux/in.h>
@@ -161,7 +167,17 @@ struct packet_mclist
 	int			count;
 	unsigned short		type;
 	unsigned short		alen;
-	unsigned char		addr[8];
+	unsigned char		addr[MAX_ADDR_LEN];
+};
+/* identical to struct packet_mreq except it has
+ * a longer address field.
+ */
+struct packet_mreq_max
+{
+	int		mr_ifindex;
+	unsigned short	mr_type;
+	unsigned short	mr_alen;
+	unsigned char	mr_address[MAX_ADDR_LEN];
 };
 #endif
 #ifdef CONFIG_PACKET_MMAP
@@ -236,12 +252,12 @@ static void packet_sock_destruct(struct sock *sk)
 }
 
 
-static struct proto_ops packet_ops;
+static const struct proto_ops packet_ops;
 
 #ifdef CONFIG_SOCK_PACKET
-static struct proto_ops packet_ops_spkt;
+static const struct proto_ops packet_ops_spkt;
 
-static int packet_rcv_spkt(struct sk_buff *skb, struct net_device *dev,  struct packet_type *pt)
+static int packet_rcv_spkt(struct sk_buff *skb, struct net_device *dev,  struct packet_type *pt, struct net_device *orig_dev)
 {
 	struct sock *sk;
 	struct sockaddr_pkt *spkt;
@@ -273,6 +289,9 @@ static int packet_rcv_spkt(struct sk_buff *skb, struct net_device *dev,  struct 
 	/* drop any routing info */
 	dst_release(skb->dst);
 	skb->dst = NULL;
+
+	/* drop conntrack reference */
+	nf_reset(skb);
 
 	spkt = (struct sockaddr_pkt*)skb->cb;
 
@@ -346,7 +365,7 @@ static int packet_sendmsg_spkt(struct kiocb *iocb, struct socket *sock,
 	 */
 	 
 	err = -EMSGSIZE;
- 	if(len>dev->mtu+dev->hard_header_len)
+	if (len > dev->mtu + dev->hard_header_len)
 		goto out_unlock;
 
 	err = -ENOBUFS;
@@ -438,7 +457,7 @@ static inline unsigned run_filter(struct sk_buff *skb, struct sock *sk, unsigned
    we will not harm anyone.
  */
 
-static int packet_rcv(struct sk_buff *skb, struct net_device *dev,  struct packet_type *pt)
+static int packet_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt, struct net_device *orig_dev)
 {
 	struct sock *sk;
 	struct sockaddr_ll *sll;
@@ -517,6 +536,9 @@ static int packet_rcv(struct sk_buff *skb, struct net_device *dev,  struct packe
 	dst_release(skb->dst);
 	skb->dst = NULL;
 
+	/* drop conntrack reference */
+	nf_reset(skb);
+
 	spin_lock(&sk->sk_receive_queue.lock);
 	po->stats.tp_packets++;
 	__skb_queue_tail(&sk->sk_receive_queue, skb);
@@ -540,7 +562,7 @@ drop:
 }
 
 #ifdef CONFIG_PACKET_MMAP
-static int tpacket_rcv(struct sk_buff *skb, struct net_device *dev,  struct packet_type *pt)
+static int tpacket_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt, struct net_device *orig_dev)
 {
 	struct sock *sk;
 	struct packet_sock *po;
@@ -629,12 +651,12 @@ static int tpacket_rcv(struct sk_buff *skb, struct net_device *dev,  struct pack
 	h->tp_snaplen = snaplen;
 	h->tp_mac = macoff;
 	h->tp_net = netoff;
-	if (skb->stamp.tv_sec == 0) { 
-		do_gettimeofday(&skb->stamp);
+	if (skb->tstamp.off_sec == 0) { 
+		__net_timestamp(skb);
 		sock_enable_timestamp(sk);
 	}
-	h->tp_sec = skb->stamp.tv_sec;
-	h->tp_usec = skb->stamp.tv_usec;
+	h->tp_sec = skb->tstamp.off_sec;
+	h->tp_usec = skb->tstamp.off_usec;
 
 	sll = (struct sockaddr_ll*)((u8*)h + TPACKET_ALIGN(sizeof(*h)));
 	sll->sll_halen = 0;
@@ -709,6 +731,8 @@ static int packet_sendmsg(struct kiocb *iocb, struct socket *sock,
 	} else {
 		err = -EINVAL;
 		if (msg->msg_namelen < sizeof(struct sockaddr_ll))
+			goto out;
+		if (msg->msg_namelen < (saddr->sll_halen + offsetof(struct sockaddr_ll, sll_addr)))
 			goto out;
 		ifindex	= saddr->sll_ifindex;
 		proto	= saddr->sll_protocol;
@@ -911,7 +935,7 @@ static int packet_bind_spkt(struct socket *sock, struct sockaddr *uaddr, int add
 	 *	Check legality
 	 */
 	 
-	if(addr_len!=sizeof(struct sockaddr))
+	if (addr_len != sizeof(struct sockaddr))
 		return -EINVAL;
 	strlcpy(name,uaddr->sa_data,sizeof(name));
 
@@ -1039,6 +1063,7 @@ static int packet_recvmsg(struct kiocb *iocb, struct socket *sock,
 	struct sock *sk = sock->sk;
 	struct sk_buff *skb;
 	int copied, err;
+	struct sockaddr_ll *sll;
 
 	err = -EINVAL;
 	if (flags & ~(MSG_PEEK|MSG_DONTWAIT|MSG_TRUNC|MSG_CMSG_COMPAT))
@@ -1049,16 +1074,6 @@ static int packet_recvmsg(struct kiocb *iocb, struct socket *sock,
 	if (pkt_sk(sk)->ifindex < 0)
 		return -ENODEV;
 #endif
-
-	/*
-	 *	If the address length field is there to be filled in, we fill
-	 *	it in now.
-	 */
-
-	if (sock->type == SOCK_PACKET)
-		msg->msg_namelen = sizeof(struct sockaddr_pkt);
-	else
-		msg->msg_namelen = sizeof(struct sockaddr_ll);
 
 	/*
 	 *	Call the generic datagram receiver. This handles all sorts
@@ -1077,8 +1092,19 @@ static int packet_recvmsg(struct kiocb *iocb, struct socket *sock,
 	 *	retries.
 	 */
 
-	if(skb==NULL)
+	if (skb == NULL)
 		goto out;
+
+	/*
+	 *	If the address length field is there to be filled in, we fill
+	 *	it in now.
+	 */
+
+	sll = (struct sockaddr_ll*)skb->cb;
+	if (sock->type == SOCK_PACKET)
+		msg->msg_namelen = sizeof(struct sockaddr_pkt);
+	else
+		msg->msg_namelen = sll->sll_halen + offsetof(struct sockaddr_ll, sll_addr);
 
 	/*
 	 *	You lose any data beyond the buffer you gave. If it worries a
@@ -1160,7 +1186,7 @@ static int packet_getname(struct socket *sock, struct sockaddr *uaddr,
 		sll->sll_hatype = 0;	/* Bad: we have no ARPHRD_UNSPEC */
 		sll->sll_halen = 0;
 	}
-	*uaddr_len = sizeof(*sll);
+	*uaddr_len = offsetof(struct sockaddr_ll, sll_addr) + sll->sll_halen;
 
 	return 0;
 }
@@ -1193,7 +1219,7 @@ static void packet_dev_mclist(struct net_device *dev, struct packet_mclist *i, i
 	}
 }
 
-static int packet_mc_add(struct sock *sk, struct packet_mreq *mreq)
+static int packet_mc_add(struct sock *sk, struct packet_mreq_max *mreq)
 {
 	struct packet_sock *po = pkt_sk(sk);
 	struct packet_mclist *ml, *i;
@@ -1212,7 +1238,7 @@ static int packet_mc_add(struct sock *sk, struct packet_mreq *mreq)
 		goto done;
 
 	err = -ENOBUFS;
-	i = (struct packet_mclist *)kmalloc(sizeof(*i), GFP_KERNEL);
+	i = kmalloc(sizeof(*i), GFP_KERNEL);
 	if (i == NULL)
 		goto done;
 
@@ -1243,7 +1269,7 @@ done:
 	return err;
 }
 
-static int packet_mc_drop(struct sock *sk, struct packet_mreq *mreq)
+static int packet_mc_drop(struct sock *sk, struct packet_mreq_max *mreq)
 {
 	struct packet_mclist *ml, **mlp;
 
@@ -1309,11 +1335,17 @@ packet_setsockopt(struct socket *sock, int level, int optname, char __user *optv
 	case PACKET_ADD_MEMBERSHIP:	
 	case PACKET_DROP_MEMBERSHIP:
 	{
-		struct packet_mreq mreq;
-		if (optlen<sizeof(mreq))
+		struct packet_mreq_max mreq;
+		int len = optlen;
+		memset(&mreq, 0, sizeof(mreq));
+		if (len < sizeof(struct packet_mreq))
 			return -EINVAL;
-		if (copy_from_user(&mreq,optval,sizeof(mreq)))
+		if (len > sizeof(mreq))
+			len = sizeof(mreq);
+		if (copy_from_user(&mreq,optval,len))
 			return -EFAULT;
+		if (len < (mreq.mr_alen + offsetof(struct packet_mreq, mr_address)))
+			return -EINVAL;
 		if (optname == PACKET_ADD_MEMBERSHIP)
 			ret = packet_mc_add(sk, &mreq);
 		else
@@ -1360,8 +1392,8 @@ static int packet_getsockopt(struct socket *sock, int level, int optname,
 	if (level != SOL_PACKET)
 		return -ENOPROTOOPT;
 
-  	if (get_user(len,optlen))
-  		return -EFAULT;
+	if (get_user(len, optlen))
+		return -EFAULT;
 
 	if (len < 0)
 		return -EINVAL;
@@ -1387,9 +1419,9 @@ static int packet_getsockopt(struct socket *sock, int level, int optname,
 		return -ENOPROTOOPT;
 	}
 
-  	if (put_user(len, optlen))
-  		return -EFAULT;
-  	return 0;
+	if (put_user(len, optlen))
+		return -EFAULT;
+	return 0;
 }
 
 
@@ -1490,7 +1522,7 @@ static int packet_ioctl(struct socket *sock, unsigned int cmd,
 #endif
 
 		default:
-			return dev_ioctl(cmd, (void __user *)arg);
+			return -ENOIOCTLCMD;
 	}
 	return 0;
 }
@@ -1529,8 +1561,7 @@ static unsigned int packet_poll(struct file * file, struct socket *sock,
 static void packet_mm_open(struct vm_area_struct *vma)
 {
 	struct file *file = vma->vm_file;
-	struct inode *inode = file->f_dentry->d_inode;
-	struct socket * sock = SOCKET_I(inode);
+	struct socket * sock = file->private_data;
 	struct sock *sk = sock->sk;
 	
 	if (sk)
@@ -1540,8 +1571,7 @@ static void packet_mm_open(struct vm_area_struct *vma)
 static void packet_mm_close(struct vm_area_struct *vma)
 {
 	struct file *file = vma->vm_file;
-	struct inode *inode = file->f_dentry->d_inode;
-	struct socket * sock = SOCKET_I(inode);
+	struct socket * sock = file->private_data;
 	struct sock *sk = sock->sk;
 	
 	if (sk)
@@ -1558,23 +1588,47 @@ static inline struct page *pg_vec_endpage(char *one_pg_vec, unsigned int order)
 	return virt_to_page(one_pg_vec + (PAGE_SIZE << order) - 1);
 }
 
-static void free_pg_vec(char **pg_vec, unsigned order, unsigned len)
+static void free_pg_vec(char **pg_vec, unsigned int order, unsigned int len)
 {
 	int i;
 
-	for (i=0; i<len; i++) {
-		if (pg_vec[i]) {
-			struct page *page, *pend;
-
-			pend = pg_vec_endpage(pg_vec[i], order);
-			for (page = virt_to_page(pg_vec[i]); page <= pend; page++)
-				ClearPageReserved(page);
-			free_pages((unsigned long)pg_vec[i], order);
-		}
+	for (i = 0; i < len; i++) {
+		if (likely(pg_vec[i]))
+			free_pages((unsigned long) pg_vec[i], order);
 	}
 	kfree(pg_vec);
 }
 
+static inline char *alloc_one_pg_vec_page(unsigned long order)
+{
+	return (char *) __get_free_pages(GFP_KERNEL | __GFP_COMP | __GFP_ZERO,
+					 order);
+}
+
+static char **alloc_pg_vec(struct tpacket_req *req, int order)
+{
+	unsigned int block_nr = req->tp_block_nr;
+	char **pg_vec;
+	int i;
+
+	pg_vec = kzalloc(block_nr * sizeof(char *), GFP_KERNEL);
+	if (unlikely(!pg_vec))
+		goto out;
+
+	for (i = 0; i < block_nr; i++) {
+		pg_vec[i] = alloc_one_pg_vec_page(order);
+		if (unlikely(!pg_vec[i]))
+			goto out_free_pgvec;
+	}
+
+out:
+	return pg_vec;
+
+out_free_pgvec:
+	free_pg_vec(pg_vec, order, block_nr);
+	pg_vec = NULL;
+	goto out;
+}
 
 static int packet_set_ring(struct sock *sk, struct tpacket_req *req, int closing)
 {
@@ -1588,64 +1642,46 @@ static int packet_set_ring(struct sock *sk, struct tpacket_req *req, int closing
 
 		/* Sanity tests and some calculations */
 
-		if (po->pg_vec)
+		if (unlikely(po->pg_vec))
 			return -EBUSY;
 
-		if ((int)req->tp_block_size <= 0)
+		if (unlikely((int)req->tp_block_size <= 0))
 			return -EINVAL;
-		if (req->tp_block_size&(PAGE_SIZE-1))
+		if (unlikely(req->tp_block_size & (PAGE_SIZE - 1)))
 			return -EINVAL;
-		if (req->tp_frame_size < TPACKET_HDRLEN)
+		if (unlikely(req->tp_frame_size < TPACKET_HDRLEN))
 			return -EINVAL;
-		if (req->tp_frame_size&(TPACKET_ALIGNMENT-1))
+		if (unlikely(req->tp_frame_size & (TPACKET_ALIGNMENT - 1)))
 			return -EINVAL;
 
 		po->frames_per_block = req->tp_block_size/req->tp_frame_size;
-		if (po->frames_per_block <= 0)
+		if (unlikely(po->frames_per_block <= 0))
 			return -EINVAL;
-		if (po->frames_per_block*req->tp_block_nr != req->tp_frame_nr)
+		if (unlikely((po->frames_per_block * req->tp_block_nr) !=
+			     req->tp_frame_nr))
 			return -EINVAL;
-		/* OK! */
-
-		/* Allocate page vector */
-		while ((PAGE_SIZE<<order) < req->tp_block_size)
-			order++;
 
 		err = -ENOMEM;
-
-		pg_vec = kmalloc(req->tp_block_nr*sizeof(char *), GFP_KERNEL);
-		if (pg_vec == NULL)
+		order = get_order(req->tp_block_size);
+		pg_vec = alloc_pg_vec(req, order);
+		if (unlikely(!pg_vec))
 			goto out;
-		memset(pg_vec, 0, req->tp_block_nr*sizeof(char **));
-
-		for (i=0; i<req->tp_block_nr; i++) {
-			struct page *page, *pend;
-			pg_vec[i] = (char *)__get_free_pages(GFP_KERNEL, order);
-			if (!pg_vec[i])
-				goto out_free_pgvec;
-
-			pend = pg_vec_endpage(pg_vec[i], order);
-			for (page = virt_to_page(pg_vec[i]); page <= pend; page++)
-				SetPageReserved(page);
-		}
-		/* Page vector is allocated */
 
 		l = 0;
-		for (i=0; i<req->tp_block_nr; i++) {
+		for (i = 0; i < req->tp_block_nr; i++) {
 			char *ptr = pg_vec[i];
 			struct tpacket_hdr *header;
 			int k;
 
-			for (k=0; k<po->frames_per_block; k++) {
-				
-				header = (struct tpacket_hdr*)ptr;
+			for (k = 0; k < po->frames_per_block; k++) {
+				header = (struct tpacket_hdr *) ptr;
 				header->tp_status = TP_STATUS_KERNEL;
 				ptr += req->tp_frame_size;
 			}
 		}
 		/* Done */
 	} else {
-		if (req->tp_frame_nr)
+		if (unlikely(req->tp_frame_nr))
 			return -EINVAL;
 	}
 
@@ -1672,7 +1708,7 @@ static int packet_set_ring(struct sock *sk, struct tpacket_req *req, int closing
 
 		spin_lock_bh(&sk->sk_receive_queue.lock);
 		pg_vec = XC(po->pg_vec, pg_vec);
-		po->frame_max = req->tp_frame_nr-1;
+		po->frame_max = (req->tp_frame_nr - 1);
 		po->head = 0;
 		po->frame_size = req->tp_frame_size;
 		spin_unlock_bh(&sk->sk_receive_queue.lock);
@@ -1699,7 +1735,6 @@ static int packet_set_ring(struct sock *sk, struct tpacket_req *req, int closing
 
 	release_sock(sk);
 
-out_free_pgvec:
 	if (pg_vec)
 		free_pg_vec(pg_vec, order, req->tp_block_nr);
 out:
@@ -1726,17 +1761,19 @@ static int packet_mmap(struct file *file, struct socket *sock, struct vm_area_st
 	if (size != po->pg_vec_len*po->pg_vec_pages*PAGE_SIZE)
 		goto out;
 
-	atomic_inc(&po->mapped);
 	start = vma->vm_start;
-	err = -EAGAIN;
-	for (i=0; i<po->pg_vec_len; i++) {
-		if (remap_pfn_range(vma, start,
-				     __pa(po->pg_vec[i]) >> PAGE_SHIFT,
-				     po->pg_vec_pages*PAGE_SIZE,
-				     vma->vm_page_prot))
-			goto out;
-		start += po->pg_vec_pages*PAGE_SIZE;
+	for (i = 0; i < po->pg_vec_len; i++) {
+		struct page *page = virt_to_page(po->pg_vec[i]);
+		int pg_num;
+
+		for (pg_num = 0; pg_num < po->pg_vec_pages; pg_num++, page++) {
+			err = vm_insert_page(vma, start, page);
+			if (unlikely(err))
+				goto out;
+			start += PAGE_SIZE;
+		}
 	}
+	atomic_inc(&po->mapped);
 	vma->vm_ops = &packet_mmap_ops;
 	err = 0;
 
@@ -1748,7 +1785,7 @@ out:
 
 
 #ifdef CONFIG_SOCK_PACKET
-static struct proto_ops packet_ops_spkt = {
+static const struct proto_ops packet_ops_spkt = {
 	.family =	PF_PACKET,
 	.owner =	THIS_MODULE,
 	.release =	packet_release,
@@ -1770,7 +1807,7 @@ static struct proto_ops packet_ops_spkt = {
 };
 #endif
 
-static struct proto_ops packet_ops = {
+static const struct proto_ops packet_ops = {
 	.family =	PF_PACKET,
 	.owner =	THIS_MODULE,
 	.release =	packet_release,

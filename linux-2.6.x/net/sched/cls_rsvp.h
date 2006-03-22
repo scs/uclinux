@@ -555,8 +555,7 @@ insert:
 	goto insert;
 
 errout:
-	if (f)
-		kfree(f);
+	kfree(f);
 errout2:
 	tcf_exts_destroy(tp, &e);
 	return err;
@@ -618,6 +617,7 @@ static int rsvp_dump(struct tcf_proto *tp, unsigned long fh,
 	pinfo.protocol = s->protocol;
 	pinfo.tunnelid = s->tunnelid;
 	pinfo.tunnelhdr = f->tunnelhdr;
+	pinfo.pad = 0;
 	RTA_PUT(skb, TCA_RSVP_PINFO, sizeof(pinfo), &pinfo);
 	if (f->res.classid)
 		RTA_PUT(skb, TCA_RSVP_CLASSID, 4, &f->res.classid);
