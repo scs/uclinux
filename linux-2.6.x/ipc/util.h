@@ -2,7 +2,7 @@
  * linux/ipc/util.h
  * Copyright (C) 1999 Christoph Rohland
  *
- * ipc helper functions (c) 1999 Manfred Spraul <manfreds@colorfullife.com>
+ * ipc helper functions (c) 1999 Manfred Spraul <manfred@colorfullife.com>
  */
 
 #ifndef _IPC_UTIL_H
@@ -30,7 +30,15 @@ struct ipc_ids {
 	struct ipc_id_ary* entries;
 };
 
+struct seq_file;
 void __init ipc_init_ids(struct ipc_ids* ids, int size);
+#ifdef CONFIG_PROC_FS
+void __init ipc_init_proc_interface(const char *path, const char *header,
+				    struct ipc_ids *ids,
+				    int (*show)(struct seq_file *, void *));
+#else
+#define ipc_init_proc_interface(path, header, ids, show) do {} while (0)
+#endif
 
 /* must be called with ids->sem acquired.*/
 int ipc_findkey(struct ipc_ids* ids, key_t key);
@@ -67,7 +75,7 @@ int ipc_checkid(struct ipc_ids* ids, struct kern_ipc_perm* ipcp, int uid);
 void kernel_to_ipc64_perm(struct kern_ipc_perm *in, struct ipc64_perm *out);
 void ipc64_perm_to_ipc_perm(struct ipc64_perm *in, struct ipc_perm *out);
 
-#if defined(__ia64__) || defined(__x86_64__) || defined(__hppa__)
+#if defined(__ia64__) || defined(__x86_64__) || defined(__hppa__) || defined(__XTENSA__)
   /* On IA-64, we always use the "64-bit version" of the IPC structures.  */ 
 # define ipc_parse_version(cmd)	IPC_64
 #else

@@ -16,7 +16,10 @@
 #include <linux/init.h>
 #include <linux/highuid.h>
 #include <linux/fs.h>
+#include <linux/kernel.h>
+#include <linux/kexec.h>
 #include <linux/workqueue.h>
+#include <linux/capability.h>
 #include <linux/device.h>
 #include <linux/key.h>
 #include <linux/times.h>
@@ -26,9 +29,11 @@
 #include <linux/suspend.h>
 #include <linux/tty.h>
 #include <linux/signal.h>
+#include <linux/cn_proc.h>
 
 #include <linux/compat.h>
 #include <linux/syscalls.h>
+#include <linux/kprobes.h>
 
 #include <asm/uaccess.h>
 #include <asm/io.h>
@@ -165,7 +170,7 @@ EXPORT_SYMBOL(notifier_chain_unregister);
  *	of the last notifier function called.
  */
  
-int notifier_call_chain(struct notifier_block **n, unsigned long val, void *v)
+int __kprobes notifier_call_chain(struct notifier_block **n, unsigned long val, void *v)
 {
 	int ret=NOTIFY_DONE;
 	struct notifier_block *nb = *n;
@@ -218,6 +223,18 @@ int unregister_reboot_notifier(struct notifier_block * nb)
 }
 
 EXPORT_SYMBOL(unregister_reboot_notifier);
+
+#ifndef CONFIG_SECURITY
+int capable(int cap)
+{
+        if (cap_raised(current->cap_effective, cap)) {
+	       current->flags |= PF_SUPERPRIV;
+	       return 1;
+        }
+        return 0;
+}
+EXPORT_SYMBOL(capable);
+#endif
 
 static int set_one_prio(struct task_struct *p, int niceval, int error)
 {
@@ -359,7 +376,103 @@ out_unlock:
 	return retval;
 }
 
+/**
+ *	emergency_restart - reboot the system
+ *
+ *	Without shutting down any hardware or taking any locks
+ *	reboot the system.  This is called when we know we are in
+ *	trouble so this is our best effort to reboot.  This is
+ *	safe to call in interrupt context.
+ */
+void emergency_restart(void)
+{
+	machine_emergency_restart();
+}
+EXPORT_SYMBOL_GPL(emergency_restart);
 
+void kernel_restart_prepare(char *cmd)
+{
+	notifier_call_chain(&reboot_notifier_list, SYS_RESTART, cmd);
+	system_state = SYSTEM_RESTART;
+	device_shutdown();
+}
+
+/**
+ *	kernel_restart - reboot the system
+ *	@cmd: pointer to buffer containing command to execute for restart
+ *		or %NULL
+ *
+ *	Shutdown everything and perform a clean reboot.
+ *	This is not safe to call in interrupt context.
+ */
+void kernel_restart(char *cmd)
+{
+	kernel_restart_prepare(cmd);
+	if (!cmd) {
+		printk(KERN_EMERG "Restarting system.\n");
+	} else {
+		printk(KERN_EMERG "Restarting system with command '%s'.\n", cmd);
+	}
+	printk(".\n");
+	machine_restart(cmd);
+}
+EXPORT_SYMBOL_GPL(kernel_restart);
+
+/**
+ *	kernel_kexec - reboot the system
+ *
+ *	Move into place and start executing a preloaded standalone
+ *	executable.  If nothing was preloaded return an error.
+ */
+void kernel_kexec(void)
+{
+#ifdef CONFIG_KEXEC
+	struct kimage *image;
+	image = xchg(&kexec_image, NULL);
+	if (!image) {
+		return;
+	}
+	kernel_restart_prepare(NULL);
+	printk(KERN_EMERG "Starting new kernel\n");
+	machine_shutdown();
+	machine_kexec(image);
+#endif
+}
+EXPORT_SYMBOL_GPL(kernel_kexec);
+
+void kernel_shutdown_prepare(enum system_states state)
+{
+	notifier_call_chain(&reboot_notifier_list,
+		(state == SYSTEM_HALT)?SYS_HALT:SYS_POWER_OFF, NULL);
+	system_state = state;
+	device_shutdown();
+}
+/**
+ *	kernel_halt - halt the system
+ *
+ *	Shutdown everything and perform a clean system halt.
+ */
+void kernel_halt(void)
+{
+	kernel_shutdown_prepare(SYSTEM_HALT);
+	printk(KERN_EMERG "System halted.\n");
+	machine_halt();
+}
+
+EXPORT_SYMBOL_GPL(kernel_halt);
+
+/**
+ *	kernel_power_off - power_off the system
+ *
+ *	Shutdown everything and perform a clean system power_off.
+ */
+void kernel_power_off(void)
+{
+	kernel_shutdown_prepare(SYSTEM_POWER_OFF);
+	printk(KERN_EMERG "Power down.\n");
+	machine_power_off();
+}
+EXPORT_SYMBOL_GPL(kernel_power_off);
 /*
  * Reboot system call: for obvious reasons only root may call it,
  * and even root needs to set up some magic numbers in the registers
@@ -384,14 +497,16 @@ asmlinkage long sys_reboot(int magic1, int magic2, unsigned int cmd, void __user
 	                magic2 != LINUX_REBOOT_MAGIC2C))
 		return -EINVAL;
 
+	/* Instead of trying to make the power_off code look like
+	 * halt when pm_power_off is not set do it the easy way.
+	 */
+	if ((cmd == LINUX_REBOOT_CMD_POWER_OFF) && !pm_power_off)
+		cmd = LINUX_REBOOT_CMD_HALT;
+
 	lock_kernel();
 	switch (cmd) {
 	case LINUX_REBOOT_CMD_RESTART:
-		notifier_call_chain(&reboot_notifier_list, SYS_RESTART, NULL);
-		system_state = SYSTEM_RESTART;
-		device_shutdown();
-		printk(KERN_EMERG "Restarting system.\n");
-		machine_restart(NULL);
+		kernel_restart(NULL);
 		break;
 
 	case LINUX_REBOOT_CMD_CAD_ON:
@@ -403,21 +518,13 @@ asmlinkage long sys_reboot(int magic1, int magic2, unsigned int cmd, void __user
 		break;
 
 	case LINUX_REBOOT_CMD_HALT:
-		notifier_call_chain(&reboot_notifier_list, SYS_HALT, NULL);
-		system_state = SYSTEM_HALT;
-		device_shutdown();
-		printk(KERN_EMERG "System halted.\n");
-		machine_halt();
+		kernel_halt();
 		unlock_kernel();
 		do_exit(0);
 		break;
 
 	case LINUX_REBOOT_CMD_POWER_OFF:
-		notifier_call_chain(&reboot_notifier_list, SYS_POWER_OFF, NULL);
-		system_state = SYSTEM_POWER_OFF;
-		device_shutdown();
-		printk(KERN_EMERG "Power down.\n");
-		machine_power_off();
+		kernel_power_off();
 		unlock_kernel();
 		do_exit(0);
 		break;
@@ -429,12 +536,13 @@ asmlinkage long sys_reboot(int magic1, int magic2, unsigned int cmd, void __user
 		}
 		buffer[sizeof(buffer) - 1] = '\0';
 
-		notifier_call_chain(&reboot_notifier_list, SYS_RESTART, buffer);
-		system_state = SYSTEM_RESTART;
-		device_shutdown();
-		printk(KERN_EMERG "Restarting system with command '%s'.\n", buffer);
-		machine_restart(buffer);
+		kernel_restart(buffer);
 		break;
+
+	case LINUX_REBOOT_CMD_KEXEC:
+		kernel_kexec();
+		unlock_kernel();
+		return -EINVAL;
 
 #ifdef CONFIG_SOFTWARE_SUSPEND
 	case LINUX_REBOOT_CMD_SW_SUSPEND:
@@ -455,8 +563,7 @@ asmlinkage long sys_reboot(int magic1, int magic2, unsigned int cmd, void __user
 
 static void deferred_cad(void *dummy)
 {
-	notifier_call_chain(&reboot_notifier_list, SYS_RESTART, NULL);
-	machine_restart(NULL);
+	kernel_restart(NULL);
 }
 
 /*
@@ -525,7 +632,7 @@ asmlinkage long sys_setregid(gid_t rgid, gid_t egid)
 	}
 	if (new_egid != old_egid)
 	{
-		current->mm->dumpable = 0;
+		current->mm->dumpable = suid_dumpable;
 		smp_wmb();
 	}
 	if (rgid != (gid_t) -1 ||
@@ -535,6 +642,7 @@ asmlinkage long sys_setregid(gid_t rgid, gid_t egid)
 	current->egid = new_egid;
 	current->gid = new_rgid;
 	key_fsgid_changed(current);
+	proc_id_connector(current, PROC_EVENT_GID);
 	return 0;
 }
 
@@ -556,7 +664,7 @@ asmlinkage long sys_setgid(gid_t gid)
 	{
 		if(old_egid != gid)
 		{
-			current->mm->dumpable=0;
+			current->mm->dumpable = suid_dumpable;
 			smp_wmb();
 		}
 		current->gid = current->egid = current->sgid = current->fsgid = gid;
@@ -565,7 +673,7 @@ asmlinkage long sys_setgid(gid_t gid)
 	{
 		if(old_egid != gid)
 		{
-			current->mm->dumpable=0;
+			current->mm->dumpable = suid_dumpable;
 			smp_wmb();
 		}
 		current->egid = current->fsgid = gid;
@@ -574,6 +682,7 @@ asmlinkage long sys_setgid(gid_t gid)
 		return -EPERM;
 
 	key_fsgid_changed(current);
+	proc_id_connector(current, PROC_EVENT_GID);
 	return 0;
 }
   
@@ -596,7 +705,7 @@ static int set_user(uid_t new_ruid, int dumpclear)
 
 	if(dumpclear)
 	{
-		current->mm->dumpable = 0;
+		current->mm->dumpable = suid_dumpable;
 		smp_wmb();
 	}
 	current->uid = new_ruid;
@@ -653,7 +762,7 @@ asmlinkage long sys_setreuid(uid_t ruid, uid_t euid)
 
 	if (new_euid != old_euid)
 	{
-		current->mm->dumpable=0;
+		current->mm->dumpable = suid_dumpable;
 		smp_wmb();
 	}
 	current->fsuid = current->euid = new_euid;
@@ -663,6 +772,7 @@ asmlinkage long sys_setreuid(uid_t ruid, uid_t euid)
 	current->fsuid = current->euid;
 
 	key_fsuid_changed(current);
+	proc_id_connector(current, PROC_EVENT_UID);
 
 	return security_task_post_setuid(old_ruid, old_euid, old_suid, LSM_SETID_RE);
 }
@@ -703,13 +813,14 @@ asmlinkage long sys_setuid(uid_t uid)
 
 	if (old_euid != uid)
 	{
-		current->mm->dumpable = 0;
+		current->mm->dumpable = suid_dumpable;
 		smp_wmb();
 	}
 	current->fsuid = current->euid = uid;
 	current->suid = new_suid;
 
 	key_fsuid_changed(current);
+	proc_id_connector(current, PROC_EVENT_UID);
 
 	return security_task_post_setuid(old_ruid, old_euid, old_suid, LSM_SETID_ID);
 }
@@ -748,7 +859,7 @@ asmlinkage long sys_setresuid(uid_t ruid, uid_t euid, uid_t suid)
 	if (euid != (uid_t) -1) {
 		if (euid != current->euid)
 		{
-			current->mm->dumpable = 0;
+			current->mm->dumpable = suid_dumpable;
 			smp_wmb();
 		}
 		current->euid = euid;
@@ -758,6 +869,7 @@ asmlinkage long sys_setresuid(uid_t ruid, uid_t euid, uid_t suid)
 		current->suid = suid;
 
 	key_fsuid_changed(current);
+	proc_id_connector(current, PROC_EVENT_UID);
 
 	return security_task_post_setuid(old_ruid, old_euid, old_suid, LSM_SETID_RES);
 }
@@ -798,7 +910,7 @@ asmlinkage long sys_setresgid(gid_t rgid, gid_t egid, gid_t sgid)
 	if (egid != (gid_t) -1) {
 		if (egid != current->egid)
 		{
-			current->mm->dumpable = 0;
+			current->mm->dumpable = suid_dumpable;
 			smp_wmb();
 		}
 		current->egid = egid;
@@ -810,6 +922,7 @@ asmlinkage long sys_setresgid(gid_t rgid, gid_t egid, gid_t sgid)
 		current->sgid = sgid;
 
 	key_fsgid_changed(current);
+	proc_id_connector(current, PROC_EVENT_GID);
 	return 0;
 }
 
@@ -845,13 +958,14 @@ asmlinkage long sys_setfsuid(uid_t uid)
 	{
 		if (uid != old_fsuid)
 		{
-			current->mm->dumpable = 0;
+			current->mm->dumpable = suid_dumpable;
 			smp_wmb();
 		}
 		current->fsuid = uid;
 	}
 
 	key_fsuid_changed(current);
+	proc_id_connector(current, PROC_EVENT_UID);
 
 	security_task_post_setuid(old_fsuid, (uid_t)-1, (uid_t)-1, LSM_SETID_FS);
 
@@ -875,11 +989,12 @@ asmlinkage long sys_setfsgid(gid_t gid)
 	{
 		if (gid != old_fsgid)
 		{
-			current->mm->dumpable = 0;
+			current->mm->dumpable = suid_dumpable;
 			smp_wmb();
 		}
 		current->fsgid = gid;
 		key_fsgid_changed(current);
+		proc_id_connector(current, PROC_EVENT_GID);
 	}
 	return old_fsgid;
 }
@@ -894,35 +1009,69 @@ asmlinkage long sys_times(struct tms __user * tbuf)
 	 */
 	if (tbuf) {
 		struct tms tmp;
-		struct task_struct *tsk = current;
-		struct task_struct *t;
 		cputime_t utime, stime, cutime, cstime;
 
-		read_lock(&tasklist_lock);
-		utime = tsk->signal->utime;
-		stime = tsk->signal->stime;
-		t = tsk;
-		do {
-			utime = cputime_add(utime, t->utime);
-			stime = cputime_add(stime, t->stime);
-			t = next_thread(t);
-		} while (t != tsk);
+#ifdef CONFIG_SMP
+		if (thread_group_empty(current)) {
+			/*
+			 * Single thread case without the use of any locks.
+			 *
+			 * We may race with release_task if two threads are
+			 * executing. However, release task first adds up the
+			 * counters (__exit_signal) before  removing the task
+			 * from the process tasklist (__unhash_process).
+			 * __exit_signal also acquires and releases the
+			 * siglock which results in the proper memory ordering
+			 * so that the list modifications are always visible
+			 * after the counters have been updated.
+			 *
+			 * If the counters have been updated by the second thread
+			 * but the thread has not yet been removed from the list
+			 * then the other branch will be executing which will
+			 * block on tasklist_lock until the exit handling of the
+			 * other task is finished.
+			 *
+			 * This also implies that the sighand->siglock cannot
+			 * be held by another processor. So we can also
+			 * skip acquiring that lock.
+			 */
+			utime = cputime_add(current->signal->utime, current->utime);
+			stime = cputime_add(current->signal->utime, current->stime);
+			cutime = current->signal->cutime;
+			cstime = current->signal->cstime;
+		} else
+#endif
+		{
 
-		/*
-		 * While we have tasklist_lock read-locked, no dying thread
-		 * can be updating current->signal->[us]time.  Instead,
-		 * we got their counts included in the live thread loop.
-		 * However, another thread can come in right now and
-		 * do a wait call that updates current->signal->c[us]time.
-		 * To make sure we always see that pair updated atomically,
-		 * we take the siglock around fetching them.
-		 */
-		spin_lock_irq(&tsk->sighand->siglock);
-		cutime = tsk->signal->cutime;
-		cstime = tsk->signal->cstime;
-		spin_unlock_irq(&tsk->sighand->siglock);
-		read_unlock(&tasklist_lock);
+			/* Process with multiple threads */
+			struct task_struct *tsk = current;
+			struct task_struct *t;
 
+			read_lock(&tasklist_lock);
+			utime = tsk->signal->utime;
+			stime = tsk->signal->stime;
+			t = tsk;
+			do {
+				utime = cputime_add(utime, t->utime);
+				stime = cputime_add(stime, t->stime);
+				t = next_thread(t);
+			} while (t != tsk);
+
+			/*
+			 * While we have tasklist_lock read-locked, no dying thread
+			 * can be updating current->signal->[us]time.  Instead,
+			 * we got their counts included in the live thread loop.
+			 * However, another thread can come in right now and
+			 * do a wait call that updates current->signal->c[us]time.
+			 * To make sure we always see that pair updated atomically,
+			 * we take the siglock around fetching them.
+			 */
+			spin_lock_irq(&tsk->sighand->siglock);
+			cutime = tsk->signal->cutime;
+			cstime = tsk->signal->cstime;
+			spin_unlock_irq(&tsk->sighand->siglock);
+			read_unlock(&tasklist_lock);
+		}
 		tmp.tms_utime = cputime_to_clock_t(utime);
 		tmp.tms_stime = cputime_to_clock_t(stime);
 		tmp.tms_cutime = cputime_to_clock_t(cutime);
@@ -949,10 +1098,11 @@ asmlinkage long sys_times(struct tms __user * tbuf)
 asmlinkage long sys_setpgid(pid_t pid, pid_t pgid)
 {
 	struct task_struct *p;
+	struct task_struct *group_leader = current->group_leader;
 	int err = -EINVAL;
 
 	if (!pid)
-		pid = current->pid;
+		pid = group_leader->pid;
 	if (!pgid)
 		pgid = pid;
 	if (pgid < 0)
@@ -972,16 +1122,16 @@ asmlinkage long sys_setpgid(pid_t pid, pid_t pgid)
 	if (!thread_group_leader(p))
 		goto out;
 
-	if (p->parent == current || p->real_parent == current) {
+	if (p->real_parent == group_leader) {
 		err = -EPERM;
-		if (p->signal->session != current->signal->session)
+		if (p->signal->session != group_leader->signal->session)
 			goto out;
 		err = -EACCES;
 		if (p->did_exec)
 			goto out;
 	} else {
 		err = -ESRCH;
-		if (p != current)
+		if (p != group_leader)
 			goto out;
 	}
 
@@ -993,7 +1143,7 @@ asmlinkage long sys_setpgid(pid_t pid, pid_t pgid)
 		struct task_struct *p;
 
 		do_each_task_pid(pgid, PIDTYPE_PGID, p) {
-			if (p->signal->session == current->signal->session)
+			if (p->signal->session == group_leader->signal->session)
 				goto ok_pgid;
 		} while_each_task_pid(pgid, PIDTYPE_PGID, p);
 		goto out;
@@ -1073,24 +1223,22 @@ asmlinkage long sys_getsid(pid_t pid)
 
 asmlinkage long sys_setsid(void)
 {
+	struct task_struct *group_leader = current->group_leader;
 	struct pid *pid;
 	int err = -EPERM;
-
-	if (!thread_group_leader(current))
-		return -EINVAL;
 
 	down(&tty_sem);
 	write_lock_irq(&tasklist_lock);
 
-	pid = find_pid(PIDTYPE_PGID, current->pid);
+	pid = find_pid(PIDTYPE_PGID, group_leader->pid);
 	if (pid)
 		goto out;
 
-	current->signal->leader = 1;
-	__set_special_pids(current->pid, current->pid);
-	current->signal->tty = NULL;
-	current->signal->tty_old_pgrp = 0;
-	err = process_group(current);
+	group_leader->signal->leader = 1;
+	__set_special_pids(group_leader->pid, group_leader->pid);
+	group_leader->signal->tty = NULL;
+	group_leader->signal->tty_old_pgrp = 0;
+	err = process_group(group_leader);
 out:
 	write_unlock_irq(&tasklist_lock);
 	up(&tty_sem);
@@ -1225,7 +1373,7 @@ static void groups_sort(struct group_info *group_info)
 }
 
 /* a simple bsearch */
-static int groups_search(struct group_info *group_info, gid_t grp)
+int groups_search(struct group_info *group_info, gid_t grp)
 {
 	int left, right;
 
@@ -1552,7 +1700,10 @@ static void k_getrusage(struct task_struct *p, int who, struct rusage *r)
 	if (unlikely(!p->signal))
 		return;
 
+	utime = stime = cputime_zero;
+
 	switch (who) {
+		case RUSAGE_BOTH:
 		case RUSAGE_CHILDREN:
 			spin_lock_irqsave(&p->sighand->siglock, flags);
 			utime = p->signal->cutime;
@@ -1562,22 +1713,11 @@ static void k_getrusage(struct task_struct *p, int who, struct rusage *r)
 			r->ru_minflt = p->signal->cmin_flt;
 			r->ru_majflt = p->signal->cmaj_flt;
 			spin_unlock_irqrestore(&p->sighand->siglock, flags);
-			cputime_to_timeval(utime, &r->ru_utime);
-			cputime_to_timeval(stime, &r->ru_stime);
-			break;
+
+			if (who == RUSAGE_CHILDREN)
+				break;
+
 		case RUSAGE_SELF:
-			spin_lock_irqsave(&p->sighand->siglock, flags);
-			utime = stime = cputime_zero;
-			goto sum_group;
-		case RUSAGE_BOTH:
-			spin_lock_irqsave(&p->sighand->siglock, flags);
-			utime = p->signal->cutime;
-			stime = p->signal->cstime;
-			r->ru_nvcsw = p->signal->cnvcsw;
-			r->ru_nivcsw = p->signal->cnivcsw;
-			r->ru_minflt = p->signal->cmin_flt;
-			r->ru_majflt = p->signal->cmaj_flt;
-		sum_group:
 			utime = cputime_add(utime, p->signal->utime);
 			stime = cputime_add(stime, p->signal->stime);
 			r->ru_nvcsw += p->signal->nvcsw;
@@ -1594,13 +1734,14 @@ static void k_getrusage(struct task_struct *p, int who, struct rusage *r)
 				r->ru_majflt += t->maj_flt;
 				t = next_thread(t);
 			} while (t != p);
-			spin_unlock_irqrestore(&p->sighand->siglock, flags);
-			cputime_to_timeval(utime, &r->ru_utime);
-			cputime_to_timeval(stime, &r->ru_stime);
 			break;
+
 		default:
 			BUG();
 	}
+
+	cputime_to_timeval(utime, &r->ru_utime);
+	cputime_to_timeval(stime, &r->ru_stime);
 }
 
 int getrusage(struct task_struct *p, int who, struct rusage __user *ru)
@@ -1629,7 +1770,6 @@ asmlinkage long sys_prctl(int option, unsigned long arg2, unsigned long arg3,
 			  unsigned long arg4, unsigned long arg5)
 {
 	long error;
-	int sig;
 
 	error = security_task_prctl(option, arg2, arg3, arg4, arg5);
 	if (error)
@@ -1637,22 +1777,20 @@ asmlinkage long sys_prctl(int option, unsigned long arg2, unsigned long arg3,
 
 	switch (option) {
 		case PR_SET_PDEATHSIG:
-			sig = arg2;
-			if (!valid_signal(sig)) {
+			if (!valid_signal(arg2)) {
 				error = -EINVAL;
 				break;
 			}
-			current->pdeath_signal = sig;
+			current->pdeath_signal = arg2;
 			break;
 		case PR_GET_PDEATHSIG:
 			error = put_user(current->pdeath_signal, (int __user *)arg2);
 			break;
 		case PR_GET_DUMPABLE:
-			if (current->mm->dumpable)
-				error = 1;
+			error = current->mm->dumpable;
 			break;
 		case PR_SET_DUMPABLE:
-			if (arg2 != 0 && arg2 != 1) {
+			if (arg2 < 0 || arg2 > 2) {
 				error = -EINVAL;
 				break;
 			}

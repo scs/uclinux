@@ -42,6 +42,7 @@
 #include <linux/in.h>
 #include <linux/if.h>
 #include <linux/inet.h>
+#include <linux/inetdevice.h>
 #include <linux/netdevice.h>
 #include <linux/if_arp.h>
 #include <linux/skbuff.h>
@@ -54,9 +55,11 @@
 #include <linux/major.h>
 #include <linux/root_dev.h>
 #include <linux/delay.h>
+#include <linux/nfs_fs.h>
 #include <net/arp.h>
 #include <net/ip.h>
 #include <net/ipconfig.h>
+#include <net/route.h>
 
 #include <asm/uaccess.h>
 #include <net/checksum.h>
@@ -393,7 +396,7 @@ static int __init ic_defaults(void)
 
 #ifdef IPCONFIG_RARP
 
-static int ic_rarp_recv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt);
+static int ic_rarp_recv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt, struct net_device *orig_dev);
 
 static struct packet_type rarp_packet_type __initdata = {
 	.type =	__constant_htons(ETH_P_RARP),
@@ -414,7 +417,7 @@ static inline void ic_rarp_cleanup(void)
  *  Process received RARP packet.
  */
 static int __init
-ic_rarp_recv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt)
+ic_rarp_recv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt, struct net_device *orig_dev)
 {
 	struct arphdr *rarp;
 	unsigned char *rarp_ptr;
@@ -555,7 +558,7 @@ struct bootp_pkt {		/* BOOTP packet format */
 #define DHCPRELEASE	7
 #define DHCPINFORM	8
 
-static int ic_bootp_recv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt);
+static int ic_bootp_recv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt, struct net_device *orig_dev);
 
 static struct packet_type bootp_packet_type __initdata = {
 	.type =	__constant_htons(ETH_P_IP),
@@ -823,7 +826,7 @@ static void __init ic_do_bootp_ext(u8 *ext)
 /*
  *  Receive BOOTP reply.
  */
-static int __init ic_bootp_recv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt)
+static int __init ic_bootp_recv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt, struct net_device *orig_dev)
 {
 	struct bootp_pkt *b;
 	struct iphdr *h;
@@ -1102,10 +1105,8 @@ static int __init ic_dynamic(void)
 #endif
 
 		jiff = jiffies + (d->next ? CONF_INTER_TIMEOUT : timeout);
-		while (time_before(jiffies, jiff) && !ic_got_reply) {
-			set_current_state(TASK_UNINTERRUPTIBLE);
-			schedule_timeout(1);
-		}
+		while (time_before(jiffies, jiff) && !ic_got_reply)
+			schedule_timeout_uninterruptible(1);
 #ifdef IPCONFIG_DHCP
 		/* DHCP isn't done until we get a DHCPACK. */
 		if ((ic_got_reply & IC_BOOTP)
@@ -1149,8 +1150,10 @@ static int __init ic_dynamic(void)
 		ic_rarp_cleanup();
 #endif
 
-	if (!ic_got_reply)
+	if (!ic_got_reply) {
+		ic_myaddr = INADDR_NONE;
 		return -1;
+	}
 
 	printk("IP-Config: Got %s answer from %u.%u.%u.%u, ",
 		((ic_got_reply & IC_RARP) ? "RARP" 

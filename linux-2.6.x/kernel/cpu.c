@@ -16,28 +16,76 @@
 #include <asm/semaphore.h>
 
 /* This protects CPUs going up and down... */
-DECLARE_MUTEX(cpucontrol);
+static DECLARE_MUTEX(cpucontrol);
 
 static struct notifier_block *cpu_chain;
+
+#ifdef CONFIG_HOTPLUG_CPU
+static struct task_struct *lock_cpu_hotplug_owner;
+static int lock_cpu_hotplug_depth;
+
+static int __lock_cpu_hotplug(int interruptible)
+{
+	int ret = 0;
+
+	if (lock_cpu_hotplug_owner != current) {
+		if (interruptible)
+			ret = down_interruptible(&cpucontrol);
+		else
+			down(&cpucontrol);
+	}
+
+	/*
+	 * Set only if we succeed in locking
+	 */
+	if (!ret) {
+		lock_cpu_hotplug_depth++;
+		lock_cpu_hotplug_owner = current;
+	}
+
+	return ret;
+}
+
+void lock_cpu_hotplug(void)
+{
+	__lock_cpu_hotplug(0);
+}
+EXPORT_SYMBOL_GPL(lock_cpu_hotplug);
+
+void unlock_cpu_hotplug(void)
+{
+	if (--lock_cpu_hotplug_depth == 0) {
+		lock_cpu_hotplug_owner = NULL;
+		up(&cpucontrol);
+	}
+}
+EXPORT_SYMBOL_GPL(unlock_cpu_hotplug);
+
+int lock_cpu_hotplug_interruptible(void)
+{
+	return __lock_cpu_hotplug(1);
+}
+EXPORT_SYMBOL_GPL(lock_cpu_hotplug_interruptible);
+#endif	/* CONFIG_HOTPLUG_CPU */
 
 /* Need to know about CPUs going up/down? */
 int register_cpu_notifier(struct notifier_block *nb)
 {
 	int ret;
 
-	if ((ret = down_interruptible(&cpucontrol)) != 0)
+	if ((ret = lock_cpu_hotplug_interruptible()) != 0)
 		return ret;
 	ret = notifier_chain_register(&cpu_chain, nb);
-	up(&cpucontrol);
+	unlock_cpu_hotplug();
 	return ret;
 }
 EXPORT_SYMBOL(register_cpu_notifier);
 
 void unregister_cpu_notifier(struct notifier_block *nb)
 {
-	down(&cpucontrol);
+	lock_cpu_hotplug();
 	notifier_chain_unregister(&cpu_chain, nb);
-	up(&cpucontrol);
+	unlock_cpu_hotplug();
 }
 EXPORT_SYMBOL(unregister_cpu_notifier);
 
@@ -63,19 +111,15 @@ static int take_cpu_down(void *unused)
 {
 	int err;
 
-	/* Take offline: makes arch_cpu_down somewhat easier. */
-	cpu_clear(smp_processor_id(), cpu_online_map);
-
 	/* Ensure this CPU doesn't handle any more interrupts. */
 	err = __cpu_disable();
 	if (err < 0)
-		cpu_set(smp_processor_id(), cpu_online_map);
-	else
-		/* Force idle task to run as soon as we yield: it should
-		   immediately notice cpu is offline and die quickly. */
-		sched_idle_next();
+		return err;
 
-	return err;
+	/* Force idle task to run as soon as we yield: it should
+	   immediately notice cpu is offline and die quickly. */
+	sched_idle_next();
+	return 0;
 }
 
 int cpu_down(unsigned int cpu)
@@ -159,13 +203,14 @@ int __devinit cpu_up(unsigned int cpu)
 	int ret;
 	void *hcpu = (void *)(long)cpu;
 
-	if ((ret = down_interruptible(&cpucontrol)) != 0)
+	if ((ret = lock_cpu_hotplug_interruptible()) != 0)
 		return ret;
 
 	if (cpu_online(cpu) || !cpu_present(cpu)) {
 		ret = -EINVAL;
 		goto out;
 	}
+
 	ret = notifier_call_chain(&cpu_chain, CPU_UP_PREPARE, hcpu);
 	if (ret == NOTIFY_BAD) {
 		printk("%s: attempt to bring up CPU %u failed\n",
@@ -188,6 +233,6 @@ out_notify:
 	if (ret != 0)
 		notifier_call_chain(&cpu_chain, CPU_UP_CANCELED, hcpu);
 out:
-	up(&cpucontrol);
+	unlock_cpu_hotplug();
 	return ret;
 }

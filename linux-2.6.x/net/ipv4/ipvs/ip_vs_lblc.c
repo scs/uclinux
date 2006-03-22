@@ -41,8 +41,10 @@
  * me to write this module.
  */
 
+#include <linux/ip.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
+#include <linux/skbuff.h>
 
 /* for sysctl */
 #include <linux/fs.h>
@@ -131,7 +133,7 @@ static ctl_table vs_table[] = {
 	{ .ctl_name = 0 }
 };
 
-static ctl_table ipv4_table[] = {
+static ctl_table ipvs_ipv4_table[] = {
 	{
 		.ctl_name	= NET_IPV4,
 		.procname	= "ipv4", 
@@ -146,7 +148,7 @@ static ctl_table lblc_root_table[] = {
 		.ctl_name	= CTL_NET,
 		.procname	= "net", 
 		.mode		= 0555, 
-		.child		= ipv4_table
+		.child		= ipvs_ipv4_table
 	},
 	{ .ctl_name = 0 }
 };
@@ -226,33 +228,6 @@ ip_vs_lblc_hash(struct ip_vs_lblc_table *tbl, struct ip_vs_lblc_entry *en)
 
 	return 1;
 }
-
-
-#if 0000
-/*
- *	Unhash ip_vs_lblc_entry from ip_vs_lblc_table.
- *	returns bool success.
- */
-static int ip_vs_lblc_unhash(struct ip_vs_lblc_table *tbl,
-			     struct ip_vs_lblc_entry *en)
-{
-	if (list_empty(&en->list)) {
-		IP_VS_ERR("ip_vs_lblc_unhash(): request for not hashed entry, "
-			  "called from %p\n", __builtin_return_address(0));
-		return 0;
-	}
-
-	/*
-	 * Remove it from the table
-	 */
-	write_lock(&tbl->lock);
-	list_del(&en->list);
-	INIT_LIST_HEAD(&en->list);
-	write_unlock(&tbl->lock);
-
-	return 1;
-}
-#endif
 
 
 /*

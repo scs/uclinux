@@ -42,10 +42,10 @@ struct compat_msgbuf {
 
 struct compat_ipc_perm {
 	key_t key;
-	compat_uid_t uid;
-	compat_gid_t gid;
-	compat_uid_t cuid;
-	compat_gid_t cgid;
+	__compat_uid_t uid;
+	__compat_gid_t gid;
+	__compat_uid_t cuid;
+	__compat_gid_t cgid;
 	compat_mode_t mode;
 	unsigned short seq;
 };
@@ -174,8 +174,8 @@ static inline int __put_compat_ipc_perm(struct ipc64_perm *p,
 					struct compat_ipc_perm __user *up)
 {
 	int err;
-	compat_uid_t u;
-	compat_gid_t g;
+	__compat_uid_t u;
+	__compat_gid_t g;
 
 	err  = __put_user(p->key, &up->key);
 	SET_UID(u, p->uid);
@@ -572,6 +572,7 @@ static inline int put_compat_shminfo(struct shminfo64 *smi,
 	err |= __put_user(smi->shmmni, &up->shmmni);
 	err |= __put_user(smi->shmseg, &up->shmseg);
 	err |= __put_user(smi->shmall, &up->shmall);
+	return err;
 }
 
 static inline int put_compat_shm_info(struct shm_info __user *ip,

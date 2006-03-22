@@ -19,6 +19,7 @@
  */
 
 #include <asm/uaccess.h> /* for copy_from_user */
+#include <linux/capability.h>
 #include <linux/module.h>
 #include <linux/netdevice.h>
 #include <linux/skbuff.h>
@@ -578,6 +579,14 @@ static int vlan_device_event(struct notifier_block *unused, unsigned long event,
 			if (!vlandev)
 				continue;
 
+			if (netif_carrier_ok(dev)) {
+				if (!netif_carrier_ok(vlandev))
+					netif_carrier_on(vlandev);
+			} else {
+				if (netif_carrier_ok(vlandev))
+					netif_carrier_off(vlandev);
+			}
+
 			if ((vlandev->state & VLAN_LINK_STATE_MASK) != flgs) {
 				vlandev->state = (vlandev->state &~ VLAN_LINK_STATE_MASK) 
 					| flgs;
@@ -745,6 +754,8 @@ static int vlan_ioctl_handler(void __user *arg)
 		break;
 	case GET_VLAN_REALDEV_NAME_CMD:
 		err = vlan_dev_get_realdev_name(args.device1, args.u.device2);
+		if (err)
+			goto out;
 		if (copy_to_user(arg, &args,
 				 sizeof(struct vlan_ioctl_args))) {
 			err = -EFAULT;
@@ -753,6 +764,8 @@ static int vlan_ioctl_handler(void __user *arg)
 
 	case GET_VLAN_VID_CMD:
 		err = vlan_dev_get_vid(args.device1, &vid);
+		if (err)
+			goto out;
 		args.u.VID = vid;
 		if (copy_to_user(arg, &args,
 				 sizeof(struct vlan_ioctl_args))) {
@@ -766,7 +779,7 @@ static int vlan_ioctl_handler(void __user *arg)
 			__FUNCTION__, args.cmd);
 		return -EINVAL;
 	};
-
+out:
 	return err;
 }
 

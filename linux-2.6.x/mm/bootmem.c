@@ -33,6 +33,14 @@ EXPORT_SYMBOL(max_pfn);		/* This is exported so
 				 * dma_get_required_mask(), which uses
 				 * it, can be an inline function */
 
+#ifdef CONFIG_CRASH_DUMP
+/*
+ * If we have booted due to a crash, max_pfn will be a very low value. We need
+ * to know the amount of memory that the previous kernel used.
+ */
+unsigned long saved_max_pfn;
+#endif
+
 /* return the number of _pages_ that will be allocated for the boot bitmap */
 unsigned long __init bootmem_bootmap_pages (unsigned long pages)
 {
@@ -57,7 +65,7 @@ static unsigned long __init init_bootmem_core (pg_data_t *pgdat,
 	pgdat->pgdat_next = pgdat_list;
 	pgdat_list = pgdat;
 
-	mapsize = (mapsize + (sizeof(long) - 1UL)) & ~(sizeof(long) - 1UL);
+	mapsize = ALIGN(mapsize, sizeof(long));
 	bdata->node_bootmem_map = phys_to_virt(mapstart << PAGE_SHIFT);
 	bdata->node_boot_start = (start << PAGE_SHIFT);
 	bdata->node_low_pfn = end;
@@ -146,10 +154,10 @@ static void __init free_bootmem_core(bootmem_data_t *bdata, unsigned long addr, 
  */
 static void * __init
 __alloc_bootmem_core(struct bootmem_data *bdata, unsigned long size,
-		unsigned long align, unsigned long goal)
+	      unsigned long align, unsigned long goal, unsigned long limit)
 {
 	unsigned long offset, remaining_size, areasize, preferred;
-	unsigned long i, start = 0, incr, eidx;
+	unsigned long i, start = 0, incr, eidx, end_pfn = bdata->node_low_pfn;
 	void *ret;
 
 	if(!size) {
@@ -158,7 +166,14 @@ __alloc_bootmem_core(struct bootmem_data *bdata, unsigned long size,
 	}
 	BUG_ON(align & (align-1));
 
-	eidx = bdata->node_low_pfn - (bdata->node_boot_start >> PAGE_SHIFT);
+	if (limit && bdata->node_boot_start >= limit)
+		return NULL;
+
+        limit >>=PAGE_SHIFT;
+	if (limit && end_pfn > limit)
+		end_pfn = limit;
+
+	eidx = end_pfn - (bdata->node_boot_start >> PAGE_SHIFT);
 	offset = 0;
 	if (align &&
 	    (bdata->node_boot_start & (align - 1UL)) != 0)
@@ -170,15 +185,16 @@ __alloc_bootmem_core(struct bootmem_data *bdata, unsigned long size,
 	 * first, then we try to allocate lower pages.
 	 */
 	if (goal && (goal >= bdata->node_boot_start) && 
-	    ((goal >> PAGE_SHIFT) < bdata->node_low_pfn)) {
+	    ((goal >> PAGE_SHIFT) < end_pfn)) {
 		preferred = goal - bdata->node_boot_start;
 
 		if (bdata->last_success >= preferred)
-			preferred = bdata->last_success;
+			if (!limit || (limit && limit > bdata->last_success))
+				preferred = bdata->last_success;
 	} else
 		preferred = 0;
 
-	preferred = ((preferred + align - 1) & ~(align - 1)) >> PAGE_SHIFT;
+	preferred = ALIGN(preferred, align) >> PAGE_SHIFT;
 	preferred += offset;
 	areasize = (size+PAGE_SIZE-1)/PAGE_SIZE;
 	incr = align >> PAGE_SHIFT ? : 1;
@@ -188,6 +204,8 @@ restart_scan:
 		unsigned long j;
 		i = find_next_zero_bit(bdata->node_bootmem_map, eidx, i);
 		i = ALIGN(i, incr);
+		if (i >= eidx)
+			break;
 		if (test_bit(i, bdata->node_bootmem_map))
 			continue;
 		for (j = i + 1; j < i + areasize; ++j) {
@@ -219,7 +237,7 @@ found:
 	 */
 	if (align < PAGE_SIZE &&
 	    bdata->last_offset && bdata->last_pos+1 == start) {
-		offset = (bdata->last_offset+align-1) & ~(align-1);
+		offset = ALIGN(bdata->last_offset, align);
 		BUG_ON(offset > PAGE_SIZE);
 		remaining_size = PAGE_SIZE-offset;
 		if (size < remaining_size) {
@@ -256,6 +274,7 @@ found:
 static unsigned long __init free_all_bootmem_core(pg_data_t *pgdat)
 {
 	struct page *page;
+	unsigned long pfn;
 	bootmem_data_t *bdata = pgdat->bdata;
 	unsigned long i, count, total = 0;
 	unsigned long idx;
@@ -266,7 +285,7 @@ static unsigned long __init free_all_bootmem_core(pg_data_t *pgdat)
 
 	count = 0;
 	/* first extant page of the node */
-	page = virt_to_page(phys_to_virt(bdata->node_boot_start));
+	pfn = bdata->node_boot_start >> PAGE_SHIFT;
 	idx = bdata->node_low_pfn - (bdata->node_boot_start >> PAGE_SHIFT);
 	map = bdata->node_bootmem_map;
 	/* Check physaddr is O(LOG2(BITS_PER_LONG)) page aligned */
@@ -275,35 +294,30 @@ static unsigned long __init free_all_bootmem_core(pg_data_t *pgdat)
 		gofast = 1;
 	for (i = 0; i < idx; ) {
 		unsigned long v = ~map[i / BITS_PER_LONG];
-		if (gofast && v == ~0UL) {
-			int j, order;
 
+		if (gofast && v == ~0UL) {
+			int order;
+
+			page = pfn_to_page(pfn);
 			count += BITS_PER_LONG;
-			__ClearPageReserved(page);
 			order = ffs(BITS_PER_LONG) - 1;
-			set_page_refs(page, order);
-			for (j = 1; j < BITS_PER_LONG; j++) {
-				if (j + 16 < BITS_PER_LONG)
-					prefetchw(page + j + 16);
-				__ClearPageReserved(page + j);
-			}
-			__free_pages(page, order);
+			__free_pages_bootmem(page, order);
 			i += BITS_PER_LONG;
 			page += BITS_PER_LONG;
 		} else if (v) {
 			unsigned long m;
+
+			page = pfn_to_page(pfn);
 			for (m = 1; m && i < idx; m<<=1, page++, i++) {
 				if (v & m) {
 					count++;
-					__ClearPageReserved(page);
-					set_page_refs(page, 0);
-					__free_page(page);
+					__free_pages_bootmem(page, 0);
 				}
 			}
 		} else {
 			i+=BITS_PER_LONG;
-			page += BITS_PER_LONG;
 		}
+		pfn += BITS_PER_LONG;
 	}
 	total += count;
 
@@ -315,9 +329,7 @@ static unsigned long __init free_all_bootmem_core(pg_data_t *pgdat)
 	count = 0;
 	for (i = 0; i < ((bdata->node_low_pfn-(bdata->node_boot_start >> PAGE_SHIFT))/8 + PAGE_SIZE-1)/PAGE_SIZE; i++,page++) {
 		count++;
-		__ClearPageReserved(page);
-		set_page_count(page, 1);
-		__free_page(page);
+		__free_pages_bootmem(page, 0);
 	}
 	total += count;
 	bdata->node_bootmem_map = NULL;
@@ -369,14 +381,14 @@ unsigned long __init free_all_bootmem (void)
 	return(free_all_bootmem_core(NODE_DATA(0)));
 }
 
-void * __init __alloc_bootmem (unsigned long size, unsigned long align, unsigned long goal)
+void * __init __alloc_bootmem(unsigned long size, unsigned long align, unsigned long goal)
 {
 	pg_data_t *pgdat = pgdat_list;
 	void *ptr;
 
 	for_each_pgdat(pgdat)
 		if ((ptr = __alloc_bootmem_core(pgdat->bdata, size,
-						align, goal)))
+						 align, goal, 0)))
 			return(ptr);
 
 	/*
@@ -387,14 +399,41 @@ void * __init __alloc_bootmem (unsigned long size, unsigned long align, unsigned
 	return NULL;
 }
 
-void * __init __alloc_bootmem_node (pg_data_t *pgdat, unsigned long size, unsigned long align, unsigned long goal)
+
+void * __init __alloc_bootmem_node(pg_data_t *pgdat, unsigned long size, unsigned long align,
+				   unsigned long goal)
 {
 	void *ptr;
 
-	ptr = __alloc_bootmem_core(pgdat->bdata, size, align, goal);
+	ptr = __alloc_bootmem_core(pgdat->bdata, size, align, goal, 0);
 	if (ptr)
 		return (ptr);
 
 	return __alloc_bootmem(size, align, goal);
 }
 
+#define LOW32LIMIT 0xffffffff
+
+void * __init __alloc_bootmem_low(unsigned long size, unsigned long align, unsigned long goal)
+{
+	pg_data_t *pgdat = pgdat_list;
+	void *ptr;
+
+	for_each_pgdat(pgdat)
+		if ((ptr = __alloc_bootmem_core(pgdat->bdata, size,
+						 align, goal, LOW32LIMIT)))
+			return(ptr);
+
+	/*
+	 * Whoops, we cannot satisfy the allocation request.
+	 */
+	printk(KERN_ALERT "low bootmem alloc of %lu bytes failed!\n", size);
+	panic("Out of low memory");
+	return NULL;
+}
+
+void * __init __alloc_bootmem_low_node(pg_data_t *pgdat, unsigned long size,
+				       unsigned long align, unsigned long goal)
+{
+	return __alloc_bootmem_core(pgdat->bdata, size, align, goal, LOW32LIMIT);
+}

@@ -53,6 +53,7 @@
 #include <linux/errno.h>
 #include <linux/config.h>
 #include <linux/init.h>
+#include <linux/if_ether.h>
 #include <net/dst.h>
 #include <net/arp.h>
 #include <net/sock.h>
@@ -61,8 +62,6 @@
 #include <asm/uaccess.h>
 #include <asm/system.h>
 #include <asm/checksum.h>
-
-extern int __init netdev_boot_setup(char *str);
 
 __setup("ether=", netdev_boot_setup);
 
@@ -92,11 +91,16 @@ int eth_header(struct sk_buff *skb, struct net_device *dev, unsigned short type,
 	 *	Set the source hardware address. 
 	 */
 	 
-	if(saddr)
-		memcpy(eth->h_source,saddr,dev->addr_len);
-	else
-		memcpy(eth->h_source,dev->dev_addr,dev->addr_len);
+	if(!saddr)
+		saddr = dev->dev_addr;
+	memcpy(eth->h_source,saddr,dev->addr_len);
 
+	if(daddr)
+	{
+		memcpy(eth->h_dest,daddr,dev->addr_len);
+		return ETH_HLEN;
+	}
+	
 	/*
 	 *	Anyway, the loopback-device should never use this function... 
 	 */
@@ -104,12 +108,6 @@ int eth_header(struct sk_buff *skb, struct net_device *dev, unsigned short type,
 	if (dev->flags & (IFF_LOOPBACK|IFF_NOARP)) 
 	{
 		memset(eth->h_dest, 0, dev->addr_len);
-		return ETH_HLEN;
-	}
-	
-	if(daddr)
-	{
-		memcpy(eth->h_dest,daddr,dev->addr_len);
 		return ETH_HLEN;
 	}
 	
@@ -156,22 +154,20 @@ int eth_rebuild_header(struct sk_buff *skb)
  *	This is normal practice and works for any 'now in use' protocol.
  */
  
-unsigned short eth_type_trans(struct sk_buff *skb, struct net_device *dev)
+__be16 eth_type_trans(struct sk_buff *skb, struct net_device *dev)
 {
 	struct ethhdr *eth;
 	unsigned char *rawp;
 	
-	skb->mac.raw=skb->data;
+	skb->mac.raw = skb->data;
 	skb_pull(skb,ETH_HLEN);
 	eth = eth_hdr(skb);
-	skb->input_dev = dev;
 	
-	if(*eth->h_dest&1)
-	{
-		if(memcmp(eth->h_dest,dev->broadcast, ETH_ALEN)==0)
-			skb->pkt_type=PACKET_BROADCAST;
+	if (is_multicast_ether_addr(eth->h_dest)) {
+		if (!compare_ether_addr(eth->h_dest, dev->broadcast))
+			skb->pkt_type = PACKET_BROADCAST;
 		else
-			skb->pkt_type=PACKET_MULTICAST;
+			skb->pkt_type = PACKET_MULTICAST;
 	}
 	
 	/*
@@ -182,10 +178,9 @@ unsigned short eth_type_trans(struct sk_buff *skb, struct net_device *dev)
 	 *	seems to set IFF_PROMISC.
 	 */
 	 
-	else if(1 /*dev->flags&IFF_PROMISC*/)
-	{
-		if(memcmp(eth->h_dest,dev->dev_addr, ETH_ALEN))
-			skb->pkt_type=PACKET_OTHERHOST;
+	else if(1 /*dev->flags&IFF_PROMISC*/) {
+		if (unlikely(compare_ether_addr(eth->h_dest, dev->dev_addr)))
+			skb->pkt_type = PACKET_OTHERHOST;
 	}
 	
 	if (ntohs(eth->h_proto) >= 1536)
@@ -257,7 +252,7 @@ static int eth_mac_addr(struct net_device *dev, void *p)
 
 static int eth_change_mtu(struct net_device *dev, int new_mtu)
 {
-	if ((new_mtu < 68) || (new_mtu > 1500))
+	if (new_mtu < 68 || new_mtu > ETH_DATA_LEN)
 		return -EINVAL;
 	dev->mtu = new_mtu;
 	return 0;
@@ -278,7 +273,7 @@ void ether_setup(struct net_device *dev)
 
 	dev->type		= ARPHRD_ETHER;
 	dev->hard_header_len 	= ETH_HLEN;
-	dev->mtu		= 1500; /* eth_mtu */
+	dev->mtu		= ETH_DATA_LEN;
 	dev->addr_len		= ETH_ALEN;
 	dev->tx_queue_len	= 1000;	/* Ethernet wants good queues */	
 	dev->flags		= IFF_BROADCAST|IFF_MULTICAST;

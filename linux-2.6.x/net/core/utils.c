@@ -16,16 +16,18 @@
 #include <linux/module.h>
 #include <linux/jiffies.h>
 #include <linux/kernel.h>
+#include <linux/inet.h>
 #include <linux/mm.h>
+#include <linux/net.h>
 #include <linux/string.h>
 #include <linux/types.h>
 #include <linux/random.h>
 #include <linux/percpu.h>
 #include <linux/init.h>
 
+#include <asm/byteorder.h>
 #include <asm/system.h>
 #include <asm/uaccess.h>
-
 
 /*
   This is a maximally equidistributed combined Tausworthe generator
@@ -119,7 +121,7 @@ void __init net_random_init(void)
 {
 	int i;
 
-	for (i = 0; i < NR_CPUS; i++) {
+	for_each_cpu(i) {
 		struct nrnd_state *state = &per_cpu(net_rand_state,i);
 		__net_srandom(state, i+jiffies);
 	}
@@ -131,7 +133,7 @@ static int net_random_reseed(void)
 	unsigned long seed[NR_CPUS];
 
 	get_random_bytes(seed, sizeof(seed));
-	for (i = 0; i < NR_CPUS; i++) {
+	for_each_cpu(i) {
 		struct nrnd_state *state = &per_cpu(net_rand_state,i);
 		__net_srandom(state, seed[i]);
 	}
@@ -153,3 +155,38 @@ int net_ratelimit(void)
 EXPORT_SYMBOL(net_random);
 EXPORT_SYMBOL(net_ratelimit);
 EXPORT_SYMBOL(net_srandom);
+
+/*
+ * Convert an ASCII string to binary IP.
+ * This is outside of net/ipv4/ because various code that uses IP addresses
+ * is otherwise not dependent on the TCP/IP stack.
+ */
+
+__be32 in_aton(const char *str)
+{
+	unsigned long l;
+	unsigned int val;
+	int i;
+
+	l = 0;
+	for (i = 0; i < 4; i++)
+	{
+		l <<= 8;
+		if (*str != '\0')
+		{
+			val = 0;
+			while (*str != '\0' && *str != '.' && *str != '\n')
+			{
+				val *= 10;
+				val += *str - '0';
+				str++;
+			}
+			l |= val;
+			if (*str != '\0')
+				str++;
+		}
+	}
+	return(htonl(l));
+}
+
+EXPORT_SYMBOL(in_aton);

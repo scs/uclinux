@@ -18,6 +18,7 @@ Author: Marcell GAL, 2000, XDSL Ltd, Hungary
 #include <net/arp.h>
 #include <linux/atm.h>
 #include <linux/atmdev.h>
+#include <linux/capability.h>
 #include <linux/seq_file.h>
 
 #include <linux/atmbr2684.h>
@@ -220,7 +221,7 @@ static int br2684_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		/* netif_stop_queue(dev); */
 		dev_kfree_skb(skb);
 		read_unlock(&devs_lock);
-		return -EUNATCH;
+		return 0;
 	}
 	if (!br2684_xmit_vcc(skb, brdev, brvcc)) {
 		/*
@@ -289,21 +290,20 @@ xmit will add the additional header part in that case */
  * This is similar to eth_type_trans, which cannot be used because of
  * our dev->hard_header_len
  */
-static inline unsigned short br_type_trans(struct sk_buff *skb,
-					       struct net_device *dev)
+static inline __be16 br_type_trans(struct sk_buff *skb, struct net_device *dev)
 {
 	struct ethhdr *eth;
 	unsigned char *rawp;
 	eth = eth_hdr(skb);
 
-	if (*eth->h_dest & 1) {
-		if (memcmp(eth->h_dest, dev->broadcast, ETH_ALEN) == 0)
+	if (is_multicast_ether_addr(eth->h_dest)) {
+		if (!compare_ether_addr(eth->h_dest, dev->broadcast))
 			skb->pkt_type = PACKET_BROADCAST;
 		else
 			skb->pkt_type = PACKET_MULTICAST;
 	}
 
-	else if (memcmp(eth->h_dest, dev->dev_addr, ETH_ALEN))
+	else if (compare_ether_addr(eth->h_dest, dev->dev_addr))
 		skb->pkt_type = PACKET_OTHERHOST;
 
 	if (ntohs(eth->h_proto) >= 1536)

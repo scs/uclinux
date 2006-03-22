@@ -84,7 +84,7 @@ asmlinkage void __do_softirq(void)
 	cpu = smp_processor_id();
 restart:
 	/* Reset the pending bitmask before enabling irqs */
-	local_softirq_pending() = 0;
+	set_softirq_pending(0);
 
 	local_irq_enable();
 
@@ -470,7 +470,8 @@ static int __devinit cpu_callback(struct notifier_block *nfb,
 #ifdef CONFIG_HOTPLUG_CPU
 	case CPU_UP_CANCELED:
 		/* Unbind so it can run.  Fall thru. */
-		kthread_bind(per_cpu(ksoftirqd, hotcpu), smp_processor_id());
+		kthread_bind(per_cpu(ksoftirqd, hotcpu),
+			     any_online_cpu(cpu_online_map));
 	case CPU_DEAD:
 		p = per_cpu(ksoftirqd, hotcpu);
 		per_cpu(ksoftirqd, hotcpu) = NULL;

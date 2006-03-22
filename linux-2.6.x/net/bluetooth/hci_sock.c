@@ -28,6 +28,7 @@
 #include <linux/module.h>
 
 #include <linux/types.h>
+#include <linux/capability.h>
 #include <linux/errno.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
@@ -66,20 +67,20 @@ static struct hci_sec_filter hci_sec_filter = {
 	/* Packet types */
 	0x10,
 	/* Events */
-	{ 0x1000d9fe, 0x0000300c },
+	{ 0x1000d9fe, 0x0000b00c },
 	/* Commands */
 	{
 		{ 0x0 },
 		/* OGF_LINK_CTL */
-		{ 0xbe000006, 0x00000001, 0x0000, 0x00 },
+		{ 0xbe000006, 0x00000001, 0x000000, 0x00 },
 		/* OGF_LINK_POLICY */
-		{ 0x00005200, 0x00000000, 0x0000, 0x00 },
+		{ 0x00005200, 0x00000000, 0x000000, 0x00 },
 		/* OGF_HOST_CTL */
-		{ 0xaab00200, 0x2b402aaa, 0x0154, 0x00 },
+		{ 0xaab00200, 0x2b402aaa, 0x020154, 0x00 },
 		/* OGF_INFO_PARAM */
-		{ 0x000002be, 0x00000000, 0x0000, 0x00 },
+		{ 0x000002be, 0x00000000, 0x000000, 0x00 },
 		/* OGF_STATUS_PARAM */
-		{ 0x000000ea, 0x00000000, 0x0000, 0x00 }
+		{ 0x000000ea, 0x00000000, 0x000000, 0x00 }
 	}
 };
 
@@ -110,11 +111,11 @@ void hci_send_to_sock(struct hci_dev *hdev, struct sk_buff *skb)
 		/* Apply filter */
 		flt = &hci_pi(sk)->filter;
 
-		if (!test_bit((skb->pkt_type == HCI_VENDOR_PKT) ?
-				0 : (skb->pkt_type & HCI_FLT_TYPE_BITS), &flt->type_mask))
+		if (!test_bit((bt_cb(skb)->pkt_type == HCI_VENDOR_PKT) ?
+				0 : (bt_cb(skb)->pkt_type & HCI_FLT_TYPE_BITS), &flt->type_mask))
 			continue;
 
-		if (skb->pkt_type == HCI_EVENT_PKT) {
+		if (bt_cb(skb)->pkt_type == HCI_EVENT_PKT) {
 			register int evt = (*(__u8 *)skb->data & HCI_FLT_EVENT_BITS);
 
 			if (!hci_test_bit(evt, &flt->event_mask))
@@ -131,7 +132,7 @@ void hci_send_to_sock(struct hci_dev *hdev, struct sk_buff *skb)
 			continue;
 
 		/* Put type byte before the data */
-		memcpy(skb_push(nskb, 1), &nskb->pkt_type, 1);
+		memcpy(skb_push(nskb, 1), &bt_cb(nskb)->pkt_type, 1);
 
 		if (sock_queue_rcv_skb(sk, nskb))
 			kfree_skb(nskb);
@@ -142,12 +143,14 @@ void hci_send_to_sock(struct hci_dev *hdev, struct sk_buff *skb)
 static int hci_sock_release(struct socket *sock)
 {
 	struct sock *sk = sock->sk;
-	struct hci_dev *hdev = hci_pi(sk)->hdev;
+	struct hci_dev *hdev;
 
 	BT_DBG("sock %p sk %p", sock, sk);
 
 	if (!sk)
 		return 0;
+
+	hdev = hci_pi(sk)->hdev;
 
 	bt_sock_unlink(&hci_sk_list, sk);
 
@@ -310,14 +313,18 @@ static int hci_sock_getname(struct socket *sock, struct sockaddr *addr, int *add
 {
 	struct sockaddr_hci *haddr = (struct sockaddr_hci *) addr;
 	struct sock *sk = sock->sk;
+	struct hci_dev *hdev = hci_pi(sk)->hdev;
 
 	BT_DBG("sock %p sk %p", sock, sk);
+
+	if (!hdev)
+		return -EBADFD;
 
 	lock_sock(sk);
 
 	*addr_len = sizeof(*haddr);
 	haddr->hci_family = AF_BLUETOOTH;
-	haddr->hci_dev    = hci_pi(sk)->hdev->id;
+	haddr->hci_dev    = hdev->id;
 
 	release_sock(sk);
 	return 0;
@@ -327,11 +334,17 @@ static inline void hci_sock_cmsg(struct sock *sk, struct msghdr *msg, struct sk_
 {
 	__u32 mask = hci_pi(sk)->cmsg_mask;
 
-	if (mask & HCI_CMSG_DIR)
-		put_cmsg(msg, SOL_HCI, HCI_CMSG_DIR, sizeof(int), &bt_cb(skb)->incoming);
+	if (mask & HCI_CMSG_DIR) {
+		int incoming = bt_cb(skb)->incoming;
+		put_cmsg(msg, SOL_HCI, HCI_CMSG_DIR, sizeof(incoming), &incoming);
+	}
 
-	if (mask & HCI_CMSG_TSTAMP)
-		put_cmsg(msg, SOL_HCI, HCI_CMSG_TSTAMP, sizeof(skb->stamp), &skb->stamp);
+	if (mask & HCI_CMSG_TSTAMP) {
+		struct timeval tv;
+
+		skb_get_timestamp(skb, &tv);
+		put_cmsg(msg, SOL_HCI, HCI_CMSG_TSTAMP, sizeof(tv), &tv);
+	}
 }
  
 static int hci_sock_recvmsg(struct kiocb *iocb, struct socket *sock, 
@@ -405,12 +418,12 @@ static int hci_sock_sendmsg(struct kiocb *iocb, struct socket *sock,
 		goto drop;
 	}
 
-	skb->pkt_type = *((unsigned char *) skb->data);
+	bt_cb(skb)->pkt_type = *((unsigned char *) skb->data);
 	skb_pull(skb, 1);
 	skb->dev = (void *) hdev;
 
-	if (skb->pkt_type == HCI_COMMAND_PKT) {
-		u16 opcode = __le16_to_cpu(get_unaligned((u16 *)skb->data));
+	if (bt_cb(skb)->pkt_type == HCI_COMMAND_PKT) {
+		u16 opcode = __le16_to_cpu(get_unaligned((__le16 *) skb->data));
 		u16 ogf = hci_opcode_ogf(opcode);
 		u16 ocf = hci_opcode_ocf(opcode);
 
@@ -569,7 +582,7 @@ static int hci_sock_getsockopt(struct socket *sock, int level, int optname, char
 	return 0;
 }
 
-static struct proto_ops hci_sock_ops = {
+static const struct proto_ops hci_sock_ops = {
 	.family		= PF_BLUETOOTH,
 	.owner		= THIS_MODULE,
 	.release	= hci_sock_release,

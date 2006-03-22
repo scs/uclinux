@@ -42,8 +42,7 @@
 #include <linux/socket.h>
 #include <linux/skbuff.h>
 #include <linux/list.h>
-#include <linux/proc_fs.h>
-#include <linux/seq_file.h>
+#include <linux/device.h>
 #include <net/sock.h>
 
 #include <asm/system.h>
@@ -59,7 +58,7 @@
 #define BT_DBG(D...)
 #endif
 
-static struct proto_ops rfcomm_sock_ops;
+static const struct proto_ops rfcomm_sock_ops;
 
 static struct bt_sock_list rfcomm_sk_list = {
 	.lock = RW_LOCK_UNLOCKED
@@ -284,7 +283,7 @@ static struct proto rfcomm_proto = {
 	.obj_size	= sizeof(struct rfcomm_pinfo)
 };
 
-static struct sock *rfcomm_sock_alloc(struct socket *sock, int proto, int prio)
+static struct sock *rfcomm_sock_alloc(struct socket *sock, int proto, gfp_t prio)
 {
 	struct rfcomm_dlc *d;
 	struct sock *sk;
@@ -363,6 +362,11 @@ static int rfcomm_sock_bind(struct socket *sock, struct sockaddr *addr, int addr
 		goto done;
 	}
 
+	if (sk->sk_type != SOCK_STREAM) {
+		err = -EINVAL;
+		goto done;
+	}
+
 	write_lock_bh(&rfcomm_sk_list.lock);
 
 	if (sa->rc_channel && __rfcomm_get_sock_by_addr(sa->rc_channel, &sa->rc_bdaddr)) {
@@ -393,13 +397,17 @@ static int rfcomm_sock_connect(struct socket *sock, struct sockaddr *addr, int a
 	if (addr->sa_family != AF_BLUETOOTH || alen < sizeof(struct sockaddr_rc))
 		return -EINVAL;
 
-	if (sk->sk_state != BT_OPEN && sk->sk_state != BT_BOUND)
-		return -EBADFD;
-
-	if (sk->sk_type != SOCK_STREAM)
-		return -EINVAL;
-
 	lock_sock(sk);
+
+	if (sk->sk_state != BT_OPEN && sk->sk_state != BT_BOUND) {
+		err = -EBADFD;
+		goto done;
+	}
+
+	if (sk->sk_type != SOCK_STREAM) {
+		err = -EINVAL;
+		goto done;
+	}
 
 	sk->sk_state = BT_CONNECT;
 	bacpy(&bt_sk(sk)->dst, &sa->rc_bdaddr);
@@ -410,6 +418,7 @@ static int rfcomm_sock_connect(struct socket *sock, struct sockaddr *addr, int a
 		err = bt_sock_wait_state(sk, BT_CONNECTED,
 				sock_sndtimeo(sk, flags & O_NONBLOCK));
 
+done:
 	release_sock(sk);
 	return err;
 }
@@ -425,6 +434,11 @@ static int rfcomm_sock_listen(struct socket *sock, int backlog)
 
 	if (sk->sk_state != BT_BOUND) {
 		err = -EBADFD;
+		goto done;
+	}
+
+	if (sk->sk_type != SOCK_STREAM) {
+		err = -EINVAL;
 		goto done;
 	}
 
@@ -469,6 +483,11 @@ static int rfcomm_sock_accept(struct socket *sock, struct socket *newsock, int f
 
 	if (sk->sk_state != BT_LISTEN) {
 		err = -EBADFD;
+		goto done;
+	}
+
+	if (sk->sk_type != SOCK_STREAM) {
+		err = -EINVAL;
 		goto done;
 	}
 
@@ -590,8 +609,11 @@ static long rfcomm_sock_data_wait(struct sock *sk, long timeo)
 	for (;;) {
 		set_current_state(TASK_INTERRUPTIBLE);
 
-		if (skb_queue_len(&sk->sk_receive_queue) || sk->sk_err || (sk->sk_shutdown & RCV_SHUTDOWN) ||
-				signal_pending(current) || !timeo)
+		if (!skb_queue_empty(&sk->sk_receive_queue) ||
+		    sk->sk_err ||
+		    (sk->sk_shutdown & RCV_SHUTDOWN) ||
+		    signal_pending(current) ||
+		    !timeo)
 			break;
 
 		set_bit(SOCK_ASYNC_WAITDATA, &sk->sk_socket->flags);
@@ -864,91 +886,28 @@ done:
 	return result;
 }
 
-/* ---- Proc fs support ---- */
-#ifdef CONFIG_PROC_FS
-static void *rfcomm_seq_start(struct seq_file *seq, loff_t *pos)
+static ssize_t rfcomm_sock_sysfs_show(struct class *dev, char *buf)
 {
 	struct sock *sk;
 	struct hlist_node *node;
-	loff_t l = *pos;
+	char *str = buf;
 
 	read_lock_bh(&rfcomm_sk_list.lock);
 
-	sk_for_each(sk, node, &rfcomm_sk_list.head)
-		if (!l--)
-			return sk;
-	return NULL;
-}
+	sk_for_each(sk, node, &rfcomm_sk_list.head) {
+		str += sprintf(str, "%s %s %d %d\n",
+				batostr(&bt_sk(sk)->src), batostr(&bt_sk(sk)->dst),
+				sk->sk_state, rfcomm_pi(sk)->channel);
+	}
 
-static void *rfcomm_seq_next(struct seq_file *seq, void *e, loff_t *pos)
-{
-	struct sock *sk = e;
-	(*pos)++;
-	return sk_next(sk);
-}
-
-static void rfcomm_seq_stop(struct seq_file *seq, void *e)
-{
 	read_unlock_bh(&rfcomm_sk_list.lock);
+
+	return (str - buf);
 }
 
-static int  rfcomm_seq_show(struct seq_file *seq, void *e)
-{
-	struct sock *sk = e;
-	seq_printf(seq, "%s %s %d %d\n",
-			batostr(&bt_sk(sk)->src), batostr(&bt_sk(sk)->dst),
-			sk->sk_state, rfcomm_pi(sk)->channel);
-	return 0;
-}
+static CLASS_ATTR(rfcomm, S_IRUGO, rfcomm_sock_sysfs_show, NULL);
 
-static struct seq_operations rfcomm_seq_ops = {
-	.start  = rfcomm_seq_start,
-	.next   = rfcomm_seq_next,
-	.stop   = rfcomm_seq_stop,
-	.show   = rfcomm_seq_show 
-};
-
-static int rfcomm_seq_open(struct inode *inode, struct file *file)
-{
-	return seq_open(file, &rfcomm_seq_ops);
-}
-
-static struct file_operations rfcomm_seq_fops = {
-	.owner	 = THIS_MODULE,
-	.open    = rfcomm_seq_open,
-	.read    = seq_read,
-	.llseek  = seq_lseek,
-	.release = seq_release,
-};
-
-static int  __init rfcomm_sock_proc_init(void)
-{
-        struct proc_dir_entry *p = create_proc_entry("sock", S_IRUGO, proc_bt_rfcomm);
-        if (!p)
-                return -ENOMEM;
-        p->proc_fops = &rfcomm_seq_fops;
-        return 0;
-}
-
-static void __exit rfcomm_sock_proc_cleanup(void)
-{
-        remove_proc_entry("sock", proc_bt_rfcomm);
-}
-
-#else /* CONFIG_PROC_FS */
-
-static int  __init rfcomm_sock_proc_init(void)
-{
-        return 0;
-}
-
-static void __exit rfcomm_sock_proc_cleanup(void)
-{
-        return;
-}
-#endif /* CONFIG_PROC_FS */
-
-static struct proto_ops rfcomm_sock_ops = {
+static const struct proto_ops rfcomm_sock_ops = {
 	.family		= PF_BLUETOOTH,
 	.owner		= THIS_MODULE,
 	.release	= rfcomm_sock_release,
@@ -974,7 +933,7 @@ static struct net_proto_family rfcomm_sock_family_ops = {
 	.create		= rfcomm_sock_create
 };
 
-int  __init rfcomm_init_sockets(void)
+int __init rfcomm_init_sockets(void)
 {
 	int err;
 
@@ -986,7 +945,7 @@ int  __init rfcomm_init_sockets(void)
 	if (err < 0)
 		goto error;
 
-	rfcomm_sock_proc_init();
+	class_create_file(&bt_class, &class_attr_rfcomm);
 
 	BT_INFO("RFCOMM socket layer initialized");
 
@@ -1000,7 +959,7 @@ error:
 
 void __exit rfcomm_cleanup_sockets(void)
 {
-	rfcomm_sock_proc_cleanup();
+	class_remove_file(&bt_class, &class_attr_rfcomm);
 
 	if (bt_sock_unregister(BTPROTO_RFCOMM) < 0)
 		BT_ERR("RFCOMM socket layer unregistration failed");

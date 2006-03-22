@@ -7,11 +7,19 @@
  *
  */
 
+#include <net/ip.h>
 #include <net/xfrm.h>
 #include <linux/pfkeyv2.h>
 #include <linux/ipsec.h>
 
 static struct xfrm_state_afinfo xfrm4_state_afinfo;
+
+static int xfrm4_init_flags(struct xfrm_state *x)
+{
+	if (ipv4_config.no_pmtu_disc)
+		x->props.flags |= XFRM_STATE_NOPMTUDISC;
+	return 0;
+}
 
 static void
 __xfrm4_init_tempsel(struct xfrm_state *x, struct flowi *fl,
@@ -34,6 +42,21 @@ __xfrm4_init_tempsel(struct xfrm_state *x, struct flowi *fl,
 	x->props.saddr = tmpl->saddr;
 	if (x->props.saddr.a4 == 0)
 		x->props.saddr.a4 = saddr->a4;
+	if (tmpl->mode && x->props.saddr.a4 == 0) {
+		struct rtable *rt;
+	        struct flowi fl_tunnel = {
+        	        .nl_u = {
+        			.ip4_u = {
+					.daddr = x->id.daddr.a4,
+				}
+			}
+		};
+		if (!xfrm_dst_lookup((struct xfrm_dst **)&rt,
+		                     &fl_tunnel, AF_INET)) {
+			x->props.saddr.a4 = rt->rt_src;
+			dst_release(&rt->u.dst);
+		}
+	}
 	x->props.mode = tmpl->mode;
 	x->props.reqid = tmpl->reqid;
 	x->props.family = AF_INET;
@@ -109,6 +132,7 @@ __xfrm4_find_acq(u8 mode, u32 reqid, u8 proto,
 static struct xfrm_state_afinfo xfrm4_state_afinfo = {
 	.family			= AF_INET,
 	.lock			= RW_LOCK_UNLOCKED,
+	.init_flags		= xfrm4_init_flags,
 	.init_tempsel		= __xfrm4_init_tempsel,
 	.state_lookup		= __xfrm4_state_lookup,
 	.find_acq		= __xfrm4_find_acq,
@@ -119,8 +143,10 @@ void __init xfrm4_state_init(void)
 	xfrm_state_register_afinfo(&xfrm4_state_afinfo);
 }
 
+#if 0
 void __exit xfrm4_state_fini(void)
 {
 	xfrm_state_unregister_afinfo(&xfrm4_state_afinfo);
 }
+#endif  /*  0  */
 

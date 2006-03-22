@@ -46,7 +46,7 @@
 static long ratelimit_pages = 32;
 
 static long total_pages;	/* The total number of pages in the machine. */
-static int dirty_exceeded;	/* Dirty mem may be over limit */
+static int dirty_exceeded __cacheline_aligned_in_smp;	/* Dirty mem may be over limit */
 
 /*
  * When balance_dirty_pages decides that the caller needs to perform some
@@ -212,7 +212,8 @@ static void balance_dirty_pages(struct address_space *mapping)
 		if (nr_reclaimable + wbs.nr_writeback <= dirty_thresh)
 			break;
 
-		dirty_exceeded = 1;
+		if (!dirty_exceeded)
+			dirty_exceeded = 1;
 
 		/* Note: nr_reclaimable denotes nr_dirty + nr_unstable.
 		 * Unstable writes are a feature of certain networked
@@ -234,7 +235,7 @@ static void balance_dirty_pages(struct address_space *mapping)
 		blk_congestion_wait(WRITE, HZ/10);
 	}
 
-	if (nr_reclaimable + wbs.nr_writeback <= dirty_thresh)
+	if (nr_reclaimable + wbs.nr_writeback <= dirty_thresh && dirty_exceeded)
 		dirty_exceeded = 0;
 
 	if (writeback_in_progress(bdi))
@@ -354,7 +355,7 @@ static void background_writeout(unsigned long _min_pages)
  * the whole world.  Returns 0 if a pdflush thread was dispatched.  Returns
  * -1 if all pdflush threads were busy.
  */
-int wakeup_bdflush(long nr_pages)
+int wakeup_pdflush(long nr_pages)
 {
 	if (nr_pages == 0) {
 		struct writeback_state wbs;
@@ -368,10 +369,8 @@ int wakeup_bdflush(long nr_pages)
 static void wb_timer_fn(unsigned long unused);
 static void laptop_timer_fn(unsigned long unused);
 
-static struct timer_list wb_timer =
-			TIMER_INITIALIZER(wb_timer_fn, 0, 0);
-static struct timer_list laptop_mode_wb_timer =
-			TIMER_INITIALIZER(laptop_timer_fn, 0, 0);
+static DEFINE_TIMER(wb_timer, wb_timer_fn, 0, 0);
+static DEFINE_TIMER(laptop_mode_wb_timer, laptop_timer_fn, 0, 0);
 
 /*
  * Periodic writeback of "old" data.
@@ -552,11 +551,17 @@ void __init page_writeback_init(void)
 
 int do_writepages(struct address_space *mapping, struct writeback_control *wbc)
 {
+	int ret;
+
 	if (wbc->nr_to_write <= 0)
 		return 0;
+	wbc->for_writepages = 1;
 	if (mapping->a_ops->writepages)
-		return mapping->a_ops->writepages(mapping, wbc);
-	return generic_writepages(mapping, wbc);
+		ret =  mapping->a_ops->writepages(mapping, wbc);
+	else
+		ret = generic_writepages(mapping, wbc);
+	wbc->for_writepages = 0;
+	return ret;
 }
 
 /**

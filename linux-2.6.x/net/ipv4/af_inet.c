@@ -79,6 +79,7 @@
 #include <linux/string.h>
 #include <linux/sockios.h>
 #include <linux/net.h>
+#include <linux/capability.h>
 #include <linux/fcntl.h>
 #include <linux/mm.h>
 #include <linux/interrupt.h>
@@ -93,12 +94,14 @@
 #include <linux/smp_lock.h>
 #include <linux/inet.h>
 #include <linux/igmp.h>
+#include <linux/inetdevice.h>
 #include <linux/netdevice.h>
 #include <net/ip.h>
 #include <net/protocol.h>
 #include <net/arp.h>
 #include <net/route.h>
 #include <net/ip_fib.h>
+#include <net/inet_connection_sock.h>
 #include <net/tcp.h>
 #include <net/udp.h>
 #include <linux/skbuff.h>
@@ -112,11 +115,7 @@
 #include <linux/mroute.h>
 #endif
 
-DEFINE_SNMP_STAT(struct linux_mib, net_statistics);
-
-#ifdef INET_REFCNT_DEBUG
-atomic_t inet_sock_nr;
-#endif
+DEFINE_SNMP_STAT(struct linux_mib, net_statistics) __read_mostly;
 
 extern void ip_mc_drop_socket(struct sock *sk);
 
@@ -150,14 +149,9 @@ void inet_sock_destruct(struct sock *sk)
 	BUG_TRAP(!sk->sk_wmem_queued);
 	BUG_TRAP(!sk->sk_forward_alloc);
 
-	if (inet->opt)
-		kfree(inet->opt);
+	kfree(inet->opt);
 	dst_release(sk->sk_dst_cache);
-#ifdef INET_REFCNT_DEBUG
-	atomic_dec(&inet_sock_nr);
-	printk(KERN_DEBUG "INET socket %p released, %d are still alive\n",
-	       sk, atomic_read(&inet_sock_nr));
-#endif
+	sk_refcnt_debug_dec(sk);
 }
 
 /*
@@ -210,7 +204,7 @@ int inet_listen(struct socket *sock, int backlog)
 	 * we can only allow the backlog to be adjusted.
 	 */
 	if (old_state != TCP_LISTEN) {
-		err = tcp_listen_start(sk);
+		err = inet_csk_listen_start(sk, TCP_SYNQ_HSIZE);
 		if (err)
 			goto out;
 	}
@@ -235,12 +229,15 @@ static int inet_create(struct socket *sock, int protocol)
 	struct proto *answer_prot;
 	unsigned char answer_flags;
 	char answer_no_check;
+	int try_loading_module = 0;
 	int err;
 
 	sock->state = SS_UNCONNECTED;
 
 	/* Look for the requested type/protocol pair. */
 	answer = NULL;
+lookup_protocol:
+	err = -ESOCKTNOSUPPORT;
 	rcu_read_lock();
 	list_for_each_rcu(p, &inetsw[sock->type]) {
 		answer = list_entry(p, struct inet_protosw, list);
@@ -258,17 +255,34 @@ static int inet_create(struct socket *sock, int protocol)
 			if (IPPROTO_IP == answer->protocol)
 				break;
 		}
+		err = -EPROTONOSUPPORT;
 		answer = NULL;
 	}
 
-	err = -ESOCKTNOSUPPORT;
-	if (!answer)
-		goto out_rcu_unlock;
+	if (unlikely(answer == NULL)) {
+		if (try_loading_module < 2) {
+			rcu_read_unlock();
+			/*
+			 * Be more specific, e.g. net-pf-2-proto-132-type-1
+			 * (net-pf-PF_INET-proto-IPPROTO_SCTP-type-SOCK_STREAM)
+			 */
+			if (++try_loading_module == 1)
+				request_module("net-pf-%d-proto-%d-type-%d",
+					       PF_INET, protocol, sock->type);
+			/*
+			 * Fall back to generic, e.g. net-pf-2-proto-132
+			 * (net-pf-PF_INET-proto-IPPROTO_SCTP)
+			 */
+			else
+				request_module("net-pf-%d-proto-%d",
+					       PF_INET, protocol);
+			goto lookup_protocol;
+		} else
+			goto out_rcu_unlock;
+	}
+
 	err = -EPERM;
 	if (answer->capability > 0 && !capable(answer->capability))
-		goto out_rcu_unlock;
-	err = -EPROTONOSUPPORT;
-	if (!protocol)
 		goto out_rcu_unlock;
 
 	sock->ops = answer->ops;
@@ -290,6 +304,7 @@ static int inet_create(struct socket *sock, int protocol)
 		sk->sk_reuse = 1;
 
 	inet = inet_sk(sk);
+	inet->is_icsk = INET_PROTOSW_ICSK & answer_flags;
 
 	if (SOCK_RAW == sock->type) {
 		inet->num = protocol;
@@ -317,9 +332,7 @@ static int inet_create(struct socket *sock, int protocol)
 	inet->mc_index	= 0;
 	inet->mc_list	= NULL;
 
-#ifdef INET_REFCNT_DEBUG
-	atomic_inc(&inet_sock_nr);
-#endif
+	sk_refcnt_debug_inc(sk);
 
 	if (inet->num) {
 		/* It assumes that any protocol which allows
@@ -765,16 +778,16 @@ int inet_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 			err = devinet_ioctl(cmd, (void __user *)arg);
 			break;
 		default:
-			if (!sk->sk_prot->ioctl ||
-			    (err = sk->sk_prot->ioctl(sk, cmd, arg)) ==
-			    					-ENOIOCTLCMD)
-				err = dev_ioctl(cmd, (void __user *)arg);
+			if (sk->sk_prot->ioctl)
+				err = sk->sk_prot->ioctl(sk, cmd, arg);
+			else
+				err = -ENOIOCTLCMD;
 			break;
 	}
 	return err;
 }
 
-struct proto_ops inet_stream_ops = {
+const struct proto_ops inet_stream_ops = {
 	.family =	PF_INET,
 	.owner =	THIS_MODULE,
 	.release =	inet_release,
@@ -795,7 +808,7 @@ struct proto_ops inet_stream_ops = {
 	.sendpage =	tcp_sendpage
 };
 
-struct proto_ops inet_dgram_ops = {
+const struct proto_ops inet_dgram_ops = {
 	.family =	PF_INET,
 	.owner =	THIS_MODULE,
 	.release =	inet_release,
@@ -820,7 +833,7 @@ struct proto_ops inet_dgram_ops = {
  * For SOCK_RAW sockets; should be the same as inet_dgram_ops but without
  * udp_poll
  */
-static struct proto_ops inet_sockraw_ops = {
+static const struct proto_ops inet_sockraw_ops = {
 	.family =	PF_INET,
 	.owner =	THIS_MODULE,
 	.release =	inet_release,
@@ -847,10 +860,6 @@ static struct net_proto_family inet_family_ops = {
 	.owner	= THIS_MODULE,
 };
 
-
-extern void tcp_init(void);
-extern void tcp_v4_init(struct net_proto_family *);
-
 /* Upon startup we insert all the elements in inetsw_array[] into
  * the linked list inetsw.
  */
@@ -863,7 +872,8 @@ static struct inet_protosw inetsw_array[] =
                 .ops =        &inet_stream_ops,
                 .capability = -1,
                 .no_check =   0,
-                .flags =      INET_PROTOSW_PERMANENT,
+                .flags =      INET_PROTOSW_PERMANENT |
+			      INET_PROTOSW_ICSK,
         },
 
         {
@@ -929,6 +939,7 @@ void inet_register_protosw(struct inet_protosw *p)
 	list_add_rcu(&p->list, last_perm);
 out:
 	spin_unlock_bh(&inetsw_lock);
+
 	synchronize_net();
 
 	return;
@@ -959,6 +970,119 @@ void inet_unregister_protosw(struct inet_protosw *p)
 		synchronize_net();
 	}
 }
+
+/*
+ *      Shall we try to damage output packets if routing dev changes?
+ */
+
+int sysctl_ip_dynaddr;
+
+static int inet_sk_reselect_saddr(struct sock *sk)
+{
+	struct inet_sock *inet = inet_sk(sk);
+	int err;
+	struct rtable *rt;
+	__u32 old_saddr = inet->saddr;
+	__u32 new_saddr;
+	__u32 daddr = inet->daddr;
+
+	if (inet->opt && inet->opt->srr)
+		daddr = inet->opt->faddr;
+
+	/* Query new route. */
+	err = ip_route_connect(&rt, daddr, 0,
+			       RT_CONN_FLAGS(sk),
+			       sk->sk_bound_dev_if,
+			       sk->sk_protocol,
+			       inet->sport, inet->dport, sk);
+	if (err)
+		return err;
+
+	sk_setup_caps(sk, &rt->u.dst);
+
+	new_saddr = rt->rt_src;
+
+	if (new_saddr == old_saddr)
+		return 0;
+
+	if (sysctl_ip_dynaddr > 1) {
+		printk(KERN_INFO "%s(): shifting inet->"
+				 "saddr from %d.%d.%d.%d to %d.%d.%d.%d\n",
+		       __FUNCTION__,
+		       NIPQUAD(old_saddr),
+		       NIPQUAD(new_saddr));
+	}
+
+	inet->saddr = inet->rcv_saddr = new_saddr;
+
+	/*
+	 * XXX The only one ugly spot where we need to
+	 * XXX really change the sockets identity after
+	 * XXX it has entered the hashes. -DaveM
+	 *
+	 * Besides that, it does not check for connection
+	 * uniqueness. Wait for troubles.
+	 */
+	__sk_prot_rehash(sk);
+	return 0;
+}
+
+int inet_sk_rebuild_header(struct sock *sk)
+{
+	struct inet_sock *inet = inet_sk(sk);
+	struct rtable *rt = (struct rtable *)__sk_dst_check(sk, 0);
+	u32 daddr;
+	int err;
+
+	/* Route is OK, nothing to do. */
+	if (rt)
+		return 0;
+
+	/* Reroute. */
+	daddr = inet->daddr;
+	if (inet->opt && inet->opt->srr)
+		daddr = inet->opt->faddr;
+{
+	struct flowi fl = {
+		.oif = sk->sk_bound_dev_if,
+		.nl_u = {
+			.ip4_u = {
+				.daddr	= daddr,
+				.saddr	= inet->saddr,
+				.tos	= RT_CONN_FLAGS(sk),
+			},
+		},
+		.proto = sk->sk_protocol,
+		.uli_u = {
+			.ports = {
+				.sport = inet->sport,
+				.dport = inet->dport,
+			},
+		},
+	};
+						
+	err = ip_route_output_flow(&rt, &fl, sk, 0);
+}
+	if (!err)
+		sk_setup_caps(sk, &rt->u.dst);
+	else {
+		/* Routing failed... */
+		sk->sk_route_caps = 0;
+		/*
+		 * Other protocols have to map its equivalent state to TCP_SYN_SENT.
+		 * DCCP maps its DCCP_REQUESTING state to TCP_SYN_SENT. -acme
+		 */
+		if (!sysctl_ip_dynaddr ||
+		    sk->sk_state != TCP_SYN_SENT ||
+		    (sk->sk_userlocks & SOCK_BINDADDR_LOCK) ||
+		    (err = inet_sk_reselect_saddr(sk)) != 0)
+			sk->sk_err_soft = -err;
+	}
+
+	return err;
+}
+
+EXPORT_SYMBOL(inet_sk_rebuild_header);
 
 #ifdef CONFIG_IP_MULTICAST
 static struct net_protocol igmp_protocol = {
@@ -1006,7 +1130,15 @@ static int __init init_ipv4_mibs(void)
 }
 
 static int ipv4_proc_init(void);
-extern void ipfrag_init(void);
+
+/*
+ *	IP protocol layer initialiser
+ */
+
+static struct packet_type ip_packet_type = {
+	.type = __constant_htons(ETH_P_IP),
+	.func = ip_rcv,
+};
 
 static int __init inet_init(void)
 {
@@ -1101,6 +1233,8 @@ static int __init inet_init(void)
 
 	ipfrag_init();
 
+	dev_add_pack(&ip_packet_type);
+
 	rc = 0;
 out:
 	return rc;
@@ -1116,16 +1250,6 @@ module_init(inet_init);
 /* ------------------------------------------------------------------------ */
 
 #ifdef CONFIG_PROC_FS
-extern int  fib_proc_init(void);
-extern void fib_proc_exit(void);
-extern int  ip_misc_proc_init(void);
-extern int  raw_proc_init(void);
-extern void raw_proc_exit(void);
-extern int  tcp4_proc_init(void);
-extern void tcp4_proc_exit(void);
-extern int  udp4_proc_init(void);
-extern void udp4_proc_exit(void);
-
 static int __init ipv4_proc_init(void)
 {
 	int rc = 0;
@@ -1181,7 +1305,3 @@ EXPORT_SYMBOL(inet_stream_ops);
 EXPORT_SYMBOL(inet_unregister_protosw);
 EXPORT_SYMBOL(net_statistics);
 EXPORT_SYMBOL(sysctl_ip_nonlocal_bind);
-
-#ifdef INET_REFCNT_DEBUG
-EXPORT_SYMBOL(inet_sock_nr);
-#endif

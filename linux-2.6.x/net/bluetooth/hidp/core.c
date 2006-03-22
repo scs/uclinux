@@ -428,7 +428,7 @@ static int hidp_send_frame(struct socket *sock, unsigned char *data, int len)
 	return kernel_sendmsg(sock, &msg, &iv, 1, len);
 }
 
-static int hidp_process_transmit(struct hidp_session *session)
+static void hidp_process_transmit(struct hidp_session *session)
 {
 	struct sk_buff *skb;
 
@@ -453,9 +453,6 @@ static int hidp_process_transmit(struct hidp_session *session)
 		hidp_set_timer(session);
 		kfree_skb(skb);
 	}
-
-	return skb_queue_len(&session->ctrl_transmit) +
-				skb_queue_len(&session->intr_transmit);
 }
 
 static int hidp_session(void *arg)
@@ -523,7 +520,7 @@ static int hidp_session(void *arg)
 
 	if (session->input) {
 		input_unregister_device(session->input);
-		kfree(session->input);
+		session->input = NULL;
 	}
 
 	up_write(&hidp_session_sem);
@@ -538,6 +535,8 @@ static inline void hidp_setup_input(struct hidp_session *session, struct hidp_co
 	int i;
 
 	input->private = session;
+
+	input->name = "Bluetooth HID Boot Protocol Device";
 
 	input->id.bustype = BUS_BLUETOOTH;
 	input->id.vendor  = req->vendor;
@@ -585,16 +584,15 @@ int hidp_add_connection(struct hidp_connadd_req *req, struct socket *ctrl_sock, 
 		return -ENOTUNIQ;
 
 	session = kmalloc(sizeof(struct hidp_session), GFP_KERNEL);
-	if (!session) 
+	if (!session)
 		return -ENOMEM;
 	memset(session, 0, sizeof(struct hidp_session));
 
-	session->input = kmalloc(sizeof(struct input_dev), GFP_KERNEL);
+	session->input = input_allocate_device();
 	if (!session->input) {
 		kfree(session);
 		return -ENOMEM;
 	}
-	memset(session->input, 0, sizeof(struct input_dev));
 
 	down_write(&hidp_session_sem);
 
@@ -654,15 +652,15 @@ unlink:
 
 	__hidp_unlink_session(session);
 
-	if (session->input)
+	if (session->input) {
 		input_unregister_device(session->input);
+		session->input = NULL; /* don't try to free it here */
+	}
 
 failed:
 	up_write(&hidp_session_sem);
 
-	if (session->input)
-		kfree(session->input);
-
+	kfree(session->input);
 	kfree(session);
 	return err;
 }

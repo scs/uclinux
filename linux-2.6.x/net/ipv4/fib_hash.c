@@ -29,6 +29,7 @@
 #include <linux/errno.h>
 #include <linux/in.h>
 #include <linux/inet.h>
+#include <linux/inetdevice.h>
 #include <linux/netdevice.h>
 #include <linux/if_arp.h>
 #include <linux/proc_fs.h>
@@ -45,8 +46,8 @@
 
 #include "fib_lookup.h"
 
-static kmem_cache_t *fn_hash_kmem;
-static kmem_cache_t *fn_alias_kmem;
+static kmem_cache_t *fn_hash_kmem __read_mostly;
+static kmem_cache_t *fn_alias_kmem __read_mostly;
 
 struct fib_node {
 	struct hlist_node	fn_hash;
@@ -703,7 +704,8 @@ fn_hash_dump_bucket(struct sk_buff *skb, struct netlink_callback *cb,
 					  &f->fn_key,
 					  fz->fz_order,
 					  fa->fa_tos,
-					  fa->fa_info) < 0) {
+					  fa->fa_info,
+					  NLM_F_MULTI) < 0) {
 				cb->args[3] = i;
 				return -1;
 			}
@@ -974,7 +976,7 @@ static void fib_seq_stop(struct seq_file *seq, void *v)
 
 static unsigned fib_flag_trans(int type, u32 mask, struct fib_info *fi)
 {
-	static unsigned type2flags[RTN_MAX + 1] = {
+	static const unsigned type2flags[RTN_MAX + 1] = {
 		[7] = RTF_REJECT, [8] = RTF_REJECT,
 	};
 	unsigned flags = type2flags[type];

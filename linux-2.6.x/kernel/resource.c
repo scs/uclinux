@@ -263,7 +263,7 @@ static int find_resource(struct resource *root, struct resource *new,
 			new->start = min;
 		if (new->end > max)
 			new->end = max;
-		new->start = (new->start + align - 1) & ~(align - 1);
+		new->start = ALIGN(new->start, align);
 		if (alignf)
 			alignf(alignf_data, new, size, align);
 		if (new->start < new->end && new->end - new->start >= size - 1) {
@@ -430,10 +430,9 @@ EXPORT_SYMBOL(adjust_resource);
  */
 struct resource * __request_region(struct resource *parent, unsigned long start, unsigned long n, const char *name)
 {
-	struct resource *res = kmalloc(sizeof(*res), GFP_KERNEL);
+	struct resource *res = kzalloc(sizeof(*res), GFP_KERNEL);
 
 	if (res) {
-		memset(res, 0, sizeof(*res));
 		res->name = name;
 		res->start = start;
 		res->end = start + n - 1;
@@ -465,7 +464,7 @@ struct resource * __request_region(struct resource *parent, unsigned long start,
 
 EXPORT_SYMBOL(__request_region);
 
-int __deprecated __check_region(struct resource *parent, unsigned long start, unsigned long n)
+int __check_region(struct resource *parent, unsigned long start, unsigned long n)
 {
 	struct resource * res;
 

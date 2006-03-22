@@ -24,7 +24,11 @@
  *
  */
 
+#include <linux/interrupt.h>
+#include <linux/in.h>
+#include <linux/net.h>
 #include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/vmalloc.h>
 #include <linux/proc_fs.h>		/* for proc_net_* */
 #include <linux/seq_file.h>
@@ -40,7 +44,7 @@
 static struct list_head *ip_vs_conn_tab;
 
 /*  SLAB cache for IPVS connections */
-static kmem_cache_t *ip_vs_conn_cachep;
+static kmem_cache_t *ip_vs_conn_cachep __read_mostly;
 
 /*  counter for current IPVS connections */
 static atomic_t ip_vs_conn_count = ATOMIC_INIT(0);
@@ -196,6 +200,7 @@ static inline struct ip_vs_conn *__ip_vs_conn_in_get
 	list_for_each_entry(cp, &ip_vs_conn_tab[hash], c_list) {
 		if (s_addr==cp->caddr && s_port==cp->cport &&
 		    d_port==cp->vport && d_addr==cp->vaddr &&
+		    ((!s_port) ^ (!(cp->flags & IP_VS_CONN_F_NO_CPORT))) &&
 		    protocol==cp->protocol) {
 			/* HIT */
 			atomic_inc(&cp->refcnt);
@@ -218,7 +223,7 @@ struct ip_vs_conn *ip_vs_conn_in_get
 	if (!cp && atomic_read(&ip_vs_conn_no_cport_cnt))
 		cp = __ip_vs_conn_in_get(protocol, s_addr, 0, d_addr, d_port);
 
-	IP_VS_DBG(7, "lookup/in %s %u.%u.%u.%u:%d->%u.%u.%u.%u:%d %s\n",
+	IP_VS_DBG(9, "lookup/in %s %u.%u.%u.%u:%d->%u.%u.%u.%u:%d %s\n",
 		  ip_vs_proto_name(protocol),
 		  NIPQUAD(s_addr), ntohs(s_port),
 		  NIPQUAD(d_addr), ntohs(d_port),
@@ -227,6 +232,40 @@ struct ip_vs_conn *ip_vs_conn_in_get
 	return cp;
 }
 
+/* Get reference to connection template */
+struct ip_vs_conn *ip_vs_ct_in_get
+(int protocol, __u32 s_addr, __u16 s_port, __u32 d_addr, __u16 d_port)
+{
+	unsigned hash;
+	struct ip_vs_conn *cp;
+
+	hash = ip_vs_conn_hashkey(protocol, s_addr, s_port);
+
+	ct_read_lock(hash);
+
+	list_for_each_entry(cp, &ip_vs_conn_tab[hash], c_list) {
+		if (s_addr==cp->caddr && s_port==cp->cport &&
+		    d_port==cp->vport && d_addr==cp->vaddr &&
+		    cp->flags & IP_VS_CONN_F_TEMPLATE &&
+		    protocol==cp->protocol) {
+			/* HIT */
+			atomic_inc(&cp->refcnt);
+			goto out;
+		}
+	}
+	cp = NULL;
+
+  out:
+	ct_read_unlock(hash);
+
+	IP_VS_DBG(9, "template lookup/in %s %u.%u.%u.%u:%d->%u.%u.%u.%u:%d %s\n",
+		  ip_vs_proto_name(protocol),
+		  NIPQUAD(s_addr), ntohs(s_port),
+		  NIPQUAD(d_addr), ntohs(d_port),
+		  cp?"hit":"not hit");
+
+	return cp;
+}
 
 /*
  *  Gets ip_vs_conn associated with supplied parameters in the ip_vs_conn_tab.
@@ -260,7 +299,7 @@ struct ip_vs_conn *ip_vs_conn_out_get
 
 	ct_read_unlock(hash);
 
-	IP_VS_DBG(7, "lookup/out %s %u.%u.%u.%u:%d->%u.%u.%u.%u:%d %s\n",
+	IP_VS_DBG(9, "lookup/out %s %u.%u.%u.%u:%d->%u.%u.%u.%u:%d %s\n",
 		  ip_vs_proto_name(protocol),
 		  NIPQUAD(s_addr), ntohs(s_port),
 		  NIPQUAD(d_addr), ntohs(d_port),
@@ -356,8 +395,9 @@ ip_vs_bind_dest(struct ip_vs_conn *cp, struct ip_vs_dest *dest)
 	cp->flags |= atomic_read(&dest->conn_flags);
 	cp->dest = dest;
 
-	IP_VS_DBG(9, "Bind-dest %s c:%u.%u.%u.%u:%d v:%u.%u.%u.%u:%d "
-		  "d:%u.%u.%u.%u:%d fwd:%c s:%u flg:%X cnt:%d destcnt:%d\n",
+	IP_VS_DBG(7, "Bind-dest %s c:%u.%u.%u.%u:%d v:%u.%u.%u.%u:%d "
+		  "d:%u.%u.%u.%u:%d fwd:%c s:%u conn->flags:%X conn->refcnt:%d "
+		  "dest->refcnt:%d\n",
 		  ip_vs_proto_name(cp->protocol),
 		  NIPQUAD(cp->caddr), ntohs(cp->cport),
 		  NIPQUAD(cp->vaddr), ntohs(cp->vport),
@@ -367,7 +407,7 @@ ip_vs_bind_dest(struct ip_vs_conn *cp, struct ip_vs_dest *dest)
 		  atomic_read(&dest->refcnt));
 
 	/* Update the connection counters */
-	if (cp->cport || (cp->flags & IP_VS_CONN_F_NO_CPORT)) {
+	if (!(cp->flags & IP_VS_CONN_F_TEMPLATE)) {
 		/* It is a normal connection, so increase the inactive
 		   connection counter because it is in TCP SYNRECV
 		   state (inactive) or other protocol inacive state */
@@ -395,8 +435,9 @@ static inline void ip_vs_unbind_dest(struct ip_vs_conn *cp)
 	if (!dest)
 		return;
 
-	IP_VS_DBG(9, "Unbind-dest %s c:%u.%u.%u.%u:%d v:%u.%u.%u.%u:%d "
-		  "d:%u.%u.%u.%u:%d fwd:%c s:%u flg:%X cnt:%d destcnt:%d\n",
+	IP_VS_DBG(7, "Unbind-dest %s c:%u.%u.%u.%u:%d v:%u.%u.%u.%u:%d "
+		  "d:%u.%u.%u.%u:%d fwd:%c s:%u conn->flags:%X conn->refcnt:%d "
+		  "dest->refcnt:%d\n",
 		  ip_vs_proto_name(cp->protocol),
 		  NIPQUAD(cp->caddr), ntohs(cp->cport),
 		  NIPQUAD(cp->vaddr), ntohs(cp->vport),
@@ -406,7 +447,7 @@ static inline void ip_vs_unbind_dest(struct ip_vs_conn *cp)
 		  atomic_read(&dest->refcnt));
 
 	/* Update the connection counters */
-	if (cp->cport || (cp->flags & IP_VS_CONN_F_NO_CPORT)) {
+	if (!(cp->flags & IP_VS_CONN_F_TEMPLATE)) {
 		/* It is a normal connection, so decrease the inactconns
 		   or activeconns counter */
 		if (cp->flags & IP_VS_CONN_F_INACTIVE) {
@@ -467,7 +508,7 @@ int ip_vs_check_template(struct ip_vs_conn *ct)
 		/*
 		 * Invalidate the connection template
 		 */
-		if (ct->cport) {
+		if (ct->vport != 65535) {
 			if (ip_vs_conn_unhash(ct)) {
 				ct->dport = 65535;
 				ct->vport = 65535;
@@ -536,7 +577,7 @@ static void ip_vs_conn_expire(unsigned long data)
 	ip_vs_conn_hash(cp);
 
   expire_later:
-	IP_VS_DBG(7, "delayed: refcnt-1=%d conn.n_control=%d\n",
+	IP_VS_DBG(7, "delayed: conn->refcnt-1=%d conn->n_control=%d\n",
 		  atomic_read(&cp->refcnt)-1,
 		  atomic_read(&cp->n_control));
 
@@ -548,7 +589,6 @@ void ip_vs_conn_expire_now(struct ip_vs_conn *cp)
 {
 	if (del_timer(&cp->timer))
 		mod_timer(&cp->timer, jiffies);
-	__ip_vs_conn_put(cp);
 }
 
 
@@ -737,7 +777,7 @@ static inline int todrop_entry(struct ip_vs_conn *cp)
 	 * The drop rate array needs tuning for real environments.
 	 * Called from timer bh only => no locking
 	 */
-	static char todrop_rate[9] = {0, 1, 2, 3, 4, 5, 6, 7, 8};
+	static const char todrop_rate[9] = {0, 1, 2, 3, 4, 5, 6, 7, 8};
 	static char todrop_counter[9] = {0};
 	int i;
 
@@ -759,12 +799,11 @@ static inline int todrop_entry(struct ip_vs_conn *cp)
 	return 1;
 }
 
-
+/* Called from keventd and must protect itself from softirqs */
 void ip_vs_random_dropentry(void)
 {
 	int idx;
 	struct ip_vs_conn *cp;
-	struct ip_vs_conn *ct;
 
 	/*
 	 * Randomly scan 1/32 of the whole table every second
@@ -775,10 +814,10 @@ void ip_vs_random_dropentry(void)
 		/*
 		 *  Lock is actually needed in this loop.
 		 */
-		ct_write_lock(hash);
+		ct_write_lock_bh(hash);
 
 		list_for_each_entry(cp, &ip_vs_conn_tab[hash], c_list) {
-			if (!cp->cport && !(cp->flags & IP_VS_CONN_F_NO_CPORT))
+			if (cp->flags & IP_VS_CONN_F_TEMPLATE)
 				/* connection template */
 				continue;
 
@@ -801,23 +840,14 @@ void ip_vs_random_dropentry(void)
 					continue;
 			}
 
-			/*
-			 * Drop the entry, and drop its ct if not referenced
-			 */
-			atomic_inc(&cp->refcnt);
-			ct_write_unlock(hash);
-
-			if ((ct = cp->control))
-				atomic_inc(&ct->refcnt);
 			IP_VS_DBG(4, "del connection\n");
 			ip_vs_conn_expire_now(cp);
-			if (ct) {
+			if (cp->control) {
 				IP_VS_DBG(4, "del conn template\n");
-				ip_vs_conn_expire_now(ct);
+				ip_vs_conn_expire_now(cp->control);
 			}
-			ct_write_lock(hash);
 		}
-		ct_write_unlock(hash);
+		ct_write_unlock_bh(hash);
 	}
 }
 
@@ -829,7 +859,6 @@ static void ip_vs_conn_flush(void)
 {
 	int idx;
 	struct ip_vs_conn *cp;
-	struct ip_vs_conn *ct;
 
   flush_again:
 	for (idx=0; idx<IP_VS_CONN_TAB_SIZE; idx++) {
@@ -839,18 +868,13 @@ static void ip_vs_conn_flush(void)
 		ct_write_lock_bh(idx);
 
 		list_for_each_entry(cp, &ip_vs_conn_tab[idx], c_list) {
-			atomic_inc(&cp->refcnt);
-			ct_write_unlock(idx);
 
-			if ((ct = cp->control))
-				atomic_inc(&ct->refcnt);
 			IP_VS_DBG(4, "del connection\n");
 			ip_vs_conn_expire_now(cp);
-			if (ct) {
+			if (cp->control) {
 				IP_VS_DBG(4, "del conn template\n");
-				ip_vs_conn_expire_now(ct);
+				ip_vs_conn_expire_now(cp->control);
 			}
-			ct_write_lock(idx);
 		}
 		ct_write_unlock_bh(idx);
 	}

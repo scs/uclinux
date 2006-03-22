@@ -51,35 +51,29 @@
 #include <asm/io.h>
 #include <asm/bugs.h>
 #include <asm/setup.h>
-
-/*
- * This is one of the first .c files built. Error out early
- * if we have compiler trouble..
- */
-#if __GNUC__ == 2 && __GNUC_MINOR__ == 96
-#ifdef CONFIG_FRAME_POINTER
-#error This compiler cannot compile correctly with frame pointers enabled
-#endif
-#endif
+#include <asm/sections.h>
+#include <asm/cacheflush.h>
 
 #ifdef CONFIG_X86_LOCAL_APIC
 #include <asm/smp.h>
 #endif
 
 /*
- * Versions of gcc older than that listed below may actually compile
- * and link okay, but the end product can have subtle run time bugs.
- * To avoid associated bogus bug reports, we flatly refuse to compile
- * with a gcc that is known to be too old from the very beginning.
+ * This is one of the first .c files built. Error out early if we have compiler
+ * trouble.
+ *
+ * Versions of gcc older than that listed below may actually compile and link
+ * okay, but the end product can have subtle run time bugs.  To avoid associated
+ * bogus bug reports, we flatly refuse to compile with a gcc that is known to be
+ * too old from the very beginning.
  */
-#if __GNUC__ < 2 || (__GNUC__ == 2 && __GNUC_MINOR__ < 95)
+#if (__GNUC__ < 3) || (__GNUC__ == 3 && __GNUC_MINOR__ < 2)
 #error Sorry, your GCC is too old. It builds incorrect kernels.
 #endif
 
 static int init(void *);
 
 extern void init_IRQ(void);
-extern void sock_init(void);
 extern void fork_init(unsigned long);
 extern void mca_init(void);
 extern void sbus_init(void);
@@ -98,6 +92,9 @@ extern void prepare_namespace(void);
 extern void acpi_early_init(void);
 #else
 static inline void acpi_early_init(void) { }
+#endif
+#ifndef CONFIG_DEBUG_RODATA
+static inline void mark_rodata_ro(void) { }
 #endif
 
 #ifdef CONFIG_TC
@@ -122,6 +119,7 @@ extern void softirq_init(void);
 char saved_command_line[COMMAND_LINE_SIZE];
 
 static char *execute_command;
+static char *ramdisk_execute_command;
 
 /* Setup configured maximum number of CPUs to activate */
 static unsigned int max_cpus = NR_CPUS;
@@ -296,6 +294,18 @@ static int __init init_setup(char *str)
 }
 __setup("init=", init_setup);
 
+static int __init rdinit_setup(char *str)
+{
+	unsigned int i;
+
+	ramdisk_execute_command = str;
+	/* See "auto" comment in init_setup */
+	for (i = 1; i < MAX_INIT_ARGS; i++)
+		argv_init[i] = NULL;
+	return 1;
+}
+__setup("rdinit=", rdinit_setup);
+
 extern void setup_arch(char **);
 
 #ifndef CONFIG_SMP
@@ -323,8 +333,6 @@ static void __init setup_per_cpu_areas(void)
 {
 	unsigned long size, i;
 	char *ptr;
-	/* Created by linker magic */
-	extern char __per_cpu_start[], __per_cpu_end[];
 
 	/* Copy section for each CPU (we discard the original) */
 	size = ALIGN(__per_cpu_end - __per_cpu_start, SMP_CACHE_BYTES);
@@ -382,7 +390,16 @@ static void noinline rest_init(void)
 	kernel_thread(init, NULL, CLONE_FS | CLONE_SIGHAND);
 	numa_default_policy();
 	unlock_kernel();
+
+	/*
+	 * The boot idle thread must execute schedule()
+	 * at least one to get things moving:
+	 */
 	preempt_enable_no_resched();
+	schedule();
+	preempt_disable();
+
+	/* Call into cpu_idle with preempt disabled */
 	cpu_idle();
 } 
 
@@ -466,6 +483,7 @@ asmlinkage void __init start_kernel(void)
 	init_IRQ();
 	pidhash_init();
 	init_timers();
+	hrtimers_init();
 	softirq_init();
 	time_init();
 
@@ -488,8 +506,10 @@ asmlinkage void __init start_kernel(void)
 	}
 #endif
 	vfs_caches_init_early();
+	cpuset_init_early();
 	mem_init();
 	kmem_cache_init();
+	setup_per_cpu_pageset();
 	numa_policy_init();
 	if (late_time_init)
 		late_time_init();
@@ -521,6 +541,7 @@ asmlinkage void __init start_kernel(void)
 	check_bugs();
 
 	acpi_early_init(); /* before LAPIC and SMP init */
+
 	/* Do the rest non-__init'ed, we're now alive */
 	rest_init();
 }
@@ -591,9 +612,6 @@ static void __init do_basic_setup(void)
 	sysctl_init();
 #endif
 
-	/* Networking initialization needs a process context */ 
-	sock_init();
-
 	do_initcalls();
 }
 
@@ -606,6 +624,7 @@ static void do_pre_smp_initcalls(void)
 	migration_init();
 #endif
 	spawn_ksoftirqd();
+	spawn_softlockup_task();
 }
 
 static void run_init_process(char *init_filename)
@@ -638,7 +657,6 @@ static int init(void * unused)
 	/*
 	 * init can run on any cpu.
 	 */
-
 	set_cpus_allowed(current, CPU_MASK_ALL);
 	/*
 	 * Tell the world that we're going to be the grim
@@ -650,7 +668,6 @@ static int init(void * unused)
 	 */
 	child_reaper = current;
 
-	/* Sets up cpus_possible() */
 	smp_prepare_cpus(max_cpus);
 
 	do_pre_smp_initcalls();
@@ -673,10 +690,14 @@ static int init(void * unused)
 	 * check if there is an early userspace init.  If yes, let it do all
 	 * the work
 	 */
-	if (sys_access((const char __user *) "/init", 0) == 0)
-		execute_command = "/init";
-	else
+
+	if (!ramdisk_execute_command)
+		ramdisk_execute_command = "/init";
+
+	if (sys_access((const char __user *) ramdisk_execute_command, 0) != 0) {
+		ramdisk_execute_command = NULL;
 		prepare_namespace();
+	}
 
 	/*
 	 * Ok, we have completed the initial bootup, and
@@ -685,6 +706,7 @@ static int init(void * unused)
 	 */
 	free_initmem();
 	unlock_kernel();
+	mark_rodata_ro();
 	system_state = SYSTEM_RUNNING;
 	numa_default_policy();
 
@@ -693,20 +715,28 @@ static int init(void * unused)
 
 	(void) sys_dup(0);
 	(void) sys_dup(0);
-	
+
+	if (ramdisk_execute_command) {
+		run_init_process(ramdisk_execute_command);
+		printk(KERN_WARNING "Failed to execute %s\n",
+				ramdisk_execute_command);
+	}
+
 	/*
 	 * We try each of these until one succeeds.
 	 *
 	 * The Bourne shell can be used instead of init if we are 
 	 * trying to recover a really broken machine.
 	 */
-	if (execute_command)
+	if (execute_command) {
 		run_init_process(execute_command);
-
+		printk(KERN_WARNING "Failed to execute %s.  Attempting "
+					"defaults...\n", execute_command);
+	}
 	run_init_process("/sbin/init");
 	run_init_process("/etc/init");
 	run_init_process("/bin/init");
 	run_init_process("/bin/sh");
-       
+
 	panic("No init found.  Try passing init= option to kernel.");
 }

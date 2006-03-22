@@ -23,11 +23,7 @@ const unsigned char bridge_ula[6] = { 0x01, 0x80, 0xc2, 0x00, 0x00, 0x00 };
 
 static int br_pass_frame_up_finish(struct sk_buff *skb)
 {
-#ifdef CONFIG_NETFILTER_DEBUG
-	skb->nf_debug = 0;
-#endif
 	netif_receive_skb(skb);
-
 	return 0;
 }
 
@@ -49,13 +45,20 @@ static void br_pass_frame_up(struct net_bridge *br, struct sk_buff *skb)
 int br_handle_frame_finish(struct sk_buff *skb)
 {
 	const unsigned char *dest = eth_hdr(skb)->h_dest;
-	struct net_bridge_port *p = skb->dev->br_port;
-	struct net_bridge *br = p->br;
+	struct net_bridge_port *p = rcu_dereference(skb->dev->br_port);
+	struct net_bridge *br;
 	struct net_bridge_fdb_entry *dst;
 	int passedup = 0;
 
+	if (!p || p->state == BR_STATE_DISABLED)
+		goto drop;
+
 	/* insert into forwarding database after filtering to avoid spoofing */
-	br_fdb_update(p->br, p, eth_hdr(skb)->h_source);
+	br = p->br;
+	br_fdb_update(br, p, eth_hdr(skb)->h_source);
+
+	if (p->state == BR_STATE_LEARNING)
+		goto drop;
 
 	if (br->dev->flags & IFF_PROMISC) {
 		struct sk_buff *skb2;
@@ -67,7 +70,7 @@ int br_handle_frame_finish(struct sk_buff *skb)
 		}
 	}
 
-	if (dest[0] & 1) {
+	if (is_multicast_ether_addr(dest)) {
 		br_flood_forward(br, skb, !passedup);
 		if (!passedup)
 			br_pass_frame_up(br, skb);
@@ -92,6 +95,9 @@ int br_handle_frame_finish(struct sk_buff *skb)
 
 out:
 	return 0;
+drop:
+	kfree_skb(skb);
+	goto out;
 }
 
 /*
@@ -111,9 +117,6 @@ int br_handle_frame(struct net_bridge_port *p, struct sk_buff **pskb)
 	if (!is_valid_ether_addr(eth_hdr(skb)->h_source))
 		goto err;
 
-	if (p->state == BR_STATE_LEARNING)
-		br_fdb_update(p->br, p, eth_hdr(skb)->h_source);
-
 	if (p->br->stp_enabled &&
 	    !memcmp(dest, bridge_ula, 5) &&
 	    !(dest[5] & 0xF0)) {
@@ -122,9 +125,10 @@ int br_handle_frame(struct net_bridge_port *p, struct sk_buff **pskb)
 				NULL, br_stp_handle_bpdu);
 			return 1;
 		}
+		goto err;
 	}
 
-	else if (p->state == BR_STATE_FORWARDING) {
+	if (p->state == BR_STATE_FORWARDING || p->state == BR_STATE_LEARNING) {
 		if (br_should_route_hook) {
 			if (br_should_route_hook(pskb)) 
 				return 0;
@@ -132,7 +136,7 @@ int br_handle_frame(struct net_bridge_port *p, struct sk_buff **pskb)
 			dest = eth_hdr(skb)->h_dest;
 		}
 
-		if (!memcmp(p->br->dev->dev_addr, dest, ETH_ALEN))
+		if (!compare_ether_addr(p->br->dev->dev_addr, dest))
 			skb->pkt_type = PACKET_HOST;
 
 		NF_HOOK(PF_BRIDGE, NF_BR_PRE_ROUTING, skb, skb->dev, NULL,

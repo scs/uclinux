@@ -73,6 +73,7 @@
 #include <linux/socket.h>
 #include <linux/in.h>
 #include <linux/inet.h>
+#include <linux/inetdevice.h>
 #include <linux/netdevice.h>
 #include <linux/string.h>
 #include <linux/netfilter_ipv4.h>
@@ -114,7 +115,7 @@ struct icmp_bxm {
 /*
  *	Statistics
  */
-DEFINE_SNMP_STAT(struct icmp_mib, icmp_statistics);
+DEFINE_SNMP_STAT(struct icmp_mib, icmp_statistics) __read_mostly;
 
 /* An array of errno for error messages from dest unreach. */
 /* RFC 1122: 3.2.2.1 States that NET_UNREACH, HOST_UNREACH and SR_FAILED MUST be considered 'transient errs'. */
@@ -188,10 +189,10 @@ struct icmp_err icmp_err_convert[] = {
 
 /* Control parameters for ECHO replies. */
 int sysctl_icmp_echo_ignore_all;
-int sysctl_icmp_echo_ignore_broadcasts;
+int sysctl_icmp_echo_ignore_broadcasts = 1;
 
 /* Control parameter - ignore bogus broadcast responses? */
-int sysctl_icmp_ignore_bogus_error_responses;
+int sysctl_icmp_ignore_bogus_error_responses = 1;
 
 /*
  * 	Configurable global rate limit.
@@ -220,7 +221,7 @@ struct icmp_control {
 	short   error;		/* This ICMP is classed as an error message */
 };
 
-static struct icmp_control icmp_pointers[NR_ICMP_TYPES+1];
+static const struct icmp_control icmp_pointers[NR_ICMP_TYPES+1];
 
 /*
  *	The ICMP socket(s). This is the most convenient way to flow control
@@ -349,12 +350,12 @@ static void icmp_push_reply(struct icmp_bxm *icmp_param,
 {
 	struct sk_buff *skb;
 
-	ip_append_data(icmp_socket->sk, icmp_glue_bits, icmp_param,
-		       icmp_param->data_len+icmp_param->head_len,
-		       icmp_param->head_len,
-		       ipc, rt, MSG_DONTWAIT);
-
-	if ((skb = skb_peek(&icmp_socket->sk->sk_write_queue)) != NULL) {
+	if (ip_append_data(icmp_socket->sk, icmp_glue_bits, icmp_param,
+		           icmp_param->data_len+icmp_param->head_len,
+		           icmp_param->head_len,
+		           ipc, rt, MSG_DONTWAIT) < 0)
+		ip_flush_pending_frames(icmp_socket->sk);
+	else if ((skb = skb_peek(&icmp_socket->sk->sk_write_queue)) != NULL) {
 		struct icmphdr *icmph = skb->h.icmph;
 		unsigned int csum = 0;
 		struct sk_buff *skb1;
@@ -384,7 +385,7 @@ static void icmp_reply(struct icmp_bxm *icmp_param, struct sk_buff *skb)
 	u32 daddr;
 
 	if (ip_options_echo(&icmp_param->replyopts, skb))
-		goto out;
+		return;
 
 	if (icmp_xmit_lock())
 		return;
@@ -415,7 +416,6 @@ static void icmp_reply(struct icmp_bxm *icmp_param, struct sk_buff *skb)
 	ip_rt_put(rt);
 out_unlock:
 	icmp_xmit_unlock();
-out:;
 }
 
 
@@ -524,7 +524,7 @@ void icmp_send(struct sk_buff *skb_in, int type, int code, u32 info)
 					  iph->tos;
 
 	if (ip_options_echo(&icmp_param.replyopts, skb_in))
-		goto ende;
+		goto out_unlock;
 
 
 	/*
@@ -627,11 +627,10 @@ static void icmp_unreach(struct sk_buff *skb)
 			break;
 		case ICMP_FRAG_NEEDED:
 			if (ipv4_config.no_pmtu_disc) {
-				LIMIT_NETDEBUG(
-					printk(KERN_INFO "ICMP: %u.%u.%u.%u: "
+				LIMIT_NETDEBUG(KERN_INFO "ICMP: %u.%u.%u.%u: "
 							 "fragmentation needed "
 							 "and DF set.\n",
-					       NIPQUAD(iph->daddr)));
+					       NIPQUAD(iph->daddr));
 			} else {
 				info = ip_rt_frag_needed(iph,
 						     ntohs(icmph->un.frag.mtu));
@@ -640,10 +639,9 @@ static void icmp_unreach(struct sk_buff *skb)
 			}
 			break;
 		case ICMP_SR_FAILED:
-			LIMIT_NETDEBUG(
-				printk(KERN_INFO "ICMP: %u.%u.%u.%u: Source "
+			LIMIT_NETDEBUG(KERN_INFO "ICMP: %u.%u.%u.%u: Source "
 						 "Route Failed.\n",
-				       NIPQUAD(iph->daddr)));
+				       NIPQUAD(iph->daddr));
 			break;
 		default:
 			break;
@@ -900,8 +898,7 @@ static void icmp_address_reply(struct sk_buff *skb)
 		u32 _mask, *mp;
 
 		mp = skb_header_pointer(skb, 0, sizeof(_mask), &_mask);
-		if (mp == NULL)
-			BUG();
+		BUG_ON(mp == NULL);
 		for (ifa = in_dev->ifa_list; ifa; ifa = ifa->ifa_next) {
 			if (*mp == ifa->ifa_mask &&
 			    inet_ifa_match(rt->rt_src, ifa))
@@ -936,12 +933,11 @@ int icmp_rcv(struct sk_buff *skb)
 	case CHECKSUM_HW:
 		if (!(u16)csum_fold(skb->csum))
 			break;
-		NETDEBUG(if (net_ratelimit())
-				printk(KERN_DEBUG "icmp v4 hw csum failure\n"));
+		/* fall through */
 	case CHECKSUM_NONE:
-		if ((u16)csum_fold(skb_checksum(skb, 0, skb->len, 0)))
+		skb->csum = 0;
+		if (__skb_checksum_complete(skb))
 			goto error;
-	default:;
 	}
 
 	if (!pskb_pull(skb, sizeof(struct icmphdr)))
@@ -970,7 +966,8 @@ int icmp_rcv(struct sk_buff *skb)
 		 *	RFC 1122: 3.2.2.8 An ICMP_TIMESTAMP MAY be silently
 		 *	  discarded if to broadcast/multicast.
 		 */
-		if (icmph->type == ICMP_ECHO &&
+		if ((icmph->type == ICMP_ECHO ||
+		     icmph->type == ICMP_TIMESTAMP) &&
 		    sysctl_icmp_echo_ignore_broadcasts) {
 			goto error;
 		}
@@ -996,7 +993,7 @@ error:
 /*
  *	This table is the definition of how we handle ICMP.
  */
-static struct icmp_control icmp_pointers[NR_ICMP_TYPES + 1] = {
+static const struct icmp_control icmp_pointers[NR_ICMP_TYPES + 1] = {
 	[ICMP_ECHOREPLY] = {
 		.output_entry = ICMP_MIB_OUTECHOREPS,
 		.input_entry = ICMP_MIB_INECHOREPS,
@@ -1110,11 +1107,8 @@ void __init icmp_init(struct net_proto_family *ops)
 	struct inet_sock *inet;
 	int i;
 
-	for (i = 0; i < NR_CPUS; i++) {
+	for_each_cpu(i) {
 		int err;
-
-		if (!cpu_possible(i))
-			continue;
 
 		err = sock_create_kern(PF_INET, SOCK_RAW, IPPROTO_ICMP,
 				       &per_cpu(__icmp_socket, i));

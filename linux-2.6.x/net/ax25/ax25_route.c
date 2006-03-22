@@ -11,6 +11,8 @@
  * Copyright (C) Hans-Joachim Hetscher DD8NE (dd8ne@bnv-bamberg.de)
  * Copyright (C) Frederic Rible F1OAT (frible@teaser.fr)
  */
+
+#include <linux/capability.h>
 #include <linux/errno.h>
 #include <linux/types.h>
 #include <linux/socket.h>
@@ -54,15 +56,13 @@ void ax25_rt_device_down(struct net_device *dev)
 		if (s->dev == dev) {
 			if (ax25_route_list == s) {
 				ax25_route_list = s->next;
-				if (s->digipeat != NULL)
-					kfree(s->digipeat);
+				kfree(s->digipeat);
 				kfree(s);
 			} else {
 				for (t = ax25_route_list; t != NULL; t = t->next) {
 					if (t->next == s) {
 						t->next = s->next;
-						if (s->digipeat != NULL)
-							kfree(s->digipeat);
+						kfree(s->digipeat);
 						kfree(s);
 						break;
 					}
@@ -90,10 +90,8 @@ static int ax25_rt_add(struct ax25_routes_struct *route)
 	while (ax25_rt != NULL) {
 		if (ax25cmp(&ax25_rt->callsign, &route->dest_addr) == 0 &&
 		            ax25_rt->dev == ax25_dev->dev) {
-			if (ax25_rt->digipeat != NULL) {
-				kfree(ax25_rt->digipeat);
-				ax25_rt->digipeat = NULL;
-			}
+			kfree(ax25_rt->digipeat);
+			ax25_rt->digipeat = NULL;
 			if (route->digi_count != 0) {
 				if ((ax25_rt->digipeat = kmalloc(sizeof(ax25_digi), GFP_ATOMIC)) == NULL) {
 					write_unlock(&ax25_route_lock);
@@ -145,8 +143,7 @@ static int ax25_rt_add(struct ax25_routes_struct *route)
 static void ax25_rt_destroy(ax25_route *ax25_rt)
 {
 	if (atomic_read(&ax25_rt->ref) == 0) {
-		if (ax25_rt->digipeat != NULL)
-			kfree(ax25_rt->digipeat);
+		kfree(ax25_rt->digipeat);
 		kfree(ax25_rt);
 		return;
 	}
@@ -298,6 +295,8 @@ static void ax25_rt_seq_stop(struct seq_file *seq, void *v)
 
 static int ax25_rt_seq_show(struct seq_file *seq, void *v)
 {
+	char buf[11];
+
 	if (v == SEQ_START_TOKEN)
 		seq_puts(seq, "callsign  dev  mode digipeaters\n");
 	else {
@@ -308,7 +307,7 @@ static int ax25_rt_seq_show(struct seq_file *seq, void *v)
 		if (ax25cmp(&ax25_rt->callsign, &null_ax25_address) == 0)
 			callsign = "default";
 		else
-			callsign = ax2asc(&ax25_rt->callsign);
+			callsign = ax2asc(buf, &ax25_rt->callsign);
 
 		seq_printf(seq, "%-9s %-4s",
 			callsign,
@@ -328,7 +327,8 @@ static int ax25_rt_seq_show(struct seq_file *seq, void *v)
 
 		if (ax25_rt->digipeat != NULL)
 			for (i = 0; i < ax25_rt->digipeat->ndigi; i++)
-				seq_printf(seq, " %s", ax2asc(&ax25_rt->digipeat->calls[i]));
+				seq_printf(seq, " %s",
+				     ax2asc(buf, &ax25_rt->digipeat->calls[i]));
 
 		seq_puts(seq, "\n");
 	}
@@ -422,8 +422,8 @@ static inline void ax25_adjust_path(ax25_address *addr, ax25_digi *digipeat)
  */
 int ax25_rt_autobind(ax25_cb *ax25, ax25_address *addr)
 {
+	ax25_uid_assoc *user;
 	ax25_route *ax25_rt;
-	ax25_address *call;
 	int err;
 
 	if ((ax25_rt = ax25_get_route(addr, NULL)) == NULL)
@@ -434,15 +434,17 @@ int ax25_rt_autobind(ax25_cb *ax25, ax25_address *addr)
 		goto put;
 	}
 
-	if ((call = ax25_findbyuid(current->euid)) == NULL) {
+	user = ax25_findbyuid(current->euid);
+	if (user) {
+		ax25->source_addr = user->call;
+		ax25_uid_put(user);
+	} else {
 		if (ax25_uid_policy && !capable(CAP_NET_BIND_SERVICE)) {
 			err = -EPERM;
 			goto put;
 		}
-		call = (ax25_address *)ax25->ax25_dev->dev->dev_addr;
+		ax25->source_addr = *(ax25_address *)ax25->ax25_dev->dev->dev_addr;
 	}
-
-	ax25->source_addr = *call;
 
 	if (ax25_rt->digipeat != NULL) {
 		if ((ax25->digipeat = kmalloc(sizeof(ax25_digi), GFP_ATOMIC)) == NULL) {
@@ -525,9 +527,7 @@ void __exit ax25_rt_free(void)
 		s       = ax25_rt;
 		ax25_rt = ax25_rt->next;
 
-		if (s->digipeat != NULL)
-			kfree(s->digipeat);
-
+		kfree(s->digipeat);
 		kfree(s);
 	}
 	write_unlock(&ax25_route_lock);

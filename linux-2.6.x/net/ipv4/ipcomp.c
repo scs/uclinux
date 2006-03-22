@@ -28,6 +28,7 @@
 #include <net/xfrm.h>
 #include <net/icmp.h>
 #include <net/ipcomp.h>
+#include <net/protocol.h>
 
 struct ipcomp_tfms {
 	struct list_head list;
@@ -214,8 +215,8 @@ static void ipcomp4_err(struct sk_buff *skb, u32 info)
 	                      spi, IPPROTO_COMP, AF_INET);
 	if (!x)
 		return;
-	NETDEBUG(printk(KERN_DEBUG "pmtu discovery on SA IPCOMP/%08x/%u.%u.%u.%u\n",
-	       spi, NIPQUAD(iph->daddr)));
+	NETDEBUG(KERN_DEBUG "pmtu discovery on SA IPCOMP/%08x/%u.%u.%u.%u\n",
+		 spi, NIPQUAD(iph->daddr));
 	xfrm_state_put(x);
 }
 
@@ -236,15 +237,10 @@ static struct xfrm_state *ipcomp_tunnel_create(struct xfrm_state *x)
 	t->props.mode = 1;
 	t->props.saddr.a4 = x->props.saddr.a4;
 	t->props.flags = x->props.flags;
-	
-	t->type = xfrm_get_type(IPPROTO_IPIP, t->props.family);
-	if (t->type == NULL)
-		goto error;
-		
-	if (t->type->init_state(t, NULL))
+
+	if (xfrm_init_state(t))
 		goto error;
 
-	t->km.state = XFRM_STATE_VALID;
 	atomic_set(&t->tunnel_users, 1);
 out:
 	return t;
@@ -350,8 +346,7 @@ static void ipcomp_free_tfms(struct crypto_tfm **tfms)
 
 	for_each_cpu(cpu) {
 		struct crypto_tfm *tfm = *per_cpu_ptr(tfms, cpu);
-		if (tfm)
-			crypto_free_tfm(tfm);
+		crypto_free_tfm(tfm);
 	}
 	free_percpu(tfms);
 }
@@ -363,7 +358,7 @@ static struct crypto_tfm **ipcomp_alloc_tfms(const char *alg_name)
 	int cpu;
 
 	/* This can be any valid CPU ID so we don't need locking. */
-	cpu = smp_processor_id();
+	cpu = raw_smp_processor_id();
 
 	list_for_each_entry(pos, &ipcomp_tfms_list, list) {
 		struct crypto_tfm *tfm;
@@ -422,7 +417,7 @@ static void ipcomp_destroy(struct xfrm_state *x)
 	kfree(ipcd);
 }
 
-static int ipcomp_init_state(struct xfrm_state *x, void *args)
+static int ipcomp_init_state(struct xfrm_state *x)
 {
 	int err;
 	struct ipcomp_data *ipcd;

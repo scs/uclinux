@@ -32,24 +32,24 @@ static inline int freezeable(struct task_struct * p)
 }
 
 /* Refrigerator is place where frozen processes are stored :-). */
-void refrigerator(unsigned long flag)
+void refrigerator(void)
 {
 	/* Hmm, should we be allowed to suspend when there are realtime
 	   processes around? */
 	long save;
 	save = current->state;
-	current->state = TASK_UNINTERRUPTIBLE;
 	pr_debug("%s entered refrigerator\n", current->comm);
 	printk("=");
-	current->flags &= ~PF_FREEZE;
 
+	frozen_process(current);
 	spin_lock_irq(&current->sighand->siglock);
 	recalc_sigpending(); /* We sent fake signal, clean it up */
 	spin_unlock_irq(&current->sighand->siglock);
 
-	current->flags |= PF_FROZEN;
-	while (current->flags & PF_FROZEN)
+	while (frozen(current)) {
+		current->state = TASK_UNINTERRUPTIBLE;
 		schedule();
+	}
 	pr_debug("%s left refrigerator\n", current->comm);
 	current->state = save;
 }
@@ -57,27 +57,23 @@ void refrigerator(unsigned long flag)
 /* 0 = success, else # of processes that we failed to stop */
 int freeze_processes(void)
 {
-       int todo;
-       unsigned long start_time;
+	int todo;
+	unsigned long start_time;
 	struct task_struct *g, *p;
-	
+	unsigned long flags;
+
 	printk( "Stopping tasks: " );
 	start_time = jiffies;
 	do {
 		todo = 0;
 		read_lock(&tasklist_lock);
 		do_each_thread(g, p) {
-			unsigned long flags;
 			if (!freezeable(p))
 				continue;
-			if ((p->flags & PF_FROZEN) ||
-			    (p->state == TASK_TRACED) ||
-			    (p->state == TASK_STOPPED))
+			if (frozen(p))
 				continue;
 
-			/* FIXME: smp problem here: we may not access other process' flags
-			   without locking */
-			p->flags |= PF_FREEZE;
+			freeze(p);
 			spin_lock_irqsave(&p->sighand->siglock, flags);
 			signal_wake_up(p, 0);
 			spin_unlock_irqrestore(&p->sighand->siglock, flags);
@@ -85,13 +81,33 @@ int freeze_processes(void)
 		} while_each_thread(g, p);
 		read_unlock(&tasklist_lock);
 		yield();			/* Yield is okay here */
-		if (time_after(jiffies, start_time + TIMEOUT)) {
+		if (todo && time_after(jiffies, start_time + TIMEOUT)) {
 			printk( "\n" );
 			printk(KERN_ERR " stopping tasks failed (%d tasks remaining)\n", todo );
-			return todo;
+			break;
 		}
 	} while(todo);
-	
+
+	/* This does not unfreeze processes that are already frozen
+	 * (we have slightly ugly calling convention in that respect,
+	 * and caller must call thaw_processes() if something fails),
+	 * but it cleans up leftover PF_FREEZE requests.
+	 */
+	if (todo) {
+		read_lock(&tasklist_lock);
+		do_each_thread(g, p)
+			if (freezing(p)) {
+				pr_debug("  clean up: %s\n", p->comm);
+				p->flags &= ~PF_FREEZE;
+				spin_lock_irqsave(&p->sighand->siglock, flags);
+				recalc_sigpending_tsk(p);
+				spin_unlock_irqrestore(&p->sighand->siglock, flags);
+			}
+		while_each_thread(g, p);
+		read_unlock(&tasklist_lock);
+		return todo;
+	}
+
 	printk( "|\n" );
 	BUG_ON(in_atomic());
 	return 0;
@@ -106,10 +122,7 @@ void thaw_processes(void)
 	do_each_thread(g, p) {
 		if (!freezeable(p))
 			continue;
-		if (p->flags & PF_FROZEN) {
-			p->flags &= ~PF_FROZEN;
-			wake_up_process(p);
-		} else
+		if (!thaw_process(p))
 			printk(KERN_INFO " Strange, %s not stopped\n", p->comm );
 	} while_each_thread(g, p);
 

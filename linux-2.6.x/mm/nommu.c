@@ -44,13 +44,7 @@ int sysctl_max_map_count = DEFAULT_MAX_MAP_COUNT;
 int heap_stack_gap = 0;
 
 EXPORT_SYMBOL(mem_map);
-EXPORT_SYMBOL(sysctl_max_map_count);
-EXPORT_SYMBOL(sysctl_overcommit_memory);
-EXPORT_SYMBOL(sysctl_overcommit_ratio);
-EXPORT_SYMBOL(vm_committed_space);
 EXPORT_SYMBOL(__vm_enough_memory);
-EXPORT_SYMBOL(vmap);
-EXPORT_SYMBOL(vunmap);
 
 /* list of shareable VMAs */
 struct rb_root nommu_vma_tree = RB_ROOT;
@@ -59,10 +53,11 @@ DECLARE_RWSEM(nommu_vma_sem);
 struct vm_operations_struct generic_file_vm_ops = {
 };
 
-EXPORT_SYMBOL(vmalloc);
 EXPORT_SYMBOL(vfree);
 EXPORT_SYMBOL(vmalloc_to_page);
 EXPORT_SYMBOL(vmalloc_32);
+EXPORT_SYMBOL(vmap);
+EXPORT_SYMBOL(vunmap);
 
 /*
  * Handle all mappings that got truncated by a "truncate()"
@@ -159,8 +154,7 @@ void vfree(void *addr)
 	kfree(addr);
 }
 
-void *__vmalloc(unsigned long size, unsigned int __nocast gfp_mask,
-			pgprot_t prot)
+void *__vmalloc(unsigned long size, gfp_t gfp_mask, pgprot_t prot)
 {
 	/*
 	 * kmalloc doesn't like __GFP_HIGHMEM for some reason
@@ -210,6 +204,13 @@ void *vmalloc(unsigned long size)
 {
        return __vmalloc(size, GFP_KERNEL | __GFP_HIGHMEM, PAGE_KERNEL);
 }
+EXPORT_SYMBOL(vmalloc);
+
+void *vmalloc_node(unsigned long size, int node)
+{
+	return vmalloc(size);
+}
+EXPORT_SYMBOL(vmalloc_node);
 
 /*
  *	vmalloc_32  -  allocate virtually continguos memory (32bit addressable)
@@ -861,7 +862,7 @@ unsigned long do_mmap_pgoff(struct file *file,
  error_getting_vma:
 	up_write(&nommu_vma_sem);
 	kfree(vml);
-	printk("Allocation of vml for %lu byte allocation from process %d failed\n",
+	printk("Allocation of vma for %lu byte allocation from process %d failed\n",
 	       len, current->pid);
 	show_free_areas();
 	return -ENOMEM;
@@ -915,14 +916,14 @@ int do_munmap(struct mm_struct *mm, unsigned long addr, size_t len)
 #ifdef DEBUG
 	printk("do_munmap:\n");
 #endif
-	for (parent = &mm->context.vmlist; *parent; parent = &(*parent)->next)
-	  if ((*parent)->vma->vm_start == addr &&
-	      ((len == 0) || ((*parent)->vma->vm_end == end)))
-	    goto found;
 
+	for (parent = &mm->context.vmlist; *parent; parent = &(*parent)->next)
+		if ((*parent)->vma->vm_start == addr &&
+		    ((len == 0) || ((*parent)->vma->vm_end == end)))
+			goto found;
 
 	printk("munmap of non-mmaped memory by process %d (%s): %p\n",
-	       current->pid, current->comm, (void *)addr);
+	       current->pid, current->comm, (void *) addr);
 	return -EINVAL;
 
  found:
@@ -934,6 +935,8 @@ int do_munmap(struct mm_struct *mm, unsigned long addr, size_t len)
 	realalloc -= kobjsize(vml);
 	askedalloc -= sizeof(*vml);
 	kfree(vml);
+
+	update_hiwater_vm(mm);
 	mm->total_vm -= len >> PAGE_SHIFT;
 
 #ifdef DEBUG
@@ -1050,7 +1053,8 @@ struct vm_area_struct *find_vma(struct mm_struct *mm, unsigned long addr)
 
 EXPORT_SYMBOL(find_vma);
 
-struct page * follow_page(struct mm_struct *mm, unsigned long addr, int write)
+struct page *follow_page(struct vm_area_struct *vma, unsigned long address,
+			unsigned int foll_flags)
 {
 	return NULL;
 }
@@ -1063,8 +1067,8 @@ struct vm_area_struct *find_extend_vma(struct mm_struct *mm, unsigned long addr)
 int remap_pfn_range(struct vm_area_struct *vma, unsigned long from,
 		unsigned long to, unsigned long size, pgprot_t prot)
 {
-       vma->vm_start = vma->vm_pgoff << PAGE_SHIFT;	
-       return 0;
+	vma->vm_start = vma->vm_pgoff << PAGE_SHIFT;
+	return 0;
 }
 
 void swap_unplug_io_fn(struct backing_dev_info *bdi, struct page *page)
@@ -1077,23 +1081,8 @@ unsigned long arch_get_unmapped_area(struct file *file, unsigned long addr,
 	return -ENOMEM;
 }
 
-void arch_unmap_area(struct vm_area_struct *area)
+void arch_unmap_area(struct mm_struct *mm, unsigned long addr)
 {
-}
-
-void update_mem_hiwater(struct task_struct *tsk)
-{
-	unsigned long rss;
-	
-	if (likely(tsk->mm)) {
-
-	rss = get_mm_counter(tsk->mm, rss);
-
-		if (tsk->mm->hiwater_rss < rss)
-			tsk->mm->hiwater_rss = rss;
-		if (tsk->mm->hiwater_vm < tsk->mm->total_vm)
-			tsk->mm->hiwater_vm = tsk->mm->total_vm;
-	}
 }
 
 void unmap_mapping_range(struct address_space *mapping,
@@ -1180,7 +1169,11 @@ int __vm_enough_memory(long pages, int cap_sys_admin)
 	   leave 3% of the size of this process for other processes */
 	allowed -= current->mm->total_vm / 32;
 
-	if (atomic_read(&vm_committed_space) < allowed)
+	/*
+	 * cast `allowed' as a signed long because vm_committed_space
+	 * sometimes has a negative value
+	 */
+	if (atomic_read(&vm_committed_space) < (long)allowed)
 		return 0;
 
 	vm_unacct_memory(pages);
@@ -1191,4 +1184,11 @@ int __vm_enough_memory(long pages, int cap_sys_admin)
 int in_gate_area_no_task(unsigned long addr)
 {
 	return 0;
+}
+
+struct page *filemap_nopage(struct vm_area_struct *area,
+			unsigned long address, int *type)
+{
+	BUG();
+	return NULL;
 }

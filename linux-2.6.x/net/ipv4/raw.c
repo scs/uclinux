@@ -40,12 +40,12 @@
  */
  
 #include <linux/config.h> 
+#include <linux/types.h>
 #include <asm/atomic.h>
 #include <asm/byteorder.h>
 #include <asm/current.h>
 #include <asm/uaccess.h>
 #include <asm/ioctls.h>
-#include <linux/types.h>
 #include <linux/stddef.h>
 #include <linux/slab.h>
 #include <linux/errno.h>
@@ -59,7 +59,6 @@
 #include <linux/netdevice.h>
 #include <linux/in_route.h>
 #include <linux/route.h>
-#include <linux/tcp.h>
 #include <linux/skbuff.h>
 #include <net/dst.h>
 #include <net/sock.h>
@@ -71,6 +70,7 @@
 #include <net/udp.h>
 #include <net/raw.h>
 #include <net/snmp.h>
+#include <net/tcp_states.h>
 #include <net/inet_common.h>
 #include <net/checksum.h>
 #include <net/xfrm.h>
@@ -150,10 +150,11 @@ static __inline__ int icmp_filter(struct sock *sk, struct sk_buff *skb)
  * RFC 1122: SHOULD pass TOS value up to the transport layer.
  * -> It does. And not only TOS, but all IP header.
  */
-void raw_v4_input(struct sk_buff *skb, struct iphdr *iph, int hash)
+int raw_v4_input(struct sk_buff *skb, struct iphdr *iph, int hash)
 {
 	struct sock *sk;
 	struct hlist_head *head;
+	int delivered = 0;
 
 	read_lock(&raw_v4_lock);
 	head = &raw_v4_htable[hash];
@@ -164,6 +165,7 @@ void raw_v4_input(struct sk_buff *skb, struct iphdr *iph, int hash)
 			     skb->dev->ifindex);
 
 	while (sk) {
+		delivered = 1;
 		if (iph->protocol != IPPROTO_ICMP || !icmp_filter(sk, skb)) {
 			struct sk_buff *clone = skb_clone(skb, GFP_ATOMIC);
 
@@ -177,6 +179,7 @@ void raw_v4_input(struct sk_buff *skb, struct iphdr *iph, int hash)
 	}
 out:
 	read_unlock(&raw_v4_lock);
+	return delivered;
 }
 
 void raw_err (struct sock *sk, struct sk_buff *skb, u32 info)
@@ -252,6 +255,7 @@ int raw_rcv(struct sock *sk, struct sk_buff *skb)
 		kfree_skb(skb);
 		return NET_RX_DROP;
 	}
+	nf_reset(skb);
 
 	skb_push(skb, skb->data - skb->nh.raw);
 
@@ -259,7 +263,7 @@ int raw_rcv(struct sock *sk, struct sk_buff *skb)
 	return 0;
 }
 
-static int raw_send_hdrinc(struct sock *sk, void *from, int length,
+static int raw_send_hdrinc(struct sock *sk, void *from, size_t length,
 			struct rtable *rt, 
 			unsigned int flags)
 {
@@ -298,7 +302,7 @@ static int raw_send_hdrinc(struct sock *sk, void *from, int length,
 		goto error_fault;
 
 	/* We don't modify invalid header */
-	if (length >= sizeof(*iph) && iph->ihl * 4 <= length) {
+	if (length >= sizeof(*iph) && iph->ihl * 4U <= length) {
 		if (!iph->saddr)
 			iph->saddr = rt->rt_src;
 		iph->check   = 0;
@@ -332,7 +336,7 @@ static void raw_probe_proto_opt(struct flowi *fl, struct msghdr *msg)
 	u8 __user *type = NULL;
 	u8 __user *code = NULL;
 	int probed = 0;
-	int i;
+	unsigned int i;
 
 	if (!msg->msg_iov)
 		return;
@@ -358,7 +362,7 @@ static void raw_probe_proto_opt(struct flowi *fl, struct msghdr *msg)
 
 			if (type && code) {
 				get_user(fl->fl_icmp_type, type);
-				__get_user(fl->fl_icmp_code, code);
+			        get_user(fl->fl_icmp_code, code);
 				probed = 1;
 			}
 			break;
@@ -384,7 +388,7 @@ static int raw_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 	int err;
 
 	err = -EMSGSIZE;
-	if (len < 0 || len > 0xFFFF)
+	if (len > 0xFFFF)
 		goto out;
 
 	/*
@@ -514,7 +518,10 @@ done:
 		kfree(ipc.opt);
 	ip_rt_put(rt);
 
-out:	return err < 0 ? err : len;
+out:
+	if (err < 0)
+		return err;
+	return len;
 
 do_confirm:
 	dst_confirm(&rt->u.dst);
@@ -610,7 +617,10 @@ static int raw_recvmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 		copied = skb->len;
 done:
 	skb_free_datagram(sk, skb);
-out:	return err ? err : copied;
+out:
+	if (err)
+		return err;
+	return copied;
 }
 
 static int raw_init(struct sock *sk)
@@ -691,11 +701,11 @@ static int raw_ioctl(struct sock *sk, int cmd, unsigned long arg)
 			struct sk_buff *skb;
 			int amount = 0;
 
-			spin_lock_irq(&sk->sk_receive_queue.lock);
+			spin_lock_bh(&sk->sk_receive_queue.lock);
 			skb = skb_peek(&sk->sk_receive_queue);
 			if (skb != NULL)
 				amount = skb->len;
-			spin_unlock_irq(&sk->sk_receive_queue.lock);
+			spin_unlock_bh(&sk->sk_receive_queue.lock);
 			return put_user(amount, (int __user *)arg);
 		}
 

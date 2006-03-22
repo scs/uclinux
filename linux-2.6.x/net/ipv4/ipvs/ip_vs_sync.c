@@ -21,12 +21,14 @@
 
 #include <linux/module.h>
 #include <linux/slab.h>
+#include <linux/inetdevice.h>
 #include <linux/net.h>
 #include <linux/completion.h>
 #include <linux/delay.h>
 #include <linux/skbuff.h>
 #include <linux/in.h>
 #include <linux/igmp.h>                 /* for ip_mc_join_group */
+#include <linux/udp.h>
 
 #include <net/ip.h>
 #include <net/sock.h>
@@ -297,16 +299,24 @@ static void ip_vs_process_message(const char *buffer, const size_t buflen)
 
 	p = (char *)buffer + sizeof(struct ip_vs_sync_mesg);
 	for (i=0; i<m->nr_conns; i++) {
+		unsigned flags;
+
 		s = (struct ip_vs_sync_conn *)p;
-		cp = ip_vs_conn_in_get(s->protocol,
-				       s->caddr, s->cport,
-				       s->vaddr, s->vport);
+		flags = ntohs(s->flags);
+		if (!(flags & IP_VS_CONN_F_TEMPLATE))
+			cp = ip_vs_conn_in_get(s->protocol,
+					       s->caddr, s->cport,
+					       s->vaddr, s->vport);
+		else
+			cp = ip_vs_ct_in_get(s->protocol,
+					       s->caddr, s->cport,
+					       s->vaddr, s->vport);
 		if (!cp) {
 			cp = ip_vs_conn_new(s->protocol,
 					    s->caddr, s->cport,
 					    s->vaddr, s->vport,
 					    s->daddr, s->dport,
-					    ntohs(s->flags), NULL);
+					    flags, NULL);
 			if (!cp) {
 				IP_VS_ERR("ip_vs_conn_new failed\n");
 				return;
@@ -315,11 +325,11 @@ static void ip_vs_process_message(const char *buffer, const size_t buflen)
 		} else if (!cp->dest) {
 			/* it is an entry created by the synchronization */
 			cp->state = ntohs(s->state);
-			cp->flags = ntohs(s->flags) | IP_VS_CONN_F_HASHED;
+			cp->flags = flags | IP_VS_CONN_F_HASHED;
 		}	/* Note that we don't touch its state and flags
 			   if it is a normal entry. */
 
-		if (ntohs(s->flags) & IP_VS_CONN_F_SEQ_MASK) {
+		if (flags & IP_VS_CONN_F_SEQ_MASK) {
 			opt = (struct ip_vs_sync_conn_options *)&s[1];
 			memcpy(&cp->in_seq, opt, sizeof(*opt));
 			p += FULL_CONN_SIZE;
@@ -839,10 +849,10 @@ int start_sync_thread(int state, char *mcast_ifn, __u8 syncid)
 
 	ip_vs_sync_state |= state;
 	if (state == IP_VS_STATE_MASTER) {
-		strcpy(ip_vs_master_mcast_ifn, mcast_ifn);
+		strlcpy(ip_vs_master_mcast_ifn, mcast_ifn, sizeof(ip_vs_master_mcast_ifn));
 		ip_vs_master_syncid = syncid;
 	} else {
-		strcpy(ip_vs_backup_mcast_ifn, mcast_ifn);
+		strlcpy(ip_vs_backup_mcast_ifn, mcast_ifn, sizeof(ip_vs_backup_mcast_ifn));
 		ip_vs_backup_syncid = syncid;
 	}
 

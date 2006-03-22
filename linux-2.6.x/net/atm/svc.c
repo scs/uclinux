@@ -118,10 +118,6 @@ static int svc_bind(struct socket *sock,struct sockaddr *sockaddr,
 		goto out;
 	}
 	vcc = ATM_SD(sock);
-	if (test_bit(ATM_VF_SESSION, &vcc->flags)) {
-		error = -EINVAL;
-		goto out;
-	}
 	addr = (struct sockaddr_atmsvc *) sockaddr;
 	if (addr->sas_family != AF_ATMSVC) {
 		error = -EAFNOSUPPORT;
@@ -306,6 +302,7 @@ static int svc_listen(struct socket *sock,int backlog)
 		error = -EINVAL;
 		goto out;
 	}
+	vcc_insert_socket(sk);
 	set_bit(ATM_VF_WAITING, &vcc->flags);
 	prepare_to_wait(sk->sk_sleep, &wait, TASK_UNINTERRUPTIBLE);
 	sigd_enq(vcc,as_listen,NULL,NULL,&vcc->local);
@@ -616,7 +613,7 @@ static int svc_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 	return error;
 }
 
-static struct proto_ops svc_proto_ops = {
+static const struct proto_ops svc_proto_ops = {
 	.family =	PF_ATMSVC,
 	.owner =	THIS_MODULE,
 

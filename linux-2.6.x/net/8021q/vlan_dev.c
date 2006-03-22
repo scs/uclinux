@@ -113,14 +113,14 @@ static inline struct sk_buff *vlan_check_reorder_header(struct sk_buff *skb)
  *
  */
 int vlan_skb_recv(struct sk_buff *skb, struct net_device *dev,
-                  struct packet_type* ptype)
+                  struct packet_type* ptype, struct net_device *orig_dev)
 {
 	unsigned char *rawp = NULL;
 	struct vlan_hdr *vhdr = (struct vlan_hdr *)(skb->data);
 	unsigned short vid;
 	struct net_device_stats *stats;
 	unsigned short vlan_TCI;
-	unsigned short proto;
+	__be16 proto;
 
 	/* vlan_TCI = ntohs(get_unaligned(&vhdr->h_vlan_TCI)); */
 	vlan_TCI = ntohs(vhdr->h_vlan_TCI);
@@ -164,6 +164,9 @@ int vlan_skb_recv(struct sk_buff *skb, struct net_device *dev,
 	stats->rx_bytes += skb->len;
 
 	skb_pull(skb, VLAN_HLEN); /* take off the VLAN header (4 bytes currently) */
+
+	/* Need to correct hardware checksum */
+	skb_postpull_rcsum(skb, vhdr, VLAN_HLEN);
 
 	/* Ok, lets check to make sure the device (dev) we
 	 * came in on is what this VLAN is attached to.
@@ -211,7 +214,7 @@ int vlan_skb_recv(struct sk_buff *skb, struct net_device *dev,
 		 * This allows the VLAN to have a different MAC than the underlying
 		 * device, and still route correctly.
 		 */
-		if (memcmp(eth_hdr(skb)->h_dest, skb->dev->dev_addr, ETH_ALEN) == 0) {
+		if (!compare_ether_addr(eth_hdr(skb)->h_dest, skb->dev->dev_addr)) {
 			/* It is for our (changed) MAC-address! */
 			skb->pkt_type = PACKET_HOST;
 		}

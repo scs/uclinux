@@ -11,6 +11,7 @@
 
 #include <linux/module.h>
 #include <linux/types.h>
+#include <linux/capability.h>
 #include <linux/errno.h>
 #include <linux/ethtool.h>
 #include <linux/netdevice.h>
@@ -78,6 +79,32 @@ int ethtool_op_set_tso(struct net_device *dev, u32 data)
 	else
 		dev->features &= ~NETIF_F_TSO;
 
+	return 0;
+}
+
+int ethtool_op_get_perm_addr(struct net_device *dev, struct ethtool_perm_addr *addr, u8 *data)
+{
+	unsigned char len = dev->addr_len;
+	if ( addr->size < len )
+		return -ETOOSMALL;
+	
+	addr->size = len;
+	memcpy(data, dev->perm_addr, len);
+	return 0;
+}
+ 
+
+u32 ethtool_op_get_ufo(struct net_device *dev)
+{
+	return (dev->features & NETIF_F_UFO) != 0;
+}
+
+int ethtool_op_set_ufo(struct net_device *dev, u32 data)
+{
+	if (data)
+		dev->features |= NETIF_F_UFO;
+	else
+		dev->features &= ~NETIF_F_UFO;
 	return 0;
 }
 
@@ -471,6 +498,11 @@ static int __ethtool_set_sg(struct net_device *dev, u32 data)
 			return err;
 	}
 
+	if (!data && dev->ethtool_ops->set_ufo) {
+		err = dev->ethtool_ops->set_ufo(dev, 0);
+		if (err)
+			return err;
+	}
 	return dev->ethtool_ops->set_sg(dev, data);
 }
 
@@ -555,6 +587,32 @@ static int ethtool_set_tso(struct net_device *dev, char __user *useraddr)
 		return -EINVAL;
 
 	return dev->ethtool_ops->set_tso(dev, edata.data);
+}
+
+static int ethtool_get_ufo(struct net_device *dev, char __user *useraddr)
+{
+	struct ethtool_value edata = { ETHTOOL_GTSO };
+
+	if (!dev->ethtool_ops->get_ufo)
+		return -EOPNOTSUPP;
+	edata.data = dev->ethtool_ops->get_ufo(dev);
+	if (copy_to_user(useraddr, &edata, sizeof(edata)))
+		 return -EFAULT;
+	return 0;
+}
+static int ethtool_set_ufo(struct net_device *dev, char __user *useraddr)
+{
+	struct ethtool_value edata;
+
+	if (!dev->ethtool_ops->set_ufo)
+		return -EOPNOTSUPP;
+	if (copy_from_user(&edata, useraddr, sizeof(edata)))
+		return -EFAULT;
+	if (edata.data && !(dev->features & NETIF_F_SG))
+		return -EINVAL;
+	if (edata.data && !(dev->features & NETIF_F_HW_CSUM))
+		return -EINVAL;
+	return dev->ethtool_ops->set_ufo(dev, edata.data);
 }
 
 static int ethtool_self_test(struct net_device *dev, char __user *useraddr)
@@ -675,6 +733,39 @@ static int ethtool_get_stats(struct net_device *dev, void __user *useraddr)
 		goto out;
 	useraddr += sizeof(stats);
 	if (copy_to_user(useraddr, data, stats.n_stats * sizeof(u64)))
+		goto out;
+	ret = 0;
+
+ out:
+	kfree(data);
+	return ret;
+}
+
+static int ethtool_get_perm_addr(struct net_device *dev, void __user *useraddr)
+{
+	struct ethtool_perm_addr epaddr;
+	u8 *data;
+	int ret;
+
+	if (!dev->ethtool_ops->get_perm_addr)
+		return -EOPNOTSUPP;
+
+	if (copy_from_user(&epaddr,useraddr,sizeof(epaddr)))
+		return -EFAULT;
+
+	data = kmalloc(epaddr.size, GFP_USER);
+	if (!data)
+		return -ENOMEM;
+
+	ret = dev->ethtool_ops->get_perm_addr(dev,&epaddr,data);
+	if (ret)
+		return ret;
+
+	ret = -EFAULT;
+	if (copy_to_user(useraddr, &epaddr, sizeof(epaddr)))
+		goto out;
+	useraddr += sizeof(epaddr);
+	if (copy_to_user(useraddr, data, epaddr.size))
 		goto out;
 	ret = 0;
 
@@ -806,6 +897,15 @@ int dev_ethtool(struct ifreq *ifr)
 	case ETHTOOL_GSTATS:
 		rc = ethtool_get_stats(dev, useraddr);
 		break;
+	case ETHTOOL_GPERMADDR:
+		rc = ethtool_get_perm_addr(dev, useraddr);
+		break;
+	case ETHTOOL_GUFO:
+		rc = ethtool_get_ufo(dev, useraddr);
+		break;
+	case ETHTOOL_SUFO:
+		rc = ethtool_set_ufo(dev, useraddr);
+		break;
 	default:
 		rc =  -EOPNOTSUPP;
 	}
@@ -826,6 +926,7 @@ int dev_ethtool(struct ifreq *ifr)
 
 EXPORT_SYMBOL(dev_ethtool);
 EXPORT_SYMBOL(ethtool_op_get_link);
+EXPORT_SYMBOL_GPL(ethtool_op_get_perm_addr);
 EXPORT_SYMBOL(ethtool_op_get_sg);
 EXPORT_SYMBOL(ethtool_op_get_tso);
 EXPORT_SYMBOL(ethtool_op_get_tx_csum);
@@ -833,3 +934,5 @@ EXPORT_SYMBOL(ethtool_op_set_sg);
 EXPORT_SYMBOL(ethtool_op_set_tso);
 EXPORT_SYMBOL(ethtool_op_set_tx_csum);
 EXPORT_SYMBOL(ethtool_op_set_tx_hw_csum);
+EXPORT_SYMBOL(ethtool_op_set_ufo);
+EXPORT_SYMBOL(ethtool_op_get_ufo);

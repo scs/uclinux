@@ -128,6 +128,7 @@
 #include <linux/sockios.h>
 #include <linux/in.h>
 #include <linux/inet.h>
+#include <linux/inetdevice.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 
@@ -150,7 +151,7 @@
  *	SNMP management statistics
  */
 
-DEFINE_SNMP_STAT(struct ipstats_mib, ip_statistics);
+DEFINE_SNMP_STAT(struct ipstats_mib, ip_statistics) __read_mostly;
 
 /*
  *	Process Router Attention IP option
@@ -200,15 +201,7 @@ static inline int ip_local_deliver_finish(struct sk_buff *skb)
 {
 	int ihl = skb->nh.iph->ihl*4;
 
-#ifdef CONFIG_NETFILTER_DEBUG
-	nf_debug_ip_local_deliver(skb);
-#endif /*CONFIG_NETFILTER_DEBUG*/
-
 	__skb_pull(skb, ihl);
-
-	/* Free reference early: we don't need it any more, and it may
-           hold ip_conntrack module loaded indefinitely. */
-	nf_reset(skb);
 
         /* Point into the IP datagram, just past the header. */
         skb->h.raw = skb->data;
@@ -228,16 +221,18 @@ static inline int ip_local_deliver_finish(struct sk_buff *skb)
 		/* If there maybe a raw socket we must check - if not we
 		 * don't care less
 		 */
-		if (raw_sk)
-			raw_v4_input(skb, skb->nh.iph, hash);
+		if (raw_sk && !raw_v4_input(skb, skb->nh.iph, hash))
+			raw_sk = NULL;
 
 		if ((ipprot = rcu_dereference(inet_protos[hash])) != NULL) {
 			int ret;
 
-			if (!ipprot->no_policy &&
-			    !xfrm4_policy_check(NULL, XFRM_POLICY_IN, skb)) {
-				kfree_skb(skb);
-				goto out;
+			if (!ipprot->no_policy) {
+				if (!xfrm4_policy_check(NULL, XFRM_POLICY_IN, skb)) {
+					kfree_skb(skb);
+					goto out;
+				}
+				nf_reset(skb);
 			}
 			ret = ipprot->handler(skb);
 			if (ret < 0) {
@@ -282,22 +277,78 @@ int ip_local_deliver(struct sk_buff *skb)
 		       ip_local_deliver_finish);
 }
 
+static inline int ip_rcv_options(struct sk_buff *skb)
+{
+	struct ip_options *opt;
+	struct iphdr *iph;
+	struct net_device *dev = skb->dev;
+
+	/* It looks as overkill, because not all
+	   IP options require packet mangling.
+	   But it is the easiest for now, especially taking
+	   into account that combination of IP options
+	   and running sniffer is extremely rare condition.
+					      --ANK (980813)
+	*/
+	if (skb_cow(skb, skb_headroom(skb))) {
+		IP_INC_STATS_BH(IPSTATS_MIB_INDISCARDS);
+		goto drop;
+	}
+
+	iph = skb->nh.iph;
+
+	if (ip_options_compile(NULL, skb)) {
+		IP_INC_STATS_BH(IPSTATS_MIB_INHDRERRORS);
+		goto drop;
+	}
+
+	opt = &(IPCB(skb)->opt);
+	if (unlikely(opt->srr)) {
+		struct in_device *in_dev = in_dev_get(dev);
+		if (in_dev) {
+			if (!IN_DEV_SOURCE_ROUTE(in_dev)) {
+				if (IN_DEV_LOG_MARTIANS(in_dev) &&
+				    net_ratelimit())
+					printk(KERN_INFO "source route option "
+					       "%u.%u.%u.%u -> %u.%u.%u.%u\n",
+					       NIPQUAD(iph->saddr),
+					       NIPQUAD(iph->daddr));
+				in_dev_put(in_dev);
+				goto drop;
+			}
+
+			in_dev_put(in_dev);
+		}
+
+		if (ip_options_rcv_srr(skb))
+			goto drop;
+	}
+
+	return 0;
+drop:
+	return -1;
+}
+
 static inline int ip_rcv_finish(struct sk_buff *skb)
 {
-	struct net_device *dev = skb->dev;
 	struct iphdr *iph = skb->nh.iph;
 
 	/*
 	 *	Initialise the virtual path cache for the packet. It describes
 	 *	how the packet travels inside Linux networking.
 	 */ 
-	if (skb->dst == NULL) {
-		if (ip_route_input(skb, iph->daddr, iph->saddr, iph->tos, dev))
+	if (likely(skb->dst == NULL)) {
+		int err = ip_route_input(skb, iph->daddr, iph->saddr, iph->tos,
+					 skb->dev);
+		if (unlikely(err)) {
+			if (err == -EHOSTUNREACH)
+				IP_INC_STATS_BH(IPSTATS_MIB_INADDRERRORS);
 			goto drop; 
+		}
 	}
 
 #ifdef CONFIG_NET_CLS_ROUTE
-	if (skb->dst->tclassid) {
+	if (unlikely(skb->dst->tclassid)) {
 		struct ip_rt_acct *st = ip_rt_acct + 256*smp_processor_id();
 		u32 idx = skb->dst->tclassid;
 		st[idx&0xFF].o_packets++;
@@ -307,48 +358,11 @@ static inline int ip_rcv_finish(struct sk_buff *skb)
 	}
 #endif
 
-	if (iph->ihl > 5) {
-		struct ip_options *opt;
-
-		/* It looks as overkill, because not all
-		   IP options require packet mangling.
-		   But it is the easiest for now, especially taking
-		   into account that combination of IP options
-		   and running sniffer is extremely rare condition.
-		                                      --ANK (980813)
-		*/
-
-		if (skb_cow(skb, skb_headroom(skb))) {
-			IP_INC_STATS_BH(IPSTATS_MIB_INDISCARDS);
-			goto drop;
-		}
-		iph = skb->nh.iph;
-
-		if (ip_options_compile(NULL, skb))
-			goto inhdr_error;
-
-		opt = &(IPCB(skb)->opt);
-		if (opt->srr) {
-			struct in_device *in_dev = in_dev_get(dev);
-			if (in_dev) {
-				if (!IN_DEV_SOURCE_ROUTE(in_dev)) {
-					if (IN_DEV_LOG_MARTIANS(in_dev) && net_ratelimit())
-						printk(KERN_INFO "source route option %u.%u.%u.%u -> %u.%u.%u.%u\n",
-						       NIPQUAD(iph->saddr), NIPQUAD(iph->daddr));
-					in_dev_put(in_dev);
-					goto drop;
-				}
-				in_dev_put(in_dev);
-			}
-			if (ip_options_rcv_srr(skb))
-				goto drop;
-		}
-	}
+	if (iph->ihl > 5 && ip_rcv_options(skb))
+		goto drop;
 
 	return dst_input(skb);
 
-inhdr_error:
-	IP_INC_STATS_BH(IPSTATS_MIB_INHDRERRORS);
 drop:
         kfree_skb(skb);
         return NET_RX_DROP;
@@ -357,9 +371,10 @@ drop:
 /*
  * 	Main IP Receive routine.
  */ 
-int ip_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt)
+int ip_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt, struct net_device *orig_dev)
 {
 	struct iphdr *iph;
+	u32 len;
 
 	/* When the interface is in promisc. mode, drop all the crap
 	 * that it receives, do not try to analyse it.
@@ -391,29 +406,27 @@ int ip_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt)
 	 */
 
 	if (iph->ihl < 5 || iph->version != 4)
-		goto inhdr_error; 
+		goto inhdr_error;
 
 	if (!pskb_may_pull(skb, iph->ihl*4))
 		goto inhdr_error;
 
 	iph = skb->nh.iph;
 
-	if (ip_fast_csum((u8 *)iph, iph->ihl) != 0)
-		goto inhdr_error; 
+	if (unlikely(ip_fast_csum((u8 *)iph, iph->ihl)))
+		goto inhdr_error;
 
-	{
-		__u32 len = ntohs(iph->tot_len); 
-		if (skb->len < len || len < (iph->ihl<<2))
-			goto inhdr_error;
+	len = ntohs(iph->tot_len);
+	if (skb->len < len || len < (iph->ihl*4))
+		goto inhdr_error;
 
-		/* Our transport medium may have padded the buffer out. Now we know it
-		 * is IP we can trim to the true length of the frame.
-		 * Note this now means skb->len holds ntohs(iph->tot_len).
-		 */
-		if (pskb_trim_rcsum(skb, len)) {
-			IP_INC_STATS_BH(IPSTATS_MIB_INDISCARDS);
-			goto drop;
-		}
+	/* Our transport medium may have padded the buffer out. Now we know it
+	 * is IP we can trim to the true length of the frame.
+	 * Note this now means skb->len holds ntohs(iph->tot_len).
+	 */
+	if (pskb_trim_rcsum(skb, len)) {
+		IP_INC_STATS_BH(IPSTATS_MIB_INDISCARDS);
+		goto drop;
 	}
 
 	return NF_HOOK(PF_INET, NF_IP_PRE_ROUTING, skb, dev, NULL,
@@ -427,5 +440,4 @@ out:
         return NET_RX_DROP;
 }
 
-EXPORT_SYMBOL(ip_rcv);
 EXPORT_SYMBOL(ip_statistics);

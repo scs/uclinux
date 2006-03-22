@@ -12,36 +12,48 @@
 #include <linux/syscalls.h>
 #include <linux/time.h>
 #include <linux/posix-timers.h>
+#include <linux/hrtimer.h>
 
 #include <asm/uaccess.h>
 
-static unsigned long it_real_value(struct signal_struct *sig)
+/**
+ * itimer_get_remtime - get remaining time for the timer
+ *
+ * @timer: the timer to read
+ *
+ * Returns the delta between the expiry time and now, which can be
+ * less than zero or 1usec for an pending expired timer
+ */
+static struct timeval itimer_get_remtime(struct hrtimer *timer)
 {
-	unsigned long val = 0;
-	if (timer_pending(&sig->real_timer)) {
-		val = sig->real_timer.expires - jiffies;
+	ktime_t rem = hrtimer_get_remaining(timer);
 
-		/* look out for negative/zero itimer.. */
-		if ((long) val <= 0)
-			val = 1;
-	}
-	return val;
+	/*
+	 * Racy but safe: if the itimer expires after the above
+	 * hrtimer_get_remtime() call but before this condition
+	 * then we return 0 - which is correct.
+	 */
+	if (hrtimer_active(timer)) {
+		if (rem.tv64 <= 0)
+			rem.tv64 = NSEC_PER_USEC;
+	} else
+		rem.tv64 = 0;
+
+	return ktime_to_timeval(rem);
 }
 
 int do_getitimer(int which, struct itimerval *value)
 {
 	struct task_struct *tsk = current;
-	unsigned long interval, val;
 	cputime_t cinterval, cval;
 
 	switch (which) {
 	case ITIMER_REAL:
 		spin_lock_irq(&tsk->sighand->siglock);
-		interval = tsk->signal->it_real_incr;
-		val = it_real_value(tsk->signal);
+		value->it_value = itimer_get_remtime(&tsk->signal->real_timer);
+		value->it_interval =
+			ktime_to_timeval(tsk->signal->it_real_incr);
 		spin_unlock_irq(&tsk->sighand->siglock);
-		jiffies_to_timeval(val, &value->it_value);
-		jiffies_to_timeval(interval, &value->it_interval);
 		break;
 	case ITIMER_VIRTUAL:
 		read_lock(&tasklist_lock);
@@ -112,61 +124,53 @@ asmlinkage long sys_getitimer(int which, struct itimerval __user *value)
 	return error;
 }
 
+
 /*
- * Called with P->sighand->siglock held and P->signal->real_timer inactive.
- * If interval is nonzero, arm the timer for interval ticks from now.
+ * The timer is automagically restarted, when interval != 0
  */
-static inline void it_real_arm(struct task_struct *p, unsigned long interval)
+int it_real_fn(void *data)
 {
-	p->signal->it_real_value = interval; /* XXX unnecessary field?? */
-	if (interval == 0)
-		return;
-	if (interval > (unsigned long) LONG_MAX)
-		interval = LONG_MAX;
-	/* the "+ 1" below makes sure that the timer doesn't go off before
-	 * the interval requested. This could happen if
-	 * time requested % (usecs per jiffy) is more than the usecs left
-	 * in the current jiffy */
-	p->signal->real_timer.expires = jiffies + interval + 1;
-	add_timer(&p->signal->real_timer);
-}
+	struct task_struct *tsk = (struct task_struct *) data;
 
-void it_real_fn(unsigned long __data)
-{
-	struct task_struct * p = (struct task_struct *) __data;
+	send_group_sig_info(SIGALRM, SEND_SIG_PRIV, tsk);
 
-	send_group_sig_info(SIGALRM, SEND_SIG_PRIV, p);
+	if (tsk->signal->it_real_incr.tv64 != 0) {
+		hrtimer_forward(&tsk->signal->real_timer,
+			       tsk->signal->it_real_incr);
 
-	/*
-	 * Now restart the timer if necessary.  We don't need any locking
-	 * here because do_setitimer makes sure we have finished running
-	 * before it touches anything.
-	 */
-	it_real_arm(p, p->signal->it_real_incr);
+		return HRTIMER_RESTART;
+	}
+	return HRTIMER_NORESTART;
 }
 
 int do_setitimer(int which, struct itimerval *value, struct itimerval *ovalue)
 {
 	struct task_struct *tsk = current;
- 	unsigned long val, interval;
+	struct hrtimer *timer;
+	ktime_t expires;
 	cputime_t cval, cinterval, nval, ninterval;
 
 	switch (which) {
 	case ITIMER_REAL:
+again:
 		spin_lock_irq(&tsk->sighand->siglock);
-		interval = tsk->signal->it_real_incr;
-		val = it_real_value(tsk->signal);
-		if (val)
-			del_timer_sync(&tsk->signal->real_timer);
-		tsk->signal->it_real_incr =
-			timeval_to_jiffies(&value->it_interval);
-		it_real_arm(tsk, timeval_to_jiffies(&value->it_value));
-		spin_unlock_irq(&tsk->sighand->siglock);
+		timer = &tsk->signal->real_timer;
 		if (ovalue) {
-			jiffies_to_timeval(val, &ovalue->it_value);
-			jiffies_to_timeval(interval,
-					   &ovalue->it_interval);
+			ovalue->it_value = itimer_get_remtime(timer);
+			ovalue->it_interval
+				= ktime_to_timeval(tsk->signal->it_real_incr);
 		}
+		/* We are sharing ->siglock with it_real_fn() */
+		if (hrtimer_try_to_cancel(timer) < 0) {
+			spin_unlock_irq(&tsk->sighand->siglock);
+			goto again;
+		}
+		tsk->signal->it_real_incr =
+			timeval_to_ktime(value->it_interval);
+		expires = timeval_to_ktime(value->it_value);
+		if (expires.tv64 != 0)
+			hrtimer_start(timer, expires, HRTIMER_REL);
+		spin_unlock_irq(&tsk->sighand->siglock);
 		break;
 	case ITIMER_VIRTUAL:
 		nval = timeval_to_cputime(&value->it_value);

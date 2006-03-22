@@ -101,7 +101,6 @@ struct neigh_table dn_neigh_table = {
 	.id =				"dn_neigh_cache",
 	.parms ={
 		.tbl =			&dn_neigh_table,
-		.entries =		0,
 		.base_reachable_time =	30 * HZ,
 		.retrans_time =	1 * HZ,
 		.gc_staletime =	60 * HZ,
@@ -149,12 +148,12 @@ static int dn_neigh_construct(struct neighbour *neigh)
 
 	__neigh_parms_put(neigh->parms);
 	neigh->parms = neigh_parms_clone(parms);
-	rcu_read_unlock();
 
 	if (dn_db->use_long)
 		neigh->ops = &dn_long_ops;
 	else
 		neigh->ops = &dn_short_ops;
+	rcu_read_unlock();
 
 	if (dn->flags & DN_NDFLAG_P3)
 		neigh->ops = &dn_phase3_ops;
@@ -409,11 +408,14 @@ int dn_neigh_router_hello(struct sk_buff *skb)
 			}
 		}
 
-		if (!dn_db->router) {
-			dn_db->router = neigh_clone(neigh);
-		} else {
-			if (msg->priority > ((struct dn_neigh *)dn_db->router)->priority)
-				neigh_release(xchg(&dn_db->router, neigh_clone(neigh)));
+		/* Only use routers in our area */
+		if ((dn_ntohs(src)>>10) == dn_ntohs((decnet_address)>>10)) {
+			if (!dn_db->router) {
+				dn_db->router = neigh_clone(neigh);
+			} else {
+				if (msg->priority > ((struct dn_neigh *)dn_db->router)->priority)
+					neigh_release(xchg(&dn_db->router, neigh_clone(neigh)));
+			}
 		}
 		write_unlock(&neigh->lock);
 		neigh_release(neigh);

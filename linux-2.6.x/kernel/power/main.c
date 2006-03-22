@@ -19,9 +19,12 @@
 
 #include "power.h"
 
+/*This is just an arbitrary number */
+#define FREE_PAGE_NUMBER (100)
+
 DECLARE_MUTEX(pm_sem);
 
-struct pm_ops * pm_ops = NULL;
+struct pm_ops *pm_ops;
 suspend_disk_method_t pm_disk_mode = PM_DISK_SHUTDOWN;
 
 /**
@@ -49,15 +52,33 @@ void pm_set_ops(struct pm_ops * ops)
 static int suspend_prepare(suspend_state_t state)
 {
 	int error = 0;
+	unsigned int free_pages;
 
 	if (!pm_ops || !pm_ops->enter)
 		return -EPERM;
 
 	pm_prepare_console();
 
+	disable_nonboot_cpus();
+
+	if (num_online_cpus() != 1) {
+		error = -EPERM;
+		goto Enable_cpu;
+	}
+
 	if (freeze_processes()) {
 		error = -EAGAIN;
 		goto Thaw;
+	}
+
+	if ((free_pages = nr_free_pages()) < FREE_PAGE_NUMBER) {
+		pr_debug("PM: free some memory\n");
+		shrink_all_memory(FREE_PAGE_NUMBER - free_pages);
+		if (nr_free_pages() < FREE_PAGE_NUMBER) {
+			error = -ENOMEM;
+			printk(KERN_ERR "PM: No enough memory\n");
+			goto Thaw;
+		}
 	}
 
 	if (pm_ops->prepare) {
@@ -75,6 +96,8 @@ static int suspend_prepare(suspend_state_t state)
 		pm_ops->finish(state);
  Thaw:
 	thaw_processes();
+ Enable_cpu:
+	enable_nonboot_cpus();
 	pm_restore_console();
 	return error;
 }
@@ -110,21 +133,35 @@ static int suspend_enter(suspend_state_t state)
 static void suspend_finish(suspend_state_t state)
 {
 	device_resume();
+	thaw_processes();
+	enable_nonboot_cpus();
 	if (pm_ops && pm_ops->finish)
 		pm_ops->finish(state);
-	thaw_processes();
 	pm_restore_console();
 }
 
 
 
 
-static char * pm_states[] = {
+static char *pm_states[PM_SUSPEND_MAX] = {
 	[PM_SUSPEND_STANDBY]	= "standby",
 	[PM_SUSPEND_MEM]	= "mem",
+#ifdef CONFIG_SOFTWARE_SUSPEND
 	[PM_SUSPEND_DISK]	= "disk",
-	NULL,
+#endif
 };
+
+static inline int valid_state(suspend_state_t state)
+{
+	/* Suspend-to-disk does not really need low-level support.
+	 * It can work with reboot if needed. */
+	if (state == PM_SUSPEND_DISK)
+		return 1;
+
+	if (pm_ops && pm_ops->valid && !pm_ops->valid(state))
+		return 0;
+	return 1;
+}
 
 
 /**
@@ -142,17 +179,13 @@ static int enter_state(suspend_state_t state)
 {
 	int error;
 
+	if (!valid_state(state))
+		return -ENODEV;
 	if (down_trylock(&pm_sem))
 		return -EBUSY;
 
 	if (state == PM_SUSPEND_DISK) {
 		error = pm_suspend_disk();
-		goto Unlock;
-	}
-
-	/* Suspend is hard to get right on SMP. */
-	if (num_online_cpus() != 1) {
-		error = -EPERM;
 		goto Unlock;
 	}
 
@@ -190,7 +223,7 @@ int software_suspend(void)
 
 int pm_suspend(suspend_state_t state)
 {
-	if (state > PM_SUSPEND_ON && state < PM_SUSPEND_MAX)
+	if (state > PM_SUSPEND_ON && state <= PM_SUSPEND_MAX)
 		return enter_state(state);
 	return -EINVAL;
 }
@@ -217,8 +250,8 @@ static ssize_t state_show(struct subsystem * subsys, char * buf)
 	char * s = buf;
 
 	for (i = 0; i < PM_SUSPEND_MAX; i++) {
-		if (pm_states[i])
-			s += sprintf(s,"%s ",pm_states[i]);
+		if (pm_states[i] && valid_state(i))
+			s += sprintf(s,"%s ", pm_states[i]);
 	}
 	s += sprintf(s,"\n");
 	return (s - buf);

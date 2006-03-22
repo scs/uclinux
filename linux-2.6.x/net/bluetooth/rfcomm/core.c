@@ -21,10 +21,6 @@
    SOFTWARE IS DISCLAIMED.
 */
 
-/* 
-   RPN support    -    Dirk Husemann <hud@zurich.ibm.com>
-*/
-
 /*
  * Bluetooth RFCOMM core.
  *
@@ -39,9 +35,8 @@
 #include <linux/signal.h>
 #include <linux/init.h>
 #include <linux/wait.h>
+#include <linux/device.h>
 #include <linux/net.h>
-#include <linux/proc_fs.h>
-#include <linux/seq_file.h>
 #include <net/sock.h>
 #include <asm/uaccess.h>
 #include <asm/unaligned.h>
@@ -51,16 +46,14 @@
 #include <net/bluetooth/l2cap.h>
 #include <net/bluetooth/rfcomm.h>
 
-#define VERSION "1.5"
-
 #ifndef CONFIG_BT_RFCOMM_DEBUG
 #undef  BT_DBG
 #define BT_DBG(D...)
 #endif
 
-#ifdef CONFIG_PROC_FS
-struct proc_dir_entry *proc_bt_rfcomm;
-#endif
+#define VERSION "1.7"
+
+static unsigned int l2cap_mtu = RFCOMM_MAX_L2CAP_MTU;
 
 static struct task_struct *rfcomm_thread;
 
@@ -115,10 +108,10 @@ static void rfcomm_session_del(struct rfcomm_session *s);
 #define __get_mcc_len(b)  ((b & 0xfe) >> 1)
 
 /* RPN macros */
-#define __rpn_line_settings(data, stop, parity)  ((data & 0x3) | ((stop & 0x1) << 2) | ((parity & 0x3) << 3))
+#define __rpn_line_settings(data, stop, parity)  ((data & 0x3) | ((stop & 0x1) << 2) | ((parity & 0x7) << 3))
 #define __get_rpn_data_bits(line) ((line) & 0x3)
 #define __get_rpn_stop_bits(line) (((line) >> 2) & 0x1)
-#define __get_rpn_parity(line)    (((line) >> 3) & 0x3)
+#define __get_rpn_parity(line)    (((line) >> 3) & 0x7)
 
 static inline void rfcomm_schedule(uint event)
 {
@@ -136,6 +129,49 @@ static inline void rfcomm_session_put(struct rfcomm_session *s)
 }
 
 /* ---- RFCOMM FCS computation ---- */
+
+/* reversed, 8-bit, poly=0x07 */
+static unsigned char rfcomm_crc_table[256] = { 
+	0x00, 0x91, 0xe3, 0x72, 0x07, 0x96, 0xe4, 0x75,
+	0x0e, 0x9f, 0xed, 0x7c, 0x09, 0x98, 0xea, 0x7b,
+	0x1c, 0x8d, 0xff, 0x6e, 0x1b, 0x8a, 0xf8, 0x69,
+	0x12, 0x83, 0xf1, 0x60, 0x15, 0x84, 0xf6, 0x67,
+
+	0x38, 0xa9, 0xdb, 0x4a, 0x3f, 0xae, 0xdc, 0x4d,
+	0x36, 0xa7, 0xd5, 0x44, 0x31, 0xa0, 0xd2, 0x43,
+	0x24, 0xb5, 0xc7, 0x56, 0x23, 0xb2, 0xc0, 0x51,
+	0x2a, 0xbb, 0xc9, 0x58, 0x2d, 0xbc, 0xce, 0x5f,
+
+	0x70, 0xe1, 0x93, 0x02, 0x77, 0xe6, 0x94, 0x05,
+	0x7e, 0xef, 0x9d, 0x0c, 0x79, 0xe8, 0x9a, 0x0b,
+	0x6c, 0xfd, 0x8f, 0x1e, 0x6b, 0xfa, 0x88, 0x19,
+	0x62, 0xf3, 0x81, 0x10, 0x65, 0xf4, 0x86, 0x17,
+
+	0x48, 0xd9, 0xab, 0x3a, 0x4f, 0xde, 0xac, 0x3d,
+	0x46, 0xd7, 0xa5, 0x34, 0x41, 0xd0, 0xa2, 0x33,
+	0x54, 0xc5, 0xb7, 0x26, 0x53, 0xc2, 0xb0, 0x21,
+	0x5a, 0xcb, 0xb9, 0x28, 0x5d, 0xcc, 0xbe, 0x2f,
+
+	0xe0, 0x71, 0x03, 0x92, 0xe7, 0x76, 0x04, 0x95,
+	0xee, 0x7f, 0x0d, 0x9c, 0xe9, 0x78, 0x0a, 0x9b,
+	0xfc, 0x6d, 0x1f, 0x8e, 0xfb, 0x6a, 0x18, 0x89,
+	0xf2, 0x63, 0x11, 0x80, 0xf5, 0x64, 0x16, 0x87,
+
+	0xd8, 0x49, 0x3b, 0xaa, 0xdf, 0x4e, 0x3c, 0xad,
+	0xd6, 0x47, 0x35, 0xa4, 0xd1, 0x40, 0x32, 0xa3,
+	0xc4, 0x55, 0x27, 0xb6, 0xc3, 0x52, 0x20, 0xb1,
+	0xca, 0x5b, 0x29, 0xb8, 0xcd, 0x5c, 0x2e, 0xbf,
+
+	0x90, 0x01, 0x73, 0xe2, 0x97, 0x06, 0x74, 0xe5,
+	0x9e, 0x0f, 0x7d, 0xec, 0x99, 0x08, 0x7a, 0xeb,
+	0x8c, 0x1d, 0x6f, 0xfe, 0x8b, 0x1a, 0x68, 0xf9,
+	0x82, 0x13, 0x61, 0xf0, 0x85, 0x14, 0x66, 0xf7,
+
+	0xa8, 0x39, 0x4b, 0xda, 0xaf, 0x3e, 0x4c, 0xdd,
+	0xa6, 0x37, 0x45, 0xd4, 0xa1, 0x30, 0x42, 0xd3,
+	0xb4, 0x25, 0x57, 0xc6, 0xb3, 0x22, 0x50, 0xc1,
+	0xba, 0x2b, 0x59, 0xc8, 0xbd, 0x2c, 0x5e, 0xcf
+};
 
 /* CRC on 2 bytes */
 #define __crc(data) (rfcomm_crc_table[rfcomm_crc_table[0xff ^ data[0]] ^ data[1]])
@@ -233,7 +269,7 @@ static void rfcomm_dlc_clear_state(struct rfcomm_dlc *d)
 	d->rx_credits = RFCOMM_DEFAULT_CREDITS;
 }
 
-struct rfcomm_dlc *rfcomm_dlc_alloc(int prio)
+struct rfcomm_dlc *rfcomm_dlc_alloc(gfp_t prio)
 {
 	struct rfcomm_dlc *d = kmalloc(sizeof(*d), prio);
 	if (!d)
@@ -389,8 +425,6 @@ static int __rfcomm_dlc_close(struct rfcomm_dlc *d, int err)
 		rfcomm_dlc_unlock(d);
 
 		skb_queue_purge(&d->tx_queue);
-		rfcomm_session_put(s);
-
 		rfcomm_dlc_unlink(d);
 	}
 
@@ -591,7 +625,7 @@ static struct rfcomm_session *rfcomm_session_create(bdaddr_t *src, bdaddr_t *dst
 	/* Set L2CAP options */
 	sk = sock->sk;
 	lock_sock(sk);
-	l2cap_pi(sk)->imtu = RFCOMM_MAX_L2CAP_MTU;
+	l2cap_pi(sk)->imtu = l2cap_mtu;
 	release_sock(sk);
 
 	s = rfcomm_session_add(sock, BT_BOUND);
@@ -599,8 +633,6 @@ static struct rfcomm_session *rfcomm_session_create(bdaddr_t *src, bdaddr_t *dst
 		*err = -ENOMEM;
 		goto failed;
 	}
-
-	rfcomm_session_hold(s);
 
 	s->initiator = 1;
 
@@ -784,10 +816,10 @@ static int rfcomm_send_pn(struct rfcomm_session *s, int cr, struct rfcomm_dlc *d
 	return rfcomm_send_frame(s, buf, ptr - buf);
 }
 
-static int rfcomm_send_rpn(struct rfcomm_session *s, int cr, u8 dlci,
-			   u8 bit_rate, u8 data_bits, u8 stop_bits,
-			   u8 parity, u8 flow_ctrl_settings, 
-			   u8 xon_char, u8 xoff_char, u16 param_mask)
+int rfcomm_send_rpn(struct rfcomm_session *s, int cr, u8 dlci,
+			u8 bit_rate, u8 data_bits, u8 stop_bits,
+			u8 parity, u8 flow_ctrl_settings, 
+			u8 xon_char, u8 xoff_char, u16 param_mask)
 {
 	struct rfcomm_hdr *hdr;
 	struct rfcomm_mcc *mcc;
@@ -795,9 +827,9 @@ static int rfcomm_send_rpn(struct rfcomm_session *s, int cr, u8 dlci,
 	u8 buf[16], *ptr = buf;
 
 	BT_DBG("%p cr %d dlci %d bit_r 0x%x data_b 0x%x stop_b 0x%x parity 0x%x"
-	       "flwc_s 0x%x xon_c 0x%x xoff_c 0x%x p_mask 0x%x", 
-			s, cr, dlci, bit_rate, data_bits, stop_bits, parity, 
-			flow_ctrl_settings, xon_char, xoff_char, param_mask);
+			" flwc_s 0x%x xon_c 0x%x xoff_c 0x%x p_mask 0x%x", 
+		s, cr, dlci, bit_rate, data_bits, stop_bits, parity, 
+		flow_ctrl_settings, xon_char, xoff_char, param_mask);
 
 	hdr = (void *) ptr; ptr += sizeof(*hdr);
 	hdr->addr = __addr(s->initiator, 0);
@@ -1269,16 +1301,16 @@ static int rfcomm_recv_rpn(struct rfcomm_session *s, int cr, int len, struct sk_
 	u8 xon_char  = 0;
 	u8 xoff_char = 0;
 	u16 rpn_mask = RFCOMM_RPN_PM_ALL;
-	
-	BT_DBG("dlci %d cr %d len 0x%x bitr 0x%x line 0x%x flow 0x%x xonc 0x%x xoffc 0x%x pm 0x%x", 
-	       dlci, cr, len, rpn->bit_rate, rpn->line_settings, rpn->flow_ctrl,
-	       rpn->xon_char, rpn->xoff_char, rpn->param_mask);
-	
-	if (!cr) 
+
+	BT_DBG("dlci %d cr %d len 0x%x bitr 0x%x line 0x%x flow 0x%x xonc 0x%x xoffc 0x%x pm 0x%x",
+		dlci, cr, len, rpn->bit_rate, rpn->line_settings, rpn->flow_ctrl,
+		rpn->xon_char, rpn->xoff_char, rpn->param_mask);
+
+	if (!cr)
 		return 0;
-	
+
 	if (len == 1) {
-		/* request: return default setting */
+		/* This is a request, return default settings */
 		bit_rate  = RFCOMM_RPN_BR_115200;
 		data_bits = RFCOMM_RPN_DATA_8;
 		stop_bits = RFCOMM_RPN_STOP_1;
@@ -1286,11 +1318,12 @@ static int rfcomm_recv_rpn(struct rfcomm_session *s, int cr, int len, struct sk_
 		flow_ctrl = RFCOMM_RPN_FLOW_NONE;
 		xon_char  = RFCOMM_RPN_XON_CHAR;
 		xoff_char = RFCOMM_RPN_XOFF_CHAR;
-
 		goto rpn_out;
 	}
-	/* check for sane values: ignore/accept bit_rate, 8 bits, 1 stop bit, no parity,
-	                          no flow control lines, normal XON/XOFF chars */
+
+	/* Check for sane values, ignore/accept bit_rate, 8 bits, 1 stop bit,
+	 * no parity, no flow control lines, normal XON/XOFF chars */
+
 	if (rpn->param_mask & RFCOMM_RPN_PM_BITRATE) {
 		bit_rate = rpn->bit_rate;
 		if (bit_rate != RFCOMM_RPN_BR_115200) {
@@ -1299,6 +1332,7 @@ static int rfcomm_recv_rpn(struct rfcomm_session *s, int cr, int len, struct sk_
 			rpn_mask ^= RFCOMM_RPN_PM_BITRATE;
 		}
 	}
+
 	if (rpn->param_mask & RFCOMM_RPN_PM_DATA) {
 		data_bits = __get_rpn_data_bits(rpn->line_settings);
 		if (data_bits != RFCOMM_RPN_DATA_8) {
@@ -1307,6 +1341,7 @@ static int rfcomm_recv_rpn(struct rfcomm_session *s, int cr, int len, struct sk_
 			rpn_mask ^= RFCOMM_RPN_PM_DATA;
 		}
 	}
+
 	if (rpn->param_mask & RFCOMM_RPN_PM_STOP) {
 		stop_bits = __get_rpn_stop_bits(rpn->line_settings);
 		if (stop_bits != RFCOMM_RPN_STOP_1) {
@@ -1315,6 +1350,7 @@ static int rfcomm_recv_rpn(struct rfcomm_session *s, int cr, int len, struct sk_
 			rpn_mask ^= RFCOMM_RPN_PM_STOP;
 		}
 	}
+
 	if (rpn->param_mask & RFCOMM_RPN_PM_PARITY) {
 		parity = __get_rpn_parity(rpn->line_settings);
 		if (parity != RFCOMM_RPN_PARITY_NONE) {
@@ -1323,6 +1359,7 @@ static int rfcomm_recv_rpn(struct rfcomm_session *s, int cr, int len, struct sk_
 			rpn_mask ^= RFCOMM_RPN_PM_PARITY;
 		}
 	}
+
 	if (rpn->param_mask & RFCOMM_RPN_PM_FLOW) {
 		flow_ctrl = rpn->flow_ctrl;
 		if (flow_ctrl != RFCOMM_RPN_FLOW_NONE) {
@@ -1331,6 +1368,7 @@ static int rfcomm_recv_rpn(struct rfcomm_session *s, int cr, int len, struct sk_
 			rpn_mask ^= RFCOMM_RPN_PM_FLOW;
 		}
 	}
+
 	if (rpn->param_mask & RFCOMM_RPN_PM_XON) {
 		xon_char = rpn->xon_char;
 		if (xon_char != RFCOMM_RPN_XON_CHAR) {
@@ -1339,6 +1377,7 @@ static int rfcomm_recv_rpn(struct rfcomm_session *s, int cr, int len, struct sk_
 			rpn_mask ^= RFCOMM_RPN_PM_XON;
 		}
 	}
+
 	if (rpn->param_mask & RFCOMM_RPN_PM_XOFF) {
 		xoff_char = rpn->xoff_char;
 		if (xoff_char != RFCOMM_RPN_XOFF_CHAR) {
@@ -1349,9 +1388,8 @@ static int rfcomm_recv_rpn(struct rfcomm_session *s, int cr, int len, struct sk_
 	}
 
 rpn_out:
-	rfcomm_send_rpn(s, 0, dlci, 
-			bit_rate, data_bits, stop_bits, parity, flow_ctrl,
-			xon_char, xoff_char, rpn_mask);
+	rfcomm_send_rpn(s, 0, dlci, bit_rate, data_bits, stop_bits,
+			parity, flow_ctrl, xon_char, xoff_char, rpn_mask);
 
 	return 0;
 }
@@ -1362,14 +1400,13 @@ static int rfcomm_recv_rls(struct rfcomm_session *s, int cr, struct sk_buff *skb
 	u8 dlci = __get_dlci(rls->dlci);
 
 	BT_DBG("dlci %d cr %d status 0x%x", dlci, cr, rls->status);
-	
+
 	if (!cr)
 		return 0;
 
-	/* FIXME: We should probably do something with this
-	   information here. But for now it's sufficient just
-	   to reply -- Bluetooth 1.1 says it's mandatory to 
-	   recognise and respond to RLS */
+	/* We should probably do something with this information here. But
+	 * for now it's sufficient just to reply -- Bluetooth 1.1 says it's
+	 * mandatory to recognise and respond to RLS */
 
 	rfcomm_send_rls(s, 0, dlci, rls->status);
 
@@ -1385,7 +1422,7 @@ static int rfcomm_recv_msc(struct rfcomm_session *s, int cr, struct sk_buff *skb
 	BT_DBG("dlci %d cr %d v24 0x%x", dlci, cr, msc->v24_sig);
 
 	d = rfcomm_dlc_get(s, dlci);
-	if (!d) 
+	if (!d)
 		return 0;
 
 	if (cr) {
@@ -1393,7 +1430,7 @@ static int rfcomm_recv_msc(struct rfcomm_session *s, int cr, struct sk_buff *skb
 			set_bit(RFCOMM_TX_THROTTLED, &d->flags);
 		else
 			clear_bit(RFCOMM_TX_THROTTLED, &d->flags);
-		
+
 		rfcomm_dlc_lock(d);
 		if (d->modem_status)
 			d->modem_status(d, msc->v24_sig);
@@ -1402,7 +1439,7 @@ static int rfcomm_recv_msc(struct rfcomm_session *s, int cr, struct sk_buff *skb
 		rfcomm_send_msc(s, 0, dlci, msc->v24_sig);
 
 		d->mscex |= RFCOMM_MSCEX_RX;
-	} else 
+	} else
 		d->mscex |= RFCOMM_MSCEX_TX;
 
 	return 0;
@@ -1833,7 +1870,7 @@ static int rfcomm_add_listener(bdaddr_t *ba)
 	/* Set L2CAP options */
 	sk = sock->sk;
 	lock_sock(sk);
-	l2cap_pi(sk)->imtu = RFCOMM_MAX_L2CAP_MTU;
+	l2cap_pi(sk)->imtu = l2cap_mtu;
 	release_sock(sk);
 
 	/* Start listening on the socket */
@@ -1961,117 +1998,32 @@ static struct hci_cb rfcomm_cb = {
 	.encrypt_cfm	= rfcomm_encrypt_cfm
 };
 
-/* ---- Proc fs support ---- */
-#ifdef CONFIG_PROC_FS
-static void *rfcomm_seq_start(struct seq_file *seq, loff_t *pos)
+static ssize_t rfcomm_dlc_sysfs_show(struct class *dev, char *buf)
 {
 	struct rfcomm_session *s;
 	struct list_head *pp, *p;
-	loff_t l = *pos;
+	char *str = buf;
 
 	rfcomm_lock();
 
 	list_for_each(p, &session_list) {
 		s = list_entry(p, struct rfcomm_session, list);
-		list_for_each(pp, &s->dlcs)
-			if (!l--) {
-				seq->private = s;
-				return pp;
-			}
-	}
-	return NULL;
-}
+		list_for_each(pp, &s->dlcs) {
+			struct sock *sk = s->sock->sk;
+			struct rfcomm_dlc *d = list_entry(pp, struct rfcomm_dlc, list);
 
-static void *rfcomm_seq_next(struct seq_file *seq, void *e, loff_t *pos)
-{
-	struct rfcomm_session *s = seq->private;
-	struct list_head *pp, *p = e;
-	(*pos)++;
-
-	if (p->next != &s->dlcs)
-		return p->next;
-
-	list_for_each(p, &session_list) {
-		s = list_entry(p, struct rfcomm_session, list);
-		__list_for_each(pp, &s->dlcs) {
-			seq->private = s;
-			return pp;
+			str += sprintf(str, "%s %s %ld %d %d %d %d\n",
+					batostr(&bt_sk(sk)->src), batostr(&bt_sk(sk)->dst),
+					d->state, d->dlci, d->mtu, d->rx_credits, d->tx_credits);
 		}
 	}
-	return NULL;
-}
 
-static void rfcomm_seq_stop(struct seq_file *seq, void *e)
-{
 	rfcomm_unlock();
+
+	return (str - buf);
 }
 
-static int  rfcomm_seq_show(struct seq_file *seq, void *e)
-{
-	struct rfcomm_session *s = seq->private;
-	struct sock *sk = s->sock->sk;
-	struct rfcomm_dlc *d = list_entry(e, struct rfcomm_dlc, list);
-
-	seq_printf(seq, "%s %s %ld %d %d %d %d\n",
-			batostr(&bt_sk(sk)->src), batostr(&bt_sk(sk)->dst),
-			d->state, d->dlci, d->mtu, d->rx_credits, d->tx_credits);
-	return 0;
-}
-
-static struct seq_operations rfcomm_seq_ops = {
-	.start  = rfcomm_seq_start,
-	.next   = rfcomm_seq_next,
-	.stop   = rfcomm_seq_stop,
-	.show   = rfcomm_seq_show 
-};
-
-static int rfcomm_seq_open(struct inode *inode, struct file *file)
-{
-	return seq_open(file, &rfcomm_seq_ops);
-}
-
-static struct file_operations rfcomm_seq_fops = {
-	.owner	 = THIS_MODULE,
-	.open    = rfcomm_seq_open,
-	.read    = seq_read,
-	.llseek  = seq_lseek,
-	.release = seq_release,
-};
-
-static int  __init rfcomm_proc_init(void)
-{
-        struct proc_dir_entry *p;
-
-	proc_bt_rfcomm = proc_mkdir("rfcomm", proc_bt);
-	if (proc_bt_rfcomm) {
-		proc_bt_rfcomm->owner = THIS_MODULE;
-
-        	p = create_proc_entry("dlc", S_IRUGO, proc_bt_rfcomm);
-		if (p)
-        		p->proc_fops = &rfcomm_seq_fops;
-	}
-        return 0;
-}
-
-static void __exit rfcomm_proc_cleanup(void)
-{
-        remove_proc_entry("dlc", proc_bt_rfcomm);
-
-	remove_proc_entry("rfcomm", proc_bt);
-}
-
-#else /* CONFIG_PROC_FS */
-
-static int  __init rfcomm_proc_init(void)
-{
-        return 0;
-}
-
-static void __exit rfcomm_proc_cleanup(void)
-{
-        return;
-}
-#endif /* CONFIG_PROC_FS */
+static CLASS_ATTR(rfcomm_dlc, S_IRUGO, rfcomm_dlc_sysfs_show, NULL);
 
 /* ---- Initialization ---- */
 static int __init rfcomm_init(void)
@@ -2082,9 +2034,7 @@ static int __init rfcomm_init(void)
 
 	kernel_thread(rfcomm_run, NULL, CLONE_KERNEL);
 
-	BT_INFO("RFCOMM ver %s", VERSION);
-
-	rfcomm_proc_init();
+	class_create_file(&bt_class, &class_attr_rfcomm_dlc);
 
 	rfcomm_init_sockets();
 
@@ -2092,11 +2042,15 @@ static int __init rfcomm_init(void)
 	rfcomm_init_ttys();
 #endif
 
+	BT_INFO("RFCOMM ver %s", VERSION);
+
 	return 0;
 }
 
 static void __exit rfcomm_exit(void)
 {
+	class_remove_file(&bt_class, &class_attr_rfcomm_dlc);
+
 	hci_unregister_cb(&rfcomm_cb);
 
 	/* Terminate working thread.
@@ -2113,12 +2067,13 @@ static void __exit rfcomm_exit(void)
 #endif
 
 	rfcomm_cleanup_sockets();
-
-	rfcomm_proc_cleanup();
 }
 
 module_init(rfcomm_init);
 module_exit(rfcomm_exit);
+
+module_param(l2cap_mtu, uint, 0644);
+MODULE_PARM_DESC(l2cap_mtu, "Default MTU for the L2CAP connection");
 
 MODULE_AUTHOR("Maxim Krasnyansky <maxk@qualcomm.com>, Marcel Holtmann <marcel@holtmann.org>");
 MODULE_DESCRIPTION("Bluetooth RFCOMM ver " VERSION);

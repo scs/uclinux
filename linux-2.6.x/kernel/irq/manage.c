@@ -6,6 +6,7 @@
  * This file contains driver APIs to the irq subsystem.
  */
 
+#include <linux/config.h>
 #include <linux/irq.h>
 #include <linux/module.h>
 #include <linux/random.h>
@@ -17,8 +18,13 @@
 
 cpumask_t irq_affinity[NR_IRQS] = { [0 ... NR_IRQS-1] = CPU_MASK_ALL };
 
+#if defined (CONFIG_GENERIC_PENDING_IRQ) || defined (CONFIG_IRQBALANCE)
+cpumask_t __cacheline_aligned pending_irq_cpumask[NR_IRQS];
+#endif
+
 /**
  *	synchronize_irq - wait for pending IRQ handlers (on other CPUs)
+ *	@irq: interrupt number to wait for
  *
  *	This function waits for any pending IRQ handlers for this interrupt
  *	to complete before returning. If you use this function while
@@ -29,6 +35,9 @@ cpumask_t irq_affinity[NR_IRQS] = { [0 ... NR_IRQS-1] = CPU_MASK_ALL };
 void synchronize_irq(unsigned int irq)
 {
 	struct irq_desc *desc = irq_desc + irq;
+
+	if (irq >= NR_IRQS)
+		return;
 
 	while (desc->status & IRQ_INPROGRESS)
 		cpu_relax();
@@ -53,6 +62,9 @@ void disable_irq_nosync(unsigned int irq)
 {
 	irq_desc_t *desc = irq_desc + irq;
 	unsigned long flags;
+
+	if (irq >= NR_IRQS)
+		return;
 
 	spin_lock_irqsave(&desc->lock, flags);
 	if (!desc->depth++) {
@@ -80,6 +92,9 @@ void disable_irq(unsigned int irq)
 {
 	irq_desc_t *desc = irq_desc + irq;
 
+	if (irq >= NR_IRQS)
+		return;
+
 	disable_irq_nosync(irq);
 	if (desc->action)
 		synchronize_irq(irq);
@@ -101,6 +116,9 @@ void enable_irq(unsigned int irq)
 {
 	irq_desc_t *desc = irq_desc + irq;
 	unsigned long flags;
+
+	if (irq >= NR_IRQS)
+		return;
 
 	spin_lock_irqsave(&desc->lock, flags);
 	switch (desc->depth) {
@@ -156,6 +174,9 @@ int setup_irq(unsigned int irq, struct irqaction * new)
 	struct irqaction *old, **p;
 	unsigned long flags;
 	int shared = 0;
+
+	if (irq >= NR_IRQS)
+		return -EINVAL;
 
 	if (desc->handler == &no_irq_type)
 		return -ENOSYS;
@@ -255,6 +276,13 @@ void free_irq(unsigned int irq, void *dev_id)
 
 			/* Found it - now remove it from the list of entries */
 			*pp = action->next;
+
+			/* Currently used only by UML, might disappear one day.*/
+#ifdef CONFIG_IRQ_RELEASE_METHOD
+			if (desc->handler->release)
+				desc->handler->release(irq, dev_id);
+#endif
+
 			if (!desc->action) {
 				desc->status |= IRQ_DISABLED;
 				if (desc->handler->shutdown)
@@ -337,6 +365,8 @@ int request_irq(unsigned int irq,
 	action->name = devname;
 	action->next = NULL;
 	action->dev_id = dev_id;
+
+	select_smp_affinity(irq);
 
 	retval = setup_irq(irq, action);
 	if (retval)

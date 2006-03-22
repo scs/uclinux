@@ -35,6 +35,7 @@
 #include <net/datalink.h>
 #include <net/psnap.h>
 #include <linux/atalk.h>
+#include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
@@ -462,8 +463,7 @@ void aarp_probe_network(struct atalk_iface *atif)
 			aarp_send_probe(atif->dev, &atif->address);
 
 			/* Defer 1/10th */
-			current->state = TASK_INTERRUPTIBLE;
-			schedule_timeout(HZ / 10);
+			msleep(100);
 
 			if (atif->status & ATIF_PROBE_FAIL)
 				break;
@@ -510,9 +510,8 @@ int aarp_proxy_probe_network(struct atalk_iface *atif, struct atalk_addr *sa)
 		aarp_send_probe(atif->dev, sa);
 
 		/* Defer 1/10th */
-		current->state = TASK_INTERRUPTIBLE;
 		write_unlock_bh(&aarp_lock);
-		schedule_timeout(HZ / 10);
+		msleep(100);
 		write_lock_bh(&aarp_lock);
 
 		if (entry->status & ATIF_PROBE_FAIL)
@@ -565,7 +564,7 @@ int aarp_send_ddp(struct net_device *dev, struct sk_buff *skb,
 			 *	numbers	we just happen to need. Now put the
 			 *	length in the lower two.
 			 */
-			*((__u16 *)skb->data) = htons(skb->len);
+			*((__be16 *)skb->data) = htons(skb->len);
 			ft = 1;
 		}
 		/*
@@ -699,7 +698,7 @@ static void __aarp_resolved(struct aarp_entry **list, struct aarp_entry *a,
  *	frame. We currently only support Ethernet.
  */
 static int aarp_rcv(struct sk_buff *skb, struct net_device *dev,
-		    struct packet_type *pt)
+		    struct packet_type *pt, struct net_device *orig_dev)
 {
 	struct elapaarp *ea = aarp_hdr(skb);
 	int hash, ret = 0;

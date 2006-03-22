@@ -43,17 +43,18 @@
 #include <linux/errno.h>
 #include <linux/sched.h>
 #include <linux/inet.h>
-#include <linux/tcp.h>
 #include <linux/netdevice.h>
 #include <linux/rtnetlink.h>
 #include <linux/poll.h>
 #include <linux/highmem.h>
+#include <linux/spinlock.h>
 
 #include <net/protocol.h>
 #include <linux/skbuff.h>
-#include <net/sock.h>
-#include <net/checksum.h>
 
+#include <net/checksum.h>
+#include <net/sock.h>
+#include <net/tcp_states.h>
 
 /*
  *	Is a socket 'connection oriented' ?
@@ -198,6 +199,41 @@ void skb_free_datagram(struct sock *sk, struct sk_buff *skb)
 {
 	kfree_skb(skb);
 }
+
+/**
+ *	skb_kill_datagram - Free a datagram skbuff forcibly
+ *	@sk: socket
+ *	@skb: datagram skbuff
+ *	@flags: MSG_ flags
+ *
+ *	This function frees a datagram skbuff that was received by
+ *	skb_recv_datagram.  The flags argument must match the one
+ *	used for skb_recv_datagram.
+ *
+ *	If the MSG_PEEK flag is set, and the packet is still on the
+ *	receive queue of the socket, it will be taken off the queue
+ *	before it is freed.
+ *
+ *	This function currently only disables BH when acquiring the
+ *	sk_receive_queue lock.  Therefore it must not be used in a
+ *	context where that lock is acquired in an IRQ context.
+ */
+
+void skb_kill_datagram(struct sock *sk, struct sk_buff *skb, unsigned int flags)
+{
+	if (flags & MSG_PEEK) {
+		spin_lock_bh(&sk->sk_receive_queue.lock);
+		if (skb == skb_peek(&sk->sk_receive_queue)) {
+			__skb_unlink(skb, &sk->sk_receive_queue);
+			atomic_dec(&skb->users);
+		}
+		spin_unlock_bh(&sk->sk_receive_queue.lock);
+	}
+
+	kfree_skb(skb);
+}
+
+EXPORT_SYMBOL(skb_kill_datagram);
 
 /**
  *	skb_copy_datagram_iovec - Copy a datagram to an iovec.
@@ -375,6 +411,20 @@ fault:
 	return -EFAULT;
 }
 
+unsigned int __skb_checksum_complete(struct sk_buff *skb)
+{
+	unsigned int sum;
+
+	sum = (u16)csum_fold(skb_checksum(skb, 0, skb->len, skb->csum));
+	if (likely(!sum)) {
+		if (unlikely(skb->ip_summed == CHECKSUM_HW))
+			netdev_rx_csum_fault(skb->dev);
+		skb->ip_summed = CHECKSUM_UNNECESSARY;
+	}
+	return sum;
+}
+EXPORT_SYMBOL(__skb_checksum_complete);
+
 /**
  *	skb_copy_and_csum_datagram_iovec - Copy and checkum skb to user iovec.
  *	@skb: skbuff
@@ -388,7 +438,7 @@ fault:
  *		 -EFAULT - fault during copy. Beware, in this case iovec
  *			   can be modified!
  */
-int skb_copy_and_csum_datagram_iovec(const struct sk_buff *skb,
+int skb_copy_and_csum_datagram_iovec(struct sk_buff *skb,
 				     int hlen, struct iovec *iov)
 {
 	unsigned int csum;
@@ -401,8 +451,7 @@ int skb_copy_and_csum_datagram_iovec(const struct sk_buff *skb,
 		iov++;
 
 	if (iov->iov_len < chunk) {
-		if ((unsigned short)csum_fold(skb_checksum(skb, 0, chunk + hlen,
-							   skb->csum)))
+		if (__skb_checksum_complete(skb))
 			goto csum_error;
 		if (skb_copy_datagram_iovec(skb, hlen, iov, chunk))
 			goto fault;
@@ -413,6 +462,8 @@ int skb_copy_and_csum_datagram_iovec(const struct sk_buff *skb,
 			goto fault;
 		if ((unsigned short)csum_fold(csum))
 			goto csum_error;
+		if (unlikely(skb->ip_summed == CHECKSUM_HW))
+			netdev_rx_csum_fault(skb->dev);
 		iov->iov_len -= chunk;
 		iov->iov_base += chunk;
 	}

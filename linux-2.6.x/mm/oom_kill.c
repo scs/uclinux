@@ -6,8 +6,8 @@
  *	for goading me into coding this file...
  *
  *  The routines in this file are used to kill a process when
- *  we're seriously out of memory. This gets called from kswapd()
- *  in linux/mm/vmscan.c when we really run out of memory.
+ *  we're seriously out of memory. This gets called from __alloc_pages()
+ *  in mm/page_alloc.c when we really run out of memory.
  *
  *  Since we won't call these routines often (on a well-configured
  *  machine) this file will double as a 'coding guide' and a signpost
@@ -20,13 +20,14 @@
 #include <linux/swap.h>
 #include <linux/timex.h>
 #include <linux/jiffies.h>
+#include <linux/cpuset.h>
 
 /* #define DEBUG */
 
 /**
  * oom_badness - calculate a numeric value for how bad this task has been
  * @p: task struct of which task we should calculate
- * @p: current uptime in seconds
+ * @uptime: current uptime in seconds
  *
  * The formula used is relatively simple and documented inline in the
  * function. The main rationale is that we want to select a good task
@@ -57,15 +58,17 @@ unsigned long badness(struct task_struct *p, unsigned long uptime)
 
 	/*
 	 * Processes which fork a lot of child processes are likely
-	 * a good choice. We add the vmsize of the childs if they
+	 * a good choice. We add half the vmsize of the children if they
 	 * have an own mm. This prevents forking servers to flood the
-	 * machine with an endless amount of childs
+	 * machine with an endless amount of children. In case a single
+	 * child is eating the vast majority of memory, adding only half
+	 * to the parents will make the child our kill candidate of choice.
 	 */
 	list_for_each(tsk, &p->children) {
 		struct task_struct *chld;
 		chld = list_entry(tsk, struct task_struct, sibling);
 		if (chld->mm != p->mm && chld->mm)
-			points += chld->mm->total_vm;
+			points += chld->mm->total_vm/2 + 1;
 	}
 
 	/*
@@ -130,41 +133,79 @@ unsigned long badness(struct task_struct *p, unsigned long uptime)
 }
 
 /*
+ * Types of limitations to the nodes from which allocations may occur
+ */
+#define CONSTRAINT_NONE 1
+#define CONSTRAINT_MEMORY_POLICY 2
+#define CONSTRAINT_CPUSET 3
+
+/*
+ * Determine the type of allocation constraint.
+ */
+static inline int constrained_alloc(struct zonelist *zonelist, gfp_t gfp_mask)
+{
+#ifdef CONFIG_NUMA
+	struct zone **z;
+	nodemask_t nodes = node_online_map;
+
+	for (z = zonelist->zones; *z; z++)
+		if (cpuset_zone_allowed(*z, gfp_mask))
+			node_clear((*z)->zone_pgdat->node_id,
+					nodes);
+		else
+			return CONSTRAINT_CPUSET;
+
+	if (!nodes_empty(nodes))
+		return CONSTRAINT_MEMORY_POLICY;
+#endif
+
+	return CONSTRAINT_NONE;
+}
+
+/*
  * Simple selection loop. We chose the process with the highest
  * number of 'points'. We expect the caller will lock the tasklist.
  *
  * (not docbooked, we don't want this one cluttering up the manual)
  */
-static struct task_struct * select_bad_process(void)
+static struct task_struct *select_bad_process(unsigned long *ppoints)
 {
-	unsigned long maxpoints = 0;
 	struct task_struct *g, *p;
 	struct task_struct *chosen = NULL;
 	struct timespec uptime;
+	*ppoints = 0;
 
 	do_posix_clock_monotonic_gettime(&uptime);
-	do_each_thread(g, p)
+	do_each_thread(g, p) {
+		unsigned long points;
+		int releasing;
+
 		/* skip the init task with pid == 1 */
-		if (p->pid > 1 && p->oomkilladj != OOM_DISABLE) {
-			unsigned long points;
+		if (p->pid == 1)
+			continue;
+		if (p->oomkilladj == OOM_DISABLE)
+			continue;
+		/* If p's nodes don't overlap ours, it won't help to kill p. */
+		if (!cpuset_excl_nodes_overlap(p))
+			continue;
 
-			/*
-			 * This is in the process of releasing memory so wait it
-			 * to finish before killing some other task by mistake.
-			 */
-			if ((unlikely(test_tsk_thread_flag(p, TIF_MEMDIE)) || (p->flags & PF_EXITING)) &&
-			    !(p->flags & PF_DEAD))
-				return ERR_PTR(-1UL);
-			if (p->flags & PF_SWAPOFF)
-				return p;
+		/*
+		 * This is in the process of releasing memory so for wait it
+		 * to finish before killing some other task by mistake.
+		 */
+		releasing = test_tsk_thread_flag(p, TIF_MEMDIE) ||
+						p->flags & PF_EXITING;
+		if (releasing && !(p->flags & PF_DEAD))
+			return ERR_PTR(-1UL);
+		if (p->flags & PF_SWAPOFF)
+			return p;
 
-			points = badness(p, uptime.tv_sec);
-			if (points > maxpoints || !chosen) {
-				chosen = p;
-				maxpoints = points;
-			}
+		points = badness(p, uptime.tv_sec);
+		if (points > *ppoints || !chosen) {
+			chosen = p;
+			*ppoints = points;
 		}
-	while_each_thread(g, p);
+	} while_each_thread(g, p);
 	return chosen;
 }
 
@@ -173,7 +214,7 @@ static struct task_struct * select_bad_process(void)
  * CAP_SYS_RAW_IO set, send SIGTERM instead (but it's unlikely that
  * we select a process with CAP_SYS_RAW_IO set).
  */
-static void __oom_kill_task(task_t *p)
+static void __oom_kill_task(task_t *p, const char *message)
 {
 	if (p->pid == 1) {
 		WARN_ON(1);
@@ -189,7 +230,8 @@ static void __oom_kill_task(task_t *p)
 		return;
 	}
 	task_unlock(p);
-	printk(KERN_ERR "Out of Memory: Killed process %d (%s).\n", p->pid, p->comm);
+	printk(KERN_ERR "%s: Killed process %d (%s).\n",
+				message, p->pid, p->comm);
 
 	/*
 	 * We give our sacrificial lamb high priority and access to
@@ -202,7 +244,7 @@ static void __oom_kill_task(task_t *p)
 	force_sig(SIGKILL, p);
 }
 
-static struct mm_struct *oom_kill_task(task_t *p)
+static struct mm_struct *oom_kill_task(task_t *p, const char *message)
 {
 	struct mm_struct *mm = get_task_mm(p);
 	task_t * g, * q;
@@ -214,35 +256,38 @@ static struct mm_struct *oom_kill_task(task_t *p)
 		return NULL;
 	}
 
-	__oom_kill_task(p);
+	__oom_kill_task(p, message);
 	/*
 	 * kill all processes that share the ->mm (i.e. all threads),
 	 * but are in a different thread group
 	 */
 	do_each_thread(g, q)
 		if (q->mm == mm && q->tgid != p->tgid)
-			__oom_kill_task(q);
+			__oom_kill_task(q, message);
 	while_each_thread(g, q);
 
 	return mm;
 }
 
-static struct mm_struct *oom_kill_process(struct task_struct *p)
+static struct mm_struct *oom_kill_process(struct task_struct *p,
+				unsigned long points, const char *message)
 {
  	struct mm_struct *mm;
 	struct task_struct *c;
 	struct list_head *tsk;
 
+	printk(KERN_ERR "Out of Memory: Kill process %d (%s) score %li and "
+		"children.\n", p->pid, p->comm, points);
 	/* Try to kill a child first */
 	list_for_each(tsk, &p->children) {
 		c = list_entry(tsk, struct task_struct, sibling);
 		if (c->mm == p->mm)
 			continue;
-		mm = oom_kill_task(c);
+		mm = oom_kill_task(c, message);
 		if (mm)
 			return mm;
 	}
-	return oom_kill_task(p);
+	return oom_kill_task(p, message);
 }
 
 /**
@@ -253,40 +298,72 @@ static struct mm_struct *oom_kill_process(struct task_struct *p)
  * OR try to be smart about which process to kill. Note that we
  * don't have to be perfect here, we just have to be good.
  */
-void out_of_memory(unsigned int __nocast gfp_mask)
+void out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask, int order)
 {
 	struct mm_struct *mm = NULL;
-	task_t * p;
+	task_t *p;
+	unsigned long points = 0;
 
-	read_lock(&tasklist_lock);
-retry:
-	p = select_bad_process();
-
-	if (PTR_ERR(p) == -1UL)
-		goto out;
-
-	/* Found nothing?!?! Either we hang forever, or we panic. */
-	if (!p) {
-		read_unlock(&tasklist_lock);
-		show_free_areas();
-		panic("Out of memory and no killable processes...\n");
+	if (printk_ratelimit()) {
+		printk("oom-killer: gfp_mask=0x%x, order=%d\n",
+			gfp_mask, order);
+		dump_stack();
+		show_mem();
 	}
 
-	printk("oom-killer: gfp_mask=0x%x\n", gfp_mask);
-	show_free_areas();
-	mm = oom_kill_process(p);
-	if (!mm)
-		goto retry;
+	cpuset_lock();
+	read_lock(&tasklist_lock);
 
- out:
+	/*
+	 * Check if there were limitations on the allocation (only relevant for
+	 * NUMA) that may require different handling.
+	 */
+	switch (constrained_alloc(zonelist, gfp_mask)) {
+	case CONSTRAINT_MEMORY_POLICY:
+		mm = oom_kill_process(current, points,
+				"No available memory (MPOL_BIND)");
+		break;
+
+	case CONSTRAINT_CPUSET:
+		mm = oom_kill_process(current, points,
+				"No available memory in cpuset");
+		break;
+
+	case CONSTRAINT_NONE:
+retry:
+		/*
+		 * Rambo mode: Shoot down a process and hope it solves whatever
+		 * issues we may have.
+		 */
+		p = select_bad_process(&points);
+
+		if (PTR_ERR(p) == -1UL)
+			goto out;
+
+		/* Found nothing?!?! Either we hang forever, or we panic. */
+		if (!p) {
+			read_unlock(&tasklist_lock);
+			cpuset_unlock();
+			panic("Out of memory and no killable processes...\n");
+		}
+
+		mm = oom_kill_process(p, points, "Out of memory");
+		if (!mm)
+			goto retry;
+
+		break;
+	}
+
+out:
 	read_unlock(&tasklist_lock);
+	cpuset_unlock();
 	if (mm)
 		mmput(mm);
 
 	/*
 	 * Give "p" a good chance of killing itself before we
-	 * retry to allocate memory.
+	 * retry to allocate memory unless "p" is current
 	 */
-	__set_current_state(TASK_INTERRUPTIBLE);
-	schedule_timeout(1);
+	if (!test_thread_flag(TIF_MEMDIE))
+		schedule_timeout_uninterruptible(1);
 }

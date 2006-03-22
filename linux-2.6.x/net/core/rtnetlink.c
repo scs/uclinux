@@ -49,6 +49,7 @@
 #include <net/udp.h>
 #include <net/sock.h>
 #include <net/pkt_sched.h>
+#include <net/netlink.h>
 
 DECLARE_MUTEX(rtnl_sem);
 
@@ -100,6 +101,7 @@ static const int rtm_min[RTM_NR_FAMILIES] =
 	[RTM_FAM(RTM_NEWPREFIX)]    = NLMSG_LENGTH(sizeof(struct rtgenmsg)),
 	[RTM_FAM(RTM_GETMULTICAST)] = NLMSG_LENGTH(sizeof(struct rtgenmsg)),
 	[RTM_FAM(RTM_GETANYCAST)]   = NLMSG_LENGTH(sizeof(struct rtgenmsg)),
+	[RTM_FAM(RTM_NEWNEIGHTBL)]  = NLMSG_LENGTH(sizeof(struct ndtmsg)),
 };
 
 static const int rta_max[RTM_NR_FAMILIES] =
@@ -113,6 +115,7 @@ static const int rta_max[RTM_NR_FAMILIES] =
 	[RTM_FAM(RTM_NEWTCLASS)]    = TCA_MAX,
 	[RTM_FAM(RTM_NEWTFILTER)]   = TCA_MAX,
 	[RTM_FAM(RTM_NEWACTION)]    = TCAA_MAX,
+	[RTM_FAM(RTM_NEWNEIGHTBL)]  = NDTA_MAX,
 };
 
 void __rta_fill(struct sk_buff *skb, int attrtype, int attrlen, const void *data)
@@ -124,6 +127,7 @@ void __rta_fill(struct sk_buff *skb, int attrtype, int attrlen, const void *data
 	rta->rta_type = attrtype;
 	rta->rta_len = size;
 	memcpy(RTA_DATA(rta), data, attrlen);
+	memset(RTA_DATA(rta) + attrlen, 0, RTA_ALIGN(size) - size);
 }
 
 size_t rtattr_strlcpy(char *dest, const struct rtattr *rta, size_t size)
@@ -145,7 +149,7 @@ int rtnetlink_send(struct sk_buff *skb, u32 pid, unsigned group, int echo)
 {
 	int err = 0;
 
-	NETLINK_CB(skb).dst_groups = group;
+	NETLINK_CB(skb).dst_group = group;
 	if (echo)
 		atomic_inc(&skb->users);
 	netlink_broadcast(rtnl, skb, pid, group, GFP_KERNEL);
@@ -176,16 +180,17 @@ rtattr_failure:
 
 
 static int rtnetlink_fill_ifinfo(struct sk_buff *skb, struct net_device *dev,
-				 int type, u32 pid, u32 seq, u32 change)
+				 int type, u32 pid, u32 seq, u32 change, 
+				 unsigned int flags)
 {
 	struct ifinfomsg *r;
 	struct nlmsghdr  *nlh;
 	unsigned char	 *b = skb->tail;
 
-	nlh = NLMSG_PUT(skb, pid, seq, type, sizeof(*r));
-	if (pid) nlh->nlmsg_flags |= NLM_F_MULTI;
+	nlh = NLMSG_NEW(skb, pid, seq, type, sizeof(*r), flags);
 	r = NLMSG_DATA(nlh);
 	r->ifi_family = AF_UNSPEC;
+	r->__ifi_pad = 0;
 	r->ifi_type = dev->type;
 	r->ifi_index = dev->ifindex;
 	r->ifi_flags = dev_get_flags(dev);
@@ -273,7 +278,10 @@ static int rtnetlink_dump_ifinfo(struct sk_buff *skb, struct netlink_callback *c
 	for (dev=dev_base, idx=0; dev; dev = dev->next, idx++) {
 		if (idx < s_idx)
 			continue;
-		if (rtnetlink_fill_ifinfo(skb, dev, RTM_NEWLINK, NETLINK_CB(cb->skb).pid, cb->nlh->nlmsg_seq, 0) <= 0)
+		if (rtnetlink_fill_ifinfo(skb, dev, RTM_NEWLINK,
+					  NETLINK_CB(cb->skb).pid,
+					  cb->nlh->nlmsg_seq, 0,
+					  NLM_F_MULTI) <= 0)
 			break;
 	}
 	read_unlock(&dev_base_lock);
@@ -447,17 +455,12 @@ void rtmsg_ifinfo(int type, struct net_device *dev, unsigned change)
 	if (!skb)
 		return;
 
-	if (rtnetlink_fill_ifinfo(skb, dev, type, 0, 0, change) < 0) {
+	if (rtnetlink_fill_ifinfo(skb, dev, type, 0, 0, change, 0) < 0) {
 		kfree_skb(skb);
 		return;
 	}
-	NETLINK_CB(skb).dst_groups = RTMGRP_LINK;
-	netlink_broadcast(rtnl, skb, 0, RTMGRP_LINK, GFP_KERNEL);
-}
-
-static int rtnetlink_done(struct netlink_callback *cb)
-{
-	return 0;
+	NETLINK_CB(skb).dst_group = RTNLGRP_LINK;
+	netlink_broadcast(rtnl, skb, 0, RTNLGRP_LINK, GFP_KERNEL);
 }
 
 /* Protected by RTNL sempahore.  */
@@ -517,8 +520,6 @@ rtnetlink_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh, int *errp)
 	}
 
 	if (kind == 2 && nlh->nlmsg_flags&NLM_F_DUMP) {
-		u32 rlen;
-
 		if (link->dumpit == NULL)
 			link = &(rtnetlink_links[PF_UNSPEC][type]);
 
@@ -526,14 +527,11 @@ rtnetlink_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh, int *errp)
 			goto err_inval;
 
 		if ((*errp = netlink_dump_start(rtnl, skb, nlh,
-						link->dumpit,
-						rtnetlink_done)) != 0) {
+						link->dumpit, NULL)) != 0) {
 			return -1;
 		}
-		rlen = NLMSG_ALIGN(nlh->nlmsg_len);
-		if (rlen > skb->len)
-			rlen = skb->len;
-		skb_pull(skb, rlen);
+
+		netlink_queue_skip(nlh, skb);
 		return -1;
 	}
 
@@ -572,75 +570,13 @@ err_inval:
 	return -1;
 }
 
-/* 
- * Process one packet of messages.
- * Malformed skbs with wrong lengths of messages are discarded silently.
- */
-
-static inline int rtnetlink_rcv_skb(struct sk_buff *skb)
-{
-	int err;
-	struct nlmsghdr * nlh;
-
-	while (skb->len >= NLMSG_SPACE(0)) {
-		u32 rlen;
-
-		nlh = (struct nlmsghdr *)skb->data;
-		if (nlh->nlmsg_len < sizeof(*nlh) || skb->len < nlh->nlmsg_len)
-			return 0;
-		rlen = NLMSG_ALIGN(nlh->nlmsg_len);
-		if (rlen > skb->len)
-			rlen = skb->len;
-		if (rtnetlink_rcv_msg(skb, nlh, &err)) {
-			/* Not error, but we must interrupt processing here:
-			 *   Note, that in this case we do not pull message
-			 *   from skb, it will be processed later.
-			 */
-			if (err == 0)
-				return -1;
-			netlink_ack(skb, nlh, err);
-		} else if (nlh->nlmsg_flags&NLM_F_ACK)
-			netlink_ack(skb, nlh, 0);
-		skb_pull(skb, rlen);
-	}
-
-	return 0;
-}
-
-/*
- *  rtnetlink input queue processing routine:
- *	- process as much as there was in the queue upon entry.
- *	- feed skbs to rtnetlink_rcv_skb, until it refuse a message,
- *	  that will occur, when a dump started.
- */
-
 static void rtnetlink_rcv(struct sock *sk, int len)
 {
-	unsigned int qlen = skb_queue_len(&sk->sk_receive_queue);
+	unsigned int qlen = 0;
 
 	do {
-		struct sk_buff *skb;
-
 		rtnl_lock();
-
-		if (qlen > skb_queue_len(&sk->sk_receive_queue))
-			qlen = skb_queue_len(&sk->sk_receive_queue);
-
-		for (; qlen; qlen--) {
-			skb = skb_dequeue(&sk->sk_receive_queue);
-			if (rtnetlink_rcv_skb(skb)) {
-				if (skb->len)
-					skb_queue_head(&sk->sk_receive_queue,
-						       skb);
-				else {
-					kfree_skb(skb);
-					qlen--;
-				}
-				break;
-			}
-			kfree_skb(skb);
-		}
-
+		netlink_run_queue(sk, &qlen, &rtnetlink_rcv_msg);
 		up(&rtnl_sem);
 
 		netdev_run_todo();
@@ -649,14 +585,16 @@ static void rtnetlink_rcv(struct sock *sk, int len)
 
 static struct rtnetlink_link link_rtnetlink_table[RTM_NR_MSGTYPES] =
 {
-	[RTM_GETLINK  - RTM_BASE] = { .dumpit = rtnetlink_dump_ifinfo },
-	[RTM_SETLINK  - RTM_BASE] = { .doit   = do_setlink	      },
-	[RTM_GETADDR  - RTM_BASE] = { .dumpit = rtnetlink_dump_all    },
-	[RTM_GETROUTE - RTM_BASE] = { .dumpit = rtnetlink_dump_all    },
-	[RTM_NEWNEIGH - RTM_BASE] = { .doit   = neigh_add	      },
-	[RTM_DELNEIGH - RTM_BASE] = { .doit   = neigh_delete	      },
-	[RTM_GETNEIGH - RTM_BASE] = { .dumpit = neigh_dump_info	      },
-	[RTM_GETRULE  - RTM_BASE] = { .dumpit = rtnetlink_dump_all    },
+	[RTM_GETLINK     - RTM_BASE] = { .dumpit = rtnetlink_dump_ifinfo },
+	[RTM_SETLINK     - RTM_BASE] = { .doit   = do_setlink		 },
+	[RTM_GETADDR     - RTM_BASE] = { .dumpit = rtnetlink_dump_all	 },
+	[RTM_GETROUTE    - RTM_BASE] = { .dumpit = rtnetlink_dump_all	 },
+	[RTM_NEWNEIGH    - RTM_BASE] = { .doit   = neigh_add		 },
+	[RTM_DELNEIGH    - RTM_BASE] = { .doit   = neigh_delete		 },
+	[RTM_GETNEIGH    - RTM_BASE] = { .dumpit = neigh_dump_info	 },
+	[RTM_GETRULE     - RTM_BASE] = { .dumpit = rtnetlink_dump_all	 },
+	[RTM_GETNEIGHTBL - RTM_BASE] = { .dumpit = neightbl_dump_info	 },
+	[RTM_SETNEIGHTBL - RTM_BASE] = { .doit   = neightbl_set		 },
 };
 
 static int rtnetlink_event(struct notifier_block *this, unsigned long event, void *ptr)
@@ -699,7 +637,8 @@ void __init rtnetlink_init(void)
 	if (!rta_buf)
 		panic("rtnetlink_init: cannot allocate rta_buf\n");
 
-	rtnl = netlink_kernel_create(NETLINK_ROUTE, rtnetlink_rcv);
+	rtnl = netlink_kernel_create(NETLINK_ROUTE, RTNLGRP_MAX, rtnetlink_rcv,
+	                             THIS_MODULE);
 	if (rtnl == NULL)
 		panic("rtnetlink_init: cannot initialize rtnetlink\n");
 	netlink_set_nonroot(NETLINK_ROUTE, NL_NONROOT_RECV);

@@ -7,6 +7,7 @@
 #include <linux/root_dev.h>
 #include <linux/security.h>
 #include <linux/delay.h>
+#include <linux/mount.h>
 
 #include <linux/nfs_fs.h>
 #include <linux/nfs_fs_sb.h>
@@ -24,8 +25,6 @@ static char __initdata saved_root_name[64];
 
 /* this is initialized in init/main.c */
 dev_t ROOT_DEV;
-
-EXPORT_SYMBOL(ROOT_DEV);
 
 static int __init load_ramdisk(char *str)
 {
@@ -128,10 +127,10 @@ fail:
  *	   used when disk name of partitioned disk ends on a digit.
  *
  *	If name doesn't have fall into the categories above, we return 0.
- *	Driverfs is used to check if something is a disk name - it has
+ *	Sysfs is used to check if something is a disk name - it has
  *	all known disks under bus/block/devices.  If the disk name
- *	contains slashes, name of driverfs node has them replaced with
- *	bangs.  try_name() does the actual checks, assuming that driverfs
+ *	contains slashes, name of sysfs node has them replaced with
+ *	bangs.  try_name() does the actual checks, assuming that sysfs
  *	is mounted on rootfs /sys.
  */
 

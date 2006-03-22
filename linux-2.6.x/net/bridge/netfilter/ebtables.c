@@ -26,6 +26,7 @@
 #include <linux/spinlock.h>
 #include <asm/uaccess.h>
 #include <linux/smp.h>
+#include <linux/cpumask.h>
 #include <net/sock.h>
 /* needed for logical [in,out]-dev filtering */
 #include "../br_private.h"
@@ -823,10 +824,11 @@ static int translate_table(struct ebt_replace *repl,
 		/* this will get free'd in do_replace()/ebt_register_table()
 		   if an error occurs */
 		newinfo->chainstack = (struct ebt_chainstack **)
-		   vmalloc(num_possible_cpus() * sizeof(struct ebt_chainstack));
+		   vmalloc((highest_possible_processor_id()+1) 
+				   		* sizeof(struct ebt_chainstack));
 		if (!newinfo->chainstack)
 			return -ENOMEM;
-		for (i = 0; i < num_possible_cpus(); i++) {
+		for_each_cpu(i) {
 			newinfo->chainstack[i] =
 			   vmalloc(udc_cnt * sizeof(struct ebt_chainstack));
 			if (!newinfo->chainstack[i]) {
@@ -859,8 +861,7 @@ static int translate_table(struct ebt_replace *repl,
 		if (repl->valid_hooks & (1 << i))
 			if (check_chainloops(newinfo->hook_entry[i],
 			   cl_s, udc_cnt, i, newinfo->entries)) {
-				if (cl_s)
-					vfree(cl_s);
+				vfree(cl_s);
 				return -EINVAL;
 			}
 
@@ -883,8 +884,7 @@ static int translate_table(struct ebt_replace *repl,
 		EBT_ENTRY_ITERATE(newinfo->entries, newinfo->entries_size,
 		   ebt_cleanup_entry, &i);
 	}
-	if (cl_s)
-		vfree(cl_s);
+	vfree(cl_s);
 	return ret;
 }
 
@@ -897,9 +897,12 @@ static void get_counters(struct ebt_counter *oldcounters,
 
 	/* counters of cpu 0 */
 	memcpy(counters, oldcounters,
-	   sizeof(struct ebt_counter) * nentries);
+	       sizeof(struct ebt_counter) * nentries);
+
 	/* add other counters to those of cpu 0 */
-	for (cpu = 1; cpu < num_possible_cpus(); cpu++) {
+	for_each_cpu(cpu) {
+		if (cpu == 0)
+			continue;
 		counter_base = COUNTER_BASE(oldcounters, nentries, cpu);
 		for (i = 0; i < nentries; i++) {
 			counters[i].pcnt += counter_base[i].pcnt;
@@ -931,7 +934,15 @@ static int do_replace(void __user *user, unsigned int len)
 		BUGPRINT("Entries_size never zero\n");
 		return -EINVAL;
 	}
-	countersize = COUNTER_OFFSET(tmp.nentries) * num_possible_cpus();
+	/* overflow check */
+	if (tmp.nentries >= ((INT_MAX - sizeof(struct ebt_table_info)) / NR_CPUS -
+			SMP_CACHE_BYTES) / sizeof(struct ebt_counter))
+		return -ENOMEM;
+	if (tmp.num_counters >= INT_MAX / sizeof(struct ebt_counter))
+		return -ENOMEM;
+
+	countersize = COUNTER_OFFSET(tmp.nentries) * 
+					(highest_possible_processor_id()+1);
 	newinfo = (struct ebt_table_info *)
 	   vmalloc(sizeof(struct ebt_table_info) + countersize);
 	if (!newinfo)
@@ -940,7 +951,7 @@ static int do_replace(void __user *user, unsigned int len)
 	if (countersize)
 		memset(newinfo->counters, 0, countersize);
 
-	newinfo->entries = (char *)vmalloc(tmp.entries_size);
+	newinfo->entries = vmalloc(tmp.entries_size);
 	if (!newinfo->entries) {
 		ret = -ENOMEM;
 		goto free_newinfo;
@@ -1024,14 +1035,13 @@ static int do_replace(void __user *user, unsigned int len)
 
 	vfree(table->entries);
 	if (table->chainstack) {
-		for (i = 0; i < num_possible_cpus(); i++)
+		for_each_cpu(i)
 			vfree(table->chainstack[i]);
 		vfree(table->chainstack);
 	}
 	vfree(table);
 
-	if (counterstmp)
-		vfree(counterstmp);
+	vfree(counterstmp);
 	return ret;
 
 free_unlock:
@@ -1040,20 +1050,17 @@ free_iterate:
 	EBT_ENTRY_ITERATE(newinfo->entries, newinfo->entries_size,
 	   ebt_cleanup_entry, NULL);
 free_counterstmp:
-	if (counterstmp)
-		vfree(counterstmp);
+	vfree(counterstmp);
 	/* can be initialized in translate_table() */
 	if (newinfo->chainstack) {
-		for (i = 0; i < num_possible_cpus(); i++)
+		for_each_cpu(i)
 			vfree(newinfo->chainstack[i]);
 		vfree(newinfo->chainstack);
 	}
 free_entries:
-	if (newinfo->entries)
-		vfree(newinfo->entries);
+	vfree(newinfo->entries);
 free_newinfo:
-	if (newinfo)
-		vfree(newinfo);
+	vfree(newinfo);
 	return ret;
 }
 
@@ -1138,14 +1145,15 @@ int ebt_register_table(struct ebt_table *table)
 		return -EINVAL;
 	}
 
-	countersize = COUNTER_OFFSET(table->table->nentries) * num_possible_cpus();
+	countersize = COUNTER_OFFSET(table->table->nentries) *
+					(highest_possible_processor_id()+1);
 	newinfo = (struct ebt_table_info *)
 	   vmalloc(sizeof(struct ebt_table_info) + countersize);
 	ret = -ENOMEM;
 	if (!newinfo)
 		return -ENOMEM;
 
-	newinfo->entries = (char *)vmalloc(table->table->entries_size);
+	newinfo->entries = vmalloc(table->table->entries_size);
 	if (!(newinfo->entries))
 		goto free_newinfo;
 
@@ -1192,7 +1200,7 @@ free_unlock:
 	up(&ebt_mutex);
 free_chainstack:
 	if (newinfo->chainstack) {
-		for (i = 0; i < num_possible_cpus(); i++)
+		for_each_cpu(i)
 			vfree(newinfo->chainstack[i]);
 		vfree(newinfo->chainstack);
 	}
@@ -1213,10 +1221,9 @@ void ebt_unregister_table(struct ebt_table *table)
 	down(&ebt_mutex);
 	LIST_DELETE(&ebt_tables, table);
 	up(&ebt_mutex);
-	if (table->private->entries)
-		vfree(table->private->entries);
+	vfree(table->private->entries);
 	if (table->private->chainstack) {
-		for (i = 0; i < num_possible_cpus(); i++)
+		for_each_cpu(i)
 			vfree(table->private->chainstack[i]);
 		vfree(table->private->chainstack);
 	}

@@ -23,7 +23,6 @@
 #include <linux/security.h>
 
 #include <asm/uaccess.h>
-#include <asm/bug.h>
 
 int get_compat_timespec(struct timespec *ts, const struct compat_timespec __user *cts)
 {
@@ -48,8 +47,7 @@ static long compat_nanosleep_restart(struct restart_block *restart)
 	if (!time_after(expire, now))
 		return 0;
 
-	current->state = TASK_INTERRUPTIBLE;
-	expire = schedule_timeout(expire - now);
+	expire = schedule_timeout_interruptible(expire - now);
 	if (expire == 0)
 		return 0;
 
@@ -82,8 +80,7 @@ asmlinkage long compat_sys_nanosleep(struct compat_timespec __user *rqtp,
 		return -EINVAL;
 
 	expire = timespec_to_jiffies(&t) + (t.tv_sec || t.tv_nsec);
-	current->state = TASK_INTERRUPTIBLE;
-	expire = schedule_timeout(expire);
+	expire = schedule_timeout_interruptible(expire);
 	if (expire == 0)
 		return 0;
 
@@ -516,6 +513,24 @@ static int put_compat_itimerspec(struct compat_itimerspec __user *dst,
 	return 0;
 } 
 
+long compat_sys_timer_create(clockid_t which_clock,
+			struct compat_sigevent __user *timer_event_spec,
+			timer_t __user *created_timer_id)
+{
+	struct sigevent __user *event = NULL;
+
+	if (timer_event_spec) {
+		struct sigevent kevent;
+
+		event = compat_alloc_user_space(sizeof(*event));
+		if (get_compat_sigevent(&kevent, timer_event_spec) ||
+		    copy_to_user(event, &kevent, sizeof(*event)))
+			return -EFAULT;
+	}
+
+	return sys_timer_create(which_clock, event, created_timer_id);
+}
+
 long compat_sys_timer_settime(timer_t timer_id, int flags,
 			  struct compat_itimerspec __user *new, 
 			  struct compat_itimerspec __user *old)
@@ -650,8 +665,6 @@ int get_compat_sigevent(struct sigevent *event,
 			&u_event->sigev_notify_thread_id))
 		? -EFAULT : 0;
 }
-
-/* timer_create is architecture specific because it needs sigevent conversion */
 
 long compat_get_bitmap(unsigned long *mask, compat_ulong_t __user *umask,
 		       unsigned long bitmap_size)
@@ -795,8 +808,7 @@ compat_sys_rt_sigtimedwait (compat_sigset_t __user *uthese,
 			recalc_sigpending();
 			spin_unlock_irq(&current->sighand->siglock);
 
-			current->state = TASK_INTERRUPTIBLE;
-			timeout = schedule_timeout(timeout);
+			timeout = schedule_timeout_interruptible(timeout);
 
 			spin_lock_irq(&current->sighand->siglock);
 			sig = dequeue_signal(current, &s, &info);
@@ -858,3 +870,31 @@ asmlinkage long compat_sys_stime(compat_time_t __user *tptr)
 }
 
 #endif /* __ARCH_WANT_COMPAT_SYS_TIME */
+
+#ifdef __ARCH_WANT_COMPAT_SYS_RT_SIGSUSPEND
+asmlinkage long compat_sys_rt_sigsuspend(compat_sigset_t __user *unewset, compat_size_t sigsetsize)
+{
+	sigset_t newset;
+	compat_sigset_t newset32;
+
+	/* XXX: Don't preclude handling different sized sigset_t's.  */
+	if (sigsetsize != sizeof(sigset_t))
+		return -EINVAL;
+
+	if (copy_from_user(&newset32, unewset, sizeof(compat_sigset_t)))
+		return -EFAULT;
+	sigset_from_compat(&newset, &newset32);
+	sigdelsetmask(&newset, sigmask(SIGKILL)|sigmask(SIGSTOP));
+
+	spin_lock_irq(&current->sighand->siglock);
+	current->saved_sigmask = current->blocked;
+	current->blocked = newset;
+	recalc_sigpending();
+	spin_unlock_irq(&current->sighand->siglock);
+
+	current->state = TASK_INTERRUPTIBLE;
+	schedule();
+	set_thread_flag(TIF_RESTORE_SIGMASK);
+	return -ERESTARTNOHAND;
+}
+#endif /* __ARCH_WANT_COMPAT_SYS_RT_SIGSUSPEND */

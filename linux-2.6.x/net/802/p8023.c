@@ -20,6 +20,7 @@
 #include <linux/skbuff.h>
 
 #include <net/datalink.h>
+#include <net/p8022.h>
 
 /*
  *	Place an 802.3 header on a packet. The driver will do the mac
@@ -53,9 +54,10 @@ struct datalink_proto *make_8023_client(void)
  */
 void destroy_8023_client(struct datalink_proto *dl)
 {
-	if (dl)
-		kfree(dl);
+	kfree(dl);
 }
 
 EXPORT_SYMBOL(destroy_8023_client);
 EXPORT_SYMBOL(make_8023_client);
+
+MODULE_LICENSE("GPL");

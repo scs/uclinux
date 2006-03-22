@@ -25,12 +25,12 @@
 #include <linux/skbuff.h>
 #include <linux/ip.h>
 #include <linux/icmp.h>
+#include <linux/inetdevice.h>
 #include <linux/netdevice.h>
 #include <net/sock.h>
 #include <net/ip.h>
 #include <net/icmp.h>
-#include <net/tcp.h>
-#include <linux/tcp.h>
+#include <net/tcp_states.h>
 #include <linux/udp.h>
 #include <linux/igmp.h>
 #include <linux/netfilter.h>
@@ -153,7 +153,7 @@ int ip_cmsg_send(struct msghdr *msg, struct ipcm_cookie *ipc)
 		switch (cmsg->cmsg_type) {
 		case IP_RETOPTS:
 			err = cmsg->cmsg_len - CMSG_ALIGN(sizeof(struct cmsghdr));
-			err = ip_options_get(&ipc->opt, CMSG_DATA(cmsg), err < 40 ? err : 40, 0);
+			err = ip_options_get(&ipc->opt, CMSG_DATA(cmsg), err < 40 ? err : 40);
 			if (err)
 				return err;
 			break;
@@ -202,8 +202,7 @@ int ip_ra_control(struct sock *sk, unsigned char on, void (*destructor)(struct s
 		if (ra->sk == sk) {
 			if (on) {
 				write_unlock_bh(&ip_ra_lock);
-				if (new_ra)
-					kfree(new_ra);
+				kfree(new_ra);
 				return -EADDRINUSE;
 			}
 			*rap = ra->next;
@@ -360,14 +359,14 @@ int ip_recv_error(struct sock *sk, struct msghdr *msg, int len)
 	err = copied;
 
 	/* Reset and regenerate socket error */
-	spin_lock_irq(&sk->sk_error_queue.lock);
+	spin_lock_bh(&sk->sk_error_queue.lock);
 	sk->sk_err = 0;
 	if ((skb2 = skb_peek(&sk->sk_error_queue)) != NULL) {
 		sk->sk_err = SKB_EXT_ERR(skb2)->ee.ee_errno;
-		spin_unlock_irq(&sk->sk_error_queue.lock);
+		spin_unlock_bh(&sk->sk_error_queue.lock);
 		sk->sk_error_report(sk);
 	} else
-		spin_unlock_irq(&sk->sk_error_queue.lock);
+		spin_unlock_bh(&sk->sk_error_queue.lock);
 
 out_free_skb:	
 	kfree_skb(skb);
@@ -425,11 +424,11 @@ int ip_setsockopt(struct sock *sk, int level, int optname, char __user *optval, 
 			struct ip_options * opt = NULL;
 			if (optlen > 40 || optlen < 0)
 				goto e_inval;
-			err = ip_options_get(&opt, optval, optlen, 1);
+			err = ip_options_get_from_user(&opt, optval, optlen);
 			if (err)
 				break;
-			if (sk->sk_type == SOCK_STREAM) {
-				struct tcp_sock *tp = tcp_sk(sk);
+			if (inet->is_icsk) {
+				struct inet_connection_sock *icsk = inet_csk(sk);
 #if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
 				if (sk->sk_family == PF_INET ||
 				    (!((1 << sk->sk_state) &
@@ -437,17 +436,16 @@ int ip_setsockopt(struct sock *sk, int level, int optname, char __user *optval, 
 				     inet->daddr != LOOPBACK4_IPV6)) {
 #endif
 					if (inet->opt)
-						tp->ext_header_len -= inet->opt->optlen;
+						icsk->icsk_ext_hdr_len -= inet->opt->optlen;
 					if (opt)
-						tp->ext_header_len += opt->optlen;
-					tcp_sync_mss(sk, tp->pmtu_cookie);
+						icsk->icsk_ext_hdr_len += opt->optlen;
+					icsk->icsk_sync_mss(sk, icsk->icsk_pmtu_cookie);
 #if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
 				}
 #endif
 			}
 			opt = xchg(&inet->opt, opt);
-			if (opt)
-				kfree(opt);
+			kfree(opt);
 			break;
 		}
 		case IP_PKTINFO:
@@ -614,7 +612,6 @@ int ip_setsockopt(struct sock *sk, int level, int optname, char __user *optval, 
 		}
 		case IP_MSFILTER:
 		{
-			extern int sysctl_optmem_max;
 			extern int sysctl_igmp_max_msf;
 			struct ip_msfilter *msf;
 
@@ -624,7 +621,7 @@ int ip_setsockopt(struct sock *sk, int level, int optname, char __user *optval, 
 				err = -ENOBUFS;
 				break;
 			}
-			msf = (struct ip_msfilter *)kmalloc(optlen, GFP_KERNEL);
+			msf = kmalloc(optlen, GFP_KERNEL);
 			if (msf == 0) {
 				err = -ENOBUFS;
 				break;
@@ -677,11 +674,11 @@ int ip_setsockopt(struct sock *sk, int level, int optname, char __user *optval, 
 				mreq.imr_address.s_addr = mreqs.imr_interface;
 				mreq.imr_ifindex = 0;
 				err = ip_mc_join_group(sk, &mreq);
-				if (err)
+				if (err && err != -EADDRINUSE)
 					break;
 				omode = MCAST_INCLUDE;
 				add = 1;
-			} else /*IP_DROP_SOURCE_MEMBERSHIP */ {
+			} else /* IP_DROP_SOURCE_MEMBERSHIP */ {
 				omode = MCAST_INCLUDE;
 				add = 0;
 			}
@@ -754,7 +751,7 @@ int ip_setsockopt(struct sock *sk, int level, int optname, char __user *optval, 
 				mreq.imr_address.s_addr = 0;
 				mreq.imr_ifindex = greqs.gsr_interface;
 				err = ip_mc_join_group(sk, &mreq);
-				if (err)
+				if (err && err != -EADDRINUSE)
 					break;
 				greqs.gsr_interface = mreq.imr_ifindex;
 				omode = MCAST_INCLUDE;
@@ -769,7 +766,6 @@ int ip_setsockopt(struct sock *sk, int level, int optname, char __user *optval, 
 		}
 		case MCAST_MSFILTER:
 		{
-			extern int sysctl_optmem_max;
 			extern int sysctl_igmp_max_msf;
 			struct sockaddr_in *psin;
 			struct ip_msfilter *msf = NULL;
@@ -782,7 +778,7 @@ int ip_setsockopt(struct sock *sk, int level, int optname, char __user *optval, 
 				err = -ENOBUFS;
 				break;
 			}
-			gsf = (struct group_filter *)kmalloc(optlen,GFP_KERNEL);
+			gsf = kmalloc(optlen,GFP_KERNEL);
 			if (gsf == 0) {
 				err = -ENOBUFS;
 				break;
@@ -802,7 +798,7 @@ int ip_setsockopt(struct sock *sk, int level, int optname, char __user *optval, 
 				goto mc_msf_out;
 			}
 			msize = IP_MSFILTER_SIZE(gsf->gf_numsrc);
-			msf = (struct ip_msfilter *)kmalloc(msize,GFP_KERNEL);
+			msf = kmalloc(msize,GFP_KERNEL);
 			if (msf == 0) {
 				err = -ENOBUFS;
 				goto mc_msf_out;
@@ -830,10 +826,8 @@ int ip_setsockopt(struct sock *sk, int level, int optname, char __user *optval, 
 
 			err = ip_mc_msfilter(sk, msf, ifindex);
 mc_msf_out:
-			if (msf)
-				kfree(msf);
-			if (gsf)
-				kfree(gsf);
+			kfree(msf);
+			kfree(gsf);
 			break;
 		}
 		case IP_ROUTER_ALERT:	
@@ -848,6 +842,9 @@ mc_msf_out:
  
 		case IP_IPSEC_POLICY:
 		case IP_XFRM_POLICY:
+			err = -EPERM;
+			if (!capable(CAP_NET_ADMIN))
+				break;
 			err = xfrm_user_policy(sk, optname, optval, optlen);
 			break;
 
@@ -1087,7 +1084,5 @@ int ip_getsockopt(struct sock *sk, int level, int optname, char __user *optval, 
 
 EXPORT_SYMBOL(ip_cmsg_recv);
 
-#ifdef CONFIG_IP_SCTP_MODULE
 EXPORT_SYMBOL(ip_getsockopt);
 EXPORT_SYMBOL(ip_setsockopt);
-#endif

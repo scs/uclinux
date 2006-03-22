@@ -127,8 +127,7 @@ ip_vs_dst_reset(struct ip_vs_dest *dest)
 
 #define IP_VS_XMIT(skb, rt)				\
 do {							\
-	nf_reset_debug(skb);				\
-	(skb)->nfcache |= NFC_IPVS_PROPERTY;		\
+	(skb)->ipvs_property = 1;			\
 	(skb)->ip_summed = CHECKSUM_NONE;		\
 	NF_HOOK(PF_INET, NF_IP_LOCAL_OUT, (skb), NULL,	\
 		(rt)->u.dst.dev, dst_output);		\
@@ -323,7 +322,7 @@ ip_vs_tunnel_xmit(struct sk_buff *skb, struct ip_vs_conn *cp,
 	struct net_device *tdev;		/* Device to other host */
 	struct iphdr  *old_iph = skb->nh.iph;
 	u8     tos = old_iph->tos;
-	u16    df = old_iph->frag_off;
+	__be16 df = old_iph->frag_off;
 	struct iphdr  *iph;			/* Our new IP header */
 	int    max_headroom;			/* The extra header space needed */
 	int    mtu;

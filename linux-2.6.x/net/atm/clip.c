@@ -19,6 +19,7 @@
 #include <linux/atmdev.h>
 #include <linux/atmclip.h>
 #include <linux/atmarp.h>
+#include <linux/capability.h>
 #include <linux/ip.h> /* for net/route.h */
 #include <linux/in.h> /* for struct sockaddr_in */
 #include <linux/if.h> /* for IFF_UP */
@@ -310,7 +311,7 @@ static int clip_constructor(struct neighbour *neigh)
 	if (neigh->type != RTN_UNICAST) return -EINVAL;
 
 	rcu_read_lock();
-	in_dev = rcu_dereference(__in_dev_get(dev));
+	in_dev = __in_dev_get_rcu(dev);
 	if (!in_dev) {
 		rcu_read_unlock();
 		return -EINVAL;

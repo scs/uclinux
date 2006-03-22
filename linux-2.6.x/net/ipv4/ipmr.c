@@ -33,6 +33,7 @@
 #include <asm/uaccess.h>
 #include <linux/types.h>
 #include <linux/sched.h>
+#include <linux/capability.h>
 #include <linux/errno.h>
 #include <linux/timer.h>
 #include <linux/mm.h>
@@ -49,9 +50,11 @@
 #include <linux/seq_file.h>
 #include <linux/mroute.h>
 #include <linux/init.h>
+#include <linux/if_ether.h>
 #include <net/ip.h>
 #include <net/protocol.h>
 #include <linux/skbuff.h>
+#include <net/route.h>
 #include <net/sock.h>
 #include <net/icmp.h>
 #include <net/udp.h>
@@ -103,7 +106,7 @@ static DEFINE_SPINLOCK(mfc_unres_lock);
    In this case data path is free of exclusive locks at all.
  */
 
-static kmem_cache_t *mrt_cachep;
+static kmem_cache_t *mrt_cachep __read_mostly;
 
 static int ip_mr_forward(struct sk_buff *skb, struct mfc_cache *cache, int local);
 static int ipmr_cache_report(struct sk_buff *pkt, vifi_t vifi, int assert);
@@ -149,7 +152,7 @@ struct net_device *ipmr_new_tunnel(struct vifctl *v)
 		if (err == 0 && (dev = __dev_get_by_name(p.name)) != NULL) {
 			dev->flags |= IFF_MULTICAST;
 
-			in_dev = __in_dev_get(dev);
+			in_dev = __in_dev_get_rtnl(dev);
 			if (in_dev == NULL && (in_dev = inetdev_init(dev)) == NULL)
 				goto failure;
 			in_dev->cnf.rp_filter = 0;
@@ -176,8 +179,8 @@ static int reg_vif_num = -1;
 static int reg_vif_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	read_lock(&mrt_lock);
-	((struct net_device_stats*)dev->priv)->tx_bytes += skb->len;
-	((struct net_device_stats*)dev->priv)->tx_packets++;
+	((struct net_device_stats*)netdev_priv(dev))->tx_bytes += skb->len;
+	((struct net_device_stats*)netdev_priv(dev))->tx_packets++;
 	ipmr_cache_report(skb, reg_vif_num, IGMPMSG_WHOLEPKT);
 	read_unlock(&mrt_lock);
 	kfree_skb(skb);
@@ -186,13 +189,13 @@ static int reg_vif_xmit(struct sk_buff *skb, struct net_device *dev)
 
 static struct net_device_stats *reg_vif_get_stats(struct net_device *dev)
 {
-	return (struct net_device_stats*)dev->priv;
+	return (struct net_device_stats*)netdev_priv(dev);
 }
 
 static void reg_vif_setup(struct net_device *dev)
 {
 	dev->type		= ARPHRD_PIMREG;
-	dev->mtu		= 1500 - sizeof(struct iphdr) - 8;
+	dev->mtu		= ETH_DATA_LEN - sizeof(struct iphdr) - 8;
 	dev->flags		= IFF_NOARP;
 	dev->hard_start_xmit	= reg_vif_xmit;
 	dev->get_stats		= reg_vif_get_stats;
@@ -278,7 +281,7 @@ static int vif_delete(int vifi)
 
 	dev_set_allmulti(dev, -1);
 
-	if ((in_dev = __in_dev_get(dev)) != NULL) {
+	if ((in_dev = __in_dev_get_rtnl(dev)) != NULL) {
 		in_dev->cnf.mc_forwarding--;
 		ip_rt_multicast_event(in_dev);
 	}
@@ -297,6 +300,7 @@ static int vif_delete(int vifi)
 static void ipmr_destroy_unres(struct mfc_cache *c)
 {
 	struct sk_buff *skb;
+	struct nlmsgerr *e;
 
 	atomic_dec(&cache_resolve_queue_len);
 
@@ -306,7 +310,9 @@ static void ipmr_destroy_unres(struct mfc_cache *c)
 			nlh->nlmsg_type = NLMSG_ERROR;
 			nlh->nlmsg_len = NLMSG_LENGTH(sizeof(struct nlmsgerr));
 			skb_trim(skb, nlh->nlmsg_len);
-			((struct nlmsgerr*)NLMSG_DATA(nlh))->error = -ETIMEDOUT;
+			e = NLMSG_DATA(nlh);
+			e->error = -ETIMEDOUT;
+			memset(&e->msg, 0, sizeof(e->msg));
 			netlink_unicast(rtnl, skb, NETLINK_CB(skb).dst_pid, MSG_DONTWAIT);
 		} else
 			kfree_skb(skb);
@@ -359,7 +365,7 @@ out:
 
 /* Fill oifs list. It is called under write locked mrt_lock. */
 
-static void ipmr_update_threshoulds(struct mfc_cache *cache, unsigned char *ttls)
+static void ipmr_update_thresholds(struct mfc_cache *cache, unsigned char *ttls)
 {
 	int vifi;
 
@@ -418,7 +424,7 @@ static int vif_add(struct vifctl *vifc, int mrtsock)
 		return -EINVAL;
 	}
 
-	if ((in_dev = __in_dev_get(dev)) == NULL)
+	if ((in_dev = __in_dev_get_rtnl(dev)) == NULL)
 		return -EADDRNOTAVAIL;
 	in_dev->cnf.mc_forwarding++;
 	dev_set_allmulti(dev, +1);
@@ -499,6 +505,7 @@ static struct mfc_cache *ipmr_cache_alloc_unres(void)
 static void ipmr_cache_resolve(struct mfc_cache *uc, struct mfc_cache *c)
 {
 	struct sk_buff *skb;
+	struct nlmsgerr *e;
 
 	/*
 	 *	Play the pending entries through our router
@@ -515,7 +522,9 @@ static void ipmr_cache_resolve(struct mfc_cache *uc, struct mfc_cache *c)
 				nlh->nlmsg_type = NLMSG_ERROR;
 				nlh->nlmsg_len = NLMSG_LENGTH(sizeof(struct nlmsgerr));
 				skb_trim(skb, nlh->nlmsg_len);
-				((struct nlmsgerr*)NLMSG_DATA(nlh))->error = -EMSGSIZE;
+				e = NLMSG_DATA(nlh);
+				e->error = -EMSGSIZE;
+				memset(&e->msg, 0, sizeof(e->msg));
 			}
 			err = netlink_unicast(rtnl, skb, NETLINK_CB(skb).dst_pid, MSG_DONTWAIT);
 		} else
@@ -721,7 +730,7 @@ static int ipmr_mfc_add(struct mfcctl *mfc, int mrtsock)
 	if (c != NULL) {
 		write_lock_bh(&mrt_lock);
 		c->mfc_parent = mfc->mfcc_parent;
-		ipmr_update_threshoulds(c, mfc->mfcc_ttls);
+		ipmr_update_thresholds(c, mfc->mfcc_ttls);
 		if (!mrtsock)
 			c->mfc_flags |= MFC_STATIC;
 		write_unlock_bh(&mrt_lock);
@@ -738,7 +747,7 @@ static int ipmr_mfc_add(struct mfcctl *mfc, int mrtsock)
 	c->mfc_origin=mfc->mfcc_origin.s_addr;
 	c->mfc_mcastgrp=mfc->mfcc_mcastgrp.s_addr;
 	c->mfc_parent=mfc->mfcc_parent;
-	ipmr_update_threshoulds(c, mfc->mfcc_ttls);
+	ipmr_update_thresholds(c, mfc->mfcc_ttls);
 	if (!mrtsock)
 		c->mfc_flags |= MFC_STATIC;
 
@@ -1141,8 +1150,8 @@ static void ipmr_queue_xmit(struct sk_buff *skb, struct mfc_cache *c, int vifi)
 	if (vif->flags & VIFF_REGISTER) {
 		vif->pkt_out++;
 		vif->bytes_out+=skb->len;
-		((struct net_device_stats*)vif->dev->priv)->tx_bytes += skb->len;
-		((struct net_device_stats*)vif->dev->priv)->tx_packets++;
+		((struct net_device_stats*)netdev_priv(vif->dev))->tx_bytes += skb->len;
+		((struct net_device_stats*)netdev_priv(vif->dev))->tx_packets++;
 		ipmr_cache_report(skb, vifi, IGMPMSG_WHOLEPKT);
 		kfree_skb(skb);
 		return;
@@ -1202,8 +1211,8 @@ static void ipmr_queue_xmit(struct sk_buff *skb, struct mfc_cache *c, int vifi)
 	if (vif->flags & VIFF_TUNNEL) {
 		ip_encap(skb, vif->local, vif->remote);
 		/* FIXME: extra output firewall step used to be here. --RR */
-		((struct ip_tunnel *)vif->dev->priv)->stat.tx_packets++;
-		((struct ip_tunnel *)vif->dev->priv)->stat.tx_bytes+=skb->len;
+		((struct ip_tunnel *)netdev_priv(vif->dev))->stat.tx_packets++;
+		((struct ip_tunnel *)netdev_priv(vif->dev))->stat.tx_bytes+=skb->len;
 	}
 
 	IPCB(skb)->flags |= IPSKB_FORWARDED;
@@ -1350,6 +1359,7 @@ int ip_mr_input(struct sk_buff *skb)
 			     */
 			    read_lock(&mrt_lock);
 			    if (mroute_socket) {
+				    nf_reset(skb);
 				    raw_rcv(mroute_socket, skb);
 				    read_unlock(&mrt_lock);
 				    return 0;
@@ -1458,8 +1468,8 @@ int pim_rcv_v1(struct sk_buff * skb)
 	skb->pkt_type = PACKET_HOST;
 	dst_release(skb->dst);
 	skb->dst = NULL;
-	((struct net_device_stats*)reg_dev->priv)->rx_bytes += skb->len;
-	((struct net_device_stats*)reg_dev->priv)->rx_packets++;
+	((struct net_device_stats*)netdev_priv(reg_dev))->rx_bytes += skb->len;
+	((struct net_device_stats*)netdev_priv(reg_dev))->rx_packets++;
 	nf_reset(skb);
 	netif_rx(skb);
 	dev_put(reg_dev);
@@ -1513,8 +1523,8 @@ static int pim_rcv(struct sk_buff * skb)
 	skb->ip_summed = 0;
 	skb->pkt_type = PACKET_HOST;
 	dst_release(skb->dst);
-	((struct net_device_stats*)reg_dev->priv)->rx_bytes += skb->len;
-	((struct net_device_stats*)reg_dev->priv)->rx_packets++;
+	((struct net_device_stats*)netdev_priv(reg_dev))->rx_bytes += skb->len;
+	((struct net_device_stats*)netdev_priv(reg_dev))->rx_packets++;
 	skb->dst = NULL;
 	nf_reset(skb);
 	netif_rx(skb);

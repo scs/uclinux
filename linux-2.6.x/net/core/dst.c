@@ -39,12 +39,12 @@ static unsigned long dst_gc_timer_inc = DST_GC_MAX;
 static void dst_run_gc(unsigned long);
 static void ___dst_free(struct dst_entry * dst);
 
-static struct timer_list dst_gc_timer =
-	TIMER_INITIALIZER(dst_run_gc, DST_GC_MIN, 0);
+static DEFINE_TIMER(dst_gc_timer, dst_run_gc, DST_GC_MIN, 0);
 
 static void dst_run_gc(unsigned long dummy)
 {
 	int    delayed = 0;
+	int    work_performed;
 	struct dst_entry * dst, **dstp;
 
 	if (!spin_trylock(&dst_lock)) {
@@ -52,9 +52,9 @@ static void dst_run_gc(unsigned long dummy)
 		return;
 	}
 
-
 	del_timer(&dst_gc_timer);
 	dstp = &dst_garbage_list;
+	work_performed = 0;
 	while ((dst = *dstp) != NULL) {
 		if (atomic_read(&dst->__refcnt)) {
 			dstp = &dst->next;
@@ -62,6 +62,7 @@ static void dst_run_gc(unsigned long dummy)
 			continue;
 		}
 		*dstp = dst->next;
+		work_performed = 1;
 
 		dst = dst_destroy(dst);
 		if (dst) {
@@ -86,9 +87,14 @@ static void dst_run_gc(unsigned long dummy)
 		dst_gc_timer_inc = DST_GC_MAX;
 		goto out;
 	}
-	if ((dst_gc_timer_expires += dst_gc_timer_inc) > DST_GC_MAX)
-		dst_gc_timer_expires = DST_GC_MAX;
-	dst_gc_timer_inc += DST_GC_INC;
+	if (!work_performed) {
+		if ((dst_gc_timer_expires += dst_gc_timer_inc) > DST_GC_MAX)
+			dst_gc_timer_expires = DST_GC_MAX;
+		dst_gc_timer_inc += DST_GC_INC;
+	} else {
+		dst_gc_timer_inc = DST_GC_INC;
+		dst_gc_timer_expires = DST_GC_MIN;
+	}
 	dst_gc_timer.expires = jiffies + dst_gc_timer_expires;
 #if RT_CACHE_DEBUG >= 2
 	printk("dst_total: %d/%d %ld\n",
