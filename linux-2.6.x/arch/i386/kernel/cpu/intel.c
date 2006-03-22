@@ -6,6 +6,7 @@
 #include <linux/bitops.h>
 #include <linux/smp.h>
 #include <linux/thread_info.h>
+#include <linux/module.h>
 
 #include <asm/processor.h>
 #include <asm/msr.h>
@@ -25,10 +26,10 @@ extern int trap_init_f00f_bug(void);
 /*
  * Alignment at which movsl is preferred for bulk memory copies.
  */
-struct movsl_mask movsl_mask;
+struct movsl_mask movsl_mask __read_mostly;
 #endif
 
-void __init early_intel_workaround(struct cpuinfo_x86 *c)
+void __devinit early_intel_workaround(struct cpuinfo_x86 *c)
 {
 	if (c->x86_vendor != X86_VENDOR_INTEL)
 		return;
@@ -43,7 +44,7 @@ void __init early_intel_workaround(struct cpuinfo_x86 *c)
  *	This is called before we do cpu ident work
  */
  
-int __init ppro_with_ram_bug(void)
+int __devinit ppro_with_ram_bug(void)
 {
 	/* Uses data from early_cpu_detect now */
 	if (boot_cpu_data.x86_vendor == X86_VENDOR_INTEL &&
@@ -61,7 +62,7 @@ int __init ppro_with_ram_bug(void)
  * P4 Xeon errata 037 workaround.
  * Hardware prefetcher may cause stale data to be loaded into the cache.
  */
-static void __init Intel_errata_workarounds(struct cpuinfo_x86 *c)
+static void __devinit Intel_errata_workarounds(struct cpuinfo_x86 *c)
 {
 	unsigned long lo, hi;
 
@@ -80,25 +81,22 @@ static void __init Intel_errata_workarounds(struct cpuinfo_x86 *c)
 /*
  * find out the number of processor cores on the die
  */
-static int __init num_cpu_cores(struct cpuinfo_x86 *c)
+static int __devinit num_cpu_cores(struct cpuinfo_x86 *c)
 {
-	unsigned int eax;
+	unsigned int eax, ebx, ecx, edx;
 
 	if (c->cpuid_level < 4)
 		return 1;
 
-	__asm__("cpuid"
-		: "=a" (eax)
-		: "0" (4), "c" (0)
-		: "bx", "dx");
-
+	/* Intel has a non-standard dependency on %ecx for this CPUID level. */
+	cpuid_count(4, 0, &eax, &ebx, &ecx, &edx);
 	if (eax & 0x1f)
 		return ((eax >> 26) + 1);
 	else
 		return 1;
 }
 
-static void __init init_intel(struct cpuinfo_x86 *c)
+static void __devinit init_intel(struct cpuinfo_x86 *c)
 {
 	unsigned int l2 = 0;
 	char *p = NULL;
@@ -160,7 +158,7 @@ static void __init init_intel(struct cpuinfo_x86 *c)
 	if ( p )
 		strcpy(c->x86_model_id, p);
 	
-	c->x86_num_cores = num_cpu_cores(c);
+	c->x86_max_cores = num_cpu_cores(c);
 
 	detect_ht(c);
 
@@ -185,10 +183,13 @@ static void __init init_intel(struct cpuinfo_x86 *c)
 	}
 #endif
 
-	if (c->x86 == 15) 
+	if (c->x86 == 15)
 		set_bit(X86_FEATURE_P4, c->x86_capability);
 	if (c->x86 == 6) 
 		set_bit(X86_FEATURE_P3, c->x86_capability);
+	if ((c->x86 == 0xf && c->x86_model >= 0x03) ||
+		(c->x86 == 0x6 && c->x86_model >= 0x0e))
+		set_bit(X86_FEATURE_CONSTANT_TSC, c->x86_capability);
 }
 
 
@@ -204,7 +205,7 @@ static unsigned int intel_size_cache(struct cpuinfo_x86 * c, unsigned int size)
 	return size;
 }
 
-static struct cpu_dev intel_cpu_dev __initdata = {
+static struct cpu_dev intel_cpu_dev __devinitdata = {
 	.c_vendor	= "Intel",
 	.c_ident 	= { "GenuineIntel" },
 	.c_models = {
@@ -266,6 +267,53 @@ __init int intel_cpu_init(void)
 	cpu_devs[X86_VENDOR_INTEL] = &intel_cpu_dev;
 	return 0;
 }
+
+#ifndef CONFIG_X86_CMPXCHG
+unsigned long cmpxchg_386_u8(volatile void *ptr, u8 old, u8 new)
+{
+	u8 prev;
+	unsigned long flags;
+
+	/* Poor man's cmpxchg for 386. Unsuitable for SMP */
+	local_irq_save(flags);
+	prev = *(u8 *)ptr;
+	if (prev == old)
+		*(u8 *)ptr = new;
+	local_irq_restore(flags);
+	return prev;
+}
+EXPORT_SYMBOL(cmpxchg_386_u8);
+
+unsigned long cmpxchg_386_u16(volatile void *ptr, u16 old, u16 new)
+{
+	u16 prev;
+	unsigned long flags;
+
+	/* Poor man's cmpxchg for 386. Unsuitable for SMP */
+	local_irq_save(flags);
+	prev = *(u16 *)ptr;
+	if (prev == old)
+		*(u16 *)ptr = new;
+	local_irq_restore(flags);
+	return prev;
+}
+EXPORT_SYMBOL(cmpxchg_386_u16);
+
+unsigned long cmpxchg_386_u32(volatile void *ptr, u32 old, u32 new)
+{
+	u32 prev;
+	unsigned long flags;
+
+	/* Poor man's cmpxchg for 386. Unsuitable for SMP */
+	local_irq_save(flags);
+	prev = *(u32 *)ptr;
+	if (prev == old)
+		*(u32 *)ptr = new;
+	local_irq_restore(flags);
+	return prev;
+}
+EXPORT_SYMBOL(cmpxchg_386_u32);
+#endif
 
 // arch_initcall(intel_cpu_init);
 

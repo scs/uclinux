@@ -74,13 +74,13 @@
 #include <linux/initrd.h>
 #include <linux/console.h>
 #include <linux/delay.h>
-#include <linux/irq.h>
 #include <linux/ide.h>
 #include <linux/seq_file.h>
 #include <linux/root_dev.h>
 #include <linux/serial.h>
 #include <linux/tty.h>	/* for linux/serial_core.h */
 #include <linux/serial_core.h>
+#include <linux/serial_8250.h>
 
 #include <asm/system.h>
 #include <asm/pgtable.h>
@@ -99,6 +99,7 @@
 #include <asm/mpc10x.h>
 #include <asm/pci-bridge.h>
 #include <asm/kgdb.h>
+#include <asm/ppc_sys.h>
 
 #include "sandpoint.h"
 
@@ -305,6 +306,28 @@ sandpoint_setup_arch(void)
 	/* Lookup PCI host bridges */
 	sandpoint_find_bridges();
 
+	if (strncmp (cur_ppc_sys_spec->ppc_sys_name, "8245", 4) == 0)
+	{
+		bd_t *bp = (bd_t *)__res;
+		struct plat_serial8250_port *pdata;
+
+		pdata = (struct plat_serial8250_port *) ppc_sys_get_pdata(MPC10X_UART0);
+		if (pdata)
+		{
+			pdata[0].uartclk = bp->bi_busfreq;
+		}
+
+#ifdef CONFIG_SANDPOINT_ENABLE_UART1
+		pdata = (struct plat_serial8250_port *) ppc_sys_get_pdata(MPC10X_UART1);
+		if (pdata)
+		{
+			pdata[0].uartclk = bp->bi_busfreq;
+		}
+#else
+		ppc_sys_device_remove(MPC10X_UART1);
+#endif
+	}
+
 	printk(KERN_INFO "Motorola SPS Sandpoint Test Platform\n");
 	printk(KERN_INFO "Port by MontaVista Software, Inc. (source@mvista.com)\n");
 
@@ -471,27 +494,10 @@ sandpoint_init_IRQ(void)
 			i8259_irq);
 
 	/*
-	 * openpic_init() has set up irq_desc[16-31] to be openpic
-	 * interrupts.  We need to set irq_desc[0-15] to be i8259
-	 * interrupts.
-	 */
-	for(i=0; i < NUM_8259_INTERRUPTS; i++)
-		irq_desc[i].handler = &i8259_pic;
-
-	/*
 	 * The EPIC allows for a read in the range of 0xFEF00000 ->
 	 * 0xFEFFFFFF to generate a PCI interrupt-acknowledge transaction.
 	 */
-	i8259_init(0xfef00000);
-}
-
-static u32
-sandpoint_irq_canonicalize(u32 irq)
-{
-	if (irq == 2)
-		return 9;
-	else
-		return irq;
+	i8259_init(0xfef00000, 0);
 }
 
 static unsigned long __init
@@ -704,10 +710,10 @@ platform_init(unsigned long r3, unsigned long r4, unsigned long r5,
 	ISA_DMA_THRESHOLD = 0x00ffffff;
 	DMA_MODE_READ = 0x44;
 	DMA_MODE_WRITE = 0x48;
+	ppc_do_canonicalize_irqs = 1;
 
 	ppc_md.setup_arch = sandpoint_setup_arch;
 	ppc_md.show_cpuinfo = sandpoint_show_cpuinfo;
-	ppc_md.irq_canonicalize = sandpoint_irq_canonicalize;
 	ppc_md.init_IRQ = sandpoint_init_IRQ;
 	ppc_md.get_irq = openpic_get_irq;
 

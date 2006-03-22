@@ -25,7 +25,6 @@ cflags-y	:= -pipe $(EXTRA) -ffixed-r13 -mfixed-range=f12-f15,f32-f127 \
 		   -falign-functions=32 -frename-registers -fno-optimize-sibling-calls
 CFLAGS_KERNEL	:= -mconstant-gp
 
-GCC_VERSION     := $(call cc-version)
 GAS_STATUS	= $(shell $(srctree)/arch/ia64/scripts/check-gas "$(CC)" "$(OBJDUMP)")
 CPPFLAGS += $(shell $(srctree)/arch/ia64/scripts/toolchain-flags "$(CC)" "$(OBJDUMP)" "$(READELF)")
 
@@ -37,11 +36,7 @@ $(error Sorry, you need a newer version of the assember, one that is built from	
 		ftp://ftp.hpl.hp.com/pub/linux-ia64/gas-030124.tar.gz)
 endif
 
-ifneq ($(shell if [ $(GCC_VERSION) -lt 0300 ] ; then echo "bad"; fi ;),)
-$(error Sorry, your compiler is too old.  GCC v2.96 is known to generate bad code.)
-endif
-
-ifeq ($(GCC_VERSION),0304)
+ifeq ($(call cc-version),0304)
 	cflags-$(CONFIG_ITANIUM)	+= -mtune=merced
 	cflags-$(CONFIG_MCKINLEY)	+= -mtune=mckinley
 endif
@@ -82,24 +77,7 @@ unwcheck: vmlinux
 archclean:
 	$(Q)$(MAKE) $(clean)=$(boot)
 
-CLEAN_FILES += include/asm-ia64/.offsets.h.stamp vmlinux.gz bootloader
-
-MRPROPER_FILES += include/asm-ia64/offsets.h
-
-prepare: include/asm-ia64/offsets.h
-
-arch/ia64/kernel/asm-offsets.s: include/asm include/linux/version.h include/config/MARKER
-
-include/asm-ia64/offsets.h: arch/ia64/kernel/asm-offsets.s
-	$(call filechk,gen-asm-offsets)
-
-arch/ia64/kernel/asm-offsets.s: include/asm-ia64/.offsets.h.stamp
-
-include/asm-ia64/.offsets.h.stamp:
-	mkdir -p include/asm-ia64
-	[ -s include/asm-ia64/offsets.h ] \
-	 || echo "#define IA64_TASK_SIZE 0" > include/asm-ia64/offsets.h
-	touch $@
+CLEAN_FILES += vmlinux.gz bootloader
 
 boot:	lib/lib.a vmlinux
 	$(Q)$(MAKE) $(build)=$(boot) $@

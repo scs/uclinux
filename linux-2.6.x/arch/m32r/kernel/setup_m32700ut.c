@@ -3,8 +3,8 @@
  *
  *  Setup routines for Renesas M32700UT Board
  *
- *  Copyright (c) 2002 	Hiroyuki Kondo, Hirokazu Takata,
- *                      Hitoshi Yamamoto, Takeo Takahashi
+ *  Copyright (c) 2002-2005  Hiroyuki Kondo, Hirokazu Takata,
+ *                           Hitoshi Yamamoto, Takeo Takahashi
  *
  *  This file is subject to the terms and conditions of the GNU General
  *  Public License.  See the file "COPYING" in the main directory of this
@@ -15,7 +15,7 @@
 #include <linux/irq.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/device.h>
+#include <linux/platform_device.h>
 
 #include <asm/system.h>
 #include <asm/m32r.h>
@@ -26,13 +26,7 @@
  */
 #define irq2port(x) (M32R_ICU_CR1_PORTL + ((x - 1) * sizeof(unsigned long)))
 
-#ifndef CONFIG_SMP
-typedef struct {
-	unsigned long icucr;  /* ICU Control Register */
-} icu_data_t;
-#endif /* CONFIG_SMP */
-
-static icu_data_t icu_data[M32700UT_NUM_CPU_IRQ];
+icu_data_t icu_data[M32700UT_NUM_CPU_IRQ];
 
 static void disable_m32700ut_irq(unsigned int irq)
 {
@@ -78,13 +72,13 @@ static void shutdown_m32700ut_irq(unsigned int irq)
 
 static struct hw_interrupt_type m32700ut_irq_type =
 {
-	"M32700UT-IRQ",
-	startup_m32700ut_irq,
-	shutdown_m32700ut_irq,
-	enable_m32700ut_irq,
-	disable_m32700ut_irq,
-	mask_and_ack_m32700ut,
-	end_m32700ut_irq
+	.typename = "M32700UT-IRQ",
+	.startup = startup_m32700ut_irq,
+	.shutdown = shutdown_m32700ut_irq,
+	.enable = enable_m32700ut_irq,
+	.disable = disable_m32700ut_irq,
+	.ack = mask_and_ack_m32700ut,
+	.end = end_m32700ut_irq
 };
 
 /*
@@ -155,13 +149,13 @@ static void shutdown_m32700ut_pld_irq(unsigned int irq)
 
 static struct hw_interrupt_type m32700ut_pld_irq_type =
 {
-	"M32700UT-PLD-IRQ",
-	startup_m32700ut_pld_irq,
-	shutdown_m32700ut_pld_irq,
-	enable_m32700ut_pld_irq,
-	disable_m32700ut_pld_irq,
-	mask_and_ack_m32700ut_pld,
-	end_m32700ut_pld_irq
+	.typename = "M32700UT-PLD-IRQ",
+	.startup = startup_m32700ut_pld_irq,
+	.shutdown = shutdown_m32700ut_pld_irq,
+	.enable = enable_m32700ut_pld_irq,
+	.disable = disable_m32700ut_pld_irq,
+	.ack = mask_and_ack_m32700ut_pld,
+	.end = end_m32700ut_pld_irq
 };
 
 /*
@@ -224,13 +218,13 @@ static void shutdown_m32700ut_lanpld_irq(unsigned int irq)
 
 static struct hw_interrupt_type m32700ut_lanpld_irq_type =
 {
-	"M32700UT-PLD-LAN-IRQ",
-	startup_m32700ut_lanpld_irq,
-	shutdown_m32700ut_lanpld_irq,
-	enable_m32700ut_lanpld_irq,
-	disable_m32700ut_lanpld_irq,
-	mask_and_ack_m32700ut_lanpld,
-	end_m32700ut_lanpld_irq
+	.typename = "M32700UT-PLD-LAN-IRQ",
+	.startup = startup_m32700ut_lanpld_irq,
+	.shutdown = shutdown_m32700ut_lanpld_irq,
+	.enable = enable_m32700ut_lanpld_irq,
+	.disable = disable_m32700ut_lanpld_irq,
+	.ack = mask_and_ack_m32700ut_lanpld,
+	.end = end_m32700ut_lanpld_irq
 };
 
 /*
@@ -293,13 +287,13 @@ static void shutdown_m32700ut_lcdpld_irq(unsigned int irq)
 
 static struct hw_interrupt_type m32700ut_lcdpld_irq_type =
 {
-	"M32700UT-PLD-LCD-IRQ",
-	startup_m32700ut_lcdpld_irq,
-	shutdown_m32700ut_lcdpld_irq,
-	enable_m32700ut_lcdpld_irq,
-	disable_m32700ut_lcdpld_irq,
-	mask_and_ack_m32700ut_lcdpld,
-	end_m32700ut_lcdpld_irq
+	.typename = "M32700UT-PLD-LCD-IRQ",
+	.startup = startup_m32700ut_lcdpld_irq,
+	.shutdown = shutdown_m32700ut_lcdpld_irq,
+	.enable = enable_m32700ut_lcdpld_irq,
+	.disable = disable_m32700ut_lcdpld_irq,
+	.ack = mask_and_ack_m32700ut_lcdpld,
+	.end = end_m32700ut_lcdpld_irq
 };
 
 void __init init_IRQ(void)
@@ -435,7 +429,7 @@ void __init init_IRQ(void)
 	icu_data[M32R_IRQ_INT2].icucr = M32R_ICUCR_IEN|M32R_ICUCR_ISMOD01;
 	enable_m32700ut_irq(M32R_IRQ_INT2);
 
-//#if defined(CONFIG_VIDEO_M32R_AR)
+#if defined(CONFIG_VIDEO_M32R_AR)
 	/*
 	 * INT3# is used for AR
 	 */
@@ -445,8 +439,10 @@ void __init init_IRQ(void)
 	irq_desc[M32R_IRQ_INT3].depth = 1;
 	icu_data[M32R_IRQ_INT3].icucr = M32R_ICUCR_IEN|M32R_ICUCR_ISMOD10;
 	disable_m32700ut_irq(M32R_IRQ_INT3);
-//#endif	/* CONFIG_VIDEO_M32R_AR */
+#endif	/* CONFIG_VIDEO_M32R_AR */
 }
+
+#if defined(CONFIG_SMC91X)
 
 #define LAN_IOSTART     0x300
 #define LAN_IOEND       0x320
@@ -469,10 +465,55 @@ static struct platform_device smc91x_device = {
 	.num_resources  = ARRAY_SIZE(smc91x_resources),
 	.resource       = smc91x_resources,
 };
+#endif
+
+#if defined(CONFIG_FB_S1D13XXX)
+
+#include <video/s1d13xxxfb.h>
+#include <asm/s1d13806.h>
+
+static struct s1d13xxxfb_pdata s1d13xxxfb_data = {
+	.initregs		= s1d13xxxfb_initregs,
+	.initregssize		= ARRAY_SIZE(s1d13xxxfb_initregs),
+	.platform_init_video	= NULL,
+#ifdef CONFIG_PM
+	.platform_suspend_video	= NULL,
+	.platform_resume_video	= NULL,
+#endif
+};
+
+static struct resource s1d13xxxfb_resources[] = {
+	[0] = {
+		.start  = 0x10600000UL,
+		.end    = 0x1073FFFFUL,
+		.flags  = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start  = 0x10400000UL,
+		.end    = 0x104001FFUL,
+		.flags  = IORESOURCE_MEM,
+	}
+};
+
+static struct platform_device s1d13xxxfb_device = {
+	.name		= S1D_DEVICENAME,
+	.id		= 0,
+	.dev            = {
+		.platform_data  = &s1d13xxxfb_data,
+	},
+	.num_resources  = ARRAY_SIZE(s1d13xxxfb_resources),
+	.resource       = s1d13xxxfb_resources,
+};
+#endif
 
 static int __init platform_init(void)
 {
+#if defined(CONFIG_SMC91X)
 	platform_device_register(&smc91x_device);
+#endif
+#if defined(CONFIG_FB_S1D13XXX)
+	platform_device_register(&s1d13xxxfb_device);
+#endif
 	return 0;
 }
 arch_initcall(platform_init);

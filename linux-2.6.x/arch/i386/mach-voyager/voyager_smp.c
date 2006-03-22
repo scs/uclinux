@@ -10,6 +10,7 @@
  * the voyager hal to provide the functionality
  */
 #include <linux/config.h>
+#include <linux/module.h>
 #include <linux/mm.h>
 #include <linux/kernel_stat.h>
 #include <linux/delay.h>
@@ -29,8 +30,6 @@
 #include <asm/tlbflush.h>
 #include <asm/arch_hooks.h>
 
-#include <linux/irq.h>
-
 /* TLB state -- visible externally, indexed physically */
 DEFINE_PER_CPU(struct tlb_state, cpu_tlbstate) ____cacheline_aligned = { &init_mm, 0 };
 
@@ -40,6 +39,7 @@ static unsigned long cpu_irq_affinity[NR_CPUS] __cacheline_aligned = { [0 ... NR
 /* per CPU data structure (for /proc/cpuinfo et al), visible externally
  * indexed physically */
 struct cpuinfo_x86 cpu_data[NR_CPUS] __cacheline_aligned;
+EXPORT_SYMBOL(cpu_data);
 
 /* physical ID of the CPU used to boot the system */
 unsigned char boot_cpu_id;
@@ -72,6 +72,7 @@ static volatile unsigned long smp_invalidate_needed;
 /* Bitmask of currently online CPUs - used by setup.c for
    /proc/cpuinfo, visible externally but still physical */
 cpumask_t cpu_online_map = CPU_MASK_NONE;
+EXPORT_SYMBOL(cpu_online_map);
 
 /* Bitmask of CPUs present in the system - exported by i386_syms.c, used
  * by scheduler but indexed physically */
@@ -238,6 +239,9 @@ static cpumask_t smp_commenced_mask = CPU_MASK_NONE;
 /* This is for the new dynamic CPU boot code */
 cpumask_t cpu_callin_map = CPU_MASK_NONE;
 cpumask_t cpu_callout_map = CPU_MASK_NONE;
+EXPORT_SYMBOL(cpu_callout_map);
+cpumask_t cpu_possible_map = CPU_MASK_NONE;
+EXPORT_SYMBOL(cpu_possible_map);
 
 /* The per processor IRQ masks (these are usually kept in sync) */
 static __u16 vic_irq_mask[NR_CPUS] __cacheline_aligned;
@@ -398,6 +402,7 @@ find_smp_config(void)
 	cpus_addr(phys_cpu_present_map)[0] |= voyager_extended_cmos_read(VOYAGER_PROCESSOR_PRESENT_MASK + 1) << 8;
 	cpus_addr(phys_cpu_present_map)[0] |= voyager_extended_cmos_read(VOYAGER_PROCESSOR_PRESENT_MASK + 2) << 16;
 	cpus_addr(phys_cpu_present_map)[0] |= voyager_extended_cmos_read(VOYAGER_PROCESSOR_PRESENT_MASK + 3) << 24;
+	cpu_possible_map = phys_cpu_present_map;
 	printk("VOYAGER SMP: phys_cpu_present_map = 0x%lx\n", cpus_addr(phys_cpu_present_map)[0]);
 	/* Here we set up the VIC to enable SMP */
 	/* enable the CPIs by writing the base vector to their register */
@@ -978,6 +983,7 @@ void flush_tlb_page(struct vm_area_struct * vma, unsigned long va)
 
 	preempt_enable();
 }
+EXPORT_SYMBOL(flush_tlb_page);
 
 /* enable the requested IRQs */
 static void
@@ -1010,7 +1016,7 @@ smp_stop_cpu_function(void *dummy)
 	cpu_clear(smp_processor_id(), cpu_online_map);
 	local_irq_disable();
 	for(;;)
-	       __asm__("hlt");
+		halt();
 }
 
 static DEFINE_SPINLOCK(call_lock);
@@ -1109,6 +1115,7 @@ smp_call_function (void (*func) (void *info), void *info, int retry,
 
 	return 0;
 }
+EXPORT_SYMBOL(smp_call_function);
 
 /* Sorry about the name.  In an APIC based system, the APICs
  * themselves are programmed to send a timer interrupt.  This is used
@@ -1288,7 +1295,7 @@ smp_local_timer_interrupt(struct pt_regs * regs)
 						per_cpu(prof_counter, cpu);
 		}
 
-		update_process_times(user_mode(regs));
+		update_process_times(user_mode_vm(regs));
 	}
 
 	if( ((1<<cpu) & voyager_extended_vic_processors) == 0)
@@ -1904,6 +1911,7 @@ void __devinit smp_prepare_boot_cpu(void)
 {
 	cpu_set(smp_processor_id(), cpu_online_map);
 	cpu_set(smp_processor_id(), cpu_callout_map);
+	cpu_set(smp_processor_id(), cpu_possible_map);
 }
 
 int __devinit

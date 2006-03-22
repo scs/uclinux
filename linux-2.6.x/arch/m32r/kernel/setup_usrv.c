@@ -18,12 +18,6 @@
 
 #define irq2port(x) (M32R_ICU_CR1_PORTL + ((x - 1) * sizeof(unsigned long)))
 
-#if !defined(CONFIG_SMP)
-typedef struct {
-	unsigned long icucr;	/* ICU Control Register */
-} icu_data_t;
-#endif /* CONFIG_SMP */
-
 icu_data_t icu_data[M32700UT_NUM_CPU_IRQ];
 
 static void disable_mappi_irq(unsigned int irq)
@@ -70,13 +64,13 @@ static void shutdown_mappi_irq(unsigned int irq)
 
 static struct hw_interrupt_type mappi_irq_type =
 {
-	"M32700-IRQ",
-	startup_mappi_irq,
-	shutdown_mappi_irq,
-	enable_mappi_irq,
-	disable_mappi_irq,
-	mask_and_ack_mappi,
-	end_mappi_irq
+	.typename = "M32700-IRQ",
+	.startup = startup_mappi_irq,
+	.shutdown = shutdown_mappi_irq,
+	.enable = enable_mappi_irq,
+	.disable = disable_mappi_irq,
+	.ack = mask_and_ack_mappi,
+	.end = end_mappi_irq
 };
 
 /*
@@ -143,13 +137,13 @@ static void shutdown_m32700ut_pld_irq(unsigned int irq)
 
 static struct hw_interrupt_type m32700ut_pld_irq_type =
 {
-	"USRV-PLD-IRQ",
-	startup_m32700ut_pld_irq,
-	shutdown_m32700ut_pld_irq,
-	enable_m32700ut_pld_irq,
-	disable_m32700ut_pld_irq,
-	mask_and_ack_m32700ut_pld,
-	end_m32700ut_pld_irq
+	.typename = "USRV-PLD-IRQ",
+	.startup = startup_m32700ut_pld_irq,
+	.shutdown = shutdown_m32700ut_pld_irq,
+	.enable = enable_m32700ut_pld_irq,
+	.disable = disable_m32700ut_pld_irq,
+	.ack = mask_and_ack_m32700ut_pld,
+	.end = end_m32700ut_pld_irq
 };
 
 void __init init_IRQ(void)

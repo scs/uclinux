@@ -40,7 +40,7 @@
 #include <asm/cputable.h>
 #include <asm/thread_info.h>
 #include <asm/ppc_asm.h>
-#include <asm/offsets.h>
+#include <asm/asm-offsets.h>
 #include "head_booke.h"
 
 
@@ -179,24 +179,26 @@ skpinv:	addi	r4,r4,1				/* Increment */
 4:
 #ifdef CONFIG_SERIAL_TEXT_DEBUG
 	/*
-	 * Add temporary UART mapping for early debug.  This
-	 * mapping must be identical to that used by the early
-	 * bootloader code since the same asm/serial.h parameters
-	 * are used for polled operation.
+	 * Add temporary UART mapping for early debug.
+	 * We can map UART registers wherever we want as long as they don't
+	 * interfere with other system mappings (e.g. with pinned entries).
+	 * For an example of how we handle this - see ocotea.h.       --ebs
 	 */
  	/* pageid fields */
 	lis	r3,UART0_IO_BASE@h
-	ori	r3,r3,PPC44x_TLB_VALID | PPC44x_TLB_256M
+	ori	r3,r3,PPC44x_TLB_VALID | PPC44x_TLB_4K
 
 	/* xlat fields */
 	lis	r4,UART0_PHYS_IO_BASE@h		/* RPN depends on SoC */
-	ori	r4,r4,0x0001		/* ERPN is 1 for second 4GB page */
+#ifdef UART0_PHYS_ERPN
+	ori	r4,r4,UART0_PHYS_ERPN		/* Add ERPN if above 4GB */
+#endif
 
 	/* attrib fields */
 	li	r5,0
 	ori	r5,r5,(PPC44x_TLB_SW | PPC44x_TLB_SR | PPC44x_TLB_I | PPC44x_TLB_G)
 
-        li      r0,1                    /* TLB slot 1 */
+        li      r0,0                    /* TLB slot 0 */
 
 	tlbwe	r3,r0,PPC44x_TLB_PAGEID	/* Load the pageid fields */
 	tlbwe	r4,r0,PPC44x_TLB_XLAT	/* Load the translation fields */
@@ -227,6 +229,16 @@ skpinv:	addi	r4,r4,1				/* Increment */
 	/* Establish the interrupt vector base */
 	lis	r4,interrupt_base@h	/* IVPR only uses the high 16-bits */
 	mtspr	SPRN_IVPR,r4
+
+#ifdef CONFIG_440EP
+	/* Clear DAPUIB flag in CCR0 (enable APU between CPU and FPU) */
+	mfspr	r2,SPRN_CCR0
+	lis	r3,0xffef
+	ori	r3,r3,0xffff
+	and	r2,r2,r3
+	mtspr	SPRN_CCR0,r2
+	isync
+#endif
 
 	/*
 	 * This is where the main kernel code starts.
@@ -297,13 +309,13 @@ skpinv:	addi	r4,r4,1				/* Increment */
 
 interrupt_base:
 	/* Critical Input Interrupt */
-	CRITICAL_EXCEPTION(0x0100, CriticalInput, UnknownException)
+	CRITICAL_EXCEPTION(0x0100, CriticalInput, unknown_exception)
 
 	/* Machine Check Interrupt */
 #ifdef CONFIG_440A
-	MCHECK_EXCEPTION(0x0200, MachineCheck, MachineCheckException)
+	MCHECK_EXCEPTION(0x0200, MachineCheck, machine_check_exception)
 #else
-	CRITICAL_EXCEPTION(0x0200, MachineCheck, MachineCheckException)
+	CRITICAL_EXCEPTION(0x0200, MachineCheck, machine_check_exception)
 #endif
 
 	/* Data Storage Interrupt */
@@ -430,7 +442,7 @@ interrupt_base:
 #ifdef CONFIG_PPC_FPU
 	FP_UNAVAILABLE_EXCEPTION
 #else
-	EXCEPTION(0x2010, FloatingPointUnavailable, UnknownException, EXC_XFER_EE)
+	EXCEPTION(0x2010, FloatingPointUnavailable, unknown_exception, EXC_XFER_EE)
 #endif
 
 	/* System Call Interrupt */
@@ -439,18 +451,22 @@ interrupt_base:
 	EXC_XFER_EE_LITE(0x0c00, DoSyscall)
 
 	/* Auxillary Processor Unavailable Interrupt */
-	EXCEPTION(0x2020, AuxillaryProcessorUnavailable, UnknownException, EXC_XFER_EE)
+	EXCEPTION(0x2020, AuxillaryProcessorUnavailable, unknown_exception, EXC_XFER_EE)
 
 	/* Decrementer Interrupt */
 	DECREMENTER_EXCEPTION
 
 	/* Fixed Internal Timer Interrupt */
 	/* TODO: Add FIT support */
-	EXCEPTION(0x1010, FixedIntervalTimer, UnknownException, EXC_XFER_EE)
+	EXCEPTION(0x1010, FixedIntervalTimer, unknown_exception, EXC_XFER_EE)
 
 	/* Watchdog Timer Interrupt */
 	/* TODO: Add watchdog support */
-	CRITICAL_EXCEPTION(0x1020, WatchdogTimer, UnknownException)
+#ifdef CONFIG_BOOKE_WDT
+	CRITICAL_EXCEPTION(0x1020, WatchdogTimer, WatchdogException)
+#else
+	CRITICAL_EXCEPTION(0x1020, WatchdogTimer, unknown_exception)
+#endif
 
 	/* Data TLB Error Interrupt */
 	START_EXCEPTION(DataTLBError)
@@ -727,14 +743,18 @@ _GLOBAL(set_context)
  * goes at the beginning of the data segment, which is page-aligned.
  */
 	.data
-_GLOBAL(sdata)
-_GLOBAL(empty_zero_page)
+	.align	12
+	.globl	sdata
+sdata:
+	.globl	empty_zero_page
+empty_zero_page:
 	.space	4096
 
 /*
  * To support >32-bit physical addresses, we use an 8KB pgdir.
  */
-_GLOBAL(swapper_pg_dir)
+	.globl	swapper_pg_dir
+swapper_pg_dir:
 	.space	8192
 
 /* Reserved 4k for the critical exception stack & 4k for the machine
@@ -743,13 +763,15 @@ _GLOBAL(swapper_pg_dir)
         .align 12
 exception_stack_bottom:
 	.space	BOOKE_EXCEPTION_STACK_SIZE
-_GLOBAL(exception_stack_top)
+	.globl	exception_stack_top
+exception_stack_top:
 
 /*
  * This space gets a copy of optional info passed to us by the bootstrap
  * which is used to pass parameters into the kernel like root=/dev/sda1, etc.
  */
-_GLOBAL(cmd_line)
+	.globl	cmd_line
+cmd_line:
 	.space	512
 
 /*
@@ -758,5 +780,3 @@ _GLOBAL(cmd_line)
  */
 abatron_pteptrs:
 	.space	8
-
-

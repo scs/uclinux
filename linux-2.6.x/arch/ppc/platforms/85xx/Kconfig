@@ -21,6 +21,11 @@ config MPC8540_ADS
 	help
 	  This option enables support for the MPC 8540 ADS evaluation board.
 
+config MPC8548_CDS
+	bool "Freescale MPC8548 CDS"
+	help
+	  This option enablese support for the MPC8548 CDS evaluation board.
+
 config MPC8555_CDS
 	bool "Freescale MPC8555 CDS"
 	help
@@ -34,7 +39,7 @@ config MPC8560_ADS
 config SBC8560
 	bool "WindRiver PowerQUICC III SBC8560"
 	help
-	  This option enables support for the WindRiver PowerQUICC III 
+	  This option enables support for the WindRiver PowerQUICC III
 	  SBC8560 board.
 
 config STX_GP3
@@ -43,6 +48,26 @@ config STX_GP3
 	  This option enables support for the Silicon Turnkey Express GP3
 	  board.
 
+config TQM8540
+	bool "TQ Components TQM8540"
+	help
+	  This option enablese support for the TQ Components TQM8540 board.
+
+config TQM8541
+	bool "TQ Components TQM8541"
+	help
+	  This option enablese support for the TQ Components TQM8541 board.
+
+config TQM8555
+	bool "TQ Components TQM8555"
+	help
+	  This option enablese support for the TQ Components TQM8555 board.
+
+config TQM8560
+	bool "TQ Components TQM8560"
+	help
+	  This option enablese support for the TQ Components TQM8560 board.
+
 endchoice
 
 # It's often necessary to know the specific 85xx processor type.
@@ -50,17 +75,22 @@ endchoice
 # don't need to ask more redundant questions.
 config MPC8540
 	bool
-	depends on MPC8540_ADS
+	depends on MPC8540_ADS || TQM8540
+	default y
+
+config MPC8548
+	bool
+	depends on MPC8548_CDS
 	default y
 
 config MPC8555
 	bool
-	depends on MPC8555_CDS
+	depends on MPC8555_CDS || TQM8541 || TQM8555
 	default y
 
 config MPC8560
 	bool
-	depends on SBC8560 || MPC8560_ADS || STX_GP3
+	depends on SBC8560 || MPC8560_ADS || STX_GP3 || TQM8560
 	default y
 
 config 85xx_PCI2

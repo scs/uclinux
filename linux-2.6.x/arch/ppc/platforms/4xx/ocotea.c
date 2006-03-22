@@ -28,7 +28,6 @@
 #include <linux/delay.h>
 #include <linux/ide.h>
 #include <linux/initrd.h>
-#include <linux/irq.h>
 #include <linux/seq_file.h>
 #include <linux/root_dev.h>
 #include <linux/tty.h>
@@ -48,18 +47,12 @@
 #include <asm/bootinfo.h>
 #include <asm/ppc4xx_pic.h>
 #include <asm/ppcboot.h>
+#include <asm/tlbflush.h>
 
 #include <syslib/gen550.h>
 #include <syslib/ibm440gx_common.h>
 
-/*
- * This is a horrible kludge, we eventually need to abstract this
- * generic PHY stuff, so the  standard phy mode defines can be
- * easily used from arch code.
- */
-#include "../../../../drivers/net/ibm_emac/ibm_emac_phy.h"
-
-bd_t __res;
+extern bd_t __res;
 
 static struct ibm44x_clocks clocks __initdata;
 
@@ -255,8 +248,8 @@ ocotea_early_serial_map(void)
 	port.irq = UART0_INT;
 	port.uartclk = clocks.uart0;
 	port.regshift = 0;
-	port.iotype = SERIAL_IO_MEM;
-	port.flags = ASYNC_BOOT_AUTOCONF | ASYNC_SKIP_TEST;
+	port.iotype = UPIO_MEM;
+	port.flags = UPF_BOOT_AUTOCONF | UPF_SKIP_TEST;
 	port.line = 0;
 
 	if (early_serial_setup(&port) != 0) {
@@ -266,6 +259,9 @@ ocotea_early_serial_map(void)
 #if defined(CONFIG_SERIAL_TEXT_DEBUG) || defined(CONFIG_KGDB)
 	/* Configure debug serial access */
 	gen550_init(0, &port);
+
+	/* Purge TLB entry added in head_44x.S for early serial access */
+	_tlbie(UART0_IO_BASE);
 #endif
 
 	port.membase = ioremap64(PPC440GX_UART1_ADDR, 8);
@@ -289,6 +285,15 @@ ocotea_setup_arch(void)
 	ocotea_set_emacdata();
 
 	ibm440gx_tah_enable();
+
+	/*
+	 * Determine various clocks.
+	 * To be completely correct we should get SysClk
+	 * from FPGA, because it can be changed by on-board switches
+	 * --ebs
+	 */
+	ibm440gx_get_clocks(&clocks, 33333333, 6 * 1843200);
+	ocp_sys_info.opb_bus_freq = clocks.opb;
 
 	/* Setup TODC access */
 	TODC_INIT(TODC_TYPE_DS1743,
@@ -328,25 +333,7 @@ static void __init ocotea_init(void)
 void __init platform_init(unsigned long r3, unsigned long r4,
 		unsigned long r5, unsigned long r6, unsigned long r7)
 {
-	parse_bootinfo(find_bootinfo());
-
-	/*
-	 * If we were passed in a board information, copy it into the
-	 * residual data area.
-	 */
-	if (r3)
-		__res = *(bd_t *)(r3 + KERNELBASE);
-
-	/*
-	 * Determine various clocks.
-	 * To be completely correct we should get SysClk
-	 * from FPGA, because it can be changed by on-board switches
-	 * --ebs
-	 */
-	ibm440gx_get_clocks(&clocks, 33333333, 6 * 1843200);
-	ocp_sys_info.opb_bus_freq = clocks.opb;
-
-	ibm44x_platform_init();
+	ibm44x_platform_init(r3, r4, r5, r6, r7);
 
 	ppc_md.setup_arch = ocotea_setup_arch;
 	ppc_md.show_cpuinfo = ocotea_show_cpuinfo;

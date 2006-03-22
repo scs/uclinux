@@ -2,7 +2,7 @@
  *  fixup-tb0219.c, The TANBAC TB0219 specific PCI fixups.
  *
  *  Copyright (C) 2003  Megasolution Inc. <matsu@megasolution.jp>
- *  Copyright (C) 2004  Yoichi Yuasa <yuasa@hh.iij4u.or.jp>
+ *  Copyright (C) 2004  Yoichi Yuasa <yoichi_yuasa@tripeaks.co.jp>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -29,27 +29,12 @@ int __init pcibios_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
 
 	switch (slot) {
 	case 12:
-		vr41xx_set_irq_trigger(TB0219_PCI_SLOT1_PIN,
-				       TRIGGER_LEVEL,
-				       SIGNAL_THROUGH);
-		vr41xx_set_irq_level(TB0219_PCI_SLOT1_PIN,
-				     LEVEL_LOW);
 		irq = TB0219_PCI_SLOT1_IRQ;
 		break;
 	case 13:
-		vr41xx_set_irq_trigger(TB0219_PCI_SLOT2_PIN,
-				       TRIGGER_LEVEL,
-				       SIGNAL_THROUGH);
-		vr41xx_set_irq_level(TB0219_PCI_SLOT2_PIN,
-				     LEVEL_LOW);
 		irq = TB0219_PCI_SLOT2_IRQ;
 		break;
 	case 14:
-		vr41xx_set_irq_trigger(TB0219_PCI_SLOT3_PIN,
-				       TRIGGER_LEVEL,
-				       SIGNAL_THROUGH);
-		vr41xx_set_irq_level(TB0219_PCI_SLOT3_PIN,
-				     LEVEL_LOW);
 		irq = TB0219_PCI_SLOT3_IRQ;
 		break;
 	default:

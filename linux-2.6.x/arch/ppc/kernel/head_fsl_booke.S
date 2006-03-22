@@ -24,7 +24,7 @@
  *    Copyright 2002-2004 MontaVista Software, Inc.
  *      PowerPC 44x support, Matt Porter <mporter@kernel.crashing.org>
  *    Copyright 2004 Freescale Semiconductor, Inc
- *      PowerPC e500 modifications, Kumar Gala <kumar.gala@freescale.com>
+ *      PowerPC e500 modifications, Kumar Gala <galak@kernel.crashing.org>
  *
  * This program is free software; you can redistribute  it and/or modify it
  * under  the terms of  the GNU General  Public License as published by the
@@ -41,7 +41,7 @@
 #include <asm/cputable.h>
 #include <asm/thread_info.h>
 #include <asm/ppc_asm.h>
-#include <asm/offsets.h>
+#include <asm/asm-offsets.h>
 #include "head_booke.h"
 
 /* As with the other PowerPC ports, it is expected that when code
@@ -102,6 +102,7 @@ invstr:	mflr	r6				/* Make it accessible */
 	or	r7,r7,r4
 	mtspr	SPRN_MAS6,r7
 	tlbsx	0,r6				/* search MSR[IS], SPID=PID0 */
+#ifndef CONFIG_E200
 	mfspr	r7,SPRN_MAS1
 	andis.	r7,r7,MAS1_VALID@h
 	bne	match_TLB
@@ -118,6 +119,7 @@ invstr:	mflr	r6				/* Make it accessible */
 	or	r7,r7,r4
 	mtspr	SPRN_MAS6,r7
 	tlbsx	0,r6				/* Fall through, we had to match */
+#endif
 match_TLB:
 	mfspr	r7,SPRN_MAS0
 	rlwinm	r3,r7,16,20,31			/* Extract MAS0(Entry) */
@@ -196,8 +198,10 @@ skpinv:	addi	r6,r6,1				/* Increment */
 /* 4. Clear out PIDs & Search info */
 	li	r6,0
 	mtspr	SPRN_PID0,r6
+#ifndef CONFIG_E200
 	mtspr	SPRN_PID1,r6
 	mtspr	SPRN_PID2,r6
+#endif
 	mtspr	SPRN_MAS6,r6
 
 /* 5. Invalidate mapping we started in */
@@ -277,7 +281,9 @@ skpinv:	addi	r6,r6,1				/* Increment */
 	SET_IVOR(32, SPEUnavailable);
 	SET_IVOR(33, SPEFloatingPointData);
 	SET_IVOR(34, SPEFloatingPointRound);
+#ifndef CONFIG_E200
 	SET_IVOR(35, PerformanceMonitor);
+#endif
 
 	/* Establish the interrupt vector base */
 	lis	r4,interrupt_base@h	/* IVPR only uses the high 16-bits */
@@ -285,6 +291,9 @@ skpinv:	addi	r6,r6,1				/* Increment */
 
 	/* Setup the defaults for TLB entries */
 	li	r2,(MAS4_TSIZED(BOOKE_PAGESZ_4K))@l
+#ifdef CONFIG_E200
+	oris	r2,r2,MAS4_TLBSELD(1)@h
+#endif
    	mtspr	SPRN_MAS4, r2
 
 #if 0
@@ -292,6 +301,12 @@ skpinv:	addi	r6,r6,1				/* Increment */
 	mfspr	r2,SPRN_HID0
 	oris	r2,r2,HID0_DOZE@h
 	mtspr	SPRN_HID0, r2
+#endif
+#ifdef CONFIG_E200
+	/* enable dedicated debug exception handling resources (Debug APU) */
+	mfspr	r2,SPRN_HID0
+	ori 	r2,r2,HID0_DAPUEN@l
+	mtspr	SPRN_HID0,r2
 #endif
 
 #if !defined(CONFIG_BDI_SWITCH)
@@ -411,10 +426,15 @@ skpinv:	addi	r6,r6,1				/* Increment */
 
 interrupt_base:
 	/* Critical Input Interrupt */
-	CRITICAL_EXCEPTION(0x0100, CriticalInput, UnknownException)
+	CRITICAL_EXCEPTION(0x0100, CriticalInput, unknown_exception)
 
 	/* Machine Check Interrupt */
-	MCHECK_EXCEPTION(0x0200, MachineCheck, MachineCheckException)
+#ifdef CONFIG_E200
+	/* no RFMCI, MCSRRs on E200 */
+	CRITICAL_EXCEPTION(0x0200, MachineCheck, machine_check_exception)
+#else
+	MCHECK_EXCEPTION(0x0200, MachineCheck, machine_check_exception)
+#endif
 
 	/* Data Storage Interrupt */
 	START_EXCEPTION(DataStorage)
@@ -520,7 +540,12 @@ interrupt_base:
 #ifdef CONFIG_PPC_FPU
 	FP_UNAVAILABLE_EXCEPTION
 #else
-	EXCEPTION(0x0800, FloatingPointUnavailable, UnknownException, EXC_XFER_EE)
+#ifdef CONFIG_E200
+	/* E200 treats 'normal' floating point instructions as FP Unavail exception */
+	EXCEPTION(0x0800, FloatingPointUnavailable, program_check_exception, EXC_XFER_EE)
+#else
+	EXCEPTION(0x0800, FloatingPointUnavailable, unknown_exception, EXC_XFER_EE)
+#endif
 #endif
 
 	/* System Call Interrupt */
@@ -529,18 +554,21 @@ interrupt_base:
 	EXC_XFER_EE_LITE(0x0c00, DoSyscall)
 
 	/* Auxillary Processor Unavailable Interrupt */
-	EXCEPTION(0x2900, AuxillaryProcessorUnavailable, UnknownException, EXC_XFER_EE)
+	EXCEPTION(0x2900, AuxillaryProcessorUnavailable, unknown_exception, EXC_XFER_EE)
 
 	/* Decrementer Interrupt */
 	DECREMENTER_EXCEPTION
 
 	/* Fixed Internal Timer Interrupt */
 	/* TODO: Add FIT support */
-	EXCEPTION(0x3100, FixedIntervalTimer, UnknownException, EXC_XFER_EE)
+	EXCEPTION(0x3100, FixedIntervalTimer, unknown_exception, EXC_XFER_EE)
 
 	/* Watchdog Timer Interrupt */
-	/* TODO: Add watchdog support */
-	CRITICAL_EXCEPTION(0x3200, WatchdogTimer, UnknownException)
+#ifdef CONFIG_BOOKE_WDT
+	CRITICAL_EXCEPTION(0x3200, WatchdogTimer, WatchdogException)
+#else
+	CRITICAL_EXCEPTION(0x3200, WatchdogTimer, unknown_exception)
+#endif
 
 	/* Data TLB Error Interrupt */
 	START_EXCEPTION(DataTLBError)
@@ -668,21 +696,21 @@ interrupt_base:
 	addi    r3,r1,STACK_FRAME_OVERHEAD
 	EXC_XFER_EE_LITE(0x2010, KernelSPE)
 #else
-	EXCEPTION(0x2020, SPEUnavailable, UnknownException, EXC_XFER_EE)
+	EXCEPTION(0x2020, SPEUnavailable, unknown_exception, EXC_XFER_EE)
 #endif /* CONFIG_SPE */
 
 	/* SPE Floating Point Data */
 #ifdef CONFIG_SPE
 	EXCEPTION(0x2030, SPEFloatingPointData, SPEFloatingPointException, EXC_XFER_EE);
 #else
-	EXCEPTION(0x2040, SPEFloatingPointData, UnknownException, EXC_XFER_EE)
+	EXCEPTION(0x2040, SPEFloatingPointData, unknown_exception, EXC_XFER_EE)
 #endif /* CONFIG_SPE */
 
 	/* SPE Floating Point Round */
-	EXCEPTION(0x2050, SPEFloatingPointRound, UnknownException, EXC_XFER_EE)
+	EXCEPTION(0x2050, SPEFloatingPointRound, unknown_exception, EXC_XFER_EE)
 
 	/* Performance Monitor */
-	EXCEPTION(0x2060, PerformanceMonitor, PerformanceMonitorException, EXC_XFER_STD)
+	EXCEPTION(0x2060, PerformanceMonitor, performance_monitor_exception, EXC_XFER_STD)
 
 
 	/* Debug Interrupt */
@@ -691,6 +719,7 @@ interrupt_base:
 /*
  * Local functions
  */
+
 	/*
 	 * Data TLB exceptions will bail out to this point
 	 * if they can't resolve the lightweight TLB fault.
@@ -761,6 +790,31 @@ END_FTR_SECTION_IFSET(CPU_FTR_BIG_PHYS)
 2:	rlwimi	r11, r12, 0, 20, 31	/* Extract RPN from PTE and merge with perms */
 	mtspr	SPRN_MAS3, r11
 #endif
+#ifdef CONFIG_E200
+	/* Round robin TLB1 entries assignment */
+	mfspr	r12, SPRN_MAS0
+
+	/* Extract TLB1CFG(NENTRY) */
+	mfspr	r11, SPRN_TLB1CFG
+	andi.	r11, r11, 0xfff
+
+	/* Extract MAS0(NV) */
+	andi.	r13, r12, 0xfff
+	addi	r13, r13, 1
+	cmpw	0, r13, r11
+	addi	r12, r12, 1
+
+	/* check if we need to wrap */
+	blt	7f
+
+	/* wrap back to first free tlbcam entry */
+	lis	r13, tlbcam_index@ha
+	lwz	r13, tlbcam_index@l(r13)
+	rlwimi	r12, r13, 0, 20, 31
+7:
+	mtspr   SPRN_MAS0,r12
+#endif /* CONFIG_E200 */
+
 	tlbwe
 
 	/* Done...restore registers and get out of here.  */
@@ -799,7 +853,7 @@ load_up_spe:
 	cmpi	0,r4,0
 	beq	1f
 	addi	r4,r4,THREAD	/* want THREAD of last_task_used_spe */
-	SAVE_32EVR(0,r10,r4)
+	SAVE_32EVRS(0,r10,r4)
    	evxor	evr10, evr10, evr10	/* clear out evr10 */
 	evmwumiaa evr10, evr10, evr10	/* evr10 <- ACC = 0 * 0 + ACC */
 	li	r5,THREAD_ACC
@@ -819,7 +873,7 @@ load_up_spe:
 	stw	r4,THREAD_USED_SPE(r5)
 	evlddx	evr4,r10,r5
 	evmra	evr4,evr4
-	REST_32EVR(0,r10,r5)
+	REST_32EVRS(0,r10,r5)
 #ifndef CONFIG_SMP
 	subi	r4,r5,THREAD
 	stw	r4,last_task_used_spe@l(r3)
@@ -909,7 +963,7 @@ _GLOBAL(giveup_spe)
 	addi	r3,r3,THREAD		/* want THREAD of task */
 	lwz	r5,PT_REGS(r3)
 	cmpi	0,r5,0
-	SAVE_32EVR(0, r4, r3)
+	SAVE_32EVRS(0, r4, r3)
    	evxor	evr6, evr6, evr6	/* clear out evr6 */
 	evmwumiaa evr6, evr6, evr6	/* evr6 <- ACC = 0 * 0 + ACC */
 	li	r4,THREAD_ACC
@@ -974,10 +1028,14 @@ _GLOBAL(set_context)
  * goes at the beginning of the data segment, which is page-aligned.
  */
 	.data
-_GLOBAL(sdata)
-_GLOBAL(empty_zero_page)
+	.align	12
+	.globl	sdata
+sdata:
+	.globl	empty_zero_page
+empty_zero_page:
 	.space	4096
-_GLOBAL(swapper_pg_dir)
+	.globl	swapper_pg_dir
+swapper_pg_dir:
 	.space	4096
 
 /* Reserved 4k for the critical exception stack & 4k for the machine
@@ -986,13 +1044,15 @@ _GLOBAL(swapper_pg_dir)
         .align 12
 exception_stack_bottom:
 	.space	BOOKE_EXCEPTION_STACK_SIZE * NR_CPUS
-_GLOBAL(exception_stack_top)
+	.globl	exception_stack_top
+exception_stack_top:
 
 /*
  * This space gets a copy of optional info passed to us by the bootstrap
  * which is used to pass parameters into the kernel like root=/dev/sda1, etc.
  */
-_GLOBAL(cmd_line)
+	.globl	cmd_line
+cmd_line:
 	.space	512
 
 /*
@@ -1001,4 +1061,3 @@ _GLOBAL(cmd_line)
  */
 abatron_pteptrs:
 	.space	8
-

@@ -11,12 +11,11 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
-#include <linux/irq.h>
 #include <linux/dmi.h>
 #include <asm/io.h>
 #include <asm/smp.h>
 #include <asm/io_apic.h>
-#include <asm/hw_irq.h>
+#include <linux/irq.h>
 #include <linux/acpi.h>
 
 #include "pci.h"
@@ -56,6 +55,36 @@ struct irq_router_handler {
 };
 
 int (*pcibios_enable_irq)(struct pci_dev *dev) = NULL;
+void (*pcibios_disable_irq)(struct pci_dev *dev) = NULL;
+
+/*
+ *  Check passed address for the PCI IRQ Routing Table signature
+ *  and perform checksum verification.
+ */
+
+static inline struct irq_routing_table * pirq_check_routing_table(u8 *addr)
+{
+	struct irq_routing_table *rt;
+	int i;
+	u8 sum;
+
+	rt = (struct irq_routing_table *) addr;
+	if (rt->signature != PIRQ_SIGNATURE ||
+	    rt->version != PIRQ_VERSION ||
+	    rt->size % 16 ||
+	    rt->size < sizeof(struct irq_routing_table))
+		return NULL;
+	sum = 0;
+	for (i=0; i < rt->size; i++)
+		sum += addr[i];
+	if (!sum) {
+		DBG(KERN_DEBUG "PCI: Interrupt Routing Table found at 0x%p\n", rt);
+		return rt;
+	}
+	return NULL;
+}
+
+
 
 /*
  *  Search 0xf0000 -- 0xfffff for the PCI IRQ Routing Table.
@@ -65,23 +94,17 @@ static struct irq_routing_table * __init pirq_find_routing_table(void)
 {
 	u8 *addr;
 	struct irq_routing_table *rt;
-	int i;
-	u8 sum;
 
-	for(addr = (u8 *) __va(0xf0000); addr < (u8 *) __va(0x100000); addr += 16) {
-		rt = (struct irq_routing_table *) addr;
-		if (rt->signature != PIRQ_SIGNATURE ||
-		    rt->version != PIRQ_VERSION ||
-		    rt->size % 16 ||
-		    rt->size < sizeof(struct irq_routing_table))
-			continue;
-		sum = 0;
-		for(i=0; i<rt->size; i++)
-			sum += addr[i];
-		if (!sum) {
-			DBG("PCI: Interrupt Routing Table found at 0x%p\n", rt);
+	if (pirq_table_addr) {
+		rt = pirq_check_routing_table((u8 *) __va(pirq_table_addr));
+		if (rt)
 			return rt;
-		}
+		printk(KERN_WARNING "PCI: PIRQ table NOT found at pirqaddr\n");
+	}
+	for(addr = (u8 *) __va(0xf0000); addr < (u8 *) __va(0x100000); addr += 16) {
+		rt = pirq_check_routing_table(addr);
+		if (rt)
+			return rt;
 	}
 	return NULL;
 }
@@ -105,7 +128,7 @@ static void __init pirq_peer_trick(void)
 #ifdef DEBUG
 		{
 			int j;
-			DBG("%02x:%02x slot=%02x", e->bus, e->devfn/8, e->slot);
+			DBG(KERN_DEBUG "%02x:%02x slot=%02x", e->bus, e->devfn/8, e->slot);
 			for(j=0; j<4; j++)
 				DBG(" %d:%02x/%04x", j, e->irq[j].link, e->irq[j].bitmap);
 			DBG("\n");
@@ -137,10 +160,10 @@ void eisa_set_level_irq(unsigned int irq)
 		return;
 
 	eisa_irq_mask |= (1 << irq);
-	printk("PCI: setting IRQ %u as level-triggered\n", irq);
+	printk(KERN_DEBUG "PCI: setting IRQ %u as level-triggered\n", irq);
 	val = inb(port);
 	if (!(val & mask)) {
-		DBG(" -> edge");
+		DBG(KERN_DEBUG " -> edge");
 		outb(val | mask, port);
 	}
 }
@@ -223,6 +246,24 @@ static int pirq_via_get(struct pci_dev *router, struct pci_dev *dev, int pirq)
 static int pirq_via_set(struct pci_dev *router, struct pci_dev *dev, int pirq, int irq)
 {
 	write_config_nybble(router, 0x55, pirq == 4 ? 5 : pirq, irq);
+	return 1;
+}
+
+/*
+ * The VIA pirq rules are nibble-based, like ALI,
+ * but without the ugly irq number munging.
+ * However, for 82C586, nibble map is different .
+ */
+static int pirq_via586_get(struct pci_dev *router, struct pci_dev *dev, int pirq)
+{
+	static unsigned int pirqmap[4] = { 3, 2, 5, 1 };
+	return read_config_nybble(router, 0x55, pirqmap[pirq-1]);
+}
+
+static int pirq_via586_set(struct pci_dev *router, struct pci_dev *dev, int pirq, int irq)
+{
+	static unsigned int pirqmap[4] = { 3, 2, 5, 1 };
+	write_config_nybble(router, 0x55, pirqmap[pirq-1], irq);
 	return 1;
 }
 
@@ -498,6 +539,11 @@ static __init int intel_router_probe(struct irq_router *r, struct pci_dev *route
 		case PCI_DEVICE_ID_INTEL_ICH7_30:
 		case PCI_DEVICE_ID_INTEL_ICH7_31:
 		case PCI_DEVICE_ID_INTEL_ESB2_0:
+		case PCI_DEVICE_ID_INTEL_ICH8_0:
+		case PCI_DEVICE_ID_INTEL_ICH8_1:
+		case PCI_DEVICE_ID_INTEL_ICH8_2:
+		case PCI_DEVICE_ID_INTEL_ICH8_3:
+		case PCI_DEVICE_ID_INTEL_ICH8_4:
 			r->name = "PIIX/ICH";
 			r->get = pirq_piix_get;
 			r->set = pirq_piix_set;
@@ -506,20 +552,48 @@ static __init int intel_router_probe(struct irq_router *r, struct pci_dev *route
 	return 0;
 }
 
-static __init int via_router_probe(struct irq_router *r, struct pci_dev *router, u16 device)
+static __init int via_router_probe(struct irq_router *r,
+				struct pci_dev *router, u16 device)
 {
 	/* FIXME: We should move some of the quirk fixup stuff here */
-	switch(device)
-	{
-		case PCI_DEVICE_ID_VIA_82C586_0:
-		case PCI_DEVICE_ID_VIA_82C596:
+
+	/*
+	 * work arounds for some buggy BIOSes
+	 */
+	if (device == PCI_DEVICE_ID_VIA_82C586_0) {
+		switch(router->device) {
 		case PCI_DEVICE_ID_VIA_82C686:
-		case PCI_DEVICE_ID_VIA_8231:
+			/*
+			 * Asus k7m bios wrongly reports 82C686A
+			 * as 586-compatible
+			 */
+			device = PCI_DEVICE_ID_VIA_82C686;
+			break;
+		case PCI_DEVICE_ID_VIA_8235:
+			/**
+			 * Asus a7v-x bios wrongly reports 8235
+			 * as 586-compatible
+			 */
+			device = PCI_DEVICE_ID_VIA_8235;
+			break;
+		}
+	}
+
+	switch(device) {
+	case PCI_DEVICE_ID_VIA_82C586_0:
+		r->name = "VIA";
+		r->get = pirq_via586_get;
+		r->set = pirq_via586_set;
+		return 1;
+	case PCI_DEVICE_ID_VIA_82C596:
+	case PCI_DEVICE_ID_VIA_82C686:
+	case PCI_DEVICE_ID_VIA_8231:
+	case PCI_DEVICE_ID_VIA_8235:
 		/* FIXME: add new ones for 8233/5 */
-			r->name = "VIA";
-			r->get = pirq_via_get;
-			r->set = pirq_via_set;
-			return 1;
+		r->name = "VIA";
+		r->get = pirq_via_get;
+		r->set = pirq_via_set;
+		return 1;
 	}
 	return 0;
 }
@@ -608,11 +682,11 @@ static __init int ali_router_probe(struct irq_router *r, struct pci_dev *router,
 	{
 	case PCI_DEVICE_ID_AL_M1533:
 	case PCI_DEVICE_ID_AL_M1563:
-		printk("PCI: Using ALI IRQ Router\n");
-			r->name = "ALI";
-			r->get = pirq_ali_get;
-			r->set = pirq_ali_set;
-			return 1;
+		printk(KERN_DEBUG "PCI: Using ALI IRQ Router\n");
+		r->name = "ALI";
+		r->get = pirq_ali_get;
+		r->set = pirq_ali_set;
+		return 1;
 	}
 	return 0;
 }
@@ -680,12 +754,13 @@ static void __init pirq_find_router(struct irq_router *r)
 	r->get = NULL;
 	r->set = NULL;
 	
-	DBG("PCI: Attempting to find IRQ router for %04x:%04x\n",
+	DBG(KERN_DEBUG "PCI: Attempting to find IRQ router for %04x:%04x\n",
 	    rt->rtr_vendor, rt->rtr_device);
 
 	pirq_router_dev = pci_find_slot(rt->rtr_bus, rt->rtr_devfn);
 	if (!pirq_router_dev) {
-		DBG("PCI: Interrupt router not found at %02x:%02x\n", rt->rtr_bus, rt->rtr_devfn);
+		DBG(KERN_DEBUG "PCI: Interrupt router not found at "
+			"%02x:%02x\n", rt->rtr_bus, rt->rtr_devfn);
 		return;
 	}
 
@@ -730,7 +805,7 @@ static int pcibios_lookup_irq(struct pci_dev *dev, int assign)
 	/* Find IRQ pin */
 	pci_read_config_byte(dev, PCI_INTERRUPT_PIN, &pin);
 	if (!pin) {
-		DBG(" -> no interrupt pin\n");
+		DBG(KERN_DEBUG " -> no interrupt pin\n");
 		return 0;
 	}
 	pin = pin - 1;
@@ -740,16 +815,16 @@ static int pcibios_lookup_irq(struct pci_dev *dev, int assign)
 	if (!pirq_table)
 		return 0;
 	
-	DBG("IRQ for %s[%c]", pci_name(dev), 'A' + pin);
+	DBG(KERN_DEBUG "IRQ for %s[%c]", pci_name(dev), 'A' + pin);
 	info = pirq_get_info(dev);
 	if (!info) {
-		DBG(" -> not found in routing table\n");
+		DBG(" -> not found in routing table\n" KERN_DEBUG);
 		return 0;
 	}
 	pirq = info->irq[pin].link;
 	mask = info->irq[pin].bitmap;
 	if (!pirq) {
-		DBG(" -> not routed\n");
+		DBG(" -> not routed\n" KERN_DEBUG);
 		return 0;
 	}
 	DBG(" -> PIRQ %02x, mask %04x, excl %04x", pirq, mask, pirq_table->exclusive_irqs);
@@ -777,9 +852,12 @@ static int pcibios_lookup_irq(struct pci_dev *dev, int assign)
 	 * reported by the device if possible.
 	 */
 	newirq = dev->irq;
-	if (!((1 << newirq) & mask)) {
+	if (newirq && !((1 << newirq) & mask)) {
 		if ( pci_probe & PCI_USE_PIRQ_MASK) newirq = 0;
-		else printk(KERN_WARNING "PCI: IRQ %i for device %s doesn't match PIRQ mask - try pci=usepirqmask\n", newirq, pci_name(dev));
+		else printk("\n" KERN_WARNING
+			"PCI: IRQ %i for device %s doesn't match PIRQ mask "
+			"- try pci=usepirqmask\n" KERN_DEBUG, newirq,
+			pci_name(dev));
 	}
 	if (!newirq && assign) {
 		for (i = 0; i < 16; i++) {
@@ -854,14 +932,14 @@ static void __init pcibios_fixup_irqs(void)
 	struct pci_dev *dev = NULL;
 	u8 pin;
 
-	DBG("PCI: IRQ fixup\n");
+	DBG(KERN_DEBUG "PCI: IRQ fixup\n");
 	while ((dev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, dev)) != NULL) {
 		/*
 		 * If the BIOS has set an out of range IRQ number, just ignore it.
 		 * Also keep track of which IRQ's are already in use.
 		 */
 		if (dev->irq >= 16) {
-			DBG("%s: ignoring bogus IRQ %d\n", pci_name(dev), dev->irq);
+			DBG(KERN_DEBUG "%s: ignoring bogus IRQ %d\n", pci_name(dev), dev->irq);
 			dev->irq = 0;
 		}
 		/* If the IRQ is already assigned to a PCI device, ignore its ISA use penalty */
@@ -970,7 +1048,7 @@ static struct dmi_system_id __initdata pciirq_dmi_table[] = {
 
 static int __init pcibios_irq_init(void)
 {
-	DBG("PCI: IRQ init\n");
+	DBG(KERN_DEBUG "PCI: IRQ init\n");
 
 	if (pcibios_enable_irq || raw_pci_ops == NULL)
 		return 0;
@@ -1006,24 +1084,28 @@ static int __init pcibios_irq_init(void)
 subsys_initcall(pcibios_irq_init);
 
 
-static void pirq_penalize_isa_irq(int irq)
+static void pirq_penalize_isa_irq(int irq, int active)
 {
 	/*
 	 *  If any ISAPnP device reports an IRQ in its list of possible
 	 *  IRQ's, we try to avoid assigning it to PCI devices.
 	 */
-	if (irq < 16)
-		pirq_penalty[irq] += 100;
+	if (irq < 16) {
+		if (active)
+			pirq_penalty[irq] += 1000;
+		else
+			pirq_penalty[irq] += 100;
+	}
 }
 
-void pcibios_penalize_isa_irq(int irq)
+void pcibios_penalize_isa_irq(int irq, int active)
 {
-#ifdef CONFIG_ACPI_PCI
+#ifdef CONFIG_ACPI
 	if (!acpi_noirq)
-		acpi_penalize_isa_irq(irq);
+		acpi_penalize_isa_irq(irq, active);
 	else
 #endif
-		pirq_penalize_isa_irq(irq);
+		pirq_penalize_isa_irq(irq, active);
 }
 
 static int pirq_enable_irq(struct pci_dev *dev)

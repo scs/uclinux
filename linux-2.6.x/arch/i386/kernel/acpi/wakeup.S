@@ -74,8 +74,9 @@ wakeup_code:
 	movw	%ax,%fs
 	movw	$0x0e00 + 'i', %fs:(0x12)
 	
-	# need a gdt
-	lgdt	real_save_gdt - wakeup_code
+	# need a gdt -- use lgdtl to force 32-bit operands, in case
+	# the GDT is located past 16 megabytes.
+	lgdtl	real_save_gdt - wakeup_code
 
 	movl	real_save_cr0 - wakeup_code, %eax
 	movl	%eax, %cr0
@@ -301,12 +302,6 @@ ENTRY(do_suspend_lowlevel)
 ret_point:
 	call	restore_registers
 	call	restore_processor_state
-	ret
-
-ENTRY(do_suspend_lowlevel_s4bios)
-	call save_processor_state
-	call save_registers
-	call acpi_enter_sleep_state_s4bios
 	ret
 
 ALIGN

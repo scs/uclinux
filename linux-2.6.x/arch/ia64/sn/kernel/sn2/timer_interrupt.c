@@ -1,7 +1,7 @@
 /*
  *
  *
- * Copyright (c) 2003 Silicon Graphics, Inc.  All Rights Reserved.
+ * Copyright (c) 2005, 2006 Silicon Graphics, Inc.  All Rights Reserved.
  * 
  * This program is free software; you can redistribute it and/or modify it 
  * under the terms of version 2 of the GNU General Public License 
@@ -21,11 +21,6 @@
  * You should have received a copy of the GNU General Public 
  * License along with this program; if not, write the Free Software 
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston MA 02111-1307, USA.
- * 
- * Contact information:  Silicon Graphics, Inc., 1600 Amphitheatre Pkwy, 
- * Mountain View, CA  94043, or:
- * 
- * http://www.sgi.com 
  * 
  * For further information regarding this notice, see: 
  * 
@@ -50,14 +45,16 @@ void sn_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 			     LED_CPU_HEARTBEAT, LED_CPU_HEARTBEAT);
 	}
 
-	if (enable_shub_wars_1_1()) {
-		/* Bugfix code for SHUB 1.1 */
-		if (pda->pio_shub_war_cam_addr)
-			*pda->pio_shub_war_cam_addr = 0x8000000000000010UL;
+	if (is_shub1()) {
+		if (enable_shub_wars_1_1()) {
+			/* Bugfix code for SHUB 1.1 */
+			if (pda->pio_shub_war_cam_addr)
+				*pda->pio_shub_war_cam_addr = 0x8000000000000010UL;
+		}
+		if (pda->sn_lb_int_war_ticks == 0)
+			sn_lb_int_war_check();
+		pda->sn_lb_int_war_ticks++;
+		if (pda->sn_lb_int_war_ticks >= SN_LB_INT_WAR_INTERVAL)
+			pda->sn_lb_int_war_ticks = 0;
 	}
-	if (pda->sn_lb_int_war_ticks == 0)
-		sn_lb_int_war_check();
-	pda->sn_lb_int_war_ticks++;
-	if (pda->sn_lb_int_war_ticks >= SN_LB_INT_WAR_INTERVAL)
-		pda->sn_lb_int_war_ticks = 0;
 }

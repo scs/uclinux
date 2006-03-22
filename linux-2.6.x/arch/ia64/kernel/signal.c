@@ -143,6 +143,7 @@ restore_sigcontext (struct sigcontext __user *sc, struct sigscratch *scr)
 
 		__copy_from_user(current->thread.fph, &sc->sc_fr[32], 96*16);
 		psr->mfh = 0;	/* drop signal handler's fph contents... */
+		preempt_disable();
 		if (psr->dfh)
 			ia64_drop_fpu(current);
 		else {
@@ -150,6 +151,7 @@ restore_sigcontext (struct sigcontext __user *sc, struct sigscratch *scr)
 			__ia64_load_fpu(current->thread.fph);
 			ia64_set_local_fpu_owner(current);
 		}
+		preempt_enable();
 	}
 	return err;
 }
@@ -385,15 +387,14 @@ setup_frame (int sig, struct k_sigaction *ka, siginfo_t *info, sigset_t *set,
 	     struct sigscratch *scr)
 {
 	extern char __kernel_sigtramp[];
-	unsigned long tramp_addr, new_rbs = 0;
+	unsigned long tramp_addr, new_rbs = 0, new_sp;
 	struct sigframe __user *frame;
 	long err;
 
-	frame = (void __user *) scr->pt.r12;
+	new_sp = scr->pt.r12;
 	tramp_addr = (unsigned long) __kernel_sigtramp;
-	if ((ka->sa.sa_flags & SA_ONSTACK) && sas_ss_flags((unsigned long) frame) == 0) {
-		frame = (void __user *) ((current->sas_ss_sp + current->sas_ss_size)
-					 & ~(STACK_ALIGN - 1));
+	if ((ka->sa.sa_flags & SA_ONSTACK) && sas_ss_flags(new_sp) == 0) {
+		new_sp = current->sas_ss_sp + current->sas_ss_size;
 		/*
 		 * We need to check for the register stack being on the signal stack
 		 * separately, because it's switched separately (memory stack is switched
@@ -402,7 +403,7 @@ setup_frame (int sig, struct k_sigaction *ka, siginfo_t *info, sigset_t *set,
 		if (!rbs_on_sig_stack(scr->pt.ar_bspstore))
 			new_rbs = (current->sas_ss_sp + sizeof(long) - 1) & ~(sizeof(long) - 1);
 	}
-	frame = (void __user *) frame - ((sizeof(*frame) + STACK_ALIGN - 1) & ~(STACK_ALIGN - 1));
+	frame = (void __user *) ((new_sp - sizeof(*frame)) & -STACK_ALIGN);
 
 	if (!access_ok(VERIFY_WRITE, frame, sizeof(*frame)))
 		return force_sigsegv_info(sig, frame);
@@ -465,15 +466,12 @@ handle_signal (unsigned long sig, struct k_sigaction *ka, siginfo_t *info, sigse
 		if (!setup_frame(sig, ka, info, oldset, scr))
 			return 0;
 
-	if (!(ka->sa.sa_flags & SA_NODEFER)) {
-		spin_lock_irq(&current->sighand->siglock);
-		{
-			sigorsets(&current->blocked, &current->blocked, &ka->sa.sa_mask);
-			sigaddset(&current->blocked, sig);
-			recalc_sigpending();
-		}
-		spin_unlock_irq(&current->sighand->siglock);
-	}
+	spin_lock_irq(&current->sighand->siglock);
+	sigorsets(&current->blocked, &current->blocked, &ka->sa.sa_mask);
+	if (!(ka->sa.sa_flags & SA_NODEFER))
+		sigaddset(&current->blocked, sig);
+	recalc_sigpending();
+	spin_unlock_irq(&current->sighand->siglock);
 	return 1;
 }
 
@@ -657,11 +655,11 @@ set_sigdelayed(pid_t pid, int signo, int code, void __user *addr)
 
 		if (!t)
 			return;
-		t->thread_info->sigdelayed.signo = signo;
-		t->thread_info->sigdelayed.code = code;
-		t->thread_info->sigdelayed.addr = addr;
-		t->thread_info->sigdelayed.start_time = start_time;
-		t->thread_info->sigdelayed.pid = pid;
+		task_thread_info(t)->sigdelayed.signo = signo;
+		task_thread_info(t)->sigdelayed.code = code;
+		task_thread_info(t)->sigdelayed.addr = addr;
+		task_thread_info(t)->sigdelayed.start_time = start_time;
+		task_thread_info(t)->sigdelayed.pid = pid;
 		wmb();
 		set_tsk_thread_flag(t, TIF_SIGDELAYED);
 	}

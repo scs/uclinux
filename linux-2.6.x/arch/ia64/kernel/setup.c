@@ -20,6 +20,7 @@
  * 02/01/00 R.Seth	fixed get_cpuinfo for SMP
  * 01/07/99 S.Eranian	added the support for command line argument
  * 06/24/99 W.Drummond	added boot_cpu_data.
+ * 05/28/05 Z. Menyhart	Dynamic stride size for "flush_icache_range()"
  */
 #include <linux/config.h>
 #include <linux/module.h>
@@ -40,6 +41,9 @@
 #include <linux/serial_core.h>
 #include <linux/efi.h>
 #include <linux/initrd.h>
+#include <linux/platform.h>
+#include <linux/pm.h>
+#include <linux/cpufreq.h>
 
 #include <asm/ia32.h>
 #include <asm/machvec.h>
@@ -56,6 +60,7 @@
 #include <asm/smp.h>
 #include <asm/system.h>
 #include <asm/unistd.h>
+#include <asm/system.h>
 
 #if defined(CONFIG_SMP) && (IA64_CPU_SIZE > PAGE_SIZE)
 # error "struct cpuinfo_ia64 too big!"
@@ -66,19 +71,50 @@ unsigned long __per_cpu_offset[NR_CPUS];
 EXPORT_SYMBOL(__per_cpu_offset);
 #endif
 
+extern void ia64_setup_printk_clock(void);
+
 DEFINE_PER_CPU(struct cpuinfo_ia64, cpu_info);
 DEFINE_PER_CPU(unsigned long, local_per_cpu_offset);
 DEFINE_PER_CPU(unsigned long, ia64_phys_stacked_size_p8);
 unsigned long ia64_cycles_per_usec;
 struct ia64_boot_param *ia64_boot_param;
 struct screen_info screen_info;
+unsigned long vga_console_iobase;
+unsigned long vga_console_membase;
+
+static struct resource data_resource = {
+	.name	= "Kernel data",
+	.flags	= IORESOURCE_BUSY | IORESOURCE_MEM
+};
+
+static struct resource code_resource = {
+	.name	= "Kernel code",
+	.flags	= IORESOURCE_BUSY | IORESOURCE_MEM
+};
+extern void efi_initialize_iomem_resources(struct resource *,
+		struct resource *);
+extern char _text[], _end[], _etext[];
 
 unsigned long ia64_max_cacheline_size;
+
+int dma_get_cache_alignment(void)
+{
+        return ia64_max_cacheline_size;
+}
+EXPORT_SYMBOL(dma_get_cache_alignment);
+
 unsigned long ia64_iobase;	/* virtual address for I/O accesses */
 EXPORT_SYMBOL(ia64_iobase);
 struct io_space io_space[MAX_IO_SPACES];
 EXPORT_SYMBOL(io_space);
 unsigned int num_io_spaces;
+
+/*
+ * "flush_icache_range()" needs to know what processor dependent stride size to use
+ * when it makes i-cache(s) coherent with d-caches.
+ */
+#define	I_CACHE_STRIDE_SHIFT	5	/* Safest way to go: 32 bytes by 32 bytes */
+unsigned long ia64_i_cache_stride_shift = ~0;
 
 /*
  * The merge_mask variable needs to be set to (max(iommu_page_size(iommu)) - 1).  This
@@ -159,6 +195,22 @@ sort_regions (struct rsvd_region *rsvd_region, int max)
 	}
 }
 
+/*
+ * Request address space for all standard resources
+ */
+static int __init register_memory(void)
+{
+	code_resource.start = ia64_tpa(_text);
+	code_resource.end   = ia64_tpa(_etext) - 1;
+	data_resource.start = ia64_tpa(_etext);
+	data_resource.end   = ia64_tpa(_end) - 1;
+	efi_initialize_iomem_resources(&code_resource, &data_resource);
+
+	return 0;
+}
+
+__initcall(register_memory);
+
 /**
  * reserve_memory - setup reserved memory areas
  *
@@ -199,6 +251,9 @@ reserve_memory (void)
 	}
 #endif
 
+	efi_memmap_init(&rsvd_region[n].start, &rsvd_region[n].end);
+	n++;
+
 	/* end of memory marker */
 	rsvd_region[n].start = ~0UL;
 	rsvd_region[n].end   = ~0UL;
@@ -232,28 +287,31 @@ find_initrd (void)
 static void __init
 io_port_init (void)
 {
-	extern unsigned long ia64_iobase;
 	unsigned long phys_iobase;
 
 	/*
-	 *  Set `iobase' to the appropriate address in region 6 (uncached access range).
+	 * Set `iobase' based on the EFI memory map or, failing that, the
+	 * value firmware left in ar.k0.
 	 *
-	 *  The EFI memory map is the "preferred" location to get the I/O port space base,
-	 *  rather the relying on AR.KR0. This should become more clear in future SAL
-	 *  specs. We'll fall back to getting it out of AR.KR0 if no appropriate entry is
-	 *  found in the memory map.
+	 * Note that in ia32 mode, IN/OUT instructions use ar.k0 to compute
+	 * the port's virtual address, so ia32_load_state() loads it with a
+	 * user virtual address.  But in ia64 mode, glibc uses the
+	 * *physical* address in ar.k0 to mmap the appropriate area from
+	 * /dev/mem, and the inX()/outX() interfaces use MMIO.  In both
+	 * cases, user-mode can only use the legacy 0-64K I/O port space.
+	 *
+	 * ar.k0 is not involved in kernel I/O port accesses, which can use
+	 * any of the I/O port spaces and are done via MMIO using the
+	 * virtual mmio_base from the appropriate io_space[].
 	 */
 	phys_iobase = efi_get_iobase();
-	if (phys_iobase)
-		/* set AR.KR0 since this is all we use it for anyway */
-		ia64_set_kr(IA64_KR_IO_BASE, phys_iobase);
-	else {
+	if (!phys_iobase) {
 		phys_iobase = ia64_get_kr(IA64_KR_IO_BASE);
-		printk(KERN_INFO "No I/O port range found in EFI memory map, falling back "
-		       "to AR.KR0\n");
-		printk(KERN_INFO "I/O port base = 0x%lx\n", phys_iobase);
+		printk(KERN_INFO "No I/O port range found in EFI memory map, "
+			"falling back to AR.KR0 (0x%lx)\n", phys_iobase);
 	}
 	ia64_iobase = (unsigned long) ioremap(phys_iobase, 0);
+	ia64_set_kr(IA64_KR_IO_BASE, __pa(ia64_iobase));
 
 	/* setup legacy IO port space */
 	io_space[0].mmio_base = ia64_iobase;
@@ -273,23 +331,25 @@ io_port_init (void)
 static inline int __init
 early_console_setup (char *cmdline)
 {
+	int earlycons = 0;
+
 #ifdef CONFIG_SERIAL_SGI_L1_CONSOLE
 	{
 		extern int sn_serial_console_early_setup(void);
 		if (!sn_serial_console_early_setup())
-			return 0;
+			earlycons++;
 	}
 #endif
 #ifdef CONFIG_EFI_PCDP
 	if (!efi_setup_pcdp_console(cmdline))
-		return 0;
+		earlycons++;
 #endif
 #ifdef CONFIG_SERIAL_8250_CONSOLE
 	if (!early_serial_console_init(cmdline))
-		return 0;
+		earlycons++;
 #endif
 
-	return -1;
+	return (earlycons) ? 0 : -1;
 }
 
 static inline void
@@ -370,7 +430,8 @@ setup_arch (char **cmdline_p)
 	if (early_console_setup(*cmdline_p) == 0)
 		mark_bsp_online();
 
-#ifdef CONFIG_ACPI_BOOT
+	parse_early_param();
+#ifdef CONFIG_ACPI
 	/* Initialize the ACPI boot-time table parser */
 	acpi_table_init();
 # ifdef CONFIG_ACPI_NUMA
@@ -386,6 +447,8 @@ setup_arch (char **cmdline_p)
 
 	/* process SAL system table: */
 	ia64_sal_init(efi.sal_systab);
+
+	ia64_setup_printk_clock();
 
 #ifdef CONFIG_SMP
 	cpu_physical_id(0) = hard_smp_processor_id();
@@ -405,8 +468,9 @@ setup_arch (char **cmdline_p)
 #endif
 
 	cpu_init();	/* initialize the bootstrap CPU */
+	mmu_context_init();	/* initialize context_id bitmap */
 
-#ifdef CONFIG_ACPI_BOOT
+#ifdef CONFIG_ACPI
 	acpi_boot_init();
 #endif
 
@@ -460,6 +524,7 @@ show_cpuinfo (struct seq_file *m, void *v)
 	char family[32], features[128], *cp, sep;
 	struct cpuinfo_ia64 *c = v;
 	unsigned long mask;
+	unsigned long proc_freq;
 	int i;
 
 	mask = c->features;
@@ -492,6 +557,10 @@ show_cpuinfo (struct seq_file *m, void *v)
 		sprintf(cp, " 0x%lx", mask);
 	}
 
+	proc_freq = cpufreq_quick_get(cpunum);
+	if (!proc_freq)
+		proc_freq = c->proc_freq / 1000;
+
 	seq_printf(m,
 		   "processor  : %d\n"
 		   "vendor     : %s\n"
@@ -508,11 +577,11 @@ show_cpuinfo (struct seq_file *m, void *v)
 		   "BogoMIPS   : %lu.%02lu\n",
 		   cpunum, c->vendor, family, c->model, c->revision, c->archrev,
 		   features, c->ppn, c->number,
-		   c->proc_freq / 1000000, c->proc_freq % 1000000,
+		   proc_freq / 1000, proc_freq % 1000,
 		   c->itc_freq / 1000000, c->itc_freq % 1000000,
 		   lpj*HZ/500000, (lpj*HZ/5000) % 100);
 #ifdef CONFIG_SMP
-	seq_printf(m, "siblings   : %u\n", c->num_log);
+	seq_printf(m, "siblings   : %u\n", cpus_weight(cpu_core_map[cpunum]));
 	if (c->threads_per_core > 1 || c->cores_per_socket > 1)
 		seq_printf(m,
 		   	   "physical id: %u\n"
@@ -620,12 +689,22 @@ void
 setup_per_cpu_areas (void)
 {
 	/* start_kernel() requires this... */
+#ifdef CONFIG_ACPI_HOTPLUG_CPU
+	prefill_possible_map();
+#endif
 }
 
+/*
+ * Calculate the max. cache line size.
+ *
+ * In addition, the minimum of the i-cache stride sizes is calculated for
+ * "flush_icache_range()".
+ */
 static void
 get_max_cacheline_size (void)
 {
 	unsigned long line_size, max = 1;
+	unsigned int cache_size = 0;
 	u64 l, levels, unique_caches;
         pal_cache_config_info_t cci;
         s64 status;
@@ -635,6 +714,8 @@ get_max_cacheline_size (void)
                 printk(KERN_ERR "%s: ia64_pal_cache_summary() failed (status=%ld)\n",
                        __FUNCTION__, status);
                 max = SMP_CACHE_BYTES;
+		/* Safest setup for "flush_icache_range()" */
+		ia64_i_cache_stride_shift = I_CACHE_STRIDE_SHIFT;
 		goto out;
         }
 
@@ -643,15 +724,37 @@ get_max_cacheline_size (void)
 						    &cci);
 		if (status != 0) {
 			printk(KERN_ERR
-			       "%s: ia64_pal_cache_config_info(l=%lu) failed (status=%ld)\n",
+			       "%s: ia64_pal_cache_config_info(l=%lu, 2) failed (status=%ld)\n",
 			       __FUNCTION__, l, status);
 			max = SMP_CACHE_BYTES;
+			/* The safest setup for "flush_icache_range()" */
+			cci.pcci_stride = I_CACHE_STRIDE_SHIFT;
+			cci.pcci_unified = 1;
 		}
 		line_size = 1 << cci.pcci_line_size;
 		if (line_size > max)
 			max = line_size;
-        }
+		if (cache_size < cci.pcci_cache_size)
+			cache_size = cci.pcci_cache_size;
+		if (!cci.pcci_unified) {
+			status = ia64_pal_cache_config_info(l,
+						    /* cache_type (instruction)= */ 1,
+						    &cci);
+			if (status != 0) {
+				printk(KERN_ERR
+				"%s: ia64_pal_cache_config_info(l=%lu, 1) failed (status=%ld)\n",
+					__FUNCTION__, l, status);
+				/* The safest setup for "flush_icache_range()" */
+				cci.pcci_stride = I_CACHE_STRIDE_SHIFT;
+			}
+		}
+		if (cci.pcci_stride < ia64_i_cache_stride_shift)
+			ia64_i_cache_stride_shift = cci.pcci_stride;
+	}
   out:
+#ifdef CONFIG_SMP
+	max_cache_size = max(max_cache_size, cache_size);
+#endif
 	if (max > ia64_max_cacheline_size)
 		ia64_max_cacheline_size = max;
 }
@@ -706,7 +809,7 @@ cpu_init (void)
 #endif
 
 	/* Clear the stack memory reserved for pt_regs: */
-	memset(ia64_task_regs(current), 0, sizeof(struct pt_regs));
+	memset(task_pt_regs(current), 0, sizeof(struct pt_regs));
 
 	ia64_set_kr(IA64_KR_FPU_OWNER, 0);
 
@@ -779,6 +882,16 @@ cpu_init (void)
 	/* size of physical stacked register partition plus 8 bytes: */
 	__get_cpu_var(ia64_phys_stacked_size_p8) = num_phys_stacked*8 + 8;
 	platform_cpu_init();
+	pm_idle = default_idle;
+}
+
+/*
+ * On SMP systems, when the scheduler does migration-cost autodetection,
+ * it needs a way to flush as much of the CPU's caches as possible.
+ */
+void sched_cacheflush(void)
+{
+	ia64_sal_cache_flush(3);
 }
 
 void

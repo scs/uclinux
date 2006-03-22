@@ -68,7 +68,7 @@ static int ocp_inited;
 /* Sysfs support */
 #define OCP_DEF_ATTR(field, format_string)				\
 static ssize_t								\
-show_##field(struct device *dev, char *buf)				\
+show_##field(struct device *dev, struct device_attribute *attr, char *buf)				\
 {									\
 	struct ocp_device *odev = to_ocp_dev(dev);			\
 									\
@@ -165,7 +165,7 @@ ocp_device_remove(struct device *dev)
 }
 
 static int
-ocp_device_suspend(struct device *dev, u32 state)
+ocp_device_suspend(struct device *dev, pm_message_t state)
 {
 	struct ocp_device *ocp_dev = to_ocp_dev(dev);
 	struct ocp_driver *ocp_drv = to_ocp_drv(dev->driver);
@@ -189,6 +189,8 @@ ocp_device_resume(struct device *dev)
 struct bus_type ocp_bus_type = {
 	.name = "ocp",
 	.match = ocp_device_match,
+	.probe = ocp_device_probe,
+	.remove = ocp_device_remove,
 	.suspend = ocp_device_suspend,
 	.resume = ocp_device_resume,
 };
@@ -210,8 +212,6 @@ ocp_register_driver(struct ocp_driver *drv)
 	/* initialize common driver fields */
 	drv->driver.name = drv->name;
 	drv->driver.bus = &ocp_bus_type;
-	drv->driver.probe = ocp_device_probe;
-	drv->driver.remove = ocp_device_remove;
 
 	/* register with core */
 	return driver_register(&drv->driver);

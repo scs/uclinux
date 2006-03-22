@@ -3,7 +3,7 @@
  *
  * MPC834x SYS board specific routines
  *
- * Maintainer: Kumar Gala <kumar.gala@freescale.com>
+ * Maintainer: Kumar Gala <galak@kernel.crashing.org>
  *
  * Copyright 2005 Freescale Semiconductor Inc.
  *
@@ -24,7 +24,6 @@
 #include <linux/major.h>
 #include <linux/console.h>
 #include <linux/delay.h>
-#include <linux/irq.h>
 #include <linux/seq_file.h>
 #include <linux/root_dev.h>
 #include <linux/serial.h>
@@ -41,7 +40,6 @@
 #include <asm/time.h>
 #include <asm/io.h>
 #include <asm/machdep.h>
-#include <asm/prom.h>
 #include <asm/ipic.h>
 #include <asm/bootinfo.h>
 #include <asm/pci-bridge.h>
@@ -63,9 +61,36 @@ extern unsigned long total_memory;	/* in mm/init */
 unsigned char __res[sizeof (bd_t)];
 
 #ifdef CONFIG_PCI
-#error "PCI is not supported"
-/* NEED mpc83xx_map_irq & mpc83xx_exclude_device
-   see platforms/85xx/mpc85xx_ads_common.c */
+int
+mpc83xx_map_irq(struct pci_dev *dev, unsigned char idsel, unsigned char pin)
+{
+	static char pci_irq_table[][4] =
+	    /*
+	     *      PCI IDSEL/INTPIN->INTLINE
+	     *       A      B      C      D
+	     */
+	{
+		{PIRQA, PIRQB, PIRQC, PIRQD},	/* idsel 0x11 */
+		{PIRQC, PIRQD, PIRQA, PIRQB},	/* idsel 0x12 */
+		{PIRQD, PIRQA, PIRQB, PIRQC},	/* idsel 0x13 */
+		{0, 0, 0, 0},
+		{PIRQA, PIRQB, PIRQC, PIRQD},	/* idsel 0x15 */
+		{PIRQD, PIRQA, PIRQB, PIRQC},	/* idsel 0x16 */
+		{PIRQC, PIRQD, PIRQA, PIRQB},	/* idsel 0x17 */
+		{PIRQB, PIRQC, PIRQD, PIRQA},	/* idsel 0x18 */
+		{0, 0, 0, 0},			/* idsel 0x19 */
+		{0, 0, 0, 0},			/* idsel 0x20 */
+	};
+
+	const long min_idsel = 0x11, max_idsel = 0x20, irqs_per_slot = 4;
+	return PCI_IRQ_TABLE_LOOKUP;
+}
+
+int
+mpc83xx_exclude_device(u_char bus, u_char devfn)
+{
+	return PCIBIOS_SUCCESSFUL;
+}
 #endif /* CONFIG_PCI */
 
 /* ************************************************************************
@@ -79,6 +104,7 @@ mpc834x_sys_setup_arch(void)
 	bd_t *binfo = (bd_t *) __res;
 	unsigned int freq;
 	struct gianfar_platform_data *pdata;
+	struct gianfar_mdio_data *mdata;
 
 	/* get the core frequency */
 	freq = binfo->bi_intfreq;
@@ -89,26 +115,34 @@ mpc834x_sys_setup_arch(void)
 
 #ifdef CONFIG_PCI
 	/* setup PCI host bridges */
-	mpc83xx_sys_setup_hose();
+	mpc83xx_setup_hose();
 #endif
 	mpc83xx_early_serial_map();
 
+	/* setup the board related info for the MDIO bus */
+	mdata = (struct gianfar_mdio_data *) ppc_sys_get_pdata(MPC83xx_MDIO);
+
+	mdata->irq[0] = MPC83xx_IRQ_EXT1;
+	mdata->irq[1] = MPC83xx_IRQ_EXT2;
+	mdata->irq[2] = -1;
+	mdata->irq[31] = -1;
+
 	/* setup the board related information for the enet controllers */
 	pdata = (struct gianfar_platform_data *) ppc_sys_get_pdata(MPC83xx_TSEC1);
-	pdata->board_flags = FSL_GIANFAR_BRD_HAS_PHY_INTR;
-	pdata->interruptPHY = MPC83xx_IRQ_EXT1;
-	pdata->phyid = 0;
-	/* fixup phy address */
-	pdata->phy_reg_addr += binfo->bi_immr_base;
-	memcpy(pdata->mac_addr, binfo->bi_enetaddr, 6);
+	if (pdata) {
+		pdata->board_flags = FSL_GIANFAR_BRD_HAS_PHY_INTR;
+		pdata->bus_id = 0;
+		pdata->phy_id = 0;
+		memcpy(pdata->mac_addr, binfo->bi_enetaddr, 6);
+	}
 
 	pdata = (struct gianfar_platform_data *) ppc_sys_get_pdata(MPC83xx_TSEC2);
-	pdata->board_flags = FSL_GIANFAR_BRD_HAS_PHY_INTR;
-	pdata->interruptPHY = MPC83xx_IRQ_EXT2;
-	pdata->phyid = 1;
-	/* fixup phy address */
-	pdata->phy_reg_addr += binfo->bi_immr_base;
-	memcpy(pdata->mac_addr, binfo->bi_enet1addr, 6);
+	if (pdata) {
+		pdata->board_flags = FSL_GIANFAR_BRD_HAS_PHY_INTR;
+		pdata->bus_id = 0;
+		pdata->phy_id = 1;
+		memcpy(pdata->mac_addr, binfo->bi_enet1addr, 6);
+	}
 
 #ifdef CONFIG_BLK_DEV_INITRD
 	if (initrd_start)
@@ -172,10 +206,17 @@ mpc834x_sys_init_IRQ(void)
 		IRQ_SENSE_LEVEL,	/* EXT 1 */
 		IRQ_SENSE_LEVEL,	/* EXT 2 */
 		0,			/* EXT 3 */
+#ifdef CONFIG_PCI
+		IRQ_SENSE_LEVEL,	/* EXT 4 */
+		IRQ_SENSE_LEVEL,	/* EXT 5 */
+		IRQ_SENSE_LEVEL,	/* EXT 6 */
+		IRQ_SENSE_LEVEL,	/* EXT 7 */
+#else
 		0,			/* EXT 4 */
 		0,			/* EXT 5 */
 		0,			/* EXT 6 */
 		0,			/* EXT 7 */
+#endif
 	};
 
 	ipic_init(binfo->bi_immr_base + 0x00700, 0, MPC83xx_IPIC_IRQ_OFFSET, senses, 8);
@@ -186,6 +227,26 @@ mpc834x_sys_init_IRQ(void)
 	ipic_set_default_priority();
 }
 
+#if defined(CONFIG_I2C_MPC) && defined(CONFIG_SENSORS_DS1374)
+extern ulong	ds1374_get_rtc_time(void);
+extern int	ds1374_set_rtc_time(ulong);
+
+static int __init
+mpc834x_rtc_hookup(void)
+{
+	struct timespec	tv;
+
+	ppc_md.get_rtc_time = ds1374_get_rtc_time;
+	ppc_md.set_rtc_time = ds1374_set_rtc_time;
+
+	tv.tv_nsec = 0;
+	tv.tv_sec = (ppc_md.get_rtc_time)();
+	do_settimeofday(&tv);
+
+	return 0;
+}
+late_initcall(mpc834x_rtc_hookup);
+#endif
 static __inline__ void
 mpc834x_sys_set_bat(void)
 {
@@ -240,14 +301,14 @@ platform_init(unsigned long r3, unsigned long r4, unsigned long r5,
 		struct uart_port p;
 
 		memset(&p, 0, sizeof (p));
-		p.iotype = SERIAL_IO_MEM;
+		p.iotype = UPIO_MEM;
 		p.membase = (unsigned char __iomem *)(VIRT_IMMRBAR + 0x4500);
 		p.uartclk = binfo->bi_busfreq;
 
 		gen550_init(0, &p);
 
 		memset(&p, 0, sizeof (p));
-		p.iotype = SERIAL_IO_MEM;
+		p.iotype = UPIO_MEM;
 		p.membase = (unsigned char __iomem *)(VIRT_IMMRBAR + 0x4600);
 		p.uartclk = binfo->bi_busfreq;
 

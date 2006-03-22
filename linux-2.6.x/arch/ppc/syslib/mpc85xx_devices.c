@@ -3,7 +3,7 @@
  *
  * MPC85xx Device descriptions
  *
- * Maintainer: Kumar Gala <kumar.gala@freescale.com>
+ * Maintainer: Kumar Gala <galak@kernel.crashing.org>
  *
  * Copyright 2005 Freescale Semiconductor Inc.
  *
@@ -25,26 +25,62 @@
 /* We use offsets for IORESOURCE_MEM since we do not know at compile time
  * what CCSRBAR is, will get fixed up by mach_mpc85xx_fixup
  */
+struct gianfar_mdio_data mpc85xx_mdio_pdata = {
+};
 
 static struct gianfar_platform_data mpc85xx_tsec1_pdata = {
 	.device_flags = FSL_GIANFAR_DEV_HAS_GIGABIT |
 	    FSL_GIANFAR_DEV_HAS_COALESCE | FSL_GIANFAR_DEV_HAS_RMON |
 	    FSL_GIANFAR_DEV_HAS_MULTI_INTR,
-	.phy_reg_addr = MPC85xx_ENET1_OFFSET,
 };
 
 static struct gianfar_platform_data mpc85xx_tsec2_pdata = {
 	.device_flags = FSL_GIANFAR_DEV_HAS_GIGABIT |
 	    FSL_GIANFAR_DEV_HAS_COALESCE | FSL_GIANFAR_DEV_HAS_RMON |
 	    FSL_GIANFAR_DEV_HAS_MULTI_INTR,
-	.phy_reg_addr = MPC85xx_ENET1_OFFSET,
+};
+
+static struct gianfar_platform_data mpc85xx_etsec1_pdata = {
+	.device_flags = FSL_GIANFAR_DEV_HAS_GIGABIT |
+	    FSL_GIANFAR_DEV_HAS_COALESCE | FSL_GIANFAR_DEV_HAS_RMON |
+	    FSL_GIANFAR_DEV_HAS_MULTI_INTR |
+	    FSL_GIANFAR_DEV_HAS_CSUM | FSL_GIANFAR_DEV_HAS_VLAN |
+	    FSL_GIANFAR_DEV_HAS_EXTENDED_HASH,
+};
+
+static struct gianfar_platform_data mpc85xx_etsec2_pdata = {
+	.device_flags = FSL_GIANFAR_DEV_HAS_GIGABIT |
+	    FSL_GIANFAR_DEV_HAS_COALESCE | FSL_GIANFAR_DEV_HAS_RMON |
+	    FSL_GIANFAR_DEV_HAS_MULTI_INTR |
+	    FSL_GIANFAR_DEV_HAS_CSUM | FSL_GIANFAR_DEV_HAS_VLAN |
+	    FSL_GIANFAR_DEV_HAS_EXTENDED_HASH,
+};
+
+static struct gianfar_platform_data mpc85xx_etsec3_pdata = {
+	.device_flags = FSL_GIANFAR_DEV_HAS_GIGABIT |
+	    FSL_GIANFAR_DEV_HAS_COALESCE | FSL_GIANFAR_DEV_HAS_RMON |
+	    FSL_GIANFAR_DEV_HAS_MULTI_INTR |
+	    FSL_GIANFAR_DEV_HAS_CSUM | FSL_GIANFAR_DEV_HAS_VLAN |
+	    FSL_GIANFAR_DEV_HAS_EXTENDED_HASH,
+};
+
+static struct gianfar_platform_data mpc85xx_etsec4_pdata = {
+	.device_flags = FSL_GIANFAR_DEV_HAS_GIGABIT |
+	    FSL_GIANFAR_DEV_HAS_COALESCE | FSL_GIANFAR_DEV_HAS_RMON |
+	    FSL_GIANFAR_DEV_HAS_MULTI_INTR |
+	    FSL_GIANFAR_DEV_HAS_CSUM | FSL_GIANFAR_DEV_HAS_VLAN |
+	    FSL_GIANFAR_DEV_HAS_EXTENDED_HASH,
 };
 
 static struct gianfar_platform_data mpc85xx_fec_pdata = {
-	.phy_reg_addr = MPC85xx_ENET1_OFFSET,
+	.device_flags = 0,
 };
 
 static struct fsl_i2c_platform_data mpc85xx_fsl_i2c_pdata = {
+	.device_flags = FSL_I2C_DEV_SEPARATE_DFSRR,
+};
+
+static struct fsl_i2c_platform_data mpc85xx_fsl_i2c2_pdata = {
 	.device_flags = FSL_I2C_DEV_SEPARATE_DFSRR,
 };
 
@@ -242,7 +278,7 @@ struct platform_device ppc_sys_platform_devices[] = {
 	},
 	[MPC85xx_DUART] = {
 		.name = "serial8250",
-		.id	= 0,
+		.id	= PLAT8250_DEV_PLATFORM,
 		.dev.platform_data = serial_platform_data,
 	},
 	[MPC85xx_PERFMON] = {
@@ -281,7 +317,6 @@ struct platform_device ppc_sys_platform_devices[] = {
 			},
 		},
 	},
-#ifdef CONFIG_CPM2
 	[MPC85xx_CPM_FCC1] = {
 		.name = "fsl-cpm-fcc",
 		.id	= 1,
@@ -535,7 +570,164 @@ struct platform_device ppc_sys_platform_devices[] = {
 			},
 		},
 	},
-#endif /* CONFIG_CPM2 */
+	[MPC85xx_eTSEC1] = {
+		.name = "fsl-gianfar",
+		.id	= 1,
+		.dev.platform_data = &mpc85xx_etsec1_pdata,
+		.num_resources	 = 4,
+		.resource = (struct resource[]) {
+			{
+				.start	= MPC85xx_ENET1_OFFSET,
+				.end	= MPC85xx_ENET1_OFFSET +
+						MPC85xx_ENET1_SIZE - 1,
+				.flags	= IORESOURCE_MEM,
+			},
+			{
+				.name	= "tx",
+				.start	= MPC85xx_IRQ_TSEC1_TX,
+				.end	= MPC85xx_IRQ_TSEC1_TX,
+				.flags	= IORESOURCE_IRQ,
+			},
+			{
+				.name	= "rx",
+				.start	= MPC85xx_IRQ_TSEC1_RX,
+				.end	= MPC85xx_IRQ_TSEC1_RX,
+				.flags	= IORESOURCE_IRQ,
+			},
+			{
+				.name	= "error",
+				.start	= MPC85xx_IRQ_TSEC1_ERROR,
+				.end	= MPC85xx_IRQ_TSEC1_ERROR,
+				.flags	= IORESOURCE_IRQ,
+			},
+		},
+	},
+	[MPC85xx_eTSEC2] = {
+		.name = "fsl-gianfar",
+		.id	= 2,
+		.dev.platform_data = &mpc85xx_etsec2_pdata,
+		.num_resources	 = 4,
+		.resource = (struct resource[]) {
+			{
+				.start	= MPC85xx_ENET2_OFFSET,
+				.end	= MPC85xx_ENET2_OFFSET +
+						MPC85xx_ENET2_SIZE - 1,
+				.flags	= IORESOURCE_MEM,
+			},
+			{
+				.name	= "tx",
+				.start	= MPC85xx_IRQ_TSEC2_TX,
+				.end	= MPC85xx_IRQ_TSEC2_TX,
+				.flags	= IORESOURCE_IRQ,
+			},
+			{
+				.name	= "rx",
+				.start	= MPC85xx_IRQ_TSEC2_RX,
+				.end	= MPC85xx_IRQ_TSEC2_RX,
+				.flags	= IORESOURCE_IRQ,
+			},
+			{
+				.name	= "error",
+				.start	= MPC85xx_IRQ_TSEC2_ERROR,
+				.end	= MPC85xx_IRQ_TSEC2_ERROR,
+				.flags	= IORESOURCE_IRQ,
+			},
+		},
+	},
+	[MPC85xx_eTSEC3] = {
+		.name = "fsl-gianfar",
+		.id	= 3,
+		.dev.platform_data = &mpc85xx_etsec3_pdata,
+		.num_resources	 = 4,
+		.resource = (struct resource[]) {
+			{
+				.start	= MPC85xx_ENET3_OFFSET,
+				.end	= MPC85xx_ENET3_OFFSET +
+						MPC85xx_ENET3_SIZE - 1,
+				.flags	= IORESOURCE_MEM,
+			},
+			{
+				.name	= "tx",
+				.start	= MPC85xx_IRQ_TSEC3_TX,
+				.end	= MPC85xx_IRQ_TSEC3_TX,
+				.flags	= IORESOURCE_IRQ,
+			},
+			{
+				.name	= "rx",
+				.start	= MPC85xx_IRQ_TSEC3_RX,
+				.end	= MPC85xx_IRQ_TSEC3_RX,
+				.flags	= IORESOURCE_IRQ,
+			},
+			{
+				.name	= "error",
+				.start	= MPC85xx_IRQ_TSEC3_ERROR,
+				.end	= MPC85xx_IRQ_TSEC3_ERROR,
+				.flags	= IORESOURCE_IRQ,
+			},
+		},
+	},
+	[MPC85xx_eTSEC4] = {
+		.name = "fsl-gianfar",
+		.id	= 4,
+		.dev.platform_data = &mpc85xx_etsec4_pdata,
+		.num_resources	 = 4,
+		.resource = (struct resource[]) {
+			{
+				.start	= 0x27000,
+				.end	= 0x27fff,
+				.flags	= IORESOURCE_MEM,
+			},
+			{
+				.name	= "tx",
+				.start	= MPC85xx_IRQ_TSEC4_TX,
+				.end	= MPC85xx_IRQ_TSEC4_TX,
+				.flags	= IORESOURCE_IRQ,
+			},
+			{
+				.name	= "rx",
+				.start	= MPC85xx_IRQ_TSEC4_RX,
+				.end	= MPC85xx_IRQ_TSEC4_RX,
+				.flags	= IORESOURCE_IRQ,
+			},
+			{
+				.name	= "error",
+				.start	= MPC85xx_IRQ_TSEC4_ERROR,
+				.end	= MPC85xx_IRQ_TSEC4_ERROR,
+				.flags	= IORESOURCE_IRQ,
+			},
+		},
+	},
+	[MPC85xx_IIC2] = {
+		.name = "fsl-i2c",
+		.id	= 2,
+		.dev.platform_data = &mpc85xx_fsl_i2c2_pdata,
+		.num_resources	 = 2,
+		.resource = (struct resource[]) {
+			{
+				.start	= 0x03100,
+				.end	= 0x031ff,
+				.flags	= IORESOURCE_MEM,
+			},
+			{
+				.start	= MPC85xx_IRQ_IIC1,
+				.end	= MPC85xx_IRQ_IIC1,
+				.flags	= IORESOURCE_IRQ,
+			},
+		},
+	},
+	[MPC85xx_MDIO] = {
+		.name = "fsl-gianfar_mdio",
+		.id = 0,
+		.dev.platform_data = &mpc85xx_mdio_pdata,
+		.num_resources = 1,
+		.resource = (struct resource[]) {
+			{
+				.start	= 0x24520,
+				.end	= 0x2453f,
+				.flags	= IORESOURCE_MEM,
+			},
+		},
+	},
 };
 
 static int __init mach_mpc85xx_fixup(struct platform_device *pdev)

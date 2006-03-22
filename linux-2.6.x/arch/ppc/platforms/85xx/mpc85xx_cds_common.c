@@ -3,7 +3,7 @@
  *
  * MPC85xx CDS board specific routines
  *
- * Maintainer: Kumar Gala <kumar.gala@freescale.com>
+ * Maintainer: Kumar Gala <galak@kernel.crashing.org>
  *
  * Copyright 2004 Freescale Semiconductor, Inc
  *
@@ -24,7 +24,6 @@
 #include <linux/major.h>
 #include <linux/console.h>
 #include <linux/delay.h>
-#include <linux/irq.h>
 #include <linux/seq_file.h>
 #include <linux/serial.h>
 #include <linux/module.h>
@@ -42,7 +41,6 @@
 #include <asm/todc.h>
 #include <asm/io.h>
 #include <asm/machdep.h>
-#include <asm/prom.h>
 #include <asm/open_pic.h>
 #include <asm/i8259.h>
 #include <asm/bootinfo.h>
@@ -50,7 +48,7 @@
 #include <asm/mpc85xx.h>
 #include <asm/irq.h>
 #include <asm/immap_85xx.h>
-#include <asm/immap_cpm2.h>
+#include <asm/cpm2.h>
 #include <asm/ppc_sys.h>
 #include <asm/kgdb.h>
 
@@ -73,40 +71,8 @@ static int cds_pci_slot = 2;
 static volatile u8 * cadmus;
 
 /* Internal interrupts are all Level Sensitive, and Positive Polarity */
-
 static u_char mpc85xx_cds_openpic_initsenses[] __initdata = {
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* Internal  0: L2 Cache */
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* Internal  1: ECM */
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* Internal  2: DDR DRAM */
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* Internal  3: LBIU */
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* Internal  4: DMA 0 */
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* Internal  5: DMA 1 */
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* Internal  6: DMA 2 */
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* Internal  7: DMA 3 */
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* Internal  8: PCI/PCI-X */
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* Internal  9: RIO Inbound Port Write Error */
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* Internal 10: RIO Doorbell Inbound */
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* Internal 11: RIO Outbound Message */
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* Internal 12: RIO Inbound Message */
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* Internal 13: TSEC 0 Transmit */
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* Internal 14: TSEC 0 Receive */
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* Internal 15: Unused */
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* Internal 16: Unused */
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* Internal 17: Unused */
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* Internal 18: TSEC 0 Receive/Transmit Error */
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* Internal 19: TSEC 1 Transmit */
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* Internal 20: TSEC 1 Receive */
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* Internal 21: Unused */
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* Internal 22: Unused */
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* Internal 23: Unused */
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* Internal 24: TSEC 1 Receive/Transmit Error */
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* Internal 25: Fast Ethernet */
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* Internal 26: DUART */
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* Internal 27: I2C */
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* Internal 28: Performance Monitor */
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* Internal 29: Unused */
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* Internal 30: CPM */
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* Internal 31: Unused */
+	MPC85XX_INTERNAL_IRQ_SENSES,
 #if defined(CONFIG_PCI)
 	(IRQ_SENSE_LEVEL | IRQ_POLARITY_NEGATIVE),	/* External 0: PCI1 slot */
 	(IRQ_SENSE_LEVEL | IRQ_POLARITY_NEGATIVE),	/* External 1: PCI1 slot */
@@ -164,10 +130,11 @@ mpc85xx_cds_show_cpuinfo(struct seq_file *m)
 }
 
 #ifdef CONFIG_CPM2
-static void cpm2_cascade(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t cpm2_cascade(int irq, void *dev_id, struct pt_regs *regs)
 {
 	while((irq = cpm2_get_irq(regs)) >= 0)
 		__do_IRQ(irq, regs);
+	return IRQ_HANDLED;
 }
 
 static struct irqaction cpm2_irqaction = {
@@ -191,9 +158,13 @@ mpc85xx_cds_init_IRQ(void)
 	OpenPIC_NumInitSenses = sizeof (mpc85xx_cds_openpic_initsenses);
 
 	/* Skip reserved space and internal sources */
+#ifdef CONFIG_MPC8548
+	openpic_set_sources(0, 48, OpenPIC_Addr + 0x10200);
+#else
 	openpic_set_sources(0, 32, OpenPIC_Addr + 0x10200);
+#endif
 	/* Map PIC IRQs 0-11 */
-	openpic_set_sources(32, 12, OpenPIC_Addr + 0x10000);
+	openpic_set_sources(48, 12, OpenPIC_Addr + 0x10000);
 
 	/* we let openpic interrupts starting from an offset, to
 	 * leave space for cascading interrupts underneath.
@@ -203,10 +174,7 @@ mpc85xx_cds_init_IRQ(void)
 #ifdef CONFIG_PCI
 	openpic_hookup_cascade(PIRQ0A, "82c59 cascade", i8259_irq);
 
-	for (i = 0; i < NUM_8259_INTERRUPTS; i++)
-		irq_desc[i].handler = &i8259_pic;
-
-	i8259_init(0);
+	i8259_init(0, 0);
 #endif
 
 #ifdef CONFIG_CPM2
@@ -383,10 +351,10 @@ mpc85xx_cds_fixup_via(struct pci_controller *hose)
 void __init
 mpc85xx_cds_pcibios_fixup(void)
 {
-        struct pci_dev *dev = NULL;
+        struct pci_dev *dev;
 	u_char		c;
 
-        if ((dev = pci_find_device(PCI_VENDOR_ID_VIA,
+	if ((dev = pci_get_device(PCI_VENDOR_ID_VIA,
                                         PCI_DEVICE_ID_VIA_82C586_1, NULL))) {
                 /*
                  * U-Boot does not set the enable bits
@@ -403,21 +371,24 @@ mpc85xx_cds_pcibios_fixup(void)
 		 */
                 dev->irq = 14;
                 pci_write_config_byte(dev, PCI_INTERRUPT_LINE, dev->irq);
+		pci_dev_put(dev);
         }
 
 	/*
 	 * Force legacy USB interrupt routing
 	 */
-        if ((dev = pci_find_device(PCI_VENDOR_ID_VIA,
+	if ((dev = pci_get_device(PCI_VENDOR_ID_VIA,
                                         PCI_DEVICE_ID_VIA_82C586_2, NULL))) {
                 dev->irq = 10;
                 pci_write_config_byte(dev, PCI_INTERRUPT_LINE, 10);
+		pci_dev_put(dev);
         }
 
-        if ((dev = pci_find_device(PCI_VENDOR_ID_VIA,
+	if ((dev = pci_get_device(PCI_VENDOR_ID_VIA,
                                         PCI_DEVICE_ID_VIA_82C586_2, dev))) {
                 dev->irq = 11;
                 pci_write_config_byte(dev, PCI_INTERRUPT_LINE, 11);
+		pci_dev_put(dev);
         }
 }
 #endif /* CONFIG_PCI */
@@ -435,6 +406,7 @@ mpc85xx_cds_setup_arch(void)
 	bd_t *binfo = (bd_t *) __res;
 	unsigned int freq;
 	struct gianfar_platform_data *pdata;
+	struct gianfar_mdio_data *mdata;
 
 	/* get the core frequency */
 	freq = binfo->bi_intfreq;
@@ -475,26 +447,53 @@ mpc85xx_cds_setup_arch(void)
 #ifdef CONFIG_SERIAL_TEXT_DEBUG
 	/* Invalidate the entry we stole earlier the serial ports
 	 * should be properly mapped */
-	invalidate_tlbcam_entry(NUM_TLBCAMS - 1);
+	invalidate_tlbcam_entry(num_tlbcam_entries - 1);
 #endif
+
+	/* setup the board related info for the MDIO bus */
+	mdata = (struct gianfar_mdio_data *) ppc_sys_get_pdata(MPC85xx_MDIO);
+
+	mdata->irq[0] = MPC85xx_IRQ_EXT5;
+	mdata->irq[1] = MPC85xx_IRQ_EXT5;
+	mdata->irq[2] = -1;
+	mdata->irq[3] = -1;
+	mdata->irq[31] = -1;
 
 	/* setup the board related information for the enet controllers */
 	pdata = (struct gianfar_platform_data *) ppc_sys_get_pdata(MPC85xx_TSEC1);
-	pdata->board_flags = FSL_GIANFAR_BRD_HAS_PHY_INTR;
-	pdata->interruptPHY = MPC85xx_IRQ_EXT5;
-	pdata->phyid = 0;
-	/* fixup phy address */
-	pdata->phy_reg_addr += binfo->bi_immr_base;
-	memcpy(pdata->mac_addr, binfo->bi_enetaddr, 6);
+	if (pdata) {
+		pdata->board_flags = FSL_GIANFAR_BRD_HAS_PHY_INTR;
+		pdata->bus_id = 0;
+		pdata->phy_id = 0;
+		memcpy(pdata->mac_addr, binfo->bi_enetaddr, 6);
+	}
 
 	pdata = (struct gianfar_platform_data *) ppc_sys_get_pdata(MPC85xx_TSEC2);
-	pdata->board_flags = FSL_GIANFAR_BRD_HAS_PHY_INTR;
-	pdata->interruptPHY = MPC85xx_IRQ_EXT5;
-	pdata->phyid = 1;
-	/* fixup phy address */
-	pdata->phy_reg_addr += binfo->bi_immr_base;
-	memcpy(pdata->mac_addr, binfo->bi_enet1addr, 6);
+	if (pdata) {
+		pdata->board_flags = FSL_GIANFAR_BRD_HAS_PHY_INTR;
+		pdata->bus_id = 0;
+		pdata->phy_id = 1;
+		memcpy(pdata->mac_addr, binfo->bi_enet1addr, 6);
+	}
 
+	pdata = (struct gianfar_platform_data *) ppc_sys_get_pdata(MPC85xx_eTSEC1);
+	if (pdata) {
+		pdata->board_flags = FSL_GIANFAR_BRD_HAS_PHY_INTR;
+		pdata->bus_id = 0;
+		pdata->phy_id = 0;
+		memcpy(pdata->mac_addr, binfo->bi_enetaddr, 6);
+	}
+
+	pdata = (struct gianfar_platform_data *) ppc_sys_get_pdata(MPC85xx_eTSEC2);
+	if (pdata) {
+		pdata->board_flags = FSL_GIANFAR_BRD_HAS_PHY_INTR;
+		pdata->bus_id = 0;
+		pdata->phy_id = 1;
+		memcpy(pdata->mac_addr, binfo->bi_enet1addr, 6);
+	}
+
+	ppc_sys_device_remove(MPC85xx_eTSEC3);
+	ppc_sys_device_remove(MPC85xx_eTSEC4);
 
 #ifdef CONFIG_BLK_DEV_INITRD
 	if (initrd_start)
@@ -531,18 +530,18 @@ platform_init(unsigned long r3, unsigned long r4, unsigned long r5,
 		struct uart_port p;
 
 		/* Use the last TLB entry to map CCSRBAR to allow access to DUART regs */
-		settlbcam(NUM_TLBCAMS - 1, binfo->bi_immr_base,
+		settlbcam(num_tlbcam_entries - 1, binfo->bi_immr_base,
 				binfo->bi_immr_base, MPC85xx_CCSRBAR_SIZE, _PAGE_IO, 0);
 
 		memset(&p, 0, sizeof (p));
-		p.iotype = SERIAL_IO_MEM;
+		p.iotype = UPIO_MEM;
 		p.membase = (void *) binfo->bi_immr_base + MPC85xx_UART0_OFFSET;
 		p.uartclk = binfo->bi_busfreq;
 
 		gen550_init(0, &p);
 
 		memset(&p, 0, sizeof (p));
-		p.iotype = SERIAL_IO_MEM;
+		p.iotype = UPIO_MEM;
 		p.membase = (void *) binfo->bi_immr_base + MPC85xx_UART1_OFFSET;
 		p.uartclk = binfo->bi_busfreq;
 

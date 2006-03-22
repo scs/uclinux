@@ -234,7 +234,8 @@ udelay:
  * First, flush the data cache in case it was enabled and may be
  * holding instructions for copy back.
  */
-_GLOBAL(flush_instruction_cache)
+        .globl flush_instruction_cache
+flush_instruction_cache:        
 	mflr	r6
 	bl	flush_data_cache
 
@@ -252,7 +253,7 @@ _GLOBAL(flush_instruction_cache)
 1:	dcbf	r0,r3			# Flush the data cache
 	icbi	r0,r3			# Invalidate the instruction cache
 	addi	r3,r3,0x10		# Increment by one cache line
-	cmplwi	cr0,r3,r4		# Are we at the end yet?
+	cmplw	cr0,r3,r4		# Are we at the end yet?
 	blt	1b			# No, keep flushing and invalidating
 #else
 	/* Enable, invalidate and then disable the L1 icache/dcache. */
@@ -279,7 +280,8 @@ _GLOBAL(flush_instruction_cache)
  * Flush data cache
  * Do this by just reading lots of stuff into the cache.
  */
-_GLOBAL(flush_data_cache)
+        .globl flush_data_cache
+flush_data_cache:       
 	lis	r3,cache_flush_buffer@h
 	ori	r3,r3,cache_flush_buffer@l
 	li	r4,NUM_CACHE_LINES

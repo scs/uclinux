@@ -105,7 +105,7 @@ static int lasat_panic_prom_monitor(struct notifier_block *this,
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block lasat_panic_block[] = 
+static struct notifier_block lasat_panic_block[] =
 {
 	{ lasat_panic_display, NULL, INT_MAX },
 	{ lasat_panic_prom_monitor, NULL, INT_MIN }
@@ -120,7 +120,7 @@ static void lasat_timer_setup(struct irqaction *irq)
 {
 
 	write_c0_compare(
-		read_c0_count() + 
+		read_c0_count() +
 		mips_hpt_frequency / HZ);
 	change_c0_status(ST0_IM, IE_IRQ0 | IE_IRQ5);
 }
@@ -134,8 +134,8 @@ void __init serial_init(void)
 
 	memset(&s, 0, sizeof(s));
 
-	s.flags = STD_COM_FLAGS;
-	s.iotype = SERIAL_IO_MEM;
+	s.flags = UPF_BOOT_AUTOCONF | UPF_SKIP_TEST;
+	s.iotype = UPIO_MEM;
 
 	if (mips_machtype == MACH_LASAT_100) {
 		s.uartclk = LASAT_BASE_BAUD_100 * 16;
@@ -155,7 +155,7 @@ void __init serial_init(void)
 }
 #endif
 
-static int __init lasat_setup(void)
+void __init plat_setup(void)
 {
 	int i;
 	lasat_misc  = &lasat_misc_info[mips_machtype];
@@ -185,8 +185,4 @@ static int __init lasat_setup(void)
 	change_c0_status(ST0_BEV,0);
 
 	prom_printf("Lasat specific initialization complete\n");
-
-        return 0;
 }
-
-early_initcall(lasat_setup);

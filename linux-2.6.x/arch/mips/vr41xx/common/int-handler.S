@@ -35,7 +35,7 @@
  *  MontaVista Software Inc. <yyuasa@mvista.com> or <source@mvista.com>
  *  - New creation, NEC VR4100 series are supported.
  *
- *  Yoichi Yuasa <yuasa@hh.iij4u.or.jp>
+ *  Yoichi Yuasa <yoichi_yuasa@tripeaks.co.jp>
  *  - Coped with INTASSIGN of NEC VR4133.
  */
 #include <asm/asm.h>
@@ -71,24 +71,24 @@
 
 		andi	t1, t0, CAUSEF_IP3	# check for Int1
 		bnez	t1, handle_int
-		li	a0, 1
+		li	a0, 3
 
 		andi	t1, t0, CAUSEF_IP4	# check for Int2
 		bnez	t1, handle_int
-		li	a0, 2
+		li	a0, 4
 
 		andi	t1, t0, CAUSEF_IP5	# check for Int3
 		bnez	t1, handle_int
-		li	a0, 3
+		li	a0, 5
 
 		andi	t1, t0, CAUSEF_IP6	# check for Int4
 		bnez	t1, handle_int
-		li	a0, 4
+		li	a0, 6
 
 1:
 		andi	t1, t0, CAUSEF_IP2	# check for Int0
 		bnez	t1, handle_int
-		li	a0, 0
+		li	a0, 2
 
 		andi	t1, t0, CAUSEF_IP0	# check for IP0
 		bnez	t1, handle_irq

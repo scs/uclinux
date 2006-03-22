@@ -44,25 +44,15 @@
 #include <asm/uaccess.h>
 #include <asm/system.h>
 
-static struct class_simple *msr_class;
-
-/* Note: "err" is handled in a funny way below.  Otherwise one version
-   of gcc or another breaks. */
+static struct class *msr_class;
 
 static inline int wrmsr_eio(u32 reg, u32 eax, u32 edx)
 {
 	int err;
 
-	asm volatile ("1:	wrmsr\n"
-		      "2:\n"
-		      ".section .fixup,\"ax\"\n"
-		      "3:	movl %4,%0\n"
-		      "	jmp 2b\n"
-		      ".previous\n"
-		      ".section __ex_table,\"a\"\n"
-		      "	.align 4\n" "	.long 1b,3b\n" ".previous":"=&bDS" (err)
-		      :"a"(eax), "d"(edx), "c"(reg), "i"(-EIO), "0"(0));
-
+	err = wrmsr_safe(reg, eax, edx);
+	if (err)
+		err = -EIO;
 	return err;
 }
 
@@ -70,18 +60,9 @@ static inline int rdmsr_eio(u32 reg, u32 *eax, u32 *edx)
 {
 	int err;
 
-	asm volatile ("1:	rdmsr\n"
-		      "2:\n"
-		      ".section .fixup,\"ax\"\n"
-		      "3:	movl %4,%0\n"
-		      "	jmp 2b\n"
-		      ".previous\n"
-		      ".section __ex_table,\"a\"\n"
-		      "	.align 4\n"
-		      "	.long 1b,3b\n"
-		      ".previous":"=&bDS" (err), "=a"(*eax), "=d"(*edx)
-		      :"c"(reg), "i"(-EIO), "0"(0));
-
+	err = rdmsr_safe(reg, eax, edx);
+	if (err)
+		err = -EIO;
 	return err;
 }
 
@@ -191,7 +172,6 @@ static ssize_t msr_read(struct file *file, char __user * buf,
 {
 	u32 __user *tmp = (u32 __user *) buf;
 	u32 data[2];
-	size_t rv;
 	u32 reg = *ppos;
 	int cpu = iminor(file->f_dentry->d_inode);
 	int err;
@@ -199,7 +179,7 @@ static ssize_t msr_read(struct file *file, char __user * buf,
 	if (count % 8)
 		return -EINVAL;	/* Invalid chunk size */
 
-	for (rv = 0; count; count -= 8) {
+	for (; count; count -= 8) {
 		err = do_rdmsr(cpu, reg, &data[0], &data[1]);
 		if (err)
 			return err;
@@ -260,12 +240,12 @@ static struct file_operations msr_fops = {
 	.open = msr_open,
 };
 
-static int msr_class_simple_device_add(int i)
+static int msr_class_device_create(int i)
 {
 	int err = 0;
 	struct class_device *class_err;
 
-	class_err = class_simple_device_add(msr_class, MKDEV(MSR_MAJOR, i), NULL, "msr%d",i);
+	class_err = class_device_create(msr_class, NULL, MKDEV(MSR_MAJOR, i), NULL, "msr%d",i);
 	if (IS_ERR(class_err)) 
 		err = PTR_ERR(class_err);
 	return err;
@@ -277,10 +257,10 @@ static int __devinit msr_class_cpu_callback(struct notifier_block *nfb, unsigned
 
 	switch (action) {
 	case CPU_ONLINE:
-		msr_class_simple_device_add(cpu);
+		msr_class_device_create(cpu);
 		break;
 	case CPU_DEAD:
-		class_simple_device_remove(MKDEV(MSR_MAJOR, cpu));	
+		class_device_destroy(msr_class, MKDEV(MSR_MAJOR, cpu));
 		break;
 	}
 	return NOTIFY_OK;
@@ -302,13 +282,13 @@ static int __init msr_init(void)
 		err = -EBUSY;
 		goto out;
 	}
-	msr_class = class_simple_create(THIS_MODULE, "msr");
+	msr_class = class_create(THIS_MODULE, "msr");
 	if (IS_ERR(msr_class)) {
 		err = PTR_ERR(msr_class);
 		goto out_chrdev;
 	}
 	for_each_online_cpu(i) {
-		err = msr_class_simple_device_add(i);
+		err = msr_class_device_create(i);
 		if (err != 0)
 			goto out_class;
 	}
@@ -320,8 +300,8 @@ static int __init msr_init(void)
 out_class:
 	i = 0;
 	for_each_online_cpu(i)
-		class_simple_device_remove(MKDEV(MSR_MAJOR, i));
-	class_simple_destroy(msr_class);
+		class_device_destroy(msr_class, MKDEV(MSR_MAJOR, i));
+	class_destroy(msr_class);
 out_chrdev:
 	unregister_chrdev(MSR_MAJOR, "cpu/msr");
 out:
@@ -332,8 +312,8 @@ static void __exit msr_exit(void)
 {
 	int cpu = 0;
 	for_each_online_cpu(cpu)
-		class_simple_device_remove(MKDEV(MSR_MAJOR, cpu));
-	class_simple_destroy(msr_class);
+		class_device_destroy(msr_class, MKDEV(MSR_MAJOR, cpu));
+	class_destroy(msr_class);
 	unregister_chrdev(MSR_MAJOR, "cpu/msr");
 	unregister_cpu_notifier(&msr_class_cpu_notifier);
 }

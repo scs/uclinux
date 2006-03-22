@@ -108,7 +108,7 @@ void __init paging_init(void)
 
 	memset((void *) empty_zero_page, 0, PAGE_SIZE);
 
-#if CONFIG_HIGHMEM
+#ifdef CONFIG_HIGHMEM
 	if (num_physpages - num_mappedpages) {
 		pgd_t *pge;
 		pud_t *pue;
@@ -169,7 +169,6 @@ void __init mem_init(void)
 		struct page *page = &mem_map[pfn];
 
 		ClearPageReserved(page);
-		set_bit(PG_highmem, &page->flags);
 		set_page_count(page, 1);
 		__free_page(page);
 		totalram_pages++;

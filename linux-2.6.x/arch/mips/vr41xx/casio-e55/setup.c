@@ -1,7 +1,7 @@
 /*
  *  setup.c, Setup for the CASIO CASSIOPEIA E-11/15/55/65.
  *
- *  Copyright (C) 2002-2005  Yoichi Yuasa <yuasa@hh.iij4u.or.jp>
+ *  Copyright (C) 2002-2005  Yoichi Yuasa <yoichi_yuasa@tripeaks.co.jp>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -22,11 +22,6 @@
 
 #include <asm/io.h>
 #include <asm/vr41xx/e55.h>
-
-const char *get_system_type(void)
-{
-	return "CASIO CASSIOPEIA E-11/15/55/65";
-}
 
 static int __init casio_e55_setup(void)
 {

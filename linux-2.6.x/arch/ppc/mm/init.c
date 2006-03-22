@@ -67,17 +67,10 @@ unsigned long ppc_memoffset = PAGE_OFFSET;
 int mem_init_done;
 int init_bootmem_done;
 int boot_mapsize;
-#ifdef CONFIG_PPC_PMAC
-unsigned long agp_special_page;
-#endif
 
 extern char _end[];
 extern char etext[], _stext[];
 extern char __init_begin, __init_end;
-extern char __prep_begin, __prep_end;
-extern char __chrp_begin, __chrp_end;
-extern char __pmac_begin, __pmac_end;
-extern char __openfirmware_begin, __openfirmware_end;
 
 #ifdef CONFIG_HIGHMEM
 pte_t *kmap_pte;
@@ -95,9 +88,6 @@ extern struct task_struct *current_set[NR_CPUS];
 
 char *klimit = _end;
 struct mem_pieces phys_avail;
-
-extern char *sysmap;
-extern unsigned long sysmap_size;
 
 /*
  * this tells the system to map all of ram with the segregs
@@ -170,14 +160,6 @@ void free_initmem(void)
 
 	printk ("Freeing unused kernel memory:");
 	FREESEC(init);
-	if (_machine != _MACH_Pmac)
-		FREESEC(pmac);
-	if (_machine != _MACH_chrp)
-		FREESEC(chrp);
-	if (_machine != _MACH_prep)
-		FREESEC(prep);
-	if (!have_of)
-		FREESEC(openfirmware);
  	printk("\n");
 	ppc_md.progress = NULL;
 #undef FREESEC
@@ -438,16 +420,6 @@ void __init mem_init(void)
 		     addr += PAGE_SIZE)
 			SetPageReserved(virt_to_page(addr));
 #endif
-#ifdef CONFIG_PPC_PMAC
-	if (agp_special_page)
-		SetPageReserved(virt_to_page(agp_special_page));
-#endif
-	if ( sysmap )
-		for (addr = (unsigned long)sysmap;
-		     addr < PAGE_ALIGN((unsigned long)sysmap+sysmap_size) ;
-		     addr += PAGE_SIZE)
-			SetPageReserved(virt_to_page(addr));
-
 	for (addr = PAGE_OFFSET; addr < (unsigned long)high_memory;
 	     addr += PAGE_SIZE) {
 		if (!PageReserved(virt_to_page(addr)))
@@ -469,7 +441,6 @@ void __init mem_init(void)
 			struct page *page = mem_map + pfn;
 
 			ClearPageReserved(page);
-			set_bit(PG_highmem, &page->flags);
 			set_page_count(page, 1);
 			__free_page(page);
 			totalhigh_pages++;
@@ -483,13 +454,6 @@ void __init mem_init(void)
 	       codepages<< (PAGE_SHIFT-10), datapages<< (PAGE_SHIFT-10),
 	       initpages<< (PAGE_SHIFT-10),
 	       (unsigned long) (totalhigh_pages << (PAGE_SHIFT-10)));
-	if (sysmap)
-		printk("System.map loaded at 0x%08x for debugger, size: %ld bytes\n",
-			(unsigned int)sysmap, sysmap_size);
-#ifdef CONFIG_PPC_PMAC
-	if (agp_special_page)
-		printk(KERN_INFO "AGP special page: 0x%08lx\n", agp_special_page);
-#endif
 
 	mem_init_done = 1;
 }
@@ -535,25 +499,6 @@ set_phys_avail(unsigned long total_memory)
 	if (rtas_data)
 		mem_pieces_remove(&phys_avail, rtas_data, rtas_size, 1);
 #endif
-	/* remove the sysmap pages from the available memory */
-	if (sysmap)
-		mem_pieces_remove(&phys_avail, __pa(sysmap), sysmap_size, 1);
-#ifdef CONFIG_PPC_PMAC
-	/* Because of some uninorth weirdness, we need a page of
-	 * memory as high as possible (it must be outside of the
-	 * bus address seen as the AGP aperture). It will be used
-	 * by the r128 DRM driver
-	 *
-	 * FIXME: We need to make sure that page doesn't overlap any of the\
-	 * above. This could be done by improving mem_pieces_find to be able
-	 * to do a backward search from the end of the list.
-	 */
-	if (_machine == _MACH_Pmac && find_devices("uni-north-agp")) {
-		agp_special_page = (total_memory - PAGE_SIZE);
-		mem_pieces_remove(&phys_avail, agp_special_page, PAGE_SIZE, 0);
-		agp_special_page = (unsigned long)__va(agp_special_page);
-	}
-#endif /* CONFIG_PPC_PMAC */
 }
 
 /* Mark some memory as reserved by removing it from phys_avail. */
@@ -575,8 +520,12 @@ void flush_dcache_page(struct page *page)
 void flush_dcache_icache_page(struct page *page)
 {
 #ifdef CONFIG_BOOKE
-	__flush_dcache_icache(kmap(page));
-	kunmap(page);
+	void *start = kmap_atomic(page, KM_PPC_SYNC_ICACHE);
+	__flush_dcache_icache(start);
+	kunmap_atomic(start, KM_PPC_SYNC_ICACHE);
+#elif defined(CONFIG_8xx)
+	/* On 8xx there is no need to kmap since highmem is not supported */
+	__flush_dcache_icache(page_address(page)); 
 #else
 	__flush_dcache_icache_phys(page_to_pfn(page) << PAGE_SHIFT);
 #endif
@@ -619,6 +568,15 @@ void update_mmu_cache(struct vm_area_struct *vma, unsigned long address,
 
 	if (pfn_valid(pfn)) {
 		struct page *page = pfn_to_page(pfn);
+#ifdef CONFIG_8xx
+		/* On 8xx, the TLB handlers work in 2 stages:
+	 	 * First, a zeroed entry is loaded by TLBMiss handler,
+		 * which causes the TLBError handler to be triggered.
+		 * That means the zeroed TLB has to be invalidated
+		 * whenever a page miss occurs.
+		 */
+		_tlbie(address);
+#endif
 		if (!PageReserved(page)
 		    && !test_bit(PG_arch_1, &page->flags)) {
 			if (vma->vm_mm == current->active_mm)
@@ -649,18 +607,16 @@ void update_mmu_cache(struct vm_area_struct *vma, unsigned long address,
  */
 int page_is_ram(unsigned long pfn)
 {
-	unsigned long paddr = (pfn << PAGE_SHIFT);
-
-	return paddr < __pa(high_memory);
+	return pfn < max_pfn;
 }
 
-pgprot_t phys_mem_access_prot(struct file *file, unsigned long addr,
+pgprot_t phys_mem_access_prot(struct file *file, unsigned long pfn,
 			      unsigned long size, pgprot_t vma_prot)
 {
 	if (ppc_md.phys_mem_access_prot)
-		return ppc_md.phys_mem_access_prot(file, addr, size, vma_prot);
+		return ppc_md.phys_mem_access_prot(file, pfn, size, vma_prot);
 
-	if (!page_is_ram(addr >> PAGE_SHIFT))
+	if (!page_is_ram(pfn))
 		vma_prot = __pgprot(pgprot_val(vma_prot)
 				    | _PAGE_GUARDED | _PAGE_NO_CACHE);
 	return vma_prot;

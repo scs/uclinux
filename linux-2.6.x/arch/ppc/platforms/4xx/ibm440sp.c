@@ -31,18 +31,18 @@ static struct ocp_func_emac_data ibm440sp_emac0_def = {
 	.wol_irq        = 61,  		/* WOL interrupt number */
 	.mdio_idx       = -1,           /* No shared MDIO */
 	.tah_idx	= -1,		/* No TAH */
-	.jumbo		= 1,		/* Jumbo frames supported */
 };
 OCP_SYSFS_EMAC_DATA()
 
 static struct ocp_func_mal_data ibm440sp_mal0_def = {
-	.num_tx_chans   = 4,    	/* Number of TX channels */
-	.num_rx_chans   = 4,    	/* Number of RX channels */
+	.num_tx_chans   = 1,    	/* Number of TX channels */
+	.num_rx_chans   = 1,    	/* Number of RX channels */
 	.txeob_irq	= 38,		/* TX End Of Buffer IRQ  */
 	.rxeob_irq	= 39,		/* RX End Of Buffer IRQ  */
 	.txde_irq	= 34,		/* TX Descriptor Error IRQ */
 	.rxde_irq	= 35,		/* RX Descriptor Error IRQ */
 	.serr_irq	= 33,		/* MAL System Error IRQ    */
+	.dcr_base	= DCRN_MAL_BASE /* MAL0_CFG DCR number */
 };
 OCP_SYSFS_MAL_DATA()
 

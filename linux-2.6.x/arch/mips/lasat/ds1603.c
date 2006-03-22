@@ -1,13 +1,14 @@
-/* 
- * Dallas Semiconductors 1603 RTC driver 
+/*
+ * Dallas Semiconductors 1603 RTC driver
  *
- * Brian Murphy <brian@murphy.dk> 
+ * Brian Murphy <brian@murphy.dk>
  *
  */
 #include <linux/kernel.h>
 #include <asm/lasat/lasat.h>
 #include <linux/delay.h>
 #include <asm/lasat/ds1603.h>
+#include <asm/time.h>
 
 #include "ds1603.h"
 
@@ -20,12 +21,12 @@
 struct ds_defs *ds1603 = NULL;
 
 /* HW specific register functions */
-static void rtc_reg_write(unsigned long val) 
+static void rtc_reg_write(unsigned long val)
 {
 	*ds1603->reg = val;
 }
 
-static unsigned long rtc_reg_read(void) 
+static unsigned long rtc_reg_read(void)
 {
 	unsigned long tmp = *ds1603->reg;
 	return tmp;
@@ -80,7 +81,7 @@ static unsigned int rtc_read_databit(void)
 {
 	unsigned int data;
 
-	data = (rtc_datareg_read() & (1 << ds1603->data_read_shift)) 
+	data = (rtc_datareg_read() & (1 << ds1603->data_read_shift))
 		>> ds1603->data_read_shift;
 	rtc_cycle_clock(rtc_reg_read());
 	return data;
@@ -138,19 +139,27 @@ static void rtc_end_op(void)
 unsigned long ds1603_read(void)
 {
 	unsigned long word;
+	unsigned long flags;
+
+	spin_lock_irqsave(&rtc_lock, flags);
 	rtc_init_op();
 	rtc_write_byte(READ_TIME_CMD);
 	word = rtc_read_word();
 	rtc_end_op();
+	spin_unlock_irqrestore(&rtc_lock, flags);
 	return word;
 }
 
 int ds1603_set(unsigned long time)
 {
+	unsigned long flags;
+
+	spin_lock_irqsave(&rtc_lock, flags);
 	rtc_init_op();
 	rtc_write_byte(SET_TIME_CMD);
 	rtc_write_word(time);
 	rtc_end_op();
+	spin_unlock_irqrestore(&rtc_lock, flags);
 
 	return 0;
 }

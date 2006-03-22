@@ -156,10 +156,13 @@
 */
 #define DELAYED_RESOURCE_CNT	64
 
+#define PCI_DEVICE_ID_HP_SX2000_IOC	0x12ec
+
 #define ZX1_IOC_ID	((PCI_DEVICE_ID_HP_ZX1_IOC << 16) | PCI_VENDOR_ID_HP)
 #define ZX2_IOC_ID	((PCI_DEVICE_ID_HP_ZX2_IOC << 16) | PCI_VENDOR_ID_HP)
 #define REO_IOC_ID	((PCI_DEVICE_ID_HP_REO_IOC << 16) | PCI_VENDOR_ID_HP)
 #define SX1000_IOC_ID	((PCI_DEVICE_ID_HP_SX1000_IOC << 16) | PCI_VENDOR_ID_HP)
+#define SX2000_IOC_ID	((PCI_DEVICE_ID_HP_SX2000_IOC << 16) | PCI_VENDOR_ID_HP)
 
 #define ZX1_IOC_OFFSET	0x1000	/* ACPI reports SBA, we want IOC */
 
@@ -1073,7 +1076,7 @@ void sba_unmap_single(struct device *dev, dma_addr_t iova, size_t size, int dir)
  * See Documentation/DMA-mapping.txt
  */
 void *
-sba_alloc_coherent (struct device *dev, size_t size, dma_addr_t *dma_handle, int flags)
+sba_alloc_coherent (struct device *dev, size_t size, dma_addr_t *dma_handle, gfp_t flags)
 {
 	struct ioc *ioc;
 	void *addr;
@@ -1726,6 +1729,7 @@ static struct ioc_iommu ioc_iommu_info[] __initdata = {
 	{ ZX1_IOC_ID, "zx1", ioc_zx1_init },
 	{ ZX2_IOC_ID, "zx2", NULL },
 	{ SX1000_IOC_ID, "sx1000", NULL },
+	{ SX2000_IOC_ID, "sx2000", NULL },
 };
 
 static struct ioc * __init
@@ -2024,9 +2028,40 @@ static struct acpi_driver acpi_sba_ioc_driver = {
 static int __init
 sba_init(void)
 {
-	acpi_bus_register_driver(&acpi_sba_ioc_driver);
-	if (!ioc_list)
+	if (!ia64_platform_is("hpzx1") && !ia64_platform_is("hpzx1_swiotlb"))
 		return 0;
+
+	acpi_bus_register_driver(&acpi_sba_ioc_driver);
+	if (!ioc_list) {
+#ifdef CONFIG_IA64_GENERIC
+		extern int swiotlb_late_init_with_default_size (size_t size);
+
+		/*
+		 * If we didn't find something sba_iommu can claim, we
+		 * need to setup the swiotlb and switch to the dig machvec.
+		 */
+		if (swiotlb_late_init_with_default_size(64 * (1<<20)) != 0)
+			panic("Unable to find SBA IOMMU or initialize "
+			      "software I/O TLB: Try machvec=dig boot option");
+		machvec_init("dig");
+#else
+		panic("Unable to find SBA IOMMU: Try a generic or DIG kernel");
+#endif
+		return 0;
+	}
+
+#if defined(CONFIG_IA64_GENERIC) || defined(CONFIG_IA64_HP_ZX1_SWIOTLB)
+	/*
+	 * hpzx1_swiotlb needs to have a fairly small swiotlb bounce
+	 * buffer setup to support devices with smaller DMA masks than
+	 * sba_iommu can handle.
+	 */
+	if (ia64_platform_is("hpzx1_swiotlb")) {
+		extern void hwsw_init(void);
+
+		hwsw_init();
+	}
+#endif
 
 #ifdef CONFIG_PCI
 	{
@@ -2043,18 +2078,6 @@ sba_init(void)
 }
 
 subsys_initcall(sba_init); /* must be initialized after ACPI etc., but before any drivers... */
-
-extern void dig_setup(char**);
-/*
- * MAX_DMA_ADDRESS needs to be setup prior to paging_init to do any good,
- * so we use the platform_setup hook to fix it up.
- */
-void __init
-sba_setup(char **cmdline_p)
-{
-	MAX_DMA_ADDRESS = ~0UL;
-	dig_setup(cmdline_p);
-}
 
 static int __init
 nosbagart(char *str)

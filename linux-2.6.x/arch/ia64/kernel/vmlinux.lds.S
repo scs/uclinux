@@ -8,6 +8,11 @@
 #define LOAD_OFFSET	(KERNEL_START - KERNEL_TR_PAGE_SIZE)
 #include <asm-generic/vmlinux.lds.h>
 
+#define IVT_TEXT							\
+		VMLINUX_SYMBOL(__start_ivt_text) = .;			\
+		*(.text.ivt)						\
+		VMLINUX_SYMBOL(__end_ivt_text) = .;
+
 OUTPUT_FORMAT("elf64-ia64-little")
 OUTPUT_ARCH(ia64)
 ENTRY(phys_start)
@@ -39,10 +44,11 @@ SECTIONS
 
   .text : AT(ADDR(.text) - LOAD_OFFSET)
     {
-	*(.text.ivt)
+	IVT_TEXT
 	*(.text)
 	SCHED_TEXT
 	LOCK_TEXT
+	KPROBES_TEXT
 	*(.gnu.linkonce.t*)
     }
   .text2 : AT(ADDR(.text2) - LOAD_OFFSET)
@@ -170,6 +176,9 @@ SECTIONS
 	  __stop_gate_section = .;
 	}
   . = ALIGN(PAGE_SIZE);		/* make sure the gate page doesn't expose kernel data */
+
+  .data.read_mostly : AT(ADDR(.data.read_mostly) - LOAD_OFFSET)
+        { *(.data.read_mostly) }
 
   .data.cacheline_aligned : AT(ADDR(.data.cacheline_aligned) - LOAD_OFFSET)
         { *(.data.cacheline_aligned) }

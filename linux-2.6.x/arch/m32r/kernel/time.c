@@ -39,10 +39,6 @@ extern void send_IPI_allbutself(int, int);
 extern void smp_local_timer_interrupt(struct pt_regs *);
 #endif
 
-u64 jiffies_64 = INITIAL_JIFFIES;
-
-EXPORT_SYMBOL(jiffies_64);
-
 extern unsigned long wall_jiffies;
 #define TICK_SIZE	(tick_nsec / 1000)
 
@@ -61,7 +57,7 @@ static unsigned long do_gettimeoffset(void)
 
 #if defined(CONFIG_CHIP_M32102) || defined(CONFIG_CHIP_XNUX2) \
 	|| defined(CONFIG_CHIP_VDEC2) || defined(CONFIG_CHIP_M32700) \
-	|| defined(CONFIG_CHIP_OPSP)
+	|| defined(CONFIG_CHIP_OPSP) || defined(CONFIG_CHIP_M32104)
 #ifndef CONFIG_SMP
 
 	unsigned long count;
@@ -171,10 +167,7 @@ int do_settimeofday(struct timespec *tv)
 	set_normalized_timespec(&xtime, sec, nsec);
 	set_normalized_timespec(&wall_to_monotonic, wtm_sec, wtm_nsec);
 
-	time_adjust = 0;		/* stop active adjtime() */
-	time_status |= STA_UNSYNC;
-	time_maxerror = NTP_PHASE_LIMIT;
-	time_esterror = NTP_PHASE_LIMIT;
+	ntp_clear();
 	write_sequnlock_irq(&xtime_lock);
 	clock_was_set();
 
@@ -205,8 +198,7 @@ static long last_rtc_update = 0;
  * timer_interrupt() needs to keep up the real-time clock,
  * as well as call the "do_timer()" routine every clocktick
  */
-static inline void
-do_timer_interrupt(int irq, void *dev_id, struct pt_regs * regs)
+irqreturn_t timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 {
 #ifndef CONFIG_SMP
 	profile_tick(CPU_PROFILING, regs);
@@ -221,7 +213,8 @@ do_timer_interrupt(int irq, void *dev_id, struct pt_regs * regs)
 	 * CMOS clock accordingly every ~11 minutes. Set_rtc_mmss() has to be
 	 * called as close as possible to 500 ms before the new second starts.
 	 */
-	if ((time_status & STA_UNSYNC) == 0
+	write_seqlock(&xtime_lock);
+	if (ntp_synced()
 		&& xtime.tv_sec > last_rtc_update + 660
 		&& (xtime.tv_nsec / 1000) >= 500000 - ((unsigned)TICK_SIZE) / 2
 		&& (xtime.tv_nsec / 1000) <= 500000 + ((unsigned)TICK_SIZE) / 2)
@@ -231,6 +224,7 @@ do_timer_interrupt(int irq, void *dev_id, struct pt_regs * regs)
 		else	/* do it again in 60 s */
 			last_rtc_update = xtime.tv_sec - 600;
 	}
+	write_sequnlock(&xtime_lock);
 	/* As we return to user mode fire off the other CPU schedulers..
 	   this is basically because we don't yet share IRQ's around.
 	   This message is rigged to be safe on the 386 - basically it's
@@ -238,14 +232,8 @@ do_timer_interrupt(int irq, void *dev_id, struct pt_regs * regs)
 
 #ifdef CONFIG_SMP
 	smp_local_timer_interrupt(regs);
+	smp_send_timer();
 #endif
-}
-
-irqreturn_t timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
-{
-	write_seqlock(&xtime_lock);
-	do_timer_interrupt(irq, NULL, regs);
-	write_sequnlock(&xtime_lock);
 
 	return IRQ_HANDLED;
 }
@@ -280,7 +268,7 @@ void __init time_init(void)
 
 #if defined(CONFIG_CHIP_M32102) || defined(CONFIG_CHIP_XNUX2) \
 	|| defined(CONFIG_CHIP_VDEC2) || defined(CONFIG_CHIP_M32700) \
-	|| defined(CONFIG_CHIP_OPSP)
+	|| defined(CONFIG_CHIP_OPSP) || defined(CONFIG_CHIP_M32104)
 
 	/* M32102 MFT setup */
 	setup_irq(M32R_IRQ_MFT2, &irq0);

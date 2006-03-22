@@ -238,9 +238,9 @@ pq2ads_setup_pci(struct pci_controller *hose)
 	 * Setting required to enable IRQ1-IRQ7 (SIUMCR [DPPC]),
 	 * and local bus for PCI (SIUMCR [LBPC]).
 	 */
-	immap->im_siu_conf.siu_82xx.sc_siumcr = (immap->im_siu_conf.sc_siumcr &
-				~(SIUMCR_L2PC11 | SIUMCR_LBPC11 | SIUMCR_CS10PC11 | SIUMCR_APPC11) |
-				SIUMCR_BBD | SIUMCR_LBPC01 | SIUMCR_DPPC11 | SIUMCR_APPC10;
+	immap->im_siu_conf.siu_82xx.sc_siumcr = (immap->im_siu_conf.siu_82xx.sc_siumcr &
+				~(SIUMCR_L2CPC11 | SIUMCR_LBPC11 | SIUMCR_CS10PC11 | SIUMCR_APPC11) |
+				SIUMCR_BBD | SIUMCR_LBPC01 | SIUMCR_DPPC11 | SIUMCR_APPC10);
 #endif
 	/* Enable PCI  */
 	immap->im_pci.pci_gcr = cpu_to_le32(PCIGCR_PCI_BUS_EN);
@@ -248,7 +248,8 @@ pq2ads_setup_pci(struct pci_controller *hose)
 	pci_div = ( (sccr & SCCR_PCI_MODCK) ? 2 : 1) *
 			( ( (sccr & SCCR_PCIDF_MSK) >> SCCR_PCIDF_SHIFT) + 1);
 	freq = (uint)((2*binfo->bi_cpmfreq)/(pci_div));
-	time = (int)666666/freq;
+	time = (int)66666666/freq;
+
 	/* due to PCI Local Bus spec, some devices needs to wait such a long
 	time after RST 	deassertion. More specifically, 0.508s for 66MHz & twice more for 33 */
 	printk("%s: The PCI bus is %d Mhz.\nWaiting %s after deasserting RST...\n",__FILE__,freq,
@@ -302,11 +303,11 @@ pq2ads_setup_pci(struct pci_controller *hose)
 
 void __init pq2_find_bridges(void)
 {
-	extern int pci_assign_all_busses;
+	extern int pci_assign_all_buses;
 	struct pci_controller * hose;
 	int host_bridge;
 
-	pci_assign_all_busses = 1;
+	pci_assign_all_buses = 1;
 
 	hose = pcibios_alloc_controller();
 

@@ -33,15 +33,17 @@
 #include <linux/root_dev.h>
 #include <linux/highmem.h>
 #include <linux/console.h>
+#include <linux/mmzone.h>
 
 #include <asm/addrspace.h>
 #include <asm/bootinfo.h>
+#include <asm/cache.h>
 #include <asm/cpu.h>
 #include <asm/sections.h>
 #include <asm/setup.h>
 #include <asm/system.h>
 
-struct cpuinfo_mips cpu_data[NR_CPUS];
+struct cpuinfo_mips cpu_data[NR_CPUS] __read_mostly;
 
 EXPORT_SYMBOL(cpu_data);
 
@@ -61,8 +63,8 @@ EXPORT_SYMBOL(PCI_DMA_BUS_IS_PHYS);
  *
  * These are initialized so they are in the .data section
  */
-unsigned long mips_machtype = MACH_UNKNOWN;
-unsigned long mips_machgroup = MACH_GROUP_UNKNOWN;
+unsigned long mips_machtype __read_mostly = MACH_UNKNOWN;
+unsigned long mips_machgroup __read_mostly = MACH_GROUP_UNKNOWN;
 
 EXPORT_SYMBOL(mips_machtype);
 EXPORT_SYMBOL(mips_machgroup);
@@ -76,7 +78,7 @@ static char command_line[CL_SIZE];
  * mips_io_port_base is the begin of the address space to which x86 style
  * I/O ports are mapped.
  */
-const unsigned long mips_io_port_base = -1;
+const unsigned long mips_io_port_base __read_mostly = -1;
 EXPORT_SYMBOL(mips_io_port_base);
 
 /*
@@ -240,7 +242,7 @@ static inline int parse_rd_cmdline(unsigned long* rd_start, unsigned long* rd_en
 	if (*tmp)
 		strcat(command_line, tmp);
 
-#ifdef CONFIG_MIPS64
+#ifdef CONFIG_64BIT
 	/* HACK: Guess if the sign extension was forgotten */
 	if (start > 0x0000000080000000 && start < 0x00000000ffffffff)
 		start |= 0xffffffff00000000;
@@ -356,6 +358,8 @@ static inline void bootmem_init(void)
 	}
 #endif
 
+	memory_present(0, first_usable_pfn, max_low_pfn);
+
 	/* Initialize the boot-time allocator with low memory only.  */
 	bootmap_size = init_bootmem(first_usable_pfn, max_low_pfn);
 
@@ -443,7 +447,7 @@ static inline void resource_init(void)
 {
 	int i;
 
-#if defined(CONFIG_MIPS64) && !defined(CONFIG_BUILD_ELF64)
+#if defined(CONFIG_64BIT) && !defined(CONFIG_BUILD_ELF64)
 	/*
 	 * The 64bit code in 32bit object format trick can't represent
 	 * 64bit wide relocations for linker script symbols.
@@ -507,31 +511,7 @@ static inline void resource_init(void)
 #undef MAXMEM
 #undef MAXMEM_PFN
 
-static int __initdata earlyinit_debug;
-
-static int __init earlyinit_debug_setup(char *str)
-{
-	earlyinit_debug = 1;
-	return 1;
-}
-__setup("earlyinit_debug", earlyinit_debug_setup);
-
-extern initcall_t __earlyinitcall_start, __earlyinitcall_end;
-
-static void __init do_earlyinitcalls(void)
-{
-	initcall_t *call, *start, *end;
-
-	start = &__earlyinitcall_start;
-	end = &__earlyinitcall_end;
-
-	for (call = start; call < end; call++) {
-		if (earlyinit_debug)
-			printk("calling earlyinitcall 0x%p\n", *call);
-
-		(*call)();
-	}
-}
+extern void plat_setup(void);
 
 void __init setup_arch(char **cmdline_p)
 {
@@ -548,7 +528,7 @@ void __init setup_arch(char **cmdline_p)
 #endif
 
 	/* call board setup routine */
-	do_earlyinitcalls();
+	plat_setup();
 
 	strlcpy(command_line, arcs_cmdline, sizeof(command_line));
 	strlcpy(saved_command_line, command_line, COMMAND_LINE_SIZE);
@@ -557,8 +537,12 @@ void __init setup_arch(char **cmdline_p)
 
 	parse_cmdline_early();
 	bootmem_init();
+	sparse_init();
 	paging_init();
 	resource_init();
+#ifdef CONFIG_SMP
+	plat_smp_setup();
+#endif
 }
 
 int __init fpu_disable(char *s)
@@ -569,3 +553,12 @@ int __init fpu_disable(char *s)
 }
 
 __setup("nofpu", fpu_disable);
+
+int __init dsp_disable(char *s)
+{
+	cpu_data[0].ases &= ~MIPS_ASE_DSP;
+
+	return 1;
+}
+
+__setup("nodsp", dsp_disable);

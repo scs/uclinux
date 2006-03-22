@@ -1,4 +1,4 @@
-OUTPUT_ARCH(powerpc)
+OUTPUT_ARCH(powerpc:common)
 SECTIONS
 {
   /* Read-only sections, merged into text segment: */
@@ -58,9 +58,6 @@ SECTIONS
     *(.ramdisk)
     __ramdisk_end = .;
     . = ALIGN(4096);
-    __sysmap_begin = .;
-    *(.sysmap)
-    __sysmap_end = .;
     CONSTRUCTORS
   }
   _edata  =  .;

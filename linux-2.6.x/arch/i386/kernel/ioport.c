@@ -7,6 +7,7 @@
 
 #include <linux/sched.h>
 #include <linux/kernel.h>
+#include <linux/capability.h>
 #include <linux/errno.h>
 #include <linux/types.h>
 #include <linux/ioport.h>
@@ -108,8 +109,11 @@ asmlinkage long sys_ioperm(unsigned long from, unsigned long num, int turn_on)
 	/*
 	 * Sets the lazy trigger so that the next I/O operation will
 	 * reload the correct bitmap.
+	 * Reset the owner so that a process switch will not set
+	 * tss->io_bitmap_base to IO_BITMAP_OFFSET.
 	 */
 	tss->io_bitmap_base = INVALID_IO_BITMAP_OFFSET_LAZY;
+	tss->io_bitmap_owner = NULL;
 
 	put_cpu();
 
@@ -132,6 +136,7 @@ asmlinkage long sys_iopl(unsigned long unused)
 	volatile struct pt_regs * regs = (struct pt_regs *) &unused;
 	unsigned int level = regs->ebx;
 	unsigned int old = (regs->eflags >> 12) & 3;
+	struct thread_struct *t = &current->thread;
 
 	if (level > 3)
 		return -EINVAL;
@@ -140,8 +145,8 @@ asmlinkage long sys_iopl(unsigned long unused)
 		if (!capable(CAP_SYS_RAWIO))
 			return -EPERM;
 	}
-	regs->eflags = (regs->eflags &~ 0x3000UL) | (level << 12);
-	/* Make sure we return the long way (not sysenter) */
-	set_thread_flag(TIF_IRET);
+	t->iopl = level << 12;
+	regs->eflags = (regs->eflags & ~X86_EFLAGS_IOPL) | t->iopl;
+	set_iopl_mask(t->iopl);
 	return 0;
 }

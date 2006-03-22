@@ -61,6 +61,18 @@ zimageinitrd-$(CONFIG_IBM_OPENBIOS)	:= zImage.initrd-TREE
          end-$(CONFIG_EMBEDDEDBOOT)	:= embedded
         misc-$(CONFIG_EMBEDDEDBOOT)	:= misc-embedded.o
 
+      zimage-$(CONFIG_BAMBOO)		:= zImage-TREE
+zimageinitrd-$(CONFIG_BAMBOO)		:= zImage.initrd-TREE
+         end-$(CONFIG_BAMBOO)		:= bamboo
+  entrypoint-$(CONFIG_BAMBOO)		:= 0x01000000
+     extra.o-$(CONFIG_BAMBOO)		:= pibs.o
+
+      zimage-$(CONFIG_BUBINGA)		:= zImage-TREE
+zimageinitrd-$(CONFIG_BUBINGA)		:= zImage.initrd-TREE
+         end-$(CONFIG_BUBINGA)		:= bubinga
+  entrypoint-$(CONFIG_BUBINGA)		:= 0x01000000
+     extra.o-$(CONFIG_BUBINGA)		:= openbios.o
+
       zimage-$(CONFIG_EBONY)		:= zImage-TREE
 zimageinitrd-$(CONFIG_EBONY)		:= zImage.initrd-TREE
          end-$(CONFIG_EBONY)		:= ebony
@@ -73,11 +85,29 @@ zimageinitrd-$(CONFIG_LUAN)		:= zImage.initrd-TREE
   entrypoint-$(CONFIG_LUAN)		:= 0x01000000
      extra.o-$(CONFIG_LUAN)		:= pibs.o
 
+      zimage-$(CONFIG_YUCCA)		:= zImage-TREE
+zimageinitrd-$(CONFIG_YUCCA)		:= zImage.initrd-TREE
+         end-$(CONFIG_YUCCA)		:= yucca
+  entrypoint-$(CONFIG_YUCCA)		:= 0x01000000
+     extra.o-$(CONFIG_YUCCA)		:= pibs.o
+
       zimage-$(CONFIG_OCOTEA)		:= zImage-TREE
 zimageinitrd-$(CONFIG_OCOTEA)		:= zImage.initrd-TREE
          end-$(CONFIG_OCOTEA)		:= ocotea
   entrypoint-$(CONFIG_OCOTEA)		:= 0x01000000
      extra.o-$(CONFIG_OCOTEA)		:= pibs.o
+
+      zimage-$(CONFIG_SYCAMORE)		:= zImage-TREE
+zimageinitrd-$(CONFIG_SYCAMORE)		:= zImage.initrd-TREE
+         end-$(CONFIG_SYCAMORE)		:= sycamore
+  entrypoint-$(CONFIG_SYCAMORE)		:= 0x01000000
+     extra.o-$(CONFIG_SYCAMORE)		:= openbios.o
+
+      zimage-$(CONFIG_WALNUT)		:= zImage-TREE
+zimageinitrd-$(CONFIG_WALNUT)		:= zImage.initrd-TREE
+         end-$(CONFIG_WALNUT)		:= walnut
+  entrypoint-$(CONFIG_WALNUT)		:= 0x01000000
+     extra.o-$(CONFIG_WALNUT)		:= openbios.o
 
      extra.o-$(CONFIG_EV64260)		:= misc-ev64260.o
          end-$(CONFIG_EV64260)		:= ev64260
@@ -90,10 +120,6 @@ zimageinitrd-$(CONFIG_OCOTEA)		:= zImage.initrd-TREE
 zimageinitrd-$(CONFIG_GEMINI)		:= zImage.initrd-STRIPELF
          end-$(CONFIG_GEMINI)		:= gemini
 
-     extra.o-$(CONFIG_K2)		:= prepmap.o
-         end-$(CONFIG_K2)		:= k2
-   cacheflag-$(CONFIG_K2)		:= -include $(clear_L2_L3)
-
      extra.o-$(CONFIG_KATANA)		:= misc-katana.o
          end-$(CONFIG_KATANA)		:= katana
    cacheflag-$(CONFIG_KATANA)		:= -include $(clear_L2_L3)
@@ -102,12 +128,15 @@ zimageinitrd-$(CONFIG_GEMINI)		:= zImage.initrd-STRIPELF
          end-$(CONFIG_RADSTONE_PPC7D)	:= radstone_ppc7d
    cacheflag-$(CONFIG_RADSTONE_PPC7D)	:= -include $(clear_L2_L3)
 
+     extra.o-$(CONFIG_EV64360)          := misc-ev64360.o
+         end-$(CONFIG_EV64360)          := ev64360
+   cacheflag-$(CONFIG_EV64360)          := -include $(clear_L2_L3)
+
 # kconfig 'feature', only one of these will ever be 'y' at a time.
 # The rest will be unset.
-motorola := $(CONFIG_MCPN765)$(CONFIG_MVME5100)$(CONFIG_PRPMC750) \
+motorola := $(CONFIG_MVME5100)$(CONFIG_PRPMC750) \
 $(CONFIG_PRPMC800)$(CONFIG_LOPEC)$(CONFIG_PPLUS)
 motorola := $(strip $(motorola))
-pcore := $(CONFIG_PCORE)$(CONFIG_POWERPMC250)
 
       zimage-$(motorola)		:= zImage-PPLUS
 zimageinitrd-$(motorola)		:= zImage.initrd-PPLUS
@@ -116,12 +145,6 @@ zimageinitrd-$(motorola)		:= zImage.initrd-PPLUS
 # Overrides previous assingment
      extra.o-$(CONFIG_PPLUS)		:= prepmap.o
      extra.o-$(CONFIG_LOPEC)		:= mpc10x_memory.o
-
-      zimage-$(pcore)			:= zImage-STRIPELF
-zimageinitrd-$(pcore)			:= zImage.initrd-STRIPELF
-     extra.o-$(pcore)			:= chrpmap.o
-         end-$(pcore)			:= pcore
-   cacheflag-$(pcore)			:= -include $(clear_L2_L3)
 
 # Really only valid if CONFIG_6xx=y
       zimage-$(CONFIG_PPC_PREP)		:= zImage-PPLUS
@@ -152,8 +175,6 @@ zimageinitrd-$(CONFIG_LITE5200)		:= zImage.initrd-STRIPELF
 
 # This is a treeboot that needs init functions until the
 # boot rom is sorted out (i.e. this is short lived)
-extra-aflags-$(CONFIG_REDWOOD_4)	:= -Wa,-m405
-extra.o-$(CONFIG_REDWOOD_4)		:= rw4/rw4_init.o rw4/rw4_init_brd.o
 EXTRA_AFLAGS := $(extra-aflags-y)
 # head.o needs to get the cacheflags defined.
 AFLAGS_head.o				+= $(cacheflag-y)
@@ -165,9 +186,12 @@ OBJCOPY_ARGS			:= -O elf32-powerpc
 
 # head.o and relocate.o must be at the start.
 boot-y				:= head.o relocate.o $(extra.o-y) $(misc-y)
-boot-$(CONFIG_40x)		+= embed_config.o
+boot-$(CONFIG_REDWOOD_5)	+= embed_config.o
+boot-$(CONFIG_REDWOOD_6)	+= embed_config.o
 boot-$(CONFIG_8xx)		+= embed_config.o
 boot-$(CONFIG_8260)		+= embed_config.o
+boot-$(CONFIG_EP405)		+= embed_config.o
+boot-$(CONFIG_XILINX_ML300)	+= embed_config.o
 boot-$(CONFIG_BSEIP)		+= iic.o
 boot-$(CONFIG_MBX)		+= iic.o pci.o qspan_pci.o
 boot-$(CONFIG_MV64X60)		+= misc-mv64x60.o
@@ -203,7 +227,7 @@ $(obj)/zvmlinux: $(OBJS) $(LIBS) $(srctree)/$(boot)/ld.script \
 		$(obj)/dummy.o $(obj)/image.o
 	$(LD) $(LD_ARGS) -o $@ $(OBJS) $(obj)/image.o $(LIBS)
 	$(OBJCOPY) $(OBJCOPY_ARGS) $@ $@ -R .comment -R .stab \
-		-R .stabstr -R .ramdisk -R .sysmap
+		-R .stabstr -R .ramdisk
 
 $(obj)/zvmlinux.initrd: $(OBJS) $(LIBS) $(srctree)/$(boot)/ld.script \
 		$(images)/vmlinux.gz $(obj)/dummy.o
@@ -215,7 +239,7 @@ $(obj)/zvmlinux.initrd: $(OBJS) $(LIBS) $(srctree)/$(boot)/ld.script \
 		$(obj)/dummy.o $(obj)/image.o
 	$(LD) $(LD_ARGS) -o $@ $(OBJS) $(obj)/image.o $(LIBS)
 	$(OBJCOPY) $(OBJCOPY_ARGS) $@ $@ -R .comment -R .stab \
-		-R .stabstr -R .sysmap
+		-R .stabstr
 
 # Sort-of dummy rules, that let us format the image we want.
 zImage: $(images)/$(zimage-y) $(obj)/zvmlinux
@@ -240,11 +264,11 @@ $(images)/zImage.initrd-STRIPELF: $(obj)/zvmlinux.initrd
 		skip=64 bs=1k
 
 $(images)/zImage-TREE: $(obj)/zvmlinux $(MKTREE)
-	$(MKTREE) $(obj)/zvmlinux $(images)/zImage.$(end-y) $(ENTRYPOINT)
+	$(MKTREE) $(obj)/zvmlinux $(images)/zImage.$(end-y) $(entrypoint-y)
 
 $(images)/zImage.initrd-TREE: $(obj)/zvmlinux.initrd $(MKTREE)
 	$(MKTREE) $(obj)/zvmlinux.initrd $(images)/zImage.initrd.$(end-y) \
-		$(ENTRYPOINT)
+		$(entrypoint-y)
 
 $(images)/zImage-PPLUS: $(obj)/zvmlinux $(MKPREP) $(MKBUGBOOT)
 	$(MKPREP) -pbp $(obj)/zvmlinux $(images)/zImage.$(end-y)

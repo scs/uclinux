@@ -26,10 +26,12 @@
 #include <linux/fcntl.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
+#include <linux/capability.h>
 #include <linux/console.h>
 #include <linux/module.h>
 #include <linux/serial.h>
 #include <linux/serialP.h>
+#include <linux/sysrq.h>
 
 #include <asm/irq.h>
 #include <asm/hw_irq.h>
@@ -106,7 +108,6 @@ static struct async_struct *IRQ_ports[NR_IRQS];
 static struct console *console;
 
 static unsigned char *tmp_buf;
-static DECLARE_MUTEX(tmp_buf_sem);
 
 extern struct console *console_drivers; /* from kernel/printk.c */
 
@@ -129,7 +130,7 @@ static void rs_stop(struct tty_struct *tty)
 
 static void rs_start(struct tty_struct *tty)
 {
-#if SIMSERIAL_DEBUG
+#ifdef SIMSERIAL_DEBUG
 	printk("rs_start: tty->stopped=%d tty->hw_stopped=%d tty->flow_stopped=%d\n",
 		tty->stopped, tty->hw_stopped, tty->flow_stopped);
 #endif
@@ -149,26 +150,25 @@ static  void receive_chars(struct tty_struct *tty, struct pt_regs *regs)
 				seen_esc = 2;
 				continue;
 			} else if ( seen_esc == 2 ) {
-				if ( ch == 'P' ) show_state();		/* F1 key */
-#ifdef CONFIG_KDB
-				if ( ch == 'S' )
-					kdb(KDB_REASON_KEYBOARD, 0, (kdb_eframe_t) regs);
+				if ( ch == 'P' ) /* F1 */
+					show_state();
+#ifdef CONFIG_MAGIC_SYSRQ
+				if ( ch == 'S' ) { /* F4 */
+					do
+						ch = ia64_ssc(0, 0, 0, 0,
+							      SSC_GETCHAR);
+					while (!ch);
+					handle_sysrq(ch, regs, NULL);
+				}
 #endif
-
 				seen_esc = 0;
 				continue;
 			}
 		}
 		seen_esc = 0;
-		if (tty->flip.count >= TTY_FLIPBUF_SIZE) break;
 
-		*tty->flip.char_buf_ptr = ch;
-
-		*tty->flip.flag_buf_ptr = 0;
-
-		tty->flip.flag_buf_ptr++;
-		tty->flip.char_buf_ptr++;
-		tty->flip.count++;
+		if (tty_insert_flip_char(tty, ch, TTY_NORMAL) == 0)
+			break;
 	}
 	tty_flip_buffer_push(tty);
 }
@@ -636,10 +636,8 @@ static void rs_close(struct tty_struct *tty, struct file * filp)
 	info->event = 0;
 	info->tty = 0;
 	if (info->blocked_open) {
-		if (info->close_delay) {
-			current->state = TASK_INTERRUPTIBLE;
-			schedule_timeout(info->close_delay);
-		}
+		if (info->close_delay)
+			schedule_timeout_interruptible(info->close_delay);
 		wake_up_interruptible(&info->open_wait);
 	}
 	info->flags &= ~(ASYNC_NORMAL_ACTIVE|ASYNC_CLOSING);
@@ -976,7 +974,7 @@ static struct tty_operations hp_ops = {
 static int __init
 simrs_init (void)
 {
-	int			i;
+	int			i, rc;
 	struct serial_state	*state;
 
 	if (!ia64_platform_is("hpsim"))
@@ -1011,7 +1009,10 @@ simrs_init (void)
 		if (state->type == PORT_UNKNOWN) continue;
 
 		if (!state->irq) {
-			state->irq = assign_irq_vector(AUTO_ASSIGN);
+			if ((rc = assign_irq_vector(AUTO_ASSIGN)) < 0)
+				panic("%s: out of interrupt vectors!\n",
+				      __FUNCTION__);
+			state->irq = rc;
 			ia64_ssc_connect_irq(KEYBOARD_INTR, state->irq);
 		}
 

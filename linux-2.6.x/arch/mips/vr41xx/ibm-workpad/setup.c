@@ -1,7 +1,7 @@
 /*
  *  setup.c, Setup for the IBM WorkPad z50.
  *
- *  Copyright (C) 2002-2005  Yoichi Yuasa <yuasa@hh.iij4u.or.jp>
+ *  Copyright (C) 2002-2005  Yoichi Yuasa <yoichi_yuasa@tripeaks.co.jp>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -22,11 +22,6 @@
 
 #include <asm/io.h>
 #include <asm/vr41xx/workpad.h>
-
-const char *get_system_type(void)
-{
-	return "IBM WorkPad z50";
-}
 
 static int __init ibm_workpad_setup(void)
 {

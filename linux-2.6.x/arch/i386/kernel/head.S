@@ -17,7 +17,7 @@
 #include <asm/desc.h>
 #include <asm/cache.h>
 #include <asm/thread_info.h>
-#include <asm/asm_offsets.h>
+#include <asm/asm-offsets.h>
 #include <asm/setup.h>
 
 /*
@@ -77,6 +77,32 @@ ENTRY(startup_32)
 	subl %edi,%ecx
 	shrl $2,%ecx
 	rep ; stosl
+/*
+ * Copy bootup parameters out of the way.
+ * Note: %esi still has the pointer to the real-mode data.
+ * With the kexec as boot loader, parameter segment might be loaded beyond
+ * kernel image and might not even be addressable by early boot page tables.
+ * (kexec on panic case). Hence copy out the parameters before initializing
+ * page tables.
+ */
+	movl $(boot_params - __PAGE_OFFSET),%edi
+	movl $(PARAM_SIZE/4),%ecx
+	cld
+	rep
+	movsl
+	movl boot_params - __PAGE_OFFSET + NEW_CL_POINTER,%esi
+	andl %esi,%esi
+	jnz 2f			# New command line protocol
+	cmpw $(OLD_CL_MAGIC),OLD_CL_MAGIC_ADDR
+	jne 1f
+	movzwl OLD_CL_OFFSET,%esi
+	addl $(OLD_CL_BASE_ADDR),%esi
+2:
+	movl $(saved_command_line - __PAGE_OFFSET),%edi
+	movl $(COMMAND_LINE_SIZE/4),%ecx
+	rep
+	movsl
+1:
 
 /*
  * Initialize page tables.  This creates a PDE and a set of page
@@ -214,28 +240,6 @@ ENTRY(startup_32_smp)
  */
 	call setup_idt
 
-/*
- * Copy bootup parameters out of the way.
- * Note: %esi still has the pointer to the real-mode data.
- */
-	movl $boot_params,%edi
-	movl $(PARAM_SIZE/4),%ecx
-	cld
-	rep
-	movsl
-	movl boot_params+NEW_CL_POINTER,%esi
-	andl %esi,%esi
-	jnz 2f			# New command line protocol
-	cmpw $(OLD_CL_MAGIC),OLD_CL_MAGIC_ADDR
-	jne 1f
-	movzwl OLD_CL_OFFSET,%esi
-	addl $(OLD_CL_BASE_ADDR),%esi
-2:
-	movl $saved_command_line,%edi
-	movl $(COMMAND_LINE_SIZE/4),%ecx
-	rep
-	movsl
-1:
 checkCPUtype:
 
 	movl $-1,X86_CPUID		#  -1 for no CPUID initially
@@ -299,7 +303,6 @@ is386:	movl $2,%ecx		# set MP
 	movl %eax,%cr0
 
 	call check_x87
-	incb ready
 	lgdt cpu_gdt_descr
 	lidt idt_descr
 	ljmp $(__KERNEL_CS),$1f
@@ -316,8 +319,9 @@ is386:	movl $2,%ecx		# set MP
 	lldt %ax
 	cld			# gcc2 wants the direction flag cleared at all times
 #ifdef CONFIG_SMP
-	movb ready, %cl	
-	cmpb $1,%cl
+	movb ready, %cl
+	movb $1, ready
+	cmpb $0,%cl
 	je 1f			# the first CPU calls start_kernel
 				# all other CPUs call initialize_secondary
 	call initialize_secondary
@@ -394,7 +398,11 @@ ignore_int:
 	pushl 32(%esp)
 	pushl 40(%esp)
 	pushl $int_msg
+#ifdef CONFIG_EARLY_PRINTK
+	call early_printk
+#else
 	call printk
+#endif
 	addl $(5*4),%esp
 	popl %ds
 	popl %es
@@ -500,19 +508,24 @@ ENTRY(cpu_gdt_table)
 	.quad 0x0000000000000000	/* 0x80 TSS descriptor */
 	.quad 0x0000000000000000	/* 0x88 LDT descriptor */
 
-	/* Segments used for calling PnP BIOS */
-	.quad 0x00c09a0000000000	/* 0x90 32-bit code */
-	.quad 0x00809a0000000000	/* 0x98 16-bit code */
-	.quad 0x0080920000000000	/* 0xa0 16-bit data */
-	.quad 0x0080920000000000	/* 0xa8 16-bit data */
-	.quad 0x0080920000000000	/* 0xb0 16-bit data */
+	/*
+	 * Segments used for calling PnP BIOS have byte granularity.
+	 * They code segments and data segments have fixed 64k limits,
+	 * the transfer segment sizes are set at run time.
+	 */
+	.quad 0x00409a000000ffff	/* 0x90 32-bit code */
+	.quad 0x00009a000000ffff	/* 0x98 16-bit code */
+	.quad 0x000092000000ffff	/* 0xa0 16-bit data */
+	.quad 0x0000920000000000	/* 0xa8 16-bit data */
+	.quad 0x0000920000000000	/* 0xb0 16-bit data */
+
 	/*
 	 * The APM segments have byte granularity and their bases
-	 * and limits are set at run time.
+	 * are set at run time.  All have 64k limits.
 	 */
-	.quad 0x00409a0000000000	/* 0xb8 APM CS    code */
-	.quad 0x00009a0000000000	/* 0xc0 APM CS 16 code (16 bit) */
-	.quad 0x0040920000000000	/* 0xc8 APM DS    data */
+	.quad 0x00409a000000ffff	/* 0xb8 APM CS    code */
+	.quad 0x00009a000000ffff	/* 0xc0 APM CS 16 code (16 bit) */
+	.quad 0x004092000000ffff	/* 0xc8 APM DS    data */
 
 	.quad 0x0000920000000000	/* 0xd0 - ESPFIX 16-bit SS */
 	.quad 0x0000000000000000	/* 0xd8 - unused */

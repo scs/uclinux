@@ -99,7 +99,7 @@ static int speedstep_smi_get_freqs (unsigned int *low, unsigned int *high)
 	u32 function = GET_SPEEDSTEP_FREQS;
 
 	if (!(ist_info.event & 0xFFFF)) {
-		dprintk("bug #1422 -- can't read freqs from BIOS\n", result);
+		dprintk("bug #1422 -- can't read freqs from BIOS\n");
 		return -ENODEV;
 	}
 
@@ -269,6 +269,7 @@ static int speedstep_cpu_init(struct cpufreq_policy *policy)
 		result = speedstep_get_freqs(speedstep_processor,
 				&speedstep_freqs[SPEEDSTEP_LOW].frequency,
 				&speedstep_freqs[SPEEDSTEP_HIGH].frequency,
+				NULL,
 				&speedstep_set_state);
 
 		if (result) {

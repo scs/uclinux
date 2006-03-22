@@ -3,23 +3,22 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (C) 2001-2004 Silicon Graphics, Inc. All rights reserved.
+ * Copyright (C) 2001-2005 Silicon Graphics, Inc. All rights reserved.
  */
 
 #include <linux/types.h>
 #include <linux/pci.h>
-#include <asm/sn/sn_sal.h>
+#include <asm/sn/addrs.h>
 #include <asm/sn/geo.h>
-#include "xtalk/xwidgetdev.h"
-#include "xtalk/hubdev.h"
+#include <asm/sn/pcibr_provider.h>
 #include <asm/sn/pcibus_provider_defs.h>
 #include <asm/sn/pcidev.h>
-#include "pci/tiocp.h"
-#include "pci/pic.h"
-#include "pci/pcibr_provider.h"
-#include "pci/tiocp.h"
+#include <asm/sn/pic.h>
+#include <asm/sn/sn_sal.h>
+#include <asm/sn/tiocp.h>
 #include "tio.h"
-#include <asm/sn/addrs.h>
+#include "xtalk/xwidgetdev.h"
+#include "xtalk/hubdev.h"
 
 extern int sn_ioif_inited;
 
@@ -42,21 +41,21 @@ extern int sn_ioif_inited;
 
 static dma_addr_t
 pcibr_dmamap_ate32(struct pcidev_info *info,
-		   uint64_t paddr, size_t req_size, uint64_t flags)
+		   u64 paddr, size_t req_size, u64 flags)
 {
 
 	struct pcidev_info *pcidev_info = info->pdi_host_pcidev_info;
 	struct pcibus_info *pcibus_info = (struct pcibus_info *)pcidev_info->
 	    pdi_pcibus_info;
-	uint8_t internal_device = (PCI_SLOT(pcidev_info->pdi_host_pcidev_info->
+	u8 internal_device = (PCI_SLOT(pcidev_info->pdi_host_pcidev_info->
 					    pdi_linux_pcidev->devfn)) - 1;
 	int ate_count;
 	int ate_index;
-	uint64_t ate_flags = flags | PCI32_ATE_V;
-	uint64_t ate;
-	uint64_t pci_addr;
-	uint64_t xio_addr;
-	uint64_t offset;
+	u64 ate_flags = flags | PCI32_ATE_V;
+	u64 ate;
+	u64 pci_addr;
+	u64 xio_addr;
+	u64 offset;
 
 	/* PIC in PCI-X mode does not supports 32bit PageMap mode */
 	if (IS_PIC_SOFT(pcibus_info) && IS_PCIX(pcibus_info)) {
@@ -110,12 +109,12 @@ pcibr_dmamap_ate32(struct pcidev_info *info,
 }
 
 static dma_addr_t
-pcibr_dmatrans_direct64(struct pcidev_info * info, uint64_t paddr,
-			uint64_t dma_attributes)
+pcibr_dmatrans_direct64(struct pcidev_info * info, u64 paddr,
+			u64 dma_attributes)
 {
 	struct pcibus_info *pcibus_info = (struct pcibus_info *)
 	    ((info->pdi_host_pcidev_info)->pdi_pcibus_info);
-	uint64_t pci_addr;
+	u64 pci_addr;
 
 	/* Translate to Crosstalk View of Physical Address */
 	pci_addr = (IS_PIC_SOFT(pcibus_info) ? PHYS_TO_DMA(paddr) :
@@ -128,7 +127,7 @@ pcibr_dmatrans_direct64(struct pcidev_info * info, uint64_t paddr,
 	/* Handle Bridge Chipset differences */
 	if (IS_PIC_SOFT(pcibus_info)) {
 		pci_addr |=
-		    ((uint64_t) pcibus_info->
+		    ((u64) pcibus_info->
 		     pbi_hub_xid << PIC_PCI64_ATTR_TARG_SHFT);
 	} else
 		pci_addr |= TIOCP_PCI64_CMDTYPE_MEM;
@@ -138,22 +137,20 @@ pcibr_dmatrans_direct64(struct pcidev_info * info, uint64_t paddr,
 		pci_addr |= PCI64_ATTR_VIRTUAL;
 
 	return pci_addr;
-
 }
 
 static dma_addr_t
 pcibr_dmatrans_direct32(struct pcidev_info * info,
-			uint64_t paddr, size_t req_size, uint64_t flags)
+			u64 paddr, size_t req_size, u64 flags)
 {
-
 	struct pcidev_info *pcidev_info = info->pdi_host_pcidev_info;
 	struct pcibus_info *pcibus_info = (struct pcibus_info *)pcidev_info->
 	    pdi_pcibus_info;
-	uint64_t xio_addr;
+	u64 xio_addr;
 
-	uint64_t xio_base;
-	uint64_t offset;
-	uint64_t endoff;
+	u64 xio_base;
+	u64 offset;
+	u64 endoff;
 
 	if (IS_PCIX(pcibus_info)) {
 		return 0;
@@ -172,7 +169,6 @@ pcibr_dmatrans_direct32(struct pcidev_info * info,
 	}
 
 	return PCI32_DIRECT_BASE | offset;
-
 }
 
 /*
@@ -210,16 +206,17 @@ pcibr_dma_unmap(struct pci_dev *hwdev, dma_addr_t dma_handle, int direction)
  * unlike the PIC Device(x) Write Request Buffer Flush register.
  */
 
-void sn_dma_flush(uint64_t addr)
+void sn_dma_flush(u64 addr)
 {
 	nasid_t nasid;
 	int is_tio;
 	int wid_num;
 	int i, j;
-	int bwin;
-	uint64_t flags;
+	u64 flags;
+	u64 itte;
 	struct hubdev_info *hubinfo;
-	volatile struct sn_flush_device_list *p;
+	struct sn_flush_device_kernel *p;
+	struct sn_flush_device_common *common;
 	struct sn_flush_nasid_entry *flush_nasid_list;
 
 	if (!sn_ioif_inited)
@@ -234,47 +231,52 @@ void sn_dma_flush(uint64_t addr)
 	if (!hubinfo) {
 		BUG();
 	}
-	is_tio = (nasid & 1);
-	if (is_tio) {
-		wid_num = TIO_SWIN_WIDGETNUM(addr);
-		bwin = TIO_BWIN_WINDOWNUM(addr);
-	} else {
-		wid_num = SWIN_WIDGETNUM(addr);
-		bwin = BWIN_WINDOWNUM(addr);
-	}
 
 	flush_nasid_list = &hubinfo->hdi_flush_nasid_list;
 	if (flush_nasid_list->widget_p == NULL)
 		return;
-	if (bwin > 0) {
-		uint64_t itte = flush_nasid_list->iio_itte[bwin];
 
-		if (is_tio) {
-			wid_num = (itte >> TIO_ITTE_WIDGET_SHIFT) &
-			    TIO_ITTE_WIDGET_MASK;
-		} else {
-			wid_num = (itte >> IIO_ITTE_WIDGET_SHIFT) &
-			    IIO_ITTE_WIDGET_MASK;
-		}
+	is_tio = (nasid & 1);
+	if (is_tio) {
+		int itte_index;
+
+		if (TIO_HWIN(addr))
+			itte_index = 0;
+		else if (TIO_BWIN_WINDOWNUM(addr))
+			itte_index = TIO_BWIN_WINDOWNUM(addr);
+		else
+			itte_index = -1;
+
+		if (itte_index >= 0) {
+			itte = flush_nasid_list->iio_itte[itte_index];
+			if (! TIO_ITTE_VALID(itte))
+				return;
+			wid_num = TIO_ITTE_WIDGET(itte);
+		} else
+			wid_num = TIO_SWIN_WIDGETNUM(addr);
+	} else {
+		if (BWIN_WINDOWNUM(addr)) {
+			itte = flush_nasid_list->iio_itte[BWIN_WINDOWNUM(addr)];
+			wid_num = IIO_ITTE_WIDGET(itte);
+		} else
+			wid_num = SWIN_WIDGETNUM(addr);
 	}
-	if (flush_nasid_list->widget_p == NULL)
-		return;
 	if (flush_nasid_list->widget_p[wid_num] == NULL)
 		return;
 	p = &flush_nasid_list->widget_p[wid_num][0];
 
 	/* find a matching BAR */
-	for (i = 0; i < DEV_PER_WIDGET; i++) {
+	for (i = 0; i < DEV_PER_WIDGET; i++,p++) {
+		common = p->common;
 		for (j = 0; j < PCI_ROM_RESOURCE; j++) {
-			if (p->sfdl_bar_list[j].start == 0)
+			if (common->sfdl_bar_list[j].start == 0)
 				break;
-			if (addr >= p->sfdl_bar_list[j].start
-			    && addr <= p->sfdl_bar_list[j].end)
+			if (addr >= common->sfdl_bar_list[j].start
+			    && addr <= common->sfdl_bar_list[j].end)
 				break;
 		}
-		if (j < PCI_ROM_RESOURCE && p->sfdl_bar_list[j].start != 0)
+		if (j < PCI_ROM_RESOURCE && common->sfdl_bar_list[j].start != 0)
 			break;
-		p++;
 	}
 
 	/* if no matching BAR, return without doing anything. */
@@ -284,33 +286,38 @@ void sn_dma_flush(uint64_t addr)
 	/*
 	 * For TIOCP use the Device(x) Write Request Buffer Flush Bridge
 	 * register since it ensures the data has entered the coherence
-	 * domain, unlike PIC
+	 * domain, unlike PIC.
 	 */
 	if (is_tio) {
-		uint32_t tio_id = REMOTE_HUB_L(nasid, TIO_NODE_ID);
-		uint32_t revnum = XWIDGET_PART_REV_NUM(tio_id);
+		/*
+	 	 * Note:  devices behind TIOCE should never be matched in the
+		 * above code, and so the following code is PIC/CP centric.
+		 * If CE ever needs the sn_dma_flush mechanism, we will have
+		 * to account for that here and in tioce_bus_fixup().
+	 	 */
+		u32 tio_id = HUB_L(TIO_IOSPACE_ADDR(nasid, TIO_NODE_ID));
+		u32 revnum = XWIDGET_PART_REV_NUM(tio_id);
 
 		/* TIOCP BRINGUP WAR (PV907516): Don't write buffer flush reg */
 		if ((1 << XWIDGET_PART_REV_NUM_REV(revnum)) & PV907516) {
 			return;
 		} else {
-			pcireg_wrb_flush_get(p->sfdl_pcibus_info,
-					     (p->sfdl_slot - 1));
+			pcireg_wrb_flush_get(common->sfdl_pcibus_info,
+					     (common->sfdl_slot - 1));
 		}
 	} else {
-		spin_lock_irqsave(&((struct sn_flush_device_list *)p)->
-				  sfdl_flush_lock, flags);
-
-		*p->sfdl_flush_addr = 0;
+		spin_lock_irqsave(&p->sfdl_flush_lock, flags);
+		*common->sfdl_flush_addr = 0;
 
 		/* force an interrupt. */
-		*(volatile uint32_t *)(p->sfdl_force_int_addr) = 1;
+		*(volatile u32 *)(common->sfdl_force_int_addr) = 1;
 
 		/* wait for the interrupt to come back. */
-		while (*(p->sfdl_flush_addr) != 0x10f) ;
+		while (*(common->sfdl_flush_addr) != 0x10f)
+			cpu_relax();
 
 		/* okay, everything is synched up. */
-		spin_unlock_irqrestore((spinlock_t *)&p->sfdl_flush_lock, flags);
+		spin_unlock_irqrestore(&p->sfdl_flush_lock, flags);
 	}
 	return;
 }

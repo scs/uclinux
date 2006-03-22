@@ -7,6 +7,7 @@
 
 #include <linux/acpi.h>
 #include <linux/bootmem.h>
+#include <linux/dmi.h>
 #include <asm/smp.h>
 #include <asm/tlbflush.h>
 
@@ -19,12 +20,13 @@ extern void zap_low_mappings(void);
 
 extern unsigned long FASTCALL(acpi_copy_wakeup_routine(unsigned long));
 
-static void init_low_mapping(pgd_t *pgd, int pgd_limit)
+static void init_low_mapping(pgd_t * pgd, int pgd_limit)
 {
 	int pgd_ofs = 0;
 
-	while ((pgd_ofs < pgd_limit) && (pgd_ofs + USER_PTRS_PER_PGD < PTRS_PER_PGD)) {
-		set_pgd(pgd, *(pgd+USER_PTRS_PER_PGD));
+	while ((pgd_ofs < pgd_limit)
+	       && (pgd_ofs + USER_PTRS_PER_PGD < PTRS_PER_PGD)) {
+		set_pgd(pgd, *(pgd + USER_PTRS_PER_PGD));
 		pgd_ofs++, pgd++;
 	}
 	flush_tlb_all();
@@ -36,12 +38,13 @@ static void init_low_mapping(pgd_t *pgd, int pgd_limit)
  * Create an identity mapped page table and copy the wakeup routine to
  * low memory.
  */
-int acpi_save_state_mem (void)
+int acpi_save_state_mem(void)
 {
 	if (!acpi_wakeup_address)
 		return 1;
 	init_low_mapping(swapper_pg_dir, USER_PTRS_PER_PGD);
-	memcpy((void *) acpi_wakeup_address, &wakeup_start, &wakeup_end - &wakeup_start);
+	memcpy((void *)acpi_wakeup_address, &wakeup_start,
+	       &wakeup_end - &wakeup_start);
 	acpi_copy_wakeup_routine(acpi_wakeup_address);
 
 	return 0;
@@ -50,7 +53,7 @@ int acpi_save_state_mem (void)
 /*
  * acpi_restore_state - undo effects of acpi_save_state_mem
  */
-void acpi_restore_state_mem (void)
+void acpi_restore_state_mem(void)
 {
 	zap_low_mappings();
 }
@@ -66,7 +69,8 @@ void acpi_restore_state_mem (void)
 void __init acpi_reserve_bootmem(void)
 {
 	if ((&wakeup_end - &wakeup_start) > PAGE_SIZE) {
-		printk(KERN_ERR "ACPI: Wakeup code way too big, S3 disabled.\n");
+		printk(KERN_ERR
+		       "ACPI: Wakeup code way too big, S3 disabled.\n");
 		return;
 	}
 
@@ -89,5 +93,29 @@ static int __init acpi_sleep_setup(char *str)
 	return 1;
 }
 
-
 __setup("acpi_sleep=", acpi_sleep_setup);
+
+static __init int reset_videomode_after_s3(struct dmi_system_id *d)
+{
+	acpi_video_flags |= 2;
+	return 0;
+}
+
+static __initdata struct dmi_system_id acpisleep_dmi_table[] = {
+	{			/* Reset video mode after returning from ACPI S3 sleep */
+	 .callback = reset_videomode_after_s3,
+	 .ident = "Toshiba Satellite 4030cdt",
+	 .matches = {
+		     DMI_MATCH(DMI_PRODUCT_NAME, "S4030CDT/4.3"),
+		     },
+	 },
+	{}
+};
+
+static int __init acpisleep_dmi_init(void)
+{
+	dmi_check_system(acpisleep_dmi_table);
+	return 0;
+}
+
+core_initcall(acpisleep_dmi_init);

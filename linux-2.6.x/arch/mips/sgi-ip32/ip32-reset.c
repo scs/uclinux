@@ -15,6 +15,7 @@
 #include <linux/delay.h>
 #include <linux/ds17287rtc.h>
 #include <linux/interrupt.h>
+#include <linux/pm.h>
 
 #include <asm/addrspace.h>
 #include <asm/irq.h>
@@ -140,7 +141,7 @@ static irqreturn_t ip32_rtc_int(int irq, void *dev_id, struct pt_regs *regs)
 
 	reg_c = CMOS_READ(RTC_INTR_FLAGS);
 	if (!(reg_c & RTC_IRQF)) {
-		printk(KERN_WARNING 
+		printk(KERN_WARNING
 			"%s: RTC IRQ without RTC_IRQF\n", __FUNCTION__);
 	}
 	/* Wait until interrupt goes away */
@@ -188,7 +189,7 @@ static __init int ip32_reboot_setup(void)
 
 	_machine_restart = ip32_machine_restart;
 	_machine_halt = ip32_machine_halt;
-	_machine_power_off = ip32_machine_power_off;
+	pm_power_off = ip32_machine_power_off;
 
 	init_timer(&blink_timer);
 	blink_timer.function = blink_timeout;

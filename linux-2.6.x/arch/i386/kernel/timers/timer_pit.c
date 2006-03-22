@@ -6,7 +6,6 @@
 #include <linux/spinlock.h>
 #include <linux/module.h>
 #include <linux/device.h>
-#include <linux/irq.h>
 #include <linux/sysdev.h>
 #include <linux/timex.h>
 #include <asm/delay.h>
@@ -15,9 +14,8 @@
 #include <asm/smp.h>
 #include <asm/io.h>
 #include <asm/arch_hooks.h>
+#include <asm/i8253.h>
 
-extern spinlock_t i8259A_lock;
-extern spinlock_t i8253_lock;
 #include "do_timer.h"
 #include "io_ports.h"
 
@@ -27,8 +25,9 @@ static int __init init_pit(char* override)
 {
  	/* check clock override */
  	if (override[0] && strncmp(override,"pit",3))
- 		printk(KERN_ERR "Warning: clock= override failed. Defaulting to PIT\n");
- 
+ 		printk(KERN_ERR "Warning: clock= override failed. Defaulting "
+				"to PIT\n");
+ 	init_cpu_khz();
 	count_p = LATCH;
 	return 0;
 }
@@ -166,7 +165,6 @@ struct init_timer_opts __initdata timer_pit_init = {
 
 void setup_pit_timer(void)
 {
-	extern spinlock_t i8253_lock;
 	unsigned long flags;
 
 	spin_lock_irqsave(&i8253_lock, flags);
@@ -177,30 +175,3 @@ void setup_pit_timer(void)
 	outb(LATCH >> 8 , PIT_CH0);	/* MSB */
 	spin_unlock_irqrestore(&i8253_lock, flags);
 }
-
-static int timer_resume(struct sys_device *dev)
-{
-	setup_pit_timer();
-	return 0;
-}
-
-static struct sysdev_class timer_sysclass = {
-	set_kset_name("timer_pit"),
-	.resume	= timer_resume,
-};
-
-static struct sys_device device_timer = {
-	.id	= 0,
-	.cls	= &timer_sysclass,
-};
-
-static int __init init_timer_sysfs(void)
-{
-	int error = sysdev_class_register(&timer_sysclass);
-	if (!error)
-		error = sysdev_register(&device_timer);
-	return error;
-}
-
-device_initcall(init_timer_sysfs);
-

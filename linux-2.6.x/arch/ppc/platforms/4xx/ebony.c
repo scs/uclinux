@@ -7,7 +7,7 @@
  * Copyright 2002-2005 MontaVista Software Inc.
  *
  * Eugene Surovegin <eugene.surovegin@zultys.com> or <ebs@ebshome.net>
- * Copyright (c) 2003, 2004 Zultys Technologies
+ * Copyright (c) 2003-2005 Zultys Technologies
  *
  * This program is free software; you can redistribute  it and/or modify it
  * under  the terms of  the GNU General  Public License as published by the
@@ -30,7 +30,6 @@
 #include <linux/delay.h>
 #include <linux/ide.h>
 #include <linux/initrd.h>
-#include <linux/irq.h>
 #include <linux/seq_file.h>
 #include <linux/root_dev.h>
 #include <linux/tty.h>
@@ -50,18 +49,12 @@
 #include <asm/bootinfo.h>
 #include <asm/ppc4xx_pic.h>
 #include <asm/ppcboot.h>
+#include <asm/tlbflush.h>
 
 #include <syslib/gen550.h>
 #include <syslib/ibm440gp_common.h>
 
-/*
- * This is a horrible kludge, we eventually need to abstract this
- * generic PHY stuff, so the  standard phy mode defines can be
- * easily used from arch code.
- */
-#include "../../../../drivers/net/ibm_emac/ibm_emac_phy.h"
-
-bd_t __res;
+extern bd_t __res;
 
 static struct ibm44x_clocks clocks __initdata;
 
@@ -97,15 +90,10 @@ ebony_calibrate_decr(void)
 	 * on Rev. C silicon then errata forces us to
 	 * use the internal clock.
 	 */
-	switch (PVR_REV(mfspr(SPRN_PVR))) {
-		case PVR_REV(PVR_440GP_RB):
-			freq = EBONY_440GP_RB_SYSCLK;
-			break;
-		case PVR_REV(PVR_440GP_RC1):
-		default:
-			freq = EBONY_440GP_RC_SYSCLK;
-			break;
-	}
+	if (strcmp(cur_cpu_spec->cpu_name, "440GP Rev. B") == 0)
+		freq = EBONY_440GP_RB_SYSCLK;
+	else
+		freq = EBONY_440GP_RC_SYSCLK;
 
 	ibm44x_calibrate_decr(freq);
 }
@@ -237,8 +225,8 @@ ebony_early_serial_map(void)
 	port.irq = 0;
 	port.uartclk = clocks.uart0;
 	port.regshift = 0;
-	port.iotype = SERIAL_IO_MEM;
-	port.flags = ASYNC_BOOT_AUTOCONF | ASYNC_SKIP_TEST;
+	port.iotype = UPIO_MEM;
+	port.flags = UPF_BOOT_AUTOCONF | UPF_SKIP_TEST;
 	port.line = 0;
 
 	if (early_serial_setup(&port) != 0) {
@@ -248,6 +236,9 @@ ebony_early_serial_map(void)
 #if defined(CONFIG_SERIAL_TEXT_DEBUG) || defined(CONFIG_KGDB)
 	/* Configure debug serial access */
 	gen550_init(0, &port);
+
+	/* Purge TLB entry added in head_44x.S for early serial access */
+	_tlbie(UART0_IO_BASE);
 #endif
 
 	port.membase = ioremap64(PPC440GP_UART1_ADDR, 8);
@@ -326,16 +317,7 @@ ebony_setup_arch(void)
 void __init platform_init(unsigned long r3, unsigned long r4,
 		unsigned long r5, unsigned long r6, unsigned long r7)
 {
-	parse_bootinfo(find_bootinfo());
-
-	/*
-	 * If we were passed in a board information, copy it into the
-	 * residual data area.
-	 */
-	if (r3)
-		__res = *(bd_t *)(r3 + KERNELBASE);
-
-	ibm44x_platform_init();
+	ibm44x_platform_init(r3, r4, r5, r6, r7);
 
 	ppc_md.setup_arch = ebony_setup_arch;
 	ppc_md.show_cpuinfo = ebony_show_cpuinfo;

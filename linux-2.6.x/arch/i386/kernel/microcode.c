@@ -70,9 +70,11 @@
  */
 
 //#define DEBUG /* pr_debug */
+#include <linux/capability.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/sched.h>
+#include <linux/cpumask.h>
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
@@ -164,7 +166,8 @@ static void collect_cpu_info (void *unused)
 	}
 
 	wrmsr(MSR_IA32_UCODE_REV, 0, 0);
-	__asm__ __volatile__ ("cpuid" : : : "ax", "bx", "cx", "dx");
+	/* see notes above for revision 1.07.  Apparent chip bug */
+	sync_core();
 	/* get the current revision from MSR 0x8B */
 	rdmsr(MSR_IA32_UCODE_REV, val[0], uci->rev);
 	pr_debug("microcode: collect_cpu_info : sig=0x%x, pf=0x%x, rev=0x%x\n",
@@ -248,8 +251,8 @@ static int find_matching_ucodes (void)
 			error = -EINVAL;
 			goto out;
 		}
-		
-		for (cpu_num = 0; cpu_num < num_online_cpus(); cpu_num++) {
+
+		for_each_online_cpu(cpu_num) {
 			struct ucode_cpu_info *uci = ucode_cpu_info + cpu_num;
 			if (uci->err != MC_NOTFOUND) /* already found a match or not an online cpu*/
 				continue;
@@ -291,7 +294,7 @@ static int find_matching_ucodes (void)
 					error = -EFAULT;
 					goto out;
 				}
-				for (cpu_num = 0; cpu_num < num_online_cpus(); cpu_num++) {
+				for_each_online_cpu(cpu_num) {
 					struct ucode_cpu_info *uci = ucode_cpu_info + cpu_num;
 					if (uci->err != MC_NOTFOUND) /* already found a match or not an online cpu*/
 						continue;
@@ -302,7 +305,9 @@ static int find_matching_ucodes (void)
 			}
 		}
 		/* now check if any cpu has matched */
-		for (cpu_num = 0, allocated_flag = 0, sum = 0; cpu_num < num_online_cpus(); cpu_num++) {
+		allocated_flag = 0;
+		sum = 0;
+		for_each_online_cpu(cpu_num) {
 			if (ucode_cpu_info[cpu_num].err == MC_MARKED) { 
 				struct ucode_cpu_info *uci = ucode_cpu_info + cpu_num;
 				if (!allocated_flag) {
@@ -377,7 +382,9 @@ static void do_update_one (void * unused)
 		(unsigned long) uci->mc->bits >> 16 >> 16);
 	wrmsr(MSR_IA32_UCODE_REV, 0, 0);
 
-	__asm__ __volatile__ ("cpuid" : : : "ax", "bx", "cx", "dx");
+	/* see notes above for revision 1.07.  Apparent chip bug */
+	sync_core();
+
 	/* get the current revision from MSR 0x8B */
 	rdmsr(MSR_IA32_UCODE_REV, val[0], val[1]);
 
@@ -411,12 +418,12 @@ static int do_microcode_update (void)
 	}
 
 out_free:
-	for (i = 0; i < num_online_cpus(); i++) {
+	for_each_online_cpu(i) {
 		if (ucode_cpu_info[i].mc) {
 			int j;
 			void *tmp = ucode_cpu_info[i].mc;
 			vfree(tmp);
-			for (j = i; j < num_online_cpus(); j++) {
+			for_each_online_cpu(j) {
 				if (ucode_cpu_info[j].mc == tmp)
 					ucode_cpu_info[j].mc = NULL;
 			}

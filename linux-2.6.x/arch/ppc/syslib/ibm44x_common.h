@@ -29,10 +29,15 @@ struct ibm44x_clocks {
 	unsigned int ebc;	/* PerClk */
 	unsigned int uart0;
 	unsigned int uart1;
+#ifdef CONFIG_440EP
+	unsigned int uart2;
+	unsigned int uart3;
+#endif
 };
 
 /* common 44x platform init */
-void ibm44x_platform_init(void) __init;
+void ibm44x_platform_init(unsigned long r3, unsigned long r4, unsigned long r5,
+			  unsigned long r6, unsigned long r7) __init;
 
 /* initialize decrementer and tick-related variables */
 void ibm44x_calibrate_decr(unsigned int freq) __init;

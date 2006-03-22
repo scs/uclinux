@@ -31,14 +31,14 @@
 #include <linux/cpufreq.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
+#include <linux/compiler.h>
+#include <linux/sched.h>	/* current */
 #include <asm/io.h>
 #include <asm/delay.h>
 #include <asm/uaccess.h>
 
 #include <linux/acpi.h>
 #include <acpi/processor.h>
-
-#include "speedstep-est-common.h"
 
 #define dprintk(msg...) cpufreq_debug_printk(CPUFREQ_DEBUG_DRIVER, "acpi-cpufreq", msg)
 
@@ -56,6 +56,8 @@ struct cpufreq_acpi_io {
 static struct cpufreq_acpi_io	*acpi_io_data[NR_CPUS];
 
 static struct cpufreq_driver acpi_cpufreq_driver;
+
+static unsigned int acpi_pstate_strict;
 
 static int
 acpi_processor_write_port(
@@ -163,34 +165,44 @@ acpi_processor_set_performance (
 	}
 
 	/*
-	 * Then we read the 'status_register' and compare the value with the
-	 * target state's 'status' to make sure the transition was successful.
-	 * Note that we'll poll for up to 1ms (100 cycles of 10us) before
-	 * giving up.
+	 * Assume the write went through when acpi_pstate_strict is not used.
+	 * As read status_register is an expensive operation and there 
+	 * are no specific error cases where an IO port write will fail.
 	 */
+	if (acpi_pstate_strict) {
+		/* Then we read the 'status_register' and compare the value 
+		 * with the target state's 'status' to make sure the 
+		 * transition was successful.
+		 * Note that we'll poll for up to 1ms (100 cycles of 10us) 
+		 * before giving up.
+		 */
 
-	port = data->acpi_data.status_register.address;
-	bit_width = data->acpi_data.status_register.bit_width;
+		port = data->acpi_data.status_register.address;
+		bit_width = data->acpi_data.status_register.bit_width;
 
-	dprintk("Looking for 0x%08x from port 0x%04x\n",
-		(u32) data->acpi_data.states[state].status, port);
+		dprintk("Looking for 0x%08x from port 0x%04x\n",
+			(u32) data->acpi_data.states[state].status, port);
 
-	for (i=0; i<100; i++) {
-		ret = acpi_processor_read_port(port, bit_width, &value);
-		if (ret) {	
-			dprintk("Invalid port width 0x%04x\n", bit_width);
-			retval = ret;
-			goto migrate_end;
+		for (i=0; i<100; i++) {
+			ret = acpi_processor_read_port(port, bit_width, &value);
+			if (ret) {	
+				dprintk("Invalid port width 0x%04x\n", bit_width);
+				retval = ret;
+				goto migrate_end;
+			}
+			if (value == (u32) data->acpi_data.states[state].status)
+				break;
+			udelay(10);
 		}
-		if (value == (u32) data->acpi_data.states[state].status)
-			break;
-		udelay(10);
+	} else {
+		i = 0;
+		value = (u32) data->acpi_data.states[state].status;
 	}
 
 	/* notify cpufreq */
 	cpufreq_notify_transition(&cpufreq_freqs, CPUFREQ_POSTCHANGE);
 
-	if (value != (u32) data->acpi_data.states[state].status) {
+	if (unlikely(value != (u32) data->acpi_data.states[state].status)) {
 		unsigned int tmp = cpufreq_freqs.new;
 		cpufreq_freqs.new = cpufreq_freqs.old;
 		cpufreq_freqs.old = tmp;
@@ -283,68 +295,6 @@ acpi_cpufreq_guess_freq (
 }
 
 
-/* 
- * acpi_processor_cpu_init_pdc_est - let BIOS know about the SMP capabilities
- * of this driver
- * @perf: processor-specific acpi_io_data struct
- * @cpu: CPU being initialized
- *
- * To avoid issues with legacy OSes, some BIOSes require to be informed of
- * the SMP capabilities of OS P-state driver. Here we set the bits in _PDC 
- * accordingly, for Enhanced Speedstep. Actual call to _PDC is done in
- * driver/acpi/processor.c
- */
-static void 
-acpi_processor_cpu_init_pdc_est(
-		struct acpi_processor_performance *perf, 
-		unsigned int cpu,
-		struct acpi_object_list *obj_list
-		)
-{
-	union acpi_object *obj;
-	u32 *buf;
-	struct cpuinfo_x86 *c = cpu_data + cpu;
-	dprintk("acpi_processor_cpu_init_pdc_est\n");
-
-	if (!cpu_has(c, X86_FEATURE_EST))
-		return;
-
-	/* Initialize pdc. It will be used later. */
-	if (!obj_list)
-		return;
-		
-	if (!(obj_list->count && obj_list->pointer))
-		return;
-
-	obj = obj_list->pointer;
-	if ((obj->buffer.length == 12) && obj->buffer.pointer) {
-		buf = (u32 *)obj->buffer.pointer;
-       		buf[0] = ACPI_PDC_REVISION_ID;
-       		buf[1] = 1;
-       		buf[2] = ACPI_PDC_EST_CAPABILITY_SMP;
-		perf->pdc = obj_list;
-	}
-	return;
-}
- 
-
-/* CPU specific PDC initialization */
-static void 
-acpi_processor_cpu_init_pdc(
-		struct acpi_processor_performance *perf, 
-		unsigned int cpu,
-		struct acpi_object_list *obj_list
-		)
-{
-	struct cpuinfo_x86 *c = cpu_data + cpu;
-	dprintk("acpi_processor_cpu_init_pdc\n");
-	perf->pdc = NULL;
-	if (cpu_has(c, X86_FEATURE_EST))
-		acpi_processor_cpu_init_pdc_est(perf, cpu, obj_list);
-	return;
-}
-
-
 static int
 acpi_cpufreq_cpu_init (
 	struct cpufreq_policy   *policy)
@@ -353,31 +303,22 @@ acpi_cpufreq_cpu_init (
 	unsigned int		cpu = policy->cpu;
 	struct cpufreq_acpi_io	*data;
 	unsigned int		result = 0;
-
-	union acpi_object		arg0 = {ACPI_TYPE_BUFFER};
-	u32				arg0_buf[3];
-	struct acpi_object_list 	arg_list = {1, &arg0};
+	struct cpuinfo_x86 *c = &cpu_data[policy->cpu];
 
 	dprintk("acpi_cpufreq_cpu_init\n");
-	/* setup arg_list for _PDC settings */
-        arg0.buffer.length = 12;
-        arg0.buffer.pointer = (u8 *) arg0_buf;
 
-	data = kmalloc(sizeof(struct cpufreq_acpi_io), GFP_KERNEL);
+	data = kzalloc(sizeof(struct cpufreq_acpi_io), GFP_KERNEL);
 	if (!data)
 		return (-ENOMEM);
-	memset(data, 0, sizeof(struct cpufreq_acpi_io));
 
 	acpi_io_data[cpu] = data;
 
-	acpi_processor_cpu_init_pdc(&data->acpi_data, cpu, &arg_list);
 	result = acpi_processor_register_performance(&data->acpi_data, cpu);
-	data->acpi_data.pdc = NULL;
 
 	if (result)
 		goto err_free;
 
-	if (is_const_loops_cpu(cpu)) {
+	if (cpu_has(c, X86_FEATURE_CONSTANT_TSC)) {
 		acpi_cpufreq_driver.flags |= CPUFREQ_CONST_LOOPS;
 	}
 
@@ -442,6 +383,13 @@ acpi_cpufreq_cpu_init (
 			(u32) data->acpi_data.states[i].transition_latency);
 
 	cpufreq_frequency_table_get_attr(data->freq_table, policy->cpu);
+	
+	/*
+	 * the first call to ->target() should result in us actually
+	 * writing something to the appropriate registers.
+	 */
+	data->resume = 1;
+	
 	return (result);
 
  err_freqfree:
@@ -530,6 +478,8 @@ acpi_cpufreq_exit (void)
 	return;
 }
 
+module_param(acpi_pstate_strict, uint, 0644);
+MODULE_PARM_DESC(acpi_pstate_strict, "value 0 or non-zero. non-zero -> strict ACPI checks are performed during frequency changes.");
 
 late_initcall(acpi_cpufreq_init);
 module_exit(acpi_cpufreq_exit);

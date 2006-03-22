@@ -2,6 +2,7 @@
  *  linux/arch/i386/kernel/reboot.c
  */
 
+#include <linux/config.h>
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/delay.h>
@@ -10,8 +11,11 @@
 #include <linux/mc146818rtc.h>
 #include <linux/efi.h>
 #include <linux/dmi.h>
+#include <linux/ctype.h>
+#include <linux/pm.h>
 #include <asm/uaccess.h>
 #include <asm/apic.h>
+#include <asm/desc.h>
 #include "mach_reboot.h"
 #include <linux/reboot_fixups.h>
 
@@ -19,15 +23,13 @@
  * Power off function, if any
  */
 void (*pm_power_off)(void);
+EXPORT_SYMBOL(pm_power_off);
 
 static int reboot_mode;
 static int reboot_thru_bios;
 
 #ifdef CONFIG_SMP
-int reboot_smp = 0;
 static int reboot_cpu = -1;
-/* shamelessly grabbed from lib/vsprintf.c for readability */
-#define is_digit(c)	((c) >= '0' && (c) <= '9')
 #endif
 static int __init reboot_setup(char *str)
 {
@@ -47,10 +49,9 @@ static int __init reboot_setup(char *str)
 			break;
 #ifdef CONFIG_SMP
 		case 's': /* "smp" reboot by executing reset on BSP or other CPU*/
-			reboot_smp = 1;
-			if (is_digit(*(str+1))) {
+			if (isdigit(*(str+1))) {
 				reboot_cpu = (int) (*(str+1) - '0');
-				if (is_digit(*(str+2))) 
+				if (isdigit(*(str+2)))
 					reboot_cpu = reboot_cpu*10 + (int)(*(str+2) - '0');
 			}
 				/* we will leave sorting out the final value 
@@ -86,33 +87,9 @@ static int __init set_bios_reboot(struct dmi_system_id *d)
 	return 0;
 }
 
-/*
- * Some machines require the "reboot=s"  commandline option, this quirk makes that automatic.
- */
-static int __init set_smp_reboot(struct dmi_system_id *d)
-{
-#ifdef CONFIG_SMP
-	if (!reboot_smp) {
-		reboot_smp = 1;
-		printk(KERN_INFO "%s series board detected. Selecting SMP-method for reboots.\n", d->ident);
-	}
-#endif
-	return 0;
-}
-
-/*
- * Some machines require the "reboot=b,s"  commandline option, this quirk makes that automatic.
- */
-static int __init set_smp_bios_reboot(struct dmi_system_id *d)
-{
-	set_smp_reboot(d);
-	set_bios_reboot(d);
-	return 0;
-}
-
 static struct dmi_system_id __initdata reboot_dmi_table[] = {
 	{	/* Handle problems with rebooting on Dell 1300's */
-		.callback = set_smp_bios_reboot,
+		.callback = set_bios_reboot,
 		.ident = "Dell PowerEdge 1300",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Dell Computer Corporation"),
@@ -133,6 +110,14 @@ static struct dmi_system_id __initdata reboot_dmi_table[] = {
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Dell Computer Corporation"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "PowerEdge 2400"),
+		},
+	},
+	{	/* Handle problems with rebooting on HP laptops */
+		.callback = set_bios_reboot,
+		.ident = "HP Compaq Laptop",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "HP Compaq"),
 		},
 	},
 	{ }
@@ -266,13 +251,13 @@ void machine_real_restart(unsigned char *code, int length)
 
 	/* Set up the IDT for real mode. */
 
-	__asm__ __volatile__ ("lidt %0" : : "m" (real_mode_idt));
+	load_idt(&real_mode_idt);
 
 	/* Set up a GDT from which we can load segment descriptors for real
 	   mode.  The GDT is not used in real mode; it is just needed here to
 	   prepare the descriptors. */
 
-	__asm__ __volatile__ ("lgdt %0" : : "m" (real_mode_gdt));
+	load_gdt(&real_mode_gdt);
 
 	/* Load the data segment registers, and thus the descriptors ready for
 	   real mode.  The base address of each segment is 0x100, 16 times the
@@ -295,42 +280,36 @@ void machine_real_restart(unsigned char *code, int length)
 				:
 				: "i" ((void *) (0x1000 - sizeof (real_mode_switch) - 100)));
 }
+#ifdef CONFIG_APM_MODULE
+EXPORT_SYMBOL(machine_real_restart);
+#endif
 
-void machine_restart(char * __unused)
+void machine_shutdown(void)
 {
 #ifdef CONFIG_SMP
-	int cpuid;
-	
-	cpuid = GET_APIC_ID(apic_read(APIC_ID));
+	int reboot_cpu_id;
 
-	if (reboot_smp) {
+	/* The boot cpu is always logical cpu 0 */
+	reboot_cpu_id = 0;
 
-		/* check to see if reboot_cpu is valid 
-		   if its not, default to the BSP */
-		if ((reboot_cpu == -1) ||  
-		      (reboot_cpu > (NR_CPUS -1))  || 
-		      !physid_isset(cpuid, phys_cpu_present_map))
-			reboot_cpu = boot_cpu_physical_apicid;
-
-		reboot_smp = 0;  /* use this as a flag to only go through this once*/
-		/* re-run this function on the other CPUs
-		   it will fall though this section since we have 
-		   cleared reboot_smp, and do the reboot if it is the
-		   correct CPU, otherwise it halts. */
-		if (reboot_cpu != cpuid)
-			smp_call_function((void *)machine_restart , NULL, 1, 0);
+	/* See if there has been given a command line override */
+	if ((reboot_cpu != -1) && (reboot_cpu < NR_CPUS) &&
+		cpu_isset(reboot_cpu, cpu_online_map)) {
+		reboot_cpu_id = reboot_cpu;
 	}
 
-	/* if reboot_cpu is still -1, then we want a tradional reboot, 
-	   and if we are not running on the reboot_cpu,, halt */
-	if ((reboot_cpu != -1) && (cpuid != reboot_cpu)) {
-		for (;;)
-		__asm__ __volatile__ ("hlt");
+	/* Make certain the cpu I'm rebooting on is online */
+	if (!cpu_isset(reboot_cpu_id, cpu_online_map)) {
+		reboot_cpu_id = smp_processor_id();
 	}
-	/*
-	 * Stop all CPUs and turn off local APICs and the IO-APIC, so
-	 * other OSs see a clean IRQ state.
+
+	/* Make certain I only run on the appropriate processor */
+	set_cpus_allowed(current, cpumask_of_cpu(reboot_cpu_id));
+
+	/* O.K. Now that I'm on the appropriate processor, stop
+	 * all of the others, and disable their local APICs.
 	 */
+
 	smp_send_stop();
 #endif /* CONFIG_SMP */
 
@@ -339,11 +318,14 @@ void machine_restart(char * __unused)
 #ifdef CONFIG_X86_IO_APIC
 	disable_IO_APIC();
 #endif
+}
 
+void machine_emergency_restart(void)
+{
 	if (!reboot_thru_bios) {
 		if (efi_enabled) {
 			efi.reset_system(EFI_RESET_COLD, EFI_SUCCESS, 0, NULL);
-			__asm__ __volatile__("lidt %0": :"m" (no_idt));
+			load_idt(&no_idt);
 			__asm__ __volatile__("int3");
 		}
 		/* rebooting needs to touch the page at absolute addr 0 */
@@ -352,7 +334,7 @@ void machine_restart(char * __unused)
 			mach_reboot_fixups(); /* for board specific fixups */
 			mach_reboot();
 			/* That didn't work - force a triple fault.. */
-			__asm__ __volatile__("lidt %0": :"m" (no_idt));
+			load_idt(&no_idt);
 			__asm__ __volatile__("int3");
 		}
 	}
@@ -362,23 +344,22 @@ void machine_restart(char * __unused)
 	machine_real_restart(jump_to_bios, sizeof(jump_to_bios));
 }
 
-EXPORT_SYMBOL(machine_restart);
+void machine_restart(char * __unused)
+{
+	machine_shutdown();
+	machine_emergency_restart();
+}
 
 void machine_halt(void)
 {
 }
 
-EXPORT_SYMBOL(machine_halt);
-
 void machine_power_off(void)
 {
-	lapic_shutdown();
-
-	if (efi_enabled)
-		efi.reset_system(EFI_RESET_SHUTDOWN, EFI_SUCCESS, 0, NULL);
-	if (pm_power_off)
+	if (pm_power_off) {
+		machine_shutdown();
 		pm_power_off();
+	}
 }
 
-EXPORT_SYMBOL(machine_power_off);
 

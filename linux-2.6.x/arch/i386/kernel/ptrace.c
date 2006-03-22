@@ -32,9 +32,12 @@
  * in exit.c or in signal.c.
  */
 
-/* determines which flags the user has access to. */
-/* 1 = access 0 = no access */
-#define FLAG_MASK 0x00044dd5
+/*
+ * Determines which flags the user has access to [1 = access, 0 = no access].
+ * Prohibits changing ID(21), VIP(20), VIF(19), VM(17), IOPL(12-13), IF(9).
+ * Also masks reserved bits (31-22, 15, 5, 3, 1).
+ */
+#define FLAG_MASK 0x00054dd5
 
 /* set's the trap flag. */
 #define TRAP_FLAG 0x100
@@ -271,6 +274,8 @@ static void clear_singlestep(struct task_struct *child)
 void ptrace_disable(struct task_struct *child)
 { 
 	clear_singlestep(child);
+	clear_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
+	clear_tsk_thread_flag(child, TIF_SYSCALL_EMU);
 }
 
 /*
@@ -352,48 +357,11 @@ ptrace_set_thread_area(struct task_struct *child,
 	return 0;
 }
 
-asmlinkage int sys_ptrace(long request, long pid, long addr, long data)
+long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 {
-	struct task_struct *child;
 	struct user * dummy = NULL;
 	int i, ret;
 	unsigned long __user *datap = (unsigned long __user *)data;
-
-	lock_kernel();
-	ret = -EPERM;
-	if (request == PTRACE_TRACEME) {
-		/* are we already being traced? */
-		if (current->ptrace & PT_PTRACED)
-			goto out;
-		ret = security_ptrace(current->parent, current);
-		if (ret)
-			goto out;
-		/* set the ptrace bit in the process flags. */
-		current->ptrace |= PT_PTRACED;
-		ret = 0;
-		goto out;
-	}
-	ret = -ESRCH;
-	read_lock(&tasklist_lock);
-	child = find_task_by_pid(pid);
-	if (child)
-		get_task_struct(child);
-	read_unlock(&tasklist_lock);
-	if (!child)
-		goto out;
-
-	ret = -EPERM;
-	if (pid == 1)		/* you may not mess with init */
-		goto out_tsk;
-
-	if (request == PTRACE_ATTACH) {
-		ret = ptrace_attach(child);
-		goto out_tsk;
-	}
-
-	ret = ptrace_check_attach(child, request == PTRACE_KILL);
-	if (ret < 0)
-		goto out_tsk;
 
 	switch (request) {
 	/* when I and D space are separate, these will need to be fixed. */
@@ -509,15 +477,20 @@ asmlinkage int sys_ptrace(long request, long pid, long addr, long data)
 		  }
 		  break;
 
+	case PTRACE_SYSEMU: /* continue and stop at next syscall, which will not be executed */
 	case PTRACE_SYSCALL:	/* continue and stop at next (return from) syscall */
 	case PTRACE_CONT:	/* restart after signal. */
 		ret = -EIO;
 		if (!valid_signal(data))
 			break;
-		if (request == PTRACE_SYSCALL) {
+		if (request == PTRACE_SYSEMU) {
+			set_tsk_thread_flag(child, TIF_SYSCALL_EMU);
+			clear_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
+		} else if (request == PTRACE_SYSCALL) {
 			set_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
-		}
-		else {
+			clear_tsk_thread_flag(child, TIF_SYSCALL_EMU);
+		} else {
+			clear_tsk_thread_flag(child, TIF_SYSCALL_EMU);
 			clear_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
 		}
 		child->exit_code = data;
@@ -542,10 +515,17 @@ asmlinkage int sys_ptrace(long request, long pid, long addr, long data)
 		wake_up_process(child);
 		break;
 
+	case PTRACE_SYSEMU_SINGLESTEP: /* Same as SYSEMU, but singlestep if not syscall */
 	case PTRACE_SINGLESTEP:	/* set the trap flag. */
 		ret = -EIO;
 		if (!valid_signal(data))
 			break;
+
+		if (request == PTRACE_SYSEMU_SINGLESTEP)
+			set_tsk_thread_flag(child, TIF_SYSCALL_EMU);
+		else
+			clear_tsk_thread_flag(child, TIF_SYSCALL_EMU);
+
 		clear_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
 		set_singlestep(child);
 		child->exit_code = data;
@@ -649,10 +629,7 @@ asmlinkage int sys_ptrace(long request, long pid, long addr, long data)
 		ret = ptrace_request(child, request, addr, data);
 		break;
 	}
-out_tsk:
-	put_task_struct(child);
-out:
-	unlock_kernel();
+ out_tsk:
 	return ret;
 }
 
@@ -668,7 +645,7 @@ void send_sigtrap(struct task_struct *tsk, struct pt_regs *regs, int error_code)
 	info.si_code = TRAP_BRKPT;
 
 	/* User-mode eip? */
-	info.si_addr = user_mode(regs) ? (void __user *) regs->eip : NULL;
+	info.si_addr = user_mode_vm(regs) ? (void __user *) regs->eip : NULL;
 
 	/* Send us the fakey SIGTRAP */
 	force_sig_info(SIGTRAP, &info, tsk);
@@ -678,27 +655,58 @@ void send_sigtrap(struct task_struct *tsk, struct pt_regs *regs, int error_code)
  * - triggered by current->work.syscall_trace
  */
 __attribute__((regparm(3)))
-void do_syscall_trace(struct pt_regs *regs, int entryexit)
+int do_syscall_trace(struct pt_regs *regs, int entryexit)
 {
-	/* do the secure computing check first */
-	secure_computing(regs->orig_eax);
+	int is_sysemu = test_thread_flag(TIF_SYSCALL_EMU);
+	/*
+	 * With TIF_SYSCALL_EMU set we want to ignore TIF_SINGLESTEP for syscall
+	 * interception
+	 */
+	int is_singlestep = !is_sysemu && test_thread_flag(TIF_SINGLESTEP);
+	int ret = 0;
 
-	if (unlikely(current->audit_context) && entryexit)
-		audit_syscall_exit(current, AUDITSC_RESULT(regs->eax), regs->eax);
+	/* do the secure computing check first */
+	if (!entryexit)
+		secure_computing(regs->orig_eax);
+
+	if (unlikely(current->audit_context)) {
+		if (entryexit)
+			audit_syscall_exit(current, AUDITSC_RESULT(regs->eax),
+						regs->eax);
+		/* Debug traps, when using PTRACE_SINGLESTEP, must be sent only
+		 * on the syscall exit path. Normally, when TIF_SYSCALL_AUDIT is
+		 * not used, entry.S will call us only on syscall exit, not
+		 * entry; so when TIF_SYSCALL_AUDIT is used we must avoid
+		 * calling send_sigtrap() on syscall entry.
+		 *
+		 * Note that when PTRACE_SYSEMU_SINGLESTEP is used,
+		 * is_singlestep is false, despite his name, so we will still do
+		 * the correct thing.
+		 */
+		else if (is_singlestep)
+			goto out;
+	}
 
 	if (!(current->ptrace & PT_PTRACED))
 		goto out;
 
+	/* If a process stops on the 1st tracepoint with SYSCALL_TRACE
+	 * and then is resumed with SYSEMU_SINGLESTEP, it will come in
+	 * here. We have to check this and return */
+	if (is_sysemu && entryexit)
+		return 0;
+
 	/* Fake a debug trap */
-	if (test_thread_flag(TIF_SINGLESTEP))
+	if (is_singlestep)
 		send_sigtrap(current, regs, 0);
 
-	if (!test_thread_flag(TIF_SYSCALL_TRACE))
+ 	if (!test_thread_flag(TIF_SYSCALL_TRACE) && !is_sysemu)
 		goto out;
 
 	/* the 0x80 provides a way for the tracing parent to distinguish
 	   between a syscall stop and SIGTRAP delivery */
-	ptrace_notify(SIGTRAP | ((current->ptrace & PT_TRACESYSGOOD) ? 0x80 : 0));
+	/* Note that the debugger could change the result of test_thread_flag!*/
+	ptrace_notify(SIGTRAP | ((current->ptrace & PT_TRACESYSGOOD) ? 0x80:0));
 
 	/*
 	 * this isn't the same as continuing with a signal, but it will do
@@ -709,9 +717,17 @@ void do_syscall_trace(struct pt_regs *regs, int entryexit)
 		send_sig(current->exit_code, current, 1);
 		current->exit_code = 0;
 	}
- out:
+	ret = is_sysemu;
+out:
 	if (unlikely(current->audit_context) && !entryexit)
 		audit_syscall_entry(current, AUDIT_ARCH_I386, regs->orig_eax,
 				    regs->ebx, regs->ecx, regs->edx, regs->esi);
+	if (ret == 0)
+		return 0;
 
+	regs->orig_eax = -1; /* force skip of syscall restarting */
+	if (unlikely(current->audit_context))
+		audit_syscall_exit(current, AUDITSC_RESULT(regs->eax),
+				regs->eax);
+	return 1;
 }

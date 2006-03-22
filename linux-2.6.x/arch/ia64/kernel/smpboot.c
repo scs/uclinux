@@ -129,7 +129,7 @@ DEFINE_PER_CPU(int, cpu_state);
 /* Bitmasks of currently online, and possible CPUs */
 cpumask_t cpu_online_map;
 EXPORT_SYMBOL(cpu_online_map);
-cpumask_t cpu_possible_map;
+cpumask_t cpu_possible_map = CPU_MASK_NONE;
 EXPORT_SYMBOL(cpu_possible_map);
 
 cpumask_t cpu_core_map[NR_CPUS] __cacheline_aligned;
@@ -346,6 +346,7 @@ smp_callin (void)
 	lock_ipi_calllock();
 	cpu_set(cpuid, cpu_online_map);
 	unlock_ipi_calllock();
+	per_cpu(cpu_state, cpuid) = CPU_ONLINE;
 
 	smp_setup_percpu_timer();
 
@@ -398,6 +399,7 @@ start_secondary (void *unused)
 	Dprintk("start_secondary: starting CPU 0x%x\n", hard_smp_processor_id());
 	efi_map_pal_code();
 	cpu_init();
+	preempt_disable();
 	smp_callin();
 
 	cpu_idle();
@@ -504,9 +506,6 @@ smp_build_cpu_map (void)
 
 	for (cpu = 0; cpu < NR_CPUS; cpu++) {
 		ia64_cpu_to_sapicid[cpu] = -1;
-#ifdef CONFIG_HOTPLUG_CPU
-		cpu_set(cpu, cpu_possible_map);
-#endif
 	}
 
 	ia64_cpu_to_sapicid[0] = boot_cpu_id;
@@ -523,47 +522,6 @@ smp_build_cpu_map (void)
 		cpu++;
 	}
 }
-
-#ifdef CONFIG_NUMA
-
-/* on which node is each logical CPU (one cacheline even for 64 CPUs) */
-u8 cpu_to_node_map[NR_CPUS] __cacheline_aligned;
-EXPORT_SYMBOL(cpu_to_node_map);
-/* which logical CPUs are on which nodes */
-cpumask_t node_to_cpu_mask[MAX_NUMNODES] __cacheline_aligned;
-
-/*
- * Build cpu to node mapping and initialize the per node cpu masks.
- */
-void __init
-build_cpu_to_node_map (void)
-{
-	int cpu, i, node;
-
-	for(node=0; node<MAX_NUMNODES; node++)
-		cpus_clear(node_to_cpu_mask[node]);
-	for(cpu = 0; cpu < NR_CPUS; ++cpu) {
-		/*
-		 * All Itanium NUMA platforms I know use ACPI, so maybe we
-		 * can drop this ifdef completely.                    [EF]
-		 */
-#ifdef CONFIG_ACPI_NUMA
-		node = -1;
-		for (i = 0; i < NR_CPUS; ++i)
-			if (cpu_physical_id(cpu) == node_cpuid[i].phys_id) {
-				node = node_cpuid[i].nid;
-				break;
-			}
-#else
-#		error Fixme: Dunno how to build CPU-to-node map.
-#endif
-		cpu_to_node_map[cpu] = (node >= 0) ? node : 0;
-		if (node >= 0)
-			cpu_set(cpu, node_to_cpu_mask[node]);
-	}
-}
-
-#endif /* CONFIG_NUMA */
 
 /*
  * Cycle through the APs sending Wakeup IPIs to boot each.
@@ -611,6 +569,7 @@ void __devinit smp_prepare_boot_cpu(void)
 {
 	cpu_set(smp_processor_id(), cpu_online_map);
 	cpu_set(smp_processor_id(), cpu_callin_map);
+	per_cpu(cpu_state, smp_processor_id()) = CPU_ONLINE;
 }
 
 /*
@@ -688,6 +647,7 @@ int __cpu_disable(void)
 		return -EBUSY;
 
 	remove_siblinginfo(cpu);
+	cpu_clear(cpu, cpu_online_map);
 	fixup_irqs();
 	local_flush_tlb_all();
 	cpu_clear(cpu, cpu_callin_map);
@@ -732,9 +692,9 @@ smp_cpus_done (unsigned int dummy)
 	 * Allow the user to impress friends.
 	 */
 
-	for (cpu = 0; cpu < NR_CPUS; cpu++)
-		if (cpu_online(cpu))
-			bogosum += cpu_data(cpu)->loops_per_jiffy;
+	for_each_online_cpu(cpu) {
+		bogosum += cpu_data(cpu)->loops_per_jiffy;
+	}
 
 	printk(KERN_INFO "Total of %d processors activated (%lu.%02lu BogoMIPS).\n",
 	       (int)num_online_cpus(), bogosum/(500000/HZ), (bogosum/(5000/HZ))%100);
@@ -774,6 +734,7 @@ __cpu_up (unsigned int cpu)
 	if (cpu_isset(cpu, cpu_callin_map))
 		return -EINVAL;
 
+	per_cpu(cpu_state, cpu) = CPU_UP_PREPARE;
 	/* Processor goes to start_secondary(), sets online flag */
 	ret = do_boot_cpu(sapicid, cpu);
 	if (ret < 0)

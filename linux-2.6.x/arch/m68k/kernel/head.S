@@ -263,7 +263,7 @@
 #include <asm/entry.h>
 #include <asm/pgtable.h>
 #include <asm/page.h>
-#include <asm/offsets.h>
+#include <asm/asm-offsets.h>
 
 #ifdef CONFIG_MAC
 
@@ -273,8 +273,10 @@
  * Macintosh console support
  */
 
+#ifdef CONFIG_FRAMEBUFFER_CONSOLE
 #define CONSOLE
 #define CONSOLE_PENGUIN
+#endif
 
 /*
  * Macintosh serial debug support; outputs boot info to the printer
