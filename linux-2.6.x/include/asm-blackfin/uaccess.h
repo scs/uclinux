@@ -14,7 +14,7 @@
 #define VERIFY_READ	0
 #define VERIFY_WRITE	1
 
-#define access_ok(type,addr,size)	_access_ok((unsigned long)(addr),(size))
+#define access_ok(type,addr,size) _access_ok((unsigned long)(addr),(size))
 
 extern int is_in_rom(unsigned long);
 static inline int _access_ok(unsigned long addr, unsigned long size)
@@ -23,11 +23,6 @@ static inline int _access_ok(unsigned long addr, unsigned long size)
 	return (((addr >= memory_start) && (addr + size <= memory_end)) ||
 		(is_in_rom(addr) && is_in_rom(addr + size)));
 
-}
-
-static inline int verify_area(int type, const void *addr, unsigned long size)
-{
-	return access_ok(type, addr, size) ? 0 : -EFAULT;
 }
 
 /*
@@ -89,7 +84,9 @@ static inline int bad_user_access_length(void)
 	return -1;
 }
 
-#define __put_user_bad() (printk("put_user_bad %s:%d %s\n", __FILE__, __LINE__, __FUNCTION__), bad_user_access_length(), (-EFAULT))
+#define __put_user_bad() (printk("put_user_bad %s:%d %s\n",\
+                           __FILE__, __LINE__, __FUNCTION__),\
+                           bad_user_access_length(), (-EFAULT))
 
 /*
  * Tell gcc we read from memory instead of writing: this is because
@@ -152,12 +149,16 @@ static inline int bad_user_access_length(void)
 #define __copy_to_user_inatomic __copy_to_user
 #define __copy_from_user_inatomic __copy_from_user
 
-#define copy_to_user_ret(to,from,n,retval) ({ if (copy_to_user(to,from,n)) return retval; })
+#define copy_to_user_ret(to,from,n,retval) ({ if (copy_to_user(to,from,n))\
+				                 return retval; })
 
-#define copy_from_user_ret(to,from,n,retval) ({ if (copy_from_user(to,from,n)) return retval; })
+#define copy_from_user_ret(to,from,n,retval) ({ if (copy_from_user(to,from,n))\
+                                                   return retval; })
 
-static inline long copy_from_user(void *to, const void __user *from, unsigned long n)
+static inline long copy_from_user(void *to,
+				  const void __user *from, unsigned long n)
 {
+	extern char *_stext;
         if((unsigned long)from < (unsigned long)_stext)
                 return n;
         else
@@ -168,9 +169,11 @@ static inline long copy_from_user(void *to, const void __user *from, unsigned lo
  * Copy a null terminated string from userspace.
  */
 
-static inline long strncpy_from_user(char *dst, const char *src, long count)
+static inline long strncpy_from_user(char *dst,
+                                     const char *src, long count)
 {
 	char *tmp;
+	extern char *_stext;
 	if ((unsigned long)src > (unsigned long)memory_end || ((unsigned long)src < (unsigned long)_stext)) {
 		return -EFAULT;
 	}

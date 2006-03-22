@@ -98,6 +98,7 @@
 #undef inline
 #undef __inline__
 #undef __inline
-
+#undef __always_inline
+#define __always_inline		inline __attribute__((always_inline))
 
 #endif /* __ALPHA_COMPILER_H */

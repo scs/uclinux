@@ -1,8 +1,7 @@
 /*
  *  arch/s390/kernel/smp.c
  *
- *  S390 version
- *    Copyright (C) 1999,2000 IBM Deutschland Entwicklung GmbH, IBM Corporation
+ *    Copyright (C) IBM Corp. 1999,2006
  *    Author(s): Denis Joseph Barrow (djbarrow@de.ibm.com,barrow_dj@yahoo.com),
  *               Martin Schwidefsky (schwidefsky@de.ibm.com)
  *               Heiko Carstens (heiko.carstens@de.ibm.com)
@@ -41,8 +40,6 @@
 #include <asm/cpcmd.h>
 #include <asm/tlbflush.h>
 
-/* prototypes */
-
 extern volatile int __cpu_logical_map[];
 
 /*
@@ -51,12 +48,10 @@ extern volatile int __cpu_logical_map[];
 
 struct _lowcore *lowcore_ptr[NR_CPUS];
 
-cpumask_t cpu_online_map;
-cpumask_t cpu_possible_map;
+cpumask_t cpu_online_map = CPU_MASK_NONE;
+cpumask_t cpu_possible_map = CPU_MASK_NONE;
 
 static struct task_struct *current_set[NR_CPUS];
-
-EXPORT_SYMBOL(cpu_online_map);
 
 /*
  * Reboot, halt and power_off routines for SMP.
@@ -65,6 +60,7 @@ extern char vmhalt_cmd[];
 extern char vmpoff_cmd[];
 
 extern void reipl(unsigned long devno);
+extern void reipl_diag(void);
 
 static void smp_ext_bitcall(int, ec_bit_sig);
 static void smp_ext_bitcall_others(ec_bit_sig);
@@ -262,7 +258,7 @@ static void do_machine_restart(void * __unused)
 	int cpu;
 	static atomic_t cpuid = ATOMIC_INIT(-1);
 
-	if (atomic_compare_and_swap(-1, smp_processor_id(), &cpuid))
+	if (atomic_cmpxchg(&cpuid, -1, smp_processor_id()) != -1)
 		signal_processor(smp_processor_id(), sigp_stop);
 
 	/* Wait for all other cpus to enter stopped state */
@@ -283,8 +279,10 @@ static void do_machine_restart(void * __unused)
 	 * interrupted by an external interrupt and s390irq
 	 * locks are always held disabled).
 	 */
+	reipl_diag();
+
 	if (MACHINE_IS_VM)
-		cpcmd ("IPL", NULL, 0);
+		cpcmd ("IPL", NULL, 0, NULL);
 	else
 		reipl (0x10000 | S390_lowcore.ipl_device);
 }
@@ -310,10 +308,10 @@ static void do_machine_halt(void * __unused)
 {
 	static atomic_t cpuid = ATOMIC_INIT(-1);
 
-	if (atomic_compare_and_swap(-1, smp_processor_id(), &cpuid) == 0) {
+	if (atomic_cmpxchg(&cpuid, -1, smp_processor_id()) == -1) {
 		smp_send_stop();
 		if (MACHINE_IS_VM && strlen(vmhalt_cmd) > 0)
-			cpcmd(vmhalt_cmd, NULL, 0);
+			cpcmd(vmhalt_cmd, NULL, 0, NULL);
 		signal_processor(smp_processor_id(),
 				 sigp_stop_and_store_status);
 	}
@@ -329,10 +327,10 @@ static void do_machine_power_off(void * __unused)
 {
 	static atomic_t cpuid = ATOMIC_INIT(-1);
 
-	if (atomic_compare_and_swap(-1, smp_processor_id(), &cpuid) == 0) {
+	if (atomic_cmpxchg(&cpuid, -1, smp_processor_id()) == -1) {
 		smp_send_stop();
 		if (MACHINE_IS_VM && strlen(vmpoff_cmd) > 0)
-			cpcmd(vmpoff_cmd, NULL, 0);
+			cpcmd(vmpoff_cmd, NULL, 0, NULL);
 		signal_processor(smp_processor_id(),
 				 sigp_stop_and_store_status);
 	}
@@ -375,7 +373,7 @@ static void smp_ext_bitcall(int cpu, ec_bit_sig sig)
          * Set signaling bit in lowcore of target cpu and kick it
          */
 	set_bit(sig, (unsigned long *) &lowcore_ptr[cpu]->ext_call_fast);
-	while(signal_processor(cpu, sigp_external_call) == sigp_busy)
+	while(signal_processor(cpu, sigp_emergency_signal) == sigp_busy)
 		udelay(10);
 }
 
@@ -394,12 +392,12 @@ static void smp_ext_bitcall_others(ec_bit_sig sig)
                  * Set signaling bit in lowcore of target cpu and kick it
                  */
 		set_bit(sig, (unsigned long *) &lowcore_ptr[cpu]->ext_call_fast);
-		while (signal_processor(cpu, sigp_external_call) == sigp_busy)
+		while (signal_processor(cpu, sigp_emergency_signal) == sigp_busy)
 			udelay(10);
         }
 }
 
-#ifndef CONFIG_ARCH_S390X
+#ifndef CONFIG_64BIT
 /*
  * this function sends a 'purge tlb' signal to another CPU.
  */
@@ -413,7 +411,7 @@ void smp_ptlb_all(void)
         on_each_cpu(smp_ptlb_callback, NULL, 0, 1);
 }
 EXPORT_SYMBOL(smp_ptlb_all);
-#endif /* ! CONFIG_ARCH_S390X */
+#endif /* ! CONFIG_64BIT */
 
 /*
  * this function sends a 'reschedule' IPI to another CPU.
@@ -487,10 +485,10 @@ void smp_ctl_clear_bit(int cr, int bit) {
  * Lets check how many CPUs we have.
  */
 
-void
-__init smp_check_cpus(unsigned int max_cpus)
+static unsigned int
+__init smp_count_cpus(void)
 {
-	int cpu, num_cpus;
+	unsigned int cpu, num_cpus;
 	__u16 boot_cpu_addr;
 
 	/*
@@ -500,22 +498,20 @@ __init smp_check_cpus(unsigned int max_cpus)
 	boot_cpu_addr = S390_lowcore.cpu_data.cpu_addr;
 	current_thread_info()->cpu = 0;
 	num_cpus = 1;
-	for (cpu = 0; cpu <= 65535 && num_cpus < max_cpus; cpu++) {
+	for (cpu = 0; cpu <= 65535; cpu++) {
 		if ((__u16) cpu == boot_cpu_addr)
 			continue;
-		__cpu_logical_map[num_cpus] = (__u16) cpu;
-		if (signal_processor(num_cpus, sigp_sense) ==
+		__cpu_logical_map[1] = (__u16) cpu;
+		if (signal_processor(1, sigp_sense) ==
 		    sigp_not_operational)
 			continue;
-		cpu_set(num_cpus, cpu_present_map);
 		num_cpus++;
 	}
 
-	for (cpu = 1; cpu < max_cpus; cpu++)
-		cpu_set(cpu, cpu_possible_map);
-
 	printk("Detected %d CPU's\n",(int) num_cpus);
 	printk("Boot cpu address %2X\n", boot_cpu_addr);
+
+	return num_cpus;
 }
 
 /*
@@ -530,6 +526,7 @@ int __devinit start_secondary(void *cpuvoid)
 {
         /* Setup the cpu */
         cpu_init();
+	preempt_disable();
         /* init per CPU timer */
         init_cpu_timer();
 #ifdef CONFIG_VIRT_TIMER
@@ -537,7 +534,8 @@ int __devinit start_secondary(void *cpuvoid)
 #endif
 #ifdef CONFIG_PFAULT
 	/* Enable pfault pseudo page faults on this cpu. */
-	pfault_init();
+	if (MACHINE_IS_VM)
+		pfault_init();
 #endif
 	/* Mark this cpu as online */
 	cpu_set(smp_processor_id(), cpu_online_map);
@@ -652,7 +650,7 @@ __cpu_up(unsigned int cpu)
 	idle = current_set[cpu];
         cpu_lowcore = lowcore_ptr[cpu];
 	cpu_lowcore->kernel_stack = (unsigned long)
-		idle->thread_info + (THREAD_SIZE);
+		task_stack_page(idle) + (THREAD_SIZE);
 	sf = (struct stack_frame *) (cpu_lowcore->kernel_stack
 				     - sizeof(struct pt_regs)
 				     - sizeof(struct stack_frame));
@@ -674,21 +672,62 @@ __cpu_up(unsigned int cpu)
 	return 0;
 }
 
+static unsigned int __initdata additional_cpus;
+static unsigned int __initdata possible_cpus;
+
+void __init smp_setup_cpu_possible_map(void)
+{
+	unsigned int phy_cpus, pos_cpus, cpu;
+
+	phy_cpus = smp_count_cpus();
+	pos_cpus = min(phy_cpus + additional_cpus, (unsigned int) NR_CPUS);
+
+	if (possible_cpus)
+		pos_cpus = min(possible_cpus, (unsigned int) NR_CPUS);
+
+	for (cpu = 0; cpu < pos_cpus; cpu++)
+		cpu_set(cpu, cpu_possible_map);
+
+	phy_cpus = min(phy_cpus, pos_cpus);
+
+	for (cpu = 0; cpu < phy_cpus; cpu++)
+		cpu_set(cpu, cpu_present_map);
+}
+
+#ifdef CONFIG_HOTPLUG_CPU
+
+static int __init setup_additional_cpus(char *s)
+{
+	additional_cpus = simple_strtoul(s, NULL, 0);
+	return 0;
+}
+early_param("additional_cpus", setup_additional_cpus);
+
+static int __init setup_possible_cpus(char *s)
+{
+	possible_cpus = simple_strtoul(s, NULL, 0);
+	return 0;
+}
+early_param("possible_cpus", setup_possible_cpus);
+
 int
 __cpu_disable(void)
 {
 	unsigned long flags;
 	ec_creg_mask_parms cr_parms;
+	int cpu = smp_processor_id();
 
 	spin_lock_irqsave(&smp_reserve_lock, flags);
-	if (smp_cpu_reserved[smp_processor_id()] != 0) {
+	if (smp_cpu_reserved[cpu] != 0) {
 		spin_unlock_irqrestore(&smp_reserve_lock, flags);
 		return -EBUSY;
 	}
+	cpu_clear(cpu, cpu_online_map);
 
 #ifdef CONFIG_PFAULT
 	/* Disable pfault pseudo page faults on this cpu. */
-	pfault_fini();
+	if (MACHINE_IS_VM)
+		pfault_fini();
 #endif
 
 	/* disable all external interrupts */
@@ -739,6 +778,8 @@ cpu_die(void)
 	for(;;);
 }
 
+#endif /* CONFIG_HOTPLUG_CPU */
+
 /*
  *	Cycle through the processors and setup structures.
  */
@@ -749,10 +790,9 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 	unsigned int cpu;
         int i;
 
-        /* request the 0x1202 external interrupt */
-        if (register_external_interrupt(0x1202, do_ext_call_interrupt) != 0)
-                panic("Couldn't request external interrupt 0x1202");
-        smp_check_cpus(max_cpus);
+        /* request the 0x1201 emergency signal external interrupt */
+        if (register_external_interrupt(0x1201, do_ext_call_interrupt) != 0)
+                panic("Couldn't request external interrupt 0x1201");
         memset(lowcore_ptr,0,sizeof(lowcore_ptr));  
         /*
          *  Initialize prefix pages and stacks for all possible cpus
@@ -771,13 +811,24 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 
 		*(lowcore_ptr[i]) = S390_lowcore;
 		lowcore_ptr[i]->async_stack = stack + (ASYNC_SIZE);
-#ifdef CONFIG_CHECK_STACK
 		stack = __get_free_pages(GFP_KERNEL,0);
 		if (stack == 0ULL)
 			panic("smp_boot_cpus failed to allocate memory\n");
 		lowcore_ptr[i]->panic_stack = stack + (PAGE_SIZE);
+#ifndef CONFIG_64BIT
+		if (MACHINE_HAS_IEEE) {
+			lowcore_ptr[i]->extended_save_area_addr =
+				(__u32) __get_free_pages(GFP_KERNEL,0);
+			if (lowcore_ptr[i]->extended_save_area_addr == 0)
+				panic("smp_boot_cpus failed to "
+				      "allocate memory\n");
+		}
 #endif
 	}
+#ifndef CONFIG_64BIT
+	if (MACHINE_HAS_IEEE)
+		ctl_set_bit(14, 29); /* enable extended save area */
+#endif
 	set_prefix((u32)(unsigned long) lowcore_ptr[smp_processor_id()]);
 
 	for_each_cpu(cpu)
@@ -790,8 +841,6 @@ void __devinit smp_prepare_boot_cpu(void)
 	BUG_ON(smp_processor_id() != 0);
 
 	cpu_set(0, cpu_online_map);
-	cpu_set(0, cpu_present_map);
-	cpu_set(0, cpu_possible_map);
 	S390_lowcore.percpu_offset = __per_cpu_offset[0];
 	current_set[0] = current;
 }
@@ -830,6 +879,7 @@ static int __init topology_init(void)
 
 subsys_initcall(topology_init);
 
+EXPORT_SYMBOL(cpu_online_map);
 EXPORT_SYMBOL(cpu_possible_map);
 EXPORT_SYMBOL(lowcore_ptr);
 EXPORT_SYMBOL(smp_ctl_set_bit);

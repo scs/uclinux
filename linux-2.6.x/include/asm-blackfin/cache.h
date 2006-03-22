@@ -10,4 +10,9 @@
 #define __cacheline_aligned	/***** maybe no need this   Tony *****/
 #define ____cacheline_aligned
 
+/*
+ * largest L1 which this arch supports
+ */
+#define L1_CACHE_SHIFT_MAX	5
+
 #endif

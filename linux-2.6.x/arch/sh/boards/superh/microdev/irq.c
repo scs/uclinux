@@ -15,7 +15,7 @@
 
 #include <asm/system.h>
 #include <asm/io.h>
-#include <asm/mach/irq.h>
+#include <asm/microdev.h>
 
 #define NUM_EXTERNAL_IRQS 16	/* IRL0 .. IRL15 */
 
@@ -83,13 +83,13 @@ static unsigned int startup_microdev_irq(unsigned int irq)
 }
 
 static struct hw_interrupt_type microdev_irq_type = {
-	"MicroDev-IRQ",
-	startup_microdev_irq,
-	shutdown_microdev_irq,
-	enable_microdev_irq,
-	disable_microdev_irq,
-	mask_and_ack_microdev,
-	end_microdev_irq
+	.typename = "MicroDev-IRQ",
+	.startup = startup_microdev_irq,
+	.shutdown = shutdown_microdev_irq,
+	.enable = enable_microdev_irq,
+	.disable = disable_microdev_irq,
+	.ack = mask_and_ack_microdev,
+	.end = end_microdev_irq
 };
 
 static void disable_microdev_irq(unsigned int irq)

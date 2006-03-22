@@ -47,7 +47,7 @@ static __inline__ void atomic_sub(int i, atomic_t * v)
 			     :"R3");
 }
 
-static __inline__ int atomic_add_return(int i, atomic_t * v)
+static inline int atomic_add_return(int i, atomic_t * v)
 {
 	int __temp = 0;
 	__asm__ __volatile__(
@@ -64,7 +64,7 @@ static __inline__ int atomic_add_return(int i, atomic_t * v)
 }
 
 #define atomic_add_negative(a, v)	(atomic_add_return((a), (v)) < 0)
-static __inline__ int atomic_sub_return(int i, atomic_t * v)
+static inline int atomic_sub_return(int i, atomic_t * v)
 {
 	int __temp = 0;
 	__asm__ __volatile__(
@@ -93,6 +93,20 @@ static __inline__ void atomic_inc(volatile atomic_t * v)
 			     :"m"(v->counter), "0"(__temp)
 			     :"R3");
 }
+
+
+#define atomic_cmpxchg(v, o, n) ((int)cmpxchg(&((v)->counter), (o), (n)))
+#define atomic_xchg(v, new) (xchg(&((v)->counter), new))
+
+#define atomic_add_unless(v, a, u)				\
+({								\
+	int c, old;						\
+	c = atomic_read(v);					\
+	while (c != (u) && (old = atomic_cmpxchg((v), c, c + (a))) != c) \
+		c = old;					\
+	c != (u);						\
+})
+#define atomic_inc_not_zero(v) atomic_add_unless((v), 1, 0)
 
 static __inline__ void atomic_dec(volatile atomic_t * v)
 {
@@ -157,5 +171,7 @@ static __inline__ void atomic_set_mask(unsigned int mask, atomic_t * v)
 
 #define atomic_sub_and_test(i,v) (atomic_sub_return((i), (v)) == 0)
 #define atomic_dec_and_test(v) (atomic_sub_return(1, (v)) == 0)
+
+#include <asm-generic/atomic.h>
 
 #endif				/* __ARCH_BLACKFIN_ATOMIC __ */

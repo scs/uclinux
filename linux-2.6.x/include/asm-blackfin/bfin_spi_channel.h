@@ -29,33 +29,32 @@
 #define SPI_READ              0
 #define SPI_WRITE             1
 
-typedef struct Spi_Device_t
-{
-	char  *dev_name;
+typedef struct Spi_Device_t {
+	char *dev_name;
 
-	unsigned short     flag;
-	unsigned short     bdrate;
+	unsigned short flag;
+	unsigned short bdrate;
 
-	unsigned short     enable;
-	unsigned short     master;
-	unsigned short     out_opendrain;
-	unsigned short     polar;
-	unsigned short     phase;
-	unsigned short     byteorder;  /* 0: MSB first; 1: LSB first; */
-	unsigned short     size;     /* 0: 8 bits; 1: 16 bits */
-	unsigned short     emiso;
-	unsigned short     send_zero;
-	unsigned short     more_data;
-	unsigned short     slave_sel;
-	unsigned short     ti_mod;
+	unsigned short enable;
+	unsigned short master;
+	unsigned short out_opendrain;
+	unsigned short polar;
+	unsigned short phase;
+	unsigned short byteorder;	/* 0: MSB first; 1: LSB first; */
+	unsigned short size;	/* 0: 8 bits; 1: 16 bits */
+	unsigned short emiso;
+	unsigned short send_zero;
+	unsigned short more_data;
+	unsigned short slave_sel;
+	unsigned short ti_mod;
 
-	unsigned short     dma;         /* use dma mode or not */
-	unsigned short     dma_config;  /* only valid if dma enabled */
+	unsigned short dma;	/* use dma mode or not */
+	unsigned short dma_config;	/* only valid if dma enabled */
 
-	irqreturn_t        (*irq_handler)(int irq, void *dev_id, struct pt_regs *regs);
-	void               *priv_data;
-}spi_device_t;
-
+	 irqreturn_t(*irq_handler) (int irq, void *dev_id,
+				    struct pt_regs * regs);
+	void *priv_data;
+} spi_device_t;
 
 #define SPI_CTRL_OFF            0x0
 #define SPI_FLAG_OFF            0x4
@@ -77,8 +76,8 @@ typedef struct Spi_Device_t
 #define CMD_SPI_GET_STAT      11
 #define CMD_SPI_GET_CFG       12
 #define CMD_SPI_SET_CSAVAIL   13
-#define CMD_SPI_SET_CSHIGH    14 /* CS unavail */
-#define CMD_SPI_SET_CSLOW     15 /* CS avail */
+#define CMD_SPI_SET_CSHIGH    14	/* CS unavail */
+#define CMD_SPI_SET_CSLOW     15	/* CS avail */
 #define CMD_SPI_MISO_ENABLE   16
 #define CMD_SPI_SET_CSENABLE  17
 #define CMD_SPI_SET_CSDISABLE 18
@@ -94,7 +93,7 @@ typedef struct Spi_Device_t
 
 #define CMD_SPI_SET_WRITECONTINUOUS     26
 
-#define CMD_SPI_GET_ALLCONFIG 32 /* For debug */
+#define CMD_SPI_GET_ALLCONFIG 32	/* For debug */
 
 #define SPI_DEFAULT_BARD    0x0100
 
@@ -165,18 +164,17 @@ typedef struct Spi_Device_t
 #define CFG_SPI_CS6VALUE    6
 #define CFG_SPI_CS7VALUE    7
 
-
 void spi_send_data(unsigned short data);
 unsigned short spi_receive_data(void);
-void spi_enable(spi_device_t *spi_dev);
-void spi_disable(spi_device_t *spi_dev);
-int spi_dma_read(spi_device_t *spi_dev, void *buffer, unsigned int count);
-int spi_dma_write(spi_device_t *spi_dev, void *buffer, unsigned int count);
-void spi_clear_irqstat(spi_device_t *spi_dev);
-void spi_set_ctl(spi_device_t *spi_dev);
+void spi_enable(spi_device_t * spi_dev);
+void spi_disable(spi_device_t * spi_dev);
+int spi_dma_read(spi_device_t * spi_dev, void *buffer, unsigned int count);
+int spi_dma_write(spi_device_t * spi_dev, void *buffer, unsigned int count);
+void spi_clear_irqstat(spi_device_t * spi_dev);
+void spi_set_ctl(spi_device_t * spi_dev);
 void spi_get_stat(unsigned short *data);
 void spi_get_ctl(unsigned short *data);
-int spi_channel_request(spi_device_t *spi_dev);
-int spi_channel_release (spi_device_t *spi_dev);
+int spi_channel_request(spi_device_t * spi_dev);
+int spi_channel_release(spi_device_t * spi_dev);
 
-#endif /* _SPI_CHANNEL_H_ */
+#endif				/* _SPI_CHANNEL_H_ */

@@ -23,7 +23,6 @@
 #include <linux/module.h>
 
 #include <asm/system.h>
-#include <asm/segment.h>
 #include <asm/page.h>
 #include <asm/pgtable.h>
 #include <asm/memreg.h>
@@ -33,8 +32,6 @@
 #include <asm/traps.h>
 #include <asm/kdebug.h>
 #include <asm/uaccess.h>
-
-#define ELEMENTS(arr) (sizeof (arr)/sizeof (arr[0]))
 
 extern int prom_node_root;
 

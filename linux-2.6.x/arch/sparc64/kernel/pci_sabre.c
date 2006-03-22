@@ -554,7 +554,7 @@ static unsigned char sabre_pil_table[] = {
 /*0x32*/15,		/* Power Management		*/
 };
 
-static int __init sabre_ino_to_pil(struct pci_dev *pdev, unsigned int ino)
+static int sabre_ino_to_pil(struct pci_dev *pdev, unsigned int ino)
 {
 	int ret;
 
@@ -595,9 +595,26 @@ static int __init sabre_ino_to_pil(struct pci_dev *pdev, unsigned int ino)
 	return ret;
 }
 
-static unsigned int __init sabre_irq_build(struct pci_pbm_info *pbm,
-					   struct pci_dev *pdev,
-					   unsigned int ino)
+/* When a device lives behind a bridge deeper in the PCI bus topology
+ * than APB, a special sequence must run to make sure all pending DMA
+ * transfers at the time of IRQ delivery are visible in the coherency
+ * domain by the cpu.  This sequence is to perform a read on the far
+ * side of the non-APB bridge, then perform a read of Sabre's DMA
+ * write-sync register.
+ */
+static void sabre_wsync_handler(struct ino_bucket *bucket, void *_arg1, void *_arg2)
+{
+	struct pci_dev *pdev = _arg1;
+	unsigned long sync_reg = (unsigned long) _arg2;
+	u16 _unused;
+
+	pci_read_config_word(pdev, PCI_VENDOR_ID, &_unused);
+	sabre_read(sync_reg);
+}
+
+static unsigned int sabre_irq_build(struct pci_pbm_info *pbm,
+				    struct pci_dev *pdev,
+				    unsigned int ino)
 {
 	struct ino_bucket *bucket;
 	unsigned long imap, iclr;
@@ -639,24 +656,14 @@ static unsigned int __init sabre_irq_build(struct pci_pbm_info *pbm,
 	if (pdev) {
 		struct pcidev_cookie *pcp = pdev->sysdata;
 
-		/* When a device lives behind a bridge deeper in the
-		 * PCI bus topology than APB, a special sequence must
-		 * run to make sure all pending DMA transfers at the
-		 * time of IRQ delivery are visible in the coherency
-		 * domain by the cpu.  This sequence is to perform
-		 * a read on the far side of the non-APB bridge, then
-		 * perform a read of Sabre's DMA write-sync register.
-		 *
-		 * Currently, the PCI_CONFIG register for the device
-		 * is used for this read from the far side of the bridge.
-		 */
 		if (pdev->bus->number != pcp->pbm->pci_first_busno) {
-			bucket->flags |= IBF_DMA_SYNC;
-			bucket->synctab_ent = dma_sync_reg_table_entry++;
-			dma_sync_reg_table[bucket->synctab_ent] =
-				(unsigned long) sabre_pci_config_mkaddr(
-					pcp->pbm,
-					pdev->bus->number, pdev->devfn, PCI_COMMAND);
+			struct pci_controller_info *p = pcp->pbm->parent;
+			struct irq_desc *d = bucket->irq_info;
+
+			d->pre_handler = sabre_wsync_handler;
+			d->pre_handler_arg1 = pdev;
+			d->pre_handler_arg2 = (void *)
+				p->pbm_A.controller_regs + SABRE_WRSYNC;
 		}
 	}
 	return __irq(bucket);
@@ -1002,7 +1009,7 @@ static irqreturn_t sabre_pcierr_intr(int irq, void *dev_id, struct pt_regs *regs
 #define SABRE_UE_INO		0x2e
 #define SABRE_CE_INO		0x2f
 #define SABRE_PCIERR_INO	0x30
-static void __init sabre_register_error_handlers(struct pci_controller_info *p)
+static void sabre_register_error_handlers(struct pci_controller_info *p)
 {
 	struct pci_pbm_info *pbm = &p->pbm_A; /* arbitrary */
 	unsigned long base = pbm->controller_regs;
@@ -1049,9 +1056,9 @@ static void __init sabre_register_error_handlers(struct pci_controller_info *p)
 	sabre_write(base + SABRE_PCICTRL, tmp);
 }
 
-static void __init sabre_resource_adjust(struct pci_dev *pdev,
-					 struct resource *res,
-					 struct resource *root)
+static void sabre_resource_adjust(struct pci_dev *pdev,
+				  struct resource *res,
+				  struct resource *root)
 {
 	struct pci_pbm_info *pbm = pdev->bus->sysdata;
 	unsigned long base;
@@ -1065,7 +1072,7 @@ static void __init sabre_resource_adjust(struct pci_dev *pdev,
 	res->end += base;
 }
 
-static void __init sabre_base_address_update(struct pci_dev *pdev, int resource)
+static void sabre_base_address_update(struct pci_dev *pdev, int resource)
 {
 	struct pcidev_cookie *pcp = pdev->sysdata;
 	struct pci_pbm_info *pbm = pcp->pbm;
@@ -1111,7 +1118,7 @@ static void __init sabre_base_address_update(struct pci_dev *pdev, int resource)
 		pci_write_config_dword(pdev, where + 4, 0);
 }
 
-static void __init apb_init(struct pci_controller_info *p, struct pci_bus *sabre_bus)
+static void apb_init(struct pci_controller_info *p, struct pci_bus *sabre_bus)
 {
 	struct pci_dev *pdev;
 
@@ -1174,7 +1181,7 @@ static struct pcidev_cookie *alloc_bridge_cookie(struct pci_pbm_info *pbm)
 	return cookie;
 }
 
-static void __init sabre_scan_bus(struct pci_controller_info *p)
+static void sabre_scan_bus(struct pci_controller_info *p)
 {
 	static int once;
 	struct pci_bus *sabre_bus, *pbus;
@@ -1255,17 +1262,13 @@ static void __init sabre_scan_bus(struct pci_controller_info *p)
 	sabre_register_error_handlers(p);
 }
 
-static void __init sabre_iommu_init(struct pci_controller_info *p,
-				    int tsbsize, unsigned long dvma_offset,
-				    u32 dma_mask)
+static void sabre_iommu_init(struct pci_controller_info *p,
+			     int tsbsize, unsigned long dvma_offset,
+			     u32 dma_mask)
 {
 	struct pci_iommu *iommu = p->pbm_A.iommu;
-	unsigned long tsbbase, i, order;
+	unsigned long i;
 	u64 control;
-
-	/* Setup initial software IOMMU state. */
-	spin_lock_init(&iommu->lock);
-	iommu->ctx_lowest_free = 1;
 
 	/* Register addresses. */
 	iommu->iommu_control  = p->pbm_A.controller_regs + SABRE_IOMMU_CONTROL;
@@ -1288,26 +1291,10 @@ static void __init sabre_iommu_init(struct pci_controller_info *p,
 	/* Leave diag mode enabled for full-flushing done
 	 * in pci_iommu.c
 	 */
+	pci_iommu_table_init(iommu, tsbsize * 1024 * 8, dvma_offset, dma_mask);
 
-	iommu->dummy_page = __get_free_pages(GFP_KERNEL, 0);
-	if (!iommu->dummy_page) {
-		prom_printf("PSYCHO_IOMMU: Error, gfp(dummy_page) failed.\n");
-		prom_halt();
-	}
-	memset((void *)iommu->dummy_page, 0, PAGE_SIZE);
-	iommu->dummy_page_pa = (unsigned long) __pa(iommu->dummy_page);
-
-	tsbbase = __get_free_pages(GFP_KERNEL, order = get_order(tsbsize * 1024 * 8));
-	if (!tsbbase) {
-		prom_printf("SABRE_IOMMU: Error, gfp(tsb) failed.\n");
-		prom_halt();
-	}
-	iommu->page_table = (iopte_t *)tsbbase;
-	iommu->page_table_map_base = dvma_offset;
-	iommu->dma_addr_mask = dma_mask;
-	pci_iommu_table_init(iommu, PAGE_SIZE << order);
-
-	sabre_write(p->pbm_A.controller_regs + SABRE_IOMMU_TSBBASE, __pa(tsbbase));
+	sabre_write(p->pbm_A.controller_regs + SABRE_IOMMU_TSBBASE,
+		    __pa(iommu->page_table));
 
 	control = sabre_read(p->pbm_A.controller_regs + SABRE_IOMMU_CONTROL);
 	control &= ~(SABRE_IOMMUCTRL_TSBSZ | SABRE_IOMMUCTRL_TBWSZ);
@@ -1315,11 +1302,9 @@ static void __init sabre_iommu_init(struct pci_controller_info *p,
 	switch(tsbsize) {
 	case 64:
 		control |= SABRE_IOMMU_TSBSZ_64K;
-		iommu->page_table_sz_bits = 16;
 		break;
 	case 128:
 		control |= SABRE_IOMMU_TSBSZ_128K;
-		iommu->page_table_sz_bits = 17;
 		break;
 	default:
 		prom_printf("iommu_init: Illegal TSB size %d\n", tsbsize);
@@ -1327,19 +1312,10 @@ static void __init sabre_iommu_init(struct pci_controller_info *p,
 		break;
 	}
 	sabre_write(p->pbm_A.controller_regs + SABRE_IOMMU_CONTROL, control);
-
-	/* We start with no consistent mappings. */
-	iommu->lowest_consistent_map =
-		1 << (iommu->page_table_sz_bits - PBM_LOGCLUSTERS);
-
-	for (i = 0; i < PBM_NCLUSTERS; i++) {
-		iommu->alloc_info[i].flush = 0;
-		iommu->alloc_info[i].next = 0;
-	}
 }
 
-static void __init pbm_register_toplevel_resources(struct pci_controller_info *p,
-						   struct pci_pbm_info *pbm)
+static void pbm_register_toplevel_resources(struct pci_controller_info *p,
+					    struct pci_pbm_info *pbm)
 {
 	char *name = pbm->name;
 	unsigned long ibase = p->pbm_A.controller_regs + SABRE_IOSPACE;
@@ -1408,7 +1384,7 @@ static void __init pbm_register_toplevel_resources(struct pci_controller_info *p
 					    &pbm->mem_space);
 }
 
-static void __init sabre_pbm_init(struct pci_controller_info *p, int sabre_node, u32 dma_begin)
+static void sabre_pbm_init(struct pci_controller_info *p, int sabre_node, u32 dma_begin)
 {
 	struct pci_pbm_info *pbm;
 	char namebuf[128];
@@ -1545,7 +1521,7 @@ static void __init sabre_pbm_init(struct pci_controller_info *p, int sabre_node,
 	}
 }
 
-void __init sabre_init(int pnode, char *model_name)
+void sabre_init(int pnode, char *model_name)
 {
 	struct linux_prom64_registers pr_regs[2];
 	struct pci_controller_info *p;
@@ -1626,10 +1602,9 @@ void __init sabre_init(int pnode, char *model_name)
 	 */
 	p->pbm_A.controller_regs = pr_regs[0].phys_addr;
 	p->pbm_B.controller_regs = pr_regs[0].phys_addr;
-	pci_dma_wsync = p->pbm_A.controller_regs + SABRE_WRSYNC;
 
-	printk("PCI: Found SABRE, main regs at %016lx, wsync at %016lx\n",
-	       p->pbm_A.controller_regs, pci_dma_wsync);
+	printk("PCI: Found SABRE, main regs at %016lx\n",
+	       p->pbm_A.controller_regs);
 
 	/* Clear interrupts */
 

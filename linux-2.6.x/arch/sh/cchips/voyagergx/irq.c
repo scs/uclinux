@@ -87,13 +87,13 @@ static void shutdown_voyagergx_irq(unsigned int irq)
 }
 
 static struct hw_interrupt_type voyagergx_irq_type = {
-	"VOYAGERGX-IRQ",
-	startup_voyagergx_irq,
-	shutdown_voyagergx_irq,
-	enable_voyagergx_irq,
-	disable_voyagergx_irq,
-	mask_and_ack_voyagergx,
-	end_voyagergx_irq,
+	.typename = "VOYAGERGX-IRQ",
+	.startup = startup_voyagergx_irq,
+	.shutdown = shutdown_voyagergx_irq,
+	.enable = enable_voyagergx_irq,
+	.disable = disable_voyagergx_irq,
+	.ack = mask_and_ack_voyagergx,
+	.end = end_voyagergx_irq,
 };
 
 static irqreturn_t voyagergx_interrupt(int irq, void *dev_id, struct pt_regs *regs)
@@ -163,7 +163,12 @@ int voyagergx_irq_demux(int irq)
 	return irq;
 }
 
-static struct irqaction irq0  = { voyagergx_interrupt, SA_INTERRUPT, 0, "VOYAGERGX", NULL, NULL};
+static struct irqaction irq0  = {
+	.name		= "voyagergx",
+	.handler	= voyagergx_interrupt,
+	.flags		= SA_INTERRUPT,
+	.mask		= CPU_MASK_NONE,
+};
 
 void __init setup_voyagergx_irq(void)
 {

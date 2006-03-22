@@ -3,7 +3,9 @@
 
 #ifndef __ASSEMBLY__
 
+#include <linux/linkage.h>
 #include <linux/wait.h>
+#include <linux/spinlock.h>
 #include <linux/rwsem.h>
 #include <asm/atomic.h>
 
@@ -18,21 +20,22 @@
 
 struct semaphore {
 	atomic_t count;
-	atomic_t waking;
+	int sleepers;
 	wait_queue_head_t wait;
 };
 
-#define __SEMAPHORE_INITIALIZER(name,count) \
-{ ATOMIC_INIT(count), ATOMIC_INIT(0), __WAIT_QUEUE_HEAD_INITIALIZER((name).wait) }
-
-#define __MUTEX_INITIALIZER(name) \
-	__SEMAPHORE_INITIALIZER(name,1)
+#define __SEMAPHORE_INITIALIZER(name, n)				\
+{									\
+	.count		= ATOMIC_INIT(n),				\
+	.sleepers	= 0,						\
+	.wait		= __WAIT_QUEUE_HEAD_INITIALIZER((name).wait)	\
+}
 
 #define __DECLARE_SEMAPHORE_GENERIC(name,count) \
 	struct semaphore name = __SEMAPHORE_INITIALIZER(name,count)
 
-#define DECLARE_MUTEX(name)		__DECLARE_SEMAPHORE_GENERIC(name,1)
-#define DECLARE_MUTEX_LOCKED(name)	__DECLARE_SEMAPHORE_GENERIC(name,0)
+#define DECLARE_MUTEX(name) __DECLARE_SEMAPHORE_GENERIC(name,1)
+#define DECLARE_MUTEX_LOCKED(name) __DECLARE_SEMAPHORE_GENERIC(name,0)
 
 static inline void sema_init(struct semaphore *sem, int val)
 {

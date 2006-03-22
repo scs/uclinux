@@ -4,6 +4,7 @@
 #include <linux/config.h>
 #include <linux/cache.h>
 #include <linux/threads.h>
+#include <asm/irq.h>
 
 typedef struct {
 	unsigned int __softirq_pending;
@@ -30,8 +31,10 @@ typedef struct {
 
 #define HARDIRQ_BITS	8
 
-#if (1 << HARDIRQ_BITS) < NR_IRQS
+#ifdef NR_IRQS
+# if (1 << HARDIRQ_BITS) < NR_IRQS
 # error HARDIRQ_BITS is too low!
+# endif
 #endif
 
 #define __ARCH_IRQ_EXIT_IRQS_DISABLED	1

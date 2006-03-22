@@ -5,9 +5,43 @@
  * Copyright 1992, Linus Torvalds.
  */
 
+#include <linux/config.h>
+#include <linux/compiler.h>
+#include <asm/byteorder.h>	/* swab32 */
 #include <asm/system.h>		/* save_flags */
 
 #ifdef __KERNEL__
+/*
+ *	Generic ffs().
+ */
+static inline int ffs(int x)
+{
+	int r = 1;
+
+	if (!x)
+		return 0;
+	if (!(x & 0xffff)) {
+		x >>= 16;
+		r += 16;
+	}
+	if (!(x & 0xff)) {
+		x >>= 8;
+		r += 8;
+	}
+	if (!(x & 0xf)) {
+		x >>= 4;
+		r += 4;
+	}
+	if (!(x & 3)) {
+		x >>= 2;
+		r += 2;
+	}
+	if (!(x & 1)) {
+		x >>= 1;
+		r += 1;
+	}
+	return r;
+}
 
 /*
  *	Generic __ffs().
@@ -265,7 +299,7 @@ static __inline__ int __test_bit(int nr, const void *addr)
 #define find_first_bit(addr, size) \
 	find_next_bit((addr), (size), 0)
 
-static __inline__ int find_next_zero_bit(const unsigned long *addr, int size,
+static __inline__ int find_next_zero_bit(const void *addr, int size,
 					 int offset)
 {
 	unsigned long *p = ((unsigned long *)addr) + (offset >> 5);
@@ -296,9 +330,7 @@ static __inline__ int find_next_zero_bit(const unsigned long *addr, int size,
 		return result;
 	tmp = *p;
       found_first:
-	tmp |= ~0UL >> size;
-	if (tmp == ~0UL)	/* Are any bits zero? */
-		return result + size;	/* Nope. */
+	tmp |= ~0UL << size;
       found_middle:
 	return result + ffz(tmp);
 }
@@ -347,15 +379,6 @@ static __inline__ unsigned long find_next_bit(const unsigned long *addr,
 }
 
 /*
- * ffs: find first bit set. This is defined the same way as
- * the libc and compiler builtin ffs routines, therefore
- * differs in spirit from the above ffz (man ffs).
- */
-
-#define ffs(x) generic_ffs(x)
-#define fls(x) generic_fls(x)
-
-/*
  * hweightN: returns the hamming weight (i.e. the number
  * of bits set) of a N-bit word
  */
@@ -395,6 +418,23 @@ static __inline__ unsigned long find_next_bit(const unsigned long *addr,
 #define minix_test_bit(nr,addr) test_bit(nr,addr)
 #define minix_find_first_zero_bit(addr,size) find_first_zero_bit(addr,size)
 
-#endif				/* __KERNEL__ */
+/**
+ * hweightN - returns the hamming weight of a N-bit word
+ * @x: the word to weigh
+ *
+ * The Hamming Weight of a number is the total number of bits set in it.
+ */
+
+#define hweight32(x) generic_hweight32(x)
+#define hweight16(x) generic_hweight16(x)
+#define hweight8(x) generic_hweight8(x)
+
+#endif /* __KERNEL__ */
+
+/*
+ * fls: find last bit set.
+ */
+#define fls(x) generic_fls(x)
+#define fls64(x)   generic_fls64(x)
 
 #endif				/* _BLACKFIN_BITOPS_H */

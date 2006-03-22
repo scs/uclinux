@@ -15,23 +15,23 @@
 #define PCIBIOS_MIN_MEM 0x10000000
 
 #define PCI_DMA_BUS_IS_PHYS       (1)
-    struct pci_ops;
+struct pci_ops;
 
 /*
  * Structure with hardware dependent information and functions of the
  * PCI bus.
  */
-struct pci_bus_info  {
+struct pci_bus_info {
 
-	    /*
-	     * Resources of the PCI bus.
-	     */
+	/*
+	 * Resources of the PCI bus.
+	 */
 	struct resource mem_space;
 	struct resource io_space;
 
-	    /*
-	     * System dependent functions.
-	     */
+	/*
+	 * System dependent functions.
+	 */
 	struct pci_ops *bfin_pci_ops;
 	void (*fixup) (int pci_modify);
 	void (*conf_device) (unsigned char bus, unsigned char device_fn);
@@ -41,23 +41,22 @@ struct pci_bus_info  {
 static inline void pcibios_set_master(struct pci_dev *dev)
 {
 
-	    /* No special bus mastering setup handling */
+	/* No special bus mastering setup handling */
 }
 static inline void pcibios_penalize_isa_irq(int irq)
 {
 
-	    /* We don't do dynamic PCI IRQ allocation */
+	/* We don't do dynamic PCI IRQ allocation */
 }
 static inline dma_addr_t pci_map_single(struct pci_dev *hwdev, void *ptr,
-					     size_t size, int direction)
+					size_t size, int direction)
 {
 	if (direction == PCI_DMA_NONE)
 		BUG();
 
-	    // return virt_to_bus(ptr);
-	    return (dma_addr_t) ptr;
+	// return virt_to_bus(ptr);
+	return (dma_addr_t) ptr;
 }
-
 
 /* Unmap a single streaming mode DMA translation.  The dma_addr and size
  * must match what was provided for in a previous pci_map_single call.  All
@@ -72,9 +71,8 @@ static inline void pci_unmap_single(struct pci_dev *hwdev, dma_addr_t dma_addr,
 	if (direction == PCI_DMA_NONE)
 		BUG();
 
-	    /* Nothing to do */
+	/* Nothing to do */
 }
-
 
 /* Map a set of buffers described by scatterlist in streaming
  * mode for DMA.  This is the scather-gather version of the
@@ -99,7 +97,6 @@ static inline int pci_map_sg(struct pci_dev *hwdev, struct scatterlist *sg,
 	return nents;
 }
 
-
 /* Unmap a set of streaming mode DMA translations.
  * Again, cpu read rules concerning calls here are the same as for
  * pci_unmap_single() above.
@@ -110,9 +107,8 @@ static inline void pci_unmap_sg(struct pci_dev *hwdev, struct scatterlist *sg,
 	if (direction == PCI_DMA_NONE)
 		BUG();
 
-	    /* Nothing to do */
+	/* Nothing to do */
 }
-
 
 /* Make physical memory consistent for a single
  * streaming mode DMA translation after a transfer.
@@ -130,9 +126,8 @@ static inline void pci_dma_sync_single(struct pci_dev *hwdev,
 	if (direction == PCI_DMA_NONE)
 		BUG();
 
-	    /* Nothing to do */
+	/* Nothing to do */
 }
-
 
 /* Make physical memory consistent for a set of streaming
  * mode DMA translations after a transfer.
@@ -147,8 +142,7 @@ static inline void pci_dma_sync_sg(struct pci_dev *hwdev,
 	if (direction == PCI_DMA_NONE)
 		BUG();
 
-	    /* Nothing to do */
+	/* Nothing to do */
 }
 
-
-#endif	/* _ASM_BFIN_PCI_H */
+#endif				/* _ASM_BFIN_PCI_H */

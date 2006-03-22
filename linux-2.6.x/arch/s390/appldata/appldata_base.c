@@ -40,7 +40,7 @@
 
 #define TOD_MICRO	0x01000			/* nr. of TOD clock units
 						   for 1 microsecond */
-#ifndef CONFIG_ARCH_S390X
+#ifndef CONFIG_64BIT
 
 #define APPLDATA_START_INTERVAL_REC 0x00   	/* Function codes for */
 #define APPLDATA_STOP_REC	    0x01	/* DIAG 0xDC	  */
@@ -54,13 +54,13 @@
 #define APPLDATA_GEN_EVENT_RECORD   0x82
 #define APPLDATA_START_CONFIG_REC   0x83
 
-#endif /* CONFIG_ARCH_S390X */
+#endif /* CONFIG_64BIT */
 
 
 /*
  * Parameter list for DIAGNOSE X'DC'
  */
-#ifndef CONFIG_ARCH_S390X
+#ifndef CONFIG_64BIT
 struct appldata_parameter_list {
 	u16 diag;		/* The DIAGNOSE code X'00DC'          */
 	u8  function;		/* The function code for the DIAGNOSE */
@@ -82,7 +82,7 @@ struct appldata_parameter_list {
 	u64 product_id_addr;
 	u64 buffer_addr;
 };
-#endif /* CONFIG_ARCH_S390X */
+#endif /* CONFIG_64BIT */
 
 /*
  * /proc entries (sysctl)
@@ -232,7 +232,11 @@ static int appldata_diag(char record_nr, u16 function, unsigned long buffer,
 	ry = -1;
 	asm volatile(
 			"diag %1,%0,0xDC\n\t"
-			: "=d" (ry) : "d" (&(appldata_parameter_list)) : "cc");
+			: "=d" (ry)
+			: "d" (&appldata_parameter_list),
+			  "m" (appldata_parameter_list),
+			  "m" (appldata_product_id)
+			: "cc");
 	return (int) ry;
 }
 /************************ timer, work, DIAG <END> ****************************/
@@ -588,12 +592,15 @@ int appldata_register_ops(struct appldata_ops *ops)
  */
 void appldata_unregister_ops(struct appldata_ops *ops)
 {
+	void *table;
 	spin_lock(&appldata_ops_lock);
-	unregister_sysctl_table(ops->sysctl_header);
 	list_del(&ops->list);
-	kfree(ops->ctl_table);
+	/* at that point any incoming access will fail */
+	table = ops->ctl_table;
 	ops->ctl_table = NULL;
 	spin_unlock(&appldata_ops_lock);
+	unregister_sysctl_table(ops->sysctl_header);
+	kfree(table);
 	P_INFO("%s-ops unregistered!\n", ops->name);
 }
 /********************** module-ops management <END> **************************/

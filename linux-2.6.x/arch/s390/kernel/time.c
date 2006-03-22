@@ -49,10 +49,6 @@
 
 #define TICK_SIZE tick
 
-u64 jiffies_64 = INITIAL_JIFFIES;
-
-EXPORT_SYMBOL(jiffies_64);
-
 static ext_int_info_t ext_int_info_cc;
 static u64 init_timer_cc;
 static u64 jiffies_timer_cc;
@@ -65,8 +61,17 @@ extern unsigned long wall_jiffies;
  */
 unsigned long long sched_clock(void)
 {
-	return ((get_clock() - jiffies_timer_cc) * 1000) >> 12;
+	return ((get_clock() - jiffies_timer_cc) * 125) >> 9;
 }
+
+/*
+ * Monotonic_clock - returns # of nanoseconds passed since time_init()
+ */
+unsigned long long monotonic_clock(void)
+{
+	return sched_clock();
+}
+EXPORT_SYMBOL(monotonic_clock);
 
 void tod_to_timeval(__u64 todval, struct timespec *xtime)
 {
@@ -139,10 +144,7 @@ int do_settimeofday(struct timespec *tv)
 	set_normalized_timespec(&xtime, sec, nsec);
 	set_normalized_timespec(&wall_to_monotonic, wtm_sec, wtm_nsec);
 
-	time_adjust = 0;		/* stop active adjtime() */
-	time_status |= STA_UNSYNC;
-	time_maxerror = NTP_PHASE_LIMIT;
-	time_esterror = NTP_PHASE_LIMIT;
+	ntp_clear();
 	write_sequnlock_irq(&xtime_lock);
 	clock_was_set();
 	return 0;
@@ -221,7 +223,7 @@ void account_ticks(struct pt_regs *regs)
 #endif
 
 #ifdef CONFIG_VIRT_CPU_ACCOUNTING
-	account_user_vtime(current);
+	account_tick_vtime(current);
 #else
 	while (ticks--)
 		update_process_times(user_mode(regs));
@@ -244,6 +246,8 @@ int sysctl_hz_timer = 1;
  */
 static inline void stop_hz_timer(void)
 {
+	unsigned long flags;
+	unsigned long seq, next;
 	__u64 timer, todval;
 
 	if (sysctl_hz_timer != 0)
@@ -264,7 +268,11 @@ static inline void stop_hz_timer(void)
 	 * This cpu is going really idle. Set up the clock comparator
 	 * for the next event.
 	 */
-	timer = (__u64) (next_timer_interrupt() - jiffies) + jiffies_64;
+	next = next_timer_interrupt();
+	do {
+		seq = read_seqbegin_irqsave(&xtime_lock, flags);
+		timer = (__u64)(next - jiffies) + jiffies_64;
+	} while (read_seqretry_irqrestore(&xtime_lock, seq, flags));
 	todval = -1ULL;
 	/* Be careful about overflows. */
 	if (timer < (-1ULL / CLK_TICKS_PER_JIFFY)) {
@@ -283,7 +291,7 @@ static inline void start_hz_timer(void)
 {
 	if (!cpu_isset(smp_processor_id(), nohz_cpu_mask))
 		return;
-	account_ticks(__KSTK_PTREGS(current));
+	account_ticks(task_pt_regs(current));
 	cpu_clear(smp_processor_id(), nohz_cpu_mask);
 }
 

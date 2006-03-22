@@ -5,12 +5,11 @@
  *
  */
 
-
 #ifndef _MEM_MAP_561_H_
 #define _MEM_MAP_561_H_
 
-#define COREMMR_BASE           0xFFE00000     // Core MMRs
-#define SYSMMR_BASE            0xFFC00000     // System MMRs
+#define COREMMR_BASE           0xFFE00000	// Core MMRs
+#define SYSMMR_BASE            0xFFC00000	// System MMRs
 
 /* Level 3 SDRAM Memory */
 #define RAM_START		0x1000
@@ -21,7 +20,7 @@
 #define ASYNC_BANK3_BASE	0x2C000000	// Async Bank 3
 #define ASYNC_BANK3_SIZE	0x04000000	/* 1M */
 #define ASYNC_BANK2_BASE	0x28000000	// Async Bank 2
-#define ASYNC_BANK2_SIZE	0x04000000  /* 1M */
+#define ASYNC_BANK2_SIZE	0x04000000	/* 1M */
 #define ASYNC_BANK1_BASE	0x24000000	// Async Bank 1
 #define ASYNC_BANK1_SIZE	0x04000000	/* 1M */
 #define ASYNC_BANK0_BASE	0x20000000	// Async Bank 0
@@ -64,4 +63,4 @@
 #define L1_SCRATCH_LENGTH	0x1000
 #endif
 
-#endif /* _MEM_MAP_533_H_ */
+#endif				/* _MEM_MAP_533_H_ */

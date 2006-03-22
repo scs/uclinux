@@ -36,7 +36,7 @@
 
 #define SUPPORTED_DSPID		0x300
 
-#define OFFSET_( x ) ((x) & 0x0000FFFF) /* define macro for offset */
+#define OFFSET_( x ) ((x) & 0x0000FFFF)	/* define macro for offset */
 #define L1_ISRAM		0xFFA00000
 #define L1_ISRAM_END		0xFFA04000
 #define DATA_BANKA_SRAM		0xFF800000
@@ -321,7 +321,7 @@
 #define CONFIG_CCLK_ACT_DIV   CONFIG_CCLK_DIV_not_defined_properly
 #endif
 
-#endif /* CONFIG_BFIN_KERNEL_CLOCK */
+#endif				/* CONFIG_BFIN_KERNEL_CLOCK */
 
 #ifdef CONFIG_BF561
 #define CPU "BF561"
@@ -331,9 +331,8 @@
 #endif
 
 #if (CONFIG_MEM_SIZE % 4)
-	#error "SDRAM memory size must be a multiple of 4MB!"
+#error "SDRAM memory size must be a multiple of 4MB!"
 #endif
-
 
 #define SDRAM_IGENERIC	(CPLB_L1_CHBL | CPLB_USER_RD | CPLB_VALID | CPLB_PORTPRIO)
 #define SDRAM_IKERNEL	(SDRAM_IGENERIC | CPLB_LOCK)
@@ -359,7 +358,7 @@
 #define SIZE_1M 0x00100000
 #define SIZE_4M 0x00400000
 
-#if 0 	/* comment by mhfan */
+#if 0				/* comment by mhfan */
 /* Event Vector Table Address */
 #define EVT_EMULATION_ADDR      0xffe02000
 #define EVT_RESET_ADDR          0xffe02004

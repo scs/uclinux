@@ -3,6 +3,12 @@
 
 #ifdef __KERNEL__
 
+#ifndef __ASSEMBLY__
+#include <linux/types.h>
+#endif
+#include <linux/config.h>
+#include <linux/compiler.h>
+
 /*
  * These are for ISA/PCI shared memory _only_ and should never be used
  * on any other type of memory, including Zorro memory. They are meant to
@@ -101,11 +107,12 @@ extern void *__ioremap(unsigned long physaddr, unsigned long size,
 		       int cacheflag);
 extern void iounmap(void *addr);
 
-static inline void *ioremap(unsigned long physaddr, unsigned long size)
+static inline void __iomem *ioremap(unsigned long physaddr, unsigned long size)
 {
 	return __ioremap(physaddr, size, IOMAP_NOCACHE_SER);
 }
-static inline void *ioremap_nocache(unsigned long physaddr, unsigned long size)
+static inline void __iomem *ioremap_nocache(unsigned long physaddr,
+					    unsigned long size)
 {
 	return __ioremap(physaddr, size, IOMAP_NOCACHE_SER);
 }

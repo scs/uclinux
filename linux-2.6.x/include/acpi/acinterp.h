@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2005, R. Byron Moore
+ * Copyright (C) 2000 - 2006, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -44,57 +44,64 @@
 #ifndef __ACINTERP_H__
 #define __ACINTERP_H__
 
+#define ACPI_WALK_OPERANDS          (&(walk_state->operands [walk_state->num_operands -1]))
 
-#define ACPI_WALK_OPERANDS       (&(walk_state->operands [walk_state->num_operands -1]))
+/* Macros for tables used for debug output */
 
-
-acpi_status
-acpi_ex_resolve_operands (
-	u16                             opcode,
-	union acpi_operand_object       **stack_ptr,
-	struct acpi_walk_state          *walk_state);
-
-acpi_status
-acpi_ex_check_object_type (
-	acpi_object_type                type_needed,
-	acpi_object_type                this_type,
-	void                            *object);
+#define ACPI_EXD_OFFSET(f)          (u8) ACPI_OFFSET (union acpi_operand_object,f)
+#define ACPI_EXD_NSOFFSET(f)        (u8) ACPI_OFFSET (struct acpi_namespace_node,f)
+#define ACPI_EXD_TABLE_SIZE(name)   (sizeof(name) / sizeof (struct acpi_exdump_info))
 
 /*
- * exxface - External interpreter interfaces
+ * If possible, pack the following structure to byte alignment, since we
+ * don't care about performance for debug output
  */
+#ifndef ACPI_MISALIGNMENT_NOT_SUPPORTED
+#pragma pack(1)
+#endif
 
-acpi_status
-acpi_ex_load_table (
-	acpi_table_type                 table_id);
+typedef const struct acpi_exdump_info {
+	u8 opcode;
+	u8 offset;
+	char *name;
 
-acpi_status
-acpi_ex_execute_method (
-	struct acpi_namespace_node      *method_node,
-	union acpi_operand_object       **params,
-	union acpi_operand_object       **return_obj_desc);
+} acpi_exdump_info;
 
+/* Values for the Opcode field above */
+
+#define ACPI_EXD_INIT                   0
+#define ACPI_EXD_TYPE                   1
+#define ACPI_EXD_UINT8                  2
+#define ACPI_EXD_UINT16                 3
+#define ACPI_EXD_UINT32                 4
+#define ACPI_EXD_UINT64                 5
+#define ACPI_EXD_LITERAL                6
+#define ACPI_EXD_POINTER                7
+#define ACPI_EXD_ADDRESS                8
+#define ACPI_EXD_STRING                 9
+#define ACPI_EXD_BUFFER                 10
+#define ACPI_EXD_PACKAGE                11
+#define ACPI_EXD_FIELD                  12
+#define ACPI_EXD_REFERENCE              13
+
+/* restore default alignment */
+
+#pragma pack()
 
 /*
  * exconvrt - object conversion
  */
+acpi_status
+acpi_ex_convert_to_integer(union acpi_operand_object *obj_desc,
+			   union acpi_operand_object **result_desc, u32 flags);
 
 acpi_status
-acpi_ex_convert_to_integer (
-	union acpi_operand_object       *obj_desc,
-	union acpi_operand_object       **result_desc,
-	u32                             flags);
+acpi_ex_convert_to_buffer(union acpi_operand_object *obj_desc,
+			  union acpi_operand_object **result_desc);
 
 acpi_status
-acpi_ex_convert_to_buffer (
-	union acpi_operand_object       *obj_desc,
-	union acpi_operand_object       **result_desc);
-
-acpi_status
-acpi_ex_convert_to_string (
-	union acpi_operand_object       *obj_desc,
-	union acpi_operand_object       **result_desc,
-	u32                             type);
+acpi_ex_convert_to_string(union acpi_operand_object *obj_desc,
+			  union acpi_operand_object **result_desc, u32 type);
 
 /* Types for ->String conversion */
 
@@ -104,662 +111,412 @@ acpi_ex_convert_to_string (
 #define ACPI_EXPLICIT_CONVERT_DECIMAL   0x00000003
 
 acpi_status
-acpi_ex_convert_to_target_type (
-	acpi_object_type                destination_type,
-	union acpi_operand_object       *source_desc,
-	union acpi_operand_object       **result_desc,
-	struct acpi_walk_state          *walk_state);
-
-u32
-acpi_ex_convert_to_ascii (
-	acpi_integer                    integer,
-	u16                             base,
-	u8                              *string,
-	u8                              max_length);
+acpi_ex_convert_to_target_type(acpi_object_type destination_type,
+			       union acpi_operand_object *source_desc,
+			       union acpi_operand_object **result_desc,
+			       struct acpi_walk_state *walk_state);
 
 /*
  * exfield - ACPI AML (p-code) execution - field manipulation
  */
+acpi_status
+acpi_ex_common_buffer_setup(union acpi_operand_object *obj_desc,
+			    u32 buffer_length, u32 * datum_count);
 
 acpi_status
-acpi_ex_common_buffer_setup (
-	union acpi_operand_object       *obj_desc,
-	u32                             buffer_length,
-	u32                             *datum_count);
-
-acpi_status
-acpi_ex_extract_from_field (
-	union acpi_operand_object       *obj_desc,
-	void                            *buffer,
-	u32                             buffer_length);
-
-acpi_status
-acpi_ex_insert_into_field (
-	union acpi_operand_object       *obj_desc,
-	void                            *buffer,
-	u32                             buffer_length);
-
-acpi_status
-acpi_ex_setup_region (
-	union acpi_operand_object       *obj_desc,
-	u32                             field_datum_byte_offset);
-
-acpi_status
-acpi_ex_access_region (
-	union acpi_operand_object       *obj_desc,
-	u32                             field_datum_byte_offset,
-	acpi_integer                    *value,
-	u32                             read_write);
-
-u8
-acpi_ex_register_overflow (
-	union acpi_operand_object       *obj_desc,
-	acpi_integer                    value);
-
-acpi_status
-acpi_ex_field_datum_io (
-	union acpi_operand_object       *obj_desc,
-	u32                             field_datum_byte_offset,
-	acpi_integer                    *value,
-	u32                             read_write);
-
-acpi_status
-acpi_ex_write_with_update_rule (
-	union acpi_operand_object       *obj_desc,
-	acpi_integer                    mask,
-	acpi_integer                    field_value,
-	u32                             field_datum_byte_offset);
+acpi_ex_write_with_update_rule(union acpi_operand_object *obj_desc,
+			       acpi_integer mask,
+			       acpi_integer field_value,
+			       u32 field_datum_byte_offset);
 
 void
-acpi_ex_get_buffer_datum(
-	acpi_integer                    *datum,
-	void                            *buffer,
-	u32                             buffer_length,
-	u32                             byte_granularity,
-	u32                             buffer_offset);
+acpi_ex_get_buffer_datum(acpi_integer * datum,
+			 void *buffer,
+			 u32 buffer_length,
+			 u32 byte_granularity, u32 buffer_offset);
 
 void
-acpi_ex_set_buffer_datum (
-	acpi_integer                    merged_datum,
-	void                            *buffer,
-	u32                             buffer_length,
-	u32                             byte_granularity,
-	u32                             buffer_offset);
+acpi_ex_set_buffer_datum(acpi_integer merged_datum,
+			 void *buffer,
+			 u32 buffer_length,
+			 u32 byte_granularity, u32 buffer_offset);
 
 acpi_status
-acpi_ex_read_data_from_field (
-	struct acpi_walk_state          *walk_state,
-	union acpi_operand_object       *obj_desc,
-	union acpi_operand_object       **ret_buffer_desc);
+acpi_ex_read_data_from_field(struct acpi_walk_state *walk_state,
+			     union acpi_operand_object *obj_desc,
+			     union acpi_operand_object **ret_buffer_desc);
 
 acpi_status
-acpi_ex_write_data_to_field (
-	union acpi_operand_object       *source_desc,
-	union acpi_operand_object       *obj_desc,
-	union acpi_operand_object       **result_desc);
+acpi_ex_write_data_to_field(union acpi_operand_object *source_desc,
+			    union acpi_operand_object *obj_desc,
+			    union acpi_operand_object **result_desc);
 
 /*
- * exmisc - ACPI AML (p-code) execution - specific opcodes
+ * exfldio - low level field I/O
  */
+acpi_status
+acpi_ex_extract_from_field(union acpi_operand_object *obj_desc,
+			   void *buffer, u32 buffer_length);
 
 acpi_status
-acpi_ex_opcode_3A_0T_0R (
-	struct acpi_walk_state          *walk_state);
+acpi_ex_insert_into_field(union acpi_operand_object *obj_desc,
+			  void *buffer, u32 buffer_length);
 
 acpi_status
-acpi_ex_opcode_3A_1T_1R (
-	struct acpi_walk_state          *walk_state);
+acpi_ex_access_region(union acpi_operand_object *obj_desc,
+		      u32 field_datum_byte_offset,
+		      acpi_integer * value, u32 read_write);
+
+/*
+ * exmisc - misc support routines
+ */
+acpi_status
+acpi_ex_get_object_reference(union acpi_operand_object *obj_desc,
+			     union acpi_operand_object **return_desc,
+			     struct acpi_walk_state *walk_state);
 
 acpi_status
-acpi_ex_opcode_6A_0T_1R (
-	struct acpi_walk_state          *walk_state);
-
-u8
-acpi_ex_do_match (
-	u32                             match_op,
-	union acpi_operand_object       *package_obj,
-	union acpi_operand_object       *match_obj);
+acpi_ex_concat_template(union acpi_operand_object *obj_desc,
+			union acpi_operand_object *obj_desc2,
+			union acpi_operand_object **actual_return_desc,
+			struct acpi_walk_state *walk_state);
 
 acpi_status
-acpi_ex_get_object_reference (
-	union acpi_operand_object       *obj_desc,
-	union acpi_operand_object       **return_desc,
-	struct acpi_walk_state          *walk_state);
+acpi_ex_do_concatenate(union acpi_operand_object *obj_desc,
+		       union acpi_operand_object *obj_desc2,
+		       union acpi_operand_object **actual_return_desc,
+		       struct acpi_walk_state *walk_state);
 
 acpi_status
-acpi_ex_resolve_multiple (
-	struct acpi_walk_state          *walk_state,
-	union acpi_operand_object       *operand,
-	acpi_object_type                *return_type,
-	union acpi_operand_object       **return_desc);
+acpi_ex_do_logical_numeric_op(u16 opcode,
+			      acpi_integer integer0,
+			      acpi_integer integer1, u8 * logical_result);
 
 acpi_status
-acpi_ex_concat_template (
-	union acpi_operand_object       *obj_desc,
-	union acpi_operand_object       *obj_desc2,
-	union acpi_operand_object       **actual_return_desc,
-	struct acpi_walk_state          *walk_state);
-
-acpi_status
-acpi_ex_do_concatenate (
-	union acpi_operand_object       *obj_desc,
-	union acpi_operand_object       *obj_desc2,
-	union acpi_operand_object       **actual_return_desc,
-	struct acpi_walk_state          *walk_state);
-
-acpi_status
-acpi_ex_do_logical_numeric_op (
-	u16                             opcode,
-	acpi_integer                    integer0,
-	acpi_integer                    integer1,
-	u8                              *logical_result);
-
-acpi_status
-acpi_ex_do_logical_op (
-	u16                             opcode,
-	union acpi_operand_object       *operand0,
-	union acpi_operand_object       *operand1,
-	u8                              *logical_result);
+acpi_ex_do_logical_op(u16 opcode,
+		      union acpi_operand_object *operand0,
+		      union acpi_operand_object *operand1, u8 * logical_result);
 
 acpi_integer
-acpi_ex_do_math_op (
-	u16                             opcode,
-	acpi_integer                    operand0,
-	acpi_integer                    operand1);
+acpi_ex_do_math_op(u16 opcode, acpi_integer operand0, acpi_integer operand1);
+
+acpi_status acpi_ex_create_mutex(struct acpi_walk_state *walk_state);
+
+acpi_status acpi_ex_create_processor(struct acpi_walk_state *walk_state);
+
+acpi_status acpi_ex_create_power_resource(struct acpi_walk_state *walk_state);
 
 acpi_status
-acpi_ex_create_mutex (
-	struct acpi_walk_state          *walk_state);
+acpi_ex_create_region(u8 * aml_start,
+		      u32 aml_length,
+		      u8 region_space, struct acpi_walk_state *walk_state);
+
+acpi_status acpi_ex_create_table_region(struct acpi_walk_state *walk_state);
+
+acpi_status acpi_ex_create_event(struct acpi_walk_state *walk_state);
+
+acpi_status acpi_ex_create_alias(struct acpi_walk_state *walk_state);
 
 acpi_status
-acpi_ex_create_processor (
-	struct acpi_walk_state          *walk_state);
-
-acpi_status
-acpi_ex_create_power_resource (
-	struct acpi_walk_state          *walk_state);
-
-acpi_status
-acpi_ex_create_region (
-	u8                              *aml_start,
-	u32                             aml_length,
-	u8                              region_space,
-	struct acpi_walk_state          *walk_state);
-
-acpi_status
-acpi_ex_create_table_region (
-	struct acpi_walk_state          *walk_state);
-
-acpi_status
-acpi_ex_create_event (
-	struct acpi_walk_state          *walk_state);
-
-acpi_status
-acpi_ex_create_alias (
-	struct acpi_walk_state          *walk_state);
-
-acpi_status
-acpi_ex_create_method (
-	u8                              *aml_start,
-	u32                             aml_length,
-	struct acpi_walk_state          *walk_state);
-
+acpi_ex_create_method(u8 * aml_start,
+		      u32 aml_length, struct acpi_walk_state *walk_state);
 
 /*
  * exconfig - dynamic table load/unload
  */
+acpi_status
+acpi_ex_load_op(union acpi_operand_object *obj_desc,
+		union acpi_operand_object *target,
+		struct acpi_walk_state *walk_state);
 
 acpi_status
-acpi_ex_add_table (
-	struct acpi_table_header        *table,
-	struct acpi_namespace_node      *parent_node,
-	union acpi_operand_object       **ddb_handle);
+acpi_ex_load_table_op(struct acpi_walk_state *walk_state,
+		      union acpi_operand_object **return_desc);
 
-acpi_status
-acpi_ex_load_op (
-	union acpi_operand_object       *obj_desc,
-	union acpi_operand_object       *target,
-	struct acpi_walk_state          *walk_state);
-
-acpi_status
-acpi_ex_load_table_op (
-	struct acpi_walk_state          *walk_state,
-	union acpi_operand_object       **return_desc);
-
-acpi_status
-acpi_ex_unload_table (
-	union acpi_operand_object       *ddb_handle);
-
+acpi_status acpi_ex_unload_table(union acpi_operand_object *ddb_handle);
 
 /*
  * exmutex - mutex support
  */
+acpi_status
+acpi_ex_acquire_mutex(union acpi_operand_object *time_desc,
+		      union acpi_operand_object *obj_desc,
+		      struct acpi_walk_state *walk_state);
 
 acpi_status
-acpi_ex_acquire_mutex (
-	union acpi_operand_object       *time_desc,
-	union acpi_operand_object       *obj_desc,
-	struct acpi_walk_state          *walk_state);
+acpi_ex_release_mutex(union acpi_operand_object *obj_desc,
+		      struct acpi_walk_state *walk_state);
 
-acpi_status
-acpi_ex_release_mutex (
-	union acpi_operand_object       *obj_desc,
-	struct acpi_walk_state          *walk_state);
+void acpi_ex_release_all_mutexes(struct acpi_thread_state *thread);
 
-void
-acpi_ex_release_all_mutexes (
-	struct acpi_thread_state        *thread);
-
-void
-acpi_ex_unlink_mutex (
-	union acpi_operand_object       *obj_desc);
-
-void
-acpi_ex_link_mutex (
-	union acpi_operand_object       *obj_desc,
-	struct acpi_thread_state        *thread);
+void acpi_ex_unlink_mutex(union acpi_operand_object *obj_desc);
 
 /*
- * exprep - ACPI AML (p-code) execution - prep utilities
+ * exprep - ACPI AML execution - prep utilities
  */
-
 acpi_status
-acpi_ex_prep_common_field_object (
-	union acpi_operand_object       *obj_desc,
-	u8                              field_flags,
-	u8                              field_attribute,
-	u32                             field_bit_position,
-	u32                             field_bit_length);
+acpi_ex_prep_common_field_object(union acpi_operand_object *obj_desc,
+				 u8 field_flags,
+				 u8 field_attribute,
+				 u32 field_bit_position, u32 field_bit_length);
 
-acpi_status
-acpi_ex_prep_field_value (
-	struct acpi_create_field_info   *info);
+acpi_status acpi_ex_prep_field_value(struct acpi_create_field_info *info);
 
 /*
  * exsystem - Interface to OS services
  */
+acpi_status
+acpi_ex_system_do_notify_op(union acpi_operand_object *value,
+			    union acpi_operand_object *obj_desc);
+
+acpi_status acpi_ex_system_do_suspend(acpi_integer time);
+
+acpi_status acpi_ex_system_do_stall(u32 time);
 
 acpi_status
-acpi_ex_system_do_notify_op (
-	union acpi_operand_object       *value,
-	union acpi_operand_object       *obj_desc);
+acpi_ex_system_acquire_mutex(union acpi_operand_object *time,
+			     union acpi_operand_object *obj_desc);
+
+acpi_status acpi_ex_system_release_mutex(union acpi_operand_object *obj_desc);
+
+acpi_status acpi_ex_system_signal_event(union acpi_operand_object *obj_desc);
 
 acpi_status
-acpi_ex_system_do_suspend(
-	acpi_integer                    time);
+acpi_ex_system_wait_event(union acpi_operand_object *time,
+			  union acpi_operand_object *obj_desc);
 
-acpi_status
-acpi_ex_system_do_stall (
-	u32                             time);
+acpi_status acpi_ex_system_reset_event(union acpi_operand_object *obj_desc);
 
-acpi_status
-acpi_ex_system_acquire_mutex(
-	union acpi_operand_object       *time,
-	union acpi_operand_object       *obj_desc);
-
-acpi_status
-acpi_ex_system_release_mutex(
-	union acpi_operand_object       *obj_desc);
-
-acpi_status
-acpi_ex_system_signal_event(
-	union acpi_operand_object       *obj_desc);
-
-acpi_status
-acpi_ex_system_wait_event(
-	union acpi_operand_object       *time,
-	union acpi_operand_object       *obj_desc);
-
-acpi_status
-acpi_ex_system_reset_event(
-	union acpi_operand_object       *obj_desc);
-
-acpi_status
-acpi_ex_system_wait_semaphore (
-	acpi_handle                     semaphore,
-	u16                             timeout);
-
+acpi_status acpi_ex_system_wait_semaphore(acpi_handle semaphore, u16 timeout);
 
 /*
- * exmonadic - ACPI AML (p-code) execution, monadic operators
+ * exoparg1 - ACPI AML execution, 1 operand
  */
+acpi_status acpi_ex_opcode_0A_0T_1R(struct acpi_walk_state *walk_state);
 
-acpi_status
-acpi_ex_opcode_0A_0T_1R (
-	struct acpi_walk_state          *walk_state);
+acpi_status acpi_ex_opcode_1A_0T_0R(struct acpi_walk_state *walk_state);
 
-acpi_status
-acpi_ex_opcode_1A_0T_0R (
-	struct acpi_walk_state          *walk_state);
+acpi_status acpi_ex_opcode_1A_0T_1R(struct acpi_walk_state *walk_state);
 
-acpi_status
-acpi_ex_opcode_1A_0T_1R (
-	struct acpi_walk_state          *walk_state);
+acpi_status acpi_ex_opcode_1A_1T_1R(struct acpi_walk_state *walk_state);
 
-acpi_status
-acpi_ex_opcode_1A_1T_1R (
-	struct acpi_walk_state          *walk_state);
-
-acpi_status
-acpi_ex_opcode_1A_1T_0R (
-	struct acpi_walk_state          *walk_state);
+acpi_status acpi_ex_opcode_1A_1T_0R(struct acpi_walk_state *walk_state);
 
 /*
- * exdyadic - ACPI AML (p-code) execution, dyadic operators
+ * exoparg2 - ACPI AML execution, 2 operands
  */
+acpi_status acpi_ex_opcode_2A_0T_0R(struct acpi_walk_state *walk_state);
 
-acpi_status
-acpi_ex_opcode_2A_0T_0R (
-	struct acpi_walk_state          *walk_state);
+acpi_status acpi_ex_opcode_2A_0T_1R(struct acpi_walk_state *walk_state);
 
-acpi_status
-acpi_ex_opcode_2A_0T_1R (
-	struct acpi_walk_state          *walk_state);
+acpi_status acpi_ex_opcode_2A_1T_1R(struct acpi_walk_state *walk_state);
 
-acpi_status
-acpi_ex_opcode_2A_1T_1R (
-	struct acpi_walk_state          *walk_state);
-
-acpi_status
-acpi_ex_opcode_2A_2T_1R (
-	struct acpi_walk_state          *walk_state);
-
+acpi_status acpi_ex_opcode_2A_2T_1R(struct acpi_walk_state *walk_state);
 
 /*
- * exresolv  - Object resolution and get value functions
+ * exoparg3 - ACPI AML execution, 3 operands
  */
+acpi_status acpi_ex_opcode_3A_0T_0R(struct acpi_walk_state *walk_state);
+
+acpi_status acpi_ex_opcode_3A_1T_1R(struct acpi_walk_state *walk_state);
+
+/*
+ * exoparg6 - ACPI AML execution, 6 operands
+ */
+acpi_status acpi_ex_opcode_6A_0T_1R(struct acpi_walk_state *walk_state);
+
+/*
+ * exresolv - Object resolution and get value functions
+ */
+acpi_status
+acpi_ex_resolve_to_value(union acpi_operand_object **stack_ptr,
+			 struct acpi_walk_state *walk_state);
 
 acpi_status
-acpi_ex_resolve_to_value (
-	union acpi_operand_object       **stack_ptr,
-	struct acpi_walk_state          *walk_state);
+acpi_ex_resolve_multiple(struct acpi_walk_state *walk_state,
+			 union acpi_operand_object *operand,
+			 acpi_object_type * return_type,
+			 union acpi_operand_object **return_desc);
 
+/*
+ * exresnte - resolve namespace node
+ */
 acpi_status
-acpi_ex_resolve_node_to_value (
-	struct acpi_namespace_node      **stack_ptr,
-	struct acpi_walk_state          *walk_state);
+acpi_ex_resolve_node_to_value(struct acpi_namespace_node **stack_ptr,
+			      struct acpi_walk_state *walk_state);
 
+/*
+ * exresop - resolve operand to value
+ */
 acpi_status
-acpi_ex_resolve_object_to_value (
-	union acpi_operand_object       **stack_ptr,
-	struct acpi_walk_state          *walk_state);
-
+acpi_ex_resolve_operands(u16 opcode,
+			 union acpi_operand_object **stack_ptr,
+			 struct acpi_walk_state *walk_state);
 
 /*
  * exdump - Interpreter debug output routines
  */
+void acpi_ex_dump_operand(union acpi_operand_object *obj_desc, u32 depth);
 
 void
-acpi_ex_dump_operand (
-	union acpi_operand_object       *obj_desc,
-	u32                             depth);
+acpi_ex_dump_operands(union acpi_operand_object **operands,
+		      acpi_interpreter_mode interpreter_mode,
+		      char *ident,
+		      u32 num_levels,
+		      char *note, char *module_name, u32 line_number);
 
+#ifdef	ACPI_FUTURE_USAGE
 void
-acpi_ex_dump_operands (
-	union acpi_operand_object       **operands,
-	acpi_interpreter_mode           interpreter_mode,
-	char                            *ident,
-	u32                             num_levels,
-	char                            *note,
-	char                            *module_name,
-	u32                             line_number);
+acpi_ex_dump_object_descriptor(union acpi_operand_object *object, u32 flags);
 
-#ifdef ACPI_FUTURE_USAGE
-void
-acpi_ex_dump_object_descriptor (
-	union acpi_operand_object       *object,
-	u32                             flags);
-
-void
-acpi_ex_dump_node (
-	struct acpi_namespace_node      *node,
-	u32                             flags);
-
-void
-acpi_ex_out_string (
-	char                            *title,
-	char                            *value);
-
-void
-acpi_ex_out_pointer (
-	char                            *title,
-	void                            *value);
-
-void
-acpi_ex_out_integer (
-	char                            *title,
-	u32                             value);
-
-void
-acpi_ex_out_address (
-	char                            *title,
-	acpi_physical_address           value);
-#endif  /*  ACPI_FUTURE_USAGE  */
+void acpi_ex_dump_namespace_node(struct acpi_namespace_node *node, u32 flags);
+#endif				/* ACPI_FUTURE_USAGE */
 
 /*
- * exnames - interpreter/scanner name load/execute
+ * exnames - AML namestring support
  */
-
-char *
-acpi_ex_allocate_name_string (
-	u32                             prefix_count,
-	u32                             num_name_segs);
-
-u32
-acpi_ex_good_char (
-	u32                             character);
-
 acpi_status
-acpi_ex_name_segment (
-	u8                              **in_aml_address,
-	char                            *name_string);
-
-acpi_status
-acpi_ex_get_name_string (
-	acpi_object_type                data_type,
-	u8                              *in_aml_address,
-	char                            **out_name_string,
-	u32                             *out_name_length);
-
-acpi_status
-acpi_ex_do_name (
-	acpi_object_type                data_type,
-	acpi_interpreter_mode           load_exec_mode);
-
+acpi_ex_get_name_string(acpi_object_type data_type,
+			u8 * in_aml_address,
+			char **out_name_string, u32 * out_name_length);
 
 /*
  * exstore - Object store support
  */
+acpi_status
+acpi_ex_store(union acpi_operand_object *val_desc,
+	      union acpi_operand_object *dest_desc,
+	      struct acpi_walk_state *walk_state);
 
 acpi_status
-acpi_ex_store (
-	union acpi_operand_object       *val_desc,
-	union acpi_operand_object       *dest_desc,
-	struct acpi_walk_state          *walk_state);
-
-acpi_status
-acpi_ex_store_object_to_index (
-	union acpi_operand_object       *val_desc,
-	union acpi_operand_object       *dest_desc,
-	struct acpi_walk_state          *walk_state);
-
-acpi_status
-acpi_ex_store_object_to_node (
-	union acpi_operand_object       *source_desc,
-	struct acpi_namespace_node      *node,
-	struct acpi_walk_state          *walk_state,
-	u8                              implicit_conversion);
+acpi_ex_store_object_to_node(union acpi_operand_object *source_desc,
+			     struct acpi_namespace_node *node,
+			     struct acpi_walk_state *walk_state,
+			     u8 implicit_conversion);
 
 #define ACPI_IMPLICIT_CONVERSION        TRUE
 #define ACPI_NO_IMPLICIT_CONVERSION     FALSE
 
 /*
- * exstoren
+ * exstoren - resolve/store object
  */
+acpi_status
+acpi_ex_resolve_object(union acpi_operand_object **source_desc_ptr,
+		       acpi_object_type target_type,
+		       struct acpi_walk_state *walk_state);
 
 acpi_status
-acpi_ex_resolve_object (
-	union acpi_operand_object       **source_desc_ptr,
-	acpi_object_type                target_type,
-	struct acpi_walk_state          *walk_state);
+acpi_ex_store_object_to_object(union acpi_operand_object *source_desc,
+			       union acpi_operand_object *dest_desc,
+			       union acpi_operand_object **new_desc,
+			       struct acpi_walk_state *walk_state);
+
+/*
+ * exstorob - store object - buffer/string
+ */
+acpi_status
+acpi_ex_store_buffer_to_buffer(union acpi_operand_object *source_desc,
+			       union acpi_operand_object *target_desc);
 
 acpi_status
-acpi_ex_store_object_to_object (
-	union acpi_operand_object       *source_desc,
-	union acpi_operand_object       *dest_desc,
-	union acpi_operand_object       **new_desc,
-	struct acpi_walk_state          *walk_state);
-
+acpi_ex_store_string_to_string(union acpi_operand_object *source_desc,
+			       union acpi_operand_object *target_desc);
 
 /*
  * excopy - object copy
  */
+acpi_status
+acpi_ex_copy_integer_to_index_field(union acpi_operand_object *source_desc,
+				    union acpi_operand_object *target_desc);
 
 acpi_status
-acpi_ex_store_buffer_to_buffer (
-	union acpi_operand_object       *source_desc,
-	union acpi_operand_object       *target_desc);
+acpi_ex_copy_integer_to_bank_field(union acpi_operand_object *source_desc,
+				   union acpi_operand_object *target_desc);
 
 acpi_status
-acpi_ex_store_string_to_string (
-	union acpi_operand_object       *source_desc,
-	union acpi_operand_object       *target_desc);
+acpi_ex_copy_data_to_named_field(union acpi_operand_object *source_desc,
+				 struct acpi_namespace_node *node);
 
 acpi_status
-acpi_ex_copy_integer_to_index_field (
-	union acpi_operand_object       *source_desc,
-	union acpi_operand_object       *target_desc);
-
-acpi_status
-acpi_ex_copy_integer_to_bank_field (
-	union acpi_operand_object       *source_desc,
-	union acpi_operand_object       *target_desc);
-
-acpi_status
-acpi_ex_copy_data_to_named_field (
-	union acpi_operand_object       *source_desc,
-	struct acpi_namespace_node      *node);
-
-acpi_status
-acpi_ex_copy_integer_to_buffer_field (
-	union acpi_operand_object       *source_desc,
-	union acpi_operand_object       *target_desc);
+acpi_ex_copy_integer_to_buffer_field(union acpi_operand_object *source_desc,
+				     union acpi_operand_object *target_desc);
 
 /*
  * exutils - interpreter/scanner utilities
  */
+acpi_status acpi_ex_enter_interpreter(void);
 
-acpi_status
-acpi_ex_enter_interpreter (
-	void);
+void acpi_ex_exit_interpreter(void);
 
-void
-acpi_ex_exit_interpreter (
-	void);
+void acpi_ex_truncate_for32bit_table(union acpi_operand_object *obj_desc);
 
-void
-acpi_ex_truncate_for32bit_table (
-	union acpi_operand_object       *obj_desc);
+u8 acpi_ex_acquire_global_lock(u32 rule);
 
-u8
-acpi_ex_acquire_global_lock (
-	u32                             rule);
+void acpi_ex_release_global_lock(u8 locked);
 
-void
-acpi_ex_release_global_lock (
-	u8                              locked);
+void acpi_ex_eisa_id_to_string(u32 numeric_id, char *out_string);
 
-u32
-acpi_ex_digits_needed (
-	acpi_integer                    value,
-	u32                             base);
-
-void
-acpi_ex_eisa_id_to_string (
-	u32                             numeric_id,
-	char                            *out_string);
-
-void
-acpi_ex_unsigned_integer_to_string (
-	acpi_integer                    value,
-	char                            *out_string);
-
+void acpi_ex_unsigned_integer_to_string(acpi_integer value, char *out_string);
 
 /*
  * exregion - default op_region handlers
  */
+acpi_status
+acpi_ex_system_memory_space_handler(u32 function,
+				    acpi_physical_address address,
+				    u32 bit_width,
+				    acpi_integer * value,
+				    void *handler_context,
+				    void *region_context);
 
 acpi_status
-acpi_ex_system_memory_space_handler (
-	u32                             function,
-	acpi_physical_address           address,
-	u32                             bit_width,
-	acpi_integer                    *value,
-	void                            *handler_context,
-	void                            *region_context);
+acpi_ex_system_io_space_handler(u32 function,
+				acpi_physical_address address,
+				u32 bit_width,
+				acpi_integer * value,
+				void *handler_context, void *region_context);
 
 acpi_status
-acpi_ex_system_io_space_handler (
-	u32                             function,
-	acpi_physical_address           address,
-	u32                             bit_width,
-	acpi_integer                    *value,
-	void                            *handler_context,
-	void                            *region_context);
+acpi_ex_pci_config_space_handler(u32 function,
+				 acpi_physical_address address,
+				 u32 bit_width,
+				 acpi_integer * value,
+				 void *handler_context, void *region_context);
 
 acpi_status
-acpi_ex_pci_config_space_handler (
-	u32                             function,
-	acpi_physical_address           address,
-	u32                             bit_width,
-	acpi_integer                    *value,
-	void                            *handler_context,
-	void                            *region_context);
+acpi_ex_cmos_space_handler(u32 function,
+			   acpi_physical_address address,
+			   u32 bit_width,
+			   acpi_integer * value,
+			   void *handler_context, void *region_context);
 
 acpi_status
-acpi_ex_cmos_space_handler (
-	u32                             function,
-	acpi_physical_address           address,
-	u32                             bit_width,
-	acpi_integer                    *value,
-	void                            *handler_context,
-	void                            *region_context);
+acpi_ex_pci_bar_space_handler(u32 function,
+			      acpi_physical_address address,
+			      u32 bit_width,
+			      acpi_integer * value,
+			      void *handler_context, void *region_context);
 
 acpi_status
-acpi_ex_pci_bar_space_handler (
-	u32                             function,
-	acpi_physical_address           address,
-	u32                             bit_width,
-	acpi_integer                    *value,
-	void                            *handler_context,
-	void                            *region_context);
+acpi_ex_embedded_controller_space_handler(u32 function,
+					  acpi_physical_address address,
+					  u32 bit_width,
+					  acpi_integer * value,
+					  void *handler_context,
+					  void *region_context);
 
 acpi_status
-acpi_ex_embedded_controller_space_handler (
-	u32                             function,
-	acpi_physical_address           address,
-	u32                             bit_width,
-	acpi_integer                    *value,
-	void                            *handler_context,
-	void                            *region_context);
+acpi_ex_sm_bus_space_handler(u32 function,
+			     acpi_physical_address address,
+			     u32 bit_width,
+			     acpi_integer * value,
+			     void *handler_context, void *region_context);
 
 acpi_status
-acpi_ex_sm_bus_space_handler (
-	u32                             function,
-	acpi_physical_address           address,
-	u32                             bit_width,
-	acpi_integer                    *value,
-	void                            *handler_context,
-	void                            *region_context);
+acpi_ex_data_table_space_handler(u32 function,
+				 acpi_physical_address address,
+				 u32 bit_width,
+				 acpi_integer * value,
+				 void *handler_context, void *region_context);
 
-
-acpi_status
-acpi_ex_data_table_space_handler (
-	u32                             function,
-	acpi_physical_address           address,
-	u32                             bit_width,
-	acpi_integer                    *value,
-	void                            *handler_context,
-	void                            *region_context);
-
-#endif /* __INTERP_H__ */
+#endif				/* __INTERP_H__ */

@@ -32,7 +32,6 @@
 #include <linux/profile.h>
 
 #include <asm/oplib.h>
-#include <asm/segment.h>
 #include <asm/timer.h>
 #include <asm/mostek.h>
 #include <asm/system.h>
@@ -46,15 +45,11 @@
 
 extern unsigned long wall_jiffies;
 
-u64 jiffies_64 = INITIAL_JIFFIES;
-
-EXPORT_SYMBOL(jiffies_64);
-
 DEFINE_SPINLOCK(rtc_lock);
 enum sparc_clock_type sp_clock_typ;
 DEFINE_SPINLOCK(mostek_lock);
 void __iomem *mstk48t02_regs = NULL;
-static struct mostek48t08 *mstk48t08_regs = NULL;
+static struct mostek48t08 __iomem *mstk48t08_regs = NULL;
 static int set_rtc_mmss(unsigned long);
 static int sbus_do_settimeofday(struct timespec *tv);
 
@@ -140,7 +135,7 @@ irqreturn_t timer_interrupt(int irq, void *dev_id, struct pt_regs * regs)
 
 
 	/* Determine when to update the Mostek clock. */
-	if ((time_status & STA_UNSYNC) == 0 &&
+	if (ntp_synced() &&
 	    xtime.tv_sec > last_rtc_update + 660 &&
 	    (xtime.tv_nsec / 1000) >= 500000 - ((unsigned) TICK_SIZE) / 2 &&
 	    (xtime.tv_nsec / 1000) <= 500000 + ((unsigned) TICK_SIZE) / 2) {
@@ -347,7 +342,7 @@ static __inline__ void clock_probe(void)
 		/* XXX r/o attribute is somewhere in r.flags */
 		r.flags = clk_reg[0].which_io;
 		r.start = clk_reg[0].phys_addr;
-		mstk48t08_regs = (struct mostek48t08 *) sbus_ioremap(&r, 0,
+		mstk48t08_regs = sbus_ioremap(&r, 0,
 		    sizeof(struct mostek48t08), "mk48t08");
 
 		mstk48t02_regs = &mstk48t08_regs->regs;
@@ -458,7 +453,7 @@ void __init time_init(void)
 	sbus_time_init();
 }
 
-extern __inline__ unsigned long do_gettimeoffset(void)
+static inline unsigned long do_gettimeoffset(void)
 {
 	return (*master_l10_counter >> 10) & 0x1fffff;
 }
@@ -555,10 +550,7 @@ static int sbus_do_settimeofday(struct timespec *tv)
 	set_normalized_timespec(&xtime, sec, nsec);
 	set_normalized_timespec(&wall_to_monotonic, wtm_sec, wtm_nsec);
 
-	time_adjust = 0;		/* stop active adjtime() */
-	time_status |= STA_UNSYNC;
-	time_maxerror = NTP_PHASE_LIMIT;
-	time_esterror = NTP_PHASE_LIMIT;
+	ntp_clear();
 	return 0;
 }
 

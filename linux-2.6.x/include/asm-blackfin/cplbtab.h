@@ -23,7 +23,7 @@
 
 .global _icplb_table
 _icplb_table:
-.byte4        0x00000000;
+.byte4 0x00000000;
 .byte4 0x00000000;
 .byte4 0x00000000;
 .byte4 0x00000000;

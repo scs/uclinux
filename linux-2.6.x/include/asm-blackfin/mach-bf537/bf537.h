@@ -221,7 +221,7 @@
 #define CONFIG_CCLK_ACT_DIV   CONFIG_CCLK_DIV_not_defined_properly
 #endif
 
-#endif /* CONFIG_BFIN_KERNEL_CLOCK */
+#endif				/* CONFIG_BFIN_KERNEL_CLOCK */
 
 #ifdef CONFIG_BF537
 #define CPU "BF537"
@@ -268,8 +268,8 @@
 #define SIZE_4M 0x00400000	/* 4M */
 
 #define BFIN_NAND_BASE	0x20202000
-#define BFIN_NAND_CLE           (1<<2)                  /* A2 -> Command Enable */
-#define BFIN_NAND_ALE           (1<<1)                  /* A1 -> Address Enable */
+#define BFIN_NAND_CLE           (1<<2)	/* A2 -> Command Enable */
+#define BFIN_NAND_ALE           (1<<1)	/* A1 -> Address Enable */
 #define BFIN_NAND_READY		PF3
 
 #endif				/* _BLKFin_H_  */

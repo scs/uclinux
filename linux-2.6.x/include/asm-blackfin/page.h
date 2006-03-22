@@ -1,12 +1,18 @@
 #ifndef _BLACKFIN_PAGE_H
 #define _BLACKFIN_PAGE_H
 
+#include <linux/config.h>
+
 /* PAGE_SHIFT determines the page size */
+
 #define PAGE_SHIFT	(12)
 #define PAGE_SIZE	(1UL << PAGE_SHIFT)
 #define PAGE_MASK	(~(PAGE_SIZE-1))
 
 #ifdef __KERNEL__
+
+#include <asm/setup.h>
+
 #ifndef __ASSEMBLY__
 
 #define get_user_page(vaddr)		__get_free_page(GFP_KERNEL)
@@ -47,20 +53,6 @@ typedef struct {
 /* to align the pointer to the (next) page boundary */
 #define PAGE_ALIGN(addr)	(((addr)+PAGE_SIZE-1)&PAGE_MASK)
 
-/* Pure 2^n version of get_order */
-static inline int get_order(unsigned long size)
-{
-	int order;
-
-	size = (size - 1) >> (PAGE_SHIFT - 1);
-	order = -1;
-	do {
-		size >>= 1;
-		order++;
-	} while (size);
-	return order;
-}
-
 extern unsigned long memory_start;
 extern unsigned long memory_end;
 
@@ -86,10 +78,12 @@ extern unsigned long memory_end;
 
 #define pfn_to_page(pfn)	virt_to_page(pfn_to_virt(pfn))
 #define page_to_pfn(page)	virt_to_pfn(page_to_virt(page))
+#define pfn_valid(pfn)	        ((pfn) < max_mapnr)
 
 #define	virt_addr_valid(kaddr)	(((void *)(kaddr) >= (void *)PAGE_OFFSET) && \
 				((void *)(kaddr) < (void *)memory_end))
-#define pfn_valid(pfn)		virt_addr_valid(pfn_to_virt(pfn))
+
+#include <asm-generic/page.h>
 
 #endif				/* __ASSEMBLY__ */
 #endif				/* __KERNEL__ */

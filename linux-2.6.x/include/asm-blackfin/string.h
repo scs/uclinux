@@ -47,7 +47,7 @@ static inline int strcmp(const char *cs, const char *ct)
 {
 	char __res1, __res2;
 
-  __asm__
+	__asm__
        ("1:\t%2 = B[%0++] (Z);\n\t" /* get *cs */
 		"%3 = B[%1++] (Z);\n\t"	/* get *ct */
 		"CC = %2 == %3;\n\t"	/* compare a byte */
@@ -70,7 +70,7 @@ static inline int strncmp(const char *cs, const char *ct, size_t count)
 
 	if (!count)
 		return 0;
-  __asm__
+	__asm__
        ("1:\t%3 = B[%0++] (Z);\n\t"        /* get *cs */
 		"%4 = B[%1++] (Z);\n\t"	/* get *ct */
 		"CC = %3 == %4;\n\t"	/* compare a byte */

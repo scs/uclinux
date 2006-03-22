@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2005, R. Byron Moore
+ * Copyright (C) 2000 - 2006, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -62,7 +62,20 @@
 
 #define ACPI_MACHINE_WIDTH  BITS_PER_LONG
 
-#else /* !__KERNEL__ */
+/* Type(s) for the OSL */
+
+#ifdef ACPI_USE_LOCAL_CACHE
+#define acpi_cache_t	struct acpi_memory_list
+#else
+#include <linux/slab.h>
+#define acpi_cache_t	kmem_cache_t
+#endif
+
+/* Full namespace pathname length limit - arbitrary */
+
+#define ACPI_PATHNAME_MAX              256
+
+#else				/* !__KERNEL__ */
 
 #include <stdarg.h>
 #include <string.h>
@@ -83,10 +96,12 @@
 
 #define __cdecl
 #define ACPI_FLUSH_CPU_CACHE()
-#endif /* __KERNEL__ */
+#endif				/* __KERNEL__ */
 
 /* Linux uses GCC */
 
 #include "acgcc.h"
 
-#endif /* __ACLINUX_H__ */
+#define acpi_cpu_flags unsigned long
+
+#endif				/* __ACLINUX_H__ */

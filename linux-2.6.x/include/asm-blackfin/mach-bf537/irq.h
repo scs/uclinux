@@ -95,7 +95,7 @@ Core        Emulation               **
 #define IRQ_PORTG_INTB      35	/* PF Port G (PF15:0) Interrupt B */
 #define IRQ_MEM_DMA0        36	/*(Memory DMA Stream 0) */
 #define IRQ_MEM_DMA1        37	/*(Memory DMA Stream 1) */
-#define IRQ_PROG_INTB	    38  /* PF Ports F (PF15:0) Interrupt B */
+#define IRQ_PROG_INTB	    38	/* PF Ports F (PF15:0) Interrupt B */
 #define IRQ_WATCH           38	/*Watch Dog Timer */
 #define IRQ_SW_INT1         40	/*Software Int 1 */
 #define IRQ_SW_INT2         41	/*Software Int 2 (reserved for SYSCALL) */

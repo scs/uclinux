@@ -58,10 +58,18 @@ asmlinkage void ret_from_fork(void) __asm__("ret_from_fork");
  */
 unsigned long thread_saved_pc(struct task_struct *tsk)
 {
-	struct stack_frame *sf;
+	struct stack_frame *sf, *low, *high;
 
-	sf = (struct stack_frame *) tsk->thread.ksp;
-	sf = (struct stack_frame *) sf->back_chain;
+	if (!tsk || !task_stack_page(tsk))
+		return 0;
+	low = task_stack_page(tsk);
+	high = (struct stack_frame *) task_pt_regs(tsk);
+	sf = (struct stack_frame *) (tsk->thread.ksp & PSW_ADDR_INSN);
+	if (sf <= low || sf > high)
+		return 0;
+	sf = (struct stack_frame *) (sf->back_chain & PSW_ADDR_INSN);
+	if (sf <= low || sf > high)
+		return 0;
 	return sf->gprs[8];
 }
 
@@ -91,24 +99,23 @@ void do_monitor_call(struct pt_regs *regs, long interruption_code)
 			    (void *)(long) smp_processor_id());
 }
 
+extern void s390_handle_mcck(void);
 /*
  * The idle loop on a S390...
  */
 void default_idle(void)
 {
-	psw_t wait_psw;
-	unsigned long reg;
 	int cpu, rc;
-
-	local_irq_disable();
-        if (need_resched()) {
-		local_irq_enable();
-                schedule();
-                return;
-        }
 
 	/* CPU is going idle. */
 	cpu = smp_processor_id();
+
+	local_irq_disable();
+	if (need_resched()) {
+		local_irq_enable();
+		return;
+	}
+
 	rc = notifier_call_chain(&idle_chain, CPU_IDLE, (void *)(long) cpu);
 	if (rc != NOTIFY_OK && rc != NOTIFY_DONE)
 		BUG();
@@ -121,55 +128,42 @@ void default_idle(void)
 	__ctl_set_bit(8, 15);
 
 #ifdef CONFIG_HOTPLUG_CPU
-	if (cpu_is_offline(smp_processor_id()))
+	if (cpu_is_offline(cpu)) {
+		preempt_enable_no_resched();
 		cpu_die();
+	}
 #endif
 
-	/* 
-	 * Wait for external, I/O or machine check interrupt and
-	 * switch off machine check bit after the wait has ended.
-	 */
-	wait_psw.mask = PSW_KERNEL_BITS | PSW_MASK_MCHECK | PSW_MASK_WAIT |
-		PSW_MASK_IO | PSW_MASK_EXT;
-#ifndef CONFIG_ARCH_S390X
-	asm volatile (
-		"    basr %0,0\n"
-		"0:  la   %0,1f-0b(%0)\n"
-		"    st   %0,4(%1)\n"
-		"    oi   4(%1),0x80\n"
-		"    lpsw 0(%1)\n"
-		"1:  la   %0,2f-1b(%0)\n"
-		"    st   %0,4(%1)\n"
-		"    oi   4(%1),0x80\n"
-		"    ni   1(%1),0xf9\n"
-		"    lpsw 0(%1)\n"
-		"2:"
-		: "=&a" (reg) : "a" (&wait_psw) : "memory", "cc" );
-#else /* CONFIG_ARCH_S390X */
-	asm volatile (
-		"    larl  %0,0f\n"
-		"    stg   %0,8(%1)\n"
-		"    lpswe 0(%1)\n"
-		"0:  larl  %0,1f\n"
-		"    stg   %0,8(%1)\n"
-		"    ni    1(%1),0xf9\n"
-		"    lpswe 0(%1)\n"
-		"1:"
-		: "=&a" (reg) : "a" (&wait_psw) : "memory", "cc" );
-#endif /* CONFIG_ARCH_S390X */
+	local_mcck_disable();
+	if (test_thread_flag(TIF_MCCK_PENDING)) {
+		local_mcck_enable();
+		local_irq_enable();
+		s390_handle_mcck();
+		return;
+	}
+
+	/* Wait for external, I/O or machine check interrupt. */
+	__load_psw_mask(PSW_KERNEL_BITS | PSW_MASK_WAIT |
+			PSW_MASK_IO | PSW_MASK_EXT);
 }
 
 void cpu_idle(void)
 {
-	for (;;)
-		default_idle();
+	for (;;) {
+		while (!need_resched())
+			default_idle();
+
+		preempt_enable_no_resched();
+		schedule();
+		preempt_disable();
+	}
 }
 
 void show_regs(struct pt_regs *regs)
 {
 	struct task_struct *tsk = current;
 
-        printk("CPU:    %d    %s\n", tsk->thread_info->cpu, print_tainted());
+        printk("CPU:    %d    %s\n", task_thread_info(tsk)->cpu, print_tainted());
         printk("Process %s (pid: %d, task: %p, ksp: %p)\n",
 	       current->comm, current->pid, (void *) tsk,
 	       (void *) tsk->thread.ksp);
@@ -233,8 +227,7 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long new_stackp,
             struct pt_regs childregs;
           } *frame;
 
-        frame = ((struct fake_frame *)
-		 (THREAD_SIZE + (unsigned long) p->thread_info)) - 1;
+        frame = container_of(task_pt_regs(p), struct fake_frame, childregs);
         p->thread.ksp = (unsigned long) frame;
 	/* Store access registers to kernel stack of new process. */
         frame->childregs = *regs;
@@ -251,7 +244,7 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long new_stackp,
 	/* Save access registers to new thread structure. */
 	save_access_regs(&p->thread.acrs[0]);
 
-#ifndef CONFIG_ARCH_S390X
+#ifndef CONFIG_64BIT
         /*
 	 * save fprs to current->thread.fp_regs to merge them with
 	 * the emulated registers and then copy the result to the child.
@@ -263,7 +256,7 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long new_stackp,
 	/* Set a new TLS ?  */
 	if (clone_flags & CLONE_SETTLS)
 		p->thread.acrs[0] = regs->gprs[6];
-#else /* CONFIG_ARCH_S390X */
+#else /* CONFIG_64BIT */
 	/* Save the fpu registers to new thread structure. */
 	save_fp_regs(&p->thread.fp_regs);
         p->thread.user_seg = __pa((unsigned long) p->mm->pgd) | _REGION_TABLE;
@@ -276,7 +269,7 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long new_stackp,
 			p->thread.acrs[1] = (unsigned int) regs->gprs[6];
 		}
 	}
-#endif /* CONFIG_ARCH_S390X */
+#endif /* CONFIG_64BIT */
 	/* start new process with ar4 pointing to the correct address space */
 	p->thread.mm_segment = get_fs();
         /* Don't copy debug registers */
@@ -355,38 +348,17 @@ out:
  */
 int dump_fpu (struct pt_regs * regs, s390_fp_regs *fpregs)
 {
-#ifndef CONFIG_ARCH_S390X
+#ifndef CONFIG_64BIT
         /*
 	 * save fprs to current->thread.fp_regs to merge them with
 	 * the emulated registers and then copy the result to the dump.
 	 */
 	save_fp_regs(&current->thread.fp_regs);
 	memcpy(fpregs, &current->thread.fp_regs, sizeof(s390_fp_regs));
-#else /* CONFIG_ARCH_S390X */
+#else /* CONFIG_64BIT */
 	save_fp_regs(fpregs);
-#endif /* CONFIG_ARCH_S390X */
+#endif /* CONFIG_64BIT */
 	return 1;
-}
-
-/*
- * fill in the user structure for a core dump..
- */
-void dump_thread(struct pt_regs * regs, struct user * dump)
-{
-
-/* changed the size calculations - should hopefully work better. lbt */
-	dump->magic = CMAGIC;
-	dump->start_code = 0;
-	dump->start_stack = regs->gprs[15] & ~(PAGE_SIZE - 1);
-	dump->u_tsize = current->mm->end_code >> PAGE_SHIFT;
-	dump->u_dsize = (current->mm->brk + PAGE_SIZE - 1) >> PAGE_SHIFT;
-	dump->u_dsize -= dump->u_tsize;
-	dump->u_ssize = 0;
-	if (dump->start_stack < TASK_SIZE)
-		dump->u_ssize = (TASK_SIZE - dump->start_stack) >> PAGE_SHIFT;
-	memcpy(&dump->regs, regs, sizeof(s390_regs));
-	dump_fpu (regs, &dump->regs.fp_regs);
-	dump->regs.per_info = current->thread.per_info;
 }
 
 unsigned long get_wchan(struct task_struct *p)
@@ -395,11 +367,10 @@ unsigned long get_wchan(struct task_struct *p)
 	unsigned long return_address;
 	int count;
 
-	if (!p || p == current || p->state == TASK_RUNNING || !p->thread_info)
+	if (!p || p == current || p->state == TASK_RUNNING || !task_stack_page(p))
 		return 0;
-	low = (struct stack_frame *) p->thread_info;
-	high = (struct stack_frame *)
-		((unsigned long) p->thread_info + THREAD_SIZE) - 1;
+	low = task_stack_page(p);
+	high = (struct stack_frame *) task_pt_regs(p);
 	sf = (struct stack_frame *) (p->thread.ksp & PSW_ADDR_INSN);
 	if (sf <= low || sf > high)
 		return 0;

@@ -10,6 +10,7 @@ struct sigcontext {
 	unsigned long sc_p0;
 	unsigned long sc_p1;
 	unsigned long sc_p2;
+	unsigned long sc_p3;
 	unsigned short sc_seqstat;
 	unsigned long sc_pc;
 	unsigned long sc_retx;
@@ -21,7 +22,6 @@ struct sigcontext {
 	unsigned long sc_l1;
 	unsigned long sc_l2;
 	unsigned long sc_l3;
-	unsigned long sc_p3;
 };
 
 #endif

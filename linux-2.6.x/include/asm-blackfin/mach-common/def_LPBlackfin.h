@@ -51,7 +51,6 @@
 
 /* definitions of ASTAT bit positions*/
 
-
 /*Result of last ALU0 or shifter operation is zero*/
 #define ASTAT_AZ_P         0x00000000
 /*Result of last ALU0 or shifter operation is negative*/

@@ -25,7 +25,6 @@
 #include <linux/bootmem.h>
 
 #include <asm/system.h>
-#include <asm/segment.h>
 #include <asm/vac-ops.h>
 #include <asm/page.h>
 #include <asm/pgtable.h>
@@ -384,7 +383,6 @@ void map_high_region(unsigned long start_pfn, unsigned long end_pfn)
 		struct page *page = pfn_to_page(tmp);
 
 		ClearPageReserved(page);
-		set_bit(PG_highmem, &page->flags);
 		set_page_count(page, 1);
 		__free_page(page);
 		totalhigh_pages++;

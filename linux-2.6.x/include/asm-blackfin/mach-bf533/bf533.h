@@ -241,7 +241,7 @@
 #define CONFIG_CCLK_ACT_DIV   CONFIG_CCLK_DIV_not_defined_properly
 #endif
 
-#endif /* CONFIG_BFIN_KERNEL_CLOCK */
+#endif				/* CONFIG_BFIN_KERNEL_CLOCK */
 
 #ifdef CONFIG_BF533
 #define CPU "BF533"

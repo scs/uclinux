@@ -29,6 +29,7 @@
 #include <linux/init.h>
 #include <linux/profile.h>
 #include <linux/smp.h>
+#include <linux/module.h>
 
 #include <asm/registers.h>	 /* required by inline __asm__ stmt. */
 
@@ -115,8 +116,6 @@
 #define TICK_SIZE (tick_nsec / 1000)
 
 extern unsigned long wall_jiffies;
-
-u64 jiffies_64 = INITIAL_JIFFIES;
 
 static unsigned long tmu_base, rtc_base;
 unsigned long cprc_base;
@@ -247,15 +246,13 @@ int do_settimeofday(struct timespec *tv)
 	set_normalized_timespec(&xtime, sec, nsec);
 	set_normalized_timespec(&wall_to_monotonic, wtm_sec, wtm_nsec);
 
-	time_adjust = 0;		/* stop active adjtime() */
-	time_status |= STA_UNSYNC;
-	time_maxerror = NTP_PHASE_LIMIT;
-	time_esterror = NTP_PHASE_LIMIT;
+	ntp_clear();
 	write_sequnlock_irq(&xtime_lock);
 	clock_was_set();
 
 	return 0;
 }
+EXPORT_SYMBOL(do_settimeofday);
 
 static int set_rtc_time(unsigned long nowtime)
 {
@@ -303,7 +300,7 @@ static long last_rtc_update = 0;
  * timer_interrupt() needs to keep up the real-time clock,
  * as well as call the "do_timer()" routine every clocktick
  */
-static inline void do_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static inline void do_timer_interrupt(int irq, struct pt_regs *regs)
 {
 	unsigned long long current_ctc;
 	asm ("getcon cr62, %0" : "=r" (current_ctc));
@@ -328,7 +325,7 @@ static inline void do_timer_interrupt(int irq, void *dev_id, struct pt_regs *reg
 	 * RTC clock accordingly every ~11 minutes. Set_rtc_mmss() has to be
 	 * called as close as possible to 500 ms before the new second starts.
 	 */
-	if ((time_status & STA_UNSYNC) == 0 &&
+	if (ntp_synced() &&
 	    xtime.tv_sec > last_rtc_update + 660 &&
 	    (xtime.tv_nsec / 1000) >= 500000 - ((unsigned) TICK_SIZE) / 2 &&
 	    (xtime.tv_nsec / 1000) <= 500000 + ((unsigned) TICK_SIZE) / 2) {
@@ -361,7 +358,7 @@ static irqreturn_t timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	 * locally disabled. -arca
 	 */
 	write_lock(&xtime_lock);
-	do_timer_interrupt(irq, NULL, regs);
+	do_timer_interrupt(irq, regs);
 	write_unlock(&xtime_lock);
 
 	return IRQ_HANDLED;
@@ -421,7 +418,7 @@ static __init unsigned int get_cpu_hz(void)
 	/*
 	** Regardless the toolchain, force the compiler to use the
 	** arbitrary register r3 as a clock tick counter.
-	** NOTE: r3 must be in accordance with rtc_interrupt()
+	** NOTE: r3 must be in accordance with sh64_rtc_interrupt()
 	*/
 	register unsigned long long  __rtc_irq_flag __asm__ ("r3");
 
@@ -486,7 +483,8 @@ static __init unsigned int get_cpu_hz(void)
 #endif
 }
 
-static irqreturn_t rtc_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t sh64_rtc_interrupt(int irq, void *dev_id,
+				      struct pt_regs *regs)
 {
 	ctrl_outb(0, RCR1);	/* Disable Carry Interrupts */
 	regs->regs[3] = 1;	/* Using r3 */
@@ -495,7 +493,7 @@ static irqreturn_t rtc_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 }
 
 static struct irqaction irq0  = { timer_interrupt, SA_INTERRUPT, CPU_MASK_NONE, "timer", NULL, NULL};
-static struct irqaction irq1  = { rtc_interrupt, SA_INTERRUPT, CPU_MASK_NONE, "rtc", NULL, NULL};
+static struct irqaction irq1  = { sh64_rtc_interrupt, SA_INTERRUPT, CPU_MASK_NONE, "rtc", NULL, NULL};
 
 void __init time_init(void)
 {

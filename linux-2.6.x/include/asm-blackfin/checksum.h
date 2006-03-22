@@ -25,7 +25,8 @@ unsigned int csum_partial(const unsigned char *buff, int len, unsigned int sum);
  * better 64-bit) boundary
  */
 
-unsigned int csum_partial_copy(const char *src, char *dst, int len, int sum);
+unsigned int csum_partial_copy(const unsigned char *src, unsigned char *dst,
+			       int len, int sum);
 
 /*
  * the same as csum_partial_copy, but copies from user space.

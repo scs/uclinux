@@ -18,8 +18,8 @@
 #define _BFIN_IRQ_H_
 
 #include <linux/config.h>
-#include <linux/interrupt.h>
 #include <asm/mach/irq.h>
+#include <asm/ptrace.h>
 
 /*******************************************************************************
  *****   INTRODUCTION ***********
@@ -69,7 +69,6 @@ extern volatile unsigned int num_spurious;
 void enable_irq(unsigned int irq);
 void disable_irq(unsigned int irq);
 
-#define enable_irq_nosync(x)	enable_irq(x)
 #define disable_irq_nosync(x)	disable_irq(x)
 
 #ifndef NO_IRQ

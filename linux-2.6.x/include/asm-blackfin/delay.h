@@ -1,7 +1,7 @@
 #ifndef _BLACKFIN_DELAY_H
 #define _BLACKFIN_DELAY_H
 
-static __inline__ void __delay(unsigned long loops)
+static inline void __delay(unsigned long loops)
 {
 
 /* FIXME: Currently the assembler doesn't recognize Loop Register Clobbers,
@@ -32,7 +32,7 @@ static __inline__ void __delay(unsigned long loops)
  * first constant multiplications gets optimized away if the delay is
  * a constant)
  */
-static __inline__ void udelay(unsigned long usecs)
+static inline void udelay(unsigned long usecs)
 {
 	extern unsigned long loops_per_jiffy;
 	__delay(usecs * loops_per_jiffy / (1000000 / HZ));

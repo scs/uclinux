@@ -40,7 +40,7 @@ struct thread_struct {
 #define KSTK_EIP(tsk)	\
 ({			\
 	unsigned long eip = 0;   \
-	unsigned long regs = (unsigned long)user_regs(tsk); \
+	unsigned long regs = (unsigned long)task_pt_regs(tsk); \
 	if (regs > PAGE_SIZE && \
 		virt_addr_valid(regs)) \
 	eip = ((struct pt_regs *)regs)->irp; \
@@ -58,5 +58,13 @@ struct thread_struct {
 	regs->dccr |= 1 << U_DCCR_BITNR; \
 	wrusp(usp);           \
 } while(0)
+
+/* Called when handling a kernel bus fault fixup.
+ *
+ * After a fixup we do not want to return by restoring the CPU-state
+ * anymore, so switch frame-types (see ptrace.h)
+ */
+#define arch_fixup(regs) \
+   regs->frametype = CRIS_FRAME_NORMAL;
 
 #endif

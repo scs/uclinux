@@ -804,4 +804,4 @@
 #define pMDMA_D0_Y_COUNT	pMDMA1_D0_Y_COUNT
 #define pMDMA_D0_START_ADDR	pMDMA1_D0_START_ADDR
 
-#endif /* _CDEF_BF561_H */
+#endif				/* _CDEF_BF561_H */

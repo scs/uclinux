@@ -341,5 +341,5 @@
 # define PT_OFF_ORIG_P0		208
 # define PT_OFF_SR		8
 
-#endif	/* __ASSEMBLY__	*/
-#endif	/* __BFIN_ENTRY_H */
+#endif				/* __ASSEMBLY__ */
+#endif				/* __BFIN_ENTRY_H */

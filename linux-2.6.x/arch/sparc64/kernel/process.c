@@ -74,7 +74,9 @@ void cpu_idle(void)
 		while (!need_resched())
 			barrier();
 
+		preempt_enable_no_resched();
 		schedule();
+		preempt_disable();
 		check_pgt_cache();
 	}
 }
@@ -83,27 +85,37 @@ void cpu_idle(void)
 
 /*
  * the idle loop on a UltraMultiPenguin...
+ *
+ * TIF_POLLING_NRFLAG is set because we do not sleep the cpu
+ * inside of the idler task, so an interrupt is not needed
+ * to get a clean fast response.
+ *
+ * XXX Reverify this assumption... -DaveM
+ *
+ * Addendum: We do want it to do something for the signal
+ *           delivery case, we detect that by just seeing
+ *           if we are trying to send this to an idler or not.
  */
-#define idle_me_harder()	(cpu_data(smp_processor_id()).idle_volume += 1)
-#define unidle_me()		(cpu_data(smp_processor_id()).idle_volume = 0)
 void cpu_idle(void)
 {
+	cpuinfo_sparc *cpuinfo = &local_cpu_data();
 	set_thread_flag(TIF_POLLING_NRFLAG);
+
 	while(1) {
 		if (need_resched()) {
-			unidle_me();
-			clear_thread_flag(TIF_POLLING_NRFLAG);
+			cpuinfo->idle_volume = 0;
+			preempt_enable_no_resched();
 			schedule();
-			set_thread_flag(TIF_POLLING_NRFLAG);
+			preempt_disable();
 			check_pgt_cache();
 		}
-		idle_me_harder();
+		cpuinfo->idle_volume++;
 
 		/* The store ordering is so that IRQ handlers on
 		 * other cpus see our increasing idleness for the buddy
 		 * redistribution algorithm.  -DaveM
 		 */
-		membar("#StoreStore | #StoreLoad");
+		membar_storeload_storestore();
 	}
 }
 
@@ -123,8 +135,6 @@ void machine_halt(void)
 	prom_halt();
 	panic("Halt failed!");
 }
-
-EXPORT_SYMBOL(machine_halt);
 
 void machine_alt_power_off(void)
 {
@@ -154,8 +164,7 @@ void machine_restart(char * cmd)
 	panic("Reboot failed!");
 }
 
-EXPORT_SYMBOL(machine_restart);
-
+#ifdef CONFIG_COMPAT
 static void show_regwindow32(struct pt_regs *regs)
 {
 	struct reg_window32 __user *rw;
@@ -181,6 +190,9 @@ static void show_regwindow32(struct pt_regs *regs)
 	       r_w.ins[0], r_w.ins[1], r_w.ins[2], r_w.ins[3],
 	       r_w.ins[4], r_w.ins[5], r_w.ins[6], r_w.ins[7]);
 }
+#else
+#define show_regwindow32(regs)	do { } while (0)
+#endif
 
 static void show_regwindow(struct pt_regs *regs)
 {
@@ -382,7 +394,7 @@ void show_regs32(struct pt_regs32 *regs)
 
 unsigned long thread_saved_pc(struct task_struct *tsk)
 {
-	struct thread_info *ti = tsk->thread_info;
+	struct thread_info *ti = task_thread_info(tsk);
 	unsigned long ret = 0xdeadbeefUL;
 	
 	if (ti && ti->ksp) {
@@ -608,21 +620,16 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long sp,
 		unsigned long unused,
 		struct task_struct *p, struct pt_regs *regs)
 {
-	struct thread_info *t = p->thread_info;
+	struct thread_info *t = task_thread_info(p);
 	char *child_trap_frame;
 
-#ifdef CONFIG_DEBUG_SPINLOCK
-	p->thread.smp_lock_count = 0;
-	p->thread.smp_lock_pc = 0;
-#endif
-
 	/* Calculate offset to stack_frame & pt_regs */
-	child_trap_frame = ((char *)t) + (THREAD_SIZE - (TRACEREG_SZ+STACKFRAME_SZ));
+	child_trap_frame = task_stack_page(p) + (THREAD_SIZE - (TRACEREG_SZ+STACKFRAME_SZ));
 	memcpy(child_trap_frame, (((struct sparc_stackf *)regs)-1), (TRACEREG_SZ+STACKFRAME_SZ));
 
 	t->flags = (t->flags & ~((0xffUL << TI_FLAG_CWP_SHIFT) | (0xffUL << TI_FLAG_CURRENT_DS_SHIFT))) |
-		_TIF_NEWCHILD |
 		(((regs->tstate + 1) & TSTATE_CWP) << TI_FLAG_CWP_SHIFT);
+	t->new_child = 1;
 	t->ksp = ((unsigned long) child_trap_frame) - STACK_BIAS;
 	t->kregs = (struct pt_regs *)(child_trap_frame+sizeof(struct sparc_stackf));
 	t->fpsaved[0] = 0;
@@ -842,9 +849,9 @@ unsigned long get_wchan(struct task_struct *task)
             task->state == TASK_RUNNING)
 		goto out;
 
-	thread_info_base = (unsigned long) task->thread_info;
+	thread_info_base = (unsigned long) task_stack_page(task);
 	bias = STACK_BIAS;
-	fp = task->thread_info->ksp + bias;
+	fp = task_thread_info(task)->ksp + bias;
 
 	do {
 		/* Bogus frame pointer? */

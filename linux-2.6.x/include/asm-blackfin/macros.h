@@ -92,5 +92,4 @@
 		p5 = [SP++];\
 		(R7:6) = [SP++]
 
-
-#endif /* _MACROS_H */
+#endif				/* _MACROS_H */
