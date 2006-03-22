@@ -1,11 +1,11 @@
 /*
  * File:         drivers/video/rgb2ycbcr.S
- * Based on:     
- * Author:	 Aubrey.Li <aubrey.Li@analog.com> 
+ * Based on:
+ * Author:	 Aubrey.Li <aubrey.Li@analog.com>
  *
- * Created:	
+ * Created:
  * Description:  In this function the range of R, G and B is 0 to 255 and the
- *               output range of Y, Cb and Cr is also 0 to 250. 
+ *               output range of Y, Cb and Cr is also 0 to 250.
  *		 Input format: RGBRGB..., Output format: CbYCrYCbYCrY...
  *               The formula implemented is as below:
  *                  Y  = (0.299R  +  0.587G  +  0.114B)*250/255
@@ -42,13 +42,13 @@
 .global         _rgb2yuv;
 .align          8;
 
-_rgb2yuv:   
+_rgb2yuv:
 	[--SP] = (R7:4);	/* Push R7-4 the Registers on stack.	*/
-	P1 = R2;                /* pixel number of inputs,		*/ 
+	P1 = R2;                /* pixel number of inputs,		*/
 	P2 = R1;		/* Address of output array		*/
 	P0 = R0;		/* Address of input RGB array		*/
-	
-	/* Store the coefficients to the register */ 
+
+	/* Store the coefficients to the register */
 	R3.L = 0xEACB;		/* 	-0.169				*/
 	R3.H = 0xD677;		/* 	-0.331				*/
 	R4.L = 0x3EBE;		/* 	0.5				*/

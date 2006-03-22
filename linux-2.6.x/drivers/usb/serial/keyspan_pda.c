@@ -150,11 +150,11 @@ static struct usb_device_id id_table_combined [] = {
 MODULE_DEVICE_TABLE (usb, id_table_combined);
 
 static struct usb_driver keyspan_pda_driver = {
-	.owner =	THIS_MODULE,
 	.name =		"keyspan_pda",
 	.probe =	usb_serial_probe,
 	.disconnect =	usb_serial_disconnect,
 	.id_table =	id_table_combined,
+	.no_dynamic_id = 	1,
 };
 
 static struct usb_device_id id_table_std [] = {
@@ -520,9 +520,13 @@ static int keyspan_pda_write(struct usb_serial_port *port,
 	   the TX urb is in-flight (wait until it completes)
 	   the device is full (wait until it says there is room)
 	*/
-	if (port->write_urb->status == -EINPROGRESS || priv->tx_throttled ) {
-		return( 0 );
+	spin_lock(&port->lock);
+	if (port->write_urb_busy || priv->tx_throttled) {
+		spin_unlock(&port->lock);
+		return 0;
 	}
+	port->write_urb_busy = 1;
+	spin_unlock(&port->lock);
 
 	/* At this point the URB is in our control, nobody else can submit it
 	   again (the only sudden transition was the one from EINPROGRESS to
@@ -570,7 +574,7 @@ static int keyspan_pda_write(struct usb_serial_port *port,
 		memcpy (port->write_urb->transfer_buffer, buf, count);
 		/* send the data out the bulk port */
 		port->write_urb->transfer_buffer_length = count;
-		
+
 		priv->tx_room -= count;
 
 		port->write_urb->dev = port->serial->dev;
@@ -593,6 +597,8 @@ static int keyspan_pda_write(struct usb_serial_port *port,
 
 	rc = count;
 exit:
+	if (rc < 0)
+		port->write_urb_busy = 0;
 	return rc;
 }
 
@@ -602,6 +608,7 @@ static void keyspan_pda_write_bulk_callback (struct urb *urb, struct pt_regs *re
 	struct usb_serial_port *port = (struct usb_serial_port *)urb->context;
 	struct keyspan_pda_private *priv;
 
+	port->write_urb_busy = 0;
 	priv = usb_get_serial_port_data(port);
 
 	/* queue up a wakeup at scheduler time */
@@ -626,12 +633,12 @@ static int keyspan_pda_write_room (struct usb_serial_port *port)
 static int keyspan_pda_chars_in_buffer (struct usb_serial_port *port)
 {
 	struct keyspan_pda_private *priv;
-	
+
 	priv = usb_get_serial_port_data(port);
-	
+
 	/* when throttled, return at least WAKEUP_CHARS to tell select() (via
 	   n_tty.c:normal_poll() ) that we're not writeable. */
-	if( port->write_urb->status == -EINPROGRESS || priv->tx_throttled )
+	if (port->write_urb_busy || priv->tx_throttled)
 		return 256;
 	return 0;
 }
@@ -776,10 +783,12 @@ static void keyspan_pda_shutdown (struct usb_serial *serial)
 }
 
 #ifdef KEYSPAN
-static struct usb_serial_device_type keyspan_pda_fake_device = {
-	.owner =		THIS_MODULE,
-	.name =			"Keyspan PDA - (prerenumeration)",
-	.short_name =		"keyspan_pda_pre",
+static struct usb_serial_driver keyspan_pda_fake_device = {
+	.driver = {
+		.owner =	THIS_MODULE,
+		.name =		"keyspan_pda_pre",
+	},
+	.description =		"Keyspan PDA - (prerenumeration)",
 	.id_table =		id_table_fake,
 	.num_interrupt_in =	NUM_DONT_CARE,
 	.num_bulk_in =		NUM_DONT_CARE,
@@ -790,10 +799,12 @@ static struct usb_serial_device_type keyspan_pda_fake_device = {
 #endif
 
 #ifdef XIRCOM
-static struct usb_serial_device_type xircom_pgs_fake_device = {
-	.owner =		THIS_MODULE,
-	.name =			"Xircom / Entregra PGS - (prerenumeration)",
-	.short_name =		"xircom_no_firm",
+static struct usb_serial_driver xircom_pgs_fake_device = {
+	.driver = {
+		.owner =	THIS_MODULE,
+		.name =		"xircom_no_firm",
+	},
+	.description =		"Xircom / Entregra PGS - (prerenumeration)",
 	.id_table =		id_table_fake_xircom,
 	.num_interrupt_in =	NUM_DONT_CARE,
 	.num_bulk_in =		NUM_DONT_CARE,
@@ -803,10 +814,12 @@ static struct usb_serial_device_type xircom_pgs_fake_device = {
 };
 #endif
 
-static struct usb_serial_device_type keyspan_pda_device = {
-	.owner =		THIS_MODULE,
-	.name =			"Keyspan PDA",
-	.short_name =		"keyspan_pda",
+static struct usb_serial_driver keyspan_pda_device = {
+	.driver = {
+		.owner =	THIS_MODULE,
+		.name =		"keyspan_pda",
+	},
+	.description =		"Keyspan PDA",
 	.id_table =		id_table_std,
 	.num_interrupt_in =	1,
 	.num_bulk_in =		0,

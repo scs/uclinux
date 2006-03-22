@@ -10,9 +10,6 @@
  */
 
 #include <linux/config.h>
-#ifdef CONFIG_USB_DEBUG
-	#define DEBUG	1
-#endif
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/init.h>
@@ -81,14 +78,14 @@ static void change_color(struct usb_led *led)
 }
 
 #define show_set(value)	\
-static ssize_t show_##value(struct device *dev, char *buf)		\
+static ssize_t show_##value(struct device *dev, struct device_attribute *attr, char *buf)		\
 {									\
 	struct usb_interface *intf = to_usb_interface(dev);		\
 	struct usb_led *led = usb_get_intfdata(intf);			\
 									\
 	return sprintf(buf, "%d\n", led->value);			\
 }									\
-static ssize_t set_##value(struct device *dev, const char *buf, size_t count)	\
+static ssize_t set_##value(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)	\
 {									\
 	struct usb_interface *intf = to_usb_interface(dev);		\
 	struct usb_led *led = usb_get_intfdata(intf);			\
@@ -151,7 +148,6 @@ static void led_disconnect(struct usb_interface *interface)
 }
 
 static struct usb_driver led_driver = {
-	.owner =	THIS_MODULE,
 	.name =		"usbled",
 	.probe =	led_probe,
 	.disconnect =	led_disconnect,

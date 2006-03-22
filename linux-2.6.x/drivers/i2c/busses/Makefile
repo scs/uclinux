@@ -2,8 +2,8 @@
 # Makefile for the i2c bus drivers.
 #
 
-obj-$(CONFIG_I2C_BFIN_HHBF)	+= i2c-bfin-hhbf.o 
-obj-$(CONFIG_I2C_BFIN_TWI)	+= i2c-bfin-twi.o 
+obj-$(CONFIG_I2C_BFIN_HHBF)	+= i2c-bfin-gpio.o
+obj-$(CONFIG_I2C_BFIN_TWI)	+= i2c-bfin-twi.o
 obj-$(CONFIG_I2C_ALI1535)	+= i2c-ali1535.o
 obj-$(CONFIG_I2C_ALI1563)	+= i2c-ali1563.o
 obj-$(CONFIG_I2C_ALI15X3)	+= i2c-ali15x3.o
@@ -21,7 +21,7 @@ obj-$(CONFIG_I2C_ISA)		+= i2c-isa.o
 obj-$(CONFIG_I2C_ITE)		+= i2c-ite.o
 obj-$(CONFIG_I2C_IXP2000)	+= i2c-ixp2000.o
 obj-$(CONFIG_I2C_IXP4XX)	+= i2c-ixp4xx.o
-obj-$(CONFIG_I2C_KEYWEST)	+= i2c-keywest.o
+obj-$(CONFIG_I2C_POWERMAC)	+= i2c-powermac.o
 obj-$(CONFIG_I2C_MPC)		+= i2c-mpc.o
 obj-$(CONFIG_I2C_MV64XXX)	+= i2c-mv64xxx.o
 obj-$(CONFIG_I2C_NFORCE2)	+= i2c-nforce2.o
@@ -30,6 +30,7 @@ obj-$(CONFIG_I2C_PARPORT_LIGHT)	+= i2c-parport-light.o
 obj-$(CONFIG_I2C_PCA_ISA)	+= i2c-pca-isa.o
 obj-$(CONFIG_I2C_PIIX4)		+= i2c-piix4.o
 obj-$(CONFIG_I2C_PROSAVAGE)	+= i2c-prosavage.o
+obj-$(CONFIG_I2C_PXA)		+= i2c-pxa.o
 obj-$(CONFIG_I2C_RPXLITE)	+= i2c-rpx.o
 obj-$(CONFIG_I2C_S3C2410)	+= i2c-s3c2410.o
 obj-$(CONFIG_I2C_SAVAGE4)	+= i2c-savage4.o

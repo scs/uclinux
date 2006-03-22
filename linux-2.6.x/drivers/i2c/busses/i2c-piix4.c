@@ -28,7 +28,6 @@
    Note: we assume there can only be one device, with one SMBus interface.
 */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/pci.h>
@@ -91,13 +90,13 @@ struct sd {
 
 /* If force is set to anything different from 0, we forcibly enable the
    PIIX4. DANGEROUS! */
-static int force = 0;
+static int force;
 module_param (force, int, 0);
 MODULE_PARM_DESC(force, "Forcibly enable the PIIX4. DANGEROUS!");
 
 /* If force_addr is set to anything different from 0, we forcibly enable
    the PIIX4 at the given address. VERY DANGEROUS! */
-static int force_addr = 0;
+static int force_addr;
 module_param (force_addr, int, 0);
 MODULE_PARM_DESC(force_addr,
 		 "Forcibly enable the PIIX4 at the given address. "
@@ -105,14 +104,15 @@ MODULE_PARM_DESC(force_addr,
 
 /* If fix_hstcfg is set to anything different from 0, we reset one of the
    registers to be a valid value. */
-static int fix_hstcfg = 0;
+static int fix_hstcfg;
 module_param (fix_hstcfg, int, 0);
 MODULE_PARM_DESC(fix_hstcfg,
 		"Fix config register. Needed on some boards (Force CPCI735).");
 
 static int piix4_transaction(void);
 
-static unsigned short piix4_smba = 0;
+static unsigned short piix4_smba;
+static struct pci_driver piix4_driver;
 static struct i2c_adapter piix4_adapter;
 
 static struct dmi_system_id __devinitdata piix4_dmi_table[] = {
@@ -158,7 +158,7 @@ static int __devinit piix4_setup(struct pci_dev *PIIX4_dev,
 		}
 	}
 
-	if (!request_region(piix4_smba, SMBIOSIZE, "piix4-smbus")) {
+	if (!request_region(piix4_smba, SMBIOSIZE, piix4_driver.name)) {
 		dev_err(&PIIX4_dev->dev, "SMB region 0x%x already in use!\n",
 			piix4_smba);
 		return -ENODEV;
@@ -244,7 +244,7 @@ static int piix4_transaction(void)
 	/* Make sure the SMBus host is ready to start transmitting */
 	if ((temp = inb_p(SMBHSTSTS)) != 0x00) {
 		dev_dbg(&piix4_adapter.dev, "SMBus busy (%02x). "
-			"Resetting... \n", temp);
+			"Resetting...\n", temp);
 		outb_p(temp, SMBHSTSTS);
 		if ((temp = inb_p(SMBHSTSTS)) != 0x00) {
 			dev_err(&piix4_adapter.dev, "Failed! (%02x)\n", temp);
@@ -400,8 +400,6 @@ static u32 piix4_func(struct i2c_adapter *adapter)
 }
 
 static struct i2c_algorithm smbus_algorithm = {
-	.name		= "Non-I2C SMBus adapter",
-	.id		= I2C_ALGO_SMBUS,
 	.smbus_xfer	= piix4_access,
 	.functionality	= piix4_func,
 };
@@ -410,7 +408,6 @@ static struct i2c_adapter piix4_adapter = {
 	.owner		= THIS_MODULE,
 	.class		= I2C_CLASS_HWMON,
 	.algo		= &smbus_algorithm,
-	.name		= "unset",
 };
 
 static struct pci_device_id piix4_ids[] = {

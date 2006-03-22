@@ -47,13 +47,12 @@
 #include <linux/delay.h>
 #include <linux/workqueue.h>
 #include <linux/interrupt.h>
-#include <linux/device.h>
+#include <linux/platform_device.h>
 #include <linux/bitops.h>
 #include <asm/irq.h>
 #include <asm/io.h>
 #include <asm/system.h>
 
-#include <pcmcia/version.h>
 #include <pcmcia/cs_types.h>
 #include <pcmcia/ss.h>
 #include <pcmcia/cs.h>
@@ -669,11 +668,13 @@ static int __init is_alive(u_short sock)
     if ((stat & I365_CS_DETECT) && (stat & I365_CS_POWERON) &&
 	(i365_get(sock, I365_INTCTL) & I365_PC_IOCARD) &&
 	(i365_get(sock, I365_ADDRWIN) & I365_ENA_IO(0)) &&
-	(check_region(start, stop-start+1) != 0) &&
-	((start & 0xfeef) != 0x02e8))
-	return 1;
-    else
-	return 0;
+	((start & 0xfeef) != 0x02e8)) {
+	if (!request_region(start, stop-start+1, "i82365"))
+	    return 1;
+	release_region(start, stop-start+1);
+    }
+
+    return 0;
 }
 
 /*====================================================================*/
@@ -696,8 +697,6 @@ static void __init add_pcic(int ns, int type)
     struct i82365_socket *t = &socket[sockets-ns];
 
     base = sockets-ns;
-    if (t->ioaddr > 0) request_region(t->ioaddr, 2, "i82365");
-    
     if (base == 0) printk("\n");
     printk(KERN_INFO "  %s", pcic[type].name);
     printk(" ISA-to-PCMCIA at port %#lx ofs 0x%02x",
@@ -803,7 +802,7 @@ static void __init isa_probe(void)
     }
 #endif
 
-    if (check_region(i365_base, 2) != 0) {
+    if (!request_region(i365_base, 2, "i82365")) {
 	if (sockets == 0)
 	    printk("port conflict at %#lx\n", i365_base);
 	return;
@@ -938,78 +937,6 @@ static int i365_get_status(u_short sock, u_int *value)
     debug(1, "GetStatus(%d) = %#4.4x\n", sock, *value);
     return 0;
 } /* i365_get_status */
-
-/*====================================================================*/
-
-static int i365_get_socket(u_short sock, socket_state_t *state)
-{
-    struct i82365_socket *t = &socket[sock];
-    u_char reg, vcc, vpp;
-    
-    reg = i365_get(sock, I365_POWER);
-    state->flags = (reg & I365_PWR_AUTO) ? SS_PWR_AUTO : 0;
-    state->flags |= (reg & I365_PWR_OUT) ? SS_OUTPUT_ENA : 0;
-    vcc = reg & I365_VCC_MASK; vpp = reg & I365_VPP1_MASK;
-    state->Vcc = state->Vpp = 0;
-    if (t->flags & IS_CIRRUS) {
-	if (i365_get(sock, PD67_MISC_CTL_1) & PD67_MC1_VCC_3V) {
-	    if (reg & I365_VCC_5V) state->Vcc = 33;
-	    if (vpp == I365_VPP1_5V) state->Vpp = 33;
-	} else {
-	    if (reg & I365_VCC_5V) state->Vcc = 50;
-	    if (vpp == I365_VPP1_5V) state->Vpp = 50;
-	}
-	if (vpp == I365_VPP1_12V) state->Vpp = 120;
-    } else if (t->flags & IS_VG_PWR) {
-	if (i365_get(sock, VG469_VSELECT) & VG469_VSEL_VCC) {
-	    if (reg & I365_VCC_5V) state->Vcc = 33;
-	    if (vpp == I365_VPP1_5V) state->Vpp = 33;
-	} else {
-	    if (reg & I365_VCC_5V) state->Vcc = 50;
-	    if (vpp == I365_VPP1_5V) state->Vpp = 50;
-	}
-	if (vpp == I365_VPP1_12V) state->Vpp = 120;
-    } else if (t->flags & IS_DF_PWR) {
-	if (vcc == I365_VCC_3V) state->Vcc = 33;
-	if (vcc == I365_VCC_5V) state->Vcc = 50;
-	if (vpp == I365_VPP1_5V) state->Vpp = 50;
-	if (vpp == I365_VPP1_12V) state->Vpp = 120;
-    } else {
-	if (reg & I365_VCC_5V) {
-	    state->Vcc = 50;
-	    if (vpp == I365_VPP1_5V) state->Vpp = 50;
-	    if (vpp == I365_VPP1_12V) state->Vpp = 120;
-	}
-    }
-
-    /* IO card, RESET flags, IO interrupt */
-    reg = i365_get(sock, I365_INTCTL);
-    state->flags |= (reg & I365_PC_RESET) ? 0 : SS_RESET;
-    if (reg & I365_PC_IOCARD) state->flags |= SS_IOCARD;
-    state->io_irq = reg & I365_IRQ_MASK;
-    
-    /* speaker control */
-    if (t->flags & IS_CIRRUS) {
-	if (i365_get(sock, PD67_MISC_CTL_1) & PD67_MC1_SPKR_ENA)
-	    state->flags |= SS_SPKR_ENA;
-    }
-    
-    /* Card status change mask */
-    reg = i365_get(sock, I365_CSCINT);
-    state->csc_mask = (reg & I365_CSC_DETECT) ? SS_DETECT : 0;
-    if (state->flags & SS_IOCARD)
-	state->csc_mask |= (reg & I365_CSC_STSCHG) ? SS_STSCHG : 0;
-    else {
-	state->csc_mask |= (reg & I365_CSC_BVD1) ? SS_BATDEAD : 0;
-	state->csc_mask |= (reg & I365_CSC_BVD2) ? SS_BATWARN : 0;
-	state->csc_mask |= (reg & I365_CSC_READY) ? SS_READY : 0;
-    }
-    
-    debug(1, "GetSocket(%d) = flags %#3.3x, Vcc %d, Vpp %d, "
-	  "io_irq %d, csc_mask %#2.2x\n", sock, state->flags,
-	  state->Vcc, state->Vpp, state->io_irq, state->csc_mask);
-    return 0;
-} /* i365_get_socket */
 
 /*====================================================================*/
 
@@ -1266,16 +1193,6 @@ static int pcic_get_status(struct pcmcia_socket *s, u_int *value)
 	LOCKED(i365_get_status(sock, value));
 }
 
-static int pcic_get_socket(struct pcmcia_socket *s, socket_state_t *state)
-{
-	unsigned int sock = container_of(s, struct i82365_socket, socket)->number;
-
-	if (socket[sock].flags & IS_ALIVE)
-		return -EINVAL;
-
-	LOCKED(i365_get_socket(sock, state));
-}
-
 static int pcic_set_socket(struct pcmcia_socket *s, socket_state_t *state)
 {
 	unsigned int sock = container_of(s, struct i82365_socket, socket)->number;
@@ -1325,7 +1242,6 @@ static int pcic_init(struct pcmcia_socket *s)
 static struct pccard_operations pcic_operations = {
 	.init			= pcic_init,
 	.get_status		= pcic_get_status,
-	.get_socket		= pcic_get_socket,
 	.set_socket		= pcic_set_socket,
 	.set_io_map		= pcic_set_io_map,
 	.set_mem_map		= pcic_set_mem_map,
@@ -1333,33 +1249,14 @@ static struct pccard_operations pcic_operations = {
 
 /*====================================================================*/
 
-static int i82365_suspend(struct device *dev, pm_message_t state, u32 level)
-{
-	int ret = 0;
-	if (level == SUSPEND_SAVE_STATE)
-		ret = pcmcia_socket_dev_suspend(dev, state);
-	return ret;
-}
-
-static int i82365_resume(struct device *dev, u32 level)
-{
-	int ret = 0;
-	if (level == RESUME_RESTORE_STATE)
-		ret = pcmcia_socket_dev_resume(dev);
-	return ret;
-}
-
 static struct device_driver i82365_driver = {
 	.name = "i82365",
 	.bus = &platform_bus_type,
-	.suspend = i82365_suspend,
-	.resume = i82365_resume,
+	.suspend = pcmcia_socket_dev_suspend,
+	.resume = pcmcia_socket_dev_resume,
 };
 
-static struct platform_device i82365_device = {
-	.name = "i82365",
-	.id = 0,
-};
+static struct platform_device *i82365_device;
 
 static int __init init_i82365(void)
 {
@@ -1369,7 +1266,14 @@ static int __init init_i82365(void)
     if (ret)
 	return ret;
 
-    ret = platform_device_register(&i82365_device);
+    i82365_device = platform_device_alloc("i82365", 0);
+    if (i82365_device) {
+	    ret = platform_device_add(i82365_device);
+	    if (ret)
+		    platform_device_put(i82365_device);
+    } else
+	    ret = -ENOMEM;
+
     if (ret) {
 	driver_unregister(&i82365_driver);
 	return ret;
@@ -1382,7 +1286,8 @@ static int __init init_i82365(void)
 
     if (sockets == 0) {
 	printk("not found.\n");
-	platform_device_unregister(&i82365_device);
+	platform_device_unregister(i82365_device);
+	release_region(i365_base, 2);
 	driver_unregister(&i82365_driver);
 	return -ENODEV;
     }
@@ -1393,7 +1298,7 @@ static int __init init_i82365(void)
     
     /* register sockets with the pcmcia core */
     for (i = 0; i < sockets; i++) {
-	    socket[i].socket.dev.dev = &i82365_device.dev;
+	    socket[i].socket.dev.dev = &i82365_device->dev;
 	    socket[i].socket.ops = &pcic_operations;
 	    socket[i].socket.resource_ops = &pccard_nonstatic_ops;
 	    socket[i].socket.owner = THIS_MODULE;
@@ -1431,7 +1336,7 @@ static void __exit exit_i82365(void)
 	    if (socket[i].flags & IS_REGISTERED)
 		    pcmcia_unregister_socket(&socket[i].socket);
     }
-    platform_device_unregister(&i82365_device);
+    platform_device_unregister(i82365_device);
     if (poll_interval != 0)
 	del_timer_sync(&poll_timer);
     if (grab_irq != 0)
@@ -1441,6 +1346,7 @@ static void __exit exit_i82365(void)
 	i365_set(i, I365_CSCINT, 0);
 	release_region(socket[i].ioaddr, 2);
     }
+    release_region(i365_base, 2);
 #ifdef CONFIG_PNP
     if (i82365_pnpdev)
     		pnp_disable_dev(i82365_pnpdev);

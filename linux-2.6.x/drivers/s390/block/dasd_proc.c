@@ -9,13 +9,13 @@
  *
  * /proc interface for the dasd driver.
  *
- * $Revision$
  */
 
 #include <linux/config.h>
 #include <linux/ctype.h>
 #include <linux/seq_file.h>
 #include <linux/vmalloc.h>
+#include <linux/proc_fs.h>
 
 #include <asm/debug.h>
 #include <asm/uaccess.h>
@@ -54,7 +54,6 @@ dasd_devices_show(struct seq_file *m, void *v)
 {
 	struct dasd_device *device;
 	char *substr;
-	int feature;
 
 	device = dasd_device_from_devindex((unsigned long) v - 1);
 	if (IS_ERR(device))
@@ -78,10 +77,7 @@ dasd_devices_show(struct seq_file *m, void *v)
 	else
 		seq_printf(m, " is ????????");
 	/* Print devices features. */
-	feature = dasd_get_feature(device->cdev, DASD_FEATURE_READONLY);
-	if (feature < 0)
-		return 0;
-	substr = feature ? "(ro)" : " ";
+	substr = (device->features & DASD_FEATURE_READONLY) ? "(ro)" : " ";
 	seq_printf(m, "%4s: ", substr);
 	/* Print device status information. */
 	switch ((device != NULL) ? device->state : -1) {
@@ -96,6 +92,9 @@ dasd_devices_show(struct seq_file *m, void *v)
 		break;
 	case DASD_STATE_BASIC:
 		seq_printf(m, "basic");
+		break;
+	case DASD_STATE_UNFMT:
+		seq_printf(m, "unformatted");
 		break;
 	case DASD_STATE_READY:
 	case DASD_STATE_ONLINE:

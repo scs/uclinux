@@ -1,12 +1,10 @@
 /*
  *  drivers/s390/cio/device_ops.c
  *
- *   $Revision$
- *
  *    Copyright (C) 2002 IBM Deutschland Entwicklung GmbH,
  *			 IBM Corporation
  *    Author(s): Martin Schwidefsky (schwidefsky@de.ibm.com)
- *               Cornelia Huck (cohuck@de.ibm.com)
+ *               Cornelia Huck (cornelia.huck@de.ibm.com)
  */
 #include <linux/config.h>
 #include <linux/module.h>
@@ -19,14 +17,12 @@
 
 #include <asm/ccwdev.h>
 #include <asm/idals.h>
-#include <asm/qdio.h>
 
 #include "cio.h"
 #include "cio_debug.h"
 #include "css.h"
 #include "chsc.h"
 #include "device.h"
-#include "qdio.h"
 
 int
 ccw_device_set_options(struct ccw_device *cdev, unsigned long flags)
@@ -552,10 +548,8 @@ ccw_device_stlck(struct ccw_device *cdev)
 	/* Clear irb. */
 	memset(&cdev->private->irb, 0, sizeof(struct irb));
 out_unlock:
-	if (buf)
-		kfree(buf);
-	if (buf2)
-		kfree(buf2);
+	kfree(buf);
+	kfree(buf2);
 	spin_unlock_irqrestore(&sch->lock, flags);
 	return ret;
 }
@@ -574,7 +568,7 @@ ccw_device_get_chp_desc(struct ccw_device *cdev, int chp_no)
 int
 _ccw_device_get_subchannel_number(struct ccw_device *cdev)
 {
-	return cdev->private->irq;
+	return cdev->private->sch_no;
 }
 
 int

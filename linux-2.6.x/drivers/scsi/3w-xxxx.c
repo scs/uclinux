@@ -203,6 +203,7 @@
 #include <linux/delay.h>
 #include <linux/pci.h>
 #include <linux/time.h>
+#include <linux/mutex.h>
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/uaccess.h>
@@ -888,7 +889,7 @@ static int tw_chrdev_ioctl(struct inode *inode, struct file *file, unsigned int 
 	dprintk(KERN_WARNING "3w-xxxx: tw_chrdev_ioctl()\n");
 
 	/* Only let one of these through at a time */
-	if (down_interruptible(&tw_dev->ioctl_sem))
+	if (mutex_lock_interruptible(&tw_dev->ioctl_lock))
 		return -EINTR;
 
 	/* First copy down the buffer length */
@@ -1029,7 +1030,7 @@ out2:
 	/* Now free ioctl buf memory */
 	dma_free_coherent(&tw_dev->tw_pci_dev->dev, data_buffer_length_adjusted+sizeof(TW_New_Ioctl) - 1, cpu_addr, dma_handle);
 out:
-	up(&tw_dev->ioctl_sem);
+	mutex_unlock(&tw_dev->ioctl_lock);
 	return retval;
 } /* End tw_chrdev_ioctl() */
 
@@ -1270,7 +1271,7 @@ static int tw_initialize_device_extension(TW_Device_Extension *tw_dev)
 	tw_dev->pending_tail = TW_Q_START;
 	tw_dev->chrdev_request_id = TW_IOCTL_CHRDEV_FREE;
 
-	init_MUTEX(&tw_dev->ioctl_sem);
+	mutex_init(&tw_dev->ioctl_lock);
 	init_waitqueue_head(&tw_dev->ioctl_wqueue);
 
 	return 0;
@@ -1430,11 +1431,11 @@ static int tw_scsi_eh_reset(struct scsi_cmnd *SCpnt)
 
 	tw_dev = (TW_Device_Extension *)SCpnt->device->host->hostdata;
 
-	spin_unlock_irq(tw_dev->host->host_lock);
-
 	tw_dev->num_resets++;
 
-	printk(KERN_WARNING "3w-xxxx: scsi%d: WARNING: Unit #%d: Command (0x%x) timed out, resetting card.\n", tw_dev->host->host_no, SCpnt->device->id, SCpnt->cmnd[0]);
+	sdev_printk(KERN_WARNING, SCpnt->device,
+		"WARNING: Command (0x%x) timed out, resetting card.\n",
+		SCpnt->cmnd[0]);
 
 	/* Now reset the card and some of the device extension data */
 	if (tw_reset_device_extension(tw_dev, 0)) {
@@ -1444,7 +1445,6 @@ static int tw_scsi_eh_reset(struct scsi_cmnd *SCpnt)
 
 	retval = SUCCESS;
 out:
-	spin_lock_irq(tw_dev->host->host_lock);
 	return retval;
 } /* End tw_scsi_eh_reset() */
 
@@ -1502,22 +1502,43 @@ static int tw_scsiop_inquiry(TW_Device_Extension *tw_dev, int request_id)
 	return 0;
 } /* End tw_scsiop_inquiry() */
 
+static void tw_transfer_internal(TW_Device_Extension *tw_dev, int request_id,
+				 void *data, unsigned int len)
+{
+	struct scsi_cmnd *cmd = tw_dev->srb[request_id];
+	void *buf;
+	unsigned int transfer_len;
+
+	if (cmd->use_sg) {
+		struct scatterlist *sg =
+			(struct scatterlist *)cmd->request_buffer;
+		buf = kmap_atomic(sg->page, KM_IRQ0) + sg->offset;
+		transfer_len = min(sg->length, len);
+	} else {
+		buf = cmd->request_buffer;
+		transfer_len = min(cmd->request_bufflen, len);
+	}
+
+	memcpy(buf, data, transfer_len);
+	
+	if (cmd->use_sg) {
+		struct scatterlist *sg;
+
+		sg = (struct scatterlist *)cmd->request_buffer;
+		kunmap_atomic(buf - sg->offset, KM_IRQ0);
+	}
+}
+
 /* This function is called by the isr to complete an inquiry command */
 static int tw_scsiop_inquiry_complete(TW_Device_Extension *tw_dev, int request_id)
 {
 	unsigned char *is_unit_present;
-	unsigned char *request_buffer;
+	unsigned char request_buffer[36];
 	TW_Param *param;
 
 	dprintk(KERN_NOTICE "3w-xxxx: tw_scsiop_inquiry_complete()\n");
 
-	/* Fill request buffer */
-	if (tw_dev->srb[request_id]->request_buffer == NULL) {
-		printk(KERN_WARNING "3w-xxxx: tw_scsiop_inquiry_complete(): Request buffer NULL.\n");
-		return 1;
-	}
-	request_buffer = tw_dev->srb[request_id]->request_buffer;
-	memset(request_buffer, 0, tw_dev->srb[request_id]->request_bufflen);
+	memset(request_buffer, 0, sizeof(request_buffer));
 	request_buffer[0] = TYPE_DISK; /* Peripheral device type */
 	request_buffer[1] = 0;	       /* Device type modifier */
 	request_buffer[2] = 0;	       /* No ansi/iso compliance */
@@ -1525,6 +1546,8 @@ static int tw_scsiop_inquiry_complete(TW_Device_Extension *tw_dev, int request_i
 	memcpy(&request_buffer[8], "3ware   ", 8);	 /* Vendor ID */
 	sprintf(&request_buffer[16], "Logical Disk %-2d ", tw_dev->srb[request_id]->device->id);
 	memcpy(&request_buffer[32], TW_DRIVER_VERSION, 3);
+	tw_transfer_internal(tw_dev, request_id, request_buffer,
+			     sizeof(request_buffer));
 
 	param = (TW_Param *)tw_dev->alignment_virtual_address[request_id];
 	if (param == NULL) {
@@ -1615,7 +1638,7 @@ static int tw_scsiop_mode_sense_complete(TW_Device_Extension *tw_dev, int reques
 {
 	TW_Param *param;
 	unsigned char *flags;
-	unsigned char *request_buffer;
+	unsigned char request_buffer[8];
 
 	dprintk(KERN_NOTICE "3w-xxxx: tw_scsiop_mode_sense_complete()\n");
 
@@ -1625,8 +1648,7 @@ static int tw_scsiop_mode_sense_complete(TW_Device_Extension *tw_dev, int reques
 		return 1;
 	}
 	flags = (char *)&(param->data[0]);
-	request_buffer = tw_dev->srb[request_id]->buffer;
-	memset(request_buffer, 0, tw_dev->srb[request_id]->request_bufflen);
+	memset(request_buffer, 0, sizeof(request_buffer));
 
 	request_buffer[0] = 0xf;        /* mode data length */
 	request_buffer[1] = 0;          /* default medium type */
@@ -1638,6 +1660,8 @@ static int tw_scsiop_mode_sense_complete(TW_Device_Extension *tw_dev, int reques
 		request_buffer[6] = 0x4;        /* WCE on */
 	else
 		request_buffer[6] = 0x0;        /* WCE off */
+	tw_transfer_internal(tw_dev, request_id, request_buffer,
+			     sizeof(request_buffer));
 
 	return 0;
 } /* End tw_scsiop_mode_sense_complete() */
@@ -1704,17 +1728,12 @@ static int tw_scsiop_read_capacity_complete(TW_Device_Extension *tw_dev, int req
 {
 	unsigned char *param_data;
 	u32 capacity;
-	char *buff;
+	char buff[8];
 	TW_Param *param;
 
 	dprintk(KERN_NOTICE "3w-xxxx: tw_scsiop_read_capacity_complete()\n");
 
-	buff = tw_dev->srb[request_id]->request_buffer;
-	if (buff == NULL) {
-		printk(KERN_WARNING "3w-xxxx: tw_scsiop_read_capacity_complete(): Request buffer NULL.\n");
-		return 1;
-	}
-	memset(buff, 0, tw_dev->srb[request_id]->request_bufflen);
+	memset(buff, 0, sizeof(buff));
 	param = (TW_Param *)tw_dev->alignment_virtual_address[request_id];
 	if (param == NULL) {
 		printk(KERN_WARNING "3w-xxxx: tw_scsiop_read_capacity_complete(): Bad alignment virtual address.\n");
@@ -1741,6 +1760,8 @@ static int tw_scsiop_read_capacity_complete(TW_Device_Extension *tw_dev, int req
 	buff[5] = (TW_BLOCK_SIZE >> 16) & 0xff;
 	buff[6] = (TW_BLOCK_SIZE >> 8) & 0xff;
 	buff[7] = TW_BLOCK_SIZE & 0xff;
+
+	tw_transfer_internal(tw_dev, request_id, buff, sizeof(buff));
 
 	return 0;
 } /* End tw_scsiop_read_capacity_complete() */
@@ -2267,9 +2288,9 @@ static void __tw_shutdown(TW_Device_Extension *tw_dev)
 } /* End __tw_shutdown() */
 
 /* Wrapper for __tw_shutdown */
-static void tw_shutdown(struct device *dev)
+static void tw_shutdown(struct pci_dev *pdev)
 {
-	struct Scsi_Host *host = pci_get_drvdata(to_pci_dev(dev));
+	struct Scsi_Host *host = pci_get_drvdata(pdev);
 	TW_Device_Extension *tw_dev = (TW_Device_Extension *)host->hostdata;
 
 	__tw_shutdown(tw_dev);
@@ -2454,9 +2475,7 @@ static struct pci_driver tw_driver = {
 	.id_table	= tw_pci_tbl,
 	.probe		= tw_probe,
 	.remove		= tw_remove,
-	.driver		= {
-		.shutdown = tw_shutdown
-	}
+	.shutdown	= tw_shutdown,
 };
 
 /* This function is called on driver initialization */

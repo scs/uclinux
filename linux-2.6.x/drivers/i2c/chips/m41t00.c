@@ -40,12 +40,8 @@ static unsigned short normal_addr[] = { 0x68, I2C_CLIENT_END };
 
 static struct i2c_client_address_data addr_data = {
 	.normal_i2c		= normal_addr,
-	.normal_i2c_range	= ignore,
 	.probe			= ignore,
-	.probe_range		= ignore,
 	.ignore			= ignore,
-	.ignore_range		= ignore,
-	.force			= ignore,
 };
 
 ulong
@@ -148,7 +144,7 @@ m41t00_set_tlet(ulong arg)
 	return;
 }
 
-ulong	new_time;
+static ulong	new_time;
 
 DECLARE_TASKLET_DISABLED(m41t00_tasklet, m41t00_set_tlet, (ulong)&new_time);
 
@@ -178,13 +174,11 @@ m41t00_probe(struct i2c_adapter *adap, int addr, int kind)
 	struct i2c_client *client;
 	int rc;
 
-	client = kmalloc(sizeof(struct i2c_client), GFP_KERNEL);
+	client = kzalloc(sizeof(struct i2c_client), GFP_KERNEL);
 	if (!client)
 		return -ENOMEM;
 
-	memset(client, 0, sizeof(struct i2c_client));
 	strncpy(client->name, M41T00_DRV_NAME, I2C_NAME_SIZE);
-	client->flags = I2C_DF_NOTIFY;
 	client->addr = addr;
 	client->adapter = adap;
 	client->driver = &m41t00_driver;
@@ -210,17 +204,17 @@ m41t00_detach(struct i2c_client *client)
 	int	rc;
 
 	if ((rc = i2c_detach_client(client)) == 0) {
-		kfree(i2c_get_clientdata(client));
+		kfree(client);
 		tasklet_kill(&m41t00_tasklet);
 	}
 	return rc;
 }
 
 static struct i2c_driver m41t00_driver = {
-	.owner		= THIS_MODULE,
-	.name		= M41T00_DRV_NAME,
+	.driver = {
+		.name	= M41T00_DRV_NAME,
+	},
 	.id		= I2C_DRIVERID_STM41T00,
-	.flags		= I2C_DF_NOTIFY,
 	.attach_adapter	= m41t00_attach,
 	.detach_client	= m41t00_detach,
 };

@@ -28,8 +28,6 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#define ZFCP_SYSFS_PORT_C_REVISION "$Revision$"
-
 #include "zfcp_ext.h"
 
 #define ZFCP_LOG_AREA                   ZFCP_LOG_AREA_CONFIG
@@ -53,7 +51,7 @@ zfcp_sysfs_port_release(struct device *dev)
  * Generates attributes for a port.
  */
 #define ZFCP_DEFINE_PORT_ATTR(_name, _format, _value)                    \
-static ssize_t zfcp_sysfs_port_##_name##_show(struct device *dev,        \
+static ssize_t zfcp_sysfs_port_##_name##_show(struct device *dev, struct device_attribute *attr,        \
                                               char *buf)                 \
 {                                                                        \
         struct zfcp_port *port;                                          \
@@ -65,9 +63,6 @@ static ssize_t zfcp_sysfs_port_##_name##_show(struct device *dev,        \
 static DEVICE_ATTR(_name, S_IRUGO, zfcp_sysfs_port_##_name##_show, NULL);
 
 ZFCP_DEFINE_PORT_ATTR(status, "0x%08x\n", atomic_read(&port->status));
-ZFCP_DEFINE_PORT_ATTR(wwnn, "0x%016llx\n", port->wwnn);
-ZFCP_DEFINE_PORT_ATTR(d_id, "0x%06x\n", port->d_id);
-ZFCP_DEFINE_PORT_ATTR(scsi_id, "0x%x\n", port->scsi_id);
 ZFCP_DEFINE_PORT_ATTR(in_recovery, "%d\n", atomic_test_mask
 		      (ZFCP_STATUS_COMMON_ERP_INUSE, &port->status));
 ZFCP_DEFINE_PORT_ATTR(access_denied, "%d\n", atomic_test_mask
@@ -82,7 +77,7 @@ ZFCP_DEFINE_PORT_ATTR(access_denied, "%d\n", atomic_test_mask
  * Store function of the "unit_add" attribute of a port.
  */
 static ssize_t
-zfcp_sysfs_unit_add_store(struct device *dev, const char *buf, size_t count)
+zfcp_sysfs_unit_add_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	fcp_lun_t fcp_lun;
 	char *endp;
@@ -125,7 +120,7 @@ static DEVICE_ATTR(unit_add, S_IWUSR, NULL, zfcp_sysfs_unit_add_store);
  * @count: number of bytes in buffer
  */
 static ssize_t
-zfcp_sysfs_unit_remove_store(struct device *dev, const char *buf, size_t count)
+zfcp_sysfs_unit_remove_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct zfcp_port *port;
 	struct zfcp_unit *unit;
@@ -186,7 +181,7 @@ static DEVICE_ATTR(unit_remove, S_IWUSR, NULL, zfcp_sysfs_unit_remove_store);
  * started for the belonging port.
  */
 static ssize_t
-zfcp_sysfs_port_failed_store(struct device *dev, const char *buf, size_t count)
+zfcp_sysfs_port_failed_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct zfcp_port *port;
 	unsigned int val;
@@ -224,7 +219,7 @@ zfcp_sysfs_port_failed_store(struct device *dev, const char *buf, size_t count)
  * "0" if port is working, otherwise "1".
  */
 static ssize_t
-zfcp_sysfs_port_failed_show(struct device *dev, char *buf)
+zfcp_sysfs_port_failed_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct zfcp_port *port;
 
@@ -246,8 +241,6 @@ static struct attribute *zfcp_port_common_attrs[] = {
 	&dev_attr_failed.attr,
 	&dev_attr_in_recovery.attr,
 	&dev_attr_status.attr,
-	&dev_attr_wwnn.attr,
-	&dev_attr_d_id.attr,
 	&dev_attr_access_denied.attr,
 	NULL
 };
@@ -263,7 +256,6 @@ static struct attribute_group zfcp_port_common_attr_group = {
 static struct attribute *zfcp_port_no_ns_attrs[] = {
 	&dev_attr_unit_add.attr,
 	&dev_attr_unit_remove.attr,
-	&dev_attr_scsi_id.attr,
 	NULL
 };
 

@@ -1,24 +1,24 @@
 /*======================================================================
 
     drivers/mtd/afs.c: ARM Flash Layout/Partitioning
-  
+
     Copyright (C) 2000 ARM Limited
-  
+
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; either version 2 of the License, or
    (at your option) any later version.
-  
+
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
-  
+
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
-  
-   This is access code for flashes using ARM's flash partitioning 
+
+   This is access code for flashes using ARM's flash partitioning
    standards.
 
    $Id$
@@ -163,7 +163,7 @@ afs_read_iis(struct mtd_info *mtd, struct image_info_struct *iis, u_int ptr)
 	return ret;
 }
 
-static int parse_afs_partitions(struct mtd_info *mtd, 
+static int parse_afs_partitions(struct mtd_info *mtd,
                          struct mtd_partition **pparts,
                          unsigned long origin)
 {
@@ -219,7 +219,7 @@ static int parse_afs_partitions(struct mtd_info *mtd,
 	 */
 	for (idx = off = 0; off < mtd->size; off += mtd->erasesize) {
 		struct image_info_struct iis;
-		u_int iis_ptr, img_ptr, size;
+		u_int iis_ptr, img_ptr;
 
 		/* Read the footer. */
 		ret = afs_read_footer(mtd, &img_ptr, &iis_ptr, off, mask);
@@ -236,21 +236,9 @@ static int parse_afs_partitions(struct mtd_info *mtd,
 			continue;
 
 		strcpy(str, iis.name);
-		size = mtd->erasesize + off - img_ptr;
-
-		/*
-		 * In order to support JFFS2 partitions on this layout,
-		 * we must lie to MTD about the real size of JFFS2
-		 * partitions; this ensures that the AFS flash footer
-		 * won't be erased by JFFS2.  Please ensure that your
-		 * JFFS2 partitions are given image numbers between
-		 * 1000 and 2000 inclusive.
-		 */
-		if (iis.imageNumber >= 1000 && iis.imageNumber < 2000)
-			size -= mtd->erasesize;
 
 		parts[idx].name		= str;
-		parts[idx].size		= size;
+		parts[idx].size		= (iis.length + mtd->erasesize - 1) & ~(mtd->erasesize - 1);
 		parts[idx].offset	= img_ptr;
 		parts[idx].mask_flags	= 0;
 

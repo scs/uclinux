@@ -15,15 +15,14 @@
  *
  * Example:
  *	phram=swap,64Mi,128Mi phram=test,900Mi,1Mi
- *
  */
-
 #include <asm/io.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
+#include <linux/slab.h>
 #include <linux/mtd/mtd.h>
 
 #define ERROR(fmt, args...) printk(KERN_ERR "phram: " fmt , ## args)
@@ -36,17 +35,16 @@ struct phram_mtd_list {
 static LIST_HEAD(phram_list);
 
 
-
 static int phram_erase(struct mtd_info *mtd, struct erase_info *instr)
 {
 	u_char *start = mtd->priv;
 
 	if (instr->addr + instr->len > mtd->size)
 		return -EINVAL;
-	
+
 	memset(start + instr->addr, 0xff, instr->len);
 
-	/* This'll catch a few races. Free the thing before returning :) 
+	/* This'll catch a few races. Free the thing before returning :)
 	 * I don't feel at all ashamed. This kind of thing is possible anyway
 	 * with flash, but unlikely.
 	 */
@@ -65,13 +63,14 @@ static int phram_point(struct mtd_info *mtd, loff_t from, size_t len,
 
 	if (from + len > mtd->size)
 		return -EINVAL;
-	
+
 	*mtdbuf = start + from;
 	*retlen = len;
 	return 0;
 }
 
-static void phram_unpoint(struct mtd_info *mtd, u_char *addr, loff_t from, size_t len)
+static void phram_unpoint(struct mtd_info *mtd, u_char *addr, loff_t from,
+		size_t len)
 {
 }
 
@@ -80,9 +79,12 @@ static int phram_read(struct mtd_info *mtd, loff_t from, size_t len,
 {
 	u_char *start = mtd->priv;
 
-	if (from + len > mtd->size)
+	if (from >= mtd->size)
 		return -EINVAL;
-	
+
+	if (len > mtd->size - from)
+		len = mtd->size - from;
+
 	memcpy(buf, start + from, len);
 
 	*retlen = len;
@@ -94,9 +96,12 @@ static int phram_write(struct mtd_info *mtd, loff_t to, size_t len,
 {
 	u_char *start = mtd->priv;
 
-	if (to + len > mtd->size)
+	if (to >= mtd->size)
 		return -EINVAL;
-	
+
+	if (len > mtd->size - to)
+		len = mtd->size - to;
+
 	memcpy(start + to, buf, len);
 
 	*retlen = len;
@@ -107,9 +112,9 @@ static int phram_write(struct mtd_info *mtd, loff_t to, size_t len,
 
 static void unregister_devices(void)
 {
-	struct phram_mtd_list *this;
+	struct phram_mtd_list *this, *safe;
 
-	list_for_each_entry(this, &phram_list, list) {
+	list_for_each_entry_safe(this, safe, &phram_list, list) {
 		del_mtd_device(&this->mtd);
 		iounmap(this->mtd.priv);
 		kfree(this);
@@ -145,7 +150,7 @@ static int register_device(char *name, unsigned long start, unsigned long len)
 	new->mtd.write = phram_write;
 	new->mtd.owner = THIS_MODULE;
 	new->mtd.type = MTD_RAM;
-	new->mtd.erasesize = 0;
+	new->mtd.erasesize = PAGE_SIZE;
 
 	ret = -EAGAIN;
 	if (add_mtd_device(&new->mtd)) {
@@ -154,7 +159,7 @@ static int register_device(char *name, unsigned long start, unsigned long len)
 	}
 
 	list_add_tail(&new->list, &phram_list);
-	return 0;	
+	return 0;
 
 out2:
 	iounmap(new->mtd.priv);
@@ -214,6 +219,15 @@ static int parse_name(char **pname, const char *token)
 	return 0;
 }
 
+
+static inline void kill_final_newline(char *str)
+{
+	char *newline = strrchr(str, '\n');
+	if (newline && !newline[1])
+		*newline = 0;
+}
+
+
 #define parse_err(fmt, args...) do {	\
 	ERROR(fmt , ## args);	\
 	return 0;		\
@@ -232,6 +246,7 @@ static int phram_setup(const char *val, struct kernel_param *kp)
 		parse_err("parameter too long\n");
 
 	strcpy(str, val);
+	kill_final_newline(str);
 
 	for (i=0; i<3; i++)
 		token[i] = strsep(&str, ",");

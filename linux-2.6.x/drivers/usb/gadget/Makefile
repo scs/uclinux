@@ -2,7 +2,7 @@
 # USB peripheral controller drivers
 #
 obj-$(CONFIG_USB_DUMMY_HCD)	+= dummy_hcd.o
-obj-$(CONFIG_USB_NET2272)	+= net2272.o 
+obj-$(CONFIG_USB_NET2272)	+= net2272.o
 obj-$(CONFIG_USB_NET2280)	+= net2280.o
 obj-$(CONFIG_USB_PXA2XX)	+= pxa2xx_udc.o
 obj-$(CONFIG_USB_GOKU)		+= goku_udc.o
@@ -22,7 +22,7 @@ g_file_storage-objs		:= file_storage.o usbstring.o config.o \
 ifeq ($(CONFIG_USB_ETH_RNDIS),y)
 	g_ether-objs		+= rndis.o
 endif
- 
+
 obj-$(CONFIG_USB_ZERO)		+= g_zero.o
 obj-$(CONFIG_USB_ETH)		+= g_ether.o
 obj-$(CONFIG_USB_GADGETFS)	+= gadgetfs.o

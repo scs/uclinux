@@ -24,6 +24,8 @@ DMA-mapping.txt
 	- info for PCI drivers using DMA portably across all platforms.
 DocBook/
 	- directory with DocBook templates etc. for kernel documentation.
+HOWTO
+	- The process and procedures of how to do Linux kernel development.
 IO-mapping.txt
 	- how to access I/O mapped memory from within device drivers.
 IPMI.txt
@@ -46,6 +48,8 @@ SubmittingPatches
 	- procedure to get a source patch included into the kernel tree.
 VGA-softcursor.txt
 	- how to change your VGA cursor from a blinking underscore.
+applying-patches.txt
+	- description of various trees and how to apply their patches.
 arm/
 	- directory with info about Linux on the ARM architecture.
 basic_profiling.txt
@@ -138,6 +142,8 @@ java.txt
 	- info on the in-kernel binary support for Java(tm).
 kbuild/
 	- directory with info about the kernel build process.
+kdumpt.txt
+       - mini HowTo on getting the crash dump code to work.
 kernel-doc-nano-HOWTO.txt
 	- mini HowTo on generation and location of kernel documentation files.
 kernel-docs.txt
@@ -252,6 +258,10 @@ specialix.txt
 	- info on hardware/driver for specialix IO8+ multiport serial card.
 spinlocks.txt
 	- info on using spinlocks to provide exclusive access in kernel.
+stable_api_nonsense.txt
+	- info on why the kernel does not have a stable in-kernel api or abi.
+stable_kernel_rules.txt
+	- rules and procedures for the -stable kernel releases.
 stallion.txt
 	- info on using the Stallion multiport serial driver.
 svga.txt
@@ -273,7 +283,7 @@ tty.txt
 unicode.txt
 	- info on the Unicode character/font mapping used in Linux.
 uml/
-	- directory with infomation about User Mode Linux.
+	- directory with information about User Mode Linux.
 usb/
 	- directory with info regarding the Universal Serial Bus.
 video4linux/

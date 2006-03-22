@@ -5,8 +5,8 @@
  * Header file for the adaptec 1542 driver for Linux
  *
  * $Log$
- * Revision 1.4  2005/08/12 06:42:45  magicyang
- *  Update kernel 2.6.8 to 2.6.12
+ * Revision 1.5  2006/03/22 08:11:06  magicyang
+ * update kernel to 2.6.16
  *
  * Revision 1.1  1992/07/24  06:27:38  root
  * Initial revision
@@ -134,9 +134,8 @@ struct ccb {			/* Command Control Block 5.3 */
 				/* REQUEST SENSE */
 };
 
-static int aha1542_detect(Scsi_Host_Template *);
+static int aha1542_detect(struct scsi_host_template *);
 static int aha1542_queuecommand(Scsi_Cmnd *, void (*done)(Scsi_Cmnd *));
-static int aha1542_abort(Scsi_Cmnd * SCpnt);
 static int aha1542_bus_reset(Scsi_Cmnd * SCpnt);
 static int aha1542_dev_reset(Scsi_Cmnd * SCpnt);
 static int aha1542_host_reset(Scsi_Cmnd * SCpnt);

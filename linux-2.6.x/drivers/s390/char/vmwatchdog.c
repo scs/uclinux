@@ -23,11 +23,7 @@
 static char vmwdt_cmd[MAX_CMDLEN] = "IPL";
 static int vmwdt_conceal;
 
-#ifdef CONFIG_WATCHDOG_NOWAYOUT
-static int vmwdt_nowayout = 1;
-#else
-static int vmwdt_nowayout = 0;
-#endif
+static int vmwdt_nowayout = WATCHDOG_NOWAYOUT;
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Arnd Bergmann <arndb@de.ibm.com>");
@@ -70,7 +66,7 @@ static int __diag288(enum vmwdt_func func, unsigned int timeout,
 	__cmdl = len;
 	err = 0;
 	asm volatile (
-#ifdef __s390x__
+#ifdef CONFIG_64BIT
 		       "diag %2,%4,0x288\n"
 		"1:	\n"
 		".section .fixup,\"ax\"\n"

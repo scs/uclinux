@@ -6,6 +6,18 @@ only the AMD64 specific ones are listed here.
 Machine check
 
    mce=off disable machine check
+   mce=bootlog Enable logging of machine checks left over from booting.
+               Disabled by default on AMD because some BIOS leave bogus ones.
+               If your BIOS doesn't do that it's a good idea to enable though
+               to make sure you log even machine check events that result
+               in a reboot. On Intel systems it is enabled by default.
+   mce=nobootlog
+		Disable boot machine check logging.
+   mce=tolerancelevel (number)
+		0: always panic, 1: panic if deadlock possible,
+		2: try to avoid panic, 3: never panic or exit (for testing)
+		default is 1
+		Can be also set using sysfs which is preferable.
 
    nomce (for compatibility with i386): same as mce=off
 
@@ -28,6 +40,22 @@ APICs
    no_timer_check Don't check the IO-APIC timer. This can work around
 		 problems with incorrect timer initialization on some boards.
 
+   apicmaintimer Run time keeping from the local APIC timer instead
+                 of using the PIT/HPET interrupt for this. This is useful
+                 when the PIT/HPET interrupts are unreliable.
+
+   noapicmaintimer  Don't do time keeping using the APIC timer.
+		 Useful when this option was auto selected, but doesn't work.
+
+   apicpmtimer
+		 Do APIC timer calibration using the pmtimer. Implies
+		 apicmaintimer. Useful when your PIT timer is totally
+		 broken.
+
+   disable_8254_timer / enable_8254_timer
+		 Enable interrupt 0 timer routing over the 8254 in addition to over
+	         the IO-APIC. The kernel tries to set a sensible default.
+
 Early Console
 
    syntax: earlyprintk=vga
@@ -47,7 +75,7 @@ Timing
   notsc
   Don't use the CPU time stamp counter to read the wall time.
   This can be used to work around timing problems on multiprocessor systems
-  with not properly synchronized CPUs. Only useful with a SMP kernel
+  with not properly synchronized CPUs.
 
   report_lost_ticks
   Report when timer interrupts are lost because some code turned off
@@ -74,6 +102,9 @@ Idle loop
   event. This will make the CPUs eat a lot more power, but may be useful
   to get slightly better performance in multiprocessor benchmarks. It also
   makes some profiling using performance counters more accurate.
+  Please note that on systems with MONITOR/MWAIT support (like Intel EM64T
+  CPUs) this option has no performance advantage over the normal idle loop.
+  It may also interact badly with hyperthreading.
 
 Rebooting
 
@@ -108,6 +139,9 @@ SMP
   maxcpus=NUMBER only use upto NUMBER CPUs
 
   cpumask=MASK   only use cpus with bits set in mask
+
+  additional_cpus=NUM Allow NUM more CPUs for hotplug
+		 (defaults are specified by the BIOS, see Documentation/x86_64/cpu-hotplug-spec)
 
 NUMA
 
@@ -175,9 +209,11 @@ Debugging
 
   kstack=N   Print that many words from the kernel stack in oops dumps.
 
+  pagefaulttrace Dump all page faults. Only useful for extreme debugging
+		and will create a lot of output.
+
 Misc
 
-  noreplacement  Don't replace instructions with more appropiate ones
-  				 for the CPU. This may be useful on asymmetric MP systems
-				 where some CPU have less capabilities than the others.
-
+  noreplacement  Don't replace instructions with more appropriate ones
+		 for the CPU. This may be useful on asymmetric MP systems
+		 where some CPU have less capabilities than the others.

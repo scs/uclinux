@@ -394,7 +394,7 @@ static void rs_360_start(struct tty_struct *tty)
 static _INLINE_ void receive_chars(ser_info_t *info)
 {
 	struct tty_struct *tty = info->tty;
-	unsigned char ch, *cp;
+	unsigned char ch, flag, *cp;
 	/*int	ignored = 0;*/
 	int	i;
 	ushort	status;
@@ -438,24 +438,15 @@ static _INLINE_ void receive_chars(ser_info_t *info)
 		cp = (char *)bdp->buf;
 		status = bdp->status;
 
-		/* Check to see if there is room in the tty buffer for
-		 * the characters in our BD buffer.  If not, we exit
-		 * now, leaving the BD with the characters.  We'll pick
-		 * them up again on the next receive interrupt (which could
-		 * be a timeout).
-		 */
-		if ((tty->flip.count + i) >= TTY_FLIPBUF_SIZE)
-			break;
-
 		while (i-- > 0) {
 			ch = *cp++;
-			*tty->flip.char_buf_ptr = ch;
 			icount->rx++;
 
 #ifdef SERIAL_DEBUG_INTR
 			printk("DR%02x:%02x...", ch, status);
 #endif
-			*tty->flip.flag_buf_ptr = 0;
+			flag = TTY_NORMAL;
+
 			if (status & (BD_SC_BR | BD_SC_FR |
 				       BD_SC_PR | BD_SC_OV)) {
 				/*
@@ -490,30 +481,18 @@ static _INLINE_ void receive_chars(ser_info_t *info)
 					if (info->flags & ASYNC_SAK)
 						do_SAK(tty);
 				} else if (status & BD_SC_PR)
-					*tty->flip.flag_buf_ptr = TTY_PARITY;
+					flag = TTY_PARITY;
 				else if (status & BD_SC_FR)
-					*tty->flip.flag_buf_ptr = TTY_FRAME;
-				if (status & BD_SC_OV) {
-					/*
-					 * Overrun is special, since it's
-					 * reported immediately, and doesn't
-					 * affect the current character
-					 */
-					if (tty->flip.count < TTY_FLIPBUF_SIZE) {
-						tty->flip.count++;
-						tty->flip.flag_buf_ptr++;
-						tty->flip.char_buf_ptr++;
-						*tty->flip.flag_buf_ptr =
-								TTY_OVERRUN;
-					}
-				}
+					flag = TTY_FRAME;
 			}
-			if (tty->flip.count >= TTY_FLIPBUF_SIZE)
-				break;
-
-			tty->flip.flag_buf_ptr++;
-			tty->flip.char_buf_ptr++;
-			tty->flip.count++;
+			tty_insert_flip_char(tty, ch, flag);
+			if (status & BD_SC_OV)
+				/*
+				 * Overrun is special, since it's
+				 * reported immediately, and doesn't
+				 * affect the current character
+				 */
+				tty_insert_flip_char(tty, 0, TTY_OVERRUN);
 		}
 
 		/* This BD is ready to be used again.  Clear status.
@@ -530,7 +509,7 @@ static _INLINE_ void receive_chars(ser_info_t *info)
 
 	info->rx_cur = (QUICC_BD *)bdp;
 
-	schedule_work(&tty->flip.work);
+	tty_schedule_flip(tty);
 }
 
 static _INLINE_ void receive_break(ser_info_t *info)
@@ -541,13 +520,8 @@ static _INLINE_ void receive_break(ser_info_t *info)
 	/* Check to see if there is room in the tty buffer for
 	 * the break.  If not, we exit now, losing the break.  FIXME
 	 */
-	if ((tty->flip.count + 1) >= TTY_FLIPBUF_SIZE)
-		return;
-	*(tty->flip.flag_buf_ptr++) = TTY_BREAK;
-	*(tty->flip.char_buf_ptr++) = 0;
-	tty->flip.count++;
-
-	schedule_work(&tty->flip.work);
+	tty_insert_flip_char(tty, 0, TTY_BREAK);
+	tty_schedule_flip(tty);
 }
 
 static _INLINE_ void transmit_chars(ser_info_t *info)
@@ -1394,14 +1368,13 @@ static void end_break(ser_info_t *info)
 /*
  * This routine sends a break character out the serial port.
  */
-static void send_break(ser_info_t *info, int duration)
+static void send_break(ser_info_t *info, unsigned int duration)
 {
-	set_current_state(TASK_INTERRUPTIBLE);
 #ifdef SERIAL_DEBUG_SEND_BREAK
 	printk("rs_send_break(%d) jiff=%lu...", duration, jiffies);
 #endif
 	begin_break(info);
-	schedule_timeout(duration);
+	msleep_interruptible(duration);
 	end_break(info);
 #ifdef SERIAL_DEBUG_SEND_BREAK
 	printk("done jiffies=%lu\n", jiffies);
@@ -1436,7 +1409,7 @@ static int rs_360_ioctl(struct tty_struct *tty, struct file * file,
 			if (signal_pending(current))
 				return -EINTR;
 			if (!arg) {
-				send_break(info, HZ/4);	/* 1/4 second */
+				send_break(info, 250);	/* 1/4 second */
 				if (signal_pending(current))
 					return -EINTR;
 			}
@@ -1448,7 +1421,7 @@ static int rs_360_ioctl(struct tty_struct *tty, struct file * file,
 			tty_wait_until_sent(tty, 0);
 			if (signal_pending(current))
 				return -EINTR;
-			send_break(info, arg ? arg*(HZ/10) : HZ/4);
+			send_break(info, arg ? arg*100 : 250);
 			if (signal_pending(current))
 				return -EINTR;
 			return 0;
@@ -2475,8 +2448,7 @@ static struct tty_operations rs_360_ops = {
 	.tiocmset = rs_360_tiocmset,
 };
 
-/* int __init rs_360_init(void) */
-int rs_360_init(void)
+static int __init rs_360_init(void)
 {
 	struct serial_state * state;
 	ser_info_t	*info;
@@ -2828,10 +2800,7 @@ int rs_360_init(void)
 
 	return 0;
 }
-
-
-
-
+module_init(rs_360_init);
 
 /* This must always be called before the rs_360_init() function, otherwise
  * it blows away the port control information.

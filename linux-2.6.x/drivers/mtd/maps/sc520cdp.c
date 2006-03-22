@@ -164,7 +164,7 @@ struct sc520_par_table
 	unsigned long default_address;
 };
 
-static struct sc520_par_table par_table[NUM_FLASH_BANKS] =
+static const struct sc520_par_table par_table[NUM_FLASH_BANKS] =
 {
 	{	/* Flash Bank #0: selected by ROMCS0 */
 		SC520_PAR_ROMCS0,
@@ -231,7 +231,7 @@ static void sc520cdp_setup_par(void)
 static int __init init_sc520cdp(void)
 {
 	int i, devices_found = 0;
-	
+
 #ifdef REPROGRAM_PAR
 	/* reprogram PAR registers so flash appears at the desired addresses */
 	sc520cdp_setup_par();
@@ -278,7 +278,7 @@ static int __init init_sc520cdp(void)
 static void __exit cleanup_sc520cdp(void)
 {
 	int i;
-	
+
 	if (merged_mtd) {
 		del_mtd_device(merged_mtd);
 		mtd_concat_destroy(merged_mtd);

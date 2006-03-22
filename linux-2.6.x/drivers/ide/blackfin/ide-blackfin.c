@@ -5,8 +5,8 @@
  *
  * created: 10/2005
  * description: Blackfin generic IDE interface
- *	
- * rev: 
+ *
+ * rev:
  *
  * modified:
  *

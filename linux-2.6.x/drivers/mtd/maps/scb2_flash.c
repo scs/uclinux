@@ -238,7 +238,7 @@ static struct pci_driver scb2_flash_driver = {
 static int __init
 scb2_flash_init(void)
 {
-	return pci_module_init(&scb2_flash_driver);
+	return pci_register_driver(&scb2_flash_driver);
 }
 
 static void __exit

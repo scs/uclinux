@@ -1290,7 +1290,7 @@ static void aic7xxx_check_scbs(struct aic7xxx_host *p, char *buffer);
  *
  ***************************************************************************/
 
-static inline unsigned char
+static unsigned char
 aic_inb(struct aic7xxx_host *p, long port)
 {
 #ifdef MMAPIO
@@ -1309,7 +1309,7 @@ aic_inb(struct aic7xxx_host *p, long port)
 #endif
 }
 
-static inline void
+static void
 aic_outb(struct aic7xxx_host *p, unsigned char val, long port)
 {
 #ifdef MMAPIO
@@ -6514,7 +6514,7 @@ do_aic7xxx_isr(int irq, void *dev_id, struct pt_regs *regs)
 static void
 aic7xxx_init_transinfo(struct aic7xxx_host *p, struct aic_dev_data *aic_dev)
 {
-  Scsi_Device *sdpnt = aic_dev->SDptr;
+  struct scsi_device *sdpnt = aic_dev->SDptr;
   unsigned char tindex;
 
   tindex = sdpnt->id | (sdpnt->channel << 3);
@@ -6581,7 +6581,7 @@ aic7xxx_init_transinfo(struct aic7xxx_host *p, struct aic_dev_data *aic_dev)
  *   Set up the initial aic_dev struct pointers
  *-F*************************************************************************/
 static int
-aic7xxx_slave_alloc(Scsi_Device *SDptr)
+aic7xxx_slave_alloc(struct scsi_device *SDptr)
 {
   struct aic7xxx_host *p = (struct aic7xxx_host *)SDptr->host->hostdata;
   struct aic_dev_data *aic_dev;
@@ -6644,7 +6644,7 @@ aic7xxx_slave_alloc(Scsi_Device *SDptr)
  *   queueing to be [en|dis]abled for a specific adapter.
  *-F*************************************************************************/
 static void
-aic7xxx_device_queue_depth(struct aic7xxx_host *p, Scsi_Device *device)
+aic7xxx_device_queue_depth(struct aic7xxx_host *p, struct scsi_device *device)
 {
   int tag_enabled = FALSE;
   struct aic_dev_data *aic_dev = device->hostdata;
@@ -6734,7 +6734,7 @@ aic7xxx_device_queue_depth(struct aic7xxx_host *p, Scsi_Device *device)
  *   prepare for this device to go away
  *-F*************************************************************************/
 static void
-aic7xxx_slave_destroy(Scsi_Device *SDptr)
+aic7xxx_slave_destroy(struct scsi_device *SDptr)
 {
   struct aic_dev_data *aic_dev = SDptr->hostdata;
 
@@ -6754,7 +6754,7 @@ aic7xxx_slave_destroy(Scsi_Device *SDptr)
  *   depths, allocate command structs, etc.
  *-F*************************************************************************/
 static int
-aic7xxx_slave_configure(Scsi_Device *SDptr)
+aic7xxx_slave_configure(struct scsi_device *SDptr)
 {
   struct aic7xxx_host *p = (struct aic7xxx_host *) SDptr->host->hostdata;
   struct aic_dev_data *aic_dev;
@@ -7865,7 +7865,7 @@ detect_maxscb(struct aic7xxx_host *p)
  *   Register a Adaptec aic7xxx chip SCSI controller with the kernel.
  *-F*************************************************************************/
 static int
-aic7xxx_register(Scsi_Host_Template *template, struct aic7xxx_host *p,
+aic7xxx_register(struct scsi_host_template *template, struct aic7xxx_host *p,
   int reset_delay)
 {
   int i, result;
@@ -8412,7 +8412,7 @@ aic7xxx_chip_reset(struct aic7xxx_host *p)
  *   and a pointer to a aic7xxx_host struct upon success.
  *-F*************************************************************************/
 static struct aic7xxx_host *
-aic7xxx_alloc(Scsi_Host_Template *sht, struct aic7xxx_host *temp)
+aic7xxx_alloc(struct scsi_host_template *sht, struct aic7xxx_host *temp)
 {
   struct aic7xxx_host *p = NULL;
   struct Scsi_Host *host;
@@ -8448,7 +8448,6 @@ aic7xxx_alloc(Scsi_Host_Template *sht, struct aic7xxx_host *temp)
     }
     p->host_no = host->host_no;
   }
-  scsi_set_device(host, &p->pdev->dev);
   return (p);
 }
 
@@ -8493,8 +8492,7 @@ aic7xxx_free(struct aic7xxx_host *p)
                                      - scb_dma->dma_offset),
 			    scb_dma->dma_address);
       }
-      if (p->scb_data->scb_array[i]->kmalloc_ptr != NULL)
-        kfree(p->scb_data->scb_array[i]->kmalloc_ptr);
+      kfree(p->scb_data->scb_array[i]->kmalloc_ptr);
       p->scb_data->scb_array[i] = NULL;
     }
   
@@ -8993,7 +8991,7 @@ aic7xxx_configure_bugs(struct aic7xxx_host *p)
  *       mid-level SCSI code is overhauled.
  *-F*************************************************************************/
 static int
-aic7xxx_detect(Scsi_Host_Template *template)
+aic7xxx_detect(struct scsi_host_template *template)
 {
   struct aic7xxx_host *temp_p = NULL;
   struct aic7xxx_host *current_p = NULL;
@@ -10358,7 +10356,7 @@ aic7xxx_queue(Scsi_Cmnd *cmd, void (*fn)(Scsi_Cmnd *))
  *   Returns an enumerated type that indicates the status of the operation.
  *-F*************************************************************************/
 static int
-aic7xxx_bus_device_reset(Scsi_Cmnd *cmd)
+__aic7xxx_bus_device_reset(Scsi_Cmnd *cmd)
 {
   struct aic7xxx_host  *p;
   struct aic7xxx_scb   *scb;
@@ -10551,6 +10549,18 @@ aic7xxx_bus_device_reset(Scsi_Cmnd *cmd)
     return SUCCESS;
 }
 
+static int
+aic7xxx_bus_device_reset(Scsi_Cmnd *cmd)
+{
+      int rc;
+
+      spin_lock_irq(cmd->device->host->host_lock);
+      rc = __aic7xxx_bus_device_reset(cmd);
+      spin_unlock_irq(cmd->device->host->host_lock);
+
+      return rc;
+}
+
 
 /*+F*************************************************************************
  * Function:
@@ -10585,7 +10595,7 @@ aic7xxx_panic_abort(struct aic7xxx_host *p, Scsi_Cmnd *cmd)
  *   Abort the current SCSI command(s).
  *-F*************************************************************************/
 static int
-aic7xxx_abort(Scsi_Cmnd *cmd)
+__aic7xxx_abort(Scsi_Cmnd *cmd)
 {
   struct aic7xxx_scb  *scb = NULL;
   struct aic7xxx_host *p;
@@ -10802,6 +10812,19 @@ success:
   return SUCCESS;
 }
 
+static int
+aic7xxx_abort(Scsi_Cmnd *cmd)
+{
+	int rc;
+
+	spin_lock_irq(cmd->device->host->host_lock);
+	rc = __aic7xxx_abort(cmd);
+	spin_unlock_irq(cmd->device->host->host_lock);
+
+	return rc;
+}
+
+
 /*+F*************************************************************************
  * Function:
  *   aic7xxx_reset
@@ -10820,6 +10843,8 @@ aic7xxx_reset(Scsi_Cmnd *cmd)
   struct aic_dev_data *aic_dev;
 
   p = (struct aic7xxx_host *) cmd->device->host->hostdata;
+  spin_lock_irq(p->host->host_lock);
+
   aic_dev = AIC_DEV(cmd);
   if(aic7xxx_position(cmd) < p->scb_data->numscbs)
   {
@@ -10859,6 +10884,7 @@ aic7xxx_reset(Scsi_Cmnd *cmd)
      * longer have it.
      */
     unpause_sequencer(p, FALSE);
+    spin_unlock_irq(p->host->host_lock);
     return SUCCESS;
   }
     
@@ -10882,7 +10908,6 @@ aic7xxx_reset(Scsi_Cmnd *cmd)
   unpause_sequencer(p, FALSE);
   spin_unlock_irq(p->host->host_lock);
   ssleep(2);
-  spin_lock_irq(p->host->host_lock);
   return SUCCESS;
 }
 
@@ -11136,7 +11161,7 @@ MODULE_LICENSE("Dual BSD/GPL");
 MODULE_VERSION(AIC7XXX_H_VERSION);
 
 
-static Scsi_Host_Template driver_template = {
+static struct scsi_host_template driver_template = {
 	.proc_info		= aic7xxx_proc_info,
 	.detect			= aic7xxx_detect,
 	.release		= aic7xxx_release,

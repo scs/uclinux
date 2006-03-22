@@ -41,12 +41,17 @@
 
 #define USB_PENCAM_VENDOR_ID	0x0553
 #define USB_PENCAM_PRODUCT_ID	0x0202
+
+#define USB_CREATIVEGOMINI_VENDOR_ID	0x041e
+#define USB_CREATIVEGOMINI_PRODUCT_ID	0x4007
+
 #define PENCAM_TIMEOUT          1000
 /* fmt 4 */
 #define STV_VIDEO_PALETTE       VIDEO_PALETTE_RGB24
 
 static struct usb_device_id device_table[] = {
 	{USB_DEVICE (USB_PENCAM_VENDOR_ID, USB_PENCAM_PRODUCT_ID)},
+	{USB_DEVICE (USB_CREATIVEGOMINI_VENDOR_ID, USB_CREATIVEGOMINI_PRODUCT_ID)},
 	{}
 };
 MODULE_DEVICE_TABLE (usb, device_table);
@@ -146,7 +151,7 @@ struct usb_stv {
 };
 
 
-static unsigned char red[256] = { 
+static const unsigned char red[256] = {
 	0, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 
 	18, 18, 18, 18, 18, 18, 18, 25, 30, 35, 38, 42, 
 	44, 47, 50, 53, 54, 57, 59, 61, 63, 65, 67, 69, 
@@ -171,7 +176,7 @@ static unsigned char red[256] = {
 	220, 220, 221, 221 
 }; 
 
-static unsigned char green[256] = {
+static const unsigned char green[256] = {
 	0, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 
 	21, 21, 21, 21, 21, 21, 21, 28, 34, 39, 43, 47, 
 	50, 53, 56, 59, 61, 64, 66, 68, 71, 73, 75, 77, 
@@ -196,7 +201,7 @@ static unsigned char green[256] = {
 	245, 245, 246, 246 
 }; 
 
-static unsigned char blue[256] = {
+static const unsigned char blue[256] = {
 	0, 23, 23, 23, 23, 23, 23, 23, 23, 23, 23, 23, 
 	23, 23, 23, 23, 23, 23, 23, 30, 37, 42, 47, 51, 
 	55, 58, 61, 64, 67, 70, 72, 74, 78, 80, 82, 84, 

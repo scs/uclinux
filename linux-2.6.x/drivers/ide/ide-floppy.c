@@ -317,7 +317,7 @@ typedef struct ide_floppy_obj {
 	unsigned long flags;
 } idefloppy_floppy_t;
 
-#define IDEFLOPPY_TICKS_DELAY	3	/* default delay for ZIP 100 */
+#define IDEFLOPPY_TICKS_DELAY	HZ/20	/* default delay for ZIP 100 (50ms) */
 
 /*
  *	Floppy flag bits values.
@@ -661,10 +661,12 @@ static void idefloppy_output_buffers (ide_drive_t *drive, idefloppy_pc_t *pc, un
 
 	idefloppy_do_end_request(drive, 1, done >> 9);
 
+#if IDEFLOPPY_DEBUG_BUGS
 	if (bcount) {
 		printk(KERN_ERR "%s: leftover data in idefloppy_output_buffers, bcount == %d\n", drive->name, bcount);
 		idefloppy_write_zeros(drive, bcount);
 	}
+#endif
 }
 
 static void idefloppy_update_buffers (ide_drive_t *drive, idefloppy_pc_t *pc)
@@ -1048,6 +1050,9 @@ static ide_startstop_t idefloppy_issue_pc (ide_drive_t *drive, idefloppy_pc_t *p
 	atapi_bcount_t bcount;
 	ide_handler_t *pkt_xfer_routine;
 
+#if 0 /* Accessing floppy->pc is not valid here, the previous pc may be gone
+         and have lived on another thread's stack; that stack may have become
+         unmapped meanwhile (CONFIG_DEBUG_PAGEALLOC). */
 #if IDEFLOPPY_DEBUG_BUGS
 	if (floppy->pc->c[0] == IDEFLOPPY_REQUEST_SENSE_CMD &&
 	    pc->c[0] == IDEFLOPPY_REQUEST_SENSE_CMD) {
@@ -1055,6 +1060,7 @@ static ide_startstop_t idefloppy_issue_pc (ide_drive_t *drive, idefloppy_pc_t *p
 			"Two request sense in serial were issued\n");
 	}
 #endif /* IDEFLOPPY_DEBUG_BUGS */
+#endif
 
 	if (floppy->failed_pc == NULL &&
 	    pc->c[0] != IDEFLOPPY_REQUEST_SENSE_CMD)
@@ -1865,9 +1871,8 @@ static void idefloppy_setup (ide_drive_t *drive, idefloppy_floppy_t *floppy)
 	idefloppy_add_settings(drive);
 }
 
-static int ide_floppy_remove(struct device *dev)
+static void ide_floppy_remove(ide_drive_t *drive)
 {
-	ide_drive_t *drive = to_ide_device(dev);
 	idefloppy_floppy_t *floppy = drive->driver_data;
 	struct gendisk *g = floppy->disk;
 
@@ -1876,8 +1881,6 @@ static int ide_floppy_remove(struct device *dev)
 	del_gendisk(g);
 
 	ide_floppy_put(floppy);
-
-	return 0;
 }
 
 static void ide_floppy_release(struct kref *kref)
@@ -1916,16 +1919,16 @@ static ide_proc_entry_t idefloppy_proc[] = {
 
 #endif	/* CONFIG_PROC_FS */
 
-static int ide_floppy_probe(struct device *);
+static int ide_floppy_probe(ide_drive_t *);
 
 static ide_driver_t idefloppy_driver = {
-	.owner			= THIS_MODULE,
 	.gen_driver = {
+		.owner		= THIS_MODULE,
 		.name		= "ide-floppy",
 		.bus		= &ide_bus_type,
-		.probe		= ide_floppy_probe,
-		.remove		= ide_floppy_remove,
 	},
+	.probe			= ide_floppy_probe,
+	.remove			= ide_floppy_remove,
 	.version		= IDEFLOPPY_VERSION,
 	.media			= ide_floppy,
 	.supports_dsc_overlap	= 0,
@@ -2025,6 +2028,17 @@ static int idefloppy_release(struct inode *inode, struct file *filp)
 	return 0;
 }
 
+static int idefloppy_getgeo(struct block_device *bdev, struct hd_geometry *geo)
+{
+	struct ide_floppy_obj *floppy = ide_floppy_g(bdev->bd_disk);
+	ide_drive_t *drive = floppy->drive;
+
+	geo->heads = drive->bios_head;
+	geo->sectors = drive->bios_sect;
+	geo->cylinders = (u16)drive->bios_cyl; /* truncate */
+	return 0;
+}
+
 static int idefloppy_ioctl(struct inode *inode, struct file *file,
 			unsigned int cmd, unsigned long arg)
 {
@@ -2032,11 +2046,9 @@ static int idefloppy_ioctl(struct inode *inode, struct file *file,
 	struct ide_floppy_obj *floppy = ide_floppy_g(bdev->bd_disk);
 	ide_drive_t *drive = floppy->drive;
 	void __user *argp = (void __user *)arg;
-	int err = generic_ide_ioctl(drive, file, bdev, cmd, arg);
+	int err;
 	int prevent = (arg) ? 1 : 0;
 	idefloppy_pc_t pc;
-	if (err != -EINVAL)
-		return err;
 
 	switch (cmd) {
 	case CDROMEJECT:
@@ -2088,7 +2100,7 @@ static int idefloppy_ioctl(struct inode *inode, struct file *file,
 	case IDEFLOPPY_IOCTL_FORMAT_GET_PROGRESS:
 		return idefloppy_get_format_progress(drive, argp);
 	}
- 	return -EINVAL;
+	return generic_ide_ioctl(drive, file, bdev, cmd, arg);
 }
 
 static int idefloppy_media_changed(struct gendisk *disk)
@@ -2116,13 +2128,13 @@ static struct block_device_operations idefloppy_ops = {
 	.open		= idefloppy_open,
 	.release	= idefloppy_release,
 	.ioctl		= idefloppy_ioctl,
+	.getgeo		= idefloppy_getgeo,
 	.media_changed	= idefloppy_media_changed,
 	.revalidate_disk= idefloppy_revalidate_disk
 };
 
-static int ide_floppy_probe(struct device *dev)
+static int ide_floppy_probe(ide_drive_t *drive)
 {
-	ide_drive_t *drive = to_ide_device(dev);
 	idefloppy_floppy_t *floppy;
 	struct gendisk *g;
 
@@ -2140,7 +2152,7 @@ static int ide_floppy_probe(struct device *dev)
 		printk("ide-floppy: passing drive %s to ide-scsi emulation.\n", drive->name);
 		goto failed;
 	}
-	if ((floppy = (idefloppy_floppy_t *) kmalloc (sizeof (idefloppy_floppy_t), GFP_KERNEL)) == NULL) {
+	if ((floppy = (idefloppy_floppy_t *) kzalloc (sizeof (idefloppy_floppy_t), GFP_KERNEL)) == NULL) {
 		printk (KERN_ERR "ide-floppy: %s: Can't allocate a floppy structure\n", drive->name);
 		goto failed;
 	}
@@ -2152,8 +2164,6 @@ static int ide_floppy_probe(struct device *dev)
 	ide_init_disk(g, drive);
 
 	ide_register_subdriver(drive, &idefloppy_driver);
-
-	memset(floppy, 0, sizeof(*floppy));
 
 	kref_init(&floppy->kref);
 
@@ -2189,15 +2199,13 @@ static void __exit idefloppy_exit (void)
 	driver_unregister(&idefloppy_driver.gen_driver);
 }
 
-/*
- *	idefloppy_init will register the driver for each floppy.
- */
-static int idefloppy_init (void)
+static int __init idefloppy_init(void)
 {
 	printk("ide-floppy driver " IDEFLOPPY_VERSION "\n");
 	return driver_register(&idefloppy_driver.gen_driver);
 }
 
+MODULE_ALIAS("ide:*m-floppy*");
 module_init(idefloppy_init);
 module_exit(idefloppy_exit);
 MODULE_LICENSE("GPL");

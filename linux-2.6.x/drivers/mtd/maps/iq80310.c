@@ -5,7 +5,7 @@
  *
  * Author:	Nicolas Pitre
  * Copyright:	(C) 2001 MontaVista Software Inc.
- * 
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
@@ -103,8 +103,7 @@ static void __exit cleanup_iq80310(void)
 	if (mymtd) {
 		del_mtd_partitions(mymtd);
 		map_destroy(mymtd);
-		if (parsed_parts)
-			kfree(parsed_parts);
+		kfree(parsed_parts);
 	}
 	if (iq80310_map.virt)
 		iounmap((void *)iq80310_map.virt);

@@ -5,7 +5,7 @@
  *  Based on code written by:
  *           Sven Luther, <luther@dpt-info.u-strasbg.fr>
  *           Alan Hourihane, <alanh@fairlite.demon.co.uk>
- *           Russel King, <rmk@arm.linux.org.uk>
+ *           Russell King, <rmk@arm.linux.org.uk>
  *  Based on linux/drivers/video/skeletonfb.c:
  *	Copyright (C) 1997 Geert Uytterhoeven
  *  Based on linux/driver/video/pm2fb.c:
@@ -67,6 +67,7 @@
 #include <linux/init.h>
 #include <linux/pci.h>
 #include <linux/ioport.h>
+#include <linux/ctype.h>
 
 #include <video/fbcon.h>
 #include <video/fbcon-mfb.h>
@@ -656,9 +657,7 @@ static void pm3fb_set_disp(const void *par, struct display *disp,
 static void pm3fb_detect(void);
 static int pm3fb_pan_display(const struct fb_var_screeninfo *var,
 			     struct fb_info_gen *info);
-static int pm3fb_ioctl(struct inode *inode, struct file *file,
-                       u_int cmd, u_long arg, int con,
-		       struct fb_info *info);
+static int pm3fb_ioctl(struct fb_info *info, u_int cmd, u_long arg);
 
 
 /* the struct that hold them together */
@@ -2594,7 +2593,7 @@ static char *pm3fb_boardnum_setup(char *options, unsigned long *bn)
 {
 	char *next;
 
-	if (!(CHAR_IS_NUM(options[0]))) {
+	if (!(isdigit(options[0]))) {
 		(*bn) = 0;
 		return (options);
 	}
@@ -3437,9 +3436,7 @@ static int pm3fb_pan_display(const struct fb_var_screeninfo *var,
 	return 0;
 }
 
-static int pm3fb_ioctl(struct inode *inode, struct file *file,
-                       u_int cmd, u_long arg, int con,
-		       struct fb_info *info)
+static int pm3fb_ioctl(struct fb_info *info, u_int cmd, u_long arg)
 {
 	struct pm3fb_info *l_fb_info = (struct pm3fb_info *) info;
 	u32 cm, i;

@@ -395,15 +395,13 @@ struct IN2000_hostdata {
 # define CLISPIN_UNLOCK(host,flags) spin_unlock_irqrestore(host->host_lock, \
 							   flags)
 
-static int in2000_detect(Scsi_Host_Template *) in2000__INIT;
+static int in2000_detect(struct scsi_host_template *) in2000__INIT;
 static int in2000_queuecommand(Scsi_Cmnd *, void (*done)(Scsi_Cmnd *));
 static int in2000_abort(Scsi_Cmnd *);
 static void in2000_setup(char *, int *) in2000__INIT;
 static int in2000_biosparam(struct scsi_device *, struct block_device *,
 		sector_t, int *);
-static int in2000_host_reset(Scsi_Cmnd *);
 static int in2000_bus_reset(Scsi_Cmnd *);
-static int in2000_device_reset(Scsi_Cmnd *);
 
 
 #define IN2000_CAN_Q    16

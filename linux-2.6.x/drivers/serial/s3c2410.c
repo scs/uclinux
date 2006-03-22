@@ -63,7 +63,7 @@
 
 #include <linux/module.h>
 #include <linux/ioport.h>
-#include <linux/device.h>
+#include <linux/platform_device.h>
 #include <linux/init.h>
 #include <linux/sysrq.h>
 #include <linux/console.h>
@@ -72,17 +72,15 @@
 #include <linux/serial_core.h>
 #include <linux/serial.h>
 #include <linux/delay.h>
+#include <linux/clk.h>
 
 #include <asm/io.h>
 #include <asm/irq.h>
 
 #include <asm/hardware.h>
-#include <asm/hardware/clock.h>
 
 #include <asm/arch/regs-serial.h>
 #include <asm/arch/regs-gpio.h>
-
-#include <asm/mach-types.h>
 
 /* structures */
 
@@ -163,7 +161,11 @@ s3c24xx_serial_dbg(const char *fmt, ...)
 
 /* we can support 3 uarts, but not always use them */
 
+#ifdef CONFIG_CPU_S3C2400
+#define NR_PORTS (2)
+#else
 #define NR_PORTS (3)
+#endif
 
 /* port irq numbers */
 
@@ -198,7 +200,7 @@ static inline struct s3c24xx_uart_port *to_ourport(struct uart_port *port)
 
 /* translate a port to the device name */
 
-static inline char *s3c24xx_serial_portname(struct uart_port *port)
+static inline const char *s3c24xx_serial_portname(struct uart_port *port)
 {
 	return to_platform_device(port->dev)->name;
 }
@@ -246,8 +248,7 @@ static void s3c24xx_serial_rx_disable(struct uart_port *port)
 	spin_unlock_irqrestore(&port->lock, flags);
 }
 
-static void
-s3c24xx_serial_stop_tx(struct uart_port *port, unsigned int tty_stop)
+static void s3c24xx_serial_stop_tx(struct uart_port *port)
 {
 	if (tx_enabled(port)) {
 		disable_irq(TX_IRQ(port));
@@ -257,8 +258,7 @@ s3c24xx_serial_stop_tx(struct uart_port *port, unsigned int tty_stop)
 	}
 }
 
-static void
-s3c24xx_serial_start_tx(struct uart_port *port, unsigned int tty_start)
+static void s3c24xx_serial_start_tx(struct uart_port *port)
 {
 	if (!tx_enabled(port)) {
 		if (port->flags & UPF_CONS_FLOW)
@@ -326,16 +326,6 @@ s3c24xx_serial_rx_chars(int irq, void *dev_id, struct pt_regs *regs)
 
 		if (s3c24xx_serial_rx_fifocnt(ourport, ufstat) == 0)
 			break;
-
-		if (tty->flip.count >= TTY_FLIPBUF_SIZE) {
-			if (tty->low_latency)
-				tty_flip_buffer_push(tty);
-
-			/*
-			 * If this failed then we will throw away the
-			 * bytes but must do so to clear interrupts
-			 */
-		}
 
 		uerstat = rd_regl(port, S3C2410_UERSTAT);
 		ch = rd_regb(port, S3C2410_URXH);
@@ -424,7 +414,7 @@ static irqreturn_t s3c24xx_serial_tx_chars(int irq, void *id, struct pt_regs *re
 	*/
 
 	if (uart_circ_empty(xmit) || uart_tx_stopped(port)) {
-		s3c24xx_serial_stop_tx(port, 0);
+		s3c24xx_serial_stop_tx(port);
 		goto out;
 	}
 
@@ -443,7 +433,7 @@ static irqreturn_t s3c24xx_serial_tx_chars(int irq, void *id, struct pt_regs *re
 		uart_write_wakeup(port);
 
 	if (uart_circ_empty(xmit))
-		s3c24xx_serial_stop_tx(port, 0);
+		s3c24xx_serial_stop_tx(port);
 
  out:
 	return IRQ_HANDLED;
@@ -522,13 +512,10 @@ static void s3c24xx_serial_shutdown(struct uart_port *port)
 static int s3c24xx_serial_startup(struct uart_port *port)
 {
 	struct s3c24xx_uart_port *ourport = to_ourport(port);
-	unsigned long flags;
 	int ret;
 
 	dbg("s3c24xx_serial_startup: port=%p (%08lx,%p)\n",
 	    port->mapbase, port->membase);
-
-	local_irq_save(flags);
 
 	rx_enabled(port) = 1;
 
@@ -563,12 +550,10 @@ static int s3c24xx_serial_startup(struct uart_port *port)
 	/* the port reset code should have done the correct
 	 * register setup for the port controls */
 
-	local_irq_restore(flags);
 	return ret;
 
  err:
 	s3c24xx_serial_shutdown(port);
-	local_irq_restore(flags);
 	return ret;
 }
 
@@ -760,8 +745,8 @@ static void s3c24xx_serial_set_termios(struct uart_port *port,
 {
 	struct s3c2410_uartcfg *cfg = s3c24xx_port_to_cfg(port);
 	struct s3c24xx_uart_port *ourport = to_ourport(port);
-	struct s3c24xx_uart_clksrc *clksrc;
-	struct clk *clk;
+	struct s3c24xx_uart_clksrc *clksrc = NULL;
+	struct clk *clk = NULL;
 	unsigned long flags;
 	unsigned int baud, quot;
 	unsigned int ulcon;
@@ -791,11 +776,9 @@ static void s3c24xx_serial_set_termios(struct uart_port *port,
 
 		if (ourport->baudclk != NULL && !IS_ERR(ourport->baudclk)) {
 			clk_disable(ourport->baudclk);
-			clk_unuse(ourport->baudclk);
 			ourport->baudclk  = NULL;
 		}
 
-		clk_use(clk);
 		clk_enable(clk);
 
 		ourport->clksrc = clksrc;
@@ -903,7 +886,7 @@ static void s3c24xx_serial_release_port(struct uart_port *port)
 
 static int s3c24xx_serial_request_port(struct uart_port *port)
 {
-	char *name = s3c24xx_serial_portname(port);
+	const char *name = s3c24xx_serial_portname(port);
 	return request_mem_region(port->mapbase, MAP_SIZE, name) ? 0 : -EBUSY;
 }
 
@@ -1081,13 +1064,10 @@ static int s3c24xx_serial_init_port(struct s3c24xx_uart_port *ourport,
 	dbg("resource %p (%lx..%lx)\n", res, res->start, res->end);
 
 	port->mapbase	= res->start;
-	port->membase	= S3C24XX_VA_UART + (res->start - S3C2410_PA_UART);
+	port->membase	= S3C24XX_VA_UART + (res->start - S3C24XX_PA_UART);
 	port->irq	= platform_get_irq(platdev, 0);
 
 	ourport->clk	= clk_get(&platdev->dev, "uart");
-
-	if (ourport->clk != NULL && !IS_ERR(ourport->clk))
-		clk_use(ourport->clk);
 
 	dbg("port: map=%08x, mem=%08x, irq=%d, clock=%ld\n",
 	    port->mapbase, port->membase, port->irq, port->uartclk);
@@ -1101,14 +1081,13 @@ static int s3c24xx_serial_init_port(struct s3c24xx_uart_port *ourport,
 
 static int probe_index = 0;
 
-int s3c24xx_serial_probe(struct device *_dev,
-			 struct s3c24xx_uart_info *info)
+static int s3c24xx_serial_probe(struct platform_device *dev,
+				struct s3c24xx_uart_info *info)
 {
 	struct s3c24xx_uart_port *ourport;
-	struct platform_device *dev = to_platform_device(_dev);
 	int ret;
 
-	dbg("s3c24xx_serial_probe(%p, %p) %d\n", _dev, info, probe_index);
+	dbg("s3c24xx_serial_probe(%p, %p) %d\n", dev, info, probe_index);
 
 	ourport = &s3c24xx_serial_ports[probe_index];
 	probe_index++;
@@ -1121,7 +1100,7 @@ int s3c24xx_serial_probe(struct device *_dev,
 
 	dbg("%s: adding port\n", __FUNCTION__);
 	uart_add_one_port(&s3c24xx_uart_drv, &ourport->port);
-	dev_set_drvdata(_dev, &ourport->port);
+	platform_set_drvdata(dev, &ourport->port);
 
 	return 0;
 
@@ -1129,9 +1108,9 @@ int s3c24xx_serial_probe(struct device *_dev,
 	return ret;
 }
 
-int s3c24xx_serial_remove(struct device *_dev)
+static int s3c24xx_serial_remove(struct platform_device *dev)
 {
-	struct uart_port *port = s3c24xx_dev_to_port(_dev);
+	struct uart_port *port = s3c24xx_dev_to_port(&dev->dev);
 
 	if (port)
 		uart_remove_one_port(&s3c24xx_uart_drv, port);
@@ -1143,22 +1122,22 @@ int s3c24xx_serial_remove(struct device *_dev)
 
 #ifdef CONFIG_PM
 
-int s3c24xx_serial_suspend(struct device *dev, pm_message_t state, u32 level)
+static int s3c24xx_serial_suspend(struct platform_device *dev, pm_message_t state)
 {
-	struct uart_port *port = s3c24xx_dev_to_port(dev);
+	struct uart_port *port = s3c24xx_dev_to_port(&dev->dev);
 
-	if (port && level == SUSPEND_DISABLE)
+	if (port)
 		uart_suspend_port(&s3c24xx_uart_drv, port);
 
 	return 0;
 }
 
-int s3c24xx_serial_resume(struct device *dev, u32 level)
+static int s3c24xx_serial_resume(struct platform_device *dev)
 {
-	struct uart_port *port = s3c24xx_dev_to_port(dev);
+	struct uart_port *port = s3c24xx_dev_to_port(&dev->dev);
 	struct s3c24xx_uart_port *ourport = to_ourport(port);
 
-	if (port && level == RESUME_ENABLE) {
+	if (port) {
 		clk_enable(ourport->clk);
 		s3c24xx_serial_resetport(port, s3c24xx_port_to_cfg(port));
 		clk_disable(ourport->clk);
@@ -1174,11 +1153,11 @@ int s3c24xx_serial_resume(struct device *dev, u32 level)
 #define s3c24xx_serial_resume  NULL
 #endif
 
-int s3c24xx_serial_init(struct device_driver *drv,
-			struct s3c24xx_uart_info *info)
+static int s3c24xx_serial_init(struct platform_driver *drv,
+			       struct s3c24xx_uart_info *info)
 {
 	dbg("s3c24xx_serial_init(%p,%p)\n", drv, info);
-	return driver_register(drv);
+	return platform_driver_register(drv);
 }
 
 
@@ -1237,18 +1216,20 @@ static struct s3c24xx_uart_info s3c2400_uart_inf = {
 	.reset_port	= s3c2400_serial_resetport,
 };
 
-static int s3c2400_serial_probe(struct device *dev)
+static int s3c2400_serial_probe(struct platform_device *dev)
 {
 	return s3c24xx_serial_probe(dev, &s3c2400_uart_inf);
 }
 
-static struct device_driver s3c2400_serial_drv = {
-	.name		= "s3c2400-uart",
-	.bus		= &platform_bus_type,
+static struct platform_driver s3c2400_serial_drv = {
 	.probe		= s3c2400_serial_probe,
 	.remove		= s3c24xx_serial_remove,
 	.suspend	= s3c24xx_serial_suspend,
 	.resume		= s3c24xx_serial_resume,
+	.driver		= {
+		.name	= "s3c2400-uart",
+		.owner	= THIS_MODULE,
+	},
 };
 
 static inline int s3c2400_serial_init(void)
@@ -1258,7 +1239,7 @@ static inline int s3c2400_serial_init(void)
 
 static inline void s3c2400_serial_exit(void)
 {
-	driver_unregister(&s3c2400_serial_drv);
+	platform_driver_unregister(&s3c2400_serial_drv);
 }
 
 #define s3c2400_uart_inf_at &s3c2400_uart_inf
@@ -1340,18 +1321,20 @@ static struct s3c24xx_uart_info s3c2410_uart_inf = {
 
 /* device management */
 
-static int s3c2410_serial_probe(struct device *dev)
+static int s3c2410_serial_probe(struct platform_device *dev)
 {
 	return s3c24xx_serial_probe(dev, &s3c2410_uart_inf);
 }
 
-static struct device_driver s3c2410_serial_drv = {
-	.name		= "s3c2410-uart",
-	.bus		= &platform_bus_type,
+static struct platform_driver s3c2410_serial_drv = {
 	.probe		= s3c2410_serial_probe,
 	.remove		= s3c24xx_serial_remove,
 	.suspend	= s3c24xx_serial_suspend,
 	.resume		= s3c24xx_serial_resume,
+	.driver		= {
+		.name	= "s3c2410-uart",
+		.owner	= THIS_MODULE,
+	},
 };
 
 static inline int s3c2410_serial_init(void)
@@ -1361,7 +1344,7 @@ static inline int s3c2410_serial_init(void)
 
 static inline void s3c2410_serial_exit(void)
 {
-	driver_unregister(&s3c2410_serial_drv);
+	platform_driver_unregister(&s3c2410_serial_drv);
 }
 
 #define s3c2410_uart_inf_at &s3c2410_uart_inf
@@ -1500,19 +1483,21 @@ static struct s3c24xx_uart_info s3c2440_uart_inf = {
 
 /* device management */
 
-static int s3c2440_serial_probe(struct device *dev)
+static int s3c2440_serial_probe(struct platform_device *dev)
 {
 	dbg("s3c2440_serial_probe: dev=%p\n", dev);
 	return s3c24xx_serial_probe(dev, &s3c2440_uart_inf);
 }
 
-static struct device_driver s3c2440_serial_drv = {
-	.name		= "s3c2440-uart",
-	.bus		= &platform_bus_type,
+static struct platform_driver s3c2440_serial_drv = {
 	.probe		= s3c2440_serial_probe,
 	.remove		= s3c24xx_serial_remove,
 	.suspend	= s3c24xx_serial_suspend,
 	.resume		= s3c24xx_serial_resume,
+	.driver		= {
+		.name	= "s3c2440-uart",
+		.owner	= THIS_MODULE,
+	},
 };
 
 
@@ -1523,7 +1508,7 @@ static inline int s3c2440_serial_init(void)
 
 static inline void s3c2440_serial_exit(void)
 {
-	driver_unregister(&s3c2440_serial_drv);
+	platform_driver_unregister(&s3c2440_serial_drv);
 }
 
 #define s3c2440_uart_inf_at &s3c2440_uart_inf

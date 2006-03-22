@@ -50,8 +50,8 @@ spi_device_t spi_mtd_dev;
 #endif
 
 #define BAUD_RATE_DIVISOR 2
-#define SPI_READ            (0x03)  /* Read data from memory */
-#define SPI_RDSR            (0x05)  /* Read Status Register */
+#define SPI_COM_READ            (0x03)  /* Read data from memory */
+#define SPI_COM_RDSR            (0x05)  /* Read Status Register */
 
 static void spi_ready(void);
 static void spi_setup(void);
@@ -99,7 +99,7 @@ static void spi_read_data(unsigned long start, long count,int *pndata  )
 	local_irq_save(flags);
 	spi_enable(&spi_mtd_dev);
 	/* Send the read command to SPI device */
-	spi_send_data(SPI_READ);
+	spi_send_data(SPI_COM_READ);
 	spi_ready();
 	/* Send the highest byte of the 24 bit address at first */
 	shiftvalue = (start >> 16);

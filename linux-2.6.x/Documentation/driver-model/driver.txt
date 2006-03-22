@@ -5,21 +5,17 @@ struct device_driver {
         char                    * name;
         struct bus_type         * bus;
 
-        rwlock_t                lock;
-        atomic_t                refcount;
-
-        list_t                  bus_list;
+        struct completion	unloaded;
+        struct kobject		kobj;
         list_t                  devices;
 
-        struct driver_dir_entry dir;
+        struct module		*owner;
 
         int     (*probe)        (struct device * dev);
         int     (*remove)       (struct device * dev);
 
-        int     (*suspend)      (struct device * dev, pm_message_t state, u32 level);
-        int     (*resume)       (struct device * dev, u32 level);
-
-        void    (*release)      (struct device_driver * drv);
+        int     (*suspend)      (struct device * dev, pm_message_t state);
+        int     (*resume)       (struct device * dev);
 };
 
 
@@ -51,7 +47,6 @@ being converted completely to the new model.
 static struct device_driver eepro100_driver = {
        .name		= "eepro100",
        .bus		= &pci_bus_type,
-       .devclass	= &ethernet_devclass,	/* when it's implemented */
        
        .probe		= eepro100_probe,
        .remove		= eepro100_remove,
@@ -85,7 +80,6 @@ static struct pci_driver eepro100_driver = {
        .driver	       = {
 		.name		= "eepro100",
 		.bus		= &pci_bus_type,
-		.devclass	= &ethernet_devclass,	/* when it's implemented */
 		.probe		= eepro100_probe,
 		.remove		= eepro100_remove,
 		.suspend	= eepro100_suspend,
@@ -166,27 +160,32 @@ Callbacks
 
 	int	(*probe)	(struct device * dev);
 
-probe is called to verify the existence of a certain type of
-hardware. This is called during the driver binding process, after the
-bus has verified that the device ID of a device matches one of the
-device IDs supported by the driver. 
+The probe() entry is called in task context, with the bus's rwsem locked
+and the driver partially bound to the device.  Drivers commonly use
+container_of() to convert "dev" to a bus-specific type, both in probe()
+and other routines.  That type often provides device resource data, such
+as pci_dev.resource[] or platform_device.resources, which is used in
+addition to dev->platform_data to initialize the driver.
 
-This callback only verifies that there actually is supported hardware
-present. It may allocate a driver-specific structure, but it should
-not do any initialization of the hardware itself. The device-specific
-structure may be stored in the device's driver_data field. 
+This callback holds the driver-specific logic to bind the driver to a
+given device.  That includes verifying that the device is present, that
+it's a version the driver can handle, that driver data structures can
+be allocated and initialized, and that any hardware can be initialized.
+Drivers often store a pointer to their state with dev_set_drvdata().
+When the driver has successfully bound itself to that device, then probe()
+returns zero and the driver model code will finish its part of binding
+the driver to that device.
 
-	int	(*init)		(struct device * dev);
-
-init is called during the binding stage. It is called after probe has
-successfully returned and the device has been registered with its
-class. It is responsible for initializing the hardware.
+A driver's probe() may return a negative errno value to indicate that
+the driver did not bind to this device, in which case it should have
+released all reasources it allocated.
 
 	int 	(*remove)	(struct device * dev);
 
-remove is called to dissociate a driver with a device. This may be
+remove is called to unbind a driver from a device. This may be
 called if a device is physically removed from the system, if the
-driver module is being unloaded, or during a reboot sequence. 
+driver module is being unloaded, during a reboot sequence, or
+in other cases.
 
 It is up to the driver to determine if the device is present or
 not. It should free any resources allocated specifically for the
@@ -195,69 +194,13 @@ device; i.e. anything in the device's driver_data field.
 If the device is still present, it should quiesce the device and place
 it into a supported low-power state.
 
-	int	(*suspend)	(struct device * dev, pm_message_t state, u32 level);
+	int	(*suspend)	(struct device * dev, pm_message_t state);
 
-suspend is called to put the device in a low power state. There are
-several stages to successfully suspending a device, which is denoted in
-the @level parameter. Breaking the suspend transition into several
-stages affords the platform flexibility in performing device power
-management based on the requirements of the system and the
-user-defined policy.
+suspend is called to put the device in a low power state.
 
-SUSPEND_NOTIFY notifies the device that a suspend transition is about
-to happen. This happens on system power state transitions to verify
-that all devices can successfully suspend.
+	int	(*resume)	(struct device * dev);
 
-A driver may choose to fail on this call, which should cause the
-entire suspend transition to fail. A driver should fail only if it
-knows that the device will not be able to be resumed properly when the
-system wakes up again. It could also fail if it somehow determines it
-is in the middle of an operation too important to stop.
-
-SUSPEND_DISABLE tells the device to stop I/O transactions. When it
-stops transactions, or what it should do with unfinished transactions
-is a policy of the driver. After this call, the driver should not
-accept any other I/O requests.
-
-SUSPEND_SAVE_STATE tells the device to save the context of the
-hardware. This includes any bus-specific hardware state and
-device-specific hardware state. A pointer to this saved state can be
-stored in the device's saved_state field.
-
-SUSPEND_POWER_DOWN tells the driver to place the device in the low
-power state requested. 
-
-Whether suspend is called with a given level is a policy of the
-platform. Some levels may be omitted; drivers must not assume the
-reception of any level. However, all levels must be called in the
-order above; i.e. notification will always come before disabling;
-disabling the device will come before suspending the device.
-
-All calls are made with interrupts enabled, except for the
-SUSPEND_POWER_DOWN level.
-
-	int	(*resume)	(struct device * dev, u32 level);
-
-Resume is used to bring a device back from a low power state. Like the
-suspend transition, it happens in several stages. 
-
-RESUME_POWER_ON tells the driver to set the power state to the state
-before the suspend call (The device could have already been in a low
-power state before the suspend call to put in a lower power state). 
-
-RESUME_RESTORE_STATE tells the driver to restore the state saved by
-the SUSPEND_SAVE_STATE suspend call. 
-
-RESUME_ENABLE tells the driver to start accepting I/O transactions
-again. Depending on driver policy, the device may already have pending
-I/O requests. 
-
-RESUME_POWER_ON is called with interrupts disabled. The other resume
-levels are called with interrupts enabled. 
-
-As with the various suspend stages, the driver must not assume that
-any other resume calls have been or will be made. Each call should be
-self-contained and not dependent on any external state.
+Resume is used to bring a device back from a low power state.
 
 
 Attributes

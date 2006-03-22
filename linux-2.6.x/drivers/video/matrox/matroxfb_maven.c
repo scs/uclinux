@@ -968,7 +968,7 @@ static inline int maven_compute_timming(struct maven_data* md,
 	return 0;
 }
 
-static inline int maven_program_timming(struct maven_data* md,
+static int maven_program_timming(struct maven_data* md,
 		const struct mavenregs* m) {
 	struct i2c_client* c = md->client;
 
@@ -1230,7 +1230,6 @@ static int maven_shutdown_client(struct i2c_client* clnt) {
 }
 
 static unsigned short normal_i2c[] = { MAVEN_I2CID, I2C_CLIENT_END };
-static unsigned short normal_i2c_range[] = { MAVEN_I2CID, MAVEN_I2CID, I2C_CLIENT_END };
 I2C_CLIENT_INSMOD;
 
 static struct i2c_driver maven_driver;
@@ -1272,7 +1271,7 @@ ERROR0:;
 }
 
 static int maven_attach_adapter(struct i2c_adapter* adapter) {
-	if (adapter->id == (I2C_ALGO_BIT | I2C_HW_B_G400))
+	if (adapter->id == I2C_HW_B_G400)
 		return i2c_probe(adapter, &addr_data, &maven_detect_client);
 	return 0;
 }
@@ -1289,18 +1288,13 @@ static int maven_detach_client(struct i2c_client* client) {
 	return 0;
 }
 
-static int maven_command(struct i2c_client* client, unsigned int cmd, void* arg) {
-	return -ENOIOCTLCMD;	/* or -EINVAL, depends on who will call this */
-}
-
 static struct i2c_driver maven_driver={
-	.owner		= THIS_MODULE,
-	.name		= "maven",
+	.driver = {
+		.name	= "maven",
+	},
 	.id		= I2C_DRIVERID_MGATVO,
-	.flags		= I2C_DF_NOTIFY,
 	.attach_adapter	= maven_attach_adapter,
 	.detach_client	= maven_detach_client,
-	.command	= maven_command,
 };
 
 /* ************************** */

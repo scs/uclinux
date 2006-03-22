@@ -32,6 +32,7 @@
     ICH6		266A
     ICH7		27DA
     ESB2		269B
+    ICH8		283E
     This driver supports several versions of Intel's I/O Controller Hubs (ICH).
     For SMBus support, they are similar to the PIIX4 and are part
     of Intel's '810' and other chipsets.
@@ -41,7 +42,6 @@
 
 /* Note: we assume there can only be one I801, with one SMBus interface */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/kernel.h>
@@ -52,10 +52,6 @@
 #include <linux/init.h>
 #include <linux/i2c.h>
 #include <asm/io.h>
-
-#ifdef I2C_FUNC_SMBUS_BLOCK_DATA_PEC
-#define HAVE_PEC
-#endif
 
 /* I801 SMBus address offsets */
 #define SMBHSTSTS	(0 + i801_smba)
@@ -107,10 +103,11 @@ MODULE_PARM_DESC(force_addr,
 		 "EXTREMELY DANGEROUS!");
 
 static int i801_transaction(void);
-static int i801_block_transaction(union i2c_smbus_data *data,
-				  char read_write, int command);
+static int i801_block_transaction(union i2c_smbus_data *data, char read_write,
+				  int command, int hwpec);
 
 static unsigned short i801_smba;
+static struct pci_driver i801_driver;
 static struct pci_dev *I801_dev;
 static int isich4;
 
@@ -138,13 +135,13 @@ static int i801_setup(struct pci_dev *dev)
 		pci_read_config_word(I801_dev, SMBBA, &i801_smba);
 		i801_smba &= 0xfff0;
 		if(i801_smba == 0) {
-			dev_err(&dev->dev, "SMB base address uninitialized"
+			dev_err(&dev->dev, "SMB base address uninitialized "
 				"- upgrade BIOS or use force_addr=0xaddr\n");
 			return -ENODEV;
 		}
 	}
 
-	if (!request_region(i801_smba, (isich4 ? 16 : 8), "i801-smbus")) {
+	if (!request_region(i801_smba, (isich4 ? 16 : 8), i801_driver.name)) {
 		dev_err(&dev->dev, "I801_smb region 0x%x already in use!\n",
 			i801_smba);
 		error_return = -EBUSY;
@@ -187,7 +184,7 @@ static int i801_transaction(void)
 	int result = 0;
 	int timeout = 0;
 
-	dev_dbg(&I801_dev->dev, "Transaction (pre): CNT=%02x, CMD=%02x,"
+	dev_dbg(&I801_dev->dev, "Transaction (pre): CNT=%02x, CMD=%02x, "
 		"ADD=%02x, DAT0=%02x, DAT1=%02x\n", inb_p(SMBHSTCNT),
 		inb_p(SMBHSTCMD), inb_p(SMBHSTADD), inb_p(SMBHSTDAT0),
 		inb_p(SMBHSTDAT1));
@@ -195,7 +192,7 @@ static int i801_transaction(void)
 	/* Make sure the SMBus host is ready to start transmitting */
 	/* 0x1f = Failed, Bus_Err, Dev_Err, Intr, Host_Busy */
 	if ((temp = (0x1f & inb_p(SMBHSTSTS))) != 0x00) {
-		dev_dbg(&I801_dev->dev, "SMBus busy (%02x). Resetting... \n",
+		dev_dbg(&I801_dev->dev, "SMBus busy (%02x). Resetting...\n",
 			temp);
 		outb_p(temp, SMBHSTSTS);
 		if ((temp = (0x1f & inb_p(SMBHSTSTS))) != 0x00) {
@@ -241,7 +238,7 @@ static int i801_transaction(void)
 		outb_p(inb(SMBHSTSTS), SMBHSTSTS);
 
 	if ((temp = (0x1f & inb_p(SMBHSTSTS))) != 0x00) {
-		dev_dbg(&I801_dev->dev, "Failed reset at end of transaction"
+		dev_dbg(&I801_dev->dev, "Failed reset at end of transaction "
 			"(%02x)\n", temp);
 	}
 	dev_dbg(&I801_dev->dev, "Transaction (post): CNT=%02x, CMD=%02x, "
@@ -253,7 +250,7 @@ static int i801_transaction(void)
 
 /* All-inclusive block transaction function */
 static int i801_block_transaction(union i2c_smbus_data *data, char read_write,
-				  int command)
+				  int command, int hwpec)
 {
 	int i, len;
 	int smbcmd;
@@ -316,7 +313,7 @@ static int i801_block_transaction(union i2c_smbus_data *data, char read_write,
 		}
 		if (temp & errmask) {
 			dev_dbg(&I801_dev->dev, "SMBus busy (%02x). "
-				"Resetting... \n", temp);
+				"Resetting...\n", temp);
 			outb_p(temp, SMBHSTSTS);
 			if (((temp = inb_p(SMBHSTSTS)) & errmask) != 0x00) {
 				dev_err(&I801_dev->dev,
@@ -392,8 +389,7 @@ static int i801_block_transaction(union i2c_smbus_data *data, char read_write,
 			goto END;
 	}
 
-#ifdef HAVE_PEC
-	if(isich4 && command == I2C_SMBUS_BLOCK_DATA_PEC) {
+	if (hwpec) {
 		/* wait for INTR bit as advised by Intel */
 		timeout = 0;
 		do {
@@ -407,7 +403,6 @@ static int i801_block_transaction(union i2c_smbus_data *data, char read_write,
 		}
 		outb_p(temp, SMBHSTSTS); 
 	}
-#endif
 	result = 0;
 END:
 	if (command == I2C_SMBUS_I2C_BLOCK_DATA) {
@@ -422,14 +417,13 @@ static s32 i801_access(struct i2c_adapter * adap, u16 addr,
 		       unsigned short flags, char read_write, u8 command,
 		       int size, union i2c_smbus_data * data)
 {
-	int hwpec = 0;
+	int hwpec;
 	int block = 0;
 	int ret, xact = 0;
 
-#ifdef HAVE_PEC
-	if(isich4)
-		hwpec = (flags & I2C_CLIENT_PEC) != 0;
-#endif
+	hwpec = isich4 && (flags & I2C_CLIENT_PEC)
+		&& size != I2C_SMBUS_QUICK
+		&& size != I2C_SMBUS_I2C_BLOCK_DATA;
 
 	switch (size) {
 	case I2C_SMBUS_QUICK:
@@ -464,11 +458,6 @@ static s32 i801_access(struct i2c_adapter * adap, u16 addr,
 		break;
 	case I2C_SMBUS_BLOCK_DATA:
 	case I2C_SMBUS_I2C_BLOCK_DATA:
-#ifdef HAVE_PEC
-	case I2C_SMBUS_BLOCK_DATA_PEC:
-		if(hwpec && size == I2C_SMBUS_BLOCK_DATA)
-			size = I2C_SMBUS_BLOCK_DATA_PEC;
-#endif
 		outb_p(((addr & 0x7f) << 1) | (read_write & 0x01),
 		       SMBHSTADD);
 		outb_p(command, SMBHSTCMD);
@@ -480,27 +469,14 @@ static s32 i801_access(struct i2c_adapter * adap, u16 addr,
 		return -1;
 	}
 
-#ifdef HAVE_PEC
-	if(isich4 && hwpec) {
-		if(size != I2C_SMBUS_QUICK &&
-		   size != I2C_SMBUS_I2C_BLOCK_DATA)
-			outb_p(1, SMBAUXCTL);	/* enable HW PEC */
-	}
-#endif
+	outb_p(hwpec, SMBAUXCTL);	/* enable/disable hardware PEC */
+
 	if(block)
-		ret = i801_block_transaction(data, read_write, size);
+		ret = i801_block_transaction(data, read_write, size, hwpec);
 	else {
 		outb_p(xact | ENABLE_INT9, SMBHSTCNT);
 		ret = i801_transaction();
 	}
-
-#ifdef HAVE_PEC
-	if(isich4 && hwpec) {
-		if(size != I2C_SMBUS_QUICK &&
-		   size != I2C_SMBUS_I2C_BLOCK_DATA)
-			outb_p(0, SMBAUXCTL);
-	}
-#endif
 
 	if(block)
 		return ret;
@@ -527,17 +503,10 @@ static u32 i801_func(struct i2c_adapter *adapter)
 	return I2C_FUNC_SMBUS_QUICK | I2C_FUNC_SMBUS_BYTE |
 	    I2C_FUNC_SMBUS_BYTE_DATA | I2C_FUNC_SMBUS_WORD_DATA |
 	    I2C_FUNC_SMBUS_BLOCK_DATA | I2C_FUNC_SMBUS_WRITE_I2C_BLOCK
-#ifdef HAVE_PEC
-	     | (isich4 ? I2C_FUNC_SMBUS_BLOCK_DATA_PEC |
-	                 I2C_FUNC_SMBUS_HWPEC_CALC
-	               : 0)
-#endif
-	    ;
+	     | (isich4 ? I2C_FUNC_SMBUS_HWPEC_CALC : 0);
 }
 
 static struct i2c_algorithm smbus_algorithm = {
-	.name		= "Non-I2C SMBus adapter",
-	.id		= I2C_ALGO_SMBUS,
 	.smbus_xfer	= i801_access,
 	.functionality	= i801_func,
 };
@@ -546,7 +515,6 @@ static struct i2c_adapter i801_adapter = {
 	.owner		= THIS_MODULE,
 	.class		= I2C_CLASS_HWMON,
 	.algo		= &smbus_algorithm,
-	.name		= "unset",
 };
 
 static struct pci_device_id i801_ids[] = {
@@ -560,6 +528,7 @@ static struct pci_device_id i801_ids[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ICH6_16) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ICH7_17) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ESB2_17) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ICH8_5) },
 	{ 0, }
 };
 

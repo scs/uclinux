@@ -125,17 +125,20 @@ static struct usb_device_id id_table [] = {
 MODULE_DEVICE_TABLE (usb, id_table);
 
 static struct usb_driver ir_driver = {
-	.owner =	THIS_MODULE,
 	.name =		"ir-usb",
 	.probe =	usb_serial_probe,
 	.disconnect =	usb_serial_disconnect,
 	.id_table =	id_table,
+	.no_dynamic_id = 	1,
 };
 
 
-static struct usb_serial_device_type ir_device = {
-	.owner =		THIS_MODULE,
-	.name =			"IR Dongle",
+static struct usb_serial_driver ir_device = {
+	.driver = {
+		.owner =	THIS_MODULE,
+		.name =		"ir-usb",
+	},
+	.description =		"IR Dongle",
 	.id_table =		id_table,
 	.num_interrupt_in =	1,
 	.num_bulk_in =		1,
@@ -341,10 +344,14 @@ static int ir_write (struct usb_serial_port *port, const unsigned char *buf, int
 	if (count == 0)
 		return 0;
 
-	if (port->write_urb->status == -EINPROGRESS) {
-		dbg ("%s - already writing", __FUNCTION__);
+	spin_lock(&port->lock);
+	if (port->write_urb_busy) {
+		spin_unlock(&port->lock);
+		dbg("%s - already writing", __FUNCTION__);
 		return 0;
 	}
+	port->write_urb_busy = 1;
+	spin_unlock(&port->lock);
 
 	transfer_buffer = port->write_urb->transfer_buffer;
 	transfer_size = min(count, port->bulk_out_size - 1);
@@ -374,9 +381,10 @@ static int ir_write (struct usb_serial_port *port, const unsigned char *buf, int
 	port->write_urb->transfer_flags = URB_ZERO_PACKET;
 
 	result = usb_submit_urb (port->write_urb, GFP_ATOMIC);
-	if (result)
+	if (result) {
+		port->write_urb_busy = 0;
 		dev_err(&port->dev, "%s - failed submitting write urb, error %d\n", __FUNCTION__, result);
-	else
+	} else
 		result = transfer_size;
 
 	return result;
@@ -387,7 +395,8 @@ static void ir_write_bulk_callback (struct urb *urb, struct pt_regs *regs)
 	struct usb_serial_port *port = (struct usb_serial_port *)urb->context;
 
 	dbg("%s - port %d", __FUNCTION__, port->number);
-	
+
+	port->write_urb_busy = 0;
 	if (urb->status) {
 		dbg("%s - nonzero write bulk status received: %d", __FUNCTION__, urb->status);
 		return;

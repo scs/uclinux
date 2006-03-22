@@ -23,13 +23,12 @@
 #include <linux/delay.h>
 #include <linux/workqueue.h>
 #include <linux/interrupt.h>
-#include <linux/device.h>
+#include <linux/platform_device.h>
+#include <linux/bitops.h>
 #include <asm/irq.h>
 #include <asm/io.h>
-#include <asm/bitops.h>
 #include <asm/system.h>
 
-#include <pcmcia/version.h>
 #include <pcmcia/cs_types.h>
 #include <pcmcia/ss.h>
 #include <pcmcia/cs.h>
@@ -356,9 +355,10 @@ static void add_pcc_socket(ulong base, int irq, ulong mapaddr, kio_addr_t ioaddr
 #ifndef CONFIG_PLAT_USRV
 	/* insert interrupt */
 	request_irq(irq, pcc_interrupt, 0, "m32r_cfc", pcc_interrupt);
+#ifndef CONFIG_PLAT_MAPPI3
 	/* eject interrupt */
 	request_irq(irq+1, pcc_interrupt, 0, "m32r_cfc", pcc_interrupt);
-
+#endif
 	debug(3, "m32r_cfc: enable CFMSK, RDYSEL\n");
 	pcc_set(pcc_sockets, (unsigned int)PLD_CFIMASK, 0x01);
 #endif	/* CONFIG_PLAT_USRV */
@@ -444,7 +444,7 @@ static int _pcc_get_status(u_short sock, u_int *value)
 		debug(3, "m32r_cfc: _pcc_get_status: "
 			 "power off (CPCR=0x%08x)\n", status);
 	}
-#elif defined(CONFIG_PLAT_MAPPI2)
+#elif defined(CONFIG_PLAT_MAPPI2) || defined(CONFIG_PLAT_MAPPI3)
 	if ( status ) {
 		status = pcc_get(sock, (unsigned int)PLD_CPCR);
 		if (status == 0) { /* power off */
@@ -452,18 +452,23 @@ static int _pcc_get_status(u_short sock, u_int *value)
 			pcc_set(sock, (unsigned int)PLD_CFBUFCR,0); /* force buffer off for ZA-36 */
 			udelay(50);
 		}
-		status = pcc_get(sock, (unsigned int)PLD_CFBUFCR);
-		if (status != 0) { /* buffer off */
-			pcc_set(sock, (unsigned int)PLD_CFBUFCR,0);
-			udelay(50);
-			pcc_set(sock, (unsigned int)PLD_CFRSTCR, 0x0101);
-			udelay(25); /* for IDE reset */
-			pcc_set(sock, (unsigned int)PLD_CFRSTCR, 0x0100);
-			mdelay(2);  /* for IDE reset */
-		} else {
-			*value |= SS_POWERON;
-			*value |= SS_READY;
-		}
+		*value |= SS_POWERON;
+
+		pcc_set(sock, (unsigned int)PLD_CFBUFCR,0);
+		udelay(50);
+		pcc_set(sock, (unsigned int)PLD_CFRSTCR, 0x0101);
+		udelay(25); /* for IDE reset */
+		pcc_set(sock, (unsigned int)PLD_CFRSTCR, 0x0100);
+		mdelay(2);  /* for IDE reset */
+
+		*value |= SS_READY;
+		*value |= SS_3VCARD;
+	} else {
+		/* disable CF power */
+	        pcc_set(sock, (unsigned int)PLD_CPCR, 0);
+		udelay(100);
+		debug(3, "m32r_cfc: _pcc_get_status: "
+			 "power off (CPCR=0x%08x)\n", status);
 	}
 #else
 #error no platform configuration
@@ -475,54 +480,19 @@ static int _pcc_get_status(u_short sock, u_int *value)
 
 /*====================================================================*/
 
-static int _pcc_get_socket(u_short sock, socket_state_t *state)
-{
-//	pcc_socket_t *t = &socket[sock];
-
-#if defined(CONFIG_PLAT_M32700UT) || defined(CONFIG_PLAT_USRV) || defined(CONFIG_PLAT_OPSPUT)
-	state->flags = 0;
-	state->csc_mask = SS_DETECT;
-	state->csc_mask |= SS_READY;
-	state->io_irq = 0;
-	state->Vcc = 33;	/* 3.3V fixed */
-	state->Vpp = 33;
-#endif
-	debug(3, "m32r_cfc: GetSocket(%d) = flags %#3.3x, Vcc %d, Vpp %d, "
-		  "io_irq %d, csc_mask %#2.2x\n", sock, state->flags,
-		  state->Vcc, state->Vpp, state->io_irq, state->csc_mask);
-	return 0;
-} /* _get_socket */
-
-/*====================================================================*/
-
 static int _pcc_set_socket(u_short sock, socket_state_t *state)
 {
-#if defined(CONFIG_PLAT_MAPPI2)
-	u_long reg = 0;
-#endif
 	debug(3, "m32r_cfc: SetSocket(%d, flags %#3.3x, Vcc %d, Vpp %d, "
 		  "io_irq %d, csc_mask %#2.2x)\n", sock, state->flags,
 		  state->Vcc, state->Vpp, state->io_irq, state->csc_mask);
 
-#if defined(CONFIG_PLAT_M32700UT) || defined(CONFIG_PLAT_USRV) || defined(CONFIG_PLAT_OPSPUT)
+#if defined(CONFIG_PLAT_M32700UT) || defined(CONFIG_PLAT_USRV) || defined(CONFIG_PLAT_OPSPUT) || defined(CONFIG_PLAT_MAPPI2) || defined(CONFIG_PLAT_MAPPI3)
 	if (state->Vcc) {
 		if ((state->Vcc != 50) && (state->Vcc != 33))
 			return -EINVAL;
 		/* accept 5V and 3.3V */
 	}
-#elif defined(CONFIG_PLAT_MAPPI2)
-	if (state->Vcc) {
-		/*
-		 * 5V only
-		 */
-		if (state->Vcc == 50) {
-			reg |= PCCSIGCR_VEN;
-		} else {
-			return -EINVAL;
-		}
-	}
 #endif
-
 	if (state->flags & SS_RESET) {
 		debug(3, ":RESET\n");
 		pcc_set(sock,(unsigned int)PLD_CFRSTCR,0x101);
@@ -678,18 +648,6 @@ static int pcc_get_status(struct pcmcia_socket *s, u_int *value)
 	LOCKED(_pcc_get_status(sock, value));
 }
 
-static int pcc_get_socket(struct pcmcia_socket *s, socket_state_t *state)
-{
-	unsigned int sock = container_of(s, struct pcc_socket, socket)->number;
-
-	if (socket[sock].flags & IS_ALIVE) {
-		debug(3, "m32r_cfc: pcc_get_socket: sock(%d) -EINVAL\n", sock);
-		return -EINVAL;
-	}
-	debug(3, "m32r_cfc: pcc_get_socket: sock(%d)\n", sock);
-	LOCKED(_pcc_get_socket(sock, state));
-}
-
 static int pcc_set_socket(struct pcmcia_socket *s, socket_state_t *state)
 {
 	unsigned int sock = container_of(s, struct pcc_socket, socket)->number;
@@ -735,7 +693,6 @@ static int pcc_init(struct pcmcia_socket *s)
 static struct pccard_operations pcc_operations = {
 	.init			= pcc_init,
 	.get_status		= pcc_get_status,
-	.get_socket		= pcc_get_socket,
 	.set_socket		= pcc_set_socket,
 	.set_io_map		= pcc_set_io_map,
 	.set_mem_map		= pcc_set_mem_map,
@@ -743,28 +700,11 @@ static struct pccard_operations pcc_operations = {
 
 /*====================================================================*/
 
-static int m32r_pcc_suspend(struct device *dev, pm_message_t state, u32 level)
-{
-	int ret = 0;
-	if (level == SUSPEND_SAVE_STATE)
-		ret = pcmcia_socket_dev_suspend(dev, state);
-	return ret;
-}
-
-static int m32r_pcc_resume(struct device *dev, u32 level)
-{
-	int ret = 0;
-	if (level == RESUME_RESTORE_STATE)
-		ret = pcmcia_socket_dev_resume(dev);
-	return ret;
-}
-
-
 static struct device_driver pcc_driver = {
 	.name = "cfc",
 	.bus = &platform_bus_type,
-	.suspend = m32r_pcc_suspend,
-	.resume = m32r_pcc_resume,
+	.suspend = pcmcia_socket_dev_suspend,
+	.resume = pcmcia_socket_dev_resume,
 };
 
 static struct platform_device pcc_device = {
@@ -788,7 +728,7 @@ static int __init init_m32r_pcc(void)
 		return ret;
 	}
 
-#if defined(CONFIG_PLAT_MAPPI2)
+#if defined(CONFIG_PLAT_MAPPI2) || defined(CONFIG_PLAT_MAPPI3)
 	pcc_set(0, (unsigned int)PLD_CFCR0, 0x0f0f);
 	pcc_set(0, (unsigned int)PLD_CFCR1, 0x0200);
 #endif
@@ -825,7 +765,7 @@ static int __init init_m32r_pcc(void)
 	for (i = 0 ; i < pcc_sockets ; i++) {
 		socket[i].socket.dev.dev = &pcc_device.dev;
 		socket[i].socket.ops = &pcc_operations;
-		socket[i].socket.resource_ops = &pccard_static_ops;
+		socket[i].socket.resource_ops = &pccard_nonstatic_ops;
 		socket[i].socket.owner = THIS_MODULE;
 		socket[i].number = i;
 		ret = pcmcia_register_socket(&socket[i].socket);

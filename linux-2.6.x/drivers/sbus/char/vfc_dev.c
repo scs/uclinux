@@ -137,7 +137,6 @@ int init_vfc_devstruct(struct vfc_dev *dev, int instance)
 	dev->instance=instance;
 	init_MUTEX(&dev->device_lock_sem);
 	dev->control_reg=0;
-	init_waitqueue_head(&dev->poll_wait);
 	dev->busy=0;
 	return 0;
 }
@@ -150,7 +149,7 @@ int init_vfc_device(struct sbus_dev *sdev,struct vfc_dev *dev, int instance)
 	}
 	printk("Initializing vfc%d\n",instance);
 	dev->regs = NULL;
-	dev->regs = (volatile struct vfc_regs *)
+	dev->regs = (volatile struct vfc_regs __iomem *)
 		sbus_ioremap(&sdev->resource[0], 0,
 			     sizeof(struct vfc_regs), vfcstr);
 	dev->which_io = sdev->reg_addrs[0].which_io;
@@ -320,7 +319,7 @@ int vfc_capture_poll(struct vfc_dev *dev)
 	int timeout = 1000;
 
 	while (!timeout--) {
-		if (dev->regs->control & VFC_STATUS_CAPTURE)
+		if (sbus_readl(&dev->regs->control) & VFC_STATUS_CAPTURE)
 			break;
 		vfc_i2c_delay_no_busy(dev, 100);
 	}
@@ -719,7 +718,7 @@ static void deinit_vfc_device(struct vfc_dev *dev)
 	if(dev == NULL)
 		return;
 	devfs_remove("vfc/%d", dev->instance);
-	sbus_iounmap((unsigned long)dev->regs, sizeof(struct vfc_regs));
+	sbus_iounmap(dev->regs, sizeof(struct vfc_regs));
 	kfree(dev);
 }
 

@@ -98,16 +98,14 @@ static int mac53c94_queue(struct scsi_cmnd *cmd, void (*done)(struct scsi_cmnd *
 	return 0;
 }
 
-static int mac53c94_abort(struct scsi_cmnd *cmd)
-{
-	return FAILED;
-}
-
 static int mac53c94_host_reset(struct scsi_cmnd *cmd)
 {
 	struct fsc_state *state = (struct fsc_state *) cmd->device->host->hostdata;
 	struct mac53c94_regs __iomem *regs = state->regs;
 	struct dbdma_regs __iomem *dma = state->dma;
+	unsigned long flags;
+
+	spin_lock_irqsave(cmd->device->host->host_lock, flags);
 
 	writel((RUN|PAUSE|FLUSH|WAKE) << 16, &dma->control);
 	writeb(CMD_SCSI_RESET, &regs->command);	/* assert RST */
@@ -116,6 +114,8 @@ static int mac53c94_host_reset(struct scsi_cmnd *cmd)
 	udelay(20);
 	mac53c94_init(state);
 	writeb(CMD_NOP, &regs->command);
+
+	spin_unlock_irqrestore(cmd->device->host->host_lock, flags);
 	return SUCCESS;
 }
 
@@ -416,7 +416,6 @@ static struct scsi_host_template mac53c94_template = {
 	.proc_name	= "53c94",
 	.name		= "53C94",
 	.queuecommand	= mac53c94_queue,
-	.eh_abort_handler = mac53c94_abort,
 	.eh_host_reset_handler = mac53c94_host_reset,
 	.can_queue	= 1,
 	.this_id	= 7,
@@ -425,7 +424,7 @@ static struct scsi_host_template mac53c94_template = {
 	.use_clustering	= DISABLE_CLUSTERING,
 };
 
-static int mac53c94_probe(struct macio_dev *mdev, const struct of_match *match)
+static int mac53c94_probe(struct macio_dev *mdev, const struct of_device_id *match)
 {
 	struct device_node *node = macio_get_of_node(mdev);
 	struct pci_dev *pdev = macio_get_pci_dev(mdev);
@@ -433,11 +432,12 @@ static int mac53c94_probe(struct macio_dev *mdev, const struct of_match *match)
 	struct Scsi_Host *host;
 	void *dma_cmd_space;
 	unsigned char *clkprop;
-	int proplen;
+	int proplen, rc = -ENODEV;
 
 	if (macio_resource_count(mdev) != 2 || macio_irq_count(mdev) != 2) {
-		printk(KERN_ERR "mac53c94: expected 2 addrs and intrs (got %d/%d)\n",
-		       node->n_addrs, node->n_intrs);
+		printk(KERN_ERR "mac53c94: expected 2 addrs and intrs"
+		       " (got %d/%d)\n",
+		       macio_resource_count(mdev), macio_irq_count(mdev));
 		return -ENODEV;
 	}
 
@@ -449,6 +449,7 @@ static int mac53c94_probe(struct macio_dev *mdev, const struct of_match *match)
        	host = scsi_host_alloc(&mac53c94_template, sizeof(struct fsc_state));
 	if (host == NULL) {
 		printk(KERN_ERR "mac53c94: couldn't register host");
+		rc = -ENOMEM;
 		goto out_release;
 	}
 
@@ -487,6 +488,7 @@ static int mac53c94_probe(struct macio_dev *mdev, const struct of_match *match)
        	if (dma_cmd_space == 0) {
        		printk(KERN_ERR "mac53c94: couldn't allocate dma "
        		       "command space for %s\n", node->full_name);
+		rc = -ENOMEM;
        		goto out_free;
        	}
 	state->dma_cmds = (struct dbdma_cmd *)DBDMA_ALIGN(dma_cmd_space);
@@ -496,18 +498,21 @@ static int mac53c94_probe(struct macio_dev *mdev, const struct of_match *match)
 
 	mac53c94_init(state);
 
-	if (request_irq(state->intr, do_mac53c94_interrupt, 0, "53C94", state)) {
+	if (request_irq(state->intr, do_mac53c94_interrupt, 0, "53C94",state)) {
 		printk(KERN_ERR "mac53C94: can't get irq %d for %s\n",
 		       state->intr, node->full_name);
 		goto out_free_dma;
 	}
 
-	/* XXX FIXME: handle failure */
-	scsi_add_host(host, &mdev->ofdev.dev);
-	scsi_scan_host(host);
+	rc = scsi_add_host(host, &mdev->ofdev.dev);
+	if (rc != 0)
+		goto out_release_irq;
 
+	scsi_scan_host(host);
 	return 0;
 
+ out_release_irq:
+	free_irq(state->intr, state);
  out_free_dma:
 	kfree(state->dma_cmd_space);
  out_free:
@@ -519,7 +524,7 @@ static int mac53c94_probe(struct macio_dev *mdev, const struct of_match *match)
  out_release:
 	macio_release_resources(mdev);
 
-	return  -ENODEV;
+	return rc;
 }
 
 static int mac53c94_remove(struct macio_dev *mdev)
@@ -532,9 +537,9 @@ static int mac53c94_remove(struct macio_dev *mdev)
 	free_irq(fp->intr, fp);
 
 	if (fp->regs)
-		iounmap((void *) fp->regs);
+		iounmap(fp->regs);
 	if (fp->dma)
-		iounmap((void *) fp->dma);
+		iounmap(fp->dma);
 	kfree(fp->dma_cmd_space);
 
 	scsi_host_put(host);
@@ -545,15 +550,14 @@ static int mac53c94_remove(struct macio_dev *mdev)
 }
 
 
-static struct of_match mac53c94_match[] = 
+static struct of_device_id mac53c94_match[] = 
 {
 	{
 	.name 		= "53c94",
-	.type		= OF_ANY_MATCH,
-	.compatible	= OF_ANY_MATCH
 	},
 	{},
 };
+MODULE_DEVICE_TABLE (of, mac53c94_match);
 
 static struct macio_driver mac53c94_driver = 
 {

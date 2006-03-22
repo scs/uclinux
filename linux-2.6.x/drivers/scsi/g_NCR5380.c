@@ -80,8 +80,8 @@
 
 /*
  * $Log$
- * Revision 1.4  2005/08/12 06:42:46  magicyang
- *  Update kernel 2.6.8 to 2.6.12
+ * Revision 1.5  2006/03/22 08:11:06  magicyang
+ * update kernel to 2.6.16
  *
  */
 
@@ -288,7 +288,7 @@ static int __init do_DTC3181E_setup(char *str)
  *	Locks: none
  */
 
-int __init generic_NCR5380_detect(Scsi_Host_Template * tpnt)
+int __init generic_NCR5380_detect(struct scsi_host_template * tpnt)
 {
 	static int current_override = 0;
 	int count, i;
@@ -801,7 +801,7 @@ static int generic_NCR5380_proc_info(struct Scsi_Host *scsi_ptr, char *buffer, c
 	Scsi_Cmnd *ptr;
 	struct NCR5380_hostdata *hostdata;
 #ifdef NCR5380_STATS
-	Scsi_Device *dev;
+	struct scsi_device *dev;
 	extern const char *const scsi_device_types[MAX_SCSI_DEVICE_CODE];
 #endif
 
@@ -902,7 +902,7 @@ static int generic_NCR5380_proc_info(struct Scsi_Host *scsi_ptr, char *buffer, c
 #undef PRINTP
 #undef ANDP
 
-static Scsi_Host_Template driver_template = {
+static struct scsi_host_template driver_template = {
 	.proc_info      	= generic_NCR5380_proc_info,
 	.name           	= "Generic NCR5380/NCR53C400 Scsi Driver",
 	.detect         	= generic_NCR5380_detect,
@@ -911,8 +911,6 @@ static Scsi_Host_Template driver_template = {
 	.queuecommand   	= generic_NCR5380_queue_command,
 	.eh_abort_handler	= generic_NCR5380_abort,
 	.eh_bus_reset_handler	= generic_NCR5380_bus_reset,
-	.eh_device_reset_handler = generic_NCR5380_device_reset,
-	.eh_host_reset_handler	= generic_NCR5380_host_reset,
 	.bios_param     	= NCR5380_BIOSPARAM,
 	.can_queue      	= CAN_QUEUE,
         .this_id        	= 7,

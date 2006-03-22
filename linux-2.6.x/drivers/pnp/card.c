@@ -8,18 +8,11 @@
 #include <linux/config.h>
 #include <linux/module.h>
 #include <linux/slab.h>
-
-#ifdef CONFIG_PNP_DEBUG
-	#define DEBUG
-#else
-	#undef DEBUG
-#endif
-
 #include <linux/pnp.h>
 #include "base.h"
 
 LIST_HEAD(pnp_cards);
-LIST_HEAD(pnp_card_drivers);
+static LIST_HEAD(pnp_card_drivers);
 
 
 static const struct pnp_card_device_id * match_card(struct pnp_card_driver * drv, struct pnp_card * card)
@@ -76,6 +69,7 @@ static int card_probe(struct pnp_card * card, struct pnp_card_driver * drv)
 			return 0;
 		clink->card = card;
 		clink->driver = drv;
+		clink->pm_state = PMSG_ON;
 		if (drv->probe) {
 			if (drv->probe(clink, id)>=0)
 				return 1;
@@ -140,7 +134,7 @@ static void pnp_release_card(struct device *dmdev)
 }
 
 
-static ssize_t pnp_show_card_name(struct device *dmdev, char *buf)
+static ssize_t pnp_show_card_name(struct device *dmdev, struct device_attribute *attr, char *buf)
 {
 	char *str = buf;
 	struct pnp_card *card = to_pnp_card(dmdev);
@@ -150,7 +144,7 @@ static ssize_t pnp_show_card_name(struct device *dmdev, char *buf)
 
 static DEVICE_ATTR(name,S_IRUGO,pnp_show_card_name,NULL);
 
-static ssize_t pnp_show_card_ids(struct device *dmdev, char *buf)
+static ssize_t pnp_show_card_ids(struct device *dmdev, struct device_attribute *attr, char *buf)
 {
 	char *str = buf;
 	struct pnp_card *card = to_pnp_card(dmdev);
@@ -259,7 +253,6 @@ int pnp_add_card_device(struct pnp_card * card, struct pnp_dev * dev)
 
 /**
  * pnp_remove_card_device- removes a device from the specified card
- * @card: pointer to the card to remove from
  * @dev: pointer to the device to remove
  */
 
@@ -274,7 +267,7 @@ void pnp_remove_card_device(struct pnp_dev * dev)
 
 /**
  * pnp_request_card_device - Searches for a PnP device under the specified card
- * @lcard: pointer to the card link, cannot be NULL
+ * @clink: pointer to the card link, cannot be NULL
  * @id: pointer to a PnP ID structure that explains the rules for finding the device
  * @from: Starting place to search from. If NULL it will start from the begining.
  */
@@ -310,11 +303,11 @@ found:
 	down_write(&dev->dev.bus->subsys.rwsem);
 	dev->card_link = clink;
 	dev->dev.driver = &drv->link.driver;
-	if (drv->link.driver.probe) {
-		if (drv->link.driver.probe(&dev->dev)) {
-			dev->dev.driver = NULL;
-			return NULL;
-		}
+	if (pnp_bus_type.probe(&dev->dev)) {
+		dev->dev.driver = NULL;
+		dev->card_link = NULL;
+		up_write(&dev->dev.bus->subsys.rwsem);
+		return NULL;
 	}
 	device_bind_driver(&dev->dev);
 	up_write(&dev->dev.bus->subsys.rwsem);
@@ -339,6 +332,28 @@ void pnp_release_card_device(struct pnp_dev * dev)
 	up_write(&dev->dev.bus->subsys.rwsem);
 }
 
+/*
+ * suspend/resume callbacks
+ */
+static int card_suspend(struct pnp_dev *dev, pm_message_t state)
+{
+	struct pnp_card_link *link = dev->card_link;
+	if (link->pm_state.event == state.event)
+		return 0;
+	link->pm_state = state;
+	return link->driver->suspend(link, state);
+}
+
+static int card_resume(struct pnp_dev *dev)
+{
+	struct pnp_card_link *link = dev->card_link;
+	if (link->pm_state.event == PM_EVENT_ON)
+		return 0;
+	link->pm_state = PMSG_ON;
+	link->driver->resume(link);
+	return 0;
+}
+
 /**
  * pnp_register_card_driver - registers a PnP card driver with the PnP Layer
  * @drv: pointer to the driver to register
@@ -346,7 +361,7 @@ void pnp_release_card_device(struct pnp_dev * dev)
 
 int pnp_register_card_driver(struct pnp_card_driver * drv)
 {
-	int count = 0;
+	int count;
 	struct list_head *pos, *temp;
 
 	drv->link.name = drv->name;
@@ -354,11 +369,18 @@ int pnp_register_card_driver(struct pnp_card_driver * drv)
 	drv->link.flags = drv->flags;
 	drv->link.probe = NULL;
 	drv->link.remove = &card_remove_first;
+	drv->link.suspend = drv->suspend ? card_suspend : NULL;
+	drv->link.resume = drv->resume ? card_resume : NULL;
+
+	count = pnp_register_driver(&drv->link);
+	if (count < 0)
+		return count;
 
 	spin_lock(&pnp_lock);
 	list_add_tail(&drv->global_list, &pnp_card_drivers);
 	spin_unlock(&pnp_lock);
-	pnp_register_driver(&drv->link);
+
+	count = 0;
 
 	list_for_each_safe(pos,temp,&pnp_cards){
 		struct pnp_card *card = list_entry(pos, struct pnp_card, global_list);
@@ -380,11 +402,13 @@ void pnp_unregister_card_driver(struct pnp_card_driver * drv)
 	pnp_unregister_driver(&drv->link);
 }
 
+#if 0
 EXPORT_SYMBOL(pnp_add_card);
 EXPORT_SYMBOL(pnp_remove_card);
 EXPORT_SYMBOL(pnp_add_card_device);
 EXPORT_SYMBOL(pnp_remove_card_device);
 EXPORT_SYMBOL(pnp_add_card_id);
+#endif  /*  0  */
 EXPORT_SYMBOL(pnp_request_card_device);
 EXPORT_SYMBOL(pnp_release_card_device);
 EXPORT_SYMBOL(pnp_register_card_driver);

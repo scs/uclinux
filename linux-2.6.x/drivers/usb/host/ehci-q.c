@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001-2002 by David Brownell
+ * Copyright (C) 2001-2004 by David Brownell
  * 
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -222,7 +222,7 @@ __acquires(ehci->lock)
 		struct ehci_qh	*qh = (struct ehci_qh *) urb->hcpriv;
 
 		/* S-mask in a QH means it's an interrupt urb */
-		if ((qh->hw_info2 & __constant_cpu_to_le32 (0x00ff)) != 0) {
+		if ((qh->hw_info2 & __constant_cpu_to_le32 (QH_SMASK)) != 0) {
 
 			/* ... update hc-wide periodic stats (for usbfs) */
 			ehci_to_hcd(ehci)->self.bandwidth_int_reqs--;
@@ -428,7 +428,8 @@ halt:
 			/* should be rare for periodic transfers,
 			 * except maybe high bandwidth ...
 			 */
-			if (qh->period) {
+			if ((__constant_cpu_to_le32 (QH_SMASK)
+					& qh->hw_info2) != 0) {
 				intr_deschedule (ehci, qh);
 				(void) qh_schedule (ehci, qh);
 			} else
@@ -476,7 +477,7 @@ qh_urb_transaction (
 	struct ehci_hcd		*ehci,
 	struct urb		*urb,
 	struct list_head	*head,
-	int			flags
+	gfp_t			flags
 ) {
 	struct ehci_qtd		*qtd, *qtd_prev;
 	dma_addr_t		buf;
@@ -513,18 +514,18 @@ qh_urb_transaction (
 		qtd->urb = urb;
 		qtd_prev->hw_next = QTD_NEXT (qtd->qtd_dma);
 		list_add_tail (&qtd->qtd_list, head);
+
+		/* for zero length DATA stages, STATUS is always IN */
+		if (len == 0)
+			token |= (1 /* "in" */ << 8);
 	} 
 
 	/*
 	 * data transfer stage:  buffer setup
 	 */
-	if (likely (len > 0))
-		buf = urb->transfer_dma;
-	else
-		buf = 0;
+	buf = urb->transfer_dma;
 
-	/* for zero length DATA stages, STATUS is always IN */
-	if (!buf || is_input)
+	if (is_input)
 		token |= (1 /* "in" */ << 8);
 	/* else it's already initted to "out" pid (0 << 8) */
 
@@ -571,7 +572,7 @@ qh_urb_transaction (
 	 * control requests may need a terminating data "status" ack;
 	 * bulk ones may need a terminating short packet (zero length).
 	 */
-	if (likely (buf != 0)) {
+	if (likely (urb->transfer_buffer_length != 0)) {
 		int	one_more = 0;
 
 		if (usb_pipecontrol (urb->pipe)) {
@@ -628,7 +629,7 @@ static struct ehci_qh *
 qh_make (
 	struct ehci_hcd		*ehci,
 	struct urb		*urb,
-	int			flags
+	gfp_t			flags
 ) {
 	struct ehci_qh		*qh = ehci_qh_alloc (ehci, flags);
 	u32			info1 = 0, info2 = 0;
@@ -657,8 +658,8 @@ qh_make (
 	 * For control/bulk requests, the HC or TT handles these.
 	 */
 	if (type == PIPE_INTERRUPT) {
-		qh->usecs = usb_calc_bus_time (USB_SPEED_HIGH, is_input, 0,
-				hb_mult (maxp) * max_packet (maxp));
+		qh->usecs = NS_TO_US (usb_calc_bus_time (USB_SPEED_HIGH, is_input, 0,
+				hb_mult (maxp) * max_packet (maxp)));
 		qh->start = NO_FRAME;
 
 		if (urb->dev->speed == USB_SPEED_HIGH) {
@@ -676,6 +677,9 @@ qh_make (
 				goto done;
 			}
 		} else {
+			struct usb_tt	*tt = urb->dev->tt;
+			int		think_time;
+
 			/* gap is f(FS/LS transfer times) */
 			qh->gap_uf = 1 + usb_calc_bus_time (urb->dev->speed,
 					is_input, 0, maxp) / (125 * 1000);
@@ -689,6 +693,10 @@ qh_make (
 				qh->c_usecs = HS_USECS (0);
 			}
 
+			think_time = tt ? tt->think_time : 0;
+			qh->tt_usecs = NS_TO_US (think_time +
+					usb_calc_bus_time (urb->dev->speed,
+					is_input, 0, max_packet (maxp)));
 			qh->period = urb->interval;
 		}
 	}
@@ -898,12 +906,13 @@ submit_async (
 	struct usb_host_endpoint *ep,
 	struct urb		*urb,
 	struct list_head	*qtd_list,
-	int			mem_flags
+	gfp_t			mem_flags
 ) {
 	struct ehci_qtd		*qtd;
 	int			epnum;
 	unsigned long		flags;
 	struct ehci_qh		*qh = NULL;
+	int			rc = 0;
 
 	qtd = list_entry (qtd_list->next, struct ehci_qtd, qtd_list);
 	epnum = ep->desc.bEndpointAddress;
@@ -918,21 +927,28 @@ submit_async (
 #endif
 
 	spin_lock_irqsave (&ehci->lock, flags);
+	if (unlikely(!test_bit(HCD_FLAG_HW_ACCESSIBLE,
+			       &ehci_to_hcd(ehci)->flags))) {
+		rc = -ESHUTDOWN;
+		goto done;
+	}
+
 	qh = qh_append_tds (ehci, urb, qtd_list, epnum, &ep->hcpriv);
+	if (unlikely(qh == NULL)) {
+		rc = -ENOMEM;
+		goto done;
+	}
 
 	/* Control/bulk operations through TTs don't need scheduling,
 	 * the HC and TT handle it when the TT has a buffer ready.
 	 */
-	if (likely (qh != NULL)) {
-		if (likely (qh->qh_state == QH_STATE_IDLE))
-			qh_link_async (ehci, qh_get (qh));
-	}
+	if (likely (qh->qh_state == QH_STATE_IDLE))
+		qh_link_async (ehci, qh_get (qh));
+ done:
 	spin_unlock_irqrestore (&ehci->lock, flags);
-	if (unlikely (qh == NULL)) {
+	if (unlikely (qh == NULL))
 		qtd_list_free (ehci, urb, qtd_list);
-		return -ENOMEM;
-	}
-	return 0;
+	return rc;
 }
 
 /*-------------------------------------------------------------------------*/

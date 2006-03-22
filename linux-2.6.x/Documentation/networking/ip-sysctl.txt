@@ -46,6 +46,29 @@ ipfrag_secret_interval - INTEGER
 	for the hash secret) for IP fragments.
 	Default: 600
 
+ipfrag_max_dist - INTEGER
+	ipfrag_max_dist is a non-negative integer value which defines the 
+	maximum "disorder" which is allowed among fragments which share a 
+	common IP source address. Note that reordering of packets is 
+	not unusual, but if a large number of fragments arrive from a source 
+	IP address while a particular fragment queue remains incomplete, it 
+	probably indicates that one or more fragments belonging to that queue 
+	have been lost. When ipfrag_max_dist is positive, an additional check 
+	is done on fragments before they are added to a reassembly queue - if 
+	ipfrag_max_dist (or more) fragments have arrived from a particular IP 
+	address between additions to any IP fragment queue using that source 
+	address, it's presumed that one or more fragments in the queue are 
+	lost. The existing fragment queue will be dropped, and a new one 
+	started. An ipfrag_max_dist value of zero disables this check.
+
+	Using a very small value, e.g. 1 or 2, for ipfrag_max_dist can
+	result in unnecessarily dropping fragment queues when normal
+	reordering of packets occurs, which could lead to poor application 
+	performance. Using a very large value, e.g. 50000, increases the 
+	likelihood of incorrectly reassembling IP fragments that originate 
+	from different IP datagrams, which could result in data corruption.
+	Default: 64
+
 INET peer storage:
 
 inet_peer_threshold - INTEGER
@@ -77,6 +100,11 @@ inet_peer_gc_maxtime - INTEGER
 	Measured in jiffies(1).
 
 TCP variables: 
+
+tcp_abc - INTEGER
+	Controls Appropriate Byte Count defined in RFC3465. If set to
+	0 then does congestion avoid once per ack. 1 is conservative
+	value, and 2 is more agressive.
 
 tcp_syn_retries - INTEGER
 	Number of times initial SYNs for an active TCP connection attempt
@@ -304,69 +332,23 @@ tcp_low_latency - BOOLEAN
 	changed would be a Beowulf compute cluster.
 	Default: 0
 
-tcp_westwood - BOOLEAN
-        Enable TCP Westwood+ congestion control algorithm.
-	TCP Westwood+ is a sender-side only modification of the TCP Reno 
-	protocol stack that optimizes the performance of TCP congestion 
-	control. It is based on end-to-end bandwidth estimation to set 
-	congestion window and slow start threshold after a congestion 
-	episode. Using this estimation, TCP Westwood+ adaptively sets a 
-	slow start threshold and a congestion window which takes into 
-	account the bandwidth used  at the time congestion is experienced. 
-	TCP Westwood+ significantly increases fairness wrt TCP Reno in 
-	wired networks and throughput over wireless links.   
-        Default: 0
-
-tcp_vegas_cong_avoid - BOOLEAN
-	Enable TCP Vegas congestion avoidance algorithm.
-	TCP Vegas is a sender-side only change to TCP that anticipates
-	the onset of congestion by estimating the bandwidth. TCP Vegas
-	adjusts the sending rate by modifying the congestion
-	window. TCP Vegas should provide less packet loss, but it is
-	not as aggressive as TCP Reno.
-	Default:0
-
-tcp_bic - BOOLEAN
-	Enable BIC TCP congestion control algorithm.
-	BIC-TCP is a sender-side only change that ensures a linear RTT
-	fairness under large windows while offering both scalability and
-	bounded TCP-friendliness. The protocol combines two schemes
-	called additive increase and binary search increase. When the
-	congestion window is large, additive increase with a large
-	increment ensures linear RTT fairness as well as good
-	scalability. Under small congestion windows, binary search
-	increase provides TCP friendliness.
-	Default: 0
-
-tcp_bic_low_window - INTEGER
-	Sets the threshold window (in packets) where BIC TCP starts to
-	adjust the congestion window. Below this threshold BIC TCP behaves
-	the same as the default TCP Reno. 
-	Default: 14
-
-tcp_bic_fast_convergence - BOOLEAN
-	Forces BIC TCP to more quickly respond to changes in congestion
-	window. Allows two flows sharing the same connection to converge
-	more rapidly.
-	Default: 1
-
-tcp_default_win_scale - INTEGER
-	Sets the minimum window scale TCP will negotiate for on all
-	conections.
-	Default: 7
-
 tcp_tso_win_divisor - INTEGER
        This allows control over what percentage of the congestion window
        can be consumed by a single TSO frame.
        The setting of this parameter is a choice between burstiness and
        building larger TSO frames.
-       Default: 8
+       Default: 3
 
 tcp_frto - BOOLEAN
 	Enables F-RTO, an enhanced recovery algorithm for TCP retransmission
 	timeouts.  It is particularly beneficial in wireless environments
 	where packet loss is typically due to random radio interference
 	rather than intermediate router congestion.
+
+tcp_congestion_control - STRING
+	Set the congestion control algorithm to be used for new
+	connections. The algorithm "reno" is always available, but
+	additional choices may be available based on kernel configuration.
 
 somaxconn - INTEGER
 	Limit of socket listen() backlog, known in userspace as SOMAXCONN.
@@ -401,10 +383,14 @@ ip_dynaddr - BOOLEAN
 	Default: 0
 
 icmp_echo_ignore_all - BOOLEAN
+	If set non-zero, then the kernel will ignore all ICMP ECHO
+	requests sent to it.
+	Default: 0
+
 icmp_echo_ignore_broadcasts - BOOLEAN
-	If either is set to true, then the kernel will ignore either all
-	ICMP ECHO requests sent to it or just those to broadcast/multicast
-	addresses, respectively.
+	If set non-zero, then the kernel will ignore all ICMP ECHO and
+	TIMESTAMP requests sent to it via broadcast/multicast.
+	Default: 1
 
 icmp_ratelimit - INTEGER
 	Limit the maximal rates for sending ICMP packets whose type matches
@@ -440,6 +426,23 @@ icmp_ignore_bogus_error_responses - BOOLEAN
 	If this is set to TRUE, the kernel will not give such warnings, which
 	will avoid log file clutter.
 	Default: FALSE
+
+icmp_errors_use_inbound_ifaddr - BOOLEAN
+
+	If zero, icmp error messages are sent with the primary address of
+	the exiting interface.
+ 
+	If non-zero, the message will be sent with the primary address of
+	the interface that received the packet that caused the icmp error.
+	This is the behaviour network many administrators will expect from
+	a router. And it can make debugging complicated network layouts
+	much easier. 
+
+	Note that if no primary address exists for the interface selected,
+	then the primary address of the first non-loopback interface that
+	has one will be used regarldess of this setting.
+
+	Default: 0
 
 igmp_max_memberships - INTEGER
 	Change the maximum number of multicast groups we can subscribe to.

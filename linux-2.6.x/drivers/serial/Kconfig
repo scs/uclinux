@@ -10,7 +10,7 @@ menu "Serial drivers"
 # The new 8250/16550 serial drivers
 config SERIAL_8250
 	tristate "8250/16550 and compatible serial support"
-	depends on (BROKEN || !(SPARC64 || SPARC32))
+	depends on (BROKEN || !SPARC)
 	select SERIAL_CORE
 	---help---
 	  This selects whether you want to include the driver for the standard
@@ -23,7 +23,7 @@ config SERIAL_8250
 	  work.)
 
 	  To compile this driver as a module, choose M here: the
-	  module will be called serial.
+	  module will be called 8250.
 	  [WARNING: Do not compile this driver as a module if you are using
 	  non-standard serial ports, since the configuration information will
 	  be lost when the driver is unloaded.  This limitation may be lifted
@@ -80,20 +80,31 @@ config SERIAL_8250_CS
 config SERIAL_8250_ACPI
 	bool "8250/16550 device discovery via ACPI namespace"
 	default y if IA64
-	depends on ACPI_BUS && SERIAL_8250
+	depends on ACPI && SERIAL_8250
 	---help---
 	  If you wish to enable serial port discovery via the ACPI
 	  namespace, say Y here.  If unsure, say N.
 
 config SERIAL_8250_NR_UARTS
-	int "Maximum number of non-legacy 8250/16550 serial ports"
+	int "Maximum number of 8250/16550 serial ports"
 	depends on SERIAL_8250
 	default "4"
-	---help---
-	  Set this to the number of non-legacy serial ports you want
-	  the driver to support.  This includes any ports discovered
-	  via ACPI or PCI enumeration and any ports that may be added
-	  at run-time via hot-plug.
+	help
+	  Set this to the number of serial ports you want the driver
+	  to support.  This includes any ports discovered via ACPI or
+	  PCI enumeration and any ports that may be added at run-time
+	  via hot-plug, or any ISA multi-port serial cards.
+
+config SERIAL_8250_RUNTIME_UARTS
+	int "Number of 8250/16550 serial ports to register at runtime"
+	depends on SERIAL_8250
+	range 0 SERIAL_8250_NR_UARTS
+	default "4"
+	help
+	  Set this to the maximum number of serial ports you want
+	  the kernel to register at boot time.  This can be overriden
+	  with the module parameter "nr_uarts", or boot-time parameter
+	  8250.nr_uarts
 
 config SERIAL_8250_EXTENDED
 	bool "Extended 8250/16550 serial driver options"
@@ -141,34 +152,84 @@ config SERIAL_8250_DETECT_IRQ
 
 	  If unsure, say N.
 
-config SERIAL_8250_MULTIPORT
-	bool "Support special multiport boards"
-	depends on SERIAL_8250_EXTENDED
-	help
-	  Some multiport serial ports have special ports which are used to
-	  signal when there are any serial ports on the board which need
-	  servicing. Say Y here to enable the serial driver to take advantage
-	  of those special I/O ports.
-
 config SERIAL_8250_RSA
 	bool "Support RSA serial ports"
 	depends on SERIAL_8250_EXTENDED
 	help
 	  ::: To be written :::
 
-comment "Non-8250 serial port support"
+#
+# Multi-port serial cards
+#
+
+config SERIAL_8250_FOURPORT
+	tristate "Support Fourport cards"
+	depends on SERIAL_8250 != n && ISA && SERIAL_8250_MANY_PORTS
+	help
+	  Say Y here if you have an AST FourPort serial board.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called 8250_fourport.
+
+config SERIAL_8250_ACCENT
+	tristate "Support Accent cards"
+	depends on SERIAL_8250 != n && ISA && SERIAL_8250_MANY_PORTS
+	help
+	  Say Y here if you have an Accent Async serial board.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called 8250_accent.
+
+
+config SERIAL_8250_BOCA
+	tristate "Support Boca cards"
+	depends on SERIAL_8250 != n && ISA && SERIAL_8250_MANY_PORTS
+	help
+	  Say Y here if you have a Boca serial board.  Please read the Boca
+	  mini-HOWTO, avaialble from <http://www.tldp.org/docs.html#howto>
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called 8250_boca.
+
+config SERIAL_8250_HUB6
+	tristate "Support Hub6 cards"
+	depends on SERIAL_8250 != n && ISA && SERIAL_8250_MANY_PORTS
+	help
+	  Say Y here if you have a HUB6 serial board.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called 8250_hub6.
+
+config SERIAL_8250_MCA
+	tristate "Support 8250-type ports on MCA buses"
+	depends on SERIAL_8250 != n && MCA
+	help
+	  Say Y here if you have a MCA serial ports.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called 8250_mca.
 
 config SERIAL_8250_ACORN
 	tristate "Acorn expansion card serial port support"
-	depends on ARM && ARCH_ACORN && SERIAL_8250
+	depends on ARCH_ACORN && SERIAL_8250
 	help
 	  If you have an Atomwide Serial card or Serial Port card for an Acorn
 	  system, say Y to this option.  The driver can handle 1, 2, or 3 port
 	  cards.  If unsure, say N.
 
+config SERIAL_8250_AU1X00
+	bool "AU1X00 serial port support"
+	depends on SERIAL_8250 != n && SOC_AU1X00
+	help
+	  If you have an Au1x00 board and want to use the serial port, say Y
+	  to this option.  The driver can handle 1 or 2 serial ports.
+	  If unsure, say N.
+
+comment "Non-8250 serial port support"
+
 config SERIAL_AMBA_PL010
 	tristate "ARM AMBA PL010 serial port support"
-	depends on ARM_AMBA
+	depends on ARM_AMBA && (BROKEN || !ARCH_VERSATILE)
 	select SERIAL_CORE
 	help
 	  This selects the ARM(R) AMBA(R) PrimeCell PL010 UART.  If you have
@@ -219,6 +280,40 @@ config SERIAL_AMBA_PL011_CONSOLE
 	  your boot loader (lilo or loadlin) about how to pass options to the
 	  kernel at boot time.)
 
+config SERIAL_AT91
+	bool "AT91RM9200 serial port support"
+	depends on ARM && ARCH_AT91RM9200
+	select SERIAL_CORE
+	help
+	  This enables the driver for the on-chip UARTs of the AT91RM9200
+	  processor.
+
+config SERIAL_AT91_CONSOLE
+	bool "Support for console on AT91RM9200 serial port"
+	depends on SERIAL_AT91=y
+	select SERIAL_CORE_CONSOLE
+	help
+	  Say Y here if you wish to use a UART on the AT91RM9200 as the system
+	  console (the system console is the device which receives all kernel
+	  messages and warnings and which allows logins in single user mode).
+
+config SERIAL_AT91_TTYAT
+	bool "Install as device ttyAT0-4 instead of ttyS0-4"
+	depends on SERIAL_AT91=y
+	help
+	  Say Y here if you wish to have the five internal AT91RM9200 UARTs
+	  appear as /dev/ttyAT0-4 (major 204, minor 154-158) instead of the
+	  normal /dev/ttyS0-4 (major 4, minor 64-68). This is necessary if
+	  you also want other UARTs, such as external 8250/16C550 compatible
+	  UARTs.
+	  The ttySn nodes are legally reserved for the 8250 serial driver
+	  but are often misused by other serial drivers.
+
+	  To use this, you should create suitable ttyATn device nodes in
+	  /dev/, and pass "console=ttyATn" to the kernel.
+
+	  Say Y if you have an external 8250/16C550 UART.  If unsure, say N.
+
 config SERIAL_CLPS711X
 	tristate "CLPS711X serial port support"
 	depends on ARM && ARCH_CLPS711X
@@ -263,16 +358,9 @@ config SERIAL_S3C2410_CONSOLE
 	  your boot loader about how to pass options to the kernel at
 	  boot time.)
 
-config SERIAL_BAST_SIO
-	bool "Support for BAST SuperIO serial ports"
-	depends on ARCH_BAST && SERIAL_8250=y
-	help
-	  Support for registerin the SuperIO chip on BAST board with
-	  the 8250/16550 uart code.
-
 config SERIAL_DZ
 	bool "DECstation DZ serial driver"
-	depends on MACH_DECSTATION && MIPS32
+	depends on MACH_DECSTATION && 32BIT
 	select SERIAL_CORE
 	help
 	  DZ11-family serial controllers for VAXstations, including the
@@ -312,29 +400,6 @@ config SERIAL_21285_CONSOLE
 	  (/dev/tty0) will still be used as the system console by default, but
 	  you can alter that using a kernel command line option such as
 	  "console=ttyFB". (Try "man bootparam" or see the documentation of
-	  your boot loader (lilo or loadlin) about how to pass options to the
-	  kernel at boot time.)
-
-config SERIAL_UART00
-	bool "Excalibur serial port (uart00) support"
-	depends on ARM && ARCH_CAMELOT
-	select SERIAL_CORE
-	help
-	  Say Y here if you want to use the hard logic uart on Excalibur. This
-	  driver also supports soft logic implementations of this uart core.
-
-config SERIAL_UART00_CONSOLE
-	bool "Support for console on Excalibur serial port"
-	depends on SERIAL_UART00
-	select SERIAL_CORE_CONSOLE
-	help
-	  Say Y here if you want to support a serial console on an Excalibur
-	  hard logic uart or uart00 IP core.
-
-	  Even if you say Y here, the currently visible virtual console
-	  (/dev/tty0) will still be used as the system console by default, but
-	  you can alter that using a kernel command line option such as
-	  "console=ttyS1". (Try "man bootparam" or see the documentation of
 	  your boot loader (lilo or loadlin) about how to pass options to the
 	  kernel at boot time.)
 
@@ -425,14 +490,14 @@ config SERIAL_IMX_CONSOLE
 
 config SERIAL_SUNCORE
 	bool
-	depends on SPARC32 || SPARC64
+	depends on SPARC
 	select SERIAL_CORE
 	select SERIAL_CORE_CONSOLE
 	default y
 
 config SERIAL_SUNZILOG
 	tristate "Sun Zilog8530 serial support"
-	depends on SPARC32 || SPARC64
+	depends on SPARC
 	help
 	  This driver supports the Zilog8530 serial ports found on many Sparc
 	  systems.  Say Y or M if you want to be able to these serial ports.
@@ -447,7 +512,7 @@ config SERIAL_SUNZILOG_CONSOLE
 
 config SERIAL_SUNSU
 	tristate "Sun SU serial support"
-	depends on (SPARC32 || SPARC64) && PCI
+	depends on SPARC && PCI
 	help
 	  This driver supports the 8250 serial ports that run the keyboard and
 	  mouse on (PCI) UltraSPARC systems.  Say Y or M if you want to be able
@@ -463,7 +528,7 @@ config SERIAL_SUNSU_CONSOLE
 
 config SERIAL_MUX
 	tristate "Serial MUX support"
-	depends on PARISC
+	depends on GSC
 	select SERIAL_CORE
 	default y
 	---help---
@@ -503,7 +568,7 @@ config PDC_CONSOLE
 
 config SERIAL_SUNSAB
 	tristate "Sun Siemens SAB82532 serial support"
-	depends on (SPARC32 || SPARC64) && PCI
+	depends on SPARC && PCI
 	help
 	  This driver supports the Siemens SAB82532 DUSCC serial ports on newer
 	  (PCI) UltraSPARC systems.  Say Y or M if you want to be able to these
@@ -659,7 +724,7 @@ config SERIAL_CPM
 	depends on CPM2 || 8xx
 	select SERIAL_CORE
 	help
-	  This driver supports the SCC and SMC serial ports on Motorola
+	  This driver supports the SCC and SMC serial ports on Motorola 
 	  embedded PowerPC that contain a CPM1 (8xx) or CPM2 (8xxx)
 
 config SERIAL_CPM_CONSOLE
@@ -753,7 +818,7 @@ config SERIAL_MPC52xx_CONSOLE_BAUD
 
 config SERIAL_ICOM
 	tristate "IBM Multiport Serial Adapter"
-	depends on PPC_ISERIES || PPC_PSERIES
+	depends on PCI && (PPC_ISERIES || PPC_PSERIES)
 	select SERIAL_CORE
 	help
 	  This driver is for a family of multiport serial adapters
@@ -783,7 +848,7 @@ config SERIAL_M32R_SIO_CONSOLE
 
 config SERIAL_M32R_PLDSIO
 	bool "M32R SIO I/F on a PLD"
-	depends on SERIAL_M32R_SIO=y
+	depends on SERIAL_M32R_SIO=y && (PLAT_OPSPUT || PLAT_USRV || PLAT_M32700UT)
 	default n
 	help
 	  Say Y here if you want to use the M32R serial controller
@@ -794,7 +859,7 @@ config SERIAL_M32R_PLDSIO
 
 config SERIAL_TXX9
 	bool "TMPTX39XX/49XX SIO support"
-	depends HAS_TXX9_SERIAL
+	depends HAS_TXX9_SERIAL && BROKEN
 	select SERIAL_CORE
 	default y
 
@@ -828,20 +893,37 @@ config SERIAL_VR41XX_CONSOLE
 	  a console on a serial port, say Y.  Otherwise, say N.
 
 config SERIAL_JSM
-        tristate "Digi International NEO PCI Support"
+	tristate "Digi International NEO PCI Support"
 	depends on PCI
-        select SERIAL_CORE
-        help
-          This is a driver for Digi International's Neo series
-          of cards which provide multiple serial ports. You would need
-          something like this to connect more than two modems to your Linux
-          box, for instance in order to become a dial-in server. This driver
-          supports PCI boards only.
-          If you have a card like this, say Y here and read the file
-          <file:Documentation/jsm.txt>.
+	select SERIAL_CORE
+	help
+	  This is a driver for Digi International's Neo series
+	  of cards which provide multiple serial ports. You would need
+	  something like this to connect more than two modems to your Linux
+	  box, for instance in order to become a dial-in server. This driver
+	  supports PCI boards only.
 
-          To compile this driver as a module, choose M here: the
-          module will be called jsm.
+	  If you have a card like this, say Y here, otherwise say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called jsm.
+
+config SERIAL_SGI_IOC4
+	tristate "SGI IOC4 controller serial support"
+	depends on (IA64_GENERIC || IA64_SGI_SN2) && SGI_IOC4
+	select SERIAL_CORE
+	help
+		If you have an SGI Altix with an IOC4 based Base IO card
+		and wish to use the serial ports on this card, say Y.
+		Otherwise, say N.
+
+config SERIAL_SGI_IOC3
+	tristate "SGI Altix IOC3 serial support"
+	depends on (IA64_GENERIC || IA64_SGI_SN2) && SGI_IOC3
+	select SERIAL_CORE
+	help
+	  If you have an SGI Altix with an IOC3 serial card,
+	  say Y or M.  Otherwise, say N.
 
 config SERIAL_BLACKFIN
 	bool 'Blackfin Serial Driver'

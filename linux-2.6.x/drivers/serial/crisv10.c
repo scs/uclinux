@@ -7,8 +7,8 @@
  *    Many, many authors. Based once upon a time on serial.c for 16x50.
  *
  * $Log$
- * Revision 1.1  2005/08/15 08:40:52  magicyang
- * update kernel 2.6.8 to 2.6.12
+ * Revision 1.2  2006/03/22 08:04:49  magicyang
+ * update kernel to 2.6.16
  *
  * Revision 1.25  2004/09/29 10:33:49  starvik
  * Resolved a dealock when printing debug from kernel.
@@ -429,8 +429,6 @@
 static char *serial_version = "$Revision$";
 
 #include <linux/config.h>
-#include <linux/version.h>
-
 #include <linux/types.h>
 #include <linux/errno.h>
 #include <linux/signal.h>
@@ -447,11 +445,11 @@ static char *serial_version = "$Revision$";
 #include <linux/init.h>
 #include <asm/uaccess.h>
 #include <linux/kernel.h>
+#include <linux/mutex.h>
 
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/system.h>
-#include <asm/segment.h>
 #include <asm/bitops.h>
 #include <linux/delay.h>
 
@@ -1321,11 +1319,7 @@ static const struct control_pins e100_modem_pins[NR_PORTS] =
  * memory if large numbers of serial ports are open.
  */
 static unsigned char *tmp_buf;
-#ifdef DECLARE_MUTEX
-static DECLARE_MUTEX(tmp_buf_sem);
-#else
-static struct semaphore tmp_buf_sem = MUTEX;
-#endif
+static DEFINE_MUTEX(tmp_buf_mutex);
 
 /* Calculate the chartime depending on baudrate, numbor of bits etc. */
 static void update_char_time(struct e100_serial * info)
@@ -3667,7 +3661,7 @@ rs_raw_write(struct tty_struct * tty, int from_user,
 	 * design.
 	 */
 	if (from_user) {
-		down(&tmp_buf_sem);
+		mutex_lock(&tmp_buf_mutex);
 		while (1) {
 			int c1;
 			c = CIRC_SPACE_TO_END(info->xmit.head,
@@ -3698,7 +3692,7 @@ rs_raw_write(struct tty_struct * tty, int from_user,
 			count -= c;
 			ret += c;
 		}
-		up(&tmp_buf_sem);
+		mutex_unlock(&tmp_buf_mutex);
 	} else {
 		cli();
 		while (count) {
@@ -4422,10 +4416,8 @@ rs_close(struct tty_struct *tty, struct file * filp)
 	info->event = 0;
 	info->tty = 0;
 	if (info->blocked_open) {
-		if (info->close_delay) {
-			set_current_state(TASK_INTERRUPTIBLE);
-			schedule_timeout(info->close_delay);
-		}
+		if (info->close_delay)
+			schedule_timeout_interruptible(info->close_delay);
 		wake_up_interruptible(&info->open_wait);
 	}
 	info->flags &= ~(ASYNC_NORMAL_ACTIVE|ASYNC_CLOSING);
@@ -4475,8 +4467,7 @@ static void rs_wait_until_sent(struct tty_struct *tty, int timeout)
 	while (info->xmit.head != info->xmit.tail || /* More in send queue */
 	       (*info->ostatusadr & 0x007f) ||  /* more in FIFO */
 	       (elapsed_usec < 2*info->char_time_usec)) {
-		set_current_state(TASK_INTERRUPTIBLE);
-		schedule_timeout(1);
+		schedule_timeout_interruptible(1);
 		if (signal_pending(current))
 			break;
 		if (timeout && time_after(jiffies, orig_jiffies + timeout))
@@ -5046,17 +5037,3 @@ rs_init(void)
 /* this makes sure that rs_init is called during kernel boot */
 
 module_init(rs_init);
-
-/*
- * register_serial and unregister_serial allows for serial ports to be
- * configured at run-time, to support PCMCIA modems.
- */
-int
-register_serial(struct serial_struct *req)
-{
-	return -1;
-}
-
-void unregister_serial(int line)
-{
-}

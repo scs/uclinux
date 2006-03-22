@@ -2,8 +2,8 @@
  * UHCI-specific debugging code. Invaluable when something
  * goes wrong, but don't get in my face.
  *
- * Kernel visible pointers are surrounded in []'s and bus
- * visible pointers are surrounded in ()'s
+ * Kernel visible pointers are surrounded in []s and bus
+ * visible pointers are surrounded in ()s
  *
  * (C) Copyright 1999 Linus Torvalds
  * (C) Copyright 1999-2001 Johannes Erdfelt
@@ -19,7 +19,7 @@
 
 static struct dentry *uhci_debugfs_root = NULL;
 
-/* Handle REALLY large printk's so we don't overflow buffers */
+/* Handle REALLY large printks so we don't overflow buffers */
 static inline void lprintk(char *buf)
 {
 	char *p;
@@ -160,7 +160,7 @@ static int uhci_show_qh(struct uhci_qh *qh, char *buf, int len, int space)
 			}
 
 			if (active && ni > i) {
-				out += sprintf(out, "%*s[skipped %d active TD's]\n", space, "", ni - i);
+				out += sprintf(out, "%*s[skipped %d active TDs]\n", space, "", ni - i);
 				tmp = ntmp;
 				td = ntd;
 				i = ni;
@@ -173,7 +173,7 @@ static int uhci_show_qh(struct uhci_qh *qh, char *buf, int len, int space)
 	if (list_empty(&urbp->queue_list) || urbp->queued)
 		goto out;
 
-	out += sprintf(out, "%*sQueued QH's:\n", -space, "--");
+	out += sprintf(out, "%*sQueued QHs:\n", -space, "--");
 
 	head = &urbp->queue_list;
 	tmp = head->next;
@@ -197,7 +197,7 @@ out:
 	}
 
 #ifdef CONFIG_PROC_FS
-static const char *qh_names[] = {
+static const char * const qh_names[] = {
   "skel_int128_qh", "skel_int64_qh",
   "skel_int32_qh", "skel_int16_qh",
   "skel_int8_qh", "skel_int4_qh",
@@ -234,6 +234,37 @@ static int uhci_show_sc(int port, unsigned short status, char *buf, int len)
 		(status & USBPORTSC_CSC) ?	" ConnectChange" : "",
 		(status & USBPORTSC_CCS) ?	" Connected" : "");
 
+	return out - buf;
+}
+
+static int uhci_show_root_hub_state(struct uhci_hcd *uhci, char *buf, int len)
+{
+	char *out = buf;
+	char *rh_state;
+
+	/* Try to make sure there's enough memory */
+	if (len < 60)
+		return 0;
+
+	switch (uhci->rh_state) {
+	    case UHCI_RH_RESET:
+		rh_state = "reset";		break;
+	    case UHCI_RH_SUSPENDED:
+		rh_state = "suspended";		break;
+	    case UHCI_RH_AUTO_STOPPED:
+		rh_state = "auto-stopped";	break;
+	    case UHCI_RH_RESUMING:
+		rh_state = "resuming";		break;
+	    case UHCI_RH_SUSPENDING:
+		rh_state = "suspending";	break;
+	    case UHCI_RH_RUNNING:
+		rh_state = "running";		break;
+	    case UHCI_RH_RUNNING_NODEVS:
+		rh_state = "running, no devs";	break;
+	    default:
+		rh_state = "?";			break;
+	}
+	out += sprintf(out, "Root-hub state: %s\n", rh_state);
 	return out - buf;
 }
 
@@ -317,7 +348,6 @@ static int uhci_show_urbp(struct uhci_hcd *uhci, struct urb_priv *urbp, char *bu
 
 	if (urbp->urb->status != -EINPROGRESS)
 		out += sprintf(out, "Status=%d ", urbp->urb->status);
-	//out += sprintf(out, "Inserttime=%lx ",urbp->inserttime);
 	//out += sprintf(out, "FSBRtime=%lx ",urbp->fsbrtime);
 
 	count = 0;
@@ -408,17 +438,18 @@ static int uhci_sprint_schedule(struct uhci_hcd *uhci, char *buf, int len)
 
 	spin_lock_irqsave(&uhci->lock, flags);
 
+	out += uhci_show_root_hub_state(uhci, out, len - (out - buf));
 	out += sprintf(out, "HC status\n");
 	out += uhci_show_status(uhci, out, len - (out - buf));
 
 	out += sprintf(out, "Frame List\n");
 	for (i = 0; i < UHCI_NUMFRAMES; ++i) {
 		int shown = 0;
-		td = uhci->fl->frame_cpu[i];
+		td = uhci->frame_cpu[i];
 		if (!td)
 			continue;
 
-		if (td->dma_handle != (dma_addr_t)uhci->fl->frame[i]) {
+		if (td->dma_handle != (dma_addr_t)uhci->frame[i]) {
 			show_frame_num();
 			out += sprintf(out, "    frame list does not match td->dma_handle!\n");
 		}
@@ -433,7 +464,7 @@ static int uhci_sprint_schedule(struct uhci_hcd *uhci, char *buf, int len)
 		} while (tmp != head);
 	}
 
-	out += sprintf(out, "Skeleton QH's\n");
+	out += sprintf(out, "Skeleton QHs\n");
 
 	for (i = 0; i < UHCI_NUM_SKELQH; ++i) {
 		int shown = 0;

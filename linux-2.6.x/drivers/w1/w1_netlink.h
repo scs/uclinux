@@ -33,13 +33,13 @@ enum w1_netlink_message_types {
 	W1_MASTER_REMOVE,
 };
 
-struct w1_netlink_msg 
+struct w1_netlink_msg
 {
 	__u8				type;
 	__u8				reserved[3];
 	union
 	{
-		struct w1_reg_num 	id;
+		struct w1_reg_num	id;
 		__u64			w1_id;
 		struct
 		{
@@ -52,6 +52,8 @@ struct w1_netlink_msg
 #ifdef __KERNEL__
 
 void w1_netlink_send(struct w1_master *, struct w1_netlink_msg *);
+int dev_init_netlink(struct w1_master *dev);
+void dev_fini_netlink(struct w1_master *dev);
 
 #endif /* __KERNEL__ */
 #endif /* __W1_NETLINK_H */

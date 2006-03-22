@@ -32,9 +32,9 @@
    i810AB		7123           
    i810E		7125           
    i815			1132           
+   i845G		2562
 */
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>

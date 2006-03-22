@@ -86,19 +86,19 @@
  *	Setup for console. Argument comes from the menuconfig
  */
 
-#ifdef CONFIG_BAUD_9600
+#if defined(CONFIG_BAUD_9600)
 #define CONSOLE_BAUD_RATE 	9600
 #define DEFAULT_CBAUD		B9600
-#elif CONFIG_BAUD_19200
+#elif defined(CONFIG_BAUD_19200)
 #define CONSOLE_BAUD_RATE 	19200
 #define DEFAULT_CBAUD		B19200
-#elif CONFIG_BAUD_38400
+#elif defined(CONFIG_BAUD_38400)
 #define CONSOLE_BAUD_RATE 	38400
 #define DEFAULT_CBAUD		B38400
-#elif CONFIG_BAUD_57600
+#elif defined(CONFIG_BAUD_57600)
 #define CONSOLE_BAUD_RATE 	57600
 #define DEFAULT_CBAUD		B57600
-#elif CONFIG_BAUD_115200
+#elif defined(CONFIG_BAUD_115200)
 #define CONSOLE_BAUD_RATE 	115200
 #define DEFAULT_CBAUD		B115200
 #endif
@@ -325,9 +325,8 @@ static inline void status_handle(struct bfin_serial *info,
 static void dma_receive_chars(struct bfin_serial *info, int in_timer)
 {
 	struct tty_struct *tty = info->tty;
-	unsigned char flag = 0;
 	int len = 0;
-	int curpos, ttylen = 0;
+	int curpos;
 
 	spin_lock_bh(info->recv_lock);
 
@@ -369,16 +368,10 @@ static void dma_receive_chars(struct bfin_serial *info, int in_timer)
 
 	len = info->recv_head - info->recv_tail;
 
-	ttylen = TTY_FLIPBUF_SIZE - tty->flip.count;
-	if (ttylen > 0) {
-		if (len > ttylen)
-			len = ttylen;
-		memset(tty->flip.flag_buf_ptr, flag, len);
-		memcpy(tty->flip.char_buf_ptr, info->recv_buf + info->recv_tail,
-		       len);
-		tty->flip.flag_buf_ptr += len;
-		tty->flip.char_buf_ptr += len;
-		tty->flip.count += len;
+	len = tty_buffer_request_room(tty, len);
+	if (len > 0) {
+		tty_insert_flip_string(tty,
+		       info->recv_buf + info->recv_tail, len);
 		info->recv_tail += len;
 	}
 
@@ -498,13 +491,6 @@ void receive_chars(struct bfin_serial *info, struct pt_regs *regs)
 
 		if (!tty) {
 			goto clear_and_exit;
-		}
-		/*
-		 * Make sure that we do not overflow the buffer
-		 */
-		if (tty->flip.count >= TTY_FLIPBUF_SIZE) {
-			tty_flip_buffer_push(tty);
-			return;
 		}
 		if (status & PE) {
 			flag = TTY_PARITY;
@@ -795,7 +781,6 @@ static int startup(struct bfin_serial *info)
 	/*
 	 * and set the speed of the serial port
 	 */
-
 	bfin_change_speed(info);
 
 	info->flags |= S_INITIALIZED;
@@ -825,7 +810,7 @@ static void shutdown(struct bfin_serial *info)
 
 	while(!(*(regs->rpUART_LSR)&TEMT) || info->xmit_cnt>0)
 		msleep(50);
-	
+
 	ACCESS_PORT_IER(regs)	/* Change access to IER & data port */
 	*(regs->rpUART_IER) = 0;
 	SSYNC;
@@ -934,7 +919,7 @@ static void bfin_change_speed(struct bfin_serial *info)
 	ACCESS_PORT_IER(regs)
 	* (regs->rpUART_IER) &= ~(ETBEI | ERBFI);
 	SSYNC;
-	
+
 	ACCESS_LATCH(regs)	/*Set to access divisor latch */
 	*(regs->rpUART_DLL) = uart_dl;
 	SSYNC;
@@ -952,6 +937,7 @@ static void bfin_change_speed(struct bfin_serial *info)
 	*(regs->rpUART_IER) = ERBFI | ETBEI | ELSI;
 #endif
 	SSYNC;
+
 #ifdef CONFIG_IRTTY_SIR
 	/* enable irda function*/
         if(cflag & TIOCM_RI){
@@ -1289,7 +1275,6 @@ static int set_modem_info(struct bfin_serial *info, unsigned int cmd,
 static int rs_ioctl(struct tty_struct *tty, struct file *file,
 		    unsigned int cmd, unsigned long arg)
 {
-	int error;
 	struct bfin_serial *info = (struct bfin_serial *)tty->driver_data;
 
 	if (serial_paranoia_check(info, tty->name, "rs_ioctl"))
@@ -1304,10 +1289,6 @@ static int rs_ioctl(struct tty_struct *tty, struct file *file,
 
 	switch (cmd) {
 	case TIOCGSERIAL:
-		error = verify_area(VERIFY_WRITE, (void *)arg,
-				    sizeof(struct serial_struct));
-		if (error)
-			return error;
 		return get_serial_info(info, (struct serial_struct *)arg);
 	case TIOCSSERIAL:
 		return set_serial_info(info, (struct serial_struct *)arg);
@@ -1894,7 +1875,7 @@ static void bfin_set_baud(struct bfin_serial *info)
 
 	/* Change access to IER & data port */
 	ACCESS_PORT_IER(regs)
-	* (regs->rpUART_IER) &= ~(ETBEI | ERBFI);
+	*(regs->rpUART_IER) &= ~(ETBEI | ERBFI);
 	SSYNC;
 
 	uart_dl = calc_divisor(bfin_console_baud);
@@ -1951,7 +1932,7 @@ int bfin_console_setup(struct console *cp, char *arg)
 	info->is_cons = 1;
 
 	bfin_set_baud(info);	/* make sure baud rate changes */
-	
+
 	return 0;
 }
 
@@ -1997,7 +1978,6 @@ int bfin_console_init(void)
 	bfin_config_uart0(&bfin_uart[0]);
 #if defined(CONFIG_BF534) || defined(CONFIG_BF536) || defined(CONFIG_BF537)
 	bfin_config_uart1(&bfin_uart[1]);
-
 	*pPORT_MUX &= ~(PFDE|PFTE);
 	__builtin_bfin_ssync();
 	*pPORTF_FER |= 0xF;

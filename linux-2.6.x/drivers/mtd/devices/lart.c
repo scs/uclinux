@@ -44,6 +44,7 @@
 #include <linux/types.h>
 #include <linux/init.h>
 #include <linux/errno.h>
+#include <linux/string.h>
 #include <linux/mtd/mtd.h>
 #ifdef HAVE_PARTITIONS
 #include <linux/mtd/partitions.h>
@@ -121,7 +122,7 @@ static char module_name[] = "lart";
 
 /*
  * The data line mapping on LART is as follows:
- * 
+ *
  *   	 U2  CPU |   U3  CPU
  *   	 -------------------
  *   	  0  20  |   0   12
@@ -180,7 +181,7 @@ static char module_name[] = "lart";
 		(((x) & 0x00004000) >> 13)		\
 	)
 
-/* 
+/*
  * The address line mapping on LART is as follows:
  *
  *   	 U3  CPU |   U2  CPU
@@ -203,7 +204,7 @@ static char module_name[] = "lart";
  *   	 12  15  |   12  15
  *   	 13  14  |   13  14
  *   	 14  16  |   14  16
- * 
+ *
  *   	 MAIN BLOCK BOUNDARY
  *
  *   	 15  17  |   15  18

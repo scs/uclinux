@@ -59,6 +59,7 @@
 
 #define  TI122X_SCR_SER_STEP		0xc0000000
 #define  TI122X_SCR_INTRTIE		0x20000000
+#define  TIXX21_SCR_TIEALL		0x10000000
 #define  TI122X_SCR_CBRSVD		0x00400000
 #define  TI122X_SCR_MRBURSTDN		0x00008000
 #define  TI122X_SCR_MRBURSTUP		0x00004000
@@ -153,8 +154,12 @@
 /* EnE test register */
 #define ENE_TEST_C9			0xc9	/* 8bit */
 #define ENE_TEST_C9_TLTENABLE		0x02
-
-#ifdef CONFIG_CARDBUS
+#define ENE_TEST_C9_PFENABLE_F0		0x04
+#define ENE_TEST_C9_PFENABLE_F1		0x08
+#define ENE_TEST_C9_PFENABLE		(ENE_TEST_C9_PFENABLE_F0 | ENE_TEST_C9_PFENABLE_F0)
+#define ENE_TEST_C9_WPDISALBLE_F0	0x40
+#define ENE_TEST_C9_WPDISALBLE_F1	0x80
+#define ENE_TEST_C9_WPDISALBLE		(ENE_TEST_C9_WPDISALBLE_F0 | ENE_TEST_C9_WPDISALBLE_F1)
 
 /*
  * Texas Instruments CardBus controller overrides.
@@ -611,6 +616,198 @@ out:
 	}
 }
 
+
+/* Returns true value if the second slot of a two-slot controller is empty */
+static int ti12xx_2nd_slot_empty(struct yenta_socket *socket)
+{
+	struct pci_dev *func;
+	struct yenta_socket *slot2;
+	int devfn;
+	unsigned int state;
+	int ret = 1;
+	u32 sysctl;
+
+	/* catch the two-slot controllers */
+	switch (socket->dev->device) {
+	case PCI_DEVICE_ID_TI_1220:
+	case PCI_DEVICE_ID_TI_1221:
+	case PCI_DEVICE_ID_TI_1225:
+	case PCI_DEVICE_ID_TI_1251A:
+	case PCI_DEVICE_ID_TI_1251B:
+	case PCI_DEVICE_ID_TI_1420:
+	case PCI_DEVICE_ID_TI_1450:
+	case PCI_DEVICE_ID_TI_1451A:
+	case PCI_DEVICE_ID_TI_1520:
+	case PCI_DEVICE_ID_TI_1620:
+	case PCI_DEVICE_ID_TI_4520:
+	case PCI_DEVICE_ID_TI_4450:
+	case PCI_DEVICE_ID_TI_4451:
+		/*
+		 * there are way more, but they need to be added in yenta_socket.c
+		 * and pci_ids.h first anyway.
+		 */
+		break;
+
+	case PCI_DEVICE_ID_TI_X515:
+	case PCI_DEVICE_ID_TI_X420:
+	case PCI_DEVICE_ID_TI_X620:
+	case PCI_DEVICE_ID_TI_XX21_XX11:
+	case PCI_DEVICE_ID_TI_7410:
+	case PCI_DEVICE_ID_TI_7610:
+		/*
+		 * those are either single or dual slot CB with additional functions
+		 * like 1394, smartcard reader, etc. check the TIEALL flag for them
+		 * the TIEALL flag binds the IRQ of all functions toghether.
+		 * we catch the single slot variants later.
+		 */
+		sysctl = config_readl(socket, TI113X_SYSTEM_CONTROL);
+		if (sysctl & TIXX21_SCR_TIEALL)
+			return 0;
+
+		break;
+
+	/* single-slot controllers have the 2nd slot empty always :) */
+	default:
+		return 1;
+	}
+
+	/* get other slot */
+	devfn = socket->dev->devfn & ~0x07;
+	func = pci_get_slot(socket->dev->bus,
+	                    (socket->dev->devfn & 0x07) ? devfn : devfn | 0x01);
+	if (!func)
+		return 1;
+
+	/*
+	 * check that the device id of both slots match. this is needed for the
+	 * XX21 and the XX11 controller that share the same device id for single
+	 * and dual slot controllers. return '2nd slot empty'. we already checked
+	 * if the interrupt is tied to another function.
+	 */
+	if (socket->dev->device != func->device)
+		goto out;
+
+	slot2 = pci_get_drvdata(func);
+	if (!slot2)
+		goto out;
+
+	/* check state */
+	yenta_get_status(&socket->socket, &state);
+	if (state & SS_DETECT) {
+		ret = 0;
+		goto out;
+	}
+
+out:
+	pci_dev_put(func);
+	return ret;
+}
+
+/*
+ * TI specifiy parts for the power hook.
+ *
+ * some TI's with some CB's produces interrupt storm on power on. it has been
+ * seen with atheros wlan cards on TI1225 and TI1410. solution is simply to
+ * disable any CB interrupts during this time.
+ */
+static int ti12xx_power_hook(struct pcmcia_socket *sock, int operation)
+{
+	struct yenta_socket *socket = container_of(sock, struct yenta_socket, socket);
+	u32 mfunc, devctl, sysctl;
+	u8 gpio3;
+
+	/* only POWER_PRE and POWER_POST are interesting */
+	if ((operation != HOOK_POWER_PRE) && (operation != HOOK_POWER_POST))
+		return 0;
+
+	devctl = config_readb(socket, TI113X_DEVICE_CONTROL);
+	sysctl = config_readl(socket, TI113X_SYSTEM_CONTROL);
+	mfunc = config_readl(socket, TI122X_MFUNC);
+
+	/*
+	 * all serial/tied: only disable when modparm set. always doing it
+	 * would mean a regression for working setups 'cos it disables the
+	 * interrupts for both both slots on 2-slot controllers
+	 * (and users of single slot controllers where it's save have to
+	 * live with setting the modparm, most don't have to anyway)
+	 */
+	if (((devctl & TI113X_DCR_IMODE_MASK) == TI12XX_DCR_IMODE_ALL_SERIAL) &&
+	    (pwr_irqs_off || ti12xx_2nd_slot_empty(socket))) {
+		switch (socket->dev->device) {
+		case PCI_DEVICE_ID_TI_1250:
+		case PCI_DEVICE_ID_TI_1251A:
+		case PCI_DEVICE_ID_TI_1251B:
+		case PCI_DEVICE_ID_TI_1450:
+		case PCI_DEVICE_ID_TI_1451A:
+		case PCI_DEVICE_ID_TI_4450:
+		case PCI_DEVICE_ID_TI_4451:
+			/* these chips have no IRQSER setting in MFUNC3  */
+			break;
+
+		default:
+			if (operation == HOOK_POWER_PRE)
+				mfunc = (mfunc & ~TI122X_MFUNC3_MASK);
+			else
+				mfunc = (mfunc & ~TI122X_MFUNC3_MASK) | TI122X_MFUNC3_IRQSER;
+		}
+
+		return 0;
+	}
+
+	/* do the job differently for func0/1 */
+	if ((PCI_FUNC(socket->dev->devfn) == 0) ||
+	    ((sysctl & TI122X_SCR_INTRTIE) &&
+	     (pwr_irqs_off || ti12xx_2nd_slot_empty(socket)))) {
+		/* some bridges are different */
+		switch (socket->dev->device) {
+		case PCI_DEVICE_ID_TI_1250:
+		case PCI_DEVICE_ID_TI_1251A:
+		case PCI_DEVICE_ID_TI_1251B:
+		case PCI_DEVICE_ID_TI_1450:
+			/* those oldies use gpio3 for INTA */
+			gpio3 = config_readb(socket, TI1250_GPIO3_CONTROL);
+			if (operation == HOOK_POWER_PRE)
+				gpio3 = (gpio3 & ~TI1250_GPIO_MODE_MASK) | 0x40;
+			else
+				gpio3 &= ~TI1250_GPIO_MODE_MASK;
+			config_writeb(socket, TI1250_GPIO3_CONTROL, gpio3);
+			break;
+
+		default:
+			/* all new bridges are the same */
+			if (operation == HOOK_POWER_PRE)
+				mfunc &= ~TI122X_MFUNC0_MASK;
+			else
+				mfunc |= TI122X_MFUNC0_INTA;
+			config_writel(socket, TI122X_MFUNC, mfunc);
+		}
+	} else {
+		switch (socket->dev->device) {
+		case PCI_DEVICE_ID_TI_1251A:
+		case PCI_DEVICE_ID_TI_1251B:
+		case PCI_DEVICE_ID_TI_1450:
+			/* those have INTA elsewhere and INTB in MFUNC0 */
+			if (operation == HOOK_POWER_PRE)
+				mfunc &= ~TI122X_MFUNC0_MASK;
+			else
+				mfunc |= TI125X_MFUNC0_INTB;
+			config_writel(socket, TI122X_MFUNC, mfunc);
+
+			break;
+
+		default:
+			/* all new bridges are the same */
+			if (operation == HOOK_POWER_PRE)
+				mfunc &= ~TI122X_MFUNC1_MASK;
+			else
+				mfunc |= TI122X_MFUNC1_INTB;
+			config_writel(socket, TI122X_MFUNC, mfunc);
+		}
+	}
+
+	return 0;
+}
+
 static int ti12xx_override(struct yenta_socket *socket)
 {
 	u32 val, val_orig;
@@ -629,16 +826,6 @@ static int ti12xx_override(struct yenta_socket *socket)
 		config_writel(socket, TI113X_SYSTEM_CONTROL, val);
 
 	/*
-	 * for EnE bridges only: clear testbit TLTEnable. this makes the
-	 * RME Hammerfall DSP sound card working.
-	 */
-	if (socket->dev->vendor == PCI_VENDOR_ID_ENE) {
-		u8 test_c9 = config_readb(socket, ENE_TEST_C9);
-		test_c9 &= ~ENE_TEST_C9_TLTENABLE;
-		config_writeb(socket, ENE_TEST_C9, test_c9);
-	}
-
-	/*
 	 * Yenta expects controllers to use CSCINT to route
 	 * CSC interrupts to PCI rather than INTVAL.
 	 */
@@ -653,6 +840,9 @@ static int ti12xx_override(struct yenta_socket *socket)
 		ti12xx_irqroute_func0(socket);
 	else
 		ti12xx_irqroute_func1(socket);
+
+	/* install power hook */
+	socket->socket.power_hook = ti12xx_power_hook;
 
 	return ti_override(socket);
 }
@@ -676,7 +866,78 @@ static int ti1250_override(struct yenta_socket *socket)
 	return ti12xx_override(socket);
 }
 
-#endif /* CONFIG_CARDBUS */
+
+/**
+ * EnE specific part. EnE bridges are register compatible with TI bridges but
+ * have their own test registers and more important their own little problems.
+ * Some fixup code to make everybody happy (TM).
+ */
+
+#ifdef CONFIG_YENTA_ENE_TUNE
+/**
+ * set/clear various test bits:
+ * Defaults to clear the bit.
+ * - mask (u8) defines what bits to change
+ * - bits (u8) is the values to change them to
+ * -> it's
+ * 	current = (current & ~mask) | bits
+ */
+/* pci ids of devices that wants to have the bit set */
+#define DEVID(_vend,_dev,_subvend,_subdev,mask,bits) {		\
+		.vendor		= _vend,			\
+		.device		= _dev,				\
+		.subvendor	= _subvend,			\
+		.subdevice	= _subdev,			\
+		.driver_data	= ((mask) << 8 | (bits)),	\
+	}
+static struct pci_device_id ene_tune_tbl[] = {
+	/* Echo Audio products based on motorola DSP56301 and DSP56361 */
+	DEVID(PCI_VENDOR_ID_MOTOROLA, 0x1801, 0xECC0, PCI_ANY_ID,
+		ENE_TEST_C9_TLTENABLE | ENE_TEST_C9_PFENABLE, ENE_TEST_C9_TLTENABLE),
+	DEVID(PCI_VENDOR_ID_MOTOROLA, 0x3410, 0xECC0, PCI_ANY_ID,
+		ENE_TEST_C9_TLTENABLE | ENE_TEST_C9_PFENABLE, ENE_TEST_C9_TLTENABLE),
+
+	{}
+};
+
+static void ene_tune_bridge(struct pcmcia_socket *sock, struct pci_bus *bus)
+{
+	struct yenta_socket *socket = container_of(sock, struct yenta_socket, socket);
+	struct pci_dev *dev;
+	struct pci_device_id *id = NULL;
+	u8 test_c9, old_c9, mask, bits;
+
+	list_for_each_entry(dev, &bus->devices, bus_list) {
+		id = (struct pci_device_id *) pci_match_id(ene_tune_tbl, dev);
+		if (id)
+			break;
+	}
+
+	test_c9 = old_c9 = config_readb(socket, ENE_TEST_C9);
+	if (id) {
+		mask = (id->driver_data >> 8) & 0xFF;
+		bits = id->driver_data & 0xFF;
+
+		test_c9 = (test_c9 & ~mask) | bits;
+	}
+	else
+		/* default to clear TLTEnable bit, old behaviour */
+		test_c9 &= ~ENE_TEST_C9_TLTENABLE;
+
+	printk(KERN_INFO "yenta EnE: chaning testregister 0xC9, %02x -> %02x\n", old_c9, test_c9);
+	config_writeb(socket, ENE_TEST_C9, test_c9);
+}
+
+static int ene_override(struct yenta_socket *socket)
+{
+	/* install tune_bridge() function */
+	socket->socket.tune_bridge = ene_tune_bridge;
+
+	return ti1250_override(socket);
+}
+#else
+#  define ene_override ti1250_override
+#endif /* !CONFIG_YENTA_ENE_TUNE */
 
 #endif /* _LINUX_TI113X_H */
 

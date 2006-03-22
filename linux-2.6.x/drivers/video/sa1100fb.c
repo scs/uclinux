@@ -173,12 +173,11 @@
 #include <linux/init.h>
 #include <linux/ioport.h>
 #include <linux/cpufreq.h>
-#include <linux/device.h>
+#include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
 
 #include <asm/hardware.h>
 #include <asm/io.h>
-#include <asm/irq.h>
 #include <asm/mach-types.h>
 #include <asm/uaccess.h>
 #include <asm/arch/assabet.h>
@@ -592,13 +591,14 @@ sa1100fb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
 	return ret;
 }
 
+#ifdef CONFIG_CPU_FREQ
 /*
  *  sa1100fb_display_dma_period()
  *    Calculate the minimum period (in picoseconds) between two DMA
  *    requests for the LCD controller.  If we hit this, it means we're
  *    doing nothing but LCD DMA.
  */
-static unsigned int sa1100fb_display_dma_period(struct fb_var_screeninfo *var)
+static inline unsigned int sa1100fb_display_dma_period(struct fb_var_screeninfo *var)
 {
 	/*
 	 * Period = pixclock * bits_per_byte * bytes_per_transfer
@@ -606,6 +606,7 @@ static unsigned int sa1100fb_display_dma_period(struct fb_var_screeninfo *var)
 	 */
 	return var->pixclock * 8 * 16 / var->bits_per_pixel;
 }
+#endif
 
 /*
  *  sa1100fb_check_var():
@@ -814,7 +815,7 @@ static int sa1100fb_blank(int blank, struct fb_info *info)
 	return 0;
 }
 
-static int sa1100fb_mmap(struct fb_info *info, struct file *file,
+static int sa1100fb_mmap(struct fb_info *info,
 			 struct vm_area_struct *vma)
 {
 	struct sa1100fb_info *fbi = (struct sa1100fb_info *)info;
@@ -851,7 +852,6 @@ static struct fb_ops sa1100fb_ops = {
 	.fb_copyarea	= cfb_copyarea,
 	.fb_imageblit	= cfb_imageblit,
 	.fb_blank	= sa1100fb_blank,
-	.fb_cursor	= soft_cursor,
 	.fb_mmap	= sa1100fb_mmap,
 };
 
@@ -1307,21 +1307,19 @@ sa1100fb_freq_policy(struct notifier_block *nb, unsigned long val,
  * Power management hooks.  Note that we won't be called from IRQ context,
  * unlike the blank functions above, so we may sleep.
  */
-static int sa1100fb_suspend(struct device *dev, pm_message_t state, u32 level)
+static int sa1100fb_suspend(struct platform_device *dev, pm_message_t state)
 {
-	struct sa1100fb_info *fbi = dev_get_drvdata(dev);
+	struct sa1100fb_info *fbi = platform_get_drvdata(dev);
 
-	if (level == SUSPEND_DISABLE || level == SUSPEND_POWER_DOWN)
-		set_ctrlr_state(fbi, C_DISABLE_PM);
+	set_ctrlr_state(fbi, C_DISABLE_PM);
 	return 0;
 }
 
-static int sa1100fb_resume(struct device *dev, u32 level)
+static int sa1100fb_resume(struct platform_device *dev)
 {
-	struct sa1100fb_info *fbi = dev_get_drvdata(dev);
+	struct sa1100fb_info *fbi = platform_get_drvdata(dev);
 
-	if (level == RESUME_ENABLE)
-		set_ctrlr_state(fbi, C_ENABLE_PM);
+	set_ctrlr_state(fbi, C_ENABLE_PM);
 	return 0;
 }
 #else
@@ -1453,15 +1451,19 @@ static struct sa1100fb_info * __init sa1100fb_init_fbinfo(struct device *dev)
 	return fbi;
 }
 
-static int __init sa1100fb_probe(struct device *dev)
+static int __init sa1100fb_probe(struct platform_device *pdev)
 {
 	struct sa1100fb_info *fbi;
-	int ret;
+	int ret, irq;
+
+	irq = platform_get_irq(pdev, 0);
+	if (irq <= 0)
+		return -EINVAL;
 
 	if (!request_mem_region(0xb0100000, 0x10000, "LCD"))
 		return -EBUSY;
 
-	fbi = sa1100fb_init_fbinfo(dev);
+	fbi = sa1100fb_init_fbinfo(&pdev->dev);
 	ret = -ENOMEM;
 	if (!fbi)
 		goto failed;
@@ -1471,7 +1473,7 @@ static int __init sa1100fb_probe(struct device *dev)
 	if (ret)
 		goto failed;
 
-	ret = request_irq(IRQ_LCD, sa1100fb_handle_irq, SA_INTERRUPT,
+	ret = request_irq(irq, sa1100fb_handle_irq, SA_INTERRUPT,
 			  "LCD", fbi);
 	if (ret) {
 		printk(KERN_ERR "sa1100fb: request_irq failed: %d\n", ret);
@@ -1489,11 +1491,11 @@ static int __init sa1100fb_probe(struct device *dev)
 	 */
 	sa1100fb_check_var(&fbi->fb.var, &fbi->fb);
 
-	dev_set_drvdata(dev, fbi);
+	platform_set_drvdata(pdev, fbi);
 
 	ret = register_framebuffer(&fbi->fb);
 	if (ret < 0)
-		goto failed;
+		goto err_free_irq;
 
 #ifdef CONFIG_CPU_FREQ
 	fbi->freq_transition.notifier_call = sa1100fb_freq_transition;
@@ -1505,19 +1507,22 @@ static int __init sa1100fb_probe(struct device *dev)
 	/* This driver cannot be unloaded at the moment */
 	return 0;
 
-failed:
-	dev_set_drvdata(dev, NULL);
+ err_free_irq:
+	free_irq(irq, fbi);
+ failed:
+	platform_set_drvdata(pdev, NULL);
 	kfree(fbi);
 	release_mem_region(0xb0100000, 0x10000);
 	return ret;
 }
 
-static struct device_driver sa1100fb_driver = {
-	.name		= "sa11x0-fb",
-	.bus		= &platform_bus_type,
+static struct platform_driver sa1100fb_driver = {
 	.probe		= sa1100fb_probe,
 	.suspend	= sa1100fb_suspend,
 	.resume		= sa1100fb_resume,
+	.driver		= {
+		.name	= "sa11x0-fb",
+	},
 };
 
 int __init sa1100fb_init(void)
@@ -1525,7 +1530,7 @@ int __init sa1100fb_init(void)
 	if (fb_get_options("sa1100fb", NULL))
 		return -ENODEV;
 
-	return driver_register(&sa1100fb_driver);
+	return platform_driver_register(&sa1100fb_driver);
 }
 
 int __init sa1100fb_setup(char *options)

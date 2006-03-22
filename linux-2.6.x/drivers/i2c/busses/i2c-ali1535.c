@@ -53,7 +53,6 @@
 
 /* Note: we assume there can only be one ALI1535, with one SMBus interface */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/kernel.h>
@@ -135,7 +134,7 @@
 					/*  -> Read  = 1		*/
 #define	ALI1535_SMBIO_EN	0x04	/* SMB I/O Space enable		*/
 
-
+static struct pci_driver ali1535_driver;
 static unsigned short ali1535_smba;
 static DECLARE_MUTEX(i2c_ali1535_sem);
 
@@ -163,7 +162,8 @@ static int ali1535_setup(struct pci_dev *dev)
 		goto exit;
 	}
 
-	if (!request_region(ali1535_smba, ALI1535_SMB_IOSIZE, "ali1535-smb")) {
+	if (!request_region(ali1535_smba, ALI1535_SMB_IOSIZE,
+			    ali1535_driver.name)) {
 		dev_err(&dev->dev, "ALI1535_smb region 0x%x already in use!\n",
 			ali1535_smba);
 		goto exit;
@@ -473,8 +473,6 @@ static u32 ali1535_func(struct i2c_adapter *adapter)
 }
 
 static struct i2c_algorithm smbus_algorithm = {
-	.name		= "Non-i2c SMBus adapter",
-	.id		= I2C_ALGO_SMBUS,
 	.smbus_xfer	= ali1535_access,
 	.functionality	= ali1535_func,
 };
@@ -483,7 +481,6 @@ static struct i2c_adapter ali1535_adapter = {
 	.owner		= THIS_MODULE,
 	.class          = I2C_CLASS_HWMON,
 	.algo		= &smbus_algorithm,
-	.name		= "unset",
 };
 
 static struct pci_device_id ali1535_ids[] = {

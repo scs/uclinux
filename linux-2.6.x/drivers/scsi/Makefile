@@ -22,6 +22,8 @@ subdir-$(CONFIG_PCMCIA)		+= pcmcia
 
 obj-$(CONFIG_SCSI)		+= scsi_mod.o
 
+obj-$(CONFIG_RAID_ATTRS)	+= raid_class.o
+
 # --- NOTE ORDERING HERE ---
 # For kernel non-modular link, transport attributes need to
 # be initialised before drivers
@@ -29,7 +31,9 @@ obj-$(CONFIG_SCSI)		+= scsi_mod.o
 obj-$(CONFIG_SCSI_SPI_ATTRS)	+= scsi_transport_spi.o
 obj-$(CONFIG_SCSI_FC_ATTRS) 	+= scsi_transport_fc.o
 obj-$(CONFIG_SCSI_ISCSI_ATTRS)	+= scsi_transport_iscsi.o
+obj-$(CONFIG_SCSI_SAS_ATTRS)	+= scsi_transport_sas.o
 
+obj-$(CONFIG_ISCSI_TCP) 	+= iscsi_tcp.o
 obj-$(CONFIG_SCSI_AMIGA7XX)	+= amiga7xx.o	53c7xx.o
 obj-$(CONFIG_A3000_SCSI)	+= a3000.o	wd33c93.o
 obj-$(CONFIG_A2091_SCSI)	+= a2091.o	wd33c93.o
@@ -41,7 +45,7 @@ obj-$(CONFIG_CYBERSTORMII_SCSI)	+= NCR53C9x.o	cyberstormII.o
 obj-$(CONFIG_BLZ2060_SCSI)	+= NCR53C9x.o	blz2060.o
 obj-$(CONFIG_BLZ1230_SCSI)	+= NCR53C9x.o	blz1230.o
 obj-$(CONFIG_FASTLANE_SCSI)	+= NCR53C9x.o	fastlane.o
-obj-$(CONFIG_OKTAGON_SCSI)	+= NCR53C9x.o	oktagon_esp.o	oktagon_io.o
+obj-$(CONFIG_OKTAGON_SCSI)	+= NCR53C9x.o	oktagon_esp_mod.o
 obj-$(CONFIG_ATARI_SCSI)	+= atari_scsi.o
 obj-$(CONFIG_MAC_SCSI)		+= mac_scsi.o
 obj-$(CONFIG_SCSI_MAC_ESP)	+= mac_esp.o	NCR53C9x.o
@@ -50,8 +54,6 @@ obj-$(CONFIG_MVME16x_SCSI)	+= mvme16x.o	53c7xx.o
 obj-$(CONFIG_BVME6000_SCSI)	+= bvme6000.o	53c7xx.o
 obj-$(CONFIG_SCSI_SIM710)	+= 53c700.o	sim710.o
 obj-$(CONFIG_SCSI_ADVANSYS)	+= advansys.o
-obj-$(CONFIG_SCSI_PCI2000)	+= pci2000.o
-obj-$(CONFIG_SCSI_PCI2220I)	+= pci2220i.o
 obj-$(CONFIG_SCSI_PSI240I)	+= psi240i.o
 obj-$(CONFIG_SCSI_BUSLOGIC)	+= BusLogic.o
 obj-$(CONFIG_SCSI_DPT_I2O)	+= dpt_i2o.o
@@ -76,10 +78,9 @@ obj-$(CONFIG_SCSI_NCR_Q720)	+= NCR_Q720_mod.o
 obj-$(CONFIG_SCSI_SYM53C416)	+= sym53c416.o
 obj-$(CONFIG_SCSI_QLOGIC_FAS)	+= qlogicfas408.o	qlogicfas.o
 obj-$(CONFIG_PCMCIA_QLOGIC)	+= qlogicfas408.o
-obj-$(CONFIG_SCSI_QLOGIC_ISP)	+= qlogicisp.o 
 obj-$(CONFIG_SCSI_QLOGIC_FC)	+= qlogicfc.o 
 obj-$(CONFIG_SCSI_QLOGIC_1280)	+= qla1280.o 
-obj-$(CONFIG_SCSI_QLA2XXX)	+= qla2xxx/
+obj-$(CONFIG_SCSI_QLA_FC)	+= qla2xxx/
 obj-$(CONFIG_SCSI_LPFC)		+= lpfc/
 obj-$(CONFIG_SCSI_PAS16)	+= pas16.o
 obj-$(CONFIG_SCSI_SEAGATE)	+= seagate.o
@@ -98,6 +99,7 @@ obj-$(CONFIG_SCSI_DC395x)	+= dc395x.o
 obj-$(CONFIG_SCSI_DC390T)	+= tmscsim.o
 obj-$(CONFIG_MEGARAID_LEGACY)	+= megaraid.o
 obj-$(CONFIG_MEGARAID_NEWGEN)	+= megaraid/
+obj-$(CONFIG_MEGARAID_SAS)	+= megaraid/
 obj-$(CONFIG_SCSI_ACARD)	+= atp870u.o
 obj-$(CONFIG_SCSI_SUNESP)	+= esp.o
 obj-$(CONFIG_SCSI_GDTH)		+= gdth.o
@@ -117,7 +119,6 @@ obj-$(CONFIG_JAZZ_ESP)		+= NCR53C9x.o	jazz_esp.o
 obj-$(CONFIG_SUN3X_ESP)		+= NCR53C9x.o	sun3x_esp.o
 obj-$(CONFIG_SCSI_DEBUG)	+= scsi_debug.o
 obj-$(CONFIG_SCSI_FCAL)		+= fcal.o
-obj-$(CONFIG_SCSI_CPQFCTS)	+= cpqfc.o
 obj-$(CONFIG_SCSI_LASI700)	+= 53c700.o lasi700.o
 obj-$(CONFIG_SCSI_NSP32)	+= nsp32.o
 obj-$(CONFIG_SCSI_IPR)		+= ipr.o
@@ -128,12 +129,15 @@ obj-$(CONFIG_SCSI_ATA_PIIX)	+= libata.o ata_piix.o
 obj-$(CONFIG_SCSI_SATA_PROMISE)	+= libata.o sata_promise.o
 obj-$(CONFIG_SCSI_SATA_QSTOR)	+= libata.o sata_qstor.o
 obj-$(CONFIG_SCSI_SATA_SIL)	+= libata.o sata_sil.o
+obj-$(CONFIG_SCSI_SATA_SIL24)	+= libata.o sata_sil24.o
 obj-$(CONFIG_SCSI_SATA_VIA)	+= libata.o sata_via.o
 obj-$(CONFIG_SCSI_SATA_VITESSE)	+= libata.o sata_vsc.o
 obj-$(CONFIG_SCSI_SATA_SIS)	+= libata.o sata_sis.o
 obj-$(CONFIG_SCSI_SATA_SX4)	+= libata.o sata_sx4.o
 obj-$(CONFIG_SCSI_SATA_NV)	+= libata.o sata_nv.o
 obj-$(CONFIG_SCSI_SATA_ULI)	+= libata.o sata_uli.o
+obj-$(CONFIG_SCSI_SATA_MV)	+= libata.o sata_mv.o
+obj-$(CONFIG_SCSI_PDC_ADMA)	+= libata.o pdc_adma.o
 
 obj-$(CONFIG_ARM)		+= arm/
 
@@ -142,6 +146,7 @@ obj-$(CONFIG_CHR_DEV_OSST)	+= osst.o
 obj-$(CONFIG_BLK_DEV_SD)	+= sd_mod.o
 obj-$(CONFIG_BLK_DEV_SR)	+= sr_mod.o
 obj-$(CONFIG_CHR_DEV_SG)	+= sg.o
+obj-$(CONFIG_CHR_DEV_SCH)	+= ch.o
 
 scsi_mod-y			+= scsi.o hosts.o scsi_ioctl.o constants.o \
 				   scsicam.o scsi_error.o scsi_lib.o \
@@ -158,9 +163,8 @@ ncr53c8xx-flags-$(CONFIG_SCSI_ZALON) \
 CFLAGS_ncr53c8xx.o	:= $(ncr53c8xx-flags-y) $(ncr53c8xx-flags-m)
 zalon7xx-objs	:= zalon.o ncr53c8xx.o
 NCR_Q720_mod-objs	:= NCR_Q720.o ncr53c8xx.o
-cpqfc-objs	:= cpqfcTSinit.o cpqfcTScontrol.o cpqfcTSi2c.o \
-		   cpqfcTSworker.o cpqfcTStrigger.o
 libata-objs	:= libata-core.o libata-scsi.o
+oktagon_esp_mod-objs	:= oktagon_esp.o oktagon_io.o
 
 # Files generated that shall be removed upon make clean
 clean-files :=	53c7xx_d.h 53c700_d.h	\

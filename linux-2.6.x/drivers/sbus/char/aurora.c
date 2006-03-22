@@ -92,7 +92,6 @@ static struct Aurora_port aurora_port[AURORA_TNPORTS] =  {
 
 /* no longer used. static struct Aurora_board * IRQ_to_board[16] = { NULL, } ;*/
 static unsigned char * tmp_buf = NULL;
-static DECLARE_MUTEX(tmp_buf_sem);
 
 DECLARE_TASK_QUEUE(tq_aurora);
 
@@ -124,25 +123,25 @@ static inline int aurora_paranoia_check(struct Aurora_port const * port,
  */
 
 /* Get board number from pointer */
-extern inline int board_No (struct Aurora_board const * bp)
+static inline int board_No (struct Aurora_board const * bp)
 {
 	return bp - aurora_board;
 }
 
 /* Get port number from pointer */
-extern inline int port_No (struct Aurora_port const * port)
+static inline int port_No (struct Aurora_port const * port)
 {
 	return AURORA_PORT(port - aurora_port); 
 }
 
 /* Get pointer to board from pointer to port */
-extern inline struct Aurora_board * port_Board(struct Aurora_port const * port)
+static inline struct Aurora_board * port_Board(struct Aurora_port const * port)
 {
 	return &aurora_board[AURORA_BOARD(port - aurora_port)];
 }
 
 /* Wait for Channel Command Register ready */
-extern inline void aurora_wait_CCR(struct aurora_reg128 * r)
+static inline void aurora_wait_CCR(struct aurora_reg128 * r)
 {
 	unsigned long delay;
 
@@ -161,7 +160,7 @@ printk("aurora_wait_CCR\n");
  */
 
 /* Must be called with enabled interrupts */
-extern inline void aurora_long_delay(unsigned long delay)
+static inline void aurora_long_delay(unsigned long delay)
 {
 	unsigned long i;
 
@@ -420,7 +419,7 @@ static void aurora_release_io_range(struct Aurora_board *bp)
 	sbus_iounmap((unsigned long)bp->r3, 4);
 }
 
-extern inline void aurora_mark_event(struct Aurora_port * port, int event)
+static inline void aurora_mark_event(struct Aurora_port * port, int event)
 {
 #ifdef AURORA_DEBUG
 	printk("aurora_mark_event: start\n");
@@ -871,8 +870,7 @@ static irqreturn_t aurora_interrupt(int irq, void * dev_id, struct pt_regs * reg
 #ifdef AURORA_INT_DEBUG
 static void aurora_timer (unsigned long ignored);
 
-static struct timer_list aurora_poll_timer =
-			TIMER_INITIALIZER(aurora_timer, 0, 0);
+static DEFINE_TIMER(aurora_poll_timer, aurora_timer, 0, 0);
 
 static void
 aurora_timer (unsigned long ignored)
@@ -1515,8 +1513,7 @@ static void aurora_close(struct tty_struct * tty, struct file * filp)
 		 */
 		timeout = jiffies+HZ;
 		while(port->SRER & SRER_TXEMPTY)  {
-			current->state = TASK_INTERRUPTIBLE;
-			schedule_timeout(port->timeout);
+			msleep_interruptible(jiffies_to_msecs(port->timeout));
 			if (time_after(jiffies, timeout))
 				break;
 		}
@@ -1533,8 +1530,7 @@ static void aurora_close(struct tty_struct * tty, struct file * filp)
 	port->tty = 0;
 	if (port->blocked_open) {
 		if (port->close_delay) {
-			current->state = TASK_INTERRUPTIBLE;
-			schedule_timeout(port->close_delay);
+			msleep_interruptible(jiffies_to_msecs(port->close_delay));
 		}
 		wake_up_interruptible(&port->open_wait);
 	}

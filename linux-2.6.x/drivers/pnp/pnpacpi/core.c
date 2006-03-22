@@ -19,6 +19,7 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
  
+#include <linux/config.h>
 #include <linux/acpi.h>
 #include <linux/pnp.h>
 #include <acpi/acpi_bus.h>
@@ -26,12 +27,15 @@
 
 static int num = 0;
 
+/* We need only to blacklist devices that have already an acpi driver that
+ * can't use pnp layer. We don't need to blacklist device that are directly
+ * used by the kernel (PCI root, ...), as it is harmless and there were
+ * already present in pnpbios. But there is an exception for devices that
+ * have irqs (PIC, Timer) because we call acpi_register_gsi.
+ * Finaly only devices that have a CRS method need to be in this list.
+ */
 static char __initdata excluded_id_list[] =
-	"PNP0C0A," /* Battery */
-	"PNP0C0C,PNP0C0E,PNP0C0D," /* Button */
 	"PNP0C09," /* EC */
-	"PNP0C0B," /* Fan */
-	"PNP0A03," /* PCI root */
 	"PNP0C0F," /* Link device */
 	"PNP0000," /* PIC */
 	"PNP0100," /* Timer */
@@ -39,14 +43,6 @@ static char __initdata excluded_id_list[] =
 static inline int is_exclusive_device(struct acpi_device *dev)
 {
 	return (!acpi_match_ids(dev, excluded_id_list));
-}
-
-void *pnpacpi_kmalloc(size_t size, int f)
-{
-	void *p = kmalloc(size, f);
-	if (p)
-		memset(p, 0, size);
-	return p;
 }
 
 /*
@@ -124,7 +120,7 @@ static int pnpacpi_disable_resources(struct pnp_dev *dev)
 	return ACPI_FAILURE(status) ? -ENODEV : 0;
 }
 
-struct pnp_protocol pnpacpi_protocol = {
+static struct pnp_protocol pnpacpi_protocol = {
 	.name	= "Plug and Play ACPI",
 	.get	= pnpacpi_get_resources,
 	.set	= pnpacpi_set_resources,
@@ -138,12 +134,13 @@ static int __init pnpacpi_add_device(struct acpi_device *device)
 	struct pnp_id *dev_id;
 	struct pnp_dev *dev;
 
-	if (!ispnpidacpi(acpi_device_hid(device)) ||
+	status = acpi_get_handle(device->handle, "_CRS", &temp);
+	if (ACPI_FAILURE(status) || !ispnpidacpi(acpi_device_hid(device)) ||
 		is_exclusive_device(device))
 		return 0;
 
 	pnp_dbg("ACPI device : hid %s", acpi_device_hid(device));
-	dev =  pnpacpi_kmalloc(sizeof(struct pnp_dev), GFP_KERNEL);
+	dev =  kcalloc(1, sizeof(struct pnp_dev), GFP_KERNEL);
 	if (!dev) {
 		pnp_err("Out of memory");
 		return -ENOMEM;
@@ -173,7 +170,7 @@ static int __init pnpacpi_add_device(struct acpi_device *device)
 	dev->number = num;
 	
 	/* set the initial values for the PnP device */
-	dev_id = pnpacpi_kmalloc(sizeof(struct pnp_id), GFP_KERNEL);
+	dev_id = kcalloc(1, sizeof(struct pnp_id), GFP_KERNEL);
 	if (!dev_id)
 		goto err;
 	pnpidacpi_to_pnpid(acpi_device_hid(device), dev_id->id);
@@ -205,8 +202,7 @@ static int __init pnpacpi_add_device(struct acpi_device *device)
 		for (i = 0; i < cid_list->count; i++) {
 			if (!ispnpidacpi(cid_list->id[i].value))
 				continue;
-			dev_id = pnpacpi_kmalloc(sizeof(struct pnp_id), 
-				GFP_KERNEL);
+			dev_id = kcalloc(1, sizeof(struct pnp_id), GFP_KERNEL);
 			if (!dev_id)
 				continue;
 
@@ -242,7 +238,7 @@ static acpi_status __init pnpacpi_add_device_handler(acpi_handle handle,
 }
 
 int pnpacpi_disabled __initdata;
-int __init pnpacpi_init(void)
+static int __init pnpacpi_init(void)
 {
 	if (acpi_disabled || pnpacpi_disabled) {
 		pnp_info("PnP ACPI: disabled");
@@ -266,4 +262,6 @@ static int __init pnpacpi_setup(char *str)
 }
 __setup("pnpacpi=", pnpacpi_setup);
 
+#if 0
 EXPORT_SYMBOL(pnpacpi_protocol);
+#endif

@@ -631,8 +631,10 @@ static void usbin_stop(struct usb_audiodev *as)
 	i = u->flags;
 	spin_unlock_irqrestore(&as->lock, flags);
 	while (i & (FLG_URB0RUNNING|FLG_URB1RUNNING|FLG_SYNC0RUNNING|FLG_SYNC1RUNNING)) {
-		set_current_state(notkilled ? TASK_INTERRUPTIBLE : TASK_UNINTERRUPTIBLE);
-		schedule_timeout(1);
+		if (notkilled)
+			schedule_timeout_interruptible(1);
+		else
+			schedule_timeout_uninterruptible(1);
 		spin_lock_irqsave(&as->lock, flags);
 		i = u->flags;
 		spin_unlock_irqrestore(&as->lock, flags);
@@ -1102,8 +1104,10 @@ static void usbout_stop(struct usb_audiodev *as)
 	i = u->flags;
 	spin_unlock_irqrestore(&as->lock, flags);
 	while (i & (FLG_URB0RUNNING|FLG_URB1RUNNING|FLG_SYNC0RUNNING|FLG_SYNC1RUNNING)) {
-		set_current_state(notkilled ? TASK_INTERRUPTIBLE : TASK_UNINTERRUPTIBLE);
-		schedule_timeout(1);
+		if (notkilled)
+			schedule_timeout_interruptible(1);
+		else
+			schedule_timeout_uninterruptible(1);
 		spin_lock_irqsave(&as->lock, flags);
 		i = u->flags;
 		spin_unlock_irqrestore(&as->lock, flags);
@@ -2728,7 +2732,6 @@ static struct usb_device_id usb_audio_ids [] = {
 MODULE_DEVICE_TABLE (usb, usb_audio_ids);
 
 static struct usb_driver usb_audio_driver = {
-	.owner =	THIS_MODULE,
 	.name =		"audio",
 	.probe =	usb_audio_probe,
 	.disconnect =	usb_audio_disconnect,

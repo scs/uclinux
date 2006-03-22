@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003 Silicon Graphics, Inc.  All Rights Reserved.
+ * Copyright (c) 2003-2006 Silicon Graphics, Inc.  All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License
@@ -12,11 +12,6 @@
  * You should have received a copy of the GNU General Public
  * License along with this program; if not, write the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston MA 02111-1307, USA.
- *
- * Contact information:  Silicon Graphics, Inc., 1600 Amphitheatre Pkwy,
- * Mountain View, CA  94043, or:
- *
- * http://www.sgi.com
  *
  * For further information regarding this notice, see:
  *
@@ -34,7 +29,7 @@
 #include <linux/mm.h>
 #include <linux/ioport.h>
 #include <linux/blkdev.h>
-#include <linux/ioc4_common.h>
+#include <linux/ioc4.h>
 #include <asm/io.h>
 
 #include <linux/ide.h>
@@ -510,7 +505,7 @@ sgiioc4_build_dma_table(ide_drive_t * drive, struct request *rq, int ddir)
 				       drive->name);
 				goto use_pio_instead;
 			} else {
-				u32 xcount, bcount =
+				u32 bcount =
 				    0x10000 - (cur_addr & 0xffff);
 
 				if (bcount > cur_len)
@@ -525,8 +520,7 @@ sgiioc4_build_dma_table(ide_drive_t * drive, struct request *rq, int ddir)
 				*table = 0x0;
 				table++;
 
-				xcount = bcount & 0xffff;
-				*table = cpu_to_be32(xcount);
+				*table = cpu_to_be32(bcount);
 				table++;
 
 				cur_addr += bcount;
@@ -622,11 +616,17 @@ sgiioc4_ide_setup_pci_device(struct pci_dev *dev, ide_pci_device_t * d)
 	ide_hwif_t *hwif;
 	int h;
 
+	/*
+	 * Find an empty HWIF; if none available, return -ENOMEM.
+	 */
 	for (h = 0; h < MAX_HWIFS; ++h) {
 		hwif = &ide_hwifs[h];
-		/* Find an empty HWIF */
 		if (hwif->chipset == ide_unknown)
 			break;
+	}
+	if (h == MAX_HWIFS) {
+		printk(KERN_ERR "%s: too many IDE interfaces, no room in table\n", d->name);
+		return -ENOMEM;
 	}
 
 	/*  Get the CmdBlk and CtrlBlk Base Registers */
@@ -674,7 +674,7 @@ sgiioc4_ide_setup_pci_device(struct pci_dev *dev, ide_pci_device_t * d)
 		return -EIO;
 
 	/* Create /proc/ide entries */
-	create_proc_ide_interfaces(); 
+	create_proc_ide_interfaces();
 
 	return 0;
 }
@@ -715,14 +715,34 @@ static ide_pci_device_t sgiioc4_chipsets[] __devinitdata = {
 };
 
 int
-ioc4_ide_attach_one(struct pci_dev *dev, const struct pci_device_id *id)
+ioc4_ide_attach_one(struct ioc4_driver_data *idd)
 {
-	return pci_init_sgiioc4(dev, &sgiioc4_chipsets[id->driver_data]);
+	return pci_init_sgiioc4(idd->idd_pdev,
+				&sgiioc4_chipsets[idd->idd_pci_id->driver_data]);
 }
 
+static struct ioc4_submodule ioc4_ide_submodule = {
+	.is_name = "IOC4_ide",
+	.is_owner = THIS_MODULE,
+	.is_probe = ioc4_ide_attach_one,
+/*	.is_remove = ioc4_ide_remove_one,	*/
+};
+
+static int __devinit
+ioc4_ide_init(void)
+{
+	return ioc4_register_submodule(&ioc4_ide_submodule);
+}
+
+static void __devexit
+ioc4_ide_exit(void)
+{
+	ioc4_unregister_submodule(&ioc4_ide_submodule);
+}
+
+module_init(ioc4_ide_init);
+module_exit(ioc4_ide_exit);
 
 MODULE_AUTHOR("Aniket Malatpure - Silicon Graphics Inc. (SGI)");
 MODULE_DESCRIPTION("IDE PCI driver module for SGI IOC4 Base-IO Card");
 MODULE_LICENSE("GPL");
-
-EXPORT_SYMBOL(ioc4_ide_attach_one);

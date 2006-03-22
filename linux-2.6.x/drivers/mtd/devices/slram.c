@@ -18,14 +18,14 @@
   <start>: start of the memory region, decimal or hex (0xabcdef)
   <end/offset>: end of the memory region. It's possible to use +0x1234
                 to specify the offset instead of the absolute address
-    
+
   NOTE:
   With slram it's only possible to map a contigous memory region. Therfore
   if there's a device mapped somewhere in the region specified slram will
   fail to load (see kernel log if modprobe fails).
 
   -
-  
+
   Jochen Schaeuble <psionic@psionic.de>
 
 ======================================================================*/
@@ -50,6 +50,7 @@
 #include <linux/mtd/mtd.h>
 
 #define SLRAM_MAX_DEVICES_PARAMS 6		/* 3 parameters / device */
+#define SLRAM_BLK_SZ 0x4000
 
 #define T(fmt, args...) printk(KERN_DEBUG fmt, ## args)
 #define E(fmt, args...) printk(KERN_NOTICE fmt, ## args)
@@ -88,10 +89,10 @@ static int slram_erase(struct mtd_info *mtd, struct erase_info *instr)
 	if (instr->addr + instr->len > mtd->size) {
 		return(-EINVAL);
 	}
-	
+
 	memset(priv->start + instr->addr, 0xff, instr->len);
 
-	/* This'll catch a few races. Free the thing before returning :) 
+	/* This'll catch a few races. Free the thing before returning :)
 	 * I don't feel at all ashamed. This kind of thing is possible anyway
 	 * with flash, but unlikely.
 	 */
@@ -108,6 +109,9 @@ static int slram_point(struct mtd_info *mtd, loff_t from, size_t len,
 {
 	slram_priv_t *priv = mtd->priv;
 
+	if (from + len > mtd->size)
+		return -EINVAL;
+
 	*mtdbuf = priv->start + from;
 	*retlen = len;
 	return(0);
@@ -121,7 +125,13 @@ static int slram_read(struct mtd_info *mtd, loff_t from, size_t len,
 		size_t *retlen, u_char *buf)
 {
 	slram_priv_t *priv = mtd->priv;
-	
+
+	if (from > mtd->size)
+		return -EINVAL;
+
+	if (from + len > mtd->size)
+		len = mtd->size - from;
+
 	memcpy(buf, priv->start + from, len);
 
 	*retlen = len;
@@ -132,6 +142,9 @@ static int slram_write(struct mtd_info *mtd, loff_t to, size_t len,
 		size_t *retlen, const u_char *buf)
 {
 	slram_priv_t *priv = mtd->priv;
+
+	if (to + len > mtd->size)
+		return -EINVAL;
 
 	memcpy(priv->start + to, buf, len);
 
@@ -157,12 +170,12 @@ static int register_device(char *name, unsigned long start, unsigned long length
 	}
 	(*curmtd)->mtdinfo = kmalloc(sizeof(struct mtd_info), GFP_KERNEL);
 	(*curmtd)->next = NULL;
-	
+
 	if ((*curmtd)->mtdinfo)	{
 		memset((char *)(*curmtd)->mtdinfo, 0, sizeof(struct mtd_info));
 		(*curmtd)->mtdinfo->priv =
 			kmalloc(sizeof(slram_priv_t), GFP_KERNEL);
-		
+
 		if (!(*curmtd)->mtdinfo->priv) {
 			kfree((*curmtd)->mtdinfo);
 			(*curmtd)->mtdinfo = NULL;
@@ -175,7 +188,7 @@ static int register_device(char *name, unsigned long start, unsigned long length
 		E("slram: Cannot allocate new MTD device.\n");
 		return(-ENOMEM);
 	}
-	
+
 	if (!(((slram_priv_t *)(*curmtd)->mtdinfo->priv)->start =
 				ioremap(start, length))) {
 		E("slram: ioremap failed\n");
@@ -188,7 +201,7 @@ static int register_device(char *name, unsigned long start, unsigned long length
 	(*curmtd)->mtdinfo->name = name;
 	(*curmtd)->mtdinfo->size = length;
 	(*curmtd)->mtdinfo->flags = MTD_CLEAR_BITS | MTD_SET_BITS |
-					MTD_WRITEB_WRITEABLE | MTD_VOLATILE;
+					MTD_WRITEB_WRITEABLE | MTD_VOLATILE | MTD_CAP_RAM;
         (*curmtd)->mtdinfo->erase = slram_erase;
 	(*curmtd)->mtdinfo->point = slram_point;
 	(*curmtd)->mtdinfo->unpoint = slram_unpoint;
@@ -196,7 +209,7 @@ static int register_device(char *name, unsigned long start, unsigned long length
 	(*curmtd)->mtdinfo->write = slram_write;
 	(*curmtd)->mtdinfo->owner = THIS_MODULE;
 	(*curmtd)->mtdinfo->type = MTD_RAM;
-	(*curmtd)->mtdinfo->erasesize = 0x0;
+	(*curmtd)->mtdinfo->erasesize = SLRAM_BLK_SZ;
 
 	if (add_mtd_device((*curmtd)->mtdinfo))	{
 		E("slram: Failed to register new device\n");
@@ -210,7 +223,7 @@ static int register_device(char *name, unsigned long start, unsigned long length
 	T("slram: Mapped from 0x%p to 0x%p\n",
 			((slram_priv_t *)(*curmtd)->mtdinfo->priv)->start,
 			((slram_priv_t *)(*curmtd)->mtdinfo->priv)->end);
-	return(0);	
+	return(0);
 }
 
 static void unregister_devices(void)
@@ -243,7 +256,7 @@ static int parse_cmdline(char *devname, char *szstart, char *szlength)
 	char *buffer;
 	unsigned long devstart;
 	unsigned long devlength;
-	
+
 	if ((!devname) || (!szstart) || (!szlength)) {
 		unregister_devices();
 		return(-EINVAL);
@@ -251,7 +264,7 @@ static int parse_cmdline(char *devname, char *szstart, char *szlength)
 
 	devstart = simple_strtoul(szstart, &buffer, 0);
 	devstart = handle_unit(devstart, buffer);
-	
+
 	if (*(szlength) != '+') {
 		devlength = simple_strtoul(szlength, &buffer, 0);
 		devlength = handle_unit(devlength, buffer) - devstart;
@@ -261,11 +274,11 @@ static int parse_cmdline(char *devname, char *szstart, char *szlength)
 	}
 	T("slram: devname=%s, devstart=0x%lx, devlength=0x%lx\n",
 			devname, devstart, devlength);
-	if ((devstart < 0) || (devlength < 0)) {
+	if ((devstart < 0) || (devlength < 0) || (devlength % SLRAM_BLK_SZ != 0)) {
 		E("slram: Illegal start / length parameter.\n");
 		return(-EINVAL);
 	}
-	
+
 	if ((devstart = register_device(devname, devstart, devlength))){
 		unregister_devices();
 		return((int)devstart);
@@ -322,7 +335,7 @@ static int init_slram(void)
 	}
 #else
 	int count;
-	
+
 	for (count = 0; (map[count]) && (count < SLRAM_MAX_DEVICES_PARAMS);
 			count++) {
 	}
@@ -337,10 +350,10 @@ static int init_slram(void)
 		if (parse_cmdline(devname, map[i * 3 + 1], map[i * 3 + 2])!=0) {
 			return(-EINVAL);
 		}
-		
+
 	}
 #endif /* !MODULE */
-	
+
 	return(0);
 }
 

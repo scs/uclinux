@@ -69,7 +69,6 @@
 #include <linux/pci.h>
 #include <linux/vmalloc.h>
 #include <linux/device.h>
-#include <linux/i2c.h>
 
 #include <asm/io.h>
 #include <asm/uaccess.h>
@@ -113,6 +112,7 @@ static struct pci_device_id radeonfb_pci_table[] = {
 	/* Radeon VE/7000 */
 	CHIP_DEF(PCI_CHIP_RV100_QY, 	RV100,	CHIP_HAS_CRTC2),
 	CHIP_DEF(PCI_CHIP_RV100_QZ, 	RV100,	CHIP_HAS_CRTC2),
+	CHIP_DEF(PCI_CHIP_RN50,		RV100,	CHIP_HAS_CRTC2),
 	/* Radeon IGP320M (U1) */
 	CHIP_DEF(PCI_CHIP_RS100_4336,	RS100,	CHIP_HAS_CRTC2 | CHIP_IS_IGP | CHIP_IS_MOBILITY),
 	/* Radeon IGP320 (A3) */
@@ -329,8 +329,9 @@ static int __devinit radeon_map_ROM(struct radeonfb_info *rinfo, struct pci_dev 
 
 	/* Very simple test to make sure it appeared */
 	if (BIOS_IN16(0) != 0xaa55) {
-		printk(KERN_ERR "radeonfb (%s): Invalid ROM signature %x should be"
-		       "0xaa55\n", pci_name(rinfo->pdev), BIOS_IN16(0));
+		printk(KERN_DEBUG "radeonfb (%s): Invalid ROM signature %x "
+			"should be 0xaa55\n",
+			pci_name(rinfo->pdev), BIOS_IN16(0));
 		goto failed;
 	}
 	/* Look for the PCI data to check the ROM type */
@@ -474,7 +475,7 @@ static int __devinit radeon_probe_pll_params(struct radeonfb_info *rinfo)
 	 */
 
 	/* Flush PCI buffers ? */
-	tmp = INREG(DEVICE_ID);
+	tmp = INREG16(DEVICE_ID);
 
 	local_irq_disable();
 
@@ -593,7 +594,7 @@ static int __devinit radeon_probe_pll_params(struct radeonfb_info *rinfo)
 }
 
 /*
- * Retreive PLL infos by different means (BIOS, Open Firmware, register probing...)
+ * Retrieve PLL infos by different means (BIOS, Open Firmware, register probing...)
  */
 static void __devinit radeon_get_pllinfo(struct radeonfb_info *rinfo)
 {
@@ -659,17 +660,17 @@ static void __devinit radeon_get_pllinfo(struct radeonfb_info *rinfo)
 
 #ifdef CONFIG_PPC_OF
 	/*
-	 * Retreive PLL infos from Open Firmware first
+	 * Retrieve PLL infos from Open Firmware first
 	 */
        	if (!force_measure_pll && radeon_read_xtal_OF(rinfo) == 0) {
-       		printk(KERN_INFO "radeonfb: Retreived PLL infos from Open Firmware\n");
+       		printk(KERN_INFO "radeonfb: Retrieved PLL infos from Open Firmware\n");
 		goto found;
 	}
 #endif /* CONFIG_PPC_OF */
 
 	/*
 	 * Check out if we have an X86 which gave us some PLL informations
-	 * and if yes, retreive them
+	 * and if yes, retrieve them
 	 */
 	if (!force_measure_pll && rinfo->bios_seg) {
 		u16 pll_info_block = BIOS_IN16(rinfo->fp_bios_start + 0x30);
@@ -681,7 +682,7 @@ static void __devinit radeon_get_pllinfo(struct radeonfb_info *rinfo)
 		rinfo->pll.ppll_min	= BIOS_IN32(pll_info_block + 0x12);
 		rinfo->pll.ppll_max	= BIOS_IN32(pll_info_block + 0x16);
 
-		printk(KERN_INFO "radeonfb: Retreived PLL infos from BIOS\n");
+		printk(KERN_INFO "radeonfb: Retrieved PLL infos from BIOS\n");
 		goto found;
 	}
 
@@ -690,7 +691,7 @@ static void __devinit radeon_get_pllinfo(struct radeonfb_info *rinfo)
 	 * probe them
 	 */
 	if (radeon_probe_pll_params(rinfo) == 0) {
-		printk(KERN_INFO "radeonfb: Retreived PLL infos from registers\n");
+		printk(KERN_INFO "radeonfb: Retrieved PLL infos from registers\n");
 		goto found;
 	}
 
@@ -701,7 +702,7 @@ static void __devinit radeon_get_pllinfo(struct radeonfb_info *rinfo)
 
 found:
 	/*
-	 * Some methods fail to retreive SCLK and MCLK values, we apply default
+	 * Some methods fail to retrieve SCLK and MCLK values, we apply default
 	 * settings in this case (200Mhz). If that really happne often, we could
 	 * fetch from registers instead...
 	 */
@@ -863,8 +864,8 @@ static int radeonfb_pan_display (struct fb_var_screeninfo *var,
 }
 
 
-static int radeonfb_ioctl (struct inode *inode, struct file *file, unsigned int cmd,
-                           unsigned long arg, struct fb_info *info)
+static int radeonfb_ioctl (struct fb_info *info, unsigned int cmd,
+                           unsigned long arg)
 {
         struct radeonfb_info *rinfo = info->par;
 	unsigned int tmp;
@@ -1873,7 +1874,6 @@ static struct fb_ops radeonfb_ops = {
 	.fb_fillrect		= radeonfb_fillrect,
 	.fb_copyarea		= radeonfb_copyarea,
 	.fb_imageblit		= radeonfb_imageblit,
-	.fb_cursor		= soft_cursor,
 };
 
 
@@ -2312,19 +2312,27 @@ static int radeonfb_pci_register (struct pci_dev *pdev,
 	rinfo->mmio_base_phys = pci_resource_start (pdev, 2);
 
 	/* request the mem regions */
-	ret = pci_request_regions(pdev, "radeonfb");
+	ret = pci_request_region(pdev, 0, "radeonfb framebuffer");
 	if (ret < 0) {
-		printk( KERN_ERR "radeonfb (%s): cannot reserve PCI regions."
-			"  Someone already got them?\n", pci_name(rinfo->pdev));
+		printk( KERN_ERR "radeonfb (%s): cannot request region 0.\n",
+			pci_name(rinfo->pdev));
 		goto err_release_fb;
+	}
+
+	ret = pci_request_region(pdev, 2, "radeonfb mmio");
+	if (ret < 0) {
+		printk( KERN_ERR "radeonfb (%s): cannot request region 2.\n",
+			pci_name(rinfo->pdev));
+		goto err_release_pci0;
 	}
 
 	/* map the regions */
 	rinfo->mmio_base = ioremap(rinfo->mmio_base_phys, RADEON_REGSIZE);
 	if (!rinfo->mmio_base) {
-		printk(KERN_ERR "radeonfb (%s): cannot map MMIO\n", pci_name(rinfo->pdev));
+		printk(KERN_ERR "radeonfb (%s): cannot map MMIO\n",
+		       pci_name(rinfo->pdev));
 		ret = -EIO;
-		goto err_release_pci;
+		goto err_release_pci2;
 	}
 
 	rinfo->fb_local_base = INREG(MC_FB_LOCATION) << 16;
@@ -2385,7 +2393,7 @@ static int radeonfb_pci_register (struct pci_dev *pdev,
 	       rinfo->mapped_vram/1024);
 
 	/*
-	 * Map the BIOS ROM if any and retreive PLL parameters from
+	 * Map the BIOS ROM if any and retrieve PLL parameters from
 	 * the BIOS. We skip that on mobility chips as the real panel
 	 * values we need aren't in the ROM but in the BIOS image in
 	 * memory. This is definitely not the best meacnism though,
@@ -2499,10 +2507,12 @@ err_unmap_rom:
 	if (rinfo->bios_seg)
 		radeon_unmap_ROM(rinfo, pdev);
 	iounmap(rinfo->mmio_base);
-err_release_pci:
-	pci_release_regions(pdev);
+err_release_pci2:
+	pci_release_region(pdev, 2);
+err_release_pci0:
+	pci_release_region(pdev, 0);
 err_release_fb:
-	framebuffer_release(info);
+        framebuffer_release(info);
 err_disable:
 	pci_disable_device(pdev);
 err_out:
@@ -2520,6 +2530,11 @@ static void __devexit radeonfb_pci_unregister (struct pci_dev *pdev)
                 return;
  
 	radeonfb_pm_exit(rinfo);
+
+	if (rinfo->mon1_EDID)
+		sysfs_remove_bin_file(&rinfo->pdev->dev.kobj, &edid1_attr);
+	if (rinfo->mon2_EDID)
+		sysfs_remove_bin_file(&rinfo->pdev->dev.kobj, &edid2_attr);
 
 #if 0
 	/* restore original state
@@ -2543,7 +2558,8 @@ static void __devexit radeonfb_pci_unregister (struct pci_dev *pdev)
         iounmap(rinfo->mmio_base);
         iounmap(rinfo->fb_base);
  
- 	pci_release_regions(pdev);
+	pci_release_region(pdev, 2);
+	pci_release_region(pdev, 0);
 
 	kfree(rinfo->mon1_EDID);
 	kfree(rinfo->mon2_EDID);

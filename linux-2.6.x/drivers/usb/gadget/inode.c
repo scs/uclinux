@@ -135,6 +135,7 @@ struct dev_data {
 					setup_out_ready : 1,
 					setup_out_error : 1,
 					setup_abort : 1;
+	unsigned			setup_wLength;
 
 	/* the rest is basically write-once */
 	struct usb_config_descriptor	*config, *hs_config;
@@ -417,8 +418,8 @@ ep_read (struct file *fd, char __user *buf, size_t len, loff_t *ptr)
 		goto free1;
 
 	value = ep_io (data, kbuf, len);
-	VDEBUG (data->dev, "%s read %d OUT, status %d\n",
-		data->name, len, value);
+	VDEBUG (data->dev, "%s read %zu OUT, status %d\n",
+		data->name, len, (int) value);
 	if (value >= 0 && copy_to_user (buf, kbuf, value))
 		value = -EFAULT;
 
@@ -465,8 +466,8 @@ ep_write (struct file *fd, const char __user *buf, size_t len, loff_t *ptr)
 	}
 
 	value = ep_io (data, kbuf, len);
-	VDEBUG (data->dev, "%s write %d IN, status %d\n",
-		data->name, len, value);
+	VDEBUG (data->dev, "%s write %zu IN, status %d\n",
+		data->name, len, (int) value);
 free1:
 	up (&data->lock);
 	kfree (kbuf);
@@ -483,6 +484,7 @@ ep_release (struct inode *inode, struct file *fd)
 		data->state = STATE_EP_DISABLED;
 		data->desc.bDescriptorType = 0;
 		data->hs_desc.bDescriptorType = 0;
+		usb_ep_disable(data->ep);
 	}
 	put_ep (data);
 	return 0;
@@ -941,6 +943,7 @@ static int setup_req (struct usb_ep *ep, struct usb_request *req, u16 len)
 	}
 	req->complete = ep0_complete;
 	req->length = len;
+	req->zero = 0;
 	return 0;
 }
 
@@ -1160,10 +1163,13 @@ ep0_write (struct file *fd, const char __user *buf, size_t len, loff_t *ptr)
 				spin_unlock_irq (&dev->lock);
 				if (copy_from_user (dev->req->buf, buf, len))
 					retval = -EFAULT;
-				else
+				else {
+					if (len < dev->setup_wLength)
+						dev->req->zero = 1;
 					retval = usb_ep_queue (
 						dev->gadget->ep0, dev->req,
 						GFP_KERNEL);
+				}
 				if (retval < 0) {
 					spin_lock_irq (&dev->lock);
 					clean_req (dev->gadget->ep0, dev->req);
@@ -1318,8 +1324,8 @@ gadgetfs_setup (struct usb_gadget *gadget, const struct usb_ctrlrequest *ctrl)
 	struct usb_request		*req = dev->req;
 	int				value = -EOPNOTSUPP;
 	struct usb_gadgetfs_event	*event;
-	u16				w_value = ctrl->wValue;
-	u16				w_length = ctrl->wLength;
+	u16				w_value = le16_to_cpu(ctrl->wValue);
+	u16				w_length = le16_to_cpu(ctrl->wLength);
 
 	spin_lock (&dev->lock);
 	dev->setup_abort = 0;
@@ -1482,6 +1488,7 @@ unrecognized:
 delegate:
 			dev->setup_in = (ctrl->bRequestType & USB_DIR_IN)
 						? 1 : 0;
+			dev->setup_wLength = w_length;
 			dev->setup_out_ready = 0;
 			dev->setup_out_error = 0;
 			value = 0;
@@ -1561,10 +1568,10 @@ restart:
 		spin_unlock_irq (&dev->lock);
 
 		/* break link to dcache */
-		down (&parent->i_sem);
+		mutex_lock (&parent->i_mutex);
 		d_delete (dentry);
 		dput (dentry);
-		up (&parent->i_sem);
+		mutex_unlock (&parent->i_mutex);
 
 		/* fds may still be open */
 		goto restart;
@@ -1737,9 +1744,6 @@ static struct usb_gadget_driver gadgetfs_driver = {
 
 	.driver 	= {
 		.name		= (char *) shortname,
-		// .shutdown = ...
-		// .suspend = ...
-		// .resume = ...
 	},
 };
 

@@ -60,7 +60,6 @@
 
 /* Note: we assume there can only be one ALI15X3, with one SMBus interface */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/kernel.h>
@@ -126,12 +125,13 @@
 
 /* If force_addr is set to anything different from 0, we forcibly enable
    the device at the given address. */
-static u16 force_addr = 0;
+static u16 force_addr;
 module_param(force_addr, ushort, 0);
 MODULE_PARM_DESC(force_addr,
 		 "Initialize the base address of the i2c controller");
 
-static unsigned short ali15x3_smba = 0;
+static struct pci_driver ali15x3_driver;
+static unsigned short ali15x3_smba;
 
 static int ali15x3_setup(struct pci_dev *ALI15X3_dev)
 {
@@ -167,7 +167,8 @@ static int ali15x3_setup(struct pci_dev *ALI15X3_dev)
 	if(force_addr)
 		ali15x3_smba = force_addr & ~(ALI15X3_SMB_IOSIZE - 1);
 
-	if (!request_region(ali15x3_smba, ALI15X3_SMB_IOSIZE, "ali15x3-smb")) {
+	if (!request_region(ali15x3_smba, ALI15X3_SMB_IOSIZE,
+			    ali15x3_driver.name)) {
 		dev_err(&ALI15X3_dev->dev,
 			"ALI15X3_smb region 0x%x already in use!\n",
 			ali15x3_smba);
@@ -463,8 +464,6 @@ static u32 ali15x3_func(struct i2c_adapter *adapter)
 }
 
 static struct i2c_algorithm smbus_algorithm = {
-	.name		= "Non-I2C SMBus adapter",
-	.id		= I2C_ALGO_SMBUS,
 	.smbus_xfer	= ali15x3_access,
 	.functionality	= ali15x3_func,
 };
@@ -473,7 +472,6 @@ static struct i2c_adapter ali15x3_adapter = {
 	.owner		= THIS_MODULE,
 	.class          = I2C_CLASS_HWMON,
 	.algo		= &smbus_algorithm,
-	.name		= "unset",
 };
 
 static struct pci_device_id ali15x3_ids[] = {

@@ -31,8 +31,6 @@ al español de este documento en varios formatos.
 Eine deutsche Version dieser Datei finden Sie unter
 <http://www.stefan-winter.de/Changes-2.4.0.txt>.
 
-Last updated: October 29th, 2002
-
 Chris Ricker (kaboom@gatech.edu or chris.ricker@genetics.utah.edu).
 
 Current Minimal Requirements
@@ -44,11 +42,11 @@ running, the suggested command should tell you.
 
 Again, keep in mind that this list assumes you are already
 functionally running a Linux 2.4 kernel.  Also, not all tools are
-necessary on all systems; obviously, if you don't have any PCMCIA (PC
-Card) hardware, for example, you probably needn't concern yourself
-with pcmcia-cs.
+necessary on all systems; obviously, if you don't have any ISDN
+hardware, for example, you probably needn't concern yourself with
+isdn4k-utils.
 
-o  Gnu C                  2.95.3                  # gcc --version
+o  Gnu C                  3.2                     # gcc --version
 o  Gnu make               3.79.1                  # make --version
 o  binutils               2.12                    # ld -v
 o  util-linux             2.10o                   # fdformat --version
@@ -57,13 +55,15 @@ o  e2fsprogs              1.29                    # tune2fs
 o  jfsutils               1.1.3                   # fsck.jfs -V
 o  reiserfsprogs          3.6.3                   # reiserfsck -V 2>&1|grep reiserfsprogs
 o  xfsprogs               2.6.0                   # xfs_db -V
+o  pcmciautils            004
 o  pcmcia-cs              3.1.21                  # cardmgr -V
 o  quota-tools            3.09                    # quota -V
 o  PPP                    2.4.0                   # pppd --version
 o  isdn4k-utils           3.1pre1                 # isdnctrl 2>&1|grep version
 o  nfs-utils              1.0.5                   # showmount --version
 o  procps                 3.2.0                   # ps --version
-o  oprofile               0.5.3                   # oprofiled --version
+o  oprofile               0.9                     # oprofiled --version
+o  udev                   071                     # udevinfo -V
 
 Kernel compilation
 ==================
@@ -72,26 +72,7 @@ GCC
 ---
 
 The gcc version requirements may vary depending on the type of CPU in your
-computer. The next paragraph applies to users of x86 CPUs, but not
-necessarily to users of other CPUs. Users of other CPUs should obtain
-information about their gcc version requirements from another source.
-
-The recommended compiler for the kernel is gcc 2.95.x (x >= 3), and it
-should be used when you need absolute stability. You may use gcc 3.0.x
-instead if you wish, although it may cause problems. Later versions of gcc 
-have not received much testing for Linux kernel compilation, and there are 
-almost certainly bugs (mainly, but not exclusively, in the kernel) that
-will need to be fixed in order to use these compilers. In any case, using
-pgcc instead of plain gcc is just asking for trouble.
-
-The Red Hat gcc 2.96 compiler subtree can also be used to build this tree.
-You should ensure you use gcc-2.96-74 or later. gcc-2.96-54 will not build
-the kernel correctly.
-
-In addition, please pay attention to compiler optimization.  Anything
-greater than -O2 may not be wise.  Similarly, if you choose to use gcc-2.95.x
-or derivatives, be sure not to use -fstrict-aliasing (which, depending on
-your version of gcc 2.95.x, may necessitate using -fno-strict-aliasing).
+computer.
 
 Make
 ----
@@ -137,9 +118,14 @@ You'll probably want to upgrade.
 Ksymoops
 --------
 
-If the unthinkable happens and your kernel oopses, you'll need a 2.4
-version of ksymoops to decode the report; see REPORTING-BUGS in the
-root of the Linux source for more information.
+If the unthinkable happens and your kernel oopses, you may need the
+ksymoops tool to decode it, but in most cases you don't.
+In the 2.6 kernel it is generally preferred to build the kernel with
+CONFIG_KALLSYMS so that it produces readable dumps that can be used as-is
+(this also produces better output than ksymoops).
+If for some reason your kernel is not build with CONFIG_KALLSYMS and
+you have no way to rebuild and reproduce the Oops with that option, then
+you can still decode that Oops with ksymoops.
 
 Module-Init-Tools
 -----------------
@@ -186,13 +172,20 @@ architecture independent and any version from 2.0.0 onward should
 work correctly with this version of the XFS kernel code (2.6.0 or
 later is recommended, due to some significant improvements).
 
+PCMCIAutils
+-----------
+
+PCMCIAutils replaces pcmcia-cs (see below). It properly sets up
+PCMCIA sockets at system startup and loads the appropriate modules
+for 16-bit PCMCIA devices if the kernel is modularized and the hotplug
+subsystem is used.
 
 Pcmcia-cs
 ---------
 
 PCMCIA (PC Card) support is now partially implemented in the main
-kernel source.  Pay attention when you recompile your kernel ;-).
-Also, be sure to upgrade to the latest pcmcia-cs release.
+kernel source. The "pcmciautils" package (see above) replaces pcmcia-cs
+for newest kernels.
 
 Quota-tools
 -----------
@@ -227,6 +220,12 @@ udev
 ----
 udev is a userspace application for populating /dev dynamically with
 only entries for devices actually present. udev replaces devfs.
+
+FUSE
+----
+
+Needs libfuse 2.4.0 or later.  Absolute minimum is 2.3.0 but mount
+options 'direct_io' and 'kernel_cache' won't work.
 
 Networking
 ==========
@@ -302,9 +301,9 @@ Getting updated software
 Kernel compilation
 ******************
 
-gcc 2.95.3
-----------
-o  <ftp://ftp.gnu.org/gnu/gcc/gcc-2.95.3.tar.gz>
+gcc
+---
+o  <ftp://ftp.gnu.org/gnu/gcc/>
 
 Make
 ----
@@ -349,9 +348,13 @@ Xfsprogs
 --------
 o  <ftp://oss.sgi.com/projects/xfs/download/>
 
+Pcmciautils
+-----------
+o  <ftp://ftp.kernel.org/pub/linux/utils/kernel/pcmcia/>
+
 Pcmcia-cs
 ---------
-o  <ftp://pcmcia-cs.sourceforge.net/pub/pcmcia-cs/pcmcia-cs-3.1.21.tar.gz>
+o  <http://pcmcia-cs.sourceforge.net/>
 
 Quota-tools
 ----------
@@ -376,6 +379,10 @@ o  <http://powertweak.sourceforge.net/>
 udev
 ----
 o <http://www.kernel.org/pub/linux/utils/kernel/hotplug/udev.html>
+
+FUSE
+----
+o <http://sourceforge.net/projects/fuse>
 
 Networking
 **********

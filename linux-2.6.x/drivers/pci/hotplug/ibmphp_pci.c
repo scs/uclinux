@@ -558,7 +558,7 @@ static int configure_device (struct pci_func *func)
 	pci_bus_write_config_byte (ibmphp_pci_bus, devfn, PCI_CACHE_LINE_SIZE, CACHE);
 	pci_bus_write_config_byte (ibmphp_pci_bus, devfn, PCI_LATENCY_TIMER, LATENCY);
 
-	pci_bus_write_config_word (ibmphp_pci_bus, devfn, PCI_ROM_ADDRESS, 0x00L);
+	pci_bus_write_config_dword (ibmphp_pci_bus, devfn, PCI_ROM_ADDRESS, 0x00L);
 	pci_bus_write_config_word (ibmphp_pci_bus, devfn, PCI_COMMAND, DEVICEENABLE);
 
 	return 0;
@@ -969,7 +969,7 @@ static int configure_bridge (struct pci_func **func_passed, u8 slotno)
 			debug ("io 32\n");
 			need_io_upper = TRUE;
 		}
-		if ((io_base & PCI_PREF_RANGE_TYPE_MASK) == PCI_PREF_RANGE_TYPE_64) {
+		if ((pfmem_base & PCI_PREF_RANGE_TYPE_MASK) == PCI_PREF_RANGE_TYPE_64) {
 			debug ("pfmem 64\n");
 			need_pfmem_upper = TRUE;
 		}

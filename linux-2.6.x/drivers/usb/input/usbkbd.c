@@ -9,18 +9,18 @@
 /*
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or 
+ * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
- * 
+ *
  * Should you need to contact me, the author, you can do so either by
  * e-mail - mail your message to <vojtech@ucw.cz>, or by paper mail:
  * Vojtech Pavlik, Simunkova 1594, Prague 8, 182 00 Czech Republic
@@ -32,6 +32,7 @@
 #include <linux/input.h>
 #include <linux/init.h>
 #include <linux/usb.h>
+#include <linux/usb_input.h>
 
 /*
  * Version Information
@@ -65,14 +66,13 @@ static unsigned char usb_kbd_keycode[256] = {
 };
 
 struct usb_kbd {
-	struct input_dev dev;
+	struct input_dev *dev;
 	struct usb_device *usbdev;
 	unsigned char old[8];
 	struct urb *irq, *led;
 	unsigned char newleds;
 	char name[128];
 	char phys[64];
-	int open;
 
 	unsigned char *new;
 	struct usb_ctrlrequest *cr;
@@ -99,29 +99,29 @@ static void usb_kbd_irq(struct urb *urb, struct pt_regs *regs)
 		goto resubmit;
 	}
 
-	input_regs(&kbd->dev, regs);
+	input_regs(kbd->dev, regs);
 
 	for (i = 0; i < 8; i++)
-		input_report_key(&kbd->dev, usb_kbd_keycode[i + 224], (kbd->new[0] >> i) & 1);
+		input_report_key(kbd->dev, usb_kbd_keycode[i + 224], (kbd->new[0] >> i) & 1);
 
 	for (i = 2; i < 8; i++) {
 
 		if (kbd->old[i] > 3 && memscan(kbd->new + 2, kbd->old[i], 6) == kbd->new + 8) {
 			if (usb_kbd_keycode[kbd->old[i]])
-				input_report_key(&kbd->dev, usb_kbd_keycode[kbd->old[i]], 0);
+				input_report_key(kbd->dev, usb_kbd_keycode[kbd->old[i]], 0);
 			else
 				info("Unknown key (scancode %#x) released.", kbd->old[i]);
 		}
 
 		if (kbd->new[i] > 3 && memscan(kbd->old + 2, kbd->new[i], 6) == kbd->old + 8) {
 			if (usb_kbd_keycode[kbd->new[i]])
-				input_report_key(&kbd->dev, usb_kbd_keycode[kbd->new[i]], 1);
+				input_report_key(kbd->dev, usb_kbd_keycode[kbd->new[i]], 1);
 			else
 				info("Unknown key (scancode %#x) pressed.", kbd->new[i]);
 		}
 	}
 
-	input_sync(&kbd->dev);
+	input_sync(kbd->dev);
 
 	memcpy(kbd->old, kbd->new, 8);
 
@@ -166,7 +166,7 @@ static void usb_kbd_led(struct urb *urb, struct pt_regs *regs)
 
 	if (urb->status)
 		warn("led urb status %d received", urb->status);
-	
+
 	if (*(kbd->leds) == kbd->newleds)
 		return;
 
@@ -180,14 +180,9 @@ static int usb_kbd_open(struct input_dev *dev)
 {
 	struct usb_kbd *kbd = dev->private;
 
-	if (kbd->open++)
-		return 0;
-
 	kbd->irq->dev = kbd->usbdev;
-	if (usb_submit_urb(kbd->irq, GFP_KERNEL)) {
-		kbd->open--;
+	if (usb_submit_urb(kbd->irq, GFP_KERNEL))
 		return -EIO;
-	}
 
 	return 0;
 }
@@ -196,8 +191,7 @@ static void usb_kbd_close(struct input_dev *dev)
 {
 	struct usb_kbd *kbd = dev->private;
 
-	if (!--kbd->open)
-		usb_kill_urb(kbd->irq);
+	usb_kill_urb(kbd->irq);
 }
 
 static int usb_kbd_alloc_mem(struct usb_device *dev, struct usb_kbd *kbd)
@@ -230,15 +224,15 @@ static void usb_kbd_free_mem(struct usb_device *dev, struct usb_kbd *kbd)
 		usb_buffer_free(dev, 1, kbd->leds, kbd->leds_dma);
 }
 
-static int usb_kbd_probe(struct usb_interface *iface, 
+static int usb_kbd_probe(struct usb_interface *iface,
 			 const struct usb_device_id *id)
 {
-	struct usb_device * dev = interface_to_usbdev(iface);
+	struct usb_device *dev = interface_to_usbdev(iface);
 	struct usb_host_interface *interface;
 	struct usb_endpoint_descriptor *endpoint;
 	struct usb_kbd *kbd;
+	struct input_dev *input_dev;
 	int i, pipe, maxp;
-	char path[64];
 
 	interface = iface->cur_altsetting;
 
@@ -246,37 +240,59 @@ static int usb_kbd_probe(struct usb_interface *iface,
 		return -ENODEV;
 
 	endpoint = &interface->endpoint[0].desc;
-	if (!(endpoint->bEndpointAddress & 0x80))
+	if (!(endpoint->bEndpointAddress & USB_DIR_IN))
 		return -ENODEV;
-	if ((endpoint->bmAttributes & 3) != 3)
+	if ((endpoint->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) != USB_ENDPOINT_XFER_INT)
 		return -ENODEV;
 
 	pipe = usb_rcvintpipe(dev, endpoint->bEndpointAddress);
 	maxp = usb_maxpacket(dev, pipe, usb_pipeout(pipe));
 
-	if (!(kbd = kmalloc(sizeof(struct usb_kbd), GFP_KERNEL)))
-		return -ENOMEM;
-	memset(kbd, 0, sizeof(struct usb_kbd));
+	kbd = kzalloc(sizeof(struct usb_kbd), GFP_KERNEL);
+	input_dev = input_allocate_device();
+	if (!kbd || !input_dev)
+		goto fail1;
 
-	if (usb_kbd_alloc_mem(dev, kbd)) {
-		usb_kbd_free_mem(dev, kbd);
-		kfree(kbd);
-		return -ENOMEM;
-	}
+	if (usb_kbd_alloc_mem(dev, kbd))
+		goto fail2;
 
 	kbd->usbdev = dev;
+	kbd->dev = input_dev;
 
-	kbd->dev.evbit[0] = BIT(EV_KEY) | BIT(EV_LED) | BIT(EV_REP);
-	kbd->dev.ledbit[0] = BIT(LED_NUML) | BIT(LED_CAPSL) | BIT(LED_SCROLLL) | BIT(LED_COMPOSE) | BIT(LED_KANA);
+	if (dev->manufacturer)
+		strlcpy(kbd->name, dev->manufacturer, sizeof(kbd->name));
+
+	if (dev->product) {
+		if (dev->manufacturer)
+			strlcat(kbd->name, " ", sizeof(kbd->name));
+		strlcat(kbd->name, dev->product, sizeof(kbd->name));
+	}
+
+	if (!strlen(kbd->name))
+		snprintf(kbd->name, sizeof(kbd->name),
+			 "USB HIDBP Keyboard %04x:%04x",
+			 le16_to_cpu(dev->descriptor.idVendor),
+			 le16_to_cpu(dev->descriptor.idProduct));
+
+	usb_make_path(dev, kbd->phys, sizeof(kbd->phys));
+	strlcpy(kbd->phys, "/input0", sizeof(kbd->phys));
+
+	input_dev->name = kbd->name;
+	input_dev->phys = kbd->phys;
+	usb_to_input_id(dev, &input_dev->id);
+	input_dev->cdev.dev = &iface->dev;
+	input_dev->private = kbd;
+
+	input_dev->evbit[0] = BIT(EV_KEY) | BIT(EV_LED) | BIT(EV_REP);
+	input_dev->ledbit[0] = BIT(LED_NUML) | BIT(LED_CAPSL) | BIT(LED_SCROLLL) | BIT(LED_COMPOSE) | BIT(LED_KANA);
 
 	for (i = 0; i < 255; i++)
-		set_bit(usb_kbd_keycode[i], kbd->dev.keybit);
-	clear_bit(0, kbd->dev.keybit);
-	
-	kbd->dev.private = kbd;
-	kbd->dev.event = usb_kbd_event;
-	kbd->dev.open = usb_kbd_open;
-	kbd->dev.close = usb_kbd_close;
+		set_bit(usb_kbd_keycode[i], input_dev->keybit);
+	clear_bit(0, input_dev->keybit);
+
+	input_dev->event = usb_kbd_event;
+	input_dev->open = usb_kbd_open;
+	input_dev->close = usb_kbd_close;
 
 	usb_fill_int_urb(kbd->irq, dev, pipe,
 			 kbd->new, (maxp > 8 ? 8 : maxp),
@@ -290,50 +306,32 @@ static int usb_kbd_probe(struct usb_interface *iface,
 	kbd->cr->wIndex = cpu_to_le16(interface->desc.bInterfaceNumber);
 	kbd->cr->wLength = cpu_to_le16(1);
 
-	usb_make_path(dev, path, 64);
-	sprintf(kbd->phys, "%s/input0", path);
-
-	kbd->dev.name = kbd->name;
-	kbd->dev.phys = kbd->phys;	
-	kbd->dev.id.bustype = BUS_USB;
-	kbd->dev.id.vendor = le16_to_cpu(dev->descriptor.idVendor);
-	kbd->dev.id.product = le16_to_cpu(dev->descriptor.idProduct);
-	kbd->dev.id.version = le16_to_cpu(dev->descriptor.bcdDevice);
-	kbd->dev.dev = &iface->dev;
-
-	if (dev->manufacturer)
-		strcat(kbd->name, dev->manufacturer);
-	if (dev->product)
-		sprintf(kbd->name, "%s %s", kbd->name, dev->product);
-
-	if (!strlen(kbd->name))
-		sprintf(kbd->name, "USB HIDBP Keyboard %04x:%04x",
-			kbd->dev.id.vendor, kbd->dev.id.product);
-
 	usb_fill_control_urb(kbd->led, dev, usb_sndctrlpipe(dev, 0),
 			     (void *) kbd->cr, kbd->leds, 1,
 			     usb_kbd_led, kbd);
 	kbd->led->setup_dma = kbd->cr_dma;
 	kbd->led->transfer_dma = kbd->leds_dma;
-	kbd->led->transfer_flags |= (URB_NO_TRANSFER_DMA_MAP
-				| URB_NO_SETUP_DMA_MAP);
+	kbd->led->transfer_flags |= (URB_NO_TRANSFER_DMA_MAP | URB_NO_SETUP_DMA_MAP);
 
-	input_register_device(&kbd->dev);
-
-	printk(KERN_INFO "input: %s on %s\n", kbd->name, path);
+	input_register_device(kbd->dev);
 
 	usb_set_intfdata(iface, kbd);
 	return 0;
+
+fail2:	usb_kbd_free_mem(dev, kbd);
+fail1:	input_free_device(input_dev);
+	kfree(kbd);
+	return -ENOMEM;
 }
 
 static void usb_kbd_disconnect(struct usb_interface *intf)
 {
 	struct usb_kbd *kbd = usb_get_intfdata (intf);
-	
+
 	usb_set_intfdata(intf, NULL);
 	if (kbd) {
 		usb_kill_urb(kbd->irq);
-		input_unregister_device(&kbd->dev);
+		input_unregister_device(kbd->dev);
 		usb_kbd_free_mem(interface_to_usbdev(intf), kbd);
 		kfree(kbd);
 	}
@@ -347,7 +345,6 @@ static struct usb_device_id usb_kbd_id_table [] = {
 MODULE_DEVICE_TABLE (usb, usb_kbd_id_table);
 
 static struct usb_driver usb_kbd_driver = {
-	.owner =	THIS_MODULE,
 	.name =		"usbkbd",
 	.probe =	usb_kbd_probe,
 	.disconnect =	usb_kbd_disconnect,

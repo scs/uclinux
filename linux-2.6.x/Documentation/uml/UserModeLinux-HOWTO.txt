@@ -190,13 +190,13 @@
 
   ______________________________________________________________________
 
-  1. Introduction
+  11..  IInnttrroodduuccttiioonn
 
   Welcome to User Mode Linux.  It's going to be fun.
 
 
 
-  1.1.  How is User Mode Linux Different?
+  11..11..  HHooww iiss UUsseerr MMooddee LLiinnuuxx DDiiffffeerreenntt??
 
   Normally, the Linux Kernel talks straight to your hardware (video
   card, keyboard, hard drives, etc), and any programs which run ask the
@@ -237,7 +237,7 @@
 
 
 
-  1.2.  Why Would I Want User Mode Linux?
+  11..22..  WWhhyy WWoouulldd II WWaanntt UUsseerr MMooddee LLiinnuuxx??
 
 
   1. If User Mode Linux crashes, your host kernel is still fine.
@@ -262,12 +262,12 @@
 
 
 
-  2.  Compiling the kernel and modules
+  22..  CCoommppiilliinngg tthhee kkeerrnneell aanndd mmoodduulleess
 
 
 
 
-  2.1.  Compiling the kernel
+  22..11..  CCoommppiilliinngg tthhee kkeerrnneell
 
 
   Compiling the user mode kernel is just like compiling any other
@@ -404,7 +404,7 @@
 
 
 
-  2.2.  Compiling and installing kernel modules
+  22..22..  CCoommppiilliinngg aanndd iinnssttaalllliinngg kkeerrnneell mmoodduulleess
 
   UML modules are built in the same way as the native kernel (with the
   exception of the 'ARCH=um' that you always need for UML):
@@ -468,19 +468,19 @@
 
 
 
-  2.3.  Compiling and installing uml_utilities
+  22..33..  CCoommppiilliinngg aanndd iinnssttaalllliinngg uummll__uuttiilliittiieess
 
   Many features of the UML kernel require a user-space helper program,
   so a uml_utilities package is distributed separately from the kernel
   patch which provides these helpers. Included within this is:
 
-  +  port-helper - Used by consoles which connect to xterms or ports
+  +o  port-helper - Used by consoles which connect to xterms or ports
 
-  +  tunctl - Configuration tool to create and delete tap devices
+  +o  tunctl - Configuration tool to create and delete tap devices
 
-  +  uml_net - Setuid binary for automatic tap device configuration
+  +o  uml_net - Setuid binary for automatic tap device configuration
 
-  +  uml_switch - User-space virtual switch required for daemon
+  +o  uml_switch - User-space virtual switch required for daemon
      transport
 
      The uml_utilities tree is compiled with:
@@ -505,11 +505,11 @@
 
 
 
-  3.  Running UML and logging in
+  33..  RRuunnnniinngg UUMMLL aanndd llooggggiinngg iinn
 
 
 
-  3.1.  Running UML
+  33..11..  RRuunnnniinngg UUMMLL
 
   It runs on 2.2.15 or later, and all 2.4 kernels.
 
@@ -536,7 +536,7 @@
 
 
 
-  3.2.  Logging in
+  33..22..  LLooggggiinngg iinn
 
 
 
@@ -550,7 +550,7 @@
 
   There are a couple of other ways to log in:
 
-  +  On a virtual console
+  +o  On a virtual console
 
 
 
@@ -562,7 +562,7 @@
 
 
 
-  +  Over the serial line
+  +o  Over the serial line
 
 
      In the boot output, find a line that looks like:
@@ -585,7 +585,7 @@
 
 
 
-  +  Over the net
+  +o  Over the net
 
 
      If the network is running, then you can telnet to the virtual
@@ -596,26 +596,26 @@
   down and the process will exit.
 
 
-  3.3.  Examples
+  33..33..  EExxaammpplleess
 
   Here are some examples of UML in action:
 
-  +  A login session <http://user-mode-linux.sourceforge.net/login.html>
+  +o  A login session <http://user-mode-linux.sourceforge.net/login.html>
 
-  +  A virtual network <http://user-mode-linux.sourceforge.net/net.html>
-
-
+  +o  A virtual network <http://user-mode-linux.sourceforge.net/net.html>
 
 
 
 
 
-  4.  UML on 2G/2G hosts
+
+
+  44..  UUMMLL oonn 22GG//22GG hhoossttss
 
 
 
 
-  4.1.  Introduction
+  44..11..  IInnttrroodduuccttiioonn
 
 
   Most Linux machines are configured so that the kernel occupies the
@@ -628,7 +628,7 @@
 
 
 
-  4.2.  The problem
+  44..22..  TThhee pprroobblleemm
 
 
   The prebuilt UML binaries on this site will not run on 2G/2G hosts
@@ -640,7 +640,7 @@
 
 
 
-  4.3.  The solution
+  44..33..  TThhee ssoolluuttiioonn
 
 
   The fix for this is to rebuild UML from source after enabling
@@ -658,7 +658,7 @@
 
 
 
-  5.  Setting up serial lines and consoles
+  55..  SSeettttiinngg uupp sseerriiaall lliinneess aanndd ccoonnssoolleess
 
 
   It is possible to attach UML serial lines and consoles to many types
@@ -668,12 +668,12 @@
   You can attach them to host ptys, ttys, file descriptors, and ports.
   This allows you to do things like
 
-  +  have a UML console appear on an unused host console,
+  +o  have a UML console appear on an unused host console,
 
-  +  hook two virtual machines together by having one attach to a pty
+  +o  hook two virtual machines together by having one attach to a pty
      and having the other attach to the corresponding tty
 
-  +  make a virtual machine accessible from the net by attaching a
+  +o  make a virtual machine accessible from the net by attaching a
      console to a port on the host.
 
 
@@ -681,7 +681,7 @@
 
 
 
-  5.1.  Specifying the device
+  55..11..  SSppeecciiffyyiinngg tthhee ddeevviiccee
 
   Devices are specified with "con" or "ssl" (console or serial line,
   respectively), optionally with a device number if you are talking
@@ -708,13 +708,13 @@
 
 
 
-  5.2.  Specifying the channel
+  55..22..  SSppeecciiffyyiinngg tthhee cchhaannnneell
 
   There are a number of different types of channels to attach a UML
   device to, each with a different way of specifying exactly what to
   attach to.
 
-  +  pseudo-terminals - device=pty pts terminals - device=pts
+  +o  pseudo-terminals - device=pty pts terminals - device=pts
 
 
      This will cause UML to allocate a free host pseudo-terminal for the
@@ -722,20 +722,20 @@
      log.  You access it by attaching a terminal program to the
      corresponding tty:
 
-  +  screen /dev/pts/n
+  +o  screen /dev/pts/n
 
-  +  screen /dev/ttyxx
+  +o  screen /dev/ttyxx
 
-  +  minicom -o -p /dev/ttyxx - minicom seems not able to handle pts
+  +o  minicom -o -p /dev/ttyxx - minicom seems not able to handle pts
      devices
 
-  +  kermit - start it up, 'open' the device, then 'connect'
+  +o  kermit - start it up, 'open' the device, then 'connect'
 
 
 
 
 
-  +  terminals - device=tty:tty device file
+  +o  terminals - device=tty:tty device file
 
 
      This will make UML attach the device to the specified tty (i.e
@@ -754,7 +754,7 @@
 
 
 
-  +  xterms - device=xterm
+  +o  xterms - device=xterm
 
 
      UML will run an xterm and the device will be attached to it.
@@ -763,7 +763,7 @@
 
 
 
-  +  Port - device=port:port number
+  +o  Port - device=port:port number
 
 
      This will attach the UML devices to the specified host port.
@@ -807,7 +807,7 @@
 
 
 
-  +  already-existing file descriptors - device=file descriptor
+  +o  already-existing file descriptors - device=file descriptor
 
 
      If you set up a file descriptor on the UML command line, you can
@@ -825,7 +825,7 @@
 
 
 
-  +  Nothing - device=null
+  +o  Nothing - device=null
 
 
      This allows the device to be opened, in contrast to 'none', but
@@ -836,7 +836,7 @@
 
 
 
-  +  None - device=none
+  +o  None - device=none
 
 
      This causes the device to disappear.  If you are using devfs, the
@@ -869,7 +869,7 @@
 
 
 
-  5.3.  Examples
+  55..33..  EExxaammpplleess
 
   There are a number of interesting things you can do with this
   capability.
@@ -922,7 +922,7 @@
   prompt of the other virtual machine.
 
 
-  6.  Setting up the network
+  66..  SSeettttiinngg uupp tthhee nneettwwoorrkk
 
 
 
@@ -942,19 +942,19 @@
   There are currently five transport types available for a UML virtual
   machine to exchange packets with other hosts:
 
-  +  ethertap
+  +o  ethertap
 
-  +  TUN/TAP
+  +o  TUN/TAP
 
-  +  Multicast
+  +o  Multicast
 
-  +  a switch daemon
+  +o  a switch daemon
 
-  +  slip
+  +o  slip
 
-  +  slirp
+  +o  slirp
 
-  +  pcap
+  +o  pcap
 
      The TUN/TAP, ethertap, slip, and slirp transports allow a UML
      instance to exchange packets with the host.  They may be directed
@@ -977,28 +977,28 @@
   With so many host transports, which one should you use?  Here's when
   you should use each one:
 
-  +  ethertap - if you want access to the host networking and it is
+  +o  ethertap - if you want access to the host networking and it is
      running 2.2
 
-  +  TUN/TAP - if you want access to the host networking and it is
+  +o  TUN/TAP - if you want access to the host networking and it is
      running 2.4.  Also, the TUN/TAP transport is able to use a
      preconfigured device, allowing it to avoid using the setuid uml_net
      helper, which is a security advantage.
 
-  +  Multicast - if you want a purely virtual network and you don't want
+  +o  Multicast - if you want a purely virtual network and you don't want
      to set up anything but the UML
 
-  +  a switch daemon - if you want a purely virtual network and you
+  +o  a switch daemon - if you want a purely virtual network and you
      don't mind running the daemon in order to get somewhat better
      performance
 
-  +  slip - there is no particular reason to run the slip backend unless
+  +o  slip - there is no particular reason to run the slip backend unless
      ethertap and TUN/TAP are just not available for some reason
 
-  +  slirp - if you don't have root access on the host to setup
+  +o  slirp - if you don't have root access on the host to setup
      networking, or if you don't want to allocate an IP to your UML
 
-  +  pcap - not much use for actual network connectivity, but great for
+  +o  pcap - not much use for actual network connectivity, but great for
      monitoring traffic on the host
 
      Ethertap is available on 2.4 and works fine.  TUN/TAP is preferred
@@ -1010,7 +1010,7 @@
      exploit the helper's root privileges.
 
 
-  6.1.  General setup
+  66..11..  GGeenneerraall sseettuupp
 
   First, you must have the virtual network enabled in your UML.  If are
   running a prebuilt kernel from this site, everything is already
@@ -1079,7 +1079,7 @@
 
 
 
-  6.2.  Userspace daemons
+  66..22..  UUsseerrssppaaccee ddaaeemmoonnss
 
   You will likely need the setuid helper, or the switch daemon, or both.
   They are both installed with the RPM and deb, so if you've installed
@@ -1095,7 +1095,7 @@
 
 
 
-  6.3.  Specifying ethernet addresses
+  66..33..  SSppeecciiffyyiinngg eetthheerrnneett aaddddrreesssseess
 
   Below, you will see that the TUN/TAP, ethertap, and daemon interfaces
   allow you to specify hardware addresses for the virtual ethernet
@@ -1107,11 +1107,11 @@
   sufficient to guarantee a unique hardware address for the device.  A
   couple of exceptions are:
 
-  +  Another set of virtual ethernet devices are on the same network and
+  +o  Another set of virtual ethernet devices are on the same network and
      they are assigned hardware addresses using a different scheme which
      may conflict with the UML IP address-based scheme
 
-  +  You aren't going to use the device for IP networking, so you don't
+  +o  You aren't going to use the device for IP networking, so you don't
      assign the device an IP address
 
      If you let the driver provide the hardware address, you should make
@@ -1133,7 +1133,7 @@
 
 
 
-  6.4.  UML interface setup
+  66..44..  UUMMLL iinntteerrffaaccee sseettuupp
 
   Once the network devices have been described on the command line, you
   should boot UML and log in.
@@ -1215,7 +1215,7 @@
 
 
 
-  6.5.  Multicast
+  66..55..  MMuullttiiccaasstt
 
   The simplest way to set up a virtual network between multiple UMLs is
   to use the mcast transport.  This was written by Harald Welte and is
@@ -1268,7 +1268,7 @@
 
 
 
-  6.6.  TUN/TAP with the uml_net helper
+  66..66..  TTUUNN//TTAAPP wwiitthh tthhee uummll__nneett hheellppeerr
 
   TUN/TAP is the preferred mechanism on 2.4 to exchange packets with the
   host.  The TUN/TAP backend has been in UML since 2.4.9-3um.
@@ -1321,10 +1321,10 @@
   There are a couple potential problems with running the TUN/TAP
   transport on a 2.4 host kernel
 
-  +  TUN/TAP seems not to work on 2.4.3 and earlier.  Upgrade the host
+  +o  TUN/TAP seems not to work on 2.4.3 and earlier.  Upgrade the host
      kernel or use the ethertap transport.
 
-  +  With an upgraded kernel, TUN/TAP may fail with
+  +o  With an upgraded kernel, TUN/TAP may fail with
 
 
        File descriptor in bad state
@@ -1343,7 +1343,7 @@
 
 
 
-  6.7.  TUN/TAP with a preconfigured tap device
+  66..77..  TTUUNN//TTAAPP wwiitthh aa pprreeccoonnffiigguurreedd ttaapp ddeevviiccee
 
   If you prefer not to have UML use uml_net (which is somewhat
   insecure), with UML 2.4.17-11, you can set up a TUN/TAP device
@@ -1351,7 +1351,7 @@
   there is no need for root assistance.  Setting up the device is done
   as follows:
 
-  +  Create the device with tunctl (available from the UML utilities
+  +o  Create the device with tunctl (available from the UML utilities
      tarball)
 
 
@@ -1365,7 +1365,7 @@
   where uid is the user id or username that UML will be run as.  This
   will tell you what device was created.
 
-  +  Configure the device IP (change IP addresses and device name to
+  +o  Configure the device IP (change IP addresses and device name to
      suit)
 
 
@@ -1377,7 +1377,7 @@
 
 
 
-  +  Set up routing and arping if desired - this is my recipe, there are
+  +o  Set up routing and arping if desired - this is my recipe, there are
      other ways of doing the same thing
 
 
@@ -1412,7 +1412,7 @@
   utility which reads the information from a config file and sets up
   devices at boot time.
 
-  +  Rather than using up two IPs and ARPing for one of them, you can
+  +o  Rather than using up two IPs and ARPing for one of them, you can
      also provide direct access to your LAN by the UML by using a
      bridge.
 
@@ -1491,7 +1491,7 @@
   Note that 'br0' should be setup using ifconfig with the existing IP
   address of eth0, as eth0 no longer has its own IP.
 
-  +
+  +o
 
 
      Also, the /dev/net/tun device must be writable by the user running
@@ -1512,11 +1512,11 @@
   devices and chgrp /dev/net/tun to that group with mode 664 or 660.
 
 
-  +  Once the device is set up, run UML with 'eth0=tuntap,device name'
+  +o  Once the device is set up, run UML with 'eth0=tuntap,device name'
      (i.e. 'eth0=tuntap,tap0') on the command line (or do it with the
      mconsole config command).
 
-  +  Bring the eth device up in UML and you're in business.
+  +o  Bring the eth device up in UML and you're in business.
 
      If you don't want that tap device any more, you can make it non-
      persistent with
@@ -1539,7 +1539,7 @@
 
 
 
-  6.8.  Ethertap
+  66..88..  EEtthheerrttaapp
 
   Ethertap is the general mechanism on 2.2 for userspace processes to
   exchange packets with the kernel.
@@ -1635,9 +1635,9 @@
 
 
 
-  6.9.  The switch daemon
+  66..99..  TThhee sswwiittcchh ddaaeemmoonn
 
-  Note: This is the daemon formerly known as uml_router, but which was
+  NNoottee: This is the daemon formerly known as uml_router, but which was
   renamed so the network weenies of the world would stop growling at me.
 
 
@@ -1723,7 +1723,7 @@
 
 
 
-  6.10.  Slip
+  66..1100..  SSlliipp
 
   Slip is another, less general, mechanism for a process to communicate
   with the host networking.  In contrast to the ethertap interface,
@@ -1755,7 +1755,7 @@
 
 
 
-  6.11.  Slirp
+  66..1111..  SSlliirrpp
 
   slirp uses an external program, usually /usr/bin/slirp, to provide IP
   only networking connectivity through the host. This is similar to IP
@@ -1811,7 +1811,7 @@
 
 
 
-  6.12.  pcap
+  66..1122..  ppccaapp
 
   The pcap transport is attached to a UML ethernet device on the command
   line or with uml_mconsole with the following syntax:
@@ -1851,7 +1851,7 @@
 
 
 
-  6.13.  Setting up the host yourself
+  66..1133..  SSeettttiinngg uupp tthhee hhoosstt yyoouurrsseellff
 
   If you don't specify an address for the host side of the ethertap or
   slip device, UML won't do any setup on the host.  So this is what is
@@ -1859,7 +1859,7 @@
   192.168.0.251 and a UML-side IP of 192.168.0.250 - adjust to suit your
   own network):
 
-  +  The device needs to be configured with its IP address.  Tap devices
+  +o  The device needs to be configured with its IP address.  Tap devices
      are also configured with an mtu of 1484.  Slip devices are
      configured with a point-to-point address pointing at the UML ip
      address.
@@ -1879,7 +1879,7 @@
 
 
 
-  +  If a tap device is being set up, a route is set to the UML IP.
+  +o  If a tap device is being set up, a route is set to the UML IP.
 
 
        UML# route add -host 192.168.0.250 gw 192.168.0.251
@@ -1888,7 +1888,7 @@
 
 
 
-  +  To allow other hosts on your network to see the virtual machine,
+  +o  To allow other hosts on your network to see the virtual machine,
      proxy arp is set up for it.
 
 
@@ -1898,7 +1898,7 @@
 
 
 
-  +  Finally, the host is set up to route packets.
+  +o  Finally, the host is set up to route packets.
 
 
        host#  echo 1 > /proc/sys/net/ipv4/ip_forward
@@ -1912,12 +1912,12 @@
 
 
 
-  7.  Sharing Filesystems between Virtual Machines
+  77..  SShhaarriinngg FFiilleessyysstteemmss bbeettwweeeenn VViirrttuuaall MMaacchhiinneess
 
 
 
 
-  7.1.  A warning
+  77..11..  AA wwaarrnniinngg
 
   Don't attempt to share filesystems simply by booting two UMLs from the
   same file.  That's the same thing as booting two physical machines
@@ -1925,7 +1925,7 @@
 
 
 
-  7.2.  Using layered block devices
+  77..22..  UUssiinngg llaayyeerreedd bblloocckk ddeevviicceess
 
   The way to share a filesystem between two virtual machines is to use
   the copy-on-write (COW) layering capability of the ubd block driver.
@@ -1970,7 +1970,7 @@
 
 
 
-  7.3.  Note!
+  77..33..  NNoottee!!
 
   When checking the size of the COW file in order to see the gobs of
   space that you're saving, make sure you use 'ls -ls' to see the actual
@@ -2000,7 +2000,7 @@
 
 
 
-  7.4.  Another warning
+  77..44..  AAnnootthheerr wwaarrnniinngg
 
   Once a filesystem is being used as a readonly backing file for a COW
   file, do not boot directly from it or modify it in any way.  Doing so
@@ -2026,7 +2026,7 @@
 
 
 
-  7.5.  uml_moo : Merging a COW file with its backing file
+  77..55..  uummll__mmoooo :: MMeerrggiinngg aa CCOOWW ffiillee wwiitthh iittss bbaacckkiinngg ffiillee
 
   Depending on how you use UML and COW devices, it may be advisable to
   merge the changes in the COW file into the backing file every once in
@@ -2075,7 +2075,7 @@
 
 
 
-  8.  Creating filesystems
+  88..  CCrreeaattiinngg ffiilleessyysstteemmss
 
 
   You may want to create and mount new UML filesystems, either because
@@ -2089,7 +2089,7 @@
   should be easy to translate to the filesystem of your choice.
 
 
-  8.1.  Create the filesystem file
+  88..11..  CCrreeaattee tthhee ffiilleessyysstteemm ffiillee
 
   dd is your friend.  All you need to do is tell dd to create an empty
   file of the appropriate size.  I usually make it sparse to save time
@@ -2106,7 +2106,7 @@
 
 
 
-  8.2.  Assign the file to a UML device
+  88..22..  AAssssiiggnn tthhee ffiillee ttoo aa UUMMLL ddeevviiccee
 
   Add an argument like the following to the UML command line:
 
@@ -2119,7 +2119,7 @@
 
 
 
-  8.3.  Creating and mounting the filesystem
+  88..33..  CCrreeaattiinngg aanndd mmoouunnttiinngg tthhee ffiilleessyysstteemm
 
   Make sure that the filesystem is available, either by being built into
   the kernel, or available as a module, then boot up UML and log in.  If
@@ -2170,13 +2170,13 @@
 
 
 
-  9.  Host file access
+  99..  HHoosstt ffiillee aacccceessss
 
 
   If you want to access files on the host machine from inside UML, you
   can treat it as a separate machine and either nfs mount directories
   from the host or copy files into the virtual machine with scp or rcp.
-  However, since UML is running on the the host, it can access those
+  However, since UML is running on the host, it can access those
   files just like any other process and make them available inside the
   virtual machine without needing to use the network.
 
@@ -2186,7 +2186,7 @@
   files contained in it just as you would on the host.
 
 
-  9.1.  Using hostfs
+  99..11..  UUssiinngg hhoossttffss
 
   To begin with, make sure that hostfs is available inside the virtual
   machine with
@@ -2225,7 +2225,7 @@
 
 
 
-  9.2.  hostfs as the root filesystem
+  99..22..  hhoossttffss aass tthhee rroooott ffiilleessyysstteemm
 
   It's possible to boot from a directory hierarchy on the host using
   hostfs rather than using the standard filesystem in a file.
@@ -2268,20 +2268,20 @@
   UML should then boot as it does normally.
 
 
-  9.3.  Building hostfs
+  99..33..  BBuuiillddiinngg hhoossttffss
 
   If you need to build hostfs because it's not in your kernel, you have
   two choices:
 
 
 
-  +  Compiling hostfs into the kernel:
+  +o  Compiling hostfs into the kernel:
 
 
      Reconfigure the kernel and set the 'Host filesystem' option under
 
 
-  +  Compiling hostfs as a module:
+  +o  Compiling hostfs as a module:
 
 
      Reconfigure the kernel and set the 'Host filesystem' option under
@@ -2302,7 +2302,7 @@
 
 
 
-  10.  The Management Console
+  1100..  TThhee MMaannaaggeemmeenntt CCoonnssoollee
 
 
 
@@ -2314,15 +2314,15 @@
 
   There are a number of things you can do with the mconsole interface:
 
-  +  get the kernel version
+  +o  get the kernel version
 
-  +  add and remove devices
+  +o  add and remove devices
 
-  +  halt or reboot the machine
+  +o  halt or reboot the machine
 
-  +  Send SysRq commands
+  +o  Send SysRq commands
 
-  +  Pause and resume the UML
+  +o  Pause and resume the UML
 
 
   You need the mconsole client (uml_mconsole) which is present in CVS
@@ -2374,28 +2374,28 @@
 
   You'll get a prompt, at which you can run one of these commands:
 
-  +  version
+  +o  version
 
-  +  halt
+  +o  halt
 
-  +  reboot
+  +o  reboot
 
-  +  config
+  +o  config
 
-  +  remove
+  +o  remove
 
-  +  sysrq
+  +o  sysrq
 
-  +  help
+  +o  help
 
-  +  cad
+  +o  cad
 
-  +  stop
+  +o  stop
 
-  +  go
+  +o  go
 
 
-  10.1.  version
+  1100..11..  vveerrssiioonn
 
   This takes no arguments.  It prints the UML version.
 
@@ -2416,7 +2416,7 @@
 
 
 
-  10.2.  halt and reboot
+  1100..22..  hhaalltt aanndd rreebboooott
 
   These take no arguments.  They shut the machine down immediately, with
   no syncing of disks and no clean shutdown of userspace.  So, they are
@@ -2431,7 +2431,7 @@
 
 
 
-  10.3.  config
+  1100..33..  ccoonnffiigg
 
   "config" adds a new device to the virtual machine.  Currently the ubd
   and network drivers support this.  It takes one argument, which is the
@@ -2452,7 +2452,7 @@
 
 
 
-  10.4.  remove
+  1100..44..  rreemmoovvee
 
   "remove" deletes a device from the system.  Its argument is just the
   name of the device to be removed. The device must be idle in whatever
@@ -2471,7 +2471,7 @@
 
 
 
-  10.5.  sysrq
+  1100..55..  ssyyssrrqq
 
   This takes one argument, which is a single letter.  It calls the
   generic kernel's SysRq driver, which does whatever is called for by
@@ -2481,14 +2481,14 @@
 
 
 
-  10.6.  help
+  1100..66..  hheellpp
 
   "help" returns a string listing the valid commands and what each one
   does.
 
 
 
-  10.7.  cad
+  1100..77..  ccaadd
 
   This invokes the Ctl-Alt-Del action on init.  What exactly this ends
   up doing is up to /etc/inittab.  Normally, it reboots the machine.
@@ -2506,7 +2506,7 @@
 
 
 
-  10.8.  stop
+  1100..88..  ssttoopp
 
   This puts the UML in a loop reading mconsole requests until a 'go'
   mconsole command is received. This is very useful for making backups
@@ -2522,7 +2522,7 @@
 
 
 
-  10.9.  go
+  1100..99..  ggoo
 
   This resumes a UML after being paused by a 'stop' command. Note that
   when the UML has resumed, TCP connections may have timed out and if
@@ -2536,10 +2536,10 @@
 
 
 
-  11.  Kernel debugging
+  1111..  KKeerrnneell ddeebbuuggggiinngg
 
 
-  Note: The interface that makes debugging, as described here, possible
+  NNoottee:: The interface that makes debugging, as described here, possible
   is present in 2.4.0-test6 kernels and later.
 
 
@@ -2559,7 +2559,7 @@
 
 
 
-  11.1.  Starting the kernel under gdb
+  1111..11..  SSttaarrttiinngg tthhee kkeerrnneell uunnddeerr ggddbb
 
   You can have the kernel running under the control of gdb from the
   beginning by putting 'debug' on the command line.  You will get an
@@ -2572,7 +2572,7 @@
   There is a transcript of a debugging session  here <debug-
   session.html> , with breakpoints being set in the scheduler and in an
   interrupt handler.
-  11.2.  Examining sleeping processes
+  1111..22..  EExxaammiinniinngg sslleeeeppiinngg pprroocceesssseess
 
   Not every bug is evident in the currently running process.  Sometimes,
   processes hang in the kernel when they shouldn't because they've
@@ -2590,7 +2590,7 @@
 
   Now what you do is this:
 
-  +  detach from the current thread
+  +o  detach from the current thread
 
 
        (UML gdb)  det
@@ -2599,7 +2599,7 @@
 
 
 
-  +  attach to the thread you are interested in
+  +o  attach to the thread you are interested in
 
 
        (UML gdb)  att <host pid>
@@ -2608,7 +2608,7 @@
 
 
 
-  +  look at its stack and anything else of interest
+  +o  look at its stack and anything else of interest
 
 
        (UML gdb)  bt
@@ -2619,7 +2619,7 @@
   Note that you can't do anything at this point that requires that a
   process execute, e.g. calling a function
 
-  +  when you're done looking at that process, reattach to the current
+  +o  when you're done looking at that process, reattach to the current
      thread and continue it
 
 
@@ -2643,12 +2643,12 @@
 
 
 
-  11.3.  Running ddd on UML
+  1111..33..  RRuunnnniinngg dddddd oonn UUMMLL
 
   ddd works on UML, but requires a special kludge.  The process goes
   like this:
 
-  +  Start ddd
+  +o  Start ddd
 
 
        host% ddd linux
@@ -2657,14 +2657,14 @@
 
 
 
-  +  With ps, get the pid of the gdb that ddd started.  You can ask the
+  +o  With ps, get the pid of the gdb that ddd started.  You can ask the
      gdb to tell you, but for some reason that confuses things and
      causes a hang.
 
-  +  run UML with 'debug=parent gdb-pid=<pid>' added to the command line
+  +o  run UML with 'debug=parent gdb-pid=<pid>' added to the command line
      - it will just sit there after you hit return
 
-  +  type 'att 1' to the ddd gdb and you will see something like
+  +o  type 'att 1' to the ddd gdb and you will see something like
 
 
        0xa013dc51 in __kill ()
@@ -2676,12 +2676,12 @@
 
 
 
-  +  At this point, type 'c', UML will boot up, and you can use ddd just
+  +o  At this point, type 'c', UML will boot up, and you can use ddd just
      as you do on any other process.
 
 
 
-  11.4.  Debugging modules
+  1111..44..  DDeebbuuggggiinngg mmoodduulleess
 
   gdb has support for debugging code which is dynamically loaded into
   the process.  This support is what is needed to debug kernel modules
@@ -2897,7 +2897,7 @@
 
 
 
-  11.5.  Attaching gdb to the kernel
+  1111..55..  AAttttaacchhiinngg ggddbb ttoo tthhee kkeerrnneell
 
   If you don't have the kernel running under gdb, you can attach gdb to
   it later by sending the tracing thread a SIGUSR1.  The first line of
@@ -2931,7 +2931,7 @@
 
 
 
-  11.6.  Using alternate debuggers
+  1111..66..  UUssiinngg aalltteerrnnaattee ddeebbuuggggeerrss
 
   UML has support for attaching to an already running debugger rather
   than starting gdb itself.  This is present in CVS as of 17 Apr 2001.
@@ -2960,7 +2960,7 @@
   An example of an alternate debugger is strace.  You can strace the
   actual kernel as follows:
 
-  +  Run the following in a shell
+  +o  Run the following in a shell
 
 
        host%
@@ -2968,10 +2968,10 @@
 
 
 
-  +  Run UML with 'debug' and 'gdb-pid=<pid>' with the pid printed out
+  +o  Run UML with 'debug' and 'gdb-pid=<pid>' with the pid printed out
      by the previous command
 
-  +  Hit return in the shell, and UML will start running, and strace
+  +o  Hit return in the shell, and UML will start running, and strace
      output will start accumulating in the output file.
 
      Note that this is different from running
@@ -2991,9 +2991,9 @@
 
 
 
-  12.  Kernel debugging examples
+  1122..  KKeerrnneell ddeebbuuggggiinngg eexxaammpplleess
 
-  12.1.  The case of the hung fsck
+  1122..11..  TThhee ccaassee ooff tthhee hhuunngg ffsscckk
 
   When booting up the kernel, fsck failed, and dropped me into a shell
   to fix things up.  I ran fsck -y, which hung:
@@ -3228,9 +3228,9 @@
 
   The interesting things here are :
 
-  +  There are two segfaults on this stack (frames 9 and 14)
+  +o  There are two segfaults on this stack (frames 9 and 14)
 
-  +  The first faulting address (frame 11) is 0x50000800
+  +o  The first faulting address (frame 11) is 0x50000800
 
   (gdb) p (void *)1342179328
   $16 = (void *) 0x50000800
@@ -3473,7 +3473,7 @@
   on will be somewhat clearer.
 
 
-  12.2.  Episode 2: The case of the hung fsck
+  1122..22..  EEppiissooddee 22:: TThhee ccaassee ooff tthhee hhuunngg ffsscckk
 
   After setting a trap in the SEGV handler for accesses to the signal
   thread's stack, I reran the kernel.
@@ -3862,12 +3862,12 @@
 
 
 
-  13.  What to do when UML doesn't work
+  1133..  WWhhaatt ttoo ddoo wwhheenn UUMMLL ddooeessnn''tt wwoorrkk
 
 
 
 
-  13.1.  Strange compilation errors when you build from source
+  1133..11..  SSttrraannggee ccoommppiillaattiioonn eerrrroorrss wwhheenn yyoouu bbuuiilldd ffrroomm ssoouurrccee
 
   As of test11, it is necessary to have "ARCH=um" in the environment or
   on the make command line for all steps in building UML, including
@@ -3898,7 +3898,7 @@
 
 
 
-  13.2.  UML hangs on boot after mounting devfs
+  1133..22..  UUMMLL hhaannggss oonn bboooott aafftteerr mmoouunnttiinngg ddeevvffss
 
   The boot looks like this:
 
@@ -3921,8 +3921,8 @@
 
 
 
-  13.3.  A variety of panics and hangs with /tmp on a reiserfs  filesys-
-  tem
+  1133..33..  AA vvaarriieettyy ooff ppaanniiccss aanndd hhaannggss wwiitthh //ttmmpp oonn aa rreeiisseerrffss  ffiilleessyyss--
+  tteemm
 
   I saw this on reiserfs 3.5.21 and it seems to be fixed in 3.5.27.
   Panics preceded by
@@ -3939,8 +3939,8 @@
 
 
 
-  13.4.  The compile fails with errors about conflicting types for
-  'open', 'dup', and 'waitpid'
+  1133..44..  TThhee ccoommppiillee ffaaiillss wwiitthh eerrrroorrss aabboouutt ccoonnfflliiccttiinngg ttyyppeess ffoorr
+  ''ooppeenn'',, ''dduupp'',, aanndd ''wwaaiittppiidd''
 
   This happens when you build in /usr/src/linux.  The UML build makes
   the include/asm link point to include/asm-um.  /usr/include/asm points
@@ -3951,14 +3951,14 @@
 
 
 
-  13.5.  UML doesn't work when /tmp is an NFS filesystem
+  1133..55..  UUMMLL ddooeessnn''tt wwoorrkk wwhheenn //ttmmpp iiss aann NNFFSS ffiilleessyysstteemm
 
   This seems to be a similar situation with the resierfs problem above.
   Some versions of NFS seems not to handle mmap correctly, which UML
   depends on.  The workaround is have /tmp be non-NFS directory.
 
 
-  13.6.  UML hangs on boot when compiled with gprof support
+  1133..66..  UUMMLL hhaannggss oonn bboooott wwhheenn ccoommppiilleedd wwiitthh ggpprrooff ssuuppppoorrtt
 
   If you build UML with gprof support and, early in the boot, it does
   this
@@ -3975,7 +3975,7 @@
 
 
 
-  13.7.  syslogd dies with a SIGTERM on startup
+  1133..77..  ssyyssllooggdd ddiieess wwiitthh aa SSIIGGTTEERRMM oonn ssttaarrttuupp
 
   The exact boot error depends on the distribution that you're booting,
   but Debian produces this:
@@ -3994,17 +3994,17 @@
 
 
 
-  13.8.  TUN/TAP networking doesn't work on a 2.4 host
+  1133..88..  TTUUNN//TTAAPP nneettwwoorrkkiinngg ddooeessnn''tt wwoorrkk oonn aa 22..44 hhoosstt
 
   There are a couple of problems which were
   <http://www.geocrawler.com/lists/3/SourceForge/597/0/> name="pointed
   out">  by Tim Robinson <timro at trkr dot net>
 
-  +  It doesn't work on hosts running 2.4.7 (or thereabouts) or earlier.
+  +o  It doesn't work on hosts running 2.4.7 (or thereabouts) or earlier.
      The fix is to upgrade to something more recent and then read the
      next item.
 
-  +  If you see
+  +o  If you see
 
 
        File descriptor in bad state
@@ -4018,8 +4018,8 @@
 
 
 
-  13.9.  You can network to the host but not to other machines on the
-  net
+  1133..99..  YYoouu ccaann nneettwwoorrkk ttoo tthhee hhoosstt bbuutt nnoott ttoo ootthheerr mmaacchhiinneess oonn tthhee
+  nneett
 
   If you can connect to the host, and the host can connect to UML, but
   you can not connect to any other machines, then you may need to enable
@@ -4069,7 +4069,7 @@
 
 
 
-  13.10.  I have no root and I want to scream
+  1133..1100..  II hhaavvee nnoo rroooott aanndd II wwaanntt ttoo ssccrreeaamm
 
   Thanks to Birgit Wahlich for telling me about this strange one.  It
   turns out that there's a limit of six environment variables on the
@@ -4084,7 +4084,7 @@
 
 
 
-  13.11.  UML build conflict between ptrace.h and ucontext.h
+  1133..1111..  UUMMLL bbuuiilldd ccoonnfflliicctt bbeettwweeeenn ppttrraaccee..hh aanndd uuccoonntteexxtt..hh
 
   On some older systems, /usr/include/asm/ptrace.h and
   /usr/include/sys/ucontext.h define the same names.  So, when they're
@@ -4104,7 +4104,7 @@
 
 
 
-  13.12.  The UML BogoMips is exactly half the host's BogoMips
+  1133..1122..  TThhee UUMMLL BBooggooMMiippss iiss eexxaaccttllyy hhaallff tthhee hhoosstt''ss BBooggooMMiippss
 
   On i386 kernels, there are two ways of running the loop that is used
   to calculate the BogoMips rating, using the TSC if it's there or using
@@ -4116,7 +4116,7 @@
 
 
 
-  13.13.  When you run UML, it immediately segfaults
+  1133..1133..  WWhheenn yyoouu rruunn UUMMLL,, iitt iimmmmeeddiiaatteellyy sseeggffaauullttss
 
   If the host is configured with the 2G/2G address space split, that's
   why.  See ``UML on 2G/2G hosts''  for the details on getting UML to
@@ -4124,7 +4124,7 @@
 
 
 
-  13.14.  xterms appear, then immediately disappear
+  1133..1144..  xxtteerrmmss aappppeeaarr,, tthheenn iimmmmeeddiiaatteellyy ddiissaappppeeaarr
 
   If you're running an up to date kernel with an old release of
   uml_utilities, the port-helper program will not work properly, so
@@ -4136,7 +4136,7 @@
 
 
 
-  13.15.  Any other panic, hang, or strange behavior
+  1133..1155..  AAnnyy ootthheerr ppaanniicc,, hhaanngg,, oorr ssttrraannggee bbeehhaavviioorr
 
   If you're seeing truly strange behavior, such as hangs or panics that
   happen in random places, or you try running the debugger to see what's
@@ -4156,7 +4156,7 @@
 
   If you want to be super-helpful, read ``Diagnosing Problems'' and
   follow the instructions contained therein.
-  14.  Diagnosing Problems
+  1144..  DDiiaaggnnoossiinngg PPrroobblleemmss
 
 
   If you get UML to crash, hang, or otherwise misbehave, you should
@@ -4175,7 +4175,7 @@
   ``Kernel debugging''  UML first.
 
 
-  14.1.  Case 1 : Normal kernel panics
+  1144..11..  CCaassee 11 :: NNoorrmmaall kkeerrnneell ppaanniiccss
 
   The most common case is for a normal thread to panic.  To debug this,
   you will need to run it under the debugger (add 'debug' to the command
@@ -4225,7 +4225,7 @@
   to get that information from the faulting ip.
 
 
-  14.2.  Case 2 : Tracing thread panics
+  1144..22..  CCaassee 22 :: TTrraacciinngg tthhrreeaadd ppaanniiccss
 
   The less common and more painful case is when the tracing thread
   panics.  In this case, the kernel debugger will be useless because it
@@ -4258,7 +4258,7 @@
   backtrace in and wait for our crack debugging team to fix the problem.
 
 
-  14.3.  Case 3 : Tracing thread panics caused by other threads
+  1144..33..  CCaassee 33 :: TTrraacciinngg tthhrreeaadd ppaanniiccss ccaauusseedd bbyy ootthheerr tthhrreeaaddss
 
   However, there are cases where the misbehavior of another thread
   caused the problem.  The most common panic of this type is:
@@ -4324,7 +4324,7 @@
 
 
 
-  14.4.  Case 4 : Hangs
+  1144..44..  CCaassee 44 :: HHaannggss
 
   Hangs seem to be fairly rare, but they sometimes happen.  When a hang
   happens, we need a backtrace from the offending process.  Run the
@@ -4354,7 +4354,7 @@
 
 
 
-  15.  Thanks
+  1155..  TThhaannkkss
 
 
   A number of people have helped this project in various ways, and this
@@ -4371,20 +4371,20 @@
   bookkeeping lapses and I forget about contributions.
 
 
-  15.1.  Code and Documentation
+  1155..11..  CCooddee aanndd DDooccuummeennttaattiioonn
 
   Rusty Russell <rusty at linuxcare.com.au>  -
 
-  +  wrote the  HOWTO <http://user-mode-
+  +o  wrote the  HOWTO <http://user-mode-
      linux.sourceforge.net/UserModeLinux-HOWTO.html>
 
-  +  prodded me into making this project official and putting it on
+  +o  prodded me into making this project official and putting it on
      SourceForge
 
-  +  came up with the way cool UML logo <http://user-mode-
+  +o  came up with the way cool UML logo <http://user-mode-
      linux.sourceforge.net/uml-small.png>
 
-  +  redid the config process
+  +o  redid the config process
 
 
   Peter Moulder <reiter at netspace.net.au>  - Fixed my config and build
@@ -4393,18 +4393,18 @@
 
   Bill Stearns <wstearns at pobox.com>  -
 
-  +  HOWTO updates
+  +o  HOWTO updates
 
-  +  lots of bug reports
+  +o  lots of bug reports
 
-  +  lots of testing
+  +o  lots of testing
 
-  +  dedicated a box (uml.ists.dartmouth.edu) to support UML development
+  +o  dedicated a box (uml.ists.dartmouth.edu) to support UML development
 
-  +  wrote the mkrootfs script, which allows bootable filesystems of
+  +o  wrote the mkrootfs script, which allows bootable filesystems of
      RPM-based distributions to be cranked out
 
-  +  cranked out a large number of filesystems with said script
+  +o  cranked out a large number of filesystems with said script
 
 
   Jim Leu <jleu at mindspring.com>  - Wrote the virtual ethernet driver
@@ -4472,176 +4472,176 @@
 
   David Coulson <http://davidcoulson.net>  -
 
-  +  Set up the usermodelinux.org <http://usermodelinux.org>  site,
+  +o  Set up the usermodelinux.org <http://usermodelinux.org>  site,
      which is a great way of keeping the UML user community on top of
      UML goings-on.
 
-  +  Site documentation and updates
+  +o  Site documentation and updates
 
-  +  Nifty little UML management daemon  UMLd
+  +o  Nifty little UML management daemon  UMLd
      <http://uml.openconsultancy.com/umld/>
 
-  +  Lots of testing and bug reports
+  +o  Lots of testing and bug reports
 
 
 
 
-  15.2.  Flushing out bugs
+  1155..22..  FFlluusshhiinngg oouutt bbuuggss
 
 
 
-  +  Yuri Pudgorodsky
+  +o  Yuri Pudgorodsky
 
-  +  Gerald Britton
+  +o  Gerald Britton
 
-  +  Ian Wehrman
+  +o  Ian Wehrman
 
-  +  Gord Lamb
+  +o  Gord Lamb
 
-  +  Eugene Koontz
+  +o  Eugene Koontz
 
-  +  John H. Hartman
+  +o  John H. Hartman
 
-  +  Anders Karlsson
+  +o  Anders Karlsson
 
-  +  Daniel Phillips
+  +o  Daniel Phillips
 
-  +  John Fremlin
+  +o  John Fremlin
 
-  +  Rainer Burgstaller
+  +o  Rainer Burgstaller
 
-  +  James Stevenson
+  +o  James Stevenson
 
-  +  Matt Clay
+  +o  Matt Clay
 
-  +  Cliff Jefferies
+  +o  Cliff Jefferies
 
-  +  Geoff Hoff
+  +o  Geoff Hoff
 
-  +  Lennert Buytenhek
+  +o  Lennert Buytenhek
 
-  +  Al Viro
+  +o  Al Viro
 
-  +  Frank Klingenhoefer
+  +o  Frank Klingenhoefer
 
-  +  Livio Baldini Soares
+  +o  Livio Baldini Soares
 
-  +  Jon Burgess
+  +o  Jon Burgess
 
-  +  Petru Paler
+  +o  Petru Paler
 
-  +  Paul
+  +o  Paul
 
-  +  Chris Reahard
+  +o  Chris Reahard
 
-  +  Sverker Nilsson
+  +o  Sverker Nilsson
 
-  +  Gong Su
+  +o  Gong Su
 
-  +  johan verrept
+  +o  johan verrept
 
-  +  Bjorn Eriksson
+  +o  Bjorn Eriksson
 
-  +  Lorenzo Allegrucci
+  +o  Lorenzo Allegrucci
 
-  +  Muli Ben-Yehuda
+  +o  Muli Ben-Yehuda
 
-  +  David Mansfield
+  +o  David Mansfield
 
-  +  Howard Goff
+  +o  Howard Goff
 
-  +  Mike Anderson
+  +o  Mike Anderson
 
-  +  John Byrne
+  +o  John Byrne
 
-  +  Sapan J. Batia
+  +o  Sapan J. Batia
 
-  +  Iris Huang
+  +o  Iris Huang
 
-  +  Jan Hudec
+  +o  Jan Hudec
 
-  +  Voluspa
+  +o  Voluspa
 
 
 
 
-  15.3.  Buglets and clean-ups
+  1155..33..  BBuugglleettss aanndd cclleeaann--uuppss
 
 
 
-  +  Dave Zarzycki
+  +o  Dave Zarzycki
 
-  +  Adam Lazur
+  +o  Adam Lazur
 
-  +  Boria Feigin
+  +o  Boria Feigin
 
-  +  Brian J. Murrell
+  +o  Brian J. Murrell
 
-  +  JS
+  +o  JS
 
-  +  Roman Zippel
+  +o  Roman Zippel
 
-  +  Wil Cooley
+  +o  Wil Cooley
 
-  +  Ayelet Shemesh
+  +o  Ayelet Shemesh
 
-  +  Will Dyson
+  +o  Will Dyson
 
-  +  Sverker Nilsson
+  +o  Sverker Nilsson
 
-  +  dvorak
+  +o  dvorak
 
-  +  v.naga srinivas
+  +o  v.naga srinivas
 
-  +  Shlomi Fish
+  +o  Shlomi Fish
 
-  +  Roger Binns
+  +o  Roger Binns
 
-  +  johan verrept
+  +o  johan verrept
 
-  +  MrChuoi
+  +o  MrChuoi
 
-  +  Peter Cleve
+  +o  Peter Cleve
 
-  +  Vincent Guffens
+  +o  Vincent Guffens
 
-  +  Nathan Scott
+  +o  Nathan Scott
 
-  +  Patrick Caulfield
+  +o  Patrick Caulfield
 
-  +  jbearce
+  +o  jbearce
 
-  +  Catalin Marinas
+  +o  Catalin Marinas
 
-  +  Shane Spencer
+  +o  Shane Spencer
 
-  +  Zou Min
+  +o  Zou Min
 
 
-  +  Ryan Boder
+  +o  Ryan Boder
 
-  +  Lorenzo Colitti
+  +o  Lorenzo Colitti
 
-  +  Gwendal Grignou
+  +o  Gwendal Grignou
 
-  +  Andre' Breiler
+  +o  Andre' Breiler
 
-  +  Tsutomu Yasuda
+  +o  Tsutomu Yasuda
 
 
 
-  15.4.  Case Studies
+  1155..44..  CCaassee SSttuuddiieess
 
 
-  +  Jon Wright
+  +o  Jon Wright
 
-  +  William McEwan
+  +o  William McEwan
 
-  +  Michael Richardson
+  +o  Michael Richardson
 
 
 
-  15.5.  Other contributions
+  1155..55..  OOtthheerr ccoonnttrriibbuuttiioonnss
 
 
   Bill Carr <Bill.Carr at compaq.com>  made the Red Hat mkrootfs script
@@ -4672,4 +4672,15 @@
   server jailed inside UML.  It's available from the download
   <http://user-mode-linux.sourceforge.net/dl-sf.html>  page in the Jail
   Filesysems section.
+
+
+
+
+
+
+
+
+
+
+
 

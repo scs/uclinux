@@ -25,9 +25,6 @@
 
 /****************************************************************************/
 
-
-/****************************************************************************/
-
 struct map_info uclinux_ram_map = {
 	.name = "RAM",
 };
@@ -38,14 +35,14 @@ struct mtd_info *uclinux_ram_mtdinfo;
 
 struct mtd_partition uclinux_romfs[] = {
 	{
-#if defined CONFIG_EXT2_FS	
+#if defined CONFIG_EXT2_FS
 	.name = "EXT2fs",
 #elif defined  CONFIG_EXT3_FS
 	.name = "EXT3fs",
 #elif defined  CONFIG_ROMFS_FS
 	.name = "ROMfs" ,
 #elif defined  CONFIG_CRAMFS
-	.name = "CRAMfs", 
+	.name = "CRAMfs",
 #elif defined CONFIG_JFFS2_FS
 	.name = "JFFS2fs",
 #endif
@@ -68,36 +65,22 @@ int uclinux_point(struct mtd_info *mtd, loff_t from, size_t len,
 
 /****************************************************************************/
 
-extern struct mtd_info *mtd_table[];
 extern unsigned long memory_mtd_start;
-
 
 int __init uclinux_mtd_init(void)
 {
-	struct mtd_info *mtd, *root = NULL;
+	struct mtd_info *mtd;
 	struct map_info *mapp;
-	extern char _ebss;
-
 #ifdef CONFIG_BFIN
 	unsigned long addr = (unsigned long) memory_mtd_start;
 #else
-	unsigned long addr = (unsigned long)&_ebss;
-#endif
-	int i;
-
-#ifdef CONFIG_PILOT
-	extern char _etext, _sdata, __init_end;
-	addr = (unsigned long) (&_etext + (&__init_end - &_sdata));
+	extern char _ebss;
+	unsigned long addr = (unsigned long) &_ebss;
 #endif
 
 	mapp = &uclinux_ram_map;
-#ifdef CONFIG_BFIN
-	mapp->phys = (unsigned long) memory_mtd_start;
-#else
-	mapp->phys = (unsigned long) &_ebss;
-#endif
-
-	mapp->size = PAGE_ALIGN(*((unsigned long *)(addr + 8)));
+	mapp->phys = addr;
+	mapp->size = PAGE_ALIGN(ntohl(*((unsigned long *)(addr + 8))));
 
 #if defined(CONFIG_EXT2_FS) || defined(CONFIG_EXT3_FS)
 	mapp->size = *((unsigned long *)(addr + 0x404)) * 1024;
@@ -123,7 +106,7 @@ int __init uclinux_mtd_init(void)
 		iounmap(mapp->virt);
 		return(-ENXIO);
 	}
-		
+
 	mtd->owner = THIS_MODULE;
 	mtd->point = uclinux_point;
 	mtd->priv = mapp;
@@ -131,29 +114,14 @@ int __init uclinux_mtd_init(void)
 
 	uclinux_ram_mtdinfo = mtd;
 #ifdef CONFIG_MTD_PARTITIONS
-	i = add_mtd_partitions(mtd, uclinux_romfs, NUM_PARTITIONS);
+	add_mtd_partitions(mtd, uclinux_romfs, NUM_PARTITIONS);
 #else
-        i = add_mtd_device(mtd);
+	add_mtd_device(mtd);
 #endif
-	if (i) {
-		printk("uclinux[mtd]: failed to add mtd device\n");
-		return i;
-	}
 
-	/* That sucks! any other way to find partition we just created? */
-	for (i=0; i < MAX_MTD_DEVICES; i++) {
-		if (mtd_table[i] && !strcmp(mtd_table[i]->name, uclinux_romfs[0].name)) {
-		    root = mtd_table[i];
-		}
-	}
-
-	if (root) {
-		printk("uclinux[mtd%d]: set %s to be root filesystem\n", root->index,
-	    		uclinux_romfs[0].name);
-		ROOT_DEV = MKDEV(MTD_BLOCK_MAJOR, root->index);
-	} else {
-	    /* fault ?? */
-	}
+	printk("uclinux[mtd]: set %s to be root filesystem\n",
+	     	uclinux_romfs[0].name);
+	ROOT_DEV = MKDEV(MTD_BLOCK_MAJOR, 0);
 
 	return(0);
 }

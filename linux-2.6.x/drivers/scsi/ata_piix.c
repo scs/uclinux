@@ -1,24 +1,85 @@
 /*
-
-    ata_piix.c - Intel PATA/SATA controllers
-
-    Maintained by:  Jeff Garzik <jgarzik@pobox.com>
-    		    Please ALWAYS copy linux-ide@vger.kernel.org
-		    on emails.
-
-
-	Copyright 2003-2004 Red Hat Inc
-	Copyright 2003-2004 Jeff Garzik
-
-
-	Copyright header from piix.c:
-
-    Copyright (C) 1998-1999 Andrzej Krzysztofowicz, Author and Maintainer
-    Copyright (C) 1998-2000 Andre Hedrick <andre@linux-ide.org>
-    Copyright (C) 2003 Red Hat Inc <alan@redhat.com>
-
-    May be copied or modified under the terms of the GNU General Public License
-
+ *    ata_piix.c - Intel PATA/SATA controllers
+ *
+ *    Maintained by:  Jeff Garzik <jgarzik@pobox.com>
+ *    		    Please ALWAYS copy linux-ide@vger.kernel.org
+ *		    on emails.
+ *
+ *
+ *	Copyright 2003-2005 Red Hat Inc
+ *	Copyright 2003-2005 Jeff Garzik
+ *
+ *
+ *	Copyright header from piix.c:
+ *
+ *  Copyright (C) 1998-1999 Andrzej Krzysztofowicz, Author and Maintainer
+ *  Copyright (C) 1998-2000 Andre Hedrick <andre@linux-ide.org>
+ *  Copyright (C) 2003 Red Hat Inc <alan@redhat.com>
+ *
+ *
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation; either version 2, or (at your option)
+ *  any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program; see the file COPYING.  If not, write to
+ *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
+ *
+ *
+ *  libata documentation is available via 'make {ps|pdf}docs',
+ *  as Documentation/DocBook/libata.*
+ *
+ *  Hardware documentation available at http://developer.intel.com/
+ *
+ * Documentation
+ *	Publically available from Intel web site. Errata documentation
+ * is also publically available. As an aide to anyone hacking on this
+ * driver the list of errata that are relevant is below.going back to
+ * PIIX4. Older device documentation is now a bit tricky to find.
+ *
+ * The chipsets all follow very much the same design. The orginal Triton
+ * series chipsets do _not_ support independant device timings, but this
+ * is fixed in Triton II. With the odd mobile exception the chips then
+ * change little except in gaining more modes until SATA arrives. This
+ * driver supports only the chips with independant timing (that is those
+ * with SITRE and the 0x44 timing register). See pata_oldpiix and pata_mpiix
+ * for the early chip drivers.
+ *
+ * Errata of note:
+ *
+ * Unfixable
+ *	PIIX4    errata #9	- Only on ultra obscure hw
+ *	ICH3	 errata #13     - Not observed to affect real hw
+ *				  by Intel
+ *
+ * Things we must deal with
+ *	PIIX4	errata #10	- BM IDE hang with non UDMA
+ *				  (must stop/start dma to recover)
+ *	440MX   errata #15	- As PIIX4 errata #10
+ *	PIIX4	errata #15	- Must not read control registers
+ * 				  during a PIO transfer
+ *	440MX   errata #13	- As PIIX4 errata #15
+ *	ICH2	errata #21	- DMA mode 0 doesn't work right
+ *	ICH0/1  errata #55	- As ICH2 errata #21
+ *	ICH2	spec c #9	- Extra operations needed to handle
+ *				  drive hotswap [NOT YET SUPPORTED]
+ *	ICH2    spec c #20	- IDE PRD must not cross a 64K boundary
+ *				  and must be dword aligned
+ *	ICH2    spec c #24	- UDMA mode 4,5 t85/86 should be 6ns not 3.3
+ *
+ * Should have been BIOS fixed:
+ *	450NX:	errata #19	- DMA hangs on old 450NX
+ *	450NX:  errata #20	- DMA hangs on old 450NX
+ *	450NX:  errata #25	- Corruption with DMA on old 450NX
+ *	ICH3    errata #15      - IDE deadlock under high load
+ *				  (BIOS must set dev 31 fn 0 bit 23)
+ *	ICH3	errata #18	- Don't use native mode
  */
 
 #include <linux/kernel.h>
@@ -27,17 +88,18 @@
 #include <linux/init.h>
 #include <linux/blkdev.h>
 #include <linux/delay.h>
-#include "scsi.h"
+#include <linux/device.h>
 #include <scsi/scsi_host.h>
 #include <linux/libata.h>
 
 #define DRV_NAME	"ata_piix"
-#define DRV_VERSION	"1.03"
+#define DRV_VERSION	"1.05"
 
 enum {
 	PIIX_IOCFG		= 0x54, /* IDE I/O configuration register */
 	ICH5_PMR		= 0x90, /* port mapping register */
 	ICH5_PCS		= 0x92,	/* port control and status */
+	PIIX_SCC		= 0x0A, /* sub-class code register */
 
 	PIIX_FLAG_AHCI		= (1 << 28), /* AHCI possible */
 	PIIX_FLAG_CHECKINTR	= (1 << 29), /* make sure PCI INTx enabled */
@@ -49,8 +111,8 @@ enum {
 	PIIX_COMB_PATA_P0	= (1 << 1),
 	PIIX_COMB		= (1 << 2), /* combined mode enabled? */
 
-	PIIX_PORT_PRESENT	= (1 << 0),
-	PIIX_PORT_ENABLED	= (1 << 4),
+	PIIX_PORT_ENABLED	= (1 << 0),
+	PIIX_PORT_PRESENT	= (1 << 4),
 
 	PIIX_80C_PRI		= (1 << 5) | (1 << 4),
 	PIIX_80C_SEC		= (1 << 7) | (1 << 6),
@@ -59,9 +121,9 @@ enum {
 	ich5_sata		= 1,
 	piix4_pata		= 2,
 	ich6_sata		= 3,
-	ich6_sata_rm		= 4,
-	ich7_sata		= 5,
-	esb2_sata		= 6,
+	ich6_sata_ahci		= 4,
+
+	PIIX_AHCI_DEVICE	= 6,
 };
 
 static int piix_init_one (struct pci_dev *pdev,
@@ -74,7 +136,7 @@ static void piix_set_dmamode (struct ata_port *ap, struct ata_device *adev);
 
 static unsigned int in_module_init = 1;
 
-static struct pci_device_id piix_pci_tbl[] = {
+static const struct pci_device_id piix_pci_tbl[] = {
 #ifdef ATA_ENABLE_PATA
 	{ 0x8086, 0x7111, PCI_ANY_ID, PCI_ANY_ID, 0, 0, piix4_pata },
 	{ 0x8086, 0x24db, PCI_ANY_ID, PCI_ANY_ID, 0, 0, ich5_pata },
@@ -90,11 +152,14 @@ static struct pci_device_id piix_pci_tbl[] = {
 	{ 0x8086, 0x25a3, PCI_ANY_ID, PCI_ANY_ID, 0, 0, ich5_sata },
 	{ 0x8086, 0x25b0, PCI_ANY_ID, PCI_ANY_ID, 0, 0, ich5_sata },
 	{ 0x8086, 0x2651, PCI_ANY_ID, PCI_ANY_ID, 0, 0, ich6_sata },
-	{ 0x8086, 0x2652, PCI_ANY_ID, PCI_ANY_ID, 0, 0, ich6_sata_rm },
-	{ 0x8086, 0x2653, PCI_ANY_ID, PCI_ANY_ID, 0, 0, ich6_sata_rm },
-	{ 0x8086, 0x27c0, PCI_ANY_ID, PCI_ANY_ID, 0, 0, ich7_sata },
-	{ 0x8086, 0x27c4, PCI_ANY_ID, PCI_ANY_ID, 0, 0, ich7_sata },
-	{ 0x8086, 0x2680, PCI_ANY_ID, PCI_ANY_ID, 0, 0, esb2_sata },
+	{ 0x8086, 0x2652, PCI_ANY_ID, PCI_ANY_ID, 0, 0, ich6_sata_ahci },
+	{ 0x8086, 0x2653, PCI_ANY_ID, PCI_ANY_ID, 0, 0, ich6_sata_ahci },
+	{ 0x8086, 0x27c0, PCI_ANY_ID, PCI_ANY_ID, 0, 0, ich6_sata_ahci },
+	{ 0x8086, 0x27c4, PCI_ANY_ID, PCI_ANY_ID, 0, 0, ich6_sata_ahci },
+	{ 0x8086, 0x2680, PCI_ANY_ID, PCI_ANY_ID, 0, 0, ich6_sata_ahci },
+	{ 0x8086, 0x2820, PCI_ANY_ID, PCI_ANY_ID, 0, 0, ich6_sata_ahci },
+	{ 0x8086, 0x2825, PCI_ANY_ID, PCI_ANY_ID, 0, 0, ich6_sata_ahci },
+	{ 0x8086, 0x2828, PCI_ANY_ID, PCI_ANY_ID, 0, 0, ich6_sata_ahci },
 
 	{ }	/* terminate list */
 };
@@ -104,9 +169,11 @@ static struct pci_driver piix_pci_driver = {
 	.id_table		= piix_pci_tbl,
 	.probe			= piix_init_one,
 	.remove			= ata_pci_remove_one,
+	.suspend		= ata_pci_device_suspend,
+	.resume			= ata_pci_device_resume,
 };
 
-static Scsi_Host_Template piix_sht = {
+static struct scsi_host_template piix_sht = {
 	.module			= THIS_MODULE,
 	.name			= DRV_NAME,
 	.ioctl			= ata_scsi_ioctl,
@@ -123,10 +190,11 @@ static Scsi_Host_Template piix_sht = {
 	.dma_boundary		= ATA_DMA_BOUNDARY,
 	.slave_configure	= ata_scsi_slave_config,
 	.bios_param		= ata_std_bios_param,
-	.ordered_flush		= 1,
+	.resume			= ata_scsi_device_resume,
+	.suspend		= ata_scsi_device_suspend,
 };
 
-static struct ata_port_operations piix_pata_ops = {
+static const struct ata_port_operations piix_pata_ops = {
 	.port_disable		= ata_port_disable,
 	.set_piomode		= piix_set_piomode,
 	.set_dmamode		= piix_set_dmamode,
@@ -156,7 +224,7 @@ static struct ata_port_operations piix_pata_ops = {
 	.host_stop		= ata_host_stop,
 };
 
-static struct ata_port_operations piix_sata_ops = {
+static const struct ata_port_operations piix_sata_ops = {
 	.port_disable		= ata_port_disable,
 
 	.tf_load		= ata_tf_load,
@@ -237,31 +305,7 @@ static struct ata_port_info piix_port_info[] = {
 		.port_ops	= &piix_sata_ops,
 	},
 
-	/* ich6_sata_rm */
-	{
-		.sht		= &piix_sht,
-		.host_flags	= ATA_FLAG_SATA | ATA_FLAG_SRST |
-				  PIIX_FLAG_COMBINED | PIIX_FLAG_CHECKINTR |
-				  ATA_FLAG_SLAVE_POSS | PIIX_FLAG_AHCI,
-		.pio_mask	= 0x1f,	/* pio0-4 */
-		.mwdma_mask	= 0x07, /* mwdma0-2 */
-		.udma_mask	= 0x7f,	/* udma0-6 */
-		.port_ops	= &piix_sata_ops,
-	},
-
-	/* ich7_sata */
-	{
-		.sht		= &piix_sht,
-		.host_flags	= ATA_FLAG_SATA | ATA_FLAG_SRST |
-				  PIIX_FLAG_COMBINED | PIIX_FLAG_CHECKINTR |
-				  ATA_FLAG_SLAVE_POSS | PIIX_FLAG_AHCI,
-		.pio_mask	= 0x1f,	/* pio0-4 */
-		.mwdma_mask	= 0x07, /* mwdma0-2 */
-		.udma_mask	= 0x7f,	/* udma0-6 */
-		.port_ops	= &piix_sata_ops,
-	},
-
-	/* esb2_sata */
+	/* ich6_sata_ahci */
 	{
 		.sht		= &piix_sht,
 		.host_flags	= ATA_FLAG_SATA | ATA_FLAG_SRST |
@@ -356,7 +400,9 @@ static void piix_pata_phy_reset(struct ata_port *ap)
  *	None (inherited from caller).
  *
  *	RETURNS:
- *	Non-zero if device detected, zero otherwise.
+ *	Non-zero if port is enabled, it may or may not have a device
+ *	attached in that case (PRESENT bit would only be set if BIOS probe
+ *	was done). Zero is returned if port is disabled.
  */
 static int piix_sata_probe (struct ata_port *ap)
 {
@@ -380,7 +426,7 @@ static int piix_sata_probe (struct ata_port *ap)
 	 */
 
 	for (i = 0; i < 4; i++) {
-		mask = (PIIX_PORT_PRESENT << i) | (PIIX_PORT_ENABLED << i);
+		mask = (PIIX_PORT_ENABLED << i);
 
 		if ((orig_mask & mask) == mask)
 			if (combined || (i == ap->hard_port_no))
@@ -419,7 +465,6 @@ static void piix_sata_phy_reset(struct ata_port *ap)
  *	piix_set_piomode - Initialize host controller PATA PIO timings
  *	@ap: Port whose timings we are configuring
  *	@adev: um
- *	@pio: PIO mode, 0 - 4
  *
  *	Set PIO mode for device, in host controller PCI config space.
  *
@@ -545,25 +590,12 @@ static void piix_set_dmamode (struct ata_port *ap, struct ata_device *adev)
 	}
 }
 
-/* move to PCI layer, integrate w/ MSI stuff */
-static void pci_enable_intx(struct pci_dev *pdev)
-{
-	u16 pci_command;
-
-	pci_read_config_word(pdev, PCI_COMMAND, &pci_command);
-	if (pci_command & PCI_COMMAND_INTX_DISABLE) {
-		pci_command &= ~PCI_COMMAND_INTX_DISABLE;
-		pci_write_config_word(pdev, PCI_COMMAND, pci_command);
-	}
-}
-
 #define AHCI_PCI_BAR 5
 #define AHCI_GLOBAL_CTL 0x04
 #define AHCI_ENABLE (1 << 31)
 static int piix_disable_ahci(struct pci_dev *pdev)
 {
-	void *mmio;
-	unsigned long addr;
+	void __iomem *mmio;
 	u32 tmp;
 	int rc = 0;
 
@@ -571,14 +603,14 @@ static int piix_disable_ahci(struct pci_dev *pdev)
 	 * works because this device is usually set up by BIOS.
 	 */
 
-	addr = pci_resource_start(pdev, AHCI_PCI_BAR);
-	if (!addr || !pci_resource_len(pdev, AHCI_PCI_BAR))
+	if (!pci_resource_start(pdev, AHCI_PCI_BAR) ||
+	    !pci_resource_len(pdev, AHCI_PCI_BAR))
 		return 0;
-	
-	mmio = ioremap(addr, 64);
+
+	mmio = pci_iomap(pdev, AHCI_PCI_BAR, 64);
 	if (!mmio)
 		return -ENOMEM;
-	
+
 	tmp = readl(mmio + AHCI_GLOBAL_CTL);
 	if (tmp & AHCI_ENABLE) {
 		tmp &= ~AHCI_ENABLE;
@@ -588,10 +620,44 @@ static int piix_disable_ahci(struct pci_dev *pdev)
 		if (tmp & AHCI_ENABLE)
 			rc = -EIO;
 	}
-	
-	iounmap(mmio);
+
+	pci_iounmap(pdev, mmio);
 	return rc;
 }
+
+/**
+ *	piix_check_450nx_errata	-	Check for problem 450NX setup
+ *	
+ *	Check for the present of 450NX errata #19 and errata #25. If
+ *	they are found return an error code so we can turn off DMA
+ */
+
+static int __devinit piix_check_450nx_errata(struct pci_dev *ata_dev)
+{
+	struct pci_dev *pdev = NULL;
+	u16 cfg;
+	u8 rev;
+	int no_piix_dma = 0;
+	
+	while((pdev = pci_get_device(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82454NX, pdev)) != NULL)
+	{
+		/* Look for 450NX PXB. Check for problem configurations
+		   A PCI quirk checks bit 6 already */
+		pci_read_config_byte(pdev, PCI_REVISION_ID, &rev);
+		pci_read_config_word(pdev, 0x41, &cfg);
+		/* Only on the original revision: IDE DMA can hang */
+		if(rev == 0x00)
+			no_piix_dma = 1;
+		/* On all revisions below 5 PXB bus lock must be disabled for IDE */
+		else if(cfg & (1<<14) && rev < 5)
+			no_piix_dma = 2;
+	}
+	if(no_piix_dma)
+		dev_printk(KERN_WARNING, &ata_dev->dev, "450NX errata present, disabling IDE DMA.\n");
+	if(no_piix_dma == 2)
+		dev_printk(KERN_WARNING, &ata_dev->dev, "A BIOS update may resolve this.\n");
+	return no_piix_dma;
+}		
 
 /**
  *	piix_init_one - Register PIIX ATA PCI device with kernel services
@@ -612,23 +678,28 @@ static int piix_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	static int printed_version;
 	struct ata_port_info *port_info[2];
-	unsigned int combined = 0, n_ports = 1;
+	unsigned int combined = 0;
 	unsigned int pata_chan = 0, sata_chan = 0;
 
 	if (!printed_version++)
-		printk(KERN_DEBUG DRV_NAME " version " DRV_VERSION "\n");
+		dev_printk(KERN_DEBUG, &pdev->dev,
+			   "version " DRV_VERSION "\n");
 
 	/* no hotplugging support (FIXME) */
 	if (!in_module_init)
 		return -ENODEV;
 
 	port_info[0] = &piix_port_info[ent->driver_data];
-	port_info[1] = NULL;
+	port_info[1] = &piix_port_info[ent->driver_data];
 
 	if (port_info[0]->host_flags & PIIX_FLAG_AHCI) {
-		int rc = piix_disable_ahci(pdev);
-		if (rc)
-			return rc;
+		u8 tmp;
+		pci_read_config_byte(pdev, PIIX_SCC, &tmp);
+		if (tmp == PIIX_AHCI_DEVICE) {
+			int rc = piix_disable_ahci(pdev);
+			if (rc)
+				return rc;
+		}
 	}
 
 	if (port_info[0]->host_flags & PIIX_FLAG_COMBINED) {
@@ -651,18 +722,27 @@ static int piix_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	 * message-signalled interrupts currently).
 	 */
 	if (port_info[0]->host_flags & PIIX_FLAG_CHECKINTR)
-		pci_enable_intx(pdev);
+		pci_intx(pdev, 1);
 
 	if (combined) {
 		port_info[sata_chan] = &piix_port_info[ent->driver_data];
 		port_info[sata_chan]->host_flags |= ATA_FLAG_SLAVE_POSS;
 		port_info[pata_chan] = &piix_port_info[ich5_pata];
-		n_ports++;
 
-		printk(KERN_WARNING DRV_NAME ": combined mode detected\n");
+		dev_printk(KERN_WARNING, &pdev->dev,
+			   "combined mode detected (p=%u, s=%u)\n",
+			   pata_chan, sata_chan);
 	}
-
-	return ata_pci_init_one(pdev, port_info, n_ports);
+	if (piix_check_450nx_errata(pdev)) {
+		/* This writes into the master table but it does not
+		   really matter for this errata as we will apply it to
+		   all the PIIX devices on the board */
+		port_info[0]->mwdma_mask = 0;
+		port_info[0]->udma_mask = 0;
+		port_info[1]->mwdma_mask = 0;
+		port_info[1]->udma_mask = 0;
+	}
+	return ata_pci_init_one(pdev, port_info, 2);
 }
 
 static int __init piix_init(void)

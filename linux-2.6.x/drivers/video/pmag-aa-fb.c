@@ -299,8 +299,7 @@ static int aafb_set_cmap(struct fb_cmap *cmap, int kspc, int con,
 		return -EINVAL;
 }
 
-static int aafb_ioctl(struct inode *inode, struct file *file, u32 cmd,
-		      unsigned long arg, int con, struct fb_info *info)
+static int aafb_ioctl(struct fb_info *info, u32 cmd, unsigned long arg)
 {
 	/* TODO: Not yet implemented */
 	return -ENOIOCTLCMD;
@@ -413,7 +412,7 @@ static struct fb_ops aafb_ops = {
 
 static int __init init_one(int slot)
 {
-	unsigned long base_addr = get_tc_base_addr(slot);
+	unsigned long base_addr = CKSEG1ADDR(get_tc_base_addr(slot));
 	struct aafb_info *ip = &my_fb_info[slot];
 
 	memset(ip, 0, sizeof(struct aafb_info));

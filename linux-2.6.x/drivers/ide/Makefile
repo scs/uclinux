@@ -20,7 +20,6 @@ ide-core-$(CONFIG_BLK_DEV_CMD640)	+= pci/cmd640.o
 # Core IDE code - must come before legacy
 ide-core-$(CONFIG_BLK_DEV_IDEPCI)	+= setup-pci.o
 ide-core-$(CONFIG_BLK_DEV_IDEDMA)	+= ide-dma.o
-ide-core-$(CONFIG_BLK_DEV_IDE_TCQ)	+= ide-tcq.o
 ide-core-$(CONFIG_PROC_FS)		+= ide-proc.o
 ide-core-$(CONFIG_BLK_DEV_IDEPNP)	+= ide-pnp.o
 
@@ -52,6 +51,6 @@ obj-$(CONFIG_BLK_DEV_IDECD)		+= ide-cd.o
 obj-$(CONFIG_BLK_DEV_IDETAPE)		+= ide-tape.o
 obj-$(CONFIG_BLK_DEV_IDEFLOPPY)		+= ide-floppy.o
 
-obj-$(CONFIG_BLK_DEV_IDE)		+= legacy/ arm/
+obj-$(CONFIG_BLK_DEV_IDE)		+= legacy/ arm/ mips/
 obj-$(CONFIG_BLK_DEV_HD)		+= legacy/
 obj-$(CONFIG_ETRAX_IDE)		+= cris/

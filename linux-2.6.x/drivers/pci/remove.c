@@ -18,17 +18,21 @@ static void pci_free_resources(struct pci_dev *dev)
 
 static void pci_destroy_dev(struct pci_dev *dev)
 {
-	pci_proc_detach_device(dev);
-	pci_remove_sysfs_dev_files(dev);
-	device_unregister(&dev->dev);
+	if (!list_empty(&dev->global_list)) {
+		pci_proc_detach_device(dev);
+		pci_remove_sysfs_dev_files(dev);
+		device_unregister(&dev->dev);
+		spin_lock(&pci_bus_lock);
+		list_del(&dev->global_list);
+		dev->global_list.next = dev->global_list.prev = NULL;
+		spin_unlock(&pci_bus_lock);
+	}
 
 	/* Remove the device from the device lists, and prevent any further
 	 * list accesses from this device */
 	spin_lock(&pci_bus_lock);
 	list_del(&dev->bus_list);
-	list_del(&dev->global_list);
 	dev->bus_list.next = dev->bus_list.prev = NULL;
-	dev->global_list.next = dev->global_list.prev = NULL;
 	spin_unlock(&pci_bus_lock);
 
 	pci_free_resources(dev);
@@ -44,6 +48,7 @@ static void pci_destroy_dev(struct pci_dev *dev)
  * in question is not being used by a driver.
  * Returns 0 on success.
  */
+#if 0
 int pci_remove_device_safe(struct pci_dev *dev)
 {
 	if (pci_dev_driver(dev))
@@ -51,7 +56,7 @@ int pci_remove_device_safe(struct pci_dev *dev)
 	pci_destroy_dev(dev);
 	return 0;
 }
-EXPORT_SYMBOL(pci_remove_device_safe);
+#endif  /*  0  */
 
 void pci_remove_bus(struct pci_bus *pci_bus)
 {

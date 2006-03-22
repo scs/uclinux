@@ -343,7 +343,7 @@ static void fd_mcs_make_bus_idle(struct Scsi_Host *shpnt)
 		outb(0x01 | PARITY_MASK, TMC_Cntl_port);
 }
 
-static int fd_mcs_detect(Scsi_Host_Template * tpnt)
+static int fd_mcs_detect(struct scsi_host_template * tpnt)
 {
 	int loop;
 	struct Scsi_Host *shpnt;
@@ -671,7 +671,7 @@ static irqreturn_t fd_mcs_intr(int irq, void *dev_id, struct pt_regs *regs)
 		outb(0x40 | FIFO_COUNT, Interrupt_Cntl_port);
 
 		outb(0x82, SCSI_Cntl_port);	/* Bus Enable + Select */
-		outb(adapter_mask | (1 << current_SC->device->id), SCSI_Data_NoACK_port);
+		outb(adapter_mask | (1 << scmd_id(current_SC)), SCSI_Data_NoACK_port);
 
 		/* Stop arbitration and enable parity */
 		outb(0x10 | PARITY_MASK, TMC_Cntl_port);
@@ -683,7 +683,7 @@ static irqreturn_t fd_mcs_intr(int irq, void *dev_id, struct pt_regs *regs)
 		status = inb(SCSI_Status_port);
 		if (!(status & 0x01)) {
 			/* Try again, for slow devices */
-			if (fd_mcs_select(shpnt, current_SC->device->id)) {
+			if (fd_mcs_select(shpnt, scmd_id(current_SC))) {
 #if EVERY_ACCESS
 				printk(" SFAIL ");
 #endif
@@ -1241,18 +1241,9 @@ static int fd_mcs_abort(Scsi_Cmnd * SCpnt)
 	return SUCCESS;
 }
 
-static int fd_mcs_host_reset(Scsi_Cmnd * SCpnt)
-{
-	return FAILED;
-}
-
-static int fd_mcs_device_reset(Scsi_Cmnd * SCpnt) 
-{
-	return FAILED;
-}
-
 static int fd_mcs_bus_reset(Scsi_Cmnd * SCpnt) {
 	struct Scsi_Host *shpnt = SCpnt->device->host;
+	unsigned long flags;
 
 #if DEBUG_RESET
 	static int called_once = 0;
@@ -1269,12 +1260,16 @@ static int fd_mcs_bus_reset(Scsi_Cmnd * SCpnt) {
 	called_once = 1;
 #endif
 
+	spin_lock_irqsave(shpnt->host_lock, flags);
+
 	outb(1, SCSI_Cntl_port);
 	do_pause(2);
 	outb(0, SCSI_Cntl_port);
 	do_pause(115);
 	outb(0, SCSI_Mode_Cntl_port);
 	outb(PARITY_MASK, TMC_Cntl_port);
+
+	spin_unlock_irqrestore(shpnt->host_lock, flags);
 
 	/* Unless this is the very first call (i.e., SCPnt == NULL), everything
 	   is probably hosed at this point.  We will, however, try to keep
@@ -1348,7 +1343,7 @@ static int fd_mcs_biosparam(struct scsi_device * disk, struct block_device *bdev
 	return 0;
 }
 
-static Scsi_Host_Template driver_template = {
+static struct scsi_host_template driver_template = {
 	.proc_name			= "fd_mcs",
 	.proc_info			= fd_mcs_proc_info,
 	.detect				= fd_mcs_detect,
@@ -1357,8 +1352,6 @@ static Scsi_Host_Template driver_template = {
 	.queuecommand   		= fd_mcs_queue, 
 	.eh_abort_handler		= fd_mcs_abort,
 	.eh_bus_reset_handler		= fd_mcs_bus_reset,
-	.eh_host_reset_handler		= fd_mcs_host_reset,
-	.eh_device_reset_handler	= fd_mcs_device_reset,
 	.bios_param     		= fd_mcs_biosparam,
 	.can_queue      		= 1,
 	.this_id        		= 7,
@@ -1367,3 +1360,5 @@ static Scsi_Host_Template driver_template = {
 	.use_clustering 		= DISABLE_CLUSTERING,
 };
 #include "scsi_module.c"
+
+MODULE_LICENSE("GPL");

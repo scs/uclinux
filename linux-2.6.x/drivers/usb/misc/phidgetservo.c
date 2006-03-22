@@ -26,9 +26,6 @@
  */
 
 #include <linux/config.h>
-#ifdef CONFIG_USB_DEBUG
-#define DEBUG	1
-#endif
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/init.h>
@@ -207,7 +204,7 @@ change_position_v20(struct phidget_servo *servo, int servo_no, int degrees,
 }
 
 #define show_set(value)	\
-static ssize_t set_servo##value (struct device *dev,			\
+static ssize_t set_servo##value (struct device *dev, struct device_attribute *attr,			\
 					const char *buf, size_t count)	\
 {									\
 	int degrees, minutes, retval;					\
@@ -233,7 +230,7 @@ static ssize_t set_servo##value (struct device *dev,			\
 	return retval < 0 ? retval : count;				\
 }									\
 									\
-static ssize_t show_servo##value (struct device *dev, char *buf) 	\
+static ssize_t show_servo##value (struct device *dev, struct device_attribute *attr, char *buf) 	\
 {									\
 	struct usb_interface *intf = to_usb_interface (dev);		\
 	struct phidget_servo *servo = usb_get_intfdata (intf);		\
@@ -309,7 +306,6 @@ servo_disconnect(struct usb_interface *interface)
 }
 
 static struct usb_driver servo_driver = {
-	.owner = THIS_MODULE,
 	.name = "phidgetservo",
 	.probe = servo_probe,
 	.disconnect = servo_disconnect,

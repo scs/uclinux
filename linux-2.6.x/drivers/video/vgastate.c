@@ -342,16 +342,11 @@ static void vga_cleanup(struct vgastate *state)
 	if (state->vidstate != NULL) {
 		struct regstate *saved = (struct regstate *) state->vidstate;
 
-		if (saved->vga_font0) 
-			vfree(saved->vga_font0);
-		if (saved->vga_font1) 
-			vfree(saved->vga_font1);
-		if (saved->vga_text)
-			vfree(saved->vga_text);
-		if (saved->vga_cmap)
-			vfree(saved->vga_cmap);
-		if (saved->attr)
-			vfree(saved->attr);
+		vfree(saved->vga_font0);
+		vfree(saved->vga_font1);
+		vfree(saved->vga_text);
+		vfree(saved->vga_cmap);
+		vfree(saved->attr);
 		kfree(saved);
 		state->vidstate = NULL;
 	}
@@ -361,10 +356,11 @@ int save_vga(struct vgastate *state)
 {
 	struct regstate *saved;
 
-	saved = kmalloc(sizeof(struct regstate), GFP_KERNEL);
+	saved = kzalloc(sizeof(struct regstate), GFP_KERNEL);
+
 	if (saved == NULL)
 		return 1;
-	memset (saved, 0, sizeof(struct regstate));
+
 	state->vidstate = (void *)saved;
 		
 	if (state->flags & VGA_SAVE_CMAP) {
@@ -489,11 +485,6 @@ int restore_vga (struct vgastate *state)
 	vga_cleanup(state);
 	return 0;
 }
-
-#ifdef MODULE
-int init_module(void) { return 0; };
-void cleanup_module(void) {};
-#endif
 
 EXPORT_SYMBOL(save_vga);
 EXPORT_SYMBOL(restore_vga);

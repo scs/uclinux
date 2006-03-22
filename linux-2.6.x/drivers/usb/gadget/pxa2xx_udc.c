@@ -1,6 +1,6 @@
 /*
  * linux/drivers/usb/gadget/pxa2xx_udc.c
- * Intel PXA2xx and IXP4xx on-chip full speed USB device controllers
+ * Intel PXA25x and IXP4xx on-chip full speed USB device controllers
  *
  * Copyright (C) 2002 Intrinsyc, Inc. (Frank Becker)
  * Copyright (C) 2003 Robert Schwebel, Pengutronix
@@ -32,7 +32,6 @@
 #include <linux/kernel.h>
 #include <linux/ioport.h>
 #include <linux/types.h>
-#include <linux/version.h>
 #include <linux/errno.h>
 #include <linux/delay.h>
 #include <linux/sched.h>
@@ -43,7 +42,7 @@
 #include <linux/interrupt.h>
 #include <linux/proc_fs.h>
 #include <linux/mm.h>
-#include <linux/device.h>
+#include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
 
 #include <asm/byteorder.h>
@@ -63,7 +62,7 @@
 
 
 /*
- * This driver handles the USB Device Controller (UDC) in Intel's PXA 2xx
+ * This driver handles the USB Device Controller (UDC) in Intel's PXA 25x
  * series processors.  The UDC for the IXP 4xx series is very similar.
  * There are fifteen endpoints, in addition to ep0.
  *
@@ -79,8 +78,8 @@
  * pxa250 a0/a1 b0/b1/b2 sure act like they're still there.
  */
 
-#define	DRIVER_VERSION	"14-Dec-2003"
-#define	DRIVER_DESC	"PXA 2xx USB Device Controller driver"
+#define	DRIVER_VERSION	"4-May-2005"
+#define	DRIVER_DESC	"PXA 25x USB Device Controller driver"
 
 
 static const char driver_name [] = "pxa2xx_udc";
@@ -290,6 +289,7 @@ static int pxa2xx_ep_enable (struct usb_ep *_ep,
 static int pxa2xx_ep_disable (struct usb_ep *_ep)
 {
 	struct pxa2xx_ep	*ep;
+	unsigned long		flags;
 
 	ep = container_of (_ep, struct pxa2xx_ep, ep);
 	if (!_ep || !ep->desc) {
@@ -297,6 +297,8 @@ static int pxa2xx_ep_disable (struct usb_ep *_ep)
 			_ep ? ep->ep.name : NULL);
 		return -EINVAL;
 	}
+	local_irq_save(flags);
+
 	nuke (ep, -ESHUTDOWN);
 
 #ifdef	USE_DMA
@@ -313,6 +315,7 @@ static int pxa2xx_ep_disable (struct usb_ep *_ep)
 	ep->desc = NULL;
 	ep->stopped = 1;
 
+	local_irq_restore(flags);
 	DBG(DBG_VERBOSE, "%s disabled\n", _ep->name);
 	return 0;
 }
@@ -328,7 +331,7 @@ static int pxa2xx_ep_disable (struct usb_ep *_ep)
  * 	pxa2xx_ep_alloc_request - allocate a request data structure
  */
 static struct usb_request *
-pxa2xx_ep_alloc_request (struct usb_ep *_ep, int gfp_flags)
+pxa2xx_ep_alloc_request (struct usb_ep *_ep, gfp_t gfp_flags)
 {
 	struct pxa2xx_request *req;
 
@@ -363,7 +366,7 @@ pxa2xx_ep_free_request (struct usb_ep *_ep, struct usb_request *_req)
  */
 static void *
 pxa2xx_ep_alloc_buffer(struct usb_ep *_ep, unsigned bytes,
-	dma_addr_t *dma, int gfp_flags)
+	dma_addr_t *dma, gfp_t gfp_flags)
 {
 	char			*retval;
 
@@ -870,7 +873,7 @@ done:
 /*-------------------------------------------------------------------------*/
 
 static int
-pxa2xx_ep_queue(struct usb_ep *_ep, struct usb_request *_req, int gfp_flags)
+pxa2xx_ep_queue(struct usb_ep *_ep, struct usb_request *_req, gfp_t gfp_flags)
 {
 	struct pxa2xx_request	*req;
 	struct pxa2xx_ep	*ep;
@@ -971,10 +974,10 @@ pxa2xx_ep_queue(struct usb_ep *_ep, struct usb_request *_req, int gfp_flags)
 			kick_dma(ep, req);
 #endif
 		/* can the FIFO can satisfy the request immediately? */
-		} else if ((ep->bEndpointAddress & USB_DIR_IN) != 0
-				&& (*ep->reg_udccs & UDCCS_BI_TFS) != 0
-				&& write_fifo(ep, req)) {
-			req = NULL;
+		} else if ((ep->bEndpointAddress & USB_DIR_IN) != 0) {
+			if ((*ep->reg_udccs & UDCCS_BI_TFS) != 0
+					&& write_fifo(ep, req))
+				req = NULL;
 		} else if ((*ep->reg_udccs & UDCCS_BO_RFS) != 0
 				&& read_fifo(ep, req)) {
 			req = NULL;
@@ -1290,7 +1293,7 @@ udc_proc_read(char *page, char **start, off_t off, int count,
 		"%s version: %s\nGadget driver: %s\nHost %s\n\n",
 		driver_name, DRIVER_VERSION SIZE_STR DMASTR,
 		dev->driver ? dev->driver->driver.name : "(none)",
-		is_usb_connected() ? "full speed" : "disconnected");
+		is_vbus_present() ? "full speed" : "disconnected");
 	size -= t;
 	next += t;
 
@@ -1339,7 +1342,7 @@ udc_proc_read(char *page, char **start, off_t off, int count,
 		next += t;
 	}
 
-	if (!is_usb_connected() || !dev->driver)
+	if (!is_vbus_present() || !dev->driver)
 		goto done;
 
 	t = scnprintf(next, size, "ep0 IN %lu/%lu, OUT %lu/%lu\nirqs %lu\n\n",
@@ -1429,7 +1432,7 @@ done:
 
 /* "function" sysfs attribute */
 static ssize_t
-show_function (struct device *_dev, char *buf)
+show_function (struct device *_dev, struct device_attribute *attr, char *buf)
 {
 	struct pxa2xx_udc	*dev = dev_get_drvdata (_dev);
 
@@ -1454,7 +1457,7 @@ static void udc_disable(struct pxa2xx_udc *dev)
 	UFNRH = UFNRH_SIM;
 
 	/* if hardware supports it, disconnect from usb */
-	make_usb_disappear();
+	pullup_off();
 
 	udc_clear_mask_UDCCR(UDCCR_UDE);
 
@@ -1567,7 +1570,7 @@ static void udc_enable (struct pxa2xx_udc *dev)
 	UICR0 &= ~UICR0_IM0;
 
 	/* if hardware supports it, pullup D+ and wait for reset */
-	let_usb_appear();
+	pullup_on();
 }
 
 
@@ -2052,10 +2055,10 @@ pxa2xx_udc_irq(int irq, void *_dev, struct pt_regs *r)
 		if (unlikely(udccr & UDCCR_SUSIR)) {
 			udc_ack_int_UDCCR(UDCCR_SUSIR);
 			handled = 1;
-			DBG(DBG_VERBOSE, "USB suspend%s\n", is_usb_connected()
+			DBG(DBG_VERBOSE, "USB suspend%s\n", is_vbus_present()
 				? "" : "+disconnect");
 
-			if (!is_usb_connected())
+			if (!is_vbus_present())
 				stop_activity(dev, dev->driver);
 			else if (dev->gadget.speed != USB_SPEED_UNKNOWN
 					&& dev->driver
@@ -2073,7 +2076,7 @@ pxa2xx_udc_irq(int irq, void *_dev, struct pt_regs *r)
 			if (dev->gadget.speed != USB_SPEED_UNKNOWN
 					&& dev->driver
 					&& dev->driver->resume
-					&& is_usb_connected())
+					&& is_vbus_present())
 				dev->driver->resume(&dev->gadget);
 		}
 
@@ -2429,7 +2432,7 @@ static struct pxa2xx_udc memory = {
 /*
  * 	probe - binds to the platform device
  */
-static int __init pxa2xx_udc_probe(struct device *_dev)
+static int __init pxa2xx_udc_probe(struct platform_device *pdev)
 {
 	struct pxa2xx_udc *dev = &memory;
 	int retval, out_dma = 1;
@@ -2492,24 +2495,24 @@ static int __init pxa2xx_udc_probe(struct device *_dev)
 #endif
 
 	/* other non-static parts of init */
-	dev->dev = _dev;
-	dev->mach = _dev->platform_data;
+	dev->dev = &pdev->dev;
+	dev->mach = pdev->dev.platform_data;
 
 	init_timer(&dev->timer);
 	dev->timer.function = udc_watchdog;
 	dev->timer.data = (unsigned long) dev;
 
 	device_initialize(&dev->gadget.dev);
-	dev->gadget.dev.parent = _dev;
-	dev->gadget.dev.dma_mask = _dev->dma_mask;
+	dev->gadget.dev.parent = &pdev->dev;
+	dev->gadget.dev.dma_mask = pdev->dev.dma_mask;
 
 	the_controller = dev;
-	dev_set_drvdata(_dev, dev);
+	platform_set_drvdata(pdev, dev);
 
 	udc_disable(dev);
 	udc_reinit(dev);
 
-	dev->vbus = is_usb_connected();
+	dev->vbus = is_vbus_present();
 
 	/* irq setup after old hardware state is cleaned up */
 	retval = request_irq(IRQ_USB, pxa2xx_udc_irq,
@@ -2555,9 +2558,15 @@ lubbock_fail0:
 
 	return 0;
 }
-static int __exit pxa2xx_udc_remove(struct device *_dev)
+
+static void pxa2xx_udc_shutdown(struct platform_device *_dev)
 {
-	struct pxa2xx_udc *dev = dev_get_drvdata(_dev);
+	pullup_off();
+}
+
+static int __exit pxa2xx_udc_remove(struct platform_device *pdev)
+{
+	struct pxa2xx_udc *dev = platform_get_drvdata(pdev);
 
 	udc_disable(dev);
 	remove_proc_files();
@@ -2571,7 +2580,7 @@ static int __exit pxa2xx_udc_remove(struct device *_dev)
 		free_irq(LUBBOCK_USB_DISC_IRQ, dev);
 		free_irq(LUBBOCK_USB_IRQ, dev);
 	}
-	dev_set_drvdata(_dev, NULL);
+	platform_set_drvdata(pdev, NULL);
 	the_controller = NULL;
 	return 0;
 }
@@ -2592,24 +2601,23 @@ static int __exit pxa2xx_udc_remove(struct device *_dev)
  * VBUS IRQs should probably be ignored so that the PXA device just acts
  * "dead" to USB hosts until system resume.
  */
-static int pxa2xx_udc_suspend(struct device *dev, u32 state, u32 level)
+static int pxa2xx_udc_suspend(struct platform_device *dev, pm_message_t state)
 {
-	struct pxa2xx_udc	*udc = dev_get_drvdata(dev);
+	struct pxa2xx_udc	*udc = platform_get_drvdata(dev);
 
-	if (level == SUSPEND_POWER_DOWN) {
-		if (!udc->mach->udc_command)
-			WARN("USB host won't detect disconnect!\n");
-		pullup(udc, 0);
-	}
+	if (!udc->mach->udc_command)
+		WARN("USB host won't detect disconnect!\n");
+	pullup(udc, 0);
+
 	return 0;
 }
 
-static int pxa2xx_udc_resume(struct device *dev, u32 level)
+static int pxa2xx_udc_resume(struct platform_device *dev)
 {
-	struct pxa2xx_udc	*udc = dev_get_drvdata(dev);
+	struct pxa2xx_udc	*udc = platform_get_drvdata(dev);
 
-	if (level == RESUME_POWER_ON)
-		pullup(udc, 1);
+	pullup(udc, 1);
+
 	return 0;
 }
 
@@ -2620,25 +2628,28 @@ static int pxa2xx_udc_resume(struct device *dev, u32 level)
 
 /*-------------------------------------------------------------------------*/
 
-static struct device_driver udc_driver = {
-	.name		= "pxa2xx-udc",
-	.bus		= &platform_bus_type,
+static struct platform_driver udc_driver = {
 	.probe		= pxa2xx_udc_probe,
+	.shutdown	= pxa2xx_udc_shutdown,
 	.remove		= __exit_p(pxa2xx_udc_remove),
 	.suspend	= pxa2xx_udc_suspend,
 	.resume		= pxa2xx_udc_resume,
+	.driver		= {
+		.owner	= THIS_MODULE,
+		.name	= "pxa2xx-udc",
+	},
 };
 
 static int __init udc_init(void)
 {
 	printk(KERN_INFO "%s: version %s\n", driver_name, DRIVER_VERSION);
-	return driver_register(&udc_driver);
+	return platform_driver_register(&udc_driver);
 }
 module_init(udc_init);
 
 static void __exit udc_exit(void)
 {
-	driver_unregister(&udc_driver);
+	platform_driver_unregister(&udc_driver);
 }
 module_exit(udc_exit);
 

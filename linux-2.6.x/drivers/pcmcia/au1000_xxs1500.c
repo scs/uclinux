@@ -27,7 +27,6 @@
  */
 #include <linux/module.h>
 #include <linux/init.h>
-#include <linux/config.h>
 #include <linux/delay.h>
 #include <linux/ioport.h>
 #include <linux/kernel.h>
@@ -35,10 +34,8 @@
 #include <linux/timer.h>
 #include <linux/mm.h>
 #include <linux/proc_fs.h>
-#include <linux/version.h>
 #include <linux/types.h>
 
-#include <pcmcia/version.h>
 #include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
 #include <pcmcia/ss.h>

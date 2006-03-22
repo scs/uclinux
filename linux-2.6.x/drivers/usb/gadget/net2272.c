@@ -36,6 +36,7 @@
 #include <linux/timer.h>
 #include <linux/usb_ch9.h>
 #include <linux/usb_gadget.h>
+#include <linux/platform_device.h>
 
 #include <asm/byteorder.h>
 #include <asm/io.h>
@@ -186,7 +187,7 @@ net2272_enable (struct usb_ep *_ep, const struct usb_endpoint_descriptor *desc)
 		return -ESHUTDOWN;
 
 	max = le16_to_cpu (desc->wMaxPacketSize) & 0x1fff;
-	
+
 	spin_lock_irqsave (&dev->lock, flags);
 	_ep->maxpacket = max & 0x7fff;
 	ep->desc = desc;
@@ -214,7 +215,7 @@ net2272_enable (struct usb_ep *_ep, const struct usb_endpoint_descriptor *desc)
 	ep->is_iso = (tmp == USB_ENDPOINT_XFER_ISOC) ? 1 : 0;
 	tmp <<= ENDPOINT_TYPE;
 	tmp |= ((desc->bEndpointAddress & 0x0f) << ENDPOINT_NUMBER);
-	tmp |= (((desc->bEndpointAddress & USB_DIR_IN) ? 
+	tmp |= (((desc->bEndpointAddress & USB_DIR_IN) ?
 				1 : 0) << ENDPOINT_DIRECTION);
 	tmp |= (1 << ENDPOINT_ENABLE);
 
@@ -224,7 +225,7 @@ net2272_enable (struct usb_ep *_ep, const struct usb_endpoint_descriptor *desc)
 		net2272_ep_write (ep, EP_RSPSET, 1 << ALT_NAK_OUT_PACKETS);
 
 	net2272_ep_write (ep, EP_CFG, tmp);
-	
+
 	/* enable irqs */
 	tmp = (1 << ep->num) | net2272_read (dev, IRQENB0);
 	net2272_write (dev, IRQENB0, tmp);
@@ -389,7 +390,7 @@ done (struct net2272_ep *ep, struct net2272_request *req, int status)
 {
 	struct net2272		*dev;
 	unsigned		stopped = ep->stopped;
-	
+
 	if (ep->num == 0) {
 		if (ep->dev->protocol_stall) {
 			ep->stopped = 1;
@@ -411,8 +412,8 @@ done (struct net2272_ep *ep, struct net2272_request *req, int status)
 			ep->is_in ? PCI_DMA_TODEVICE : PCI_DMA_FROMDEVICE);
 		req->req.dma = DMA_ADDR_INVALID;
 		req->mapped = 0;
-	}	
-	
+	}
+
 	if (status && status != -ESHUTDOWN)
 		VDEBUG (dev, "complete %s req %p stat %d len %u/%u buf %p\n",
 			ep->ep.name, &req->req, status,
@@ -427,7 +428,7 @@ done (struct net2272_ep *ep, struct net2272_request *req, int status)
 }
 
 static int
-write_packet (struct net2272_ep *ep, 
+write_packet (struct net2272_ep *ep,
 		u8 *buf, struct net2272_request *req, unsigned max)
 {
 #ifdef CONFIG_BFIN
@@ -444,13 +445,13 @@ write_packet (struct net2272_ep *ep,
 
 #if 0
 	VDEBUG (ep->dev, "write packet %s req %p max %u len %u avail %u\n",
-			ep->ep.name, req, max, length, 
-			(net2272_ep_read (ep, EP_AVAIL1) << 8) 
+			ep->ep.name, req, max, length,
+			(net2272_ep_read (ep, EP_AVAIL1) << 8)
 				| net2272_ep_read (ep, EP_AVAIL0));
 #endif
 	count = length;
 	bufp = (u16 *)buf;
-	
+
 	while (likely (count >= 2)) {
 		/* no byte-swap required; chip endian set during init */
 		writew (*bufp++, ep_data);
@@ -481,21 +482,21 @@ static int write_fifo (struct net2272_ep *ep, struct net2272_request *req)
 #if 0
 	VDEBUG (ep->dev, "write_fifo %s actual %d len %d\n",
 			ep->ep.name, req->req.actual, req->req.length);
-#endif	
+#endif
 
-top: 
+top:
 	while (!(net2272_ep_read (ep, EP_STAT0) & (1 << BUFFER_FULL))) {
 		buf = req->req.buf + req->req.actual;
 		prefetch (buf);
 
 		/* force pagesel */
 		net2272_ep_read (ep, EP_STAT0);
-		
+
 		max = (net2272_ep_read (ep, EP_AVAIL1) << 8) |
 			(net2272_ep_read (ep, EP_AVAIL0));
 
 		if (max < ep->ep.maxpacket)
-			max = (net2272_ep_read (ep, EP_AVAIL1) << 8) 
+			max = (net2272_ep_read (ep, EP_AVAIL1) << 8)
 				| (net2272_ep_read (ep, EP_AVAIL0));
 
 		count = write_packet (ep, buf, req, max);
@@ -522,9 +523,9 @@ top:
 				status = kick_dma (ep, req);
 
 				if (status < 0)
-					if ((net2272_ep_read (ep, EP_STAT0) 
+					if ((net2272_ep_read (ep, EP_STAT0)
 							& (1 << BUFFER_EMPTY)))
-						goto top;	
+						goto top;
 			}
 			return 1;
 		}
@@ -542,7 +543,7 @@ static void out_flush (struct net2272_ep *ep)
 }
 
 static int
-read_packet (struct net2272_ep *ep, 
+read_packet (struct net2272_ep *ep,
 		u8 *buf, struct net2272_request *req, unsigned avail)
 {
 #ifdef CONFIG_BFIN
@@ -552,14 +553,14 @@ read_packet (struct net2272_ep *ep,
 #endif
 	unsigned		is_short;
 	u16			*bufp;
-	
+
 	req->req.actual += avail;
 #if 0
 	VDEBUG (ep->dev, "read packet %s req %p len %u avail %u\n",
-			ep->ep.name, req, avail, 
-			(net2272_ep_read (ep, EP_AVAIL1) << 8) 
+			ep->ep.name, req, avail,
+			(net2272_ep_read (ep, EP_AVAIL1) << 8)
 				| net2272_ep_read (ep, EP_AVAIL0));
-#endif	
+#endif
 	is_short = (avail < ep->ep.maxpacket);
 
 	if (unlikely (avail == 0)) {
@@ -567,22 +568,22 @@ read_packet (struct net2272_ep *ep,
 		(void)readw (ep_data);
 		return is_short;
 	}
-	
+
 	/* Ensure we get the final byte */
 	if (unlikely (avail % 2))
 		avail++;
 	bufp = (u16 *)buf;
-	
+
 	do {
 		*bufp++ = readw (ep_data);
 		avail -= 2;
 	} while (avail);
-	
+
 	// To avoid false endpoint available race condition must read ep stat0 twice in the case
 	// of a short transfer
 	if (net2272_ep_read (ep, EP_STAT0) & (1 << SHORT_PACKET_TRANSFERRED_INTERRUPT))
 	{
-		net2272_ep_read (ep, EP_STAT0);		
+		net2272_ep_read (ep, EP_STAT0);
 	}
 
 	return is_short;
@@ -600,7 +601,7 @@ static int read_fifo (struct net2272_ep *ep, struct net2272_request *req)
 #if 0
 	VDEBUG (ep->dev, "read_fifo %s actual %d len %d\n",
 			ep->ep.name, req->req.actual, req->req.length);
-#endif	
+#endif
 top:
 	do {
 		buf = req->req.buf + req->req.actual;
@@ -608,7 +609,7 @@ top:
 
 		count = (net2272_ep_read (ep, EP_AVAIL1) << 8)
 			| net2272_ep_read (ep, EP_AVAIL0);
-		
+
 		net2272_ep_write (ep, EP_STAT0,
 				(1 << SHORT_PACKET_TRANSFERRED_INTERRUPT)
 			      | (1 << DATA_PACKET_RECEIVED_INTERRUPT));
@@ -624,11 +625,11 @@ top:
 			}
 			count = (tmp > 0) ? tmp : 0;
 		}
-		
+
 		is_short = read_packet (ep, buf, req, count);
 
 		/* completion */
-		if (unlikely (cleanup || is_short || 
+		if (unlikely (cleanup || is_short ||
 				((req->req.actual == req->req.length)
 				 && !req->req.zero))) {
 
@@ -657,7 +658,7 @@ top:
 						(1 << BUFFER_EMPTY))
 					goto top;
 			}
-			return 1;	
+			return 1;
 		}
 	} while (!(net2272_ep_read (ep, EP_STAT0) & (1 << BUFFER_EMPTY)));
 	return 0;
@@ -675,8 +676,8 @@ pio_advance (struct net2272_ep *ep)
 }
 
 /* returns 0 on success, else negative errno */
-static inline int 
-request_dma (struct net2272 *dev, unsigned ep, u32 buf, unsigned len, 
+static inline int
+request_dma (struct net2272 *dev, unsigned ep, u32 buf, unsigned len,
 		unsigned dir)
 {
 	VDEBUG (dev, "request_dma ep %d buf %08x len %d dir %d\n",
@@ -692,7 +693,7 @@ request_dma (struct net2272 *dev, unsigned ep, u32 buf, unsigned len,
 		return -EINVAL;
 
 	dev->dma_busy = 1;
-	
+
 	/* initialize platform's dma */
 	/* NET2272 addr, buffer addr, length, etc. */
 #if defined (PLX_PCI_RDK)
@@ -739,7 +740,7 @@ start_dma (struct net2272 *dev)
 #if defined(PLX_PCI_RDK)
 	writeb ((1 << CHANNEL_ENABLE) | (1 << CHANNEL_START),
 			dev->plx9054_base_addr + DMACSR0);
-#endif	
+#endif
 }
 
 /* returns 0 on success, else negative errno */
@@ -747,7 +748,7 @@ static int kick_dma (struct net2272_ep *ep, struct net2272_request *req)
 {
 	unsigned	size;
 	u8		tmp;
-	
+
 	if (!use_dma || (ep->num < 1) || (ep->num > 2) || !ep->dma)
 		return -EINVAL;
 
@@ -771,11 +772,11 @@ static int kick_dma (struct net2272_ep *ep, struct net2272_request *req)
 	 */
 	size = req->req.length;
 	size &= ~1;
-	
+
 	/* device-to-host transfer */
 	if (ep->is_in) {
 		/* initialize platform's dma controller */
-		if ((request_dma (ep->dev, ep->num, req->req.dma, size, 0)) 
+		if ((request_dma (ep->dev, ep->num, req->req.dma, size, 0))
 				< 0) {
 			/* unable to obtain DMA channel; return error and use
 			 * pio mode.
@@ -789,7 +790,7 @@ static int kick_dma (struct net2272_ep *ep, struct net2272_request *req)
 		tmp = net2272_ep_read (ep, EP_STAT0);
 
 		/* initialize platform's dma controller */
-		if ((request_dma (ep->dev, ep->num, req->req.dma, size, 1)) 
+		if ((request_dma (ep->dev, ep->num, req->req.dma, size, 1))
 				< 0) {
 			/* unable to obtain DMA channel; return error and use
 			 * pio mode.
@@ -838,13 +839,13 @@ static inline void cancel_dma (struct net2272 *dev)
 #if defined(PLX_PCI_RDK)
 	writeb (0, dev->plx9054_base_addr + DMACSR0);
 	writeb (1 << CHANNEL_ABORT, dev->plx9054_base_addr + DMACSR0);
-	while (!(readb (dev->plx9054_base_addr + DMACSR0) 
+	while (!(readb (dev->plx9054_base_addr + DMACSR0)
 				& (1 << CHANNEL_DONE)))
 		;	/* wait for dma to stabalize */
 
 	/* dma abort generates an interrupt */
 	writeb (1 << CHANNEL_CLEAR_INTERRUPT, dev->plx9054_base_addr + DMACSR0);
-#endif	
+#endif
 	dev->dma_busy = 0;
 }
 
@@ -859,7 +860,7 @@ net2272_queue (struct usb_ep *_ep, struct usb_request *_req, int gfp_flags)
 	unsigned long		flags;
 	int			status = -1;
 	u8			s;
-	
+
 	req = container_of (_req, struct net2272_request, req);
 	if (!_req || !_req->complete || !_req->buf
 			|| !list_empty (&req->queue))
@@ -877,7 +878,7 @@ net2272_queue (struct usb_ep *_ep, struct usb_request *_req, int gfp_flags)
 			ep->is_in ? PCI_DMA_TODEVICE : PCI_DMA_FROMDEVICE);
 		req->mapped = 1;
 	}
-	
+
 #if 0
 	VDEBUG (dev, "%s queue req %p, len %d buf %p dma %08x %s\n",
 			_ep->name, _req, _req->length, _req->buf,
@@ -900,35 +901,35 @@ net2272_queue (struct usb_ep *_ep, struct usb_request *_req, int gfp_flags)
 
 		// Return zlp, don't let it block subsequent packets
 		s = net2272_ep_read (ep, EP_STAT0);
-		if (s & (1 << BUFFER_EMPTY)) 
+		if (s & (1 << BUFFER_EMPTY))
 		{
-			// Buffer is empty check for a blocking zlp, handle it 
+			// Buffer is empty check for a blocking zlp, handle it
 			if ((s & (1 << NAK_OUT_PACKETS)) && net2272_ep_read (ep, EP_STAT1) & (1 << LOCAL_OUT_ZLP))
 			{
 				DEBUG(dev, "WARNING: returning ZLP short packet termination!\n");
 				// Request is going to terminate with a short packet
 				// hope client is ready for it!
-				status = read_fifo (ep, req);	
+				status = read_fifo (ep, req);
 				// clear short packet naking
 				net2272_ep_write (ep, EP_STAT0, (1 << NAK_OUT_PACKETS));
 				goto done;
 			}
-		}				
-		
+		}
+
 		/* try dma first */
 		status = kick_dma (ep, req);
 
 		if (status < 0) {
-			/* dma failed (most likely in use by another endpoint) 
+			/* dma failed (most likely in use by another endpoint)
 			 * fallback to pio
 			 */
 			status = 0;
-			
-			if (ep->is_in) 
+
+			if (ep->is_in)
 				status = write_fifo (ep, req);
 			else {
 				s = net2272_ep_read (ep, EP_STAT0);
-				if ((s & (1 << BUFFER_EMPTY)) == 0) 
+				if ((s & (1 << BUFFER_EMPTY)) == 0)
 					status = read_fifo (ep, req);
 			}
 
@@ -1085,7 +1086,7 @@ net2272_fifo_flush (struct usb_ep *_ep)
 static struct usb_ep_ops net2272_ep_ops = {
 	.enable		= net2272_enable,
 	.disable	= net2272_disable,
-	
+
 	.alloc_request	= net2272_alloc_request,
 	.free_request	= net2272_free_request,
 
@@ -1112,10 +1113,10 @@ static int net2272_get_frame (struct usb_gadget *_gadget)
 		return -ENODEV;
 	dev = container_of (_gadget, struct net2272, gadget);
 	spin_lock_irqsave (&dev->lock, flags);
-	
+
 	retval = net2272_read (dev, FRAME1) << 8;
 	retval |= net2272_read (dev, FRAME0);
-	
+
 	spin_unlock_irqrestore (&dev->lock, flags);
 	return retval;
 }
@@ -1222,7 +1223,7 @@ show_registers (struct device *_dev, char *buf)
 
 	/* DMA */
 	t1 = net2272_read (dev, DMAREQ);
-	t = scnprintf (next, size, "\ndmareq %02x: %s %s%s%s%s\n", 
+	t = scnprintf (next, size, "\ndmareq %02x: %s %s%s%s%s\n",
 			t1, ep_name [(t1 & 0x01) + 1],
 			t1 & (1 << DMA_CONTROL_DACK) ? "dack " : "",
 			t1 & (1 << DMA_REQUEST_ENABLE) ? "reqenb " : "",
@@ -1282,15 +1283,15 @@ show_registers (struct device *_dev, char *buf)
 				net2272_ep_read (ep, EP_IRQENB));
 		size -= t;
 		next += t;
-		
+
 		t = scnprintf (next, size,
 			"\tstat0 %02x stat1 %02x avail %04x "
 			"(ep%d%s-%s)%s\n",
 			net2272_ep_read (ep, EP_STAT0),
 			net2272_ep_read (ep, EP_STAT1),
-			(net2272_ep_read (ep, EP_AVAIL1) << 8) | 
+			(net2272_ep_read (ep, EP_AVAIL1) << 8) |
 				net2272_ep_read (ep, EP_AVAIL0),
-			t1 & 0x0f, 
+			t1 & 0x0f,
 			ep->is_in ? "in" : "out",
 			type_string (t1 >> 5),
 			ep->stopped ? "*" : "");
@@ -1299,7 +1300,7 @@ show_registers (struct device *_dev, char *buf)
 
 		t = scnprintf (next, size,
 			"\tep_transfer %06x\n",
-			((net2272_ep_read (ep, EP_TRANSFER2) & 0xff) << 16) | 
+			((net2272_ep_read (ep, EP_TRANSFER2) & 0xff) << 16) |
 			((net2272_ep_read (ep, EP_TRANSFER1) & 0xff) << 8) |
 			((net2272_ep_read (ep, EP_TRANSFER0) & 0xff)));
 		size -= t;
@@ -1334,10 +1335,10 @@ static void set_fifo_mode (struct net2272 *dev, int mode)
 	net2272_write (dev, LOCCTL, tmp);
 
 	INIT_LIST_HEAD (&dev->gadget.ep_list);
-	
+
 	/* always ep-a, ep-c ... maybe not ep-b */
 	list_add_tail (&dev->ep [1].ep.ep_list, &dev->gadget.ep_list);
-	
+
 	switch (mode) {
 	case 0:
 		list_add_tail (&dev->ep [2].ep.ep_list, &dev->gadget.ep_list);
@@ -1379,7 +1380,7 @@ static void usb_reset (struct net2272 *dev)
 	net2272_write (dev, IRQSTAT0, 0xff);
 	net2272_write (dev, IRQSTAT1, ~(1 << SUSPEND_REQUEST_INTERRUPT));
 
-	net2272_write (dev, DMAREQ, 
+	net2272_write (dev, DMAREQ,
 		  (0 << DMA_BUFFER_VALID)
 		| (0 << DMA_REQUEST_ENABLE)
 		| (1 << DMA_CONTROL_DACK)
@@ -1390,12 +1391,12 @@ static void usb_reset (struct net2272 *dev)
 
 #if defined(PLX_PCI_RDK)
 	/* disable split dma bus mode */
-	*((u8 *)dev->base_addr + EPLD_DMA_CONTROL_REGISTER) = 
+	*((u8 *)dev->base_addr + EPLD_DMA_CONTROL_REGISTER) =
 		(dma_mode << EPLD_DMA_MODE);
-#endif	
+#endif
 	set_fifo_mode (dev, (fifo_mode <= 3) ? fifo_mode : 0);
 
-	/* Set the NET2272 ep fifo data width to 16-bit mode and for correct byte swapping 
+	/* Set the NET2272 ep fifo data width to 16-bit mode and for correct byte swapping
 	 * note that the higher level gadget drivers are expected to convert data to little endian.
 	 * Enable byte swap for your local bus/cpu if needed by setting BYTE_SWAP in LOCCTL here
 	 */
@@ -1439,18 +1440,18 @@ static void ep0_start (struct net2272 *dev)
 	net2272_ep_write (ep0, EP_RSPSET,
 			  (1 << NAK_OUT_PACKETS_MODE)
 			| (1 << ALT_NAK_OUT_PACKETS));
-	net2272_ep_write (ep0, EP_RSPCLR, 
+	net2272_ep_write (ep0, EP_RSPCLR,
 			  (1 << HIDE_STATUS_PHASE)
 			| (1 << CONTROL_STATUS_PHASE_HANDSHAKE));
-	net2272_write (dev, USBCTL0, 
+	net2272_write (dev, USBCTL0,
 			  (dev->softconnect << USB_DETECT_ENABLE)
 			| (1 << USB_ROOT_PORT_WAKEUP_ENABLE)
 			| (1 << IO_WAKEUP_ENABLE));
-	net2272_write (dev, IRQENB0, 
+	net2272_write (dev, IRQENB0,
 			  (1 << SETUP_PACKET_INTERRUPT_ENABLE)
 			| (1 << ENDPOINT_0_INTERRUPT_ENABLE)
 			| (1 << DMA_DONE_INTERRUPT_ENABLE));
-	net2272_write (dev, IRQENB1, 
+	net2272_write (dev, IRQENB1,
 			  (1 << VBUS_INTERRUPT_ENABLE)
 			| (1 << ROOT_PORT_RESET_INTERRUPT_ENABLE)
 			| (1 << SUSPEND_REQUEST_CHANGE_INTERRUPT_ENABLE));
@@ -1526,7 +1527,7 @@ stop_activity (struct net2272 *dev, struct usb_gadget_driver *driver)
 		spin_unlock (&dev->lock);
 		driver->disconnect (&dev->gadget);
 		spin_lock (&dev->lock);
-	
+
 	}
 	usb_reinit (dev);
 }
@@ -1571,7 +1572,7 @@ static void handle_dma (struct net2272_ep *ep)
 		req = NULL;
 
 	VDEBUG (ep->dev, "handle_dma %s req %p\n", ep->ep.name, req);
-	
+
 	/* Ensure DREQ is de-asserted */
 	net2272_write (ep->dev, DMAREQ,
 		(0 << DMA_BUFFER_VALID)
@@ -1588,7 +1589,7 @@ static void handle_dma (struct net2272_ep *ep)
 		  (1 << DATA_PACKET_RECEIVED_INTERRUPT_ENABLE)
 		| (1 << DATA_PACKET_TRANSMITTED_INTERRUPT_ENABLE)
 		| net2272_ep_read (ep, EP_IRQENB));
-	
+
 	/* device-to-host transfer completed */
 	if (ep->is_in) {
 		/* validate a short packet or zlp if necessary */
@@ -1608,12 +1609,12 @@ static void handle_dma (struct net2272_ep *ep)
 	/* host-to-device transfer completed */
 	} else {
 		/* terminated with a short packet? */
-		if (net2272_read (ep->dev, IRQSTAT0) & 
+		if (net2272_read (ep->dev, IRQSTAT0) &
 				(1 << DMA_DONE_INTERRUPT)) {
 			/* abort system dma */
 			cancel_dma (ep->dev);
 		}
-		
+
 		/* EP_TRANSFER will contain the number of bytes
 		 * actually received.
 		 * NOTE: There is no overflow detection on EP_TRANSFER:
@@ -1654,13 +1655,13 @@ static void handle_ep (struct net2272_ep *ep)
 	VDEBUG (ep->dev, "%s ack ep_stat0 %02x, ep_stat1 %02x, req %p\n",
 			ep->ep.name, stat0, stat1, req ? &req->req : 0);
 #endif
-	net2272_ep_write (ep, EP_STAT0, stat0 & 
-			~((1 << NAK_OUT_PACKETS) 
+	net2272_ep_write (ep, EP_STAT0, stat0 &
+			~((1 << NAK_OUT_PACKETS)
 			| (1 << SHORT_PACKET_TRANSFERRED_INTERRUPT)));
 	net2272_ep_write (ep, EP_STAT1, stat1);
-		
 
-	/* data packet(s) received (in the fifo, OUT) 
+
+	/* data packet(s) received (in the fifo, OUT)
 	 * direction must be validated, otherwise control read status phase
 	 * could be interpreted as a valid packet
 	 */
@@ -1678,7 +1679,7 @@ get_ep_by_addr (struct net2272 *dev, u16 wIndex)
 
 	if ((wIndex & USB_ENDPOINT_NUMBER_MASK) == 0)
 		return &dev->ep [0];
-	
+
 	list_for_each_entry (ep, &dev->gadget.ep_list, ep.ep_list) {
 		u8	bEndpointAddress;
 
@@ -1725,16 +1726,16 @@ static void set_test_mode (struct net2272 *dev, int mode)
 
 	net2272_write (dev, PAGESEL, 0);
 	net2272_write (dev, EP_STAT0, 1 << DATA_PACKET_TRANSMITTED_INTERRUPT);
-	net2272_write (dev, EP_RSPCLR, 
+	net2272_write (dev, EP_RSPCLR,
 			  (1 << CONTROL_STATUS_PHASE_HANDSHAKE)
 			| (1 << HIDE_STATUS_PHASE));
 	net2272_write (dev, EP_CFG, 1 << ENDPOINT_DIRECTION);
 	net2272_write (dev, EP_STAT1, 1 << BUFFER_FLUSH);
 
 	/* wait for status phase to complete */
-	while (!(net2272_read (dev, EP_STAT0) & 
+	while (!(net2272_read (dev, EP_STAT0) &
 				(1 << DATA_PACKET_TRANSMITTED_INTERRUPT)))
-		;	
+		;
 
 	/* Enable test mode */
 	net2272_write (dev, USBTEST, mode);
@@ -1804,19 +1805,19 @@ static void handle_stat0_irqs (struct net2272 *dev, u8 stat)
 			  | (1 << USB_IN_NAK_SENT)
 			  | (1 << USB_STALL_SENT)
 			  | (1 << LOCAL_OUT_ZLP));
-		
+
 		// Ensure Control Read pre-validation setting is beyond maximum size
 		//  - Control Writes can leave non-zero values in EP_TRANSFER. If
-		//    an EP0 transfer following the Control Write is a Control Read, 
-		//    the NET2272 sees the non-zero EP_TRANSFER as an unexpected 
-		//    pre-validation count. 
+		//    an EP0 transfer following the Control Write is a Control Read,
+		//    the NET2272 sees the non-zero EP_TRANSFER as an unexpected
+		//    pre-validation count.
 		//  - Setting EP_TRANSFER beyond the maximum EP0 transfer size ensures
 		//    the pre-validation count cannot cause an unexpected validatation
 		net2272_write (dev, PAGESEL, 0);
 		net2272_write (dev, EP_TRANSFER2, 0xff);
 		net2272_write (dev, EP_TRANSFER1, 0xff);
 		net2272_write (dev, EP_TRANSFER0, 0xff);
-		
+
 		u.raw [0] = net2272_read (dev, SETUP0);
 		u.raw [1] = net2272_read (dev, SETUP1);
 		u.raw [2] = net2272_read (dev, SETUP2);
@@ -1856,7 +1857,7 @@ static void handle_stat0_irqs (struct net2272 *dev, u8 stat)
 			struct net2272_ep	*e;
 			u16			status = 0;
 
-			if ((u.r.bRequestType & USB_RECIP_MASK) 
+			if ((u.r.bRequestType & USB_RECIP_MASK)
 					== USB_RECIP_ENDPOINT) {
 				if ((e = get_ep_by_addr (dev, u.r.wIndex)) == 0
 						|| u.r.wLength > 2)
@@ -1915,12 +1916,12 @@ static void handle_stat0_irqs (struct net2272 *dev, u8 stat)
 				goto do_stall;
 			clear_halt (e);
 			allow_status (ep);
-			VDEBUG (dev, "%s clear halt\n", ep->ep.name);	
+			VDEBUG (dev, "%s clear halt\n", ep->ep.name);
 			goto next_endpoints;
 			}
 		case USB_REQ_SET_FEATURE: {
 			struct net2272_ep	*e;
-			
+
 			if (u.r.bRequestType == USB_RECIP_DEVICE) {
 				if (u.r.wIndex != NORMAL_OPERATION)
 					set_test_mode (dev, u.r.wIndex);
@@ -2011,8 +2012,8 @@ static void handle_stat1_irqs (struct net2272 *dev, u8 stat)
 		net2272_write (dev, IRQSTAT1, tmp);
 		if ((((stat & (1 << ROOT_PORT_RESET_INTERRUPT)) &&
 				(( net2272_read (dev, USBCTL1) & mask) == 0))
-			|| ((net2272_read (dev, USBCTL1) & (1 << VBUS_PIN)) 
-				== 0)) 
+			|| ((net2272_read (dev, USBCTL1) & (1 << VBUS_PIN))
+				== 0))
 				&& (dev->gadget.speed != USB_SPEED_UNKNOWN)) {
 			DEBUG (dev, "disconnect %s\n",
 				dev->driver->driver.name);
@@ -2058,8 +2059,8 @@ static irqreturn_t net2272_irq (int irq, void *_dev, struct pt_regs * r)
 	struct net2272		*dev = _dev;
 #if defined(PLX_PCI_RDK)
 	u32			intcsr;
-	u8			dmareq;	
-#endif	
+	u8			dmareq;
+#endif
 	spin_lock (&dev->lock);
 #if defined(PLX_PCI_RDK)
 	intcsr = readl (dev->plx9054_base_addr + INTCSR);
@@ -2072,7 +2073,7 @@ static irqreturn_t net2272_irq (int irq, void *_dev, struct pt_regs * r)
 		intcsr = readl (dev->plx9054_base_addr + INTCSR);
 		writel (intcsr | (1 << PCI_INTERRUPT_ENABLE),
 			dev->plx9054_base_addr + INTCSR);
-	} 
+	}
 	if ((intcsr & DMA_CHANNEL_0_TEST) == DMA_CHANNEL_0_TEST) {
 		writeb ((1 << CHANNEL_CLEAR_INTERRUPT | (0 << CHANNEL_ENABLE)),
 				dev->plx9054_base_addr + DMACSR0);
@@ -2082,14 +2083,14 @@ static irqreturn_t net2272_irq (int irq, void *_dev, struct pt_regs * r)
 			handle_dma (&dev->ep [2]);
 		else
 			handle_dma (&dev->ep [1]);
-	}	
+	}
 #endif
 #if !defined(PLX_PCI_RDK)
 	handle_stat1_irqs (dev, net2272_read (dev, IRQSTAT1));
 	handle_stat0_irqs (dev, net2272_read (dev, IRQSTAT0));
 #endif
 	spin_unlock (&dev->lock);
-	
+
 	return IRQ_HANDLED;
 }
 
@@ -2100,7 +2101,7 @@ int net2272_present(struct net2272 *dev)
 	//  - Verifies connection using writes and reads to write/read and read-only registers
 
 	// This routine is strongly recommended especially during early bring-up of new
-	// hardware, however for designs that do not apply Power On System Tests (POST) 
+	// hardware, however for designs that do not apply Power On System Tests (POST)
 	// it may discarded (or perhaps minimized).
 	unsigned int ii;
 	u8 Val, RefVal;
@@ -2145,7 +2146,7 @@ int net2272_present(struct net2272 *dev)
 		DEBUG(dev,
 		      "\nNcDev_AreYouThere(): WARNING: UNEXPECTED NET2272 LEGACY REGISTER VALUE:\n"
 		      " - CHIPREV_LEGACY: expected 0x%2.2x, got:0x%2.2x. (Not NET2272?)\n\n",
-		      NET2270_LEGACY_REV, 
+		      NET2270_LEGACY_REV,
 		      Val
 		);
 		// Return Success, even though the chip does not appear to be a NET2272
@@ -2252,8 +2253,8 @@ net2272_rdk_probe (struct pci_dev *pdev, const struct pci_device_id *id)
 	void			__iomem *mem_mapped_addr[4];
 	int			retval, i;
 	char			buf [8], *bufp;
-	unsigned int		tmp;	
-	
+	unsigned int		tmp;
+
 	if (the_controller) {
 		dev_warn (&pdev->dev, "ignoring\n");
 		return -EBUSY;
@@ -2292,12 +2293,12 @@ net2272_rdk_probe (struct pci_dev *pdev, const struct pci_device_id *id)
 	 * BAR 2 holds EPLD config registers
 	 * BAR 3 holds NET2272 registers
 	 */
-	
+
 	/* Find and map all address spaces */
 	for (i = 0; i < 4; i++) {
-		if (i == 1) 
+		if (i == 1)
 			continue;	/* BAR1 unused */
-		
+
 		resource = pci_resource_start (pdev, i);
 		len = pci_resource_len (pdev, i);
 
@@ -2320,12 +2321,12 @@ net2272_rdk_probe (struct pci_dev *pdev, const struct pci_device_id *id)
 	dev->base_addr = mem_mapped_addr [3];
 
 	dev->indexed_threshold = 1 << 5;
-	
+
 	dev->dma_eot_polarity  = 0;
 	dev->dma_dack_polarity = 0;
 	dev->dma_dreq_polarity = 0;
 	dev->dma_busy = 0;
-	
+
 	/* Set PLX 9054 bus width (16 bits) */
 	tmp = readl (dev->plx9054_base_addr + LBRD1);
 	writel ((tmp & ~(3 << MEMORY_SPACE_LOCAL_BUS_WIDTH)) | W16_BIT,
@@ -2336,13 +2337,13 @@ net2272_rdk_probe (struct pci_dev *pdev, const struct pci_device_id *id)
 			(1 << PCI_INTERRUPT_ENABLE) |
 			(1 << LOCAL_INTERRUPT_INPUT_ENABLE),
 			dev->plx9054_base_addr + INTCSR);
-	
+
 	writeb ((1 << CHANNEL_CLEAR_INTERRUPT | (0 << CHANNEL_ENABLE)),
 			dev->plx9054_base_addr + DMACSR0);
 
 	/* reset */
-	*((u8 *)dev->base_addr + EPLD_IO_CONTROL_REGISTER) = 
-		  (1 << EPLD_DMA_ENABLE) 
+	*((u8 *)dev->base_addr + EPLD_IO_CONTROL_REGISTER) =
+		  (1 << EPLD_DMA_ENABLE)
 		| (1 << DMA_CTL_DACK)
 		| (1 << DMA_TIMEOUT_ENABLE)
 		| (1 << USER)
@@ -2357,11 +2358,11 @@ net2272_rdk_probe (struct pci_dev *pdev, const struct pci_device_id *id)
 	// See if there...
 	if (net2272_present(dev))
 	{
-		WARN(dev, "2272 not found!\n");	
+		WARN(dev, "2272 not found!\n");
 		retval = -ENODEV;
-		goto done;		
-	}	
-	
+		goto done;
+	}
+
 	usb_reset (dev);
 	usb_reinit (dev);
 
@@ -2399,7 +2400,7 @@ net2272_rdk_probe (struct pci_dev *pdev, const struct pci_device_id *id)
 
 	device_register (&dev->gadget.dev);
 	device_create_file (&pdev->dev, &dev_attr_registers);
-	
+
 	return 0;
 
 done:
@@ -2440,10 +2441,10 @@ static int net2272_remove (struct device *_dev)
 {
 	struct net2272		*dev;
 	struct platform_device	*pdev;
-	
+
 	pdev = to_platform_device (_dev);
 	dev = dev_get_drvdata (&pdev->dev);
-	
+
 	/* start with the driver above us */
 	if (dev->driver) {
 		/* should have been done already by driver model core */
@@ -2456,14 +2457,14 @@ static int net2272_remove (struct device *_dev)
 	if (dev->got_irq)
 		free_irq (pdev->resource [1].start, dev);
 
-	release_mem_region (pdev->resource [0].start, 
+	release_mem_region (pdev->resource [0].start,
 			pdev->resource [0].end - pdev->resource [0].start + 1);
-	
+
 	if (dev->base_addr)
 		iounmap (dev->base_addr);
 
 	device_remove_file (&pdev->dev, &dev_attr_registers);
-	
+
 	INFO (dev, "unbind\n");
 
 	dev_set_drvdata (_dev, 0);
@@ -2479,7 +2480,7 @@ static int net2272_probe (struct device *_dev)
 	int			retval;
 
 	pdev = to_platform_device (_dev);
-	
+
 	if (the_controller) {
 		dev_warn (&pdev->dev, "ignoring\n");
 		return -EBUSY;
@@ -2503,12 +2504,12 @@ static int net2272_probe (struct device *_dev)
 #endif
 	}
 #endif
-	
+
 	if (!base || !irq) {
 		printk ("must provide base/irq as parameters! %lu %d\n", base, irq);
 		return -EINVAL;
 	}
-	
+
 	/* alloc, and start init */
 	dev = kmalloc (sizeof *dev, SLAB_KERNEL);
 	if (dev == NULL) {
@@ -2533,7 +2534,7 @@ static int net2272_probe (struct device *_dev)
 	dev->enabled = 1;
 
 	// FIXME, hardcoding register base memory resource length to 0xF0!
-	if (!request_mem_region (base, 
+	if (!request_mem_region (base,
 				0xF0,  driver_name)) {
 		DEBUG (dev, "get request memory region!\n");
 		retval = -EBUSY;
@@ -2551,14 +2552,14 @@ static int net2272_probe (struct device *_dev)
 	dev->dma_dack_polarity = 0;
 	dev->dma_dreq_polarity = 0;
 	dev->dma_busy = 0;
-	
+
 	// See if there..., can remove this test for production code
 	if (net2272_present(dev))
 	{
-		WARN(dev, "2272 not found!\n");	
+		WARN(dev, "2272 not found!\n");
 		retval = -ENODEV;
-		goto done;		
-	}	
+		goto done;
+	}
 	usb_reset (dev);
 	usb_reinit (dev);
 
@@ -2595,7 +2596,7 @@ static int net2272_probe (struct device *_dev)
 done:
 	if (dev)
 		net2272_remove (_dev);
-		
+
 	return retval;
 }
 
@@ -2613,20 +2614,20 @@ static struct device_driver net2272_driver = {
 
 static int __init init (void)
 {
-#if defined(PLX_PCI_RDK)	
+#if defined(PLX_PCI_RDK)
 	return pci_register_driver (&net2272_driver);
-#else	
+#else
 	return driver_register (&net2272_driver);
-#endif	
+#endif
 }
 
 static void __exit cleanup (void)
 {
-#if defined(PLX_PCI_RDK)	
+#if defined(PLX_PCI_RDK)
 	pci_unregister_driver (&net2272_driver);
-#else	
+#else
 	driver_unregister (&net2272_driver);
-#endif	
+#endif
 }
 module_init (init);
 module_exit (cleanup);

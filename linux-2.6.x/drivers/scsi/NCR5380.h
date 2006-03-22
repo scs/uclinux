@@ -23,8 +23,8 @@
 
 /*
  * $Log$
- * Revision 1.4  2005/08/12 06:42:45  magicyang
- *  Update kernel 2.6.8 to 2.6.12
+ * Revision 1.5  2006/03/22 08:11:06  magicyang
+ * update kernel to 2.6.16
  *
  */
 
@@ -309,8 +309,6 @@ static void NCR5380_print(struct Scsi_Host *instance);
 #endif
 static int NCR5380_abort(Scsi_Cmnd * cmd);
 static int NCR5380_bus_reset(Scsi_Cmnd * cmd);
-static int NCR5380_host_reset(Scsi_Cmnd * cmd);
-static int NCR5380_device_reset(Scsi_Cmnd * cmd);
 static int NCR5380_queue_command(Scsi_Cmnd * cmd, void (*done) (Scsi_Cmnd *));
 static int NCR5380_proc_info(struct Scsi_Host *instance, char *buffer, char **start,
 off_t offset, int length, int inout);

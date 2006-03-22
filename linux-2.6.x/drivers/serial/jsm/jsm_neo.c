@@ -48,8 +48,9 @@ static inline void neo_pci_posting_flush(struct jsm_board *bd)
 
 static void neo_set_cts_flow_control(struct jsm_channel *ch)
 {
-	u8 ier = readb(&ch->ch_neo_uart->ier);
-	u8 efr = readb(&ch->ch_neo_uart->efr);
+	u8 ier, efr;
+	ier = readb(&ch->ch_neo_uart->ier);
+	efr = readb(&ch->ch_neo_uart->efr);
 
 	jsm_printk(PARAM, INFO, &ch->ch_bd->pci_dev, "Setting CTSFLOW\n");
 
@@ -78,8 +79,9 @@ static void neo_set_cts_flow_control(struct jsm_channel *ch)
 
 static void neo_set_rts_flow_control(struct jsm_channel *ch)
 {
-	u8 ier = readb(&ch->ch_neo_uart->ier);
-	u8 efr = readb(&ch->ch_neo_uart->efr);
+	u8 ier, efr;
+	ier = readb(&ch->ch_neo_uart->ier);
+	efr = readb(&ch->ch_neo_uart->efr);
 
 	jsm_printk(PARAM, INFO, &ch->ch_bd->pci_dev, "Setting RTSFLOW\n");
 
@@ -117,8 +119,9 @@ static void neo_set_rts_flow_control(struct jsm_channel *ch)
 
 static void neo_set_ixon_flow_control(struct jsm_channel *ch)
 {
-	u8 ier = readb(&ch->ch_neo_uart->ier);
-	u8 efr = readb(&ch->ch_neo_uart->efr);
+	u8 ier, efr;
+	ier = readb(&ch->ch_neo_uart->ier);
+	efr = readb(&ch->ch_neo_uart->efr);
 
 	jsm_printk(PARAM, INFO, &ch->ch_bd->pci_dev, "Setting IXON FLOW\n");
 
@@ -153,8 +156,9 @@ static void neo_set_ixon_flow_control(struct jsm_channel *ch)
 
 static void neo_set_ixoff_flow_control(struct jsm_channel *ch)
 {
-	u8 ier = readb(&ch->ch_neo_uart->ier);
-	u8 efr = readb(&ch->ch_neo_uart->efr);
+	u8 ier, efr;
+	ier = readb(&ch->ch_neo_uart->ier);
+	efr = readb(&ch->ch_neo_uart->efr);
 
 	jsm_printk(PARAM, INFO, &ch->ch_bd->pci_dev, "Setting IXOFF FLOW\n");
 
@@ -190,8 +194,9 @@ static void neo_set_ixoff_flow_control(struct jsm_channel *ch)
 
 static void neo_set_no_input_flow_control(struct jsm_channel *ch)
 {
-	u8 ier = readb(&ch->ch_neo_uart->ier);
-	u8 efr = readb(&ch->ch_neo_uart->efr);
+	u8 ier, efr;
+	ier = readb(&ch->ch_neo_uart->ier);
+	efr = readb(&ch->ch_neo_uart->efr);
 
 	jsm_printk(PARAM, INFO, &ch->ch_bd->pci_dev, "Unsetting Input FLOW\n");
 
@@ -228,8 +233,9 @@ static void neo_set_no_input_flow_control(struct jsm_channel *ch)
 
 static void neo_set_no_output_flow_control(struct jsm_channel *ch)
 {
-	u8 ier = readb(&ch->ch_neo_uart->ier);
-	u8 efr = readb(&ch->ch_neo_uart->efr);
+	u8 ier, efr;
+	ier = readb(&ch->ch_neo_uart->ier);
+	efr = readb(&ch->ch_neo_uart->efr);
 
 	jsm_printk(PARAM, INFO, &ch->ch_bd->pci_dev, "Unsetting Output FLOW\n");
 
@@ -959,55 +965,46 @@ static void neo_param(struct jsm_channel *ch)
 			baud = ch->ch_custom_speed;
 			if (ch->ch_flags & CH_BAUD0)
 				ch->ch_flags &= ~(CH_BAUD0);
-		} else {
-			int iindex = 0;
-			int jindex = 0;
+	} else {
+		int i;
+		unsigned int cflag;
+		static struct {
+			unsigned int rate;
+			unsigned int cflag;
+		} baud_rates[] = {
+			{ 921600, B921600 },
+			{ 460800, B460800 },
+			{ 230400, B230400 },
+			{ 115200, B115200 },
+			{  57600, B57600  },
+			{  38400, B38400  },
+			{  19200, B19200  },
+			{   9600, B9600   },
+			{   4800, B4800   },
+			{   2400, B2400   },
+			{   1200, B1200   },
+			{    600, B600    },
+			{    300, B300    },
+			{    200, B200    },
+			{    150, B150    },
+			{    134, B134    },
+			{    110, B110    },
+			{     75, B75     },
+			{     50, B50     },
+		};
 
-			const u64 bauds[4][16] = {
-				{
-					0,	50,	75,	110,
-					134,	150,	200,	300,
-					600,	1200,	1800,	2400,
-					4800,	9600,	19200,	38400 },
-				{
-					0,	57600,	115200, 230400,
-					460800, 150,	200,	921600,
-					600,	1200,	1800,	2400,
-					4800,	9600,	19200,	38400 },
-				{
-					0,	57600,	76800, 115200,
-					131657, 153600, 230400, 460800,
-					921600, 1200,	1800,	2400,
-					4800,	9600,	19200,	38400 },
-				{
-					0,	57600,	115200, 230400,
-					460800, 150,	200,	921600,
-					600,	1200,	1800,	2400,
-					4800,	9600,	19200,	38400 }
-			};
-
-			baud = C_BAUD(ch->uart_port.info->tty) & 0xff;
-
-			if (ch->ch_c_cflag & CBAUDEX)
-				iindex = 1;
-
-			jindex = baud;
-
-			if ((iindex >= 0) && (iindex < 4) && (jindex >= 0) && (jindex < 16))
-				baud = bauds[iindex][jindex];
-			else {
-				jsm_printk(IOCTL, DEBUG, &ch->ch_bd->pci_dev,
-					"baud indices were out of range (%d)(%d)",
-				iindex, jindex);
-				baud = 0;
+		cflag = C_BAUD(ch->uart_port.info->tty);
+		baud = 9600;
+		for (i = 0; i < ARRAY_SIZE(baud_rates); i++) {
+			if (baud_rates[i].cflag == cflag) {
+				baud = baud_rates[i].rate;
+				break;
 			}
-
-			if (baud == 0)
-				baud = 9600;
-
-			if (ch->ch_flags & CH_BAUD0)
-				ch->ch_flags &= ~(CH_BAUD0);
 		}
+
+		if (ch->ch_flags & CH_BAUD0)
+			ch->ch_flags &= ~(CH_BAUD0);
+	}
 
 	if (ch->ch_c_cflag & PARENB)
 		lcr |= UART_LCR_PARITY;

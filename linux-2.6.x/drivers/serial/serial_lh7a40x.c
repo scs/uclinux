@@ -112,13 +112,12 @@ struct uart_port_lh7a40x {
 	unsigned int statusPrev; /* Most recently read modem status */
 };
 
-static void lh7a40xuart_stop_tx (struct uart_port* port, unsigned int tty_stop)
+static void lh7a40xuart_stop_tx (struct uart_port* port)
 {
 	BIT_CLR (port, UART_R_INTEN, TxInt);
 }
 
-static void lh7a40xuart_start_tx (struct uart_port* port,
-				  unsigned int tty_start)
+static void lh7a40xuart_start_tx (struct uart_port* port)
 {
 	BIT_SET (port, UART_R_INTEN, TxInt);
 
@@ -149,15 +148,6 @@ lh7a40xuart_rx_chars (struct uart_port* port)
 	unsigned int data, flag;/* Received data and status */
 
 	while (!(UR (port, UART_R_STATUS) & nRxRdy) && --cbRxMax) {
-		if (tty->flip.count >= TTY_FLIPBUF_SIZE) {
-			if (tty->low_latency)
-				tty_flip_buffer_push(tty);
-			/*
-			 * If this failed then we will throw away the
-			 * bytes but must do so to clear interrupts
-			 */
-		}
-
 		data = UR (port, UART_R_DATA);
 		flag = TTY_NORMAL;
 		++port->icount.rx;
@@ -208,7 +198,7 @@ static void lh7a40xuart_tx_chars (struct uart_port* port)
 		return;
 	}
 	if (uart_circ_empty (xmit) || uart_tx_stopped (port)) {
-		lh7a40xuart_stop_tx (port, 0);
+		lh7a40xuart_stop_tx (port);
 		return;
 	}
 
@@ -230,7 +220,7 @@ static void lh7a40xuart_tx_chars (struct uart_port* port)
 		uart_write_wakeup (port);
 
 	if (uart_circ_empty (xmit))
-		lh7a40xuart_stop_tx (port, 0);
+		lh7a40xuart_stop_tx (port);
 }
 
 static void lh7a40xuart_modem_status (struct uart_port* port)
@@ -511,12 +501,12 @@ static struct uart_port_lh7a40x lh7a40x_ports[DEV_NR] = {
 		.port = {
 			.membase	= (void*) io_p2v (UART1_PHYS),
 			.mapbase	= UART1_PHYS,
-			.iotype		= SERIAL_IO_MEM,
+			.iotype		= UPIO_MEM,
 			.irq		= IRQ_UART1INTR,
 			.uartclk	= 14745600/2,
 			.fifosize	= 16,
 			.ops		= &lh7a40x_uart_ops,
-			.flags		= ASYNC_BOOT_AUTOCONF,
+			.flags		= UPF_BOOT_AUTOCONF,
 			.line		= 0,
 		},
 	},
@@ -524,12 +514,12 @@ static struct uart_port_lh7a40x lh7a40x_ports[DEV_NR] = {
 		.port = {
 			.membase	= (void*) io_p2v (UART2_PHYS),
 			.mapbase	= UART2_PHYS,
-			.iotype		= SERIAL_IO_MEM,
+			.iotype		= UPIO_MEM,
 			.irq		= IRQ_UART2INTR,
 			.uartclk	= 14745600/2,
 			.fifosize	= 16,
 			.ops		= &lh7a40x_uart_ops,
-			.flags		= ASYNC_BOOT_AUTOCONF,
+			.flags		= UPF_BOOT_AUTOCONF,
 			.line		= 1,
 		},
 	},
@@ -537,12 +527,12 @@ static struct uart_port_lh7a40x lh7a40x_ports[DEV_NR] = {
 		.port = {
 			.membase	= (void*) io_p2v (UART3_PHYS),
 			.mapbase	= UART3_PHYS,
-			.iotype		= SERIAL_IO_MEM,
+			.iotype		= UPIO_MEM,
 			.irq		= IRQ_UART3INTR,
 			.uartclk	= 14745600/2,
 			.fifosize	= 16,
 			.ops		= &lh7a40x_uart_ops,
-			.flags		= ASYNC_BOOT_AUTOCONF,
+			.flags		= UPF_BOOT_AUTOCONF,
 			.line		= 2,
 		},
 	},
@@ -633,7 +623,7 @@ static int __init lh7a40xuart_console_setup (struct console* co, char* options)
 	return uart_set_options (port, co, baud, parity, bits, flow);
 }
 
-extern struct uart_driver lh7a40x_reg;
+static struct uart_driver lh7a40x_reg;
 static struct console lh7a40x_console = {
 	.name		= "ttyAM",
 	.write		= lh7a40xuart_console_write,

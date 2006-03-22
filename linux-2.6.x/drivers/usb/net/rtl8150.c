@@ -167,8 +167,6 @@ struct rtl8150 {
 
 typedef struct rtl8150 rtl8150_t;
 
-static unsigned long multicast_filter_limit = 32;
-
 static void fill_skb_pool(rtl8150_t *);
 static void free_skb_pool(rtl8150_t *);
 static inline struct sk_buff *pull_skb(rtl8150_t *);
@@ -179,7 +177,6 @@ static int rtl8150_probe(struct usb_interface *intf,
 static const char driver_name [] = "rtl8150";
 
 static struct usb_driver rtl8150_driver = {
-	.owner =	THIS_MODULE,
 	.name =		driver_name,
 	.probe =	rtl8150_probe,
 	.disconnect =	rtl8150_disconnect,
@@ -655,7 +652,6 @@ static void rtl8150_tx_timeout(struct net_device *netdev)
 {
 	rtl8150_t *dev = netdev_priv(netdev);
 	warn("%s: Tx timeout.", netdev->name);
-	dev->tx_urb->transfer_flags |= URB_ASYNC_UNLINK;
 	usb_unlink_urb(dev->tx_urb);
 	dev->stats.tx_errors++;
 }
@@ -667,7 +663,7 @@ static void rtl8150_set_multicast(struct net_device *netdev)
 	if (netdev->flags & IFF_PROMISC) {
 		dev->rx_creg |= cpu_to_le16(0x0001);
 		info("%s: promiscuous mode", netdev->name);
-	} else if ((netdev->mc_count > multicast_filter_limit) ||
+	} else if (netdev->mc_count ||
 		   (netdev->flags & IFF_ALLMULTI)) {
 		dev->rx_creg &= cpu_to_le16(0xfffe);
 		dev->rx_creg |= cpu_to_le16(0x0002);
@@ -912,6 +908,7 @@ static void rtl8150_disconnect(struct usb_interface *intf)
 	usb_set_intfdata(intf, NULL);
 	if (dev) {
 		set_bit(RTL8150_UNPLUG, &dev->flags);
+		tasklet_disable(&dev->tl);
 		unregister_netdev(dev->netdev);
 		unlink_all_urbs(dev);
 		free_all_urbs(dev);

@@ -730,7 +730,7 @@ static void start_phase(struct mesh_state *ms)
 		 * issue a SEQ_MSGOUT to get the mesh to drop ACK.
 		 */
 		if ((in_8(&mr->bus_status0) & BS0_ATN) == 0) {
-			dlog(ms, "bus0 was %.2x explictly asserting ATN", mr->bus_status0);
+			dlog(ms, "bus0 was %.2x explicitly asserting ATN", mr->bus_status0);
 			out_8(&mr->bus_status0, BS0_ATN); /* explicit ATN */
 			mesh_flush_io(mr);
 			udelay(1);
@@ -1715,8 +1715,11 @@ static int mesh_host_reset(struct scsi_cmnd *cmd)
 	struct mesh_state *ms = (struct mesh_state *) cmd->device->host->hostdata;
 	volatile struct mesh_regs __iomem *mr = ms->mesh;
 	volatile struct dbdma_regs __iomem *md = ms->dma;
+	unsigned long flags;
 
 	printk(KERN_DEBUG "mesh_host_reset\n");
+
+	spin_lock_irqsave(ms->host->host_lock, flags);
 
 	/* Reset the controller & dbdma channel */
 	out_le32(&md->control, (RUN|PAUSE|FLUSH|WAKE) << 16);	/* stop dma */
@@ -1739,6 +1742,7 @@ static int mesh_host_reset(struct scsi_cmnd *cmd)
 	/* Complete pending commands */
 	handle_reset(ms);
 	
+	spin_unlock_irqrestore(ms->host->host_lock, flags);
 	return SUCCESS;
 }
 
@@ -1762,7 +1766,7 @@ static int mesh_suspend(struct macio_dev *mdev, pm_message_t state)
 	struct mesh_state *ms = (struct mesh_state *)macio_get_drvdata(mdev);
 	unsigned long flags;
 
-	if (state == mdev->ofdev.dev.power.power_state || state < 2)
+	if (state.event == mdev->ofdev.dev.power.power_state.event || state.event < 2)
 		return 0;
 
 	scsi_block_requests(ms->host);
@@ -1787,7 +1791,7 @@ static int mesh_resume(struct macio_dev *mdev)
 	struct mesh_state *ms = (struct mesh_state *)macio_get_drvdata(mdev);
 	unsigned long flags;
 
-	if (mdev->ofdev.dev.power.power_state == 0)
+	if (mdev->ofdev.dev.power.power_state.event == PM_EVENT_ON)
 		return 0;
 
 	set_mesh_power(ms, 1);
@@ -1798,7 +1802,7 @@ static int mesh_resume(struct macio_dev *mdev)
 	enable_irq(ms->meshintr);
 	scsi_unblock_requests(ms->host);
 
-	mdev->ofdev.dev.power.power_state = 0;
+	mdev->ofdev.dev.power.power_state.event = PM_EVENT_ON;
 
 	return 0;
 }
@@ -1843,7 +1847,7 @@ static struct scsi_host_template mesh_template = {
 	.use_clustering			= DISABLE_CLUSTERING,
 };
 
-static int mesh_probe(struct macio_dev *mdev, const struct of_match *match)
+static int mesh_probe(struct macio_dev *mdev, const struct of_device_id *match)
 {
 	struct device_node *mesh = macio_get_of_node(mdev);
 	struct pci_dev* pdev = macio_get_pci_dev(mdev);
@@ -1865,7 +1869,8 @@ static int mesh_probe(struct macio_dev *mdev, const struct of_match *match)
 
 	if (macio_resource_count(mdev) != 2 || macio_irq_count(mdev) != 2) {
        		printk(KERN_ERR "mesh: expected 2 addrs and 2 intrs"
-	       	       " (got %d,%d)\n", mesh->n_addrs, mesh->n_intrs);
+	       	       " (got %d,%d)\n", macio_resource_count(mdev),
+		       macio_irq_count(mdev));
 		return -ENODEV;
 	}
 
@@ -1955,22 +1960,35 @@ static int mesh_probe(struct macio_dev *mdev, const struct of_match *match)
 	/* Set it up */
        	mesh_init(ms);
 
-	/* XXX FIXME: error should be fatal */
-       	if (request_irq(ms->meshintr, do_mesh_interrupt, 0, "MESH", ms))
+	/* Request interrupt */
+       	if (request_irq(ms->meshintr, do_mesh_interrupt, 0, "MESH", ms)) {
 	       	printk(KERN_ERR "MESH: can't get irq %d\n", ms->meshintr);
+		goto out_shutdown;
+	}
 
-	/* XXX FIXME: handle failure */
-	scsi_add_host(mesh_host, &mdev->ofdev.dev);
+	/* Add scsi host & scan */
+	if (scsi_add_host(mesh_host, &mdev->ofdev.dev))
+		goto out_release_irq;
 	scsi_scan_host(mesh_host);
 
 	return 0;
 
-out_unmap:
+ out_release_irq:
+	free_irq(ms->meshintr, ms);
+ out_shutdown:
+	/* shutdown & reset bus in case of error or macos can be confused
+	 * at reboot if the bus was set to synchronous mode already
+	 */
+	mesh_shutdown(mdev);
+	set_mesh_power(ms, 0);
+	pci_free_consistent(macio_get_pci_dev(mdev), ms->dma_cmd_size,
+			    ms->dma_cmd_space, ms->dma_cmd_bus);
+ out_unmap:
 	iounmap(ms->dma);
 	iounmap(ms->mesh);
-out_free:
+ out_free:
 	scsi_host_put(mesh_host);
-out_release:
+ out_release:
 	macio_release_resources(mdev);
 
 	return -ENODEV;
@@ -1997,7 +2015,7 @@ static int mesh_remove(struct macio_dev *mdev)
 
 	/* Free DMA commands memory */
 	pci_free_consistent(macio_get_pci_dev(mdev), ms->dma_cmd_size,
-			  ms->dma_cmd_space, ms->dma_cmd_bus);
+			    ms->dma_cmd_space, ms->dma_cmd_bus);
 
 	/* Release memory resources */
 	macio_release_resources(mdev);
@@ -2008,20 +2026,18 @@ static int mesh_remove(struct macio_dev *mdev)
 }
 
 
-static struct of_match mesh_match[] = 
+static struct of_device_id mesh_match[] = 
 {
 	{
 	.name 		= "mesh",
-	.type		= OF_ANY_MATCH,
-	.compatible	= OF_ANY_MATCH
 	},
 	{
-	.name 		= OF_ANY_MATCH,
 	.type		= "scsi",
 	.compatible	= "chrp,mesh0"
 	},
 	{},
 };
+MODULE_DEVICE_TABLE (of, mesh_match);
 
 static struct macio_driver mesh_driver = 
 {

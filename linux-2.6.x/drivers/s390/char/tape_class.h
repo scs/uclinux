@@ -1,6 +1,6 @@
 /*
  * (C) Copyright IBM Corp. 2004   All Rights Reserved.
- * tape_class.h ($Revision$)
+ * tape_class.h
  *
  * Tape class device support
  *

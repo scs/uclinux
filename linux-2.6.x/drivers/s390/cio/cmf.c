@@ -1,5 +1,5 @@
 /*
- * linux/drivers/s390/cio/cmf.c ($Revision$)
+ * linux/drivers/s390/cio/cmf.c
  *
  * Linux on zSeries Channel Measurement Facility support
  *
@@ -30,10 +30,13 @@
 #include <linux/list.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
+#include <linux/slab.h>
+#include <linux/timex.h>	/* get_clock() */
 
 #include <asm/ccwdev.h>
 #include <asm/cio.h>
 #include <asm/cmb.h>
+#include <asm/div64.h>
 
 #include "cio.h"
 #include "css.h"
@@ -175,7 +178,7 @@ set_schib(struct ccw_device *cdev, u32 mme, int mbfc, unsigned long address)
 	/* msch can silently fail, so do it again if necessary */
 	for (retry = 0; retry < 3; retry++) {
 		/* prepare schib */
-		stsch(sch->irq, schib);
+		stsch(sch->schid, schib);
 		schib->pmcw.mme  = mme;
 		schib->pmcw.mbfc = mbfc;
 		/* address can be either a block address or a block index */
@@ -185,7 +188,7 @@ set_schib(struct ccw_device *cdev, u32 mme, int mbfc, unsigned long address)
 			schib->pmcw.mbi = address;
 
 		/* try to submit it */
-		switch(ret = msch_err(sch->irq, schib)) {
+		switch(ret = msch_err(sch->schid, schib)) {
 			case 0:
 				break;
 			case 1:
@@ -199,7 +202,7 @@ set_schib(struct ccw_device *cdev, u32 mme, int mbfc, unsigned long address)
 				ret = -EINVAL;
 				break;
 		}
-		stsch(sch->irq, schib); /* restore the schib */
+		stsch(sch->schid, schib); /* restore the schib */
 
 		if (ret)
 			break;
@@ -639,8 +642,7 @@ static void
 free_cmbe (struct ccw_device *cdev)
 {
 	spin_lock_irq(cdev->ccwlock);
-	if (cdev->private->cmb)
-		kfree(cdev->private->cmb);
+	kfree(cdev->private->cmb);
 	cdev->private->cmb = NULL;
 	spin_unlock_irq(cdev->ccwlock);
 
@@ -796,7 +798,7 @@ cmb_show_attr(struct device *dev, char *buf, enum cmb_index idx)
 }
 
 static ssize_t
-cmb_show_avg_sample_interval(struct device *dev, char *buf)
+cmb_show_avg_sample_interval(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct ccw_device *cdev;
 	long interval;
@@ -813,7 +815,7 @@ cmb_show_avg_sample_interval(struct device *dev, char *buf)
 }
 
 static ssize_t
-cmb_show_avg_utilization(struct device *dev, char *buf)
+cmb_show_avg_utilization(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct cmbdata data;
 	u64 utilization;
@@ -842,12 +844,12 @@ cmb_show_avg_utilization(struct device *dev, char *buf)
 }
 
 #define cmf_attr(name) \
-static ssize_t show_ ## name (struct device * dev, char * buf) \
+static ssize_t show_ ## name (struct device * dev, struct device_attribute *attr, char * buf) \
 { return cmb_show_attr((dev), buf, cmb_ ## name); } \
 static DEVICE_ATTR(name, 0444, show_ ## name, NULL);
 
 #define cmf_attr_avg(name) \
-static ssize_t show_avg_ ## name (struct device * dev, char * buf) \
+static ssize_t show_avg_ ## name (struct device * dev, struct device_attribute *attr, char * buf) \
 { return cmb_show_attr((dev), buf, cmb_ ## name); } \
 static DEVICE_ATTR(avg_ ## name, 0444, show_avg_ ## name, NULL);
 
@@ -902,12 +904,12 @@ static struct attribute_group cmf_attr_group_ext = {
 	.attrs = cmf_attributes_ext,
 };
 
-static ssize_t cmb_enable_show(struct device *dev, char *buf)
+static ssize_t cmb_enable_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	return sprintf(buf, "%d\n", to_ccwdev(dev)->private->cmb ? 1 : 0);
 }
 
-static ssize_t cmb_enable_store(struct device *dev, const char *buf, size_t c)
+static ssize_t cmb_enable_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t c)
 {
 	struct ccw_device *cdev;
 	int ret;

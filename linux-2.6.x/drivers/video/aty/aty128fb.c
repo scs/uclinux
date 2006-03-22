@@ -350,10 +350,8 @@ static int default_vmode __initdata = VMODE_1024_768_60;
 static int default_cmode __initdata = CMODE_8;
 #endif
 
-#ifdef CONFIG_PMAC_PBOOK
 static int default_crt_on __initdata = 0;
 static int default_lcd_on __initdata = 1;
-#endif
 
 #ifdef CONFIG_MTRR
 static int mtrr = 1;
@@ -433,8 +431,7 @@ static int aty128fb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
 static int aty128fb_pan_display(struct fb_var_screeninfo *var,
 			   struct fb_info *fb);
 static int aty128fb_blank(int blank, struct fb_info *fb);
-static int aty128fb_ioctl(struct inode *inode, struct file *file, u_int cmd,
-			  u_long arg, struct fb_info *info);
+static int aty128fb_ioctl(struct fb_info *info, u_int cmd, unsigned long arg);
 static int aty128fb_sync(struct fb_info *info);
 
     /*
@@ -480,7 +477,6 @@ static struct fb_ops aty128fb_ops = {
 	.fb_fillrect	= cfb_fillrect,
 	.fb_copyarea	= cfb_copyarea,
 	.fb_imageblit	= cfb_imageblit,
-	.fb_cursor	= soft_cursor,
 };
 
 #ifdef CONFIG_PMAC_BACKLIGHT
@@ -808,8 +804,8 @@ static void __iomem * __init aty128_map_ROM(const struct aty128fb_par *par, stru
 
 	/* Very simple test to make sure it appeared */
 	if (BIOS_IN16(0) != 0xaa55) {
-		printk(KERN_ERR "aty128fb: Invalid ROM signature %x should be 0xaa55\n",
-		       BIOS_IN16(0));
+		printk(KERN_DEBUG "aty128fb: Invalid ROM signature %x should "
+			" be 0xaa55\n", BIOS_IN16(0));
 		goto failed;
 	}
 
@@ -1249,7 +1245,6 @@ static int aty128_crtc_to_var(const struct aty128_crtc *crtc,
 	return 0;
 }
 
-#ifdef CONFIG_PMAC_PBOOK
 static void aty128_set_crt_enable(struct aty128fb_par *par, int on)
 {
 	if (on) {
@@ -1284,7 +1279,6 @@ static void aty128_set_lcd_enable(struct aty128fb_par *par, int on)
 		aty_st_le32(LVDS_GEN_CNTL, reg);
 	}
 }
-#endif /* CONFIG_PMAC_PBOOK */
 
 static void aty128_set_pll(struct aty128_pll *pll, const struct aty128fb_par *par)
 {
@@ -1332,7 +1326,7 @@ static int aty128_var_to_pll(u32 period_in_ps, struct aty128_pll *pll,
 	unsigned char post_dividers[] = {1,2,4,8,3,6,12};
 	u32 output_freq;
 	u32 vclk;        /* in .01 MHz */
-	int i;
+	int i = 0;
 	u32 n, d;
 
 	vclk = 100000000 / period_in_ps;	/* convert units to 10 kHz */
@@ -1346,15 +1340,16 @@ static int aty128_var_to_pll(u32 period_in_ps, struct aty128_pll *pll,
 	/* now, find an acceptable divider */
 	for (i = 0; i < sizeof(post_dividers); i++) {
 		output_freq = post_dividers[i] * vclk;
-		if (output_freq >= c.ppll_min && output_freq <= c.ppll_max)
+		if (output_freq >= c.ppll_min && output_freq <= c.ppll_max) {
+			pll->post_divider = post_dividers[i];
 			break;
+		}
 	}
 
 	/* calculate feedback divider */
 	n = c.ref_divider * output_freq;
 	d = c.ref_clk;
 
-	pll->post_divider = post_dividers[i];
 	pll->feedback_divider = round_div(n, d);
 	pll->vclk = vclk;
 
@@ -1491,12 +1486,10 @@ static int aty128fb_set_par(struct fb_info *info)
 	info->fix.visual = par->crtc.bpp == 8 ? FB_VISUAL_PSEUDOCOLOR
 		: FB_VISUAL_DIRECTCOLOR;
 
-#ifdef CONFIG_PMAC_PBOOK
 	if (par->chip_gen == rage_M3) {
 		aty128_set_crt_enable(par, par->crt_on);
 		aty128_set_lcd_enable(par, par->lcd_on);
 	}
-#endif
 	if (par->accel_flags & FB_ACCELF_TEXT)
 		aty128_init_engine(par);
 
@@ -1652,7 +1645,6 @@ static int __init aty128fb_setup(char *options)
 		return 0;
 
 	while ((this_opt = strsep(&options, ",")) != NULL) {
-#ifdef CONFIG_PMAC_PBOOK
 		if (!strncmp(this_opt, "lcd:", 4)) {
 			default_lcd_on = simple_strtoul(this_opt+4, NULL, 0);
 			continue;
@@ -1660,7 +1652,6 @@ static int __init aty128fb_setup(char *options)
 			default_crt_on = simple_strtoul(this_opt+4, NULL, 0);
 			continue;
 		}
-#endif
 #ifdef CONFIG_MTRR
 		if(!strncmp(this_opt, "nomtrr", 6)) {
 			mtrr = 0;
@@ -1752,10 +1743,8 @@ static int __init aty128_init(struct pci_dev *pdev, const struct pci_device_id *
 	info->fbops = &aty128fb_ops;
 	info->flags = FBINFO_FLAG_DEFAULT;
 
-#ifdef CONFIG_PMAC_PBOOK
 	par->lcd_on = default_lcd_on;
 	par->crt_on = default_crt_on;
-#endif
 
 	var = default_var;
 #ifdef CONFIG_PPC_PMAC
@@ -2035,12 +2024,10 @@ static int aty128fb_blank(int blank, struct fb_info *fb)
 
 	aty_st_8(CRTC_EXT_CNTL+1, state);
 
-#ifdef CONFIG_PMAC_PBOOK
 	if (par->chip_gen == rage_M3) {
 		aty128_set_crt_enable(par, par->crt_on && !blank);
 		aty128_set_lcd_enable(par, par->lcd_on && !blank);
 	}
-#endif	
 #ifdef CONFIG_PMAC_BACKLIGHT
 	if ((_machine == _MACH_Pmac) && !blank)
 		set_backlight_enable(1);
@@ -2121,10 +2108,8 @@ static int aty128fb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
 /* in param: u32*	backlight value: 0 to 15 */
 #define FBIO_ATY128_SET_MIRROR	_IOW('@', 2, __u32)
 
-static int aty128fb_ioctl(struct inode *inode, struct file *file, u_int cmd,
-			  u_long arg, struct fb_info *info)
+static int aty128fb_ioctl(struct fb_info *info, u_int cmd, u_long arg)
 {
-#ifdef CONFIG_PMAC_PBOOK
 	struct aty128fb_par *par = info->par;
 	u32 value;
 	int rc;
@@ -2149,7 +2134,6 @@ static int aty128fb_ioctl(struct inode *inode, struct file *file, u_int cmd,
 		value = (par->crt_on << 1) | par->lcd_on;
 		return put_user(value, (__u32 __user *)arg);
 	}
-#endif
 	return -EINVAL;
 }
 
@@ -2337,17 +2321,16 @@ static int aty128_pci_suspend(struct pci_dev *pdev, pm_message_t state)
 	 * can properly take care of D3 ? Also, with swsusp, we
 	 * know we'll be rebooted, ...
 	 */
-#ifdef CONFIG_PPC_PMAC
+#ifndef CONFIG_PPC_PMAC
 	/* HACK ALERT ! Once I find a proper way to say to each driver
 	 * individually what will happen with it's PCI slot, I'll change
 	 * that. On laptops, the AGP slot is just unclocked, so D2 is
 	 * expected, while on desktops, the card is powered off
 	 */
-	if (state >= 3)
-		state = 2;
+	return 0;
 #endif /* CONFIG_PPC_PMAC */
 	 
-	if (state != 2 || state == pdev->dev.power.power_state)
+	if (state.event == pdev->dev.power.power_state.event)
 		return 0;
 
 	printk(KERN_DEBUG "aty128fb: suspending...\n");
@@ -2381,7 +2364,7 @@ static int aty128_pci_suspend(struct pci_dev *pdev, pm_message_t state)
 	 * used dummy fb ops, 2.5 need proper support for this at the
 	 * fbdev level
 	 */
-	if (state == 2)
+	if (state.event != PM_EVENT_ON)
 		aty128_set_suspend(par, 1);
 
 	release_console_sem();
@@ -2396,12 +2379,11 @@ static int aty128_do_resume(struct pci_dev *pdev)
 	struct fb_info *info = pci_get_drvdata(pdev);
 	struct aty128fb_par *par = info->par;
 
-	if (pdev->dev.power.power_state == 0)
+	if (pdev->dev.power.power_state.event == PM_EVENT_ON)
 		return 0;
 
 	/* Wakeup chip */
-	if (pdev->dev.power.power_state == 2)
-		aty128_set_suspend(par, 0);
+	aty128_set_suspend(par, 0);
 	par->asleep = 0;
 
 	/* Restore display & engine */

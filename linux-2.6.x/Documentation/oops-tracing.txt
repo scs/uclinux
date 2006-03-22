@@ -1,6 +1,6 @@
 NOTE: ksymoops is useless on 2.6.  Please use the Oops in its original format
 (from dmesg, etc).  Ignore any references in this or other docs to "decoding
-the Oops" or "running it through ksymoops".  If you post an Oops fron 2.6 that
+the Oops" or "running it through ksymoops".  If you post an Oops from 2.6 that
 has been run through ksymoops, people will just tell you to repost it.
 
 Quick Summary
@@ -30,17 +30,20 @@ the disk is not available then you have three options :-
 
 (1) Hand copy the text from the screen and type it in after the machine
     has restarted.  Messy but it is the only option if you have not
-    planned for a crash.
+    planned for a crash. Alternatively, you can take a picture of
+    the screen with a digital camera - not nice, but better than
+    nothing.  If the messages scroll off the top of the console, you
+    may find that booting with a higher resolution (eg, vga=791)
+    will allow you to read more of the text. (Caveat: This needs vesafb,
+    so won't help for 'early' oopses)
 
 (2) Boot with a serial console (see Documentation/serial-console.txt),
     run a null modem to a second machine and capture the output there
     using your favourite communication program.  Minicom works well.
 
-(3) Patch the kernel with one of the crash dump patches.  These save
-    data to a floppy disk or video rom or a swap partition.  None of
-    these are standard kernel patches so you have to find and apply
-    them yourself.  Search kernel archives for kmsgdump, lkcd and
-    oops+smram.
+(3) Use Kdump (see Documentation/kdump/kdump.txt),
+    extract the kernel ring buffer from old memory with using dmesg
+    gdbmacro in Documentation/kdump/gdbmacros.txt.
 
 
 Full Information
@@ -205,8 +208,8 @@ Phone: 701-234-7556
 Tainted kernels:
 
 Some oops reports contain the string 'Tainted: ' after the program
-counter, this indicates that the kernel has been tainted by some
-mechanism.  The string is followed by a series of position sensitive
+counter. This indicates that the kernel has been tainted by some
+mechanism.  The string is followed by a series of position-sensitive
 characters, each representing a particular tainted value.
 
   1: 'G' if all modules loaded have a GPL or compatible license, 'P' if
@@ -214,16 +217,25 @@ characters, each representing a particular tainted value.
      MODULE_LICENSE or with a MODULE_LICENSE that is not recognised by
      insmod as GPL compatible are assumed to be proprietary.
 
-  2: 'F' if any module was force loaded by insmod -f, ' ' if all
+  2: 'F' if any module was force loaded by "insmod -f", ' ' if all
      modules were loaded normally.
 
   3: 'S' if the oops occurred on an SMP kernel running on hardware that
-      hasn't been certified as safe to run multiprocessor.
-	  Currently this occurs only on various Athlons that are not
-	  SMP capable.
+     hasn't been certified as safe to run multiprocessor.
+     Currently this occurs only on various Athlons that are not
+     SMP capable.
+
+  4: 'R' if a module was force unloaded by "rmmod -f", ' ' if all
+     modules were unloaded normally.
+
+  5: 'M' if any processor has reported a Machine Check Exception,
+     ' ' if no Machine Check Exceptions have occurred.
+
+  6: 'B' if a page-release function has found a bad page reference or
+     some unexpected page flags.
 
 The primary reason for the 'Tainted: ' string is to tell kernel
 debuggers if this is a clean kernel or if anything unusual has
-occurred.  Tainting is permanent, even if an offending module is
-unloading the tainted value remains to indicate that the kernel is not
+occurred.  Tainting is permanent: even if an offending module is
+unloaded, the tainted value remains to indicate that the kernel is not
 trustworthy.

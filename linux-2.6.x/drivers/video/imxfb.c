@@ -31,12 +31,11 @@
 #include <linux/init.h>
 #include <linux/ioport.h>
 #include <linux/cpufreq.h>
-#include <linux/device.h>
+#include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
 
 #include <asm/hardware.h>
 #include <asm/io.h>
-#include <asm/mach-types.h>
 #include <asm/uaccess.h>
 #include <asm/arch/imxfb.h>
 
@@ -249,9 +248,6 @@ static void imxfb_enable_controller(struct imxfb_info *fbi)
 	/* disable hardware cursor */
 	LCDC_CPOS	&= ~(CPOS_CC0 | CPOS_CC1);
 
-	/* fixed burst length (see erratum 11) */
-	LCDC_DMACR = DMACR_BURST | DMACR_HM(8) | DMACR_TM(2);
-
 	LCDC_RMCR = RMCR_LCDC_EN;
 
 	if(fbi->backlight_power)
@@ -302,7 +298,6 @@ static struct fb_ops imxfb_ops = {
 	.fb_copyarea	= cfb_copyarea,
 	.fb_imageblit	= cfb_imageblit,
 	.fb_blank	= imxfb_blank,
-	.fb_cursor	= soft_cursor, /* FIXME: i.MX can do hardware cursor */
 };
 
 /*
@@ -359,6 +354,7 @@ static int imxfb_activate_var(struct fb_var_screeninfo *var, struct fb_info *inf
 	LCDC_PCR	= fbi->pcr;
 	LCDC_PWMR	= fbi->pwmr;
 	LCDC_LSCR1	= fbi->lscr1;
+	LCDC_DMACR	= fbi->dmacr;
 
 	return 0;
 }
@@ -427,23 +423,21 @@ static void imxfb_setup_gpio(struct imxfb_info *fbi)
  * Power management hooks.  Note that we won't be called from IRQ context,
  * unlike the blank functions above, so we may sleep.
  */
-static int imxfb_suspend(struct device *dev, u32 state, u32 level)
+static int imxfb_suspend(struct platform_device *dev, pm_message_t state)
 {
-	struct imxfb_info *fbi = dev_get_drvdata(dev);
+	struct imxfb_info *fbi = platform_get_drvdata(dev);
 	pr_debug("%s\n",__FUNCTION__);
 
-	if (level == SUSPEND_DISABLE || level == SUSPEND_POWER_DOWN)
-		imxfb_disable_controller(fbi);
+	imxfb_disable_controller(fbi);
 	return 0;
 }
 
-static int imxfb_resume(struct device *dev, u32 level)
+static int imxfb_resume(struct platform_device *dev)
 {
-	struct imxfb_info *fbi = dev_get_drvdata(dev);
+	struct imxfb_info *fbi = platform_get_drvdata(dev);
 	pr_debug("%s\n",__FUNCTION__);
 
-	if (level == RESUME_ENABLE)
-		imxfb_enable_controller(fbi);
+	imxfb_enable_controller(fbi);
 	return 0;
 }
 #else
@@ -509,6 +503,7 @@ static int __init imxfb_init_fbinfo(struct device *dev)
 	fbi->cmap_inverse		= inf->cmap_inverse;
 	fbi->pcr			= inf->pcr;
 	fbi->lscr1			= inf->lscr1;
+	fbi->dmacr			= inf->dmacr;
 	fbi->pwmr			= inf->pwmr;
 	fbi->lcd_power			= inf->lcd_power;
 	fbi->backlight_power		= inf->backlight_power;
@@ -543,9 +538,8 @@ static int __init imxfb_map_video_memory(struct fb_info *info)
 	return fbi->map_cpu ? 0 : -ENOMEM;
 }
 
-static int __init imxfb_probe(struct device *dev)
+static int __init imxfb_probe(struct platform_device *pdev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
 	struct imxfb_info *fbi;
 	struct fb_info *info;
 	struct imxfb_mach_info *inf;
@@ -558,21 +552,21 @@ static int __init imxfb_probe(struct device *dev)
 	if(!res)
 		return -ENODEV;
 
-	inf = dev->platform_data;
+	inf = pdev->dev.platform_data;
 	if(!inf) {
-		dev_err(dev,"No platform_data available\n");
+		dev_err(&pdev->dev,"No platform_data available\n");
 		return -ENOMEM;
 	}
 
-	info = framebuffer_alloc(sizeof(struct imxfb_info), dev);
+	info = framebuffer_alloc(sizeof(struct imxfb_info), &pdev->dev);
 	if(!info)
 		return -ENOMEM;
 
 	fbi = info->par;
 
-	dev_set_drvdata(dev, info);
+	platform_set_drvdata(pdev, info);
 
-	ret = imxfb_init_fbinfo(dev);
+	ret = imxfb_init_fbinfo(&pdev->dev);
 	if( ret < 0 )
 		goto failed_init;
 
@@ -585,7 +579,7 @@ static int __init imxfb_probe(struct device *dev)
 	if (!inf->fixed_screen_cpu) {
 		ret = imxfb_map_video_memory(info);
 		if (ret) {
-			dev_err(dev, "Failed to allocate video RAM: %d\n", ret);
+			dev_err(&pdev->dev, "Failed to allocate video RAM: %d\n", ret);
 			ret = -ENOMEM;
 			goto failed_map;
 		}
@@ -614,7 +608,7 @@ static int __init imxfb_probe(struct device *dev)
 	imxfb_set_par(info);
 	ret = register_framebuffer(info);
 	if (ret < 0) {
-		dev_err(dev, "failed to register framebuffer\n");
+		dev_err(&pdev->dev, "failed to register framebuffer\n");
 		goto failed_register;
 	}
 
@@ -626,28 +620,27 @@ failed_register:
 	fb_dealloc_cmap(&info->cmap);
 failed_cmap:
 	if (!inf->fixed_screen_cpu)
-		dma_free_writecombine(dev,fbi->map_size,fbi->map_cpu,
+		dma_free_writecombine(&pdev->dev,fbi->map_size,fbi->map_cpu,
 		           fbi->map_dma);
 failed_map:
 	kfree(info->pseudo_palette);
 failed_regs:
 	release_mem_region(res->start, res->end - res->start);
 failed_init:
-	dev_set_drvdata(dev, NULL);
+	platform_set_drvdata(pdev, NULL);
 	framebuffer_release(info);
 	return ret;
 }
 
-static int imxfb_remove(struct device *dev)
+static int imxfb_remove(struct platform_device *pdev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct fb_info *info = dev_get_drvdata(dev);
+	struct fb_info *info = platform_get_drvdata(pdev);
+	struct imxfb_info *fbi = info->par;
 	struct resource *res;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 
-	/* disable LCD controller */
-	LCDC_RMCR &= ~RMCR_LCDC_EN;
+	imxfb_disable_controller(fbi);
 
 	unregister_framebuffer(info);
 
@@ -656,35 +649,37 @@ static int imxfb_remove(struct device *dev)
 	framebuffer_release(info);
 
 	release_mem_region(res->start, res->end - res->start + 1);
-	dev_set_drvdata(dev, NULL);
+	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }
 
-void  imxfb_shutdown(struct device * dev)
+void  imxfb_shutdown(struct platform_device * dev)
 {
-	/* disable LCD Controller */
-	LCDC_RMCR &= ~RMCR_LCDC_EN;
+	struct fb_info *info = platform_get_drvdata(dev);
+	struct imxfb_info *fbi = info->par;
+	imxfb_disable_controller(fbi);
 }
 
-static struct device_driver imxfb_driver = {
-	.name		= "imx-fb",
-	.bus		= &platform_bus_type,
+static struct platform_driver imxfb_driver = {
 	.probe		= imxfb_probe,
 	.suspend	= imxfb_suspend,
 	.resume		= imxfb_resume,
 	.remove		= imxfb_remove,
 	.shutdown	= imxfb_shutdown,
+	.driver		= {
+		.name	= "imx-fb",
+	},
 };
 
 int __init imxfb_init(void)
 {
-	return driver_register(&imxfb_driver);
+	return platform_driver_register(&imxfb_driver);
 }
 
 static void __exit imxfb_cleanup(void)
 {
-	driver_unregister(&imxfb_driver);
+	platform_driver_unregister(&imxfb_driver);
 }
 
 module_init(imxfb_init);

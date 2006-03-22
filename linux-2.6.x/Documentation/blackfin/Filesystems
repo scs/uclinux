@@ -5,16 +5,16 @@
 	------------------------
 
 	Creating an EXT3 File system for uClinux/Blackfin:
-	
+
 
 Please follow the steps to form the EXT3 File system and mount the same as root
 file system.
 
 a	Make an ext3 file system as large as you want the final root file
 	system.
-	
+
 		mkfs.ext3  /dev/ram0 <your-rootfs-size-in-1k-blocks>
-	
+
 b	Mount this Empty file system on a free directory as:
 
 		mount -t ext3 /dev/ram0  ./test
@@ -23,8 +23,8 @@ b	Mount this Empty file system on a free directory as:
 c	Copy your root fs directory that you have so carefully made over.
 
 		cp -af  /tmp/my_final_rootfs_files/* ./test
-		
-		(For ex: cp -af uClinux-dist/romfs/* ./test)		
+
+		(For ex: cp -af uClinux-dist/romfs/* ./test)
 
 d	If you have done everything right till now you should be able to see
 	the required "root" dir's (that's etc, root, bin, lib, sbin...)
@@ -68,7 +68,7 @@ To create a CRAMFS file system image execute the command
 To create a ROMFS file system image execute the command
 
 	genromfs -v -V "ROMdisk" -f romfs.img -d ./test
-	
+
 	where ./test is the target directory
 
 
@@ -78,7 +78,7 @@ To create a ROMFS file system image execute the command
 To create a compressed JFFS filesystem (JFFS2), please execute the command
 
 	mkfs.jffs2 -d ./test -o jffs2.img
-	
+
 	where ./test is the target directory.
 
 However, please make sure the following is in your kernel config.
@@ -93,26 +93,26 @@ However, please make sure the following is in your kernel config.
  */
 #define CONFIG_MTD_COMPLEX_MAPPINGS 1
 #define CONFIG_MTD_BF533 1
-#undef CONFIG_MTD_UCLINUX 
+#undef CONFIG_MTD_UCLINUX
 
-Through the u-boot boot loader, use the jffs2.img in the corresponding 
+Through the u-boot boot loader, use the jffs2.img in the corresponding
 partition made in linux-2.6.x/drivers/mtd/maps/bf533_flash.c.
 
 NOTE - 	Currently the Flash driver is available only for EZKIT. Watch out for a
-	STAMP driver soon. 
+	STAMP driver soon.
 
 
 6. 	Mounting the NFS File system
 	-----------------------------
-	
+
 	For mounting the NFS please do the following in the kernel config.
 
-	In Networking Support --> Networking options --> TCP/IP networking --> 
-		IP: kernel level autoconfiguration 
-	
+	In Networking Support --> Networking options --> TCP/IP networking -->
+		IP: kernel level autoconfiguration
+
 	Enable BOOTP Support.
 
-	In Kernel hacking --> Compiled-in kernel boot parameter add the following 
+	In Kernel hacking --> Compiled-in kernel boot parameter add the following
 
 		root=/dev/nfs rw ip=bootp
 
@@ -122,7 +122,7 @@ NOTE - 	Currently the Flash driver is available only for EZKIT. Watch out for a
 		Root File system on NFS
 
 	in uClibc menuconfig, do the following
-	In Networking Support 
+	In Networking Support
 		enable Remote Procedure Call (RPC) support
 			Full RPC Support
 
@@ -140,10 +140,10 @@ NOTE - 	Currently the Flash driver is available only for EZKIT. Watch out for a
 				option root-path "/home/nfsmount";
 			}
 		}
-	
+
 	ensure that /etc/exports looks something like this
 		/home/nfsmount *(rw,no_root_squash,no_all_squash)
-	
+
 	 run the following commands as root (may differ depending on your
 	 distribution) :
 		-  service nfs start

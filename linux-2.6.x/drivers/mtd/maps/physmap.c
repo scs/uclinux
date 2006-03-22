@@ -19,6 +19,7 @@
 #include <linux/mtd/map.h>
 #include <linux/config.h>
 #include <linux/mtd/partitions.h>
+#include <linux/mtd/physmap.h>
 
 static struct mtd_info *mymtd;
 
@@ -69,7 +70,7 @@ static int __init init_physmap(void)
 		mymtd->owner = THIS_MODULE;
 
 #ifdef CONFIG_MTD_PARTITIONS
-		mtd_parts_nb = parse_mtd_partitions(mymtd, part_probes, 
+		mtd_parts_nb = parse_mtd_partitions(mymtd, part_probes,
 						    &mtd_parts, 0);
 
 		if (mtd_parts_nb > 0)
@@ -78,9 +79,9 @@ static int __init init_physmap(void)
 			return 0;
 		}
 
-		if (num_physmap_partitions != 0) 
+		if (num_physmap_partitions != 0)
 		{
-			printk(KERN_NOTICE 
+			printk(KERN_NOTICE
 			       "Using physmap partition definition\n");
 			add_mtd_partitions (mymtd, physmap_partitions, num_physmap_partitions);
 			return 0;

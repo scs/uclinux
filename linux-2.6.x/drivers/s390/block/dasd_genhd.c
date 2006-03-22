@@ -9,7 +9,6 @@
  *
  * gendisk related functions for the dasd driver.
  *
- * $Revision$
  */
 
 #include <linux/config.h>
@@ -31,15 +30,11 @@ int
 dasd_gendisk_alloc(struct dasd_device *device)
 {
 	struct gendisk *gdp;
-	int len, feature_ro;
+	int len;
 
 	/* Make sure the minor for this device exists. */
 	if (device->devindex >= DASD_PER_MAJOR)
 		return -EBUSY;
-
-	feature_ro = dasd_get_feature(device->cdev, DASD_FEATURE_READONLY);
-	if (feature_ro < 0)
-		return feature_ro;
 
 	gdp = alloc_disk(1 << DASD_PARTN_BITS);
 	if (!gdp)
@@ -75,7 +70,7 @@ dasd_gendisk_alloc(struct dasd_device *device)
 
  	sprintf(gdp->devfs_name, "dasd/%s", device->cdev->dev.bus_id);
 
-	if (feature_ro)
+	if (device->features & DASD_FEATURE_READONLY)
 		set_disk_ro(gdp, 1);
 	gdp->private_data = device;
 	gdp->queue = device->request_queue;
@@ -105,8 +100,6 @@ dasd_scan_partitions(struct dasd_device * device)
 {
 	struct block_device *bdev;
 
-	/* Make the disk known. */
-	set_capacity(device->gdp, device->blocks << device->s2b_shift);
 	bdev = bdget_disk(device->gdp, 0);
 	if (!bdev || blkdev_get(bdev, FMODE_READ, 1) < 0)
 		return -ENODEV;

@@ -11,7 +11,7 @@
 # the CFI command set drivers are linked before gen_probe.o
 
 obj-$(CONFIG_MTD)		+= chipreg.o
-obj-$(CONFIG_MTD_AMDSTD)	+= amd_flash.o 
+obj-$(CONFIG_MTD_AMDSTD)	+= amd_flash.o
 obj-$(CONFIG_MTD_CFI)		+= cfi_probe.o
 obj-$(CONFIG_MTD_CFI_UTIL)	+= cfi_util.o
 obj-$(CONFIG_MTD_CFI_STAA)	+= cfi_cmdset_0020.o
@@ -24,6 +24,3 @@ obj-$(CONFIG_MTD_RAM)		+= map_ram.o
 obj-$(CONFIG_MTD_ROM)		+= map_rom.o
 obj-$(CONFIG_MTD_SHARP)		+= sharp.o
 obj-$(CONFIG_MTD_ABSENT)	+= map_absent.o
-obj-$(CONFIG_MTD_PSD4256G)	+= stm_flash.o 
-obj-$(CONFIG_MTD_MW320D)	+= stm_mw320db.o 
-obj-$(CONFIG_MTD_M25P64)	+= stm_m25p64.o

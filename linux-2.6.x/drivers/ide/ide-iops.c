@@ -104,8 +104,6 @@ void default_hwif_iops (ide_hwif_t *hwif)
 	hwif->INSL	= ide_insl;
 }
 
-EXPORT_SYMBOL(default_hwif_iops);
-
 /*
  *	MMIO operations, typically used for SATA controllers
  */
@@ -329,8 +327,6 @@ void default_hwif_transport(ide_hwif_t *hwif)
 	hwif->atapi_output_bytes	= atapi_output_bytes;
 }
 
-EXPORT_SYMBOL(default_hwif_transport);
-
 /*
  * Beginning of Taskfile OPCODE Library and feature sets.
  */
@@ -529,8 +525,6 @@ int wait_for_ready (ide_drive_t *drive, int timeout)
 	return 0;
 }
 
-EXPORT_SYMBOL(wait_for_ready);
-
 /*
  * This routine busy-waits for the drive status to be not "busy".
  * It then checks the status for all of the "good" bits and none
@@ -601,44 +595,15 @@ EXPORT_SYMBOL(ide_wait_stat);
  */
 u8 eighty_ninty_three (ide_drive_t *drive)
 {
-#if 0
-	if (!HWIF(drive)->udma_four)
+	if(HWIF(drive)->udma_four == 0)
 		return 0;
-
-	if (drive->id->major_rev_num) {
-		int hssbd = 0;
-		int i;
-		/*
-		 * Determine highest Supported SPEC
-		 */
-		for (i=1; i<=15; i++)
-			if (drive->id->major_rev_num & (1<<i))
-				hssbd++;
-
-		switch (hssbd) {
-			case 7:
-			case 6:
-			case 5:
-		/* ATA-4 and older do not support above Ultra 33 */
-			default:
-				return 0;
-		}
-	}
-
-	return ((u8) (
+	if (!(drive->id->hw_config & 0x6000))
+		return 0;
 #ifndef CONFIG_IDEDMA_IVB
-		(drive->id->hw_config & 0x4000) &&
+	if(!(drive->id->hw_config & 0x4000))
+		return 0;
 #endif /* CONFIG_IDEDMA_IVB */
-		 (drive->id->hw_config & 0x6000)) ? 1 : 0);
-
-#else
-
-	return ((u8) ((HWIF(drive)->udma_four) &&
-#ifndef CONFIG_IDEDMA_IVB
-			(drive->id->hw_config & 0x4000) &&
-#endif /* CONFIG_IDEDMA_IVB */
-			(drive->id->hw_config & 0x6000)) ? 1 : 0);
-#endif
+	return 1;
 }
 
 EXPORT_SYMBOL(eighty_ninty_three);
@@ -1181,7 +1146,8 @@ static ide_startstop_t do_reset1 (ide_drive_t *drive, int do_not_try_atapi)
 		pre_reset(drive);
 		SELECT_DRIVE(drive);
 		udelay (20);
-		hwif->OUTB(WIN_SRST, IDE_COMMAND_REG);
+		hwif->OUTBSYNC(drive, WIN_SRST, IDE_COMMAND_REG);
+		ndelay(400);
 		hwgroup->poll_timeout = jiffies + WAIT_WORSTCASE;
 		hwgroup->polling = 1;
 		__ide_set_handler(drive, &atapi_reset_pollfunc, HZ/20, NULL);
@@ -1277,6 +1243,7 @@ int ide_wait_not_busy(ide_hwif_t *hwif, unsigned long timeout)
 		 */
 		if (stat == 0xff)
 			return -ENODEV;
+		touch_softlockup_watchdog();
 	}
 	return -EBUSY;
 }

@@ -168,7 +168,7 @@ static void dma_stop (struct Scsi_Host *instance, Scsi_Cmnd *SCpnt,
     }
 }
 
-int __init a3000_detect(Scsi_Host_Template *tpnt)
+int __init a3000_detect(struct scsi_host_template *tpnt)
 {
     wd33c93_regs regs;
 
@@ -208,13 +208,20 @@ fail_register:
 static int a3000_bus_reset(Scsi_Cmnd *cmd)
 {
 	/* FIXME perform bus-specific reset */
+	
+	/* FIXME 2: kill this entire function, which should
+	   cause mid-layer to call wd33c93_host_reset anyway? */
+
+	spin_lock_irq(cmd->device->host->host_lock);
 	wd33c93_host_reset(cmd);
+	spin_unlock_irq(cmd->device->host->host_lock);
+
 	return SUCCESS;
 }
 
 #define HOSTS_C
 
-static Scsi_Host_Template driver_template = {
+static struct scsi_host_template driver_template = {
 	.proc_name		= "A3000",
 	.name			= "Amiga 3000 built-in SCSI",
 	.detect			= a3000_detect,

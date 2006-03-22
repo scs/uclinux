@@ -21,7 +21,7 @@ Overview
 ========
 
 Linux-NTFS comes with a number of user-space programs known as ntfsprogs.
-These include mkntfs, a full-featured ntfs file system format utility,
+These include mkntfs, a full-featured ntfs filesystem format utility,
 ntfsundelete used for recovering files that were unintentionally deleted
 from an NTFS volume and ntfsresize which is used to resize an NTFS partition.
 See the web site for more information.
@@ -50,9 +50,14 @@ userspace utilities, etc.
 Features
 ========
 
-- This is a complete rewrite of the NTFS driver that used to be in the kernel.
-  This new driver implements NTFS read support and is functionally equivalent
-  to the old ntfs driver.
+- This is a complete rewrite of the NTFS driver that used to be in the 2.4 and
+  earlier kernels.  This new driver implements NTFS read support and is
+  functionally equivalent to the old ntfs driver and it also implements limited
+  write support.  The biggest limitation at present is that files/directories
+  cannot be created or deleted.  See below for the list of write features that
+  are so far supported.  Another limitation is that writing to compressed files
+  is not implemented at all.  Also, neither read nor write access to encrypted
+  files is so far implemented.
 - The new driver has full support for sparse files on NTFS 3.x volumes which
   the old driver isn't happy with.
 - The new driver supports execution of binaries due to mmap() now being
@@ -78,7 +83,20 @@ Features
 - The new driver supports fsync(2), fdatasync(2), and msync(2).
 - The new driver supports readv(2) and writev(2).
 - The new driver supports access time updates (including mtime and ctime).
-
+- The new driver supports truncate(2) and open(2) with O_TRUNC.  But at present
+  only very limited support for highly fragmented files, i.e. ones which have
+  their data attribute split across multiple extents, is included.  Another
+  limitation is that at present truncate(2) will never create sparse files,
+  since to mark a file sparse we need to modify the directory entry for the
+  file and we do not implement directory modifications yet.
+- The new driver supports write(2) which can both overwrite existing data and
+  extend the file size so that you can write beyond the existing data.  Also,
+  writing into sparse regions is supported and the holes are filled in with
+  clusters.  But at present only limited support for highly fragmented files,
+  i.e. ones which have their data attribute split across multiple extents, is
+  included.  Another limitation is that write(2) will never create sparse
+  files, since to mark a file sparse we need to modify the directory entry for
+  the file and we do not implement directory modifications yet.
 
 Supported mount options
 =======================
@@ -149,7 +167,14 @@ case_sensitive=<BOOL>	If case_sensitive is specified, treat all file names as
 			name, if it exists.  If case_sensitive, you will need
 			to provide the correct case of the short file name.
 
-errors=opt		What to do when critical file system errors are found.
+disable_sparse=<BOOL>	If disable_sparse is specified, creation of sparse
+			regions, i.e. holes, inside files is disabled for the
+			volume (for the duration of this mount only).  By
+			default, creation of sparse regions is enabled, which
+			is consistent with the behaviour of traditional Unix
+			filesystems.
+
+errors=opt		What to do when critical filesystem errors are found.
 			Following values can be used for "opt":
 			  continue: DEFAULT, try to clean-up as much as
 				    possible, e.g. marking a corrupt inode as
@@ -432,6 +457,58 @@ ChangeLog
 
 Note, a technical ChangeLog aimed at kernel hackers is in fs/ntfs/ChangeLog.
 
+2.1.26:
+	- Implement support for sector sizes above 512 bytes (up to the maximum
+	  supported by NTFS which is 4096 bytes).
+	- Enhance support for NTFS volumes which were supported by Windows but
+	  not by Linux due to invalid attribute list attribute flags.
+	- A few minor updates and bug fixes.
+2.1.25:
+	- Write support is now extended with write(2) being able to both
+	  overwrite existing file data and to extend files.  Also, if a write
+	  to a sparse region occurs, write(2) will fill in the hole.  Note,
+	  mmap(2) based writes still do not support writing into holes or
+	  writing beyond the initialized size.
+	- Write support has a new feature and that is that truncate(2) and
+	  open(2) with O_TRUNC are now implemented thus files can be both made
+	  smaller and larger.
+	- Note: Both write(2) and truncate(2)/open(2) with O_TRUNC still have
+	  limitations in that they
+	  - only provide limited support for highly fragmented files.
+	  - only work on regular, i.e. uncompressed and unencrypted files.
+	  - never create sparse files although this will change once directory
+	    operations are implemented.
+	- Lots of bug fixes and enhancements across the board.
+2.1.24:
+	- Support journals ($LogFile) which have been modified by chkdsk.  This
+	  means users can boot into Windows after we marked the volume dirty.
+	  The Windows boot will run chkdsk and then reboot.  The user can then
+	  immediately boot into Linux rather than having to do a full Windows
+	  boot first before rebooting into Linux and we will recognize such a
+	  journal and empty it as it is clean by definition.
+	- Support journals ($LogFile) with only one restart page as well as
+	  journals with two different restart pages.  We sanity check both and
+	  either use the only sane one or the more recent one of the two in the
+	  case that both are valid.
+	- Lots of bug fixes and enhancements across the board.
+2.1.23:
+	- Stamp the user space journal, aka transaction log, aka $UsnJrnl, if
+	  it is present and active thus telling Windows and applications using
+	  the transaction log that changes can have happened on the volume
+	  which are not recorded in $UsnJrnl.
+	- Detect the case when Windows has been hibernated (suspended to disk)
+	  and if this is the case do not allow (re)mounting read-write to
+	  prevent data corruption when you boot back into the suspended
+	  Windows session.
+	- Implement extension of resident files using the normal file write
+	  code paths, i.e. most very small files can be extended to be a little
+	  bit bigger but not by much.
+	- Add new mount option "disable_sparse".  (See list of mount options
+	  above for details.)
+	- Improve handling of ntfs volumes with errors and strange boot sectors
+	  in particular.
+	- Fix various bugs including a nasty deadlock that appeared in recent
+	  kernels (around 2.6.11-2.6.12 timeframe).
 2.1.22:
 	- Improve handling of ntfs volumes with errors.
 	- Fix various bugs and race conditions.

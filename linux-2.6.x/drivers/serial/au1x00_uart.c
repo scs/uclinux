@@ -200,7 +200,7 @@ static void autoconfig(struct uart_8250_port *up, unsigned int probeflags)
 	DEBUG_AUTOCONF("type=%s\n", uart_config[up->port.type].name);
 }
 
-static void serial8250_stop_tx(struct uart_port *port, unsigned int tty_stop)
+static void serial8250_stop_tx(struct uart_port *port)
 {
 	struct uart_8250_port *up = (struct uart_8250_port *)port;
 
@@ -210,7 +210,7 @@ static void serial8250_stop_tx(struct uart_port *port, unsigned int tty_stop)
 	}
 }
 
-static void serial8250_start_tx(struct uart_port *port, unsigned int tty_start)
+static void serial8250_start_tx(struct uart_port *port)
 {
 	struct uart_8250_port *up = (struct uart_8250_port *)port;
 
@@ -241,18 +241,12 @@ static _INLINE_ void
 receive_chars(struct uart_8250_port *up, int *status, struct pt_regs *regs)
 {
 	struct tty_struct *tty = up->port.info->tty;
-	unsigned char ch;
+	unsigned char ch, flag;
 	int max_count = 256;
 
 	do {
-		if (unlikely(tty->flip.count >= TTY_FLIPBUF_SIZE)) {
-			tty->flip.work.func((void *)tty);
-			if (tty->flip.count >= TTY_FLIPBUF_SIZE)
-				return; // if TTY_DONT_FLIP is set
-		}
 		ch = serial_inp(up, UART_RX);
-		*tty->flip.char_buf_ptr = ch;
-		*tty->flip.flag_buf_ptr = TTY_NORMAL;
+		flag = TTY_NORMAL;
 		up->port.icount.rx++;
 
 		if (unlikely(*status & (UART_LSR_BI | UART_LSR_PE |
@@ -292,30 +286,23 @@ receive_chars(struct uart_8250_port *up, int *status, struct pt_regs *regs)
 #endif
 			if (*status & UART_LSR_BI) {
 				DEBUG_INTR("handling break....");
-				*tty->flip.flag_buf_ptr = TTY_BREAK;
+				flag = TTY_BREAK;
 			} else if (*status & UART_LSR_PE)
-				*tty->flip.flag_buf_ptr = TTY_PARITY;
+				flag = TTY_PARITY;
 			else if (*status & UART_LSR_FE)
-				*tty->flip.flag_buf_ptr = TTY_FRAME;
+				flag = TTY_FRAME;
 		}
 		if (uart_handle_sysrq_char(&up->port, ch, regs))
 			goto ignore_char;
-		if ((*status & up->port.ignore_status_mask) == 0) {
-			tty->flip.flag_buf_ptr++;
-			tty->flip.char_buf_ptr++;
-			tty->flip.count++;
-		}
-		if ((*status & UART_LSR_OE) &&
-		    tty->flip.count < TTY_FLIPBUF_SIZE) {
+		if ((*status & up->port.ignore_status_mask) == 0)
+			tty_insert_flip_char(tty, ch, flag);
+		if (*status & UART_LSR_OE)
 			/*
 			 * Overrun is special, since it's reported
 			 * immediately, and doesn't affect the current
 			 * character.
 			 */
-			*tty->flip.flag_buf_ptr = TTY_OVERRUN;
-			tty->flip.flag_buf_ptr++;
-			tty->flip.char_buf_ptr++;
-			tty->flip.count++;
+			tty_insert_flip_char(tty, 0, TTY_OVERRUN);
 		}
 	ignore_char:
 		*status = serial_inp(up, UART_LSR);
@@ -337,7 +324,7 @@ static _INLINE_ void transmit_chars(struct uart_8250_port *up)
 		return;
 	}
 	if (uart_circ_empty(xmit) || uart_tx_stopped(&up->port)) {
-		serial8250_stop_tx(&up->port, 0);
+		serial8250_stop_tx(&up->port);
 		return;
 	}
 
@@ -356,7 +343,7 @@ static _INLINE_ void transmit_chars(struct uart_8250_port *up)
 	DEBUG_INTR("THRE...");
 
 	if (uart_circ_empty(xmit))
-		serial8250_stop_tx(&up->port, 0);
+		serial8250_stop_tx(&up->port);
 }
 
 static _INLINE_ void check_modem_status(struct uart_8250_port *up)
@@ -556,13 +543,10 @@ static unsigned int serial8250_tx_empty(struct uart_port *port)
 static unsigned int serial8250_get_mctrl(struct uart_port *port)
 {
 	struct uart_8250_port *up = (struct uart_8250_port *)port;
-	unsigned long flags;
 	unsigned char status;
 	unsigned int ret;
 
-	spin_lock_irqsave(&up->port.lock, flags);
 	status = serial_in(up, UART_MSR);
-	spin_unlock_irqrestore(&up->port.lock, flags);
 
 	ret = 0;
 	if (status & UART_MSR_DCD)
@@ -773,22 +757,22 @@ serial8250_set_termios(struct uart_port *port, struct termios *termios,
 
 	switch (termios->c_cflag & CSIZE) {
 	case CS5:
-		cval = 0x00;
+		cval = UART_LCR_WLEN5;
 		break;
 	case CS6:
-		cval = 0x01;
+		cval = UART_LCR_WLEN6;
 		break;
 	case CS7:
-		cval = 0x02;
+		cval = UART_LCR_WLEN7;
 		break;
 	default:
 	case CS8:
-		cval = 0x03;
+		cval = UART_LCR_WLEN8;
 		break;
 	}
 
 	if (termios->c_cflag & CSTOPB)
-		cval |= 0x04;
+		cval |= UART_LCR_STOP;
 	if (termios->c_cflag & PARENB)
 		cval |= UART_LCR_PARITY;
 	if (!(termios->c_cflag & PARODD))
@@ -908,7 +892,7 @@ serial8250_request_std_resource(struct uart_8250_port *up, struct resource **res
 	int ret = 0;
 
 	switch (up->port.iotype) {
-	case SERIAL_IO_MEM:
+	case UPIO_MEM:
 		if (up->port.mapbase) {
 			*res = request_mem_region(up->port.mapbase, size, "serial");
 			if (!*res)
@@ -916,8 +900,8 @@ serial8250_request_std_resource(struct uart_8250_port *up, struct resource **res
 		}
 		break;
 
-	case SERIAL_IO_HUB6:
-	case SERIAL_IO_PORT:
+	case UPIO_HUB6:
+	case UPIO_PORT:
 		*res = request_region(up->port.iobase, size, "serial");
 		if (!*res)
 			ret = -EBUSY;
@@ -935,7 +919,7 @@ static void serial8250_release_port(struct uart_port *port)
 	size <<= up->port.regshift;
 
 	switch (up->port.iotype) {
-	case SERIAL_IO_MEM:
+	case UPIO_MEM:
 		if (up->port.mapbase) {
 			/*
 			 * Unmap the area.
@@ -951,8 +935,8 @@ static void serial8250_release_port(struct uart_port *port)
 		}
 		break;
 
-	case SERIAL_IO_HUB6:
-	case SERIAL_IO_PORT:
+	case UPIO_HUB6:
+	case UPIO_PORT:
 		start = up->port.iobase;
 
 		if (size)

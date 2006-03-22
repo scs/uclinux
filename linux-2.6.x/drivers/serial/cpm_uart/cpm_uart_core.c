@@ -7,11 +7,12 @@
  *  Based on ppc8xx.c by Thomas Gleixner
  *  Based on drivers/serial/amba.c by Russell King
  *
- *  Maintainer: Kumar Gala (kumar.gala@freescale.com) (CPM2)
+ *  Maintainer: Kumar Gala (galak@kernel.crashing.org) (CPM2)
  *              Pantelis Antoniou (panto@intracom.gr) (CPM1)
- * 
+ *
  *  Copyright (C) 2004 Freescale Semiconductor, Inc.
  *            (C) 2004 Intracom, S.A.
+ *            (C) 2005 MontaVista Software, Inc. by Vitaly Bordug <vbordug@ru.mvista.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -70,8 +71,22 @@ static void cpm_uart_initbd(struct uart_cpm_port *pinfo);
 
 /**************************************************************/
 
+static inline unsigned long cpu2cpm_addr(void *addr)
+{
+	if ((unsigned long)addr >= CPM_ADDR)
+		return (unsigned long)addr;
+	return virt_to_bus(addr);
+}
+
+static inline void *cpm2cpu_addr(unsigned long addr)
+{
+	if (addr >= CPM_ADDR)
+		return (void *)addr;
+	return bus_to_virt(addr);
+}
+
 /*
- * Check, if transmit buffers are processed		
+ * Check, if transmit buffers are processed
 */
 static unsigned int cpm_uart_tx_empty(struct uart_port *port)
 {
@@ -109,7 +124,7 @@ static unsigned int cpm_uart_get_mctrl(struct uart_port *port)
 /*
  * Stop transmitter
  */
-static void cpm_uart_stop_tx(struct uart_port *port, unsigned int tty_stop)
+static void cpm_uart_stop_tx(struct uart_port *port)
 {
 	struct uart_cpm_port *pinfo = (struct uart_cpm_port *)port;
 	volatile smc_t *smcp = pinfo->smcp;
@@ -126,7 +141,7 @@ static void cpm_uart_stop_tx(struct uart_port *port, unsigned int tty_stop)
 /*
  * Start transmitter
  */
-static void cpm_uart_start_tx(struct uart_port *port, unsigned int tty_start)
+static void cpm_uart_start_tx(struct uart_port *port)
 {
 	struct uart_cpm_port *pinfo = (struct uart_cpm_port *)port;
 	volatile smc_t *smcp = pinfo->smcp;
@@ -143,15 +158,18 @@ static void cpm_uart_start_tx(struct uart_port *port, unsigned int tty_start)
 	}
 
 	if (cpm_uart_tx_pump(port) != 0) {
-		if (IS_SMC(pinfo))
+		if (IS_SMC(pinfo)) {
 			smcp->smc_smcm |= SMCM_TX;
-		else
+			smcp->smc_smcmr |= SMCMR_TEN;
+		} else {
 			sccp->scc_sccm |= UART_SCCM_TX;
+			pinfo->sccp->scc_gsmrl |= SCC_GSMRL_ENT;
+		}
 	}
 }
 
 /*
- * Stop receiver 
+ * Stop receiver
  */
 static void cpm_uart_stop_rx(struct uart_port *port)
 {
@@ -176,7 +194,7 @@ static void cpm_uart_enable_ms(struct uart_port *port)
 }
 
 /*
- * Generate a break. 
+ * Generate a break.
  */
 static void cpm_uart_break_ctl(struct uart_port *port, int break_state)
 {
@@ -231,19 +249,16 @@ static void cpm_uart_int_rx(struct uart_port *port, struct pt_regs *regs)
 		/* get number of characters, and check spce in flip-buffer */
 		i = bdp->cbd_datlen;
 
-		/* If we have not enough room in tty flip buffer, then we try 
+		/* If we have not enough room in tty flip buffer, then we try
 		 * later, which will be the next rx-interrupt or a timeout
 		 */
-		if ((tty->flip.count + i) >= TTY_FLIPBUF_SIZE) {
-			tty->flip.work.func((void *)tty);
-			if ((tty->flip.count + i) >= TTY_FLIPBUF_SIZE) {
-				printk(KERN_WARNING "TTY_DONT_FLIP set\n");
-				return;
-			}
+		if(tty_buffer_request_room(tty, i) < i) {
+			printk(KERN_WARNING "No room in flip buffer\n");
+			return;
 		}
 
 		/* get pointer */
-		cp = (unsigned char *)bus_to_virt(bdp->cbd_bufaddr);
+		cp = cpm2cpu_addr(bdp->cbd_bufaddr);
 
 		/* loop through the buffer */
 		while (i-- > 0) {
@@ -258,20 +273,19 @@ static void cpm_uart_int_rx(struct uart_port *port, struct pt_regs *regs)
 				continue;
 
 		      error_return:
-			*tty->flip.char_buf_ptr++ = ch;
-			*tty->flip.flag_buf_ptr++ = flg;
-			tty->flip.count++;
+			tty_insert_flip_char(tty, ch, flg);
 
 		}		/* End while (i--) */
 
 		/* This BD is ready to be used again. Clear status. get next */
-		bdp->cbd_sc &= ~(BD_SC_BR | BD_SC_FR | BD_SC_PR | BD_SC_OV);
+		bdp->cbd_sc &= ~(BD_SC_BR | BD_SC_FR | BD_SC_PR | BD_SC_OV | BD_SC_ID);
 		bdp->cbd_sc |= BD_SC_EMPTY;
 
 		if (bdp->cbd_sc & BD_SC_WRAP)
 			bdp = pinfo->rx_bd_base;
 		else
 			bdp++;
+
 	} /* End for (;;) */
 
 	/* Write back buffer pointer */
@@ -336,22 +350,22 @@ static irqreturn_t cpm_uart_int(int irq, void *data, struct pt_regs *regs)
 
 	if (IS_SMC(pinfo)) {
 		events = smcp->smc_smce;
+		smcp->smc_smce = events;
 		if (events & SMCM_BRKE)
 			uart_handle_break(port);
 		if (events & SMCM_RX)
 			cpm_uart_int_rx(port, regs);
 		if (events & SMCM_TX)
 			cpm_uart_int_tx(port, regs);
-		smcp->smc_smce = events;
 	} else {
 		events = sccp->scc_scce;
+		sccp->scc_scce = events;
 		if (events & UART_SCCM_BRKE)
 			uart_handle_break(port);
 		if (events & UART_SCCM_RX)
 			cpm_uart_int_rx(port, regs);
 		if (events & UART_SCCM_TX)
 			cpm_uart_int_tx(port, regs);
-		sccp->scc_scce = events;
 	}
 	return (events) ? IRQ_HANDLED : IRQ_NONE;
 }
@@ -360,6 +374,7 @@ static int cpm_uart_startup(struct uart_port *port)
 {
 	int retval;
 	struct uart_cpm_port *pinfo = (struct uart_cpm_port *)port;
+	int line = pinfo - cpm_uart_ports;
 
 	pr_debug("CPM uart[%d]:startup\n", port->line);
 
@@ -376,7 +391,15 @@ static int cpm_uart_startup(struct uart_port *port)
 		pinfo->sccp->scc_sccm |= UART_SCCM_RX;
 	}
 
+	if (!(pinfo->flags & FLAG_CONSOLE))
+		cpm_line_cr_cmd(line,CPM_CR_INIT_TRX);
 	return 0;
+}
+
+inline void cpm_uart_wait_until_send(struct uart_cpm_port *pinfo)
+{
+	set_current_state(TASK_UNINTERRUPTIBLE);
+	schedule_timeout(pinfo->wait_closing);
 }
 
 /*
@@ -394,6 +417,15 @@ static void cpm_uart_shutdown(struct uart_port *port)
 
 	/* If the port is not the console, disable Rx and Tx. */
 	if (!(pinfo->flags & FLAG_CONSOLE)) {
+		/* Wait for all the BDs marked sent */
+		while(!cpm_uart_tx_empty(port)) {
+			set_current_state(TASK_UNINTERRUPTIBLE);
+			schedule_timeout(2);
+		}
+
+		if (pinfo->wait_closing)
+			cpm_uart_wait_until_send(pinfo);
+
 		/* Stop uarts */
 		if (IS_SMC(pinfo)) {
 			volatile smc_t *smcp = pinfo->smcp;
@@ -502,7 +534,7 @@ static void cpm_uart_set_termios(struct uart_port *port,
 	 */
 	if ((termios->c_cflag & CREAD) == 0)
 		port->read_status_mask &= ~BD_SC_EMPTY;
-	
+
 	spin_lock_irqsave(&port->lock, flags);
 
 	/* Start bit has not been added (so don't, because we would just
@@ -569,8 +601,9 @@ static int cpm_uart_tx_pump(struct uart_port *port)
 		/* Pick next descriptor and fill from buffer */
 		bdp = pinfo->tx_cur;
 
-		p = bus_to_virt(bdp->cbd_bufaddr);
-		*p++ = xmit->buf[xmit->tail];
+		p = cpm2cpu_addr(bdp->cbd_bufaddr);
+
+		*p++ = port->x_char;
 		bdp->cbd_datlen = 1;
 		bdp->cbd_sc |= BD_SC_READY;
 		/* Get next BD. */
@@ -586,7 +619,7 @@ static int cpm_uart_tx_pump(struct uart_port *port)
 	}
 
 	if (uart_circ_empty(xmit) || uart_tx_stopped(port)) {
-		cpm_uart_stop_tx(port, 0);
+		cpm_uart_stop_tx(port);
 		return 0;
 	}
 
@@ -595,7 +628,7 @@ static int cpm_uart_tx_pump(struct uart_port *port)
 
 	while (!(bdp->cbd_sc & BD_SC_READY) && (xmit->tail != xmit->head)) {
 		count = 0;
-		p = bus_to_virt(bdp->cbd_bufaddr);
+		p = cpm2cpu_addr(bdp->cbd_bufaddr);
 		while (count < pinfo->tx_fifosize) {
 			*p++ = xmit->buf[xmit->tail];
 			xmit->tail = (xmit->tail + 1) & (UART_XMIT_SIZE - 1);
@@ -606,6 +639,7 @@ static int cpm_uart_tx_pump(struct uart_port *port)
 		}
 		bdp->cbd_datlen = count;
 		bdp->cbd_sc |= BD_SC_READY;
+		__asm__("eieio");
 		/* Get next BD. */
 		if (bdp->cbd_sc & BD_SC_WRAP)
 			bdp = pinfo->tx_bd_base;
@@ -618,7 +652,7 @@ static int cpm_uart_tx_pump(struct uart_port *port)
 		uart_write_wakeup(port);
 
 	if (uart_circ_empty(xmit)) {
-		cpm_uart_stop_tx(port, 0);
+		cpm_uart_stop_tx(port);
 		return 0;
 	}
 
@@ -643,12 +677,12 @@ static void cpm_uart_initbd(struct uart_cpm_port *pinfo)
 	mem_addr = pinfo->mem_addr;
 	bdp = pinfo->rx_cur = pinfo->rx_bd_base;
 	for (i = 0; i < (pinfo->rx_nrfifos - 1); i++, bdp++) {
-		bdp->cbd_bufaddr = virt_to_bus(mem_addr);
+		bdp->cbd_bufaddr = cpu2cpm_addr(mem_addr);
 		bdp->cbd_sc = BD_SC_EMPTY | BD_SC_INTRPT;
 		mem_addr += pinfo->rx_fifosize;
 	}
-	
-	bdp->cbd_bufaddr = virt_to_bus(mem_addr);
+
+	bdp->cbd_bufaddr = cpu2cpm_addr(mem_addr);
 	bdp->cbd_sc = BD_SC_WRAP | BD_SC_EMPTY | BD_SC_INTRPT;
 
 	/* Set the physical address of the host memory
@@ -658,12 +692,12 @@ static void cpm_uart_initbd(struct uart_cpm_port *pinfo)
 	mem_addr = pinfo->mem_addr + L1_CACHE_ALIGN(pinfo->rx_nrfifos * pinfo->rx_fifosize);
 	bdp = pinfo->tx_cur = pinfo->tx_bd_base;
 	for (i = 0; i < (pinfo->tx_nrfifos - 1); i++, bdp++) {
-		bdp->cbd_bufaddr = virt_to_bus(mem_addr);
+		bdp->cbd_bufaddr = cpu2cpm_addr(mem_addr);
 		bdp->cbd_sc = BD_SC_INTRPT;
 		mem_addr += pinfo->tx_fifosize;
 	}
-	
-	bdp->cbd_bufaddr = virt_to_bus(mem_addr);
+
+	bdp->cbd_bufaddr = cpu2cpm_addr(mem_addr);
 	bdp->cbd_sc = BD_SC_WRAP | BD_SC_INTRPT;
 }
 
@@ -763,6 +797,8 @@ static void cpm_uart_init_smc(struct uart_cpm_port *pinfo)
 	/* Using idle charater time requires some additional tuning.  */
 	up->smc_mrblr = pinfo->rx_fifosize;
 	up->smc_maxidl = pinfo->rx_fifosize;
+	up->smc_brklen = 0;
+	up->smc_brkec = 0;
 	up->smc_brkcr = 1;
 
 	cpm_line_cr_cmd(line, CPM_CR_INIT_TRX);
@@ -796,7 +832,7 @@ static int cpm_uart_request_port(struct uart_port *port)
 	/*
 	 * Setup any port IO, connect any baud rate generators,
 	 * etc.  This is expected to be handled by board
-	 * dependant code 
+	 * dependant code
 	 */
 	if (pinfo->set_lineif)
 		pinfo->set_lineif(pinfo);
@@ -815,6 +851,10 @@ static int cpm_uart_request_port(struct uart_port *port)
 		return ret;
 
 	cpm_uart_initbd(pinfo);
+	if (IS_SMC(pinfo))
+		cpm_uart_init_smc(pinfo);
+	else
+		cpm_uart_init_scc(pinfo);
 
 	return 0;
 }
@@ -863,13 +903,13 @@ struct uart_cpm_port cpm_uart_ports[UART_NR] = {
 		.port = {
 			.irq		= SMC1_IRQ,
 			.ops		= &cpm_uart_pops,
-			.iotype		= SERIAL_IO_MEM,
+			.iotype		= UPIO_MEM,
 			.lock		= SPIN_LOCK_UNLOCKED,
 		},
 		.flags = FLAG_SMC,
 		.tx_nrfifos = TX_NUM_FIFO,
 		.tx_fifosize = TX_BUF_SIZE,
-		.rx_nrfifos = RX_NUM_FIFO, 
+		.rx_nrfifos = RX_NUM_FIFO,
 		.rx_fifosize = RX_BUF_SIZE,
 		.set_lineif = smc1_lineif,
 	},
@@ -877,13 +917,13 @@ struct uart_cpm_port cpm_uart_ports[UART_NR] = {
 		.port = {
 			.irq		= SMC2_IRQ,
 			.ops		= &cpm_uart_pops,
-			.iotype		= SERIAL_IO_MEM,
+			.iotype		= UPIO_MEM,
 			.lock		= SPIN_LOCK_UNLOCKED,
 		},
 		.flags = FLAG_SMC,
 		.tx_nrfifos = TX_NUM_FIFO,
 		.tx_fifosize = TX_BUF_SIZE,
-		.rx_nrfifos = RX_NUM_FIFO, 
+		.rx_nrfifos = RX_NUM_FIFO,
 		.rx_fifosize = RX_BUF_SIZE,
 		.set_lineif = smc2_lineif,
 #ifdef CONFIG_SERIAL_CPM_ALT_SMC2
@@ -894,53 +934,57 @@ struct uart_cpm_port cpm_uart_ports[UART_NR] = {
 		.port = {
 			.irq		= SCC1_IRQ,
 			.ops		= &cpm_uart_pops,
-			.iotype		= SERIAL_IO_MEM,
+			.iotype		= UPIO_MEM,
 			.lock		= SPIN_LOCK_UNLOCKED,
 		},
 		.tx_nrfifos = TX_NUM_FIFO,
 		.tx_fifosize = TX_BUF_SIZE,
-		.rx_nrfifos = RX_NUM_FIFO, 
+		.rx_nrfifos = RX_NUM_FIFO,
 		.rx_fifosize = RX_BUF_SIZE,
 		.set_lineif = scc1_lineif,
+		.wait_closing = SCC_WAIT_CLOSING,
 	},
 	[UART_SCC2] = {
 		.port = {
 			.irq		= SCC2_IRQ,
 			.ops		= &cpm_uart_pops,
-			.iotype		= SERIAL_IO_MEM,
+			.iotype		= UPIO_MEM,
 			.lock		= SPIN_LOCK_UNLOCKED,
 		},
 		.tx_nrfifos = TX_NUM_FIFO,
 		.tx_fifosize = TX_BUF_SIZE,
-		.rx_nrfifos = RX_NUM_FIFO, 
+		.rx_nrfifos = RX_NUM_FIFO,
 		.rx_fifosize = RX_BUF_SIZE,
 		.set_lineif = scc2_lineif,
+		.wait_closing = SCC_WAIT_CLOSING,
 	},
 	[UART_SCC3] = {
 		.port = {
 			.irq		= SCC3_IRQ,
 			.ops		= &cpm_uart_pops,
-			.iotype		= SERIAL_IO_MEM,
+			.iotype		= UPIO_MEM,
 			.lock		= SPIN_LOCK_UNLOCKED,
 		},
 		.tx_nrfifos = TX_NUM_FIFO,
 		.tx_fifosize = TX_BUF_SIZE,
-		.rx_nrfifos = RX_NUM_FIFO, 
+		.rx_nrfifos = RX_NUM_FIFO,
 		.rx_fifosize = RX_BUF_SIZE,
 		.set_lineif = scc3_lineif,
+		.wait_closing = SCC_WAIT_CLOSING,
 	},
 	[UART_SCC4] = {
 		.port = {
 			.irq		= SCC4_IRQ,
 			.ops		= &cpm_uart_pops,
-			.iotype		= SERIAL_IO_MEM,
+			.iotype		= UPIO_MEM,
 			.lock		= SPIN_LOCK_UNLOCKED,
 		},
 		.tx_nrfifos = TX_NUM_FIFO,
 		.tx_fifosize = TX_BUF_SIZE,
-		.rx_nrfifos = RX_NUM_FIFO, 
+		.rx_nrfifos = RX_NUM_FIFO,
 		.rx_fifosize = RX_BUF_SIZE,
 		.set_lineif = scc4_lineif,
+		.wait_closing = SCC_WAIT_CLOSING,
 	},
 };
 
@@ -983,11 +1027,8 @@ static void cpm_uart_console_write(struct console *co, const char *s,
 		 * If the buffer address is in the CPM DPRAM, don't
 		 * convert it.
 		 */
-		if ((uint) (bdp->cbd_bufaddr) > (uint) CPM_ADDR)
-			cp = (unsigned char *) (bdp->cbd_bufaddr);
-		else
-			cp = bus_to_virt(bdp->cbd_bufaddr);
-		
+		cp = cpm2cpu_addr(bdp->cbd_bufaddr);
+
 		*cp = *s;
 
 		bdp->cbd_datlen = 1;
@@ -1003,10 +1044,7 @@ static void cpm_uart_console_write(struct console *co, const char *s,
 			while ((bdp->cbd_sc & BD_SC_READY) != 0)
 				;
 
-			if ((uint) (bdp->cbd_bufaddr) > (uint) CPM_ADDR)
-				cp = (unsigned char *) (bdp->cbd_bufaddr);
-			else
-				cp = bus_to_virt(bdp->cbd_bufaddr);
+			cp = cpm2cpu_addr(bdp->cbd_bufaddr);
 
 			*cp = 13;
 			bdp->cbd_datlen = 1;
@@ -1045,7 +1083,7 @@ static int __init cpm_uart_console_setup(struct console *co, char *options)
 	port =
 	    (struct uart_port *)&cpm_uart_ports[cpm_uart_port_map[co->index]];
 	pinfo = (struct uart_cpm_port *)port;
-	
+
 	pinfo->flags |= FLAG_CONSOLE;
 
 	if (options) {
@@ -1062,7 +1100,7 @@ static int __init cpm_uart_console_setup(struct console *co, char *options)
 	/*
 	 * Setup any port IO, connect any baud rate generators,
 	 * etc.  This is expected to be handled by board
-	 * dependant code 
+	 * dependant code
 	 */
 	if (pinfo->set_lineif)
 		pinfo->set_lineif(pinfo);
@@ -1092,14 +1130,14 @@ static int __init cpm_uart_console_setup(struct console *co, char *options)
 	return 0;
 }
 
-extern struct uart_driver cpm_reg;
+static struct uart_driver cpm_reg;
 static struct console cpm_scc_uart_console = {
-	.name		"ttyCPM",
-	.write		cpm_uart_console_write,
-	.device		uart_console_device,
-	.setup		cpm_uart_console_setup,
-	.flags		CON_PRINTBUFFER,
-	.index		-1,
+	.name		= "ttyCPM",
+	.write		= cpm_uart_console_write,
+	.device		= uart_console_device,
+	.setup		= cpm_uart_console_setup,
+	.flags		= CON_PRINTBUFFER,
+	.index		= -1,
 	.data		= &cpm_reg,
 };
 

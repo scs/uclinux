@@ -7,6 +7,8 @@ menu "Logo configuration"
 config LOGO
 	bool "Bootup logo"
 	depends on FB || SGI_NEWPORT_CONSOLE
+	help
+	  Enable and select frame buffer bootup logos.
 
 config LOGO_LINUX_MONO
 	bool "Standard black and white Linux logo"
@@ -45,7 +47,7 @@ config LOGO_SGI_CLUT224
 
 config LOGO_SUN_CLUT224
 	bool "224-color Sun Linux logo"
-	depends on LOGO && (SPARC32 || SPARC64)
+	depends on LOGO && SPARC
 	default y
 
 config LOGO_SUPERH_MONO
@@ -61,6 +63,11 @@ config LOGO_SUPERH_VGA16
 config LOGO_SUPERH_CLUT224
 	bool "224-color SuperH Linux logo"
 	depends on LOGO && SUPERH
+	default y
+
+config LOGO_M32R_CLUT224
+	bool "224-color M32R Linux logo"
+	depends on LOGO && M32R
 	default y
 
 endmenu

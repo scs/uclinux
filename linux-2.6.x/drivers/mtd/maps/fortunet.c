@@ -7,10 +7,13 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <asm/io.h>
+#include <linux/string.h>
+
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/map.h>
 #include <linux/mtd/partitions.h>
+
+#include <asm/io.h>
 
 #define MAX_NUM_REGIONS		4
 #define MAX_NUM_PARTITIONS	8
@@ -209,7 +212,7 @@ int __init init_fortunet(void)
 
 			map_regions[ix].map_info.phys =	map_regions[ix].window_addr_physical,
 
-			map_regions[ix].map_info.virt = 
+			map_regions[ix].map_info.virt =
 				ioremap_nocache(
 				map_regions[ix].window_addr_physical,
 				map_regions[ix].map_info.size);

@@ -6,7 +6,7 @@
  * driver for that.
  *
  *
- * Copyright (c) 2004-2005 Silicon Graphics, Inc.  All Rights Reserved.
+ * Copyright (c) 2004-2006 Silicon Graphics, Inc.  All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License
@@ -259,10 +259,9 @@ static unsigned int snp_tx_empty(struct uart_port *port)
 /**
  * snp_stop_tx - stop the transmitter - no-op for us
  * @port: Port to operat eon - we ignore - no-op function
- * @tty_stop: Set to 1 if called via uart_stop
  *
  */
-static void snp_stop_tx(struct uart_port *port, unsigned int tty_stop)
+static void snp_stop_tx(struct uart_port *port)
 {
 }
 
@@ -325,10 +324,9 @@ static void snp_stop_rx(struct uart_port *port)
 /**
  * snp_start_tx - Start transmitter
  * @port: Port to operate on
- * @tty_stop: Set to 1 if called via uart_start
  *
  */
-static void snp_start_tx(struct uart_port *port, unsigned int tty_stop)
+static void snp_start_tx(struct uart_port *port)
 {
 	if (sal_console_port.sc_ops->sal_wakeup_transmit)
 		sal_console_port.sc_ops->sal_wakeup_transmit(&sal_console_port,
@@ -521,11 +519,7 @@ sn_receive_chars(struct sn_cons_port *port, struct pt_regs *regs,
 
 		/* record the character to pass up to the tty layer */
 		if (tty) {
-			*tty->flip.char_buf_ptr = ch;
-			*tty->flip.flag_buf_ptr = TTY_NORMAL;
-			tty->flip.char_buf_ptr++;
-			tty->flip.count++;
-			if (tty->flip.count == TTY_FLIPBUF_SIZE)
+			if(tty_insert_flip_char(tty, ch, TTY_NORMAL) == 0)
 				break;
 		}
 		port->sc_port.icount.rx++;
@@ -572,6 +566,7 @@ static void sn_transmit_chars(struct sn_cons_port *port, int raw)
 
 	if (uart_circ_empty(xmit) || uart_tx_stopped(&port->sc_port)) {
 		/* Nothing to do. */
+		ia64_sn_console_intr_disable(SAL_CONSOLE_INTR_XMIT);
 		return;
 	}
 
@@ -614,7 +609,7 @@ static void sn_transmit_chars(struct sn_cons_port *port, int raw)
 		uart_write_wakeup(&port->sc_port);
 
 	if (uart_circ_empty(xmit))
-		snp_stop_tx(&port->sc_port, 0);	/* no-op for us */
+		snp_stop_tx(&port->sc_port);	/* no-op for us */
 }
 
 /**
@@ -825,7 +820,7 @@ static int __init sn_sal_module_init(void)
 	int retval;
 
 	if (!ia64_platform_is("sn2"))
-		return -ENODEV;
+		return 0;
 
 	printk(KERN_INFO "sn_console: Console driver init\n");
 
@@ -834,8 +829,8 @@ static int __init sn_sal_module_init(void)
 		misc.name = DEVICE_NAME_DYNAMIC;
 		retval = misc_register(&misc);
 		if (retval != 0) {
-			printk
-			    ("Failed to register console device using misc_register.\n");
+			printk(KERN_WARNING "Failed to register console "
+			       "device using misc_register.\n");
 			return -ENODEV;
 		}
 		sal_console_uart.major = MISC_MAJOR;
@@ -947,88 +942,75 @@ sn_sal_console_write(struct console *co, const char *s, unsigned count)
 {
 	unsigned long flags = 0;
 	struct sn_cons_port *port = &sal_console_port;
-#if defined(CONFIG_SMP) || defined(CONFIG_PREEMPT)
 	static int stole_lock = 0;
-#endif
 
 	BUG_ON(!port->sc_is_asynch);
 
 	/* We can't look at the xmit buffer if we're not registered with serial core
 	 *  yet.  So only do the fancy recovery after registering
 	 */
-	if (port->sc_port.info) {
+	if (!port->sc_port.info) {
+		/* Not yet registered with serial core - simple case */
+		puts_raw_fixed(port->sc_ops->sal_puts_raw, s, count);
+		return;
+	}
 
-		/* somebody really wants this output, might be an
-		 * oops, kdb, panic, etc.  make sure they get it. */
-#if defined(CONFIG_SMP) || defined(CONFIG_PREEMPT)
-		if (spin_is_locked(&port->sc_port.lock)) {
-			int lhead = port->sc_port.info->xmit.head;
-			int ltail = port->sc_port.info->xmit.tail;
-			int counter, got_lock = 0;
+	/* somebody really wants this output, might be an
+	 * oops, kdb, panic, etc.  make sure they get it. */
+	if (spin_is_locked(&port->sc_port.lock)) {
+		int lhead = port->sc_port.info->xmit.head;
+		int ltail = port->sc_port.info->xmit.tail;
+		int counter, got_lock = 0;
 
-			/*
-			 * We attempt to determine if someone has died with the
-			 * lock. We wait ~20 secs after the head and tail ptrs
-			 * stop moving and assume the lock holder is not functional
-			 * and plow ahead. If the lock is freed within the time out
-			 * period we re-get the lock and go ahead normally. We also
-			 * remember if we have plowed ahead so that we don't have
-			 * to wait out the time out period again - the asumption
-			 * is that we will time out again.
-			 */
+		/*
+		 * We attempt to determine if someone has died with the
+		 * lock. We wait ~20 secs after the head and tail ptrs
+		 * stop moving and assume the lock holder is not functional
+		 * and plow ahead. If the lock is freed within the time out
+		 * period we re-get the lock and go ahead normally. We also
+		 * remember if we have plowed ahead so that we don't have
+		 * to wait out the time out period again - the asumption
+		 * is that we will time out again.
+		 */
 
-			for (counter = 0; counter < 150; mdelay(125), counter++) {
-				if (!spin_is_locked(&port->sc_port.lock)
-				    || stole_lock) {
-					if (!stole_lock) {
-						spin_lock_irqsave(&port->
-								  sc_port.lock,
-								  flags);
-						got_lock = 1;
-					}
-					break;
-				} else {
-					/* still locked */
-					if ((lhead !=
-					     port->sc_port.info->xmit.head)
-					    || (ltail !=
-						port->sc_port.info->xmit.
-						tail)) {
-						lhead =
-						    port->sc_port.info->xmit.
-						    head;
-						ltail =
-						    port->sc_port.info->xmit.
-						    tail;
-						counter = 0;
-					}
+		for (counter = 0; counter < 150; mdelay(125), counter++) {
+			if (!spin_is_locked(&port->sc_port.lock)
+			    || stole_lock) {
+				if (!stole_lock) {
+					spin_lock_irqsave(&port->sc_port.lock,
+							  flags);
+					got_lock = 1;
+				}
+				break;
+			} else {
+				/* still locked */
+				if ((lhead != port->sc_port.info->xmit.head)
+				    || (ltail !=
+					port->sc_port.info->xmit.tail)) {
+					lhead =
+						port->sc_port.info->xmit.head;
+					ltail =
+						port->sc_port.info->xmit.tail;
+					counter = 0;
 				}
 			}
-			/* flush anything in the serial core xmit buffer, raw */
-			sn_transmit_chars(port, 1);
-			if (got_lock) {
-				spin_unlock_irqrestore(&port->sc_port.lock,
-						       flags);
-				stole_lock = 0;
-			} else {
-				/* fell thru */
-				stole_lock = 1;
-			}
-			puts_raw_fixed(port->sc_ops->sal_puts_raw, s, count);
-		} else {
-			stole_lock = 0;
-#endif
-			spin_lock_irqsave(&port->sc_port.lock, flags);
-			sn_transmit_chars(port, 1);
-			spin_unlock_irqrestore(&port->sc_port.lock, flags);
-
-			puts_raw_fixed(port->sc_ops->sal_puts_raw, s, count);
-#if defined(CONFIG_SMP) || defined(CONFIG_PREEMPT)
 		}
-#endif
-	}
-	else {
-		/* Not yet registered with serial core - simple case */
+		/* flush anything in the serial core xmit buffer, raw */
+		sn_transmit_chars(port, 1);
+		if (got_lock) {
+			spin_unlock_irqrestore(&port->sc_port.lock, flags);
+			stole_lock = 0;
+		} else {
+			/* fell thru */
+			stole_lock = 1;
+		}
+		puts_raw_fixed(port->sc_ops->sal_puts_raw, s, count);
+	} else {
+		stole_lock = 0;
+		spin_lock_irqsave(&port->sc_port.lock, flags);
+		sn_transmit_chars(port, 1);
+		spin_unlock_irqrestore(&port->sc_port.lock, flags);
+
 		puts_raw_fixed(port->sc_ops->sal_puts_raw, s, count);
 	}
 }
@@ -1092,6 +1074,7 @@ int __init sn_serial_console_early_setup(void)
 		return -1;
 
 	sal_console_port.sc_ops = &poll_ops;
+	spin_lock_init(&sal_console_port.sc_port.lock);
 	early_sn_setup();	/* Find SAL entry points */
 	register_console(&sal_console_early);
 

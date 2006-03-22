@@ -1,5 +1,5 @@
 /* PLX NET2272 high/full speed USB device controller
- * 
+ *
  * Copyright (C) 2005 PLX Technology, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -328,7 +328,7 @@
 #define SPLIT_DMA_RAM				0x4000
 #define DMA_RAM_SIZE				0x1000
 
-#endif 
+#endif
 
 /* DRIVER DATA STRUCTURES and UTILITIES */
 struct net2272_ep {
@@ -341,8 +341,8 @@ struct net2272_ep {
 	const struct			usb_endpoint_descriptor *desc;
 	unsigned			num:8,
 					fifo_size:12,
-					stopped:1, 
-					is_in:1, 
+					stopped:1,
+					is_in:1,
 					is_iso:1,
 					dma:1,
 					not_empty:1;
@@ -369,10 +369,10 @@ struct net2272 {
         unsigned int                    indexed_threshold;
         u8                              pagesel;
         unsigned int                    irq;
-#if defined(PLX_PCI_RDK)  
-        struct pci_dev                  *pdev;    
+#if defined(PLX_PCI_RDK)
+        struct pci_dev                  *pdev;
         void                            __iomem *plx9054_base_addr;
-        void                            __iomem *epld_base_addr;    
+        void                            __iomem *epld_base_addr;
 #else
         struct platform_device          *pdev;
 #endif
@@ -384,21 +384,21 @@ struct net2272 {
 };
 
 
-static inline void 
+static inline void
 net2272_write (struct net2272 *dev, unsigned int reg, u8 value)
 {
 	// u8		tmp;
 
 	if (reg >= dev->indexed_threshold) {
-		// Indexed register; use REGADDRPTR/REGDATA 
+		// Indexed register; use REGADDRPTR/REGDATA
         //  - Save and restore REGADDRPTR. This prevents REGADDRPTR from
         //    changes between other code sections, but it is time consuming.
-        //  - Performance tips: either do not save and restore REGADDRPTR (if it 
-        //    is safe) or do save/restore operations only in critical sections.        
-		// tmp = readb (dev->base_addr + REGADDRPTR);        
+        //  - Performance tips: either do not save and restore REGADDRPTR (if it
+        //    is safe) or do save/restore operations only in critical sections.
+		// tmp = readb (dev->base_addr + REGADDRPTR);
 		writeb ((u8)reg, dev->base_addr + REGADDRPTR);
 		writeb (value, dev->base_addr + REGDATA);
-		// writeb (tmp, dev->base_addr + REGADDRPTR);                
+		// writeb (tmp, dev->base_addr + REGADDRPTR);
 	} else
 		writeb (value, dev->base_addr + reg);
 }
@@ -407,17 +407,17 @@ static inline u8
 net2272_read (struct net2272 *dev, unsigned int reg)
 {
 	u8		retval;
-    
+
 	if (reg >= dev->indexed_threshold) {
         //  - Save and restore REGADDRPTR. This prevents REGADDRPTR from
         //    changes between other code sections, but it is time consuming.
-        //  - Performance tips: either do not save and restore REGADDRPTR (if it 
-        //    is safe) or do save/restore operations only in critical sections.        
+        //  - Performance tips: either do not save and restore REGADDRPTR (if it
+        //    is safe) or do save/restore operations only in critical sections.
 		// tmp = readb (dev->base_addr + REGADDRPTR);
-		// Indexed register; use REGADDRPTR/REGDATA 
+		// Indexed register; use REGADDRPTR/REGDATA
 		writeb ((u8)reg, dev->base_addr + REGADDRPTR);
 		retval = readb (dev->base_addr + REGDATA);
-		// writeb (tmp, dev->base_addr + REGADDRPTR);        
+		// writeb (tmp, dev->base_addr + REGADDRPTR);
 	} else
 		retval = readb (dev->base_addr + reg);
 
@@ -475,7 +475,7 @@ static inline void clear_halt (struct net2272_ep *ep)
 static inline void set_fifo_bytecount (struct net2272_ep *ep, unsigned count)
 {
 	u8		tmp;
-	
+
 	tmp = count & 0x0f0000 >> 16;
 	net2272_ep_write (ep, EP_TRANSFER2, tmp);
 	tmp = count & 0x00ff00 >> 8;
@@ -488,7 +488,7 @@ static inline void set_fifo_bytecount (struct net2272_ep *ep, unsigned count)
 struct net2272_request {
 	struct usb_request		req;
 	struct list_head		queue;
-	unsigned			mapped:1, 
+	unsigned			mapped:1,
 					valid:1;
 };
 

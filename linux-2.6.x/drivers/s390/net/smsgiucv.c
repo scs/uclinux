@@ -138,7 +138,7 @@ static void __exit
 smsg_exit(void)
 {
 	if (smsg_handle > 0) {
-		cpcmd("SET SMSG OFF", 0, 0);
+		cpcmd("SET SMSG OFF", NULL, 0, NULL);
 		iucv_sever(smsg_pathid, 0);
 		iucv_unregister_program(smsg_handle);
 		driver_unregister(&smsg_driver);
@@ -168,7 +168,7 @@ smsg_init(void)
 		driver_unregister(&smsg_driver);
 		return -EIO;	/* better errno ? */
 	}
-	rc = iucv_connect (&smsg_pathid, 1, 0, "*MSG    ", 0, 0, 0, 0,
+	rc = iucv_connect (&smsg_pathid, 255, 0, "*MSG    ", 0, 0, 0, 0,
 			   smsg_handle, 0);
 	if (rc) {
 		printk(KERN_ERR "SMSGIUCV: failed to connect to *MSG");
@@ -177,7 +177,7 @@ smsg_init(void)
 		smsg_handle = 0;
 		return -EIO;
 	}
-	cpcmd("SET SMSG IUCV", 0, 0);
+	cpcmd("SET SMSG IUCV", NULL, 0, NULL);
 	return 0;
 }
 

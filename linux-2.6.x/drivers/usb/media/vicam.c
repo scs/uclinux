@@ -1148,7 +1148,7 @@ vicam_write_proc_gain(struct file *file, const char *buffer,
 static void
 vicam_create_proc_root(void)
 {
-	vicam_proc_root = create_proc_entry("video/vicam", S_IFDIR, 0);
+	vicam_proc_root = proc_mkdir("video/vicam", NULL);
 
 	if (vicam_proc_root)
 		vicam_proc_root->owner = THIS_MODULE;
@@ -1181,7 +1181,7 @@ vicam_create_proc_entry(struct vicam_camera *cam)
 
 	sprintf(name, "video%d", cam->vdev.minor);
 
-	cam->proc_dir = create_proc_entry(name, S_IFDIR, vicam_proc_root);
+	cam->proc_dir = proc_mkdir(name, vicam_proc_root);
 
 	if ( !cam->proc_dir )
 		return; // FIXME: We should probably return an error here
@@ -1236,6 +1236,7 @@ static struct file_operations vicam_fops = {
 	.read		= vicam_read,
 	.mmap		= vicam_mmap,
 	.ioctl		= vicam_ioctl,
+	.compat_ioctl	= v4l_compat_ioctl32,
 	.llseek		= no_llseek,
 };
 
@@ -1257,7 +1258,6 @@ static struct usb_device_id vicam_table[] = {
 MODULE_DEVICE_TABLE(usb, vicam_table);
 
 static struct usb_driver vicam_driver = {
-	.owner		= THIS_MODULE,
 	.name		= "vicam",
 	.probe		= vicam_probe,
 	.disconnect	= vicam_disconnect,

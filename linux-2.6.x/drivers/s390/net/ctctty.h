@@ -1,6 +1,4 @@
 /*
- * $Id$
- *
  * CTC / ESCON network driver, tty interface.
  *
  * Copyright (C) 2001 IBM Deutschland Entwicklung GmbH, IBM Corporation

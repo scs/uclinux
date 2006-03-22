@@ -40,7 +40,7 @@
  * FIXME: IO should be max 256 bytes.  However, since we may
  * have a P2P bridge below a cardbus bridge, we need 4K.
  */
-#define CARDBUS_IO_SIZE		(4096)
+#define CARDBUS_IO_SIZE		(256)
 #define CARDBUS_MEM_SIZE	(32*1024*1024)
 
 static void __devinit
@@ -51,8 +51,6 @@ pbus_assign_resources_sorted(struct pci_bus *bus)
 	struct resource_list head, *list, *tmp;
 	int idx;
 
-	bus->bridge_ctl &= ~PCI_BRIDGE_CTL_VGA;
-
 	head.next = NULL;
 	list_for_each_entry(dev, &bus->devices, bus_list) {
 		u16 class = dev->class >> 8;
@@ -62,25 +60,24 @@ pbus_assign_resources_sorted(struct pci_bus *bus)
 		    class == PCI_CLASS_BRIDGE_HOST)
 			continue;
 
-		if (class == PCI_CLASS_DISPLAY_VGA ||
-		    class == PCI_CLASS_NOT_DEFINED_VGA)
-			bus->bridge_ctl |= PCI_BRIDGE_CTL_VGA;
-
 		pdev_sort_resources(dev, &head);
 	}
 
 	for (list = head.next; list;) {
 		res = list->res;
 		idx = res - &list->dev->resource[0];
-		pci_assign_resource(list->dev, idx);
+		if (pci_assign_resource(list->dev, idx)) {
+			res->start = 0;
+			res->end = 0;
+			res->flags = 0;
+		}
 		tmp = list;
 		list = list->next;
 		kfree(tmp);
 	}
 }
 
-static void __devinit
-pci_setup_cardbus(struct pci_bus *bus)
+void pci_setup_cardbus(struct pci_bus *bus)
 {
 	struct pci_dev *bridge = bus->self;
 	struct pci_bus_region region;
@@ -132,6 +129,7 @@ pci_setup_cardbus(struct pci_bus *bus)
 					region.end);
 	}
 }
+EXPORT_SYMBOL(pci_setup_cardbus);
 
 /* Initialize bridges with base/limit values we have collected.
    PCI-to-PCI Bridge Architecture Specification rev. 1.1 (1998)
@@ -270,6 +268,8 @@ find_free_bus_resource(struct pci_bus *bus, unsigned long type)
 
 	for (i = 0; i < PCI_BUS_NUM_RESOURCES; i++) {
 		r = bus->resource[i];
+		if (r == &ioport_resource || r == &iomem_resource)
+			continue;
 		if (r && (r->flags & type_mask) == type && !r->parent)
 			return r;
 	}
@@ -503,12 +503,6 @@ pci_bus_assign_resources(struct pci_bus *bus)
 
 	pbus_assign_resources_sorted(bus);
 
-	if (bus->bridge_ctl & PCI_BRIDGE_CTL_VGA) {
-		/* Propagate presence of the VGA to upstream bridges */
-		for (b = bus; b->parent; b = b->parent) {
-			b->bridge_ctl |= PCI_BRIDGE_CTL_VGA;
-		}
-	}
 	list_for_each_entry(dev, &bus->devices, bus_list) {
 		b = dev->subordinate;
 		if (!b)

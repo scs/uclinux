@@ -344,7 +344,7 @@
    /proc/scsi/ibmmca/<host_no>. ibmmca_proc_info() provides this information.
    
    This table is quite informative for interested users. It shows the load
-   of commands on the subsystem and wether you are running the bypassed 
+   of commands on the subsystem and whether you are running the bypassed
    (software) or integrated (hardware) SCSI-command set (see below). The
    amount of accesses is shown. Read, write, modeselect is shown separately
    in order to help debugging problems with CD-ROMs or tapedrives.
@@ -1108,7 +1108,7 @@
      A: You have to activate MCA bus support, first.
      Q: Where can I find the latest info about this driver?
      A: See the file MAINTAINERS for the current WWW-address, which offers
-        updates, info and Q/A lists. At this files' origin, the webaddress
+        updates, info and Q/A lists. At this file's origin, the webaddress
 	was: http://www.uni-mainz.de/~langm000/linux.html
      Q: My SCSI-adapter is not recognized by the driver, what can I do?
      A: Just force it to be recognized by kernel parameters. See section 5.1.
@@ -1248,7 +1248,7 @@
    --------------------
    The address of the IBM SCSI-subsystem supporting WWW-page is:
    
-        http://www.uni-mainz.de/~langm000/linux.html
+        http://www.staff.uni-mainz.de/mlang/linux.html
 	
    Here you can find info about the background of this driver, patches,
    troubleshooting support, news and a bugreport form. Please check that

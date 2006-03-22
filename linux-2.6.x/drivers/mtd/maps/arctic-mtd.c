@@ -1,7 +1,7 @@
 /*
  * $Id$
- * 
- * drivers/mtd/maps/arctic-mtd.c MTD mappings and partition tables for 
+ *
+ * drivers/mtd/maps/arctic-mtd.c MTD mappings and partition tables for
  *                              IBM 405LP Arctic boards.
  *
  * This program is free software; you can redistribute it and/or modify

@@ -80,7 +80,7 @@
 #include <asm/serial.h>
 
 /* Standard COM flags */
-#define STD_COM_FLAGS (ASYNC_BOOT_AUTOCONF | ASYNC_SKIP_TEST)
+#define STD_COM_FLAGS (UPF_BOOT_AUTOCONF | UPF_SKIP_TEST)
 
 /*
  * SERIAL_PORT_DFNS tells us about built-in ports that have no
@@ -275,7 +275,7 @@ serial_out(struct uart_sio_port *up, int offset, int value)
 	__sio_out(value, offset);
 }
 
-static void m32r_sio_stop_tx(struct uart_port *port, unsigned int tty_stop)
+static void m32r_sio_stop_tx(struct uart_port *port)
 {
 	struct uart_sio_port *up = (struct uart_sio_port *)port;
 
@@ -285,7 +285,7 @@ static void m32r_sio_stop_tx(struct uart_port *port, unsigned int tty_stop)
 	}
 }
 
-static void m32r_sio_start_tx(struct uart_port *port, unsigned int tty_start)
+static void m32r_sio_start_tx(struct uart_port *port)
 {
 #ifdef CONFIG_SERIAL_M32R_PLDSIO
 	struct uart_sio_port *up = (struct uart_sio_port *)port;
@@ -331,17 +331,12 @@ static _INLINE_ void receive_chars(struct uart_sio_port *up, int *status,
 {
 	struct tty_struct *tty = up->port.info->tty;
 	unsigned char ch;
+	unsigned char flag;
 	int max_count = 256;
 
 	do {
-		if (unlikely(tty->flip.count >= TTY_FLIPBUF_SIZE)) {
-			tty->flip.work.func((void *)tty);
-			if (tty->flip.count >= TTY_FLIPBUF_SIZE)
-				return; // if TTY_DONT_FLIP is set
-		}
 		ch = sio_in(up, SIORXB);
-		*tty->flip.char_buf_ptr = ch;
-		*tty->flip.flag_buf_ptr = TTY_NORMAL;
+		flag = TTY_NORMAL;
 		up->port.icount.rx++;
 
 		if (unlikely(*status & (UART_LSR_BI | UART_LSR_PE |
@@ -380,30 +375,24 @@ static _INLINE_ void receive_chars(struct uart_sio_port *up, int *status,
 
 			if (*status & UART_LSR_BI) {
 				DEBUG_INTR("handling break....");
-				*tty->flip.flag_buf_ptr = TTY_BREAK;
+				flag = TTY_BREAK;
 			} else if (*status & UART_LSR_PE)
-				*tty->flip.flag_buf_ptr = TTY_PARITY;
+				flag = TTY_PARITY;
 			else if (*status & UART_LSR_FE)
-				*tty->flip.flag_buf_ptr = TTY_FRAME;
+				flag = TTY_FRAME;
 		}
 		if (uart_handle_sysrq_char(&up->port, ch, regs))
 			goto ignore_char;
-		if ((*status & up->port.ignore_status_mask) == 0) {
-			tty->flip.flag_buf_ptr++;
-			tty->flip.char_buf_ptr++;
-			tty->flip.count++;
-		}
-		if ((*status & UART_LSR_OE) &&
-		    tty->flip.count < TTY_FLIPBUF_SIZE) {
+		if ((*status & up->port.ignore_status_mask) == 0)
+			tty_insert_flip_char(tty, ch, flag);
+
+		if (*status & UART_LSR_OE) {
 			/*
 			 * Overrun is special, since it's reported
 			 * immediately, and doesn't affect the current
 			 * character.
 			 */
-			*tty->flip.flag_buf_ptr = TTY_OVERRUN;
-			tty->flip.flag_buf_ptr++;
-			tty->flip.char_buf_ptr++;
-			tty->flip.count++;
+			tty_insert_flip_char(tty, 0, TTY_OVERRUN);
 		}
 	ignore_char:
 		*status = serial_in(up, UART_LSR);
@@ -425,7 +414,7 @@ static _INLINE_ void transmit_chars(struct uart_sio_port *up)
 		return;
 	}
 	if (uart_circ_empty(xmit) || uart_tx_stopped(&up->port)) {
-		m32r_sio_stop_tx(&up->port, 0);
+		m32r_sio_stop_tx(&up->port);
 		return;
 	}
 
@@ -446,7 +435,7 @@ static _INLINE_ void transmit_chars(struct uart_sio_port *up)
 	DEBUG_INTR("THRE...");
 
 	if (uart_circ_empty(xmit))
-		m32r_sio_stop_tx(&up->port, 0);
+		m32r_sio_stop_tx(&up->port);
 }
 
 /*
@@ -724,22 +713,22 @@ static void m32r_sio_set_termios(struct uart_port *port,
 
 	switch (termios->c_cflag & CSIZE) {
 	case CS5:
-		cval = 0x00;
+		cval = UART_LCR_WLEN5;
 		break;
 	case CS6:
-		cval = 0x01;
+		cval = UART_LCR_WLEN6;
 		break;
 	case CS7:
-		cval = 0x02;
+		cval = UART_LCR_WLEN7;
 		break;
 	default:
 	case CS8:
-		cval = 0x03;
+		cval = UART_LCR_WLEN8;
 		break;
 	}
 
 	if (termios->c_cflag & CSTOPB)
-		cval |= 0x04;
+		cval |= UART_LCR_STOP;
 	if (termios->c_cflag & PARENB)
 		cval |= UART_LCR_PARITY;
 	if (!(termios->c_cflag & PARODD))
@@ -1123,7 +1112,7 @@ static int __init m32r_sio_console_setup(struct console *co, char *options)
 	return uart_set_options(port, co, baud, parity, bits, flow);
 }
 
-extern struct uart_driver m32r_sio_reg;
+static struct uart_driver m32r_sio_reg;
 static struct console m32r_sio_console = {
 	.name		= "ttyS",
 	.write		= m32r_sio_console_write,

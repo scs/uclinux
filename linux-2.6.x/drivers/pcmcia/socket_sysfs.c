@@ -29,7 +29,6 @@
 #include <asm/irq.h>
 
 #define IN_CARD_SERVICES
-#include <pcmcia/version.h>
 #include <pcmcia/cs_types.h>
 #include <pcmcia/ss.h>
 #include <pcmcia/cs.h>
@@ -43,35 +42,28 @@
 
 static ssize_t pccard_show_type(struct class_device *dev, char *buf)
 {
-	int val;
 	struct pcmcia_socket *s = to_socket(dev);
 
 	if (!(s->state & SOCKET_PRESENT))
 		return -ENODEV;
-	s->ops->get_status(s, &val);
-	if (val & SS_CARDBUS)
+	if (s->state & SOCKET_CARDBUS)
 		return sprintf(buf, "32-bit\n");
-	if (val & SS_DETECT)
-		return sprintf(buf, "16-bit\n");
-	return sprintf(buf, "invalid\n");
+	return sprintf(buf, "16-bit\n");
 }
-static CLASS_DEVICE_ATTR(card_type, 0400, pccard_show_type, NULL);
+static CLASS_DEVICE_ATTR(card_type, 0444, pccard_show_type, NULL);
 
 static ssize_t pccard_show_voltage(struct class_device *dev, char *buf)
 {
-	int val;
 	struct pcmcia_socket *s = to_socket(dev);
 
 	if (!(s->state & SOCKET_PRESENT))
 		return -ENODEV;
-	s->ops->get_status(s, &val);
-	if (val & SS_3VCARD)
-		return sprintf(buf, "3.3V\n");
-	if (val & SS_XVCARD)
-		return sprintf(buf, "X.XV\n");
-	return sprintf(buf, "5.0V\n");
+	if (s->socket.Vcc)
+		return sprintf(buf, "%d.%dV\n", s->socket.Vcc / 10,
+			       s->socket.Vcc % 10);
+	return sprintf(buf, "X.XV\n");
 }
-static CLASS_DEVICE_ATTR(card_voltage, 0400, pccard_show_voltage, NULL);
+static CLASS_DEVICE_ATTR(card_voltage, 0444, pccard_show_voltage, NULL);
 
 static ssize_t pccard_show_vpp(struct class_device *dev, char *buf)
 {
@@ -80,7 +72,7 @@ static ssize_t pccard_show_vpp(struct class_device *dev, char *buf)
 		return -ENODEV;
 	return sprintf(buf, "%d.%dV\n", s->socket.Vpp / 10, s->socket.Vpp % 10);
 }
-static CLASS_DEVICE_ATTR(card_vpp, 0400, pccard_show_vpp, NULL);
+static CLASS_DEVICE_ATTR(card_vpp, 0444, pccard_show_vpp, NULL);
 
 static ssize_t pccard_show_vcc(struct class_device *dev, char *buf)
 {
@@ -89,7 +81,7 @@ static ssize_t pccard_show_vcc(struct class_device *dev, char *buf)
 		return -ENODEV;
 	return sprintf(buf, "%d.%dV\n", s->socket.Vcc / 10, s->socket.Vcc % 10);
 }
-static CLASS_DEVICE_ATTR(card_vcc, 0400, pccard_show_vcc, NULL);
+static CLASS_DEVICE_ATTR(card_vcc, 0444, pccard_show_vcc, NULL);
 
 
 static ssize_t pccard_store_insert(struct class_device *dev, const char *buf, size_t count)
@@ -105,6 +97,30 @@ static ssize_t pccard_store_insert(struct class_device *dev, const char *buf, si
 	return ret ? ret : count;
 }
 static CLASS_DEVICE_ATTR(card_insert, 0200, NULL, pccard_store_insert);
+
+
+static ssize_t pccard_show_card_pm_state(struct class_device *dev, char *buf)
+{
+	struct pcmcia_socket *s = to_socket(dev);
+	return sprintf(buf, "%s\n", s->state & SOCKET_SUSPEND ? "off" : "on");
+}
+
+static ssize_t pccard_store_card_pm_state(struct class_device *dev, const char *buf, size_t count)
+{
+	ssize_t ret = -EINVAL;
+	struct pcmcia_socket *s = to_socket(dev);
+
+	if (!count)
+		return -EINVAL;
+
+	if (!(s->state & SOCKET_SUSPEND) && !strncmp(buf, "off", 3))
+		ret = pcmcia_suspend_card(s);
+	else if ((s->state & SOCKET_SUSPEND) && !strncmp(buf, "on", 2))
+		ret = pcmcia_resume_card(s);
+
+	return ret ? -ENODEV : count;
+}
+static CLASS_DEVICE_ATTR(card_pm_state, 0644, pccard_show_card_pm_state, pccard_store_card_pm_state);
 
 static ssize_t pccard_store_eject(struct class_device *dev, const char *buf, size_t count)
 {
@@ -163,28 +179,163 @@ static ssize_t pccard_store_resource(struct class_device *dev, const char *buf, 
 		return -EINVAL;
 
 	spin_lock_irqsave(&s->lock, flags);
-	if (!s->resource_setup_done) {
+	if (!s->resource_setup_done)
 		s->resource_setup_done = 1;
-		spin_unlock_irqrestore(&s->lock, flags);
-
-		down(&s->skt_sem);
-		if ((s->callback) &&
-		    (s->state & SOCKET_PRESENT) &&
-		    !(s->state & SOCKET_CARDBUS)) {
-			if (try_module_get(s->callback->owner)) {
-				s->callback->resources_done(s);
-				module_put(s->callback->owner);
-			}
-		}
-		up(&s->skt_sem);
-
-		return count;
-	}
 	spin_unlock_irqrestore(&s->lock, flags);
+
+	down(&s->skt_sem);
+	if ((s->callback) &&
+	    (s->state & SOCKET_PRESENT) &&
+	    !(s->state & SOCKET_CARDBUS)) {
+		if (try_module_get(s->callback->owner)) {
+			s->callback->requery(s);
+			module_put(s->callback->owner);
+		}
+	}
+	up(&s->skt_sem);
 
 	return count;
 }
 static CLASS_DEVICE_ATTR(available_resources_setup_done, 0600, pccard_show_resource, pccard_store_resource);
+
+
+static ssize_t pccard_extract_cis(struct pcmcia_socket *s, char *buf, loff_t off, size_t count)
+{
+	tuple_t tuple;
+	int status, i;
+	loff_t pointer = 0;
+	ssize_t ret = 0;
+	u_char *tuplebuffer;
+	u_char *tempbuffer;
+
+	tuplebuffer = kmalloc(sizeof(u_char) * 256, GFP_KERNEL);
+	if (!tuplebuffer)
+		return -ENOMEM;
+
+	tempbuffer = kmalloc(sizeof(u_char) * 258, GFP_KERNEL);
+	if (!tempbuffer) {
+		ret = -ENOMEM;
+		goto free_tuple;
+	}
+
+	memset(&tuple, 0, sizeof(tuple_t));
+
+	tuple.Attributes = TUPLE_RETURN_LINK | TUPLE_RETURN_COMMON;
+	tuple.DesiredTuple = RETURN_FIRST_TUPLE;
+	tuple.TupleOffset = 0;
+
+	status = pccard_get_first_tuple(s, BIND_FN_ALL, &tuple);
+	while (!status) {
+		tuple.TupleData = tuplebuffer;
+		tuple.TupleDataMax = 255;
+		memset(tuplebuffer, 0, sizeof(u_char) * 255);
+
+		status = pccard_get_tuple_data(s, &tuple);
+		if (status)
+			break;
+
+		if (off < (pointer + 2 + tuple.TupleDataLen)) {
+			tempbuffer[0] = tuple.TupleCode & 0xff;
+			tempbuffer[1] = tuple.TupleLink & 0xff;
+			for (i = 0; i < tuple.TupleDataLen; i++)
+				tempbuffer[i + 2] = tuplebuffer[i] & 0xff;
+
+			for (i = 0; i < (2 + tuple.TupleDataLen); i++) {
+				if (((i + pointer) >= off) &&
+				    (i + pointer) < (off + count)) {
+					buf[ret] = tempbuffer[i];
+					ret++;
+				}
+			}
+		}
+
+		pointer += 2 + tuple.TupleDataLen;
+
+		if (pointer >= (off + count))
+			break;
+
+		if (tuple.TupleCode == CISTPL_END)
+			break;
+		status = pccard_get_next_tuple(s, BIND_FN_ALL, &tuple);
+	}
+
+	kfree(tempbuffer);
+ free_tuple:
+	kfree(tuplebuffer);
+
+	return (ret);
+}
+
+static ssize_t pccard_show_cis(struct kobject *kobj, char *buf, loff_t off, size_t count)
+{
+	unsigned int size = 0x200;
+
+	if (off >= size)
+		count = 0;
+	else {
+		struct pcmcia_socket *s;
+		cisinfo_t cisinfo;
+
+		if (off + count > size)
+			count = size - off;
+
+		s = to_socket(container_of(kobj, struct class_device, kobj));
+
+		if (!(s->state & SOCKET_PRESENT))
+			return -ENODEV;
+		if (pccard_validate_cis(s, BIND_FN_ALL, &cisinfo))
+			return -EIO;
+		if (!cisinfo.Chains)
+			return -ENODATA;
+
+		count = pccard_extract_cis(s, buf, off, count);
+	}
+
+	return (count);
+}
+
+static ssize_t pccard_store_cis(struct kobject *kobj, char *buf, loff_t off, size_t count)
+{
+	struct pcmcia_socket *s = to_socket(container_of(kobj, struct class_device, kobj));
+	cisdump_t *cis;
+	ssize_t ret = count;
+
+	if (off)
+		return -EINVAL;
+
+	if (count >= 0x200)
+		return -EINVAL;
+
+	if (!(s->state & SOCKET_PRESENT))
+		return -ENODEV;
+
+	cis = kzalloc(sizeof(cisdump_t), GFP_KERNEL);
+	if (!cis)
+		return -ENOMEM;
+
+	cis->Length = count + 1;
+	memcpy(cis->Data, buf, count);
+
+	if (pcmcia_replace_cis(s, cis))
+		ret  = -EIO;
+
+	kfree(cis);
+
+	if (!ret) {
+		down(&s->skt_sem);
+		if ((s->callback) && (s->state & SOCKET_PRESENT) &&
+		    !(s->state & SOCKET_CARDBUS)) {
+			if (try_module_get(s->callback->owner)) {
+				s->callback->requery(s);
+				module_put(s->callback->owner);
+			}
+		}
+		up(&s->skt_sem);
+	}
+
+
+	return (ret);
+}
 
 
 static struct class_device_attribute *pccard_socket_attributes[] = {
@@ -193,13 +344,22 @@ static struct class_device_attribute *pccard_socket_attributes[] = {
 	&class_device_attr_card_vpp,
 	&class_device_attr_card_vcc,
 	&class_device_attr_card_insert,
+	&class_device_attr_card_pm_state,
 	&class_device_attr_card_eject,
 	&class_device_attr_card_irq_mask,
 	&class_device_attr_available_resources_setup_done,
 	NULL,
 };
 
-static int __devinit pccard_sysfs_add_socket(struct class_device *class_dev)
+static struct bin_attribute pccard_cis_attr = {
+	.attr = { .name = "cis", .mode = S_IRUGO | S_IWUSR, .owner = THIS_MODULE},
+	.size = 0x200,
+	.read = pccard_show_cis,
+	.write = pccard_store_cis,
+};
+
+static int __devinit pccard_sysfs_add_socket(struct class_device *class_dev,
+					     struct class_interface *class_intf)
 {
 	struct class_device_attribute **attr;
 	int ret = 0;
@@ -209,14 +369,18 @@ static int __devinit pccard_sysfs_add_socket(struct class_device *class_dev)
 		if (ret)
 			break;
 	}
+	if (!ret)
+		ret = sysfs_create_bin_file(&class_dev->kobj, &pccard_cis_attr);
 
 	return ret;
 }
 
-static void __devexit pccard_sysfs_remove_socket(struct class_device *class_dev)
+static void __devexit pccard_sysfs_remove_socket(struct class_device *class_dev,
+						 struct class_interface *class_intf)
 {
 	struct class_device_attribute **attr;
 
+	sysfs_remove_bin_file(&class_dev->kobj, &pccard_cis_attr);
 	for (attr = pccard_socket_attributes; *attr; attr++)
 		class_device_remove_file(class_dev, *attr);
 }

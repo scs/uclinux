@@ -1,0 +1,88 @@
+# uClinux Blackfin Target Board Selection Menu (IDE)
+
+if (BFIN)
+menu "Blackfin IDE Extra configuration"
+
+config BFIN_IDE_BASE
+	hex "IDE register base address"
+	depends on IDE
+	default 0x20304020
+	help
+	  IDE registers base address
+
+config BFIN_IDE_ALT
+	hex "IDE register alternate address"
+	depends on IDE
+	default 0x2030401C
+	help
+	  IDE alternate registers address
+
+config BFIN_IDE_IRQ
+	int "IDE IRQ no"
+	depends on IDE
+	default "34" if BFIN537_STAMP
+	default "26" if BFIN533_STAMP
+	help
+	  IDE use IRQ no IRQ_PROG_INTA
+
+config BFIN_IDE_IRQ_PFX
+	int "IDE IRQ PFx no"
+	depends on IDE
+	default 55
+	help
+	  IDE IRQ use PFx
+
+choice
+	prompt	"IDE Interface Address Mapping (see help)"
+	depends on IDE
+	default BFIN_IDE_ADDRESS_MAPPING_MODE0
+
+config BFIN_IDE_ADDRESS_MAPPING_MODE0
+	bool "Linear 16-bit mapping with reg spacing"
+	help
+	  Blackfin 	HDD
+	  A1 	  -->	A0
+	  A2	  -->	A1
+	  A3	  -->	A2
+	  A4 +AMSx  -->	/CS0
+	  A5 +AMSx  -->	/CS1
+	  /ARE	  -->	/IOR
+	  /AWE	  -->	/IOW
+	  PFx	  <--	/INTRQ
+	  /RESET	  -->	/RESET
+	  D[0..15]  <->	D[0..15]
+
+	  For CF Cards in TRUE IDE MODE only
+	  VCC	  <--	/REG
+	  VCC	  <--	/WE
+	  GND	  <--	/ATA_SEL
+
+config BFIN_IDE_ADDRESS_MAPPING_MODE1
+	bool "16-bit mapping for multimode CF Interface"
+	help
+	  Blackfin 	HDD
+	  Ax 	  -->	A0
+	  A1	  -->	A1
+	  A2	  -->	A2
+	  A4 +AMSx  -->	/CS0
+	  A5 +AMSx  -->	/CS1
+	  /ARE	  -->	/IOR
+	  /AWE	  -->	/IOW
+	  PFx	  <--	/INTRQ
+	  /RESET	  -->	/RESET
+	  D[0..15]  <->	D[0..15]
+
+	  For CF Cards in TRUE IDE MODE only
+	  VCC	  <--	/REG
+	  VCC	  <--	/WE
+	  GND	  <--	/ATA_SEL
+endchoice
+
+config BFIN_IDE_ADDRESS_AX
+	int "Blackfin A[x] used as CF A0"
+	depends on BFIN_IDE_ADDRESS_MAPPING_MODE1
+	default 13
+	help
+
+endmenu
+endif

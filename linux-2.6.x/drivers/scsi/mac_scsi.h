@@ -24,8 +24,8 @@
 
 /*
  * $Log$
- * Revision 1.4  2005/08/12 06:42:46  magicyang
- *  Update kernel 2.6.8 to 2.6.12
+ * Revision 1.5  2006/03/22 08:11:06  magicyang
+ * update kernel to 2.6.16
  *
  */
 
@@ -75,8 +75,6 @@
 #define NCR5380_queue_command macscsi_queue_command
 #define NCR5380_abort macscsi_abort
 #define NCR5380_bus_reset macscsi_bus_reset
-#define NCR5380_device_reset macscsi_device_reset
-#define NCR5380_host_reset macscsi_host_reset
 #define NCR5380_proc_info macscsi_proc_info
 
 #define BOARD_NORMAL	0

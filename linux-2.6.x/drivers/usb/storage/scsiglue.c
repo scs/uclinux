@@ -109,7 +109,7 @@ static int slave_configure(struct scsi_device *sdev)
 	 * data comes from.
 	 */
 	if (sdev->scsi_level < SCSI_2)
-		sdev->scsi_level = SCSI_2;
+		sdev->scsi_level = sdev->sdev_target->scsi_level = SCSI_2;
 
 	/* According to the technical support people at Genesys Logic,
 	 * devices using their chips have problems transferring more than
@@ -155,6 +155,23 @@ static int slave_configure(struct scsi_device *sdev)
 		 * If this device makes that mistake, tell the sd driver. */
 		if (us->flags & US_FL_FIX_CAPACITY)
 			sdev->fix_capacity = 1;
+
+		/* Some devices report a SCSI revision level above 2 but are
+		 * unable to handle the REPORT LUNS command (for which
+		 * support is mandatory at level 3).  Since we already have
+		 * a Get-Max-LUN request, we won't lose much by setting the
+		 * revision level down to 2.  The only devices that would be
+		 * affected are those with sparse LUNs. */
+		sdev->scsi_level = sdev->sdev_target->scsi_level = SCSI_2;
+
+		/* USB-IDE bridges tend to report SK = 0x04 (Non-recoverable
+		 * Hardware Error) when any low-level error occurs,
+		 * recoverable or not.  Setting this flag tells the SCSI
+		 * midlayer to retry such commands, which frequently will
+		 * succeed and fix the error.  The worst this can lead to
+		 * is an occasional series of retries that will all fail. */
+		sdev->retry_hwerror = 1;
+
 	} else {
 
 		/* Non-disk-type devices don't need to blacklist any pages
@@ -210,24 +227,28 @@ static int queuecommand(struct scsi_cmnd *srb,
  ***********************************************************************/
 
 /* Command timeout and abort */
-/* This is always called with scsi_lock(host) held */
 static int command_abort(struct scsi_cmnd *srb)
 {
 	struct us_data *us = host_to_us(srb->device->host);
 
 	US_DEBUGP("%s called\n", __FUNCTION__);
 
+	/* us->srb together with the TIMED_OUT, RESETTING, and ABORTING
+	 * bits are protected by the host lock. */
+	scsi_lock(us_to_host(us));
+
 	/* Is this command still active? */
 	if (us->srb != srb) {
+		scsi_unlock(us_to_host(us));
 		US_DEBUGP ("-- nothing to abort\n");
 		return FAILED;
 	}
 
 	/* Set the TIMED_OUT bit.  Also set the ABORTING bit, but only if
 	 * a device reset isn't already in progress (to avoid interfering
-	 * with the reset).  To prevent races with auto-reset, we must
-	 * stop any ongoing USB transfers while still holding the host
-	 * lock. */
+	 * with the reset).  Note that we must retain the host lock while
+	 * calling usb_stor_stop_transport(); otherwise it might interfere
+	 * with an auto-reset that begins as soon as we release the lock. */
 	set_bit(US_FLIDX_TIMED_OUT, &us->flags);
 	if (!test_bit(US_FLIDX_RESETTING, &us->flags)) {
 		set_bit(US_FLIDX_ABORTING, &us->flags);
@@ -237,17 +258,11 @@ static int command_abort(struct scsi_cmnd *srb)
 
 	/* Wait for the aborted command to finish */
 	wait_for_completion(&us->notify);
-
-	/* Reacquire the lock and allow USB transfers to resume */
-	scsi_lock(us_to_host(us));
-	clear_bit(US_FLIDX_ABORTING, &us->flags);
-	clear_bit(US_FLIDX_TIMED_OUT, &us->flags);
 	return SUCCESS;
 }
 
 /* This invokes the transport reset mechanism to reset the state of the
  * device */
-/* This is always called with scsi_lock(host) held */
 static int device_reset(struct scsi_cmnd *srb)
 {
 	struct us_data *us = host_to_us(srb->device->host);
@@ -255,62 +270,26 @@ static int device_reset(struct scsi_cmnd *srb)
 
 	US_DEBUGP("%s called\n", __FUNCTION__);
 
-	scsi_unlock(us_to_host(us));
-
 	/* lock the device pointers and do the reset */
 	down(&(us->dev_semaphore));
-	if (test_bit(US_FLIDX_DISCONNECTING, &us->flags)) {
-		result = FAILED;
-		US_DEBUGP("No reset during disconnect\n");
-	} else
-		result = us->transport_reset(us);
+	result = us->transport_reset(us);
 	up(&(us->dev_semaphore));
 
-	/* lock the host for the return */
-	scsi_lock(us_to_host(us));
-	return result;
+	return result < 0 ? FAILED : SUCCESS;
 }
 
-/* This resets the device's USB port. */
-/* It refuses to work if there's more than one interface in
- * the device, so that other users are not affected. */
-/* This is always called with scsi_lock(host) held */
+/* Simulate a SCSI bus reset by resetting the device's USB port. */
 static int bus_reset(struct scsi_cmnd *srb)
 {
 	struct us_data *us = host_to_us(srb->device->host);
-	int result, rc;
+	int result;
 
 	US_DEBUGP("%s called\n", __FUNCTION__);
 
-	scsi_unlock(us_to_host(us));
-
-	/* The USB subsystem doesn't handle synchronisation between
-	 * a device's several drivers. Therefore we reset only devices
-	 * with just one interface, which we of course own. */
-
 	down(&(us->dev_semaphore));
-	if (test_bit(US_FLIDX_DISCONNECTING, &us->flags)) {
-		result = -EIO;
-		US_DEBUGP("No reset during disconnect\n");
-	} else if (us->pusb_dev->actconfig->desc.bNumInterfaces != 1) {
-		result = -EBUSY;
-		US_DEBUGP("Refusing to reset a multi-interface device\n");
-	} else {
-		rc = usb_lock_device_for_reset(us->pusb_dev, us->pusb_intf);
-		if (rc < 0) {
-			US_DEBUGP("unable to lock device for reset: %d\n", rc);
-			result = rc;
-		} else {
-			result = usb_reset_device(us->pusb_dev);
-			if (rc)
-				usb_unlock_device(us->pusb_dev);
-			US_DEBUGP("usb_reset_device returns %d\n", result);
-		}
-	}
+	result = usb_stor_port_reset(us);
 	up(&(us->dev_semaphore));
 
-	/* lock the host for the return */
-	scsi_lock(us_to_host(us));
 	return result < 0 ? FAILED : SUCCESS;
 }
 
@@ -327,6 +306,14 @@ void usb_stor_report_device_reset(struct us_data *us)
 		for (i = 1; i < host->max_id; ++i)
 			scsi_report_device_reset(host, 0, i);
 	}
+}
+
+/* Report a driver-initiated bus reset to the SCSI layer.
+ * Calling this for a SCSI-initiated reset is unnecessary but harmless.
+ * The caller must own the SCSI host lock. */
+void usb_stor_report_bus_reset(struct us_data *us)
+{
+	scsi_report_bus_reset(us_to_host(us), 0);
 }
 
 /***********************************************************************
@@ -407,7 +394,7 @@ US_DO_ALL_FLAGS
  ***********************************************************************/
 
 /* Output routine for the sysfs max_sectors file */
-static ssize_t show_max_sectors(struct device *dev, char *buf)
+static ssize_t show_max_sectors(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct scsi_device *sdev = to_scsi_device(dev);
 
@@ -415,7 +402,7 @@ static ssize_t show_max_sectors(struct device *dev, char *buf)
 }
 
 /* Input routine for the sysfs max_sectors file */
-static ssize_t store_max_sectors(struct device *dev, const char *buf,
+static ssize_t store_max_sectors(struct device *dev, struct device_attribute *attr, const char *buf,
 		size_t count)
 {
 	struct scsi_device *sdev = to_scsi_device(dev);

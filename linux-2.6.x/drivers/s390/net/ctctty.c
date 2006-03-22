@@ -1,6 +1,4 @@
 /*
- * $Id$
- *
  * CTC / ESCON network driver, tty interface.
  *
  * Copyright (C) 2001 IBM Deutschland Entwicklung GmbH, IBM Corporation
@@ -25,6 +23,7 @@
 #include <linux/config.h>
 #include <linux/module.h>
 #include <linux/tty.h>
+#include <linux/tty_flip.h>
 #include <linux/serial_reg.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
@@ -101,25 +100,17 @@ static spinlock_t ctc_tty_lock;
 static int
 ctc_tty_try_read(ctc_tty_info * info, struct sk_buff *skb)
 {
-	int c;
 	int len;
 	struct tty_struct *tty;
 
 	DBF_TEXT(trace, 5, __FUNCTION__);
 	if ((tty = info->tty)) {
 		if (info->mcr & UART_MCR_RTS) {
-			c = TTY_FLIPBUF_SIZE - tty->flip.count;
 			len = skb->len;
-			if (c >= len) {
-				memcpy(tty->flip.char_buf_ptr, skb->data, len);
-				memset(tty->flip.flag_buf_ptr, 0, len);
-				tty->flip.count += len;
-				tty->flip.char_buf_ptr += len;
-				tty->flip.flag_buf_ptr += len;
-				tty_flip_buffer_push(tty);
-				kfree_skb(skb);
-				return 1;
-			}
+			tty_insert_flip_string(tty, skb->data, len);
+			tty_flip_buffer_push(tty);
+			kfree_skb(skb);
+			return 1;
 		}
 	}
 	return 0;
@@ -138,25 +129,18 @@ ctc_tty_readmodem(ctc_tty_info *info)
 	DBF_TEXT(trace, 5, __FUNCTION__);
 	if ((tty = info->tty)) {
 		if (info->mcr & UART_MCR_RTS) {
-			int c = TTY_FLIPBUF_SIZE - tty->flip.count;
 			struct sk_buff *skb;
 			
-			if ((c > 0) && (skb = skb_dequeue(&info->rx_queue))) {
+			if ((skb = skb_dequeue(&info->rx_queue))) {
 				int len = skb->len;
-				if (len > c)
-					len = c;
-				memcpy(tty->flip.char_buf_ptr, skb->data, len);
+				tty_insert_flip_string(tty, skb->data, len);
 				skb_pull(skb, len);
-				memset(tty->flip.flag_buf_ptr, 0, len);
-				tty->flip.count += len;
-				tty->flip.char_buf_ptr += len;
-				tty->flip.flag_buf_ptr += len;
 				tty_flip_buffer_push(tty);
 				if (skb->len > 0)
 					skb_queue_head(&info->rx_queue, skb);
 				else {
 					kfree_skb(skb);
-					ret = skb_queue_len(&info->rx_queue);
+					ret = !skb_queue_empty(&info->rx_queue);
 				}
 			}
 		}
@@ -530,7 +514,7 @@ ctc_tty_write(struct tty_struct *tty, const u_char * buf, int count)
 		total += c;
 		count -= c;
 	}
-	if (skb_queue_len(&info->tx_queue)) {
+	if (!skb_queue_empty(&info->tx_queue)) {
 		info->lsr &= ~UART_LSR_TEMT;
 		tasklet_schedule(&info->tasklet);
 	}
@@ -594,7 +578,7 @@ ctc_tty_flush_chars(struct tty_struct *tty)
 		return;
 	if (ctc_tty_paranoia_check(info, tty->name, "ctc_tty_flush_chars"))
 		return;
-	if (tty->stopped || tty->hw_stopped || (!skb_queue_len(&info->tx_queue)))
+	if (tty->stopped || tty->hw_stopped || skb_queue_empty(&info->tx_queue))
 		return;
 	tasklet_schedule(&info->tasklet);
 }

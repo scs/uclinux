@@ -208,7 +208,7 @@ static int test_bus(struct i2c_algo_iic_data *adap, char *name) {
 		goto bailout;
 	}
 	sdalo(adap);
-	printk("test_bus:1 scl: %d  sda: %d \n",getscl(adap),
+	printk("test_bus:1 scl: %d  sda: %d\n", getscl(adap),
 	       getsda(adap));
 	if ( 0 != getsda(adap) ) {
 		printk("test_bus: %s SDA stuck high!\n",name);
@@ -221,7 +221,7 @@ static int test_bus(struct i2c_algo_iic_data *adap, char *name) {
 		goto bailout;
 	}		
 	sdahi(adap);
-	printk("test_bus:2 scl: %d  sda: %d \n",getscl(adap),
+	printk("test_bus:2 scl: %d  sda: %d\n", getscl(adap),
 	       getsda(adap));
 	if ( 0 == getsda(adap) ) {
 		printk("test_bus: %s SDA stuck low!\n",name);
@@ -234,7 +234,7 @@ static int test_bus(struct i2c_algo_iic_data *adap, char *name) {
 	goto bailout;
 	}
 	scllo(adap);
-	printk("test_bus:3 scl: %d  sda: %d \n",getscl(adap),
+	printk("test_bus:3 scl: %d  sda: %d\n", getscl(adap),
 	       getsda(adap));
 	if ( 0 != getscl(adap) ) {
 
@@ -247,7 +247,7 @@ static int test_bus(struct i2c_algo_iic_data *adap, char *name) {
 		goto bailout;
 	}
 	sclhi(adap);
-	printk("test_bus:4 scl: %d  sda: %d \n",getscl(adap),
+	printk("test_bus:4 scl: %d  sda: %d\n", getscl(adap),
 	       getsda(adap));
 	if ( 0 == getscl(adap) ) {
 		printk("test_bus: %s SCL stuck low!\n",name);
@@ -713,8 +713,6 @@ static u32 iic_func(struct i2c_adapter *adap)
 /* -----exported algorithm data: -------------------------------------	*/
 
 static struct i2c_algorithm iic_algo = {
-	.name		= "ITE IIC algorithm",
-	.id		= I2C_ALGO_IIC,
 	.master_xfer	= iic_xfer,
 	.algo_control	= algo_control, /* ioctl */
 	.functionality	= iic_func,
@@ -738,8 +736,6 @@ int i2c_iic_add_bus(struct i2c_adapter *adap)
 	            adap->name));
 
 	/* register new adapter to i2c module... */
-
-	adap->id |= iic_algo.id;
 	adap->algo = &iic_algo;
 
 	adap->timeout = 100;	/* default values, should	*/

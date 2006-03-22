@@ -14,7 +14,6 @@
 #include <linux/unistd.h>
 #include <linux/interrupt.h>
 #include <linux/init.h>
-#include <linux/version.h>
 #include <linux/list.h>
 #include <linux/spinlock.h>
 
@@ -178,8 +177,8 @@ static __u8 root_hub_hub_des[] =
 	0xff   /*  __u8  PortPwrCtrlMask; *** 7 ports max *** */
 };
 
-static struct timer_list bulk_start_timer = TIMER_INITIALIZER(NULL, 0, 0);
-static struct timer_list bulk_eot_timer = TIMER_INITIALIZER(NULL, 0, 0);
+static DEFINE_TIMER(bulk_start_timer, NULL, 0, 0);
+static DEFINE_TIMER(bulk_eot_timer, NULL, 0, 0);
 
 /* We want the start timer to expire before the eot timer, because the former might start
    traffic, thus making it unnecessary for the latter to time out. */
@@ -463,7 +462,8 @@ static void etrax_usb_free_epid(int epid);
 
 static int etrax_remove_from_sb_list(struct urb *urb);
 
-static void* etrax_usb_buffer_alloc(struct usb_bus* bus, size_t size, int mem_flags, dma_addr_t *dma);
+static void* etrax_usb_buffer_alloc(struct usb_bus* bus, size_t size,
+	unsigned mem_flags, dma_addr_t *dma);
 static void etrax_usb_buffer_free(struct usb_bus *bus, size_t size, void *addr, dma_addr_t dma);
 
 static void etrax_usb_add_to_bulk_sb_list(struct urb *urb, int epid);
@@ -476,7 +476,7 @@ static int etrax_usb_submit_ctrl_urb(struct urb *urb);
 static int etrax_usb_submit_intr_urb(struct urb *urb);
 static int etrax_usb_submit_isoc_urb(struct urb *urb);
 
-static int etrax_usb_submit_urb(struct urb *urb, int mem_flags);
+static int etrax_usb_submit_urb(struct urb *urb, unsigned mem_flags);
 static int etrax_usb_unlink_urb(struct urb *urb, int status);
 static int etrax_usb_get_frame_number(struct usb_device *usb_dev);
 
@@ -1262,7 +1262,7 @@ static int etrax_usb_allocate_epid(void)
 	return -1;
 }
 
-static int etrax_usb_submit_urb(struct urb *urb, int mem_flags)
+static int etrax_usb_submit_urb(struct urb *urb, unsigned mem_flags)
 {
 	etrax_hc_t *hc;
 	int ret = -EINVAL;
@@ -4277,7 +4277,8 @@ etrax_usb_bulk_eot_timer_func(unsigned long dummy)
 }
 
 static void*
-etrax_usb_buffer_alloc(struct usb_bus* bus, size_t size, int mem_flags, dma_addr_t *dma)
+etrax_usb_buffer_alloc(struct usb_bus* bus, size_t size,
+	unsigned mem_flags, dma_addr_t *dma)
 {
   return kmalloc(size, mem_flags);
 }
@@ -4396,7 +4397,7 @@ static int __init etrax_usb_hc_init(void)
         device_initialize(&fake_device);
         kobject_set_name(&fake_device.kobj, "etrax_usb");
         kobject_add(&fake_device.kobj);
-        kobject_hotplug(&fake_device.kobj, KOBJ_ADD);
+	kobject_uevent(&fake_device.kobj, KOBJ_ADD);
         hc->bus->controller = &fake_device;
 	usb_register_bus(hc->bus);
 

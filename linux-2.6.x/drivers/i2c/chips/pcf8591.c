@@ -24,15 +24,13 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/i2c.h>
-#include <linux/i2c-sensor.h>
 
 /* Addresses to scan */
 static unsigned short normal_i2c[] = { 0x48, 0x49, 0x4a, 0x4b, 0x4c,
 					0x4d, 0x4e, 0x4f, I2C_CLIENT_END };
-static unsigned int normal_isa[] = { I2C_CLIENT_ISA_END };
 
 /* Insmod parameters */
-SENSORS_INSMOD_1(pcf8591);
+I2C_CLIENT_INSMOD_1(pcf8591);
 
 static int input_mode;
 module_param(input_mode, int, 0);
@@ -90,17 +88,17 @@ static int pcf8591_read_channel(struct device *dev, int channel);
 
 /* This is the driver that will be inserted */
 static struct i2c_driver pcf8591_driver = {
-	.owner		= THIS_MODULE,
-	.name		= "pcf8591",
+	.driver = {
+		.name	= "pcf8591",
+	},
 	.id		= I2C_DRIVERID_PCF8591,
-	.flags		= I2C_DF_NOTIFY,
 	.attach_adapter	= pcf8591_attach_adapter,
 	.detach_client	= pcf8591_detach_client,
 };
 
 /* following are the sysfs callback functions */
 #define show_in_channel(channel)					\
-static ssize_t show_in##channel##_input(struct device *dev, char *buf)	\
+static ssize_t show_in##channel##_input(struct device *dev, struct device_attribute *attr, char *buf)	\
 {									\
 	return sprintf(buf, "%d\n", pcf8591_read_channel(dev, channel));\
 }									\
@@ -112,13 +110,13 @@ show_in_channel(1);
 show_in_channel(2);
 show_in_channel(3);
 
-static ssize_t show_out0_ouput(struct device *dev, char *buf)
+static ssize_t show_out0_ouput(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct pcf8591_data *data = i2c_get_clientdata(to_i2c_client(dev));
 	return sprintf(buf, "%d\n", data->aout * 10);
 }
 
-static ssize_t set_out0_output(struct device *dev, const char *buf, size_t count)
+static ssize_t set_out0_output(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	unsigned int value;
 	struct i2c_client *client = to_i2c_client(dev);
@@ -134,13 +132,13 @@ static ssize_t set_out0_output(struct device *dev, const char *buf, size_t count
 static DEVICE_ATTR(out0_output, S_IWUSR | S_IRUGO, 
 		   show_out0_ouput, set_out0_output);
 
-static ssize_t show_out0_enable(struct device *dev, char *buf)
+static ssize_t show_out0_enable(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct pcf8591_data *data = i2c_get_clientdata(to_i2c_client(dev));
 	return sprintf(buf, "%u\n", !(!(data->control & PCF8591_CONTROL_AOEF)));
 }
 
-static ssize_t set_out0_enable(struct device *dev, const char *buf, size_t count)
+static ssize_t set_out0_enable(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct pcf8591_data *data = i2c_get_clientdata(client);
@@ -164,11 +162,11 @@ static DEVICE_ATTR(out0_enable, S_IWUSR | S_IRUGO,
  */
 static int pcf8591_attach_adapter(struct i2c_adapter *adapter)
 {
-	return i2c_detect(adapter, &addr_data, pcf8591_detect);
+	return i2c_probe(adapter, &addr_data, pcf8591_detect);
 }
 
-/* This function is called by i2c_detect */
-int pcf8591_detect(struct i2c_adapter *adapter, int address, int kind)
+/* This function is called by i2c_probe */
+static int pcf8591_detect(struct i2c_adapter *adapter, int address, int kind)
 {
 	struct i2c_client *new_client;
 	struct pcf8591_data *data;
@@ -180,11 +178,10 @@ int pcf8591_detect(struct i2c_adapter *adapter, int address, int kind)
 
 	/* OK. For now, we presume we have a valid client. We now create the
 	   client structure, even though we cannot fill it completely yet. */
-	if (!(data = kmalloc(sizeof(struct pcf8591_data), GFP_KERNEL))) {
+	if (!(data = kzalloc(sizeof(struct pcf8591_data), GFP_KERNEL))) {
 		err = -ENOMEM;
 		goto exit;
 	}
-	memset(data, 0, sizeof(struct pcf8591_data));
 	
 	new_client = &data->client;
 	i2c_set_clientdata(new_client, data);
@@ -241,11 +238,8 @@ static int pcf8591_detach_client(struct i2c_client *client)
 {
 	int err;
 
-	if ((err = i2c_detach_client(client))) {
-		dev_err(&client->dev,
-			"Client deregistration failed, client not detached.\n");
+	if ((err = i2c_detach_client(client)))
 		return err;
-	}
 
 	kfree(i2c_get_clientdata(client));
 	return 0;

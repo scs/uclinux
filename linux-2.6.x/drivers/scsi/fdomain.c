@@ -570,7 +570,7 @@ static void do_pause(unsigned amount)	/* Pause for amount*10 milliseconds */
 	mdelay(10*amount);
 }
 
-inline static void fdomain_make_bus_idle( void )
+static inline void fdomain_make_bus_idle( void )
 {
    outb(0, port_base + SCSI_Cntl);
    outb(0, port_base + SCSI_Mode_Cntl);
@@ -938,7 +938,6 @@ struct Scsi_Host *__fdomain_16x0_detect(struct scsi_host_template *tpnt )
    }
    shpnt->irq = interrupt_level;
    shpnt->io_port = port_base;
-   scsi_set_device(shpnt, &pdev->dev);
    shpnt->n_io_port = 0x10;
    print_banner( shpnt );
 
@@ -1155,7 +1154,7 @@ static irqreturn_t do_fdomain_16x0_intr(int irq, void *dev_id,
       outb(0x40 | FIFO_COUNT, port_base + Interrupt_Cntl);
 
       outb(0x82, port_base + SCSI_Cntl); /* Bus Enable + Select */
-      outb(adapter_mask | (1 << current_SC->device->id), port_base + SCSI_Data_NoACK);
+      outb(adapter_mask | (1 << scmd_id(current_SC)), port_base + SCSI_Data_NoACK);
       
       /* Stop arbitration and enable parity */
       outb(0x10 | PARITY_MASK, port_base + TMC_Cntl);
@@ -1167,7 +1166,7 @@ static irqreturn_t do_fdomain_16x0_intr(int irq, void *dev_id,
       status = inb(port_base + SCSI_Status);
       if (!(status & 0x01)) {
 	 /* Try again, for slow devices */
-	 if (fdomain_select( current_SC->device->id )) {
+	 if (fdomain_select( scmd_id(current_SC) )) {
 #if EVERY_ACCESS
 	    printk( " SFAIL " );
 #endif
@@ -1543,12 +1542,18 @@ static int fdomain_16x0_abort(struct scsi_cmnd *SCpnt)
 
 int fdomain_16x0_bus_reset(struct scsi_cmnd *SCpnt)
 {
+   unsigned long flags;
+
+   local_irq_save(flags);
+
    outb(1, port_base + SCSI_Cntl);
    do_pause( 2 );
    outb(0, port_base + SCSI_Cntl);
    do_pause( 115 );
    outb(0, port_base + SCSI_Mode_Cntl);
    outb(PARITY_MASK, port_base + TMC_Cntl);
+
+   local_irq_restore(flags);
    return SUCCESS;
 }
 

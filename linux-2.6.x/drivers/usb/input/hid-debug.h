@@ -67,7 +67,7 @@ static const struct hid_usage_entry hid_usage_table[] = {
       {0, 0x44, "Vbry"},
       {0, 0x45, "Vbrz"},
       {0, 0x46, "Vno"},
-    {0, 0x80, "SystemControl"}, 
+    {0, 0x80, "SystemControl"},
       {0, 0x81, "SystemPowerDown"},
       {0, 0x82, "SystemSleep"},
       {0, 0x83, "SystemWakeUp"},
@@ -85,6 +85,23 @@ static const struct hid_usage_entry hid_usage_table[] = {
       {0, 0x91, "D-PadDown"},
       {0, 0x92, "D-PadRight"},
       {0, 0x93, "D-PadLeft"},
+  {  2, 0, "Simulation" },
+      {0, 0xb0, "Aileron"},
+      {0, 0xb1, "AileronTrim"},
+      {0, 0xb2, "Anti-Torque"},
+      {0, 0xb3, "Autopilot"},
+      {0, 0xb4, "Chaff"},
+      {0, 0xb5, "Collective"},
+      {0, 0xb6, "DiveBrake"},
+      {0, 0xb7, "ElectronicCountermeasures"},
+      {0, 0xb8, "Elevator"},
+      {0, 0xb9, "ElevatorTrim"},
+      {0, 0xba, "Rudder"},
+      {0, 0xbb, "Throttle"},
+      {0, 0xbc, "FlightCommunications"},
+      {0, 0xbd, "FlareRelease"},
+      {0, 0xbe, "LandingGear"},
+      {0, 0xbf, "ToeBrake"},
   {  7, 0, "Keyboard" },
   {  8, 0, "LED" },
       {0, 0x01, "NumLock"},
@@ -92,6 +109,7 @@ static const struct hid_usage_entry hid_usage_table[] = {
       {0, 0x03, "ScrollLock"},
       {0, 0x04, "Compose"},
       {0, 0x05, "Kana"},
+      {0, 0x4b, "GenericIndicator"},
   {  9, 0, "Button" },
   { 10, 0, "Ordinal" },
   { 12, 0, "Consumer" },
@@ -347,7 +365,7 @@ __inline__ static void tab(int n) {
 
 static void hid_dump_field(struct hid_field *field, int n) {
 	int j;
-	
+
 	if (field->physical) {
 		tab(n);
 		printk("Physical(");
@@ -408,7 +426,7 @@ static void hid_dump_field(struct hid_field *field, int n) {
 					printk("%s", units[sys][i]);
 					if(nibble != 1) {
 						/* This is a _signed_ nibble(!) */
-	
+
 						int val = nibble & 0x7;
 						if(nibble & 0x08)
 							val = -((0x7 & ~val) +1);
@@ -443,7 +461,7 @@ static void __attribute__((unused)) hid_dump_device(struct hid_device *device) {
 	struct list_head *list;
 	unsigned i,k;
 	static char *table[] = {"INPUT", "OUTPUT", "FEATURE"};
-	
+
 	for (i = 0; i < HID_REPORT_TYPES; i++) {
 		report_enum = device->report_enum + i;
 		list = report_enum->report_list.next;
@@ -574,7 +592,8 @@ static char *keys[KEY_MAX + 1] = {
 	[KEY_EXIT] = "Exit",			[KEY_MOVE] = "Move",
 	[KEY_EDIT] = "Edit",			[KEY_SCROLLUP] = "ScrollUp",
 	[KEY_SCROLLDOWN] = "ScrollDown",	[KEY_KPLEFTPAREN] = "KPLeftParenthesis",
-	[KEY_KPRIGHTPAREN] = "KPRightParenthesis", [KEY_F13] = "F13",
+	[KEY_KPRIGHTPAREN] = "KPRightParenthesis", [KEY_NEW] = "New",
+	[KEY_REDO] = "Redo",			[KEY_F13] = "F13",
 	[KEY_F14] = "F14",			[KEY_F15] = "F15",
 	[KEY_F16] = "F16",			[KEY_F17] = "F17",
 	[KEY_F18] = "F18",			[KEY_F19] = "F19",
@@ -584,15 +603,15 @@ static char *keys[KEY_MAX + 1] = {
 	[KEY_PAUSECD] = "PauseCD",		[KEY_PROG3] = "Prog3",
 	[KEY_PROG4] = "Prog4",			[KEY_SUSPEND] = "Suspend",
 	[KEY_CLOSE] = "Close",			[KEY_PLAY] = "Play",
-	[KEY_FASTFORWARD] = "Fast Forward",	[KEY_BASSBOOST] = "Bass Boost",
+	[KEY_FASTFORWARD] = "FastForward",	[KEY_BASSBOOST] = "BassBoost",
 	[KEY_PRINT] = "Print",			[KEY_HP] = "HP",
 	[KEY_CAMERA] = "Camera",		[KEY_SOUND] = "Sound",
 	[KEY_QUESTION] = "Question",		[KEY_EMAIL] = "Email",
 	[KEY_CHAT] = "Chat",			[KEY_SEARCH] = "Search",
 	[KEY_CONNECT] = "Connect",		[KEY_FINANCE] = "Finance",
 	[KEY_SPORT] = "Sport",			[KEY_SHOP] = "Shop",
-	[KEY_ALTERASE] = "Alternate Erase",	[KEY_CANCEL] = "Cancel",
-	[KEY_BRIGHTNESSDOWN] = "Brightness down", [KEY_BRIGHTNESSUP] = "Brightness up",
+	[KEY_ALTERASE] = "AlternateErase",	[KEY_CANCEL] = "Cancel",
+	[KEY_BRIGHTNESSDOWN] = "BrightnessDown", [KEY_BRIGHTNESSUP] = "BrightnessUp",
 	[KEY_MEDIA] = "Media",			[KEY_UNKNOWN] = "Unknown",
 	[BTN_0] = "Btn0",			[BTN_1] = "Btn1",
 	[BTN_2] = "Btn2",			[BTN_3] = "Btn3",
@@ -622,8 +641,8 @@ static char *keys[KEY_MAX + 1] = {
 	[BTN_TOOL_AIRBRUSH] = "ToolAirbrush",	[BTN_TOOL_FINGER] = "ToolFinger",
 	[BTN_TOOL_MOUSE] = "ToolMouse",		[BTN_TOOL_LENS] = "ToolLens",
 	[BTN_TOUCH] = "Touch",			[BTN_STYLUS] = "Stylus",
-	[BTN_STYLUS2] = "Stylus2",		[BTN_TOOL_DOUBLETAP] = "Tool Doubletap",
-	[BTN_TOOL_TRIPLETAP] = "Tool Tripletap", [BTN_GEAR_DOWN] = "WheelBtn",
+	[BTN_STYLUS2] = "Stylus2",		[BTN_TOOL_DOUBLETAP] = "ToolDoubleTap",
+	[BTN_TOOL_TRIPLETAP] = "ToolTripleTap", [BTN_GEAR_DOWN] = "WheelBtn",
 	[BTN_GEAR_UP] = "Gear up",		[KEY_OK] = "Ok",
 	[KEY_SELECT] = "Select",		[KEY_GOTO] = "Goto",
 	[KEY_CLEAR] = "Clear",			[KEY_POWER2] = "Power2",
@@ -659,13 +678,31 @@ static char *keys[KEY_MAX + 1] = {
 	[KEY_TWEN] = "TWEN",			[KEY_DEL_EOL] = "DeleteEOL",
 	[KEY_DEL_EOS] = "DeleteEOS",		[KEY_INS_LINE] = "InsertLine",
 	[KEY_DEL_LINE] = "DeleteLine",
+	[KEY_SEND] = "Send",			[KEY_REPLY] = "Reply",
+	[KEY_FORWARDMAIL] = "ForwardMail",	[KEY_SAVE] = "Save",
+	[KEY_DOCUMENTS] = "Documents",
+	[KEY_FN] = "Fn",			[KEY_FN_ESC] = "Fn+ESC",
+	[KEY_FN_1] = "Fn+1",			[KEY_FN_2] = "Fn+2",
+	[KEY_FN_B] = "Fn+B",			[KEY_FN_D] = "Fn+D",
+	[KEY_FN_E] = "Fn+E",			[KEY_FN_F] = "Fn+F",
+	[KEY_FN_S] = "Fn+S",
+	[KEY_FN_F1] = "Fn+F1",			[KEY_FN_F2] = "Fn+F2",
+	[KEY_FN_F3] = "Fn+F3",			[KEY_FN_F4] = "Fn+F4",
+	[KEY_FN_F5] = "Fn+F5",			[KEY_FN_F6] = "Fn+F6",
+	[KEY_FN_F7] = "Fn+F7",			[KEY_FN_F8] = "Fn+F8",
+	[KEY_FN_F9] = "Fn+F9",			[KEY_FN_F10] = "Fn+F10",
+	[KEY_FN_F11] = "Fn+F11",		[KEY_FN_F12] = "Fn+F12",
+	[KEY_KBDILLUMTOGGLE] = "KbdIlluminationToggle",
+	[KEY_KBDILLUMDOWN] = "KbdIlluminationDown",
+	[KEY_KBDILLUMUP] = "KbdIlluminationUp",
+	[KEY_SWITCHVIDEOMODE] = "SwitchVideoMode",
 };
 
 static char *relatives[REL_MAX + 1] = {
 	[REL_X] = "X",			[REL_Y] = "Y",
 	[REL_Z] = "Z",			[REL_HWHEEL] = "HWheel",
-	[REL_DIAL] = "Dial",		[REL_WHEEL] = "Wheel", 
-	[REL_MISC] = "Misc",	
+	[REL_DIAL] = "Dial",		[REL_WHEEL] = "Wheel",
+	[REL_MISC] = "Misc",
 };
 
 static char *absolutes[ABS_MAX + 1] = {
@@ -690,9 +727,9 @@ static char *misc[MSC_MAX + 1] = {
 };
 
 static char *leds[LED_MAX + 1] = {
-	[LED_NUML] = "NumLock",		[LED_CAPSL] = "CapsLock", 
+	[LED_NUML] = "NumLock",		[LED_CAPSL] = "CapsLock",
 	[LED_SCROLLL] = "ScrollLock",	[LED_COMPOSE] = "Compose",
-	[LED_KANA] = "Kana",		[LED_SLEEP] = "Sleep", 
+	[LED_KANA] = "Kana",		[LED_SLEEP] = "Sleep",
 	[LED_SUSPEND] = "Suspend",	[LED_MUTE] = "Mute",
 	[LED_MISC] = "Misc",
 };

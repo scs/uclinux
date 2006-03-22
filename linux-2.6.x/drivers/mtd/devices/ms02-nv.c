@@ -99,8 +99,8 @@ static inline uint ms02nv_probe_one(ulong addr)
 	 * The firmware writes MS02NV_ID at MS02NV_MAGIC and also
 	 * a diagnostic status at MS02NV_DIAG.
 	 */
-	ms02nv_diagp = (ms02nv_uint *)(KSEG1ADDR(addr + MS02NV_DIAG));
-	ms02nv_magicp = (ms02nv_uint *)(KSEG1ADDR(addr + MS02NV_MAGIC));
+	ms02nv_diagp = (ms02nv_uint *)(CKSEG1ADDR(addr + MS02NV_DIAG));
+	ms02nv_magicp = (ms02nv_uint *)(CKSEG1ADDR(addr + MS02NV_MAGIC));
 	err = get_dbe(ms02nv_magic, ms02nv_magicp);
 	if (err)
 		return 0;
@@ -233,7 +233,7 @@ static int __init ms02nv_init_one(ulong addr)
 		goto err_out_csr_res;
 	}
 
-	printk(KERN_INFO "mtd%d: %s at 0x%08lx, size %uMiB.\n",
+	printk(KERN_INFO "mtd%d: %s at 0x%08lx, size %zuMiB.\n",
 		mtd->index, ms02nv_name, addr, size >> 20);
 
 	mp->next = root_ms02nv_mtd;
@@ -293,13 +293,13 @@ static int __init ms02nv_init(void)
 
 	switch (mips_machtype) {
 	case MACH_DS5000_200:
-		csr = (volatile u32 *)KN02_CSR_BASE;
+		csr = (volatile u32 *)CKSEG1ADDR(KN02_SLOT_BASE + KN02_CSR);
 		if (*csr & KN02_CSR_BNK32M)
 			stride = 2;
 		break;
 	case MACH_DS5000_2X0:
 	case MACH_DS5900:
-		csr = (volatile u32 *)KN03_MCR_BASE;
+		csr = (volatile u32 *)CKSEG1ADDR(KN03_SLOT_BASE + IOASIC_MCR);
 		if (*csr & KN03_MCR_BNK32M)
 			stride = 2;
 		break;

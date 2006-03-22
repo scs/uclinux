@@ -1,8 +1,5 @@
 #
-# PCMCIA bus subsystem configuration
-#
-# Right now the non-CardBus choices are not supported
-# by the integrated kernel driver.
+# PCCARD (PCMCIA/CardBus) bus subsystem configuration
 #
 
 menu "PCCARD (PCMCIA/CardBus) support"
@@ -14,8 +11,8 @@ config PCCARD
 	  Say Y here if you want to attach PCMCIA- or PC-cards to your Linux
 	  computer.  These are credit-card size devices such as network cards,
 	  modems or hard drives often used with laptops computers.  There are
-	  actually two varieties of these cards: the older 16 bit PCMCIA cards
-	  and the newer 32 bit CardBus cards.
+	  actually two varieties of these cards: 16 bit PCMCIA and 32 bit
+	  CardBus cards.
 
 	  To compile this driver as modules, choose M here: the
 	  module will be called pcmcia_core.
@@ -32,7 +29,7 @@ config PCMCIA_DEBUG
 
 	  The kernel command line options are:
 	    pcmcia_core.pc_debug=N
-	    ds.pc_debug=N
+	    pcmcia.pc_debug=N
 	    sa11xx_core.pc_debug=N
 
 	  The module option is called pc_debug=N
@@ -42,21 +39,49 @@ config PCMCIA_DEBUG
 
 config PCMCIA
 	tristate "16-bit PCMCIA support"
+	select CRC32
 	default y
 	---help---
 	   This option enables support for 16-bit PCMCIA cards. Most older
 	   PC-cards are such 16-bit PCMCIA cards, so unless you know you're
 	   only using 32-bit CardBus cards, say Y or M here.
 
-	   To use 16-bit PCMCIA cards, you will need supporting software from 
-	   David Hinds' pcmcia-cs package (see the file <file:Documentation/Changes>
- 	   for location).  Please also read the PCMCIA-HOWTO, available from
-	   <http://www.tldp.org/docs.html#howto>.
+	   To use 16-bit PCMCIA cards, you will need supporting software in
+	   most cases. (see the file <file:Documentation/Changes> for
+	   location and details).
 
 	   To compile this driver as modules, choose M here: the
 	   module will be called pcmcia.
 
 	   If unsure, say Y.
+
+config PCMCIA_LOAD_CIS
+	bool "Load CIS updates from userspace (EXPERIMENTAL)"
+	depends on PCMCIA && EXPERIMENTAL
+	select FW_LOADER
+	default y
+	help
+	  Some PCMCIA cards require an updated Card Information Structure (CIS)
+	  to be loaded from userspace to work correctly. If you say Y here,
+	  and your userspace is arranged correctly, this will be loaded
+	  automatically using the in-kernel firmware loader and the hotplug
+	  subsystem, instead of relying on cardmgr from pcmcia-cs to do so.
+
+	  If unsure, say Y.
+
+config PCMCIA_IOCTL
+	bool "PCMCIA control ioctl (obsolete)"
+	depends on PCMCIA
+	default y
+	help
+	  If you say Y here, the deprecated ioctl interface to the PCMCIA
+	  subsystem will be built. It is needed by cardmgr and cardctl
+	  (pcmcia-cs) to function properly.
+
+	  You should use the new pcmciautils package instead (see
+	  <file:Documentation/Changes> for location and details).
+
+	  If unsure, say Y.
 
 config CARDBUS
 	bool "32-bit CardBus support"	
@@ -78,8 +103,7 @@ comment "PC-card bridges"
 config YENTA
 	tristate "CardBus yenta-compatible bridge support"
 	depends on PCI
-#fixme: remove dependendcy on CARDBUS
-	depends on CARDBUS
+	select CARDBUS if !EMBEDDED
 	select PCCARD_NONSTATIC
 	---help---
 	  This option enables support for CardBus host bridges.  Virtually
@@ -91,6 +115,31 @@ config YENTA
 	  module will be called yenta_socket.
 
 	  If unsure, say Y.
+
+config YENTA_O2
+	default y
+	bool "Special initialization for O2Micro bridges" if EMBEDDED
+	depends on YENTA
+
+config YENTA_RICOH
+	default y
+	bool "Special initialization for Ricoh bridges" if EMBEDDED
+	depends on YENTA
+
+config YENTA_TI
+	default y
+	bool "Special initialization for TI and EnE bridges" if EMBEDDED
+	depends on YENTA
+
+config YENTA_ENE_TUNE
+	default y
+	bool "Auto-tune EnE bridges for CB cards" if EMBEDDED
+	depends on YENTA_TI && CARDBUS
+
+config YENTA_TOSHIBA
+	default y
+	bool "Special initialization for Toshiba ToPIC bridges" if EMBEDDED
+	depends on YENTA
 
 config PD6729
 	tristate "Cirrus PD6729 compatible bridge support"
@@ -122,13 +171,23 @@ config I82365
 
 config TCIC
 	tristate "Databook TCIC host bridge support"
-	depends on PCMCIA
+	depends on PCMCIA && ISA
 	select PCCARD_NONSTATIC
 	help
 	  Say Y here to include support for the Databook TCIC family of PCMCIA
 	  host bridges. These are only found on a handful of old systems.
 	  "Bridge" is the name used for the hardware inside your computer that
 	  PCMCIA cards are plugged into. If unsure, say N.
+
+config PCMCIA_M8XX
+        tristate "MPC8xx PCMCIA support"
+        depends on PCMCIA && PPC && 8xx 
+        select PCCARD_IODYN
+        help
+        Say Y here to include support for PowerPC 8xx series PCMCIA
+        controller.
+
+        This driver is also available as a module called m8xx_pcmcia.
 
 config HD64465_PCMCIA
 	tristate "HD64465 host bridge support"
@@ -166,24 +225,26 @@ config PCMCIA_PXA2XX
 
 config PCMCIA_PROBE
 	bool
-	default y if ISA && !ARCH_SA1100 && !ARCH_CLPS711X
+	default y if ISA && !ARCH_SA1100 && !ARCH_CLPS711X && !PARISC
 
 config M32R_PCC
 	bool "M32R PCMCIA I/F"
 	depends on M32R && CHIP_M32700 && PCMCIA
+	select PCCARD_NONSTATIC
 	help
 	  Say Y here to use the M32R PCMCIA controller.
 
 config M32R_CFC
 	bool "M32R CF I/F Controller"
-	depends on M32R && (PLAT_USRV || PLAT_M32700UT || PLAT_MAPPI2 || PLAT_OPSPUT)
+	depends on M32R && (PLAT_USRV || PLAT_M32700UT || PLAT_MAPPI2 || PLAT_MAPPI3 || PLAT_OPSPUT)
+	select PCCARD_NONSTATIC
 	help
 	  Say Y here to use the M32R CompactFlash controller.
 
 config M32R_CFC_NUM
 	int "M32R CF I/F number"
 	depends on M32R_CFC
-	default "1" if PLAT_USRV || PLAT_M32700UT || PLAT_MAPPI2 || PLAT_OPSPUT
+	default "1" if PLAT_USRV || PLAT_M32700UT || PLAT_MAPPI2 || PLAT_MAPPI3 || PLAT_OPSPUT
 	help
 	  Set the number of M32R CF slots.
 
@@ -195,8 +256,18 @@ config PCMCIA_VRC4173
 	tristate "NEC VRC4173 CARDU support"
 	depends on CPU_VR41XX && PCI && PCMCIA
 
+config OMAP_CF
+	tristate "OMAP CompactFlash Controller"
+	depends on PCMCIA && ARCH_OMAP16XX
+	help
+	  Say Y here to support the CompactFlash controller on OMAP.
+	  Note that this doesn't support "True IDE" mode.
+
 config PCCARD_NONSTATIC
 	tristate
+
+config PCCARD_IODYN
+	bool
 
 endif	# PCCARD
 

@@ -28,8 +28,6 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#define ZFCP_SYSFS_UNIT_C_REVISION "$Revision$"
-
 #include "zfcp_ext.h"
 
 #define ZFCP_LOG_AREA                   ZFCP_LOG_AREA_CONFIG
@@ -53,7 +51,7 @@ zfcp_sysfs_unit_release(struct device *dev)
  * Generates attribute for a unit.
  */
 #define ZFCP_DEFINE_UNIT_ATTR(_name, _format, _value)                    \
-static ssize_t zfcp_sysfs_unit_##_name##_show(struct device *dev,        \
+static ssize_t zfcp_sysfs_unit_##_name##_show(struct device *dev, struct device_attribute *attr,        \
                                               char *buf)                 \
 {                                                                        \
         struct zfcp_unit *unit;                                          \
@@ -65,7 +63,6 @@ static ssize_t zfcp_sysfs_unit_##_name##_show(struct device *dev,        \
 static DEVICE_ATTR(_name, S_IRUGO, zfcp_sysfs_unit_##_name##_show, NULL);
 
 ZFCP_DEFINE_UNIT_ATTR(status, "0x%08x\n", atomic_read(&unit->status));
-ZFCP_DEFINE_UNIT_ATTR(scsi_lun, "0x%x\n", unit->scsi_lun);
 ZFCP_DEFINE_UNIT_ATTR(in_recovery, "%d\n", atomic_test_mask
 		      (ZFCP_STATUS_COMMON_ERP_INUSE, &unit->status));
 ZFCP_DEFINE_UNIT_ATTR(access_denied, "%d\n", atomic_test_mask
@@ -86,7 +83,7 @@ ZFCP_DEFINE_UNIT_ATTR(access_readonly, "%d\n", atomic_test_mask
  * started for the belonging unit.
  */
 static ssize_t
-zfcp_sysfs_unit_failed_store(struct device *dev, const char *buf, size_t count)
+zfcp_sysfs_unit_failed_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct zfcp_unit *unit;
 	unsigned int val;
@@ -123,7 +120,7 @@ zfcp_sysfs_unit_failed_store(struct device *dev, const char *buf, size_t count)
  * "0" if unit is working, otherwise "1".
  */
 static ssize_t
-zfcp_sysfs_unit_failed_show(struct device *dev, char *buf)
+zfcp_sysfs_unit_failed_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct zfcp_unit *unit;
 
@@ -138,7 +135,6 @@ static DEVICE_ATTR(failed, S_IWUSR | S_IRUGO, zfcp_sysfs_unit_failed_show,
 		   zfcp_sysfs_unit_failed_store);
 
 static struct attribute *zfcp_unit_attrs[] = {
-	&dev_attr_scsi_lun.attr,
 	&dev_attr_failed.attr,
 	&dev_attr_in_recovery.attr,
 	&dev_attr_status.attr,

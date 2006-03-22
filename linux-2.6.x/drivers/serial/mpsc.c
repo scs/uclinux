@@ -52,6 +52,8 @@
  * 4) AFAICT, hardware flow control isn't supported by the controller --MAG.
  */
 
+#include <linux/platform_device.h>
+
 #include "mpsc.h"
 
 /*
@@ -67,7 +69,11 @@
 
 static struct mpsc_port_info mpsc_ports[MPSC_NUM_CTLRS];
 static struct mpsc_shared_regs mpsc_shared_regs;
+static struct uart_driver mpsc_reg;
 
+static void mpsc_start_rx(struct mpsc_port_info *pi);
+static void mpsc_free_ring_mem(struct mpsc_port_info *pi);
+static void mpsc_release_port(struct uart_port *port);
 /*
  ******************************************************************************
  *
@@ -546,7 +552,6 @@ static int
 mpsc_alloc_ring_mem(struct mpsc_port_info *pi)
 {
 	int rc = 0;
-	static void mpsc_free_ring_mem(struct mpsc_port_info *pi);
 
 	pr_debug("mpsc_alloc_ring_mem[%d]: Allocating ring mem\n",
 		pi->port.line);
@@ -745,7 +750,6 @@ mpsc_rx_intr(struct mpsc_port_info *pi, struct pt_regs *regs)
 	int	rc = 0;
 	u8	*bp;
 	char	flag = TTY_NORMAL;
-	static void mpsc_start_rx(struct mpsc_port_info *pi);
 
 	pr_debug("mpsc_rx_intr[%d]: Handling Rx intr\n", pi->port.line);
 
@@ -765,12 +769,12 @@ mpsc_rx_intr(struct mpsc_port_info *pi, struct pt_regs *regs)
 		bytes_in = be16_to_cpu(rxre->bytecnt);
 
 		/* Following use of tty struct directly is deprecated */
-		if (unlikely((tty->flip.count + bytes_in) >= TTY_FLIPBUF_SIZE)){
+		if (unlikely(tty_buffer_request_room(tty, bytes_in) < bytes_in)) {
 			if (tty->low_latency)
 				tty_flip_buffer_push(tty);
 			/*
-			 * If this failed then we will throw awa the bytes
-			 * but mst do so to clear interrupts.
+			 * If this failed then we will throw away the bytes
+			 * but must do so to clear interrupts.
 			 */
 		}
 
@@ -1056,12 +1060,9 @@ mpsc_get_mctrl(struct uart_port *port)
 {
 	struct mpsc_port_info *pi = (struct mpsc_port_info *)port;
 	u32 mflags, status;
-	ulong iflags;
 
-	spin_lock_irqsave(&pi->port.lock, iflags);
 	status = (pi->mirror_regs) ? pi->MPSC_CHR_10_m :
 		readl(pi->mpsc_base + MPSC_CHR_10);
-	spin_unlock_irqrestore(&pi->port.lock, iflags);
 
 	mflags = 0;
 	if (status & 0x1)
@@ -1073,18 +1074,18 @@ mpsc_get_mctrl(struct uart_port *port)
 }
 
 static void
-mpsc_stop_tx(struct uart_port *port, uint tty_start)
+mpsc_stop_tx(struct uart_port *port)
 {
 	struct mpsc_port_info *pi = (struct mpsc_port_info *)port;
 
-	pr_debug("mpsc_stop_tx[%d]: tty_start: %d\n", port->line, tty_start);
+	pr_debug("mpsc_stop_tx[%d]\n", port->line);
 
 	mpsc_freeze(pi);
 	return;
 }
 
 static void
-mpsc_start_tx(struct uart_port *port, uint tty_start)
+mpsc_start_tx(struct uart_port *port)
 {
 	struct mpsc_port_info *pi = (struct mpsc_port_info *)port;
 
@@ -1092,7 +1093,7 @@ mpsc_start_tx(struct uart_port *port, uint tty_start)
 	mpsc_copy_tx_data(pi);
 	mpsc_sdma_start_tx(pi);
 
-	pr_debug("mpsc_start_tx[%d]: tty_start: %d\n", port->line, tty_start);
+	pr_debug("mpsc_start_tx[%d]\n", port->line);
 	return;
 }
 
@@ -1101,6 +1102,8 @@ mpsc_start_rx(struct mpsc_port_info *pi)
 {
 	pr_debug("mpsc_start_rx[%d]: Starting...\n", pi->port.line);
 
+	/* Issue a Receive Abort to clear any receive errors */
+	writel(MPSC_CHR_2_RA, pi->mpsc_base + MPSC_CHR_2);
 	if (pi->rcv_data) {
 		mpsc_enter_hunt(pi);
 		mpsc_sdma_cmd(pi, SDMA_SDCM_ERD);
@@ -1178,7 +1181,6 @@ static void
 mpsc_shutdown(struct uart_port *port)
 {
 	struct mpsc_port_info *pi = (struct mpsc_port_info *)port;
-	static void mpsc_release_port(struct uart_port *port);
 
 	pr_debug("mpsc_shutdown[%d]: Shutting down MPSC\n", port->line);
 
@@ -1448,7 +1450,6 @@ mpsc_console_setup(struct console *co, char *options)
 	return uart_set_options(&pi->port, co, baud, parity, bits, flow);
 }
 
-extern struct uart_driver mpsc_reg;
 static struct console mpsc_console = {
 	.name   = MPSC_DEV_NAME,
 	.write  = mpsc_console_write,
@@ -1550,15 +1551,14 @@ mpsc_shared_unmap_regs(void)
 }
 
 static int
-mpsc_shared_drv_probe(struct device *dev)
+mpsc_shared_drv_probe(struct platform_device *dev)
 {
-	struct platform_device		*pd = to_platform_device(dev);
 	struct mpsc_shared_pdata	*pdata;
 	int				 rc = -ENODEV;
 
-	if (pd->id == 0) {
-		if (!(rc = mpsc_shared_map_regs(pd)))  {
-			pdata = (struct mpsc_shared_pdata *)dev->platform_data;
+	if (dev->id == 0) {
+		if (!(rc = mpsc_shared_map_regs(dev)))  {
+			pdata = (struct mpsc_shared_pdata *)dev->dev.platform_data;
 
 			mpsc_shared_regs.MPSC_MRR_m = pdata->mrr_val;
 			mpsc_shared_regs.MPSC_RCRR_m= pdata->rcrr_val;
@@ -1576,12 +1576,11 @@ mpsc_shared_drv_probe(struct device *dev)
 }
 
 static int
-mpsc_shared_drv_remove(struct device *dev)
+mpsc_shared_drv_remove(struct platform_device *dev)
 {
-	struct platform_device	*pd = to_platform_device(dev);
 	int	rc = -ENODEV;
 
-	if (pd->id == 0) {
+	if (dev->id == 0) {
 		mpsc_shared_unmap_regs();
 		mpsc_shared_regs.MPSC_MRR_m = 0;
 		mpsc_shared_regs.MPSC_RCRR_m = 0;
@@ -1594,11 +1593,12 @@ mpsc_shared_drv_remove(struct device *dev)
 	return rc;
 }
 
-static struct device_driver mpsc_shared_driver = {
-	.name	= MPSC_SHARED_NAME,
-	.bus	= &platform_bus_type,
+static struct platform_driver mpsc_shared_driver = {
 	.probe	= mpsc_shared_drv_probe,
 	.remove	= mpsc_shared_drv_remove,
+	.driver	= {
+		.name = MPSC_SHARED_NAME,
+	},
 };
 
 /*
@@ -1731,19 +1731,18 @@ mpsc_drv_get_platform_data(struct mpsc_port_info *pi,
 }
 
 static int
-mpsc_drv_probe(struct device *dev)
+mpsc_drv_probe(struct platform_device *dev)
 {
-	struct platform_device	*pd = to_platform_device(dev);
 	struct mpsc_port_info	*pi;
 	int			rc = -ENODEV;
 
-	pr_debug("mpsc_drv_probe: Adding MPSC %d\n", pd->id);
+	pr_debug("mpsc_drv_probe: Adding MPSC %d\n", dev->id);
 
-	if (pd->id < MPSC_NUM_CTLRS) {
-		pi = &mpsc_ports[pd->id];
+	if (dev->id < MPSC_NUM_CTLRS) {
+		pi = &mpsc_ports[dev->id];
 
-		if (!(rc = mpsc_drv_map_regs(pi, pd))) {
-			mpsc_drv_get_platform_data(pi, pd, pd->id);
+		if (!(rc = mpsc_drv_map_regs(pi, dev))) {
+			mpsc_drv_get_platform_data(pi, dev, dev->id);
 
 			if (!(rc = mpsc_make_ready(pi)))
 				if (!(rc = uart_add_one_port(&mpsc_reg,
@@ -1763,27 +1762,26 @@ mpsc_drv_probe(struct device *dev)
 }
 
 static int
-mpsc_drv_remove(struct device *dev)
+mpsc_drv_remove(struct platform_device *dev)
 {
-	struct platform_device	*pd = to_platform_device(dev);
+	pr_debug("mpsc_drv_exit: Removing MPSC %d\n", dev->id);
 
-	pr_debug("mpsc_drv_exit: Removing MPSC %d\n", pd->id);
-
-	if (pd->id < MPSC_NUM_CTLRS) {
-		uart_remove_one_port(&mpsc_reg, &mpsc_ports[pd->id].port);
-		mpsc_release_port((struct uart_port *)&mpsc_ports[pd->id].port);
-		mpsc_drv_unmap_regs(&mpsc_ports[pd->id]);
+	if (dev->id < MPSC_NUM_CTLRS) {
+		uart_remove_one_port(&mpsc_reg, &mpsc_ports[dev->id].port);
+		mpsc_release_port((struct uart_port *)&mpsc_ports[dev->id].port);
+		mpsc_drv_unmap_regs(&mpsc_ports[dev->id]);
 		return 0;
 	}
 	else
 		return -ENODEV;
 }
 
-static struct device_driver mpsc_driver = {
-	.name	= MPSC_CTLR_NAME,
-	.bus	= &platform_bus_type,
+static struct platform_driver mpsc_driver = {
 	.probe	= mpsc_drv_probe,
 	.remove	= mpsc_drv_remove,
+	.driver	= {
+		.name = MPSC_CTLR_NAME,
+	},
 };
 
 static int __init
@@ -1797,9 +1795,9 @@ mpsc_drv_init(void)
 	memset(&mpsc_shared_regs, 0, sizeof(mpsc_shared_regs));
 
 	if (!(rc = uart_register_driver(&mpsc_reg))) {
-		if (!(rc = driver_register(&mpsc_shared_driver))) {
-			if ((rc = driver_register(&mpsc_driver))) {
-				driver_unregister(&mpsc_shared_driver);
+		if (!(rc = platform_driver_register(&mpsc_shared_driver))) {
+			if ((rc = platform_driver_register(&mpsc_driver))) {
+				platform_driver_unregister(&mpsc_shared_driver);
 				uart_unregister_driver(&mpsc_reg);
 			}
 		}
@@ -1814,8 +1812,8 @@ mpsc_drv_init(void)
 static void __exit
 mpsc_drv_exit(void)
 {
-	driver_unregister(&mpsc_driver);
-	driver_unregister(&mpsc_shared_driver);
+	platform_driver_unregister(&mpsc_driver);
+	platform_driver_unregister(&mpsc_shared_driver);
 	uart_unregister_driver(&mpsc_reg);
 	memset(mpsc_ports, 0, sizeof(mpsc_ports));
 	memset(&mpsc_shared_regs, 0, sizeof(mpsc_shared_regs));

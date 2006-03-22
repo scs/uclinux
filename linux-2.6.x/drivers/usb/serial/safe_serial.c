@@ -92,7 +92,7 @@ MODULE_DESCRIPTION (DRIVER_DESC);
 MODULE_LICENSE("GPL");
 
 #if defined(CONFIG_USBD_SAFE_SERIAL_VENDOR) && !defined(CONFIG_USBD_SAFE_SERIAL_PRODUCT)
-#abort "SAFE_SERIAL_VENDOR defined without SAFE_SERIAL_PRODUCT"
+#error "SAFE_SERIAL_VENDOR defined without SAFE_SERIAL_PRODUCT"
 #endif
 
 #if ! defined(CONFIG_USBD_SAFE_SERIAL_VENDOR)
@@ -160,14 +160,14 @@ static struct usb_device_id id_table[] = {
 MODULE_DEVICE_TABLE (usb, id_table);
 
 static struct usb_driver safe_driver = {
-	.owner =	THIS_MODULE,
 	.name =		"safe_serial",
 	.probe =	usb_serial_probe,
 	.disconnect =	usb_serial_disconnect,
 	.id_table =	id_table,
+	.no_dynamic_id = 	1,
 };
 
-static __u16 crc10_table[256] = {
+static const __u16 crc10_table[256] = {
 	0x000, 0x233, 0x255, 0x066, 0x299, 0x0aa, 0x0cc, 0x2ff, 0x301, 0x132, 0x154, 0x367, 0x198, 0x3ab, 0x3cd, 0x1fe,
 	0x031, 0x202, 0x264, 0x057, 0x2a8, 0x09b, 0x0fd, 0x2ce, 0x330, 0x103, 0x165, 0x356, 0x1a9, 0x39a, 0x3fc, 0x1cf,
 	0x062, 0x251, 0x237, 0x004, 0x2fb, 0x0c8, 0x0ae, 0x29d, 0x363, 0x150, 0x136, 0x305, 0x1fa, 0x3c9, 0x3af, 0x19c,
@@ -299,10 +299,14 @@ static int safe_write (struct usb_serial_port *port, const unsigned char *buf, i
 		dbg ("%s - write request of 0 bytes", __FUNCTION__);
 		return (0);
 	}
-	if (port->write_urb->status == -EINPROGRESS) {
-		dbg ("%s - already writing", __FUNCTION__);
-		return (0);
+	spin_lock(&port->lock);
+	if (port->write_urb_busy) {
+		spin_unlock(&port->lock);
+		dbg("%s - already writing", __FUNCTION__);
+		return 0;
 	}
+	port->write_urb_busy = 1;
+	spin_unlock(&port->lock);
 
 	packet_length = port->bulk_out_size;	// get max packetsize
 
@@ -354,6 +358,7 @@ static int safe_write (struct usb_serial_port *port, const unsigned char *buf, i
 #endif
 	port->write_urb->dev = port->serial->dev;
 	if ((result = usb_submit_urb (port->write_urb, GFP_KERNEL))) {
+		port->write_urb_busy = 0;
 		err ("%s - failed submitting write urb, error %d", __FUNCTION__, result);
 		return 0;
 	}
@@ -368,7 +373,7 @@ static int safe_write_room (struct usb_serial_port *port)
 
 	dbg ("%s", __FUNCTION__);
 
-	if (port->write_urb->status != -EINPROGRESS)
+	if (port->write_urb_busy)
 		room = port->bulk_out_size - (safe ? 2 : 0);
 
 	if (room) {
@@ -392,9 +397,11 @@ static int safe_startup (struct usb_serial *serial)
 	return 0;
 }
 
-static struct usb_serial_device_type safe_device = {
-	.owner =		THIS_MODULE,
-	.name =			"Safe",
+static struct usb_serial_driver safe_device = {
+	.driver = {
+		.owner =	THIS_MODULE,
+		.name =		"safe_serial",
+	},
 	.id_table =		id_table,
 	.num_interrupt_in =	NUM_DONT_CARE,
 	.num_bulk_in =		NUM_DONT_CARE,
@@ -418,7 +425,7 @@ static int __init safe_init (void)
 	if (vendor || product) {
 		info ("vendor: %x product: %x\n", vendor, product);
 
-		for (i = 0; i < (sizeof (id_table) / sizeof (struct usb_device_id)); i++) {
+		for (i = 0; i < ARRAY_SIZE(id_table); i++) {
 			if (!id_table[i].idVendor && !id_table[i].idProduct) {
 				id_table[i].idVendor = vendor;
 				id_table[i].idProduct = product;

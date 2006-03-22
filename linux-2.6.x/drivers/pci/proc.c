@@ -25,7 +25,7 @@ proc_bus_pci_lseek(struct file *file, loff_t off, int whence)
 	loff_t new = -1;
 	struct inode *inode = file->f_dentry->d_inode;
 
-	down(&inode->i_sem);
+	mutex_lock(&inode->i_mutex);
 	switch (whence) {
 	case 0:
 		new = off;
@@ -41,7 +41,7 @@ proc_bus_pci_lseek(struct file *file, loff_t off, int whence)
 		new = -EINVAL;
 	else
 		file->f_pos = new;
-	up(&inode->i_sem);
+	mutex_unlock(&inode->i_mutex);
 	return new;
 }
 
@@ -80,7 +80,7 @@ proc_bus_pci_read(struct file *file, char __user *buf, size_t nbytes, loff_t *pp
 
 	if ((pos & 1) && cnt) {
 		unsigned char val;
-		pci_read_config_byte(dev, pos, &val);
+		pci_user_read_config_byte(dev, pos, &val);
 		__put_user(val, buf);
 		buf++;
 		pos++;
@@ -89,7 +89,7 @@ proc_bus_pci_read(struct file *file, char __user *buf, size_t nbytes, loff_t *pp
 
 	if ((pos & 3) && cnt > 2) {
 		unsigned short val;
-		pci_read_config_word(dev, pos, &val);
+		pci_user_read_config_word(dev, pos, &val);
 		__put_user(cpu_to_le16(val), (unsigned short __user *) buf);
 		buf += 2;
 		pos += 2;
@@ -98,7 +98,7 @@ proc_bus_pci_read(struct file *file, char __user *buf, size_t nbytes, loff_t *pp
 
 	while (cnt >= 4) {
 		unsigned int val;
-		pci_read_config_dword(dev, pos, &val);
+		pci_user_read_config_dword(dev, pos, &val);
 		__put_user(cpu_to_le32(val), (unsigned int __user *) buf);
 		buf += 4;
 		pos += 4;
@@ -107,7 +107,7 @@ proc_bus_pci_read(struct file *file, char __user *buf, size_t nbytes, loff_t *pp
 
 	if (cnt >= 2) {
 		unsigned short val;
-		pci_read_config_word(dev, pos, &val);
+		pci_user_read_config_word(dev, pos, &val);
 		__put_user(cpu_to_le16(val), (unsigned short __user *) buf);
 		buf += 2;
 		pos += 2;
@@ -116,7 +116,7 @@ proc_bus_pci_read(struct file *file, char __user *buf, size_t nbytes, loff_t *pp
 
 	if (cnt) {
 		unsigned char val;
-		pci_read_config_byte(dev, pos, &val);
+		pci_user_read_config_byte(dev, pos, &val);
 		__put_user(val, buf);
 		buf++;
 		pos++;
@@ -151,7 +151,7 @@ proc_bus_pci_write(struct file *file, const char __user *buf, size_t nbytes, lof
 	if ((pos & 1) && cnt) {
 		unsigned char val;
 		__get_user(val, buf);
-		pci_write_config_byte(dev, pos, val);
+		pci_user_write_config_byte(dev, pos, val);
 		buf++;
 		pos++;
 		cnt--;
@@ -160,7 +160,7 @@ proc_bus_pci_write(struct file *file, const char __user *buf, size_t nbytes, lof
 	if ((pos & 3) && cnt > 2) {
 		unsigned short val;
 		__get_user(val, (unsigned short __user *) buf);
-		pci_write_config_word(dev, pos, le16_to_cpu(val));
+		pci_user_write_config_word(dev, pos, le16_to_cpu(val));
 		buf += 2;
 		pos += 2;
 		cnt -= 2;
@@ -169,7 +169,7 @@ proc_bus_pci_write(struct file *file, const char __user *buf, size_t nbytes, lof
 	while (cnt >= 4) {
 		unsigned int val;
 		__get_user(val, (unsigned int __user *) buf);
-		pci_write_config_dword(dev, pos, le32_to_cpu(val));
+		pci_user_write_config_dword(dev, pos, le32_to_cpu(val));
 		buf += 4;
 		pos += 4;
 		cnt -= 4;
@@ -178,7 +178,7 @@ proc_bus_pci_write(struct file *file, const char __user *buf, size_t nbytes, lof
 	if (cnt >= 2) {
 		unsigned short val;
 		__get_user(val, (unsigned short __user *) buf);
-		pci_write_config_word(dev, pos, le16_to_cpu(val));
+		pci_user_write_config_word(dev, pos, le16_to_cpu(val));
 		buf += 2;
 		pos += 2;
 		cnt -= 2;
@@ -187,7 +187,7 @@ proc_bus_pci_write(struct file *file, const char __user *buf, size_t nbytes, lof
 	if (cnt) {
 		unsigned char val;
 		__get_user(val, buf);
-		pci_write_config_byte(dev, pos, val);
+		pci_user_write_config_byte(dev, pos, val);
 		buf++;
 		pos++;
 		cnt--;
@@ -355,14 +355,20 @@ static int show_device(struct seq_file *m, void *v)
 			dev->device,
 			dev->irq);
 	/* Here should be 7 and not PCI_NUM_RESOURCES as we need to preserve compatibility */
-	for(i=0; i<7; i++)
+	for (i=0; i<7; i++) {
+		u64 start, end;
+		pci_resource_to_user(dev, i, &dev->resource[i], &start, &end);
 		seq_printf(m, LONG_FORMAT,
-			dev->resource[i].start |
+			((unsigned long)start) |
 			(dev->resource[i].flags & PCI_REGION_FLAG_MASK));
-	for(i=0; i<7; i++)
+	}
+	for (i=0; i<7; i++) {
+		u64 start, end;
+		pci_resource_to_user(dev, i, &dev->resource[i], &start, &end);
 		seq_printf(m, LONG_FORMAT,
 			dev->resource[i].start < dev->resource[i].end ?
-			dev->resource[i].end - dev->resource[i].start + 1 : 0);
+			(unsigned long)(end - start) + 1 : 0);
+	}
 	seq_putc(m, '\t');
 	if (drv)
 		seq_printf(m, "%s", drv->name);
@@ -425,6 +431,7 @@ int pci_proc_detach_device(struct pci_dev *dev)
 	return 0;
 }
 
+#if 0
 int pci_proc_attach_bus(struct pci_bus* bus)
 {
 	struct proc_dir_entry *de = bus->procdir;
@@ -441,6 +448,7 @@ int pci_proc_attach_bus(struct pci_bus* bus)
 	}
 	return 0;
 }
+#endif  /*  0  */
 
 int pci_proc_detach_bus(struct pci_bus* bus)
 {
@@ -468,7 +476,7 @@ static int show_dev_config(struct seq_file *m, void *v)
 	struct pci_dev *first_dev;
 	struct pci_driver *drv;
 	u32 class_rev;
-	unsigned char latency, min_gnt, max_lat, *class;
+	unsigned char latency, min_gnt, max_lat;
 	int reg;
 
 	first_dev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL);
@@ -478,22 +486,14 @@ static int show_dev_config(struct seq_file *m, void *v)
 
 	drv = pci_dev_driver(dev);
 
-	pci_read_config_dword(dev, PCI_CLASS_REVISION, &class_rev);
-	pci_read_config_byte (dev, PCI_LATENCY_TIMER, &latency);
-	pci_read_config_byte (dev, PCI_MIN_GNT, &min_gnt);
-	pci_read_config_byte (dev, PCI_MAX_LAT, &max_lat);
+	pci_user_read_config_dword(dev, PCI_CLASS_REVISION, &class_rev);
+	pci_user_read_config_byte (dev, PCI_LATENCY_TIMER, &latency);
+	pci_user_read_config_byte (dev, PCI_MIN_GNT, &min_gnt);
+	pci_user_read_config_byte (dev, PCI_MAX_LAT, &max_lat);
 	seq_printf(m, "  Bus %2d, device %3d, function %2d:\n",
 	       dev->bus->number, PCI_SLOT(dev->devfn), PCI_FUNC(dev->devfn));
-	class = pci_class_name(class_rev >> 16);
-	if (class)
-		seq_printf(m, "    %s", class);
-	else
-		seq_printf(m, "    Class %04x", class_rev >> 16);
-#ifdef CONFIG_PCI_NAMES
-	seq_printf(m, ": %s", dev->pretty_name);
-#else
+	seq_printf(m, "    Class %04x", class_rev >> 16);
 	seq_printf(m, ": PCI device %04x:%04x", dev->vendor, dev->device);
-#endif
 	seq_printf(m, " (rev %d).\n", class_rev & 0xff);
 
 	if (dev->irq)
@@ -614,7 +614,6 @@ __initcall(pci_proc_init);
 
 #ifdef CONFIG_HOTPLUG
 EXPORT_SYMBOL(pci_proc_attach_device);
-EXPORT_SYMBOL(pci_proc_attach_bus);
 EXPORT_SYMBOL(pci_proc_detach_bus);
 #endif
 

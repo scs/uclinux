@@ -2,7 +2,8 @@
  *  USB HID support for Linux
  *
  *  Copyright (c) 1999 Andreas Gal
- *  Copyright (c) 2000-2001 Vojtech Pavlik <vojtech@suse.cz>
+ *  Copyright (c) 2000-2005 Vojtech Pavlik <vojtech@suse.cz>
+ *  Copyright (c) 2005 Michael Haboustak <mike-@cinci.rr.com> for Concept2, Inc
  */
 
 /*
@@ -38,7 +39,7 @@
  * Version Information
  */
 
-#define DRIVER_VERSION "v2.01"
+#define DRIVER_VERSION "v2.6"
 #define DRIVER_AUTHOR "Andreas Gal, Vojtech Pavlik"
 #define DRIVER_DESC "USB HID core driver"
 #define DRIVER_LICENSE "GPL"
@@ -232,7 +233,7 @@ static int hid_add_field(struct hid_parser *parser, unsigned report_type, unsign
 	report->size += parser->global.report_size * parser->global.report_count;
 
 	if (!parser->local.usage_index) /* Ignore padding fields */
-		return 0; 
+		return 0;
 
 	usages = max_t(int, parser->local.usage_index, parser->global.report_count);
 
@@ -765,7 +766,7 @@ static __inline__ __u32 s32ton(__s32 value, unsigned n)
 static __inline__ __u32 extract(__u8 *report, unsigned offset, unsigned n)
 {
 	report += (offset >> 5) << 2; offset &= 31;
-	return (le64_to_cpu(get_unaligned((__le64*)report)) >> offset) & ((1 << n) - 1);
+	return (le64_to_cpu(get_unaligned((__le64*)report)) >> offset) & ((1ULL << n) - 1);
 }
 
 static __inline__ void implement(__u8 *report, unsigned offset, unsigned n, __u32 value)
@@ -789,12 +790,12 @@ static __inline__ int search(__s32 *array, __s32 value, unsigned n)
 	return -1;
 }
 
-static void hid_process_event(struct hid_device *hid, struct hid_field *field, struct hid_usage *usage, __s32 value, struct pt_regs *regs)
+static void hid_process_event(struct hid_device *hid, struct hid_field *field, struct hid_usage *usage, __s32 value, int interrupt, struct pt_regs *regs)
 {
 	hid_dump_input(usage, value);
 	if (hid->claimed & HID_CLAIMED_INPUT)
 		hidinput_hid_event(hid, field, usage, value, regs);
-	if (hid->claimed & HID_CLAIMED_HIDDEV)
+	if (hid->claimed & HID_CLAIMED_HIDDEV && interrupt)
 		hiddev_hid_event(hid, field, usage, value, regs);
 }
 
@@ -804,7 +805,7 @@ static void hid_process_event(struct hid_device *hid, struct hid_field *field, s
  * reporting to the layer).
  */
 
-static void hid_input_field(struct hid_device *hid, struct hid_field *field, __u8 *data, struct pt_regs *regs)
+static void hid_input_field(struct hid_device *hid, struct hid_field *field, __u8 *data, int interrupt, struct pt_regs *regs)
 {
 	unsigned n;
 	unsigned count = field->report_count;
@@ -831,19 +832,19 @@ static void hid_input_field(struct hid_device *hid, struct hid_field *field, __u
 	for (n = 0; n < count; n++) {
 
 		if (HID_MAIN_ITEM_VARIABLE & field->flags) {
-			hid_process_event(hid, field, &field->usage[n], value[n], regs);
+			hid_process_event(hid, field, &field->usage[n], value[n], interrupt, regs);
 			continue;
 		}
 
 		if (field->value[n] >= min && field->value[n] <= max
 			&& field->usage[field->value[n] - min].hid
 			&& search(value, field->value[n], count))
-				hid_process_event(hid, field, &field->usage[field->value[n] - min], 0, regs);
+				hid_process_event(hid, field, &field->usage[field->value[n] - min], 0, interrupt, regs);
 
 		if (value[n] >= min && value[n] <= max
 			&& field->usage[value[n] - min].hid
 			&& search(field->value, value[n], count))
-				hid_process_event(hid, field, &field->usage[value[n] - min], 1, regs);
+				hid_process_event(hid, field, &field->usage[value[n] - min], 1, interrupt, regs);
 	}
 
 	memcpy(field->value, value, count * sizeof(__s32));
@@ -851,7 +852,7 @@ exit:
 	kfree(value);
 }
 
-static int hid_input_report(int type, struct urb *urb, struct pt_regs *regs)
+static int hid_input_report(int type, struct urb *urb, int interrupt, struct pt_regs *regs)
 {
 	struct hid_device *hid = urb->context;
 	struct hid_report_enum *report_enum = hid->report_enum + type;
@@ -892,14 +893,16 @@ static int hid_input_report(int type, struct urb *urb, struct pt_regs *regs)
 
 	size = ((report->size - 1) >> 3) + 1;
 
-	if (len < size)
+	if (len < size) {
 		dbg("report %d is too short, (%d < %d)", report->id, len, size);
+		memset(data + len, 0, size - len);
+	}
 
 	if (hid->claimed & HID_CLAIMED_HIDDEV)
 		hiddev_report_event(hid, report);
 
 	for (n = 0; n < report->maxfield; n++)
-		hid_input_field(hid, report->field[n], data, regs);
+		hid_input_field(hid, report->field[n], data, interrupt, regs);
 
 	if (hid->claimed & HID_CLAIMED_INPUT)
 		hidinput_report_event(hid, report);
@@ -918,7 +921,7 @@ static void hid_irq_in(struct urb *urb, struct pt_regs *regs)
 
 	switch (urb->status) {
 		case 0:			/* success */
-			hid_input_report(HID_INPUT_REPORT, urb, regs);
+			hid_input_report(HID_INPUT_REPORT, urb, 1, regs);
 			break;
 		case -ECONNRESET:	/* unlink */
 		case -ENOENT:
@@ -1058,8 +1061,8 @@ static int hid_submit_ctrl(struct hid_device *hid)
 		if (maxpacket > 0) {
 			padlen = (len + maxpacket - 1) / maxpacket;
 			padlen *= maxpacket;
-			if (padlen > HID_BUFFER_SIZE)
-				padlen = HID_BUFFER_SIZE;
+			if (padlen > hid->bufsize)
+				padlen = hid->bufsize;
 		} else
 			padlen = 0;
 		hid->urbctrl->transfer_buffer_length = padlen;
@@ -1096,6 +1099,7 @@ static void hid_irq_out(struct urb *urb, struct pt_regs *regs)
 
 	switch (urb->status) {
 		case 0:			/* success */
+			break;
 		case -ESHUTDOWN:	/* unplug */
 		case -EILSEQ:		/* unplug timeout on uhci */
 			unplug = 1;
@@ -1142,7 +1146,8 @@ static void hid_ctrl(struct urb *urb, struct pt_regs *regs)
 	switch (urb->status) {
 		case 0:			/* success */
 			if (hid->ctrl[hid->ctrltail].dir == USB_DIR_IN)
-				hid_input_report(hid->ctrl[hid->ctrltail].report->type, urb, regs);
+				hid_input_report(hid->ctrl[hid->ctrltail].report->type, urb, 0, regs);
+			break;
 		case -ESHUTDOWN:	/* unplug */
 		case -EILSEQ:		/* unplug timectrl on uhci */
 			unplug = 1;
@@ -1233,6 +1238,13 @@ int hid_wait_io(struct hid_device *hid)
 	return 0;
 }
 
+static int hid_set_idle(struct usb_device *dev, int ifnum, int report, int idle)
+{
+	return usb_control_msg(dev, usb_sndctrlpipe(dev, 0),
+		HID_REQ_SET_IDLE, USB_TYPE_CLASS | USB_RECIP_INTERFACE, (idle << 8) | report,
+		ifnum, NULL, 0, USB_CTRL_SET_TIMEOUT);
+}
+
 static int hid_get_class_descriptor(struct usb_device *dev, int ifnum,
 		unsigned char type, void *buf, int size)
 {
@@ -1277,13 +1289,8 @@ void hid_init_reports(struct hid_device *hid)
 	struct hid_report *report;
 	int err, ret;
 
-	list_for_each_entry(report, &hid->report_enum[HID_INPUT_REPORT].report_list, list) {
-		int size = ((report->size - 1) >> 3) + 1 + hid->report_enum[HID_INPUT_REPORT].numbered;
-		if (size > HID_BUFFER_SIZE) size = HID_BUFFER_SIZE;
-		if (size > hid->urbin->transfer_buffer_length)
-			hid->urbin->transfer_buffer_length = size;
+	list_for_each_entry(report, &hid->report_enum[HID_INPUT_REPORT].report_list, list)
 		hid_submit_report(hid, report, USB_DIR_IN);
-	}
 
 	list_for_each_entry(report, &hid->report_enum[HID_FEATURE_REPORT].report_list, list)
 		hid_submit_report(hid, report, USB_DIR_IN);
@@ -1300,11 +1307,7 @@ void hid_init_reports(struct hid_device *hid)
 	}
 
 	if (err)
-		warn("timeout initializing reports\n");
-
-	usb_control_msg(hid->dev, usb_sndctrlpipe(hid->dev, 0),
-		HID_REQ_SET_IDLE, USB_TYPE_CLASS | USB_RECIP_INTERFACE, 0,
-		hid->ifnum, NULL, 0, USB_CTRL_SET_TIMEOUT);
+		warn("timeout initializing reports");
 }
 
 #define USB_VENDOR_ID_WACOM		0x056a
@@ -1317,6 +1320,11 @@ void hid_init_reports(struct hid_device *hid)
 #define USB_DEVICE_ID_WACOM_PTU		0x0003
 #define USB_DEVICE_ID_WACOM_INTUOS3	0x00B0
 #define USB_DEVICE_ID_WACOM_CINTIQ	0x003F
+#define USB_DEVICE_ID_WACOM_DTF         0x00C0
+
+#define USB_VENDOR_ID_ACECAD		0x0460
+#define USB_DEVICE_ID_ACECAD_FLAIR	0x0004
+#define USB_DEVICE_ID_ACECAD_302	0x0008
 
 #define USB_VENDOR_ID_KBGEAR		0x084e
 #define USB_DEVICE_ID_KBGEAR_JAMSTUDIO	0x1001
@@ -1365,9 +1373,14 @@ void hid_init_reports(struct hid_device *hid)
 #define USB_VENDOR_ID_A4TECH		0x09da
 #define USB_DEVICE_ID_A4TECH_WCP32PU	0x0006
 
+#define USB_VENDOR_ID_AASHIMA		0x06d6
+#define USB_DEVICE_ID_AASHIMA_GAMEPAD	0x0025
+#define USB_DEVICE_ID_AASHIMA_PREDATOR	0x0026
+
 #define USB_VENDOR_ID_CYPRESS		0x04b4
 #define USB_DEVICE_ID_CYPRESS_MOUSE	0x0001
 #define USB_DEVICE_ID_CYPRESS_HIDCOM	0x5500
+#define USB_DEVICE_ID_CYPRESS_ULTRAMOUSE	0x7417
 
 #define USB_VENDOR_ID_BERKSHIRE		0x0c98
 #define USB_DEVICE_ID_BERKSHIRE_PCWD	0x1140
@@ -1394,6 +1407,7 @@ void hid_init_reports(struct hid_device *hid)
 #define USB_VENDOR_ID_WISEGROUP		0x0925
 #define USB_DEVICE_ID_1_PHIDGETSERVO_20	0x8101
 #define USB_DEVICE_ID_4_PHIDGETSERVO_20	0x8104
+#define USB_DEVICE_ID_DUAL_USB_JOYPAD   0x8866
 
 #define USB_VENDOR_ID_CODEMERCS		0x07c0
 #define USB_DEVICE_ID_CODEMERCS_IOW40	0x1500
@@ -1421,12 +1435,36 @@ void hid_init_reports(struct hid_device *hid)
 #define USB_DEVICE_ID_VERNIER_SKIP	0x0003
 #define USB_DEVICE_ID_VERNIER_CYCLOPS	0x0004
 
+#define USB_VENDOR_ID_LD		0x0f11
+#define USB_DEVICE_ID_LD_CASSY		0x1000
+#define USB_DEVICE_ID_LD_POCKETCASSY	0x1010
+#define USB_DEVICE_ID_LD_MOBILECASSY	0x1020
+#define USB_DEVICE_ID_LD_JWM		0x1080
+#define USB_DEVICE_ID_LD_DMMP		0x1081
+#define USB_DEVICE_ID_LD_UMIP		0x1090
+#define USB_DEVICE_ID_LD_XRAY1		0x1100
+#define USB_DEVICE_ID_LD_XRAY2		0x1101
+#define USB_DEVICE_ID_LD_VIDEOCOM	0x1200
+#define USB_DEVICE_ID_LD_COM3LAB	0x2000
+#define USB_DEVICE_ID_LD_TELEPORT	0x2010
+#define USB_DEVICE_ID_LD_NETWORKANALYSER 0x2020
+#define USB_DEVICE_ID_LD_POWERCONTROL	0x2030
+#define USB_DEVICE_ID_LD_MACHINETEST	0x2040
+
+#define USB_VENDOR_ID_APPLE		0x05ac
+#define USB_DEVICE_ID_APPLE_POWERMOUSE	0x0304
+
+#define USB_VENDOR_ID_CHERRY		0x046a
+#define USB_DEVICE_ID_CHERRY_CYMOTION	0x0023
+
+#define USB_VENDOR_ID_HP		0x03f0
+#define USB_DEVICE_ID_HP_USBHUB_KB	0x020c
 
 /*
  * Alphabetically sorted blacklist by quirk type.
  */
 
-static struct hid_blacklist {
+static const struct hid_blacklist {
 	__u16 idVendor;
 	__u16 idProduct;
 	unsigned quirks;
@@ -1445,6 +1483,7 @@ static struct hid_blacklist {
 	{ USB_VENDOR_ID_CODEMERCS, USB_DEVICE_ID_CODEMERCS_IOW48, HID_QUIRK_IGNORE },
 	{ USB_VENDOR_ID_CODEMERCS, USB_DEVICE_ID_CODEMERCS_IOW28, HID_QUIRK_IGNORE },
 	{ USB_VENDOR_ID_CYPRESS, USB_DEVICE_ID_CYPRESS_HIDCOM, HID_QUIRK_IGNORE },
+	{ USB_VENDOR_ID_CYPRESS, USB_DEVICE_ID_CYPRESS_ULTRAMOUSE, HID_QUIRK_IGNORE },
 	{ USB_VENDOR_ID_DELORME, USB_DEVICE_ID_DELORME_EARTHMATE, HID_QUIRK_IGNORE },
 	{ USB_VENDOR_ID_DELORME, USB_DEVICE_ID_DELORME_EM_LT20, HID_QUIRK_IGNORE },
 	{ USB_VENDOR_ID_ESSENTIAL_REALITY, USB_DEVICE_ID_ESSENTIAL_REALITY_P5, HID_QUIRK_IGNORE },
@@ -1456,6 +1495,20 @@ static struct hid_blacklist {
 	{ USB_VENDOR_ID_GRIFFIN, USB_DEVICE_ID_POWERMATE, HID_QUIRK_IGNORE },
 	{ USB_VENDOR_ID_GRIFFIN, USB_DEVICE_ID_SOUNDKNOB, HID_QUIRK_IGNORE },
 	{ USB_VENDOR_ID_KBGEAR, USB_DEVICE_ID_KBGEAR_JAMSTUDIO, HID_QUIRK_IGNORE },
+	{ USB_VENDOR_ID_LD, USB_DEVICE_ID_LD_CASSY, HID_QUIRK_IGNORE },
+	{ USB_VENDOR_ID_LD, USB_DEVICE_ID_LD_POCKETCASSY, HID_QUIRK_IGNORE },
+	{ USB_VENDOR_ID_LD, USB_DEVICE_ID_LD_MOBILECASSY, HID_QUIRK_IGNORE },
+	{ USB_VENDOR_ID_LD, USB_DEVICE_ID_LD_JWM, HID_QUIRK_IGNORE },
+	{ USB_VENDOR_ID_LD, USB_DEVICE_ID_LD_DMMP, HID_QUIRK_IGNORE },
+	{ USB_VENDOR_ID_LD, USB_DEVICE_ID_LD_UMIP, HID_QUIRK_IGNORE },
+	{ USB_VENDOR_ID_LD, USB_DEVICE_ID_LD_XRAY1, HID_QUIRK_IGNORE },
+	{ USB_VENDOR_ID_LD, USB_DEVICE_ID_LD_XRAY2, HID_QUIRK_IGNORE },
+	{ USB_VENDOR_ID_LD, USB_DEVICE_ID_LD_VIDEOCOM, HID_QUIRK_IGNORE },
+	{ USB_VENDOR_ID_LD, USB_DEVICE_ID_LD_COM3LAB, HID_QUIRK_IGNORE },
+	{ USB_VENDOR_ID_LD, USB_DEVICE_ID_LD_TELEPORT, HID_QUIRK_IGNORE },
+	{ USB_VENDOR_ID_LD, USB_DEVICE_ID_LD_NETWORKANALYSER, HID_QUIRK_IGNORE },
+	{ USB_VENDOR_ID_LD, USB_DEVICE_ID_LD_POWERCONTROL, HID_QUIRK_IGNORE },
+	{ USB_VENDOR_ID_LD, USB_DEVICE_ID_LD_MACHINETEST, HID_QUIRK_IGNORE },
 	{ USB_VENDOR_ID_MCC, USB_DEVICE_ID_MCC_PMD1024LS, HID_QUIRK_IGNORE },
 	{ USB_VENDOR_ID_MCC, USB_DEVICE_ID_MCC_PMD1208LS, HID_QUIRK_IGNORE },
 	{ USB_VENDOR_ID_MGE, USB_DEVICE_ID_MGE_UPS, HID_QUIRK_IGNORE },
@@ -1487,6 +1540,9 @@ static struct hid_blacklist {
 	{ USB_VENDOR_ID_WACOM, USB_DEVICE_ID_WACOM_PL + 3, HID_QUIRK_IGNORE },
 	{ USB_VENDOR_ID_WACOM, USB_DEVICE_ID_WACOM_PL + 4, HID_QUIRK_IGNORE },
 	{ USB_VENDOR_ID_WACOM, USB_DEVICE_ID_WACOM_PL + 5, HID_QUIRK_IGNORE },
+	{ USB_VENDOR_ID_WACOM, USB_DEVICE_ID_WACOM_PL + 7, HID_QUIRK_IGNORE },
+	{ USB_VENDOR_ID_WACOM, USB_DEVICE_ID_WACOM_PL + 8, HID_QUIRK_IGNORE },
+	{ USB_VENDOR_ID_WACOM, USB_DEVICE_ID_WACOM_PL + 9, HID_QUIRK_IGNORE },
 	{ USB_VENDOR_ID_WACOM, USB_DEVICE_ID_WACOM_INTUOS2 + 1, HID_QUIRK_IGNORE },
 	{ USB_VENDOR_ID_WACOM, USB_DEVICE_ID_WACOM_INTUOS2 + 2, HID_QUIRK_IGNORE },
 	{ USB_VENDOR_ID_WACOM, USB_DEVICE_ID_WACOM_INTUOS2 + 3, HID_QUIRK_IGNORE },
@@ -1494,13 +1550,24 @@ static struct hid_blacklist {
 	{ USB_VENDOR_ID_WACOM, USB_DEVICE_ID_WACOM_INTUOS2 + 5, HID_QUIRK_IGNORE },
 	{ USB_VENDOR_ID_WACOM, USB_DEVICE_ID_WACOM_INTUOS2 + 7, HID_QUIRK_IGNORE },
 	{ USB_VENDOR_ID_WACOM, USB_DEVICE_ID_WACOM_VOLITO, HID_QUIRK_IGNORE },
+	{ USB_VENDOR_ID_WACOM, USB_DEVICE_ID_WACOM_VOLITO + 1, HID_QUIRK_IGNORE },
+	{ USB_VENDOR_ID_WACOM, USB_DEVICE_ID_WACOM_VOLITO + 2, HID_QUIRK_IGNORE },
+	{ USB_VENDOR_ID_WACOM, USB_DEVICE_ID_WACOM_VOLITO + 3, HID_QUIRK_IGNORE },
+	{ USB_VENDOR_ID_WACOM, USB_DEVICE_ID_WACOM_VOLITO + 4, HID_QUIRK_IGNORE },
+	{ USB_VENDOR_ID_WACOM, USB_DEVICE_ID_WACOM_GRAPHIRE + 5, HID_QUIRK_IGNORE },
+	{ USB_VENDOR_ID_WACOM, USB_DEVICE_ID_WACOM_GRAPHIRE + 6, HID_QUIRK_IGNORE },
 	{ USB_VENDOR_ID_WACOM, USB_DEVICE_ID_WACOM_PTU, HID_QUIRK_IGNORE },
 	{ USB_VENDOR_ID_WACOM, USB_DEVICE_ID_WACOM_INTUOS3, HID_QUIRK_IGNORE },
 	{ USB_VENDOR_ID_WACOM, USB_DEVICE_ID_WACOM_INTUOS3 + 1, HID_QUIRK_IGNORE },
 	{ USB_VENDOR_ID_WACOM, USB_DEVICE_ID_WACOM_INTUOS3 + 2, HID_QUIRK_IGNORE },
+	{ USB_VENDOR_ID_WACOM, USB_DEVICE_ID_WACOM_INTUOS3 + 5, HID_QUIRK_IGNORE },
 	{ USB_VENDOR_ID_WACOM, USB_DEVICE_ID_WACOM_CINTIQ, HID_QUIRK_IGNORE },
+	{ USB_VENDOR_ID_WACOM, USB_DEVICE_ID_WACOM_DTF, HID_QUIRK_IGNORE },
 	{ USB_VENDOR_ID_WISEGROUP, USB_DEVICE_ID_4_PHIDGETSERVO_20, HID_QUIRK_IGNORE },
 	{ USB_VENDOR_ID_WISEGROUP, USB_DEVICE_ID_1_PHIDGETSERVO_20, HID_QUIRK_IGNORE },
+
+	{ USB_VENDOR_ID_ACECAD, USB_DEVICE_ID_ACECAD_FLAIR, HID_QUIRK_IGNORE },
+	{ USB_VENDOR_ID_ACECAD, USB_DEVICE_ID_ACECAD_302, HID_QUIRK_IGNORE },
 
 	{ USB_VENDOR_ID_ATEN, USB_DEVICE_ID_ATEN_UC100KM, HID_QUIRK_NOGET },
 	{ USB_VENDOR_ID_ATEN, USB_DEVICE_ID_ATEN_CS124U, HID_QUIRK_NOGET },
@@ -1509,11 +1576,16 @@ static struct hid_blacklist {
 	{ USB_VENDOR_ID_ATEN, USB_DEVICE_ID_ATEN_4PORTKVMC, HID_QUIRK_NOGET },
 	{ USB_VENDOR_ID_BTC, USB_DEVICE_ID_BTC_KEYBOARD, HID_QUIRK_NOGET},
 	{ USB_VENDOR_ID_CHICONY, USB_DEVICE_ID_CHICONY_USBHUB_KB, HID_QUIRK_NOGET},
+	{ USB_VENDOR_ID_HP, USB_DEVICE_ID_HP_USBHUB_KB, HID_QUIRK_NOGET },
 	{ USB_VENDOR_ID_TANGTOP, USB_DEVICE_ID_TANGTOP_USBPS2, HID_QUIRK_NOGET },
+	{ USB_VENDOR_ID_WISEGROUP, USB_DEVICE_ID_DUAL_USB_JOYPAD, HID_QUIRK_NOGET | HID_QUIRK_MULTI_INPUT },
 
+	{ USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_POWERMOUSE, HID_QUIRK_2WHEEL_POWERMOUSE },
 	{ USB_VENDOR_ID_A4TECH, USB_DEVICE_ID_A4TECH_WCP32PU, HID_QUIRK_2WHEEL_MOUSE_HACK_7 },
 	{ USB_VENDOR_ID_CYPRESS, USB_DEVICE_ID_CYPRESS_MOUSE, HID_QUIRK_2WHEEL_MOUSE_HACK_5 },
 
+	{ USB_VENDOR_ID_AASHIMA, USB_DEVICE_ID_AASHIMA_GAMEPAD, HID_QUIRK_BADPAD },
+	{ USB_VENDOR_ID_AASHIMA, USB_DEVICE_ID_AASHIMA_PREDATOR, HID_QUIRK_BADPAD },
 	{ USB_VENDOR_ID_ALPS, USB_DEVICE_ID_IBM_GAMEPAD, HID_QUIRK_BADPAD },
 	{ USB_VENDOR_ID_CHIC, USB_DEVICE_ID_CHIC_GAMEPAD, HID_QUIRK_BADPAD },
 	{ USB_VENDOR_ID_HAPP, USB_DEVICE_ID_UGCI_DRIVING, HID_QUIRK_BADPAD | HID_QUIRK_MULTI_INPUT },
@@ -1523,18 +1595,45 @@ static struct hid_blacklist {
 	{ USB_VENDOR_ID_SAITEK, USB_DEVICE_ID_SAITEK_RUMBLEPAD, HID_QUIRK_BADPAD },
 	{ USB_VENDOR_ID_TOPMAX, USB_DEVICE_ID_TOPMAX_COBRAPAD, HID_QUIRK_BADPAD },
 
+	{ USB_VENDOR_ID_CHERRY, USB_DEVICE_ID_CHERRY_CYMOTION, HID_QUIRK_CYMOTION },
+
+	{ USB_VENDOR_ID_APPLE, 0x020E, HID_QUIRK_POWERBOOK_HAS_FN },
+	{ USB_VENDOR_ID_APPLE, 0x020F, HID_QUIRK_POWERBOOK_HAS_FN },
+	{ USB_VENDOR_ID_APPLE, 0x0214, HID_QUIRK_POWERBOOK_HAS_FN },
+	{ USB_VENDOR_ID_APPLE, 0x0215, HID_QUIRK_POWERBOOK_HAS_FN },
+	{ USB_VENDOR_ID_APPLE, 0x0216, HID_QUIRK_POWERBOOK_HAS_FN },
+	{ USB_VENDOR_ID_APPLE, 0x030A, HID_QUIRK_POWERBOOK_HAS_FN },
+	{ USB_VENDOR_ID_APPLE, 0x030B, HID_QUIRK_POWERBOOK_HAS_FN },
+
 	{ 0, 0 }
 };
 
+/*
+ * Traverse the supplied list of reports and find the longest
+ */
+static void hid_find_max_report(struct hid_device *hid, unsigned int type, int *max)
+{
+	struct hid_report *report;
+	int size;
+
+	list_for_each_entry(report, &hid->report_enum[type].report_list, list) {
+		size = ((report->size - 1) >> 3) + 1;
+		if (type == HID_INPUT_REPORT && hid->report_enum[type].numbered)
+			size++;
+		if (*max < size)
+			*max = size;
+	}
+}
+
 static int hid_alloc_buffers(struct usb_device *dev, struct hid_device *hid)
 {
-	if (!(hid->inbuf = usb_buffer_alloc(dev, HID_BUFFER_SIZE, SLAB_ATOMIC, &hid->inbuf_dma)))
+	if (!(hid->inbuf = usb_buffer_alloc(dev, hid->bufsize, SLAB_ATOMIC, &hid->inbuf_dma)))
 		return -1;
-	if (!(hid->outbuf = usb_buffer_alloc(dev, HID_BUFFER_SIZE, SLAB_ATOMIC, &hid->outbuf_dma)))
+	if (!(hid->outbuf = usb_buffer_alloc(dev, hid->bufsize, SLAB_ATOMIC, &hid->outbuf_dma)))
 		return -1;
 	if (!(hid->cr = usb_buffer_alloc(dev, sizeof(*(hid->cr)), SLAB_ATOMIC, &hid->cr_dma)))
 		return -1;
-	if (!(hid->ctrlbuf = usb_buffer_alloc(dev, HID_BUFFER_SIZE, SLAB_ATOMIC, &hid->ctrlbuf_dma)))
+	if (!(hid->ctrlbuf = usb_buffer_alloc(dev, hid->bufsize, SLAB_ATOMIC, &hid->ctrlbuf_dma)))
 		return -1;
 
 	return 0;
@@ -1543,13 +1642,27 @@ static int hid_alloc_buffers(struct usb_device *dev, struct hid_device *hid)
 static void hid_free_buffers(struct usb_device *dev, struct hid_device *hid)
 {
 	if (hid->inbuf)
-		usb_buffer_free(dev, HID_BUFFER_SIZE, hid->inbuf, hid->inbuf_dma);
+		usb_buffer_free(dev, hid->bufsize, hid->inbuf, hid->inbuf_dma);
 	if (hid->outbuf)
-		usb_buffer_free(dev, HID_BUFFER_SIZE, hid->outbuf, hid->outbuf_dma);
+		usb_buffer_free(dev, hid->bufsize, hid->outbuf, hid->outbuf_dma);
 	if (hid->cr)
 		usb_buffer_free(dev, sizeof(*(hid->cr)), hid->cr, hid->cr_dma);
 	if (hid->ctrlbuf)
-		usb_buffer_free(dev, HID_BUFFER_SIZE, hid->ctrlbuf, hid->ctrlbuf_dma);
+		usb_buffer_free(dev, hid->bufsize, hid->ctrlbuf, hid->ctrlbuf_dma);
+}
+
+/*
+ * Cherry Cymotion keyboard have an invalid HID report descriptor,
+ * that needs fixing before we can parse it.
+ */
+
+static void hid_fixup_cymotion_descriptor(char *rdesc, int rsize)
+{
+	if (rsize >= 17 && rdesc[11] == 0x3c && rdesc[12] == 0x02) {
+		info("Fixing up Cherry Cymotion report descriptor");
+		rdesc[11] = rdesc[16] = 0xff;
+		rdesc[12] = rdesc[17] = 0x03;
+	}
 }
 
 static struct hid_device *usb_hid_configure(struct usb_interface *intf)
@@ -1559,8 +1672,8 @@ static struct hid_device *usb_hid_configure(struct usb_interface *intf)
 	struct hid_descriptor *hdesc;
 	struct hid_device *hid;
 	unsigned quirks = 0, rsize = 0;
-	char *buf, *rdesc;
-	int n;
+	char *rdesc;
+	int n, len, insize = 0;
 
 	for (n = 0; hid_blacklist[n].idVendor; n++)
 		if ((hid_blacklist[n].idVendor == le16_to_cpu(dev->descriptor.idVendor)) &&
@@ -1570,10 +1683,11 @@ static struct hid_device *usb_hid_configure(struct usb_interface *intf)
 	if (quirks & HID_QUIRK_IGNORE)
 		return NULL;
 
-	if (usb_get_extra_descriptor(interface, HID_DT_HID, &hdesc) && ((!interface->desc.bNumEndpoints) ||
-		usb_get_extra_descriptor(&interface->endpoint[0], HID_DT_HID, &hdesc))) {
-			dbg("class descriptor not present\n");
-			return NULL;
+	if (usb_get_extra_descriptor(interface, HID_DT_HID, &hdesc) &&
+	    (!interface->desc.bNumEndpoints ||
+	     usb_get_extra_descriptor(&interface->endpoint[0], HID_DT_HID, &hdesc))) {
+		dbg("class descriptor not present\n");
+		return NULL;
 	}
 
 	for (n = 0; n < hdesc->bNumDescriptors; n++)
@@ -1590,11 +1704,16 @@ static struct hid_device *usb_hid_configure(struct usb_interface *intf)
 		return NULL;
 	}
 
+	hid_set_idle(dev, interface->desc.bInterfaceNumber, 0, 0);
+
 	if ((n = hid_get_class_descriptor(dev, interface->desc.bInterfaceNumber, HID_DT_REPORT, rdesc, rsize)) < 0) {
 		dbg("reading report descriptor failed");
 		kfree(rdesc);
 		return NULL;
 	}
+
+	if ((quirks & HID_QUIRK_CYMOTION))
+		hid_fixup_cymotion_descriptor(rdesc, rsize);
 
 #ifdef DEBUG_DATA
 	printk(KERN_DEBUG __FILE__ ": report descriptor (size %u, read %d) = ", rsize, n);
@@ -1612,6 +1731,19 @@ static struct hid_device *usb_hid_configure(struct usb_interface *intf)
 	kfree(rdesc);
 	hid->quirks = quirks;
 
+	hid->bufsize = HID_MIN_BUFFER_SIZE;
+	hid_find_max_report(hid, HID_INPUT_REPORT, &hid->bufsize);
+	hid_find_max_report(hid, HID_OUTPUT_REPORT, &hid->bufsize);
+	hid_find_max_report(hid, HID_FEATURE_REPORT, &hid->bufsize);
+
+	if (hid->bufsize > HID_MAX_BUFFER_SIZE)
+		hid->bufsize = HID_MAX_BUFFER_SIZE;
+
+	hid_find_max_report(hid, HID_INPUT_REPORT, &insize);
+
+	if (insize > HID_MAX_BUFFER_SIZE)
+		insize = HID_MAX_BUFFER_SIZE;
+
 	if (hid_alloc_buffers(dev, hid)) {
 		hid_free_buffers(dev, hid);
 		goto fail;
@@ -1627,25 +1759,22 @@ static struct hid_device *usb_hid_configure(struct usb_interface *intf)
 		if ((endpoint->bmAttributes & 3) != 3)		/* Not an interrupt endpoint */
 			continue;
 
-		/* handle potential highspeed HID correctly */
 		interval = endpoint->bInterval;
-		if (dev->speed == USB_SPEED_HIGH)
-			interval = 1 << (interval - 1);
 
 		/* Change the polling interval of mice. */
 		if (hid->collection->usage == HID_GD_MOUSE && hid_mousepoll_interval > 0)
 			interval = hid_mousepoll_interval;
-		
+
 		if (endpoint->bEndpointAddress & USB_DIR_IN) {
 			if (hid->urbin)
 				continue;
 			if (!(hid->urbin = usb_alloc_urb(0, GFP_KERNEL)))
 				goto fail;
 			pipe = usb_rcvintpipe(dev, endpoint->bEndpointAddress);
-			usb_fill_int_urb(hid->urbin, dev, pipe, hid->inbuf, 0,
+			usb_fill_int_urb(hid->urbin, dev, pipe, hid->inbuf, insize,
 					 hid_irq_in, hid, interval);
 			hid->urbin->transfer_dma = hid->inbuf_dma;
-			hid->urbin->transfer_flags |=(URB_NO_TRANSFER_DMA_MAP | URB_ASYNC_UNLINK);
+			hid->urbin->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
 		} else {
 			if (hid->urbout)
 				continue;
@@ -1655,7 +1784,7 @@ static struct hid_device *usb_hid_configure(struct usb_interface *intf)
 			usb_fill_int_urb(hid->urbout, dev, pipe, hid->outbuf, 0,
 					 hid_irq_out, hid, interval);
 			hid->urbout->transfer_dma = hid->outbuf_dma;
-			hid->urbout->transfer_flags |= (URB_NO_TRANSFER_DMA_MAP | URB_ASYNC_UNLINK);
+			hid->urbout->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
 		}
 	}
 
@@ -1677,37 +1806,39 @@ static struct hid_device *usb_hid_configure(struct usb_interface *intf)
 
 	hid->name[0] = 0;
 
-	if (!(buf = kmalloc(64, GFP_KERNEL)))
-		goto fail;
+	if (dev->manufacturer)
+		strlcpy(hid->name, dev->manufacturer, sizeof(hid->name));
 
-	if (dev->manufacturer) {
-		strcat(hid->name, dev->manufacturer);
-		if (dev->product)
-			snprintf(hid->name, 64, "%s %s", hid->name, dev->product);
-	} else if (dev->product) {
-			snprintf(hid->name, 128, "%s", dev->product);
-	} else
-		snprintf(hid->name, 128, "%04x:%04x",
-			le16_to_cpu(dev->descriptor.idVendor),
-			le16_to_cpu(dev->descriptor.idProduct));
+	if (dev->product) {
+		if (dev->manufacturer)
+			strlcat(hid->name, " ", sizeof(hid->name));
+		strlcat(hid->name, dev->product, sizeof(hid->name));
+	}
 
-	usb_make_path(dev, buf, 64);
-	snprintf(hid->phys, 64, "%s/input%d", buf,
-			intf->altsetting[0].desc.bInterfaceNumber);
+	if (!strlen(hid->name))
+		snprintf(hid->name, sizeof(hid->name), "HID %04x:%04x",
+			 le16_to_cpu(dev->descriptor.idVendor),
+			 le16_to_cpu(dev->descriptor.idProduct));
+
+	usb_make_path(dev, hid->phys, sizeof(hid->phys));
+	strlcat(hid->phys, "/input", sizeof(hid->phys));
+	len = strlen(hid->phys);
+	if (len < sizeof(hid->phys) - 1)
+		snprintf(hid->phys + len, sizeof(hid->phys) - len,
+			 "%d", intf->altsetting[0].desc.bInterfaceNumber);
 
 	if (usb_string(dev, dev->descriptor.iSerialNumber, hid->uniq, 64) <= 0)
 		hid->uniq[0] = 0;
 
-	kfree(buf);
-
 	hid->urbctrl = usb_alloc_urb(0, GFP_KERNEL);
 	if (!hid->urbctrl)
 		goto fail;
+
 	usb_fill_control_urb(hid->urbctrl, dev, 0, (void *) hid->cr,
 			     hid->ctrlbuf, 1, hid_ctrl, hid);
 	hid->urbctrl->setup_dma = hid->cr_dma;
 	hid->urbctrl->transfer_dma = hid->ctrlbuf_dma;
-	hid->urbctrl->transfer_flags |= (URB_NO_TRANSFER_DMA_MAP | URB_NO_SETUP_DMA_MAP | URB_ASYNC_UNLINK);
+	hid->urbctrl->transfer_flags |= (URB_NO_TRANSFER_DMA_MAP | URB_NO_SETUP_DMA_MAP);
 
 	return hid;
 
@@ -1762,7 +1893,7 @@ static int hid_probe(struct usb_interface *intf, const struct usb_device_id *id)
 			intf->altsetting->desc.bInterfaceNumber);
 
 	if (!(hid = usb_hid_configure(intf)))
-		return -EIO;
+		return -ENODEV;
 
 	hid_init_reports(hid);
 	hid_dump_device(hid);
@@ -1777,7 +1908,7 @@ static int hid_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	if (!hid->claimed) {
 		printk ("HID device not claimed by input or hiddev\n");
 		hid_disconnect(intf);
-		return -EIO;
+		return -ENODEV;
 	}
 
 	printk(KERN_INFO);
@@ -1812,7 +1943,6 @@ static int hid_suspend(struct usb_interface *intf, pm_message_t message)
 	struct hid_device *hid = usb_get_intfdata (intf);
 
 	usb_kill_urb(hid->urbin);
-	intf->dev.power.power_state = PMSG_SUSPEND;
 	dev_dbg(&intf->dev, "suspend\n");
 	return 0;
 }
@@ -1822,7 +1952,6 @@ static int hid_resume(struct usb_interface *intf)
 	struct hid_device *hid = usb_get_intfdata (intf);
 	int status;
 
-	intf->dev.power.power_state = PMSG_ON;
 	if (hid->open)
 		status = usb_submit_urb(hid->urbin, GFP_NOIO);
 	else
@@ -1840,7 +1969,6 @@ static struct usb_device_id hid_usb_ids [] = {
 MODULE_DEVICE_TABLE (usb, hid_usb_ids);
 
 static struct usb_driver hid_driver = {
-	.owner =	THIS_MODULE,
 	.name =		"usbhid",
 	.probe =	hid_probe,
 	.disconnect =	hid_disconnect,

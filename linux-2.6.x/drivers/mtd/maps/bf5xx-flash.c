@@ -1,9 +1,9 @@
 /*
  * Flash memory access on BlackFin BF5xx based devices
- * 
+ *
  * (C) 2000 Nicolas Pitre <nico@cam.org>
  * (C) 2004 LG Soft India
- * 
+ *
  */
 
 #include <linux/config.h>
@@ -25,7 +25,7 @@
 #endif
 
 #define BFIN_FLASH_AMBCTL0VAL	((CONFIG_BFIN_FLASH_BANK_1 << 16) | CONFIG_BFIN_FLASH_BANK_0)
-#define BFIN_FLASH_AMBCTL1VAL	((CONFIG_BFIN_FLASH_BANK_3 << 16) | CONFIG_BFIN_FLASH_BANK_2) 
+#define BFIN_FLASH_AMBCTL1VAL	((CONFIG_BFIN_FLASH_BANK_3 << 16) | CONFIG_BFIN_FLASH_BANK_2)
 
 struct flash_save {
 #if defined(CONFIG_BFIN_SHARED_FLASH_ENET)
@@ -63,7 +63,7 @@ static inline void switch_back(struct flash_save *save)
 	*pEBIU_AMBCTL1	= save->ambctl1;
 	__builtin_bfin_ssync();
 
-	*pFIO_FLAG_S	= CONFIG_ENET_FLASH_PIN;	
+	*pFIO_FLAG_S	= CONFIG_ENET_FLASH_PIN;
 
 	local_irq_restore(save->flags);
 }
@@ -74,7 +74,7 @@ static inline void switch_back(struct flash_save *save) {}
 #if defined(CONFIG_BFIN_SHARED_FLASH_ENET)
 static inline void setup_pfpins(void)
 {
-	*pFIO_INEN		&= ~CONFIG_ENET_FLASH_PIN;	
+	*pFIO_INEN		&= ~CONFIG_ENET_FLASH_PIN;
 	*pFIO_DIR 		|=  CONFIG_ENET_FLASH_PIN;
 }
 #else
@@ -95,9 +95,9 @@ static map_word bf5xx_read(struct map_info *map, unsigned long ofs)
 	__builtin_bfin_ssync();
 	switch_back(&save);
 
-	
+
 	test.x[0]=(__u16)nValue;
-	return test;	
+	return test;
 }
 
 static void bf5xx_copy_from(struct map_info *map, void *to, unsigned long from, ssize_t len)
@@ -106,23 +106,23 @@ static void bf5xx_copy_from(struct map_info *map, void *to, unsigned long from, 
 	map_word test;
 
 
-  if( (unsigned long)&to[0] & 0x1 ) 
-	  {	 
-	   for (i = 0; i < len/2*2; i += 2)	
+  if( (unsigned long)to & 0x1 )
+	  {
+	   for (i = 0; i < len/2*2; i += 2)
 		{
 			test = bf5xx_read(map,from+i);
-			put_unaligned(test.x[0], (__le16 *) (to + i)); 
+			put_unaligned(test.x[0], (__le16 *) (to + i));
 		}
 	  }
 	   else
 	  {
-	   for (i = 0; i < len/2*2; i += 2)	
+	   for (i = 0; i < len/2*2; i += 2)
 	 	{
 			test = bf5xx_read(map,from+i);
-			*((u16*)(to + i)) = test.x[0]; 
+			*((u16*)(to + i)) = test.x[0];
 		}
 	  }
-	
+
 	if (len & 0x01) {
 
 		test = bf5xx_read(map, from + i);
@@ -136,12 +136,12 @@ static void bf5xx_write(struct map_info *map, map_word d1, unsigned long ofs)
 	__u16 d;
 	struct flash_save save;
 
-	d = (__u16)d1.x[0];	
+	d = (__u16)d1.x[0];
 
 	switch_to_flash(&save);
 
 		__builtin_bfin_ssync();
-		  writew(d, CONFIG_EBIU_FLASH_BASE + ofs);		
+		  writew(d, CONFIG_EBIU_FLASH_BASE + ofs);
 		__builtin_bfin_ssync();
 
 	switch_back(&save);
@@ -154,9 +154,9 @@ static void bf5xx_copy_to(struct map_info *map, unsigned long to, const void *fr
 	struct flash_save save;
 
 	switch_to_flash(&save);
-      
+
       memcpy((void *)(CONFIG_EBIU_FLASH_BASE + to), from, len);
-	
+
 	switch_back(&save);
 }
 
@@ -165,7 +165,7 @@ static struct map_info bf5xx_map = {
 	0x400000,
 	0x20000000,
 	0x20000000,
-	NULL,		
+	NULL,
 	read:		bf5xx_read,
 	copy_from:	bf5xx_copy_from,
 	write:		bf5xx_write,
@@ -177,9 +177,9 @@ static struct map_info bf5xx_map = {
  * Here are partition information for all known BlackFin-based devices.
  * See include/linux/mtd/partitions.h for definition of the mtd_partition
  * structure.
- * 
+ *
  * The *_max_flash_size is the maximum possible mapped flash size which
- * is not necessarily the actual flash size.  It must correspond to the 
+ * is not necessarily the actual flash size.  It must correspond to the
  * value specified in the mapping definition defined by the
  * "struct map_desc *_io_desc" for the corresponding machine.
  */
@@ -205,7 +205,7 @@ static struct mtd_partition bf5xx_partitions[] = {
 		size: 0x2f0000,
 		//size: 0x2effff,
 		offset: 0x100000,
-	} 	
+	}
 #else
 	{
                 name: "JFFS2",
@@ -213,7 +213,7 @@ static struct mtd_partition bf5xx_partitions[] = {
                 //size: 0x2fffff,
                 offset: 0x100000,
         }
-#endif	
+#endif
 };
 
 #define NB_OF(x)  (sizeof(x)/sizeof(x[0]))

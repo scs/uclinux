@@ -17,15 +17,8 @@
 
 #include <linux/config.h>
 #include <linux/module.h>
-#include <linux/devfs_fs_kernel.h>
 #include <linux/spinlock.h>
 #include <linux/errno.h>
-
-#ifdef CONFIG_USB_DEBUG
-	#define DEBUG
-#else
-	#undef DEBUG
-#endif
 #include <linux/usb.h>
 
 #include "usb.h"
@@ -68,7 +61,7 @@ static struct file_operations usb_fops = {
 	.open =		usb_open,
 };
 
-static struct class_simple *usb_class;
+static struct class *usb_class;
 
 int usb_major_init(void)
 {
@@ -80,14 +73,13 @@ int usb_major_init(void)
 		goto out;
 	}
 
-	usb_class = class_simple_create(THIS_MODULE, "usb");
+	usb_class = class_create(THIS_MODULE, "usb");
 	if (IS_ERR(usb_class)) {
-		err("class_simple_create failed for usb devices");
+		error = PTR_ERR(usb_class);
+		err("class_create failed for usb devices");
 		unregister_chrdev(USB_MAJOR, "usb");
 		goto out;
 	}
-
-	devfs_mk_dir("usb");
 
 out:
 	return error;
@@ -95,8 +87,7 @@ out:
 
 void usb_major_cleanup(void)
 {
-	class_simple_destroy(usb_class);
-	devfs_remove("usb");
+	class_destroy(usb_class);
 	unregister_chrdev(USB_MAJOR, "usb");
 }
 
@@ -111,8 +102,7 @@ void usb_major_cleanup(void)
  * enabled, the minor number will be based on the next available free minor,
  * starting at the class_driver->minor_base.
  *
- * This function also creates the devfs file for the usb device, if devfs
- * is enabled, and creates a usb class device in the sysfs tree.
+ * This function also creates a usb class device in the sysfs tree.
  *
  * usb_deregister_dev() must be called when the driver is done with
  * the minor numbers given out by this function.
@@ -161,22 +151,20 @@ int usb_register_dev(struct usb_interface *intf,
 
 	intf->minor = minor;
 
-	/* handle the devfs registration */
-	snprintf(name, BUS_ID_SIZE, class_driver->name, minor - minor_base);
-	devfs_mk_cdev(MKDEV(USB_MAJOR, minor), class_driver->mode, name);
-
 	/* create a usb class device for this usb interface */
+	snprintf(name, BUS_ID_SIZE, class_driver->name, minor - minor_base);
 	temp = strrchr(name, '/');
 	if (temp && (temp[1] != 0x00))
 		++temp;
 	else
 		temp = name;
-	intf->class_dev = class_simple_device_add(usb_class, MKDEV(USB_MAJOR, minor), &intf->dev, "%s", temp);
+	intf->class_dev = class_device_create(usb_class, NULL,
+					      MKDEV(USB_MAJOR, minor),
+					      &intf->dev, "%s", temp);
 	if (IS_ERR(intf->class_dev)) {
 		spin_lock (&minor_lock);
 		usb_minors[intf->minor] = NULL;
 		spin_unlock (&minor_lock);
-		devfs_remove (name);
 		retval = PTR_ERR(intf->class_dev);
 	}
 exit:
@@ -194,9 +182,8 @@ EXPORT_SYMBOL(usb_register_dev);
  * call to usb_register_dev() (usually when the device is disconnected
  * from the system.)
  *
- * This function also cleans up the devfs file for the usb device, if devfs
- * is enabled, and removes the usb class device from the sysfs tree.
- * 
+ * This function also removes the usb class device from the sysfs tree.
+ *
  * This should be called by all drivers that use the USB major number.
  */
 void usb_deregister_dev(struct usb_interface *intf,
@@ -219,8 +206,7 @@ void usb_deregister_dev(struct usb_interface *intf,
 	spin_unlock (&minor_lock);
 
 	snprintf(name, BUS_ID_SIZE, class_driver->name, intf->minor - minor_base);
-	devfs_remove (name);
-	class_simple_device_remove(MKDEV(USB_MAJOR, intf->minor));
+	class_device_destroy(usb_class, MKDEV(USB_MAJOR, intf->minor));
 	intf->class_dev = NULL;
 	intf->minor = -1;
 }

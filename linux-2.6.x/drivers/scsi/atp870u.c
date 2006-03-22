@@ -297,11 +297,10 @@ stop_dma:
 			}
 			workreq = dev->id[c][target_id].curr_req;
 #ifdef ED_DBGP			
-			printk(KERN_DEBUG "Channel = %d ID = %d LUN = %d CDB",c,workreq->device->id,workreq->device->lun);
-			for(l=0;l<workreq->cmd_len;l++)
-			{
+			scmd_printk(KERN_DEBUG, workreq, "CDB");
+			for (l = 0; l < workreq->cmd_len; l++)
 				printk(KERN_DEBUG " %x",workreq->cmnd[l]);
-			}
+			printk("\n");
 #endif	
 			
 			tmport = workport + 0x0f;
@@ -622,10 +621,10 @@ static int atp870u_queuecommand(struct scsi_cmnd * req_p,
 	struct atp_unit *dev;
 	struct Scsi_Host *host;
 
-	c = req_p->device->channel;	
+	c = scmd_channel(req_p);
 	req_p->sense_buffer[0]=0;
 	req_p->resid = 0;
-	if (req_p->device->channel > 1) {
+	if (scmd_channel(req_p) > 1) {
 		req_p->result = 0x00040000;
 		done(req_p);
 #ifdef ED_DBGP		
@@ -640,7 +639,7 @@ static int atp870u_queuecommand(struct scsi_cmnd * req_p,
 
 		
 	m = 1;
-	m = m << req_p->device->id;
+	m = m << scmd_id(req_p);
 
 	/*
 	 *      Fake a timeout for missing targets
@@ -758,9 +757,9 @@ static void send_s870(struct atp_unit *dev,unsigned char c)
 		dev->quhd[c] = 0;
 	}
 	workreq = dev->quereq[c][dev->quhd[c]];
-	if (dev->id[c][workreq->device->id].curr_req == 0) {	
-		dev->id[c][workreq->device->id].curr_req = workreq;
-		dev->last_cmd[c] = workreq->device->id;
+	if (dev->id[c][scmd_id(workreq)].curr_req == 0) {	
+		dev->id[c][scmd_id(workreq)].curr_req = workreq;
+		dev->last_cmd[c] = scmd_id(workreq);
 		goto cmd_subp;
 	}	
 	dev->quhd[c] = j;
@@ -787,16 +786,16 @@ abortsnd:
 oktosend:
 #ifdef ED_DBGP
 	printk("OK to Send\n");
-	printk("CDB");
+	scmd_printk(KERN_DEBUG, workreq, "CDB");
 	for(i=0;i<workreq->cmd_len;i++) {
 		printk(" %x",workreq->cmnd[i]);
 	}
-	printk("\nChannel = %d ID = %d LUN = %d\n",c,workreq->device->id,workreq->device->lun);
+	printk("\n");
 #endif	
 	if (dev->dev_id == ATP885_DEVID) {
 		j = inb(dev->baseport + 0x29) & 0xfe;
 		outb(j, dev->baseport + 0x29);
-		dev->r1f[c][workreq->device->id] = 0;
+		dev->r1f[c][scmd_id(workreq)] = 0;
 	}
 	
 	if (workreq->cmnd[0] == READ_CAPACITY) {
@@ -810,7 +809,7 @@ oktosend:
 
 	tmport = workport + 0x1b;
 	j = 0;
-	target_id = workreq->device->id;
+	target_id = scmd_id(workreq);
 
 	/*
 	 *	Wide ?
@@ -996,6 +995,7 @@ oktosend:
 #ifdef ED_DBGP		
 	printk("send_s870: prdaddr_2 0x%8x tmpcip %x target_id %d\n", dev->id[c][target_id].prdaddr,tmpcip,target_id);
 #endif	
+	dev->id[c][target_id].prdaddr = dev->id[c][target_id].prd_bus;
 	outl(dev->id[c][target_id].prdaddr, tmpcip);
 	tmpcip = tmpcip - 2;
 	outb(0x06, tmpcip);
@@ -2572,7 +2572,7 @@ static void atp870u_free_tables(struct Scsi_Host *host)
 		for (k = 0; k < 16; k++) {
 			if (!atp_dev->id[j][k].prd_table)
 				continue;
-			pci_free_consistent(atp_dev->pdev, 1024, atp_dev->id[j][k].prd_table, atp_dev->id[j][k].prdaddr);
+			pci_free_consistent(atp_dev->pdev, 1024, atp_dev->id[j][k].prd_table, atp_dev->id[j][k].prd_bus);
 			atp_dev->id[j][k].prd_table = NULL;
 		}
 	}
@@ -2584,12 +2584,13 @@ static int atp870u_init_tables(struct Scsi_Host *host)
 	int c,k;
 	for(c=0;c < 2;c++) {
 	   	for(k=0;k<16;k++) {
-	   			atp_dev->id[c][k].prd_table = pci_alloc_consistent(atp_dev->pdev, 1024, &(atp_dev->id[c][k].prdaddr));
+	   			atp_dev->id[c][k].prd_table = pci_alloc_consistent(atp_dev->pdev, 1024, &(atp_dev->id[c][k].prd_bus));
 	   			if (!atp_dev->id[c][k].prd_table) {
 	   				printk("atp870u_init_tables fail\n");
 				atp870u_free_tables(host);
 				return -ENOMEM;
 			}
+			atp_dev->id[c][k].prdaddr = atp_dev->id[c][k].prd_bus;
 			atp_dev->id[c][k].devsp=0x20;
 			atp_dev->id[c][k].devtype = 0x7f;
 			atp_dev->id[c][k].curr_req = NULL;			   
@@ -3107,7 +3108,7 @@ static int atp870u_abort(struct scsi_cmnd * SCpnt)
 	host = SCpnt->device->host;
 
 	dev = (struct atp_unit *)&host->hostdata;
-	c=SCpnt->device->channel;
+	c = scmd_channel(SCpnt);
 	printk(" atp870u: abort Channel = %x \n", c);
 	printk("working=%x last_cmd=%x ", dev->working[c], dev->last_cmd[c]);
 	printk(" quhdu=%x quendu=%x ", dev->quhd[c], dev->quend[c]);
@@ -3146,8 +3147,8 @@ static const char *atp870u_info(struct Scsi_Host *notused)
 }
 
 #define BLS buffer + len + size
-int atp870u_proc_info(struct Scsi_Host *HBAptr, char *buffer, 
-		      char **start, off_t offset, int length, int inout)
+static int atp870u_proc_info(struct Scsi_Host *HBAptr, char *buffer, 
+			     char **start, off_t offset, int length, int inout)
 {
 	static u8 buff[512];
 	int size = 0;

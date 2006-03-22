@@ -193,10 +193,6 @@ ohci_dump_status (struct ohci_hcd *controller, char **next, unsigned *size)
 
 	maybe_print_eds (controller, "donehead",
 			ohci_readl (controller, &regs->donehead), next, size);
-
-	/* broken fminterval means traffic won't flow! */ 
-	ohci_dbg (controller, "fminterval %08x\n", 
-			ohci_readl (controller, &regs->fminterval));
 }
 
 #define dbg_port_sw(hc,num,value,next,size) \
@@ -228,23 +224,22 @@ ohci_dump_roothub (
 	char **next,
 	unsigned *size)
 {
-	u32			temp, ndp, i;
+	u32			temp, i;
 
 	temp = roothub_a (controller);
 	if (temp == ~(u32)0)
 		return;
-	ndp = (temp & RH_A_NDP);
 
 	if (verbose) {
 		ohci_dbg_sw (controller, next, size,
-			"roothub.a %08x POTPGT=%d%s%s%s%s%s NDP=%d\n", temp,
+			"roothub.a %08x POTPGT=%d%s%s%s%s%s NDP=%d(%d)\n", temp,
 			((temp & RH_A_POTPGT) >> 24) & 0xff,
 			(temp & RH_A_NOCP) ? " NOCP" : "",
 			(temp & RH_A_OCPM) ? " OCPM" : "",
 			(temp & RH_A_DT) ? " DT" : "",
 			(temp & RH_A_NPS) ? " NPS" : "",
 			(temp & RH_A_PSM) ? " PSM" : "",
-			ndp
+			(temp & RH_A_NDP), controller->num_ports
 			);
 		temp = roothub_b (controller);
 		ohci_dbg_sw (controller, next, size,
@@ -266,7 +261,7 @@ ohci_dump_roothub (
 			);
 	}
 
-	for (i = 0; i < ndp; i++) {
+	for (i = 0; i < controller->num_ports; i++) {
 		temp = roothub_portstatus (controller, i);
 		dbg_port_sw (controller, i, temp, next, size);
 	}
@@ -481,7 +476,7 @@ show_async (struct class_device *class_dev, char *buf)
 	size_t			temp;
 	unsigned long		flags;
 
-	bus = to_usb_bus(class_dev);
+	bus = class_get_devdata(class_dev);
 	hcd = bus->hcpriv;
 	ohci = hcd_to_ohci(hcd);
 
@@ -514,7 +509,7 @@ show_periodic (struct class_device *class_dev, char *buf)
 		return 0;
 	seen_count = 0;
 
-	bus = to_usb_bus(class_dev);
+	bus = class_get_devdata(class_dev);
 	hcd = bus->hcpriv;
 	ohci = hcd_to_ohci(hcd);
 	next = buf;
@@ -611,7 +606,7 @@ show_registers (struct class_device *class_dev, char *buf)
 	char			*next;
 	u32			rdata;
 
-	bus = to_usb_bus(class_dev);
+	bus = class_get_devdata(class_dev);
 	hcd = bus->hcpriv;
 	ohci = hcd_to_ohci(hcd);
 	regs = ohci->regs;
@@ -631,7 +626,7 @@ show_registers (struct class_device *class_dev, char *buf)
 		hcd->product_desc,
 		hcd_name);
 
-	if (bus->controller->power.power_state) {
+	if (bus->controller->power.power_state.event) {
 		size -= scnprintf (next, size,
 			"SUSPENDED (no register access)\n");
 		goto done;
@@ -684,7 +679,7 @@ static CLASS_DEVICE_ATTR (registers, S_IRUGO, show_registers, NULL);
 
 static inline void create_debug_files (struct ohci_hcd *ohci)
 {
-	struct class_device *cldev = &ohci_to_hcd(ohci)->self.class_dev;
+	struct class_device *cldev = ohci_to_hcd(ohci)->self.class_dev;
 
 	class_device_create_file(cldev, &class_device_attr_async);
 	class_device_create_file(cldev, &class_device_attr_periodic);
@@ -694,7 +689,7 @@ static inline void create_debug_files (struct ohci_hcd *ohci)
 
 static inline void remove_debug_files (struct ohci_hcd *ohci)
 {
-	struct class_device *cldev = &ohci_to_hcd(ohci)->self.class_dev;
+	struct class_device *cldev = ohci_to_hcd(ohci)->self.class_dev;
 
 	class_device_remove_file(cldev, &class_device_attr_async);
 	class_device_remove_file(cldev, &class_device_attr_periodic);

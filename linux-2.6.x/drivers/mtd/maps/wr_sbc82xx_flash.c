@@ -163,10 +163,10 @@ static void __exit cleanup_sbc82xx_flash(void)
 			del_mtd_partitions(sbcmtd[i]);
 		else
 			del_mtd_device(sbcmtd[i]);
-			
+
 		kfree(sbcmtd_parts[i]);
 		map_destroy(sbcmtd[i]);
-		
+
 		iounmap((void *)sbc82xx_flash_map[i].virt);
 		sbc82xx_flash_map[i].virt = 0;
 	}

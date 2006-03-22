@@ -55,7 +55,6 @@
  * Add adapter resets
  */
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/delay.h>
@@ -124,11 +123,12 @@ static int blacklist[] = {
 
 /* If force_addr is set to anything different from 0, we forcibly enable
    the device at the given address. */
-static u16 force_addr = 0;
+static u16 force_addr;
 module_param(force_addr, ushort, 0);
 MODULE_PARM_DESC(force_addr, "Initialize the base address of the i2c controller");
 
-static unsigned short sis5595_base = 0;
+static struct pci_driver sis5595_driver;
+static unsigned short sis5595_base;
 
 static u8 sis5595_read(u8 reg)
 {
@@ -173,7 +173,8 @@ static int sis5595_setup(struct pci_dev *SIS5595_dev)
 
 	/* NB: We grab just the two SMBus registers here, but this may still
 	 * interfere with ACPI :-(  */
-	if (!request_region(sis5595_base + SMB_INDEX, 2, "sis5595-smbus")) {
+	if (!request_region(sis5595_base + SMB_INDEX, 2,
+			    sis5595_driver.name)) {
 		dev_err(&SIS5595_dev->dev, "SMBus registers 0x%04x-0x%04x already in use!\n",
 			sis5595_base + SMB_INDEX, sis5595_base + SMB_INDEX + 1);
 		return -ENODEV;
@@ -229,7 +230,7 @@ static int sis5595_transaction(struct i2c_adapter *adap)
 	/* Make sure the SMBus host is ready to start transmitting */
 	temp = sis5595_read(SMB_STS_LO) + (sis5595_read(SMB_STS_HI) << 8);
 	if (temp != 0x00) {
-		dev_dbg(&adap->dev, "SMBus busy (%04x). Resetting... \n", temp);
+		dev_dbg(&adap->dev, "SMBus busy (%04x). Resetting...\n", temp);
 		sis5595_write(SMB_STS_LO, temp & 0xff);
 		sis5595_write(SMB_STS_HI, temp >> 8);
 		if ((temp = sis5595_read(SMB_STS_LO) + (sis5595_read(SMB_STS_HI) << 8)) != 0x00) {
@@ -358,8 +359,6 @@ static u32 sis5595_func(struct i2c_adapter *adapter)
 }
 
 static struct i2c_algorithm smbus_algorithm = {
-	.name		= "Non-I2C SMBus adapter",
-	.id		= I2C_ALGO_SMBUS,
 	.smbus_xfer	= sis5595_access,
 	.functionality	= sis5595_func,
 };
@@ -367,7 +366,6 @@ static struct i2c_algorithm smbus_algorithm = {
 static struct i2c_adapter sis5595_adapter = {
 	.owner		= THIS_MODULE,
 	.class          = I2C_CLASS_HWMON,
-	.name		= "unset",
 	.algo		= &smbus_algorithm,
 };
 

@@ -173,8 +173,7 @@ static int change_mode(struct parport *p, int m)
 				if (time_after_eq (jiffies, expire))
 					/* The FIFO is stuck. */
 					return -EBUSY;
-				__set_current_state (TASK_INTERRUPTIBLE);
-				schedule_timeout ((HZ + 99) / 100);
+				schedule_timeout_interruptible(msecs_to_jiffies(10));
 				if (signal_pending (current))
 					break;
 			}
@@ -1170,7 +1169,7 @@ dump_parport_state ("fwd idle", port);
 
 /* GCC is not inlining extern inline function later overwriten to non-inline,
    so we use outlined_ variants here.  */
-static struct parport_operations parport_pc_ops =
+static const struct parport_operations parport_pc_ops =
 {
 	.write_data	= parport_pc_write_data,
 	.read_data	= parport_pc_read_data,
@@ -1212,10 +1211,11 @@ static struct parport_operations parport_pc_ops =
 static void __devinit show_parconfig_smsc37c669(int io, int key)
 {
 	int cr1,cr4,cra,cr23,cr26,cr27,i=0;
-	static const char *modes[]={ "SPP and Bidirectional (PS/2)",	
-				     "EPP and SPP",
-				     "ECP",
-				     "ECP and EPP" };
+	static const char *const modes[]={
+		"SPP and Bidirectional (PS/2)",
+		"EPP and SPP",
+		"ECP",
+		"ECP and EPP" };
 
 	outb(key,io);
 	outb(key,io);
@@ -1289,7 +1289,7 @@ static void __devinit show_parconfig_smsc37c669(int io, int key)
 static void __devinit show_parconfig_winbond(int io, int key)
 {
 	int cr30,cr60,cr61,cr70,cr74,crf0,i=0;
-	static const char *modes[] = {
+	static const char *const modes[] = {
 		"Standard (SPP) and Bidirectional(PS/2)", /* 0 */
 		"EPP-1.9 and SPP",
 		"ECP",
@@ -1298,7 +1298,9 @@ static void __devinit show_parconfig_winbond(int io, int key)
 		"EPP-1.7 and SPP",		/* 5 */
 		"undefined!",
 		"ECP and EPP-1.7" };
-	static char *irqtypes[] = { "pulsed low, high-Z", "follows nACK" };
+	static char *const irqtypes[] = {
+		"pulsed low, high-Z",
+		"follows nACK" };
 		
 	/* The registers are called compatible-PnP because the
            register layout is modelled after ISA-PnP, the access
@@ -2369,8 +2371,10 @@ void parport_pc_unregister_port (struct parport *p)
 	spin_lock(&ports_lock);
 	list_del_init(&priv->list);
 	spin_unlock(&ports_lock);
+#if defined(CONFIG_PARPORT_PC_FIFO) && defined(HAS_DMA)
 	if (p->dma != PARPORT_DMA_NONE)
 		free_dma(p->dma);
+#endif
 	if (p->irq != PARPORT_IRQ_NONE)
 		free_irq(p->irq, p);
 	release_region(p->base, 3);
@@ -2378,13 +2382,11 @@ void parport_pc_unregister_port (struct parport *p)
 		release_region(p->base + 3, p->size - 3);
 	if (p->modes & PARPORT_MODE_ECP)
 		release_region(p->base_hi, 3);
-#ifdef CONFIG_PARPORT_PC_FIFO
-#ifdef HAS_DMA
+#if defined(CONFIG_PARPORT_PC_FIFO) && defined(HAS_DMA)
 	if (priv->dma_buf)
 		pci_free_consistent(priv->dev, PAGE_SIZE,
 				    priv->dma_buf,
 				    priv->dma_handle);
-#endif
 #endif
 	kfree (p->private_data);
 	parport_put_port(p);
@@ -2397,7 +2399,8 @@ EXPORT_SYMBOL (parport_pc_unregister_port);
 
 /* ITE support maintained by Rich Liu <richliu@poorman.org> */
 static int __devinit sio_ite_8872_probe (struct pci_dev *pdev, int autoirq,
-					 int autodma, struct parport_pc_via_data *via)
+					 int autodma,
+					 const struct parport_pc_via_data *via)
 {
 	short inta_addr[6] = { 0x2A0, 0x2C0, 0x220, 0x240, 0x1E0 };
 	struct resource *base_res;
@@ -2525,7 +2528,8 @@ static struct parport_pc_via_data via_8231_data __devinitdata = {
 };
 
 static int __devinit sio_via_probe (struct pci_dev *pdev, int autoirq,
-					 int autodma, struct parport_pc_via_data *via)
+				    int autodma,
+				    const struct parport_pc_via_data *via)
 {
 	u8 tmp, tmp2, siofunc;
 	u8 ppcontrol = 0;
@@ -2695,8 +2699,9 @@ enum parport_pc_sio_types {
 
 /* each element directly indexed from enum list, above */
 static struct parport_pc_superio {
-	int (*probe) (struct pci_dev *pdev, int autoirq, int autodma, struct parport_pc_via_data *via);
-	struct parport_pc_via_data *via;
+	int (*probe) (struct pci_dev *pdev, int autoirq, int autodma,
+		      const struct parport_pc_via_data *via);
+	const struct parport_pc_via_data *via;
 } parport_pc_superio_info[] __devinitdata = {
 	{ sio_via_probe, &via_686a_data, },
 	{ sio_via_probe, &via_8231_data, },
@@ -2739,6 +2744,7 @@ enum parport_pc_pci_cards {
 	syba_2p_epp,
 	syba_1p_ecp,
 	titan_010l,
+	titan_1284p1,
 	titan_1284p2,
 	avlab_1p,
 	avlab_2p,
@@ -2751,7 +2757,6 @@ enum parport_pc_pci_cards {
 	netmos_9755,
 	netmos_9805,
 	netmos_9815,
-	netmos_9855,
 };
 
 
@@ -2812,6 +2817,7 @@ static struct parport_pc_pci {
 	/* syba_2p_epp AP138B */	{ 2, { { 0, 0x078 }, { 0, 0x178 }, } },
 	/* syba_1p_ecp W83787 */	{ 1, { { 0, 0x078 }, } },
 	/* titan_010l */		{ 1, { { 3, -1 }, } },
+	/* titan_1284p1 */              { 1, { { 0, 1 }, } },
 	/* titan_1284p2 */		{ 2, { { 0, 1 }, { 2, 3 }, } },
 	/* avlab_1p		*/	{ 1, { { 0, 1}, } },
 	/* avlab_2p		*/	{ 2, { { 0, 1}, { 2, 3 },} },
@@ -2826,10 +2832,9 @@ static struct parport_pc_pci {
         /* netmos_9755 */               { 2, { { 0, 1 }, { 2, 3 },} }, /* untested */
 	/* netmos_9805 */               { 1, { { 0, -1 }, } }, /* untested */
 	/* netmos_9815 */               { 2, { { 0, -1 }, { 2, -1 }, } }, /* untested */
-	/* netmos_9855 */               { 2, { { 0, -1 }, { 2, -1 }, } }, /* untested */
 };
 
-static struct pci_device_id parport_pc_pci_tbl[] = {
+static const struct pci_device_id parport_pc_pci_tbl[] = {
 	/* Super-IO onboard chips */
 	{ 0x1106, 0x0686, PCI_ANY_ID, PCI_ANY_ID, 0, 0, sio_via_686a },
 	{ 0x1106, 0x8231, PCI_ANY_ID, PCI_ANY_ID, 0, 0, sio_via_8231 },
@@ -2886,6 +2891,7 @@ static struct pci_device_id parport_pc_pci_tbl[] = {
 	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, syba_1p_ecp },
 	{ PCI_VENDOR_ID_TITAN, PCI_DEVICE_ID_TITAN_010L,
 	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, titan_010l },
+	{ 0x9710, 0x9805, 0x1000, 0x0010, 0, 0, titan_1284p1 },
 	{ 0x9710, 0x9815, 0x1000, 0x0020, 0, 0, titan_1284p2 },
 	/* PCI_VENDOR_ID_AVLAB/Intek21 has another bunch of cards ...*/
 	{ 0x14db, 0x2120, PCI_ANY_ID, PCI_ANY_ID, 0, 0, avlab_1p}, /* AFAVLAB_TK9902 */
@@ -2907,8 +2913,6 @@ static struct pci_device_id parport_pc_pci_tbl[] = {
 	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, netmos_9805 },
 	{ PCI_VENDOR_ID_NETMOS, PCI_DEVICE_ID_NETMOS_9815,
 	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, netmos_9815 },
-	{ PCI_VENDOR_ID_NETMOS, PCI_DEVICE_ID_NETMOS_9855,
-	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, netmos_9855 },
 	{ 0, } /* terminate list */
 };
 MODULE_DEVICE_TABLE(pci,parport_pc_pci_tbl);
@@ -3011,8 +3015,8 @@ static int __init parport_pc_init_superio (int autoirq, int autodma)
 	struct pci_dev *pdev = NULL;
 	int ret = 0;
 
-	while ((pdev = pci_find_device(PCI_ANY_ID, PCI_ANY_ID, pdev)) != NULL) {
-		id = pci_match_device (parport_pc_pci_tbl, pdev);
+	for_each_pci_dev(pdev) {
+		id = pci_match_id(parport_pc_pci_tbl, pdev);
 		if (id == NULL || id->driver_data >= last_sio)
 			continue;
 

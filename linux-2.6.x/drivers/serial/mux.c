@@ -27,6 +27,7 @@
 #include <linux/delay.h> /* for udelay */
 #include <linux/device.h>
 #include <asm/io.h>
+#include <asm/irq.h>
 #include <asm/parisc-device.h>
 
 #ifdef CONFIG_MAGIC_SYSRQ
@@ -64,8 +65,8 @@ static struct uart_driver mux_driver = {
 
 static struct timer_list mux_timer;
 
-#define UART_PUT_CHAR(p, c) __raw_writel((c), (unsigned long)(p)->membase + IO_DATA_REG_OFFSET)
-#define UART_GET_FIFO_CNT(p) __raw_readl((unsigned long)(p)->membase + IO_DCOUNT_REG_OFFSET)
+#define UART_PUT_CHAR(p, c) __raw_writel((c), (p)->membase + IO_DATA_REG_OFFSET)
+#define UART_GET_FIFO_CNT(p) __raw_readl((p)->membase + IO_DCOUNT_REG_OFFSET)
 #define GET_MUX_PORTS(iodc_data) ((((iodc_data)[4] & 0xf0) >> 4) * 8) + 8
 
 /**
@@ -78,10 +79,7 @@ static struct timer_list mux_timer;
  */
 static unsigned int mux_tx_empty(struct uart_port *port)
 {
-	unsigned int cnt = __raw_readl((unsigned long)port->membase 
-				+ IO_DCOUNT_REG_OFFSET);
-
-	return cnt ? 0 : TIOCSER_TEMT;
+	return UART_GET_FIFO_CNT(port) ? 0 : TIOCSER_TEMT;
 } 
 
 /**
@@ -111,22 +109,20 @@ static unsigned int mux_get_mctrl(struct uart_port *port)
 /**
  * mux_stop_tx - Stop transmitting characters.
  * @port: Ptr to the uart_port.
- * @tty_stop: tty layer issue this command?
  *
  * The Serial MUX does not support this function.
  */
-static void mux_stop_tx(struct uart_port *port, unsigned int tty_stop)
+static void mux_stop_tx(struct uart_port *port)
 {
 }
 
 /**
  * mux_start_tx - Start transmitting characters.
  * @port: Ptr to the uart_port.
- * @tty_start: tty layer issue this command?
  *
  * The Serial Mux does not support this function.
  */
-static void mux_start_tx(struct uart_port *port, unsigned int tty_start)
+static void mux_start_tx(struct uart_port *port)
 {
 }
 
@@ -181,7 +177,7 @@ static void mux_write(struct uart_port *port)
 	}
 
 	if(uart_circ_empty(xmit) || uart_tx_stopped(port)) {
-		mux_stop_tx(port, 0);
+		mux_stop_tx(port);
 		return;
 	}
 
@@ -202,7 +198,7 @@ static void mux_write(struct uart_port *port)
 		uart_write_wakeup(port);
 
 	if (uart_circ_empty(xmit))
-		mux_stop_tx(port, 0);
+		mux_stop_tx(port);
 }
 
 /**
@@ -219,8 +215,7 @@ static void mux_read(struct uart_port *port)
 	__u32 start_count = port->icount.rx;
 
 	while(1) {
-		data = __raw_readl((unsigned long)port->membase
-						+ IO_DATA_REG_OFFSET);
+		data = __raw_readl(port->membase + IO_DATA_REG_OFFSET);
 
 		if (MUX_STATUS(data))
 			continue;
@@ -228,11 +223,6 @@ static void mux_read(struct uart_port *port)
 		if (MUX_EOFIFO(data))
 			break;
 
-		if (tty->flip.count >= TTY_FLIPBUF_SIZE)
-			continue;
-
-		*tty->flip.char_buf_ptr = data & 0xffu;
-		*tty->flip.flag_buf_ptr = TTY_NORMAL;
 		port->icount.rx++;
 
 		if (MUX_BREAK(data)) {
@@ -244,9 +234,7 @@ static void mux_read(struct uart_port *port)
 		if (uart_handle_sysrq_char(port, data & 0xffu, NULL))
 			continue;
 
-		tty->flip.flag_buf_ptr++;
-		tty->flip.char_buf_ptr++;
-		tty->flip.count++;
+		tty_insert_flip_char(tty, data & 0xFF, TTY_NORMAL);
 	}
 	
 	if (start_count != port->icount.rx) {
@@ -446,7 +434,7 @@ static int __init mux_probe(struct parisc_device *dev)
 	unsigned long bytecnt;
 	struct uart_port *port;
 
-	status = pdc_iodc_read(&bytecnt, dev->hpa, 0, iodc_data, 32);
+	status = pdc_iodc_read(&bytecnt, dev->hpa.start, 0, iodc_data, 32);
 	if(status != PDC_OK) {
 		printk(KERN_ERR "Serial mux: Unable to read IODC.\n");
 		return 1;
@@ -471,16 +459,25 @@ static int __init mux_probe(struct parisc_device *dev)
 	for(i = 0; i < ports; ++i, ++port_cnt) {
 		port = &mux_ports[port_cnt];
 		port->iobase	= 0;
-		port->mapbase	= dev->hpa + MUX_OFFSET + (i * MUX_LINE_OFFSET);
+		port->mapbase	= dev->hpa.start + MUX_OFFSET +
+						(i * MUX_LINE_OFFSET);
 		port->membase	= ioremap(port->mapbase, MUX_LINE_OFFSET);
-		port->iotype	= SERIAL_IO_MEM;
+		port->iotype	= UPIO_MEM;
 		port->type	= PORT_MUX;
-		port->irq	= SERIAL_IRQ_NONE;
+		port->irq	= NO_IRQ;
 		port->uartclk	= 0;
 		port->fifosize	= MUX_FIFO_SIZE;
 		port->ops	= &mux_pops;
 		port->flags	= UPF_BOOT_AUTOCONF;
 		port->line	= port_cnt;
+
+		/* The port->timeout needs to match what is present in
+		 * uart_wait_until_sent in serial_core.c.  Otherwise
+		 * the time spent in msleep_interruptable will be very
+		 * long, causing the appearance of a console hang.
+		 */
+		port->timeout   = HZ / 50;
+		spin_lock_init(&port->lock);
 		status = uart_add_one_port(&mux_driver, port);
 		BUG_ON(status);
 	}
@@ -499,7 +496,7 @@ static struct parisc_device_id mux_tbl[] = {
 MODULE_DEVICE_TABLE(parisc, mux_tbl);
 
 static struct parisc_driver serial_mux_driver = {
-	.name =		"Serial MUX",
+	.name =		"serial_mux",
 	.id_table =	mux_tbl,
 	.probe =	mux_probe,
 };

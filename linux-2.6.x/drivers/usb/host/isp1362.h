@@ -1,6 +1,6 @@
 /*
  * ISP1362 HCD (Host Controller Driver) for USB.
- * 
+ *
  * COPYRIGHT (C) by L. Wassmann <LW@KARO-electronics.de>
  *
  *
@@ -15,11 +15,11 @@
 #include <asm/arch/pxa-regs.h>
 #include <asm/arch/karo.h>
 
-#define USE_32BIT  1
+#define USE_32BIT		1
 
 // These options are mutually eclusive
-#define USE_PLATFORM_DELAY 1
-#define USE_NDELAY  0
+#define USE_PLATFORM_DELAY	1
+#define USE_NDELAY		0
 /*
  * MAX_ROOT_PORTS: Number of downstream ports
  *
@@ -36,8 +36,8 @@
 #include <asm/io.h>
 #define USE_32BIT		0
 #define MAX_ROOT_PORTS		2
-#define USE_PLATFORM_DELAY 	0
-#define USE_NDELAY  		1
+#define USE_PLATFORM_DELAY	0
+#define USE_NDELAY		1
 
 #else
 
@@ -88,7 +88,7 @@ typedef const unsigned int isp1362_reg_t;
 #define ISP1362_REG(name,addr,width,rw)					\
 static isp1362_reg_t ISP1362_REG_##name = ((addr) | (width) | (rw))
 
-#define REG_ACCESS_TEST(r)	BUG_ON(((r) & ISP1362_REG_WRITE_OFFSET) && !((r) & REG_ACCESS_W)) 
+#define REG_ACCESS_TEST(r)	BUG_ON(((r) & ISP1362_REG_WRITE_OFFSET) && !((r) & REG_ACCESS_W))
 #define REG_WIDTH_TEST(r,w)	BUG_ON(((r) & REG_WIDTH_MASK) != (w))
 #else
 typedef const unsigned char isp1362_reg_t;
@@ -259,7 +259,7 @@ struct ptd {
 #define	PTD_DIR_IN	(2)
 	u16 faddr;
 #define	PTD_FA_MSK	(0x7f << 0)
-// PTD Byte 7: [StartingFrame (if ISO PTD) | StartingFrame[0..4], PollingRate[0..2] (if INT PTD)] 
+// PTD Byte 7: [StartingFrame (if ISO PTD) | StartingFrame[0..4], PollingRate[0..2] (if INT PTD)]
 #define PTD_SF_ISO_MSK	(0xff << 8)
 #define PTD_SF_INT_MSK	(0x1f << 8)
 #define PTD_PR_MSK	(0x07 << 13)
@@ -288,9 +288,9 @@ struct ptd {
 #define PTD_NOTACCESSED     0x0F
 
 
-/* map OHCI TD status codes (CC) to errno values */ 
-//static const int cc_to_error [16] <#16> = { 
-static const int cc_to_error[16] = { 
+/* map OHCI TD status codes (CC) to errno values */
+//static const int cc_to_error [16] <#16> = {
+static const int cc_to_error[16] = {
 	/* No  Error  */               0,
 	/* CRC Error  */               -EILSEQ,
 	/* Bit Stuff  */               -EPROTO,
@@ -306,7 +306,7 @@ static const int cc_to_error[16] = {
 	/* BufferOver */               -ECOMM,
 	/* BuffUnder  */               -ENOSR,
 	/* (for HCD)  */               -EALREADY,
-	/* (for HCD)  */               -EALREADY 
+	/* (for HCD)  */               -EALREADY
 };
 
 
@@ -646,7 +646,7 @@ static inline struct usb_hcd *isp1362_hcd_to_hcd(struct isp1362_hcd *isp1362_hcd
 #if USE_NDELAY
 #error USE_PLATFORM_DELAY and USE_NDELAY defined simultaneously.
 #endif
-#define	isp1362_delay(h,d)	(h)->board->delay(isp1362_hcd_to_hcd(h)->self.controller,d) 
+#define	isp1362_delay(h,d)	(h)->board->delay(isp1362_hcd_to_hcd(h)->self.controller,d)
 #elif USE_NDELAY
 #define	isp1362_delay(h,d)	ndelay(d)
 #else
@@ -659,8 +659,8 @@ static inline struct usb_hcd *isp1362_hcd_to_hcd(struct isp1362_hcd *isp1362_hcd
 })
 
 // basic access functions for ISP1362 chip registers
-/* NOTE: The contents of the address pointer register cannot be read back! The driver must ensure, 
- * that all register accesses are performed with interrupts disabled, since the interrupt 
+/* NOTE: The contents of the address pointer register cannot be read back! The driver must ensure,
+ * that all register accesses are performed with interrupts disabled, since the interrupt
  * handler has no way of restoring the previous state.
  */
 static void isp1362_write_addr(struct isp1362_hcd *isp1362_hcd, isp1362_reg_t reg)
@@ -883,7 +883,7 @@ static void isp1362_write_fifo(struct isp1362_hcd *isp1362_hcd, void *buf, u16 l
 #define isp1362_show_reg(r,d)	do {} while (0)
 #endif
 
-static void __attribute__((__unused__)) isp1362_show_regs(struct isp1362_hcd *isp1362_hcd) 
+static void __attribute__((__unused__)) isp1362_show_regs(struct isp1362_hcd *isp1362_hcd)
 {
 	isp1362_show_reg(isp1362_hcd, HCREVISION);
 	isp1362_show_reg(isp1362_hcd, HCCONTROL);
@@ -936,7 +936,7 @@ static void __attribute__((__unused__)) isp1362_show_regs(struct isp1362_hcd *is
 	isp1362_show_reg(isp1362_hcd, HCATLDTCTO);
 }
 
-static void isp1362_write_diraddr(struct isp1362_hcd *isp1362_hcd, u16 offset, u16 len) 
+static void isp1362_write_diraddr(struct isp1362_hcd *isp1362_hcd, u16 offset, u16 len)
 {
 	_BUG_ON(offset & 1);
 	_BUG_ON(offset >= ISP1362_BUF_SIZE);
@@ -949,7 +949,7 @@ static void isp1362_write_diraddr(struct isp1362_hcd *isp1362_hcd, u16 offset, u
 			    HCDIRADDR_ADDR(offset) | HCDIRADDR_COUNT(len));
 }
 
-static void isp1362_read_buffer(struct isp1362_hcd *isp1362_hcd, void *buf, u16 offset, int len) 
+static void isp1362_read_buffer(struct isp1362_hcd *isp1362_hcd, void *buf, u16 offset, int len)
 {
 	_BUG_ON(offset & 1);
 
@@ -969,7 +969,7 @@ static void isp1362_read_buffer(struct isp1362_hcd *isp1362_hcd, void *buf, u16 
 	_WARN_ON((isp1362_read_reg16(isp1362_hcd, HCuPINT) & HCuPINT_EOT));
 }
 
-static void isp1362_write_buffer(struct isp1362_hcd *isp1362_hcd, void *buf, u16 offset, int len) 
+static void isp1362_write_buffer(struct isp1362_hcd *isp1362_hcd, void *buf, u16 offset, int len)
 {
 	_BUG_ON(offset & 1);
 
@@ -1022,7 +1022,7 @@ static void __attribute__((unused)) dump_data(char *buf, int len)
 
 static void dump_ptd(struct ptd *ptd)
 {
-	DBG(0, "EP %p: CC=%x EP=%d DIR=%x CNT=%d LEN=%d MPS=%d TGL=%x ACT=%x FA=%d SPD=%x SF=%x PR=%x LST=%x\n", 
+	DBG(0, "EP %p: CC=%x EP=%d DIR=%x CNT=%d LEN=%d MPS=%d TGL=%x ACT=%x FA=%d SPD=%x SF=%x PR=%x LST=%x\n",
 	    container_of(ptd, struct isp1362_ep, ptd),
 	    PTD_GET_CC(ptd), PTD_GET_EP(ptd), PTD_GET_DIR(ptd),
 	    PTD_GET_COUNT(ptd), PTD_GET_LEN(ptd), PTD_GET_MPS(ptd),

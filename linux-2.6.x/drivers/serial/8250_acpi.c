@@ -27,7 +27,7 @@ struct serial_private {
 static acpi_status acpi_serial_mmio(struct uart_port *port,
 				    struct acpi_resource_address64 *addr)
 {
-	port->mapbase = addr->min_address_range;
+	port->mapbase = addr->minimum;
 	port->iotype = UPIO_MEM;
 	port->flags |= UPF_IOREMAP;
 	return AE_OK;
@@ -36,8 +36,8 @@ static acpi_status acpi_serial_mmio(struct uart_port *port,
 static acpi_status acpi_serial_port(struct uart_port *port,
 				    struct acpi_resource_io *io)
 {
-	if (io->range_length) {
-		port->iobase = io->min_base_address;
+	if (io->address_length) {
+		port->iobase = io->minimum;
 		port->iotype = UPIO_PORT;
 	} else
 		printk(KERN_ERR "%s: zero-length IO port range?\n", __FUNCTION__);
@@ -45,20 +45,32 @@ static acpi_status acpi_serial_port(struct uart_port *port,
 }
 
 static acpi_status acpi_serial_ext_irq(struct uart_port *port,
-				       struct acpi_resource_ext_irq *ext_irq)
+				       struct acpi_resource_extended_irq *ext_irq)
 {
-	if (ext_irq->number_of_interrupts > 0)
-		port->irq = acpi_register_gsi(ext_irq->interrupts[0],
-	                   ext_irq->edge_level, ext_irq->active_high_low);
+	int rc;
+
+	if (ext_irq->interrupt_count > 0) {
+		rc = acpi_register_gsi(ext_irq->interrupts[0],
+	                   ext_irq->triggering, ext_irq->polarity);
+		if (rc < 0)
+			return AE_ERROR;
+		port->irq = rc;
+	}
 	return AE_OK;
 }
 
 static acpi_status acpi_serial_irq(struct uart_port *port,
 				   struct acpi_resource_irq *irq)
 {
-	if (irq->number_of_interrupts > 0)
-		port->irq = acpi_register_gsi(irq->interrupts[0],
-	                   irq->edge_level, irq->active_high_low);
+	int rc;
+
+	if (irq->interrupt_count > 0) {
+		rc = acpi_register_gsi(irq->interrupts[0],
+	                   irq->triggering, irq->polarity);
+		if (rc < 0)
+			return AE_ERROR;
+		port->irq = rc;
+	}
 	return AE_OK;
 }
 
@@ -71,11 +83,11 @@ static acpi_status acpi_serial_resource(struct acpi_resource *res, void *data)
 	status = acpi_resource_to_address64(res, &addr);
 	if (ACPI_SUCCESS(status))
 		return acpi_serial_mmio(port, &addr);
-	else if (res->id == ACPI_RSTYPE_IO)
+	else if (res->type == ACPI_RESOURCE_TYPE_IO)
 		return acpi_serial_port(port, &res->data.io);
-	else if (res->id == ACPI_RSTYPE_EXT_IRQ)
+	else if (res->type == ACPI_RESOURCE_TYPE_EXTENDED_IRQ)
 		return acpi_serial_ext_irq(port, &res->data.extended_irq);
-	else if (res->id == ACPI_RSTYPE_IRQ)
+	else if (res->type == ACPI_RESOURCE_TYPE_IRQ)
 		return acpi_serial_irq(port, &res->data.irq);
 	return AE_OK;
 }

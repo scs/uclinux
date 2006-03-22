@@ -27,8 +27,8 @@
 
 /*
  * $Log$
- * Revision 1.4  2005/08/12 06:42:46  magicyang
- *  Update kernel 2.6.8 to 2.6.12
+ * Revision 1.5  2006/03/22 08:11:06  magicyang
+ * update kernel to 2.6.16
  *
  */
 
@@ -225,7 +225,7 @@ static struct Scsi_Host *default_instance;
 #endif
 
 /*
- * Function : int macscsi_detect(Scsi_Host_Template * tpnt)
+ * Function : int macscsi_detect(struct scsi_host_template * tpnt)
  *
  * Purpose : initializes mac NCR5380 driver based on the
  *	command line / compile time port and irq definitions.
@@ -236,7 +236,7 @@ static struct Scsi_Host *default_instance;
  *
  */
  
-int macscsi_detect(Scsi_Host_Template * tpnt)
+int macscsi_detect(struct scsi_host_template * tpnt)
 {
     static int called = 0;
     int flags = 0;
@@ -584,7 +584,7 @@ static int macscsi_pwrite (struct Scsi_Host *instance,
 
 #include "NCR5380.c"
 
-static Scsi_Host_Template driver_template = {
+static struct scsi_host_template driver_template = {
 	.proc_name			= "Mac5380",
 	.proc_info			= macscsi_proc_info,
 	.name				= "Macintosh NCR5380 SCSI",
@@ -594,8 +594,6 @@ static Scsi_Host_Template driver_template = {
 	.queuecommand			= macscsi_queue_command,
 	.eh_abort_handler		= macscsi_abort,
 	.eh_bus_reset_handler		= macscsi_bus_reset,
-	.eh_device_reset_handler	= macscsi_device_reset,
-	.eh_host_reset_handler		= macscsi_host_reset,
 	.can_queue			= CAN_QUEUE,
 	.this_id			= 7,
 	.sg_tablesize			= SG_ALL,

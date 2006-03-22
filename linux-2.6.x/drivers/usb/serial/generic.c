@@ -36,10 +36,11 @@ MODULE_PARM_DESC(product, "User specified USB idProduct");
 static struct usb_device_id generic_device_ids[2]; /* Initially all zeroes. */
 
 /* All of the device info needed for the Generic Serial Converter */
-struct usb_serial_device_type usb_serial_generic_device = {
-	.owner =		THIS_MODULE,
-	.name =			"Generic",
-	.short_name =		"generic",
+struct usb_serial_driver usb_serial_generic_device = {
+	.driver = {
+		.owner =	THIS_MODULE,
+		.name =		"generic",
+	},
 	.id_table =		generic_device_ids,
 	.num_interrupt_in =	NUM_DONT_CARE,
 	.num_bulk_in =		NUM_DONT_CARE,
@@ -67,11 +68,11 @@ static int generic_probe(struct usb_interface *interface,
 }
 
 static struct usb_driver generic_driver = {
-	.owner =	THIS_MODULE,
 	.name =		"usbserial_generic",
 	.probe =	generic_probe,
 	.disconnect =	usb_serial_disconnect,
 	.id_table =	generic_serial_ids,
+	.no_dynamic_id = 	1,
 };
 #endif
 
@@ -174,10 +175,14 @@ int usb_serial_generic_write(struct usb_serial_port *port, const unsigned char *
 
 	/* only do something if we have a bulk out endpoint */
 	if (serial->num_bulk_out) {
-		if (port->write_urb->status == -EINPROGRESS) {
+		spin_lock(&port->lock);
+		if (port->write_urb_busy) {
+			spin_unlock(&port->lock);
 			dbg("%s - already writing", __FUNCTION__);
-			return (0);
+			return 0;
 		}
+		port->write_urb_busy = 1;
+		spin_unlock(&port->lock);
 
 		count = (count > port->bulk_out_size) ? port->bulk_out_size : count;
 
@@ -195,17 +200,20 @@ int usb_serial_generic_write(struct usb_serial_port *port, const unsigned char *
 				     usb_serial_generic_write_bulk_callback), port);
 
 		/* send the data out the bulk port */
+		port->write_urb_busy = 1;
 		result = usb_submit_urb(port->write_urb, GFP_ATOMIC);
-		if (result)
+		if (result) {
 			dev_err(&port->dev, "%s - failed submitting write urb, error %d\n", __FUNCTION__, result);
-		else
+			/* don't have to grab the lock here, as we will retry if != 0 */
+			port->write_urb_busy = 0;
+		} else
 			result = count;
 
 		return result;
 	}
 
 	/* no bulk out, so return 0 bytes written */
-	return (0);
+	return 0;
 }
 
 int usb_serial_generic_write_room (struct usb_serial_port *port)
@@ -214,9 +222,9 @@ int usb_serial_generic_write_room (struct usb_serial_port *port)
 	int room = 0;
 
 	dbg("%s - port %d", __FUNCTION__, port->number);
-	
+
 	if (serial->num_bulk_out) {
-		if (port->write_urb->status != -EINPROGRESS)
+		if (!(port->write_urb_busy))
 			room = port->bulk_out_size;
 	}
 
@@ -232,7 +240,7 @@ int usb_serial_generic_chars_in_buffer (struct usb_serial_port *port)
 	dbg("%s - port %d", __FUNCTION__, port->number);
 
 	if (serial->num_bulk_out) {
-		if (port->write_urb->status == -EINPROGRESS)
+		if (port->write_urb_busy)
 			chars = port->write_urb->transfer_buffer_length;
 	}
 
@@ -246,7 +254,6 @@ void usb_serial_generic_read_bulk_callback (struct urb *urb, struct pt_regs *reg
 	struct usb_serial *serial = port->serial;
 	struct tty_struct *tty;
 	unsigned char *data = urb->transfer_buffer;
-	int i;
 	int result;
 
 	dbg("%s - port %d", __FUNCTION__, port->number);
@@ -260,14 +267,8 @@ void usb_serial_generic_read_bulk_callback (struct urb *urb, struct pt_regs *reg
 
 	tty = port->tty;
 	if (tty && urb->actual_length) {
-		for (i = 0; i < urb->actual_length ; ++i) {
-			/* if we insert more than TTY_FLIPBUF_SIZE characters, we drop them. */
-			if(tty->flip.count >= TTY_FLIPBUF_SIZE) {
-				tty_flip_buffer_push(tty);
-			}
-			/* this doesn't actually push the data through unless tty->low_latency is set */
-			tty_insert_flip_char(tty, data[i], 0);
-		}
+		tty_buffer_request_room(tty, urb->actual_length);
+		tty_insert_flip_string(tty, data, urb->actual_length);
 	  	tty_flip_buffer_push(tty);
 	}
 
@@ -291,6 +292,7 @@ void usb_serial_generic_write_bulk_callback (struct urb *urb, struct pt_regs *re
 
 	dbg("%s - port %d", __FUNCTION__, port->number);
 
+	port->write_urb_busy = 0;
 	if (urb->status) {
 		dbg("%s - nonzero write bulk status received: %d", __FUNCTION__, urb->status);
 		return;
@@ -300,6 +302,7 @@ void usb_serial_generic_write_bulk_callback (struct urb *urb, struct pt_regs *re
 
 	schedule_work(&port->work);
 }
+EXPORT_SYMBOL_GPL(usb_serial_generic_write_bulk_callback);
 
 void usb_serial_generic_shutdown (struct usb_serial *serial)
 {

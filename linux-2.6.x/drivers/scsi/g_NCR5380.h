@@ -27,8 +27,8 @@
 
 /*
  * $Log$
- * Revision 1.4  2005/08/12 06:42:46  magicyang
- *  Update kernel 2.6.8 to 2.6.12
+ * Revision 1.5  2006/03/22 08:11:06  magicyang
+ * update kernel to 2.6.16
  *
  */
 
@@ -48,12 +48,10 @@
 
 #ifndef ASM
 static int generic_NCR5380_abort(Scsi_Cmnd *);
-static int generic_NCR5380_detect(Scsi_Host_Template *);
+static int generic_NCR5380_detect(struct scsi_host_template *);
 static int generic_NCR5380_release_resources(struct Scsi_Host *);
 static int generic_NCR5380_queue_command(Scsi_Cmnd *, void (*done)(Scsi_Cmnd *));
 static int generic_NCR5380_bus_reset(Scsi_Cmnd *);
-static int generic_NCR5380_host_reset(Scsi_Cmnd *);
-static int generic_NCR5380_device_reset(Scsi_Cmnd *);
 static const char* generic_NCR5380_info(struct Scsi_Host *);
 
 #ifndef CMD_PER_LUN
@@ -117,8 +115,6 @@ static const char* generic_NCR5380_info(struct Scsi_Host *);
 #define NCR5380_queue_command generic_NCR5380_queue_command
 #define NCR5380_abort generic_NCR5380_abort
 #define NCR5380_bus_reset generic_NCR5380_bus_reset
-#define NCR5380_device_reset generic_NCR5380_device_reset
-#define NCR5380_host_reset generic_NCR5380_host_reset
 #define NCR5380_pread generic_NCR5380_pread
 #define NCR5380_pwrite generic_NCR5380_pwrite
 #define NCR5380_proc_info notyet_generic_proc_info

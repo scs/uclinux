@@ -4,8 +4,8 @@
  * $Id$
  *
  * This map driver is used to allocate "placeholder" MTD
- * devices on systems that have socketed/removable media. 
- * Use of this driver as a fallback preserves the expected 
+ * devices on systems that have socketed/removable media.
+ * Use of this driver as a fallback preserves the expected
  * registration of MTD device nodes regardless of probe outcome.
  * A usage example is as follows:
  *
@@ -80,7 +80,7 @@ static int map_absent_read(struct mtd_info *mtd, loff_t from, size_t len, size_t
 static int map_absent_write(struct mtd_info *mtd, loff_t to, size_t len, size_t *retlen, const u_char *buf)
 {
 	*retlen = 0;
-	return -ENODEV; 
+	return -ENODEV;
 }
 
 static int map_absent_erase(struct mtd_info *mtd, struct erase_info *instr)

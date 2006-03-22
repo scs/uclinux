@@ -60,9 +60,9 @@ static const u_int exponent[] = {
 
 /* Parameters that can be set with 'insmod' */
 
-#define INT_MODULE_PARM(n, v) static int n = v; module_param(n, int, 0444)
-
-INT_MODULE_PARM(cis_width,	0);		/* 16-bit CIS? */
+/* 16-bit CIS? */
+static int cis_width;
+module_param(cis_width, int, 0444);
 
 void release_cis_mem(struct pcmcia_socket *s)
 {
@@ -88,24 +88,38 @@ EXPORT_SYMBOL(release_cis_mem);
 static void __iomem *
 set_cis_map(struct pcmcia_socket *s, unsigned int card_offset, unsigned int flags)
 {
-    pccard_mem_map *mem = &s->cis_mem;
-    if (!(s->features & SS_CAP_STATIC_MAP) && mem->res == NULL) {
-	mem->res = find_mem_region(0, s->map_size, s->map_size, 0, s);
-	if (mem->res == NULL) {
-	    printk(KERN_NOTICE "cs: unable to map card memory!\n");
-	    return NULL;
+	pccard_mem_map *mem = &s->cis_mem;
+	int ret;
+
+	if (!(s->features & SS_CAP_STATIC_MAP) && (mem->res == NULL)) {
+		mem->res = pcmcia_find_mem_region(0, s->map_size, s->map_size, 0, s);
+		if (mem->res == NULL) {
+			printk(KERN_NOTICE "cs: unable to map card memory!\n");
+			return NULL;
+		}
+		s->cis_virt = NULL;
 	}
-	s->cis_virt = ioremap(mem->res->start, s->map_size);
-    }
-    mem->card_start = card_offset;
-    mem->flags = flags;
-    s->ops->set_mem_map(s, mem);
-    if (s->features & SS_CAP_STATIC_MAP) {
-	if (s->cis_virt)
-	    iounmap(s->cis_virt);
-	s->cis_virt = ioremap(mem->static_start, s->map_size);
-    }
-    return s->cis_virt;
+
+	if (!(s->features & SS_CAP_STATIC_MAP) && (!s->cis_virt))
+		s->cis_virt = ioremap(mem->res->start, s->map_size);
+
+	mem->card_start = card_offset;
+	mem->flags = flags;
+
+	ret = s->ops->set_mem_map(s, mem);
+	if (ret) {
+		iounmap(s->cis_virt);
+		s->cis_virt = NULL;
+		return NULL;
+	}
+
+	if (s->features & SS_CAP_STATIC_MAP) {
+		if (s->cis_virt)
+			iounmap(s->cis_virt);
+		s->cis_virt = ioremap(mem->static_start, s->map_size);
+	}
+
+	return s->cis_virt;
 }
 
 /*======================================================================
@@ -119,13 +133,13 @@ set_cis_map(struct pcmcia_socket *s, unsigned int card_offset, unsigned int flag
 #define IS_ATTR		1
 #define IS_INDIRECT	8
 
-int read_cis_mem(struct pcmcia_socket *s, int attr, u_int addr,
+int pcmcia_read_cis_mem(struct pcmcia_socket *s, int attr, u_int addr,
 		 u_int len, void *ptr)
 {
     void __iomem *sys, *end;
     unsigned char *buf = ptr;
     
-    cs_dbg(s, 3, "read_cis_mem(%d, %#x, %u)\n", attr, addr, len);
+    cs_dbg(s, 3, "pcmcia_read_cis_mem(%d, %#x, %u)\n", attr, addr, len);
 
     if (attr & IS_INDIRECT) {
 	/* Indirect accesses use a bunch of special registers at fixed
@@ -182,14 +196,16 @@ int read_cis_mem(struct pcmcia_socket *s, int attr, u_int addr,
 	  *(u_char *)(ptr+2), *(u_char *)(ptr+3));
     return 0;
 }
+EXPORT_SYMBOL(pcmcia_read_cis_mem);
 
-void write_cis_mem(struct pcmcia_socket *s, int attr, u_int addr,
+
+void pcmcia_write_cis_mem(struct pcmcia_socket *s, int attr, u_int addr,
 		   u_int len, void *ptr)
 {
     void __iomem *sys, *end;
     unsigned char *buf = ptr;
     
-    cs_dbg(s, 3, "write_cis_mem(%d, %#x, %u)\n", attr, addr, len);
+    cs_dbg(s, 3, "pcmcia_write_cis_mem(%d, %#x, %u)\n", attr, addr, len);
 
     if (attr & IS_INDIRECT) {
 	/* Indirect accesses use a bunch of special registers at fixed
@@ -239,6 +255,8 @@ void write_cis_mem(struct pcmcia_socket *s, int attr, u_int addr,
 	}
     }
 }
+EXPORT_SYMBOL(pcmcia_write_cis_mem);
+
 
 /*======================================================================
 
@@ -274,7 +292,7 @@ static void read_cis_cache(struct pcmcia_socket *s, int attr, u_int addr,
 	ret = read_cb_mem(s, attr, addr, len, ptr);
     else
 #endif
-	ret = read_cis_mem(s, attr, addr, len, ptr);
+	ret = pcmcia_read_cis_mem(s, attr, addr, len, ptr);
 
 	if (ret == 0) {
 		/* Copy data into the cache */
@@ -316,10 +334,8 @@ void destroy_cis_cache(struct pcmcia_socket *s)
 	/*
 	 * If there was a fake CIS, destroy that as well.
 	 */
-	if (s->fake_cis) {
-		kfree(s->fake_cis);
-		s->fake_cis = NULL;
-	}
+	kfree(s->fake_cis);
+	s->fake_cis = NULL;
 }
 EXPORT_SYMBOL(destroy_cis_cache);
 
@@ -348,7 +364,7 @@ int verify_cis_cache(struct pcmcia_socket *s)
 			read_cb_mem(s, cis->attr, cis->addr, len, buf);
 		else
 #endif
-			read_cis_mem(s, cis->attr, cis->addr, len, buf);
+			pcmcia_read_cis_mem(s, cis->attr, cis->addr, len, buf);
 
 		if (memcmp(buf, cis->cache, len) != 0) {
 			kfree(buf);
@@ -368,10 +384,8 @@ int verify_cis_cache(struct pcmcia_socket *s)
 
 int pcmcia_replace_cis(struct pcmcia_socket *s, cisdump_t *cis)
 {
-    if (s->fake_cis != NULL) {
-	kfree(s->fake_cis);
-	s->fake_cis = NULL;
-    }
+    kfree(s->fake_cis);
+    s->fake_cis = NULL;
     if (cis->Length > CISTPL_MAX_CIS_SIZE)
 	return CS_BAD_SIZE;
     s->fake_cis = kmalloc(cis->Length, GFP_KERNEL);
@@ -381,6 +395,7 @@ int pcmcia_replace_cis(struct pcmcia_socket *s, cisdump_t *cis)
     memcpy(s->fake_cis, cis->Data, cis->Length);
     return CS_SUCCESS;
 }
+EXPORT_SYMBOL(pcmcia_replace_cis);
 
 /*======================================================================
 
@@ -448,7 +463,7 @@ static int follow_link(struct pcmcia_socket *s, tuple_t *tuple)
 	/* Get indirect link from the MFC tuple */
 	read_cis_cache(s, LINK_SPACE(tuple->Flags),
 		       tuple->LinkOffset, 5, link);
-	ofs = le32_to_cpu(*(u_int *)(link+1));
+	ofs = le32_to_cpu(*(__le32 *)(link+1));
 	SPACE(tuple->Flags) = (link[0] == CISTPL_MFC_ATTR);
 	/* Move to the next indirect link */
 	tuple->LinkOffset += 5;
@@ -656,8 +671,8 @@ static int parse_checksum(tuple_t *tuple, cistpl_checksum_t *csum)
     if (tuple->TupleDataLen < 5)
 	return CS_BAD_TUPLE;
     p = (u_char *)tuple->TupleData;
-    csum->addr = tuple->CISOffset+(short)le16_to_cpu(*(u_short *)p)-2;
-    csum->len = le16_to_cpu(*(u_short *)(p + 2));
+    csum->addr = tuple->CISOffset+(short)le16_to_cpu(*(__le16 *)p)-2;
+    csum->len = le16_to_cpu(*(__le16 *)(p + 2));
     csum->sum = *(p+4);
     return CS_SUCCESS;
 }
@@ -668,7 +683,7 @@ static int parse_longlink(tuple_t *tuple, cistpl_longlink_t *link)
 {
     if (tuple->TupleDataLen < 4)
 	return CS_BAD_TUPLE;
-    link->addr = le32_to_cpu(*(u_int *)tuple->TupleData);
+    link->addr = le32_to_cpu(*(__le32 *)tuple->TupleData);
     return CS_SUCCESS;
 }
 
@@ -687,7 +702,7 @@ static int parse_longlink_mfc(tuple_t *tuple,
 	return CS_BAD_TUPLE;
     for (i = 0; i < link->nfn; i++) {
 	link->fn[i].space = *p; p++;
-	link->fn[i].addr = le32_to_cpu(*(u_int *)p); p += 4;
+	link->fn[i].addr = le32_to_cpu(*(__le32 *)p); p += 4;
     }
     return CS_SUCCESS;
 }
@@ -774,10 +789,10 @@ static int parse_jedec(tuple_t *tuple, cistpl_jedec_t *jedec)
 
 static int parse_manfid(tuple_t *tuple, cistpl_manfid_t *m)
 {
-    u_short *p;
+    __le16 *p;
     if (tuple->TupleDataLen < 4)
 	return CS_BAD_TUPLE;
-    p = (u_short *)tuple->TupleData;
+    p = (__le16 *)tuple->TupleData;
     m->manf = le16_to_cpu(p[0]);
     m->card = le16_to_cpu(p[1]);
     return CS_SUCCESS;
@@ -1078,7 +1093,7 @@ static int parse_cftable_entry(tuple_t *tuple,
 	break;
     case 0x20:
 	entry->mem.nwin = 1;
-	entry->mem.win[0].len = le16_to_cpu(*(u_short *)p) << 8;
+	entry->mem.win[0].len = le16_to_cpu(*(__le16 *)p) << 8;
 	entry->mem.win[0].card_addr = 0;
 	entry->mem.win[0].host_addr = 0;
 	p += 2;
@@ -1086,9 +1101,9 @@ static int parse_cftable_entry(tuple_t *tuple,
 	break;
     case 0x40:
 	entry->mem.nwin = 1;
-	entry->mem.win[0].len = le16_to_cpu(*(u_short *)p) << 8;
+	entry->mem.win[0].len = le16_to_cpu(*(__le16 *)p) << 8;
 	entry->mem.win[0].card_addr =
-	    le16_to_cpu(*(u_short *)(p+2)) << 8;
+	    le16_to_cpu(*(__le16 *)(p+2)) << 8;
 	entry->mem.win[0].host_addr = 0;
 	p += 4;
 	if (p > q) return CS_BAD_TUPLE;
@@ -1125,7 +1140,7 @@ static int parse_bar(tuple_t *tuple, cistpl_bar_t *bar)
     p = (u_char *)tuple->TupleData;
     bar->attr = *p;
     p += 2;
-    bar->size = le32_to_cpu(*(u_int *)p);
+    bar->size = le32_to_cpu(*(__le32 *)p);
     return CS_SUCCESS;
 }
 
@@ -1138,7 +1153,7 @@ static int parse_config_cb(tuple_t *tuple, cistpl_config_t *config)
 	return CS_BAD_TUPLE;
     config->last_idx = *(++p);
     p++;
-    config->base = le32_to_cpu(*(u_int *)p);
+    config->base = le32_to_cpu(*(__le32 *)p);
     config->subtuples = tuple->TupleDataLen - 6;
     return CS_SUCCESS;
 }
@@ -1254,7 +1269,7 @@ static int parse_vers_2(tuple_t *tuple, cistpl_vers_2_t *v2)
 
     v2->vers = p[0];
     v2->comply = p[1];
-    v2->dindex = le16_to_cpu(*(u_short *)(p+2));
+    v2->dindex = le16_to_cpu(*(__le16 *)(p+2));
     v2->vspec8 = p[6];
     v2->vspec9 = p[7];
     v2->nhdr = p[8];
@@ -1295,8 +1310,8 @@ static int parse_format(tuple_t *tuple, cistpl_format_t *fmt)
 
     fmt->type = p[0];
     fmt->edc = p[1];
-    fmt->offset = le32_to_cpu(*(u_int *)(p+2));
-    fmt->length = le32_to_cpu(*(u_int *)(p+6));
+    fmt->offset = le32_to_cpu(*(__le32 *)(p+2));
+    fmt->length = le32_to_cpu(*(__le32 *)(p+6));
 
     return CS_SUCCESS;
 }

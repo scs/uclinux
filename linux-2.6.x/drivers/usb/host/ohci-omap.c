@@ -14,17 +14,20 @@
  * This file is licenced under the GPL.
  */
 
+#include <linux/signal.h>	/* SA_INTERRUPT */
+#include <linux/jiffies.h>
+#include <linux/platform_device.h>
+#include <linux/clk.h>
+
 #include <asm/hardware.h>
 #include <asm/io.h>
 #include <asm/mach-types.h>
 
-#include <asm/arch/hardware.h>
 #include <asm/arch/mux.h>
 #include <asm/arch/irqs.h>
 #include <asm/arch/gpio.h>
 #include <asm/arch/fpga.h>
 #include <asm/arch/usb.h>
-#include <asm/hardware/clock.h>
 
 
 /* OMAP-1510 OHCI has its own MMU for DMA */
@@ -181,7 +184,7 @@ static int omap_start_hc(struct ohci_hcd *ohci, struct platform_device *pdev)
 	if (config->otg) {
 		ohci_to_hcd(ohci)->self.otg_port = config->otg;
 		/* default/minimum OTG power budget:  8 mA */
-		ohci->power_budget = 8;
+		ohci_to_hcd(ohci)->power_budget = 8;
 	}
 
 	/* boards can use OTG transceivers in non-OTG modes */
@@ -230,7 +233,7 @@ static int omap_start_hc(struct ohci_hcd *ohci, struct platform_device *pdev)
 
 		/* TPS2045 switch for internal transceiver (port 1) */
 		if (machine_is_omap_osk()) {
-			ohci->power_budget = 250;
+			ohci_to_hcd(ohci)->power_budget = 250;
 
 			rh &= ~RH_A_NOCP;
 
@@ -421,33 +424,31 @@ static const struct hc_driver ohci_omap_hc_driver = {
 	 */
 	.hub_status_data =	ohci_hub_status_data,
 	.hub_control =		ohci_hub_control,
-#ifdef	CONFIG_USB_SUSPEND
-	.hub_suspend =		ohci_hub_suspend,
-	.hub_resume =		ohci_hub_resume,
+#ifdef	CONFIG_PM
+	.bus_suspend =		ohci_bus_suspend,
+	.bus_resume =		ohci_bus_resume,
 #endif
 	.start_port_reset =	ohci_start_port_reset,
 };
 
 /*-------------------------------------------------------------------------*/
 
-static int ohci_hcd_omap_drv_probe(struct device *dev)
+static int ohci_hcd_omap_drv_probe(struct platform_device *dev)
 {
-	return usb_hcd_omap_probe(&ohci_omap_hc_driver,
-				to_platform_device(dev));
+	return usb_hcd_omap_probe(&ohci_omap_hc_driver, dev);
 }
 
-static int ohci_hcd_omap_drv_remove(struct device *dev)
+static int ohci_hcd_omap_drv_remove(struct platform_device *dev)
 {
-	struct platform_device	*pdev = to_platform_device(dev);
-	struct usb_hcd		*hcd = dev_get_drvdata(dev);
+	struct usb_hcd		*hcd = platform_get_drvdata(dev);
 	struct ohci_hcd		*ohci = hcd_to_ohci (hcd);
 
-	usb_hcd_omap_remove(hcd, pdev);
+	usb_hcd_omap_remove(hcd, dev);
 	if (ohci->transceiver) {
 		(void) otg_set_host(ohci->transceiver, 0);
 		put_device(ohci->transceiver->dev);
 	}
-	dev_set_drvdata(dev, NULL);
+	platform_set_drvdata(dev, NULL);
 
 	return 0;
 }
@@ -456,71 +457,32 @@ static int ohci_hcd_omap_drv_remove(struct device *dev)
 
 #ifdef	CONFIG_PM
 
-/* states match PCI usage, always suspending the root hub except that
- * 4 ~= D3cold (ACPI D3) with clock off (resume sees reset).
- *
- * FIXME: above comment is not right, and code is wrong, too :-(.
- */
-
-static int ohci_omap_suspend(struct device *dev, pm_message_t state, u32 level)
+static int ohci_omap_suspend(struct platform_device *dev, pm_message_t message)
 {
-	struct ohci_hcd	*ohci = hcd_to_ohci(dev_get_drvdata(dev));
-	int		status = -EINVAL;
+	struct ohci_hcd	*ohci = hcd_to_ohci(platform_get_drvdata(dev));
 
-	if (level != SUSPEND_POWER_DOWN)
-		return 0;
-	if (state <= dev->power.power_state)
-		return 0;
+	if (time_before(jiffies, ohci->next_statechange))
+		msleep(5);
+	ohci->next_statechange = jiffies;
 
-	dev_dbg(dev, "suspend to %d\n", state);
-	down(&ohci_to_hcd(ohci)->self.root_hub->serialize);
-	status = ohci_hub_suspend(ohci_to_hcd(ohci));
-	if (status == 0) {
-		if (state >= 4) {
-			omap_ohci_clock_power(0);
-			ohci_to_hcd(ohci)->self.root_hub->state =
-					USB_STATE_SUSPENDED;
-			state = 4;
-		}
-		ohci_to_hcd(ohci)->state = HC_STATE_SUSPENDED;
-		dev->power.power_state = state;
-	}
-	up(&ohci_to_hcd(ohci)->self.root_hub->serialize);
-	return status;
+	omap_ohci_clock_power(0);
+	ohci_to_hcd(ohci)->state = HC_STATE_SUSPENDED;
+	dev->power.power_state = PMSG_SUSPEND;
+	return 0;
 }
 
-static int ohci_omap_resume(struct device *dev, u32 level)
+static int ohci_omap_resume(struct platform_device *dev)
 {
-	struct ohci_hcd	*ohci = hcd_to_ohci(dev_get_drvdata(dev));
-	int		status = 0;
+	struct ohci_hcd	*ohci = hcd_to_ohci(platform_get_drvdata(dev));
 
-	if (level != RESUME_POWER_ON)
-		return 0;
+	if (time_before(jiffies, ohci->next_statechange))
+		msleep(5);
+	ohci->next_statechange = jiffies;
 
-	switch (dev->power.power_state) {
-	case 0:
-		break;
-	case 4:
-		if (time_before(jiffies, ohci->next_statechange))
-			msleep(5);
-		ohci->next_statechange = jiffies;
-		omap_ohci_clock_power(1);
-		/* FALLTHROUGH */
-	default:
-		dev_dbg(dev, "resume from %d\n", dev->power.power_state);
-#ifdef	CONFIG_USB_SUSPEND
-		/* get extra cleanup even if remote wakeup isn't in use */
-		status = usb_resume_device(ohci_to_hcd(ohci)->self.root_hub);
-#else
-		down(&ohci_to_hcd(ohci)->self.root_hub->serialize);
-		status = ohci_hub_resume(ohci_to_hcd(ohci));
-		up(&ohci_to_hcd(ohci)->self.root_hub->serialize);
-#endif
-		if (status == 0)
-			dev->power.power_state = 0;
-		break;
-	}
-	return status;
+	omap_ohci_clock_power(1);
+	dev->power.power_state = PMSG_ON;
+	usb_hcd_resume_root_hub(dev_get_drvdata(dev));
+	return 0;
 }
 
 #endif
@@ -530,15 +492,17 @@ static int ohci_omap_resume(struct device *dev, u32 level)
 /*
  * Driver definition to register with the OMAP bus
  */
-static struct device_driver ohci_hcd_omap_driver = {
-	.name		= "ohci",
-	.bus		= &platform_bus_type,
+static struct platform_driver ohci_hcd_omap_driver = {
 	.probe		= ohci_hcd_omap_drv_probe,
 	.remove		= ohci_hcd_omap_drv_remove,
 #ifdef	CONFIG_PM
 	.suspend	= ohci_omap_suspend,
 	.resume		= ohci_omap_resume,
 #endif
+	.driver		= {
+		.owner	= THIS_MODULE,
+		.name	= "ohci",
+	},
 };
 
 static int __init ohci_hcd_omap_init (void)
@@ -550,12 +514,12 @@ static int __init ohci_hcd_omap_init (void)
 	pr_debug("%s: block sizes: ed %Zd td %Zd\n", hcd_name,
 		sizeof (struct ed), sizeof (struct td));
 
-	return driver_register(&ohci_hcd_omap_driver);
+	return platform_driver_register(&ohci_hcd_omap_driver);
 }
 
 static void __exit ohci_hcd_omap_cleanup (void)
 {
-	driver_unregister(&ohci_hcd_omap_driver);
+	platform_driver_unregister(&ohci_hcd_omap_driver);
 }
 
 module_init (ohci_hcd_omap_init);

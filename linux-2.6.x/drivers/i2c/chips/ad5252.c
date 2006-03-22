@@ -8,10 +8,10 @@
 
     derived from pcf8547.c
 
-    Copyright (c) 2000  Frodo Looijaard <frodol@dds.nl>, 
+    Copyright (c) 2000  Frodo Looijaard <frodol@dds.nl>,
                         Philip Edelbrock <phil@netroedge.com>,
                         Dan Eaton <dan.eaton@rocketlogix.com>
-    Ported to Linux 2.6 by Aurelien Jarno <aurel32@debian.org> with 
+    Ported to Linux 2.6 by Aurelien Jarno <aurel32@debian.org> with
     the help of Jean Delvare <khali@linux-fr.org>
 
 
@@ -19,7 +19,7 @@
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation; either version 2 of the License, or
     (at your option) any later version.
-    
+
     This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -75,7 +75,7 @@ static ssize_t show_read_w1(struct device *dev, char *buf)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct ad5252_data *data = i2c_get_clientdata(client);
-	data->read = i2c_smbus_read_byte_data(client,0x1); 
+	data->read = i2c_smbus_read_byte_data(client,0x1);
 	return sprintf(buf, "%u\n", data->read);
 }
 
@@ -85,7 +85,7 @@ static ssize_t show_read_w3(struct device *dev, char *buf)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct ad5252_data *data = i2c_get_clientdata(client);
-	data->read = i2c_smbus_read_byte_data(client,0x3); 
+	data->read = i2c_smbus_read_byte_data(client,0x3);
 	return sprintf(buf, "%u\n", data->read);
 }
 
@@ -187,7 +187,7 @@ int ad5252_detect(struct i2c_adapter *adapter, int address, int kind)
 	
 	if ((err = i2c_attach_client(new_client)))
 		goto exit_free;
-	
+
 	/* Initialize the AD5252 chip */
 	ad5252_init_client(new_client);
 

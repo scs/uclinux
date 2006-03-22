@@ -27,19 +27,9 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#define ZFCP_SYSFS_ADAPTER_C_REVISION "$Revision$"
-
 #include "zfcp_ext.h"
 
 #define ZFCP_LOG_AREA                   ZFCP_LOG_AREA_CONFIG
-
-static const char fc_topologies[5][25] = {
-	"<error>",
-	"point-to-point",
-	"fabric",
-	"arbitrated loop",
-	"fabric (virt. adapter)"
-};
 
 /**
  * ZFCP_DEFINE_ADAPTER_ATTR
@@ -50,7 +40,7 @@ static const char fc_topologies[5][25] = {
  * Generates attributes for an adapter.
  */
 #define ZFCP_DEFINE_ADAPTER_ATTR(_name, _format, _value)                      \
-static ssize_t zfcp_sysfs_adapter_##_name##_show(struct device *dev,          \
+static ssize_t zfcp_sysfs_adapter_##_name##_show(struct device *dev, struct device_attribute *attr,          \
 						 char *buf)                   \
 {                                                                             \
 	struct zfcp_adapter *adapter;                                         \
@@ -62,22 +52,13 @@ static ssize_t zfcp_sysfs_adapter_##_name##_show(struct device *dev,          \
 static DEVICE_ATTR(_name, S_IRUGO, zfcp_sysfs_adapter_##_name##_show, NULL);
 
 ZFCP_DEFINE_ADAPTER_ATTR(status, "0x%08x\n", atomic_read(&adapter->status));
-ZFCP_DEFINE_ADAPTER_ATTR(wwnn, "0x%016llx\n", adapter->wwnn);
-ZFCP_DEFINE_ADAPTER_ATTR(wwpn, "0x%016llx\n", adapter->wwpn);
-ZFCP_DEFINE_ADAPTER_ATTR(s_id, "0x%06x\n", adapter->s_id);
 ZFCP_DEFINE_ADAPTER_ATTR(peer_wwnn, "0x%016llx\n", adapter->peer_wwnn);
 ZFCP_DEFINE_ADAPTER_ATTR(peer_wwpn, "0x%016llx\n", adapter->peer_wwpn);
 ZFCP_DEFINE_ADAPTER_ATTR(peer_d_id, "0x%06x\n", adapter->peer_d_id);
 ZFCP_DEFINE_ADAPTER_ATTR(card_version, "0x%04x\n", adapter->hydra_version);
 ZFCP_DEFINE_ADAPTER_ATTR(lic_version, "0x%08x\n", adapter->fsf_lic_version);
-ZFCP_DEFINE_ADAPTER_ATTR(fc_link_speed, "%d Gb/s\n", adapter->fc_link_speed);
-ZFCP_DEFINE_ADAPTER_ATTR(fc_service_class, "%d\n", adapter->fc_service_class);
-ZFCP_DEFINE_ADAPTER_ATTR(fc_topology, "%s\n",
-			 fc_topologies[adapter->fc_topology]);
 ZFCP_DEFINE_ADAPTER_ATTR(hardware_version, "0x%08x\n",
 			 adapter->hardware_version);
-ZFCP_DEFINE_ADAPTER_ATTR(serial_number, "%17s\n", adapter->serial_number);
-ZFCP_DEFINE_ADAPTER_ATTR(scsi_host_no, "0x%x\n", adapter->scsi_host_no);
 ZFCP_DEFINE_ADAPTER_ATTR(in_recovery, "%d\n", atomic_test_mask
 			 (ZFCP_STATUS_COMMON_ERP_INUSE, &adapter->status));
 
@@ -90,7 +71,7 @@ ZFCP_DEFINE_ADAPTER_ATTR(in_recovery, "%d\n", atomic_test_mask
  * Store function of the "port_add" attribute of an adapter.
  */
 static ssize_t
-zfcp_sysfs_port_add_store(struct device *dev, const char *buf, size_t count)
+zfcp_sysfs_port_add_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	wwn_t wwpn;
 	char *endp;
@@ -135,7 +116,7 @@ static DEVICE_ATTR(port_add, S_IWUSR, NULL, zfcp_sysfs_port_add_store);
  * Store function of the "port_remove" attribute of an adapter.
  */
 static ssize_t
-zfcp_sysfs_port_remove_store(struct device *dev, const char *buf, size_t count)
+zfcp_sysfs_port_remove_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct zfcp_adapter *adapter;
 	struct zfcp_port *port;
@@ -196,7 +177,7 @@ static DEVICE_ATTR(port_remove, S_IWUSR, NULL, zfcp_sysfs_port_remove_store);
  * started for the belonging adapter.
  */
 static ssize_t
-zfcp_sysfs_adapter_failed_store(struct device *dev,
+zfcp_sysfs_adapter_failed_store(struct device *dev, struct device_attribute *attr,
 				const char *buf, size_t count)
 {
 	struct zfcp_adapter *adapter;
@@ -236,7 +217,7 @@ zfcp_sysfs_adapter_failed_store(struct device *dev,
  * "0" if adapter is working, otherwise "1".
  */
 static ssize_t
-zfcp_sysfs_adapter_failed_show(struct device *dev, char *buf)
+zfcp_sysfs_adapter_failed_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct zfcp_adapter *adapter;
 
@@ -255,21 +236,13 @@ static struct attribute *zfcp_adapter_attrs[] = {
 	&dev_attr_in_recovery.attr,
 	&dev_attr_port_remove.attr,
 	&dev_attr_port_add.attr,
-	&dev_attr_wwnn.attr,
-	&dev_attr_wwpn.attr,
-	&dev_attr_s_id.attr,
 	&dev_attr_peer_wwnn.attr,
 	&dev_attr_peer_wwpn.attr,
 	&dev_attr_peer_d_id.attr,
 	&dev_attr_card_version.attr,
 	&dev_attr_lic_version.attr,
-	&dev_attr_fc_link_speed.attr,
-	&dev_attr_fc_service_class.attr,
-	&dev_attr_fc_topology.attr,
-	&dev_attr_scsi_host_no.attr,
 	&dev_attr_status.attr,
 	&dev_attr_hardware_version.attr,
-	&dev_attr_serial_number.attr,
 	NULL
 };
 

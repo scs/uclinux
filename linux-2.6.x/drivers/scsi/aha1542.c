@@ -543,10 +543,8 @@ static void aha1542_intr_handle(struct Scsi_Host *shost, void *dev_id, struct pt
 			return;
 		}
 		my_done = SCtmp->scsi_done;
-		if (SCtmp->host_scribble) {
-			kfree(SCtmp->host_scribble);
-			SCtmp->host_scribble = NULL;
-		}
+		kfree(SCtmp->host_scribble);
+		SCtmp->host_scribble = NULL;
 		/* Fetch the sense data, and tuck it away, in the required slot.  The
 		   Adaptec automatically fetches it, and there is no guarantee that
 		   we will still have it in the cdb when we come back */
@@ -1023,7 +1021,7 @@ __setup("aha1542=",do_setup);
 #endif
 
 /* return non-zero on detection */
-static int __init aha1542_detect(Scsi_Host_Template * tpnt)
+static int __init aha1542_detect(struct scsi_host_template * tpnt)
 {
 	unsigned char dma_chan;
 	unsigned char irq_level;
@@ -1348,20 +1346,6 @@ static int aha1542_restart(struct Scsi_Host *shost)
 	return 0;
 }
 
-static int aha1542_abort(Scsi_Cmnd * SCpnt)
-{
-
-	/*
-	 * The abort command does not leave the device in a clean state where
-	 *  it is available to be used again.  Until this gets worked out, we
-	 * will leave it commented out.  
-	 */
-
-	printk(KERN_ERR "aha1542.c: Unable to abort command for target %d\n",
-	       SCpnt->device->id);
-	return FAILED;
-}
-
 /*
  * This is a device reset.  This is handled by sending a special command
  * to the device.
@@ -1419,7 +1403,8 @@ static int aha1542_dev_reset(Scsi_Cmnd * SCpnt)
 	 */
 	aha1542_out(SCpnt->device->host->io_port, &ahacmd, 1);
 
-	printk(KERN_WARNING "aha1542.c: Trying device reset for target %d\n", SCpnt->device->id);
+	scmd_printk(KERN_WARNING, SCpnt,
+		"Trying device reset for target\n");
 
 	return SUCCESS;
 
@@ -1445,10 +1430,8 @@ static int aha1542_dev_reset(Scsi_Cmnd * SCpnt)
 		    HOSTDATA(SCpnt->host)->SCint[i]->target == SCpnt->target) {
 			Scsi_Cmnd *SCtmp;
 			SCtmp = HOSTDATA(SCpnt->host)->SCint[i];
-			if (SCtmp->host_scribble) {
-				kfree(SCtmp->host_scribble);
-				SCtmp->host_scribble = NULL;
-			}
+			kfree(SCtmp->host_scribble);
+			SCtmp->host_scribble = NULL;
 			HOSTDATA(SCpnt->host)->SCint[i] = NULL;
 			HOSTDATA(SCpnt->host)->mb[i].status = 0;
 		}
@@ -1478,8 +1461,8 @@ static int aha1542_bus_reset(Scsi_Cmnd * SCpnt)
 	 * check for timeout, and if we are doing something like this
 	 * we are pretty desperate anyways.
 	 */
-	spin_unlock_irq(SCpnt->device->host->host_lock);
 	ssleep(4);
+
 	spin_lock_irq(SCpnt->device->host->host_lock);
 
 	WAIT(STATUS(SCpnt->device->host->io_port),
@@ -1508,18 +1491,18 @@ static int aha1542_bus_reset(Scsi_Cmnd * SCpnt)
 				 */
 				continue;
 			}
-			if (SCtmp->host_scribble) {
-				kfree(SCtmp->host_scribble);
-				SCtmp->host_scribble = NULL;
-			}
+			kfree(SCtmp->host_scribble);
+			SCtmp->host_scribble = NULL;
 			HOSTDATA(SCpnt->device->host)->SCint[i] = NULL;
 			HOSTDATA(SCpnt->device->host)->mb[i].status = 0;
 		}
 	}
 
+	spin_unlock_irq(SCpnt->device->host->host_lock);
 	return SUCCESS;
 
 fail:
+	spin_unlock_irq(SCpnt->device->host->host_lock);
 	return FAILED;
 }
 
@@ -1542,7 +1525,6 @@ static int aha1542_host_reset(Scsi_Cmnd * SCpnt)
 	 * check for timeout, and if we are doing something like this
 	 * we are pretty desperate anyways.
 	 */
-	spin_unlock_irq(SCpnt->device->host->host_lock);
 	ssleep(4);
 	spin_lock_irq(SCpnt->device->host->host_lock);
 
@@ -1577,18 +1559,18 @@ static int aha1542_host_reset(Scsi_Cmnd * SCpnt)
 				 */
 				continue;
 			}
-			if (SCtmp->host_scribble) {
-				kfree(SCtmp->host_scribble);
-				SCtmp->host_scribble = NULL;
-			}
+			kfree(SCtmp->host_scribble);
+			SCtmp->host_scribble = NULL;
 			HOSTDATA(SCpnt->device->host)->SCint[i] = NULL;
 			HOSTDATA(SCpnt->device->host)->mb[i].status = 0;
 		}
 	}
 
+	spin_unlock_irq(SCpnt->device->host->host_lock);
 	return SUCCESS;
 
 fail:
+	spin_unlock_irq(SCpnt->device->host->host_lock);
 	return FAILED;
 }
 
@@ -1721,10 +1703,8 @@ static int aha1542_old_reset(Scsi_Cmnd * SCpnt, unsigned int reset_flags)
 				Scsi_Cmnd *SCtmp;
 				SCtmp = HOSTDATA(SCpnt->host)->SCint[i];
 				SCtmp->result = DID_RESET << 16;
-				if (SCtmp->host_scribble) {
-					kfree(SCtmp->host_scribble);
-					SCtmp->host_scribble = NULL;
-				}
+				kfree(SCtmp->host_scribble);
+				SCtmp->host_scribble = NULL;
 				printk(KERN_WARNING "Sending DID_RESET for target %d\n", SCpnt->target);
 				SCtmp->scsi_done(SCpnt);
 
@@ -1767,10 +1747,8 @@ fail:
 						Scsi_Cmnd *SCtmp;
 						SCtmp = HOSTDATA(SCpnt->host)->SCint[i];
 						SCtmp->result = DID_RESET << 16;
-						if (SCtmp->host_scribble) {
-							kfree(SCtmp->host_scribble);
-							SCtmp->host_scribble = NULL;
-						}
+						kfree(SCtmp->host_scribble);
+						SCtmp->host_scribble = NULL;
 						printk(KERN_WARNING "Sending DID_RESET for target %d\n", SCpnt->target);
 						SCtmp->scsi_done(SCpnt);
 
@@ -1811,13 +1789,12 @@ static int aha1542_biosparam(struct scsi_device *sdev,
 MODULE_LICENSE("GPL");
 
 
-static Scsi_Host_Template driver_template = {
+static struct scsi_host_template driver_template = {
 	.proc_name		= "aha1542",
 	.name			= "Adaptec 1542",
 	.detect			= aha1542_detect,
 	.release		= aha1542_release,
 	.queuecommand		= aha1542_queuecommand,
-	.eh_abort_handler	= aha1542_abort,
 	.eh_device_reset_handler= aha1542_dev_reset,
 	.eh_bus_reset_handler	= aha1542_bus_reset,
 	.eh_host_reset_handler	= aha1542_host_reset,

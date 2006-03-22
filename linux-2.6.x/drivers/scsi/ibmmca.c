@@ -18,12 +18,6 @@
  */
 
 #include <linux/config.h>
-#ifndef LINUX_VERSION_CODE
-#include <linux/version.h>
-#endif
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,45)
-#error "This driver works only with kernel 2.5.45 or higher!"
-#endif
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
@@ -36,7 +30,6 @@
 #include <linux/proc_fs.h>
 #include <linux/stat.h>
 #include <linux/mca.h>
-#include <linux/string.h>
 #include <linux/spinlock.h>
 #include <linux/init.h>
 #include <linux/mca-legacy.h>
@@ -461,6 +454,8 @@ MODULE_PARM(adisplay, "1i");
 MODULE_PARM(normal, "1i");
 MODULE_PARM(ansi, "1i");
 #endif
+
+MODULE_LICENSE("GPL");
 #endif
 /*counter of concurrent disk read/writes, to turn on/off disk led */
 static int disk_rw_in_progress = 0;
@@ -497,7 +492,7 @@ static char *ibmrate(unsigned int, int);
 static int probe_display(int);
 static int probe_bus_mode(int);
 static int device_exists(int, int, int *, int *);
-static struct Scsi_Host *ibmmca_register(Scsi_Host_Template *, int, int, int, char *);
+static struct Scsi_Host *ibmmca_register(struct scsi_host_template *, int, int, int, char *);
 static int option_setup(char *);
 /* local functions needed for proc_info */
 static int ldn_access_load(int, int);
@@ -1488,7 +1483,7 @@ static int ibmmca_getinfo(char *buf, int slot, void *dev_id)
 	return len;
 }
 
-int ibmmca_detect(Scsi_Host_Template * scsi_template)
+int ibmmca_detect(struct scsi_host_template * scsi_template)
 {
 	struct Scsi_Host *shpnt;
 	int port, id, i, j, k, list_size, slot;
@@ -1741,7 +1736,7 @@ int ibmmca_detect(Scsi_Host_Template * scsi_template)
 	return found;		/* return the number of found SCSI hosts. Should be 1 or 0. */
 }
 
-static struct Scsi_Host *ibmmca_register(Scsi_Host_Template * scsi_template, int port, int id, int adaptertype, char *hostname)
+static struct Scsi_Host *ibmmca_register(struct scsi_host_template * scsi_template, int port, int id, int adaptertype, char *hostname)
 {
 	struct Scsi_Host *shpnt;
 	int i, j;
@@ -1859,7 +1854,10 @@ static int ibmmca_queuecommand(Scsi_Cmnd * cmd, void (*done) (Scsi_Cmnd *))
 					next_ldn(host_index) = 7;
 				if (current_ldn == next_ldn(host_index)) {	/* One circle done ? */
 					/* no non-processing ldn found */
-					printk("IBM MCA SCSI: Cannot assign SCSI-device dynamically!\n" "              On ldn 7-14 SCSI-commands everywhere in progress.\n" "              Reporting DID_NO_CONNECT for device (%d,%d).\n", target, cmd->device->lun);
+					scmd_printk(KERN_WARNING, cmd,
+	"IBM MCA SCSI: Cannot assign SCSI-device dynamically!\n"
+	"              On ldn 7-14 SCSI-commands everywhere in progress.\n"
+	"              Reporting DID_NO_CONNECT for device.\n");
 					cmd->result = DID_NO_CONNECT << 16;	/* return no connect */
 					if (done)
 						done(cmd);
@@ -2118,7 +2116,7 @@ static int ibmmca_queuecommand(Scsi_Cmnd * cmd, void (*done) (Scsi_Cmnd *))
 	return 0;
 }
 
-static int ibmmca_abort(Scsi_Cmnd * cmd)
+static int __ibmmca_abort(Scsi_Cmnd * cmd)
 {
 	/* Abort does not work, as the adapter never generates an interrupt on
 	 * whatever situation is simulated, even when really pending commands
@@ -2225,7 +2223,19 @@ static int ibmmca_abort(Scsi_Cmnd * cmd)
 	}
 }
 
-static int ibmmca_host_reset(Scsi_Cmnd * cmd)
+static int ibmmca_abort(Scsi_Cmnd * cmd)
+{
+	struct Scsi_Host *shpnt = cmd->device->host;
+	int rc;
+
+	spin_lock_irq(shpnt->host_lock);
+	rc = __ibmmca_abort(cmd);
+	spin_unlock_irq(shpnt->host_lock);
+
+	return rc;
+}
+
+static int __ibmmca_host_reset(Scsi_Cmnd * cmd)
 {
 	struct Scsi_Host *shpnt;
 	Scsi_Cmnd *cmd_aid;
@@ -2310,6 +2320,18 @@ static int ibmmca_host_reset(Scsi_Cmnd * cmd)
 		}
 	}
 	return SUCCESS;
+}
+
+static int ibmmca_host_reset(Scsi_Cmnd * cmd)
+{
+	struct Scsi_Host *shpnt = cmd->device->host;
+	int rc;
+
+	spin_lock_irq(shpnt->host_lock);
+	rc = __ibmmca_host_reset(cmd);
+	spin_unlock_irq(shpnt->host_lock);
+
+	return rc;
 }
 
 static int ibmmca_biosparam(struct scsi_device *sdev, struct block_device *bdev, sector_t capacity, int *info)
@@ -2472,7 +2494,7 @@ static int option_setup(char *str)
 
 __setup("ibmmcascsi=", option_setup);
 
-static Scsi_Host_Template driver_template = {
+static struct scsi_host_template driver_template = {
           .proc_name      = "ibmmca",
 	  .proc_info	  = ibmmca_proc_info,
           .name           = "IBM SCSI-Subsystem",

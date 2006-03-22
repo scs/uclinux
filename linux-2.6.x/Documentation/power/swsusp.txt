@@ -1,22 +1,20 @@
-From kernel/suspend.c:
+Some warnings, first.
 
  * BIG FAT WARNING *********************************************************
- *
- * If you have unsupported (*) devices using DMA...
- *				...say goodbye to your data.
  *
  * If you touch anything on disk between suspend and resume...
  *				...kiss your data goodbye.
  *
- * If your disk driver does not support suspend... (IDE does)
- *				...you'd better find out how to get along
- *				   without your data.
+ * If you do resume from initrd after your filesystems are mounted...
+ *				...bye bye root partition.
+ *			[this is actually same case as above]
  *
- * If you change kernel command line between suspend and resume...
- *			        ...prepare for nasty fsck or worse.
- *
- * If you change your hardware while system is suspended...
- *			        ...well, it was not good idea.
+ * If you have unsupported (*) devices using DMA, you may have some
+ * problems. If your disk driver does not support suspend... (IDE does),
+ * it may cause some problems, too. If you change kernel command line
+ * between suspend and resume, it may do something wrong. If you change
+ * your hardware while system is suspended... well, it was not good idea;
+ * but it will probably only crash.
  *
  * (*) suspend/resume support is needed to make it safe.
 
@@ -29,6 +27,18 @@ echo shutdown > /sys/power/disk; echo disk > /sys/power/state
 
 echo platform > /sys/power/disk; echo disk > /sys/power/state
 
+If you want to limit the suspend image size to N bytes, do
+
+echo N > /sys/power/image_size
+
+before suspend (it is limited to 500 MB by default).
+
+Encrypted suspend image:
+------------------------
+If you want to store your suspend image encrypted with a temporary
+key to prevent data gathering after resume you must compile
+crypto and the aes algorithm into the kernel - modules won't work
+as they cannot be loaded at resume time.
 
 
 Article about goals and implementation of Software Suspend for Linux
@@ -85,11 +95,6 @@ resume.
 You have your server on UPS. Power died, and UPS is indicating 30
 seconds to failure. What do you do? Suspend to disk.
 
-Ethernet card in your server died. You want to replace it. Your
-server is not hotplug capable. What do you do? Suspend to disk,
-replace ethernet card, resume. If you are fast your users will not
-even see broken connections.
-
 
 Q: Maybe I'm missing something, but why don't the regular I/O paths work?
 
@@ -117,31 +122,6 @@ Q: Does linux support ACPI S4?
 
 A: Yes. That's what echo platform > /sys/power/disk does.
 
-Q: My machine doesn't work with ACPI. How can I use swsusp than ?
-
-A: Do a reboot() syscall with right parameters. Warning: glibc gets in
-its way, so check with strace:
-
-reboot(LINUX_REBOOT_MAGIC1, LINUX_REBOOT_MAGIC2, 0xd000fce2)
-
-(Thanks to Peter Osterlund:)
-
-#include <unistd.h>
-#include <syscall.h>
-
-#define LINUX_REBOOT_MAGIC1     0xfee1dead
-#define LINUX_REBOOT_MAGIC2     672274793
-#define LINUX_REBOOT_CMD_SW_SUSPEND     0xD000FCE2
-
-int main()
-{
-    syscall(SYS_reboot, LINUX_REBOOT_MAGIC1, LINUX_REBOOT_MAGIC2,
-            LINUX_REBOOT_CMD_SW_SUSPEND, 0);
-    return 0;
-}
-
-Also /sys/ interface should be still present.
-
 Q: What is 'suspend2'?
 
 A: suspend2 is 'Software Suspend 2', a forked implementation of
@@ -164,11 +144,11 @@ place where the thread is safe to be frozen (no kernel semaphores
 should be held at that point and it must be safe to sleep there), and
 add:
 
-            if (current->flags & PF_FREEZE)
-                    refrigerator(PF_FREEZE);
+       try_to_freeze();
 
 If the thread is needed for writing the image to storage, you should
-instead set the PF_NOFREEZE process flag when creating the thread.
+instead set the PF_NOFREEZE process flag when creating the thread (and
+be very carefull).
 
 
 Q: What is the difference between between "platform", "shutdown" and
@@ -232,4 +212,125 @@ A: Try running
 
 cat `cat /proc/[0-9]*/maps | grep / | sed 's:.* /:/:' | sort -u` > /dev/null
 
-after resume. swapoff -a; swapon -a may also be usefull.
+after resume. swapoff -a; swapon -a may also be useful.
+
+Q: What happens to devices during swsusp? They seem to be resumed
+during system suspend?
+
+A: That's correct. We need to resume them if we want to write image to
+disk. Whole sequence goes like
+
+      Suspend part
+      ~~~~~~~~~~~~
+      running system, user asks for suspend-to-disk
+
+      user processes are stopped
+
+      suspend(PMSG_FREEZE): devices are frozen so that they don't interfere
+      		      with state snapshot
+
+      state snapshot: copy of whole used memory is taken with interrupts disabled
+
+      resume(): devices are woken up so that we can write image to swap
+
+      write image to swap
+
+      suspend(PMSG_SUSPEND): suspend devices so that we can power off
+
+      turn the power off
+
+      Resume part
+      ~~~~~~~~~~~
+      (is actually pretty similar)
+
+      running system, user asks for suspend-to-disk
+
+      user processes are stopped (in common case there are none, but with resume-from-initrd, noone knows)
+
+      read image from disk
+
+      suspend(PMSG_FREEZE): devices are frozen so that they don't interfere
+      		      with image restoration
+
+      image restoration: rewrite memory with image
+
+      resume(): devices are woken up so that system can continue
+
+      thaw all user processes
+
+Q: What is this 'Encrypt suspend image' for?
+
+A: First of all: it is not a replacement for dm-crypt encrypted swap.
+It cannot protect your computer while it is suspended. Instead it does
+protect from leaking sensitive data after resume from suspend.
+
+Think of the following: you suspend while an application is running
+that keeps sensitive data in memory. The application itself prevents
+the data from being swapped out. Suspend, however, must write these
+data to swap to be able to resume later on. Without suspend encryption
+your sensitive data are then stored in plaintext on disk.  This means
+that after resume your sensitive data are accessible to all
+applications having direct access to the swap device which was used
+for suspend. If you don't need swap after resume these data can remain
+on disk virtually forever. Thus it can happen that your system gets
+broken in weeks later and sensitive data which you thought were
+encrypted and protected are retrieved and stolen from the swap device.
+To prevent this situation you should use 'Encrypt suspend image'.
+
+During suspend a temporary key is created and this key is used to
+encrypt the data written to disk. When, during resume, the data was
+read back into memory the temporary key is destroyed which simply
+means that all data written to disk during suspend are then
+inaccessible so they can't be stolen later on.  The only thing that
+you must then take care of is that you call 'mkswap' for the swap
+partition used for suspend as early as possible during regular
+boot. This asserts that any temporary key from an oopsed suspend or
+from a failed or aborted resume is erased from the swap device.
+
+As a rule of thumb use encrypted swap to protect your data while your
+system is shut down or suspended. Additionally use the encrypted
+suspend image to prevent sensitive data from being stolen after
+resume.
+
+Q: Why can't we suspend to a swap file?
+
+A: Because accessing swap file needs the filesystem mounted, and
+filesystem might do something wrong (like replaying the journal)
+during mount.
+
+There are few ways to get that fixed:
+
+1) Probably could be solved by modifying every filesystem to support
+some kind of "really read-only!" option. Patches welcome.
+
+2) suspend2 gets around that by storing absolute positions in on-disk
+image (and blocksize), with resume parameter pointing directly to
+suspend header.
+
+Q: Is there a maximum system RAM size that is supported by swsusp?
+
+A: It should work okay with highmem.
+
+Q: Does swsusp (to disk) use only one swap partition or can it use
+multiple swap partitions (aggregate them into one logical space)?
+
+A: Only one swap partition, sorry.
+
+Q: If my application(s) causes lots of memory & swap space to be used
+(over half of the total system RAM), is it correct that it is likely
+to be useless to try to suspend to disk while that app is running?
+
+A: No, it should work okay, as long as your app does not mlock()
+it. Just prepare big enough swap partition.
+
+Q: What information is useful for debugging suspend-to-disk problems?
+
+A: Well, last messages on the screen are always useful. If something
+is broken, it is usually some kernel driver, therefore trying with as
+little as possible modules loaded helps a lot. I also prefer people to
+suspend from console, preferably without X running. Booting with
+init=/bin/bash, then swapon and starting suspend sequence manually
+usually does the trick. Then it is good idea to try with latest
+vanilla kernel.
+
+

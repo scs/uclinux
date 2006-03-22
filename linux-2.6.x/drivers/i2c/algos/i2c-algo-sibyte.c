@@ -24,7 +24,6 @@
 
 /* Ported for SiByte SOCs by Broadcom Corporation.  */
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -43,7 +42,7 @@
 
 /* module parameters:
  */
-static int bit_scan=0;	/* have a look at what's hanging 'round		*/
+static int bit_scan;	/* have a look at what's hanging 'round		*/
 
 
 static int smbus_xfer(struct i2c_adapter *i2c_adap, u16 addr, 
@@ -136,8 +135,6 @@ static u32 bit_func(struct i2c_adapter *adap)
 /* -----exported algorithm data: -------------------------------------	*/
 
 static struct i2c_algorithm i2c_sibyte_algo = {
-	.name		= "SiByte algorithm",
-	.id		= I2C_ALGO_SIBYTE,
 	.smbus_xfer	= smbus_xfer,
 	.algo_control	= algo_control, /* ioctl */
 	.functionality	= bit_func,
@@ -152,8 +149,6 @@ int i2c_sibyte_add_bus(struct i2c_adapter *i2c_adap, int speed)
 	struct i2c_algo_sibyte_data *adap = i2c_adap->algo_data;
 
 	/* register new adapter to i2c module... */
-
-	i2c_adap->id |= i2c_sibyte_algo.id;
 	i2c_adap->algo = &i2c_sibyte_algo;
         
         /* Set the frequency to 100 kHz */
@@ -207,7 +202,7 @@ EXPORT_SYMBOL(i2c_sibyte_del_bus);
 #ifdef MODULE
 MODULE_AUTHOR("Kip Walker, Broadcom Corp.");
 MODULE_DESCRIPTION("SiByte I2C-Bus algorithm");
-MODULE_PARM(bit_scan, "i");
+module_param(bit_scan, int, 0);
 MODULE_PARM_DESC(bit_scan, "Scan for active chips on the bus");
 MODULE_LICENSE("GPL");
 

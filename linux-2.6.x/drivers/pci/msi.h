@@ -19,19 +19,8 @@
 #define NR_HP_RESERVED_VECTORS 	20
 
 extern int vector_irq[NR_VECTORS];
-extern cpumask_t pending_irq_balance_cpumask[NR_IRQS];
 extern void (*interrupt[NR_IRQS])(void);
 extern int pci_vector_resources(int last, int nr_released);
-
-#ifdef CONFIG_SMP
-#define set_msi_irq_affinity	set_msi_affinity
-#else
-#define set_msi_irq_affinity	NULL
-#endif
-
-#ifndef CONFIG_IRQBALANCE
-static inline void move_msi(int vector) {}
-#endif
 
 /*
  * MSI-X Address Register
@@ -41,11 +30,11 @@ static inline void move_msi(int vector) {}
 #define PCI_MSIX_FLAGS_BIRMASK		(7 << 0)
 #define PCI_MSIX_FLAGS_BITMASK		(1 << 0)
 
-#define PCI_MSIX_ENTRY_LOWER_ADDR_OFFSET	0
-#define PCI_MSIX_ENTRY_UPPER_ADDR_OFFSET	4
-#define PCI_MSIX_ENTRY_DATA_OFFSET		8
-#define PCI_MSIX_ENTRY_VECTOR_CTRL_OFFSET	12
 #define PCI_MSIX_ENTRY_SIZE			16
+#define  PCI_MSIX_ENTRY_LOWER_ADDR_OFFSET	0
+#define  PCI_MSIX_ENTRY_UPPER_ADDR_OFFSET	4
+#define  PCI_MSIX_ENTRY_DATA_OFFSET		8
+#define  PCI_MSIX_ENTRY_VECTOR_CTRL_OFFSET	12
 
 #define msi_control_reg(base)		(base + PCI_MSI_FLAGS)
 #define msi_lower_address_reg(base)	(base + PCI_MSI_ADDRESS_LO)
@@ -64,7 +53,6 @@ static inline void move_msi(int vector) {}
 #define msi_enable(control, num) multi_msi_enable(control, num); \
 	control |= PCI_MSI_FLAGS_ENABLE
 
-#define msix_control_reg		msi_control_reg
 #define msix_table_offset_reg(base)	(base + 0x04)
 #define msix_pba_offset_reg(base)	(base + 0x08)
 #define msix_enable(control)	 	control |= PCI_MSIX_FLAGS_ENABLE

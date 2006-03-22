@@ -11,13 +11,6 @@
 #include <linux/module.h>
 #include <linux/ctype.h>
 #include <linux/slab.h>
-
-#ifdef CONFIG_PNP_DEBUG
-	#define DEBUG
-#else
-	#undef DEBUG
-#endif
-
 #include <linux/pnp.h>
 #include "base.h"
 
@@ -153,33 +146,84 @@ static int pnp_bus_match(struct device *dev, struct device_driver *drv)
 	return 1;
 }
 
+static int pnp_bus_suspend(struct device *dev, pm_message_t state)
+{
+	struct pnp_dev * pnp_dev = to_pnp_dev(dev);
+	struct pnp_driver * pnp_drv = pnp_dev->driver;
+	int error;
+
+	if (!pnp_drv)
+		return 0;
+
+	if (pnp_drv->suspend) {
+		error = pnp_drv->suspend(pnp_dev, state);
+		if (error)
+			return error;
+	}
+
+	if (!(pnp_drv->flags & PNP_DRIVER_RES_DO_NOT_CHANGE) &&
+	    pnp_can_disable(pnp_dev)) {
+	    	error = pnp_stop_dev(pnp_dev);
+	    	if (error)
+	    		return error;
+	}
+
+	return 0;
+}
+
+static int pnp_bus_resume(struct device *dev)
+{
+	struct pnp_dev * pnp_dev = to_pnp_dev(dev);
+	struct pnp_driver * pnp_drv = pnp_dev->driver;
+	int error;
+
+	if (!pnp_drv)
+		return 0;
+
+	if (!(pnp_drv->flags & PNP_DRIVER_RES_DO_NOT_CHANGE)) {
+		error = pnp_start_dev(pnp_dev);
+		if (error)
+			return error;
+	}
+
+	if (pnp_drv->resume)
+		return pnp_drv->resume(pnp_dev);
+
+	return 0;
+}
 
 struct bus_type pnp_bus_type = {
 	.name	= "pnp",
 	.match	= pnp_bus_match,
+	.probe	= pnp_device_probe,
+	.remove	= pnp_device_remove,
+	.suspend = pnp_bus_suspend,
+	.resume = pnp_bus_resume,
 };
 
+
+static int count_devices(struct device * dev, void * c)
+{
+	int * count = c;
+	(*count)++;
+	return 0;
+}
 
 int pnp_register_driver(struct pnp_driver *drv)
 {
 	int count;
-	struct list_head *pos;
 
 	pnp_dbg("the driver '%s' has been registered", drv->name);
 
 	drv->driver.name = drv->name;
 	drv->driver.bus = &pnp_bus_type;
-	drv->driver.probe = pnp_device_probe;
-	drv->driver.remove = pnp_device_remove;
 
 	count = driver_register(&drv->driver);
 
 	/* get the number of initial matches */
 	if (count >= 0){
 		count = 0;
-		list_for_each(pos,&drv->driver.devices){
-			count++;
-		}
+		driver_for_each_device(&drv->driver, NULL, &count, count_devices);
 	}
 	return count;
 }
@@ -217,6 +261,8 @@ int pnp_add_id(struct pnp_id *id, struct pnp_dev *dev)
 
 EXPORT_SYMBOL(pnp_register_driver);
 EXPORT_SYMBOL(pnp_unregister_driver);
+#if 0
 EXPORT_SYMBOL(pnp_add_id);
+#endif
 EXPORT_SYMBOL(pnp_device_attach);
 EXPORT_SYMBOL(pnp_device_detach);

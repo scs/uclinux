@@ -205,7 +205,7 @@ int __init init_sbc8240_mtd (void)
 		} else {
 			printk (KERN_NOTICE MSG_PREFIX
 				"Using %s partition definition\n", sbc8240_part_banks[i].mtd_part->name);
-			add_mtd_partitions (sbc8240_mtd[i], 
+			add_mtd_partitions (sbc8240_mtd[i],
 					    sbc8240_part_banks[i].mtd_part,
 					    sbc8240_part_banks[i].nums);
 		}

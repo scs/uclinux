@@ -58,8 +58,7 @@ static const char serial21285_name[] = "Footbridge UART";
  *  int((BAUD_BASE - (baud >> 1)) / baud)
  */
 
-static void
-serial21285_stop_tx(struct uart_port *port, unsigned int tty_stop)
+static void serial21285_stop_tx(struct uart_port *port)
 {
 	if (tx_enabled(port)) {
 		disable_irq(IRQ_CONTX);
@@ -67,8 +66,7 @@ serial21285_stop_tx(struct uart_port *port, unsigned int tty_stop)
 	}
 }
 
-static void
-serial21285_start_tx(struct uart_port *port, unsigned int tty_start)
+static void serial21285_start_tx(struct uart_port *port)
 {
 	if (!tx_enabled(port)) {
 		enable_irq(IRQ_CONTX);
@@ -96,15 +94,6 @@ static irqreturn_t serial21285_rx_chars(int irq, void *dev_id, struct pt_regs *r
 
 	status = *CSR_UARTFLG;
 	while (!(status & 0x10) && max_count--) {
-		if (tty->flip.count >= TTY_FLIPBUF_SIZE) {
-			if (tty->low_latency)
-				tty_flip_buffer_push(tty);
-			/*
-			 * If this failed then we will throw away the
-			 * bytes but must do so to clear interrupts
-			 */
-		}
-
 		ch = *CSR_UARTDR;
 		flag = TTY_NORMAL;
 		port->icount.rx++;
@@ -148,7 +137,7 @@ static irqreturn_t serial21285_tx_chars(int irq, void *dev_id, struct pt_regs *r
 		goto out;
 	}
 	if (uart_circ_empty(xmit) || uart_tx_stopped(port)) {
-		serial21285_stop_tx(port, 0);
+		serial21285_stop_tx(port);
 		goto out;
 	}
 
@@ -164,7 +153,7 @@ static irqreturn_t serial21285_tx_chars(int irq, void *dev_id, struct pt_regs *r
 		uart_write_wakeup(port);
 
 	if (uart_circ_empty(xmit))
-		serial21285_stop_tx(port, 0);
+		serial21285_stop_tx(port);
 
  out:
 	return IRQ_HANDLED;
@@ -373,11 +362,11 @@ static struct uart_ops serial21285_ops = {
 
 static struct uart_port serial21285_port = {
 	.mapbase	= 0x42000160,
-	.iotype		= SERIAL_IO_MEM,
+	.iotype		= UPIO_MEM,
 	.irq		= NO_IRQ,
 	.fifosize	= 16,
 	.ops		= &serial21285_ops,
-	.flags		= ASYNC_BOOT_AUTOCONF,
+	.flags		= UPF_BOOT_AUTOCONF,
 };
 
 static void serial21285_setup_ports(void)
@@ -465,7 +454,7 @@ static int __init serial21285_console_setup(struct console *co, char *options)
 	return uart_set_options(port, co, baud, parity, bits, flow);
 }
 
-extern struct uart_driver serial21285_reg;
+static struct uart_driver serial21285_reg;
 
 static struct console serial21285_console =
 {

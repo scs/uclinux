@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001-2002 by David Brownell
+ * Copyright (C) 2001-2004 by David Brownell
  * 
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -30,7 +30,7 @@
 
 #ifdef	CONFIG_PM
 
-static int ehci_hub_suspend (struct usb_hcd *hcd)
+static int ehci_bus_suspend (struct usb_hcd *hcd)
 {
 	struct ehci_hcd		*ehci = hcd_to_ehci (hcd);
 	int			port;
@@ -54,12 +54,12 @@ static int ehci_hub_suspend (struct usb_hcd *hcd)
 	/* suspend any active/unsuspended ports, maybe allow wakeup */
 	while (port--) {
 		u32 __iomem	*reg = &ehci->regs->port_status [port];
-		u32		t1 = readl (reg);
+		u32		t1 = readl (reg) & ~PORT_RWC_BITS;
 		u32		t2 = t1;
 
 		if ((t1 & PORT_PE) && !(t1 & PORT_OWNER))
 			t2 |= PORT_SUSPEND;
-		if (hcd->remote_wakeup)
+		if (device_may_wakeup(&hcd->self.root_hub->dev))
 			t2 |= PORT_WKOC_E|PORT_WKDISC_E|PORT_WKCONN_E;
 		else
 			t2 &= ~(PORT_WKOC_E|PORT_WKDISC_E|PORT_WKCONN_E);
@@ -83,7 +83,7 @@ static int ehci_hub_suspend (struct usb_hcd *hcd)
 
 
 /* caller has locked the root hub, and should reset/reinit on error */
-static int ehci_hub_resume (struct usb_hcd *hcd)
+static int ehci_bus_resume (struct usb_hcd *hcd)
 {
 	struct ehci_hcd		*ehci = hcd_to_ehci (hcd);
 	u32			temp;
@@ -93,6 +93,13 @@ static int ehci_hub_resume (struct usb_hcd *hcd)
 	if (time_before (jiffies, ehci->next_statechange))
 		msleep(5);
 	spin_lock_irq (&ehci->lock);
+
+	/* Ideally and we've got a real resume here, and no port's power
+	 * was lost.  (For PCI, that means Vaux was maintained.)  But we
+	 * could instead be restoring a swsusp snapshot -- so that BIOS was
+	 * the last user of the controller, not reset/pm hardware keeping
+	 * state we gave to it.
+	 */
 
 	/* re-init operational registers in case we lost power */
 	if (readl (&ehci->regs->intr_enable) == 0) {
@@ -115,7 +122,8 @@ static int ehci_hub_resume (struct usb_hcd *hcd)
 	i = HCS_N_PORTS (ehci->hcs_params);
 	while (i--) {
 		temp = readl (&ehci->regs->port_status [i]);
-		temp &= ~(PORT_WKOC_E|PORT_WKDISC_E|PORT_WKCONN_E);
+		temp &= ~(PORT_RWC_BITS
+			| PORT_WKOC_E | PORT_WKDISC_E | PORT_WKCONN_E);
 		if (temp & PORT_SUSPEND) {
 			ehci->reset_done [i] = jiffies + msecs_to_jiffies (20);
 			temp |= PORT_RESUME;
@@ -128,7 +136,7 @@ static int ehci_hub_resume (struct usb_hcd *hcd)
 		temp = readl (&ehci->regs->port_status [i]);
 		if ((temp & PORT_SUSPEND) == 0)
 			continue;
-		temp &= ~PORT_RESUME;
+		temp &= ~(PORT_RWC_BITS | PORT_RESUME);
 		writel (temp, &ehci->regs->port_status [i]);
 		ehci_vdbg (ehci, "resumed port %d\n", i + 1);
 	}
@@ -158,8 +166,8 @@ static int ehci_hub_resume (struct usb_hcd *hcd)
 
 #else
 
-#define ehci_hub_suspend	NULL
-#define ehci_hub_resume		NULL
+#define ehci_bus_suspend	NULL
+#define ehci_bus_resume		NULL
 
 #endif	/* CONFIG_PM */
 
@@ -191,6 +199,7 @@ static int check_reset_complete (
 
 		// what happens if HCS_N_CC(params) == 0 ?
 		port_status |= PORT_OWNER;
+		port_status &= ~PORT_RWC_BITS;
 		writel (port_status, &ehci->regs->port_status [index]);
 
 	} else
@@ -233,7 +242,8 @@ ehci_hub_status_data (struct usb_hcd *hcd, char *buf)
 		if (temp & PORT_OWNER) {
 			/* don't report this in GetPortStatus */
 			if (temp & PORT_CSC) {
-				temp &= ~PORT_CSC;
+				temp &= ~PORT_RWC_BITS;
+				temp |= PORT_CSC;
 				writel (temp, &ehci->regs->port_status [i]);
 			}
 			continue;
@@ -343,7 +353,7 @@ static int ehci_hub_control (
 				&ehci->regs->port_status [wIndex]);
 			break;
 		case USB_PORT_FEAT_C_ENABLE:
-			writel (temp | PORT_PEC,
+			writel((temp & ~PORT_RWC_BITS) | PORT_PEC,
 				&ehci->regs->port_status [wIndex]);
 			break;
 		case USB_PORT_FEAT_SUSPEND:
@@ -353,7 +363,8 @@ static int ehci_hub_control (
 				if ((temp & PORT_PE) == 0)
 					goto error;
 				/* resume signaling for 20 msec */
-				writel ((temp & ~PORT_WAKE_BITS) | PORT_RESUME,
+				temp &= ~(PORT_RWC_BITS | PORT_WAKE_BITS);
+				writel (temp | PORT_RESUME,
 					&ehci->regs->port_status [wIndex]);
 				ehci->reset_done [wIndex] = jiffies
 						+ msecs_to_jiffies (20);
@@ -364,15 +375,15 @@ static int ehci_hub_control (
 			break;
 		case USB_PORT_FEAT_POWER:
 			if (HCS_PPC (ehci->hcs_params))
-				writel (temp & ~PORT_POWER,
+				writel (temp & ~(PORT_RWC_BITS | PORT_POWER),
 					&ehci->regs->port_status [wIndex]);
 			break;
 		case USB_PORT_FEAT_C_CONNECTION:
-			writel (temp | PORT_CSC,
+			writel((temp & ~PORT_RWC_BITS) | PORT_CSC,
 				&ehci->regs->port_status [wIndex]);
 			break;
 		case USB_PORT_FEAT_C_OVER_CURRENT:
-			writel (temp | PORT_OCC,
+			writel((temp & ~PORT_RWC_BITS) | PORT_OCC,
 				&ehci->regs->port_status [wIndex]);
 			break;
 		case USB_PORT_FEAT_C_RESET:
@@ -416,7 +427,7 @@ static int ehci_hub_control (
 
 			/* stop resume signaling */
 			temp = readl (&ehci->regs->port_status [wIndex]);
-			writel (temp & ~PORT_RESUME,
+			writel (temp & ~(PORT_RWC_BITS | PORT_RESUME),
 				&ehci->regs->port_status [wIndex]);
 			retval = handshake (
 					&ehci->regs->port_status [wIndex],
@@ -437,7 +448,7 @@ static int ehci_hub_control (
 			ehci->reset_done [wIndex] = 0;
 
 			/* force reset to complete */
-			writel (temp & ~PORT_RESET,
+			writel (temp & ~(PORT_RWC_BITS | PORT_RESET),
 					&ehci->regs->port_status [wIndex]);
 			/* REVISIT:  some hardware needs 550+ usec to clear
 			 * this bit; seems too long to spin routinely...
@@ -500,12 +511,13 @@ static int ehci_hub_control (
 		if (temp & PORT_OWNER)
 			break;
 
+		temp &= ~PORT_RWC_BITS;
 		switch (wValue) {
 		case USB_PORT_FEAT_SUSPEND:
 			if ((temp & PORT_PE) == 0
 					|| (temp & PORT_RESET) != 0)
 				goto error;
-			if (hcd->remote_wakeup)
+			if (device_may_wakeup(&hcd->self.root_hub->dev))
 				temp |= PORT_WAKE_BITS;
 			writel (temp | PORT_SUSPEND,
 				&ehci->regs->port_status [wIndex]);

@@ -1,4 +1,4 @@
-/* 
+/*
    Common Flash Interface probe code.
    (C) 2000 Red Hat. GPL'd.
    $Id$
@@ -142,6 +142,7 @@
 #define SST29LE512	0x003d
 #define SST39LF800	0x2781
 #define SST39LF160	0x2782
+#define SST39VF1601	0x234b
 #define SST39LF512	0x00D4
 #define SST39LF010	0x00D5
 #define SST39LF020	0x00D6
@@ -1448,6 +1449,21 @@ static const struct amd_flash_info jedec_table[] = {
                        ERASEINFO(0x1000,256),
                        ERASEINFO(0x1000,256)
                }
+	}, {
+               .mfr_id         = MANUFACTURER_SST,     /* should be CFI */
+               .dev_id         = SST39VF1601,
+               .name           = "SST 39VF1601",
+               .uaddr          = {
+                       [0] = MTD_UADDR_0x5555_0x2AAA,  /* x8 */
+                       [1] = MTD_UADDR_0x5555_0x2AAA   /* x16 */
+               },
+               .DevSize        = SIZE_2MiB,
+               .CmdSet         = P_ID_AMD_STD,
+               .NumEraseRegions= 2,
+               .regions        = {
+                       ERASEINFO(0x1000,256),
+                       ERASEINFO(0x1000,256)
+               }
 
        }, {
 		.mfr_id		= MANUFACTURER_ST,	/* FIXME - CFI device? */
@@ -1703,7 +1719,7 @@ static int jedec_probe_chip(struct map_info *map, __u32 base,
 
 static struct mtd_info *jedec_probe(struct map_info *map);
 
-static inline u32 jedec_read_mfr(struct map_info *map, __u32 base, 
+static inline u32 jedec_read_mfr(struct map_info *map, __u32 base,
 	struct cfi_private *cfi)
 {
 	map_word result;
@@ -1714,7 +1730,7 @@ static inline u32 jedec_read_mfr(struct map_info *map, __u32 base,
 	return result.x[0] & mask;
 }
 
-static inline u32 jedec_read_id(struct map_info *map, __u32 base, 
+static inline u32 jedec_read_id(struct map_info *map, __u32 base,
 	struct cfi_private *cfi)
 {
 	map_word result;
@@ -1725,7 +1741,7 @@ static inline u32 jedec_read_id(struct map_info *map, __u32 base,
 	return result.x[0] & mask;
 }
 
-static inline void jedec_reset(u32 base, struct map_info *map, 
+static inline void jedec_reset(u32 base, struct map_info *map,
 	struct cfi_private *cfi)
 {
 	/* Reset */
@@ -1749,7 +1765,7 @@ static inline void jedec_reset(u32 base, struct map_info *map,
 	 * so ensure we're in read mode.  Send both the Intel and the AMD command
 	 * for this.  Intel uses 0xff for this, AMD uses 0xff for NOP, so
 	 * this should be safe.
-	 */ 
+	 */
 	cfi_send_gen_cmd(0xFF, 0, base, map, cfi, cfi->device_type, NULL);
 	/* FIXME - should have reset delay before continuing */
 }
@@ -1791,14 +1807,14 @@ static int cfi_jedec_setup(struct cfi_private *p_cfi, int index)
 	printk("Found: %s\n",jedec_table[index].name);
 
 	num_erase_regions = jedec_table[index].NumEraseRegions;
-	
+
 	p_cfi->cfiq = kmalloc(sizeof(struct cfi_ident) + num_erase_regions * 4, GFP_KERNEL);
 	if (!p_cfi->cfiq) {
 		//xx printk(KERN_WARNING "%s: kmalloc failed for CFI ident structure\n", map->name);
 		return 0;
 	}
 
-	memset(p_cfi->cfiq,0,sizeof(struct cfi_ident));	
+	memset(p_cfi->cfiq,0,sizeof(struct cfi_ident));
 
 	p_cfi->cfiq->P_ID = jedec_table[index].CmdSet;
 	p_cfi->cfiq->NumEraseRegions = jedec_table[index].NumEraseRegions;
@@ -1856,6 +1872,16 @@ static inline int jedec_match( __u32 base,
 	case CFI_DEVICETYPE_X8:
 		mfr = (__u8)finfo->mfr_id;
 		id = (__u8)finfo->dev_id;
+
+		/* bjd: it seems that if we do this, we can end up
+		 * detecting 16bit flashes as an 8bit device, even though
+		 * there aren't.
+		 */
+		if (finfo->dev_id > 0xff) {
+			DEBUG( MTD_DEBUG_LEVEL3, "%s(): ID is not 8bit\n",
+			       __func__);
+			goto match_done;
+		}
 		break;
 	case CFI_DEVICETYPE_X16:
 		mfr = (__u16)finfo->mfr_id;
@@ -1943,7 +1969,7 @@ static inline int jedec_match( __u32 base,
 	cfi_send_gen_cmd(0x90, cfi->addr_unlock1, base, map, cfi, cfi->device_type, NULL);
 	/* FIXME - should have a delay before continuing */
 
- match_done:	
+ match_done:
 	return rc;
 }
 
@@ -1972,23 +1998,23 @@ static int jedec_probe_chip(struct map_info *map, __u32 base,
 			"Probe at base(0x%08x) past the end of the map(0x%08lx)\n",
 			base, map->size -1);
 		return 0;
-		
+
 	}
 	/* Ensure the unlock addresses we try stay inside the map */
 	probe_offset1 = cfi_build_cmd_addr(
-		cfi->addr_unlock1, 
-		cfi_interleave(cfi), 
+		cfi->addr_unlock1,
+		cfi_interleave(cfi),
 		cfi->device_type);
 	probe_offset2 = cfi_build_cmd_addr(
-		cfi->addr_unlock1, 
-		cfi_interleave(cfi), 
+		cfi->addr_unlock1,
+		cfi_interleave(cfi),
 		cfi->device_type);
 	if (	((base + probe_offset1 + map_bankwidth(map)) >= map->size) ||
 		((base + probe_offset2 + map_bankwidth(map)) >= map->size))
 	{
 		goto retry;
 	}
-		
+
 	/* Reset */
 	jedec_reset(base, map, cfi);
 
@@ -2001,13 +2027,13 @@ static int jedec_probe_chip(struct map_info *map, __u32 base,
 	/* FIXME - should have a delay before continuing */
 
 	if (!cfi->numchips) {
-		/* This is the first time we're called. Set up the CFI 
+		/* This is the first time we're called. Set up the CFI
 		   stuff accordingly and return */
-		
+
 		cfi->mfr = jedec_read_mfr(map, base, cfi);
 		cfi->id = jedec_read_id(map, base, cfi);
 		DEBUG(MTD_DEBUG_LEVEL3,
-		      "Search for id:(%02x %02x) interleave(%d) type(%d)\n", 
+		      "Search for id:(%02x %02x) interleave(%d) type(%d)\n",
 			cfi->mfr, cfi->id, cfi_interleave(cfi), cfi->device_type);
 		for (i=0; i<sizeof(jedec_table)/sizeof(jedec_table[0]); i++) {
 			if ( jedec_match( base, map, cfi, &jedec_table[i] ) ) {
@@ -2036,7 +2062,7 @@ static int jedec_probe_chip(struct map_info *map, __u32 base,
 			return 0;
 		}
 	}
-	
+
 	/* Check each previous chip locations to see if it's an alias */
 	for (i=0; i < (base >> cfi->chipshift); i++) {
 		unsigned long start;
@@ -2057,7 +2083,7 @@ static int jedec_probe_chip(struct map_info *map, __u32 base,
 				       map->name, base, start);
 				return 0;
 			}
-			
+
 			/* Yes, it's actually got the device IDs as data. Most
 			 * unfortunate. Stick the new chip in read mode
 			 * too and if it's the same, assume it's an alias. */
@@ -2071,20 +2097,20 @@ static int jedec_probe_chip(struct map_info *map, __u32 base,
 			}
 		}
 	}
-		
+
 	/* OK, if we got to here, then none of the previous chips appear to
 	   be aliases for the current one. */
 	set_bit((base >> cfi->chipshift), chip_map); /* Update chip map */
 	cfi->numchips++;
-		
+
 ok_out:
 	/* Put it back into Read Mode */
 	jedec_reset(base, map, cfi);
 
 	printk(KERN_INFO "%s: Found %d x%d devices at 0x%x in %d-bit bank\n",
-	       map->name, cfi_interleave(cfi), cfi->device_type*8, base, 
+	       map->name, cfi_interleave(cfi), cfi->device_type*8, base,
 	       map->bankwidth*8);
-	
+
 	return 1;
 }
 

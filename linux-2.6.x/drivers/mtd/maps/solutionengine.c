@@ -67,7 +67,7 @@ static int __init init_soleng_maps(void)
 	soleng_eprom_map.virt = (void __iomem *)P1SEGADDR(0x01000000);
 	simple_map_init(&soleng_eprom_map);
 	simple_map_init(&soleng_flash_map);
-	
+
 	printk(KERN_NOTICE "Probing for flash chips at 0x00000000:\n");
 	flash_mtd = do_map_probe("cfi_probe", &soleng_flash_map);
 	if (!flash_mtd) {

@@ -388,8 +388,6 @@ module_init(bfin_nand_init);
 #ifdef MODULE
 static void __exit bfin_cleanup (void)
 {
-	struct nand_chip *this = (struct nand_chip *) &bfin_mtd[1];
-
 	/* Release resources, unregister device */
 	nand_release (bfin_mtd);
 

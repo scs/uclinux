@@ -135,7 +135,7 @@ static inline void isp1362_enable_int(struct isp1362_hcd *isp1362_hcd, u16 mask)
 
 /*-------------------------------------------------------------------------*/
 
-static inline struct isp1362_ep_queue *get_ptd_queue(struct isp1362_hcd *isp1362_hcd, 
+static inline struct isp1362_ep_queue *get_ptd_queue(struct isp1362_hcd *isp1362_hcd,
 							     u16 offset)
 {
 	struct isp1362_ep_queue * epq = NULL;
@@ -176,11 +176,11 @@ static inline int get_ptd_offset(struct isp1362_ep_queue *epq, u8 index)
 
 /*-------------------------------------------------------------------------*/
 
-static inline u16 max_transfer_size(struct isp1362_ep_queue *epq, size_t size, int mps) 
+static inline u16 max_transfer_size(struct isp1362_ep_queue *epq, size_t size, int mps)
 {
 	u16 xfer_size = min_t(size_t, MAX_XFER_SIZE, size);
 
-	xfer_size = min_t(size_t, xfer_size, epq->buf_avail * epq->blk_size - PTD_HEADER_SIZE); 
+	xfer_size = min_t(size_t, xfer_size, epq->buf_avail * epq->blk_size - PTD_HEADER_SIZE);
 	if (xfer_size < size && xfer_size % mps) {
 		xfer_size -= xfer_size % mps;
 	}
@@ -188,7 +188,7 @@ static inline u16 max_transfer_size(struct isp1362_ep_queue *epq, size_t size, i
 	return xfer_size;
 }
 
-static int claim_ptd_buffers(struct isp1362_ep_queue *epq, struct isp1362_ep *ep, u16 len) 
+static int claim_ptd_buffers(struct isp1362_ep_queue *epq, struct isp1362_ep *ep, u16 len)
 {
 	int ptd_offset = -EINVAL;
 	int index;
@@ -246,15 +246,15 @@ static int claim_ptd_buffers(struct isp1362_ep_queue *epq, struct isp1362_ep *ep
 	return found;
 }
 
-static inline void release_ptd_buffers(struct isp1362_ep_queue *epq, struct isp1362_ep *ep) 
+static inline void release_ptd_buffers(struct isp1362_ep_queue *epq, struct isp1362_ep *ep)
 {
 	int index = ep->ptd_index;
 	int last = ep->ptd_index + ep->num_ptds;
 
 	if (last > epq->buf_count) {
-		ERR("%s: ep %p req %d len %d %s PTD[%d] $%04x num_ptds %d buf_count %d buf_avail %d buf_map %08lx skip_map %08lx\n", 
-		    __FUNCTION__, ep, ep->num_req, ep->length, epq->name, ep->ptd_index, 
-		    ep->ptd_offset, ep->num_ptds, epq->buf_count, epq->buf_avail, 
+		ERR("%s: ep %p req %d len %d %s PTD[%d] $%04x num_ptds %d buf_count %d buf_avail %d buf_map %08lx skip_map %08lx\n",
+		    __FUNCTION__, ep, ep->num_req, ep->length, epq->name, ep->ptd_index,
+		    ep->ptd_offset, ep->num_ptds, epq->buf_count, epq->buf_avail,
 		    epq->buf_map, epq->skip_map);
 	}
 	BUG_ON(last > epq->buf_count);
@@ -285,7 +285,7 @@ static inline void release_ptd_buffers(struct isp1362_ep_queue *epq, struct isp1
 /*
   Set up PTD's.
 */
-static void prepare_ptd(struct isp1362_hcd *isp1362_hcd, struct urb *urb, struct isp1362_ep *ep, 
+static void prepare_ptd(struct isp1362_hcd *isp1362_hcd, struct urb *urb, struct isp1362_ep *ep,
 			struct isp1362_ep_queue *epq, u16 fno)
 {
 	struct ptd *ptd;
@@ -377,7 +377,7 @@ static void prepare_ptd(struct isp1362_hcd *isp1362_hcd, struct urb *urb, struct
 	DBG(1, "%s: Finished\n", __FUNCTION__);
 }
 
-static void isp1362_write_ptd(struct isp1362_hcd *isp1362_hcd, struct isp1362_ep *ep, 
+static void isp1362_write_ptd(struct isp1362_hcd *isp1362_hcd, struct isp1362_ep *ep,
 			      struct isp1362_ep_queue *epq)
 {
 	struct ptd *ptd = &ep->ptd;
@@ -441,7 +441,7 @@ static void remove_ptd(struct isp1362_hcd *isp1362_hcd, struct isp1362_ep *ep)
 	int index;
 	struct isp1362_ep_queue *epq;
 
-	DBG(1, "%s: ep %p PTD[%d] $%04x\n", __FUNCTION__, ep, ep->ptd_index, ep->ptd_offset); 
+	DBG(1, "%s: ep %p PTD[%d] $%04x\n", __FUNCTION__, ep, ep->ptd_index, ep->ptd_offset);
 	BUG_ON(ep->ptd_offset < 0);
 
 	epq = get_ptd_queue(isp1362_hcd, ep->ptd_offset);
@@ -456,7 +456,7 @@ static void remove_ptd(struct isp1362_hcd *isp1362_hcd, struct isp1362_ep *ep)
 	index = ep->ptd_index;
 	if (index < 0) {
 		// ISO queues don't have SKIP registers
-		return;	
+		return;
 	}
 
 	DBG(1, "%s: Disabling PTD[%02x] $%04x %08lx|%08x\n", __FUNCTION__,
@@ -908,10 +908,10 @@ static void start_intl_transfers(struct isp1362_hcd *isp1362_hcd)
 static inline int next_ptd(struct isp1362_ep_queue *epq, struct isp1362_ep *ep)
 {
 	u16 ptd_offset = ep->ptd_offset;
-	int num_ptds = (ep->length + PTD_HEADER_SIZE + (epq->blk_size - 1)) / epq->blk_size; 
+	int num_ptds = (ep->length + PTD_HEADER_SIZE + (epq->blk_size - 1)) / epq->blk_size;
 
-	DBG(2, "%s: PTD offset $%04x + %04x => %d * %04x -> $%04x\n", __FUNCTION__, ptd_offset, 
-	    ep->length, num_ptds, epq->blk_size, ptd_offset + num_ptds * epq->blk_size); 
+	DBG(2, "%s: PTD offset $%04x + %04x => %d * %04x -> $%04x\n", __FUNCTION__, ptd_offset,
+	    ep->length, num_ptds, epq->blk_size, ptd_offset + num_ptds * epq->blk_size);
 
 	ptd_offset += num_ptds * epq->blk_size;
 	if (ptd_offset < epq->buf_start + epq->buf_size) {
@@ -1005,7 +1005,7 @@ static void start_iso_transfers(struct isp1362_hcd *isp1362_hcd)
 	}
 }
 
-static void finish_transfers(struct isp1362_hcd *isp1362_hcd, unsigned long done_map, 
+static void finish_transfers(struct isp1362_hcd *isp1362_hcd, unsigned long done_map,
 			     struct isp1362_ep_queue *epq, struct pt_regs *regs)
 {
 	struct isp1362_ep *ep;
@@ -1053,7 +1053,7 @@ static void finish_transfers(struct isp1362_hcd *isp1362_hcd, unsigned long done
 	atomic_dec(&epq->finishing);
 }
 
-static void finish_iso_transfers(struct isp1362_hcd *isp1362_hcd, struct isp1362_ep_queue *epq, 
+static void finish_iso_transfers(struct isp1362_hcd *isp1362_hcd, struct isp1362_ep_queue *epq,
 				 struct pt_regs *regs)
 {
 	struct isp1362_ep *ep;
@@ -1527,7 +1527,7 @@ static int isp1362_urb_dequeue(struct usb_hcd *hcd, struct urb *urb)
 	return retval;
 }
 
-static void isp1362_endpoint_disable(struct usb_hcd *hcd, struct usb_host_endpoint *hep) 
+static void isp1362_endpoint_disable(struct usb_hcd *hcd, struct usb_host_endpoint *hep)
 {
 	struct isp1362_ep *ep = hep->hcpriv;
 	struct isp1362_hcd *isp1362_hcd = hcd_to_isp1362_hcd(hcd);
@@ -1619,7 +1619,7 @@ static int isp1362_hub_status_data(struct usb_hcd *hcd, char *buf)
 	    list_empty(&isp1362_hcd->async) &&
 	    list_empty(&isp1362_hcd->periodic) &&
 	    list_empty(&isp1362_hcd->isoc) &&
-	    (isp1362_read_reg32(isp1362_hcd, HCCONTROL) & OHCI_CTRL_HCFS) == OHCI_USB_OPER && 
+	    (isp1362_read_reg32(isp1362_hcd, HCCONTROL) & OHCI_CTRL_HCFS) == OHCI_USB_OPER &&
 	    time_after(jiffies, isp1362_hcd->next_statechange) &&
 	    usb_trylock_device(hcd->self.root_hub)) {
 		DBG(0, "%s: Autosuspending root hub\n", __FUNCTION__);
@@ -1645,7 +1645,7 @@ static void isp1362_hub_descriptor(struct isp1362_hcd *isp1362_hcd,
 	desc->bNbrPorts = reg & 0x3;
 	// Power switching, device type, overcurrent.
 	desc->wHubCharacteristics = cpu_to_le16((reg >> 8) & 0x1f);
-	DBG(0, "%s: hubcharacteristics = %02x\n", __FUNCTION__, cpu_to_le16((reg >> 8) & 0x1f)); 
+	DBG(0, "%s: hubcharacteristics = %02x\n", __FUNCTION__, cpu_to_le16((reg >> 8) & 0x1f));
 	desc->bPwrOn2PwrGood = (reg >> 24) & 0xff;
 	// two bitmaps:  ports removable, and legacy PortPwrCtrlMask
 	desc->bitmap[0] = desc->bNbrPorts == 1 ? 1 << 1 : 3 << 1;
@@ -1744,7 +1744,7 @@ static int isp1362_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 		case USB_PORT_FEAT_POWER:
 			_DBG(0, "USB_PORT_FEAT_POWER\n");
 			tmp = RH_PS_LSDA;
-			
+
 			break;
 		case USB_PORT_FEAT_C_CONNECTION:
 			_DBG(0, "USB_PORT_FEAT_C_CONNECTION\n");
@@ -2154,46 +2154,46 @@ static void dump_regs(struct seq_file *s, struct isp1362_hcd *isp1362_hcd)
 		   isp1362_read_reg16(isp1362_hcd, HCHWCFG));
 	seq_printf(s, "HCDMACFG   [%02x]     %04x\n", ISP1362_REG_NO(ISP1362_REG_HCDMACFG),
 		   isp1362_read_reg16(isp1362_hcd, HCDMACFG));
-	seq_printf(s, "HCXFERCTR  [%02x]     %04x\n", ISP1362_REG_NO(ISP1362_REG_HCXFERCTR), 
+	seq_printf(s, "HCXFERCTR  [%02x]     %04x\n", ISP1362_REG_NO(ISP1362_REG_HCXFERCTR),
 		   isp1362_read_reg16(isp1362_hcd, HCXFERCTR));
 	seq_printf(s, "HCuPINT    [%02x]     %04x\n", ISP1362_REG_NO(ISP1362_REG_HCuPINT),
 		   isp1362_read_reg16(isp1362_hcd, HCuPINT));
-	seq_printf(s, "HCuPINTENB [%02x]     %04x\n", ISP1362_REG_NO(ISP1362_REG_HCuPINTENB), 
-		   isp1362_read_reg16(isp1362_hcd, HCuPINTENB)); 
-	seq_printf(s, "HCCHIPID   [%02x]     %04x\n", ISP1362_REG_NO(ISP1362_REG_HCCHIPID), 
-		   isp1362_read_reg16(isp1362_hcd, HCCHIPID)); 
+	seq_printf(s, "HCuPINTENB [%02x]     %04x\n", ISP1362_REG_NO(ISP1362_REG_HCuPINTENB),
+		   isp1362_read_reg16(isp1362_hcd, HCuPINTENB));
+	seq_printf(s, "HCCHIPID   [%02x]     %04x\n", ISP1362_REG_NO(ISP1362_REG_HCCHIPID),
+		   isp1362_read_reg16(isp1362_hcd, HCCHIPID));
 	seq_printf(s, "HCSCRATCH  [%02x]     %04x\n", ISP1362_REG_NO(ISP1362_REG_HCSCRATCH),
 		   isp1362_read_reg16(isp1362_hcd, HCSCRATCH));
 	seq_printf(s, "HCBUFSTAT  [%02x]     %04x\n", ISP1362_REG_NO(ISP1362_REG_HCBUFSTAT),
 		   isp1362_read_reg16(isp1362_hcd, HCBUFSTAT));
 	seq_printf(s, "HCDIRADDR  [%02x] %08x\n", ISP1362_REG_NO(ISP1362_REG_HCDIRADDR),
-		   isp1362_read_reg32(isp1362_hcd, HCDIRADDR)); 
+		   isp1362_read_reg32(isp1362_hcd, HCDIRADDR));
 #if 0
 	seq_printf(s, "HCDIRDATA  [%02x]     %04x\n", ISP1362_REG_NO(HCDIRDATA),
 		   isp1362_read_reg16(isp1362_hcd, HCDIRDATA));
 #endif
 	seq_printf(s, "HCISTLBUFSZ[%02x]     %04x\n", ISP1362_REG_NO(ISP1362_REG_HCISTLBUFSZ),
 		   isp1362_read_reg16(isp1362_hcd, HCISTLBUFSZ));
-	seq_printf(s, "HCISTLRATE [%02x]     %04x\n", ISP1362_REG_NO(ISP1362_REG_HCISTLRATE), 
+	seq_printf(s, "HCISTLRATE [%02x]     %04x\n", ISP1362_REG_NO(ISP1362_REG_HCISTLRATE),
 		   isp1362_read_reg16(isp1362_hcd, HCISTLRATE));
 	seq_printf(s, "\n");
-	seq_printf(s, "HCINTLBUFSZ[%02x]     %04x\n", ISP1362_REG_NO(ISP1362_REG_HCINTLBUFSZ), 
+	seq_printf(s, "HCINTLBUFSZ[%02x]     %04x\n", ISP1362_REG_NO(ISP1362_REG_HCINTLBUFSZ),
 		   isp1362_read_reg16(isp1362_hcd, HCINTLBUFSZ));
-	seq_printf(s, "HCINTLBLKSZ[%02x]     %04x\n", ISP1362_REG_NO(ISP1362_REG_HCINTLBLKSZ), 
+	seq_printf(s, "HCINTLBLKSZ[%02x]     %04x\n", ISP1362_REG_NO(ISP1362_REG_HCINTLBLKSZ),
 		   isp1362_read_reg16(isp1362_hcd, HCINTLBLKSZ));
 	seq_printf(s, "HCINTLDONE [%02x] %08x\n", ISP1362_REG_NO(ISP1362_REG_HCINTLDONE),
 		   isp1362_read_reg32(isp1362_hcd, HCINTLDONE));
-	seq_printf(s, "HCINTLSKIP [%02x] %08x\n", ISP1362_REG_NO(ISP1362_REG_HCINTLSKIP), 
+	seq_printf(s, "HCINTLSKIP [%02x] %08x\n", ISP1362_REG_NO(ISP1362_REG_HCINTLSKIP),
 		   isp1362_read_reg32(isp1362_hcd, HCINTLSKIP));
 	seq_printf(s, "HCINTLLAST [%02x] %08x\n", ISP1362_REG_NO(ISP1362_REG_HCINTLLAST),
 		   isp1362_read_reg32(isp1362_hcd, HCINTLLAST));
 	seq_printf(s, "HCINTLCURR [%02x]     %04x\n", ISP1362_REG_NO(ISP1362_REG_HCINTLCURR),
 		   isp1362_read_reg16(isp1362_hcd, HCINTLCURR));
 	seq_printf(s, "\n");
-	seq_printf(s, "HCATLBUFSZ [%02x]     %04x\n", ISP1362_REG_NO(ISP1362_REG_HCATLBUFSZ), 
+	seq_printf(s, "HCATLBUFSZ [%02x]     %04x\n", ISP1362_REG_NO(ISP1362_REG_HCATLBUFSZ),
 		   isp1362_read_reg16(isp1362_hcd, HCATLBUFSZ));
-	seq_printf(s, "HCATLBLKSZ [%02x]     %04x\n", ISP1362_REG_NO(ISP1362_REG_HCATLBLKSZ), 
-		   isp1362_read_reg16(isp1362_hcd, HCATLBLKSZ)); 
+	seq_printf(s, "HCATLBLKSZ [%02x]     %04x\n", ISP1362_REG_NO(ISP1362_REG_HCATLBLKSZ),
+		   isp1362_read_reg16(isp1362_hcd, HCATLBLKSZ));
 #if 0
 	seq_printf(s, "HCATLDONE  [%02x] %08x\n", ISP1362_REG_NO(ISP1362_REG_HCATLDONE),
 		   isp1362_read_reg32(isp1362_hcd, HCATLDONE));
@@ -2202,13 +2202,13 @@ static void dump_regs(struct seq_file *s, struct isp1362_hcd *isp1362_hcd)
 		   isp1362_read_reg32(isp1362_hcd, HCATLSKIP));
 	seq_printf(s, "HCATLLAST  [%02x] %08x\n", ISP1362_REG_NO(ISP1362_REG_HCATLLAST),
 		   isp1362_read_reg32(isp1362_hcd, HCATLLAST));
-	seq_printf(s, "HCATLCURR  [%02x]     %04x\n", ISP1362_REG_NO(ISP1362_REG_HCATLCURR), 
-		   isp1362_read_reg16(isp1362_hcd, HCATLCURR)); 
+	seq_printf(s, "HCATLCURR  [%02x]     %04x\n", ISP1362_REG_NO(ISP1362_REG_HCATLCURR),
+		   isp1362_read_reg16(isp1362_hcd, HCATLCURR));
 	seq_printf(s, "\n");
 	seq_printf(s, "HCATLDTC   [%02x]     %04x\n", ISP1362_REG_NO(ISP1362_REG_HCATLDTC),
 		   isp1362_read_reg16(isp1362_hcd, HCATLDTC));
-	seq_printf(s, "HCATLDTCTO [%02x]     %04x\n", ISP1362_REG_NO(ISP1362_REG_HCATLDTCTO), 
-		   isp1362_read_reg16(isp1362_hcd, HCATLDTCTO)); 
+	seq_printf(s, "HCATLDTCTO [%02x]     %04x\n", ISP1362_REG_NO(ISP1362_REG_HCATLDTCTO),
+		   isp1362_read_reg16(isp1362_hcd, HCATLDTCTO));
 }
 
 static int proc_isp1362_show(struct seq_file *s, void *unused)
@@ -2226,9 +2226,9 @@ static int proc_isp1362_show(struct seq_file *s, void *unused)
 	seq_printf(s, "alignment:  16b/%ld 8b/%ld 4b/%ld 2b/%ld 1b/%ld\n",
 		   isp1362_hcd->stat16, isp1362_hcd->stat8, isp1362_hcd->stat4,
 		   isp1362_hcd->stat2, isp1362_hcd->stat1);
-	seq_printf(s, "max # ptds in ATL  fifo: %d\n", isp1362_hcd->atl_queue.stat_maxptds); 
+	seq_printf(s, "max # ptds in ATL  fifo: %d\n", isp1362_hcd->atl_queue.stat_maxptds);
 	seq_printf(s, "max # ptds in INTL fifo: %d\n", isp1362_hcd->intl_queue.stat_maxptds);
-	seq_printf(s, "max # ptds in ISTL fifo: %d\n", 
+	seq_printf(s, "max # ptds in ISTL fifo: %d\n",
 		   max(isp1362_hcd->istl_queue[0] .stat_maxptds,
 		       isp1362_hcd->istl_queue[1] .stat_maxptds));
 
@@ -2375,7 +2375,7 @@ static void isp1362_sw_reset(struct isp1362_hcd *isp1362_hcd)
 		}
 	}
 	if (!tmp) {
-		ERR("Software reset timeout\n"); 
+		ERR("Software reset timeout\n");
 	}
 	spin_unlock_irqrestore(&isp1362_hcd->lock, flags);
 }
