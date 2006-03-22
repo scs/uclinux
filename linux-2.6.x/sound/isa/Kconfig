@@ -1,21 +1,20 @@
 # ALSA ISA drivers
 
 menu "ISA devices"
-	depends on SND!=n && ISA
+	depends on SND!=n && ISA && ISA_DMA_API
 
 config SND_AD1848_LIB
         tristate
         select SND_PCM
-	select SND_GENERIC_PM
 
 config SND_CS4231_LIB
         tristate
         select SND_PCM
-	select SND_GENERIC_PM
 
 config SND_AD1816A
 	tristate "Analog Devices SoundPort AD1816A"
-	depends on SND && ISAPNP
+	depends on SND && PNP && ISA
+	select ISAPNP
 	select SND_OPL3_LIB
 	select SND_MPU401_UART
 	select SND_PCM
@@ -39,6 +38,45 @@ config SND_AD1848
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-ad1848.
+
+config SND_ALS100
+	tristate "Avance Logic ALS100/ALS120"
+	depends on SND && PNP && ISA
+	select ISAPNP
+	select SND_OPL3_LIB
+	select SND_MPU401_UART
+	select SND_PCM
+	help
+	  Say Y here to include support for soundcards based on Avance
+	  Logic ALS100, ALS110, ALS120 and ALS200 chips.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called snd-als100.
+
+config SND_AZT2320
+	tristate "Aztech Systems AZT2320"
+	depends on SND && PNP && ISA
+	select ISAPNP
+	select SND_OPL3_LIB
+	select SND_MPU401_UART
+	select SND_CS4231_LIB
+	help
+	  Say Y here to include support for soundcards based on the
+	  Aztech Systems AZT2320 chip.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called snd-azt2320.
+
+config SND_CMI8330
+	tristate "C-Media CMI8330"
+	depends on SND
+	select SND_AD1848_LIB
+	help
+	  Say Y here to include support for soundcards based on the
+	  C-Media CMI8330 chip.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called snd-cmi8330.
 
 config SND_CS4231
 	tristate "Generic Cirrus Logic CS4231 driver"
@@ -78,9 +116,24 @@ config SND_CS4236
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-cs4236.
 
+config SND_DT019X
+	tristate "Diamond Technologies DT-019X, Avance Logic ALS-007"
+	depends on SND && PNP && ISA
+	select ISAPNP
+	select SND_OPL3_LIB
+	select SND_MPU401_UART
+	select SND_PCM
+	help
+	  Say Y here to include support for soundcards based on the
+	  Diamond Technologies DT-019X or Avance Logic ALS-007 chips.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called snd-dt019x.
+
 config SND_ES968
 	tristate "Generic ESS ES968 driver"
-	depends on SND && ISAPNP
+	depends on SND && PNP && ISA
+	select ISAPNP
 	select SND_MPU401_UART
 	select SND_PCM
 	help
@@ -108,7 +161,6 @@ config SND_ES18XX
 	select SND_OPL3_LIB
 	select SND_MPU401_UART
 	select SND_PCM
-	select SND_GENERIC_PM
 	help
 	  Say Y here to include support for ESS AudioDrive ES18xx chips.
 
@@ -160,11 +212,10 @@ config SND_GUSMAX
 
 config SND_INTERWAVE
 	tristate "AMD InterWave, Gravis UltraSound PnP"
-	depends on SND
+	depends on SND && PNP && ISA
 	select SND_RAWMIDI
 	select SND_CS4231_LIB
 	select SND_GUS_SYNTH
-	select ISAPNP
 	help
 	  Say Y here to include support for AMD InterWave based
 	  soundcards (Gravis UltraSound Plug & Play, STB SoundRage32,
@@ -175,7 +226,7 @@ config SND_INTERWAVE
 
 config SND_INTERWAVE_STB
 	tristate "AMD InterWave + TEA6330T (UltraSound 32-Pro)"
-	depends on SND
+	depends on SND && PNP && ISA
 	select SND_RAWMIDI
 	select SND_CS4231_LIB
 	select SND_GUS_SYNTH
@@ -186,6 +237,19 @@ config SND_INTERWAVE_STB
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-interwave-stb.
+
+config SND_OPL3SA2
+	tristate "Yamaha OPL3-SA2/SA3"
+	depends on SND
+	select SND_OPL3_LIB
+	select SND_MPU401_UART
+	select SND_CS4231_LIB
+	help
+	  Say Y here to include support for Yamaha OPL3-SA2 and OPL3-SA3
+	  chips.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called snd-opl3sa2.
 
 config SND_OPTI92X_AD1848
 	tristate "OPTi 82C92x - AD1848"
@@ -275,82 +339,6 @@ config SND_SB16_CSP
 	  coprocessor can do variable tasks like various compression and
 	  decompression algorithms.
 
-config SND_WAVEFRONT
-	tristate "Turtle Beach Maui,Tropez,Tropez+ (Wavefront)"
-	depends on SND
-	select SND_OPL3_LIB
-	select SND_MPU401_UART
-	select SND_CS4231_LIB
-	help
-	  Say Y here to include support for Turtle Beach Maui, Tropez
-	  and Tropez+ soundcards based on the Wavefront chip.
-
-	  To compile this driver as a module, choose M here: the module
-	  will be called snd-wavefront.
-
-config SND_ALS100
-	tristate "Avance Logic ALS100/ALS120"
-	depends on SND && ISAPNP
-	select SND_OPL3_LIB
-	select SND_MPU401_UART
-	select SND_PCM
-	help
-	  Say Y here to include support for soundcards based on Avance
-	  Logic ALS100, ALS110, ALS120 and ALS200 chips.
-
-	  To compile this driver as a module, choose M here: the module
-	  will be called snd-als100.
-
-config SND_AZT2320
-	tristate "Aztech Systems AZT2320"
-	depends on SND && ISAPNP
-	select SND_OPL3_LIB
-	select SND_MPU401_UART
-	select SND_CS4231_LIB
-	help
-	  Say Y here to include support for soundcards based on the
-	  Aztech Systems AZT2320 chip.
-
-	  To compile this driver as a module, choose M here: the module
-	  will be called snd-azt2320.
-
-config SND_CMI8330
-	tristate "C-Media CMI8330"
-	depends on SND
-	select SND_AD1848_LIB
-	help
-	  Say Y here to include support for soundcards based on the
-	  C-Media CMI8330 chip.
-
-	  To compile this driver as a module, choose M here: the module
-	  will be called snd-cmi8330.
-
-config SND_DT019X
-	tristate "Diamond Technologies DT-019X, Avance Logic ALS-007"
-	depends on SND && ISAPNP
-	select SND_OPL3_LIB
-	select SND_MPU401_UART
-	select SND_PCM
-	help
-	  Say Y here to include support for soundcards based on the
-	  Diamond Technologies DT-019X or Avance Logic ALS-007 chips.
-
-	  To compile this driver as a module, choose M here: the module
-	  will be called snd-dt019x.
-
-config SND_OPL3SA2
-	tristate "Yamaha OPL3-SA2/SA3"
-	depends on SND
-	select SND_OPL3_LIB
-	select SND_MPU401_UART
-	select SND_CS4231_LIB
-	help
-	  Say Y here to include support for Yamaha OPL3-SA2 and OPL3-SA3
-	  chips.
-
-	  To compile this driver as a module, choose M here: the module
-	  will be called snd-opl3sa2.
-
 config SND_SGALAXY
 	tristate "Aztech Sound Galaxy"
 	depends on SND
@@ -374,5 +362,18 @@ config SND_SSCAPE
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-sscape.
+
+config SND_WAVEFRONT
+	tristate "Turtle Beach Maui,Tropez,Tropez+ (Wavefront)"
+	depends on SND
+	select SND_OPL3_LIB
+	select SND_MPU401_UART
+	select SND_CS4231_LIB
+	help
+	  Say Y here to include support for Turtle Beach Maui, Tropez
+	  and Tropez+ soundcards based on the Wavefront chip.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called snd-wavefront.
 
 endmenu

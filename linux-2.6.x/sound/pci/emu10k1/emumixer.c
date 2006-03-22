@@ -35,17 +35,17 @@
 
 #define AC97_ID_STAC9758	0x83847658
 
-static int snd_emu10k1_spdif_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t * uinfo)
+static int snd_emu10k1_spdif_info(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
 {
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_IEC958;
 	uinfo->count = 1;
 	return 0;
 }
 
-static int snd_emu10k1_spdif_get(snd_kcontrol_t * kcontrol,
-                                 snd_ctl_elem_value_t * ucontrol)
+static int snd_emu10k1_spdif_get(struct snd_kcontrol *kcontrol,
+                                 struct snd_ctl_elem_value *ucontrol)
 {
-	emu10k1_t *emu = snd_kcontrol_chip(kcontrol);
+	struct snd_emu10k1 *emu = snd_kcontrol_chip(kcontrol);
 	unsigned int idx = snd_ctl_get_ioffidx(kcontrol, &ucontrol->id);
 	unsigned long flags;
 
@@ -58,8 +58,8 @@ static int snd_emu10k1_spdif_get(snd_kcontrol_t * kcontrol,
 	return 0;
 }
 
-static int snd_emu10k1_spdif_get_mask(snd_kcontrol_t * kcontrol,
-				      snd_ctl_elem_value_t * ucontrol)
+static int snd_emu10k1_spdif_get_mask(struct snd_kcontrol *kcontrol,
+				      struct snd_ctl_elem_value *ucontrol)
 {
 	ucontrol->value.iec958.status[0] = 0xff;
 	ucontrol->value.iec958.status[1] = 0xff;
@@ -68,7 +68,8 @@ static int snd_emu10k1_spdif_get_mask(snd_kcontrol_t * kcontrol,
 	return 0;
 }
 
-static int snd_audigy_spdif_output_rate_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t * uinfo)
+#if 0
+static int snd_audigy_spdif_output_rate_info(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
 {
 	static char *texts[] = {"44100", "48000", "96000"};
 
@@ -81,10 +82,10 @@ static int snd_audigy_spdif_output_rate_info(snd_kcontrol_t *kcontrol, snd_ctl_e
 	return 0;
 }
 
-static int snd_audigy_spdif_output_rate_get(snd_kcontrol_t * kcontrol,
-                                 snd_ctl_elem_value_t * ucontrol)
+static int snd_audigy_spdif_output_rate_get(struct snd_kcontrol *kcontrol,
+                                 struct snd_ctl_elem_value *ucontrol)
 {
-	emu10k1_t *emu = snd_kcontrol_chip(kcontrol);
+	struct snd_emu10k1 *emu = snd_kcontrol_chip(kcontrol);
 	unsigned int tmp;
 	unsigned long flags;
 	
@@ -108,10 +109,10 @@ static int snd_audigy_spdif_output_rate_get(snd_kcontrol_t * kcontrol,
 	return 0;
 }
 
-static int snd_audigy_spdif_output_rate_put(snd_kcontrol_t * kcontrol,
-                                 snd_ctl_elem_value_t * ucontrol)
+static int snd_audigy_spdif_output_rate_put(struct snd_kcontrol *kcontrol,
+                                 struct snd_ctl_elem_value *ucontrol)
 {
-	emu10k1_t *emu = snd_kcontrol_chip(kcontrol);
+	struct snd_emu10k1 *emu = snd_kcontrol_chip(kcontrol);
 	int change;
 	unsigned int reg, val, tmp;
 	unsigned long flags;
@@ -142,7 +143,7 @@ static int snd_audigy_spdif_output_rate_put(snd_kcontrol_t * kcontrol,
 	return change;
 }
 
-static snd_kcontrol_new_t snd_audigy_spdif_output_rate =
+static struct snd_kcontrol_new snd_audigy_spdif_output_rate =
 {
 	.access =	SNDRV_CTL_ELEM_ACCESS_READWRITE,
 	.iface =        SNDRV_CTL_ELEM_IFACE_MIXER,
@@ -152,11 +153,12 @@ static snd_kcontrol_new_t snd_audigy_spdif_output_rate =
 	.get =          snd_audigy_spdif_output_rate_get,
 	.put =          snd_audigy_spdif_output_rate_put
 };
+#endif
 
-static int snd_emu10k1_spdif_put(snd_kcontrol_t * kcontrol,
-                                 snd_ctl_elem_value_t * ucontrol)
+static int snd_emu10k1_spdif_put(struct snd_kcontrol *kcontrol,
+                                 struct snd_ctl_elem_value *ucontrol)
 {
-	emu10k1_t *emu = snd_kcontrol_chip(kcontrol);
+	struct snd_emu10k1 *emu = snd_kcontrol_chip(kcontrol);
 	unsigned int idx = snd_ctl_get_ioffidx(kcontrol, &ucontrol->id);
 	int change;
 	unsigned int val;
@@ -176,19 +178,19 @@ static int snd_emu10k1_spdif_put(snd_kcontrol_t * kcontrol,
 	return change;
 }
 
-static snd_kcontrol_new_t snd_emu10k1_spdif_mask_control =
+static struct snd_kcontrol_new snd_emu10k1_spdif_mask_control =
 {
 	.access =	SNDRV_CTL_ELEM_ACCESS_READ,
-	.iface =        SNDRV_CTL_ELEM_IFACE_MIXER,
+	.iface =        SNDRV_CTL_ELEM_IFACE_PCM,
 	.name =         SNDRV_CTL_NAME_IEC958("",PLAYBACK,MASK),
 	.count =	4,
 	.info =         snd_emu10k1_spdif_info,
 	.get =          snd_emu10k1_spdif_get_mask
 };
 
-static snd_kcontrol_new_t snd_emu10k1_spdif_control =
+static struct snd_kcontrol_new snd_emu10k1_spdif_control =
 {
-	.iface =	SNDRV_CTL_ELEM_IFACE_MIXER,
+	.iface =	SNDRV_CTL_ELEM_IFACE_PCM,
 	.name =         SNDRV_CTL_NAME_IEC958("",PLAYBACK,DEFAULT),
 	.count =	4,
 	.info =         snd_emu10k1_spdif_info,
@@ -197,7 +199,7 @@ static snd_kcontrol_new_t snd_emu10k1_spdif_control =
 };
 
 
-static void update_emu10k1_fxrt(emu10k1_t *emu, int voice, unsigned char *route)
+static void update_emu10k1_fxrt(struct snd_emu10k1 *emu, int voice, unsigned char *route)
 {
 	if (emu->audigy) {
 		snd_emu10k1_ptr_write(emu, A_FXRT1, voice,
@@ -210,7 +212,7 @@ static void update_emu10k1_fxrt(emu10k1_t *emu, int voice, unsigned char *route)
 	}
 }
 
-static void update_emu10k1_send_volume(emu10k1_t *emu, int voice, unsigned char *volume)
+static void update_emu10k1_send_volume(struct snd_emu10k1 *emu, int voice, unsigned char *volume)
 {
 	snd_emu10k1_ptr_write(emu, PTRX_FXSENDAMOUNT_A, voice, volume[0]);
 	snd_emu10k1_ptr_write(emu, PTRX_FXSENDAMOUNT_B, voice, volume[1]);
@@ -227,9 +229,9 @@ static void update_emu10k1_send_volume(emu10k1_t *emu, int voice, unsigned char 
 
 /* PCM stream controls */
 
-static int snd_emu10k1_send_routing_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t * uinfo)
+static int snd_emu10k1_send_routing_info(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
 {
-	emu10k1_t *emu = snd_kcontrol_chip(kcontrol);
+	struct snd_emu10k1 *emu = snd_kcontrol_chip(kcontrol);
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
 	uinfo->count = emu->audigy ? 3*8 : 3*4;
 	uinfo->value.integer.min = 0;
@@ -237,12 +239,13 @@ static int snd_emu10k1_send_routing_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_
 	return 0;
 }
 
-static int snd_emu10k1_send_routing_get(snd_kcontrol_t * kcontrol,
-                                        snd_ctl_elem_value_t * ucontrol)
+static int snd_emu10k1_send_routing_get(struct snd_kcontrol *kcontrol,
+                                        struct snd_ctl_elem_value *ucontrol)
 {
 	unsigned long flags;
-	emu10k1_t *emu = snd_kcontrol_chip(kcontrol);
-	emu10k1_pcm_mixer_t *mix = &emu->pcm_mixer[snd_ctl_get_ioffidx(kcontrol, &ucontrol->id)];
+	struct snd_emu10k1 *emu = snd_kcontrol_chip(kcontrol);
+	struct snd_emu10k1_pcm_mixer *mix =
+		&emu->pcm_mixer[snd_ctl_get_ioffidx(kcontrol, &ucontrol->id)];
 	int voice, idx;
 	int num_efx = emu->audigy ? 8 : 4;
 	int mask = emu->audigy ? 0x3f : 0x0f;
@@ -256,12 +259,13 @@ static int snd_emu10k1_send_routing_get(snd_kcontrol_t * kcontrol,
 	return 0;
 }
 
-static int snd_emu10k1_send_routing_put(snd_kcontrol_t * kcontrol,
-                                        snd_ctl_elem_value_t * ucontrol)
+static int snd_emu10k1_send_routing_put(struct snd_kcontrol *kcontrol,
+                                        struct snd_ctl_elem_value *ucontrol)
 {
 	unsigned long flags;
-	emu10k1_t *emu = snd_kcontrol_chip(kcontrol);
-	emu10k1_pcm_mixer_t *mix = &emu->pcm_mixer[snd_ctl_get_ioffidx(kcontrol, &ucontrol->id)];
+	struct snd_emu10k1 *emu = snd_kcontrol_chip(kcontrol);
+	struct snd_emu10k1_pcm_mixer *mix =
+		&emu->pcm_mixer[snd_ctl_get_ioffidx(kcontrol, &ucontrol->id)];
 	int change = 0, voice, idx, val;
 	int num_efx = emu->audigy ? 8 : 4;
 	int mask = emu->audigy ? 0x3f : 0x0f;
@@ -290,10 +294,10 @@ static int snd_emu10k1_send_routing_put(snd_kcontrol_t * kcontrol,
 	return change;
 }
 
-static snd_kcontrol_new_t snd_emu10k1_send_routing_control =
+static struct snd_kcontrol_new snd_emu10k1_send_routing_control =
 {
 	.access =	SNDRV_CTL_ELEM_ACCESS_READWRITE | SNDRV_CTL_ELEM_ACCESS_INACTIVE,
-	.iface =        SNDRV_CTL_ELEM_IFACE_MIXER,
+	.iface =        SNDRV_CTL_ELEM_IFACE_PCM,
 	.name =         "EMU10K1 PCM Send Routing",
 	.count =	32,
 	.info =         snd_emu10k1_send_routing_info,
@@ -301,9 +305,9 @@ static snd_kcontrol_new_t snd_emu10k1_send_routing_control =
 	.put =          snd_emu10k1_send_routing_put
 };
 
-static int snd_emu10k1_send_volume_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t * uinfo)
+static int snd_emu10k1_send_volume_info(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
 {
-	emu10k1_t *emu = snd_kcontrol_chip(kcontrol);
+	struct snd_emu10k1 *emu = snd_kcontrol_chip(kcontrol);
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
 	uinfo->count = emu->audigy ? 3*8 : 3*4;
 	uinfo->value.integer.min = 0;
@@ -311,12 +315,13 @@ static int snd_emu10k1_send_volume_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_i
 	return 0;
 }
 
-static int snd_emu10k1_send_volume_get(snd_kcontrol_t * kcontrol,
-                                       snd_ctl_elem_value_t * ucontrol)
+static int snd_emu10k1_send_volume_get(struct snd_kcontrol *kcontrol,
+                                       struct snd_ctl_elem_value *ucontrol)
 {
 	unsigned long flags;
-	emu10k1_t *emu = snd_kcontrol_chip(kcontrol);
-	emu10k1_pcm_mixer_t *mix = &emu->pcm_mixer[snd_ctl_get_ioffidx(kcontrol, &ucontrol->id)];
+	struct snd_emu10k1 *emu = snd_kcontrol_chip(kcontrol);
+	struct snd_emu10k1_pcm_mixer *mix =
+		&emu->pcm_mixer[snd_ctl_get_ioffidx(kcontrol, &ucontrol->id)];
 	int idx;
 	int num_efx = emu->audigy ? 8 : 4;
 
@@ -327,12 +332,13 @@ static int snd_emu10k1_send_volume_get(snd_kcontrol_t * kcontrol,
 	return 0;
 }
 
-static int snd_emu10k1_send_volume_put(snd_kcontrol_t * kcontrol,
-                                       snd_ctl_elem_value_t * ucontrol)
+static int snd_emu10k1_send_volume_put(struct snd_kcontrol *kcontrol,
+                                       struct snd_ctl_elem_value *ucontrol)
 {
 	unsigned long flags;
-	emu10k1_t *emu = snd_kcontrol_chip(kcontrol);
-	emu10k1_pcm_mixer_t *mix = &emu->pcm_mixer[snd_ctl_get_ioffidx(kcontrol, &ucontrol->id)];
+	struct snd_emu10k1 *emu = snd_kcontrol_chip(kcontrol);
+	struct snd_emu10k1_pcm_mixer *mix =
+		&emu->pcm_mixer[snd_ctl_get_ioffidx(kcontrol, &ucontrol->id)];
 	int change = 0, idx, val;
 	int num_efx = emu->audigy ? 8 : 4;
 
@@ -359,10 +365,10 @@ static int snd_emu10k1_send_volume_put(snd_kcontrol_t * kcontrol,
 	return change;
 }
 
-static snd_kcontrol_new_t snd_emu10k1_send_volume_control =
+static struct snd_kcontrol_new snd_emu10k1_send_volume_control =
 {
 	.access =	SNDRV_CTL_ELEM_ACCESS_READWRITE | SNDRV_CTL_ELEM_ACCESS_INACTIVE,
-	.iface =        SNDRV_CTL_ELEM_IFACE_MIXER,
+	.iface =        SNDRV_CTL_ELEM_IFACE_PCM,
 	.name =         "EMU10K1 PCM Send Volume",
 	.count =	32,
 	.info =         snd_emu10k1_send_volume_info,
@@ -370,7 +376,7 @@ static snd_kcontrol_new_t snd_emu10k1_send_volume_control =
 	.put =          snd_emu10k1_send_volume_put
 };
 
-static int snd_emu10k1_attn_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t * uinfo)
+static int snd_emu10k1_attn_info(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
 {
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
 	uinfo->count = 3;
@@ -379,11 +385,12 @@ static int snd_emu10k1_attn_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t *
 	return 0;
 }
 
-static int snd_emu10k1_attn_get(snd_kcontrol_t * kcontrol,
-                                snd_ctl_elem_value_t * ucontrol)
+static int snd_emu10k1_attn_get(struct snd_kcontrol *kcontrol,
+                                struct snd_ctl_elem_value *ucontrol)
 {
-	emu10k1_t *emu = snd_kcontrol_chip(kcontrol);
-	emu10k1_pcm_mixer_t *mix = &emu->pcm_mixer[snd_ctl_get_ioffidx(kcontrol, &ucontrol->id)];
+	struct snd_emu10k1 *emu = snd_kcontrol_chip(kcontrol);
+	struct snd_emu10k1_pcm_mixer *mix =
+		&emu->pcm_mixer[snd_ctl_get_ioffidx(kcontrol, &ucontrol->id)];
 	unsigned long flags;
 	int idx;
 
@@ -394,12 +401,13 @@ static int snd_emu10k1_attn_get(snd_kcontrol_t * kcontrol,
 	return 0;
 }
 
-static int snd_emu10k1_attn_put(snd_kcontrol_t * kcontrol,
-				snd_ctl_elem_value_t * ucontrol)
+static int snd_emu10k1_attn_put(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol)
 {
 	unsigned long flags;
-	emu10k1_t *emu = snd_kcontrol_chip(kcontrol);
-	emu10k1_pcm_mixer_t *mix = &emu->pcm_mixer[snd_ctl_get_ioffidx(kcontrol, &ucontrol->id)];
+	struct snd_emu10k1 *emu = snd_kcontrol_chip(kcontrol);
+	struct snd_emu10k1_pcm_mixer *mix =
+		&emu->pcm_mixer[snd_ctl_get_ioffidx(kcontrol, &ucontrol->id)];
 	int change = 0, idx, val;
 
 	spin_lock_irqsave(&emu->reg_lock, flags);
@@ -422,10 +430,10 @@ static int snd_emu10k1_attn_put(snd_kcontrol_t * kcontrol,
 	return change;
 }
 
-static snd_kcontrol_new_t snd_emu10k1_attn_control =
+static struct snd_kcontrol_new snd_emu10k1_attn_control =
 {
 	.access =	SNDRV_CTL_ELEM_ACCESS_READWRITE | SNDRV_CTL_ELEM_ACCESS_INACTIVE,
-	.iface =        SNDRV_CTL_ELEM_IFACE_MIXER,
+	.iface =        SNDRV_CTL_ELEM_IFACE_PCM,
 	.name =         "EMU10K1 PCM Volume",
 	.count =	32,
 	.info =         snd_emu10k1_attn_info,
@@ -435,9 +443,9 @@ static snd_kcontrol_new_t snd_emu10k1_attn_control =
 
 /* Mutichannel PCM stream controls */
 
-static int snd_emu10k1_efx_send_routing_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t * uinfo)
+static int snd_emu10k1_efx_send_routing_info(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
 {
-	emu10k1_t *emu = snd_kcontrol_chip(kcontrol);
+	struct snd_emu10k1 *emu = snd_kcontrol_chip(kcontrol);
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
 	uinfo->count = emu->audigy ? 8 : 4;
 	uinfo->value.integer.min = 0;
@@ -445,12 +453,13 @@ static int snd_emu10k1_efx_send_routing_info(snd_kcontrol_t *kcontrol, snd_ctl_e
 	return 0;
 }
 
-static int snd_emu10k1_efx_send_routing_get(snd_kcontrol_t * kcontrol,
-                                        snd_ctl_elem_value_t * ucontrol)
+static int snd_emu10k1_efx_send_routing_get(struct snd_kcontrol *kcontrol,
+                                        struct snd_ctl_elem_value *ucontrol)
 {
 	unsigned long flags;
-	emu10k1_t *emu = snd_kcontrol_chip(kcontrol);
-	emu10k1_pcm_mixer_t *mix = &emu->efx_pcm_mixer[snd_ctl_get_ioffidx(kcontrol, &ucontrol->id)];
+	struct snd_emu10k1 *emu = snd_kcontrol_chip(kcontrol);
+	struct snd_emu10k1_pcm_mixer *mix =
+		&emu->efx_pcm_mixer[snd_ctl_get_ioffidx(kcontrol, &ucontrol->id)];
 	int idx;
 	int num_efx = emu->audigy ? 8 : 4;
 	int mask = emu->audigy ? 0x3f : 0x0f;
@@ -463,13 +472,13 @@ static int snd_emu10k1_efx_send_routing_get(snd_kcontrol_t * kcontrol,
 	return 0;
 }
 
-static int snd_emu10k1_efx_send_routing_put(snd_kcontrol_t * kcontrol,
-                                        snd_ctl_elem_value_t * ucontrol)
+static int snd_emu10k1_efx_send_routing_put(struct snd_kcontrol *kcontrol,
+                                        struct snd_ctl_elem_value *ucontrol)
 {
 	unsigned long flags;
-	emu10k1_t *emu = snd_kcontrol_chip(kcontrol);
+	struct snd_emu10k1 *emu = snd_kcontrol_chip(kcontrol);
 	int ch = snd_ctl_get_ioffidx(kcontrol, &ucontrol->id);
-	emu10k1_pcm_mixer_t *mix = &emu->efx_pcm_mixer[ch];
+	struct snd_emu10k1_pcm_mixer *mix = &emu->efx_pcm_mixer[ch];
 	int change = 0, idx, val;
 	int num_efx = emu->audigy ? 8 : 4;
 	int mask = emu->audigy ? 0x3f : 0x0f;
@@ -493,7 +502,7 @@ static int snd_emu10k1_efx_send_routing_put(snd_kcontrol_t * kcontrol,
 	return change;
 }
 
-static snd_kcontrol_new_t snd_emu10k1_efx_send_routing_control =
+static struct snd_kcontrol_new snd_emu10k1_efx_send_routing_control =
 {
 	.access =	SNDRV_CTL_ELEM_ACCESS_READWRITE | SNDRV_CTL_ELEM_ACCESS_INACTIVE,
 	.iface =        SNDRV_CTL_ELEM_IFACE_PCM,
@@ -504,9 +513,9 @@ static snd_kcontrol_new_t snd_emu10k1_efx_send_routing_control =
 	.put =          snd_emu10k1_efx_send_routing_put
 };
 
-static int snd_emu10k1_efx_send_volume_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t * uinfo)
+static int snd_emu10k1_efx_send_volume_info(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
 {
-	emu10k1_t *emu = snd_kcontrol_chip(kcontrol);
+	struct snd_emu10k1 *emu = snd_kcontrol_chip(kcontrol);
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
 	uinfo->count = emu->audigy ? 8 : 4;
 	uinfo->value.integer.min = 0;
@@ -514,12 +523,13 @@ static int snd_emu10k1_efx_send_volume_info(snd_kcontrol_t *kcontrol, snd_ctl_el
 	return 0;
 }
 
-static int snd_emu10k1_efx_send_volume_get(snd_kcontrol_t * kcontrol,
-                                       snd_ctl_elem_value_t * ucontrol)
+static int snd_emu10k1_efx_send_volume_get(struct snd_kcontrol *kcontrol,
+                                       struct snd_ctl_elem_value *ucontrol)
 {
 	unsigned long flags;
-	emu10k1_t *emu = snd_kcontrol_chip(kcontrol);
-	emu10k1_pcm_mixer_t *mix = &emu->efx_pcm_mixer[snd_ctl_get_ioffidx(kcontrol, &ucontrol->id)];
+	struct snd_emu10k1 *emu = snd_kcontrol_chip(kcontrol);
+	struct snd_emu10k1_pcm_mixer *mix =
+		&emu->efx_pcm_mixer[snd_ctl_get_ioffidx(kcontrol, &ucontrol->id)];
 	int idx;
 	int num_efx = emu->audigy ? 8 : 4;
 
@@ -530,13 +540,13 @@ static int snd_emu10k1_efx_send_volume_get(snd_kcontrol_t * kcontrol,
 	return 0;
 }
 
-static int snd_emu10k1_efx_send_volume_put(snd_kcontrol_t * kcontrol,
-                                       snd_ctl_elem_value_t * ucontrol)
+static int snd_emu10k1_efx_send_volume_put(struct snd_kcontrol *kcontrol,
+                                       struct snd_ctl_elem_value *ucontrol)
 {
 	unsigned long flags;
-	emu10k1_t *emu = snd_kcontrol_chip(kcontrol);
+	struct snd_emu10k1 *emu = snd_kcontrol_chip(kcontrol);
 	int ch = snd_ctl_get_ioffidx(kcontrol, &ucontrol->id);
-	emu10k1_pcm_mixer_t *mix = &emu->efx_pcm_mixer[ch];
+	struct snd_emu10k1_pcm_mixer *mix = &emu->efx_pcm_mixer[ch];
 	int change = 0, idx, val;
 	int num_efx = emu->audigy ? 8 : 4;
 
@@ -559,7 +569,7 @@ static int snd_emu10k1_efx_send_volume_put(snd_kcontrol_t * kcontrol,
 }
 
 
-static snd_kcontrol_new_t snd_emu10k1_efx_send_volume_control =
+static struct snd_kcontrol_new snd_emu10k1_efx_send_volume_control =
 {
 	.access =	SNDRV_CTL_ELEM_ACCESS_READWRITE | SNDRV_CTL_ELEM_ACCESS_INACTIVE,
 	.iface =        SNDRV_CTL_ELEM_IFACE_PCM,
@@ -570,7 +580,7 @@ static snd_kcontrol_new_t snd_emu10k1_efx_send_volume_control =
 	.put =          snd_emu10k1_efx_send_volume_put
 };
 
-static int snd_emu10k1_efx_attn_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t * uinfo)
+static int snd_emu10k1_efx_attn_info(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
 {
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
 	uinfo->count = 1;
@@ -579,11 +589,12 @@ static int snd_emu10k1_efx_attn_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info
 	return 0;
 }
 
-static int snd_emu10k1_efx_attn_get(snd_kcontrol_t * kcontrol,
-                                snd_ctl_elem_value_t * ucontrol)
+static int snd_emu10k1_efx_attn_get(struct snd_kcontrol *kcontrol,
+                                struct snd_ctl_elem_value *ucontrol)
 {
-	emu10k1_t *emu = snd_kcontrol_chip(kcontrol);
-	emu10k1_pcm_mixer_t *mix = &emu->efx_pcm_mixer[snd_ctl_get_ioffidx(kcontrol, &ucontrol->id)];
+	struct snd_emu10k1 *emu = snd_kcontrol_chip(kcontrol);
+	struct snd_emu10k1_pcm_mixer *mix =
+		&emu->efx_pcm_mixer[snd_ctl_get_ioffidx(kcontrol, &ucontrol->id)];
 	unsigned long flags;
 
 	spin_lock_irqsave(&emu->reg_lock, flags);
@@ -592,13 +603,13 @@ static int snd_emu10k1_efx_attn_get(snd_kcontrol_t * kcontrol,
 	return 0;
 }
 
-static int snd_emu10k1_efx_attn_put(snd_kcontrol_t * kcontrol,
-				snd_ctl_elem_value_t * ucontrol)
+static int snd_emu10k1_efx_attn_put(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol)
 {
 	unsigned long flags;
-	emu10k1_t *emu = snd_kcontrol_chip(kcontrol);
+	struct snd_emu10k1 *emu = snd_kcontrol_chip(kcontrol);
 	int ch = snd_ctl_get_ioffidx(kcontrol, &ucontrol->id);
-	emu10k1_pcm_mixer_t *mix = &emu->efx_pcm_mixer[ch];
+	struct snd_emu10k1_pcm_mixer *mix = &emu->efx_pcm_mixer[ch];
 	int change = 0, val;
 
 	spin_lock_irqsave(&emu->reg_lock, flags);
@@ -616,7 +627,7 @@ static int snd_emu10k1_efx_attn_put(snd_kcontrol_t * kcontrol,
 	return change;
 }
 
-static snd_kcontrol_new_t snd_emu10k1_efx_attn_control =
+static struct snd_kcontrol_new snd_emu10k1_efx_attn_control =
 {
 	.access =	SNDRV_CTL_ELEM_ACCESS_READWRITE | SNDRV_CTL_ELEM_ACCESS_INACTIVE,
 	.iface =        SNDRV_CTL_ELEM_IFACE_PCM,
@@ -627,7 +638,7 @@ static snd_kcontrol_new_t snd_emu10k1_efx_attn_control =
 	.put =          snd_emu10k1_efx_attn_put
 };
 
-static int snd_emu10k1_shared_spdif_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t * uinfo)
+static int snd_emu10k1_shared_spdif_info(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
 {
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
 	uinfo->count = 1;
@@ -636,10 +647,10 @@ static int snd_emu10k1_shared_spdif_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_
 	return 0;
 }
 
-static int snd_emu10k1_shared_spdif_get(snd_kcontrol_t * kcontrol,
-					snd_ctl_elem_value_t * ucontrol)
+static int snd_emu10k1_shared_spdif_get(struct snd_kcontrol *kcontrol,
+					struct snd_ctl_elem_value *ucontrol)
 {
-	emu10k1_t *emu = snd_kcontrol_chip(kcontrol);
+	struct snd_emu10k1 *emu = snd_kcontrol_chip(kcontrol);
 
 	if (emu->audigy)
 		ucontrol->value.integer.value[0] = inl(emu->port + A_IOCFG) & A_IOCFG_GPOUT0 ? 1 : 0;
@@ -648,11 +659,11 @@ static int snd_emu10k1_shared_spdif_get(snd_kcontrol_t * kcontrol,
 	return 0;
 }
 
-static int snd_emu10k1_shared_spdif_put(snd_kcontrol_t * kcontrol,
-					snd_ctl_elem_value_t * ucontrol)
+static int snd_emu10k1_shared_spdif_put(struct snd_kcontrol *kcontrol,
+					struct snd_ctl_elem_value *ucontrol)
 {
 	unsigned long flags;
-	emu10k1_t *emu = snd_kcontrol_chip(kcontrol);
+	struct snd_emu10k1 *emu = snd_kcontrol_chip(kcontrol);
 	unsigned int reg, val;
 	int change = 0;
 
@@ -679,7 +690,7 @@ static int snd_emu10k1_shared_spdif_put(snd_kcontrol_t * kcontrol,
 	return change;
 }
 
-static snd_kcontrol_new_t snd_emu10k1_shared_spdif __devinitdata =
+static struct snd_kcontrol_new snd_emu10k1_shared_spdif __devinitdata =
 {
 	.iface =	SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name =		"SB Live Analog/Digital Output Jack",
@@ -688,7 +699,7 @@ static snd_kcontrol_new_t snd_emu10k1_shared_spdif __devinitdata =
 	.put =		snd_emu10k1_shared_spdif_put
 };
 
-static snd_kcontrol_new_t snd_audigy_shared_spdif __devinitdata =
+static struct snd_kcontrol_new snd_audigy_shared_spdif __devinitdata =
 {
 	.iface =	SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name =		"Audigy Analog/Digital Output Jack",
@@ -699,35 +710,35 @@ static snd_kcontrol_new_t snd_audigy_shared_spdif __devinitdata =
 
 /*
  */
-static void snd_emu10k1_mixer_free_ac97(ac97_t *ac97)
+static void snd_emu10k1_mixer_free_ac97(struct snd_ac97 *ac97)
 {
-	emu10k1_t *emu = ac97->private_data;
+	struct snd_emu10k1 *emu = ac97->private_data;
 	emu->ac97 = NULL;
 }
 
 /*
  */
-static int remove_ctl(snd_card_t *card, const char *name)
+static int remove_ctl(struct snd_card *card, const char *name)
 {
-	snd_ctl_elem_id_t id;
+	struct snd_ctl_elem_id id;
 	memset(&id, 0, sizeof(id));
 	strcpy(id.name, name);
 	id.iface = SNDRV_CTL_ELEM_IFACE_MIXER;
 	return snd_ctl_remove_id(card, &id);
 }
 
-static snd_kcontrol_t *ctl_find(snd_card_t *card, const char *name)
+static struct snd_kcontrol *ctl_find(struct snd_card *card, const char *name)
 {
-	snd_ctl_elem_id_t sid;
+	struct snd_ctl_elem_id sid;
 	memset(&sid, 0, sizeof(sid));
 	strcpy(sid.name, name);
 	sid.iface = SNDRV_CTL_ELEM_IFACE_MIXER;
 	return snd_ctl_find_id(card, &sid);
 }
 
-static int rename_ctl(snd_card_t *card, const char *src, const char *dst)
+static int rename_ctl(struct snd_card *card, const char *src, const char *dst)
 {
-	snd_kcontrol_t *kctl = ctl_find(card, src);
+	struct snd_kcontrol *kctl = ctl_find(card, src);
 	if (kctl) {
 		strcpy(kctl->id.name, dst);
 		return 0;
@@ -735,11 +746,12 @@ static int rename_ctl(snd_card_t *card, const char *src, const char *dst)
 	return -ENOENT;
 }
 
-int __devinit snd_emu10k1_mixer(emu10k1_t *emu)
+int __devinit snd_emu10k1_mixer(struct snd_emu10k1 *emu,
+				int pcm_device, int multi_device)
 {
 	int err, pcm;
-	snd_kcontrol_t *kctl;
-	snd_card_t *card = emu->card;
+	struct snd_kcontrol *kctl;
+	struct snd_card *card = emu->card;
 	char **c;
 	static char *emu10k1_remove_ctls[] = {
 		/* no AC97 mono, surround, center/lfe */
@@ -747,6 +759,8 @@ int __devinit snd_emu10k1_mixer(emu10k1_t *emu)
 		"Master Mono Playback Volume",
 		"PCM Out Path & Mute",
 		"Mono Output Select",
+		"Front Playback Switch",
+		"Front Playback Volume",
 		"Surround Playback Switch",
 		"Surround Playback Volume",
 		"Center Playback Switch",
@@ -791,10 +805,10 @@ int __devinit snd_emu10k1_mixer(emu10k1_t *emu)
 		NULL
 	};
 
-	if (!emu->no_ac97) {
-		ac97_bus_t *pbus;
-		ac97_template_t ac97;
-		static ac97_bus_ops_t ops = {
+	if (emu->card_capabilities->ac97_chip) {
+		struct snd_ac97_bus *pbus;
+		struct snd_ac97_template ac97;
+		static struct snd_ac97_bus_ops ops = {
 			.write = snd_emu10k1_ac97_write,
 			.read = snd_emu10k1_ac97_read,
 		};
@@ -807,13 +821,19 @@ int __devinit snd_emu10k1_mixer(emu10k1_t *emu)
 		ac97.private_data = emu;
 		ac97.private_free = snd_emu10k1_mixer_free_ac97;
 		ac97.scaps = AC97_SCAP_NO_SPDIF;
-		if ((err = snd_ac97_mixer(pbus, &ac97, &emu->ac97)) < 0)
-			return err;
+		if ((err = snd_ac97_mixer(pbus, &ac97, &emu->ac97)) < 0) {
+			if (emu->card_capabilities->ac97_chip == 1)
+				return err;
+			snd_printd(KERN_INFO "emu10k1: AC97 is optional on this board\n");
+			snd_printd(KERN_INFO"          Proceeding without ac97 mixers...\n");
+			snd_device_free(emu->card, pbus);
+			goto no_ac97; /* FIXME: get rid of ugly gotos.. */
+		}
 		if (emu->audigy) {
 			/* set master volume to 0 dB */
-			snd_ac97_write(emu->ac97, AC97_MASTER, 0x0000);
+			snd_ac97_write_cache(emu->ac97, AC97_MASTER, 0x0000);
 			/* set capture source to mic */
-			snd_ac97_write(emu->ac97, AC97_REC_SEL, 0x0000);
+			snd_ac97_write_cache(emu->ac97, AC97_REC_SEL, 0x0000);
 			c = audigy_remove_ctls;
 		} else {
 			/*
@@ -826,14 +846,15 @@ int __devinit snd_emu10k1_mixer(emu10k1_t *emu)
 				snd_emu10k1_ptr_write(emu, AC97SLOT, 0, AC97SLOT_CNTR|AC97SLOT_LFE|AC97SLOT_REAR_LEFT|AC97SLOT_REAR_RIGHT);
 			}
 			/* remove unused AC97 controls */
-			snd_ac97_write(emu->ac97, AC97_SURROUND_MASTER, 0x0202);
-			snd_ac97_write(emu->ac97, AC97_CENTER_LFE_MASTER, 0x0202);
+			snd_ac97_write_cache(emu->ac97, AC97_SURROUND_MASTER, 0x0202);
+			snd_ac97_write_cache(emu->ac97, AC97_CENTER_LFE_MASTER, 0x0202);
 			c = emu10k1_remove_ctls;
 		}
 		for (; *c; c++)
 			remove_ctl(card, *c);
 	} else {
-		if (emu->APS)
+	no_ac97:
+		if (emu->card_capabilities->ecard)
 			strcpy(emu->card->mixername, "EMU APS");
 		else if (emu->audigy)
 			strcpy(emu->card->mixername, "SB Audigy");
@@ -847,38 +868,54 @@ int __devinit snd_emu10k1_mixer(emu10k1_t *emu)
 		c = emu10k1_rename_ctls;
 	for (; *c; c += 2)
 		rename_ctl(card, c[0], c[1]);
-
+	if (emu->card_capabilities->subsystem == 0x20071102) {  /* Audigy 4 Pro */
+		rename_ctl(card, "Line2 Capture Volume", "Line1/Mic Capture Volume");
+		rename_ctl(card, "Analog Mix Capture Volume", "Line2 Capture Volume");
+		rename_ctl(card, "Aux2 Capture Volume", "Line3 Capture Volume");
+		rename_ctl(card, "Mic Capture Volume", "Unknown1 Capture Volume");
+		remove_ctl(card, "Headphone Playback Switch");
+		remove_ctl(card, "Headphone Playback Volume");
+		remove_ctl(card, "3D Control - Center");
+		remove_ctl(card, "3D Control - Depth");
+		remove_ctl(card, "3D Control - Switch");
+	}
 	if ((kctl = emu->ctl_send_routing = snd_ctl_new1(&snd_emu10k1_send_routing_control, emu)) == NULL)
 		return -ENOMEM;
+	kctl->id.device = pcm_device;
 	if ((err = snd_ctl_add(card, kctl)))
 		return err;
 	if ((kctl = emu->ctl_send_volume = snd_ctl_new1(&snd_emu10k1_send_volume_control, emu)) == NULL)
 		return -ENOMEM;
+	kctl->id.device = pcm_device;
 	if ((err = snd_ctl_add(card, kctl)))
 		return err;
 	if ((kctl = emu->ctl_attn = snd_ctl_new1(&snd_emu10k1_attn_control, emu)) == NULL)
 		return -ENOMEM;
+	kctl->id.device = pcm_device;
 	if ((err = snd_ctl_add(card, kctl)))
 		return err;
 
 	if ((kctl = emu->ctl_efx_send_routing = snd_ctl_new1(&snd_emu10k1_efx_send_routing_control, emu)) == NULL)
 		return -ENOMEM;
+	kctl->id.device = multi_device;
 	if ((err = snd_ctl_add(card, kctl)))
 		return err;
 	
 	if ((kctl = emu->ctl_efx_send_volume = snd_ctl_new1(&snd_emu10k1_efx_send_volume_control, emu)) == NULL)
 		return -ENOMEM;
+	kctl->id.device = multi_device;
 	if ((err = snd_ctl_add(card, kctl)))
 		return err;
 	
 	if ((kctl = emu->ctl_efx_attn = snd_ctl_new1(&snd_emu10k1_efx_attn_control, emu)) == NULL)
 		return -ENOMEM;
+	kctl->id.device = multi_device;
 	if ((err = snd_ctl_add(card, kctl)))
 		return err;
 
 	/* initialize the routing and volume table for each pcm playback stream */
 	for (pcm = 0; pcm < 32; pcm++) {
-		emu10k1_pcm_mixer_t *mix;
+		struct snd_emu10k1_pcm_mixer *mix;
 		int v;
 		
 		mix = &emu->pcm_mixer[pcm];
@@ -898,7 +935,7 @@ int __devinit snd_emu10k1_mixer(emu10k1_t *emu)
 	
 	/* initialize the routing and volume table for the multichannel playback stream */
 	for (pcm = 0; pcm < NUM_EFX_PLAYBACK; pcm++) {
-		emu10k1_pcm_mixer_t *mix;
+		struct snd_emu10k1_pcm_mixer *mix;
 		int v;
 		
 		mix = &emu->efx_pcm_mixer[pcm];
@@ -918,35 +955,43 @@ int __devinit snd_emu10k1_mixer(emu10k1_t *emu)
 		mix->attn[0] = 0xffff;
 	}
 	
-	if (! emu->APS) { /* FIXME: APS has these controls? */
+	if (! emu->card_capabilities->ecard) { /* FIXME: APS has these controls? */
 		/* sb live! and audigy */
 		if ((kctl = snd_ctl_new1(&snd_emu10k1_spdif_mask_control, emu)) == NULL)
 			return -ENOMEM;
+		if (!emu->audigy)
+			kctl->id.device = emu->pcm_efx->device;
 		if ((err = snd_ctl_add(card, kctl)))
 			return err;
 		if ((kctl = snd_ctl_new1(&snd_emu10k1_spdif_control, emu)) == NULL)
 			return -ENOMEM;
+		if (!emu->audigy)
+			kctl->id.device = emu->pcm_efx->device;
 		if ((err = snd_ctl_add(card, kctl)))
 			return err;
 	}
 
-	if (emu->audigy) {
+	if ( emu->card_capabilities->emu1212m) {
+		;  /* Disable the snd_audigy_spdif_shared_spdif */
+	} else if (emu->audigy) {
 		if ((kctl = snd_ctl_new1(&snd_audigy_shared_spdif, emu)) == NULL)
 			return -ENOMEM;
 		if ((err = snd_ctl_add(card, kctl)))
 			return err;
+#if 0
 		if ((kctl = snd_ctl_new1(&snd_audigy_spdif_output_rate, emu)) == NULL)
 			return -ENOMEM;
 		if ((err = snd_ctl_add(card, kctl)))
 			return err;
-	} else if (! emu->APS) {
+#endif
+	} else if (! emu->card_capabilities->ecard) {
 		/* sb live! */
 		if ((kctl = snd_ctl_new1(&snd_emu10k1_shared_spdif, emu)) == NULL)
 			return -ENOMEM;
 		if ((err = snd_ctl_add(card, kctl)))
 			return err;
 	}
-	if (emu->audigy && emu->revision == 4) { /* P16V */
+	if (emu->card_capabilities->ca0151_chip) { /* P16V */
 		if ((err = snd_p16v_mixer(emu)))
 			return err;
 	}

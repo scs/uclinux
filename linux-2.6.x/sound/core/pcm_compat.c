@@ -22,7 +22,7 @@
 
 #include <linux/compat.h>
 
-static int snd_pcm_ioctl_delay_compat(snd_pcm_substream_t *substream,
+static int snd_pcm_ioctl_delay_compat(struct snd_pcm_substream *substream,
 				      s32 __user *src)
 {
 	snd_pcm_sframes_t delay;
@@ -39,7 +39,7 @@ static int snd_pcm_ioctl_delay_compat(snd_pcm_substream_t *substream,
 	return err;
 }
 
-static int snd_pcm_ioctl_rewind_compat(snd_pcm_substream_t *substream,
+static int snd_pcm_ioctl_rewind_compat(struct snd_pcm_substream *substream,
 				       u32 __user *src)
 {
 	snd_pcm_uframes_t frames;
@@ -56,7 +56,7 @@ static int snd_pcm_ioctl_rewind_compat(snd_pcm_substream_t *substream,
 	return err < 0 ? err : 0;
 }
 
-static int snd_pcm_ioctl_forward_compat(snd_pcm_substream_t *substream,
+static int snd_pcm_ioctl_forward_compat(struct snd_pcm_substream *substream,
 				       u32 __user *src)
 {
 	snd_pcm_uframes_t frames;
@@ -73,12 +73,12 @@ static int snd_pcm_ioctl_forward_compat(snd_pcm_substream_t *substream,
 	return err < 0 ? err : 0;
 }
 
-struct sndrv_pcm_hw_params32 {
+struct snd_pcm_hw_params32 {
 	u32 flags;
-	struct sndrv_mask masks[SNDRV_PCM_HW_PARAM_LAST_MASK - SNDRV_PCM_HW_PARAM_FIRST_MASK + 1]; /* this must be identical */
-	struct sndrv_mask mres[5];	/* reserved masks */
-	struct sndrv_interval intervals[SNDRV_PCM_HW_PARAM_LAST_INTERVAL - SNDRV_PCM_HW_PARAM_FIRST_INTERVAL + 1];
-	struct sndrv_interval ires[9];	/* reserved intervals */
+	struct snd_mask masks[SNDRV_PCM_HW_PARAM_LAST_MASK - SNDRV_PCM_HW_PARAM_FIRST_MASK + 1]; /* this must be identical */
+	struct snd_mask mres[5];	/* reserved masks */
+	struct snd_interval intervals[SNDRV_PCM_HW_PARAM_LAST_INTERVAL - SNDRV_PCM_HW_PARAM_FIRST_INTERVAL + 1];
+	struct snd_interval ires[9];	/* reserved intervals */
 	u32 rmask;
 	u32 cmask;
 	u32 info;
@@ -89,7 +89,7 @@ struct sndrv_pcm_hw_params32 {
 	unsigned char reserved[64];
 };
 
-struct sndrv_pcm_sw_params32 {
+struct snd_pcm_sw_params32 {
 	s32 tstamp_mode;
 	u32 period_step;
 	u32 sleep_min;
@@ -103,10 +103,24 @@ struct sndrv_pcm_sw_params32 {
 	unsigned char reserved[64];
 };
 
-static int snd_pcm_ioctl_sw_params_compat(snd_pcm_substream_t *substream,
-					  struct sndrv_pcm_sw_params32 __user *src)
+/* recalcuate the boundary within 32bit */
+static snd_pcm_uframes_t recalculate_boundary(struct snd_pcm_runtime *runtime)
 {
-	snd_pcm_sw_params_t params;
+	snd_pcm_uframes_t boundary;
+
+	if (! runtime->buffer_size)
+		return 0;
+	boundary = runtime->buffer_size;
+	while (boundary * 2 <= 0x7fffffffUL - runtime->buffer_size)
+		boundary *= 2;
+	return boundary;
+}
+
+static int snd_pcm_ioctl_sw_params_compat(struct snd_pcm_substream *substream,
+					  struct snd_pcm_sw_params32 __user *src)
+{
+	struct snd_pcm_sw_params params;
+	snd_pcm_uframes_t boundary;
 	int err;
 
 	memset(&params, 0, sizeof(params));
@@ -120,25 +134,32 @@ static int snd_pcm_ioctl_sw_params_compat(snd_pcm_substream_t *substream,
 	    get_user(params.silence_threshold, &src->silence_threshold) ||
 	    get_user(params.silence_size, &src->silence_size))
 		return -EFAULT;
+	/*
+	 * Check silent_size parameter.  Since we have 64bit boundary,
+	 * silence_size must be compared with the 32bit boundary.
+	 */
+	boundary = recalculate_boundary(substream->runtime);
+	if (boundary && params.silence_size >= boundary)
+		params.silence_size = substream->runtime->boundary;
 	err = snd_pcm_sw_params(substream, &params);
 	if (err < 0)
 		return err;
-	if (put_user(params.boundary, &src->boundary))
+	if (boundary && put_user(boundary, &src->boundary))
 		return -EFAULT;
 	return err;
 }
 
-struct sndrv_pcm_channel_info32 {
+struct snd_pcm_channel_info32 {
 	u32 channel;
 	u32 offset;
 	u32 first;
 	u32 step;
 };
 
-static int snd_pcm_ioctl_channel_info_compat(snd_pcm_substream_t *substream,
-					     struct sndrv_pcm_channel_info32 __user *src)
+static int snd_pcm_ioctl_channel_info_compat(struct snd_pcm_substream *substream,
+					     struct snd_pcm_channel_info32 __user *src)
 {
-	snd_pcm_channel_info_t info;
+	struct snd_pcm_channel_info info;
 	int err;
 
 	if (get_user(info.channel, &src->channel) ||
@@ -157,7 +178,7 @@ static int snd_pcm_ioctl_channel_info_compat(snd_pcm_substream_t *substream,
 	return err;
 }
 
-struct sndrv_pcm_status32 {
+struct snd_pcm_status32 {
 	s32 state;
 	struct compat_timespec trigger_tstamp;
 	struct compat_timespec tstamp;
@@ -172,10 +193,10 @@ struct sndrv_pcm_status32 {
 } __attribute__((packed));
 
 
-static int snd_pcm_status_user_compat(snd_pcm_substream_t *substream,
-				      struct sndrv_pcm_status32 __user *src)
+static int snd_pcm_status_user_compat(struct snd_pcm_substream *substream,
+				      struct snd_pcm_status32 __user *src)
 {
-	snd_pcm_status_t status;
+	struct snd_pcm_status status;
 	int err;
 
 	err = snd_pcm_status(substream, &status);
@@ -199,23 +220,13 @@ static int snd_pcm_status_user_compat(snd_pcm_substream_t *substream,
 	return err;
 }
 
-/* recalcuate the boundary within 32bit */
-static void recalculate_boundary(snd_pcm_runtime_t *runtime)
-{
-	if (! runtime->buffer_size)
-		return;
-	runtime->boundary = runtime->buffer_size;
-	while (runtime->boundary * 2 <= 0x7fffffffUL - runtime->buffer_size)
-		runtime->boundary *= 2;
-}
-
 /* both for HW_PARAMS and HW_REFINE */
-static int snd_pcm_ioctl_hw_params_compat(snd_pcm_substream_t *substream,
+static int snd_pcm_ioctl_hw_params_compat(struct snd_pcm_substream *substream,
 					  int refine, 
-					  struct sndrv_pcm_hw_params32 __user *data32)
+					  struct snd_pcm_hw_params32 __user *data32)
 {
-	struct sndrv_pcm_hw_params *data;
-	snd_pcm_runtime_t *runtime;
+	struct snd_pcm_hw_params *data;
+	struct snd_pcm_runtime *runtime;
 	int err;
 
 	if (! (runtime = substream->runtime))
@@ -241,8 +252,11 @@ static int snd_pcm_ioctl_hw_params_compat(snd_pcm_substream_t *substream,
 		goto error;
 	}
 
-	if (! refine)
-		recalculate_boundary(runtime);
+	if (! refine) {
+		unsigned int new_boundary = recalculate_boundary(runtime);
+		if (new_boundary)
+			runtime->boundary = new_boundary;
+	}
  error:
 	kfree(data);
 	return err;
@@ -251,14 +265,14 @@ static int snd_pcm_ioctl_hw_params_compat(snd_pcm_substream_t *substream,
 
 /*
  */
-struct sndrv_xferi32 {
+struct snd_xferi32 {
 	s32 result;
 	u32 buf;
 	u32 frames;
 };
 
-static int snd_pcm_ioctl_xferi_compat(snd_pcm_substream_t *substream,
-				      int dir, struct sndrv_xferi32 __user *data32)
+static int snd_pcm_ioctl_xferi_compat(struct snd_pcm_substream *substream,
+				      int dir, struct snd_xferi32 __user *data32)
 {
 	compat_caddr_t buf;
 	u32 frames;
@@ -289,7 +303,7 @@ static int snd_pcm_ioctl_xferi_compat(snd_pcm_substream_t *substream,
 
 
 /* snd_xfern needs remapping of bufs */
-struct sndrv_xfern32 {
+struct snd_xfern32 {
 	s32 result;
 	u32 bufs;  /* this is void **; */
 	u32 frames;
@@ -301,8 +315,8 @@ struct sndrv_xfern32 {
  * handler there expands again the same 128 pointers on stack, so it is better
  * to handle the function (calling pcm_readv/writev) directly in this handler.
  */
-static int snd_pcm_ioctl_xfern_compat(snd_pcm_substream_t *substream,
-				      int dir, struct sndrv_xfern32 __user *data32)
+static int snd_pcm_ioctl_xfern_compat(struct snd_pcm_substream *substream,
+				      int dir, struct snd_xfern32 __user *data32)
 {
 	compat_caddr_t buf;
 	compat_caddr_t __user *bufptr;
@@ -346,7 +360,7 @@ static int snd_pcm_ioctl_xfern_compat(snd_pcm_substream_t *substream,
 }
 
 
-struct sndrv_pcm_mmap_status32 {
+struct snd_pcm_mmap_status32 {
 	s32 state;
 	s32 pad1;
 	u32 hw_ptr;
@@ -354,32 +368,33 @@ struct sndrv_pcm_mmap_status32 {
 	s32 suspended_state;
 } __attribute__((packed));
 
-struct sndrv_pcm_mmap_control32 {
+struct snd_pcm_mmap_control32 {
 	u32 appl_ptr;
 	u32 avail_min;
 };
 
-struct sndrv_pcm_sync_ptr32 {
+struct snd_pcm_sync_ptr32 {
 	u32 flags;
 	union {
-		struct sndrv_pcm_mmap_status32 status;
+		struct snd_pcm_mmap_status32 status;
 		unsigned char reserved[64];
 	} s;
 	union {
-		struct sndrv_pcm_mmap_control32 control;
+		struct snd_pcm_mmap_control32 control;
 		unsigned char reserved[64];
 	} c;
 } __attribute__((packed));
 
-static int snd_pcm_ioctl_sync_ptr_compat(snd_pcm_substream_t *substream,
-					 struct sndrv_pcm_sync_ptr32 __user *src)
+static int snd_pcm_ioctl_sync_ptr_compat(struct snd_pcm_substream *substream,
+					 struct snd_pcm_sync_ptr32 __user *src)
 {
-	snd_pcm_runtime_t *runtime = substream->runtime;
-	volatile struct sndrv_pcm_mmap_status *status;
-	volatile struct sndrv_pcm_mmap_control *control;
+	struct snd_pcm_runtime *runtime = substream->runtime;
+	volatile struct snd_pcm_mmap_status *status;
+	volatile struct snd_pcm_mmap_control *control;
 	u32 sflags;
-	struct sndrv_pcm_mmap_control scontrol;
-	struct sndrv_pcm_mmap_status sstatus;
+	struct snd_pcm_mmap_control scontrol;
+	struct snd_pcm_mmap_status sstatus;
+	snd_pcm_uframes_t boundary;
 	int err;
 
 	snd_assert(runtime, return -EINVAL);
@@ -395,17 +410,21 @@ static int snd_pcm_ioctl_sync_ptr_compat(snd_pcm_substream_t *substream,
 	}
 	status = runtime->status;
 	control = runtime->control;
+	boundary = recalculate_boundary(runtime);
+	if (! boundary)
+		boundary = 0x7fffffff;
 	snd_pcm_stream_lock_irq(substream);
+	/* FIXME: we should consider the boundary for the sync from app */
 	if (!(sflags & SNDRV_PCM_SYNC_PTR_APPL))
 		control->appl_ptr = scontrol.appl_ptr;
 	else
-		scontrol.appl_ptr = control->appl_ptr;
+		scontrol.appl_ptr = control->appl_ptr % boundary;
 	if (!(sflags & SNDRV_PCM_SYNC_PTR_AVAIL_MIN))
 		control->avail_min = scontrol.avail_min;
 	else
 		scontrol.avail_min = control->avail_min;
 	sstatus.state = status->state;
-	sstatus.hw_ptr = status->hw_ptr;
+	sstatus.hw_ptr = status->hw_ptr % boundary;
 	sstatus.tstamp = status->tstamp;
 	sstatus.suspended_state = status->suspended_state;
 	snd_pcm_stream_unlock_irq(substream);
@@ -425,26 +444,26 @@ static int snd_pcm_ioctl_sync_ptr_compat(snd_pcm_substream_t *substream,
 /*
  */
 enum {
-	SNDRV_PCM_IOCTL_HW_REFINE32 = _IOWR('A', 0x10, struct sndrv_pcm_hw_params32),
-	SNDRV_PCM_IOCTL_HW_PARAMS32 = _IOWR('A', 0x11, struct sndrv_pcm_hw_params32),
-	SNDRV_PCM_IOCTL_SW_PARAMS32 = _IOWR('A', 0x13, struct sndrv_pcm_sw_params32),
-	SNDRV_PCM_IOCTL_STATUS32 = _IOR('A', 0x20, struct sndrv_pcm_status32),
+	SNDRV_PCM_IOCTL_HW_REFINE32 = _IOWR('A', 0x10, struct snd_pcm_hw_params32),
+	SNDRV_PCM_IOCTL_HW_PARAMS32 = _IOWR('A', 0x11, struct snd_pcm_hw_params32),
+	SNDRV_PCM_IOCTL_SW_PARAMS32 = _IOWR('A', 0x13, struct snd_pcm_sw_params32),
+	SNDRV_PCM_IOCTL_STATUS32 = _IOR('A', 0x20, struct snd_pcm_status32),
 	SNDRV_PCM_IOCTL_DELAY32 = _IOR('A', 0x21, s32),
-	SNDRV_PCM_IOCTL_CHANNEL_INFO32 = _IOR('A', 0x32, struct sndrv_pcm_channel_info32),
+	SNDRV_PCM_IOCTL_CHANNEL_INFO32 = _IOR('A', 0x32, struct snd_pcm_channel_info32),
 	SNDRV_PCM_IOCTL_REWIND32 = _IOW('A', 0x46, u32),
 	SNDRV_PCM_IOCTL_FORWARD32 = _IOW('A', 0x49, u32),
-	SNDRV_PCM_IOCTL_WRITEI_FRAMES32 = _IOW('A', 0x50, struct sndrv_xferi32),
-	SNDRV_PCM_IOCTL_READI_FRAMES32 = _IOR('A', 0x51, struct sndrv_xferi32),
-	SNDRV_PCM_IOCTL_WRITEN_FRAMES32 = _IOW('A', 0x52, struct sndrv_xfern32),
-	SNDRV_PCM_IOCTL_READN_FRAMES32 = _IOR('A', 0x53, struct sndrv_xfern32),
-	SNDRV_PCM_IOCTL_SYNC_PTR32 = _IOWR('A', 0x23, struct sndrv_pcm_sync_ptr32),
+	SNDRV_PCM_IOCTL_WRITEI_FRAMES32 = _IOW('A', 0x50, struct snd_xferi32),
+	SNDRV_PCM_IOCTL_READI_FRAMES32 = _IOR('A', 0x51, struct snd_xferi32),
+	SNDRV_PCM_IOCTL_WRITEN_FRAMES32 = _IOW('A', 0x52, struct snd_xfern32),
+	SNDRV_PCM_IOCTL_READN_FRAMES32 = _IOR('A', 0x53, struct snd_xfern32),
+	SNDRV_PCM_IOCTL_SYNC_PTR32 = _IOWR('A', 0x23, struct snd_pcm_sync_ptr32),
 
 };
 
 static long snd_pcm_ioctl_compat(struct file *file, unsigned int cmd, unsigned long arg)
 {
-	snd_pcm_file_t *pcm_file;
-	snd_pcm_substream_t *substream;
+	struct snd_pcm_file *pcm_file;
+	struct snd_pcm_substream *substream;
 	void __user *argp = compat_ptr(arg);
 
 	pcm_file = file->private_data;

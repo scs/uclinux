@@ -10,8 +10,11 @@ __build:
 # Read .config if it exist, otherwise ignore
 -include .config
 
-include $(if $(wildcard $(obj)/Kbuild), $(obj)/Kbuild, $(obj)/Makefile)
+# The filename Kbuild has precedence over Makefile
+kbuild-dir := $(if $(filter /%,$(src)),$(src),$(srctree)/$(src))
+include $(if $(wildcard $(kbuild-dir)/Kbuild), $(kbuild-dir)/Kbuild, $(kbuild-dir)/Makefile)
 
+include scripts/Kbuild.include
 include scripts/Makefile.lib
 
 ifdef host-progs
@@ -169,17 +172,17 @@ cmd_modversions =							\
 			-T $(@D)/.tmp_$(@F:.o=.ver);			\
 		rm -f $(@D)/.tmp_$(@F) $(@D)/.tmp_$(@F:.o=.ver);	\
 	else								\
-		mv $(@D)/.tmp_$(@F) $@;					\
+		mv -f $(@D)/.tmp_$(@F) $@;				\
 	fi;
 endif
 
 define rule_cc_o_c
 	$(if $($(quiet)cmd_checksrc),echo '  $($(quiet)cmd_checksrc)';)   \
 	$(cmd_checksrc)							  \
-	$(if $($(quiet)cmd_cc_o_c),echo '  $($(quiet)cmd_cc_o_c)';)	  \
+	$(if $($(quiet)cmd_cc_o_c),echo '  $(call escsq,$($(quiet)cmd_cc_o_c))';)  \
 	$(cmd_cc_o_c);							  \
 	$(cmd_modversions)						  \
-	scripts/basic/fixdep $(depfile) $@ '$(cmd_cc_o_c)' > $(@D)/.$(@F).tmp;  \
+	scripts/basic/fixdep $(depfile) $@ '$(call escsq,$(cmd_cc_o_c))' > $(@D)/.$(@F).tmp;  \
 	rm -f $(depfile);						  \
 	mv -f $(@D)/.$(@F).tmp $(@D)/.$(@F).cmd
 endef

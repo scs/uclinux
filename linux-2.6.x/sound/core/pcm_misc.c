@@ -270,22 +270,6 @@ int snd_pcm_format_big_endian(snd_pcm_format_t format)
 }
 
 /**
- * snd_pcm_format_cpu_endian - Check the PCM format is CPU-endian
- * @format: the format to check
- *
- * Returns 1 if the given PCM format is CPU-endian, 0 if
- * opposite, or a negative error code if endian not specified.
- */
-int snd_pcm_format_cpu_endian(snd_pcm_format_t format)
-{
-#ifdef SNDRV_LITTLE_ENDIAN
-	return snd_pcm_format_little_endian(format);
-#else
-	return snd_pcm_format_big_endian(format);
-#endif
-}
-
-/**
  * snd_pcm_format_width - return the bit-width of the format
  * @format: the format to check
  *
@@ -457,7 +441,7 @@ snd_pcm_format_t snd_pcm_build_linear_format(int width, int unsignd, int big_end
  *
  * Returns zero if successful.
  */
-int snd_pcm_limit_hw_rates(snd_pcm_runtime_t *runtime)
+int snd_pcm_limit_hw_rates(struct snd_pcm_runtime *runtime)
 {
 	static unsigned rates[] = {
 		/* ATTENTION: these values depend on the definition in pcm.h! */

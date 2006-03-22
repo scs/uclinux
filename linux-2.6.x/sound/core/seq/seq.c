@@ -36,14 +36,20 @@
 #include <sound/seq_device.h>
 
 #if defined(CONFIG_SND_SEQ_DUMMY_MODULE)
-int seq_client_load[64] = {[0] = SNDRV_SEQ_CLIENT_DUMMY, [1 ... 63] = -1};
+int seq_client_load[15] = {[0] = SNDRV_SEQ_CLIENT_DUMMY, [1 ... 14] = -1};
 #else
-int seq_client_load[64] = {[0 ... 63] = -1};
+int seq_client_load[15] = {[0 ... 14] = -1};
 #endif
 int seq_default_timer_class = SNDRV_TIMER_CLASS_GLOBAL;
 int seq_default_timer_sclass = SNDRV_TIMER_SCLASS_NONE;
 int seq_default_timer_card = -1;
-int seq_default_timer_device = SNDRV_TIMER_GLOBAL_SYSTEM;
+int seq_default_timer_device =
+#ifdef CONFIG_SND_SEQ_RTCTIMER_DEFAULT
+	SNDRV_TIMER_GLOBAL_RTC
+#else
+	SNDRV_TIMER_GLOBAL_SYSTEM
+#endif
+	;
 int seq_default_timer_subdevice = 0;
 int seq_default_timer_resolution = 0;	/* Hz */
 

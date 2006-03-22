@@ -359,12 +359,23 @@ handle_modversions(struct module *mod, struct elf_info *info,
 		/* ignore __this_module, it will be resolved shortly */
 		if (strcmp(symname, MODULE_SYMBOL_PREFIX "__this_module") == 0)
 			break;
-#ifdef STT_REGISTER
+/* cope with newer glibc (2.3.4 or higher) STT_ definition in elf.h */
+#if defined(STT_REGISTER) || defined(STT_SPARC_REGISTER)
+/* add compatibility with older glibc */
+#ifndef STT_SPARC_REGISTER
+#define STT_SPARC_REGISTER STT_REGISTER
+#endif
 		if (info->hdr->e_machine == EM_SPARC ||
 		    info->hdr->e_machine == EM_SPARCV9) {
 			/* Ignore register directives. */
-			if (ELF_ST_TYPE(sym->st_info) == STT_REGISTER)
+			if (ELF_ST_TYPE(sym->st_info) == STT_SPARC_REGISTER)
 				break;
+ 			if (symname[0] == '.') {
+ 				char *munged = strdup(symname);
+ 				munged[0] = '_';
+ 				munged[1] = toupper(munged[1]);
+ 				symname = munged;
+ 			}
 		}
 #endif
 		
@@ -497,12 +508,7 @@ buf_printf(struct buffer *buf, const char *fmt, ...)
 	
 	va_start(ap, fmt);
 	len = vsnprintf(tmp, SZ, fmt, ap);
-	if (buf->size - buf->pos < len + 1) {
-		buf->size += 128;
-		buf->p = realloc(buf->p, buf->size);
-	}
-	strncpy(buf->p + buf->pos, tmp, len + 1);
-	buf->pos += len;
+	buf_write(buf, tmp, len);
 	va_end(ap);
 }
 
@@ -510,7 +516,7 @@ void
 buf_write(struct buffer *buf, const char *s, int len)
 {
 	if (buf->size - buf->pos < len) {
-		buf->size += len;
+		buf->size += len + SZ;
 		buf->p = realloc(buf->p, buf->size);
 	}
 	strncpy(buf->p + buf->pos, s, len);
@@ -528,10 +534,9 @@ add_header(struct buffer *b, struct module *mod)
 	buf_printf(b, "\n");
 	buf_printf(b, "MODULE_INFO(vermagic, VERMAGIC_STRING);\n");
 	buf_printf(b, "\n");
-	buf_printf(b, "#undef unix\n"); /* We have a module called "unix" */
 	buf_printf(b, "struct module __this_module\n");
 	buf_printf(b, "__attribute__((section(\".gnu.linkonce.this_module\"))) = {\n");
-	buf_printf(b, " .name = __stringify(KBUILD_MODNAME),\n");
+	buf_printf(b, " .name = KBUILD_MODNAME,\n");
 	if (mod->has_init)
 		buf_printf(b, " .init = init_module,\n");
 	if (mod->has_cleanup)

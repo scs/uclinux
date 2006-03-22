@@ -44,7 +44,6 @@ TODO:
 #define RMEVERSION "0.8"
 #endif
 
-#include <linux/version.h>
 #include <linux/module.h>
 #include <linux/string.h>
 #include <linux/sched.h>
@@ -807,7 +806,7 @@ static void* busmaster_malloc(int size) {
                 struct page* page, *last_page;
 
                 page = virt_to_page(buf);
-                last_page = virt_to_page(buf + (1 << pg));
+                last_page = page + (1 << pg);
                 DBG(printk("setting reserved bit\n"));
                 while (page < last_page) {
 			SetPageReserved(page);
@@ -1096,7 +1095,7 @@ static int __init init_rme96xx(void)
 	devices = ((devices-1) & RME96xx_MASK_DEVS) + 1;
 	printk(KERN_INFO RME_MESS" reserving %d dsp device(s)\n",devices);
         numcards = 0;
-	return pci_module_init(&rme96xx_driver);
+	return pci_register_driver(&rme96xx_driver);
 }
 
 static void __exit cleanup_rme96xx(void)
@@ -1750,9 +1749,7 @@ static unsigned int rme96xx_poll(struct file *file, struct poll_table_struct *wa
 
 
 static struct file_operations rme96xx_audio_fops = {
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,4,0)
 	.owner	 = THIS_MODULE,
-#endif
 	.read	 = rme96xx_read,
 	.write	 = rme96xx_write,
 	.poll	 = rme96xx_poll,
@@ -1852,9 +1849,7 @@ static int rme96xx_mixer_release(struct inode *inode, struct file *file)
 }
 
 static /*const*/ struct file_operations rme96xx_mixer_fops = {
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,4,0)
 	.owner	 = THIS_MODULE,
-#endif
 	.ioctl	 = rme96xx_mixer_ioctl,
 	.open	 = rme96xx_mixer_open,
 	.release = rme96xx_mixer_release,

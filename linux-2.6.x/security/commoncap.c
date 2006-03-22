@@ -7,6 +7,7 @@
  *
  */
 
+#include <linux/capability.h>
 #include <linux/config.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -149,7 +150,7 @@ void cap_bprm_apply_creds (struct linux_binprm *bprm, int unsafe)
 
 	if (bprm->e_uid != current->uid || bprm->e_gid != current->gid ||
 	    !cap_issubset (new_permitted, current->cap_permitted)) {
-		current->mm->dumpable = 0;
+		current->mm->dumpable = suid_dumpable;
 
 		if (unsafe & ~LSM_UNSAFE_PTRACE_CAP) {
 			if (!capable(CAP_SETUID)) {

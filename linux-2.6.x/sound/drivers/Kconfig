@@ -6,7 +6,6 @@ menu "Generic devices"
 
 config SND_MPU401_UART
         tristate
-	select SND_TIMER
         select SND_RAWMIDI
 
 config SND_OPL3_LIB
@@ -23,6 +22,14 @@ config SND_VX_LIB
 	tristate
 	select SND_HWDEP
 	select SND_PCM
+
+config SND_AC97_CODEC
+	tristate
+	select SND_PCM
+	select SND_AC97_BUS
+
+config SND_AC97_BUS
+	tristate
 
 
 config SND_DUMMY
@@ -57,7 +64,6 @@ config SND_VIRMIDI
 config SND_MTPAV
 	tristate "MOTU MidiTimePiece AV multiport MIDI"
 	depends on SND
-	select SND_TIMER
 	select SND_RAWMIDI
 	help
 	  To use a MOTU MidiTimePiece AV multiport MIDI adapter
@@ -70,7 +76,6 @@ config SND_MTPAV
 config SND_SERIAL_U16550
 	tristate "UART16550 serial MIDI driver"
 	depends on SND
-	select SND_TIMER
 	select SND_RAWMIDI
 	help
 	  To include support for MIDI serial port interfaces, say Y here

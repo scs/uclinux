@@ -125,6 +125,7 @@ static int awacs_rate_index;
 static int awacs_subframe;
 static struct device_node* awacs_node;
 static struct device_node* i2s_node;
+static struct resource awacs_rsrc[3];
 
 static char awacs_name[64];
 static int awacs_revision;
@@ -255,7 +256,7 @@ static int awacs_burgundy_read_mvolume(unsigned address);
 
 static volatile struct dbdma_cmd *emergency_dbdma_cmd;
 
-#ifdef CONFIG_PMAC_PBOOK
+#ifdef CONFIG_PM
 /*
  * Stuff for restoring after a sleep.
  */
@@ -263,7 +264,7 @@ static int awacs_sleep_notify(struct pmu_sleep_notifier *self, int when);
 struct pmu_sleep_notifier awacs_sleep_notifier = {
 	awacs_sleep_notify, SLEEP_LEVEL_SOUND,
 };
-#endif /* CONFIG_PMAC_PBOOK */
+#endif /* CONFIG_PM */
 
 /* for (soft) sample rate translations */
 int expand_bal;		/* Balance factor for expanding (not volume!) */
@@ -271,7 +272,7 @@ int expand_read_bal;	/* Balance factor for expanding reads (not volume!) */
 
 /*** Low level stuff *********************************************************/
 
-static void *PMacAlloc(unsigned int size, int flags);
+static void *PMacAlloc(unsigned int size, gfp_t flags);
 static void PMacFree(void *ptr, unsigned int size);
 static int PMacIrqInit(void);
 #ifdef MODULE
@@ -614,7 +615,7 @@ tas_init_frame_rates(unsigned int *prop, unsigned int l)
 /*
  * PCI PowerMac, with AWACS, Screamer, Burgundy, DACA or Tumbler and DBDMA.
  */
-static void *PMacAlloc(unsigned int size, int flags)
+static void *PMacAlloc(unsigned int size, gfp_t flags)
 {
 	return kmalloc(size, flags);
 }
@@ -667,19 +668,18 @@ static void PMacIrqCleanup(void)
 	iounmap(awacs_txdma);
 	iounmap(awacs_rxdma);
 
-	release_OF_resource(awacs_node, 0);
-	release_OF_resource(awacs_node, 1);
-	release_OF_resource(awacs_node, 2);
+	release_mem_region(awacs_rsrc[0].start,
+			   awacs_rsrc[0].end - awacs_rsrc[0].start + 1);
+	release_mem_region(awacs_rsrc[1].start,
+			   awacs_rsrc[1].end - awacs_rsrc[1].start + 1);
+	release_mem_region(awacs_rsrc[2].start,
+			   awacs_rsrc[2].end - awacs_rsrc[2].start + 1);
 
-	if (awacs_tx_cmd_space)
-		kfree(awacs_tx_cmd_space);
-	if (awacs_rx_cmd_space)
-		kfree(awacs_rx_cmd_space);
-	if (beep_dbdma_cmd_space)
-		kfree(beep_dbdma_cmd_space);
-	if (beep_buf)
-		kfree(beep_buf);
-#ifdef CONFIG_PMAC_PBOOK
+	kfree(awacs_tx_cmd_space);
+	kfree(awacs_rx_cmd_space);
+	kfree(beep_dbdma_cmd_space);
+	kfree(beep_buf);
+#ifdef CONFIG_PM
 	pmu_unregister_sleep_notifier(&awacs_sleep_notifier);
 #endif
 }
@@ -1419,7 +1419,7 @@ load_awacs(void)
 	}
 }
 
-#ifdef CONFIG_PMAC_PBOOK
+#ifdef CONFIG_PM
 /*
  * Save state when going to sleep, restore it afterwards.
  */
@@ -1555,13 +1555,13 @@ static int awacs_sleep_notify(struct pmu_sleep_notifier *self, int when)
 	}
 	return PBOOK_SLEEP_OK;
 }
-#endif /* CONFIG_PMAC_PBOOK */
+#endif /* CONFIG_PM */
 
 
 /* All the burgundy functions: */
 
 /* Waits for busy flag to clear */
-inline static void
+static inline void
 awacs_burgundy_busy_wait(void)
 {
 	int count = 50; /* > 2 samples at 44k1 */
@@ -1569,7 +1569,7 @@ awacs_burgundy_busy_wait(void)
 		udelay(1) ;
 }
 
-inline static void
+static inline void
 awacs_burgundy_extend_wait(void)
 {
 	int count = 50 ; /* > 2 samples at 44k1 */
@@ -2301,8 +2301,7 @@ if (count <= 0)
 #endif
 
 	if ((write_sq.max_count + 1) > number_of_tx_cmd_buffers) {
-		if (awacs_tx_cmd_space)
-			kfree(awacs_tx_cmd_space);
+		kfree(awacs_tx_cmd_space);
 		number_of_tx_cmd_buffers = 0;
 
 		/* we need nbufs + 1 (for the loop) and we should request + 1
@@ -2360,8 +2359,7 @@ if (count <= 0)
 #endif
 
 	if ((read_sq.max_count+1) > number_of_rx_cmd_buffers ) {
-		if (awacs_rx_cmd_space)
-			kfree(awacs_rx_cmd_space);
+		kfree(awacs_rx_cmd_space);
 		number_of_rx_cmd_buffers = 0;
 
 		/* we need nbufs + 1 (for the loop) and we should request + 1 again
@@ -2805,22 +2803,13 @@ __init setup_beep(void)
 	beep_buf = (short *) kmalloc(BEEP_BUFLEN * 4, GFP_KERNEL);
 	if (beep_buf == NULL) {
 		printk(KERN_ERR "dmasound_pmac: no memory for beep buffer\n");
-		if( beep_dbdma_cmd_space ) kfree(beep_dbdma_cmd_space) ;
+		kfree(beep_dbdma_cmd_space) ;
 		return -ENOMEM ;
 	}
 	return 0 ;
 }
 
-static struct input_dev awacs_beep_dev = {
-	.evbit		= { BIT(EV_SND) },
-	.sndbit		= { BIT(SND_BELL) | BIT(SND_TONE) },
-	.event		= awacs_beep_event,
-	.name		= "dmasound beeper",
-	.phys		= "macio/input0", /* what the heck is this?? */
-	.id		= {
-		.bustype	= BUS_HOST,
-	},
-};
+static struct input_dev *awacs_beep_dev;
 
 int __init dmasound_awacs_init(void)
 {
@@ -2878,48 +2867,76 @@ printk("dmasound_pmac: couldn't find a Codec we can handle\n");
 	 * other info if necessary (early AWACS we want to read chip ids)
 	 */
 
-	if (io->n_addrs < 3 || io->n_intrs < 3) {
+	if (of_get_address(io, 2, NULL, NULL) == NULL || io->n_intrs < 3) {
 		/* OK - maybe we need to use the 'awacs' node (on earlier
 		 * machines).
-		*/
+		 */
 		if (awacs_node) {
 			io = awacs_node ;
-			if (io->n_addrs < 3 || io->n_intrs < 3) {
-				printk("dmasound_pmac: can't use %s"
-					" (%d addrs, %d intrs)\n",
-		      		 io->full_name, io->n_addrs, io->n_intrs);
+			if (of_get_address(io, 2, NULL, NULL) == NULL ||
+			    io->n_intrs < 3) {
+				printk("dmasound_pmac: can't use %s\n",
+				       io->full_name);
 				return -ENODEV;
 			}
-		} else {
-			printk("dmasound_pmac: can't use %s (%d addrs, %d intrs)\n",
-		 	      io->full_name, io->n_addrs, io->n_intrs);
-		}
+		} else
+			printk("dmasound_pmac: can't use %s\n", io->full_name);
 	}
 
-	if (!request_OF_resource(io, 0, NULL)) {
+	if (of_address_to_resource(io, 0, &awacs_rsrc[0]) ||
+	    request_mem_region(awacs_rsrc[0].start,
+			       awacs_rsrc[0].end - awacs_rsrc[0].start + 1,
+			       " (IO)") == NULL) {
 		printk(KERN_ERR "dmasound: can't request IO resource !\n");
 		return -ENODEV;
 	}
-	if (!request_OF_resource(io, 1, " (tx dma)")) {
-		release_OF_resource(io, 0);
-		printk(KERN_ERR "dmasound: can't request TX DMA resource !\n");
+	if (of_address_to_resource(io, 1, &awacs_rsrc[1]) ||
+	    request_mem_region(awacs_rsrc[1].start,
+			       awacs_rsrc[1].end - awacs_rsrc[1].start + 1,
+			       " (tx dma)") == NULL) {
+		release_mem_region(awacs_rsrc[0].start,
+				   awacs_rsrc[0].end - awacs_rsrc[0].start + 1);
+		printk(KERN_ERR "dmasound: can't request Tx DMA resource !\n");
+		return -ENODEV;
+	}
+	if (of_address_to_resource(io, 2, &awacs_rsrc[2]) ||
+	    request_mem_region(awacs_rsrc[2].start,
+			       awacs_rsrc[2].end - awacs_rsrc[2].start + 1,
+			       " (rx dma)") == NULL) {
+		release_mem_region(awacs_rsrc[0].start,
+				   awacs_rsrc[0].end - awacs_rsrc[0].start + 1);
+		release_mem_region(awacs_rsrc[1].start,
+				   awacs_rsrc[1].end - awacs_rsrc[1].start + 1);
+		printk(KERN_ERR "dmasound: can't request Rx DMA resource !\n");
 		return -ENODEV;
 	}
 
-	if (!request_OF_resource(io, 2, " (rx dma)")) {
-		release_OF_resource(io, 0);
-		release_OF_resource(io, 1);
-		printk(KERN_ERR "dmasound: can't request RX DMA resource !\n");
-		return -ENODEV;
+	awacs_beep_dev = input_allocate_device();
+	if (!awacs_beep_dev) {
+		release_mem_region(awacs_rsrc[0].start,
+				   awacs_rsrc[0].end - awacs_rsrc[0].start + 1);
+		release_mem_region(awacs_rsrc[1].start,
+				   awacs_rsrc[1].end - awacs_rsrc[1].start + 1);
+		release_mem_region(awacs_rsrc[2].start,
+				   awacs_rsrc[2].end - awacs_rsrc[2].start + 1);
+		printk(KERN_ERR "dmasound: can't allocate input device !\n");
+		return -ENOMEM;
 	}
+
+	awacs_beep_dev->name = "dmasound beeper";
+	awacs_beep_dev->phys = "macio/input0";
+	awacs_beep_dev->id.bustype = BUS_HOST;
+	awacs_beep_dev->event = awacs_beep_event;
+	awacs_beep_dev->sndbit[0] = BIT(SND_BELL) | BIT(SND_TONE);
+	awacs_beep_dev->evbit[0] = BIT(EV_SND);
 
 	/* all OF versions I've seen use this value */
 	if (i2s_node)
-		i2s = ioremap(io->addrs[0].address, 0x1000);
+		i2s = ioremap(awacs_rsrc[0].start, 0x1000);
 	else
-		awacs = ioremap(io->addrs[0].address, 0x1000);
-	awacs_txdma = ioremap(io->addrs[1].address, 0x100);
-	awacs_rxdma = ioremap(io->addrs[2].address, 0x100);
+		awacs = ioremap(awacs_rsrc[0].start, 0x1000);
+	awacs_txdma = ioremap(awacs_rsrc[1].start, 0x100);
+	awacs_rxdma = ioremap(awacs_rsrc[2].start, 0x100);
 
 	/* first of all make sure that the chip is powered up....*/
 	pmac_call_feature(PMAC_FTR_SOUND_CHIP_ENABLE, io, 0, 1);
@@ -3059,9 +3076,9 @@ printk("dmasound_pmac: Awacs/Screamer Codec Mfct: %d Rev %d\n", mfg, rev);
 	if ((res=setup_beep()))
 		return res ;
 
-#ifdef CONFIG_PMAC_PBOOK
+#ifdef CONFIG_PM
 	pmu_register_sleep_notifier(&awacs_sleep_notifier);
-#endif /* CONFIG_PMAC_PBOOK */
+#endif /* CONFIG_PM */
 
 	/* Powerbooks have odd ways of enabling inputs such as
 	   an expansion-bay CD or sound from an internal modem
@@ -3082,9 +3099,10 @@ printk("dmasound_pmac: Awacs/Screamer Codec Mfct: %d Rev %d\n", mfg, rev);
 		struct device_node* mio;
 		macio_base = NULL;
 		for (mio = io->parent; mio; mio = mio->parent) {
-			if (strcmp(mio->name, "mac-io") == 0
-			    && mio->n_addrs > 0) {
-				macio_base = ioremap(mio->addrs[0].address, 0x40);
+			if (strcmp(mio->name, "mac-io") == 0) {
+				struct resource r;
+				if (of_address_to_resource(mio, 0, &r) == 0)
+					macio_base = ioremap(r.start, 0x40);
 				break;
 			}
 		}
@@ -3146,14 +3164,14 @@ printk("dmasound_pmac: Awacs/Screamer Codec Mfct: %d Rev %d\n", mfg, rev);
 	 * XXX: we should handle errors here, but that would mean
 	 * rewriting the whole init code.  later..
 	 */
-	input_register_device(&awacs_beep_dev);
+	input_register_device(awacs_beep_dev);
 
 	return dmasound_init();
 }
 
 static void __exit dmasound_awacs_cleanup(void)
 {
-	input_unregister_device(&awacs_beep_dev);
+	input_unregister_device(awacs_beep_dev);
 
 	switch (awacs_revision) {
 		case AWACS_TUMBLER:

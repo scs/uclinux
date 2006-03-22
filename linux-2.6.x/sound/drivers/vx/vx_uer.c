@@ -31,7 +31,7 @@
  * vx_modify_board_clock - tell the board that its clock has been modified
  * @sync: DSP needs to resynchronize its FIFO
  */
-static int vx_modify_board_clock(vx_core_t *chip, int sync)
+static int vx_modify_board_clock(struct vx_core *chip, int sync)
 {
 	struct vx_rmh rmh;
 
@@ -45,7 +45,7 @@ static int vx_modify_board_clock(vx_core_t *chip, int sync)
 /*
  * vx_modify_board_inputs - resync audio inputs
  */
-static int vx_modify_board_inputs(vx_core_t *chip)
+static int vx_modify_board_inputs(struct vx_core *chip)
 {
 	struct vx_rmh rmh;
 
@@ -59,7 +59,7 @@ static int vx_modify_board_inputs(vx_core_t *chip)
  * @index: the bit index
  * returns 0 or 1.
  */
-static int vx_read_one_cbit(vx_core_t *chip, int index)
+static int vx_read_one_cbit(struct vx_core *chip, int index)
 {
 	unsigned long flags;
 	int val;
@@ -82,7 +82,7 @@ static int vx_read_one_cbit(vx_core_t *chip, int index)
  * @index: the bit index
  * @val: bit value, 0 or 1
  */
-static void vx_write_one_cbit(vx_core_t *chip, int index, int val)
+static void vx_write_one_cbit(struct vx_core *chip, int index, int val)
 {
 	unsigned long flags;
 	val = !!val;	/* 0 or 1 */
@@ -104,7 +104,7 @@ static void vx_write_one_cbit(vx_core_t *chip, int index, int val)
  * returns the frequency of UER, or 0 if not sync,
  * or a negative error code.
  */
-static int vx_read_uer_status(vx_core_t *chip, int *mode)
+static int vx_read_uer_status(struct vx_core *chip, int *mode)
 {
 	int val, freq;
 
@@ -160,36 +160,26 @@ static int vx_read_uer_status(vx_core_t *chip, int *mode)
  *    default        : HexFreq = (dword) ((double) 28224000 / (double) (Frequency*4)) - 0x000001FF
  */
 
-static int vx_calc_clock_from_freq(vx_core_t *chip, int freq)
+static int vx_calc_clock_from_freq(struct vx_core *chip, int freq)
 {
-#define XX_FECH48000                    0x0000004B
-#define XX_FECH32000                    0x00000171
-#define XX_FECH24000                    0x0000024B
-#define XX_FECH16000                    0x00000371
-#define XX_FECH12000                    0x0000044B
-#define XX_FECH8000                     0x00000571
-#define XX_FECH44100                    0x0000007F
-#define XX_FECH29400                    0x0000016F
-#define XX_FECH22050                    0x0000027F
-#define XX_FECH14000                    0x000003EF
-#define XX_FECH11025                    0x0000047F
-#define XX_FECH7350                     0x000005BF
+	int hexfreq;
 
-	switch (freq) {
-	case 48000:     return XX_FECH48000;
-	case 44100:     return XX_FECH44100;
-	case 32000:     return XX_FECH32000;
-	case 29400:     return XX_FECH29400;
-	case 24000:     return XX_FECH24000;
-	case 22050:     return XX_FECH22050;
-	case 16000:     return XX_FECH16000;
-	case 14000:     return XX_FECH14000;
-	case 12000:     return XX_FECH12000;
-	case 11025:     return XX_FECH11025;
-	case 8000:      return XX_FECH8000;
-	case 7350:      return XX_FECH7350;
-	default:        return freq;   /* The value is already correct */
-	}
+	snd_assert(freq > 0, return 0);
+
+	hexfreq = (28224000 * 10) / freq;
+	hexfreq = (hexfreq + 5) / 10;
+
+	/* max freq = 55125 Hz */
+	snd_assert(hexfreq > 0x00000200, return 0);
+
+	if (hexfreq <= 0x03ff)
+		return hexfreq - 0x00000201;
+	if (hexfreq <= 0x07ff) 
+		return (hexfreq / 2) - 1;
+	if (hexfreq <= 0x0fff)
+		return (hexfreq / 4) + 0x000001ff;
+
+	return 0x5fe; 	/* min freq = 6893 Hz */
 }
 
 
@@ -197,7 +187,7 @@ static int vx_calc_clock_from_freq(vx_core_t *chip, int freq)
  * vx_change_clock_source - change the clock source
  * @source: the new source
  */
-static void vx_change_clock_source(vx_core_t *chip, int source)
+static void vx_change_clock_source(struct vx_core *chip, int source)
 {
 	unsigned long flags;
 
@@ -215,7 +205,7 @@ static void vx_change_clock_source(vx_core_t *chip, int source)
 /*
  * set the internal clock
  */
-void vx_set_internal_clock(vx_core_t *chip, unsigned int freq)
+void vx_set_internal_clock(struct vx_core *chip, unsigned int freq)
 {
 	int clock;
 	unsigned long flags;
@@ -238,7 +228,7 @@ void vx_set_internal_clock(vx_core_t *chip, unsigned int freq)
  * set the iec958 status bits
  * @bits: 32-bit status bits
  */
-void vx_set_iec958_status(vx_core_t *chip, unsigned int bits)
+void vx_set_iec958_status(struct vx_core *chip, unsigned int bits)
 {
 	int i;
 
@@ -253,7 +243,7 @@ void vx_set_iec958_status(vx_core_t *chip, unsigned int bits)
 /*
  * vx_set_clock - change the clock and audio source if necessary
  */
-int vx_set_clock(vx_core_t *chip, unsigned int freq)
+int vx_set_clock(struct vx_core *chip, unsigned int freq)
 {
 	int src_changed = 0;
 
@@ -295,7 +285,7 @@ int vx_set_clock(vx_core_t *chip, unsigned int freq)
 /*
  * vx_change_frequency - called from interrupt handler
  */
-int vx_change_frequency(vx_core_t *chip)
+int vx_change_frequency(struct vx_core *chip)
 {
 	int freq;
 

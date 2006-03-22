@@ -1,13 +1,3 @@
-# ===========================================================================
-# kbuild: Generic definitions
-# ===========================================================================
-
-# Standard vars
-
-comma   := ,
-empty   :=
-space   := $(empty) $(empty)
-
 # Backward compatibility - to be removed...
 extra-y	+= $(EXTRA_TARGETS)
 # Figure out what we need to build from the various variables
@@ -84,10 +74,6 @@ multi-objs-m	:= $(addprefix $(obj)/,$(multi-objs-m))
 subdir-ym	:= $(addprefix $(obj)/,$(subdir-ym))
 obj-dirs	:= $(addprefix $(obj)/,$(obj-dirs))
 
-# The temporary file to save gcc -MD generated dependencies must not
-# contain a comma
-depfile = $(subst $(comma),_,$(@D)/.$(@F).d)
-
 # These flags are needed for modversions and compiling, so we define them here
 # already
 # $(modname_flags) #defines KBUILD_MODNAME as the name of the module it will 
@@ -95,8 +81,10 @@ depfile = $(subst $(comma),_,$(@D)/.$(@F).d)
 # Note: It's possible that one object gets potentially linked into more
 #       than one module. In that case KBUILD_MODNAME will be set to foo_bar,
 #       where foo and bar are the name of the modules.
-basename_flags = -DKBUILD_BASENAME=$(subst $(comma),_,$(subst -,_,$(*F)))
-modname_flags  = $(if $(filter 1,$(words $(modname))),-DKBUILD_MODNAME=$(subst $(comma),_,$(subst -,_,$(modname))))
+name-fix = $(subst $(comma),_,$(subst -,_,$1))
+basename_flags = -D"KBUILD_BASENAME=KBUILD_STR($(call name-fix,$(*F)))"
+modname_flags  = $(if $(filter 1,$(words $(modname))),\
+                 -D"KBUILD_MODNAME=KBUILD_STR($(call name-fix,$(modname)))")
 
 _c_flags       = $(CFLAGS) $(EXTRA_CFLAGS) $(CFLAGS_$(*F).o)
 _a_flags       = $(AFLAGS) $(EXTRA_AFLAGS) $(AFLAGS_$(*F).o)
@@ -127,7 +115,7 @@ endif
 
 c_flags        = -Wp,-MD,$(depfile) $(NOSTDINC_FLAGS) $(CPPFLAGS) \
 		 $(__c_flags) $(modkern_cflags) \
-		 $(basename_flags) $(modname_flags)
+		 -D"KBUILD_STR(s)=\#s" $(basename_flags) $(modname_flags)
 
 a_flags        = -Wp,-MD,$(depfile) $(NOSTDINC_FLAGS) $(CPPFLAGS) \
 		 $(__a_flags) $(modkern_aflags)
@@ -179,89 +167,4 @@ cmd_objcopy = $(OBJCOPY) $(OBJCOPYFLAGS) $(OBJCOPYFLAGS_$(@F)) $< $@
 quiet_cmd_gzip = GZIP    $@
 cmd_gzip = gzip -f -9 < $< > $@
 
-# ===========================================================================
-# Generic stuff
-# ===========================================================================
-
-ifneq ($(KBUILD_NOCMDDEP),1)
-# Check if both arguments has same arguments. Result in empty string if equal
-# User may override this check using make KBUILD_NOCMDDEP=1
-arg-check = $(strip $(filter-out $(1), $(2)) $(filter-out $(2), $(1)) )
-
-endif
-
-# echo command. Short version is $(quiet) equals quiet, otherwise full command
-echo-cmd = $(if $($(quiet)cmd_$(1)), \
-	echo '  $(subst ','\'',$($(quiet)cmd_$(1)))';)
-
-# function to only execute the passed command if necessary
-# >'< substitution is for echo to work, >$< substitution to preserve $ when reloading .cmd file
-# note: when using inline perl scripts [perl -e '...$$t=1;...'] in $(cmd_xxx) double $$ your perl vars
-# 
-if_changed = $(if $(strip $? $(call arg-check, $(cmd_$(1)), $(cmd_$@)) ), \
-	@set -e; \
-	$(echo-cmd) \
-	$(cmd_$(1)); \
-	echo 'cmd_$@ := $(subst $$,$$$$,$(subst ','\'',$(cmd_$(1))))' > $(@D)/.$(@F).cmd)
-
-
-# execute the command and also postprocess generated .d dependencies
-# file
-
-if_changed_dep = $(if $(strip $? $(filter-out FORCE $(wildcard $^),$^)\
-	$(call arg-check, $(cmd_$(1)), $(cmd_$@)) ),                  \
-	@set -e; \
-	$(echo-cmd) \
-	$(cmd_$(1)); \
-	scripts/basic/fixdep $(depfile) $@ '$(subst $$,$$$$,$(subst ','\'',$(cmd_$(1))))' > $(@D)/.$(@F).tmp; \
-	rm -f $(depfile); \
-	mv -f $(@D)/.$(@F).tmp $(@D)/.$(@F).cmd)
-
-# Usage: $(call if_changed_rule,foo)
-# will check if $(cmd_foo) changed, or any of the prequisites changed,
-# and if so will execute $(rule_foo)
-
-if_changed_rule = $(if $(strip $? $(call arg-check, $(cmd_$(1)), $(cmd_$@)) ),\
-			@set -e; \
-			$(rule_$(1)))
-
-# If quiet is set, only print short version of command
-
-cmd = @$(if $($(quiet)cmd_$(1)),echo '  $(subst ','\'',$($(quiet)cmd_$(1)))' &&) $(cmd_$(1))
-
-#	$(call descend,<dir>,<target>)
-#	Recursively call a sub-make in <dir> with target <target> 
-# Usage is deprecated, because make do not see this as an invocation of make.
-descend =$(Q)$(MAKE) -f $(if $(KBUILD_SRC),$(srctree)/)scripts/Makefile.build obj=$(1) $(2)
-
-# Shorthand for $(Q)$(MAKE) -f scripts/Makefile.build obj=
-# Usage:
-# $(Q)$(MAKE) $(build)=dir
-build := -f $(if $(KBUILD_SRC),$(srctree)/)scripts/Makefile.build obj
-
-# filechk is used to check if the content of a generated file is updated.
-# Sample usage:
-# define filechk_sample
-#	echo $KERNELRELEASE
-# endef
-# version.h : Makefile
-#	$(call filechk,sample)
-# The rule defined shall write to stdout the content of the new file.
-# The existing file will be compared with the new one.
-# - If no file exist it is created
-# - If the content differ the new file is used
-# - If they are equal no change, and no timestamp update
-
-define filechk
-	$(Q)set -e;				\
-	echo '  CHK     $@';			\
-	mkdir -p $(dir $@);			\
-	$(filechk_$(1)) $(2) > $@.tmp;		\
-	if [ -r $@ ] && cmp -s $@ $@.tmp; then	\
-		rm -f $@.tmp;			\
-	else					\
-		echo '  UPD     $@';		\
-		mv -f $@.tmp $@;		\
-	fi
-endef
 

@@ -5,10 +5,8 @@
 #undef  DO_TIMINGS
 
 #include <linux/module.h>
-#include <linux/version.h>
 
 #ifdef __KERNEL__
-#include <linux/utsname.h>
 #include <linux/string.h>
 #include <linux/fs.h>
 #include <asm/dma.h>
@@ -19,9 +17,6 @@
 #include <linux/ioport.h>
 #include <asm/page.h>
 #include <asm/system.h>
-#ifdef __alpha__
-#include <asm/segment.h>
-#endif
 #include <linux/vmalloc.h>
 #include <asm/uaccess.h>
 #include <linux/poll.h>
