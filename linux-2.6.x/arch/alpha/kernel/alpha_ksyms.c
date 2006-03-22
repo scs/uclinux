@@ -40,7 +40,6 @@
 #include <asm/unistd.h>
 
 extern struct hwrpb_struct *hwrpb;
-extern void dump_thread(struct pt_regs *, struct user *);
 extern spinlock_t rtc_lock;
 
 /* these are C runtime functions with special calling conventions: */
@@ -175,7 +174,6 @@ EXPORT_SYMBOL(up);
  */
 
 #ifdef CONFIG_SMP
-EXPORT_SYMBOL(synchronize_irq);
 EXPORT_SYMBOL(flush_tlb_mm);
 EXPORT_SYMBOL(flush_tlb_range);
 EXPORT_SYMBOL(flush_tlb_page);
@@ -185,15 +183,6 @@ EXPORT_SYMBOL(smp_num_cpus);
 EXPORT_SYMBOL(smp_call_function);
 EXPORT_SYMBOL(smp_call_function_on_cpu);
 EXPORT_SYMBOL(_atomic_dec_and_lock);
-#ifdef CONFIG_DEBUG_SPINLOCK
-EXPORT_SYMBOL(_raw_spin_unlock);
-EXPORT_SYMBOL(debug_spin_lock);
-EXPORT_SYMBOL(debug_spin_trylock);
-#endif
-#ifdef CONFIG_DEBUG_RWLOCK
-EXPORT_SYMBOL(_raw_write_lock);
-EXPORT_SYMBOL(_raw_read_lock);
-#endif
 EXPORT_SYMBOL(cpu_present_mask);
 #endif /* CONFIG_SMP */
 

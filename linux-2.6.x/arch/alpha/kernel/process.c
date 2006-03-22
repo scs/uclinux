@@ -43,21 +43,22 @@
 #include "proto.h"
 #include "pci_impl.h"
 
-void default_idle(void)
-{
-	barrier();
-}
+/*
+ * Power off function, if any
+ */
+void (*pm_power_off)(void) = machine_power_off;
 
 void
 cpu_idle(void)
 {
+	set_thread_flag(TIF_POLLING_NRFLAG);
+
 	while (1) {
-		void (*idle)(void) = default_idle;
 		/* FIXME -- EV6 and LCA45 know how to power down
 		   the CPU.  */
 
 		while (!need_resched())
-			idle();
+			cpu_relax();
 		schedule();
 	}
 }
@@ -127,6 +128,10 @@ common_shutdown_1(void *generic_ptr)
 	/* If booted from SRM, reset some of the original environment. */
 	if (alpha_using_srm) {
 #ifdef CONFIG_DUMMY_CONSOLE
+		/* If we've gotten here after SysRq-b, leave interrupt
+		   context before taking over the console. */
+		if (in_interrupt())
+			irq_exit();
 		/* This has the effect of resetting the VGA video origin.  */
 		take_over_console(&dummy_con, 0, MAX_NR_CONSOLES-1, 1);
 #endif
@@ -165,7 +170,6 @@ machine_restart(char *restart_cmd)
 	common_shutdown(LINUX_REBOOT_CMD_RESTART, restart_cmd);
 }
 
-EXPORT_SYMBOL(machine_restart);
 
 void
 machine_halt(void)
@@ -173,7 +177,6 @@ machine_halt(void)
 	common_shutdown(LINUX_REBOOT_CMD_HALT, NULL);
 }
 
-EXPORT_SYMBOL(machine_halt);
 
 void
 machine_power_off(void)
@@ -181,7 +184,6 @@ machine_power_off(void)
 	common_shutdown(LINUX_REBOOT_CMD_POWER_OFF, NULL);
 }
 
-EXPORT_SYMBOL(machine_power_off);
 
 /* Used by sysrq-p, among others.  I don't believe r9-r15 are ever
    saved in the context it's used.  */
@@ -274,7 +276,7 @@ copy_thread(int nr, unsigned long clone_flags, unsigned long usp,
 {
 	extern void ret_from_fork(void);
 
-	struct thread_info *childti = p->thread_info;
+	struct thread_info *childti = task_thread_info(p);
 	struct pt_regs * childregs;
 	struct switch_stack * childstack, *stack;
 	unsigned long stack_offset, settls;
@@ -283,7 +285,7 @@ copy_thread(int nr, unsigned long clone_flags, unsigned long usp,
 	if (!(regs->ps & 8))
 		stack_offset = (PAGE_SIZE-1) & (unsigned long) regs;
 	childregs = (struct pt_regs *)
-	  (stack_offset + PAGE_SIZE + (long) childti);
+	  (stack_offset + PAGE_SIZE + task_stack_page(p));
 		
 	*childregs = *regs;
 	settls = regs->r20;
@@ -426,30 +428,15 @@ dump_elf_thread(elf_greg_t *dest, struct pt_regs *pt, struct thread_info *ti)
 int
 dump_elf_task(elf_greg_t *dest, struct task_struct *task)
 {
-	struct thread_info *ti;
-	struct pt_regs *pt;
-
-	ti = task->thread_info;
-	pt = (struct pt_regs *)((unsigned long)ti + 2*PAGE_SIZE) - 1;
-
-	dump_elf_thread(dest, pt, ti);
-
+	dump_elf_thread(dest, task_pt_regs(task), task_thread_info(task));
 	return 1;
 }
 
 int
 dump_elf_task_fp(elf_fpreg_t *dest, struct task_struct *task)
 {
-	struct thread_info *ti;
-	struct pt_regs *pt;
-	struct switch_stack *sw;
-
-	ti = task->thread_info;
-	pt = (struct pt_regs *)((unsigned long)ti + 2*PAGE_SIZE) - 1;
-	sw = (struct switch_stack *)pt - 1;
-
+	struct switch_stack *sw = (struct switch_stack *)task_pt_regs(task) - 1;
 	memcpy(dest, sw->fp, 32 * 8);
-
 	return 1;
 }
 
@@ -490,8 +477,8 @@ out:
 unsigned long
 thread_saved_pc(task_t *t)
 {
-	unsigned long base = (unsigned long)t->thread_info;
-	unsigned long fp, sp = t->thread_info->pcb.ksp;
+	unsigned long base = (unsigned long)task_stack_page(t);
+	unsigned long fp, sp = task_thread_info(t)->pcb.ksp;
 
 	if (sp > base && sp+6*8 < base + 16*1024) {
 		fp = ((unsigned long*)sp)[6];
@@ -521,7 +508,7 @@ get_wchan(struct task_struct *p)
 
 	pc = thread_saved_pc(p);
 	if (in_sched_functions(pc)) {
-		schedule_frame = ((unsigned long *)p->thread_info->pcb.ksp)[6];
+		schedule_frame = ((unsigned long *)task_thread_info(p)->pcb.ksp)[6];
 		return ((unsigned long *)schedule_frame)[12];
 	}
 	return pc;

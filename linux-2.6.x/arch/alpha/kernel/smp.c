@@ -73,9 +73,6 @@ cpumask_t cpu_online_map;
 
 EXPORT_SYMBOL(cpu_online_map);
 
-/* cpus reported in the hwrpb */
-static unsigned long hwrpb_cpu_present_mask __initdata = 0;
-
 int smp_num_probed;		/* Internal processor count */
 int smp_num_cpus = 1;		/* Number that came online.  */
 
@@ -302,7 +299,7 @@ secondary_cpu_start(int cpuid, struct task_struct *idle)
 		 + hwrpb->processor_offset
 		 + cpuid * hwrpb->processor_size);
 	hwpcb = (struct pcb_struct *) cpu->hwpcb;
-	ipcb = &idle->thread_info->pcb;
+	ipcb = &task_thread_info(idle)->pcb;
 
 	/* Initialize the CPU's HWPCB to something just good enough for
 	   us to get started.  Immediately after starting, we'll swpctx
@@ -442,7 +439,7 @@ setup_smp(void)
 			if ((cpu->flags & 0x1cc) == 0x1cc) {
 				smp_num_probed++;
 				/* Assume here that "whami" == index */
-				hwrpb_cpu_present_mask |= (1UL << i);
+				cpu_set(i, cpu_possible_map);
 				cpu->pal_revision = boot_cpu_palrev;
 			}
 
@@ -453,12 +450,12 @@ setup_smp(void)
 		}
 	} else {
 		smp_num_probed = 1;
-		hwrpb_cpu_present_mask = (1UL << boot_cpuid);
+		cpu_set(boot_cpuid, cpu_possible_map);
 	}
 	cpu_present_mask = cpumask_of_cpu(boot_cpuid);
 
 	printk(KERN_INFO "SMP: %d CPUs probed -- cpu_present_mask = %lx\n",
-	       smp_num_probed, hwrpb_cpu_present_mask);
+	       smp_num_probed, cpu_possible_map.bits[0]);
 }
 
 /*
@@ -467,8 +464,6 @@ setup_smp(void)
 void __init
 smp_prepare_cpus(unsigned int max_cpus)
 {
-	int cpu_count, i;
-
 	/* Take care of some initial bookkeeping.  */
 	memset(ipi_data, 0, sizeof(ipi_data));
 
@@ -486,19 +481,7 @@ smp_prepare_cpus(unsigned int max_cpus)
 
 	printk(KERN_INFO "SMP starting up secondaries.\n");
 
-	cpu_count = 1;
-	for (i = 0; (i < NR_CPUS) && (cpu_count < max_cpus); i++) {
-		if (i == boot_cpuid)
-			continue;
-
-		if (((hwrpb_cpu_present_mask >> i) & 1) == 0)
-			continue;
-
-		cpu_set(i, cpu_possible_map);
-		cpu_count++;
-	}
-
-	smp_num_cpus = cpu_count;
+	smp_num_cpus = smp_num_probed;
 }
 
 void __devinit
@@ -989,175 +972,3 @@ flush_icache_user_range(struct vm_area_struct *vma, struct page *page,
 
 	preempt_enable();
 }
-
-#ifdef CONFIG_DEBUG_SPINLOCK
-void
-_raw_spin_unlock(spinlock_t * lock)
-{
-	mb();
-	lock->lock = 0;
-
-	lock->on_cpu = -1;
-	lock->previous = NULL;
-	lock->task = NULL;
-	lock->base_file = "none";
-	lock->line_no = 0;
-}
-
-void
-debug_spin_lock(spinlock_t * lock, const char *base_file, int line_no)
-{
-	long tmp;
-	long stuck;
-	void *inline_pc = __builtin_return_address(0);
-	unsigned long started = jiffies;
-	int printed = 0;
-	int cpu = smp_processor_id();
-
-	stuck = 1L << 30;
- try_again:
-
-	/* Use sub-sections to put the actual loop at the end
-	   of this object file's text section so as to perfect
-	   branch prediction.  */
-	__asm__ __volatile__(
-	"1:	ldl_l	%0,%1\n"
-	"	subq	%2,1,%2\n"
-	"	blbs	%0,2f\n"
-	"	or	%0,1,%0\n"
-	"	stl_c	%0,%1\n"
-	"	beq	%0,3f\n"
-	"4:	mb\n"
-	".subsection 2\n"
-	"2:	ldl	%0,%1\n"
-	"	subq	%2,1,%2\n"
-	"3:	blt	%2,4b\n"
-	"	blbs	%0,2b\n"
-	"	br	1b\n"
-	".previous"
-	: "=r" (tmp), "=m" (lock->lock), "=r" (stuck)
-	: "1" (lock->lock), "2" (stuck) : "memory");
-
-	if (stuck < 0) {
-		printk(KERN_WARNING
-		       "%s:%d spinlock stuck in %s at %p(%d)"
-		       " owner %s at %p(%d) %s:%d\n",
-		       base_file, line_no,
-		       current->comm, inline_pc, cpu,
-		       lock->task->comm, lock->previous,
-		       lock->on_cpu, lock->base_file, lock->line_no);
-		stuck = 1L << 36;
-		printed = 1;
-		goto try_again;
-	}
-
-	/* Exiting.  Got the lock.  */
-	lock->on_cpu = cpu;
-	lock->previous = inline_pc;
-	lock->task = current;
-	lock->base_file = base_file;
-	lock->line_no = line_no;
-
-	if (printed) {
-		printk(KERN_WARNING
-		       "%s:%d spinlock grabbed in %s at %p(%d) %ld ticks\n",
-		       base_file, line_no, current->comm, inline_pc,
-		       cpu, jiffies - started);
-	}
-}
-
-int
-debug_spin_trylock(spinlock_t * lock, const char *base_file, int line_no)
-{
-	int ret;
-	if ((ret = !test_and_set_bit(0, lock))) {
-		lock->on_cpu = smp_processor_id();
-		lock->previous = __builtin_return_address(0);
-		lock->task = current;
-	} else {
-		lock->base_file = base_file;
-		lock->line_no = line_no;
-	}
-	return ret;
-}
-#endif /* CONFIG_DEBUG_SPINLOCK */
-
-#ifdef CONFIG_DEBUG_RWLOCK
-void _raw_write_lock(rwlock_t * lock)
-{
-	long regx, regy;
-	int stuck_lock, stuck_reader;
-	void *inline_pc = __builtin_return_address(0);
-
- try_again:
-
-	stuck_lock = 1<<30;
-	stuck_reader = 1<<30;
-
-	__asm__ __volatile__(
-	"1:	ldl_l	%1,%0\n"
-	"	blbs	%1,6f\n"
-	"	blt	%1,8f\n"
-	"	mov	1,%1\n"
-	"	stl_c	%1,%0\n"
-	"	beq	%1,6f\n"
-	"4:	mb\n"
-	".subsection 2\n"
-	"6:	blt	%3,4b	# debug\n"
-	"	subl	%3,1,%3	# debug\n"
-	"	ldl	%1,%0\n"
-	"	blbs	%1,6b\n"
-	"8:	blt	%4,4b	# debug\n"
-	"	subl	%4,1,%4	# debug\n"
-	"	ldl	%1,%0\n"
-	"	blt	%1,8b\n"
-	"	br	1b\n"
-	".previous"
-	: "=m" (*(volatile int *)lock), "=&r" (regx), "=&r" (regy),
-	  "=&r" (stuck_lock), "=&r" (stuck_reader)
-	: "0" (*(volatile int *)lock), "3" (stuck_lock), "4" (stuck_reader) : "memory");
-
-	if (stuck_lock < 0) {
-		printk(KERN_WARNING "write_lock stuck at %p\n", inline_pc);
-		goto try_again;
-	}
-	if (stuck_reader < 0) {
-		printk(KERN_WARNING "write_lock stuck on readers at %p\n",
-		       inline_pc);
-		goto try_again;
-	}
-}
-
-void _raw_read_lock(rwlock_t * lock)
-{
-	long regx;
-	int stuck_lock;
-	void *inline_pc = __builtin_return_address(0);
-
- try_again:
-
-	stuck_lock = 1<<30;
-
-	__asm__ __volatile__(
-	"1:	ldl_l	%1,%0;"
-	"	blbs	%1,6f;"
-	"	subl	%1,2,%1;"
-	"	stl_c	%1,%0;"
-	"	beq	%1,6f;"
-	"4:	mb\n"
-	".subsection 2\n"
-	"6:	ldl	%1,%0;"
-	"	blt	%2,4b	# debug\n"
-	"	subl	%2,1,%2	# debug\n"
-	"	blbs	%1,6b;"
-	"	br	1b\n"
-	".previous"
-	: "=m" (*(volatile int *)lock), "=&r" (regx), "=&r" (stuck_lock)
-	: "0" (*(volatile int *)lock), "2" (stuck_lock) : "memory");
-
-	if (stuck_lock < 0) {
-		printk(KERN_WARNING "read_lock stuck at %p\n", inline_pc);
-		goto try_again;
-	}
-}
-#endif /* CONFIG_DEBUG_RWLOCK */

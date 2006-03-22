@@ -5,7 +5,7 @@
  */
 
 #include <linux/config.h>
-#include <asm/asm_offsets.h>
+#include <asm/asm-offsets.h>
 #include <asm/thread_info.h>
 #include <asm/pal.h>
 #include <asm/errno.h>
@@ -196,6 +196,7 @@ entUna:
 	stq	$26, 208($sp)
 	stq	$27, 216($sp)
 	stq	$28, 224($sp)
+	mov	$sp, $19
 	stq	$gp, 232($sp)
 	lda	$8, 0x3fff
 	stq	$31, 248($sp)
@@ -878,17 +879,19 @@ sys_getxpid:
 
 	/* See linux/kernel/timer.c sys_getppid for discussion
 	   about this loop.  */
-	ldq	$3, TASK_REAL_PARENT($2)
-1:	ldl	$1, TASK_TGID($3)
+	ldq	$3, TASK_GROUP_LEADER($2)
+	ldq	$4, TASK_REAL_PARENT($3)
+	ldl	$0, TASK_TGID($2)
+1:	ldl	$1, TASK_TGID($4)
 #ifdef CONFIG_SMP
-	mov	$3, $4
+	mov	$4, $5
 	mb
-	ldq	$3, TASK_REAL_PARENT($2)
-	cmpeq	$3, $4, $4
-	beq	$4, 1b
+	ldq	$3, TASK_GROUP_LEADER($2)
+	ldq	$4, TASK_REAL_PARENT($3)
+	cmpeq	$4, $5, $5
+	beq	$5, 1b
 #endif
 	stq	$1, 80($sp)
-	ldl	$0, TASK_TGID($2)
 	ret
 .end sys_getxpid
 
