@@ -12,16 +12,17 @@
 #warning Skipping snprintf since no vsnprintf!
 #else
 
-int snprintf(char *__restrict buf, size_t size,
+int __snprintf(char *__restrict buf, size_t size,
 			 const char * __restrict format, ...)
 {
 	va_list arg;
 	int rv;
 
 	va_start(arg, format);
-	rv = vsnprintf(buf, size, format, arg);
+	rv = __vsnprintf(buf, size, format, arg);
 	va_end(arg);
 	return rv;
 }
+weak_alias (__snprintf, snprintf)
 
 #endif

@@ -857,6 +857,15 @@ extern void funlockfile (FILE *__stream) __THROW;
 
 __END_DECLS
 
+/* Now define the internal interfaces.  */
+extern int __snprintf (char *__restrict __s, size_t __maxlen,
+		       const char *__restrict __format, ...)
+     __attribute__ ((__format__ (__printf__, 3, 4)));
+extern int __vsnprintf (char *__restrict __s, size_t __maxlen,
+			const char *__restrict __format, __gnuc_va_list __arg)
+     __attribute__ ((__format__ (__printf__, 3, 0)));
+
+
 #endif /* <stdio.h> included.  */
 
 #endif /* !_STDIO_H */

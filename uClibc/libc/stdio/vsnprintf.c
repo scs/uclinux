@@ -14,7 +14,7 @@
 
 #ifdef __STDIO_BUFFERS
 
-int vsnprintf(char *__restrict buf, size_t size,
+int __vsnprintf(char *__restrict buf, size_t size,
 			  const char * __restrict format, va_list arg)
 {
 	FILE f;
@@ -75,7 +75,7 @@ typedef struct {
 	unsigned char *bufpos;
 } __FILE_vsnprintf;
 
-int vsnprintf(char *__restrict buf, size_t size,
+int __vsnprintf(char *__restrict buf, size_t size,
 			  const char * __restrict format, va_list arg)
 {
 	__FILE_vsnprintf f;
@@ -163,7 +163,7 @@ static ssize_t snpf_write(register void *cookie, const char *buf,
 
 #undef COOKIE
 
-int vsnprintf(char *__restrict buf, size_t size,
+int __vsnprintf(char *__restrict buf, size_t size,
 			  const char * __restrict format, va_list arg)
 {
 	FILE f;
@@ -208,3 +208,4 @@ int vsnprintf(char *__restrict buf, size_t size,
 #error WHOA! __STDIO_HAS_VSNPRINTF is defined!
 #endif
 #endif
+weak_alias (__vsnprintf, vsnprintf)
