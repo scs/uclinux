@@ -35,7 +35,7 @@ dma_set_mask(struct device *dev, u64 dma_mask)
 
 static inline void *
 dma_alloc_coherent(struct device *dev, size_t size, dma_addr_t *dma_handle,
-		   unsigned int __nocast flag)
+		   gfp_t flag)
 {
 	BUG_ON(dev->bus != &pci_bus_type);
 
@@ -168,7 +168,7 @@ dma_set_mask(struct device *dev, u64 dma_mask)
 
 static inline void *
 dma_alloc_coherent(struct device *dev, size_t size, dma_addr_t *dma_handle,
-		   unsigned int __nocast flag)
+		   gfp_t flag)
 {
 	BUG();
 	return NULL;
@@ -274,7 +274,7 @@ dma_get_cache_alignment(void)
 {
 	/* no easy way to get cache size on all processors, so return
 	 * the maximum possible, to be safe */
-	return (1 << L1_CACHE_SHIFT_MAX);
+	return (1 << INTERNODE_CACHE_SHIFT);
 }
 
 static inline void

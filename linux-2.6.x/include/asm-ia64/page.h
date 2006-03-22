@@ -13,6 +13,19 @@
 #include <asm/types.h>
 
 /*
+ * The top three bits of an IA64 address are its Region Number.
+ * Different regions are assigned to different purposes.
+ */
+#define RGN_SHIFT	(61)
+#define RGN_BASE(r)	(__IA64_UL_CONST(r)<<RGN_SHIFT)
+#define RGN_BITS	(RGN_BASE(-1))
+
+#define RGN_KERNEL	7	/* Identity mapped region */
+#define RGN_UNCACHED    6	/* Identity mapped I/O region */
+#define RGN_GATE	5	/* Gate page, Kernel text, etc */
+#define RGN_HPAGE	4	/* For Huge TLB pages */
+
+/*
  * PAGE_SHIFT determines the actual kernel page size.
  */
 #if defined(CONFIG_IA64_PAGE_SIZE_4KB)
@@ -34,12 +47,9 @@
 #define PERCPU_PAGE_SHIFT	16	/* log2() of max. size of per-CPU area */
 #define PERCPU_PAGE_SIZE	(__IA64_UL_CONST(1) << PERCPU_PAGE_SHIFT)
 
-#define RGN_MAP_LIMIT	((1UL << (4*PAGE_SHIFT - 12)) - PAGE_SIZE)	/* per region addr limit */
 
 #ifdef CONFIG_HUGETLB_PAGE
-# define REGION_HPAGE		(4UL)	/* note: this is hardcoded in reload_context()!*/
-# define REGION_SHIFT		61
-# define HPAGE_REGION_BASE	(REGION_HPAGE << REGION_SHIFT)
+# define HPAGE_REGION_BASE	RGN_BASE(RGN_HPAGE)
 # define HPAGE_SHIFT		hpage_shift
 # define HPAGE_SHIFT_DEFAULT	28	/* check ia64 SDM for architecture supported size */
 # define HPAGE_SIZE		(__IA64_UL_CONST(1) << HPAGE_SHIFT)
@@ -90,24 +100,26 @@ do {						\
 
 #ifdef CONFIG_VIRTUAL_MEM_MAP
 extern int ia64_pfn_valid (unsigned long pfn);
-#else
+#elif defined(CONFIG_FLATMEM)
 # define ia64_pfn_valid(pfn) 1
 #endif
 
-#ifndef CONFIG_DISCONTIGMEM
+#ifdef CONFIG_FLATMEM
 # define pfn_valid(pfn)		(((pfn) < max_mapnr) && ia64_pfn_valid(pfn))
 # define page_to_pfn(page)	((unsigned long) (page - mem_map))
 # define pfn_to_page(pfn)	(mem_map + (pfn))
-#else
+#elif defined(CONFIG_DISCONTIGMEM)
 extern struct page *vmem_map;
+extern unsigned long min_low_pfn;
 extern unsigned long max_low_pfn;
-# define pfn_valid(pfn)		(((pfn) < max_low_pfn) && ia64_pfn_valid(pfn))
+# define pfn_valid(pfn)		(((pfn) >= min_low_pfn) && ((pfn) < max_low_pfn) && ia64_pfn_valid(pfn))
 # define page_to_pfn(page)	((unsigned long) (page - vmem_map))
 # define pfn_to_page(pfn)	(vmem_map + (pfn))
 #endif
 
 #define page_to_phys(page)	(page_to_pfn(page) << PAGE_SHIFT)
 #define virt_to_page(kaddr)	pfn_to_page(__pa(kaddr) >> PAGE_SHIFT)
+#define pfn_to_kaddr(pfn)	__va((pfn) << PAGE_SHIFT)
 
 typedef union ia64_va {
 	struct {
@@ -130,16 +142,13 @@ typedef union ia64_va {
 #define REGION_NUMBER(x)	({ia64_va _v; _v.l = (long) (x); _v.f.reg;})
 #define REGION_OFFSET(x)	({ia64_va _v; _v.l = (long) (x); _v.f.off;})
 
-#define REGION_SIZE		REGION_NUMBER(1)
-#define REGION_KERNEL		7
-
 #ifdef CONFIG_HUGETLB_PAGE
 # define htlbpage_to_page(x)	(((unsigned long) REGION_NUMBER(x) << 61)			\
 				 | (REGION_OFFSET(x) >> (HPAGE_SHIFT-PAGE_SHIFT)))
 # define HUGETLB_PAGE_ORDER	(HPAGE_SHIFT - PAGE_SHIFT)
 # define is_hugepage_only_range(mm, addr, len)		\
-	 (REGION_NUMBER(addr) == REGION_HPAGE &&	\
-	  REGION_NUMBER((addr)+(len)-1) == REGION_HPAGE)
+	 (REGION_NUMBER(addr) == RGN_HPAGE &&	\
+	  REGION_NUMBER((addr)+(len)-1) == RGN_HPAGE)
 extern unsigned int hpage_shift;
 #endif
 
@@ -165,11 +174,17 @@ get_order (unsigned long size)
    */
   typedef struct { unsigned long pte; } pte_t;
   typedef struct { unsigned long pmd; } pmd_t;
+#ifdef CONFIG_PGTABLE_4
+  typedef struct { unsigned long pud; } pud_t;
+#endif
   typedef struct { unsigned long pgd; } pgd_t;
   typedef struct { unsigned long pgprot; } pgprot_t;
 
 # define pte_val(x)	((x).pte)
 # define pmd_val(x)	((x).pmd)
+#ifdef CONFIG_PGTABLE_4
+# define pud_val(x)	((x).pud)
+#endif
 # define pgd_val(x)	((x).pgd)
 # define pgprot_val(x)	((x).pgprot)
 
@@ -197,7 +212,7 @@ get_order (unsigned long size)
 # define __pgprot(x)	(x)
 #endif /* !STRICT_MM_TYPECHECKS */
 
-#define PAGE_OFFSET			__IA64_UL_CONST(0xe000000000000000)
+#define PAGE_OFFSET			RGN_BASE(RGN_KERNEL)
 
 #define VM_DATA_DEFAULT_FLAGS		(VM_READ | VM_WRITE |					\
 					 VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC |		\

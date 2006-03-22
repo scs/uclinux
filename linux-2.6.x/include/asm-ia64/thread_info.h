@@ -5,7 +5,9 @@
 #ifndef _ASM_IA64_THREAD_INFO_H
 #define _ASM_IA64_THREAD_INFO_H
 
-#include <asm/offsets.h>
+#ifndef ASM_OFFSETS_C
+#include <asm/asm-offsets.h>
+#endif
 #include <asm/processor.h>
 #include <asm/ptrace.h>
 
@@ -25,7 +27,7 @@ struct thread_info {
 	__u32 flags;			/* thread_info flags (see TIF_*) */
 	__u32 cpu;			/* current CPU */
 	mm_segment_t addr_limit;	/* user-level address space limit */
-	__s32 preempt_count;		/* 0=premptable, <0=BUG; will also serve as bh-counter */
+	int preempt_count;		/* 0=premptable, <0=BUG; will also serve as bh-counter */
 	struct restart_block restart_block;
 	struct {
 		int signo;
@@ -51,10 +53,24 @@ struct thread_info {
 	},					\
 }
 
+#ifndef ASM_OFFSETS_C
 /* how to get the thread information struct from C */
 #define current_thread_info()	((struct thread_info *) ((char *) current + IA64_TASK_SIZE))
 #define alloc_thread_info(tsk)	((struct thread_info *) ((char *) (tsk) + IA64_TASK_SIZE))
+#define task_thread_info(tsk)	((struct thread_info *) ((char *) (tsk) + IA64_TASK_SIZE))
+#else
+#define current_thread_info()	((struct thread_info *) 0)
+#define alloc_thread_info(tsk)	((struct thread_info *) 0)
+#define task_thread_info(tsk)	((struct thread_info *) 0)
+#endif
 #define free_thread_info(ti)	/* nothing */
+#define task_stack_page(tsk)	((void *)(tsk))
+
+#define __HAVE_THREAD_FUNCTIONS
+#define setup_thread_stack(p, org) \
+	*task_thread_info(p) = *task_thread_info(org); \
+	task_thread_info(p)->task = (p);
+#define end_of_stack(p) (unsigned long *)((void *)(p) + IA64_RBS_OFFSET)
 
 #define __HAVE_ARCH_TASK_STRUCT_ALLOCATOR
 #define alloc_task_struct()	((task_t *)__get_free_pages(GFP_KERNEL, KERNEL_STACK_SIZE_ORDER))
@@ -76,6 +92,8 @@ struct thread_info {
 #define TIF_SIGDELAYED		5	/* signal delayed from MCA/INIT/NMI/PMI context */
 #define TIF_POLLING_NRFLAG	16	/* true if poll_idle() is polling TIF_NEED_RESCHED */
 #define TIF_MEMDIE		17
+#define TIF_MCA_INIT		18	/* this task is processing MCA or INIT */
+#define TIF_DB_DISABLED		19	/* debug trap disabled for fsyscall */
 
 #define _TIF_SYSCALL_TRACE	(1 << TIF_SYSCALL_TRACE)
 #define _TIF_SYSCALL_AUDIT	(1 << TIF_SYSCALL_AUDIT)
@@ -83,8 +101,10 @@ struct thread_info {
 #define _TIF_NOTIFY_RESUME	(1 << TIF_NOTIFY_RESUME)
 #define _TIF_SIGPENDING		(1 << TIF_SIGPENDING)
 #define _TIF_NEED_RESCHED	(1 << TIF_NEED_RESCHED)
-#define _TIF_SIGDELAYED	(1 << TIF_SIGDELAYED)
+#define _TIF_SIGDELAYED		(1 << TIF_SIGDELAYED)
 #define _TIF_POLLING_NRFLAG	(1 << TIF_POLLING_NRFLAG)
+#define _TIF_MCA_INIT		(1 << TIF_MCA_INIT)
+#define _TIF_DB_DISABLED	(1 << TIF_DB_DISABLED)
 
 /* "work to do on user-return" bits */
 #define TIF_ALLWORK_MASK	(_TIF_NOTIFY_RESUME|_TIF_SIGPENDING|_TIF_NEED_RESCHED|_TIF_SYSCALL_TRACE|_TIF_SYSCALL_AUDIT|_TIF_SIGDELAYED)

@@ -59,13 +59,10 @@ typedef unsigned int u32;
 
 typedef signed long long s64;
 typedef unsigned long long u64;
-typedef u64 u_quad_t;
 
 /* Dma addresses are 32-bits wide.  */
 
 typedef u32 dma_addr_t;
-
-typedef unsigned short kmem_bufctl_t;
 
 #endif /* __ASSEMBLY__ */
 

@@ -67,12 +67,6 @@ static inline int ___range_ok(unsigned long addr, unsigned long size)
 #define access_ok(type,addr,size) (__range_ok((addr), (size)) == 0)
 #define __access_ok(addr,size) (__range_ok((addr), (size)) == 0)
 
-/* this function will go away soon - use access_ok() / __range_ok() instead */
-static inline int __deprecated verify_area(int type, const void * addr, unsigned long size)
-{
-	return __range_ok(addr, size);
-}
-
 /*
  * The exception table consists of pairs of addresses: the first is the
  * address of an instruction that is allowed to fault, and the second is
@@ -186,16 +180,16 @@ do {						\
 									\
 	switch (sizeof(*(ptr))) {					\
 	case 1:								\
-		__get_user_asm(__gu_err, __gu_val, ptr, "ub", "=r");	\
+		__get_user_asm(__gu_err, *(u8*)&__gu_val, ptr, "ub", "=r"); \
 		break;							\
 	case 2:								\
-		__get_user_asm(__gu_err, __gu_val, ptr, "uh", "=r");	\
+		__get_user_asm(__gu_err, *(u16*)&__gu_val, ptr, "uh", "=r"); \
 		break;							\
 	case 4:								\
-		__get_user_asm(__gu_err, __gu_val, ptr, "", "=r");	\
+		__get_user_asm(__gu_err, *(u32*)&__gu_val, ptr, "", "=r"); \
 		break;							\
 	case 8:								\
-		__get_user_asm(__gu_err, __gu_val, ptr, "d", "=e");	\
+		__get_user_asm(__gu_err, *(u64*)&__gu_val, ptr, "d", "=e"); \
 		break;							\
 	default:							\
 		__gu_err = __get_user_bad();				\
@@ -311,8 +305,5 @@ extern long strnlen_user(const char *src, long count);
 #define strlen_user(str) strnlen_user(str, 32767)
 
 extern unsigned long search_exception_table(unsigned long addr);
-
-#define copy_to_user_page(vma, page, vaddr, dst, src, len)	memcpy(dst, src, len)
-#define copy_from_user_page(vma, page, vaddr, dst, src, len)	memcpy(dst, src, len)
 
 #endif /* _ASM_UACCESS_H */

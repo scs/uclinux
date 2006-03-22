@@ -18,8 +18,9 @@
 #define PCIIO_ASIC_TYPE_PIC	2
 #define PCIIO_ASIC_TYPE_TIOCP	3
 #define PCIIO_ASIC_TYPE_TIOCA	4
+#define PCIIO_ASIC_TYPE_TIOCE	5
 
-#define PCIIO_ASIC_MAX_TYPES	5
+#define PCIIO_ASIC_MAX_TYPES	6
 
 /*
  * Common pciio bus provider data.  There should be one of these as the
@@ -28,15 +29,17 @@
  */
 
 struct pcibus_bussoft {
-	uint32_t		bs_asic_type;	/* chipset type */
-	uint32_t		bs_xid;		/* xwidget id */
-	uint64_t		bs_persist_busnum; /* Persistent Bus Number */
-	uint64_t		bs_legacy_io;	/* legacy io pio addr */
-	uint64_t		bs_legacy_mem;	/* legacy mem pio addr */
-	uint64_t		bs_base;	/* widget base */
+	u32		bs_asic_type;	/* chipset type */
+	u32		bs_xid;		/* xwidget id */
+	u32		bs_persist_busnum; /* Persistent Bus Number */
+	u32		bs_persist_segment; /* Segment Number */
+	u64		bs_legacy_io;	/* legacy io pio addr */
+	u64		bs_legacy_mem;	/* legacy mem pio addr */
+	u64		bs_base;	/* widget base */
 	struct xwidget_info	*bs_xwidget_info;
 };
 
+struct pci_controller;
 /*
  * SN pci bus indirection
  */
@@ -45,7 +48,9 @@ struct sn_pcibus_provider {
 	dma_addr_t	(*dma_map)(struct pci_dev *, unsigned long, size_t);
 	dma_addr_t	(*dma_map_consistent)(struct pci_dev *, unsigned long, size_t);
 	void		(*dma_unmap)(struct pci_dev *, dma_addr_t, int);
-	void *		(*bus_fixup)(struct pcibus_bussoft *);
+	void *		(*bus_fixup)(struct pcibus_bussoft *, struct pci_controller *);
+ 	void		(*force_interrupt)(struct sn_irq_info *);
+ 	void		(*target_interrupt)(struct sn_irq_info *);
 };
 
 extern struct sn_pcibus_provider *sn_pci_provider[];

@@ -98,6 +98,17 @@ const char *acpi_get_sysname (void);
 int acpi_request_vector (u32 int_type);
 int acpi_gsi_to_irq (u32 gsi, unsigned int *irq);
 
+/*
+ * Record the cpei override flag and current logical cpu. This is
+ * useful for CPU removal.
+ */
+extern unsigned int can_cpei_retarget(void);
+extern unsigned int is_cpu_cpei_target(unsigned int cpu);
+extern void set_cpei_target_cpu(unsigned int cpu);
+extern unsigned int get_cpei_target_cpu(void);
+extern void prefill_possible_map(void);
+extern int additional_cpus;
+
 #ifdef CONFIG_ACPI_NUMA
 /* Proximity bitmap length; _PXM is at most 255 (8 bit)*/
 #define MAX_PXM_DOMAINS (256)
@@ -106,6 +117,11 @@ extern int __initdata nid_to_pxm_map[MAX_NUMNODES];
 #endif
 
 extern u16 ia64_acpiid_to_sapicid[];
+
+/*
+ * Refer Intel ACPI _PDC support document for bit definitions
+ */
+#define ACPI_PDC_EST_CAPABILITY_SMP     0x8
 
 #endif /*__KERNEL__*/
 

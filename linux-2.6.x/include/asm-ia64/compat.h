@@ -13,10 +13,10 @@ typedef s32		compat_time_t;
 typedef s32		compat_clock_t;
 typedef s32		compat_key_t;
 typedef s32		compat_pid_t;
-typedef u16		compat_uid_t;
-typedef u16		compat_gid_t;
-typedef u32		compat_uid32_t;
-typedef u32		compat_gid32_t;
+typedef u16		__compat_uid_t;
+typedef u16		__compat_gid_t;
+typedef u32		__compat_uid32_t;
+typedef u32		__compat_gid32_t;
 typedef u16		compat_mode_t;
 typedef u32		compat_ino_t;
 typedef u16		compat_dev_t;
@@ -27,6 +27,7 @@ typedef u16		compat_ipc_pid_t;
 typedef s32		compat_daddr_t;
 typedef u32		compat_caddr_t;
 typedef __kernel_fsid_t	compat_fsid_t;
+typedef s32		compat_timer_t;
 
 typedef s32		compat_int_t;
 typedef s32		compat_long_t;
@@ -49,8 +50,8 @@ struct compat_stat {
 	compat_ino_t	st_ino;
 	compat_mode_t	st_mode;
 	compat_nlink_t	st_nlink;
-	compat_uid_t	st_uid;
-	compat_gid_t	st_gid;
+	__compat_uid_t	st_uid;
+	__compat_gid_t	st_gid;
 	compat_dev_t	st_rdev;
 	u16		__pad2;
 	u32		st_size;
@@ -119,10 +120,10 @@ typedef u32		compat_sigset_word;
 
 struct compat_ipc64_perm {
 	compat_key_t key;
-	compat_uid32_t uid;
-	compat_gid32_t gid;
-	compat_uid32_t cuid;
-	compat_gid32_t cgid;
+	__compat_uid32_t uid;
+	__compat_gid32_t gid;
+	__compat_uid32_t cuid;
+	__compat_gid32_t cgid;
 	unsigned short mode;
 	unsigned short __pad1;
 	unsigned short seq;
@@ -191,7 +192,7 @@ compat_ptr (compat_uptr_t uptr)
 static __inline__ void __user *
 compat_alloc_user_space (long len)
 {
-	struct pt_regs *regs = ia64_task_regs(current);
+	struct pt_regs *regs = task_pt_regs(current);
 	return (void __user *) (((regs->r12 & 0xffffffff) & -16) - len);
 }
 

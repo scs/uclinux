@@ -13,12 +13,6 @@
 
 #include <asm/setup.h>
 
-#if !defined(CONFIG_SMALL_TASKS) && PAGE_SHIFT < 13
-#define KTHREAD_SIZE (8192)
-#else
-#define KTHREAD_SIZE PAGE_SIZE
-#endif
- 
 #ifndef __ASSEMBLY__
  
 #define get_user_page(vaddr)		__get_free_page(GFP_KERNEL)
@@ -54,20 +48,6 @@ typedef struct { unsigned long pgprot; } pgprot_t;
 /* to align the pointer to the (next) page boundary */
 #define PAGE_ALIGN(addr)	(((addr)+PAGE_SIZE-1)&PAGE_MASK)
 
-/* Pure 2^n version of get_order */
-extern __inline__ int get_order(unsigned long size)
-{
-	int order;
-
-	size = (size-1) >> (PAGE_SHIFT-1);
-	order = -1;
-	do {
-		size >>= 1;
-		order++;
-	} while (size);
-	return order;
-}
-
 extern unsigned long memory_start;
 extern unsigned long memory_end;
 
@@ -100,5 +80,7 @@ extern unsigned long memory_end;
 #endif /* __ASSEMBLY__ */
 
 #endif /* __KERNEL__ */
+
+#include <asm-generic/page.h>
 
 #endif /* _H8300_PAGE_H */

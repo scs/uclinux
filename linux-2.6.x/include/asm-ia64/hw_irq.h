@@ -81,7 +81,6 @@ extern __u8 isa_irq_to_vector_map[16];
 
 extern struct hw_interrupt_type irq_type_ia64_lsapic;	/* CPU-internal interrupt controller */
 
-extern int assign_irq_vector_nopanic (int irq); /* allocate a free vector without panic */
 extern int assign_irq_vector (int irq);	/* allocate a free vector */
 extern void free_irq_vector (int vector);
 extern void ia64_send_ipi (int cpu, int vector, int delivery_mode, int redirect);
@@ -116,13 +115,6 @@ __ia64_local_vector_to_irq (ia64_vector vec)
  * differences and provides a uniform means to translate between vector and irq numbers
  * and to obtain the irq descriptor for a given irq number.
  */
-
-/* Return a pointer to the irq descriptor for IRQ.  */
-static inline irq_desc_t *
-irq_descp (int irq)
-{
-	return irq_desc + irq;
-}
 
 /* Extract the IA-64 vector that corresponds to IRQ.  */
 static inline ia64_vector
