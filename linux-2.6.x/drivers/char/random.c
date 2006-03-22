@@ -271,7 +271,7 @@ static int random_write_wakeup_thresh = 128;
  * samples to avoid wasting CPU time and reduce lock contention.
  */
 
-static int trickle_thresh = INPUT_POOL_WORDS * 28;
+static int trickle_thresh __read_mostly = INPUT_POOL_WORDS * 28;
 
 static DEFINE_PER_CPU(int, trickle_count) = 0;
 
@@ -632,7 +632,7 @@ out:
 	preempt_enable();
 }
 
-extern void add_input_randomness(unsigned int type, unsigned int code,
+void add_input_randomness(unsigned int type, unsigned int code,
 				 unsigned int value)
 {
 	static unsigned char last_value;
@@ -1029,7 +1029,7 @@ random_write(struct file * file, const char __user * buffer,
 	size_t c = count;
 
 	while (c > 0) {
-		bytes = min((unsigned long)c, sizeof(buf));
+		bytes = min(c, sizeof(buf));
 
 		bytes -= copy_from_user(&buf, p, bytes);
 		if (!bytes) {
@@ -1554,10 +1554,8 @@ __u32 secure_tcp_sequence_number(__u32 saddr, __u32 daddr,
 
 EXPORT_SYMBOL(secure_tcp_sequence_number);
 
-
-
-/* Generate secure starting point for ephemeral TCP port search */
-u32 secure_tcp_port_ephemeral(__u32 saddr, __u32 daddr, __u16 dport)
+/* Generate secure starting point for ephemeral IPV4 transport port search */
+u32 secure_ipv4_port_ephemeral(__u32 saddr, __u32 daddr, __u16 dport)
 {
 	struct keydata *keyptr = get_keyptr();
 	u32 hash[4];
@@ -1575,7 +1573,7 @@ u32 secure_tcp_port_ephemeral(__u32 saddr, __u32 daddr, __u16 dport)
 }
 
 #if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
-u32 secure_tcpv6_port_ephemeral(const __u32 *saddr, const __u32 *daddr, __u16 dport)
+u32 secure_ipv6_port_ephemeral(const __u32 *saddr, const __u32 *daddr, __u16 dport)
 {
 	struct keydata *keyptr = get_keyptr();
 	u32 hash[12];
@@ -1586,7 +1584,41 @@ u32 secure_tcpv6_port_ephemeral(const __u32 *saddr, const __u32 *daddr, __u16 dp
 
 	return twothirdsMD4Transform(daddr, hash);
 }
-EXPORT_SYMBOL(secure_tcpv6_port_ephemeral);
+EXPORT_SYMBOL(secure_ipv6_port_ephemeral);
+#endif
+
+#if defined(CONFIG_IP_DCCP) || defined(CONFIG_IP_DCCP_MODULE)
+/* Similar to secure_tcp_sequence_number but generate a 48 bit value
+ * bit's 32-47 increase every key exchange
+ *       0-31  hash(source, dest)
+ */
+u64 secure_dccp_sequence_number(__u32 saddr, __u32 daddr,
+				__u16 sport, __u16 dport)
+{
+	struct timeval tv;
+	u64 seq;
+	__u32 hash[4];
+	struct keydata *keyptr = get_keyptr();
+
+	hash[0] = saddr;
+	hash[1] = daddr;
+	hash[2] = (sport << 16) + dport;
+	hash[3] = keyptr->secret[11];
+
+	seq = half_md4_transform(hash, keyptr->secret);
+	seq |= ((u64)keyptr->count) << (32 - HASH_BITS);
+
+	do_gettimeofday(&tv);
+	seq += tv.tv_usec + tv.tv_sec * 1000000;
+	seq &= (1ull << 48) - 1;
+#if 0
+	printk("dccp init_seq(%lx, %lx, %d, %d) = %d\n",
+	       saddr, daddr, sport, dport, seq);
+#endif
+	return seq;
+}
+
+EXPORT_SYMBOL(secure_dccp_sequence_number);
 #endif
 
 #endif /* CONFIG_INET */

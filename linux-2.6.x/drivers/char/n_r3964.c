@@ -13,8 +13,8 @@
  * L. Haag
  *
  * $Log$
- * Revision 1.4  2005/08/12 06:42:24  magicyang
- *  Update kernel 2.6.8 to 2.6.12
+ * Revision 1.5  2006/03/22 06:44:45  magicyang
+ * update kernel to 2.6.16
  *
  * Revision 1.10  2001/03/18 13:02:24  dwmw2
  * Fix timer usage, use spinlocks properly.
@@ -150,7 +150,6 @@ static unsigned int r3964_poll(struct tty_struct * tty, struct file * file,
 		      struct poll_table_struct  *wait);
 static void r3964_receive_buf(struct tty_struct *tty, const unsigned char *cp,
                               char *fp, int count);
-static int  r3964_receive_room(struct tty_struct *tty);
 
 static struct tty_ldisc tty_ldisc_N_R3964 = {
 	.owner	 = THIS_MODULE,
@@ -164,7 +163,6 @@ static struct tty_ldisc tty_ldisc_N_R3964 = {
 	.set_termios = r3964_set_termios,
 	.poll	= r3964_poll,            
 	.receive_buf = r3964_receive_buf,
-	.receive_room = r3964_receive_room,
 };
 
 
@@ -203,7 +201,7 @@ static void __exit r3964_exit(void)
    
    TRACE_M ("cleanup_module()");
 
-   status=tty_register_ldisc(N_R3964, NULL);
+   status=tty_unregister_ldisc(N_R3964);
    
    if(status!=0)
    {
@@ -232,8 +230,8 @@ static int __init r3964_init(void)
        TRACE_L("line discipline %d registered", N_R3964);
        TRACE_L("flags=%x num=%x", tty_ldisc_N_R3964.flags, 
                tty_ldisc_N_R3964.num);
-       TRACE_L("open=%x", (int)tty_ldisc_N_R3964.open);
-       TRACE_L("tty_ldisc_N_R3964 = %x", (int)&tty_ldisc_N_R3964);
+       TRACE_L("open=%p", tty_ldisc_N_R3964.open);
+       TRACE_L("tty_ldisc_N_R3964 = %p", &tty_ldisc_N_R3964);
      }
    else
      {
@@ -270,8 +268,8 @@ static void add_tx_queue(struct r3964_info *pInfo, struct r3964_block_header *pH
    
    spin_unlock_irqrestore(&pInfo->lock, flags);
 
-   TRACE_Q("add_tx_queue %x, length %d, tx_first = %x", 
-          (int)pHeader, pHeader->length, (int)pInfo->tx_first );
+   TRACE_Q("add_tx_queue %p, length %d, tx_first = %p", 
+          pHeader, pHeader->length, pInfo->tx_first );
 }
 
 static void remove_from_tx_queue(struct r3964_info *pInfo, int error_code)
@@ -288,10 +286,10 @@ static void remove_from_tx_queue(struct r3964_info *pInfo, int error_code)
       return;
 
 #ifdef DEBUG_QUEUE
-   printk("r3964: remove_from_tx_queue: %x, length %d - ",
-          (int)pHeader, (int)pHeader->length );
+   printk("r3964: remove_from_tx_queue: %p, length %u - ",
+          pHeader, pHeader->length );
    for(pDump=pHeader;pDump;pDump=pDump->next)
-	 printk("%x ", (int)pDump);
+	 printk("%p ", pDump);
    printk("\n");
 #endif
 
@@ -322,10 +320,10 @@ static void remove_from_tx_queue(struct r3964_info *pInfo, int error_code)
    spin_unlock_irqrestore(&pInfo->lock, flags);
 
    kfree(pHeader);
-   TRACE_M("remove_from_tx_queue - kfree %x",(int)pHeader);
+   TRACE_M("remove_from_tx_queue - kfree %p",pHeader);
 
-   TRACE_Q("remove_from_tx_queue: tx_first = %x, tx_last = %x",
-          (int)pInfo->tx_first, (int)pInfo->tx_last );
+   TRACE_Q("remove_from_tx_queue: tx_first = %p, tx_last = %p",
+          pInfo->tx_first, pInfo->tx_last );
 }
 
 static void add_rx_queue(struct r3964_info *pInfo, struct r3964_block_header *pHeader)
@@ -349,9 +347,9 @@ static void add_rx_queue(struct r3964_info *pInfo, struct r3964_block_header *pH
    
    spin_unlock_irqrestore(&pInfo->lock, flags);
 
-   TRACE_Q("add_rx_queue: %x, length = %d, rx_first = %x, count = %d",
-          (int)pHeader, pHeader->length,
-          (int)pInfo->rx_first, pInfo->blocks_in_rx_queue);
+   TRACE_Q("add_rx_queue: %p, length = %d, rx_first = %p, count = %d",
+          pHeader, pHeader->length,
+          pInfo->rx_first, pInfo->blocks_in_rx_queue);
 }
 
 static void remove_from_rx_queue(struct r3964_info *pInfo,
@@ -363,10 +361,10 @@ static void remove_from_rx_queue(struct r3964_info *pInfo,
    if(pHeader==NULL)
       return;
 
-   TRACE_Q("remove_from_rx_queue: rx_first = %x, rx_last = %x, count = %d",
-          (int)pInfo->rx_first, (int)pInfo->rx_last, pInfo->blocks_in_rx_queue );
-   TRACE_Q("remove_from_rx_queue: %x, length %d",
-          (int)pHeader, (int)pHeader->length );
+   TRACE_Q("remove_from_rx_queue: rx_first = %p, rx_last = %p, count = %d",
+          pInfo->rx_first, pInfo->rx_last, pInfo->blocks_in_rx_queue );
+   TRACE_Q("remove_from_rx_queue: %p, length %u",
+          pHeader, pHeader->length );
 
    spin_lock_irqsave(&pInfo->lock, flags);
 
@@ -404,10 +402,10 @@ static void remove_from_rx_queue(struct r3964_info *pInfo,
    spin_unlock_irqrestore(&pInfo->lock, flags);
 
    kfree(pHeader);
-   TRACE_M("remove_from_rx_queue - kfree %x",(int)pHeader);
+   TRACE_M("remove_from_rx_queue - kfree %p",pHeader);
 
-   TRACE_Q("remove_from_rx_queue: rx_first = %x, rx_last = %x, count = %d",
-          (int)pInfo->rx_first, (int)pInfo->rx_last, pInfo->blocks_in_rx_queue );
+   TRACE_Q("remove_from_rx_queue: rx_first = %p, rx_last = %p, count = %d",
+          pInfo->rx_first, pInfo->rx_last, pInfo->blocks_in_rx_queue );
 }
 
 static void put_char(struct r3964_info *pInfo, unsigned char ch)
@@ -509,8 +507,8 @@ static void transmit_block(struct r3964_info *pInfo)
    if(tty->driver->write_room)
       room=tty->driver->write_room(tty);
 
-   TRACE_PS("transmit_block %x, room %d, length %d", 
-          (int)pBlock, room, pBlock->length);
+   TRACE_PS("transmit_block %p, room %d, length %d", 
+          pBlock, room, pBlock->length);
    
    while(pInfo->tx_position < pBlock->length)
    {
@@ -591,7 +589,7 @@ static void on_receive_block(struct r3964_info *pInfo)
 
    /* prepare struct r3964_block_header: */
    pBlock = kmalloc(length+sizeof(struct r3964_block_header), GFP_KERNEL);
-   TRACE_M("on_receive_block - kmalloc %x",(int)pBlock);
+   TRACE_M("on_receive_block - kmalloc %p",pBlock);
 
    if(pBlock==NULL)
       return;
@@ -698,7 +696,7 @@ static void receive_char(struct r3964_info *pInfo, const unsigned char c)
             {
                TRACE_PE("IDLE - got STX but no space in rx_queue!");
                pInfo->state=R3964_WAIT_FOR_RX_BUF;
-	       mod_timer(&pInfo->tmr, R3964_TO_NO_BUF);
+	       mod_timer(&pInfo->tmr, jiffies + R3964_TO_NO_BUF);
                break;
             }
 start_receiving:
@@ -708,7 +706,7 @@ start_receiving:
             pInfo->last_rx = 0;
             pInfo->flags &= ~R3964_ERROR;
             pInfo->state=R3964_RECEIVING;
-	    mod_timer(&pInfo->tmr, R3964_TO_ZVZ);
+	    mod_timer(&pInfo->tmr, jiffies + R3964_TO_ZVZ);
 	    pInfo->nRetry = 0;
             put_char(pInfo, DLE);
             flush(pInfo);
@@ -735,7 +733,7 @@ start_receiving:
                if(pInfo->flags & R3964_BCC)
                {
                   pInfo->state = R3964_WAIT_FOR_BCC;
-		  mod_timer(&pInfo->tmr, R3964_TO_ZVZ);
+		  mod_timer(&pInfo->tmr, jiffies + R3964_TO_ZVZ);
                }
                else 
                {
@@ -747,7 +745,7 @@ start_receiving:
                pInfo->last_rx = c;
 char_to_buf:
                pInfo->rx_buf[pInfo->rx_position++] = c;
-	       mod_timer(&pInfo->tmr, R3964_TO_ZVZ);
+	       mod_timer(&pInfo->tmr, jiffies + R3964_TO_ZVZ);
             }
          }
         /* else: overflow-msg? BUF_SIZE>MTU; should not happen? */ 
@@ -871,11 +869,11 @@ static int enable_signals(struct r3964_info *pInfo, pid_t pid, int arg)
                if(pMsg)
                {
                   kfree(pMsg);
-                  TRACE_M("enable_signals - msg kfree %x",(int)pMsg);
+                  TRACE_M("enable_signals - msg kfree %p",pMsg);
                }
             }
             kfree(pClient);
-            TRACE_M("enable_signals - kfree %x",(int)pClient);
+            TRACE_M("enable_signals - kfree %p",pClient);
             return 0;
          }
       }
@@ -893,7 +891,7 @@ static int enable_signals(struct r3964_info *pInfo, pid_t pid, int arg)
       {
          /* add client to client list */
          pClient=kmalloc(sizeof(struct r3964_client_info), GFP_KERNEL);
-         TRACE_M("enable_signals - kmalloc %x",(int)pClient);
+         TRACE_M("enable_signals - kmalloc %p",pClient);
          if(pClient==NULL)
             return -ENOMEM;
 
@@ -957,7 +955,7 @@ static void add_msg(struct r3964_client_info *pClient, int msg_id, int arg,
 queue_the_message:
 
       pMsg = kmalloc(sizeof(struct r3964_message), GFP_KERNEL);
-      TRACE_M("add_msg - kmalloc %x",(int)pMsg);
+      TRACE_M("add_msg - kmalloc %p",pMsg);
       if(pMsg==NULL) {
          return;
       }
@@ -1070,11 +1068,11 @@ static int r3964_open(struct tty_struct *tty)
    struct r3964_info *pInfo;
    
    TRACE_L("open");
-   TRACE_L("tty=%x, PID=%d, disc_data=%x", 
-          (int)tty, current->pid, (int)tty->disc_data);
+   TRACE_L("tty=%p, PID=%d, disc_data=%p", 
+          tty, current->pid, tty->disc_data);
    
    pInfo=kmalloc(sizeof(struct r3964_info), GFP_KERNEL); 
-   TRACE_M("r3964_open - info kmalloc %x",(int)pInfo);
+   TRACE_M("r3964_open - info kmalloc %p",pInfo);
 
    if(!pInfo)
    {
@@ -1083,26 +1081,26 @@ static int r3964_open(struct tty_struct *tty)
    }
 
    pInfo->rx_buf = kmalloc(RX_BUF_SIZE, GFP_KERNEL);
-   TRACE_M("r3964_open - rx_buf kmalloc %x",(int)pInfo->rx_buf);
+   TRACE_M("r3964_open - rx_buf kmalloc %p",pInfo->rx_buf);
 
    if(!pInfo->rx_buf)
    {
       printk(KERN_ERR "r3964: failed to alloc receive buffer\n");
       kfree(pInfo);
-      TRACE_M("r3964_open - info kfree %x",(int)pInfo);
+      TRACE_M("r3964_open - info kfree %p",pInfo);
       return -ENOMEM;
    }
    
    pInfo->tx_buf = kmalloc(TX_BUF_SIZE, GFP_KERNEL);
-   TRACE_M("r3964_open - tx_buf kmalloc %x",(int)pInfo->tx_buf);
+   TRACE_M("r3964_open - tx_buf kmalloc %p",pInfo->tx_buf);
 
    if(!pInfo->tx_buf)
    {
       printk(KERN_ERR "r3964: failed to alloc transmit buffer\n");
       kfree(pInfo->rx_buf);
-      TRACE_M("r3964_open - rx_buf kfree %x",(int)pInfo->rx_buf);
+      TRACE_M("r3964_open - rx_buf kfree %p",pInfo->rx_buf);
       kfree(pInfo);
-      TRACE_M("r3964_open - info kfree %x",(int)pInfo);
+      TRACE_M("r3964_open - info kfree %p",pInfo);
       return -ENOMEM;
    }
 
@@ -1122,6 +1120,7 @@ static int r3964_open(struct tty_struct *tty)
    pInfo->nRetry = 0;
    
    tty->disc_data = pInfo;
+   tty->receive_room = 65536;
 
    init_timer(&pInfo->tmr);
    pInfo->tmr.data = (unsigned long)pInfo;
@@ -1157,11 +1156,11 @@ static void r3964_close(struct tty_struct *tty)
           if(pMsg)
           {
              kfree(pMsg);
-             TRACE_M("r3964_close - msg kfree %x",(int)pMsg);
+             TRACE_M("r3964_close - msg kfree %p",pMsg);
           }
        }
        kfree(pClient);
-       TRACE_M("r3964_close - client kfree %x",(int)pClient);
+       TRACE_M("r3964_close - client kfree %p",pClient);
        pClient=pNext;
     }
     /* Remove jobs from tx_queue: */
@@ -1180,11 +1179,11 @@ static void r3964_close(struct tty_struct *tty)
     /* Free buffers: */
     wake_up_interruptible(&pInfo->read_wait);
     kfree(pInfo->rx_buf);
-    TRACE_M("r3964_close - rx_buf kfree %x",(int)pInfo->rx_buf);
+    TRACE_M("r3964_close - rx_buf kfree %p",pInfo->rx_buf);
     kfree(pInfo->tx_buf);
-    TRACE_M("r3964_close - tx_buf kfree %x",(int)pInfo->tx_buf);
+    TRACE_M("r3964_close - tx_buf kfree %p",pInfo->tx_buf);
     kfree(pInfo);
-    TRACE_M("r3964_close - info kfree %x",(int)pInfo);
+    TRACE_M("r3964_close - info kfree %p",pInfo);
 }
 
 static ssize_t r3964_read(struct tty_struct *tty, struct file *file,
@@ -1237,7 +1236,7 @@ repeat:
       count = sizeof(struct r3964_client_message);
 
       kfree(pMsg);
-      TRACE_M("r3964_read - msg kfree %x",(int)pMsg);
+      TRACE_M("r3964_read - msg kfree %p",pMsg);
 
       if (copy_to_user(buf,&theMsg, count))
 	return -EFAULT;
@@ -1282,7 +1281,7 @@ static ssize_t r3964_write(struct tty_struct * tty, struct file * file,
  * Allocate a buffer for the data and copy it from the buffer with header prepended
  */
    new_data = kmalloc (count+sizeof(struct r3964_block_header), GFP_KERNEL);
-   TRACE_M("r3964_write - kmalloc %x",(int)new_data);
+   TRACE_M("r3964_write - kmalloc %p",new_data);
    if (new_data == NULL) {
       if (pInfo->flags & R3964_DEBUG)
       {
@@ -1407,13 +1406,6 @@ static void r3964_receive_buf(struct tty_struct *tty, const unsigned char *cp,
         
     }
 }
-
-static int r3964_receive_room(struct tty_struct *tty)
-{
-   TRACE_L("receive_room");
-   return -1;
-}
-
 
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_LDISC(N_R3964);

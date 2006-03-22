@@ -111,7 +111,7 @@ static int pty_write(struct tty_struct * tty, const unsigned char *buf, int coun
 	if (!to || tty->stopped)
 		return 0;
 
-	c = to->ldisc.receive_room(to);
+	c = to->receive_room;
 	if (c > count)
 		c = count;
 	to->ldisc.receive_buf(to, buf, NULL, c);
@@ -126,7 +126,7 @@ static int pty_write_room(struct tty_struct *tty)
 	if (!to || tty->stopped)
 		return 0;
 
-	return to->ldisc.receive_room(to);
+	return to->receive_room;
 }
 
 /*
@@ -149,15 +149,14 @@ static int pty_write_room(struct tty_struct *tty)
 static int pty_chars_in_buffer(struct tty_struct *tty)
 {
 	struct tty_struct *to = tty->link;
-	ssize_t (*chars_in_buffer)(struct tty_struct *);
 	int count;
 
 	/* We should get the line discipline lock for "tty->link" */
-	if (!to || !(chars_in_buffer = to->ldisc.chars_in_buffer))
+	if (!to || !to->ldisc.chars_in_buffer)
 		return 0;
 
 	/* The ldisc must report 0 if no characters available to be read */
-	count = chars_in_buffer(to);
+	count = to->ldisc.chars_in_buffer(to);
 
 	if (tty->driver->subtype == PTY_TYPE_SLAVE) return count;
 

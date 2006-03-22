@@ -76,7 +76,7 @@
 #define VERSATILE_SYS_NVFLAGSSET_OFFSET       0x38
 #define VERSATILE_SYS_NVFLAGSCLR_OFFSET       0x3C
 #define VERSATILE_SYS_RESETCTL_OFFSET         0x40
-#define VERSATILE_SYS_PICCTL_OFFSET           0x44
+#define VERSATILE_SYS_PCICTL_OFFSET           0x44
 #define VERSATILE_SYS_MCI_OFFSET              0x48
 #define VERSATILE_SYS_FLASH_OFFSET            0x4C
 #define VERSATILE_SYS_CLCD_OFFSET             0x50
@@ -114,7 +114,7 @@
 #define VERSATILE_SYS_NVFLAGSSET              (VERSATILE_SYS_BASE + VERSATILE_SYS_NVFLAGSSET_OFFSET)
 #define VERSATILE_SYS_NVFLAGSCLR              (VERSATILE_SYS_BASE + VERSATILE_SYS_NVFLAGSCLR_OFFSET)
 #define VERSATILE_SYS_RESETCTL                (VERSATILE_SYS_BASE + VERSATILE_SYS_RESETCTL_OFFSET)
-#define VERSATILE_SYS_PICCTL                  (VERSATILE_SYS_BASE + VERSATILE_SYS_PICCTL_OFFSET)
+#define VERSATILE_SYS_PCICTL                  (VERSATILE_SYS_BASE + VERSATILE_SYS_PCICTL_OFFSET)
 #define VERSATILE_SYS_MCI                     (VERSATILE_SYS_BASE + VERSATILE_SYS_MCI_OFFSET)
 #define VERSATILE_SYS_FLASH                   (VERSATILE_SYS_BASE + VERSATILE_SYS_FLASH_OFFSET)
 #define VERSATILE_SYS_CLCD                    (VERSATILE_SYS_BASE + VERSATILE_SYS_CLCD_OFFSET)
@@ -225,7 +225,20 @@
 #define VERSATILE_SSMC_BASE            0x20000000	/* SSMC */
 #define VERSATILE_IB2_BASE             0x24000000	/* IB2 module */
 #define VERSATILE_MBX_BASE             0x40000000	/* MBX */
+
+/* PCI space */
 #define VERSATILE_PCI_BASE             0x41000000	/* PCI Interface */
+#define VERSATILE_PCI_CFG_BASE	       0x42000000
+#define VERSATILE_PCI_MEM_BASE0        0x44000000
+#define VERSATILE_PCI_MEM_BASE1        0x50000000
+#define VERSATILE_PCI_MEM_BASE2        0x60000000
+/* Sizes of above maps */
+#define VERSATILE_PCI_BASE_SIZE	       0x01000000
+#define VERSATILE_PCI_CFG_BASE_SIZE    0x02000000
+#define VERSATILE_PCI_MEM_BASE0_SIZE   0x0c000000	/* 32Mb */
+#define VERSATILE_PCI_MEM_BASE1_SIZE   0x10000000	/* 256Mb */
+#define VERSATILE_PCI_MEM_BASE2_SIZE   0x10000000	/* 256Mb */
+
 #define VERSATILE_SDRAM67_BASE         0x70000000	/* SDRAM banks 6 and 7 */
 #define VERSATILE_LT_BASE              0x80000000	/* Logic Tile expansion */
 
@@ -280,26 +293,7 @@
  * 	VERSATILE_SYS_IC 
  * 
  */
-#define VIC_IRQ_STATUS                  0
-#define VIC_FIQ_STATUS                  0x04
-#define VIC_IRQ_RAW_STATUS              0x08
-#define VIC_INT_SELECT                  0x0C	/* 1 = FIQ, 0 = IRQ */
-#define VIC_IRQ_ENABLE                  0x10	/* 1 = enable, 0 = disable */
-#define VIC_IRQ_ENABLE_CLEAR            0x14
-#define VIC_IRQ_SOFT                    0x18
-#define VIC_IRQ_SOFT_CLEAR              0x1C
-#define VIC_PROTECT                     0x20
-#define VIC_VECT_ADDR                   0x30
-#define VIC_DEF_VECT_ADDR               0x34
-#define VIC_VECT_ADDR0                  0x100	/* 0 to 15 */
-#define VIC_VECT_CNTL0                  0x200	/* 0 to 15 */
-#define VIC_ITCR                        0x300   /* VIC test control register */
-
-#define VIC_FIQ_RAW_STATUS              0x08
-#define VIC_FIQ_ENABLE                  0x10	/* 1 = enable, 0 = disable */
-#define VIC_FIQ_ENABLE_CLEAR            0x14
-#define VIC_FIQ_SOFT                    0x18
-#define VIC_FIQ_SOFT_CLEAR              0x1C
+/* VIC definitions in include/asm-arm/hardware/vic.h */
 
 #define SIC_IRQ_STATUS                  0
 #define SIC_IRQ_RAW_STATUS              0x04
@@ -311,8 +305,6 @@
 #define SIC_INT_PIC_ENABLE              0x20	/* read status of pass through mask */
 #define SIC_INT_PIC_ENABLES             0x20	/* set interrupt pass through bits */
 #define SIC_INT_PIC_ENABLEC             0x24	/* Clear interrupt pass through bits */
-
-#define VICVectCntl_Enable		(1 << 5)
 
 /* ------------------------------------------------------------------------
  *  Interrupts - bit assignment (primary)

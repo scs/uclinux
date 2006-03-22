@@ -699,7 +699,7 @@ static inline int mbcs_hw_init(struct mbcs_soft *soft)
 	return 0;
 }
 
-static ssize_t show_algo(struct device *dev, char *buf)
+static ssize_t show_algo(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct cx_dev *cx_dev = to_cx_dev(dev);
 	struct mbcs_soft *soft = cx_dev->soft;
@@ -715,7 +715,7 @@ static ssize_t show_algo(struct device *dev, char *buf)
 		       (debug0 >> 32), (debug0 & 0xffffffff));
 }
 
-static ssize_t store_algo(struct device *dev, const char *buf, size_t count)
+static ssize_t store_algo(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	int n;
 	struct cx_dev *cx_dev = to_cx_dev(dev);
@@ -750,7 +750,7 @@ static int mbcs_probe(struct cx_dev *dev, const struct cx_device_id *id)
 
 	dev->soft = NULL;
 
-	soft = kcalloc(1, sizeof(struct mbcs_soft), GFP_KERNEL);
+	soft = kzalloc(sizeof(struct mbcs_soft), GFP_KERNEL);
 	if (soft == NULL)
 		return -ENOMEM;
 
@@ -829,6 +829,9 @@ static void __exit mbcs_exit(void)
 static int __init mbcs_init(void)
 {
 	int rv;
+
+	if (!ia64_platform_is("sn2"))
+		return -ENODEV;
 
 	// Put driver into chrdevs[].  Get major number.
 	rv = register_chrdev(mbcs_major, DEVICE_NAME, &mbcs_ops);

@@ -26,16 +26,17 @@
  */
 #define IXP4XX_EXP_BUS_BASE_PHYS	(0x50000000)
 
-#define	IXP4XX_EXP_BUS_CSX_REGION_SIZE	(0x01000000)
+/*
+ * The expansion bus on the IXP4xx can be configured for either 16 or
+ * 32MB windows and the CS offset for each region changes based on the
+ * current configuration. This means that we cannot simply hardcode
+ * each offset. ixp4xx_sys_init() looks at the expansion bus configuration
+ * as setup by the bootloader to determine our window size.
+ */
+extern unsigned long ixp4xx_exp_bus_size;
 
-#define IXP4XX_EXP_BUS_CS0_BASE_PHYS	(IXP4XX_EXP_BUS_BASE_PHYS + 0x00000000)
-#define IXP4XX_EXP_BUS_CS1_BASE_PHYS	(IXP4XX_EXP_BUS_BASE_PHYS + 0x01000000)
-#define IXP4XX_EXP_BUS_CS2_BASE_PHYS	(IXP4XX_EXP_BUS_BASE_PHYS + 0x02000000)
-#define IXP4XX_EXP_BUS_CS3_BASE_PHYS	(IXP4XX_EXP_BUS_BASE_PHYS + 0x03000000)
-#define IXP4XX_EXP_BUS_CS4_BASE_PHYS	(IXP4XX_EXP_BUS_BASE_PHYS + 0x04000000)
-#define IXP4XX_EXP_BUS_CS5_BASE_PHYS	(IXP4XX_EXP_BUS_BASE_PHYS + 0x05000000)
-#define IXP4XX_EXP_BUS_CS6_BASE_PHYS	(IXP4XX_EXP_BUS_BASE_PHYS + 0x06000000)
-#define IXP4XX_EXP_BUS_CS7_BASE_PHYS	(IXP4XX_EXP_BUS_BASE_PHYS + 0x07000000)
+#define	IXP4XX_EXP_BUS_BASE(region)\
+		(IXP4XX_EXP_BUS_BASE_PHYS + ((region) * ixp4xx_exp_bus_size))
 
 #define IXP4XX_FLASH_WRITABLE	(0x2)
 #define IXP4XX_FLASH_DEFAULT	(0xbcd23c40)
@@ -83,17 +84,6 @@ extern struct pci_bus *ixp4xx_scan_bus(int nr, struct pci_sys_data *sys);
 #define IXP4XX_GPIO_OUT 		0x1
 #define IXP4XX_GPIO_IN  		0x2
 
-#define IXP4XX_GPIO_INTSTYLE_MASK	0x7C  /* Bits [6:2] define interrupt style */
-
-/* 
- * GPIO interrupt types.
- */
-#define IXP4XX_GPIO_ACTIVE_HIGH		0x4 /* Default */
-#define IXP4XX_GPIO_ACTIVE_LOW		0x8
-#define IXP4XX_GPIO_RISING_EDGE		0x10
-#define IXP4XX_GPIO_FALLING_EDGE 	0x20
-#define IXP4XX_GPIO_TRANSITIONAL 	0x40
-
 /* GPIO signal types */
 #define IXP4XX_GPIO_LOW			0
 #define IXP4XX_GPIO_HIGH		1
@@ -102,7 +92,13 @@ extern struct pci_bus *ixp4xx_scan_bus(int nr, struct pci_sys_data *sys);
 #define IXP4XX_GPIO_CLK_0		14
 #define IXP4XX_GPIO_CLK_1		15
 
-extern void gpio_line_config(u8 line, u32 style);
+static inline void gpio_line_config(u8 line, u32 direction)
+{
+	if (direction == IXP4XX_GPIO_IN)
+		*IXP4XX_GPIO_GPOER |= (1 << line);
+	else
+		*IXP4XX_GPIO_GPOER &= ~(1 << line);
+}
 
 static inline void gpio_line_get(u8 line, int *value)
 {
@@ -115,11 +111,6 @@ static inline void gpio_line_set(u8 line, int value)
 	    *IXP4XX_GPIO_GPOUTR |= (1 << line);
 	else if (value == IXP4XX_GPIO_LOW)
 	    *IXP4XX_GPIO_GPOUTR &= ~(1 << line);
-}
-
-static inline void gpio_line_isr_clear(u8 line)
-{
-	*IXP4XX_GPIO_GPISR = (1 << line);
 }
 
 #endif // __ASSEMBLY__

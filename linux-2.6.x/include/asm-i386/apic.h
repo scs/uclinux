@@ -5,6 +5,7 @@
 #include <linux/pm.h>
 #include <asm/fixmap.h>
 #include <asm/apicdef.h>
+#include <asm/processor.h>
 #include <asm/system.h>
 
 #define Dprintk(x...)
@@ -16,7 +17,19 @@
 #define APIC_VERBOSE 1
 #define APIC_DEBUG   2
 
+extern int enable_local_apic;
 extern int apic_verbosity;
+
+static inline void lapic_disable(void)
+{
+	enable_local_apic = -1;
+	clear_bit(X86_FEATURE_APIC, boot_cpu_data.x86_capability);
+}
+
+static inline void lapic_enable(void)
+{
+	enable_local_apic = 1;
+}
 
 /*
  * Define the default level of output to be very little
@@ -87,7 +100,7 @@ extern void (*wait_timer_tick)(void);
 extern int get_maxlvt(void);
 extern void clear_local_APIC(void);
 extern void connect_bsp_APIC (void);
-extern void disconnect_bsp_APIC (void);
+extern void disconnect_bsp_APIC (int virt_wire_setup);
 extern void disable_local_APIC (void);
 extern void lapic_shutdown (void);
 extern int verify_local_APIC (void);
@@ -116,6 +129,15 @@ extern unsigned int nmi_watchdog;
 #define NMI_IO_APIC	1
 #define NMI_LOCAL_APIC	2
 #define NMI_INVALID	3
+
+extern int disable_timer_pin_1;
+
+void smp_send_timer_broadcast_ipi(struct pt_regs *regs);
+void switch_APIC_timer_to_ipi(void *cpumask);
+void switch_ipi_to_APIC_timer(void *cpumask);
+#define ARCH_APICTIMER_STOPS_ON_C3	1
+
+extern int timer_over_8254;
 
 #else /* !CONFIG_X86_LOCAL_APIC */
 static inline void lapic_shutdown(void) { }

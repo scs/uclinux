@@ -116,7 +116,8 @@ __asm__ __volatile__(
 	"orb $1,%%al\n"
 	"3:"
 	:"=a" (__res), "=&S" (d0), "=&D" (d1)
-		     :"1" (cs),"2" (ct));
+	:"1" (cs),"2" (ct)
+	:"memory");
 return __res;
 }
 
@@ -138,8 +139,9 @@ __asm__ __volatile__(
 	"3:\tsbbl %%eax,%%eax\n\t"
 	"orb $1,%%al\n"
 	"4:"
-		     :"=a" (__res), "=&S" (d0), "=&D" (d1), "=&c" (d2)
-		     :"1" (cs),"2" (ct),"3" (count));
+	:"=a" (__res), "=&S" (d0), "=&D" (d1), "=&c" (d2)
+	:"1" (cs),"2" (ct),"3" (count)
+	:"memory");
 return __res;
 }
 
@@ -158,7 +160,9 @@ __asm__ __volatile__(
 	"movl $1,%1\n"
 	"2:\tmovl %1,%0\n\t"
 	"decl %0"
-	:"=a" (__res), "=&S" (d0) : "1" (s),"0" (c));
+	:"=a" (__res), "=&S" (d0)
+	:"1" (s),"0" (c)
+	:"memory");
 return __res;
 }
 
@@ -175,7 +179,9 @@ __asm__ __volatile__(
 	"leal -1(%%esi),%0\n"
 	"2:\ttestb %%al,%%al\n\t"
 	"jne 1b"
-	:"=g" (__res), "=&S" (d0), "=&a" (d1) :"0" (0),"1" (s),"2" (c));
+	:"=g" (__res), "=&S" (d0), "=&a" (d1)
+	:"0" (0),"1" (s),"2" (c)
+	:"memory");
 return __res;
 }
 
@@ -189,11 +195,13 @@ __asm__ __volatile__(
 	"scasb\n\t"
 	"notl %0\n\t"
 	"decl %0"
-	:"=c" (__res), "=&D" (d0) :"1" (s),"a" (0), "0" (0xffffffffu));
+	:"=c" (__res), "=&D" (d0)
+	:"1" (s),"a" (0), "0" (0xffffffffu)
+	:"memory");
 return __res;
 }
 
-static inline void * __memcpy(void * to, const void * from, size_t n)
+static __always_inline void * __memcpy(void * to, const void * from, size_t n)
 {
 int d0, d1, d2;
 __asm__ __volatile__(
@@ -215,7 +223,7 @@ return (to);
  * This looks ugly, but the compiler can optimize it totally,
  * as the count is constant.
  */
-static inline void * __constant_memcpy(void * to, const void * from, size_t n)
+static __always_inline void * __constant_memcpy(void * to, const void * from, size_t n)
 {
 	long esi, edi;
 	if (!n) return to;
@@ -333,7 +341,9 @@ __asm__ __volatile__(
 	"je 1f\n\t"
 	"movl $1,%0\n"
 	"1:\tdecl %0"
-	:"=D" (__res), "=&c" (d0) : "a" (c),"0" (cs),"1" (count));
+	:"=D" (__res), "=&c" (d0)
+	:"a" (c),"0" (cs),"1" (count)
+	:"memory");
 return __res;
 }
 
@@ -357,7 +367,7 @@ return s;
  * things 32 bits at a time even when we don't know the size of the
  * area at compile-time..
  */
-static inline void * __constant_c_memset(void * s, unsigned long c, size_t count)
+static __always_inline void * __constant_c_memset(void * s, unsigned long c, size_t count)
 {
 int d0, d1;
 __asm__ __volatile__(
@@ -369,7 +379,7 @@ __asm__ __volatile__(
 	"je 2f\n\t"
 	"stosb\n"
 	"2:"
-	: "=&c" (d0), "=&D" (d1)
+	:"=&c" (d0), "=&D" (d1)
 	:"a" (c), "q" (count), "0" (count/4), "1" ((long) s)
 	:"memory");
 return (s);	
@@ -392,7 +402,8 @@ __asm__ __volatile__(
 	"jne 1b\n"
 	"3:\tsubl %2,%0"
 	:"=a" (__res), "=&d" (d0)
-	:"c" (s),"1" (count));
+	:"c" (s),"1" (count)
+	:"memory");
 return __res;
 }
 /* end of additional stuff */
@@ -405,7 +416,7 @@ extern char *strstr(const char *cs, const char *ct);
  * This looks horribly ugly, but the compiler can optimize it totally,
  * as we by now know that both pattern and count is constant..
  */
-static inline void * __constant_c_and_count_memset(void * s, unsigned long pattern, size_t count)
+static __always_inline void * __constant_c_and_count_memset(void * s, unsigned long pattern, size_t count)
 {
 	switch (count) {
 		case 0:
@@ -473,7 +484,8 @@ static inline void * memscan(void * addr, int c, size_t size)
 		"dec %%edi\n"
 		"1:"
 		: "=D" (addr), "=c" (size)
-		: "0" (addr), "1" (size), "a" (c));
+		: "0" (addr), "1" (size), "a" (c)
+		: "memory");
 	return addr;
 }
 

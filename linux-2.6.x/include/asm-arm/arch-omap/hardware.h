@@ -43,6 +43,7 @@
 #include <asm/arch/cpu.h>
 #endif
 #include <asm/arch/io.h>
+#include <asm/arch/serial.h>
 
 /*
  * ---------------------------------------------------------------------------
@@ -51,6 +52,19 @@
  *	 files.
  * ---------------------------------------------------------------------------
  */
+
+/*
+ * ----------------------------------------------------------------------------
+ * Timers
+ * ----------------------------------------------------------------------------
+ */
+#define OMAP_MPU_TIMER1_BASE	(0xfffec500)
+#define OMAP_MPU_TIMER2_BASE	(0xfffec600)
+#define OMAP_MPU_TIMER3_BASE	(0xfffec700)
+#define MPU_TIMER_FREE		(1 << 6)
+#define MPU_TIMER_CLOCK_ENABLE	(1 << 5)
+#define MPU_TIMER_AR		(1 << 1)
+#define MPU_TIMER_ST		(1 << 0)
 
 /*
  * ----------------------------------------------------------------------------
@@ -76,10 +90,12 @@
 /* DPLL control registers */
 #define DPLL_CTL		(0xfffecf00)
 
-/* DSP clock control */
+/* DSP clock control. Must use __raw_readw() and __raw_writew() with these */
 #define DSP_CONFIG_REG_BASE     (0xe1008000)
+#define DSP_CKCTL		(DSP_CONFIG_REG_BASE + 0x0)
 #define DSP_IDLECT1		(DSP_CONFIG_REG_BASE + 0x4)
 #define DSP_IDLECT2		(DSP_CONFIG_REG_BASE + 0x8)
+#define DSP_RSTCT2		(DSP_CONFIG_REG_BASE + 0x14)
 
 /*
  * ---------------------------------------------------------------------------
@@ -88,6 +104,7 @@
  */
 #define ULPD_REG_BASE		(0xfffe0800)
 #define ULPD_IT_STATUS		(ULPD_REG_BASE + 0x14)
+#define ULPD_SETUP_ANALOG_CELL_3	(ULPD_REG_BASE + 0x24)
 #define ULPD_CLOCK_CTRL		(ULPD_REG_BASE + 0x30)
 #	define DIS_USB_PVCI_CLK		(1 << 5)	/* no USB/FAC synch */
 #	define USB_MCLK_EN		(1 << 4)	/* enable W4_USB_CLKO */
@@ -127,6 +144,13 @@
  * Interrupts
  * ---------------------------------------------------------------------------
  */
+#ifdef CONFIG_ARCH_OMAP1
+
+/*
+ * XXX: These probably want to be moved to arch/arm/mach-omap/omap1/irq.c
+ * or something similar.. -- PFM.
+ */
+
 #define OMAP_IH1_BASE		0xfffecb00
 #define OMAP_IH2_BASE		0xfffe0000
 
@@ -154,6 +178,8 @@
 #define IRQ_ISR_REG_OFFSET	0x9c
 #define IRQ_ILR0_REG_OFFSET	0x1c
 #define IRQ_GMR_REG_OFFSET	0xa0
+
+#endif
 
 /*
  * ----------------------------------------------------------------------------
@@ -241,44 +267,18 @@
 #define OMAP_LPG2_LCR			(OMAP_LPG2_BASE + 0x00)
 #define OMAP_LPG2_PMR			(OMAP_LPG2_BASE + 0x04)
 
-#ifndef __ASSEMBLER__
-
-/*
- * ---------------------------------------------------------------------------
- * Serial ports
- * ---------------------------------------------------------------------------
- */
-#define OMAP_UART1_BASE		(unsigned char *)0xfffb0000
-#define OMAP_UART2_BASE		(unsigned char *)0xfffb0800
-#define OMAP_UART3_BASE		(unsigned char *)0xfffb9800
-#define OMAP_MAX_NR_PORTS	3
-#define OMAP1510_BASE_BAUD	(12000000/16)
-#define OMAP16XX_BASE_BAUD	(48000000/16)
-
-#define is_omap_port(p)	({int __ret = 0;			\
-			if (p == IO_ADDRESS(OMAP_UART1_BASE) ||	\
-			    p == IO_ADDRESS(OMAP_UART2_BASE) ||	\
-			    p == IO_ADDRESS(OMAP_UART3_BASE))	\
-				__ret = 1;			\
-			__ret;					\
-			})
-
 /*
  * ---------------------------------------------------------------------------
  * Processor specific defines
  * ---------------------------------------------------------------------------
  */
-#ifdef CONFIG_ARCH_OMAP730
+
 #include "omap730.h"
-#endif
-
-#ifdef CONFIG_ARCH_OMAP1510
 #include "omap1510.h"
-#endif
-
-#ifdef CONFIG_ARCH_OMAP16XX
+#include "omap24xx.h"
 #include "omap16xx.h"
-#endif
+
+#ifndef __ASSEMBLER__
 
 /*
  * ---------------------------------------------------------------------------
@@ -304,7 +304,6 @@
 
 #ifdef CONFIG_MACH_OMAP_H4
 #include "board-h4.h"
-#error "Support for H4 board not yet implemented."
 #endif
 
 #ifdef CONFIG_MACH_OMAP_OSK

@@ -17,6 +17,7 @@
  *  14-Sep-2004 BJD  Added misccr and getpin to gpio
  *  01-Oct-2004 BJD  Added the new gpio functions
  *  16-Oct-2004 BJD  Removed the clock variables
+ *  15-Jan-2006 LCVR Added s3c2400_gpio_getirq()
 */
 
 #ifndef __ASM_ARCH_HARDWARE_H
@@ -55,6 +56,12 @@ extern unsigned int s3c2410_gpio_getcfg(unsigned int pin);
 
 extern int s3c2410_gpio_getirq(unsigned int pin);
 
+#ifdef CONFIG_CPU_S3C2400
+
+extern int s3c2400_gpio_getirq(unsigned int pin);
+
+#endif /* CONFIG_CPU_S3C2400 */
+
 /* s3c2410_gpio_irqfilter
  *
  * set the irq filtering on the given pin
@@ -91,6 +98,13 @@ extern void s3c2410_gpio_setpin(unsigned int pin, unsigned int to);
 extern unsigned int s3c2410_gpio_getpin(unsigned int pin);
 
 extern unsigned int s3c2410_modify_misccr(unsigned int clr, unsigned int chg);
+
+#ifdef CONFIG_CPU_S3C2440
+
+extern int s3c2440_set_dsc(unsigned int pin, unsigned int value);
+
+#endif /* CONFIG_CPU_S3C2440 */
+
 
 #endif /* __ASSEMBLY__ */
 

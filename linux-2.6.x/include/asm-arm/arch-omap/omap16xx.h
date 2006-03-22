@@ -36,11 +36,6 @@
 
 /* Syntax: XX_BASE = Virtual base address, XX_START = Physical base address */
 
-#define OMAP16XX_SRAM_BASE	0xD0000000
-#define OMAP1610_SRAM_SIZE	(SZ_16K)
-#define OMAP5912_SRAM_SIZE	0x3E800
-#define OMAP16XX_SRAM_START	0x20000000
-
 #define OMAP16XX_DSP_BASE	0xE0000000
 #define OMAP16XX_DSP_SIZE	0x28000
 #define OMAP16XX_DSP_START	0xE0000000
@@ -48,17 +43,6 @@
 #define OMAP16XX_DSPREG_BASE	0xE1000000
 #define OMAP16XX_DSPREG_SIZE	SZ_128K
 #define OMAP16XX_DSPREG_START	0xE1000000
-
-/*
- * ----------------------------------------------------------------------------
- * Memory used by power management
- * ----------------------------------------------------------------------------
- */
-
-#define OMAP1610_SRAM_IDLE_SUSPEND	(OMAP16XX_SRAM_BASE + OMAP1610_SRAM_SIZE - 0x200)
-#define OMAP1610_SRAM_API_SUSPEND	(OMAP1610_SRAM_IDLE_SUSPEND + 0x100)
-#define OMAP5912_SRAM_IDLE_SUSPEND	(OMAP16XX_SRAM_BASE + OMAP5912_SRAM_SIZE - 0x200)
-#define OMAP5912_SRAM_API_SUSPEND	(OMAP5912_SRAM_IDLE_SUSPEND + 0x100)
 
 /*
  * ---------------------------------------------------------------------------
@@ -182,6 +166,38 @@
 #define OMAP16XX_PWL_BASE	(0xfffb5800)
 #define OMAP16XX_PWL_ENABLE	(OMAP16XX_PWL_BASE + 0x00)
 #define OMAP16XX_PWL_CLK_ENABLE	(OMAP16XX_PWL_BASE + 0x04)
+
+/*
+ * ---------------------------------------------------------------------------
+ * Watchdog timer
+ * ---------------------------------------------------------------------------
+ */
+
+/* 32-bit Watchdog timer in OMAP 16XX */
+#define OMAP_16XX_WATCHDOG_BASE        (0xfffeb000)
+#define OMAP_16XX_WIDR         (OMAP_16XX_WATCHDOG_BASE + 0x00)
+#define OMAP_16XX_WD_SYSCONFIG (OMAP_16XX_WATCHDOG_BASE + 0x10)
+#define OMAP_16XX_WD_SYSSTATUS (OMAP_16XX_WATCHDOG_BASE + 0x14)
+#define OMAP_16XX_WCLR         (OMAP_16XX_WATCHDOG_BASE + 0x24)
+#define OMAP_16XX_WCRR         (OMAP_16XX_WATCHDOG_BASE + 0x28)
+#define OMAP_16XX_WLDR         (OMAP_16XX_WATCHDOG_BASE + 0x2c)
+#define OMAP_16XX_WTGR         (OMAP_16XX_WATCHDOG_BASE + 0x30)
+#define OMAP_16XX_WWPS         (OMAP_16XX_WATCHDOG_BASE + 0x34)
+#define OMAP_16XX_WSPR         (OMAP_16XX_WATCHDOG_BASE + 0x48)
+
+#define WCLR_PRE_SHIFT         5
+#define WCLR_PTV_SHIFT         2
+
+#define WWPS_W_PEND_WSPR       (1 << 4)
+#define WWPS_W_PEND_WTGR       (1 << 3)
+#define WWPS_W_PEND_WLDR       (1 << 2)
+#define WWPS_W_PEND_WCRR       (1 << 1)
+#define WWPS_W_PEND_WCLR       (1 << 0)
+
+#define WSPR_ENABLE_0          (0x0000bbbb)
+#define WSPR_ENABLE_1          (0x00004444)
+#define WSPR_DISABLE_0         (0x0000aaaa)
+#define WSPR_DISABLE_1         (0x00005555)
 
 #endif /*  __ASM_ARCH_OMAP16XX_H */
 

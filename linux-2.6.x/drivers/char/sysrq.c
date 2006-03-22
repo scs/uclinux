@@ -35,6 +35,7 @@
 #include <linux/spinlock.h>
 #include <linux/vt_kern.h>
 #include <linux/workqueue.h>
+#include <linux/kexec.h>
 
 #include <asm/ptrace.h>
 
@@ -94,12 +95,27 @@ static struct sysrq_key_op sysrq_unraw_op = {
 };
 #endif /* CONFIG_VT */
 
+#ifdef CONFIG_KEXEC
+/* crashdump sysrq handler */
+static void sysrq_handle_crashdump(int key, struct pt_regs *pt_regs,
+				struct tty_struct *tty)
+{
+	crash_kexec(pt_regs);
+}
+static struct sysrq_key_op sysrq_crashdump_op = {
+	.handler	= sysrq_handle_crashdump,
+	.help_msg	= "Crashdump",
+	.action_msg	= "Trigger a crashdump",
+	.enable_mask	= SYSRQ_ENABLE_DUMP,
+};
+#endif
+
 /* reboot sysrq handler */
 static void sysrq_handle_reboot(int key, struct pt_regs *pt_regs,
 				struct tty_struct *tty) 
 {
 	local_irq_enable();
-	machine_restart(NULL);
+	emergency_restart();
 }
 
 static struct sysrq_key_op sysrq_reboot_op = {
@@ -137,6 +153,21 @@ static struct sysrq_key_op sysrq_mountro_op = {
 
 /* END SYNC SYSRQ HANDLERS BLOCK */
 
+#ifdef CONFIG_DEBUG_MUTEXES
+
+static void
+sysrq_handle_showlocks(int key, struct pt_regs *pt_regs, struct tty_struct *tty)
+{
+	mutex_debug_show_all_locks();
+}
+
+static struct sysrq_key_op sysrq_showlocks_op = {
+	.handler	= sysrq_handle_showlocks,
+	.help_msg	= "show-all-locks(D)",
+	.action_msg	= "Show Locks Held",
+};
+
+#endif
 
 /* SHOW SYSRQ HANDLERS BLOCK */
 
@@ -212,7 +243,7 @@ static struct sysrq_key_op sysrq_term_op = {
 
 static void moom_callback(void *ignored)
 {
-	out_of_memory(GFP_KERNEL);
+	out_of_memory(&NODE_DATA(0)->node_zonelists[ZONE_NORMAL], GFP_KERNEL, 0);
 }
 
 static DECLARE_WORK(moom_work, moom_callback, NULL);
@@ -273,8 +304,16 @@ static struct sysrq_key_op *sysrq_key_table[SYSRQ_KEY_TABLE_LENGTH] = {
 		 it is handled specially on the sparc
 		 and will never arrive */
 /* b */	&sysrq_reboot_op,
-/* c */ NULL,
-/* d */	NULL,
+#ifdef CONFIG_KEXEC
+/* c */ &sysrq_crashdump_op,
+#else
+/* c */	NULL,
+#endif
+#ifdef CONFIG_DEBUG_MUTEXES
+/* d */ &sysrq_showlocks_op,
+#else
+/* d */ NULL,
+#endif
 /* e */	&sysrq_term_op,
 /* f */	&sysrq_moom_op,
 /* g */	NULL,
@@ -334,7 +373,7 @@ struct sysrq_key_op *__sysrq_get_key_op (int key) {
         return op_p;
 }
 
-void __sysrq_put_key_op (int key, struct sysrq_key_op *op_p) {
+static void __sysrq_put_key_op (int key, struct sysrq_key_op *op_p) {
         int i;
 
 	i = sysrq_key_table_key2index(key);
@@ -399,7 +438,7 @@ void handle_sysrq(int key, struct pt_regs *pt_regs, struct tty_struct *tty)
 	__handle_sysrq(key, pt_regs, tty, 1);
 }
 
-int __sysrq_swap_key_ops(int key, struct sysrq_key_op *insert_op_p,
+static int __sysrq_swap_key_ops(int key, struct sysrq_key_op *insert_op_p,
                                 struct sysrq_key_op *remove_op_p) {
 
 	int retval;

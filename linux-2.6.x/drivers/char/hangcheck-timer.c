@@ -117,12 +117,9 @@ __setup("hcheck_reboot", hangcheck_parse_reboot);
 __setup("hcheck_dump_tasks", hangcheck_parse_dump_tasks);
 #endif /* not MODULE */
 
-#if defined(CONFIG_X86) || defined(CONFIG_X86_64)
+#if defined(CONFIG_X86) || defined(CONFIG_S390)
 # define HAVE_MONOTONIC
 # define TIMER_FREQ 1000000000ULL
-#elif defined(CONFIG_ARCH_S390)
-/* FA240000 is 1 Second in the IBM time universe (Page 4-38 Principles of Op for zSeries */
-# define TIMER_FREQ 0xFA240000ULL
 #elif defined(CONFIG_IA64)
 # define TIMER_FREQ ((unsigned long long)local_cpu_data->itc_freq)
 #elif defined(CONFIG_PPC64)
@@ -134,12 +131,7 @@ extern unsigned long long monotonic_clock(void);
 #else
 static inline unsigned long long monotonic_clock(void)
 {
-# ifdef __s390__
-	/* returns the TOD.  see 4-38 Principles of Op of zSeries */
-	return get_clock();
-# else
 	return get_cycles();
-# endif  /* __s390__ */
 }
 #endif  /* HAVE_MONOTONIC */
 
@@ -149,8 +141,7 @@ static unsigned long long hangcheck_tsc, hangcheck_tsc_margin;
 
 static void hangcheck_fire(unsigned long);
 
-static struct timer_list hangcheck_ticktock =
-		TIMER_INITIALIZER(hangcheck_fire, 0, 0);
+static DEFINE_TIMER(hangcheck_ticktock, hangcheck_fire, 0, 0);
 
 
 static void hangcheck_fire(unsigned long data)
@@ -173,7 +164,7 @@ static void hangcheck_fire(unsigned long data)
 		}
 		if (hangcheck_reboot) {
 			printk(KERN_CRIT "Hangcheck: hangcheck is restarting the machine.\n");
-			machine_restart(NULL);
+			emergency_restart();
 		} else {
 			printk(KERN_CRIT "Hangcheck: hangcheck value past margin!\n");
 		}
@@ -189,8 +180,6 @@ static int __init hangcheck_init(void)
 	       VERSION_STR, hangcheck_tick, hangcheck_margin);
 #if defined (HAVE_MONOTONIC)
 	printk("Hangcheck: Using monotonic_clock().\n");
-#elif defined(__s390__)
-	printk("Hangcheck: Using TOD.\n");
 #else
 	printk("Hangcheck: Using get_cycles().\n");
 #endif  /* HAVE_MONOTONIC */

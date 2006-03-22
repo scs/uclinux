@@ -12,6 +12,7 @@
 
 #ifdef __KERNEL__
 
+#include <linux/compiler.h>
 #include <asm/fpstate.h>
 
 #define THREAD_SIZE_ORDER	1
@@ -49,7 +50,7 @@ struct cpu_context_save {
  */
 struct thread_info {
 	unsigned long		flags;		/* low level flags */
-	__s32			preempt_count;	/* 0 => preemptable, <0 => bug */
+	int			preempt_count;	/* 0 => preemptable, <0 => bug */
 	mm_segment_t		addr_limit;	/* address limit */
 	struct task_struct	*task;		/* main task structure */
 	struct exec_domain	*exec_domain;	/* execution domain */
@@ -58,7 +59,7 @@ struct thread_info {
 	struct cpu_context_save	cpu_context;	/* cpu context */
 	__u8			used_cp[16];	/* thread used copro */
 	unsigned long		tp_value;
-	union fp_state		fpstate;
+	union fp_state		fpstate __attribute__((aligned(8)));
 	union vfp_state		vfpstate;
 	struct restart_block	restart_block;
 };
@@ -95,13 +96,10 @@ static inline struct thread_info *current_thread_info(void)
 extern struct thread_info *alloc_thread_info(struct task_struct *task);
 extern void free_thread_info(struct thread_info *);
 
-#define get_thread_info(ti)	get_task_struct((ti)->task)
-#define put_thread_info(ti)	put_task_struct((ti)->task)
-
 #define thread_saved_pc(tsk)	\
-	((unsigned long)(pc_pointer((tsk)->thread_info->cpu_context.pc)))
+	((unsigned long)(pc_pointer(task_thread_info(tsk)->cpu_context.pc)))
 #define thread_saved_fp(tsk)	\
-	((unsigned long)((tsk)->thread_info->cpu_context.fp))
+	((unsigned long)(task_thread_info(tsk)->cpu_context.fp))
 
 extern void iwmmxt_task_disable(struct thread_info *);
 extern void iwmmxt_task_copy(struct thread_info *, void *);

@@ -36,11 +36,12 @@ obj-$(CONFIG_RISCOM8)		+= riscom8.o
 obj-$(CONFIG_ISI)		+= isicom.o
 obj-$(CONFIG_SYNCLINK)		+= synclink.o
 obj-$(CONFIG_SYNCLINKMP)	+= synclinkmp.o
+obj-$(CONFIG_SYNCLINK_GT)	+= synclink_gt.o
 obj-$(CONFIG_N_HDLC)		+= n_hdlc.o
 obj-$(CONFIG_AMIGA_BUILTIN_SERIAL) += amiserial.o
 obj-$(CONFIG_SX)		+= sx.o generic_serial.o
 obj-$(CONFIG_RIO)		+= rio/ generic_serial.o
-obj-$(CONFIG_HVC_CONSOLE)	+= hvc_console.o hvsi.o
+obj-$(CONFIG_HVC_CONSOLE)	+= hvc_console.o hvc_vio.o hvsi.o
 obj-$(CONFIG_RAW_DRIVER)	+= raw.o
 obj-$(CONFIG_SGI_SNSC)		+= snsc.o snsc_event.o
 obj-$(CONFIG_MMTIMER)		+= mmtimer.o
@@ -48,15 +49,16 @@ obj-$(CONFIG_VIOCONS) += viocons.o
 obj-$(CONFIG_VIOTAPE)		+= viotape.o
 obj-$(CONFIG_HVCS)		+= hvcs.o
 obj-$(CONFIG_SGI_MBCS)		+= mbcs.o
-obj-$(CONFIG_BFIN_SPI_CHANNEL)  += bfin_spi_channel.o
-obj-$(CONFIG_SPIDMA_BF53x) += adsp-spidma.o
-obj-$(CONFIG_SPI_ADC_BF533) += bfin_spi_adc.o
+
+
+
+
 obj-$(CONFIG_BFIN_TIMER_LATENCY) += bfin_timer_latency.o
-obj-$(CONFIG_BF533_PFLAGS) += pflags.o
-obj-$(CONFIG_BF5xx_PPIFCD) += adsp-ppifcd.o
-obj-$(CONFIG_BF5xx_PPI) += ppi.o bf533_timers.o
+obj-$(CONFIG_BF533_PFLAGS) += bfin_pflags.o
+obj-$(CONFIG_BF5xx_PPIFCD) += bfin-ppifcd.o
+obj-$(CONFIG_BF5xx_PPI) += bfin_ppi.o bf533_timers.o
 obj-$(CONFIG_BFIN_SPORT)  += bfin_sport.o
-obj-$(CONFIG_TWI_LCD)		+= twi_lcd.o
+obj-$(CONFIG_TWI_LCD)	+= bfin_twi_lcd.o
 
 obj-$(CONFIG_PRINTER) += lp.o
 obj-$(CONFIG_TIPAR) += tipar.o
@@ -89,7 +91,10 @@ obj-$(CONFIG_PPDEV) += ppdev.o
 obj-$(CONFIG_NWBUTTON) += nwbutton.o
 obj-$(CONFIG_NWFLASH) += nwflash.o
 obj-$(CONFIG_SCx200_GPIO) += scx200_gpio.o
+obj-$(CONFIG_CS5535_GPIO) += cs5535_gpio.o
+obj-$(CONFIG_GPIO_VR41XX) += vr41xx_giu.o
 obj-$(CONFIG_TANBAC_TB0219) += tb0219.o
+obj-$(CONFIG_TELCLOCK) += tlclk.o
 
 obj-$(CONFIG_CAN4LINUX)	+= can4linux/
 obj-$(CONFIG_WATCHDOG)	+= watchdog/
@@ -98,9 +103,8 @@ obj-$(CONFIG_AGP) += agp/
 obj-$(CONFIG_DRM) += drm/
 obj-$(CONFIG_PCMCIA) += pcmcia/
 obj-$(CONFIG_IPMI_HANDLER) += ipmi/
-obj-$(CONFIG_BLACKFIN_RTC) += blackfin_rtc.o
-obj-$(CONFIG_BLACKFIN_DPMC) += blackfin_dpmc.o
-obj-$(CONFIG_HANGCHECK_TIMER) += hangcheck-timer.o
+obj-$(CONFIG_BLACKFIN_RTC) += bfin_rtc.o
+obj-$(CONFIG_BLACKFIN_DPMC) += bfin_dpmc.o
 
 obj-$(CONFIG_HANGCHECK_TIMER) += hangcheck-timer.o
 obj-$(CONFIG_TCG_TPM) += tpm/

@@ -24,8 +24,8 @@
  * This version does not support shared irq's.
  *
  * $Log$
- * Revision 1.4  2005/08/12 06:42:24  magicyang
- *  Update kernel 2.6.8 to 2.6.12
+ * Revision 1.5  2006/03/22 06:44:45  magicyang
+ * update kernel to 2.6.16
  *
  * Revision 1.36.1.4  1995/03/29  06:14:14  bentson
  * disambiguate between Cyclom-16Y and Cyclom-32Ye;
@@ -120,7 +120,7 @@ struct cyclades_port cy_port[] = {
         {-1 },      /* ttyS2 */
         {-1 },      /* ttyS3 */
 };
-#define NR_PORTS        (sizeof(cy_port)/sizeof(struct cyclades_port))
+#define NR_PORTS        ARRAY_SIZE(cy_port)
 
 /*
  * tmp_buf is used as a temporary buffer by serial_write.  We need to
@@ -132,7 +132,6 @@ struct cyclades_port cy_port[] = {
  * memory if large numbers of serial ports are open.
  */
 static unsigned char *tmp_buf = 0;
-DECLARE_MUTEX(tmp_buf_sem);
 
 /*
  * This is used to look up the divisor speeds and the timeouts
@@ -425,45 +424,35 @@ cd2401_rxerr_interrupt(int irq, void *dev_id, struct pt_regs *fp)
 	    base_addr[CyREOIR] = rfoc ? 0 : CyNOTRANS;
 	    return IRQ_HANDLED;
 	}
-	if (tty->flip.count < TTY_FLIPBUF_SIZE){
-	    tty->flip.count++;
+	if (tty_buffer_request_room(tty, 1) != 0){
 	    if (err & info->read_status_mask){
 		if(err & CyBREAK){
-		    *tty->flip.flag_buf_ptr++ = TTY_BREAK;
-		    *tty->flip.char_buf_ptr++ = data;
+		    tty_insert_flip_char(tty, data, TTY_BREAK);
 		    if (info->flags & ASYNC_SAK){
 			do_SAK(tty);
 		    }
 		}else if(err & CyFRAME){
-		    *tty->flip.flag_buf_ptr++ = TTY_FRAME;
-		    *tty->flip.char_buf_ptr++ = data;
+		    tty_insert_flip_char(tty, data, TTY_FRAME);
 		}else if(err & CyPARITY){
-		    *tty->flip.flag_buf_ptr++ = TTY_PARITY;
-		    *tty->flip.char_buf_ptr++ = data;
+		    tty_insert_flip_char(tty, data, TTY_PARITY);
 		}else if(err & CyOVERRUN){
-		    *tty->flip.flag_buf_ptr++ = TTY_OVERRUN;
-		    *tty->flip.char_buf_ptr++ = 0;
+		    tty_insert_flip_char(tty, 0, TTY_OVERRUN);
 		    /*
 		       If the flip buffer itself is
 		       overflowing, we still loose
 		       the next incoming character.
 		     */
-		    if(tty->flip.count < TTY_FLIPBUF_SIZE){
-			tty->flip.count++;
-			*tty->flip.flag_buf_ptr++ = TTY_NORMAL;
-			*tty->flip.char_buf_ptr++ = data;
-		    }
+		    tty_insert_flip_char(tty, data, TTY_NORMAL);
+		}
 		/* These two conditions may imply */
 		/* a normal read should be done. */
 		/* else if(data & CyTIMEOUT) */
 		/* else if(data & CySPECHAR) */
 		}else{
-		    *tty->flip.flag_buf_ptr++ = 0;
-		    *tty->flip.char_buf_ptr++ = 0;
+		    tty_insert_flip_char(tty, 0, TTY_NORMAL);
 		}
 	    }else{
-		*tty->flip.flag_buf_ptr++ = 0;
-		*tty->flip.char_buf_ptr++ = 0;
+		    tty_insert_flip_char(tty, data, TTY_NORMAL);
 	    }
 	}else{
 	    /* there was a software buffer overrun
@@ -695,12 +684,7 @@ cd2401_rx_interrupt(int irq, void *dev_id, struct pt_regs *fp)
 #endif
 	while(char_count--){
 	    data = base_addr[CyRDR];
-	    if (tty->flip.count >= TTY_FLIPBUF_SIZE){
-		continue;
-	    }
-	    tty->flip.count++;
-	    *tty->flip.flag_buf_ptr++ = TTY_NORMAL;
-	    *tty->flip.char_buf_ptr++ = data;
+	    tty_insert_flip_char(tty, data, TTY_NORMAL);
 #ifdef CYCLOM_16Y_HACK
 	    udelay(10L);
 #endif

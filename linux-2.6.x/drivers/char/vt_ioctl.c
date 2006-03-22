@@ -25,6 +25,7 @@
 #include <linux/fs.h>
 #include <linux/console.h>
 #include <linux/signal.h>
+#include <linux/timex.h>
 
 #include <asm/io.h>
 #include <asm/uaccess.h>
@@ -78,6 +79,9 @@ do_kdsk_ioctl(int cmd, struct kbentry __user *user_kbe, int perm, struct kbd_str
 
 	if (copy_from_user(&tmp, user_kbe, sizeof(struct kbentry)))
 		return -EFAULT;
+
+	if (!capable(CAP_SYS_TTY_CONFIG))
+		perm = 0;
 
 	switch (cmd) {
 	case KDGKBENT:
@@ -190,6 +194,9 @@ do_kdgkb_ioctl(int cmd, struct kbsentry __user *user_kdgkb, int perm)
 	char *first_free, *fj, *fnw;
 	int i, j, k;
 	int ret;
+
+	if (!capable(CAP_SYS_TTY_CONFIG))
+		perm = 0;
 
 	kbs = kmalloc(sizeof(*kbs), GFP_KERNEL);
 	if (!kbs) {
@@ -386,7 +393,7 @@ int vt_ioctl(struct tty_struct *tty, struct file * file,
 		if (!perm)
 			return -EPERM;
 		if (arg)
-			arg = 1193182 / arg;
+			arg = CLOCK_TICK_RATE / arg;
 		kd_mksound(arg, 0);
 		return 0;
 
@@ -403,7 +410,7 @@ int vt_ioctl(struct tty_struct *tty, struct file * file,
 		ticks = HZ * ((arg >> 16) & 0xffff) / 1000;
 		count = ticks ? (arg & 0xffff) : 0;
 		if (count)
-			count = 1193182 / count;
+			count = CLOCK_TICK_RATE / count;
 		kd_mksound(count, ticks);
 		return 0;
 	}

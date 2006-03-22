@@ -21,21 +21,25 @@ static __inline__ int irq_canonicalize(int irq)
 	return ((irq == 2) ? 9 : irq);
 }
 
-extern void release_vm86_irqs(struct task_struct *);
-
 #ifdef CONFIG_X86_LOCAL_APIC
 # define ARCH_HAS_NMI_WATCHDOG		/* See include/linux/nmi.h */
 #endif
 
 #ifdef CONFIG_4KSTACKS
   extern void irq_ctx_init(int cpu);
+  extern void irq_ctx_exit(int cpu);
 # define __ARCH_HAS_DO_SOFTIRQ
 #else
 # define irq_ctx_init(cpu) do { } while (0)
+# define irq_ctx_exit(cpu) do { } while (0)
 #endif
 
 #ifdef CONFIG_IRQBALANCE
 extern int irqbalance_disable(char *str);
+#endif
+
+#ifdef CONFIG_HOTPLUG_CPU
+extern void fixup_irqs(cpumask_t map);
 #endif
 
 #endif /* _ASM_IRQ_H */

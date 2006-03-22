@@ -19,10 +19,11 @@
 
 #ifdef __KERNEL__
 
+#include <linux/compiler.h>
 #include <asm/system.h>
 
-#define smp_mb__before_clear_bit()	do { } while (0)
-#define smp_mb__after_clear_bit()	do { } while (0)
+#define smp_mb__before_clear_bit()	mb()
+#define smp_mb__after_clear_bit()	mb()
 
 /*
  * These functions are the basis of our bit ops.
@@ -229,6 +230,7 @@ extern int _find_next_zero_bit_be(const void * p, int size, int offset);
 extern int _find_first_bit_be(const unsigned long *p, unsigned size);
 extern int _find_next_bit_be(const unsigned long *p, int size, int offset);
 
+#ifndef CONFIG_SMP
 /*
  * The __* form of bitops are non-atomic and may be reordered.
  */
@@ -241,6 +243,10 @@ extern int _find_next_bit_be(const unsigned long *p, int size, int offset);
 	(__builtin_constant_p(nr) ?		\
 	 ____atomic_##name(nr, p) :		\
 	 _##name##_be(nr,p))
+#else
+#define ATOMIC_BITOP_LE(name,nr,p)	_##name##_le(nr,p)
+#define ATOMIC_BITOP_BE(name,nr,p)	_##name##_be(nr,p)
+#endif
 
 #define NONATOMIC_BITOP(name,nr,p)		\
 	(____nonatomic_##name(nr, p))
@@ -326,6 +332,7 @@ static inline unsigned long __ffs(unsigned long word)
  */
 
 #define fls(x) generic_fls(x)
+#define fls64(x)   generic_fls64(x)
 
 /*
  * ffs: find first bit set. This is defined the same way as
@@ -342,10 +349,10 @@ static inline unsigned long __ffs(unsigned long word)
  * the clz instruction for much better code efficiency.
  */
 
-static __inline__ int generic_fls(int x);
 #define fls(x) \
 	( __builtin_constant_p(x) ? generic_fls(x) : \
 	  ({ int __r; asm("clz\t%0, %1" : "=r"(__r) : "r"(x) : "cc"); 32-__r; }) )
+#define fls64(x)   generic_fls64(x)
 #define ffs(x) ({ unsigned long __t = (x); fls(__t & -__t); })
 #define __ffs(x) (ffs(x) - 1)
 #define ffz(x) __ffs( ~(x) )

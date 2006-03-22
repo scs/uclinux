@@ -22,8 +22,8 @@
  *	 are different.
  */
 
-#ifndef __ASM_ARCH_OMAP1510_IRQS_H
-#define __ASM_ARCH_OMAP1510_IRQS_H
+#ifndef __ASM_ARCH_OMAP15XX_IRQS_H
+#define __ASM_ARCH_OMAP15XX_IRQS_H
 
 /*
  * IRQ numbers for interrupt handler 1
@@ -31,7 +31,6 @@
  * NOTE: See also the OMAP-1510 and 1610 specific IRQ numbers below
  *
  */
-#define INT_IH2_IRQ		0
 #define INT_CAMERA		1
 #define INT_FIQ			3
 #define INT_RTDX		6
@@ -60,6 +59,7 @@
 /*
  * OMAP-1510 specific IRQ numbers for interrupt handler 1
  */
+#define INT_1510_IH2_IRQ	0
 #define INT_1510_RES2		2
 #define INT_1510_SPI_TX		4
 #define INT_1510_SPI_RX		5
@@ -71,6 +71,7 @@
 /*
  * OMAP-1610 specific IRQ numbers for interrupt handler 1
  */
+#define INT_1610_IH2_IRQ	0
 #define INT_1610_IH2_FIQ	2
 #define INT_1610_McBSP2_TX	4
 #define INT_1610_McBSP2_RX	5
@@ -135,7 +136,6 @@
 /*
  * OMAP-1510 specific IRQ numbers for interrupt handler 2
  */
-#define INT_1510_OS_32kHz_TIMER (22 + IH2_BASE)
 #define INT_1510_COM_SPI_RO	(31 + IH2_BASE)
 
 /*
@@ -159,6 +159,7 @@
 #define INT_1610_GPIO_BANK3	(41 + IH2_BASE)
 #define INT_1610_MMC2		(42 + IH2_BASE)
 #define INT_1610_CF		(43 + IH2_BASE)
+#define INT_1610_WAKE_UP_REQ	(46 + IH2_BASE)
 #define INT_1610_GPIO_BANK4	(48 + IH2_BASE)
 #define INT_1610_SPI		(49 + IH2_BASE)
 #define INT_1610_DMA_CH6	(53 + IH2_BASE)
@@ -231,12 +232,25 @@
 #define INT_730_DMA_CH15	(62 + IH2_BASE)
 #define INT_730_NAND		(63 + IH2_BASE)
 
+#define INT_24XX_SYS_NIRQ	7
+#define INT_24XX_SDMA_IRQ0	12
+#define INT_24XX_SDMA_IRQ1	13
+#define INT_24XX_SDMA_IRQ2	14
+#define INT_24XX_SDMA_IRQ3	15
+#define INT_24XX_DSS_IRQ	25
+#define INT_24XX_GPIO_BANK1	29
+#define INT_24XX_GPIO_BANK2	30
+#define INT_24XX_GPIO_BANK3	31
+#define INT_24XX_GPIO_BANK4	32
+
 /* Max. 128 level 2 IRQs (OMAP1610), 192 GPIOs (OMAP730) and
  * 16 MPUIO lines */
 #define OMAP_MAX_GPIO_LINES	192
 #define IH_GPIO_BASE		(128 + IH2_BASE)
 #define IH_MPUIO_BASE		(OMAP_MAX_GPIO_LINES + IH_GPIO_BASE)
 #define IH_BOARD_BASE		(16 + IH_MPUIO_BASE)
+
+#define OMAP_IRQ_BIT(irq)	(1 << ((irq) % 32))
 
 #ifndef __ASSEMBLY__
 extern void omap_init_irq(void);
@@ -246,7 +260,7 @@ extern void omap_init_irq(void);
  * The definition of NR_IRQS is in board-specific header file, which is
  * included via hardware.h
  */
-#include <asm/arch/hardware.h>
+#include <asm/hardware.h>
 
 #ifndef NR_IRQS
 #define NR_IRQS                 IH_BOARD_BASE

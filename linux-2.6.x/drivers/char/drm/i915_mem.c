@@ -1,11 +1,30 @@
 /* i915_mem.c -- Simple agp/fb memory manager for i915 -*- linux-c -*-
  */
-/**************************************************************************
- * 
+/*
  * Copyright 2003 Tungsten Graphics, Inc., Cedar Park, Texas.
  * All Rights Reserved.
- * 
- **************************************************************************/
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the
+ * "Software"), to deal in the Software without restriction, including
+ * without limitation the rights to use, copy, modify, merge, publish,
+ * distribute, sub license, and/or sell copies of the Software, and to
+ * permit persons to whom the Software is furnished to do so, subject to
+ * the following conditions:
+ *
+ * The above copyright notice and this permission notice (including the
+ * next paragraph) shall be included in all copies or substantial portions
+ * of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+ * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT.
+ * IN NO EVENT SHALL TUNGSTEN GRAPHICS AND/OR ITS SUPPLIERS BE LIABLE FOR
+ * ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+ * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+ * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ *
+ */
 
 #include "drmP.h"
 #include "drm.h"
@@ -66,7 +85,7 @@ static void mark_block(drm_device_t * dev, struct mem_block *p, int in_use)
 }
 
 /* Very simple allocator for agp memory, working on a static range
- * already mapped into each client's address space.  
+ * already mapped into each client's address space.
  */
 
 static struct mem_block *split_block(struct mem_block *p, int start, int size,
@@ -74,7 +93,8 @@ static struct mem_block *split_block(struct mem_block *p, int start, int size,
 {
 	/* Maybe cut off the start of an existing block */
 	if (start > p->start) {
-		struct mem_block *newblock = drm_alloc(sizeof(*newblock), DRM_MEM_BUFLISTS);
+		struct mem_block *newblock =
+		    drm_alloc(sizeof(*newblock), DRM_MEM_BUFLISTS);
 		if (!newblock)
 			goto out;
 		newblock->start = start;
@@ -90,7 +110,8 @@ static struct mem_block *split_block(struct mem_block *p, int start, int size,
 
 	/* Maybe cut off the end of an existing block */
 	if (size < p->size) {
-		struct mem_block *newblock = drm_alloc(sizeof(*newblock), DRM_MEM_BUFLISTS);
+		struct mem_block *newblock =
+		    drm_alloc(sizeof(*newblock), DRM_MEM_BUFLISTS);
 		if (!newblock)
 			goto out;
 		newblock->start = start + size;
@@ -344,3 +365,34 @@ int i915_mem_init_heap(DRM_IOCTL_ARGS)
 
 	return init_heap(heap, initheap.start, initheap.size);
 }
+
+int i915_mem_destroy_heap( DRM_IOCTL_ARGS )
+{
+	DRM_DEVICE;
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	drm_i915_mem_destroy_heap_t destroyheap;
+	struct mem_block **heap;
+
+	if ( !dev_priv ) {
+		DRM_ERROR( "%s called with no initialization\n", __FUNCTION__ );
+		return DRM_ERR(EINVAL);
+	}
+
+	DRM_COPY_FROM_USER_IOCTL( destroyheap, (drm_i915_mem_destroy_heap_t *)data,
+				  sizeof(destroyheap) );
+
+	heap = get_heap( dev_priv, destroyheap.region );
+	if (!heap) {
+		DRM_ERROR("get_heap failed");
+		return DRM_ERR(EFAULT);
+	}
+	
+	if (!*heap) {
+		DRM_ERROR("heap not initialized?");
+		return DRM_ERR(EFAULT);
+	}
+
+	i915_mem_takedown( heap );
+	return 0;
+}
+

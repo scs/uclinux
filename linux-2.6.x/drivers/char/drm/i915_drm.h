@@ -1,3 +1,29 @@
+/*
+ * Copyright 2003 Tungsten Graphics, Inc., Cedar Park, Texas.
+ * All Rights Reserved.
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the
+ * "Software"), to deal in the Software without restriction, including
+ * without limitation the rights to use, copy, modify, merge, publish,
+ * distribute, sub license, and/or sell copies of the Software, and to
+ * permit persons to whom the Software is furnished to do so, subject to
+ * the following conditions:
+ *
+ * The above copyright notice and this permission notice (including the
+ * next paragraph) shall be included in all copies or substantial portions
+ * of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+ * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT.
+ * IN NO EVENT SHALL TUNGSTEN GRAPHICS AND/OR ITS SUPPLIERS BE LIABLE FOR
+ * ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+ * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+ * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ *
+ */
+
 #ifndef _I915_DRM_H_
 #define _I915_DRM_H_
 
@@ -48,6 +74,30 @@ typedef struct _drm_i915_sarea {
 	int pf_active;
 	int pf_current_page;	/* which buffer is being displayed? */
 	int perf_boxes;		/* performance boxes to be displayed */
+	int width, height;      /* screen size in pixels */
+
+	drm_handle_t front_handle;
+	int front_offset;
+	int front_size;
+
+	drm_handle_t back_handle;
+	int back_offset;
+	int back_size;
+
+	drm_handle_t depth_handle;
+	int depth_offset;
+	int depth_size;
+
+	drm_handle_t tex_handle;
+	int tex_offset;
+	int tex_size;
+	int log_tex_granularity;
+	int pitch;
+	int rotation;           /* 0, 90, 180 or 270 */
+	int rotated_offset;
+	int rotated_size;
+	int rotated_pitch;
+	int virtualX, virtualY;
 } drm_i915_sarea_t;
 
 /* Flags for perf_boxes
@@ -73,6 +123,7 @@ typedef struct _drm_i915_sarea {
 #define DRM_I915_FREE		0x09
 #define DRM_I915_INIT_HEAP	0x0a
 #define DRM_I915_CMDBUFFER	0x0b
+#define DRM_I915_DESTROY_HEAP	0x0c
 
 #define DRM_IOCTL_I915_INIT		DRM_IOW( DRM_COMMAND_BASE + DRM_I915_INIT, drm_i915_init_t)
 #define DRM_IOCTL_I915_FLUSH		DRM_IO ( DRM_COMMAND_BASE + DRM_I915_FLUSH)
@@ -86,6 +137,7 @@ typedef struct _drm_i915_sarea {
 #define DRM_IOCTL_I915_FREE             DRM_IOW( DRM_COMMAND_BASE + DRM_I915_FREE, drm_i915_mem_free_t)
 #define DRM_IOCTL_I915_INIT_HEAP        DRM_IOW( DRM_COMMAND_BASE + DRM_I915_INIT_HEAP, drm_i915_mem_init_heap_t)
 #define DRM_IOCTL_I915_CMDBUFFER	DRM_IOW( DRM_COMMAND_BASE + DRM_I915_CMDBUFFER, drm_i915_cmdbuffer_t)
+#define DRM_IOCTL_I915_DESTROY_HEAP	DRM_IOW( DRM_COMMAND_BASE + DRM_I915_DESTROY_HEAP, drm_i915_mem_destroy_heap_t)
 
 /* Allow drivers to submit batchbuffers directly to hardware, relying
  * on the security mechanisms provided by hardware.
@@ -125,6 +177,7 @@ typedef struct drm_i915_irq_wait {
  */
 #define I915_PARAM_IRQ_ACTIVE            1
 #define I915_PARAM_ALLOW_BATCHBUFFER     2
+#define I915_PARAM_LAST_DISPATCH         3
 
 typedef struct drm_i915_getparam {
 	int param;
@@ -163,5 +216,12 @@ typedef struct drm_i915_mem_init_heap {
 	int size;
 	int start;
 } drm_i915_mem_init_heap_t;
+
+/* Allow memory manager to be torn down and re-initialized (eg on
+ * rotate):
+ */
+typedef struct drm_i915_mem_destroy_heap {
+	int region;
+} drm_i915_mem_destroy_heap_t;
 
 #endif				/* _I915_DRM_H_ */

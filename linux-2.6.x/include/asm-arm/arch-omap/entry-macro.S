@@ -7,6 +7,24 @@
  * License version 2. This program is licensed "as is" without any
  * warranty of any kind, whether express or implied.
  */
+#include <asm/hardware.h>
+#include <asm/arch/irqs.h>
+
+#if defined(CONFIG_ARCH_OMAP1)
+
+#if defined(CONFIG_ARCH_OMAP730) && \
+	(defined(CONFIG_ARCH_OMAP15XX) || defined(CONFIG_ARCH_OMAP16XX))
+#error "FIXME: OMAP730 doesn't support multiple-OMAP"
+#elif defined(CONFIG_ARCH_OMAP730)
+#define INT_IH2_IRQ		INT_730_IH2_IRQ
+#elif defined(CONFIG_ARCH_OMAP15XX)
+#define INT_IH2_IRQ		INT_1510_IH2_IRQ
+#elif defined(CONFIG_ARCH_OMAP16XX)
+#define INT_IH2_IRQ		INT_1610_IH2_IRQ
+#else
+#warning "IH2 IRQ defaulted"
+#define INT_IH2_IRQ		INT_1510_IH2_IRQ
+#endif
 
  		.macro	disable_fiq
 		.endm
@@ -30,3 +48,29 @@
 1510:
 		.endm
 
+#elif defined(CONFIG_ARCH_OMAP24XX)
+
+#include <asm/arch/omap24xx.h>
+
+		.macro	disable_fiq
+		.endm
+
+		.macro	get_irqnr_and_base, irqnr, irqstat, base, tmp
+		ldr	\base, =VA_IC_BASE
+		ldr	\irqnr, [\base, #0x98] /* IRQ pending reg 1 */
+		cmp	\irqnr, #0x0
+		bne	2222f
+		ldr	\irqnr, [\base, #0xb8] /* IRQ pending reg 2 */
+		cmp	\irqnr, #0x0
+		bne	2222f
+		ldr	\irqnr, [\base, #0xd8] /* IRQ pending reg 3 */
+		cmp	\irqnr, #0x0
+2222:
+		ldrne	\irqnr, [\base, #IRQ_SIR_IRQ]
+
+		.endm
+
+		.macro	irq_prio_table
+		.endm
+
+#endif

@@ -16,10 +16,11 @@
 /* Different peripheral ids */
 #define OMAP_TAG_CLOCK		0x4f01
 #define OMAP_TAG_MMC		0x4f02
-#define OMAP_TAG_UART		0x4f03
+#define OMAP_TAG_SERIAL_CONSOLE 0x4f03
 #define OMAP_TAG_USB		0x4f04
 #define OMAP_TAG_LCD		0x4f05
 #define OMAP_TAG_GPIO_SWITCH	0x4f06
+#define OMAP_TAG_UART		0x4f07
 
 #define OMAP_TAG_BOOT_REASON    0x4f80
 #define OMAP_TAG_FLASH_PART	0x4f81
@@ -29,13 +30,26 @@ struct omap_clock_config {
 	u8 system_clock_type;
 };
 
-struct omap_mmc_config {
-	u8 mmc_blocks;
-	s16 mmc1_power_pin, mmc2_power_pin;
-	s16 mmc1_switch_pin, mmc2_switch_pin;
+struct omap_mmc_conf {
+	unsigned enabled:1;
+	/* nomux means "standard" muxing is wrong on this board, and that
+	 * board-specific code handled it before common init logic.
+	 */
+	unsigned nomux:1;
+	/* switch pin can be for card detect (default) or card cover */
+	unsigned cover:1;
+	/* 4 wire signaling is optional, and is only used for SD/SDIO */
+	unsigned wire4:1;
+	s16 power_pin;
+	s16 switch_pin;
+	s16 wp_pin;
 };
 
-struct omap_uart_config {
+struct omap_mmc_config {
+	struct omap_mmc_conf mmc[2];
+};
+
+struct omap_serial_console_config {
 	u8 console_uart;
 	u32 console_speed;
 };
@@ -82,7 +96,8 @@ struct omap_lcd_config {
  */
 #define OMAP_GPIO_SWITCH_TYPE_COVER		0x0000
 #define OMAP_GPIO_SWITCH_TYPE_CONNECTION	0x0001
-#define OMAP_GPIO_SWITCH_FLAG_INVERTED          0x0001
+#define OMAP_GPIO_SWITCH_FLAG_INVERTED		0x0001
+#define OMAP_GPIO_SWITCH_FLAG_OUTPUT		0x0002
 struct omap_gpio_switch_config {
 	char name[12];
 	u16 gpio;
@@ -99,6 +114,10 @@ struct omap_boot_reason_config {
 	char reason_str[12];
 };
 
+struct omap_uart_config {
+	/* Bit field of UARTs present; bit 0 --> UART1 */
+	unsigned int enabled_uarts;
+};
 
 struct omap_board_config_entry {
 	u16 tag;

@@ -101,6 +101,7 @@
 #include <linux/termios.h>
 #include <linux/workqueue.h>
 #include <linux/hdlc.h>
+#include <linux/dma-mapping.h>
 
 #ifdef CONFIG_HDLC_MODULE
 #define CONFIG_HDLC 1
@@ -141,13 +142,14 @@ static MGSL_PARAMS default_params = {
 typedef struct _DMABUFFERENTRY
 {
 	u32 phys_addr;	/* 32-bit flat physical address of data buffer */
-	u16 count;	/* buffer size/data count */
-	u16 status;	/* Control/status field */
-	u16 rcc;	/* character count field */
+	volatile u16 count;	/* buffer size/data count */
+	volatile u16 status;	/* Control/status field */
+	volatile u16 rcc;	/* character count field */
 	u16 reserved;	/* padding required by 16C32 */
 	u32 link;	/* 32-bit flat link to next buffer entry */
 	char *virt_addr;	/* virtual address of data buffer */
 	u32 phys_entry;	/* physical address of this buffer entry */
+	dma_addr_t dma_addr;
 } DMABUFFERENTRY, *DMAPBUFFERENTRY;
 
 /* The queue of BH actions to be performed */
@@ -233,7 +235,8 @@ struct mgsl_struct {
 	int ri_chkcount;
 
 	char *buffer_list;		/* virtual address of Rx & Tx buffer lists */
-	unsigned long buffer_list_phys;
+	u32 buffer_list_phys;
+	dma_addr_t buffer_list_dma_addr;
 
 	unsigned int rx_buffer_count;	/* count of total allocated Rx buffers */
 	DMABUFFERENTRY *rx_buffer_list;	/* list of receive buffer entries */
@@ -948,7 +951,6 @@ static void* mgsl_get_text_ptr(void)
  * memory if large numbers of serial ports are open.
  */
 static unsigned char *tmp_buf;
-static DECLARE_MUTEX(tmp_buf_sem);
 
 static inline int mgsl_paranoia_check(struct mgsl_struct *info,
 					char *name, const char *routine)
@@ -1464,6 +1466,7 @@ static void mgsl_isr_receive_data( struct mgsl_struct *info )
 {
 	int Fifocount;
 	u16 status;
+	int work = 0;
 	unsigned char DataByte;
  	struct tty_struct *tty = info->tty;
  	struct	mgsl_icount *icount = &info->icount;
@@ -1484,6 +1487,8 @@ static void mgsl_isr_receive_data( struct mgsl_struct *info )
 	/* flush the receive FIFO */
 
 	while( (Fifocount = (usc_InReg(info,RICR) >> 8)) ) {
+		int flag;
+
 		/* read one byte from RxFIFO */
 		outw( (inw(info->io_base + CCAR) & 0x0780) | (RDR+LSBONLY),
 		      info->io_base + CCAR );
@@ -1495,13 +1500,9 @@ static void mgsl_isr_receive_data( struct mgsl_struct *info )
 				RXSTATUS_OVERRUN + RXSTATUS_BREAK_RECEIVED) )
 			usc_UnlatchRxstatusBits(info,RXSTATUS_ALL);
 		
-		if (tty->flip.count >= TTY_FLIPBUF_SIZE)
-			continue;
-			
-		*tty->flip.char_buf_ptr = DataByte;
 		icount->rx++;
 		
-		*tty->flip.flag_buf_ptr = 0;
+		flag = 0;
 		if ( status & (RXSTATUS_FRAMING_ERROR + RXSTATUS_PARITY_ERROR +
 				RXSTATUS_OVERRUN + RXSTATUS_BREAK_RECEIVED) ) {
 			printk("rxerr=%04X\n",status);					
@@ -1527,41 +1528,31 @@ static void mgsl_isr_receive_data( struct mgsl_struct *info )
 			status &= info->read_status_mask;
 		
 			if (status & RXSTATUS_BREAK_RECEIVED) {
-				*tty->flip.flag_buf_ptr = TTY_BREAK;
+				flag = TTY_BREAK;
 				if (info->flags & ASYNC_SAK)
 					do_SAK(tty);
 			} else if (status & RXSTATUS_PARITY_ERROR)
-				*tty->flip.flag_buf_ptr = TTY_PARITY;
+				flag = TTY_PARITY;
 			else if (status & RXSTATUS_FRAMING_ERROR)
-				*tty->flip.flag_buf_ptr = TTY_FRAME;
-			if (status & RXSTATUS_OVERRUN) {
-				/* Overrun is special, since it's
-				 * reported immediately, and doesn't
-				 * affect the current character
-				 */
-				if (tty->flip.count < TTY_FLIPBUF_SIZE) {
-					tty->flip.count++;
-					tty->flip.flag_buf_ptr++;
-					tty->flip.char_buf_ptr++;
-					*tty->flip.flag_buf_ptr = TTY_OVERRUN;
-				}
-			}
+				flag = TTY_FRAME;
 		}	/* end of if (error) */
-		
-		tty->flip.flag_buf_ptr++;
-		tty->flip.char_buf_ptr++;
-		tty->flip.count++;
+		tty_insert_flip_char(tty, DataByte, flag);
+		if (status & RXSTATUS_OVERRUN) {
+			/* Overrun is special, since it's
+			 * reported immediately, and doesn't
+			 * affect the current character
+			 */
+			work += tty_insert_flip_char(tty, 0, TTY_OVERRUN);
+		}
 	}
 
 	if ( debug_level >= DEBUG_LEVEL_ISR ) {
-		printk("%s(%d):mgsl_isr_receive_data flip count=%d\n",
-			__FILE__,__LINE__,tty->flip.count);
 		printk("%s(%d):rx=%d brk=%d parity=%d frame=%d overrun=%d\n",
 			__FILE__,__LINE__,icount->rx,icount->brk,
 			icount->parity,icount->frame,icount->overrun);
 	}
 			
-	if ( tty->flip.count )
+	if(work)
 		tty_flip_buffer_push(tty);
 }
 
@@ -1814,6 +1805,8 @@ static int startup(struct mgsl_struct * info)
 
 	info->pending_bh = 0;
 	
+	memset(&info->icount, 0, sizeof(info->icount));
+
 	init_timer(&info->tx_timer);
 	info->tx_timer.data = (unsigned long)info;
 	info->tx_timer.function = mgsl_tx_timeout;
@@ -2470,12 +2463,12 @@ static int mgsl_get_stats(struct mgsl_struct * info, struct mgsl_icount __user *
 		printk("%s(%d):mgsl_get_params(%s)\n",
 			 __FILE__,__LINE__, info->device_name);
 			
-	COPY_TO_USER(err,user_icount, &info->icount, sizeof(struct mgsl_icount));
-	if (err) {
-		if ( debug_level >= DEBUG_LEVEL_INFO )
-			printk( "%s(%d):mgsl_get_stats(%s) user buffer copy failed\n",
-				__FILE__,__LINE__,info->device_name);
-		return -EFAULT;
+	if (!user_icount) {
+		memset(&info->icount, 0, sizeof(info->icount));
+	} else {
+		COPY_TO_USER(err, user_icount, &info->icount, sizeof(struct mgsl_icount));
+		if (err)
+			return -EFAULT;
 	}
 	
 	return 0;
@@ -3809,11 +3802,10 @@ static int mgsl_alloc_buffer_list_memory( struct mgsl_struct *info )
 		/* inspect portions of the buffer while other portions are being */
 		/* updated by the adapter using Bus Master DMA. */
 
-		info->buffer_list = kmalloc(BUFFERLISTSIZE, GFP_KERNEL | GFP_DMA);
-		if ( info->buffer_list == NULL )
+		info->buffer_list = dma_alloc_coherent(NULL, BUFFERLISTSIZE, &info->buffer_list_dma_addr, GFP_KERNEL);
+		if (info->buffer_list == NULL)
 			return -ENOMEM;
-			
-		info->buffer_list_phys = isa_virt_to_bus(info->buffer_list);
+		info->buffer_list_phys = (u32)(info->buffer_list_dma_addr);
 	}
 
 	/* We got the memory for the buffer entry lists. */
@@ -3880,8 +3872,8 @@ static int mgsl_alloc_buffer_list_memory( struct mgsl_struct *info )
  */
 static void mgsl_free_buffer_list_memory( struct mgsl_struct *info )
 {
-	if ( info->buffer_list && info->bus_type != MGSL_BUS_TYPE_PCI )
-		kfree(info->buffer_list);
+	if (info->buffer_list && info->bus_type != MGSL_BUS_TYPE_PCI)
+		dma_free_coherent(NULL, BUFFERLISTSIZE, info->buffer_list, info->buffer_list_dma_addr);
 		
 	info->buffer_list = NULL;
 	info->rx_buffer_list = NULL;
@@ -3908,7 +3900,7 @@ static void mgsl_free_buffer_list_memory( struct mgsl_struct *info )
 static int mgsl_alloc_frame_memory(struct mgsl_struct *info,DMABUFFERENTRY *BufferList,int Buffercount)
 {
 	int i;
-	unsigned long phys_addr;
+	u32 phys_addr;
 
 	/* Allocate page sized buffers for the receive buffer list */
 
@@ -3920,11 +3912,10 @@ static int mgsl_alloc_frame_memory(struct mgsl_struct *info,DMABUFFERENTRY *Buff
 			info->last_mem_alloc += DMABUFFERSIZE;
 		} else {
 			/* ISA adapter uses system memory. */
-			BufferList[i].virt_addr = 
-				kmalloc(DMABUFFERSIZE, GFP_KERNEL | GFP_DMA);
-			if ( BufferList[i].virt_addr == NULL )
+			BufferList[i].virt_addr = dma_alloc_coherent(NULL, DMABUFFERSIZE, &BufferList[i].dma_addr, GFP_KERNEL);
+			if (BufferList[i].virt_addr == NULL)
 				return -ENOMEM;
-			phys_addr = isa_virt_to_bus(BufferList[i].virt_addr);
+			phys_addr = (u32)(BufferList[i].dma_addr);
 		}
 		BufferList[i].phys_addr = phys_addr;
 	}
@@ -3955,7 +3946,7 @@ static void mgsl_free_frame_memory(struct mgsl_struct *info, DMABUFFERENTRY *Buf
 		for ( i = 0 ; i < Buffercount ; i++ ) {
 			if ( BufferList[i].virt_addr ) {
 				if ( info->bus_type != MGSL_BUS_TYPE_PCI )
-					kfree(BufferList[i].virt_addr);
+					dma_free_coherent(NULL, DMABUFFERSIZE, BufferList[i].virt_addr, BufferList[i].dma_addr);
 				BufferList[i].virt_addr = NULL;
 			}
 		}
@@ -4013,9 +4004,7 @@ static int mgsl_alloc_intermediate_rxbuffer_memory(struct mgsl_struct *info)
  */
 static void mgsl_free_intermediate_rxbuffer_memory(struct mgsl_struct *info)
 {
-	if ( info->intermediate_rxbuffer )
-		kfree(info->intermediate_rxbuffer);
-
+	kfree(info->intermediate_rxbuffer);
 	info->intermediate_rxbuffer = NULL;
 
 }	/* end of mgsl_free_intermediate_rxbuffer_memory() */
@@ -4069,10 +4058,8 @@ static void mgsl_free_intermediate_txbuffer_memory(struct mgsl_struct *info)
 	int i;
 
 	for ( i=0; i<info->num_tx_holding_buffers; ++i ) {
-		if ( info->tx_holding_buffers[i].buffer ) {
-				kfree(info->tx_holding_buffers[i].buffer);
-				info->tx_holding_buffers[i].buffer=NULL;
-		}
+		kfree(info->tx_holding_buffers[i].buffer);
+		info->tx_holding_buffers[i].buffer = NULL;
 	}
 
 	info->get_tx_holding_index = 0;
@@ -6149,6 +6136,11 @@ static void usc_set_async_mode( struct mgsl_struct *info )
 		usc_OutReg(info, PCR, (u16)((usc_InReg(info, PCR) | BIT13) & ~BIT12));
 	}
 
+	if (info->params.loopback) {
+		info->loopback_bits = 0x300;
+		outw(0x0300, info->io_base + CCAR);
+	}
+
 }	/* end of usc_set_async_mode() */
 
 /* usc_loopback_frame()
@@ -7054,7 +7046,7 @@ static BOOLEAN mgsl_register_test( struct mgsl_struct *info )
 {
 	static unsigned short BitPatterns[] =
 		{ 0x0000, 0xffff, 0xaaaa, 0x5555, 0x1234, 0x6969, 0x9696, 0x0f0f };
-	static unsigned int Patterncount = sizeof(BitPatterns)/sizeof(unsigned short);
+	static unsigned int Patterncount = ARRAY_SIZE(BitPatterns);
 	unsigned int i;
 	BOOLEAN rc = TRUE;
 	unsigned long flags;
@@ -7497,9 +7489,9 @@ static int mgsl_adapter_test( struct mgsl_struct *info )
  */
 static BOOLEAN mgsl_memory_test( struct mgsl_struct *info )
 {
-	static unsigned long BitPatterns[] = { 0x0, 0x55555555, 0xaaaaaaaa,
-											0x66666666, 0x99999999, 0xffffffff, 0x12345678 };
-	unsigned long Patterncount = sizeof(BitPatterns)/sizeof(unsigned long);
+	static unsigned long BitPatterns[] =
+		{ 0x0, 0x55555555, 0xaaaaaaaa, 0x66666666, 0x99999999, 0xffffffff, 0x12345678 };
+	unsigned long Patterncount = ARRAY_SIZE(BitPatterns);
 	unsigned long i;
 	unsigned long TestLimit = SHARED_MEM_ADDRESS_SIZE/sizeof(unsigned long);
 	unsigned long * TestAddr;

@@ -10,6 +10,8 @@
 
 #ifndef __ASSEMBLY__
 
+#include <linux/compiler.h>
+
 struct tag;
 struct meminfo;
 struct sys_timer;
@@ -20,13 +22,13 @@ struct machine_desc {
 	 * by assembler code in head-armv.S
 	 */
 	unsigned int		nr;		/* architecture number	*/
-	unsigned int		phys_ram;	/* start of physical ram */
+	unsigned int __deprecated phys_ram;	/* start of physical ram */
 	unsigned int		phys_io;	/* start of physical io	*/
 	unsigned int		io_pg_offst;	/* byte offset for io 
 						 * page tabe entry	*/
 
 	const char		*name;		/* architecture name	*/
-	unsigned int		param_offset;	/* parameter page	*/
+	unsigned long		boot_params;	/* tagged list		*/
 
 	unsigned int		video_start;	/* start of video RAM	*/
 	unsigned int		video_end;	/* end of video RAM	*/
@@ -48,43 +50,12 @@ struct machine_desc {
  * Set of macros to define architecture features.  This is built into
  * a table by the linker.
  */
-#define MACHINE_START(_type,_name)		\
-const struct machine_desc __mach_desc_##_type	\
- __attribute__((__section__(".arch.info"))) = {	\
-	.nr		= MACH_TYPE_##_type,	\
+#define MACHINE_START(_type,_name)			\
+static const struct machine_desc __mach_desc_##_type	\
+ __attribute_used__					\
+ __attribute__((__section__(".arch.info.init"))) = {	\
+	.nr		= MACH_TYPE_##_type,		\
 	.name		= _name,
-
-#define MAINTAINER(n)
-
-#define BOOT_MEM(_pram,_pio,_vio)		\
-	.phys_ram	= _pram,		\
-	.phys_io	= _pio,			\
-	.io_pg_offst	= ((_vio)>>18)&0xfffc,
-
-#define BOOT_PARAMS(_params)			\
-	.param_offset	= _params,
-
-#define VIDEO(_start,_end)			\
-	.video_start	= _start,		\
-	.video_end	= _end,
-
-#define DISABLE_PARPORT(_n)			\
-	.reserve_lp##_n	= 1,
-
-#define SOFT_REBOOT				\
-	.soft_reboot	= 1,
-
-#define FIXUP(_func)				\
-	.fixup		= _func,
-
-#define MAPIO(_func)				\
-	.map_io		= _func,
-
-#define INITIRQ(_func)				\
-	.init_irq	= _func,
-
-#define INIT_MACHINE(_func)			\
-	.init_machine	= _func,
 
 #define MACHINE_END				\
 };

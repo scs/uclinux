@@ -114,7 +114,7 @@ typedef unsigned long sigset_t;
 #define SIGSTKSZ	8192
 
 #ifdef __KERNEL__
-#define SA_IRQNOMASK		0x08000000
+#define SA_TIMER		0x40000000
 #endif
 
 #include <asm-generic/signal.h>

@@ -77,12 +77,6 @@ static inline void set_fs (mm_segment_t fs)
 
 #define access_ok(type,addr,size)	(__range_ok(addr,size) == 0)
 
-/* this function will go away soon - use access_ok() instead */
-static inline int __deprecated verify_area(int type, const void __user *addr, unsigned long size)
-{
-	return access_ok(type, addr, size) ? 0 : -EFAULT;
-}
-
 /*
  * Single-value transfer routines.  They automatically use the right
  * size if we just have the right pointer type.  Note that the functions
@@ -106,7 +100,6 @@ static inline int __deprecated verify_area(int type, const void __user *addr, un
 extern int __get_user_1(void *);
 extern int __get_user_2(void *);
 extern int __get_user_4(void *);
-extern int __get_user_8(void *);
 extern int __get_user_bad(void);
 
 #define __get_user_x(__r2,__p,__e,__s,__i...)				\
@@ -120,7 +113,7 @@ extern int __get_user_bad(void);
 #define get_user(x,p)							\
 	({								\
 		const register typeof(*(p)) __user *__p asm("r0") = (p);\
-		register typeof(*(p)) __r2 asm("r2");			\
+		register unsigned int __r2 asm("r2");			\
 		register int __e asm("r0");				\
 		switch (sizeof(*(__p))) {				\
 		case 1:							\
@@ -132,12 +125,9 @@ extern int __get_user_bad(void);
 		case 4:							\
 	       		__get_user_x(__r2, __p, __e, 4, "lr");		\
 			break;						\
-		case 8:							\
-			__get_user_x(__r2, __p, __e, 8, "lr");		\
-	       		break;						\
 		default: __e = __get_user_bad(); break;			\
 		}							\
-		x = __r2;						\
+		x = (typeof(*(p))) __r2;				\
 		__e;							\
 	})
 
