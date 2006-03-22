@@ -1,3 +1,9 @@
+config ARM_GIC
+	bool
+
+config ARM_VIC
+	bool
+
 config ICST525
 	bool
 
@@ -18,6 +24,9 @@ config SHARP_LOCOMO
 	bool
 
 config SHARP_PARAM
+	bool
+
+config SHARPSL_PM
 	bool
 
 config SHARP_SCOOP

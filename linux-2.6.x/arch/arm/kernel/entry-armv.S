@@ -3,6 +3,7 @@
  *
  *  Copyright (C) 1996,1997,1998 Russell King.
  *  ARM700 fix by Matthew Godbolt (linux-user@willothewisp.demon.co.uk)
+ *  nommu support by Hyok S. Choi (hyok.choi@samsung.com)
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -15,57 +16,116 @@
  */
 #include <linux/config.h>
 
+#include <asm/memory.h>
 #include <asm/glue.h>
 #include <asm/vfpmacros.h>
-#include <asm/hardware.h>		/* should be moved into entry-macro.S */
-#include <asm/arch/irqs.h>		/* should be moved into entry-macro.S */
 #include <asm/arch/entry-macro.S>
 
 #include "entry-header.S"
 
 /*
+ * Interrupt handling.  Preserves r7, r8, r9
+ */
+	.macro	irq_handler
+1:	get_irqnr_and_base r0, r6, r5, lr
+	movne	r1, sp
+	@
+	@ routine called with r0 = irq number, r1 = struct pt_regs *
+	@
+	adrne	lr, 1b
+	bne	asm_do_IRQ
+
+#ifdef CONFIG_SMP
+	/*
+	 * XXX
+	 *
+	 * this macro assumes that irqstat (r6) and base (r5) are
+	 * preserved from get_irqnr_and_base above
+	 */
+	test_for_ipi r0, r6, r5, lr
+	movne	r0, sp
+	adrne	lr, 1b
+	bne	do_IPI
+
+#ifdef CONFIG_LOCAL_TIMERS
+	test_for_ltirq r0, r6, r5, lr
+	movne	r0, sp
+	adrne	lr, 1b
+	bne	do_local_timer
+#endif
+#endif
+
+	.endm
+
+/*
  * Invalid mode handlers
  */
-	.macro	inv_entry, sym, reason
-	sub	sp, sp, #S_FRAME_SIZE		@ Allocate frame size in one go
-	stmia	sp, {r0 - lr}			@ Save XXX r0 - lr
-	ldr	r4, .LC\sym
+	.macro	inv_entry, reason
+	sub	sp, sp, #S_FRAME_SIZE
+	stmib	sp, {r1 - lr}
 	mov	r1, #\reason
 	.endm
 
 __pabt_invalid:
-	inv_entry abt, BAD_PREFETCH
-	b	1f
+	inv_entry BAD_PREFETCH
+	b	common_invalid
 
 __dabt_invalid:
-	inv_entry abt, BAD_DATA
-	b	1f
+	inv_entry BAD_DATA
+	b	common_invalid
 
 __irq_invalid:
-	inv_entry irq, BAD_IRQ
-	b	1f
+	inv_entry BAD_IRQ
+	b	common_invalid
 
 __und_invalid:
-	inv_entry und, BAD_UNDEFINSTR
+	inv_entry BAD_UNDEFINSTR
 
-1:	zero_fp
-	ldmia	r4, {r5 - r7}			@ Get XXX pc, cpsr, old_r0
-	add	r4, sp, #S_PC
-	stmia	r4, {r5 - r7}			@ Save XXX pc, cpsr, old_r0
+	@
+	@ XXX fall through to common_invalid
+	@
+
+@
+@ common_invalid - generic code for failed exception (re-entrant version of handlers)
+@
+common_invalid:
+	zero_fp
+
+	ldmia	r0, {r4 - r6}
+	add	r0, sp, #S_PC		@ here for interlock avoidance
+	mov	r7, #-1			@  ""   ""    ""        ""
+	str	r4, [sp]		@ save preserved r0
+	stmia	r0, {r5 - r7}		@ lr_<exception>,
+					@ cpsr_<exception>, "old_r0"
+
 	mov	r0, sp
-	and	r2, r6, #31			@ int mode
+	and	r2, r6, #0x1f
 	b	bad_mode
 
 /*
  * SVC mode handlers
  */
-	.macro	svc_entry, sym
+
+#if defined(CONFIG_AEABI) && (__LINUX_ARM_ARCH__ >= 5)
+#define SPFIX(code...) code
+#else
+#define SPFIX(code...)
+#endif
+
+	.macro	svc_entry
 	sub	sp, sp, #S_FRAME_SIZE
-	stmia	sp, {r0 - r12}			@ save r0 - r12
-	ldr	r2, .LC\sym
-	add	r0, sp, #S_FRAME_SIZE
-	ldmia	r2, {r2 - r4}			@ get pc, cpsr
-	add	r5, sp, #S_SP
+ SPFIX(	tst	sp, #4		)
+ SPFIX(	bicne	sp, sp, #4	)
+	stmib	sp, {r1 - r12}
+
+	ldmia	r0, {r1 - r3}
+	add	r5, sp, #S_SP		@ here for interlock avoidance
+	mov	r4, #-1			@  ""  ""      ""       ""
+	add	r0, sp, #S_FRAME_SIZE   @  ""  ""      ""       ""
+ SPFIX(	addne	r0, r0, #4	)
+	str	r1, [sp]		@ save the "real" r0 copied
+					@ from the exception stack
+
 	mov	r1, lr
 
 	@
@@ -82,7 +142,7 @@ __und_invalid:
 
 	.align	5
 __dabt_svc:
-	svc_entry abt
+	svc_entry
 
 	@
 	@ get ready to re-enable interrupts if appropriate
@@ -129,28 +189,24 @@ __dabt_svc:
 
 	.align	5
 __irq_svc:
-	svc_entry irq
+	svc_entry
+
 #ifdef CONFIG_PREEMPT
-	get_thread_info r8
-	ldr	r9, [r8, #TI_PREEMPT]		@ get preempt count
-	add	r7, r9, #1			@ increment it
-	str	r7, [r8, #TI_PREEMPT]
+	get_thread_info tsk
+	ldr	r8, [tsk, #TI_PREEMPT]		@ get preempt count
+	add	r7, r8, #1			@ increment it
+	str	r7, [tsk, #TI_PREEMPT]
 #endif
-1:	get_irqnr_and_base r0, r6, r5, lr
-	movne	r1, sp
-	@
-	@ routine called with r0 = irq number, r1 = struct pt_regs *
-	@
-	adrne	lr, 1b
-	bne	asm_do_IRQ
+
+	irq_handler
 #ifdef CONFIG_PREEMPT
-	ldr	r0, [r8, #TI_FLAGS]		@ get flags
+	ldr	r0, [tsk, #TI_FLAGS]		@ get flags
 	tst	r0, #_TIF_NEED_RESCHED
 	blne	svc_preempt
 preempt_return:
-	ldr	r0, [r8, #TI_PREEMPT]		@ read preempt value
+	ldr	r0, [tsk, #TI_PREEMPT]		@ read preempt value
+	str	r8, [tsk, #TI_PREEMPT]		@ restore preempt count
 	teq	r0, r7
-	str	r9, [r8, #TI_PREEMPT]		@ restore preempt count
 	strne	r0, [r0, -r0]			@ bug()
 #endif
 	ldr	r0, [sp, #S_PSR]		@ irqs are already disabled
@@ -161,7 +217,7 @@ preempt_return:
 
 #ifdef CONFIG_PREEMPT
 svc_preempt:
-	teq	r9, #0				@ was preempt count = 0
+	teq	r8, #0				@ was preempt count = 0
 	ldreq	r6, .LCirq_stat
 	movne	pc, lr				@ no
 	ldr	r0, [r6, #4]			@ local_irq_count
@@ -169,9 +225,9 @@ svc_preempt:
 	adds	r0, r0, r1
 	movne	pc, lr
 	mov	r7, #0				@ preempt_schedule_irq
-	str	r7, [r8, #TI_PREEMPT]		@ expects preempt_count == 0
+	str	r7, [tsk, #TI_PREEMPT]		@ expects preempt_count == 0
 1:	bl	preempt_schedule_irq		@ irq en/disable is done inside
-	ldr	r0, [r8, #TI_FLAGS]		@ get new tasks TI_FLAGS
+	ldr	r0, [tsk, #TI_FLAGS]		@ get new tasks TI_FLAGS
 	tst	r0, #_TIF_NEED_RESCHED
 	beq	preempt_return			@ go again
 	b	1b
@@ -179,7 +235,7 @@ svc_preempt:
 
 	.align	5
 __und_svc:
-	svc_entry und
+	svc_entry
 
 	@
 	@ call emulation code, which returns using r9 if it has emulated
@@ -209,7 +265,7 @@ __und_svc:
 
 	.align	5
 __pabt_svc:
-	svc_entry abt
+	svc_entry
 
 	@
 	@ re-enable interrupts if appropriate
@@ -242,12 +298,8 @@ __pabt_svc:
 	ldmia	sp, {r0 - pc}^			@ load r0 - pc, cpsr
 
 	.align	5
-.LCirq:
-	.word	__temp_irq
-.LCund:
-	.word	__temp_und
-.LCabt:
-	.word	__temp_abt
+.LCcralign:
+	.word	cr_alignment
 #ifdef MULTI_ABORT
 .LCprocfns:
 	.word	processor
@@ -261,18 +313,33 @@ __pabt_svc:
 
 /*
  * User mode handlers
+ *
+ * EABI note: sp_svc is always 64-bit aligned here, so should S_FRAME_SIZE
  */
-	.macro	usr_entry, sym
-	sub	sp, sp, #S_FRAME_SIZE		@ Allocate frame size in one go
-	stmia	sp, {r0 - r12}			@ save r0 - r12
-	ldr	r7, .LC\sym
-	add	r5, sp, #S_PC
-	ldmia	r7, {r2 - r4}			@ Get USR pc, cpsr
+
+#if defined(CONFIG_AEABI) && (__LINUX_ARM_ARCH__ >= 5) && (S_FRAME_SIZE & 7)
+#error "sizeof(struct pt_regs) must be a multiple of 8"
+#endif
+
+	.macro	usr_entry
+	sub	sp, sp, #S_FRAME_SIZE
+	stmib	sp, {r1 - r12}
+
+	ldmia	r0, {r1 - r3}
+	add	r0, sp, #S_PC		@ here for interlock avoidance
+	mov	r4, #-1			@  ""  ""     ""        ""
+
+	str	r1, [sp]		@ save the "real" r0 copied
+					@ from the exception stack
 
 #if __LINUX_ARM_ARCH__ < 6 && !defined(CONFIG_NEEDS_SYSCALL_FOR_CMPXCHG)
+#ifndef CONFIG_MMU
+#warning "NPTL on non MMU needs fixing"
+#else
 	@ make sure our user space atomic helper is aborted
-	cmp	r2, #VIRT_OFFSET
+	cmp	r2, #TASK_SIZE
 	bichs	r3, r3, #PSR_Z_BIT
+#endif
 #endif
 
 	@
@@ -284,13 +351,13 @@ __pabt_svc:
 	@
 	@ Also, separately save sp_usr and lr_usr
 	@
-	stmia	r5, {r2 - r4}
-	stmdb	r5, {sp, lr}^
+	stmia	r0, {r2 - r4}
+	stmdb	r0, {sp, lr}^
 
 	@
 	@ Enable the alignment trap while in kernel mode
 	@
-	alignment_trap r7, r0, __temp_\sym
+	alignment_trap r0
 
 	@
 	@ Clear FP to mark the first stack frame
@@ -300,7 +367,7 @@ __pabt_svc:
 
 	.align	5
 __dabt_usr:
-	usr_entry abt
+	usr_entry
 
 	@
 	@ Call the processor-specific abort handler:
@@ -329,30 +396,23 @@ __dabt_usr:
 
 	.align	5
 __irq_usr:
-	usr_entry irq
+	usr_entry
 
-#ifdef CONFIG_PREEMPT
-	get_thread_info r8
-	ldr	r9, [r8, #TI_PREEMPT]		@ get preempt count
-	add	r7, r9, #1			@ increment it
-	str	r7, [r8, #TI_PREEMPT]
-#endif
-1:	get_irqnr_and_base r0, r6, r5, lr
-	movne	r1, sp
-	adrne	lr, 1b
-	@
-	@ routine called with r0 = irq number, r1 = struct pt_regs *
-	@
-	bne	asm_do_IRQ
-#ifdef CONFIG_PREEMPT
-	ldr	r0, [r8, #TI_PREEMPT]
-	teq	r0, r7
-	str	r9, [r8, #TI_PREEMPT]
-	strne	r0, [r0, -r0]
-	mov	tsk, r8
-#else
 	get_thread_info tsk
+#ifdef CONFIG_PREEMPT
+	ldr	r8, [tsk, #TI_PREEMPT]		@ get preempt count
+	add	r7, r8, #1			@ increment it
+	str	r7, [tsk, #TI_PREEMPT]
 #endif
+
+	irq_handler
+#ifdef CONFIG_PREEMPT
+	ldr	r0, [tsk, #TI_PREEMPT]
+	str	r8, [tsk, #TI_PREEMPT]
+	teq	r0, r7
+	strne	r0, [r0, -r0]
+#endif
+
 	mov	why, #0
 	b	ret_to_user
 
@@ -360,7 +420,7 @@ __irq_usr:
 
 	.align	5
 __und_usr:
-	usr_entry und
+	usr_entry
 
 	tst	r3, #PSR_T_BIT			@ Thumb mode?
 	bne	fpundefinstr			@ ignore FP
@@ -476,7 +536,7 @@ fpundefinstr:
 
 	.align	5
 __pabt_usr:
-	usr_entry abt
+	usr_entry
 
 	enable_irq				@ Enable interrupts
 	mov	r0, r2				@ address (pc)
@@ -500,7 +560,18 @@ ENTRY(__switch_to)
 	add	ip, r1, #TI_CPU_SAVE
 	ldr	r3, [r2, #TI_TP_VALUE]
 	stmia	ip!, {r4 - sl, fp, sp, lr}	@ Store most regs on stack
+#ifndef CONFIG_MMU
+	add	r2, r2, #TI_CPU_DOMAIN
+#else
 	ldr	r6, [r2, #TI_CPU_DOMAIN]!
+#endif
+#if __LINUX_ARM_ARCH__ >= 6
+#ifdef CONFIG_CPU_32v6K
+	clrex
+#else
+	strex	r5, r4, [ip]			@ Clear exclusive monitor
+#endif
+#endif
 #if defined(CONFIG_CPU_XSCALE) && !defined(CONFIG_IWMMXT)
 	mra	r4, r5, acc0
 	stmia   ip, {r4, r5}
@@ -511,7 +582,9 @@ ENTRY(__switch_to)
 	mov	r4, #0xffff0fff
 	str	r3, [r4, #-15]			@ TLS val at 0xffff0ff0
 #endif
+#ifdef CONFIG_MMU
 	mcr	p15, 0, r6, c3, c0, 0		@ Set domain register
+#endif
 #ifdef CONFIG_VFP
 	@ Always disable VFP so we can lazily save/restore the old
 	@ state. This occurs in the context of the previous thread.
@@ -567,6 +640,47 @@ __kuser_helper_start:
 /*
  * Reference prototype:
  *
+ *	void __kernel_memory_barrier(void)
+ *
+ * Input:
+ *
+ *	lr = return address
+ *
+ * Output:
+ *
+ *	none
+ *
+ * Clobbered:
+ *
+ *	the Z flag might be lost
+ *
+ * Definition and user space usage example:
+ *
+ *	typedef void (__kernel_dmb_t)(void);
+ *	#define __kernel_dmb (*(__kernel_dmb_t *)0xffff0fa0)
+ *
+ * Apply any needed memory barrier to preserve consistency with data modified
+ * manually and __kuser_cmpxchg usage.
+ *
+ * This could be used as follows:
+ *
+ * #define __kernel_dmb() \
+ *         asm volatile ( "mov r0, #0xffff0fff; mov lr, pc; sub pc, r0, #95" \
+ *	        : : : "lr","cc" )
+ */
+
+__kuser_memory_barrier:				@ 0xffff0fa0
+
+#if __LINUX_ARM_ARCH__ >= 6 && defined(CONFIG_SMP)
+	mcr	p15, 0, r0, c7, c10, 5	@ dmb
+#endif
+	mov	pc, lr
+
+	.align	5
+
+/*
+ * Reference prototype:
+ *
  *	int __kernel_cmpxchg(int oldval, int newval, int *ptr)
  *
  * Input:
@@ -594,6 +708,13 @@ __kuser_helper_start:
  * Return zero if *ptr was changed or non-zero if no exchange happened.
  * The C flag is also set if *ptr was changed to allow for assembly
  * optimization in the calling code.
+ *
+ * Notes:
+ *
+ *    - This routine already includes memory barriers as needed.
+ *
+ *    - A failure might be transient, i.e. it is possible, although unlikely,
+ *      that "failure" be returned even if *ptr == oldval.
  *
  * For example, a user space atomic_add implementation could look like this:
  *
@@ -623,8 +744,11 @@ __kuser_cmpxchg:				@ 0xffff0fc0
 	 * The kernel itself must perform the operation.
 	 * A special ghost syscall is used for that (see traps.c).
 	 */
+	stmfd	sp!, {r7, lr}
+	mov	r7, #0xff00		@ 0xfff0 into r7 for EABI
+	orr	r7, r7, #0xf0
 	swi	#0x9ffff0
-	mov	pc, lr
+	ldmfd	sp!, {r7, pc}
 
 #elif __LINUX_ARM_ARCH__ < 6
 
@@ -641,20 +765,32 @@ __kuser_cmpxchg:				@ 0xffff0fc0
 	 * exception happening just after the str instruction which would
 	 * clear the Z flag although the exchange was done.
 	 */
+#ifdef CONFIG_MMU
 	teq	ip, ip			@ set Z flag
 	ldr	ip, [r2]		@ load current val
 	add	r3, r2, #1		@ prepare store ptr
 	teqeq	ip, r0			@ compare with oldval if still allowed
 	streq	r1, [r3, #-1]!		@ store newval if still allowed
 	subs	r0, r2, r3		@ if r2 == r3 the str occured
+#else
+#warning "NPTL on non MMU needs fixing"
+	mov	r0, #-1
+	adds	r0, r0, #0
+#endif
 	mov	pc, lr
 
 #else
 
+#ifdef CONFIG_SMP
+	mcr	p15, 0, r0, c7, c10, 5	@ dmb
+#endif
 	ldrex	r3, [r2]
 	subs	r3, r3, r0
 	strexeq	r3, r1, [r2]
 	rsbs	r0, r3, #0
+#ifdef CONFIG_SMP
+	mcr	p15, 0, r0, c7, c10, 5	@ dmb
+#endif
 	mov	pc, lr
 
 #endif
@@ -741,29 +877,40 @@ __kuser_helper_end:
  *
  * Common stub entry macro:
  *   Enter in IRQ mode, spsr = SVC/USR CPSR, lr = SVC/USR PC
+ *
+ * SP points to a minimal amount of processor-private memory, the address
+ * of which is copied into r0 for the mode specific abort handler.
  */
-	.macro	vector_stub, name, sym, correction=0
+	.macro	vector_stub, name, mode, correction=0
 	.align	5
 
 vector_\name:
-	ldr	r13, .LCs\sym
 	.if \correction
 	sub	lr, lr, #\correction
 	.endif
-	str	lr, [r13]			@ save lr_IRQ
-	mrs	lr, spsr
-	str	lr, [r13, #4]			@ save spsr_IRQ
-	@
-	@ now branch to the relevant MODE handling routine
-	@
-	mrs	r13, cpsr
-	bic	r13, r13, #MODE_MASK
-	orr	r13, r13, #SVC_MODE
-	msr	spsr_cxsf, r13			@ switch to SVC_32 mode
 
-	and	lr, lr, #15
+	@
+	@ Save r0, lr_<exception> (parent PC) and spsr_<exception>
+	@ (parent CPSR)
+	@
+	stmia	sp, {r0, lr}		@ save r0, lr
+	mrs	lr, spsr
+	str	lr, [sp, #8]		@ save spsr
+
+	@
+	@ Prepare for SVC32 mode.  IRQs remain disabled.
+	@
+	mrs	r0, cpsr
+	eor	r0, r0, #(\mode ^ SVC_MODE)
+	msr	spsr_cxsf, r0
+
+	@
+	@ the branch table must immediately follow this code
+	@
+	and	lr, lr, #0x0f
+	mov	r0, sp
 	ldr	lr, [pc, lr, lsl #2]
-	movs	pc, lr				@ Changes mode and branches
+	movs	pc, lr			@ branch to handler in SVC mode
 	.endm
 
 	.globl	__stubs_start
@@ -771,7 +918,7 @@ __stubs_start:
 /*
  * Interrupt dispatcher
  */
-	vector_stub	irq, irq, 4
+	vector_stub	irq, IRQ_MODE, 4
 
 	.long	__irq_usr			@  0  (USR_26 / USR_32)
 	.long	__irq_invalid			@  1  (FIQ_26 / FIQ_32)
@@ -794,7 +941,7 @@ __stubs_start:
  * Data abort dispatcher
  * Enter in ABT mode, spsr = USR CPSR, lr = USR PC
  */
-	vector_stub	dabt, abt, 8
+	vector_stub	dabt, ABT_MODE, 8
 
 	.long	__dabt_usr			@  0  (USR_26 / USR_32)
 	.long	__dabt_invalid			@  1  (FIQ_26 / FIQ_32)
@@ -817,7 +964,7 @@ __stubs_start:
  * Prefetch abort dispatcher
  * Enter in ABT mode, spsr = USR CPSR, lr = USR PC
  */
-	vector_stub	pabt, abt, 4
+	vector_stub	pabt, ABT_MODE, 4
 
 	.long	__pabt_usr			@  0 (USR_26 / USR_32)
 	.long	__pabt_invalid			@  1 (FIQ_26 / FIQ_32)
@@ -840,7 +987,7 @@ __stubs_start:
  * Undef instr entry dispatcher
  * Enter in UND mode, spsr = SVC/USR CPSR, lr = SVC/USR PC
  */
-	vector_stub	und, und
+	vector_stub	und, UND_MODE
 
 	.long	__und_usr			@  0 (USR_26 / USR_32)
 	.long	__und_invalid			@  1 (FIQ_26 / FIQ_32)
@@ -894,13 +1041,6 @@ vector_addrexcptn:
 .LCvswi:
 	.word	vector_swi
 
-.LCsirq:
-	.word	__temp_irq
-.LCsund:
-	.word	__temp_und
-.LCsabt:
-	.word	__temp_abt
-
 	.globl	__stubs_end
 __stubs_end:
 
@@ -921,23 +1061,6 @@ __vectors_start:
 __vectors_end:
 
 	.data
-
-/*
- * Do not reorder these, and do not insert extra data between...
- */
-
-__temp_irq:
-	.word	0				@ saved lr_irq
-	.word	0				@ saved spsr_irq
-	.word	-1				@ old_r0
-__temp_und:
-	.word	0				@ Saved lr_und
-	.word	0				@ Saved spsr_und
-	.word	-1				@ old_r0
-__temp_abt:
-	.word	0				@ Saved lr_abt
-	.word	0				@ Saved spsr_abt
-	.word	-1				@ old_r0
 
 	.globl	cr_alignment
 	.globl	cr_no_alignment

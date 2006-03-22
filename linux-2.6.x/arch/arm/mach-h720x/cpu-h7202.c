@@ -90,7 +90,7 @@ static struct plat_serial8250_port serial_platform_data[] = {
 
 static struct platform_device serial_device = {
 	.name			= "serial8250",
-	.id			= 0,
+	.id			= PLAT8250_DEV_PLATFORM,
 	.dev			= {
 		.platform_data	= serial_platform_data,
 	},
@@ -126,7 +126,7 @@ h7202_timerx_demux_handler(unsigned int irq_unused, struct irqdesc *desc,
 	desc = irq_desc + irq;
 	while (mask) {
 		if (mask & 1)
-			desc->handle(irq, desc, regs);
+			desc_handle_irq(irq, desc, regs);
 		irq++;
 		desc++;
 		mask >>= 1;
@@ -171,8 +171,8 @@ static struct irqchip h7202_timerx_chip = {
 
 static struct irqaction h7202_timer_irq = {
 	.name		= "h7202 Timer Tick",
-	.flags		= SA_INTERRUPT,
-	.handler	= h7202_timer_interrupt
+	.flags		= SA_INTERRUPT | SA_TIMER,
+	.handler	= h7202_timer_interrupt,
 };
 
 /*

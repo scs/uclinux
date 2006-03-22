@@ -11,7 +11,7 @@
  *  These assume a split I/D TLB.
  */
 #include <linux/linkage.h>
-#include <asm/constants.h>
+#include <asm/asm-offsets.h>
 #include <asm/page.h>
 #include <asm/tlbflush.h>
 #include "proc-macros.S"
@@ -80,6 +80,7 @@ ENTRY(v6wbi_flush_kern_tlb_range)
 	add	r0, r0, #PAGE_SZ
 	cmp	r0, r1
 	blo	1b
+	mcr	p15, 0, r2, c7, c10, 4		@ data synchronization barrier
 	mov	pc, lr
 
 	.section ".text.init", #alloc, #execinstr

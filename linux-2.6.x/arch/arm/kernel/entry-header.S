@@ -3,7 +3,7 @@
 #include <linux/linkage.h>
 
 #include <asm/assembler.h>
-#include <asm/constants.h>
+#include <asm/asm-offsets.h>
 #include <asm/errno.h>
 #include <asm/thread_info.h>
 
@@ -19,6 +19,7 @@
 @
 @ Most of the stack format comes from struct pt_regs, but with
 @ the addition of 8 bytes for storing syscall args 5 and 6.
+@ This _must_ remain a multiple of 8 for EABI.
 @
 #define S_OFF		8
 
@@ -59,11 +60,10 @@
 	mov	\rd, \rd, lsl #13
 	.endm
 
-	.macro	alignment_trap, rbase, rtemp, sym
+	.macro	alignment_trap, rtemp
 #ifdef CONFIG_ALIGNMENT_TRAP
-#define OFF_CR_ALIGNMENT(x)	cr_alignment - x
-
-	ldr	\rtemp, [\rbase, #OFF_CR_ALIGNMENT(\sym)]
+	ldr	\rtemp, .LCcralign
+	ldr	\rtemp, [\rtemp]
 	mcr	p15, 0, \rtemp, c1, c0
 #endif
 	.endm

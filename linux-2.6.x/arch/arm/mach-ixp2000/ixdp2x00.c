@@ -20,7 +20,7 @@
 #include <linux/mm.h>
 #include <linux/sched.h>
 #include <linux/interrupt.h>
-#include <linux/device.h>
+#include <linux/platform_device.h>
 #include <linux/bitops.h>
 #include <linux/pci.h>
 #include <linux/ioport.h>
@@ -41,6 +41,9 @@
 #include <asm/mach/time.h>
 #include <asm/mach/flash.h>
 #include <asm/mach/arch.h>
+
+#include <asm/arch/gpio.h>
+
 
 /*************************************************************************
  * IXDP2x00 IRQ Initialization
@@ -78,7 +81,7 @@ static void ixdp2x00_irq_mask(unsigned int irq)
 
 	dummy = *board_irq_mask;
 	dummy |=  IXP2000_BOARD_IRQ_MASK(irq);
-	ixp2000_reg_write(board_irq_mask, dummy);
+	ixp2000_reg_wrb(board_irq_mask, dummy);
 
 #ifdef CONFIG_ARCH_IXDP2400
 	if (machine_is_ixdp2400())
@@ -98,7 +101,7 @@ static void ixdp2x00_irq_unmask(unsigned int irq)
 
 	dummy = *board_irq_mask;
 	dummy &=  ~IXP2000_BOARD_IRQ_MASK(irq);
-	ixp2000_reg_write(board_irq_mask, dummy);
+	ixp2000_reg_wrb(board_irq_mask, dummy);
 
 	if (machine_is_ixdp2400()) 
 		ixp2000_release_slowport(&old_cfg);
@@ -130,7 +133,7 @@ static void ixdp2x00_irq_handler(unsigned int irq, struct irqdesc *desc, struct 
 			struct irqdesc *cpld_desc;
 			int cpld_irq = IXP2000_BOARD_IRQ(0) + i;
 			cpld_desc = irq_desc + cpld_irq;
-			cpld_desc->handle(cpld_irq, cpld_desc, regs);
+			desc_handle_irq(cpld_irq, cpld_desc, regs);
 		}
 	}
 
@@ -173,7 +176,7 @@ void ixdp2x00_init_irq(volatile unsigned long *stat_reg, volatile unsigned long 
  *************************************************************************/
 static struct map_desc ixdp2x00_io_desc __initdata = {
 	.virtual	= IXDP2X00_VIRT_CPLD_BASE, 
-	.physical	= IXDP2X00_PHYS_CPLD_BASE,
+	.pfn		= __phys_to_pfn(IXDP2X00_PHYS_CPLD_BASE),
 	.length		= IXDP2X00_CPLD_SIZE,
 	.type		= MT_DEVICE
 };
@@ -300,5 +303,6 @@ void __init ixdp2x00_init_machine(void)
 	gpio_line_config(IXDP2X00_GPIO_I2C_ENABLE, GPIO_OUT);
 
 	platform_add_devices(ixdp2x00_devices, ARRAY_SIZE(ixdp2x00_devices));
+	ixp2000_uart_init();
 }
 

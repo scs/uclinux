@@ -35,6 +35,7 @@
 #include <asm/mach/map.h>
 #include <asm/mach/serial_sa1100.h>
 #include <asm/arch/assabet.h>
+#include <asm/arch/mcp.h>
 
 #include "generic.h"
 
@@ -198,6 +199,11 @@ static struct irda_platform_data assabet_irda_data = {
 	.set_speed	= assabet_irda_set_speed,
 };
 
+static struct mcp_plat_data assabet_mcp_data = {
+	.mccr0		= MCCR0_ADM,
+	.sclk_rate	= 11981000,
+};
+
 static void __init assabet_init(void)
 {
 	/*
@@ -246,6 +252,7 @@ static void __init assabet_init(void)
 	sa11x0_set_flash_data(&assabet_flash_data, assabet_flash_resources,
 			      ARRAY_SIZE(assabet_flash_resources));
 	sa11x0_set_irda_data(&assabet_irda_data);
+	sa11x0_set_mcp_data(&assabet_mcp_data);
 }
 
 /*
@@ -286,7 +293,8 @@ static void __init get_assabet_scr(void)
 	GPDR |= 0x3fc;			/* Configure GPIO 9:2 as outputs */
 	GPSR = 0x3fc;			/* Write 0xFF to GPIO 9:2 */
 	GPDR &= ~(0x3fc);		/* Configure GPIO 9:2 as inputs */
-	for(i = 100; i--; scr = GPLR);	/* Read GPIO 9:2 */
+	for(i = 100; i--; )		/* Read GPIO 9:2 */
+		scr = GPLR;
 	GPDR |= 0x3fc;			/*  restore correct pin direction */
 	scr &= 0x3fc;			/* save as system configuration byte. */
 	SCR_value = scr;
@@ -381,9 +389,17 @@ static struct sa1100_port_fns assabet_port_fns __initdata = {
 };
 
 static struct map_desc assabet_io_desc[] __initdata = {
- /* virtual     physical    length      type */
-  { 0xf1000000, 0x12000000, 0x00100000, MT_DEVICE }, /* Board Control Register */
-  { 0xf2800000, 0x4b800000, 0x00800000, MT_DEVICE }  /* MQ200 */
+  	{	/* Board Control Register */
+		.virtual	=  0xf1000000,
+		.pfn		= __phys_to_pfn(0x12000000),
+		.length		= 0x00100000,
+		.type		= MT_DEVICE
+	}, {	/* MQ200 */
+		.virtual	=  0xf2800000,
+		.pfn		= __phys_to_pfn(0x4b800000),
+		.length		= 0x00800000,
+		.type		= MT_DEVICE
+	}
 };
 
 static void __init assabet_map_io(void)
@@ -431,11 +447,12 @@ static void __init assabet_map_io(void)
 
 
 MACHINE_START(ASSABET, "Intel-Assabet")
-	BOOT_MEM(0xc0000000, 0x80000000, 0xf8000000)
-	BOOT_PARAMS(0xc0000100)
-	FIXUP(fixup_assabet)
-	MAPIO(assabet_map_io)
-	INITIRQ(sa1100_init_irq)
+	.phys_io	= 0x80000000,
+	.io_pg_offst	= ((0xf8000000) >> 18) & 0xfffc,
+	.boot_params	= 0xc0000100,
+	.fixup		= fixup_assabet,
+	.map_io		= assabet_map_io,
+	.init_irq	= sa1100_init_irq,
 	.timer		= &sa1100_timer,
 	.init_machine	= assabet_init,
 MACHINE_END

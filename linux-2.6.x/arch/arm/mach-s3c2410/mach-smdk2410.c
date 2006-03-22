@@ -28,6 +28,7 @@
  * Ben Dooks <ben@simtec.co.uk>
  *
  * 10-Mar-2005 LCVR  Changed S3C2410_VA to S3C24XX_VA
+ * 20-Sep-2005 BJD  Added static to non-exported items
  *
  ***********************************************************************/
 
@@ -37,6 +38,7 @@
 #include <linux/list.h>
 #include <linux/timer.h>
 #include <linux/init.h>
+#include <linux/platform_device.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -97,7 +99,7 @@ static struct s3c24xx_board smdk2410_board __initdata = {
 	.devices_count = ARRAY_SIZE(smdk2410_devices)
 };
 
-void __init smdk2410_map_io(void)
+static void __init smdk2410_map_io(void)
 {
 	s3c24xx_init_io(smdk2410_iodesc, ARRAY_SIZE(smdk2410_iodesc));
 	s3c24xx_init_clocks(0);
@@ -105,18 +107,19 @@ void __init smdk2410_map_io(void)
 	s3c24xx_set_board(&smdk2410_board);
 }
 
-void __init smdk2410_init_irq(void)
+static void __init smdk2410_init_irq(void)
 {
 	s3c24xx_init_irq();
 }
 
 MACHINE_START(SMDK2410, "SMDK2410") /* @TODO: request a new identifier and switch
 				    * to SMDK2410 */
-     MAINTAINER("Jonas Dietsche")
-     BOOT_MEM(S3C2410_SDRAM_PA, S3C2410_PA_UART, (u32)S3C24XX_VA_UART)
-     BOOT_PARAMS(S3C2410_SDRAM_PA + 0x100)
-     MAPIO(smdk2410_map_io)
-     INITIRQ(smdk2410_init_irq)
+	/* Maintainer: Jonas Dietsche */
+	.phys_io	= S3C2410_PA_UART,
+	.io_pg_offst	= (((u32)S3C24XX_VA_UART) >> 18) & 0xfffc,
+	.boot_params	= S3C2410_SDRAM_PA + 0x100,
+	.map_io		= smdk2410_map_io,
+	.init_irq	= smdk2410_init_irq,
 	.timer		= &s3c24xx_timer,
 MACHINE_END
 

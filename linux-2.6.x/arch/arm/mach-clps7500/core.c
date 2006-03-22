@@ -26,6 +26,8 @@
 #include <asm/irq.h>
 #include <asm/mach-types.h>
 
+unsigned int vram_size;
+
 static void cl7500_ack_irq_a(unsigned int irq)
 {
 	unsigned int val, mask;
@@ -257,10 +259,27 @@ static void __init clps7500_init_irq(void)
 }
 
 static struct map_desc cl7500_io_desc[] __initdata = {
-	{ IO_BASE,	IO_START,	IO_SIZE,    MT_DEVICE },	/* IO space	*/
-	{ ISA_BASE,	ISA_START,	ISA_SIZE,   MT_DEVICE },	/* ISA space	*/
-	{ FLASH_BASE,	FLASH_START,	FLASH_SIZE, MT_DEVICE },	/* Flash	*/
-	{ LED_BASE,	LED_START,	LED_SIZE,   MT_DEVICE } 	/* LED		*/
+	{ 	/* IO space	*/
+		.virtual	= (unsigned long)IO_BASE,
+		.pfn		= __phys_to_pfn(IO_START),
+		.length		= IO_SIZE,
+		.type		= MT_DEVICE
+	}, {	/* ISA space	*/
+		.virtual	= ISA_BASE,
+		.pfn		= __phys_to_pfn(ISA_START),
+		.length		= ISA_SIZE,
+		.type		= MT_DEVICE
+	}, {	/* Flash	*/
+		.virtual	= FLASH_BASE,
+		.pfn		= __phys_to_pfn(FLASH_START),
+		.length		= FLASH_SIZE,
+		.type		= MT_DEVICE
+	}, {	/* LED		*/
+		.virtual	= LED_BASE,
+		.pfn		= __phys_to_pfn(LED_START),
+		.length		= LED_SIZE,
+		.type		= MT_DEVICE
+	}
 };
 
 static void __init clps7500_map_io(void)
@@ -296,8 +315,8 @@ clps7500_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 
 static struct irqaction clps7500_timer_irq = {
 	.name		= "CLPS7500 Timer Tick",
-	.flags		= SA_INTERRUPT,
-	.handler	= clps7500_timer_interrupt
+	.flags		= SA_INTERRUPT | SA_TIMER,
+	.handler	= clps7500_timer_interrupt,
 };
 
 /*
@@ -352,7 +371,7 @@ static struct plat_serial8250_port serial_platform_data[] = {
 
 static struct platform_device serial_device = {
 	.name			= "serial8250",
-	.id			= 0,
+	.id			= PLAT8250_DEV_PLATFORM,
 	.dev			= {
 		.platform_data	= serial_platform_data,
 	},
@@ -364,11 +383,12 @@ static void __init clps7500_init(void)
 }
 
 MACHINE_START(CLPS7500, "CL-PS7500")
-	MAINTAINER("Philip Blundell")
-	BOOT_MEM(0x10000000, 0x03000000, 0xe0000000)
-	MAPIO(clps7500_map_io)
-	INITIRQ(clps7500_init_irq)
-		.init_machine	= clps7500_init,
-		.timer		= &clps7500_timer,
+	/* Maintainer: Philip Blundell */
+	.phys_io	= 0x03000000,
+	.io_pg_offst	= ((0xe0000000) >> 18) & 0xfffc,
+	.map_io		= clps7500_map_io,
+	.init_irq	= clps7500_init_irq,
+	.init_machine	= clps7500_init,
+	.timer		= &clps7500_timer,
 MACHINE_END
 

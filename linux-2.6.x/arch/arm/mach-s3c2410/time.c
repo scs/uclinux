@@ -24,6 +24,7 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/err.h>
+#include <linux/clk.h>
 
 #include <asm/system.h>
 #include <asm/leds.h>
@@ -35,9 +36,9 @@
 #include <asm/arch/regs-timer.h>
 #include <asm/arch/regs-irq.h>
 #include <asm/mach/time.h>
-#include <asm/hardware/clock.h>
 
 #include "clock.h"
+#include "cpu.h"
 
 static unsigned long timer_startval;
 static unsigned long timer_usec_ticks;
@@ -137,8 +138,8 @@ s3c2410_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 
 static struct irqaction s3c2410_timer_irq = {
 	.name		= "S3C2410 Timer Tick",
-	.flags		= SA_INTERRUPT,
-	.handler	= s3c2410_timer_interrupt
+	.flags		= SA_INTERRUPT | SA_TIMER,
+	.handler	= s3c2410_timer_interrupt,
 };
 
 /*
@@ -164,7 +165,7 @@ static void s3c2410_timer_setup (void)
 
 	/* configure the system for whichever machine is in use */
 
-	if (machine_is_bast() || machine_is_vr1000()) {
+	if (machine_is_bast() || machine_is_vr1000() || machine_is_anubis()) {
 		/* timer is at 12MHz, scaler is 1 */
 		timer_usec_ticks = timer_mask_usec_ticks(1, 12000000);
 		tcnt = 12000000 / HZ;
@@ -190,7 +191,6 @@ static void s3c2410_timer_setup (void)
 		if (IS_ERR(clk))
 			panic("failed to get clock for system timer");
 
-		clk_use(clk);
 		clk_enable(clk);
 
 		pclk = clk_get_rate(clk);

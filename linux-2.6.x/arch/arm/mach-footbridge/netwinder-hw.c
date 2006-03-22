@@ -601,6 +601,7 @@ EXPORT_SYMBOL(gpio_lock);
 EXPORT_SYMBOL(gpio_modify_op);
 EXPORT_SYMBOL(gpio_modify_io);
 EXPORT_SYMBOL(cpld_modify);
+EXPORT_SYMBOL(gpio_read);
 
 /*
  * Initialise any other hardware after we've got the PCI bus
@@ -647,14 +648,16 @@ fixup_netwinder(struct machine_desc *desc, struct tag *tags,
 }
 
 MACHINE_START(NETWINDER, "Rebel-NetWinder")
-	MAINTAINER("Russell King/Rebel.com")
-	BOOT_MEM(0x00000000, DC21285_ARMCSR_BASE, 0xfe000000)
-	BOOT_PARAMS(0x00000100)
-	VIDEO(0x000a0000, 0x000bffff)
-	DISABLE_PARPORT(0)
-	DISABLE_PARPORT(2)
-	FIXUP(fixup_netwinder)
-	MAPIO(footbridge_map_io)
-	INITIRQ(footbridge_init_irq)
+	/* Maintainer: Russell King/Rebel.com */
+	.phys_io	= DC21285_ARMCSR_BASE,
+	.io_pg_offst	= ((0xfe000000) >> 18) & 0xfffc,
+	.boot_params	= 0x00000100,
+	.video_start	= 0x000a0000,
+	.video_end	= 0x000bffff,
+	.reserve_lp0	= 1,
+	.reserve_lp2	= 1,
+	.fixup		= fixup_netwinder,
+	.map_io		= footbridge_map_io,
+	.init_irq	= footbridge_init_irq,
 	.timer		= &isa_timer,
 MACHINE_END

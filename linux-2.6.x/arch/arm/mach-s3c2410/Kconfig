@@ -2,14 +2,30 @@ if ARCH_S3C2410
 
 menu "S3C24XX Implementations"
 
+config MACH_ANUBIS
+	bool "Simtec Electronics ANUBIS"
+	select CPU_S3C2440
+	help
+	  Say Y gere if you are using the Simtec Electronics ANUBIS
+	  development system
+
 config ARCH_BAST
 	bool "Simtec Electronics BAST (EB2410ITX)"
 	select CPU_S3C2410
+	select ISA
 	help
 	  Say Y here if you are using the Simtec Electronics EB2410ITX
 	  development board (also known as BAST)
 
 	  Product page: <http://www.simtec.co.uk/products/EB2410ITX/>.
+
+config BAST_PC104_IRQ
+	bool "BAST PC104 IRQ support"
+	depends on ARCH_BAST
+	default y
+	help
+	  Say Y	here to enable the PC104 IRQ routing on the
+	  Simtec BAST (EB2410ITX)
 
 config ARCH_H1940
 	bool "IPAQ H1940"
@@ -105,6 +121,14 @@ config S3C2410_BOOT_WATCHDOG
 	  system resets depends on the value of PCLK. The timeout on an
 	  200MHz s3c2410 should be about 30 seconds.
 
+config S3C2410_BOOT_ERROR_RESET
+	bool "S3C2410 Reboot on decompression error"
+	depends on ARCH_S3C2410
+	help
+	  Say y here to use the watchdog to reset the system if the
+	  kernel decompressor detects an error during decompression.
+
+
 comment "S3C2410 Setup"
 
 config S3C2410_DMA
@@ -153,6 +177,11 @@ config S3C2410_PM_CHECK_CHUNKSIZE
 	  corruption over suspend and resume. A smaller value will mean that
 	  the CRC data block will take more memory, but wil identify any
 	  faults with better precision.
+
+config PM_SIMTEC
+	bool
+	depends on PM && (ARCH_BAST || MACH_VR1000)
+	default y
 
 config S3C2410_LOWLEVEL_UART_PORT
 	int "S3C2410 UART to use for low-level messages"

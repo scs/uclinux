@@ -88,6 +88,8 @@ static int sa11x0_pm_enter(suspend_state_t state)
 	/* go zzz */
 	sa1100_cpu_suspend();
 
+	cpu_init();
+
 	/*
 	 * Ensure not to come back here if it wasn't intended
 	 */
@@ -133,29 +135,11 @@ unsigned long sleep_phys_sp(void *sp)
 }
 
 /*
- * Called after processes are frozen, but before we shut down devices.
- */
-static int sa11x0_pm_prepare(suspend_state_t state)
-{
-	return 0;
-}
-
-/*
- * Called after devices are re-setup, but before processes are thawed.
- */
-static int sa11x0_pm_finish(suspend_state_t state)
-{
-	return 0;
-}
-
-/*
  * Set to PM_DISK_FIRMWARE so we can quickly veto suspend-to-disk.
  */
 static struct pm_ops sa11x0_pm_ops = {
 	.pm_disk_mode	= PM_DISK_FIRMWARE,
-	.prepare	= sa11x0_pm_prepare,
 	.enter		= sa11x0_pm_enter,
-	.finish		= sa11x0_pm_finish,
 };
 
 static int __init sa11x0_pm_init(void)

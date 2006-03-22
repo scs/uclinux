@@ -28,7 +28,6 @@
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/system.h>
-#include <asm/mach-types.h>
 #include <asm/hardware.h>
 
 #include <asm/mach/pci.h>
@@ -149,7 +148,7 @@ int ixp2000_pci_abort_handler(unsigned long addr, unsigned int fsr, struct pt_re
 	local_irq_save(flags);
 	temp = *(IXP2000_PCI_CONTROL);
 	if (temp & ((1 << 8) | (1 << 5))) {
-		ixp2000_reg_write(IXP2000_PCI_CONTROL, temp);
+		ixp2000_reg_wrb(IXP2000_PCI_CONTROL, temp);
 	}
 
 	temp = *(IXP2000_PCI_CMDSTAT);
@@ -179,8 +178,8 @@ clear_master_aborts(void)
 
 	local_irq_save(flags);
 	temp = *(IXP2000_PCI_CONTROL);
-	if (temp & ((1 << 8) | (1 << 5))) {	
-		ixp2000_reg_write(IXP2000_PCI_CONTROL, temp);
+	if (temp & ((1 << 8) | (1 << 5))) {
+		ixp2000_reg_wrb(IXP2000_PCI_CONTROL, temp);
 	}
 
 	temp = *(IXP2000_PCI_CMDSTAT);
@@ -198,6 +197,19 @@ clear_master_aborts(void)
 void __init
 ixp2000_pci_preinit(void)
 {
+#ifndef CONFIG_IXP2000_SUPPORT_BROKEN_PCI_IO
+	/*
+	 * Configure the PCI unit to properly byteswap I/O transactions,
+	 * and verify that it worked.
+	 */
+	ixp2000_reg_write(IXP2000_PCI_CONTROL,
+			  (*IXP2000_PCI_CONTROL | PCI_CONTROL_IEE));
+
+	if ((*IXP2000_PCI_CONTROL & PCI_CONTROL_IEE) == 0)
+		panic("IXP2000: PCI I/O is broken on this ixp model, and "
+			"the needed workaround has not been configured in");
+#endif
+
 	hook_fault_code(16+6, ixp2000_pci_abort_handler, SIGBUS,
 				"PCI config cycle to non-existent device");
 }

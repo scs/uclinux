@@ -15,7 +15,7 @@
 #include <linux/list.h>
 #include <linux/timer.h>
 #include <linux/init.h>
-#include <linux/device.h>
+#include <linux/platform_device.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -105,7 +105,7 @@ static struct s3c24xx_board otom11_board __initdata = {
 };
 
 
-void __init otom11_map_io(void)
+static void __init otom11_map_io(void)
 {
 	s3c24xx_init_io(otom11_iodesc, ARRAY_SIZE(otom11_iodesc));
 	s3c24xx_init_clocks(0);
@@ -115,9 +115,10 @@ void __init otom11_map_io(void)
 
 
 MACHINE_START(OTOM, "Nex Vision - Otom 1.1")
-     MAINTAINER("Guillaume GOURAT <guillaume.gourat@nexvision.tv>")
-     BOOT_MEM(S3C2410_SDRAM_PA, S3C2410_PA_UART, (u32)S3C24XX_VA_UART)
-     BOOT_PARAMS(S3C2410_SDRAM_PA + 0x100)
+	/* Maintainer: Guillaume GOURAT <guillaume.gourat@nexvision.tv> */
+	.phys_io	= S3C2410_PA_UART,
+	.io_pg_offst	= (((u32)S3C24XX_VA_UART) >> 18) & 0xfffc,
+	.boot_params	= S3C2410_SDRAM_PA + 0x100,
 	.map_io		= otom11_map_io,
 	.init_irq	= s3c24xx_init_irq,
 	.timer		= &s3c24xx_timer,

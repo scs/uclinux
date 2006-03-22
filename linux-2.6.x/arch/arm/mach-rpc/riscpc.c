@@ -32,10 +32,7 @@
 
 extern void rpc_init_irq(void);
 
-extern unsigned int vram_size;
-
-#if 0
-
+unsigned int vram_size;
 unsigned int memc_ctrl_reg;
 unsigned int number_mfm_drives;
 
@@ -63,12 +60,23 @@ static int __init parse_tag_acorn(const struct tag *tag)
 
 __tagtable(ATAG_ACORN, parse_tag_acorn);
 
-#endif
-
 static struct map_desc rpc_io_desc[] __initdata = {
- { SCREEN_BASE,	SCREEN_START,	2*1048576, MT_DEVICE }, /* VRAM		*/
- { (u32)IO_BASE, IO_START,	IO_SIZE	 , MT_DEVICE }, /* IO space	*/
- { EASI_BASE,	EASI_START,	EASI_SIZE, MT_DEVICE }  /* EASI space	*/
+ 	{	/* VRAM		*/
+		.virtual	=  SCREEN_BASE,
+		.pfn		= __phys_to_pfn(SCREEN_START),
+		.length		= 	2*1048576,
+		.type		= MT_DEVICE
+	}, {	/* IO space	*/
+		.virtual	=  (u32)IO_BASE,
+		.pfn		= __phys_to_pfn(IO_START),
+		.length		= 	IO_SIZE	 ,
+		.type		= MT_DEVICE
+	}, {	/* EASI space	*/
+		.virtual	= EASI_BASE,
+		.pfn		= __phys_to_pfn(EASI_START),
+		.length		= EASI_SIZE,
+		.type		= MT_DEVICE
+	}
 };
 
 static void __init rpc_map_io(void)
@@ -145,7 +153,7 @@ static struct plat_serial8250_port serial_platform_data[] = {
 
 static struct platform_device serial_device = {
 	.name			= "serial8250",
-	.id			= 0,
+	.id			= PLAT8250_DEV_PLATFORM,
 	.dev			= {
 		.platform_data	= serial_platform_data,
 	},
@@ -168,12 +176,13 @@ arch_initcall(rpc_init);
 extern struct sys_timer ioc_timer;
 
 MACHINE_START(RISCPC, "Acorn-RiscPC")
-	MAINTAINER("Russell King")
-	BOOT_MEM(0x10000000, 0x03000000, 0xe0000000)
-	BOOT_PARAMS(0x10000100)
-	DISABLE_PARPORT(0)
-	DISABLE_PARPORT(1)
-	MAPIO(rpc_map_io)
-	INITIRQ(rpc_init_irq)
+	/* Maintainer: Russell King */
+	.phys_io	= 0x03000000,
+	.io_pg_offst	= ((0xe0000000) >> 18) & 0xfffc,
+	.boot_params	= 0x10000100,
+	.reserve_lp0	= 1,
+	.reserve_lp1	= 1,
+	.map_io		= rpc_map_io,
+	.init_irq	= rpc_init_irq,
 	.timer		= &ioc_timer,
 MACHINE_END

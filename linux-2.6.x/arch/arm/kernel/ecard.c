@@ -40,6 +40,7 @@
 #include <linux/proc_fs.h>
 #include <linux/device.h>
 #include <linux/init.h>
+#include <linux/mutex.h>
 
 #include <asm/dma.h>
 #include <asm/ecard.h>
@@ -206,7 +207,7 @@ static void ecard_task_readbytes(struct ecard_request *req)
 
 static DECLARE_WAIT_QUEUE_HEAD(ecard_wait);
 static struct ecard_request *ecard_req;
-static DECLARE_MUTEX(ecard_sem);
+static DEFINE_MUTEX(ecard_mutex);
 
 /*
  * Set up the expansion card daemon's page tables.
@@ -299,7 +300,7 @@ static void ecard_call(struct ecard_request *req)
 
 	req->complete = &completion;
 
-	down(&ecard_sem);
+	mutex_lock(&ecard_mutex);
 	ecard_req = req;
 	wake_up(&ecard_wait);
 
@@ -307,7 +308,7 @@ static void ecard_call(struct ecard_request *req)
 	 * Now wait for kecardd to run.
 	 */
 	wait_for_completion(&completion);
-	up(&ecard_sem);
+	mutex_unlock(&ecard_mutex);
 }
 
 /* ======================= Mid-level card control ===================== */
@@ -585,7 +586,7 @@ ecard_irq_handler(unsigned int irq, struct irqdesc *desc, struct pt_regs *regs)
 
 		if (pending) {
 			struct irqdesc *d = irq_desc + ec->irq;
-			d->handle(ec->irq, d, regs);
+			desc_handle_irq(ec->irq, d, regs);
 			called ++;
 		}
 	}
@@ -632,7 +633,7 @@ ecard_irqexp_handler(unsigned int irq, struct irqdesc *desc, struct pt_regs *reg
 			 * Serial cards should go in 0/1, ethernet/scsi in 2/3
 			 * otherwise you will lose serial data at high speeds!
 			 */
-			d->handle(ec->irq, d, regs);
+			desc_handle_irq(ec->irq, d, regs);
 		} else {
 			printk(KERN_WARNING "card%d: interrupt from unclaimed "
 			       "card???\n", slot);
@@ -866,19 +867,19 @@ static struct expansion_card *__init ecard_alloc_card(int type, int slot)
 	return ec;
 }
 
-static ssize_t ecard_show_irq(struct device *dev, char *buf)
+static ssize_t ecard_show_irq(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct expansion_card *ec = ECARD_DEV(dev);
 	return sprintf(buf, "%u\n", ec->irq);
 }
 
-static ssize_t ecard_show_dma(struct device *dev, char *buf)
+static ssize_t ecard_show_dma(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct expansion_card *ec = ECARD_DEV(dev);
 	return sprintf(buf, "%u\n", ec->dma);
 }
 
-static ssize_t ecard_show_resources(struct device *dev, char *buf)
+static ssize_t ecard_show_resources(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct expansion_card *ec = ECARD_DEV(dev);
 	char *str = buf;
@@ -893,19 +894,19 @@ static ssize_t ecard_show_resources(struct device *dev, char *buf)
 	return str - buf;
 }
 
-static ssize_t ecard_show_vendor(struct device *dev, char *buf)
+static ssize_t ecard_show_vendor(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct expansion_card *ec = ECARD_DEV(dev);
 	return sprintf(buf, "%u\n", ec->cid.manufacturer);
 }
 
-static ssize_t ecard_show_device(struct device *dev, char *buf)
+static ssize_t ecard_show_device(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct expansion_card *ec = ECARD_DEV(dev);
 	return sprintf(buf, "%u\n", ec->cid.product);
 }
 
-static ssize_t ecard_show_type(struct device *dev, char *buf)
+static ssize_t ecard_show_type(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct expansion_card *ec = ECARD_DEV(dev);
 	return sprintf(buf, "%s\n", ec->type == ECARD_EASI ? "EASI" : "IOC");
@@ -1146,9 +1147,11 @@ static void ecard_drv_shutdown(struct device *dev)
 	struct ecard_driver *drv = ECARD_DRV(dev->driver);
 	struct ecard_request req;
 
-	if (drv->shutdown)
-		drv->shutdown(ec);
-	ecard_release(ec);
+	if (dev->driver) {
+		if (drv->shutdown)
+			drv->shutdown(ec);
+		ecard_release(ec);
+	}
 
 	/*
 	 * If this card has a loader, call the reset handler.
@@ -1163,9 +1166,6 @@ static void ecard_drv_shutdown(struct device *dev)
 int ecard_register_driver(struct ecard_driver *drv)
 {
 	drv->drv.bus = &ecard_bus_type;
-	drv->drv.probe = ecard_drv_probe;
-	drv->drv.remove = ecard_drv_remove;
-	drv->drv.shutdown = ecard_drv_shutdown;
 
 	return driver_register(&drv->drv);
 }
@@ -1194,6 +1194,9 @@ struct bus_type ecard_bus_type = {
 	.name		= "ecard",
 	.dev_attrs	= ecard_dev_attrs,
 	.match		= ecard_match,
+	.probe		= ecard_drv_probe,
+	.remove		= ecard_drv_remove,
+	.shutdown	= ecard_drv_shutdown,
 };
 
 static int ecard_bus_init(void)

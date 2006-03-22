@@ -30,9 +30,11 @@
 #include <linux/dmapool.h>
 #include <linux/list.h>
 
-#undef DEBUG
+#include <asm/cacheflush.h>
 
+#undef DEBUG
 #undef STATS
+
 #ifdef STATS
 #define DO_STATS(X) do { X ; } while (0)
 #else
@@ -50,26 +52,31 @@ struct safe_buffer {
 	int		direction;
 
 	/* safe buffer info */
-	struct dma_pool *pool;
+	struct dmabounce_pool *pool;
 	void		*safe;
 	dma_addr_t	safe_dma_addr;
+};
+
+struct dmabounce_pool {
+	unsigned long	size;
+	struct dma_pool	*pool;
+#ifdef STATS
+	unsigned long	allocs;
+#endif
 };
 
 struct dmabounce_device_info {
 	struct list_head node;
 
 	struct device *dev;
-	struct dma_pool *small_buffer_pool;
-	struct dma_pool *large_buffer_pool;
 	struct list_head safe_buffers;
-	unsigned long small_buffer_size, large_buffer_size;
 #ifdef STATS
-	unsigned long sbp_allocs;
-	unsigned long lbp_allocs;
 	unsigned long total_allocs;
 	unsigned long map_op_count;
 	unsigned long bounce_count;
 #endif
+	struct dmabounce_pool	small;
+	struct dmabounce_pool	large;
 };
 
 static LIST_HEAD(dmabounce_devs);
@@ -80,9 +87,9 @@ static void print_alloc_stats(struct dmabounce_device_info *device_info)
 	printk(KERN_INFO
 		"%s: dmabounce: sbp: %lu, lbp: %lu, other: %lu, total: %lu\n",
 		device_info->dev->bus_id,
-		device_info->sbp_allocs, device_info->lbp_allocs,
-		device_info->total_allocs - device_info->sbp_allocs -
-			device_info->lbp_allocs,
+		device_info->small.allocs, device_info->large.allocs,
+		device_info->total_allocs - device_info->small.allocs -
+			device_info->large.allocs,
 		device_info->total_allocs);
 }
 #endif
@@ -91,15 +98,12 @@ static void print_alloc_stats(struct dmabounce_device_info *device_info)
 static inline struct dmabounce_device_info *
 find_dmabounce_dev(struct device *dev)
 {
-	struct list_head *entry;
+	struct dmabounce_device_info *d;
 
-	list_for_each(entry, &dmabounce_devs) {
-		struct dmabounce_device_info *d =
-			list_entry(entry, struct dmabounce_device_info, node);
-
+	list_for_each_entry(d, &dmabounce_devs, node)
 		if (d->dev == dev)
 			return d;
-	}
+
 	return NULL;
 }
 
@@ -107,18 +111,22 @@ find_dmabounce_dev(struct device *dev)
 /* allocate a 'safe' buffer and keep track of it */
 static inline struct safe_buffer *
 alloc_safe_buffer(struct dmabounce_device_info *device_info, void *ptr,
-			size_t size, enum dma_data_direction dir)
+		  size_t size, enum dma_data_direction dir)
 {
 	struct safe_buffer *buf;
-	struct dma_pool *pool;
+	struct dmabounce_pool *pool;
 	struct device *dev = device_info->dev;
-	void *safe;
-	dma_addr_t safe_dma_addr;
 
 	dev_dbg(dev, "%s(ptr=%p, size=%d, dir=%d)\n",
 		__func__, ptr, size, dir);
 
-	DO_STATS ( device_info->total_allocs++ );
+	if (size <= device_info->small.size) {
+		pool = &device_info->small;
+	} else if (size <= device_info->large.size) {
+		pool = &device_info->large;
+	} else {
+		pool = NULL;
+	}
 
 	buf = kmalloc(sizeof(struct safe_buffer), GFP_ATOMIC);
 	if (buf == NULL) {
@@ -126,40 +134,34 @@ alloc_safe_buffer(struct dmabounce_device_info *device_info, void *ptr,
 		return NULL;
 	}
 
-	if (size <= device_info->small_buffer_size) {
-		pool = device_info->small_buffer_pool;
-		safe = dma_pool_alloc(pool, GFP_ATOMIC, &safe_dma_addr);
+	buf->ptr = ptr;
+	buf->size = size;
+	buf->direction = dir;
+	buf->pool = pool;
 
-		DO_STATS ( device_info->sbp_allocs++ );
-	} else if (size <= device_info->large_buffer_size) {
-		pool = device_info->large_buffer_pool;
-		safe = dma_pool_alloc(pool, GFP_ATOMIC, &safe_dma_addr);
-
-		DO_STATS ( device_info->lbp_allocs++ );
+	if (pool) {
+		buf->safe = dma_pool_alloc(pool->pool, GFP_ATOMIC,
+					   &buf->safe_dma_addr);
 	} else {
-		pool = NULL;
-		safe = dma_alloc_coherent(dev, size, &safe_dma_addr, GFP_ATOMIC);
+		buf->safe = dma_alloc_coherent(dev, size, &buf->safe_dma_addr,
+					       GFP_ATOMIC);
 	}
 
-	if (safe == NULL) {
-		dev_warn(device_info->dev,
-			"%s: could not alloc dma memory (size=%d)\n",
-		       __func__, size);
+	if (buf->safe == NULL) {
+		dev_warn(dev,
+			 "%s: could not alloc dma memory (size=%d)\n",
+			 __func__, size);
 		kfree(buf);
 		return NULL;
 	}
 
 #ifdef STATS
+	if (pool)
+		pool->allocs++;
+	device_info->total_allocs++;
 	if (device_info->total_allocs % 1000 == 0)
 		print_alloc_stats(device_info);
 #endif
-
-	buf->ptr = ptr;
-	buf->size = size;
-	buf->direction = dir;
-	buf->pool = pool;
-	buf->safe = safe;
-	buf->safe_dma_addr = safe_dma_addr;
 
 	list_add(&buf->node, &device_info->safe_buffers);
 
@@ -170,15 +172,11 @@ alloc_safe_buffer(struct dmabounce_device_info *device_info, void *ptr,
 static inline struct safe_buffer *
 find_safe_buffer(struct dmabounce_device_info *device_info, dma_addr_t safe_dma_addr)
 {
-	struct list_head *entry;
+	struct safe_buffer *b;
 
-	list_for_each(entry, &device_info->safe_buffers) {
-		struct safe_buffer *b =
-			list_entry(entry, struct safe_buffer, node);
-
+	list_for_each_entry(b, &device_info->safe_buffers, node)
 		if (b->safe_dma_addr == safe_dma_addr)
 			return b;
-	}
 
 	return NULL;
 }
@@ -191,7 +189,7 @@ free_safe_buffer(struct dmabounce_device_info *device_info, struct safe_buffer *
 	list_del(&buf->node);
 
 	if (buf->pool)
-		dma_pool_free(buf->pool, buf->safe, buf->safe_dma_addr);
+		dma_pool_free(buf->pool->pool, buf->safe, buf->safe_dma_addr);
 	else
 		dma_free_coherent(device_info->dev, buf->size, buf->safe,
 				    buf->safe_dma_addr);
@@ -202,12 +200,10 @@ free_safe_buffer(struct dmabounce_device_info *device_info, struct safe_buffer *
 /* ************************************************** */
 
 #ifdef STATS
-
 static void print_map_stats(struct dmabounce_device_info *device_info)
 {
-	printk(KERN_INFO
-		"%s: dmabounce: map_op_count=%lu, bounce_count=%lu\n",
-		device_info->dev->bus_id,
+	dev_info(device_info->dev,
+		"dmabounce: map_op_count=%lu, bounce_count=%lu\n",
 		device_info->map_op_count, device_info->bounce_count);
 }
 #endif
@@ -263,12 +259,12 @@ map_single(struct device *dev, void *ptr, size_t size,
 				__func__, ptr, buf->safe, size);
 			memcpy(buf->safe, ptr, size);
 		}
-		consistent_sync(buf->safe, size, dir);
+		ptr = buf->safe;
 
 		dma_addr = buf->safe_dma_addr;
-	} else {
-		consistent_sync(ptr, size, dir);
 	}
+
+	consistent_sync(ptr, size, dir);
 
 	return dma_addr;
 }
@@ -283,7 +279,7 @@ unmap_single(struct device *dev, dma_addr_t dma_addr, size_t size,
 	/*
 	 * Trying to unmap an invalid mapping
 	 */
-	if (dma_addr == ~0) {
+	if (dma_mapping_error(dma_addr)) {
 		dev_err(dev, "Trying to unmap invalid mapping\n");
 		return;
 	}
@@ -299,15 +295,26 @@ unmap_single(struct device *dev, dma_addr_t dma_addr, size_t size,
 			__func__, buf->ptr, (void *) virt_to_dma(dev, buf->ptr),
 			buf->safe, (void *) buf->safe_dma_addr);
 
-
 		DO_STATS ( device_info->bounce_count++ );
 
-		if ((dir == DMA_FROM_DEVICE) ||
-		    (dir == DMA_BIDIRECTIONAL)) {
+		if (dir == DMA_FROM_DEVICE || dir == DMA_BIDIRECTIONAL) {
+			unsigned long ptr;
+
 			dev_dbg(dev,
 				"%s: copy back safe %p to unsafe %p size %d\n",
 				__func__, buf->safe, buf->ptr, size);
 			memcpy(buf->ptr, buf->safe, size);
+
+			/*
+			 * DMA buffers must have the same cache properties
+			 * as if they were really used for DMA - which means
+			 * data must be written back to RAM.  Note that
+			 * we don't use dmac_flush_range() here for the
+			 * bidirectional case because we know the cache
+			 * lines will be coherent with the data written.
+			 */
+			ptr = (unsigned long)buf->ptr;
+			dmac_clean_range(ptr, ptr + size);
 		}
 		free_safe_buffer(device_info, buf);
 	}
@@ -564,11 +571,25 @@ dma_sync_sg_for_device(struct device *dev, struct scatterlist *sg, int nents,
 	local_irq_restore(flags);
 }
 
+static int
+dmabounce_init_pool(struct dmabounce_pool *pool, struct device *dev, const char *name,
+		    unsigned long size)
+{
+	pool->size = size;
+	DO_STATS(pool->allocs = 0);
+	pool->pool = dma_pool_create(name, dev, size,
+				     0 /* byte alignment */,
+				     0 /* no page-crossing issues */);
+
+	return pool->pool ? 0 : -ENOMEM;
+}
+
 int
 dmabounce_register_dev(struct device *dev, unsigned long small_buffer_size,
 			unsigned long large_buffer_size)
 {
 	struct dmabounce_device_info *device_info;
+	int ret;
 
 	device_info = kmalloc(sizeof(struct dmabounce_device_info), GFP_ATOMIC);
 	if (!device_info) {
@@ -578,45 +599,31 @@ dmabounce_register_dev(struct device *dev, unsigned long small_buffer_size,
 		return -ENOMEM;
 	}
 
-	device_info->small_buffer_pool =
-		dma_pool_create("small_dmabounce_pool",
-				dev,
-				small_buffer_size,
-				0 /* byte alignment */,
-				0 /* no page-crossing issues */);
-	if (!device_info->small_buffer_pool) {
-		printk(KERN_ERR
-			"dmabounce: could not allocate small DMA pool for %s\n",
-			dev->bus_id);
-		kfree(device_info);
-		return -ENOMEM;
+	ret = dmabounce_init_pool(&device_info->small, dev,
+				  "small_dmabounce_pool", small_buffer_size);
+	if (ret) {
+		dev_err(dev,
+			"dmabounce: could not allocate DMA pool for %ld byte objects\n",
+			small_buffer_size);
+		goto err_free;
 	}
 
 	if (large_buffer_size) {
-		device_info->large_buffer_pool =
-			dma_pool_create("large_dmabounce_pool",
-					dev,
-					large_buffer_size,
-					0 /* byte alignment */,
-					0 /* no page-crossing issues */);
-		if (!device_info->large_buffer_pool) {
-		printk(KERN_ERR
-			"dmabounce: could not allocate large DMA pool for %s\n",
-			dev->bus_id);
-			dma_pool_destroy(device_info->small_buffer_pool);
-
-			return -ENOMEM;
+		ret = dmabounce_init_pool(&device_info->large, dev,
+					  "large_dmabounce_pool",
+					  large_buffer_size);
+		if (ret) {
+			dev_err(dev,
+				"dmabounce: could not allocate DMA pool for %ld byte objects\n",
+				large_buffer_size);
+			goto err_destroy;
 		}
 	}
 
 	device_info->dev = dev;
-	device_info->small_buffer_size = small_buffer_size;
-	device_info->large_buffer_size = large_buffer_size;
 	INIT_LIST_HEAD(&device_info->safe_buffers);
 
 #ifdef STATS
-	device_info->sbp_allocs = 0;
-	device_info->lbp_allocs = 0;
 	device_info->total_allocs = 0;
 	device_info->map_op_count = 0;
 	device_info->bounce_count = 0;
@@ -628,6 +635,12 @@ dmabounce_register_dev(struct device *dev, unsigned long small_buffer_size,
 		dev->bus_id, dev->bus->name);
 
 	return 0;
+
+ err_destroy:
+	dma_pool_destroy(device_info->small.pool);
+ err_free:
+	kfree(device_info);
+	return ret;
 }
 
 void
@@ -649,10 +662,10 @@ dmabounce_unregister_dev(struct device *dev)
 		BUG();
 	}
 
-	if (device_info->small_buffer_pool)
-		dma_pool_destroy(device_info->small_buffer_pool);
-	if (device_info->large_buffer_pool)
-		dma_pool_destroy(device_info->large_buffer_pool);
+	if (device_info->small.pool)
+		dma_pool_destroy(device_info->small.pool);
+	if (device_info->large.pool)
+		dma_pool_destroy(device_info->large.pool);
 
 #ifdef STATS
 	print_alloc_stats(device_info);

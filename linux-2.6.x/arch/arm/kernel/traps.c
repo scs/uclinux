@@ -19,17 +19,18 @@
 #include <linux/personality.h>
 #include <linux/ptrace.h>
 #include <linux/kallsyms.h>
+#include <linux/delay.h>
 #include <linux/init.h>
 
 #include <asm/atomic.h>
 #include <asm/cacheflush.h>
-#include <asm/io.h>
 #include <asm/system.h>
 #include <asm/uaccess.h>
 #include <asm/unistd.h>
 #include <asm/traps.h>
 
 #include "ptrace.h"
+#include "signal.h"
 
 const char *processor_modes[]=
 { "USER_26", "FIQ_26" , "IRQ_26" , "SVC_26" , "UK4_26" , "UK5_26" , "UK6_26" , "UK7_26" ,
@@ -164,7 +165,7 @@ static void dump_backtrace(struct pt_regs *regs, struct task_struct *tsk)
 	} else if (verify_stack(fp)) {
 		printk("invalid frame pointer 0x%08x", fp);
 		ok = 0;
-	} else if (fp < (unsigned long)(tsk->thread_info + 1))
+	} else if (fp < (unsigned long)end_of_stack(tsk))
 		printk("frame pointer underflow");
 	printk("\n");
 
@@ -197,6 +198,25 @@ void show_stack(struct task_struct *tsk, unsigned long *sp)
 	barrier();
 }
 
+static void __die(const char *str, int err, struct thread_info *thread, struct pt_regs *regs)
+{
+	struct task_struct *tsk = thread->task;
+	static int die_counter;
+
+	printk("Internal error: %s: %x [#%d]\n", str, err, ++die_counter);
+	print_modules();
+	__show_regs(regs);
+	printk("Process %s (pid: %d, stack limit = 0x%p)\n",
+		tsk->comm, tsk->pid, thread + 1);
+
+	if (!user_mode(regs) || in_interrupt()) {
+		dump_mem("Stack: ", regs->ARM_sp,
+			 THREAD_SIZE + (unsigned long)task_stack_page(tsk));
+		dump_backtrace(regs, tsk);
+		dump_instr(regs);
+	}
+}
+
 DEFINE_SPINLOCK(die_lock);
 
 /*
@@ -204,41 +224,26 @@ DEFINE_SPINLOCK(die_lock);
  */
 NORET_TYPE void die(const char *str, struct pt_regs *regs, int err)
 {
-	struct task_struct *tsk = current;
-	static int die_counter;
+	struct thread_info *thread = current_thread_info();
 
 	console_verbose();
 	spin_lock_irq(&die_lock);
 	bust_spinlocks(1);
-
-	printk("Internal error: %s: %x [#%d]\n", str, err, ++die_counter);
-	print_modules();
-	__show_regs(regs);
-	printk("Process %s (pid: %d, stack limit = 0x%p)\n",
-		tsk->comm, tsk->pid, tsk->thread_info + 1);
-
-	if (!user_mode(regs) || in_interrupt()) {
-		dump_mem("Stack: ", regs->ARM_sp,
-			 THREAD_SIZE + (unsigned long)tsk->thread_info);
-		dump_backtrace(regs, tsk);
-		dump_instr(regs);
-	}
-
+	__die(str, err, thread, regs);
 	bust_spinlocks(0);
 	spin_unlock_irq(&die_lock);
+
+	if (panic_on_oops) {
+		printk(KERN_EMERG "Fatal exception: panic in 5 seconds\n");
+		ssleep(5);
+		panic("Fatal exception");
+	}
+
 	do_exit(SIGSEGV);
 }
 
-void die_if_kernel(const char *str, struct pt_regs *regs, int err)
-{
-	if (user_mode(regs))
-    		return;
-
-    	die(str, regs, err);
-}
-
-static void notify_die(const char *str, struct pt_regs *regs, siginfo_t *info,
-		       unsigned long err, unsigned long trap)
+void notify_die(const char *str, struct pt_regs *regs, struct siginfo *info,
+		unsigned long err, unsigned long trap)
 {
 	if (user_mode(regs)) {
 		current->thread.error_code = err;
@@ -255,16 +260,20 @@ static DEFINE_SPINLOCK(undef_lock);
 
 void register_undef_hook(struct undef_hook *hook)
 {
-	spin_lock_irq(&undef_lock);
+	unsigned long flags;
+
+	spin_lock_irqsave(&undef_lock, flags);
 	list_add(&hook->node, &undef_hook);
-	spin_unlock_irq(&undef_lock);
+	spin_unlock_irqrestore(&undef_lock, flags);
 }
 
 void unregister_undef_hook(struct undef_hook *hook)
 {
-	spin_lock_irq(&undef_lock);
+	unsigned long flags;
+
+	spin_lock_irqsave(&undef_lock, flags);
 	list_del(&hook->node);
-	spin_unlock_irq(&undef_lock);
+	spin_unlock_irqrestore(&undef_lock, flags);
 }
 
 asmlinkage void do_undefinstr(struct pt_regs *regs)
@@ -348,7 +357,9 @@ static int bad_syscall(int n, struct pt_regs *regs)
 	struct thread_info *thread = current_thread_info();
 	siginfo_t info;
 
-	if (current->personality != PER_LINUX && thread->exec_domain->handler) {
+	if (current->personality != PER_LINUX &&
+	    current->personality != PER_LINUX_32BIT &&
+	    thread->exec_domain->handler) {
 		thread->exec_domain->handler(n, regs);
 		return regs->ARM_r0;
 	}
@@ -401,7 +412,7 @@ asmlinkage int arm_syscall(int no, struct pt_regs *regs)
 	struct thread_info *thread = current_thread_info();
 	siginfo_t info;
 
-	if ((no >> 16) != 0x9f)
+	if ((no >> 16) != (__ARM_NR_BASE>> 16))
 		return bad_syscall(no, regs);
 
 	switch (no & 0xffff) {
@@ -484,30 +495,34 @@ asmlinkage int arm_syscall(int no, struct pt_regs *regs)
 		unsigned long addr = regs->ARM_r2;
 		struct mm_struct *mm = current->mm;
 		pgd_t *pgd; pmd_t *pmd; pte_t *pte;
+		spinlock_t *ptl;
 
 		regs->ARM_cpsr &= ~PSR_C_BIT;
-		spin_lock(&mm->page_table_lock);
+		down_read(&mm->mmap_sem);
 		pgd = pgd_offset(mm, addr);
 		if (!pgd_present(*pgd))
 			goto bad_access;
 		pmd = pmd_offset(pgd, addr);
 		if (!pmd_present(*pmd))
 			goto bad_access;
-		pte = pte_offset_map(pmd, addr);
-		if (!pte_present(*pte) || !pte_write(*pte))
+		pte = pte_offset_map_lock(mm, pmd, addr, &ptl);
+		if (!pte_present(*pte) || !pte_write(*pte)) {
+			pte_unmap_unlock(pte, ptl);
 			goto bad_access;
+		}
 		val = *(unsigned long *)addr;
 		val -= regs->ARM_r0;
 		if (val == 0) {
 			*(unsigned long *)addr = regs->ARM_r1;
 			regs->ARM_cpsr |= PSR_C_BIT;
 		}
-		spin_unlock(&mm->page_table_lock);
+		pte_unmap_unlock(pte, ptl);
+		up_read(&mm->mmap_sem);
 		return val;
 
 		bad_access:
-		spin_unlock(&mm->page_table_lock);
-		/* simulate a read access fault */
+		up_read(&mm->mmap_sem);
+		/* simulate a write access fault */
 		do_DataAbort(addr, 15 + (1 << 11), regs);
 		return -1;
 	}
@@ -620,13 +635,16 @@ baddataabort(int code, unsigned long instr, struct pt_regs *regs)
 	notify_die("unknown data abort code", regs, &info, instr, 0);
 }
 
-volatile void __bug(const char *file, int line, void *data)
+void __attribute__((noreturn)) __bug(const char *file, int line, void *data)
 {
 	printk(KERN_CRIT"kernel BUG at %s:%d!", file, line);
 	if (data)
 		printk(" - extra data = %p", data);
 	printk("\n");
 	*(int *)0 = 0;
+
+	/* Avoid "noreturn function does return" */
+	for (;;);
 }
 EXPORT_SYMBOL(__bug);
 
@@ -683,6 +701,14 @@ void __init trap_init(void)
 	memcpy((void *)0xffff0000, __vectors_start, __vectors_end - __vectors_start);
 	memcpy((void *)0xffff0200, __stubs_start, __stubs_end - __stubs_start);
 	memcpy((void *)0xffff1000 - kuser_sz, __kuser_helper_start, kuser_sz);
+
+	/*
+	 * Copy signal return handlers into the vector page, and
+	 * set sigreturn to be a pointer to these.
+	 */
+	memcpy((void *)KERN_SIGRETURN_CODE, sigreturn_codes,
+	       sizeof(sigreturn_codes));
+
 	flush_icache_range(0xffff0000, 0xffff0000 + PAGE_SIZE);
 	modify_domain(DOMAIN_USER, DOMAIN_CLIENT);
 }

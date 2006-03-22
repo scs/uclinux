@@ -147,6 +147,7 @@ asmlinkage int old_select(struct sel_arg_struct __user *arg)
 	return sys_select(a.n, a.inp, a.outp, a.exp, a.tvp);
 }
 
+#if !defined(CONFIG_AEABI) || defined(CONFIG_OABI_COMPAT)
 /*
  * sys_ipc() is the de-multiplexer for the SysV IPC calls..
  *
@@ -226,6 +227,7 @@ asmlinkage int sys_ipc(uint call, int first, int second, int third,
 		return -ENOSYS;
 	}
 }
+#endif
 
 /* Fork a new task - this creates a new program thread.
  * This is called indirectly via a small wrapper
@@ -305,9 +307,19 @@ long execve(const char *filename, char **argv, char **envp)
 		  "Ir" (THREAD_START_SP - sizeof(regs)),
 		  "r" (&regs),
 		  "Ir" (sizeof(regs))
-		: "r0", "r1", "r2", "r3", "ip", "memory");
+		: "r0", "r1", "r2", "r3", "ip", "lr", "memory");
 
  out:
 	return ret;
 }
 EXPORT_SYMBOL(execve);
+
+/*
+ * Since loff_t is a 64 bit type we avoid a lot of ABI hastle
+ * with a different argument ordering.
+ */
+asmlinkage long sys_arm_fadvise64_64(int fd, int advice,
+				     loff_t offset, loff_t len)
+{
+	return sys_fadvise64_64(fd, offset, len, advice);
+}

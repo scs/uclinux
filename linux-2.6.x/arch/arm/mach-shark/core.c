@@ -24,7 +24,7 @@ static struct plat_serial8250_port serial_platform_data[] = {
 		.iobase		= 0x3f8,
 		.irq		= 4,
 		.uartclk	= 1843200,
-		.regshift	= 2,
+		.regshift	= 0,
 		.iotype		= UPIO_PORT,
 		.flags		= UPF_BOOT_AUTOCONF | UPF_SKIP_TEST,
 	},
@@ -32,7 +32,7 @@ static struct plat_serial8250_port serial_platform_data[] = {
 		.iobase		= 0x2f8,
 		.irq		= 3,
 		.uartclk	= 1843200,
-		.regshift	= 2,
+		.regshift	= 0,
 		.iotype		= UPIO_PORT,
 		.flags		= UPF_BOOT_AUTOCONF | UPF_SKIP_TEST,
 	},
@@ -41,7 +41,7 @@ static struct plat_serial8250_port serial_platform_data[] = {
 
 static struct platform_device serial_device = {
 	.name			= "serial8250",
-	.id			= 0,
+	.id			= PLAT8250_DEV_PLATFORM,
 	.dev			= {
 		.platform_data	= serial_platform_data,
 	},
@@ -62,7 +62,12 @@ arch_initcall(shark_init);
 extern void shark_init_irq(void);
 
 static struct map_desc shark_io_desc[] __initdata = {
-	{ IO_BASE	, IO_START	, IO_SIZE	, MT_DEVICE }
+	{
+		.virtual	= IO_BASE,
+		.pfn		= __phys_to_pfn(IO_START),
+		.length		= IO_SIZE,
+		.type		= MT_DEVICE
+	}
 };
 
 static void __init shark_map_io(void)
@@ -84,8 +89,8 @@ shark_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 
 static struct irqaction shark_timer_irq = {
 	.name		= "Shark Timer Tick",
-	.flags		= SA_INTERRUPT,
-	.handler	= shark_timer_interrupt
+	.flags		= SA_INTERRUPT | SA_TIMER,
+	.handler	= shark_timer_interrupt,
 };
 
 /*
@@ -105,10 +110,11 @@ static struct sys_timer shark_timer = {
 };
 
 MACHINE_START(SHARK, "Shark")
-	MAINTAINER("Alexander Schulz")
-	BOOT_MEM(0x08000000, 0x40000000, 0xe0000000)
-	BOOT_PARAMS(0x08003000)
-	MAPIO(shark_map_io)
-	INITIRQ(shark_init_irq)
+	/* Maintainer: Alexander Schulz */
+	.phys_io	= 0x40000000,
+	.io_pg_offst	= ((0xe0000000) >> 18) & 0xfffc,
+	.boot_params	= 0x08003000,
+	.map_io		= shark_map_io,
+	.init_irq	= shark_init_irq,
 	.timer		= &shark_timer,
 MACHINE_END

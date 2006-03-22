@@ -23,7 +23,6 @@
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/uaccess.h>
-#include <asm/mach-types.h>
 #include <asm/mach/irq.h>
 #include <asm/mach/time.h>
 
@@ -60,7 +59,7 @@ static unsigned long iop321_gettimeoffset(void)
 	/*
 	 * Now convert them to usec.
 	 */
-	usec = (unsigned long)(elapsed * (tick_nsec / 1000)) / LATCH;
+	usec = (unsigned long)(elapsed / (CLOCK_TICK_RATE/1000000));
 
 	return usec;
 }
@@ -86,7 +85,7 @@ iop321_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 static struct irqaction iop321_timer_irq = {
 	.name		= "IOP321 Timer Tick",
 	.handler	= iop321_timer_interrupt,
-	.flags		= SA_INTERRUPT
+	.flags		= SA_INTERRUPT | SA_TIMER,
 };
 
 static void __init iop321_timer_init(void)

@@ -16,6 +16,7 @@
 #include <asm/tlbflush.h>
 
 #ifdef CONFIG_CPU_CACHE_VIPT
+
 #define ALIAS_FLUSH_START	0xffff4000
 
 #define TOP_PTE(x)	pte_offset_kernel(top_pmd, x)
@@ -23,27 +24,75 @@
 static void flush_pfn_alias(unsigned long pfn, unsigned long vaddr)
 {
 	unsigned long to = ALIAS_FLUSH_START + (CACHE_COLOUR(vaddr) << PAGE_SHIFT);
+	const int zero = 0;
 
 	set_pte(TOP_PTE(to), pfn_pte(pfn, PAGE_KERNEL));
 	flush_tlb_kernel_page(to);
 
 	asm(	"mcrr	p15, 0, %1, %0, c14\n"
-	"	mcrr	p15, 0, %1, %0, c5\n"
+	"	mcr	p15, 0, %2, c7, c10, 4\n"
+	"	mcr	p15, 0, %2, c7, c5, 0\n"
 	    :
-	    : "r" (to), "r" (to + PAGE_SIZE - L1_CACHE_BYTES)
+	    : "r" (to), "r" (to + PAGE_SIZE - L1_CACHE_BYTES), "r" (zero)
 	    : "cc");
+}
+
+void flush_cache_mm(struct mm_struct *mm)
+{
+	if (cache_is_vivt()) {
+		if (cpu_isset(smp_processor_id(), mm->cpu_vm_mask))
+			__cpuc_flush_user_all();
+		return;
+	}
+
+	if (cache_is_vipt_aliasing()) {
+		asm(	"mcr	p15, 0, %0, c7, c14, 0\n"
+		"	mcr	p15, 0, %0, c7, c5, 0\n"
+		"	mcr	p15, 0, %0, c7, c10, 4"
+		    :
+		    : "r" (0)
+		    : "cc");
+	}
+}
+
+void flush_cache_range(struct vm_area_struct *vma, unsigned long start, unsigned long end)
+{
+	if (cache_is_vivt()) {
+		if (cpu_isset(smp_processor_id(), vma->vm_mm->cpu_vm_mask))
+			__cpuc_flush_user_range(start & PAGE_MASK, PAGE_ALIGN(end),
+						vma->vm_flags);
+		return;
+	}
+
+	if (cache_is_vipt_aliasing()) {
+		asm(	"mcr	p15, 0, %0, c7, c14, 0\n"
+		"	mcr	p15, 0, %0, c7, c5, 0\n"
+		"	mcr	p15, 0, %0, c7, c10, 4"
+		    :
+		    : "r" (0)
+		    : "cc");
+	}
+}
+
+void flush_cache_page(struct vm_area_struct *vma, unsigned long user_addr, unsigned long pfn)
+{
+	if (cache_is_vivt()) {
+		if (cpu_isset(smp_processor_id(), vma->vm_mm->cpu_vm_mask)) {
+			unsigned long addr = user_addr & PAGE_MASK;
+			__cpuc_flush_user_range(addr, addr + PAGE_SIZE, vma->vm_flags);
+		}
+		return;
+	}
+
+	if (cache_is_vipt_aliasing())
+		flush_pfn_alias(pfn, user_addr);
 }
 #else
 #define flush_pfn_alias(pfn,vaddr)	do { } while (0)
 #endif
 
-static void __flush_dcache_page(struct address_space *mapping, struct page *page)
+void __flush_dcache_page(struct address_space *mapping, struct page *page)
 {
-	struct mm_struct *mm = current->active_mm;
-	struct vm_area_struct *mpnt;
-	struct prio_tree_iter iter;
-	pgoff_t pgoff;
-
 	/*
 	 * Writeback any data associated with the kernel mapping of this
 	 * page.  This ensures that data in the physical page is mutually
@@ -52,24 +101,21 @@ static void __flush_dcache_page(struct address_space *mapping, struct page *page
 	__cpuc_flush_dcache_page(page_address(page));
 
 	/*
-	 * If there's no mapping pointer here, then this page isn't
-	 * visible to userspace yet, so there are no cache lines
-	 * associated with any other aliases.
-	 */
-	if (!mapping)
-		return;
-
-	/*
-	 * This is a page cache page.  If we have a VIPT cache, we
-	 * only need to do one flush - which would be at the relevant
+	 * If this is a page cache page, and we have an aliasing VIPT cache,
+	 * we only need to do one flush - which would be at the relevant
 	 * userspace colour, which is congruent with page->index.
 	 */
-	if (cache_is_vipt()) {
-		if (cache_is_vipt_aliasing())
-			flush_pfn_alias(page_to_pfn(page),
-					page->index << PAGE_CACHE_SHIFT);
-		return;
-	}
+	if (mapping && cache_is_vipt_aliasing())
+		flush_pfn_alias(page_to_pfn(page),
+				page->index << PAGE_CACHE_SHIFT);
+}
+
+static void __flush_dcache_aliases(struct address_space *mapping, struct page *page)
+{
+	struct mm_struct *mm = current->active_mm;
+	struct vm_area_struct *mpnt;
+	struct prio_tree_iter iter;
+	pgoff_t pgoff;
 
 	/*
 	 * There are possible user space mappings of this page:
@@ -111,17 +157,22 @@ static void __flush_dcache_page(struct address_space *mapping, struct page *page
  *  space mappings, we can be lazy and remember that we may have dirty
  *  kernel cache lines for later.  Otherwise, we assume we have
  *  aliasing mappings.
+ *
+ * Note that we disable the lazy flush for SMP.
  */
 void flush_dcache_page(struct page *page)
 {
 	struct address_space *mapping = page_mapping(page);
 
-	if (cache_is_vipt_nonaliasing())
-		return;
-
+#ifndef CONFIG_SMP
 	if (mapping && !mapping_mapped(mapping))
 		set_bit(PG_dcache_dirty, &page->flags);
 	else
+#endif
+	{
 		__flush_dcache_page(mapping, page);
+		if (mapping && cache_is_vivt())
+			__flush_dcache_aliases(mapping, page);
+	}
 }
 EXPORT_SYMBOL(flush_dcache_page);

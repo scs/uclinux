@@ -59,8 +59,13 @@ static inline void loadExtended(const unsigned int Fn, const unsigned int __user
 	p = (unsigned int *) &fpa11->fpreg[Fn].fExtended;
 	fpa11->fType[Fn] = typeExtended;
 	get_user(p[0], &pMem[0]);	/* sign & exponent */
+#ifdef __ARMEB__
+	get_user(p[1], &pMem[1]);	/* ms bits */
+	get_user(p[2], &pMem[2]);	/* ls bits */
+#else
 	get_user(p[1], &pMem[2]);	/* ls bits */
 	get_user(p[2], &pMem[1]);	/* ms bits */
+#endif
 }
 #endif
 
@@ -96,7 +101,7 @@ static inline void loadMultiple(const unsigned int Fn, const unsigned int __user
 	}
 }
 
-static inline void storeSingle(const unsigned int Fn, unsigned int __user *pMem)
+static inline void storeSingle(struct roundingData *roundData, const unsigned int Fn, unsigned int __user *pMem)
 {
 	FPA11 *fpa11 = GET_FPA11();
 	union {
@@ -106,12 +111,12 @@ static inline void storeSingle(const unsigned int Fn, unsigned int __user *pMem)
 
 	switch (fpa11->fType[Fn]) {
 	case typeDouble:
-		val.f = float64_to_float32(fpa11->fpreg[Fn].fDouble);
+		val.f = float64_to_float32(roundData, fpa11->fpreg[Fn].fDouble);
 		break;
 
 #ifdef CONFIG_FPE_NWFPE_XP
 	case typeExtended:
-		val.f = floatx80_to_float32(fpa11->fpreg[Fn].fExtended);
+		val.f = floatx80_to_float32(roundData, fpa11->fpreg[Fn].fExtended);
 		break;
 #endif
 
@@ -122,7 +127,7 @@ static inline void storeSingle(const unsigned int Fn, unsigned int __user *pMem)
 	put_user(val.i[0], pMem);
 }
 
-static inline void storeDouble(const unsigned int Fn, unsigned int __user *pMem)
+static inline void storeDouble(struct roundingData *roundData, const unsigned int Fn, unsigned int __user *pMem)
 {
 	FPA11 *fpa11 = GET_FPA11();
 	union {
@@ -137,7 +142,7 @@ static inline void storeDouble(const unsigned int Fn, unsigned int __user *pMem)
 
 #ifdef CONFIG_FPE_NWFPE_XP
 	case typeExtended:
-		val.f = floatx80_to_float64(fpa11->fpreg[Fn].fExtended);
+		val.f = floatx80_to_float64(roundData, fpa11->fpreg[Fn].fExtended);
 		break;
 #endif
 
@@ -177,8 +182,13 @@ static inline void storeExtended(const unsigned int Fn, unsigned int __user *pMe
 	}
 
 	put_user(val.i[0], &pMem[0]);	/* sign & exp */
+#ifdef __ARMEB__
+	put_user(val.i[1], &pMem[1]);	/* msw */
+	put_user(val.i[2], &pMem[2]);
+#else
 	put_user(val.i[1], &pMem[2]);
 	put_user(val.i[2], &pMem[1]);	/* msw */
+#endif
 }
 #endif
 
@@ -259,8 +269,11 @@ unsigned int PerformSTF(const unsigned int opcode)
 {
 	unsigned int __user *pBase, *pAddress, *pFinal;
 	unsigned int nRc = 1, write_back = WRITE_BACK(opcode);
+	struct roundingData roundData;
 
-	SetRoundingMode(ROUND_TO_NEAREST);
+	roundData.mode = SetRoundingMode(opcode);
+	roundData.precision = SetRoundingPrecision(opcode);
+	roundData.exception = 0;
 
 	pBase = (unsigned int __user *) readRegister(getRn(opcode));
 	if (REG_PC == getRn(opcode)) {
@@ -281,10 +294,10 @@ unsigned int PerformSTF(const unsigned int opcode)
 
 	switch (opcode & MASK_TRANSFER_LENGTH) {
 	case TRANSFER_SINGLE:
-		storeSingle(getFd(opcode), pAddress);
+		storeSingle(&roundData, getFd(opcode), pAddress);
 		break;
 	case TRANSFER_DOUBLE:
-		storeDouble(getFd(opcode), pAddress);
+		storeDouble(&roundData, getFd(opcode), pAddress);
 		break;
 #ifdef CONFIG_FPE_NWFPE_XP
 	case TRANSFER_EXTENDED:
@@ -294,6 +307,9 @@ unsigned int PerformSTF(const unsigned int opcode)
 	default:
 		nRc = 0;
 	}
+
+	if (roundData.exception)
+		float_raise(roundData.exception);
 
 	if (write_back)
 		writeRegister(getRn(opcode), (unsigned long) pFinal);

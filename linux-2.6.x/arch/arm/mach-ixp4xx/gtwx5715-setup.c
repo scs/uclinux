@@ -27,6 +27,7 @@
 #include <linux/serial.h>
 #include <linux/tty.h>
 #include <linux/serial_8250.h>
+#include <linux/slab.h>
 
 #include <asm/types.h>
 #include <asm/setup.h>
@@ -83,7 +84,7 @@ static struct plat_serial8250_port gtwx5715_uart_platform_data[] = {
 	.mapbase	= IXP4XX_UART2_BASE_PHYS,
 	.membase	= (char *)IXP4XX_UART2_BASE_VIRT + REG_OFFSET,
 	.irq		= IRQ_IXP4XX_UART2,
-	.flags		= UPF_BOOT_AUTOCONF,
+	.flags		= UPF_BOOT_AUTOCONF | UPF_SKIP_TEST,
 	.iotype		= UPIO_MEM,
 	.regshift	= 2,
 	.uartclk	= IXP4XX_UART_XTAL,
@@ -93,7 +94,7 @@ static struct plat_serial8250_port gtwx5715_uart_platform_data[] = {
 
 static struct platform_device gtwx5715_uart_device = {
 	.name		= "serial8250",
-	.id		= 0,
+	.id		= PLAT8250_DEV_PLATFORM,
 	.dev			= {
 		.platform_data	= gtwx5715_uart_platform_data,
 	},
@@ -101,22 +102,14 @@ static struct platform_device gtwx5715_uart_device = {
 	.resource	= gtwx5715_uart_resources,
 };
 
-
-void __init gtwx5715_map_io(void)
-{
-	ixp4xx_map_io();
-}
-
 static struct flash_platform_data gtwx5715_flash_data = {
 	.map_name	= "cfi_probe",
 	.width		= 2,
 };
 
-static struct resource gtwx5715_flash_resource = {
-	.start		= GTWX5715_FLASH_BASE,
-	.end		= GTWX5715_FLASH_BASE + GTWX5715_FLASH_SIZE,
+static struct gtw5715_flash_resource = {
 	.flags		= IORESOURCE_MEM,
-};
+}
 
 static struct platform_device gtwx5715_flash = {
 	.name		= "IXP4XX-Flash",
@@ -135,19 +128,27 @@ static struct platform_device *gtwx5715_devices[] __initdata = {
 
 static void __init gtwx5715_init(void)
 {
+	ixp4xx_sys_init();
+
+	if (!flash_resource)
+		printk(KERN_ERR "Could not allocate flash resource\n");
+
+	gtwx5715_flash_resource.start = IXP4XX_EXP_BUS_BASE(0);
+	gtwx5715_flash_resource.end = IXP4XX_EXP_BUS_BASE(0) + SZ_8M - 1;
+
 	platform_add_devices(gtwx5715_devices, ARRAY_SIZE(gtwx5715_devices));
 }
 
 
 MACHINE_START(GTWX5715, "Gemtek GTWX5715 (Linksys WRV54G)")
-        MAINTAINER("George Joseph")
-        BOOT_MEM(PHYS_OFFSET, IXP4XX_UART2_BASE_PHYS,
-                IXP4XX_UART2_BASE_VIRT)
-        MAPIO(gtwx5715_map_io)
-        INITIRQ(ixp4xx_init_irq)
-		  .timer		= &ixp4xx_timer,
-        BOOT_PARAMS(0x0100)
-        INIT_MACHINE(gtwx5715_init)
+	/* Maintainer: George Joseph */
+	.phys_io	= IXP4XX_UART2_BASE_PHYS,
+	.io_pg_offst	= ((IXP4XX_UART2_BASE_VIRT) >> 18) & 0xfffc,
+	.map_io		= ixp4xx_map_io,
+	.init_irq	= ixp4xx_init_irq,
+	.timer		= &ixp4xx_timer,
+	.boot_params	= 0x0100,
+	.init_machine	= gtwx5715_init,
 MACHINE_END
 
 

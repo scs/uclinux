@@ -19,7 +19,7 @@
 #include <linux/timer.h>
 #include <linux/init.h>
 #include <linux/string.h>
-#include <linux/device.h>
+#include <linux/platform_device.h>
 
 #include <linux/mtd/map.h>
 
@@ -136,7 +136,7 @@ static void __init nexcoder_sensorboard_init(void)
 	s3c2410_gpio_cfgpin(S3C2410_GPF2, S3C2410_GPF2_OUTP); // CAM_GPIO6 => CAM_PWRDN
 }
 
-void __init nexcoder_map_io(void)
+static void __init nexcoder_map_io(void)
 {
 	s3c24xx_init_io(nexcoder_iodesc, ARRAY_SIZE(nexcoder_iodesc));
 	s3c24xx_init_clocks(0);
@@ -147,9 +147,10 @@ void __init nexcoder_map_io(void)
 
 
 MACHINE_START(NEXCODER_2440, "NexVision - Nexcoder 2440")
-     MAINTAINER("Guillaume GOURAT <guillaume.gourat@nexvision.tv>")
-     BOOT_MEM(S3C2410_SDRAM_PA, S3C2410_PA_UART, (u32)S3C24XX_VA_UART)
-     BOOT_PARAMS(S3C2410_SDRAM_PA + 0x100)
+	/* Maintainer: Guillaume GOURAT <guillaume.gourat@nexvision.tv> */
+	.phys_io	= S3C2410_PA_UART,
+	.io_pg_offst	= (((u32)S3C24XX_VA_UART) >> 18) & 0xfffc,
+	.boot_params	= S3C2410_SDRAM_PA + 0x100,
 	.map_io		= nexcoder_map_io,
 	.init_irq	= s3c24xx_init_irq,
 	.timer		= &s3c24xx_timer,

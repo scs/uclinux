@@ -11,7 +11,8 @@
  */
 #include <linux/linkage.h>
 #include <asm/assembler.h>
-#include <asm/constants.h>
+#include <asm/asm-offsets.h>
+#include <asm/hardware/arm_scu.h>
 #include <asm/procinfo.h>
 #include <asm/pgtable.h>
 
@@ -55,7 +56,14 @@ ENTRY(cpu_v6_proc_init)
 	mov	pc, lr
 
 ENTRY(cpu_v6_proc_fin)
-	mov	pc, lr
+	stmfd	sp!, {lr}
+	cpsid	if				@ disable interrupts
+	bl	v6_flush_kern_cache_all
+	mrc	p15, 0, r0, c1, c0, 0		@ ctrl register
+	bic	r0, r0, #0x1000			@ ...i............
+	bic	r0, r0, #0x0006			@ .............ca.
+	mcr	p15, 0, r0, c1, c0, 0		@ disable caches
+	ldmfd	sp!, {pc}
 
 /*
  *	cpu_v6_reset(loc)
@@ -105,17 +113,14 @@ ENTRY(cpu_v6_dcache_clean_area)
 ENTRY(cpu_v6_switch_mm)
 	mov	r2, #0
 	ldr	r1, [r1, #MM_CONTEXT_ID]	@ get mm->context.id
-	mcr     p15, 0, r2, c7, c5, 6           @ flush BTAC/BTB
+#ifdef CONFIG_SMP
+	orr	r0, r0, #2			@ set shared pgtable
+#endif
+	mcr	p15, 0, r2, c7, c5, 6		@ flush BTAC/BTB
 	mcr	p15, 0, r2, c7, c10, 4		@ drain write buffer
 	mcr	p15, 0, r0, c2, c0, 0		@ set TTB 0
 	mcr	p15, 0, r1, c13, c0, 1		@ set context ID
 	mov	pc, lr
-
-#define nG	(1 << 11)
-#define APX	(1 << 9)
-#define AP1	(1 << 5)
-#define AP0	(1 << 4)
-#define XN	(1 << 0)
 
 /*
  *	cpu_v6_set_pte(ptep, pte)
@@ -132,31 +137,31 @@ ENTRY(cpu_v6_switch_mm)
  *	  100x   1   0   1	r/o	no acc
  *	  10x0   1   0   1	r/o	no acc
  *	  1011   0   0   1	r/w	no acc
- *	  110x   1   1   0	r/o	r/o
- *	  11x0   1   1   0	r/o	r/o
+ *	  110x   0   1   0	r/w	r/o
+ *	  11x0   0   1   0	r/w	r/o
  *	  1111   0   1   1	r/w	r/w
  */
 ENTRY(cpu_v6_set_pte)
 	str	r1, [r0], #-2048		@ linux version
 
-	bic	r2, r1, #0x00000ff0
+	bic	r2, r1, #0x000003f0
 	bic	r2, r2, #0x00000003
-	orr	r2, r2, #AP0 | 2
+	orr	r2, r2, #PTE_EXT_AP0 | 2
 
 	tst	r1, #L_PTE_WRITE
 	tstne	r1, #L_PTE_DIRTY
-	orreq	r2, r2, #APX
+	orreq	r2, r2, #PTE_EXT_APX
 
 	tst	r1, #L_PTE_USER
-	orrne	r2, r2, #AP1 | nG
-	tstne	r2, #APX
-	eorne	r2, r2, #AP0
+	orrne	r2, r2, #PTE_EXT_AP1
+	tstne	r2, #PTE_EXT_APX
+	bicne	r2, r2, #PTE_EXT_APX | PTE_EXT_AP0
 
 	tst	r1, #L_PTE_YOUNG
-	biceq	r2, r2, #APX | AP1 | AP0
+	biceq	r2, r2, #PTE_EXT_APX | PTE_EXT_AP_MASK
 
 @	tst	r1, #L_PTE_EXEC
-@	orreq	r2, r2, #XN
+@	orreq	r2, r2, #PTE_EXT_XN
 
 	tst	r1, #L_PTE_PRESENT
 	moveq	r2, #0
@@ -190,6 +195,23 @@ cpu_v6_name:
  *	- cache type register is implemented
  */
 __v6_setup:
+#ifdef CONFIG_SMP
+	/* Set up the SCU on core 0 only */
+	mrc	p15, 0, r0, c0, c0, 5		@ CPU core number
+	ands	r0, r0, #15
+	moveq	r0, #0x10000000 @ SCU_BASE
+	orreq	r0, r0, #0x00100000
+	ldreq	r5, [r0, #SCU_CTRL]
+	orreq	r5, r5, #1
+	streq	r5, [r0, #SCU_CTRL]
+
+#ifndef CONFIG_CPU_DCACHE_DISABLE
+	mrc	p15, 0, r0, c1, c0, 1		@ Enable SMP/nAMP mode
+	orr	r0, r0, #0x20
+	mcr	p15, 0, r0, c1, c0, 1
+#endif
+#endif
+
 	mov	r0, #0
 	mcr	p15, 0, r0, c7, c14, 0		@ clean+invalidate D cache
 	mcr	p15, 0, r0, c7, c5, 0		@ invalidate I cache
@@ -197,10 +219,13 @@ __v6_setup:
 	mcr	p15, 0, r0, c7, c10, 4		@ drain write buffer
 	mcr	p15, 0, r0, c8, c7, 0		@ invalidate I + D TLBs
 	mcr	p15, 0, r0, c2, c0, 2		@ TTB control register
+#ifdef CONFIG_SMP
+	orr	r4, r4, #2			@ set shared pgtable
+#endif
 	mcr	p15, 0, r4, c2, c0, 1		@ load TTB1
 #ifdef CONFIG_VFP
 	mrc	p15, 0, r0, c1, c0, 2
-	orr	r0, r0, #(3 << 20)
+	orr	r0, r0, #(0xf << 20)
 	mcr	p15, 0, r0, c1, c0, 2		@ Enable full access to VFP
 #endif
 	mrc	p15, 0, r0, c1, c0, 0		@ read control register
@@ -246,7 +271,7 @@ cpu_elf_name:
 	.size	cpu_elf_name, . - cpu_elf_name
 	.align
 
-	.section ".proc.info", #alloc, #execinstr
+	.section ".proc.info.init", #alloc, #execinstr
 
 	/*
 	 * Match any ARMv6 processor core.

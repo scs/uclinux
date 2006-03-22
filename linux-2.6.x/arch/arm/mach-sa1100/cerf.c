@@ -14,7 +14,7 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/tty.h>
-#include <linux/device.h>
+#include <linux/platform_device.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
 
@@ -29,6 +29,7 @@
 #include <asm/mach/serial_sa1100.h>
 
 #include <asm/arch/cerf.h>
+#include <asm/arch/mcp.h>
 #include "generic.h"
 
 static struct resource cerfuart2_resources[] = {
@@ -99,8 +100,12 @@ static void __init cerf_init_irq(void)
 }
 
 static struct map_desc cerf_io_desc[] __initdata = {
-  /* virtual	 physical    length	 type */
-  { 0xf0000000, 0x08000000, 0x00100000, MT_DEVICE }  /* Crystal Ethernet Chip */
+  	{	/* Crystal Ethernet Chip */
+		.virtual	=  0xf0000000,
+		.pfn		= __phys_to_pfn(0x08000000),
+		.length		= 0x00100000,
+		.type		= MT_DEVICE
+	}
 };
 
 static void __init cerf_map_io(void)
@@ -116,17 +121,24 @@ static void __init cerf_map_io(void)
 	GPDR |= CERF_GPIO_CF_RESET;
 }
 
+static struct mcp_plat_data cerf_mcp_data = {
+	.mccr0		= MCCR0_ADM,
+	.sclk_rate	= 11981000,
+};
+
 static void __init cerf_init(void)
 {
 	platform_add_devices(cerf_devices, ARRAY_SIZE(cerf_devices));
 	sa11x0_set_flash_data(&cerf_flash_data, &cerf_flash_resource, 1);
+	sa11x0_set_mcp_data(&cerf_mcp_data);
 }
 
 MACHINE_START(CERF, "Intrinsyc CerfBoard/CerfCube")
-	MAINTAINER("support@intrinsyc.com")
-	BOOT_MEM(0xc0000000, 0x80000000, 0xf8000000)
-	MAPIO(cerf_map_io)
-	INITIRQ(cerf_init_irq)
+	/* Maintainer: support@intrinsyc.com */
+	.phys_io	= 0x80000000,
+	.io_pg_offst	= ((0xf8000000) >> 18) & 0xfffc,
+	.map_io		= cerf_map_io,
+	.init_irq	= cerf_init_irq,
 	.timer		= &sa1100_timer,
 	.init_machine	= cerf_init,
 MACHINE_END
