@@ -39,15 +39,11 @@ MODULE_DESCRIPTION("NatSemi SCx200 Watchdog Driver");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_MISCDEV(WATCHDOG_MINOR);
 
-#ifndef CONFIG_WATCHDOG_NOWAYOUT
-#define CONFIG_WATCHDOG_NOWAYOUT 0
-#endif
-
 static int margin = 60;		/* in seconds */
 module_param(margin, int, 0);
 MODULE_PARM_DESC(margin, "Watchdog margin in seconds");
 
-static int nowayout = CONFIG_WATCHDOG_NOWAYOUT;
+static int nowayout = WATCHDOG_NOWAYOUT;
 module_param(nowayout, int, 0);
 MODULE_PARM_DESC(nowayout, "Disable watchdog shutdown on close");
 
@@ -210,7 +206,7 @@ static struct file_operations scx200_wdt_fops = {
 
 static struct miscdevice scx200_wdt_miscdev = {
 	.minor = WATCHDOG_MINOR,
-	.name  = NAME,
+	.name  = "watchdog",
 	.fops  = &scx200_wdt_fops,
 };
 

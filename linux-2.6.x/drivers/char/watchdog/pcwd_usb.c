@@ -79,12 +79,7 @@ static int heartbeat = WATCHDOG_HEARTBEAT;
 module_param(heartbeat, int, 0);
 MODULE_PARM_DESC(heartbeat, "Watchdog heartbeat in seconds. (0<heartbeat<65536, default=" __MODULE_STRING(WATCHDOG_HEARTBEAT) ")");
 
-#ifdef CONFIG_WATCHDOG_NOWAYOUT
-static int nowayout = 1;
-#else
-static int nowayout = 0;
-#endif
-
+static int nowayout = WATCHDOG_NOWAYOUT;
 module_param(nowayout, int, 0);
 MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default=CONFIG_WATCHDOG_NOWAYOUT)");
 
@@ -156,7 +151,6 @@ static void usb_pcwd_disconnect	(struct usb_interface *interface);
 
 /* usb specific object needed to register this driver with the usb subsystem */
 static struct usb_driver usb_pcwd_driver = {
-	.owner =	THIS_MODULE,
 	.name =		DRIVER_NAME,
 	.probe =	usb_pcwd_probe,
 	.disconnect =	usb_pcwd_disconnect,

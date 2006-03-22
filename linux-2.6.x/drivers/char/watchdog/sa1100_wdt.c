@@ -36,17 +36,10 @@
 #include <asm/uaccess.h>
 
 #define OSCR_FREQ		CLOCK_TICK_RATE
-#define SA1100_CLOSE_MAGIC	(0x5afc4453)
 
 static unsigned long sa1100wdt_users;
-static int expect_close;
 static int pre_margin;
 static int boot_status;
-#ifdef CONFIG_WATCHDOG_NOWAYOUT
-static int nowayout = 1;
-#else
-static int nowayout = 0;
-#endif
 
 /*
  *	Allow only one person to hold it open
@@ -66,55 +59,33 @@ static int sa1100dog_open(struct inode *inode, struct file *file)
 }
 
 /*
- *	Shut off the timer.
- * 	Lock it in if it's a module and we defined ...NOWAYOUT
- *	Oddly, the watchdog can only be enabled, but we can turn off
- *	the interrupt, which appears to prevent the watchdog timing out.
+ * The watchdog cannot be disabled.
+ *
+ * Previous comments suggested that turning off the interrupt by
+ * clearing OIER[E3] would prevent the watchdog timing out but this
+ * does not appear to be true (at least on the PXA255).
  */
 static int sa1100dog_release(struct inode *inode, struct file *file)
 {
-	OSMR3 = OSCR + pre_margin;
-
-	if (expect_close == SA1100_CLOSE_MAGIC) {
-		OIER &= ~OIER_E3;
-	} else {
-		printk(KERN_CRIT "WATCHDOG: WDT device closed unexpectedly.  WDT will not stop!\n");
-	}
+	printk(KERN_CRIT "WATCHDOG: Device closed - timer will not stop\n");
 
 	clear_bit(1, &sa1100wdt_users);
-	expect_close = 0;
 
 	return 0;
 }
 
-static ssize_t sa1100dog_write(struct file *file, const char *data, size_t len, loff_t *ppos)
+static ssize_t sa1100dog_write(struct file *file, const char __user *data, size_t len, loff_t *ppos)
 {
-	if (len) {
-		if (!nowayout) {
-			size_t i;
-
-			expect_close = 0;
-
-			for (i = 0; i != len; i++) {
-				char c;
-
-				if (get_user(c, data + i))
-					return -EFAULT;
-				if (c == 'V')
-					expect_close = SA1100_CLOSE_MAGIC;
-			}
-		}
+	if (len)
 		/* Refresh OSMR3 timer. */
 		OSMR3 = OSCR + pre_margin;
-	}
 
 	return len;
 }
 
 static struct watchdog_info ident = {
-	.options	= WDIOF_CARDRESET | WDIOF_MAGICCLOSE |
-			  WDIOF_SETTIMEOUT | WDIOF_KEEPALIVEPING,
-	.identity	= "SA1100 Watchdog",
+	.options	= WDIOF_CARDRESET | WDIOF_SETTIMEOUT | WDIOF_KEEPALIVEPING,
+	.identity	= "SA1100/PXA255 Watchdog",
 };
 
 static int sa1100dog_ioctl(struct inode *inode, struct file *file,
@@ -122,23 +93,25 @@ static int sa1100dog_ioctl(struct inode *inode, struct file *file,
 {
 	int ret = -ENOIOCTLCMD;
 	int time;
+	void __user *argp = (void __user *)arg;
+	int __user *p = argp;
 
 	switch (cmd) {
 	case WDIOC_GETSUPPORT:
-		ret = copy_to_user((struct watchdog_info *)arg, &ident,
+		ret = copy_to_user(argp, &ident,
 				   sizeof(ident)) ? -EFAULT : 0;
 		break;
 
 	case WDIOC_GETSTATUS:
-		ret = put_user(0, (int *)arg);
+		ret = put_user(0, p);
 		break;
 
 	case WDIOC_GETBOOTSTATUS:
-		ret = put_user(boot_status, (int *)arg);
+		ret = put_user(boot_status, p);
 		break;
 
 	case WDIOC_SETTIMEOUT:
-		ret = get_user(time, (int *)arg);
+		ret = get_user(time, p);
 		if (ret)
 			break;
 
@@ -152,7 +125,7 @@ static int sa1100dog_ioctl(struct inode *inode, struct file *file,
 		/*fall through*/
 
 	case WDIOC_GETTIMEOUT:
-		ret = put_user(pre_margin / OSCR_FREQ, (int *)arg);
+		ret = put_user(pre_margin / OSCR_FREQ, p);
 		break;
 
 	case WDIOC_KEEPALIVE:
@@ -176,7 +149,7 @@ static struct file_operations sa1100dog_fops =
 static struct miscdevice sa1100dog_miscdev =
 {
 	.minor		= WATCHDOG_MINOR,
-	.name		= "SA1100/PXA2xx watchdog",
+	.name		= "watchdog",
 	.fops		= &sa1100dog_fops,
 };
 
@@ -198,7 +171,6 @@ static int __init sa1100dog_init(void)
 	if (ret == 0)
 		printk("SA1100/PXA2xx Watchdog Timer: timer margin %d sec\n",
 		       margin);
-
 	return ret;
 }
 
@@ -215,9 +187,6 @@ MODULE_DESCRIPTION("SA1100/PXA2xx Watchdog");
 
 module_param(margin, int, 0);
 MODULE_PARM_DESC(margin, "Watchdog margin in seconds (default 60s)");
-
-module_param(nowayout, int, 0);
-MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started");
 
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_MISCDEV(WATCHDOG_MINOR);

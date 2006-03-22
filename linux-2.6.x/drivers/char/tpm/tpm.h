@@ -19,33 +19,53 @@
  * 
  */
 #include <linux/module.h>
-#include <linux/version.h>
 #include <linux/pci.h>
 #include <linux/delay.h>
 #include <linux/fs.h>
 #include <linux/miscdevice.h>
+#include <linux/platform_device.h>
 
-#define TPM_TIMEOUT msecs_to_jiffies(5)
+enum tpm_timeout {
+	TPM_TIMEOUT = 5,	/* msecs */
+};
 
 /* TPM addresses */
-#define	TPM_ADDR			0x4E
-#define	TPM_DATA			0x4F
+enum tpm_addr {
+	TPM_SUPERIO_ADDR = 0x2E,
+	TPM_ADDR = 0x4E,
+};
+
+extern ssize_t tpm_show_pubek(struct device *, struct device_attribute *attr,
+				char *);
+extern ssize_t tpm_show_pcrs(struct device *, struct device_attribute *attr,
+				char *);
+extern ssize_t tpm_show_caps(struct device *, struct device_attribute *attr,
+				char *);
+extern ssize_t tpm_store_cancel(struct device *, struct device_attribute *attr,
+				const char *, size_t);
 
 struct tpm_chip;
 
 struct tpm_vendor_specific {
 	u8 req_complete_mask;
 	u8 req_complete_val;
-	u16 base;		/* TPM base address */
+	u8 req_canceled;
+	void __iomem *iobase;		/* ioremapped address */
+	unsigned long base;		/* TPM base address */
+
+	int region_size;
+	int have_region;
 
 	int (*recv) (struct tpm_chip *, u8 *, size_t);
 	int (*send) (struct tpm_chip *, u8 *, size_t);
 	void (*cancel) (struct tpm_chip *);
+	u8 (*status) (struct tpm_chip *);
 	struct miscdevice miscdev;
+	struct attribute_group *attr_group;
 };
 
 struct tpm_chip {
-	struct pci_dev *pci_dev;	/* PCI device stuff */
+	struct device *dev;	/* Device stuff */
 
 	int dev_num;		/* /dev/tpm# */
 	int num_opens;		/* only one allowed */
@@ -57,37 +77,48 @@ struct tpm_chip {
 	struct semaphore buffer_mutex;
 
 	struct timer_list user_read_timer;	/* user needs to claim result */
+	struct work_struct work;
 	struct semaphore tpm_mutex;	/* tpm is processing */
-	struct timer_list device_timer;	/* tpm is processing */
-	struct semaphore timer_manipulation_mutex;
 
 	struct tpm_vendor_specific *vendor;
+
+	struct dentry **bios_dir;
 
 	struct list_head list;
 };
 
-static inline int tpm_read_index(int index)
+static inline int tpm_read_index(int base, int index)
 {
-	outb(index, TPM_ADDR);
-	return inb(TPM_DATA) & 0xFF;
+	outb(index, base);
+	return inb(base+1) & 0xFF;
 }
 
-static inline void tpm_write_index(int index, int value)
+static inline void tpm_write_index(int base, int index, int value)
 {
-	outb(index, TPM_ADDR);
-	outb(value & 0xFF, TPM_DATA);
+	outb(index, base);
+	outb(value & 0xFF, base+1);
 }
 
-extern void tpm_time_expired(unsigned long);
-extern int tpm_lpc_bus_init(struct pci_dev *, u16);
-
-extern int tpm_register_hardware(struct pci_dev *,
+extern int tpm_register_hardware(struct device *,
 				 struct tpm_vendor_specific *);
 extern int tpm_open(struct inode *, struct file *);
 extern int tpm_release(struct inode *, struct file *);
 extern ssize_t tpm_write(struct file *, const char __user *, size_t,
 			 loff_t *);
 extern ssize_t tpm_read(struct file *, char __user *, size_t, loff_t *);
-extern void __devexit tpm_remove(struct pci_dev *);
-extern int tpm_pm_suspend(struct pci_dev *, pm_message_t);
-extern int tpm_pm_resume(struct pci_dev *);
+extern void tpm_remove_hardware(struct device *);
+extern int tpm_pm_suspend(struct device *, pm_message_t);
+extern int tpm_pm_resume(struct device *);
+
+#ifdef CONFIG_ACPI
+extern struct dentry ** tpm_bios_log_setup(char *);
+extern void tpm_bios_log_teardown(struct dentry **);
+#else
+static inline struct dentry* tpm_bios_log_setup(char *name)
+{
+	return NULL;
+}
+static inline void tpm_bios_log_teardown(struct dentry **dir)
+{
+}
+#endif

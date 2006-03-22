@@ -224,6 +224,7 @@ actcapi_manufacturer_req_net(act2000_card *card)
 /*
  * Switch V.42 on or off
  */
+#if 0
 int
 actcapi_manufacturer_req_v42(act2000_card *card, ulong arg)
 {
@@ -242,6 +243,7 @@ actcapi_manufacturer_req_v42(act2000_card *card, ulong arg)
 	ACTCAPI_QUEUE_TX;
         return 0;
 }
+#endif  /*  0  */
 
 /*
  * Set error-handler
@@ -604,7 +606,7 @@ handle_ack(act2000_card *card, act2000_chan *chan, __u8 blocknr) {
                 if ((((m->msg.data_b3_req.fakencci >> 8) & 0xff) == chan->ncci) &&
 		    (m->msg.data_b3_req.blocknr == blocknr)) {
 			/* found corresponding DATA_B3_REQ */
-                        skb_unlink(tmp);
+                        skb_unlink(tmp, &card->ackq);
 			chan->queued -= m->msg.data_b3_req.datalen;
 			if (m->msg.data_b3_req.flags)
 				ret = m->msg.data_b3_req.datalen;

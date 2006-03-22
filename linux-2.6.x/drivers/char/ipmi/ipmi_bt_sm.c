@@ -28,16 +28,18 @@
 
 #include <linux/kernel.h> /* For printk. */
 #include <linux/string.h>
+#include <linux/module.h>
+#include <linux/moduleparam.h>
 #include <linux/ipmi_msgdefs.h>		/* for completion codes */
 #include "ipmi_si_sm.h"
-
-#define IPMI_BT_VERSION "v33"
 
 static int bt_debug = 0x00;	/* Production value 0, see following flags */
 
 #define	BT_DEBUG_ENABLE	1
 #define BT_DEBUG_MSG	2
 #define BT_DEBUG_STATES	4
+module_param(bt_debug, int, 0644);
+MODULE_PARM_DESC(bt_debug, "debug bitmask, 1=enable, 2=messages, 4=states");
 
 /* Typical "Get BT Capabilities" values are 2-3 retries, 5-10 seconds,
    and 64 byte buffers.  However, one HP implementation wants 255 bytes of
@@ -45,7 +47,7 @@ static int bt_debug = 0x00;	/* Production value 0, see following flags */
    Since the Open IPMI architecture is single-message oriented at this
    stage, the queue depth of BT is of no concern. */
 
-#define BT_NORMAL_TIMEOUT	2000000	/* seconds in microseconds */
+#define BT_NORMAL_TIMEOUT	5000000	/* seconds in microseconds */
 #define BT_RETRY_LIMIT		2
 #define BT_RESET_DELAY		6000000	/* 6 seconds after warm reset */
 
@@ -163,7 +165,8 @@ static int bt_start_transaction(struct si_sm_data *bt,
 {
 	unsigned int i;
 
-	if ((size < 2) || (size > IPMI_MAX_MSG_LENGTH)) return -1;
+	if ((size < 2) || (size > IPMI_MAX_MSG_LENGTH))
+	       return -1;
 
 	if ((bt->state != BT_STATE_IDLE) && (bt->state != BT_STATE_HOSED))
 		return -2;
@@ -171,7 +174,8 @@ static int bt_start_transaction(struct si_sm_data *bt,
 	if (bt_debug & BT_DEBUG_MSG) {
     		printk(KERN_WARNING "+++++++++++++++++++++++++++++++++++++\n");
 		printk(KERN_WARNING "BT: write seq=0x%02X:", bt->seq);
-		for (i = 0; i < size; i ++) printk (" %02x", data[i]);
+		for (i = 0; i < size; i ++)
+		       printk (" %02x", data[i]);
 		printk("\n");
 	}
 	bt->write_data[0] = size + 1;	/* all data plus seq byte */
@@ -202,7 +206,7 @@ static int bt_get_result(struct si_sm_data *bt,
 	msg_len = bt->read_count - 2;		/* account for length & seq */
 	/* Always NetFn, Cmd, cCode */
 	if (msg_len < 3 || msg_len > IPMI_MAX_MSG_LENGTH) {
-		printk(KERN_WARNING "BT results: bad msg_len = %d\n", msg_len);
+		printk(KERN_DEBUG "BT results: bad msg_len = %d\n", msg_len);
 		data[0] = bt->write_data[1] | 0x4;	/* Kludge a response */
 		data[1] = bt->write_data[3];
 		data[2] = IPMI_ERR_UNSPECIFIED;
@@ -210,15 +214,18 @@ static int bt_get_result(struct si_sm_data *bt,
 	} else {
 		data[0] = bt->read_data[1];
 		data[1] = bt->read_data[3];
-		if (length < msg_len) bt->truncated = 1;
+		if (length < msg_len)
+		       bt->truncated = 1;
 		if (bt->truncated) {	/* can be set in read_all_bytes() */
 			data[2] = IPMI_ERR_MSG_TRUNCATED;
 			msg_len = 3;
-		} else memcpy(data + 2, bt->read_data + 4, msg_len - 2);
+		} else
+		       memcpy(data + 2, bt->read_data + 4, msg_len - 2);
 
 		if (bt_debug & BT_DEBUG_MSG) {
 			printk (KERN_WARNING "BT: res (raw)");
-			for (i = 0; i < msg_len; i++) printk(" %02x", data[i]);
+			for (i = 0; i < msg_len; i++)
+			       printk(" %02x", data[i]);
 			printk ("\n");
 		}
 	}
@@ -231,20 +238,22 @@ static int bt_get_result(struct si_sm_data *bt,
 
 static void reset_flags(struct si_sm_data *bt)
 {
-	if (BT_STATUS & BT_H_BUSY) BT_CONTROL(BT_H_BUSY);
-	if (BT_STATUS & BT_B_BUSY) BT_CONTROL(BT_B_BUSY);
+	if (BT_STATUS & BT_H_BUSY)
+	       BT_CONTROL(BT_H_BUSY);
+	if (BT_STATUS & BT_B_BUSY)
+	       BT_CONTROL(BT_B_BUSY);
 	BT_CONTROL(BT_CLR_WR_PTR);
 	BT_CONTROL(BT_SMS_ATN);
-#ifdef DEVELOPMENT_ONLY_NOT_FOR_PRODUCTION
+
 	if (BT_STATUS & BT_B2H_ATN) {
 		int i;
 		BT_CONTROL(BT_H_BUSY);
 		BT_CONTROL(BT_B2H_ATN);
 		BT_CONTROL(BT_CLR_RD_PTR);
-		for (i = 0; i < IPMI_MAX_MSG_LENGTH + 2; i++) BMC2HOST;
+		for (i = 0; i < IPMI_MAX_MSG_LENGTH + 2; i++)
+		       BMC2HOST;
 		BT_CONTROL(BT_H_BUSY);
 	}
-#endif
 }
 
 static inline void write_all_bytes(struct si_sm_data *bt)
@@ -258,7 +267,8 @@ static inline void write_all_bytes(struct si_sm_data *bt)
 			printk (" %02x", bt->write_data[i]);
 		printk ("\n");
 	}
-	for (i = 0; i < bt->write_count; i++) HOST2BMC(bt->write_data[i]);
+	for (i = 0; i < bt->write_count; i++)
+	       HOST2BMC(bt->write_data[i]);
 }
 
 static inline int read_all_bytes(struct si_sm_data *bt)
@@ -278,7 +288,8 @@ static inline int read_all_bytes(struct si_sm_data *bt)
 		bt->truncated = 1;
 		return 1;	/* let next XACTION START clean it up */
 	}
-	for (i = 1; i <= bt->read_count; i++) bt->read_data[i] = BMC2HOST;
+	for (i = 1; i <= bt->read_count; i++)
+	       bt->read_data[i] = BMC2HOST;
 	bt->read_count++;	/* account for the length byte */
 
 	if (bt_debug & BT_DEBUG_MSG) {
@@ -287,7 +298,7 @@ static inline int read_all_bytes(struct si_sm_data *bt)
 	    	printk ("\n");
 	}
 	if (bt->seq != bt->write_data[2])	/* idiot check */
-		printk(KERN_WARNING "BT: internal error: sequence mismatch\n");
+		printk(KERN_DEBUG "BT: internal error: sequence mismatch\n");
 
 	/* per the spec, the (NetFn, Seq, Cmd) tuples should match */
 	if ((bt->read_data[3] == bt->write_data[3]) &&		/* Cmd */
@@ -295,7 +306,8 @@ static inline int read_all_bytes(struct si_sm_data *bt)
         	((bt->read_data[1] & 0xF8) == (bt->write_data[1] & 0xF8)))
 			return 1;
 
-	if (bt_debug & BT_DEBUG_MSG) printk(KERN_WARNING "BT: bad packet: "
+	if (bt_debug & BT_DEBUG_MSG)
+	       printk(KERN_WARNING "BT: bad packet: "
 		"want 0x(%02X, %02X, %02X) got (%02X, %02X, %02X)\n",
 		bt->write_data[1], bt->write_data[2], bt->write_data[3],
 		bt->read_data[1],  bt->read_data[2],  bt->read_data[3]);
@@ -312,18 +324,17 @@ static void error_recovery(struct si_sm_data *bt, char *reason)
 	bt->timeout = BT_NORMAL_TIMEOUT; /* various places want to retry */
 
 	status = BT_STATUS;
-	printk(KERN_WARNING "BT: %s in %s %s ", reason, STATE2TXT,
+	printk(KERN_DEBUG "BT: %s in %s %s\n", reason, STATE2TXT,
 	       STATUS2TXT(buf));
 
 	(bt->error_retries)++;
 	if (bt->error_retries > BT_RETRY_LIMIT) {
-		printk("retry limit (%d) exceeded\n", BT_RETRY_LIMIT);
+		printk(KERN_DEBUG "retry limit (%d) exceeded\n", BT_RETRY_LIMIT);
 		bt->state = BT_STATE_HOSED;
 		if (!bt->nonzero_status)
 			printk(KERN_ERR "IPMI: BT stuck, try power cycle\n");
-		else if (bt->seq == FIRST_SEQ + BT_RETRY_LIMIT) {
-			/* most likely during insmod */
-			printk(KERN_WARNING "IPMI: BT reset (takes 5 secs)\n");
+		else if (bt->error_retries <= BT_RETRY_LIMIT + 1) {
+			printk(KERN_DEBUG "IPMI: BT reset (takes 5 secs)\n");
         		bt->state = BT_STATE_RESET1;
 		}
 	return;
@@ -331,11 +342,11 @@ static void error_recovery(struct si_sm_data *bt, char *reason)
 
 	/* Sometimes the BMC queues get in an "off-by-one" state...*/
 	if ((bt->state == BT_STATE_B2H_WAIT) && (status & BT_B2H_ATN)) {
-    		printk("retry B2H_WAIT\n");
+    		printk(KERN_DEBUG "retry B2H_WAIT\n");
 		return;
 	}
 
-	printk("restart command\n");
+	printk(KERN_DEBUG "restart command\n");
 	bt->state = BT_STATE_RESTART;
 }
 
@@ -359,19 +370,10 @@ static enum si_sm_result bt_event(struct si_sm_data *bt, long time)
 			time);
 	bt->last_state = bt->state;
 
-	if (bt->state == BT_STATE_HOSED) return SI_SM_HOSED;
+	if (bt->state == BT_STATE_HOSED)
+	       return SI_SM_HOSED;
 
 	if (bt->state != BT_STATE_IDLE) {	/* do timeout test */
-
-		/* Certain states, on error conditions, can lock up a CPU
-		   because they are effectively in an infinite loop with
-		   CALL_WITHOUT_DELAY (right back here with time == 0).
-		   Prevent infinite lockup by ALWAYS decrementing timeout. */
-
-    	/* FIXME: bt_event is sometimes called with time > BT_NORMAL_TIMEOUT
-              (noticed in ipmi_smic_sm.c January 2004) */
-
-		if ((time <= 0) || (time >= BT_NORMAL_TIMEOUT)) time = 100;
 		bt->timeout -= time;
 		if ((bt->timeout < 0) && (bt->state < BT_STATE_RESET1)) {
 			error_recovery(bt, "timed out");
@@ -393,12 +395,14 @@ static enum si_sm_result bt_event(struct si_sm_data *bt, long time)
 			BT_CONTROL(BT_H_BUSY);
 			break;
 		}
-    		if (status & BT_B2H_ATN) break;
+    		if (status & BT_B2H_ATN)
+		       break;
 		bt->state = BT_STATE_WRITE_BYTES;
 		return SI_SM_CALL_WITHOUT_DELAY;	/* for logging */
 
 	case BT_STATE_WRITE_BYTES:
-		if (status & (BT_B_BUSY | BT_H2B_ATN)) break;
+		if (status & (BT_B_BUSY | BT_H2B_ATN))
+		       break;
 		BT_CONTROL(BT_CLR_WR_PTR);
 		write_all_bytes(bt);
 		BT_CONTROL(BT_H2B_ATN);	/* clears too fast to catch? */
@@ -406,7 +410,8 @@ static enum si_sm_result bt_event(struct si_sm_data *bt, long time)
 		return SI_SM_CALL_WITHOUT_DELAY; /* it MIGHT sail through */
 
 	case BT_STATE_WRITE_CONSUME: /* BMCs usually blow right thru here */
-        	if (status & (BT_H2B_ATN | BT_B_BUSY)) break;
+        	if (status & (BT_H2B_ATN | BT_B_BUSY))
+		       break;
 		bt->state = BT_STATE_B2H_WAIT;
 		/* fall through with status */
 
@@ -415,15 +420,18 @@ static enum si_sm_result bt_event(struct si_sm_data *bt, long time)
 	   generation of B2H_ATN so ALWAYS return CALL_WITH_DELAY. */
 
 	case BT_STATE_B2H_WAIT:
-    		if (!(status & BT_B2H_ATN)) break;
+    		if (!(status & BT_B2H_ATN))
+		       break;
 
 		/* Assume ordered, uncached writes: no need to wait */
-		if (!(status & BT_H_BUSY)) BT_CONTROL(BT_H_BUSY); /* set */
+		if (!(status & BT_H_BUSY))
+		       BT_CONTROL(BT_H_BUSY); /* set */
 		BT_CONTROL(BT_B2H_ATN);		/* clear it, ACK to the BMC */
 		BT_CONTROL(BT_CLR_RD_PTR);	/* reset the queue */
 		i = read_all_bytes(bt);
 		BT_CONTROL(BT_H_BUSY);		/* clear */
-		if (!i) break;			/* Try this state again */
+		if (!i)				/* Try this state again */
+		       break;
 		bt->state = BT_STATE_READ_END;
 		return SI_SM_CALL_WITHOUT_DELAY;	/* for logging */
 
@@ -436,7 +444,8 @@ static enum si_sm_result bt_event(struct si_sm_data *bt, long time)
 
 #ifdef MAKE_THIS_TRUE_IF_NECESSARY
 
-		if (status & BT_H_BUSY) break;
+		if (status & BT_H_BUSY)
+		       break;
 #endif
 		bt->seq++;
 		bt->state = BT_STATE_IDLE;
@@ -459,11 +468,13 @@ static enum si_sm_result bt_event(struct si_sm_data *bt, long time)
 		break;
 
 	case BT_STATE_RESET3:
-		if (bt->timeout > 0) return SI_SM_CALL_WITH_DELAY;
+		if (bt->timeout > 0)
+		       return SI_SM_CALL_WITH_DELAY;
 		bt->state = BT_STATE_RESTART;	/* printk in debug modes */
 		break;
 
 	case BT_STATE_RESTART:		/* don't reset retries! */
+		reset_flags(bt);
 		bt->write_data[2] = ++bt->seq;
 		bt->read_count = 0;
 		bt->nonzero_status = 0;
@@ -485,7 +496,8 @@ static int bt_detect(struct si_sm_data *bt)
 	   but that's what you get from reading a bogus address, so we
 	   test that first.  The calling routine uses negative logic. */
 
-	if ((BT_STATUS == 0xFF) && (BT_INTMASK_R == 0xFF)) return 1;
+	if ((BT_STATUS == 0xFF) && (BT_INTMASK_R == 0xFF))
+	       return 1;
 	reset_flags(bt);
 	return 0;
 }
@@ -501,7 +513,6 @@ static int bt_size(void)
 
 struct si_sm_handlers bt_smi_handlers =
 {
-	.version           = IPMI_BT_VERSION,
 	.init_data         = bt_init_data,
 	.start_transaction = bt_start_transaction,
 	.get_result        = bt_get_result,

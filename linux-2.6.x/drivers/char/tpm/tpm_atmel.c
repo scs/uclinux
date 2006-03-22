@@ -20,21 +20,22 @@
  */
 
 #include "tpm.h"
-
-/* Atmel definitions */
-#define	TPM_ATML_BASE			0x400
+#include "tpm_atmel.h"
 
 /* write status bits */
-#define	ATML_STATUS_ABORT		0x01
-#define	ATML_STATUS_LASTBYTE		0x04
-
+enum tpm_atmel_write_status {
+	ATML_STATUS_ABORT = 0x01,
+	ATML_STATUS_LASTBYTE = 0x04
+};
 /* read status bits */
-#define	ATML_STATUS_BUSY		0x01
-#define	ATML_STATUS_DATA_AVAIL		0x02
-#define	ATML_STATUS_REWRITE		0x04
+enum tpm_atmel_read_status {
+	ATML_STATUS_BUSY = 0x01,
+	ATML_STATUS_DATA_AVAIL = 0x02,
+	ATML_STATUS_REWRITE = 0x04,
+	ATML_STATUS_READY = 0x08
+};
 
-
-static int tpm_atml_recv(struct tpm_chip *chip, u8 * buf, size_t count)
+static int tpm_atml_recv(struct tpm_chip *chip, u8 *buf, size_t count)
 {
 	u8 status, *hdr = buf;
 	u32 size;
@@ -46,13 +47,12 @@ static int tpm_atml_recv(struct tpm_chip *chip, u8 * buf, size_t count)
 		return -EIO;
 
 	for (i = 0; i < 6; i++) {
-		status = inb(chip->vendor->base + 1);
+		status = ioread8(chip->vendor->iobase + 1);
 		if ((status & ATML_STATUS_DATA_AVAIL) == 0) {
-			dev_err(&chip->pci_dev->dev,
-				"error reading header\n");
+			dev_err(chip->dev, "error reading header\n");
 			return -EIO;
 		}
-		*buf++ = inb(chip->vendor->base);
+		*buf++ = ioread8(chip->vendor->iobase);
 	}
 
 	/* size of the data received */
@@ -60,13 +60,12 @@ static int tpm_atml_recv(struct tpm_chip *chip, u8 * buf, size_t count)
 	size = be32_to_cpu(*native_size);
 
 	if (count < size) {
-		dev_err(&chip->pci_dev->dev,
+		dev_err(chip->dev,
 			"Recv size(%d) less than available space\n", size);
 		for (; i < size; i++) {	/* clear the waiting data anyway */
-			status = inb(chip->vendor->base + 1);
+			status = ioread8(chip->vendor->iobase + 1);
 			if ((status & ATML_STATUS_DATA_AVAIL) == 0) {
-				dev_err(&chip->pci_dev->dev,
-					"error reading data\n");
+				dev_err(chip->dev, "error reading data\n");
 				return -EIO;
 			}
 		}
@@ -75,33 +74,33 @@ static int tpm_atml_recv(struct tpm_chip *chip, u8 * buf, size_t count)
 
 	/* read all the data available */
 	for (; i < size; i++) {
-		status = inb(chip->vendor->base + 1);
+		status = ioread8(chip->vendor->iobase + 1);
 		if ((status & ATML_STATUS_DATA_AVAIL) == 0) {
-			dev_err(&chip->pci_dev->dev,
-				"error reading data\n");
+			dev_err(chip->dev, "error reading data\n");
 			return -EIO;
 		}
-		*buf++ = inb(chip->vendor->base);
+		*buf++ = ioread8(chip->vendor->iobase);
 	}
 
 	/* make sure data available is gone */
-	status = inb(chip->vendor->base + 1);
+	status = ioread8(chip->vendor->iobase + 1);
+
 	if (status & ATML_STATUS_DATA_AVAIL) {
-		dev_err(&chip->pci_dev->dev, "data available is stuck\n");
+		dev_err(chip->dev, "data available is stuck\n");
 		return -EIO;
 	}
 
 	return size;
 }
 
-static int tpm_atml_send(struct tpm_chip *chip, u8 * buf, size_t count)
+static int tpm_atml_send(struct tpm_chip *chip, u8 *buf, size_t count)
 {
 	int i;
 
-	dev_dbg(&chip->pci_dev->dev, "tpm_atml_send: ");
+	dev_dbg(chip->dev, "tpm_atml_send:\n");
 	for (i = 0; i < count; i++) {
-		dev_dbg(&chip->pci_dev->dev, "0x%x(%d) ", buf[i], buf[i]);
-		outb(buf[i], chip->vendor->base);
+		dev_dbg(chip->dev, "%d 0x%x(%d)\n",  i, buf[i], buf[i]);
+ 		iowrite8(buf[i], chip->vendor->iobase);
 	}
 
 	return count;
@@ -109,7 +108,12 @@ static int tpm_atml_send(struct tpm_chip *chip, u8 * buf, size_t count)
 
 static void tpm_atml_cancel(struct tpm_chip *chip)
 {
-	outb(ATML_STATUS_ABORT, chip->vendor->base + 1);
+	iowrite8(ATML_STATUS_ABORT, chip->vendor->iobase + 1);
+}
+
+static u8 tpm_atml_status(struct tpm_chip *chip)
+{
+	return ioread8(chip->vendor->iobase + 1);
 }
 
 static struct file_operations atmel_ops = {
@@ -121,90 +125,100 @@ static struct file_operations atmel_ops = {
 	.release = tpm_release,
 };
 
+static DEVICE_ATTR(pubek, S_IRUGO, tpm_show_pubek, NULL);
+static DEVICE_ATTR(pcrs, S_IRUGO, tpm_show_pcrs, NULL);
+static DEVICE_ATTR(caps, S_IRUGO, tpm_show_caps, NULL);
+static DEVICE_ATTR(cancel, S_IWUSR |S_IWGRP, NULL, tpm_store_cancel);
+
+static struct attribute* atmel_attrs[] = {
+	&dev_attr_pubek.attr,
+	&dev_attr_pcrs.attr,
+	&dev_attr_caps.attr,
+	&dev_attr_cancel.attr,
+	NULL,
+};
+
+static struct attribute_group atmel_attr_grp = { .attrs = atmel_attrs };
+
 static struct tpm_vendor_specific tpm_atmel = {
 	.recv = tpm_atml_recv,
 	.send = tpm_atml_send,
 	.cancel = tpm_atml_cancel,
+	.status = tpm_atml_status,
 	.req_complete_mask = ATML_STATUS_BUSY | ATML_STATUS_DATA_AVAIL,
 	.req_complete_val = ATML_STATUS_DATA_AVAIL,
-	.base = TPM_ATML_BASE,
+	.req_canceled = ATML_STATUS_READY,
+	.attr_group = &atmel_attr_grp,
 	.miscdev = { .fops = &atmel_ops, },
 };
 
-static int __devinit tpm_atml_init(struct pci_dev *pci_dev,
-				   const struct pci_device_id *pci_id)
+static struct platform_device *pdev;
+
+static void atml_plat_remove(void)
 {
-	u8 version[4];
-	int rc = 0;
+	struct tpm_chip *chip = dev_get_drvdata(&pdev->dev);
 
-	if (pci_enable_device(pci_dev))
-		return -EIO;
-
-	if (tpm_lpc_bus_init(pci_dev, TPM_ATML_BASE)) {
-		rc = -ENODEV;
-		goto out_err;
+	if (chip) {
+		if (chip->vendor->have_region)
+			atmel_release_region(chip->vendor->base,
+					     chip->vendor->region_size);
+		atmel_put_base_addr(chip->vendor);
+		tpm_remove_hardware(chip->dev);
+		platform_device_unregister(pdev);
 	}
-
-	/* verify that it is an Atmel part */
-	if (tpm_read_index(4) != 'A' || tpm_read_index(5) != 'T'
-	    || tpm_read_index(6) != 'M' || tpm_read_index(7) != 'L') {
-		rc = -ENODEV;
-		goto out_err;
-	}
-
-	/* query chip for its version number */
-	if ((version[0] = tpm_read_index(0x00)) != 0xFF) {
-		version[1] = tpm_read_index(0x01);
-		version[2] = tpm_read_index(0x02);
-		version[3] = tpm_read_index(0x03);
-	} else {
-		dev_info(&pci_dev->dev, "version query failed\n");
-		rc = -ENODEV;
-		goto out_err;
-	}
-
-	if ((rc = tpm_register_hardware(pci_dev, &tpm_atmel)) < 0)
-		goto out_err;
-
-	dev_info(&pci_dev->dev,
-		 "Atmel TPM version %d.%d.%d.%d\n", version[0], version[1],
-		 version[2], version[3]);
-
-	return 0;
-out_err:
-	pci_disable_device(pci_dev);
-	return rc;
 }
 
-static struct pci_device_id tpm_pci_tbl[] __devinitdata = {
-	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82801BA_0)},
-	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82801CA_12)},
-	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82801DB_0)},
-	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82801DB_12)},
-	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82801EB_0)},
-	{PCI_DEVICE(PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_8111_LPC)},
-	{0,}
-};
-
-MODULE_DEVICE_TABLE(pci, tpm_pci_tbl);
-
-static struct pci_driver atmel_pci_driver = {
+static struct device_driver atml_drv = {
 	.name = "tpm_atmel",
-	.id_table = tpm_pci_tbl,
-	.probe = tpm_atml_init,
-	.remove = __devexit_p(tpm_remove),
+	.bus = &platform_bus_type,
+	.owner = THIS_MODULE,
 	.suspend = tpm_pm_suspend,
 	.resume = tpm_pm_resume,
 };
 
 static int __init init_atmel(void)
 {
-	return pci_register_driver(&atmel_pci_driver);
+	int rc = 0;
+
+	driver_register(&atml_drv);
+
+	if ((tpm_atmel.iobase = atmel_get_base_addr(&tpm_atmel)) == NULL) {
+		rc = -ENODEV;
+		goto err_unreg_drv;
+	}
+
+	tpm_atmel.have_region =
+	    (atmel_request_region
+	     (tpm_atmel.base, tpm_atmel.region_size,
+	      "tpm_atmel0") == NULL) ? 0 : 1;
+
+	if (IS_ERR
+	    (pdev =
+	     platform_device_register_simple("tpm_atmel", -1, NULL, 0))) {
+		rc = PTR_ERR(pdev);
+		goto err_rel_reg;
+	}
+
+	if ((rc = tpm_register_hardware(&pdev->dev, &tpm_atmel)) < 0)
+		goto err_unreg_dev;
+	return 0;
+
+err_unreg_dev:
+	platform_device_unregister(pdev);
+err_rel_reg:
+	atmel_put_base_addr(&tpm_atmel);
+	if (tpm_atmel.have_region)
+		atmel_release_region(tpm_atmel.base,
+				     tpm_atmel.region_size);
+err_unreg_drv:
+	driver_unregister(&atml_drv);
+	return rc;
 }
 
 static void __exit cleanup_atmel(void)
 {
-	pci_unregister_driver(&atmel_pci_driver);
+	driver_unregister(&atml_drv);
+	atml_plat_remove();
 }
 
 module_init(init_atmel);

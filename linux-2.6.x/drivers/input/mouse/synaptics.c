@@ -219,7 +219,7 @@ static void synaptics_pass_pt_packet(struct serio *ptport, unsigned char *packet
 		serio_interrupt(ptport, packet[1], 0, NULL);
 		serio_interrupt(ptport, packet[4], 0, NULL);
 		serio_interrupt(ptport, packet[5], 0, NULL);
-		if (child->type >= PSMOUSE_GENPS)
+		if (child->pktsize == 4)
 			serio_interrupt(ptport, packet[2], 0, NULL);
 	} else
 		serio_interrupt(ptport, packet[1], 0, NULL);
@@ -233,7 +233,7 @@ static void synaptics_pt_activate(struct psmouse *psmouse)
 
 	/* adjust the touchpad to child's choice of protocol */
 	if (child) {
-		if (child->type >= PSMOUSE_GENPS)
+		if (child->pktsize == 4)
 			priv->mode |= SYN_BIT_FOUR_BYTE_CLIENT;
 		else
 			priv->mode &= ~SYN_BIT_FOUR_BYTE_CLIENT;
@@ -342,7 +342,7 @@ static void synaptics_parse_hw_state(unsigned char buf[], struct synaptics_data 
  */
 static void synaptics_process_packet(struct psmouse *psmouse)
 {
-	struct input_dev *dev = &psmouse->dev;
+	struct input_dev *dev = psmouse->dev;
 	struct synaptics_data *priv = psmouse->private;
 	struct synaptics_hw_state hw;
 	int num_fingers;
@@ -473,7 +473,7 @@ static unsigned char synaptics_detect_pkt_type(struct psmouse *psmouse)
 
 static psmouse_ret_t synaptics_process_byte(struct psmouse *psmouse, struct pt_regs *regs)
 {
-	struct input_dev *dev = &psmouse->dev;
+	struct input_dev *dev = psmouse->dev;
 	struct synaptics_data *priv = psmouse->private;
 
 	input_regs(dev, regs);
@@ -608,6 +608,13 @@ static struct dmi_system_id toshiba_dmi_table[] = {
 			DMI_MATCH(DMI_PRODUCT_NAME , "Satellite"),
 		},
 	},
+	{
+		.ident = "Toshiba Dynabook",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "TOSHIBA"),
+			DMI_MATCH(DMI_PRODUCT_NAME , "dynabook"),
+		},
+	},
 	{ }
 };
 #endif
@@ -638,13 +645,15 @@ int synaptics_init(struct psmouse *psmouse)
 		SYN_ID_MAJOR(priv->identity), SYN_ID_MINOR(priv->identity),
 		priv->model_id, priv->capabilities, priv->ext_cap);
 
-	set_input_params(&psmouse->dev, priv);
+	set_input_params(psmouse->dev, priv);
 
 	psmouse->protocol_handler = synaptics_process_byte;
 	psmouse->set_rate = synaptics_set_rate;
 	psmouse->disconnect = synaptics_disconnect;
 	psmouse->reconnect = synaptics_reconnect;
 	psmouse->pktsize = 6;
+	/* Synaptics can usually stay in sync without extra help */
+	psmouse->resync_time = 0;
 
 	if (SYN_CAP_PASS_THROUGH(priv->capabilities))
 		synaptics_pt_create(psmouse);
@@ -656,7 +665,8 @@ int synaptics_init(struct psmouse *psmouse)
 	 * thye same as rate of standard PS/2 mouse.
 	 */
 	if (psmouse->rate >= 80 && dmi_check_system(toshiba_dmi_table)) {
-		printk(KERN_INFO "synaptics: Toshiba Satellite detected, limiting rate to 40pps.\n");
+		printk(KERN_INFO "synaptics: Toshiba %s detected, limiting rate to 40pps.\n",
+			dmi_get_system_info(DMI_PRODUCT_NAME));
 		psmouse->rate = 40;
 	}
 #endif

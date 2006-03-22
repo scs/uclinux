@@ -47,6 +47,8 @@
 #include <linux/notifier.h>
 #include <linux/reboot.h>
 #include <linux/init.h>
+#include <linux/jiffies.h>
+
 #include <asm/uaccess.h>
 
 #define PFX "SoftDog: "
@@ -56,12 +58,7 @@ static int soft_margin = TIMER_MARGIN;	/* in seconds */
 module_param(soft_margin, int, 0);
 MODULE_PARM_DESC(soft_margin, "Watchdog soft_margin in seconds. (0<soft_margin<65536, default=" __MODULE_STRING(TIMER_MARGIN) ")");
 
-#ifdef CONFIG_WATCHDOG_NOWAYOUT
-static int nowayout = 1;
-#else
-static int nowayout = 0;
-#endif
-
+static int nowayout = WATCHDOG_NOWAYOUT;
 module_param(nowayout, int, 0);
 MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default=CONFIG_WATCHDOG_NOWAYOUT)");
 
@@ -82,7 +79,7 @@ static void watchdog_fire(unsigned long);
 
 static struct timer_list watchdog_ticktock =
 		TIMER_INITIALIZER(watchdog_fire, 0, 0);
-static unsigned long timer_alive;
+static unsigned long driver_open, orphan_timer;
 static char expect_close;
 
 
@@ -92,12 +89,15 @@ static char expect_close;
 
 static void watchdog_fire(unsigned long data)
 {
+	if (test_and_clear_bit(0, &orphan_timer))
+		module_put(THIS_MODULE);
+
 	if (soft_noboot)
 		printk(KERN_CRIT PFX "Triggered - Reboot ignored.\n");
 	else
 	{
 		printk(KERN_CRIT PFX "Initiating system reboot.\n");
-		machine_restart(NULL);
+		emergency_restart();
 		printk(KERN_CRIT PFX "Reboot didn't ?????\n");
 	}
 }
@@ -133,9 +133,9 @@ static int softdog_set_heartbeat(int t)
 
 static int softdog_open(struct inode *inode, struct file *file)
 {
-	if(test_and_set_bit(0, &timer_alive))
+	if (test_and_set_bit(0, &driver_open))
 		return -EBUSY;
-	if (nowayout)
+	if (!test_and_clear_bit(0, &orphan_timer))
 		__module_get(THIS_MODULE);
 	/*
 	 *	Activate timer
@@ -152,11 +152,13 @@ static int softdog_release(struct inode *inode, struct file *file)
 	 */
 	if (expect_close == 42) {
 		softdog_stop();
+		module_put(THIS_MODULE);
 	} else {
 		printk(KERN_CRIT PFX "Unexpected close, not stopping watchdog!\n");
+		set_bit(0, &orphan_timer);
 		softdog_keepalive();
 	}
-	clear_bit(0, &timer_alive);
+	clear_bit(0, &driver_open);
 	expect_close = 0;
 	return 0;
 }

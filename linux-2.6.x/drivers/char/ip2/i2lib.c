@@ -655,8 +655,7 @@ i2QueueCommands(int type, i2ChanStrPtr pCh, int timeout, int nCommands,
 			timeout--;   // So negative values == forever
 		
 		if (!in_interrupt()) {
-			current->state = TASK_INTERRUPTIBLE;
-			schedule_timeout(1);	// short nap 
+			schedule_timeout_interruptible(1);	// short nap
 		} else {
 			// we cannot sched/sleep in interrrupt silly
 			return 0;   
@@ -855,7 +854,7 @@ i2Input(i2ChanStrPtr pCh)
 		count += IBUF_SIZE;
 	}
 	// Don't give more than can be taken by the line discipline
-	amountToMove = pCh->pTTY->ldisc.receive_room( pCh->pTTY );
+	amountToMove = pCh->pTTY->receive_room;
 	if (count > amountToMove) {
 		count = amountToMove;
 	}
@@ -1132,8 +1131,7 @@ i2Output(i2ChanStrPtr pCh, const char *pSource, int count, int user )
 
 					ip2trace (CHANN, ITRC_OUTPUT, 61, 0 );
 
-					current->state = TASK_INTERRUPTIBLE;
-					schedule_timeout(2);
+					schedule_timeout_interruptible(2);
 					if (signal_pending(current)) {
 						break;
 					}

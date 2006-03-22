@@ -87,7 +87,7 @@ static int serport_ldisc_open(struct tty_struct *tty)
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
-	serport = kcalloc(1, sizeof(struct serport), GFP_KERNEL);
+	serport = kzalloc(sizeof(struct serport), GFP_KERNEL);
 	if (!serport)
 		return -ENOMEM;
 
@@ -96,6 +96,7 @@ static int serport_ldisc_open(struct tty_struct *tty)
 	init_waitqueue_head(&serport->wait);
 
 	tty->disc_data = serport;
+	tty->receive_room = 256;
 	set_bit(TTY_DO_WRITE_WAKEUP, &tty->flags);
 
 	return 0;
@@ -140,17 +141,6 @@ out:
 }
 
 /*
- * serport_ldisc_room() reports how much room we do have for receiving data.
- * Although we in fact have infinite room, we need to specify some value
- * here, and 256 seems to be reasonable.
- */
-
-static int serport_ldisc_room(struct tty_struct *tty)
-{
-	return 256;
-}
-
-/*
  * serport_ldisc_read() just waits indefinitely if everything goes well.
  * However, when the serio driver closes the serio port, it finishes,
  * returning 0 characters.
@@ -165,7 +155,7 @@ static ssize_t serport_ldisc_read(struct tty_struct * tty, struct file * file, u
 	if (test_and_set_bit(SERPORT_BUSY, &serport->flags))
 		return -EBUSY;
 
-	serport->serio = serio = kcalloc(1, sizeof(struct serio), GFP_KERNEL);
+	serport->serio = serio = kzalloc(sizeof(struct serio), GFP_KERNEL);
 	if (!serio)
 		return -ENOMEM;
 
@@ -237,7 +227,6 @@ static struct tty_ldisc serport_ldisc = {
 	.read =		serport_ldisc_read,
 	.ioctl =	serport_ldisc_ioctl,
 	.receive_buf =	serport_ldisc_receive,
-	.receive_room =	serport_ldisc_room,
 	.write_wakeup =	serport_ldisc_write_wakeup
 };
 
@@ -257,7 +246,7 @@ static int __init serport_init(void)
 
 static void __exit serport_exit(void)
 {
-	tty_register_ldisc(N_MOUSE, NULL);
+	tty_unregister_ldisc(N_MOUSE);
 }
 
 module_init(serport_init);
