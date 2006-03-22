@@ -98,8 +98,9 @@ startup_continue:
 
 	sethi		%hi(prom_entry_lock), %g2
 1:	ldstub		[%g2 + %lo(prom_entry_lock)], %g1
+	membar		#StoreLoad | #StoreStore
 	brnz,pn		%g1, 1b
-	 membar		#StoreLoad | #StoreStore
+	 nop
 
 	sethi		%hi(p1275buf), %g2
 	or		%g2, %lo(p1275buf), %g2
@@ -118,8 +119,8 @@ startup_continue:
 	sethi		%hi(itlb_load), %g2
 	or		%g2, %lo(itlb_load), %g2
 	stx		%g2, [%sp + 2047 + 128 + 0x18]
-	sethi		%hi(mmu_ihandle_cache), %g2
-	lduw		[%g2 + %lo(mmu_ihandle_cache)], %g2
+	sethi		%hi(prom_mmu_ihandle_cache), %g2
+	lduw		[%g2 + %lo(prom_mmu_ihandle_cache)], %g2
 	stx		%g2, [%sp + 2047 + 128 + 0x20]
 	sethi		%hi(KERNBASE), %g2
 	stx		%g2, [%sp + 2047 + 128 + 0x28]
@@ -155,8 +156,8 @@ startup_continue:
 	sethi		%hi(itlb_load), %g2
 	or		%g2, %lo(itlb_load), %g2
 	stx		%g2, [%sp + 2047 + 128 + 0x18]
-	sethi		%hi(mmu_ihandle_cache), %g2
-	lduw		[%g2 + %lo(mmu_ihandle_cache)], %g2
+	sethi		%hi(prom_mmu_ihandle_cache), %g2
+	lduw		[%g2 + %lo(prom_mmu_ihandle_cache)], %g2
 	stx		%g2, [%sp + 2047 + 128 + 0x20]
 	sethi		%hi(KERNBASE + 0x400000), %g2
 	stx		%g2, [%sp + 2047 + 128 + 0x28]
@@ -189,8 +190,8 @@ do_dtlb:
 	sethi		%hi(dtlb_load), %g2
 	or		%g2, %lo(dtlb_load), %g2
 	stx		%g2, [%sp + 2047 + 128 + 0x18]
-	sethi		%hi(mmu_ihandle_cache), %g2
-	lduw		[%g2 + %lo(mmu_ihandle_cache)], %g2
+	sethi		%hi(prom_mmu_ihandle_cache), %g2
+	lduw		[%g2 + %lo(prom_mmu_ihandle_cache)], %g2
 	stx		%g2, [%sp + 2047 + 128 + 0x20]
 	sethi		%hi(KERNBASE), %g2
 	stx		%g2, [%sp + 2047 + 128 + 0x28]
@@ -227,8 +228,8 @@ do_dtlb:
 	sethi		%hi(dtlb_load), %g2
 	or		%g2, %lo(dtlb_load), %g2
 	stx		%g2, [%sp + 2047 + 128 + 0x18]
-	sethi		%hi(mmu_ihandle_cache), %g2
-	lduw		[%g2 + %lo(mmu_ihandle_cache)], %g2
+	sethi		%hi(prom_mmu_ihandle_cache), %g2
+	lduw		[%g2 + %lo(prom_mmu_ihandle_cache)], %g2
 	stx		%g2, [%sp + 2047 + 128 + 0x20]
 	sethi		%hi(KERNBASE + 0x400000), %g2
 	stx		%g2, [%sp + 2047 + 128 + 0x28]
@@ -335,20 +336,13 @@ do_unlock:
 	call		init_irqwork_curcpu
 	 nop
 
-	BRANCH_IF_CHEETAH_PLUS_OR_FOLLOWON(g2,g3,1f)
-	ba,pt	%xcc, 2f
-	 nop
-
-1:	/* Start using proper page size encodings in ctx register.  */
-	sethi	%uhi(CTX_CHEETAH_PLUS_NUC), %g3
+	/* Start using proper page size encodings in ctx register.  */
+	sethi	%hi(sparc64_kern_pri_context), %g3
+	ldx	[%g3 + %lo(sparc64_kern_pri_context)], %g2
 	mov	PRIMARY_CONTEXT, %g1
-	sllx	%g3, 32, %g3
-	sethi	%hi(CTX_CHEETAH_PLUS_CTX0), %g2
-	or	%g3, %g2, %g3
-	stxa	%g3, [%g1] ASI_DMMU
+	stxa	%g2, [%g1] ASI_DMMU
 	membar	#Sync
 
-2:
 	rdpr		%pstate, %o1
 	or		%o1, PSTATE_IE, %o1
 	wrpr		%o1, 0, %pstate

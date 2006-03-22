@@ -27,36 +27,26 @@
  *		<prasanna@in.ibm.com> adapted for x86_64
  * 2005-Mar	Roland McGrath <roland@redhat.com>
  *		Fixed to handle %rip-relative addressing mode correctly.
+ * 2005-May     Rusty Lynch <rusty.lynch@intel.com>
+ *              Added function return probes functionality
  */
 
 #include <linux/config.h>
 #include <linux/kprobes.h>
 #include <linux/ptrace.h>
-#include <linux/spinlock.h>
 #include <linux/string.h>
 #include <linux/slab.h>
 #include <linux/preempt.h>
-#include <linux/moduleloader.h>
 
+#include <asm/cacheflush.h>
 #include <asm/pgtable.h>
 #include <asm/kdebug.h>
 
-static DECLARE_MUTEX(kprobe_mutex);
-
-/* kprobe_status settings */
-#define KPROBE_HIT_ACTIVE	0x00000001
-#define KPROBE_HIT_SS		0x00000002
-
-static struct kprobe *current_kprobe;
-static unsigned long kprobe_status, kprobe_old_rflags, kprobe_saved_rflags;
-static struct pt_regs jprobe_saved_regs;
-static long *jprobe_saved_rsp;
-static kprobe_opcode_t *get_insn_slot(void);
-static void free_insn_slot(kprobe_opcode_t *slot);
 void jprobe_return_end(void);
+static void __kprobes arch_copy_kprobe(struct kprobe *p);
 
-/* copy of the kernel stack at the probe fire time */
-static kprobe_opcode_t jprobes_stack[MAX_STACK_SIZE];
+DEFINE_PER_CPU(struct kprobe *, current_kprobe) = NULL;
+DEFINE_PER_CPU(struct kprobe_ctlblk, kprobe_ctlblk);
 
 /*
  * returns non-zero if opcode modifies the interrupt flag.
@@ -76,15 +66,14 @@ static inline int is_IF_modifier(kprobe_opcode_t *insn)
 	return 0;
 }
 
-int arch_prepare_kprobe(struct kprobe *p)
+int __kprobes arch_prepare_kprobe(struct kprobe *p)
 {
 	/* insn: must be on special executable page on x86_64. */
-	up(&kprobe_mutex);
 	p->ainsn.insn = get_insn_slot();
-	down(&kprobe_mutex);
 	if (!p->ainsn.insn) {
 		return -ENOMEM;
 	}
+	arch_copy_kprobe(p);
 	return 0;
 }
 
@@ -191,7 +180,7 @@ static inline s32 *is_riprel(u8 *insn)
 	return NULL;
 }
 
-void arch_copy_kprobe(struct kprobe *p)
+static void __kprobes arch_copy_kprobe(struct kprobe *p)
 {
 	s32 *ripdisp;
 	memcpy(p->ainsn.insn, p->addr, MAX_INSN_SIZE);
@@ -214,22 +203,57 @@ void arch_copy_kprobe(struct kprobe *p)
 		BUG_ON((s64) (s32) disp != disp); /* Sanity check.  */
 		*ripdisp = disp;
 	}
+	p->opcode = *p->addr;
 }
 
-void arch_remove_kprobe(struct kprobe *p)
+void __kprobes arch_arm_kprobe(struct kprobe *p)
 {
-	up(&kprobe_mutex);
-	free_insn_slot(p->ainsn.insn);
-	down(&kprobe_mutex);
+	*p->addr = BREAKPOINT_INSTRUCTION;
+	flush_icache_range((unsigned long) p->addr,
+			   (unsigned long) p->addr + sizeof(kprobe_opcode_t));
 }
 
-static inline void disarm_kprobe(struct kprobe *p, struct pt_regs *regs)
+void __kprobes arch_disarm_kprobe(struct kprobe *p)
 {
 	*p->addr = p->opcode;
-	regs->rip = (unsigned long)p->addr;
+	flush_icache_range((unsigned long) p->addr,
+			   (unsigned long) p->addr + sizeof(kprobe_opcode_t));
 }
 
-static void prepare_singlestep(struct kprobe *p, struct pt_regs *regs)
+void __kprobes arch_remove_kprobe(struct kprobe *p)
+{
+	down(&kprobe_mutex);
+	free_insn_slot(p->ainsn.insn);
+	up(&kprobe_mutex);
+}
+
+static inline void save_previous_kprobe(struct kprobe_ctlblk *kcb)
+{
+	kcb->prev_kprobe.kp = kprobe_running();
+	kcb->prev_kprobe.status = kcb->kprobe_status;
+	kcb->prev_kprobe.old_rflags = kcb->kprobe_old_rflags;
+	kcb->prev_kprobe.saved_rflags = kcb->kprobe_saved_rflags;
+}
+
+static inline void restore_previous_kprobe(struct kprobe_ctlblk *kcb)
+{
+	__get_cpu_var(current_kprobe) = kcb->prev_kprobe.kp;
+	kcb->kprobe_status = kcb->prev_kprobe.status;
+	kcb->kprobe_old_rflags = kcb->prev_kprobe.old_rflags;
+	kcb->kprobe_saved_rflags = kcb->prev_kprobe.saved_rflags;
+}
+
+static inline void set_current_kprobe(struct kprobe *p, struct pt_regs *regs,
+				struct kprobe_ctlblk *kcb)
+{
+	__get_cpu_var(current_kprobe) = p;
+	kcb->kprobe_saved_rflags = kcb->kprobe_old_rflags
+		= (regs->eflags & (TF_MASK | IF_MASK));
+	if (is_IF_modifier(p->ainsn.insn))
+		kcb->kprobe_saved_rflags &= ~IF_MASK;
+}
+
+static void __kprobes prepare_singlestep(struct kprobe *p, struct pt_regs *regs)
 {
 	regs->eflags |= TF_MASK;
 	regs->eflags &= ~IF_MASK;
@@ -240,47 +264,95 @@ static void prepare_singlestep(struct kprobe *p, struct pt_regs *regs)
 		regs->rip = (unsigned long)p->ainsn.insn;
 }
 
-/*
- * Interrupts are disabled on entry as trap3 is an interrupt gate and they
- * remain disabled thorough out this function.
- */
-int kprobe_handler(struct pt_regs *regs)
+/* Called with kretprobe_lock held */
+void __kprobes arch_prepare_kretprobe(struct kretprobe *rp,
+				      struct pt_regs *regs)
+{
+	unsigned long *sara = (unsigned long *)regs->rsp;
+        struct kretprobe_instance *ri;
+
+        if ((ri = get_free_rp_inst(rp)) != NULL) {
+                ri->rp = rp;
+                ri->task = current;
+		ri->ret_addr = (kprobe_opcode_t *) *sara;
+
+		/* Replace the return addr with trampoline addr */
+		*sara = (unsigned long) &kretprobe_trampoline;
+
+                add_rp_inst(ri);
+        } else {
+                rp->nmissed++;
+        }
+}
+
+int __kprobes kprobe_handler(struct pt_regs *regs)
 {
 	struct kprobe *p;
 	int ret = 0;
 	kprobe_opcode_t *addr = (kprobe_opcode_t *)(regs->rip - sizeof(kprobe_opcode_t));
+	struct kprobe_ctlblk *kcb;
 
-	/* We're in an interrupt, but this is clear and BUG()-safe. */
+	/*
+	 * We don't want to be preempted for the entire
+	 * duration of kprobe processing
+	 */
 	preempt_disable();
+	kcb = get_kprobe_ctlblk();
 
 	/* Check we're not actually recursing */
 	if (kprobe_running()) {
-		/* We *are* holding lock here, so this is safe.
-		   Disarm the probe we just hit, and ignore it. */
 		p = get_kprobe(addr);
 		if (p) {
-			if (kprobe_status == KPROBE_HIT_SS) {
+			if (kcb->kprobe_status == KPROBE_HIT_SS &&
+				*p->ainsn.insn == BREAKPOINT_INSTRUCTION) {
 				regs->eflags &= ~TF_MASK;
-				regs->eflags |= kprobe_saved_rflags;
-				unlock_kprobes();
+				regs->eflags |= kcb->kprobe_saved_rflags;
+				goto no_kprobe;
+			} else if (kcb->kprobe_status == KPROBE_HIT_SSDONE) {
+				/* TODO: Provide re-entrancy from
+				 * post_kprobes_handler() and avoid exception
+				 * stack corruption while single-stepping on
+				 * the instruction of the new probe.
+				 */
+				arch_disarm_kprobe(p);
+				regs->rip = (unsigned long)p->addr;
+				reset_current_kprobe();
+				ret = 1;
+			} else {
+				/* We have reentered the kprobe_handler(), since
+				 * another probe was hit while within the
+				 * handler. We here save the original kprobe
+				 * variables and just single step on instruction
+				 * of the new probe without calling any user
+				 * handlers.
+				 */
+				save_previous_kprobe(kcb);
+				set_current_kprobe(p, regs, kcb);
+				kprobes_inc_nmissed_count(p);
+				prepare_singlestep(p, regs);
+				kcb->kprobe_status = KPROBE_REENTER;
+				return 1;
+			}
+		} else {
+			if (*addr != BREAKPOINT_INSTRUCTION) {
+			/* The breakpoint instruction was removed by
+			 * another cpu right after we hit, no further
+			 * handling of this interrupt is appropriate
+			 */
+				regs->rip = (unsigned long)addr;
+				ret = 1;
 				goto no_kprobe;
 			}
-			disarm_kprobe(p, regs);
-			ret = 1;
-		} else {
-			p = current_kprobe;
+			p = __get_cpu_var(current_kprobe);
 			if (p->break_handler && p->break_handler(p, regs)) {
 				goto ss_probe;
 			}
 		}
-		/* If it's not ours, can't be delete race, (we hold lock). */
 		goto no_kprobe;
 	}
 
-	lock_kprobes();
 	p = get_kprobe(addr);
 	if (!p) {
-		unlock_kprobes();
 		if (*addr != BREAKPOINT_INSTRUCTION) {
 			/*
 			 * The breakpoint instruction was removed right
@@ -288,19 +360,18 @@ int kprobe_handler(struct pt_regs *regs)
 			 * either a probepoint or a debugger breakpoint
 			 * at this address.  In either case, no further
 			 * handling of this interrupt is appropriate.
+			 * Back up over the (now missing) int3 and run
+			 * the original instruction.
 			 */
+			regs->rip = (unsigned long)addr;
 			ret = 1;
 		}
 		/* Not one of ours: let kernel handle it */
 		goto no_kprobe;
 	}
 
-	kprobe_status = KPROBE_HIT_ACTIVE;
-	current_kprobe = p;
-	kprobe_saved_rflags = kprobe_old_rflags
-	    = (regs->eflags & (TF_MASK | IF_MASK));
-	if (is_IF_modifier(p->ainsn.insn))
-		kprobe_saved_rflags &= ~IF_MASK;
+	set_current_kprobe(p, regs, kcb);
+	kcb->kprobe_status = KPROBE_HIT_ACTIVE;
 
 	if (p->pre_handler && p->pre_handler(p, regs))
 		/* handler has already set things up, so skip ss setup */
@@ -308,12 +379,86 @@ int kprobe_handler(struct pt_regs *regs)
 
 ss_probe:
 	prepare_singlestep(p, regs);
-	kprobe_status = KPROBE_HIT_SS;
+	kcb->kprobe_status = KPROBE_HIT_SS;
 	return 1;
 
 no_kprobe:
 	preempt_enable_no_resched();
 	return ret;
+}
+
+/*
+ * For function-return probes, init_kprobes() establishes a probepoint
+ * here. When a retprobed function returns, this probe is hit and
+ * trampoline_probe_handler() runs, calling the kretprobe's handler.
+ */
+ void kretprobe_trampoline_holder(void)
+ {
+ 	asm volatile (  ".global kretprobe_trampoline\n"
+ 			"kretprobe_trampoline: \n"
+ 			"nop\n");
+ }
+
+/*
+ * Called when we hit the probe point at kretprobe_trampoline
+ */
+int __kprobes trampoline_probe_handler(struct kprobe *p, struct pt_regs *regs)
+{
+        struct kretprobe_instance *ri = NULL;
+        struct hlist_head *head;
+        struct hlist_node *node, *tmp;
+	unsigned long flags, orig_ret_address = 0;
+	unsigned long trampoline_address =(unsigned long)&kretprobe_trampoline;
+
+	spin_lock_irqsave(&kretprobe_lock, flags);
+        head = kretprobe_inst_table_head(current);
+
+	/*
+	 * It is possible to have multiple instances associated with a given
+	 * task either because an multiple functions in the call path
+	 * have a return probe installed on them, and/or more then one return
+	 * return probe was registered for a target function.
+	 *
+	 * We can handle this because:
+	 *     - instances are always inserted at the head of the list
+	 *     - when multiple return probes are registered for the same
+         *       function, the first instance's ret_addr will point to the
+	 *       real return address, and all the rest will point to
+	 *       kretprobe_trampoline
+	 */
+	hlist_for_each_entry_safe(ri, node, tmp, head, hlist) {
+                if (ri->task != current)
+			/* another task is sharing our hash bucket */
+                        continue;
+
+		if (ri->rp && ri->rp->handler)
+			ri->rp->handler(ri, regs);
+
+		orig_ret_address = (unsigned long)ri->ret_addr;
+		recycle_rp_inst(ri);
+
+		if (orig_ret_address != trampoline_address)
+			/*
+			 * This is the real return address. Any other
+			 * instances associated with this task are for
+			 * other calls deeper on the call stack
+			 */
+			break;
+	}
+
+	BUG_ON(!orig_ret_address || (orig_ret_address == trampoline_address));
+	regs->rip = orig_ret_address;
+
+	reset_current_kprobe();
+	spin_unlock_irqrestore(&kretprobe_lock, flags);
+	preempt_enable_no_resched();
+
+        /*
+         * By returning a non-zero value, we are telling
+         * kprobe_handler() that we don't want the post_handler
+	 * to run (and have re-enabled preemption)
+         */
+        return 1;
 }
 
 /*
@@ -338,7 +483,8 @@ no_kprobe:
  * that is atop the stack is the address following the copied instruction.
  * We need to make it the address following the original instruction.
  */
-static void resume_execution(struct kprobe *p, struct pt_regs *regs)
+static void __kprobes resume_execution(struct kprobe *p,
+		struct pt_regs *regs, struct kprobe_ctlblk *kcb)
 {
 	unsigned long *tos = (unsigned long *)regs->rsp;
 	unsigned long next_rip = 0;
@@ -353,7 +499,7 @@ static void resume_execution(struct kprobe *p, struct pt_regs *regs)
 	switch (*insn) {
 	case 0x9c:		/* pushfl */
 		*tos &= ~(TF_MASK | IF_MASK);
-		*tos |= kprobe_old_rflags;
+		*tos |= kcb->kprobe_old_rflags;
 		break;
 	case 0xc3:		/* ret/lret */
 	case 0xcb:
@@ -392,22 +538,29 @@ static void resume_execution(struct kprobe *p, struct pt_regs *regs)
 	}
 }
 
-/*
- * Interrupts are disabled on entry as trap1 is an interrupt gate and they
- * remain disabled thoroughout this function.  And we hold kprobe lock.
- */
-int post_kprobe_handler(struct pt_regs *regs)
+int __kprobes post_kprobe_handler(struct pt_regs *regs)
 {
-	if (!kprobe_running())
+	struct kprobe *cur = kprobe_running();
+	struct kprobe_ctlblk *kcb = get_kprobe_ctlblk();
+
+	if (!cur)
 		return 0;
 
-	if (current_kprobe->post_handler)
-		current_kprobe->post_handler(current_kprobe, regs, 0);
+	if ((kcb->kprobe_status != KPROBE_REENTER) && cur->post_handler) {
+		kcb->kprobe_status = KPROBE_HIT_SSDONE;
+		cur->post_handler(cur, regs, 0);
+	}
 
-	resume_execution(current_kprobe, regs);
-	regs->eflags |= kprobe_saved_rflags;
+	resume_execution(cur, regs, kcb);
+	regs->eflags |= kcb->kprobe_saved_rflags;
 
-	unlock_kprobes();
+	/* Restore the original saved kprobes variables and continue. */
+	if (kcb->kprobe_status == KPROBE_REENTER) {
+		restore_previous_kprobe(kcb);
+		goto out;
+	}
+	reset_current_kprobe();
+out:
 	preempt_enable_no_resched();
 
 	/*
@@ -421,18 +574,19 @@ int post_kprobe_handler(struct pt_regs *regs)
 	return 1;
 }
 
-/* Interrupts disabled, kprobe_lock held. */
-int kprobe_fault_handler(struct pt_regs *regs, int trapnr)
+int __kprobes kprobe_fault_handler(struct pt_regs *regs, int trapnr)
 {
-	if (current_kprobe->fault_handler
-	    && current_kprobe->fault_handler(current_kprobe, regs, trapnr))
+	struct kprobe *cur = kprobe_running();
+	struct kprobe_ctlblk *kcb = get_kprobe_ctlblk();
+
+	if (cur->fault_handler && cur->fault_handler(cur, regs, trapnr))
 		return 1;
 
-	if (kprobe_status & KPROBE_HIT_SS) {
-		resume_execution(current_kprobe, regs);
-		regs->eflags |= kprobe_old_rflags;
+	if (kcb->kprobe_status & KPROBE_HIT_SS) {
+		resume_execution(cur, regs, kcb);
+		regs->eflags |= kcb->kprobe_old_rflags;
 
-		unlock_kprobes();
+		reset_current_kprobe();
 		preempt_enable_no_resched();
 	}
 	return 0;
@@ -441,43 +595,45 @@ int kprobe_fault_handler(struct pt_regs *regs, int trapnr)
 /*
  * Wrapper routine for handling exceptions.
  */
-int kprobe_exceptions_notify(struct notifier_block *self, unsigned long val,
-			     void *data)
+int __kprobes kprobe_exceptions_notify(struct notifier_block *self,
+				       unsigned long val, void *data)
 {
 	struct die_args *args = (struct die_args *)data;
+	int ret = NOTIFY_DONE;
+
 	switch (val) {
 	case DIE_INT3:
 		if (kprobe_handler(args->regs))
-			return NOTIFY_STOP;
+			ret = NOTIFY_STOP;
 		break;
 	case DIE_DEBUG:
 		if (post_kprobe_handler(args->regs))
-			return NOTIFY_STOP;
+			ret = NOTIFY_STOP;
 		break;
 	case DIE_GPF:
-		if (kprobe_running() &&
-		    kprobe_fault_handler(args->regs, args->trapnr))
-			return NOTIFY_STOP;
-		break;
 	case DIE_PAGE_FAULT:
+		/* kprobe_running() needs smp_processor_id() */
+		preempt_disable();
 		if (kprobe_running() &&
 		    kprobe_fault_handler(args->regs, args->trapnr))
-			return NOTIFY_STOP;
+			ret = NOTIFY_STOP;
+		preempt_enable();
 		break;
 	default:
 		break;
 	}
-	return NOTIFY_DONE;
+	return ret;
 }
 
-int setjmp_pre_handler(struct kprobe *p, struct pt_regs *regs)
+int __kprobes setjmp_pre_handler(struct kprobe *p, struct pt_regs *regs)
 {
 	struct jprobe *jp = container_of(p, struct jprobe, kp);
 	unsigned long addr;
+	struct kprobe_ctlblk *kcb = get_kprobe_ctlblk();
 
-	jprobe_saved_regs = *regs;
-	jprobe_saved_rsp = (long *) regs->rsp;
-	addr = (unsigned long)jprobe_saved_rsp;
+	kcb->jprobe_saved_regs = *regs;
+	kcb->jprobe_saved_rsp = (long *) regs->rsp;
+	addr = (unsigned long)(kcb->jprobe_saved_rsp);
 	/*
 	 * As Linus pointed out, gcc assumes that the callee
 	 * owns the argument space and could overwrite it, e.g.
@@ -485,154 +641,60 @@ int setjmp_pre_handler(struct kprobe *p, struct pt_regs *regs)
 	 * we also save and restore enough stack bytes to cover
 	 * the argument area.
 	 */
-	memcpy(jprobes_stack, (kprobe_opcode_t *) addr, MIN_STACK_SIZE(addr));
+	memcpy(kcb->jprobes_stack, (kprobe_opcode_t *)addr,
+			MIN_STACK_SIZE(addr));
 	regs->eflags &= ~IF_MASK;
 	regs->rip = (unsigned long)(jp->entry);
 	return 1;
 }
 
-void jprobe_return(void)
+void __kprobes jprobe_return(void)
 {
-	preempt_enable_no_resched();
+	struct kprobe_ctlblk *kcb = get_kprobe_ctlblk();
+
 	asm volatile ("       xchg   %%rbx,%%rsp     \n"
 		      "       int3			\n"
 		      "       .globl jprobe_return_end	\n"
 		      "       jprobe_return_end:	\n"
 		      "       nop			\n"::"b"
-		      (jprobe_saved_rsp):"memory");
+		      (kcb->jprobe_saved_rsp):"memory");
 }
 
-int longjmp_break_handler(struct kprobe *p, struct pt_regs *regs)
+int __kprobes longjmp_break_handler(struct kprobe *p, struct pt_regs *regs)
 {
+	struct kprobe_ctlblk *kcb = get_kprobe_ctlblk();
 	u8 *addr = (u8 *) (regs->rip - 1);
-	unsigned long stack_addr = (unsigned long)jprobe_saved_rsp;
+	unsigned long stack_addr = (unsigned long)(kcb->jprobe_saved_rsp);
 	struct jprobe *jp = container_of(p, struct jprobe, kp);
 
 	if ((addr > (u8 *) jprobe_return) && (addr < (u8 *) jprobe_return_end)) {
-		if ((long *)regs->rsp != jprobe_saved_rsp) {
+		if ((long *)regs->rsp != kcb->jprobe_saved_rsp) {
 			struct pt_regs *saved_regs =
-			    container_of(jprobe_saved_rsp, struct pt_regs, rsp);
+			    container_of(kcb->jprobe_saved_rsp,
+					    struct pt_regs, rsp);
 			printk("current rsp %p does not match saved rsp %p\n",
-			       (long *)regs->rsp, jprobe_saved_rsp);
+			       (long *)regs->rsp, kcb->jprobe_saved_rsp);
 			printk("Saved registers for jprobe %p\n", jp);
 			show_registers(saved_regs);
 			printk("Current registers\n");
 			show_registers(regs);
 			BUG();
 		}
-		*regs = jprobe_saved_regs;
-		memcpy((kprobe_opcode_t *) stack_addr, jprobes_stack,
+		*regs = kcb->jprobe_saved_regs;
+		memcpy((kprobe_opcode_t *) stack_addr, kcb->jprobes_stack,
 		       MIN_STACK_SIZE(stack_addr));
+		preempt_enable_no_resched();
 		return 1;
 	}
 	return 0;
 }
 
-/*
- * kprobe->ainsn.insn points to the copy of the instruction to be single-stepped.
- * By default on x86_64, pages we get from kmalloc or vmalloc are not
- * executable.  Single-stepping an instruction on such a page yields an
- * oops.  So instead of storing the instruction copies in their respective
- * kprobe objects, we allocate a page, map it executable, and store all the
- * instruction copies there.  (We can allocate additional pages if somebody
- * inserts a huge number of probes.)  Each page can hold up to INSNS_PER_PAGE
- * instruction slots, each of which is MAX_INSN_SIZE*sizeof(kprobe_opcode_t)
- * bytes.
- */
-#define INSNS_PER_PAGE (PAGE_SIZE/(MAX_INSN_SIZE*sizeof(kprobe_opcode_t)))
-struct kprobe_insn_page {
-	struct hlist_node hlist;
-	kprobe_opcode_t *insns;		/* page of instruction slots */
-	char slot_used[INSNS_PER_PAGE];
-	int nused;
+static struct kprobe trampoline_p = {
+	.addr = (kprobe_opcode_t *) &kretprobe_trampoline,
+	.pre_handler = trampoline_probe_handler
 };
 
-static struct hlist_head kprobe_insn_pages;
-
-/**
- * get_insn_slot() - Find a slot on an executable page for an instruction.
- * We allocate an executable page if there's no room on existing ones.
- */
-static kprobe_opcode_t *get_insn_slot(void)
+int __init arch_init_kprobes(void)
 {
-	struct kprobe_insn_page *kip;
-	struct hlist_node *pos;
-
-	hlist_for_each(pos, &kprobe_insn_pages) {
-		kip = hlist_entry(pos, struct kprobe_insn_page, hlist);
-		if (kip->nused < INSNS_PER_PAGE) {
-			int i;
-			for (i = 0; i < INSNS_PER_PAGE; i++) {
-				if (!kip->slot_used[i]) {
-					kip->slot_used[i] = 1;
-					kip->nused++;
-					return kip->insns + (i*MAX_INSN_SIZE);
-				}
-			}
-			/* Surprise!  No unused slots.  Fix kip->nused. */
-			kip->nused = INSNS_PER_PAGE;
-		}
-	}
-
-	/* All out of space.  Need to allocate a new page. Use slot 0.*/
-	kip = kmalloc(sizeof(struct kprobe_insn_page), GFP_KERNEL);
-	if (!kip) {
-		return NULL;
-	}
-
-	/*
-	 * For the %rip-relative displacement fixups to be doable, we
-	 * need our instruction copy to be within +/- 2GB of any data it
-	 * might access via %rip.  That is, within 2GB of where the
-	 * kernel image and loaded module images reside.  So we allocate
-	 * a page in the module loading area.
-	 */
-	kip->insns = module_alloc(PAGE_SIZE);
-	if (!kip->insns) {
-		kfree(kip);
-		return NULL;
-	}
-	INIT_HLIST_NODE(&kip->hlist);
-	hlist_add_head(&kip->hlist, &kprobe_insn_pages);
-	memset(kip->slot_used, 0, INSNS_PER_PAGE);
-	kip->slot_used[0] = 1;
-	kip->nused = 1;
-	return kip->insns;
-}
-
-/**
- * free_insn_slot() - Free instruction slot obtained from get_insn_slot().
- */
-static void free_insn_slot(kprobe_opcode_t *slot)
-{
-	struct kprobe_insn_page *kip;
-	struct hlist_node *pos;
-
-	hlist_for_each(pos, &kprobe_insn_pages) {
-		kip = hlist_entry(pos, struct kprobe_insn_page, hlist);
-		if (kip->insns <= slot
-		    && slot < kip->insns+(INSNS_PER_PAGE*MAX_INSN_SIZE)) {
-			int i = (slot - kip->insns) / MAX_INSN_SIZE;
-			kip->slot_used[i] = 0;
-			kip->nused--;
-			if (kip->nused == 0) {
-				/*
-				 * Page is no longer in use.  Free it unless
-				 * it's the last one.  We keep the last one
-				 * so as not to have to set it up again the
-				 * next time somebody inserts a probe.
-				 */
-				hlist_del(&kip->hlist);
-				if (hlist_empty(&kprobe_insn_pages)) {
-					INIT_HLIST_NODE(&kip->hlist);
-					hlist_add_head(&kip->hlist,
-						&kprobe_insn_pages);
-				} else {
-					module_free(NULL, kip->insns);
-					kfree(kip);
-				}
-			}
-			return;
-		}
-	}
+	return register_kprobe(&trampoline_p);
 }

@@ -59,20 +59,26 @@ vis1:	ldub		[%g6 + TI_FPSAVED], %g3
 	be,pn		%icc, 9b
 	 add		%g6, TI_FPREGS, %g2
 	andcc		%o5, FPRS_DL, %g0
-	membar		#StoreStore | #LoadStore
 
 	be,pn		%icc, 4f
 	 add		%g6, TI_FPREGS+0x40, %g3
+	membar		#Sync
 	stda		%f0, [%g2 + %g1] ASI_BLK_P
 	stda		%f16, [%g3 + %g1] ASI_BLK_P
+	membar		#Sync
 	andcc		%o5, FPRS_DU, %g0
 	be,pn		%icc, 5f
 4:	 add		%g1, 128, %g1
+	membar		#Sync
 	stda		%f32, [%g2 + %g1] ASI_BLK_P
 
 	stda		%f48, [%g3 + %g1] ASI_BLK_P
 5:	membar		#Sync
-	jmpl		%g7 + %g0, %g0
+	ba,pt		%xcc, 80f
+	 nop
+
+	.align		32
+80:	jmpl		%g7 + %g0, %g0
 	 nop
 
 6:	ldub		[%g3 + TI_FPSAVED], %o5
@@ -83,12 +89,15 @@ vis1:	ldub		[%g6 + TI_FPSAVED], %g3
 	sll		%g1, 5, %g1
 	add		%g6, TI_FPREGS+0xc0, %g3
 	wr		%g0, FPRS_FEF, %fprs
-	membar		#StoreStore | #LoadStore
+	membar		#Sync
 	stda		%f32, [%g2 + %g1] ASI_BLK_P
 	stda		%f48, [%g3 + %g1] ASI_BLK_P
 	membar		#Sync
-	jmpl		%g7 + %g0, %g0
+	ba,pt		%xcc, 80f
+	 nop
 
+	.align		32
+80:	jmpl		%g7 + %g0, %g0
 	 nop
 
 	.align		32
@@ -121,11 +130,15 @@ VISenterhalf:
 	be,pn		%icc, 4f
 	 add		%g6, TI_FPREGS, %g2
 
-	membar		#StoreStore | #LoadStore
 	add		%g6, TI_FPREGS+0x40, %g3
+	membar		#Sync
 	stda		%f0, [%g2 + %g1] ASI_BLK_P
 	stda		%f16, [%g3 + %g1] ASI_BLK_P
 	membar		#Sync
+	ba,pt		%xcc, 4f
+	 nop
+
+	.align		32
 4:	and		%o5, FPRS_DU, %o5
 	jmpl		%g7 + %g0, %g0
 	 wr		%o5, FPRS_FEF, %fprs

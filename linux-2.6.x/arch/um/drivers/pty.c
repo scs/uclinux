@@ -43,8 +43,9 @@ static int pts_open(int input, int output, int primary, void *d,
 
 	fd = get_pty();
 	if(fd < 0){
+		err = -errno;
 		printk("open_pts : Failed to open pts\n");
-		return(-errno);
+		return err;
 	}
 	if(data->raw){
 		CATCH_EINTR(err = tcgetattr(fd, &data->tt));
@@ -117,13 +118,6 @@ static int pty_open(int input, int output, int primary, void *d,
 	return(fd);
 }
 
-static int pty_console_write(int fd, const char *buf, int n, void *d)
-{
-	struct pty_chan *data = d;
-
-	return(generic_console_write(fd, buf, n, &data->tt));
-}
-
 struct chan_ops pty_ops = {
 	.type		= "pty",
 	.init		= pty_chan_init,
@@ -131,7 +125,7 @@ struct chan_ops pty_ops = {
 	.close		= generic_close,
 	.read		= generic_read,
 	.write		= generic_write,
-	.console_write	= pty_console_write,
+	.console_write	= generic_console_write,
 	.window_size	= generic_window_size,
 	.free		= generic_free,
 	.winch		= 0,
@@ -144,7 +138,7 @@ struct chan_ops pts_ops = {
 	.close		= generic_close,
 	.read		= generic_read,
 	.write		= generic_write,
-	.console_write	= pty_console_write,
+	.console_write	= generic_console_write,
 	.window_size	= generic_window_size,
 	.free		= generic_free,
 	.winch		= 0,

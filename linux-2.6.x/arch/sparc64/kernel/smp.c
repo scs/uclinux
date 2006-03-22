@@ -39,14 +39,13 @@
 #include <asm/starfire.h>
 #include <asm/tlb.h>
 
-extern int linux_num_cpus;
 extern void calibrate_delay(void);
 
 /* Please don't make this stuff initdata!!!  --DaveM */
 static unsigned char boot_cpu_id;
 
-cpumask_t cpu_online_map = CPU_MASK_NONE;
-cpumask_t phys_cpu_present_map = CPU_MASK_NONE;
+cpumask_t cpu_online_map __read_mostly = CPU_MASK_NONE;
+cpumask_t phys_cpu_present_map __read_mostly = CPU_MASK_NONE;
 static cpumask_t smp_commenced_mask;
 static cpumask_t cpu_callout_map;
 
@@ -93,6 +92,27 @@ void __init smp_store_cpu_info(int id)
 	cpu_data(id).pte_cache[1]		= NULL;
 	cpu_data(id).pgd_cache			= NULL;
 	cpu_data(id).idle_volume		= 1;
+
+	cpu_data(id).dcache_size = prom_getintdefault(cpu_node, "dcache-size",
+						      16 * 1024);
+	cpu_data(id).dcache_line_size =
+		prom_getintdefault(cpu_node, "dcache-line-size", 32);
+	cpu_data(id).icache_size = prom_getintdefault(cpu_node, "icache-size",
+						      16 * 1024);
+	cpu_data(id).icache_line_size =
+		prom_getintdefault(cpu_node, "icache-line-size", 32);
+	cpu_data(id).ecache_size = prom_getintdefault(cpu_node, "ecache-size",
+						      4 * 1024 * 1024);
+	cpu_data(id).ecache_line_size =
+		prom_getintdefault(cpu_node, "ecache-line-size", 64);
+	printk("CPU[%d]: Caches "
+	       "D[sz(%d):line_sz(%d)] "
+	       "I[sz(%d):line_sz(%d)] "
+	       "E[sz(%d):line_sz(%d)]\n",
+	       id,
+	       cpu_data(id).dcache_size, cpu_data(id).dcache_line_size,
+	       cpu_data(id).icache_size, cpu_data(id).icache_line_size,
+	       cpu_data(id).ecache_size, cpu_data(id).ecache_line_size);
 }
 
 static void smp_setup_percpu_timer(void);
@@ -137,16 +157,19 @@ void __init smp_callin(void)
 	/* Clear this or we will die instantly when we
 	 * schedule back to this idler...
 	 */
-	clear_thread_flag(TIF_NEWCHILD);
+	current_thread_info()->new_child = 0;
 
 	/* Attach to the address space of init_task. */
 	atomic_inc(&init_mm.mm_count);
 	current->active_mm = &init_mm;
 
 	while (!cpu_isset(cpuid, smp_commenced_mask))
-		membar("#LoadLoad");
+		rmb();
 
 	cpu_set(cpuid, cpu_online_map);
+
+	/* idle thread is expected to have preempt disabled */
+	preempt_disable();
 }
 
 void cpu_panic(void)
@@ -155,7 +178,7 @@ void cpu_panic(void)
 	panic("SMP bolixed\n");
 }
 
-static unsigned long current_tick_offset;
+static unsigned long current_tick_offset __read_mostly;
 
 /* This tick register synchronization scheme is taken entirely from
  * the ia64 port, see arch/ia64/kernel/smpboot.c for details and credit.
@@ -184,11 +207,11 @@ static inline long get_delta (long *rt, long *master)
 	for (i = 0; i < NUM_ITERS; i++) {
 		t0 = tick_ops->get_tick();
 		go[MASTER] = 1;
-		membar("#StoreLoad");
+		membar_storeload();
 		while (!(tm = go[SLAVE]))
-			membar("#LoadLoad");
+			rmb();
 		go[SLAVE] = 0;
-		membar("#StoreStore");
+		wmb();
 		t1 = tick_ops->get_tick();
 
 		if (t1 - t0 < best_t1 - best_t0)
@@ -221,7 +244,7 @@ void smp_synchronize_tick_client(void)
 	go[MASTER] = 1;
 
 	while (go[MASTER])
-		membar("#LoadLoad");
+		rmb();
 
 	local_irq_save(flags);
 	{
@@ -273,21 +296,21 @@ static void smp_synchronize_one_tick(int cpu)
 
 	/* wait for client to be ready */
 	while (!go[MASTER])
-		membar("#LoadLoad");
+		rmb();
 
 	/* now let the client proceed into his loop */
 	go[MASTER] = 0;
-	membar("#StoreLoad");
+	membar_storeload();
 
 	spin_lock_irqsave(&itc_sync_lock, flags);
 	{
 		for (i = 0; i < NUM_ROUNDS*NUM_ITERS; i++) {
 			while (!go[MASTER])
-				membar("#LoadLoad");
+				rmb();
 			go[MASTER] = 0;
-			membar("#StoreStore");
+			wmb();
 			go[SLAVE] = tick_ops->get_tick();
-			membar("#StoreLoad");
+			membar_storeload();
 		}
 	}
 	spin_unlock_irqrestore(&itc_sync_lock, flags);
@@ -312,7 +335,7 @@ static int __devinit smp_boot_one_cpu(unsigned int cpu)
 
 	p = fork_idle(cpu);
 	callin_flag = 0;
-	cpu_new_thread = p->thread_info;
+	cpu_new_thread = task_thread_info(p);
 	cpu_set(cpu, cpu_callout_map);
 
 	cpu_find_by_mid(cpu, &cpu_node);
@@ -818,43 +841,29 @@ void smp_flush_tlb_all(void)
  *    questionable (in theory the big win for threads is the massive sharing of
  *    address space state across processors).
  */
+
+/* This currently is only used by the hugetlb arch pre-fault
+ * hook on UltraSPARC-III+ and later when changing the pagesize
+ * bits of the context register for an address space.
+ */
 void smp_flush_tlb_mm(struct mm_struct *mm)
 {
-        /*
-         * This code is called from two places, dup_mmap and exit_mmap. In the
-         * former case, we really need a flush. In the later case, the callers
-         * are single threaded exec_mmap (really need a flush), multithreaded
-         * exec_mmap case (do not need to flush, since the caller gets a new
-         * context via activate_mm), and all other callers of mmput() whence
-         * the flush can be optimized since the associated threads are dead and
-         * the mm is being torn down (__exit_mm and other mmput callers) or the
-         * owning thread is dissociating itself from the mm. The
-         * (atomic_read(&mm->mm_users) == 0) check ensures real work is done
-         * for single thread exec and dup_mmap cases. An alternate check might
-         * have been (current->mm != mm).
-         *                                              Kanoj Sarcar
-         */
-        if (atomic_read(&mm->mm_users) == 0)
-                return;
+	u32 ctx = CTX_HWBITS(mm->context);
+	int cpu = get_cpu();
 
-	{
-		u32 ctx = CTX_HWBITS(mm->context);
-		int cpu = get_cpu();
-
-		if (atomic_read(&mm->mm_users) == 1) {
-			mm->cpu_vm_mask = cpumask_of_cpu(cpu);
-			goto local_flush_and_out;
-		}
-
-		smp_cross_call_masked(&xcall_flush_tlb_mm,
-				      ctx, 0, 0,
-				      mm->cpu_vm_mask);
-
-	local_flush_and_out:
-		__flush_tlb_mm(ctx, SECONDARY_CONTEXT);
-
-		put_cpu();
+	if (atomic_read(&mm->mm_users) == 1) {
+		mm->cpu_vm_mask = cpumask_of_cpu(cpu);
+		goto local_flush_and_out;
 	}
+
+	smp_cross_call_masked(&xcall_flush_tlb_mm,
+			      ctx, 0, 0,
+			      mm->cpu_vm_mask);
+
+local_flush_and_out:
+	__flush_tlb_mm(ctx, SECONDARY_CONTEXT);
+
+	put_cpu();
 }
 
 void smp_flush_tlb_pending(struct mm_struct *mm, unsigned long nr, unsigned long *vaddrs)
@@ -862,34 +871,13 @@ void smp_flush_tlb_pending(struct mm_struct *mm, unsigned long nr, unsigned long
 	u32 ctx = CTX_HWBITS(mm->context);
 	int cpu = get_cpu();
 
-	if (mm == current->active_mm && atomic_read(&mm->mm_users) == 1) {
+	if (mm == current->active_mm && atomic_read(&mm->mm_users) == 1)
 		mm->cpu_vm_mask = cpumask_of_cpu(cpu);
-		goto local_flush_and_out;
-	} else {
-		/* This optimization is not valid.  Normally
-		 * we will be holding the page_table_lock, but
-		 * there is an exception which is copy_page_range()
-		 * when forking.  The lock is held during the individual
-		 * page table updates in the parent, but not at the
-		 * top level, which is where we are invoked.
-		 */
-		if (0) {
-			cpumask_t this_cpu_mask = cpumask_of_cpu(cpu);
+	else
+		smp_cross_call_masked(&xcall_flush_tlb_pending,
+				      ctx, nr, (unsigned long) vaddrs,
+				      mm->cpu_vm_mask);
 
-			/* By virtue of running under the mm->page_table_lock,
-			 * and mmu_context.h:switch_mm doing the same, the
-			 * following operation is safe.
-			 */
-			if (cpus_equal(mm->cpu_vm_mask, this_cpu_mask))
-				goto local_flush_and_out;
-		}
-	}
-
-	smp_cross_call_masked(&xcall_flush_tlb_pending,
-			      ctx, nr, (unsigned long) vaddrs,
-			      mm->cpu_vm_mask);
-
-local_flush_and_out:
 	__flush_tlb_pending(ctx, nr, vaddrs);
 
 	put_cpu();
@@ -927,11 +915,11 @@ void smp_capture(void)
 		       smp_processor_id());
 #endif
 		penguins_are_doing_time = 1;
-		membar("#StoreStore | #LoadStore");
+		membar_storestore_loadstore();
 		atomic_inc(&smp_capture_registry);
 		smp_cross_call(&xcall_capture, 0, 0, 0);
 		while (atomic_read(&smp_capture_registry) != ncpus)
-			membar("#LoadLoad");
+			rmb();
 #ifdef CAPTURE_DEBUG
 		printk("done\n");
 #endif
@@ -947,7 +935,7 @@ void smp_release(void)
 		       smp_processor_id());
 #endif
 		penguins_are_doing_time = 0;
-		membar("#StoreStore | #StoreLoad");
+		membar_storeload_storestore();
 		atomic_dec(&smp_capture_registry);
 	}
 }
@@ -970,21 +958,14 @@ void smp_penguin_jailcell(int irq, struct pt_regs *regs)
 	save_alternate_globals(global_save);
 	prom_world(1);
 	atomic_inc(&smp_capture_registry);
-	membar("#StoreLoad | #StoreStore");
+	membar_storeload_storestore();
 	while (penguins_are_doing_time)
-		membar("#LoadLoad");
+		rmb();
 	restore_alternate_globals(global_save);
 	atomic_dec(&smp_capture_registry);
 	prom_world(0);
 
 	preempt_enable();
-}
-
-extern unsigned long xcall_promstop;
-
-void smp_promstop_others(void)
-{
-	smp_cross_call(&xcall_promstop, 0, 0, 0);
 }
 
 #define prof_multiplier(__cpu)		cpu_data(__cpu).multiplier
@@ -1098,18 +1079,12 @@ int setup_profiling_timer(unsigned int multiplier)
 	return 0;
 }
 
+/* Constrain the number of cpus to max_cpus.  */
 void __init smp_prepare_cpus(unsigned int max_cpus)
 {
-	int instance, mid;
-
-	instance = 0;
-	while (!cpu_find_by_instance(instance, NULL, &mid)) {
-		if (mid < max_cpus)
-			cpu_set(mid, phys_cpu_present_map);
-		instance++;
-	}
-
 	if (num_possible_cpus() > max_cpus) {
+		int instance, mid;
+
 		instance = 0;
 		while (!cpu_find_by_instance(instance, NULL, &mid)) {
 			if (mid != boot_cpu_id) {
@@ -1122,6 +1097,22 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 	}
 
 	smp_store_cpu_info(boot_cpu_id);
+}
+
+/* Set this up early so that things like the scheduler can init
+ * properly.  We use the same cpu mask for both the present and
+ * possible cpu map.
+ */
+void __init smp_setup_cpu_possible_map(void)
+{
+	int instance, mid;
+
+	instance = 0;
+	while (!cpu_find_by_instance(instance, NULL, &mid)) {
+		if (mid < NR_CPUS)
+			cpu_set(mid, phys_cpu_present_map);
+		instance++;
+	}
 }
 
 void __devinit smp_prepare_boot_cpu(void)
@@ -1170,20 +1161,9 @@ void __init smp_cpus_done(unsigned int max_cpus)
 	       (bogosum/(5000/HZ))%100);
 }
 
-/* This needn't do anything as we do not sleep the cpu
- * inside of the idler task, so an interrupt is not needed
- * to get a clean fast response.
- *
- * XXX Reverify this assumption... -DaveM
- *
- * Addendum: We do want it to do something for the signal
- *           delivery case, we detect that by just seeing
- *           if we are trying to send this to an idler or not.
- */
 void smp_send_reschedule(int cpu)
 {
-	if (cpu_data(cpu).idle_volume == 0)
-		smp_receive_signal(cpu);
+	smp_receive_signal(cpu);
 }
 
 /* This is a nop because we capture all other cpus
@@ -1193,8 +1173,8 @@ void smp_send_stop(void)
 {
 }
 
-unsigned long __per_cpu_base;
-unsigned long __per_cpu_shift;
+unsigned long __per_cpu_base __read_mostly;
+unsigned long __per_cpu_shift __read_mostly;
 
 EXPORT_SYMBOL(__per_cpu_base);
 EXPORT_SYMBOL(__per_cpu_shift);

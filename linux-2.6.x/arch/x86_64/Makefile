@@ -21,21 +21,9 @@
 #
 # $Id$
 
-#
-# early bootup linking needs 32bit. You can either use real 32bit tools
-# here or 64bit tools in 32bit mode.
-#
-IA32_CC := $(CC) $(CPPFLAGS) -m32 -O2 -fomit-frame-pointer
-IA32_LD := $(LD) -m elf_i386
-IA32_AS := $(CC) $(AFLAGS) -m32 -Wa,--32 -traditional -c
-IA32_OBJCOPY := $(CROSS_COMPILE)objcopy
-IA32_CPP := $(CROSS_COMPILE)gcc -m32 -E
-export IA32_CC IA32_LD IA32_AS IA32_OBJCOPY IA32_CPP
-
-
 LDFLAGS		:= -m elf_x86_64
 OBJCOPYFLAGS	:= -O binary -R .note -R .comment -S
-LDFLAGS_vmlinux := -e stext
+LDFLAGS_vmlinux :=
 
 CHECKFLAGS      += -D__x86_64__ -m64
 
@@ -43,6 +31,7 @@ cflags-$(CONFIG_MK8) += $(call cc-option,-march=k8)
 cflags-$(CONFIG_MPSC) += $(call cc-option,-march=nocona)
 CFLAGS += $(cflags-y)
 
+CFLAGS += -m64
 CFLAGS += -mno-red-zone
 CFLAGS += -mcmodel=kernel
 CFLAGS += -pipe
@@ -50,8 +39,10 @@ CFLAGS += -pipe
 # actually it makes the kernel smaller too.
 CFLAGS += -fno-reorder-blocks	
 CFLAGS += -Wno-sign-compare
-ifneq ($(CONFIG_DEBUG_INFO),y)
+ifneq ($(CONFIG_UNWIND_INFO),y)
 CFLAGS += -fno-asynchronous-unwind-tables
+endif
+ifneq ($(CONFIG_DEBUG_INFO),y)
 # -fweb shrinks the kernel a bit, but the difference is very small
 # it also messes up debugging, so don't use it for now.
 #CFLAGS += $(call cc-option,-fweb)
@@ -62,10 +53,14 @@ CFLAGS += $(call cc-option,-funit-at-a-time)
 # prevent gcc from generating any FP code by mistake
 CFLAGS += $(call cc-option,-mno-sse -mno-mmx -mno-sse2 -mno-3dnow,)
 
+AFLAGS += -m64
+
 head-y := arch/x86_64/kernel/head.o arch/x86_64/kernel/head64.o arch/x86_64/kernel/init_task.o
 
 libs-y 					+= arch/x86_64/lib/
-core-y					+= arch/x86_64/kernel/ arch/x86_64/mm/
+core-y					+= arch/x86_64/kernel/ \
+					   arch/x86_64/mm/ \
+					   arch/x86_64/crypto/
 core-$(CONFIG_IA32_EMULATION)		+= arch/x86_64/ia32/
 drivers-$(CONFIG_PCI)			+= arch/x86_64/pci/
 drivers-$(CONFIG_OPROFILE)		+= arch/x86_64/oprofile/
@@ -90,21 +85,14 @@ bzlilo: vmlinux
 bzdisk: vmlinux
 	$(Q)$(MAKE) $(build)=$(boot) BOOTIMAGE=$(BOOTIMAGE) zdisk
 
-install fdimage fdimage144 fdimage288: vmlinux
+fdimage fdimage144 fdimage288: vmlinux
 	$(Q)$(MAKE) $(build)=$(boot) BOOTIMAGE=$(BOOTIMAGE) $@
+
+install:
+	$(Q)$(MAKE) $(build)=$(boot) BOOTIMAGE=$(BOOTIMAGE) $@ 
 
 archclean:
 	$(Q)$(MAKE) $(clean)=$(boot)
-
-prepare: include/asm-$(ARCH)/offset.h
-
-arch/$(ARCH)/kernel/asm-offsets.s: include/asm include/linux/version.h \
-				   include/config/MARKER
-
-include/asm-$(ARCH)/offset.h: arch/$(ARCH)/kernel/asm-offsets.s
-	$(call filechk,gen-asm-offsets)
-
-CLEAN_FILES += include/asm-$(ARCH)/offset.h
 
 define archhelp
   echo  '* bzImage	- Compressed kernel image (arch/$(ARCH)/boot/bzImage)'

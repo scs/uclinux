@@ -1,4 +1,4 @@
-/* 
+/*
  * Copyright (C) 2002 Jeff Dike (jdike@karaya.com)
  * Licensed under the GPL
  */
@@ -13,18 +13,15 @@
 #include "asm/uaccess.h"
 #include "asm/atomic.h"
 #include "kern_util.h"
-#include "time_user.h"
-#include "signal_user.h"
 #include "skas.h"
 #include "os.h"
 #include "user_util.h"
 #include "tlb.h"
 #include "kern.h"
 #include "mode.h"
-#include "proc_mm.h"
 #include "registers.h"
 
-void *switch_to_skas(void *prev, void *next)
+void switch_to_skas(void *prev, void *next)
 {
 	struct task_struct *from, *to;
 
@@ -35,16 +32,11 @@ void *switch_to_skas(void *prev, void *next)
 	if(current->pid == 0)
 		switch_timers(0);
 
-	to->thread.prev_sched = from;
-	set_current(to);
-
-	switch_threads(&from->thread.mode.skas.switch_buf, 
+	switch_threads(&from->thread.mode.skas.switch_buf,
 		       to->thread.mode.skas.switch_buf);
 
 	if(current->pid == 0)
 		switch_timers(1);
-
-	return(current->thread.prev_sched);
 }
 
 extern void schedule_tail(struct task_struct *prev);
@@ -56,8 +48,8 @@ void new_thread_handler(int sig)
 
 	fn = current->thread.request.u.thread.proc;
 	arg = current->thread.request.u.thread.arg;
-	change_sig(SIGUSR1, 1);
-	thread_wait(&current->thread.mode.skas.switch_buf, 
+	os_usr1_signal(1);
+	thread_wait(&current->thread.mode.skas.switch_buf,
 		    current->thread.mode.skas.fork_buf);
 
 	if(current->thread.prev_sched != NULL)
@@ -88,8 +80,8 @@ void release_thread_skas(struct task_struct *task)
 
 void fork_handler(int sig)
 {
-        change_sig(SIGUSR1, 1);
- 	thread_wait(&current->thread.mode.skas.switch_buf, 
+	os_usr1_signal(1);
+	thread_wait(&current->thread.mode.skas.switch_buf,
 		    current->thread.mode.skas.fork_buf);
   	
 	force_flush_all();
@@ -99,20 +91,19 @@ void fork_handler(int sig)
 	schedule_tail(current->thread.prev_sched);
 	current->thread.prev_sched = NULL;
 
-	/* Handle any immediate reschedules or signals */
+/* Handle any immediate reschedules or signals */
 	interrupt_end();
 	userspace(&current->thread.regs.regs);
 }
 
 int copy_thread_skas(int nr, unsigned long clone_flags, unsigned long sp,
-		     unsigned long stack_top, struct task_struct * p, 
+		     unsigned long stack_top, struct task_struct * p,
 		     struct pt_regs *regs)
 {
   	void (*handler)(int);
 
 	if(current->thread.forking){
-	  	memcpy(&p->thread.regs.regs.skas, 
-		       &current->thread.regs.regs.skas, 
+	  	memcpy(&p->thread.regs.regs.skas, &regs->regs.skas,
 		       sizeof(p->thread.regs.regs.skas));
 		REGS_SET_SYSCALL_RETURN(p->thread.regs.regs.skas.regs, 0);
 		if(sp != 0) REGS_SP(p->thread.regs.regs.skas.regs) = sp;
@@ -125,29 +116,21 @@ int copy_thread_skas(int nr, unsigned long clone_flags, unsigned long sp,
 		handler = new_thread_handler;
 	}
 
-	new_thread(p->thread_info, &p->thread.mode.skas.switch_buf,
+	new_thread(task_stack_page(p), &p->thread.mode.skas.switch_buf,
 		   &p->thread.mode.skas.fork_buf, handler);
 	return(0);
 }
 
-int new_mm(int from)
+int new_mm(unsigned long stack)
 {
-	struct proc_mm_op copy;
-	int n, fd;
+	int fd;
 
 	fd = os_open_file("/proc/mm", of_cloexec(of_write(OPENFLAGS())), 0);
 	if(fd < 0)
 		return(fd);
 
-	if(from != -1){
-		copy = ((struct proc_mm_op) { .op 	= MM_COPY_SEGMENTS,
-					      .u 	=
-					      { .copy_segments	= from } } );
-		n = os_write_file(fd, &copy, sizeof(copy));
-		if(n != sizeof(copy))
-			printk("new_mm : /proc/mm copy_segments failed, "
-			       "err = %d\n", -n);
-	}
+	if(skas_needs_stub)
+		map_stub_pages(fd, CONFIG_STUB_CODE, CONFIG_STUB_DATA, stack);
 
 	return(fd);
 }
@@ -176,16 +159,18 @@ static int start_kernel_proc(void *unused)
 	return(0);
 }
 
+extern int userspace_pid[];
+
 int start_uml_skas(void)
 {
-	start_userspace(0);
+	if(proc_mm)
+		userspace_pid[0] = start_userspace(0);
 
 	init_new_thread_signals(1);
-	uml_idle_timer();
 
 	init_task.thread.request.u.thread.proc = start_kernel_proc;
 	init_task.thread.request.u.thread.arg = NULL;
-	return(start_idle_thread(init_task.thread_info,
+	return(start_idle_thread(task_stack_page(&init_task),
 				 &init_task.thread.mode.skas.switch_buf,
 				 &init_task.thread.mode.skas.fork_buf));
 }
@@ -202,13 +187,30 @@ int thread_pid_skas(struct task_struct *task)
 	return(userspace_pid[0]);
 }
 
-/*
- * Overrides for Emacs so that we follow Linus's tabbing style.
- * Emacs will notice this stuff at the end of the file and automatically
- * adjust the settings for this buffer only.  This must remain at the end
- * of the file.
- * ---------------------------------------------------------------------------
- * Local variables:
- * c-file-style: "linux"
- * End:
- */
+void kill_off_processes_skas(void)
+{
+	if(proc_mm)
+#warning need to loop over userspace_pids in kill_off_processes_skas
+		os_kill_ptraced_process(userspace_pid[0], 1);
+	else {
+		struct task_struct *p;
+		int pid, me;
+
+		me = os_getpid();
+		for_each_process(p){
+			if(p->mm == NULL)
+				continue;
+
+			pid = p->mm->context.skas.id.u.pid;
+			os_kill_ptraced_process(pid, 1);
+		}
+	}
+}
+
+unsigned long current_stub_stack(void)
+{
+	if(current->mm == NULL)
+		return(0);
+
+	return(current->mm->context.skas.id.stack);
+}

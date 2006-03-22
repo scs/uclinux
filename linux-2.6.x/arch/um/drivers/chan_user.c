@@ -9,6 +9,7 @@
 #include <termios.h>
 #include <string.h>
 #include <signal.h>
+#include <sched.h>
 #include <sys/stat.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
@@ -16,12 +17,11 @@
 #include "user_util.h"
 #include "chan_user.h"
 #include "user.h"
-#include "helper.h"
 #include "os.h"
 #include "choose-mode.h"
 #include "mode.h"
 
-int generic_console_write(int fd, const char *buf, int n, void *unused)
+int generic_console_write(int fd, const char *buf, int n)
 {
 	struct termios save, new;
 	int err;
@@ -63,7 +63,7 @@ error:
  *
  * SIGWINCH can't be received synchronously, so you have to set up to receive it
  * as a signal.  That being the case, if you are going to wait for it, it is
- * convenient to sit in a pause() and wait for the signal to bounce you out of
+ * convenient to sit in sigsuspend() and wait for the signal to bounce you out of
  * it (see below for how we make sure to exit only on SIGWINCH).
  */
 
@@ -74,7 +74,6 @@ static void winch_handler(int sig)
 struct winch_data {
 	int pty_fd;
 	int pipe_fd;
-	int close_me;
 };
 
 static int winch_thread(void *arg)
@@ -85,7 +84,6 @@ static int winch_thread(void *arg)
 	int count, err;
 	char c = 1;
 
-	os_close_file(data->close_me);
 	pty_fd = data->pty_fd;
 	pipe_fd = data->pipe_fd;
 	count = os_write_file(pipe_fd, &c, sizeof(c));
@@ -94,18 +92,19 @@ static int winch_thread(void *arg)
 		       "byte, err = %d\n", -count);
 
 	/* We are not using SIG_IGN on purpose, so don't fix it as I thought to
-	 * do! If using SIG_IGN, the pause() call below would not stop on
+	 * do! If using SIG_IGN, the sigsuspend() call below would not stop on
 	 * SIGWINCH. */
 
 	signal(SIGWINCH, winch_handler);
 	sigfillset(&sigs);
-	sigdelset(&sigs, SIGWINCH);
-	/* Block anything else than SIGWINCH. */
+	/* Block all signals possible. */
 	if(sigprocmask(SIG_SETMASK, &sigs, NULL) < 0){
 		printk("winch_thread : sigprocmask failed, errno = %d\n", 
 		       errno);
 		exit(1);
 	}
+	/* In sigsuspend(), block anything else than SIGWINCH. */
+	sigdelset(&sigs, SIGWINCH);
 
 	if(setsid() < 0){
 		printk("winch_thread : setsid failed, errno = %d\n", errno);
@@ -130,7 +129,7 @@ static int winch_thread(void *arg)
 	while(1){
 		/* This will be interrupted by SIGWINCH only, since other signals
 		 * are blocked.*/
-		pause();
+		sigsuspend(&sigs);
 
 		count = os_write_file(pipe_fd, &c, sizeof(c));
 		if(count != sizeof(c))
@@ -153,15 +152,16 @@ static int winch_tramp(int fd, struct tty_struct *tty, int *fd_out)
 	}
 
 	data = ((struct winch_data) { .pty_fd 		= fd,
-				      .pipe_fd 		= fds[1],
-				      .close_me 	= fds[0] } );
-	err = run_helper_thread(winch_thread, &data, 0, &stack, 0);
+				      .pipe_fd 		= fds[1] } );
+	/* CLONE_FILES so this thread doesn't hold open files which are open
+	 * now, but later closed.  This is a problem with /dev/net/tun.
+	 */
+	err = run_helper_thread(winch_thread, &data, CLONE_FILES, &stack, 0);
 	if(err < 0){
 		printk("fork of winch_thread failed - errno = %d\n", errno);
 		goto out_close;
 	}
 
-	os_close_file(fds[1]);
 	*fd_out = fds[0];
 	n = os_read_file(fds[0], &c, sizeof(c));
 	if(n != sizeof(c)){
@@ -169,13 +169,12 @@ static int winch_tramp(int fd, struct tty_struct *tty, int *fd_out)
 		printk("read failed, err = %d\n", -n);
 		printk("fd %d will not support SIGWINCH\n", fd);
                 err = -EINVAL;
-		goto out_close1;
+		goto out_close;
 	}
 	return err ;
 
  out_close:
 	os_close_file(fds[1]);
- out_close1:
 	os_close_file(fds[0]);
  out:
 	return err;

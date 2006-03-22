@@ -14,8 +14,10 @@
 #include <linux/interrupt.h>
 #include <linux/seq_file.h>
 #include <linux/module.h>
+#include <linux/delay.h>
 #include <asm/uaccess.h>
 #include <asm/io_apic.h>
+#include <asm/idle.h>
 
 atomic_t irq_err_count;
 #ifdef CONFIG_X86_IO_APIC
@@ -68,13 +70,13 @@ skip:
 		seq_printf(p, "NMI: ");
 		for (j = 0; j < NR_CPUS; j++)
 			if (cpu_online(j))
-				seq_printf(p, "%10u ", cpu_pda[j].__nmi_count);
+				seq_printf(p, "%10u ", cpu_pda(j)->__nmi_count);
 		seq_putc(p, '\n');
 #ifdef CONFIG_X86_LOCAL_APIC
 		seq_printf(p, "LOC: ");
 		for (j = 0; j < NR_CPUS; j++)
 			if (cpu_online(j))
-				seq_printf(p, "%10u ", cpu_pda[j].apic_timer_irqs);
+				seq_printf(p, "%10u ", cpu_pda(j)->apic_timer_irqs);
 		seq_putc(p, '\n');
 #endif
 		seq_printf(p, "ERR: %10u\n", atomic_read(&irq_err_count));
@@ -97,8 +99,8 @@ asmlinkage unsigned int do_IRQ(struct pt_regs *regs)
 	/* high bits used in ret_from_ code  */
 	unsigned irq = regs->orig_rax & 0xff;
 
+	exit_idle();
 	irq_enter();
-	BUG_ON(irq > 256);
 
 	__do_IRQ(irq, regs);
 	irq_exit();
@@ -106,3 +108,50 @@ asmlinkage unsigned int do_IRQ(struct pt_regs *regs)
 	return 1;
 }
 
+#ifdef CONFIG_HOTPLUG_CPU
+void fixup_irqs(cpumask_t map)
+{
+	unsigned int irq;
+	static int warned;
+
+	for (irq = 0; irq < NR_IRQS; irq++) {
+		cpumask_t mask;
+		if (irq == 2)
+			continue;
+
+		cpus_and(mask, irq_affinity[irq], map);
+		if (any_online_cpu(mask) == NR_CPUS) {
+			printk("Breaking affinity for irq %i\n", irq);
+			mask = map;
+		}
+		if (irq_desc[irq].handler->set_affinity)
+			irq_desc[irq].handler->set_affinity(irq, mask);
+		else if (irq_desc[irq].action && !(warned++))
+			printk("Cannot set affinity for irq %i\n", irq);
+	}
+
+	/* That doesn't seem sufficient.  Give it 1ms. */
+	local_irq_enable();
+	mdelay(1);
+	local_irq_disable();
+}
+#endif
+
+extern void call_softirq(void);
+
+asmlinkage void do_softirq(void)
+{
+ 	__u32 pending;
+ 	unsigned long flags;
+
+ 	if (in_interrupt())
+ 		return;
+
+ 	local_irq_save(flags);
+ 	pending = local_softirq_pending();
+ 	/* Switch to interrupt stack */
+ 	if (pending)
+		call_softirq();
+ 	local_irq_restore(flags);
+}
+EXPORT_SYMBOL(do_softirq);

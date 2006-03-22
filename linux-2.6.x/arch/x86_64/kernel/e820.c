@@ -16,17 +16,20 @@
 #include <linux/bootmem.h>
 #include <linux/ioport.h>
 #include <linux/string.h>
+#include <linux/kexec.h>
+#include <linux/module.h>
+
 #include <asm/page.h>
 #include <asm/e820.h>
 #include <asm/proto.h>
 #include <asm/bootsetup.h>
-
-extern char _end[];
+#include <asm/sections.h>
 
 /* 
  * PFN of last memory page.
  */
 unsigned long end_pfn; 
+EXPORT_SYMBOL(end_pfn);
 
 /* 
  * end_pfn only includes RAM, while end_pfn_map includes all e820 entries.
@@ -84,7 +87,7 @@ int __init e820_mapped(unsigned long start, unsigned long end, unsigned type)
 		struct e820entry *ei = &e820.map[i]; 
 		if (type && ei->type != type) 
 			continue;
-		if (ei->addr >= end || ei->addr + ei->size < start) 
+		if (ei->addr >= end || ei->addr + ei->size <= start)
 			continue; 
 		return 1; 
 	} 
@@ -130,7 +133,7 @@ void __init e820_bootmem_free(pg_data_t *pgdat, unsigned long start,unsigned lon
 
 		if (ei->type != E820_RAM || 
 		    ei->addr+ei->size <= start || 
-		    ei->addr > end)
+		    ei->addr >= end)
 			continue;
 
 		addr = round_up(ei->addr, PAGE_SIZE);
@@ -184,6 +187,40 @@ unsigned long __init e820_end_of_ram(void)
 }
 
 /* 
+ * Compute how much memory is missing in a range.
+ * Unlike the other functions in this file the arguments are in page numbers.
+ */
+unsigned long __init
+e820_hole_size(unsigned long start_pfn, unsigned long end_pfn)
+{
+	unsigned long ram = 0;
+	unsigned long start = start_pfn << PAGE_SHIFT;
+	unsigned long end = end_pfn << PAGE_SHIFT;
+	int i;
+	for (i = 0; i < e820.nr_map; i++) {
+		struct e820entry *ei = &e820.map[i];
+		unsigned long last, addr;
+
+		if (ei->type != E820_RAM ||
+		    ei->addr+ei->size <= start ||
+		    ei->addr >= end)
+			continue;
+
+		addr = round_up(ei->addr, PAGE_SIZE);
+		if (addr < start)
+			addr = start;
+
+		last = round_down(ei->addr + ei->size, PAGE_SIZE);
+		if (last >= end)
+			last = end;
+
+		if (last > addr)
+			ram += last - addr;
+	}
+	return ((end - start) - ram) >> PAGE_SHIFT;
+}
+
+/*
  * Mark e820 reserved areas as busy for the resource manager.
  */
 void __init e820_reserve_resources(void)
@@ -191,8 +228,6 @@ void __init e820_reserve_resources(void)
 	int i;
 	for (i = 0; i < e820.nr_map; i++) {
 		struct resource *res;
-		if (e820.map[i].addr + e820.map[i].size > 0x100000000ULL)
-			continue;
 		res = alloc_bootmem_low(sizeof(struct resource));
 		switch (e820.map[i].type) {
 		case E820_RAM:	res->name = "System RAM"; break;
@@ -212,6 +247,9 @@ void __init e820_reserve_resources(void)
 			 */
 			request_resource(res, &code_resource);
 			request_resource(res, &data_resource);
+#ifdef CONFIG_KEXEC
+			request_resource(res, &crashk_res);
+#endif
 		}
 	}
 }
@@ -521,6 +559,27 @@ void __init parse_memopt(char *p, char **from)
 	end_user_pfn >>= PAGE_SHIFT;	
 } 
 
+void __init parse_memmapopt(char *p, char **from)
+{
+	unsigned long long start_at, mem_size;
+
+	mem_size = memparse(p, from);
+	p = *from;
+	if (*p == '@') {
+		start_at = memparse(p+1, from);
+		add_memory_region(start_at, mem_size, E820_RAM);
+	} else if (*p == '#') {
+		start_at = memparse(p+1, from);
+		add_memory_region(start_at, mem_size, E820_ACPI);
+	} else if (*p == '$') {
+		start_at = memparse(p+1, from);
+		add_memory_region(start_at, mem_size, E820_RESERVED);
+	} else {
+		end_user_pfn = (mem_size >> PAGE_SHIFT);
+	}
+	p = *from;
+}
+
 unsigned long pci_mem_start = 0xaeedbabe;
 
 /*
@@ -531,7 +590,7 @@ unsigned long pci_mem_start = 0xaeedbabe;
  */
 __init void e820_setup_gap(void)
 {
-	unsigned long gapstart, gapsize;
+	unsigned long gapstart, gapsize, round;
 	unsigned long last;
 	int i;
 	int found = 0;
@@ -568,14 +627,14 @@ __init void e820_setup_gap(void)
 	}
 
 	/*
-	 * Start allocating dynamic PCI memory a bit into the gap,
-	 * aligned up to the nearest megabyte.
-	 *
-	 * Question: should we try to pad it up a bit (do something
-	 * like " + (gapsize >> 3)" in there too?). We now have the
-	 * technology.
+	 * See how much we want to round up: start off with
+	 * rounding to the next 1MB area.
 	 */
-	pci_mem_start = (gapstart + 0xfffff) & ~0xfffff;
+	round = 0x100000;
+	while ((gapsize >> 4) > round)
+		round += round;
+	/* Fun with two's complement */
+	pci_mem_start = (gapstart + round) & -round;
 
 	printk(KERN_INFO "Allocating PCI resources starting at %lx (gap: %lx:%lx)\n",
 		pci_mem_start, gapstart, gapsize);

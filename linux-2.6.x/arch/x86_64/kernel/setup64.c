@@ -12,6 +12,7 @@
 #include <linux/string.h>
 #include <linux/bootmem.h>
 #include <linux/bitops.h>
+#include <linux/module.h>
 #include <asm/bootsetup.h>
 #include <asm/pda.h>
 #include <asm/pgtable.h>
@@ -22,28 +23,22 @@
 #include <asm/smp.h>
 #include <asm/i387.h>
 #include <asm/percpu.h>
-#include <asm/mtrr.h>
 #include <asm/proto.h>
-#include <asm/mman.h>
-#include <asm/numa.h>
+#include <asm/sections.h>
 
 char x86_boot_params[BOOT_PARAM_SIZE] __initdata = {0,};
 
-cpumask_t cpu_initialized __initdata = CPU_MASK_NONE;
+cpumask_t cpu_initialized __cpuinitdata = CPU_MASK_NONE;
 
-struct x8664_pda cpu_pda[NR_CPUS] __cacheline_aligned; 
+struct x8664_pda *_cpu_pda[NR_CPUS] __read_mostly;
+struct x8664_pda boot_cpu_pda[NR_CPUS] __cacheline_aligned;
 
-extern struct task_struct init_task;
-
-extern unsigned char __per_cpu_start[], __per_cpu_end[]; 
-
-extern struct desc_ptr cpu_gdt_descr[];
 struct desc_ptr idt_descr = { 256 * 16, (unsigned long) idt_table }; 
 
 char boot_cpu_stack[IRQSTACKSIZE] __attribute__((section(".bss.page_aligned")));
 
-unsigned long __supported_pte_mask = ~0UL;
-static int do_not_nx __initdata = 0;
+unsigned long __supported_pte_mask __read_mostly = ~0UL;
+static int do_not_nx __cpuinitdata = 0;
 
 /* noexec=on|off
 Control non executable mappings for 64bit processes.
@@ -93,6 +88,10 @@ void __init setup_per_cpu_areas(void)
 	int i;
 	unsigned long size;
 
+#ifdef CONFIG_HOTPLUG_CPU
+	prefill_possible_map();
+#endif
+
 	/* Copy section for each CPU (we discard the original) */
 	size = ALIGN(__per_cpu_end - __per_cpu_start, SMP_CACHE_BYTES);
 #ifdef CONFIG_MODULES
@@ -100,8 +99,8 @@ void __init setup_per_cpu_areas(void)
 		size = PERCPU_ENOUGH_ROOM;
 #endif
 
-	for (i = 0; i < NR_CPUS; i++) { 
-		unsigned char *ptr;
+	for_each_cpu_mask (i, cpu_possible_map) {
+		char *ptr;
 
 		if (!NODE_DATA(cpu_to_node(i))) {
 			printk("cpu with no node %d, num_online_nodes %d\n",
@@ -112,20 +111,19 @@ void __init setup_per_cpu_areas(void)
 		}
 		if (!ptr)
 			panic("Cannot allocate cpu data for CPU %d\n", i);
-		cpu_pda[i].data_offset = ptr - __per_cpu_start;
+		cpu_pda(i)->data_offset = ptr - __per_cpu_start;
 		memcpy(ptr, __per_cpu_start, __per_cpu_end - __per_cpu_start);
 	}
 } 
 
 void pda_init(int cpu)
 { 
-	struct x8664_pda *pda = &cpu_pda[cpu];
+	struct x8664_pda *pda = cpu_pda(cpu);
 
 	/* Setup up data that may be needed in __get_free_pages early */
 	asm volatile("movl %0,%%fs ; movl %0,%%gs" :: "r" (0)); 
-	wrmsrl(MSR_GS_BASE, cpu_pda + cpu);
+	wrmsrl(MSR_GS_BASE, pda);
 
-	pda->me = pda;
 	pda->cpunumber = cpu; 
 	pda->irqcount = -1;
 	pda->kernelstack = 
@@ -144,12 +142,11 @@ void pda_init(int cpu)
 			panic("cannot allocate irqstack for cpu %d", cpu); 
 	}
 
-	asm volatile("movq %0,%%cr3" :: "r" (__pa_symbol(&init_level4_pgt)));
 
 	pda->irqstackptr += IRQSTACKSIZE-64;
 } 
 
-char boot_exception_stacks[N_EXCEPTION_STACKS * EXCEPTION_STKSZ] 
+char boot_exception_stacks[(N_EXCEPTION_STACKS - 1) * EXCEPTION_STKSZ + DEBUG_STKSZ]
 __attribute__((section(".bss.page_aligned")));
 
 /* May not be marked __init: used by software suspend */
@@ -171,7 +168,7 @@ void syscall_init(void)
 	wrmsrl(MSR_SYSCALL_MASK, EF_TF|EF_DF|EF_IE|0x3000); 
 }
 
-void __init check_efer(void)
+void __cpuinit check_efer(void)
 {
 	unsigned long efer;
 
@@ -188,13 +185,9 @@ void __init check_efer(void)
  * 'CPU state barrier', nothing should get across.
  * A lot of state is already set up in PDA init.
  */
-void __init cpu_init (void)
+void __cpuinit cpu_init (void)
 {
-#ifdef CONFIG_SMP
 	int cpu = stack_smp_processor_id();
-#else
-	int cpu = smp_processor_id();
-#endif
 	struct tss_struct *t = &per_cpu(init_tss, cpu);
 	unsigned long v; 
 	char *estacks = NULL; 
@@ -204,6 +197,7 @@ void __init cpu_init (void)
 	/* CPU 0 is initialised in head64.c */
 	if (cpu != 0) {
 		pda_init(cpu);
+		zap_low_mappings(cpu);
 	} else 
 		estacks = boot_exception_stacks; 
 
@@ -214,29 +208,20 @@ void __init cpu_init (void)
 
 	printk("Initializing CPU#%d\n", cpu);
 
-		clear_in_cr4(X86_CR4_VME|X86_CR4_PVI|X86_CR4_TSD|X86_CR4_DE);
+	clear_in_cr4(X86_CR4_VME|X86_CR4_PVI|X86_CR4_TSD|X86_CR4_DE);
 
 	/*
 	 * Initialize the per-CPU GDT with the boot GDT,
 	 * and set up the GDT descriptor:
 	 */
-	if (cpu) {
-		memcpy(cpu_gdt_table[cpu], cpu_gdt_table[0], GDT_SIZE);
-	}	
+	if (cpu)
+ 		memcpy(cpu_gdt(cpu), cpu_gdt_table, GDT_SIZE);
 
 	cpu_gdt_descr[cpu].size = GDT_SIZE;
-	cpu_gdt_descr[cpu].address = (unsigned long)cpu_gdt_table[cpu];
 	asm volatile("lgdt %0" :: "m" (cpu_gdt_descr[cpu]));
 	asm volatile("lidt %0" :: "m" (idt_descr));
 
-	memcpy(me->thread.tls_array, cpu_gdt_table[cpu], GDT_ENTRY_TLS_ENTRIES * 8);
-
-	/*
-	 * Delete NT
-	 */
-
-	asm volatile("pushfq ; popq %%rax ; btr $14,%%rax ; pushq %%rax ; popfq" ::: "eax");
-
+	memset(me->thread.tls_array, 0, GDT_ENTRY_TLS_ENTRIES * 8);
 	syscall_init();
 
 	wrmsrl(MSR_FS_BASE, 0);
@@ -250,13 +235,27 @@ void __init cpu_init (void)
 	 */
 	for (v = 0; v < N_EXCEPTION_STACKS; v++) {
 		if (cpu) {
-			estacks = (char *)__get_free_pages(GFP_ATOMIC, 
-						   EXCEPTION_STACK_ORDER);
+			static const unsigned int order[N_EXCEPTION_STACKS] = {
+				[0 ... N_EXCEPTION_STACKS - 1] = EXCEPTION_STACK_ORDER,
+				[DEBUG_STACK - 1] = DEBUG_STACK_ORDER
+			};
+
+			estacks = (char *)__get_free_pages(GFP_ATOMIC, order[v]);
 			if (!estacks)
 				panic("Cannot allocate exception stack %ld %d\n",
 				      v, cpu); 
 		}
-		estacks += EXCEPTION_STKSZ;
+		switch (v + 1) {
+#if DEBUG_STKSZ > EXCEPTION_STKSZ
+		case DEBUG_STACK:
+			cpu_pda[cpu].debugstack = (unsigned long)estacks;
+			estacks += DEBUG_STKSZ;
+			break;
+#endif
+		default:
+			estacks += EXCEPTION_STKSZ;
+			break;
+		}
 		t->ist[v] = (unsigned long)estacks;
 	}
 

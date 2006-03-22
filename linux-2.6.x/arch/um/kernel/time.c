@@ -14,9 +14,9 @@
 #include "kern_util.h"
 #include "user.h"
 #include "process.h"
-#include "signal_user.h"
 #include "time_user.h"
 #include "kern_constants.h"
+#include "os.h"
 
 /* XXX This really needs to be declared and initialized in a kernel file since
  * it's in <linux/time.h>
@@ -33,7 +33,7 @@ void timer(void)
 	timeradd(&xtime, &local_offset, &xtime);
 }
 
-void set_interval(int timer_type)
+static void set_interval(int timer_type)
 {
 	int usec = 1000000/hz();
 	struct itimerval interval = ((struct itimerval) { { 0, usec },
@@ -45,12 +45,14 @@ void set_interval(int timer_type)
 
 void enable_timer(void)
 {
+	set_interval(ITIMER_VIRTUAL);
+}
+
+void prepare_timer(void * ptr)
+{
 	int usec = 1000000/hz();
-	struct itimerval enable = ((struct itimerval) { { 0, usec },
-							{ 0, usec }});
-	if(setitimer(ITIMER_VIRTUAL, &enable, NULL))
-		printk("enable_timer - setitimer failed, errno = %d\n",
-		       errno);
+	*(struct itimerval *)ptr = ((struct itimerval) { { 0, usec },
+							 { 0, usec }});
 }
 
 void disable_timer(void)
@@ -97,7 +99,8 @@ void uml_idle_timer(void)
 	set_interval(ITIMER_REAL);
 }
 
-extern int do_posix_clock_monotonic_gettime(struct timespec *tp);
+extern void ktime_get_ts(struct timespec *ts);
+#define do_posix_clock_monotonic_gettime(ts) ktime_get_ts(ts)
 
 void time_init(void)
 {
@@ -112,8 +115,8 @@ void time_init(void)
 	wall_to_monotonic.tv_nsec = -now.tv_nsec;
 }
 
-/* Declared in linux/time.h, which can't be included here */
-extern void clock_was_set(void);
+/* Defined in linux/ktimer.h, which can't be included here */
+#define clock_was_set()		do { } while (0)
 
 void do_gettimeofday(struct timeval *tv)
 {
@@ -155,13 +158,15 @@ void idle_sleep(int secs)
 	nanosleep(&ts, NULL);
 }
 
-/*
- * Overrides for Emacs so that we follow Linus's tabbing style.
- * Emacs will notice this stuff at the end of the file and automatically
- * adjust the settings for this buffer only.  This must remain at the end
- * of the file.
- * ---------------------------------------------------------------------------
- * Local variables:
- * c-file-style: "linux"
- * End:
- */
+/* XXX This partly duplicates init_irq_signals */
+
+void user_time_init(void)
+{
+	set_handler(SIGVTALRM, (__sighandler_t) alarm_handler,
+		    SA_ONSTACK | SA_RESTART, SIGUSR1, SIGIO, SIGWINCH,
+		    SIGALRM, SIGUSR2, -1);
+	set_handler(SIGALRM, (__sighandler_t) alarm_handler,
+		    SA_ONSTACK | SA_RESTART, SIGUSR1, SIGIO, SIGWINCH,
+		    SIGVTALRM, SIGUSR2, -1);
+	set_interval(ITIMER_VIRTUAL);
+}

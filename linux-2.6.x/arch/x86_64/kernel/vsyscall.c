@@ -35,14 +35,13 @@
 #include <asm/io.h>
 
 #define __vsyscall(nr) __attribute__ ((unused,__section__(".vsyscall_" #nr)))
-#define force_inline __attribute__((always_inline)) inline
 
 int __sysctl_vsyscall __section_sysctl_vsyscall = 1;
 seqlock_t __xtime_lock __section_xtime_lock = SEQLOCK_UNLOCKED;
 
 #include <asm/unistd.h>
 
-static force_inline void timeval_normalize(struct timeval * tv)
+static __always_inline void timeval_normalize(struct timeval * tv)
 {
 	time_t __sec;
 
@@ -53,7 +52,7 @@ static force_inline void timeval_normalize(struct timeval * tv)
 	}
 }
 
-static force_inline void do_vgettimeofday(struct timeval * tv)
+static __always_inline void do_vgettimeofday(struct timeval * tv)
 {
 	long sequence, t;
 	unsigned long sec, usec;
@@ -66,8 +65,7 @@ static force_inline void do_vgettimeofday(struct timeval * tv)
 			(__jiffies - __wall_jiffies) * (1000000 / HZ);
 
 		if (__vxtime.mode != VXTIME_HPET) {
-			sync_core();
-			rdtscll(t);
+			t = get_cycles_sync();
 			if (t < __vxtime.last_tsc)
 				t = __vxtime.last_tsc;
 			usec += ((t - __vxtime.last_tsc) *
@@ -84,12 +82,12 @@ static force_inline void do_vgettimeofday(struct timeval * tv)
 }
 
 /* RED-PEN may want to readd seq locking, but then the variable should be write-once. */
-static force_inline void do_get_tz(struct timezone * tz)
+static __always_inline void do_get_tz(struct timezone * tz)
 {
 	*tz = __sys_tz;
 }
 
-static force_inline int gettimeofday(struct timeval *tv, struct timezone *tz)
+static __always_inline int gettimeofday(struct timeval *tv, struct timezone *tz)
 {
 	int ret;
 	asm volatile("vsysc2: syscall"
@@ -98,7 +96,7 @@ static force_inline int gettimeofday(struct timeval *tv, struct timezone *tz)
 	return ret;
 }
 
-static force_inline long time_syscall(long *t)
+static __always_inline long time_syscall(long *t)
 {
 	long secs;
 	asm volatile("vsysc1: syscall"
@@ -107,7 +105,7 @@ static force_inline long time_syscall(long *t)
 	return secs;
 }
 
-static int __vsyscall(0) vgettimeofday(struct timeval * tv, struct timezone * tz)
+int __vsyscall(0) vgettimeofday(struct timeval * tv, struct timezone * tz)
 {
 	if (unlikely(!__sysctl_vsyscall))
 		return gettimeofday(tv,tz);
@@ -120,7 +118,7 @@ static int __vsyscall(0) vgettimeofday(struct timeval * tv, struct timezone * tz
 
 /* This will break when the xtime seconds get inaccurate, but that is
  * unlikely */
-static time_t __vsyscall(1) vtime(time_t *t)
+time_t __vsyscall(1) vtime(time_t *t)
 {
 	if (unlikely(!__sysctl_vsyscall))
 		return time_syscall(t);
@@ -129,12 +127,12 @@ static time_t __vsyscall(1) vtime(time_t *t)
 	return __xtime.tv_sec;
 }
 
-static long __vsyscall(2) venosys_0(void)
+long __vsyscall(2) venosys_0(void)
 {
 	return -ENOSYS;
 }
 
-static long __vsyscall(3) venosys_1(void)
+long __vsyscall(3) venosys_1(void)
 {
 	return -ENOSYS;
 }

@@ -51,7 +51,7 @@
  */
 
 
-#if RCS
+#ifdef RCS
 static const char *mcdx_c_version
     = "$Id$";
 #endif
@@ -706,7 +706,7 @@ static int mcdx_open(struct cdrom_device_info *cdi, int purpose)
 		xtrace(OPENCLOSE, "open() init irq generation\n");
 		if (-1 == mcdx_config(stuffp, 1))
 			return -EIO;
-#if FALLBACK
+#ifdef FALLBACK
 		/* Set the read speed */
 		xwarn("AAA %x AAA\n", stuffp->readcmd);
 		if (stuffp->readerrs)
@@ -1085,7 +1085,7 @@ static int __init mcdx_init_drive(int drive)
 
 	xtrace(INIT, "kmalloc space for stuffpt's\n");
 	xtrace(MALLOC, "init() malloc %d bytes\n", size);
-	if (!(stuffp = kmalloc(size, GFP_KERNEL))) {
+	if (!(stuffp = kzalloc(size, GFP_KERNEL))) {
 		xwarn("init() malloc failed\n");
 		return 1;
 	}
@@ -1101,8 +1101,6 @@ static int __init mcdx_init_drive(int drive)
 	       sizeof(*stuffp), stuffp);
 
 	/* set default values */
-	memset(stuffp, 0, sizeof(*stuffp));
-
 	stuffp->present = 0;	/* this should be 0 already */
 	stuffp->toc = NULL;	/* this should be NULL already */
 
@@ -1216,7 +1214,7 @@ static int __init mcdx_init_drive(int drive)
 	}
 
 
-#if WE_KNOW_WHY
+#ifdef WE_KNOW_WHY
 	/* irq 11 -> channel register */
 	outb(0x50, stuffp->wreg_chn);
 #endif
@@ -1294,7 +1292,7 @@ static int mcdx_transfer(struct s_drive_stuff *stuffp,
 
 	ans = mcdx_xfer(stuffp, p, sector, nr_sectors);
 	return ans;
-#if FALLBACK
+#ifdef FALLBACK
 	if (-1 == ans)
 		stuffp->readerrs++;
 	else

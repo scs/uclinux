@@ -3,8 +3,9 @@
  */
 
 #include <asm/ia32_unistd.h>
-#include <asm/offset.h>
+#include <asm/asm-offsets.h>
 
+	.code32
 	.text
 	.section .text.vsyscall,"ax"
 	.globl __kernel_vsyscall

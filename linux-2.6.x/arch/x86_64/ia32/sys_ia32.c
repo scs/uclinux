@@ -61,6 +61,7 @@
 #include <linux/ptrace.h>
 #include <linux/highuid.h>
 #include <linux/vmalloc.h>
+#include <linux/fsnotify.h>
 #include <asm/mman.h>
 #include <asm/types.h>
 #include <asm/uaccess.h>
@@ -177,6 +178,28 @@ sys32_fstat64(unsigned int fd, struct stat64 __user *statbuf)
 	if (!ret)
 		ret = cp_stat64(statbuf, &stat);
 	return ret;
+}
+
+asmlinkage long
+sys32_fstatat(unsigned int dfd, char __user *filename,
+	      struct stat64 __user* statbuf, int flag)
+{
+	struct kstat stat;
+	int error = -EINVAL;
+
+	if ((flag & ~AT_SYMLINK_NOFOLLOW) != 0)
+		goto out;
+
+	if (flag & AT_SYMLINK_NOFOLLOW)
+		error = vfs_lstat_fd(dfd, filename, &stat);
+	else
+		error = vfs_stat_fd(dfd, filename, &stat);
+
+	if (!error)
+		error = cp_stat64(statbuf, &stat);
+
+out:
+	return error;
 }
 
 /*
@@ -750,7 +773,7 @@ sys32_sendfile(int out_fd, int in_fd, compat_off_t __user *offset, s32 count)
 	ret = sys_sendfile(out_fd, in_fd, offset ? &of : NULL, count);
 	set_fs(old_fs);
 	
-	if (!ret && offset && put_user(of, offset))
+	if (offset && put_user(of, offset))
 		return -EFAULT;
 		
 	return ret;
@@ -968,49 +991,6 @@ long sys32_kill(int pid, int sig)
 	return sys_kill(pid, sig);
 }
  
-asmlinkage long sys32_open(const char __user * filename, int flags, int mode)
-{
-	char * tmp;
-	int fd, error;
-
-	/* don't force O_LARGEFILE */
-	tmp = getname(filename);
-	fd = PTR_ERR(tmp);
-	if (!IS_ERR(tmp)) {
-		fd = get_unused_fd();
-		if (fd >= 0) {
-			struct file *f = filp_open(tmp, flags, mode);
-			error = PTR_ERR(f);
-			if (IS_ERR(f)) {
-				put_unused_fd(fd); 
-				fd = error;
-			} else
-				fd_install(fd, f);
-		}
-		putname(tmp);
-	}
-	return fd;
-}
-
-extern asmlinkage long
-sys_timer_create(clockid_t which_clock,
-		 struct sigevent __user *timer_event_spec,
-		 timer_t __user * created_timer_id);
-
-long
-sys32_timer_create(u32 clock, struct compat_sigevent __user *se32, timer_t __user *timer_id)
-{
-	struct sigevent __user *p = NULL;
-	if (se32) { 
-		struct sigevent se;
-		p = compat_alloc_user_space(sizeof(struct sigevent));
-		if (get_compat_sigevent(&se, se32) ||
-		    copy_to_user(p, &se, sizeof(se)))
-			return -EFAULT;
-	} 
-	return sys_timer_create(clock, p, timer_id);
-} 
-
 long sys32_fadvise64_64(int fd, __u32 offset_low, __u32 offset_high, 
 			__u32 len_low, __u32 len_high, int advice)
 { 

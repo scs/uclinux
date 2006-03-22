@@ -13,20 +13,19 @@
 #include "asm/ptrace.h"
 #include "asm/tlbflush.h"
 #include "irq_user.h"
-#include "signal_user.h"
 #include "kern_util.h"
 #include "user_util.h"
 #include "os.h"
 #include "kern.h"
 #include "sigcontext.h"
-#include "time_user.h"
 #include "mem_user.h"
 #include "tlb.h"
 #include "mode.h"
+#include "mode_kern.h"
 #include "init.h"
 #include "tt.h"
 
-void *switch_to_tt(void *prev, void *next, void *last)
+void switch_to_tt(void *prev, void *next)
 {
 	struct task_struct *from, *to, *prev_sched;
 	unsigned long flags;
@@ -36,9 +35,7 @@ void *switch_to_tt(void *prev, void *next, void *last)
 	from = prev;
 	to = next;
 
-	to->thread.prev_sched = from;
-
-	cpu = from->thread_info->cpu;
+	cpu = task_thread_info(from)->cpu;
 	if(cpu == 0)
 		forward_interrupts(to->thread.mode.tt.extern_pid);
 #ifdef CONFIG_SMP
@@ -53,7 +50,6 @@ void *switch_to_tt(void *prev, void *next, void *last)
 	forward_pending_sigio(to->thread.mode.tt.extern_pid);
 
 	c = 0;
-	set_current(to);
 
 	err = os_write_file(to->thread.mode.tt.switch_pipe[1], &c, sizeof(c));
 	if(err != sizeof(c))
@@ -85,8 +81,6 @@ void *switch_to_tt(void *prev, void *next, void *last)
 
 	flush_tlb_all();
 	local_irq_restore(flags);
-
-	return(current->thread.prev_sched);
 }
 
 void release_thread_tt(struct task_struct *task)
@@ -258,7 +252,7 @@ int copy_thread_tt(int nr, unsigned long clone_flags, unsigned long sp,
 
 	clone_flags &= CLONE_VM;
 	p->thread.temp_stack = stack;
-	new_pid = start_fork_tramp(p->thread_info, stack, clone_flags, tramp);
+	new_pid = start_fork_tramp(task_stack_page(p), stack, clone_flags, tramp);
 	if(new_pid < 0){
 		printk(KERN_ERR "copy_thread : clone failed - errno = %d\n", 
 		       -new_pid);
@@ -266,10 +260,10 @@ int copy_thread_tt(int nr, unsigned long clone_flags, unsigned long sp,
 	}
 
 	if(current->thread.forking){
-		sc_to_sc(UPT_SC(&p->thread.regs.regs), 
-			 UPT_SC(&current->thread.regs.regs));
+		sc_to_sc(UPT_SC(&p->thread.regs.regs), UPT_SC(&regs->regs));
 		SC_SET_SYSCALL_RETURN(UPT_SC(&p->thread.regs.regs), 0);
-		if(sp != 0) SC_SP(UPT_SC(&p->thread.regs.regs)) = sp;
+		if(sp != 0)
+			SC_SP(UPT_SC(&p->thread.regs.regs)) = sp;
 	}
 	p->thread.mode.tt.extern_pid = new_pid;
 
@@ -348,7 +342,7 @@ int do_proc_op(void *t, int proc_id)
 		pid = thread->request.u.exec.pid;
 		do_exec(thread->mode.tt.extern_pid, pid);
 		thread->mode.tt.extern_pid = pid;
-		cpu_tasks[task->thread_info->cpu].pid = pid;
+		cpu_tasks[task_thread_info(task)->cpu].pid = pid;
 		break;
 	case OP_FORK:
 		attach_process(thread->request.u.fork.pid);
@@ -430,7 +424,7 @@ int start_uml_tt(void)
 	int pages;
 
 	pages = (1 << CONFIG_KERNEL_STACK_ORDER);
-	sp = (void *) ((unsigned long) init_task.thread_info) +
+	sp = task_stack_page(&init_task) +
 		pages * PAGE_SIZE - sizeof(unsigned long);
 	return(tracer(start_kernel_proc, sp));
 }
@@ -459,14 +453,3 @@ int is_valid_pid(int pid)
 	read_unlock(&tasklist_lock);
 	return(0);
 }
-
-/*
- * Overrides for Emacs so that we follow Linus's tabbing style.
- * Emacs will notice this stuff at the end of the file and automatically
- * adjust the settings for this buffer only.  This must remain at the end
- * of the file.
- * ---------------------------------------------------------------------------
- * Local variables:
- * c-file-style: "linux"
- * End:
- */

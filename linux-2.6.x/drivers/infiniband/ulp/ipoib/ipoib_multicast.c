@@ -1,5 +1,7 @@
 /*
  * Copyright (c) 2004, 2005 Topspin Communications.  All rights reserved.
+ * Copyright (c) 2005 Sun Microsystems, Inc. All rights reserved.
+ * Copyright (c) 2004 Voltaire, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -41,6 +43,8 @@
 #include <linux/delay.h>
 #include <linux/completion.h>
 
+#include <net/dst.h>
+
 #include "ipoib.h"
 
 #ifdef CONFIG_INFINIBAND_IPOIB_DEBUG
@@ -51,7 +55,7 @@ MODULE_PARM_DESC(mcast_debug_level,
 		 "Enable multicast debug tracing if > 0");
 #endif
 
-static DECLARE_MUTEX(mcast_mutex);
+static DEFINE_MUTEX(mcast_mutex);
 
 /* Used for all multicast joins (broadcast, IPv4 mcast and IPv6 mcast) */
 struct ipoib_mcast {
@@ -93,8 +97,7 @@ static void ipoib_mcast_free(struct ipoib_mcast *mcast)
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 	struct ipoib_neigh *neigh, *tmp;
 	unsigned long flags;
-	LIST_HEAD(ah_list);
-	struct ipoib_ah *ah, *tah;
+	int tx_dropped = 0;
 
 	ipoib_dbg_mcast(netdev_priv(dev),
 			"deleting multicast group " IPOIB_GID_FMT "\n",
@@ -103,8 +106,14 @@ static void ipoib_mcast_free(struct ipoib_mcast *mcast)
 	spin_lock_irqsave(&priv->lock, flags);
 
 	list_for_each_entry_safe(neigh, tmp, &mcast->neigh_list, list) {
+		/*
+		 * It's safe to call ipoib_put_ah() inside priv->lock
+		 * here, because we know that mcast->ah will always
+		 * hold one more reference, so ipoib_put_ah() will
+		 * never do more than decrement the ref count.
+		 */
 		if (neigh->ah)
-			list_add_tail(&neigh->ah->list, &ah_list);
+			ipoib_put_ah(neigh->ah);
 		*to_ipoib_neigh(neigh->neighbour) = NULL;
 		neigh->neighbour->ops->destructor = NULL;
 		kfree(neigh);
@@ -112,18 +121,17 @@ static void ipoib_mcast_free(struct ipoib_mcast *mcast)
 
 	spin_unlock_irqrestore(&priv->lock, flags);
 
-	list_for_each_entry_safe(ah, tah, &ah_list, list)
-		ipoib_put_ah(ah);
-
 	if (mcast->ah)
 		ipoib_put_ah(mcast->ah);
 
 	while (!skb_queue_empty(&mcast->pkt_queue)) {
-		struct sk_buff *skb = skb_dequeue(&mcast->pkt_queue);
-
-		skb->dev = dev;
-		dev_kfree_skb_any(skb);
+		++tx_dropped;
+		dev_kfree_skb_any(skb_dequeue(&mcast->pkt_queue));
 	}
+
+	spin_lock_irqsave(&priv->tx_lock, flags);
+	priv->stats.tx_dropped += tx_dropped;
+	spin_unlock_irqrestore(&priv->tx_lock, flags);
 
 	kfree(mcast);
 }
@@ -133,25 +141,17 @@ static struct ipoib_mcast *ipoib_mcast_alloc(struct net_device *dev,
 {
 	struct ipoib_mcast *mcast;
 
-	mcast = kmalloc(sizeof (*mcast), can_sleep ? GFP_KERNEL : GFP_ATOMIC);
+	mcast = kzalloc(sizeof *mcast, can_sleep ? GFP_KERNEL : GFP_ATOMIC);
 	if (!mcast)
 		return NULL;
 
-	memset(mcast, 0, sizeof (*mcast));
-
-	init_completion(&mcast->done);
-
 	mcast->dev = dev;
 	mcast->created = jiffies;
-	mcast->backoff = HZ;
-	mcast->logcount = 0;
+	mcast->backoff = 1;
 
 	INIT_LIST_HEAD(&mcast->list);
 	INIT_LIST_HEAD(&mcast->neigh_list);
 	skb_queue_head_init(&mcast->pkt_queue);
-
-	mcast->ah    = NULL;
-	mcast->query = NULL;
 
 	return mcast;
 }
@@ -283,8 +283,10 @@ static int ipoib_mcast_join_finish(struct ipoib_mcast *mcast,
 	}
 
 	/* actually send any queued packets */
+	spin_lock_irq(&priv->tx_lock);
 	while (!skb_queue_empty(&mcast->pkt_queue)) {
 		struct sk_buff *skb = skb_dequeue(&mcast->pkt_queue);
+		spin_unlock_irq(&priv->tx_lock);
 
 		skb->dev = dev;
 
@@ -295,7 +297,9 @@ static int ipoib_mcast_join_finish(struct ipoib_mcast *mcast,
 
 		if (dev_queue_xmit(skb))
 			ipoib_warn(priv, "dev_queue_xmit failed to requeue packet\n");
+		spin_lock_irq(&priv->tx_lock);
 	}
+	spin_unlock_irq(&priv->tx_lock);
 
 	return 0;
 }
@@ -307,6 +311,7 @@ ipoib_mcast_sendonly_join_complete(int status,
 {
 	struct ipoib_mcast *mcast = mcast_ptr;
 	struct net_device *dev = mcast->dev;
+	struct ipoib_dev_priv *priv = netdev_priv(dev);
 
 	if (!status)
 		ipoib_mcast_join_finish(mcast, mcmember);
@@ -317,13 +322,12 @@ ipoib_mcast_sendonly_join_complete(int status,
 					IPOIB_GID_ARG(mcast->mcmember.mgid), status);
 
 		/* Flush out any queued packets */
+		spin_lock_irq(&priv->tx_lock);
 		while (!skb_queue_empty(&mcast->pkt_queue)) {
-			struct sk_buff *skb = skb_dequeue(&mcast->pkt_queue);
-
-			skb->dev = dev;
-
-			dev_kfree_skb_any(skb);
+			++priv->stats.tx_dropped;
+			dev_kfree_skb_any(skb_dequeue(&mcast->pkt_queue));
 		}
+		spin_unlock_irq(&priv->tx_lock);
 
 		/* Clear the busy flag so we try again */
 		clear_bit(IPOIB_MCAST_FLAG_BUSY, &mcast->flags);
@@ -357,7 +361,9 @@ static int ipoib_mcast_sendonly_join(struct ipoib_mcast *mcast)
 
 	rec.mgid     = mcast->mcmember.mgid;
 	rec.port_gid = priv->local_gid;
-	rec.pkey     = be16_to_cpu(priv->pkey);
+	rec.pkey     = cpu_to_be16(priv->pkey);
+
+	init_completion(&mcast->done);
 
 	ret = ib_sa_mcmember_rec_set(priv->ca, priv->port, &rec,
 				     IB_SA_MCMEMBER_REC_MGID		|
@@ -394,11 +400,11 @@ static void ipoib_mcast_join_complete(int status,
 			IPOIB_GID_ARG(mcast->mcmember.mgid), status);
 
 	if (!status && !ipoib_mcast_join_finish(mcast, mcmember)) {
-		mcast->backoff = HZ;
-		down(&mcast_mutex);
+		mcast->backoff = 1;
+		mutex_lock(&mcast_mutex);
 		if (test_bit(IPOIB_MCAST_RUN, &priv->flags))
 			queue_work(ipoib_workqueue, &priv->mcast_task);
-		up(&mcast_mutex);
+		mutex_unlock(&mcast_mutex);
 		complete(&mcast->done);
 		return;
 	}
@@ -428,7 +434,7 @@ static void ipoib_mcast_join_complete(int status,
 
 	mcast->query = NULL;
 
-	down(&mcast_mutex);
+	mutex_lock(&mcast_mutex);
 	if (test_bit(IPOIB_MCAST_RUN, &priv->flags)) {
 		if (status == -ETIMEDOUT)
 			queue_work(ipoib_workqueue, &priv->mcast_task);
@@ -437,7 +443,7 @@ static void ipoib_mcast_join_complete(int status,
 					   mcast->backoff * HZ);
 	} else
 		complete(&mcast->done);
-	up(&mcast_mutex);
+	mutex_unlock(&mcast_mutex);
 
 	return;
 }
@@ -457,7 +463,7 @@ static void ipoib_mcast_join(struct net_device *dev, struct ipoib_mcast *mcast,
 
 	rec.mgid     = mcast->mcmember.mgid;
 	rec.port_gid = priv->local_gid;
-	rec.pkey     = be16_to_cpu(priv->pkey);
+	rec.pkey     = cpu_to_be16(priv->pkey);
 
 	comp_mask =
 		IB_SA_MCMEMBER_REC_MGID		|
@@ -478,6 +484,8 @@ static void ipoib_mcast_join(struct net_device *dev, struct ipoib_mcast *mcast,
 		rec.traffic_class = priv->broadcast->mcmember.traffic_class;
 	}
 
+	init_completion(&mcast->done);
+
 	ret = ib_sa_mcmember_rec_set(priv->ca, priv->port, &rec, comp_mask,
 				     mcast->backoff * 1000, GFP_ATOMIC,
 				     ipoib_mcast_join_complete,
@@ -490,12 +498,12 @@ static void ipoib_mcast_join(struct net_device *dev, struct ipoib_mcast *mcast,
 		if (mcast->backoff > IPOIB_MAX_BACKOFF_SECONDS)
 			mcast->backoff = IPOIB_MAX_BACKOFF_SECONDS;
 
-		down(&mcast_mutex);
+		mutex_lock(&mcast_mutex);
 		if (test_bit(IPOIB_MCAST_RUN, &priv->flags))
 			queue_delayed_work(ipoib_workqueue,
 					   &priv->mcast_task,
-					   mcast->backoff);
-		up(&mcast_mutex);
+					   mcast->backoff * HZ);
+		mutex_unlock(&mcast_mutex);
 	} else
 		mcast->query_id = ret;
 }
@@ -525,21 +533,24 @@ void ipoib_mcast_join_task(void *dev_ptr)
 	}
 
 	if (!priv->broadcast) {
-		priv->broadcast = ipoib_mcast_alloc(dev, 1);
-		if (!priv->broadcast) {
+		struct ipoib_mcast *broadcast;
+
+		broadcast = ipoib_mcast_alloc(dev, 1);
+		if (!broadcast) {
 			ipoib_warn(priv, "failed to allocate broadcast group\n");
-			down(&mcast_mutex);
+			mutex_lock(&mcast_mutex);
 			if (test_bit(IPOIB_MCAST_RUN, &priv->flags))
 				queue_delayed_work(ipoib_workqueue,
 						   &priv->mcast_task, HZ);
-			up(&mcast_mutex);
+			mutex_unlock(&mcast_mutex);
 			return;
 		}
 
-		memcpy(priv->broadcast->mcmember.mgid.raw, priv->dev->broadcast + 4,
-		       sizeof (union ib_gid));
-
 		spin_lock_irq(&priv->lock);
+		memcpy(broadcast->mcmember.mgid.raw, priv->dev->broadcast + 4,
+		       sizeof (union ib_gid));
+		priv->broadcast = broadcast;
+
 		__ipoib_mcast_add(dev, priv->broadcast);
 		spin_unlock_irq(&priv->lock);
 	}
@@ -588,27 +599,36 @@ int ipoib_mcast_start_thread(struct net_device *dev)
 
 	ipoib_dbg_mcast(priv, "starting multicast thread\n");
 
-	down(&mcast_mutex);
+	mutex_lock(&mcast_mutex);
 	if (!test_and_set_bit(IPOIB_MCAST_RUN, &priv->flags))
 		queue_work(ipoib_workqueue, &priv->mcast_task);
-	up(&mcast_mutex);
+	mutex_unlock(&mcast_mutex);
+
+	spin_lock_irq(&priv->lock);
+	set_bit(IPOIB_MCAST_STARTED, &priv->flags);
+	spin_unlock_irq(&priv->lock);
 
 	return 0;
 }
 
-int ipoib_mcast_stop_thread(struct net_device *dev)
+int ipoib_mcast_stop_thread(struct net_device *dev, int flush)
 {
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 	struct ipoib_mcast *mcast;
 
 	ipoib_dbg_mcast(priv, "stopping multicast thread\n");
 
-	down(&mcast_mutex);
+	spin_lock_irq(&priv->lock);
+	clear_bit(IPOIB_MCAST_STARTED, &priv->flags);
+	spin_unlock_irq(&priv->lock);
+
+	mutex_lock(&mcast_mutex);
 	clear_bit(IPOIB_MCAST_RUN, &priv->flags);
 	cancel_delayed_work(&priv->mcast_task);
-	up(&mcast_mutex);
+	mutex_unlock(&mcast_mutex);
 
-	flush_workqueue(ipoib_workqueue);
+	if (flush)
+		flush_workqueue(ipoib_workqueue);
 
 	if (priv->broadcast && priv->broadcast->query) {
 		ib_sa_cancel_query(priv->broadcast->query_id, priv->broadcast->query);
@@ -646,7 +666,7 @@ static int ipoib_mcast_leave(struct net_device *dev, struct ipoib_mcast *mcast)
 
 	rec.mgid     = mcast->mcmember.mgid;
 	rec.port_gid = priv->local_gid;
-	rec.pkey     = be16_to_cpu(priv->pkey);
+	rec.pkey     = cpu_to_be16(priv->pkey);
 
 	/* Remove ourselves from the multicast group */
 	ret = ipoib_mcast_detach(dev, be16_to_cpu(mcast->mcmember.mlid),
@@ -684,6 +704,14 @@ void ipoib_mcast_send(struct net_device *dev, union ib_gid *mgid,
 	 */
 	spin_lock(&priv->lock);
 
+	if (!test_bit(IPOIB_MCAST_STARTED, &priv->flags)	||
+	    !priv->broadcast					||
+	    !test_bit(IPOIB_MCAST_FLAG_ATTACHED, &priv->broadcast->flags)) {
+		++priv->stats.tx_dropped;
+		dev_kfree_skb_any(skb);
+		goto unlock;
+	}
+
 	mcast = __ipoib_mcast_find(dev, mgid);
 	if (!mcast) {
 		/* Let's create a new send only group now */
@@ -694,6 +722,7 @@ void ipoib_mcast_send(struct net_device *dev, union ib_gid *mgid,
 		if (!mcast) {
 			ipoib_warn(priv, "unable to allocate memory for "
 				   "multicast structure\n");
+			++priv->stats.tx_dropped;
 			dev_kfree_skb_any(skb);
 			goto out;
 		}
@@ -707,8 +736,10 @@ void ipoib_mcast_send(struct net_device *dev, union ib_gid *mgid,
 	if (!mcast->ah) {
 		if (skb_queue_len(&mcast->pkt_queue) < IPOIB_MAX_MCAST_QUEUE)
 			skb_queue_tail(&mcast->pkt_queue, skb);
-		else
+		else {
+			++priv->stats.tx_dropped;
 			dev_kfree_skb_any(skb);
+		}
 
 		if (mcast->query)
 			ipoib_dbg_mcast(priv, "no address vector, "
@@ -742,6 +773,7 @@ out:
 		ipoib_send(dev, skb, mcast->ah, IB_MULTICAST_QPN);
 	}
 
+unlock:
 	spin_unlock(&priv->lock);
 }
 
@@ -749,48 +781,23 @@ void ipoib_mcast_dev_flush(struct net_device *dev)
 {
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 	LIST_HEAD(remove_list);
-	struct ipoib_mcast *mcast, *tmcast, *nmcast;
+	struct ipoib_mcast *mcast, *tmcast;
 	unsigned long flags;
 
 	ipoib_dbg_mcast(priv, "flushing multicast list\n");
 
 	spin_lock_irqsave(&priv->lock, flags);
+
 	list_for_each_entry_safe(mcast, tmcast, &priv->multicast_list, list) {
-		nmcast = ipoib_mcast_alloc(dev, 0);
-		if (nmcast) {
-			nmcast->flags =
-				mcast->flags & (1 << IPOIB_MCAST_FLAG_SENDONLY);
-
-			nmcast->mcmember.mgid = mcast->mcmember.mgid;
-
-			/* Add the new group in before the to-be-destroyed group */
-			list_add_tail(&nmcast->list, &mcast->list);
-			list_del_init(&mcast->list);
-
-			rb_replace_node(&mcast->rb_node, &nmcast->rb_node,
-					&priv->multicast_tree);
-
-			list_add_tail(&mcast->list, &remove_list);
-		} else {
-			ipoib_warn(priv, "could not reallocate multicast group "
-				   IPOIB_GID_FMT "\n",
-				   IPOIB_GID_ARG(mcast->mcmember.mgid));
-		}
+		list_del(&mcast->list);
+		rb_erase(&mcast->rb_node, &priv->multicast_tree);
+		list_add_tail(&mcast->list, &remove_list);
 	}
 
 	if (priv->broadcast) {
-		nmcast = ipoib_mcast_alloc(dev, 0);
-		if (nmcast) {
-			nmcast->mcmember.mgid = priv->broadcast->mcmember.mgid;
-
-			rb_replace_node(&priv->broadcast->rb_node,
-					&nmcast->rb_node,
-					&priv->multicast_tree);
-
-			list_add_tail(&priv->broadcast->list, &remove_list);
-		}
-
-		priv->broadcast = nmcast;
+ 		rb_erase(&priv->broadcast->rb_node, &priv->multicast_tree);
+		list_add_tail(&priv->broadcast->list, &remove_list);
+		priv->broadcast = NULL;
 	}
 
 	spin_unlock_irqrestore(&priv->lock, flags);
@@ -798,24 +805,6 @@ void ipoib_mcast_dev_flush(struct net_device *dev)
 	list_for_each_entry_safe(mcast, tmcast, &remove_list, list) {
 		ipoib_mcast_leave(dev, mcast);
 		ipoib_mcast_free(mcast);
-	}
-}
-
-void ipoib_mcast_dev_down(struct net_device *dev)
-{
-	struct ipoib_dev_priv *priv = netdev_priv(dev);
-	unsigned long flags;
-
-	/* Delete broadcast since it will be recreated */
-	if (priv->broadcast) {
-		ipoib_dbg_mcast(priv, "deleting broadcast group\n");
-
-		spin_lock_irqsave(&priv->lock, flags);
-		rb_erase(&priv->broadcast->rb_node, &priv->multicast_tree);
-		spin_unlock_irqrestore(&priv->lock, flags);
-		ipoib_mcast_leave(dev, priv->broadcast);
-		ipoib_mcast_free(priv->broadcast);
-		priv->broadcast = NULL;
 	}
 }
 
@@ -830,9 +819,10 @@ void ipoib_mcast_restart_task(void *dev_ptr)
 
 	ipoib_dbg_mcast(priv, "restarting multicast task\n");
 
-	ipoib_mcast_stop_thread(dev);
+	ipoib_mcast_stop_thread(dev, 0);
 
-	spin_lock_irqsave(&priv->lock, flags);
+	spin_lock_irqsave(&dev->xmit_lock, flags);
+	spin_lock(&priv->lock);
 
 	/*
 	 * Unfortunately, the networking core only gives us a list of all of
@@ -904,7 +894,9 @@ void ipoib_mcast_restart_task(void *dev_ptr)
 			list_add_tail(&mcast->list, &remove_list);
 		}
 	}
-	spin_unlock_irqrestore(&priv->lock, flags);
+
+	spin_unlock(&priv->lock);
+	spin_unlock_irqrestore(&dev->xmit_lock, flags);
 
 	/* We have to cancel outside of the spinlock */
 	list_for_each_entry_safe(mcast, tmcast, &remove_list, list) {
@@ -916,6 +908,8 @@ void ipoib_mcast_restart_task(void *dev_ptr)
 		ipoib_mcast_start_thread(dev);
 }
 
+#ifdef CONFIG_INFINIBAND_IPOIB_DEBUG
+
 struct ipoib_mcast_iter *ipoib_mcast_iter_init(struct net_device *dev)
 {
 	struct ipoib_mcast_iter *iter;
@@ -925,19 +919,14 @@ struct ipoib_mcast_iter *ipoib_mcast_iter_init(struct net_device *dev)
 		return NULL;
 
 	iter->dev = dev;
-	memset(iter->mgid.raw, 0, sizeof iter->mgid);
+	memset(iter->mgid.raw, 0, 16);
 
 	if (ipoib_mcast_iter_next(iter)) {
-		ipoib_mcast_iter_free(iter);
+		kfree(iter);
 		return NULL;
 	}
 
 	return iter;
-}
-
-void ipoib_mcast_iter_free(struct ipoib_mcast_iter *iter)
-{
-	kfree(iter);
 }
 
 int ipoib_mcast_iter_next(struct ipoib_mcast_iter *iter)
@@ -988,3 +977,5 @@ void ipoib_mcast_iter_read(struct ipoib_mcast_iter *iter,
 	*complete  = iter->complete;
 	*send_only = iter->send_only;
 }
+
+#endif /* CONFIG_INFINIBAND_IPOIB_DEBUG */

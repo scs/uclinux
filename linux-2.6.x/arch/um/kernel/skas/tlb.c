@@ -6,6 +6,7 @@
 
 #include "linux/stddef.h"
 #include "linux/sched.h"
+#include "linux/config.h"
 #include "linux/mm.h"
 #include "asm/page.h"
 #include "asm/pgtable.h"
@@ -17,41 +18,50 @@
 #include "os.h"
 #include "tlb.h"
 
-static void do_ops(int fd, struct host_vm_op *ops, int last)
+static int do_ops(union mm_context *mmu, struct host_vm_op *ops, int last,
+		  int finished, void **flush)
 {
 	struct host_vm_op *op;
-	int i;
+        int i, ret = 0;
 
-	for(i = 0; i <= last; i++){
+        for(i = 0; i <= last && !ret; i++){
 		op = &ops[i];
 		switch(op->type){
 		case MMAP:
-			map(fd, op->u.mmap.addr, op->u.mmap.len,
-			    op->u.mmap.r, op->u.mmap.w, op->u.mmap.x,
-			    op->u.mmap.fd, op->u.mmap.offset);
+			ret = map(&mmu->skas.id, op->u.mmap.addr,
+				  op->u.mmap.len, op->u.mmap.r, op->u.mmap.w,
+				  op->u.mmap.x, op->u.mmap.fd,
+				  op->u.mmap.offset, finished, flush);
 			break;
 		case MUNMAP:
-			unmap(fd, (void *) op->u.munmap.addr,
-			      op->u.munmap.len);
+			ret = unmap(&mmu->skas.id,
+				    (void *) op->u.munmap.addr,
+				    op->u.munmap.len, finished, flush);
 			break;
 		case MPROTECT:
-			protect(fd, op->u.mprotect.addr, op->u.mprotect.len,
-				op->u.mprotect.r, op->u.mprotect.w,
-				op->u.mprotect.x);
+			ret = protect(&mmu->skas.id, op->u.mprotect.addr,
+				      op->u.mprotect.len, op->u.mprotect.r,
+				      op->u.mprotect.w, op->u.mprotect.x,
+				      finished, flush);
 			break;
 		default:
 			printk("Unknown op type %d in do_ops\n", op->type);
 			break;
 		}
 	}
+
+	return ret;
 }
+
+extern int proc_mm;
 
 static void fix_range(struct mm_struct *mm, unsigned long start_addr,
 		      unsigned long end_addr, int force)
 {
-        int fd = mm->context.skas.mm_fd;
+        if(!proc_mm && (end_addr > CONFIG_STUB_START))
+                end_addr = CONFIG_STUB_START;
 
-        fix_range_common(mm, start_addr, end_addr, force, fd, do_ops);
+        fix_range_common(mm, start_addr, end_addr, force, do_ops);
 }
 
 void __flush_tlb_one_skas(unsigned long addr)
@@ -69,17 +79,20 @@ void flush_tlb_range_skas(struct vm_area_struct *vma, unsigned long start,
 
 void flush_tlb_mm_skas(struct mm_struct *mm)
 {
+	unsigned long end;
+
 	/* Don't bother flushing if this address space is about to be
          * destroyed.
          */
         if(atomic_read(&mm->mm_users) == 0)
                 return;
 
-        fix_range(mm, 0, host_task_size, 0);
-        flush_tlb_kernel_range_common(start_vm, end_vm);
+	end = proc_mm ? task_size : CONFIG_STUB_START;
+        fix_range(mm, 0, end, 0);
 }
 
 void force_flush_all_skas(void)
 {
-        fix_range(current->mm, 0, host_task_size, 1);
+	unsigned long end = proc_mm ? task_size : CONFIG_STUB_START;
+        fix_range(current->mm, 0, end, 1);
 }

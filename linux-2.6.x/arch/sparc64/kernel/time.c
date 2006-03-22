@@ -55,25 +55,10 @@ unsigned long ds1287_regs = 0UL;
 
 extern unsigned long wall_jiffies;
 
-u64 jiffies_64 = INITIAL_JIFFIES;
-
-EXPORT_SYMBOL(jiffies_64);
-
 static void __iomem *mstk48t08_regs;
 static void __iomem *mstk48t59_regs;
 
 static int set_rtc_mmss(unsigned long);
-
-static __init unsigned long dummy_get_tick(void)
-{
-	return 0;
-}
-
-static __initdata struct sparc64_tick_ops dummy_tick_ops = {
-	.get_tick	= dummy_get_tick,
-};
-
-struct sparc64_tick_ops *tick_ops = &dummy_tick_ops;
 
 #define TICK_PRIV_BIT	(1UL << 63)
 
@@ -195,7 +180,7 @@ static unsigned long tick_add_tick(unsigned long adj, unsigned long offset)
 	return new_tick;
 }
 
-static struct sparc64_tick_ops tick_operations = {
+static struct sparc64_tick_ops tick_operations __read_mostly = {
 	.init_tick	=	tick_init_tick,
 	.get_tick	=	tick_get_tick,
 	.get_compare	=	tick_get_compare,
@@ -203,6 +188,8 @@ static struct sparc64_tick_ops tick_operations = {
 	.add_compare	=	tick_add_compare,
 	.softint_mask	=	1UL << 0,
 };
+
+struct sparc64_tick_ops *tick_ops __read_mostly = &tick_operations;
 
 static void stick_init_tick(unsigned long offset)
 {
@@ -276,7 +263,7 @@ static unsigned long stick_add_compare(unsigned long adj)
 	return new_compare;
 }
 
-static struct sparc64_tick_ops stick_operations = {
+static struct sparc64_tick_ops stick_operations __read_mostly = {
 	.init_tick	=	stick_init_tick,
 	.get_tick	=	stick_get_tick,
 	.get_compare	=	stick_get_compare,
@@ -293,9 +280,9 @@ static struct sparc64_tick_ops stick_operations = {
  * Since STICK is constantly updating, we have to access it carefully.
  *
  * The sequence we use to read is:
- * 1) read low
- * 2) read high
- * 3) read low again, if it rolled over increment high by 1
+ * 1) read high
+ * 2) read low
+ * 3) read high again, if it rolled re-read both low and high again.
  *
  * Writing STICK safely is also tricky:
  * 1) write low to zero
@@ -308,18 +295,18 @@ static struct sparc64_tick_ops stick_operations = {
 static unsigned long __hbird_read_stick(void)
 {
 	unsigned long ret, tmp1, tmp2, tmp3;
-	unsigned long addr = HBIRD_STICK_ADDR;
+	unsigned long addr = HBIRD_STICK_ADDR+8;
 
-	__asm__ __volatile__("ldxa	[%1] %5, %2\n\t"
-			     "add	%1, 0x8, %1\n\t"
-			     "ldxa	[%1] %5, %3\n\t"
+	__asm__ __volatile__("ldxa	[%1] %5, %2\n"
+			     "1:\n\t"
 			     "sub	%1, 0x8, %1\n\t"
+			     "ldxa	[%1] %5, %3\n\t"
+			     "add	%1, 0x8, %1\n\t"
 			     "ldxa	[%1] %5, %4\n\t"
 			     "cmp	%4, %2\n\t"
-			     "blu,a,pn	%%xcc, 1f\n\t"
-			     " add	%3, 1, %3\n"
-			     "1:\n\t"
-			     "sllx	%3, 32, %3\n\t"
+			     "bne,a,pn	%%xcc, 1b\n\t"
+			     " mov	%4, %2\n\t"
+			     "sllx	%4, 32, %4\n\t"
 			     "or	%3, %4, %0\n\t"
 			     : "=&r" (ret), "=&r" (addr),
 			       "=&r" (tmp1), "=&r" (tmp2), "=&r" (tmp3)
@@ -422,7 +409,7 @@ static unsigned long hbtick_add_compare(unsigned long adj)
 	return val;
 }
 
-static struct sparc64_tick_ops hbtick_operations = {
+static struct sparc64_tick_ops hbtick_operations __read_mostly = {
 	.init_tick	=	hbtick_init_tick,
 	.get_tick	=	hbtick_get_tick,
 	.get_compare	=	hbtick_get_compare,
@@ -437,10 +424,9 @@ static struct sparc64_tick_ops hbtick_operations = {
  * NOTE: On SUN5 systems the ticker interrupt comes in using 2
  *       interrupts, one at level14 and one with softint bit 0.
  */
-unsigned long timer_tick_offset;
-unsigned long timer_tick_compare;
+unsigned long timer_tick_offset __read_mostly;
 
-static unsigned long timer_ticks_per_nsec_quotient;
+static unsigned long timer_ticks_per_nsec_quotient __read_mostly;
 
 #define TICK_SIZE (tick_nsec / 1000)
 
@@ -450,7 +436,7 @@ static inline void timer_check_rtc(void)
 	static long last_rtc_update;
 
 	/* Determine when to update the Mostek clock. */
-	if ((time_status & STA_UNSYNC) == 0 &&
+	if (ntp_synced() &&
 	    xtime.tv_sec > last_rtc_update + 660 &&
 	    (xtime.tv_nsec / 1000) >= 500000 - ((unsigned) TICK_SIZE) / 2 &&
 	    (xtime.tv_nsec / 1000) <= 500000 + ((unsigned) TICK_SIZE) / 2) {
@@ -464,7 +450,7 @@ static inline void timer_check_rtc(void)
 
 static irqreturn_t timer_interrupt(int irq, void *dev_id, struct pt_regs * regs)
 {
-	unsigned long ticks, pstate;
+	unsigned long ticks, compare, pstate;
 
 	write_seqlock(&xtime_lock);
 
@@ -483,14 +469,14 @@ static irqreturn_t timer_interrupt(int irq, void *dev_id, struct pt_regs * regs)
 				     : "=r" (pstate)
 				     : "i" (PSTATE_IE));
 
-		timer_tick_compare = tick_ops->add_compare(timer_tick_offset);
+		compare = tick_ops->add_compare(timer_tick_offset);
 		ticks = tick_ops->get_tick();
 
 		/* Restore PSTATE_IE. */
 		__asm__ __volatile__("wrpr	%0, 0x0, %%pstate"
 				     : /* no outputs */
 				     : "r" (pstate));
-	} while (time_after_eq(ticks, timer_tick_compare));
+	} while (time_after_eq(ticks, compare));
 
 	timer_check_rtc();
 
@@ -505,11 +491,6 @@ void timer_tick_interrupt(struct pt_regs *regs)
 	write_seqlock(&xtime_lock);
 
 	do_timer(regs);
-
-	/*
-	 * Only keep timer_tick_offset uptodate, but don't set TICK_CMPR.
-	 */
-	timer_tick_compare = tick_ops->get_compare() + timer_tick_offset;
 
 	timer_check_rtc();
 
@@ -973,7 +954,7 @@ static void sparc64_start_timers(irqreturn_t (*cfunc)(int, void *, struct pt_reg
 	int err;
 
 	/* Register IRQ handler. */
-	err = request_irq(build_irq(0, 0, 0UL, 0UL), cfunc, SA_STATIC_ALLOC,
+	err = request_irq(build_irq(0, 0, 0UL, 0UL), cfunc, 0,
 			  "timer", NULL);
 
 	if (err) {

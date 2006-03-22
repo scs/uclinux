@@ -67,7 +67,7 @@ prom_putchar(char c)
 }
 
 void
-prom_puts(char *s, int len)
+prom_puts(const char *s, int len)
 {
 	p1275_cmd("write", P1275_ARG(1,P1275_ARG_IN_BUF)|
 			   P1275_INOUT(3,1),
@@ -99,8 +99,12 @@ prom_query_input_device(void)
 	if (!strncmp(propb, "keyboard", 8))
 		return PROMDEV_ITTYA;
 
+	if (!strncmp (propb, "rsc", 3))
+		return PROMDEV_IRSC;
+
 	if (strncmp (propb, "tty", 3) || !propb[3])
 		return PROMDEV_I_UNK;
+
 	switch (propb[3]) {
 		case 'a': return PROMDEV_ITTYA;
 		case 'b': return PROMDEV_ITTYB;
@@ -136,8 +140,12 @@ prom_query_output_device(void)
 	if (!strncmp(propb, "screen", 6))
 		return PROMDEV_OTTYA;
 
+	if (!strncmp (propb, "rsc", 3))
+		return PROMDEV_ORSC;
+
 	if (strncmp (propb, "tty", 3) || !propb[3])
 		return PROMDEV_O_UNK;
+
 	switch (propb[3]) {
 		case 'a': return PROMDEV_OTTYA;
 		case 'b': return PROMDEV_OTTYB;

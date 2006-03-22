@@ -73,13 +73,13 @@ static void irq_nop (unsigned irq) { }
 static unsigned irq_zero (unsigned irq) { return 0; }
 
 static struct hw_interrupt_type sim_irq_type = {
-	"IRQ",
-	irq_zero,		/* startup */
-	irq_nop,		/* shutdown */
-	irq_nop,		/* enable */
-	irq_nop,		/* disable */
-	irq_nop,		/* ack */
-	irq_nop,		/* end */
+	.typename = "IRQ",
+	.startup = irq_zero,		/* startup */
+	.shutdown = irq_nop,		/* shutdown */
+	.enable = irq_nop,		/* enable */
+	.disable = irq_nop,		/* disable */
+	.ack = irq_nop,		/* ack */
+	.end = irq_nop,		/* end */
 };
 
 void __init mach_init_irqs (void)
@@ -104,23 +104,17 @@ void machine_restart (char *__unused)
 	V850_SIM_SYSCALL (exit, 0);
 }
 
-EXPORT_SYMBOL(machine_restart);
-
 void machine_halt (void)
 {
 	V850_SIM_SYSCALL (write, 1, "HALT\n", 5);
 	V850_SIM_SYSCALL (exit, 0);
 }
 
-EXPORT_SYMBOL(machine_halt);
-
 void machine_power_off (void)
 {
 	V850_SIM_SYSCALL (write, 1, "POWER OFF\n", 10);
 	V850_SIM_SYSCALL (exit, 0);
 }
-
-EXPORT_SYMBOL(machine_power_off);
 
 
 /* Load data from a file called NAME into ram.  The address and length

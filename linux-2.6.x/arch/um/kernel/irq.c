@@ -9,7 +9,6 @@
 #include "linux/kernel.h"
 #include "linux/module.h"
 #include "linux/smp.h"
-#include "linux/irq.h"
 #include "linux/kernel_stat.h"
 #include "linux/interrupt.h"
 #include "linux/random.h"
@@ -31,7 +30,7 @@
 #include "kern_util.h"
 #include "irq_user.h"
 #include "irq_kern.h"
-
+#include "os.h"
 
 /*
  * Generic, controller-independent functions:
@@ -124,14 +123,16 @@ void irq_unlock(unsigned long flags)
 	spin_unlock_irqrestore(&irq_spinlock, flags);
 }
 
-/*  presently hw_interrupt_type must define (startup || enable) &&
- *  disable && end */
+/* hw_interrupt_type must define (startup || enable) &&
+ * (shutdown || disable) && end */
 static void dummy(unsigned int irq)
 {
 }
 
-static struct hw_interrupt_type SIGIO_irq_type = {
+/* This is used for everything else than the timer. */
+static struct hw_interrupt_type normal_irq_type = {
 	.typename = "SIGIO",
+	.release = free_irq_by_irq_and_dev,
 	.disable = dummy,
 	.enable = dummy,
 	.ack = dummy,
@@ -140,6 +141,7 @@ static struct hw_interrupt_type SIGIO_irq_type = {
 
 static struct hw_interrupt_type SIGVTALRM_irq_type = {
 	.typename = "SIGVTALRM",
+	.release = free_irq_by_irq_and_dev,
 	.shutdown = dummy, /* never called */
 	.disable = dummy,
 	.enable = dummy,
@@ -160,18 +162,37 @@ void __init init_IRQ(void)
 		irq_desc[i].status = IRQ_DISABLED;
 		irq_desc[i].action = NULL;
 		irq_desc[i].depth = 1;
-		irq_desc[i].handler = &SIGIO_irq_type;
+		irq_desc[i].handler = &normal_irq_type;
 		enable_irq(i);
 	}
 }
 
-/*
- * Overrides for Emacs so that we follow Linus's tabbing style.
- * Emacs will notice this stuff at the end of the file and automatically
- * adjust the settings for this buffer only.  This must remain at the end
- * of the file.
- * ---------------------------------------------------------------------------
- * Local variables:
- * c-file-style: "linux"
- * End:
- */
+int init_aio_irq(int irq, char *name, irqreturn_t (*handler)(int, void *,
+							     struct pt_regs *))
+{
+	int fds[2], err;
+
+	err = os_pipe(fds, 1, 1);
+	if(err){
+		printk("init_aio_irq - os_pipe failed, err = %d\n", -err);
+		goto out;
+	}
+
+	err = um_request_irq(irq, fds[0], IRQ_READ, handler,
+			     SA_INTERRUPT | SA_SAMPLE_RANDOM, name,
+			     (void *) (long) fds[0]);
+	if(err){
+		printk("init_aio_irq - : um_request_irq failed, err = %d\n",
+		       err);
+		goto out_close;
+	}
+
+	err = fds[1];
+	goto out;
+
+ out_close:
+	os_close_file(fds[0]);
+	os_close_file(fds[1]);
+ out:
+	return(err);
+}

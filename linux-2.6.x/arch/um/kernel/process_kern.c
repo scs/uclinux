@@ -8,6 +8,7 @@
 #include "linux/kernel.h"
 #include "linux/sched.h"
 #include "linux/interrupt.h"
+#include "linux/string.h"
 #include "linux/mm.h"
 #include "linux/slab.h"
 #include "linux/utsname.h"
@@ -35,11 +36,9 @@
 #include "kern_util.h"
 #include "kern.h"
 #include "signal_kern.h"
-#include "signal_user.h"
 #include "init.h"
 #include "irq_user.h"
 #include "mem_user.h"
-#include "time_user.h"
 #include "tlb.h"
 #include "frame_kern.h"
 #include "sigcontext.h"
@@ -79,9 +78,10 @@ void free_stack(unsigned long stack, int order)
 unsigned long alloc_stack(int order, int atomic)
 {
 	unsigned long page;
-	int flags = GFP_KERNEL;
+	gfp_t flags = GFP_KERNEL;
 
-	if(atomic) flags |= GFP_ATOMIC;
+	if (atomic)
+		flags = GFP_ATOMIC;
 	page = __get_free_pages(flags, order);
 	if(page == 0)
 		return(0);
@@ -95,8 +95,8 @@ int kernel_thread(int (*fn)(void *), void * arg, unsigned long flags)
 
 	current->thread.request.u.thread.proc = fn;
 	current->thread.request.u.thread.arg = arg;
-	pid = do_fork(CLONE_VM | CLONE_UNTRACED | flags, 0, NULL, 0, NULL,
-		      NULL);
+	pid = do_fork(CLONE_VM | CLONE_UNTRACED | flags, 0,
+		      &current->thread.regs, 0, NULL, NULL);
 	if(pid < 0)
 		panic("do_fork failed in kernel_thread, errno = %d", pid);
 	return(pid);
@@ -106,14 +106,29 @@ void set_current(void *t)
 {
 	struct task_struct *task = t;
 
-	cpu_tasks[task->thread_info->cpu] = ((struct cpu_task) 
+	cpu_tasks[task_thread_info(task)->cpu] = ((struct cpu_task)
 		{ external_pid(task), task });
 }
 
 void *_switch_to(void *prev, void *next, void *last)
 {
-	return(CHOOSE_MODE(switch_to_tt(prev, next), 
-			   switch_to_skas(prev, next)));
+        struct task_struct *from = prev;
+        struct task_struct *to= next;
+
+        to->thread.prev_sched = from;
+        set_current(to);
+
+	do {
+		current->thread.saved_task = NULL ;
+		CHOOSE_MODE_PROC(switch_to_tt, switch_to_skas, prev, next);
+		if(current->thread.saved_task)
+			show_regs(&(current->thread.regs));
+		next= current->thread.saved_task;
+		prev= current;
+	} while(current->thread.saved_task);
+
+        return(current->thread.prev_sched);
+
 }
 
 void interrupt_end(void)
@@ -168,7 +183,7 @@ int current_pid(void)
 
 void default_idle(void)
 {
-	uml_idle_timer();
+	CHOOSE_MODE(uml_idle_timer(), (void) 0);
 
 	atomic_inc(&init_mm.mm_count);
 	current->mm = &init_mm;
@@ -205,6 +220,7 @@ void *um_virt_to_phys(struct task_struct *task, unsigned long addr,
 	pud_t *pud;
 	pmd_t *pmd;
 	pte_t *pte;
+	pte_t ptent;
 
 	if(task->mm == NULL) 
 		return(ERR_PTR(-EINVAL));
@@ -221,12 +237,13 @@ void *um_virt_to_phys(struct task_struct *task, unsigned long addr,
 		return(ERR_PTR(-EINVAL));
 
 	pte = pte_offset_kernel(pmd, addr);
-	if(!pte_present(*pte)) 
+	ptent = *pte;
+	if(!pte_present(ptent))
 		return(ERR_PTR(-EINVAL));
 
 	if(pte_out != NULL)
-		*pte_out = *pte;
-	return((void *) (pte_val(*pte) & PAGE_MASK) + (addr & ~PAGE_MASK));
+		*pte_out = ptent;
+	return((void *) (pte_val(ptent) & PAGE_MASK) + (addr & ~PAGE_MASK));
 }
 
 char *current_cmd(void)
@@ -270,17 +287,27 @@ EXPORT_SYMBOL(disable_hlt);
 
 void *um_kmalloc(int size)
 {
-	return(kmalloc(size, GFP_KERNEL));
+	return kmalloc(size, GFP_KERNEL);
 }
 
 void *um_kmalloc_atomic(int size)
 {
-	return(kmalloc(size, GFP_ATOMIC));
+	return kmalloc(size, GFP_ATOMIC);
 }
 
 void *um_vmalloc(int size)
 {
-	return(vmalloc(size));
+	return vmalloc(size);
+}
+
+void *um_vmalloc_atomic(int size)
+{
+	return __vmalloc(size, GFP_ATOMIC | __GFP_HIGHMEM, PAGE_KERNEL);
+}
+
+int __cant_sleep(void) {
+	return in_atomic() || irqs_disabled() || in_interrupt();
+	/* Is in_interrupt() really needed? */
 }
 
 unsigned long get_fault_addr(void)
@@ -305,10 +332,6 @@ int user_context(unsigned long sp)
 	return(stack != (unsigned long) current_thread);
 }
 
-extern void remove_umid_dir(void);
-
-__uml_exitcall(remove_umid_dir);
-
 extern exitcall_t __uml_exitcall_begin, __uml_exitcall_end;
 
 void do_uml_exitcalls(void)
@@ -322,12 +345,7 @@ void do_uml_exitcalls(void)
 
 char *uml_strdup(char *string)
 {
-	char *new;
-
-	new = kmalloc(strlen(string) + 1, GFP_KERNEL);
-	if(new == NULL) return(NULL);
-	strcpy(new, string);
-	return(new);
+	return kstrdup(string, GFP_KERNEL);
 }
 
 int copy_to_user_proc(void __user *to, void *from, int size)
@@ -359,11 +377,6 @@ int smp_sigio_handler(void)
 		return(1);
 #endif
 	return(0);
-}
-
-int um_in_interrupt(void)
-{
-	return(in_interrupt());
 }
 
 int cpu(void)
@@ -416,7 +429,7 @@ int __init make_proc_sysemu(void)
 
 	if (ent == NULL)
 	{
-		printk("Failed to register /proc/sysemu\n");
+		printk(KERN_WARNING "Failed to register /proc/sysemu\n");
 		return(0);
 	}
 

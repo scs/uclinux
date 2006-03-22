@@ -1,4 +1,4 @@
-SUBARCH_CORE := arch/um/sys-i386/ arch/i386/crypto/
+core-y += arch/um/sys-i386/ arch/i386/crypto/
 
 TOP_ADDR := $(CONFIG_TOP_ADDR)
 
@@ -8,37 +8,30 @@ ifeq ($(CONFIG_MODE_SKAS),y)
   endif
 endif
 
-CFLAGS += -U__$(SUBARCH)__ -U$(SUBARCH)
-ARCH_USER_CFLAGS :=
+LDFLAGS			+= -m elf_i386
+ELF_ARCH		:= $(SUBARCH)
+ELF_FORMAT 		:= elf32-$(SUBARCH)
+OBJCOPYFLAGS  		:= -O binary -R .note -R .comment -S
 
-ifneq ($(CONFIG_GPROF),y)
-ARCH_CFLAGS += -DUM_FASTCALL
+ifeq ("$(origin SUBARCH)", "command line")
+ifneq ("$(shell uname -m | sed -e s/i.86/i386/)", "$(SUBARCH)")
+CFLAGS			+= $(call cc-option,-m32)
+USER_CFLAGS		+= $(call cc-option,-m32)
+AFLAGS			+= $(call cc-option,-m32)
+LINK-y			+= $(call cc-option,-m32)
+UML_OBJCOPYFLAGS	+= -F $(ELF_FORMAT)
+
+export LDFLAGS HOSTCFLAGS HOSTLDFLAGS UML_OBJCOPYFLAGS
+endif
 endif
 
-ELF_ARCH := $(SUBARCH)
-ELF_FORMAT := elf32-$(SUBARCH)
+CFLAGS += -U__$(SUBARCH)__ -U$(SUBARCH)
 
-OBJCOPYFLAGS  := -O binary -R .note -R .comment -S
+# First of all, tune CFLAGS for the specific CPU. This actually sets cflags-y.
+include $(srctree)/arch/i386/Makefile.cpu
 
-SYS_UTIL_DIR	:= $(ARCH_DIR)/sys-i386/util
+# prevent gcc from keeping the stack 16 byte aligned. Taken from i386.
+cflags-y += $(call cc-option,-mpreferred-stack-boundary=2)
 
-SYS_HEADERS := $(SYS_DIR)/sc.h $(SYS_DIR)/thread.h
-
-prepare: $(SYS_HEADERS)
-
-$(SYS_DIR)/sc.h: $(SYS_UTIL_DIR)/mk_sc
-	$(call filechk,gen_header)
-
-$(SYS_DIR)/thread.h: $(SYS_UTIL_DIR)/mk_thread 
-	$(call filechk,gen_header)
-
-$(SYS_UTIL_DIR)/mk_sc: scripts_basic $(ARCH_DIR)/user-offsets.h FORCE
-	$(Q)$(MAKE) $(build)=$(SYS_UTIL_DIR) $@
-
-$(SYS_UTIL_DIR)/mk_thread: scripts_basic $(ARCH_DIR)/kernel-offsets.h FORCE
-	$(Q)$(MAKE) $(build)=$(SYS_UTIL_DIR) $@
-
-$(SYS_UTIL_DIR): scripts_basic include/asm FORCE
-	$(Q)$(MAKE) $(build)=$(SYS_UTIL_DIR)
-
-CLEAN_FILES += $(SYS_HEADERS)
+CFLAGS += $(cflags-y)
+USER_CFLAGS += $(cflags-y)

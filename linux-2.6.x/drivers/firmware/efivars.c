@@ -65,11 +65,11 @@
  *   v0.01 release to linux-ia64@linuxia64.org
  */
 
+#include <linux/capability.h>
 #include <linux/config.h>
 #include <linux/types.h>
 #include <linux/errno.h>
 #include <linux/init.h>
-#include <linux/sched.h>		/* for capable() */
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/string.h>
@@ -352,7 +352,7 @@ static ssize_t efivar_attr_show(struct kobject *kobj, struct attribute *attr,
 {
 	struct efivar_entry *var = to_efivar_entry(kobj);
 	struct efivar_attribute *efivar_attr = to_efivar_attr(attr);
-	ssize_t ret = 0;
+	ssize_t ret = -EIO;
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EACCES;
@@ -368,7 +368,7 @@ static ssize_t efivar_attr_store(struct kobject *kobj, struct attribute *attr,
 {
 	struct efivar_entry *var = to_efivar_entry(kobj);
 	struct efivar_attribute *efivar_attr = to_efivar_attr(attr);
-	ssize_t ret = 0;
+	ssize_t ret = -EIO;
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EACCES;
@@ -614,16 +614,14 @@ efivar_create_sysfs_entry(unsigned long variable_name_size,
 	char *short_name;
 	struct efivar_entry *new_efivar;
 
-	short_name = kmalloc(short_name_size + 1, GFP_KERNEL);
-	new_efivar = kmalloc(sizeof(struct efivar_entry), GFP_KERNEL);
+	short_name = kzalloc(short_name_size + 1, GFP_KERNEL);
+	new_efivar = kzalloc(sizeof(struct efivar_entry), GFP_KERNEL);
 
 	if (!short_name || !new_efivar)  {
-		if (short_name)        kfree(short_name);
-		if (new_efivar)        kfree(new_efivar);
+		kfree(short_name);
+		kfree(new_efivar);
 		return 1;
 	}
-	memset(short_name, 0, short_name_size+1);
-	memset(new_efivar, 0, sizeof(struct efivar_entry));
 
 	memcpy(new_efivar->var.VariableName, variable_name,
 		variable_name_size);
@@ -644,7 +642,8 @@ efivar_create_sysfs_entry(unsigned long variable_name_size,
 	kobj_set_kset_s(new_efivar, vars_subsys);
 	kobject_register(&new_efivar->kobj);
 
-	kfree(short_name); short_name = NULL;
+	kfree(short_name);
+	short_name = NULL;
 
 	spin_lock(&efivars_lock);
 	list_add(&new_efivar->list, &efivar_list);
@@ -673,13 +672,11 @@ efivars_init(void)
 	if (!efi_enabled)
 		return -ENODEV;
 
-	variable_name = kmalloc(variable_name_size, GFP_KERNEL);
+	variable_name = kzalloc(variable_name_size, GFP_KERNEL);
 	if (!variable_name) {
 		printk(KERN_ERR "efivars: Memory allocation failed.\n");
 		return -ENOMEM;
 	}
-
-	memset(variable_name, 0, variable_name_size);
 
 	printk(KERN_INFO "EFI Variables Facility v%s %s\n", EFIVARS_VERSION,
 	       EFIVARS_DATE);

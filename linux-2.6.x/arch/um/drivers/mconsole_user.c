@@ -30,6 +30,7 @@ static struct mconsole_command commands[] = {
 	{ "go", mconsole_go, MCONSOLE_INTR },
 	{ "log", mconsole_log, MCONSOLE_INTR },
 	{ "proc", mconsole_proc, MCONSOLE_PROC },
+        { "stack", mconsole_stack, MCONSOLE_INTR },
 };
 
 /* Initialized in mconsole_init, which is an initcall */
@@ -121,12 +122,12 @@ int mconsole_get_request(int fd, struct mc_request *req)
 	return(1);
 }
 
-int mconsole_reply(struct mc_request *req, char *str, int err, int more)
+int mconsole_reply_len(struct mc_request *req, const char *str, int total,
+		       int err, int more)
 {
 	struct mconsole_reply reply;
-	int total, len, n;
+	int len, n;
 
-	total = strlen(str);
 	do {
 		reply.err = err;
 
@@ -154,6 +155,12 @@ int mconsole_reply(struct mc_request *req, char *str, int err, int more)
 	return(0);
 }
 
+int mconsole_reply(struct mc_request *req, const char *str, int err, int more)
+{
+	return mconsole_reply_len(req, str, strlen(str), err, more);
+}
+
+
 int mconsole_unlink_socket(void)
 {
 	unlink(mconsole_socket_name);
@@ -172,9 +179,9 @@ int mconsole_notify(char *sock_name, int type, const void *data, int len)
 	if(notify_sock < 0){
 		notify_sock = socket(PF_UNIX, SOCK_DGRAM, 0);
 		if(notify_sock < 0){
-			printk("mconsole_notify - socket failed, errno = %d\n",
-			       errno);
 			err = -errno;
+			printk("mconsole_notify - socket failed, errno = %d\n",
+			       err);
 		}
 	}
 	unlock_notify();
@@ -197,8 +204,8 @@ int mconsole_notify(char *sock_name, int type, const void *data, int len)
 	n = sendto(notify_sock, &packet, len, 0, (struct sockaddr *) &target, 
 		   sizeof(target));
 	if(n < 0){
-		printk("mconsole_notify - sendto failed, errno = %d\n", errno);
 		err = -errno;
+		printk("mconsole_notify - sendto failed, errno = %d\n", errno);
 	}
 	return(err);
 }

@@ -34,9 +34,9 @@
 
 #define _BLOCKABLE (~(sigmask(SIGKILL) | sigmask(SIGSTOP)))
 
-void ia32_setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
+int ia32_setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
                sigset_t *set, struct pt_regs * regs); 
-void ia32_setup_frame(int sig, struct k_sigaction *ka,
+int ia32_setup_frame(int sig, struct k_sigaction *ka,
             sigset_t *set, struct pt_regs * regs); 
 
 asmlinkage long
@@ -109,6 +109,15 @@ restore_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc, unsigned 
 	COPY(r13);
 	COPY(r14);
 	COPY(r15);
+
+	/* Kernel saves and restores only the CS segment register on signals,
+	 * which is the bare minimum needed to allow mixed 32/64-bit code.
+	 * App's signal handler can save/restore other segments if needed. */
+	{
+		unsigned cs;
+		err |= __get_user(cs, &sc->cs);
+		regs->cs = cs | 3;	/* Force into user mode */
+	}
 
 	{
 		unsigned int tmpflags;
@@ -187,6 +196,7 @@ setup_sigcontext(struct sigcontext __user *sc, struct pt_regs *regs, unsigned lo
 {
 	int err = 0;
 
+	err |= __put_user(regs->cs, &sc->cs);
 	err |= __put_user(0, &sc->gs);
 	err |= __put_user(0, &sc->fs);
 
@@ -238,7 +248,7 @@ get_stack(struct k_sigaction *ka, struct pt_regs *regs, unsigned long size)
 	return (void __user *)round_down(rsp - size, 16); 
 }
 
-static void setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
+static int setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 			   sigset_t *set, struct pt_regs * regs)
 {
 	struct rt_sigframe __user *frame;
@@ -318,7 +328,14 @@ static void setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 
 	regs->rsp = (unsigned long)frame;
 
+	/* Set up the CS register to run signal handlers in 64-bit mode,
+	   even if the handler happens to be interrupting 32-bit code. */
+	regs->cs = __USER_CS;
+
+	/* This, by contrast, has nothing to do with segment registers -
+	   see include/asm-x86_64/uaccess.h for details. */
 	set_fs(USER_DS);
+
 	regs->eflags &= ~TF_MASK;
 	if (test_thread_flag(TIF_SINGLESTEP))
 		ptrace_notify(SIGTRAP);
@@ -327,20 +344,23 @@ static void setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 		current->comm, current->pid, frame, regs->rip, frame->pretcode);
 #endif
 
-	return;
+	return 1;
 
 give_sigsegv:
 	force_sigsegv(sig, current);
+	return 0;
 }
 
 /*
  * OK, we're invoking a handler
  */	
 
-static void
+static int
 handle_signal(unsigned long sig, siginfo_t *info, struct k_sigaction *ka,
 		sigset_t *oldset, struct pt_regs *regs)
 {
+	int ret;
+
 #ifdef DEBUG_SIG
 	printk("handle_signal pid:%d sig:%lu rip:%lx rsp:%lx regs=%p\n",
 		current->pid, sig,
@@ -384,20 +404,23 @@ handle_signal(unsigned long sig, siginfo_t *info, struct k_sigaction *ka,
 #ifdef CONFIG_IA32_EMULATION
 	if (test_thread_flag(TIF_IA32)) {
 		if (ka->sa.sa_flags & SA_SIGINFO)
-			ia32_setup_rt_frame(sig, ka, info, oldset, regs);
+			ret = ia32_setup_rt_frame(sig, ka, info, oldset, regs);
 		else
-			ia32_setup_frame(sig, ka, oldset, regs);
+			ret = ia32_setup_frame(sig, ka, oldset, regs);
 	} else 
 #endif
-	setup_rt_frame(sig, ka, info, oldset, regs);
+	ret = setup_rt_frame(sig, ka, info, oldset, regs);
 
-	if (!(ka->sa.sa_flags & SA_NODEFER)) {
+	if (ret) {
 		spin_lock_irq(&current->sighand->siglock);
 		sigorsets(&current->blocked,&current->blocked,&ka->sa.sa_mask);
-		sigaddset(&current->blocked,sig);
+		if (!(ka->sa.sa_flags & SA_NODEFER))
+			sigaddset(&current->blocked,sig);
 		recalc_sigpending();
 		spin_unlock_irq(&current->sighand->siglock);
 	}
+
+	return ret;
 }
 
 /*
@@ -417,10 +440,10 @@ int do_signal(struct pt_regs *regs, sigset_t *oldset)
 	 * kernel mode. Just return without doing anything
 	 * if so.
 	 */
-	if ((regs->cs & 3) != 3)
+	if (!user_mode(regs))
 		return 1;
 
-	if (try_to_freeze(0))
+	if (try_to_freeze())
 		goto no_signal;
 
 	if (!oldset)
@@ -434,11 +457,10 @@ int do_signal(struct pt_regs *regs, sigset_t *oldset)
 		 * inside the kernel.
 		 */
 		if (current->thread.debugreg7)
-			asm volatile("movq %0,%%db7"	: : "r" (current->thread.debugreg7));
+			set_debugreg(current->thread.debugreg7, 7);
 
 		/* Whee!  Actually deliver the signal.  */
-		handle_signal(signr, &info, &ka, oldset, regs);
-		return 1;
+		return handle_signal(signr, &info, &ka, oldset, regs);
 	}
 
  no_signal:

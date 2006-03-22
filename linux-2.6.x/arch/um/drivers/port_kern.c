@@ -7,7 +7,6 @@
 #include "linux/sched.h"
 #include "linux/slab.h"
 #include "linux/interrupt.h"
-#include "linux/irq.h"
 #include "linux/spinlock.h"
 #include "linux/errno.h"
 #include "asm/atomic.h"
@@ -257,7 +256,6 @@ int port_wait(void *data)
 		 * connection.  Then we loop here throwing out failed 
 		 * connections until a good one is found.
 		 */
-		free_irq_by_irq_and_dev(TELNETD_IRQ, conn);
 		free_irq(TELNETD_IRQ, conn);
 
 		if(conn->fd >= 0) break;

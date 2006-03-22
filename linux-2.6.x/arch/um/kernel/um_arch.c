@@ -1,4 +1,4 @@
-/* 
+/*
  * Copyright (C) 2000, 2002 Jeff Dike (jdike@karaya.com)
  * Licensed under the GPL
  */
@@ -38,6 +38,9 @@
 #include "choose-mode.h"
 #include "mode_kern.h"
 #include "mode.h"
+#ifdef UML_CONFIG_MODE_SKAS
+#include "skas.h"
+#endif
 
 #define DEFAULT_COMMAND_LINE "root=98:0"
 
@@ -123,7 +126,7 @@ unsigned long start_vm;
 unsigned long end_vm;
 int ncpus = 1;
 
-#ifdef CONFIG_MODE_TT
+#ifdef CONFIG_CMDLINE_ON_HOST
 /* Pointer set in linux_main, the array itself is private to each thread,
  * and changed at address space creation time so this poses no concurrency
  * problems.
@@ -134,17 +137,17 @@ static char *argv1_end = NULL;
 
 /* Set in early boot */
 static int have_root __initdata = 0;
-long physmem_size = 32 * 1024 * 1024;
+long long physmem_size = 32 * 1024 * 1024;
 
 void set_cmdline(char *cmd)
 {
-#ifdef CONFIG_MODE_TT
+#ifdef CONFIG_CMDLINE_ON_HOST
 	char *umid, *ptr;
 
 	if(CHOOSE_MODE(honeypot, 0)) return;
 
-	umid = get_umid(1);
-	if(umid != NULL){
+	umid = get_umid();
+	if(*umid != '\0'){
 		snprintf(argv1_begin, 
 			 (argv1_end - argv1_begin) * sizeof(*ptr), 
 			 "(%s) ", umid);
@@ -189,6 +192,24 @@ __uml_setup("root=", uml_root_setup,
 "    would use something like:\n"
 "        root=/dev/ubd5\n\n"
 );
+
+#ifndef CONFIG_MODE_TT
+
+static int __init no_skas_debug_setup(char *line, int *add)
+{
+	printf("'debug' is not necessary to gdb UML in skas mode - run \n");
+	printf("'gdb linux' and disable CONFIG_CMDLINE_ON_HOST if gdb \n");
+	printf("doesn't work as expected\n");
+
+	return 0;
+}
+
+__uml_setup("debug", no_skas_debug_setup,
+"debug\n"
+"    this flag is not needed to run gdb on UML in skas mode\n\n"
+);
+
+#endif
 
 #ifdef CONFIG_SMP
 static int __init uml_ncpus_setup(char *line, int *add)
@@ -239,10 +260,6 @@ static int __init mode_tt_setup(char *line, int *add)
 	printf("CONFIG_MODE_SKAS disabled - 'mode=tt' redundant\n");
 	return(0);
 }
-
-#else
-
-#error Either CONFIG_MODE_TT or CONFIG_MODE_SKAS must be enabled
 
 #endif
 #endif
@@ -318,6 +335,7 @@ int linux_main(int argc, char **argv)
 	unsigned long avail, diff;
 	unsigned long virtmem_size, max_physmem;
 	unsigned int i, add;
+	char * mode;
 
 	for (i = 1; i < argc; i++){
 		if((i == 1) && (argv[i][0] == ' ')) continue;
@@ -329,6 +347,9 @@ int linux_main(int argc, char **argv)
 	if(have_root == 0)
 		add_arg(DEFAULT_COMMAND_LINE);
 
+	os_early_checks();
+	if (force_tt)
+		clear_can_do_skas();
 	mode_tt = force_tt ? 1 : !can_do_skas();
 #ifndef CONFIG_MODE_TT
 	if (mode_tt) {
@@ -338,13 +359,28 @@ int linux_main(int argc, char **argv)
 		exit(1);
 	}
 #endif
+
+#ifndef CONFIG_MODE_SKAS
+	mode = "TT";
+#else
+	/* Show to the user the result of selection */
+	if (mode_tt)
+		mode = "TT";
+	else if (proc_mm && ptrace_faultinfo)
+		mode = "SKAS3";
+	else
+		mode = "SKAS0";
+#endif
+
+	printf("UML running in %s mode\n", mode);
+
 	uml_start = CHOOSE_MODE_PROC(set_task_sizes_tt, set_task_sizes_skas, 0,
 				     &host_task_size, &task_size);
 
-	/* Need to check this early because mmapping happens before the
-	 * kernel is running.
-	 */
-	check_tmpexec();
+	/*
+ 	 * Setting up handlers to 'sig_info' struct
+ 	 */
+	os_fill_handlinfo(handlinfo_kern);
 
 	brk_start = (unsigned long) sbrk(0);
 	CHOOSE_MODE_PROC(before_mem_tt, before_mem_skas, brk_start);
@@ -366,7 +402,7 @@ int linux_main(int argc, char **argv)
 
 	setup_machinename(system_utsname.machine);
 
-#ifdef CONFIG_MODE_TT
+#ifdef CONFIG_CMDLINE_ON_HOST
 	argv1_begin = argv[1];
 	argv1_end = &argv[1][strlen(argv[1])];
 #endif
@@ -385,7 +421,7 @@ int linux_main(int argc, char **argv)
 #ifndef CONFIG_HIGHMEM
 		highmem = 0;
 		printf("CONFIG_HIGHMEM not enabled - physical memory shrunk "
-		       "to %ld bytes\n", physmem_size);
+		       "to %lu bytes\n", physmem_size);
 #endif
 	}
 
@@ -397,8 +433,8 @@ int linux_main(int argc, char **argv)
 
 	setup_physmem(uml_physmem, uml_reserved, physmem_size, highmem);
 	if(init_maps(physmem_size, iomem_size, highmem)){
-		printf("Failed to allocate mem_map for %ld bytes of physical "
-		       "memory and %ld bytes of highmem\n", physmem_size,
+		printf("Failed to allocate mem_map for %lu bytes of physical "
+		       "memory and %lu bytes of highmem\n", physmem_size,
 		       highmem);
 		exit(1);
 	}
@@ -409,7 +445,7 @@ int linux_main(int argc, char **argv)
 	end_vm = start_vm + virtmem_size;
 
 	if(virtmem_size < physmem_size)
-		printf("Kernel virtual memory size shrunk to %ld bytes\n",
+		printf("Kernel virtual memory size shrunk to %lu bytes\n",
 		       virtmem_size);
 
   	uml_postsetup();
@@ -451,7 +487,6 @@ void __init setup_arch(char **cmdline_p)
 void __init check_bugs(void)
 {
 	arch_check_bugs();
-	check_ptrace();
 	check_sigio();
 	check_devanon();
 }

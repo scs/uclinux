@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2004 Topspin Communications.  All rights reserved.
+ * Copyright (c) 2005 Sun Microsystems, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -33,23 +34,25 @@
  */
 
 #include <linux/init.h>
+#include <linux/string.h>
+#include <linux/slab.h>
 
-#include <ib_verbs.h>
-#include <ib_cache.h>
+#include <rdma/ib_verbs.h>
+#include <rdma/ib_cache.h>
 
 #include "mthca_dev.h"
 
 struct mthca_av {
-	u32 port_pd;
-	u8  reserved1;
-	u8  g_slid;
-	u16 dlid;
-	u8  reserved2;
-	u8  gid_index;
-	u8  msg_sr;
-	u8  hop_limit;
-	u32 sl_tclass_flowlabel;
-	u32 dgid[4];
+	__be32 port_pd;
+	u8     reserved1;
+	u8     g_slid;
+	__be16 dlid;
+	u8     reserved2;
+	u8     gid_index;
+	u8     msg_sr;
+	u8     hop_limit;
+	__be32 sl_tclass_flowlabel;
+	__be32 dgid[4];
 };
 
 int mthca_create_ah(struct mthca_dev *dev,
@@ -127,7 +130,7 @@ on_hca_fail:
 			  av, (unsigned long) ah->avdma);
 		for (j = 0; j < 8; ++j)
 			printk(KERN_DEBUG "  [%2x] %08x\n",
-			       j * 4, be32_to_cpu(((u32 *) av)[j]));
+			       j * 4, be32_to_cpu(((__be32 *) av)[j]));
 	}
 
 	if (ah->type == MTHCA_AH_ON_HCA) {
@@ -160,6 +163,11 @@ int mthca_destroy_ah(struct mthca_dev *dev, struct mthca_ah *ah)
 	return 0;
 }
 
+int mthca_ah_grh_present(struct mthca_ah *ah)
+{
+	return !!(ah->av->g_slid & 0x80);
+}
+
 int mthca_read_ah(struct mthca_dev *dev, struct mthca_ah *ah,
 		  struct ib_ud_header *header)
 {
@@ -168,21 +176,18 @@ int mthca_read_ah(struct mthca_dev *dev, struct mthca_ah *ah,
 
 	header->lrh.service_level   = be32_to_cpu(ah->av->sl_tclass_flowlabel) >> 28;
 	header->lrh.destination_lid = ah->av->dlid;
-	header->lrh.source_lid      = ah->av->g_slid & 0x7f;
-	if (ah->av->g_slid & 0x80) {
-		header->grh_present = 1;
+	header->lrh.source_lid      = cpu_to_be16(ah->av->g_slid & 0x7f);
+	if (mthca_ah_grh_present(ah)) {
 		header->grh.traffic_class =
 			(be32_to_cpu(ah->av->sl_tclass_flowlabel) >> 20) & 0xff;
 		header->grh.flow_label    =
 			ah->av->sl_tclass_flowlabel & cpu_to_be32(0xfffff);
 		ib_get_cached_gid(&dev->ib_dev,
 				  be32_to_cpu(ah->av->port_pd) >> 24,
-				  ah->av->gid_index,
+				  ah->av->gid_index % dev->limits.gid_table_len,
 				  &header->grh.source_gid);
 		memcpy(header->grh.destination_gid.raw,
 		       ah->av->dgid, 16);
-	} else {
-		header->grh_present = 0;
 	}
 
 	return 0;

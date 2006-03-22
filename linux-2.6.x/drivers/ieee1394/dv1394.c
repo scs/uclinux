@@ -108,7 +108,6 @@
 #include <linux/types.h>
 #include <linux/vmalloc.h>
 #include <linux/string.h>
-#include <linux/ioctl32.h>
 #include <linux/compat.h>
 #include <linux/cdev.h>
 
@@ -122,15 +121,6 @@
 #include "dv1394-private.h"
 
 #include "ohci1394.h"
-
-#ifndef virt_to_page
-#define virt_to_page(x) MAP_NR(x)
-#endif
-
-#ifndef vmalloc_32
-#define vmalloc_32(x) vmalloc(x)
-#endif
-
 
 /* DEBUG LEVELS:
    0 - no debugging messages
@@ -2218,13 +2208,11 @@ static int dv1394_init(struct ti_ohci *ohci, enum pal_or_ntsc format, enum modes
 	unsigned long flags;
 	int i;
 
-	video = kmalloc(sizeof(struct video_card), GFP_KERNEL);
+	video = kzalloc(sizeof(*video), GFP_KERNEL);
 	if (!video) {
 		printk(KERN_ERR "dv1394: cannot allocate video_card\n");
 		goto err;
 	}
-
-	memset(video, 0, sizeof(struct video_card));
 
 	video->ohci = ohci;
 	/* lower 2 bits of id indicate which of four "plugs"
@@ -2343,8 +2331,8 @@ static void dv1394_remove_host (struct hpsb_host *host)
 			dv1394_un_init(video);
 	} while (video != NULL);
 
-	class_simple_device_remove(MKDEV(
-		IEEE1394_MAJOR, IEEE1394_MINOR_BLOCK_DV1394 * 16 + (id<<2)));
+	class_device_destroy(hpsb_protocol_class,
+		MKDEV(IEEE1394_MAJOR, IEEE1394_MINOR_BLOCK_DV1394 * 16 + (id<<2)));
 	devfs_remove("ieee1394/dv/host%d/NTSC", id);
 	devfs_remove("ieee1394/dv/host%d/PAL", id);
 	devfs_remove("ieee1394/dv/host%d", id);
@@ -2361,7 +2349,7 @@ static void dv1394_add_host (struct hpsb_host *host)
 
 	ohci = (struct ti_ohci *)host->hostdata;
 
-	class_simple_device_add(hpsb_protocol_class, MKDEV(
+	class_device_create(hpsb_protocol_class, NULL, MKDEV(
 		IEEE1394_MAJOR,	IEEE1394_MINOR_BLOCK_DV1394 * 16 + (id<<2)), 
 		NULL, "dv1394-%d", id);
 	devfs_mk_dir("ieee1394/dv/host%d", id);
@@ -2660,4 +2648,3 @@ static int __init dv1394_init_module(void)
 
 module_init(dv1394_init_module);
 module_exit(dv1394_exit_module);
-MODULE_ALIAS_CHARDEV(IEEE1394_MAJOR, IEEE1394_MINOR_BLOCK_DV1394 * 16);

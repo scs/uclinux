@@ -1478,8 +1478,7 @@ static int __init sony535_init(void)
 	/* look for the CD-ROM, follows the procedure in the DOS driver */
 	inb(select_unit_reg);
 	/* wait for 40 18 Hz ticks (reverse-engineered from DOS driver) */
-	set_current_state(TASK_INTERRUPTIBLE);
-	schedule_timeout((HZ+17)*40/18);
+	schedule_timeout_interruptible((HZ+17)*40/18);
 	inb(result_reg);
 
 	outb(0, read_status_reg);	/* does a reset? */
@@ -1605,8 +1604,7 @@ out7:
 	put_disk(cdu_disk);
 out6:
 	for (i = 0; i < sony_buffer_sectors; i++)
-		if (sony_buffer[i]) 
-			kfree(sony_buffer[i]);
+		kfree(sony_buffer[i]);
 out5:
 	kfree(sony_buffer);
 out4:

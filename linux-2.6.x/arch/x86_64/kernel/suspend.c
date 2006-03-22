@@ -8,24 +8,11 @@
  */
 
 #include <linux/config.h>
-#include <linux/kernel.h>
-#include <linux/module.h>
-#include <linux/init.h>
-#include <linux/types.h>
-#include <linux/spinlock.h>
-#include <linux/poll.h>
-#include <linux/delay.h>
-#include <linux/sysrq.h>
-#include <linux/proc_fs.h>
-#include <linux/irq.h>
-#include <linux/pm.h>
-#include <linux/device.h>
+#include <linux/smp.h>
 #include <linux/suspend.h>
-#include <asm/uaccess.h>
-#include <asm/acpi.h>
-#include <asm/tlbflush.h>
-#include <asm/io.h>
 #include <asm/proto.h>
+#include <asm/page.h>
+#include <asm/pgtable.h>
 
 struct saved_context saved_context;
 
@@ -44,7 +31,6 @@ void __save_processor_state(struct saved_context *ctxt)
 	 */
 	asm volatile ("sgdt %0" : "=m" (ctxt->gdt_limit));
 	asm volatile ("sidt %0" : "=m" (ctxt->idt_limit));
-	asm volatile ("sldt %0" : "=m" (ctxt->ldt));
 	asm volatile ("str %0"  : "=m" (ctxt->tr));
 
 	/* XMM0..XMM15 should be handled by kernel_fpu_begin(). */
@@ -69,6 +55,7 @@ void __save_processor_state(struct saved_context *ctxt)
 	asm volatile ("movq %%cr2, %0" : "=r" (ctxt->cr2));
 	asm volatile ("movq %%cr3, %0" : "=r" (ctxt->cr3));
 	asm volatile ("movq %%cr4, %0" : "=r" (ctxt->cr4));
+	asm volatile ("movq %%cr8, %0" : "=r" (ctxt->cr8));
 }
 
 void save_processor_state(void)
@@ -76,13 +63,12 @@ void save_processor_state(void)
 	__save_processor_state(&saved_context);
 }
 
-static void
-do_fpu_end(void)
+static void do_fpu_end(void)
 {
-        /* restore FPU regs if necessary */
-	/* Do it out of line so that gcc does not move cr0 load to some stupid place */
-        kernel_fpu_end();
-	mxcsr_feature_mask_init();
+	/*
+	 * Restore FPU regs if necessary
+	 */
+	kernel_fpu_end();
 }
 
 void __restore_processor_state(struct saved_context *ctxt)
@@ -90,10 +76,18 @@ void __restore_processor_state(struct saved_context *ctxt)
 	/*
 	 * control registers
 	 */
+	asm volatile ("movq %0, %%cr8" :: "r" (ctxt->cr8));
 	asm volatile ("movq %0, %%cr4" :: "r" (ctxt->cr4));
 	asm volatile ("movq %0, %%cr3" :: "r" (ctxt->cr3));
 	asm volatile ("movq %0, %%cr2" :: "r" (ctxt->cr2));
 	asm volatile ("movq %0, %%cr0" :: "r" (ctxt->cr0));
+
+	/*
+	 * now restore the descriptor tables to their proper values
+	 * ltr is done i fix_processor_context().
+	 */
+	asm volatile ("lgdt %0" :: "m" (ctxt->gdt_limit));
+	asm volatile ("lidt %0" :: "m" (ctxt->idt_limit));
 
 	/*
 	 * segment registers
@@ -108,17 +102,10 @@ void __restore_processor_state(struct saved_context *ctxt)
 	wrmsrl(MSR_GS_BASE, ctxt->gs_base);
 	wrmsrl(MSR_KERNEL_GS_BASE, ctxt->gs_kernel_base);
 
-	/*
-	 * now restore the descriptor tables to their proper values
-	 * ltr is done i fix_processor_context().
-	 */
-	asm volatile ("lgdt %0" :: "m" (ctxt->gdt_limit));
-	asm volatile ("lidt %0" :: "m" (ctxt->idt_limit));
-	asm volatile ("lldt %0" :: "m" (ctxt->ldt));
-
 	fix_processor_context();
 
 	do_fpu_end();
+	mtrr_ap_init();
 }
 
 void restore_processor_state(void)
@@ -133,7 +120,7 @@ void fix_processor_context(void)
 
 	set_tss_desc(cpu,t);	/* This just modifies memory; should not be neccessary. But... This is neccessary, because 386 hardware has concept of busy TSS or some similar stupidity. */
 
-	cpu_gdt_table[cpu][GDT_ENTRY_TSS].type = 9;
+	cpu_gdt(cpu)[GDT_ENTRY_TSS].type = 9;
 
 	syscall_init();                         /* This sets MSR_*STAR and related */
 	load_TR_desc();				/* This does ltr */
@@ -154,4 +141,83 @@ void fix_processor_context(void)
 
 }
 
+#ifdef CONFIG_SOFTWARE_SUSPEND
+/* Defined in arch/x86_64/kernel/suspend_asm.S */
+extern int restore_image(void);
 
+pgd_t *temp_level4_pgt;
+
+static int res_phys_pud_init(pud_t *pud, unsigned long address, unsigned long end)
+{
+	long i, j;
+
+	i = pud_index(address);
+	pud = pud + i;
+	for (; i < PTRS_PER_PUD; pud++, i++) {
+		unsigned long paddr;
+		pmd_t *pmd;
+
+		paddr = address + i*PUD_SIZE;
+		if (paddr >= end)
+			break;
+
+		pmd = (pmd_t *)get_safe_page(GFP_ATOMIC);
+		if (!pmd)
+			return -ENOMEM;
+		set_pud(pud, __pud(__pa(pmd) | _KERNPG_TABLE));
+		for (j = 0; j < PTRS_PER_PMD; pmd++, j++, paddr += PMD_SIZE) {
+			unsigned long pe;
+
+			if (paddr >= end)
+				break;
+			pe = _PAGE_NX | _PAGE_PSE | _KERNPG_TABLE | paddr;
+			pe &= __supported_pte_mask;
+			set_pmd(pmd, __pmd(pe));
+		}
+	}
+	return 0;
+}
+
+static int set_up_temporary_mappings(void)
+{
+	unsigned long start, end, next;
+	int error;
+
+	temp_level4_pgt = (pgd_t *)get_safe_page(GFP_ATOMIC);
+	if (!temp_level4_pgt)
+		return -ENOMEM;
+
+	/* It is safe to reuse the original kernel mapping */
+	set_pgd(temp_level4_pgt + pgd_index(__START_KERNEL_map),
+		init_level4_pgt[pgd_index(__START_KERNEL_map)]);
+
+	/* Set up the direct mapping from scratch */
+	start = (unsigned long)pfn_to_kaddr(0);
+	end = (unsigned long)pfn_to_kaddr(end_pfn);
+
+	for (; start < end; start = next) {
+		pud_t *pud = (pud_t *)get_safe_page(GFP_ATOMIC);
+		if (!pud)
+			return -ENOMEM;
+		next = start + PGDIR_SIZE;
+		if (next > end)
+			next = end;
+		if ((error = res_phys_pud_init(pud, __pa(start), __pa(next))))
+			return error;
+		set_pgd(temp_level4_pgt + pgd_index(start),
+			mk_kernel_pgd(__pa(pud)));
+	}
+	return 0;
+}
+
+int swsusp_arch_resume(void)
+{
+	int error;
+
+	/* We have got enough memory and from now on we cannot recover */
+	if ((error = set_up_temporary_mappings()))
+		return error;
+	restore_image();
+	return 0;
+}
+#endif /* CONFIG_SOFTWARE_SUSPEND */

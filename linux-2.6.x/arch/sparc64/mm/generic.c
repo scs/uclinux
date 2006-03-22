@@ -15,6 +15,15 @@
 #include <asm/page.h>
 #include <asm/tlbflush.h>
 
+static inline pte_t mk_pte_io(unsigned long page, pgprot_t prot, int space)
+{
+	pte_t pte;
+	pte_val(pte) = (((page) | pgprot_val(prot) | _PAGE_E) &
+			~(unsigned long)_PAGE_CACHE);
+	pte_val(pte) |= (((unsigned long)space) << 32);
+	return pte;
+}
+
 /* Remap IO memory, the same way as remap_pfn_range(), but use
  * the obio memory space.
  *
@@ -68,6 +77,7 @@ static inline void io_remap_pte_range(struct mm_struct *mm, pte_t * pte,
 			BUG_ON(!pte_none(*pte));
 			set_pte_at(mm, address, pte, entry);
 			address += PAGE_SIZE;
+			pte_val(entry) += PAGE_SIZE;
 			pte++;
 		} while (address < curend);
 	} while (address < end);
@@ -116,20 +126,29 @@ static inline int io_remap_pud_range(struct mm_struct *mm, pud_t * pud, unsigned
 	return 0;
 }
 
-int io_remap_page_range(struct vm_area_struct *vma, unsigned long from, unsigned long offset, unsigned long size, pgprot_t prot, int space)
+int io_remap_pfn_range(struct vm_area_struct *vma, unsigned long from,
+		unsigned long pfn, unsigned long size, pgprot_t prot)
 {
 	int error = 0;
 	pgd_t * dir;
 	unsigned long beg = from;
 	unsigned long end = from + size;
 	struct mm_struct *mm = vma->vm_mm;
+	int space = GET_IOSPACE(pfn);
+	unsigned long offset = GET_PFN(pfn) << PAGE_SHIFT;
+	unsigned long phys_base;
+
+	phys_base = offset | (((unsigned long) space) << 32UL);
+
+	/* See comment in mm/memory.c remap_pfn_range */
+	vma->vm_flags |= VM_IO | VM_RESERVED | VM_PFNMAP;
+	vma->vm_pgoff = phys_base >> PAGE_SHIFT;
 
 	prot = __pgprot(pg_iobits);
 	offset -= from;
 	dir = pgd_offset(mm, from);
 	flush_cache_range(vma, beg, end);
 
-	spin_lock(&mm->page_table_lock);
 	while (from < end) {
 		pud_t *pud = pud_alloc(mm, dir, from);
 		error = -ENOMEM;
@@ -141,42 +160,7 @@ int io_remap_page_range(struct vm_area_struct *vma, unsigned long from, unsigned
 		from = (from + PGDIR_SIZE) & PGDIR_MASK;
 		dir++;
 	}
+
 	flush_tlb_range(vma, beg, end);
-	spin_unlock(&mm->page_table_lock);
-
-	return error;
-}
-
-int io_remap_pfn_range(struct vm_area_struct *vma, unsigned long from,
-		unsigned long pfn, unsigned long size, pgprot_t prot)
-{
-	int error = 0;
-	pgd_t * dir;
-	unsigned long beg = from;
-	unsigned long end = from + size;
-	struct mm_struct *mm = vma->vm_mm;
-	int space = GET_IOSPACE(pfn);
-	unsigned long offset = GET_PFN(pfn) << PAGE_SHIFT;
-
-	prot = __pgprot(pg_iobits);
-	offset -= from;
-	dir = pgd_offset(mm, from);
-	flush_cache_range(vma, beg, end);
-
-	spin_lock(&mm->page_table_lock);
-	while (from < end) {
-		pud_t *pud = pud_alloc(current->mm, dir, from);
-		error = -ENOMEM;
-		if (!pud)
-			break;
-		error = io_remap_pud_range(mm, pud, from, end - from, offset + from, prot, space);
-		if (error)
-			break;
-		from = (from + PGDIR_SIZE) & PGDIR_MASK;
-		dir++;
-	}
-	flush_tlb_range(vma, beg, end);
-	spin_unlock(&mm->page_table_lock);
-
 	return error;
 }

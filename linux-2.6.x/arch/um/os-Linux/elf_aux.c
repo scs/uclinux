@@ -11,8 +11,11 @@
 #include <stddef.h>
 #include "init.h"
 #include "elf_user.h"
+#include "mem_user.h"
+#include <kern_constants.h>
 
-#if ELF_CLASS == ELFCLASS32
+/* Use the one from the kernel - the host may miss it, if having old headers. */
+#if UM_ELF_CLASS == UM_ELFCLASS32
 typedef Elf32_auxv_t elf_auxv_t;
 #else
 typedef Elf64_auxv_t elf_auxv_t;
@@ -40,6 +43,9 @@ __init void scan_elf_aux( char **envp)
 				break;
 			case AT_SYSINFO_EHDR:
 				vsyscall_ehdr = auxv->a_un.a_val;
+				/* See if the page is under TASK_SIZE */
+				if (vsyscall_ehdr < (unsigned long) envp)
+					vsyscall_ehdr = 0;
 				break;
 			case AT_HWCAP:
 				elf_aux_hwcap = auxv->a_un.a_val;
@@ -49,7 +55,8 @@ __init void scan_elf_aux( char **envp)
                                  * a_un, so we have to use a_val, which is
                                  * all that's left.
                                  */
-				elf_aux_platform = (char *) auxv->a_un.a_val;
+				elf_aux_platform =
+					(char *) (long) auxv->a_un.a_val;
 				break;
 			case AT_PAGESZ:
 				page_size = auxv->a_un.a_val;

@@ -1,6 +1,4 @@
 /*
- *  $Id$
- *
  *  Copyright (C) 1991, 1992  Linus Torvalds
  *  Copyright (C) 1997 Martin Mares
  */
@@ -8,7 +6,8 @@
 /*
  * This file builds a disk-image from three different files:
  *
- * - bootsect: exactly 512 bytes of 8086 machine code, loads the rest
+ * - bootsect: compatibility mbr which prints an error message if
+ *             someone tries to boot the kernel directly.
  * - setup: 8086 machine code, sets up system parm
  * - system: 80386 code for actual system
  *
@@ -179,7 +178,9 @@ int main(int argc, char ** argv)
 		die("Output: seek failed");
 	buf[0] = (sys_size & 0xff);
 	buf[1] = ((sys_size >> 8) & 0xff);
-	if (write(1, buf, 2) != 2)
+	buf[2] = ((sys_size >> 16) & 0xff);
+	buf[3] = ((sys_size >> 24) & 0xff);
+	if (write(1, buf, 4) != 4)
 		die("Write of image length failed");
 
 	return 0;					    /* Everything is OK */

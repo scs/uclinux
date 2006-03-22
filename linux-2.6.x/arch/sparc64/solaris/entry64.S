@@ -24,8 +24,9 @@
 
 	.text
 solaris_syscall_trace:
+	add		%sp, PTREGS_OFF, %o0
 	call		syscall_trace
-	 nop
+	 mov		0, %o1
 	srl		%i0, 0, %o0
 	mov		%i4, %o4
 	srl		%i1, 0, %o1
@@ -159,8 +160,10 @@ ret_from_solaris:
 	 stx		%l2, [%sp + PTREGS_OFF + PT_V9_TNPC] !npc = npc+4 
 
 solaris_syscall_trace2:
+	add		%sp, PTREGS_OFF, %o0
 	call		syscall_trace
-	 add		%l1, 0x4, %l2			/* npc = npc+4 */
+	 mov		1, %o1
+	add		%l1, 0x4, %l2			/* npc = npc+4 */
 	andcc		%l1, 1, %g0
 	bne,pn		%icc, 2b
 	 nop
@@ -177,6 +180,8 @@ solaris_sigsuspend:
 	 nop
 	call		sys_sigsuspend
 	 stx		%o0, [%sp + PTREGS_OFF + PT_V9_I0]
+	b,pt		%xcc, ret_from_solaris
+	 nop
 
 	.globl		solaris_getpid
 solaris_getpid:
@@ -212,7 +217,7 @@ solaris_unimplemented:
 	ba,pt		%xcc, ret_from_solaris
 	 nop
 
-	.section	__ex_table,#alloc
+	.section	__ex_table,"a"
 	.align		4
 	.word		exen, exenf
 

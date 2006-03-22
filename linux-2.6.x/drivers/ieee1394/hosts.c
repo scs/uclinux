@@ -18,6 +18,7 @@
 #include <linux/slab.h>
 #include <linux/pci.h>
 #include <linux/timer.h>
+#include <linux/jiffies.h>
 
 #include "csr1212.h"
 #include "ieee1394.h"
@@ -60,12 +61,12 @@ static void delayed_reset_bus(void * __reset_info)
 
 static int dummy_transmit_packet(struct hpsb_host *h, struct hpsb_packet *p)
 {
-        return 0;
+	return 0;
 }
 
 static int dummy_devctl(struct hpsb_host *h, enum devctl_cmd c, int arg)
 {
-        return -1;
+	return -1;
 }
 
 static int dummy_isoctl(struct hpsb_iso *iso, enum isoctl_cmd command, unsigned long arg)
@@ -74,9 +75,9 @@ static int dummy_isoctl(struct hpsb_iso *iso, enum isoctl_cmd command, unsigned 
 }
 
 static struct hpsb_host_driver dummy_driver = {
-        .transmit_packet = dummy_transmit_packet,
-        .devctl =          dummy_devctl,
-	.isoctl =          dummy_isoctl
+	.transmit_packet = dummy_transmit_packet,
+	.devctl =	   dummy_devctl,
+	.isoctl =	   dummy_isoctl
 };
 
 static int alloc_hostnum_cb(struct hpsb_host *host, void *__data)
@@ -109,13 +110,13 @@ static DECLARE_MUTEX(host_num_alloc);
 struct hpsb_host *hpsb_alloc_host(struct hpsb_host_driver *drv, size_t extra,
 				  struct device *dev)
 {
-        struct hpsb_host *h;
+	struct hpsb_host *h;
 	int i;
 	int hostnum = 0;
 
-        h = kmalloc(sizeof(struct hpsb_host) + extra, SLAB_KERNEL);
-        if (!h) return NULL;
-        memset(h, 0, sizeof(struct hpsb_host) + extra);
+	h = kzalloc(sizeof(*h) + extra, SLAB_KERNEL);
+	if (!h)
+		return NULL;
 
 	h->csr.rom = csr1212_create_csr(&csr_bus_ops, CSR_BUS_INFO_SIZE, h);
 	if (!h->csr.rom) {
@@ -124,7 +125,7 @@ struct hpsb_host *hpsb_alloc_host(struct hpsb_host_driver *drv, size_t extra,
 	}
 
 	h->hostdata = h + 1;
-        h->driver = drv;
+	h->driver = drv;
 
 	skb_queue_head_init(&h->pending_packet_queue);
 	INIT_LIST_HEAD(&h->addr_space);
@@ -144,8 +145,8 @@ struct hpsb_host *hpsb_alloc_host(struct hpsb_host_driver *drv, size_t extra,
 	h->timeout.function = abort_timedouts;
 	h->timeout_interval = HZ / 20; // 50ms by default
 
-        h->topology_map = h->csr.topology_map + 3;
-        h->speed_map = (u8 *)(h->csr.speed_map + 2);
+	h->topology_map = h->csr.topology_map + 3;
+	h->speed_map = (u8 *)(h->csr.speed_map + 2);
 
 	down(&host_num_alloc);
 
@@ -185,14 +186,14 @@ int hpsb_add_host(struct hpsb_host *host)
 
 void hpsb_remove_host(struct hpsb_host *host)
 {
-        host->is_shutdown = 1;
+	host->is_shutdown = 1;
 
 	cancel_delayed_work(&host->delayed_reset);
 	flush_scheduled_work();
 
-        host->driver = &dummy_driver;
+	host->driver = &dummy_driver;
 
-        highlevel_remove_host(host);
+	highlevel_remove_host(host);
 
 	hpsb_remove_extra_config_roms(host);
 
@@ -217,7 +218,7 @@ int hpsb_update_config_rom_image(struct hpsb_host *host)
 
 	/* IEEE 1394a-2000 prohibits using the same generation number
 	 * twice in a 60 second period. */
-	if (jiffies - host->csr.gen_timestamp[next_gen] < 60 * HZ)
+	if (time_before(jiffies, host->csr.gen_timestamp[next_gen] + 60 * HZ))
 		/* Wait 60 seconds from the last time this generation number was
 		 * used. */
 		reset_delay = (60 * HZ) + host->csr.gen_timestamp[next_gen] - jiffies;

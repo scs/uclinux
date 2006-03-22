@@ -42,7 +42,7 @@ void mxcsr_feature_mask_init(void)
  * Called at bootup to set up the initial FPU state that is later cloned
  * into all processes.
  */
-void __init fpu_init(void)
+void __cpuinit fpu_init(void)
 {
 	unsigned long oldcr0 = read_cr0();
 	extern void __bad_fxsave_alignment(void);
@@ -95,7 +95,7 @@ int save_i387(struct _fpstate __user *buf)
 	if (!used_math())
 		return 0;
 	clear_used_math(); /* trigger finit */
-	if (tsk->thread_info->status & TS_USEDFPU) {
+	if (task_thread_info(tsk)->status & TS_USEDFPU) {
 		err = save_i387_checking((struct i387_fxsave_struct __user *)buf);
 		if (err) return err;
 		stts();

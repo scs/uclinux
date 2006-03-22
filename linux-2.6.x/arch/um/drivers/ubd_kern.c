@@ -35,6 +35,7 @@
 #include "linux/blkpg.h"
 #include "linux/genhd.h"
 #include "linux/spinlock.h"
+#include "linux/platform_device.h"
 #include "asm/segment.h"
 #include "asm/uaccess.h"
 #include "asm/irq.h"
@@ -116,6 +117,7 @@ static int ubd_open(struct inode * inode, struct file * filp);
 static int ubd_release(struct inode * inode, struct file * file);
 static int ubd_ioctl(struct inode * inode, struct file * file,
 		     unsigned int cmd, unsigned long arg);
+static int ubd_getgeo(struct block_device *bdev, struct hd_geometry *geo);
 
 #define MAX_DEV (8)
 
@@ -124,6 +126,7 @@ static struct block_device_operations ubd_blops = {
         .open		= ubd_open,
         .release	= ubd_release,
         .ioctl		= ubd_ioctl,
+	.getgeo		= ubd_getgeo,
 };
 
 /* Protected by the queue_lock */
@@ -668,21 +671,22 @@ static int ubd_add(int n)
 	struct ubd *dev = &ubd_dev[n];
 	int err;
 
+	err = -ENODEV;
 	if(dev->file == NULL)
-		return(-ENODEV);
+		goto out;
 
 	if (ubd_open_dev(dev))
-		return(-ENODEV);
+		goto out;
 
 	err = ubd_file_size(dev, &dev->size);
 	if(err < 0)
-		return(err);
+		goto out_close;
 
 	dev->size = ROUND_BLOCK(dev->size);
 
 	err = ubd_new_disk(MAJOR_NR, dev->size, n, &ubd_gendisk[n]);
 	if(err) 
-		return(err);
+		goto out_close;
  
 	if(fake_major != MAJOR_NR)
 		ubd_new_disk(fake_major, dev->size, n, 
@@ -693,15 +697,18 @@ static int ubd_add(int n)
 	if (fake_ide)
 		make_ide_entries(ubd_gendisk[n]->disk_name);
 
+	err = 0;
+out_close:
 	ubd_close(dev);
-	return 0;
+out:
+	return err;
 }
 
 static int ubd_config(char *str)
 {
 	int n, err;
 
-	str = uml_strdup(str);
+	str = kstrdup(str, GFP_KERNEL);
 	if(str == NULL){
 		printk(KERN_ERR "ubd_config failed to strdup string\n");
 		return(1);
@@ -754,24 +761,34 @@ static int ubd_get_config(char *name, char *str, int size, char **error_out)
 	return(len);
 }
 
-static int ubd_remove(char *str)
+static int ubd_id(char **str, int *start_out, int *end_out)
+{
+        int n;
+
+	n = parse_unit(str);
+        *start_out = 0;
+        *end_out = MAX_DEV - 1;
+        return n;
+}
+
+static int ubd_remove(int n)
 {
 	struct ubd *dev;
-	int n, err = -ENODEV;
+	int err = -ENODEV;
 
-	n = parse_unit(&str);
-
-	if((n < 0) || (n >= MAX_DEV))
-		return(err);
-
-	dev = &ubd_dev[n];
-	if(dev->count > 0)
-		return(-EBUSY);	/* you cannot remove a open disk */
-
-	err = 0;
- 	spin_lock(&ubd_lock);
+	spin_lock(&ubd_lock);
 
 	if(ubd_gendisk[n] == NULL)
+		goto out;
+
+	dev = &ubd_dev[n];
+
+	if(dev->file == NULL)
+		goto out;
+
+	/* you cannot remove a open disk */
+	err = -EBUSY;
+	if(dev->count > 0)
 		goto out;
 
 	del_gendisk(ubd_gendisk[n]);
@@ -787,15 +804,16 @@ static int ubd_remove(char *str)
 	platform_device_unregister(&dev->pdev);
 	*dev = ((struct ubd) DEFAULT_UBD);
 	err = 0;
- out:
- 	spin_unlock(&ubd_lock);
-	return(err);
+out:
+	spin_unlock(&ubd_lock);
+	return err;
 }
 
 static struct mc_device ubd_mc = {
 	.name		= "ubd",
 	.config		= ubd_config,
  	.get_config	= ubd_get_config,
+	.id		= ubd_id,
 	.remove		= ubd_remove,
 };
 
@@ -807,9 +825,10 @@ static int ubd_mc_init(void)
 
 __initcall(ubd_mc_init);
 
-static struct device_driver ubd_driver = {
-	.name  = DRIVER_NAME,
-	.bus   = &platform_bus_type,
+static struct platform_driver ubd_driver = {
+	.driver = {
+		.name  = DRIVER_NAME,
+	},
 };
 
 int ubd_init(void)
@@ -834,7 +853,7 @@ int ubd_init(void)
 		if (register_blkdev(fake_major, "ubd"))
 			return -1;
 	}
-	driver_register(&ubd_driver);
+	platform_driver_register(&ubd_driver);
 	for (i = 0; i < MAX_DEV; i++) 
 		ubd_add(i);
 	return 0;
@@ -1041,10 +1060,19 @@ static void do_ubd_request(request_queue_t *q)
 	}
 }
 
+static int ubd_getgeo(struct block_device *bdev, struct hd_geometry *geo)
+{
+	struct ubd *dev = bdev->bd_disk->private_data;
+
+	geo->heads = 128;
+	geo->sectors = 32;
+	geo->cylinders = dev->size / (128 * 32 * 512);
+	return 0;
+}
+
 static int ubd_ioctl(struct inode * inode, struct file * file,
 		     unsigned int cmd, unsigned long arg)
 {
-	struct hd_geometry __user *loc = (struct hd_geometry __user *) arg;
 	struct ubd *dev = inode->i_bdev->bd_disk->private_data;
 	struct hd_driveid ubd_id = {
 		.cyls		= 0,
@@ -1053,16 +1081,7 @@ static int ubd_ioctl(struct inode * inode, struct file * file,
 	};
 
 	switch (cmd) {
-	        struct hd_geometry g;
 		struct cdrom_volctrl volume;
-	case HDIO_GETGEO:
-		if(!loc) return(-EINVAL);
-		g.heads = 128;
-		g.sectors = 32;
-		g.cylinders = dev->size / (128 * 32 * 512);
-		g.start = get_start_sect(inode->i_bdev);
-		return(copy_to_user(loc, &g, sizeof(g)) ? -EFAULT : 0);
-
 	case HDIO_GET_IDENTITY:
 		ubd_id.cyls = dev->size / (128 * 32 * 512);
 		if(copy_to_user((char __user *) arg, (char *) &ubd_id,
@@ -1084,37 +1103,39 @@ static int ubd_ioctl(struct inode * inode, struct file * file,
 	return(-EINVAL);
 }
 
-static int same_backing_files(char *from_cmdline, char *from_cow, char *cow)
+static int path_requires_switch(char *from_cmdline, char *from_cow, char *cow)
 {
 	struct uml_stat buf1, buf2;
 	int err;
 
-	if(from_cmdline == NULL) return(1);
-	if(!strcmp(from_cmdline, from_cow)) return(1);
+	if(from_cmdline == NULL)
+		return 0;
+	if(!strcmp(from_cmdline, from_cow))
+		return 0;
 
 	err = os_stat_file(from_cmdline, &buf1);
 	if(err < 0){
 		printk("Couldn't stat '%s', err = %d\n", from_cmdline, -err);
-		return(1);
+		return 0;
 	}
 	err = os_stat_file(from_cow, &buf2);
 	if(err < 0){
 		printk("Couldn't stat '%s', err = %d\n", from_cow, -err);
-		return(1);
+		return 1;
 	}
 	if((buf1.ust_dev == buf2.ust_dev) && (buf1.ust_ino == buf2.ust_ino))
-		return(1);
+		return 0;
 
 	printk("Backing file mismatch - \"%s\" requested,\n"
 	       "\"%s\" specified in COW header of \"%s\"\n",
 	       from_cmdline, from_cow, cow);
-	return(0);
+	return 1;
 }
 
 static int backing_file_mismatch(char *file, __u64 size, time_t mtime)
 {
 	unsigned long modtime;
-	long long actual;
+	unsigned long long actual;
 	int err;
 
 	err = os_file_modtime(file, &modtime);
@@ -1170,18 +1191,19 @@ int open_ubd_file(char *file, struct openflags *openflags,
 	unsigned long long size;
 	__u32 version, align;
 	char *backing_file;
-	int fd, err, sectorsize, same, mode = 0644;
+	int fd, err, sectorsize, asked_switch, mode = 0644;
 
 	fd = os_open_file(file, *openflags, mode);
-	if(fd < 0){
-		if((fd == -ENOENT) && (create_cow_out != NULL))
+	if (fd < 0) {
+		if ((fd == -ENOENT) && (create_cow_out != NULL))
 			*create_cow_out = 1;
-                if(!openflags->w ||
-                   ((fd != -EROFS) && (fd != -EACCES))) return(fd);
+                if (!openflags->w ||
+                   ((fd != -EROFS) && (fd != -EACCES)))
+			return fd;
 		openflags->w = 0;
 		fd = os_open_file(file, *openflags, mode);
-		if(fd < 0)
-			return(fd);
+		if (fd < 0)
+			return fd;
         }
 
 	err = os_lock_file(fd, openflags->w);
@@ -1190,7 +1212,9 @@ int open_ubd_file(char *file, struct openflags *openflags,
 		goto out_close;
 	}
 
-	if(backing_file_out == NULL) return(fd);
+	/* Succesful return case! */
+	if(backing_file_out == NULL)
+		return(fd);
 
 	err = read_cow_header(file_reader, &fd, &version, &backing_file, &mtime,
 			      &size, &sectorsize, &align, bitmap_offset_out);
@@ -1199,34 +1223,34 @@ int open_ubd_file(char *file, struct openflags *openflags,
 		       "errno = %d\n", file, -err);
 		goto out_close;
 	}
-	if(err) return(fd);
+	if(err)
+		return(fd);
 
-	if(backing_file_out == NULL) return(fd);
+	asked_switch = path_requires_switch(*backing_file_out, backing_file, file);
 
-	same = same_backing_files(*backing_file_out, backing_file, file);
-
-	if(!same && !backing_file_mismatch(*backing_file_out, size, mtime)){
+	/* Allow switching only if no mismatch. */
+	if (asked_switch && !backing_file_mismatch(*backing_file_out, size, mtime)) {
 		printk("Switching backing file to '%s'\n", *backing_file_out);
 		err = write_cow_header(file, fd, *backing_file_out,
 				       sectorsize, align, &size);
-		if(err){
+		if (err) {
 			printk("Switch failed, errno = %d\n", -err);
-			return(err);
+			goto out_close;
 		}
-	}
-	else {
+	} else {
 		*backing_file_out = backing_file;
 		err = backing_file_mismatch(*backing_file_out, size, mtime);
-		if(err) goto out_close;
+		if (err)
+			goto out_close;
 	}
 
 	cow_sizes(version, size, sectorsize, align, *bitmap_offset_out,
 		  bitmap_len_out, data_offset_out);
 
-        return(fd);
+        return fd;
  out_close:
 	os_close_file(fd);
-	return(err);
+	return err;
 }
 
 int create_cow_file(char *cow_file, char *backing_file, struct openflags flags,
@@ -1370,15 +1394,6 @@ int io_thread(void *arg)
 			printk("io_thread - write failed, fd = %d, err = %d\n",
 			       kernel_fd, -n);
 	}
-}
 
-/*
- * Overrides for Emacs so that we follow Linus's tabbing style.
- * Emacs will notice this stuff at the end of the file and automatically
- * adjust the settings for this buffer only.  This must remain at the end
- * of the file.
- * ---------------------------------------------------------------------------
- * Local variables:
- * c-file-style: "linux"
- * End:
- */
+	return 0;
+}

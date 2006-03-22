@@ -2,20 +2,25 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/string.h>
+#include <linux/tty.h>
 #include <asm/io.h>
 #include <asm/processor.h>
+#include <asm/fcntl.h>
 
 /* Simple VGA output */
 
 #ifdef __i386__
+#include <asm/setup.h>
 #define VGABASE		(__ISA_IO_base + 0xb8000)
 #else
+#include <asm/bootsetup.h>
 #define VGABASE		((void __iomem *)0xffffffff800b8000UL)
 #endif
 
-#define MAX_YPOS	25
-#define MAX_XPOS	80
+#define MAX_YPOS	max_ypos
+#define MAX_XPOS	max_xpos
 
+static int max_ypos = 25, max_xpos = 80;
 static int current_ypos = 1, current_xpos = 0; 
 
 static void early_vga_write(struct console *con, const char *str, unsigned n)
@@ -154,6 +159,47 @@ static struct console early_serial_console = {
 	.index =	-1,
 };
 
+/* Console interface to a host file on AMD's SimNow! */
+
+static int simnow_fd;
+
+enum {
+	MAGIC1 = 0xBACCD00A,
+	MAGIC2 = 0xCA110000,
+	XOPEN = 5,
+	XWRITE = 4,
+};
+
+static noinline long simnow(long cmd, long a, long b, long c)
+{
+	long ret;
+	asm volatile("cpuid" :
+		     "=a" (ret) :
+		     "b" (a), "c" (b), "d" (c), "0" (MAGIC1), "D" (cmd + MAGIC2));
+	return ret;
+}
+
+void __init simnow_init(char *str)
+{
+	char *fn = "klog";
+	if (*str == '=')
+		fn = ++str;
+	/* error ignored */
+	simnow_fd = simnow(XOPEN, (unsigned long)fn, O_WRONLY|O_APPEND|O_CREAT, 0644);
+}
+
+static void simnow_write(struct console *con, const char *s, unsigned n)
+{
+	simnow(XWRITE, simnow_fd, (unsigned long)s, n);
+}
+
+static struct console simnow_console = {
+	.name =		"simnow",
+	.write =	simnow_write,
+	.flags =	CON_PRINTBUFFER,
+	.index =	-1,
+};
+
 /* Direct interface for emergencies */
 struct console *early_console = &early_vga_console;
 static int early_console_initialized = 0;
@@ -170,7 +216,7 @@ void early_printk(const char *fmt, ...)
 	va_end(ap); 
 } 
 
-static int keep_early; 
+static int __initdata keep_early;
 
 int __init setup_early_printk(char *opt) 
 {  
@@ -179,8 +225,6 @@ int __init setup_early_printk(char *opt)
 
 	if (early_console_initialized)
 		return -1;
-
-	opt = strchr(opt, '=') + 1;
 
 	strlcpy(buf,opt,sizeof(buf)); 
 	space = strchr(buf, ' '); 
@@ -196,8 +240,15 @@ int __init setup_early_printk(char *opt)
 	} else if (!strncmp(buf, "ttyS", 4)) { 
 		early_serial_init(buf);
 		early_console = &early_serial_console;		
-	} else if (!strncmp(buf, "vga", 3)) {
+	} else if (!strncmp(buf, "vga", 3)
+	           && SCREEN_INFO.orig_video_isVGA == 1) {
+		max_xpos = SCREEN_INFO.orig_video_cols;
+		max_ypos = SCREEN_INFO.orig_video_lines;
 		early_console = &early_vga_console; 
+ 	} else if (!strncmp(buf, "simnow", 6)) {
+ 		simnow_init(buf + 6);
+ 		early_console = &simnow_console;
+ 		keep_early = 1;
 	}
 	early_console_initialized = 1;
 	register_console(early_console);       

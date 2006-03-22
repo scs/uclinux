@@ -13,7 +13,6 @@
 
 #include <errno.h>
 #include <unistd.h>
-#include <linux/inet.h>
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <sys/time.h>
@@ -55,7 +54,7 @@ static int mcast_open(void *data)
 	struct mcast_data *pri = data;
 	struct sockaddr_in *sin = pri->mcast_addr;
 	struct ip_mreq mreq;
-	int fd = -EINVAL, yes = 1, err = -EINVAL;;
+	int fd, yes = 1, err = -EINVAL;
 
 
 	if ((sin->sin_addr.s_addr == 0) || (sin->sin_port == 0))
@@ -64,13 +63,14 @@ static int mcast_open(void *data)
 	fd = socket(AF_INET, SOCK_DGRAM, 0);
 
 	if (fd < 0){
+		err = -errno;
 		printk("mcast_open : data socket failed, errno = %d\n", 
 		       errno);
-		fd = -errno;
 		goto out;
 	}
 
 	if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(yes)) < 0) {
+		err = -errno;
 		printk("mcast_open: SO_REUSEADDR failed, errno = %d\n",
 			errno);
 		goto out_close;
@@ -79,6 +79,7 @@ static int mcast_open(void *data)
 	/* set ttl according to config */
 	if (setsockopt(fd, SOL_IP, IP_MULTICAST_TTL, &pri->ttl,
 		       sizeof(pri->ttl)) < 0) {
+		err = -errno;
 		printk("mcast_open: IP_MULTICAST_TTL failed, error = %d\n",
 			errno);
 		goto out_close;
@@ -86,6 +87,7 @@ static int mcast_open(void *data)
 
 	/* set LOOP, so data does get fed back to local sockets */
 	if (setsockopt(fd, SOL_IP, IP_MULTICAST_LOOP, &yes, sizeof(yes)) < 0) {
+		err = -errno;
 		printk("mcast_open: IP_MULTICAST_LOOP failed, error = %d\n",
 			errno);
 		goto out_close;
@@ -93,6 +95,7 @@ static int mcast_open(void *data)
 
 	/* bind socket to mcast address */
 	if (bind(fd, (struct sockaddr *) sin, sizeof(*sin)) < 0) {
+		err = -errno;
 		printk("mcast_open : data bind failed, errno = %d\n", errno);
 		goto out_close;
 	}		
@@ -102,21 +105,22 @@ static int mcast_open(void *data)
 	mreq.imr_interface.s_addr = 0;
 	if (setsockopt(fd, SOL_IP, IP_ADD_MEMBERSHIP, 
 		       &mreq, sizeof(mreq)) < 0) {
+		err = -errno;
 		printk("mcast_open: IP_ADD_MEMBERSHIP failed, error = %d\n",
 			errno);
 		printk("There appears not to be a multicast-capable network "
 		       "interface on the host.\n");
 		printk("eth0 should be configured in order to use the "
 		       "multicast transport.\n");
-                goto out_close;
+		goto out_close;
 	}
 
- out:
 	return fd;
 
  out_close:
-        os_close_file(fd);
-        return err;
+	os_close_file(fd);
+ out:
+	return err;
 }
 
 static void mcast_close(int fd, void *data)
