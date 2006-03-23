@@ -86,38 +86,49 @@ __start:
 	L2 = 0;
 	L3 = 0;
 	
-/*	Load register R0 (argc) from the stack to its final resting place */
+/*	Load register R1 (argc) from the stack to its final resting place */
 	P0 = SP;
-	R0 = [P0++];
+	R1 = [P0++];
 
-/*	Copy argv pointer into R1 -- which its final resting place */
-	R1 = P0;
+/*	Copy argv pointer into R2 -- which its final resting place */
+	R2 = P0;
 
-/*	Skip to the end of argv and put a pointer to the environment in R2 */
-	R2 = R0;
-	R2 <<= 2;
-	R2 += 4;
-	R2 = R1+R2;
+/*	Skip to the end of argv and put a pointer to the environment in
+	[SP + 12] */
+	R3 = R0;
+	R3 <<= 2;
+	R3 += 4;
+	R3 = R2 + R3;
+
+	SP += -24;
+	[SP + 12] = R3;
 
 /*	Ok, now run uClibc's main() -- shouldn't return */
 #if defined L_crt1 && defined __UCLIBC_CTOR_DTOR__
-	SP += -20;
 #ifdef __BFIN_FDPIC__
 	R3 = [P3 + __init@FUNCDESC_GOT17M4];
 #else
 	R3.H = __init;
 	R3.L = __init;
 #endif
-	[SP+12] = R3;
+	[SP+16] = R3;
 #ifdef __BFIN_FDPIC__
 	R3 = [P3 + __fini@FUNCDESC_GOT17M4];
 #else
 	R3.H = __fini;
 	R3.L = __fini;
 #endif
-	[SP+16] = R3;
-	jump.l	___uClibc_start_main;
-#else
-	sp += -12;
-	jump.l	___uClibc_main;
+	[SP+20] = R3;
+#else /* no ctor/dtor handling */
+	R3 = 0;
+	[SP + 16] = R3;
+	[SP + 20] = R3;
 #endif
+
+#ifdef __BFIN_FDPIC__
+	R0 = [P3 + _main@FUNCDESC_GOT17M4];
+#else
+	R0.H = _main;
+	R0.L = _main;
+#endif
+	jump.l	___uClibc_start_main;

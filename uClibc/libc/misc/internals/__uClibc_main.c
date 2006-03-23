@@ -32,7 +32,6 @@ extern void __guard_setup(void);
 /*
  * Prototypes.
  */
-extern int  main(int argc, char **argv, char **envp);
 extern void weak_function _stdio_init(void);
 extern int *weak_const_function __errno_location(void);
 extern int *weak_const_function __h_errno_location(void);
@@ -118,7 +117,7 @@ static int __check_suid(void)
  * __uClibc_start_main.
  */
 
-void __uClibc_init(void)
+void  __attribute__((constructor)) __uClibc_init(void)
 {
     static int been_there_done_that = 0;
 
@@ -151,7 +150,6 @@ void __uClibc_init(void)
      */
     if (likely(_stdio_init != NULL))
 	_stdio_init();
-
 }
 
 #ifdef __UCLIBC_CTOR_DTOR__
@@ -163,7 +161,8 @@ void (*__app_fini)(void) = NULL;
  * are initialized, just before we call the application's main function.
  */
 void __attribute__ ((__noreturn__))
-__uClibc_start_main(int argc, char **argv, char **envp,
+__uClibc_start_main(int (*main) (int, char **, char **),
+	int argc, char **argv, char **envp,
 	void (*app_init)(void), void (*app_fini)(void))
 {
 #ifdef __ARCH_HAS_MMU__
@@ -246,20 +245,8 @@ __uClibc_start_main(int argc, char **argv, char **envp,
     exit(main(argc, argv, envp));
 }
 
-
-/* __uClibc_main is the old main stub of the uClibc. This
- * function is called from crt0 (uClibc 0.9.15 and older) after
- * ALL shared libraries are initialized, and just before we call
- * the application's main() function.
- *
- * Attention: This stub does not call the .init/.fini sections of
- * the application. If you need this, please fix your uClibc port
- * so that  __uClibc_start_main is called by your crt0.S with
- * _init and _fini properly set.
-*/
-void __attribute__ ((__noreturn__))
-__uClibc_main(int argc, char **argv, char ** envp)
+void
+__libc_main (void)
 {
-    __uClibc_start_main(argc, argv, envp, NULL, NULL);
+    exit (0);
 }
-
