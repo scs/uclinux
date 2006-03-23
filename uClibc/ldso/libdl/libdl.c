@@ -56,6 +56,12 @@ extern int _dl_fixup(struct dyn_elf *rpnt, int lazy)
 	 __attribute__ ((__weak__));
 extern void _dl_protect_relro(struct elf_resolve * tpnt)
 	__attribute__ ((__weak__));
+extern void _dl_dprintf(int fd, const char *, ...)
+     __attribute__ ((__weak__));
+extern void *_dl_malloc(size_t size)
+     __attribute__ ((__weak__));
+extern void _dl_free(void *)
+     __attribute__ ((__weak__));
 extern int _dl_errno __attribute__ ((__weak__));
 extern struct dyn_elf *_dl_symbol_tables __attribute__ ((__weak__));
 extern struct dyn_elf *_dl_handles __attribute__ ((__weak__));
@@ -91,6 +97,8 @@ char *_dl_debug_detail    = 0;
 char *_dl_debug_nofixups  = 0;
 char *_dl_debug_bindings  = 0;
 int   _dl_debug_file      = 2;
+void *(*_dl_malloc_function)(size_t);
+void (*_dl_free_function) (void *p);
 #endif
 char *_dl_library_path         = 0;		    /* Where we look for libraries */
 char *_dl_ldsopath             = 0;		    /* Location of the shared lib loader */
@@ -154,6 +162,7 @@ void *dlopen(const char *libname, int flag)
 	struct init_fini_list *tmp, *runp;
 	int nlist, i;
 	struct elf_resolve **init_fini_list;
+	static int _dl_init = 0;
 
 	/* A bit of sanity checking... */
 	if (!(flag & (RTLD_LAZY|RTLD_NOW))) {
@@ -163,6 +172,11 @@ void *dlopen(const char *libname, int flag)
 
 	from = (ElfW(Addr)) __builtin_return_address(0);
 
+	if (!_dl_init) {
+		_dl_init++;
+		_dl_malloc_function = malloc;
+		_dl_free_function = free;
+	}
 	/* Cover the trivial case first */
 	if (!libname)
 		return _dl_symbol_tables;
@@ -407,6 +421,22 @@ void *dlsym(void *vhandle, const char *name)
 	ElfW(Addr) from;
 	struct dyn_elf *rpnt;
 	void *ret;
+	char tmp_buf[80];
+	char *name2 = tmp_buf;
+	int clen = strlen (__C_SYMBOL_PREFIX__);
+
+	/* Nastiness to support underscore prefixes.  */
+	if (clen > 0) {
+		size_t nlen = strlen (name) + 1;
+		if (nlen + clen > sizeof (tmp_buf))
+			name2 = malloc (nlen + clen);
+		if (name2 == 0) {
+			_dl_error_number = LD_ERROR_MMAP_FAILED;
+			return 0;
+		}
+		memcpy (name2, __C_SYMBOL_PREFIX__, clen);
+		memcpy (name2 + clen, name, nlen);
+	}
 
 	handle = (struct dyn_elf *) vhandle;
 
@@ -421,7 +451,8 @@ void *dlsym(void *vhandle, const char *name)
 				break;
 		if (!rpnt) {
 			_dl_error_number = LD_BAD_HANDLE;
-			return NULL;
+			ret = NULL;
+			goto out;
 		}
 	} else if (handle == RTLD_NEXT) {
 		/*
@@ -443,13 +474,16 @@ void *dlsym(void *vhandle, const char *name)
 		}
 	}
 
-	ret = _dl_find_hash((char*)name, handle, NULL, ELF_RTYPE_CLASS_DLSYM);
+	ret = _dl_find_hash(name2, handle, NULL, ELF_RTYPE_CLASS_DLSYM);
 
 	/*
 	 * Nothing found.
 	 */
 	if (!ret)
 		_dl_error_number = LD_NO_SYMBOL;
+out:
+	if (name2 != tmp_buf)
+		free (name2);
 	return ret;
 }
 
