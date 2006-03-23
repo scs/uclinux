@@ -97,9 +97,9 @@ char *_dl_debug_detail    = 0;
 char *_dl_debug_nofixups  = 0;
 char *_dl_debug_bindings  = 0;
 int   _dl_debug_file      = 2;
+#endif
 void *(*_dl_malloc_function)(size_t);
 void (*_dl_free_function) (void *p);
-#endif
 char *_dl_library_path         = 0;		    /* Where we look for libraries */
 char *_dl_ldsopath             = 0;		    /* Location of the shared lib loader */
 int _dl_errno                  = 0;         /* We can't use the real errno in ldso */
