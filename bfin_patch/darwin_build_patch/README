@@ -1,0 +1,5 @@
+This patch is from <http://www.mac.linux-m68k.org/docs/cross-dev-os-x.php>
+with little modification.
+
+To cross compile the uClinux-dist on Mac OS X, mtd-utils should be disabled
+in configuration.
