@@ -112,7 +112,7 @@ isac_bh(struct IsdnCardState *cs)
 #endif
 }
 
-void
+static void
 isac_empty_fifo(struct IsdnCardState *cs, int count)
 {
 	u_char *ptr;
@@ -563,22 +563,19 @@ ISAC_l1hw(struct PStack *st, int pr, void *arg)
 	}
 }
 
-void
+static void
 setstack_isac(struct PStack *st, struct IsdnCardState *cs)
 {
 	st->l1.l1hw = ISAC_l1hw;
 }
 
-void 
-DC_Close_isac(struct IsdnCardState *cs) {
-	if (cs->dc.isac.mon_rx) {
-		kfree(cs->dc.isac.mon_rx);
-		cs->dc.isac.mon_rx = NULL;
-	}
-	if (cs->dc.isac.mon_tx) {
-		kfree(cs->dc.isac.mon_tx);
-		cs->dc.isac.mon_tx = NULL;
-	}
+static void
+DC_Close_isac(struct IsdnCardState *cs)
+{
+	kfree(cs->dc.isac.mon_rx);
+	cs->dc.isac.mon_rx = NULL;
+	kfree(cs->dc.isac.mon_tx);
+	cs->dc.isac.mon_tx = NULL;
 }
 
 static void

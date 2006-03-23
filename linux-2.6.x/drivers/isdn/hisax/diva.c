@@ -28,7 +28,7 @@
 
 extern const char *CardType[];
 
-const char *Diva_revision = "$Revision$";
+static const char *Diva_revision = "$Revision$";
 
 #define byteout(addr,val) outb(val,addr)
 #define bytein(addr) inb(addr)
@@ -476,7 +476,7 @@ Memhscx_fill_fifo(struct BCState *bcs)
 	}
 }
 
-static inline void
+static void
 Memhscx_interrupt(struct IsdnCardState *cs, u_char val, u_char hscx)
 {
 	u_char r;
@@ -706,7 +706,7 @@ diva_irq_ipacx_pci(int intno, void *dev_id, struct pt_regs *regs)
 	return IRQ_HANDLED;
 }
 
-void
+static void
 release_io_diva(struct IsdnCardState *cs)
 {
 	int bytecnt;

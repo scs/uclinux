@@ -312,7 +312,7 @@ wait_busy(hfc4s8s_hw * a)
 /* function to read critical counter registers that   */
 /* may be udpated by the chip during read             */
 /******************************************************/
-static volatile u_char
+static u_char
 Read_hfc8_stable(hfc4s8s_hw * hw, int reg)
 {
 	u_char ref8;
@@ -324,7 +324,7 @@ Read_hfc8_stable(hfc4s8s_hw * hw, int reg)
 	return in8;
 }
 
-static volatile int
+static int
 Read_hfc16_stable(hfc4s8s_hw * hw, int reg)
 {
 	int ref16;
@@ -1063,7 +1063,7 @@ tx_b_frame(struct hfc4s8s_btype *bch)
 				Write_hfc8(l1->hw, A_INC_RES_FIFO, 1);
 			}
 			ack_len += skb->truesize;
-			bch->tx_skb = 0;
+			bch->tx_skb = NULL;
 			bch->tx_cnt = 0;
 			dev_kfree_skb(skb);
 		} else
@@ -1358,7 +1358,7 @@ chipreset(hfc4s8s_hw * hw)
 /********************************************/
 /* disable/enable hardware in nt or te mode */
 /********************************************/
-void
+static void
 hfc_hardware_enable(hfc4s8s_hw * hw, int enable, int nt_mode)
 {
 	u_long flags;
@@ -1465,7 +1465,7 @@ hfc_hardware_enable(hfc4s8s_hw * hw, int enable, int nt_mode)
 /******************************************/
 /* disable memory mapped ports / io ports */
 /******************************************/
-void
+static void
 release_pci_ports(hfc4s8s_hw * hw)
 {
 	pci_write_config_word(hw->pdev, PCI_COMMAND, 0);
@@ -1481,7 +1481,7 @@ release_pci_ports(hfc4s8s_hw * hw)
 /*****************************************/
 /* enable memory mapped ports / io ports */
 /*****************************************/
-void
+static void
 enable_pci_ports(hfc4s8s_hw * hw)
 {
 #ifdef CONFIG_HISAX_HFC4S8S_PCIMEM
@@ -1659,10 +1659,10 @@ hfc4s8s_remove(struct pci_dev *pdev)
 }
 
 static struct pci_driver hfc4s8s_driver = {
-      name:"hfc4s8s_l1",
-      probe:hfc4s8s_probe,
-      remove:__devexit_p(hfc4s8s_remove),
-      id_table:hfc4s8s_ids,
+      .name	= "hfc4s8s_l1",
+      .probe	= hfc4s8s_probe,
+      .remove	= __devexit_p(hfc4s8s_remove),
+      .id_table	= hfc4s8s_ids,
 };
 
 /**********************/

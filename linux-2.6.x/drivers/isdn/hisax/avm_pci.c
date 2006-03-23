@@ -172,7 +172,7 @@ struct BCState *Sel_BCS(struct IsdnCardState *cs, int channel)
 		return(NULL);
 }
 
-void
+static void
 write_ctrl(struct BCState *bcs, int which) {
 
 	if (bcs->cs->debug & L1_DEB_HSCX)
@@ -193,7 +193,7 @@ write_ctrl(struct BCState *bcs, int which) {
 	}
 }
 
-void
+static void
 modehdlc(struct BCState *bcs, int mode, int bc)
 {
 	struct IsdnCardState *cs = bcs->cs;
@@ -358,7 +358,7 @@ hdlc_fill_fifo(struct BCState *bcs)
 	}
 }
 
-static inline void
+static void
 HDLC_irq(struct BCState *bcs, u_int stat) {
 	int len;
 	struct sk_buff *skb;
@@ -451,7 +451,7 @@ HDLC_irq(struct BCState *bcs, u_int stat) {
 	}
 }
 
-inline void
+static inline void
 HDLC_irq_main(struct IsdnCardState *cs)
 {
 	u_int stat;
@@ -487,7 +487,7 @@ HDLC_irq_main(struct IsdnCardState *cs)
 	}
 }
 
-void
+static void
 hdlc_l2l1(struct PStack *st, int pr, void *arg)
 {
 	struct BCState *bcs = st->l1.bcs;
@@ -547,19 +547,15 @@ hdlc_l2l1(struct PStack *st, int pr, void *arg)
 	}
 }
 
-void
+static void
 close_hdlcstate(struct BCState *bcs)
 {
 	modehdlc(bcs, 0, 0);
 	if (test_and_clear_bit(BC_FLG_INIT, &bcs->Flag)) {
-		if (bcs->hw.hdlc.rcvbuf) {
-			kfree(bcs->hw.hdlc.rcvbuf);
-			bcs->hw.hdlc.rcvbuf = NULL;
-		}
-		if (bcs->blog) {
-			kfree(bcs->blog);
-			bcs->blog = NULL;
-		}
+		kfree(bcs->hw.hdlc.rcvbuf);
+		bcs->hw.hdlc.rcvbuf = NULL;
+		kfree(bcs->blog);
+		bcs->blog = NULL;
 		skb_queue_purge(&bcs->rqueue);
 		skb_queue_purge(&bcs->squeue);
 		if (bcs->tx_skb) {
@@ -570,7 +566,7 @@ close_hdlcstate(struct BCState *bcs)
 	}
 }
 
-int
+static int
 open_hdlcstate(struct IsdnCardState *cs, struct BCState *bcs)
 {
 	if (!test_and_set_bit(BC_FLG_INIT, &bcs->Flag)) {
@@ -598,7 +594,7 @@ open_hdlcstate(struct IsdnCardState *cs, struct BCState *bcs)
 	return (0);
 }
 
-int
+static int
 setstack_hdlc(struct PStack *st, struct BCState *bcs)
 {
 	bcs->channel = st->l1.bc;
@@ -612,6 +608,7 @@ setstack_hdlc(struct PStack *st, struct BCState *bcs)
 	return (0);
 }
 
+#if 0
 void __init
 clear_pending_hdlc_ints(struct IsdnCardState *cs)
 {
@@ -641,8 +638,9 @@ clear_pending_hdlc_ints(struct IsdnCardState *cs)
 		debugl1(cs, "HDLC 2 VIN %x", val);
 	}
 }
+#endif  /*  0  */
 
-void __init
+static void __init
 inithdlc(struct IsdnCardState *cs)
 {
 	cs->bcs[0].BC_SetStack = setstack_hdlc;
